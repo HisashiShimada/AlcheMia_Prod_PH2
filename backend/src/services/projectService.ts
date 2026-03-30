@@ -257,17 +257,14 @@ export class ProjectService {
       client = await pool.connect();
       await client.query('BEGIN');
 
-      // 3. 削除条件チェック: project_maiml_flg = false のみ削除可能
-      const projectInfoQuery = `
-          SELECT project_maiml_flg, project_name
-          FROM project
-          WHERE organization_id = $1 AND project_id = $2
-          FOR UPDATE
-        `;
+      // 3. 削除条件チェック: project_maiml_flg = false のみ削除可能（Repository層使用）
+      const projectInfo = await projectRepository.findProjectForDelete(
+        organizationId,
+        projectId,
+        client
+      );
 
-      const projectResult = await client.query(projectInfoQuery, [organizationId, projectId]);
-
-      if (projectResult.rows.length === 0) {
+      if (!projectInfo) {
         await client.query('ROLLBACK');
         return {
           success: false,
@@ -277,8 +274,6 @@ export class ProjectService {
           },
         };
       }
-
-      const projectInfo = projectResult.rows[0];
 
       // project_maiml_flg = true の場合は削除不可
       if (projectInfo.project_maiml_flg === true) {
@@ -297,74 +292,16 @@ export class ProjectService {
         };
       }
 
-      // 4. 関連テーブルのデータを削除（外部キー制約順）
+      // 4. 関連テーブルのデータを削除（Repository層使用）
       console.log('🗑️ [ProjectService.deleteProject] 関連テーブル削除開始');
+      await projectRepository.deleteProjectRelatedData(organizationId, projectId, client);
 
-      // 孫テーブル: project_task_detail
-      await client.query(
-        'DELETE FROM project_task_detail WHERE organization_id = $1 AND project_id = $2',
-        [organizationId, projectId]
-      );
-
-      // 孫テーブル: template_data
-      await client.query(
-        'DELETE FROM template_data WHERE organization_id = $1 AND project_id = $2',
-        [organizationId, projectId]
-      );
-
-      // 孫テーブル: transition_data
-      await client.query(
-        'DELETE FROM transition_data WHERE organization_id = $1 AND project_id = $2',
-        [organizationId, projectId]
-      );
-
-      // 孫テーブル: instruction_acknowledged_history
-      await client.query(
-        `DELETE FROM instruction_acknowledged_history 
-           WHERE organization_id = $1 
-           AND project_id = $2`,
-        [organizationId, projectId]
-      );
-
-      // 子テーブル: project_task
-      await client.query(
-        'DELETE FROM project_task WHERE organization_id = $1 AND project_id = $2',
-        [organizationId, projectId]
-      );
-
-      // 子テーブル: project_instruction
-      await client.query(
-        'DELETE FROM project_instruction WHERE organization_id = $1 AND project_id = $2',
-        [organizationId, projectId]
-      );
-
-      // 子テーブル: issue
-      await client.query('DELETE FROM issue WHERE organization_id = $1 AND project_id = $2', [
-        organizationId,
-        projectId,
-      ]);
-
-      // 子テーブル: issue_comment
-      await client.query(
-        'DELETE FROM issue_comment WHERE organization_id = $1 AND project_id = $2',
-        [organizationId, projectId]
-      );
-
-      // 子テーブル: maiml_event_log
-      await client.query(
-        'DELETE FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2',
-        [organizationId, projectId]
-      );
-
-      // 親テーブル: project
-      await client.query('DELETE FROM project WHERE organization_id = $1 AND project_id = $2', [
-        organizationId,
-        projectId,
-      ]);
+      // 5. プロジェクトを削除（Repository層使用）
+      await projectRepository.deleteProject(organizationId, projectId, client);
 
       console.log('✅ [ProjectService.deleteProject] DB削除完了');
 
-      // 5. コミット
+      // 6. コミット
       await client.query('COMMIT');
 
       // 6. ストレージからプロジェクトフォルダを削除（トランザクション外）
@@ -417,73 +354,6 @@ export class ProjectService {
       if (client) {
         client.release();
       }
-    }
-  }
-
-  /**
-   * project_maiml_flgフラグ更新
-   *
-   * Task: project_maiml_flg更新処理実装 - Phase 1
-   * @description プロジェクトのproject_maiml_flgを更新する（true/false両対応）
-   * @note MAIMLファイル削除時・アップロード時・編集保存時に呼び出す
-   *
-   * @param organizationId - 組織ID
-   * @param projectName - プロジェクト名
-   * @param flagValue - フラグ値（true: 有, false: 無）デフォルトfalse（後方互換性）
-   * @returns 更新結果
-   */
-  async updateMaimlFlag(
-    organizationId: string,
-    projectName: string,
-    flagValue: boolean = false
-  ): Promise<ServiceResult<{ message: string }>> {
-    const pool = getPool();
-
-    try {
-      // 1. projectNameからprojectIdを取得
-      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
-
-      if (!project) {
-        return {
-          success: false,
-          error: {
-            code: 'RESOURCE_NOT_FOUND',
-            message: 'プロジェクトが見つかりません',
-          },
-        };
-      }
-
-      const projectId = project.project_id;
-
-      // 2. project_maiml_flgを動的に更新
-      const updateQuery = `
-            UPDATE project
-            SET project_maiml_flg = $3,
-                update_at = CURRENT_TIMESTAMP
-            WHERE organization_id = $1 AND project_id = $2
-          `;
-
-      await pool.query(updateQuery, [organizationId, projectId, flagValue]);
-
-      console.log(`✅ [ProjectService.updateMaimlFlag] project_maiml_flg更新完了: ${flagValue}`);
-
-      return {
-        success: true,
-        data: {
-          message: `project_maiml_flgを${flagValue}に更新しました`,
-        },
-      };
-    } catch (error) {
-      console.error('❌ [ProjectService.updateMaimlFlag] エラー:', error);
-
-      return {
-        success: false,
-        error: {
-          code: 'SYSTEM_DATABASE_ERROR',
-          message: 'データベースエラーが発生しました',
-          originalError: error as Error,
-        },
-      };
     }
   }
 

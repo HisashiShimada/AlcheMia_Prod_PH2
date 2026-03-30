@@ -140,14 +140,14 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
 
     // エラーハンドリング
     if (!result.success) {
-      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      const errorCode = result.error?.code || 'E4001';
       let statusCode = 500;
 
-      if (errorCode === 'RESOURCE_NOT_FOUND') {
+      if (errorCode === 'E6001') {
         statusCode = 404;
-      } else if (errorCode === 'BUSINESS_MAIML_FILE_EXISTS') {
+      } else if (errorCode === 'E7009') {
         statusCode = 400;
-      } else if (errorCode.startsWith('VALIDATION_')) {
+      } else if (errorCode.startsWith('E1')) {
         statusCode = 400;
       }
 
@@ -194,100 +194,7 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
-        message: 'システムエラーが発生しました',
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
-    });
-  }
-}
-
-/**
- * project_maiml_flgフラグ更新コントローラー
- * PATCH /api/v1/projects/:projectName/maiml-flag
- * 
- * Task: project_maiml_flg更新処理実装 - Phase 1
- */
-export async function updateMaimlFlag(req: Request, res: Response): Promise<void> {
-  const requestId = uuidv4();
-  const projectService = new ProjectService();
-  
-  try {
-    const { organizationId } = req.user!;
-    const { projectName } = req.params;
-    
-    // ✨ デバッグ: リクエストボディ全体をログ出力
-    console.log('📥 [updateMaimlFlag] req.body受信:', {
-      body: req.body,
-      bodyType: typeof req.body,
-      bodyKeys: Object.keys(req.body || {}),
-    });
-    
-    const { flagValue } = req.body;  // リクエストボディからflagValueを受け取る
-
-    console.log('🔄 [updateMaimlFlag] project_maiml_flgフラグ更新リクエスト:', {
-      organizationId,
-      projectName,
-      flagValue,
-      flagValueType: typeof flagValue,
-      requestId,
-    });
-
-    // Service層でproject_maiml_flgを更新（flagValueがundefinedの場合はデフォルトfalse）
-    const result = await projectService.updateMaimlFlag(
-      organizationId,
-      projectName,
-      flagValue ?? false
-    );
-
-    // エラーハンドリング
-    if (!result.success) {
-      const errorCode = result.error?.code || 'SYSTEM_ERROR';
-      let statusCode = 500;
-
-      if (errorCode === 'RESOURCE_NOT_FOUND') {
-        statusCode = 404;
-      }
-
-      res.status(statusCode).json({
-        success: false,
-        error: {
-          code: errorCode,
-          message: result.error?.message || 'エラーが発生しました',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    console.log('✅ [updateMaimlFlag] project_maiml_flgフラグ更新成功');
-
-    res.status(200).json({
-      success: true,
-      data: result.data,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
-    });
-  } catch (error) {
-    logError('updateMaimlFlag error', error as Error, {
-      action: 'update_maiml_flag',
-      organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
-      requestId,
-    });
-
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {

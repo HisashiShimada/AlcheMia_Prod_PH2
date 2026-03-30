@@ -34,6 +34,8 @@ import { UploadType, BatchStatus } from '../types/uploadBatch';
 import { processConcurrently, getConcurrency } from '../utils/concurrencyControl';
 import { analyzeMaimlFile, isMaimlFile } from '../utils/maimlAnalyzer';
 import { truncateField, FILE_METADATA_MAX_LENGTHS } from '../utils/stringValidator';
+import * as projectRepository from '../repositories/projectRepository';
+import { Project } from '../types/database';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -436,15 +438,54 @@ export class FileAccessService {
 
     // ✨ Task: project_maiml_flg更新処理実装 - Phase 2
     // 複数ファイル内にMAIMLファイルが含まれているかチェック
+    // 削除時と同じロジック: fileName.endsWith('.maiml')
     console.log(`📊 [Upload] アップロードファイル一覧:`, uploadedFiles.map(f => ({
       fileName: f.fileName,
       contentType: f.contentType,
-      isMaiml: isMaimlFile(f.fileName, f.contentType)
+      isMaiml: f.fileName.endsWith('.maiml')
     })));
     
     const hasMaimlFile = uploadedFiles.some(file => 
-      isMaimlFile(file.fileName, file.contentType)
+      file.fileName.endsWith('.maiml')
     );
+
+    // ✨ Task: プロジェクト管理画面アップロード時のproject_maiml_flg更新（2026-03-30）
+    // MAIMLファイルがアップロードされた場合、project_maiml_flgを更新
+    if (hasMaimlFile && targetPath.startsWith('projects/')) {
+      console.log('🔍 [Upload] MAIMLファイルアップロード、project_maiml_flg更新開始:', targetPath);
+
+      // targetPathからプロジェクト名を抽出
+      const pathParts = targetPath.split('/');
+      if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+        const projectName = pathParts[1];
+
+        try {
+          // プロジェクト情報を取得
+          const existingProject = await projectRepository.findByName(organizationId, projectName);
+
+          if (!existingProject) {
+            console.warn(`⚠️ [Upload] プロジェクトが見つかりません: ${projectName}`);
+          } else if (!existingProject.project_maiml_flg) {
+            // project_maiml_flgがfalseの場合のみtrueに更新
+            const updatedProject: Project = {
+              ...existingProject,
+              project_maiml_flg: true,
+            };
+
+            await projectRepository.update(updatedProject);
+            console.log('✅ [Upload] project_maiml_flg=true更新完了:', projectName);
+          } else {
+            console.log('ℹ️ [Upload] project_maiml_flgは既にtrue:', projectName);
+          }
+        } catch (updateError) {
+          // フラグ更新失敗は警告のみ（ファイルアップロードは成功しているため）
+          console.error('❌ [Upload] project_maiml_flg更新失敗（処理は続行）:', {
+            projectName,
+            error: updateError,
+          });
+        }
+      }
+    }
     
     // 5. Phase2-1: バッチ完了
     const finalStatus: BatchStatus = 
@@ -638,19 +679,24 @@ export class FileAccessService {
    * 
    * Task: ファイル削除API共通化
    * Task: ファイル削除時DBメタデータ削除実装 (2026-03-25)
+   * Task: project_maiml_flg更新処理をService層に統一 (2026-03-30)
    * - ファイルキーを指定してストレージからファイルを削除
    * - file_metadataテーブルのレコードを論理削除
+   * - MAIMLファイル削除時にproject_maiml_flgをfalseに更新（オプション）
    * - フォーマット、プロジェクト、その他のファイルで共通利用可能
    * 
    * @param organizationId 組織ID
    * @param fileKey ファイルキー（相対パス）
+   * @param options オプション設定
+   * @param options.updateProjectFlag project_maiml_flg更新を行うかどうか
    * @throws ValidationError ファイルキーが不正な場合
    * @throws NotFoundError ファイルが存在しない場合
    * @throws StorageError ストレージエラーの場合
    */
   async deleteFileByKey(
     organizationId: string,
-    fileKey: string
+    fileKey: string,
+    options?: { updateProjectFlag?: boolean }
   ): Promise<void> {
     // 1. ファイルキーのバリデーション
     if (!fileKey || fileKey.trim().length === 0) {
@@ -703,6 +749,49 @@ export class FileAccessService {
     } catch (error) {
       // ログに記録するが、処理は続行（ストレージ削除は成功しているため）
       console.error(`⚠️ [Delete] DBメタデータ論理削除エラー（処理は続行）: ${normalizedFileKey}`, error);
+    }
+
+    // 5. オプショナル: project_maiml_flg更新（updateProjectFlag === true かつ MAIMLファイルの場合）
+    // アップロード処理と同じロジック: fileName.endsWith('.maiml')
+    if (options?.updateProjectFlag) {
+      const fileName = fileKey.split('/').pop() || '';
+      const isMaimlFile = fileName.endsWith('.maiml');
+
+      if (isMaimlFile && fileKey.startsWith('projects/')) {
+        console.log('🔍 [Delete] MAIMLファイル削除、project_maiml_flg更新開始:', fileKey);
+
+        // fileKeyからプロジェクト名を抽出
+        const pathParts = fileKey.split('/');
+        if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+          const projectName = pathParts[1];
+
+          try {
+            // プロジェクト情報を取得
+            const existingProject = await projectRepository.findByName(organizationId, projectName);
+
+            if (!existingProject) {
+              console.warn(`⚠️ [Delete] プロジェクトが見つかりません: ${projectName}`);
+            } else if (existingProject.project_maiml_flg) {
+              // project_maiml_flgがtrueの場合のみfalseに更新
+              const updatedProject: Project = {
+                ...existingProject,
+                project_maiml_flg: false,
+              };
+
+              await projectRepository.update(updatedProject);
+              console.log('✅ [Delete] project_maiml_flg=false更新完了:', projectName);
+            } else {
+              console.log('ℹ️ [Delete] project_maiml_flgは既にfalse:', projectName);
+            }
+          } catch (updateError) {
+            // フラグ更新失敗は警告のみ（ファイル削除は成功しているため）
+            console.error('❌ [Delete] project_maiml_flg更新失敗（処理は続行）:', {
+              projectName,
+              error: updateError,
+            });
+          }
+        }
+      }
     }
   }
 

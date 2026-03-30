@@ -61,7 +61,6 @@ import {
   unpublishProject,
   getPublishStatus,
   deleteProject as deleteProjectApi,
-  updateMaimlFlag,
   type CreateProjectRequest,
   type ApiResponse,
   type ProjectListResponse,
@@ -422,7 +421,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   }, []);
 
   // アップロード完了ハンドラ
-  // ✨ Task: project_maiml_flg更新処理実装 - Phase 3
   const handleUploadComplete = useCallback(async (result: {
     mode: string;
     fileCount: number;
@@ -431,25 +429,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   }) => {
     console.log('Upload completed:', result);
     
-    // ✨ MAIMLファイルがアップロードされた場合、project_maiml_flgを更新
-    // selectedProjectは既に定義されているため、直接参照可能
-    const currentProject = projects.find(p => p.id === selectedProjectId);
-    if (result.hasMaimlFile === true && currentProject) {
-      try {
-        console.log('📝 [ProjectManagement] MAIMLファイルがアップロードされました - project_maiml_flgを更新');
-        await updateMaimlFlag(currentProject.name, true); // ✅ flagValue: true を明示
-        console.log('✅ [ProjectManagement] project_maiml_flg更新成功');
-        
-        // プロジェクト一覧を再取得してフラグの更新を反映
-        await refetchProjects();
-      } catch (error) {
-        console.error('❌ [ProjectManagement] project_maiml_flg更新失敗:', error);
-        // エラーメッセージは表示しない（アップロード自体は成功しているため）
-      }
-    }
-    
+    // プロジェクト一覧を再取得（MAIMLファイルのフラグ更新は削除API側で自動実行）
+    await refetchProjects();
     handleRefresh();
-  }, [handleRefresh, projects, selectedProjectId, refetchProjects]);
+  }, [handleRefresh, refetchProjects]);
 
   // 選択したプロジェクトとそのファイル一覧を取得
   const selectedProject = useMemo(() => {
@@ -1113,14 +1096,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           console.log(`🗑️ [ProjectManagement] ファイル削除開始:`, file.name);
           
           if (isMaimlFile) {
-            // MAIMLファイル: 共通削除API（project_statusチェック付き） + フラグ更新API
-            // Step 1: ファイルを削除（プロジェクト管理画面からはcheckProjectStatus=trueで呼び出し）
+            // MAIMLファイル: 共通削除API（project_statusチェック付き）
+            // フラグ更新は削除API側で自動実行
             await deleteFileByKey(file.path, true);
             console.log('✅ [ProjectManagement] MAIMLファイル削除成功:', file.path);
-            
-            // Step 2: project_maiml_flgをfalseに更新
-            const result = await updateMaimlFlag(selectedProject.name);
-            console.log('✅ [ProjectManagement] project_maiml_flg更新成功:', result);
             
             message.success(`MAIMLファイル「${file.name}」を削除しました`);
             

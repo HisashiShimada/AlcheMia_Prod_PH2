@@ -16,6 +16,8 @@ import { ingestSingleFileAsync } from '../services/singleFileIngestService';
 import UploadBatchRepository from '../repositories/UploadBatchRepository';
 import * as projectRepository from '../repositories/projectRepository';
 import { ProjectService } from '../services/projectService';
+import * as codeMasterRepository from '../repositories/codeMasterRepository';
+import { Project } from '../types/database';
 
 /**
  * 単一ファイルダウンロード用署名付きURL取得エンドポイント
@@ -557,7 +559,6 @@ export async function getFileViewUrl(req: Request, res: Response): Promise<void>
  */
 export async function deleteFile(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
-  const projectService = new ProjectService();
   
   try {
     const { organizationId } = req.user!;
@@ -569,8 +570,6 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
       checkProjectStatus,
       requestId,
     });
-
-    let maimlFlagUpdated = false;
 
     // ① オプショナル: project_statusチェック（checkProjectStatus === true の場合のみ）
     if (checkProjectStatus === true) {
@@ -614,16 +613,20 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
 
           // project_status != 0 の場合はエラー
           if (projectInfo && projectInfo.project_status !== 0) {
-            // ステータス名のマッピング
-            const statusNames: { [key: number]: string } = {
-              0: 'プロジェクト計画中',
-              1: 'タスク実行待ち',
-              2: 'タスク実行中',
-              3: 'タスク結果レビュー待ち',
-              4: 'プロジェクト完了',
-              5: 'タスク異常終了',
-            };
-            const currentStatusName = statusNames[projectInfo.project_status] || '不明';
+            // code_masterテーブルからステータス名を取得
+            const currentStatusMaster = await codeMasterRepository.findByValue(
+              organizationId,
+              'project_status',
+              String(projectInfo.project_status)
+            );
+            const requiredStatusMaster = await codeMasterRepository.findByValue(
+              organizationId,
+              'project_status',
+              '0'
+            );
+
+            const currentStatusName = currentStatusMaster?.code_name;
+            const requiredStatusName = requiredStatusMaster?.code_name;
 
             console.log('❌ [File Delete] project_statusチェック失敗:', {
               currentStatus: projectInfo.project_status,
@@ -640,7 +643,7 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
                   currentStatus: projectInfo.project_status,
                   currentStatusName,
                   requiredStatus: 0,
-                  requiredStatusName: 'プロジェクト計画中',
+                  requiredStatusName,
                 },
               },
               meta: {
@@ -660,44 +663,18 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
       }
     }
 
-    // ② 削除処理（既存処理）
+    // ② 削除処理（Service層で project_maiml_flg 更新も実行）
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
 
-    await service.deleteFileByKey(organizationId, fileKey);
+    await service.deleteFileByKey(
+      organizationId,
+      fileKey,
+      { updateProjectFlag: checkProjectStatus === true }  // オプション渡す
+    );
 
     console.log('✅ [File Delete] ファイル削除成功:', fileKey);
-
-    // ③ オプショナル: maiml_flg更新（checkProjectStatus === true かつ maimlファイルの場合）
-    if (checkProjectStatus === true) {
-      const fileName = fileKey.split('/').pop() || '';
-      const isMaimlFile = fileName.endsWith('.maiml');
-
-      if (isMaimlFile) {
-        // fileKeyからプロジェクト名を抽出
-        const pathParts = fileKey.split('/');
-        if (pathParts.length >= 2 && pathParts[0] === 'projects') {
-          const projectName = pathParts[1];
-
-          console.log('🔄 [File Delete] project_maiml_flg更新開始');
-
-          const updateResult = await projectService.updateMaimlFlag(
-            organizationId,
-            projectName,
-            false
-          );
-
-          if (!updateResult.success) {
-            // maiml_flg更新失敗は警告のみ（ファイル削除は成功しているため）
-            console.warn('⚠️ [File Delete] project_maiml_flg更新失敗（処理は続行）:', updateResult.error);
-          } else {
-            maimlFlagUpdated = true;
-            console.log('✅ [File Delete] project_maiml_flg=false更新完了');
-          }
-        }
-      }
-    }
 
     // 成功レスポンス
     res.status(200).json({
@@ -705,7 +682,6 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
       data: {
         message: 'ファイルを削除しました',
         fileKey,
-        ...(maimlFlagUpdated && { maimlFlagUpdated: true }),
       },
       meta: {
         timestamp: new Date().toISOString(),
