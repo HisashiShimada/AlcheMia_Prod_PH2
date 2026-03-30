@@ -180,6 +180,24 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
       return { basicInfo: { id: 'unknown', type: templateType, name: '不明' }, templateProps: {} };
     }
 
+    // ※ xmlns 付き XML は querySelector(':scope > tag') がヒットしないため
+    //   getElementsByTagName でダイレクトチルドレンを取得するヘルパーを使用する
+    const directChild = (parent: Element, tagName: string): Element | null => {
+      const children = parent.getElementsByTagName(tagName);
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].parentElement === parent) return children[i];
+      }
+      return null;
+    };
+    const directChildren = (parent: Element, tagName: string): Element[] => {
+      const result: Element[] = [];
+      const children = parent.getElementsByTagName(tagName);
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].parentElement === parent) result.push(children[i]);
+      }
+      return result;
+    };
+
     // --- 基本情報 ---
     const basicInfo: Record<string, string> = {
       id: templateElement.getAttribute('id') || '',
@@ -188,29 +206,29 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
     };
 
     // uuid 子要素
-    const uuidEl = templateElement.querySelector(':scope > uuid');
+    const uuidEl = directChild(templateElement, 'uuid');
     if (uuidEl?.textContent?.trim()) {
       basicInfo.uuid = uuidEl.textContent.trim();
     }
 
     // description 子要素
-    const descEl = templateElement.querySelector(':scope > description');
+    const descEl = directChild(templateElement, 'description');
     if (descEl?.textContent?.trim()) {
       basicInfo.description = descEl.textContent.trim();
     }
 
     // annotation 子要素
-    const annotationEl = templateElement.querySelector(':scope > annotation');
+    const annotationEl = directChild(templateElement, 'annotation');
     if (annotationEl?.textContent?.trim()) {
       basicInfo.annotation = annotationEl.textContent.trim();
     }
 
     // insertion 子要素
-    const insertionEl = templateElement.querySelector(':scope > insertion');
+    const insertionEl = directChild(templateElement, 'insertion');
     if (insertionEl) {
-      const uri = insertionEl.querySelector(':scope > uri')?.textContent?.trim();
-      const hash = insertionEl.querySelector(':scope > hash')?.textContent?.trim();
-      const format = insertionEl.querySelector(':scope > format')?.textContent?.trim();
+      const uri = directChild(insertionEl, 'uri')?.textContent?.trim();
+      const hash = directChild(insertionEl, 'hash')?.textContent?.trim();
+      const format = directChild(insertionEl, 'format')?.textContent?.trim();
       if (uri) basicInfo.insertion_uri = uri;
       if (hash) basicInfo.insertion_hash = hash;
       if (format) basicInfo.insertion_format = format;
@@ -220,7 +238,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
 
     // --- テンプレートプロパティ（property 要素のみ） ---
     const templateProps: Record<string, { key: string; value?: string; description?: string; xsiType?: string; units?: string; content?: Record<string, string> }> = {};
-    const propElements = Array.from(templateElement.querySelectorAll(':scope > property'));
+    const propElements = directChildren(templateElement, 'property');
 
     propElements.forEach((prop) => {
       const key = prop.getAttribute('key');
@@ -237,15 +255,15 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
       if (units) propObj.units = units;
 
       // value 子要素
-      const valueEl = prop.querySelector(':scope > value');
+      const valueEl = directChild(prop, 'value');
       if (valueEl) propObj.value = valueEl.textContent?.trim();
 
       // description 子要素
-      const propDescEl = prop.querySelector(':scope > description');
+      const propDescEl = directChild(prop, 'description');
       if (propDescEl) propObj.description = propDescEl.textContent?.trim();
 
       // content 子要素
-      const contentEl = prop.querySelector(':scope > content');
+      const contentEl = directChild(prop, 'content');
       if (contentEl) {
         const contentObj: Record<string, string> = {};
         for (let k = 0; k < contentEl.attributes.length; k++) {

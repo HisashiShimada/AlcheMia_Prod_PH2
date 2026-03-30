@@ -4,7 +4,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Typography, Tabs, Table, Card, Button, Space, Tag, theme } from 'antd';
+import { Typography, Tabs, Table, Card, Button, Space, Tag, theme, Tooltip } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -72,6 +72,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   }, [properties?.type]);
   
   // structuredPropertiesから値を取得するヘルパー関数
+  // null / "" / 0 / false はそのまま返す。value が undefined のときのみ undefined を返す（renderValue が処理）
   const getPropertyValue = (propObj: PropertyObject): unknown => {
     if (propObj.value !== undefined) {
       return propObj.value;
@@ -79,7 +80,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
     if (propObj.defaultValue !== undefined) {
       return propObj.defaultValue;
     }
-    return '未設定';
+    return undefined;
   };
   
   // structuredPropertiesをテーブル用のRecord形式に変換
@@ -108,15 +109,42 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   }, [structuredProperties.data]);
   
   // プロパティ値のレンダリングヘルパー
+  // undefined / null / "" を明確に区別して表示する
   const renderValue = (value: unknown) => {
-    if (value === null || value === undefined || value === '') {
-      return <Text type="secondary" italic>未設定</Text>;
+    // undefined: プロパティ自体が未設定
+    if (value === undefined) {
+      return (
+        <Tooltip title="値が設定されていません">
+          <Text type="secondary" italic style={{ color: '#bfbfbf' }}>未設定</Text>
+        </Tooltip>
+      );
     }
+    // null: 明示的に null が設定されている
+    if (value === null) {
+      return (
+        <Tooltip title="null が設定されています">
+          <Text type="secondary" italic style={{ color: '#bfbfbf' }}>null</Text>
+        </Tooltip>
+      );
+    }
+    // 空文字: 値は存在するが中身が空
+    if (value === '') {
+      return (
+        <Tooltip title="空の文字列が設定されています">
+          <Text type="secondary" italic style={{ color: '#bfbfbf' }}>
+            {`""`} <Text type="secondary" style={{ fontSize: 10 }}>(空文字)</Text>
+          </Text>
+        </Tooltip>
+      );
+    }
+    // boolean: true / false をそのまま表示
     if (typeof value === 'boolean') {
-      return value ? <Tag color="success">はい</Tag> : <Tag color="error">いいえ</Tag>;
+      return value
+        ? <Tag color="success">true</Tag>
+        : <Tag color="error">false</Tag>;
     }
     if (typeof value === 'object') {
-      // ✅ Fix4: Object型を JSON.stringify 1行ではなくフラット展開して表示
+      // Object型をフラット展開して表示
       return (
         <div style={{ fontSize: 12 }}>
           {Object.entries(value as Record<string, unknown>).map(([k, v]) => (
@@ -162,7 +190,13 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
       dataIndex: 'xsiType',
       key: 'xsiType',
       width: '20%',
-      render: (text: string) => text ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text> : null,
+      render: (text: string) => text
+        ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
+        : (
+          <Tooltip title="xsi:type が設定されていません">
+            <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
+          </Tooltip>
+        ),
     },
     {
       title: '値',
@@ -176,7 +210,13 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
       dataIndex: 'description',
       key: 'description',
       width: '25%',
-      render: (text: string) => text ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text> : null,
+      render: (text: string) => text
+        ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
+        : (
+          <Tooltip title="説明・単位が設定されていません">
+            <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
+          </Tooltip>
+        ),
     },
   ];
 
@@ -265,7 +305,9 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
           scroll={{ x: true }}
         />
       ) : (
-        <Text type="secondary">表示するプロパティがありません</Text>
+        <Tooltip title="このノードにはテンプレートが設定されていません">
+          <Text type="secondary" style={{ cursor: 'default' }}>表示するプロパティがありません</Text>
+        </Tooltip>
       ),
     },
     {
@@ -280,7 +322,9 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
           showHeader={false}
         />
       ) : (
-        <Text type="secondary">表示するプロパティがありません</Text>
+        <Tooltip title="このノードにはデータが設定されていません">
+          <Text type="secondary" style={{ cursor: 'default' }}>表示するプロパティがありません</Text>
+        </Tooltip>
       ),
     },
   ];
