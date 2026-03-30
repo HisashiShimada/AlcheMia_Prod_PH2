@@ -205,6 +205,12 @@ router.post(
  * - ファイルキーを直接指定してファイルを削除
  * - フォーマット、プロジェクト、その他のファイルで共通利用可能
  * 
+ * Task: プロジェクト管理画面maimlファイル削除時project_status確認（2026-03-27）
+ * - オプショナルパラメータ: checkProjectStatus
+ * - プロジェクト管理画面からはcheckProjectStatus=trueで呼び出し
+ * - maimlファイル削除時にproject_status=0であることを確認
+ * - fileKeyからプロジェクト名を自動抽出
+ * 
  * @middleware authMiddleware - JWT認証
  * @note すべてのロールがアクセス可能（マルチテナント分離で保護）
  */
@@ -219,6 +225,10 @@ router.delete(
       .withMessage('fileKeyは文字列である必要があります')
       .isLength({ min: 1, max: 1024 })
       .withMessage('fileKeyは1〜1024文字である必要があります'),
+    body('checkProjectStatus')
+      .optional()
+      .isBoolean()
+      .withMessage('checkProjectStatusはboolean型である必要があります'),
   ],
   handleValidationErrors,
   fileAccessController.deleteFile

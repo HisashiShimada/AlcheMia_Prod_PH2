@@ -23,6 +23,7 @@ import {
   buildEventLogXML,
   replaceDataAndEventLogInMaiml,
 } from '../utils/maimlDataWriter';
+import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 
 /**
  * maiml_event_log テーブルの1行
@@ -121,14 +122,20 @@ export class MaimlWriterService {
     const eventLogIdMatch = maimlContent.match(/<eventLog[^>]*\sid="([^"]+)"/);
     const eventLogId = eventLogIdMatch ? eventLogIdMatch[1] : 'eventLogID';
 
-    // --- 6. XML を生成 ---
-    const dataXml = buildDataXML(templateDataRows, dataId);
-    const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
+    // --- 6. 既存 MAIMLから UUID マッピングを抽出（改竄防止: UUID 再利用のため）---
+    // 既存の <data> / <eventLog> ブロックにある <uuid> 要素の値を識別キーで管理し、
+    // 同じ要素（同じ id 属性を持つ要素）に同じ UUID を再利用する。
+    // 新規要素・新規ファイルの場合は randomUUID() で生成する。
+    const existingUuids = extractUuidsFromMaiml(maimlContent);
 
-    // --- 7. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
+    // --- 7. XML を生成（既存 UUID を再利用）---
+    const dataXml = buildDataXML(templateDataRows, dataId, existingUuids);
+    const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
+
+    // --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
     const updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
 
-    // --- 8. 上書き保存前にアーカイブ処理 ---
+    // --- 9. 上書き保存前にアーカイブ処理 ---
     // 既存ファイルを archive/{projectName}_v{n}.maiml として保存する。
     // 命名規則: {baseName}_v{n}.maiml （s3_structure.md 規約準拠）
     // アーカイブ失敗は警告ログのみに留め、本体の書き込み処理は継続する。

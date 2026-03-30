@@ -208,6 +208,9 @@ export interface UploadResponseData {
     failedFiles: number;
     totalSize: number;
   };
+  // ✨ Task: project_maiml_flg更新処理実装 - Phase 3
+  // アップロード対象にMAIMLファイルが含まれているか
+  hasMaimlFile?: boolean;
 }
 
 /**

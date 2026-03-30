@@ -228,7 +228,7 @@ export default function UnifiedSelectionDialog({
             </Space>
           }
           description={
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {project.fileName}
               </Text>
@@ -279,7 +279,7 @@ export default function UnifiedSelectionDialog({
             </Space>
           }
           description={
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {method.methodId}
               </Text>
@@ -332,7 +332,7 @@ export default function UnifiedSelectionDialog({
             </Space>
           }
           description={
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {task.taskId}
               </Text>
@@ -401,7 +401,7 @@ export default function UnifiedSelectionDialog({
             {renderEmptyOption('method')}
             {/* メソッド一覧 */}
             {methods.length === 0 ? (
-              <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+              <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
                 <Text type="secondary">メソッドがありません</Text>
               </Space>
             ) : (
@@ -414,7 +414,7 @@ export default function UnifiedSelectionDialog({
       return (
         <div style={{ maxHeight: 500, overflowY: 'auto' }}>
           {tasks.length === 0 ? (
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+            <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
               <Text type="secondary">タスクがありません</Text>
             </Space>
           ) : (
