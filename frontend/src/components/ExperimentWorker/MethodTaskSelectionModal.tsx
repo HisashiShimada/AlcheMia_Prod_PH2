@@ -5,6 +5,7 @@ import { Modal, Table, Tag, Typography, Input, Select, Space, Row, Col, Button, 
 import { SearchOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task, TaskStatus, Method } from '@/types/experimentWorker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -35,6 +36,7 @@ export default function MethodTaskSelectionModal({
   methods: propsMethods,
 }: MethodTaskSelectionModalProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   
   // 一時選択状態（モーダル内での選択状態）
   const [tempSelectedMethodId, setTempSelectedMethodId] = useState<string | null>(null);
@@ -90,10 +92,11 @@ export default function MethodTaskSelectionModal({
     }));
   }, [methods, selectedProject, activeMethodId]);
   
-  // タスク名の選択肢を生成
-  const taskNameOptions = useMemo(() => {
-    const uniqueNames = Array.from(new Set(allTasks.map(task => task.taskName)));
-    return uniqueNames.map(name => ({ label: name, value: name }));
+  // タスク番号の選択肢を生成
+  const taskNoOptions = useMemo(() => {
+    const uniqueNos = Array.from(new Set(allTasks.map(task => task.taskNo)));
+    uniqueNos.sort((a, b) => Number(a) - Number(b));
+    return uniqueNos.map(no => ({ label: no, value: no }));
   }, [allTasks]);
   
   // ステータスの選択肢
@@ -124,12 +127,12 @@ export default function MethodTaskSelectionModal({
     return allTasks.filter(task => {
       // あいまい検索（全カラム対象）
       const matchesSearch = searchText === '' || 
-        task.taskName.toLowerCase().includes(searchText.toLowerCase()) ||
+        task.taskNo.toString().includes(searchText) ||
         getStatusConfig(task.status).label.includes(searchText) ||
         task.progressRate.toString().includes(searchText);
       
-      // タスク名フィルタ
-      const matchesTaskName = !selectedTaskName || task.taskName === selectedTaskName;
+      // タスク番号フィルタ
+      const matchesTaskName = !selectedTaskName || task.taskNo === selectedTaskName;
       
       // ステータスフィルタ
       const matchesStatus = !selectedStatus || task.status === selectedStatus;
@@ -191,12 +194,13 @@ export default function MethodTaskSelectionModal({
       }
     },
     {
-      title: 'タスクの名称',
-      dataIndex: 'taskName',
-      key: 'taskName',
-      width: 250,
+      title: 'タスク番号',
+      dataIndex: 'taskNo',
+      key: 'taskNo',
+      width: 100,
+      align: 'center' as const,
       ellipsis: true,
-      sorter: (a, b) => a.taskName.localeCompare(b.taskName),
+      sorter: (a, b) => Number(a.taskNo) - Number(b.taskNo),
       render: (text: string) => {
         return <Text style={{ fontSize: '14px' }}>{text}</Text>;
       }
@@ -205,7 +209,7 @@ export default function MethodTaskSelectionModal({
       title: 'ステータス',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
+      width: 130,
       align: 'center',
       sorter: (a, b) => a.status.localeCompare(b.status),
       render: (status: TaskStatus) => {
@@ -303,7 +307,7 @@ export default function MethodTaskSelectionModal({
               <Row gutter={[16, 16]} style={{ marginBottom: 16, marginTop: 16 }}>
                 <Col xs={24} sm={8}>
                   <Input
-                    placeholder="検索..."
+                    placeholder={t('experimentWork.methodTaskSelection.searchPlaceholder')}
                     prefix={<SearchOutlined />}
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
@@ -314,19 +318,19 @@ export default function MethodTaskSelectionModal({
                 </Col>
                 <Col xs={24} sm={8}>
                   <Select
-                    placeholder="タスク名"
+                    placeholder={t('experimentWork.methodTaskSelection.taskNoPlaceholder')}
                     style={{ width: '100%' }}
                     value={selectedTaskName}
                     onChange={(value) => setSelectedTaskName(value)}
                     allowClear
-                    options={taskNameOptions}
-                    aria-label="タスク名で絞り込み"
+                    options={taskNoOptions}
+                    aria-label="タスク番号で絞り込み"
                     data-testid="method-task-selection-task-name-filter"
                   />
                 </Col>
                 <Col xs={24} sm={8}>
                   <Select
-                    placeholder="ステータス"
+                    placeholder={t('experimentWork.table.status')}
                     style={{ width: '100%' }}
                     value={selectedStatus}
                     onChange={(value) => setSelectedStatus(value as TaskStatus)}
@@ -354,7 +358,7 @@ export default function MethodTaskSelectionModal({
                   pageSize: 10,
                   showSizeChanger: true,
                   showQuickJumper: false,
-                  showTotal: (total) => `全${total}件`,
+                  showTotal: (total) => t('experimentWork.methodTaskSelection.showTotal').replace('{total}', String(total)),
                   pageSizeOptions: ['10', '20', '50'],
                   position: ['bottomRight'],
                   locale: {

@@ -129,6 +129,11 @@
       "waiting_approval": "承認待ち",
       "completed": "完了"
     },
+    "methodTaskSelection": {
+      "searchPlaceholder": "検索...",
+      "taskNoPlaceholder": "タスク番号",
+      "showTotal": "全{total}件"
+    },
     "projectSelection": {
       "title": "プロジェクトを選択",
       "projectName": "プロジェクト名",

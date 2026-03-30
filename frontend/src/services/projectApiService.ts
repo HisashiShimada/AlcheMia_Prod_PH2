@@ -1934,3 +1934,70 @@ export const getProjectMaiml = async (
   }
 };
 
+// ========================================
+// プロジェクト削除関連API関数
+// ========================================
+
+/**
+ * プロジェクト削除レスポンス型
+ */
+export interface DeleteProjectResponse {
+  deletedCount: number;
+  message: string;
+}
+
+/**
+ * プロジェクトを削除
+ * DELETE /api/v1/projects/:projectName
+ * 
+ * @param projectName プロジェクト名
+ * @returns 削除結果（削除されたファイル数とメッセージ）
+ * @throws Error APIエラー時
+ * 
+ * @remarks
+ * - project_maiml_flg=falseの場合のみ削除可能
+ * - DB + ストレージのファイルを全て削除
+ * 
+ * @example
+ * ```typescript
+ * try {
+ *   const result = await deleteProject('sample_project');
+ *   console.log(`削除成功: ${result.deletedCount}ファイル`);
+ * } catch (error) {
+ *   console.error('削除失敗:', error);
+ * }
+ * ```
+ */
+export const deleteProject = async (
+  projectName: string
+): Promise<DeleteProjectResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] deleteProject - Request', { projectName });
+    
+    const response = await client.delete<{
+      success: true;
+      data: DeleteProjectResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}`);
+
+    console.log('[DEBUG] deleteProject - Success', {
+      deletedCount: response.data.data.deletedCount,
+      message: response.data.data.message,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] deleteProject - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};

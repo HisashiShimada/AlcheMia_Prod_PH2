@@ -211,6 +211,20 @@ export const uploadFiles = async (
   const client = createApiClient();
 
   try {
+    // ファイルサイズの累積値を事前計算（uploadedCountの推定用）
+    const fileSizes: number[] = [];
+    files.forEach(file => {
+      fileSizes.push(file.size);
+    });
+
+    // 各ファイルの累積サイズを計算
+    const cumulativeSizes: number[] = [];
+    let cumulative = 0;
+    fileSizes.forEach(size => {
+      cumulative += size;
+      cumulativeSizes.push(cumulative);
+    });
+
     // FormDataの構築
     const formData = new FormData();
     formData.append('uploadMode', uploadMode);
@@ -244,11 +258,21 @@ export const uploadFiles = async (
               (progressEvent.loaded * 100) / progressEvent.total
             );
             
+            // アップロード済みバイト数から完了ファイル数を推定
+            let uploadedCount = 0;
+            for (let i = 0; i < cumulativeSizes.length; i++) {
+              if (progressEvent.loaded >= cumulativeSizes[i]) {
+                uploadedCount = i + 1;
+              } else {
+                break;
+              }
+            }
+            
             onProgress({
               uploadedBytes: progressEvent.loaded,
               totalBytes: progressEvent.total,
               percentage,
-              uploadedCount: 0,
+              uploadedCount, // 正しく計算されたファイル数
               totalCount: files.length,
             });
           }
@@ -338,25 +362,38 @@ export const getFileViewUrl = async (fileKey: string): Promise<string> => {
  * - プロジェクト、フォーマット、その他のファイルで共通利用可能
  * - organization_idは認証情報から自動取得
  * 
+ * Task: プロジェクト管理画面maimlファイル削除時project_status確認（2026-03-27）
+ * - オプショナルパラメータ: checkProjectStatus
+ * - プロジェクト管理画面からはcheckProjectStatus=trueで呼び出し
+ * - maimlファイル削除時にproject_status=0であることを確認
+ * 
  * @param fileKey ファイルキー（相対パス）
+ * @param checkProjectStatus project_statusチェックを行うか（デフォルト: false）
  * @returns Promise<void> 削除完了後に解決
  * @throws Error APIエラー時
  * 
  * @example
- * // フォーマットファイル削除
+ * // フォーマットファイル削除（statusチェックなし）
  * await deleteFileByKey('formats/chemistry/template.xml');
  * 
- * // プロジェクトファイル削除
+ * // プロジェクトファイル削除（statusチェックなし）
  * await deleteFileByKey('projects/sample_project/data.csv');
+ * 
+ * // プロジェクト管理画面からのmaimlファイル削除（statusチェックあり）
+ * await deleteFileByKey('projects/sample_project/sample_project.maiml', true);
  */
 export const deleteFileByKey = async (
-  fileKey: string
+  fileKey: string,
+  checkProjectStatus?: boolean
 ): Promise<void> => {
   const client = createApiClient();
 
   try {
     await client.delete('/files/delete', {
-      data: { fileKey },
+      data: {
+        fileKey,
+        ...(checkProjectStatus !== undefined && { checkProjectStatus }),
+      },
     });
 
     console.log('ファイル削除成功:', fileKey);

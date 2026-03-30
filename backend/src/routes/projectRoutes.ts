@@ -116,6 +116,33 @@ router.post(
 );
 
 /**
+ * プロジェクト削除
+ * DELETE /api/v1/projects/:projectName
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description プロジェクトを削除する（DB + ストレージ）
+ * @note Task: プロジェクト管理画面削除機能実装 - Phase 3-2
+ * @note project_maiml_flg=falseの場合のみ削除可能
+ * @requirements REQ-1, REQ-2
+ * @roles experiment_admin（書込可）
+ */
+router.delete(
+  '/:projectName',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.deleteProject
+);
+
+/**
  * プロジェクトMAIML取得
  * GET /api/v1/projects/:projectName/maiml
  *

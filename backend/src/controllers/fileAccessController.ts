@@ -14,6 +14,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import { ingestSingleFileAsync } from '../services/singleFileIngestService';
 import UploadBatchRepository from '../repositories/UploadBatchRepository';
+import * as projectRepository from '../repositories/projectRepository';
+import { ProjectService } from '../services/projectService';
+import * as codeMasterRepository from '../repositories/codeMasterRepository';
+import { Project } from '../types/database';
 
 /**
  * 単一ファイルダウンロード用署名付きURL取得エンドポイント
@@ -547,28 +551,130 @@ export async function getFileViewUrl(req: Request, res: Response): Promise<void>
  * Task: ファイル削除API共通化
  * - ファイルキー（相対パス）を指定してファイルを削除
  * - フォーマット、プロジェクト、その他のファイルで共通利用可能
+ * 
+ * Task: プロジェクト管理画面maimlファイル削除時project_status確認（2026-03-27）
+ * - オプショナルパラメータ: checkProjectStatus
+ * - checkProjectStatus=trueかつmaimlファイルの場合、project_status=0をチェック
+ * - maimlファイル削除後、project_maiml_flg=falseに更新
  */
 export async function deleteFile(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   
   try {
     const { organizationId } = req.user!;
-    const { fileKey } = req.body;
+    const { fileKey, checkProjectStatus } = req.body;
 
     console.log('🗑️ [File Delete] リクエスト開始:', {
       organizationId,
       fileKey,
+      checkProjectStatus,
       requestId,
     });
 
-    // Service層の初期化と呼び出し
+    // ① オプショナル: project_statusチェック（checkProjectStatus === true の場合のみ）
+    if (checkProjectStatus === true) {
+      const fileName = fileKey.split('/').pop() || '';
+      const isMaimlFile = fileName.endsWith('.maiml');
+
+      if (isMaimlFile) {
+        console.log('📝 [File Delete] maimlファイル検出、project_statusチェック開始');
+
+        // fileKeyからプロジェクト名を抽出 (projects/{projectName}/...)
+        const pathParts = fileKey.split('/');
+        if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+          const projectName = pathParts[1];
+
+          // プロジェクト情報を取得
+          const project = await projectRepository.findProjectIdByName(
+            organizationId,
+            projectName
+          );
+
+          if (!project) {
+            res.status(404).json({
+              success: false,
+              error: {
+                code: 'E6001',
+                message: 'プロジェクトが見つかりません',
+              },
+              meta: {
+                timestamp: new Date().toISOString(),
+                requestId,
+              },
+            });
+            return;
+          }
+
+          // プロジェクトの詳細情報を取得（project_statusを含む）
+          const projectInfo = await projectRepository.findByIdWithOrganization(
+            organizationId,
+            project.project_id
+          );
+
+          // project_status != 0 の場合はエラー
+          if (projectInfo && projectInfo.project_status !== 0) {
+            // code_masterテーブルからステータス名を取得
+            const currentStatusMaster = await codeMasterRepository.findByValue(
+              organizationId,
+              'project_status',
+              String(projectInfo.project_status)
+            );
+            const requiredStatusMaster = await codeMasterRepository.findByValue(
+              organizationId,
+              'project_status',
+              '0'
+            );
+
+            const currentStatusName = currentStatusMaster?.code_name;
+            const requiredStatusName = requiredStatusMaster?.code_name;
+
+            console.log('❌ [File Delete] project_statusチェック失敗:', {
+              currentStatus: projectInfo.project_status,
+              currentStatusName,
+            });
+
+            res.status(400).json({
+              success: false,
+              error: {
+                code: 'E7005',
+                message: `プロジェクトステータスが計画中ではないため、MAIMLファイルを削除できません（現在のステータス: ${currentStatusName}）`,
+                details: {
+                  projectName,
+                  currentStatus: projectInfo.project_status,
+                  currentStatusName,
+                  requiredStatus: 0,
+                  requiredStatusName,
+                },
+              },
+              meta: {
+                timestamp: new Date().toISOString(),
+                requestId,
+              },
+            });
+            return;
+          }
+
+          console.log('✅ [File Delete] project_statusチェック通過（status=0）');
+        } else {
+          console.log('⚠️ [File Delete] fileKeyがprojects/配下ではないため、project_statusチェックスキップ');
+        }
+      } else {
+        console.log('ℹ️ [File Delete] maimlファイル以外のため、project_statusチェックスキップ');
+      }
+    }
+
+    // ② 削除処理（Service層で project_maiml_flg 更新も実行）
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
 
-    await service.deleteFileByKey(organizationId, fileKey);
+    await service.deleteFileByKey(
+      organizationId,
+      fileKey,
+      { updateProjectFlag: checkProjectStatus === true }  // オプション渡す
+    );
 
-    console.log('✅ [File Delete] 削除成功:', fileKey);
+    console.log('✅ [File Delete] ファイル削除成功:', fileKey);
 
     // 成功レスポンス
     res.status(200).json({
@@ -686,7 +792,7 @@ export async function getBatchHistory(req: Request, res: Response): Promise<void
     res.status(500).json({
       success: false,
       error: {
-        code: 'BATCH_FETCH_ERROR',
+        code: 'E4002',
         message: 'バッチ履歴の取得に失敗しました',
       },
       meta: {
@@ -722,7 +828,7 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
       res.status(404).json({
         success: false,
         error: {
-          code: 'BATCH_NOT_FOUND',
+          code: 'E6001',
           message: 'バッチが見つかりません',
         },
         meta: {
@@ -753,7 +859,7 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
     res.status(500).json({
       success: false,
       error: {
-        code: 'BATCH_PROGRESS_ERROR',
+        code: 'E4002',
         message: 'バッチ進捗の取得に失敗しました',
       },
       meta: {
