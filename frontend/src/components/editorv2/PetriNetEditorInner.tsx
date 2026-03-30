@@ -1001,13 +1001,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         };
         setValidationResult(errorValidationResult);
         setError(errorMessage || 'ペトリネット構造の読み込みに失敗しました');
-        setIsLoading(false);
         
         if (onError) {
           onError(err instanceof Error ? err : new Error(errorMessage));
         }
       } finally {
-        // 🔧 FIX: ローディングフラグを解除
+        // 🔧 FIX: ローディングフラグを解除（正常・エラー問わず必ず実行）
+        setIsLoading(false);
         isLoadingRef.current = false;
         console.log('🔍 [PetriNetEditorInner] Loading flag cleared');
       }
