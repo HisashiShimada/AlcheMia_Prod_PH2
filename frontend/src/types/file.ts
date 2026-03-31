@@ -211,6 +211,9 @@ export interface UploadResponseData {
   // ✨ Task: project_maiml_flg更新処理実装 - Phase 3
   // アップロード対象にMAIMLファイルが含まれているか
   hasMaimlFile?: boolean;
+  // ✨ Task: アップロードキャンセル機能実装
+  // バッチID（キャンセル処理で使用）
+  batchId?: string;
 }
 
 /**
@@ -232,4 +235,7 @@ export interface UploadFilesParams {
   files: File[];
   metadata?: UploadMetadata;
   onProgress?: (progress: UploadProgress) => void;
+  // ✨ Task: アップロードキャンセル機能実装
+  // アップロードをキャンセルするためのAbortSignal
+  signal?: AbortSignal;
 }
