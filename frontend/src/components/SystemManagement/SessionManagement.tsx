@@ -80,10 +80,10 @@ export default function SessionManagement() {
       
       // 全フィールド検索
       return (
-        session.userName.toLowerCase().includes(searchLower) ||
-        session.email.toLowerCase().includes(searchLower) ||
-        session.sessionDuration.toLowerCase().includes(searchLower) ||
-        session.ipAddress.toLowerCase().includes(searchLower)
+        (session.userName ?? '').toLowerCase().includes(searchLower) ||
+        (session.email ?? '').toLowerCase().includes(searchLower) ||
+        (session.sessionDuration ?? '').toLowerCase().includes(searchLower) ||
+        (session.ipAddress ?? '').toLowerCase().includes(searchLower)
       );
     });
   }, [sessions, searchText]);

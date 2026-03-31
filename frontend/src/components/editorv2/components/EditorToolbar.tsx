@@ -24,6 +24,7 @@ import {
   BorderOutlined,
   RadiusSettingOutlined,
   SwapOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import {
   useAttributeDisplay,
@@ -70,8 +71,8 @@ export interface EditorToolbarProps {
   lastAutoSaveTime?: string | Date | null;
   
   // ビューモード切替
-  viewMode?: 'petriNet' | 'templates';
-  onViewModeChange?: (mode: 'petriNet' | 'templates') => void;
+  viewMode?: 'petriNet' | 'templates' | 'xml';
+  onViewModeChange?: (mode: 'petriNet' | 'templates' | 'xml') => void;
 }
 
 /**
@@ -109,8 +110,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   viewMode,
   onViewModeChange,
 }) => {
-  // テンプレートモード時はペトリネット編集ボタンを非活性化
-  const isTemplateMode = viewMode === 'templates';
+  // テンプレートモード / XMLビューモード時はペトリネット編集ボタンを非活性化
+  const isTemplateMode = viewMode === 'templates' || viewMode === 'xml';
   // ノード表示属性切替（Context 経由で管理）
   const { selectedAttribute, setSelectedAttribute } = useAttributeDisplay();
 
@@ -136,7 +137,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <>
           <Segmented
             value={viewMode}
-            onChange={(value) => onViewModeChange(value as 'petriNet' | 'templates')}
+            onChange={(value) => onViewModeChange(value as 'petriNet' | 'templates' | 'xml')}
             options={[
               {
                 label: (
@@ -155,6 +156,15 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   </Space>
                 ),
                 value: 'templates',
+              },
+              {
+                label: (
+                  <Space size={4}>
+                    <CodeOutlined />
+                    <span>XMLビュー</span>
+                  </Space>
+                ),
+                value: 'xml',
               },
             ]}
           />

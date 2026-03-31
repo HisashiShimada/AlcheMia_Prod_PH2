@@ -187,16 +187,17 @@ export default function ProgressMonitoring() {
       const checkoutStatusLabel = getCheckoutStatusLabel(item.isCheckedOut);
 
       // すべての項目で検索可能に（表示名も含む）
+      const st = searchText.toLowerCase();
       const matchesSearch =
         searchText === '' ||
-        item.projectId.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.projectName.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.projectStatus.toLowerCase().includes(searchText.toLowerCase()) ||
-        projectStatusLabel.toLowerCase().includes(searchText.toLowerCase()) ||
-        checkoutStatusLabel.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.department.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.ownerEmail.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.ownerName.toLowerCase().includes(searchText.toLowerCase()) ||
+        (item.projectId ?? '').toLowerCase().includes(st) ||
+        (item.projectName ?? '').toLowerCase().includes(st) ||
+        (item.projectStatus ?? '').toLowerCase().includes(st) ||
+        projectStatusLabel.toLowerCase().includes(st) ||
+        checkoutStatusLabel.toLowerCase().includes(st) ||
+        (item.department ?? '').toLowerCase().includes(st) ||
+        (item.ownerEmail ?? '').toLowerCase().includes(st) ||
+        (item.ownerName ?? '').toLowerCase().includes(st) ||
         item.completedTasks.toString().includes(searchText) ||
         item.totalTasks.toString().includes(searchText);
 
