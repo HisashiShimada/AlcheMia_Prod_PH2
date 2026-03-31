@@ -884,6 +884,84 @@ export class FileAccessService {
   }
 
   /**
+   * バッチキャンセル
+   * 
+   * Task: アップロードキャンセル機能実装
+   * - 指定されたバッチのアップロード処理をキャンセル
+   * - 既にアップロードされたファイルをストレージから削除
+   * - file_metadataテーブルからメタデータを削除
+   * - バッチステータスを'cancelled'に更新
+   * 
+   * @param organizationId 組織ID
+   * @param batchId バッチID
+   * @throws ValidationError バッチIDが不正な場合
+   * @throws NotFoundError バッチが存在しない場合
+   * @throws StorageError ストレージエラーの場合
+   */
+  async cancelBatch(
+    organizationId: string,
+    batchId: string
+  ): Promise<void> {
+    // 1. バリデーション
+    if (!batchId || batchId.trim().length === 0) {
+      throw new ValidationError('バッチIDは必須です');
+    }
+
+    console.log(`🚫 [Batch Cancel] キャンセル開始: ${batchId}`);
+
+    // 2. バッチ情報を取得
+    const batch = await uploadBatchRepository.findById(batchId);
+    
+    if (!batch) {
+      throw new NotFoundError(`バッチが見つかりません: ${batchId}`);
+    }
+
+    // 3. 組織IDの検証（マルチテナント分離）
+    if (batch.organizationId !== organizationId) {
+      throw new ValidationError('このバッチにアクセスする権限がありません');
+    }
+
+    // 4. 既に完了またはキャンセル済みの場合はエラー
+    if (batch.status === 'completed' || batch.status === 'cancelled') {
+      throw new ValidationError(`バッチは既に${batch.status === 'completed' ? '完了' : 'キャンセル'}しています`);
+    }
+
+    // 5. バッチに紐付けられたファイルメタデータを取得
+    const fileMetadataList = await this.repository.findByBatchId(batchId);
+    
+    console.log(`📋 [Batch Cancel] 削除対象ファイル数: ${fileMetadataList.length}`);
+
+    // 6. 各ファイルをストレージから削除
+    let deletedCount = 0;
+    let errorCount = 0;
+
+    for (const fileMetadata of fileMetadataList) {
+      try {
+        // ストレージから削除
+        await this.storageService.deleteFile(organizationId, fileMetadata.file_key);
+        
+        // DBから論理削除
+        await this.repository.softDeleteByFileKey(organizationId, fileMetadata.file_key);
+        
+        deletedCount++;
+        console.log(`✅ [Batch Cancel] 削除成功: ${fileMetadata.file_key}`);
+      } catch (error) {
+        errorCount++;
+        console.error(`❌ [Batch Cancel] 削除失敗: ${fileMetadata.file_key}`, error);
+        // 個別ファイルの削除失敗は警告のみ（処理は続行）
+      }
+    }
+
+    // 7. バッチステータスを'cancelled'に更新
+    await uploadBatchRepository.update(batchId, {
+      status: 'cancelled',
+      endTime: new Date(),
+    });
+
+    console.log(`✅ [Batch Cancel] キャンセル完了: ${deletedCount}/${fileMetadataList.length}ファイル削除 (エラー: ${errorCount})`);
+  }
+
+  /**
    * フォルダ配下のすべてのファイルをZIP形式でダウンロード
    * 
    * Task: 汎用フォルダZIPダウンロード機能
