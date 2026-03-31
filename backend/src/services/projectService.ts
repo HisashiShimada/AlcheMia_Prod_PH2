@@ -396,7 +396,14 @@ export class ProjectService {
             WHEN ptd.task_status = 4 
             THEN ptd.method_id || '_' || ptd.task_no::TEXT 
             ELSE NULL 
-          END) as completed_task_count
+          END) as completed_task_count,
+          (
+            SELECT COUNT(*)
+            FROM file_metadata fm
+            WHERE fm.organization_id = p.organization_id
+              AND fm.parent_folder_path LIKE CAST(p.organization_id AS TEXT) || '/projects/' || p.project_name || '%'
+              AND fm.file_key NOT LIKE '%/.keep'
+          ) as file_count
         FROM project p
         LEFT JOIN project_task_detail ptd
           ON ptd.project_id = p.project_id
@@ -471,8 +478,8 @@ export class ProjectService {
         description: row.description || '',
         status: row.project_status, // 数値のまま返す
         statusName: row.project_status_name || undefined, // code_masterから取得した日本語名
-        fileCount: 0, // 後で実装予定
-        totalSize: 0, // 後で実装予定
+        fileCount: parseInt(row.file_count, 10) || 0,
+        totalSize: 0,
         owner: row.owner_user_id,
         ownerName: row.owner_user_name || undefined,
         ownerEmail: row.owner_email || undefined,
