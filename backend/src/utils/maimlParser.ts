@@ -35,7 +35,7 @@ const errorTypes = {
     VALIDATION_WARNING: 'validation_warning'
 };
 
-export async function analyzeMaiMLFile(organaizationId: string, maimlContent : string, fileKey: string)  {
+export async function analyzeMaiMLFile(organaizationId: string, maimlContent : string, fileKey: string, skipSave?: boolean)  {
     const startTime = Date.now();
     
     try {
@@ -138,7 +138,12 @@ export async function analyzeMaiMLFile(organaizationId: string, maimlContent : s
       console.log(`✅ [MaiMLParser] Analysis completed for ${fileKey}: ${analysisResult.errors.length} errors, ${analysisResult.warnings.length} warnings`);
       
       // 🎯 CRITICAL FIX: Save analysis results with proper pool usage
-      await saveAnalysisResults(organaizationId, analysisResult);
+      // skipSave=true の場合はDB保存をスキップ（アップロード時バリデーション用）
+      if (!skipSave) {
+        await saveAnalysisResults(organaizationId, analysisResult);
+      } else {
+        console.log(`⏭️ [MaiMLParser] DB保存スキップ (skipSave=true): ${fileKey}`);
+      }
       
       return analysisResult;
 
@@ -382,6 +387,23 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
         warnings.push(...docValidation.warnings);
         if (!docValidation.isValid) isValid = false;
       }
+
+      // Check required protocol element
+      if (!maimlRoot.protocol) {
+        errors.push({
+          type: errorTypes.MISSING_REQUIRED,
+          severity: 'error',
+          message: 'Missing required "protocol" element',
+          suggestion: 'Add <protocol id="..."> element. Check for typos (e.g. "protcol" instead of "protocol")',
+        });
+        isValid = false;
+      } else {
+        // Validate protocol structure
+        const protocolValidation = validateProtocolStructure(maimlRoot.protocol);
+        errors.push(...protocolValidation.errors);
+        warnings.push(...protocolValidation.warnings);
+        if (!protocolValidation.isValid) isValid = false;
+      }
     }
 
     return {
@@ -457,6 +479,121 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
   }
 
   /**
+   * Validate protocol element structure
+   * XSD: protocolType → hasIdAttributeType + globalObjectContentGroup + method(1以上)
+   */
+  function validateProtocolStructure(protocol: any) {
+    const errors: ErrorContent[] = [];
+    const warnings: ErrorContent[] = [];
+    let isValid = true;
+
+    // Check required id attribute (hasIdAttributeType: use="required")
+    if (!protocol['@_id']) {
+      errors.push({
+        type: errorTypes.MISSING_REQUIRED,
+        severity: 'error',
+        message: 'Protocol element missing required "id" attribute',
+        suggestion: 'Add id="unique-protocol-id" to <protocol> element'
+      });
+      isValid = false;
+    }
+
+    // Check required uuid element (globalObjectContentGroup)
+    if (!protocol.uuid) {
+      errors.push({
+        type: errorTypes.MISSING_REQUIRED,
+        severity: 'error',
+        message: 'Missing required "uuid" element in protocol',
+        suggestion: 'Add <uuid> element to <protocol> section'
+      });
+      isValid = false;
+    }
+
+    // Check required method element (maxOccurs="unbounded" → 1以上必須)
+    const methods = protocol.method;
+    if (!methods || (Array.isArray(methods) && methods.length === 0)) {
+      errors.push({
+        type: errorTypes.MISSING_REQUIRED,
+        severity: 'error',
+        message: 'Missing required "method" element in protocol (at least 1 required)',
+        suggestion: 'Add at least one <method id="..."> element to <protocol>'
+      });
+      isValid = false;
+    } else {
+      // Validate each method
+      const methodArray = Array.isArray(methods) ? methods : [methods];
+      methodArray.forEach((method: any, index: number) => {
+        const methodValidation = validateMethodStructure(method, index);
+        errors.push(...methodValidation.errors);
+        warnings.push(...methodValidation.warnings);
+        if (!methodValidation.isValid) isValid = false;
+      });
+    }
+
+    return { isValid, errors, warnings };
+  }
+
+  /**
+   * Validate method element structure
+   * XSD: methodType → hasIdAttributeType + globalObjectContentGroup + pnml(1以上) + program(1以上)
+   */
+  function validateMethodStructure(method: any, index: number) {
+    const errors: ErrorContent[] = [];
+    const warnings: ErrorContent[] = [];
+    let isValid = true;
+
+    const methodLabel = method['@_id'] ? `method[id="${method['@_id']}"]` : `method[${index}]`;
+
+    // Check required id attribute
+    if (!method['@_id']) {
+      errors.push({
+        type: errorTypes.MISSING_REQUIRED,
+        severity: 'error',
+        message: `${methodLabel} missing required "id" attribute`,
+        suggestion: 'Add id="unique-method-id" to <method> element'
+      });
+      isValid = false;
+    }
+
+    // Check required uuid element (globalObjectContentGroup)
+    if (!method.uuid) {
+      errors.push({
+        type: errorTypes.MISSING_REQUIRED,
+        severity: 'error',
+        message: `Missing required "uuid" element in ${methodLabel}`,
+        suggestion: `Add <uuid> element to <method> section`
+      });
+      isValid = false;
+    }
+
+    // Check required pnml element (maxOccurs="unbounded" → 1以上必須)
+    const pnmls = method.pnml;
+    if (!pnmls || (Array.isArray(pnmls) && pnmls.length === 0)) {
+      errors.push({
+        type: errorTypes.MISSING_REQUIRED,
+        severity: 'error',
+        message: `Missing required "pnml" element in ${methodLabel} (at least 1 required)`,
+        suggestion: `Add <pnml id="..."> element to <method>`
+      });
+      isValid = false;
+    }
+
+    // Check required program element (maxOccurs="unbounded" → 1以上必須)
+    const programs = method.program;
+    if (!programs || (Array.isArray(programs) && programs.length === 0)) {
+      errors.push({
+        type: errorTypes.MISSING_REQUIRED,
+        severity: 'error',
+        message: `Missing required "program" element in ${methodLabel} (at least 1 required)`,
+        suggestion: `Add <program id="..."> element to <method>`
+      });
+      isValid = false;
+    }
+
+    return { isValid, errors, warnings };
+  }
+
+  /**
    * Analyze MaiML content for statistics and additional validation
    */
   function analyzeContent(parsedXML : any) {
@@ -497,6 +634,7 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
       if (statistics.placesCount === 0 && statistics.transitionsCount === 0) {
         suggestions.push({
           type: 'content_suggestion',
+          severity: 'info',
           message: 'No Petri net elements found',
           suggestion: 'Consider adding <place> and <transition> elements to define workflow logic'
         });
