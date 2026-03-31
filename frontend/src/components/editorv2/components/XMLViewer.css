@@ -1,0 +1,239 @@
+/**
+ * XMLビューアスタイル
+ */
+
+/* コンテナ */
+.xml-viewer-container {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ツールバー */
+.xml-viewer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.xml-viewer-info {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.xml-viewer-info-item {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.xml-viewer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.xml-viewer-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.xml-viewer-btn:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.xml-viewer-btn:active {
+  background-color: #e5e7eb;
+}
+
+/* エラー表示 */
+.xml-viewer-error {
+  padding: 12px 16px;
+  background-color: #fef2f2;
+  border-bottom: 1px solid #fecaca;
+}
+
+.xml-viewer-error-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #991b1b;
+  margin-bottom: 4px;
+}
+
+.xml-viewer-error-message {
+  font-size: 13px;
+  color: #dc2626;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* コンテンツエリア */
+.xml-viewer-content {
+  display: flex;
+  overflow: auto;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 行番号 */
+.xml-viewer-line-numbers {
+  flex-shrink: 0;
+  padding: 16px 8px;
+  background-color: #252526;
+  border-right: 1px solid #3e3e42;
+  text-align: right;
+  user-select: none;
+  min-width: 50px;
+}
+
+.xml-viewer-line-number {
+  color: #858585;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 0 8px;
+}
+
+/* コード */
+.xml-viewer-code {
+  flex: 1;
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.xml-viewer-code-content {
+  display: block;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* XMLシンタックスハイライト */
+.xml-tag {
+  color: #569cd6; /* 青 - タグ名 */
+  font-weight: 600;
+}
+
+.xml-bracket {
+  color: #808080; /* グレー - <, >, </, /> */
+}
+
+.xml-attr-name {
+  color: #9cdcfe; /* ライトブルー - 属性名 */
+  font-style: italic;
+}
+
+.xml-equals {
+  color: #d4d4d4; /* ホワイト - = */
+}
+
+.xml-quote {
+  color: #ce9178; /* オレンジ - " */
+}
+
+.xml-attr-value {
+  color: #ce9178; /* オレンジ - 属性値 */
+}
+
+.xml-comment {
+  color: #6a9955; /* グリーン - コメント */
+  font-style: italic;
+}
+
+.xml-declaration {
+  color: #c586c0; /* パープル - XML宣言 */
+  font-weight: 600;
+}
+
+.xml-text {
+  color: #d4d4d4; /* ホワイト - テキストコンテンツ */
+}
+
+/* 空の状態 */
+.xml-viewer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #9ca3af;
+}
+
+.xml-viewer-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.xml-viewer-empty-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* スクロールバーのカスタマイズ（Webkit） */
+.xml-viewer-content::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.xml-viewer-content::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.xml-viewer-content::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 6px;
+}
+
+.xml-viewer-content::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .xml-viewer-toolbar {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .xml-viewer-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .xml-viewer-btn {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  .xml-viewer-code {
+    font-size: 12px;
+  }
+
+  .xml-viewer-line-numbers {
+    min-width: 40px;
+    padding: 12px 6px;
+  }
+
+  .xml-viewer-line-number {
+    font-size: 12px;
+  }
+}

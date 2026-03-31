@@ -206,6 +206,7 @@ export const uploadFiles = async (
     files,
     metadata,
     onProgress,
+    signal, // ✨ キャンセル用のAbortSignal
   } = params;
 
   const client = createApiClient();
@@ -252,6 +253,7 @@ export const uploadFiles = async (
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        signal, // ✨ AbortSignalを渡す
         onUploadProgress: (progressEvent: AxiosProgressEvent) => {
           if (onProgress && progressEvent.total) {
             const percentage = Math.round(
@@ -286,7 +288,41 @@ export const uploadFiles = async (
 
     throw new Error('アップロードに失敗しました');
   } catch (error) {
+    // ✨ Axiosのキャンセルエラーを適切にハンドリング
+    if ((error as any).code === 'ERR_CANCELED') {
+      const cancelError = new Error('アップロードがキャンセルされました');
+      cancelError.name = 'CanceledError';
+      throw cancelError;
+    }
+    
     console.error('ファイルアップロードエラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * バッチキャンセル
+ * 
+ * Task: アップロードキャンセル機能実装
+ * - バッチIDを指定してアップロード処理をキャンセル
+ * - 既にアップロードされたファイルを削除
+ * - organization_idは認証情報から自動取得
+ * 
+ * @param batchId バッチID
+ * @returns Promise<void> キャンセル完了後に解決
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * await cancelBatch('batch_abc123');
+ */
+export const cancelBatch = async (batchId: string): Promise<void> => {
+  const client = createApiClient();
+
+  try {
+    await client.post(`/files/batches/${batchId}/cancel`);
+    console.log('バッチキャンセル成功:', batchId);
+  } catch (error) {
+    console.error('バッチキャンセルエラー:', error);
     throw error;
   }
 };

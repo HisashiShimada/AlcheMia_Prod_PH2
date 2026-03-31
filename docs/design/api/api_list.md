@@ -487,6 +487,7 @@
 | 14.4 | GET | /api/v1/projects/:projectId/files/:fileName/download | 単一ファイルダウンロード（レガシー） | ✅ 実装済み | fileAccessController.downloadFile |
 | 14.5 | GET | /api/v1/files/batches | バッチ履歴取得 | ✅ 実装済み | fileAccessController.getBatchHistory |
 | 14.6 | GET | /api/v1/files/batches/:batchId/progress | バッチ進捗取得 | ✅ 実装済み | fileAccessController.getBatchProgress |
+| 14.7 | POST | /api/v1/files/batches/:batchId/cancel | バッチキャンセル | ✅ 実装済み | fileAccessController.cancelBatch |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`（JWTからorganizationIdを取得）

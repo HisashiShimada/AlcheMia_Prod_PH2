@@ -145,8 +145,8 @@ export default function IssueManagementModal({
       // あいまい検索（タイトル、内容）
       const matchesSearch =
         searchText === '' ||
-        issue.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        issue.content.toLowerCase().includes(searchText.toLowerCase());
+        (issue.title ?? '').toLowerCase().includes(searchText.toLowerCase()) ||
+        (issue.content ?? '').toLowerCase().includes(searchText.toLowerCase());
 
       // ステータスフィルタ
       const matchesStatus =

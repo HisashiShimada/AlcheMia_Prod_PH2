@@ -869,3 +869,98 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
     });
   }
 }
+
+/**
+ * バッチキャンセル
+ * POST /api/v1/files/batches/:batchId/cancel
+ * 
+ * Task: アップロードキャンセル機能実装
+ * - 指定されたバッチのアップロード処理をキャンセル
+ * - 既にアップロードされたファイルを削除
+ * - バッチステータスを'cancelled'に更新
+ */
+export async function cancelBatch(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  
+  try {
+    const { organizationId } = req.user!;
+    const { batchId } = req.params;
+
+    console.log(`🚫 [Batch Cancel] リクエスト開始:`, {
+      organizationId,
+      batchId,
+      requestId,
+    });
+
+    // Service層の初期化と呼び出し
+    const repository = new FileMetadataRepository();
+    const accessValidator = new ProjectAccessValidator();
+    const service = new FileAccessService(repository, accessValidator);
+
+    await service.cancelBatch(organizationId, batchId);
+
+    console.log(`✅ [Batch Cancel] キャンセル成功: ${batchId}`);
+
+    res.json({
+      success: true,
+      data: {
+        message: 'バッチをキャンセルしました',
+        batchId,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+
+  } catch (error: any) {
+    logError('Batch cancel error', error, {
+      action: 'batch_cancel',
+      organizationId: req.user?.organizationId,
+      batchId: req.params?.batchId,
+      requestId,
+    });
+
+    // エラータイプに応じたステータスコードとレスポンス
+    let statusCode = 500;
+    let errorCode = 'E4001';
+    let errorMessage = 'システムエラーが発生しました';
+
+    if (error.message) {
+      // NotFoundErrorのチェック
+      if (error.message.includes('見つかりません') || 
+          error.message.includes('存在しません')) {
+        statusCode = 404;
+        errorCode = 'E6001';
+        errorMessage = error.message;
+      }
+      // ValidationErrorのチェック
+      else if (error.message.includes('既に') || 
+               error.message.includes('キャンセル') ||
+               error.message.includes('完了')) {
+        statusCode = 400;
+        errorCode = 'E1003';
+        errorMessage = error.message;
+      }
+      // StorageErrorのチェック
+      else if (error.message.includes('削除') || 
+               error.message.includes('ストレージ')) {
+        statusCode = 500;
+        errorCode = 'E4006';
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: errorCode,
+        message: errorMessage,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}

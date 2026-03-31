@@ -846,16 +846,12 @@ export async function list(req: Request, res: Response): Promise<void> {
     const { organizationId } = req.user!;
 
     // クエリパラメータの取得
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
     const includeCompleted = req.query.include_completed === 'true';
     const sortBy = (req.query.sort_by as string) || 'create_at';
     const order = (req.query.order as string) || 'desc';
 
     // Service層の呼び出し
     const result = await projectService.list(organizationId, {
-      page,
-      limit,
       includeCompleted,
       sortBy,
       order: order as 'asc' | 'desc',
