@@ -326,4 +326,30 @@ router.get(
   fileAccessController.getBatchProgress
 );
 
+/**
+ * バッチキャンセル
+ * POST /api/v1/files/batches/:batchId/cancel
+ * 
+ * Task: アップロードキャンセル機能実装
+ * - 指定されたバッチのアップロード処理をキャンセル
+ * - 既にアップロードされたファイルを削除
+ * - バッチステータスを'cancelled'に更新
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @note すべてのロールがアクセス可能（マルチテナント分離で保護）
+ */
+router.post(
+  '/batches/:batchId/cancel',
+  authMiddleware,
+  [
+    param('batchId')
+      .notEmpty()
+      .withMessage('batchIdは必須です')
+      .isString()
+      .withMessage('batchIdは文字列である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.cancelBatch
+);
+
 export default router;

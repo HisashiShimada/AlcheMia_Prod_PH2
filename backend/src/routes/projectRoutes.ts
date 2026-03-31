@@ -71,14 +71,6 @@ router.get(
   '/',
   authMiddleware,
   [
-    query('page')
-      .optional()
-      .isInt({ min: 1 })
-      .withMessage('ページ番号は1以上の整数である必要があります'),
-    query('limit')
-      .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage('limitは1〜100の範囲内の整数である必要があります'),
     query('include_completed')
       .optional()
       .isBoolean()

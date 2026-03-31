@@ -42,6 +42,7 @@ import useDraftManager from './hooks/useDraftManager';
 import DraftManager from './components/DraftManager';
 import SaveConfirmDialog from './components/SaveConfirmDialog';
 import ValidationPanel from './components/ValidationPanel';
+import XMLViewerWrapper from './components/XMLViewerWrapper';
 import { convertReactFlowToMaiML } from './utils/converters/reactFlowToMaiml';
 import { convertMultipleMethodsToMaiML } from './utils/converters/multiMethodConverter';
 // Viewer用ノードをインポート（既存の正しいノード描画）
@@ -349,7 +350,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const [draftModeHandled, setDraftModeHandled] = useState<boolean>(false); // ✅ UX改善2: draftモード処理済みフラグ
   
   // テンプレート一覧表示機能State（methodsより先に定義）
-  const [viewMode, setViewMode] = useState<'petriNet' | 'templates'>('petriNet');
+  const [viewMode, setViewMode] = useState<'petriNet' | 'templates' | 'xml'>('petriNet');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [showCommonTemplates, setShowCommonTemplates] = useState<boolean>(false); // 共通テンプレート表示フラグ
   const [savedPetriNetViewport, setSavedPetriNetViewport] = useState<{ x: number; y: number; zoom: number } | null>(null); // ペトリネットモードのビューポート保存用
@@ -1841,7 +1842,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, []);
 
   // ビューモード切替ハンドラー
-  const handleViewModeChange = useCallback((newMode: 'petriNet' | 'templates') => {
+  const handleViewModeChange = useCallback((newMode: 'petriNet' | 'templates' | 'xml') => {
     console.log('🔄 [PetriNetEditorInner] ビューモード切替:', { from: viewMode, to: newMode });
     
     // ペトリネットモードから切り替える場合、ビューポートを保存
@@ -2927,8 +2928,8 @@ interface PetriNetEditorInnerUIProps {
   lastAutoSaveTime: Date | null;
   
   // ビューモード
-  viewMode: 'petriNet' | 'templates';
-  handleViewModeChange: (mode: 'petriNet' | 'templates') => void;
+  viewMode: 'petriNet' | 'templates' | 'xml';
+  handleViewModeChange: (mode: 'petriNet' | 'templates' | 'xml') => void;
   handleTemplateSelect: (template: Template) => void;
   handleTemplateAdd: (category: string) => void;
   handleTemplateDelete: (templateId: string) => void;
@@ -2990,6 +2991,8 @@ interface PetriNetEditorInnerUIProps {
   sourceS3Key?: string;
   /** プロジェクトID（DraftManagerに渡してDraft保存時にproject_idを記録する） */
   projectId?: string;
+  /** MAIMLデータ（XMLビュー表示用） */
+  maimlData?: string | null;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
@@ -3248,7 +3251,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
               }}
             />
           </ReactFlow>
-          ) : (
+          ) : viewMode === 'templates' ? (
             <TemplateList 
               onTemplateSelect={handleTemplateSelect}
               showCommonTemplates={showCommonTemplates}
@@ -3256,7 +3259,16 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
               onTemplateAdd={handleTemplateAdd}
               onTemplateDelete={handleTemplateDelete}
             />
-          )}
+          ) : viewMode === 'xml' ? (
+            <XMLViewerWrapper
+              nodes={nodes}
+              edges={edges}
+              documentData={documentData}
+              multiMethodMode={false}
+              methods={methods}
+              activeMethodIndex={activeMethodIndex}
+            />
+          ) : null}
 
           {/* Phase 3B: プロパティパネル（ノード・エッジ対応） */}
           {(selectedNode || selectedEdge) && (
