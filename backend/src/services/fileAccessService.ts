@@ -680,15 +680,18 @@ export class FileAccessService {
    * Task: ファイル削除API共通化
    * Task: ファイル削除時DBメタデータ削除実装 (2026-03-25)
    * Task: project_maiml_flg更新処理をService層に統一 (2026-03-30)
+   * Task: MAIMLファイル削除時にArchiveフォルダも削除 (2026-03-31)
    * - ファイルキーを指定してストレージからファイルを削除
    * - file_metadataテーブルのレコードを論理削除
    * - MAIMLファイル削除時にproject_maiml_flgをfalseに更新（オプション）
+   * - MAIMLファイル削除時にarchiveフォルダも削除（オプション、デフォルト有効）
    * - フォーマット、プロジェクト、その他のファイルで共通利用可能
    * 
    * @param organizationId 組織ID
    * @param fileKey ファイルキー（相対パス）
    * @param options オプション設定
    * @param options.updateProjectFlag project_maiml_flg更新を行うかどうか
+   * @param options.deleteArchive archiveフォルダも削除するかどうか（デフォルト: true）
    * @throws ValidationError ファイルキーが不正な場合
    * @throws NotFoundError ファイルが存在しない場合
    * @throws StorageError ストレージエラーの場合
@@ -696,7 +699,7 @@ export class FileAccessService {
   async deleteFileByKey(
     organizationId: string,
     fileKey: string,
-    options?: { updateProjectFlag?: boolean }
+    options?: { updateProjectFlag?: boolean; deleteArchive?: boolean }
   ): Promise<void> {
     // 1. ファイルキーのバリデーション
     if (!fileKey || fileKey.trim().length === 0) {
@@ -788,6 +791,52 @@ export class FileAccessService {
             console.error('❌ [Delete] project_maiml_flg更新失敗（処理は続行）:', {
               projectName,
               error: updateError,
+            });
+          }
+        }
+      }
+    }
+
+    // 6. オプショナル: archiveフォルダ削除（deleteArchive !== false かつ MAIMLファイルの場合）
+    // デフォルトで有効（明示的にfalseを指定しない限り削除する）
+    const shouldDeleteArchive = options?.deleteArchive !== false;
+
+    if (shouldDeleteArchive) {
+      const fileName = fileKey.split('/').pop() || '';
+      const isMaimlFile = fileName.endsWith('.maiml');
+
+      if (isMaimlFile && fileKey.startsWith('projects/')) {
+        // fileKeyからarchiveフォルダパスを構築
+        // 例: projects/sample_project/sample_project.maiml → projects/sample_project/archive
+        const pathParts = fileKey.split('/');
+        if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+          const projectName = pathParts[1];
+          const archiveFolderPath = `projects/${projectName}/archive`;
+
+          console.log('🗑️ [Delete] MAIMLファイル削除、archiveフォルダも削除:', archiveFolderPath);
+
+          try {
+            // archiveフォルダの存在確認
+            const archiveFiles = await this.storageService.listFiles(
+              organizationId,
+              archiveFolderPath
+            );
+
+            if (archiveFiles && archiveFiles.length > 0) {
+              // archiveフォルダが存在する場合のみ削除
+              const deletedCount = await this.deleteFolderRecursive(
+                organizationId,
+                archiveFolderPath
+              );
+              console.log(`✅ [Delete] archiveフォルダ削除完了: ${deletedCount}ファイル削除`);
+            } else {
+              console.log('ℹ️ [Delete] archiveフォルダが存在しないためスキップ:', archiveFolderPath);
+            }
+          } catch (archiveError) {
+            // archiveフォルダ削除エラーは警告のみ（メインファイル削除は成功しているため）
+            console.error('⚠️ [Delete] archiveフォルダ削除エラー（処理は続行）:', {
+              archiveFolderPath,
+              error: archiveError,
             });
           }
         }
