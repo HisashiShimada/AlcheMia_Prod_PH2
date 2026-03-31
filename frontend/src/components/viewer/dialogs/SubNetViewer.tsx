@@ -57,6 +57,9 @@ import {
   TemplateInfo,
 } from '../../../utils/subnetReactFlowConverter';
 
+// データタブ用ユーティリティ
+import { fetchDataInfoFromMaiml, DataPropertyObject } from '../../../utils/maimlDataExtractor';
+
 const { Title, Text } = Typography;
 
 // カスタムノードタイプの定義
@@ -161,77 +164,126 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
   });
 
 
-  // テンプレート要素からプロパティを抽出する関数（Reference版から追加）
-  const extractTemplateProperties = useCallback((templateElement: Element | null, templateType: string) => {
+  /**
+   * ✅ Fix3: テンプレート要素から基本情報とプロパティを抽出する関数
+   * reference版 PropertyViewer.js の fetchTemplateInfo() 相当の実装
+   * - uuid/description/insertion → basicInfo へ
+   * - placeRef → 除外（テンプレートタブに混入させない）
+   * - property 要素 → key + value + description + content で構造化
+   */
+  const extractTemplateInfo = useCallback((templateElement: Element | null, templateType: string): {
+    basicInfo: Record<string, string>;
+    templateProps: Record<string, { key: string; value?: string; description?: string; xsiType?: string; units?: string; content?: Record<string, string> }>;
+  } => {
     if (!templateElement) {
       console.error('❌ [SubNetViewer] テンプレート要素がありません');
-      return { id: 'unknown', type: templateType, name: '不明' };
+      return { basicInfo: { id: 'unknown', type: templateType, name: '不明' }, templateProps: {} };
     }
-    
-    const properties: Record<string, unknown> = {
-      id: templateElement.getAttribute('id'),
+
+    // ※ xmlns 付き XML は querySelector(':scope > tag') がヒットしないため
+    //   getElementsByTagName でダイレクトチルドレンを取得するヘルパーを使用する
+    const directChild = (parent: Element, tagName: string): Element | null => {
+      const children = parent.getElementsByTagName(tagName);
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].parentElement === parent) return children[i];
+      }
+      return null;
+    };
+    const directChildren = (parent: Element, tagName: string): Element[] => {
+      const result: Element[] = [];
+      const children = parent.getElementsByTagName(tagName);
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].parentElement === parent) result.push(children[i]);
+      }
+      return result;
+    };
+
+    // --- 基本情報 ---
+    const basicInfo: Record<string, string> = {
+      id: templateElement.getAttribute('id') || '',
       type: templateType.charAt(0).toUpperCase() + templateType.slice(1),
       name: templateElement.getAttribute('name') || '名称未設定',
     };
-    
-    // 他の属性を追加
-    for (let i = 0; i < templateElement.attributes.length; i++) {
-      const attr = templateElement.attributes[i];
-      if (!['id', 'name'].includes(attr.name)) {
-        properties[attr.name] = attr.value;
-      }
+
+    // uuid 子要素
+    const uuidEl = directChild(templateElement, 'uuid');
+    if (uuidEl?.textContent?.trim()) {
+      basicInfo.uuid = uuidEl.textContent.trim();
     }
-    
-    // 子要素をプロパティに追加
-    for (let i = 0; i < templateElement.children.length; i++) {
-      const child = templateElement.children[i];
-      const tagName = child.tagName;
-      
-      if (tagName === 'placeRef') {
-        if (!properties.placeRefs) {
-          properties.placeRefs = [];
-        }
-        (properties.placeRefs as string[]).push(child.getAttribute('ref') || '');
-        continue;
-      }
-      
-      let value: unknown = child.textContent?.trim() || '';
-      
-      // 数値変換を試行
-      if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value)) {
-        try {
-          value = parseFloat(value);
-        } catch (e) {
-          // パース失敗時は文字列のまま
-        }
-      }
-      
-      // Boolean変換
-      if (value === 'true') value = true;
-      if (value === 'false') value = false;
-      
-      // 子要素に属性がある場合はオブジェクト化
-      if (child.attributes.length > 0) {
-        const childObj: Record<string, unknown> = { _value: value };
-        for (let j = 0; j < child.attributes.length; j++) {
-          const childAttr = child.attributes[j];
-          childObj[childAttr.name] = childAttr.value;
-        }
-        value = childObj;
-      }
-      
-      // 同じタグ名が複数ある場合は配列化
-      if (properties[tagName]) {
-        if (!Array.isArray(properties[tagName])) {
-          properties[tagName] = [properties[tagName]];
-        }
-        (properties[tagName] as unknown[]).push(value);
-      } else {
-        properties[tagName] = value;
-      }
+
+    // description 子要素
+    const descEl = directChild(templateElement, 'description');
+    if (descEl?.textContent?.trim()) {
+      basicInfo.description = descEl.textContent.trim();
     }
-    
-    return properties;
+
+    // annotation 子要素
+    const annotationEl = directChild(templateElement, 'annotation');
+    if (annotationEl?.textContent?.trim()) {
+      basicInfo.annotation = annotationEl.textContent.trim();
+    }
+
+    // insertion 子要素
+    const insertionEl = directChild(templateElement, 'insertion');
+    if (insertionEl) {
+      const uri = directChild(insertionEl, 'uri')?.textContent?.trim();
+      const hash = directChild(insertionEl, 'hash')?.textContent?.trim();
+      const format = directChild(insertionEl, 'format')?.textContent?.trim();
+      if (uri) basicInfo.insertion_uri = uri;
+      if (hash) basicInfo.insertion_hash = hash;
+      if (format) basicInfo.insertion_format = format;
+    }
+
+    // placeRef → 基本情報タブには表示しない（内部参照のため）
+
+    // --- テンプレートプロパティ（property 要素のみ） ---
+    const templateProps: Record<string, { key: string; value?: string; description?: string; xsiType?: string; units?: string; content?: Record<string, string> }> = {};
+    const propElements = directChildren(templateElement, 'property');
+
+    propElements.forEach((prop) => {
+      const key = prop.getAttribute('key');
+      if (!key) return;
+
+      const propObj: { key: string; value?: string; description?: string; xsiType?: string; units?: string; content?: Record<string, string> } = { key };
+
+      // xsi:type 属性
+      const xsiType = prop.getAttribute('xsi:type') || prop.getAttribute('type');
+      if (xsiType) propObj.xsiType = xsiType;
+
+      // units 属性
+      const units = prop.getAttribute('units');
+      if (units) propObj.units = units;
+
+      // value 子要素
+      const valueEl = directChild(prop, 'value');
+      if (valueEl) propObj.value = valueEl.textContent?.trim();
+
+      // description 子要素
+      const propDescEl = directChild(prop, 'description');
+      if (propDescEl) propObj.description = propDescEl.textContent?.trim();
+
+      // content 子要素
+      const contentEl = directChild(prop, 'content');
+      if (contentEl) {
+        const contentObj: Record<string, string> = {};
+        for (let k = 0; k < contentEl.attributes.length; k++) {
+          const attr = contentEl.attributes[k];
+          contentObj[attr.name] = attr.value;
+        }
+        const contentText = contentEl.textContent?.trim();
+        if (contentText) contentObj.value = contentText;
+        propObj.content = contentObj;
+      }
+
+      templateProps[`property_${key}`] = propObj;
+    });
+
+    console.log(`✅ [SubNetViewer] extractTemplateInfo 完了:`, {
+      basicInfoKeys: Object.keys(basicInfo),
+      templatePropsCount: Object.keys(templateProps).length,
+    });
+
+    return { basicInfo, templateProps };
   }, []);
 
   // MAIMLデータからサブネット情報を抽出
@@ -290,8 +342,8 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
           }
         });
         
-        // placesデータを使用
-        const relatedPlaces: PlaceInfo[] = petriNetData.places
+        // placesデータを使用（currentPlaces を使用: multiMethodMode時は arcsData/placesData を優先）
+        const relatedPlaces: PlaceInfo[] = currentPlaces
           .filter((place) => relatedPlaceIds.has(place.id))
           .map((place) => {
             // stereotypeからtemplateTypeを判定
@@ -307,30 +359,43 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
               templateType = 'result';
             }
             
-            // templateIdの取得
-            let templateId: string | null = null;
-            if (place.data.template && place.data.template.id) {
-              templateId = place.data.template.id;
-            } else if (place.data.templateId) {
-              templateId = place.data.templateId;
-            } else {
-              templateId = place.id;
-            }
-            
             // templateMapから取得
+            // buildTemplateMap() のキーは placeId（placeRef.ref の値）なので、place.id で優先アクセス
             let templateInfo: TemplateInfo | null = null;
-            if (templateId && templateMap[templateId]) {
-              const templateMapEntry = templateMap[templateId];
-              
-              if (templateMapEntry && templateMapEntry.element) {
+
+            // ① placeId で検索（優先）
+            if (templateMap[place.id]?.element) {
+              templateInfo = {
+                id: place.id,
+                name: place.data.label || place.id,
+                type: templateType,
+                element: templateMap[place.id].element,
+                properties: [],
+              };
+              console.log(`✅ [SubNetViewer] Place ${place.id} templateMap取得: placeIdキーでヒット`);
+            }
+
+            // ② templateId で検索（フォールバック）
+            if (!templateInfo) {
+              const templateId = place.data.template?.id || place.data.templateId;
+              if (templateId && templateMap[templateId]?.element) {
                 templateInfo = {
                   id: templateId,
                   name: place.data.label || templateId,
                   type: templateType,
-                  element: templateMapEntry.element,
+                  element: templateMap[templateId].element,
                   properties: [],
                 };
+                console.log(`✅ [SubNetViewer] Place ${place.id} templateMap取得: templateIdキーでヒット (${templateId})`);
               }
+            }
+
+            if (!templateInfo) {
+              console.warn(`⚠️ [SubNetViewer] Place ${place.id} templateMapエントリなし`, {
+                placeId: place.id,
+                templateId: place.data.template?.id || place.data.templateId,
+                templateMapKeys: Object.keys(templateMap).slice(0, 5),
+              });
             }
             
             return {
@@ -382,47 +447,98 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
     fetchSubnetData();
   }, [maimlData, nodeName, templateMap, petriNetData, setNodes, setEdges, open, multiMethodMode, arcsData, placesData]);
 
-  // ノードクリックハンドラー（Reference版の extractTemplateProperties を使用）
+  // ✅ Fix3: ノードクリックハンドラー（新しい extractTemplateInfo を使用）
   const handleNodeClick: NodeMouseHandler = useCallback((event, node) => {
     console.log('👆 [SubNetViewer] ノードクリック:', node.id, node.data.nodeType);
     
     setSelectedNodeId(node.id);
     setSelectedNode(node);
 
-    // PlaceノードかつTemplateの場合はextractTemplatePropertiesを使用
+    // PlaceノードかつTemplateの場合: extractTemplateInfo を使用（reference版 fetchTemplateInfo 相当）
     if (node.data.nodeType === 'place' && node.data.isTemplate && node.data.template) {
-      const extractedProps = extractTemplateProperties(
+      const { basicInfo, templateProps } = extractTemplateInfo(
         node.data.template.element,
         node.data.templateType as string
       );
-      
-      // 抽出されたプロパティを構造化形式に変換
-      const basicProperties: Record<string, PropertyObject> = {
-        id: { key: 'id', value: extractedProps.id, type: 'string', description: 'テンプレートID' },
-        type: { key: 'type', value: extractedProps.type, type: 'string', description: 'テンプレート種別' },
-        name: { key: 'name', value: extractedProps.name, type: 'string', description: 'テンプレート名' },
-      };
 
-      const templateProperties: Record<string, PropertyObject> = {};
-      Object.entries(extractedProps).forEach(([key, value]) => {
-        if (!['id', 'type', 'name'].includes(key)) {
-          templateProperties[key] = {
-            key,
-            value: value ?? '値なし',
-            type: typeof value,
-            description: key,
-          };
-        }
+      // 基本情報タブ: uuid/description/insertion/placeRefs を含む
+      const basicProperties: Record<string, PropertyObject> = {};
+      Object.entries(basicInfo).forEach(([key, value]) => {
+        basicProperties[key] = { key, value, type: 'string', description: key };
       });
 
-      const dataProperties: Record<string, PropertyObject> = {
-        coordinates: {
-          key: 'coordinates',
-          value: `(${node.position.x.toFixed(2)}, ${node.position.y.toFixed(2)})`,
-          type: 'coordinates',
-          description: 'ノード座標',
-        },
-      };
+      // テンプレートタブ: property 要素のみ（placeRef は除外済み）
+      const templateProperties: Record<string, PropertyObject> = {};
+      Object.entries(templateProps).forEach(([propKey, propObj]) => {
+        // PropertyViewer.tsx の template タブ描画に合わせて詰める
+        templateProperties[propKey] = {
+          key: propObj.key,
+          value: propObj.value ?? '',
+          type: propObj.xsiType ?? 'string',
+          description: [
+            propObj.description,
+            propObj.units ? `単位: ${propObj.units}` : undefined,
+          ].filter(Boolean).join(' / ') || propObj.key,
+        };
+      });
+
+      // ✅ Fix8b: データタブ: MAIMLの<data><results>から実験結果値を取得
+      // data.results.*.ref はテンプレートIDを指しているため、テンプレートIDを使用する
+      const templateIdForData = (node.data.template?.element as Element | undefined)?.getAttribute('id') ?? node.id;
+      const dataInfo = fetchDataInfoFromMaiml(
+        maimlData,
+        templateIdForData,
+        (node.data.templateType as string).toLowerCase() as 'material' | 'condition' | 'result'
+      );
+      const dataProperties: Record<string, PropertyObject> = {};
+          if (dataInfo) {
+            Object.entries(dataInfo).forEach(([rawKey, val]) => {
+              if (rawKey.startsWith('property_')) {
+                const propObj = val as DataPropertyObject;
+                const displayKey = rawKey.slice('property_'.length);
+                // property_* の各フィールドを個別エントリに展開して表示
+                if (propObj.value !== undefined) {
+                  dataProperties[`${rawKey}_value`] = {
+                    key: `${displayKey} (value)`,
+                    value: propObj.value,
+                    type: propObj.xsiType ?? 'string',
+                    description: propObj.description ?? displayKey,
+                  };
+                }
+                if (propObj.xsiType) {
+                  dataProperties[`${rawKey}_type`] = {
+                    key: `${displayKey} (type)`,
+                    value: propObj.xsiType,
+                    type: 'string',
+                    description: `${displayKey} の xsi:type`,
+                  };
+                }
+                if (propObj.units) {
+                  dataProperties[`${rawKey}_units`] = {
+                    key: `${displayKey} (units)`,
+                    value: propObj.units,
+                    type: 'string',
+                    description: `${displayKey} の単位`,
+                  };
+                }
+                if (propObj.description) {
+                  dataProperties[`${rawKey}_desc`] = {
+                    key: `${displayKey} (description)`,
+                    value: propObj.description,
+                    type: 'string',
+                    description: `${displayKey} の説明`,
+                  };
+                }
+              } else {
+                dataProperties[rawKey] = {
+                  key: rawKey,
+                  value: String(val ?? ''),
+                  type: 'string',
+                  description: rawKey,
+                };
+              }
+            });
+          }
 
       setStructuredProperties({
         basic: basicProperties,
@@ -461,7 +577,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
     
     // 右ペインを開く
     setRightPanelOpen(true);
-  }, [extractTemplateProperties]);
+  }, [extractTemplateInfo]);
 
   // ビューポートリセット
   const handleResetView = useCallback(() => {

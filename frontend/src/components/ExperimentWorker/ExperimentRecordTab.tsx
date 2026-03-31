@@ -549,7 +549,7 @@ export default function ExperimentRecordTab({
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {!selectedProject ? (
           <Card data-testid="empty-project-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
                 🧪 実験記録
@@ -561,7 +561,7 @@ export default function ExperimentRecordTab({
           </Card>
         ) : !selectedMethodId ? (
           <Card data-testid="empty-method-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
                 📋 トランジション一覧
@@ -573,7 +573,7 @@ export default function ExperimentRecordTab({
           </Card>
         ) : !selectedTaskId ? (
           <Card data-testid="empty-task-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
                 📋 トランジション一覧
@@ -660,7 +660,7 @@ export default function ExperimentRecordTab({
 
       {/* 問題報告モーダル */}
       <IssueManagementModal
-        visible={issueModalOpen}
+        open={issueModalOpen}
         targetName={selectedTransition?.transitionName || ''}
         projectId={projectId || ''}
         projectName={selectedProjectName || ''}

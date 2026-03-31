@@ -9,6 +9,7 @@
 
 import xmljs from 'xml-js';
 import { convertXmlJsToMaimlRoot } from './maimlTypeConverter';
+import type { ConversionError } from './maimlTypeConverter';
 import type { XmlJsMaimlRoot, XmlJsElement } from '@/types/xml-js-types';
 import type { 
   MaimlRoot, 
@@ -39,6 +40,8 @@ import { TemplatesByCategory } from '@/types/editor';
 export class MaimlParserTyped {
   private typedMaiml: MaimlRoot;
   private maimlString: string | null = null;
+  /** 型変換中に収集されたエラー・警告 */
+  private conversionErrors: ConversionError[] = [];
   
   /**
    * コンストラクタ
@@ -72,7 +75,8 @@ export class MaimlParserTyped {
     try {
       const conversionResult = convertXmlJsToMaimlRoot(xmlData);
       this.typedMaiml = conversionResult.data;
-      
+      this.conversionErrors = conversionResult.errors;
+
       // 変換エラーをログ出力
       if (conversionResult.hasErrors) {
         console.warn('⚠️ [MaimlParserTyped] 型変換中にエラーが発生しました:', conversionResult.errors);
@@ -103,6 +107,33 @@ export class MaimlParserTyped {
    */
   getTypedMaiml(): MaimlRoot {
     return this.typedMaiml;
+  }
+
+  /**
+   * 型変換エラー・警告の一覧を取得
+   * 
+   * @returns {ConversionError[]} 変換エラー・警告の配列
+   */
+  getConversionErrors(): ConversionError[] {
+    return this.conversionErrors;
+  }
+
+  /**
+   * error レベルの変換エラーが存在するかどうか
+   * 
+   * @returns {boolean} error が1件以上ある場合 true
+   */
+  hasConversionErrors(): boolean {
+    return this.conversionErrors.some(e => e.level === 'error');
+  }
+
+  /**
+   * warning レベルの変換警告が存在するかどうか
+   * 
+   * @returns {boolean} warning が1件以上ある場合 true
+   */
+  hasConversionWarnings(): boolean {
+    return this.conversionErrors.some(e => e.level === 'warning');
   }
   
   /**
