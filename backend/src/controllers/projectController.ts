@@ -113,6 +113,99 @@ export async function create(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * プロジェクト削除エンドポイント
+ * DELETE /api/v1/projects/:projectName
+ * 
+ * Task: プロジェクト管理画面削除機能実装 - Phase 3-2
+ * @description プロジェクトを削除する（DB + ストレージ）
+ * @note project_maiml_flg=falseの場合のみ削除可能
+ */
+export async function deleteProject(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId, userId } = req.user!;
+    const { projectName } = req.params;
+
+    console.log('🗑️ [projectController.deleteProject] リクエスト開始:', {
+      projectName,
+      organizationId,
+      userId,
+      requestId,
+    });
+
+    // Service層呼び出し
+    const result = await projectService.deleteProject(organizationId, projectName);
+
+    // エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'E4001';
+      let statusCode = 500;
+
+      if (errorCode === 'E6001') {
+        statusCode = 404;
+      } else if (errorCode === 'E7009') {
+        statusCode = 400;
+      } else if (errorCode.startsWith('E1')) {
+        statusCode = 400;
+      }
+
+      console.log('❌ [projectController.deleteProject] エラー:', {
+        errorCode,
+        statusCode,
+        message: result.error?.message,
+      });
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    console.log('✅ [projectController.deleteProject] 削除成功');
+
+    // 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('Project delete error', error as Error, {
+      action: 'project_delete',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'E4001',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
  * タスク詳細取得エンドポイント
  * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details
  *
@@ -753,16 +846,12 @@ export async function list(req: Request, res: Response): Promise<void> {
     const { organizationId } = req.user!;
 
     // クエリパラメータの取得
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
     const includeCompleted = req.query.include_completed === 'true';
     const sortBy = (req.query.sort_by as string) || 'create_at';
     const order = (req.query.order as string) || 'desc';
 
     // Service層の呼び出し
     const result = await projectService.list(organizationId, {
-      page,
-      limit,
       includeCompleted,
       sortBy,
       order: order as 'asc' | 'desc',

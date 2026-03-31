@@ -890,6 +890,11 @@ export async function convertReactFlowToMaiML(
       maiml += `          <description>${escapeXml(String(descValue).trim())}</description>\n`;
     }
     
+    // ノード座標を <position> タグとして書き出す
+    if (place.position) {
+      maiml += `          <position x="${place.position.x}" y="${place.position.y}"/>\n`;
+    }
+    
     maiml += `        </place>\n`;
   });
   
@@ -897,14 +902,19 @@ export async function convertReactFlowToMaiML(
   transitions.forEach(transition => {
     const hasName = transition.data.name && transition.data.name.trim() !== '';
     const hasDescription = transition.data.description && transition.data.description.trim() !== '';
-    
-    if (hasName || hasDescription) {
+    const hasPosition = !!transition.position;
+
+    if (hasName || hasDescription || hasPosition) {
       maiml += `        <transition id="${escapeXml(transition.id)}">\n`;
       if (hasName) {
         maiml += `          <name>${escapeXml(transition.data.name)}</name>\n`;
       }
       if (hasDescription) {
         maiml += `          <description>${escapeXml(transition.data.description)}</description>\n`;
+      }
+      // ノード座標を <position> タグとして書き出す
+      if (hasPosition) {
+        maiml += `          <position x="${transition.position.x}" y="${transition.position.y}"/>\n`;
       }
       maiml += `        </transition>\n`;
     } else {

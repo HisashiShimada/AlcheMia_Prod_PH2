@@ -34,6 +34,8 @@ import { UploadType, BatchStatus } from '../types/uploadBatch';
 import { processConcurrently, getConcurrency } from '../utils/concurrencyControl';
 import { analyzeMaimlFile, isMaimlFile } from '../utils/maimlAnalyzer';
 import { truncateField, FILE_METADATA_MAX_LENGTHS } from '../utils/stringValidator';
+import * as projectRepository from '../repositories/projectRepository';
+import { Project } from '../types/database';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -434,6 +436,57 @@ export class FileAccessService {
     const failCount = uploadResults.filter(r => !r.success).length;
     const totalSize = uploadedFiles.reduce((sum, f) => sum + f.fileSize, 0);
 
+    // ✨ Task: project_maiml_flg更新処理実装 - Phase 2
+    // 複数ファイル内にMAIMLファイルが含まれているかチェック
+    // 削除時と同じロジック: fileName.endsWith('.maiml')
+    console.log(`📊 [Upload] アップロードファイル一覧:`, uploadedFiles.map(f => ({
+      fileName: f.fileName,
+      contentType: f.contentType,
+      isMaiml: f.fileName.endsWith('.maiml')
+    })));
+    
+    const hasMaimlFile = uploadedFiles.some(file => 
+      file.fileName.endsWith('.maiml')
+    );
+
+    // ✨ Task: プロジェクト管理画面アップロード時のproject_maiml_flg更新（2026-03-30）
+    // MAIMLファイルがアップロードされた場合、project_maiml_flgを更新
+    if (hasMaimlFile && targetPath.startsWith('projects/')) {
+      console.log('🔍 [Upload] MAIMLファイルアップロード、project_maiml_flg更新開始:', targetPath);
+
+      // targetPathからプロジェクト名を抽出
+      const pathParts = targetPath.split('/');
+      if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+        const projectName = pathParts[1];
+
+        try {
+          // プロジェクト情報を取得
+          const existingProject = await projectRepository.findByName(organizationId, projectName);
+
+          if (!existingProject) {
+            console.warn(`⚠️ [Upload] プロジェクトが見つかりません: ${projectName}`);
+          } else if (!existingProject.project_maiml_flg) {
+            // project_maiml_flgがfalseの場合のみtrueに更新
+            const updatedProject: Project = {
+              ...existingProject,
+              project_maiml_flg: true,
+            };
+
+            await projectRepository.update(updatedProject);
+            console.log('✅ [Upload] project_maiml_flg=true更新完了:', projectName);
+          } else {
+            console.log('ℹ️ [Upload] project_maiml_flgは既にtrue:', projectName);
+          }
+        } catch (updateError) {
+          // フラグ更新失敗は警告のみ（ファイルアップロードは成功しているため）
+          console.error('❌ [Upload] project_maiml_flg更新失敗（処理は続行）:', {
+            projectName,
+            error: updateError,
+          });
+        }
+      }
+    }
+    
     // 5. Phase2-1: バッチ完了
     const finalStatus: BatchStatus = 
       failCount === 0 ? 'completed' :
@@ -465,6 +518,8 @@ export class FileAccessService {
         batchName: batch.batchName,
         status: finalStatus,
       },
+      // ✨ Task: project_maiml_flg更新処理実装 - Phase 2
+      hasMaimlFile,
     };
   }
 
@@ -623,18 +678,28 @@ export class FileAccessService {
    * ファイルキーベースでファイルを削除
    * 
    * Task: ファイル削除API共通化
+   * Task: ファイル削除時DBメタデータ削除実装 (2026-03-25)
+   * Task: project_maiml_flg更新処理をService層に統一 (2026-03-30)
+   * Task: MAIMLファイル削除時にArchiveフォルダも削除 (2026-03-31)
    * - ファイルキーを指定してストレージからファイルを削除
+   * - file_metadataテーブルのレコードを論理削除
+   * - MAIMLファイル削除時にproject_maiml_flgをfalseに更新（オプション）
+   * - MAIMLファイル削除時にarchiveフォルダも削除（オプション、デフォルト有効）
    * - フォーマット、プロジェクト、その他のファイルで共通利用可能
    * 
    * @param organizationId 組織ID
    * @param fileKey ファイルキー（相対パス）
+   * @param options オプション設定
+   * @param options.updateProjectFlag project_maiml_flg更新を行うかどうか
+   * @param options.deleteArchive archiveフォルダも削除するかどうか（デフォルト: true）
    * @throws ValidationError ファイルキーが不正な場合
    * @throws NotFoundError ファイルが存在しない場合
    * @throws StorageError ストレージエラーの場合
    */
   async deleteFileByKey(
     organizationId: string,
-    fileKey: string
+    fileKey: string,
+    options?: { updateProjectFlag?: boolean; deleteArchive?: boolean }
   ): Promise<void> {
     // 1. ファイルキーのバリデーション
     if (!fileKey || fileKey.trim().length === 0) {
@@ -644,6 +709,18 @@ export class FileAccessService {
     // パストラバーサル攻撃対策
     if (fileKey.includes('..') || fileKey.includes('//')) {
       throw new ValidationError('不正なファイルパスが検出されました');
+    }
+
+    // ✅ fileKeyの正規化: 先頭の "/" を除去し、組織IDプレフィックスを追加（DB検索用）
+    let normalizedFileKey = fileKey.startsWith('/') ? fileKey.slice(1) : fileKey;
+    
+    // 組織IDプレフィックスが含まれていない場合は追加
+    if (!normalizedFileKey.startsWith(organizationId + '/')) {
+      normalizedFileKey = `${organizationId}/${normalizedFileKey}`;
+      console.log('🔍 [Delete] fileKey正規化（組織IDプレフィックス追加）:', {
+        original: fileKey,
+        normalized: normalizedFileKey,
+      });
     }
 
     // 2. ストレージ上のファイル存在確認
@@ -668,10 +745,269 @@ export class FileAccessService {
       );
     }
 
-    // 4. DBからメタデータを削除（存在する場合のみ）
-    // Note: file_metadataテーブルの削除は将来的に実装予定
-    // 現時点ではストレージからの削除のみ実行
-    console.log(`ℹ️ [Delete] file_metadataテーブルの削除は未実装: ${fileKey}`);
+    // 4. DBからメタデータを論理削除（正規化されたfileKeyを使用）
+    try {
+      await this.repository.softDeleteByFileKey(organizationId, normalizedFileKey);
+      console.log(`✅ [Delete] DBメタデータ論理削除成功: ${normalizedFileKey}`);
+    } catch (error) {
+      // ログに記録するが、処理は続行（ストレージ削除は成功しているため）
+      console.error(`⚠️ [Delete] DBメタデータ論理削除エラー（処理は続行）: ${normalizedFileKey}`, error);
+    }
+
+    // 5. オプショナル: project_maiml_flg更新（updateProjectFlag === true かつ MAIMLファイルの場合）
+    // アップロード処理と同じロジック: fileName.endsWith('.maiml')
+    if (options?.updateProjectFlag) {
+      const fileName = fileKey.split('/').pop() || '';
+      const isMaimlFile = fileName.endsWith('.maiml');
+
+      if (isMaimlFile && fileKey.startsWith('projects/')) {
+        console.log('🔍 [Delete] MAIMLファイル削除、project_maiml_flg更新開始:', fileKey);
+
+        // fileKeyからプロジェクト名を抽出
+        const pathParts = fileKey.split('/');
+        if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+          const projectName = pathParts[1];
+
+          try {
+            // プロジェクト情報を取得
+            const existingProject = await projectRepository.findByName(organizationId, projectName);
+
+            if (!existingProject) {
+              console.warn(`⚠️ [Delete] プロジェクトが見つかりません: ${projectName}`);
+            } else if (existingProject.project_maiml_flg) {
+              // project_maiml_flgがtrueの場合のみfalseに更新
+              const updatedProject: Project = {
+                ...existingProject,
+                project_maiml_flg: false,
+              };
+
+              await projectRepository.update(updatedProject);
+              console.log('✅ [Delete] project_maiml_flg=false更新完了:', projectName);
+            } else {
+              console.log('ℹ️ [Delete] project_maiml_flgは既にfalse:', projectName);
+            }
+          } catch (updateError) {
+            // フラグ更新失敗は警告のみ（ファイル削除は成功しているため）
+            console.error('❌ [Delete] project_maiml_flg更新失敗（処理は続行）:', {
+              projectName,
+              error: updateError,
+            });
+          }
+        }
+      }
+    }
+
+    // 6. オプショナル: archiveフォルダ削除（deleteArchive !== false かつ MAIMLファイルの場合）
+    // デフォルトで有効（明示的にfalseを指定しない限り削除する）
+    const shouldDeleteArchive = options?.deleteArchive !== false;
+
+    if (shouldDeleteArchive) {
+      const fileName = fileKey.split('/').pop() || '';
+      const isMaimlFile = fileName.endsWith('.maiml');
+
+      if (isMaimlFile && fileKey.startsWith('projects/')) {
+        // fileKeyからarchiveフォルダパスを構築
+        // 例: projects/sample_project/sample_project.maiml → projects/sample_project/archive
+        const pathParts = fileKey.split('/');
+        if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+          const projectName = pathParts[1];
+          const archiveFolderPath = `projects/${projectName}/archive`;
+
+          console.log('🗑️ [Delete] MAIMLファイル削除、archiveフォルダも削除:', archiveFolderPath);
+
+          try {
+            // archiveフォルダの存在確認
+            const archiveFiles = await this.storageService.listFiles(
+              organizationId,
+              archiveFolderPath
+            );
+
+            if (archiveFiles && archiveFiles.length > 0) {
+              // archiveフォルダが存在する場合のみ削除
+              const deletedCount = await this.deleteFolderRecursive(
+                organizationId,
+                archiveFolderPath
+              );
+              console.log(`✅ [Delete] archiveフォルダ削除完了: ${deletedCount}ファイル削除`);
+            } else {
+              console.log('ℹ️ [Delete] archiveフォルダが存在しないためスキップ:', archiveFolderPath);
+            }
+          } catch (archiveError) {
+            // archiveフォルダ削除エラーは警告のみ（メインファイル削除は成功しているため）
+            console.error('⚠️ [Delete] archiveフォルダ削除エラー（処理は続行）:', {
+              archiveFolderPath,
+              error: archiveError,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * フォルダを再帰的に削除
+   * 
+   * Task: プロジェクト管理画面削除機能実装 - Phase 3
+   * Task: ファイル削除時DBメタデータ削除実装 (2026-03-25)
+   * - フォルダパス配下のすべてのファイルを削除
+   * - file_metadataテーブルのレコードを一括論理削除
+   * - プロジェクト、フォーマット、その他のフォルダで共通利用可能
+   * 
+   * @param organizationId 組織ID
+   * @param folderPath フォルダパス（相対パス、例: "projects/project_001"）
+   * @returns 削除されたファイル数
+   * @throws ValidationError フォルダパスが不正な場合
+   * @throws NotFoundError フォルダが存在しない、またはファイルがない場合
+   * @throws StorageError ストレージエラーの場合
+   */
+  async deleteFolderRecursive(
+    organizationId: string,
+    folderPath: string
+  ): Promise<number> {
+    // 1. フォルダパスのバリデーション
+    if (!folderPath || folderPath.trim().length === 0) {
+      throw new ValidationError('フォルダパスは必須です');
+    }
+
+    // パストラバーサル攻撃対策
+    if (folderPath.includes('..') || folderPath.includes('//')) {
+      throw new ValidationError('不正なフォルダパスが検出されました');
+    }
+
+    // 末尾のスラッシュを削除
+    const normalizedFolderPath = folderPath.replace(/\/$/, '');
+
+    console.log(`🗑️ [Folder Delete] 削除開始: ${normalizedFolderPath}`);
+
+    // 2. 削除対象のファイル一覧を取得
+    let fileKeys: string[] = [];
+    try {
+      const files = await this.storageService.listFiles(
+        organizationId,
+        normalizedFolderPath
+      );
+      
+      // ファイルのキーのみを抽出（フォルダは除外）
+      fileKeys = files
+        .filter((file: { key: string }) => !file.key.endsWith('/'))
+        .map((file: { key: string }) => file.key);
+      
+      console.log(`📋 [Folder Delete] 削除対象ファイル数: ${fileKeys.length}`);
+    } catch (error) {
+      console.error(`❌ [Folder Delete] ファイル一覧取得エラー: ${normalizedFolderPath}`, error);
+      // ファイル一覧取得エラーは処理を続行（ストレージ削除を試みる）
+    }
+
+    // 3. storageServiceのdeleteFolderRecursiveメソッドを呼び出し
+    try {
+      const deletedCount = await this.storageService.deleteFolderRecursive(
+        organizationId,
+        normalizedFolderPath
+      );
+
+      console.log(`✅ [Folder Delete] ストレージから削除完了: ${deletedCount}ファイル`);
+
+      // 4. DBからメタデータを一括論理削除
+      if (fileKeys.length > 0) {
+        try {
+          const dbDeletedCount = await this.repository.softDeleteBatch(
+            organizationId,
+            fileKeys
+          );
+          console.log(`✅ [Folder Delete] DBメタデータ一括論理削除成功: ${dbDeletedCount}/${fileKeys.length}件`);
+        } catch (error) {
+          // ログに記録するが、処理は続行（ストレージ削除は成功しているため）
+          console.error(`⚠️ [Folder Delete] DBメタデータ一括論理削除エラー（処理は続行）: ${normalizedFolderPath}`, error);
+        }
+      } else {
+        console.log(`ℹ️ [Folder Delete] DBメタデータ削除対象なし: ${normalizedFolderPath}`);
+      }
+
+      return deletedCount;
+    } catch (error) {
+      console.error(`❌ [Folder Delete] 削除エラー: ${normalizedFolderPath}`, error);
+      throw new StorageError(
+        `フォルダの削除に失敗しました: ${normalizedFolderPath}`
+      );
+    }
+  }
+
+  /**
+   * バッチキャンセル
+   * 
+   * Task: アップロードキャンセル機能実装
+   * - 指定されたバッチのアップロード処理をキャンセル
+   * - 既にアップロードされたファイルをストレージから削除
+   * - file_metadataテーブルからメタデータを削除
+   * - バッチステータスを'cancelled'に更新
+   * 
+   * @param organizationId 組織ID
+   * @param batchId バッチID
+   * @throws ValidationError バッチIDが不正な場合
+   * @throws NotFoundError バッチが存在しない場合
+   * @throws StorageError ストレージエラーの場合
+   */
+  async cancelBatch(
+    organizationId: string,
+    batchId: string
+  ): Promise<void> {
+    // 1. バリデーション
+    if (!batchId || batchId.trim().length === 0) {
+      throw new ValidationError('バッチIDは必須です');
+    }
+
+    console.log(`🚫 [Batch Cancel] キャンセル開始: ${batchId}`);
+
+    // 2. バッチ情報を取得
+    const batch = await uploadBatchRepository.findById(batchId);
+    
+    if (!batch) {
+      throw new NotFoundError(`バッチが見つかりません: ${batchId}`);
+    }
+
+    // 3. 組織IDの検証（マルチテナント分離）
+    if (batch.organizationId !== organizationId) {
+      throw new ValidationError('このバッチにアクセスする権限がありません');
+    }
+
+    // 4. 既に完了またはキャンセル済みの場合はエラー
+    if (batch.status === 'completed' || batch.status === 'cancelled') {
+      throw new ValidationError(`バッチは既に${batch.status === 'completed' ? '完了' : 'キャンセル'}しています`);
+    }
+
+    // 5. バッチに紐付けられたファイルメタデータを取得
+    const fileMetadataList = await this.repository.findByBatchId(batchId);
+    
+    console.log(`📋 [Batch Cancel] 削除対象ファイル数: ${fileMetadataList.length}`);
+
+    // 6. 各ファイルをストレージから削除
+    let deletedCount = 0;
+    let errorCount = 0;
+
+    for (const fileMetadata of fileMetadataList) {
+      try {
+        // ストレージから削除
+        await this.storageService.deleteFile(organizationId, fileMetadata.file_key);
+        
+        // DBから論理削除
+        await this.repository.softDeleteByFileKey(organizationId, fileMetadata.file_key);
+        
+        deletedCount++;
+        console.log(`✅ [Batch Cancel] 削除成功: ${fileMetadata.file_key}`);
+      } catch (error) {
+        errorCount++;
+        console.error(`❌ [Batch Cancel] 削除失敗: ${fileMetadata.file_key}`, error);
+        // 個別ファイルの削除失敗は警告のみ（処理は続行）
+      }
+    }
+
+    // 7. バッチステータスを'cancelled'に更新
+    await uploadBatchRepository.update(batchId, {
+      status: 'cancelled',
+      endTime: new Date(),
+    });
+
+    console.log(`✅ [Batch Cancel] キャンセル完了: ${deletedCount}/${fileMetadataList.length}ファイル削除 (エラー: ${errorCount})`);
   }
 
   /**

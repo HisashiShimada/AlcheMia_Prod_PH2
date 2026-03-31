@@ -4,7 +4,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Modal, Drawer, Tabs, Table, Checkbox, Tag, Typography, Space, Empty } from 'antd';
+import { Modal, Drawer, Tabs, Table, Checkbox, Tag, Typography, Space, Empty, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
@@ -68,9 +68,12 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
   const actualDisplayMode: 'modal' | 'drawer' | 'embedded' = 
     displayMode || (embedded ? 'embedded' : 'modal');
 
-  // プロパティ値のフォーマット
-  const formatPropertyValue = (propertyObj: PropertyObject | unknown): string => {
-    let value;
+  // プロパティ値のフォーマット（null / undefined / "" を区別して返す）
+  const formatPropertyValue = (propertyObj: PropertyObject | unknown): {
+    text: string;
+    kind: 'normal' | 'undefined' | 'null' | 'empty' | 'children';
+  } => {
+    let value: unknown;
     if (propertyObj && typeof propertyObj === 'object') {
       const obj = propertyObj as PropertyObject;
       if (obj.value !== undefined) {
@@ -78,17 +81,26 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
       } else if (obj.elements && obj.elements.value !== undefined) {
         value = obj.elements.value;
       } else if (obj.children && Array.isArray(obj.children) && obj.children.length > 0) {
-        return `${obj.children.length}個の子要素`;
+        return { text: `${obj.children.length}個の子要素`, kind: 'children' };
+      } else {
+        // value が存在しない = undefined 扱い
+        return { text: '未設定', kind: 'undefined' };
       }
     } else {
       value = propertyObj;
     }
 
-    if (value === null || value === undefined || value === '') {
-      return '未設定';
+    if (value === undefined) {
+      return { text: '未設定', kind: 'undefined' };
+    }
+    if (value === null) {
+      return { text: 'null', kind: 'null' };
+    }
+    if (value === '') {
+      return { text: '"" (空文字)', kind: 'empty' };
     }
 
-    return String(value);
+    return { text: String(value), kind: 'normal' };
   };
 
   // プロパティラベル取得
@@ -163,13 +175,23 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
     const propertyEntries = Object.entries(properties);
 
     if (propertyEntries.length === 0) {
-      return (
+      const tooltipTitle = structure === 'template'
+        ? 'このノードにはテンプレートが設定されていません'
+        : structure === 'data'
+        ? 'このノードにはデータが設定されていません'
+        : undefined;
+      const emptyEl = (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description={`${structureLabels[structure]}プロパティがありません`}
           style={{ padding: '32px 0' }}
         />
       );
+      return tooltipTitle ? (
+        <Tooltip title={tooltipTitle}>
+          <span>{emptyEl}</span>
+        </Tooltip>
+      ) : emptyEl;
     }
 
     // テーブルのデータソース
@@ -209,11 +231,40 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
         title: '値',
         dataIndex: 'value',
         key: 'value',
-        render: (value: string) => (
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {value}
-          </Text>
-        ),
+        render: (formatted: { text: string; kind: string }) => {
+          if (formatted.kind === 'undefined') {
+            return (
+              <Tooltip title="値が設定されていません">
+                <Text type="secondary" italic style={{ fontSize: '12px', color: '#bfbfbf' }}>
+                  {formatted.text}
+                </Text>
+              </Tooltip>
+            );
+          }
+          if (formatted.kind === 'null') {
+            return (
+              <Tooltip title="null が設定されています">
+                <Text type="secondary" italic style={{ fontSize: '12px', color: '#bfbfbf' }}>
+                  {formatted.text}
+                </Text>
+              </Tooltip>
+            );
+          }
+          if (formatted.kind === 'empty') {
+            return (
+              <Tooltip title="空の文字列が設定されています">
+                <Text type="secondary" italic style={{ fontSize: '12px', color: '#bfbfbf' }}>
+                  {formatted.text}
+                </Text>
+              </Tooltip>
+            );
+          }
+          return (
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {formatted.text}
+            </Text>
+          );
+        },
       },
     ];
 

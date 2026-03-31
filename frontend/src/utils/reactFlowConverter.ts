@@ -80,7 +80,8 @@ export const convertToReactFlowFormat = (
     
     // Placesをノード化（templateMap使用 - 完全反映版）
     const placeNodes: Node<NodeData>[] = places.map(place => {
-      const position = nodePositions.get(place.id) || { x: 0, y: 0 };
+      // MAIMLの <position> タグが存在する場合はそれを優先、なければ自動レイアウト結果を使用
+      const position = place.position ?? nodePositions.get(place.id) ?? { x: 0, y: 0 };
       
       // templateMapからtemplate情報を取得（Place IDをキーとして）
       const template = templateMap[place.id];
@@ -205,7 +206,8 @@ export const convertToReactFlowFormat = (
     
     // Transitionsをノード化
     const transitionNodes: Node<NodeData>[] = transitions.map(transition => {
-      const position = nodePositions.get(transition.id) || { x: 0, y: 0 };
+      // MAIMLの <position> タグが存在する場合はそれを優先、なければ自動レイアウト結果を使用
+      const position = transition.position ?? nodePositions.get(transition.id) ?? { x: 0, y: 0 };
       
       return {
         id: transition.id,

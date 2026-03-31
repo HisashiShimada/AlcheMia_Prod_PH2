@@ -80,7 +80,7 @@ export default function TaskListTable({
       
       // あいまい検索
       const matchesSearch = searchText === '' || 
-        task.taskNo.toLowerCase().includes(searchText.toLowerCase()) ||
+        (task.taskNo ?? '').toLowerCase().includes(searchText.toLowerCase()) ||
         getStatusLabel(task.status).includes(searchText) ||
         task.progressRate.toString().includes(searchText);
       

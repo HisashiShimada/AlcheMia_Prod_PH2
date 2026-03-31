@@ -54,7 +54,7 @@
 
 **API設計書**: [api_project_management.md](./api_project_management.md)  
 **ルートファイル**: `backend/src/routes/projectRoutes.ts`  
-**備考**: 実装済み18/20エンドポイント（90%）
+**備考**: 実装済み25/26エンドポイント（96%）
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
@@ -77,6 +77,12 @@
 | 2.15 | PATCH | /api/v1/projects/:projectName/approval-request | 承認依頼 | ✅ 実装済み | ProjectController.requestApproval |
 | 2.16 | GET | /api/v1/projects/worker-accessible | 実験作業者用プロジェクト一覧取得 | ✅ 実装済み | WorkerProjectController.listWorkerAccessible |
 | 2.17 | GET | /api/v1/projects/:projectName/maiml | MAIMLファイル取得（プロジェクト） | ✅ 実装済み | ProjectController.getProjectMaiml |
+| 2.18 | DELETE | /api/v1/projects/:projectName | プロジェクト削除 | ✅ 実装済み | ProjectController.deleteProject |
+| 2.19 | POST | /api/v1/projects/:projectName/tasks/complete-review | レビュー待ちタスク一括完了 | ✅ 実装済み | ProjectController.completeReviewTasks |
+| 2.20 | GET | /api/v1/projects/:projectName/instructions/status | タスク登録状況取得 | ✅ 実装済み | ProjectInstructionController.getTaskRegistrationStatus |
+| 2.21 | PUT | /api/v1/projects/:projectName/instructions/:instructionId | 指示更新（未送信のみ） | ✅ 実装済み | ProjectInstructionController.updateInstruction |
+| 2.22 | DELETE | /api/v1/projects/:projectName/instructions/:instructionId | 指示削除（未送信のみ） | ✅ 実装済み | ProjectInstructionController.deleteInstruction |
+| 2.23 | POST | /api/v1/projects/:projectName/instructions/send | 未送信指示一括送信 | ✅ 実装済み | ProjectInstructionController.sendInstructions |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -481,6 +487,7 @@
 | 14.4 | GET | /api/v1/projects/:projectId/files/:fileName/download | 単一ファイルダウンロード（レガシー） | ✅ 実装済み | fileAccessController.downloadFile |
 | 14.5 | GET | /api/v1/files/batches | バッチ履歴取得 | ✅ 実装済み | fileAccessController.getBatchHistory |
 | 14.6 | GET | /api/v1/files/batches/:batchId/progress | バッチ進捗取得 | ✅ 実装済み | fileAccessController.getBatchProgress |
+| 14.7 | POST | /api/v1/files/batches/:batchId/cancel | バッチキャンセル | ✅ 実装済み | fileAccessController.cancelBatch |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`（JWTからorganizationIdを取得）
@@ -667,7 +674,7 @@
 | カテゴリ | 総数 | 実装済み | スタブ | 未実装 | 実装率 |
 |---------|------|---------|-------|--------|--------|
 | 認証API | 6 | 6 | 0 | 0 | 100% |
-| プロジェクト管理API | 22 | 19 | 0 | 3 | 86% |
+| プロジェクト管理API | 26 | 25 | 0 | 1 | 96% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 6 | 5 | 0 | 1 | 83% |
 | Maiml編集API | 18 | 17 | 0 | 1 | 94% |
@@ -683,7 +690,7 @@
 | システム概要API | 1 | 1 | 0 | 0 | 100% |
 | ユーザー管理API | 7 | 7 | 0 | 0 | 100% |
 | MaiML OpenData Pipeline API | 3 | 3 | 0 | 0 | 100% |
-| **合計** | **134** | **127** | **0** | **14** | **89%** |
+| **合計** | **140** | **133** | **0** | **7** | **95%** |
 
 ### 優先度別実装状況
 
@@ -867,6 +874,14 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.19.0 | 2026-03-30 | プロジェクト管理APIに未記載の6件のエンドポイントを追加 | Cline |
+| | | - API 2.18: プロジェクト削除 DELETE /api/v1/projects/:projectName | |
+| | | - API 2.19: レビュー待ちタスク一括完了 POST /api/v1/projects/:projectName/tasks/complete-review | |
+| | | - API 2.20: タスク登録状況取得 GET /api/v1/projects/:projectName/instructions/status | |
+| | | - API 2.21: 指示更新 PUT /api/v1/projects/:projectName/instructions/:instructionId | |
+| | | - API 2.22: 指示削除 DELETE /api/v1/projects/:projectName/instructions/:instructionId | |
+| | | - API 2.23: 未送信指示一括送信 POST /api/v1/projects/:projectName/instructions/send | |
+| | | - プロジェクト管理API: 19→25実装済み（86%→96%）、合計: 127→133実装済み（89%→95%） | |
 | 2.18.0 | 2026-03-12 | 進捗確認API・実験データ記録API・プロジェクト管理APIの実装状況を更新 | Cline |
 | | | - 進捗確認API: 6.3〜6.6 を実装済みに更新（6.3: getProgressData, 6.4: getWorkerTasks, 6.5: updateTaskStatus, 6.6: updateTransitionStatus） | |
 | | | - 実験データ記録API: 8.1/8.2 を実装済みに更新、ルートファイルを experimentRoutes.ts に修正 | |

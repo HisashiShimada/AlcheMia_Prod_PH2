@@ -591,57 +591,6 @@ export default function DataRecordDialog({
     }
   };
 
-  // フォーム送信ハンドラ
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      const values = await form.validateFields();
-      
-      // テンプレートごとにデータをまとめる
-      const recordsData: ExperimentDataValue[] = [];
-      
-      transition?.templates?.forEach((template) => {
-        const templateData: ExperimentDataValue = {
-          templateId: template.templateId,
-          category: template.category,
-        };
-        
-        template.properties.forEach((prop) => {
-          const key = `${template.templateId}_${prop.key}`;
-          if (prop.type === 'contentDoubleListType') {
-            templateData[prop.key] = dataGrids[key] || [[0, 0, 0]];
-          } else if (prop.type === 'dateType' || prop.type === 'dateTimeType') {
-            const dateValue = values[key];
-            templateData[prop.key] = dateValue ? dayjs(dateValue).format(
-              prop.type === 'dateType' ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'
-            ) : null;
-          } else {
-            templateData[prop.key] = values[key] ?? null;
-          }
-        });
-        
-        recordsData.push(templateData);
-      });
-      
-      // ステータスとコメントをログ出力（バックエンド実装時に使用）
-      console.log('保存データ:', {
-        transitionId: transition?.transitionId,
-        status: selectedStatus,
-        comment: comment,
-        experimentData: recordsData,
-      });
-      
-      onSave(recordsData);
-      message.success(`実験データを保存しました（ステータス: ${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
-      onClose();
-    } catch (error) {
-      console.error('Validation failed:', error);
-      message.error('入力内容を確認してください');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // DataGrid更新ハンドラ
   const handleDataGridChange = (
     key: string,
@@ -916,7 +865,7 @@ export default function DataRecordDialog({
 
     return (
       <div key={key} style={{ marginBottom: 24 }}>
-        <Space direction="vertical" style={{ width: '100%' }} size="small">
+        <Space orientation="vertical" style={{ width: '100%' }} size="small">
           <Space>
             <Text strong>
               {property.label}
@@ -1299,7 +1248,7 @@ export default function DataRecordDialog({
               </div>
 
               {/* フィルタリングエリア */}
-              <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
+              <Space orientation="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
                 <Input
                   data-testid="template-search-input"
                   placeholder="テンプレート名で検索"

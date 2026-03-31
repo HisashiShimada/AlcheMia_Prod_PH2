@@ -96,9 +96,9 @@ const MaimlPublishDialog: React.FC<MaimlPublishDialogProps> = ({
           </Button>
         </Space>
       }
-      destroyOnClose
+      destroyOnHidden
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Text>
           プロジェクト <Text strong>{projectName}</Text> を公開します。よろしいですか？
         </Text>

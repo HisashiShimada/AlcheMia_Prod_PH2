@@ -1,11 +1,11 @@
 # ファイルアクセスAPI仕様書
 
 **作成日**: 2026-02-19 17:05  
-**最終更新**: 2026-02-25 15:49  
-**バージョン**: 1.1.0  
+**最終更新**: 2026-03-30 16:07  
+**バージョン**: 1.2.0  
 **対象画面**: 全画面共通  
-**総API数**: 8個  
-**実装状況**: 8個実装済み、0個未実装
+**総API数**: 9個  
+**実装状況**: 9個実装済み、0個未実装
 
 ---
 
@@ -34,6 +34,9 @@
 | 5 | 単一ファイルダウンロード（レガシー） | GET | `/api/v1/projects/:projectId/files/:fileName/download` | ✅ 実装済み | - |
 | 6 | バッチ履歴取得 | GET | `/api/v1/files/batches` | ✅ 実装済み | - |
 | 7 | バッチ進捗取得 | GET | `/api/v1/files/batches/:batchId/progress` | ✅ 実装済み | - |
+| 8 | ファイルテキスト内容取得 | POST | `/api/v1/files/content-as-text` | ✅ 実装済み | - |
+| 9 | ファイル削除 | DELETE | `/api/v1/files/delete` | ✅ 実装済み | - |
+| 10 | バッチキャンセル | POST | `/api/v1/files/batches/:batchId/cancel` | ✅ 実装済み | - |
 
 ---
 
@@ -986,6 +989,214 @@ if (!allowedMimeTypes.includes(file.mimetype)) {
 
 ---
 
+## API #10: バッチキャンセル ✅
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | POST |
+| **エンドポイント** | `/api/v1/files/batches/:batchId/cancel` |
+| **説明** | アップロード中のバッチをキャンセルし、既にアップロードされたファイルを削除する |
+| **実装状態** | ✅ 実装済み |
+| **実装日** | 2026-03-30 |
+| **権限** | すべてのロール（マルチテナント分離で保護） |
+| **呼び出し元** | BulkUploadDialog.tsx, FormatUploadDialog.tsx |
+
+### リクエスト
+
+**パスパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| batchId | string | ✅ | キャンセルするバッチのID |
+
+**リクエストボディ**: なし
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "message": "バッチをキャンセルしました",
+  "data": {
+    "batchId": "batch-550e8400-e29b-41d4-a716-446655440000-1711785300000",
+    "status": "cancelled",
+    "deletedFilesCount": 5
+  }
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| batchId | string | キャンセルしたバッチID |
+| status | string | 更新後のステータス（'cancelled'） |
+| deletedFilesCount | number | 削除されたファイル数 |
+
+**エラー時**
+
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | VALIDATION_ERROR | batchIdが未指定または不正 |
+| 401 | AUTH_TOKEN_INVALID | 認証エラー |
+| 404 | BATCH_NOT_FOUND | バッチが存在しない |
+| 500 | SYSTEM_ERROR | システムエラー |
+
+### 処理フロー
+
+1. **バッチの検証**
+   - バッチIDでupload_batchテーブルを検索
+   - organization_idでマルチテナント分離を確認
+
+2. **ファイル削除**
+   - file_metadataテーブルからバッチIDに紐付けられたファイル一覧を取得
+   - 各ファイルをストレージ（S3/Swift）から削除
+   - file_metadataテーブルから該当レコードを削除
+
+3. **バッチステータス更新**
+   - upload_batchテーブルのstatusを'cancelled'に更新
+
+### 実装ファイル
+
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`cancelBatch`)
+- **サービス**: `backend/src/services/fileAccessService.ts` (`cancelBatch`)
+- **リポジトリ**: `backend/src/repositories/fileMetadataRepository.ts` (`findByBatchId`)
+
+### 実装要件
+
+**コントローラー実装**:
+```typescript
+export async function cancelBatch(req: Request, res: Response): Promise<void> {
+  const { batchId } = req.params;
+  
+  try {
+    const result = await fileAccessService.cancelBatch(
+      batchId,
+      req.organizationId
+    );
+    
+    res.json({
+      success: true,
+      message: 'バッチをキャンセルしました',
+      data: result,
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+}
+```
+
+**サービス実装**:
+```typescript
+export async function cancelBatch(
+  batchId: string,
+  organizationId: string
+): Promise<{ batchId: string; status: string; deletedFilesCount: number }> {
+  // 1. バッチの存在確認
+  const batch = await uploadBatchRepository.getById(batchId);
+  
+  if (!batch) {
+    throw new NotFoundError('バッチが見つかりません');
+  }
+  
+  if (batch.organization_id !== organizationId) {
+    throw new ForbiddenError('このバッチへのアクセス権限がありません');
+  }
+  
+  // 2. ファイル一覧取得
+  const files = await fileMetadataRepository.findByBatchId(batchId);
+  
+  // 3. ストレージからファイル削除
+  let deletedCount = 0;
+  for (const file of files) {
+    try {
+      await storageService.deleteFile(organizationId, file.file_key);
+      deletedCount++;
+    } catch (error) {
+      console.warn(`ファイル削除失敗: ${file.file_key}`, error);
+    }
+  }
+  
+  // 4. file_metadataテーブルから削除
+  const fileKeys = files.map(f => f.file_key);
+  if (fileKeys.length > 0) {
+    await fileMetadataRepository.softDeleteBatch(organizationId, fileKeys);
+  }
+  
+  // 5. バッチステータス更新
+  await uploadBatchRepository.updateStatus(batchId, 'cancelled');
+  
+  return {
+    batchId,
+    status: 'cancelled',
+    deletedFilesCount: deletedCount,
+  };
+}
+```
+
+### フロントエンド使用例
+
+**BulkUploadDialog.tsx**:
+```typescript
+// アップロード中のキャンセル
+const handleCancelUpload = useCallback(async () => {
+  if (!abortController) return;
+  
+  // アップロードを即座に中断
+  abortController.abort();
+}, [abortController]);
+
+// CanceledErrorをcatch
+try {
+  await uploadFiles({
+    uploadMode,
+    targetPath,
+    files,
+    signal: controller.signal,
+    onProgress: (progress) => { ... }
+  });
+} catch (error) {
+  if ((error as any).name === 'CanceledError') {
+    // バックエンドに通知してファイル削除
+    if (batchId) {
+      await cancelBatch(batchId);
+    }
+    message.info('アップロードがキャンセルされました');
+  }
+}
+```
+
+### セキュリティ考慮事項
+
+- **マルチテナント分離**: organization_idで厳密に権限チェック
+- **個別ファイル削除失敗の対応**: 削除失敗時も処理続行（警告ログのみ）
+- **バッチステータス整合性**: 削除処理後に必ずステータスを'cancelled'に更新
+
+---
+
+## 📝 変更履歴（更新）
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|----------|--------|
+| 1.2.0 | 2026-03-30 | アップロードキャンセル機能追加 | Cline |
+| | | - API #10: バッチキャンセル POST /api/v1/files/batches/:batchId/cancel | |
+| | | - フロントエンドでAbortController対応 | |
+| | | - 既にアップロードされたファイルの削除機能 | |
+| 1.1.0 | 2026-03-06 | ProjectManagement画面調査によりfileAccessService.tsから呼び出されるAPI追記 | Cline |
+| | | - API #7: ファイルテキスト内容取得 POST /api/v1/files/content-as-text | |
+| | | - API #8: ファイル削除 DELETE /api/v1/files/delete | |
+| 1.0.0 | 2026-02-19 17:05 | 初版作成 | Cline |
+| | | - fileAccessRoutes.tsの全エンドポイントを反映 | |
+| | | - 実装済み: 7個（100%完了） | |
+| | | - Phase1-2: ファイルサイズ上限500MBに引き上げ | |
+| | | - Phase1-3: 空フォルダプレースホルダー機能追加 | |
+| | | - Phase2-1: バッチ管理機能追加 | |
+
+---
+
 **作成者**: Cline
 **作成日**: 2026-02-19 17:05
-**最終更新**: 2026-03-06 15:37
+**最終更新**: 2026-03-30 16:09

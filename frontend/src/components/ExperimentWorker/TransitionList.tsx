@@ -67,8 +67,8 @@ export default function TransitionList({
     return transitions.filter(transition => {
       // あいまい検索（全カラム対象）
       const matchesSearch = searchText === '' || 
-        transition.transitionName.toLowerCase().includes(searchText.toLowerCase()) ||
-        (transition.description && transition.description.toLowerCase().includes(searchText.toLowerCase()));
+        (transition.transitionName ?? '').toLowerCase().includes(searchText.toLowerCase()) ||
+        (transition.description ?? '').toLowerCase().includes(searchText.toLowerCase());
       
       // トランジション名フィルタ
       const matchesTransitionName = !selectedTransitionName || transition.transitionName === selectedTransitionName;
@@ -576,7 +576,7 @@ export default function TransitionList({
       {/* 問題管理モーダル */}
       {selectedTransition && (
         <IssueManagementModal
-          visible={issueModalOpen}
+          open={issueModalOpen}
           targetName={selectedTransition.transitionName}
           projectId={projectId || ''}
           projectName={projectName || ''}

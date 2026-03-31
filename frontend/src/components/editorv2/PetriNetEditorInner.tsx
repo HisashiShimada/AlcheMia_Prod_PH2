@@ -42,6 +42,7 @@ import useDraftManager from './hooks/useDraftManager';
 import DraftManager from './components/DraftManager';
 import SaveConfirmDialog from './components/SaveConfirmDialog';
 import ValidationPanel from './components/ValidationPanel';
+import XMLViewerWrapper from './components/XMLViewerWrapper';
 import { convertReactFlowToMaiML } from './utils/converters/reactFlowToMaiml';
 import { convertMultipleMethodsToMaiML } from './utils/converters/multiMethodConverter';
 // Viewer用ノードをインポート（既存の正しいノード描画）
@@ -55,7 +56,7 @@ import { addEdge } from 'reactflow';
 import 'reactflow/dist/style.css';
 // Phase 2: maimlParserTyped導入
 import { MaimlParserTyped } from '../../utils/maimlParserTyped';
-import type { Template, PlaceRef as XsdPlaceRef,Method, Property } from '../../types/maiml-unified';
+import type { Template, PlaceRef as XsdPlaceRef, Method, Property, Document as MaimlDocument } from '../../types/maiml-unified';
 // Owner初期値生成用
 import { generateInitialDocumentData, generateInitialMethod } from '../../utils/documentInitializer';
 // 型定義をインポート
@@ -349,7 +350,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const [draftModeHandled, setDraftModeHandled] = useState<boolean>(false); // ✅ UX改善2: draftモード処理済みフラグ
   
   // テンプレート一覧表示機能State（methodsより先に定義）
-  const [viewMode, setViewMode] = useState<'petriNet' | 'templates'>('petriNet');
+  const [viewMode, setViewMode] = useState<'petriNet' | 'templates' | 'xml'>('petriNet');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [showCommonTemplates, setShowCommonTemplates] = useState<boolean>(false); // 共通テンプレート表示フラグ
   const [savedPetriNetViewport, setSavedPetriNetViewport] = useState<{ x: number; y: number; zoom: number } | null>(null); // ペトリネットモードのビューポート保存用
@@ -752,8 +753,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           console.log('📋 [PetriNetEditorInner] 共通テンプレート一覧 (型安全):', Array.from(commonTemplateIds));
           console.log('🔗 [PetriNetEditorInner] 参照関係マップ:', commonTemplateRefMap);
           
-          const extractedDoc = parser.getDocument();
-          
+          let extractedDoc: MaimlDocument | null = null;
+          try {
+            extractedDoc = parser.getDocument();
+          } catch (docError) {
+            console.warn('⚠️ [fetchPetriNetData] Document取得エラー（処理続行）:', docError);
+          }
+
           if (extractedDoc) {
             const documentWithCorrectName: DocumentData = {
               ...extractedDoc,
@@ -885,8 +891,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             fitView({ padding: 0.2, duration: 300 });
           }, 100);
               
-          setIsLoading(false);
-              
           // 🆕 Phase 3: 複数methodコードパスでも自動バリデーション実行
           setTimeout(async () => {
             try {
@@ -934,6 +938,50 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
               });
             }
           }, 500);
+      } else {
+          // methodsが取得できなかった場合：フォールバック用methodを設定してタブを表示
+          console.warn('⚠️ [fetchPetriNetData] MAIMLのmethod取得件数が0 - フォールバック処理');
+          const fallbackMethod = generateInitialMethod(`method_${Date.now()}`);
+          setMethods([fallbackMethod]);
+          setActiveMethodIndex(0);
+          setMultiMethodMode(false);
+          setNodes([]);
+          setEdges([]);
+          reset({ nodes: [], edges: [] });
+          setIsLoading(false);
+
+          // ⭐ Phase 2: 変換エラー・警告があれば ValidationPanel に表示
+          const convErrors = parser.getConversionErrors();
+          if (convErrors.length > 0) {
+            console.warn('⚠️ [fetchPetriNetData] 変換エラー/警告をValidationPanelに表示:', convErrors);
+            // ※ type を 'syntax_error' にすると criticalTypes に該当して画面が操作不能になるため
+            //   'unknown_element' を使用して非致命的エラー扱いにする
+            const errorContents = convErrors
+              .filter(e => e.level === 'error')
+              .map(e => ({
+                type: 'unknown_element',
+                severity: 'error' as const,
+                message: `[${e.path}.${e.element}] ${e.message}`,
+              }));
+            const warningContents = convErrors
+              .filter(e => e.level === 'warning')
+              .map(e => ({
+                type: 'unknown_element',
+                severity: 'warning' as const,
+                message: `[${e.path}.${e.element}] ${e.message}`,
+              }));
+            const conversionValidationResult: AnalysisResult = {
+              fileKey: '',
+              isValid: errorContents.length === 0,
+              errors: errorContents,
+              warnings: warningContents,
+              autoCorrections: [],
+            };
+            setValidationResult(conversionValidationResult);
+            setTimeout(() => {
+              setValidationPanelOpen(true);
+            }, 0);
+          }
       }
       } catch (err: unknown) {
         const errorMessage = getErrorMessage(err);
@@ -954,13 +1002,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         };
         setValidationResult(errorValidationResult);
         setError(errorMessage || 'ペトリネット構造の読み込みに失敗しました');
-        setIsLoading(false);
         
         if (onError) {
           onError(err instanceof Error ? err : new Error(errorMessage));
         }
       } finally {
-        // 🔧 FIX: ローディングフラグを解除
+        // 🔧 FIX: ローディングフラグを解除（正常・エラー問わず必ず実行）
+        setIsLoading(false);
         isLoadingRef.current = false;
         console.log('🔍 [PetriNetEditorInner] Loading flag cleared');
       }
@@ -1794,7 +1842,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, []);
 
   // ビューモード切替ハンドラー
-  const handleViewModeChange = useCallback((newMode: 'petriNet' | 'templates') => {
+  const handleViewModeChange = useCallback((newMode: 'petriNet' | 'templates' | 'xml') => {
     console.log('🔄 [PetriNetEditorInner] ビューモード切替:', { from: viewMode, to: newMode });
     
     // ペトリネットモードから切り替える場合、ビューポートを保存
@@ -2268,6 +2316,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // Week2: ValidationPanelを開く（バリデーション実行）
   const handleOpenValidationPanel = useCallback(async () => {
     console.log('📋 [PetriNetEditorInner] ValidationPanelを開く - バリデーション実行');
+
+    // ⭐ Phase 2: フォールバック由来の変換エラーが既にある場合はAPIを呼ばずそのまま表示
+    if (validationResult && validationResult.errors?.some(e => e.type === 'unknown_element')) {
+      console.log('ℹ️ [handleOpenValidationPanel] 変換エラー結果を再利用（APIスキップ）');
+      setValidationPanelOpen(true);
+      return;
+    }
     
     try {
       setIsValidating(true);
@@ -2873,8 +2928,8 @@ interface PetriNetEditorInnerUIProps {
   lastAutoSaveTime: Date | null;
   
   // ビューモード
-  viewMode: 'petriNet' | 'templates';
-  handleViewModeChange: (mode: 'petriNet' | 'templates') => void;
+  viewMode: 'petriNet' | 'templates' | 'xml';
+  handleViewModeChange: (mode: 'petriNet' | 'templates' | 'xml') => void;
   handleTemplateSelect: (template: Template) => void;
   handleTemplateAdd: (category: string) => void;
   handleTemplateDelete: (templateId: string) => void;
@@ -2936,6 +2991,8 @@ interface PetriNetEditorInnerUIProps {
   sourceS3Key?: string;
   /** プロジェクトID（DraftManagerに渡してDraft保存時にproject_idを記録する） */
   projectId?: string;
+  /** MAIMLデータ（XMLビュー表示用） */
+  maimlData?: string | null;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
@@ -3194,7 +3251,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
               }}
             />
           </ReactFlow>
-          ) : (
+          ) : viewMode === 'templates' ? (
             <TemplateList 
               onTemplateSelect={handleTemplateSelect}
               showCommonTemplates={showCommonTemplates}
@@ -3202,7 +3259,16 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
               onTemplateAdd={handleTemplateAdd}
               onTemplateDelete={handleTemplateDelete}
             />
-          )}
+          ) : viewMode === 'xml' ? (
+            <XMLViewerWrapper
+              nodes={nodes}
+              edges={edges}
+              documentData={documentData}
+              multiMethodMode={false}
+              methods={methods}
+              activeMethodIndex={activeMethodIndex}
+            />
+          ) : null}
 
           {/* Phase 3B: プロパティパネル（ノード・エッジ対応） */}
           {(selectedNode || selectedEdge) && (

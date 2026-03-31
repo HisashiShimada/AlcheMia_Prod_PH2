@@ -3,9 +3,10 @@
  * プロジェクト管理画面用の一括ファイルアップロードダイアログ
  * Ant Design v6を使用し、UIポリシーに準拠
  */
-
 import React, { useState, useCallback, useRef } from 'react';
 import { uploadFiles, abortChunkUpload } from '@/services/fileAccessService';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { uploadFiles, cancelBatch } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import type { UploadRetryState, UploadProgressState } from '@/types/file';
 import {
@@ -31,10 +32,8 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
-
 const { Text } = Typography;
 const { Dragger } = Upload;
-
 /**
  * アップロードモード
  */
@@ -64,6 +63,7 @@ interface BulkUploadDialogProps {
     mode: UploadMode;
     fileCount: number;
     success: boolean;
+    hasMaimlFile?: boolean; // ✨ Task: project_maiml_flg更新処理実装 - Phase 3
   }) => void;
   /** 事前選択されたフォルダパス */
   preselectedFolder?: string;
@@ -104,10 +104,17 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     totalCount: 0,
     error: null,
   });
+<<<<<<< HEAD
   /** リトライ状態（null = リトライなし） */
   const [retryState, setRetryState] = useState<UploadRetryState | null>(null);
   /** ファイルごとのプログレスバー状態 */
   const [fileProgressMap, setFileProgressMap] = useState<Map<string, UploadProgressState>>(new Map());
+=======
+  
+  // ✨ Task: アップロードキャンセル機能実装
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [batchId, setBatchId] = useState<string | null>(null);
+>>>>>>> main
 
   // Refs
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -220,12 +227,18 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       return;
     }
 
+<<<<<<< HEAD
     // ファイルごとのプログレスバーを初期化
     const initialProgressMap = new Map<string, UploadProgressState>();
     fileList.forEach(f => {
       initialProgressMap.set(f.name, { percent: 0, status: 'normal' });
     });
     setFileProgressMap(initialProgressMap);
+=======
+    // ✨ AbortControllerを作成
+    const controller = new AbortController();
+    setAbortController(controller);
+>>>>>>> main
 
     setUploadState({
       isUploading: true,
@@ -266,6 +279,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
           projectId,
           batchName: batchName || undefined,
         },
+        signal: controller.signal, // ✨ AbortSignalを渡す
         onProgress: (progress) => {
           // リトライ成功後はリトライ表示をクリア
           setRetryState(null);
@@ -294,14 +308,22 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         },
       });
 
+      // ✨ バッチIDを保存
+      if (response.batchId) {
+        setBatchId(response.batchId);
+      }
+
       if (response) {
         message.success('アップロードが完了しました');
         
+        // ✨ Task: project_maiml_flg更新処理実装 - Phase 3
+        // バックエンドからのhasMaimlFileをコールバックに渡す
         if (onUploadComplete) {
           onUploadComplete({
             mode: uploadMode,
             fileCount: fileList.length,
             success: true,
+            hasMaimlFile: response.hasMaimlFile, // バックエンドからの判定結果を追加
           });
         }
 
@@ -320,15 +342,51 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         }, 2000);
       }
     } catch (error) {
-      const errorMessage = extractErrorMessage(error);
-      setUploadState(prev => ({
-        ...prev,
-        isUploading: false,
-        error: errorMessage,
-      }));
-      message.error(errorMessage);
+      // ✨ キャンセルエラーの処理
+      if ((error as any).name === 'CanceledError') {
+        message.info('アップロードがキャンセルされました');
+        
+        // バックエンドに通知してファイル削除
+        if (batchId) {
+          try {
+            await cancelBatch(batchId);
+          } catch (cancelError) {
+            console.error('バッチキャンセルエラー:', cancelError);
+          }
+        }
+        
+        setUploadState(prev => ({
+          ...prev,
+          isUploading: false,
+          error: 'キャンセルされました',
+        }));
+      } else {
+        const errorMessage = extractErrorMessage(error);
+        setUploadState(prev => ({
+          ...prev,
+          isUploading: false,
+          error: errorMessage,
+        }));
+        message.error(errorMessage);
+      }
+    } finally {
+      // ✨ クリーンアップ
+      setAbortController(null);
+      setBatchId(null);
     }
-  }, [fileList, uploadMode, projectId, preselectedFolder, getTargetPath, batchName, onUploadComplete]);
+  }, [fileList, uploadMode, projectId, preselectedFolder, getTargetPath, batchName, onUploadComplete, batchId]);
+
+  /**
+   * アップロードキャンセル
+   * 
+   * ✨ Task: アップロードキャンセル機能実装
+   */
+  const handleCancelUpload = useCallback(async () => {
+    if (!abortController) return;
+    
+    // アップロードを即座に中断
+    abortController.abort();
+  }, [abortController]);
 
   /**
    * ダイアログを閉じる
@@ -550,7 +608,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
               border: '1px solid #0093CF',
             }}
           >
-            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={4} style={{ width: '100%' }}>
               <Text strong style={{ color: '#007AB3', fontSize: 13 }}>
                 アップロード先プロジェクト
               </Text>
@@ -621,12 +679,37 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
           <Alert
             message="アップロード中"
             description={
-              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-                <Text>
-                  {uploadState.uploadedCount} / {uploadState.totalCount} ファイル完了
-                </Text>
-                <Progress percent={uploadState.progress} status="active" />
-              </Space>
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={handleCancelUpload}
+                  disabled={!abortController || uploadState.progress >= 100}
+                  style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    right: '0px',
+                    padding: '4px 12px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    cursor: (abortController && uploadState.progress < 100) ? 'pointer' : 'not-allowed',
+                    fontWeight: '500',
+                    whiteSpace: 'nowrap',
+                    opacity: (abortController && uploadState.progress < 100) ? 1 : 0.6,
+                  }}
+                >
+                  キャンセル
+                </button>
+                <div style={{ paddingRight: '90px' }}>
+                  <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                    <Text>
+                      {uploadState.uploadedCount} / {uploadState.totalCount} ファイル完了
+                    </Text>
+                    <Progress percent={uploadState.progress} status="active" />
+                  </Space>
+                </div>
+              </div>
             }
             type="info"
             showIcon

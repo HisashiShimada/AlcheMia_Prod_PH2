@@ -12,6 +12,7 @@ import {
   Typography,
   Flex,
   theme,
+  Modal,
 } from 'antd';
 import {
   SearchOutlined,
@@ -20,6 +21,7 @@ import {
   UploadOutlined,
   EditOutlined,
   DownloadOutlined,
+  DeleteOutlined,
   FileTextOutlined,
   ExclamationCircleOutlined,
   UserOutlined,
@@ -45,6 +47,7 @@ import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
 import {
   downloadFolderAsZip,
+  deleteFileByKey,
 } from '@/services/fileAccessService';
 import { getProjects } from '@/services/projectApiService';
 import {
@@ -57,6 +60,7 @@ import {
   publishProject,
   unpublishProject,
   getPublishStatus,
+  deleteProject as deleteProjectApi,
   type CreateProjectRequest,
   type ApiResponse,
   type ProjectListResponse,
@@ -260,19 +264,20 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       const checkoutStatusLabel = getCheckoutStatusLabel(project.isCheckedOut);
 
       // 検索クエリでフィルタリング - すべての項目を対象（statusNameも含む）
+      const q = searchQuery.toLowerCase();
       const matchesSearch =
         searchQuery === '' ||
-        project.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.folderName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (project.statusName && project.statusName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        checkoutStatusLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.createdAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.updatedAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+        (project.id ?? '').toLowerCase().includes(q) ||
+        (project.name ?? '').toLowerCase().includes(q) ||
+        (project.folderName ?? '').toLowerCase().includes(q) ||
+        (project.description ?? '').toLowerCase().includes(q) ||
+        (project.owner ?? '').toLowerCase().includes(q) ||
+        (project.department ?? '').toLowerCase().includes(q) ||
+        ((project.statusName ?? '').toLowerCase().includes(q)) ||
+        checkoutStatusLabel.toLowerCase().includes(q) ||
+        (project.createdAt ?? '').toLowerCase().includes(q) ||
+        (project.updatedAt ?? '').toLowerCase().includes(q) ||
+        (project.tags ?? []).some((tag: string) => tag.toLowerCase().includes(q));
 
       // チェックアウト状態でフィルタリング（プロジェクト単位）
       let matchesCheckout = true;
@@ -417,14 +422,18 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   }, []);
 
   // アップロード完了ハンドラ
-  const handleUploadComplete = useCallback((result: {
+  const handleUploadComplete = useCallback(async (result: {
     mode: string;
     fileCount: number;
     success: boolean;
+    hasMaimlFile?: boolean;
   }) => {
     console.log('Upload completed:', result);
+    
+    // プロジェクト一覧を再取得（MAIMLファイルのフラグ更新は削除API側で自動実行）
+    await refetchProjects();
     handleRefresh();
-  }, [handleRefresh]);
+  }, [handleRefresh, refetchProjects]);
 
   // 選択したプロジェクトとそのファイル一覧を取得
   const selectedProject = useMemo(() => {
@@ -998,6 +1007,139 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     setNextZIndex(prev => prev + 1);
   }, [openDialogs, nextZIndex]);
 
+  // プロジェクト削除ハンドラ
+  const handleProjectDelete = useCallback(async () => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    Modal.confirm({
+      title: `プロジェクト「${selectedProject.name}」を削除しますか？`,
+      content: (
+        <div>
+          <p>この操作により、プロジェクトフォルダ配下のすべてのファイルが削除されます。</p>
+          <p style={{ color: 'red', fontWeight: 'bold' }}>この操作は取り消せません。</p>
+          <p style={{ fontSize: '0.9em', marginTop: '8px' }}>
+            ※ MAIMLファイルが存在する場合は削除できません
+          </p>
+        </div>
+      ),
+      okText: '削除',
+      cancelText: 'キャンセル',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          console.log('🗑️ [ProjectManagement] プロジェクト削除開始:', selectedProject.name);
+          
+          // プロジェクト削除API呼び出し
+          const result = await deleteProjectApi(selectedProject.name);
+          
+          console.log('✅ [ProjectManagement] プロジェクト削除成功:', result);
+          
+          message.success(`プロジェクト「${selectedProject.name}」を削除しました（${result.deletedCount}ファイル削除）`);
+          
+          // プロジェクト一覧を再取得
+          await refetchProjects();
+          
+          // 選択を解除
+          setSelectedProjectId(null);
+        } catch (error) {
+          console.error('❌ [ProjectManagement] プロジェクト削除失敗:', error);
+          
+          // エラーレスポンスから詳細メッセージを取得
+          if (error instanceof AxiosError && error.response?.data?.error?.message) {
+            message.error(error.response.data.error.message);
+          } else {
+            message.error('プロジェクトの削除に失敗しました');
+          }
+        }
+      },
+    });
+  }, [selectedProject, refetchProjects]);
+
+  // ファイル削除ハンドラ（MAIMLファイル + 一般ファイル）
+  const handleDeleteMaimlFile = useCallback(async (file: ProjectFile) => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    // MAIMLファイルかどうかで処理を分ける
+    const isMaimlFile = file.type === 'maiml';
+    
+    // 確認ダイアログの内容を設定
+    const confirmTitle = isMaimlFile
+      ? `MAIMLファイル「${file.name}」を削除しますか？`
+      : `ファイル「${file.name}」を削除しますか？`;
+    
+    const confirmContent = isMaimlFile ? (
+      <div>
+        <p>この操作は取り消せません。</p>
+        <p style={{ fontSize: '0.9em', marginTop: '8px' }}>
+          ※ プロジェクトステータスがタスク計画中の場合のみ削除できます
+        </p>
+      </div>
+    ) : (
+      <div>
+        <p>この操作は取り消せません。</p>
+      </div>
+    );
+
+    Modal.confirm({
+      title: confirmTitle,
+      content: confirmContent,
+      okText: '削除',
+      cancelText: 'キャンセル',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          console.log(`🗑️ [ProjectManagement] ファイル削除開始:`, file.name);
+          
+          if (isMaimlFile) {
+            // MAIMLファイル: 共通削除API（project_statusチェック付き）
+            // フラグ更新は削除API側で自動実行
+            await deleteFileByKey(file.path, true);
+            console.log('✅ [ProjectManagement] MAIMLファイル削除成功:', file.path);
+            
+            message.success(`MAIMLファイル「${file.name}」を削除しました`);
+            
+            // プロジェクト一覧を再取得（project_maiml_flgの更新反映）
+            await refetchProjects();
+            
+            // MAIMLコンテキストを再読み込み
+            await reloadMaiml();
+          } else {
+            // 一般ファイル: 共通削除API（無条件削除）
+            await deleteFileByKey(file.path);
+            console.log('✅ [ProjectManagement] 一般ファイル削除成功:', file.path);
+            message.success(`ファイル「${file.name}」を削除しました`);
+          }
+          
+          // ファイル一覧を再取得
+          const fileResponse = await getProjectFiles(selectedProject.name, true);
+          setProjectFilesData(prev => ({
+            ...prev,
+            [selectedProject.id]: {
+              root: fileResponse.files || [],
+              archive: fileResponse.archiveFiles || [],
+            }
+          }));
+          
+        } catch (error) {
+          console.error('❌ [ProjectManagement] ファイル削除失敗:', error);
+          
+          // エラーレスポンスから詳細メッセージを取得
+          if (error instanceof AxiosError && error.response?.data?.error?.message) {
+            message.error(error.response.data.error.message);
+          } else {
+            message.error('ファイルの削除に失敗しました');
+          }
+        }
+      },
+    });
+  }, [selectedProject, refetchProjects, reloadMaiml]);
+
   // プロジェクト一括ダウンロードハンドラ（ZIP形式）
   const handleProjectDownload = useCallback(async () => {
     if (!selectedProject) {
@@ -1408,6 +1550,14 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     {t('projectManagement.edit')}
                   </Button>
                   <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={handleProjectDelete}
+                    disabled={!selectedProject}
+                  >
+                    削除
+                  </Button>
+                  <Button
                     type="primary"
                     icon={<FileTextOutlined />}
                     onClick={handleToggleCheckout}
@@ -1504,6 +1654,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         onFileClick={(file) => console.log('File clicked:', file.name)}
                         onFolderClick={handleFolderClick}
                         onViewFile={handleViewFile}
+                        onDeleteFile={handleDeleteMaimlFile}
                       />
                     ),
                   },
@@ -1780,7 +1931,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       {/* 問題確認モーダル */}
       {selectedProject && (
         <IssueManagementModal
-          visible={issueManagementModalOpen}
+          open={issueManagementModalOpen}
           targetName={selectedProject.name}
           projectId={selectedProject.id}
           projectName={selectedProject.name}

@@ -130,7 +130,7 @@ export default function TaskSelectionDialog({
             </Space>
           }
           description={
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 タスクID: {task.taskId}
               </Text>
@@ -153,7 +153,7 @@ export default function TaskSelectionDialog({
 
   // モーダルタイトル
   const modalTitle = (
-    <Space direction="vertical" size={0}>
+    <Space orientation="vertical" size={0}>
       <Space>
         <AimOutlined style={{ color: token.colorPrimary }} />
         <Text strong>タスクを選択</Text>
@@ -181,17 +181,17 @@ export default function TaskSelectionDialog({
     >
       <div style={{ maxHeight: 500, overflowY: 'auto' }} data-testid="task-selection-dialog-content">
         {!selectedProject ? (
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-project">
+          <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-project">
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
             <Text type="secondary">プロジェクトを選択してください</Text>
           </Space>
         ) : !selectedMethodId ? (
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-method">
+          <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-method">
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
             <Text type="secondary">メソッドを選択してください</Text>
           </Space>
         ) : tasks.length === 0 ? (
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-tasks">
+          <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-tasks">
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
             <Text type="secondary">選択されたメソッドにタスクがありません</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>

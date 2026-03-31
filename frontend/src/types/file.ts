@@ -208,6 +208,12 @@ export interface UploadResponseData {
     failedFiles: number;
     totalSize: number;
   };
+  // ✨ Task: project_maiml_flg更新処理実装 - Phase 3
+  // アップロード対象にMAIMLファイルが含まれているか
+  hasMaimlFile?: boolean;
+  // ✨ Task: アップロードキャンセル機能実装
+  // バッチID（キャンセル処理で使用）
+  batchId?: string;
 }
 
 /**
@@ -327,4 +333,8 @@ export interface UploadRetryState {
   retryCount: number;
   /** 最大リトライ回数 */
   maxRetries: number;
+  // ✨ Task: アップロードキャンセル機能実装
+  // アップロードをキャンセルするためのAbortSignal
+  signal?: AbortSignal;
+
 }

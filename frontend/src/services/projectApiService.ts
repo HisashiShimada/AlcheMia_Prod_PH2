@@ -293,41 +293,34 @@ interface ProjectListApiResponse {
 }
 
 /**
- * プロジェクト一覧を取得
+ * プロジェクト一覧を取得（全件）
  * GET /api/v1/projects
- * 
+ *
  * @param status プロジェクトステータスフィルタ（省略可）
- * @param page ページ番号（デフォルト: 1）
- * @param limit 1ページあたりの件数（デフォルト: 20）
- * @returns プロジェクト一覧とページネーション情報
+ * @returns プロジェクト一覧
  * @throws Error APIエラー時
- * 
+ *
  * @example
  * ```typescript
  * // 全プロジェクトを取得
  * const result = await getProjects();
  * console.log(result.data.projects); // プロジェクト配列
- * 
- * // アクティブなプロジェクトのみ取得
- * const activeProjects = await getProjects('active');
  * ```
  */
 export const getProjects = async (
-  status?: 'active' | 'archived' | 'all',
-  page: number = 1,
-  limit: number = 20
+  status?: 'active' | 'archived' | 'all'
 ): Promise<ApiResponse<ProjectListResponse>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getProjects - Frontend call start', { status, page, limit });
-    
+    console.log('[DEBUG] getProjects - Frontend call start', { status });
+
     // include_completed=true を常に送信する（フロントエンド側でフィルタリングするため）
-    const params: Record<string, string | number | boolean> = { page, limit, include_completed: true };
+    const params: Record<string, string | boolean> = { include_completed: true };
     if (status && status !== 'all') {
       params.status = status;
     }
-    
+
     // バックエンドの実際のレスポンス型を使用
     const response = await client.get<ProjectListApiResponse>(
       '/projects',
@@ -337,11 +330,8 @@ export const getProjects = async (
     console.log('[DEBUG] getProjects - Response received', {
       status: response.status,
       projectCount: response.data.data.length,
-      totalItems: response.data.pagination.totalItems,
-      totalPages: response.data.pagination.totalPages,
-      currentPage: response.data.pagination.page
     });
-    
+
     // フロントエンドの期待する形式に変換
     return {
       success: response.data.success,
@@ -1944,3 +1934,70 @@ export const getProjectMaiml = async (
   }
 };
 
+// ========================================
+// プロジェクト削除関連API関数
+// ========================================
+
+/**
+ * プロジェクト削除レスポンス型
+ */
+export interface DeleteProjectResponse {
+  deletedCount: number;
+  message: string;
+}
+
+/**
+ * プロジェクトを削除
+ * DELETE /api/v1/projects/:projectName
+ * 
+ * @param projectName プロジェクト名
+ * @returns 削除結果（削除されたファイル数とメッセージ）
+ * @throws Error APIエラー時
+ * 
+ * @remarks
+ * - project_maiml_flg=falseの場合のみ削除可能
+ * - DB + ストレージのファイルを全て削除
+ * 
+ * @example
+ * ```typescript
+ * try {
+ *   const result = await deleteProject('sample_project');
+ *   console.log(`削除成功: ${result.deletedCount}ファイル`);
+ * } catch (error) {
+ *   console.error('削除失敗:', error);
+ * }
+ * ```
+ */
+export const deleteProject = async (
+  projectName: string
+): Promise<DeleteProjectResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] deleteProject - Request', { projectName });
+    
+    const response = await client.delete<{
+      success: true;
+      data: DeleteProjectResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}`);
+
+    console.log('[DEBUG] deleteProject - Success', {
+      deletedCount: response.data.data.deletedCount,
+      message: response.data.data.message,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] deleteProject - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};

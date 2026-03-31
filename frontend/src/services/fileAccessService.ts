@@ -291,8 +291,8 @@ export const uploadFiles = async (
     onFileProgress,
     onRetry,
     onSessionInit,
+    signal, // ✨ キャンセル用のAbortSignal
   } = params;
-
   // ---------------------------------------------------------------------------
   // ファイルごと個別アップロード (2026-03-26)
   // 全ファイルを並行して個別リクエストで送信し、ファイルごとの進捗を onFileProgress で通知する。
@@ -306,13 +306,26 @@ export const uploadFiles = async (
   /**
    * 1 ファイルをアップロードするヘルパー（通常方式）
    */
-  const uploadSingleFile = async (file: File): Promise<UploadedFileInfo> => {
+    const uploadSingleFile = async (file: File): Promise<UploadedFileInfo> => {
     const client = createApiClient();
     const filePath = `${targetPath.replace(/\/+$/, '')}/${file.name}`;
-
     // アップロード開始通知
     if (onFileProgress) onFileProgress(file.name, 0, 'active');
+  try {
+    // ファイルサイズの累積値を事前計算（uploadedCountの推定用）
+    const fileSizes: number[] = [];
+    files.forEach(file => {
+      fileSizes.push(file.size);
+    });
 
+    // 各ファイルの累積サイズを計算
+    const cumulativeSizes: number[] = [];
+    let cumulative = 0;
+    fileSizes.forEach(size => {
+      cumulative += size;
+      cumulativeSizes.push(cumulative);
+    });
+    // FormDataの構築
     const formData = new FormData();
     formData.append('uploadMode', uploadMode);
     formData.append('targetPath', targetPath);
@@ -321,7 +334,6 @@ export const uploadFiles = async (
     if (metadata) {
       formData.append('metadata', JSON.stringify(metadata));
     }
-
     const response = await withRetry(
       () => client.post<ApiResponse<UploadResponseData>>(
         '/files/upload',
@@ -351,12 +363,45 @@ export const uploadFiles = async (
       ),
       DEFAULT_RETRY_OPTIONS,
       onRetry
+    // アップロード実行
+    const response = await client.post<ApiResponse<UploadResponseData>>(
+      '/files/upload',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        signal, // ✨ AbortSignalを渡す
+        onUploadProgress: (progressEvent: AxiosProgressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const percentage = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            
+            // アップロード済みバイト数から完了ファイル数を推定
+            let uploadedCount = 0;
+            for (let i = 0; i < cumulativeSizes.length; i++) {
+              if (progressEvent.loaded >= cumulativeSizes[i]) {
+                uploadedCount = i + 1;
+              } else {
+                break;
+              }
+            }
+            
+            onProgress({
+              uploadedBytes: progressEvent.loaded,
+              totalBytes: progressEvent.total,
+              percentage,
+              uploadedCount, // 正しく計算されたファイル数
+              totalCount: files.length,
+            });
+          }
+        },
+      }
     );
-
     if (!response.data.success) {
       throw new Error(`${file.name} のアップロードに失敗しました`);
     }
-
     // 完了通知
     completedCount++;
     if (onFileProgress) onFileProgress(file.name, 100, 'success');
@@ -405,7 +450,6 @@ export const uploadFiles = async (
       },
       onSessionInit,
     });
-
     completedCount++;
     if (onFileProgress) onFileProgress(file.name, 100, 'success');
     if (onProgress) {
@@ -417,7 +461,6 @@ export const uploadFiles = async (
         totalCount,
       });
     }
-
     return {
       fileId: fileKey,
       fileName: file.name,
@@ -452,12 +495,22 @@ export const uploadFiles = async (
       console.error(`[uploadFiles] ${file.name} アップロード失敗:`, result.reason);
     }
   });
-
   // 全ファイルが失敗した場合は最初のエラーをそのままスロー
   // (AxiosError を維持することで extractErrorMessage が正確なメッセージを返す)
   if (failedCount === files.length) {
     const firstRejected = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
     throw firstRejected?.reason ?? new Error('すべてのファイルのアップロードに失敗しました');
+    throw new Error('アップロードに失敗しました');
+  } catch (error) {
+    // ✨ Axiosのキャンセルエラーを適切にハンドリング
+    if ((error as any).code === 'ERR_CANCELED') {
+      const cancelError = new Error('アップロードがキャンセルされました');
+      cancelError.name = 'CanceledError';
+      throw cancelError;
+    }
+    
+    console.error('ファイルアップロードエラー:', error);
+    throw error;
   }
 
   return {
@@ -470,6 +523,32 @@ export const uploadFiles = async (
       totalSize: successFiles.reduce((sum, f) => sum + f.fileSize, 0),
     },
   };
+};
+/**
+ * バッチキャンセル
+ * 
+ * Task: アップロードキャンセル機能実装
+ * - バッチIDを指定してアップロード処理をキャンセル
+ * - 既にアップロードされたファイルを削除
+ * - organization_idは認証情報から自動取得
+ * 
+ * @param batchId バッチID
+ * @returns Promise<void> キャンセル完了後に解決
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * await cancelBatch('batch_abc123');
+ */
+export const cancelBatch = async (batchId: string): Promise<void> => {
+  const client = createApiClient();
+
+  try {
+    await client.post(`/files/batches/${batchId}/cancel`);
+    console.log('バッチキャンセル成功:', batchId);
+  } catch (error) {
+    console.error('バッチキャンセルエラー:', error);
+    throw error;
+  }
 };
 
 /**
@@ -543,25 +622,38 @@ export const getFileViewUrl = async (fileKey: string): Promise<string> => {
  * - プロジェクト、フォーマット、その他のファイルで共通利用可能
  * - organization_idは認証情報から自動取得
  * 
+ * Task: プロジェクト管理画面maimlファイル削除時project_status確認（2026-03-27）
+ * - オプショナルパラメータ: checkProjectStatus
+ * - プロジェクト管理画面からはcheckProjectStatus=trueで呼び出し
+ * - maimlファイル削除時にproject_status=0であることを確認
+ * 
  * @param fileKey ファイルキー（相対パス）
+ * @param checkProjectStatus project_statusチェックを行うか（デフォルト: false）
  * @returns Promise<void> 削除完了後に解決
  * @throws Error APIエラー時
  * 
  * @example
- * // フォーマットファイル削除
+ * // フォーマットファイル削除（statusチェックなし）
  * await deleteFileByKey('formats/chemistry/template.xml');
  * 
- * // プロジェクトファイル削除
+ * // プロジェクトファイル削除（statusチェックなし）
  * await deleteFileByKey('projects/sample_project/data.csv');
+ * 
+ * // プロジェクト管理画面からのmaimlファイル削除（statusチェックあり）
+ * await deleteFileByKey('projects/sample_project/sample_project.maiml', true);
  */
 export const deleteFileByKey = async (
-  fileKey: string
+  fileKey: string,
+  checkProjectStatus?: boolean
 ): Promise<void> => {
   const client = createApiClient();
 
   try {
     await client.delete('/files/delete', {
-      data: { fileKey },
+      data: {
+        fileKey,
+        ...(checkProjectStatus !== undefined && { checkProjectStatus }),
+      },
     });
 
     console.log('ファイル削除成功:', fileKey);
