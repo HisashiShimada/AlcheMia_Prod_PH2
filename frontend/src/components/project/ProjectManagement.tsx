@@ -264,19 +264,20 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       const checkoutStatusLabel = getCheckoutStatusLabel(project.isCheckedOut);
 
       // 検索クエリでフィルタリング - すべての項目を対象（statusNameも含む）
+      const q = searchQuery.toLowerCase();
       const matchesSearch =
         searchQuery === '' ||
-        project.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.folderName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (project.statusName && project.statusName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        checkoutStatusLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.createdAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.updatedAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+        (project.id ?? '').toLowerCase().includes(q) ||
+        (project.name ?? '').toLowerCase().includes(q) ||
+        (project.folderName ?? '').toLowerCase().includes(q) ||
+        (project.description ?? '').toLowerCase().includes(q) ||
+        (project.owner ?? '').toLowerCase().includes(q) ||
+        (project.department ?? '').toLowerCase().includes(q) ||
+        ((project.statusName ?? '').toLowerCase().includes(q)) ||
+        checkoutStatusLabel.toLowerCase().includes(q) ||
+        (project.createdAt ?? '').toLowerCase().includes(q) ||
+        (project.updatedAt ?? '').toLowerCase().includes(q) ||
+        (project.tags ?? []).some((tag: string) => tag.toLowerCase().includes(q));
 
       // チェックアウト状態でフィルタリング（プロジェクト単位）
       let matchesCheckout = true;

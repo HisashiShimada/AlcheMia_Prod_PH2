@@ -167,20 +167,21 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       const fileTypeLabel = format.fileType.toUpperCase();
       
       // 検索クエリでフィルタリング - すべての項目を対象（表示値も含む）
+      const q = searchQuery.toLowerCase();
       const matchesSearch =
         searchQuery === '' ||
-        format.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        format.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        format.folderName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        format.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        format.fileType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        fileTypeLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        format.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        getCategoryLabel(format.category).toLowerCase().includes(searchQuery.toLowerCase()) ||
-        format.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        format.createdAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        format.updatedAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        format.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+        (format.id ?? '').toLowerCase().includes(q) ||
+        (format.name ?? '').toLowerCase().includes(q) ||
+        (format.folderName ?? '').toLowerCase().includes(q) ||
+        (format.description ?? '').toLowerCase().includes(q) ||
+        (format.fileType ?? '').toLowerCase().includes(q) ||
+        fileTypeLabel.toLowerCase().includes(q) ||
+        (format.category ?? '').toLowerCase().includes(q) ||
+        getCategoryLabel(format.category ?? '').toLowerCase().includes(q) ||
+        (format.department ?? '').toLowerCase().includes(q) ||
+        (format.createdAt ?? '').toLowerCase().includes(q) ||
+        (format.updatedAt ?? '').toLowerCase().includes(q) ||
+        (format.tags ?? []).some((tag: string) => tag.toLowerCase().includes(q));
 
       // カテゴリフィルタリング
       const matchesCategory = categoryFilter === 'all' || format.category === categoryFilter;
