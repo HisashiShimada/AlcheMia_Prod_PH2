@@ -24,8 +24,6 @@ import type { Project, Pagination, ProjectListResponse } from '../types/project'
 import { nanoid } from 'nanoid';
 
 interface ListOptions {
-  page: number;
-  limit: number;
   includeCompleted: boolean;
   sortBy?: string;
   order?: 'asc' | 'desc';
@@ -369,8 +367,7 @@ export class ProjectService {
     options: ListOptions
   ): Promise<ServiceResult<ProjectListResponse>> {
     try {
-      const { page, limit, includeCompleted, sortBy = 'create_at', order = 'desc' } = options;
-      const offset = (page - 1) * limit;
+      const { includeCompleted, sortBy = 'create_at', order = 'desc' } = options;
 
       // プロジェクト一覧取得クエリ（ユーザー名、部署名、チェックアウト情報も取得）
       const projectQuery = `
@@ -438,10 +435,12 @@ export class ProjectService {
           p.create_at,
           checkout_user.user_id
         ORDER BY p.${sortBy} ${order.toUpperCase()}
-        LIMIT $3 OFFSET $4
       `;
 
-      const projectParams = [organizationId, includeCompleted, limit, offset];
+      const projectParams = [
+        organizationId,
+        includeCompleted,
+      ];
 
       // 総件数取得クエリ
       const countQuery = `
@@ -463,7 +462,6 @@ export class ProjectService {
 
       const projects = projectsResult.rows;
       const totalItems = parseInt(countResult.rows[0].total, 10);
-      const totalPages = Math.ceil(totalItems / limit);
 
       // データを変換（フロントエンドの型に合わせる）
       const formattedProjects: Project[] = projects.map((row: any) => ({
@@ -491,14 +489,14 @@ export class ProjectService {
         completedTasks: parseInt(row.completed_task_count, 10),
       }));
 
-      // ページネーション情報を構築
+      // ページネーション情報を構築（後方互換のため残す）
       const pagination: Pagination = {
-        page,
-        limit,
+        page: 1,
+        limit: totalItems,
         totalItems,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false
       };
 
       return {

@@ -28,3 +28,16 @@ export {
   convertMultipleMethodsToMaiML,
   type Metadata,
 } from './multiMethodConverter';
+
+// Template ⇄ XML 変換
+export {
+  convertTemplateToXML,
+  parseXMLToTemplate,
+  validateTemplateXML,
+  type TemplateEditorData,
+  type NestedPropertyData,
+  type NestedContentData,
+  type ParseXMLResult,
+  type ValidateXMLResult,
+  type ParseError,
+} from './templateToXML';
