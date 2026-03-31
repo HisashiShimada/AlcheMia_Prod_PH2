@@ -1,29 +1,36 @@
 'use client';
 
 import React, { useState } from 'react';
+import { App } from 'antd';
 import { Task, ProjectStatus } from '@/types/experimentWorker';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
 import type { FileData, SubnetData } from '@/components/viewer/ViewRendererDialog';
 import TaskListTable from './TaskListTable';
+import { getProjectMaiml } from '@/services/projectApiService';
 
 interface ProgressCheckTableProps {
-tasks: Task[];
+  tasks: Task[];
   projectStatus: ProjectStatus | null;
   onTaskAction: (taskId: string, action: string) => void;
   /** trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用） */
   readOnly?: boolean;
+  /** プロジェクト名（MAIMLファイル取得に使用） */
+  projectName: string;
 }
 
 /**
  * 進捗確認テーブル（親コンポーネント）
  * タスク一覧を表示（メソッドはタブで選択済み）
  */
-export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction, readOnly = false }: ProgressCheckTableProps) {
+export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction, readOnly = false, projectName }: ProgressCheckTableProps) {
+  // Ant Design App コンテキストからmessageを取得
+  const { message } = App.useApp();
   // ViewRendererDialogの管理
   const [viewerDialogs, setViewerDialogs] = useState<Array<{
     id: string;
     file: FileData;
+    fileContent?: string;
     zIndex: number;
   }>>([]);
   const [nextZIndex, setNextZIndex] = useState(999999);
@@ -32,24 +39,45 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction,
   const [subnetData, setSubnetData] = useState<SubnetData | null>(null);
   
   // 進捗率クリック時のハンドラー
-  const handleProgressRateClick = (task: Task) => {
-    const fileData: FileData = {
-      id: 'test_omori11',
-      name: 'test_omori11.maiml',
-      path: '/data/mock/test_omori11.maiml',
-      size: 0,
-      lastModified: new Date().toISOString(),
-      type: 'maiml',
-    };
+  const handleProgressRateClick = async (_task: Task) => {
+    if (!projectName) {
+      message.warning('プロジェクトが選択されていません');
+      return;
+    }
 
-    const newDialog = {
-      id: `flow-diagram-${Date.now()}`,
-      file: fileData,
-      zIndex: nextZIndex,
-    };
+    try {
+      // プロジェクトのMAIMLファイルをAPIから取得
+      const result = await getProjectMaiml(projectName);
 
-    setViewerDialogs([...viewerDialogs, newDialog]);
-    setNextZIndex(nextZIndex + 1);
+      if (!result.success || !result.data) {
+        message.error('MAIMLファイルの取得に失敗しました');
+        return;
+      }
+
+      const maimlContent = result.data.maimlContent;
+
+      const fileData: FileData = {
+        id: `project-${projectName}`,
+        name: `${projectName}.maiml`,
+        path: `projects/${projectName}/${projectName}.maiml`,
+        size: maimlContent.length,
+        lastModified: new Date().toISOString(),
+        type: 'maiml',
+      };
+
+      const newDialog = {
+        id: `flow-diagram-${Date.now()}`,
+        file: fileData,
+        fileContent: maimlContent,
+        zIndex: nextZIndex,
+      };
+
+      setViewerDialogs([...viewerDialogs, newDialog]);
+      setNextZIndex(nextZIndex + 1);
+    } catch (error) {
+      console.error('[ProgressCheckTable] MAIMLファイル取得エラー:', error);
+      message.error('MAIMLファイルの取得中にエラーが発生しました');
+    }
   };
 
   // ダイアログを閉じる
@@ -99,6 +127,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction,
           id={dialog.id}
           contentType="file"
           file={dialog.file}
+          fileContent={dialog.fileContent}
           zIndex={dialog.zIndex}
           initialPosition={{ x: 100, y: 100 }}
           initialSize={{ width: 1200, height: 800 }}

@@ -660,4 +660,36 @@ export class FileMetadataRepository {
     }
   }
 
+  /**
+   * バッチIDに紐付けられたファイルメタデータを取得
+   * 
+   * Task: アップロードキャンセル機能実装
+   * - 指定されたバッチIDに紐付けられたすべてのファイルメタデータを取得
+   * - キャンセル時にファイルを削除するために使用
+   * 
+   * @param batchId - バッチID
+   * @returns ファイルメタデータの配列
+   */
+  async findByBatchId(batchId: string): Promise<FileMetadata[]> {
+    const pool = getPool();
+
+    const query = `
+      SELECT *
+      FROM file_metadata
+      WHERE upload_batch_id = $1
+      ORDER BY created_at ASC
+    `;
+
+    const params = [batchId];
+
+    try {
+      const result = await pool.query(query, params);
+      console.log(`✅ [FileMetadataRepository] バッチID紐付けファイル取得: ${result.rows.length}件 (batchId: ${batchId})`);
+      return result.rows as FileMetadata[];
+    } catch (error) {
+      console.error(`❌ [FileMetadataRepository] バッチID紐付けファイル取得エラー (batchId: ${batchId})`, error);
+      throw error;
+    }
+  }
+
 }

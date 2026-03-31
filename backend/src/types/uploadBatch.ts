@@ -15,7 +15,8 @@ export type BatchStatus =
   | 'in_progress'        // アップロード中
   | 'completed'          // 完了（全成功）
   | 'completed_with_errors'  // 完了（一部失敗）
-  | 'failed';            // 失敗（全失敗）
+  | 'failed'             // 失敗（全失敗）
+  | 'cancelled';         // キャンセル（Task: アップロードキャンセル機能実装）
 
 /**
  * アップロードバッチ情報
