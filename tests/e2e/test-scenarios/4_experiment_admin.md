@@ -25,18 +25,18 @@
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|------|-----------|-----------|------|-------|-------|
 | **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M | 28件 | Playwright自動 | 20 | 0 | 8 |
-| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 26件 | 手動 | 26 | 0 | 0 |
+| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 34件 | 手動 | 26 | 0 | 8 |
 | **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 9件 | Playwright自動 | 9 | 0 | 0 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 7件 | Playwright自動 | 7 | 0 | 0 |
 | **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 10件 | Playwright自動 | 10 | 0 | 0 |
 | **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 13件 | Playwright自動 | 13 | 0 | 0 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 | 7 | 0 | 0 |
-| **4-8** | フォーマット管理 | 要件書#13 | 40件 | Playwright自動 | 40 | 0 | 0 |
+| **4-8** | フォーマット管理 | 要件書#13 | 48件 | Playwright自動 | 40 | 0 | 8 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） | 10 | 0 | 0 |
 | **4-10** | プロジェクト公開 | 追加機能S | 11件 | Playwright自動（フロントエンド実装後） | 4 | 0 | 0 |
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 | 10 | 0 | 0 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | Playwright自動 | 8 | 0 | 0 |
-| **合計** | - | - | **172件** | - | **164** | **0** | **8** |
+| **合計** | - | - | **188件** | - | **164** | **0** | **24** |
 
 
 ### スコープ外
@@ -137,6 +137,14 @@
 | 4-2-24 | 保存ダイアログの「自動補正して保存」ボタンをクリックすると補正処理が実行された後に保存されること | 正常系 | `SaveConfirmDialog` auto-correct アクション | OK | |
 | 4-2-25 | 重複IDエラー・シンタックスエラーは自動補正の対象外であり、補正後もエラーが残ること | 異常系 | `maimlService.ts` autoCorrectMaiml 制限事項 | OK | |
 | 4-2-26 | 自動補正適用後に再バリデーションが自動実行され、ValidationPanelの結果が更新されること | 正常系 | `PetriNetEditorInner.tsx` handleAutoCorrect → handleRevalidate | OK | |
+| 4-2-27 | ビューモードを「XMLビュー」に切り替えるとXMLビューパネルが表示されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`EditorToolbar.tsx` viewMode='xml' | - | |
+| 4-2-28 | XMLビューにMAIML XMLがシンタックスハイライト付きで表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase1、`XMLViewer.tsx` | - | ローディングスピナー（Ant Design Spin）表示後にXMLが描画されること |
+| 4-2-29 | ペトリネットにノード/エッジを追加後にXMLビューへ切り替えると追加内容がXMLに反映されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase2、`XMLViewerWrapper.tsx` convertReactFlowToMaiML | - | リアルタイム変換の確認 |
+| 4-2-30 | 複数メソッドモードで各メソッドのXMLが正しく出力されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase2、`XMLViewerWrapper.tsx` convertMultipleMethodsToMaiML | - | メソッドタブを2件以上追加した状態で確認 |
+| 4-2-31 | XMLビューの「コピー」ボタンをクリックするとXML文字列がクリップボードにコピーされること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase5、`XMLViewer.tsx` コピーボタン | - | ブラウザのクリップボードに内容がセットされることを確認 |
+| 4-2-32 | XMLビューの「ダウンロード」ボタンをクリックすると `.xml` ファイルがダウンロードされること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase5、`XMLViewer.tsx` ダウンロードボタン | - | ダウンロードされたファイルの内容がXMLとして有効であること |
+| 4-2-33 | XMLビューからペトリネットビューに戻るとビューポート（位置・ズーム）が保持されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`PetriNetEditorInner.tsx` handleViewModeChange | - | ビューポート保存ロジックが `'xml'` モード遷移時にも動作すること |
+| 4-2-34 | ペトリネット/テンプレート/XMLビューの3モード間で相互に切り替えられること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`EditorToolbar.tsx` Segmented | - | 各モードへの往復切り替えでUIが正常に表示されること |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -146,6 +154,7 @@
 - プロジェクト管理タブでプロジェクトを選択後、「編集」ボタンから実験フロー編集画面（PetriNetEditor）を開いていること
 - ワークフロー取込（4-2-11）用: S3上にワークフロー取込対象のMAIMLファイルが存在すること
 - ワークフロー取込（4-2-11）用: 取込元ファイルは `WorkflowSelectorDialog` で選択可能な状態であること
+- XMLビュー（4-2-27〜4-2-34）用: ペトリネットにノード/エッジが少なくとも1件以上存在すること
 
 **手動テスト手順（概要）:**
 1. プロジェクト管理画面からプロジェクトを選択し、「編集」ボタンをクリックしてPetriNetEditorを開く
@@ -357,6 +366,14 @@
 | 4-8-38 | ファイルの「削除」ボタンをクリックすると削除確認ダイアログが表示されること | 表示確認 | `ui_format_file_list_table.md` §3.1.6、`ui_format_management.md` §3.2 | - | OK | |
 | 4-8-39 | 削除確認ダイアログで確認するとファイルが削除されてファイル一覧から消えること | 正常系 | `ui_format_management.md` §3.2 / §6.4 | DELETE `/api/v1/formats/:formatId/files/:fileId` | OK | |
 | 4-8-40 | 削除確認ダイアログでキャンセルするとファイルが削除されないこと | 正常系 | `ui_format_file_list_table.md` §3.1.6 | - | OK | |
+| 4-8-41 | TemplateEditorDialogを開くと「UI編集」「XMLビュー」の2タブが表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`TemplateEditorDialog.tsx` Tabs | - | |
+| 4-8-42 | 「UI編集」タブが初期表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`activeTab='ui'` 初期値 | - | |
+| 4-8-43 | 「XMLビュー」タブをクリックするとテンプレートのXML文字列がTextAreaに表示されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`convertTemplateToXML` | - | UI → XML 切り替え時に `convertTemplateToXML` が呼ばれること |
+| 4-8-44 | XMLビューでXMLを直接編集して「UI編集」タブに戻るとUI Stateに変更が反映されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`parseXMLToTemplate` | - | XML → UI 切り替え時に `parseXMLToTemplate` が呼ばれること |
+| 4-8-45 | XMLビューで不正なXML（構文エラー）を入力してバリデーションを実行するとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | バリデーションボタン押下時にエラーAlertが表示されること |
+| 4-8-46 | XMLビューで有効なXMLを入力してバリデーションを実行するとエラーメッセージが表示されないこと | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | エラーAlertが表示されないこと |
+| 4-8-47 | XMLビューから保存するとXMLがパースされてテンプレートデータが正しく保存されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` | - | `validateTemplateXML` → `parseXMLToTemplate` → 保存の順で処理されること |
+| 4-8-48 | XMLビューでエラーがある状態で保存しようとするとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` バリデーション | - | 不正なXMLのまま保存ボタンを押すとエラーが表示されること |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
