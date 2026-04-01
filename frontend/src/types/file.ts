@@ -250,6 +250,25 @@ export interface UploadFilesParams {
    * UI 側でキャンセル処理（abortChunkUpload）を行うために使用する。
    */
   onSessionInit?: (uploadId: string) => void;
+  /**
+   * アップロードをキャンセルするための AbortSignal。
+   * AbortController.signal を渡すことでアップロードを中断できる。
+   */
+  signal?: AbortSignal;
+}
+
+/**
+ * アップロード結果サマリー
+ *
+ * アップロード完了後に UI へ表示する結果情報。
+ */
+export interface UploadResultSummary {
+  /** 成功したファイル数 */
+  successCount: number;
+  /** 失敗したファイル数 */
+  failureCount: number;
+  /** 失敗したファイル名の一覧 */
+  failedFileNames: string[];
 }
 
 // ---------------------------------------------------------------------------

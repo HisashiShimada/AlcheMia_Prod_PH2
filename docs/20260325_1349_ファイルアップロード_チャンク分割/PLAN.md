@@ -45,6 +45,9 @@
   - 全チャンクのバイナリ結合
   - ストレージ（S3/Swift）へのアップロード
   - エラー時・完了時の一時ファイルクリーンアップ（finally 節で保証）
+- [ ] `backend/src/controllers/fileAccessController.ts` の `completeChunkUpload()` にファイルメタデータ保存処理を追加
+  - チャンク結合・ストレージ保存成功後に `FileMetadataRepository.insertFileMetadata()` を呼び出し `file_metadata` テーブルにレコードを追加する
+  - DB保存失敗時は `storageService.deleteFile()` でストレージ上のファイルをロールバック（削除）する
 
 ### Phase 2: フロントエンド - 型定義追加
 - [ ] `frontend/src/types/file.ts` にチャンク関連型を追加

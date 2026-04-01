@@ -15,8 +15,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { getStorageService } from './storageService';
+
+// ---------------------------------------------------------------------------
+// リトライ機能 (2026-03-30) → 共通化: backend/src/utils/storageRetry.ts
+// ---------------------------------------------------------------------------
+import { withStorageRetry } from '../utils/storageRetry';
 
 /** チャンクセッション情報 */
 export interface ChunkSession {
@@ -42,6 +48,8 @@ export interface ChunkCompleteResult {
   fileSize: number;
   /** Content-Type */
   contentType: string;
+  /** SHA-256ハッシュ値（重複検出用） */
+  fileHash: string;
 }
 
 /**
@@ -152,20 +160,29 @@ export class ChunkUploadService {
 
       console.log(`🔗 [ChunkUpload] チャンク結合完了: uploadId=${uploadId}, size=${combined.length} bytes`);
 
-      // ストレージにアップロード
-      const fileKey = await this.storageService.uploadFile(
-        organizationId,
-        session.filePath,
-        combined,
-        { contentType }
+      // ストレージにアップロード（最大3回リトライ）
+      const fileKey = await withStorageRetry<string>(
+        () => this.storageService.uploadFile(
+          organizationId,
+          session.filePath,
+          combined,
+          { contentType }
+        ),
+        3,
+        1000,
+        `ChunkUpload:complete:${session.fileName}`
       );
 
       console.log(`✅ [ChunkUpload] ストレージ保存成功: fileKey=${fileKey}`);
+
+      // SHA-256ハッシュ値を計算（重複検出用）
+      const fileHash = crypto.createHash('sha256').update(combined).digest('hex');
 
       return {
         fileKey,
         fileSize: combined.length,
         contentType,
+        fileHash,
       };
     } finally {
       // エラー・成功に関わらず一時ファイルを削除

@@ -152,7 +152,13 @@ export async function saveMaiML(
 
     // ファイルのバックアップ（archiveがtrueの場合のみ）
     if (archive) {
-      await createBackup(normalizedFileKey, organizationId);
+      // normalizedFileKeyにはorgIdプレフィックスが付いているが、
+      // createBackup内のstorageServiceがorgIdを自動付加するため、
+      // 相対パス（orgIdなし）を渡す必要がある
+      const relativeFileKey = normalizedFileKey.startsWith(organizationId + '/')
+        ? normalizedFileKey.slice(organizationId.length + 1)
+        : normalizedFileKey;
+      await createBackup(relativeFileKey, organizationId);
     } else {
       console.log('ℹ️ [maimlService] アーカイブ化スキップ（上書き保存）');
     }

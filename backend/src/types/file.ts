@@ -52,7 +52,7 @@ export interface UploadMetadata {
  * アップロードファイル情報
  */
 export interface UploadedFileInfo {
-  fileId: string;
+  fileId?: string;
   fileName: string;
   filePath: string;
   s3Key: string;

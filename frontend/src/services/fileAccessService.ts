@@ -251,16 +251,16 @@ export const downloadFolderAsZip = async (
 
 /**
  * ファイルアップロード（統一API）
- * 
+ *
  * Task: S3ファイルアップロード統一化
  * - 各画面で生成された完全なパスを使用してファイルをアップロード
  * - プロジェクト、フォーマット、その他のファイルで共通利用可能
  * - organization_idは認証情報から自動取得
- * 
+ *
  * @param params アップロードパラメータ
- * @returns Promise<UploadResponseData> アップロード結果
+ * @returns Promise<UploadResponseData & { failedFileNames: string[] }> アップロード結果
  * @throws Error APIエラー時
- * 
+ *
  * @example
  * // プロジェクトファイルアップロード
  * await uploadFiles({
@@ -270,7 +270,7 @@ export const downloadFolderAsZip = async (
  *   metadata: { projectId: project.id, batchName: 'batch_001' },
  *   onProgress: (progress) => console.log(`${progress.percentage}%`),
  * });
- * 
+ *
  * // フォーマットファイルアップロード
  * await uploadFiles({
  *   uploadMode: 'single',
@@ -281,21 +281,21 @@ export const downloadFolderAsZip = async (
  */
 export const uploadFiles = async (
   params: UploadFilesParams
-): Promise<UploadResponseData> => {
+): Promise<UploadResponseData & { failedFileNames: string[] }> => {
   const {
     uploadMode,
     targetPath,
     files,
     metadata,
     onProgress,
-    onFileProgress,
     onRetry,
     onSessionInit,
-    signal, // ✨ キャンセル用のAbortSignal
+    signal,
   } = params;
+
   // ---------------------------------------------------------------------------
   // ファイルごと個別アップロード (2026-03-26)
-  // 全ファイルを並行して個別リクエストで送信し、ファイルごとの進捗を onFileProgress で通知する。
+  // 全ファイルを並行して個別リクエストで送信する。
   // 10MB 超のファイルはチャンク方式、10MB 以下は 1 リクエスト方式を使用。
   // ---------------------------------------------------------------------------
 
@@ -306,26 +306,11 @@ export const uploadFiles = async (
   /**
    * 1 ファイルをアップロードするヘルパー（通常方式）
    */
-    const uploadSingleFile = async (file: File): Promise<UploadedFileInfo> => {
+  const uploadSingleFile = async (file: File): Promise<UploadedFileInfo> => {
     const client = createApiClient();
     const filePath = `${targetPath.replace(/\/+$/, '')}/${file.name}`;
-    // アップロード開始通知
-    if (onFileProgress) onFileProgress(file.name, 0, 'active');
-  try {
-    // ファイルサイズの累積値を事前計算（uploadedCountの推定用）
-    const fileSizes: number[] = [];
-    files.forEach(file => {
-      fileSizes.push(file.size);
-    });
 
-    // 各ファイルの累積サイズを計算
-    const cumulativeSizes: number[] = [];
-    let cumulative = 0;
-    fileSizes.forEach(size => {
-      cumulative += size;
-      cumulativeSizes.push(cumulative);
-    });
-    // FormDataの構築
+    // FormData の構築
     const formData = new FormData();
     formData.append('uploadMode', uploadMode);
     formData.append('targetPath', targetPath);
@@ -334,77 +319,44 @@ export const uploadFiles = async (
     if (metadata) {
       formData.append('metadata', JSON.stringify(metadata));
     }
+
+    // アップロード実行（リトライあり）
     const response = await withRetry(
       () => client.post<ApiResponse<UploadResponseData>>(
         '/files/upload',
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' },
+          signal,
           onUploadProgress: (progressEvent: AxiosProgressEvent) => {
-            if (progressEvent.total) {
+            if (progressEvent.total && onProgress) {
               const percent = Math.min(
                 Math.round((progressEvent.loaded / progressEvent.total) * 100),
                 99
               );
-              if (onFileProgress) onFileProgress(file.name, percent, 'active');
-              // 全体進捗も更新
-              if (onProgress) {
-                onProgress({
-                  uploadedBytes: progressEvent.loaded,
-                  totalBytes: progressEvent.total,
-                  percentage: percent,
-                  uploadedCount: completedCount,
-                  totalCount,
-                });
-              }
+              onProgress({
+                uploadedBytes: progressEvent.loaded,
+                totalBytes: progressEvent.total,
+                percentage: Math.round(
+                  ((completedCount + percent / 100) / totalCount) * 100
+                ),
+                uploadedCount: completedCount,
+                totalCount,
+              });
             }
           },
         }
       ),
       DEFAULT_RETRY_OPTIONS,
       onRetry
-    // アップロード実行
-    const response = await client.post<ApiResponse<UploadResponseData>>(
-      '/files/upload',
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        signal, // ✨ AbortSignalを渡す
-        onUploadProgress: (progressEvent: AxiosProgressEvent) => {
-          if (onProgress && progressEvent.total) {
-            const percentage = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            
-            // アップロード済みバイト数から完了ファイル数を推定
-            let uploadedCount = 0;
-            for (let i = 0; i < cumulativeSizes.length; i++) {
-              if (progressEvent.loaded >= cumulativeSizes[i]) {
-                uploadedCount = i + 1;
-              } else {
-                break;
-              }
-            }
-            
-            onProgress({
-              uploadedBytes: progressEvent.loaded,
-              totalBytes: progressEvent.total,
-              percentage,
-              uploadedCount, // 正しく計算されたファイル数
-              totalCount: files.length,
-            });
-          }
-        },
-      }
     );
+
     if (!response.data.success) {
       throw new Error(`${file.name} のアップロードに失敗しました`);
     }
+
     // 完了通知
     completedCount++;
-    if (onFileProgress) onFileProgress(file.name, 100, 'success');
     if (onProgress) {
       onProgress({
         uploadedBytes: file.size,
@@ -433,25 +385,25 @@ export const uploadFiles = async (
   const uploadSingleFileWithChunks = async (file: File): Promise<UploadedFileInfo> => {
     const filePath = `${targetPath.replace(/\/+$/, '')}/${file.name}`;
 
-    if (onFileProgress) onFileProgress(file.name, 0, 'active');
-
     const fileKey = await uploadFileWithChunks(file, filePath, {
       onProgress: (percent) => {
-        if (onFileProgress) onFileProgress(file.name, percent, 'active');
         if (onProgress) {
           onProgress({
             uploadedBytes: Math.round((percent / 100) * file.size),
             totalBytes: file.size,
-            percentage: percent,
+            percentage: Math.round(
+              ((completedCount + percent / 100) / totalCount) * 100
+            ),
             uploadedCount: completedCount,
             totalCount,
           });
         }
       },
       onSessionInit,
+      onRetry,
     });
+
     completedCount++;
-    if (onFileProgress) onFileProgress(file.name, 100, 'success');
     if (onProgress) {
       onProgress({
         uploadedBytes: file.size,
@@ -484,6 +436,7 @@ export const uploadFiles = async (
   // 結果を集計
   const successFiles: UploadedFileInfo[] = [];
   let failedCount = 0;
+  const failedFileNames: string[] = [];
 
   results.forEach((result, idx) => {
     if (result.status === 'fulfilled') {
@@ -491,26 +444,25 @@ export const uploadFiles = async (
     } else {
       failedCount++;
       const file = files[idx];
-      if (onFileProgress) onFileProgress(file.name, 0, 'exception');
+      failedFileNames.push(file.name);
       console.error(`[uploadFiles] ${file.name} アップロード失敗:`, result.reason);
     }
   });
+
   // 全ファイルが失敗した場合は最初のエラーをそのままスロー
   // (AxiosError を維持することで extractErrorMessage が正確なメッセージを返す)
   if (failedCount === files.length) {
     const firstRejected = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
-    throw firstRejected?.reason ?? new Error('すべてのファイルのアップロードに失敗しました');
-    throw new Error('アップロードに失敗しました');
-  } catch (error) {
-    // ✨ Axiosのキャンセルエラーを適切にハンドリング
-    if ((error as any).code === 'ERR_CANCELED') {
+
+    // Axios のキャンセルエラーを CanceledError に変換
+    const reason = firstRejected?.reason;
+    if (reason && (reason as { code?: string }).code === 'ERR_CANCELED') {
       const cancelError = new Error('アップロードがキャンセルされました');
       cancelError.name = 'CanceledError';
       throw cancelError;
     }
-    
-    console.error('ファイルアップロードエラー:', error);
-    throw error;
+
+    throw firstRejected?.reason ?? new Error('すべてのファイルのアップロードに失敗しました');
   }
 
   return {
@@ -522,6 +474,7 @@ export const uploadFiles = async (
       failedFiles: failedCount,
       totalSize: successFiles.reduce((sum, f) => sum + f.fileSize, 0),
     },
+    failedFileNames,
   };
 };
 /**
@@ -686,13 +639,17 @@ export const uploadFileWithChunks = async (
   const totalChunks = Math.ceil(file.size / chunkSize);
 
   // 1. セッション開始（uploadId 取得）
-  const initRes = await client.post<ApiResponse<{ uploadId: string }>>(
-    '/files/chunks/init',
-    {
-      fileName: file.name,
-      totalChunks,
-      filePath,
-    }
+  const initRes = await withRetry(
+    () => client.post<ApiResponse<{ uploadId: string }>>(
+      '/files/chunks/init',
+      {
+        fileName: file.name,
+        totalChunks,
+        filePath,
+      }
+    ),
+    DEFAULT_RETRY_OPTIONS,
+    options.onRetry
   );
 
   if (!initRes.data.success || !initRes.data.data?.uploadId) {
@@ -717,32 +674,40 @@ export const uploadFileWithChunks = async (
     formData.append('chunk', blob, file.name);
     formData.append('chunkIndex', String(i));
 
-    await client.post(`/files/chunks/${uploadId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (e: AxiosProgressEvent) => {
-        // 統一計算式: (完了済みバイト数 + e.loaded) / file.size × 100
-        // 完了済みバイト数 = 完了チャンク数 × chunkSize
-        if (options.onProgress) {
-          const completedBytes = i * chunkSize;
-          const percent = Math.min(
-            Math.round(((completedBytes + e.loaded) / file.size) * 100),
-            99 // 100% は complete API 成功後にのみ設定
-          );
-          options.onProgress(percent);
-        }
-      },
-    });
+    await withRetry(
+      () => client.post(`/files/chunks/${uploadId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e: AxiosProgressEvent) => {
+          // 統一計算式: (完了済みバイト数 + e.loaded) / file.size × 100
+          // 完了済みバイト数 = 完了チャンク数 × chunkSize
+          if (options.onProgress) {
+            const completedBytes = i * chunkSize;
+            const percent = Math.min(
+              Math.round(((completedBytes + e.loaded) / file.size) * 100),
+              99 // 100% は complete API 成功後にのみ設定
+            );
+            options.onProgress(percent);
+          }
+        },
+      }),
+      DEFAULT_RETRY_OPTIONS,
+      options.onRetry
+    );
 
     console.log(`📦 [ChunkUpload] チャンク送信: ${i + 1}/${totalChunks}`);
   }
 
   // 3. 結合・完了
-  const completeRes = await client.post<ApiResponse<{ fileKey: string; fileSize: number; contentType: string }>>(
-    `/files/chunks/${uploadId}/complete`,
-    {
-      totalChunks,
-      contentType: file.type || 'application/octet-stream',
-    }
+  const completeRes = await withRetry(
+    () => client.post<ApiResponse<{ fileKey: string; fileSize: number; contentType: string }>>(
+      `/files/chunks/${uploadId}/complete`,
+      {
+        totalChunks,
+        contentType: file.type || 'application/octet-stream',
+      }
+    ),
+    DEFAULT_RETRY_OPTIONS,
+    options.onRetry
   );
 
   if (!completeRes.data.success || !completeRes.data.data?.fileKey) {
