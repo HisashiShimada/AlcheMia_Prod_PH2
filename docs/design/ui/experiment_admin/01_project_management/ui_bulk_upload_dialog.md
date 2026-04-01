@@ -325,6 +325,7 @@ interface BulkUploadDialogProps {
     mode: UploadMode;
     fileCount: number;
     success: boolean;
+    hasMaimlFile?: boolean;
   }) => void;
   /** 事前選択されたフォルダパス */
   preselectedFolder?: string;
@@ -485,6 +486,7 @@ try {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-04-01 | PR #138対応: Props `onUploadComplete` の `result` に `hasMaimlFile?: boolean` を追加 | Cline |
 | 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
 
 ---
