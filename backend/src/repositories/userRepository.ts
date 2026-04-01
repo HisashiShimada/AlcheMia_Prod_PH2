@@ -204,8 +204,6 @@ export async function create(
       await t.one(userQuery, userValues);
       
       // 2. user_authenticationテーブルにINSERT（パスワードハッシュ化）
-      // 生成したパスワードをコンソールに出力（開発・確認用）
-      console.log(`Password：${password}`);
       const saltRounds = 12;
       const passwordHash = await bcrypt.hash(password, saltRounds);
       
