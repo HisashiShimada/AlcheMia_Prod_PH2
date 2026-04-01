@@ -33,10 +33,10 @@
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 | 7 | 0 | 0 |
 | **4-8** | フォーマット管理 | 要件書#13 | 40件 | Playwright自動 | 40 | 0 | 0 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） | 10 | 0 | 0 |
-| **4-10** | プロジェクト公開 | 追加機能S | 8件 | Playwright自動（フロントエンド実装後） | 4 | 0 | 0 |
+| **4-10** | プロジェクト公開 | 追加機能S | 11件 | Playwright自動（フロントエンド実装後） | 4 | 0 | 0 |
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 | 10 | 0 | 0 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | Playwright自動 | 8 | 0 | 0 |
-| **合計** | - | - | **165件** | - | **164** | **0** | **0** |
+| **合計** | - | - | **168件** | - | **164** | **0** | **0** |
 
 ### スコープ外
 
@@ -416,6 +416,9 @@
 | 4-10-6 | 公開条件を満たしていない場合にMaimlPublishDialogにエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §3.4、`ui_maiml_publish_dialog.md` §4 | POST `/api/v1/projects/:projectName/publish` | OK | |
 | 4-10-7 | 公開ジョブがエラー終了した場合（status=error）にエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §5.6、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | |
 | 4-10-8 | 公開済みプロジェクトを非公開にした後、再度公開できること（公開⇒非公開⇒公開） | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`ui_maiml_unpublish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、POST `/api/v1/projects/:projectName/unpublish`、GET `/api/v1/projects/:projectName/publish-status` | - | 公開ジョブ完了後→非公開ジョブ完了後→再公開ジョブ完了後のボタン状態遷移（「公開する」→「非公開にする」→「公開する」→「非公開にする」）を確認する |
+| 4-10-9 | スケジューラーによる自動非公開が完了した後、ボタンが「公開する」に切り替わること | 正常系 | `api_maiml_opendata.md` §trigger_type、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | `maiml_publish_job` に `job_type=unpublish`, `status=done`, `trigger_type=schedule` を挿入して状態を再現する |
+| 4-10-10 | スケジューラーによる自動非公開が進行中の場合、ボタンがローディング状態かつクリック不可になること | 表示確認 | `api_maiml_opendata.md` §5.7、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | `maiml_publish_job` に `job_type=unpublish`, `status=running`, `trigger_type=schedule` を挿入して状態を再現する |
+| 4-10-11 | スケジューラーによる自動非公開がエラー終了した場合、エラーメッセージが表示されボタンが「公開する」に戻ること | 異常系 | `api_maiml_opendata.md` §5.6、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | - | `maiml_publish_job` に `job_type=unpublish`, `status=error`, `trigger_type=schedule` を挿入して状態を再現する |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
