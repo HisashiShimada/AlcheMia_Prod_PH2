@@ -33,10 +33,10 @@
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 | 7 | 0 | 0 |
 | **4-8** | フォーマット管理 | 要件書#13 | 40件 | Playwright自動 | 40 | 0 | 0 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） | 10 | 0 | 0 |
-| **4-10** | プロジェクト公開 | 追加機能S | 7件 | Playwright自動（フロントエンド実装後） | 4 | 0 | 0 |
+| **4-10** | プロジェクト公開 | 追加機能S | 8件 | Playwright自動（フロントエンド実装後） | 4 | 0 | 0 |
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 | 10 | 0 | 0 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | Playwright自動 | 8 | 0 | 0 |
-| **合計** | - | - | **164件** | - | **164** | **0** | **0** |
+| **合計** | - | - | **165件** | - | **164** | **0** | **0** |
 
 ### スコープ外
 
@@ -407,7 +407,7 @@
 > **テスト方法**: Playwright自動（フロントエンド実装後に実施。現在フロントエンド未実装のため保留）
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
-|-----------|-----------|------|------|---------|
+|-----------|-----------|------|------|--------| --- | --- |
 | 4-10-1 | ファイル操作ツールバーの「公開する」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md` | - | OK | |
 | 4-10-2 | MaimlPublishDialogで「公開する」ボタンをクリックすると公開ジョブが受け付けられ、ポーリング完了後にボタンが「非公開にする」に切り替わること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、GET `/api/v1/projects/:projectName/publish-status` | OK | |
 | 4-10-3 | 公開済みファイルのボタンが「非公開にする」（赤・活性）に切り替わること | 表示確認 | 追加機能S、`ui_maiml_publish_dialog.md` | GET `/api/v1/projects/:projectName/publish-status` | OK | |
@@ -415,6 +415,7 @@
 | 4-10-5 | 公開/非公開ジョブ処理中（status=pending/running）はボタンがローディング状態になること | 表示確認 | `api_maiml_opendata.md` §5.7、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | |
 | 4-10-6 | 公開条件を満たしていない場合にMaimlPublishDialogにエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §3.4、`ui_maiml_publish_dialog.md` §4 | POST `/api/v1/projects/:projectName/publish` | OK | |
 | 4-10-7 | 公開ジョブがエラー終了した場合（status=error）にエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §5.6、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | |
+| 4-10-8 | 公開済みプロジェクトを非公開にした後、再度公開できること（公開⇒非公開⇒公開） | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`ui_maiml_unpublish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、POST `/api/v1/projects/:projectName/unpublish`、GET `/api/v1/projects/:projectName/publish-status` | - | 公開ジョブ完了後→非公開ジョブ完了後→再公開ジョブ完了後のボタン状態遷移（「公開する」→「非公開にする」→「公開する」→「非公開にする」）を確認する |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -426,6 +427,10 @@
 - 4-10-2用: プロジェクトが `project_status = 3`（タスク結果レビュー待ち）の状態であること
 - 4-10-2用: 全タスク詳細が完了（task_status=3）または異常終了（task_status=4）の状態であること
 - 4-10-3〜4-10-4: `maiml_publish_job` テーブルに `status=done`、`job_type=publish` のレコードが存在すること
+- 4-10-8用: プロジェクトが非公開状態（`maiml_publish_job` テーブルに `status=done, job_type=publish` のレコードが存在しない、または最新ジョブが `job_type=unpublish` かつ `status=done`）から開始すること
+- 4-10-8用: プロジェクトが `checkout_status = 1`（チェックアウト中）の状態であること
+- 4-10-8用: プロジェクトが `project_status = 3`（タスク結果レビュー待ち）の状態であること
+- 4-10-8用: 全タスク詳細が完了（task_status=3）または異常終了（task_status=4）の状態であること
 
 **注意事項:**
 - **フロントエンド未実装のため、フロントエンド実装完了後にテストを実施すること**（`ui_maiml_publish.md` §実装状況: フロントエンド未実装）

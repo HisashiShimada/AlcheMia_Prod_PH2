@@ -295,9 +295,38 @@ Before({
   }
 });
 
-// ---------------------------------------------------------------------------
-// After フック: クリーンアップ
-// ---------------------------------------------------------------------------
+  /**
+   * [4-10-8] テストデータ準備
+   * - project を1件 UPSERT（checkout_status=1, project_status=3）
+   * - maiml_publish_job レコードは不要（非公開状態から開始）
+   */
+  Before({
+    tags: '@4-10-8',
+  }, async () => {
+    console.log('[4-10 Before @4-10-8] テストデータ準備 開始');
+    try {
+      await upsertProject(
+        TEST_PROJECT_ID,
+        TEST_PROJECT_NAME,
+        PROJECT_STATUS_REVIEW_WAITING,
+        CHECKOUT_STATUS_CHECKED_OUT,
+        true
+      );
+
+      if (!createdProjectIds.includes(TEST_PROJECT_ID)) {
+        createdProjectIds.push(TEST_PROJECT_ID);
+      }
+
+      console.log('[4-10 Before @4-10-8] テストデータ準備 完了: 非公開状態から開始');
+    } catch (error) {
+      console.error('[4-10 Before @4-10-8] テストデータ準備 失敗:', error);
+      throw error;
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // After フック: クリーンアップ
+  // ---------------------------------------------------------------------------
 
 After(async () => {
   console.log('[4-10 After] クリーンアップ 開始');
