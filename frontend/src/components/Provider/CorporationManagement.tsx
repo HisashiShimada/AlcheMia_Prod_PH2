@@ -28,6 +28,7 @@ import { createApiClient } from '@/utils/authUtils';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -83,7 +84,7 @@ export default function CorporationManagement() {
       }
     } catch (error) {
       console.error('Corporation取得エラー:', error);
-      messageApi.error(t('corporationManagement.messages.fetchError'));
+      messageApi.error(extractErrorMessage(error, t('corporationManagement.messages.fetchError')));
       setCorporations([]); // エラー時は空配列を設定
     } finally {
       setLoading(false);
@@ -224,10 +225,18 @@ export default function CorporationManagement() {
           
           messageApi.success(t('corporationManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
           setSelectedRowKeys([]);
-          await fetchCorporations();
+          // ローカルステートを直接更新（再フェッチによる表示順変更を防ぐ）
+          const now = new Date().toISOString();
+          setCorporations(prev =>
+            prev.map(corp =>
+              selectedRowKeys.includes(corp.corporationId)
+                ? { ...corp, isActive: true, updatedAt: now }
+                : corp
+            )
+          );
         } catch (error) {
           console.error('アクティブ化エラー:', error);
-          messageApi.error(t('corporationManagement.messages.activateError'));
+          messageApi.error(extractErrorMessage(error, t('corporationManagement.messages.activateError')));
         }
       },
     });
@@ -259,10 +268,18 @@ export default function CorporationManagement() {
           
           messageApi.success(t('corporationManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
           setSelectedRowKeys([]);
-          await fetchCorporations();
+          // ローカルステートを直接更新（再フェッチによる表示順変更を防ぐ）
+          const now = new Date().toISOString();
+          setCorporations(prev =>
+            prev.map(corp =>
+              selectedRowKeys.includes(corp.corporationId)
+                ? { ...corp, isActive: false, updatedAt: now }
+                : corp
+            )
+          );
         } catch (error) {
           console.error('非アクティブ化エラー:', error);
-          messageApi.error(t('corporationManagement.messages.deactivateError'));
+          messageApi.error(extractErrorMessage(error, t('corporationManagement.messages.deactivateError')));
         }
       },
     });
@@ -288,10 +305,17 @@ export default function CorporationManagement() {
           );
           
           messageApi.success(t('corporationManagement.messages.toggleSuccess').replace('{name}', corporationName).replace('{action}', actionText));
-          await fetchCorporations();
+          // ローカルステートを直接更新（再フェッチによる表示順変更を防ぐ）
+          setCorporations(prev =>
+            prev.map(corp =>
+              corp.corporationId === corporation.corporationId
+                ? { ...corp, isActive: !corp.isActive, updatedAt: new Date().toISOString() }
+                : corp
+            )
+          );
         } catch (error) {
           console.error('ステータス変更エラー:', error);
-          messageApi.error(t('corporationManagement.messages.toggleError'));
+          messageApi.error(extractErrorMessage(error, t('corporationManagement.messages.toggleError')));
         }
       },
     });
@@ -360,7 +384,7 @@ export default function CorporationManagement() {
       messageApi.success(t('corporationManagement.messages.csvDownloadSuccess'));
     } catch (error) {
       console.error('CSV download error:', error);
-      messageApi.error(t('corporationManagement.messages.csvDownloadError'));
+      messageApi.error(extractErrorMessage(error, t('corporationManagement.messages.csvDownloadError')));
     } finally {
       setLoading(false);
     }
@@ -398,9 +422,8 @@ export default function CorporationManagement() {
         
         if (result.failureCount > 0 && result.errors.length > 0) {
           // エラーがある場合はメッセージを表示
-          const errorMessage = result.errors[0].message;
-          console.error('CSV validation error:', errorMessage);
-          messageApi.error(errorMessage);
+          console.error('CSV validation error:', result.errors[0].message);
+          messageApi.error(t('corporationManagement.messages.csvUploadError'));
           return;
         }
         
@@ -413,13 +436,13 @@ export default function CorporationManagement() {
     } catch (error) {
       // すでにErrorオブジェクトの場合はそのまま再スロー（バリデーションエラー）
       if (error instanceof Error && !('isAxiosError' in error)) {
-        messageApi.error(error.message);
+        messageApi.error(extractErrorMessage(error, t('corporationManagement.messages.csvUploadError')));
         return;
       }
       
       // HTTPエラーの場合
       console.error('CSV upload error:', error);
-      messageApi.error(t('corporationManagement.messages.csvUploadError'));
+      messageApi.error(extractErrorMessage(error, t('corporationManagement.messages.csvUploadError')));
     } finally {
       setLoading(false);
     }
@@ -451,13 +474,12 @@ export default function CorporationManagement() {
       form.resetFields();
       await fetchCorporations();
     } catch (error) {
-      console.error('保存エラー:', error);
-      const axiosError = error as { response?: { data?: { error?: { message?: string } } } };
-      if (axiosError.response?.data?.error?.message) {
-        messageApi.error(axiosError.response.data.error.message);
-      } else {
-        messageApi.error(t('corporationManagement.messages.saveError'));
+      // form.validateFields() によるバリデーションエラーはフォームに表示済みのため何もしない
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        return;
       }
+      console.error('保存エラー:', error);
+      messageApi.error(extractErrorMessage(error, t('corporationManagement.messages.saveError')));
     }
   };
 

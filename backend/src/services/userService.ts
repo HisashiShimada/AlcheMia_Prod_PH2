@@ -98,7 +98,6 @@ export async function createUser(
 
   // ランダムパスワードを自動生成
   const plainPassword = generateRandomPassword();
-  console.log(`Password:${plainPassword}`);
 
   try {
     const user = await userRepository.create(
@@ -422,7 +421,6 @@ export async function uploadUsersFromCSV(
       
       // ランダムパスワードを自動生成
       const plainPassword = generateRandomPassword();
-      console.log(`Password:${plainPassword}`);
       
       // 新規作成（ユーザーIDはメールアドレスと同じ）
       await userRepository.create(

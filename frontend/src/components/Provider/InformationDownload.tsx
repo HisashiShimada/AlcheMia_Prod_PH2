@@ -5,6 +5,7 @@ import { Card, Button, App, Typography, theme } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { createApiClient } from '@/utils/authUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const InformationDownload: React.FC = () => {
   const { token } = theme.useToken();
@@ -53,7 +54,7 @@ const InformationDownload: React.FC = () => {
       messageApi.success(t('informationDownload.messages.downloadSuccess').replace('{filename}', filename));
     } catch (error) {
       console.error('CSV download error:', error);
-      messageApi.error(t('informationDownload.messages.downloadError'));
+      messageApi.error(extractErrorMessage(error, t('informationDownload.messages.downloadError')));
     } finally {
       setLoading(false);
     }

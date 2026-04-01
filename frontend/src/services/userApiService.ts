@@ -107,9 +107,8 @@ export async function fetchUsers(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<UserRecord[]>>;
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    console.error('API Error (fetchUsers):', error);
+    throw error;
   }
 }
 
@@ -136,9 +135,8 @@ export async function getUserById(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<UserRecord>>;
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    console.error('API Error (getUserById):', error);
+    throw error;
   }
 }
 
@@ -165,12 +163,8 @@ export async function createUser(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<UserRecord>>;
-    if (axiosError.response?.status === 409) {
-      throw new Error('入力されたユーザーID（メールアドレス）は既に存在しています');
-    }
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    console.error('API Error (createUser):', error);
+    throw error;
   }
 }
 
@@ -199,9 +193,8 @@ export async function updateUser(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<UserRecord>>;
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    console.error('API Error (updateUser):', error);
+    throw error;
   }
 }
 
@@ -223,9 +216,8 @@ export async function updateUserStatus(
     const response = await client.patch(endpoint, { isActive });
     console.log('Response status:', response.status);
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<void>>;
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    console.error('API Error (updateUserStatus):', error);
+    throw error;
   }
 }
 
@@ -304,12 +296,9 @@ export async function uploadCsv(
     if (error instanceof Error && !('isAxiosError' in error)) {
       throw error;
     }
-    
-    // HTTPエラーの場合
-    const axiosError = error as AxiosError<ApiResponse<CsvUploadResult>>;
-    const errorMessage = axiosError.response?.data?.error?.message || 'CSVアップロードに失敗しました';
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(errorMessage);
+    // AxiosErrorはそのままスロー（エラーコード情報を保持）
+    console.error('API Error (uploadCsv):', error);
+    throw error;
   }
 }
 
@@ -395,8 +384,8 @@ export async function downloadCsv(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   } catch (error) {
-    const axiosError = error as AxiosError;
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`CSVダウンロードに失敗しました: ${axiosError.response?.status || 'Unknown'} - ${axiosError.message}`);
+    // AxiosErrorはそのままスロー（エラーコード情報を保持）
+    console.error('API Error (downloadCsv):', error);
+    throw error;
   }
 }

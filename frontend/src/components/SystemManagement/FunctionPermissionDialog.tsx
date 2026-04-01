@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Checkbox, Button, Space, Typography, theme, App } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -46,6 +47,7 @@ export default function FunctionPermissionDialog({
 }: FunctionPermissionDialogProps) {
   const { token } = theme.useToken();
   const { modal, message } = App.useApp();
+  const { t } = useLanguage();
   
   // FunctionListに基づいた機能データ（カテゴリ分けなし、説明文削除）
   const baseFunctions: FunctionItem[] = [
@@ -256,7 +258,7 @@ export default function FunctionPermissionDialog({
 
   return (
     <Modal
-      title={<div style={{ textAlign: 'center' }}>機能管理</div>}
+      title={<div style={{ textAlign: 'center' }}>{t('functionPermissionDialog.title')}</div>}
       open={open}
       onCancel={onCancel}
       width={500}
@@ -264,7 +266,7 @@ export default function FunctionPermissionDialog({
       footer={
         <div style={{ textAlign: 'center' }}>
           <Space size="large">
-            <Button onClick={onCancel}>キャンセル</Button>
+            <Button onClick={onCancel}>{t('functionPermissionDialog.buttons.cancel')}</Button>
             <Button 
               type="primary" 
               onClick={handleOk}
@@ -273,7 +275,7 @@ export default function FunctionPermissionDialog({
                 borderColor: token.colorError,
               }}
             >
-              機能を更新
+              {t('functionPermissionDialog.buttons.update')}
             </Button>
           </Space>
         </div>
@@ -336,7 +338,7 @@ export default function FunctionPermissionDialog({
                         fontSize: token.fontSize,
                       }}
                     >
-                      書込可
+                      {t('functionPermissionDialog.labels.writable')}
                     </Text>
                   </Checkbox>
                 </div>
@@ -399,8 +401,8 @@ export default function FunctionPermissionDialog({
                               : token.colorInfo,
                           fontSize: token.fontSizeSM,
                         }}
-                      >
-                        書込可
+                        >
+                        {t('functionPermissionDialog.labels.writable')}
                       </Text>
                     </Checkbox>
                   </div>
