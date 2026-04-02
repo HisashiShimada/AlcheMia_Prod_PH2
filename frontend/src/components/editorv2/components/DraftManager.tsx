@@ -65,7 +65,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
     fetchDrafts,
     saveDraft,
     deleteDraft,
-  } = useDraftManager(currentEditState, { userId });
+  } = useDraftManager(currentEditState, { userId, projectId });
 
   // ローカル状態管理
   const [searchQuery, setSearchQuery] = useState('');
