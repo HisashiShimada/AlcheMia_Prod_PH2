@@ -14,11 +14,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import { ingestSingleFileAsync } from '../services/singleFileIngestService';
 import UploadBatchRepository from '../repositories/UploadBatchRepository';
+import { ChunkUploadService } from '../services/chunkUploadService';
 import * as projectRepository from '../repositories/projectRepository';
 import { ProjectService } from '../services/projectService';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import { Project } from '../types/database';
-
 /**
  * 単一ファイルダウンロード用署名付きURL取得エンドポイント
  * GET /api/v1/projects/:projectId/files/:fileName/download
@@ -766,6 +766,272 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * チャンクアップロードセッション開始
+ * POST /api/v1/files/chunks/init
+ *
+ * uploadId（UUID）を発行し、一時ディレクトリを準備する。
+ */
+export async function initChunkUpload(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { fileName, totalChunks, filePath } = req.body;
+
+    // MAIMLファイル名 × projectName バリデーション（通常アップロードと同一ロジック）
+    // projects/ パスへの .maiml アップロード時、ファイル名（拡張子除く）がプロジェクト名と一致するか確認
+    if (typeof fileName === 'string' && fileName.endsWith('.maiml') &&
+        typeof filePath === 'string' && filePath.startsWith('projects/')) {
+      const pathParts = filePath.split('/');
+      if (pathParts.length >= 2) {
+        const projectName = pathParts[1];
+        const fileBaseName = fileName.replace(/\.maiml$/i, '');
+        if (fileBaseName !== projectName) {
+          console.error(`❌ [ChunkInit] MAIMLファイル名不一致: ファイル名=${fileName}, プロジェクト名=${projectName}`);
+          res.status(400).json({
+            success: false,
+            error: {
+              code: 'E1003',
+              message: `ファイル名がプロジェクト名と一致しません（ファイル名: ${fileName}、プロジェクト名: ${projectName}）`,
+            },
+            meta: { timestamp: new Date().toISOString(), requestId },
+          });
+          return;
+        }
+      }
+    }
+
+    const service = new ChunkUploadService();
+    const uploadId = service.initSession(fileName, filePath, Number(totalChunks));
+
+    res.status(200).json({
+      success: true,
+      data: { uploadId },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('Chunk upload init error', error, { action: 'chunk_upload_init', requestId });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * チャンク受信
+ * POST /api/v1/files/chunks/:uploadId
+ *
+ * チャンクデータを受け取り、一時ディレクトリに保存する。
+ */
+export async function uploadChunk(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { uploadId } = req.params;
+    const chunkIndex = Number(req.body.chunkIndex);
+    const chunk = req.file;
+
+    if (!chunk) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'E1003', message: 'チャンクデータが存在しません' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    const service = new ChunkUploadService();
+    const received = service.saveChunk(uploadId, chunkIndex, chunk.buffer);
+
+    res.status(200).json({
+      success: true,
+      data: { received },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('Chunk upload error', error, { action: 'chunk_upload', requestId });
+
+    const isNotFound = error.message?.includes('見つかりません');
+    res.status(isNotFound ? 404 : 500).json({
+      success: false,
+      error: {
+        code: isNotFound ? 'E6001' : 'E4001',
+        message: isNotFound ? error.message : 'システムエラーが発生しました',
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * チャンクアップロード中断
+ * DELETE /api/v1/files/chunks/:uploadId
+ *
+ * セッションを中断し、一時ファイルを削除する。
+ * ダイアログを閉じたときなど、complete を呼ばずに終了するときに使用する。
+ */
+export async function abortChunkUpload(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { uploadId } = req.params;
+
+    const service = new ChunkUploadService();
+    service.abortSession(uploadId);
+
+    res.status(200).json({
+      success: true,
+      data: { message: 'アップロードを中断しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('Chunk abort error', error, { action: 'chunk_abort', requestId });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * チャンク結合・アップロード完了
+ * POST /api/v1/files/chunks/:uploadId/complete
+ *
+ * 全チャンクを結合してストレージに保存し、一時ファイルを削除する。
+ * - file_metadataテーブルへの保存
+ * - MAIMLファイル かつ projects/ パスの場合に project_maiml_flg=true を更新
+ *   ※ projectId を個別に渡さなくても filePath のプレフィックスで判定するため、
+ *     フォーマットアップロード（projects/ 以外）は自動的にスキップされる
+ */
+export async function completeChunkUpload(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId, userId } = req.user!;
+    const { uploadId } = req.params;
+    const totalChunks = Number(req.body.totalChunks);
+    const contentType: string = req.body.contentType || 'application/octet-stream';
+
+    // チャンク結合・ストレージ保存
+    const chunkService = new ChunkUploadService();
+    const result = await chunkService.completeUpload(uploadId, organizationId, totalChunks, contentType);
+
+    // file_metadata テーブルへ保存
+    // - fileKey 例: "projects/sample_project/sample_project.maiml"
+    //   （storageService が organizationId プレフィックスを付与して返す場合もある）
+    // - saveFileMetadata は FileAccessService の private メソッドのため、
+    //   同等処理を直接 FileMetadataRepository 経由で実行する
+    const { FileMetadataRepository } = await import('../repositories/fileMetadataRepository');
+    const { truncateField, FILE_METADATA_MAX_LENGTHS } = await import('../utils/stringValidator');
+    const { getStorageService } = await import('../services/storageService');
+
+    const repository = new FileMetadataRepository();
+    const storageService = getStorageService();
+
+    const fileName = result.fileKey.split('/').pop() || result.fileKey;
+    const parentFolderPath = result.fileKey.includes('/')
+      ? result.fileKey.substring(0, result.fileKey.lastIndexOf('/'))
+      : undefined;
+    const now = new Date();
+
+    // チャンクアップロード用バッチID（1ファイル=1バッチ）
+    const chunkBatchId = uuidv4();
+
+    // MAIMLファイルのみ file_metadata テーブルへ保存
+    if (result.contentType === 'application/xml' || fileName.endsWith('.maiml')) {
+      try {
+        await repository.insertFileMetadata({
+          organization_id: organizationId,
+          file_key: truncateField(result.fileKey, FILE_METADATA_MAX_LENGTHS.file_key, 'file_key') || result.fileKey,
+          original_filename: truncateField(fileName, FILE_METADATA_MAX_LENGTHS.original_filename, 'original_filename') || fileName,
+          file_size: result.fileSize,
+          file_type: result.contentType,
+          uploaded_by: userId,
+          is_maiml_file: true,
+          s3_bucket: storageService.getBucketName(),
+          upload_batch_id: chunkBatchId,
+          upload_source: 'web_upload',
+          upload_method: 'multipart',
+          create_user_id: userId,
+          update_user_id: userId,
+          file_hash: result.fileHash,
+          ...(parentFolderPath && { parent_folder_path: parentFolderPath }),
+          created_at: now,
+          updated_at: now,
+        } as any);
+        console.log(`✅ [ChunkComplete] file_metadata保存成功: ${result.fileKey}`);
+      } catch (dbError) {
+        // file_metadata INSERT失敗は警告ログのみ（ストレージへのロールバックなし・処理続行）
+        console.error(`⚠️ [ChunkComplete] file_metadata INSERT失敗（処理続行）: ${result.fileKey}`, dbError);
+      }
+    }
+
+    // project_maiml_flg 更新
+    // filePath が projects/ で始まる かつ MAIMLファイルの場合のみ実行
+    // → フォーマットアップロード等は projects/ 以外のため自動的にスキップされる
+    // ※ storageService.uploadFile() が返す fileKey には organizationId プレフィックスが付く場合があるため、
+    //   相対パス（organizationId を除いた部分）に変換してから判定する
+    const relativeFileKey = result.fileKey.startsWith(`${organizationId}/`)
+      ? result.fileKey.slice(organizationId.length + 1)
+      : result.fileKey;
+
+    if (fileName.endsWith('.maiml') && relativeFileKey.startsWith('projects/')) {
+      const pathParts = relativeFileKey.split('/');
+      if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+        const projectName = pathParts[1];
+        try {
+          const existingProject = await projectRepository.findByName(organizationId, projectName);
+
+          if (!existingProject) {
+            console.warn(`⚠️ [ChunkComplete] プロジェクトが見つかりません: ${projectName}`);
+          } else if (!existingProject.project_maiml_flg) {
+            const updatedProject: Project = {
+              ...existingProject,
+              project_maiml_flg: true,
+            };
+            await projectRepository.update(updatedProject);
+            console.log(`✅ [ChunkComplete] project_maiml_flg=true更新完了: ${projectName}`);
+          } else {
+            console.log(`ℹ️ [ChunkComplete] project_maiml_flgは既にtrue: ${projectName}`);
+          }
+        } catch (flagError) {
+          // フラグ更新失敗は警告のみ（ファイルアップロードは成功しているため処理続行）
+          console.error(`❌ [ChunkComplete] project_maiml_flg更新失敗（処理続行）:`, {
+            projectName,
+            error: flagError,
+          });
+        }
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        fileKey: result.fileKey,
+        fileSize: result.fileSize,
+        contentType: result.contentType,
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('Chunk complete error', error, { action: 'chunk_complete', requestId });
+
+    const isNotFound = error.message?.includes('見つかりません');
+    const isMismatch = error.message?.includes('チャンク数が不一致');
+    res.status(isNotFound || isMismatch ? 400 : 500).json({
+      success: false,
+      error: {
+        code: isNotFound || isMismatch ? 'E1003' : 'E4001',
+        message: isNotFound || isMismatch ? error.message : 'システムエラーが発生しました',
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

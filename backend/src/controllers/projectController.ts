@@ -798,7 +798,6 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
     // 成功レスポンス
     console.log('[DEBUG] getProjectFiles - Success response', { 
       filesCount: result.data?.files?.length || 0,
-      archiveFilesCount: result.data?.archiveFiles?.length || 0
     });
     
     res.status(200).json({
