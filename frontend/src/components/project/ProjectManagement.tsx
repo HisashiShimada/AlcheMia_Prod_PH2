@@ -1592,7 +1592,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
                       onClick={handlePublish}
                       loading={publishStatusLoading || isPolling}
-                      disabled={!selectedProject || publishStatusLoading || isPolling}
+                      disabled={!selectedProject || !(selectedProject?.status === 3 || selectedProject?.status === 4) || publishStatusLoading || isPolling}
                     >
                       {isPolling ? '処理中...' : t('projectManagement.publish')}
                     </Button>
