@@ -1968,22 +1968,32 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           onRestoreBackendDraft={() => {
             // バックエンドDraft復元: ダイアログを閉じてエディタのDraft管理画面へ
             setDraftRestoreDialogOpen(false);
-            if (selectedProject) {
+            // selectedProject が null の場合（初期表示でプロジェクト未選択時）は
+            // draftToRestore.projectId からプロジェクトを特定する
+            const targetProject = selectedProject
+              ?? (draftToRestore?.projectId ? projects.find(p => p.id === draftToRestore.projectId) ?? null : null);
+            if (targetProject) {
               const userInfo = getUserInfo();
               const orgId = userInfo?.organizationId ?? '';
-              const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+              const sourceS3Key = `${orgId}/projects/${targetProject.name}/${targetProject.name}.maiml`;
               const params: MaimlEditorParams = {
                 editMode: 'project',
-                editingFileName: `${selectedProject.name}.maiml`,
-                originalFileName: selectedProject.name,
+                editingFileName: `${targetProject.name}.maiml`,
+                originalFileName: targetProject.name,
                 sourceS3Key,
-                displayTitle: selectedProject.name,
-                displaySubtitle: selectedProject.description || undefined,
-                documentId: selectedProject.id,
-                description: selectedProject.description || undefined,
+                displayTitle: targetProject.name,
+                displaySubtitle: targetProject.description || undefined,
+                documentId: targetProject.id,
+                description: targetProject.description || undefined,
                 openDraftManagerOnStart: true,
               };
               onEdit?.(params);
+            } else {
+              console.warn('⚠️ [ProjectManagement] onRestoreBackendDraft: プロジェクトを特定できませんでした', {
+                selectedProject,
+                draftToRestoreProjectId: draftToRestore?.projectId,
+                projectsCount: projects.length,
+              });
             }
           }}
         />
