@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>カスタムプロパティUI モック比較</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; background: #f0f2f5; color: #333; }
+
+    .page-header { background: #001529; color: #fff; padding: 16px 24px; font-size: 18px; font-weight: bold; }
+    .tabs-nav { display: flex; gap: 0; background: #fff; border-bottom: 2px solid #1677ff; padding: 0 24px; }
+    .tabs-nav button { padding: 12px 24px; border: none; background: none; cursor: pointer; font-size: 14px; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+    .tabs-nav button.active { color: #1677ff; border-bottom-color: #1677ff; font-weight: bold; }
+    .tab-panel { display: none; padding: 24px; }
+    .tab-panel.active { display: block; }
+
+    /* モーダル風コンテナ */
+    .modal-wrap { background: #fff; border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.15); max-width: 1400px; margin: 0 auto; overflow: hidden; }
+    .modal-header { padding: 16px 24px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header .title { font-size: 18px; font-weight: bold; }
+    .modal-header .subtitle { font-size: 14px; color: #888; margin-left: 8px; }
+    .modal-body { padding: 16px 24px; }
+    .modal-footer { padding: 12px 24px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* 上部ツールバー */
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .toolbar .checkbox-area label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    .toolbar .checkbox-area input { width: 16px; height: 16px; }
+
+    /* ステータスエリア */
+    .status-section { border: 1px solid #d9d9d9; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; }
+    .status-section .section-title { font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; color: #1677ff; }
+    .status-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
+    .status-grid .col label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 12px; color: #666; }
+    select, input[type=text], textarea { width: 100%; padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 13px; }
+    select:focus, input:focus, textarea:focus { outline: none; border-color: #1677ff; box-shadow: 0 0 0 2px rgba(22,119,255,0.1); }
+    textarea { resize: vertical; }
+    .progress-bar-wrap { height: 10px; background: #f0f0f0; border-radius: 5px; margin-top: 12px; position: relative; }
+    .progress-bar { height: 100%; background: #1677ff; border-radius: 5px; width: 30%; }
+
+    /* 2カラムレイアウト */
+    .two-col { display: flex; height: 560px; border: 1px solid #e8e8e8; border-radius: 6px; overflow: hidden; }
+    .sidebar { width: 280px; background: #fff; border-right: 1px solid #e8e8e8; padding: 16px; display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar .sidebar-title { font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .sidebar input { margin-bottom: 8px; }
+    .template-list { flex: 1; overflow-y: auto; }
+    .template-item { padding: 10px 12px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; border: 1px solid transparent; }
+    .template-item:hover { background: #f5f5f5; }
+    .template-item.active { background: #e6f4ff; border-color: #91caff; }
+    .template-item .name { font-weight: 600; font-size: 13px; }
+    .template-item .meta { margin-top: 4px; display: flex; gap: 4px; }
+    .tag { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; }
+    .tag-blue { background: #e6f4ff; color: #1677ff; }
+    .tag-green { background: #f6ffed; color: #52c41a; }
+    .tag-orange { background: #fff7e6; color: #fa8c16; }
+
+    .content-area { flex: 1; background: #f8f9fa; padding: 16px; overflow-y: auto; }
+    .content-title { font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-item label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+    .form-item label .unit { background: #e6f4ff; color: #1677ff; padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-left: 4px; }
+    .form-item input { width: 100%; padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 13px; background: #fff; }
+
+    /* ボタン */
+    .btn { padding: 6px 16px; border-radius: 6px; border: 1px solid #d9d9d9; background: #fff; cursor: pointer; font-size: 13px; }
+    .btn-primary { background: #1677ff; color: #fff; border-color: #1677ff; }
+    .btn-dashed { border-style: dashed; color: #1677ff; border-color: #1677ff; background: transparent; }
+    .btn-danger { background: #fff; color: #ff4d4f; border-color: #ff4d4f; padding: 2px 6px; font-size: 12px; }
+    .btn-sm { padding: 2px 8px; font-size: 12px; }
+
+    /* ===== 案A: フォーム末尾追加 ===== */
+    .custom-section-a { margin-top: 24px; }
+    .divider { border: none; border-top: 1px solid #e8e8e8; margin: 20px 0; position: relative; text-align: center; }
+    .divider span { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: #f8f9fa; padding: 0 12px; font-size: 12px; color: #999; white-space: nowrap; }
+    .custom-row { display: grid; grid-template-columns: 2fr 1.5fr 2fr 1fr auto; gap: 8px; align-items: flex-end; margin-bottom: 10px; }
+    .custom-row-header { display: grid; grid-template-columns: 2fr 1.5fr 2fr 1fr auto; gap: 8px; margin-bottom: 4px; font-size: 11px; color: #999; font-weight: 600; }
+    .add-btn-wrap { margin-top: 12px; }
+
+    /* ===== 案B: Collapse ===== */
+    .collapse-panel { border: 1px solid #d9d9d9; border-radius: 6px; margin-top: 24px; overflow: hidden; }
+    .collapse-header { padding: 10px 16px; background: #fafafa; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; user-select: none; }
+    .collapse-header:hover { background: #f0f0f0; }
+    .collapse-header .badge { background: #1677ff; color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: normal; }
+    .collapse-body { padding: 16px; border-top: 1px solid #f0f0f0; display: none; }
+    .collapse-body.open { display: block; }
+    .arrow { transition: transform 0.2s; display: inline-block; }
+    .arrow.open { transform: rotate(90deg); }
+
+    /* ===== 案C: タブ ===== */
+    .inner-tabs { display: flex; border-bottom: 1px solid #e8e8e8; margin-bottom: 16px; }
+    .inner-tab { padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: 13px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .inner-tab.active { color: #1677ff; border-bottom-color: #1677ff; font-weight: bold; }
+    .inner-tab-panel { display: none; }
+    .inner-tab-panel.active { display: block; }
+
+    /* 空メッセージ */
+    .empty-msg { text-align: center; color: #aaa; padding: 32px 0; font-size: 13px; }
+    .empty-msg .icon { font-size: 32px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">カスタムプロパティ追加UI モック比較</div>
+
+<div class="tabs-nav">
+  <button class="active" onclick="showTab('a')">案A：フォーム末尾追加（推奨）</button>
+  <button onclick="showTab('b')">案B：Collapse（折りたたみ）</button>
+  <button onclick="showTab('c')">案C：タブ切り替え</button>
+</div>
+
+<!-- ===== 案A ===== -->
+<div id="tab-a" class="tab-panel active">
+  <div style="color:#888;margin-bottom:16px;font-size:13px;">✅ 推奨案：既存フォームの下に区切り線＋カスタムプロパティセクションを追加。最もシンプルで直感的。</div>
+  <div class="modal-wrap">
+    <div class="modal-header">
+      <div><span class="title">実験データ記録</span><span class="subtitle">- 測定プロセス</span></div>
+    </div>
+    <div class="modal-body">
+      <!-- ツールバー -->
+      <div class="toolbar">
+        <label><input type="checkbox" checked /> みなし進捗更新</label>
+        <button class="btn">📋 作業指示</button>
+      </div>
+      <!-- 2カラムレイアウト -->
+      <div class="two-col">
+        <!-- サイドバー -->
+        <div class="sidebar">
+          <div class="sidebar-title">🗂 テンプレート一覧 <span class="tag tag-blue">3件</span></div>
+          <input type="text" placeholder="🔍 テンプレート名で検索" style="margin-bottom:8px;" />
+          <select style="margin-bottom:12px;"><option value="">テンプレート種別</option></select>
+          <div class="template-list">
+            <div class="template-item active">
+              <div class="name">材料テンプレート <span style="color:#aaa;font-size:11px;">(4項目)</span></div>
+              <div class="meta"><span class="tag tag-blue">材料</span><span class="tag tag-blue">IN</span></div>
+            </div>
+            <div class="template-item">
+              <div class="name">条件テンプレート <span style="color:#aaa;font-size:11px;">(3項目)</span></div>
+              <div class="meta"><span class="tag tag-green">条件</span><span class="tag tag-blue">IN</span></div>
+            </div>
+            <div class="template-item">
+              <div class="name">結果テンプレート <span style="color:#aaa;font-size:11px;">(5項目)</span></div>
+              <div class="meta"><span class="tag tag-orange">結果</span><span class="tag tag-green">OUT</span></div>
+            </div>
+          </div>
+        </div>
+        <!-- コンテンツ -->
+        <div class="content-area">
+          <div class="content-title">📄 データ記録 <span class="tag tag-blue">材料</span> <strong>材料テンプレート</strong></div>
+          
+          <!-- 既存フォーム -->
+          <div class="form-grid">
+            <div class="form-item"><label>SampleName</label><input type="text" value="Sample A" /></div>
+            <div class="form-item"><label>Temperature <span class="unit">°C</span></label><input type="number" value="25.5" /></div>
+            <div class="form-item"><label>Humidity <span class="unit">%</span></label><input type="number" value="60" /></div>
+            <div class="form-item"><label>測定日時</label><input type="text" value="2026-04-01 14:30" /></div>
+          </div>
+
+          <!-- ===== カスタムプロパティセクション（案A） ===== -->
+          <div class="custom-section-a">
+            <div class="divider"><span>📎 カスタムプロパティ（任意追加）</span></div>
+            
+            <div class="custom-row-header">
+              <span>キー名</span><span>型</span><span>値</span><span>単位</span><span></span>
+            </div>
+            
+            <!-- 行1 -->
+            <div class="custom-row">
+              <input type="text" value="sample_image" />
+              <select><option value="insertion">🖼 ファイル添付</option><option>stringType</option></select>
+              <div>
+                <button class="btn" style="width:100%;text-align:left;">📁 ファイルを選択</button>
+              </div>
+              <input type="text" placeholder="単位" disabled style="background:#f5f5f5;" />
+              <button class="btn-danger btn">✕</button>
+            </div>
+            <!-- 行2 -->
+            <div class="custom-row">
+              <input type="text" value="operator_note" />
+              <select><option>stringType（文字列）</option><option>insertion</option></select>
+              <input type="text" value="測定前にサンプルを乾燥させた" />
+              <input type="text" placeholder="単位" />
+              <button class="btn-danger btn">✕</button>
+            </div>
+            <!-- 行3（空） -->
+            <div class="custom-row" style="opacity:0.5;">
+              <input type="text" placeholder="キー名を入力" />
+              <select>
+                <option>stringType（文字列）</option>
+                <option>intType（整数）</option>
+                <option>floatType（小数）</option>
+                <option>booleanType（真偽値）</option>
+                <option>dateType（日付）</option>
+                <option>dateTimeType（日時）</option>
+                <option>insertion（ファイル添付）</option>
+              </select>
+              <input type="text" placeholder="値を入力" />
+              <input type="text" placeholder="単位" />
+              <button class="btn-danger btn">✕</button>
+            </div>
+            
+            <div class="add-btn-wrap">
+              <button class="btn btn-dashed" onclick="alert('カスタムプロパティ行を追加')">＋ カスタムプロパティを追加</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn">キャンセル</button>
+      <button class="btn btn-primary">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 案B ===== -->
+<div id="tab-b" class="tab-panel">
+  <div style="color:#888;margin-bottom:16px;font-size:13px;">折りたたみパネル案：普段は折りたたんで隠れている。展開時に入力できる。</div>
+  <div class="modal-wrap">
+    <div class="modal-header">
+      <div><span class="title">実験データ記録</span><span class="subtitle">- 測定プロセス</span></div>
+    </div>
+    <div class="modal-body">
+      <div class="toolbar">
+        <label><input type="checkbox" checked /> みなし進捗更新</label>
+        <button class="btn">📋 作業指示</button>
+      </div>
+      <div class="two-col">
+        <div class="sidebar">
+          <div class="sidebar-title">🗂 テンプレート一覧 <span class="tag tag-blue">3件</span></div>
+          <input type="text" placeholder="🔍 テンプレート名で検索" style="margin-bottom:8px;" />
+          <select style="margin-bottom:12px;"><option value="">テンプレート種別</option></select>
+          <div class="template-list">
+            <div class="template-item active">
+              <div class="name">材料テンプレート <span style="color:#aaa;font-size:11px;">(4項目)</span></div>
+              <div class="meta"><span class="tag tag-blue">材料</span><span class="tag tag-blue">IN</span></div>
+            </div>
+            <div class="template-item">
+              <div class="name">条件テンプレート</div>
+              <div class="meta"><span class="tag tag-green">条件</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="content-area">
+          <div class="content-title">📄 データ記録 <span class="tag tag-blue">材料</span> <strong>材料テンプレート</strong></div>
+          <div class="form-grid">
+            <div class="form-item"><label>SampleName</label><input type="text" value="Sample A" /></div>
+            <div class="form-item"><label>Temperature <span class="unit">°C</span></label><input type="number" value="25.5" /></div>
+            <div class="form-item"><label>Humidity <span class="unit">%</span></label><input type="number" value="60" /></div>
+            <div class="form-item"><label>測定日時</label><input type="text" value="2026-04-01 14:30" /></div>
+          </div>
+
+          <!-- ===== Collapse（案B） ===== -->
+          <div class="collapse-panel">
+            <div class="collapse-header" onclick="toggleCollapse('b')">
+              <span><span class="arrow" id="arrow-b">▶</span> 📎 カスタムプロパティ</span>
+              <span class="badge" id="badge-b">0件</span>
+            </div>
+            <div class="collapse-body" id="collapse-b">
+              <div class="empty-msg">
+                <div class="icon">📋</div>
+                <div>カスタムプロパティはまだありません</div>
+                <div style="margin-top:12px;">
+                  <button class="btn btn-dashed">＋ カスタムプロパティを追加</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:#aaa;">※ クリックして折りたたみパネルを開閉できます</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn">キャンセル</button>
+      <button class="btn btn-primary">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 案C ===== -->
+<div id="tab-c" class="tab-panel">
+  <div style="color:#888;margin-bottom:16px;font-size:13px;">タブ切り替え案：テンプレートプロパティとカスタムプロパティをタブで完全分離。</div>
+  <div class="modal-wrap">
+    <div class="modal-header">
+      <div><span class="title">実験データ記録</span><span class="subtitle">- 測定プロセス</span></div>
+    </div>
+    <div class="modal-body">
+      <div class="toolbar">
+        <label><input type="checkbox" checked /> みなし進捗更新</label>
+        <button class="btn">📋 作業指示</button>
+      </div>
+      <div class="two-col">
+        <div class="sidebar">
+          <div class="sidebar-title">🗂 テンプレート一覧 <span class="tag tag-blue">3件</span></div>
+          <input type="text" placeholder="🔍 テンプレート名で検索" style="margin-bottom:8px;" />
+          <select style="margin-bottom:12px;"><option value="">テンプレート種別</option></select>
+          <div class="template-list">
+            <div class="template-item active">
+              <div class="name">材料テンプレート <span style="color:#aaa;font-size:11px;">(4項目)</span></div>
+              <div class="meta"><span class="tag tag-blue">材料</span><span class="tag tag-blue">IN</span></div>
+            </div>
+            <div class="template-item">
+              <div class="name">条件テンプレート</div>
+              <div class="meta"><span class="tag tag-green">条件</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="content-area">
+          <div class="content-title">📄 データ記録 <span class="tag tag-blue">材料</span> <strong>材料テンプレート</strong></div>
+          
+          <!-- ===== 内部タブ（案C） ===== -->
+          <div class="inner-tabs">
+            <button class="inner-tab active" onclick="showInnerTab('c-template')">テンプレートプロパティ（4項目）</button>
+            <button class="inner-tab" onclick="showInnerTab('c-custom')" style="position:relative;">
+              📎 カスタムプロパティ
+              <span style="background:#ff4d4f;color:#fff;border-radius:10px;padding:0 6px;font-size:11px;margin-left:6px;">2</span>
+            </button>
+          </div>
+          
+          <div id="c-template" class="inner-tab-panel active">
+            <div class="form-grid">
+              <div class="form-item"><label>SampleName</label><input type="text" value="Sample A" /></div>
+              <div class="form-item"><label>Temperature <span class="unit">°C</span></label><input type="number" value="25.5" /></div>
+              <div class="form-item"><label>Humidity <span class="unit">%</span></label><input type="number" value="60" /></div>
+              <div class="form-item"><label>測定日時</label><input type="text" value="2026-04-01 14:30" /></div>
+            </div>
+          </div>
+          
+          <div id="c-custom" class="inner-tab-panel">
+            <div class="custom-row-header" style="margin-bottom:8px;">
+              <span>キー名</span><span>型</span><span>値</span><span>単位</span><span></span>
+            </div>
+            <div class="custom-row">
+              <input type="text" value="sample_image" />
+              <select><option>insertion（ファイル添付）</option></select>
+              <button class="btn" style="width:100%;text-align:left;">📁 photo.jpg</button>
+              <input type="text" placeholder="単位" disabled style="background:#f5f5f5;" />
+              <button class="btn-danger btn">✕</button>
+            </div>
+            <div class="custom-row">
+              <input type="text" value="operator_note" />
+              <select><option>stringType（文字列）</option></select>
+              <input type="text" value="測定前にサンプルを乾燥させた" />
+              <input type="text" placeholder="単位" />
+              <button class="btn-danger btn">✕</button>
+            </div>
+            <div class="add-btn-wrap" style="margin-top:16px;">
+              <button class="btn btn-dashed">＋ カスタムプロパティを追加</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn">キャンセル</button>
+      <button class="btn btn-primary">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showTab(id) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tabs-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+  function toggleCollapse(id) {
+    const body = document.getElementById('collapse-' + id);
+    const arrow = document.getElementById('arrow-' + id);
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+  }
+  function showInnerTab(id) {
+    document.querySelectorAll('.inner-tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.inner-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+  }
+</script>
+</body>
+</html>

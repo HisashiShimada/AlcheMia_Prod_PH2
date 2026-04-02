@@ -371,7 +371,45 @@ export class FileAccessService {
         
         // ファイル名を抽出（パスの最後の要素）
         const sanitizedFileName = sanitizedParts[sanitizedParts.length - 1];
-        
+
+        // MAIMLファイル名 × projectName バリデーション
+        // projects/ パスへの .maiml アップロード時、ファイル名（拡張子除く）がプロジェクト名と一致するか確認
+        if (sanitizedFileName.endsWith('.maiml') && normalizedPath.startsWith('projects/')) {
+          const pathParts = normalizedPath.split('/');
+          if (pathParts.length >= 2) {
+            const projectName = pathParts[1];
+            const fileBaseName = sanitizedFileName.replace(/\.maiml$/i, '');
+            if (fileBaseName !== projectName) {
+              console.error(`❌ [Upload] MAIMLファイル名不一致: ファイル名=${sanitizedFileName}, プロジェクト名=${projectName}`);
+              throw new ValidationError(
+                `ファイル名がプロジェクト名と一致しません（ファイル名: ${sanitizedFileName}、プロジェクト名: ${projectName}）`
+              );
+            }
+
+            // ② MAIMLファイル重複チェック
+            // プロジェクト直下に同名の .maiml ファイルが既に存在する場合はエラー
+            const existingMaimlPath = `${normalizedPath}/${sanitizedFileName}`;
+            const maimlExists = await this.storageService.fileExists(organizationId, existingMaimlPath);
+            if (maimlExists) {
+              console.error(`❌ [Upload] MAIMLファイル重複: ${existingMaimlPath}`);
+              throw new ValidationError(
+                `プロジェクトにMAIMLファイルが既に存在します: ${sanitizedFileName}`
+              );
+            }
+
+            // ③ archiveフォルダ存在チェック
+            // プロジェクト内に archive フォルダが既に存在する場合はエラー
+            const archiveFolderPath = `projects/${projectName}/archive`;
+            const archiveFiles = await this.storageService.listFiles(organizationId, archiveFolderPath);
+            if (archiveFiles && archiveFiles.length > 0) {
+              console.error(`❌ [Upload] archiveフォルダ既存: ${archiveFolderPath}`);
+              throw new ValidationError(
+                `プロジェクトにarchiveフォルダが既に存在します`
+              );
+            }
+          }
+        }
+
         // ファイルパスの構築
         const filePath = `${normalizedPath}/${sanitizedRelativePath}`;
         console.log(`✅ [Upload] アップロード先: ${filePath}`);
@@ -445,19 +483,22 @@ export class FileAccessService {
           { contentType: file.mimetype }
         );
 
-        // file_metadataテーブルに保存（Phase2-1: バッチIDを紐付け）
-        const fileId = await this.saveFileMetadata({
-          organizationId,
-          userId,
-          fileName: sanitizedFileName,
-          filePath,
-          s3Key,
-          fileSize: file.size,
-          contentType: file.mimetype,
-          projectId: metadata?.projectId,
-          formatId: metadata?.formatId,
-          batchName: batch.batchId, // Phase2-1: バッチIDを設定
-        });
+        // file_metadataテーブルに保存（MAIMLファイルのみ）（Phase2-1: バッチIDを紐付け）
+        let fileId: string | undefined;
+        if (isMaimlFile(sanitizedFileName, file.mimetype)) {
+          fileId = await this.saveFileMetadata({
+            organizationId,
+            userId,
+            fileName: sanitizedFileName,
+            filePath,
+            s3Key,
+            fileSize: file.size,
+            contentType: file.mimetype,
+            projectId: metadata?.projectId,
+            formatId: metadata?.formatId,
+            batchName: batch.batchId, // Phase2-1: バッチIDを設定
+          });
+        }
 
         return {
           fileId,
@@ -892,11 +933,13 @@ export class FileAccessService {
               console.log('ℹ️ [Delete] archiveフォルダが存在しないためスキップ:', archiveFolderPath);
             }
           } catch (archiveError) {
-            // archiveフォルダ削除エラーは警告のみ（メインファイル削除は成功しているため）
-            console.error('⚠️ [Delete] archiveフォルダ削除エラー（処理は続行）:', {
+            console.error('❌ [Delete] archiveフォルダ削除エラー:', {
               archiveFolderPath,
               error: archiveError,
             });
+            throw new StorageError(
+              `archiveフォルダの削除に失敗しました: ${archiveFolderPath}`
+            );
           }
         }
       }

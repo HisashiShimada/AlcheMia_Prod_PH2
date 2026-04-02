@@ -120,6 +120,14 @@ Clineの動作を制御するスキル定義ファイルを格納
 
 **詳細な仕様・ガイドライン（必要時に参照）**
 
+### [references/error_codes.md](references/error_codes.md)
+- エラーコード一覧（E1xxx〜E9xxx 全カテゴリ）
+- エンドポイント別エラーコード対応表
+- 旧コード→新コード変換表（LEGACY_CODE_MAP）
+- アドホックなエラーコード（E系以外）
+- レート制限エラーの詳細
+- エラーレスポンス形式
+
 ### [references/s3_structure.md](references/s3_structure.md)
 - S3/Swiftフォルダ構成定義
 - マルチテナント分離（org_{organization_id}プレフィックス）
@@ -142,6 +150,7 @@ Clineの動作を制御するスキル定義ファイルを格納
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-03-25 | error_codes.md追加（エラーコード一覧資料） | Cline |
 | 2026-02-18 | database.md追加（Repository層のDB操作統一化規約） | Cline |
 | 2026-02-18 | typescript.md追加（TypeScript型定義管理規約） | Cline |
 | 2026-02-18 | workflow.md更新（タスク専用フォルダ作成ルール・レポート管理追加） | Cline |
