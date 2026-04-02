@@ -484,11 +484,12 @@ const handleProjectDownload = useCallback(async () => {
 
 | 条件 | ボタンラベル | ボタン種別 | 活性状態 |
 |------|------------|----------|--------|
-| 公開中でも非公開中でもない（未公開 or `done`/`error`） | 公開する | `type="default"` | 有効 |
-| `status = 'pending'` または `'running'`（公開ジョブ処理中） | 公開処理中… | `type="default"` | disabled |
-| `status = 'done'` かつ `asset_id` あり（公開済み） | 非公開にする | `type="default" danger` | 有効 |
-| `status = 'pending'` または `'running'`（非公開ジョブ処理中） | 非公開処理中… | `type="default"` | disabled |
-| プロジェクト未選択 | 公開する | `type="default"` | disabled |
+| 公開中でも非公開中でもない（未公開 or `done`/`error`） かつ プロジェクトステータスが3（レビュー待ち）または4（完了） | 公開する | `type="primary"` | 有効 |
+| 公開中でも非公開中でもない かつ プロジェクトステータスが3・4以外 | 公開する | `type="primary"` | **disabled**（ステータス不正） |
+| `status = 'pending'` または `'running'`（公開ジョブ処理中） | 公開処理中… | `type="primary"` | disabled |
+| `status = 'done'` かつ `asset_id` あり（公開済み） | 非公開にする | `type="primary" danger` | 有効 |
+| `status = 'pending'` または `'running'`（非公開ジョブ処理中） | 非公開処理中… | `type="primary"` | disabled |
+| プロジェクト未選択 | 公開する | `type="primary"` | disabled |
 
 #### 3.9.2 ボタン押下時の処理
 

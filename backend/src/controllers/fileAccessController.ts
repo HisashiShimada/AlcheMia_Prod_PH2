@@ -300,8 +300,35 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
     let errorMessage = 'システムエラーが発生しました';
 
     if (error.message) {
+      // MAIMLバリデーションエラーのチェック（致命的エラー）
+      if (error.message.startsWith('MAIML_VALIDATION_ERROR:')) {
+        statusCode = 400;
+        errorCode = 'MAIML_VALIDATION_ERROR';
+        try {
+          const payload = JSON.parse(error.message.slice('MAIML_VALIDATION_ERROR:'.length));
+          res.status(statusCode).json({
+            success: false,
+            error: {
+              code: errorCode,
+              message: `MAIMLファイルに致命的なエラーがあります: ${payload.fileName}`,
+              details: {
+                fileName: payload.fileName,
+                errorCount: payload.errorCount,
+                errors: payload.errors,
+              },
+            },
+            meta: {
+              timestamp: new Date().toISOString(),
+              requestId,
+            },
+          });
+          return;
+        } catch (_parseError) {
+          errorMessage = 'MAIMLファイルのバリデーションに失敗しました';
+        }
+      }
       // ValidationErrorのチェック
-      if (error.message.includes('パストラバーサル') || 
+      else if (error.message.includes('パストラバーサル') || 
           error.message.includes('不正なファイルパス') ||
           error.message.includes('ファイルが選択されていません') ||
           error.message.includes('単一ファイルモード') ||
