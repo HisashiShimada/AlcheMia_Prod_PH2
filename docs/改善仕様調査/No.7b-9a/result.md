@@ -214,3 +214,56 @@ if (validationResult && validationResult.errors?.some(e => e.type === 'unknown_e
 
 - `convertProtocol` / `convertMethod` の既知キーリストは現時点の実装ベースで構築しており、将来 MAIML 仕様が拡張された場合は既知キーリストの更新が必要
 - `unknownElements` フィールドは型定義に追加されているが、現時点では ValidationPanel 表示以外の用途（保存・編集時の保持など）には利用していない
+
+---
+
+# 計画書 (第2弾): アップロード時MAIMLバリデーション追加
+
+## メタデータ
+- **計画書作成日時**: 2026-03-31 16:48
+- **タスクID**: upload-maiml-validation
+- **対応PLAN**: `docs/改善仕様調査/No.7b-9a/PLAN_2.md`
+- **ステータス**: 計画策定済み（未実施）
+
+---
+
+## 概要
+
+MAIMLファイルをアップロードした際に、その場で詳細バリデーションを実行し、致命的エラー（`severity: 'error'`）がある場合はアップロードを拒否（400）、警告のみの場合はアップロードを完了させつつ警告内容をダイアログで表示する対応の計画を策定した。
+
+---
+
+## 対応方針
+
+### バリデーション実行タイミング
+ストレージへのアップロード**前**にバリデーションを実施し、致命的エラー検出時はアップロード自体を中止する。
+
+### バリデーション方式の一本化
+現状の3系統（簡易解析 `maimlAnalyzer.ts` / 詳細バリデーション `maimlParser.ts` / 型変換エラー検出 `maimlParserTyped.ts`）を、`maimlParser.ts` の `analyzeMaiMLFile()` に一本化する。
+
+### DB保存スキップ
+`analyzeMaiMLFile()` はDB保存を内包しているため、アップロード時のバリデーションでは `skipSave=true` オプション引数を追加してスキップする。
+
+---
+
+## 実装対象ファイル
+
+| # | ファイル | 変更内容 |
+|---|---------|---------|
+| 1 | `backend/src/utils/maimlParser.ts` | `analyzeMaiMLFile()` に `skipSave?: boolean` オプション引数を追加 |
+| 2 | `backend/src/services/fileAccessService.ts` | `uploadFiles()` 内でアップロード前に詳細バリデーションを実施・結果をレスポンスに付加 |
+| 3 | `backend/src/controllers/fileAccessController.ts` | 致命的エラー時400・警告あり成功時200のレスポンス仕様対応 |
+| 4 | フロントエンドのアップロードコンポーネント | バリデーション結果ダイアログ表示（エラー/警告一覧） |
+
+---
+
+## APIレスポンス仕様
+
+| ケース | HTTPステータス | レスポンス内容 |
+|--------|--------------|--------------|
+| 致命的エラーあり | 400 | `MAIML_VALIDATION_ERROR` コード + `errors[]` 一覧 |
+| 警告のみ | 200 | 通常成功レスポンス + `maimlValidation.warnings[]` |
+| エラーなし・警告なし | 200 | 通常成功レスポンス（`maimlValidation` なし） |
+| `.maiml` 以外のファイル | 200 | 従来どおり（バリデーションなし） |
+
+詳細なレスポンス JSON 仕様は `PLAN_2.md` のセクション7を参照。
