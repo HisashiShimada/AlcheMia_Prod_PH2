@@ -45,7 +45,7 @@ export interface AnalysisResult {
 
 export interface ErrorContent {
   type: string;
-  severity?: string;
+  severity: string;
   message: string;
   details?: string;
   suggestion?: string;

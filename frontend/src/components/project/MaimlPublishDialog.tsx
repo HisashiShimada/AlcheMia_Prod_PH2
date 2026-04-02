@@ -6,15 +6,15 @@ import { publishProject } from '@/services/projectApiService';
 
 const { Text } = Typography;
 
-/** エラーコードに対応する日本語メッセージ */
+/** エラーコードに対応する日本語メッセージ（E系コードに統一） */
 const ERROR_MESSAGES: Record<string, string> = {
-  PROJECT_NOT_FOUND:       'プロジェクトが見つかりません',
-  PROJECT_NOT_CHECKED_OUT: 'プロジェクトがチェックアウトされていません',
-  PROJECT_STATUS_INVALID:  'プロジェクトステータスがタスク結果レビュー待ちではありません',
-  TASKS_NOT_COMPLETED:     '完了・異常終了以外のタスクが残っています',
-  MAIML_NOT_FOUND:         'MAIMLファイルが存在しません',
-  ALREADY_IN_PROGRESS:     '公開処理がすでに進行中です',
-  SYSTEM_ERROR:            'システムエラーが発生しました',
+  E6001: 'プロジェクトが見つかりません',
+  E6002: 'MAIMLファイルが存在しません',
+  E7002: 'プロジェクトがチェックアウトされていません',
+  E7005: 'プロジェクトステータスがタスク結果レビュー待ちではありません',
+  E7010: '完了・異常終了以外のタスクが残っています',
+  E7011: '公開処理がすでに進行中です',
+  E4001: 'システムエラーが発生しました',
 };
 
 export interface MaimlPublishDialogProps {
@@ -68,14 +68,14 @@ const MaimlPublishDialog: React.FC<MaimlPublishDialogProps> = ({
     } catch (err: unknown) {
       // axios エラーからエラーコードを取り出す
       const axiosErr = err as { response?: { data?: { error?: { code?: string } } } };
-      const code = axiosErr?.response?.data?.error?.code ?? 'SYSTEM_ERROR';
+      const code = axiosErr?.response?.data?.error?.code ?? 'E4001';
       setErrorCode(code);
     } finally {
       setLoading(false);
     }
   };
 
-  const errorMessage = errorCode ? (ERROR_MESSAGES[errorCode] ?? ERROR_MESSAGES['SYSTEM_ERROR']) : null;
+  const errorMessage = errorCode ? (ERROR_MESSAGES[errorCode] ?? ERROR_MESSAGES['E4001']) : null;
 
   return (
     <Modal

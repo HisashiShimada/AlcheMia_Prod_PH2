@@ -137,16 +137,22 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
         projectName,
       });
 
-      // MAIMLをパース
-      const maimlParser = new MaimlParserTyped(fetchedMaimlContent);
-      const parsedMaiml = maimlParser.getTypedMaiml();
+      // MAIMLをパース（パースエラーは握り潰し、生コンテンツは保持）
+      let maimlParser: MaimlParserTyped | null = null;
+      let parsedMaiml = null;
+      try {
+        maimlParser = new MaimlParserTyped(fetchedMaimlContent);
+        parsedMaiml = maimlParser.getTypedMaiml();
+        console.log('✅ [ProjectMaimlContext] MAIMLパース成功:', {
+          hasProtocol: !!parsedMaiml.protocol,
+          methodCount: parsedMaiml.protocol?.methods?.length || 0,
+        });
+      } catch (parseErr) {
+        // パースエラーはログのみ。生コンテンツは引き続き利用可能にする
+        console.warn('⚠️ [ProjectMaimlContext] MAIMLパースエラー（生コンテンツは保持）:', parseErr);
+      }
 
-      console.log('✅ [ProjectMaimlContext] MAIMLパース成功:', {
-        hasProtocol: !!parsedMaiml.protocol,
-        methodCount: parsedMaiml.protocol?.methods?.length || 0,
-      });
-
-      // Stateを更新
+      // Stateを更新（パース失敗でも maimlContent は保持する）
       setMaimlRoot(parsedMaiml);
       setMaimlContent(fetchedMaimlContent);
       setParser(maimlParser);
@@ -158,16 +164,15 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
         return;
       }
 
+      // ネットワーク・API エラーのみログ出力（パースエラーは上で処理済み）
       console.error('❌ [ProjectMaimlContext] MAIMLファイル読み込み失敗:', err);
-      
+
       const error = err instanceof Error ? err : new Error('不明なエラーが発生しました');
       setError(error);
       setMaimlRoot(null);
       setMaimlContent(null);
       setParser(null);
       setCurrentProjectName(null);
-
-      message.error(`MAIMLファイルの読み込みに失敗しました: ${error.message}`);
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;

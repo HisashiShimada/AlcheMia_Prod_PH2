@@ -5,8 +5,9 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react';
-import { uploadFiles, cancelBatch } from '@/services/fileAccessService';
+import { uploadFiles, abortChunkUpload, cancelBatch } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import type { UploadRetryState, UploadResultSummary } from '@/types/file';
 import {
   Modal,
   Segmented,
@@ -18,6 +19,7 @@ import {
   Space,
   Typography,
   Divider,
+  List,
   App,
 } from 'antd';
 import {
@@ -28,10 +30,11 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
 
-const { Text } = Typography;
+const { Text, Paragraph } = Typography;
 const { Dragger } = Upload;
 
 /**
@@ -109,13 +112,17 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
     totalCount: 0,
     error: null,
   });
-  
+  /** リトライ状態（null = リトライなし） */
+  const [retryState, setRetryState] = useState<UploadRetryState | null>(null);
   // ✨ Task: アップロードキャンセル機能実装
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [batchId, setBatchId] = useState<string | null>(null);
-
+  /** アップロード結果サマリー（null = 未完了） */
+  const [resultSummary, setResultSummary] = useState<UploadResultSummary | null>(null);
   // Refs
   const folderInputRef = useRef<HTMLInputElement>(null);
+  /** チャンクアップロード中のセッションID（キャンセル時に abort するために保持） */
+  const activeUploadIdsRef = useRef<string[]>([]);
 
   /**
    * モード変更時のファイルリストクリア
@@ -123,6 +130,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
   const handleModeChange = useCallback((value: string | number) => {
     setUploadMode(value as UploadMode);
     setFileList([]);
+    setResultSummary(null);
   }, []);
 
   /**
@@ -138,6 +146,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       }
 
       setFileList(newFileList);
+      setResultSummary(null);
     },
     [uploadMode]
   );
@@ -157,7 +166,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
-      const uploadFiles: UploadFile[] = Array.from(files).map((file, index) => {
+      const uploadFilesList: UploadFile[] = Array.from(files).map((file, index) => {
         const fileWithPath = file as File & { webkitRelativePath?: string };
         const rcFile = file as RcFile;
         rcFile.uid = `${Date.now()}-${index}`;
@@ -172,7 +181,8 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         };
       });
 
-      setFileList(uploadFiles);
+      setFileList(uploadFilesList);
+      setResultSummary(null);
     },
     []
   );
@@ -215,11 +225,10 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       message.error('フォーマットが選択されていません');
       return;
     }
-
     // ✨ AbortControllerを作成
     const controller = new AbortController();
     setAbortController(controller);
-
+    setResultSummary(null);
     setUploadState({
       isUploading: true,
       progress: 0,
@@ -238,22 +247,19 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           
           // フォルダモードで、かつnameにパスが含まれている場合
           if (uploadMode === 'folder' && f.name.includes('/')) {
-            // nameにパスを含む新しいFileオブジェクトを作成
-            // これによりバックエンドでfile.originalnameからパスを取得できる
             return new File([originFile], f.name, {
               type: originFile.type,
               lastModified: originFile.lastModified,
             });
           }
           
-          // フォルダモード以外はそのまま返す
           return originFile as File;
         })
         .filter((f): f is File => !!f);
 
       const targetPath = getTargetPath();
 
-      // API呼び出し
+      // API呼び出し（onRetry でリトライ状態を UI に通知）
       const response = await uploadFiles({
         uploadMode,
         targetPath,
@@ -263,44 +269,66 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         },
         signal: controller.signal, // ✨ AbortSignalを渡す
         onProgress: (progress) => {
+          // リトライ成功後はリトライ表示をクリア
+          setRetryState(null);
+          // 全体進捗を更新
           setUploadState(prev => ({
             ...prev,
             progress: progress.percentage,
             uploadedCount: progress.uploadedCount,
           }));
         },
+        onRetry: (state) => {
+          // リトライ発生時に状態を更新して UI に表示
+          setRetryState(state);
+        },
+        onSessionInit: (uploadId) => {
+          // チャンクアップロードセッション開始時に uploadId を記録
+          activeUploadIdsRef.current.push(uploadId);
+        },
       });
-
       // ✨ バッチIDを保存
       if (response.batchId) {
         setBatchId(response.batchId);
       }
+      // 結果サマリーをセット
+      const summary: UploadResultSummary = {
+        successCount: response.summary.successfulFiles,
+        failureCount: response.summary.failedFiles,
+        failedFileNames: response.failedFileNames,
+      };
+      setResultSummary(summary);
 
-      if (response) {
-        message.success('アップロードが完了しました');
-        
-        if (onUploadComplete) {
-          onUploadComplete({
-            mode: uploadMode,
-            fileCount: fileList.length,
-            success: true,
-          });
-        }
+      setUploadState(prev => ({
+        ...prev,
+        isUploading: false,
+        progress: 100,
+      }));
 
-        // 完了後の状態リセット（2秒後）
-        setTimeout(() => {
-          setFileList([]);
-          setSubFolderPath('');
-          setUploadState({
-            isUploading: false,
-            progress: 100,
-            uploadedCount: fileList.length,
-            totalCount: fileList.length,
-            error: null,
-          });
-        }, 2000);
+      if (onUploadComplete) {
+        onUploadComplete({
+          mode: uploadMode,
+          fileCount: fileList.length,
+          success: summary.failureCount === 0,
+        });
       }
+
+      if (summary.failureCount === 0) {
+        message.success('アップロードが完了しました');
+      } else if (summary.successCount === 0) {
+        message.error('すべてのファイルのアップロードに失敗しました');
+      } else {
+        message.warning(`${summary.failureCount} 件のファイルがアップロードに失敗しました`);
+      }
+
     } catch (error) {
+      const errorMessage = extractErrorMessage(error);
+      setUploadState(prev => ({
+        ...prev,
+        isUploading: false,
+        error: errorMessage,
+      }));
+      message.error(errorMessage);
       // ✨ キャンセルエラーの処理
       if ((error as any).name === 'CanceledError') {
         message.info('アップロードがキャンセルされました');
@@ -320,13 +348,57 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           error: 'キャンセルされました',
         }));
       } else {
-        const errorMessage = extractErrorMessage(error);
-        setUploadState(prev => ({
-          ...prev,
-          isUploading: false,
-          error: errorMessage,
-        }));
-        message.error(errorMessage);
+        // MAIMLバリデーションエラーの処理
+        const axiosError = error as any;
+        const errorCode = axiosError?.response?.data?.error?.code;
+        if (errorCode === 'MAIML_VALIDATION_ERROR') {
+          const details = axiosError.response.data.error.details;
+          const errorList = (details?.errors ?? []) as Array<{ type: string; severity: string; message: string; suggestion?: string }>;
+          setUploadState(prev => ({ ...prev, isUploading: false, error: null }));
+          Modal.error({
+            title: `MAIMLバリデーションエラー: ${details?.fileName ?? ''}`,
+            width: 640,
+            content: (
+              <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                <Paragraph style={{ marginBottom: 8 }}>
+                  致命的なエラーが{details?.errorCount ?? errorList.length}件検出されたため、アップロードを中止しました。
+                </Paragraph>
+                {errorList.map((e, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      background: '#fff2f0',
+                      border: '1px solid #ffccc7',
+                      borderRadius: 6,
+                      padding: '8px 12px',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text strong style={{ color: '#cf1322', fontSize: 13 }}>
+                      [{e.type}] {e.message}
+                    </Text>
+                    {e.suggestion && (
+                      <div style={{ marginTop: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          💡 {e.suggestion}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ),
+            okText: '閉じる',
+          });
+        } else {
+          const errorMessage = extractErrorMessage(error);
+          setUploadState(prev => ({
+            ...prev,
+            isUploading: false,
+            error: errorMessage,
+          }));
+          message.error(errorMessage);
+        }
       }
     } finally {
       // ✨ クリーンアップ
@@ -357,8 +429,16 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         content: 'アップロード処理が進行中です。キャンセルしますか？',
         okText: '中断する',
         cancelText: '続行',
-        okButtonProps: { danger: true },
-        onOk: onClose,
+        onOk: async () => {
+          // チャンクアップロード中のセッションをすべて中断してサーバー一時ファイルを削除
+          const ids = activeUploadIdsRef.current;
+          if (ids.length > 0) {
+            await Promise.all(ids.map((id) => abortChunkUpload(id)));
+            activeUploadIdsRef.current = [];
+          }
+          onClose();
+        },
+
       });
     } else {
       onClose();
@@ -387,7 +467,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       ]}
       >
         <Alert
-          message="フォーマットが選択されていません"
+          title="フォーマットが選択されていません"
           description="先にフォーマットを選択してください。"
           type="warning"
           showIcon
@@ -517,22 +597,22 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
                   <div
                     key={file.uid}
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
                       padding: '8px 0',
                       borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
                     }}
                   >
-                    <Text
-                      ellipsis
-                      style={{ flex: 1, fontSize: 13 }}
-                      title={file.name}
-                    >
-                      {file.name}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 12 }}>
-                      {formatFileSize(file.size || 0)}
-                    </Text>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text
+                        ellipsis
+                        style={{ flex: 1, fontSize: 13 }}
+                        title={file.name}
+                      >
+                        {file.name}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 12, marginLeft: 12 }}>
+                        {formatFileSize(file.size || 0)}
+                      </Text>
+                    </div>
                   </div>
                 ))}
                 {fileList.length > 10 && (
@@ -588,15 +668,6 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           </div>
         )}
 
-        {!baseFolder && (
-          <Alert
-            message="フォーマットが選択されていません"
-            description="フォーマットを選択してからアップロードしてください"
-            type="warning"
-            showIcon
-          />
-        )}
-
         {/* サブフォルダパス入力（オプション） */}
         {baseFolder && (
           <div>
@@ -615,10 +686,20 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           </div>
         )}
 
+        {/* リトライ中表示 */}
+        {retryState && uploadState.isUploading && (
+          <Alert
+            title={`接続エラーが発生しました。自動リトライ中... (${retryState.retryCount}/${retryState.maxRetries})`}
+            type="warning"
+            showIcon
+            icon={<LoadingOutlined />}
+          />
+        )}
+
         {/* アップロード進行状況 */}
         {uploadState.isUploading && (
           <Alert
-            message="アップロード中"
+            title="アップロード中"
             description={
               <div style={{ position: 'relative' }}>
                 <button
@@ -658,15 +739,65 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           />
         )}
 
-        {/* アップロード完了 */}
-        {!uploadState.isUploading && uploadState.progress === 100 && (
-          <Alert
-            title="アップロード完了"
-            description={`${uploadState.totalCount}個のファイルが正常にアップロードされました`}
-            type="success"
-            showIcon
-            icon={<CheckCircleOutlined />}
-          />
+        {/* アップロード結果サマリー */}
+        {!uploadState.isUploading && resultSummary !== null && (
+          <>
+            {resultSummary.failureCount === 0 ? (
+              <Alert
+                title="アップロード完了"
+                description={`成功: ${resultSummary.successCount} 件 / 失敗: 0 件`}
+                type="success"
+                showIcon
+                icon={<CheckCircleOutlined />}
+              />
+            ) : resultSummary.successCount === 0 ? (
+              <Alert
+                title="アップロード失敗"
+                description={
+                  <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                    <Text>成功: 0 件 / 失敗: {resultSummary.failureCount} 件</Text>
+                    <Text strong>失敗したファイル:</Text>
+                    <List
+                      size="small"
+                      dataSource={resultSummary.failedFileNames}
+                      renderItem={(name) => (
+                        <List.Item style={{ padding: '2px 0' }}>
+                          <Text style={{ fontSize: 12 }}>{name}</Text>
+                        </List.Item>
+                      )}
+                    />
+                  </Space>
+                }
+                type="error"
+                showIcon
+                icon={<CloseCircleOutlined />}
+              />
+            ) : (
+              <Alert
+                title="アップロード完了（一部失敗）"
+                description={
+                  <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                    <Text>
+                      成功: {resultSummary.successCount} 件 / 失敗: {resultSummary.failureCount} 件
+                    </Text>
+                    <Text strong>失敗したファイル:</Text>
+                    <List
+                      size="small"
+                      dataSource={resultSummary.failedFileNames}
+                      renderItem={(name) => (
+                        <List.Item style={{ padding: '2px 0' }}>
+                          <Text style={{ fontSize: 12 }}>{name}</Text>
+                        </List.Item>
+                      )}
+                    />
+                  </Space>
+                }
+                type="warning"
+                showIcon
+                icon={<WarningOutlined />}
+              />
+            )}
+          </>
         )}
 
         {/* エラー表示 */}

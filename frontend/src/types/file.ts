@@ -3,6 +3,18 @@
  */
 
 /**
+ * S3/Swiftファイル情報の型定義
+ * （apiClient.ts の fetchFileList の戻り値で使用）
+ */
+export interface FileInfo {
+  key: string;
+  name: string;
+  size?: number;
+  lastModified?: string;
+}
+
+
+/**
  * プロジェクトファイル
  */
 export interface ProjectFile {
@@ -235,7 +247,125 @@ export interface UploadFilesParams {
   files: File[];
   metadata?: UploadMetadata;
   onProgress?: (progress: UploadProgress) => void;
+  /**
+   * ファイルごとの進捗コールバック。
+   * 各ファイルの進捗を独立して通知するために使用する。
+   * @param fileName ファイル名
+   * @param percent  進捗パーセンテージ（0〜100）
+   * @param status   プログレスバーの状態
+   */
+  onFileProgress?: (fileName: string, percent: number, status: 'active' | 'success' | 'exception') => void;
+  /** リトライ発生時のコールバック。UI 側でリトライ状態を表示するために使用 */
+  onRetry?: (state: UploadRetryState) => void;
+  /**
+   * チャンクアップロードセッション開始直後に uploadId を通知するコールバック。
+   * UI 側でキャンセル処理（abortChunkUpload）を行うために使用する。
+   */
+  onSessionInit?: (uploadId: string) => void;
+  /**
+   * アップロードをキャンセルするための AbortSignal。
+   * AbortController.signal を渡すことでアップロードを中断できる。
+   */
+  signal?: AbortSignal;
+}
+
+/**
+ * アップロード結果サマリー
+ *
+ * アップロード完了後に UI へ表示する結果情報。
+ */
+export interface UploadResultSummary {
+  /** 成功したファイル数 */
+  successCount: number;
+  /** 失敗したファイル数 */
+  failureCount: number;
+  /** 失敗したファイル名の一覧 */
+  failedFileNames: string[];
+}
+
+// ---------------------------------------------------------------------------
+// チャンク分割アップロード関連型定義 (2026-03-25)
+// ---------------------------------------------------------------------------
+
+/**
+ * チャンクアップロードセッション情報
+ *
+ * init API が返す uploadId と、送信に必要なメタ情報を保持する。
+ */
+export interface ChunkUploadSession {
+  /** サーバーが発行したセッション識別子 */
+  uploadId: string;
+  /** 総チャンク数 */
+  totalChunks: number;
+  /** 1 チャンクあたりのサイズ（バイト） */
+  chunkSize: number;
+}
+
+/**
+ * チャンクアップロードオプション
+ *
+ * uploadFileWithChunks() に渡す設定値。
+ */
+export interface ChunkUploadOptions {
+  /**
+   * 1 チャンクあたりのサイズ（バイト）。
+   * デフォルト: 10 * 1024 * 1024 (10MB)
+   */
+  chunkSize?: number;
+  /**
+   * 進捗コールバック。
+   * 統一計算式 (完了済みバイト数 + e.loaded) / file.size × 100 で算出した
+   * パーセンテージ（0〜100）を受け取る。
+   */
+  onProgress?: (percent: number) => void;
+  /**
+   * セッション開始直後に uploadId を通知するコールバック。
+   * 呼び出し元でキャンセル処理（abortChunkUpload）を行うために使用する。
+   */
+  onSessionInit?: (uploadId: string) => void;
+}
+
+/**
+ * ファイルごとのアップロード進捗状態
+ *
+ * プログレスバーの表示に使用する。
+ */
+export interface UploadProgressState {
+  /** 進捗パーセンテージ（0〜100） */
+  percent: number;
+  /** プログレスバーの状態 */
+  status: 'active' | 'success' | 'exception' | 'normal';
+}
+
+// ---------------------------------------------------------------------------
+// リトライ機能関連型定義 (2026-03-26)
+// ---------------------------------------------------------------------------
+
+/**
+ * リトライ設定オプション
+ *
+ * withRetry() に渡す設定値。
+ */
+export interface UploadRetryOptions {
+  /** 最大リトライ回数（デフォルト: 3） */
+  maxRetries: number;
+  /** 初回リトライ待機時間（ミリ秒）。指数バックオフの基準値（デフォルト: 1000） */
+  baseDelayMs: number;
+}
+
+/**
+ * リトライ状態
+ *
+ * リトライ発生時に UI 側へコールバックで通知する情報。
+ * 「リトライ中... (1/3)」のようなメッセージ表示に使用する。
+ */
+export interface UploadRetryState {
+  /** 現在のリトライ回数（1 始まり） */
+  retryCount: number;
+  /** 最大リトライ回数 */
+  maxRetries: number;
   // ✨ Task: アップロードキャンセル機能実装
   // アップロードをキャンセルするためのAbortSignal
   signal?: AbortSignal;
+
 }
