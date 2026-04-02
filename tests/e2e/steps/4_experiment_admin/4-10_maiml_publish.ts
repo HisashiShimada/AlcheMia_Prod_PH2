@@ -295,9 +295,143 @@ Before({
   }
 });
 
-// ---------------------------------------------------------------------------
-// After フック: クリーンアップ
-// ---------------------------------------------------------------------------
+  /**
+   * [4-10-8] テストデータ準備
+   * - project を1件 UPSERT（checkout_status=1, project_status=3）
+   * - maiml_publish_job レコードは不要（非公開状態から開始）
+   */
+  Before({
+    tags: '@4-10-8',
+  }, async () => {
+    console.log('[4-10 Before @4-10-8] テストデータ準備 開始');
+    try {
+      await upsertProject(
+        TEST_PROJECT_ID,
+        TEST_PROJECT_NAME,
+        PROJECT_STATUS_REVIEW_WAITING,
+        CHECKOUT_STATUS_CHECKED_OUT,
+        true
+      );
+
+      if (!createdProjectIds.includes(TEST_PROJECT_ID)) {
+        createdProjectIds.push(TEST_PROJECT_ID);
+      }
+
+      console.log('[4-10 Before @4-10-8] テストデータ準備 完了: 非公開状態から開始');
+    } catch (error) {
+      console.error('[4-10 Before @4-10-8] テストデータ準備 失敗:', error);
+      throw error;
+    }
+  });
+
+/**
+ * [4-10-9] テストデータ準備
+ * - project を1件 UPSERT（planning / checked_in）
+ * - maiml_publish_job を1件 INSERT（job_type='unpublish', status='done', publish_expired_at=過去日時）
+ *   スケジューラーが自動非公開を完了させた状態を模擬する
+ */
+Before({
+  tags: '@4-10-9',
+}, async () => {
+  console.log('[4-10 Before @4-10-9] テストデータ準備 開始');
+  try {
+    await upsertProject(
+      TEST_PROJECT_ID,
+      TEST_PROJECT_NAME,
+      PROJECT_STATUS_PLANNING,
+      CHECKOUT_STATUS_CHECKED_IN,
+      true
+    );
+
+    if (!createdProjectIds.includes(TEST_PROJECT_ID)) {
+      createdProjectIds.push(TEST_PROJECT_ID);
+    }
+
+    // 期限切れ自動非公開が完了した状態: job_type='unpublish', status='done', publish_expired_at=1時間前
+    const expiredAt = new Date(Date.now() - 60 * 60 * 1000); // 1時間前
+    const jobId = await insertMaimlPublishJob(TEST_PROJECT_ID, 'unpublish', 'done', expiredAt);
+    createdJobIds.push(jobId);
+
+    console.log(`[4-10 Before @4-10-9] テストデータ準備 完了: job_id=${jobId}, publish_expired_at=${expiredAt.toISOString()}`);
+  } catch (error) {
+    console.error('[4-10 Before @4-10-9] テストデータ準備 失敗:', error);
+    throw error;
+  }
+});
+
+/**
+ * [4-10-10] テストデータ準備
+ * - project を1件 UPSERT（planning / checked_in）
+ * - maiml_publish_job を1件 INSERT（job_type='unpublish', status='running', publish_expired_at=過去日時）
+ *   期限到来済みでスケジューラーが自動非公開処理中の状態を模擬する
+ */
+Before({
+  tags: '@4-10-10',
+}, async () => {
+  console.log('[4-10 Before @4-10-10] テストデータ準備 開始');
+  try {
+    await upsertProject(
+      TEST_PROJECT_ID,
+      TEST_PROJECT_NAME,
+      PROJECT_STATUS_PLANNING,
+      CHECKOUT_STATUS_CHECKED_IN,
+      true
+    );
+
+    if (!createdProjectIds.includes(TEST_PROJECT_ID)) {
+      createdProjectIds.push(TEST_PROJECT_ID);
+    }
+
+    // 期限切れ自動非公開が処理中の状態: job_type='unpublish', status='running', publish_expired_at=過去日時
+    const expiredAt = new Date(Date.now() - 5 * 60 * 1000); // 5分前
+    const jobId = await insertMaimlPublishJob(TEST_PROJECT_ID, 'unpublish', 'running', expiredAt);
+    createdJobIds.push(jobId);
+
+    console.log(`[4-10 Before @4-10-10] テストデータ準備 完了: job_id=${jobId}, publish_expired_at=${expiredAt.toISOString()}`);
+  } catch (error) {
+    console.error('[4-10 Before @4-10-10] テストデータ準備 失敗:', error);
+    throw error;
+  }
+});
+
+/**
+ * [4-10-11] テストデータ準備
+ * - project を1件 UPSERT（planning / checked_in）
+ * - maiml_publish_job を1件 INSERT（job_type='unpublish', status='error', publish_expired_at=過去日時）
+ *   期限到来済みでスケジューラーが自動非公開処理でエラーになった状態を模擬する
+ */
+Before({
+  tags: '@4-10-11',
+}, async () => {
+  console.log('[4-10 Before @4-10-11] テストデータ準備 開始');
+  try {
+    await upsertProject(
+      TEST_PROJECT_ID,
+      TEST_PROJECT_NAME,
+      PROJECT_STATUS_PLANNING,
+      CHECKOUT_STATUS_CHECKED_IN,
+      true
+    );
+
+    if (!createdProjectIds.includes(TEST_PROJECT_ID)) {
+      createdProjectIds.push(TEST_PROJECT_ID);
+    }
+
+    // 期限切れ自動非公開がエラーで終了した状態: job_type='unpublish', status='error', publish_expired_at=過去日時
+    const expiredAt = new Date(Date.now() - 30 * 60 * 1000); // 30分前
+    const jobId = await insertMaimlPublishJob(TEST_PROJECT_ID, 'unpublish', 'error', expiredAt);
+    createdJobIds.push(jobId);
+
+    console.log(`[4-10 Before @4-10-11] テストデータ準備 完了: job_id=${jobId}, publish_expired_at=${expiredAt.toISOString()}`);
+  } catch (error) {
+    console.error('[4-10 Before @4-10-11] テストデータ準備 失敗:', error);
+    throw error;
+  }
+});
+
+  // ---------------------------------------------------------------------------
+  // After フック: クリーンアップ
+  // ---------------------------------------------------------------------------
 
 After(async () => {
   console.log('[4-10 After] クリーンアップ 開始');
@@ -487,6 +621,39 @@ Given(
   'テスト用プロジェクトの公開ジョブがエラー状態（status=error）でDBに登録されている',
   async ({}) => {
     console.log('[4-10 Given] 公開ジョブエラー前提: Before フックで maiml_publish_job(status=error) 準備済み');
+  }
+);
+
+/**
+ * スケジューラーによる自動非公開ジョブが完了した状態でDBに登録されている（4-10-9）
+ * → Before @4-10-9 フックで maiml_publish_job(job_type='unpublish', status='done', publish_expired_at=過去日時) 準備済み
+ */
+Given(
+  'スケジューラーによる自動非公開ジョブが完了した状態でDBに登録されている（maiml_publish_jobテーブルに status=done かつ job_type=unpublish のレコードが存在し、publish_expired_atが設定されている）',
+  async ({}) => {
+    console.log('[4-10 Given] 自動非公開完了前提: Before @4-10-9 フックで maiml_publish_job(unpublish/done/expired) 準備済み');
+  }
+);
+
+/**
+ * スケジューラーによる自動非公開ジョブが処理中（status=running）の状態でDBに登録されている（4-10-10）
+ * → Before @4-10-10 フックで maiml_publish_job(job_type='unpublish', status='running', publish_expired_at=過去日時) 準備済み
+ */
+Given(
+  'スケジューラーによる自動非公開ジョブが処理中（status=running）の状態でDBに登録されている（publish_expired_atが過去日時に設定されている）',
+  async ({}) => {
+    console.log('[4-10 Given] 自動非公開処理中前提: Before @4-10-10 フックで maiml_publish_job(unpublish/running/expired) 準備済み');
+  }
+);
+
+/**
+ * スケジューラーによる自動非公開ジョブがエラー状態（status=error）でDBに登録されている（4-10-11）
+ * → Before @4-10-11 フックで maiml_publish_job(job_type='unpublish', status='error', publish_expired_at=過去日時) 準備済み
+ */
+Given(
+  'スケジューラーによる自動非公開ジョブがエラー状態（status=error）でDBに登録されている（publish_expired_atが設定されており、job_type=unpublishのレコードが存在する）',
+  async ({}) => {
+    console.log('[4-10 Given] 自動非公開エラー前提: Before @4-10-11 フックで maiml_publish_job(unpublish/error/expired) 準備済み');
   }
 );
 
@@ -1109,9 +1276,10 @@ async function upsertProject(
 /**
  * テスト用 maiml_publish_job を INSERT する
  *
- * @param projectId - 対象のプロジェクトID
- * @param jobType   - ジョブ種別（'publish' | 'unpublish'）
- * @param status    - ジョブステータス（'pending' | 'running' | 'done' | 'error'）
+ * @param projectId        - 対象のプロジェクトID
+ * @param jobType          - ジョブ種別（'publish' | 'unpublish'）
+ * @param status           - ジョブステータス（'pending' | 'running' | 'done' | 'error'）
+ * @param publishExpiredAt - 公開期限（省略時は NULL）
  * @returns 作成された job_id
  *
  * DDL参照: docs/design/api/api_maiml_opendata.md
@@ -1119,22 +1287,25 @@ async function upsertProject(
 async function insertMaimlPublishJob(
   projectId: string,
   jobType: 'publish' | 'unpublish',
-  status: 'pending' | 'running' | 'done' | 'error'
+  status: 'pending' | 'running' | 'done' | 'error',
+  publishExpiredAt?: Date | null
 ): Promise<number> {
-  console.log(`[4-10 insertMaimlPublishJob] 開始: project_id=${projectId}, job_type=${jobType}, status=${status}`);
+  console.log(
+    `[4-10 insertMaimlPublishJob] 開始: project_id=${projectId}, job_type=${jobType}, status=${status}, publish_expired_at=${publishExpiredAt ?? 'NULL'}`
+  );
   try {
     const result = await db.query<{ job_id: number }>(
       `INSERT INTO maiml_publish_job (
         organization_id, project_id, job_type, status,
-        file_uri,
+        file_uri, publish_expired_at,
         create_user_id, create_at, update_user_id, update_at
       ) VALUES (
         $1, $2, $3, $4,
-        $5,
+        $5, $6,
         'e2e-test', NOW(), 'e2e-test', NOW()
       )
       RETURNING job_id`,
-      [ORG_ID, projectId, jobType, status, TEST_MAIML_FILE_URI]
+      [ORG_ID, projectId, jobType, status, TEST_MAIML_FILE_URI, publishExpiredAt ?? null]
     );
     const jobId = result.rows[0].job_id;
     console.log(`[4-10 insertMaimlPublishJob] INSERT 完了: job_id=${jobId}`);
