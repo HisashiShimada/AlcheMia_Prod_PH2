@@ -132,6 +132,7 @@ POST /api/v1/projects/:projectName/publish
 | `PROJECT_NOT_FOUND` | プロジェクトが見つかりません | プロジェクトが DB に存在しない |
 | `PROJECT_NOT_CHECKED_OUT` | プロジェクトがチェックアウトされていません | `checkout_status != 1` |
 | `PROJECT_STATUS_INVALID` | プロジェクトステータスがタスク結果レビュー待ちではありません | `project_status != 3`（レビュー待ち） |
+| `E7005` | プロジェクトステータスがタスク結果レビュー待ちではありません | バックエンドが返す `E7005` コード（`PROJECT_STATUS_INVALID` と同義） |
 | `TASKS_NOT_COMPLETED` | 完了・異常終了以外のタスクが残っています | 完了/異常終了以外のタスク詳細が存在する |
 | `MAIML_NOT_FOUND` | MAIMLファイルが存在しません | ストレージに `.maiml` ファイルがない |
 | `ALREADY_IN_PROGRESS` | 公開処理がすでに進行中です | `status = pending/running` のジョブが既にある |
@@ -253,4 +254,5 @@ Authorization: Bearer maiml_session-{sessionId}_{timestamp}
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.0.1 | 2026-03-31 | エラーメッセージ一覧に `E7005` コードを追加（バックエンドの `E` プレフィックス形式エラーコードへの対応） | Cline |
 | 1.0.0 | 2026-03-13 | 初版作成（実装済みソースコードから仕様を起こす） | Cline |
