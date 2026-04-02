@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>カスタムプロパティ 値入力UI モック</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; background: #f0f2f5; color: #333; }
+
+    .page-header { background: #001529; color: #fff; padding: 16px 24px; font-size: 18px; font-weight: bold; }
+    .tabs-nav { display: flex; background: #fff; border-bottom: 2px solid #1677ff; padding: 0 24px; }
+    .tabs-nav button { padding: 12px 24px; border: none; background: none; cursor: pointer; font-size: 14px; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+    .tabs-nav button.active { color: #1677ff; border-bottom-color: #1677ff; font-weight: bold; }
+    .tab-panel { display: none; padding: 24px; }
+    .tab-panel.active { display: block; }
+
+    .section-desc { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 6px; padding: 10px 16px; margin-bottom: 20px; font-size: 13px; color: #666; }
+    .section-title { font-size: 16px; font-weight: bold; margin-bottom: 16px; color: #333; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 20px 24px; margin-bottom: 20px; }
+
+    /* 共通ボタン */
+    .btn { padding: 6px 16px; border-radius: 6px; border: 1px solid #d9d9d9; background: #fff; cursor: pointer; font-size: 13px; }
+    .btn-primary { background: #1677ff; color: #fff; border-color: #1677ff; }
+    .btn-dashed { border-style: dashed; color: #1677ff; border-color: #1677ff; background: transparent; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-danger { color: #ff4d4f; border-color: #ff4d4f; padding: 4px 10px; font-size: 12px; }
+    .btn-icon { padding: 4px 8px; border-radius: 4px; }
+
+    /* 入力フォーム */
+    input[type=text], input[type=number], input[type=date], input[type=datetime-local], select, textarea {
+      padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 13px; background: #fff;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #1677ff; box-shadow: 0 0 0 2px rgba(22,119,255,0.1); }
+    input[disabled], select[disabled] { background: #f5f5f5; color: #bbb; cursor: not-allowed; }
+
+    /* タグ */
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; }
+    .tag-blue { background: #e6f4ff; color: #1677ff; border: 1px solid #91caff; }
+    .tag-green { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+    .tag-orange { background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; }
+    .tag-red { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+    .tag-purple { background: #f9f0ff; color: #722ed1; border: 1px solid #d3adf7; }
+    .tag-gray { background: #fafafa; color: #666; border: 1px solid #d9d9d9; }
+
+    /* 区切り線 */
+    .divider { border: none; border-top: 1px solid #e8e8e8; margin: 20px 0; position: relative; text-align: center; }
+    .divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 12px; font-size: 12px; color: #aaa; white-space: nowrap; }
+
+    /* ===== 案1: インライン行入力 ===== */
+    .row-input { display: grid; align-items: center; margin-bottom: 10px; gap: 8px; }
+    .row-input.mode-full { grid-template-columns: 180px 140px 1fr 80px 36px; }
+    .row-input.mode-compact { grid-template-columns: 160px 120px 1fr 70px 32px; }
+    .col-header { font-size: 11px; color: #999; font-weight: 600; }
+
+    /* 値入力欄の型別スタイル */
+    .value-input { width: 100%; }
+    .value-input.type-string textarea { width: 100%; resize: none; height: 32px; padding: 5px 10px; line-height: 1.4; }
+    .value-input.type-number input { width: 100%; }
+    .value-input.type-boolean select { width: 100%; }
+    .value-input.type-date input { width: 100%; }
+    .value-input.type-file .upload-btn { width: 100%; text-align: left; display: flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px dashed #d9d9d9; border-radius: 6px; cursor: pointer; background: #fafafa; font-size: 12px; color: #666; }
+    .value-input.type-file .upload-btn:hover { border-color: #1677ff; color: #1677ff; background: #f0f8ff; }
+    .value-input.type-file .file-name { font-size: 12px; color: #1677ff; margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+
+    /* 型バッジ */
+    .type-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+    .type-badge.string { background: #e6f4ff; color: #1677ff; }
+    .type-badge.number { background: #fff7e6; color: #fa8c16; }
+    .type-badge.bool { background: #f6ffed; color: #52c41a; }
+    .type-badge.date { background: #f9f0ff; color: #722ed1; }
+    .type-badge.file { background: #fff2f0; color: #ff4d4f; }
+
+    /* ===== 案2: カードスタイル ===== */
+    .custom-card { border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; background: #fafafa; position: relative; }
+    .custom-card:hover { border-color: #91caff; background: #f0f8ff; }
+    .custom-card .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .custom-card .card-key { font-weight: bold; font-size: 13px; }
+    .custom-card .card-del { position: absolute; top: 10px; right: 10px; }
+    .custom-card .card-body { display: grid; grid-template-columns: 1fr 80px; gap: 8px; }
+    .custom-card .card-body label { font-size: 11px; color: #999; display: block; margin-bottom: 3px; }
+
+    /* ===== 案3: モーダルで1件ずつ追加 ===== */
+    .add-modal { border: 1px solid #e8e8e8; border-radius: 8px; background: #fff; padding: 20px; max-width: 480px; }
+    .add-modal .modal-title { font-size: 15px; font-weight: bold; margin-bottom: 16px; }
+    .form-item { margin-bottom: 14px; }
+    .form-item label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+    .form-item label .required { color: #ff4d4f; margin-left: 2px; }
+    .form-item input, .form-item select, .form-item textarea { width: 100%; }
+    .form-item .hint { font-size: 11px; color: #aaa; margin-top: 3px; }
+
+    /* ===== 完成イメージ（案1ベース） ===== */
+    .final-section { background: #f8f9fa; border-radius: 8px; padding: 16px; }
+    .type-preview { display: flex; flex-direction: column; gap: 12px; }
+    .type-row { background: #fff; border: 1px solid #e8e8e8; border-radius: 6px; padding: 10px 14px; display: grid; grid-template-columns: 140px 120px 1fr 70px 32px; gap: 8px; align-items: center; }
+    .type-row.highlight { border-color: #91caff; background: #f0f8ff; }
+    .type-row .key-label { font-size: 12px; font-weight: bold; }
+    .type-row .type-label { }
+  </style>
+</head>
+<body>
+
+<div class="page-header">カスタムプロパティ 値入力UI モック（詳細）</div>
+<div class="tabs-nav">
+  <button class="active" onclick="showTab('a1')">案1：インライン行入力</button>
+  <button onclick="showTab('a2')">案2：カードスタイル</button>
+  <button onclick="showTab('a3')">案3：モーダルで1件ずつ追加</button>
+  <button onclick="showTab('a4')">完成イメージ（全型プレビュー）</button>
+</div>
+
+<!-- ===== 案1: インライン行入力 ===== -->
+<div id="tab-a1" class="tab-panel active">
+  <div class="section-desc">
+    📌 <strong>案1：インライン行入力</strong>
+    — 各行に「キー名・型選択・値・単位・削除」を横並びで表示。型を選ぶと値の入力欄が切り替わる。
+  </div>
+
+  <div class="card">
+    <div class="section-title">📎 カスタムプロパティ（任意追加）</div>
+    
+    <!-- ヘッダー行 -->
+    <div class="row-input mode-full" style="margin-bottom:4px;">
+      <span class="col-header">キー名 <span style="color:#ff4d4f;">*</span></span>
+      <span class="col-header">型</span>
+      <span class="col-header">値</span>
+      <span class="col-header">単位</span>
+      <span></span>
+    </div>
+
+    <!-- 行1: stringType -->
+    <div class="row-input mode-full">
+      <input type="text" value="operator_note" style="width:100%" />
+      <select style="width:100%" onchange="updateValueCell(this)">
+        <option value="string" selected>文字列</option>
+        <option value="int">整数</option>
+        <option value="float">小数</option>
+        <option value="bool">真偽値</option>
+        <option value="date">日付</option>
+        <option value="datetime">日時</option>
+        <option value="file">ファイル添付</option>
+      </select>
+      <div class="value-input type-string">
+        <textarea rows="1" style="width:100%;height:32px;resize:none;">測定前にサンプルを乾燥させた</textarea>
+      </div>
+      <input type="text" placeholder="単位" style="width:100%" />
+      <button class="btn btn-danger btn-icon">✕</button>
+    </div>
+
+    <!-- 行2: intType -->
+    <div class="row-input mode-full">
+      <input type="text" value="repeat_count" style="width:100%" />
+      <select style="width:100%">
+        <option>文字列</option>
+        <option value="int" selected>整数</option>
+        <option>小数</option>
+        <option>真偽値</option>
+        <option>日付</option>
+        <option>日時</option>
+        <option>ファイル添付</option>
+      </select>
+      <div class="value-input type-number">
+        <input type="number" value="3" step="1" style="width:100%" />
+      </div>
+      <input type="text" placeholder="単位" style="width:100%" />
+      <button class="btn btn-danger btn-icon">✕</button>
+    </div>
+
+    <!-- 行3: floatType -->
+    <div class="row-input mode-full">
+      <input type="text" value="correction_factor" style="width:100%" />
+      <select style="width:100%">
+        <option>文字列</option>
+        <option>整数</option>
+        <option value="float" selected>小数</option>
+        <option>真偽値</option>
+        <option>日付</option>
+        <option>日時</option>
+        <option>ファイル添付</option>
+      </select>
+      <div class="value-input type-number">
+        <input type="number" value="1.023" step="0.001" style="width:100%" />
+      </div>
+      <input type="text" value="ratio" style="width:100%" />
+      <button class="btn btn-danger btn-icon">✕</button>
+    </div>
+
+    <!-- 行4: booleanType -->
+    <div class="row-input mode-full">
+      <input type="text" value="sample_dried" style="width:100%" />
+      <select style="width:100%">
+        <option>文字列</option>
+        <option>整数</option>
+        <option>小数</option>
+        <option value="bool" selected>真偽値</option>
+        <option>日付</option>
+        <option>日時</option>
+        <option>ファイル添付</option>
+      </select>
+      <div class="value-input type-boolean">
+        <select style="width:100%">
+          <option value="true" selected>true（はい）</option>
+          <option value="false">false（いいえ）</option>
+        </select>
+      </div>
+      <input type="text" disabled style="width:100%;background:#f5f5f5;" />
+      <button class="btn btn-danger btn-icon">✕</button>
+    </div>
+
+    <!-- 行5: dateTimeType -->
+    <div class="row-input mode-full">
+      <input type="text" value="preprocess_at" style="width:100%" />
+      <select style="width:100%">
+        <option>文字列</option>
+        <option>整数</option>
+        <option>小数</option>
+        <option>真偽値</option>
+        <option>日付</option>
+        <option value="datetime" selected>日時</option>
+        <option>ファイル添付</option>
+      </select>
+      <div class="value-input type-date">
+        <input type="datetime-local" value="2026-04-01T09:30" style="width:100%" />
+      </div>
+      <input type="text" disabled style="width:100%;background:#f5f5f5;" />
+      <button class="btn btn-danger btn-icon">✕</button>
+    </div>
+
+    <!-- 行6: insertion（ファイル添付） -->
+    <div class="row-input mode-full">
+      <input type="text" value="sample_photo" style="width:100%" />
+      <select style="width:100%">
+        <option>文字列</option>
+        <option>整数</option>
+        <option>小数</option>
+        <option>真偽値</option>
+        <option>日付</option>
+        <option>日時</option>
+        <option value="file" selected>🖼 ファイル添付</option>
+      </select>
+      <div class="value-input type-file">
+        <div class="upload-btn" onclick="alert('ファイル選択ダイアログを開く')">
+          <span>📁</span> ファイルを選択
+        </div>
+        <div class="file-name">📄 sample_QEA_01.jpg（234 KB）<span onclick="alert('削除')" style="cursor:pointer;color:#ff4d4f;font-size:10px;">✕</span></div>
+      </div>
+      <input type="text" disabled style="width:100%;background:#f5f5f5;" />
+      <button class="btn btn-danger btn-icon">✕</button>
+    </div>
+
+    <!-- 追加ボタン -->
+    <div style="margin-top:14px;">
+      <button class="btn btn-dashed">＋ カスタムプロパティを追加</button>
+    </div>
+  </div>
+
+  <div style="font-size:12px;color:#888;margin-top:-8px;padding:0 4px;">
+    💡 型を変更すると値の入力欄が自動で切り替わります。単位はinsertion・booleanでは入力不可。
+  </div>
+</div>
+
+<!-- ===== 案2: カードスタイル ===== -->
+<div id="tab-a2" class="tab-panel">
+  <div class="section-desc">
+    📌 <strong>案2：カードスタイル</strong>
+    — 各カスタムプロパティを1枚のカードとして表示。視覚的に分かりやすいが、多件数になると縦に長くなる。
+  </div>
+
+  <div class="card">
+    <div class="section-title">📎 カスタムプロパティ（3件）</div>
+
+    <!-- カード1 -->
+    <div class="custom-card">
+      <button class="btn btn-danger btn-icon card-del" style="position:absolute;top:10px;right:10px;">✕</button>
+      <div class="card-header">
+        <span class="tag tag-blue">🔤 文字列</span>
+        <span class="card-key">operator_note</span>
+      </div>
+      <div class="card-body">
+        <div>
+          <label>値</label>
+          <textarea rows="2" style="width:100%;resize:none;">測定前にサンプルを乾燥させた</textarea>
+        </div>
+        <div>
+          <label>単位</label>
+          <input type="text" placeholder="なし" />
+        </div>
+      </div>
+    </div>
+
+    <!-- カード2 -->
+    <div class="custom-card" style="border-color:#ffd591;">
+      <button class="btn btn-danger btn-icon card-del" style="position:absolute;top:10px;right:10px;">✕</button>
+      <div class="card-header">
+        <span class="tag tag-orange">🔢 小数</span>
+        <span class="card-key">correction_factor</span>
+      </div>
+      <div class="card-body">
+        <div>
+          <label>値</label>
+          <input type="number" value="1.023" step="0.001" style="width:100%" />
+        </div>
+        <div>
+          <label>単位</label>
+          <input type="text" value="ratio" />
+        </div>
+      </div>
+    </div>
+
+    <!-- カード3 -->
+    <div class="custom-card" style="border-color:#ffccc7;">
+      <button class="btn btn-danger btn-icon card-del" style="position:absolute;top:10px;right:10px;">✕</button>
+      <div class="card-header">
+        <span class="tag tag-red">🖼 ファイル添付</span>
+        <span class="card-key">sample_photo</span>
+      </div>
+      <div class="card-body" style="grid-template-columns:1fr;">
+        <div>
+          <label>添付ファイル</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="value-input type-file" style="flex:1;">
+              <div class="upload-btn">📁 ファイルを変更</div>
+              <div class="file-name">📄 sample_QEA_01.jpg（234 KB）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-dashed">＋ カスタムプロパティを追加</button>
+  </div>
+</div>
+
+<!-- ===== 案3: モーダルで1件ずつ追加 ===== -->
+<div id="tab-a3" class="tab-panel">
+  <div class="section-desc">
+    📌 <strong>案3：モーダルで1件ずつ追加</strong>
+    — リスト表示 + 「追加」ボタンでモーダルが開く。入力完了後にリストに反映。
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <!-- 左: リスト表示エリア -->
+    <div class="card">
+      <div class="section-title">📎 カスタムプロパティ（2件）</div>
+
+      <!-- 追加済みリスト -->
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f5f5f5;">
+            <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e8e8e8;">キー名</th>
+            <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e8e8e8;">型</th>
+            <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e8e8e8;">値</th>
+            <th style="padding:6px;border-bottom:1px solid #e8e8e8;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:8px 10px;border-bottom:1px solid #f0f0f0;font-weight:bold;">operator_note</td>
+            <td style="padding:8px 10px;border-bottom:1px solid #f0f0f0;"><span class="tag tag-blue">文字列</span></td>
+            <td style="padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#666;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">測定前にサンプルを乾燥させた</td>
+            <td style="padding:8px 6px;border-bottom:1px solid #f0f0f0;">
+              <button class="btn btn-icon" style="font-size:12px;margin-right:4px;">✏️</button>
+              <button class="btn btn-danger btn-icon">✕</button>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 10px;font-weight:bold;">sample_photo</td>
+            <td style="padding:8px 10px;"><span class="tag tag-red">ファイル</span></td>
+            <td style="padding:8px 10px;font-size:12px;color:#1677ff;">📄 sample_QEA_01.jpg</td>
+            <td style="padding:8px 6px;">
+              <button class="btn btn-icon" style="font-size:12px;margin-right:4px;">✏️</button>
+              <button class="btn btn-danger btn-icon">✕</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:14px;">
+        <button class="btn btn-dashed">＋ カスタムプロパティを追加</button>
+      </div>
+    </div>
+
+    <!-- 右: 追加モーダル（展開表示） -->
+    <div>
+      <div style="font-size:12px;color:#999;margin-bottom:8px;">▼ 追加ボタンを押したときに表示されるモーダル</div>
+      <div class="add-modal">
+        <div class="modal-title">📎 カスタムプロパティを追加</div>
+        
+        <div class="form-item">
+          <label>キー名 <span class="required">*</span></label>
+          <input type="text" placeholder="例: operator_note" style="width:100%" />
+          <div class="hint">英数字とアンダースコアを使用してください</div>
+        </div>
+
+        <div class="form-item">
+          <label>型 <span class="required">*</span></label>
+          <select style="width:100%">
+            <option value="string" selected>stringType（文字列）</option>
+            <option value="int">intType（整数）</option>
+            <option value="float">floatType（小数）</option>
+            <option value="bool">booleanType（真偽値）</option>
+            <option value="date">dateType（日付）</option>
+            <option value="datetime">dateTimeType（日時）</option>
+            <option value="file">insertion（ファイル添付）</option>
+          </select>
+        </div>
+
+        <div class="form-item">
+          <label>値</label>
+          <textarea rows="3" placeholder="値を入力してください" style="width:100%;resize:none;"></textarea>
+        </div>
+
+        <div class="form-item">
+          <label>単位</label>
+          <input type="text" placeholder="例: °C, mm, ratio（省略可）" style="width:100%" />
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+          <button class="btn">キャンセル</button>
+          <button class="btn btn-primary">追加</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 完成イメージ ===== -->
+<div id="tab-a4" class="tab-panel">
+  <div class="section-desc">
+    ✅ <strong>完成イメージ（案1ベース）</strong> — 全型を1画面で確認できる完成状態のプレビュー。型によって値の入力欄が変わる。
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="section-title" style="margin:0;">📎 カスタムプロパティ（任意追加）</div>
+      <div style="font-size:12px;color:#aaa;">テンプレート定義外の追加プロパティ</div>
+    </div>
+
+    <div class="final-section">
+      <!-- ヘッダー -->
+      <div style="display:grid;grid-template-columns:140px 130px 1fr 70px 32px;gap:8px;padding:0 2px;margin-bottom:6px;">
+        <span class="col-header">キー名 *</span>
+        <span class="col-header">型 *</span>
+        <span class="col-header">値</span>
+        <span class="col-header">単位</span>
+        <span></span>
+      </div>
+
+      <div class="type-preview">
+
+        <!-- stringType -->
+        <div class="type-row">
+          <div>
+            <input type="text" value="operator_note" style="width:100%" />
+          </div>
+          <div>
+            <select style="width:100%">
+              <option selected>文字列</option>
+              <option>整数</option><option>小数</option><option>真偽値</option>
+              <option>日付</option><option>日時</option><option>ファイル添付</option>
+            </select>
+          </div>
+          <div>
+            <textarea rows="1" style="width:100%;height:32px;resize:none;padding:5px 10px;">測定前にサンプルを乾燥させた</textarea>
+          </div>
+          <input type="text" placeholder="単位" style="width:100%" />
+          <button class="btn btn-danger btn-icon">✕</button>
+        </div>
+
+        <!-- intType -->
+        <div class="type-row">
+          <div>
+            <input type="text" value="repeat_count" style="width:100%" />
+          </div>
+          <div>
+            <select style="width:100%">
+              <option>文字列</option>
+              <option selected>整数</option>
+              <option>小数</option><option>真偽値</option>
+              <option>日付</option><option>日時</option><option>ファイル添付</option>
+            </select>
+          </div>
+          <div>
+            <input type="number" value="3" step="1" style="width:100%" />
+          </div>
+          <input type="text" placeholder="単位" style="width:100%" />
+          <button class="btn btn-danger btn-icon">✕</button>
+        </div>
+
+        <!-- floatType -->
+        <div class="type-row">
+          <div>
+            <input type="text" value="correction_factor" style="width:100%" />
+          </div>
+          <div>
+            <select style="width:100%">
+              <option>文字列</option><option>整数</option>
+              <option selected>小数</option>
+              <option>真偽値</option>
+              <option>日付</option><option>日時</option><option>ファイル添付</option>
+            </select>
+          </div>
+          <div>
+            <input type="number" value="1.023" step="0.001" style="width:100%" />
+          </div>
+          <input type="text" value="ratio" style="width:100%" />
+          <button class="btn btn-danger btn-icon">✕</button>
+        </div>
+
+        <!-- booleanType -->
+        <div class="type-row">
+          <div>
+            <input type="text" value="sample_dried" style="width:100%" />
+          </div>
+          <div>
+            <select style="width:100%">
+              <option>文字列</option><option>整数</option><option>小数</option>
+              <option selected>真偽値</option>
+              <option>日付</option><option>日時</option><option>ファイル添付</option>
+            </select>
+          </div>
+          <div>
+            <select style="width:100%">
+              <option value="true" selected>true（はい）</option>
+              <option value="false">false（いいえ）</option>
+            </select>
+          </div>
+          <input type="text" disabled style="width:100%;background:#f5f5f5;border-color:#f0f0f0;" />
+          <button class="btn btn-danger btn-icon">✕</button>
+        </div>
+
+        <!-- dateType -->
+        <div class="type-row">
+          <div>
+            <input type="text" value="measurement_date" style="width:100%" />
+          </div>
+          <div>
+            <select style="width:100%">
+              <option>文字列</option><option>整数</option><option>小数</option><option>真偽値</option>
+              <option selected>日付</option>
+              <option>日時</option><option>ファイル添付</option>
+            </select>
+          </div>
+          <div>
+            <input type="date" value="2026-04-01" style="width:100%" />
+          </div>
+          <input type="text" disabled style="width:100%;background:#f5f5f5;border-color:#f0f0f0;" />
+          <button class="btn btn-danger btn-icon">✕</button>
+        </div>
+
+        <!-- dateTimeType -->
+        <div class="type-row">
+          <div>
+            <input type="text" value="preprocess_at" style="width:100%" />
+          </div>
+          <div>
+            <select style="width:100%">
+              <option>文字列</option><option>整数</option><option>小数</option><option>真偽値</option><option>日付</option>
+              <option selected>日時</option>
+              <option>ファイル添付</option>
+            </select>
+          </div>
+          <div>
+            <input type="datetime-local" value="2026-04-01T09:30" style="width:100%" />
+          </div>
+          <input type="text" disabled style="width:100%;background:#f5f5f5;border-color:#f0f0f0;" />
+          <button class="btn btn-danger btn-icon">✕</button>
+        </div>
+
+        <!-- insertion（ファイル添付） -->
+        <div class="type-row highlight">
+          <div>
+            <input type="text" value="sample_photo" style="width:100%" />
+          </div>
+          <div>
+            <select style="width:100%">
+              <option>文字列</option><option>整数</option><option>小数</option><option>真偽値</option><option>日付</option><option>日時</option>
+              <option selected>🖼 ファイル添付</option>
+            </select>
+          </div>
+          <div>
+            <div class="value-input type-file">
+              <div class="upload-btn">📁 ファイルを選択（または変更）</div>
+              <div class="file-name">📄 sample_QEA_01.jpg (234 KB) <span style="cursor:pointer;color:#ff4d4f;">✕</span></div>
+            </div>
+          </div>
+          <input type="text" disabled style="width:100%;background:#f5f5f5;border-color:#f0f0f0;" />
+          <button class="btn btn-danger btn-icon">✕</button>
+        </div>
+
+      </div>
+
+      <div style="margin-top:14px;">
+        <button class="btn btn-dashed">＋ カスタムプロパティを追加</button>
+        <span style="font-size:12px;color:#aaa;margin-left:12px;">7件追加済み</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#e6f4ff;border:1px solid #91caff;border-radius:6px;padding:12px 16px;font-size:13px;">
+    <strong>💡 型の対応まとめ（実装時の切り替えロジック）</strong>
+    <table style="margin-top:8px;width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="background:#f0f8ff;"><th style="padding:4px 8px;text-align:left;">型</th><th style="padding:4px 8px;text-align:left;">値の入力UI</th><th style="padding:4px 8px;text-align:left;">単位</th></tr></thead>
+      <tbody>
+        <tr><td style="padding:4px 8px;"><span class="tag tag-blue">stringType</span></td><td style="padding:4px 8px;">TextArea（1行）</td><td style="padding:4px 8px;">入力可</td></tr>
+        <tr style="background:#fafafa;"><td style="padding:4px 8px;"><span class="tag tag-orange">intType</span></td><td style="padding:4px 8px;">InputNumber（precision=0）</td><td style="padding:4px 8px;">入力可</td></tr>
+        <tr><td style="padding:4px 8px;"><span class="tag tag-orange">floatType</span></td><td style="padding:4px 8px;">InputNumber（precision=3）</td><td style="padding:4px 8px;">入力可</td></tr>
+        <tr style="background:#fafafa;"><td style="padding:4px 8px;"><span class="tag tag-green">booleanType</span></td><td style="padding:4px 8px;">Select（true / false）</td><td style="padding:4px 8px;color:#ccc;">なし</td></tr>
+        <tr><td style="padding:4px 8px;"><span class="tag tag-purple">dateType</span></td><td style="padding:4px 8px;">DatePicker（YYYY-MM-DD）</td><td style="padding:4px 8px;color:#ccc;">なし</td></tr>
+        <tr style="background:#fafafa;"><td style="padding:4px 8px;"><span class="tag tag-purple">dateTimeType</span></td><td style="padding:4px 8px;">DatePicker＋showTime</td><td style="padding:4px 8px;color:#ccc;">なし</td></tr>
+        <tr><td style="padding:4px 8px;"><span class="tag tag-red">insertion</span></td><td style="padding:4px 8px;">Upload（ファイル選択ボタン＋ファイル名表示）</td><td style="padding:4px 8px;color:#ccc;">なし</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function showTab(id) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tabs-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+</script>
+</body>
+</html>

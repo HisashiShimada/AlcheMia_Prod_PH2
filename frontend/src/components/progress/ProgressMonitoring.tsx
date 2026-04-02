@@ -24,10 +24,9 @@ import WorkProgressDetailDialog from './WorkProgressDetailDialog';
 import type { FileData, Project } from '@/types/progress';
 import type { ProjectFile } from '@/types/file';
 import { useApi } from '@/hooks/useApi';
-import { fetchProjects, fetchProjectFilesReal } from '@/utils/apiClient';
+import { getProjects, getProjectFiles } from '@/services/projectApiService';
+import type { ApiResponse as ProjectApiResponse, ProjectListResponse } from '@/services/projectApiService';
 import { getUserInfo } from '@/utils/sessionStorageHelper';
-import type { ApiResponse } from '@/types/api';
-import type { ProjectListResponse } from '@/types/project';
 
 const { Text } = Typography;
 
@@ -81,8 +80,8 @@ export default function ProgressMonitoring() {
     isLoading: isLoadingProjects, 
     error: projectsError, 
     refetch: refetchProjects 
-  } = useApi<ApiResponse<ProjectListResponse>>(
-    fetchProjects,
+  } = useApi<ProjectApiResponse<ProjectListResponse>>(
+    getProjects,
     []
   );
 
@@ -320,15 +319,9 @@ export default function ProgressMonitoring() {
     setLoadingProjectId(record.projectId);
     try {
       // GET /api/v1/projects/:projectName/files を呼び出して実際のファイル情報を取得
-      const filesResponse = await fetchProjectFilesReal(record.projectName);
+      const filesResponse = await getProjectFiles(record.projectName, false);
 
-      // APIエラーレスポンスのナローイング
-      if (!filesResponse.success) {
-        message.error(filesResponse.error?.message || 'ファイル情報の取得に失敗しました');
-        return;
-      }
-
-      const mainFiles: ProjectFile[] = filesResponse.data.files ?? [];
+      const mainFiles: ProjectFile[] = filesResponse.files ?? [];
 
       // archiveではなく現行ファイルから .maiml ファイルを探す
       const maimlFile = mainFiles.find((f: ProjectFile) => f.name.endsWith('.maiml'));

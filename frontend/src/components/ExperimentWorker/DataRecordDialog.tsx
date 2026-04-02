@@ -80,6 +80,7 @@ const ALL_STATUS_OPTIONS: { value: TransitionStatus; label: string }[] = [
 ];
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { validateByXsiType } from '@/utils/xsiTypeValidator';
 import { updateTransitionStatus } from '@/services/projectApiService';
 import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
@@ -682,12 +683,34 @@ export default function DataRecordDialog({
     })();
 
 
-    const rules = [
+    // ✅ Phase 3: xsi:type ベースのバリデーションルール
+    // InputNumber / DatePicker 等の UI 制約と併用することで二重チェックとなる
+    const buildTypeRule = (xsiType: string) => ({
+      validator: (_: unknown, value: unknown) => {
+        if (value === undefined || value === null || value === '') return Promise.resolve();
+        const strValue = String(value);
+        const result = validateByXsiType(xsiType, strValue);
+        return result.isValid
+          ? Promise.resolve()
+          : Promise.reject(new Error(result.errorMessage));
+      },
+    });
+
+    const rules: import('antd').FormRule[] = [
       {
         required: property.required,
         message: `${property.label}は必須項目です`,
       },
     ];
+
+    // intType / floatType / doubleType / decimalType は UI 制約（InputNumber）があるが
+    // 念のため rules にも型チェックを追加してエラーメッセージを明示化する
+    if (
+      property.type === 'intType' ||
+      property.type === 'floatType'
+    ) {
+      rules.push(buildTypeRule(property.type));
+    }
 
     switch (property.type) {
       case 'stringType':
