@@ -59,7 +59,7 @@ export interface FileListResponse {
   projectId: string;
   projectName: string;
   files: ProjectFile[];
-  archiveFiles: ProjectFile[];
+  subFolderFiles: Record<string, ProjectFile[]>;
 }
 
 /**
