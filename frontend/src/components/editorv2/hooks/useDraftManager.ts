@@ -267,7 +267,8 @@ const useDraftManager = (
     saveDraft,
     cleanupOldAutoSaves,
     onAutoSaveSuccess,
-    onAutoSaveError
+    onAutoSaveError,
+    projectId,
   ]);
 
   /**

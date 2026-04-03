@@ -235,6 +235,126 @@ router.delete(
 );
 
 /**
+ * チャンクアップロードセッション開始
+ * POST /api/v1/files/chunks/init
+ *
+ * チャンク分割アップロードのセッションを開始し、uploadIdを発行する。
+ * 10MB超のファイルアップロード時に使用する。
+ *
+ * @middleware authMiddleware - JWT認証
+ */
+router.post(
+  '/chunks/init',
+  authMiddleware,
+  [
+    body('fileName')
+      .notEmpty()
+      .withMessage('fileNameは必須です')
+      .isString()
+      .withMessage('fileNameは文字列である必要があります')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('fileNameは1〜255文字である必要があります'),
+    body('totalChunks')
+      .notEmpty()
+      .withMessage('totalChunksは必須です')
+      .isInt({ min: 1, max: 10000 })
+      .withMessage('totalChunksは1〜10000の整数である必要があります'),
+    body('filePath')
+      .notEmpty()
+      .withMessage('filePathは必須です')
+      .isString()
+      .withMessage('filePathは文字列である必要があります')
+      .isLength({ min: 1, max: 1024 })
+      .withMessage('filePathは1〜1024文字である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.initChunkUpload
+);
+
+/**
+ * チャンク受信
+ * POST /api/v1/files/chunks/:uploadId
+ *
+ * チャンクデータを受け取り、サーバー一時ディレクトリに保存する。
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware upload.single('chunk') - Multerチャンク受信
+ */
+router.post(
+  '/chunks/:uploadId',
+  authMiddleware,
+  upload.single('chunk'),
+  [
+    param('uploadId')
+      .notEmpty()
+      .withMessage('uploadIdは必須です')
+      .isUUID()
+      .withMessage('uploadIdはUUID形式である必要があります'),
+    body('chunkIndex')
+      .notEmpty()
+      .withMessage('chunkIndexは必須です')
+      .isInt({ min: 0 })
+      .withMessage('chunkIndexは0以上の整数である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.uploadChunk
+);
+
+/**
+ * チャンクアップロード中断
+ * DELETE /api/v1/files/chunks/:uploadId
+ *
+ * アップロードを中断し、サーバー上の一時ファイルを削除する。
+ * ダイアログを閉じた場合など、complete を呼ばずに終了するときに使用する。
+ *
+ * @middleware authMiddleware - JWT認証
+ */
+router.delete(
+  '/chunks/:uploadId',
+  authMiddleware,
+  [
+    param('uploadId')
+      .notEmpty()
+      .withMessage('uploadIdは必須です')
+      .isUUID()
+      .withMessage('uploadIdはUUID形式である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.abortChunkUpload
+);
+
+/**
+ * チャンク結合・アップロード完了
+ * POST /api/v1/files/chunks/:uploadId/complete
+ *
+ * 全チャンクを結合してストレージに保存し、一時ファイルを削除する。
+ *
+ * @middleware authMiddleware - JWT認証
+ */
+router.post(
+  '/chunks/:uploadId/complete',
+  authMiddleware,
+  [
+    param('uploadId')
+      .notEmpty()
+      .withMessage('uploadIdは必須です')
+      .isUUID()
+      .withMessage('uploadIdはUUID形式である必要があります'),
+    body('totalChunks')
+      .notEmpty()
+      .withMessage('totalChunksは必須です')
+      .isInt({ min: 1 })
+      .withMessage('totalChunksは1以上の整数である必要があります'),
+    body('contentType')
+      .optional()
+      .isString()
+      .withMessage('contentTypeは文字列である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.completeChunkUpload
+);
+
+/**
  * 単一ファイルダウンロード用署名付きURL取得
  * GET /api/v1/projects/:projectId/files/:fileName/download
  * 

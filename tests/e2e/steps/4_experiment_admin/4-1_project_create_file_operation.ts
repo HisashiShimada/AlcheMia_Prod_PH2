@@ -11,14 +11,14 @@
  * 前提条件（テストデータ）:
  *   - organization_user テーブルに実験管理者ユーザーが存在すること
  *   - 4-1-6 用: project テーブルに E2Eテスト用プロジェクト_4-1-6 が存在すること
- *   - 4-1-7〜4-1-20 用: project テーブルに E2Eテスト用プロジェクト_4-1-base が存在すること
- *   - 4-1-10〜4-1-13, 4-1-19 用: S3 に上記プロジェクトのファイルが存在すること
+ *   - 4-1-7〜4-1-13 用: project テーブルに E2Eテスト用プロジェクト_4-1-base が存在すること
+ *   - 4-1-10〜4-1-13 用: S3 に上記プロジェクトのファイルが存在すること
  *
  * TODO: ユーザーID・パスワードは仮値。実際の値に要更新。
  * TODO: 組織IDは playwright.config.ts の baseURL と合わせること。
  */
 
-import { expect, Page, Route } from '@playwright/test';
+import { expect, Download, Page, Route } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { db, closeDb } from '../../db';
 
@@ -26,6 +26,17 @@ const { Given, When, Then, Before, After, AfterAll } = createBdd();
 
 /** playwright-bdd フィクスチャ型エイリアス */
 type Fixtures = { page: Page };
+
+// ---------------------------------------------------------------------------
+// モジュールレベル変数（ステップ間でデータを共有）
+// ---------------------------------------------------------------------------
+
+/**
+ * ダウンロードイベントを事前登録して When→Then 間で共有する
+ * 4-1-9: プロジェクトダウンロード
+ * 4-1-10: ファイルダウンロード
+ */
+let pendingDownloadPromise: Promise<Download> | null = null;
 
 // ---------------------------------------------------------------------------
 // 定数
@@ -74,6 +85,15 @@ const PROJECT_STATUS_IN_PROGRESS = 2;
 /** テスト中に作成した project の project_id（After で削除） */
 const createdProjectIds: string[] = [];
 
+/**
+ * UIでの操作によって作成されるプロジェクト名一覧
+ * After フックでプロジェクト名からDB削除する（2回目以降の実行で409にならないよう対応）
+ */
+const UI_CREATED_PROJECT_NAMES: string[] = [
+  'E2Eテスト用プロジェクト_4-1-1',
+  'E2Eテスト用プロジェクト_4-1-5',
+];
+
 // ---------------------------------------------------------------------------
 // Before フック: テストデータ準備
 // ---------------------------------------------------------------------------
@@ -105,7 +125,7 @@ Before({ tags: '@4-1-6' }, async () => {
  * 4-1-8〜4-1-20 用
  * - ベースプロジェクトを UPSERT する
  */
-Before({ tags: '@4-1-8 or @4-1-9 or @4-1-10 or @4-1-11 or @4-1-12 or @4-1-13 or @4-1-16 or @4-1-17 or @4-1-18 or @4-1-19 or @4-1-20' }, async () => {
+Before({ tags: '@4-1-8 or @4-1-9 or @4-1-10 or @4-1-11 or @4-1-12 or @4-1-13' }, async () => {
   console.log('[4-1 Before] テストデータ準備 開始 (base project)');
   try {
     await upsertTestProject(BASE_PROJECT_ID, BASE_PROJECT_NAME);
@@ -123,6 +143,7 @@ Before({ tags: '@4-1-8 or @4-1-9 or @4-1-10 or @4-1-11 or @4-1-12 or @4-1-13 or 
 After(async () => {
   console.log('[4-1 After] クリーンアップ 開始');
   try {
+    // Before フックで INSERT したプロジェクトを project_id で削除
     for (const projectId of createdProjectIds) {
       try {
         await db.query(
@@ -135,6 +156,22 @@ After(async () => {
       }
     }
     createdProjectIds.length = 0;
+
+    // UIで作成したプロジェクトをプロジェクト名で削除（2回目以降の実行で409にならないよう対応）
+    for (const projectName of UI_CREATED_PROJECT_NAMES) {
+      try {
+        const result = await db.query(
+          'DELETE FROM project WHERE organization_id = $1 AND project_name = $2',
+          [ORG_ID, projectName]
+        );
+        if ((result.rowCount ?? 0) > 0) {
+          console.log(`[4-1 After] UI作成project 削除 完了: project_name=${projectName}`);
+        }
+      } catch (error) {
+        console.error(`[4-1 After] UI作成project 削除 失敗: project_name=${projectName}:`, error);
+      }
+    }
+
     console.log('[4-1 After] クリーンアップ 完了');
   } catch (error) {
     console.error('[4-1 After] クリーンアップ 失敗:', error);
@@ -165,36 +202,6 @@ Given('テスト用プロジェクト {string} がDBとS3に存在する', async
 Given('テスト用プロジェクトのS3にファイルが存在する', async () => {
   // no-op: S3 上のテスト用ファイルは事前準備済みとする
   console.log('[4-1 Given] テスト用プロジェクトのS3ファイルは事前準備済み');
-});
-
-// ---------------------------------------------------------------------------
-// When: ログイン・画面遷移
-// ---------------------------------------------------------------------------
-
-/**
- * 実験管理者ユーザーでログインする
- * TODO: ユーザーID・パスワードは仮値。実際の値に要更新。
- */
-When('実験管理者ユーザー {string} でログインする', async ({ page }, _userId: string) => {
-  await page.goto(`/?orgId=${ORG_ID}`);
-  await page.waitForSelector('#userId', { timeout: 15000 });
-  // TODO: 実際の実験管理者ユーザーIDとパスワードに更新すること
-  await page.fill('#userId', ADMIN_EMAIL);
-  await page.fill('#password', ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForLoadState('networkidle', { timeout: 30000 });
-});
-
-/**
- * プロジェクト管理画面が表示されていること
- * 実験管理者メニューのプロジェクト管理タブが表示されるまで待機する
- */
-When('プロジェクト管理画面が表示されている', async ({ page }) => {
-  // 新規プロジェクト作成ボタン（data-testid="create-project-button"）が表示されるまで待機
-  // ログイン後、デフォルトでプロジェクト管理画面が表示される想定
-  await page.waitForSelector('[data-testid="create-project-button"]', {
-    timeout: 15000,
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -268,63 +275,32 @@ When('プロジェクト作成モーダルの「キャンセル」ボタンを�
 });
 
 // ---------------------------------------------------------------------------
-// When: プロジェクト一覧操作
-// ---------------------------------------------------------------------------
-
-/**
- * プロジェクト一覧でプロジェクトを選択する（項目クリックで選択）
- * ProjectFolderTree.tsx: data-testid="project-item-{id}" をプロジェクト名テキストで検索してクリック
- */
-When('プロジェクト一覧でプロジェクト {string} を選択する', async ({ page }, projectName: string) => {
-  // プロジェクト名テキストを含む project-item を検索
-  const projectItem = page.locator('[data-testid^="project-item-"]').filter({ hasText: projectName }).first();
-  await projectItem.waitFor({ state: 'attached', timeout: 10000 });
-  // スクロールして表示範囲内に入れてからクリック
-  await projectItem.scrollIntoViewIfNeeded();
-  await projectItem.click();
-  await page.waitForTimeout(500);
-});
-
-/**
- * プロジェクト一覧でプロジェクト名をクリックする（ProjectDetailModal を開く）
- * ProjectManagement.tsx: data-testid="project-list-table" 内のプロジェクト名リンク
- */
-When('プロジェクト一覧でプロジェクト名 {string} をクリックする', async ({ page }, projectName: string) => {
-  const table = page.locator('[data-testid="project-list-table"]');
-  await table.waitFor({ state: 'visible', timeout: 10000 });
-  // プロジェクト名テキストをクリック（data-testid="project-name-link" または テキスト一致）
-  const projectLink = table.locator(`[data-testid="project-name-link"]:has-text("${projectName}")`).first();
-  if (await projectLink.count() > 0) {
-    await projectLink.click();
-  } else {
-    // data-testid がない場合はテキスト一致でクリック
-    await table.locator(`td:has-text("${projectName}")`).first().click();
-  }
-  // モーダルが表示されるまで待機
-  await page.waitForSelector('[data-testid="project-detail-modal"]', { timeout: 10000 });
-});
-
-// ---------------------------------------------------------------------------
 // When: ファイル操作
 // ---------------------------------------------------------------------------
 
 /**
  * 「プロジェクトダウンロード」ボタンをクリックする
  * ProjectManagement.tsx: data-testid="project-download-button"
+ * クリック前に download イベントを事前登録して Then ステップでの競合を防ぐ
  */
 When('「プロジェクトダウンロード」ボタンをクリックする', async ({ page }) => {
   const downloadBtn = page.locator('[data-testid="project-download-button"]');
   await downloadBtn.waitFor({ state: 'visible', timeout: 10000 });
+  // クリック前にイベントリスナーを登録（Then ステップで await する）
+  pendingDownloadPromise = page.waitForEvent('download', { timeout: 20000 });
   await downloadBtn.click();
 });
 
 /**
  * ファイル一覧の最初のファイルの「ダウンロード」ボタンをクリックする
  * FileListTable.tsx: data-testid="file-download-button"（最初の1件）
+ * クリック前に download イベントを事前登録して Then ステップでの競合を防ぐ
  */
 When('ファイル一覧の最初のファイルの「ダウンロード」ボタンをクリックする', async ({ page }) => {
   const downloadBtn = page.locator('[data-testid="file-download-button"]').first();
   await downloadBtn.waitFor({ state: 'visible', timeout: 10000 });
+  // クリック前にイベントリスナーを登録（Then ステップで await する）
+  pendingDownloadPromise = page.waitForEvent('download', { timeout: 20000 });
   await downloadBtn.click();
 });
 
@@ -352,43 +328,6 @@ When('ファイルダウンロードAPIが失敗するようにモックする',
       body: JSON.stringify({ error: 'Internal Server Error', message: 'ダウンロードに失敗しました' }),
     });
   });
-});
-
-// ---------------------------------------------------------------------------
-// When: ProjectDetailModal 操作
-// ---------------------------------------------------------------------------
-
-/**
- * プロジェクト詳細モーダルの「プロジェクトを開く」ボタンをクリックする
- * ProjectDetailModal.tsx: data-testid="project-detail-open-button"
- */
-When('プロジェクト詳細モーダルの「プロジェクトを開く」ボタンをクリックする', async ({ page }) => {
-  const openBtn = page.locator('[data-testid="project-detail-open-button"]');
-  await openBtn.waitFor({ state: 'visible', timeout: 10000 });
-  await openBtn.click();
-  await page.waitForTimeout(500);
-});
-
-/**
- * プロジェクト詳細モーダルの「閉じる」ボタンをクリックする
- * Ant Design Modal の閉じるボタン（data-testid="project-detail-close-button" または .ant-modal-close）
- */
-When('プロジェクト詳細モーダルの「閉じる」ボタンをクリックする', async ({ page }) => {
-  // data-testid があればそちらを優先
-  const closeBtn = page.locator('[data-testid="project-detail-close-button"]');
-  if (await closeBtn.count() > 0) {
-    await closeBtn.click();
-  } else {
-    // Ant Design Modal のフッターキャンセルボタン、またはヘッダー × ボタン
-    const modal = page.locator('[data-testid="project-detail-modal"]');
-    const footerClose = modal.locator('.ant-modal-footer .ant-btn:not(.ant-btn-primary)').first();
-    if (await footerClose.count() > 0) {
-      await footerClose.click();
-    } else {
-      await modal.locator('.ant-modal-close').click();
-    }
-  }
-  await page.waitForTimeout(500);
 });
 
 // ---------------------------------------------------------------------------
@@ -507,23 +446,34 @@ Then('「プロジェクトダウンロード」ボタンが活性化されて�
 
 /**
  * ZIPファイルのダウンロードが開始されること（4-1-9）
- * Playwright の download イベントを使用して確認する
+ * When ステップでクリック前に pendingDownloadPromise を登録済みのため、それを await する
  */
-Then('ZIPファイルのダウンロードが開始されること', async ({ page }) => {
-  // ダウンロードイベントが発生することを確認（最大 15秒待機）
-  const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
-  // ボタンクリックは When ステップで実行済みのため、ここでダウンロード完了を待つ
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/\.zip$/i);
+Then('ZIPファイルのダウンロードが開始されること', async ({}) => {
+  if (!pendingDownloadPromise) {
+    throw new Error('[4-1-9] pendingDownloadPromise が未登録です。When ステップでボタンをクリックしてください。');
+  }
+  try {
+    const download = await pendingDownloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.zip$/i);
+  } finally {
+    pendingDownloadPromise = null;
+  }
 });
 
 /**
  * ファイルのダウンロードが開始されること（4-1-10）
+ * When ステップでクリック前に pendingDownloadPromise を登録済みのため、それを await する
  */
-Then('ファイルのダウンロードが開始されること', async ({ page }) => {
-  const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBeTruthy();
+Then('ファイルのダウンロードが開始されること', async ({}) => {
+  if (!pendingDownloadPromise) {
+    throw new Error('[4-1-10] pendingDownloadPromise が未登録です。When ステップでボタンをクリックしてください。');
+  }
+  try {
+    const download = await pendingDownloadPromise;
+    expect(download.suggestedFilename()).toBeTruthy();
+  } finally {
+    pendingDownloadPromise = null;
+  }
 });
 
 /**
@@ -563,66 +513,6 @@ Then('ビューアダイアログが表示されること', async ({ page }) => 
   // ビューアダイアログ（data-testid="viewer-dialog" または専用クラス）が表示されること
   const viewerDialog = page.locator('[data-testid="viewer-dialog"], .viewer-floating-dialog, .maiml-viewer-dialog').first();
   await expect(viewerDialog).toBeVisible({ timeout: 15000 });
-});
-
-// ---------------------------------------------------------------------------
-// Then: ProjectDetailModal 表示確認
-// ---------------------------------------------------------------------------
-
-/**
- * プロジェクト詳細モーダルが表示されること（4-1-16）
- * ProjectDetailModal.tsx: data-testid="project-detail-modal"
- */
-Then('プロジェクト詳細モーダルが表示されること', async ({ page }) => {
-  const modal = page.locator('[data-testid="project-detail-modal"]');
-  await expect(modal).toBeVisible({ timeout: 10000 });
-});
-
-/**
- * プロジェクト詳細モーダルにプロジェクト名が表示されていること（4-1-17）
- * ProjectDetailModal.tsx: モーダル内にプロジェクト名テキストが表示される
- */
-Then('プロジェクト詳細モーダルにプロジェクト名 {string} が表示されていること', async ({ page }, projectName: string) => {
-  const modal = page.locator('[data-testid="project-detail-modal"]');
-  await expect(modal.locator(`text="${projectName}"`).first()).toBeVisible({ timeout: 10000 });
-});
-
-/**
- * プロジェクト詳細モーダルが閉じること（4-1-18, 4-1-20）
- */
-Then('プロジェクト詳細モーダルが閉じること', async ({ page }) => {
-  const modal = page.locator('[data-testid="project-detail-modal"]');
-  await expect(modal).not.toBeVisible({ timeout: 10000 });
-});
-
-/**
- * プロジェクトが選択状態になっていること（4-1-18）
- * プロジェクト選択後、ファイル一覧エリアやツールバーにプロジェクト名が表示される
- * ProjectManagement.tsx: data-testid="selected-project-name"
- */
-Then('プロジェクト {string} が選択状態になっていること', async ({ page }, projectName: string) => {
-  // 選択中プロジェクト名の表示（data-testid="selected-project-name" または プロジェクト一覧の選択行）
-  const selectedProjectName = page.locator('[data-testid="selected-project-name"]');
-  if (await selectedProjectName.count() > 0) {
-    await expect(selectedProjectName).toHaveText(projectName, { timeout: 10000 });
-  } else {
-    // フォールバック: プロジェクト一覧の選択行にプロジェクト名が含まれること
-    const table = page.locator('[data-testid="project-list-table"]');
-    const selectedRow = table.locator('.ant-table-row-selected').first();
-    await expect(selectedRow.locator(`td:has-text("${projectName}")`)).toBeVisible({ timeout: 10000 });
-  }
-});
-
-/**
- * プロジェクト詳細モーダル内にファイル一覧テーブルが表示されること（4-1-19）
- * ProjectDetailModal.tsx 内の FileListTable コンポーネント
- */
-Then('プロジェクト詳細モーダル内にファイル一覧テーブルが表示されること', async ({ page }) => {
-  const modal = page.locator('[data-testid="project-detail-modal"]');
-  await expect(modal).toBeVisible({ timeout: 10000 });
-  // FileListTable のテーブル（.ant-table または data-testid）が表示されること
-  const fileTable = modal.locator('.ant-table, [data-testid="file-list-table"]').first();
-  await expect(fileTable).toBeVisible({ timeout: 10000 });
 });
 
 // ===========================================================================

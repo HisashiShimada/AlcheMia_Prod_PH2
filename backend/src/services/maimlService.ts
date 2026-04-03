@@ -152,7 +152,13 @@ export async function saveMaiML(
 
     // ファイルのバックアップ（archiveがtrueの場合のみ）
     if (archive) {
-      await createBackup(normalizedFileKey, organizationId);
+      // normalizedFileKeyにはorgIdプレフィックスが付いているが、
+      // createBackup内のstorageServiceがorgIdを自動付加するため、
+      // 相対パス（orgIdなし）を渡す必要がある
+      const relativeFileKey = normalizedFileKey.startsWith(organizationId + '/')
+        ? normalizedFileKey.slice(organizationId.length + 1)
+        : normalizedFileKey;
+      await createBackup(relativeFileKey, organizationId);
     } else {
       console.log('ℹ️ [maimlService] アーカイブ化スキップ（上書き保存）');
     }
@@ -681,6 +687,25 @@ async function createBackup(filePath: string, organizationId: string): Promise<s
 
     // 7. バックアップ保存
     await storageService.uploadFile(organizationId, backupPath, buffer);
+
+    // file_metadataにバックアップファイルを登録
+    try {
+      const backupFileMetadataRepository = new FileMetadataRepository();
+      const backupKey = `${organizationId}/${backupPath}`;
+      const archiveParentPath = `${organizationId}/${archivePath}`;
+      await backupFileMetadataRepository.insertFileMetadata({
+        file_key: backupKey,
+        s3_bucket: process.env.S3_BUCKET_NAME || process.env.SWIFT_CONTAINER || 'mmdpf-files',
+        organization_id: organizationId,
+        original_filename: backupFileName,
+        file_size: buffer.length,
+        uploaded_by: 'system',
+        parent_folder_path: archiveParentPath,
+      });
+      console.log('✅ [maimlService] バックアップ file_metadata 登録:', backupKey);
+    } catch (metaError) {
+      console.error('❌ [maimlService] バックアップ file_metadata 登録エラー（続行）:', metaError);
+    }
 
     console.log('📋 [maimlService] バックアップ作成:', backupPath);
     return backupPath;

@@ -81,7 +81,7 @@ const { Title, Text } = Typography;
  */
 interface ProjectFilesData {
   root: ProjectFile[];
-  archive: ProjectFile[];
+  subFolderFiles: Record<string, ProjectFile[]>;
 }
 
 /**
@@ -377,12 +377,23 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // フォルダクリック時
   const handleFolderClick = useCallback((folderId: string) => {
     if (folderId === 'back') {
-      // 戻るボタン
-      setCurrentFolder('root');
+      // 戻るボタン: 1階層上へ
+      const parts = currentFolder.split('/');
+      if (parts.length <= 1) {
+        setCurrentFolder('root');
+      } else {
+        parts.pop();
+        setCurrentFolder(parts.join('/'));
+      }
     } else {
-      setCurrentFolder(folderId);
+      // サブフォルダへ潜る
+      if (currentFolder === 'root') {
+        setCurrentFolder(folderId);
+      } else {
+        setCurrentFolder(`${currentFolder}/${folderId}`);
+      }
     }
-  }, []);
+  }, [currentFolder]);
 
   // リフレッシュ
   const handleRefresh = useCallback(() => {
@@ -457,12 +468,12 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         
         const filesData: ProjectFilesData = {
           root: fileResponse.files || [],
-          archive: fileResponse.archiveFiles || [],
+          subFolderFiles: fileResponse.subFolderFiles || {},
         };
         
         console.log('✅ [ProjectManagement] Files loaded:', {
           root: filesData.root.length,
-          archive: filesData.archive.length
+          subFolderKeys: Object.keys(filesData.subFolderFiles),
         });
         
         setProjectFilesData(prev => ({
@@ -489,28 +500,78 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     }
     
     if (currentFolder === 'root') {
-      // ルートフォルダの場合、rootファイル + archiveフォルダを表示
+      // ルートフォルダの場合、バックエンドが files[] にルート直下ファイル +
+      // サブフォルダエントリ（isFolder:true）を含めて返すのでそのまま返す。
+      // archive フォルダはファイルが空の場合にフォルダエントリごと非表示にする。
       const rootFiles = projectData.root || [];
-      const archiveFiles = projectData.archive || [];
-      
-      // archiveフォルダはファイルが存在する場合のみ表示
-      if (selectedProject && archiveFiles.length > 0) {
-        const archiveFolder: ProjectFile = {
-          id: 'archive',
-          name: 'archive',
-          path: `${selectedProject.folderName}/archive`,
-          size: 0,
-          lastModified: '',
-          type: 'folder',
-          isFolder: true,
-          fileCount: archiveFiles.length, // ファイル数を表示
-        };
-        return [...rootFiles, archiveFolder];
+      const subFolderFiles = projectData.subFolderFiles || {};
+
+        return rootFiles.filter((file) => {
+        if (!file.isFolder) return true;
+        // archive フォルダはファイルが存在する場合のみ表示
+        if (file.name === 'archive') {
+          return (subFolderFiles['archive']?.length ?? 0) > 0;
+        }
+        return true;
+      });
+    } else {
+      // サブフォルダの中身を表示
+      // currentFolder例: "rawdata" or "rawdata/sub"
+      // バックエンドは topFolder (先頭セグメント) をキーとして全ファイルをフラットに持つ
+      const segments = currentFolder.split('/');
+      const topFolder = segments[0];
+      const allFilesInFolder = (projectData.subFolderFiles || {})[topFolder] || [];
+
+      // currentFolder 直下のみ表示するためにフィルタリング
+      // file.path 例: "projects/ProjectName/rawdata/sub/file.csv"
+      // projectName を除去した相対パスで判定する
+      const projectName = selectedProject?.name || '';
+
+      // currentFolder 相対パスのプレフィックス (topFolder以降)
+      // currentFolder="rawdata"   → subPath=""
+      // currentFolder="rawdata/sub" → subPath="sub"
+      const subPath = segments.slice(1).join('/'); // topFolder より下のパス
+
+      // 直下のファイルとサブフォルダを収集
+      const directFiles: ProjectFile[] = [];
+      const childFolders = new Set<string>();
+
+      for (const file of allFilesInFolder) {
+        // file.path = "projects/ProjectName/rawdata/..."
+        // topFolder 以降の相対パスを取得
+        const prefix = `projects/${projectName}/${topFolder}/`;
+        const relFromTop = file.path.startsWith(prefix)
+          ? file.path.substring(prefix.length)
+          : '';
+
+        // subPath が空 → rawdata 直下を見る
+        // subPath が "sub" → rawdata/sub 直下を見る
+        const checkPath = subPath ? `${subPath}/` : '';
+        if (!relFromTop.startsWith(checkPath)) continue;
+
+        const remainder = relFromTop.substring(checkPath.length); // checkPath以降
+        const remainderParts = remainder.split('/').filter(s => s !== '');
+
+        if (remainderParts.length === 1) {
+          // 直下のファイル
+          directFiles.push(file);
+        } else if (remainderParts.length >= 2) {
+          // さらに深いサブフォルダ → フォルダエントリとして表示
+          childFolders.add(remainderParts[0]);
+        }
       }
-      return rootFiles;
-    } else if (currentFolder === 'archive') {
-      // archiveフォルダの中身を表示 - 戻るボタンを先頭に追加
-      const archiveFiles = projectData.archive || [];
+
+      // サブフォルダエントリを生成
+      const folderEntries: ProjectFile[] = Array.from(childFolders).map(folderName => ({
+        id: `folder_${folderName}`,
+        name: folderName,
+        path: `projects/${projectName}/${currentFolder}/${folderName}`,
+        size: 0,
+        lastModified: '',
+        type: 'folder',
+        isFolder: true,
+      }));
+
       const backButton: ProjectFile = {
         id: 'back',
         name: '↑ 戻る',
@@ -520,7 +581,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         type: 'folder',
         isFolder: true,
       };
-      return [backButton, ...archiveFiles];
+      return [backButton, ...folderEntries, ...directFiles];
     }
     
     return [];
@@ -1122,7 +1183,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             ...prev,
             [selectedProject.id]: {
               root: fileResponse.files || [],
-              archive: fileResponse.archiveFiles || [],
+              subFolderFiles: fileResponse.subFolderFiles || {},
             }
           }));
           
@@ -1226,12 +1287,12 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           ...prev,
           [currentProjectId]: {
             root: fileResponse.files || [],
-            archive: fileResponse.archiveFiles || [],
+            subFolderFiles: fileResponse.subFolderFiles || {},
           }
         }));
         console.log('✅ [ProjectManagement] ファイル一覧更新完了:', {
           root: fileResponse.files?.length || 0,
-          archive: fileResponse.archiveFiles?.length || 0,
+          subFolderKeys: Object.keys(fileResponse.subFolderFiles || {}),
         });
       } else if (currentTabKey === 'task_results') {
         console.log('📋 [ProjectManagement] タスク一覧を最新化');
@@ -1592,7 +1653,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
                       onClick={handlePublish}
                       loading={publishStatusLoading || isPolling}
-                      disabled={!selectedProject || publishStatusLoading || isPolling}
+                      disabled={!selectedProject || !(selectedProject?.status === 3 || selectedProject?.status === 4) || publishStatusLoading || isPolling}
                     >
                       {isPolling ? '処理中...' : t('projectManagement.publish')}
                     </Button>
@@ -1621,7 +1682,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         ...prev,
                         [selectedProjectId]: {
                           root: fileResponse.files || [],
-                          archive: fileResponse.archiveFiles || [],
+                          subFolderFiles: fileResponse.subFolderFiles || {},
                         }
                       }));
                     } else if (newTab === 'task_results') {
@@ -1907,22 +1968,32 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           onRestoreBackendDraft={() => {
             // バックエンドDraft復元: ダイアログを閉じてエディタのDraft管理画面へ
             setDraftRestoreDialogOpen(false);
-            if (selectedProject) {
+            // selectedProject が null の場合（初期表示でプロジェクト未選択時）は
+            // draftToRestore.projectId からプロジェクトを特定する
+            const targetProject = selectedProject
+              ?? (draftToRestore?.projectId ? projects.find(p => p.id === draftToRestore.projectId) ?? null : null);
+            if (targetProject) {
               const userInfo = getUserInfo();
               const orgId = userInfo?.organizationId ?? '';
-              const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+              const sourceS3Key = `${orgId}/projects/${targetProject.name}/${targetProject.name}.maiml`;
               const params: MaimlEditorParams = {
                 editMode: 'project',
-                editingFileName: `${selectedProject.name}.maiml`,
-                originalFileName: selectedProject.name,
+                editingFileName: `${targetProject.name}.maiml`,
+                originalFileName: targetProject.name,
                 sourceS3Key,
-                displayTitle: selectedProject.name,
-                displaySubtitle: selectedProject.description || undefined,
-                documentId: selectedProject.id,
-                description: selectedProject.description || undefined,
+                displayTitle: targetProject.name,
+                displaySubtitle: targetProject.description || undefined,
+                documentId: targetProject.id,
+                description: targetProject.description || undefined,
                 openDraftManagerOnStart: true,
               };
               onEdit?.(params);
+            } else {
+              console.warn('⚠️ [ProjectManagement] onRestoreBackendDraft: プロジェクトを特定できませんでした', {
+                selectedProject,
+                draftToRestoreProjectId: draftToRestore?.projectId,
+                projectsCount: projects.length,
+              });
             }
           }}
         />

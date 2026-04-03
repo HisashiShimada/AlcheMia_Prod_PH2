@@ -39,6 +39,49 @@ export interface FileListResponse {
 }
 
 /**
+ * プロジェクトファイル一覧APIのレスポンス用ファイル型
+ * フロントエンドの ProjectFile 型と同じ構造
+ */
+export interface ProjectFileResponse {
+  /** ファイルID（S3キー） */
+  id: string;
+  /** ファイル名 */
+  name: string;
+  /** ファイルパス（organization_id を除いた相対パス） */
+  path: string;
+  /** ファイルサイズ（バイト） */
+  size: number;
+  /** 最終更新日時（ISO 8601形式） */
+  lastModified: string;
+  /** ファイル種別（拡張子 or 'folder'） */
+  type: string;
+  /** フォルダエントリかどうか */
+  isFolder?: boolean;
+  /** アーカイブフォルダ配下のファイルかどうか */
+  isArchive?: boolean;
+  /** アーカイブファイルのバージョン番号 */
+  version?: number | null;
+  /** 署名付きURL */
+  signedUrl?: string | null;
+  /** 作成日時（ISO 8601形式） */
+  createdAt?: string;
+  /** サブフォルダ内のファイル数（フォルダエントリの場合） */
+  fileCount?: number;
+}
+
+/**
+ * getProjectFiles サービスメソッドのレスポンスデータ型
+ */
+export interface GetProjectFilesData {
+  projectId: string;
+  projectName: string;
+  /** ルート直下ファイル + サブフォルダエントリ */
+  files: ProjectFileResponse[];
+  /** サブフォルダ名 → ファイル一覧のマップ */
+  subFolderFiles: Record<string, ProjectFileResponse[]>;
+}
+
+/**
  * ファイルアップロードメタデータ
  */
 export interface UploadMetadata {
@@ -52,7 +95,7 @@ export interface UploadMetadata {
  * アップロードファイル情報
  */
 export interface UploadedFileInfo {
-  fileId: string;
+  fileId?: string;
   fileName: string;
   filePath: string;
   s3Key: string;
@@ -103,6 +146,18 @@ export interface PlaceholderResult {
   skipped?: boolean;
   /** エラーメッセージ（失敗時） */
   error?: string;
+}
+
+/**
+ * storageService.listFiles() が返す1ファイル分のオブジェクト型
+ */
+export interface StorageFileEntry {
+  /** S3/Swift のフルキー（例: "{orgId}/projects/{name}/file.maiml"） */
+  key: string;
+  /** ファイルサイズ（バイト） */
+  size: number;
+  /** 最終更新日時 */
+  lastModified: Date;
 }
 
 /**

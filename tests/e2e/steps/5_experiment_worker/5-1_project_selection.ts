@@ -21,7 +21,7 @@ import { expect } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { db, closeDb } from '../../db';
 
-const { Given, When, Then, Before, After, AfterAll } = createBdd();
+const { When, Then, Before, After, AfterAll } = createBdd();
 
 // ---------------------------------------------------------------------------
 // 定数
@@ -83,8 +83,8 @@ const createdProjectIds: string[] = [];
  * - テスト用プロジェクト_5-1 を INSERT
  * - テスト用メソッドA・B と各タスクを project_task に INSERT
  */
-Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5' }, async () => {
-  console.log('[5-1 Before] テストデータ準備 開始 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5)');
+Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-6 or @5-1-7' }, async () => {
+  console.log('[5-1 Before] テストデータ準備 開始 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-6 or @5-1-7)');
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1);
@@ -94,9 +94,9 @@ Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5' }, async () => {
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1, 0);
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2, 0);
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1, 0);
-    console.log('[5-1 Before] テストデータ準備 完了 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5)');
+    console.log('[5-1 Before] テストデータ準備 完了 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-6 or @5-1-7)');
   } catch (error) {
-    console.error('[5-1 Before] テストデータ準備 失敗 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5):', error);
+    console.error('[5-1 Before] テストデータ準備 失敗 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-6 or @5-1-7):', error);
     throw error;
   }
 });
@@ -209,43 +209,6 @@ AfterAll(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// When: ログイン・画面遷移
-// ---------------------------------------------------------------------------
-
-/**
- * 実験作業者ユーザーでログインする
- * TODO: ユーザーID・パスワードは仮値。実際の値に要更新。
- */
-When('実験作業者ユーザー {string} でログインする', async ({ page }, _userId: string) => {
-  await page.goto(`/?orgId=${ORG_ID}`);
-  await page.waitForSelector('#userId', { timeout: 15000 });
-  // TODO: 実際の実験作業者ユーザーIDとパスワードに更新すること
-  await page.fill('#userId', 'worker@example.com');
-  await page.fill('#password', 'worker123');
-  await page.click('button[type="submit"]');
-  await page.waitForLoadState('networkidle', { timeout: 30000 });
-});
-
-/**
- * 実験作業者メイン画面が表示されていることを確認する
- * （ログイン後、実験作業者メニューに遷移している前提）
- */
-When('実験作業者メイン画面が表示されている', async ({ page }) => {
-  // プロジェクト選択コンボボックスが表示されるまで待機（ExperimentWorkerMenu の project-select）
-  await page.waitForSelector('[data-testid="project-select"]', {
-    timeout: 15000,
-  });
-});
-
-/**
- * 実験記録タブをクリックして開く
- */
-When('実験記録タブを開く', async ({ page }) => {
-  await page.click('text=実験記録');
-  await page.waitForLoadState('networkidle', { timeout: 10000 });
-});
-
-// ---------------------------------------------------------------------------
 // When: プロジェクト選択操作
 // ---------------------------------------------------------------------------
 
@@ -285,24 +248,6 @@ When('プロジェクト選択エリアの「選択」ボタンをクリック�
   await selectBtn.click();
   // モーダルが表示されるまで待機
   await page.waitForSelector('.ant-modal', { timeout: 10000 });
-});
-
-/**
- * プロジェクト選択コンボボックスで指定プロジェクトを選択する
- */
-When('プロジェクト選択コンボボックスでプロジェクト {string} を選択する', async ({ page }, projectName: string) => {
-  // プロジェクト選択エリアの Select をクリックして展開（ExperimentWorkerMenu.tsx: data-testid="project-select"）
-  const projectSelect = page.locator('[data-testid="project-select"]');
-  await projectSelect.waitFor({ state: 'visible', timeout: 10000 });
-  await projectSelect.click();
-  // ドロップダウンが表示されるまで待機
-  await waitForSelectDropdown(page);
-  // 指定プロジェクト名のオプションをクリック（title属性の前方一致で完全プロジェクト名を特定）
-  // getByRole() は aria-label で解決されるが仮想スクロール外で不可視になる問題があるため
-  // title 属性の CSS 前方一致セレクターを使用する
-  const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
-  await visibleDropdown.locator(`.ant-select-item-option[title^="${projectName} "]`).click();
-  await page.waitForLoadState('networkidle', { timeout: 10000 });
 });
 
 // ---------------------------------------------------------------------------
@@ -724,7 +669,7 @@ async function upsertTestProjectTask(
           create_user_id, create_at, update_user_id, update_at
         ) VALUES (
           $1, $2, $3, $4,
-          1, 1, false,
+          1, 1, true,
           'e2e-test', NOW(), 'e2e-test', NOW()
         )`,
         [ORG_ID, projectId, methodId, experimentOrder]

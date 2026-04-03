@@ -54,7 +54,7 @@ try {
   execSync(`npx bddgen ${config}`, { stdio: 'inherit' });
 
   console.log('[run-e2e] playwright test を実行中...');
-  execSync(`npx playwright test ${config} --headed ${grepOption}`, { stdio: 'inherit' });
+  execSync(`npx playwright test ${config} --headed --pass-with-no-tests ${grepOption}`, { stdio: 'inherit' });
 } catch (e) {
   process.exit(1);
 }

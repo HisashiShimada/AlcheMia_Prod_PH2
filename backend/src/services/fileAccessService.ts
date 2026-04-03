@@ -32,7 +32,9 @@ import {
 import uploadBatchRepository from '../repositories/UploadBatchRepository';
 import { UploadType, BatchStatus } from '../types/uploadBatch';
 import { processConcurrently, getConcurrency } from '../utils/concurrencyControl';
-import { analyzeMaimlFile, isMaimlFile } from '../utils/maimlAnalyzer';
+import { isMaimlFile } from '../utils/maimlAnalyzer';
+import { analyzeMaiMLFile } from '../utils/maimlParser';
+import { ErrorContent } from '../types/maimlValidation';
 import { truncateField, FILE_METADATA_MAX_LENGTHS } from '../utils/stringValidator';
 import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
@@ -369,12 +371,111 @@ export class FileAccessService {
         
         // ファイル名を抽出（パスの最後の要素）
         const sanitizedFileName = sanitizedParts[sanitizedParts.length - 1];
-        
+
+        // MAIMLファイル名 × projectName バリデーション
+        // projects/ パスへの .maiml アップロード時、ファイル名（拡張子除く）がプロジェクト名と一致するか確認
+        if (sanitizedFileName.endsWith('.maiml') && normalizedPath.startsWith('projects/')) {
+          const pathParts = normalizedPath.split('/');
+          if (pathParts.length >= 2) {
+            const projectName = pathParts[1];
+            const fileBaseName = sanitizedFileName.replace(/\.maiml$/i, '');
+            if (fileBaseName !== projectName) {
+              console.error(`❌ [Upload] MAIMLファイル名不一致: ファイル名=${sanitizedFileName}, プロジェクト名=${projectName}`);
+              throw new ValidationError(
+                `ファイル名がプロジェクト名と一致しません（ファイル名: ${sanitizedFileName}、プロジェクト名: ${projectName}）`
+              );
+            }
+
+            // ② MAIMLファイル重複チェック
+            // プロジェクト直下に同名の .maiml ファイルが既に存在する場合はエラー
+            const existingMaimlPath = `${normalizedPath}/${sanitizedFileName}`;
+            const maimlExists = await this.storageService.fileExists(organizationId, existingMaimlPath);
+            if (maimlExists) {
+              console.error(`❌ [Upload] MAIMLファイル重複: ${existingMaimlPath}`);
+              throw new ValidationError(
+                `プロジェクトにMAIMLファイルが既に存在します: ${sanitizedFileName}`
+              );
+            }
+
+            // ③ archiveフォルダ存在チェック
+            // プロジェクト内に archive フォルダが既に存在する場合はエラー
+            const archiveFolderPath = `projects/${projectName}/archive`;
+            const archiveFiles = await this.storageService.listFiles(organizationId, archiveFolderPath);
+            if (archiveFiles && archiveFiles.length > 0) {
+              console.error(`❌ [Upload] archiveフォルダ既存: ${archiveFolderPath}`);
+              throw new ValidationError(
+                `プロジェクトにarchiveフォルダが既に存在します`
+              );
+            }
+          }
+        }
+
         // ファイルパスの構築
         const filePath = `${normalizedPath}/${sanitizedRelativePath}`;
         console.log(`✅ [Upload] アップロード先: ${filePath}`);
 
-        // storageServiceを使用してS3/Swiftにアップロード
+        // Phase2-3 改修: MAIMLファイルの場合はアップロード前にバリデーション実行
+        let maimlValidation;
+        const isMaiml = isMaimlFile(sanitizedFileName, file.mimetype);
+        console.log(`🔍 [MAIML Validation] ファイル判定: ${sanitizedFileName} → isMaimlFile=${isMaiml}, mimetype=${file.mimetype}`);
+        if (isMaiml) {
+          const content = file.buffer.toString('utf-8');
+          console.log(`🔍 [MAIML Validation] analyzeMaiMLFile 開始: ${sanitizedFileName}`);
+          let analysisResult;
+          try {
+            analysisResult = await analyzeMaiMLFile(
+              organizationId,
+              content,
+              filePath,
+              true // skipSave=true: DB保存はスキップ
+            );
+          } catch (analysisError) {
+            // 解析自体が例外を投げた場合は警告のみ（アップロードは続行）
+            console.warn(`⚠️ [MAIML Validation] 解析例外（アップロードは続行）: ${sanitizedFileName}`, analysisError);
+            analysisResult = null;
+          }
+
+          if (analysisResult) {
+            const fatalErrors = (analysisResult.errors as ErrorContent[]).filter((e) => e.severity === 'error');
+            const warnings = analysisResult.warnings as ErrorContent[];
+
+            console.log(`📊 [MAIML Validation] 解析結果 ${sanitizedFileName}:`, {
+              isValid: analysisResult.isValid,
+              totalErrors: analysisResult.errors.length,
+              fatalErrors: fatalErrors.length,
+              warnings: warnings.length,
+              errorDetails: (analysisResult.errors as ErrorContent[]).map((e) => ({
+                type: e.type,
+                severity: e.severity,
+                message: e.message,
+              })),
+            });
+
+            if (fatalErrors.length > 0) {
+              // 致命的エラーがある場合: アップロード前なのでロールバック不要
+              console.error(`❌ [MAIML Validation] 致命的エラー検出、アップロードを中止: ${sanitizedFileName}`);
+              throw new Error(
+                `MAIML_VALIDATION_ERROR:${JSON.stringify({
+                  fileName: sanitizedFileName,
+                  errorCount: fatalErrors.length,
+                  errors: fatalErrors,
+                })}`
+              );
+            }
+
+            // warningsのみの場合はアップロード成功として警告情報を付加
+            if (warnings.length > 0) {
+              maimlValidation = {
+                fileName: sanitizedFileName,
+                isValid: true,
+                warningCount: warnings.length,
+                warnings,
+              };
+            }
+          }
+        }
+
+        // storageServiceを使用してS3/Swiftにアップロード（バリデーション通過後）
         const s3Key = await this.storageService.uploadFile(
           organizationId,
           filePath,
@@ -382,35 +483,21 @@ export class FileAccessService {
           { contentType: file.mimetype }
         );
 
-        // file_metadataテーブルに保存（Phase2-1: バッチIDを紐付け）
-        const fileId = await this.saveFileMetadata({
-          organizationId,
-          userId,
-          fileName: sanitizedFileName,
-          filePath,
-          s3Key,
-          fileSize: file.size,
-          contentType: file.mimetype,
-          projectId: metadata?.projectId,
-          formatId: metadata?.formatId,
-          batchName: batch.batchId, // Phase2-1: バッチIDを設定
-        });
-
-        // Phase2-3: MAIMLファイルの場合は簡易解析
-        let maimlAnalysis;
+        // file_metadataテーブルに保存（MAIMLファイルのみ）（Phase2-1: バッチIDを紐付け）
+        let fileId: string | undefined;
         if (isMaimlFile(sanitizedFileName, file.mimetype)) {
-          try {
-            const content = file.buffer.toString('utf-8');
-            maimlAnalysis = analyzeMaimlFile(content);
-            console.log(`📊 [MAIML Analysis] ${sanitizedFileName}:`, {
-              isValid: maimlAnalysis.isValid,
-              transitions: maimlAnalysis.transitionsCount,
-              places: maimlAnalysis.placesCount,
-            });
-          } catch (error) {
-            console.warn(`⚠️ [MAIML Analysis] 解析失敗: ${sanitizedFileName}`, error);
-            // 解析失敗してもアップロードは成功とする
-          }
+          fileId = await this.saveFileMetadata({
+            organizationId,
+            userId,
+            fileName: sanitizedFileName,
+            filePath,
+            s3Key,
+            fileSize: file.size,
+            contentType: file.mimetype,
+            projectId: metadata?.projectId,
+            formatId: metadata?.formatId,
+            batchName: batch.batchId, // Phase2-1: バッチIDを設定
+          });
         }
 
         return {
@@ -421,11 +508,24 @@ export class FileAccessService {
           fileSize: file.size,
           contentType: file.mimetype,
           uploadedAt: new Date().toISOString(),
-          maimlAnalysis, // Phase2-3: MAIML解析結果を追加
+          ...(maimlValidation && { maimlValidation }), // 警告がある場合のみ付加
         };
       },
       concurrency
     );
+
+    // 5. MAIMLバリデーションエラーが含まれている場合は再スロー
+    const maimlValidationFailure = uploadResults.find(
+      r => !r.success && r.error && r.error.startsWith('MAIML_VALIDATION_ERROR:')
+    );
+    if (maimlValidationFailure) {
+      // バッチをfailedに更新してからスロー
+      await uploadBatchRepository.update(batch.batchId, {
+        status: 'failed',
+        endTime: new Date(),
+      });
+      throw new Error(maimlValidationFailure.error);
+    }
 
     // 5. 結果を集計
     const uploadedFiles = uploadResults
@@ -833,11 +933,13 @@ export class FileAccessService {
               console.log('ℹ️ [Delete] archiveフォルダが存在しないためスキップ:', archiveFolderPath);
             }
           } catch (archiveError) {
-            // archiveフォルダ削除エラーは警告のみ（メインファイル削除は成功しているため）
-            console.error('⚠️ [Delete] archiveフォルダ削除エラー（処理は続行）:', {
+            console.error('❌ [Delete] archiveフォルダ削除エラー:', {
               archiveFolderPath,
               error: archiveError,
             });
+            throw new StorageError(
+              `archiveフォルダの削除に失敗しました: ${archiveFolderPath}`
+            );
           }
         }
       }
