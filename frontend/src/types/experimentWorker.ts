@@ -341,6 +341,69 @@ export interface Issue {
   comments: IssueComment[]; // コメント一覧
 }
 
+// ===== カスタムプロパティ用の型定義 =====
+
+/** カスタムプロパティのコンテナ種別 */
+export type ContainerType = 'property' | 'content' | 'insertion';
+
+/**
+ * カスタムプロパティの型（property/content 共通）
+ * insertion の場合は containerType で判別するため customType は 'insertion' 固定
+ * content の場合は MAIML 仕様の listType を使用:
+ *   contentStringListType / contentDoubleListType / contentIntListType
+ */
+export type CustomPropertyType =
+  | 'stringType'
+  | 'floatType'
+  | 'intType'
+  | 'booleanType'
+  | 'dateType'
+  | 'dateTimeType'
+  | 'stringListType'
+  | 'doubleListType'
+  | 'intListType'
+  | 'insertion';
+
+/**
+ * カスタムプロパティ（ユーザーが任意追加するプロパティ）
+ * DataRecordDialog の state で管理する
+ */
+export interface CustomPropertyValue {
+  /** state内の一意キー（追加順識別子）*/
+  id: string;
+  /** MAIML上のプロパティキー名 */
+  key: string;
+  /** コンテナ種別 */
+  containerType: ContainerType;
+  /** データ型（insertion の場合は 'insertion' 固定） */
+  customType: CustomPropertyType;
+  /**
+   * 入力値
+   * - property: string（型に応じてパース）
+   * - content: string（スペース/カンマ区切り）
+   * - insertion: null（File オブジェクトは file フィールドで管理）
+   */
+  value: string | null;
+  /** 単位（property/content のみ） */
+  units: string;
+  /**
+   * insertion 専用: 選択済みファイルオブジェクト
+   * 保存時に S3 アップロードして uri を取得する
+   */
+  file?: File | null;
+  /**
+   * insertion 専用: S3 アップロード後の URI（s3Key）
+   * ファイルアップロード完了後にこのフィールドに格納する
+   */
+  uri?: string;
+  /** insertion 専用: SHA256 ハッシュ（ファイル選択時に生成） */
+  hash?: string;
+  /** insertion 専用: MIMEタイプ（ファイル選択時に自動検出） */
+  format?: string;
+  /** カスタムプロパティ識別フラグ（常に true） */
+  isCustomProperty: true;
+}
+
 // 問題報告フォームデータ
 export interface IssueReportFormData {
   title: string;           // タイトル

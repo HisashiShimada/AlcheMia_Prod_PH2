@@ -1496,14 +1496,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           </Button>
           <Button
             type="primary"
-            icon={<UploadOutlined />}
-            style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
-            onClick={handleOpenUploadDialog}
-          >
-            {t('projectManagement.upload')}
-          </Button>
-          <Button
-            type="primary"
             icon={<ReloadOutlined />}
             onClick={handleProjectReload}
             loading={isReloadingProject}
@@ -1607,6 +1599,14 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       ? 'ZIPダウンロード中...'
                       : t('projectManagement.project_download')
                     }
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<UploadOutlined />}
+                    style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+                    onClick={handleOpenUploadDialog}
+                  >
+                    {t('projectManagement.upload')}
                   </Button>
                   <Button
                     type="primary"
