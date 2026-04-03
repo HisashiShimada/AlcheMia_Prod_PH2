@@ -661,6 +661,42 @@ export class FileMetadataRepository {
   }
 
   /**
+   * ファイルメタデータを物理削除（ロールバック用）
+   *
+   * アップロード後にフラグ更新などが失敗した場合のロールバックに使用する。
+   * 通常の削除には softDeleteByFileKey() を使用すること。
+   *
+   * @param fileKey - ファイルキー（S3/Swiftのキー）
+   * @returns 削除された件数
+   */
+  async deleteFileMetadata(fileKey: string): Promise<number> {
+    const pool = getPool();
+
+    const query = `
+      DELETE FROM file_metadata
+      WHERE file_key = $1
+    `;
+
+    const params = [fileKey];
+
+    try {
+      const result = await pool.query(query, params);
+      const deletedCount = result.rowCount || 0;
+
+      if (deletedCount > 0) {
+        console.log(`✅ [FileMetadataRepository] ファイルメタデータ物理削除（ロールバック）: ${fileKey}`);
+      } else {
+        console.log(`ℹ️ [FileMetadataRepository] 削除対象なし（存在しない）: ${fileKey}`);
+      }
+
+      return deletedCount;
+    } catch (error) {
+      console.error(`❌ [FileMetadataRepository] ファイルメタデータ物理削除エラー: ${fileKey}`, error);
+      throw error;
+    }
+  }
+
+  /**
    * バッチIDに紐付けられたファイルメタデータを取得
    * 
    * Task: アップロードキャンセル機能実装

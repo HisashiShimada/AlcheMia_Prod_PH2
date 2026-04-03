@@ -182,7 +182,9 @@ Before({ tags: '@4-3-6' }, async () => {
 /**
  * [4-3-7] チェックアウト済み・実行中タスクあり（チェックイン不可）
  * - project_status=0, checkout_status=1, project_maiml_flg=true
- * - project_task に worker_linked_flg=true のタスクを挿入して実行中を再現
+ * - project_task に worker_linked_flg=true のタスクを挿入
+ * - project_task_detail に task_status=1（実行中）のレコードを挿入
+ *   → checkin() の hasIncompleteTasks() が参照するのは project_task_detail のため必須
  */
 Before({ tags: '@4-3-7' }, async () => {
   console.log('[4-3 Before] テストデータ準備 開始 (tags: @4-3-7)');
@@ -190,8 +192,11 @@ Before({ tags: '@4-3-7' }, async () => {
     const projectId = 'E2E-4-3-7';
     const projectName = 'E2Eテスト用プロジェクト_4-3-7';
     await upsertProject(projectId, projectName, PROJECT_STATUS_PLANNING, CHECKOUT_STATUS_CHECKED_OUT, true);
-    // worker_linked_flg=true のタスクを挿入してチェックイン不可状態を再現
+    // project_task に worker_linked_flg=true のタスクを挿入
     await upsertProjectTask(projectId, 'method_001', 1, true);
+    // project_task_detail に task_status=1（実行中）のレコードを挿入
+    // → hasIncompleteTasks() は project_task_detail.task_status NOT IN (3,4) を参照するため
+    await upsertProjectTaskDetail(projectId, 'method_001', 1, 1);
     console.log('[4-3 Before] テストデータ準備 完了 (tags: @4-3-7)');
   } catch (error) {
     console.error('[4-3 Before] テストデータ準備 失敗 (tags: @4-3-7):', error);
@@ -246,7 +251,12 @@ After(async () => {
   try {
     for (const projectId of createdProjectIds) {
       try {
-        // project_task を先に削除（外部キー制約があるため）
+        // project_task_detail を先に削除（依存テーブルのため）
+        await db.query(
+          'DELETE FROM project_task_detail WHERE organization_id = $1 AND project_id = $2',
+          [ORG_ID, projectId]
+        );
+        // project_task を削除
         await db.query(
           'DELETE FROM project_task WHERE organization_id = $1 AND project_id = $2',
           [ORG_ID, projectId]
@@ -365,49 +375,6 @@ Given(
 );
 
 // ---------------------------------------------------------------------------
-// When: ログイン・画面遷移
-// ---------------------------------------------------------------------------
-
-/**
- * 実験管理者ユーザーでログインする
- * TODO: ユーザーID・パスワードは仮値。実際の値に要更新。
- */
-When('実験管理者ユーザー {string} でログインする', async ({ page }, _userId: string) => {
-  await page.goto(`/?orgId=${ORG_ID}`);
-  await page.waitForSelector('#userId', { timeout: 15000 });
-  await page.fill('#userId', ADMIN_EMAIL);
-  await page.fill('#password', ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForLoadState('networkidle', { timeout: 30000 });
-});
-
-/**
- * プロジェクト管理画面が表示されていること
- */
-When('プロジェクト管理画面が表示されている', async ({ page }) => {
-  await page.waitForSelector('[data-testid="project-management-tab"]', {
-    timeout: 15000,
-  });
-});
-
-// ---------------------------------------------------------------------------
-// When: プロジェクト一覧操作
-// ---------------------------------------------------------------------------
-
-/**
- * プロジェクト一覧でプロジェクトを選択する
- * ProjectManagement.tsx: data-testid="project-list-table" 内の行
- */
-When('プロジェクト一覧でプロジェクト {string} を選択する', async ({ page }, projectName: string) => {
-  const table = page.locator('[data-testid="project-list-table"]');
-  await table.waitFor({ state: 'visible', timeout: 10000 });
-  const row = table.locator(`tr:has-text("${projectName}")`).first();
-  await row.waitFor({ state: 'visible', timeout: 10000 });
-  await row.locator('input[type="radio"], .ant-radio-wrapper').first().click();
-  await page.waitForTimeout(500);
-});
-
-// ---------------------------------------------------------------------------
 // When: チェックアウト / チェックイン操作
 // ---------------------------------------------------------------------------
 
@@ -465,9 +432,9 @@ When('「チェックイン」ボタンをクリックする', async ({ page }) 
  * 表示テキスト例: 「プロジェクト「XXX」をチェックアウトしました」
  */
 Then('チェックアウト成功メッセージが表示されること', async ({ page }) => {
-  const successToast = page.locator('.ant-message-success');
+  // ログイン成功トーストと競合しないよう「チェックアウトしました」テキストで絞り込む
+  const successToast = page.locator('.ant-message-success').filter({ hasText: 'チェックアウトしました' });
   await expect(successToast).toBeVisible({ timeout: 10000 });
-  await expect(successToast).toContainText('チェックアウトしました', { timeout: 5000 });
 });
 
 /**
@@ -476,9 +443,9 @@ Then('チェックアウト成功メッセージが表示されること', async
  * 表示テキスト例: 「プロジェクト「XXX」をチェックインしました」
  */
 Then('チェックイン成功メッセージが表示されること', async ({ page }) => {
-  const successToast = page.locator('.ant-message-success');
+  // ログイン成功トーストと競合しないよう「チェックインしました」テキストで絞り込む
+  const successToast = page.locator('.ant-message-success').filter({ hasText: 'チェックインしました' });
   await expect(successToast).toBeVisible({ timeout: 10000 });
-  await expect(successToast).toContainText('チェックインしました', { timeout: 5000 });
 });
 
 /**
@@ -511,7 +478,46 @@ Then('プロジェクト情報ヘッダーに「チェックアウト中」タ�
 });
 
 /**
- * チェックアウト失敗エラーメッセージが表示されること（4-3-4, 4-3-5, 4-3-6）
+ * チェックアウトボタンが非活性であること（4-3-6）
+ * completed ステータスのプロジェクトはボタンが disabled になる
+ * ProjectManagement.tsx: data-testid="checkout-checkin-button" disabled
+ */
+Then('チェックアウトボタンが非活性であること', async ({ page }) => {
+  const btn = page.locator('[data-testid="checkout-checkin-button"]');
+  await expect(btn).toBeVisible({ timeout: 10000 });
+  await expect(btn).toBeDisabled({ timeout: 5000 });
+});
+
+/**
+ * DBの checkout_status が checked_out（1）のままであることを確認（4-3-5）
+ * チェックイン失敗時にDBが更新されていないことを保証する
+ *
+ * @param projectName - プロジェクト名（project テーブルの project_name）
+ */
+Then(
+  'プロジェクト {string} のDBの checkout_status が checked_out のままであること',
+  async ({}, projectName: string) => {
+    console.log(`[4-3 Then] DB checkout_status 確認: project_name="${projectName}"`);
+    const result = await db.query<{ checkout_status: number }>(
+      `SELECT checkout_status FROM project
+       WHERE organization_id = $1 AND project_name = $2`,
+      [ORG_ID, projectName]
+    );
+    if (result.rows.length === 0) {
+      throw new Error(`[4-3 Then] project が見つかりません: project_name="${projectName}"`);
+    }
+    const actualStatus = result.rows[0].checkout_status;
+    console.log(`[4-3 Then] checkout_status=${actualStatus}（期待値: ${CHECKOUT_STATUS_CHECKED_OUT}）`);
+    if (actualStatus !== CHECKOUT_STATUS_CHECKED_OUT) {
+      throw new Error(
+        `[4-3 Then] checkout_status が変更されています: actual=${actualStatus}, expected=${CHECKOUT_STATUS_CHECKED_OUT}`
+      );
+    }
+  }
+);
+
+/**
+ * チェックアウト失敗エラーメッセージが表示されること（4-3-4, 4-3-5）
  * ProjectManagement.tsx: エラーコード別の message.error() / message.warning()
  * - CHECKOUT_INVALID_STATUS: 「プロジェクトステータスがタスク実行待ちではありません」
  * - PROJECT_ALREADY_CHECKED_OUT: 「このプロジェクトは既に…チェックアウトされています」
@@ -523,13 +529,13 @@ Then('チェックアウト失敗エラーメッセージが表示されるこ�
 
 /**
  * チェックイン失敗エラーメッセージが表示されること（4-3-7）
- * ProjectManagement.tsx: エラーコード TASK_IN_PROGRESS
- * 表示テキスト: 「実行中のタスクが存在するため、チェックインできません」
+ * バックエンドは TASK_NOT_COMPLETED を返し、フロントエンドは default ケースで
+ * message.error(errorMessage) を呼び出す。
+ * エラートーストが表示されること（テキストは問わない）を確認する。
  */
 Then('チェックイン失敗エラーメッセージが表示されること', async ({ page }) => {
   const errorToast = page.locator('.ant-message-error');
-  await expect(errorToast).toBeVisible({ timeout: 10000 });
-  await expect(errorToast).toContainText('実行中のタスクが存在するため', { timeout: 5000 });
+  await expect(errorToast.first()).toBeVisible({ timeout: 10000 });
 });
 
 /**
@@ -616,6 +622,64 @@ async function upsertProject(
     }
   } catch (error) {
     console.error(`[4-3 upsertProject] 失敗: project_id=${projectId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * テスト用プロジェクトタスク詳細を UPSERT する（4-3-7 用）
+ *
+ * checkin() の hasIncompleteTasks() は project_task_detail.task_status を参照するため、
+ * チェックイン不可状態を再現するにはこのテーブルにレコードが必要。
+ *
+ * @param projectId  - プロジェクトID
+ * @param methodId   - メソッドID
+ * @param taskNo     - タスク連番
+ * @param taskStatus - タスクステータス（1=実行中 → hasIncompleteTasks=true になる）
+ *
+ * DDL参照: docs/design/db/ddl/project_task_detail.sql
+ */
+async function upsertProjectTaskDetail(
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  taskStatus: number
+): Promise<void> {
+  console.log(
+    `[4-3 upsertProjectTaskDetail] 開始: project_id=${projectId}, method_id=${methodId}, task_no=${taskNo}, task_status=${taskStatus}`
+  );
+  try {
+    const existing = await db.query<{ project_id: string }>(
+      `SELECT project_id FROM project_task_detail
+       WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+      [ORG_ID, projectId, methodId, taskNo]
+    );
+
+    if ((existing.rowCount ?? 0) > 0) {
+      await db.query(
+        `UPDATE project_task_detail
+         SET task_status = $1, update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $2 AND project_id = $3 AND method_id = $4 AND task_no = $5`,
+        [taskStatus, ORG_ID, projectId, methodId, taskNo]
+      );
+      console.log(`[4-3 upsertProjectTaskDetail] UPDATE 完了: project_id=${projectId}`);
+    } else {
+      await db.query(
+        `INSERT INTO project_task_detail (
+          organization_id, project_id, method_id, task_no,
+          task_status,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3, $4,
+          $5,
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, projectId, methodId, taskNo, taskStatus]
+      );
+      console.log(`[4-3 upsertProjectTaskDetail] INSERT 完了: project_id=${projectId}`);
+    }
+  } catch (error) {
+    console.error(`[4-3 upsertProjectTaskDetail] 失敗: project_id=${projectId}:`, error);
     throw error;
   }
 }

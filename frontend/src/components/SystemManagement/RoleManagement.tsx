@@ -46,6 +46,7 @@ import {
 } from '@/services/roleApiService';
 import FunctionPermissionDialog from './FunctionPermissionDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -126,7 +127,7 @@ export default function RoleManagementMock() {
       console.log('Loaded from API:', convertedData.length, 'records');
     } catch (error) {
       console.error('API fetch error:', error);
-      message.error(t('roleManagement.messages.fetchError').replace('{error}', error instanceof Error ? error.message : 'Unknown error'));
+      message.error(extractErrorMessage(error, t('roleManagement.messages.fetchError')));
       setMasters([]);
     } finally {
       setLoading(false);
@@ -365,7 +366,7 @@ export default function RoleManagementMock() {
           setSelectedRowKeys([]);
           message.success(t('roleManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
-          message.error(error instanceof Error ? error.message : t('roleManagement.messages.activateError'));
+          message.error(extractErrorMessage(error, t('roleManagement.messages.activateError')));
         }
       },
     });
@@ -389,7 +390,7 @@ export default function RoleManagementMock() {
           setSelectedRowKeys([]);
           message.success(t('roleManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
-          message.error(error instanceof Error ? error.message : t('roleManagement.messages.deactivateError'));
+          message.error(extractErrorMessage(error, t('roleManagement.messages.deactivateError')));
         }
       },
     });
@@ -400,7 +401,7 @@ export default function RoleManagementMock() {
     const nameField = Object.keys(selectedMasterInfo?.itemCategories || {})[1];
     const masterName = record[nameField] || 'このロール';
     const currentStatus = record.isActive !== false;
-    const actionText = currentStatus ? '非アクティブ' : 'アクティブ';
+    const actionText = currentStatus ? t('roleManagement.status.inactive') : t('roleManagement.status.active');
     const newStatus = !currentStatus;
 
     modal.confirm({
@@ -408,14 +409,14 @@ export default function RoleManagementMock() {
       content: t('roleManagement.messages.toggleConfirmContent').replace('{action}', actionText),
       okText: actionText,
       cancelText: t('roleManagement.buttons.cancel'),
-      okButtonProps: actionText === '非アクティブ' ? { danger: true } : undefined,
+      okButtonProps: currentStatus ? { danger: true } : undefined,
       onOk: async () => {
         try {
           await updateMasterStatus(String(record[idField]), newStatus);
           await fetchRoleMasters();
           message.success(t('roleManagement.messages.toggleSuccess').replace('{name}', String(masterName)).replace('{action}', actionText));
         } catch (error) {
-          message.error(error instanceof Error ? error.message : t('roleManagement.messages.toggleError'));
+          message.error(extractErrorMessage(error, t('roleManagement.messages.toggleError')));
         }
       },
     });
@@ -445,7 +446,7 @@ export default function RoleManagementMock() {
       await fetchRoleMasters();
       message.success(t('roleManagement.messages.csvUploadSuccess'));
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('roleManagement.messages.csvUploadError'));
+      message.error(extractErrorMessage(error, t('roleManagement.messages.csvUploadError')));
     } finally {
       setLoading(false);
     }
@@ -457,7 +458,7 @@ export default function RoleManagementMock() {
       await downloadCsv({ searchText, roleNameFilter: selectedRoleNameFilter });
       message.success(t('roleManagement.messages.csvDownloadSuccess'));
     } catch (error) {
-      message.error(error instanceof Error ? error.message : t('roleManagement.messages.csvDownloadError'));
+      message.error(extractErrorMessage(error, t('roleManagement.messages.csvDownloadError')));
     }
   };
 
@@ -514,13 +515,18 @@ export default function RoleManagementMock() {
       setIsModalVisible(false);
       form.resetFields();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'エラーが発生しました';
-      if (errorMessage.includes('既に存在しています')) {
-        form.setFields([{ name: 'role', errors: [errorMessage] }]);
-        message.error(errorMessage);
+      // form.validateFields() によるバリデーションエラーはフォームに表示済みのため何もしない
+      if (error && typeof error === 'object' && 'errorFields' in error) {
         return;
       }
-      message.error(errorMessage);
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError?.response?.status === 409) {
+        const dupMsg = t('roleManagement.messages.duplicateIdError');
+        form.setFields([{ name: 'role', errors: [dupMsg] }]);
+        message.error(dupMsg);
+        return;
+      }
+      message.error(extractErrorMessage(error, t('roleManagement.messages.saveError')));
     }
   };
 
@@ -564,7 +570,7 @@ export default function RoleManagementMock() {
         setIsFunctionModalVisible(true);
       }
     } catch (error) {
-      message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+      message.error(extractErrorMessage(error, t('roleManagement.messages.genericError')));
     }
   };
 
@@ -581,7 +587,7 @@ export default function RoleManagementMock() {
     mode: 'direct' | 'temporary'
   ) => {
     if (!editingFunctionMaster || !selectedMasterInfo) {
-      message.error('エラーが発生しました');
+      message.error(t('roleManagement.messages.genericError'));
       setIsFunctionModalVisible(false);
       setEditingFunctionMaster(null);
       return;
@@ -602,7 +608,7 @@ export default function RoleManagementMock() {
         message.success(t('roleManagement.messages.functionTempSaved'));
       }
     } catch (error) {
-      message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+      message.error(extractErrorMessage(error, t('roleManagement.messages.genericError')));
     }
     setIsFunctionModalVisible(false);
     setEditingFunctionMaster(null);

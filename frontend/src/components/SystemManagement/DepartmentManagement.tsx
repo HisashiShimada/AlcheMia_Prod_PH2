@@ -29,6 +29,7 @@ import { formatDateTime } from '@/utils/dateFormatter';
 import { getDepartmentConfig } from '@/types/departmentTypes';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import {
   fetchMasters,
   createMaster,
@@ -82,8 +83,7 @@ export default function DepartmentManagement() {
       console.log('Loaded departments from API:', data.length, 'records');
     } catch (error) {
       console.error('Fetch error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      message.error(t('departmentManagement.messages.fetchError').replace('{error}', errorMessage));
+      message.error(extractErrorMessage(error, t('departmentManagement.messages.fetchError')));
       setDepartments([]);
     } finally {
       setLoading(false);
@@ -230,7 +230,7 @@ export default function DepartmentManagement() {
           message.success(t('departmentManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('一括アクティブ化エラー:', error);
-          message.error(error instanceof Error ? error.message : t('departmentManagement.messages.activateError'));
+          message.error(extractErrorMessage(error, t('departmentManagement.messages.activateError')));
         }
       },
     });
@@ -257,7 +257,7 @@ export default function DepartmentManagement() {
           message.success(t('departmentManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('エラー:', error);
-          message.error(error instanceof Error ? error.message : t('departmentManagement.messages.deactivateError'));
+          message.error(extractErrorMessage(error, t('departmentManagement.messages.deactivateError')));
         }
       },
     });
@@ -268,7 +268,7 @@ export default function DepartmentManagement() {
     const deptRecord = record as DepartmentRecord;
     const departmentName = deptRecord.displayName || 'この部署';
     const currentStatus = record.isActive !== false;
-    const actionText = currentStatus ? '非アクティブ' : 'アクティブ';
+    const actionText = currentStatus ? t('departmentManagement.status.inactive') : t('departmentManagement.status.active');
     const newStatus = !currentStatus;
 
     modal.confirm({
@@ -284,7 +284,7 @@ export default function DepartmentManagement() {
           message.success(t('departmentManagement.messages.toggleSuccess').replace('{name}', departmentName).replace('{action}', actionText));
         } catch (error) {
           console.error('エラー:', error);
-          message.error(error instanceof Error ? error.message : t('departmentManagement.messages.toggleError'));
+          message.error(extractErrorMessage(error, t('departmentManagement.messages.toggleError')));
         }
       },
     });
@@ -320,7 +320,7 @@ export default function DepartmentManagement() {
       await fetchDepartments();
     } catch (error) {
       console.error('CSV upload error:', error);
-      message.error(error instanceof Error ? error.message : t('departmentManagement.messages.csvUploadError'));
+      message.error(extractErrorMessage(error, t('departmentManagement.messages.csvUploadError')));
     } finally {
       setLoading(false);
     }
@@ -336,7 +336,7 @@ export default function DepartmentManagement() {
       message.success(t('departmentManagement.messages.csvDownloadSuccess'));
     } catch (error) {
       console.error('CSV download error:', error);
-      message.error(error instanceof Error ? error.message : t('departmentManagement.messages.csvDownloadError'));
+      message.error(extractErrorMessage(error, t('departmentManagement.messages.csvDownloadError')));
     } finally {
       setLoading(false);
     }
@@ -371,22 +371,20 @@ export default function DepartmentManagement() {
       setIsModalVisible(false);
       form.resetFields();
     } catch (error) {
-      console.error('エラー:', error);
-
-      const errorMessage = error instanceof Error ? error.message : 'エラーが発生しました';
-
-      if (errorMessage.includes('既に存在しています')) {
-        form.setFields([
-          {
-            name: 'departmentId',
-            errors: [errorMessage],
-          },
-        ]);
-        message.error(errorMessage);
+      // form.validateFields() によるバリデーションエラーはフォームに表示済みのため何もしない
+      if (error && typeof error === 'object' && 'errorFields' in error) {
         return;
       }
-
-      message.error(errorMessage);
+      console.error('エラー:', error);
+      // 409（重複エラー）の場合はフォームフィールドにエラーを表示
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError?.response?.status === 409) {
+        const dupMsg = t('departmentManagement.messages.duplicateIdError');
+        form.setFields([{ name: 'departmentId', errors: [dupMsg] }]);
+        message.error(dupMsg);
+        return;
+      }
+      message.error(extractErrorMessage(error, t('departmentManagement.messages.saveError')));
     }
   };
 

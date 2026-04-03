@@ -33,6 +33,7 @@ import * as masterApi from '@/services/masterApiService';
 import type { MasterRecord } from '@/services/masterApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -126,8 +127,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       console.log('Loaded from API:', masterType, data.length, 'records');
     } catch (error) {
       console.error('Fetch error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      message.error(t('masterManagement.messages.fetchError').replace('{error}', errorMessage));
+      message.error(extractErrorMessage(error, t('masterManagement.messages.fetchError')));
       setMasters([]);
     } finally {
       setLoading(false);
@@ -467,7 +467,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           message.success(t('masterManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('一括アクティブ化エラー:', error);
-          message.error(error instanceof Error ? error.message : t('masterManagement.messages.activateError'));
+          message.error(extractErrorMessage(error, t('masterManagement.messages.activateError')));
         }
       },
     });
@@ -507,7 +507,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           message.success(t('masterManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('エラー:', error);
-          message.error(error instanceof Error ? error.message : t('masterManagement.messages.deactivateError'));
+          message.error(extractErrorMessage(error, t('masterManagement.messages.deactivateError')));
         }
       },
     });
@@ -526,7 +526,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       masterName = String(record.displayName || 'この部署');
     } else {
       const nameField = Object.keys(selectedMasterInfo.itemCategories)[1];
-      masterName = String(record[nameField] || 'このマスタ');
+      masterName = String(record[nameField] || t('masterManagement.messages.defaultMasterName'));
     }
 
     // 現在のステータスに基づいてアクション決定
@@ -551,7 +551,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           message.success(t('masterManagement.messages.toggleSuccess').replace('{name}', masterName).replace('{action}', actionText));
         } catch (error) {
           console.error('エラー:', error);
-          message.error(error instanceof Error ? error.message : t('masterManagement.messages.toggleError'));
+          message.error(extractErrorMessage(error, t('masterManagement.messages.toggleError')));
         }
       },
     });
@@ -685,7 +685,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       }
     } catch (error) {
       console.error('CSV upload error:', error);
-      message.error(error instanceof Error ? error.message : t('masterManagement.messages.csvUploadFailed'));
+      message.error(extractErrorMessage(error, t('masterManagement.messages.csvUploadFailed')));
     } finally {
       setLoading(false);
     }
@@ -791,7 +791,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         message.success(t('masterManagement.messages.csvDownloadSuccess'));
       } catch (error) {
         console.error('CSV download error:', error);
-        message.error(error instanceof Error ? error.message : t('masterManagement.messages.csvDownloadError'));
+        message.error(extractErrorMessage(error, t('masterManagement.messages.csvDownloadError')));
       } finally {
         setLoading(false);
       }
@@ -808,7 +808,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       const row = Object.entries(selectedMasterInfo.itemCategories)
         .filter(([_, c]) => c && c.isDisplay)
         .map(([key, _]) => master[key] || '');
-      row.push(master.isActive === false ? '非アクティブ' : 'アクティブ');
+      row.push(master.isActive === false ? t('masterManagement.status.inactive') : t('masterManagement.status.active'));
       return row;
     });
 
@@ -911,9 +911,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           
           if (!response.ok) {
             if (response.status === 409) {
-              throw new Error('入力されたIDは既に存在しています');
+              throw new Error(t('masterManagement.messages.idDuplicate'));
             }
-            throw new Error('追加に失敗しました');
+            throw new Error(t('masterManagement.messages.addFailed'));
           }
           
           await fetchMasterData('instrument');
@@ -966,9 +966,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           
           if (!response.ok) {
             if (response.status === 409) {
-              throw new Error('入力されたIDは既に存在しています');
+              throw new Error(t('masterManagement.messages.idDuplicate'));
             }
-            throw new Error('追加に失敗しました');
+            throw new Error(t('masterManagement.messages.addFailed'));
           }
           
           await fetchMasterData('vendor');
@@ -1073,9 +1073,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           
           if (!response.ok) {
             if (response.status === 409) {
-              throw new Error('入力されたIDは既に存在しています');
+              throw new Error(t('masterManagement.messages.idDuplicate'));
             }
-            throw new Error('追加に失敗しました');
+            throw new Error(t('masterManagement.messages.addFailed'));
           }
           
           await fetchMasterData('creator');
@@ -1101,10 +1101,14 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       setIsModalVisible(false);
       form.resetFields();
     } catch (error) {
+      // form.validateFields() によるバリデーションエラーはフォームに表示済みのため何もしない
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        return;
+      }
       console.error('エラー:', error);
       
       // エラーメッセージを取得
-      const errorMessage = error instanceof Error ? error.message : 'エラーが発生しました';
+      const errorMessage = extractErrorMessage(error, t('masterManagement.messages.genericError'));
       
       // 409エラー（ID重複）の場合
       if (errorMessage.includes('既に存在しています')) {
@@ -1112,7 +1116,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
         
         // エラーメッセージのテキスト
-        const errorMsg = '入力されたIDは既に存在しています';
+        const errorMsg = t('masterManagement.messages.idDuplicate');
         
         // フォームのIDフィールドにエラーを設定（背景色が薄い赤色になる）
         form.setFields([

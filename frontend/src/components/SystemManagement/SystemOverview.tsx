@@ -12,6 +12,7 @@ import {
 import { getSystemOverview } from '../../services/systemOverviewApiService';
 import { SystemOverviewData } from '../../types/systemOverview';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const SystemOverview: React.FC = () => {
   const { token } = theme.useToken();
@@ -28,7 +29,7 @@ const SystemOverview: React.FC = () => {
         const result = await getSystemOverview();
         setData(result);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('systemOverview.messages.fetchError'));
+        setError(extractErrorMessage(err, t('systemOverview.messages.fetchError')));
       } finally {
         setLoading(false);
       }

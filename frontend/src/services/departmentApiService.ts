@@ -65,9 +65,8 @@ export async function fetchMasters(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<MasterRecord[]>>;
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    console.error('API Error (fetchMasters):', error);
+    throw error;
   }
 }
 
@@ -95,12 +94,8 @@ export async function createMaster(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<MasterRecord>>;
-    if (axiosError.response?.status === 409) {
-      throw new Error('入力されたIDは既に存在しています');
-    }
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    console.error('API Error (createMaster):', error);
+    throw error;
   }
 }
 
@@ -130,9 +125,8 @@ export async function updateMaster(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<MasterRecord>>;
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    console.error('API Error (updateMaster):', error);
+    throw error;
   }
 }
 
@@ -155,9 +149,8 @@ export async function updateMasterStatus(
     const response = await client.patch(endpoint, { isActive });
     console.log('Response status:', response.status);
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<void>>;
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
+    console.error('API Error (updateMasterStatus):', error);
+    throw error;
   }
 }
 
@@ -244,12 +237,9 @@ export async function uploadCsv(
     if (error instanceof Error && !('isAxiosError' in error)) {
       throw error;
     }
-    
-    // HTTPエラーの場合
-    const axiosError = error as AxiosError<ApiResponse<CsvUploadResult>>;
-    const errorMessage = axiosError.response?.data?.error?.message || 'CSVアップロードに失敗しました';
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(errorMessage);
+    // AxiosErrorはそのままスロー（エラーコード情報を保持）
+    console.error('API Error (uploadCsv):', error);
+    throw error;
   }
 }
 
@@ -346,8 +336,8 @@ export async function downloadCsv(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   } catch (error) {
-    const axiosError = error as AxiosError;
-    console.error('API Error:', axiosError.response?.data || axiosError.message);
-    throw new Error(`CSVダウンロードに失敗しました: ${axiosError.response?.status || 'Unknown'} - ${axiosError.message}`);
+    // AxiosErrorはそのままスロー（エラーコード情報を保持）
+    console.error('API Error (downloadCsv):', error);
+    throw error;
   }
 }

@@ -42,6 +42,7 @@ import { fetchMasters as fetchDepartments } from '@/services/departmentApiServic
 import { fetchMasters as fetchRoles } from '@/services/roleApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -76,7 +77,7 @@ export default function UserManagement() {
       setUsers(data);
     } catch (error) {
       console.error('ユーザー一覧の取得に失敗:', error);
-      message.error(t('userManagement.messages.fetchError'));
+      message.error(extractErrorMessage(error, t('userManagement.messages.fetchError')));
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,7 @@ export default function UserManagement() {
       setDepartments(options);
     } catch (error) {
       console.error('部署一覧の取得に失敗:', error);
-      message.error(t('userManagement.messages.departmentFetchError'));
+      message.error(extractErrorMessage(error, t('userManagement.messages.departmentFetchError')));
     }
   };
 
@@ -108,7 +109,7 @@ export default function UserManagement() {
       setRoles(options);
     } catch (error) {
       console.error('ロール一覧の取得に失敗:', error);
-      message.error(t('userManagement.messages.roleFetchError'));
+      message.error(extractErrorMessage(error, t('userManagement.messages.roleFetchError')));
     }
   };
 
@@ -312,7 +313,7 @@ export default function UserManagement() {
           message.success(t('userManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('アクティブ化に失敗:', error);
-          message.error(t('userManagement.messages.activateError'));
+          message.error(extractErrorMessage(error, t('userManagement.messages.activateError')));
         } finally {
           setLoading(false);
         }
@@ -340,7 +341,7 @@ export default function UserManagement() {
           message.success(t('userManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('非アクティブ化に失敗:', error);
-          message.error(t('userManagement.messages.deactivateError'));
+          message.error(extractErrorMessage(error, t('userManagement.messages.deactivateError')));
         } finally {
           setLoading(false);
         }
@@ -367,7 +368,7 @@ export default function UserManagement() {
           message.success(t('userManagement.messages.toggleSuccess').replace('{name}', userName).replace('{action}', actionText));
         } catch (error) {
           console.error('ステータス更新に失敗:', error);
-          message.error(t('userManagement.messages.toggleError'));
+          message.error(extractErrorMessage(error, t('userManagement.messages.toggleError')));
         } finally {
           setLoading(false);
         }
@@ -399,8 +400,7 @@ export default function UserManagement() {
           message.success(t('userManagement.messages.csvUploadSuccess'));
         } catch (error) {
           console.error('CSVアップロードに失敗:', error);
-          const errorMessage = error instanceof Error ? error.message : t('userManagement.messages.csvUploadError');
-          message.error(errorMessage);
+          message.error(extractErrorMessage(error, t('userManagement.messages.csvUploadError')));
         } finally {
           setLoading(false);
         }
@@ -420,7 +420,7 @@ export default function UserManagement() {
       message.success(t('userManagement.messages.csvDownloadSuccess'));
     } catch (error) {
       console.error('CSV download error:', error);
-      message.error(error instanceof Error ? error.message : t('userManagement.messages.csvDownloadError'));
+      message.error(extractErrorMessage(error, t('userManagement.messages.csvDownloadError')));
     } finally {
       setLoading(false);
     }
@@ -458,8 +458,11 @@ export default function UserManagement() {
       form.resetFields();
     } catch (error) {
       console.error('保存に失敗:', error);
-      const errorMessage = error instanceof Error ? error.message : t('userManagement.messages.saveError');
-      message.error(errorMessage);
+      // form.validateFields() によるバリデーションエラーはフォームに表示済みのため何もしない
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        return;
+      }
+      message.error(extractErrorMessage(error, t('userManagement.messages.saveError')));
     } finally {
       setLoading(false);
     }

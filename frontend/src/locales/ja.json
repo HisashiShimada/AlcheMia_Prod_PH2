@@ -969,17 +969,24 @@
       "activateConfirmTitle": "選択した部署をアクティブにしますか？",
       "activateConfirmContent": "{count}件の部署がアクティブになります。",
       "activateSuccess": "{count}件の部署をアクティブにしました",
+      "activateError": "アクティブ化に失敗しました",
       "deactivateConfirmTitle": "選択した部署を非アクティブにしますか？",
       "deactivateConfirmContent": "{count}件の部署が非アクティブになります。",
       "deactivateSuccess": "{count}件の部署を非アクティブにしました",
+      "deactivateError": "非アクティブ化に失敗しました",
       "toggleConfirmTitle": "{name}を{action}にしますか？",
       "toggleConfirmContent": "この部署を{action}状態に変更します。",
       "toggleSuccess": "{name}を{action}にしました",
+      "toggleError": "ステータスの変更に失敗しました",
       "reloadSuccess": "データをリロードしました",
       "csvUploadSuccess": "CSVファイルをアップロードしました",
+      "csvUploadError": "CSVアップロードに失敗しました",
       "csvDownloadSuccess": "CSVファイルをダウンロードしました",
+      "csvDownloadError": "CSVダウンロードに失敗しました",
       "saveSuccess": "部署情報を更新しました",
-      "addSuccess": "部署を追加しました"
+      "addSuccess": "部署を追加しました",
+      "saveError": "保存に失敗しました",
+      "duplicateIdError": "入力されたIDは既に存在しています"
     },
     "pagination": {
       "showTotal": "全 {total} 件"
@@ -1033,19 +1040,29 @@
       "activateConfirmTitle": "選択したロールをアクティブにしますか？",
       "activateConfirmContent": "{count}件のロールがアクティブになります。",
       "activateSuccess": "{count}件のロールをアクティブにしました",
+      "activateError": "アクティブ化に失敗しました",
       "deactivateConfirmTitle": "選択したロールを非アクティブにしますか？",
       "deactivateConfirmContent": "{count}件のロールが非アクティブになります。",
       "deactivateSuccess": "{count}件のロールを非アクティブにしました",
+      "deactivateError": "非アクティブ化に失敗しました",
       "toggleConfirmTitle": "{name}を{action}にしますか？",
       "toggleConfirmContent": "このロールを{action}状態に変更します。",
       "toggleSuccess": "{name}を{action}にしました",
+      "toggleError": "ステータスの変更に失敗しました",
       "reloadSuccess": "データをリロードしました",
       "csvUploadSuccess": "CSVをアップロードしました",
+      "csvUploadError": "CSVアップロードに失敗しました",
       "csvDownloadSuccess": "CSVファイルをダウンロードしました",
+      "csvDownloadError": "CSVダウンロードに失敗しました",
       "functionUpdated": "機能を更新しました",
+      "functionUpdateSuccess": "機能を更新しました",
       "functionSet": "機能を設定しました（「保存」ボタンでDBに反映されます）",
+      "functionTempSaved": "機能を設定しました（「保存」ボタンでDBに反映されます）",
       "saveSuccess": "ロール情報を更新しました",
-      "addSuccess": "ロールを追加しました"
+      "addSuccess": "ロールを追加しました",
+      "saveError": "保存に失敗しました",
+      "duplicateIdError": "入力されたIDは既に存在しています",
+      "genericError": "エラーが発生しました"
     },
     "pagination": {
       "showTotal": "全 {total} 件"
@@ -1161,10 +1178,22 @@
       "addSuccess": "マスタを追加しました",
       "updateFailed": "更新に失敗しました",
       "addFailed": "追加に失敗しました",
-      "idDuplicate": "入力されたIDは既に存在しています"
+      "idDuplicate": "入力されたIDは既に存在しています",
+      "defaultMasterName": "このマスタ",
+      "genericError": "エラーが発生しました"
     },
     "pagination": {
       "showTotal": "全 {total} 件"
+    }
+  },
+  "functionPermissionDialog": {
+    "title": "機能管理",
+    "buttons": {
+      "cancel": "キャンセル",
+      "update": "機能を更新"
+    },
+    "labels": {
+      "writable": "書込可"
     }
   },
   "organizationStatistics": {
