@@ -115,8 +115,9 @@ Before({ tags: '@5-1-8 or @5-1-9' }, async () => {
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1);
-    // task_no=1 → completed(4)、task_no=2 → not_started(0)
-    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1, 4);
+    // task_no=1 → completed(3)、task_no=2 → not_started(0)
+    // DBの task_status 数値マッピング: 0=not_started, 1=in_progress, 2=review_waiting, 3=completed, 4=forced_terminated
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1, 3);
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2, 0);
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1, 0);
     console.log('[5-1 Before] テストデータ準備 完了 (tags: @5-1-8 or @5-1-9)');
@@ -523,22 +524,36 @@ Then('タスク選択コンボボックスに {string} が表示されている�
 
 /**
  * [5-1-5] タスク一覧に指定タスク名が表示されていること
+ *
+ * タスク番号はテーブルの2列目セル（タスク番号列）に表示される。
+ * `tr:has-text("1")` は「全1件」「ページ1」など他の要素にもマッチするため、
+ * テーブル tbody の tr を対象にして、タスク番号セル（td:nth-child(2)）を厳密に一致確認する。
  */
 Then('タスク一覧に {string} が表示されていること', async ({ page }, taskName: string) => {
   const modal = page.locator('.ant-modal').filter({ hasText: 'メソッド・タスク選択' });
+  // タスク番号列（2列目）のセルテキストが完全一致する行が存在すること
   await expect(
-    modal.locator(`tr:has-text("${taskName}"), li:has-text("${taskName}")`)
+    modal.locator('table tbody tr').filter({
+      has: page.locator(`td:nth-child(2)`).filter({ hasText: new RegExp(`^${taskName}$`) }),
+    }).first()
   ).toBeVisible({ timeout: 10000 });
 });
 
 /**
  * [5-1-5] タスク一覧に指定タスク名が表示されていないこと（フィルタで非表示）
+ *
+ * タスク番号はテーブルの2列目セル（タスク番号列）に表示される。
+ * `tr:has-text("1")` は「全1件」「ページ1」など他の要素にもマッチするため、
+ * テーブル tbody の tr を対象にして、タスク番号セル（td:nth-child(2)）を厳密に一致確認する。
  */
 Then('タスク一覧に {string} が表示されていないこと', async ({ page }, taskName: string) => {
   const modal = page.locator('.ant-modal').filter({ hasText: 'メソッド・タスク選択' });
+  // タスク番号列（2列目）のセルテキストが完全一致する行が存在しないこと
   await expect(
-    modal.locator(`tr:has-text("${taskName}"), li:has-text("${taskName}")`)
-  ).not.toBeVisible({ timeout: 5000 });
+    modal.locator('table tbody tr').filter({
+      has: page.locator(`td:nth-child(2)`).filter({ hasText: new RegExp(`^${taskName}$`) }),
+    })
+  ).toHaveCount(0, { timeout: 5000 });
 });
 
 /**
@@ -615,6 +630,10 @@ async function upsertTestProject(projectId: string, projectName: string): Promis
          WHERE organization_id = $3 AND project_id = $4`,
         [projectName, PROJECT_STATUS_EXECUTING_TASK, ORG_ID, projectId]
       );
+      // UPDATE時も After クリーンアップ対象に追加（重複チェック）
+      if (!createdProjectIds.includes(projectId)) {
+        createdProjectIds.push(projectId);
+      }
       console.log(`[5-1 upsertTestProject] UPDATE 完了: project_id=${projectId}`);
     } else {
       // 新規 INSERT
@@ -682,7 +701,27 @@ async function upsertTestProjectTask(
       });
       console.log(`[5-1 upsertTestProjectTask] INSERT 完了: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}`);
     } else {
-      console.log(`[5-1 upsertTestProjectTask] スキップ（既存レコードあり）: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}`);
+      // 既存レコードが存在する場合は必要なカラムをUPDATE
+      await db.query(
+        `UPDATE project_task
+         SET experiment_condition = $1, attempts_count = $2, worker_linked_flg = $3,
+             update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $4 AND project_id = $5 AND method_id = $6 AND experiment_order = $7`,
+        [1, 1, true, ORG_ID, projectId, methodId, experimentOrder]
+      );
+      // UPDATE時も After クリーンアップ対象に追加（重複チェック）
+      if (!createdProjectTaskKeys.some(
+        k => k.organization_id === ORG_ID && k.project_id === projectId &&
+             k.method_id === methodId && k.experiment_order === experimentOrder
+      )) {
+        createdProjectTaskKeys.push({
+          organization_id: ORG_ID,
+          project_id: projectId,
+          method_id: methodId,
+          experiment_order: experimentOrder,
+        });
+      }
+      console.log(`[5-1 upsertTestProjectTask] UPDATE 完了: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}`);
     }
   } catch (error) {
     console.error(`[5-1 upsertTestProjectTask] 失敗: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}:`, error);
@@ -742,6 +781,18 @@ async function upsertTestProjectTaskDetail(
          WHERE organization_id = $2 AND project_id = $3 AND method_id = $4 AND task_no = $5`,
         [taskStatus, ORG_ID, projectId, methodId, taskNo]
       );
+      // UPDATE時も After クリーンアップ対象に追加（重複チェック）
+      if (!createdProjectTaskDetailKeys.some(
+        k => k.organization_id === ORG_ID && k.project_id === projectId &&
+             k.method_id === methodId && k.task_no === taskNo
+      )) {
+        createdProjectTaskDetailKeys.push({
+          organization_id: ORG_ID,
+          project_id: projectId,
+          method_id: methodId,
+          task_no: taskNo,
+        });
+      }
       console.log(`[5-1 upsertTestProjectTaskDetail] UPDATE 完了: project_id=${projectId}, method_id=${methodId}, task_no=${taskNo}, task_status=${taskStatus}`);
     }
   } catch (error) {
