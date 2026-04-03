@@ -60,6 +60,17 @@ When('実験管理者ユーザー {string} でログインする', async ({ page
   await page.fill('#password', ADMIN_PASSWORD);
   await page.click('button[type="submit"]');
   await page.waitForLoadState('networkidle', { timeout: 30000 });
+
+  // 「編集中のデータが見つかりました」ダイアログが表示された場合は「復元しない」をクリックする
+  // ダイアログが表示されない場合もあるため、タイムアウト時はスキップする
+  try {
+    const restoreDialog = page.locator('.ant-modal').filter({ hasText: '編集中のデータが見つかりました' });
+    await restoreDialog.waitFor({ state: 'visible', timeout: 3000 });
+    await page.click('button:has-text("復元しない")');
+    await page.waitForTimeout(500);
+  } catch {
+    // ダイアログが表示されない場合はスキップ（正常系）
+  }
 });
 
 /**

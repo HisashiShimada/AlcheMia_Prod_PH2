@@ -6,7 +6,7 @@
  * テスト実行情報:
  *   URL      : http://localhost:3000/?orgId=a0718dc5-21f3-44e6-87e9-cc2ae83f3385
  *   ユーザID  : exp.admin@example.com
- *   パスワード: admin123
+ *   パスワード: expAdmin123
  *
  * ⚠️ 注意: フロントエンド未実装のため @pending タグを付与しています。
  *          フロントエンド実装完了後に feature ファイルの @pending タグを削除してテストを有効化すること。
@@ -68,7 +68,7 @@ const ORG_ID = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385';
  * TODO: 実際の実験管理者ユーザーIDとパスワードに更新すること
  */
 const ADMIN_EMAIL = 'exp.admin@example.com';
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_PASSWORD = 'expAdmin123';
 
 /** テスト用プロジェクト情報 */
 const TEST_PROJECT_ID = 'E2E-4-10';
@@ -124,7 +124,7 @@ Before({
     await upsertProject(
       TEST_PROJECT_ID,
       TEST_PROJECT_NAME,
-      PROJECT_STATUS_PLANNING,
+      PROJECT_STATUS_REVIEW_WAITING,
       CHECKOUT_STATUS_CHECKED_OUT,
       true
     );
@@ -181,7 +181,7 @@ Before({
     await upsertProject(
       TEST_PROJECT_ID,
       TEST_PROJECT_NAME,
-      PROJECT_STATUS_PLANNING,
+      PROJECT_STATUS_REVIEW_WAITING,
       CHECKOUT_STATUS_CHECKED_IN,
       true
     );
@@ -214,7 +214,7 @@ Before({
     await upsertProject(
       TEST_PROJECT_ID,
       TEST_PROJECT_NAME,
-      PROJECT_STATUS_PLANNING,
+      PROJECT_STATUS_REVIEW_WAITING,
       CHECKOUT_STATUS_CHECKED_IN,
       true
     );
@@ -236,7 +236,7 @@ Before({
 
 /**
  * [4-10-6] テストデータ準備
- * - project を1件 UPSERT（planning / checked_in）
+ * - project を1件 UPSERT（review_waiting / checked_in）
  * - 各エラー前提状態はシナリオアウトラインの Given ステップで個別に設定する
  * - MAIMLファイルは S3 に手動配置が必要
  */
@@ -248,7 +248,7 @@ Before({
     await upsertProject(
       TEST_PROJECT_ID,
       TEST_PROJECT_NAME,
-      PROJECT_STATUS_PLANNING,
+      PROJECT_STATUS_REVIEW_WAITING,
       CHECKOUT_STATUS_CHECKED_IN,
       true
     );
@@ -265,7 +265,7 @@ Before({
 
 /**
  * [4-10-7] テストデータ準備
- * - project を1件 UPSERT
+ * - project を1件 UPSERT（review_waiting / checked_in）
  * - maiml_publish_job を1件 INSERT（status='error', job_type='publish'）
  */
 Before({
@@ -276,7 +276,7 @@ Before({
     await upsertProject(
       TEST_PROJECT_ID,
       TEST_PROJECT_NAME,
-      PROJECT_STATUS_PLANNING,
+      PROJECT_STATUS_REVIEW_WAITING,
       CHECKOUT_STATUS_CHECKED_IN,
       true
     );
@@ -327,7 +327,7 @@ Before({
 
 /**
  * [4-10-9] テストデータ準備
- * - project を1件 UPSERT（planning / checked_in）
+ * - project を1件 UPSERT（review_waiting / checked_in）
  * - maiml_publish_job を1件 INSERT（job_type='unpublish', status='done', publish_expired_at=過去日時）
  *   スケジューラーが自動非公開を完了させた状態を模擬する
  */
@@ -339,7 +339,7 @@ Before({
     await upsertProject(
       TEST_PROJECT_ID,
       TEST_PROJECT_NAME,
-      PROJECT_STATUS_PLANNING,
+      PROJECT_STATUS_REVIEW_WAITING,
       CHECKOUT_STATUS_CHECKED_IN,
       true
     );
@@ -362,7 +362,7 @@ Before({
 
 /**
  * [4-10-10] テストデータ準備
- * - project を1件 UPSERT（planning / checked_in）
+ * - project を1件 UPSERT（review_waiting / checked_in）
  * - maiml_publish_job を1件 INSERT（job_type='unpublish', status='running', publish_expired_at=過去日時）
  *   期限到来済みでスケジューラーが自動非公開処理中の状態を模擬する
  */
@@ -374,7 +374,7 @@ Before({
     await upsertProject(
       TEST_PROJECT_ID,
       TEST_PROJECT_NAME,
-      PROJECT_STATUS_PLANNING,
+      PROJECT_STATUS_REVIEW_WAITING,
       CHECKOUT_STATUS_CHECKED_IN,
       true
     );
@@ -397,7 +397,7 @@ Before({
 
 /**
  * [4-10-11] テストデータ準備
- * - project を1件 UPSERT（planning / checked_in）
+ * - project を1件 UPSERT（review_waiting / checked_in）
  * - maiml_publish_job を1件 INSERT（job_type='unpublish', status='error', publish_expired_at=過去日時）
  *   期限到来済みでスケジューラーが自動非公開処理でエラーになった状態を模擬する
  */
@@ -409,7 +409,7 @@ Before({
     await upsertProject(
       TEST_PROJECT_ID,
       TEST_PROJECT_NAME,
-      PROJECT_STATUS_PLANNING,
+      PROJECT_STATUS_REVIEW_WAITING,
       CHECKOUT_STATUS_CHECKED_IN,
       true
     );
@@ -663,37 +663,6 @@ Given(
 // ---------------------------------------------------------------------------
 
 /**
- * 実験管理者ユーザーでログインする
- *
- * @param email - ログインするユーザーのメールアドレス
- */
-When('実験管理者ユーザー {string} でログインする', async ({ page }, email: string) => {
-  console.log(`[4-10 When] ログイン: email=${email}`);
-
-  await page.goto(`/?orgId=${ORG_ID}`);
-  await page.waitForLoadState('networkidle');
-
-  // メールアドレス入力
-  const emailInput = page
-    .locator('input[type="email"], input[name="email"], input[placeholder*="メール"], input[placeholder*="ID"]')
-    .first();
-  await emailInput.waitFor({ state: 'visible', timeout: 15000 });
-  await emailInput.fill(email);
-
-  // パスワード入力
-  const passwordInput = page.locator('input[type="password"]').first();
-  await passwordInput.fill(ADMIN_PASSWORD);
-
-  // ログインボタンクリック
-  const loginBtn = page.locator('button[type="submit"], button:has-text("ログイン")').first();
-  await loginBtn.click();
-
-  // ログイン完了を待機
-  await page.waitForLoadState('networkidle', { timeout: 15000 });
-  await page.waitForTimeout(500);
-});
-
-/**
  * プロジェクト管理タブが表示されている
  * ※ ログイン後に自動遷移する画面を確認する
  */
@@ -776,12 +745,6 @@ When('テスト用プロジェクト {string} を選択する', async ({ page },
  */
 When('ファイル操作ツールバーの「公開する」ボタンをクリックする', async ({ page }) => {
   console.log('[4-10 When] ファイル操作ツールバーの「公開する」ボタンをクリック');
-
-  const publishBtn = page.locator('[data-testid="maiml-toolbar-publish-button"]').first();
-  const publishBtnByText = page
-    .locator('button')
-    .filter({ hasText: /^公開する$/ })
-    .first();
 
   // 優先: data-testid="maiml-publish-button"
   const publishBtn = page.locator('[data-testid="maiml-publish-button"]').first();
@@ -924,6 +887,13 @@ When('ファイル一覧のMAIMLファイル行の「公開済み」ボタンを
   await target.click();
   await page.waitForTimeout(500);
 });
+
+/**
+ * ファイル操作ツールバーの「非公開にする」ボタンをクリックする
+ * FileOperationToolbar: data-testid="maiml-toolbar-unpublish-button"
+ */
+When('ファイル操作ツールバーの「非公開にする」ボタンをクリックする', async ({ page }) => {
+  console.log('[4-10 When] ファイル操作ツールバーの「非公開にする」ボタンをクリック');
 
   const unpublishBtn = page.locator('[data-testid="maiml-toolbar-unpublish-button"]').first();
   const unpublishBtnByText = page
@@ -1183,13 +1153,13 @@ Then('ファイル操作ツールバーに「非公開にする」ボタンが�
   await expect(target).toBeVisible({ timeout: 10000 });
 });
 
-
+/**
  * ファイル一覧のMAIMLファイル行に「公開済み」ボタンが表示されること（4-10-3）
  * data-testid="maiml-published-button" が存在しない場合は、
  * テキスト「公開済」「公開中」を含むボタンで代替する（ヘッダー含む）
  */
-Then('「非公開にする」ボタンが活性状態であること', async ({ page }) => {
-  console.log('[4-10 Then] 「非公開にする」ボタンが活性状態であることを確認');
+Then('ファイル一覧のMAIMLファイル行に「公開済み」ボタンが表示されること', async ({ page }) => {
+  console.log('[4-10 Then] ファイル一覧の「公開済み」ボタンの表示を確認');
 
   // 優先1: data-testid="maiml-published-button"
   const publishedBtn = page.locator('[data-testid="maiml-published-button"]').first();
@@ -1251,6 +1221,16 @@ Then('「公開済み」ボタンが非活性（disabled）であること', asy
 
   const target = hasTestId ? publishedBtn : publishedBtnByText;
   await expect(target).toBeDisabled({ timeout: 10000 });
+});
+
+/**
+ * 「非公開にする」ボタンが活性状態であること（4-10-3）
+ */
+Then('「非公開にする」ボタンが活性状態であること', async ({ page }) => {
+  console.log('[4-10 Then] 「非公開にする」ボタンが活性状態であることを確認');
+
+  const unpublishBtn = page.locator('[data-testid="maiml-toolbar-unpublish-button"]').first();
+  const unpublishBtnByText = page
     .locator('button')
     .filter({ hasText: /^非公開にする$/ })
     .first();
@@ -1449,19 +1429,20 @@ Then('ファイル操作ツールバーにエラーメッセージが表示さ�
     .filter({ hasText: /^公[\s\u3000]*開$/ })
     .first();
 
-  const hasTestId = await publishBtn.isVisible({ timeout: 3000 }).catch(() => false);
-  const target = hasTestId ? publishBtn : publishBtnByText;
+  const hasPublishTestId = await publishBtn.isVisible({ timeout: 3000 }).catch(() => false);
+  const publishTarget = hasPublishTestId ? publishBtn : publishBtnByText;
 
-  await expect(target).toBeVisible({ timeout: 10000 });
+  await expect(publishTarget).toBeVisible({ timeout: 10000 });
+
   const errorMsg = page.locator('[data-testid="maiml-toolbar-error-message"]').first();
   const errorMsgFallback = page
     .locator('.ant-alert-error, .ant-message-error')
     .first();
 
-  const hasTestId = await errorMsg.isVisible({ timeout: 10000 }).catch(() => false);
-  const target = hasTestId ? errorMsg : errorMsgFallback;
+  const hasErrorTestId = await errorMsg.isVisible({ timeout: 10000 }).catch(() => false);
+  const errorTarget = hasErrorTestId ? errorMsg : errorMsgFallback;
 
-  await expect(target).toBeVisible({ timeout: 15000 });
+  await expect(errorTarget).toBeVisible({ timeout: 15000 });
 });
 
 /**
@@ -1469,8 +1450,8 @@ Then('ファイル操作ツールバーにエラーメッセージが表示さ�
  * エラー終了後にボタンが操作可能な状態に復帰することを確認する
  * FileOperationToolbar: data-testid="maiml-toolbar-publish-button"
  */
-Then('ファイル操作ツールバーのボタンが「公開する」（青・活性）の状態に戻ること', async ({ page }) => {
-  console.log('[4-10 Then] ファイル操作ツールバーの「公開する」ボタン（青・活性）への復元を確認');
+Then('ファイル操作ツールバーのボタンが「公開」（青・活性）の状態に戻ること', async ({ page }) => {
+  console.log('[4-10 Then] ファイル操作ツールバーの「公開」ボタン（青・活性）への復元を確認');
 
   const publishBtn = page.locator('[data-testid="maiml-toolbar-publish-button"]').first();
   const publishBtnByText = page
@@ -1482,6 +1463,203 @@ Then('ファイル操作ツールバーのボタンが「公開する」（青�
   const target = hasTestId ? publishBtn : publishBtnByText;
 
   await expect(target).toBeVisible({ timeout: 15000 });
+});
+
+// ===========================================================================
+// 追加ステップ定義（feature ファイルとのテキスト差分を吸収するエイリアス）
+// ===========================================================================
+
+/**
+ * ファイル操作ツールバーの「公開」ボタンをクリックする
+ * feature: 「公開」ボタン → ts 側の「公開する」ボタン実装を流用
+ */
+When('ファイル操作ツールバーの「公開」ボタンをクリックする', async ({ page }) => {
+  console.log('[4-10 When] ファイル操作ツールバーの「公開」ボタンをクリック');
+
+  const publishBtn = page.locator('[data-testid="maiml-toolbar-publish-button"]').first();
+  const publishBtnByText = page
+    .locator('button')
+    .filter({ hasText: /^公開$|^公開する$|^公[\s\u3000]*開$/ })
+    .first();
+
+  const hasTestId = await publishBtn.isVisible({ timeout: 3000 }).catch(() => false);
+  const targetBtn = hasTestId ? publishBtn : publishBtnByText;
+
+  await targetBtn.waitFor({ state: 'visible', timeout: 10000 });
+
+  const dialogPromise = page.waitForSelector(
+    '[data-testid="maiml-publish-dialog"], .ant-modal:has(.ant-modal-title)',
+    { state: 'visible', timeout: 10000 }
+  ).catch(() => {});
+
+  await targetBtn.click();
+  await dialogPromise;
+  await page.waitForTimeout(300);
+});
+
+/**
+ * ファイル操作ツールバーの「非公開」ボタンをクリックする
+ * feature: 「非公開」ボタン → ts 側の「非公開にする」ボタン実装を流用
+ */
+When('ファイル操作ツールバーの「非公開」ボタンをクリックする', async ({ page }) => {
+  console.log('[4-10 When] ファイル操作ツールバーの「非公開」ボタンをクリック');
+
+  const unpublishBtn = page.locator('[data-testid="maiml-toolbar-unpublish-button"]').first();
+  const unpublishBtnByText = page
+    .locator('button')
+    .filter({ hasText: /^非公開$|^非公開にする$/ })
+    .first();
+
+  const hasTestId = await unpublishBtn.isVisible({ timeout: 3000 }).catch(() => false);
+  const targetBtn = hasTestId ? unpublishBtn : unpublishBtnByText;
+
+  await targetBtn.waitFor({ state: 'visible', timeout: 10000 });
+
+  const dialogPromise = page.waitForSelector(
+    '[data-testid="maiml-unpublish-dialog"]',
+    { state: 'visible', timeout: 10000 }
+  ).catch(() => {});
+
+  await targetBtn.click();
+  await dialogPromise;
+  await page.waitForTimeout(300);
+});
+
+/**
+ * ポーリングによってジョブステータスが {string} になるとファイル操作ツールバーのボタンが「非公開」（赤・活性）に切り替わること
+ * feature: 「非公開」（赤・活性） → ts 側の「非公開にする」実装を流用
+ *
+ * @param _status - ジョブステータス文字列（例: "done"）
+ */
+Then(
+  'ポーリングによってジョブステータスが {string} になるとファイル操作ツールバーのボタンが「非公開」（赤・活性）に切り替わること',
+  async ({ page }, _status: string) => {
+    console.log(`[4-10 Then] ポーリング完了(${_status})後「非公開」ボタンへの切り替わりを確認`);
+
+    const unpublishBtn = page.locator('[data-testid="maiml-toolbar-unpublish-button"]').first();
+    const unpublishBtnByText = page
+      .locator('button')
+      .filter({ hasText: /^非公開$|^非公開にする$/ })
+      .first();
+
+    const hasTestId = await unpublishBtn.isVisible({ timeout: 30000 }).catch(() => false);
+    const target = hasTestId ? unpublishBtn : unpublishBtnByText;
+
+    await expect(target).toBeVisible({ timeout: 30000 });
+    await expect(target).toBeEnabled({ timeout: 10000 });
+  }
+);
+
+/**
+ * ファイル操作ツールバーに「非公開」ボタンが表示されること
+ * feature: 「非公開」ボタン → ts 側の「非公開にする」ボタン確認実装を流用
+ */
+Then('ファイル操作ツールバーに「非公開」ボタンが表示されること', async ({ page }) => {
+  console.log('[4-10 Then] ファイル操作ツールバーの「非公開」ボタンの表示を確認');
+
+  const unpublishBtn = page.locator('[data-testid="maiml-toolbar-unpublish-button"]').first();
+  const unpublishBtnByText = page
+    .locator('button')
+    .filter({ hasText: /^非公開$|^非公開にする$/ })
+    .first();
+
+  const hasTestId = await unpublishBtn.isVisible({ timeout: 5000 }).catch(() => false);
+  const target = hasTestId ? unpublishBtn : unpublishBtnByText;
+
+  await expect(target).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * 「非公開」ボタンが活性状態であること
+ * feature: 「非公開」ボタン → ts 側の「非公開にする」enabled 確認を流用
+ */
+Then('「非公開」ボタンが活性状態であること', async ({ page }) => {
+  console.log('[4-10 Then] 「非公開」ボタンが活性状態であることを確認');
+
+  const unpublishBtn = page.locator('[data-testid="maiml-toolbar-unpublish-button"]').first();
+  const unpublishBtnByText = page
+    .locator('button')
+    .filter({ hasText: /^非公開$|^非公開にする$/ })
+    .first();
+
+  const hasTestId = await unpublishBtn.isVisible({ timeout: 3000 }).catch(() => false);
+  const target = hasTestId ? unpublishBtn : unpublishBtnByText;
+
+  await expect(target).toBeEnabled({ timeout: 10000 });
+});
+
+/**
+ * ポーリングによってジョブステータスが {string} になるとファイル操作ツールバーのボタンが「公開」（青・活性）に戻ること
+ * feature: 「公開」（青・活性） → ts 側の「公開する」実装を流用
+ *
+ * @param _status - ジョブステータス文字列（例: "done"）
+ */
+Then(
+  'ポーリングによってジョブステータスが {string} になるとファイル操作ツールバーのボタンが「公開」（青・活性）に戻ること',
+  async ({ page }, _status: string) => {
+    console.log(`[4-10 Then] ポーリング完了(${_status})後「公開」ボタンへの切り替わりを確認`);
+
+    const publishBtn = page.locator('[data-testid="maiml-toolbar-publish-button"]').first();
+    const publishBtnByText = page
+      .locator('button')
+      .filter({ hasText: /^公開$|^公開する$/ })
+      .first();
+
+    const hasTestId = await publishBtn.isVisible({ timeout: 30000 }).catch(() => false);
+    const target = hasTestId ? publishBtn : publishBtnByText;
+
+    await expect(target).toBeVisible({ timeout: 30000 });
+    await expect(target).toBeEnabled({ timeout: 10000 });
+  }
+);
+
+/**
+ * テスト用プロジェクトが非公開状態（maiml_publish_jobテーブルに未完了の公開レコードが存在しない）から開始する
+ * → Before @4-10-8 フックで maiml_publish_job レコードなしの状態を準備済みのため no-op
+ */
+Given(
+  'テスト用プロジェクトが非公開状態（maiml_publish_jobテーブルに未完了の公開レコードが存在しない）から開始する',
+  async ({}) => {
+    console.log('[4-10 Given] 非公開状態前提: Before @4-10-8 フックで maiml_publish_job レコードなし状態を準備済み');
+  }
+);
+
+/**
+ * ファイル操作ツールバーに「公開する」ボタンが表示されること（4-10-9）
+ * FileOperationToolbar: data-testid="maiml-toolbar-publish-button"
+ */
+Then('ファイル操作ツールバーに「公開」ボタンが表示されること', async ({ page }) => {
+  console.log('[4-10 Then] ファイル操作ツールバーの「公開」ボタンの表示を確認');
+
+  const publishBtn = page.locator('[data-testid="maiml-toolbar-publish-button"]').first();
+  const publishBtnByText = page
+    .locator('button')
+    .filter({ hasText: /^公開$|^公開する$/ })
+    .first();
+
+  const hasTestId = await publishBtn.isVisible({ timeout: 5000 }).catch(() => false);
+  const target = hasTestId ? publishBtn : publishBtnByText;
+
+  await expect(target).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * 「公開する」ボタンが活性状態であること（4-10-9）
+ * FileOperationToolbar: data-testid="maiml-toolbar-publish-button"
+ */
+Then('「公開」ボタンが活性状態であること', async ({ page }) => {
+  console.log('[4-10 Then] 「公開」ボタンが活性状態であることを確認');
+
+  const publishBtn = page.locator('[data-testid="maiml-toolbar-publish-button"]').first();
+  const publishBtnByText = page
+    .locator('button')
+    .filter({ hasText: /^公開$|^公開する$/ })
+    .first();
+
+  const hasTestId = await publishBtn.isVisible({ timeout: 3000 }).catch(() => false);
+  const target = hasTestId ? publishBtn : publishBtnByText;
+
+  await expect(target).toBeEnabled({ timeout: 10000 });
 });
 
 // ===========================================================================

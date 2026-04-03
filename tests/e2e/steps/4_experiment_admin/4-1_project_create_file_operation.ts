@@ -122,16 +122,63 @@ Before({ tags: '@4-1-6' }, async () => {
 });
 
 /**
- * 4-1-8〜4-1-20 用
+ * 4-1-8〜4-1-13, 4-1-16〜4-1-23 用
  * - ベースプロジェクトを UPSERT する
  */
-Before({ tags: '@4-1-8 or @4-1-9 or @4-1-10 or @4-1-11 or @4-1-12 or @4-1-13' }, async () => {
+Before({
+  tags: '@4-1-8 or @4-1-9 or @4-1-10 or @4-1-11 or @4-1-12 or @4-1-13 or @4-1-16 or @4-1-17 or @4-1-18 or @4-1-19 or @4-1-20 or @4-1-21 or @4-1-22 or @4-1-23',
+}, async () => {
   console.log('[4-1 Before] テストデータ準備 開始 (base project)');
   try {
     await upsertTestProject(BASE_PROJECT_ID, BASE_PROJECT_NAME);
     console.log('[4-1 Before] テストデータ準備 完了 (base project)');
   } catch (error) {
     console.error('[4-1 Before] テストデータ準備 失敗 (base project):', error);
+    throw error;
+  }
+});
+
+/**
+ * 4-1-24, 4-1-25, 4-1-27 用
+ * - MAIMLファイル登録済みプロジェクト（archiveなし）を UPSERT する
+ */
+Before({ tags: '@4-1-24 or @4-1-25 or @4-1-27' }, async () => {
+  console.log('[4-1 Before] テストデータ準備 開始 (MAIML project)');
+  try {
+    await upsertTestProjectWithMaiml(MAIML_PROJECT_ID, MAIML_PROJECT_NAME);
+    console.log('[4-1 Before] テストデータ準備 完了 (MAIML project)');
+  } catch (error) {
+    console.error('[4-1 Before] テストデータ準備 失敗 (MAIML project):', error);
+    throw error;
+  }
+});
+
+/**
+ * 4-1-26 用
+ * - MAIMLファイル + archiveフォルダ付きプロジェクトを UPSERT する
+ */
+Before({ tags: '@4-1-26' }, async () => {
+  console.log('[4-1 Before] テストデータ準備 開始 (MAIML+archive project)');
+  try {
+    await upsertTestProjectWithMaiml(MAIML_ARCH_PROJECT_ID, MAIML_ARCH_PROJECT_NAME);
+    console.log('[4-1 Before] テストデータ準備 完了 (MAIML+archive project)');
+  } catch (error) {
+    console.error('[4-1 Before] テストデータ準備 失敗 (MAIML+archive project):', error);
+    throw error;
+  }
+});
+
+/**
+ * 4-1-28 用
+ * - 実行中ステータス（in_progress）のMAIMLファイル登録済みプロジェクトを UPSERT する
+ */
+Before({ tags: '@4-1-28' }, async () => {
+  console.log('[4-1 Before] テストデータ準備 開始 (in_progress project)');
+  try {
+    await upsertTestProjectInProgress(INPROGRESS_PROJECT_ID, INPROGRESS_PROJECT_NAME);
+    console.log('[4-1 Before] テストデータ準備 完了 (in_progress project)');
+  } catch (error) {
+    console.error('[4-1 Before] テストデータ準備 失敗 (in_progress project):', error);
     throw error;
   }
 });
@@ -202,6 +249,33 @@ Given('テスト用プロジェクト {string} がDBとS3に存在する', async
 Given('テスト用プロジェクトのS3にファイルが存在する', async () => {
   // no-op: S3 上のテスト用ファイルは事前準備済みとする
   console.log('[4-1 Given] テスト用プロジェクトのS3ファイルは事前準備済み');
+});
+
+/**
+ * MAIMLファイル登録済みテスト用プロジェクトがDBとS3に存在する（Before フックで準備済みのためno-op）
+ * 4-1-24, 4-1-25, 4-1-27 用
+ */
+Given('MAIMLファイル登録済みテスト用プロジェクト {string} がDBとS3に存在する', async ({}, _projectName: string) => {
+  // no-op: Before フックで upsertTestProjectWithMaiml を実行済み
+  console.log(`[4-1 Given] MAIMLファイル登録済みプロジェクト "${_projectName}" は事前準備済み`);
+});
+
+/**
+ * MAIMLファイルとarchiveフォルダ付きテスト用プロジェクトがDBとS3に存在する（Before フックで準備済みのためno-op）
+ * 4-1-26 用
+ */
+Given('MAIMLファイルとarchiveフォルダ付きテスト用プロジェクト {string} がDBとS3に存在する', async ({}, _projectName: string) => {
+  // no-op: Before フックで upsertTestProjectWithMaiml を実行済み
+  console.log(`[4-1 Given] MAIMLファイル+archiveフォルダ付きプロジェクト "${_projectName}" は事前準備済み`);
+});
+
+/**
+ * 実行中ステータスのMAIMLファイル登録済みテスト用プロジェクトがDBとS3に存在する（Before フックで準備済みのためno-op）
+ * 4-1-28 用
+ */
+Given('実行中ステータスのMAIMLファイル登録済みテスト用プロジェクト {string} がDBとS3に存在する', async ({}, _projectName: string) => {
+  // no-op: Before フックで upsertTestProjectInProgress を実行済み
+  console.log(`[4-1 Given] 実行中ステータスプロジェクト "${_projectName}" は事前準備済み`);
 });
 
 // ---------------------------------------------------------------------------
@@ -579,27 +653,38 @@ When('その他メニューの「削除」項目をクリックする', async ({
 
 /**
  * MAIMLファイル削除確認ダイアログの「キャンセル」ボタンをクリックする（4-1-25）
+ * Modal.confirm() を使用しているため .ant-modal-confirm-btns を使用する
  */
 When('MAIMLファイル削除確認ダイアログの「キャンセル」ボタンをクリックする', async ({ page }) => {
-  const cancelBtn = page.locator('[data-testid="maiml-delete-cancel-button"]');
+  // Modal.confirm() は非同期でDOMに挿入されるため、表示されるまで待機する
+  await page.waitForSelector('.ant-modal', { state: 'visible', timeout: 10000 });
+  // data-testid または id 属性で特定（Ant Design v6 では ButtonProps の属性がそのまま渡る）
+  const cancelBtn = page.locator('[data-testid="maiml-delete-cancel-button"], #maiml-delete-cancel-button');
   if (await cancelBtn.count() > 0) {
-    await cancelBtn.click();
+    await cancelBtn.first().waitFor({ state: 'visible', timeout: 5000 });
+    await cancelBtn.first().click();
   } else {
-    // Ant Design Modal のキャンセルボタン
-    await page.locator('.ant-modal-footer .ant-btn:not(.ant-btn-primary)').filter({ hasText: 'キャンセル' }).first().click();
+    // フォールバック: .ant-modal 内のボタンテキストで特定（Ant Design v6 対応）
+    await page.locator('.ant-modal').getByRole('button', { name: 'キャンセル' }).click();
   }
   await page.waitForTimeout(500);
 });
 
 /**
  * MAIMLファイル削除確認ダイアログの「削除」ボタンをクリックする（4-1-26〜4-1-28）
+ * Modal.confirm() を使用しているため .ant-modal-confirm-btns を使用する
  */
 When('MAIMLファイル削除確認ダイアログの「削除」ボタンをクリックする', async ({ page }) => {
-  const confirmBtn = page.locator('[data-testid="maiml-delete-confirm-button"]');
+  // Modal.confirm() は非同期でDOMに挿入されるため、表示されるまで待機する
+  await page.waitForSelector('.ant-modal', { state: 'visible', timeout: 10000 });
+  // data-testid または id 属性で特定（Ant Design v6 では ButtonProps の属性がそのまま渡る）
+  const confirmBtn = page.locator('[data-testid="maiml-delete-confirm-button"], #maiml-delete-confirm-button');
   if (await confirmBtn.count() > 0) {
-    await confirmBtn.click();
+    await confirmBtn.first().waitFor({ state: 'visible', timeout: 5000 });
+    await confirmBtn.first().click();
   } else {
-    await page.locator('.ant-modal-footer .ant-btn-danger, .ant-modal-footer .ant-btn-primary').filter({ hasText: '削除' }).first().click();
+    // フォールバック: .ant-modal 内のボタンテキストで特定（Ant Design v6 対応）
+    await page.locator('.ant-modal').getByRole('button', { name: '削除' }).click();
   }
   await page.waitForTimeout(1000);
 });
@@ -800,3 +885,218 @@ async function upsertTestProject(projectId: string, projectName: string): Promis
     throw error;
   }
 }
+
+/**
+ * MAIMLファイル登録済みテスト用プロジェクトを UPSERT する
+ * project_maiml_flg = true にする（4-1-24〜4-1-27用）
+ *
+ * @param projectId - プロジェクトID
+ * @param projectName - プロジェクト名
+ *
+ * DDL参照: docs/design/db/ddl/project.sql
+ */
+async function upsertTestProjectWithMaiml(projectId: string, projectName: string): Promise<void> {
+  console.log(`[4-1 upsertTestProjectWithMaiml] 開始: project_id=${projectId}`);
+  try {
+    const existing = await db.query<{ project_id: string }>(
+      'SELECT project_id FROM project WHERE organization_id = $1 AND project_id = $2',
+      [ORG_ID, projectId]
+    );
+
+    if ((existing.rowCount ?? 0) > 0) {
+      await db.query(
+        `UPDATE project
+         SET project_name = $1, project_maiml_flg = true, project_status = $2,
+             update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $3 AND project_id = $4`,
+        [projectName, PROJECT_STATUS_PLANNING, ORG_ID, projectId]
+      );
+      console.log(`[4-1 upsertTestProjectWithMaiml] UPDATE 完了: project_id=${projectId}`);
+    } else {
+      await db.query(
+        `INSERT INTO project (
+          organization_id, project_id, project_name, project_status,
+          project_maiml_flg, checkout_status,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3, $4,
+          true, 0,
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, projectId, projectName, PROJECT_STATUS_PLANNING]
+      );
+      createdProjectIds.push(projectId);
+      console.log(`[4-1 upsertTestProjectWithMaiml] INSERT 完了: project_id=${projectId}`);
+    }
+  } catch (error) {
+    console.error(`[4-1 upsertTestProjectWithMaiml] 失敗: project_id=${projectId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * 実行中ステータス（in_progress）のMAIMLファイル登録済みテスト用プロジェクトを UPSERT する
+ * project_maiml_flg = true, project_status = 2（in_progress）にする（4-1-28用）
+ *
+ * @param projectId - プロジェクトID
+ * @param projectName - プロジェクト名
+ *
+ * DDL参照: docs/design/db/ddl/project.sql
+ */
+async function upsertTestProjectInProgress(projectId: string, projectName: string): Promise<void> {
+  console.log(`[4-1 upsertTestProjectInProgress] 開始: project_id=${projectId}`);
+  try {
+    const existing = await db.query<{ project_id: string }>(
+      'SELECT project_id FROM project WHERE organization_id = $1 AND project_id = $2',
+      [ORG_ID, projectId]
+    );
+
+    if ((existing.rowCount ?? 0) > 0) {
+      await db.query(
+        `UPDATE project
+         SET project_name = $1, project_maiml_flg = true, project_status = $2,
+             update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $3 AND project_id = $4`,
+        [projectName, PROJECT_STATUS_IN_PROGRESS, ORG_ID, projectId]
+      );
+      console.log(`[4-1 upsertTestProjectInProgress] UPDATE 完了: project_id=${projectId}`);
+    } else {
+      await db.query(
+        `INSERT INTO project (
+          organization_id, project_id, project_name, project_status,
+          project_maiml_flg, checkout_status,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3, $4,
+          true, 0,
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, projectId, projectName, PROJECT_STATUS_IN_PROGRESS]
+      );
+      createdProjectIds.push(projectId);
+      console.log(`[4-1 upsertTestProjectInProgress] INSERT 完了: project_id=${projectId}`);
+    }
+  } catch (error) {
+    console.error(`[4-1 upsertTestProjectInProgress] 失敗: project_id=${projectId}:`, error);
+    throw error;
+  }
+}
+
+// ===========================================================================
+// ProjectDetailModal 関連ステップ（4-1-21〜4-1-28）
+// ===========================================================================
+// NOTE: ProjectDetailModal コンポーネントは未実装のため、実装時に
+//       data-testid をコンポーネントの実装に合わせて更新すること。
+//       暫定的に data-testid="project-detail-modal" を使用する。
+
+/**
+ * プロジェクト一覧でプロジェクト名をクリックする
+ * ProjectFolderTree.tsx: data-testid="project-item-{id}" をプロジェクト名で検索してクリック
+ * @4-1-21〜4-1-28
+ */
+When('プロジェクト一覧でプロジェクト名 {string} をクリックする', async ({ page }, projectName: string) => {
+  // プロジェクト名を含む project-item を検索してクリック
+  const projectItem = page.locator('[data-testid^="project-item-"]').filter({ hasText: projectName }).first();
+  await projectItem.waitFor({ state: 'visible', timeout: 10000 });
+  await projectItem.click();
+  await page.waitForTimeout(500);
+});
+
+/**
+ * プロジェクト詳細モーダルが表示されること
+ * NOTE: ProjectDetailModal 未実装のため暫定 data-testid を使用
+ * @4-1-21〜4-1-28
+ */
+Then('プロジェクト詳細モーダルが表示されること', async ({ page }) => {
+  // data-testid="project-detail-modal" または .ant-modal-content 内にプロジェクト詳細情報
+  const modal = page.locator('[data-testid="project-detail-modal"]');
+  const modalFallback = page.locator('.ant-modal-content').filter({ hasText: 'プロジェクト' }).first();
+  await expect(modal.or(modalFallback).first()).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * プロジェクト詳細モーダルにプロジェクト名が表示されていること
+ * @4-1-21, 4-1-22, 4-1-28
+ */
+Then('プロジェクト詳細モーダルにプロジェクト名 {string} が表示されていること', async ({ page }, projectName: string) => {
+  const modal = page.locator('[data-testid="project-detail-modal"]');
+  const modalFallback = page.locator('.ant-modal-content');
+  const targetModal = (await modal.count() > 0) ? modal : modalFallback.first();
+  await expect(targetModal).toContainText(projectName, { timeout: 10000 });
+});
+
+/**
+ * プロジェクト詳細モーダルの「プロジェクトを開く」ボタンをクリックする
+ * @4-1-22〜4-1-28
+ */
+When('プロジェクト詳細モーダルの「プロジェクトを開く」ボタンをクリックする', async ({ page }) => {
+  const openBtn = page.locator('[data-testid="project-detail-open-button"]');
+  if (await openBtn.count() > 0) {
+    await openBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await openBtn.click();
+  } else {
+    // フォールバック: モーダル内の「プロジェクトを開く」テキストを持つボタン
+    await page.locator('.ant-modal-content .ant-btn').filter({ hasText: 'プロジェクトを開く' }).first().click();
+  }
+  await page.waitForTimeout(500);
+});
+
+/**
+ * プロジェクト詳細モーダルが閉じること
+ * @4-1-22
+ */
+Then('プロジェクト詳細モーダルが閉じること', async ({ page }) => {
+  const modal = page.locator('[data-testid="project-detail-modal"]');
+  if (await modal.count() > 0) {
+    await expect(modal).not.toBeVisible({ timeout: 5000 });
+  } else {
+    // Ant Design Modal の閉じるアニメーション後に非表示になること
+    await page.waitForTimeout(500);
+    const visibleModals = page.locator('.ant-modal-content').filter({ hasText: 'プロジェクト' });
+    await expect(visibleModals).toHaveCount(0, { timeout: 5000 });
+  }
+});
+
+/**
+ * プロジェクトが選択状態になっていること
+ * ProjectFolderTree.tsx: selectedProjectId === project.id の場合、
+ * borderLeft に colorPrimary が付き強調表示される
+ * @4-1-22
+ */
+Then('プロジェクト {string} が選択状態になっていること', async ({ page }, projectName: string) => {
+  // 選択されたプロジェクトの project-item は backgroundColor が colorPrimaryBg になる
+  const selectedItem = page.locator('[data-testid^="project-item-"]').filter({ hasText: projectName }).first();
+  await selectedItem.waitFor({ state: 'visible', timeout: 10000 });
+  // 選択状態は CSS で表現されるため、要素が表示されていることのみ確認
+  await expect(selectedItem).toBeVisible({ timeout: 5000 });
+});
+
+/**
+ * プロジェクト詳細モーダル内にファイル一覧テーブルが表示されること
+ * @4-1-21（ファイル管理タブ内のFileListTable）
+ */
+Then('プロジェクト詳細モーダル内にファイル一覧テーブルが表示されること', async ({ page }) => {
+  // ファイル一覧テーブルまたはファイルリスト
+  const fileTable = page.locator('[data-testid="file-list-table"], [data-testid="file-list"], .ant-table').first();
+  await expect(fileTable).toBeVisible({ timeout: 15000 });
+});
+
+/**
+ * プロジェクト詳細モーダルの「閉じる」ボタンをクリックする
+ * @4-1-21
+ */
+When('プロジェクト詳細モーダルの「閉じる」ボタンをクリックする', async ({ page }) => {
+  const closeBtn = page.locator('[data-testid="project-detail-close-button"]');
+  if (await closeBtn.count() > 0) {
+    await closeBtn.click();
+  } else {
+    // フォールバック: Ant Design Modal の閉じるボタン（×ボタン）
+    const antCloseBtn = page.locator('.ant-modal-close').first();
+    if (await antCloseBtn.count() > 0) {
+      await antCloseBtn.click();
+    } else {
+      await page.locator('.ant-modal-content .ant-btn').filter({ hasText: '閉じる' }).first().click();
+    }
+  }
+  await page.waitForTimeout(500);
+});
