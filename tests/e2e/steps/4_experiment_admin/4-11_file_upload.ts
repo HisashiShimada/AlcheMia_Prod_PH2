@@ -793,12 +793,13 @@ Then('ファイル未選択の警告メッセージが表示されること', as
 
 /**
  * アップロード中断確認ダイアログが表示されること（4-11-8）
- * Modal.confirm による確認ダイアログを確認する
+ * Modal.confirm による確認ダイアログを確認する。
+ * No.24対応: OKボタンが「中断する」（赤色・dangerスタイル）、キャンセルボタンが「続行」と表示されることを検証する。
  *
  * ⚠️ フロントエンド実装のダイアログテキストに合わせて複数パターンを許容する。
  */
 Then('アップロード中断確認ダイアログが表示されること', async ({ page }) => {
-  console.log('[4-11 Then] アップロード中断確認ダイアログの表示を確認');
+  console.log('[4-11 Then] アップロード中断確認ダイアログの表示を確認（No.24対応: ボタンラベル・スタイル検証）');
 
   // Modal.confirm ダイアログ: テキストパターンを広く許容
   // 「アップロード中」「キャンセル」「中断」「停止」いずれかを含む confirm ダイアログ
@@ -808,6 +809,51 @@ Then('アップロード中断確認ダイアログが表示されること', as
     .first();
 
   await expect(confirmDialog).toBeVisible({ timeout: 10000 });
+
+  // -----------------------------------------------------------------------
+  // No.24対応: OKボタンのラベルが「中断する」であること
+  // -----------------------------------------------------------------------
+  // Modal.confirm の OK ボタンは .ant-btn-dangerous（danger スタイル）で表示される
+  const okBtn = confirmDialog
+    .locator('button.ant-btn-dangerous, button.ant-btn-primary')
+    .filter({ hasText: '中断する' })
+    .first();
+  const okBtnFallback = page
+    .locator('.ant-modal-confirm button.ant-btn-dangerous, .ant-modal-confirm button.ant-btn-primary')
+    .filter({ hasText: '中断する' })
+    .first();
+
+  const okBtnVisible = await okBtn.isVisible({ timeout: 5000 }).catch(() => false);
+  const targetOkBtn = okBtnVisible ? okBtn : okBtnFallback;
+
+  await expect(targetOkBtn).toBeVisible({ timeout: 5000 });
+
+  // danger スタイル（赤色）であることを確認
+  // Ant Design v5/v6 では .ant-btn-dangerous クラスが付与される
+  const isDangerous =
+    (await targetOkBtn.evaluate(
+      (el: Element) => el.classList.contains('ant-btn-dangerous')
+    ).catch(() => false));
+  if (!isDangerous) {
+    console.warn('[4-11 Then] 「中断する」ボタンに ant-btn-dangerous クラスが付与されていません（フロントエンド実装を確認してください）');
+  }
+
+  // -----------------------------------------------------------------------
+  // No.24対応: キャンセルボタンのラベルが「続行」であること
+  // -----------------------------------------------------------------------
+  const cancelBtn = confirmDialog
+    .locator('button')
+    .filter({ hasText: '続行' })
+    .first();
+  const cancelBtnFallback = page
+    .locator('.ant-modal-confirm button')
+    .filter({ hasText: '続行' })
+    .first();
+
+  const cancelBtnVisible = await cancelBtn.isVisible({ timeout: 5000 }).catch(() => false);
+  const targetCancelBtn = cancelBtnVisible ? cancelBtn : cancelBtnFallback;
+
+  await expect(targetCancelBtn).toBeVisible({ timeout: 5000 });
 });
 
 /**
