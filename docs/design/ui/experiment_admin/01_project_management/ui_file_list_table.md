@@ -63,10 +63,10 @@
 - フォーマット: `formatRelativeTime()`（相対時刻表示）
 
 **5. 操作（actions）**
-- 幅: 220px
+- 幅: 280px
 - 中央揃え
 - フォルダの場合: 非表示
-- ファイルの場合: ダウンロードボタン + ビューアボタン
+- ファイルの場合: その他メニューボタン（Dropdown） + ダウンロードボタン + ビューアボタン
 
 #### 2.2.2 ファイルタイプアイコン
 
@@ -81,6 +81,17 @@
 | その他 | FileOutlined | グレー（`token.colorTextSecondary`） |
 
 #### 2.2.3 操作ボタン
+
+**その他メニューボタン（Dropdown）:**
+- アイコン: MoreOutlined
+- サイズ: small
+- タイプ: default
+- トリガー: click
+- 配置: bottomRight
+- メニュー項目:
+  1. **名前の変更**（EditOutlined）: 未実装（`message.info('名前の変更機能は未実装です')`）
+  2. セパレーター（divider）
+  3. **削除**（DeleteOutlined, danger）: `onDeleteFile?.(record)` を呼び出し
 
 **ダウンロードボタン:**
 - アイコン: DownloadOutlined
@@ -290,6 +301,8 @@ interface FileListTableProps {
   onFolderClick?: (folderId: string) => void;
   /** ビューアボタンクリック時のコールバック */
   onViewFile?: (file: ProjectFile) => void;
+  /** ファイル削除ボタンクリック時のコールバック */
+  onDeleteFile?: (file: ProjectFile) => void;
 }
 ```
 
@@ -301,6 +314,7 @@ interface FileListTableProps {
 | onFileClick | `(file: ProjectFile) => void` | - | ファイル行クリック時のコールバック（現在未使用） |
 | onFolderClick | `(folderId: string) => void` | - | フォルダクリック時のコールバック |
 | onViewFile | `(file: ProjectFile) => void` | - | ビューアボタンクリック時のコールバック |
+| onDeleteFile | `(file: ProjectFile) => void` | - | ファイル削除ボタンクリック時のコールバック |
 
 ### 4.2 State定義
 
@@ -424,8 +438,8 @@ try {
 
 ### 7.3 依存ライブラリ
 - React 18.2.0
-- Ant Design v6 (Table, Button, Tooltip, Space, Empty, message, theme)
-- @ant-design/icons (FileTextOutlined, FileOutlined, TableOutlined, FolderOpenOutlined, DownloadOutlined, EyeOutlined)
+- Ant Design v6 (Table, Button, Tooltip, Space, Empty, Dropdown, message, theme)
+- @ant-design/icons (FileTextOutlined, FileOutlined, TableOutlined, FolderOpenOutlined, DownloadOutlined, DeleteOutlined, EditOutlined, EyeOutlined, MoreOutlined)
 
 ---
 
@@ -434,6 +448,7 @@ try {
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-04-02 | サブフォルダ対応に伴い「使用場面」を更新（archive/rawdataなど任意サブフォルダ対応を明記） | Cline |
+| 2026-04-01 | PR #138対応: Props `onDeleteFile` 追加、操作カラム幅220→280px変更、Dropdownメニュー（名前変更・削除）追加 | Cline |
 | 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
 
 ---

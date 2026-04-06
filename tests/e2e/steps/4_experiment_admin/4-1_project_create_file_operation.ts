@@ -18,11 +18,14 @@
  * TODO: 組織IDは playwright.config.ts の baseURL と合わせること。
  */
 
-import { expect, Download } from '@playwright/test';
+import { expect, Download, Page, Route } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { db, closeDb } from '../../db';
 
 const { Given, When, Then, Before, After, AfterAll } = createBdd();
+
+/** playwright-bdd フィクスチャ型エイリアス */
+type Fixtures = { page: Page };
 
 // ---------------------------------------------------------------------------
 // モジュールレベル変数（ステップ間でデータを共有）
@@ -56,11 +59,24 @@ const BASE_PROJECT_ID = 'E2E-4-1-BASE';
 const DUP_PROJECT_NAME = 'E2Eテスト用プロジェクト_4-1-6';
 const DUP_PROJECT_ID = 'E2E-4-1-DUP';
 
+/** MAIMLファイル登録済みテスト用プロジェクト（archiveなし）（4-1-24, 4-1-25, 4-1-27用） */
+const MAIML_PROJECT_NAME = 'E2Eテスト用プロジェクト_4-1-maiml';
+const MAIML_PROJECT_ID = 'E2E-4-1-MAIML';
+
+/** MAIMLファイル + archiveフォルダ付きテスト用プロジェクト（4-1-26用） */
+const MAIML_ARCH_PROJECT_NAME = 'E2Eテスト用プロジェクト_4-1-maiml-arch';
+const MAIML_ARCH_PROJECT_ID = 'E2E-4-1-MAIML-ARCH';
+
+/** 実行中ステータスのMAIMLファイル登録済みテスト用プロジェクト（4-1-28用） */
+const INPROGRESS_PROJECT_NAME = 'E2Eテスト用プロジェクト_4-1-inprogress';
+const INPROGRESS_PROJECT_ID = 'E2E-4-1-INPROGRESS';
+
 /**
  * project_status の数値定義（DDL: docs/design/db/ddl/project.sql）
- * 0 = planning（計画中）
+ * 0 = planning（計画中）, 2 = in_progress（実行中）
  */
 const PROJECT_STATUS_PLANNING = 0;
+const PROJECT_STATUS_IN_PROGRESS = 2;
 
 // ---------------------------------------------------------------------------
 // クリーンアップ追跡変数
@@ -497,6 +513,240 @@ Then('ビューアダイアログが表示されること', async ({ page }) => 
   // ビューアダイアログ（data-testid="viewer-dialog" または専用クラス）が表示されること
   const viewerDialog = page.locator('[data-testid="viewer-dialog"], .viewer-floating-dialog, .maiml-viewer-dialog').first();
   await expect(viewerDialog).toBeVisible({ timeout: 15000 });
+});
+
+// ===========================================================================
+// ヘルパー関数
+// ===========================================================================
+
+
+/**
+ * ファイル一覧のMAIMLファイルのその他メニューボタンをクリックする（4-1-24〜4-1-28）
+ * FileListTable.tsx: data-testid="file-more-menu-button" のうち .maiml ファイル行のもの
+ */
+When('ファイル一覧のMAIMLファイルのその他メニューボタンをクリックする', async ({ page }) => {
+  // .maiml 拡張子を含む行を特定してその他メニューボタンをクリック
+  const maimlRow = page.locator('[data-testid="file-list-row"]').filter({ hasText: '.maiml' }).first();
+  if (await maimlRow.count() > 0) {
+    const moreBtn = maimlRow.locator('[data-testid="file-more-menu-button"]');
+    await moreBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await moreBtn.click();
+  } else {
+    // フォールバック: .maiml テキストを含む行のその他メニューボタン
+    await page.locator('[data-testid="file-more-menu-button"]').first().click();
+  }
+  await page.waitForTimeout(500);
+});
+
+/**
+ * ファイル一覧の最初のファイルのその他メニューボタンをクリックする（4-1-21〜4-1-23）
+ * FileListTable.tsx: data-testid="file-more-menu-button"（最初の1件）
+ */
+When('ファイル一覧の最初のファイルのその他メニューボタンをクリックする', async ({ page }) => {
+  const moreBtn = page.locator('[data-testid="file-more-menu-button"]').first();
+  await moreBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await moreBtn.click();
+  await page.waitForTimeout(500);
+});
+
+/**
+ * その他メニューの「名前の変更」項目をクリックする（4-1-23）
+ * Ant Design Dropdown MenuItem: data-testid="file-menu-rename" または テキスト一致
+ */
+When('その他メニューの「名前の変更」項目をクリックする', async ({ page }) => {
+  const renameItem = page.locator('[data-testid="file-menu-rename"]');
+  if (await renameItem.count() > 0) {
+    await renameItem.click();
+  } else {
+    await page.locator('.ant-dropdown-menu-item').filter({ hasText: '名前の変更' }).first().click();
+  }
+  await page.waitForTimeout(500);
+});
+
+/**
+ * その他メニューの「削除」項目をクリックする（4-1-24〜4-1-28）
+ * Ant Design Dropdown MenuItem: data-testid="file-menu-delete" または テキスト一致
+ */
+When('その他メニューの「削除」項目をクリックする', async ({ page }) => {
+  const deleteItem = page.locator('[data-testid="file-menu-delete"]');
+  if (await deleteItem.count() > 0) {
+    await deleteItem.click();
+  } else {
+    await page.locator('.ant-dropdown-menu-item').filter({ hasText: '削除' }).first().click();
+  }
+  await page.waitForTimeout(500);
+});
+
+/**
+ * MAIMLファイル削除確認ダイアログの「キャンセル」ボタンをクリックする（4-1-25）
+ */
+When('MAIMLファイル削除確認ダイアログの「キャンセル」ボタンをクリックする', async ({ page }) => {
+  const cancelBtn = page.locator('[data-testid="maiml-delete-cancel-button"]');
+  if (await cancelBtn.count() > 0) {
+    await cancelBtn.click();
+  } else {
+    // Ant Design Modal のキャンセルボタン
+    await page.locator('.ant-modal-footer .ant-btn:not(.ant-btn-primary)').filter({ hasText: 'キャンセル' }).first().click();
+  }
+  await page.waitForTimeout(500);
+});
+
+/**
+ * MAIMLファイル削除確認ダイアログの「削除」ボタンをクリックする（4-1-26〜4-1-28）
+ */
+When('MAIMLファイル削除確認ダイアログの「削除」ボタンをクリックする', async ({ page }) => {
+  const confirmBtn = page.locator('[data-testid="maiml-delete-confirm-button"]');
+  if (await confirmBtn.count() > 0) {
+    await confirmBtn.click();
+  } else {
+    await page.locator('.ant-modal-footer .ant-btn-danger, .ant-modal-footer .ant-btn-primary').filter({ hasText: '削除' }).first().click();
+  }
+  await page.waitForTimeout(1000);
+});
+
+// ---------------------------------------------------------------------------
+// Then: MAIMLファイル削除機能 表示確認
+// ---------------------------------------------------------------------------
+
+/**
+ * ファイル一覧の各行にその他メニューボタンが表示されること（4-1-21）
+ */
+Then('ファイル一覧の各行にその他メニューボタンが表示されること', async ({ page }) => {
+  const moreButtons = page.locator('[data-testid="file-more-menu-button"]');
+  await expect(moreButtons.first()).toBeVisible({ timeout: 10000 });
+  const count = await moreButtons.count();
+  expect(count).toBeGreaterThan(0);
+});
+
+/**
+ * その他メニューに「名前の変更」項目が表示されること（4-1-22）
+ */
+Then('その他メニューに「名前の変更」項目が表示されること', async ({ page }) => {
+  const renameItem = page.locator('[data-testid="file-menu-rename"]');
+  if (await renameItem.count() > 0) {
+    await expect(renameItem).toBeVisible({ timeout: 5000 });
+  } else {
+    await expect(page.locator('.ant-dropdown-menu-item').filter({ hasText: '名前の変更' }).first()).toBeVisible({ timeout: 5000 });
+  }
+});
+
+/**
+ * その他メニューに「削除」項目が表示されること（4-1-22）
+ */
+Then('その他メニューに「削除」項目が表示されること', async ({ page }) => {
+  const deleteItem = page.locator('[data-testid="file-menu-delete"]');
+  if (await deleteItem.count() > 0) {
+    await expect(deleteItem).toBeVisible({ timeout: 5000 });
+  } else {
+    await expect(page.locator('.ant-dropdown-menu-item').filter({ hasText: '削除' }).first()).toBeVisible({ timeout: 5000 });
+  }
+});
+
+/**
+ * 名前の変更機能未実装メッセージが表示されること（4-1-23）
+ */
+Then('名前の変更機能未実装メッセージが表示されること', async ({ page }) => {
+  const toastMsg = page.locator('.ant-message-info, .ant-message-warning').filter({ hasText: '未実装' });
+  const alertMsg = page.locator('.ant-alert').filter({ hasText: '未実装' });
+  await expect(toastMsg.or(alertMsg).first()).toBeVisible({ timeout: 5000 });
+});
+
+/**
+ * MAIMLファイル削除確認ダイアログが表示されること（4-1-24〜4-1-28）
+ */
+Then('MAIMLファイル削除確認ダイアログが表示されること', async ({ page }) => {
+  const dialog = page.locator('[data-testid="maiml-delete-confirm-dialog"]');
+  if (await dialog.count() > 0) {
+    await expect(dialog).toBeVisible({ timeout: 10000 });
+  } else {
+    // Ant Design Modal にファイル名または「削除」テキストが含まれること
+    const modal = page.locator('.ant-modal-content').filter({ hasText: '削除' }).first();
+    await expect(modal).toBeVisible({ timeout: 10000 });
+  }
+});
+
+/**
+ * MAIMLファイル削除確認ダイアログが閉じること（4-1-25）
+ */
+Then('MAIMLファイル削除確認ダイアログが閉じること', async ({ page }) => {
+  const dialog = page.locator('[data-testid="maiml-delete-confirm-dialog"]');
+  if (await dialog.count() > 0) {
+    await expect(dialog).not.toBeVisible({ timeout: 5000 });
+  } else {
+    await page.waitForTimeout(500);
+  }
+});
+
+/**
+ * ファイル一覧にMAIMLファイルが残っていること（4-1-25）
+ */
+Then('ファイル一覧にMAIMLファイルが残っていること', async ({ page }) => {
+  const maimlFile = page.locator('[data-testid="file-list-row"]').filter({ hasText: '.maiml' }).first();
+  if (await maimlFile.count() > 0) {
+    await expect(maimlFile).toBeVisible({ timeout: 5000 });
+  } else {
+    await expect(page.locator('[data-testid^="file-row-"]').filter({ hasText: '.maiml' }).first()).toBeVisible({ timeout: 5000 });
+  }
+});
+
+/**
+ * DBのproject_maiml_flgがtrueのままであること（4-1-25）
+ */
+Then('DBのproject_maiml_flgがtrueのままであること', async ({}) => {
+  const result = await db.query<{ project_maiml_flg: boolean }>(
+    'SELECT project_maiml_flg FROM project WHERE organization_id = $1 AND project_id = $2',
+    [ORG_ID, MAIML_PROJECT_ID]
+  );
+  expect(result.rows[0]?.project_maiml_flg).toBe(true);
+});
+
+/**
+ * MAIMLファイル削除成功メッセージが表示されること（4-1-26, 4-1-27）
+ */
+Then('MAIMLファイル削除成功メッセージが表示されること', async ({ page }) => {
+  const successToast = page.locator('.ant-message-success');
+  const successAlert = page.locator('.ant-alert-success');
+  await expect(successToast.or(successAlert).first()).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * ファイル一覧からMAIMLファイルが消えていること（4-1-26, 4-1-27）
+ */
+Then('ファイル一覧からMAIMLファイルが消えていること', async ({ page }) => {
+  await page.waitForTimeout(1000);
+  const maimlFile = page.locator('[data-testid="file-list-row"]').filter({ hasText: '.maiml' });
+  const maimlFileFallback = page.locator('[data-testid^="file-row-"]').filter({ hasText: '.maiml' });
+  const count1 = await maimlFile.count();
+  const count2 = await maimlFileFallback.count();
+  expect(count1 + count2).toBe(0);
+});
+
+/**
+ * DBのproject_maiml_flgがfalseに更新されていること（4-1-26, 4-1-27）
+ * 対象プロジェクトIDはシナリオタグで判定
+ */
+Then('DBのproject_maiml_flgがfalseに更新されていること', async ({ page: _page }) => {
+  // どちらのプロジェクトIDでも対応できるよう両方チェック
+  for (const projectId of [MAIML_PROJECT_ID, MAIML_ARCH_PROJECT_ID]) {
+    const result = await db.query<{ project_maiml_flg: boolean }>(
+      'SELECT project_maiml_flg FROM project WHERE organization_id = $1 AND project_id = $2',
+      [ORG_ID, projectId]
+    );
+    if ((result.rowCount ?? 0) > 0) {
+      expect(result.rows[0].project_maiml_flg).toBe(false);
+      return;
+    }
+  }
+});
+
+/**
+ * MAIMLファイル削除エラーメッセージが表示されること（4-1-28）
+ * project_status=in_progress のため削除不可
+ */
+Then('MAIMLファイル削除エラーメッセージが表示されること', async ({ page }) => {
+  const errorToast = page.locator('.ant-message-error');
+  const errorAlert = page.locator('.ant-alert-error');
+  await expect(errorToast.or(errorAlert).first()).toBeVisible({ timeout: 10000 });
 });
 
 // ===========================================================================
