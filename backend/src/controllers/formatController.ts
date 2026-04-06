@@ -244,13 +244,14 @@ async function createFormatFile(
       sessionExists: !!req.session,
     });
 
-    // サービスを呼び出してファイルを作成
+    // サービスを呼び出してファイルを作成（userId を渡して file_metadata を自動登録）
     const result = await formatService.createFormatFile(
       organizationId,
       departmentCd,
       folderName,
       fileName,
-      currentPath
+      currentPath,
+      req.user!.userId
     );
 
     res.status(201).json({
@@ -333,11 +334,12 @@ async function updateFormatFile(
       return;
     }
 
-    // サービスを呼び出してファイルを更新
+    // サービスを呼び出してファイルを更新（userId を渡して file_metadata を自動登録）
     const result = await formatService.updateFormatFile(
       organizationId,
       filePath,
-      content
+      content,
+      req.user!.userId
     );
 
     res.json({

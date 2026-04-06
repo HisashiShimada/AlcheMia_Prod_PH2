@@ -8,7 +8,7 @@ import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import * as experimentDataService from '../services/experimentDataService';
 import { TemplateDataRecord, PropertySet } from '../repositories/templateDataRepository';
-import type { Property } from '../types/maiml-unified';
+import type { Property, Content, Insertion } from '../types/maiml-unified';
 
 /**
  * テンプレート実績一覧取得
@@ -132,6 +132,10 @@ export const saveBatchData = async (
         templateId: string;
         templateType: 'material' | 'condition' | 'result';
         properties: Array<{ key: string; xsiType: string; value: unknown; units: string | null }>;
+        /** content コンテナ型のカスタムプロパティ */
+        contents?: Array<{ key: string; xsiType: string; value: unknown; units: string | null; isCustomProperty?: boolean }>;
+        /** insertion コンテナ型のカスタムプロパティ */
+        insertions?: Array<{ uri: string; hash?: { value?: string }; format?: string; isCustomProperty?: boolean }>;
       };
     }>;
 
@@ -163,6 +167,12 @@ export const saveBatchData = async (
         properties: Array.isArray(r.data.properties)
           ? r.data.properties as unknown as Property[]
           : [],
+        contents: Array.isArray(r.data.contents)
+          ? r.data.contents as unknown as Content[]
+          : undefined,
+        insertions: Array.isArray(r.data.insertions)
+          ? r.data.insertions as unknown as Insertion[]
+          : undefined,
       };
       return {
         placeId: r.placeId,
