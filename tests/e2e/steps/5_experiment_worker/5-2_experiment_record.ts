@@ -95,7 +95,7 @@ let savedUseDeemedProgress: boolean | null = null;
  * - transition_set にトランジションを UPSERT
  */
 Before({
-  tags: '@5-2-1 or @5-2-2 or @5-2-3 or @5-2-5 or @5-2-6 or @5-2-7 or @5-2-8 or @5-2-9 or @5-2-10 or @5-2-11 or @5-2-13 or @5-2-14 or @5-2-15 or @5-2-17 or @5-2-18 or @5-2-19 or @5-2-20 or @5-2-21 or @5-2-22 or @5-2-23 or @5-2-24',
+  tags: '@5-2-1 or @5-2-2 or @5-2-3 or @5-2-5 or @5-2-6 or @5-2-7 or @5-2-8 or @5-2-9 or @5-2-10 or @5-2-11 or @5-2-13 or @5-2-14 or @5-2-15 or @5-2-17 or @5-2-18 or @5-2-19 or @5-2-20 or @5-2-21 or @5-2-22 or @5-2-23 or @5-2-24 or @5-2-27 or @5-2-28 or @5-2-29 or @5-2-30 or @5-2-31 or @5-2-32 or @5-2-33 or @5-2-34 or @5-2-35',
 }, async () => {
   console.log('[5-2 Before] テストデータ準備 開始（基本シナリオ）');
   try {
@@ -1554,18 +1554,183 @@ async function upsertTransitionSetWithTerminal(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Given/When/Then: No.25対応 dissolution異常値警告 (5-2-27〜5-2-35)
+// ---------------------------------------------------------------------------
+
+/** dissolution用テンプレートが含まれるプロジェクト・メソッド・タスクを選択している */
+Given('dissolution用テンプレートが含まれるプロジェクト・メソッド・タスクを選択している', async ({ page }) => {
+  // Before フックで dissolution プロパティ付きテンプレートを含むプロジェクト・タスクが準備済み
+  // テスト用プロジェクト・メソッド・タスクを選択する（通常シナリオと同じ手順）
+  await page.waitForSelector('[data-testid="project-select"]', { timeout: 15000 });
+  const projectSelect = page.locator('[data-testid="project-select"]');
+  await projectSelect.click();
+  await waitForSelectDropdown(page);
+  const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
+  await visibleDropdown.locator(`.ant-select-item-option[title^="${TEST_PROJECT_NAME}"]`).click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+  const recordTab = page.locator('.ant-tabs-tab').filter({ hasText: /実験記録/ }).first();
+  await recordTab.waitFor({ state: 'visible', timeout: 10000 });
+  await recordTab.click();
+  await page.waitForTimeout(500);
+  const taskSelect = page.locator('[data-testid="task-select"]');
+  await taskSelect.waitFor({ state: 'visible', timeout: 10000 });
+  await taskSelect.click();
+  await waitForSelectDropdown(page);
+  const taskDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
+  await taskDropdown.locator('.ant-select-item-option:not([title="-"])').first().click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+});
+
+/** dissolution doubleType プロパティを持つテンプレートを選択する */
+Given('dissolution doubleType プロパティを持つテンプレートを選択する', async ({ page }) => {
+  // dissolution を含む doubleType プロパティを持つテンプレート行をクリック
+  const templateRow = page
+    .locator(`${DATA_RECORD_DIALOG} table tbody tr:not(.ant-table-measure-row)`)
+    .filter({ hasText: /dissolution/i })
+    .first();
+  await templateRow.waitFor({ state: 'visible', timeout: 15000 });
+  await templateRow.click();
+  await page.waitForTimeout(500);
+});
+
+/** dissolution floatType プロパティを持つテンプレートを選択する */
+Given('dissolution floatType プロパティを持つテンプレートを選択する', async ({ page }) => {
+  const templateRow = page
+    .locator(`${DATA_RECORD_DIALOG} table tbody tr:not(.ant-table-measure-row)`)
+    .filter({ hasText: /dissolution/i })
+    .first();
+  await templateRow.waitFor({ state: 'visible', timeout: 15000 });
+  await templateRow.click();
+  await page.waitForTimeout(500);
+});
+
+/** Dissolution（大文字含む）floatType プロパティを持つテンプレートを選択する */
+Given('Dissolution（大文字含む）floatType プロパティを持つテンプレートを選択する', async ({ page }) => {
+  const templateRow = page
+    .locator(`${DATA_RECORD_DIALOG} table tbody tr:not(.ant-table-measure-row)`)
+    .filter({ hasText: /Dissolution/i })
+    .first();
+  await templateRow.waitFor({ state: 'visible', timeout: 15000 });
+  await templateRow.click();
+  await page.waitForTimeout(500);
+});
+
+/** 溶解率 doubleType プロパティを持つテンプレートを選択する */
+Given('溶解率 doubleType プロパティを持つテンプレートを選択する', async ({ page }) => {
+  const templateRow = page
+    .locator(`${DATA_RECORD_DIALOG} table tbody tr:not(.ant-table-measure-row)`)
+    .filter({ hasText: /溶解率/ })
+    .first();
+  await templateRow.waitFor({ state: 'visible', timeout: 15000 });
+  await templateRow.click();
+  await page.waitForTimeout(500);
+});
+
+/** dissolution を含まない doubleType プロパティを持つテンプレートを選択する */
+Given('dissolution を含まない doubleType プロパティを持つテンプレートを選択する', async ({ page }) => {
+  // dissolution / 溶解率 を含まないテンプレート（例: temperature）を選択する
+  const templateRow = page
+    .locator(`${DATA_RECORD_DIALOG} table tbody tr:not(.ant-table-measure-row)`)
+    .filter({ hasText: /temperature/i })
+    .first();
+  await templateRow.waitFor({ state: 'visible', timeout: 15000 });
+  await templateRow.click();
+  await page.waitForTimeout(500);
+});
+
 /**
- * テスト用テンプレートデータを UPSERT する（5-2-8, 5-2-9 用）
- *
- * 使用テーブル: template_data（テンプレート実績管理テーブル）
- * 主キー: (organization_id, project_id, method_id, task_no, place_id)
- *
- * DDL参照: backend/src/sql/queries/template_data/insert.sql
- * - property_set: テンプレートのプロパティ定義JSON（JSONB型）
- *
- * 5-2-8: ダイアログ表示時に既存テンプレートデータが取得されること
- * 5-2-9: 記録済みバッジが表示されること
+ * dissolution プロパティに値を入力する（doubleType / floatType 共通）
+ * feature 記述例: `dissolution doubleType プロパティに "50.0" を入力する`
  */
+When('dissolution doubleType プロパティに {string} を入力する', async ({ page }, value: string) => {
+  // data-testid="dissolution-property-input" または dissolution キーを持つ input に入力する
+  const input = page
+    .locator(`${DATA_RECORD_DIALOG} [data-testid*="dissolution"], ${DATA_RECORD_DIALOG} input[data-key*="dissolution"]`)
+    .first();
+  await input.waitFor({ state: 'visible', timeout: 10000 });
+  await input.fill(value);
+  await input.dispatchEvent('change');
+  await page.waitForTimeout(500);
+});
+
+When('dissolution floatType プロパティに {string} を入力する', async ({ page }, value: string) => {
+  const input = page
+    .locator(`${DATA_RECORD_DIALOG} [data-testid*="dissolution"], ${DATA_RECORD_DIALOG} input[data-key*="dissolution"]`)
+    .first();
+  await input.waitFor({ state: 'visible', timeout: 10000 });
+  await input.fill(value);
+  await input.dispatchEvent('change');
+  await page.waitForTimeout(500);
+});
+
+When('Dissolution floatType プロパティに {string} を入力する', async ({ page }, value: string) => {
+  const input = page
+    .locator(`${DATA_RECORD_DIALOG} [data-testid*="Dissolution"], ${DATA_RECORD_DIALOG} input[data-key*="Dissolution"]`)
+    .first();
+  await input.waitFor({ state: 'visible', timeout: 10000 });
+  await input.fill(value);
+  await input.dispatchEvent('change');
+  await page.waitForTimeout(500);
+});
+
+When('溶解率 doubleType プロパティに {string} を入力する', async ({ page }, value: string) => {
+  const input = page
+    .locator(`${DATA_RECORD_DIALOG} [data-testid*="溶解率"], ${DATA_RECORD_DIALOG} input[data-key*="溶解率"]`)
+    .first();
+  await input.waitFor({ state: 'visible', timeout: 10000 });
+  await input.fill(value);
+  await input.dispatchEvent('change');
+  await page.waitForTimeout(500);
+});
+
+When('dissolution を含まない doubleType プロパティに {string} を入力する', async ({ page }, value: string) => {
+  // dissolution / 溶解率 を含まないプロパティ（temperature 等）の input に入力する
+  const input = page
+    .locator(`${DATA_RECORD_DIALOG} [data-testid*="temperature"], ${DATA_RECORD_DIALOG} input[data-key*="temperature"]`)
+    .first();
+  await input.waitFor({ state: 'visible', timeout: 10000 });
+  await input.fill(value);
+  await input.dispatchEvent('change');
+  await page.waitForTimeout(500);
+});
+
+/**
+ * dissolution 警告 Alert が表示されないこと
+ * DataRecordDialog.tsx: data-testid="dissolution-warning-alert"
+ */
+Then('dissolution 警告 Alert が表示されないこと', async ({ page }) => {
+  const alert = page.locator(`${DATA_RECORD_DIALOG} [data-testid="dissolution-warning-alert"]`);
+  await expect(alert).not.toBeVisible({ timeout: 3000 });
+});
+
+/**
+ * dissolution 警告 Alert が表示されること
+ * DataRecordDialog.tsx: data-testid="dissolution-warning-alert"
+ * 警告文: 「⚠️ 異常値: {value}（通常は0〜100の範囲です）」
+ */
+Then('dissolution 警告 Alert が表示されること', async ({ page }) => {
+  const alert = page.locator(`${DATA_RECORD_DIALOG} [data-testid="dissolution-warning-alert"]`);
+  await expect(alert).toBeVisible({ timeout: 10000 });
+});
+
+/** dissolution 警告 Alert に指定した値が含まれること */
+Then('dissolution 警告 Alert に {string} が含まれること', async ({ page }, value: string) => {
+  const alert = page.locator(`${DATA_RECORD_DIALOG} [data-testid="dissolution-warning-alert"]`);
+  await expect(alert).toBeVisible({ timeout: 10000 });
+  await expect(alert).toContainText(value);
+});
+
+/** 保存ボタンが有効であること（dissolution 警告があっても保存ブロックしないことの確認） */
+Then('保存ボタンが有効であること', async ({ page }) => {
+  const saveBtn = page.locator('[data-testid="data-record-save-button"]');
+  await expect(saveBtn).toBeEnabled({ timeout: 5000 });
+});
+
+// ---------------------------------------------------------------------------
+// ヘルパー関数（続き）
+// ---------------------------------------------------------------------------
+
 async function upsertTemplateData(
   projectId: string,
   methodId: string,
