@@ -224,6 +224,52 @@ export function buildDataXML(
           }
         }
 
+        // ps.insertions を <insertion> タグとして出力（カスタムプロパティの insertion コンテナ）
+        // MAIML仕様: <insertion xsi:type="insertion"> <uri/> [<hash/>] <format/> </insertion>
+        // ※ insertion タグに key 属性はない
+        if (ps.insertions && Array.isArray(ps.insertions)) {
+          for (const ins of ps.insertions) {
+            if (!ins) continue;
+            const uri = String(ins.uri ?? '');
+            if (!uri) continue; // uri が空の場合はスキップ
+            dataXml += `        <insertion>\n`;
+            dataXml += `          <uri>${escapeXml(uri)}</uri>\n`;
+            // hash は { method?, value? } オブジェクト または 文字列（後方互換）
+            if (ins.hash) {
+              const hashVal = typeof ins.hash === 'object' ? ins.hash.value : ins.hash;
+              if (hashVal) dataXml += `          <hash>${escapeXml(hashVal)}</hash>\n`;
+            }
+            dataXml += `          <format>${escapeXml(String(ins.format ?? 'application/octet-stream'))}</format>\n`;
+            dataXml += `        </insertion>\n`;
+          }
+        }
+
+        // ps.contents を <content> タグとして出力（カスタムプロパティの content コンテナ）
+        // xsi:type: contentStringListType / contentDoubleListType / contentIntListType
+        if (ps.contents && Array.isArray(ps.contents)) {
+          for (const c of ps.contents) {
+            if (!c || !c.key) continue;
+            const contentType = c.xsiType || 'contentDoubleListType';
+            dataXml += `        <content key="${escapeXml(c.key)}"`;
+            if (c.units) dataXml += ` units="${escapeXml(c.units)}"`;
+            dataXml += ` xsi:type="${escapeXml(contentType)}">\n`;
+            if (c.description) {
+              dataXml += `          <description>${escapeXml(c.description)}</description>\n`;
+            }
+            // value はスペース区切り文字列または配列
+            const rawVal = c.value;
+            const items: string[] = Array.isArray(rawVal)
+              ? (rawVal as unknown[]).map((v) => String(v))
+              : typeof rawVal === 'string' && rawVal.trim().length > 0
+              ? rawVal.trim().split(/[\s,]+/).filter((s) => s.length > 0)
+              : [];
+            for (const item of items) {
+              dataXml += `          <value>${escapeXml(item)}</value>\n`;
+            }
+            dataXml += `        </content>\n`;
+          }
+        }
+
         // operatorId は data 層から出力しない（案C: 削除）
         // 作成者情報は eventLog 層（trace/event）で管理する
 

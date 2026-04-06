@@ -831,16 +831,23 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     }
   }, [selectedProject, draftToRestore, projects, onEdit]);
 
-  // Phase 6追加: 復元しないハンドラー（Draftを削除してダイアログを閉じるのみ）
+  // Phase 6追加: 復元しないハンドラー（projectId同一のDraftを全削除してダイアログを閉じる）
   const handleCreateNewOrExisting = useCallback(async () => {
     console.log('🗑️ [ProjectManagement] Draft discarded (no restore)');
     setDraftRestoreDialogOpen(false);
 
-    // Draftを削除する
-    if (draftToRestore?.draftKey) {
+    // 同じprojectIdを持つDraftを全て削除する
+    if (draftToRestore?.projectId) {
       try {
-        await deleteDraft(draftToRestore.draftKey);
-        console.log('✅ [ProjectManagement] Draft deleted:', draftToRestore.draftKey);
+        const allDrafts = await fetchDrafts();
+        const draftsToDelete = (allDrafts || []).filter(
+          (d) => d.projectId === draftToRestore.projectId
+        );
+        console.log(`🗑️ [ProjectManagement] Deleting ${draftsToDelete.length} drafts for projectId:`, draftToRestore.projectId);
+        for (const d of draftsToDelete) {
+          await deleteDraft(d.draftKey);
+        }
+        console.log('✅ [ProjectManagement] All drafts deleted for projectId:', draftToRestore.projectId);
       } catch (error) {
         console.warn('⚠️ [ProjectManagement] Draft deletion failed (ignored):', error);
       }
@@ -1152,7 +1159,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       content: confirmContent,
       okText: '削除',
       cancelText: 'キャンセル',
-      okButtonProps: { danger: true },
+      okButtonProps: { danger: true, 'data-testid': 'maiml-delete-confirm-button', id: 'maiml-delete-confirm-button' } as any,
+      cancelButtonProps: { 'data-testid': 'maiml-delete-cancel-button', id: 'maiml-delete-cancel-button' } as any,
       onOk: async () => {
         try {
           console.log(`🗑️ [ProjectManagement] ファイル削除開始:`, file.name);
@@ -1489,14 +1497,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           </Button>
           <Button
             type="primary"
-            icon={<UploadOutlined />}
-            style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
-            onClick={handleOpenUploadDialog}
-          >
-            {t('projectManagement.upload')}
-          </Button>
-          <Button
-            type="primary"
             icon={<ReloadOutlined />}
             onClick={handleProjectReload}
             loading={isReloadingProject}
@@ -1603,6 +1603,14 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   </Button>
                   <Button
                     type="primary"
+                    icon={<UploadOutlined />}
+                    style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+                    onClick={handleOpenUploadDialog}
+                  >
+                    {t('projectManagement.upload')}
+                  </Button>
+                  <Button
+                    type="primary"
                     icon={<EditOutlined />}
                     onClick={handleEditButtonClick}
                     disabled={!selectedProject || isProjectCheckedOut}
@@ -1641,6 +1649,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     <Button
                       type="primary"
                       danger
+                      data-testid="maiml-toolbar-unpublish-button"
                       onClick={handleUnpublish}
                       loading={publishStatusLoading || isPolling}
                       disabled={!selectedProject || publishStatusLoading || isPolling}
@@ -1650,6 +1659,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   ) : (
                     <Button
                       type="primary"
+                      data-testid="maiml-toolbar-publish-button"
                       style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
                       onClick={handlePublish}
                       loading={publishStatusLoading || isPolling}

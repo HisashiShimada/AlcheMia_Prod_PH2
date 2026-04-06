@@ -482,7 +482,8 @@ export async function createFormatFile(
   departmentCd: string,
   folderName: string,
   fileName: string,
-  subPath?: string
+  subPath?: string,
+  userId?: string
 ): Promise<{
   filePath: string;
   fileName: string;
@@ -519,12 +520,17 @@ export async function createFormatFile(
     // 5. 空のファイルコンテンツを生成
     const content = '';
 
-    // 6. S3へアップロード
+    // 6. S3へアップロード（uploadedBy を渡して file_metadata を自動登録）
     await storageService.uploadFile(
       organizationId,
       filePath,
       Buffer.from(content, 'utf-8'),
-      { contentType: 'application/xml' }
+      {
+        contentType: 'application/xml',
+        uploadedBy: userId,
+        uploadSource: 'format',
+        uploadMethod: 'single',
+      }
     );
 
     console.log('[formatService] File upload success:', filePath);
@@ -569,7 +575,8 @@ function sanitizeFileName(fileName: string): string {
 export async function updateFormatFile(
   organizationId: string,
   filePath: string,
-  content: string
+  content: string,
+  userId?: string
 ): Promise<{
   filePath: string;
   size: number;
@@ -589,12 +596,17 @@ export async function updateFormatFile(
       throw new Error('ファイル内容が不正です');
     }
 
-    // 3. S3へアップロード（上書き）
+    // 3. S3へアップロード（上書き・uploadedBy を渡して file_metadata を自動登録）
     await storageService.uploadFile(
       organizationId,
       filePath,
       Buffer.from(content, 'utf-8'),
-      { contentType: 'application/xml' }
+      {
+        contentType: 'application/xml',
+        uploadedBy: userId,
+        uploadSource: 'format',
+        uploadMethod: 'single',
+      }
     );
 
     console.log('[formatService] File update success:', filePath);

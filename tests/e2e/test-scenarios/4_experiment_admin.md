@@ -454,26 +454,28 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 4-9-1 | 進捗確認画面にトランジション検索タブが表示されること | 表示確認 | 追加機能R、`ui_progress_monitoring.md` §タブ構成 | - | OK | |
-| 4-9-2 | プロジェクト名でトランジションを検索できること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | OK | |
-| 4-9-3 | トランジション名でトランジションを検索できること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | OK | |
-| 4-9-4 | ステータス（完了/作業中/未着手）でトランジションをフィルタリングできること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | OK | |
-| 4-9-5 | 検索結果一覧にトランジション情報（トランジション名・プロジェクト名・タスク名・ステータス・作業者・開始日・終了日）が表示されること | 表示確認 | 追加機能R | GET `/api/v1/transition-search` | OK | |
-| 4-9-6 | 検索結果が0件の場合に「該当するトランジションが見つかりません」等のメッセージが表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | OK | |
-| 4-9-7 | 検索条件を変更して再検索すると結果が更新されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | OK | |
-| 4-9-8 | 検索条件をリセットすると全件が表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | OK | |
-| 4-9-9 | 検索結果の行をクリックするとプロジェクト進捗詳細ダイアログが開き、該当トランジションが強調表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | OK | |
-| 4-9-10 | 意味的類似検索（ベクトル検索）でテキスト内容が類似するトランジションが返されること | 正常系（手動） | 追加機能R（セマンティック検索） | GET `/api/v1/transition-search?semantic=true` | OK | |
+| 4-9-1 | プロジェクト管理画面にトランジション検索ボタンが表示されること | 表示確認 | 追加機能R、`TransitionSetSearchModal.tsx`、`ProjectManagement.tsx` | - | OK | |
+| 4-9-2 | 統合クエリ（テキスト入力）で検索を実行できること | 正常系 | 追加機能R、`TransitionSetSearchModal.tsx` | POST `/api/v1/semantic-search/search` | OK | |
+| 4-9-3 | 検索クエリをAI分解（4軸分解）して検索できること | 正常系 | 追加機能R、`decomposeNaturalLanguageQuery` | POST `/api/v1/semantic-search/decompose` | OK | |
+| 4-9-4 | クイック検索ボタン（構造重視・手順重視・入力重視・出力重視・バランス）で重み調整済み検索が実行できること | 正常系 | 追加機能R、`QUICK_SEARCH_BUTTONS`、`WEIGHT_PRESETS` | POST `/api/v1/semantic-search/search` | OK | |
+| 4-9-5 | 検索結果一覧にトランジション情報（トランジションID・プロジェクト名・ファイルパス・スコア・スコア内訳）が表示されること | 表示確認 | 追加機能R、`SearchResults.tsx` | POST `/api/v1/semantic-search/search` | OK | |
+| 4-9-6 | 検索結果が0件の場合に「検索結果が見つかりませんでした」メッセージが表示されること | 正常系 | 追加機能R、`SearchResults.tsx` Empty コンポーネント | POST `/api/v1/semantic-search/search` | OK | |
+| 4-9-7 | 検索条件を変更して再検索すると結果が更新されること | 正常系 | 追加機能R | POST `/api/v1/semantic-search/search` | OK | |
+| 4-9-8 | リセットボタンをクリックすると検索クエリ・分解結果・検索結果がクリアされること | 正常系 | 追加機能R、`handleClear` | - | OK | |
+| 4-9-9 | 検索結果のプロジェクト名タグをクリックするとモーダルが閉じてプロジェクトが選択状態になること | 正常系 | 追加機能R、`onOpenProject` コールバック | - | OK | |
+| 4-9-10 | バッチ処理パネルからEmbedding生成バッチを起動できること | 正常系（手動） | 追加機能R、`TransitionSetBatchProcessingPanel.tsx` | POST `/api/v1/semantic-search/batch` | OK | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
-- 進捗確認画面のトランジション検索タブが表示されている
-- 検索対象となるトランジションデータが `transition_set` テーブルに1件以上存在すること
-- 各ステータス（完了/作業中/未着手）のトランジションが少なくとも1件ずつ存在すること
-- 4-9-10（セマンティック検索）用: Ollamaエンベディングサービスが起動していること
+- プロジェクト管理画面（`ProjectManagement.tsx`）が表示されている
+- 検索対象となるトランジションデータが `transition_set` テーブルに1件以上存在すること（`emb_input`・`emb_transition`・`emb_output`・`emb_structure` 各768次元ベクトルが格納済み）
+- 4-9-10（バッチ処理）用: Ollamaエンベディングサービスが起動していること
 
 **注意事項:**
-- 4-9-10（意味的類似検索）: 検索精度は使用するエンベディングモデルに依存するため、結果の目視確認が必要。自動化は境界値テストにのみ適用
+- `transition_set` テーブルはセマンティック検索（ベクトル類似検索）専用テーブルであり、進捗ステータス（完了/作業中/未着手）・作業者・開始日・終了日などの進捗管理カラムは**持たない**。進捗情報は `project_task` テーブルを参照すること
+- 検索エントリポイントはプロジェクト管理画面ヘッダーの「トランジション検索」ボタン（`TransitionSetSearchModal`）であり、進捗確認画面のタブではない
+- API は `GET /api/v1/transition-search` ではなく `POST /api/v1/semantic-search/search` を使用する
+- 4-9-10（バッチ処理）: 検索精度はエンベディングモデルに依存するため、結果の目視確認が必要
 
 ---
 

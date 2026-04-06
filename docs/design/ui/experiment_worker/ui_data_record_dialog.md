@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/DataRecordDialog.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-21
-- **最終更新日**: 2026-03-16
+- **最終更新日**: 2026-04-03
 
 
 ---
@@ -20,6 +20,7 @@
 - テンプレートの選択（Materials/Conditions/Results）
 - プロパティタイプ別のデータ入力
 - DataGrid編集（行列の動的追加・削除）
+- **カスタムプロパティの任意追加**（property / content / insertion コンテナ対応）
 - トランジションステータスの更新
 - みなし進捗更新機能
 - 作業指示の確認
@@ -196,6 +197,54 @@ DataGrid編集画面:
 - `description` が設定されている場合: 入力コンポーネントの下部（Form.Item の `extra`）に薄グレーの説明文を表示
 
 
+#### カスタムプロパティセクション（テンプレート選択中 & プロジェクト編集可能時に表示）
+
+テンプレート定義外のプロパティを任意で追加できます。コンテナ種別（`property` / `content` / `insertion`）ごとに入力行を追加します。
+
+**レイアウト:**
+```
+カスタムプロパティ（テンプレート定義外の任意データを追加できます）
+
+[ property 行 ] [property] [キー名   ] [型▼] [値入力  ] [単位] [✕]
+[ content  行 ] [content ] [キー名   ] [型▼] [値TextArea] [単位] [✕]
+[ insertion行 ] [insertion] [ファイル選択ボタン / ファイル名表示 ]    [✕]
+
+＋ property 追加   ＋ content 追加   ＋ insertion 追加
+```
+
+**property コンテナの入力UI:**
+
+| 型 | 値入力コンポーネント | 単位 |
+|----|----------------|------|
+| stringType | TextArea（autoSize minRows:1 maxRows:3） | 入力可 |
+| intType | InputNumber（precision: 0） | 入力可 |
+| floatType | InputNumber（precision: 3, step: 0.001） | 入力可 |
+| booleanType | Select（true / false） | 入力可 |
+| dateType | DatePicker（YYYY-MM-DD） | 入力可 |
+| dateTimeType | DatePicker + showTime（YYYY-MM-DD HH:mm:ss） | 入力可 |
+
+**content コンテナの入力UI:**
+
+| 型 | 説明 |
+|----|------|
+| stringListType | 文字列リスト（スペース/カンマ区切りで入力） |
+| doubleListType | 小数リスト（スペース/カンマ区切りで入力） |
+| intListType | 整数リスト（スペース/カンマ区切りで入力） |
+
+値入力: TextArea（スペース/カンマ区切りで複数値入力）
+
+**insertion コンテナの入力UI:**
+- ファイル選択ボタン（Upload コンポーネント、`beforeUpload` で処理、実際のアップロードはしない）
+- 選択後: ボタンにファイル名を表示、SHA-256ハッシュを自動計算、MIMEタイプを自動検出
+- 保存時に S3 へアップロードし、S3 キーを `uri` として保存
+
+**Key 重複チェック（`duplicateCustomKeys` useMemo）:**
+- カスタムプロパティ同士で同一 Key（`property` / `content`）が 2 件以上 → 重複判定
+- テンプレート固定プロパティの Key と一致するカスタム Key → 重複判定
+- `insertion`（Key なし）・空文字 Key はチェック対象外
+- 重複 Key の入力フィールド: 赤ボーダー + `status="error"` + 「Keyが重複しています」テキストをリアルタイム表示
+- 重複がある場合は保存ボタン押下時に `message.error` を表示して保存を中断
+
 ### 3.2 ボタン
 
 | ボタン名 | タイプ | 表示条件 | アクション |
@@ -206,6 +255,10 @@ DataGrid編集画面:
 | 列を追加 | small + PlusOutlined | DataGrid表示時 & プロジェクト編集可能 | DataGridに列を追加 |
 | 行削除 | text + danger + DeleteOutlined | DataGrid各行 & プロジェクト編集可能 | 行を削除（最低1行は残す） |
 | 列削除 | text + danger + DeleteOutlined | DataGrid各列 & プロジェクト編集可能 | 列を削除（最低1列は残す） |
+| property 追加 | small + PlusOutlined | テンプレート選択中 & プロジェクト編集可能 | property カスタムプロパティ行を1行追加 |
+| content 追加 | small + PlusOutlined | テンプレート選択中 & プロジェクト編集可能 | content カスタムプロパティ行を1行追加 |
+| insertion 追加 | small + PlusOutlined | テンプレート選択中 & プロジェクト編集可能 | insertion カスタムプロパティ行を1行追加 |
+| カスタムプロパティ削除 | text + danger + DeleteOutlined | 各カスタムプロパティ行 | 対象行を削除 |
 | キャンセル | default | 常時 | ダイアログを閉じる |
 | 保存 | primary + SaveOutlined | 常時 | テンプレートデータを保存 |
 
@@ -783,6 +836,11 @@ DataRecordDialog
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.4.0 | 2026-04-03 | カスタムプロパティ機能追加に伴うUI仕様更新 | Cline |
+| | | - 主要機能にカスタムプロパティ任意追加を追加 | |
+| | | - 3.1 カスタムプロパティセクション（property/content/insertion）の入力UI仕様を追加 | |
+| | | - Key重複チェック仕様（`duplicateCustomKeys` useMemo・エラー表示・保存ブロック）を追加 | |
+| | | - 3.2 ボタン一覧にproperty追加/content追加/insertion追加/カスタムプロパティ削除を追加 | |
 | 1.3.0 | 2026-03-16 | maimlDataWriter仕様修正に伴うUI仕様更新 | Cline |
 | | | - `floatType` の precision を固定値（2）から `formatString` 依存に変更（`%.Nf` 形式からN桁を算出） | |
 | | | - プロパティラベルに `scaleFactor` タグ表示（紫色、×{scaleFactor}）を追加 | |

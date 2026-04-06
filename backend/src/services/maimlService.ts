@@ -13,7 +13,6 @@ import * as validationHistoryRepository from '../repositories/validationHistoryR
 import { EditSession, ParseResult,AnalysisResult  } from '../types/maimlValidation';
 import * as maimlParser from '../utils/maimlParser';
 import { maimlSaveResult} from '../types/maimlEditor';
-import { FileMetadataRepository, FileMetadata } from '../repositories/fileMetadataRepository';
 import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
 import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
@@ -92,7 +91,7 @@ async function uploadFileWithRetry(
   organizationId: string,
   fileKey: string,
   content: Buffer,
-  options: { contentType?: string; metadata?: Record<string, string> },
+  options: { contentType?: string; uploadedBy?: string; uploadSource?: string; uploadMethod?: string; metadata?: Record<string, string> },
   maxRetries: number = 3,
   timeoutMs: number = 60000
 ): Promise<void> {
@@ -163,13 +162,15 @@ export async function saveMaiML(
       console.log('ℹ️ [maimlService] アーカイブ化スキップ（上書き保存）');
     }
 
-    // S3/Swiftアップロード（リトライ機能付き）
+    // S3/Swiftアップロード（リトライ機能付き・uploadedBy を渡して file_metadata を自動登録）
     await uploadFileWithRetry(
       organizationId,
       normalizedFileKey,
       Buffer.from(content, 'utf-8'),
       {
         contentType: 'application/xml',
+        uploadedBy: 'system',
+        uploadSource: 'editor',
         metadata: {
           'edit-timestamp': new Date().toISOString(),
         },
@@ -182,42 +183,6 @@ export async function saveMaiML(
     const contentHash = calculateContentHash(content);
 
     console.log('✅ [maimlService] MAIML保存完了:', normalizedFileKey);
-
-    const fileMetadataRepository = new FileMetadataRepository();
-
-    const existingMetadata = await fileMetadataRepository.getFileMetadataByFileKey(normalizedFileKey);
-    if (existingMetadata) {
-      const updateData = {
-        file_size: Buffer.byteLength(content, 'utf-8'),
-        updated_at: new Date(),
-        last_edit_timestamp: new Date()
-      };
-      await fileMetadataRepository.updateFileMetadata(normalizedFileKey, updateData);
-    } else {
-      // 新規ファイル: file_metadataに登録
-      const newMetadata = {
-        file_key: normalizedFileKey,
-        s3_bucket: process.env.S3_BUCKET_NAME || process.env.SWIFT_CONTAINER || 'mmdpf-files',
-        organization_id: organizationId,
-        original_filename: normalizedFileKey.split('/').pop() || 'unknown.maiml',
-        file_size: Buffer.byteLength(content, 'utf-8'),
-        file_type: 'application/xml',
-        uploaded_by: 'system', // システムによる保存
-        is_maiml_file: true,
-        upload_source: 'editor',
-        created_at: new Date(),
-        updated_at: new Date(),
-        last_edit_timestamp: new Date()
-      };
-      
-      try {
-        await fileMetadataRepository.insertFileMetadata(newMetadata);
-        console.log('✅ [MAIML Save] file_metadataレコード作成:', normalizedFileKey);
-      } catch (error) {
-        console.error('❌ [MAIML Save] file_metadataレコード作成エラー:', error);
-        // DB登録失敗してもファイル保存は成功しているため、処理は続行
-      }
-    }
     
     // MaiMLファイルの場合、project_maiml_flgを更新
     if (normalizedFileKey.toLowerCase().endsWith('.maiml')) {
@@ -685,27 +650,8 @@ async function createBackup(filePath: string, organizationId: string): Promise<s
     // 6. 既存ファイルを取得
     const buffer = await storageService.downloadFile(organizationId, filePath);
 
-    // 7. バックアップ保存
-    await storageService.uploadFile(organizationId, backupPath, buffer);
-
-    // file_metadataにバックアップファイルを登録
-    try {
-      const backupFileMetadataRepository = new FileMetadataRepository();
-      const backupKey = `${organizationId}/${backupPath}`;
-      const archiveParentPath = `${organizationId}/${archivePath}`;
-      await backupFileMetadataRepository.insertFileMetadata({
-        file_key: backupKey,
-        s3_bucket: process.env.S3_BUCKET_NAME || process.env.SWIFT_CONTAINER || 'mmdpf-files',
-        organization_id: organizationId,
-        original_filename: backupFileName,
-        file_size: buffer.length,
-        uploaded_by: 'system',
-        parent_folder_path: archiveParentPath,
-      });
-      console.log('✅ [maimlService] バックアップ file_metadata 登録:', backupKey);
-    } catch (metaError) {
-      console.error('❌ [maimlService] バックアップ file_metadata 登録エラー（続行）:', metaError);
-    }
+    // 7. バックアップ保存（uploadedBy: 'system' を渡して file_metadata を自動登録）
+    await storageService.uploadFile(organizationId, backupPath, buffer, { uploadedBy: 'system' });
 
     console.log('📋 [maimlService] バックアップ作成:', backupPath);
     return backupPath;

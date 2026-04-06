@@ -13,20 +13,25 @@
 
 import { PoolClient } from 'pg';
 import { loadSqlFile } from '../sql/loader';
-import type { Property } from '../types/maiml-unified';
+import type { Property, Content, Insertion } from '../types/maiml-unified';
 
 /**
  * property_set JSONB の型定義
  * template_data.property_set カラムに格納されるJSONBの構造
  *
  * @remarks
- * properties の型を maiml-unified.Property に統一。
- * PropertySetProperty インターフェースは廃止済み。
+ * - properties: <property> タグとして出力される通常プロパティ（insertion も含む）
+ * - contents:   <content> タグとして出力されるリストデータ（contentXxxListType）
+ *               カスタムプロパティの containerType === 'content' の場合に格納
  */
 export interface PropertySet {
   templateId: string;
   templateType: 'material' | 'condition' | 'result';
   properties: Property[];
+  /** insertion コンテナ型のカスタムプロパティ（containerType === 'insertion'） */
+  insertions?: Insertion[];
+  /** content コンテナ型のカスタムプロパティ（containerType === 'content'） */
+  contents?: Content[];
 }
 
 
@@ -113,6 +118,7 @@ export class TemplateDataRepository {
         record.updateUserId, // create_user_id（新規INSERT時）
         record.updateUserId, // update_user_id
       ];
+      console.log(record.propertySet);
 
       const result = await client.query(query, params);
       return result.rows[0] as TemplateDataRow;
