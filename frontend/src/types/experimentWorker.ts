@@ -7,17 +7,84 @@ export type TargetType = 'file' | 'method' | 'transition' | 'task';
 // 指示タイプ
 export type InstructionType = 'safety' | 'setup' | 'measurement' | 'cleanup' | 'general';
 
-// プロパティタイプ
-export type PropertyType = 
-  | 'stringType' 
-  | 'intType' 
-  | 'floatType' 
-  | 'booleanType' 
-  | 'dateType' 
-  | 'dateTimeType'
-  | 'contentDoubleListType'
-  | 'propertyListType'
-  | 'insertion';
+/**
+ * Property タグ用の型（<property xsi:type="...">）
+ * MAIML の propertyType 系 xsiType に対応
+ * xsiType をそのまま使用する（変換なし）
+ */
+export type PropertyType =
+  // --- 文字列型 ---
+  | 'stringType'         // 文字列
+  | 'tokenType'          // トークン（空白正規化済み文字列）
+  | 'stringEnumType'     // 列挙文字列
+  // --- 整数型 ---
+  | 'intType'            // 32bit 整数
+  | 'longType'           // 64bit 整数
+  | 'shortType'          // 16bit 整数
+  | 'byteType'           // 8bit 整数
+  | 'unsignedIntType'    // 符号なし 32bit 整数
+  | 'unsignedLongType'   // 符号なし 64bit 整数
+  | 'unsignedShortType'  // 符号なし 16bit 整数
+  | 'unsignedByteType'   // 符号なし 8bit 整数
+  // --- 浮動小数点型 ---
+  | 'floatType'          // 単精度浮動小数点
+  | 'doubleType'         // 倍精度浮動小数点
+  | 'decimalType'        // 任意精度小数
+  // --- 真偽値型 ---
+  | 'booleanType'        // 真偽値
+  // --- 日時型 ---
+  | 'dateType'           // 日付
+  | 'dateTimeType'       // 日時
+  // --- Property リスト型（スペース区切り値列）---
+  | 'stringListType'     // 文字列リスト
+  | 'intListType'        // 整数リスト
+  | 'longListType'       // 64bit整数リスト
+  | 'shortListType'      // 16bit整数リスト
+  | 'byteListType'       // 8bit整数リスト
+  | 'unsignedIntListType'
+  | 'floatListType'      // 単精度浮動小数点リスト
+  | 'doubleListType'     // 倍精度浮動小数点リスト
+  | 'decimalListType'    // 任意精度小数リスト
+  | 'booleanListType'    // 真偽値リスト
+  | 'dateTimeListType'   // 日時リスト
+  // --- 構造型・特殊型 ---
+  | 'propertyListType'   // 子 Property・子 Content をネストする構造型
+  | 'insertion';         // ファイルアップロード（<insertion> タグ）
+
+/**
+ * Content タグ用の型（<content xsi:type="...">）
+ * MAIML の contentBaseType 系 xsiType に対応
+ * xsiType をそのまま使用する（変換なし）
+ */
+export type ContentType =
+  | 'contentStringListType'    // 文字列リスト
+  | 'contentIntListType'       // 整数リスト
+  | 'contentLongListType'      // 64bit整数リスト
+  | 'contentShortListType'     // 16bit整数リスト
+  | 'contentByteListType'      // 8bit整数リスト
+  | 'contentUnsignedIntListType'
+  | 'contentFloatListType'     // 単精度浮動小数点リスト
+  | 'contentDoubleListType'    // 倍精度浮動小数点リスト（2次元数値データグリッドとして表示）
+  | 'contentDecimalListType'   // 任意精度小数リスト
+  | 'contentBooleanListType'   // 真偽値リスト
+  | 'contentDateTimeListType'; // 日時リスト
+
+/**
+ * Content フィールドの型（Property と区別するための専用型）
+ * DataRecordDialog の Template.contents[] および Property.contents[] で使用
+ * maiml-unified.ts の Content インターフェースの UI 用サブセット
+ */
+export interface ContentField {
+  key: string;
+  label: string;
+  type: ContentType;     // ContentType（PropertyType と分離）
+  units?: string;
+  description?: string;
+  axis?: string;         // maiml-unified.ts の Content.axis に対応
+  size?: number;         // maiml-unified.ts の Content.size に対応
+  nestedProperties?: Property[]; // 子 Property（XSD の genericDataContainerGroup に対応）
+  contents?: ContentField[];     // 子 Content（XSD の genericDataContainerGroup に対応・再帰）
+}
 
 // テンプレートカテゴリ
 export type TemplateCategory = 'Materials' | 'Conditions' | 'Results';
@@ -118,10 +185,11 @@ export interface Property {
   options?: string[];
   min?: number;
   max?: number;
-  nestedProperties?: Property[];
-  description?: string;     // プロパティの説明文（MAIMLの <description> 要素）
-  formatString?: string;    // 数値フォーマット文字列（例: "%.3f"）
-  scaleFactor?: string;     // 単位変換係数
+  nestedProperties?: Property[];       // 子 Property（maiml-unified の properties[] に対応）
+  contents?: ContentField[];           // 子 Content（maiml-unified の contents[] に対応）
+  description?: string;                // プロパティの説明文（MAIMLの <description> 要素）
+  formatString?: string;               // 数値フォーマット文字列（例: "%.3f"）
+  scaleFactor?: string;                // 単位変換係数
 }
 
 
@@ -132,6 +200,7 @@ export interface Template {
   name: string;
   description?: string;
   properties: Property[];
+  contents?: ContentField[];           // テンプレートトップレベルの Content（Property と別枠）
 }
 
 // 実験データ値
@@ -353,15 +422,48 @@ export type ContainerType = 'property' | 'content' | 'insertion';
  *   contentStringListType / contentDoubleListType / contentIntListType
  */
 export type CustomPropertyType =
+  // --- property 系 ---
   | 'stringType'
-  | 'floatType'
+  | 'tokenType'
+  | 'stringEnumType'
   | 'intType'
+  | 'longType'
+  | 'shortType'
+  | 'byteType'
+  | 'unsignedIntType'
+  | 'unsignedLongType'
+  | 'unsignedShortType'
+  | 'unsignedByteType'
+  | 'floatType'
+  | 'doubleType'
+  | 'decimalType'
   | 'booleanType'
   | 'dateType'
   | 'dateTimeType'
   | 'stringListType'
-  | 'doubleListType'
   | 'intListType'
+  | 'longListType'
+  | 'shortListType'
+  | 'byteListType'
+  | 'unsignedIntListType'
+  | 'floatListType'
+  | 'doubleListType'
+  | 'decimalListType'
+  | 'booleanListType'
+  | 'dateTimeListType'
+  // --- content 系 ---
+  | 'contentStringListType'
+  | 'contentIntListType'
+  | 'contentLongListType'
+  | 'contentShortListType'
+  | 'contentByteListType'
+  | 'contentUnsignedIntListType'
+  | 'contentFloatListType'
+  | 'contentDoubleListType'
+  | 'contentDecimalListType'
+  | 'contentBooleanListType'
+  | 'contentDateTimeListType'
+  // --- insertion ---
   | 'insertion';
 
 /**
@@ -380,10 +482,10 @@ export interface CustomPropertyValue {
   /**
    * 入力値
    * - property: string（型に応じてパース）
-   * - content: string（スペース/カンマ区切り）
+   * - content: string[]（各要素が1行のスペース区切り値リスト）
    * - insertion: null（File オブジェクトは file フィールドで管理）
    */
-  value: string | null;
+  value: string | string[] | null;
   /** 単位（property/content のみ） */
   units: string;
   /**

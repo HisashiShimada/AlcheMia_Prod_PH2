@@ -154,73 +154,10 @@ export function buildDataXML(
         dataXml += `      <${category} id="${escapeXml(instanceId)}" ref="${escapeXml(templateRef)}">\n`;
         dataXml += `        <uuid>${resolveUuid(`${category}:${instanceId}`, existingUuids, randomUUID)}</uuid>\n`;
 
-        // プロパティを出力
+        // プロパティを出力（propertyListType のネスト子要素に対応した再帰関数を使用）
         if (ps.properties && Array.isArray(ps.properties)) {
           for (const prop of ps.properties) {
-            if (!prop || !prop.key) continue;
-
-            // xsi:type フォールバック（未設定時は stringType）
-            const propType = prop.xsiType || 'stringType';
-
-            dataXml += `        <property key="${escapeXml(prop.key)}"`;
-
-            // カスタム属性を動的出力（xsi:type / units / formatString / scaleFactor は個別処理）
-            if (prop.attributes) {
-              for (const [attrName, attrValue] of Object.entries(prop.attributes)) {
-                if (attrName !== 'xsi:type' && attrValue) {
-                  dataXml += ` ${attrName}="${escapeXml(attrValue)}"`;
-                }
-              }
-            }
-
-            // units
-            if (prop.units) {
-              dataXml += ` units="${escapeXml(prop.units)}"`;
-            }
-
-            // formatString
-            if (prop.formatString) {
-              dataXml += ` formatString="${escapeXml(prop.formatString)}"`;
-            }
-
-            // scaleFactor
-            if (prop.scaleFactor !== undefined && prop.scaleFactor !== null) {
-              dataXml += ` scaleFactor="${escapeXml(String(prop.scaleFactor))}"`;
-            }
-
-            // xsi:type は最後に出力
-            dataXml += ` xsi:type="${escapeXml(propType)}"`;
-
-            dataXml += `>\n`;
-
-            // description（value より前に出力）
-            if (prop.description) {
-              dataXml += `          <description>${escapeXml(prop.description)}</description>\n`;
-            }
-
-            // value（null / undefined / 空文字は出力しない）
-            const propValue = prop.value;
-            if (propValue !== null && propValue !== undefined && propValue !== '') {
-              dataXml += `          <value>${escapeXml(String(propValue))}</value>\n`;
-            }
-
-            // customElements（任意の追加要素）
-            if (prop.customElements) {
-              for (const [elemName, customElem] of Object.entries(prop.customElements)) {
-                if (customElem && customElem.value !== undefined && customElem.value !== '') {
-                  let elemXml = `          <${elemName}`;
-                  if (customElem.attributes) {
-                    for (const [aName, aVal] of Object.entries(customElem.attributes)) {
-                      if (aVal) elemXml += ` ${aName}="${escapeXml(aVal)}"`;
-                    }
-                  }
-                  elemXml += `>${escapeXml(String(customElem.value))}</${elemName}>\n`;
-                  dataXml += elemXml;
-                }
-              }
-            }
-
-            dataXml += `        </property>\n`;
+            dataXml += buildPropertyXML(prop as unknown as Record<string, unknown>, 4);
           }
         }
 
@@ -246,27 +183,10 @@ export function buildDataXML(
 
         // ps.contents を <content> タグとして出力（カスタムプロパティの content コンテナ）
         // xsi:type: contentStringListType / contentDoubleListType / contentIntListType
+        // buildContentXML() を使用して子 property / 子 content も再帰的に出力する
         if (ps.contents && Array.isArray(ps.contents)) {
           for (const c of ps.contents) {
-            if (!c || !c.key) continue;
-            const contentType = c.xsiType || 'contentDoubleListType';
-            dataXml += `        <content key="${escapeXml(c.key)}"`;
-            if (c.units) dataXml += ` units="${escapeXml(c.units)}"`;
-            dataXml += ` xsi:type="${escapeXml(contentType)}">\n`;
-            if (c.description) {
-              dataXml += `          <description>${escapeXml(c.description)}</description>\n`;
-            }
-            // value はスペース区切り文字列または配列
-            const rawVal = c.value;
-            const items: string[] = Array.isArray(rawVal)
-              ? (rawVal as unknown[]).map((v) => String(v))
-              : typeof rawVal === 'string' && rawVal.trim().length > 0
-              ? rawVal.trim().split(/[\s,]+/).filter((s) => s.length > 0)
-              : [];
-            for (const item of items) {
-              dataXml += `          <value>${escapeXml(item)}</value>\n`;
-            }
-            dataXml += `        </content>\n`;
+            dataXml += buildContentXML(c as unknown as Record<string, unknown>, 4);
           }
         }
 
@@ -522,6 +442,189 @@ function buildEvnetXML(
   xml += `${indent}  <uuid>${resolveUuid(id ? `evnet:${id}` : 'evnet', existingUuids, randomUUID)}</uuid>\n`;
   xml += buildPropertiesXML(properties, indentLevel + 1);
   xml += `${indent}</evnet>\n`;
+  return xml;
+}
+
+/**
+ * <content> 要素を1つ生成（子 property / 子 content に再帰対応）
+ *
+ * value は ContentRowListInput の変更により string[] 配列で渡される。
+ * 後方互換としてスペース区切り文字列も受け入れる。
+ *
+ * @param c           - content オブジェクト（property_set.contents の1要素、または子 content）
+ * @param indentLevel - インデントレベル（material/condition/result の直下なら 4）
+ * @param depth       - 再帰深さ（無限ループ防止。最大 10）
+ * @returns <content ...>...</content> の XML 文字列
+ */
+function buildContentXML(
+  c: Record<string, unknown>,
+  indentLevel: number,
+  depth: number = 0
+): string {
+  const MAX_DEPTH = 10;
+  if (!c || !c['key']) return '';
+
+  const indent = '  '.repeat(indentLevel);
+  const childIndent = '  '.repeat(indentLevel + 1);
+
+  const contentType = (c['xsiType'] as string | undefined) || 'contentDoubleListType';
+
+  let xml = `${indent}<content key="${escapeXml(c['key'])}"`;
+  if (c['units']) xml += ` units="${escapeXml(c['units'])}"`;
+  xml += ` xsi:type="${escapeXml(contentType)}">\n`;
+
+  if (c['description']) {
+    xml += `${childIndent}<description>${escapeXml(c['description'])}</description>\n`;
+  }
+
+  // value は string[]（ContentRowListInput 対応）または後方互換の文字列
+  const rawVal = c['value'];
+  const items: string[] = Array.isArray(rawVal)
+    ? (rawVal as unknown[]).map((v) => String(v))
+    : typeof rawVal === 'string' && rawVal.trim().length > 0
+    ? rawVal.trim().split(/[\s,]+/).filter((s) => s.length > 0)
+    : [];
+  for (const item of items) {
+    xml += `${childIndent}<value>${escapeXml(item)}</value>\n`;
+  }
+
+  // 子 property を再帰的に出力（MAIML XSD で content 内に property が入れ子になる場合に対応）
+  if (depth < MAX_DEPTH) {
+    const childProperties = c['properties'];
+    if (Array.isArray(childProperties)) {
+      for (const childProp of childProperties) {
+        if (childProp && typeof childProp === 'object') {
+          xml += buildPropertyXML(childProp as Record<string, unknown>, indentLevel + 1, depth + 1);
+        }
+      }
+    }
+
+    // 子 content を再帰的に出力
+    const childContents = c['contents'];
+    if (Array.isArray(childContents)) {
+      for (const cc of childContents) {
+        if (cc && typeof cc === 'object') {
+          xml += buildContentXML(cc as Record<string, unknown>, indentLevel + 1, depth + 1);
+        }
+      }
+    }
+  }
+
+  xml += `${indent}</content>\n`;
+  return xml;
+}
+
+/**
+ * <property> 要素を1つ生成（propertyListType のネスト子要素に再帰対応）
+ *
+ * template_data の property_set.properties[] の各要素を受け取り、
+ * xsi:type が propertyListType の場合は子 property / 子 content を再帰的に出力する。
+ *
+ * @param prop        - プロパティオブジェクト（property_set.properties の1要素）
+ * @param indentLevel - インデントレベル（material/condition/result の直下なら 4）
+ * @param depth       - 再帰深さ（無限ループ防止。最大 10）
+ * @returns <property ...>...</property> の XML 文字列
+ */
+function buildPropertyXML(
+  prop: Record<string, unknown>,
+  indentLevel: number,
+  depth: number = 0
+): string {
+  const MAX_DEPTH = 10;
+  if (!prop || !prop['key']) return '';
+
+  const indent = '  '.repeat(indentLevel);
+  const childIndent = '  '.repeat(indentLevel + 1);
+
+  // xsi:type フォールバック（未設定時は stringType）
+  const propType = (prop['xsiType'] as string | undefined) || 'stringType';
+  const key = prop['key'] as string;
+
+  let xml = `${indent}<property key="${escapeXml(key)}"`;
+
+  // カスタム属性を動的出力（xsiType / units / formatString / scaleFactor は個別処理）
+  if (prop['attributes'] && typeof prop['attributes'] === 'object') {
+    for (const [attrName, attrValue] of Object.entries(prop['attributes'] as Record<string, unknown>)) {
+      if (attrName !== 'xsi:type' && attrValue) {
+        xml += ` ${attrName}="${escapeXml(attrValue)}"`;
+      }
+    }
+  }
+
+  // units
+  if (prop['units']) {
+    xml += ` units="${escapeXml(prop['units'])}"`;
+  }
+
+  // formatString
+  if (prop['formatString']) {
+    xml += ` formatString="${escapeXml(prop['formatString'])}"`;
+  }
+
+  // scaleFactor
+  if (prop['scaleFactor'] !== undefined && prop['scaleFactor'] !== null) {
+    xml += ` scaleFactor="${escapeXml(String(prop['scaleFactor']))}"`;
+  }
+
+  // xsi:type は最後に出力
+  xml += ` xsi:type="${escapeXml(propType)}"`;
+  xml += `>\n`;
+
+  // description（value より前に出力）
+  if (prop['description']) {
+    xml += `${childIndent}<description>${escapeXml(prop['description'])}</description>\n`;
+  }
+
+  // propertyListType の場合は value を出力せず、子 property / 子 content を再帰出力
+  if (propType === 'propertyListType') {
+    if (depth < MAX_DEPTH) {
+      // 子 property を再帰的に出力
+      const childProperties = prop['properties'];
+      if (Array.isArray(childProperties)) {
+        for (const childProp of childProperties) {
+          if (childProp && typeof childProp === 'object') {
+            xml += buildPropertyXML(childProp as Record<string, unknown>, indentLevel + 1, depth + 1);
+          }
+        }
+      }
+
+      // 子 content を buildContentXML() で出力（再帰・string[] 対応）
+      const childContents = prop['contents'];
+      if (Array.isArray(childContents)) {
+        for (const c of childContents) {
+          if (!c || typeof c !== 'object') continue;
+          xml += buildContentXML(c as Record<string, unknown>, indentLevel + 1, depth + 1);
+        }
+      }
+    }
+  } else {
+    // 通常プロパティ: value を出力（null / undefined / 空文字は出力しない）
+    const propValue = prop['value'];
+    if (propValue !== null && propValue !== undefined && propValue !== '') {
+      xml += `${childIndent}<value>${escapeXml(String(propValue))}</value>\n`;
+    }
+
+    // customElements（任意の追加要素）
+    if (prop['customElements'] && typeof prop['customElements'] === 'object') {
+      for (const [elemName, customElem] of Object.entries(prop['customElements'] as Record<string, unknown>)) {
+        if (customElem && typeof customElem === 'object') {
+          const ce = customElem as Record<string, unknown>;
+          if (ce['value'] !== undefined && ce['value'] !== '') {
+            let elemXml = `${childIndent}<${elemName}`;
+            if (ce['attributes'] && typeof ce['attributes'] === 'object') {
+              for (const [aName, aVal] of Object.entries(ce['attributes'] as Record<string, unknown>)) {
+                if (aVal) elemXml += ` ${aName}="${escapeXml(aVal)}"`;
+              }
+            }
+            elemXml += `>${escapeXml(String(ce['value']))}</${elemName}>\n`;
+            xml += elemXml;
+          }
+        }
+      }
+    }
+  }
+
+  xml += `${indent}</property>\n`;
   return xml;
 }
 

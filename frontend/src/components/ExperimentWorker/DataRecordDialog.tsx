@@ -42,6 +42,9 @@ import {
 import dayjs from 'dayjs';
 import {
   Property,
+  ContentField,
+  ContentType,
+  PropertyType,
   ExperimentDataValue,
   Transition,
   Template,
@@ -103,18 +106,109 @@ function mapTemplateTypeToCategory(templateType: string): TemplateCategory {
   }
 }
 
+/** PropertyType の全候補（xsiType をそのまま使用）*/
+const KNOWN_PROPERTY_TYPES: readonly PropertyType[] = [
+  'stringType', 'tokenType', 'stringEnumType',
+  'intType', 'longType', 'shortType', 'byteType',
+  'unsignedIntType', 'unsignedLongType', 'unsignedShortType', 'unsignedByteType',
+  'floatType', 'doubleType', 'decimalType',
+  'booleanType',
+  'dateType', 'dateTimeType',
+  'stringListType', 'intListType', 'longListType', 'shortListType', 'byteListType',
+  'unsignedIntListType', 'floatListType', 'doubleListType', 'decimalListType',
+  'booleanListType', 'dateTimeListType',
+  'propertyListType', 'insertion',
+] as const;
+
 /**
  * API の xsiType 文字列をフロントの PropertyType にマッピングする
+ * xsiType をそのまま PropertyType として返す（変換不要）
  */
-function mapXsiTypeToPropertyType(xsiType: string): import('@/types/experimentWorker').PropertyType {
-  const known = [
-    'stringType', 'intType', 'floatType', 'booleanType',
-    'dateType', 'dateTimeType', 'contentDoubleListType', 'propertyListType', 'insertion',
-  ] as const;
-  if ((known as readonly string[]).includes(xsiType)) {
-    return xsiType as import('@/types/experimentWorker').PropertyType;
+function mapXsiTypeToPropertyType(xsiType: string): PropertyType {
+  if ((KNOWN_PROPERTY_TYPES as readonly string[]).includes(xsiType)) {
+    return xsiType as PropertyType;
   }
   return 'stringType'; // 未知の xsiType は stringType にフォールバック
+}
+
+/** ContentType の全候補 */
+const KNOWN_CONTENT_TYPES: readonly ContentType[] = [
+  'contentStringListType',
+  'contentIntListType',
+  'contentLongListType',
+  'contentShortListType',
+  'contentByteListType',
+  'contentUnsignedIntListType',
+  'contentFloatListType',
+  'contentDoubleListType',
+  'contentDecimalListType',
+  'contentBooleanListType',
+  'contentDateTimeListType',
+] as const;
+
+/**
+ * API の xsiType 文字列をフロントの ContentType にマッピングする
+ * xsiType をそのまま ContentType として返す（変換不要）
+ */
+function mapXsiTypeToContentType(xsiType: string): ContentType {
+  if ((KNOWN_CONTENT_TYPES as readonly string[]).includes(xsiType)) {
+    return xsiType as ContentType;
+  }
+  return 'contentStringListType'; // 未知の xsiType は contentStringListType にフォールバック
+}
+
+/**
+ * rawProperty オブジェクトを再帰的に Property 型に変換する
+ * propertyListType の子 Property・子 Content を nestedProperties / contents にマッピングする
+ */
+function convertRawPropertyToProperty(
+  p: Record<string, unknown>,
+  depth: number = 0
+): Property {
+  const MAX_DEPTH = 5;
+  const xsiType = String(p.xsiType ?? 'stringType');
+
+  const base: Property = {
+    key: String(p.key ?? ''),
+    label: String(p.key ?? ''),
+    type: mapXsiTypeToPropertyType(xsiType),
+    units: (p.units as string | undefined) ?? undefined,
+    required: false,
+    description: (p.description as string | undefined) ?? undefined,
+    formatString: (p.formatString as string | undefined) ?? undefined,
+    scaleFactor: (p.scaleFactor as string | undefined) ?? undefined,
+  };
+
+  if (xsiType === 'propertyListType' && depth < MAX_DEPTH) {
+    const childProps = p.properties as Array<Record<string, unknown>> | undefined;
+    const childContents = p.contents as Array<Record<string, unknown>> | undefined;
+
+    const nestedProps = Array.isArray(childProps)
+      ? childProps
+          .filter((child) => !child.isCustomProperty)
+          .map((child) => convertRawPropertyToProperty(child, depth + 1))
+      : [];
+    if (nestedProps.length > 0) {
+      base.nestedProperties = nestedProps;
+    }
+
+    const nestedContents: ContentField[] = Array.isArray(childContents)
+      ? childContents.map((c) => ({
+          key: String(c.key ?? ''),
+          label: String(c.key ?? ''),
+          type: mapXsiTypeToContentType(String(c.xsiType ?? 'contentStringListType')),
+          units: (c.units as string | undefined) ?? undefined,
+          description: (c.description as string | undefined) ?? undefined,
+          axis: (c.axis as string | undefined) ?? undefined,
+          size: (c.size as number | undefined) ?? undefined,
+        }))
+      : [];
+    if (nestedContents.length > 0) {
+      base.contents = nestedContents;
+    }
+  }
+
+  return base;
 }
 
 /**
@@ -154,17 +248,21 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
     const properties: Property[] = (rawProperties ?? [])
       // isCustomProperty: true なプロパティはテンプレート定義欄に表示しない
       .filter((p) => !(p as Record<string, unknown>).isCustomProperty)
-      .map((p) => ({
-        key: p.key,
-        label: p.key,                          // ラベルはキーをそのまま使用
-        type: mapXsiTypeToPropertyType(p.xsiType),
-        units: (p as Record<string, unknown>).units as string | undefined ?? undefined,
-        required: false,
-        description: (p as Record<string, unknown>).description as string | undefined ?? undefined,
-        formatString: (p as Record<string, unknown>).formatString as string | undefined ?? undefined,
-        scaleFactor: (p as Record<string, unknown>).scaleFactor as string | undefined ?? undefined,
-      }));
+      .map((p) => convertRawPropertyToProperty(p as Record<string, unknown>));
 
+    // テンプレートトップレベルの Content を ContentField[] に変換
+    const rawContentsTop = rawData.contents as Array<Record<string, unknown>> | undefined;
+    const contents: ContentField[] = Array.isArray(rawContentsTop)
+      ? rawContentsTop.map((c) => ({
+          key: String(c.key ?? ''),
+          label: String(c.key ?? ''),
+          type: mapXsiTypeToContentType(String(c.xsiType ?? 'contentStringListType')),
+          units: (c.units as string | undefined) ?? undefined,
+          description: (c.description as string | undefined) ?? undefined,
+          axis: (c.axis as string | undefined) ?? undefined,
+          size: (c.size as number | undefined) ?? undefined,
+        }))
+      : [];
 
     const name = buildTemplateName(item.templateType, item.templateId);
 
@@ -173,6 +271,7 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
       category,
       name,
       properties,
+      ...(contents.length > 0 ? { contents } : {}),
     } satisfies Template;
   });
 }
@@ -180,6 +279,65 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Sider, Content } = Layout;
+
+/**
+ * ContentField（テンプレート定義・非カスタム）用の行追加可能な入力コンポーネント
+ * Form.Item の children として使用する。
+ * フォーム値は string[]（各行がスペース区切りの列値）で管理する。
+ */
+function ContentRowListInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value?: string[];
+  onChange?: (v: string[]) => void;
+  disabled?: boolean;
+}) {
+  const rows: string[] = Array.isArray(value) && value.length > 0 ? value : [''];
+  return (
+    <div>
+      {rows.map((rowVal, rowIdx) => (
+        <div key={rowIdx} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+          <TextArea
+            placeholder={`行 ${rowIdx + 1}: 値をスペース区切りで入力（例: 1.0 2.5 3.0）`}
+            value={rowVal}
+            onChange={(e) => {
+              const newRows = [...rows];
+              newRows[rowIdx] = e.target.value;
+              onChange?.(newRows);
+            }}
+            autoSize={{ minRows: 1, maxRows: 3 }}
+            style={{ flex: 1 }}
+            disabled={disabled}
+          />
+          <Button
+            type="text"
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+            disabled={disabled || rows.length <= 1}
+            onClick={() => {
+              const newRows = rows.filter((_, i) => i !== rowIdx);
+              onChange?.(newRows);
+            }}
+            style={{ flexShrink: 0 }}
+          />
+        </div>
+      ))}
+      <Button
+        size="small"
+        icon={<PlusOutlined />}
+        disabled={disabled}
+        onClick={() => {
+          onChange?.([...rows, '']);
+        }}
+      >
+        行を追加
+      </Button>
+    </div>
+  );
+}
 
 interface DataRecordDialogProps {
   open: boolean;
@@ -392,13 +550,13 @@ export default function DataRecordDialog({
       // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
       setStatusUpdateExpanded(isProjectEditable);
 
-      // 各テンプレートのDataGridを初期化
+      // 各テンプレートのDataGridを初期化（templateのcontentsを参照）
       transition.templates?.forEach((template) => {
-        template.properties.forEach((prop) => {
-          if (prop.type === 'contentDoubleListType') {
+        template.contents?.forEach((content) => {
+          if (content.type === 'contentDoubleListType') {
             setDataGrids((prev) => ({
               ...prev,
-              [`${template.templateId}_${prop.key}`]: [[0, 0, 0]],
+              [`${template.templateId}_${content.key}`]: [[0, 0, 0]],
             }));
           }
         });
@@ -441,13 +599,72 @@ export default function DataRecordDialog({
                       // フォールバック形式・保存済み形式（DB保存時に properties 構造のまま保存された場合）
                       // どちらでも統一処理する。value が non-null の場合にフォームへ反映する。
                       for (const p of rawProperties) {
-                        if (p.value !== null && p.value !== undefined) {
-                          const formKey = `${item.templateId}_${p.key}`;
+                        const pKey = String(p.key ?? '');
+                        const pXsiType = String((p as Record<string, unknown>).xsiType ?? '');
+
+                        if (pXsiType === 'propertyListType') {
+                          // ── ネスト子プロパティの value を復元 ──
+                          const childProps = (p as Record<string, unknown>).properties as Array<Record<string, unknown>> | undefined;
+                          if (Array.isArray(childProps)) {
+                            for (const nestedP of childProps) {
+                              if ((nestedP as Record<string, unknown>).isCustomProperty === true) continue;
+                              const nestedKey = String(nestedP.key ?? '');
+                              const nestedVal = nestedP.value;
+                              if (nestedVal !== null && nestedVal !== undefined) {
+                                const nestedFormKey = `${item.templateId}_${nestedKey}`;
+                                const nestedXsiType = String(nestedP.xsiType ?? '');
+                                if (nestedXsiType === 'dateType' || nestedXsiType === 'dateTimeType') {
+                                  initialValues[nestedFormKey] = dayjs(String(nestedVal));
+                                } else {
+                                  initialValues[nestedFormKey] = nestedVal;
+                                }
+                              }
+                            }
+                          }
+                          // ── ネスト子 Content の value を復元 ──
+                          const childContents = (p as Record<string, unknown>).contents as Array<Record<string, unknown>> | undefined;
+                          if (Array.isArray(childContents)) {
+                            for (const nestedC of childContents) {
+                              if ((nestedC as Record<string, unknown>).isCustomProperty === true) continue;
+                              const nestedCKey = String(nestedC.key ?? '');
+                              const nestedCVal = nestedC.value;
+                              if (nestedCVal !== null && nestedCVal !== undefined) {
+                                const nestedCFormKey = `${item.templateId}_${nestedCKey}`;
+                                // ContentRowListInput は string[] を期待する
+                                if (Array.isArray(nestedCVal)) {
+                                  initialValues[nestedCFormKey] = (nestedCVal as unknown[]).map(String);
+                                } else {
+                                  initialValues[nestedCFormKey] = [String(nestedCVal)];
+                                }
+                              }
+                            }
+                          }
+                        } else if (p.value !== null && p.value !== undefined) {
+                          const formKey = `${item.templateId}_${pKey}`;
                           // dateType / dateTimeType は dayjs に変換（DatePicker が dayjs オブジェクトを期待するため）
-                          if (p.xsiType === 'dateType' || p.xsiType === 'dateTimeType') {
+                          if (pXsiType === 'dateType' || pXsiType === 'dateTimeType') {
                             initialValues[formKey] = dayjs(String(p.value));
                           } else {
                             initialValues[formKey] = p.value;
+                          }
+                        }
+                      }
+
+                      // ── トップレベル非カスタム Content の value を復元 ──
+                      const rawContentsTop = rawData.contents as Array<Record<string, unknown>> | undefined;
+                      if (Array.isArray(rawContentsTop)) {
+                        for (const c of rawContentsTop) {
+                          if (c.isCustomProperty === true) continue;
+                          const cKey = String(c.key ?? '');
+                          const cVal = c.value;
+                          if (cVal !== null && cVal !== undefined) {
+                            const cFormKey = `${item.templateId}_${cKey}`;
+                            // ContentRowListInput は string[] を期待する
+                            if (Array.isArray(cVal)) {
+                              initialValues[cFormKey] = (cVal as unknown[]).map(String);
+                            } else {
+                              initialValues[cFormKey] = [String(cVal)];
+                            }
                           }
                         }
                       }
@@ -555,20 +772,36 @@ export default function DataRecordDialog({
                     if (c.isCustomProperty !== true) continue;
 
                     const cpKey = String(c.key ?? '');
-                    const xsiType = String(c.xsiType ?? 'stringListType');
-                    const contentTypes: CustomPropertyType[] = [
-                      'stringListType', 'doubleListType', 'intListType',
+                    const xsiType = String(c.xsiType ?? 'contentStringListType');
+                    // ContentType の全種別（CustomPropertyType の content 系として扱う）
+                    const contentTypeValues: string[] = [
+                      'contentStringListType',
+                      'contentIntListType',
+                      'contentLongListType',
+                      'contentShortListType',
+                      'contentByteListType',
+                      'contentUnsignedIntListType',
+                      'contentFloatListType',
+                      'contentDoubleListType',
+                      'contentDecimalListType',
+                      'contentBooleanListType',
+                      'contentDateTimeListType',
                     ];
-                    const customType: CustomPropertyType = contentTypes.includes(xsiType as CustomPropertyType)
+                    const customType: CustomPropertyType = contentTypeValues.includes(xsiType)
                       ? (xsiType as CustomPropertyType)
-                      : 'stringListType';
+                      : 'contentStringListType';
 
-                    // value を文字列に変換（配列はスペース区切りで結合）
-                    let valueStr: string | null = null;
+                    // value を string[] に変換（各行が1行のスペース区切り値）
+                    // DB保存形式: 行区切りは \n、列区切りはスペース
+                    let valueArr: string[] | null = null;
                     if (Array.isArray(c.value)) {
-                      valueStr = (c.value as unknown[]).join(' ');
+                      // 配列形式の場合はそのまま文字列化（各要素1行）
+                      valueArr = (c.value as unknown[]).map(String);
+                    } else if (typeof c.value === 'string' && c.value !== '') {
+                      // 改行区切り文字列 → 行配列
+                      valueArr = c.value.split('\n');
                     } else if (c.value !== null && c.value !== undefined) {
-                      valueStr = String(c.value);
+                      valueArr = [String(c.value)];
                     }
 
                     if (!restoredCustomPropsMap[item.templateId]) {
@@ -579,7 +812,7 @@ export default function DataRecordDialog({
                       key: cpKey,
                       containerType: 'content',
                       customType,
-                      value: valueStr,
+                      value: valueArr,
                       units: String(c.units ?? ''),
                       isCustomProperty: true,
                     });
@@ -655,32 +888,66 @@ export default function DataRecordDialog({
         // フォールバック形式: { templateId, templateType, properties: [{ key, xsiType, value, units }] }
         // properties[i].value をフォーム値で上書きする
         (
-          baseData.properties as Array<{
-            key: string;
-            xsiType: string;
-            value: unknown;
-            units: string | null;
-          }>
+          baseData.properties as Array<Record<string, unknown>>
         ).forEach((p) => {
-          const formKey = `${template.templateId}_${p.key}`;
-          if (p.xsiType === 'dateType') {
+          const formKey = `${template.templateId}_${String(p.key ?? '')}`;
+          const xsiType = String(p.xsiType ?? '');
+          if (xsiType === 'dateType') {
             const v = values[formKey];
             p.value = v ? dayjs(v).format('YYYY-MM-DD') : null;
-          } else if (p.xsiType === 'dateTimeType') {
+          } else if (xsiType === 'dateTimeType') {
             const v = values[formKey];
             p.value = v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : null;
-          } else if (p.xsiType === 'contentDoubleListType') {
+          } else if (xsiType === 'contentDoubleListType') {
             p.value = dataGrids[formKey] ?? null;
+          } else if (xsiType === 'propertyListType') {
+            // ── ネスト子プロパティ（properties 配列）の value を更新 ──
+            if (Array.isArray(p.properties)) {
+              (p.properties as Array<Record<string, unknown>>).forEach((nestedP) => {
+                const nestedFormKey = `${template.templateId}_${String(nestedP.key ?? '')}`;
+                const nestedXsiType = String(nestedP.xsiType ?? '');
+                if (nestedXsiType === 'dateType') {
+                  const v = values[nestedFormKey];
+                  nestedP.value = v ? dayjs(v).format('YYYY-MM-DD') : null;
+                } else if (nestedXsiType === 'dateTimeType') {
+                  const v = values[nestedFormKey];
+                  nestedP.value = v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : null;
+                } else {
+                  nestedP.value = values[nestedFormKey] ?? null;
+                }
+              });
+            }
+            // ── ネスト子 Content（contents 配列）の value を更新 ──
+            if (Array.isArray(p.contents)) {
+              (p.contents as Array<Record<string, unknown>>).forEach((nestedC) => {
+                const nestedFormKey = `${template.templateId}_${String(nestedC.key ?? '')}`;
+                nestedC.value = values[nestedFormKey] ?? null;
+              });
+            }
           } else {
             p.value = values[formKey] ?? null;
           }
         });
+        // ── トップレベル Contents（baseData.contents 配列）の value を更新 ──
+        if (Array.isArray(baseData.contents)) {
+          (baseData.contents as Array<Record<string, unknown>>).forEach((c) => {
+            if (c.isCustomProperty === true) return;
+            const contentKey = String(c.key ?? '');
+            if (!contentKey) return;
+            const formKey = `${template.templateId}_${contentKey}`;
+            const rawVal = values[formKey];
+            // ContentRowListInput は string[] を返す
+            if (Array.isArray(rawVal)) {
+              c.value = rawVal as string[];
+            }
+          });
+        }
       } else {
         // DB実績形式: フラットなkey-value
         // baseData[prop.key] をフォーム値で上書きする
         template.properties.forEach((prop) => {
           const formKey = `${template.templateId}_${prop.key}`;
-          if (prop.type === 'contentDoubleListType') {
+          if (prop.type === 'propertyListType') {
             baseData[prop.key] = dataGrids[formKey] ?? [[0, 0, 0]];
           } else if (prop.type === 'dateType' || prop.type === 'dateTimeType') {
             const v = values[formKey];
@@ -742,10 +1009,14 @@ export default function DataRecordDialog({
             if (!cp.key && cp.containerType !== 'insertion') continue;
             if (cp.containerType === 'content') {
               // content コンテナは baseData.contents に追記（リセット済みなので push のみ）
+              // value は string[]（各行がスペース区切り値）をそのまま渡す
+              const rowsValue: string[] = Array.isArray(cp.value)
+                ? (cp.value as string[])
+                : cp.value ? [cp.value as string] : [];
               const contentEntry: Record<string, unknown> = {
                 key: cp.key,
                 xsiType: cp.customType,
-                value: cp.value ?? '', // バックエンド buildDataXML 側でスペース/カンマ区切り分割する
+                value: rowsValue,
                 units: cp.units || null,
                 isCustomProperty: true,
               };
@@ -772,14 +1043,15 @@ export default function DataRecordDialog({
                 units: cp.units || null,
                 isCustomProperty: true,
               };
+              const strVal = typeof cp.value === 'string' ? cp.value : null;
               if (cp.customType === 'intType') {
-                cpEntry.value = cp.value !== null ? parseInt(cp.value, 10) : null;
+                cpEntry.value = strVal !== null ? parseInt(strVal, 10) : null;
               } else if (cp.customType === 'floatType') {
-                cpEntry.value = cp.value !== null ? parseFloat(cp.value) : null;
+                cpEntry.value = strVal !== null ? parseFloat(strVal) : null;
               } else if (cp.customType === 'booleanType') {
-                cpEntry.value = cp.value === 'true';
+                cpEntry.value = strVal === 'true';
               } else {
-                cpEntry.value = cp.value;
+                cpEntry.value = strVal;
               }
               existingProps.push(cpEntry);
             }
@@ -799,28 +1071,21 @@ export default function DataRecordDialog({
                 isCustomProperty: true,
               };
             } else if (cp.containerType === 'content') {
-              const rawVal = cp.value ?? '';
-              const splitItems = rawVal
-                .split(/[\s,]+/)
-                .map((s: string) => s.trim())
-                .filter((s: string) => s.length > 0);
-              if (cp.customType === 'doubleListType') {
-                baseData[cp.key] = splitItems.map(Number);
-              } else if (cp.customType === 'intListType') {
-                baseData[cp.key] = splitItems.map((s: string) => parseInt(s, 10));
-              } else {
-                // contentStringListType
-                baseData[cp.key] = splitItems;
-              }
+              // value は string[]（各行がスペース区切り値）をそのまま保存
+              const rowsValue: string[] = Array.isArray(cp.value)
+                ? (cp.value as string[])
+                : cp.value ? [cp.value as string] : [];
+              baseData[cp.key] = rowsValue;
             } else {
+              const strVal2 = typeof cp.value === 'string' ? cp.value : null;
               if (cp.customType === 'intType') {
-                baseData[cp.key] = cp.value !== null ? parseInt(cp.value, 10) : null;
+                baseData[cp.key] = strVal2 !== null ? parseInt(strVal2, 10) : null;
               } else if (cp.customType === 'floatType') {
-                baseData[cp.key] = cp.value !== null ? parseFloat(cp.value) : null;
+                baseData[cp.key] = strVal2 !== null ? parseFloat(strVal2) : null;
               } else if (cp.customType === 'booleanType') {
-                baseData[cp.key] = cp.value === 'true';
+                baseData[cp.key] = strVal2 === 'true';
               } else {
-                baseData[cp.key] = cp.value;
+                baseData[cp.key] = strVal2;
               }
             }
           }
@@ -975,17 +1240,26 @@ export default function DataRecordDialog({
       },
     ];
 
-    // intType / floatType / doubleType / decimalType は UI 制約（InputNumber）があるが
-    // 念のため rules にも型チェックを追加してエラーメッセージを明示化する
-    if (
-      property.type === 'intType' ||
-      property.type === 'floatType'
-    ) {
+    // 整数型・浮動小数点型は UI 制約（InputNumber）と併せてバリデーションルールも追加
+    const INT_TYPES: PropertyType[] = [
+      'intType', 'longType', 'shortType', 'byteType',
+      'unsignedIntType', 'unsignedLongType', 'unsignedShortType', 'unsignedByteType',
+    ];
+    const FLOAT_TYPES: PropertyType[] = ['floatType', 'doubleType', 'decimalType'];
+    const LIST_TYPES: PropertyType[] = [
+      'stringListType', 'intListType', 'longListType', 'shortListType', 'byteListType',
+      'unsignedIntListType', 'floatListType', 'doubleListType', 'decimalListType',
+      'booleanListType', 'dateTimeListType',
+    ];
+
+    if (INT_TYPES.includes(property.type) || FLOAT_TYPES.includes(property.type)) {
       rules.push(buildTypeRule(property.type));
     }
 
     switch (property.type) {
       case 'stringType':
+      case 'tokenType':
+      case 'stringEnumType':
         return (
           <Form.Item
             key={key}
@@ -1003,6 +1277,13 @@ export default function DataRecordDialog({
         );
 
       case 'intType':
+      case 'longType':
+      case 'shortType':
+      case 'byteType':
+      case 'unsignedIntType':
+      case 'unsignedLongType':
+      case 'unsignedShortType':
+      case 'unsignedByteType':
         return (
           <Form.Item
             key={key}
@@ -1024,6 +1305,8 @@ export default function DataRecordDialog({
         );
 
       case 'floatType':
+      case 'doubleType':
+      case 'decimalType':
         return (
           <Form.Item
             key={key}
@@ -1037,8 +1320,35 @@ export default function DataRecordDialog({
               placeholder={`${property.label}を入力`}
               min={property.min}
               max={property.max}
-              step={precisionFromFormat !== undefined ? Math.pow(10, -precisionFromFormat) : 0.01}
-              precision={precisionFromFormat ?? 2}
+              step={precisionFromFormat !== undefined ? Math.pow(10, -precisionFromFormat) : 0.0001}
+              precision={precisionFromFormat ?? 4}
+              disabled={!isProjectEditable}
+            />
+          </Form.Item>
+        );
+
+      case 'stringListType':
+      case 'intListType':
+      case 'longListType':
+      case 'shortListType':
+      case 'byteListType':
+      case 'unsignedIntListType':
+      case 'floatListType':
+      case 'doubleListType':
+      case 'decimalListType':
+      case 'booleanListType':
+      case 'dateTimeListType':
+        return (
+          <Form.Item
+            key={key}
+            name={key}
+            label={label}
+            extra={descriptionExtra}
+            rules={rules}
+          >
+            <TextArea
+              rows={3}
+              placeholder={`値をスペース区切りで入力（例: 1.0 2.5 3.0）`}
               disabled={!isProjectEditable}
             />
           </Form.Item>
@@ -1092,9 +1402,6 @@ export default function DataRecordDialog({
             />
           </Form.Item>
         );
-
-      case 'contentDoubleListType':
-        return renderDataGrid(property, key);
 
       case 'propertyListType':
         return renderNestedProperties(property, templateId);
@@ -1221,8 +1528,54 @@ export default function DataRecordDialog({
     );
   };
 
-  // ネストされたプロパティ
+  /**
+   * Content フィールド（ContentField）を 1 件描画する
+   * - contentDoubleListType: DataGrid 表示
+   * - それ以外: スペース区切りテキストエリア
+   */
+  const renderContentField = (content: ContentField, templateId: string) => {
+    const key = `${templateId}_${content.key}`;
+    const label = (
+      <>
+        {content.label}
+        {content.units && (
+          <Tag color="cyan" style={{ marginLeft: 8 }}>
+            {content.units}
+          </Tag>
+        )}
+        {content.axis && (
+          <Tag color="geekblue" style={{ marginLeft: 4, fontSize: 11 }}>
+            axis: {content.axis}
+          </Tag>
+        )}
+      </>
+    );
+    const descriptionExtra = content.description ? (
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        {content.description}
+      </Text>
+    ) : undefined;
+
+    // 全 Content 型共通: 行追加可能なリスト（各行がスペース区切りの列値）
+    return (
+      <Form.Item
+        key={key}
+        name={key}
+        label={label}
+        extra={descriptionExtra}
+      >
+        <ContentRowListInput disabled={!isProjectEditable} />
+      </Form.Item>
+    );
+  };
+
+  // ネストされたプロパティ（propertyListType）を描画する
+  // 子 Property（nestedProperties）と子 Content（contents）の両方を表示する
   const renderNestedProperties = (property: Property, templateId: string) => {
+    const hasChildren =
+      (property.nestedProperties?.length ?? 0) > 0 ||
+      (property.contents?.length ?? 0) > 0;
+
     return (
       <div
         key={`${templateId}_${property.key}`}
@@ -1234,9 +1587,42 @@ export default function DataRecordDialog({
       >
         <Title level={5} style={{ marginBottom: 16 }}>
           {property.label}
+          {property.units && (
+            <Tag color="blue" style={{ marginLeft: 8, fontWeight: 'normal', fontSize: 12 }}>
+              {property.units}
+            </Tag>
+          )}
         </Title>
-        {property.nestedProperties?.map((nestedProp) =>
-          renderPropertyInput(nestedProp, templateId)
+
+        {!hasChildren && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            子要素がありません
+          </Text>
+        )}
+
+        {/* 子 Property */}
+        {property.nestedProperties?.map((nestedProp) => (
+          <Row key={nestedProp.key} gutter={16}>
+            <Col span={nestedProp.type === 'propertyListType' ? 24 : 12}>
+              {renderPropertyInput(nestedProp, templateId)}
+            </Col>
+          </Row>
+        ))}
+
+        {/* 子 Content */}
+        {(property.contents?.length ?? 0) > 0 && (
+          <div style={{ marginTop: property.nestedProperties?.length ? 8 : 0 }}>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+              Content フィールド
+            </Text>
+            <Row gutter={16}>
+              {property.contents!.map((content) => (
+                <Col key={content.key} span={24}>
+                  {renderContentField(content, templateId)}
+                </Col>
+              ))}
+            </Row>
+          </div>
         )}
       </div>
     );
@@ -1464,17 +1850,47 @@ export default function DataRecordDialog({
       const typeOptions: { label: string; value: CustomPropertyType }[] =
         cp.containerType === 'property'
           ? [
-              { label: 'stringType', value: 'stringType' },
-              { label: 'floatType',  value: 'floatType' },
-              { label: 'intType',    value: 'intType' },
-              { label: 'booleanType', value: 'booleanType' },
-              { label: 'dateType',   value: 'dateType' },
-              { label: 'dateTimeType', value: 'dateTimeType' },
+              { label: 'stringType',         value: 'stringType' },
+              { label: 'tokenType',           value: 'tokenType' as CustomPropertyType },
+              { label: 'stringEnumType',      value: 'stringEnumType' as CustomPropertyType },
+              { label: 'intType',             value: 'intType' },
+              { label: 'longType',            value: 'longType' as CustomPropertyType },
+              { label: 'shortType',           value: 'shortType' as CustomPropertyType },
+              { label: 'byteType',            value: 'byteType' as CustomPropertyType },
+              { label: 'unsignedIntType',     value: 'unsignedIntType' as CustomPropertyType },
+              { label: 'unsignedLongType',    value: 'unsignedLongType' as CustomPropertyType },
+              { label: 'unsignedShortType',   value: 'unsignedShortType' as CustomPropertyType },
+              { label: 'unsignedByteType',    value: 'unsignedByteType' as CustomPropertyType },
+              { label: 'floatType',           value: 'floatType' },
+              { label: 'doubleType',          value: 'doubleType' as CustomPropertyType },
+              { label: 'decimalType',         value: 'decimalType' as CustomPropertyType },
+              { label: 'booleanType',         value: 'booleanType' },
+              { label: 'dateType',            value: 'dateType' },
+              { label: 'dateTimeType',        value: 'dateTimeType' },
+              { label: 'stringListType',      value: 'stringListType' },
+              { label: 'intListType',         value: 'intListType' },
+              { label: 'longListType',        value: 'longListType' as CustomPropertyType },
+              { label: 'shortListType',       value: 'shortListType' as CustomPropertyType },
+              { label: 'byteListType',        value: 'byteListType' as CustomPropertyType },
+              { label: 'unsignedIntListType', value: 'unsignedIntListType' as CustomPropertyType },
+              { label: 'floatListType',       value: 'floatListType' as CustomPropertyType },
+              { label: 'doubleListType',      value: 'doubleListType' },
+              { label: 'decimalListType',     value: 'decimalListType' as CustomPropertyType },
+              { label: 'booleanListType',     value: 'booleanListType' as CustomPropertyType },
+              { label: 'dateTimeListType',    value: 'dateTimeListType' as CustomPropertyType },
             ]
           : [
-              { label: 'stringListType', value: 'stringListType' },
-              { label: 'doubleListType', value: 'doubleListType' },
-              { label: 'intListType',    value: 'intListType' },
+              { label: 'contentStringListType',      value: 'contentStringListType' as CustomPropertyType },
+              { label: 'contentIntListType',          value: 'contentIntListType' as CustomPropertyType },
+              { label: 'contentLongListType',         value: 'contentLongListType' as CustomPropertyType },
+              { label: 'contentShortListType',        value: 'contentShortListType' as CustomPropertyType },
+              { label: 'contentByteListType',         value: 'contentByteListType' as CustomPropertyType },
+              { label: 'contentUnsignedIntListType',  value: 'contentUnsignedIntListType' as CustomPropertyType },
+              { label: 'contentFloatListType',        value: 'contentFloatListType' as CustomPropertyType },
+              { label: 'contentDoubleListType',       value: 'contentDoubleListType' as CustomPropertyType },
+              { label: 'contentDecimalListType',      value: 'contentDecimalListType' as CustomPropertyType },
+              { label: 'contentBooleanListType',      value: 'contentBooleanListType' as CustomPropertyType },
+              { label: 'contentDateTimeListType',     value: 'contentDateTimeListType' as CustomPropertyType },
             ];
 
       const typeSelect = (
@@ -1504,21 +1920,64 @@ export default function DataRecordDialog({
       );
 
       if (cp.containerType === 'content') {
+        // value は string[]（各要素が1行のスペース区切りリスト）
+        // 既存値が string の場合は単一行配列に変換
+        const rows: string[] = Array.isArray(cp.value)
+          ? (cp.value as string[])
+          : cp.value
+          ? [cp.value as string]
+          : [''];
+
         return (
-          <div key={cp.id} style={rowStyle}>
-            <Tag color="cyan" style={{ flexShrink: 0, alignSelf: 'center' }}>content</Tag>
-            {keyInput}
-            {typeSelect}
-            <TextArea
-              placeholder="値をスペース/カンマ区切りで入力（例: 1.0 2.5 3.0）"
-              value={cp.value ?? ''}
-              onChange={(e) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: e.target.value })}
-              autoSize={{ minRows: 1, maxRows: 3 }}
-              style={{ flex: 1, minWidth: 120 }}
-              size="small"
-            />
-            {unitsInput}
-            {deleteBtn}
+          <div key={cp.id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Tag color="cyan" style={{ flexShrink: 0 }}>content</Tag>
+              {keyInput}
+              {typeSelect}
+              {unitsInput}
+              {deleteBtn}
+            </div>
+            {/* 行ごとの入力エリア（列はスペース区切り） */}
+            <div style={{ marginTop: 6 }}>
+              {rows.map((rowVal, rowIdx) => (
+                <div key={rowIdx} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                  <TextArea
+                    placeholder={`行 ${rowIdx + 1}: 値をスペース区切りで入力（例: 1.0 2.5 3.0）`}
+                    value={rowVal}
+                    onChange={(e) => {
+                      const newRows = [...rows];
+                      newRows[rowIdx] = e.target.value;
+                      handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: newRows });
+                    }}
+                    autoSize={{ minRows: 1, maxRows: 3 }}
+                    style={{ flex: 1 }}
+                    size="small"
+                  />
+                  <Button
+                    type="text"
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    disabled={rows.length <= 1}
+                    onClick={() => {
+                      const newRows = rows.filter((_, i) => i !== rowIdx);
+                      handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: newRows });
+                    }}
+                    style={{ flexShrink: 0 }}
+                  />
+                </div>
+              ))}
+              <Button
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  const newRows = [...rows, ''];
+                  handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: newRows });
+                }}
+              >
+                行を追加
+              </Button>
+            </div>
           </div>
         );
       }
@@ -1526,11 +1985,12 @@ export default function DataRecordDialog({
       // property の値入力（型に応じて切替）
       let valueInput: React.ReactNode;
       switch (cp.customType) {
+        // property の value は常に string | null（string[][] にはならない）
         case 'intType':
           valueInput = (
             <InputNumber
               placeholder="値"
-              value={cp.value !== null ? Number(cp.value) : undefined}
+              value={typeof cp.value === 'string' ? Number(cp.value) : undefined}
               onChange={(v) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: v !== null ? String(v) : null })}
               precision={0}
               style={{ width: 120 }}
@@ -1542,7 +2002,7 @@ export default function DataRecordDialog({
           valueInput = (
             <InputNumber
               placeholder="値"
-              value={cp.value !== null ? Number(cp.value) : undefined}
+              value={typeof cp.value === 'string' ? Number(cp.value) : undefined}
               onChange={(v) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: v !== null ? String(v) : null })}
               precision={3}
               step={0.001}
@@ -1555,7 +2015,7 @@ export default function DataRecordDialog({
           valueInput = (
             <Select
               placeholder="値"
-              value={cp.value}
+              value={typeof cp.value === 'string' ? cp.value : undefined}
               onChange={(v) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: v })}
               options={[{ label: 'true', value: 'true' }, { label: 'false', value: 'false' }]}
               style={{ width: 100 }}
@@ -1567,7 +2027,7 @@ export default function DataRecordDialog({
           valueInput = (
             <DatePicker
               placeholder="日付"
-              value={cp.value ? dayjs(cp.value) : null}
+              value={typeof cp.value === 'string' && cp.value ? dayjs(cp.value) : null}
               onChange={(d) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: d ? d.format('YYYY-MM-DD') : null })}
               format="YYYY-MM-DD"
               size="small"
@@ -1580,7 +2040,7 @@ export default function DataRecordDialog({
             <DatePicker
               showTime
               placeholder="日時"
-              value={cp.value ? dayjs(cp.value) : null}
+              value={typeof cp.value === 'string' && cp.value ? dayjs(cp.value) : null}
               onChange={(d) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: d ? d.format('YYYY-MM-DD HH:mm:ss') : null })}
               format="YYYY-MM-DD HH:mm:ss"
               size="small"
@@ -1592,7 +2052,7 @@ export default function DataRecordDialog({
           valueInput = (
             <TextArea
               placeholder="値"
-              value={cp.value ?? ''}
+              value={typeof cp.value === 'string' ? cp.value : ''}
               onChange={(e) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: e.target.value })}
               autoSize={{ minRows: 1, maxRows: 3 }}
               style={{ flex: 1, minWidth: 120 }}
@@ -2011,17 +2471,28 @@ export default function DataRecordDialog({
                       {selectedTemplate.properties.map((prop) => (
                         <Col
                           key={prop.key}
-                          span={
-                            prop.type === 'contentDoubleListType' ||
-                            prop.type === 'propertyListType'
-                              ? 24
-                              : 12
-                          }
+                          span={prop.type === 'propertyListType' ? 24 : 12}
                         >
                           {renderPropertyInput(prop, selectedTemplate.templateId)}
                         </Col>
                       ))}
                     </Row>
+
+                    {/* トップレベル Contents セクション（Property と別枠で表示） */}
+                    {selectedTemplate.contents && selectedTemplate.contents.length > 0 && (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ borderTop: `1px solid #e0e0e0`, paddingTop: 12, marginBottom: 8 }}>
+                          <Text type="secondary" style={{ fontSize: 12 }}>データ</Text>
+                        </div>
+                        <Row gutter={16}>
+                          {selectedTemplate.contents.map((content) => (
+                            <Col key={content.key} span={24}>
+                              {renderContentField(content, selectedTemplate.templateId)}
+                            </Col>
+                          ))}
+                        </Row>
+                      </div>
+                    )}
                   </Form>
 
                   {/* ===== カスタムプロパティセクション ===== */}
