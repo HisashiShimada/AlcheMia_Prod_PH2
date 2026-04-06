@@ -29,8 +29,8 @@
 | **5-2** | 実験記録（トランジション記録） | 要件書#2〜7、追加機能L/M/N/Q | 26件 | Playwright自動 | 26 | 0 | 0 |
 | **5-3** | 問題報告・ステータス変更 | 要件書（なし）、追加機能D/E/F/G | 17件 | Playwright自動 | 17 | 0 | 0 |
 | **5-4** | 指示確認 | 要件書#8、追加機能H/I/J/O/P | 10件 | Playwright自動 | 10 | 0 | 0 |
-| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K | 16件 | Playwright自動 | 16 | 0 | 0 |
-| **合計** | - | - | **78件** | - | **78** | **0** | **0** |
+| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K、`docs/改善仕様調査/No.23/result.md`（No.23対応） | 20件 | Playwright自動 | 20 | 0 | 0 |
+| **合計** | - | - | **82件** | - | **82** | **0** | **0** |
 
 ### スコープ外
 
@@ -262,6 +262,10 @@
 | 5-5-14 | 承認依頼送信後にプロジェクトステータスが「承認待ち（waiting_approval）」に更新されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | OK | |
 | 5-5-15 | 既に承認依頼済みのプロジェクトで再度「承認依頼」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | OK | |
 | 5-5-16 | 進捗確認タブのメソッドタブが`project_task`テーブルの`experiment_order`の昇順で表示されること | 表示確認 | `ui_progress_check_tab.md` | GET `/api/v1/worker/tasks` | OK | |
+| 5-5-17 | 進捗確認タブのタスク一覧で「問題報告」ボタンをクリックすると `IssueManagementModal`（編集モード: `viewMode=false`）が開くこと | 正常系 | `docs/改善仕様調査/No.23/result.md` §3.1、`ui_progress_check_tab.md` | GET `/api/v1/issues` | - | No.23対応: 旧 `IssueReportModal`（API未実装）を廃止し、`IssueManagementModal`（viewMode=false）に統一 |
+| 5-5-18 | 「問題報告」ボタンから開いた `IssueManagementModal` で問題を入力して保存するとDBに問題が登録されること | 正常系 | `docs/改善仕様調査/No.23/result.md` §3.1、`api_issue_management.md` §1 | POST `/api/v1/issues` | - | No.23対応: 旧実装では API 呼び出しなしでモックのみだったが、正しく永続化されることを確認 |
+| 5-5-19 | 「問題報告」ボタンから開いた `IssueManagementModal` でコメントを投稿するとDBに保存されること | 正常系 | `docs/改善仕様調査/No.23/result.md` §3.1、`api_issue_management.md` §2 | POST `/api/v1/issues/comments` | - | No.23対応: 旧実装ではコメントがDBに保存されていなかった |
+| 5-5-20 | 「問題確認」ボタンをクリックすると `IssueManagementModal`（参照専用: `viewMode=true`）が開き、既存の問題を閲覧できること（編集UIは非表示） | 正常系 | `docs/改善仕様調査/No.23/result.md` §3.1、`ui_progress_check_tab.md` | GET `/api/v1/issues` | OK | No.23対応後も既存の「問題確認」動作を維持していることの確認（デグレード防止） |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
