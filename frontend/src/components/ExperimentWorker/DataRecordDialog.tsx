@@ -49,6 +49,9 @@ import {
   TransitionStatus,
   ProjectStatus,
   isEditableStatus,
+  CustomPropertyValue,
+  ContainerType,
+  CustomPropertyType,
 } from '@/types/experimentWorker';
 
 /**
@@ -79,6 +82,7 @@ const ALL_STATUS_OPTIONS: { value: TransitionStatus; label: string }[] = [
   { value: 6 as TransitionStatus, label: '異常終了状態' },
 ];
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
+import { uploadFiles } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { validateByXsiType } from '@/utils/xsiTypeValidator';
 import { updateTransitionStatus } from '@/services/projectApiService';
@@ -147,16 +151,19 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
       units: string | null;
     }> | undefined;
 
-    const properties: Property[] = (rawProperties ?? []).map((p) => ({
-      key: p.key,
-      label: p.key,                          // ラベルはキーをそのまま使用
-      type: mapXsiTypeToPropertyType(p.xsiType),
-      units: (p as Record<string, unknown>).units as string | undefined ?? undefined,
-      required: false,
-      description: (p as Record<string, unknown>).description as string | undefined ?? undefined,
-      formatString: (p as Record<string, unknown>).formatString as string | undefined ?? undefined,
-      scaleFactor: (p as Record<string, unknown>).scaleFactor as string | undefined ?? undefined,
-    }));
+    const properties: Property[] = (rawProperties ?? [])
+      // isCustomProperty: true なプロパティはテンプレート定義欄に表示しない
+      .filter((p) => !(p as Record<string, unknown>).isCustomProperty)
+      .map((p) => ({
+        key: p.key,
+        label: p.key,                          // ラベルはキーをそのまま使用
+        type: mapXsiTypeToPropertyType(p.xsiType),
+        units: (p as Record<string, unknown>).units as string | undefined ?? undefined,
+        required: false,
+        description: (p as Record<string, unknown>).description as string | undefined ?? undefined,
+        formatString: (p as Record<string, unknown>).formatString as string | undefined ?? undefined,
+        scaleFactor: (p as Record<string, unknown>).scaleFactor as string | undefined ?? undefined,
+      }));
 
 
     const name = buildTemplateName(item.templateType, item.templateId);
@@ -269,6 +276,10 @@ export default function DataRecordDialog({
   // useDeemedProgressProp が false の場合は初期値を false にして常にステータス更新を表示
   const [useDeemedProgress, setUseDeemedProgress] = useState(useDeemedProgressProp);
 
+  // ===== カスタムプロパティ用 state =====
+  /** ユーザーが任意追加したカスタムプロパティ一覧（templateId → CustomPropertyValue[]） */
+  const [customProperties, setCustomProperties] = useState<Record<string, CustomPropertyValue[]>>({});
+
   /**
    * 現在のステータスから遷移可能なステータスの選択肢（useMemo でメモ化）
    * ALLOWED_TRANSITIONS に基づいて選択肢をフィルタリングする
@@ -376,6 +387,7 @@ export default function DataRecordDialog({
       setUseDeemedProgress(useDeemedProgressProp);
       setFetchedTemplates([]);     // ダイアログオープン時に前回取得分をリセット
       setFetchedTemplateItems([]); // GETレスポンス生データもリセット
+      setCustomProperties({});     // カスタムプロパティをリセット
 
       // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
       setStatusUpdateExpanded(isProjectEditable);
@@ -457,6 +469,126 @@ export default function DataRecordDialog({
               if (firstItem) {
                 setSelectedTemplateId(firstItem.templateId);
               }
+
+              // ④ カスタムプロパティの復元（templateId ごとに分類）
+              // - rawData.properties の isCustomProperty: true なエントリ（property / insertion コンテナ）
+              // - rawData.contents の isCustomProperty: true なエントリ（content コンテナ）
+              const restoredCustomPropsMap: Record<string, CustomPropertyValue[]> = {};
+              for (const item of response.data.templates) {
+                const rawData = item.data as Record<string, unknown>;
+
+                // ── properties 配列から property コンテナを復元 ──
+                const rawProperties = rawData.properties as Array<Record<string, unknown>> | undefined;
+                if (Array.isArray(rawProperties)) {
+                  for (const p of rawProperties) {
+                    if (p.isCustomProperty !== true) continue;
+
+                    const cpKey = String(p.key ?? '');
+                    const xsiType = String(p.xsiType ?? 'stringType');
+                    const validTypes: CustomPropertyType[] = [
+                      'stringType', 'floatType', 'intType', 'booleanType', 'dateType', 'dateTimeType',
+                    ];
+                    const customType: CustomPropertyType = validTypes.includes(xsiType as CustomPropertyType)
+                      ? (xsiType as CustomPropertyType)
+                      : 'stringType';
+
+                    let valueStr: string | null = null;
+                    if (p.value !== null && p.value !== undefined) {
+                      valueStr = String(p.value);
+                    }
+
+                    if (!restoredCustomPropsMap[item.templateId]) {
+                      restoredCustomPropsMap[item.templateId] = [];
+                    }
+                    restoredCustomPropsMap[item.templateId].push({
+                      id: `restored_prop_${cpKey}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+                      key: cpKey,
+                      containerType: 'property',
+                      customType,
+                      value: valueStr,
+                      units: String(p.units ?? ''),
+                      isCustomProperty: true,
+                    });
+                  }
+                }
+
+                // ── insertions 配列から insertion コンテナを復元 ──
+                // MAIML Insertion 型: { uri, hash?: { value? }, format? } ※ key 属性なし
+                const rawInsertions = rawData.insertions as Array<Record<string, unknown>> | undefined;
+                if (Array.isArray(rawInsertions)) {
+                  for (const ins of rawInsertions) {
+                    if (ins.isCustomProperty !== true) continue;
+
+                    const uri = String(ins.uri ?? '');
+                    // hash は { value? } オブジェクトまたは文字列（後方互換）
+                    const hashRaw = ins.hash;
+                    const hashStr = hashRaw
+                      ? typeof hashRaw === 'object'
+                        ? String((hashRaw as Record<string, unknown>).value ?? '')
+                        : String(hashRaw)
+                      : '';
+
+                    if (!restoredCustomPropsMap[item.templateId]) {
+                      restoredCustomPropsMap[item.templateId] = [];
+                    }
+                    // URI からファイル名部分のみ抽出して value に表示用として格納
+                    const displayName = uri.split('/').pop() || uri;
+                    restoredCustomPropsMap[item.templateId].push({
+                      id: `restored_ins_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+                      key: '', // insertion に key 属性はない
+                      containerType: 'insertion',
+                      customType: 'insertion',
+                      value: displayName, // ファイル名のみ表示
+                      uri,               // 保存時に参照する URI フィールドも設定する
+                      hash: hashStr,
+                      format: String(ins.format ?? 'application/octet-stream'),
+                      units: '',
+                      isCustomProperty: true,
+                    });
+                  }
+                }
+
+                // ── contents 配列から content コンテナを復元 ──
+                const rawContents = rawData.contents as Array<Record<string, unknown>> | undefined;
+                if (Array.isArray(rawContents)) {
+                  for (const c of rawContents) {
+                    if (c.isCustomProperty !== true) continue;
+
+                    const cpKey = String(c.key ?? '');
+                    const xsiType = String(c.xsiType ?? 'stringListType');
+                    const contentTypes: CustomPropertyType[] = [
+                      'stringListType', 'doubleListType', 'intListType',
+                    ];
+                    const customType: CustomPropertyType = contentTypes.includes(xsiType as CustomPropertyType)
+                      ? (xsiType as CustomPropertyType)
+                      : 'stringListType';
+
+                    // value を文字列に変換（配列はスペース区切りで結合）
+                    let valueStr: string | null = null;
+                    if (Array.isArray(c.value)) {
+                      valueStr = (c.value as unknown[]).join(' ');
+                    } else if (c.value !== null && c.value !== undefined) {
+                      valueStr = String(c.value);
+                    }
+
+                    if (!restoredCustomPropsMap[item.templateId]) {
+                      restoredCustomPropsMap[item.templateId] = [];
+                    }
+                    restoredCustomPropsMap[item.templateId].push({
+                      id: `restored_content_${cpKey}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+                      key: cpKey,
+                      containerType: 'content',
+                      customType,
+                      value: valueStr,
+                      units: String(c.units ?? ''),
+                      isCustomProperty: true,
+                    });
+                  }
+                }
+              }
+              if (Object.keys(restoredCustomPropsMap).length > 0) {
+                setCustomProperties(restoredCustomPropsMap);
+              }
             }
           } catch (error) {
             // 実績データ取得失敗は非致命的（初回記録時は404になる）
@@ -485,6 +617,14 @@ export default function DataRecordDialog({
         methodId,
         taskNo,
       });
+      return;
+    }
+
+    // ── Key重複チェック ───────────────────────────────────────────────────
+    // 選択中テンプレートのカスタムプロパティに重複Keyがある場合は保存を中断する
+    if (duplicateCustomKeys.size > 0) {
+      const duplicatedList = Array.from(duplicateCustomKeys).join('、');
+      message.error(`カスタムプロパティのKeyが重複しています: ${duplicatedList}`);
       return;
     }
 
@@ -553,6 +693,138 @@ export default function DataRecordDialog({
             baseData[prop.key] = values[formKey] ?? null;
           }
         });
+      }
+
+      // ── insertion カスタムプロパティのファイルをS3にアップロード ────────
+      // cp.file が存在する行（新規選択ファイル）のみアップロードを実行し、
+      // 返却された s3Key を uri として CustomPropertyValue に反映する。
+      const templateCustomProps = customProperties[template.templateId] ?? [];
+      const uploadedUriMap: Record<string, string> = {}; // id → s3Key
+      for (const cp of templateCustomProps) {
+        if (cp.containerType === 'insertion' && cp.file) {
+            try {
+              const result = await uploadFiles({
+                uploadMode: 'single',
+                targetPath: `projects/${projectName}/attachments`,
+                files: [cp.file],
+              });
+              const uploadedFile = result.files[0];
+              if (uploadedFile?.s3Key) {
+                uploadedUriMap[cp.id] = uploadedFile.s3Key;
+                // アップロード後、customProperties の uri を s3Key で更新する
+                handleUpdateCustomProperty(template.templateId, cp.id, { uri: uploadedFile.s3Key, file: undefined });
+              }
+            } catch (uploadErr) {
+            console.error(`insertion ファイルアップロード失敗 (key=${cp.key}):`, uploadErr);
+            message.error(`ファイルのアップロードに失敗しました: ${cp.key || cp.value}`);
+            return; // アップロード失敗時は保存中断
+          }
+        }
+      }
+
+      // ── カスタムプロパティを baseData に追記 ────────────────────────────
+      // 選択中テンプレートに紐づくカスタムプロパティのみ対象とする
+      if (templateCustomProps.length > 0) {
+        if (baseData.properties && Array.isArray(baseData.properties)) {
+          // フォールバック形式: properties / contents 配列に追記
+          // property / content / insertion のカスタムエントリを毎回リセットして再構築する
+          // ※ ディープコピーで引き継いだ既存カスタムエントリがあると削除操作が反映されないため
+          baseData.properties = (
+            baseData.properties as Array<Record<string, unknown>>
+          ).filter((p) => !p.isCustomProperty);
+          baseData.contents = [];
+          baseData.insertions = [];
+          const existingProps = baseData.properties as Array<Record<string, unknown>>;
+          const existingContents = baseData.contents as Array<Record<string, unknown>>;
+          const existingInsertions = baseData.insertions as Array<Record<string, unknown>>;
+          for (const cp of templateCustomProps) {
+            // insertion は key 属性を持たないため、key チェックは property/content のみに適用する
+            if (!cp.key && cp.containerType !== 'insertion') continue;
+            if (cp.containerType === 'content') {
+              // content コンテナは baseData.contents に追記（リセット済みなので push のみ）
+              const contentEntry: Record<string, unknown> = {
+                key: cp.key,
+                xsiType: cp.customType,
+                value: cp.value ?? '', // バックエンド buildDataXML 側でスペース/カンマ区切り分割する
+                units: cp.units || null,
+                isCustomProperty: true,
+              };
+              existingContents.push(contentEntry);
+            } else if (cp.containerType === 'insertion') {
+              // insertion コンテナは baseData.insertions に追記
+              // MAIML Insertion 型: { uri, hash?: { value? }, format?, isCustomProperty }
+              // ※ insertion タグに key 属性はないため key は保持しない
+              // 優先順位: 今回アップロード済み s3Key → cp.uri（既存URI） → cp.value（フォールバック）
+              const uri = uploadedUriMap[cp.id] ?? cp.uri ?? cp.value ?? '';
+              if (!uri) continue; // uri が空の場合はスキップ
+              const insertionEntry: Record<string, unknown> = {
+                uri,
+                hash: cp.hash ? { value: cp.hash } : undefined,
+                format: cp.format ?? 'application/octet-stream',
+                isCustomProperty: true,
+              };
+              existingInsertions.push(insertionEntry);
+            } else {
+              // property コンテナは baseData.properties に追記（リセット済みなので push のみ）
+              const cpEntry: Record<string, unknown> = {
+                key: cp.key,
+                xsiType: cp.customType,
+                units: cp.units || null,
+                isCustomProperty: true,
+              };
+              if (cp.customType === 'intType') {
+                cpEntry.value = cp.value !== null ? parseInt(cp.value, 10) : null;
+              } else if (cp.customType === 'floatType') {
+                cpEntry.value = cp.value !== null ? parseFloat(cp.value) : null;
+              } else if (cp.customType === 'booleanType') {
+                cpEntry.value = cp.value === 'true';
+              } else {
+                cpEntry.value = cp.value;
+              }
+              existingProps.push(cpEntry);
+            }
+          }
+        } else {
+          // フラット形式: baseData[cp.key] に値を追加
+          for (const cp of templateCustomProps) {
+            if (!cp.key) continue;
+            if (cp.containerType === 'insertion') {
+              // insertion は { uri, hash, format } オブジェクトとして保存する
+              // uri はS3アップロード後の s3Key、未アップロードの場合は既存 value を保持
+              baseData[cp.key] = {
+                uri: uploadedUriMap[cp.id] ?? cp.value ?? '',
+                hash: cp.hash ?? '',
+                format: cp.format ?? 'application/octet-stream',
+                customType: 'insertion',
+                isCustomProperty: true,
+              };
+            } else if (cp.containerType === 'content') {
+              const rawVal = cp.value ?? '';
+              const splitItems = rawVal
+                .split(/[\s,]+/)
+                .map((s: string) => s.trim())
+                .filter((s: string) => s.length > 0);
+              if (cp.customType === 'doubleListType') {
+                baseData[cp.key] = splitItems.map(Number);
+              } else if (cp.customType === 'intListType') {
+                baseData[cp.key] = splitItems.map((s: string) => parseInt(s, 10));
+              } else {
+                // contentStringListType
+                baseData[cp.key] = splitItems;
+              }
+            } else {
+              if (cp.customType === 'intType') {
+                baseData[cp.key] = cp.value !== null ? parseInt(cp.value, 10) : null;
+              } else if (cp.customType === 'floatType') {
+                baseData[cp.key] = cp.value !== null ? parseFloat(cp.value) : null;
+              } else if (cp.customType === 'booleanType') {
+                baseData[cp.key] = cp.value === 'true';
+              } else {
+                baseData[cp.key] = cp.value;
+              }
+            }
+          }
+        }
       }
 
       // ── APIリクエスト用レコードを構築 ─────────────────────────────────────
@@ -999,6 +1271,349 @@ export default function DataRecordDialog({
     );
   };
 
+  // ===== カスタムプロパティ操作ハンドラー =====
+
+  /** 新しいカスタムプロパティ行を追加する（選択中テンプレートに紐づける） */
+  const handleAddCustomProperty = (containerType: ContainerType) => {
+    if (!selectedTemplateId) return;
+    const defaultType: CustomPropertyType =
+      containerType === 'insertion'
+        ? 'insertion'
+        : containerType === 'content'
+        ? 'stringListType'
+        : 'stringType';
+    const newItem: CustomPropertyValue = {
+      id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      key: '',
+      containerType,
+      customType: defaultType,
+      value: null,
+      units: '',
+      isCustomProperty: true,
+    };
+    setCustomProperties((prev) => ({
+      ...prev,
+      [selectedTemplateId]: [...(prev[selectedTemplateId] ?? []), newItem],
+    }));
+  };
+
+  /** カスタムプロパティの特定フィールドを更新する */
+  const handleUpdateCustomProperty = (
+    templateId: string,
+    id: string,
+    patch: Partial<Omit<CustomPropertyValue, 'id' | 'isCustomProperty'>>
+  ) => {
+    setCustomProperties((prev) => ({
+      ...prev,
+      [templateId]: (prev[templateId] ?? []).map((p: CustomPropertyValue) =>
+        p.id === id ? { ...p, ...patch } : p
+      ),
+    }));
+  };
+
+  /** カスタムプロパティを削除する */
+  const handleRemoveCustomProperty = (templateId: string, id: string) => {
+    setCustomProperties((prev) => ({
+      ...prev,
+      [templateId]: (prev[templateId] ?? []).filter((p: CustomPropertyValue) => p.id !== id),
+    }));
+  };
+
+  /** insertion 行: ファイル選択時の処理（SHA256ハッシュ生成・MIMEタイプ検出） */
+  const handleInsertionFileSelect = async (templateId: string, id: string, file: File) => {
+    try {
+      const format = file.type || 'application/octet-stream';
+      const arrayBuffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      handleUpdateCustomProperty(templateId, id, { file, hash, format, value: file.name });
+    } catch (err) {
+      message.error('ファイル処理に失敗しました');
+      console.error('handleInsertionFileSelect error:', err);
+    }
+  };
+
+  /**
+   * 選択中テンプレートにおけるカスタムプロパティのKey重複セットを計算する
+   * - テンプレート固定プロパティのKeyとの重複も検出する
+   * - insertion コンテナ（key なし）はチェック対象外
+   */
+  const duplicateCustomKeys = useMemo((): Set<string> => {
+    if (!selectedTemplateId) return new Set();
+    const list = customProperties[selectedTemplateId] ?? [];
+
+    // 固定プロパティのKey一覧
+    const fixedKeys = new Set(
+      (selectedTemplate?.properties ?? []).map((p) => p.key)
+    );
+
+    // カスタムプロパティのKey一覧（insertion 除外・空文字除外）
+    const customKeys = list
+      .filter((cp) => cp.containerType !== 'insertion' && cp.key.trim() !== '')
+      .map((cp) => cp.key.trim());
+
+    // 全Keyをまとめてカウント
+    const countMap = new Map<string, number>();
+    for (const k of customKeys) {
+      countMap.set(k, (countMap.get(k) ?? 0) + 1);
+    }
+
+    const duplicates = new Set<string>();
+
+    // カスタム同士で2回以上現れるKey
+    for (const [k, count] of countMap.entries()) {
+      if (count > 1) duplicates.add(k);
+    }
+
+    // 固定プロパティのKeyと被っているカスタムKey
+    for (const k of customKeys) {
+      if (fixedKeys.has(k)) duplicates.add(k);
+    }
+
+    return duplicates;
+  }, [selectedTemplateId, customProperties, selectedTemplate]);
+
+  /** カスタムプロパティ一覧をレンダリングする（選択中テンプレートのものだけ表示） */
+  const renderCustomPropertyRows = () => {
+    if (!selectedTemplateId) return null;
+    const list = customProperties[selectedTemplateId] ?? [];
+    if (list.length === 0) return null;
+
+    return list.map((cp) => {
+      const rowStyle: React.CSSProperties = {
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 8,
+        marginBottom: 8,
+        padding: '8px',
+        background: token.colorBgContainer,
+        borderRadius: token.borderRadiusSM,
+        border: `1px solid ${token.colorBorder}`,
+      };
+
+      // このカスタムプロパティのKeyが重複しているかどうか
+      const isKeyDuplicate =
+        cp.containerType !== 'insertion' &&
+        cp.key.trim() !== '' &&
+        duplicateCustomKeys.has(cp.key.trim());
+
+      // キー名入力（共通）
+      const keyInput = (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Input
+            placeholder="キー名"
+            value={cp.key}
+            onChange={(e) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { key: e.target.value })}
+            style={{
+              width: 130,
+              borderColor: isKeyDuplicate ? '#ff4d4f' : undefined,
+              boxShadow: isKeyDuplicate ? '0 0 0 2px rgba(255,77,79,0.2)' : undefined,
+            }}
+            size="small"
+            status={isKeyDuplicate ? 'error' : undefined}
+          />
+          {isKeyDuplicate && (
+            <Text type="danger" style={{ fontSize: 10, lineHeight: 1.2 }}>
+              Keyが重複しています
+            </Text>
+          )}
+        </div>
+      );
+
+      // 削除ボタン（共通）
+      const deleteBtn = (
+        <Button
+          type="text"
+          danger
+          size="small"
+          icon={<DeleteOutlined />}
+          onClick={() => handleRemoveCustomProperty(selectedTemplateId, cp.id)}
+          style={{ flexShrink: 0 }}
+        />
+      );
+
+      if (cp.containerType === 'insertion') {
+        return (
+          <div key={cp.id} style={rowStyle}>
+            <Tag color="purple" style={{ flexShrink: 0, alignSelf: 'center' }}>insertion</Tag>
+            <Upload
+              maxCount={1}
+              showUploadList={false}
+              beforeUpload={(file) => {
+                handleInsertionFileSelect(selectedTemplateId, cp.id, file);
+                return false;
+              }}
+            >
+              <Button icon={<UploadOutlined />} size="small">
+                {cp.value ? cp.value : 'ファイルを選択'}
+              </Button>
+            </Upload>
+            {cp.value && (
+              <Text type="secondary" style={{ fontSize: 11, alignSelf: 'center' }} ellipsis>
+                {cp.value}
+              </Text>
+            )}
+            {deleteBtn}
+          </div>
+        );
+      }
+
+      // property / content 共通の型セレクト
+      const isContentType = cp.containerType === 'content';
+      const typeOptions: { label: string; value: CustomPropertyType }[] =
+        cp.containerType === 'property'
+          ? [
+              { label: 'stringType', value: 'stringType' },
+              { label: 'floatType',  value: 'floatType' },
+              { label: 'intType',    value: 'intType' },
+              { label: 'booleanType', value: 'booleanType' },
+              { label: 'dateType',   value: 'dateType' },
+              { label: 'dateTimeType', value: 'dateTimeType' },
+            ]
+          : [
+              { label: 'stringListType', value: 'stringListType' },
+              { label: 'doubleListType', value: 'doubleListType' },
+              { label: 'intListType',    value: 'intListType' },
+            ];
+
+      const typeSelect = (
+        <Select
+          value={cp.customType}
+          onChange={(v) =>
+            handleUpdateCustomProperty(selectedTemplateId, cp.id, {
+              customType: v as CustomPropertyType,
+              value: null,
+            })
+          }
+          options={typeOptions}
+          style={{ width: isContentType ? 200 : 130 }}
+          popupMatchSelectWidth={false}
+          size="small"
+        />
+      );
+
+      const unitsInput = (
+        <Input
+          placeholder="単位"
+          value={cp.units}
+          onChange={(e) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { units: e.target.value })}
+          style={{ width: 70 }}
+          size="small"
+        />
+      );
+
+      if (cp.containerType === 'content') {
+        return (
+          <div key={cp.id} style={rowStyle}>
+            <Tag color="cyan" style={{ flexShrink: 0, alignSelf: 'center' }}>content</Tag>
+            {keyInput}
+            {typeSelect}
+            <TextArea
+              placeholder="値をスペース/カンマ区切りで入力（例: 1.0 2.5 3.0）"
+              value={cp.value ?? ''}
+              onChange={(e) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: e.target.value })}
+              autoSize={{ minRows: 1, maxRows: 3 }}
+              style={{ flex: 1, minWidth: 120 }}
+              size="small"
+            />
+            {unitsInput}
+            {deleteBtn}
+          </div>
+        );
+      }
+
+      // property の値入力（型に応じて切替）
+      let valueInput: React.ReactNode;
+      switch (cp.customType) {
+        case 'intType':
+          valueInput = (
+            <InputNumber
+              placeholder="値"
+              value={cp.value !== null ? Number(cp.value) : undefined}
+              onChange={(v) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: v !== null ? String(v) : null })}
+              precision={0}
+              style={{ width: 120 }}
+              size="small"
+            />
+          );
+          break;
+        case 'floatType':
+          valueInput = (
+            <InputNumber
+              placeholder="値"
+              value={cp.value !== null ? Number(cp.value) : undefined}
+              onChange={(v) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: v !== null ? String(v) : null })}
+              precision={3}
+              step={0.001}
+              style={{ width: 120 }}
+              size="small"
+            />
+          );
+          break;
+        case 'booleanType':
+          valueInput = (
+            <Select
+              placeholder="値"
+              value={cp.value}
+              onChange={(v) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: v })}
+              options={[{ label: 'true', value: 'true' }, { label: 'false', value: 'false' }]}
+              style={{ width: 100 }}
+              size="small"
+            />
+          );
+          break;
+        case 'dateType':
+          valueInput = (
+            <DatePicker
+              placeholder="日付"
+              value={cp.value ? dayjs(cp.value) : null}
+              onChange={(d) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: d ? d.format('YYYY-MM-DD') : null })}
+              format="YYYY-MM-DD"
+              size="small"
+              style={{ width: 140 }}
+            />
+          );
+          break;
+        case 'dateTimeType':
+          valueInput = (
+            <DatePicker
+              showTime
+              placeholder="日時"
+              value={cp.value ? dayjs(cp.value) : null}
+              onChange={(d) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: d ? d.format('YYYY-MM-DD HH:mm:ss') : null })}
+              format="YYYY-MM-DD HH:mm:ss"
+              size="small"
+              style={{ width: 190 }}
+            />
+          );
+          break;
+        default:
+          valueInput = (
+            <TextArea
+              placeholder="値"
+              value={cp.value ?? ''}
+              onChange={(e) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: e.target.value })}
+              autoSize={{ minRows: 1, maxRows: 3 }}
+              style={{ flex: 1, minWidth: 120 }}
+              size="small"
+            />
+          );
+      }
+
+      return (
+        <div key={cp.id} style={rowStyle}>
+          <Tag color="geekblue" style={{ flexShrink: 0, alignSelf: 'center' }}>property</Tag>
+          {keyInput}
+          {typeSelect}
+          {valueInput}
+          {unitsInput}
+          {deleteBtn}
+        </div>
+      );
+    });
+  };
+
   return (
     <Modal
       data-testid="data-record-dialog"
@@ -1386,27 +2001,67 @@ export default function DataRecordDialog({
 
               {/* フォームまたは選択促進メッセージ */}
               {selectedTemplate ? (
-                <Form
-                  form={form}
-                  layout="vertical"
-                  autoComplete="off"
-                >
-                  <Row gutter={16}>
-                    {selectedTemplate.properties.map((prop) => (
-                      <Col
-                        key={prop.key}
-                        span={
-                          prop.type === 'contentDoubleListType' ||
-                          prop.type === 'propertyListType'
-                            ? 24
-                            : 12
-                        }
-                      >
-                        {renderPropertyInput(prop, selectedTemplate.templateId)}
-                      </Col>
-                    ))}
-                  </Row>
-                </Form>
+                <>
+                  <Form
+                    form={form}
+                    layout="vertical"
+                    autoComplete="off"
+                  >
+                    <Row gutter={16}>
+                      {selectedTemplate.properties.map((prop) => (
+                        <Col
+                          key={prop.key}
+                          span={
+                            prop.type === 'contentDoubleListType' ||
+                            prop.type === 'propertyListType'
+                              ? 24
+                              : 12
+                          }
+                        >
+                          {renderPropertyInput(prop, selectedTemplate.templateId)}
+                        </Col>
+                      ))}
+                    </Row>
+                  </Form>
+
+                  {/* ===== カスタムプロパティセクション ===== */}
+                  {isProjectEditable && (
+                    <div style={{ marginTop: 24 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                        <Text strong>カスタムプロパティ</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          （テンプレート定義外の任意データを追加できます）
+                        </Text>
+                      </div>
+                      {/* 既存カスタムプロパティ行の表示 */}
+                      {renderCustomPropertyRows()}
+                      {/* 追加ボタン群 */}
+                      <Space style={{ marginTop: 8 }}>
+                        <Button
+                          size="small"
+                          icon={<PlusOutlined />}
+                          onClick={() => handleAddCustomProperty('property')}
+                        >
+                          property 追加
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<PlusOutlined />}
+                          onClick={() => handleAddCustomProperty('content')}
+                        >
+                          content 追加
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<PlusOutlined />}
+                          onClick={() => handleAddCustomProperty('insertion')}
+                        >
+                          insertion 追加
+                        </Button>
+                      </Space>
+                    </div>
+                  )}
+                </>
               ) : (
                 <Alert
                   message="テンプレートを選択してください"
