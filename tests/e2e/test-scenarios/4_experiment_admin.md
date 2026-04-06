@@ -40,7 +40,8 @@
 | **4-14** | PropertyViewer 値なし区別表示・ツールチップ | `docs/改善仕様調査/No.8/result.md`（No.8対応） | 15件 | 手動 | - | - | 15 |
 | **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | - | - | 15 |
 | **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | - | - | 4 |
-| **合計** | - | - | **265件** | - | **164** | **0** | **77** |
+| **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | - | - | 16 |
+| **合計** | - | - | **281件** | - | **164** | **0** | **93** |
 
 ### スコープ外
 
@@ -843,6 +844,134 @@
 - `viewMode` は `EditorToolbarProps` に既存定義されており、`PetriNetEditorInner` から渡される
 - `viewMode` が `undefined` の場合、`'templates'` との比較は `false` となるため安全に動作する
 - ボタンの非活性化はCSSによるグレーアウトと、クリックイベントの無効化の両方で確認すること
+
+---
+
+### 4-17: SubNetViewer トランジション用テンプレート表示
+
+> **テスト方法**: 手動テスト（SubNetViewerはPetriNetViewer上のTransitionノードクリックで起動するダイアログであり、ReactFlow/DOM操作の目視確認が必要なため）  
+> **対応改善仕様**: No.28 SubNetViewer templateMapsキー不一致修正  
+> **実装ドキュメント**: `docs/改善仕様調査/No.28/result.md`  
+> **対象コンポーネント**:
+> - `frontend/src/components/viewer/PetriNetViewer.tsx`（Fix1, Fix6, Fix8c）
+> - `frontend/src/components/viewer/dialogs/SubNetViewer.tsx`（Fix2, Fix3, Fix8b）
+> - `frontend/src/reference/components/SubNetViewer/index.js`（Fix2: reference版）
+> - `frontend/src/components/viewer/dialogs/PropertyViewer.tsx`（Fix4）
+> - `frontend/src/components/viewer/dialogs/PropertyViewerWithSelection.tsx`（Fix5, Fix7）
+> - `frontend/src/utils/maimlDataExtractor.ts`（Fix8a: 新規作成）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 結果 | 備考 |
+|-----------|-----------|------|------|------|------|
+| 4-17-1 | PetriNetViewer でTransitionノードをクリックするとSubNetViewerダイアログが開くこと | 正常系 | `result.md` §動作確認ポイント4 | - | SubNetViewer起動の前提確認 |
+| 4-17-2 | SubNetViewer内の入力Placeノードのテンプレート種別（Material/Condition/Result）が正しく表示されること | 正常系 | `result.md` §Fix2「templateMapキー不一致修正」 | - | placeIdキーでtemplateMaplにヒットすること |
+| 4-17-3 | SubNetViewer内の出力Placeノードのテンプレート種別（Material/Condition/Result）が正しく表示されること | 正常系 | `result.md` §Fix2「templateMapキー不一致修正」 | - | placeIdキーでtemplateMaplにヒットすること |
+| 4-17-4 | SubNetViewer内でPlaceノードをクリックするとPropertyViewerが開くこと | 正常系 | `result.md` §動作確認ポイント1 | - | ノードクリック時のDrawer起動確認 |
+| 4-17-5 | SubNetViewerのPropertyViewer「テンプレートタブ」に `property` 要素がキー / xsi:type / 値 / 説明・単位 の列で表示されること | 正常系 | `result.md` §Fix3「extractTemplateInfo新実装」、§Fix4「テンプレートタブ専用カラム」 | - | 変更前は「表示するプロパティがありません」と表示されていた |
+| 4-17-6 | SubNetViewerのPropertyViewer「基本情報タブ」に id / 名前 / 説明 / 種別 が表示されること | 正常系 | `result.md` §Fix3「uuid/description追加」 | - | placeRef が表示されないこと（内部参照のため非表示） |
+| 4-17-7 | SubNetViewerのPropertyViewer「基本情報タブ」に placeRef が表示されないこと | 正常系 | `result.md` §Fix3「placeRef除外」 | - | 変更前はplaceRef要素がテンプレートタブに表示されていた |
+| 4-17-8 | SubNetViewerのPropertyViewer「データタブ」に `<data><results>` の実験結果値が個別フィールドに展開されて表示されること | 正常系 | `result.md` §Fix8b「SubNetViewerのデータタブ設定」、§Fix8d「property_*の個別展開表示」 | - | `temperature (value)` / `temperature (type)` / `temperature (units)` 等が個別行に展開されること |
+| 4-17-9 | placeId と templateId が異なるケース（placeIdキーでヒットしない場合）でも、templateIdキーでフォールバックしてテンプレート情報が取得されること | 正常系 | `result.md` §Fix2「フォールバック: templateIdキー」 | - | フォールバックケースでも「テンプレート詳細情報が取得できませんでした」と表示されないこと |
+| 4-17-10 | PetriNetViewer でPlaceノードをクリックすると PropertyViewer（Drawer）が開き、テンプレートタブにプロパティが表示されること | 正常系 | `result.md` §Fix6「extractTemplateInfoForNode新実装」 | - | SubNetViewer経由ではなく、PetriNetViewer直接クリック時の表示確認 |
+| 4-17-11 | PetriNetViewer のPlaceノードのPropertyViewer「データタブ」に実験結果値が表示されること | 正常系 | `result.md` §Fix8c「PetriNetViewerのデータタブ設定」 | - | `templateMap[node.id].element.getAttribute('id')` でテンプレートIDを取得してマッチ |
+| 4-17-12 | PropertyViewer のテンプレートタブで `property_` プレフィックスが除去されたキー名が表示されること | 表示確認 | `result.md` §Fix4「property_プレフィックス除去」 | - | `property_temperature` ではなく `temperature` と表示されること |
+| 4-17-13 | PropertyViewerWithSelection で Object型の値がキー・値ペアに展開されて表示されること（`[object Object]` が表示されないこと） | 表示確認 | `result.md` §Fix5「Object型値のフラット展開表示」 | - | 変更前は `[object Object]` として表示されていた |
+| 4-17-14 | 複数種別（material / condition / result）が混在するMAIMLファイルで SubNetViewer を開いた際、各Placeノードの種別が正しく識別されること | 正常系 | `result.md` §動作確認ポイント1 | - | 同一SubNetViewer内に3種類のPlaceが混在するケースで確認 |
+| 4-17-15 | SubNetViewer（reference版 JavaScript）でも placeIdキーでtemplateMaplにヒットし、テンプレート種別が正しく表示されること | 正常系 | `result.md` §Fix2「reference版（index.js）」 | - | TypeScript版と同様の修正がreference版にも適用されていること |
+| 4-17-16 | SubNetViewer で templateMap にヒットしないPlaceノードが存在した場合でも、他のPlaceノードは正常に表示されること（部分的な失敗が全体に波及しないこと） | 正常系 | `result.md` §Fix2「ログ警告」 | - | 1件のPlaceがtemplateMaplにヒットしなくても他Placeは表示されること |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在し、MAIMLファイルが登録済みであること
+- 以下の構造を持つテスト用MAIMLファイルを用意すること：
+  - Material/Condition/Result の各Placeノードが少なくとも1件ずつ存在すること
+  - Transitionノードが少なくとも1件存在し、入力Place（Material/Condition）・出力Place（Result）が接続されていること
+  - 各PlaceノードにMAIMLテンプレート（`materialTemplate` / `conditionTemplate` / `resultTemplate`）が定義されており、`placeRef ref="..."` で接続されていること
+  - テンプレートに `<property>` 要素が少なくとも1件以上定義されていること（4-17-5、4-17-8用）
+  - `<data><results>` セクションに実験結果値が記録されていること（4-17-8、4-17-11用）
+- PetriNetViewer で対象プロジェクトのMAIMLを閲覧できる状態であること（ビューアモードで開いている）
+- 4-17-9用: `placeRef.ref` が設定されておらず、テンプレートIDでフォールバックするケースのMAIMLデータを用意すること（または既存MAIMLを調整）
+- 4-17-15（reference版）用: reference版 SubNetViewer を使用する画面（WorkerDashboard等）が存在する場合、そちらでも確認すること
+
+**テスト用MAIMLファイルのサンプル構造（最小構成）:**
+
+```xml
+<maiml>
+  <method id="method_001">
+    <petriNet>
+      <place id="p_mat_001"><name>材料A</name></place>
+      <place id="p_cond_001"><name>条件B</name></place>
+      <place id="p_result_001"><name>結果C</name></place>
+      <transition id="t_001"><name>処理T</name></transition>
+      <arc source="p_mat_001" target="t_001"/>
+      <arc source="p_cond_001" target="t_001"/>
+      <arc source="t_001" target="p_result_001"/>
+    </petriNet>
+    <templates>
+      <materialTemplate id="mt_001">
+        <name>材料Aテンプレート</name>
+        <description>材料Aの説明</description>
+        <placeRef ref="p_mat_001"/>
+        <property key="temperature" xsi:type="doubleType" units="K">
+          <value>300</value>
+          <description>温度</description>
+        </property>
+      </materialTemplate>
+      <conditionTemplate id="ct_001">
+        <name>条件Bテンプレート</name>
+        <placeRef ref="p_cond_001"/>
+        <property key="pressure" xsi:type="doubleType" units="Pa">
+          <value>101325</value>
+        </property>
+      </conditionTemplate>
+      <resultTemplate id="rt_001">
+        <name>結果Cテンプレート</name>
+        <placeRef ref="p_result_001"/>
+        <property key="yield" xsi:type="doubleType" units="%">
+          <value>85.5</value>
+        </property>
+      </resultTemplate>
+    </templates>
+  </method>
+  <data id="data_001">
+    <results id="results_001">
+      <material ref="mt_001">
+        <property key="temperature"><value>320</value></property>
+      </material>
+    </results>
+  </data>
+</maiml>
+```
+
+**手動テスト手順（概要）:**
+1. 実験管理者としてログインし、テスト用プロジェクトをビューアモード（PetriNetViewer）で開く
+2. MAIMLのペトリネットが描画されていることを確認する（4-17-1の前提）
+3. Transitionノードをクリックして SubNetViewer ダイアログが開くことを確認（4-17-1）
+4. SubNetViewer 内に入力Placeと出力Placeが表示され、各PlaceのテンプレートType（Material/Condition/Result）が正しく表示されることを確認（4-17-2、4-17-3）
+5. 入力Placeノード（Material）をクリックして PropertyViewer が開くことを確認（4-17-4）
+6. PropertyViewer「テンプレートタブ」にプロパティが表示されることを確認（4-17-5）
+   - キー列: `temperature`（`property_` プレフィックスなし）
+   - xsi:type列: `doubleType`
+   - 値列: `300`
+   - 説明・単位列: `温度 / 単位: K`
+7. PropertyViewer「基本情報タブ」の内容を確認（4-17-6）
+   - id, 名前, 説明, 種別が表示されること
+   - placeRef が表示されないこと（4-17-7）
+8. PropertyViewer「データタブ」に実験結果値が個別フィールドに展開されて表示されることを確認（4-17-8）
+9. Conditionノード・Resultノードでも同様に表示されることを確認（4-17-14）
+10. PlaceノードをPetriNetViewer上で直接クリックし（SubNetViewerを経由せず）、PropertyViewerにテンプレートプロパティが表示されることを確認（4-17-10）
+11. PetriNetViewer上のPlaceノードのデータタブにも実験結果値が表示されることを確認（4-17-11）
+12. `property_temperature` ではなく `temperature` と表示されることを確認（4-17-12）
+13. PropertyViewerWithSelectionを使用する画面でObjectの展開表示を確認（4-17-13）
+
+**注意事項:**
+- No.28修正前は以下の問題が存在していた（修正後に解消されていることを確認すること）：
+  - SubNetViewerのPropertyViewerで「テンプレート詳細情報が取得できませんでした」が表示される
+  - テンプレートタブに「表示するプロパティがありません」と表示される
+  - Object型のプロパティが `[object Object]` として表示される
+  - placeRef 要素がテンプレートタブに表示される
+- `buildTemplateMap()` のキーは **placeId**（`placeRef.ref` の値）であることを前提として確認する（`placeId ≠ templateId` のケースが存在する）
+- reference版（index.js）は JavaScript で実装されており、TypeScript版と同様の修正が適用されているかを個別に確認すること
+- `<data><results>.*ref` は **テンプレートID** を参照する（placeID ではない）ため、データタブ確認時は `templateMap[node.id].element.getAttribute('id')` でテンプレートIDを取得してマッチしていることを意識すること
 
 ---
 
