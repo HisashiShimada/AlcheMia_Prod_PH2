@@ -476,32 +476,22 @@ export class FileAccessService {
         }
 
         // storageServiceを使用してS3/Swiftにアップロード（バリデーション通過後）
+        // uploadedBy/uploadBatchId/uploadSource/uploadMethod を渡して file_metadata を自動登録
         const s3Key = await this.storageService.uploadFile(
           organizationId,
           filePath,
           file.buffer,
-          { contentType: file.mimetype }
+          {
+            contentType: file.mimetype,
+            uploadedBy: userId,
+            uploadBatchId: batch.batchId,
+            uploadSource: 'web_upload',
+            uploadMethod: 'single',
+          }
         );
 
-        // file_metadataテーブルに保存（MAIMLファイルのみ）（Phase2-1: バッチIDを紐付け）
-        let fileId: string | undefined;
-        if (isMaimlFile(sanitizedFileName, file.mimetype)) {
-          fileId = await this.saveFileMetadata({
-            organizationId,
-            userId,
-            fileName: sanitizedFileName,
-            filePath,
-            s3Key,
-            fileSize: file.size,
-            contentType: file.mimetype,
-            projectId: metadata?.projectId,
-            formatId: metadata?.formatId,
-            batchName: batch.batchId, // Phase2-1: バッチIDを設定
-          });
-        }
-
         return {
-          fileId,
+          fileId: undefined,
           fileName: sanitizedFileName,
           filePath,
           s3Key,
@@ -624,58 +614,6 @@ export class FileAccessService {
   }
 
   /**
-   * ファイルメタデータをDBに保存
-   * 
-   * @param data ファイルメタデータ
-   * @returns 保存されたファイルキー
-   */
-  private async saveFileMetadata(data: {
-    organizationId: string;
-    userId: string;
-    fileName: string;
-    filePath: string;
-    s3Key: string;
-    fileSize: number;
-    contentType: string;
-    projectId?: string;
-    formatId?: string;
-    batchName?: string;
-  }): Promise<string> {
-    const now = new Date();
-    
-    // Phase3-4: VARCHAR長制限対応
-    // FileMetadata型に従ってオブジェクトを構築
-    const fileMetadata = {
-      organization_id: data.organizationId,
-      file_key: truncateField(
-        data.s3Key,
-        FILE_METADATA_MAX_LENGTHS.file_key,
-        'file_key'
-      ) || data.s3Key, // nullの場合は元の値を使用
-      original_filename: truncateField(
-        data.fileName,
-        FILE_METADATA_MAX_LENGTHS.original_filename,
-        'original_filename'
-      ) || data.fileName, // nullの場合は元の値を使用
-      file_size: data.fileSize,
-      file_type: data.contentType,
-      uploaded_by: data.userId,
-      is_maiml_file: data.contentType === 'application/xml' || data.fileName.endsWith('.maiml'),
-      s3_bucket: this.storageService.getBucketName(),
-      upload_batch_id: data.batchName,
-      upload_source: 'web_upload',  // アップロード元
-      upload_method: 'single',      // アップロード方法: single, multipart, resumable
-      created_at: now,
-      updated_at: now,
-    };
-
-    // repositoryのinsertFileMetadataを使用してINSERT
-    const result = await this.repository.insertFileMetadata(fileMetadata);
-    
-    return result.file_key;
-  }
-
-  /**
    * 空フォルダにプレースホルダーファイルを作成
    * 
    * Phase1-3: 空フォルダプレースホルダー機能（2026-02-18）
@@ -729,29 +667,13 @@ export class FileAccessService {
         );
 
         // 4. S3/Swiftにプレースホルダーファイルを作成
+        // uploadedBy: 'system' を渡して file_metadata を自動登録
         await this.storageService.uploadFile(
           organizationId,
           placeholderKey,
           placeholderContent,
-          { contentType: 'text/plain' }
+          { contentType: 'text/plain', uploadedBy: 'system' }
         );
-
-        // 5. file_metadataテーブルに保存
-        try {
-          await this.saveFileMetadata({
-            organizationId,
-            userId: 'system', // システム自動作成
-            fileName: '.folder_placeholder',
-            filePath: placeholderKey,
-            s3Key: placeholderKey,
-            fileSize: placeholderContent.length,
-            contentType: 'text/plain',
-            batchName: 'empty_folder_placeholder',
-          });
-        } catch (dbError) {
-          // DBエラーは警告のみ（S3上にファイルは作成されているので続行）
-          console.warn(`⚠️ [Placeholder] DB保存エラー（続行）: ${placeholderKey}`, dbError);
-        }
 
         console.log(`✅ [Placeholder] 作成成功: ${placeholderKey}`);
         results.push({

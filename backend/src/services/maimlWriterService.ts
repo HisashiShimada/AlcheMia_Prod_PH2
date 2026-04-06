@@ -16,7 +16,6 @@
 
 import { getPool } from '../database/db';
 import { getStorageService } from './storageService';
-import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
 import type { EventLogJsonRecord } from '../utils/maimlDataWriter';
 import {
@@ -170,31 +169,13 @@ export class MaimlWriterService {
       const backupFileName = `${baseName}_v${newVersion}.maiml`;
       const backupPath = `${archivePath}/${backupFileName}`;
 
+      // uploadedBy: 'system' を渡して file_metadata を自動登録
       await storageService.uploadFile(
         organizationId,
         backupPath,
         fileBuffer, // ダウンロード済みの既存ファイル内容をそのまま使用
-        { contentType: 'application/xml' }
+        { contentType: 'application/xml', uploadedBy: 'system' }
       );
-
-      // file_metadata にアーカイブファイルを登録
-      try {
-        const fileMetadataRepository = new FileMetadataRepository();
-        const backupKey = `${organizationId}/${backupPath}`;
-        const archiveParentKey = `${organizationId}/${archivePath}`;
-        await fileMetadataRepository.insertFileMetadata({
-          file_key: backupKey,
-          s3_bucket: process.env.S3_BUCKET_NAME || process.env.SWIFT_CONTAINER || 'mmdpf-files',
-          organization_id: organizationId,
-          original_filename: backupFileName,
-          file_size: fileBuffer.length,
-          uploaded_by: 'system',
-          parent_folder_path: archiveParentKey,
-        });
-        console.log(`[MaimlWriterService] アーカイブ file_metadata 登録: ${backupKey}`);
-      } catch (metaError) {
-        console.warn('[MaimlWriterService] アーカイブ file_metadata 登録エラー（続行）:', metaError);
-      }
 
       console.log(
         `[MaimlWriterService] アーカイブ作成: ${backupPath} ` +
@@ -207,40 +188,13 @@ export class MaimlWriterService {
       );
     }
 
-    // --- 9. 上書き保存 ---
+    // --- 9. 上書き保存（uploadedBy: 'system' を渡して file_metadata を自動登録）---
     await storageService.uploadFile(
       organizationId,
       filePath,
       updatedMaiml,
-      { contentType: 'application/xml' }
+      { contentType: 'application/xml', uploadedBy: 'system' }
     );
-
-    // file_metadata のメインファイルを更新（既存レコードを更新、なければ登録）
-    try {
-      const fileMetadataRepository = new FileMetadataRepository();
-      const mainKey = `${organizationId}/${filePath}`;
-      const mainParentKey = `${organizationId}/projects/${projectName}`;
-      const existingMeta = await fileMetadataRepository.getFileMetadataByFileKey(mainKey);
-      if (existingMeta) {
-        await fileMetadataRepository.updateFileMetadata(mainKey, {
-          file_size: Buffer.byteLength(updatedMaiml, 'utf-8'),
-          updated_at: new Date(),
-        });
-      } else {
-        await fileMetadataRepository.insertFileMetadata({
-          file_key: mainKey,
-          s3_bucket: process.env.S3_BUCKET_NAME || process.env.SWIFT_CONTAINER || 'mmdpf-files',
-          organization_id: organizationId,
-          original_filename: `${projectName}.maiml`,
-          file_size: Buffer.byteLength(updatedMaiml, 'utf-8'),
-          uploaded_by: 'system',
-          parent_folder_path: mainParentKey,
-        });
-      }
-      console.log(`[MaimlWriterService] メインファイル file_metadata 更新: ${mainKey}`);
-    } catch (metaError) {
-      console.warn('[MaimlWriterService] メインファイル file_metadata 更新エラー（続行）:', metaError);
-    }
 
     console.log(
       `[MaimlWriterService] MAIMLファイルを更新しました: ` +

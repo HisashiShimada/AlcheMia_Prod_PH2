@@ -26,6 +26,8 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
+import path from 'path';
+import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 
 // ストレージ設定の型定義
 interface StorageConfig {
@@ -52,6 +54,19 @@ interface UploadOptions {
   contentType?: string;
   metadata?: Record<string, string>;
   acl?: string;
+  /**
+   * アップロードしたユーザーID。
+   * 指定された場合かつフォルダマーカー（末尾 '/'）でない場合に file_metadata を自動登録する。
+   * 実ファイルのアップロード時は必ず指定すること。
+   * フォルダマーカー作成（createFolder等）では省略可。
+   */
+  uploadedBy?: string;
+  /** 一括アップロード時のバッチID（任意） */
+  uploadBatchId?: string;
+  /** アップロード元（デフォルト: 'system'） */
+  uploadSource?: string;
+  /** アップロード方法（デフォルト: 'single'） */
+  uploadMethod?: string;
 }
 
 /**
@@ -168,6 +183,37 @@ export class StorageService {
     await this.s3Client.send(command);
 
     console.log(`File uploaded: ${key}`);
+
+    // file_metadata 自動登録（uploadedBy が指定され、かつフォルダマーカーでない場合のみ）
+    if (options?.uploadedBy && !filePath.endsWith('/')) {
+      try {
+        const fileSize = fileContent instanceof Buffer
+          ? fileContent.length
+          : typeof fileContent === 'string'
+            ? Buffer.byteLength(fileContent, 'utf-8')
+            : 0; // Readable Stream の場合は 0
+
+        const repo = new FileMetadataRepository();
+        await repo.insertIfNotExists({
+          file_key: key,
+          s3_bucket: this.bucketName,
+          organization_id: organizationId,
+          original_filename: path.basename(filePath),
+          file_size: fileSize,
+          file_type: options.contentType ?? 'application/octet-stream',
+          uploaded_by: options.uploadedBy,
+          is_maiml_file: filePath.endsWith('.maiml'),
+          upload_batch_id: options.uploadBatchId,
+          upload_source: options.uploadSource ?? 'system',
+          upload_method: options.uploadMethod ?? 'single',
+          parent_folder_path: key.substring(0, key.lastIndexOf('/')),
+        });
+        console.log(`[StorageService] file_metadata 登録完了: ${key}`);
+      } catch (dbErr) {
+        console.warn('[StorageService] file_metadata 登録失敗（処理続行）', dbErr);
+      }
+    }
+
     return key;
   }
 

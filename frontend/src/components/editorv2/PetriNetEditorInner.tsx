@@ -346,6 +346,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const [availableFiles, setAvailableFiles] = useState<Array<{ key: string; name: string; lastModified?: string; size?: number }>>([]); // 利用可能なファイル一覧
   const [isLoadingFiles, setIsLoadingFiles] = useState<boolean>(false); // ファイル読み込み中
   const [pendingClickPosition, setPendingClickPosition] = useState<{ x: number; y: number } | null>(null); // クリック位置保持（将来用）
+  const [lastAddedNodeId, setLastAddedNodeId] = useState<string | null>(null); // 最後に追加したノードID（ミニマップ強調用）
   const [draftManagerOpen, setDraftManagerOpen] = useState<boolean>(false); // Draft管理ダイアログ
   const [draftModeHandled, setDraftModeHandled] = useState<boolean>(false); // ✅ UX改善2: draftモード処理済みフラグ
   
@@ -1019,14 +1020,19 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
 
   // ノード追加ハンドラー（Phase 3A + 3C: 履歴追加）
   const handleAddNode = useCallback((nodeType: string) => {
+    // 現在の画面中央をフロー座標に変換（ビューポート中心配置）
+    const canvasCenter = screenToFlowPosition({
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    });
     const newNode: Node<NodeData> = {
       id: `${nodeType}-${Date.now()}`,
       type: nodeType === 'transition' ? 'transition' : 
             nodeType === 'material' ? 'materialTemplate' :
             nodeType === 'condition' ? 'conditionTemplate' : 'resultTemplate',
       position: {
-        x: Math.random() * 400 + 100,
-        y: Math.random() * 400 + 100,
+        x: canvasCenter.x + (Math.random() - 0.5) * 200,
+        y: canvasCenter.y + (Math.random() - 0.5) * 200,
       },
       data: {
         id: `${nodeType}-${Date.now()}`,
@@ -1046,9 +1052,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       pushState({ nodes: newNodes, edges });
       return newNodes;
     });
+    // ミニマップ強調: 最後に追加したノードIDを更新（2秒後に自動解除）
+    setLastAddedNodeId(newNode.id);
+    setTimeout(() => setLastAddedNodeId(null), 2000);
     onContentChange?.();
     console.log('➕ [PetriNetEditorInner] ノード追加（テンプレートなし）:', newNode);
-  }, [setNodes, edges, pushState, onContentChange]);
+  }, [setNodes, edges, pushState, onContentChange, screenToFlowPosition]);
 
   // ノード削除ハンドラー（Phase 3A + 3C: 履歴追加 + エッジ削除修正）
   const handleNodesDelete = useCallback((deletedNodes: Node<NodeData>[]) => {
@@ -1323,6 +1332,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       pushState({ nodes: newNodes, edges });
       return newNodes;
     });
+    // ミニマップ強調: 最後に追加したノードIDを更新（2秒後に自動解除）
+    setLastAddedNodeId(newNode.id);
+    setTimeout(() => setLastAddedNodeId(null), 2000);
     onContentChange?.();
     
     console.log(`✨ [PetriNetEditorInner] ${isFirstNode ? '🎯初回' : '2回目以降'}ノード追加（テンプレートなし）:`, {
@@ -1330,7 +1342,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       position,
       screenCoords: { x: event.clientX, y: event.clientY }
     });
-  }, [pressedKeys, edges, pushState, setNodes, screenToFlowPosition, selectedTool, openWorkflowDialogInternal, onContentChange]);
+  }, [pressedKeys, edges, pushState, setNodes, screenToFlowPosition, selectedTool, openWorkflowDialogInternal, onContentChange, setLastAddedNodeId]);
 
   // プロパティパネルを閉じる
   const handleClosePropertyPanel = useCallback(() => {
@@ -2866,6 +2878,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         currentUserId={currentUserId}
         sourceS3Key={props.sourceS3Key}
         projectId={initialDocumentId}
+        lastAddedNodeId={lastAddedNodeId}
       />
     </TemplateProvider>
     </AttributeDisplayProvider>
@@ -2993,10 +3006,13 @@ interface PetriNetEditorInnerUIProps {
   projectId?: string;
   /** MAIMLデータ（XMLビュー表示用） */
   maimlData?: string | null;
+  /** 最後に追加したノードID（ミニマップ強調表示用） */
+  lastAddedNodeId: string | null;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
 const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   nodes,
   edges,
   onNodesChange,
@@ -3078,6 +3094,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   currentUserId,
   sourceS3Key,
   projectId,
+  lastAddedNodeId,
 }) => {
   // TemplateContextからtemplateErrors、addTemplate、deleteTemplate、updateTemplate、allTemplatesを取得
   const { templateErrors, addTemplate, deleteTemplate, updateTemplate, allTemplates } = useTemplates();
@@ -3245,6 +3262,10 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
                 }
                 return '#E0E0E0';
               }}
+              nodeStrokeColor={(node) =>
+                node.id === lastAddedNodeId ? '#FF4444' : 'transparent'
+              }
+              nodeStrokeWidth={3}
               maskColor="rgba(0, 0, 0, 0.1)"
               style={{
                 backgroundColor: '#f5f5f5',
