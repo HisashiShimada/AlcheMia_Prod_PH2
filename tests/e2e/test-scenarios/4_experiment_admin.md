@@ -39,7 +39,8 @@
 | **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | - | - | 16 |
 | **4-14** | PropertyViewer 値なし区別表示・ツールチップ | `docs/改善仕様調査/No.8/result.md`（No.8対応） | 15件 | 手動 | - | - | 15 |
 | **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | - | - | 15 |
-| **合計** | - | - | **261件** | - | **164** | **0** | **73** |
+| **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | - | - | 4 |
+| **合計** | - | - | **265件** | - | **164** | **0** | **77** |
 
 ### スコープ外
 
@@ -787,6 +788,61 @@
 - 保存フラグのリセット（4-15-15）は `onContentSaved` コールバック経由で `setHasUnsavedChanges(false)` が呼び出されることを確認する（S3保存成功後・ローカルダウンロード完了後）
 - `handleSaveDocument`・`handleSaveTemplate` は保存操作であるが、これらもコンテンツの変更として扱われるため、`onContentChange` が呼び出されることに注意
 - 手動テスト実施者はMAIML仕様の基礎知識と操作方法を事前に確認すること
+
+---
+
+### 4-16: テンプレートモード時のツールバーボタン非活性化
+
+> **テスト方法**: 手動テスト（PetriNetEditor のツールバー表示状態はGUI目視が必要なため）  
+> **対応改善仕様**: No.20 テンプレートタブ選択時のボタン非活性化  
+> **実装ドキュメント**: `docs/改善仕様調査/No.20/PLAN.md`  
+> **対象コンポーネント**:
+> - `frontend/src/components/editorv2/components/EditorToolbar.tsx`（`isTemplateMode` フラグ追加・Material/Condition/Result/Transition/ワークフローボタンに `disabled={isTemplateMode}` 付与）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 結果 | 備考 |
+|-----------|-----------|------|------|------|------|
+| 4-16-1 | ペトリネットタブ選択中に Material・Condition・Result・Transition・ワークフローの5ボタンが活性状態（クリック可能）であること | 表示確認 | `PLAN.md` §期待される成果「ペトリネットタブ選択中は通常通り活性状態」 | - | `viewMode === 'petriNet'` 時に `disabled` が付与されないことを確認 |
+| 4-16-2 | テンプレートタブ選択中に Material・Condition・Result・Transition・ワークフローの5ボタンが非活性（グレーアウト・クリック不可）になること | 表示確認 | `PLAN.md` §期待される成果「テンプレートタブ選択中、5ボタンが非活性」 | - | `viewMode === 'templates'` 時に各ボタンに `disabled` が付与されること |
+| 4-16-3 | テンプレートタブからペトリネットタブに切り替えると、非活性だった5ボタンが再び活性状態に戻ること | 表示確認 | `PLAN.md` §期待される成果「テンプレートタブ→ペトリネットタブに切り替え: ボタンが再度活性化」 | - | モード往復後にボタン状態が正しく復元されること |
+| 4-16-4 | テンプレートタブ選択中に Document・バリデーション・保存・Undo・Redoボタンは活性状態のまま操作可能であること | 表示確認 | `PLAN.md` §期待される成果「Document・バリデーション・保存・Undo/Redo は影響を受けない」 | - | `isTemplateMode` の影響を受けないボタンが正常動作すること |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在し、MAIMLファイルが登録済みであること
+- プロジェクト管理タブでプロジェクトを選択後、「編集」ボタンからPetriNetEditorを開いていること
+- ツールバーのSegmentedコントロール（ペトリネット / テンプレート切り替え）が表示されていること
+
+**非活性化対象ボタン（5件）:**
+
+| ボタン名 | `onClick` ハンドラー | 備考 |
+|---------|-------------------|------|
+| Material | `onAddNode('material')` | `isTemplateMode` 時 `disabled` |
+| Condition | `onAddNode('condition')` | `isTemplateMode` 時 `disabled` |
+| Result | `onAddNode('result')` | `isTemplateMode` 時 `disabled` |
+| Transition | `onAddNode('transition')` | `isTemplateMode` 時 `disabled` |
+| ワークフロー | `onAddWorkflow` | `isTemplateMode` 時 `disabled` |
+
+**非活性化対象外ボタン（影響を受けないボタン）:**
+- Document（ドキュメント編集）
+- バリデーション
+- 保存
+- Undo
+- Redo
+
+**手動テスト手順（概要）:**
+1. 実験管理者としてログインし、チェックアウト済みプロジェクトのPetriNetEditorを開く
+2. ツールバーがペトリネットモードであることを確認し、Material/Condition/Result/Transition/ワークフローの5ボタンがクリック可能な活性状態であることを目視確認（4-16-1）
+3. ツールバーのSegmentedコントロールで「テンプレート」タブを選択する
+4. Material/Condition/Result/Transition/ワークフローの5ボタンがグレーアウトされクリック不可になっていることを目視確認（4-16-2）
+5. テンプレートタブ選択中にDocument・バリデーション・保存・Undo・Redoボタンが引き続き活性状態で操作できることを確認（4-16-4）
+6. ツールバーのSegmentedコントロールで「ペトリネット」タブに戻す
+7. 手順4でグレーアウトした5ボタンが再び活性状態（クリック可能）に戻ることを確認（4-16-3）
+
+**注意事項:**
+- `isTemplateMode` フラグは `viewMode === 'templates'` で導出される（`EditorToolbar.tsx` 内で定義）
+- `viewMode` は `EditorToolbarProps` に既存定義されており、`PetriNetEditorInner` から渡される
+- `viewMode` が `undefined` の場合、`'templates'` との比較は `false` となるため安全に動作する
+- ボタンの非活性化はCSSによるグレーアウトと、クリックイベントの無効化の両方で確認すること
 
 ---
 
