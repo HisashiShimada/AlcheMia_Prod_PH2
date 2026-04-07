@@ -1,0 +1,435 @@
+{
+  "meta": {
+    "maimlFile": "test_data/test0327.maiml",
+    "generatedAt": "2026-03-29T23:46:56.577Z",
+    "description": "MaimlParseTyped変換デバッグ: 現状ロジックと修正後の比較"
+  },
+  "step1_xml2js_topLevelKeys": [
+    "_instruction",
+    "maiml"
+  ],
+  "step2_maimlElement_topLevelKeys": [
+    "_attributes",
+    "document",
+    "protcol",
+    "data",
+    "eventlog"
+  ],
+  "step3_afterStripNamespace_topLevelKeys": [
+    "_attributes",
+    "document",
+    "protcol",
+    "data",
+    "eventlog"
+  ],
+  "step4_keyExists": {
+    "maimlElement.protocol": false,
+    "maimlElement.protcol": true,
+    "maimlElement.data": true,
+    "maimlElement.eventlog": true,
+    "maimlElement.eventLog": false
+  },
+  "step5_convertedResult_currentBug": {
+    "version": "1.0",
+    "xsiType": "maimlRootType",
+    "document": {
+      "id": "マテリアルシートDoc",
+      "uuid": "\r\n            7E1AFB08-7C97-48AD-950B-99B06D1E361E\r\n        "
+    },
+    "protocol": null,
+    "_note": "protocol は undefined → createEmptyProtocol() が使用される → methods=[]"
+  },
+  "step6_convertedResult_ifProtcolFixed": {
+    "version": "1.0",
+    "xsiType": "maimlRootType",
+    "document": {
+      "id": "マテリアルシートDoc",
+      "uuid": "\r\n            7E1AFB08-7C97-48AD-950B-99B06D1E361E\r\n        "
+    },
+    "protocol": {
+      "id": "マテリアルシートProtocol",
+      "uuid": "",
+      "name": "マテリアルシート_Protocol",
+      "methods": [
+        {
+          "id": "method_ID",
+          "uuid": "",
+          "pnml": {
+            "id": "pnml_ID",
+            "uuid": "",
+            "places": [
+              {
+                "id": "place_mi1a",
+                "description": "練混ぜ_入力材料"
+              },
+              {
+                "id": "place_mi1b",
+                "description": "練混ぜ_入力材料"
+              },
+              {
+                "id": "place_ci1a",
+                "description": "練混ぜ_入力条件"
+              },
+              {
+                "id": "place_ci1b",
+                "description": "練混ぜ_入力条件"
+              },
+              {
+                "id": "place_mo1",
+                "description": "練混ぜ_出力材料"
+              },
+              {
+                "id": "place_ci2",
+                "description": "洗浄_入力条件"
+              },
+              {
+                "id": "place_mo2",
+                "description": "洗浄_出力材料"
+              },
+              {
+                "id": "place_ci3",
+                "description": "乾燥_入力条件"
+              },
+              {
+                "id": "place_mo3",
+                "description": "乾燥_出力材料"
+              },
+              {
+                "id": "place_ci4",
+                "description": "TG-DTA_入力条件"
+              },
+              {
+                "id": "place_ro4",
+                "description": "TG-DTA_出力結果"
+              },
+              {
+                "id": "place_ci5",
+                "description": "FTIR_入力条件"
+              },
+              {
+                "id": "place_ro5",
+                "description": "FTIR_出力結果"
+              },
+              {
+                "id": "place_ci6",
+                "description": "XRD_入力条件"
+              },
+              {
+                "id": "place_ro6",
+                "description": "XRD_出力結果"
+              },
+              {
+                "id": "place_ro7",
+                "description": "組成判断_出力結果"
+              }
+            ],
+            "transitions": [
+              {
+                "id": "transition_T1",
+                "description": "練混ぜ"
+              },
+              {
+                "id": "transition_T2",
+                "description": "洗浄"
+              },
+              {
+                "id": "transition_T3",
+                "description": "乾燥"
+              },
+              {
+                "id": "transition_T4",
+                "description": "TG-DTA"
+              },
+              {
+                "id": "transition_T5",
+                "description": "FTIR"
+              },
+              {
+                "id": "transition_T6",
+                "description": "XRD"
+              },
+              {
+                "id": "transition_T7",
+                "description": "組成判断"
+              }
+            ],
+            "arcs": [
+              {
+                "id": "arc_mi1a",
+                "source": "place_mi1a",
+                "target": "transition_T1"
+              },
+              {
+                "id": "arc_mi1b",
+                "source": "place_mi1b",
+                "target": "transition_T1"
+              },
+              {
+                "id": "arc_ci1a",
+                "source": "place_ci1a",
+                "target": "transition_T1"
+              },
+              {
+                "id": "arc_ci1b",
+                "source": "place_ci1b",
+                "target": "transition_T1"
+              },
+              {
+                "id": "arc_mo1",
+                "source": "transition_T1",
+                "target": "place_mo1"
+              },
+              {
+                "id": "arc_mi2",
+                "source": "place_mo1",
+                "target": "transition_T2"
+              },
+              {
+                "id": "arc_ci2",
+                "source": "place_ci2",
+                "target": "transition_T2"
+              },
+              {
+                "id": "arc_mo2",
+                "source": "transition_T2",
+                "target": "place_mo2"
+              },
+              {
+                "id": "arc_mi3",
+                "source": "place_mo2",
+                "target": "transition_T3"
+              },
+              {
+                "id": "arc_ci3",
+                "source": "place_ci3",
+                "target": "transition_T3"
+              },
+              {
+                "id": "arc_mo3",
+                "source": "transition_T3",
+                "target": "place_mo3"
+              },
+              {
+                "id": "arc_mi4",
+                "source": "place_mo3",
+                "target": "transition_T4"
+              },
+              {
+                "id": "arc_ci4",
+                "source": "place_ci4",
+                "target": "transition_T4"
+              },
+              {
+                "id": "arc_ro4",
+                "source": "transition_T4",
+                "target": "place_ro4"
+              },
+              {
+                "id": "arc_mi5",
+                "source": "place_mo3",
+                "target": "transition_T5"
+              },
+              {
+                "id": "arc_ci5",
+                "source": "place_ci5",
+                "target": "transition_T5"
+              },
+              {
+                "id": "arc_ro5",
+                "source": "transition_T5",
+                "target": "place_ro5"
+              },
+              {
+                "id": "arc_mi6",
+                "source": "place_mo3",
+                "target": "transition_T6"
+              },
+              {
+                "id": "arc_ci6",
+                "source": "place_ci6",
+                "target": "transition_T6"
+              },
+              {
+                "id": "arc_ro6",
+                "source": "transition_T6",
+                "target": "place_ro6"
+              },
+              {
+                "id": "arc_mi7a",
+                "source": "place_ro4",
+                "target": "transition_T7"
+              },
+              {
+                "id": "arc_mi7b",
+                "source": "place_ro5",
+                "target": "transition_T7"
+              },
+              {
+                "id": "arc_ci7",
+                "source": "place_ro6",
+                "target": "transition_T7"
+              },
+              {
+                "id": "arc_ro7",
+                "source": "transition_T7",
+                "target": "place_ro7"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "_note": "protcol(typo)キーを参照した場合の変換結果（修正後の期待値）"
+  },
+  "step7_maimlElement_structureSummary": {
+    "_attributes": {
+      "version": "1.0",
+      "xmllns": "http://www.maiml.org/schemmas",
+      "xmlns:xsi": "http://www.w3.org/2001/XML.Schema-instancs",
+      "xsi:type": "mainlRootType"
+    },
+    "document": {
+      "_attributes": {
+        "id": "マテリアルシートDoc",
+        "xmlns:docNS": "http://www.mail.org/samplleNamespace"
+      },
+      "signature": {
+        "_attributes": {
+          "xmllns": "http://www.w3.org/2000/09/xmldsig#"
+        },
+        "SignatureValue": {}
+      },
+      "uuid": {
+        "_text": "\r\n            7E1AFB08-7C97-48AD-950B-99B06D1E361E..."
+      },
+      "creator": {
+        "_attributes": {
+          "id": "産総研つくば"
+        },
+        "uuid": {
+          "_text": "\r\n                AE3722A0-78A2-4273-B170-83596324..."
+        },
+        "name": {
+          "_text": "\r\n                つくば\r\n            "
+        },
+        "vendorRef": {
+          "_attributes": {
+            "id": "vendorRef_産総研V",
+            "ref": "産総研V"
+          }
+        },
+        "instrumentRef": {
+          "_attributes": {
+            "id": "instrumentRef_産総研V-1",
+            "ref": "産総研V-1"
+          }
+        }
+      },
+      "vendor": {
+        "_attributes": {
+          "id": "産総研V"
+        },
+        "uuid": {
+          "_text": "\r\n                9739281B-FDD2-488F-B8B2-2868CF97..."
+        },
+        "name": {
+          "_text": "\r\n                産総研V\r\n            "
+        }
+      },
+      "owner": {
+        "_attributes": {
+          "id": "産総研V_ID"
+        },
+        "uuid": {
+          "_text": "\r\n                D697F78F-F352-454F-8245-C2E56BDB..."
+        },
+        "name": {
+          "_text": "\r\n                産総研V\r\n            "
+        }
+      },
+      "instrument": {
+        "_attributes": {
+          "id": "産総研V-1"
+        },
+        "uuid": {
+          "_text": "\r\n                5783B43F-58B2-4642-B4D5-05532699..."
+        },
+        "name": {
+          "_text": "\r\n                産総研V-1\r\n            "
+        },
+        "description": {
+          "_text": "\r\n                産総研V-1\r\n            "
+        }
+      }
+    },
+    "protcol": {
+      "_attributes": {
+        "id": "マテリアルシートProtocol"
+      },
+      "uuid": {},
+      "name": {
+        "_text": "マテリアルシート_Protocol"
+      },
+      "method": {
+        "_attributes": {
+          "id": "method_ID"
+        },
+        "uuid": {},
+        "pnml": {
+          "_attributes": {
+            "id": "pnml_ID"
+          },
+          "place": "[...深すぎる...]",
+          "transition": "[...深すぎる...]",
+          "arc": "[...深すぎる...]"
+        },
+        "program": {
+          "_attributes": {
+            "id": "program_ID"
+          },
+          "instruction": "[...深すぎる...]",
+          "materialTemplate": "[...深すぎる...]",
+          "conditionTemplate": "[...深すぎる...]",
+          "resultTemplate": "[...深すぎる...]"
+        }
+      }
+    },
+    "data": {
+      "_attributes": {
+        "id": "マテリアルシートData"
+      },
+      "uuid": {},
+      "results": {
+        "_attributes": {
+          "id": "result_ID"
+        },
+        "uuid": {},
+        "material": "Array[5]",
+        "condition": "Array[7]",
+        "result": "Array[4]"
+      }
+    },
+    "eventlog": {
+      "_attributes": {
+        "id": "eventlog_ID"
+      },
+      "uuid": {},
+      "name": {},
+      "Description": {},
+      "log": {
+        "_attributes": {
+          "id": "log_ID",
+          "ref": "method_ID"
+        },
+        "trace": {
+          "_attributes": {
+            "id": "result_ID",
+            "ref": "method_ID"
+          },
+          "uuid": "[...深すぎる...]",
+          "event": "[...深すぎる...]"
+        }
+      }
+    }
+  }
+}
