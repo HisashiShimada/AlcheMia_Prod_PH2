@@ -143,8 +143,37 @@ router.delete(
 );
 
 /**
+ * プロジェクト名変更
+ * PATCH /api/v1/projects/:projectName/rename
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description プロジェクト名を変更する（DB + S3ファイルパス）
+ * @roles experiment_admin（書込可）
+ */
+router.patch(
+  '/:projectName/rename',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+    body('newProjectName')
+      .notEmpty()
+      .withMessage('newProjectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('newProjectNameは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.renameProjectHandler
+);
+
+/**
  * プロジェクトMAIML取得
- * GET /api/v1/projects/:projectName/maiml
+ * GET /api/v1/projects/:projectId/maiml
  *
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトの最新MAIMLファイルをXML形式で取得する（プロジェクト管理画面で使用）
@@ -153,14 +182,14 @@ router.delete(
  * @roles 全ロール（読み取り専用）
  */
 router.get(
-  '/:projectName/maiml',
+  '/:projectId/maiml',
   authMiddleware,
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.getProjectMaiml
@@ -214,7 +243,7 @@ router.post(
 
 /**
  * 承認依頼
- * PATCH /api/v1/projects/:projectName/approval-request
+ * PATCH /api/v1/projects/:projectId/approval-request
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
@@ -225,16 +254,16 @@ router.post(
  * @roles experiment_worker（書込可）
  */
 router.patch(
-  '/:projectName/approval-request',
+  '/:projectId/approval-request',
   authMiddleware,
   tenantIsolation,
   checkPermission('050000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
     body('comment')
       .optional()
       .isLength({ max: 1000 })
@@ -340,7 +369,7 @@ router.get(
 
 /**
  * 作業指示一覧取得
- * GET /api/v1/projects/:projectName/worker-instructions
+ * GET /api/v1/projects/:projectId/worker-instructions
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
@@ -351,19 +380,15 @@ router.get(
  * @roles experiment_worker（読取専用）
  */
 router.get(
-  '/:projectName/worker-instructions',
+  '/:projectId/worker-instructions',
   authMiddleware,
   checkPermission('050000', 0),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
-    query('projectId')
-      .optional()
-      .isString()
-      .withMessage('projectIdは文字列である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.getWorkerInstructions
@@ -371,7 +396,7 @@ router.get(
 
 /**
  * 指示確認完了
- * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
+ * PUT /api/v1/projects/:projectId/instructions/:instructionId/confirm
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
@@ -381,15 +406,15 @@ router.get(
  * @roles experiment_worker（書込可）
  */
 router.put(
-  '/:projectName/instructions/:instructionId/confirm',
+  '/:projectId/instructions/:instructionId/confirm',
   authMiddleware,
   checkPermission('050000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
     param('instructionId')
       .notEmpty()
       .withMessage('instructionIdは必須です')

@@ -649,7 +649,7 @@ export class ProgressService {
   /**
    * WorkProgressDetailDialog 用の作業詳細データを一括取得
    *
-   * @param projectName プロジェクト名（URL パスパラメータ）
+   * @param projectId プロジェクトID（URL パスパラメータ）
    * @param organizationId 組織ID（マルチテナント分離）
    * @returns WorkProgressDetailResponse または ProgressServiceError
    * @remarks
@@ -658,11 +658,11 @@ export class ProgressService {
    *   プロジェクト内の全タスクのトランジション進捗取得は Promise.all で並列実行する。
    */
   async getWorkDetails(
-    projectName: string,
+    projectId: string,
     organizationId: string
   ): Promise<Result<WorkProgressDetailResponse, ProgressServiceError>> {
     const startTime = Date.now();
-    logger.info('[ProgressService.getWorkDetails] 開始', { projectName, organizationId });
+    logger.info('[ProgressService.getWorkDetails] 開始', { projectId, organizationId });
 
     try {
       // ─────────────────────────────────────────────
@@ -684,10 +684,10 @@ export class ProgressService {
         checkout_status: number | null;
         create_at: Date;
         update_at: Date;
-      }>(projectSql, [projectName, organizationId]);
+      }>(projectSql, [projectId, organizationId]);
 
       if (projectRows.length === 0) {
-        logger.warn('[ProgressService.getWorkDetails] プロジェクトが見つかりません', { projectName, organizationId });
+        logger.warn('[ProgressService.getWorkDetails] プロジェクトが見つかりません', { projectId, organizationId });
         return { success: false, error: { code: 'TASK_NOT_FOUND', message: 'プロジェクトが見つかりません' } };
       }
 
@@ -696,7 +696,7 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 2: MAIML ダウンロード & パース
       // ─────────────────────────────────────────────
-      const maimlResult = await this.downloadAndParseMAIML(projectName, organizationId);
+      const maimlResult = await this.downloadAndParseMAIML(proj.project_name, organizationId);
       if (!maimlResult.success) {
         return { success: false, error: maimlResult.error };
       }
@@ -719,7 +719,7 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 4: projectInfo / fileInfo を組み立て
       // ─────────────────────────────────────────────
-      const maimlFileKey = `${organizationId}/projects/${projectName}/${projectName}.maiml`;
+      const maimlFileKey = `${organizationId}/projects/${proj.project_name}/${proj.project_name}.maiml`;
 
       const projectInfo: ProjectInfoDetail = {
         projectId: proj.project_id,
@@ -734,7 +734,7 @@ export class ProgressService {
       };
 
       const fileInfo: FileInfoDetail = {
-        fileName: `${projectName}.maiml`,
+        fileName: `${proj.project_name}.maiml`,
         maimlFileKey,
         organizationId,
         checkoutStatus: {
@@ -869,7 +869,8 @@ export class ProgressService {
 
       const totalDuration = Date.now() - startTime;
       logger.info('[ProgressService.getWorkDetails] 完了', {
-        projectName,
+        projectId,
+        projectName: proj.project_name,
         taskCount: workDetails.length,
         duration: totalDuration
       });
@@ -885,7 +886,7 @@ export class ProgressService {
     } catch (error) {
       const err = error as Error;
       logger.error('[ProgressService.getWorkDetails] エラー', {
-        projectName,
+        projectId,
         organizationId,
         errorMessage: err.message,
         errorStack: err.stack,

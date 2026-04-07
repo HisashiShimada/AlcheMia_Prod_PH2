@@ -15,6 +15,7 @@ import { enqueuePublish, enqueueUnpublish, getPublishStatus as fetchPublishStatu
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import * as projectRepository from '../repositories/projectRepository';
+import { renameProject } from '../services/renameService';
 
 /**
  * プロジェクト作成エンドポイント
@@ -108,6 +109,99 @@ export async function create(req: Request, res: Response): Promise<void> {
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * プロジェクト名変更エンドポイント
+ * PATCH /api/v1/projects/:projectName/rename
+ *
+ * @description
+ * プロジェクト名を変更する。
+ * S3ファイルの物理移動と各テーブルの更新をトランザクション内で実行する。
+ *
+ * @roles experiment_admin（書込可）以上
+ */
+export async function renameProjectHandler(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId, userId } = req.user!;
+    const { projectName } = req.params;
+    const { newProjectName } = req.body as { newProjectName?: string };
+
+    // バリデーション
+    if (!newProjectName || typeof newProjectName !== 'string' || newProjectName.trim() === '') {
+      res.status(400).json({
+        success: false,
+        error: { code: 'E1003', message: 'newProjectName は必須です' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    const trimmedName = newProjectName.trim();
+
+    // プロジェクト名のフォーマット検証（英数字・アンダースコア・ハイフン）
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmedName)) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'E1003', message: 'プロジェクト名は英数字・アンダースコア・ハイフンのみ使用できます' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    if (trimmedName.length > 255) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'E1003', message: 'プロジェクト名は255文字以内で入力してください' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    const result = await renameProject({
+      organizationId,
+      oldProjectName: projectName,
+      newProjectName: trimmedName,
+      userId,
+    });
+
+    if (!result.success) {
+      const errorCode = result.error?.code || 'E4001';
+      let statusCode = 500;
+      if (errorCode === 'E7001') statusCode = 409;
+      else if (errorCode === 'E6001') statusCode = 404;
+      else if (errorCode === 'E4006') statusCode = 500;
+      else if (errorCode.startsWith('E1')) statusCode = 400;
+
+      res.status(statusCode).json({
+        success: false,
+        error: { code: errorCode, message: result.error?.message || 'エラーが発生しました' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { newProjectName: trimmedName },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('renameProjectHandler error', error as Error, {
+      action: 'project_rename',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }
@@ -479,12 +573,12 @@ export async function getProjectMaiml(req: Request, res: Response): Promise<void
     
     // バリデーションはミドルウェアで処理済み
     const { organizationId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     
-    console.log('[DEBUG] getProjectMaiml - Auth OK', { organizationId, projectName });
+    console.log('[DEBUG] getProjectMaiml - Auth OK', { organizationId, projectId });
 
-    // Service層呼び出し（projectNameを直接渡す）
-    const result = await projectService.getProjectMaiml(organizationId, projectName);
+    // Service層呼び出し（projectIdを直接渡す）
+    const result = await projectService.getProjectMaiml(organizationId, projectId);
     
     console.log('[DEBUG] getProjectMaiml - Service result', { 
       success: result.success, 
@@ -534,7 +628,7 @@ export async function getProjectMaiml(req: Request, res: Response): Promise<void
     logError('Project getProjectMaiml error', error as Error, {
       action: 'project_getProjectMaiml',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId,
     });
 
@@ -938,28 +1032,8 @@ export async function requestApproval(req: Request, res: Response): Promise<void
   try {
     // バリデーションはミドルウェアで処理済み
     const { organizationId, userId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     const { comment } = req.body;
-
-    // projectNameからprojectIdを取得（リポジトリ層を使用）
-    const project = await projectRepository.findProjectIdByName(organizationId, projectName);
-    
-    if (!project) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'E6001',
-          message: 'プロジェクトが見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-    
-    const projectId = project.project_id;
 
     // Service層呼び出し（commentがundefinedの場合はnullに変換）
     const result = await projectService.requestApproval(
@@ -1044,21 +1118,15 @@ export async function getWorkerInstructions(req: Request, res: Response): Promis
     // バリデーションはミドルウェアで処理済み
     const { organizationId, userId } = req.user!;
     const role = (req.user as any).role;
-    const { projectName } = req.params;
-
-    // クエリパラメータの取得
-    const filters: any = {};
-    if (req.query.projectId) {
-      filters.projectId = req.query.projectId as string;
-    }
+    const { projectId } = req.params;
 
     // Service層呼び出し
     const result = await projectService.getWorkerInstructions({
-      projectName,
+      projectId,
       organizationId,
       userId,
       userRole: role,
-      filters,
+      filters: {},
     });
 
     // Task 3.1: エラーハンドリング
@@ -1081,7 +1149,7 @@ export async function getWorkerInstructions(req: Request, res: Response): Promis
         action: 'worker_instructions_list',
         organizationId,
         userId,
-        projectName,
+        projectId,
         errorCode,
         requestId,
       });
@@ -1115,7 +1183,7 @@ export async function getWorkerInstructions(req: Request, res: Response): Promis
     logError('Worker instructions list error', error as Error, {
       action: 'worker_instructions_list',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId,
     });
 
@@ -1610,12 +1678,12 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
   try {
     // バリデーションはミドルウェアで処理済み
     const { organizationId, userId, role } = req.user as any;
-    const { projectName, instructionId } = req.params;
+    const { projectId, instructionId } = req.params;
 
-    // Service層呼び出し（projectNameからprojectId取得もService層で実施）
+    // Service層呼び出し（projectIdを直接渡す）
     const result = await projectService.confirmInstruction(
       instructionId,
-      projectName,
+      projectId,
       userId,
       organizationId,
       role

@@ -353,6 +353,39 @@ export const getProjects = async (
 };
 
 /**
+ * プロジェクト名変更
+ * PATCH /api/v1/projects/:projectName/rename
+ *
+ * @param projectName - 変更前のプロジェクト名
+ * @param newProjectName - 変更後のプロジェクト名
+ * @returns 変更後のプロジェクト名
+ */
+export const renameProject = async (
+  projectName: string,
+  newProjectName: string
+): Promise<{ newProjectName: string }> => {
+  const apiClient = createApiClient();
+
+  try {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: { newProjectName: string };
+    }>(`/projects/${encodeURIComponent(projectName)}/rename`, { newProjectName });
+
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] renameProject - Error', {
+      projectName,
+      newProjectName,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
  * プロジェクトを作成
  * 
  * @param request プロジェクト作成リクエスト
@@ -783,13 +816,13 @@ export const getProjectDetail = async (
  * ```
  */
 export const requestApproval = async (
-  projectName: string,
+  projectId: string,
   comment?: string
 ): Promise<ApiResponse<ApprovalRequestResponse>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] requestApproval - Start', { projectName, hasComment: !!comment });
+    console.log('[DEBUG] requestApproval - Start', { projectId, hasComment: !!comment });
     
     const requestBody: { comment?: string } = {};
     if (comment) {
@@ -803,7 +836,7 @@ export const requestApproval = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/approval-request`, requestBody);
+    }>(`/projects/${encodeURIComponent(projectId)}/approval-request`, requestBody);
 
     console.log('[DEBUG] requestApproval - Success', {
       projectId: response.data.data.project_id,
@@ -846,7 +879,7 @@ export const requestApproval = async (
  * ```
  */
 export const getWorkerTasks = async (
-  projectName: string,
+  projectId: string,
   filters?: {
     status?: string;
     assignedTo?: string;
@@ -857,7 +890,7 @@ export const getWorkerTasks = async (
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getWorkerTasks - Start', { projectName, filters });
+    console.log('[DEBUG] getWorkerTasks - Start', { projectId, filters });
     
     const params: Record<string, string> = {};
     if (filters?.status) params.status = filters.status;
@@ -872,7 +905,7 @@ export const getWorkerTasks = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/progress/projects/${encodeURIComponent(projectName)}/worker-tasks`, {
+    }>(`/progress/projects/${encodeURIComponent(projectId)}/worker-tasks`, {
       params
     });
 
@@ -921,7 +954,7 @@ export const getWorkerTasks = async (
  * ```
  */
 export const updateTaskStatus = async (
-  projectName: string,
+  projectId: string,
   methodId: string,
   taskNo: string,
   status: 'not_started' | 'started' | 'in_progress' | 'completed' | 'forced_terminated',
@@ -932,7 +965,7 @@ export const updateTaskStatus = async (
 
   try {
     console.log('[DEBUG] updateTaskStatus - Start', {
-      projectName,
+      projectId,
       methodId,
       taskNo,
       status,
@@ -960,7 +993,7 @@ export const updateTaskStatus = async (
         requestId: string;
       };
     }>(
-      `/progress/projects/${encodeURIComponent(projectName)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/status`,
+      `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/status`,
       requestBody
     );
 
@@ -1006,20 +1039,12 @@ export const updateTaskStatus = async (
  * ```
  */
 export const getWorkerInstructions = async (
-  projectName: string,
-  filters?: {
-    projectId?: string;
-  }
+  projectId: string
 ): Promise<ApiResponse<WorkerInstruction[]>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getWorkerInstructions - Start', { projectName, filters });
-    
-    const params: Record<string, string> = {};
-    if (filters?.projectId) {
-      params.projectId = filters.projectId;
-    }
+    console.log('[DEBUG] getWorkerInstructions - Start', { projectId });
     
     const response = await client.get<{
       success: boolean;
@@ -1028,9 +1053,7 @@ export const getWorkerInstructions = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/worker-instructions`, {
-      params
-    });
+    }>(`/projects/${encodeURIComponent(projectId)}/worker-instructions`);
 
     console.log('[DEBUG] getWorkerInstructions - Success', {
       instructionCount: response.data.data.length
@@ -1069,13 +1092,13 @@ export const getWorkerInstructions = async (
  * ```
  */
 export const confirmInstruction = async (
-  projectName: string,
+  projectId: string,
   instructionId: string
 ): Promise<ApiResponse<InstructionConfirmationData>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] confirmInstruction - Start', { projectName, instructionId });
+    console.log('[DEBUG] confirmInstruction - Start', { projectId, instructionId });
     
     const response = await client.put<{
       success: boolean;
@@ -1084,7 +1107,7 @@ export const confirmInstruction = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/instructions/${instructionId}/confirm`);
+    }>(`/projects/${encodeURIComponent(projectId)}/instructions/${instructionId}/confirm`);
 
     console.log('[DEBUG] confirmInstruction - Success', {
       instructionId: response.data.data.instruction_id,
@@ -1129,7 +1152,7 @@ export const confirmInstruction = async (
  * ```
  */
 export const updateTransitionStatus = async (
-  projectName: string,
+  projectId: string,
   methodId: string,
   transitionId: string,
   request: UpdateTransitionStatusRequest
@@ -1138,7 +1161,7 @@ export const updateTransitionStatus = async (
 
   try {
     console.log('[DEBUG] updateTransitionStatus - Start', {
-      projectName,
+      projectId,
       methodId,
       transitionId,
       taskNo: request.taskNo,
@@ -1153,7 +1176,7 @@ export const updateTransitionStatus = async (
         requestId: string;
       };
     }>(
-      `/progress/projects/${encodeURIComponent(projectName)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/status`,
+      `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/status`,
       request
     );
 
@@ -1906,20 +1929,20 @@ export interface ProjectMaimlResponse {
  * ```
  */
 export const getProjectMaiml = async (
-  projectName: string
+  projectId: string
 ): Promise<ApiResponse<ProjectMaimlResponse>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getProjectMaiml - Request', { projectName });
+    console.log('[DEBUG] getProjectMaiml - Request', { projectId });
     
     const response = await client.get<ApiResponse<ProjectMaimlResponse>>(
-      `/projects/${encodeURIComponent(projectName)}/maiml`
+      `/projects/${encodeURIComponent(projectId)}/maiml`
     );
 
     console.log('[DEBUG] getProjectMaiml - Success', {
       contentLength: response.data.data?.maimlContent?.length || 0,
-      projectName: response.data.data?.projectName,
+      projectId,
     });
     
     return response.data;

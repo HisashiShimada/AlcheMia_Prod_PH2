@@ -1558,18 +1558,16 @@ export class ProjectService {
    * @returns 作業指示一覧
    */
   async getWorkerInstructions(params: {
-    projectName: string;
+    projectId: string;
     organizationId: string;
     userId: string;
     userRole: string;
-    filters?: {
-      projectId?: string;
-    };
+    filters?: Record<string, never>;
   }): Promise<ServiceResult<any[]>> {
     const pgp = getPgp();
 
     try {
-      const { projectName, organizationId, userId, userRole, filters = {} } = params;
+      const { projectId, organizationId, userId, userRole } = params;
 
       // 外部SQLファイルからベースクエリを読み込み
       let query = await loadSqlFile('instructions/findWorkerInstructions.sql');
@@ -1596,15 +1594,9 @@ export class ProjectService {
       conditions.push(`pi.organization_id = $${paramIndex++}`);
       queryParams.push(organizationId);
 
-      // 必須フィルタ: project_name
-      conditions.push(`p.project_name = $${paramIndex++}`);
-      queryParams.push(projectName);
-
-      // オプショナルフィルタの適用
-      if (filters.projectId) {
-        conditions.push(`pi.project_id = $${paramIndex++}`);
-        queryParams.push(filters.projectId);
-      }
+      // 必須フィルタ: project_id
+      conditions.push(`p.project_id = $${paramIndex++}`);
+      queryParams.push(projectId);
 
       // WHERE句の追加
       if (conditions.length > 0) {
@@ -1665,18 +1657,16 @@ export class ProjectService {
    * @param projectName - プロジェクト名
    * @returns MAIMLファイルデータ
    */
-  async getProjectMaiml(organizationId: string, projectName: string): Promise<ServiceResult<any>> {
-    let projectId: string | undefined; // スコープを拡大
-
+  async getProjectMaiml(organizationId: string, projectId: string): Promise<ServiceResult<any>> {
     try {
-      console.log('[DEBUG] getProjectMaiml - Service層開始', { organizationId, projectName });
+      console.log('[DEBUG] getProjectMaiml - Service層開始', { organizationId, projectId });
 
-      // Repository層を使用してprojectNameからprojectIdを取得
-      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
+      // Repository層を使用してprojectIdからproject情報を取得
+      const project = await projectRepository.findProjectBasicInfo(organizationId, projectId);
 
       // プロジェクト存在確認
       if (!project) {
-        console.log('[DEBUG] getProjectMaiml - プロジェクトが見つかりません', { projectName });
+        console.log('[DEBUG] getProjectMaiml - プロジェクトが見つかりません', { projectId });
         return {
           success: false,
           error: {
@@ -1686,8 +1676,8 @@ export class ProjectService {
         };
       }
 
-      projectId = project.project_id;
-      console.log('[DEBUG] getProjectMaiml - プロジェクトID取得完了', { projectId, projectName });
+      const projectName = project.project_name;
+      console.log('[DEBUG] getProjectMaiml - プロジェクト取得完了', { projectId, projectName });
 
       // Task 3.1: S3パスを構築
       const filePath = `projects/${projectName}/${projectName}.maiml`;
@@ -1832,7 +1822,7 @@ export class ProjectService {
    */
   async confirmInstruction(
     instructionId: string,
-    projectName: string,
+    projectId: string,
     userId: string,
     organizationId: string,
     role: string
@@ -1841,21 +1831,6 @@ export class ProjectService {
     let client;
 
     try {
-      // 0. projectNameからprojectIdを取得
-      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
-
-      if (!project) {
-        return {
-          success: false,
-          error: {
-            code: 'E6001',
-            message: 'プロジェクトが見つかりません',
-          },
-        };
-      }
-
-      const projectId = project.project_id;
-
       // 1. 指示の存在確認（organization_idフィルタ付き）
       const instruction = await instructionRepository.findById(
         instructionId,
@@ -1918,8 +1893,11 @@ export class ProjectService {
 
       if (instruction.method_id && (instructionTarget === 2 || instructionTarget === 3)) {
         try {
+          // S3パス構築のためprojectNameを取得
+          const projectInfo = await projectRepository.findProjectBasicInfo(organizationId, projectId);
+          const projectNameForPath = projectInfo?.project_name ?? projectId;
           const storageService = getStorageService();
-          const filePath = `projects/${projectName}/${projectName}.maiml`;
+          const filePath = `projects/${projectNameForPath}/${projectNameForPath}.maiml`;
           const fileBuffer = await storageService.downloadFile(organizationId, filePath);
           const maimlContent = fileBuffer.toString('utf-8');
 
@@ -1939,7 +1917,7 @@ export class ProjectService {
         } catch (maimlError) {
           // MAIMLファイル取得・パース失敗時は null のまま続行（ログのみ）
           logError('Failed to parse MAIML for programId', maimlError as Error, {
-            projectName,
+            projectId,
             organizationId,
             methodId: instruction.method_id,
           });

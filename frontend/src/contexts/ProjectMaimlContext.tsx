@@ -35,11 +35,11 @@ interface ProjectMaimlContextValue {
   /** エラー状態 */
   error: Error | null;
   
-  /** 現在読み込み中のプロジェクト名 */
-  currentProjectName: string | null;
+  /** 現在読み込み中のプロジェクトID */
+  currentProjectId: string | null;
   
   /** MAIMLファイルを読み込む */
-  loadMaiml: (projectName: string) => Promise<void>;
+  loadMaiml: (projectId: string) => Promise<void>;
   
   /** 現在のプロジェクトのMAIMLをリロード */
   reloadMaiml: () => Promise<void>;
@@ -71,7 +71,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
   const [parser, setParser] = useState<MaimlParserTyped | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [currentProjectName, setCurrentProjectName] = useState<string | null>(null);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   
   // 現在実行中のリクエストを追跡（重複リクエスト防止）
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -81,7 +81,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
    * 
    * @param projectName - プロジェクト名
    */
-  const loadMaiml = useCallback(async (projectName: string) => {
+  const loadMaiml = useCallback(async (projectId: string) => {
     // 既存のリクエストをキャンセル
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -92,12 +92,12 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
     abortControllerRef.current = abortController;
 
     try {
-      console.log('📂 [ProjectMaimlContext] MAIMLファイル読み込み開始:', projectName);
+      console.log('📂 [ProjectMaimlContext] MAIMLファイル読み込み開始:', projectId);
       setIsLoading(true);
       setError(null);
 
       // API呼び出し
-      const response = await getProjectMaiml(projectName);
+      const response = await getProjectMaiml(projectId);
 
       // リクエストがキャンセルされた場合は処理を中断
       if (abortController.signal.aborted) {
@@ -112,7 +112,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
           setMaimlRoot(null);
           setMaimlContent(null);
           setParser(null);
-          setCurrentProjectName(projectName);
+          setCurrentProjectId(projectId);
           setError(null);
           return;
         }
@@ -127,14 +127,14 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
         setMaimlRoot(null);
         setMaimlContent(null);
         setParser(null);
-        setCurrentProjectName(projectName);
+        setCurrentProjectId(projectId);
         setError(null);
         return;
       }
 
       console.log('✅ [ProjectMaimlContext] MAIMLファイル取得成功:', {
         contentLength: fetchedMaimlContent.length,
-        projectName,
+        projectId,
       });
 
       // MAIMLをパース
@@ -150,7 +150,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
       setMaimlRoot(parsedMaiml);
       setMaimlContent(fetchedMaimlContent);
       setParser(maimlParser);
-      setCurrentProjectName(projectName);
+      setCurrentProjectId(projectId);
       setError(null);
     } catch (err) {
       // リクエストがキャンセルされた場合はエラーを無視
@@ -165,7 +165,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
       setMaimlRoot(null);
       setMaimlContent(null);
       setParser(null);
-      setCurrentProjectName(null);
+      setCurrentProjectId(null);
 
       message.error(`MAIMLファイルの読み込みに失敗しました: ${error.message}`);
     } finally {
@@ -178,14 +178,14 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
    * 現在のプロジェクトのMAIMLをリロード
    */
   const reloadMaiml = useCallback(async () => {
-    if (!currentProjectName) {
+    if (!currentProjectId) {
       console.warn('⚠️ [ProjectMaimlContext] リロード対象のプロジェクトがありません');
       return;
     }
 
-    console.log('🔄 [ProjectMaimlContext] MAIMLリロード開始:', currentProjectName);
-    await loadMaiml(currentProjectName);
-  }, [currentProjectName, loadMaiml]);
+    console.log('🔄 [ProjectMaimlContext] MAIMLリロード開始:', currentProjectId);
+    await loadMaiml(currentProjectId);
+  }, [currentProjectId, loadMaiml]);
 
   /**
    * MAIMLデータをクリア
@@ -203,7 +203,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
     setMaimlContent(null);
     setParser(null);
     setError(null);
-    setCurrentProjectName(null);
+    setCurrentProjectId(null);
   }, []);
 
   const value: ProjectMaimlContextValue = {
@@ -212,7 +212,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
     parser,
     isLoading,
     error,
-    currentProjectName,
+    currentProjectId,
     loadMaiml,
     reloadMaiml,
     clearMaiml,

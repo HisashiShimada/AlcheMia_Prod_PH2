@@ -64,45 +64,17 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     res.setHeader('X-Request-Id', requestId);
 
     // パラメータの取得（バリデーションミドルウェアで検証済み）
-    const { projectName, methodId, taskNo: taskNoStr } = req.params;
+    const { projectId, methodId, taskNo: taskNoStr } = req.params;
     const { organizationId } = req.user!;
     const taskNo = parseInt(taskNoStr, 10);
 
     logger.info('Progress data request received', {
-      projectName,
+      projectId,
       methodId,
       taskNo,
       organizationId,
       requestId
     });
-
-    // Step 1: プロジェクト名からプロジェクトIDを取得
-    const pgp = getPgp();
-    const projectQuery = await loadSqlFile('projects/findByName.sql');
-    const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
-
-    if (!project) {
-      logger.warn('Project not found', {
-        projectName,
-        organizationId,
-        requestId
-      });
-
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'E6001',
-          message: 'プロジェクトが見つかりません'
-        },
-        meta: {
-          timestamp,
-          requestId
-        }
-      });
-      return;
-    }
-
-    const projectId = project.project_id;
 
     // Step 2: ProgressServiceの呼び出し
     
@@ -118,7 +90,6 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     // 成功時のレスポンス
     if (result.success) {
       logger.info('Progress data retrieved successfully', {
-        projectName,
         projectId,
         methodId,
         taskNo,
@@ -144,7 +115,6 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     logger.error('Progress data retrieval failed', {
       errorCode,
       message: result.error.message,
-      projectName,
       projectId,
       methodId,
       taskNo,
@@ -199,7 +169,7 @@ export async function updateTransitionStatus(
 ): Promise<void> {
   try {
     // リクエストパラメータとボディの抽出
-    const { projectName, methodId, transitionId } = req.params;
+    const { projectId, methodId, transitionId } = req.params;
     const { taskNo: _taskNo, status, progressRate, comment: _comment } = req.body;
 
     // 認証・認可情報の取得
@@ -219,14 +189,14 @@ export async function updateTransitionStatus(
       throw error;
     }
 
-    // プロジェクト名からプロジェクトIDとステータスを取得
+    // プロジェクトIDでプロジェクトステータスを取得
     const pool = getPool();
     const projectQuery = `
       SELECT project_id, project_name, project_status
       FROM project
-      WHERE project_name = $1 AND organization_id = $2
+      WHERE project_id = $1 AND organization_id = $2
     `;
-    const projectResult = await pool.query(projectQuery, [projectName, organizationId]);
+    const projectResult = await pool.query(projectQuery, [projectId, organizationId]);
 
     if (projectResult.rowCount === 0) {
       const error: any = new Error('Project not found');
@@ -235,7 +205,6 @@ export async function updateTransitionStatus(
     }
 
     const project = projectResult.rows[0];
-    const projectId = project.project_id;
 
     // プロジェクトステータスが編集可能かチェック
     // 1: pending (タスク実行待ち), 2: in_progress (タスク実行中)
@@ -274,7 +243,7 @@ export async function updateTransitionStatus(
         transitionId: transitionId,
         taskNo: _taskNo,
         methodId: methodId,
-        projectName: projectName,
+        projectId: projectId,
         status: updatedTransitionData.status,
         progressRate: updatedTransitionData.progress_rate,
         comment: _comment || null,
@@ -312,7 +281,7 @@ export async function getWorkerTasks(
   try {
     // バリデーションはhandleValidationErrorsミドルウェアで処理済み
     const { organizationId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
 
     // オプションクエリパラメータの抽出
     const filters: TaskFilters = {
@@ -326,43 +295,13 @@ export async function getWorkerTasks(
     // INFO: API呼び出し開始ログ
     logger.info('ProgressController.getWorkerTasks - Start', {
       action: 'get_worker_tasks',
-      projectName,
+      projectId,
       organizationId,
       filters,
       requestId,
     });
 
-    const pgp = getPgp();
-
-    // ステップ1: プロジェクト名からプロジェクトIDを取得
-    const projectQuery = await loadSqlFile('projects/findByName.sql');
-    const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
-
-    if (!project) {
-      logger.warn('ProgressController.getWorkerTasks - Project not found', {
-        action: 'get_worker_tasks',
-        projectName,
-        organizationId,
-        requestId,
-      });
-
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'E6001',
-          message: 'Project not found',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const projectId = project.project_id;
-
-    // ステップ2: TaskServiceを使用してタスク一覧を取得
+    // ステップ1: TaskServiceを使用してタスク一覧を取得（projectIdで直接検索）
     
     const taskService = new TaskService();
     const methodGroups = await taskService.getTasksGroupedByMethod(
@@ -374,7 +313,6 @@ export async function getWorkerTasks(
     // レスポンス作成
     const responseData = {
       project_id: projectId,
-      project_name: projectName,
       methods: methodGroups,
     };
 
@@ -384,7 +322,7 @@ export async function getWorkerTasks(
     
     logger.info('ProgressController.getWorkerTasks - Success', {
       action: 'get_worker_tasks',
-      projectName,
+      projectId,
       organizationId,
       result: {
         methodCount: methodGroups.length,
@@ -408,7 +346,7 @@ export async function getWorkerTasks(
     const responseTime = Date.now() - startTime;
     logger.error('ProgressController.getWorkerTasks - Error', {
       action: 'get_worker_tasks',
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       organizationId: req.user?.organizationId,
       responseTimeMs: responseTime,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
@@ -440,22 +378,22 @@ export async function getWorkDetails(
   const timestamp = new Date().toISOString();
 
   try {
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     const { organizationId } = req.user!;
 
     logger.info('getWorkDetails request received', {
-      projectName,
+      projectId,
       organizationId,
       requestId
     });
 
     const transitionDataRepository = new TransitionDataRepository();
     const progressService = new ProgressService(transitionDataRepository);
-    const result = await progressService.getWorkDetails(projectName, organizationId);
+    const result = await progressService.getWorkDetails(projectId, organizationId);
 
     if (result.success) {
       logger.info('getWorkDetails succeeded', {
-        projectName,
+        projectId,
         organizationId,
         taskCount: result.data.workDetails.length,
         requestId
@@ -473,7 +411,7 @@ export async function getWorkDetails(
     logger.warn('getWorkDetails failed', {
       errorCode: result.error.code,
       message: result.error.message,
-      projectName,
+      projectId,
       organizationId,
       requestId
     });
@@ -507,13 +445,13 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
 
   try {
     // パラメータの取得（バリデーションミドルウェアで検証済み）
-    const { projectName, methodId, taskNo: taskNoStr } = req.params;
+    const { projectId, methodId, taskNo: taskNoStr } = req.params;
     const { status, currentUpdatedAt, comment } = req.body;
     const { organizationId, userId } = req.user!;
     const taskNo = parseInt(taskNoStr, 10);
 
     logger.info('Task status update request received', {
-      projectName,
+      projectId,
       methodId,
       taskNo,
       status,
@@ -522,14 +460,18 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       requestId
     });
 
-    // Step 1: プロジェクト名からプロジェクトIDと編集可能ステータスを取得
+    // Step 1: プロジェクトIDでプロジェクトステータスを取得
     const pgp = getPgp();
-    const projectQuery = await loadSqlFile('projects/findByName.sql');
-    const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
+    const projectQuery = `
+      SELECT project_id, project_status
+      FROM project
+      WHERE project_id = $1 AND organization_id = $2
+    `;
+    const project = await pgp.oneOrNone(projectQuery, [projectId, organizationId]);
 
     if (!project) {
       logger.warn('Project not found', {
-        projectName,
+        projectId,
         organizationId,
         requestId
       });
@@ -548,15 +490,12 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const projectId = project.project_id;
-
     // Step 2: プロジェクトステータスが編集可能かチェック
     // 1: pending (タスク実行待ち), 2: in_progress (タスク実行中)
     const editableStatuses = [1, 2];
     const projectStatus = Number(project.project_status); // 文字列から数値に変換
     if (!editableStatuses.includes(projectStatus)) {
       logger.warn('Project is not in editable status', {
-        projectName,
         projectId,
         projectStatus: project.project_status,
         projectStatusType: typeof project.project_status,
@@ -614,7 +553,7 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       logger.error('Task status update failed', {
         errorCode,
         message: result.error!.message,
-        projectName,
+        projectId,
         methodId,
         taskNo,
         requestId
@@ -637,7 +576,7 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
 
     // 成功レスポンス
     logger.info('Task status updated successfully', {
-      projectName,
+      projectId,
       methodId,
       taskNo,
       status,

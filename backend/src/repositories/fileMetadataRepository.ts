@@ -43,7 +43,8 @@ export interface FileMetadata {
   s3_storage_class?:string;
   s3_etag?:string;
   last_edit_timestamp?: Date;
-  
+  /** プロジェクトUUID: project.project_uuidと同値。MAIMLファイル特定に使用 */
+  project_uuid?: string;
 }
 
 /**

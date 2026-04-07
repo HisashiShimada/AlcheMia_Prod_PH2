@@ -10,6 +10,9 @@ import {
   Dropdown,
   message,
   theme,
+  Modal,
+  Form,
+  Input,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -27,6 +30,7 @@ import {
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import {
   getFileDownloadUrlByKey,
+  renameFile,
 } from '@/services/fileAccessService';
 import type { ProjectFile } from '@/types/file';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -38,6 +42,8 @@ interface FileListTableProps {
   onFolderClick?: (folderId: string) => void;
   onViewFile?: (file: ProjectFile) => void;
   onDeleteFile?: (file: ProjectFile) => void;
+  /** ファイル名変更後に呼び出すコールバック（ファイル一覧再取得用） */
+  onRenameFile?: () => void;
 }
 
 /**
@@ -49,11 +55,79 @@ const FileListTable: React.FC<FileListTableProps> = ({
   onFileClick, 
   onFolderClick, 
   onViewFile,
-  onDeleteFile
+  onDeleteFile,
+  onRenameFile,
 }) => {
   const { token } = theme.useToken();
   const { t } = useLanguage();
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+
+  // ---- リネームモーダル ----
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renamingFile, setRenamingFile] = useState<ProjectFile | null>(null);
+  const [renameLoading, setRenameLoading] = useState(false);
+  const [renameForm] = Form.useForm<{ newFileName: string }>();
+
+  /** 「名前の変更」メニューをクリックしたときの処理 */
+  const handleOpenRenameModal = (file: ProjectFile) => {
+    setRenamingFile(file);
+    // 拡張子を除いたベース名のみをデフォルト値にセット
+    const dotIdx = file.name.lastIndexOf('.');
+    const baseName = dotIdx > 0 ? file.name.substring(0, dotIdx) : file.name;
+    renameForm.setFieldsValue({ newFileName: baseName });
+    setRenameModalOpen(true);
+  };
+
+  /** モーダルの「OK」 */
+  const handleRenameConfirm = async () => {
+    if (!renamingFile) return;
+
+    const values = await renameForm.validateFields();
+    const baseName = values.newFileName.trim();
+
+    // 拡張子を取得してベース名と結合
+    const dotIdx = renamingFile.name.lastIndexOf('.');
+    const ext = dotIdx > 0 ? renamingFile.name.substring(dotIdx) : '';
+    const newFileName = baseName + ext;
+
+    // 変更なし
+    if (newFileName === renamingFile.name) {
+      setRenameModalOpen(false);
+      return;
+    }
+
+    setRenameLoading(true);
+    try {
+      const result = await renameFile({
+        fileKey: renamingFile.path,
+        newFileName,
+      });
+
+      if (!result.success) {
+        const errMsg = result.error?.message ?? 'ファイル名の変更に失敗しました';
+        message.error(errMsg);
+        return;
+      }
+
+      message.success(`「${renamingFile.name}」を「${newFileName}」に変更しました`);
+      setRenameModalOpen(false);
+      // ファイル一覧を再取得
+      onRenameFile?.();
+    } catch (error) {
+      console.error('ファイル名変更エラー:', error);
+      const errMsg = error instanceof Error ? error.message : 'ファイル名の変更に失敗しました';
+      message.error(errMsg);
+    } finally {
+      setRenameLoading(false);
+    }
+  };
+
+  /** モーダルのキャンセル */
+  const handleRenameCancel = () => {
+    setRenameModalOpen(false);
+    setRenamingFile(null);
+    renameForm.resetFields();
+  };
 
   /**
    * ファイルダウンロード処理（プロキシ方式）
@@ -170,9 +244,9 @@ const FileListTable: React.FC<FileListTableProps> = ({
             key: 'rename',
             label: '名前の変更',
             icon: <EditOutlined />,
-            onClick: () => {
-              console.log('ファイルリネームボタンがクリックされました:', record.name);
-              message.info('名前の変更機能は未実装です');
+            onClick: (info) => {
+              info.domEvent.stopPropagation();
+              handleOpenRenameModal(record);
             },
           },
           {
@@ -240,28 +314,66 @@ const FileListTable: React.FC<FileListTableProps> = ({
   ];
 
   return (
-    <Table
-      dataSource={files}
-      columns={columns}
-      rowKey="id"
-      size="small"
-      pagination={false}
-      locale={{
-        emptyText: <Empty description={t('projectManagement.fileManagement.emptyState')} image={Empty.PRESENTED_IMAGE_SIMPLE} />,
-      }}
-      onRow={(record) => ({
-        onClick: () => {
-          if (record.isFolder) {
-            onFolderClick?.(record.id);
-          } else {
-            onFileClick?.(record);
-          }
-        },
-        style: {
-          cursor: record.isFolder || onFileClick ? 'pointer' : 'default',
-        },
-      })}
-    />
+    <>
+      <Table
+        dataSource={files}
+        columns={columns}
+        rowKey="id"
+        size="small"
+        pagination={false}
+        locale={{
+          emptyText: <Empty description={t('projectManagement.fileManagement.emptyState')} image={Empty.PRESENTED_IMAGE_SIMPLE} />,
+        }}
+        onRow={(record) => ({
+          onClick: () => {
+            if (record.isFolder) {
+              onFolderClick?.(record.id);
+            } else {
+              onFileClick?.(record);
+            }
+          },
+          style: {
+            cursor: record.isFolder || onFileClick ? 'pointer' : 'default',
+          },
+        })}
+      />
+
+      {/* ファイル名変更モーダル */}
+      <Modal
+        title="名前の変更"
+        open={renameModalOpen}
+        onOk={handleRenameConfirm}
+        onCancel={handleRenameCancel}
+        okText="変更"
+        cancelText="キャンセル"
+        confirmLoading={renameLoading}
+        width={420}
+        destroyOnClose
+      >
+        <Form form={renameForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="newFileName"
+            label="新しいファイル名"
+            rules={[
+              { required: true, message: 'ファイル名を入力してください' },
+              { whitespace: true, message: 'ファイル名に空白のみは使用できません' },
+              { max: 255, message: 'ファイル名は255文字以内で入力してください' },
+            ]}
+          >
+            <Input
+              autoFocus
+              placeholder="ファイル名を入力"
+              onPressEnter={handleRenameConfirm}
+              addonAfter={
+                renamingFile && renamingFile.name.lastIndexOf('.') > 0
+                  ? renamingFile.name.substring(renamingFile.name.lastIndexOf('.'))
+                  : undefined
+              }
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   );
 };
 

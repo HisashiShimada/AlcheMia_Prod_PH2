@@ -736,7 +736,6 @@ export const abortChunkUpload = async (uploadId: string): Promise<void> => {
     console.warn(`⚠️ [ChunkUpload] 中断リクエスト失敗（無視）: uploadId=${uploadId}`, error);
   }
 };
-
 /**
  * ファイルサイズをフォーマット（バイト → KB/MB/GB）
  * 
@@ -751,4 +750,40 @@ export const formatFileSize = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${units[i]}`;
+};
+
+// ---------------------------------------------------------------------------
+// ファイル名変更
+// ---------------------------------------------------------------------------
+
+export interface RenameFileRequest {
+  /** 対象ファイルの相対パス（organizationId なし。例: "projects/foo/bar.csv"） */
+  fileKey: string;
+  /** 新しいファイル名（拡張子込み） */
+  newFileName: string;
+}
+
+export interface RenameFileResponse {
+  success: boolean;
+  data?: { newFileKey: string };
+  error?: { code: string; message: string };
+}
+
+/**
+ * ファイル名変更API
+ *
+ * PATCH /api/v1/files/rename
+ *
+ * @param params fileKey と newFileName
+ * @returns 変更後の fileKey
+ */
+export const renameFile = async (
+  params: RenameFileRequest
+): Promise<RenameFileResponse> => {
+  const api = createApiClient();
+  const response = await api.patch<ApiResponse<{ newFileKey: string }>>(
+    '/files/rename',
+    params
+  );
+  return response.data as RenameFileResponse;
 };
