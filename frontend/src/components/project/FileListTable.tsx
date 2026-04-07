@@ -189,7 +189,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
         const menuItems: MenuProps['items'] = [
           {
             key: 'rename',
-            label: '名前の変更',
+            label: <span data-testid="file-menu-rename">名前の変更</span>,
             icon: <EditOutlined />,
             onClick: () => {
               console.log('ファイルリネームボタンがクリックされました:', record.name);
@@ -201,7 +201,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
           },
           {
             key: 'delete',
-            label: '削除',
+            label: <span data-testid="file-menu-delete">削除</span>,
             icon: <DeleteOutlined />,
             danger: true,
             onClick: () => {
@@ -222,6 +222,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
                 type="default"
                 size="small"
                 icon={<MoreOutlined />}
+                data-testid="file-more-menu-button"
                 onClick={(e) => {
                   e.stopPropagation();
                 }}
@@ -271,6 +272,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
         emptyText: <Empty description={t('projectManagement.fileManagement.emptyState')} image={Empty.PRESENTED_IMAGE_SIMPLE} />,
       }}
       onRow={(record) => ({
+        'data-testid': 'file-list-row',
         onClick: () => {
           if (record.isFolder) {
             if (record.id === 'back') {

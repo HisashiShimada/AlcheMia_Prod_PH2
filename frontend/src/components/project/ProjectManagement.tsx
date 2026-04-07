@@ -1159,7 +1159,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       content: confirmContent,
       okText: '削除',
       cancelText: 'キャンセル',
-      okButtonProps: { danger: true },
+      okButtonProps: { danger: true, 'data-testid': 'maiml-delete-confirm-button', id: 'maiml-delete-confirm-button' } as any,
+      cancelButtonProps: { 'data-testid': 'maiml-delete-cancel-button', id: 'maiml-delete-cancel-button' } as any,
       onOk: async () => {
         try {
           console.log(`🗑️ [ProjectManagement] ファイル削除開始:`, file.name);
@@ -1648,6 +1649,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     <Button
                       type="primary"
                       danger
+                      data-testid="maiml-toolbar-unpublish-button"
                       onClick={handleUnpublish}
                       loading={publishStatusLoading || isPolling}
                       disabled={!selectedProject || publishStatusLoading || isPolling}
@@ -1657,6 +1659,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   ) : (
                     <Button
                       type="primary"
+                      data-testid="maiml-toolbar-publish-button"
                       style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
                       onClick={handlePublish}
                       loading={publishStatusLoading || isPolling}
