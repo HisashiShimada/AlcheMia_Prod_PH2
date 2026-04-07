@@ -51,7 +51,7 @@ const ORG_ID = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385';
 const ADMIN_EMAIL = 'exp.admin@example.com';
 const ADMIN_PASSWORD = 'expAdmin123';
 
-/** ベースプロジェクト名（4-1-8〜4-1-20 で使用する共通テストプロジェクト） */
+/** ベースプロジェクト名（4-1-8〜4-1-15 で使用する共通テストプロジェクト） */
 const BASE_PROJECT_NAME = 'E2Eテスト用プロジェクト_4-1-base';
 const BASE_PROJECT_ID = 'E2E-4-1-BASE';
 
@@ -122,11 +122,11 @@ Before({ tags: '@4-1-6' }, async () => {
 });
 
 /**
- * 4-1-8〜4-1-13, 4-1-16〜4-1-23 用
+ * 4-1-8〜4-1-13, 4-1-21〜4-1-23 用
  * - ベースプロジェクトを UPSERT する
  */
 Before({
-  tags: '@4-1-8 or @4-1-9 or @4-1-10 or @4-1-11 or @4-1-12 or @4-1-13 or @4-1-16 or @4-1-17 or @4-1-18 or @4-1-19 or @4-1-20 or @4-1-21 or @4-1-22 or @4-1-23',
+  tags: '@4-1-8 or @4-1-9 or @4-1-10 or @4-1-11 or @4-1-12 or @4-1-13 or @4-1-21 or @4-1-22 or @4-1-23',
 }, async () => {
   console.log('[4-1 Before] テストデータ準備 開始 (base project)');
   try {
