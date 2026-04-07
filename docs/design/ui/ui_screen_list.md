@@ -68,12 +68,13 @@
 |--------|--------|--------------|-----------|
 | ProviderMenu.tsx | プロバイダメニュー | frontend/src/components/menus/ProviderMenu.tsx | プロバイダ用メニュー |
 
-**機能画面:**
+**機能画面（タブ順序: 組織管理 → 会社管理 → 情報ダウンロード）:**
 
-| 物理名 | 論理名 | ファイルパス | 用途・説明 |
-|--------|--------|--------------|-----------|
-| OrganizationManagementMock.tsx | 組織管理 | frontend/mock/components/OrganizationManagementMock.tsx | 組織管理画面（モック） |
-| InformationDownloadMock.tsx | 情報ダウンロード | frontend/mock/components/InformationDownloadMock.tsx | 情報ダウンロード画面（モック） |
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| OrganizationManagement.tsx | 組織管理 | frontend/src/components/Provider/OrganizationManagement.tsx | [ui_organization_main.md](provider/ui_organization_main.md) | 組織マスタ管理画面（タブ1） |
+| CorporationManagement.tsx | 会社管理 | frontend/src/components/Provider/CorporationManagement.tsx | [ui_corporation_main.md](provider/ui_corporation_main.md) | 会社マスタ管理画面（タブ2） |
+| InformationDownload.tsx | 情報ダウンロード | frontend/src/components/Provider/InformationDownload.tsx | [ui_information_download_main.md](provider/ui_information_download_main.md) | 全組織統計情報CSVダウンロード画面（タブ3） |
 
 ---
 
@@ -373,6 +374,7 @@
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-04-07 | プロバイダ用画面のタブ順序を変更（会社管理→組織管理 の順 → 組織管理→会社管理 の順）、機能画面一覧をモックから実装済みコンポーネントに更新し、UI仕様書リンクを追加 | Cline |
 | 2026-03-06 | UI仕様書追加 - project/（WorkerScreenOverlay, FormatManagement系9ファイル）とTransitionSetSearch/（4ファイル）のUI仕様書を新規作成し、ui_screen_list.mdにリンクを追記 | Cline |
 | 2026-02-19 17:12 | 使用API一覧を更新 - プロジェクト管理API（13/16実装済み）、MAIML編集API（17/17、100%完了）、ファイルアクセスAPI（6/6、100%完了）を反映 | Cline |
 | 2026-02-19 | editorv2対応完了 - 全ファイルパスをeditorv2配下に更新、UI仕様書リンク追加、ノード名をPlaceNodeに変更 | Cline |
