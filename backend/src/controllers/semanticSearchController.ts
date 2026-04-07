@@ -46,6 +46,12 @@ const DEFAULT_TOP_K = 10;
 const MAX_TOP_K = 50;
 
 /**
+ * スコア足切り閾値
+ * 環境変数 SEMANTIC_SEARCH_MIN_SCORE で上書き可能（デフォルト: 0.3）
+ */
+const MIN_SCORE = parseFloat(process.env.SEMANTIC_SEARCH_MIN_SCORE ?? '0.3');
+
+/**
  * 共通エラーハンドラ
  */
 function handleError(res: Response, error: unknown, defaultMessage: string): void {
@@ -118,7 +124,8 @@ export async function search(req: Request, res: Response): Promise<void> {
       resolvedWeights.structure,
       resolvedTopK,
       technique ?? null,
-      project_name ?? null
+      project_name ?? null,
+      MIN_SCORE
     );
 
     const elapsedMs = Date.now() - startTime;
