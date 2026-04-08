@@ -28,12 +28,9 @@
  *   - [file-delete-button-{fileName}]   : ファイル削除ボタン
  *
  * 注意事項:
- *   - 4-8-4〜4-8-7（詳細検索）: 検索APIは未実装のためUI操作のみ確認
- *   - 4-8-8〜4-8-12（新規フォルダ作成）: フォルダ作成APIは未実装のためバリデーション・モーダル動作のみ確認
- *   - 4-8-13〜4-8-20（新規ファイル作成）: ファイル作成APIは未実装のためバリデーション・モーダル動作のみ確認
+ *   - 4-8-9〜4-8-12（新規フォルダ作成）: フォルダ作成APIは未実装のためバリデーション・モーダル動作のみ確認
+ *   - 4-8-14〜4-8-20（新規ファイル作成）: ファイル作成APIは未実装のためバリデーション・モーダル動作のみ確認
  *   - 4-8-23〜4-8-31（アップロード）: アップロードAPIは未実装のためモック動作のみ確認
- *   - 4-8-34（編集保存）: PUT APIは未実装のためAPI実装後に確認
- *   - 4-8-36〜4-8-37（ダウンロード）: ダウンロードAPIは未実装のためAPI実装後に確認
  *   - 4-8-39（削除）: 削除APIは未実装のため削除確認ダイアログのUI動作のみ確認
  *   - 4-8-49〜4-8-55（アップロードキャンセル）: No.13 アップロードキャンセル機能
  *   - 4-8-56（フッターボタンラベル確認）: No.24対応 「閉じる」→「キャンセル」変更確認
@@ -148,89 +145,13 @@ async function loginAndNavigateToFormatManagement(page: any): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /** 基本テストデータ（共通テスト用フォーマット） */
-Before({ tags: '@4-8-1 or @4-8-2 or @4-8-4 or @4-8-5 or @4-8-6 or @4-8-7 or @4-8-8 or @4-8-9 or @4-8-10 or @4-8-11 or @4-8-12 or @4-8-13 or @4-8-14 or @4-8-17 or @4-8-18 or @4-8-20 or @4-8-21 or @4-8-22 or @4-8-23 or @4-8-24 or @4-8-26 or @4-8-27 or @4-8-28 or @4-8-29 or @4-8-30 or @4-8-31 or @4-8-56' }, async () => {
+Before({ tags: '@4-8-1 or @4-8-2 or @4-8-9 or @4-8-10 or @4-8-11 or @4-8-12 or @4-8-14 or @4-8-17 or @4-8-18 or @4-8-20 or @4-8-22 or @4-8-23 or @4-8-24 or @4-8-26 or @4-8-27 or @4-8-29 or @4-8-30 or @4-8-31 or @4-8-56' }, async () => {
   console.log('[4-8 Before] 基本テストデータ準備 開始');
   await upsertFormat(TEST_FORMAT);
   if (!createdFormatIds.includes(TEST_FORMAT.folderName)) {
     createdFormatIds.push(TEST_FORMAT.folderName);
   }
   console.log('[4-8 Before] 基本テストデータ準備 完了');
-});
-
-/**
- * 詳細検索（4-8-4〜4-8-7）はフロントエンド未実装のためスキップ
- * バグとして別途計上済み
- */
-Before({ tags: '@4-8-4 or @4-8-5 or @4-8-6 or @4-8-7' }, async ({ $testInfo }) => {
-  $testInfo.skip(true, '詳細検索ボタンはフロントエンド未実装のためスキップ（バグとして計上済み）');
-});
-
-/** 削除用テストデータ */
-Before({ tags: '@4-8-3' }, async () => {
-  console.log('[4-8 Before] 削除用テストデータ準備 開始');
-  await upsertFormat(TEST_FORMAT_DELETE);
-  if (!createdFormatIds.includes(TEST_FORMAT_DELETE.id)) {
-    createdFormatIds.push(TEST_FORMAT_DELETE.id);
-  }
-  console.log('[4-8 Before] 削除用テストデータ準備 完了');
-});
-
-/**
- * 4-8-3: FormatFolderTree.tsx にフォーマット削除ボタンが未実装のため skip する。
- * フォーマット一覧（左パネル）には削除ボタンが存在せず、右パネルのファイル行の
- * 「削除」ボタンと混同してしまい正しいテストが実行できない。
- * UI にフォーマット削除機能が実装された後に再有効化すること。
- */
-Before({ tags: '@4-8-3' }, async ({ $testInfo }) => {
-  $testInfo.skip(
-    true,
-    '[4-8-3] FormatFolderTree にフォーマット削除ボタンが未実装のため、' +
-    'テスト仕様と UI 実装が乖離している。UI 実装後に再有効化すること。'
-  );
-});
-
-/** XMLタイプフォーマット用テストデータ */
-Before({ tags: '@4-8-15 or @4-8-19' }, async () => {
-  console.log('[4-8 Before] XMLタイプフォーマットテストデータ準備 開始');
-  await upsertFormat(TEST_FORMAT);
-  if (!createdFormatIds.includes(TEST_FORMAT.id)) {
-    createdFormatIds.push(TEST_FORMAT.id);
-  }
-  console.log('[4-8 Before] XMLタイプフォーマットテストデータ準備 完了');
-});
-
-/**
- * 4-8-15: CreateFormatFileModal.tsx にテンプレートタイプ選択UIは存在しない。
- *   XMLファイルのテンプレートタイプ（material/condition/result）はフォルダ名から
- *   自動判定されるため、ユーザーが選択するUIコンポーネントは実装されていない。
- *   → テスト仕様とUI実装が乖離しているため skip する。
- *
- * 4-8-19: 同様の理由でテンプレートタイプ選択のバリデーションエラーも存在しない。
- *   → skip する。
- */
-Before({ tags: '@4-8-15 or @4-8-19' }, async ({ $testInfo }) => {
-  $testInfo.skip(
-    true,
-    '[4-8-15/4-8-19] CreateFormatFileModal.tsx にテンプレートタイプ選択UIは存在しない。' +
-    'テンプレートタイプはフォルダ名（material/condition/result）から自動判定されるため、' +
-    'ユーザー操作によるテンプレートタイプ選択テストは現在のUIでは自動テスト不可。'
-  );
-});
-
-/**
- * 4-8-28: ファイル未選択時の「アップロード開始」ボタンは [disabled] 状態になる。
- *   UIの仕様として「警告メッセージを表示する」ではなく「ボタンを無効化する」設計のため、
- *   feature ファイルの Then「"ファイルを選択してください" という警告メッセージが表示されること」
- *   とUI実装が乖離している。disabled ボタンはクリックイベントを発火しないため
- *   message.warning() は呼び出されず、該当メッセージは表示されない。
- *   → skip する。
- */
-Before({ tags: '@4-8-28' }, async ({ $testInfo }) => {
-  $testInfo.skip(
-    true,
-    '[4-8-28] ファイル未選択時の「アップロード開始」ボタンは disabled 状態になる設計のため、' +
-    '警告メッセージは表示されない。UIの仕様変更（disabled → 警告メッセージ表示）後に再テストが必要。'
-  );
 });
 
 /** MAIMLタイプフォーマット用テストデータ */
@@ -578,20 +499,6 @@ When(
   }
 );
 
-/**
- * フォーマットを選択せずに「新規フォルダ」ボタンをクリックする
- */
-When(
-  'フォーマットを選択せずに「新規フォルダ」ボタンをクリックする',
-  async ({ page, $testInfo }) => {
-    console.log('[4-8 When] フォーマット未選択で「新規フォルダ」ボタンをクリック（スキップ）');
-    $testInfo.skip(
-      true,
-      '[4-8-8] new-folder-button はフォーマット選択後にのみDOM上に存在するため、' +
-      'フォーマット未選択時の警告テストは現在のUIでは自動テスト不可。'
-    );
-  }
-);
 
 /**
  * "e2e_test_format_{int}_{int}" を選択する

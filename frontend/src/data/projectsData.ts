@@ -333,7 +333,7 @@ export const templatesList: Template[] = [
       {
         key: "spectrum_data",
         label: "スペクトルデータ",
-        type: "contentDoubleListType",
+        type: "doubleListType",
         required: false
       },
       {
@@ -1071,7 +1071,7 @@ export const projectsData: Record<string, ProjectData> = {
                   {
                     "key": "measurement_matrix",
                     "label": "測定データ（時系列）",
-                    "type": "contentDoubleListType",
+                    "type": "doubleListType",
                     "units": "℃",
                     "required": true
                   },
