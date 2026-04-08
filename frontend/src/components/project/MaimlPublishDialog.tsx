@@ -20,8 +20,10 @@ const ERROR_MESSAGES: Record<string, string> = {
 export interface MaimlPublishDialogProps {
   /** ダイアログの表示状態 */
   open: boolean;
-  /** 公開対象のプロジェクト名 */
+  /** 公開対象のプロジェクト名（表示用） */
   projectName: string;
+  /** 公開対象のプロジェクトID */
+  projectId: string;
   /** ダイアログを閉じる時のコールバック */
   onClose: () => void;
   /**
@@ -42,6 +44,7 @@ export interface MaimlPublishDialogProps {
 const MaimlPublishDialog: React.FC<MaimlPublishDialogProps> = ({
   open,
   projectName,
+  projectId,
   onClose,
   onSuccess,
 }) => {
@@ -60,7 +63,7 @@ const MaimlPublishDialog: React.FC<MaimlPublishDialogProps> = ({
     setErrorCode(null);
 
     try {
-      const response = await publishProject(projectName);
+      const response = await publishProject(projectId);
       // 成功（202）
       const jobId = response.data?.job_id ?? '';
       handleClose();

@@ -5,10 +5,11 @@
  * Task 5.1: getProgressDataメソッドの実装
  * 
  * 責務:
- * - HTTPリクエストのバリデーション（projectId, methodId, taskNo）
  * - ProgressServiceの呼び出しとエラーハンドリング
  * - 統一レスポンス形式への変換（success, data, meta）
  * - HTTPステータスコードの設定（200, 400, 401, 403, 404, 500）
+ * 
+ * @note バリデーションはprogressRoutes.tsのミドルウェアで実施済み
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -20,10 +21,9 @@ import { TaskService } from '../services/taskService';
 import { updateTaskStatus as updateTaskStatusService } from '../services/taskService';
 import { TaskStatus } from '../types/taskService.types';
 import { TaskFilters } from '../types/task';
-import { getPool, getPgp } from '../database/db';
 import { logger } from '../utils/logger';
 import { TransitionDataUpdate } from '../types/transitionData';
-import { loadSqlFile } from '../sql/loader';
+import * as projectRepository from '../repositories/projectRepository';
 
 /**
  * エラーコードからHTTPステータスコードへのマッピング
@@ -172,39 +172,17 @@ export async function updateTransitionStatus(
     const { projectId, methodId, transitionId } = req.params;
     const { taskNo: _taskNo, status, progressRate, comment: _comment } = req.body;
 
-    // 認証・認可情報の取得
-    const organizationId = req.user?.organizationId;
-    const updatedBy = req.user?.userId;
+    // 認証・認可情報の取得（authMiddlewareで検証済み）
+    const { organizationId, userId: updatedBy } = req.user!;
 
-    // 必須パラメータの検証
-    if (!organizationId) {
-      const error: any = new Error('Organization ID is required');
-      error.name = 'ValidationError';
-      throw error;
-    }
+    // プロジェクトIDでプロジェクトステータスを取得（projectRepositoryを使用）
+    const project = await projectRepository.getById(projectId, organizationId);
 
-    if (!updatedBy) {
-      const error: any = new Error('User authentication required');
-      error.name = 'AuthenticationError';
-      throw error;
-    }
-
-    // プロジェクトIDでプロジェクトステータスを取得
-    const pool = getPool();
-    const projectQuery = `
-      SELECT project_id, project_name, project_status
-      FROM project
-      WHERE project_id = $1 AND organization_id = $2
-    `;
-    const projectResult = await pool.query(projectQuery, [projectId, organizationId]);
-
-    if (projectResult.rowCount === 0) {
+    if (!project) {
       const error: any = new Error('Project not found');
       error.name = 'ProjectNotFoundError';
       throw error;
     }
-
-    const project = projectResult.rows[0];
 
     // プロジェクトステータスが編集可能かチェック
     // 1: pending (タスク実行待ち), 2: in_progress (タスク実行中)
@@ -460,14 +438,8 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       requestId
     });
 
-    // Step 1: プロジェクトIDでプロジェクトステータスを取得
-    const pgp = getPgp();
-    const projectQuery = `
-      SELECT project_id, project_status
-      FROM project
-      WHERE project_id = $1 AND organization_id = $2
-    `;
-    const project = await pgp.oneOrNone(projectQuery, [projectId, organizationId]);
+    // Step 1: プロジェクトIDでプロジェクトステータスを取得（projectRepositoryを使用）
+    const project = await projectRepository.getById(projectId, organizationId);
 
     if (!project) {
       logger.warn('Project not found', {

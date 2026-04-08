@@ -133,35 +133,8 @@ export async function renameFileHandler(req: Request, res: Response): Promise<vo
 
   try {
     const { organizationId, userId } = req.user!;
+    // バリデーションはミドルウェア（fileAccessRoutes.ts）で実施済み
     const { fileKey, newFileName } = req.body;
-
-    // 入力バリデーション
-    if (!fileKey || typeof fileKey !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: { code: 'E1003', message: 'fileKey は必須です' },
-        meta: { timestamp: new Date().toISOString(), requestId },
-      });
-      return;
-    }
-    if (!newFileName || typeof newFileName !== 'string' || !newFileName.trim()) {
-      res.status(400).json({
-        success: false,
-        error: { code: 'E1003', message: 'newFileName は必須です' },
-        meta: { timestamp: new Date().toISOString(), requestId },
-      });
-      return;
-    }
-
-    // ファイル名に使用できない文字チェック（/ \ : * ? " < > | を禁止）
-    if (/[/\\:*?"<>|]/.test(newFileName.trim())) {
-      res.status(400).json({
-        success: false,
-        error: { code: 'E1003', message: 'ファイル名に使用できない文字が含まれています' },
-        meta: { timestamp: new Date().toISOString(), requestId },
-      });
-      return;
-    }
 
     console.log('✏️ [File Rename] リクエスト開始:', { organizationId, fileKey, newFileName, requestId });
 

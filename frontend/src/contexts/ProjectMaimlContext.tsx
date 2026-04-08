@@ -175,8 +175,6 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
       setCurrentProjectId(null);
 
       message.error(`MAIMLファイルの読み込みに失敗しました: ${error.message}`);
-      setCurrentProjectName(null);
->>>>>>> main
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;

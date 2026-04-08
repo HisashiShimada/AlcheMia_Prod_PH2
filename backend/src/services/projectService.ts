@@ -231,28 +231,13 @@ export class ProjectService {
    */
   async deleteProject(
     organizationId: string,
-    projectName: string
+    projectId: string
   ): Promise<ServiceResult<{ deletedCount: number; message: string }>> {
     const pool = getPool();
     let client;
 
     try {
-      // 1. projectNameからprojectIdを取得
-      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
-
-      if (!project) {
-        return {
-          success: false,
-          error: {
-            code: 'RESOURCE_NOT_FOUND',
-            message: 'プロジェクトが見つかりません',
-          },
-        };
-      }
-
-      const projectId = project.project_id;
-
-      // 2. トランザクション開始
+      // 1. トランザクション開始（projectId を直接使用）
       client = await pool.connect();
       await client.query('BEGIN');
 
@@ -304,12 +289,13 @@ export class ProjectService {
       await client.query('COMMIT');
 
       // 6. ストレージからプロジェクトフォルダを削除（トランザクション外）
+      const deletedProjectName = projectInfo.project_name;
       let deletedFileCount = 0;
       try {
         // FileAccessServiceを使用してフォルダ削除
         const { FileAccessService } = await import('./fileAccessService');
         const fileAccessService = new FileAccessService();
-        const folderPath = `projects/${projectName}`;
+        const folderPath = `projects/${deletedProjectName}`;
 
         deletedFileCount = await fileAccessService.deleteFolderRecursive(
           organizationId,
@@ -331,7 +317,7 @@ export class ProjectService {
         success: true,
         data: {
           deletedCount: deletedFileCount,
-          message: `プロジェクト「${projectName}」を削除しました`,
+          message: `プロジェクト「${deletedProjectName}」を削除しました`,
         },
       };
     } catch (error) {
@@ -540,37 +526,13 @@ export class ProjectService {
    */
   async checkout(
     organizationId: string,
-    projectNameOrId: string,
+    projectId: string,
     userId: string
   ): Promise<ServiceResult<ProjectCheckoutInfo>> {
     const pool = getPool();
     let client;
 
     try {
-      // projectNameからprojectIdを取得（Repository層経由）
-      let projectId: string;
-
-      // UUIDの場合はそのまま使用、それ以外はprojectNameとして扱う
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(projectNameOrId)) {
-        projectId = projectNameOrId;
-      } else {
-        const projectRow = await projectRepository.findProjectIdByName(
-          organizationId,
-          projectNameOrId
-        );
-        if (!projectRow) {
-          return {
-            success: false,
-            error: {
-              code: 'E6001',
-              message: 'プロジェクトが見つかりません',
-            },
-          };
-        }
-        projectId = projectRow.project_id;
-      }
-
       // トランザクション開始
       client = await pool.connect();
       await client.query('BEGIN');
@@ -810,27 +772,14 @@ export class ProjectService {
    */
   async checkin(
     organizationId: string,
-    projectName: string,
+    projectId: string,
     _userId: string
   ): Promise<ServiceResult<ProjectCheckoutInfo>> {
     const pool = getPool();
     let client;
 
     try {
-      // projectNameからprojectIdを取得
-      const projectRow = await projectRepository.findProjectIdByName(organizationId, projectName);
-      if (!projectRow) {
-        return {
-          success: false,
-          error: {
-            code: 'E6001',
-            message: 'プロジェクトが見つかりません',
-          },
-        };
-      }
-      const projectId = projectRow.project_id;
-
-      // トランザクション開始
+      // トランザクション開始（projectId を直接使用）
       client = await pool.connect();
       await client.query('BEGIN');
 
@@ -2040,16 +1989,16 @@ export class ProjectService {
    */
   async completeReviewTasks(
     organizationId: string,
-    projectName: string
+    projectId: string
   ): Promise<{
     success: boolean;
     data?: { updatedCount: number; message: string };
     error?: { code: string; message: string };
   }> {
     try {
-      // プロジェクト名 → プロジェクトID
-      const projectRow = await projectRepository.findProjectIdByName(organizationId, projectName);
-      if (!projectRow) {
+      // projectId を直接使用
+      const projectInfo = await projectRepository.findProjectBasicInfo(organizationId, projectId);
+      if (!projectInfo) {
         return {
           success: false,
           error: { code: 'E6001', message: 'プロジェクトが見つかりません' },
@@ -2058,18 +2007,16 @@ export class ProjectService {
 
       const updatedCount = await projectRepository.completeReviewTasks(
         organizationId,
-        projectRow.project_id
+        projectId
       );
 
       // MAIMLファイルへの data 層・eventLog 層書き出し
-      // 承認完了後に template_data / maiml_event_log の内容を MAIMLファイルに反映する。
-      // 書き出し失敗はログのみに留め、承認完了レスポンスには影響させない。
       try {
         const maimlWriterService = new MaimlWriterService();
         await maimlWriterService.writeDataAndEventLog(
           organizationId,
-          projectRow.project_id,
-          projectName
+          projectId,
+          projectInfo.project_name
         );
       } catch (maimlWriteError) {
         console.error(

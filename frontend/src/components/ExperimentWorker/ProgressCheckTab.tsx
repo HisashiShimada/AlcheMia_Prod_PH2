@@ -633,7 +633,7 @@ export default function ProgressCheckTab({
     label: string;
   } => {
     if (methodTasks.length === 0) {
-      return { status: 'default', label: '未処理' };
+      return { status: 'default', label: '未着手' };
     }
 
     // 強制終了タスクがあればエラー
@@ -656,8 +656,8 @@ export default function ProgressCheckTab({
       return { status: 'processing', label: '作業中' };
     }
 
-    // それ以外は未処理
-    return { status: 'default', label: '未処理' };
+    // それ以外は未着手
+    return { status: 'default', label: '未着手' };
   }, []);
 
   // メソッドタブを生成（各メソッドに紐づくタスクをフィルタリングして表示）

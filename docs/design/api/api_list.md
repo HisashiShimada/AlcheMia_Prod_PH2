@@ -488,6 +488,7 @@
 | 14.5 | GET | /api/v1/files/batches | バッチ履歴取得 | ✅ 実装済み | fileAccessController.getBatchHistory |
 | 14.6 | GET | /api/v1/files/batches/:batchId/progress | バッチ進捗取得 | ✅ 実装済み | fileAccessController.getBatchProgress |
 | 14.7 | POST | /api/v1/files/batches/:batchId/cancel | バッチキャンセル | ✅ 実装済み | fileAccessController.cancelBatch |
+| 14.8 | PATCH | /api/v1/files/rename | ファイルリネーム | ✅ 実装済み | fileAccessController.renameFileHandler |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`（JWTからorganizationIdを取得）

@@ -117,7 +117,7 @@ router.post(
 
 /**
  * プロジェクト削除
- * DELETE /api/v1/projects/:projectName
+ * DELETE /api/v1/projects/:projectId
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
@@ -128,15 +128,15 @@ router.post(
  * @roles experiment_admin（書込可）
  */
 router.delete(
-  '/:projectName',
+  '/:projectId',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.deleteProject
@@ -144,7 +144,7 @@ router.delete(
 
 /**
  * プロジェクト名変更
- * PATCH /api/v1/projects/:projectName/rename
+ * PATCH /api/v1/projects/:projectId/rename
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
@@ -152,20 +152,23 @@ router.delete(
  * @roles experiment_admin（書込可）
  */
 router.patch(
-  '/:projectName/rename',
+  '/:projectId/rename',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
     body('newProjectName')
       .notEmpty()
-      .withMessage('newProjectNameは必須です')
+      .withMessage('newProjectName は必須です')
+      .trim()
+      .matches(/^[a-zA-Z0-9_-]+$/)
+      .withMessage('プロジェクト名は英数字・アンダースコア・ハイフンのみ使用できます')
       .isLength({ min: 1, max: 255 })
-      .withMessage('newProjectNameは1〜255文字である必要があります'),
+      .withMessage('プロジェクト名は255文字以内で入力してください'),
   ],
   handleValidationErrors,
   projectController.renameProjectHandler
@@ -197,22 +200,21 @@ router.get(
 
 /**
  * プロジェクトチェックアウト
- * POST /api/v1/projects/:projectName/checkout
+ * POST /api/v1/projects/:projectId/checkout
  * 
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトをチェックアウトし、排他編集を開始する
- * @note Task 1.1: チェックアウトエンドポイント追加（projectName受け取りに変更）
  * @requirements FR-1.1
  */
 router.post(
-  '/:projectName/checkout',
+  '/:projectId/checkout',
   authMiddleware,
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.checkout
@@ -220,22 +222,21 @@ router.post(
 
 /**
  * プロジェクトチェックイン
- * POST /api/v1/projects/:projectName/checkin
+ * POST /api/v1/projects/:projectId/checkin
  * 
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトをチェックインし、排他編集を終了する
- * @note Task 1.2: チェックインエンドポイント追加（projectName受け取りに変更）
  * @requirements FR-2.1
  */
 router.post(
-  '/:projectName/checkin',
+  '/:projectId/checkin',
   authMiddleware,
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.checkin
@@ -298,7 +299,7 @@ router.get(
 
 /**
  * プロジェクトファイル一覧取得
- * GET /api/v1/projects/:projectName/files
+ * GET /api/v1/projects/:projectId/files
  * 
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトに関連するファイル一覧を取得する（署名付きURL付き）
@@ -306,12 +307,12 @@ router.get(
  * @requirements REQ-2, REQ-3, REQ-11
  */
 router.get(
-  '/:projectName/files',
+  '/:projectId/files',
   authMiddleware,
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です'),
+      .withMessage('projectIdは必須です'),
   ],
   handleValidationErrors,
   projectController.getProjectFiles
@@ -319,7 +320,7 @@ router.get(
 
 /**
  * レビュー待ちタスクを一括完了に更新
- * POST /api/v1/projects/:projectName/tasks/complete-review
+ * POST /api/v1/projects/:projectId/tasks/complete-review
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
@@ -328,15 +329,15 @@ router.get(
  * @roles experiment_admin（書込可）
  */
 router.post(
-  '/:projectName/tasks/complete-review',
+  '/:projectId/tasks/complete-review',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.completeReviewTasks
@@ -344,20 +345,19 @@ router.post(
 
 /**
  * プロジェクトタスク一覧取得
- * GET /api/v1/projects/:projectName/tasks
+ * GET /api/v1/projects/:projectId/tasks
  * 
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトに関連するタスク一覧を取得する
- * @note Task 3.3: タスク一覧取得エンドポイント追加
  * @requirements REQ-2, REQ-4
  */
 router.get(
-  '/:projectName/tasks',
+  '/:projectId/tasks',
   authMiddleware,
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です'),
+      .withMessage('projectIdは必須です'),
     query('status')
       .optional()
       .isIn(['all', 'pending', 'in_progress', 'completed', 'failed'])
@@ -427,7 +427,7 @@ router.put(
 
 /**
  * タスク登録情報取得
- * GET /api/v1/projects/:projectName/task-registration
+ * GET /api/v1/projects/:projectId/task-registration
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
@@ -437,15 +437,15 @@ router.put(
  * @roles experiment_admin（読取専用）
  */
 router.get(
-  '/:projectName/task-registration',
+  '/:projectId/task-registration',
   authMiddleware,
   checkPermission('040000', 0),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   taskRegistrationController.getTaskRegistration
@@ -453,7 +453,7 @@ router.get(
 
 /**
  * タスク登録情報保存
- * POST /api/v1/projects/:projectName/task-registration
+ * POST /api/v1/projects/:projectId/task-registration
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
@@ -463,15 +463,15 @@ router.get(
  * @roles experiment_admin（書込可）
  */
 router.post(
-  '/:projectName/task-registration',
+  '/:projectId/task-registration',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
     body('tasks')
       .isArray({ min: 1 })
       .withMessage('tasksは1要素以上の配列である必要があります'),
@@ -491,7 +491,7 @@ router.post(
 
 /**
  * タスク登録状況取得（指示送信タブのボタン活性制御用）
- * GET /api/v1/projects/:projectName/instructions/status
+ * GET /api/v1/projects/:projectId/instructions/status
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
@@ -501,15 +501,15 @@ router.post(
  * @roles experiment_admin（読取専用）
  */
 router.get(
-  '/:projectName/instructions/status',
+  '/:projectId/instructions/status',
   authMiddleware,
   checkPermission('040000', 0),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectInstructionController.getTaskRegistrationStatus
@@ -517,7 +517,7 @@ router.get(
 
 /**
  * 指示一覧取得
- * GET /api/v1/projects/:projectName/instructions
+ * GET /api/v1/projects/:projectId/instructions
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
@@ -527,15 +527,15 @@ router.get(
  * @roles experiment_admin（読取専用）
  */
 router.get(
-  '/:projectName/instructions',
+  '/:projectId/instructions',
   authMiddleware,
   checkPermission('040000', 0),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectInstructionController.getInstructions
@@ -543,7 +543,7 @@ router.get(
 
 /**
  * 指示保存（未送信）
- * POST /api/v1/projects/:projectName/instructions
+ * POST /api/v1/projects/:projectId/instructions
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
@@ -553,15 +553,15 @@ router.get(
  * @roles experiment_admin（書込可）
  */
 router.post(
-  '/:projectName/instructions',
+  '/:projectId/instructions',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
     body('priority')
       .isInt({ min: 0, max: 3 })
       .withMessage('priorityは0〜3の範囲内の整数である必要があります'),
@@ -580,26 +580,25 @@ router.post(
 
 /**
  * 指示更新（未送信のみ）
- * PUT /api/v1/projects/:projectName/instructions/:instructionId
+ * PUT /api/v1/projects/:projectId/instructions/:instructionId
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
  * @description 未送信の指示を更新する（送信済は更新不可）
  * @note 指示送信タブで使用
- * @note instructionIdは「プロジェクト名_XXX」形式（例: sample_project_001）
  * @requirements REQ-1, REQ-2
  * @roles experiment_admin（書込可）
  */
 router.put(
-  '/:projectName/instructions/:instructionId',
+  '/:projectId/instructions/:instructionId',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
     param('instructionId')
       .notEmpty()
       .withMessage('instructionIdは必須です')
@@ -626,26 +625,25 @@ router.put(
 
 /**
  * 指示削除（未送信のみ）
- * DELETE /api/v1/projects/:projectName/instructions/:instructionId
+ * DELETE /api/v1/projects/:projectId/instructions/:instructionId
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
  * @description 未送信の指示を削除する（送信済は削除不可）
  * @note 指示送信タブで使用
- * @note instructionIdは「プロジェクト名_XXX」形式（例: sample_project_001）
  * @requirements REQ-1, REQ-2
  * @roles experiment_admin（書込可）
  */
 router.delete(
-  '/:projectName/instructions/:instructionId',
+  '/:projectId/instructions/:instructionId',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
     param('instructionId')
       .notEmpty()
       .withMessage('instructionIdは必須です')
@@ -658,7 +656,7 @@ router.delete(
 
 /**
  * 未送信指示を一括送信
- * POST /api/v1/projects/:projectName/instructions/send
+ * POST /api/v1/projects/:projectId/instructions/send
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
@@ -668,15 +666,15 @@ router.delete(
  * @roles experiment_admin（書込可）
  */
 router.post(
-  '/:projectName/instructions/send',
+  '/:projectId/instructions/send',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectInstructionController.sendInstructions
@@ -684,7 +682,7 @@ router.post(
 
 /**
  * MaiML 公開ステータス取得
- * GET /api/v1/projects/:projectName/publish-status
+ * GET /api/v1/projects/:projectId/publish-status
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
@@ -693,15 +691,15 @@ router.post(
  * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.3
  */
 router.get(
-  '/:projectName/publish-status',
+  '/:projectId/publish-status',
   authMiddleware,
   checkPermission('040000', 0),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.getPublishStatus
@@ -709,7 +707,7 @@ router.get(
 
 /**
  * MaiML 公開
- * POST /api/v1/projects/:projectName/publish
+ * POST /api/v1/projects/:projectId/publish
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
@@ -719,15 +717,15 @@ router.get(
  * @note リクエストボディは空。retention_until は Worker が組織設定から自動決定する。
  */
 router.post(
-  '/:projectName/publish',
+  '/:projectId/publish',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.publish
@@ -735,7 +733,7 @@ router.post(
 
 /**
  * MaiML 非公開
- * POST /api/v1/projects/:projectName/unpublish
+ * POST /api/v1/projects/:projectId/unpublish
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
@@ -744,15 +742,15 @@ router.post(
  * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.2
  */
 router.post(
-  '/:projectName/unpublish',
+  '/:projectId/unpublish',
   authMiddleware,
   checkPermission('040000', 1),
   [
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.unpublish

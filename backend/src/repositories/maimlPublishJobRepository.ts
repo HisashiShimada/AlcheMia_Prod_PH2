@@ -23,7 +23,7 @@ export async function insert(data: Omit<MaimlPublishJob, 'job_id' | 'created_at'
 
   const query = `
     INSERT INTO maiml_publish_job
-      (job_type, organization_id, project_name, asset_id, status,
+      (job_type, organization_id, project_id, asset_id, status,
        triggered_by, trigger_type, error_message, started_at, finished_at)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING *
@@ -32,7 +32,7 @@ export async function insert(data: Omit<MaimlPublishJob, 'job_id' | 'created_at'
   return await pgp.one<MaimlPublishJob>(query, [
     data.job_type,
     data.organization_id,
-    data.project_name,
+    data.project_id,
     data.asset_id ?? null,
     data.status,
     data.triggered_by ?? null,
@@ -104,12 +104,12 @@ export async function updateStatus(
  * 最新のジョブを取得する（publish-status API 用）
  *
  * @param organizationId - 組織 ID
- * @param projectName - プロジェクト名
+ * @param projectId - プロジェクト ID
  * @returns 最新ジョブレコード（なければ null）
  */
 export async function findLatestByProject(
   organizationId: string,
-  projectName:    string
+  projectId:      string
 ): Promise<MaimlPublishJob | null> {
   const pgp = getPgp();
 
@@ -117,12 +117,12 @@ export async function findLatestByProject(
     SELECT *
     FROM maiml_publish_job
     WHERE organization_id = $1
-      AND project_name    = $2
+      AND project_id      = $2
     ORDER BY created_at DESC
     LIMIT 1
   `;
 
-  return await pgp.oneOrNone<MaimlPublishJob>(query, [organizationId, projectName]);
+  return await pgp.oneOrNone<MaimlPublishJob>(query, [organizationId, projectId]);
 }
 
 /**
@@ -149,12 +149,12 @@ export async function findByJobId(jobId: string): Promise<MaimlPublishJob | null
  * @description 最新 done/publish ジョブから asset_id を返す。
  *              ただし unpublish の done ジョブが後続する場合は null を返す。
  * @param organizationId - 組織 ID
- * @param projectName - プロジェクト名
+ * @param projectId - プロジェクト ID
  * @returns 公開済み asset_id（非公開・未公開なら null）
  */
 export async function findPublishedAssetId(
   organizationId: string,
-  projectName:    string
+  projectId:      string
 ): Promise<bigint | null> {
   const pgp = getPgp();
 
@@ -163,7 +163,7 @@ export async function findPublishedAssetId(
     SELECT job_type, asset_id
     FROM maiml_publish_job
     WHERE organization_id = $1
-      AND project_name    = $2
+      AND project_id      = $2
       AND status          = 'done'
     ORDER BY created_at DESC
     LIMIT 1
@@ -171,7 +171,7 @@ export async function findPublishedAssetId(
 
   const row = await pgp.oneOrNone<{ job_type: string; asset_id: bigint | null }>(
     query,
-    [organizationId, projectName]
+    [organizationId, projectId]
   );
 
   if (!row) return null;

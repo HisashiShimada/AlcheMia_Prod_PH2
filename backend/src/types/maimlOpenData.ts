@@ -21,7 +21,7 @@ export interface MaimlPublishJob {
   job_id?:         string;
   job_type:        'publish' | 'unpublish';
   organization_id: string;
-  project_name:    string;
+  project_id:      string;
   asset_id?:       bigint | null;
   status:          'pending' | 'running' | 'done' | 'error';
   triggered_by?:   string | null;
@@ -211,6 +211,7 @@ export interface MaimlTemplateInsertion {
 export interface PublishJobData {
   jobId:          string;
   organizationId: string;
+  projectId:      string;
   projectName:    string;
   fileUri:        string;
   userId?:        string | null;
@@ -222,6 +223,7 @@ export interface PublishJobData {
 export interface UnpublishJobData {
   jobId:          string;
   organizationId: string;
+  projectId:      string;
   projectName:    string;
   assetId:        bigint;
   triggerType:    'manual' | 'schedule';
@@ -249,7 +251,7 @@ export interface PublishStatusResponse {
   job_type?:    'publish' | 'unpublish' | null;
   status?:      'pending' | 'running' | 'done' | 'error' | null;
   asset_id?:    bigint | null;
-  project_name: string;
+  project_id:   string;
   started_at?:  Date | null;
   finished_at?: Date | null;
   error_message?: string | null;

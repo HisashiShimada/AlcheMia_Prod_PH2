@@ -232,7 +232,7 @@ export default function ExperimentWorkerMenu({
       setSelectedProjectName('');
     }
     
-    // useInstructionsフックを呼び出し
+    // useInstructionsフック（指示一覧取得）にprojectIdを渡す
     originalHandleProjectChange(projectValue);
     
     // プロジェクトが変更された場合、メソッドとタスクをリセット

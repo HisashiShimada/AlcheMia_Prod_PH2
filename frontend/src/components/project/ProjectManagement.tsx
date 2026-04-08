@@ -656,7 +656,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         // チェックイン処理
         console.log('🔓 [ProjectManagement] チェックイン開始:', selectedProject.name);
         
-        const result = await checkinProject(selectedProject.name);
+        const result = await checkinProject(selectedProject.id);
         
         // チェックイン成功
         console.log('✅ [ProjectManagement] チェックイン成功:', result);
@@ -669,7 +669,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         // チェックアウト処理
         console.log('🔒 [ProjectManagement] チェックアウト開始:', selectedProject.name);
         
-        const result = await checkoutProject(selectedProject.name);
+        const result = await checkoutProject(selectedProject.id);
         
         // チェックアウト成功
         console.log('✅ [ProjectManagement] チェックアウト成功:', result);
@@ -873,7 +873,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     const fetchStatus = async () => {
       setPublishStatusLoading(true);
       try {
-        const status = await getPublishStatus(selectedProject.name);
+        const status = await getPublishStatus(selectedProject.id);
         setPublishStatus(status);
         console.log('[ProjectManagement] publishStatus:', status);
       } catch (error) {
@@ -915,7 +915,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     // ステータスを再取得
     if (selectedProject) {
       try {
-        const latest = await getPublishStatus(selectedProject.name);
+        const latest = await getPublishStatus(selectedProject.id);
         setPublishStatus(latest);
       } catch {
         setPublishStatus(null);
@@ -1105,7 +1105,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           console.log('🗑️ [ProjectManagement] プロジェクト削除開始:', selectedProject.name);
           
           // プロジェクト削除API呼び出し
-          const result = await deleteProjectApi(selectedProject.name);
+          const result = await deleteProjectApi(selectedProject.id);
           
           console.log('✅ [ProjectManagement] プロジェクト削除成功:', result);
           
@@ -1356,7 +1356,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           ...prev,
           [selectedProjectId]: {
             root: fileResponse.files || [],
-            archive: fileResponse.archiveFiles || [],
+            subFolderFiles: fileResponse.subFolderFiles || {},
           },
         }));
         console.log('✅ [ProjectManagement] ファイル一覧更新完了');
@@ -1788,7 +1788,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                             ...prev,
                             [selectedProject.id]: {
                               root: fileResponse.files || [],
-                              archive: fileResponse.archiveFiles || [],
+                              subFolderFiles: fileResponse.subFolderFiles || {},
                             }
                           }));
                         }}
@@ -1845,7 +1845,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                             onClick={async () => {
                               if (!selectedProject) return;
                               try {
-                                const res = await completeReviewTasks(selectedProject.name);
+                                const res = await completeReviewTasks(selectedProject.id);
                                 message.success(res.data?.message || 'レビュー待ちタスクを完了に更新しました');
                                 // タスク一覧を再取得
                                 const taskResponse = await getProjectTasks(selectedProject.name, 'all');
@@ -2092,6 +2092,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         <MaimlPublishDialog
           open={publishDialogOpen}
           projectName={selectedProject.name}
+          projectId={selectedProject.id}
           onClose={() => setPublishDialogOpen(false)}
           onSuccess={handlePublishSuccess}
         />
@@ -2102,6 +2103,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         <MaimlUnpublishDialog
           open={unpublishDialogOpen}
           projectName={selectedProject.name}
+          projectId={selectedProject.id}
           onClose={() => setUnpublishDialogOpen(false)}
           onSuccess={handleUnpublishSuccess}
         />
@@ -2111,6 +2113,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       {selectedProject && (
         <RenameProjectModal
           open={renameModalOpen}
+          projectId={selectedProject.id}
           currentProjectName={selectedProject.name}
           onCancel={() => setRenameModalOpen(false)}
           onSuccess={handleRenameSuccess}
