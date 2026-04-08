@@ -4,10 +4,10 @@
 ---
 title: マスタ編集ダイアログUI設計書
 category: UI設計
-version: 1.0.0
-last_updated: 2026-01-23
+version: 1.1.0
+last_updated: 2026-04-08
 author: Development Team
-tags: [data-admin, master, dialog, edit, creator, vendor, instrument]
+tags: [data-admin, master, dialog, edit, creator, vendor, instrument, attribute]
 ---
 
 ## 関連ドキュメント
@@ -34,7 +34,7 @@ tags: [data-admin, master, dialog, edit, creator, vendor, instrument]
 
 ### 2.1. 目的
 
-データ管理者が既存のマスタデータ（Creator、Vendor、Instrument）を編集するためのダイアログを定義します。マスタ種別に応じた入力項目を表示し、名前とアクティブ状態を変更できます。マスタIDは変更不可（主キーのため）。
+データ管理者が既存のマスタデータ（Creator、Vendor、Instrument、Attribute）を編集するためのダイアログを定義します。マスタ種別に応じた入力項目を表示し、名前とアクティブ状態を変更できます。Attribute は複合PK（attribute_name + attribute_value）のため、attribute_name は変更不可。
 
 ### 2.2. 利用権限
 
@@ -79,7 +79,45 @@ tags: [data-admin, master, dialog, edit, creator, vendor, instrument]
 └────────────────────────────────────────────┘
 ```
 
-### 3.3. レイアウト（Instrument の場合）
+### 3.3. レイアウト（Attribute の場合）
+
+```
+┌────────────────────────────────────────────┐
+│ Attribute編集                       × │
+├────────────────────────────────────────────┤
+│                                            │
+│  Attribute名                               │
+│  ┌──────────────────────────────────────┐ │
+│  │ 温度                     [読取専用] │ │
+│  └──────────────────────────────────────┘ │
+│  ※Attribute名は変更できません             │
+│                                            │
+│  Attribute値 *                             │
+│  ┌──────────────────────────────────────┐ │
+│  │ 高温                                 │ │
+│  └──────────────────────────────────────┘ │
+│  最大255文字                               │
+│                                            │
+│  備考                                      │
+│  ┌──────────────────────────────────────┐ │
+│  │ 400℃以上の条件                      │ │
+│  └──────────────────────────────────────┘ │
+│  最大1000文字                              │
+│                                            │
+│  部門コード                                │
+│  ┌──────────────────────────────────────┐ │
+│  │ ▼ dept_001 - 材料科学部門            │ │
+│  └──────────────────────────────────────┘ │
+│                                            │
+│  状態                                      │
+│  ◉ アクティブ  ○ 非アクティブ            │
+│                                            │
+├────────────────────────────────────────────┤
+│                    [キャンセル] [保存]    │
+└────────────────────────────────────────────┘
+```
+
+### 3.4. レイアウト（Instrument の場合）
 
 ```
 ┌────────────────────────────────────────────┐
@@ -184,6 +222,76 @@ tags: [data-admin, master, dialog, edit, creator, vendor, instrument]
 {
   required: true,
   message: 'Vendor IDを選択してください'
+}
+```
+
+### 4.5. Attribute 専用フィールド（Attribute マスタのみ）
+
+> Attribute は `(attribute_name, attribute_value)` が複合PKのため、`attribute_name` は読み取り専用、`attribute_value` は編集可能です。
+
+#### Attribute名（表示のみ）
+
+| 項目 | 値 |
+|------|-----|
+| ラベル | 「Attribute名」 |
+| 読み取り専用 | ○（disabled） |
+| 説明 | 「※Attribute名は変更できません」 |
+
+#### Attribute値（必須）
+
+| 項目 | 値 |
+|------|-----|
+| ラベル | 「Attribute値」 |
+| 必須 | ○ |
+| 最大文字数 | 255文字 |
+| 重複チェック | 同一組織・同一 `attribute_name` での `attribute_value` 重複を確認 |
+
+#### 備考（任意）
+
+| 項目 | 値 |
+|------|-----|
+| ラベル | 「備考」 |
+| 必須 | × |
+| 最大文字数 | 1000文字 |
+
+#### 部門コード（任意）
+
+| 項目 | 値 |
+|------|-----|
+| ラベル | 「部門コード」 |
+| 型 | Select |
+| 必須 | × |
+| 選択肢 | アクティブな department マスタから取得（`department_cd - department_name`） |
+
+**リクエストボディ（Attribute）**:
+```json
+{
+  "attributeValue": "高温（改訂）",
+  "attributeRemark": "450℃以上の条件",
+  "departmentCd": "dept_002",
+  "isActive": true
+}
+```
+
+**レスポンス（Attribute）**:
+```json
+{
+  "success": true,
+  "data": {
+    "organizationId": "9eea5300-db8b-4b2d-8e9e-ec306c476b12",
+    "attributeName": "温度",
+    "attributeValue": "高温（改訂）",
+    "attributeRemark": "450℃以上の条件",
+    "departmentCd": "dept_002",
+    "departmentName": "先端材料部門",
+    "isActive": true,
+    "createAt": "2026-04-08T10:30:00.000Z",
+    "updateAt": "2026-04-08T11:00:00.000Z"
+  },
+  "meta": {
+    "timestamp": "2026-04-08T11:00:00.000Z",
+    "requestId": "req_abc456"
+  }
 }
 ```
 
@@ -823,3 +931,6 @@ const handleSubmit = async (values: MasterFormValues) => {
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-23 | 初版作成 | Development Team |
+| 1.1.0 | 2026-04-08 | Attributeマスタ編集対応 | Cline |
+| | | - Attribute編集フォーム（attribute_name 読取専用、attribute_value/remark/department_cd 編集可） | |
+| | | - 複合PKによる attribute_name 変更不可ロジック追加 | |

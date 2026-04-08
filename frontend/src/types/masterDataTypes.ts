@@ -32,7 +32,8 @@ export interface MasterDataResponse {
 export type MasterDataType = 
   | 'instrument'      // Instrumentマスタ
   | 'vendor'          // Vendorマスタ
-  | 'creator';        // Creatorマスタ
+  | 'creator'         // Creatorマスタ
+  | 'attribute';      // Attributeマスタ
 
 /**
  * フィールド定義
@@ -50,6 +51,8 @@ export interface FieldConfig {
   addable: boolean;
   /** 編集時に変更可能か */
   update: boolean;
+  /** 入力必須か（省略時は addable が true のフィールドは必須扱い） */
+  required?: boolean;
   /** 列幅（ピクセル） */
   width?: number;
   /** 列の配置 */
@@ -80,6 +83,80 @@ export interface MasterDataConfig {
  * 全マスタデータの設定定義
  */
 export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
+  /**
+   * Attributeマスタ
+   */
+  attribute: {
+    masterId: '4',
+    type: 'attribute',
+    displayName: 'Attribute',
+    apiEndpoint: '/master/attribute',
+    supportsCsvUpload: true,
+    supportsCsvDownload: true,
+    fields: [
+      {
+        dbField: 'attributeName',
+        displayName: '属性名',
+        searchFixed: false,
+        isDisplay: true,
+        addable: true,
+        update: true,
+        width: 180,
+        align: 'left',
+      },
+      {
+        dbField: 'attributeValue',
+        displayName: '属性値',
+        searchFixed: false,
+        isDisplay: true,
+        addable: true,
+        update: true,
+        width: 250,
+        align: 'left',
+      },
+      {
+        dbField: 'attributeRemark',
+        displayName: '属性_備考',
+        searchFixed: false,
+        isDisplay: true,
+        addable: true,
+        update: true,
+        required: false,
+        width: 350,
+        align: 'left',
+      },
+      {
+        dbField: 'departmentName',
+        displayName: '部署名',
+        searchFixed: true,
+        isDisplay: true,
+        addable: true,
+        update: true,
+        required: false,
+        width: 180,
+        align: 'left',
+      },
+      {
+        dbField: 'isActive',
+        displayName: 'ステータス',
+        searchFixed: false,
+        isDisplay: false,
+        addable: true,
+        update: true,
+      },
+      {
+        dbField: 'updatedAt',
+        displayName: '更新日時',
+        searchFixed: false,
+        isDisplay: false,
+        addable: false,
+        update: false,
+        width: 150,
+        align: 'right',
+      },
+    ],
+  },
+
   /**
    * Instrumentマスタ
    */

@@ -11,7 +11,7 @@
 
 ## 概要
 
-このドキュメントは、Creator（作成者）、Vendor（ベンダー）、Instrument（装置）の3種類のマスタを管理するためのAPI仕様を定義します。
+このドキュメントは、Creator（作成者）、Vendor（ベンダー）、Instrument（装置）、Attribute（属性）の4種類のマスタを管理するためのAPI仕様を定義します。
 
 ### 主な機能
 - 各マスタ一覧の取得（検索・フィルタリング・表示切替対応）
@@ -66,7 +66,21 @@
 | 20 | PUT | /api/v1/master/instrument/:instrumentId | Instrument更新 | ✅ 実装済み | System Admin, Data Admin |
 | 21 | PATCH | /api/v1/master/instrument/:instrumentId/status | Instrumentアクティブ状態更新 | ✅ 実装済み | System Admin, Data Admin |
 
-**合計**: 21エンドポイント
+### Attribute（属性）マスタ（7エンドポイント）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
+|----|-------------|---------------|------|---------|------|
+| 22 | GET | /api/v1/master/attribute | Attribute一覧取得 | ✅ 実装済み | System Admin, Data Admin |
+| 23 | GET | /api/v1/master/attribute/download-csv | AttributeCSVダウンロード | ✅ 実装済み | System Admin, Data Admin |
+| 24 | POST | /api/v1/master/attribute/upload-csv | AttributeCSVアップロード | ✅ 実装済み | System Admin, Data Admin |
+| 25 | GET | /api/v1/master/attribute/:attributeId | Attribute詳細取得 | ✅ 実装済み | System Admin, Data Admin |
+| 26 | POST | /api/v1/master/attribute | Attribute新規作成 | ✅ 実装済み | System Admin, Data Admin |
+| 27 | PUT | /api/v1/master/attribute/:attributeId | Attribute更新 | ✅ 実装済み | System Admin, Data Admin |
+| 28 | PATCH | /api/v1/master/attribute/:attributeId/status | Attributeアクティブ状態更新 | ✅ 実装済み | System Admin, Data Admin |
+
+> **注意**: `:attributeId` は `attributeName__attributeValue`（URLエンコード済み）の複合PK形式。例: `温度__高温` → `%E6%B8%A9%E5%BA%A6__%E9%AB%98%E6%B8%A9`
+
+**合計**: 28エンドポイント
 
 ---
 
@@ -436,6 +450,106 @@ master_instrument_YYYYMMDDhhmmss.csv
 
 ---
 
+## 📋 Attribute（属性）マスタAPI詳細
+
+### 共通パターン
+
+Attributeマスタは、Creatorマスタと同様の7つのエンドポイントを持ちますが、**display_scope機能は持ちません**。  
+主キーは `(organization_id, attribute_name, attribute_value)` の複合PKであり、URLパラメータ `:attributeId` は `attributeName__attributeValue` 形式（URLエンコード済み）で指定します。
+
+### API一覧
+
+1. **GET /api/v1/master/attribute** - Attribute一覧取得
+2. **GET /api/v1/master/attribute/download-csv** - AttributeCSVダウンロード
+3. **POST /api/v1/master/attribute/upload-csv** - AttributeCSVアップロード
+4. **GET /api/v1/master/attribute/:attributeId** - Attribute詳細取得
+5. **POST /api/v1/master/attribute** - Attribute新規作成
+6. **PUT /api/v1/master/attribute/:attributeId** - Attribute更新
+7. **PATCH /api/v1/master/attribute/:attributeId/status** - Attributeアクティブ状態更新
+
+### データ構造
+
+#### Attributeレスポンス例（一覧）
+```json
+{
+  "attributeName": "温度",
+  "attributeValue": "高温",
+  "attributeRemark": "400℃以上の条件",
+  "departmentCd": "dept_001",
+  "departmentName": "材料科学部門",
+  "isActive": true,
+  "createdAt": "2026-04-08T00:00:00Z",
+  "updatedAt": "2026-04-08T10:00:00Z"
+}
+```
+
+#### 新規作成リクエストボディ
+```json
+{
+  "attributeName": "温度",
+  "attributeValue": "高温",
+  "attributeRemark": "400℃以上の条件",
+  "departmentCd": "dept_001",
+  "isActive": true
+}
+```
+
+#### 更新リクエストボディ（PUT）
+```
+PUT /api/v1/master/attribute/%E6%B8%A9%E5%BA%A6__%E9%AB%98%E6%B8%A9
+```
+```json
+{
+  "attributeValue": "高温",
+  "attributeRemark": "400℃以上の条件（更新）",
+  "departmentCd": "dept_001",
+  "isActive": true
+}
+```
+> **注意**: PUTの `:attributeId` は `attributeName`（URLエンコード）のみ。`attributeValue` はボディで渡す。
+
+#### ステータス更新（PATCH）
+```
+PATCH /api/v1/master/attribute/%E6%B8%A9%E5%BA%A6__%E9%AB%98%E6%B8%A9/status
+```
+```json
+{
+  "isActive": false
+}
+```
+
+#### CSV形式（ダウンロード・アップロード）
+```csv
+attribute_name,attribute_value,attribute_remark,department_cd,is_active
+温度,高温,400℃以上の条件,dept_001,true
+温度,常温,20〜30℃の条件,dept_001,true
+圧力,高圧,100MPa以上,dept_002,true
+```
+
+#### ファイル名
+```
+master_attribute_YYYYMMDDhhmmss.csv
+```
+
+### データベーステーブル
+
+#### 使用テーブル
+1. **attribute**（主テーブル）
+   - organization_id（PK）, attribute_name（PK）, attribute_value（PK）
+   - attribute_remark, department_cd, is_active
+   - create_user_id, create_at, update_user_id, update_at
+2. **department**（結合テーブル：department_name を付与）
+
+### URLパラメータの形式
+
+| エンドポイント | `:attributeId` の形式 |
+|---|---|
+| GET /:attributeId | `attributeName__attributeValue`（URLエンコード） |
+| PUT /:attributeId | `attributeName` のみ（URLエンコード）、`attributeValue` はボディ |
+| PATCH /:attributeId/status | `attributeName__attributeValue`（URLエンコード） |
+
+---
+
 ## 🔗 関連ドキュメント
 
 ### API設計書
@@ -530,6 +644,10 @@ frontend/src/components/DataManagement/MasterManagement.tsx
 | | | - マスタ管理API 21エンドポイントの設計書作成 | |
 | | | - Creator、Vendor、Instrumentマスタ | |
 | | | - 実装済み（100%） | |
+| 1.1.0 | 2026-04-08 | Attributeマスタ追加 | Cline |
+| | | - Attribute API 7エンドポイント追加（No.22〜28） | |
+| | | - 複合PK（attribute_name, attribute_value）対応 | |
+| | | - department_cd結合によるdepartment_name付与 | |
 
 ---
 

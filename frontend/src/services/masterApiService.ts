@@ -79,9 +79,22 @@ export interface VendorRecord extends BaseMasterRecord {
 }
 
 /**
+ * Attributeマスタのレコード型
+ * 主キー: (organization_id, attribute_name, attribute_value)
+ */
+export interface AttributeRecord extends BaseMasterRecord {
+  // Attribute固有フィールド（attributeIdは廃止済み）
+  attributeName: string;
+  attributeValue: string;
+  attributeRemark?: string;  // 属性_備考（nullable）
+  departmentCd: string;
+  departmentName: string;
+}
+
+/**
  * マスタデータの汎用型（Union型）
  */
-export type MasterRecord = CreatorRecord | InstrumentRecord | VendorRecord;
+export type MasterRecord = CreatorRecord | InstrumentRecord | VendorRecord | AttributeRecord;
 
 /**
  * マスタ一覧を取得
