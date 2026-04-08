@@ -604,13 +604,17 @@ function convertHash(xmlHash: any): Hash {
 
 /**
  * Insertion変換
+ * 
+ * @note MAIMLの <insertion> は uri / format を属性ではなく子テキスト要素として持つ場合がある。
+ *       例: <insertion><uri>./file.txt</uri><format>txt/ascii</format></insertion>
+ *       属性形式 (<insertion uri="..." format="..."/>) にも対応するためフォールバックを設定。
  */
 function convertInsertion(xmlInsertion: any): Insertion {
   return {
-    uri: xmlInsertion._attributes?.uri || '',
+    uri: xmlInsertion.uri?._text || xmlInsertion._attributes?.uri || '',
     hash: xmlInsertion.hash ? convertHash(xmlInsertion.hash) : undefined,
     uuid: xmlInsertion.uuid?._text,
-    format: xmlInsertion._attributes?.format
+    format: xmlInsertion.format?._text || xmlInsertion._attributes?.format
   };
 }
 
