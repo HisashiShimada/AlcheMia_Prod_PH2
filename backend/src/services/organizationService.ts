@@ -6,6 +6,7 @@ import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 import * as organizationRepository from '../repositories/organizationManagementRepository';
+import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import { OrganizationSearchFilters } from '../repositories/organizationManagementRepository';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
@@ -235,11 +236,18 @@ export async function createOrganization(
 
   let fullOrganization;
 
+  // ---------------------------------------------------------------
+  // DB処理・証明書生成・S3フォルダ作成を1つのtry-catchで管理
+  // どれか1つが失敗した場合はエラーをthrowして組織作成全体を失敗とする
+  // ---------------------------------------------------------------
   try {
     // SQLファイルを事前に読み込み
     const insertOrgQuery = await loadSqlFile('organizations/create.sql');
     const authQuery = await loadSqlFile('organizations/createUserAuthentication.sql');
 
+    // ① DBトランザクション
+    // organization / user / role / permission / user_authentication /
+    // code_master 初期データ / 組織スキーマ を一括登録
     await pgp.tx(async (t) => {
       // 1. organizationテーブルに挿入
       // default_retention_days: リクエストから指定があれば使用、なければ環境変数から取得
@@ -324,7 +332,7 @@ export async function createOrganization(
         },
       ];
 
-      await organizationRepository.createRolePermissions(permissions, userId, t);  // pg-promiseトランザクションオブジェクト
+      await organizationRepository.createRolePermissions(permissions, userId, t);
 
       // 5. user_authenticationテーブルに挿入（パスワード認証情報）
       if (data.chiefUserEmail && passwordHash && passwordExpiresAt) {
@@ -340,6 +348,19 @@ export async function createOrganization(
 
         await t.none(authQuery, authValues);
       }
+
+      // 6. code_master 初期データを登録
+      // code_masterが未登録の場合は実験が進められないためトランザクション内で登録
+      logger.info(`[organizationService] code_master初期データを登録: organizationId=${data.organizationId}`);
+      await codeMasterRepository.insertInitialData(data.organizationId, userId, t);
+      logger.info(`[organizationService] code_master初期データ登録完了: organizationId=${data.organizationId}`);
+
+      // 7. MaiML OpenData 用 組織スキーマ・テーブルの作成
+      // 公開機能で使用する {org_<uuid>}.maiml_asset 等を初期化する
+      logger.info(`[organizationService] 組織スキーマを作成: organizationId=${data.organizationId}`);
+      await createSchemaIfNotExists(data.organizationId, data.organizationCd);
+      await createSchemaTables(data.organizationId);
+      logger.info(`[organizationService] 組織スキーマ作成完了: organizationId=${data.organizationId}`);
     });
 
     // JOINでchief_user_nameとcorporation_nameを取得
@@ -349,60 +370,36 @@ export async function createOrganization(
       throw new Error('Created organization not found');
     }
 
-    // 組織作成成功後、クライアント証明書を自動生成
-  } catch (error) {
-    console.error('Transaction error during organization creation:', error);
-    throw error;
-  }
-
-  // 組織作成成功後、クライアント証明書を自動生成
-  // 注意: トランザクション完了後に実行（DB整合性を保つため）
-  // 証明書生成失敗時でも組織作成自体は成功とする
-  try {
-    logger.info(`[organizationService] 組織作成成功、証明書生成を開始: organizationId=${data.organizationId}`);
+    // ② 証明書生成（DB完了後に実行）
+    logger.info(`[organizationService] 証明書生成を開始: organizationId=${data.organizationId}`);
     const certResult = await generateAndSaveCertificate(data.organizationId);
-
     if (certResult.success) {
       logger.info(`[organizationService] 証明書生成成功: organizationId=${data.organizationId}`);
     } else {
-      logger.warn(
-        `[organizationService] 証明書生成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
-        {
-          error: certResult.errorMessage,
-          organizationId: data.organizationId,
-        }
-      );
+      throw new Error(`証明書生成失敗: ${certResult.errorMessage}`);
     }
-  } catch (certError) {
-    logger.error(
-      `[organizationService] 証明書生成で例外発生（組織作成は成功）: organizationId=${data.organizationId}`,
-      {
-        error: certError instanceof Error ? certError.message : String(certError),
-        organizationId: data.organizationId,
-      }
-    );
-  }
 
-  // 基本フォルダ構造の作成
-  try {
+    // ③ 基本フォルダ構造の作成（S3/Swift）
     logger.info(`[organizationService] 基本フォルダ構造を作成: organizationId=${data.organizationId}`);
     const storageService = getStorageService();
     const organizationFolders = ['projects/', 'formats/'];
     await storageService.createFolders(data.organizationId, organizationFolders);
     logger.info(`[organizationService] 基本フォルダ構造作成完了: organizationId=${data.organizationId}`);
-  } catch (folderError) {
-    logger.warn(
-      `[organizationService] フォルダ作成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
+
+  } catch (error) {
+    logger.error(
+      `[organizationService] 組織作成処理でエラー発生: organizationId=${data.organizationId}`,
       {
-        error: folderError instanceof Error ? folderError.message : String(folderError),
+        error: error instanceof Error ? error.message : String(error),
         organizationId: data.organizationId,
       }
     );
+    throw error;
   }
 
-  // 組織登録完了メールを送信
+  // ④ 組織登録完了メールを送信
   // 本番環境では常に送信、開発環境では EMAIL_ENABLED=true の場合のみ送信
-  // 失敗しても組織作成自体は成功とする
+  // メール失敗は組織作成のエラーとしない（インフラ都合で失敗する可能性があるため）
   try {
     const shouldSendEmail =
       process.env.NODE_ENV === 'production' ||
@@ -418,7 +415,7 @@ export async function createOrganization(
       if (result.success) {
         logger.info(`[organizationService] 組織登録完了メール送信成功: userId=${data.chiefUserEmail}`);
       } else {
-        logger.warn(`[organizationService] 組織登録完了メール送信失敗（組織作成は成功）: userId=${data.chiefUserEmail}`, {
+        logger.warn(`[organizationService] 組織登録完了メール送信失敗: userId=${data.chiefUserEmail}`, {
           error: result.error,
         });
       }
@@ -426,27 +423,9 @@ export async function createOrganization(
       logger.info(`[organizationService] 組織登録完了メール（EMAIL_ENABLED=false スキップ）: userId=${data.chiefUserEmail}, password=${plainPassword}`);
     }
   } catch (emailError) {
-    logger.warn(`[organizationService] 組織登録完了メール送信で例外発生（組織作成は成功）`, {
+    logger.warn(`[organizationService] 組織登録完了メール送信で例外発生`, {
       error: emailError instanceof Error ? emailError.message : String(emailError),
     });
-  }
-
-  // MaiML OpenData 用 組織スキーマ・テーブルの作成
-  // 公開機能で使用する {org_<uuid>}.maiml_asset 等を初期化する
-  // 失敗しても組織作成自体は成功とする
-  try {
-    logger.info(`[organizationService] 組織スキーマを作成: organizationId=${data.organizationId}`);
-    await createSchemaIfNotExists(data.organizationId, data.organizationCd);
-    await createSchemaTables(data.organizationId);
-    logger.info(`[organizationService] 組織スキーマ作成完了: organizationId=${data.organizationId}`);
-  } catch (schemaError) {
-    logger.warn(
-      `[organizationService] 組織スキーマ作成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
-      {
-        error: schemaError instanceof Error ? schemaError.message : String(schemaError),
-        organizationId: data.organizationId,
-      }
-    );
   }
 
   return {

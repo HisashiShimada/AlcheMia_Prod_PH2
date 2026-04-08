@@ -103,6 +103,7 @@ export async function deleteByFilePath(
  * @param topK - 返却件数上限
  * @param technique - メソドロジーフィルタ（null で全件）
  * @param projectName - プロジェクト名フィルタ（null で全件）
+ * @param minScore - スコア足切り閾値（デフォルト: 0.3）
  * @returns 検索結果配列
  */
 export async function search(
@@ -117,7 +118,8 @@ export async function search(
   weightStructure: number,
   topK: number,
   technique: string | null,
-  projectName: string | null
+  projectName: string | null,
+  minScore: number
 ): Promise<SearchHit[]> {
   const pool = getPool();
   const sql = await loadSqlFile('semanticSearch/search.sql');
@@ -135,6 +137,7 @@ export async function search(
     topK,                                  // $10
     technique,                             // $11
     projectName,                           // $12
+    minScore,                              // $13
   ]);
 
   return result.rows.map((row) => {

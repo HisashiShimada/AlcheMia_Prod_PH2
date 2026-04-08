@@ -1,8 +1,8 @@
 # セマンティック検索API仕様書
 
 **作成日**: 2026-03-06 15:38  
-**最終更新**: 2026-03-06 15:38  
-**バージョン**: 1.0.0  
+**最終更新**: 2026-04-07  
+**バージョン**: 1.1.0  
 **対象画面**: プロジェクト管理画面 - トランジション検索モーダル  
 **総API数**: 9個  
 **実装状況**: 9個実装済み、0個未実装
@@ -147,6 +147,8 @@ Authorization: Bearer maiml_session-{sessionId}_{timestamp}
 | weights.structure | number | × | 構造の重み（0.0〜1.0） |
 
 ※ `input_query`〜`structure_query` のうち少なくとも1つは必須
+
+> **スコア足切り**: バックエンドはリクエストパラメータに関わらず、加重平均スコアが **`SEMANTIC_SEARCH_MIN_SCORE`（デフォルト: 0.3）未満** のレコードを除外して返す。クライアント側での追加フィルタは不要。また、embeddingがゼロベクトルのレコード（pgvectorがNaNを返す）も自動除外される。
 
 #### レスポンス
 
@@ -710,9 +712,10 @@ Authorization: Bearer maiml_session-{sessionId}_{timestamp}
 | | | - API #7: バッチジョブ一覧取得 GET /batch | |
 | | | - API #8: バッチ統計取得 GET /batch/stats | |
 | | | - API #9: バッチジョブキャンセル DELETE /batch/:jobId | |
+| 1.1.0 | 2026-04-07 | API #1 リクエスト仕様にバックエンドスコア足切り（`SEMANTIC_SEARCH_MIN_SCORE` デフォルト0.3）とNaN自動除外の仕様を追記 | Cline |
 
 ---
 
 **作成者**: Cline  
 **作成日**: 2026-03-06 15:38  
-**最終更新**: 2026-03-06 15:38
+**最終更新**: 2026-04-07
