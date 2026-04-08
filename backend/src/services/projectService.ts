@@ -402,7 +402,7 @@ export class ProjectService {
             SELECT COUNT(*)
             FROM file_metadata fm
             WHERE fm.organization_id = p.organization_id
-              AND fm.parent_folder_path LIKE CAST(p.organization_id AS TEXT) || '/projects/' || p.project_name || '%'
+              AND fm.file_key LIKE CAST(p.organization_id AS TEXT) || '/projects/' || p.project_name || '/%'
               AND fm.file_key NOT LIKE '%/.keep'
           ) as file_count
         FROM project p

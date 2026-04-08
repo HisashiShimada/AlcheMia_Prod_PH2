@@ -93,7 +93,7 @@ router.METHOD('/path',
 ### マルチテナント分離
 
 - すべてのDBクエリに `organization_id` フィルタ必須
-- すべてのS3パスに `org_{organization_prefix}` プレフィックス必須
+- すべてのS3パスに `{organization_id}/` プレフィックス必須（UUID形式）
 - クロステナントアクセスは厳禁（System Admin除く）
 
 ### 統一レスポンス形式
@@ -223,6 +223,24 @@ router.METHOD('/path',
 - **ルート**: `backend/src/routes/projectRoutes.ts`
 - **コントローラー**: `backend/src/controllers/projectController.ts` (`list`)
 - **サービス**: `backend/src/services/projectService.ts` (`list`)
+
+#### 実装要件
+
+**ファイル数（file_count）の取得**:
+- `file_metadata` テーブルに対するサブクエリで、プロジェクトフォルダ配下のファイル数を集計
+- 結合条件は `file_key` カラムに対する LIKE 検索を使用
+
+```sql
+(
+  SELECT COUNT(*)
+  FROM file_metadata fm
+  WHERE fm.organization_id = p.organization_id
+    AND fm.file_key LIKE CAST(p.organization_id AS TEXT) || '/projects/' || p.project_name || '/%'
+    AND fm.file_key NOT LIKE '%/.keep'
+) as file_count
+```
+
+**注意**: `parent_folder_path` カラムではなく `file_key` カラムを使用すること。`parent_folder_path` は `{organization_id}/projects/{project_name}` 形式（末尾スラッシュなし）で格納されているが、`.keep` ファイルなどが除外されないため `file_key` による LIKE 検索を使用する。
 
 ---
 
@@ -520,7 +538,7 @@ router.METHOD('/path',
 - **サービス**: `backend/src/services/projectService.ts` (`getProjectFiles`)
 
 #### 実装要件
-- S3から `org_{organization_prefix}/projects/{project_name}/` 配下のファイル一覧を取得
+- S3から `{organization_id}/projects/{project_name}/` 配下のファイル一覧を取得
 - archiveファイルは常に取得される（`include_archive`パラメータは削除済み）
 - バージョン番号は `_v{number}` から抽出
 - 署名付きURL付きで返却
@@ -1650,7 +1668,7 @@ const user = await db
 
 **必須チェック:**
 - [ ] すべてのDBクエリに `organization_id` フィルタ
-- [ ] すべてのS3操作に `org_{organization_prefix}` プレフィックス
+- [ ] すべてのS3操作に `{organization_id}/` プレフィックス（UUID形式）
 - [ ] クロステナントアクセスの防止
 
 **実装例:**

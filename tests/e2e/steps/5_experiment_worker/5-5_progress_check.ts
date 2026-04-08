@@ -89,6 +89,12 @@ const createdProjectTaskDetailKeys: Array<{
   task_no: number;
 }> = [];
 
+/** テスト中に作成した issue の issue_id */
+const createdIssueIds: string[] = [];
+
+/** テスト中に作成した issue_comment の comment_id */
+const createdIssueCommentIds: string[] = [];
+
 // ---------------------------------------------------------------------------
 // Before フック: テストデータ準備
 // ---------------------------------------------------------------------------
@@ -220,6 +226,53 @@ Before({ tags: '@5-5-16' }, async () => {
 });
 
 /**
+ * 5-5-17, 5-5-18, 5-5-20 用
+ * - E2Eテスト用プロジェクト_5-5（executing_task）
+ * - project_task: not_started × 1
+ * ※ 5-5-17: 問題報告ボタン → IssueManagementModal（viewMode=false）の表示確認
+ * ※ 5-5-18: 問題登録がDBに保存されること
+ * ※ 5-5-20: 問題確認ボタン → IssueManagementModal（viewMode=true）の表示確認（デグレード防止）
+ */
+Before({ tags: '@5-5-17 or @5-5-18 or @5-5-20' }, async () => {
+  console.log('[5-5 Before] テストデータ準備 開始 (@5-5-17 or @5-5-18 or @5-5-20)');
+  try {
+    await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME, PROJECT_STATUS_EXECUTING_TASK);
+    await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, 1, 'not_started');
+    console.log('[5-5 Before] テストデータ準備 完了 (@5-5-17 or @5-5-18 or @5-5-20)');
+  } catch (error) {
+    console.error('[5-5 Before] テストデータ準備 失敗 (@5-5-17 or @5-5-18 or @5-5-20):', error);
+    throw error;
+  }
+});
+
+/**
+ * 5-5-19 用
+ * - E2Eテスト用プロジェクト_5-5（executing_task）
+ * - project_task: not_started × 1
+ * - issue: 1件以上（コメント投稿先）
+ * ※ issue は別途 API 経由で作成するか、Before で DB に直接挿入する
+ *   ここでは DB に直接 INSERT し、後処理で削除する
+ */
+Before({ tags: '@5-5-19' }, async () => {
+  console.log('[5-5 Before] テストデータ準備 開始 (@5-5-19)');
+  try {
+    await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME, PROJECT_STATUS_EXECUTING_TASK);
+    await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, 1, 'not_started');
+    // コメント投稿先の issue を作成
+    await upsertTestIssue(
+      'E2E-5-5-19-ISSUE',
+      TEST_PROJECT_ID,
+      'E2Eテスト用問題_5-5-19',
+      'E2Eテスト用問題の内容（5-5-19用）',
+    );
+    console.log('[5-5 Before] テストデータ準備 完了 (@5-5-19)');
+  } catch (error) {
+    console.error('[5-5 Before] テストデータ準備 失敗 (@5-5-19):', error);
+    throw error;
+  }
+});
+
+/**
  * 5-5-13, 5-5-14 用
  * - E2Eテスト用プロジェクト_5-5_承認依頼用（executing_task）
  * - project_task: not_started × 1
@@ -245,6 +298,34 @@ Before({ tags: '@5-5-13 or @5-5-14' }, async () => {
 After(async () => {
   console.log('[5-5 After] クリーンアップ 開始');
   try {
+    // issue_comment を削除（issue より先に削除）
+    for (const commentId of createdIssueCommentIds) {
+      try {
+        await db.query(
+          `DELETE FROM issue_comment WHERE organization_id = $1 AND comment_id = $2`,
+          [ORG_ID, commentId]
+        );
+        console.log(`[5-5 After] issue_comment 削除 完了: comment_id=${commentId}`);
+      } catch (error) {
+        console.error(`[5-5 After] issue_comment 削除 失敗: comment_id=${commentId}:`, error);
+      }
+    }
+    createdIssueCommentIds.length = 0;
+
+    // issue を削除
+    for (const issueId of createdIssueIds) {
+      try {
+        await db.query(
+          `DELETE FROM issue WHERE organization_id = $1 AND issue_id = $2`,
+          [ORG_ID, issueId]
+        );
+        console.log(`[5-5 After] issue 削除 完了: issue_id=${issueId}`);
+      } catch (error) {
+        console.error(`[5-5 After] issue 削除 失敗: issue_id=${issueId}:`, error);
+      }
+    }
+    createdIssueIds.length = 0;
+
     // project_task_detail を削除（project_task より先に削除）
     for (const key of createdProjectTaskDetailKeys) {
       try {
@@ -733,6 +814,239 @@ Then('メソッドタブがexperiment_orderの昇順で表示されているこ�
 // ===========================================================================
 // ヘルパー関数
 // ===========================================================================
+
+// ===========================================================================
+// When: 5-5-17〜5-5-20 ステップ定義
+// ===========================================================================
+
+/**
+ * 進捗確認タブのタスク一覧で最初の「問題報告」ボタンをクリックする（5-5-17, 5-5-18, 5-5-19）
+ * ProgressCheckTab.tsx: issue アクション（viewMode=false で IssueManagementModal を開く）
+ * No.23対応: 旧 IssueReportModal から IssueManagementModal（viewMode=false）に変更済み
+ */
+When('進捗確認タブのタスク一覧で最初の「問題報告」ボタンをクリックする', async ({ page }) => {
+  await page.waitForSelector('[data-testid="progress-check-table"]', { timeout: 15000 });
+  await page.waitForSelector(
+    '[data-testid="task-list-table"] .ant-table-tbody tr.ant-table-row',
+    { timeout: 10000 }
+  );
+  // aria-label で指定（Ant Design が「報告」→「報 告」とスペースを挿入するためhasTextは使用不可）
+  const reportBtn = page
+    .locator('[data-testid="task-list-table"] button[aria-label="問題を報告"]')
+    .first();
+  await reportBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await reportBtn.scrollIntoViewIfNeeded();
+  await reportBtn.click();
+  // IssueManagementModal のオープン完了まで待機
+  await page.waitForSelector('[data-testid="issue-management-modal"]', { timeout: 10000 });
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+});
+
+/**
+ * 問題管理モーダルで新規問題を入力して登録する（5-5-18）
+ * IssueManagementModal.tsx: viewMode=false のとき「新規問題報告」フォームが表示される
+ * POST /api/v1/issues が呼び出されることを確認
+ */
+When('問題管理モーダルで新規問題を入力して登録する', async ({ page }) => {
+  // 「新規問題報告」フォームのタイトル入力
+  const titleInput = page.locator('[data-testid="issue-new-title-input"]');
+  await titleInput.waitFor({ state: 'visible', timeout: 10000 });
+  await titleInput.fill('E2Eテスト用問題タイトル_5-5-18');
+
+  // 問題タイプを選択（必須）
+  const typeSelect = page.locator('[data-testid="issue-new-type-select"]');
+  await typeSelect.click();
+  await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', { timeout: 5000 });
+  await page.locator('.ant-select-dropdown .ant-select-item').first().click();
+
+  // 内容を入力（10文字以上必須）
+  const contentTextarea = page.locator('[data-testid="issue-new-content-textarea"]');
+  await contentTextarea.fill('E2Eテスト用問題の内容です。5-5-18 の検証用データです。');
+
+  // 「登録」ボタンをクリック
+  const submitBtn = page.locator('[data-testid="issue-new-submit-button"]');
+  await submitBtn.click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+});
+
+/**
+ * 問題管理モーダルで既存問題を選択してコメントを投稿する（5-5-19）
+ * IssueManagementModal.tsx: 問題リストから問題を選択 → コメントフォームに入力 → 投稿
+ * POST /api/v1/issues/comments が呼び出されることを確認
+ */
+When('問題管理モーダルで既存問題を選択してコメントを投稿する', async ({ page }) => {
+  // 問題一覧から最初の問題を選択
+  const firstIssueItem = page.locator('[data-testid="issue-list-item"]').first();
+  await firstIssueItem.waitFor({ state: 'visible', timeout: 10000 });
+  await firstIssueItem.click();
+
+  // コメント入力フォームが表示されるのを待機
+  const commentInput = page.locator('[data-testid="issue-comment-input"]');
+  await commentInput.waitFor({ state: 'visible', timeout: 10000 });
+  await commentInput.fill('E2Eテスト用コメント_5-5-19');
+
+  // 「コメントを投稿」ボタンをクリック
+  const commentSubmitBtn = page.locator('[data-testid="issue-comment-submit-button"]');
+  await commentSubmitBtn.click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+});
+
+// ===========================================================================
+// Then: 5-5-17〜5-5-20 ステップ定義
+// ===========================================================================
+
+/**
+ * [5-5-17] 問題管理モーダルが編集モードで表示されること（viewMode=false）
+ * IssueManagementModal.tsx: data-testid="issue-management-modal" が表示されていること
+ */
+Then('問題管理モーダルが編集モードで表示されること', async ({ page }) => {
+  await expect(
+    page.locator('[data-testid="issue-management-modal"]')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-5-17] 問題管理モーダルに新規問題入力フォームが表示されること（viewMode=false）
+ * IssueManagementModal.tsx: viewMode=false のとき data-testid="issue-management-new-issue-button" または
+ * 新規登録フォームエリア（data-testid="issue-new-form"）が表示される
+ */
+Then('問題管理モーダルに新規問題入力フォームが表示されること', async ({ page }) => {
+  // viewMode=false の場合、新規問題入力フォームまたは新規問題ボタンが表示される
+  const newIssueForm = page.locator('[data-testid="issue-new-form"], [data-testid="issue-management-new-issue-button"]');
+  await expect(newIssueForm.first()).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-5-18] 問題管理モーダルの問題一覧に登録した問題が表示されること
+ * IssueManagementModal.tsx: POST /api/v1/issues 成功後、問題一覧が更新される
+ */
+Then('問題管理モーダルの問題一覧に登録した問題が表示されること', async ({ page }) => {
+  await expect(
+    page.locator('[data-testid="issue-list-item"]:has-text("E2Eテスト用問題タイトル_5-5-18")')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-5-18] DBのissueテーブルに問題が保存されていること
+ * POST /api/v1/issues が呼び出され、DBに永続化されていることを確認
+ */
+Then('DBのissueテーブルに問題が保存されていること', async () => {
+  const result = await db.query<{ issue_id: string }>(
+    `SELECT issue_id FROM issue
+     WHERE organization_id = $1 AND title = $2
+     ORDER BY create_at DESC LIMIT 1`,
+    [ORG_ID, 'E2Eテスト用問題タイトル_5-5-18']
+  );
+  expect(result.rowCount ?? 0).toBeGreaterThan(0);
+  // After フックで削除するために issue_id を記録
+  const issueId = result.rows[0].issue_id;
+  createdIssueIds.push(issueId);
+});
+
+/**
+ * [5-5-19] 問題管理モーダルのコメント一覧に投稿したコメントが表示されること
+ * IssueManagementModal.tsx: POST /api/v1/issues/comments 成功後、コメント一覧が更新される
+ */
+Then('問題管理モーダルのコメント一覧に投稿したコメントが表示されること', async ({ page }) => {
+  await expect(
+    page.locator('.issue-comment-content:has-text("E2Eテスト用コメント_5-5-19"), [data-testid="issue-comment-item"]:has-text("E2Eテスト用コメント_5-5-19")')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-5-19] DBのissue_commentテーブルにコメントが保存されていること
+ * POST /api/v1/issues/comments が呼び出され、DBに永続化されていることを確認
+ */
+Then('DBのissue_commentテーブルにコメントが保存されていること', async () => {
+  const result = await db.query<{ comment_id: string }>(
+    `SELECT comment_id FROM issue_comment
+     WHERE organization_id = $1 AND comment = $2
+     ORDER BY create_at DESC LIMIT 1`,
+    [ORG_ID, 'E2Eテスト用コメント_5-5-19']
+  );
+  expect(result.rowCount ?? 0).toBeGreaterThan(0);
+  // After フックで削除するために comment_id を記録
+  const commentId = result.rows[0].comment_id;
+  createdIssueCommentIds.push(commentId);
+});
+
+/**
+ * [5-5-20] 問題管理モーダルが参照専用モードで表示されること（viewMode=true）
+ * IssueManagementModal.tsx: viewMode=true のとき data-testid="issue-management-modal" が表示され、
+ * 新規問題入力フォームが非表示になる
+ */
+Then('問題管理モーダルが参照専用モードで表示されること', async ({ page }) => {
+  await expect(
+    page.locator('[data-testid="issue-management-modal"]')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-5-20] 問題管理モーダルに新規問題入力フォームが表示されないこと（viewMode=true）
+ * IssueManagementModal.tsx: viewMode=true のとき「新規問題報告」ボタン・フォームが非表示
+ */
+Then('問題管理モーダルに新規問題入力フォームが表示されないこと', async ({ page }) => {
+  await expect(
+    page.locator('[data-testid="issue-new-form"], [data-testid="issue-management-new-issue-button"]')
+  ).not.toBeVisible({ timeout: 5000 });
+});
+
+// ===========================================================================
+// ヘルパー関数
+// ===========================================================================
+
+/**
+ * テスト用 issue を UPSERT する（5-5-19 Before フック用）
+ *
+ * @param issueId   - issue_id（E2Eテスト識別用）
+ * @param projectId - project_id
+ * @param title     - タイトル
+ * @param content   - 内容
+ *
+ * DDL参照: docs/design/db/ddl/issue.sql
+ */
+async function upsertTestIssue(
+  issueId: string,
+  projectId: string,
+  title: string,
+  content: string
+): Promise<void> {
+  console.log(`[5-5 upsertTestIssue] 開始: issue_id=${issueId}, project_id=${projectId}`);
+  try {
+    const existing = await db.query<{ issue_id: string }>(
+      'SELECT issue_id FROM issue WHERE organization_id = $1 AND issue_id = $2',
+      [ORG_ID, issueId]
+    );
+
+    if ((existing.rowCount ?? 0) > 0) {
+      await db.query(
+        `UPDATE issue
+         SET title = $1, content = $2, update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $3 AND issue_id = $4`,
+        [title, content, ORG_ID, issueId]
+      );
+      console.log(`[5-5 upsertTestIssue] UPDATE 完了: issue_id=${issueId}`);
+    } else {
+      await db.query(
+        `INSERT INTO issue (
+          organization_id, issue_id, project_id, title, content,
+          issue_status, target_type,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3, $4, $5,
+          0, 'transition',
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, issueId, projectId, title, content]
+      );
+      createdIssueIds.push(issueId);
+      console.log(`[5-5 upsertTestIssue] INSERT 完了: issue_id=${issueId}`);
+    }
+  } catch (error) {
+    console.error(`[5-5 upsertTestIssue] 失敗: issue_id=${issueId}:`, error);
+    throw error;
+  }
+}
 
 /**
  * テス

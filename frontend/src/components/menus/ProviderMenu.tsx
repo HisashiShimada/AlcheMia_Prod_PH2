@@ -61,13 +61,13 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
   const tabItems = [
     {
       key: '1',
-      label: t('menu.provider.tabs.corporationManagement'),
-      icon: <AuditOutlined />,
+      label: t('menu.provider.tabs.organizationManagement'),
+      icon: <ShopOutlined />,
     },
     {
       key: '2',
-      label: t('menu.provider.tabs.organizationManagement'),
-      icon: <ShopOutlined />,
+      label: t('menu.provider.tabs.corporationManagement'),
+      icon: <AuditOutlined />,
     },
     {
       key: '3',
@@ -115,11 +115,11 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
         }}
       >
         <div>
-          {/* タブ1: 会社管理 */}
-          {currentTab === '1' && <CorporationManagement />}
+          {/* タブ1: 組織管理 */}
+          {currentTab === '1' && <OrganizationManagement />}
           
-          {/* タブ2: 組織管理 */}
-          {currentTab === '2' && <OrganizationManagement />}
+          {/* タブ2: 会社管理 */}
+          {currentTab === '2' && <CorporationManagement />}
           
           {/* タブ3: 情報ダウンロード */}
           {currentTab === '3' && <InformationDownload />}

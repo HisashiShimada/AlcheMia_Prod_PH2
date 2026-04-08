@@ -309,6 +309,8 @@ interface SemanticSearchRequest {
 }
 ```
 
+> **注意**: バックエンド側でスコアの足切り処理を実施。デフォルト閾値 **0.3（30%）未満** の結果は返されない（環境変数 `SEMANTIC_SEARCH_MIN_SCORE` で変更可能）。
+
 ### DecomposedQuery
 
 ```typescript
@@ -524,6 +526,7 @@ frontend/src/components/TransitionSetSearch/TransitionSetSearchModal.tsx
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|---------|--------|
 | 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: TransitionSetSearchModal.tsx） | Cline |
+| 1.1 | 2026-04-07 | SemanticSearchRequestにバックエンド足切り閾値（デフォルト0.3）の注記を追加 | Cline |
 
 ---
 

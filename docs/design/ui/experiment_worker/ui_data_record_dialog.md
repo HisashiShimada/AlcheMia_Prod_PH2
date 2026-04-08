@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/DataRecordDialog.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-21
-- **最終更新日**: 2026-04-03
+- **最終更新日**: 2026-04-07
 
 
 ---
@@ -187,9 +187,52 @@ DataGrid編集画面:
 | booleanType | Checkbox | 真偽値 |
 | dateType | DatePicker | 日付（YYYY-MM-DD） |
 | dateTimeType | DatePicker | 日時（YYYY-MM-DD HH:mm:ss） |
-| contentDoubleListType | DataGrid | 2次元数値配列 |
-| propertyListType | ネストフォーム | 階層化されたプロパティ |
+| contentStringListType | ContentRowListInput | 文字列リスト（行追加/削除ボタン付き） |
+| contentIntListType | ContentRowListInput | 整数リスト（行追加/削除ボタン付き） |
+| contentLongListType | ContentRowListInput | 長整数リスト（行追加/削除ボタン付き） |
+| contentShortListType | ContentRowListInput | 短整数リスト（行追加/削除ボタン付き） |
+| contentByteListType | ContentRowListInput | バイトリスト（行追加/削除ボタン付き） |
+| contentUnsignedIntListType | ContentRowListInput | 符号なし整数リスト（行追加/削除ボタン付き） |
+| contentFloatListType | ContentRowListInput | 単精度浮動小数点リスト（行追加/削除ボタン付き） |
+| contentDoubleListType | ContentRowListInput | 倍精度浮動小数点リスト（行追加/削除ボタン付き） |
+| contentDecimalListType | ContentRowListInput | 十進数リスト（行追加/削除ボタン付き） |
+| contentBooleanListType | ContentRowListInput | 真偽値リスト（行追加/削除ボタン付き） |
+| contentDateTimeListType | ContentRowListInput | 日時リスト（行追加/削除ボタン付き） |
+| propertyListType | ネストフォーム | 階層化されたプロパティ（子Property・子Contentも表示） |
 | insertion | Upload | ファイルアップロード |
+
+> **注意**: `contentDoubleListType` は従来 DataGrid（行×列の数値入力グリッド）で表示していましたが、`ContentRowListInput` に統一されました。すべての Content 型は「行追加可能・各行スペース区切り入力」形式で統一されています。
+
+#### ContentRowListInput コンポーネント仕様
+
+`Form.Item` の children として使用される独立コンポーネント。
+
+```typescript
+function ContentRowListInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value?: string[];
+  onChange?: (v: string[]) => void;
+  disabled?: boolean;
+})
+```
+
+- `value`: `string[]` 配列（各要素が1行に対応）
+- `onChange`: `string[]` を返すコールバック
+- 行の追加（`PlusOutlined` ボタン）・削除（`DeleteOutlined` ボタン）に対応
+- `disabled` prop に対応（プロジェクト編集不可時は無効化）
+- 各行は `Input` テキストフィールドで入力
+- フォームへの保存値・バックエンド送信値は `string[]` 形式
+
+#### propertyListType ネストフォームの子要素表示
+
+`propertyListType` のネストプロパティ内では、子 Property（`propertyType`）と子 Content（`contentXxxListType`）の両方を表示します。
+
+- **子 Property**: 通常の Property 同様、各 xsiType に対応するコンポーネントでレンダリング
+- **子 Content（`contents` フィールド）**: `ContentRowListInput` でレンダリング（`span={24}` で全幅表示）
+- `convertRawPropertyToProperty()` により `childContents` を `ContentField[]` に変換して `base.contents` にセット
 
 **プロパティラベルの表示:**
 - `units` が設定されている場合: ラベル右に青色タグで単位を表示
@@ -836,6 +879,15 @@ DataRecordDialog
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.5.0 | 2026-04-07 | DataRecordDialog ネスト子要素表示修正・ContentValue 配列送信修正 | Cline |
+| | | - Content 型フォームコンポーネントを `ContentRowListInput` に統一（`contentDoubleListType` の DataGrid 廃止） | |
+| | | - `contentStringListType`〜`contentDateTimeListType` の全11型を `ContentRowListInput` として仕様に追加 | |
+| | | - `ContentRowListInput` コンポーネント仕様（`value: string[]` / `onChange: (v: string[]) => void`）を新規追加 | |
+| | | - `propertyListType` ネストフォームの子 Content（`contents` フィールド）表示仕様を追加 | |
+| | | - フォームカラムの span: 全 Content 型を `span={24}` に統一 | |
+| | | - `CustomPropertyType` に content 系型（`contentStringListType`〜`contentDateTimeListType`）を追加 | |
+| | | - 初期値復元処理: `string[]` をそのまま `initialValues` にセット（`join('\n')` 廃止） | |
+| | | - 保存処理: トップレベル `baseData.contents[]` への書き戻し処理追加 | |
 | 1.4.0 | 2026-04-03 | カスタムプロパティ機能追加に伴うUI仕様更新 | Cline |
 | | | - 主要機能にカスタムプロパティ任意追加を追加 | |
 | | | - 3.1 カスタムプロパティセクション（property/content/insertion）の入力UI仕様を追加 | |

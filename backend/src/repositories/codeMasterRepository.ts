@@ -8,7 +8,9 @@
  * @date 2026-02-20
  */
 
+import { ITask } from 'pg-promise';
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * code_master型定義
@@ -96,4 +98,30 @@ export async function findByValue(
   
   const result = await pool.query(query, [organizationId, codeDivision, codeValue]);
   return result.rows[0] || null;
+}
+
+/**
+ * 組織用の code_master 初期データを一括登録
+ *
+ * test_data/public.code_master.csv に定義された35件のレコードを、
+ * 指定した organization_id で登録する。
+ * ON CONFLICT DO NOTHING によりべき等な処理を保証する。
+ *
+ * @param organizationId - 登録対象の組織ID
+ * @param userId - 操作ユーザーID（create_user_id / update_user_id に設定）
+ * @param t - pg-promise トランザクションオブジェクト（省略時はプール接続を使用）
+ * @returns {Promise<void>}
+ */
+export async function insertInitialData(
+  organizationId: string,
+  userId: string,
+  t?: ITask<unknown>
+): Promise<void> {
+  const query = await loadSqlFile('codeMaster/insertInitialData.sql');
+  if (t) {
+    await t.none(query, [organizationId, userId]);
+  } else {
+    const pool = getPool();
+    await pool.query(query, [organizationId, userId]);
+  }
 }
