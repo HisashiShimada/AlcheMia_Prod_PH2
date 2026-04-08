@@ -42,6 +42,7 @@
 
 import { expect } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
+import { v4 as uuidv4 } from 'uuid';
 import { db, closeDb } from '../../db';
 
 const { Given, When, Then, Before, After, AfterAll } = createBdd();
@@ -84,9 +85,10 @@ const createdProjectIds: string[] = [];
 // ---------------------------------------------------------------------------
 
 /**
- * [4-4-1] MAIMLファイル登録済み・チェックアウトなし・タスク未登録
+ * [4-4-1] MAIMLファイル登録済み・チェックアウトなし・タスク登録済み
  * - project_status=0, checkout_status=0, project_maiml_flg=true
- * - project_task にレコードなし
+ * - project_task に worker_linked_flg=false のタスクを1件INSERT
+ * - S3/SwiftのMAIMLファイル不要（DBからタスクを読み込む）
  */
 Before({ tags: '@4-4-1' }, async () => {
   console.log('[4-4 Before] テストデータ準備 開始 (tags: @4-4-1)');
@@ -94,6 +96,9 @@ Before({ tags: '@4-4-1' }, async () => {
     const projectId = 'E2E-4-4-1';
     const projectName = 'E2Eテスト用プロジェクト_4-4-1';
     await upsertProject(projectId, projectName, PROJECT_STATUS_PLANNING, CHECKOUT_STATUS_CHECKED_IN, true);
+    await upsertProjectTask(projectId, 'method_001', 1, false);
+    // 保存バリデーション: 指示が最低1件必要なため、未送信指示をINSERT
+    await upsertProjectInstruction(projectId, 'method_001', 'E2Eテスト用指示_4-4-1');
     console.log('[4-4 Before] テストデータ準備 完了 (tags: @4-4-1)');
   } catch (error) {
     console.error('[4-4 Before] テストデータ準備 失敗 (tags: @4-4-1):', error);
@@ -102,7 +107,9 @@ Before({ tags: '@4-4-1' }, async () => {
 });
 
 /**
- * [4-4-2] MAIMLファイル登録済み・チェックアウトなし・タスク未登録
+ * [4-4-2] MAIMLファイル登録済み・チェックアウトなし・タスク登録済み
+ * - project_task に worker_linked_flg=false のタスクを1件INSERT
+ * - S3/SwiftのMAIMLファイル不要（DBからタスクを読み込む）
  */
 Before({ tags: '@4-4-2' }, async () => {
   console.log('[4-4 Before] テストデータ準備 開始 (tags: @4-4-2)');
@@ -110,6 +117,11 @@ Before({ tags: '@4-4-2' }, async () => {
     const projectId = 'E2E-4-4-2';
     const projectName = 'E2Eテスト用プロジェクト_4-4-2';
     await upsertProject(projectId, projectName, PROJECT_STATUS_PLANNING, CHECKOUT_STATUS_CHECKED_IN, true);
+    await upsertProjectTask(projectId, 'method_001', 1, false);
+    // 実験条件セレクトの選択肢を code_master に登録（code_division='experiment_condition'）
+    await upsertCodeMaster('experiment_condition', '1', '実験条件');
+    // 保存バリデーション: 指示が最低1件必要なため、未送信指示をINSERT
+    await upsertProjectInstruction(projectId, 'method_001', 'E2Eテスト用指示_4-4-2');
     console.log('[4-4 Before] テストデータ準備 完了 (tags: @4-4-2)');
   } catch (error) {
     console.error('[4-4 Before] テストデータ準備 失敗 (tags: @4-4-2):', error);
@@ -118,8 +130,9 @@ Before({ tags: '@4-4-2' }, async () => {
 });
 
 /**
- * [4-4-3] MAIMLファイル登録済み・チェックアウトなし・タスク未登録・メソッド複数
- * - 複数メソッドを含むMAIMLがS3に配置済みであること（前提）
+ * [4-4-3] MAIMLファイル登録済み・チェックアウトなし・タスク登録済み（複数メソッド）
+ * - project_task に worker_linked_flg=false のタスクを2件INSERT
+ * - S3/SwiftのMAIMLファイル不要（DBからタスクを読み込む）
  */
 Before({ tags: '@4-4-3' }, async () => {
   console.log('[4-4 Before] テストデータ準備 開始 (tags: @4-4-3)');
@@ -127,6 +140,10 @@ Before({ tags: '@4-4-3' }, async () => {
     const projectId = 'E2E-4-4-3';
     const projectName = 'E2Eテスト用プロジェクト_4-4-3';
     await upsertProject(projectId, projectName, PROJECT_STATUS_PLANNING, CHECKOUT_STATUS_CHECKED_IN, true);
+    await upsertProjectTask(projectId, 'method_001', 1, false);
+    await upsertProjectTask(projectId, 'method_002', 2, false);
+    // 保存バリデーション: 指示が最低1件必要なため、未送信指示をINSERT
+    await upsertProjectInstruction(projectId, 'method_001', 'E2Eテスト用指示_4-4-3');
     console.log('[4-4 Before] テストデータ準備 完了 (tags: @4-4-3)');
   } catch (error) {
     console.error('[4-4 Before] テストデータ準備 失敗 (tags: @4-4-3):', error);
@@ -199,6 +216,8 @@ Before({ tags: '@4-4-7' }, async () => {
     const projectName = 'E2Eテスト用プロジェクト_4-4-7';
     await upsertProject(projectId, projectName, PROJECT_STATUS_PLANNING, CHECKOUT_STATUS_CHECKED_IN, true);
     await upsertProjectTask(projectId, 'method_001', 1, false);
+    // 保存バリデーション: 指示が最低1件必要なため、未送信指示をINSERT
+    await upsertProjectInstruction(projectId, 'method_001', 'E2Eテスト用指示_4-4-7');
     console.log('[4-4 Before] テストデータ準備 完了 (tags: @4-4-7)');
   } catch (error) {
     console.error('[4-4 Before] テストデータ準備 失敗 (tags: @4-4-7):', error);
@@ -251,17 +270,6 @@ AfterAll(async () => {
 // ---------------------------------------------------------------------------
 
 /**
- * 実験管理者ユーザーがDBに存在する（背景ステップ）
- * → Before フックで準備済みのため no-op
- */
-Given(
-  '実験管理者のユーザID {string} がDB（organization_userテーブル）に存在する',
-  async ({}, _userId: string) => {
-    console.log(`[4-4 Given] 実験管理者ユーザー "${_userId}" は事前準備済み`);
-  }
-);
-
-/**
  * MAIMLファイル登録済み・チェックアウトなし・タスク未登録のプロジェクトがDBに存在する（4-4-1用）
  * → Before フックで upsertProject を実行済みのため no-op
  */
@@ -306,58 +314,18 @@ Given(
 );
 
 // ---------------------------------------------------------------------------
-// When: ログイン・画面遷移
-// ---------------------------------------------------------------------------
-
-/**
- * 実験管理者ユーザーでログインする
- * TODO: ユーザーID・パスワードは仮値。実際の値に要更新。
- */
-When('実験管理者ユーザー {string} でログインする', async ({ page }, _userId: string) => {
-  await page.goto(`/?orgId=${ORG_ID}`);
-  await page.waitForSelector('#userId', { timeout: 15000 });
-  await page.fill('#userId', ADMIN_EMAIL);
-  await page.fill('#password', ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForLoadState('networkidle', { timeout: 30000 });
-});
-
-/**
- * プロジェクト管理画面が表示されていること
- */
-When('プロジェクト管理画面が表示されている', async ({ page }) => {
-  await page.waitForSelector('[data-testid="project-management-tab"]', {
-    timeout: 15000,
-  });
-});
-
-// ---------------------------------------------------------------------------
-// When: プロジェクト一覧操作
-// ---------------------------------------------------------------------------
-
-/**
- * プロジェクト一覧でプロジェクトを選択する
- * ProjectManagement.tsx: data-testid="project-list-table" 内の行
- */
-When('プロジェクト一覧でプロジェクト {string} を選択する', async ({ page }, projectName: string) => {
-  const table = page.locator('[data-testid="project-list-table"]');
-  await table.waitFor({ state: 'visible', timeout: 10000 });
-  const row = table.locator(`tr:has-text("${projectName}")`).first();
-  await row.waitFor({ state: 'visible', timeout: 10000 });
-  await row.locator('input[type="radio"], .ant-radio-wrapper').first().click();
-  await page.waitForTimeout(500);
-});
-
-// ---------------------------------------------------------------------------
 // When: タスク登録タブ操作
 // ---------------------------------------------------------------------------
 
 /**
  * 「タスク登録」タブをクリックする
- * ProjectManagement.tsx: data-testid="task-registration-tab"
+ * ProjectManagement.tsx: Ant Design Tabs の .ant-tabs-tab テキストで特定
+ * （data-testid が付与されていないため、テキストベースのロケーターを使用）
  */
 When('「タスク登録」タブをクリックする', async ({ page }) => {
-  const tab = page.locator('[data-testid="task-registration-tab"]');
+  // .ant-tabs-tab-btn（実際のクリックイベントを処理する内側要素）を対象にする
+  // .ant-tabs-tab はラッパー div のため click が届かない場合がある
+  const tab = page.locator('.ant-tabs-tab-btn').filter({ hasText: 'タスク登録' });
   await tab.waitFor({ state: 'visible', timeout: 10000 });
   await tab.click();
   // タスク一覧の読み込みを待機
@@ -454,37 +422,13 @@ When('タスク一覧の最初のタスクの「+指示」ボタンをクリッ�
 
 /**
  * 指示編集ダイアログで指示内容を入力して保存する（4-4-7用）
- * InstructionEditDialog.tsx: data-testid="instruction-edit-dialog-content"
- *                            data-testid="instruction-edit-dialog-save-button"
+ * → common.ts に移動済み（複数 feature で共通使用のため）
  */
-When('指示編集ダイアログで指示内容 {string} を入力して保存する', async ({ page }, content: string) => {
-  // ダイアログが表示されるまで待機
-  const dialog = page.locator('.ant-modal:has([data-testid="instruction-edit-dialog-content"])');
-  await dialog.waitFor({ state: 'visible', timeout: 10000 });
-
-  // 指示内容を入力
-  const textarea = page.locator('[data-testid="instruction-edit-dialog-content"]');
-  await textarea.waitFor({ state: 'visible', timeout: 5000 });
-  await textarea.fill(content);
-
-  // 保存ボタンをクリック
-  const saveBtn = page.locator('[data-testid="instruction-edit-dialog-save-button"]');
-  await saveBtn.waitFor({ state: 'visible', timeout: 5000 });
-  await saveBtn.click();
-  await page.waitForTimeout(500);
-});
 
 /**
  * 「指示登録」タブをクリックする（4-4-7用）
- * ProjectManagement.tsx: data-testid="instruction-registration-tab"
+ * → common.ts に移動済み（複数 feature で共通使用のため）
  */
-When('「指示登録」タブをクリックする', async ({ page }) => {
-  const tab = page.locator('[data-testid="instruction-registration-tab"]');
-  await tab.waitFor({ state: 'visible', timeout: 10000 });
-  await tab.click();
-  await page.waitForLoadState('networkidle', { timeout: 15000 });
-  await page.waitForTimeout(500);
-});
 
 // ---------------------------------------------------------------------------
 // Then: 表示確認
@@ -496,7 +440,8 @@ When('「指示登録」タブをクリックする', async ({ page }) => {
  * 表示テキスト例: 「タスクを登録しました」
  */
 Then('タスク登録保存成功メッセージが表示されること', async ({ page }) => {
-  const successToast = page.locator('.ant-message-success');
+  // 複数のsuccessトーストが同時に表示される場合があるため .first() で先頭を取得
+  const successToast = page.locator('.ant-message-success').first();
   await expect(successToast).toBeVisible({ timeout: 10000 });
 });
 
@@ -532,9 +477,9 @@ Then('ワーカー連携済みタスク行の実験条件セレクトが非活�
   // Ant Design Select は aria-disabled または class で disabled を判定
   const conditionSelect = page.locator(`[data-testid="task-experiment-condition-select-${id}"]`);
   await conditionSelect.waitFor({ state: 'visible', timeout: 5000 });
-  // Ant Design Select のdisabled状態は親要素の .ant-select-disabled クラスで判定
-  const selectWrapper = conditionSelect.locator('xpath=ancestor::div[contains(@class,"ant-select")]').first();
-  await expect(selectWrapper).toHaveClass(/ant-select-disabled/, { timeout: 5000 });
+  // Ant Design Select のdisabled状態は ant-select-disabled クラスで判定
+  // （aria-disabled は付与されないため toHaveClass を使用）
+  await expect(conditionSelect).toHaveClass(/ant-select-disabled/, { timeout: 5000 });
 });
 
 /**
@@ -689,10 +634,127 @@ async function upsertProjectTask(
         )`,
         [ORG_ID, projectId, methodId, experimentOrder, workerLinkedFlg]
       );
-      console.log(`[4-4 upsertProjectTask] INSERT 完了: project_id=${projectId}`);
+    console.log(`[4-4 upsertProjectTask] INSERT 完了: project_id=${projectId}`);
     }
   } catch (error) {
     console.error(`[4-4 upsertProjectTask] 失敗: project_id=${projectId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * テスト用プロジェクト指示を UPSERT する
+ *
+ * handleSave の保存バリデーション:
+ *   「unsentInstructions.length === 0」の場合に保存がブロックされるため、
+ *   instruction_status=0（未送信）の指示をINSERTしておく必要がある。
+ *
+ * @param projectId    - プロジェクトID
+ * @param methodId     - メソッドID（タスクと紐づく）
+ * @param instructions - 指示内容テキスト
+ *
+ * DDL参照: docs/design/db/ddl/project_instruction.sql
+ *   主キー: (organization_id, project_id, experiment_instruction_id)
+ *   instruction_status: 0=未送信, 1=送信済み
+ */
+async function upsertProjectInstruction(
+  projectId: string,
+  methodId: string,
+  instructions: string
+): Promise<void> {
+  // experiment_instruction_id は UUID で生成（E2Eテスト用に固定プレフィックスを付与）
+  const instructionId = `e2e-inst-${projectId}-${methodId}`;
+  console.log(
+    `[4-4 upsertProjectInstruction] 開始: project_id=${projectId}, method_id=${methodId}, instruction_id=${instructionId}`
+  );
+  try {
+    const existing = await db.query<{ experiment_instruction_id: string }>(
+      `SELECT experiment_instruction_id FROM project_instruction
+       WHERE organization_id = $1 AND project_id = $2 AND experiment_instruction_id = $3`,
+      [ORG_ID, projectId, instructionId]
+    );
+
+    if ((existing.rowCount ?? 0) > 0) {
+      await db.query(
+        `UPDATE project_instruction
+         SET method_id = $1, instructions = $2, instruction_status = 0,
+             update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $3 AND project_id = $4 AND experiment_instruction_id = $5`,
+        [methodId, instructions, ORG_ID, projectId, instructionId]
+      );
+      console.log(`[4-4 upsertProjectInstruction] UPDATE 完了: instruction_id=${instructionId}`);
+    } else {
+      await db.query(
+        `INSERT INTO project_instruction (
+          organization_id, project_id, experiment_instruction_id,
+          method_id, instruction_status, instructions,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3,
+          $4, 0, $5,
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, projectId, instructionId, methodId, instructions]
+      );
+      console.log(`[4-4 upsertProjectInstruction] INSERT 完了: instruction_id=${instructionId}`);
+    }
+  } catch (error) {
+    console.error(`[4-4 upsertProjectInstruction] 失敗: project_id=${projectId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * テスト用コードマスターデータを UPSERT する
+ *
+ * 実験条件セレクトの選択肢は code_master テーブルから取得されるため、
+ * テスト実行前に対象の code_division / code_value を登録しておく必要がある。
+ *
+ * @param codeDivision  - コード区分（例: 'experiment_condition'）
+ * @param codeValue     - コード値（例: '1'）
+ * @param codeName      - コード名称（例: '実験条件'）
+ *
+ * DDL参照: docs/design/db/ddl/code_master.sql
+ *   主キー: (organization_id, code_division, code_value)
+ */
+async function upsertCodeMaster(
+  codeDivision: string,
+  codeValue: string,
+  codeName: string
+): Promise<void> {
+  console.log(
+    `[4-4 upsertCodeMaster] 開始: code_division=${codeDivision}, code_value=${codeValue}, code_name=${codeName}`
+  );
+  try {
+    const existing = await db.query<{ code_value: string }>(
+      `SELECT code_value FROM code_master
+       WHERE organization_id = $1 AND code_division = $2 AND code_value = $3`,
+      [ORG_ID, codeDivision, codeValue]
+    );
+
+    if ((existing.rowCount ?? 0) > 0) {
+      await db.query(
+        `UPDATE code_master
+         SET code_name = $1, update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $2 AND code_division = $3 AND code_value = $4`,
+        [codeName, ORG_ID, codeDivision, codeValue]
+      );
+      console.log(`[4-4 upsertCodeMaster] UPDATE 完了: code_division=${codeDivision}, code_value=${codeValue}`);
+    } else {
+      await db.query(
+        `INSERT INTO code_master (
+          organization_id, code_division, code_value, code_name,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3, $4,
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, codeDivision, codeValue, codeName]
+      );
+      console.log(`[4-4 upsertCodeMaster] INSERT 完了: code_division=${codeDivision}, code_value=${codeValue}`);
+    }
+  } catch (error) {
+    console.error(`[4-4 upsertCodeMaster] 失敗: code_division=${codeDivision}:`, error);
     throw error;
   }
 }

@@ -169,11 +169,12 @@ export class MaimlWriterService {
       const backupFileName = `${baseName}_v${newVersion}.maiml`;
       const backupPath = `${archivePath}/${backupFileName}`;
 
+      // uploadedBy: 'system' を渡して file_metadata を自動登録
       await storageService.uploadFile(
         organizationId,
         backupPath,
         fileBuffer, // ダウンロード済みの既存ファイル内容をそのまま使用
-        { contentType: 'application/xml' }
+        { contentType: 'application/xml', uploadedBy: 'system' }
       );
 
       console.log(
@@ -187,12 +188,12 @@ export class MaimlWriterService {
       );
     }
 
-    // --- 9. 上書き保存 ---
+    // --- 9. 上書き保存（uploadedBy: 'system' を渡して file_metadata を自動登録）---
     await storageService.uploadFile(
       organizationId,
       filePath,
       updatedMaiml,
-      { contentType: 'application/xml' }
+      { contentType: 'application/xml', uploadedBy: 'system' }
     );
 
     console.log(

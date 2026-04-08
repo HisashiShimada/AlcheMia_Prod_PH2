@@ -466,6 +466,45 @@ export class FileMetadataRepository {
   }
   
   /**
+   * ファイルメタデータを新規作成（ON CONFLICT DO NOTHING）
+   * 既に同じ file_key が存在する場合は何もしない（二重登録防止）
+   * 戻り値は void（storageService からの自動登録用）
+   *
+   * @param data - ファイルメタデータ（必要なフィールドのみ設定）
+   */
+  async insertIfNotExists(data: Partial<FileMetadata>): Promise<void> {
+    const pool = getPool();
+
+    const JSONB_COLUMNS = new Set(['custom_metadata', 'tags', 'search_keywords']);
+    const columns: string[] = [];
+    const placeholders: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        columns.push(key);
+        if (JSONB_COLUMNS.has(key)) {
+          placeholders.push(`$${paramIndex}::jsonb`);
+          values.push(typeof value === 'string' ? value : JSON.stringify(value));
+        } else {
+          placeholders.push(`$${paramIndex}`);
+          values.push(value);
+        }
+        paramIndex++;
+      }
+    }
+
+    const query = `
+      INSERT INTO file_metadata (${columns.join(', ')})
+      VALUES (${placeholders.join(', ')})
+      ON CONFLICT (file_key) DO NOTHING
+    `;
+
+    await pool.query(query, values);
+  }
+
+  /**
    * ファイルメタデータを新規作成（動的INSERT）
    * 呼び出し元で設定されたフィールドのみをINSERTする
    * 

@@ -425,9 +425,8 @@ router.METHOD('/path',
 | `projectName` | string | ○ | プロジェクト名 |
 
 **クエリパラメータ**:
-| パラメータ | 型 | 必須 | デフォルト | 説明 |
-|----------|---|------|-----------|------|
-| `include_archive` | boolean | × | false | アーカイブファイルを含める |
+
+なし
 
 #### レスポンス
 
@@ -436,34 +435,70 @@ router.METHOD('/path',
 {
   "success": true,
   "data": {
-    "project_id": "550e8400-e29b-41d4-a716-446655440000",
-    "project_name": "Sample Project",
+    "projectId": "550e8400-e29b-41d4-a716-446655440000",
+    "projectName": "Sample Project",
     "files": [
       {
-        "file_id": "file-uuid",
-        "file_name": "sample_project.maiml",
-        "file_path": "org_maiml_lab_001/projects/Sample_Project/sample_project.maiml",
-        "file_size": 12345,
-        "file_type": "maiml",
-        "is_archive": false,
+        "id": "org/projects/Sample_Project/sample_project.maiml",
+        "name": "sample_project.maiml",
+        "path": "projects/Sample_Project/sample_project.maiml",
+        "size": 12345,
+        "type": "maiml",
+        "isFolder": false,
+        "isArchive": false,
         "version": null,
-        "created_at": "2026-01-21T10:00:00Z",
-        "updated_at": "2026-01-21T16:00:00Z"
+        "lastModified": "2026-01-21T16:00:00Z",
+        "signedUrl": "https://..."
+      },
+      {
+        "id": "archive",
+        "name": "archive",
+        "path": "projects/Sample_Project/archive",
+        "size": 0,
+        "type": "folder",
+        "isFolder": true,
+        "fileCount": 2
+      },
+      {
+        "id": "rawdata",
+        "name": "rawdata",
+        "path": "projects/Sample_Project/rawdata",
+        "size": 0,
+        "type": "folder",
+        "isFolder": true,
+        "fileCount": 3
       }
     ],
-    "archive_files": [
-      {
-        "file_id": "archive-file-uuid",
-        "file_name": "sample_project_v1.maiml",
-        "file_path": "org_maiml_lab_001/projects/Sample_Project/archive/sample_project_v1.maiml",
-        "file_size": 11234,
-        "file_type": "maiml",
-        "is_archive": true,
-        "version": 1,
-        "created_at": "2026-01-20T10:00:00Z",
-        "updated_at": "2026-01-20T10:00:00Z"
-      }
-    ]
+    "subFolderFiles": {
+      "archive": [
+        {
+          "id": "org/projects/Sample_Project/archive/sample_project_v1.maiml",
+          "name": "sample_project_v1.maiml",
+          "path": "projects/Sample_Project/archive/sample_project_v1.maiml",
+          "size": 11234,
+          "type": "maiml",
+          "isFolder": false,
+          "isArchive": true,
+          "version": 1,
+          "lastModified": "2026-01-20T10:00:00Z",
+          "signedUrl": "https://..."
+        }
+      ],
+      "rawdata": [
+        {
+          "id": "org/projects/Sample_Project/rawdata/measurement.csv",
+          "name": "measurement.csv",
+          "path": "projects/Sample_Project/rawdata/measurement.csv",
+          "size": 5120,
+          "type": "csv",
+          "isFolder": false,
+          "isArchive": false,
+          "version": null,
+          "lastModified": "2026-01-21T12:00:00Z",
+          "signedUrl": "https://..."
+        }
+      ]
+    }
   },
   "meta": {
     "timestamp": "2026-01-21T16:00:00Z",

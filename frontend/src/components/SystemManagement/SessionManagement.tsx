@@ -21,6 +21,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { getActiveSessions, terminateSession } from '@/services/sessionApiService';
 import type { SessionInfo } from '@/types/session';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -44,7 +45,7 @@ export default function SessionManagement() {
       setSessions(data.sessions);
     } catch (error) {
       console.error('セッション一覧取得エラー:', error);
-      messageApi.error(t('sessionManagement.messages.fetchError'));
+      messageApi.error(extractErrorMessage(error, t('sessionManagement.messages.fetchError')));
     } finally {
       setLoading(false);
     }
@@ -202,7 +203,7 @@ export default function SessionManagement() {
           await fetchSessions();
         } catch (error) {
           console.error('セッション終了エラー:', error);
-          messageApi.error(t('sessionManagement.messages.terminateError'));
+          messageApi.error(extractErrorMessage(error, t('sessionManagement.messages.terminateError')));
         }
       },
     });

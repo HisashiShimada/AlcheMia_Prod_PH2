@@ -381,6 +381,39 @@ function buildFallbackTemplates(
 
   const fallbackTemplates: TemplateDataItem[] = [];
 
+  /**
+   * Property を再帰的に変換するヘルパー関数（深さ制限付き）
+   * propertyListType の子 Property・子 Content を空配列に上書きせず、
+   * 再帰的に変換して渡す。
+   */
+  function convertPropertyForFallback(
+    p: Property,
+    depth: number = 0
+  ): Record<string, unknown> {
+    const MAX_DEPTH = 5;
+    return {
+      key: p.key || '',
+      xsiType: p.xsiType || 'stringType',
+      value: p.value ?? undefined,
+      units: p.units || undefined,
+      // ネスト構造を再帰的に変換（深さ制限で無限ループ防止）
+      properties: depth < MAX_DEPTH
+        ? (p.properties || []).map(child => convertPropertyForFallback(child, depth + 1))
+        : [],
+      // Content 子要素も変換（Content はリーフノードとして扱うため properties/contents は空配列）
+      contents: depth < MAX_DEPTH
+        ? (p.contents || []).map(c => ({
+            key: c.key || '',
+            xsiType: c.xsiType || 'contentStringListType',
+            value: c.value ?? undefined,
+            units: c.units || undefined,
+            properties: [] as Property[],
+            contents: [] as Content[],
+          }))
+        : [],
+    };
+  }
+
   for (const { templates, templateType } of templateCategories) {
     if (!templates) continue;
 
@@ -390,24 +423,28 @@ function buildFallbackTemplates(
     for (const template of templateArray) {
       if (!template.placeRefs || template.placeRefs.length === 0) continue;
 
-      // このテンプレートのプロパティ定義を構築（MAIMLのvalue要素から値を取得）
-      // Property 型の必須フィールド（properties, contents）を空配列で補完
-      // value は Property 型の定義上 undefined 可（null 不可）のため ?? undefined で変換
-      const properties = (template.properties || []).map(p => ({
-        key: p.key || '',
-        xsiType: p.xsiType || 'stringType',
-        value: p.value ?? undefined,
-        units: p.units || undefined,
+      // このテンプレートのプロパティ定義を構築
+      // convertPropertyForFallback で子要素（properties/contents）を再帰的に変換する
+      const properties = (template.properties || []).map(p =>
+        convertPropertyForFallback(p)
+      );
+
+      // テンプレートトップレベルの contents を変換してフロントへ渡す
+      // Content はリーフノードとして扱うため properties/contents は空配列
+      const contents = (template.contents || []).map(c => ({
+        key: c.key || '',
+        xsiType: c.xsiType || 'contentStringListType',
+        value: c.value ?? undefined,
+        units: c.units || undefined,
         properties: [] as Property[],
         contents: [] as Content[],
       }));
 
-
-
       const propertySet: PropertySet = {
         templateId: template.id || '',
         templateType,
-        properties,
+        properties: properties as unknown as Property[],
+        contents: contents as unknown as Content[],
       };
 
       const data: Record<string, unknown> = propertySet as unknown as Record<string, unknown>;

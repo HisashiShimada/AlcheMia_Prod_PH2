@@ -3,6 +3,30 @@
  */
 
 /**
+ * マスタデータアイテムの型定義
+ * （apiClient.ts の fetchCreators / fetchVendors の戻り値で使用）
+ */
+export interface MasterDataItem {
+  id: string;
+  uuid?: string;
+  name: string;
+  description?: string;
+  annotation?: string;
+}
+
+/**
+ * マスタデータレスポンスの型定義
+ * （apiClient.ts の fetchCreators / fetchVendors の戻り値で使用）
+ */
+export interface MasterDataResponse {
+  success: boolean;
+  data: {
+    items: MasterDataItem[];
+  };
+}
+
+
+/**
  * マスタデータタイプの列挙
  */
 export type MasterDataType = 

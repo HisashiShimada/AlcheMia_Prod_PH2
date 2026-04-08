@@ -3,6 +3,18 @@
  */
 
 /**
+ * S3/Swiftファイル情報の型定義
+ * （apiClient.ts の fetchFileList の戻り値で使用）
+ */
+export interface FileInfo {
+  key: string;
+  name: string;
+  size?: number;
+  lastModified?: string;
+}
+
+
+/**
  * プロジェクトファイル
  */
 export interface ProjectFile {

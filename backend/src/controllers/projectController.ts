@@ -892,7 +892,6 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
     // 成功レスポンス
     console.log('[DEBUG] getProjectFiles - Success response', { 
       filesCount: result.data?.files?.length || 0,
-      archiveFilesCount: result.data?.archiveFiles?.length || 0
     });
     
     res.status(200).json({
@@ -1485,7 +1484,7 @@ export async function publish(req: Request, res: Response): Promise<void> {
       if (code === 'PROJECT_NOT_FOUND') {
         res.status(404).json({
           success: false,
-          error: { code: 'PROJECT_NOT_FOUND', message: 'プロジェクトが見つかりません' },
+          error: { code: 'E6001', message: 'プロジェクトが見つかりません' },
           meta: { timestamp: new Date().toISOString(), requestId },
         });
         return;
@@ -1493,12 +1492,12 @@ export async function publish(req: Request, res: Response): Promise<void> {
       if (code === 'PROJECT_NOT_CHECKED_OUT') {
         res.status(400).json({
           success: false,
-          error: { code: 'PROJECT_NOT_CHECKED_OUT', message: 'プロジェクトがチェックアウトされていません' },
+          error: { code: 'E7002', message: 'プロジェクトがチェックアウトされていません' },
           meta: { timestamp: new Date().toISOString(), requestId },
         });
         return;
       }
-      if (code === 'E7005') {
+      if (code === 'PROJECT_STATUS_INVALID' || code === 'E7005') {
         res.status(400).json({
           success: false,
           error: { code: 'E7005', message: 'プロジェクトステータスがタスク結果レビュー待ちではありません' },
@@ -1509,7 +1508,7 @@ export async function publish(req: Request, res: Response): Promise<void> {
       if (code === 'TASKS_NOT_COMPLETED') {
         res.status(400).json({
           success: false,
-          error: { code: 'TASKS_NOT_COMPLETED', message: '完了・異常終了以外のタスクが残っています' },
+          error: { code: 'E7010', message: '完了・異常終了以外のタスクが残っています' },
           meta: { timestamp: new Date().toISOString(), requestId },
         });
         return;
@@ -1517,7 +1516,7 @@ export async function publish(req: Request, res: Response): Promise<void> {
       if (code === 'ALREADY_IN_PROGRESS') {
         res.status(409).json({
           success: false,
-          error: { code: 'ALREADY_IN_PROGRESS', message: '既に処理中のジョブがあります' },
+          error: { code: 'E7011', message: '既に処理中のジョブがあります' },
           meta: { timestamp: new Date().toISOString(), requestId },
         });
         return;
@@ -1525,7 +1524,7 @@ export async function publish(req: Request, res: Response): Promise<void> {
       if (code === 'MAIML_NOT_FOUND') {
         res.status(400).json({
           success: false,
-          error: { code: 'MAIML_NOT_FOUND', message: 'MAIMLファイルが存在しません' },
+          error: { code: 'E6002', message: 'MAIMLファイルが存在しません' },
           meta: { timestamp: new Date().toISOString(), requestId },
         });
         return;

@@ -34,7 +34,7 @@ import {
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
 
-const { Text } = Typography;
+const { Text, Paragraph } = Typography;
 const { Dragger } = Upload;
 
 /**
@@ -348,13 +348,57 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           error: 'キャンセルされました',
         }));
       } else {
-        const errorMessage = extractErrorMessage(error);
-        setUploadState(prev => ({
-          ...prev,
-          isUploading: false,
-          error: errorMessage,
-        }));
-        message.error(errorMessage);
+        // MAIMLバリデーションエラーの処理
+        const axiosError = error as any;
+        const errorCode = axiosError?.response?.data?.error?.code;
+        if (errorCode === 'MAIML_VALIDATION_ERROR') {
+          const details = axiosError.response.data.error.details;
+          const errorList = (details?.errors ?? []) as Array<{ type: string; severity: string; message: string; suggestion?: string }>;
+          setUploadState(prev => ({ ...prev, isUploading: false, error: null }));
+          Modal.error({
+            title: `MAIMLバリデーションエラー: ${details?.fileName ?? ''}`,
+            width: 640,
+            content: (
+              <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                <Paragraph style={{ marginBottom: 8 }}>
+                  致命的なエラーが{details?.errorCount ?? errorList.length}件検出されたため、アップロードを中止しました。
+                </Paragraph>
+                {errorList.map((e, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      background: '#fff2f0',
+                      border: '1px solid #ffccc7',
+                      borderRadius: 6,
+                      padding: '8px 12px',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text strong style={{ color: '#cf1322', fontSize: 13 }}>
+                      [{e.type}] {e.message}
+                    </Text>
+                    {e.suggestion && (
+                      <div style={{ marginTop: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          💡 {e.suggestion}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ),
+            okText: '閉じる',
+          });
+        } else {
+          const errorMessage = extractErrorMessage(error);
+          setUploadState(prev => ({
+            ...prev,
+            isUploading: false,
+            error: errorMessage,
+          }));
+          message.error(errorMessage);
+        }
       }
     } finally {
       // ✨ クリーンアップ

@@ -11,6 +11,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Button,
   Input,
+  InputNumber,
   Alert,
   Space,
   Typography,
@@ -19,6 +20,8 @@ import {
   message,
   Modal,
   App,
+  DatePicker,
+  Tooltip,
 } from 'antd';
 import {
   CloseOutlined,
@@ -27,11 +30,40 @@ import {
   PlusOutlined,
   DeleteOutlined,
   CopyOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import {
+  validateByXsiType,
+  isIntegerXsiType,
+  isUnsignedIntXsiType,
+  isListXsiType,
+} from '@/utils/xsiTypeValidator';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
+
+// ===== 要素名の選択肢定数 =====
+
+/**
+ * Property / parameter 用の標準要素名選択肢
+ *
+ * ※ units / formatString / scaleFactor は XML 属性のため、ここには含めない
+ *   （属性追加モーダルのプルダウンで対応）
+ */
+const PROPERTY_ELEMENT_OPTIONS = [
+  { value: 'value', label: 'value（プロパティ値）⚡ 型に応じた入力欄' },
+  { value: 'description', label: 'description（説明）' },
+  { value: '__custom__', label: '🔧 その他（カスタム要素名を入力...）' },
+] as const;
+
+/** content 用の標準要素名選択肢（unit / formatString / scaleFactor は属性のため除外） */
+const CONTENT_ELEMENT_OPTIONS = [
+  { value: 'value', label: 'value（コンテンツ値）⚡ 型に応じた入力欄' },
+  { value: 'description', label: 'description（説明）' },
+  { value: '__custom__', label: '🔧 その他（カスタム要素名を入力...）' },
+] as const;
 
 /**
  * NamespaceSource型定義（名前空間取り込み元情報）
@@ -161,9 +193,11 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   const [newElementValue, setNewElementValue] = useState('');
   const [newChildTagName, setNewChildTagName] = useState('property');
   const [copyKey, setCopyKey] = useState('');
-  
+
   // ✅ Phase 2-2: カスタム属性名用State
   const [customAttributeName, setCustomAttributeName] = useState('');
+  // ✅ Phase 2-A-1: カスタム要素名用State
+  const [customElementName, setCustomElementName] = useState('');
 
   const nodeId = useMemo(() => propertyKey, [propertyKey]);
   const isExpanded = useMemo(() => expandedNodes.has(nodeId), [expandedNodes, nodeId]);
@@ -369,29 +403,51 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         }}
       >
         <Space orientation="vertical" style={{ width: '100%' }}>
-          <Select
-            style={{ width: '100%' }}
-            placeholder="属性名を選択"
-            value={newAttributeName}
-            onChange={(value) => {
-              setNewAttributeName(value);
-              if (value === 'xsi:type' && !newAttributeValue) {
-                setNewAttributeValue('stringType');
-              }
-              if (value === '__custom__') {
-                setCustomAttributeName('');
-              }
-            }}
-          >
-            <Option value="xsi:type">xsi:type (MaiML型定義)</Option>
-            <Option value="units">units (単位)</Option>
-            <Option value="formatString">formatString (書式文字列)</Option>
-            <Option value="scaleFactor">scaleFactor (スケール係数)</Option>
-            <Option value="key">key (キー)</Option>
-            <Option value="id">id (ID)</Option>
-            <Option value="ref">ref (参照)</Option>
-            <Option value="__custom__">🔧 カスタム属性名を入力...</Option>
-          </Select>
+          {(() => {
+            /**
+             * XSD 定義に基づいた属性選択肢
+             *
+             * property/parameter:
+             *   key（必須）/ xsi:type / formatString / units / scaleFactor / カスタム
+             *
+             * content:
+             *   key（必須）/ xsi:type / axis / size / id / ref
+             *   / formatString / units / scaleFactor / カスタム
+             */
+            const isContent = propertyData.tagName === 'content';
+            const defaultXsiType = isContent ? 'contentDoubleListType' : 'stringType';
+            return (
+              <Select
+                style={{ width: '100%' }}
+                placeholder="属性名を選択"
+                value={newAttributeName}
+                onChange={(value) => {
+                  setNewAttributeName(value);
+                  if (value === 'xsi:type' && !newAttributeValue) {
+                    setNewAttributeValue(defaultXsiType);
+                  }
+                  if (value === '__custom__') {
+                    setCustomAttributeName('');
+                  }
+                }}
+              >
+                {/* 共通属性 */}
+                <Option value="xsi:type">xsi:type（MaiML型定義）</Option>
+                <Option value="key">key（キー・必須）</Option>
+                {/* 型依存属性（property / content 共通） */}
+                <Option value="formatString">formatString（書式文字列）</Option>
+                <Option value="units">units（単位）</Option>
+                <Option value="scaleFactor">scaleFactor（スケール係数）</Option>
+                {/* content 固有属性 */}
+                {isContent && <Option value="axis">axis（軸名: x / y / z / time）</Option>}
+                {isContent && <Option value="size">size（データサイズ・整数）</Option>}
+                {isContent && <Option value="id">id（XML ID）</Option>}
+                {isContent && <Option value="ref">ref（XML IDREF）</Option>}
+                {/* カスタム */}
+                <Option value="__custom__">🔧 カスタム属性名を入力...</Option>
+              </Select>
+            );
+          })()}
 
           {/* ✅ Phase 2-2: カスタム属性名入力フィールド */}
           {newAttributeName === '__custom__' && (
@@ -436,29 +492,145 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
       <Modal
         title="➕ 要素追加"
         open={showElementAddModal}
-        onCancel={() => setShowElementAddModal(false)}
+        onCancel={() => {
+          setShowElementAddModal(false);
+          setNewElementName('');
+          setNewElementValue('');
+          setCustomElementName('');
+        }}
         onOk={() => {
-          if (newElementName.trim() && newElementValue.trim()) {
-            onUpdateNestedElement(propertyKey, newElementName.trim(), newElementValue.trim());
-            setNewElementName('');
-            setNewElementValue('');
-            setShowElementAddModal(false);
+          // ✅ Phase 2-A-1: 最終要素名の決定
+          const finalElementName =
+            newElementName === '__custom__'
+              ? customElementName.trim()
+              : newElementName.trim();
+
+          if (!finalElementName) {
+            message.error('要素名を入力してください');
+            return;
           }
+
+          // ✅ Phase 2-A-2: value 要素かつ xsi:type が設定されている場合のみ型バリデーション
+          const xsiType = propertyData.attributes?.['xsi:type'] ?? '';
+          if (finalElementName === 'value' && xsiType) {
+            const result = validateByXsiType(xsiType, newElementValue);
+            if (!result.isValid) {
+              message.error(result.errorMessage ?? '入力値が不正です');
+              return;
+            }
+          }
+
+          // propertyListType のとき value 要素は追加不可
+          if (xsiType === 'propertyListType' && finalElementName === 'value') {
+            message.error(
+              'propertyListType には value 要素を追加できません。子要素（property）を追加してください。'
+            );
+            return;
+          }
+
+          if (!newElementValue.trim() && finalElementName !== 'value') {
+            message.error('要素値を入力してください');
+            return;
+          }
+
+          onUpdateNestedElement(propertyKey, finalElementName, newElementValue.trim());
+          setNewElementName('');
+          setNewElementValue('');
+          setCustomElementName('');
+          setShowElementAddModal(false);
         }}
       >
-        <Space orientation="vertical" style={{ width: '100%' }}>
-          <Input
-            placeholder="要素名（例: value, description）"
-            value={newElementName}
-            onChange={(e) => setNewElementName(e.target.value)}
-          />
-          <TextArea
-            rows={3}
-            placeholder="要素値を入力"
-            value={newElementValue}
-            onChange={(e) => setNewElementValue(e.target.value)}
-          />
-        </Space>
+        {(() => {
+          const xsiType = propertyData.attributes?.['xsi:type'] ?? '';
+          const isContent = propertyData.tagName === 'content';
+          const isPropertyListType = xsiType === 'propertyListType';
+          const elementOptions = isContent ? CONTENT_ELEMENT_OPTIONS : PROPERTY_ELEMENT_OPTIONS;
+
+          return (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {/* 要素名セレクト */}
+              <Select
+                placeholder="要素名を選択"
+                value={newElementName || undefined}
+                onChange={(val: string) => {
+                  setNewElementName(val);
+                  setNewElementValue('');
+                  if (val === '__custom__') setCustomElementName('');
+                }}
+                style={{ width: '100%' }}
+              >
+                {elementOptions.map((opt) => (
+                  <Option
+                    key={opt.value}
+                    value={opt.value}
+                    disabled={isPropertyListType && opt.value === 'value'}
+                  >
+                    {opt.label}
+                    {isPropertyListType && opt.value === 'value'
+                      ? '（propertyListType には使用不可）'
+                      : ''}
+                  </Option>
+                ))}
+              </Select>
+
+              {/* カスタム要素名入力欄 */}
+              {newElementName === '__custom__' && (
+                <Input
+                  placeholder="カスタム要素名を入力（例: customField）"
+                  value={customElementName}
+                  onChange={(e) => setCustomElementName(e.target.value)}
+                />
+              )}
+
+              {/* 要素値入力欄（要素名が確定した場合に表示） */}
+              {newElementName && newElementName !== '__custom__' && (
+                <>
+                  {/* propertyListType の value 選択時は注意書きのみ */}
+                  {isPropertyListType && newElementName === 'value' ? (
+                    <Alert
+                      type="warning"
+                      message="propertyListType には value 要素は追加できません"
+                      description="子要素（property）ボタンから子プロパティを追加してください。"
+                      showIcon
+                    />
+                  ) : newElementName === 'value' && xsiType ? (
+                    /* value 要素かつ xsi:type 設定あり → 型対応入力コンポーネント */
+                    <ElementValueInput
+                      xsiType={xsiType}
+                      value={newElementValue}
+                      onChange={setNewElementValue}
+                    />
+                  ) : (
+                    /* value 以外の標準要素、または xsi:type 未設定の value → TextArea */
+                    <TextArea
+                      rows={3}
+                      placeholder="要素値を入力"
+                      value={newElementValue}
+                      onChange={(e) => setNewElementValue(e.target.value)}
+                    />
+                  )}
+                  {/* xsi:type のヘルプテキスト */}
+                  {newElementName === 'value' && xsiType && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      <InfoCircleOutlined style={{ marginRight: 4 }} />
+                      xsi:type: <Tag>{xsiType}</Tag> に応じた入力欄が表示されています
+                    </Text>
+                  )}
+                </>
+              )}
+
+              {/* カスタム要素名の場合は常に TextArea */}
+              {newElementName === '__custom__' && customElementName.trim() && (
+                <TextArea
+                  rows={3}
+                  placeholder="要素値を入力"
+                  value={newElementValue}
+                  onChange={(e) => setNewElementValue(e.target.value)}
+                />
+              )}
+            </Space>
+          );
+        })()}
       </Modal>
 
       {/* 子要素追加モーダル */}
@@ -525,6 +697,129 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         </Space>
       </Modal>
     </div>
+  );
+};
+
+// ===== ElementValueInput: xsi:type に応じた入力コンポーネント =====
+
+interface ElementValueInputProps {
+  xsiType: string;
+  value: string;
+  onChange: (v: string) => void;
+}
+
+/**
+ * xsi:type に応じた要素値入力コンポーネント
+ *
+ * - 整数型 → InputNumber (precision=0)
+ * - 符号なし整数型 → InputNumber (min=0, precision=0)
+ * - 実数型 → InputNumber
+ * - booleanType → Select (true/false)
+ * - dateTimeType → DatePicker (showTime)
+ * - dateType → DatePicker
+ * - リスト型 → TextArea + ヘルプテキスト
+ * - その他 → TextArea
+ */
+const ElementValueInput: React.FC<ElementValueInputProps> = ({ xsiType, value, onChange }) => {
+  // ----- 整数型 -----
+  if (isIntegerXsiType(xsiType)) {
+    const min = isUnsignedIntXsiType(xsiType) ? 0 : undefined;
+    return (
+      <InputNumber
+        style={{ width: '100%' }}
+        placeholder="整数値を入力"
+        precision={0}
+        min={min}
+        value={value !== '' ? Number(value) : undefined}
+        onChange={(v) => onChange(v !== null && v !== undefined ? String(v) : '')}
+      />
+    );
+  }
+
+  // ----- 実数型 -----
+  if (['floatType', 'doubleType', 'decimalType'].includes(xsiType)) {
+    return (
+      <InputNumber
+        style={{ width: '100%' }}
+        placeholder="数値を入力（例: 3.14）"
+        value={value !== '' ? Number(value) : undefined}
+        onChange={(v) => onChange(v !== null && v !== undefined ? String(v) : '')}
+      />
+    );
+  }
+
+  // ----- 真偽値型 -----
+  if (xsiType === 'booleanType') {
+    return (
+      <Select
+        style={{ width: '100%' }}
+        placeholder="値を選択"
+        value={value || undefined}
+        onChange={(v) => onChange(v)}
+      >
+        <Option value="true">true</Option>
+        <Option value="false">false</Option>
+      </Select>
+    );
+  }
+
+  // ----- 日時型 -----
+  if (xsiType === 'dateTimeType') {
+    return (
+      <DatePicker
+        showTime
+        style={{ width: '100%' }}
+        format="YYYY-MM-DD HH:mm:ss"
+        placeholder="日時を選択"
+        value={value ? dayjs(value) : undefined}
+        onChange={(_, dateStr) =>
+          onChange(typeof dateStr === 'string' ? dateStr : '')
+        }
+      />
+    );
+  }
+
+  // ----- 日付型 -----
+  if (xsiType === 'dateType') {
+    return (
+      <DatePicker
+        style={{ width: '100%' }}
+        format="YYYY-MM-DD"
+        placeholder="日付を選択"
+        value={value ? dayjs(value, 'YYYY-MM-DD') : undefined}
+        onChange={(_, dateStr) =>
+          onChange(typeof dateStr === 'string' ? dateStr : '')
+        }
+      />
+    );
+  }
+
+  // ----- リスト型 -----
+  if (isListXsiType(xsiType)) {
+    return (
+      <>
+        <TextArea
+          rows={3}
+          placeholder="スペース区切りで値を入力（例: 1.0 2.5 3.7）"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          <InfoCircleOutlined style={{ marginRight: 4 }} />
+          リスト型: 値をスペース区切りで入力してください
+        </Text>
+      </>
+    );
+  }
+
+  // ----- デフォルト: TextArea -----
+  return (
+    <TextArea
+      rows={3}
+      placeholder="値を入力"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
   );
 };
 

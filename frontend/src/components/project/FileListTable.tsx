@@ -38,6 +38,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 interface FileListTableProps {
   files: ProjectFile[];
   projectId: string;
+  /** 現在表示中のフォルダパス（'root' またはパス文字列） */
+  currentFolder?: string;
   onFileClick?: (file: ProjectFile) => void;
   onFolderClick?: (folderId: string) => void;
   onViewFile?: (file: ProjectFile) => void;
@@ -45,6 +47,15 @@ interface FileListTableProps {
   /** ファイル名変更後に呼び出すコールバック（ファイル一覧再取得用） */
   onRenameFile?: () => void;
 }
+
+/**
+ * フォルダ名（フルパスを含む可能性あり）から表示用の末尾セグメントのみを返す
+ * 例: "rawdata/sub/" → "sub", "rawdata" → "rawdata"
+ */
+const extractFolderDisplayName = (name: string): string => {
+  const parts = name.split('/').filter(s => s !== '');
+  return parts[parts.length - 1] || name;
+};
 
 /**
  * ファイル一覧テーブルコンポーネント
@@ -195,20 +206,30 @@ const FileListTable: React.FC<FileListTableProps> = ({
       dataIndex: 'name',
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name, 'ja'),
-      render: (text: string, record: ProjectFile) => (
-        <Tooltip title={record.path} placement="topLeft">
-          <span
-            style={{
-              fontWeight: record.isFolder ? token.fontWeightStrong : 'normal',
-              color: record.isFolder ? token.colorWarning : 'inherit',
-              cursor: record.isFolder ? 'pointer' : 'inherit',
-            }}
-          >
-            {text}
-            {record.isFolder && record.fileCount !== undefined && ` (${record.fileCount})`}
-          </span>
-        </Tooltip>
-      ),
+      render: (text: string, record: ProjectFile) => {
+        // フォルダ名がフルパス（"rawdata/sub/" など）の場合、末尾スラッシュを除いた最後のセグメントのみ表示
+        const getDisplayName = (name: string) => {
+          if (!record.isFolder || !name.includes('/')) return name;
+          // 末尾スラッシュを除いてから空でないセグメントの最後を取得
+          const parts = name.split('/').filter(s => s !== '');
+          return parts[parts.length - 1] || name;
+        };
+        const displayName = getDisplayName(text);
+        return (
+          <Tooltip title={record.path} placement="topLeft">
+            <span
+              style={{
+                fontWeight: record.isFolder ? token.fontWeightStrong : 'normal',
+                color: record.isFolder ? token.colorWarning : 'inherit',
+                cursor: record.isFolder ? 'pointer' : 'inherit',
+              }}
+            >
+              {displayName}
+              {record.isFolder && record.fileCount !== undefined && ` (${record.fileCount})`}
+            </span>
+          </Tooltip>
+        );
+      },
     },
     {
       title: t('projectManagement.fileManagement.table.size'),
@@ -242,7 +263,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
         const menuItems: MenuProps['items'] = [
           {
             key: 'rename',
-            label: '名前の変更',
+            label: <span data-testid="file-menu-rename">名前の変更</span>,
             icon: <EditOutlined />,
             onClick: (info) => {
               info.domEvent.stopPropagation();
@@ -254,7 +275,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
           },
           {
             key: 'delete',
-            label: '削除',
+            label: <span data-testid="file-menu-delete">削除</span>,
             icon: <DeleteOutlined />,
             danger: true,
             onClick: () => {
@@ -275,6 +296,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
                 type="default"
                 size="small"
                 icon={<MoreOutlined />}
+                data-testid="file-more-menu-button"
                 onClick={(e) => {
                   e.stopPropagation();
                 }}
@@ -374,6 +396,34 @@ const FileListTable: React.FC<FileListTableProps> = ({
         </Form>
       </Modal>
     </>
+    <Table
+      dataSource={files}
+      columns={columns}
+      rowKey="id"
+      size="small"
+      pagination={false}
+      locale={{
+        emptyText: <Empty description={t('projectManagement.fileManagement.emptyState')} image={Empty.PRESENTED_IMAGE_SIMPLE} />,
+      }}
+      onRow={(record) => ({
+        'data-testid': 'file-list-row',
+        onClick: () => {
+          if (record.isFolder) {
+            if (record.id === 'back') {
+              onFolderClick?.('back');
+            } else {
+              // フォルダ名がフルパスの場合は末尾セグメントのみ渡す
+              onFolderClick?.(extractFolderDisplayName(record.name));
+            }
+          } else {
+            onFileClick?.(record);
+          }
+        },
+        style: {
+          cursor: record.isFolder || onFileClick ? 'pointer' : 'default',
+        },
+      })}
+    />
   );
 };
 

@@ -71,6 +71,7 @@
 - **概要**（Text）: プロジェクトの説明
 
 #### 2.2.4 右側パネル - ファイル操作ツールバー
+- **削除ボタン**（Button + DeleteOutlined, danger）: プロジェクト削除
 - **ZIPダウンロードボタン**（Button + DownloadOutlined）: プロジェクト全体をZIPでダウンロード
 - **編集ボタン**（Button + EditOutlined）: Petri Netエディタを開く（Draft復元確認あり）
 - **チェックイン/チェックアウトボタン**（Button + FileTextOutlined）: 状態切り替え
@@ -484,11 +485,12 @@ const handleProjectDownload = useCallback(async () => {
 
 | 条件 | ボタンラベル | ボタン種別 | 活性状態 |
 |------|------------|----------|--------|
-| 公開中でも非公開中でもない（未公開 or `done`/`error`） | 公開する | `type="default"` | 有効 |
-| `status = 'pending'` または `'running'`（公開ジョブ処理中） | 公開処理中… | `type="default"` | disabled |
-| `status = 'done'` かつ `asset_id` あり（公開済み） | 非公開にする | `type="default" danger` | 有効 |
-| `status = 'pending'` または `'running'`（非公開ジョブ処理中） | 非公開処理中… | `type="default"` | disabled |
-| プロジェクト未選択 | 公開する | `type="default"` | disabled |
+| 公開中でも非公開中でもない（未公開 or `done`/`error`） かつ プロジェクトステータスが3（レビュー待ち）または4（完了） | 公開する | `type="primary"` | 有効 |
+| 公開中でも非公開中でもない かつ プロジェクトステータスが3・4以外 | 公開する | `type="primary"` | **disabled**（ステータス不正） |
+| `status = 'pending'` または `'running'`（公開ジョブ処理中） | 公開処理中… | `type="primary"` | disabled |
+| `status = 'done'` かつ `asset_id` あり（公開済み） | 非公開にする | `type="primary" danger` | 有効 |
+| `status = 'pending'` または `'running'`（非公開ジョブ処理中） | 非公開処理中… | `type="primary"` | disabled |
+| プロジェクト未選択 | 公開する | `type="primary"` | disabled |
 
 #### 3.9.2 ボタン押下時の処理
 
@@ -1037,6 +1039,7 @@ useEffect(() => {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-04-01 | PR #138対応: ファイル操作ツールバーに削除ボタン追加、プロジェクト削除機能・ファイル削除機能追加 | Cline |
 | 2026-03-25 | Draft復元フロー変更・sessionStorage保持対応 | Cline |
 | | - 3.6 編集ボタン: Draft復元確認を削除、常に直接エディタへ遷移 | |
 | | - 3.6.2 新規追加: 初期表示時のDraft確認（バックエンドDraftのみ） | |

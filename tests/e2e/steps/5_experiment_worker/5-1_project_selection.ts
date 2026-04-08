@@ -21,7 +21,7 @@ import { expect } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { db, closeDb } from '../../db';
 
-const { Given, When, Then, Before, After, AfterAll } = createBdd();
+const { When, Then, Before, After, AfterAll } = createBdd();
 
 // ---------------------------------------------------------------------------
 // 定数
@@ -83,8 +83,8 @@ const createdProjectIds: string[] = [];
  * - テスト用プロジェクト_5-1 を INSERT
  * - テスト用メソッドA・B と各タスクを project_task に INSERT
  */
-Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5' }, async () => {
-  console.log('[5-1 Before] テストデータ準備 開始 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5)');
+Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-6 or @5-1-7' }, async () => {
+  console.log('[5-1 Before] テストデータ準備 開始 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-6 or @5-1-7)');
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1);
@@ -94,9 +94,9 @@ Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5' }, async () => {
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1, 0);
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2, 0);
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1, 0);
-    console.log('[5-1 Before] テストデータ準備 完了 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5)');
+    console.log('[5-1 Before] テストデータ準備 完了 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-6 or @5-1-7)');
   } catch (error) {
-    console.error('[5-1 Before] テストデータ準備 失敗 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5):', error);
+    console.error('[5-1 Before] テストデータ準備 失敗 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-6 or @5-1-7):', error);
     throw error;
   }
 });
@@ -115,8 +115,9 @@ Before({ tags: '@5-1-8 or @5-1-9' }, async () => {
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1);
-    // task_no=1 → completed(4)、task_no=2 → not_started(0)
-    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1, 4);
+    // task_no=1 → completed(3)、task_no=2 → not_started(0)
+    // DBの task_status 数値マッピング: 0=not_started, 1=in_progress, 2=review_waiting, 3=completed, 4=forced_terminated
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1, 3);
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2, 0);
     await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1, 0);
     console.log('[5-1 Before] テストデータ準備 完了 (tags: @5-1-8 or @5-1-9)');
@@ -209,43 +210,6 @@ AfterAll(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// When: ログイン・画面遷移
-// ---------------------------------------------------------------------------
-
-/**
- * 実験作業者ユーザーでログインする
- * TODO: ユーザーID・パスワードは仮値。実際の値に要更新。
- */
-When('実験作業者ユーザー {string} でログインする', async ({ page }, _userId: string) => {
-  await page.goto(`/?orgId=${ORG_ID}`);
-  await page.waitForSelector('#userId', { timeout: 15000 });
-  // TODO: 実際の実験作業者ユーザーIDとパスワードに更新すること
-  await page.fill('#userId', 'worker@example.com');
-  await page.fill('#password', 'worker123');
-  await page.click('button[type="submit"]');
-  await page.waitForLoadState('networkidle', { timeout: 30000 });
-});
-
-/**
- * 実験作業者メイン画面が表示されていることを確認する
- * （ログイン後、実験作業者メニューに遷移している前提）
- */
-When('実験作業者メイン画面が表示されている', async ({ page }) => {
-  // プロジェクト選択コンボボックスが表示されるまで待機（ExperimentWorkerMenu の project-select）
-  await page.waitForSelector('[data-testid="project-select"]', {
-    timeout: 15000,
-  });
-});
-
-/**
- * 実験記録タブをクリックして開く
- */
-When('実験記録タブを開く', async ({ page }) => {
-  await page.click('text=実験記録');
-  await page.waitForLoadState('networkidle', { timeout: 10000 });
-});
-
-// ---------------------------------------------------------------------------
 // When: プロジェクト選択操作
 // ---------------------------------------------------------------------------
 
@@ -285,24 +249,6 @@ When('プロジェクト選択エリアの「選択」ボタンをクリック�
   await selectBtn.click();
   // モーダルが表示されるまで待機
   await page.waitForSelector('.ant-modal', { timeout: 10000 });
-});
-
-/**
- * プロジェクト選択コンボボックスで指定プロジェクトを選択する
- */
-When('プロジェクト選択コンボボックスでプロジェクト {string} を選択する', async ({ page }, projectName: string) => {
-  // プロジェクト選択エリアの Select をクリックして展開（ExperimentWorkerMenu.tsx: data-testid="project-select"）
-  const projectSelect = page.locator('[data-testid="project-select"]');
-  await projectSelect.waitFor({ state: 'visible', timeout: 10000 });
-  await projectSelect.click();
-  // ドロップダウンが表示されるまで待機
-  await waitForSelectDropdown(page);
-  // 指定プロジェクト名のオプションをクリック（title属性の前方一致で完全プロジェクト名を特定）
-  // getByRole() は aria-label で解決されるが仮想スクロール外で不可視になる問題があるため
-  // title 属性の CSS 前方一致セレクターを使用する
-  const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
-  await visibleDropdown.locator(`.ant-select-item-option[title^="${projectName} "]`).click();
-  await page.waitForLoadState('networkidle', { timeout: 10000 });
 });
 
 // ---------------------------------------------------------------------------
@@ -578,22 +524,36 @@ Then('タスク選択コンボボックスに {string} が表示されている�
 
 /**
  * [5-1-5] タスク一覧に指定タスク名が表示されていること
+ *
+ * タスク番号はテーブルの2列目セル（タスク番号列）に表示される。
+ * `tr:has-text("1")` は「全1件」「ページ1」など他の要素にもマッチするため、
+ * テーブル tbody の tr を対象にして、タスク番号セル（td:nth-child(2)）を厳密に一致確認する。
  */
 Then('タスク一覧に {string} が表示されていること', async ({ page }, taskName: string) => {
   const modal = page.locator('.ant-modal').filter({ hasText: 'メソッド・タスク選択' });
+  // タスク番号列（2列目）のセルテキストが完全一致する行が存在すること
   await expect(
-    modal.locator(`tr:has-text("${taskName}"), li:has-text("${taskName}")`)
+    modal.locator('table tbody tr').filter({
+      has: page.locator(`td:nth-child(2)`).filter({ hasText: new RegExp(`^${taskName}$`) }),
+    }).first()
   ).toBeVisible({ timeout: 10000 });
 });
 
 /**
  * [5-1-5] タスク一覧に指定タスク名が表示されていないこと（フィルタで非表示）
+ *
+ * タスク番号はテーブルの2列目セル（タスク番号列）に表示される。
+ * `tr:has-text("1")` は「全1件」「ページ1」など他の要素にもマッチするため、
+ * テーブル tbody の tr を対象にして、タスク番号セル（td:nth-child(2)）を厳密に一致確認する。
  */
 Then('タスク一覧に {string} が表示されていないこと', async ({ page }, taskName: string) => {
   const modal = page.locator('.ant-modal').filter({ hasText: 'メソッド・タスク選択' });
+  // タスク番号列（2列目）のセルテキストが完全一致する行が存在しないこと
   await expect(
-    modal.locator(`tr:has-text("${taskName}"), li:has-text("${taskName}")`)
-  ).not.toBeVisible({ timeout: 5000 });
+    modal.locator('table tbody tr').filter({
+      has: page.locator(`td:nth-child(2)`).filter({ hasText: new RegExp(`^${taskName}$`) }),
+    })
+  ).toHaveCount(0, { timeout: 5000 });
 });
 
 /**
@@ -670,6 +630,10 @@ async function upsertTestProject(projectId: string, projectName: string): Promis
          WHERE organization_id = $3 AND project_id = $4`,
         [projectName, PROJECT_STATUS_EXECUTING_TASK, ORG_ID, projectId]
       );
+      // UPDATE時も After クリーンアップ対象に追加（重複チェック）
+      if (!createdProjectIds.includes(projectId)) {
+        createdProjectIds.push(projectId);
+      }
       console.log(`[5-1 upsertTestProject] UPDATE 完了: project_id=${projectId}`);
     } else {
       // 新規 INSERT
@@ -724,7 +688,7 @@ async function upsertTestProjectTask(
           create_user_id, create_at, update_user_id, update_at
         ) VALUES (
           $1, $2, $3, $4,
-          1, 1, false,
+          1, 1, true,
           'e2e-test', NOW(), 'e2e-test', NOW()
         )`,
         [ORG_ID, projectId, methodId, experimentOrder]
@@ -737,7 +701,27 @@ async function upsertTestProjectTask(
       });
       console.log(`[5-1 upsertTestProjectTask] INSERT 完了: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}`);
     } else {
-      console.log(`[5-1 upsertTestProjectTask] スキップ（既存レコードあり）: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}`);
+      // 既存レコードが存在する場合は必要なカラムをUPDATE
+      await db.query(
+        `UPDATE project_task
+         SET experiment_condition = $1, attempts_count = $2, worker_linked_flg = $3,
+             update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $4 AND project_id = $5 AND method_id = $6 AND experiment_order = $7`,
+        [1, 1, true, ORG_ID, projectId, methodId, experimentOrder]
+      );
+      // UPDATE時も After クリーンアップ対象に追加（重複チェック）
+      if (!createdProjectTaskKeys.some(
+        k => k.organization_id === ORG_ID && k.project_id === projectId &&
+             k.method_id === methodId && k.experiment_order === experimentOrder
+      )) {
+        createdProjectTaskKeys.push({
+          organization_id: ORG_ID,
+          project_id: projectId,
+          method_id: methodId,
+          experiment_order: experimentOrder,
+        });
+      }
+      console.log(`[5-1 upsertTestProjectTask] UPDATE 完了: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}`);
     }
   } catch (error) {
     console.error(`[5-1 upsertTestProjectTask] 失敗: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}:`, error);
@@ -797,6 +781,18 @@ async function upsertTestProjectTaskDetail(
          WHERE organization_id = $2 AND project_id = $3 AND method_id = $4 AND task_no = $5`,
         [taskStatus, ORG_ID, projectId, methodId, taskNo]
       );
+      // UPDATE時も After クリーンアップ対象に追加（重複チェック）
+      if (!createdProjectTaskDetailKeys.some(
+        k => k.organization_id === ORG_ID && k.project_id === projectId &&
+             k.method_id === methodId && k.task_no === taskNo
+      )) {
+        createdProjectTaskDetailKeys.push({
+          organization_id: ORG_ID,
+          project_id: projectId,
+          method_id: methodId,
+          task_no: taskNo,
+        });
+      }
       console.log(`[5-1 upsertTestProjectTaskDetail] UPDATE 完了: project_id=${projectId}, method_id=${methodId}, task_no=${taskNo}, task_status=${taskStatus}`);
     }
   } catch (error) {

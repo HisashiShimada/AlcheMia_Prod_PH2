@@ -21,6 +21,7 @@ import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
 import { XMLParser } from 'fast-xml-parser';
 import type { Project, Pagination, ProjectListResponse } from '../types/project';
+import type { ProjectFileResponse, GetProjectFilesData, StorageFileEntry } from '../types/file';
 import { nanoid } from 'nanoid';
 
 interface ListOptions {
@@ -396,7 +397,14 @@ export class ProjectService {
             WHEN ptd.task_status = 4 
             THEN ptd.method_id || '_' || ptd.task_no::TEXT 
             ELSE NULL 
-          END) as completed_task_count
+          END) as completed_task_count,
+          (
+            SELECT COUNT(*)
+            FROM file_metadata fm
+            WHERE fm.organization_id = p.organization_id
+              AND fm.parent_folder_path LIKE CAST(p.organization_id AS TEXT) || '/projects/' || p.project_name || '%'
+              AND fm.file_key NOT LIKE '%/.keep'
+          ) as file_count
         FROM project p
         LEFT JOIN project_task_detail ptd
           ON ptd.project_id = p.project_id
@@ -471,8 +479,8 @@ export class ProjectService {
         description: row.description || '',
         status: row.project_status, // 数値のまま返す
         statusName: row.project_status_name || undefined, // code_masterから取得した日本語名
-        fileCount: 0, // 後で実装予定
-        totalSize: 0, // 後で実装予定
+        fileCount: parseInt(row.file_count, 10) || 0,
+        totalSize: 0,
         owner: row.owner_user_id,
         ownerName: row.owner_user_name || undefined,
         ownerEmail: row.owner_email || undefined,
@@ -1018,14 +1026,7 @@ export class ProjectService {
   async getProjectFiles(
     organizationId: string,
     projectId: string
-  ): Promise<
-    ServiceResult<{
-      projectId: string;
-      projectName: string;
-      files: any[];
-      archiveFiles: any[];
-    }>
-  > {
+  ): Promise<ServiceResult<GetProjectFilesData>> {
     try {
       // Repository層経由でプロジェクト情報を取得
       const project = await projectRepository.findProjectBasicInfo(organizationId, projectId);
@@ -1043,56 +1044,74 @@ export class ProjectService {
       const projectName = project.project_name;
 
       // S3からファイル一覧を取得（グレースフル処理）
-      let files: any[] = [];
-      let archiveFiles: any[] = [];
+      let files: ProjectFileResponse[] = [];
+      const subFolderFiles: Record<string, ProjectFileResponse[]> = {};
 
       try {
         const storageService = getStorageService();
+        const chunkSize = 20;
 
-        // 現在のファイル一覧を取得
-        const currentFiles = await storageService
+        // プロジェクト配下の全ファイルを再帰的に取得
+        const allFiles = await storageService
           .listFiles(organizationId, `projects/${projectName}/`)
           .catch(() => []);
 
-        // archive配下のファイルと.keepファイルを除外してフィルタリング
-        const rootFiles = currentFiles.filter((file: any) => {
-          console.log(file.key);
-          // archive/配下のファイルは除外
-          if (file.key.includes('/archive/')) {
-            return false;
-          }
-
-          // .keepファイルを除外
+        // .keepファイルを除外
+        const validFiles = (allFiles as StorageFileEntry[]).filter((file) => {
           const fileName = file.key.split('/').pop() || '';
-          if (fileName === '' || fileName === '.keep') {
-            return false;
-          }
-
-          return true;
+          return fileName !== '' && fileName !== '.keep';
         });
 
-        // 各ファイルに対して署名付きURLを生成（並列数制限: 20ファイルずつ）
+        // プロジェクトプレフィックスを除去して相対パスで分類
+        // file.key 例: "{orgId}/projects/{projectName}/rawdata/measurement.csv"
+        // projectPrefix = "{orgId}/projects/{projectName}/"
+        const projectPrefix = `${organizationId}/projects/${projectName}/`;
+
+        // ルート直下ファイル / サブフォルダ別ファイルに分類
+        const rootOnlyFiles: StorageFileEntry[] = []; // ルート直下ファイル
+        const subFolderMap: Record<string, StorageFileEntry[]> = {}; // サブフォルダ名 → ファイル一覧
+
+        for (const file of validFiles) {
+          // projectPrefix を除去してプロジェクト相対パスを取得
+          const relativePath = file.key.startsWith(projectPrefix)
+            ? file.key.substring(projectPrefix.length)
+            : file.key;
+
+          // 相対パスのセグメントを分割
+          const segments = relativePath.split('/').filter(s => s !== '');
+
+          if (segments.length === 1) {
+            // ルート直下ファイル
+            rootOnlyFiles.push(file);
+          } else if (segments.length >= 2) {
+            // サブフォルダ配下のファイル（1階層目のフォルダ名をキーとして分類）
+            const topFolder = segments[0];
+            if (!subFolderMap[topFolder]) {
+              subFolderMap[topFolder] = [];
+            }
+            subFolderMap[topFolder].push(file);
+            console.log(segments[0]);
+            console.log(segments);
+          }
+        }
+
+        // ルート直下ファイルに署名付きURLを生成
         const startTime = Date.now();
-        const chunkSize = 20;
         files = [];
 
-        for (let i = 0; i < rootFiles.length; i += chunkSize) {
-          const chunk = rootFiles.slice(i, i + chunkSize);
+        for (let i = 0; i < rootOnlyFiles.length; i += chunkSize) {
+          const chunk = rootOnlyFiles.slice(i, i + chunkSize);
           const chunkResults = await Promise.all(
-            chunk.map(async (file: any) => {
+            chunk.map(async (file: StorageFileEntry) => {
               const signedUrl = await storageService.getSignedUrl(
                 organizationId,
                 file.key.replace(`${organizationId}/`, ''),
                 3600
               );
 
-              // ファイル名を抽出
               const fileName = file.key.split('/').pop() || '';
               const fileType = fileName.split('.').pop() || '';
 
-              // organizationId プレフィックスを除去して相対パスとして返す
-              // file.key 例: "550e8400.../projects/Sample_Project/Sample_Project.maiml"
-              // 相対パス例: "projects/Sample_Project/Sample_Project.maiml"
               const relativePath = file.key.startsWith(`${organizationId}/`)
                 ? file.key.substring(organizationId.length + 1)
                 : file.key;
@@ -1108,7 +1127,7 @@ export class ProjectService {
                 version: null,
                 signedUrl,
                 createdAt: file.lastModified.toISOString(),
-              };
+              } satisfies ProjectFileResponse;
             })
           );
           files.push(...chunkResults);
@@ -1116,29 +1135,20 @@ export class ProjectService {
 
         const endTime = Date.now();
         console.log(
-          `[Performance] 署名付きURL生成完了: ${rootFiles.length}ファイル、処理時間: ${endTime - startTime}ms`
+          `[Performance] ルートファイル署名付きURL生成完了: ${rootOnlyFiles.length}ファイル、処理時間: ${endTime - startTime}ms`
         );
 
-        // archiveファイルを常に取得（include_archiveパラメータ削除）
-        const archiveFilesList = await storageService
-          .listFiles(organizationId, `projects/${projectName}/archive/`)
-          .catch(() => []);
+        // サブフォルダ配下のファイルに署名付きURLを生成
+        for (const [folderName, folderFiles] of Object.entries(subFolderMap)) {
+          const isArchiveFolder = folderName === 'archive';
+          subFolderFiles[folderName] = [];
 
-        // .keepファイルを除外
-        const filteredArchiveFiles = archiveFilesList.filter((file: any) => {
-          const fileName = file.key.split('/').pop() || '';
-          return fileName !== '.keep';
-        });
+          const folderStartTime = Date.now();
 
-        // archiveファイルが存在する場合のみ署名付きURL生成（並列数制限: 20ファイルずつ）
-        if (filteredArchiveFiles.length > 0) {
-          const archiveStartTime = Date.now();
-          archiveFiles = [];
-
-          for (let i = 0; i < filteredArchiveFiles.length; i += chunkSize) {
-            const chunk = filteredArchiveFiles.slice(i, i + chunkSize);
+          for (let i = 0; i < folderFiles.length; i += chunkSize) {
+            const chunk = folderFiles.slice(i, i + chunkSize);
             const chunkResults = await Promise.all(
-              chunk.map(async (file: any) => {
+              chunk.map(async (file: StorageFileEntry) => {
                 const signedUrl = await storageService.getSignedUrl(
                   organizationId,
                   file.key.replace(`${organizationId}/`, ''),
@@ -1148,40 +1158,56 @@ export class ProjectService {
                 const fileName = file.key.split('/').pop() || '';
                 const fileType = fileName.split('.').pop() || '';
 
-                // バージョン番号を抽出（_v{number}.maiml パターン）
-                const versionMatch = fileName.match(/_v(\d+)\.maiml$/);
+                // バージョン番号を抽出（archive配下の _v{number}.maiml パターン）
+                const versionMatch = isArchiveFolder ? fileName.match(/_v(\d+)\.maiml$/) : null;
                 const version = versionMatch ? parseInt(versionMatch[1], 10) : null;
 
-                // organizationId プレフィックスを除去して相対パスとして返す
-                const archiveRelativePath = file.key.startsWith(`${organizationId}/`)
+                const relativePath = file.key.startsWith(`${organizationId}/`)
                   ? file.key.substring(organizationId.length + 1)
                   : file.key;
 
                 return {
                   id: file.key,
                   name: fileName,
-                  path: archiveRelativePath,
+                  path: relativePath,
                   size: file.size,
                   lastModified: file.lastModified.toISOString(),
                   type: fileType,
-                  isArchive: true,
+                  isArchive: isArchiveFolder,
                   version,
                   signedUrl,
                   createdAt: file.lastModified.toISOString(),
-                };
+                } satisfies ProjectFileResponse;
               })
             );
-            archiveFiles.push(...chunkResults);
+            subFolderFiles[folderName].push(...chunkResults);
           }
 
-          const archiveEndTime = Date.now();
           console.log(
-            `[Performance] アーカイブファイル署名付きURL生成完了: ${filteredArchiveFiles.length}ファイル、処理時間: ${archiveEndTime - archiveStartTime}ms`
+            `[Performance] サブフォルダ「${folderName}」署名付きURL生成完了: ${folderFiles.length}ファイル、処理時間: ${Date.now() - folderStartTime}ms`
           );
-        } else {
-          // 空配列を明示的に設定
-          archiveFiles = [];
         }
+
+        // ルート直下にサブフォルダエントリ（isFolder:true）を追加
+        // ファイルが存在するサブフォルダのみエントリを作成
+        for (const folderName of Object.keys(subFolderMap)) {
+          const folderEntry = {
+            id: `folder_${folderName}`,
+            name: folderName,
+            path: `projects/${projectName}/${folderName}`,
+            size: 0,
+            lastModified: '',
+            type: 'folder',
+            isFolder: true,
+            isArchive: folderName === 'archive',
+            version: null,
+            signedUrl: null,
+            createdAt: '',
+            fileCount: subFolderMap[folderName].length,
+          };
+          files.push(folderEntry);
+        }
+
       } catch (s3Error) {
         // S3エラー時は空配列を返す（グレースフル処理）
         console.error('S3 file listing failed:', s3Error);
@@ -1193,7 +1219,7 @@ export class ProjectService {
           projectId,
           projectName,
           files,
-          archiveFiles,
+          subFolderFiles,
         },
       };
     } catch (error) {

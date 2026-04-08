@@ -85,6 +85,15 @@ const useDraftManager = (
   const lastFetchTimeRef = useRef<number>(0);
   const FETCH_COOLDOWN = 2000;
 
+  // draftsステートの最新値を常に参照するためのref
+  // useCallbackのクロージャでdraftsが古い値になる問題を回避する
+  const draftsRef = useRef<Draft[]>([]);
+
+  // draftsが更新されるたびにrefを同期する
+  useEffect(() => {
+    draftsRef.current = drafts;
+  }, [drafts]);
+
   // ==================== API関数 ====================
 
   /**
@@ -104,7 +113,11 @@ const useDraftManager = (
     try {
       const data = await draftService.fetchDrafts();
       
-      setDrafts(data || []);
+      const draftsData = data || [];
+      setDrafts(draftsData);
+      // refもここで直接更新することで、useEffectのレンダー遅延を回避する
+      // cleanupOldAutoSaves()がfetchDrafts()直後に呼ばれる場合でも最新値を参照できる
+      draftsRef.current = draftsData;
       return data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -168,17 +181,18 @@ const useDraftManager = (
 
   /**
    * 古い自動保存を削除（3世代より古いものを削除）
+   * 
+   * saveDraft()内でfetchDrafts()が呼ばれているため、このメソッド呼び出し時点で
+   * draftsステートは既に最新の状態になっている。
+   * fetchDrafts()を再呼び出しするとFETCH_COOLDOWNにより早期リターン（undefined）になるため、
+   * draftsステートを直接使用する。
    */
   const cleanupOldAutoSaves = useCallback(async (): Promise<void> => {
     try {
-      const currentDrafts = await fetchDrafts();
-      
-      if (!currentDrafts) {
-        return;
-      }
-      
-      // 自動保存のみフィルタ（draft_nameに「自動保存」を含む）
-      const autoSaves = currentDrafts
+      // draftsRefを使用することで、useCallbackのクロージャ問題を回避し
+      // 常に最新のdraftsリストを参照する
+      // （setDrafts()はReactの非同期更新のため、draftsステートは古い値になる場合がある）
+      const autoSaves = draftsRef.current
         .filter(d => d.draftName && d.draftName.includes('自動保存'))
         .sort((a, b) => new Date(b.lastSavedAt || new Date()).getTime() - new Date(a.lastSavedAt || new Date()).getTime());
       
@@ -196,7 +210,8 @@ const useDraftManager = (
     } catch (err) {
       console.error('❌ [useDraftManager V2] 自動保存クリーンアップエラー:', err);
     }
-  }, [fetchDrafts, deleteDraft, autoSaveGenerations]);
+  }, [deleteDraft, autoSaveGenerations]);
+  // draftsRef はrefなので依存配列に含めない（refの変更はre-renderをトリガーしない）
 
   // ==================== 自動保存ロジック ====================
 
@@ -267,7 +282,8 @@ const useDraftManager = (
     saveDraft,
     cleanupOldAutoSaves,
     onAutoSaveSuccess,
-    onAutoSaveError
+    onAutoSaveError,
+    projectId,
   ]);
 
   /**

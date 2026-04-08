@@ -32,6 +32,7 @@ import { formatDateTime } from '@/utils/dateFormatter';
 import { getSystemConfig } from '@/services/systemConfigApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 const { useToken } = theme;
@@ -122,7 +123,7 @@ export default function OrganizationManagement() {
       }
     } catch (error) {
       console.error('Organization取得エラー:', error);
-      messageApi.error(t('organizationManagement.messages.fetchError'));
+      messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.fetchError')));
       setOrganizations([]);
     } finally {
       setLoading(false);
@@ -338,7 +339,7 @@ export default function OrganizationManagement() {
       messageApi.success(t('organizationManagement.messages.certDownloadSuccess').replace('{cd}', org.organizationCd));
     } catch (error) {
       console.error('証明書ダウンロードエラー:', error);
-      messageApi.error(t('organizationManagement.messages.certDownloadError'));
+      messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.certDownloadError')));
     }
   };
 
@@ -401,7 +402,7 @@ export default function OrganizationManagement() {
       }
     } catch (error) {
       console.error('システム管理者取得エラー:', error);
-      messageApi.error(t('organizationManagement.messages.systemAdminFetchError'));
+      messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.systemAdminFetchError')));
       setSystemAdminOptions([]);
     }
   };
@@ -435,7 +436,7 @@ export default function OrganizationManagement() {
           await fetchOrganizations();
         } catch (error) {
           console.error('アクティブ化エラー:', error);
-          messageApi.error(t('organizationManagement.messages.activateError'));
+          messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.activateError')));
         }
       },
     });
@@ -463,7 +464,7 @@ export default function OrganizationManagement() {
           await fetchOrganizations();
         } catch (error) {
           console.error('非アクティブ化エラー:', error);
-          messageApi.error(t('organizationManagement.messages.deactivateError'));
+          messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.deactivateError')));
         }
       },
     });
@@ -486,7 +487,7 @@ export default function OrganizationManagement() {
           await fetchOrganizations();
         } catch (error) {
           console.error('ステータス変更エラー:', error);
-          messageApi.error(t('organizationManagement.messages.toggleError'));
+          messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.toggleError')));
         }
       },
     });
@@ -522,7 +523,8 @@ export default function OrganizationManagement() {
       if (response.data.success && response.data.data) {
         const result = response.data.data;
         if (result.failureCount > 0 && result.errors.length > 0) {
-          messageApi.error(result.errors[0].message);
+          console.error('CSV validation error:', result.errors[0].message);
+          messageApi.error(t('organizationManagement.messages.csvUploadError'));
           return;
         }
         messageApi.success(t('organizationManagement.messages.csvUploadSuccess'));
@@ -530,10 +532,10 @@ export default function OrganizationManagement() {
       await fetchOrganizations();
     } catch (error) {
       if (error instanceof Error && !('isAxiosError' in error)) {
-        messageApi.error(error.message);
+        messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.csvUploadError')));
         return;
       }
-      messageApi.error(t('organizationManagement.messages.csvUploadError'));
+      messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.csvUploadError')));
     } finally {
       setLoading(false);
     }
@@ -578,7 +580,7 @@ export default function OrganizationManagement() {
       messageApi.success(t('organizationManagement.messages.csvDownloadSuccess'));
     } catch (error) {
       console.error('CSV download error:', error);
-      messageApi.error(t('organizationManagement.messages.csvDownloadError'));
+      messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.csvDownloadError')));
     }
   };
 
@@ -611,36 +613,20 @@ export default function OrganizationManagement() {
         return;
       }
       console.error('保存エラー:', error);
+      // 409 DUPLICATE_ORGANIZATION_CD の場合のみフォームフィールドにエラーを表示
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status?: number; data?: { error?: { code?: string; message?: string } | string } } };
-        const status = axiosError.response?.status;
-        const errorBody = axiosError.response?.data?.error;
-
-        // 409: 重複エラーの場合は対象フィールドにエラーを表示
-        if (status === 409) {
-          const code = typeof errorBody === 'object' ? errorBody?.code : undefined;
+        const axiosError = error as { response?: { status?: number; data?: { error?: { code?: string } } } };
+        if (axiosError.response?.status === 409) {
+          const code = axiosError.response?.data?.error?.code;
           if (code === 'DUPLICATE_ORGANIZATION_CD') {
             form.setFields([{ name: 'organizationCd', errors: [t('organizationManagement.form.organizationCdDuplicate')] }]);
             setIsDuplicate(true);
             return;
-          } else if (code === 'DUPLICATE_ORGANIZATION_ID') {
-            messageApi.error(t('organizationManagement.messages.saveError'));
-            return;
           }
         }
-
-        // その他エラー
-        const errorMessage = typeof errorBody === 'string' ? errorBody
-          : typeof errorBody === 'object' && errorBody?.message ? errorBody.message
-          : null;
-        if (errorMessage) {
-          messageApi.error(errorMessage);
-        } else {
-          messageApi.error(t('organizationManagement.messages.saveError'));
-        }
-      } else {
-        messageApi.error(t('organizationManagement.messages.saveError'));
       }
+      // その他エラーは extractErrorMessage で統一
+      messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.saveError')));
     }
   };
 
@@ -668,7 +654,7 @@ export default function OrganizationManagement() {
         }
       } catch (error) {
         console.error('会社名の取得に失敗:', error);
-        messageApi.error(t('organizationManagement.messages.corporationFetchError'));
+        messageApi.error(extractErrorMessage(error, t('organizationManagement.messages.corporationFetchError')));
       }
     };
     fetchCorporations();
