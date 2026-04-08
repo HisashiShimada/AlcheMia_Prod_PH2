@@ -186,7 +186,18 @@ function convertProtocol(xmlProtocol: XmlJsElement): Protocol {
   }
   
   const methods = normalizeXmlJsArray(xmlProtocol.method as XmlJsElement);
-  
+
+  const PROTOCOL_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'method', 'materialTemplate', 'conditionTemplate', 'resultTemplate'
+  ]);
+  const unknownElements: Record<string, any> = {};
+  for (const key of Object.keys(xmlProtocol)) {
+    if (!PROTOCOL_KNOWN_KEYS.has(key)) {
+      unknownElements[key] = (xmlProtocol as any)[key];
+    }
+  }
+
   return {
     id: getAttribute(xmlProtocol, 'id') || '',
     uuid: extractText(xmlProtocol.uuid as XmlJsElement) || '',
@@ -195,7 +206,8 @@ function convertProtocol(xmlProtocol: XmlJsElement): Protocol {
     methods: methods.map(convertMethod),
     materialTemplates: xmlProtocol.materialTemplate ? convertArray(xmlProtocol.materialTemplate, convertMaterialTemplate) : [],
     conditionTemplates: xmlProtocol.conditionTemplate ? convertArray(xmlProtocol.conditionTemplate, convertConditionTemplate) : [],
-    resultTemplates: xmlProtocol.resultTemplate ? convertArray(xmlProtocol.resultTemplate, convertResultTemplate) : []
+    resultTemplates: xmlProtocol.resultTemplate ? convertArray(xmlProtocol.resultTemplate, convertResultTemplate) : [],
+    ...(Object.keys(unknownElements).length > 0 ? { unknownElements } : {})
   };
 }
 
@@ -208,7 +220,18 @@ function convertMethod(xmlMethod: any): Method {
     throw new Error('pnml element is required');
   }
   const program = normalizeArray(xmlMethod.program);
-  
+
+  const METHOD_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'pnml', 'program', 'materialTemplate', 'conditionTemplate', 'resultTemplate'
+  ]);
+  const unknownElements: Record<string, any> = {};
+  for (const key of Object.keys(xmlMethod)) {
+    if (!METHOD_KNOWN_KEYS.has(key)) {
+      unknownElements[key] = xmlMethod[key];
+    }
+  }
+
   return {
     id: xmlMethod._attributes?.id || '',
     uuid: xmlMethod.uuid?._text || '',
@@ -218,7 +241,8 @@ function convertMethod(xmlMethod: any): Method {
     program: program.map(convertProgram),
     materialTemplates: xmlMethod.materialTemplate ? convertArray(xmlMethod.materialTemplate, convertMaterialTemplate) : [],
     conditionTemplates: xmlMethod.conditionTemplate ? convertArray(xmlMethod.conditionTemplate, convertConditionTemplate) : [],
-    resultTemplates: xmlMethod.resultTemplate ? convertArray(xmlMethod.resultTemplate, convertResultTemplate) : []
+    resultTemplates: xmlMethod.resultTemplate ? convertArray(xmlMethod.resultTemplate, convertResultTemplate) : [],
+    ...(Object.keys(unknownElements).length > 0 ? { unknownElements } : {})
   };
 }
 
@@ -241,11 +265,21 @@ function convertPNML(xmlPnml: any): PNML {
  * Place変換
  */
 function convertPlace(xmlPlace: any): Place {
+  const positionEl = xmlPlace.position;
+  let position: { x: number; y: number } | undefined;
+  if (positionEl?._attributes) {
+    const x = parseFloat(positionEl._attributes.x);
+    const y = parseFloat(positionEl._attributes.y);
+    if (!isNaN(x) && !isNaN(y)) {
+      position = { x, y };
+    }
+  }
   return {
     id: xmlPlace._attributes?.id || '',
     uuid: xmlPlace.uuid?._text,
     name: xmlPlace.name?._text,
-    description: xmlPlace.description?._text
+    description: xmlPlace.description?._text,
+    position
   };
 }
 
@@ -253,11 +287,21 @@ function convertPlace(xmlPlace: any): Place {
  * Transition変換
  */
 function convertTransition(xmlTransition: any): Transition {
+  const positionEl = xmlTransition.position;
+  let position: { x: number; y: number } | undefined;
+  if (positionEl?._attributes) {
+    const x = parseFloat(positionEl._attributes.x);
+    const y = parseFloat(positionEl._attributes.y);
+    if (!isNaN(x) && !isNaN(y)) {
+      position = { x, y };
+    }
+  }
   return {
     id: xmlTransition._attributes?.id || '',
     uuid: xmlTransition.uuid?._text,
     name: xmlTransition.name?._text,
-    description: xmlTransition.description?._text
+    description: xmlTransition.description?._text,
+    position
   };
 }
 
