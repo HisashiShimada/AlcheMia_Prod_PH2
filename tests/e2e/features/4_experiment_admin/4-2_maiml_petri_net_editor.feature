@@ -56,6 +56,7 @@
   4-2-32: XMLビューの「ダウンロード」ボタンをクリックすると.xmlファイルがダウンロードされること
   4-2-33: XMLビューからペトリネットビューに戻るとビューポート（位置・ズーム）が保持されること
   4-2-34: ペトリネット/テンプレート/XMLビューの3モード間で相互に切り替えられること
+  4-2-53: 保存ダイアログ（SaveConfirmDialog）のキャンセル操作ボタンのラベルが「閉じる」と表示されること
 
   背景:
     前提 実験管理者のユーザID "exp.admin@example.com" がDB（organization_userテーブル）に存在する
@@ -1056,6 +1057,342 @@
   # [4-2-39] ノード移動→保存→ダウンロード→再読み込みでノード位置が一致すること（往復整合性）
   # ===========================================================================
 
+  # ===========================================================================
+  # [No.8] PropertyViewer 値なし区別表示・ツールチップ対応
+  # ===========================================================================
+  # 対応改善仕様: No.8 テンプレート「値なし」表示対応
+  # 実装ドキュメント: docs/改善仕様調査/No.8/result.md
+  #
+  # 対応ファイル:
+  #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx
+  #   - frontend/src/components/viewer/dialogs/PropertyViewerWithSelection.tsx
+  #   - frontend/src/components/viewer/dialogs/StructuredPropertySelector.tsx
+  #
+  # 変更概要:
+  #   ・getPropertyValue() が undefined を返すよう修正（'未設定' 文字列返却を廃止）
+  #   ・renderValue() が undefined / null / "" / boolean を個別に区別表示
+  #   ・テンプレートタブ xsi:type 列・説明/単位 列に未設定時のツールチップを追加
+  #   ・StructuredPropertySelector の formatPropertyValue() も区別対応
+  #
+  # 値の状態と表示仕様（result.md §対応1 より）:
+  #   | 値の状態    | 変更前           | 変更後                                                |
+  #   |------------|-----------------|------------------------------------------------------|
+  #   | undefined  | 「未設定」斜体   | 「未設定」斜体 + Tooltip「値が設定されていません」          |
+  #   | null       | 「未設定」斜体   | 「null」斜体   + Tooltip「null が設定されています」        |
+  #   | ""（空文字）| 「未設定」斜体   | `""(空文字)` + Tooltip「空の文字列が設定されています」     |
+  #   | 0          | "0" として表示   | "0" として表示（変更なし）                                |
+  #   | true       | <Tag>はい</Tag>  | <Tag color="success">true</Tag>                       |
+  #   | false      | <Tag>いいえ</Tag>| <Tag color="error">false</Tag>                        |
+  # ===========================================================================
+
+  @4-2-40 @manual @No8-property-viewer
+  シナリオ: [4-2-40] ペトリネットビューでノードをクリックするとPropertyViewer Drawerが開き「基本情報」「テンプレート」「データ」の3タブが表示されること
+    # 種別: 正常系（表示確認）
+    # 根拠: docs/改善仕様調査/No.8/PLAN.md §実装ステップ Phase1
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx
+    #   - frontend/src/components/viewer/PetriNetViewer.tsx （PropertyViewerWithSelection利用）
+    #
+    # 前提条件:
+    #   - PetriNetEditorまたはPetriNetViewerが起動していること
+    #   - キャンバスにノード（Material / Condition / Result）が1件以上存在すること
+    #
+    # 手動テスト手順:
+    #   1. キャンバス上のノード（Place ノード）をクリックする
+    #   2. PropertyViewer Drawer が開くことを確認する
+    #   3. Drawer 内のタブ構成を目視確認する
+    #
+    # 確認ポイント:
+    #   - PropertyViewer Drawer が右側からスライドして開くこと
+    #   - 「基本情報」「テンプレート」「データ」の 3 タブが表示されること
+    #   - デフォルトで「基本情報」タブが選択された状態で開くこと
+
+  @4-2-41 @manual @No8-property-viewer
+  シナリオ: [4-2-41] PropertyViewerで値が設定されていないプロパティ（undefined）は「未設定」斜体グレーテキスト＋ツールチップで表示されること
+    # 種別: 正常系（表示確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応1 renderValue修正
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx （renderValue関数）
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること（4-2-40 の続き）
+    #   - 表示中のノードに value が undefined のプロパティが1件以上存在すること
+    #     ※ MAIMLの当該 property 要素に <value> タグが存在しない場合に該当
+    #
+    # 手動テスト手順:
+    #   1. PropertyViewer Drawer を開く
+    #   2. 「基本情報」または「データ」タブを選択する
+    #   3. 値列が空のプロパティ行（value = undefined）を探して目視確認する
+    #   4. 該当セルにマウスをホバーする
+    #
+    # 確認ポイント:
+    #   - 値列に「未設定」と斜体グレーテキスト（color: #bfbfbf）で表示されること
+    #   - 「null」「値なし」等の文字列では表示されないこと（必ず「未設定」であること）
+    #   - マウスホバー時に Ant Design Tooltip が表示されること
+    #   - Tooltip のテキストが「値が設定されていません」であること
+
+  @4-2-42 @manual @No8-property-viewer
+  シナリオ: [4-2-42] PropertyViewerでnullが設定されているプロパティは「null」斜体グレーテキスト＋ツールチップで表示されること
+    # 種別: 正常系（表示確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応1 renderValue修正
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx （renderValue関数）
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること
+    #   - 表示中のノードに value = null のプロパティが1件以上存在すること
+    #
+    # 手動テスト手順:
+    #   1. PropertyViewer Drawer を開く
+    #   2. value = null のプロパティ行を探して目視確認する
+    #   3. 該当セルにマウスをホバーする
+    #
+    # 確認ポイント:
+    #   - 値列に「null」と斜体グレーテキスト（color: #bfbfbf）で表示されること
+    #   - 「未設定」という文字列では表示されないこと
+    #   - マウスホバー時に Tooltip が「null が設定されています」と表示されること
+    #   - No.8 対応前の「未設定」表示と明確に区別されること
+
+  @4-2-43 @manual @No8-property-viewer
+  シナリオ: [4-2-43] PropertyViewerで空文字列が設定されているプロパティは「""(空文字)」＋ツールチップで表示されること
+    # 種別: 正常系（表示確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応1 renderValue修正
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx （renderValue関数）
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること
+    #   - 表示中のノードに value = ""（空文字列）のプロパティが1件以上存在すること
+    #     ※ MAIMLの <value></value>（空タグ）に対応
+    #
+    # 手動テスト手順:
+    #   1. PropertyViewer Drawer を開く
+    #   2. value = "" のプロパティ行を探して目視確認する
+    #   3. 該当セルにマウスをホバーする
+    #
+    # 確認ポイント:
+    #   - 値列に `""` と `(空文字)` の組み合わせでグレーテキスト・斜体で表示されること
+    #   - 「未設定」という文字列では表示されないこと
+    #   - マウスホバー時に Tooltip が「空の文字列が設定されています」と表示されること
+    #   - No.8 対応前の「未設定」表示と明確に区別されること
+
+  @4-2-44 @manual @No8-property-viewer
+  シナリオ: [4-2-44] PropertyViewerで数値0が設定されているプロパティは「0」と正しく表示され「未設定」と誤表示されないこと
+    # 種別: 正常系（表示確認・回帰確認）
+    # 根拠: docs/改善仕様調査/No.8/PLAN.md §期待される成果
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx （renderValue関数）
+    #   - frontend/src/components/viewer/PetriNetViewer.tsx
+    #     （value: value || '値なし' → value のまま渡す修正）
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること
+    #   - 表示中のノードに value = 0（数値ゼロ）のプロパティが1件以上存在すること
+    #
+    # 手動テスト手順:
+    #   1. PropertyViewer Drawer を開く
+    #   2. value = 0 のプロパティ行を探して目視確認する
+    #
+    # 確認ポイント:
+    #   - 値列に「0」と通常テキストで表示されること
+    #   - 「未設定」「値なし」等の文字列では表示されないこと
+    #   - 斜体・グレー等の「未設定」スタイルが適用されていないこと
+
+  @4-2-45 @manual @No8-property-viewer
+  シナリオ: [4-2-45] PropertyViewerでboolean trueが設定されているプロパティは緑色Tagで「true」と表示されること
+    # 種別: 正常系（表示確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応1 区別表示まとめ（boolean変更）
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx （renderValue関数）
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること
+    #   - 表示中のノードに value = true（boolean）のプロパティが1件以上存在すること
+    #
+    # 手動テスト手順:
+    #   1. PropertyViewer Drawer を開く
+    #   2. value = true のプロパティ行を探して目視確認する
+    #
+    # 確認ポイント:
+    #   - 値列に Ant Design の <Tag color="success"> コンポーネントで「true」と表示されること
+    #   - No.8 対応前の「はい」という表示ではないこと（「true」に変更済み）
+    #   - 「未設定」と表示されないこと
+
+  @4-2-46 @manual @No8-property-viewer
+  シナリオ: [4-2-46] PropertyViewerでboolean falseが設定されているプロパティは赤色Tagで「false」と表示されること
+    # 種別: 正常系（表示確認・回帰確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応1 区別表示まとめ（boolean変更）
+    # 根拠（承認コメント）: docs/改善仕様調査/No.8/PLAN.md §承認記録
+    #   「承認者コメント: 承認。false を「いいえ」ではなく「false」表示に変更」
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx （renderValue関数）
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること
+    #   - 表示中のノードに value = false（boolean）のプロパティが1件以上存在すること
+    #
+    # 手動テスト手順:
+    #   1. PropertyViewer Drawer を開く
+    #   2. value = false のプロパティ行を探して目視確認する
+    #
+    # 確認ポイント:
+    #   - 値列に Ant Design の <Tag color="error"> コンポーネントで「false」と表示されること
+    #   - No.8 対応前の「いいえ」という表示ではないこと（「false」に変更済み）
+    #   - 「未設定」と表示されないこと
+
+  @4-2-47 @manual @No8-property-viewer
+  シナリオ: [4-2-47] PropertyViewerのテンプレートタブでxsi:typeが未設定のプロパティ行はツールチップ付き「-」が表示されること
+    # 種別: 正常系（表示確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応2 xsi:type列レンダラー
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx （テンプレートタブ列レンダラー）
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること
+    #   - 「テンプレート」タブが表示されていること
+    #   - テンプレートタブに xsi:type が未設定（空文字・undefined）のプロパティが1件以上存在すること
+    #
+    # 手動テスト手順:
+    #   1. PropertyViewer Drawer を開き「テンプレート」タブをクリックする
+    #   2. xsi:type 列が空のプロパティ行を探して目視確認する
+    #   3. 該当セルの「-」テキストにマウスをホバーする
+    #
+    # 確認ポイント:
+    #   - xsi:type 未設定行の xsi:type 列に「-」（グレーテキスト）が表示されること
+    #   - No.8 対応前の「何も表示されない（null返却）」状態ではなく「-」が表示されること
+    #   - マウスホバー時に Tooltip が「xsi:type が設定されていません」と表示されること
+
+  @4-2-48 @manual @No8-property-viewer
+  シナリオ: [4-2-48] PropertyViewerのテンプレートタブで説明/単位が未設定のプロパティ行はツールチップ付き「-」が表示されること
+    # 種別: 正常系（表示確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応2 説明/単位列レンダラー
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx （テンプレートタブ列レンダラー）
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること
+    #   - 「テンプレート」タブが表示されていること
+    #   - テンプレートタブに description / 単位 が未設定のプロパティが1件以上存在すること
+    #
+    # 手動テスト手順:
+    #   1. PropertyViewer Drawer を開き「テンプレート」タブをクリックする
+    #   2. 説明/単位 列が空のプロパティ行を探して目視確認する
+    #   3. 該当セルの「-」テキストにマウスをホバーする
+    #
+    # 確認ポイント:
+    #   - 説明/単位 未設定行の説明/単位 列に「-」（グレーテキスト）が表示されること
+    #   - No.8 対応前の「何も表示されない（null返却）」状態ではなく「-」が表示されること
+    #   - マウスホバー時に Tooltip が「説明・単位が設定されていません」と表示されること
+
+  @4-2-49 @manual @No8-property-viewer
+  シナリオ: [4-2-49] PropertyViewerのテンプレートタブでプロパティが1件もない場合はツールチップ付きの「表示するプロパティがありません」メッセージが表示されること
+    # 種別: 正常系（表示確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応2 テンプレート/データタブ空の場合
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewer.tsx （空テーブル表示部分）
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること
+    #   - テンプレートが設定されていないノードを選択していること
+    #     （テンプレートタブのプロパティが 0 件）
+    #
+    # 手動テスト手順:
+    #   1. テンプレートが割り当たっていないノードをクリックして PropertyViewer Drawer を開く
+    #   2. 「テンプレート」タブをクリックする
+    #   3. テーブルが空の状態を目視確認する
+    #   4. 表示されたメッセージにマウスをホバーする
+    #
+    # 確認ポイント:
+    #   - テーブルが空の場合に「表示するプロパティがありません」メッセージが表示されること
+    #   - マウスホバー時に Tooltip が「このノードにはテンプレートが設定されていません」と表示されること
+    #   - No.8 対応前の「Tooltipなし表示」と区別されること（ホバーで説明が出ること）
+
+  @4-2-50 @manual @No8-property-viewer
+  シナリオ: [4-2-50] PropertyViewerWithSelectionでもundefined/null/空文字/boolean値が同様に区別表示されること
+    # 種別: 正常系（表示確認・回帰確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応1（PropertyViewerWithSelection.tsx も同様修正）
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/PropertyViewerWithSelection.tsx
+    #
+    # 前提条件:
+    #   - PetriNetViewerが表示されていること（実験管理者のペトリネットビューア画面）
+    #   - ノードをクリックして PropertyViewerWithSelection が開いていること
+    #
+    # 手動テスト手順:
+    #   1. PetriNetViewer 上のノードをクリックする
+    #   2. PropertyViewerWithSelection Drawer が開くことを確認する
+    #   3. undefined / null / "" / 0 / true / false の各値を持つプロパティ行を探す
+    #   4. 各プロパティ行の値列表示を目視確認する
+    #   5. 各プロパティ行にホバーして Tooltip を確認する
+    #
+    # 確認ポイント:
+    #   - PropertyViewer（4-2-41〜4-2-46）と同様の区別表示が適用されていること
+    #   - undefined → 「未設定」斜体グレー + Tooltip「値が設定されていません」
+    #   - null → 「null」斜体グレー + Tooltip「null が設定されています」
+    #   - "" → `""(空文字)` + Tooltip「空の文字列が設定されています」
+    #   - 0 → 「0」通常テキスト（未設定表示にならないこと）
+    #   - true → <Tag color="success">true</Tag>
+    #   - false → <Tag color="error">false</Tag>
+
+  @4-2-51 @manual @No8-property-viewer
+  シナリオ: [4-2-51] StructuredPropertySelectorでもundefined/null/空文字が区別表示され、ツールチップが表示されること
+    # 種別: 正常系（表示確認）
+    # 根拠: docs/改善仕様調査/No.8/result.md §対応3 StructuredPropertySelector修正
+    # 実装ファイル:
+    #   - frontend/src/components/viewer/dialogs/StructuredPropertySelector.tsx
+    #     （formatPropertyValue: {text, kind}オブジェクト返却に変更）
+    #
+    # 前提条件:
+    #   - StructuredPropertySelector が表示されていること
+    #     （PetriNetViewer 画面でのプロパティ選択UIが表示された状態）
+    #   - 選択可能なプロパティに undefined / null / "" の各値パターンが含まれていること
+    #
+    # 手動テスト手順:
+    #   1. PetriNetViewer でノードを選択し、StructuredPropertySelector が表示される操作を行う
+    #   2. プロパティ一覧内の各値表示を目視確認する
+    #   3. undefined / null / "" の各値表示行にホバーして Tooltip を確認する
+    #
+    # 確認ポイント:
+    #   - 従来は undefined / null / "" がすべて「未設定」文字列のみで同一表示だったが
+    #     No.8 対応後は以下の通り区別されること：
+    #     - undefined → 「未設定」グレーテキスト + Tooltip「値が設定されていません」
+    #     - null → 「null」グレーテキスト + Tooltip「null が設定されています」
+    #     - "" → `""(空文字)` + Tooltip「空の文字列が設定されています」
+    #   - formatPropertyValue が kind 付きオブジェクトを返却しており、
+    #     テーブル値レンダラーが kind に応じて異なる表示を行っていること
+
+  @4-2-52 @manual @No8-property-viewer
+  シナリオ: [4-2-52] PropertyViewerで0・false・空文字の値を持つプロパティが「未設定」と表示されないことを一連のシナリオで回帰確認すること
+    # 種別: 回帰確認
+    # 根拠: docs/改善仕様調査/No.8/PLAN.md §現状の問題点・4.1/4.3
+    # 背景:
+    #   No.8 対応前は以下の問題が存在していた:
+    #   - value: '' / null / undefined がすべて同じ「未設定」表示（問題4.1）
+    #   - value: value || '値なし' により 0 / false / '' も '値なし' に上書きされていた（問題4.3）
+    #   この回帰確認では上記問題が解消されていることを包括的に検証する。
+    #
+    # 前提条件:
+    #   - PropertyViewer Drawer が開いていること
+    #   - 以下の値パターンを含むノードが1件以上存在すること:
+    #     * value = 0（数値ゼロ）
+    #     * value = false（boolean）
+    #     * value = ""（空文字列）
+    #     * value = null
+    #     * value = undefined（<value>タグなし）
+    #
+    # 手動テスト手順:
+    #   1. 上記5パターンの値を持つノードを選択して PropertyViewer Drawer を開く
+    #   2. 各プロパティ行の値表示を順に目視確認する
+    #   3. 各値についてホバー時のツールチップを確認する
+    #
+    # 確認ポイント（No.8 対応後の期待値まとめ）:
+    #   - value = 0       → 「0」と数値表示されること（「未設定」「値なし」にならない）
+    #   - value = false   → <Tag>false</Tag> で表示されること（「未設定」「いいえ」にならない）
+    #   - value = ""      → `""(空文字)` で表示されること（「未設定」にならない）
+    #   - value = null    → 「null」斜体グレー + Tooltip で表示されること（「未設定」にならない）
+    #   - value = undef   → 「未設定」斜体グレー + Tooltip「値が設定されていません」で表示されること
+    #   - 上記5パターンがすべて異なる表示形式であること（一切の混同がないこと）
+
   @4-2-39 @manual @No6-position
   シナリオ: [4-2-39] ノードを任意の位置に移動→保存→MAIMLファイルをダウンロード→再読み込みの一連操作で、ノード位置が保存前と一致すること（往復整合性）
     # 種別: 正常系
@@ -1093,5 +1430,29 @@
     #   - メソッド間での座標の混在（クロスアサインメント）が発生しないこと
     #   【共通】
     #   - 往復（保存→ダウンロード→再読み込み）を通じて座標情報が劣化・消失しないこと
+
+  # ===========================================================================
+  # [4-2-53] 保存ダイアログ（SaveConfirmDialog）のキャンセル操作ボタンのラベルが「閉じる」と表示されること
+  # ===========================================================================
+
+  @4-2-53 @manual @No24-button-label
+  シナリオ: [4-2-53] 保存ダイアログ（SaveConfirmDialog）のキャンセル操作ボタンのラベルが「閉じる」と表示されること
+    # 種別: 表示確認
+    # 根拠: docs/改善仕様調査/No.16-24/result.md §SaveConfirmDialog.tsx
+    # No.24対応（低優先）: 「キャンセル」→「閉じる」に変更
+    #
+    # 前提条件:
+    #   - PetriNetEditorが起動していること
+    #   - 何らかの編集操作が完了していること
+    #
+    # 手動テスト手順:
+    #   1. 保存ボタン（または Ctrl+S）をクリックする
+    #   2. SaveConfirmDialogが表示されることを確認する
+    #   3. ダイアログのボタン一覧を目視確認する
+    #
+    # 確認ポイント:
+    #   - SaveConfirmDialogにダイアログを閉じるためのキャンセル操作ボタンが表示されること
+    #   - そのボタンのラベルが「閉じる」と表示されること
+    #   - No.24対応前の「キャンセル」という表示ではないこと
 
 

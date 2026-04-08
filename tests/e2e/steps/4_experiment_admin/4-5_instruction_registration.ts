@@ -222,6 +222,30 @@ Before({ tags: '@4-5-6' }, async () => {
   }
 });
 
+/**
+ * [4-5-7] チェックアウト済み・送信済み指示1件
+ * - project_instruction に is_sent=true の指示を1件挿入
+ * - 4-5-4 と同じデータ構成だが、プロジェクトIDが異なる独立したシナリオとして準備する
+ */
+Before({ tags: '@4-5-7' }, async () => {
+  console.log('[4-5 Before] テストデータ準備 開始 (tags: @4-5-7)');
+  try {
+    const projectId = 'E2E-4-5-7';
+    const projectName = 'E2Eテスト用プロジェクト_4-5-7';
+    await upsertProject(projectId, projectName, PROJECT_STATUS_PLANNING, CHECKOUT_STATUS_CHECKED_IN, true);
+    await upsertProjectTask(projectId, 'method_001', 1, false);
+    await db.query(
+      'DELETE FROM project_instruction WHERE organization_id = $1 AND project_id = $2',
+      [ORG_ID, projectId]
+    );
+    await insertInstruction(projectId, 'method_001', 'E2Eテスト用送信済み指示（詳細ダイアログ確認用）', true);
+    console.log('[4-5 Before] テストデータ準備 完了 (tags: @4-5-7)');
+  } catch (error) {
+    console.error('[4-5 Before] テストデータ準備 失敗 (tags: @4-5-7):', error);
+    throw error;
+  }
+});
+
 // ---------------------------------------------------------------------------
 // After フック: クリーンアップ
 // ---------------------------------------------------------------------------
@@ -328,6 +352,13 @@ Given(
     console.log(`[4-5 Given] テスト用プロジェクト "${_projectName}" は Before フックで準備済み`);
   }
 );
+
+/**
+ * チェックアウト済み・送信済み指示1件のプロジェクトがDBに存在する（4-5-7用）
+ * ※ 4-5-4 と同一のステップ文字列であるため、4-5-4 の Given 定義が流用される。
+ *    playwright-bdd はステップ文字列が一致する場合は先に登録された定義を優先するため、
+ *    本コメントはドキュメント目的のみ。追加の Given 登録は不要。
+ */
 
 // ---------------------------------------------------------------------------
 // When: 指示登録タブ操作
@@ -436,6 +467,17 @@ When('最初の未送信指示の「編集」ボタンをクリックする', as
   const editBtn = page.locator('[data-testid^="instruction-edit-button-"]').first();
   await editBtn.waitFor({ state: 'visible', timeout: 10000 });
   await editBtn.click();
+  await page.waitForTimeout(500);
+});
+
+/**
+ * 最初の送信済み指示の「詳細」ボタンをクリックする（4-5-7用）
+ * InstructionRegistrationTab.tsx: data-testid="instruction-detail-button-{id}"
+ */
+When('最初の送信済み指示の「詳細」ボタンをクリックする', async ({ page }) => {
+  const detailBtn = page.locator('[data-testid^="instruction-detail-button-"]').first();
+  await detailBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await detailBtn.click();
   await page.waitForTimeout(500);
 });
 
@@ -564,6 +606,33 @@ Then('指示登録状況に合計件数 {string} が表示されること', asyn
   const summary = page.locator('[data-testid="instruction-status-summary"]');
   await summary.waitFor({ state: 'visible', timeout: 10000 });
   await expect(summary).toContainText(count, { timeout: 10000 });
+});
+
+/**
+ * 指示詳細ダイアログの「閉じる」ボタンがデフォルト（グレー）スタイルで表示されること（4-5-7）
+ *
+ * No.24対応: 参照専用ダイアログ（送信済み指示の詳細）の閉じるボタンを
+ *   `type="primary"` → `type="default"` に変更。
+ *   Ant Design の `type="default"` ボタンは `.ant-btn-default` クラスを持ち、
+ *   `.ant-btn-primary` クラスを持たないことで区別できる。
+ *
+ * InstructionEditDialog.tsx: data-testid="instruction-edit-dialog-close-button"
+ *   （送信済み＝読み取り専用モードで表示される「閉じる」ボタン）
+ */
+Then('指示詳細ダイアログの「閉じる」ボタンがデフォルト（グレー）スタイルで表示されること', async ({ page }) => {
+  // 「閉じる」ボタンが表示されていること
+  const closeBtn = page.locator('[data-testid="instruction-edit-dialog-close-button"]');
+  await closeBtn.waitFor({ state: 'visible', timeout: 10000 });
+
+  // ボタンのテキストが「閉じる」であること
+  await expect(closeBtn).toHaveText('閉じる', { timeout: 5000 });
+
+  // type="default" スタイル（グレー）が適用されていること:
+  //   Ant Design では type="default" → クラス .ant-btn-default が付与される
+  //   type="primary" → クラス .ant-btn-primary が付与される
+  await expect(closeBtn).toHaveClass(/ant-btn-default/, { timeout: 5000 });
+  // primaryクラスが付与されていないことを確認（念のため）
+  await expect(closeBtn).not.toHaveClass(/ant-btn-primary/, { timeout: 5000 });
 });
 
 // ===========================================================================
