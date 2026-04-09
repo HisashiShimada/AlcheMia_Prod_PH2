@@ -1230,10 +1230,10 @@ export async function updateAttributeStatus(req: Request, res: Response, next: N
     }
 
     // attributeId は "attributeName__attributeValue" 形式
-    const decoded = decodeURIComponent(attributeId);
+    // Expressがルートパラメータを自動でURLデコードするため、二重デコード不要
     const attribute = await masterService.updateAttributeStatus(
       String(organizationId),
-      decoded,
+      attributeId,
       Boolean(isActive),
       String(userId)
     );

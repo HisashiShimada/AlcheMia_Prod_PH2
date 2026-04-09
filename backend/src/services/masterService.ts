@@ -1453,7 +1453,10 @@ export async function uploadAttributesCsv(
       continue;
     }
 
-    const isActive = isActiveStr === 'true' || isActiveStr === '1';
+    // is_active 省略（列なし or 空文字）の場合はデフォルト true
+    const isActive = isActiveStr === '' || isActiveStr === undefined
+      ? true
+      : (isActiveStr === 'true' || isActiveStr === '1');
 
     const exists = await attributeRepository.existsByPk(organizationId, attributeName, attributeValue);
     if (exists) {

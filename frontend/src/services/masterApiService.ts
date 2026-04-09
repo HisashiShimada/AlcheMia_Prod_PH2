@@ -224,7 +224,8 @@ export async function updateMasterStatus(
 ): Promise<void> {
   const config = getMasterDataConfig(type);
   const client = createApiClient();
-  const endpoint = `${config.apiEndpoint}/${id}/status`;
+  // Attributeマスタは id が "name__value" 形式で % などの特殊文字を含む可能性があるためエンコードする
+  const endpoint = `${config.apiEndpoint}/${encodeURIComponent(id)}/status`;
   
   console.log(`=== Updating ${config.displayName} Status ===`);
   console.log('Endpoint:', endpoint);
