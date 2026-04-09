@@ -9,6 +9,10 @@
 ALTER TABLE maiml_publish_job
   RENAME COLUMN project_name TO project_id;
 
+-- 型を project.project_id と同じ character varying(20) に変更
+ALTER TABLE maiml_publish_job
+  ALTER COLUMN project_id TYPE character varying(20);
+
 -- 既存インデックスを削除して再作成
 DROP INDEX IF EXISTS ix_publish_job_org_project;
 

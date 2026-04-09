@@ -396,34 +396,6 @@ const FileListTable: React.FC<FileListTableProps> = ({
         </Form>
       </Modal>
     </>
-    <Table
-      dataSource={files}
-      columns={columns}
-      rowKey="id"
-      size="small"
-      pagination={false}
-      locale={{
-        emptyText: <Empty description={t('projectManagement.fileManagement.emptyState')} image={Empty.PRESENTED_IMAGE_SIMPLE} />,
-      }}
-      onRow={(record) => ({
-        'data-testid': 'file-list-row',
-        onClick: () => {
-          if (record.isFolder) {
-            if (record.id === 'back') {
-              onFolderClick?.('back');
-            } else {
-              // フォルダ名がフルパスの場合は末尾セグメントのみ渡す
-              onFolderClick?.(extractFolderDisplayName(record.name));
-            }
-          } else {
-            onFileClick?.(record);
-          }
-        },
-        style: {
-          cursor: record.isFolder || onFileClick ? 'pointer' : 'default',
-        },
-      })}
-    />
   );
 };
 
