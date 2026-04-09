@@ -1944,12 +1944,27 @@ export class ProjectService {
 
       if (instruction.method_id && (instructionTarget === 2 || instructionTarget === 3)) {
         try {
-          // S3パス構築のためprojectNameを取得
-          const projectInfo = await projectRepository.findProjectBasicInfo(organizationId, projectId);
-          const projectNameForPath = projectInfo?.project_name ?? projectId;
+          // MAIMLファイル取得: project_uuid → file_metadata 経由で最新 file_key を取得
+          const projectInfoForMaiml = await projectRepository.findNameAndUuidById(organizationId, projectId);
+          const projectUuidForMaiml = projectInfoForMaiml?.project_uuid ?? null;
+
+          if (!projectUuidForMaiml) {
+            throw new Error('project_uuid が設定されていません');
+          }
+
+          const fileMetadataRepository = new FileMetadataRepository();
+          const maimlRecord = await fileMetadataRepository.findMaimlByProjectUuid(projectUuidForMaiml);
+
+          if (!maimlRecord) {
+            throw new Error('MAIMLファイルのメタデータが見つかりません');
+          }
+
+          const relativeFileKey = maimlRecord.file_key.startsWith(`${organizationId}/`)
+            ? maimlRecord.file_key.substring(organizationId.length + 1)
+            : maimlRecord.file_key;
+
           const storageService = getStorageService();
-          const filePath = `projects/${projectNameForPath}/${projectNameForPath}.maiml`;
-          const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+          const fileBuffer = await storageService.downloadFile(organizationId, relativeFileKey);
           const maimlContent = fileBuffer.toString('utf-8');
 
           const parser = new XMLParser({
