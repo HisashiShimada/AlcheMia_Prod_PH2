@@ -616,6 +616,8 @@ export interface Place {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
+  /** ノード座標（MAIMLの <position x y /> 要素から読み込み・書き出し） */
+  position?: { x: number; y: number };
 }
 
 /**
@@ -645,6 +647,8 @@ export interface Transition {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
+  /** ノード座標（MAIMLの <position x y /> 要素から読み込み・書き出し） */
+  position?: { x: number; y: number };
 }
 
 /**
@@ -848,6 +852,8 @@ export interface Method {
   materialTemplates: Template[];
   conditionTemplates: Template[];
   resultTemplates: Template[];
+  /** 変換できなかった未知のXML要素（キー: タグ名, 値: xml-jsオブジェクト） */
+  unknownElements?: Record<string, any>;
 }
 
 /**
@@ -885,6 +891,8 @@ export interface Protocol {
   materialTemplates: Template[];
   conditionTemplates: Template[];
   resultTemplates: Template[];
+  /** 変換できなかった未知のXML要素（キー: タグ名, 値: xml-jsオブジェクト） */
+  unknownElements?: Record<string, any>;
 }
 
 // ============================================================================
@@ -1216,6 +1224,8 @@ export interface MaimlRoot {
   protocol: Protocol;
   data?: Data;
   eventLog?: EventLog;
+  /** 変換できなかった未知のXML要素（キー: タグ名, 値: xml-jsオブジェクト） */
+  unknownElements?: Record<string, any>;
 }
 
 // ============================================================================

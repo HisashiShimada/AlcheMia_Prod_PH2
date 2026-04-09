@@ -1061,13 +1061,16 @@ function convertHash(xmlHash: any): Hash {
 
 /**
  * Insertion変換
+ * 
+ * XSD仕様: uri/format/uuid は子要素（xs:element）
+ * 後方互換: 属性として書かれている場合もフォールバックで対応
  */
 function convertInsertion(xmlInsertion: any): Insertion {
   return {
-    uri: xmlInsertion._attributes?.uri || '',
+    uri: xmlInsertion.uri?._text || xmlInsertion._attributes?.uri || '',
     hash: xmlInsertion.hash ? convertHash(xmlInsertion.hash) : undefined,
     uuid: xmlInsertion.uuid?._text,
-    format: xmlInsertion._attributes?.format
+    format: xmlInsertion.format?._text || xmlInsertion._attributes?.format
   };
 }
 

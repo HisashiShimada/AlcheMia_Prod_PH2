@@ -370,6 +370,8 @@ function buildFallbackTemplates(
     ...method.program.flatMap(p => p.resultTemplates),
   ];
 
+  console.log(allResultTemplates);
+
   const templateCategories: Array<{
     templates: typeof method.materialTemplates;
     templateType: 'material' | 'condition' | 'result';
@@ -440,11 +442,15 @@ function buildFallbackTemplates(
         contents: [] as Content[],
       }));
 
+      // insertion を insertions 配列に変換（単数→配列）
+      const insertions = template.insertion ? [template.insertion] : [];
+
       const propertySet: PropertySet = {
         templateId: template.id || '',
         templateType,
         properties: properties as unknown as Property[],
         contents: contents as unknown as Content[],
+        ...(insertions.length > 0 && { insertions }),
       };
 
       const data: Record<string, unknown> = propertySet as unknown as Record<string, unknown>;
