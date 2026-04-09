@@ -30,6 +30,18 @@
 
 ## 📋 API一覧
 
+### MAIMLエディタ向けAttributeマスタ参照API（1エンドポイント）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
+|----|-------------|---------------|------|---------|------|
+| 0 | GET | /api/v1/masters/attributes | Attributeマスタ一覧取得（MAIMLエディタ向け） | ✅ 実装済み | 認証ユーザー全員 |
+
+> **用途**: MAIMLエディタ（NestedPropertyEditor）の属性追加ダイアログにおいて、Attributeマスタの属性名・属性値候補を取得するために使用します。  
+> **エンドポイントの違い**: `/api/v1/master/attribute`（管理画面向け）とは別に、エディタ向けの軽量な取得専用エンドポイントです。  
+> **パス注意**: `masters`（複数形）を使用します。
+
+---
+
 ### Creator（作成者）マスタ（7エンドポイント）
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
@@ -141,6 +153,81 @@ router.METHOD('/path',
   }
 }
 ```
+
+---
+
+## 📋 MAIMLエディタ向けAttributeマスタ参照API詳細
+
+### GET /api/v1/masters/attributes
+
+#### エンドポイント
+```
+GET /api/v1/masters/attributes
+```
+
+#### 概要
+MAIMLエディタ（NestedPropertyEditor）の属性追加ダイアログで使用するAttributeマスタの一覧を取得します。  
+管理画面向けの `/api/v1/master/attribute` と異なり、エディタ向けの軽量な取得専用エンドポイントです。  
+アクティブ（`is_active = true`）なレコードのみを返します。
+
+#### 認証
+- **必須ヘッダー**: `Authorization: Bearer {sessionToken}`
+- **権限**: 認証済みユーザー全員（実験管理者・実験作業者含む）
+- **マルチテナント**: `organization_id` でフィルタリング（自組織のみ）
+
+#### クエリパラメータ
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|----|----|------|
+| なし | - | - | パラメータなし |
+
+#### リクエスト例
+```http
+GET /api/v1/masters/attributes
+Authorization: Bearer maiml_session-abc123_1744000000000
+```
+
+#### レスポンス（200 OK）
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "attributeName": "温度",
+      "attributeValue": "高温"
+    },
+    {
+      "attributeName": "温度",
+      "attributeValue": "常温"
+    },
+    {
+      "attributeName": "圧力",
+      "attributeValue": "高圧"
+    }
+  ]
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|----|----|
+| attributeName | string | 属性名（XSD属性のname相当） |
+| attributeValue | string | 属性値候補 |
+
+#### エラーレスポンス
+
+| HTTPステータス | エラーコード | 説明 |
+|--------------|------------|------|
+| 401 | E5013 | 未認証 |
+| 500 | E4001 | サーバー内部エラー |
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/masterRoutes.ts`
+- **コントローラー**: `backend/src/controllers/masterController.ts`（`getMastersAttributes`ハンドラー）
+- **フロントエンドサービス**: `frontend/src/services/masterApiService.ts`（`fetchAttributeMasters`関数）
+
+#### フロントエンドでの使用箇所
+- `frontend/src/components/editorv2/components/NestedPropertyEditor.tsx`
+  - 属性追加ダイアログ（`AttributeAddDialog`）内でAttributeマスタを取得・表示
+  - ユーザーがマスタから属性名・属性値を選択してプロパティに追加できる
 
 ---
 
@@ -648,6 +735,10 @@ frontend/src/components/DataManagement/MasterManagement.tsx
 | | | - Attribute API 7エンドポイント追加（No.22〜28） | |
 | | | - 複合PK（attribute_name, attribute_value）対応 | |
 | | | - department_cd結合によるdepartment_name付与 | |
+| 1.2.0 | 2026-04-09 | MAIMLエディタ向けAttributeマスタ参照API追加 | Cline |
+| | | - GET /api/v1/masters/attributes エンドポイント追加（No.0） | |
+| | | - NestedPropertyEditor属性追加ダイアログ向け取得専用API | |
+| | | - 認証済みユーザー全員が使用可能（実験管理者含む） | |
 
 ---
 

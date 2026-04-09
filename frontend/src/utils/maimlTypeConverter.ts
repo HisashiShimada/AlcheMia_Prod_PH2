@@ -820,7 +820,8 @@ function convertResultTemplate(xmlTemplate: any, errorContext?: ErrorContext): T
  */
 export function convertContent(xmlContent: any): Content {
   const key = xmlContent._attributes?.key || '';
-  const xsiType = (xmlContent._attributes?.['xsi:type'] || 'contentStringListType') as ContentType;
+  // xsi:type が未指定の場合は空文字として保持し、contentStringListType に強制変換しない
+  const xsiType = (xmlContent._attributes?.['xsi:type'] || '') as ContentType;
   const description = xmlContent.description?._text || undefined;
   
   console.log(`🔄 [convertContent] ${key} (${xsiType})`);
@@ -866,10 +867,26 @@ export function convertContent(xmlContent: any): Content {
  */
 export function convertXmlJsProperty(xmlProp: any): Property {
   const key = xmlProp._attributes?.key || '';
-  const xsiType = (xmlProp._attributes?.['xsi:type'] || 'stringType') as PropertyType;
+  // xsi:type が未指定の場合は undefined として保持し、stringType に強制変換しない
+  const rawXsiType = xmlProp._attributes?.['xsi:type'] as string | undefined;
+  // xsi:type が未指定の場合は空文字として保持し、stringType に強制変換しない
+  // 空文字の場合は末尾の「未指定」ブランチで処理される
+  const xsiType = (rawXsiType || '') as PropertyType;
   const description = xmlProp.description?._text || undefined;
   
   console.log(`🔄 [convertXmlJsProperty] ${key} (${xsiType})`);
+
+  // カスタム属性（既知キー以外）を抽出
+  const KNOWN_ATTRS = new Set(['key', 'xsi:type', 'units', 'formatString', 'scaleFactor', 'axis', 'size', 'id', 'ref']);
+  const customAttrs: Record<string, string> = {};
+  if (xmlProp._attributes) {
+    Object.entries(xmlProp._attributes).forEach(([k, v]) => {
+      if (!KNOWN_ATTRS.has(k) && v !== undefined && v !== null) {
+        customAttrs[k] = String(v);
+      }
+    });
+  }
+  const hasCustomAttrs = Object.keys(customAttrs).length > 0;
   
   // PropertyListTypeの場合（ネスト構造）
   if (xsiType === 'propertyListType') {
@@ -888,6 +905,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties,
       contents: xmlProp.content ? convertArray(xmlProp.content, convertContent) : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -916,6 +934,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -930,6 +949,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -944,6 +964,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -958,6 +979,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -971,6 +993,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -988,6 +1011,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -1001,19 +1025,47 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
-  
-  // デフォルトはString型として扱う
-  const result: Property = {
-    key,
-    xsiType: 'stringType',
-    description,
-    value: xmlProp.value?._text || '',
-    properties : [],
-    contents : []
-  };
-  return result;
+
+  // stringType 明示の場合
+  if (xsiType === 'stringType') {
+    const result: Property = {
+      key,
+      xsiType: 'stringType',
+      description,
+      value: xmlProp.value?._text || '',
+      properties : [],
+      contents : []
+    };
+    if (hasCustomAttrs) result.attributes = customAttrs;
+    return result;
+  }
+
+  // xsi:type 未指定の場合（xsiType === ''）:
+  // 空文字のまま保持し、すべての属性（key / xsi:type を除く）を attributes として保持する
+  // MAIMLパーサーはこの xsiType === '' を見て型固有の属性を復元しない
+  {
+    const allAttrs: Record<string, string> = {};
+    if (xmlProp._attributes) {
+      Object.entries(xmlProp._attributes).forEach(([k, v]) => {
+        if (k !== 'key' && k !== 'xsi:type' && v !== undefined && v !== null) {
+          allAttrs[k] = String(v);
+        }
+      });
+    }
+    const result: Property = {
+      key,
+      xsiType: '', // 未指定を空文字で明示（undefined の代わり）
+      description,
+      value: xmlProp.value?._text || '',
+      properties : [],
+      contents : []
+    };
+    if (Object.keys(allAttrs).length > 0) result.attributes = allAttrs;
+    return result;
+  }
 }
 
 /**

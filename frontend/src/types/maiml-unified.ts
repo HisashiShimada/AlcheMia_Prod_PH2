@@ -333,7 +333,7 @@ export interface Property {
   /** プロパティキー（必須） */
   key: string;
   
-  /** プロパティ型（必須） */
+  /** プロパティ型（xsi:type が設定されていない場合は空文字） */
   xsiType: string;
   
   /** プロパティの説明（オプション） */

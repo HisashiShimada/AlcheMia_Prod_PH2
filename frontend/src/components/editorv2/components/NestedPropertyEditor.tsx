@@ -7,8 +7,9 @@
  * @date 2026-02-13
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
+  AutoComplete,
   Button,
   Input,
   InputNumber,
@@ -39,6 +40,8 @@ import {
   isUnsignedIntXsiType,
   isListXsiType,
 } from '@/utils/xsiTypeValidator';
+import { getAllowedAttributeNames } from '@/utils/xsiTypeAttributes';
+import type { AttributeRecord } from '@/services/masterApiService';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -106,7 +109,32 @@ export interface NestedPropertyEditorProps {
   onDeleteNestedElement: (propertyKey: string, elemName: string) => void;
   onDeleteProperty: (propertyKey: string) => void;
   forceRenderKey: number;
+  /** Attributeマスタデータ（親コンポーネントで取得してPropsとして渡す） */
+  attributeRecords?: AttributeRecord[];
 }
+
+// ===== 固定属性名（Attributeマスタ選択肢から除外） =====
+// units / formatString / scaleFactor は固定属性グループで表示するためマスタ属性から除外
+const FIXED_ATTRIBUTE_NAMES = new Set([
+  'key', 'xsi:type', 'id', 'ref', 'axis', 'size',
+  'units', 'formatString', 'scaleFactor',
+]);
+
+/**
+ * マスタ登録が必須の既知固定属性
+ * - 属性名は xsi:type に応じて選択肢に常に表示する（DB登録有無に関わらず）
+ * - 属性値は DB（Attributeマスタ）に登録されている値のみ選択可能
+ * - DB に値が登録されていない場合は保存不可（エラー表示）
+ */
+const REQUIRED_MASTER_ATTRIBUTES = new Set(['units', 'formatString', 'scaleFactor']);
+
+/**
+ * マスタ提案あり・手入力許可の属性（content 専用）
+ * - attribute_master に値が登録されていれば候補としてドロップダウン表示
+ * - 登録がない場合でも自由テキスト入力が可能（エラーにしない）
+ * - units/formatString/scaleFactor とは異なりマスタ必須ではない
+ */
+const OPTIONAL_MASTER_ATTRIBUTES = new Set(['axis', 'size']);
 
 /**
  * MaiMLスキーマで定義されているpropertyタイプ一覧
@@ -180,7 +208,8 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   onDeleteNestedAttribute,
   onDeleteNestedElement,
   onDeleteProperty,
-  forceRenderKey
+  forceRenderKey,
+  attributeRecords = [],
 }) => {
   const { modal } = App.useApp();
   const [showAttributeAddModal, setShowAttributeAddModal] = useState(false);
@@ -194,10 +223,47 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   const [newChildTagName, setNewChildTagName] = useState('property');
   const [copyKey, setCopyKey] = useState('');
 
-  // ✅ Phase 2-2: カスタム属性名用State
-  const [customAttributeName, setCustomAttributeName] = useState('');
-  // ✅ Phase 2-A-1: カスタム要素名用State
+  // Phase 2-A-1: カスタム要素名用State（要素追加モーダル用・維持）
   const [customElementName, setCustomElementName] = useState('');
+
+  // ===== Attributeマスタ由来の選択肢を計算 =====
+
+  /** マスタ由来の属性名一覧（固定属性名を除く・重複除去済み） */
+  const masterAttributeNames = useMemo<string[]>(() => {
+    const names = new Set<string>();
+    for (const record of attributeRecords) {
+      if (record.attributeName && !FIXED_ATTRIBUTE_NAMES.has(record.attributeName)) {
+        names.add(record.attributeName);
+      }
+    }
+    return Array.from(names).sort();
+  }, [attributeRecords]);
+
+  /**
+   * 選択中の属性名に対応する属性値の選択肢一覧
+   * - xsi:type は専用Selectがあるため除外
+   * - units / formatString / scaleFactor（REQUIRED_MASTER_ATTRIBUTES）はDBなしの場合でも
+   *   属性名選択肢に表示するため、ここでは除外せず空配列を返す（エラー表示はUIで対応）
+   * - マスタ属性グループはDBに登録されている属性名のみ表示
+   */
+  const masterAttributeValues = useMemo<Array<{ value: string; label: string }>>(() => {
+    // xsi:type のみ除外（専用Selectがあるため）
+    if (!newAttributeName || newAttributeName === 'xsi:type') return [];
+    return attributeRecords
+      .filter((r) => r.attributeName === newAttributeName)
+      .map((r) => ({
+        value: r.attributeValue,
+        label: r.attributeRemark
+          ? `${r.attributeValue}（${r.attributeRemark}）`
+          : r.attributeValue,
+      }));
+  }, [attributeRecords, newAttributeName]);
+
+  /** 現在選択中の属性名がマスタ由来かどうか */
+  const isMasterAttribute = useMemo(
+    () => !!newAttributeName && masterAttributeNames.includes(newAttributeName),
+    [newAttributeName, masterAttributeNames]
+  );
 
   const nodeId = useMemo(() => propertyKey, [propertyKey]);
   const isExpanded = useMemo(() => expandedNodes.has(nodeId), [expandedNodes, nodeId]);
@@ -377,113 +443,196 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           setShowAttributeAddModal(false);
           setNewAttributeName('');
           setNewAttributeValue('');
-          setCustomAttributeName('');
+        }}
+        okButtonProps={{
+          // REQUIRED_MASTER_ATTRIBUTES かつ DB に値がない場合はOKボタンを無効化
+          disabled:
+            !!newAttributeName &&
+            REQUIRED_MASTER_ATTRIBUTES.has(newAttributeName) &&
+            masterAttributeValues.length === 0,
         }}
         onOk={() => {
-          // ✅ Phase 2-2: カスタム属性名対応
-          const finalAttributeName = newAttributeName === '__custom__'
-            ? customAttributeName.trim()
-            : newAttributeName.trim();
-            
+          const finalAttributeName = newAttributeName.trim();
+
           if (!finalAttributeName) {
-            message.error('属性名を入力してください');
+            message.error('属性名を選択してください');
             return;
           }
-          
+
           if (!newAttributeValue.trim()) {
-            message.error('属性値を入力してください');
+            message.error('属性値を入力または選択してください');
             return;
           }
-          
+
           onUpdateNestedAttribute(propertyKey, finalAttributeName, newAttributeValue.trim());
           setNewAttributeName('');
           setNewAttributeValue('');
-          setCustomAttributeName('');
           setShowAttributeAddModal(false);
         }}
       >
-        <Space orientation="vertical" style={{ width: '100%' }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          {/* 属性名セレクト */}
           {(() => {
-            /**
-             * XSD 定義に基づいた属性選択肢
-             *
-             * property/parameter:
-             *   key（必須）/ xsi:type / formatString / units / scaleFactor / カスタム
-             *
-             * content:
-             *   key（必須）/ xsi:type / axis / size / id / ref
-             *   / formatString / units / scaleFactor / カスタム
-             */
             const isContent = propertyData.tagName === 'content';
             const defaultXsiType = isContent ? 'contentDoubleListType' : 'stringType';
+            // 現在の xsi:type に応じた許可属性一覧を取得
+            const currentXsiType = propertyData.attributes?.['xsi:type'];
+            const allowedAttrs = getAllowedAttributeNames(currentXsiType);
+            // allowedAttrs === null → xsi:type 未設定（制限なし）
+            // allowedAttrs === []   → units/formatString/scaleFactor を非表示
+            // allowedAttrs = ['formatString'] → formatString のみ表示
+            const showUnits       = allowedAttrs === null || allowedAttrs.includes('units');
+            const showFormatString = allowedAttrs === null || allowedAttrs.includes('formatString');
+            const showScaleFactor  = allowedAttrs === null || allowedAttrs.includes('scaleFactor');
+            // 既に追加済みの属性は選択肢から除外
+            const existingAttrNames = new Set(Object.keys(propertyData.attributes ?? {}));
             return (
               <Select
                 style={{ width: '100%' }}
                 placeholder="属性名を選択"
-                value={newAttributeName}
+                value={newAttributeName || undefined}
                 onChange={(value) => {
                   setNewAttributeName(value);
-                  if (value === 'xsi:type' && !newAttributeValue) {
+                  setNewAttributeValue('');
+                  // xsi:type 選択時はデフォルト型を設定
+                  if (value === 'xsi:type') {
                     setNewAttributeValue(defaultXsiType);
-                  }
-                  if (value === '__custom__') {
-                    setCustomAttributeName('');
                   }
                 }}
               >
-                {/* 共通属性 */}
-                <Option value="xsi:type">xsi:type（MaiML型定義）</Option>
-                <Option value="key">key（キー・必須）</Option>
-                {/* 型依存属性（property / content 共通） */}
-                <Option value="formatString">formatString（書式文字列）</Option>
-                <Option value="units">units（単位）</Option>
-                <Option value="scaleFactor">scaleFactor（スケール係数）</Option>
-                {/* content 固有属性 */}
-                {isContent && <Option value="axis">axis（軸名: x / y / z / time）</Option>}
-                {isContent && <Option value="size">size（データサイズ・整数）</Option>}
-                {isContent && <Option value="id">id（XML ID）</Option>}
-                {isContent && <Option value="ref">ref（XML IDREF）</Option>}
-                {/* カスタム */}
-                <Option value="__custom__">🔧 カスタム属性名を入力...</Option>
+                {/* 固定属性グループ */}
+                <Select.OptGroup label="固定属性">
+                  <Option value="xsi:type" disabled={existingAttrNames.has('xsi:type')}>
+                    xsi:type（MaiML型定義）{existingAttrNames.has('xsi:type') ? '（設定済み）' : ''}
+                  </Option>
+                  <Option value="key" disabled={existingAttrNames.has('key')}>
+                    key（キー・必須）{existingAttrNames.has('key') ? '（設定済み）' : ''}
+                  </Option>
+                  {isContent && <Option value="axis" disabled={existingAttrNames.has('axis')}>axis（軸名: x / y / z / time）{existingAttrNames.has('axis') ? '（設定済み）' : ''}</Option>}
+                  {isContent && <Option value="size" disabled={existingAttrNames.has('size')}>size（データサイズ・整数）{existingAttrNames.has('size') ? '（設定済み）' : ''}</Option>}
+                  {isContent && <Option value="id" disabled={existingAttrNames.has('id')}>id（XML ID）{existingAttrNames.has('id') ? '（設定済み）' : ''}</Option>}
+                  {isContent && <Option value="ref" disabled={existingAttrNames.has('ref')}>ref（XML IDREF）{existingAttrNames.has('ref') ? '（設定済み）' : ''}</Option>}
+                  {/* xsi:type に応じた追加属性（units / formatString / scaleFactor） */}
+                  {showUnits && (
+                    <Option value="units" disabled={existingAttrNames.has('units')}>
+                      units（単位）{existingAttrNames.has('units') ? '（設定済み）' : ''}
+                    </Option>
+                  )}
+                  {showFormatString && (
+                    <Option value="formatString" disabled={existingAttrNames.has('formatString')}>
+                      formatString（フォーマット文字列）{existingAttrNames.has('formatString') ? '（設定済み）' : ''}
+                    </Option>
+                  )}
+                  {showScaleFactor && (
+                    <Option value="scaleFactor" disabled={existingAttrNames.has('scaleFactor')}>
+                      scaleFactor（スケールファクター）{existingAttrNames.has('scaleFactor') ? '（設定済み）' : ''}
+                    </Option>
+                  )}
+                </Select.OptGroup>
+                {/* マスタ属性グループ（Attributeマスタから動的生成・制限なし） */}
+                {masterAttributeNames.length > 0 && (
+                  <Select.OptGroup label="マスタ属性">
+                    {masterAttributeNames.map((name) => (
+                      <Option key={name} value={name} disabled={existingAttrNames.has(name)}>
+                        {name}{existingAttrNames.has(name) ? '（設定済み）' : ''}
+                      </Option>
+                    ))}
+                  </Select.OptGroup>
+                )}
               </Select>
             );
           })()}
 
-          {/* ✅ Phase 2-2: カスタム属性名入力フィールド */}
-          {newAttributeName === '__custom__' && (
-            <Input
-              placeholder="カスタム属性名を入力（例: customField, myAttribute）"
-              value={customAttributeName}
-              onChange={(e) => setCustomAttributeName(e.target.value)}
-            />
-          )}
-
-          {newAttributeName === 'xsi:type' ? (
-            <Select
-              style={{ width: '100%' }}
-              placeholder="MaiML Property Type"
-              value={newAttributeValue || undefined}
-              onChange={setNewAttributeValue}
-            >
-              <Option disabled>--- Simple Types ---</Option>
-              {MAIML_PROPERTY_TYPES.filter(t => t.category === 'Simple').map(type => (
-                <Option key={type.value} value={type.value}>
-                  {type.label}
-                </Option>
-              ))}
-              <Option disabled>--- List Types ---</Option>
-              {MAIML_PROPERTY_TYPES.filter(t => t.category === 'List').map(type => (
-                <Option key={type.value} value={type.value}>
-                  {type.label}
-                </Option>
-              ))}
-            </Select>
-          ) : (
-            <Input
-              placeholder="属性値を入力"
-              value={newAttributeValue}
-              onChange={(e) => setNewAttributeValue(e.target.value)}
-            />
+          {/* 属性値入力欄（属性名選択後に表示） */}
+          {newAttributeName && (
+            newAttributeName === 'xsi:type' ? (
+              /* xsi:type → MaiML型Selectプルダウン */
+              <Select
+                style={{ width: '100%' }}
+                placeholder="MaiML Property Type"
+                value={newAttributeValue || undefined}
+                onChange={setNewAttributeValue}
+              >
+                <Option disabled>--- Simple Types ---</Option>
+                {MAIML_PROPERTY_TYPES.filter(t => t.category === 'Simple').map(type => (
+                  <Option key={type.value} value={type.value}>
+                    {type.label}
+                  </Option>
+                ))}
+                <Option disabled>--- List Types ---</Option>
+                {MAIML_PROPERTY_TYPES.filter(t => t.category === 'List').map(type => (
+                  <Option key={type.value} value={type.value}>
+                    {type.label}
+                  </Option>
+                ))}
+              </Select>
+            ) : OPTIONAL_MASTER_ATTRIBUTES.has(newAttributeName) ? (
+              /* axis / size → AutoComplete（マスタ候補提示 + 手入力許可） */
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <AutoComplete
+                  style={{ width: '100%' }}
+                  placeholder={
+                    newAttributeName === 'axis'
+                      ? '軸名を入力（例: x / y / z / time）'
+                      : 'データサイズを入力（例: 1024）'
+                  }
+                  value={newAttributeValue}
+                  onChange={setNewAttributeValue}
+                  options={masterAttributeValues.map((opt) => ({
+                    value: opt.value,
+                    label: opt.label,
+                  }))}
+                  filterOption={(inputValue, option) =>
+                    !inputValue ||
+                    String(option?.value ?? '')
+                      .toLowerCase()
+                      .includes(inputValue.toLowerCase())
+                  }
+                />
+                {masterAttributeValues.length > 0 && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    <InfoCircleOutlined style={{ marginRight: 4 }} />
+                    マスタに登録された候補を表示しています（手入力も可能です）
+                  </Text>
+                )}
+              </Space>
+            ) : masterAttributeValues.length > 0 ? (
+              /* マスタ由来の属性値が存在する → 属性値Selectプルダウン（備考付き: "value（remark）"） */
+              <Select
+                style={{ width: '100%' }}
+                placeholder="属性値を選択"
+                value={newAttributeValue || undefined}
+                onChange={setNewAttributeValue}
+              >
+                {masterAttributeValues.map((opt) => (
+                  <Option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </Option>
+                ))}
+              </Select>
+            ) : REQUIRED_MASTER_ATTRIBUTES.has(newAttributeName) ? (
+              /* units / formatString / scaleFactor でマスタ値が未登録 → 保存不可・エラー表示 */
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Select
+                  style={{ width: '100%' }}
+                  disabled
+                  placeholder="マスタに値が登録されていません"
+                />
+                <Alert
+                  type="error"
+                  showIcon
+                  message={`「${newAttributeName}」はマスタ登録が必要です`}
+                  description="属性値がマスタに登録されていないため保存できません。システム管理者にお問い合わせください。"
+                />
+              </Space>
+            ) : (
+              /* その他の固定属性（key / id / ref）→ テキスト入力 */
+              <Input
+                placeholder="属性値を入力"
+                value={newAttributeValue}
+                onChange={(e) => setNewAttributeValue(e.target.value)}
+              />
+            )
           )}
         </Space>
       </Modal>

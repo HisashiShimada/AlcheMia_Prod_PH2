@@ -460,7 +460,8 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
   const propName = prop.key || '';
   
   // NestedPropertyEditor形式とMaiMLParser形式の両方に対応
-  const propType = prop.xsiType || 'stringType';
+  // xsi:type が未指定（空文字）の場合は stringType に強制変換しない
+  const propType = prop.xsiType || '';
   
   let propertyXml = `${indent}<property key="${escapeXml(propName)}"`;
   
@@ -484,7 +485,11 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
     });
   }
   
-  propertyXml += ` xsi:type="${escapeXml(propType)}">\n`;
+  // xsi:type が空文字（未指定）の場合は xsi:type 属性を出力しない
+  if (propType) {
+    propertyXml += ` xsi:type="${escapeXml(propType)}"`;
+  }
+  propertyXml += `>\n`;
   
   // ✅ propertyListTypeの場合：子property要素を再帰的に出力
   if (propType === 'propertyListType') {
@@ -559,8 +564,12 @@ export function buildContentXML(content: Content, indentLevel = 6): string {
   if (content.units) contentXml += ` units="${escapeXml(content.units)}"`;
   
   // ✅ 修正: contentTypeまたはxsiTypeを使用
-  const xsiType = content.xsiType ||  'contentDoubleListType';
-  contentXml += ` xsi:type="${escapeXml(xsiType)}"`;
+  // xsi:type が未指定（空文字）の場合は contentDoubleListType に強制変換しない
+  const xsiType = content.xsiType || '';
+  // xsi:type が空文字（未指定）の場合は xsi:type 属性を出力しない
+  if (xsiType) {
+    contentXml += ` xsi:type="${escapeXml(xsiType)}"`;
+  }
   
   // 値は基本的に空（MaiML仕様ではcontentは空要素）
   contentXml += `>\n${indent}</content>\n`;

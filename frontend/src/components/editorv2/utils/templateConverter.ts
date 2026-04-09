@@ -31,10 +31,21 @@ export function convertPropertiesArrayToNestedFormat(propertiesArray: Property[]
     const prop = item;
     const key = (prop.key as string) || `prop_${Date.now()}`;
     
-    const attributes: Record<string, string> = {
-      'xsi:type': (prop.xsiType as string) || 'stringType'
-    };
-    
+    const attributes: Record<string, string> = {};
+
+    // ✅ Bug Fix: prop.attributes（マスタ属性等のカスタム属性）を先にコピー
+    if (prop.attributes && typeof prop.attributes === 'object') {
+      Object.entries(prop.attributes).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          attributes[k] = String(v);
+        }
+      });
+    }
+
+    // 個別フィールドは上書き優先（空でない場合のみセット）
+    if (prop.xsiType) {
+      attributes['xsi:type'] = prop.xsiType as string;
+    }
     if (prop.units !== undefined && prop.units !== '') {
       attributes.units = prop.units as string;
     }
@@ -112,19 +123,32 @@ export function convertPropertiesArrayToNestedFormatRecursive(propertiesArray: P
   
   return propertiesArray.map((item) => {
     const prop = item;
+    const convertedAttrs: Record<string, string> = {};
+
+    // ✅ Bug Fix: prop.attributes（マスタ属性等のカスタム属性）を先にコピー
+    if (prop.attributes && typeof prop.attributes === 'object') {
+      Object.entries(prop.attributes).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          convertedAttrs[k] = String(v);
+        }
+      });
+    }
+
+    // 個別フィールドは上書き優先（空でない場合のみセット）
+    if (prop.xsiType) {
+      convertedAttrs['xsi:type'] = prop.xsiType as string;
+    }
+    if (prop.units) convertedAttrs.units = prop.units as string;
+    if (prop.formatString) convertedAttrs.formatString = prop.formatString as string;
+    if (prop.scaleFactor) convertedAttrs.scaleFactor = String(prop.scaleFactor);
+
     const converted: PropertyData = {
       key: (prop.key as string) || `child_${Date.now()}`,
       tagName: 'property',
-      attributes: {
-        'xsi:type': (prop.xsiType as string) || 'stringType'
-      },
+      attributes: convertedAttrs,
       elements: {},
       children: []
     };
-    
-    if (prop.units) converted.attributes.units = prop.units as string;
-    if (prop.formatString) converted.attributes.formatString = prop.formatString as string;
-    if (prop.scaleFactor) converted.attributes.scaleFactor = String(prop.scaleFactor);
     
     if (prop.value !== undefined && prop.value !== '') {
       converted.elements.value = String(prop.value);
@@ -190,7 +214,9 @@ export function convertPropertyDataToPropertiesArray(propertyDataRecord: Record<
     
     const property: Property = {
       key: propData.key,
-      xsiType: propData.attributes?.['xsi:type'] || 'stringType',
+      // xsi:type が未設定の場合は空文字（強制的に stringType を設定しない）
+      // 空文字の場合、MAIMLパーサー側で xsi:type 属性を出力しない
+      xsiType: propData.attributes?.['xsi:type'] || '',
       properties: [],
       contents: [],
     };
@@ -277,7 +303,8 @@ export function convertPropertyDataChildrenToArrays(
     if (child.tagName === 'property') {
       const property: Property = {
         key: child.key,
-        xsiType: child.attributes?.['xsi:type'] || 'stringType',
+        // xsi:type が未設定の場合は空文字（強制的に stringType を設定しない）
+        xsiType: child.attributes?.['xsi:type'] || '',
         properties: [],
         contents: [],
       };
@@ -331,7 +358,8 @@ export function convertPropertyDataChildrenToArrays(
     } else if (child.tagName === 'content') {
       const content: Content = {
         key: child.key,
-        xsiType: child.attributes?.['xsi:type'] || 'stringType',
+        // xsi:type が未設定の場合は空文字（強制的に stringType を設定しない）
+        xsiType: child.attributes?.['xsi:type'] || '',
         properties: [],
         contents: [],
         uncertainty: [],
@@ -556,7 +584,8 @@ export function convertPropertyDataToContentsArray(propertyDataRecord: Record<st
     
     const content: Content = {
       key: propData.key,
-      xsiType: propData.attributes?.['xsi:type'] || 'stringType',
+      // xsi:type が未設定の場合は空文字（強制的に stringType を設定しない）
+      xsiType: propData.attributes?.['xsi:type'] || '',
       properties: [],
       contents: [],
       uncertainty: [],

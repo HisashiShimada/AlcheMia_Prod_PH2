@@ -368,3 +368,21 @@ export async function downloadCsv(
     throw new Error(`CSVダウンロードに失敗しました: ${axiosError.response?.status || 'Unknown'} - ${axiosError.message}`);
   }
 }
+
+/**
+ * Attributeマスタ一覧を取得（NestedPropertyEditor用）
+ *
+ * 属性追加ダイアログの選択肢生成に特化した軽量ラッパー関数。
+ * isActive=true のレコードのみを返します。
+ *
+ * @returns AttributeRecord[] - アクティブなAttributeマスタ一覧
+ */
+export async function fetchAttributeMasters(): Promise<AttributeRecord[]> {
+  try {
+    const records = await fetchMasters('attribute', { isActive: true });
+    return records as AttributeRecord[];
+  } catch (error) {
+    console.error('fetchAttributeMasters error:', error);
+    return [];
+  }
+}
