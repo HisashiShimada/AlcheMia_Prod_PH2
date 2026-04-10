@@ -377,21 +377,24 @@ export async function decompose(req: Request, res: Response): Promise<void> {
  */
 export async function health(_req: Request, res: Response): Promise<void> {
   try {
-    const [ollamaHealthy, decomposerHealth] = await Promise.all([
+    const [embeddingHealthy, decomposerHealth] = await Promise.all([
       embeddingHealthCheck(),
       decomposerHealthCheck(),
     ]);
 
     const overallStatus =
-      ollamaHealthy && decomposerHealth.status === 'healthy' ? 'ok' : 'degraded';
+      embeddingHealthy && decomposerHealth.status === 'healthy' ? 'ok' : 'degraded';
+
+    const serviceInfo = getServiceInfo();
 
     res.json({
       success: true,
       data: {
         status: overallStatus,
-        ollama: ollamaHealthy ? 'ok' : 'unreachable',
+        embeddingService: embeddingHealthy ? 'ok' : 'unreachable',
+        embeddingProvider: serviceInfo.provider,
         gpt_oss: decomposerHealth.status === 'healthy' ? 'ok' : 'unreachable',
-        serviceInfo: getServiceInfo(),
+        serviceInfo,
         decomposerServiceInfo: getDecomposerServiceInfo(),
       },
       meta: { timestamp: new Date().toISOString() },
