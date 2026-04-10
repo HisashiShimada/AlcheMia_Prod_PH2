@@ -1,58 +1,23 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  
-  // パッケージインポートの最適化
-  // 大きなライブラリのツリーシェイキングとバンドルサイズ削減
-  experimental: {
-    optimizePackageImports: [
-      'antd',
-      '@ant-design/icons',
-      '@mui/material',
-      '@mui/icons-material',
-      'lucide-react',
-      '@emotion/react',
-      '@emotion/styled',
-      'reactflow',
-    ],
-  },
-
-  // Reactのストリクトモードを有効化（開発時のパフォーマンス改善）
   reactStrictMode: true,
 
-  // Turbopack設定（Next.js 16以降のデフォルトバンドラー）
-  // SVGをReactコンポーネントとしてインポート可能にする
-  turbopack: {
-    rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
-      },
-    },
-  },
+  // Turbopack 設定（Next.js 16 以降はデフォルトで Turbopack が有効）
+  // webpack 設定が存在する場合、turbopack 設定も必須（空でも可）
+  turbopack: {},
 
-  // Webpackの最適化設定（--webpack フラグ使用時のフォールバック）
-  webpack: (config, { dev, isServer }) => {
-    // 開発モードでのキャッシュ最適化
-    if (dev) {
-      config.cache = {
-        type: 'filesystem',
-        buildDependencies: {
-          config: [__filename],
-        },
-      };
-    }
-
+  // Webpack フォールバック用（dev:webpack コマンド時のみ適用）
+  // Turbopack 使用時（next dev --turbo / next build）はこのセクションは無視される
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  webpack: (config: any) => {
     // SVGをReactコンポーネントとしてインポート可能にする
     config.module.rules.push({
       test: /\.svg$/,
       use: ['@svgr/webpack'],
     });
-
     return config;
   },
-
 };
 
 export default nextConfig;

@@ -1,0 +1,86 @@
+{
+  "family": "alchemia-nginx",
+  "taskRoleArn": "arn:aws:iam::137068252939:role/ecsTaskRole",
+  "executionRoleArn": "arn:aws:iam::137068252939:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "containerDefinitions": [
+    {
+      "name": "mmdpf-frontend",
+      "image": "137068252939.dkr.ecr.ap-northeast-1.amazonaws.com/mmdpf-frontend:staging",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 3000, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "NODE_ENV",                "value": "production" },
+        { "name": "PORT",                    "value": "3000" },
+        { "name": "NEXT_TELEMETRY_DISABLED", "value": "1" },
+        { "name": "NEXT_PUBLIC_API_URL",     "value": "/api/v1" }
+      ],
+      "mountPoints": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/alchemia-nginx",
+          "awslogs-region":        "ap-northeast-1",
+          "awslogs-stream-prefix": "frontend",
+          "awslogs-create-group":  "true"
+        }
+      },
+      "healthCheck": {
+        "command":     ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"],
+        "interval":    30,
+        "timeout":     10,
+        "retries":     3,
+        "startPeriod": 60
+      },
+      "ulimits": [
+        { "name": "nofile", "softLimit": 65536, "hardLimit": 65536 }
+      ]
+    },
+    {
+      "name": "mmdpf-nginx",
+      "image": "137068252939.dkr.ecr.ap-northeast-1.amazonaws.com/mmdpf-nginx:staging",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 80,  "protocol": "tcp" },
+        { "containerPort": 443, "protocol": "tcp" }
+      ],
+      "dependsOn": [
+        { "containerName": "mmdpf-frontend", "condition": "HEALTHY" }
+      ],
+      "environment": [
+        { "name": "BACKEND_HOST", "value": "alchemia-backend.alchemia.local" },
+        { "name": "BACKEND_PORT", "value": "3001" }
+      ],
+      "mountPoints": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/alchemia-nginx",
+          "awslogs-region":        "ap-northeast-1",
+          "awslogs-stream-prefix": "nginx",
+          "awslogs-create-group":  "true"
+        }
+      },
+      "healthCheck": {
+        "command":     ["CMD-SHELL", "wget -qO- http://localhost:80/health || exit 1"],
+        "interval":    30,
+        "timeout":     10,
+        "retries":     3,
+        "startPeriod": 90
+      },
+      "ulimits": [
+        { "name": "nofile", "softLimit": 65536, "hardLimit": 65536 }
+      ]
+    }
+  ],
+  "tags": [
+    { "key": "Project",     "value": "alchemia-staging" },
+    { "key": "Environment", "value": "staging" },
+    { "key": "Service",     "value": "nginx" }
+  ]
+}

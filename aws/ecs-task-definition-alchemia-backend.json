@@ -1,0 +1,76 @@
+{
+  "family": "alchemia-backend",
+  "taskRoleArn": "arn:aws:iam::137068252939:role/ecsTaskRole",
+  "executionRoleArn": "arn:aws:iam::137068252939:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "containerDefinitions": [
+    {
+      "name": "mmdpf-backend",
+      "image": "137068252939.dkr.ecr.ap-northeast-1.amazonaws.com/mmdpf-backend:staging",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 3001, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "NODE_ENV",               "value": "production" },
+        { "name": "BACKEND_PORT",           "value": "3001" },
+        { "name": "DB_HOST",                "value": "alchemia-staging-aurora.cluster-c7u0cw0em9f8.ap-northeast-1.rds.amazonaws.com" },
+        { "name": "DB_PORT",                "value": "5432" },
+        { "name": "DB_NAME",                "value": "maiml_db" },
+        { "name": "DB_USER",                "value": "maiml_user" },
+        { "name": "DB_PASSWORD",            "value": "maiml_user" },
+        { "name": "DB_SSL",                 "value": "true" },
+        { "name": "DB_POOL_MIN",            "value": "2" },
+        { "name": "DB_POOL_MAX",            "value": "10" },
+        { "name": "REDIS_HOST",             "value": "alchemia-staging-redis-001.alchemia-staging-redis.rekssa.apne1.cache.amazonaws.com" },
+        { "name": "REDIS_PORT",             "value": "6379" },
+        { "name": "REDIS_PASSWORD",         "value": "773e900e08b512076008c4e7c229779f" },
+        { "name": "REDIS_TLS",              "value": "true" },
+        { "name": "SESSION_STORE_TYPE",     "value": "redis" },
+        { "name": "STORAGE_TYPE",           "value": "s3" },
+        { "name": "AWS_REGION",             "value": "ap-northeast-1" },
+        { "name": "AWS_S3_BUCKET",          "value": "mmdpf-files-production" },
+        { "name": "JWT_SECRET",             "value": "4a48450c81b22ff17b1edf358d5f620a014a42a5e0a7598b21661e7c68cbbcbd01af7af6f3210e784d42cdc963564affe2c3c5054b060ce0dc161a06f4488968" },
+        { "name": "SESSION_SECRET",         "value": "590a17eb12bfb2d97c46031e5a9ab0cf96592d31008c6e3a30aadeb7e41d5bc83f27c463a9d5eb02577bb2f29a2ab9001a977396a6b3b6bb13bf62869915108f" },
+        { "name": "SESSION_MAX_AGE",        "value": "86400000" },
+        { "name": "CORS_ORIGIN",            "value": "http://alchemia-staging-alb-987042084.ap-northeast-1.elb.amazonaws.com" },
+        { "name": "FRONTEND_URL",           "value": "http://alchemia-staging-alb-987042084.ap-northeast-1.elb.amazonaws.com" },
+        { "name": "SESSION_COOKIE_SECURE",  "value": "false" },
+        { "name": "LOG_LEVEL",              "value": "info" },
+        { "name": "CERT_P12_PASSWORD",      "value": "mmdpf123" },
+        { "name": "CERT_VALIDITY_DAYS",     "value": "365" },
+        { "name": "GPT_OSS_ENABLED",        "value": "false" },
+        { "name": "BEDROCK_REGION",         "value": "ap-northeast-1" },
+        { "name": "BEDROCK_EMBEDDING_MODEL_ID", "value": "amazon.titan-embed-text-v2:0" }
+      ],
+      "mountPoints": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/alchemia-backend",
+          "awslogs-region":        "ap-northeast-1",
+          "awslogs-stream-prefix": "backend",
+          "awslogs-create-group":  "true"
+        }
+      },
+      "healthCheck": {
+        "command":     ["CMD-SHELL", "wget -qO- http://localhost:3001/api/health || exit 1"],
+        "interval":    30,
+        "timeout":     10,
+        "retries":     3,
+        "startPeriod": 60
+      },
+      "ulimits": [
+        { "name": "nofile", "softLimit": 65536, "hardLimit": 65536 }
+      ]
+    }
+  ],
+  "tags": [
+    { "key": "Project",     "value": "alchemia-staging" },
+    { "key": "Environment", "value": "staging" },
+    { "key": "Service",     "value": "backend" }
+  ]
+}
