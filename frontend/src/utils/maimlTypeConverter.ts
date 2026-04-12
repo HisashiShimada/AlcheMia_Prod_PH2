@@ -57,7 +57,8 @@ import type {
   InstanceRef,
   Extension,
   Globals,
-  Classifier
+  Classifier,
+  PropertyCustomElement
 } from '@/types/maiml-unified';
 
 /**
@@ -816,6 +817,32 @@ function convertResultTemplate(xmlTemplate: any, errorContext?: ErrorContext): T
 }
 
 /**
+ * xml-js要素を PropertyCustomElement に再帰変換するヘルパー
+ */
+function convertCustomElement(value: any): PropertyCustomElement {
+  if (!value || typeof value !== 'object') {
+    return { value: value !== undefined && value !== null ? String(value) : undefined };
+  }
+  const text = value._text !== undefined ? String(value._text) : undefined;
+  const attrs: Record<string, string> = {};
+  if (value._attributes) {
+    Object.entries(value._attributes).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) attrs[k] = String(v);
+    });
+  }
+  const children: Record<string, PropertyCustomElement> = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (k.startsWith('_')) continue;
+    children[k] = convertCustomElement(v);
+  }
+  return {
+    ...(text !== undefined ? { value: text } : {}),
+    ...(Object.keys(attrs).length > 0 ? { attributes: attrs } : {}),
+    ...(Object.keys(children).length > 0 ? { children } : {}),
+  };
+}
+
+/**
  * Content変換（xml-jsからContent Union型へ）
  */
 export function convertContent(xmlContent: any): Content {
@@ -825,6 +852,29 @@ export function convertContent(xmlContent: any): Content {
   const description = xmlContent.description?._text || undefined;
   
   console.log(`🔄 [convertContent] ${key} (${xsiType})`);
+
+  // ✅ カスタム属性（既知属性以外）を収集
+  const KNOWN_CONTENT_ATTRS = new Set(['key', 'xsi:type', 'axis', 'size', 'id', 'ref', 'units', 'formatString', 'scaleFactor']);
+  const customAttrs: Record<string, string> = {};
+  if (xmlContent._attributes) {
+    Object.entries(xmlContent._attributes).forEach(([k, v]) => {
+      if (!KNOWN_CONTENT_ATTRS.has(k) && v !== undefined && v !== null) {
+        customAttrs[k] = String(v);
+      }
+    });
+  }
+
+  // ✅ カスタム子要素（既知キー以外のタグ名）を収集
+  const KNOWN_CONTENT_KEYS = new Set([
+    '_attributes', 'description', 'value', 'values', 'property', 'content', 'uncertainty'
+  ]);
+  const customElements: Record<string, PropertyCustomElement> = {};
+  for (const [tagName, tagValue] of Object.entries(xmlContent)) {
+    if (KNOWN_CONTENT_KEYS.has(tagName)) continue;
+    // xml-js の _attributes, _text などの内部キーも除外
+    if (tagName.startsWith('_')) continue;
+    customElements[tagName] = convertCustomElement(tagValue);
+  }
   
   // 基本プロパティ
   const result: Content = {
@@ -842,6 +892,8 @@ export function convertContent(xmlContent: any): Content {
     properties: xmlContent.property ? convertArray(xmlContent.property, convertXmlJsProperty) : [],
     contents: xmlContent.content ? convertArray(xmlContent.content, convertContent) : [],
     uncertainty: [],
+    ...(Object.keys(customAttrs).length > 0 ? { attributes: customAttrs } : {}),
+    ...(Object.keys(customElements).length > 0 ? { customElements } : {}),
   };
   
   // ネストされたProperty

@@ -502,9 +502,11 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
   }
   // ✅ content要素の処理
   else if (propType === 'content' || propType === 'contentDoubleListType' || propType === 'contentListType') {
-    prop.contents.forEach((content) => {
-      propertyXml += buildContentXML(content, indentLevel + 1);
-    })
+    if (prop.contents && prop.contents.length > 0) {
+      prop.contents.forEach((content) => {
+        propertyXml += buildContentXML(content, indentLevel + 1);
+      });
+    }
   }
   // ✅ 通常のpropertyの場合：value/description/customElements要素を出力
   else {
@@ -543,6 +545,47 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
   return propertyXml;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CustomElementNode = { value?: string | number | boolean; attributes?: Record<string, string>; children?: Record<string, any> };
+
+/**
+ * PropertyCustomElement を再帰的にXML出力するヘルパー
+ * @param tagName - タグ名
+ * @param element - PropertyCustomElement オブジェクト
+ * @param indentLevel - インデントレベル
+ * @returns XML文字列
+ */
+function buildCustomElementXML(tagName: string, element: CustomElementNode, indentLevel: number): string {
+  const indent = '  '.repeat(indentLevel);
+  let xml = `${indent}<${tagName}`;
+
+  // 属性を出力
+  if (element.attributes) {
+    Object.entries(element.attributes).forEach(([attrName, attrValue]) => {
+      if (attrValue !== undefined && attrValue !== null && attrValue !== '') {
+        xml += ` ${attrName}="${escapeXml(attrValue)}"`;
+      }
+    });
+  }
+
+  const hasChildren = element.children && Object.keys(element.children).length > 0;
+  const hasValue = element.value !== undefined && element.value !== null && element.value !== '';
+
+  if (!hasChildren && !hasValue) {
+    xml += `/>\n`;
+  } else if (hasChildren && !hasValue) {
+    xml += `>\n`;
+    Object.entries(element.children!).forEach(([childTag, childElement]) => {
+      xml += buildCustomElementXML(childTag, childElement as CustomElementNode, indentLevel + 1);
+    });
+    xml += `${indent}</${tagName}>\n`;
+  } else {
+    xml += `>${escapeXml(String(element.value))}</${tagName}>\n`;
+  }
+
+  return xml;
+}
+
 /**
  * content要素を完全に出力（MaiMLParser.jsデータ構造対応）
  * @param content - contentオブジェクト（property型の場合もある）
@@ -562,6 +605,17 @@ export function buildContentXML(content: Content, indentLevel = 6): string {
   if (content.scaleFactor) contentXml += ` scaleFactor="${escapeXml(content.scaleFactor)}"`;
   if (content.size) contentXml += ` size="${escapeXml(content.size)}"`;
   if (content.units) contentXml += ` units="${escapeXml(content.units)}"`;
+
+  // ✅ カスタム属性を動的に出力（Content.attributes フィールド）
+  if (content.attributes) {
+    // 既に個別出力している属性は除外
+    const skippedAttrs = new Set(['axis', 'formatString', 'id', 'key', 'scaleFactor', 'size', 'units', 'xsi:type']);
+    Object.entries(content.attributes).forEach(([attrName, attrValue]) => {
+      if (!skippedAttrs.has(attrName) && attrValue) {
+        contentXml += ` ${attrName}="${escapeXml(attrValue)}"`;
+      }
+    });
+  }
   
   // ✅ 修正: contentTypeまたはxsiTypeを使用
   // xsi:type が未指定（空文字）の場合は contentDoubleListType に強制変換しない
@@ -571,8 +625,40 @@ export function buildContentXML(content: Content, indentLevel = 6): string {
     contentXml += ` xsi:type="${escapeXml(xsiType)}"`;
   }
   
-  // 値は基本的に空（MaiML仕様ではcontentは空要素）
-  contentXml += `>\n${indent}</content>\n`;
+  contentXml += `>\n`;
+
+  // description（オプション）
+  if (content.description !== undefined && content.description !== '') {
+    contentXml += `${indent}  <description>${escapeXml(content.description)}</description>\n`;
+  }
+
+  // value（オプション）
+  if (content.value !== undefined && content.value !== '') {
+    contentXml += `${indent}  <value>${escapeXml(String(content.value))}</value>\n`;
+  }
+
+  // ✅ カスタム要素を出力（Content.customElements フィールド）
+  if (content.customElements) {
+    Object.entries(content.customElements).forEach(([tagName, element]) => {
+      contentXml += buildCustomElementXML(tagName, element, indentLevel + 1);
+    });
+  }
+
+  // ✅ ネストされた子 Property を再帰出力
+  if (content.properties && content.properties.length > 0) {
+    content.properties.forEach((childProp: Property) => {
+      contentXml += buildPropertyXML(childProp, indentLevel + 1);
+    });
+  }
+
+  // ✅ ネストされた子 Content を再帰出力
+  if (content.contents && content.contents.length > 0) {
+    content.contents.forEach((childContent: Content) => {
+      contentXml += buildContentXML(childContent, indentLevel + 1);
+    });
+  }
+
+  contentXml += `${indent}</content>\n`;
   
   return contentXml;
 }
@@ -632,6 +718,13 @@ function buildCommonTemplateXML(
   if (template.properties && template.properties.length > 0) {
     template.properties.forEach((prop: Property) => {
       xml += buildPropertyXML(prop, 3);
+    });
+  }
+
+  // content要素群
+  if (template.contents && template.contents.length > 0) {
+    template.contents.forEach((content: Content) => {
+      xml += buildContentXML(content, 3);
     });
   }
   
@@ -1151,6 +1244,13 @@ export async function convertReactFlowToMaiML(
         maiml += buildPropertyXML(prop, 5);
       });
     }
+
+    // content要素群
+    if (template.contents && template.contents.length > 0) {
+      template.contents.forEach((content: Content) => {
+        maiml += buildContentXML(content, 5);
+      });
+    }
     
     // XSD準拠: placeRef → templateRef の順で出力
     placeRefs.forEach((placeRef, index) => {
@@ -1220,6 +1320,13 @@ export async function convertReactFlowToMaiML(
         maiml += buildPropertyXML(prop, 5);
       });
     }
+
+    // content要素群
+    if (template.contents && template.contents.length > 0) {
+      template.contents.forEach((content: Content) => {
+        maiml += buildContentXML(content, 5);
+      });
+    }
     
     // XSD準拠: placeRef → templateRef の順で出力
     placeRefs.forEach((placeRef, index) => {
@@ -1287,6 +1394,13 @@ export async function convertReactFlowToMaiML(
     if (template.properties && template.properties.length > 0) {
       template.properties.forEach((prop: Property) => {
         maiml += buildPropertyXML(prop, 5);
+      });
+    }
+
+    // content要素群
+    if (template.contents && template.contents.length > 0) {
+      template.contents.forEach((content: Content) => {
+        maiml += buildContentXML(content, 5);
       });
     }
     

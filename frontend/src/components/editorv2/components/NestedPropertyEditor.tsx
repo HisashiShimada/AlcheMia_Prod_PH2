@@ -192,6 +192,21 @@ const MAIML_PROPERTY_TYPES = [
   { value: 'stringEnumType', label: 'stringEnumType - 文字列列挙', category: 'List' },
 ];
 
+/** content タグ向け xsi:type 選択肢（DataRecordDialog の KNOWN_CONTENT_TYPES と一致させる） */
+const MAIML_CONTENT_TYPES: Array<{ value: string; label: string }> = [
+  { value: 'contentStringListType',      label: 'contentStringListType - 文字列リスト' },
+  { value: 'contentIntListType',         label: 'contentIntListType - 整数リスト' },
+  { value: 'contentLongListType',        label: 'contentLongListType - 長整数リスト' },
+  { value: 'contentShortListType',       label: 'contentShortListType - 短整数リスト' },
+  { value: 'contentByteListType',        label: 'contentByteListType - バイトリスト' },
+  { value: 'contentUnsignedIntListType', label: 'contentUnsignedIntListType - 符号なし整数リスト' },
+  { value: 'contentFloatListType',       label: 'contentFloatListType - 単精度実数リスト' },
+  { value: 'contentDoubleListType',      label: 'contentDoubleListType - 倍精度実数リスト' },
+  { value: 'contentDecimalListType',     label: 'contentDecimalListType - 10進数リスト' },
+  { value: 'contentBooleanListType',     label: 'contentBooleanListType - 真偽値リスト' },
+  { value: 'contentDateTimeListType',    label: 'contentDateTimeListType - 日時リスト' },
+];
+
 /**
  * NestedPropertyEditor - ネスト構造プロパティ編集（Ant Design版）
  */
@@ -546,26 +561,41 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           {/* 属性値入力欄（属性名選択後に表示） */}
           {newAttributeName && (
             newAttributeName === 'xsi:type' ? (
-              /* xsi:type → MaiML型Selectプルダウン */
-              <Select
-                style={{ width: '100%' }}
-                placeholder="MaiML Property Type"
-                value={newAttributeValue || undefined}
-                onChange={setNewAttributeValue}
-              >
-                <Option disabled>--- Simple Types ---</Option>
-                {MAIML_PROPERTY_TYPES.filter(t => t.category === 'Simple').map(type => (
-                  <Option key={type.value} value={type.value}>
-                    {type.label}
-                  </Option>
-                ))}
-                <Option disabled>--- List Types ---</Option>
-                {MAIML_PROPERTY_TYPES.filter(t => t.category === 'List').map(type => (
-                  <Option key={type.value} value={type.value}>
-                    {type.label}
-                  </Option>
-                ))}
-              </Select>
+              /* xsi:type → content タグは contentXxxListType 系、property タグは MAIML_PROPERTY_TYPES */
+              propertyData.tagName === 'content' ? (
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder="Content Type"
+                  value={newAttributeValue || undefined}
+                  onChange={setNewAttributeValue}
+                >
+                  {MAIML_CONTENT_TYPES.map(type => (
+                    <Option key={type.value} value={type.value}>
+                      {type.label}
+                    </Option>
+                  ))}
+                </Select>
+              ) : (
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder="MaiML Property Type"
+                  value={newAttributeValue || undefined}
+                  onChange={setNewAttributeValue}
+                >
+                  <Option disabled>--- Simple Types ---</Option>
+                  {MAIML_PROPERTY_TYPES.filter(t => t.category === 'Simple').map(type => (
+                    <Option key={type.value} value={type.value}>
+                      {type.label}
+                    </Option>
+                  ))}
+                  <Option disabled>--- List Types ---</Option>
+                  {MAIML_PROPERTY_TYPES.filter(t => t.category === 'List').map(type => (
+                    <Option key={type.value} value={type.value}>
+                      {type.label}
+                    </Option>
+                  ))}
+                </Select>
+              )
             ) : OPTIONAL_MASTER_ATTRIBUTES.has(newAttributeName) ? (
               /* axis / size → AutoComplete（マスタ候補提示 + 手入力許可） */
               <Space direction="vertical" style={{ width: '100%' }}>

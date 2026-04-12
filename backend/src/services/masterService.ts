@@ -1203,6 +1203,7 @@ export async function getAttributeMastersWithFilters(
   filters: {
     search?: string;
     isActive?: boolean;
+    departmentCd?: string;
   } = {}
 ): Promise<AttributeMasterResponse[]> {
   console.log('=== masterService.getAttributeMastersWithFilters called ===');

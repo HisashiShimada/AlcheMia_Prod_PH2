@@ -377,10 +377,19 @@ export async function downloadCsv(
  *
  * @returns AttributeRecord[] - アクティブなAttributeマスタ一覧
  */
-export async function fetchAttributeMasters(): Promise<AttributeRecord[]> {
+export async function fetchAttributeMasters(applyDepartmentFilter?: boolean): Promise<AttributeRecord[]> {
   try {
-    const records = await fetchMasters('attribute', { isActive: true });
-    return records as AttributeRecord[];
+    const config = getMasterDataConfig('attribute');
+    const client = createApiClient();
+    const params: Record<string, string> = { is_active: 'true' };
+    if (applyDepartmentFilter) {
+      params.apply_department_filter = 'true';
+    }
+    const response = await client.get<ApiResponse<AttributeRecord[]>>(config.apiEndpoint, { params });
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+    return [];
   } catch (error) {
     console.error('fetchAttributeMasters error:', error);
     return [];

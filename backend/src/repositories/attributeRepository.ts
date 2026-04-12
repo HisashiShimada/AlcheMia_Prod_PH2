@@ -68,6 +68,7 @@ export const findAllWithFilters = async (
   filters: {
     search?: string;
     isActive?: boolean;
+    departmentCd?: string;
   } = {}
 ): Promise<AttributeMaster[]> => {
   const pgp = getPgp();
@@ -109,6 +110,18 @@ ORDER BY`
 ORDER BY`
     );
     values.push(filters.isActive);
+    paramIndex++;
+  }
+
+  // 部署コードフィルタ（ログインユーザーの部署 OR 部署指定なし）
+  // apply_department_filter=true 時のみ適用（マスタ管理画面では使用しない）
+  if (filters.departmentCd) {
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND (a.department_cd = $${paramIndex} OR a.department_cd IS NULL OR a.department_cd = '')
+ORDER BY`
+    );
+    values.push(filters.departmentCd);
     paramIndex++;
   }
 

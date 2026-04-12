@@ -67,7 +67,8 @@ export function useAttributeMasters(): UseAttributeMastersResult {
     setLoading(true);
     setError(null);
     try {
-      const records = await fetchAttributeMasters();
+      // apply_department_filter=true でログインユーザーの部署 or 部署指定なしのデータのみ取得
+      const records = await fetchAttributeMasters(true);
       setAttributeRecords(records);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Attributeマスタの取得に失敗しました';
