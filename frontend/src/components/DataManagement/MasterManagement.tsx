@@ -55,6 +55,7 @@ interface ItemCategory {
   isDisplay: boolean;
   addable: boolean;
   update: boolean;
+  required?: boolean;
 }
 
 /**
@@ -100,10 +101,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       case '3': return 'instrument';
       case '2': return 'vendor';
       case '1': return 'creator';
+      case '4': return 'attribute';
       default: 
         throw new Error(
           `マスタID ${masterId} はこの画面では管理できません。` +
-          `この画面ではCreator（ID: 1）、Vendor（ID: 2）、Instrument（ID: 3）のみ対応しています。`
+          `この画面ではCreator（ID: 1）、Vendor（ID: 2）、Instrument（ID: 3）、Attribute（ID: 4）のみ対応しています。`
         );
     }
   };
@@ -149,6 +151,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         isDisplay: field.isDisplay,
         addable: field.addable,
         update: field.update,
+        required: field.required,
       };
     });
     
@@ -164,9 +167,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
   // マスタ種別の選択肢をmasterDataConfig.tsから生成（Creator、Vendor、Instrumentの3つのみ）
   const masterTypes = useMemo(() => {
-    // Creator（'1'）、Vendor（'2'）、Instrument（'3'）の順序で表示
+    // Creator（'1'）、Vendor（'2'）、Instrument（'3'）、Attribute（'4'）の順序で表示
     const allConfigs = getAllMasterDataConfigs();
-    const targetOrder: MasterDataType[] = ['creator', 'vendor', 'instrument'];
+    const targetOrder: MasterDataType[] = ['creator', 'vendor', 'instrument', 'attribute'];
     
     return targetOrder
       .map(type => allConfigs.find(config => config.type === type))
@@ -405,6 +408,17 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     setEditingMaster(master);
     setOriginalEditingData(master);  // 元データを保存
     
+    // Attributeマスタの場合、attributeNameSelectをセット・isNewAttributeNameをリセット
+    if (selectedMasterInfo?.masterId === '4') {
+      setIsNewAttributeName(false);
+      const formValues = { ...master };
+      // attributeNameSelectに現在の属性名をセット
+      formValues.attributeNameSelect = master.attributeName || '';
+      form.setFieldsValue(formValues);
+      setIsModalVisible(true);
+      return;
+    }
+
     // Creatorマスタの場合、vendorNameとinstrumentNameをJSON形式に変換
     if (selectedMasterInfo?.masterId === '1') {
       const formValues = { ...master };
@@ -447,7 +461,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       cancelText: t('masterManagement.buttons.cancel'),
       onOk: async () => {
         try {
-          const DB_CONNECTED_MASTERS = ['3', '2', '1'];
+          const DB_CONNECTED_MASTERS = ['3', '2', '1', '4'];
           if (selectedMasterInfo && DB_CONNECTED_MASTERS.includes(selectedMasterInfo.masterId)) {
             await masterApi.batchUpdateMasterStatus(
               convertMasterIdToType(selectedMasterInfo.masterId),
@@ -487,7 +501,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
-          const DB_CONNECTED_MASTERS = ['3', '2', '1'];
+          const DB_CONNECTED_MASTERS = ['3', '2', '1', '4'];
           if (selectedMasterInfo && DB_CONNECTED_MASTERS.includes(selectedMasterInfo.masterId)) {
             await masterApi.batchUpdateMasterStatus(
               convertMasterIdToType(selectedMasterInfo.masterId),
@@ -517,8 +531,17 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const handleToggleActive = async (record: MasterRecord) => {
     if (!selectedMasterInfo) return;
     
-    const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
-    const recordId = String(record[idField]);
+    // Attributeマスタは複合PK（attributeName__attributeValue）でIDを構築
+    let recordId: string;
+    if (selectedMasterInfo.masterId === '4') {
+      recordId = [
+        String(record.attributeName || ''),
+        String(record.attributeValue || ''),
+      ].join('__');
+    } else {
+      const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
+      recordId = String(record[idField]);
+    }
     
     // マスタ名の取得
     let masterName: string;
@@ -570,8 +593,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const handleUpload = () => {
     if (!selectedMasterInfo) return;
     
-    // DB連携マスタ（Instrument, Vendor, Creator）のみCSVアップロード可能
-    if (!['3', '2', '1'].includes(selectedMasterInfo.masterId)) {
+    // DB連携マスタ（Instrument, Vendor, Creator, Attribute）のみCSVアップロード可能
+    if (!['3', '2', '1', '4'].includes(selectedMasterInfo.masterId)) {
       message.warning(t('masterManagement.messages.csvNotSupported'));
       return;
     }
@@ -612,6 +635,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         endpoint = `${apiUrl}/master/vendor/upload-csv`;
       } else if (selectedMasterInfo.masterId === '1') {
         endpoint = `${apiUrl}/master/creator/upload-csv`;
+      } else if (selectedMasterInfo.masterId === '4') {
+        endpoint = `${apiUrl}/master/attribute/upload-csv`;
       } else {
         message.error(t('masterManagement.messages.csvNotSupported'));
         return;
@@ -695,8 +720,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const handleDownload = async () => {
     if (!selectedMasterInfo) return;
     
-    // DB連携マスタ（Instrument, Vendor, Creator）の場合はAPI経由
-    if (['3', '2', '1'].includes(selectedMasterInfo.masterId)) {
+    // DB連携マスタ（Instrument, Vendor, Creator, Attribute）の場合はAPI経由
+    if (['3', '2', '1', '4'].includes(selectedMasterInfo.masterId)) {
       try {
         setLoading(true);
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -709,6 +734,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           endpoint = `${apiUrl}/master/vendor/download-csv`;
         } else if (selectedMasterInfo.masterId === '1') {
           endpoint = `${apiUrl}/master/creator/download-csv`;
+        } else if (selectedMasterInfo.masterId === '4') {
+          endpoint = `${apiUrl}/master/attribute/download-csv`;
         }
         
       // フィルタ条件をクエリパラメータに追加
@@ -1081,6 +1108,68 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           await fetchMasterData('creator');
           message.success(t('masterManagement.messages.addSuccess'));
         }
+      } else if (selectedMasterInfo?.masterId === '4') {
+        // Attributeマスタ
+        // attributeNameの最終値を安全に取得（Fix 1: フォールバック対応）
+        const resolvedAttributeName = isNewAttributeName
+          ? values.attributeName  // 新規入力テキスト
+          : (values.attributeName || values.attributeNameSelect); // hidden値 or select値（'__new__'は除外済み）
+
+        if (editingMaster) {
+          // 編集の場合 - PUT（主キーは attributeName）
+          const response = await fetch(
+            `${apiUrl}/master/attribute/${encodeURIComponent(String(editingMaster.attributeName || ''))}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`,
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                attributeName: resolvedAttributeName,
+                attributeValue: values.attributeValue,
+                attributeRemark: values.attributeRemark,
+                departmentCd: values.departmentCd,
+                isActive: values.isActive,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error('更新に失敗しました');
+          }
+
+          await fetchMasterData('attribute');
+          message.success(t('masterManagement.messages.saveSuccess'));
+        } else {
+          // 新規作成 - POST
+          const response = await fetch(`${apiUrl}/master/attribute`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionToken}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              attributeName: resolvedAttributeName,
+              attributeValue: values.attributeValue,
+              attributeRemark: values.attributeRemark,
+              departmentCd: values.departmentCd,
+              isActive: values.isActive !== undefined ? values.isActive : true,
+            }),
+          });
+
+          if (!response.ok) {
+            if (response.status === 409) {
+              throw new Error(t('masterManagement.messages.idDuplicate'));
+            }
+            throw new Error(t('masterManagement.messages.addFailed'));
+          }
+
+          await fetchMasterData('attribute');
+          message.success(t('masterManagement.messages.addSuccess'));
+        }
       } else {
         // その他のマスタ（従来のローカル処理）
         if (editingMaster) {
@@ -1158,6 +1247,63 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   // Vendor/Instrument選択肢（Creatorマスタ用）
   const [vendorOptions, setVendorOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [instrumentOptions, setInstrumentOptions] = useState<Array<{ value: string; label: string }>>([]);
+
+  // Department選択肢（Attributeマスタ用）
+  const [departmentOptions, setDepartmentOptions] = useState<Array<{ value: string; label: string }>>([]);
+  // 属性名選択肢（Attributeマスタ用）：既存の属性名一覧 + 「新規入力」オプション
+  const [attributeNameOptions, setAttributeNameOptions] = useState<Array<{ value: string; label: string }>>([]);
+  // 属性名選択で「新規入力」が選ばれているかどうか
+  const [isNewAttributeName, setIsNewAttributeName] = useState<boolean>(false);
+
+  // Attributeマスタのmastersデータが更新されたら属性名選択肢を生成
+  useEffect(() => {
+    if (selectedMasterInfo?.masterId !== '4') return;
+    const uniqueNames = Array.from(
+      new Set(masters.map(m => String(m.attributeName || '')).filter(n => n.trim() !== ''))
+    ).sort();
+    setAttributeNameOptions([
+      ...uniqueNames.map(name => ({ value: name, label: name })),
+      { value: '__new__', label: '＋ 新規入力' },
+    ]);
+  }, [masters, selectedMasterInfo]);
+
+  // Attributeマスタ選択時にDepartment選択肢を取得
+  useEffect(() => {
+    if (selectedMasterInfo?.masterId !== '4') return;
+
+    const fetchDepartmentOptions = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const sessionToken = localStorage.getItem('sessionToken');
+        if (!sessionToken) return;
+
+        const response = await fetch(`${apiUrl}/systemManagement/department`, {
+          headers: { 'Authorization': `Bearer ${sessionToken}` },
+          credentials: 'include',
+        });
+
+        if (!response.ok) return;
+
+        const result = await response.json();
+        // APIレスポンスのフィールド名: departmentId（= department_cd）、displayName（= department_name）
+        const departments: Array<{ departmentId: string; displayName: string; isActive?: boolean }> =
+          result.data ?? result ?? [];
+
+        setDepartmentOptions(
+          departments
+            .filter(d => d.isActive !== false)
+            .map(d => ({
+              value: d.departmentId,
+              label: `${d.departmentId} - ${d.displayName}`,
+            }))
+        );
+      } catch (error) {
+        console.error('部署選択肢取得エラー:', error);
+      }
+    };
+
+    fetchDepartmentOptions();
+  }, [selectedMasterInfo]);
 
   // Creatorマスタ選択時にVendor/Instrument選択肢を取得
   useEffect(() => {
@@ -1351,8 +1497,16 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           dataSource={filteredMasters}
           rowKey={(record) => {
             if (!selectedMasterInfo) return String(Math.random());
-            
-            // IDフィールド（最初のフィールド）の値を使用
+
+            // Attributeマスタは複合主キー（attributeName + attributeValue）
+            if (selectedMasterInfo.masterId === '4') {
+              return [
+                String(record.attributeName || ''),
+                String(record.attributeValue || ''),
+              ].join('__');
+            }
+
+            // その他のマスタはIDフィールド（最初のフィールド）の値を使用
             const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
             return String(record[idField] || Math.random());
           }}
@@ -1429,7 +1583,96 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             }
             
             // 必須項目の判定（IDフィールドは追加時に必須）
-            const isRequired = isIdField ? !editingMaster : (category.addable && !editingMaster);
+            // required が明示的に false の場合は必須扱いにしない
+            // それ以外は従来通り: IDフィールドは追加時必須、その他は addable かつ追加時に必須
+            const isRequired = isIdField
+              ? !editingMaster
+              : (category.required !== false && category.addable && !editingMaster);
+
+            // Attributeマスタ（masterId="4"）の場合の特別処理
+            if (selectedMasterInfo.masterId === '4') {
+              // attributeName: 既存の属性名からSelect選択 or 「新規入力」でテキスト入力
+              if (key === 'attributeName') {
+                return (
+                  <React.Fragment key={key}>
+                    <Form.Item
+                      name="attributeNameSelect"
+                      label={category.headerName}
+                      rules={[{
+                        required: true,
+                        validator: (_, value) => {
+                          if (!value) return Promise.reject(new Error(`${category.headerName}を選択または入力してください`));
+                          return Promise.resolve();
+                        }
+                      }]}
+                    >
+                      <Select
+                        options={attributeNameOptions}
+                        placeholder={`${category.headerName}を選択するか「新規入力」を選択してください`}
+                        disabled={isDisabled}
+                        showSearch
+                        filterOption={(input, option) =>
+                          String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                        }
+                        onChange={(value: string) => {
+                          const isNew = value === '__new__';
+                          setIsNewAttributeName(isNew);
+                          if (!isNew) {
+                            // 既存の属性名を選択した場合はattributeNameフォームにセット
+                            form.setFieldValue('attributeName', value);
+                          } else {
+                            // 「新規入力」を選択した場合はattributeNameをクリア
+                            form.setFieldValue('attributeName', '');
+                          }
+                        }}
+                      />
+                    </Form.Item>
+                    {/* 「新規入力」が選ばれた場合のみテキスト入力欄を表示 */}
+                    {isNewAttributeName && (
+                      <Form.Item
+                        name="attributeName"
+                        label={`${category.headerName}（新規入力）`}
+                        rules={[
+                          { required: true, message: `${category.headerName}を入力してください` },
+                          { min: 1, message: '1文字以上入力してください' },
+                        ]}
+                        style={{ marginTop: -8 }}
+                      >
+                        <Input placeholder={`新しい${category.headerName}を入力してください`} disabled={isDisabled} />
+                      </Form.Item>
+                    )}
+                    {/* 既存選択時はhiddenフィールドとしてattributeNameを保持 */}
+                    {!isNewAttributeName && (
+                      <Form.Item name="attributeName" hidden>
+                        <Input />
+                      </Form.Item>
+                    )}
+                  </React.Fragment>
+                );
+              }
+
+              // departmentName: Selectを使用（選択のみ）
+              if (key === 'departmentName') {
+                return (
+                  <Form.Item
+                    key={key}
+                    name="departmentCd"
+                    label={category.headerName}
+                    rules={isRequired ? [{ required: true, message: `${category.headerName}を選択してください` }] : []}
+                  >
+                    <Select
+                      options={departmentOptions}
+                      placeholder={`${category.headerName}を選択してください`}
+                      disabled={isDisabled}
+                      showSearch
+                      filterOption={(input, option) =>
+                        String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    />
+                  </Form.Item>
+                );
+              }
+            }
 
             // Creatorマスタ（masterId="1"）の場合、vendorNameとinstrumentNameはSelectを使用（選択のみ）
             if (selectedMasterInfo.masterId === '1') {
