@@ -48,6 +48,7 @@ import type {
 } from '../../../types/editor';
 import { Template, Insertion, PlaceRef, Property, Content } from '@/types/maiml-unified';
 import NestedPropertyEditor, { type PropertyData } from './NestedPropertyEditor';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   convertPropertiesArrayToNestedFormat,
   convertPropertiesArrayToNestedFormatRecursive,
@@ -93,6 +94,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   allNodes = [],
   templateErrors = {},
 }) => {
+  const { t } = useLanguage();
   const [hasChanges, setHasChanges] = useState(false);
   // ✅ 初期化済みフラグ: open 中に node 参照が変わっても useEffect の再実行を防ぐ
   const [isInitialized, setIsInitialized] = useState(false);
@@ -897,7 +899,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setTemplateFiles(allFiles);
     } catch (error) {
       console.error('テンプレートファイル一覧取得エラー:', error);
-      message.error('テンプレートファイル一覧の取得に失敗しました');
+      message.error(t('formatManagement.messages.file_list_load_failed'));
       setTemplateFiles([]);
     } finally {
       setIsLoadingTemplates(false);

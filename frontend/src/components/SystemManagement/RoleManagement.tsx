@@ -48,6 +48,9 @@ import FunctionPermissionDialog from './FunctionPermissionDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';
 
+/** 機能未選択を表すセンチネル値 */
+const NO_FUNCTION_SELECTED = '－';
+
 const { Text } = Typography;
 
 interface ItemCategory {
@@ -175,6 +178,15 @@ export default function RoleManagementMock() {
     'MI技術者': 'roles.mi_engineer',
   };
 
+  // DB機能名（日本語）→ functionPermissionDialog.functions.* 翻訳キーのマッピング
+  const functionNameToKey: Record<string, string> = {
+    'プロバイダーメニュー':    'functionPermissionDialog.functions.010000',
+    'システム管理者メニュー': 'functionPermissionDialog.functions.020000',
+    'データ管理者メニュー':   'functionPermissionDialog.functions.030000',
+    '実験管理者メニュー':     'functionPermissionDialog.functions.040000',
+    '実験作業者メニュー':     'functionPermissionDialog.functions.050000',
+  };
+
   const getRoleNameOptions = useMemo(() => {
     // ソート順はDBのロール名（日本語）で定義（言語非依存のインデックス参照用）
     const roleOrder = Object.keys(roleNameToKey);
@@ -229,7 +241,7 @@ export default function RoleManagementMock() {
         const columnWidth = isFunctionName ? 600 : isInitialScreenFunctionName ? 225 : (isRoleName ? 170 : 150);
 
         return {
-          title: <div style={{ textAlign: 'center' }}>{category!.headerName}</div>,
+          title: <div style={{ textAlign: 'center' }}>{t(category!.headerName)}</div>,
           dataIndex: key,
           key: key,
           width: columnWidth,
@@ -251,6 +263,10 @@ export default function RoleManagementMock() {
                 </Text>
               );
             }
+            if (isInitialScreenFunctionName) {
+              const key = functionNameToKey[String(text)];
+              return key ? t(key) : String(text || '');
+            }
             if (isFunctionName) {
               const functions = (record.functions as Array<{ name: string; icon: string; color: string }>) || [];
               const isActive = record.isActive !== false;
@@ -264,13 +280,13 @@ export default function RoleManagementMock() {
                   onClick={(isActive && !isReadOnly) ? () => handleOpenFunctionModalDirect(record) : undefined}
                 >
                   {functions.length === 0 ? (
-                    <span style={{ color: isActive ? token.colorTextSecondary : token.colorTextDisabled }}>－</span>
+                    <span style={{ color: isActive ? token.colorTextSecondary : token.colorTextDisabled }}>{NO_FUNCTION_SELECTED}</span>
                   ) : (
                     functions.map((func, idx) => (
                       <React.Fragment key={idx}>
                         {idx > 0 && <span style={{ color: isActive ? token.colorText : token.colorTextDisabled }}> / </span>}
                         <span style={{ color: isActive ? func.color : token.colorTextDisabled, fontWeight: token.fontWeightStrong }}>{func.icon}</span>
-                        <span style={{ color: isActive ? token.colorText : token.colorTextDisabled, fontWeight: token.fontWeightStrong }}> {func.name}</span>
+                        <span style={{ color: isActive ? token.colorText : token.colorTextDisabled, fontWeight: token.fontWeightStrong }}> {(() => { const k = functionNameToKey[func.name]; return k ? t(k) : func.name; })()}</span>
                       </React.Fragment>
                     ))
                   )}
@@ -314,7 +330,7 @@ export default function RoleManagementMock() {
     });
 
     return dynamicColumns;
-  }, [selectedMasterInfo, token, formatDateTime]);
+  }, [selectedMasterInfo, token, formatDateTime, t]);
 
   const rowSelection = {
     selectedRowKeys,
@@ -325,7 +341,7 @@ export default function RoleManagementMock() {
     setEditingMaster(null);
     form.resetFields();
     setTempFunctionData(null);
-    form.setFieldsValue({ isActive: true, functionId: '', functionName: '－', functionWritePermissions: '' });
+    form.setFieldsValue({ isActive: true, functionId: '', functionName: NO_FUNCTION_SELECTED, functionWritePermissions: '' });
     setIsModalVisible(true);
   };
 
@@ -337,7 +353,7 @@ export default function RoleManagementMock() {
   };
 
   const functionOptions = useMemo(() => {
-    if (tempFunctionData && tempFunctionData.apiFunctionNames && tempFunctionData.apiFunctionNames !== '－') {
+    if (tempFunctionData && tempFunctionData.apiFunctionNames && tempFunctionData.apiFunctionNames !== NO_FUNCTION_SELECTED) {
       return tempFunctionData.apiFunctionNames
         .split('/')
         .map(name => name.trim())
@@ -346,7 +362,10 @@ export default function RoleManagementMock() {
     }
     if (!editingMaster || !editingMaster.functions) return [];
     const functions = editingMaster.functions as Array<{ name: string }>;
-    return functions.map(func => ({ label: func.name, value: func.name }));
+    return functions.map(func => {
+      const key = functionNameToKey[func.name];
+      return { label: key ? t(key) : func.name, value: func.name };
+    });
   }, [editingMaster, tempFunctionData]);
 
   const handleActivate = async () => {
@@ -473,18 +492,18 @@ export default function RoleManagementMock() {
 
         if (tempFunctionData) {
           let shouldClear = false;
-          if (!tempFunctionData.apiFunctionNames || tempFunctionData.apiFunctionNames === '－' || tempFunctionData.apiFunctionNames.trim() === '') {
+          if (!tempFunctionData.apiFunctionNames || tempFunctionData.apiFunctionNames === NO_FUNCTION_SELECTED || tempFunctionData.apiFunctionNames.trim() === '') {
             shouldClear = true;
           }
           if (!shouldClear && values.initialScreenFunctionName) {
-            const list = tempFunctionData.apiFunctionNames.split('/').map(n => n.trim()).filter(n => n !== '' && n !== '－');
+            const list = tempFunctionData.apiFunctionNames.split('/').map(n => n.trim()).filter(n => n !== '' && n !== NO_FUNCTION_SELECTED);
             if (!list.includes(values.initialScreenFunctionName)) shouldClear = true;
           }
           if (shouldClear) finalInitialScreenFunctionName = null;
         }
 
         await updateRole(roleId, { roleName: values.roleName, initialScreenFunctionName: finalInitialScreenFunctionName, isActive: values.isActive });
-        if (tempFunctionData && tempFunctionData.apiFunctionNames !== '－') {
+        if (tempFunctionData && tempFunctionData.apiFunctionNames !== NO_FUNCTION_SELECTED) {
           await updateRolePermissions(roleId, tempFunctionData.apiFunctionNames, tempFunctionData.functionWritePermissions);
         }
         await fetchRoleMasters();
@@ -493,18 +512,18 @@ export default function RoleManagementMock() {
         let finalInitialScreenFunctionName = values.initialScreenFunctionName || null;
         if (tempFunctionData) {
           let shouldClear = false;
-          if (!tempFunctionData.apiFunctionNames || tempFunctionData.apiFunctionNames === '－' || tempFunctionData.apiFunctionNames.trim() === '') {
+          if (!tempFunctionData.apiFunctionNames || tempFunctionData.apiFunctionNames === NO_FUNCTION_SELECTED || tempFunctionData.apiFunctionNames.trim() === '') {
             shouldClear = true;
           }
           if (!shouldClear && values.initialScreenFunctionName) {
-            const list = tempFunctionData.apiFunctionNames.split('/').map(n => n.trim()).filter(n => n !== '' && n !== '－');
+            const list = tempFunctionData.apiFunctionNames.split('/').map(n => n.trim()).filter(n => n !== '' && n !== NO_FUNCTION_SELECTED);
             if (!list.includes(values.initialScreenFunctionName)) shouldClear = true;
           }
           if (shouldClear) finalInitialScreenFunctionName = null;
         }
 
         await createRole({ role: values.role, roleName: values.roleName, initialScreenFunctionName: finalInitialScreenFunctionName, isActive: values.isActive !== undefined ? values.isActive : true });
-        if (tempFunctionData && tempFunctionData.apiFunctionNames !== '－') {
+        if (tempFunctionData && tempFunctionData.apiFunctionNames !== NO_FUNCTION_SELECTED) {
           await updateRolePermissions(values.role, tempFunctionData.apiFunctionNames, tempFunctionData.functionWritePermissions);
         }
         await fetchRoleMasters();
@@ -597,7 +616,7 @@ export default function RoleManagementMock() {
         const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
         const roleId = String(editingFunctionMaster[idField]);
         await updateRolePermissions(roleId, apiFunctionNames, functionWritePermissions);
-        if (!functionName || functionName === '－') {
+        if (!functionName || functionName === NO_FUNCTION_SELECTED) {
           await updateRole(roleId, { initialScreenFunctionName: null });
         }
         await fetchRoleMasters();
@@ -739,7 +758,7 @@ export default function RoleManagementMock() {
           <Form.Item name="functionName" label={t('roleManagement.form.functionName')}>
             <Input
               readOnly={true}
-              placeholder="－"
+              placeholder={NO_FUNCTION_SELECTED}
               onClick={() => {
                 if (editingMaster) {
                   handleOpenFunctionModalTemporary(editingMaster);
@@ -747,7 +766,7 @@ export default function RoleManagementMock() {
                   const tempMaster = {
                     role: form.getFieldValue('role') || '',
                     roleName: form.getFieldValue('roleName') || '',
-                    functionName: '－',
+                    functionName: NO_FUNCTION_SELECTED,
                     functionWritePermissions: '',
                     functionIds: [],
                     writableFunctionIds: [],
@@ -762,7 +781,7 @@ export default function RoleManagementMock() {
           <Form.Item noStyle shouldUpdate={(prev, cur) => prev.functionName !== cur.functionName}>
             {({ getFieldValue }) => {
               const functionNameValue = getFieldValue('functionName');
-              const isFunctionDisabled = !functionNameValue || functionNameValue === '－';
+              const isFunctionDisabled = !functionNameValue || functionNameValue === NO_FUNCTION_SELECTED;
               return (
                 <Form.Item name="initialScreenFunctionName" label={t('roleManagement.form.initialScreen')}>
                   <Select

@@ -174,3 +174,30 @@ export const LEGACY_CODE_MAP: Record<string, ErrorCode> = {
   PROJECT_NOT_CHECKED_OUT: E7002,
   MAIML_NOT_FOUND: E6002,
 };
+
+/**
+ * エラーコード付きアプリケーションエラー
+ *
+ * Service 層で throw し、Controller 層が error.code プロパティで分岐する。
+ * 日本語メッセージ文字列によるエラー判定を排除するために使用する。
+ *
+ * @example
+ * // Service 層
+ * throw new AppError(E1006, 'Folder name must contain only alphanumeric and underscore characters.');
+ *
+ * // Controller 層
+ * if (error instanceof AppError) {
+ *   return res.status(400).json({ error: { code: error.code } });
+ * }
+ */
+export class AppError extends Error {
+  constructor(
+    public readonly code: ErrorCode | string,
+    message: string
+  ) {
+    super(message);
+    this.name = 'AppError';
+    // Prototype chain を正しく繋ぐ（TypeScript でのサブクラス化に必要）
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}

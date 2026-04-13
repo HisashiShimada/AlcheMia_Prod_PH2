@@ -15,6 +15,7 @@ import { MaimlParserTyped } from '@/utils/maimlParserTyped';
 import type { MaimlRoot } from '@/types/maiml-unified';
 import { getProjectMaiml } from '@/services/projectApiService';
 import { message } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * Context値の型定義
@@ -66,6 +67,7 @@ interface ProjectMaimlProviderProps {
  * MAIMLデータの取得・パース・管理を行う
  */
 export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ children }) => {
+  const { t } = useLanguage();
   const [maimlRoot, setMaimlRoot] = useState<MaimlRoot | null>(null);
   const [maimlContent, setMaimlContent] = useState<string | null>(null);
   const [parser, setParser] = useState<MaimlParserTyped | null>(null);
@@ -174,7 +176,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
       setParser(null);
       setCurrentProjectId(null);
 
-      message.error(`MAIMLファイルの読み込みに失敗しました: ${error.message}`);
+      message.error(`${t('formatManagement.messages.file_load_failed')}: ${error.message}`);
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;

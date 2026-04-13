@@ -10,6 +10,7 @@ import { getMessage } from '../utils/messages';
 import { UserSearchFilters } from '../types/database';
 import Papa from 'papaparse';
 import { getPgp } from '../database/db';
+import { AppError, E1003, E1004, E6001, E1005 } from '../enums/errorCodes';
 
 /**
  * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
@@ -81,19 +82,19 @@ export async function createUser(
 ): Promise<UserRow> {
   // バリデーション
   if (!data.userId || !data.userName || !data.mailAddress || !data.roleCd) {
-    throw new Error('必須フィールドが不足しています');
+    throw new AppError(E1004, 'Required fields are missing.');
   }
 
   // メールアドレス形式チェック
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(data.userId) || !emailRegex.test(data.mailAddress)) {
-    throw new Error('メールアドレスの形式が不正です');
+    throw new AppError(E1005, 'Invalid email address format.');
   }
 
   // 重複チェック
   const exists = await userRepository.existsById(organizationId, data.userId);
   if (exists) {
-    throw new Error(getMessage('ja', 'user.duplicateUserId'));
+    throw new AppError('USER_ALREADY_EXISTS', getMessage('ja', 'user.duplicateUserId'));
   }
 
   // ランダムパスワードを自動生成
@@ -176,9 +177,9 @@ export async function updateUser(
   updateUserId: string
 ): Promise<UserRow> {
   // 存在チェック
-  const exists = await userRepository.findById(organizationId, userId);
-  if (!exists) {
-    throw new Error('ユーザーが見つかりません');
+  const existsForUpdate = await userRepository.findById(organizationId, userId);
+  if (!existsForUpdate) {
+    throw new AppError('USER_NOT_FOUND', 'User not found');
   }
 
   try {
@@ -210,9 +211,9 @@ export async function updateUserStatus(
   updateUserId: string
 ): Promise<UserRow> {
   // 存在チェック
-  const exists = await userRepository.findById(organizationId, userId);
-  if (!exists) {
-    throw new Error('ユーザーが見つかりません');
+  const existsForStatus = await userRepository.findById(organizationId, userId);
+  if (!existsForStatus) {
+    throw new AppError('USER_NOT_FOUND', 'User not found');
   }
 
   try {

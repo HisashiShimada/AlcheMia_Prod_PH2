@@ -42,6 +42,8 @@ export interface FieldConfig {
   dbField: string;
   /** 表示名 */
   displayName: string;
+  /** 翻訳キー（多言語化対応） */
+  i18nKey?: string;
   /** 検索固定フィルターとして使用するか */
   searchFixed: boolean;
   /** 一覧に表示するか */
@@ -94,6 +96,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'instrumentId',
         displayName: 'ID',
+        i18nKey: 'masterManagement.fields.id',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -104,6 +107,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'instrumentName',
         displayName: '名称',
+        i18nKey: 'masterManagement.fields.name',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -114,6 +118,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'instrumentDescription',
         displayName: '説明',
+        i18nKey: 'masterManagement.fields.description',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -124,6 +129,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'instrumentAnnotation',
         displayName: '注釈',
+        i18nKey: 'masterManagement.fields.annotation',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -166,6 +172,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'vendorId',
         displayName: 'ID',
+        i18nKey: 'masterManagement.fields.id',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -176,6 +183,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'vendorName',
         displayName: '名称',
+        i18nKey: 'masterManagement.fields.name',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -186,6 +194,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'vendorDescription',
         displayName: '説明',
+        i18nKey: 'masterManagement.fields.description',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -196,6 +205,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'vendorAnnotation',
         displayName: '注釈',
+        i18nKey: 'masterManagement.fields.annotation',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -238,6 +248,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'creatorId',
         displayName: 'ID',
+        i18nKey: 'masterManagement.fields.id',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -248,6 +259,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'creatorName',
         displayName: '名称',
+        i18nKey: 'masterManagement.fields.name',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -258,6 +270,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'creatorDescription',
         displayName: '説明',
+        i18nKey: 'masterManagement.fields.description',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -268,6 +281,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'creatorAnnotation',
         displayName: '注釈',
+        i18nKey: 'masterManagement.fields.annotation',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -278,6 +292,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'vendorName',
         displayName: 'Vendor名称',
+        i18nKey: 'masterManagement.fields.vendorName',
         searchFixed: false,
         isDisplay: true,
         addable: true,
@@ -288,6 +303,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
       {
         dbField: 'instrumentName',
         displayName: 'Instrument名称',
+        i18nKey: 'masterManagement.fields.instrumentName',
         searchFixed: false,
         isDisplay: true,
         addable: true,

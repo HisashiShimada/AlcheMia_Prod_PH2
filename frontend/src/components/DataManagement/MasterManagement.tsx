@@ -33,7 +33,7 @@ import * as masterApi from '@/services/masterApiService';
 import type { MasterRecord } from '@/services/masterApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { extractErrorMessage } from '@/utils/errorUtils';
+import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -143,8 +143,10 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     // 古い構造（itemCategories）に変換して互換性を保つ
     const itemCategories: Record<string, ItemCategory | undefined> = {};
     config.fields.forEach(field => {
+      // i18nKeyが設定されている場合は翻訳済みの表示名を使用、なければdisplayNameをフォールバックとして使用
+      const headerName = field.i18nKey ? t(field.i18nKey) : field.displayName;
       itemCategories[field.dbField] = {
-        headerName: field.displayName,
+        headerName,
         searchFixed: field.searchFixed,
         isDisplay: field.isDisplay,
         addable: field.addable,
@@ -1110,8 +1112,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       // エラーメッセージを取得
       const errorMessage = extractErrorMessage(error, t('masterManagement.messages.genericError'));
       
-      // 409エラー（ID重複）の場合
-      if (errorMessage.includes('既に存在しています')) {
+      // 409エラー（ID重複）の場合: E6001〜E6006 または HTTP 409 をエラーコードで判定
+      const errorCode = extractErrorCode(error);
+      if (errorCode === 'E6001' || errorCode === 'E6005' || errorCode === 'E6006') {
         // IDフィールド名を取得
         const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
         
@@ -1147,13 +1150,15 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
   // 曖昧検索のプレースホルダーを生成
   const fuzzySearchPlaceholder = useMemo(() => {
-    if (!selectedMasterInfo) return '検索';
+    if (!selectedMasterInfo) return t('common.search');
     const fieldNames = fuzzySearchFields
       .map(key => selectedMasterInfo.itemCategories[key]?.headerName)
       .filter(Boolean)
-      .join('、');
-    return fieldNames ? `${fieldNames}で検索` : '検索';
-  }, [selectedMasterInfo, fuzzySearchFields]);
+      .join(t('common.searchJoiner') !== 'common.searchJoiner' ? t('common.searchJoiner') : '、');
+    return fieldNames
+      ? t('masterManagement.form.searchPlaceholder').replace('{fields}', fieldNames)
+      : t('common.search');
+  }, [selectedMasterInfo, fuzzySearchFields, t]);
 
   // Vendor/Instrument選択肢（Creatorマスタ用）
   const [vendorOptions, setVendorOptions] = useState<Array<{ value: string; label: string }>>([]);
@@ -1336,7 +1341,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         {/* Creatorマスタの場合のみ注意書きを表示 */}
         {selectedMasterInfo?.masterId === '1' && (
           <Alert
-            title={<strong>Creatorに紐づくVendorまたはInstrumentに不備がある場合、該当レコードは強調表示されます。</strong>}
+            message={<strong>{t('masterManagement.creatorWarning')}</strong>}
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
@@ -1439,11 +1444,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                     key={key}
                     name={key}
                     label={category.headerName}
-                    rules={isRequired ? [{ required: true, message: `${category.headerName}を選択してください` }] : []}
+                    rules={isRequired ? [{ required: true, message: t('masterManagement.form.requiredSelect').replace('{label}', category.headerName) }] : []}
                   >
                     <Select
                       options={vendorOptions}
-                      placeholder={`${category.headerName}を選択してください`}
+                      placeholder={t('masterManagement.form.selectPlaceholder').replace('{label}', category.headerName)}
                       disabled={isDisabled}
                       showSearch
                       filterOption={(input, option) =>
@@ -1460,11 +1465,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                     key={key}
                     name={key}
                     label={category.headerName}
-                    rules={isRequired ? [{ required: true, message: `${category.headerName}を選択してください` }] : []}
+                    rules={isRequired ? [{ required: true, message: t('masterManagement.form.requiredSelect').replace('{label}', category.headerName) }] : []}
                   >
                     <Select
                       options={instrumentOptions}
-                      placeholder={`${category.headerName}を選択してください`}
+                      placeholder={t('masterManagement.form.selectPlaceholder').replace('{label}', category.headerName)}
                       disabled={isDisabled}
                       showSearch
                       filterOption={(input, option) =>
@@ -1481,7 +1486,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                 key={key}
                 name={key}
                 label={category.headerName}
-                rules={isRequired ? [{ required: true, message: `${category.headerName}を入力してください` }] : []}
+                rules={isRequired ? [{ required: true, message: t('masterManagement.form.required').replace('{label}', category.headerName) }] : []}
               >
                 <Input disabled={isDisabled} />
               </Form.Item>

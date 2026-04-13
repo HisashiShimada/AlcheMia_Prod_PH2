@@ -49,6 +49,7 @@ import {
   fetchExperimentRecords as fetchExperimentRecordsAPI,
 } from '@/utils/apiClient';
 import { parseMaiml } from '@/services/maimlApiService';
+import { ProgressStatus } from '@/constants/progressStatus';
 
 const { Text } = Typography;
 
@@ -865,11 +866,11 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
             '未着手';
 
           // 🔧 修正: 完了判定は進捗報告ベースのみ（実験記録では判定しない）
-          const isCompleted = statusValue === '完了' || statusValue === 'completed' || statusValue === 'complete';
+          const isCompleted = statusValue === ProgressStatus.COMPLETED || statusValue === 'completed' || statusValue === 'complete';
           const isInProgress =
-            statusValue === '作業中' ||
+            statusValue === ProgressStatus.IN_PROGRESS ||
             statusValue === 'in_progress' ||
-            statusValue === '準備中';
+            statusValue === ProgressStatus.PREPARING;
 
           // 🐛 デバッグログ追加
           console.log(`🎨 [Color Debug] Transition: ${node.id}`, {

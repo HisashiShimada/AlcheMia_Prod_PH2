@@ -18,6 +18,7 @@ import {
 } from '../../../../types/editor';
 
 import { Property, Content, Template } from '@/types/maiml-unified';
+import { PLACE_DESC_IMPORTED, PLACE_DESC_EXISTING, PLACE_DESC_IMPORTED_EN } from '@/constants/placeDescriptions';
 
 /**
  * バリデーション結果の型定義
@@ -872,9 +873,9 @@ export async function convertReactFlowToMaiML(
     // 説明フィールドのチェック
     const descValue = place.data.description;
     const hasDescription = descValue &&
-      descValue !== 'インポート済み' &&
-      descValue !== '既存プレース' &&
-      descValue !== 'imported' &&
+      descValue !== PLACE_DESC_IMPORTED &&
+      descValue !== PLACE_DESC_EXISTING &&
+      descValue !== PLACE_DESC_IMPORTED_EN &&
       String(descValue).trim() !== '';
     
     // Place要素は常に出力
