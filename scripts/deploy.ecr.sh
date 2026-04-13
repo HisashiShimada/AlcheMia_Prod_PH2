@@ -15,6 +15,7 @@
 #   --backend       バックエンドのみ対象
 #   --nginx         nginx（frontend含む）のみ対象
 #   --wait          ECSサービス安定化まで待機（デフォルト: スキップ）
+#   --check         デプロイせず現在のECSサービス状態のみ確認
 #   --tag <TAG>     イメージタグを指定（デフォルト: staging）
 #   --help          このヘルプを表示
 #
@@ -91,6 +92,7 @@ MIGRATE=false
 DEPLOY_BACKEND=true
 DEPLOY_NGINX=true
 WAIT_STABLE=false
+CHECK_ONLY=false
 IMAGE_TAG="staging"
 
 # =============================================================================
@@ -117,6 +119,109 @@ on_error() {
 trap 'on_error $LINENO' ERR
 
 # =============================================================================
+# ECSサービスデプロイ状態確認関数
+# 引数: $1=ラベル（表示名）, $2=ECSサービス名
+# =============================================================================
+check_deploy_status() {
+    local label="$1"
+    local service_name="$2"
+
+    info "  [${label}] サービス状態を取得中..."
+
+    # サービス基本情報（タスク数・ステータス）
+    local svc_json
+    svc_json=$(aws ecs describe-services \
+        --cluster "${ECS_CLUSTER}" \
+        --services "${service_name}" \
+        --region "${AWS_REGION}" \
+        --output json 2>/dev/null) || { warn "  [${label}] サービス情報の取得に失敗しました"; return; }
+
+    local desired running pending status task_def_arn
+    desired=$(echo "${svc_json}" | grep '"desiredCount"'  | head -1 | sed 's/[^0-9]//g')
+    running=$(echo "${svc_json}" | grep '"runningCount"'  | head -1 | sed 's/[^0-9]//g')
+    pending=$(echo "${svc_json}" | grep '"pendingCount"'  | head -1 | sed 's/[^0-9]//g')
+    status=$(echo "${svc_json}"  | grep '"status"'        | head -1 | sed 's/.*: "\(.*\)".*/\1/')
+    task_def_arn=$(echo "${svc_json}" | grep '"taskDefinition"' | head -1 | sed 's/.*: "\(.*\)".*/\1/')
+
+    # タスク定義リビジョン番号を末尾から抽出
+    local task_def_rev
+    task_def_rev=$(echo "${task_def_arn}" | sed 's/.*://')
+
+    # running == desired かつ pending == 0 なら正常
+    local health_icon
+    if [[ "${running}" == "${desired}" && "${pending}" == "0" && "${desired}" != "0" ]]; then
+        health_icon="✅"
+    elif [[ "${pending}" != "0" ]]; then
+        health_icon="🔄"
+    else
+        health_icon="⚠️ "
+    fi
+
+    info "  ┌─────────────────────────────────────────────"
+    info "  │ ${health_icon} [${label}] ${service_name}"
+    info "  │   ステータス    : ${status}"
+    info "  │   desired       : ${desired}"
+    info "  │   running       : ${running}"
+    info "  │   pending       : ${pending}"
+    info "  │   タスク定義Rev : ${task_def_rev}"
+
+    # 稼働中タスクのイメージタグを確認
+    local task_arns
+    task_arns=$(aws ecs list-tasks \
+        --cluster "${ECS_CLUSTER}" \
+        --service-name "${service_name}" \
+        --desired-status RUNNING \
+        --region "${AWS_REGION}" \
+        --query 'taskArns' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -n "${task_arns}" && "${task_arns}" != "None" ]]; then
+        # タスク詳細からコンテナイメージを取得（最初のタスクのみ）
+        local first_task
+        first_task=$(echo "${task_arns}" | awk '{print $1}')
+        local images
+        images=$(aws ecs describe-tasks \
+            --cluster "${ECS_CLUSTER}" \
+            --tasks "${first_task}" \
+            --region "${AWS_REGION}" \
+            --query 'tasks[0].containers[*].image' \
+            --output text 2>/dev/null | tr '\t' '\n' || echo "取得失敗")
+        info "  │   稼働中イメージ:"
+        while IFS= read -r img; do
+            [[ -z "${img}" ]] && continue
+            # イメージ名のリポジトリ部分を短縮して表示
+            local short_img
+            short_img=$(echo "${img}" | sed "s|${ECR_BASE}/||")
+            info "  │     - ${short_img}"
+        done <<< "${images}"
+    else
+        info "  │   稼働中イメージ: (稼働タスクなし)"
+    fi
+
+    # 直近3件のサービスイベント（デプロイ進行状況）
+    info "  │   直近イベント:"
+    aws ecs describe-services \
+        --cluster "${ECS_CLUSTER}" \
+        --services "${service_name}" \
+        --region "${AWS_REGION}" \
+        --query 'services[0].events[0:3].{時刻:createdAt,メッセージ:message}' \
+        --output table 2>/dev/null | while IFS= read -r line; do
+        info "  │     ${line}"
+    done | tee -a "${LOG_FILE}" || true
+
+    info "  └─────────────────────────────────────────────"
+
+    # 判定結果をログに明示
+    if [[ "${running}" == "${desired}" && "${pending}" == "0" && "${desired}" != "0" ]]; then
+        success "[${label}] デプロイ正常完了 (running=${running}/${desired}, pending=0)"
+    elif [[ "${pending}" != "0" ]]; then
+        warn "[${label}] デプロイ進行中 (running=${running}/${desired}, pending=${pending})"
+    else
+        warn "[${label}] 要確認 (running=${running}/${desired}, pending=${pending})"
+    fi
+}
+
+# =============================================================================
 # 引数解析
 # =============================================================================
 while [[ $# -gt 0 ]]; do
@@ -128,6 +233,7 @@ while [[ $# -gt 0 ]]; do
         --backend)    DEPLOY_NGINX=false; shift ;;
         --nginx)      DEPLOY_BACKEND=false; shift ;;
         --wait)       WAIT_STABLE=true;   shift ;;
+        --check)      CHECK_ONLY=true;    shift ;;
         --tag)        IMAGE_TAG="$2";     shift 2 ;;
         -h|--help)
             sed -n '3,35p' "$0"
@@ -135,7 +241,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             error "不明なオプション: $1"
-            echo "使い方: $0 [--no-build] [--no-push] [--no-deploy] [--migrate] [--backend] [--nginx] [--wait] [--tag <TAG>]"
+            echo "使い方: $0 [--no-build] [--no-push] [--no-deploy] [--migrate] [--backend] [--nginx] [--wait] [--check] [--tag <TAG>]"
             exit 1
             ;;
     esac
@@ -166,6 +272,40 @@ main() {
     fi
     info "  ログ        : ${LOG_FILE}"
     info "============================================================"
+
+    # ------------------------------------------------------------------
+    # --check モード: デプロイせず現在のECSサービス状態のみ表示
+    # ------------------------------------------------------------------
+    if [[ "${CHECK_ONLY}" == "true" ]]; then
+        info "--- [--check] 現在のECSサービス状態確認 ---"
+
+        if ! command -v aws &>/dev/null; then
+            error "AWS CLI がインストールされていません"
+            exit 1
+        fi
+        local caller_identity
+        if ! caller_identity=$(aws sts get-caller-identity --output json 2>&1); then
+            error "AWS 認証に失敗しました"
+            exit 1
+        fi
+        local auth_account
+        auth_account=$(echo "${caller_identity}" | grep '"Account"' | sed 's/.*: "\([^"]*\)".*/\1/')
+        success "AWS 認証: アカウント ${auth_account}"
+
+        if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+            check_deploy_status "Backend" "${ECS_SERVICE_BACKEND}"
+        fi
+        if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+            check_deploy_status "Nginx+Frontend" "${ECS_SERVICE_NGINX}"
+        fi
+
+        info ""
+        info "  AWSコンソール:"
+        info "    https://console.aws.amazon.com/ecs/home?region=${AWS_REGION}#/clusters/${ECS_CLUSTER}/services"
+        info ""
+        info "  ログ: ${LOG_FILE}"
+        exit 0
+    fi
 
     # ------------------------------------------------------------------
     # Step 1: 前提条件チェック
@@ -365,12 +505,16 @@ main() {
             task_def_json=$(sed "s|:staging\"|:${IMAGE_TAG}\"|g" \
                 "${PROJECT_DIR}/${TASK_DEF_BACKEND_FILE}")
 
-            BACKEND_TASK_ARN=$(echo "${task_def_json}" \
-                | aws ecs register-task-definition \
-                    --region "${AWS_REGION}" \
-                    --cli-input-json file:///dev/stdin \
-                    --query 'taskDefinition.taskDefinitionArn' \
-                    --output text 2>&1)
+            local tmp_task_def_backend
+            tmp_task_def_backend=$(mktemp /tmp/task-def-backend-XXXXXX.json)
+            echo "${task_def_json}" > "${tmp_task_def_backend}"
+
+            BACKEND_TASK_ARN=$(aws ecs register-task-definition \
+                --region "${AWS_REGION}" \
+                --cli-input-json "file://${tmp_task_def_backend}" \
+                --query 'taskDefinition.taskDefinitionArn' \
+                --output text 2>&1)
+            rm -f "${tmp_task_def_backend}"
 
             if [[ -z "${BACKEND_TASK_ARN}" || "${BACKEND_TASK_ARN}" == "None" ]]; then
                 error "[Backend] タスク定義の登録に失敗しました"
@@ -396,12 +540,16 @@ main() {
             task_def_json=$(sed "s|:staging\"|:${IMAGE_TAG}\"|g" \
                 "${PROJECT_DIR}/${TASK_DEF_NGINX_FILE}")
 
-            NGINX_TASK_ARN=$(echo "${task_def_json}" \
-                | aws ecs register-task-definition \
-                    --region "${AWS_REGION}" \
-                    --cli-input-json file:///dev/stdin \
-                    --query 'taskDefinition.taskDefinitionArn' \
-                    --output text 2>&1)
+            local tmp_task_def_nginx
+            tmp_task_def_nginx=$(mktemp /tmp/task-def-nginx-XXXXXX.json)
+            echo "${task_def_json}" > "${tmp_task_def_nginx}"
+
+            NGINX_TASK_ARN=$(aws ecs register-task-definition \
+                --region "${AWS_REGION}" \
+                --cli-input-json "file://${tmp_task_def_nginx}" \
+                --query 'taskDefinition.taskDefinitionArn' \
+                --output text 2>&1)
+            rm -f "${tmp_task_def_nginx}"
 
             if [[ -z "${NGINX_TASK_ARN}" || "${NGINX_TASK_ARN}" == "None" ]]; then
                 error "[Nginx] タスク定義の登録に失敗しました"
@@ -420,6 +568,17 @@ main() {
                 --output table 2>&1 | tee -a "${LOG_FILE}"
             success "[Nginx] サービス更新リクエスト送信完了"
         fi
+
+        # デプロイリクエスト送信直後の即時ステータス確認
+        # （ECSがローリングアップデートを開始した時点の状態を表示）
+        info "--- Step 6.5: デプロイ開始直後のECSサービス状態確認 ---"
+        info "  ※ ローリングアップデート開始直後のため pending > 0 は正常です"
+        if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+            check_deploy_status "Backend" "${ECS_SERVICE_BACKEND}"
+        fi
+        if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+            check_deploy_status "Nginx+Frontend" "${ECS_SERVICE_NGINX}"
+        fi
     else
         warn "--- Step 6: ECSデプロイをスキップ（--no-deploy）---"
     fi
@@ -436,14 +595,8 @@ main() {
                 --cluster "${ECS_CLUSTER}" \
                 --services "${ECS_SERVICE_BACKEND}" \
                 --region "${AWS_REGION}" 2>&1 | tee -a "${LOG_FILE}"
-            local running_count
-            running_count=$(aws ecs describe-services \
-                --cluster "${ECS_CLUSTER}" \
-                --services "${ECS_SERVICE_BACKEND}" \
-                --region "${AWS_REGION}" \
-                --query 'services[0].runningCount' \
-                --output text 2>/dev/null || echo "?")
-            success "[Backend] 安定化完了（稼働タスク数: ${running_count}）"
+            success "[Backend] 安定化シグナル受信 — 詳細確認中..."
+            check_deploy_status "Backend" "${ECS_SERVICE_BACKEND}"
         fi
 
         if [[ "${DEPLOY_NGINX}" == "true" ]]; then
@@ -452,30 +605,26 @@ main() {
                 --cluster "${ECS_CLUSTER}" \
                 --services "${ECS_SERVICE_NGINX}" \
                 --region "${AWS_REGION}" 2>&1 | tee -a "${LOG_FILE}"
-            local running_count
-            running_count=$(aws ecs describe-services \
-                --cluster "${ECS_CLUSTER}" \
-                --services "${ECS_SERVICE_NGINX}" \
-                --region "${AWS_REGION}" \
-                --query 'services[0].runningCount' \
-                --output text 2>/dev/null || echo "?")
-            success "[Nginx] 安定化完了（稼働タスク数: ${running_count}）"
+            success "[Nginx] 安定化シグナル受信 — 詳細確認中..."
+            check_deploy_status "Nginx+Frontend" "${ECS_SERVICE_NGINX}"
         fi
 
-        # ヘルスチェック
-        info "NLBヘルスチェック確認..."
+        # NLBヘルスチェック（アプリ疎通確認）
+        info "--- NLBヘルスチェック ---"
         local nlb_url="https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com"
-        if curl -sf --max-time 10 "${nlb_url}/api/health" >/dev/null 2>&1; then
+        if curl -sf --max-time 15 "${nlb_url}/api/health" >/dev/null 2>&1; then
             success "NLBヘルスチェック: OK (${nlb_url}/api/health)"
         else
-            warn "NLBヘルスチェック: 応答なし（サービス起動中の可能性があります）"
+            warn "NLBヘルスチェック: 応答なし (${nlb_url}/api/health)"
+            warn "  → サービス起動直後の場合は数秒後に再確認してください"
+            warn "  → 継続する場合は CloudWatch Logs を確認してください"
         fi
     else
-        info "--- Step 7: 安定化待ちをスキップ（--wait を付けると待機）---"
+        info "--- Step 7: 安定化待ちをスキップ（--wait を付けると待機・詳細確認）---"
     fi
 
     # ------------------------------------------------------------------
-    # 完了サマリー
+    # 完了サマリー（現在のECSサービス状態を実際に取得して表示）
     # ------------------------------------------------------------------
     info ""
     info "============================================================"
@@ -487,27 +636,24 @@ main() {
     info "    クラスター   : ${ECS_CLUSTER}"
     info "    リージョン   : ${AWS_REGION}"
     info ""
-    info "  デプロイ状況の確認:"
-    if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
-        info "    [Backend]"
-        info "    aws ecs describe-services \\"
-        info "      --cluster ${ECS_CLUSTER} \\"
-        info "      --services ${ECS_SERVICE_BACKEND} \\"
-        info "      --region ${AWS_REGION} \\"
-        info "      --query 'services[0].{running:runningCount,pending:pendingCount,desired:desiredCount}'"
+
+    if [[ "${DEPLOY}" == "true" ]]; then
+        info "  ▼ 現在のECSサービス状態（デプロイ後）"
+        if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+            check_deploy_status "Backend" "${ECS_SERVICE_BACKEND}"
+        fi
+        if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+            check_deploy_status "Nginx+Frontend" "${ECS_SERVICE_NGINX}"
+        fi
+        info ""
+        if [[ "${WAIT_STABLE}" == "false" ]]; then
+            info "  ℹ️  --wait オプションなしのため、デプロイは非同期で進行中です"
+            info "     以下のコマンドで状態を再確認できます:"
+            info "       ./scripts/deploy.ecr.sh --check"
+            info ""
+        fi
     fi
-    if [[ "${DEPLOY_NGINX}" == "true" ]]; then
-        info "    [Nginx + Frontend]"
-        info "    aws ecs describe-services \\"
-        info "      --cluster ${ECS_CLUSTER} \\"
-        info "      --services ${ECS_SERVICE_NGINX} \\"
-        info "      --region ${AWS_REGION} \\"
-        info "      --query 'services[0].{running:runningCount,pending:pendingCount,desired:desiredCount}'"
-    fi
-    info ""
-    info "  稼働確認:"
-    info "    NLB URL: https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com/"
-    info ""
+
     info "  AWSコンソール:"
     info "    https://console.aws.amazon.com/ecs/home?region=${AWS_REGION}#/clusters/${ECS_CLUSTER}/services"
     info ""
