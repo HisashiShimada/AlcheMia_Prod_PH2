@@ -18,7 +18,9 @@ import { ChunkUploadService } from '../services/chunkUploadService';
 import * as projectRepository from '../repositories/projectRepository';
 import { ProjectService } from '../services/projectService';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
+import { renameFile } from '../services/renameService';
 import { Project } from '../types/database';
+
 /**
  * 単一ファイルダウンロード用署名付きURL取得エンドポイント
  * GET /api/v1/projects/:projectId/files/:fileName/download
@@ -112,6 +114,76 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * ファイル名変更エンドポイント
+ * PATCH /api/v1/files/rename
+ *
+ * - fileKey: 対象ファイルの相対パス（organizationId なし）
+ * - newFileName: 新しいファイル名（拡張子込み）
+ * - 拡張子の変更は不可
+ * - 同名ファイルが存在する場合はエラー
+ * - S3 コピー→削除 + file_metadata 更新（アーカイブも含む）
+ */
+export async function renameFileHandler(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId, userId } = req.user!;
+    // バリデーションはミドルウェア（fileAccessRoutes.ts）で実施済み
+    const { fileKey, newFileName } = req.body;
+
+    console.log('✏️ [File Rename] リクエスト開始:', { organizationId, fileKey, newFileName, requestId });
+
+    const result = await renameFile({
+      organizationId,
+      fileKey,
+      newFileName: newFileName.trim(),
+      userId,
+    });
+
+    if (!result.success) {
+      const statusMap: Record<string, number> = {
+        E1003: 400,
+        E6002: 404,
+        E6005: 409,
+        E4006: 500,
+        E4001: 500,
+      };
+      const code = result.error?.code ?? 'E4001';
+      const status = statusMap[code] ?? 500;
+
+      console.warn('⚠️ [File Rename] リネーム失敗:', result.error);
+      res.status(status).json({
+        success: false,
+        error: result.error,
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    console.log('✅ [File Rename] リネーム成功:', { fileKey, newFileKey: result.newFileKey });
+
+    res.status(200).json({
+      success: true,
+      data: { newFileKey: result.newFileKey },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('File rename error', error, {
+      action: 'file_rename',
+      organizationId: req.user?.organizationId,
+      fileKey: req.body?.fileKey,
+      newFileName: req.body?.newFileName,
+      requestId,
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

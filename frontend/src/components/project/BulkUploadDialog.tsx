@@ -32,7 +32,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
-const { Text } = Typography;
+const { Text, Paragraph } = Typography;
 const { Dragger } = Upload;
 /**
  * アップロードモード

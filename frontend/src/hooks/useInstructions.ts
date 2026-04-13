@@ -8,19 +8,17 @@ import { getWorkerInstructions, convertApiToInstruction } from '@/services/proje
  */
 export function useInstructions() {
   const [selectedProject, setSelectedProject] = useState<string>('');
-  const [selectedProjectName, setSelectedProjectName] = useState<string>('');
   const [instructions, setInstructions] = useState<Instruction[]>([]);
   const [workAssignment, setWorkAssignment] = useState<WorkAssignment | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // プロジェクト選択ハンドラー
-  const handleProjectChange = async (value: string, projectName: string) => {
+  // プロジェクト選択ハンドラー（value = projectId）
+  const handleProjectChange = async (value: string) => {
     setSelectedProject(value);
-    setSelectedProjectName(projectName);
     
     // 空文字列またはundefinedの場合は、データをクリア
-    if (!value || !projectName) {
+    if (!value) {
       setInstructions([]);
       setWorkAssignment(null);
       setError(null);
@@ -32,7 +30,7 @@ export function useInstructions() {
     setError(null);
     
     try {
-      const result = await getWorkerInstructions(projectName);
+      const result = await getWorkerInstructions(value);
       
       if (result.success && result.data) {
         // バックエンドレスポンスをフロントエンド型に変換
@@ -55,7 +53,7 @@ export function useInstructions() {
    * 指示一覧を再取得する関数（確認完了後に呼び出し）
    */
   const refetchInstructions = async () => {
-    if (!selectedProjectName) {
+    if (!selectedProject) {
       return;
     }
     
@@ -63,7 +61,7 @@ export function useInstructions() {
     setError(null);
     
     try {
-      const result = await getWorkerInstructions(selectedProjectName);
+      const result = await getWorkerInstructions(selectedProject);
       
       if (result.success && result.data) {
         const convertedInstructions: Instruction[] = result.data.map(convertApiToInstruction);

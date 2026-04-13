@@ -19,8 +19,8 @@ RUN npm ci
 # ソースコードをコピー
 COPY . .
 
-# TypeScriptをビルド
-RUN npm run build
+# TypeScriptをビルド（メモリ上限を4GB確保: コンテナ内OOMによるハング対策）
+RUN node --max-old-space-size=4096 node_modules/.bin/tsc
 
 # -----------------------------------------------------------------------------
 # Stage 2: 本番実行ステージ

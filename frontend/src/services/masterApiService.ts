@@ -79,9 +79,22 @@ export interface VendorRecord extends BaseMasterRecord {
 }
 
 /**
+ * Attributeマスタのレコード型
+ * 主キー: (organization_id, attribute_name, attribute_value)
+ */
+export interface AttributeRecord extends BaseMasterRecord {
+  // Attribute固有フィールド（attributeIdは廃止済み）
+  attributeName: string;
+  attributeValue: string;
+  attributeRemark?: string;  // 属性_備考（nullable）
+  departmentCd: string;
+  departmentName: string;
+}
+
+/**
  * マスタデータの汎用型（Union型）
  */
-export type MasterRecord = CreatorRecord | InstrumentRecord | VendorRecord;
+export type MasterRecord = CreatorRecord | InstrumentRecord | VendorRecord | AttributeRecord;
 
 /**
  * マスタ一覧を取得
@@ -211,7 +224,8 @@ export async function updateMasterStatus(
 ): Promise<void> {
   const config = getMasterDataConfig(type);
   const client = createApiClient();
-  const endpoint = `${config.apiEndpoint}/${id}/status`;
+  // Attributeマスタは id が "name__value" 形式で % などの特殊文字を含む可能性があるためエンコードする
+  const endpoint = `${config.apiEndpoint}/${encodeURIComponent(id)}/status`;
   
   console.log(`=== Updating ${config.displayName} Status ===`);
   console.log('Endpoint:', endpoint);
@@ -352,5 +366,32 @@ export async function downloadCsv(
     const axiosError = error as AxiosError;
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(`CSVダウンロードに失敗しました: ${axiosError.response?.status || 'Unknown'} - ${axiosError.message}`);
+  }
+}
+
+/**
+ * Attributeマスタ一覧を取得（NestedPropertyEditor用）
+ *
+ * 属性追加ダイアログの選択肢生成に特化した軽量ラッパー関数。
+ * isActive=true のレコードのみを返します。
+ *
+ * @returns AttributeRecord[] - アクティブなAttributeマスタ一覧
+ */
+export async function fetchAttributeMasters(applyDepartmentFilter?: boolean): Promise<AttributeRecord[]> {
+  try {
+    const config = getMasterDataConfig('attribute');
+    const client = createApiClient();
+    const params: Record<string, string> = { is_active: 'true' };
+    if (applyDepartmentFilter) {
+      params.apply_department_filter = 'true';
+    }
+    const response = await client.get<ApiResponse<AttributeRecord[]>>(config.apiEndpoint, { params });
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+    return [];
+  } catch (error) {
+    console.error('fetchAttributeMasters error:', error);
+    return [];
   }
 }

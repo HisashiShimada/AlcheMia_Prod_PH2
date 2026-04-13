@@ -340,7 +340,8 @@ export function buildPropertyXML(prop: Property, indentLevel: number = 5): strin
   const indent = '  '.repeat(indentLevel);
   const propName = prop.key || prop.name || '';
   
-  const propType = prop.attributes?.['xsi:type'] || prop.type || prop.xsiType || 'stringType';
+  // xsi:type が未指定（空文字）の場合は stringType に強制変換しない
+  const propType = prop.attributes?.['xsi:type'] || prop.type || prop.xsiType || '';
   
   let propertyXml = `${indent}<property key="${escapeXml(propName)}"`;
   
@@ -363,7 +364,11 @@ export function buildPropertyXML(prop: Property, indentLevel: number = 5): strin
     }
   }
   
-  propertyXml += ` xsi:type="${escapeXml(propType)}">\n`;
+  // xsi:type が空文字（未指定）の場合は xsi:type 属性を出力しない
+  if (propType) {
+    propertyXml += ` xsi:type="${escapeXml(propType)}"`;
+  }
+  propertyXml += `>\n`;
   
   // elements出力
   if (prop.elements && Object.keys(prop.elements).length > 0) {
@@ -421,8 +426,12 @@ function buildContentXML(content: Property, indentLevel: number = 6): string {
   if (content.size) contentXml += ` size="${escapeXml(content.size)}"`;
   if (content.units) contentXml += ` units="${escapeXml(content.units)}"`;
   
-  const xsiType = content.contentType || content.xsiType || content.type || 'contentDoubleListType';
-  contentXml += ` xsi:type="${escapeXml(xsiType)}"`;
+  // xsi:type が未指定（空文字）の場合は contentDoubleListType に強制変換しない
+  const xsiType = content.contentType || content.xsiType || content.type || '';
+  // xsi:type が空文字（未指定）の場合は xsi:type 属性を出力しない
+  if (xsiType) {
+    contentXml += ` xsi:type="${escapeXml(xsiType)}"`;
+  }
   
   contentXml += `>\n${indent}</content>\n`;
   

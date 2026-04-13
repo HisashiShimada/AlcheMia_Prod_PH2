@@ -8,6 +8,7 @@ import * as creatorRepository from '../repositories/creatorRepository';
 import { CreatorSearchFilters } from '../repositories/creatorRepository';
 import * as instrumentRepository from '../repositories/instrumentRepository';
 import * as vendorRepository from '../repositories/vendorRepository';
+import * as attributeRepository from '../repositories/attributeRepository';
 import { getPgp } from '../database/db';
 import { getMessage } from '../utils/messages';
 
@@ -1163,6 +1164,336 @@ export async function uploadVendorsCsv(
     let successCount = 0;
     for (const validRow of validRows) {
       await vendorRepository.create(organizationId, validRow, userId, corporationId);
+      successCount++;
+    }
+    return {
+      successCount,
+      failureCount: 0,
+      errors: [],
+    };
+  });
+}
+
+// =============================================================
+// Attributeマスタ関連
+// =============================================================
+
+/**
+ * Attributeマスタレスポンス型定義
+ */
+export interface AttributeMasterResponse {
+  attributeName: string;
+  attributeValue: string;
+  attributeRemark: string;
+  departmentCd: string;
+  departmentName: string;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+/**
+ * Attributeマスタをフィルタ付きで取得
+ *
+ * @param organizationId 組織ID
+ * @param filters フィルタ条件
+ * @returns Attributeマスタの配列
+ */
+export async function getAttributeMastersWithFilters(
+  organizationId: string,
+  filters: {
+    search?: string;
+    isActive?: boolean;
+    departmentCd?: string;
+  } = {}
+): Promise<AttributeMasterResponse[]> {
+  console.log('=== masterService.getAttributeMastersWithFilters called ===');
+  console.log('organizationId:', organizationId);
+  console.log('filters:', filters);
+
+  const attributes = await attributeRepository.findAllWithFilters(organizationId, filters);
+
+  console.log('Filtered count (from DB):', attributes.length);
+
+  return attributes.map(attr => ({
+    attributeName: attr.attribute_name,
+    attributeValue: attr.attribute_value || '',
+    attributeRemark: attr.attribute_remark || '',
+    departmentCd: attr.department_cd || '',
+    departmentName: attr.department_name || '',
+    isActive: attr.is_active,
+    updatedAt: formatDateTime(attr.update_at),
+  }));
+}
+
+/**
+ * 主キーで1件取得
+ *
+ * @param organizationId 組織ID
+ * @param attributeName 属性名（主キー）
+ * @param attributeValue 属性値（主キー）
+ * @returns Attributeマスタ（見つからない場合はnull）
+ */
+export async function getAttributeById(
+  organizationId: string,
+  attributeName: string,
+  attributeValue: string = ''
+): Promise<AttributeMasterResponse | null> {
+  const attr = await attributeRepository.findByPk(organizationId, attributeName, attributeValue);
+
+  if (!attr) {
+    return null;
+  }
+
+  return {
+    attributeName: attr.attribute_name,
+    attributeValue: attr.attribute_value || '',
+    attributeRemark: attr.attribute_remark || '',
+    departmentCd: attr.department_cd || '',
+    departmentName: attr.department_name || '',
+    isActive: attr.is_active,
+    updatedAt: formatDateTime(attr.update_at),
+  };
+}
+
+/**
+ * Attributeマスタを新規作成
+ * 主キーは (attribute_name, attribute_value) のため、重複チェックを行う
+ */
+export async function createAttributeMaster(
+  organizationId: string,
+  data: {
+    attributeName: string;
+    attributeValue?: string;
+    attributeRemark?: string;
+    departmentCd?: string;
+    isActive?: boolean;
+  },
+  userId: string,
+  lang: string = 'ja'
+): Promise<AttributeMasterResponse> {
+  // 主キー重複チェック
+  const exists = await attributeRepository.existsByPk(organizationId, data.attributeName, data.attributeValue || '');
+  if (exists) {
+    const error: any = new Error(getMessage(lang, 'master.duplicateAttributeName') || 'このAttribute名・属性値の組み合わせは既に使用されています');
+    error.statusCode = 409;
+    error.code = 'DUPLICATE_ATTRIBUTE_NAME';
+    throw error;
+  }
+
+  const attr = await attributeRepository.create(organizationId, data, userId);
+  // 作成後に再取得してdepartment_name も含める
+  const created = await attributeRepository.findByPk(organizationId, attr.attribute_name, attr.attribute_value || '');
+
+  if (!created) {
+    throw new Error('作成したAttributeマスタが見つかりません');
+  }
+
+  return {
+    attributeName: created.attribute_name,
+    attributeValue: created.attribute_value || '',
+    attributeRemark: created.attribute_remark || '',
+    departmentCd: created.department_cd || '',
+    departmentName: created.department_name || '',
+    isActive: created.is_active,
+    updatedAt: formatDateTime(created.update_at),
+  };
+}
+
+/**
+ * Attributeマスタを更新
+ * 主キーは (attribute_name, attribute_value) のため、両方を引数で受け取る
+ */
+export async function updateAttributeMaster(
+  organizationId: string,
+  attributeName: string,
+  data: {
+    attributeValue?: string;
+    attributeRemark?: string;
+    departmentCd?: string;
+    isActive?: boolean;
+  },
+  userId: string
+): Promise<AttributeMasterResponse | null> {
+  const attributeValue = data.attributeValue || '';
+  const attr = await attributeRepository.update(organizationId, attributeName, attributeValue, {
+    attributeRemark: data.attributeRemark,
+    departmentCd: data.departmentCd,
+    isActive: data.isActive,
+  }, userId);
+
+  if (!attr) {
+    return null;
+  }
+
+  // 更新後に再取得してdepartment_name も含める
+  const updated = await attributeRepository.findByPk(organizationId, attr.attribute_name, attr.attribute_value || '');
+
+  if (!updated) {
+    return null;
+  }
+
+  return {
+    attributeName: updated.attribute_name,
+    attributeValue: updated.attribute_value || '',
+    attributeRemark: updated.attribute_remark || '',
+    departmentCd: updated.department_cd || '',
+    departmentName: updated.department_name || '',
+    isActive: updated.is_active,
+    updatedAt: formatDateTime(updated.update_at),
+  };
+}
+
+/**
+ * Attributeマスタのアクティブ状態を更新
+ * PKは (attribute_name, attribute_value) で識別
+ * attributeName は "name__value" 形式でエンコードされて渡されることを想定
+ */
+export async function updateAttributeStatus(
+  organizationId: string,
+  attributeKey: string,  // "attributeName__attributeValue" 形式
+  isActive: boolean,
+  userId: string
+): Promise<AttributeMasterResponse | null> {
+  // "__" でセパレートしてattributeName / attributeValue に分割
+  const separatorIdx = attributeKey.indexOf('__');
+  const attributeName = separatorIdx >= 0 ? attributeKey.substring(0, separatorIdx) : attributeKey;
+  const attributeValue = separatorIdx >= 0 ? attributeKey.substring(separatorIdx + 2) : '';
+
+  const attr = await attributeRepository.updateStatus(organizationId, attributeName, attributeValue, isActive, userId);
+
+  if (!attr) {
+    return null;
+  }
+
+  return {
+    attributeName: attr.attribute_name,
+    attributeValue: attr.attribute_value || '',
+    attributeRemark: attr.attribute_remark || '',
+    departmentCd: attr.department_cd || '',
+    departmentName: attr.department_name || '',
+    isActive: attr.is_active,
+    updatedAt: formatDateTime(attr.update_at),
+  };
+}
+
+/**
+ * AttributeマスタCSVアップロード処理
+ * All or Nothing方式: 1行でもエラーがあれば全てロールバック
+ * 新規レコードのみ登録可能（既存レコードの更新は不可）
+ * ※ 主キーは attribute_name のため、名前重複チェックを行う
+ *
+ * @param organizationId 組織ID
+ * @param csvContent CSV文字列
+ * @param userId ユーザーID
+ * @returns アップロード結果
+ */
+export async function uploadAttributesCsv(
+  organizationId: string,
+  csvContent: string,
+  userId: string
+): Promise<CsvUploadResult> {
+  const parseResult = Papa.parse<CsvRow>(csvContent, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  const errors: CsvValidationError[] = [];
+  const validRows: Array<{
+    attributeName: string;
+    attributeValue: string;
+    attributeRemark: string;
+    departmentCd: string;
+    isActive: boolean;
+  }> = [];
+
+  // Phase 1: CSV内の主キー（attribute_name + attribute_value）重複チェック
+  const pkSet = new Set<string>();
+  const duplicateKeys: string[] = [];
+
+  for (let i = 0; i < parseResult.data.length; i++) {
+    const row = parseResult.data[i];
+    const attributeName = row['attribute_name']?.trim();
+    const attributeValue = row['attribute_value']?.trim() || '';
+    const pkKey = `${attributeName}__${attributeValue}`;
+
+    if (attributeName) {
+      if (pkSet.has(pkKey)) {
+        if (!duplicateKeys.includes(pkKey)) {
+          duplicateKeys.push(pkKey);
+        }
+      } else {
+        pkSet.add(pkKey);
+      }
+    }
+  }
+
+  if (duplicateKeys.length > 0) {
+    throw new Error(`CSV内に重複した主キー（attribute_name + attribute_value）が存在します: ${duplicateKeys.join(', ')}`);
+  }
+
+  // Phase 2: 事前バリデーション（全行スキャン）
+  for (let i = 0; i < parseResult.data.length; i++) {
+    const row = parseResult.data[i];
+    const rowNumber = i + 2;
+
+    const attributeName = row['attribute_name']?.trim();
+    const attributeValue = row['attribute_value']?.trim() || '';
+
+    if (!attributeName) {
+      errors.push({ row: rowNumber, field: 'attribute_name', message: 'attribute_nameは必須です' });
+      continue;
+    }
+
+    const isActiveStr = row['is_active']?.trim().toLowerCase();
+    if (isActiveStr && !['true', 'false', '1', '0', ''].includes(isActiveStr)) {
+      errors.push({
+        row: rowNumber,
+        field: 'is_active',
+        message: `is_activeの値が不正です。true、false、1、0のいずれかを指定してください（実際の値: ${row['is_active']}）`
+      });
+      continue;
+    }
+
+    // is_active 省略（列なし or 空文字）の場合はデフォルト true
+    const isActive = isActiveStr === '' || isActiveStr === undefined
+      ? true
+      : (isActiveStr === 'true' || isActiveStr === '1');
+
+    const exists = await attributeRepository.existsByPk(organizationId, attributeName, attributeValue);
+    if (exists) {
+      errors.push({
+        row: rowNumber,
+        field: 'attribute_name',
+        message: `attribute_name: ${attributeName} / attribute_value: ${attributeValue} の組み合わせは既に存在します。既存レコードの編集は一覧から行ってください。`
+      });
+      continue;
+    }
+
+    validRows.push({
+      attributeName,
+      attributeValue: row['attribute_value']?.trim() || '',
+      attributeRemark: row['attribute_remark']?.trim() || '',
+      departmentCd: row['department_cd']?.trim() || '',
+      isActive,
+    });
+  }
+
+  // Phase 3: エラー判定
+  if (errors.length > 0) {
+    return {
+      successCount: 0,
+      failureCount: parseResult.data.length,
+      errors,
+    };
+  }
+
+  // Phase 4: 全行一括登録
+  const pgp = getPgp();
+
+  return await pgp.tx(async (_t) => {
+    let successCount = 0;
+    for (const validRow of validRows) {
+      await attributeRepository.create(organizationId, validRow, userId);
       successCount++;
     }
     return {

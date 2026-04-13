@@ -4,10 +4,10 @@
 ---
 title: マスタ管理画面UI設計書
 category: UI設計
-version: 1.0.0
-last_updated: 2026-01-23
+version: 1.1.0
+last_updated: 2026-04-08
 author: Development Team
-tags: [data-admin, master, list, main, creator, vendor, instrument]
+tags: [data-admin, master, list, main, creator, vendor, instrument, attribute]
 ---
 
 ## 関連ドキュメント
@@ -41,7 +41,7 @@ tags: [data-admin, master, list, main, creator, vendor, instrument]
 
 ### 2.1. 目的
 
-データ管理者が3種類のマスタデータ（Creator、Vendor、Instrument）を管理するためのメイン画面を定義します。タブ切り替えで各マスタの一覧表示、検索、フィルタリング、追加、編集、ステータス切替、CSV入出力機能を提供します。
+データ管理者が4種類のマスタデータ（Creator、Vendor、Instrument、Attribute）を管理するためのメイン画面を定義します。タブ切り替えで各マスタの一覧表示、検索、フィルタリング、追加、編集、ステータス切替、CSV入出力機能を提供します。
 
 ### 2.2. 利用権限
 
@@ -96,6 +96,7 @@ tags: [data-admin, master, list, main, creator, vendor, instrument]
 | creator | Creator | 作成者マスタ |
 | vendor | Vendor | ベンダーマスタ |
 | instrument | Instrument | 実験装置マスタ |
+| attribute | Attribute | 属性マスタ |
 
 **実装例**:
 ```typescript
@@ -114,6 +115,11 @@ const tabs = [
     key: 'instrument',
     label: 'Instrument',
     children: <MasterTable masterType="instrument" />
+  },
+  {
+    key: 'attribute',
+    label: 'Attribute',
+    children: <MasterTable masterType="attribute" />
   }
 ];
 ```
@@ -154,6 +160,10 @@ const tabs = [
 **Instrument:**
 - Instrument ID（部分一致）
 - Instrument名（部分一致）
+
+**Attribute:**
+- Attribute名（部分一致）
+- Attribute値（部分一致）
 
 #### 5.2.2. ステータスフィルター
 
@@ -237,7 +247,7 @@ const tabs = [
 **主要設定**:
 | 項目 | 値 |
 |------|-----|
-| rowKey | マスタ種別に応じて変動（creatorId / vendorId / instrumentId） |
+| rowKey | マスタ種別に応じて変動（creatorId / vendorId / instrumentId / `attributeName__attributeValue`） |
 | pagination | 有効 |
 | pageSize | 20（デフォルト） |
 | pageSizeOptions | [10, 20, 50, 100] |
@@ -418,6 +428,62 @@ render: (_, record) => (
 | title | 「Vendor ID」 |
 | dataIndex | `vendorId` |
 | key | `vendorId` |
+| width | 150px |
+| align | `left` |
+| sorter | 有効 |
+
+##### 状態・更新日時・操作
+
+**Creatorと同様の構成**
+
+#### 6.2.4. Attribute マスタ
+
+> **注意**: Attributeは複合PK（attribute_name + attribute_value）を持つため、rowKey は `attributeName__attributeValue` 形式。
+
+##### Attribute名
+
+**プロパティ**:
+| 項目 | 値 |
+|------|-----|
+| title | 「Attribute名」 |
+| dataIndex | `attributeName` |
+| key | `attributeName` |
+| width | 200px |
+| align | `left` |
+| sorter | 有効 |
+
+##### Attribute値
+
+**プロパティ**:
+| 項目 | 値 |
+|------|-----|
+| title | 「Attribute値」 |
+| dataIndex | `attributeValue` |
+| key | `attributeValue` |
+| width | 200px |
+| align | `left` |
+| sorter | 有効 |
+
+##### 備考
+
+**プロパティ**:
+| 項目 | 値 |
+|------|-----|
+| title | 「備考」 |
+| dataIndex | `attributeRemark` |
+| key | `attributeRemark` |
+| width | 250px |
+| align | `left` |
+| sorter | 無効 |
+
+##### 部門コード
+
+**プロパティ**:
+| 項目 | 値 |
+|------|-----|
+| title | 「部門コード」 |
+| dataIndex | `departmentCd` |
+| key | `departmentCd` |
 | width | 150px |
 | align | `left` |
 | sorter | 有効 |

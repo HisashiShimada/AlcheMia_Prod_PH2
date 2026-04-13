@@ -218,7 +218,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     try {
       if (editMode === 'create') {
         // 新規作成：API呼び出し
-        const result = await saveInstruction(projectName, {
+        const result = await saveInstruction(projectId, {
           methodId: instruction.methodId,
           transitionId: instruction.transitionId || null,
           taskNumber: instruction.taskNumber,
@@ -238,7 +238,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
         message.success(t('instructionRegistration.messages.added'));
       } else {
         // 編集：API呼び出し
-        await updateInstruction(projectName, String(instruction.id), {
+        await updateInstruction(projectId, String(instruction.id), {
           methodId: instruction.methodId,
           transitionId: instruction.transitionId || null,
           taskNumber: instruction.taskNumber,
@@ -275,7 +275,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   const handleDeleteInstruction = useCallback(async (id: string | number) => {
     try {
       // API呼び出し
-      const result = await deleteInstruction(projectName, String(id));
+      const result = await deleteInstruction(projectId, String(id));
       
       if (result.deleted) {
         // ローカル状態を更新
@@ -304,7 +304,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       setIsSending(true);
 
       // 指示を一括送信（タスク作成は別途タスク登録タブで実施済み）
-      const result = await sendInstructions(projectName, {});
+      const result = await sendInstructions(projectId, {});
 
       // 送信済フラグを立てる
       const sentInstructions = instructions.map(inst => ({
