@@ -323,6 +323,11 @@ export interface ChunkUploadOptions {
    * 呼び出し元でキャンセル処理（abortChunkUpload）を行うために使用する。
    */
   onSessionInit?: (uploadId: string) => void;
+  /**
+   * リトライ発生時のコールバック。
+   * UI 側でリトライ状態を表示するために使用する。
+   */
+  onRetry?: (state: UploadRetryState) => void;
 }
 
 /**

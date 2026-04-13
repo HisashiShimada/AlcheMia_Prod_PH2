@@ -16,8 +16,10 @@ const ERROR_MESSAGES: Record<string, string> = {
 export interface MaimlUnpublishDialogProps {
   /** ダイアログの表示状態 */
   open: boolean;
-  /** 非公開対象のプロジェクト名 */
+  /** 非公開対象のプロジェクト名（表示用） */
   projectName: string;
+  /** 非公開対象のプロジェクトID */
+  projectId: string;
   /** ダイアログを閉じる時のコールバック */
   onClose: () => void;
   /**
@@ -38,6 +40,7 @@ export interface MaimlUnpublishDialogProps {
 const MaimlUnpublishDialog: React.FC<MaimlUnpublishDialogProps> = ({
   open,
   projectName,
+  projectId,
   onClose,
   onSuccess,
 }) => {
@@ -56,7 +59,7 @@ const MaimlUnpublishDialog: React.FC<MaimlUnpublishDialogProps> = ({
     setErrorCode(null);
 
     try {
-      const response = await unpublishProject(projectName);
+      const response = await unpublishProject(projectId);
       // 成功（202）
       const jobId = response.data?.job_id ?? '';
       handleClose();

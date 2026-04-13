@@ -7,7 +7,7 @@
 --   Redis 上の BullMQ ジョブと補完的に使用し、DB 側でもジョブ状態を
 --   ポーリング確認できるようにする。
 --
---   organization_id + project_name でジョブを特定し、
+--   organization_id + project_id でジョブを特定し、
 --   asset_id はクロススキーマ参照のため FK 制約なし。
 --
 -- @reference
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS maiml_publish_job (
 
   -- 対象組織・プロジェクト
   organization_id TEXT          NOT NULL,
-  project_name    TEXT          NOT NULL,
+  project_id      character varying(20) NOT NULL,
 
   -- 対象アセット ID（FK なし: 組織スキーマ内 maiml_asset.asset_id を参照するため）
   -- 公開ジョブ: 完了後に Worker が更新
@@ -57,9 +57,9 @@ CREATE TABLE IF NOT EXISTS maiml_publish_job (
 -- インデックス
 -- ============================================================
 
--- organization_id + project_name: 特定プロジェクトのジョブ検索
+-- organization_id + project_id: 特定プロジェクトのジョブ検索
 CREATE INDEX IF NOT EXISTS ix_publish_job_org_project
-  ON maiml_publish_job(organization_id, project_name);
+  ON maiml_publish_job(organization_id, project_id);
 
 -- status: ポーリング・監視用
 CREATE INDEX IF NOT EXISTS ix_publish_job_status
@@ -80,7 +80,7 @@ COMMENT ON TABLE maiml_publish_job IS
 COMMENT ON COLUMN maiml_publish_job.job_id         IS 'ジョブ一意識別子（UUID）。BullMQ ペイロードにも含める';
 COMMENT ON COLUMN maiml_publish_job.job_type        IS '処理種別: publish（公開）/ unpublish（非公開）';
 COMMENT ON COLUMN maiml_publish_job.organization_id IS 'ジョブ対象の組織 ID';
-COMMENT ON COLUMN maiml_publish_job.project_name    IS 'ジョブ対象のプロジェクト名';
+COMMENT ON COLUMN maiml_publish_job.project_id      IS 'ジョブ対象のプロジェクト ID（project.project_id）';
 COMMENT ON COLUMN maiml_publish_job.asset_id        IS
   '対象 maiml_asset.asset_id（FK 制約なし: 組織スキーマとのクロス参照のため）。'
   '公開ジョブは完了後に Worker が更新。非公開ジョブは登録時に設定';

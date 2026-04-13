@@ -49,7 +49,7 @@ const CHECKOUT_STATUS_CHECKED_OUT = 1;
  *   5. 202 相当のレスポンスを返す
  *
  * @param organizationId - 組織 ID
- * @param projectName    - プロジェクト名
+ * @param projectId      - プロジェクト ID
  * @param userId         - 操作者のユーザー ID
  * @returns 202 レスポンス用ペイロード
  * @throws Error('ALREADY_IN_PROGRESS')      - 既に処理中のジョブが存在する場合
@@ -61,15 +61,15 @@ const CHECKOUT_STATUS_CHECKED_OUT = 1;
  */
 export async function enqueuePublish(
   organizationId: string,
-  projectName:    string,
+  projectId:      string,
   userId:         string | null
 ): Promise<PublishJobResponse> {
   // ── 1. プロジェクト存在確認 ──────────────────────────────
-  const project = await projectRepo.findByName(organizationId, projectName);
+  const project = await projectRepo.findByIdFull(organizationId, projectId);
   if (!project) {
     throw new Error('PROJECT_NOT_FOUND');
   }
-  const projectId = project.project_id!;
+  const projectName = project.project_name!;
   console.log("projectあり");
 
   // ── 2. チェックアウト状態確認 ────────────────────────────
@@ -100,7 +100,7 @@ export async function enqueuePublish(
   console.log("タスクは完了");
 
   // ── 5. 重複チェック ──────────────────────────────────────
-  const latest = await publishJobRepo.findLatestByProject(organizationId, projectName);
+  const latest = await publishJobRepo.findLatestByProject(organizationId, projectId);
   if (latest && (latest.status === 'pending' || latest.status === 'running')) {
     throw new Error('ALREADY_IN_PROGRESS');
   }
@@ -119,7 +119,7 @@ export async function enqueuePublish(
   const job = await publishJobRepo.insert({
     job_type:        'publish',
     organization_id: organizationId,
-    project_name:    projectName,
+    project_id:      projectId,
     asset_id:        null,
     status:          'pending',
     triggered_by:    userId,
@@ -138,6 +138,7 @@ export async function enqueuePublish(
     {
       jobId,
       organizationId,
+      projectId,
       projectName,
       fileUri,
       userId,
@@ -176,7 +177,7 @@ export async function enqueuePublish(
  *   5. 202 相当のレスポンスを返す
  *
  * @param organizationId - 組織 ID
- * @param projectName    - プロジェクト名
+ * @param projectId      - プロジェクト ID
  * @param userId         - 操作者のユーザー ID
  * @returns 202 レスポンス用ペイロード
  * @throws Error('NOT_PUBLISHED')       - 公開済みアセットが存在しない場合
@@ -184,26 +185,33 @@ export async function enqueuePublish(
  */
 export async function enqueueUnpublish(
   organizationId: string,
-  projectName:    string,
+  projectId:      string,
   userId:         string | null
 ): Promise<PublishJobResponse> {
-  // ── 1. 公開済みアセット確認 ──────────────────────────────
-  const assetId = await publishJobRepo.findPublishedAssetId(organizationId, projectName);
+  // ── 1. プロジェクト存在確認・名前取得 ────────────────────
+  const project = await projectRepo.findByIdFull(organizationId, projectId);
+  if (!project) {
+    throw new Error('PROJECT_NOT_FOUND');
+  }
+  const projectName = project.project_name!;
+
+  // ── 2. 公開済みアセット確認 ──────────────────────────────
+  const assetId = await publishJobRepo.findPublishedAssetId(organizationId, projectId);
   if (assetId === null) {
     throw new Error('NOT_PUBLISHED');
   }
 
-  // ── 2. 重複チェック ──────────────────────────────────────
-  const latest = await publishJobRepo.findLatestByProject(organizationId, projectName);
+  // ── 3. 重複チェック ──────────────────────────────────────
+  const latest = await publishJobRepo.findLatestByProject(organizationId, projectId);
   if (latest && (latest.status === 'pending' || latest.status === 'running')) {
     throw new Error('ALREADY_IN_PROGRESS');
   }
 
-  // ── 3. DB に pending ジョブを作成 ───────────────────────
+  // ── 4. DB に pending ジョブを作成 ───────────────────────
   const job = await publishJobRepo.insert({
     job_type:        'unpublish',
     organization_id: organizationId,
-    project_name:    projectName,
+    project_id:      projectId,
     asset_id:        assetId,
     status:          'pending',
     triggered_by:    userId,
@@ -215,12 +223,13 @@ export async function enqueueUnpublish(
 
   const jobId = job.job_id!;
 
-  // ── 4. bullmq へ投入 ────────────────────────────────────
+  // ── 5. bullmq へ投入 ────────────────────────────────────
   await maimlUnpublishQueue.add(
     'unpublish',
     {
       jobId,
       organizationId,
+      projectId,
       projectName,
       assetId,
       triggerType: 'manual',
@@ -229,7 +238,7 @@ export async function enqueueUnpublish(
     { jobId }
   );
 
-  // ── 5. レスポンス ────────────────────────────────────────
+  // ── 6. レスポンス ────────────────────────────────────────
   return {
     job_id:  jobId,
     status:  'pending',
@@ -245,14 +254,14 @@ export async function enqueueUnpublish(
  * プロジェクトの公開ステータスを取得する
  *
  * @param organizationId - 組織 ID
- * @param projectName    - プロジェクト名
+ * @param projectId      - プロジェクト ID
  * @returns 最新ジョブの状態、または unpublished 情報
  */
 export async function getPublishStatus(
   organizationId: string,
-  projectName:    string
+  projectId:      string
 ): Promise<PublishStatusResponse> {
-  const latest = await publishJobRepo.findLatestByProject(organizationId, projectName);
+  const latest = await publishJobRepo.findLatestByProject(organizationId, projectId);
 
   if (!latest) {
     // ジョブ履歴なし → 未公開
@@ -261,7 +270,7 @@ export async function getPublishStatus(
       job_type:     null,
       status:       null,
       asset_id:     null,
-      project_name: projectName,
+      project_id:   projectId,
       started_at:   null,
       finished_at:  null,
       error_message: null,
@@ -273,7 +282,7 @@ export async function getPublishStatus(
     job_type:      latest.job_type,
     status:        latest.status,
     asset_id:      latest.asset_id ?? null,
-    project_name:  projectName,
+    project_id:    projectId,
     started_at:    latest.started_at ?? null,
     finished_at:   latest.finished_at ?? null,
     error_message: latest.error_message ?? null,

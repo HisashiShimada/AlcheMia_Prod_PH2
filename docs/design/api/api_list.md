@@ -83,6 +83,7 @@
 | 2.21 | PUT | /api/v1/projects/:projectName/instructions/:instructionId | 指示更新（未送信のみ） | ✅ 実装済み | ProjectInstructionController.updateInstruction |
 | 2.22 | DELETE | /api/v1/projects/:projectName/instructions/:instructionId | 指示削除（未送信のみ） | ✅ 実装済み | ProjectInstructionController.deleteInstruction |
 | 2.23 | POST | /api/v1/projects/:projectName/instructions/send | 未送信指示一括送信 | ✅ 実装済み | ProjectInstructionController.sendInstructions |
+| 2.24 | PATCH | /api/v1/projects/:projectName/rename | プロジェクト名変更 | 🔴 未実装（renameService.renameProject未実装） | ProjectController.renameProjectHandler |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -488,6 +489,7 @@
 | 14.5 | GET | /api/v1/files/batches | バッチ履歴取得 | ✅ 実装済み | fileAccessController.getBatchHistory |
 | 14.6 | GET | /api/v1/files/batches/:batchId/progress | バッチ進捗取得 | ✅ 実装済み | fileAccessController.getBatchProgress |
 | 14.7 | POST | /api/v1/files/batches/:batchId/cancel | バッチキャンセル | ✅ 実装済み | fileAccessController.cancelBatch |
+| 14.8 | PATCH | /api/v1/files/rename | ファイルリネーム | ✅ 実装済み | fileAccessController.renameFileHandler |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`（JWTからorganizationIdを取得）

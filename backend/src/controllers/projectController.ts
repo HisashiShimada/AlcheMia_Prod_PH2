@@ -15,6 +15,7 @@ import { enqueuePublish, enqueueUnpublish, getPublishStatus as fetchPublishStatu
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import * as projectRepository from '../repositories/projectRepository';
+import { renameProject } from '../services/renameService';
 
 /**
  * プロジェクト作成エンドポイント
@@ -113,6 +114,84 @@ export async function create(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * プロジェクト名変更エンドポイント
+ * PATCH /api/v1/projects/:projectName/rename
+ *
+ * @description
+ * プロジェクト名を変更する。
+ * S3ファイルの物理移動と各テーブルの更新をトランザクション内で実行する。
+ *
+ * @roles experiment_admin（書込可）以上
+ */
+export async function renameProjectHandler(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId, userId } = req.user!;
+    const { projectId } = req.params;
+    // バリデーションはミドルウェア（projectRoutes.ts）で実施済み
+    const { newProjectName } = req.body as { newProjectName: string };
+
+    // projectIdからプロジェクト名を取得
+    const pool = getPool();
+    const pjRow = await pool.query(
+      'SELECT project_name FROM project WHERE project_id = $1 AND organization_id = $2',
+      [projectId, organizationId]
+    );
+    if (pjRow.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'E6001', message: 'プロジェクトが見つかりません' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    const result = await renameProject({
+      organizationId,
+      oldProjectName: pjRow.rows[0].project_name,
+      newProjectName,
+      userId,
+    });
+
+    if (!result.success) {
+      const errorCode = result.error?.code || 'E4001';
+      let statusCode = 500;
+      if (errorCode === 'E7001') statusCode = 409;
+      else if (errorCode === 'E6001') statusCode = 404;
+      else if (errorCode === 'E4006') statusCode = 500;
+      else if (errorCode.startsWith('E1')) statusCode = 400;
+
+      res.status(statusCode).json({
+        success: false,
+        error: { code: errorCode, message: result.error?.message || 'エラーが発生しました' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { newProjectName },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('renameProjectHandler error', error as Error, {
+      action: 'project_rename',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
  * プロジェクト削除エンドポイント
  * DELETE /api/v1/projects/:projectName
  * 
@@ -126,17 +205,17 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
 
   try {
     const { organizationId, userId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
 
     console.log('🗑️ [projectController.deleteProject] リクエスト開始:', {
-      projectName,
+      projectId,
       organizationId,
       userId,
       requestId,
     });
 
     // Service層呼び出し
-    const result = await projectService.deleteProject(organizationId, projectName);
+    const result = await projectService.deleteProject(organizationId, projectId);
 
     // エラーハンドリング
     if (!result.success) {
@@ -187,7 +266,7 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
     logError('Project delete error', error as Error, {
       action: 'project_delete',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId,
     });
 
@@ -317,7 +396,7 @@ export async function completeReviewTasks(req: Request, res: Response): Promise<
   const projectService = new ProjectService();
 
   try {
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
@@ -329,7 +408,7 @@ export async function completeReviewTasks(req: Request, res: Response): Promise<
       return;
     }
 
-    const result = await projectService.completeReviewTasks(organizationId, projectName);
+    const result = await projectService.completeReviewTasks(organizationId, projectId);
 
     if (!result.success) {
       const statusCode = result.error?.code === 'E6001' ? 404 : 500;
@@ -369,33 +448,9 @@ export async function getProjectTasks(req: Request, res: Response): Promise<void
     console.log('[DEBUG] getProjectTasks - Start', { requestId, params: req.params, query: req.query });
     
     const { organizationId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     
-    console.log('[DEBUG] getProjectTasks - Auth OK', { organizationId, projectName });
-
-    // projectNameからprojectIdを取得
-    const pool = getPool();
-    const projectQuery = 'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2';
-    const projectResult = await pool.query(projectQuery, [organizationId, projectName]);
-    
-    if (projectResult.rows.length === 0) {
-      console.log('[DEBUG] getProjectTasks - Project not found', { projectName });
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'E6001',
-          message: 'プロジェクトが見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-    
-    const projectId = projectResult.rows[0].project_id;
-    console.log('[DEBUG] getProjectTasks - Project ID resolved', { projectName, projectId });
+    console.log('[DEBUG] getProjectTasks - Auth OK', { organizationId, projectId });
 
     const status = (req.query.status as string) || 'all';
 
@@ -479,12 +534,12 @@ export async function getProjectMaiml(req: Request, res: Response): Promise<void
     
     // バリデーションはミドルウェアで処理済み
     const { organizationId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     
-    console.log('[DEBUG] getProjectMaiml - Auth OK', { organizationId, projectName });
+    console.log('[DEBUG] getProjectMaiml - Auth OK', { organizationId, projectId });
 
-    // Service層呼び出し（projectNameを直接渡す）
-    const result = await projectService.getProjectMaiml(organizationId, projectName);
+    // Service層呼び出し（projectIdを直接渡す）
+    const result = await projectService.getProjectMaiml(organizationId, projectId);
     
     console.log('[DEBUG] getProjectMaiml - Service result', { 
       success: result.success, 
@@ -534,7 +589,7 @@ export async function getProjectMaiml(req: Request, res: Response): Promise<void
     logError('Project getProjectMaiml error', error as Error, {
       action: 'project_getProjectMaiml',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId,
     });
 
@@ -565,12 +620,12 @@ export async function checkout(req: Request, res: Response): Promise<void> {
 
   try {
     const { organizationId, userId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
 
-    console.log('[DEBUG] checkout - Start', { requestId, projectName, organizationId, userId });
+    console.log('[DEBUG] checkout - Start', { requestId, projectId, organizationId, userId });
 
-    // Service層呼び出し（projectNameを渡す、Repository層でprojectIdを取得）
-    const result = await projectService.checkout(organizationId, projectName, userId);
+    // Service層呼び出し（projectIdを直接渡す）
+    const result = await projectService.checkout(organizationId, projectId, userId);
 
     // エラーハンドリング
     if (!result.success) {
@@ -618,7 +673,7 @@ export async function checkout(req: Request, res: Response): Promise<void> {
     logError('Project checkout error', error as Error, {
       action: 'project_checkout',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       userId: req.user?.userId,
       requestId,
     });
@@ -729,33 +784,9 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
     console.log('[DEBUG] getProjectFiles - Start', { requestId, params: req.params, query: req.query });
     
     const { organizationId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     
-    console.log('[DEBUG] getProjectFiles - Auth OK', { organizationId, projectName, userId: req.user!.userId });
-
-    // projectNameからprojectIdを取得
-    const pool = getPool();
-    const projectQuery = 'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2';
-    const projectResult = await pool.query(projectQuery, [organizationId, projectName]);
-    
-    if (projectResult.rows.length === 0) {
-      console.log('[DEBUG] getProjectFiles - Project not found', { projectName });
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'E6001',
-          message: 'プロジェクトが見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-    
-    const projectId = projectResult.rows[0].project_id;
-    console.log('[DEBUG] getProjectFiles - Project ID resolved', { projectName, projectId });
+    console.log('[DEBUG] getProjectFiles - Auth OK', { organizationId, projectId, userId: req.user!.userId });
 
     // Service層呼び出し（archiveファイルは常に取得）
     console.log('[DEBUG] getProjectFiles - Calling service...');
@@ -937,28 +968,8 @@ export async function requestApproval(req: Request, res: Response): Promise<void
   try {
     // バリデーションはミドルウェアで処理済み
     const { organizationId, userId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     const { comment } = req.body;
-
-    // projectNameからprojectIdを取得（リポジトリ層を使用）
-    const project = await projectRepository.findProjectIdByName(organizationId, projectName);
-    
-    if (!project) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'E6001',
-          message: 'プロジェクトが見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-    
-    const projectId = project.project_id;
 
     // Service層呼び出し（commentがundefinedの場合はnullに変換）
     const result = await projectService.requestApproval(
@@ -1043,21 +1054,15 @@ export async function getWorkerInstructions(req: Request, res: Response): Promis
     // バリデーションはミドルウェアで処理済み
     const { organizationId, userId } = req.user!;
     const role = (req.user as any).role;
-    const { projectName } = req.params;
-
-    // クエリパラメータの取得
-    const filters: any = {};
-    if (req.query.projectId) {
-      filters.projectId = req.query.projectId as string;
-    }
+    const { projectId } = req.params;
 
     // Service層呼び出し
     const result = await projectService.getWorkerInstructions({
-      projectName,
+      projectId,
       organizationId,
       userId,
       userRole: role,
-      filters,
+      filters: {},
     });
 
     // Task 3.1: エラーハンドリング
@@ -1080,7 +1085,7 @@ export async function getWorkerInstructions(req: Request, res: Response): Promis
         action: 'worker_instructions_list',
         organizationId,
         userId,
-        projectName,
+        projectId,
         errorCode,
         requestId,
       });
@@ -1114,7 +1119,7 @@ export async function getWorkerInstructions(req: Request, res: Response): Promis
     logError('Worker instructions list error', error as Error, {
       action: 'worker_instructions_list',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId,
     });
 
@@ -1142,10 +1147,10 @@ export async function checkin(req: Request, res: Response): Promise<void> {
 
   try {
     const { organizationId, userId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
 
     console.log('[projectController.checkin] Request received:', {
-      projectName,
+      projectId,
       organizationId,
       userId,
     });
@@ -1153,7 +1158,7 @@ export async function checkin(req: Request, res: Response): Promise<void> {
     // Service層を呼び出してチェックイン処理
     const result = await projectService.checkin(
       organizationId,
-      projectName,
+      projectId,
       userId
     );
 
@@ -1203,7 +1208,7 @@ export async function checkin(req: Request, res: Response): Promise<void> {
     logError('Project checkin error', error as Error, {
       action: 'project_checkin',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       userId: req.user?.userId,
       requestId,
     });
@@ -1401,7 +1406,7 @@ export async function publish(req: Request, res: Response): Promise<void> {
 
   try {
     const { organizationId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     const body = req.body as MaimlPublishRequest;
 
     // 公開ジョブを bullmq キューに投入（非同期）
@@ -1410,7 +1415,7 @@ export async function publish(req: Request, res: Response): Promise<void> {
 
     let result;
     try {
-      result = await enqueuePublish(organizationId, projectName, userId);
+      result = await enqueuePublish(organizationId, projectId, userId);
     } catch (svcErr: unknown) {
       const code = svcErr instanceof Error ? svcErr.message : 'PUBLISH_ERROR';
       if (code === 'PROJECT_NOT_FOUND') {
@@ -1478,7 +1483,7 @@ export async function publish(req: Request, res: Response): Promise<void> {
     logError('MaiML publish error', error as Error, {
       action: 'maiml_publish',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId,
     });
     res.status(500).json({
@@ -1506,7 +1511,7 @@ export async function unpublish(req: Request, res: Response): Promise<void> {
 
   try {
     const { organizationId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
 
     // 非公開ジョブを bullmq キューに投入（非同期）
     // ファイル確認・バリデーションは enqueueUnpublish 内部で実施
@@ -1514,7 +1519,7 @@ export async function unpublish(req: Request, res: Response): Promise<void> {
 
     let result;
     try {
-      result = await enqueueUnpublish(organizationId, projectName, userId);
+      result = await enqueueUnpublish(organizationId, projectId, userId);
     } catch (svcErr: unknown) {
       const code = svcErr instanceof Error ? svcErr.message : 'UNPUBLISH_ERROR';
       if (code === 'NOT_PUBLISHED') {
@@ -1550,7 +1555,7 @@ export async function unpublish(req: Request, res: Response): Promise<void> {
     logError('MaiML unpublish error', error as Error, {
       action: 'maiml_unpublish',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId,
     });
     res.status(500).json({
@@ -1573,10 +1578,10 @@ export async function getPublishStatus(req: Request, res: Response): Promise<voi
 
   try {
     const { organizationId } = req.user!;
-    const { projectName } = req.params;
+    const { projectId } = req.params;
 
     // ジョブのステータスのみ取得（MAIMLファイル存在確認は不要）
-    const statusData = await fetchPublishStatus(organizationId, projectName);
+    const statusData = await fetchPublishStatus(organizationId, projectId);
 
     res.status(200).json({
       success: true,
@@ -1587,7 +1592,7 @@ export async function getPublishStatus(req: Request, res: Response): Promise<voi
     logError('MaiML getPublishStatus error', error as Error, {
       action: 'maiml_getPublishStatus',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId,
     });
     res.status(500).json({
@@ -1609,12 +1614,12 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
   try {
     // バリデーションはミドルウェアで処理済み
     const { organizationId, userId, role } = req.user as any;
-    const { projectName, instructionId } = req.params;
+    const { projectId, instructionId } = req.params;
 
-    // Service層呼び出し（projectNameからprojectId取得もService層で実施）
+    // Service層呼び出し（projectIdを直接渡す）
     const result = await projectService.confirmInstruction(
       instructionId,
-      projectName,
+      projectId,
       userId,
       organizationId,
       role

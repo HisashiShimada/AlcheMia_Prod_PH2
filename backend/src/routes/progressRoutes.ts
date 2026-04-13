@@ -18,23 +18,23 @@ const router = Router();
 
 /**
  * 進捗データ取得
- * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
  * @middleware バリデーションルール - パラメータ検証
  * @middleware handleValidationErrors - バリデーションエラーハンドリング
- * @description 指定されたプロジェクト名・メソッド・タスク連番に紐づくトランジションレベルの進捗情報を取得
+ * @description 指定されたプロジェクトID・メソッド・タスク連番に紐づくトランジションレベルの進捗情報を取得
  * @note API #3: 進捗データ取得API（api_progress_monitoring.md）
  * @requirements REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7, REQ-8, REQ-9, REQ-10
  * @roles experiment_worker（読取専用）
  */
 router.get(
-  '/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions',
+  '/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions',
   authMiddleware,
   checkPermission('050000', 0),
   [
-    validateParamString('projectName', 1, 255),
+    validateParamString('projectId', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamInt('taskNo', 1),
   ],
@@ -44,24 +44,24 @@ router.get(
 
 /**
  * タスクステータス更新
- * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
+ * PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
  * @middleware バリデーションルール - パラメータ・ボディ検証
  * @middleware handleValidationErrors - バリデーションエラーハンドリング
- * @description プロジェクト名、メソッドID、タスク連番でタスクを特定してステータスを更新
+ * @description プロジェクトID、メソッドID、タスク連番でタスクを特定してステータスを更新
  * @note API #5: タスクステータス更新API（新エンドポイント）
  * @requirements REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7, REQ-8, REQ-9
  * @roles experiment_worker（書込可）
  */
 router.patch(
-  '/projects/:projectName/methods/:methodId/tasks/:taskNo/status',
+  '/projects/:projectId/methods/:methodId/tasks/:taskNo/status',
   authMiddleware,
   checkPermission('050000', 1),
   [
     // パスパラメータバリデーション
-    validateParamString('projectName', 1, 255),
+    validateParamString('projectId', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamInt('taskNo', 1),
 
@@ -87,7 +87,7 @@ router.patch(
 
 /**
  * タスク一覧取得（実験作業者用）
- * GET /api/v1/progress/projects/:projectName/worker-tasks
+ * GET /api/v1/progress/projects/:projectId/worker-tasks
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
@@ -98,18 +98,18 @@ router.patch(
  * @roles experiment_worker (読取専用)
  */
 router.get(
-  '/projects/:projectName/worker-tasks',
+  '/projects/:projectId/worker-tasks',
   authMiddleware,
   checkPermission('050000', 0),
   [
     // パスパラメータバリデーション
-    param('projectName')
+    param('projectId')
       .notEmpty()
-      .withMessage('projectName is required')
+      .withMessage('projectId is required')
       .isString()
-      .withMessage('projectName must be a string')
+      .withMessage('projectId must be a string')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectName must be 1-255 characters'),
+      .withMessage('projectId must be 1-255 characters'),
     
     // クエリパラメータバリデーション（オプション）
     query('status')
@@ -138,23 +138,23 @@ router.get(
 
 /**
  * トランジションステータス更新
- * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ * PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
  * @middleware handleValidationErrors - バリデーションエラーハンドリング
- * @description プロジェクト名、メソッドID、トランジションIDでトランジションを特定してステータスを更新
+ * @description プロジェクトID、メソッドID、トランジションIDでトランジションを特定してステータスを更新
  * @note API #6: トランジションステータス更新API（旧: PUT /api/v1/experiments/...から移動）
  * @requirements REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7, REQ-8, REQ-9
  * @roles experiment_worker（書込可）
  */
 router.patch(
-  '/projects/:projectName/methods/:methodId/transitions/:transitionId/status',
+  '/projects/:projectId/methods/:methodId/transitions/:transitionId/status',
   authMiddleware,
   checkPermission('050000', 1),
   [
     // パスパラメータバリデーション
-    validateParamString('projectName', 1, 255),
+    validateParamString('projectId', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamString('transitionId', 1, 255),
 
@@ -184,21 +184,21 @@ router.patch(
 
 /**
  * タスク詳細取得
- * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/details
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
  * @description
- *   projectName / methodId / taskNo からタスクを特定し、
+ *   projectId / methodId / taskNo からタスクを特定し、
  *   タスク基本情報 + トランジション進捗一覧 + 統計情報を返す。
  * @roles experiment_admin（読取専用）
  */
 router.get(
-  '/projects/:projectName/methods/:methodId/tasks/:taskNo/details',
+  '/projects/:projectId/methods/:methodId/tasks/:taskNo/details',
   authMiddleware,
   checkPermission('040000', 0),
   [
-    validateParamString('projectName', 1, 255),
+    validateParamString('projectId', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamInt('taskNo', 1),
   ],
@@ -208,22 +208,22 @@ router.get(
 
 /**
  * WorkProgressDetailDialog 用 作業詳細一括取得
- * GET /api/v1/progress/projects/:projectName/work-details
+ * GET /api/v1/progress/projects/:projectId/work-details
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
  * @middleware handleValidationErrors - バリデーションエラーハンドリング
  * @description
- *   プロジェクト名をキーに、projectInfo / fileInfo / workDetails（transitionProgress 含む）を一括返却する。
+ *   プロジェクトIDをキーに、projectInfo / fileInfo / workDetails（transitionProgress 含む）を一括返却する。
  *   WorkProgressDetailDialog がダイアログ初期表示時に呼び出す。
  * @roles experiment_admin（読取専用）
  */
 router.get(
-  '/projects/:projectName/work-details',
+  '/projects/:projectId/work-details',
   authMiddleware,
   checkPermission('040000', 0),
   [
-    validateParamString('projectName', 1, 255),
+    validateParamString('projectId', 1, 255),
   ],
   handleValidationErrors,
   progressController.getWorkDetails
