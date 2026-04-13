@@ -48,11 +48,13 @@ export function createBullRedisConnection(): IORedis {
   const port = parseInt(process.env.REDIS_PORT ?? '6379', 10);
 
   const password = process.env.REDIS_PASSWORD || undefined;
+  const tls = process.env.REDIS_TLS === 'true' ? {} : undefined;
 
   const client = new IORedis({
     host,
     port,
     password,                   // REDIS_PASSWORDが設定されている場合のみ使用
+    tls,                        // REDIS_TLS=true の場合はTLS接続（ElastiCache等）
     maxRetriesPerRequest: null, // bullmq 推奨設定（必須）
     enableReadyCheck:     false,
     lazyConnect:          true,

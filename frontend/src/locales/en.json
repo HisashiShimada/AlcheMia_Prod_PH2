@@ -979,7 +979,14 @@
       "csvUploadSuccess": "CSV file uploaded",
       "csvDownloadSuccess": "CSV file downloaded",
       "saveSuccess": "Department updated",
-      "addSuccess": "Department added"
+      "addSuccess": "Department added",
+      "activateError": "Failed to activate",
+      "deactivateError": "Failed to deactivate",
+      "toggleError": "Failed to change status",
+      "csvUploadError": "Failed to upload CSV",
+      "csvDownloadError": "Failed to download CSV",
+      "saveError": "Failed to save",
+      "duplicateIdError": "The entered ID already exists"
     },
     "pagination": {
       "showTotal": "Total {total} items"
@@ -1045,7 +1052,17 @@
       "functionUpdated": "Function updated",
       "functionSet": "Function set (will be saved to DB when you click Save)",
       "saveSuccess": "Role updated",
-      "addSuccess": "Role added"
+      "addSuccess": "Role added",
+      "activateError": "Failed to activate",
+      "deactivateError": "Failed to deactivate",
+      "toggleError": "Failed to change status",
+      "csvUploadError": "Failed to upload CSV",
+      "csvDownloadError": "Failed to download CSV",
+      "functionUpdateSuccess": "Function updated successfully",
+      "functionTempSaved": "Function set (will be saved to DB when you click Save)",
+      "saveError": "Failed to save",
+      "duplicateIdError": "The entered ID already exists",
+      "genericError": "An error occurred"
     },
     "pagination": {
       "showTotal": "Total {total} items"
@@ -1161,7 +1178,9 @@
       "addSuccess": "Master added",
       "updateFailed": "Failed to update",
       "addFailed": "Failed to add",
-      "idDuplicate": "The entered ID already exists"
+      "idDuplicate": "The entered ID already exists",
+      "defaultMasterName": "This master",
+      "genericError": "An error occurred"
     },
     "pagination": {
       "showTotal": "Total {total} items"
@@ -1266,6 +1285,16 @@
       "deleted": "Instruction deleted successfully",
       "deleteFailed": "Failed to delete instruction (may have been sent)",
       "deleteError": "An error occurred while deleting the instruction"
+    }
+  },
+  "functionPermissionDialog": {
+    "title": "Function Management",
+    "buttons": {
+      "cancel": "Cancel",
+      "update": "Update Functions"
+    },
+    "labels": {
+      "writable": "Writable"
     }
   }
 }

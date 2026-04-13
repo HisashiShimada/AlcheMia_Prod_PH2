@@ -34,8 +34,8 @@ interface StorageConfig {
   type: 'swift' | 's3';
   endpoint?: string;
   region: string;
-  accessKeyId: string;
-  secretAccessKey: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
   bucketName: string;
   forcePathStyle: boolean;
 }
@@ -83,13 +83,20 @@ export class StorageService {
     this.storageType = config.type;
 
     // S3Clientの初期化
+    // AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY が設定されている場合のみ明示指定。
+    // 未設定（ECS タスクロールなど）の場合は credentials を渡さず、
+    // AWS SDK のデフォルト認証情報プロバイダーチェーン（IAM ロール等）に委ねる。
     this.s3Client = new S3Client({
       endpoint: config.endpoint,
       region: config.region,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
+      ...(config.accessKeyId && config.secretAccessKey
+        ? {
+            credentials: {
+              accessKeyId: config.accessKeyId,
+              secretAccessKey: config.secretAccessKey,
+            },
+          }
+        : {}),
       forcePathStyle: config.forcePathStyle,
       maxAttempts: 3,
     });

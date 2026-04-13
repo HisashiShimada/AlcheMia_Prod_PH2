@@ -156,6 +156,16 @@ export class ProjectService {
       try {
         await storageService.uploadFile(organizationId, s3Path, '', { contentType: 'text/plain' });
       } catch (s3Error) {
+        const errMsg = s3Error instanceof Error ? s3Error.message : String(s3Error);
+        const errStack = s3Error instanceof Error ? s3Error.stack : undefined;
+        console.error('[ProjectService.create] S3フォルダ作成エラー', {
+          organizationId,
+          s3Path,
+          bucket: process.env.AWS_S3_BUCKET || process.env.SWIFT_CONTAINER || '(未設定)',
+          region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || '(未設定)',
+          errorMessage: errMsg,
+          errorStack: errStack,
+        });
         await client.query('ROLLBACK');
         return {
           success: false,
