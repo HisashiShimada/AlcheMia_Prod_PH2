@@ -353,6 +353,39 @@ export const getProjects = async (
 };
 
 /**
+ * プロジェクト名変更
+ * PATCH /api/v1/projects/:projectId/rename
+ *
+ * @param projectId - プロジェクトID（UUID）
+ * @param newProjectName - 変更後のプロジェクト名
+ * @returns 変更後のプロジェクト名
+ */
+export const renameProject = async (
+  projectId: string,
+  newProjectName: string
+): Promise<{ newProjectName: string }> => {
+  const apiClient = createApiClient();
+
+  try {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: { newProjectName: string };
+    }>(`/projects/${encodeURIComponent(projectId)}/rename`, { newProjectName });
+
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] renameProject - Error', {
+      projectId,
+      newProjectName,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
  * プロジェクトを作成
  * 
  * @param request プロジェクト作成リクエスト
@@ -405,7 +438,7 @@ export const createProject = async (
 /**
  * プロジェクトに紐づくファイル一覧を取得
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @param includeArchive アーカイブファイルを含めるかどうか（デフォルト: false）
  * @returns ファイル一覧とプロジェクト情報
  * @throws Error APIエラー時
@@ -413,20 +446,20 @@ export const createProject = async (
  * @example
  * ```typescript
  * // 現在のファイルのみ取得
- * const files = await getProjectFiles('sample_project');
+ * const files = await getProjectFiles('550e8400-e29b-41d4-a716-446655440000');
  * 
  * // アーカイブファイルも含めて取得
- * const allFiles = await getProjectFiles('sample_project', true);
+ * const allFiles = await getProjectFiles('550e8400-e29b-41d4-a716-446655440000', true);
  * ```
  */
 export const getProjectFiles = async (
-  projectName: string,
+  projectId: string,
   includeArchive: boolean = false
 ): Promise<FileListResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getProjectFiles - Frontend call start', { projectName, includeArchive });
+    console.log('[DEBUG] getProjectFiles - Frontend call start', { projectId, includeArchive });
     
     const response = await client.get<{
       success: true;
@@ -435,7 +468,7 @@ export const getProjectFiles = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/files`, {
+    }>(`/projects/${encodeURIComponent(projectId)}/files`, {
       params: {
         include_archive: includeArchive,
       },
@@ -462,7 +495,7 @@ export const getProjectFiles = async (
 /**
  * プロジェクトに紐づくタスク一覧と統計情報を取得
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @param status タスクステータスフィルタ（デフォルト: 'all'）
  * @returns タスク一覧、統計情報、プロジェクト情報
  * @throws Error APIエラー時
@@ -470,17 +503,17 @@ export const getProjectFiles = async (
  * @example
  * ```typescript
  * // 全タスクを取得
- * const allTasks = await getProjectTasks('sample_project');
+ * const allTasks = await getProjectTasks('550e8400-e29b-41d4-a716-446655440000');
  * 
  * // 実行待ちタスクのみ取得
- * const pendingTasks = await getProjectTasks('sample_project', 'pending');
+ * const pendingTasks = await getProjectTasks('550e8400-e29b-41d4-a716-446655440000', 'pending');
  * 
  * // 実行中タスクのみ取得
- * const inProgressTasks = await getProjectTasks('sample_project', 'in_progress');
+ * const inProgressTasks = await getProjectTasks('550e8400-e29b-41d4-a716-446655440000', 'in_progress');
  * ```
  */
 export const getProjectTasks = async (
-  projectName: string,
+  projectId: string,
   status: 'all' | 'pending' | 'in_progress' | 'completed' | 'failed' = 'all'
 ): Promise<TaskListResponse> => {
   const client = createApiClient();
@@ -493,7 +526,7 @@ export const getProjectTasks = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/tasks`, {
+    }>(`/projects/${encodeURIComponent(projectId)}/tasks`, {
       params: {
         status,
       },
@@ -509,7 +542,7 @@ export const getProjectTasks = async (
 /**
  * プロジェクトファイルとタスク情報を同時に取得（最適化された呼び出し）
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @param includeArchive アーカイブファイルを含めるかどうか
  * @param taskStatus タスクステータスフィルタ
  * @returns ファイル一覧とタスク一覧
@@ -517,12 +550,12 @@ export const getProjectTasks = async (
  * 
  * @example
  * ```typescript
- * const { files, tasks } = await getProjectData('sample_project');
+ * const { files, tasks } = await getProjectData('550e8400-e29b-41d4-a716-446655440000');
  * console.log(`ファイル数: ${files.files.length}, タスク数: ${tasks.tasks.length}`);
  * ```
  */
 export const getProjectData = async (
-  projectName: string,
+  projectId: string,
   includeArchive: boolean = false,
   taskStatus: 'all' | 'pending' | 'in_progress' | 'completed' | 'failed' = 'all'
 ): Promise<{
@@ -532,8 +565,8 @@ export const getProjectData = async (
   try {
     // 並列実行で両方のAPIを呼び出し
     const [files, tasks] = await Promise.all([
-      getProjectFiles(projectName, includeArchive),
-      getProjectTasks(projectName, taskStatus),
+      getProjectFiles(projectId, includeArchive),
+      getProjectTasks(projectId, taskStatus),
     ]);
 
     return { files, tasks };
@@ -545,19 +578,19 @@ export const getProjectData = async (
 
 /**
  * タスク登録情報を取得
- * GET /api/v1/projects/:projectName/task-registration
+ * GET /api/v1/projects/:projectId/task-registration
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns タスク登録情報
  * @throws Error APIエラー時
  */
 export const getTaskRegistration = async (
-  projectName: string
+  projectId: string
 ): Promise<GetTaskRegistrationResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getTaskRegistration - Request', { projectName });
+    console.log('[DEBUG] getTaskRegistration - Request', { projectId });
     
     const response = await client.get<{
       success: true;
@@ -566,7 +599,7 @@ export const getTaskRegistration = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/task-registration`);
+    }>(`/projects/${encodeURIComponent(projectId)}/task-registration`);
 
     console.log('[DEBUG] getTaskRegistration - Success', {
       tasksCount: response.data.data.tasks.length,
@@ -588,21 +621,21 @@ export const getTaskRegistration = async (
 
 /**
  * タスク登録情報を保存
- * POST /api/v1/projects/:projectName/task-registration
+ * POST /api/v1/projects/:projectId/task-registration
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @param request タスク登録保存リクエスト
  * @returns 保存結果
  * @throws Error APIエラー時
  */
 export const saveTaskRegistration = async (
-  projectName: string,
+  projectId: string,
   request: SaveTaskRegistrationRequest
 ): Promise<SaveTaskRegistrationResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] saveTaskRegistration - Request', { projectName, tasksCount: request.tasks.length });
+    console.log('[DEBUG] saveTaskRegistration - Request', { projectId, tasksCount: request.tasks.length });
     
     const response = await client.post<{
       success: true;
@@ -611,7 +644,7 @@ export const saveTaskRegistration = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/task-registration`, request);
+    }>(`/projects/${encodeURIComponent(projectId)}/task-registration`, request);
 
     console.log('[DEBUG] saveTaskRegistration - Success', {
       message: response.data.data.message,
@@ -783,13 +816,13 @@ export const getProjectDetail = async (
  * ```
  */
 export const requestApproval = async (
-  projectName: string,
+  projectId: string,
   comment?: string
 ): Promise<ApiResponse<ApprovalRequestResponse>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] requestApproval - Start', { projectName, hasComment: !!comment });
+    console.log('[DEBUG] requestApproval - Start', { projectId, hasComment: !!comment });
     
     const requestBody: { comment?: string } = {};
     if (comment) {
@@ -803,7 +836,7 @@ export const requestApproval = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/approval-request`, requestBody);
+    }>(`/projects/${encodeURIComponent(projectId)}/approval-request`, requestBody);
 
     console.log('[DEBUG] requestApproval - Success', {
       projectId: response.data.data.project_id,
@@ -846,7 +879,7 @@ export const requestApproval = async (
  * ```
  */
 export const getWorkerTasks = async (
-  projectName: string,
+  projectId: string,
   filters?: {
     status?: string;
     assignedTo?: string;
@@ -857,7 +890,7 @@ export const getWorkerTasks = async (
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getWorkerTasks - Start', { projectName, filters });
+    console.log('[DEBUG] getWorkerTasks - Start', { projectId, filters });
     
     const params: Record<string, string> = {};
     if (filters?.status) params.status = filters.status;
@@ -872,7 +905,7 @@ export const getWorkerTasks = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/progress/projects/${encodeURIComponent(projectName)}/worker-tasks`, {
+    }>(`/progress/projects/${encodeURIComponent(projectId)}/worker-tasks`, {
       params
     });
 
@@ -921,7 +954,7 @@ export const getWorkerTasks = async (
  * ```
  */
 export const updateTaskStatus = async (
-  projectName: string,
+  projectId: string,
   methodId: string,
   taskNo: string,
   status: 'not_started' | 'started' | 'in_progress' | 'completed' | 'forced_terminated',
@@ -932,7 +965,7 @@ export const updateTaskStatus = async (
 
   try {
     console.log('[DEBUG] updateTaskStatus - Start', {
-      projectName,
+      projectId,
       methodId,
       taskNo,
       status,
@@ -960,7 +993,7 @@ export const updateTaskStatus = async (
         requestId: string;
       };
     }>(
-      `/progress/projects/${encodeURIComponent(projectName)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/status`,
+      `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/status`,
       requestBody
     );
 
@@ -1006,20 +1039,12 @@ export const updateTaskStatus = async (
  * ```
  */
 export const getWorkerInstructions = async (
-  projectName: string,
-  filters?: {
-    projectId?: string;
-  }
+  projectId: string
 ): Promise<ApiResponse<WorkerInstruction[]>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getWorkerInstructions - Start', { projectName, filters });
-    
-    const params: Record<string, string> = {};
-    if (filters?.projectId) {
-      params.projectId = filters.projectId;
-    }
+    console.log('[DEBUG] getWorkerInstructions - Start', { projectId });
     
     const response = await client.get<{
       success: boolean;
@@ -1028,9 +1053,7 @@ export const getWorkerInstructions = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/worker-instructions`, {
-      params
-    });
+    }>(`/projects/${encodeURIComponent(projectId)}/worker-instructions`);
 
     console.log('[DEBUG] getWorkerInstructions - Success', {
       instructionCount: response.data.data.length
@@ -1069,13 +1092,13 @@ export const getWorkerInstructions = async (
  * ```
  */
 export const confirmInstruction = async (
-  projectName: string,
+  projectId: string,
   instructionId: string
 ): Promise<ApiResponse<InstructionConfirmationData>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] confirmInstruction - Start', { projectName, instructionId });
+    console.log('[DEBUG] confirmInstruction - Start', { projectId, instructionId });
     
     const response = await client.put<{
       success: boolean;
@@ -1084,7 +1107,7 @@ export const confirmInstruction = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/instructions/${instructionId}/confirm`);
+    }>(`/projects/${encodeURIComponent(projectId)}/instructions/${instructionId}/confirm`);
 
     console.log('[DEBUG] confirmInstruction - Success', {
       instructionId: response.data.data.instruction_id,
@@ -1129,7 +1152,7 @@ export const confirmInstruction = async (
  * ```
  */
 export const updateTransitionStatus = async (
-  projectName: string,
+  projectId: string,
   methodId: string,
   transitionId: string,
   request: UpdateTransitionStatusRequest
@@ -1138,7 +1161,7 @@ export const updateTransitionStatus = async (
 
   try {
     console.log('[DEBUG] updateTransitionStatus - Start', {
-      projectName,
+      projectId,
       methodId,
       transitionId,
       taskNo: request.taskNo,
@@ -1153,7 +1176,7 @@ export const updateTransitionStatus = async (
         requestId: string;
       };
     }>(
-      `/progress/projects/${encodeURIComponent(projectName)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/status`,
+      `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/status`,
       request
     );
 
@@ -1252,25 +1275,25 @@ export function convertApiToInstruction(apiData: WorkerInstruction): Instruction
 
 /**
  * 指示一覧を取得
- * GET /api/v1/projects/:projectName/instructions
+ * GET /api/v1/projects/:projectId/instructions
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns 指示一覧
  * @throws Error APIエラー時
  * 
  * @example
  * ```typescript
- * const instructions = await getInstructions('sample_project');
+ * const instructions = await getInstructions('550e8400-e29b-41d4-a716-446655440000');
  * console.log(`${instructions.length}件の指示を取得`);
  * ```
  */
 export const getInstructions = async (
-  projectName: string
+  projectId: string
 ): Promise<InstructionData[]> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getInstructions - Request', { projectName });
+    console.log('[DEBUG] getInstructions - Request', { projectId });
     
     const response = await client.get<{
       success: true;
@@ -1281,7 +1304,7 @@ export const getInstructions = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/instructions`);
+    }>(`/projects/${encodeURIComponent(projectId)}/instructions`);
 
     console.log('[DEBUG] getInstructions - Success', {
       instructionsCount: response.data.data.instructions.length,
@@ -1300,38 +1323,22 @@ export const getInstructions = async (
 };
 
 /**
- * タスク登録状況を取得（ボタン活性制御用）
- * GET /api/v1/projects/:projectName/instructions/status
- * 
- * @param projectName プロジェクト名
- * @returns タスク登録状況
- * @throws Error APIエラー時
- * 
- * @example
- * ```typescript
- * const status = await getTaskRegistrationStatus('sample_project');
- * if (status.canSendInstructions) {
- *   // 指示送信ボタンを活性化
- * }
- * ```
- */
-/**
  * レビュー待ちタスクを一括完了に更新
- * POST /api/v1/projects/:projectName/tasks/complete-review
+ * POST /api/v1/projects/:projectId/tasks/complete-review
  *
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns 更新件数とメッセージ
  */
 export const completeReviewTasks = async (
-  projectName: string
+  projectId: string
 ): Promise<ApiResponse<{ updatedCount: number; message: string }>> => {
   const client = createApiClient();
   try {
-    console.log('[DEBUG] completeReviewTasks - Request', { projectName });
+    console.log('[DEBUG] completeReviewTasks - Request', { projectId });
     const response = await client.post<{
       success: boolean;
       data: { updatedCount: number; message: string };
-    }>(`/projects/${encodeURIComponent(projectName)}/tasks/complete-review`);
+    }>(`/projects/${encodeURIComponent(projectId)}/tasks/complete-review`);
     console.log('[DEBUG] completeReviewTasks - Success', {
       updatedCount: response.data.data.updatedCount,
     });
@@ -1343,12 +1350,12 @@ export const completeReviewTasks = async (
 };
 
 export const getTaskRegistrationStatus = async (
-  projectName: string
+  projectId: string
 ): Promise<TaskRegistrationStatusResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getTaskRegistrationStatus - Request', { projectName });
+    console.log('[DEBUG] getTaskRegistrationStatus - Request', { projectId });
     
     const response = await client.get<{
       success: true;
@@ -1357,7 +1364,7 @@ export const getTaskRegistrationStatus = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/instructions/status`);
+    }>(`/projects/${encodeURIComponent(projectId)}/instructions/status`);
 
     console.log('[DEBUG] getTaskRegistrationStatus - Success', {
       hasRegisteredTasks: response.data.data.hasRegisteredTasks,
@@ -1379,16 +1386,16 @@ export const getTaskRegistrationStatus = async (
 
 /**
  * 指示を保存（未送信）
- * POST /api/v1/projects/:projectName/instructions
+ * POST /api/v1/projects/:projectId/instructions
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @param request 指示保存リクエスト
  * @returns 指示保存結果
  * @throws Error APIエラー時
  * 
  * @example
  * ```typescript
- * const result = await saveInstruction('sample_project', {
+ * const result = await saveInstruction('550e8400-e29b-41d4-a716-446655440000', {
  *   methodId: 'method_001',
  *   transitionId: 'trans_001',
  *   taskNumber: 1,
@@ -1400,13 +1407,13 @@ export const getTaskRegistrationStatus = async (
  * ```
  */
 export const saveInstruction = async (
-  projectName: string,
+  projectId: string,
   request: SaveInstructionRequest
 ): Promise<SaveInstructionResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] saveInstruction - Request', { projectName, request });
+    console.log('[DEBUG] saveInstruction - Request', { projectId, request });
     
     const response = await client.post<{
       success: true;
@@ -1415,7 +1422,7 @@ export const saveInstruction = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/instructions`, request);
+    }>(`/projects/${encodeURIComponent(projectId)}/instructions`, request);
 
     console.log('[DEBUG] saveInstruction - Success', {
       instructionId: response.data.data.instructionId,
@@ -1435,9 +1442,9 @@ export const saveInstruction = async (
 
 /**
  * 指示を更新（未送信のみ）
- * PUT /api/v1/projects/:projectName/instructions/:instructionId
+ * PUT /api/v1/projects/:projectId/instructions/:instructionId
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @param instructionId 指示ID
  * @param request 指示更新リクエスト
  * @returns 指示更新結果
@@ -1445,7 +1452,7 @@ export const saveInstruction = async (
  * 
  * @example
  * ```typescript
- * const result = await updateInstruction('sample_project', 'inst_001', {
+ * const result = await updateInstruction('550e8400-e29b-41d4-a716-446655440000', 'inst_001', {
  *   methodId: 'method_001',
  *   priority: 2,
  *   type: 0,
@@ -1454,14 +1461,14 @@ export const saveInstruction = async (
  * ```
  */
 export const updateInstruction = async (
-  projectName: string,
+  projectId: string,
   instructionId: string,
   request: UpdateInstructionRequest
 ): Promise<UpdateInstructionResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] updateInstruction - Request', { projectName, instructionId, request });
+    console.log('[DEBUG] updateInstruction - Request', { projectId, instructionId, request });
     
     const response = await client.put<{
       success: true;
@@ -1470,7 +1477,7 @@ export const updateInstruction = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/instructions/${encodeURIComponent(instructionId)}`, request);
+    }>(`/projects/${encodeURIComponent(projectId)}/instructions/${encodeURIComponent(instructionId)}`, request);
 
     console.log('[DEBUG] updateInstruction - Success', {
       instructionId: response.data.data.instructionId,
@@ -1491,29 +1498,29 @@ export const updateInstruction = async (
 
 /**
  * 指示を削除（未送信のみ）
- * DELETE /api/v1/projects/:projectName/instructions/:instructionId
+ * DELETE /api/v1/projects/:projectId/instructions/:instructionId
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @param instructionId 指示ID
  * @returns 指示削除結果
  * @throws Error APIエラー時（送信済の指示を削除しようとした場合はエラー）
  * 
  * @example
  * ```typescript
- * const result = await deleteInstruction('sample_project', 'inst_001');
+ * const result = await deleteInstruction('550e8400-e29b-41d4-a716-446655440000', 'inst_001');
  * if (result.deleted) {
  *   console.log('指示を削除しました');
  * }
  * ```
  */
 export const deleteInstruction = async (
-  projectName: string,
+  projectId: string,
   instructionId: string
 ): Promise<DeleteInstructionResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] deleteInstruction - Request', { projectName, instructionId });
+    console.log('[DEBUG] deleteInstruction - Request', { projectId, instructionId });
     
     const response = await client.delete<{
       success: true;
@@ -1522,7 +1529,7 @@ export const deleteInstruction = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/instructions/${encodeURIComponent(instructionId)}`);
+    }>(`/projects/${encodeURIComponent(projectId)}/instructions/${encodeURIComponent(instructionId)}`);
 
     console.log('[DEBUG] deleteInstruction - Success', {
       deleted: response.data.data.deleted,
@@ -1542,9 +1549,9 @@ export const deleteInstruction = async (
 
 /**
  * 未送信指示を一括送信
- * POST /api/v1/projects/:projectName/instructions/send
+ * POST /api/v1/projects/:projectId/instructions/send
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @param request 指示送信リクエスト（空のオブジェクト）
  * @returns 指示送信結果
  * @throws Error APIエラー時
@@ -1554,18 +1561,18 @@ export const deleteInstruction = async (
  * 
  * @example
  * ```typescript
- * const result = await sendInstructions('sample_project', {});
+ * const result = await sendInstructions('550e8400-e29b-41d4-a716-446655440000', {});
  * console.log(`${result.sentInstructionsCount}件の指示を送信しました`);
  * ```
  */
 export const sendInstructions = async (
-  projectName: string,
+  projectId: string,
   request: SendInstructionsRequest
 ): Promise<SendInstructionsResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] sendInstructions - Request', { projectName });
+    console.log('[DEBUG] sendInstructions - Request', { projectId });
     
     const response = await client.post<{
       success: true;
@@ -1574,7 +1581,7 @@ export const sendInstructions = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/instructions/send`, request);
+    }>(`/projects/${encodeURIComponent(projectId)}/instructions/send`, request);
 
     console.log('[DEBUG] sendInstructions - Success', {
       sentInstructionsCount: response.data.data.sentInstructionsCount,
@@ -1609,16 +1616,16 @@ export interface CheckoutResponse {
 
 /**
  * プロジェクトをチェックアウト
- * POST /api/v1/projects/:projectName/checkout
+ * POST /api/v1/projects/:projectId/checkout
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns チェックアウト結果
  * @throws Error APIエラー時
  * 
  * @example
  * ```typescript
  * try {
- *   const result = await checkoutProject('sample_project');
+ *   const result = await checkoutProject('550e8400-e29b-41d4-a716-446655440000');
  *   console.log('チェックアウト成功:', result.projectName);
  * } catch (error) {
  *   console.error('チェックアウト失敗:', error);
@@ -1626,12 +1633,12 @@ export interface CheckoutResponse {
  * ```
  */
 export const checkoutProject = async (
-  projectName: string
+  projectId: string
 ): Promise<CheckoutResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] checkoutProject - Request', { projectName });
+    console.log('[DEBUG] checkoutProject - Request', { projectId });
     
     const response = await client.post<{
       success: true;
@@ -1640,7 +1647,7 @@ export const checkoutProject = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/checkout`);
+    }>(`/projects/${encodeURIComponent(projectId)}/checkout`);
 
     console.log('[DEBUG] checkoutProject - Success', {
       projectId: response.data.data.projectId,
@@ -1662,16 +1669,16 @@ export const checkoutProject = async (
 
 /**
  * プロジェクトをチェックイン
- * POST /api/v1/projects/:projectName/checkin
+ * POST /api/v1/projects/:projectId/checkin
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns チェックイン結果
  * @throws Error APIエラー時
  * 
  * @example
  * ```typescript
  * try {
- *   const result = await checkinProject('sample_project');
+ *   const result = await checkinProject('550e8400-e29b-41d4-a716-446655440000');
  *   console.log('チェックイン成功:', result.projectName);
  * } catch (error) {
  *   console.error('チェックイン失敗:', error);
@@ -1679,12 +1686,12 @@ export const checkoutProject = async (
  * ```
  */
 export const checkinProject = async (
-  projectName: string
+  projectId: string
 ): Promise<CheckoutResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] checkinProject - Request', { projectName });
+    console.log('[DEBUG] checkinProject - Request', { projectId });
     
     const response = await client.post<{
       success: true;
@@ -1693,7 +1700,7 @@ export const checkinProject = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}/checkin`);
+    }>(`/projects/${encodeURIComponent(projectId)}/checkin`);
 
     console.log('[DEBUG] checkinProject - Success', {
       projectId: response.data.data.projectId,
@@ -1719,29 +1726,29 @@ export const checkinProject = async (
 
 /**
  * プロジェクトの MaiML を公開する
- * POST /api/v1/projects/:projectName/publish
+ * POST /api/v1/projects/:projectId/publish
  *
  * @description
  * バックエンドは bullmq 非同期処理（202 Accepted）を返す。
- * リクエストボディなし（バックエンドは organizationId/projectName/userId のみ使用）。
+ * リクエストボディなし（バックエンドは organizationId/projectId/userId のみ使用）。
  *
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns 公開ジョブ受付結果 (job_id, status: 'pending', message)
  * @throws Error APIエラー時
  */
 export const publishProject = async (
-  projectName: string
+  projectId: string
 ): Promise<ApiResponse<PublishJobResponse>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] publishProject - Request', { projectName });
+    console.log('[DEBUG] publishProject - Request', { projectId });
 
     const response = await client.post<{
       success: boolean;
       data: PublishJobResponse;
       meta: { timestamp: string; requestId: string };
-    }>(`/projects/${encodeURIComponent(projectName)}/publish`);
+    }>(`/projects/${encodeURIComponent(projectId)}/publish`);
 
     console.log('[DEBUG] publishProject - Success', {
       job_id: response.data.data.job_id,
@@ -1792,29 +1799,29 @@ export interface PublishStatusResponse {
 
 /**
  * プロジェクトの MaiML を非公開にする
- * POST /api/v1/projects/:projectName/unpublish
+ * POST /api/v1/projects/:projectId/unpublish
  *
  * @description
  * バックエンドは bullmq 非同期処理（202 Accepted）を返す。
- * リクエストボディは不要（バックエンドは organizationId/projectName/userId のみ使用）。
+ * リクエストボディは不要（バックエンドは organizationId/projectId/userId のみ使用）。
  *
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns 非公開ジョブ受付結果 (job_id, status: 'pending', message)
  * @throws Error APIエラー時
  */
 export const unpublishProject = async (
-  projectName: string
+  projectId: string
 ): Promise<ApiResponse<PublishJobResponse>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] unpublishProject - Request', { projectName });
+    console.log('[DEBUG] unpublishProject - Request', { projectId });
 
     const response = await client.post<{
       success: boolean;
       data: PublishJobResponse;
       meta: { timestamp: string; requestId: string };
-    }>(`/projects/${encodeURIComponent(projectName)}/unpublish`);
+    }>(`/projects/${encodeURIComponent(projectId)}/unpublish`);
 
     console.log('[DEBUG] unpublishProject - Success', {
       job_id: response.data.data.job_id,
@@ -1840,25 +1847,25 @@ export const unpublishProject = async (
 
 /**
  * プロジェクトの MaiML 公開ステータスを取得する
- * GET /api/v1/projects/:projectName/publish-status
+ * GET /api/v1/projects/:projectId/publish-status
  *
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns 最新ジョブの公開状態
  * @throws Error APIエラー時（404: MAIMLファイルなし、500: システムエラー）
  */
 export const getPublishStatus = async (
-  projectName: string
+  projectId: string
 ): Promise<PublishStatusResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getPublishStatus - Request', { projectName });
+    console.log('[DEBUG] getPublishStatus - Request', { projectId });
 
     const response = await client.get<{
       success: boolean;
       data: PublishStatusResponse;
       meta: { timestamp: string; requestId: string };
-    }>(`/projects/${encodeURIComponent(projectName)}/publish-status`);
+    }>(`/projects/${encodeURIComponent(projectId)}/publish-status`);
 
     console.log('[DEBUG] getPublishStatus - Success', {
       job_type: response.data.data.job_type,
@@ -1893,9 +1900,9 @@ export interface ProjectMaimlResponse {
 
 /**
  * プロジェクトのMAIMLファイルを取得
- * GET /api/v1/projects/:projectName/maiml
+ * GET /api/v1/projects/:projectId/maiml
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns MAIMLファイルの内容（XML文字列）
  * @throws Error APIエラー時
  * 
@@ -1906,20 +1913,20 @@ export interface ProjectMaimlResponse {
  * ```
  */
 export const getProjectMaiml = async (
-  projectName: string
+  projectId: string
 ): Promise<ApiResponse<ProjectMaimlResponse>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] getProjectMaiml - Request', { projectName });
+    console.log('[DEBUG] getProjectMaiml - Request', { projectId });
     
     const response = await client.get<ApiResponse<ProjectMaimlResponse>>(
-      `/projects/${encodeURIComponent(projectName)}/maiml`
+      `/projects/${encodeURIComponent(projectId)}/maiml`
     );
 
     console.log('[DEBUG] getProjectMaiml - Success', {
       contentLength: response.data.data?.maimlContent?.length || 0,
-      projectName: response.data.data?.projectName,
+      projectId,
     });
     
     return response.data;
@@ -1948,9 +1955,9 @@ export interface DeleteProjectResponse {
 
 /**
  * プロジェクトを削除
- * DELETE /api/v1/projects/:projectName
+ * DELETE /api/v1/projects/:projectId
  * 
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID（UUID）
  * @returns 削除結果（削除されたファイル数とメッセージ）
  * @throws Error APIエラー時
  * 
@@ -1969,12 +1976,12 @@ export interface DeleteProjectResponse {
  * ```
  */
 export const deleteProject = async (
-  projectName: string
+  projectId: string
 ): Promise<DeleteProjectResponse> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] deleteProject - Request', { projectName });
+    console.log('[DEBUG] deleteProject - Request', { projectId });
     
     const response = await client.delete<{
       success: true;
@@ -1983,7 +1990,7 @@ export const deleteProject = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/projects/${encodeURIComponent(projectName)}`);
+    }>(`/projects/${encodeURIComponent(projectId)}`);
 
     console.log('[DEBUG] deleteProject - Success', {
       deletedCount: response.data.data.deletedCount,

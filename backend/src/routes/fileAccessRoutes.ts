@@ -472,4 +472,33 @@ router.post(
   fileAccessController.cancelBatch
 );
 
+/**
+ * ファイル名変更
+ * PATCH /api/v1/files/rename
+ *
+ * - fileKey: 対象ファイルの相対パス（organizationId なし）
+ * - newFileName: 新しいファイル名（拡張子込み）
+ */
+router.patch(
+  '/rename',
+  authMiddleware,
+  [
+    body('fileKey')
+      .notEmpty()
+      .withMessage('fileKeyは必須です')
+      .isString()
+      .withMessage('fileKeyは文字列である必要があります'),
+    body('newFileName')
+      .notEmpty()
+      .withMessage('newFileNameは必須です')
+      .isString()
+      .withMessage('newFileNameは文字列である必要があります')
+      .trim()
+      .isLength({ min: 1, max: 255 })
+      .withMessage('ファイル名は1〜255文字で指定してください'),
+  ],
+  handleValidationErrors,
+  fileAccessController.renameFileHandler
+);
+
 export default router;

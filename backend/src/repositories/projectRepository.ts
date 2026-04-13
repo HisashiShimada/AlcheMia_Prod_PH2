@@ -243,6 +243,34 @@ export async function findProjectIdByName(
 }
 
 /**
+ * プロジェクトIDからプロジェクト全体情報を取得（checkout_status を含む全カラム）
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns プロジェクト情報（見つからない場合はnull）
+ */
+export async function findByIdFull(
+  organizationId: string,
+  projectId: string
+): Promise<Project | null> {
+  const pool = getPool();
+  
+  const query = `
+    SELECT * FROM project
+    WHERE organization_id = $1
+      AND project_id = $2
+  `;
+  
+  const result = await pool.query(query, [organizationId, projectId]);
+  
+  if (result.rows.length === 0) {
+    return null;
+  }
+  
+  return result.rows[0] as Project;
+}
+
+/**
  * プロジェクト名からプロジェクト全体情報を取得
  * 
  * @param organizationId 組織ID
@@ -480,6 +508,29 @@ export async function completeReviewTasks(
 
   const result = await pool.query(query, [organizationId, projectId]);
   return result.rowCount ?? 0;
+}
+
+/**
+ * プロジェクトIDからプロジェクト名とUUIDを取得
+ *
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns project_name と project_uuid（見つからない場合はnull）
+ *
+ * @remarks
+ * SQLファイル: projects/findNameById.sql
+ * progressService.ts の downloadAndParseMAIML() から使用
+ */
+export async function findNameAndUuidById(
+  organizationId: string,
+  projectId: string
+): Promise<{ project_name: string; project_uuid: string | null } | null> {
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('projects/findNameById.sql');
+  return await pgp.oneOrNone<{ project_name: string; project_uuid: string | null }>(
+    sqlQuery,
+    [organizationId, projectId]
+  );
 }
 
 /**

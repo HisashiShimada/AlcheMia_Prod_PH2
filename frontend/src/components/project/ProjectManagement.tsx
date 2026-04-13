@@ -33,6 +33,7 @@ import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
+import RenameProjectModal from './RenameProjectModal';
 import MaimlPublishDialog from './MaimlPublishDialog';
 import MaimlUnpublishDialog from './MaimlUnpublishDialog';
 import { usePublishStatusPoller } from '@/hooks/usePublishStatusPoller';
@@ -182,6 +183,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
   // ポーリング中フラグ（ボタンにスピナー表示用）
   const [isPolling, setIsPolling] = useState(false);
+
+  // プロジェクト名変更モーダル状態
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
 
   // プロジェクト一覧をAPI経由で取得
   const {
@@ -363,9 +367,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     // 選択したプロジェクトのMAIMLを読み込み
     const project = projects.find(p => p.id === projectId);
     if (project) {
-      console.log('🎯 [ProjectManagement] プロジェクト選択 - MAIML読み込み開始:', project.name);
+      console.log('🎯 [ProjectManagement] プロジェクト選択 - MAIML読み込み開始:', project.id);
       try {
-        await loadMaiml(project.name);
+        await loadMaiml(project.id);
         console.log('✅ [ProjectManagement] MAIML読み込み完了');
       } catch (error) {
         console.error('❌ [ProjectManagement] MAIML読み込み失敗:', error);
@@ -487,7 +491,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     };
     
     loadProjectFiles();
-  }, [selectedProjectId, selectedProject]);
+  }, [selectedProjectId]); // selectedProject の参照変化（楽観的更新など）では再発火させない
 
   const projectFiles = useMemo((): ProjectFile[] => {
     if (!selectedProjectId) {
@@ -652,7 +656,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         // チェックイン処理
         console.log('🔓 [ProjectManagement] チェックイン開始:', selectedProject.name);
         
-        const result = await checkinProject(selectedProject.name);
+        const result = await checkinProject(selectedProject.id);
         
         // チェックイン成功
         console.log('✅ [ProjectManagement] チェックイン成功:', result);
@@ -665,7 +669,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         // チェックアウト処理
         console.log('🔒 [ProjectManagement] チェックアウト開始:', selectedProject.name);
         
-        const result = await checkoutProject(selectedProject.name);
+        const result = await checkoutProject(selectedProject.id);
         
         // チェックアウト成功
         console.log('✅ [ProjectManagement] チェックアウト成功:', result);
@@ -773,7 +777,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     if (targetProject) {
       console.log('🎯 [ProjectManagement] Draft projectId からプロジェクトを自動選択:', targetProject.id);
       setSelectedProjectId(targetProject.id);
-      loadMaiml(targetProject.name).catch(() => {/* 失敗は無視 */});
+      loadMaiml(targetProject.id).catch(() => {/* 失敗は無視 */});
     }
   }, [draftToRestore, projects]);
 
@@ -869,7 +873,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     const fetchStatus = async () => {
       setPublishStatusLoading(true);
       try {
-        const status = await getPublishStatus(selectedProject.name);
+        const status = await getPublishStatus(selectedProject.id);
         setPublishStatus(status);
         console.log('[ProjectManagement] publishStatus:', status);
       } catch (error) {
@@ -911,7 +915,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     // ステータスを再取得
     if (selectedProject) {
       try {
-        const latest = await getPublishStatus(selectedProject.name);
+        const latest = await getPublishStatus(selectedProject.id);
         setPublishStatus(latest);
       } catch {
         setPublishStatus(null);
@@ -1101,7 +1105,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           console.log('🗑️ [ProjectManagement] プロジェクト削除開始:', selectedProject.name);
           
           // プロジェクト削除API呼び出し
-          const result = await deleteProjectApi(selectedProject.name);
+          const result = await deleteProjectApi(selectedProject.id);
           
           console.log('✅ [ProjectManagement] プロジェクト削除成功:', result);
           
@@ -1327,6 +1331,50 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       setIsReloadingProject(false);
     }
   }, [selectedProject, currentTab, refetchProjects, reloadMaiml]);
+
+  // プロジェクト名変更成功ハンドラ
+  const handleRenameSuccess = useCallback(async (newName: string) => {
+    console.log('✅ [ProjectManagement] プロジェクト名変更成功:', newName);
+    setRenameModalOpen(false);
+
+    // 楽観的更新: name と folderName を即時反映
+    setProjects(prev =>
+      prev.map(p =>
+        p.id === selectedProjectId
+          ? { ...p, name: newName, folderName: newName }
+          : p
+      )
+    );
+
+    // リネームで直接影響を受けるデータを最新化
+    // （ファイル一覧: パスが変わったため再取得が必要）
+    if (selectedProjectId && currentTab === 'file_management') {
+      try {
+        console.log('📂 [ProjectManagement] リネーム後ファイル一覧を最新化:', newName);
+        const fileResponse = await getProjectFiles(newName, true);
+        setProjectFilesData(prev => ({
+          ...prev,
+          [selectedProjectId]: {
+            root: fileResponse.files || [],
+            subFolderFiles: fileResponse.subFolderFiles || {},
+          },
+        }));
+        console.log('✅ [ProjectManagement] ファイル一覧更新完了');
+      } catch (err) {
+        console.error('❌ [ProjectManagement] リネーム後ファイル一覧更新失敗:', err);
+      }
+    }
+
+    // MAIML Context をリロード（新パスのファイルを参照させる）
+    try {
+      console.log('📄 [ProjectManagement] リネーム後 MAIML をリロード');
+      await reloadMaiml();
+      console.log('✅ [ProjectManagement] MAIML リロード完了');
+    } catch (err) {
+      console.error('❌ [ProjectManagement] リネーム後 MAIML リロード失敗:', err);
+      // エラーは Context 側でメッセージ表示済みのため続行
+    }
+  }, [selectedProjectId, currentTab, getProjectFiles, setProjectFilesData, reloadMaiml]);
 
   // 新規プロジェクト作成ハンドラ
   const handleCreateProject = useCallback(async (data: CreateProjectData) => {
@@ -1668,6 +1716,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       {isPolling ? '処理中...' : t('projectManagement.publish')}
                     </Button>
                   )}
+                  <Button
+                    icon={<EditOutlined />}
+                    onClick={() => setRenameModalOpen(true)}
+                    disabled={!selectedProject}
+                  >
+                    プロジェクト名変更
+                  </Button>
                 </Space>
               </Card>
 
@@ -1726,6 +1781,17 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         onFolderClick={handleFolderClick}
                         onViewFile={handleViewFile}
                         onDeleteFile={handleDeleteMaimlFile}
+                        onRenameFile={async () => {
+                          // ファイルリネーム成功後にファイル一覧を再取得
+                          const fileResponse = await getProjectFiles(selectedProject.name, true);
+                          setProjectFilesData(prev => ({
+                            ...prev,
+                            [selectedProject.id]: {
+                              root: fileResponse.files || [],
+                              subFolderFiles: fileResponse.subFolderFiles || {},
+                            }
+                          }));
+                        }}
                       />
                     ),
                   },
@@ -1779,7 +1845,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                             onClick={async () => {
                               if (!selectedProject) return;
                               try {
-                                const res = await completeReviewTasks(selectedProject.name);
+                                const res = await completeReviewTasks(selectedProject.id);
                                 message.success(res.data?.message || 'レビュー待ちタスクを完了に更新しました');
                                 // タスク一覧を再取得
                                 const taskResponse = await getProjectTasks(selectedProject.name, 'all');
@@ -2026,6 +2092,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         <MaimlPublishDialog
           open={publishDialogOpen}
           projectName={selectedProject.name}
+          projectId={selectedProject.id}
           onClose={() => setPublishDialogOpen(false)}
           onSuccess={handlePublishSuccess}
         />
@@ -2036,8 +2103,20 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         <MaimlUnpublishDialog
           open={unpublishDialogOpen}
           projectName={selectedProject.name}
+          projectId={selectedProject.id}
           onClose={() => setUnpublishDialogOpen(false)}
           onSuccess={handleUnpublishSuccess}
+        />
+      )}
+
+      {/* プロジェクト名変更モーダル */}
+      {selectedProject && (
+        <RenameProjectModal
+          open={renameModalOpen}
+          projectId={selectedProject.id}
+          currentProjectName={selectedProject.name}
+          onCancel={() => setRenameModalOpen(false)}
+          onSuccess={handleRenameSuccess}
         />
       )}
 

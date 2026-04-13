@@ -16,6 +16,7 @@ import { TaskStatusEnum } from './taskService';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
+import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { MaimlWriterService } from './maimlWriterService';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
@@ -241,28 +242,13 @@ export class ProjectService {
    */
   async deleteProject(
     organizationId: string,
-    projectName: string
+    projectId: string
   ): Promise<ServiceResult<{ deletedCount: number; message: string }>> {
     const pool = getPool();
     let client;
 
     try {
-      // 1. projectNameからprojectIdを取得
-      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
-
-      if (!project) {
-        return {
-          success: false,
-          error: {
-            code: 'RESOURCE_NOT_FOUND',
-            message: 'プロジェクトが見つかりません',
-          },
-        };
-      }
-
-      const projectId = project.project_id;
-
-      // 2. トランザクション開始
+      // 1. トランザクション開始（projectId を直接使用）
       client = await pool.connect();
       await client.query('BEGIN');
 
@@ -314,12 +300,13 @@ export class ProjectService {
       await client.query('COMMIT');
 
       // 6. ストレージからプロジェクトフォルダを削除（トランザクション外）
+      const deletedProjectName = projectInfo.project_name;
       let deletedFileCount = 0;
       try {
         // FileAccessServiceを使用してフォルダ削除
         const { FileAccessService } = await import('./fileAccessService');
         const fileAccessService = new FileAccessService();
-        const folderPath = `projects/${projectName}`;
+        const folderPath = `projects/${deletedProjectName}`;
 
         deletedFileCount = await fileAccessService.deleteFolderRecursive(
           organizationId,
@@ -341,7 +328,7 @@ export class ProjectService {
         success: true,
         data: {
           deletedCount: deletedFileCount,
-          message: `プロジェクト「${projectName}」を削除しました`,
+          message: `プロジェクト「${deletedProjectName}」を削除しました`,
         },
       };
     } catch (error) {
@@ -550,37 +537,13 @@ export class ProjectService {
    */
   async checkout(
     organizationId: string,
-    projectNameOrId: string,
+    projectId: string,
     userId: string
   ): Promise<ServiceResult<ProjectCheckoutInfo>> {
     const pool = getPool();
     let client;
 
     try {
-      // projectNameからprojectIdを取得（Repository層経由）
-      let projectId: string;
-
-      // UUIDの場合はそのまま使用、それ以外はprojectNameとして扱う
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(projectNameOrId)) {
-        projectId = projectNameOrId;
-      } else {
-        const projectRow = await projectRepository.findProjectIdByName(
-          organizationId,
-          projectNameOrId
-        );
-        if (!projectRow) {
-          return {
-            success: false,
-            error: {
-              code: 'E6001',
-              message: 'プロジェクトが見つかりません',
-            },
-          };
-        }
-        projectId = projectRow.project_id;
-      }
-
       // トランザクション開始
       client = await pool.connect();
       await client.query('BEGIN');
@@ -820,27 +783,14 @@ export class ProjectService {
    */
   async checkin(
     organizationId: string,
-    projectName: string,
+    projectId: string,
     _userId: string
   ): Promise<ServiceResult<ProjectCheckoutInfo>> {
     const pool = getPool();
     let client;
 
     try {
-      // projectNameからprojectIdを取得
-      const projectRow = await projectRepository.findProjectIdByName(organizationId, projectName);
-      if (!projectRow) {
-        return {
-          success: false,
-          error: {
-            code: 'E6001',
-            message: 'プロジェクトが見つかりません',
-          },
-        };
-      }
-      const projectId = projectRow.project_id;
-
-      // トランザクション開始
+      // トランザクション開始（projectId を直接使用）
       client = await pool.connect();
       await client.query('BEGIN');
 
@@ -1594,18 +1544,16 @@ export class ProjectService {
    * @returns 作業指示一覧
    */
   async getWorkerInstructions(params: {
-    projectName: string;
+    projectId: string;
     organizationId: string;
     userId: string;
     userRole: string;
-    filters?: {
-      projectId?: string;
-    };
+    filters?: Record<string, never>;
   }): Promise<ServiceResult<any[]>> {
     const pgp = getPgp();
 
     try {
-      const { projectName, organizationId, userId, userRole, filters = {} } = params;
+      const { projectId, organizationId, userId, userRole } = params;
 
       // 外部SQLファイルからベースクエリを読み込み
       let query = await loadSqlFile('instructions/findWorkerInstructions.sql');
@@ -1632,15 +1580,9 @@ export class ProjectService {
       conditions.push(`pi.organization_id = $${paramIndex++}`);
       queryParams.push(organizationId);
 
-      // 必須フィルタ: project_name
-      conditions.push(`p.project_name = $${paramIndex++}`);
-      queryParams.push(projectName);
-
-      // オプショナルフィルタの適用
-      if (filters.projectId) {
-        conditions.push(`pi.project_id = $${paramIndex++}`);
-        queryParams.push(filters.projectId);
-      }
+      // 必須フィルタ: project_id
+      conditions.push(`p.project_id = $${paramIndex++}`);
+      queryParams.push(projectId);
 
       // WHERE句の追加
       if (conditions.length > 0) {
@@ -1701,18 +1643,15 @@ export class ProjectService {
    * @param projectName - プロジェクト名
    * @returns MAIMLファイルデータ
    */
-  async getProjectMaiml(organizationId: string, projectName: string): Promise<ServiceResult<any>> {
-    let projectId: string | undefined; // スコープを拡大
-
+  async getProjectMaiml(organizationId: string, projectId: string): Promise<ServiceResult<any>> {
     try {
-      console.log('[DEBUG] getProjectMaiml - Service層開始', { organizationId, projectName });
+      console.log('[DEBUG] getProjectMaiml - Service層開始', { organizationId, projectId });
 
-      // Repository層を使用してprojectNameからprojectIdを取得
-      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
+      // ① project テーブルから project_name と project_uuid を取得
+      const projectInfo = await projectRepository.findNameAndUuidById(organizationId, projectId);
 
-      // プロジェクト存在確認
-      if (!project) {
-        console.log('[DEBUG] getProjectMaiml - プロジェクトが見つかりません', { projectName });
+      if (!projectInfo) {
+        console.log('[DEBUG] getProjectMaiml - プロジェクトが見つかりません', { projectId });
         return {
           success: false,
           error: {
@@ -1722,18 +1661,64 @@ export class ProjectService {
         };
       }
 
-      projectId = project.project_id;
-      console.log('[DEBUG] getProjectMaiml - プロジェクトID取得完了', { projectId, projectName });
+      const { project_name: projectName, project_uuid: projectUuid } = projectInfo;
+      console.log('[DEBUG] getProjectMaiml - プロジェクト取得完了', {
+        projectId,
+        projectName,
+        projectUuid: projectUuid ?? '(未設定)',
+      });
 
-      // Task 3.1: S3パスを構築
-      const filePath = `projects/${projectName}/${projectName}.maiml`;
-      console.log('[DEBUG] getProjectMaiml - S3パス構築完了', { filePath });
-
-      // Task 3.1: storageService経由でファイル存在確認
       const storageService = getStorageService();
+      const fileMetadataRepository = new FileMetadataRepository();
+
+      // ② project_uuid が設定済みの場合: file_metadata 経由で file_key を取得
+      if (projectUuid) {
+        const maimlRecord = await fileMetadataRepository.findMaimlByProjectUuid(projectUuid);
+
+        if (maimlRecord) {
+          // file_key は "{organizationId}/projects/..." の形式 → storageService に渡す相対パスに変換
+          const relativeFileKey = maimlRecord.file_key.startsWith(`${organizationId}/`)
+            ? maimlRecord.file_key.substring(organizationId.length + 1)
+            : maimlRecord.file_key;
+
+          console.log('[DEBUG] getProjectMaiml - UUID経由でfile_key取得', {
+            file_key: maimlRecord.file_key,
+            relativeFileKey,
+          });
+
+          try {
+            const fileBuffer = await storageService.downloadFile(organizationId, relativeFileKey);
+            const content = fileBuffer.toString('utf-8');
+
+            winston.info('MAIML file retrieved via project_uuid', {
+              projectId,
+              projectName,
+              organizationId,
+              fileSize: fileBuffer.length,
+              filePath: relativeFileKey,
+              timestamp: new Date().toISOString(),
+            });
+
+            return {
+              success: true,
+              data: { maimlContent: content },
+            };
+          } catch (s3Error: any) {
+            // file_key が S3 に存在しない場合は旧方式にフォールバック
+            console.warn('[DEBUG] getProjectMaiml - UUID経由のS3取得失敗、旧方式にフォールバック', {
+              relativeFileKey,
+              error: s3Error?.message,
+            });
+          }
+        }
+      }
+
+      // ③ project_uuid 未設定（または file_metadata に該当なし）: 旧方式でダウンロード
+      const filePath = `projects/${projectName}/${projectName}.maiml`;
+      console.log('[DEBUG] getProjectMaiml - 旧方式S3パス構築', { filePath });
+
       const exists = await storageService.fileExists(organizationId, filePath);
 
-      // ファイルが存在しない場合は空のcontentで成功レスポンスを返す（新規プロジェクト等）
       if (!exists) {
         console.log('[DEBUG] getProjectMaiml - ファイル不在、空のcontentを返却', { filePath });
         winston.info('MAIML file not found (new project), returning empty content', {
@@ -1746,31 +1731,17 @@ export class ProjectService {
 
         return {
           success: true,
-          data: {
-            maimlContent: '', // 空のcontentを返す
-          },
+          data: { maimlContent: '' },
         };
       }
 
-      // Task 3.1: ファイルが存在する場合はS3から取得
       try {
-        console.log('[DEBUG] getProjectMaiml - S3からファイル取得開始');
+        console.log('[DEBUG] getProjectMaiml - 旧方式S3からファイル取得開始');
 
         const fileBuffer = await storageService.downloadFile(organizationId, filePath);
-        console.log('[DEBUG] getProjectMaiml - S3からファイル取得完了', {
-          size: fileBuffer.length,
-        });
-
-        // Task 3.1: BufferをUTF-8文字列に変換
         const content = fileBuffer.toString('utf-8');
 
-        // Task 3.1: レスポンスデータ構築（フロントエンドのProjectMaimlResponse型に合わせる）
-        const maimlFileData = {
-          maimlContent: content, // フロントエンドが期待するプロパティ名
-        };
-
-        // Task 3.1: 成功ログ記録
-        winston.info('MAIML file retrieved successfully', {
+        winston.info('MAIML file retrieved successfully (legacy path)', {
           projectId,
           projectName,
           organizationId,
@@ -1779,14 +1750,60 @@ export class ProjectService {
           timestamp: new Date().toISOString(),
         });
 
-        console.log('[DEBUG] getProjectMaiml - 成功レスポンス返却');
+        // ④ レイジーセット: XMLから <maiml id="..."> の id 属性を取得して DB に保存
+        setImmediate(async () => {
+          try {
+            const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
+            const parsed = parser.parse(content);
+            // <maiml id="uuid-..."> の id 属性が project_uuid に対応する
+            const documentUuid: string | null = parsed?.maiml?.['@_id'] ?? null;
+
+            if (!documentUuid) {
+              console.log('[DEBUG] getProjectMaiml - <maiml id> 未検出、レイジーセットスキップ');
+              return;
+            }
+
+            console.log('[DEBUG] getProjectMaiml - レイジーセット開始', { documentUuid });
+
+            // file_metadata.project_uuid をセット
+            const fullFileKey = `${organizationId}/${filePath}`;
+            try {
+              await fileMetadataRepository.updateFileMetadata(fullFileKey, {
+                project_uuid: documentUuid,
+              });
+              console.log('[DEBUG] getProjectMaiml - file_metadata.project_uuid セット完了', {
+                fullFileKey,
+                documentUuid,
+              });
+            } catch (fmError) {
+              console.warn('[DEBUG] getProjectMaiml - file_metadata 更新失敗（続行）', fmError);
+            }
+
+            // project.project_uuid をセット（既存の update() を使用）
+            try {
+              await projectRepository.update({
+                organization_id: organizationId,
+                project_id: projectId,
+                project_uuid: documentUuid,
+              } as any);
+              console.log('[DEBUG] getProjectMaiml - project.project_uuid セット完了', {
+                projectId,
+                documentUuid,
+              });
+            } catch (pjError) {
+              console.warn('[DEBUG] getProjectMaiml - project 更新失敗（続行）', pjError);
+            }
+          } catch (lazyError) {
+            console.warn('[DEBUG] getProjectMaiml - レイジーセット失敗（続行）', lazyError);
+          }
+        });
+
+        console.log('[DEBUG] getProjectMaiml - 成功レスポンス返却（旧方式）');
         return {
           success: true,
-          data: maimlFileData,
+          data: { maimlContent: content },
         };
       } catch (s3Error: any) {
-        // Task 3.1: S3ファイル不在時の処理
-        // ファイルが見つからない場合の判定を拡張（NotFound, NoSuchKey, 404ステータス, エラーメッセージに"not found"を含む）
         const isNotFound =
           s3Error.name === 'NotFound' ||
           s3Error.name === 'NoSuchKey' ||
@@ -1814,7 +1831,6 @@ export class ProjectService {
           };
         }
 
-        // Task 3.1: その他のS3エラー
         winston.error('S3 error during MAIML file retrieval', {
           projectId,
           projectName,
@@ -1833,7 +1849,6 @@ export class ProjectService {
         };
       }
     } catch (error) {
-      // Task 3.1: データベースエラー
       winston.error('Database error during MAIML file retrieval', {
         projectId,
         organizationId,
@@ -1868,7 +1883,7 @@ export class ProjectService {
    */
   async confirmInstruction(
     instructionId: string,
-    projectName: string,
+    projectId: string,
     userId: string,
     organizationId: string,
     role: string
@@ -1877,21 +1892,6 @@ export class ProjectService {
     let client;
 
     try {
-      // 0. projectNameからprojectIdを取得
-      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
-
-      if (!project) {
-        return {
-          success: false,
-          error: {
-            code: 'E6001',
-            message: 'プロジェクトが見つかりません',
-          },
-        };
-      }
-
-      const projectId = project.project_id;
-
       // 1. 指示の存在確認（organization_idフィルタ付き）
       const instruction = await instructionRepository.findById(
         instructionId,
@@ -1954,9 +1954,27 @@ export class ProjectService {
 
       if (instruction.method_id && (instructionTarget === 2 || instructionTarget === 3)) {
         try {
+          // MAIMLファイル取得: project_uuid → file_metadata 経由で最新 file_key を取得
+          const projectInfoForMaiml = await projectRepository.findNameAndUuidById(organizationId, projectId);
+          const projectUuidForMaiml = projectInfoForMaiml?.project_uuid ?? null;
+
+          if (!projectUuidForMaiml) {
+            throw new Error('project_uuid が設定されていません');
+          }
+
+          const fileMetadataRepository = new FileMetadataRepository();
+          const maimlRecord = await fileMetadataRepository.findMaimlByProjectUuid(projectUuidForMaiml);
+
+          if (!maimlRecord) {
+            throw new Error('MAIMLファイルのメタデータが見つかりません');
+          }
+
+          const relativeFileKey = maimlRecord.file_key.startsWith(`${organizationId}/`)
+            ? maimlRecord.file_key.substring(organizationId.length + 1)
+            : maimlRecord.file_key;
+
           const storageService = getStorageService();
-          const filePath = `projects/${projectName}/${projectName}.maiml`;
-          const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+          const fileBuffer = await storageService.downloadFile(organizationId, relativeFileKey);
           const maimlContent = fileBuffer.toString('utf-8');
 
           const parser = new XMLParser({
@@ -1975,7 +1993,7 @@ export class ProjectService {
         } catch (maimlError) {
           // MAIMLファイル取得・パース失敗時は null のまま続行（ログのみ）
           logError('Failed to parse MAIML for programId', maimlError as Error, {
-            projectName,
+            projectId,
             organizationId,
             methodId: instruction.method_id,
           });
@@ -2072,16 +2090,16 @@ export class ProjectService {
    */
   async completeReviewTasks(
     organizationId: string,
-    projectName: string
+    projectId: string
   ): Promise<{
     success: boolean;
     data?: { updatedCount: number; message: string };
     error?: { code: string; message: string };
   }> {
     try {
-      // プロジェクト名 → プロジェクトID
-      const projectRow = await projectRepository.findProjectIdByName(organizationId, projectName);
-      if (!projectRow) {
+      // projectId を直接使用
+      const projectInfo = await projectRepository.findProjectBasicInfo(organizationId, projectId);
+      if (!projectInfo) {
         return {
           success: false,
           error: { code: 'E6001', message: 'プロジェクトが見つかりません' },
@@ -2090,18 +2108,16 @@ export class ProjectService {
 
       const updatedCount = await projectRepository.completeReviewTasks(
         organizationId,
-        projectRow.project_id
+        projectId
       );
 
       // MAIMLファイルへの data 層・eventLog 層書き出し
-      // 承認完了後に template_data / maiml_event_log の内容を MAIMLファイルに反映する。
-      // 書き出し失敗はログのみに留め、承認完了レスポンスには影響させない。
       try {
         const maimlWriterService = new MaimlWriterService();
         await maimlWriterService.writeDataAndEventLog(
           organizationId,
-          projectRow.project_id,
-          projectName
+          projectId,
+          projectInfo.project_name
         );
       } catch (maimlWriteError) {
         console.error(

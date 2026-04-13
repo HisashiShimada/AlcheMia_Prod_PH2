@@ -44,6 +44,9 @@ export interface Project {
   /** チェックアウトステータス（数値、2桁） */
   checkout_status?: number;
   
+  /** プロジェクトUUID（MAIMLの<Document>タグのUUID、不変識別子） */
+  project_uuid?: string;
+  
   /** 作成者ユーザID */
   create_user_id?: string;
   

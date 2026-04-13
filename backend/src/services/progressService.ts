@@ -35,6 +35,7 @@ import type {
   TransitionProgressItem
 } from '../types/api';
 import * as projectRepository from '../repositories/projectRepository';
+import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { logger } from '../utils/logger';
 import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
@@ -168,7 +169,7 @@ export class ProgressService {
 
       // Step 2: MAIMLファイルのダウンロードとパース
       const maimlResult = await this.downloadAndParseMAIML(
-        task.project_name,
+        task.project_id,
         organizationId
       );
 
@@ -316,35 +317,84 @@ export class ProgressService {
 
   /**
    * MAIMLファイルのダウンロードとパース
-   * 
+   *
+   * file_metadata テーブルから project_uuid でMAIMLファイルの file_key を取得し、
+   * ストレージからダウンロードしてパースする。
+   * file_metadata に登録がない場合は project_name ベースのパスにフォールバックする。
+   *
    * @private
    * @requirements Requirement 4: MAIMLファイルとの連携
    */
   private async downloadAndParseMAIML(
-    projectName: string,
+    projectId: string,
     organizationId: string
-  ): Promise<{ success: true; methods: ParsedMethod[] } | { success: false; error: ProgressServiceError }> {
+  ): Promise<
+    | { success: true; methods: ParsedMethod[]; projectName: string; maimlFileKey: string; fileName: string }
+    | { success: false; error: ProgressServiceError }
+  > {
     try {
-      // MAIMLファイルパスを構築
-      const filePath = `projects/${projectName}/${projectName}.maiml`;
-      
+      // DB から project_name と project_uuid を取得（Repository 経由）
+      const nameRow = await projectRepository.findNameAndUuidById(organizationId, projectId);
+      if (!nameRow) {
+        return {
+          success: false,
+          error: {
+            code: 'TASK_NOT_FOUND',
+            message: 'プロジェクトが見つかりません'
+          }
+        };
+      }
+      const projectName = nameRow.project_name;
+      const projectUuid = nameRow.project_uuid;
+
+      // project_uuid 必須チェック
+      if (!projectUuid) {
+        return {
+          success: false,
+          error: {
+            code: 'TASK_NOT_FOUND',
+            message: 'プロジェクトUUIDが設定されていません'
+          }
+        };
+      }
+
+      // file_metadata から MAIMLファイルの file_key を取得（project_uuid ベース）
+      const fileMetadataRepo = new FileMetadataRepository();
+      const meta = await fileMetadataRepo.findMaimlByProjectUuid(projectUuid);
+      if (!meta) {
+        return {
+          success: false,
+          error: {
+            code: 'TASK_NOT_FOUND',
+            message: 'MAIMLファイルのメタデータが見つかりません'
+          }
+        };
+      }
+
+      // file_key は "{organizationId}/..." 形式のフルキー
+      const maimlFileKey = meta.file_key;
+      const fileName = meta.original_filename;
+      // storageService.downloadFile は組織プレフィックスを除いた相対パスを受け取る
+      const filePath = meta.file_key.startsWith(`${organizationId}/`)
+        ? meta.file_key.slice(`${organizationId}/`.length)
+        : meta.file_key;
+
+      logger.info('[ProgressService] file_metadata から MAIMLパスを解決', { maimlFileKey, fileName });
+
       // ストレージサービスでダウンロード
       const storageService = getStorageService();
       const buffer = await storageService.downloadFile(organizationId, filePath);
 
-      // MAIMLファイルダウンロード成功時のログ記録
       logger.info('[ProgressService] MAIMLファイルダウンロード成功', {
         filePath,
         fileSize: buffer.length,
         organizationId
       });
-      
-      // Buffer を文字列に変換
+
+      // Buffer を文字列に変換してパース
       const xmlContent = buffer.toString('utf-8');
-      
-      // MAIMLパーサーで構造を抽出
       const parseResult = await parsePetriNetStructure(xmlContent);
-      
+
       if (!parseResult.success || !parseResult.methods) {
         return {
           success: false,
@@ -357,20 +407,22 @@ export class ProgressService {
 
       return {
         success: true,
-        methods: parseResult.methods
+        methods: parseResult.methods,
+        projectName,
+        maimlFileKey,
+        fileName
       };
 
     } catch (error) {
       const err = error as Error;
-      
-      // MAIMLファイルダウンロード失敗時のエラーログ記録
+
       logger.error('[ProgressService] MAIMLダウンロードエラー', {
         error: err,
-        projectName,
+        projectId,
         organizationId,
         errorMessage: err.message
       });
-      
+
       return {
         success: false,
         error: {
@@ -649,7 +701,7 @@ export class ProgressService {
   /**
    * WorkProgressDetailDialog 用の作業詳細データを一括取得
    *
-   * @param projectName プロジェクト名（URL パスパラメータ）
+   * @param projectId プロジェクトID（URL パスパラメータ）
    * @param organizationId 組織ID（マルチテナント分離）
    * @returns WorkProgressDetailResponse または ProgressServiceError
    * @remarks
@@ -658,11 +710,11 @@ export class ProgressService {
    *   プロジェクト内の全タスクのトランジション進捗取得は Promise.all で並列実行する。
    */
   async getWorkDetails(
-    projectName: string,
+    projectId: string,
     organizationId: string
   ): Promise<Result<WorkProgressDetailResponse, ProgressServiceError>> {
     const startTime = Date.now();
-    logger.info('[ProgressService.getWorkDetails] 開始', { projectName, organizationId });
+    logger.info('[ProgressService.getWorkDetails] 開始', { projectId, organizationId });
 
     try {
       // ─────────────────────────────────────────────
@@ -684,10 +736,10 @@ export class ProgressService {
         checkout_status: number | null;
         create_at: Date;
         update_at: Date;
-      }>(projectSql, [projectName, organizationId]);
+      }>(projectSql, [projectId, organizationId]);
 
       if (projectRows.length === 0) {
-        logger.warn('[ProgressService.getWorkDetails] プロジェクトが見つかりません', { projectName, organizationId });
+        logger.warn('[ProgressService.getWorkDetails] プロジェクトが見つかりません', { projectId, organizationId });
         return { success: false, error: { code: 'TASK_NOT_FOUND', message: 'プロジェクトが見つかりません' } };
       }
 
@@ -696,7 +748,7 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 2: MAIML ダウンロード & パース
       // ─────────────────────────────────────────────
-      const maimlResult = await this.downloadAndParseMAIML(projectName, organizationId);
+      const maimlResult = await this.downloadAndParseMAIML(proj.project_id, organizationId);
       if (!maimlResult.success) {
         return { success: false, error: maimlResult.error };
       }
@@ -718,9 +770,9 @@ export class ProgressService {
 
       // ─────────────────────────────────────────────
       // Step 4: projectInfo / fileInfo を組み立て
+      // maimlFileKey / fileName は downloadAndParseMAIML の結果から取得する
+      // （file_metadata テーブル経由 or project_name フォールバック）
       // ─────────────────────────────────────────────
-      const maimlFileKey = `${organizationId}/projects/${projectName}/${projectName}.maiml`;
-
       const projectInfo: ProjectInfoDetail = {
         projectId: proj.project_id,
         projectName: proj.project_name,
@@ -734,8 +786,8 @@ export class ProgressService {
       };
 
       const fileInfo: FileInfoDetail = {
-        fileName: `${projectName}.maiml`,
-        maimlFileKey,
+        fileName: maimlResult.fileName,
+        maimlFileKey: maimlResult.maimlFileKey,
         organizationId,
         checkoutStatus: {
           isCheckedOut: proj.checkout_status !== null && proj.checkout_status !== 0,
@@ -869,7 +921,8 @@ export class ProgressService {
 
       const totalDuration = Date.now() - startTime;
       logger.info('[ProgressService.getWorkDetails] 完了', {
-        projectName,
+        projectId,
+        projectName: proj.project_name,
         taskCount: workDetails.length,
         duration: totalDuration
       });
@@ -885,7 +938,7 @@ export class ProgressService {
     } catch (error) {
       const err = error as Error;
       logger.error('[ProgressService.getWorkDetails] エラー', {
-        projectName,
+        projectId,
         organizationId,
         errorMessage: err.message,
         errorStack: err.stack,
@@ -969,37 +1022,28 @@ export class ProgressService {
       let eventLogInstructionId: string | null = null;
       let eventLogResultsRefs: string[] | null = null;
       try {
-        const pgp = getPgp();
-        const projectNameSql = await loadSqlFile('projects/findNameById.sql');
-        const projectNameRows = await pgp.any<{ project_name: string }>(
-          projectNameSql,
-          [organizationId, projectId]
-        );
-        if (projectNameRows.length > 0) {
-          const projectName = projectNameRows[0].project_name;
-          const maimlResult = await this.downloadAndParseMAIML(projectName, organizationId);
-          if (maimlResult.success) {
-            const parsedMethod = this.findMethodById(maimlResult.methods, methodId);
-            if (parsedMethod) {
-              // programId / instructionId
-              const transition = parsedMethod.transitions.find((t: any) => t.id === transitionId);
-              if (transition) {
-                eventLogProgramId     = (transition as any).data?.program ?? null;
-                eventLogInstructionId = (transition as any).data?.instructionId ?? null;
-              }
+        const maimlResult = await this.downloadAndParseMAIML(projectId, organizationId);
+        if (maimlResult.success) {
+          const parsedMethod = this.findMethodById(maimlResult.methods, methodId);
+          if (parsedMethod) {
+            // programId / instructionId
+            const transition = parsedMethod.transitions.find((t: any) => t.id === transitionId);
+            if (transition) {
+              eventLogProgramId     = (transition as any).data?.program ?? null;
+              eventLogInstructionId = (transition as any).data?.instructionId ?? null;
+            }
 
-              // result-type place IDs（アーク接続先プレースのうち stereotype が 'resultTemplate'）
-              const resultPlaceIds = parsedMethod.places
-                .filter((p: any) =>
-                  parsedMethod.arcs.some((a: any) =>
-                    (a.source === transitionId && a.target === p.id) ||
-                    (a.target === transitionId && a.source === p.id)
-                  ) && p.data?.stereotype === 'resultTemplate'
-                )
-                .map((p: any) => String(p.id));
-              if (resultPlaceIds.length > 0) {
-                eventLogResultsRefs = resultPlaceIds;
-              }
+            // result-type place IDs（アーク接続先プレースのうち stereotype が 'resultTemplate'）
+            const resultPlaceIds = parsedMethod.places
+              .filter((p: any) =>
+                parsedMethod.arcs.some((a: any) =>
+                  (a.source === transitionId && a.target === p.id) ||
+                  (a.target === transitionId && a.source === p.id)
+                ) && p.data?.stereotype === 'resultTemplate'
+              )
+              .map((p: any) => String(p.id));
+            if (resultPlaceIds.length > 0) {
+              eventLogResultsRefs = resultPlaceIds;
             }
           }
         }

@@ -5,7 +5,8 @@
  * Requirements: 5 (ファイル存在確認), 11 (マルチテナント対応とセキュリティ)
  */
 
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 /**
  * ファイルメタデータ型定義
  */
@@ -43,7 +44,8 @@ export interface FileMetadata {
   s3_storage_class?:string;
   s3_etag?:string;
   last_edit_timestamp?: Date;
-  
+  /** プロジェクトUUID: project.project_uuidと同値。MAIMLファイル特定に使用 */
+  project_uuid?: string;
 }
 
 /**
@@ -765,6 +767,24 @@ export class FileMetadataRepository {
       console.error(`❌ [FileMetadataRepository] バッチID紐付けファイル取得エラー (batchId: ${batchId})`, error);
       throw error;
     }
+  }
+
+  /**
+   * プロジェクトUUIDからMAIMLファイルのfile_keyを取得
+   *
+   * project.project_uuid と紐付けられた最新のMAIMLファイルの
+   * file_key と original_filename を返す。
+   * MAIMLファイル特定に使用し、project_name に依存しないパス解決を実現する。
+   *
+   * @param projectUuid - project.project_uuid の値
+   * @returns file_key と original_filename、存在しない場合は null
+   */
+  async findMaimlByProjectUuid(
+    projectUuid: string
+  ): Promise<{ file_key: string; original_filename: string } | null> {
+    const pgp = getPgp();
+    const sql = await loadSqlFile('file_metadata/findMaimlByProjectUuid.sql');
+    return await pgp.oneOrNone<{ file_key: string; original_filename: string }>(sql, [projectUuid]);
   }
 
 }
