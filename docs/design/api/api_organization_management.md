@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-02-18
-- **バージョン**: 1.1.0
-- **最終更新**: 2026-02-19
+- **バージョン**: 1.3.0
+- **最終更新**: 2026-04-07
 - **担当**: Development Team
 - **実装状況**: ✅ 実装済み（100%）
 
@@ -241,11 +241,15 @@ maiml_lab_001,MAIML研究所,org@example.com,山田太郎,admin@example.com,サ�
 **注意:**
 - `update_at`はアップロード時に無視されます（ダウンロード専用項目）
 - `corporation_name`からcorporation_idを自動解決
-- 各レコードごとに以下のテーブルへの挿入が自動実行されます：
+- 各レコードごとに以下のテーブルへの挿入が自動実行されます（すべて1つのトランザクション内）：
   1. organization
   2. organization_user（代表システム管理者）
   3. role（ROLE002: システム管理者）
   4. role_permission（4つの機能権限）
+  5. user_authentication（パスワード認証情報）
+  6. code_master（組織用初期データ 35件）
+  7. 組織スキーマ（maiml_asset 等）
+  - さらにトランザクション完了後に証明書生成・S3フォルダ作成も実行されます
 
 ### レスポンス
 
@@ -430,7 +434,7 @@ GET
 ## 6. 組織新規作成API
 
 ### 概要
-新しい組織を作成します。関連する4つのテーブルへの挿入が自動的に実行されます。
+新しい組織を作成します。関連する複数テーブルへの挿入が自動的に実行されます。
 
 ### エンドポイント
 ```
@@ -500,7 +504,9 @@ POST
 
 ### ビジネスロジック
 
-組織作成時に以下のテーブルへの挿入が自動的に実行されます：
+組織作成時に以下の処理が実行されます。①〜⑦はDBトランザクション内で実行され、いずれかが失敗した場合はすべてロールバックされます。
+
+**【DBトランザクション】**
 
 1. **organizationテーブル**
    - 組織基本情報を挿入
@@ -521,6 +527,33 @@ POST
    - 030000: データ管理者メニュー（書込可）
    - 040000: 実験管理者メニュー（書込可）
    - 050000: 実験作業者メニュー（書込可）
+
+5. **user_authenticationテーブル**
+   - 代表システム管理者のパスワード認証情報を挿入
+
+6. **code_masterテーブル**
+   - 組織用初期データを挿入（35件）
+   - `ON CONFLICT DO NOTHING` によりべき等処理（重複実行しても安全）
+
+7. **組織スキーマ作成**
+   - maiml_asset 等、公開機能に必要なスキーマ・テーブルを作成
+
+**【DBトランザクション完了後】**
+
+8. **クライアント証明書生成**
+   - certificateService.generateAndSaveCertificate() を呼び出し
+   - Swift/S3へ `.p12` 証明書を保存
+   - 失敗時はエラーをthrowし、組織作成全体が失敗扱いになる
+
+9. **S3フォルダ作成**
+   - `projects/` および `formats/` フォルダをSwift/S3上に作成
+   - 失敗時はエラーをthrowし、組織作成全体が失敗扱いになる
+
+**【独立処理】**
+
+10. **ウェルカムメール送信**
+    - 代表システム管理者へメールを送信
+    - 失敗してもwarnログのみ（組織作成の成否には影響しない）
 
 ---
 
@@ -804,7 +837,7 @@ GET /api/v1/provider/organization/550e8400-e29b-41d4-a716-446655440000/certifica
 #### 証明書の自動生成
 - 組織作成時（POST /api/v1/provider/organization）に自動的に証明書を生成
 - organizationService.createOrganization() → certificateService.generateAndSaveCertificate()
-- 生成失敗時も組織作成は成功（後から再生成可能）
+- 生成失敗時は組織作成全体がエラーになる（DBトランザクション後の必須処理）
 
 #### 証明書の再生成
 - 証明書生成失敗や更新が必要な場合、再生成スクリプトを使用
@@ -883,8 +916,10 @@ frontend/src/components/Provider/OrganizationManagement.tsx
 - [x] 適切なHTTPステータスコードを返す
 
 ### トランザクション管理
-- [x] 組織作成時に4テーブルへの挿入がトランザクション保証されている
+- [x] 組織作成時に7つの処理（organization / organization_user / role / role_permission / user_authentication / code_master / 組織スキーマ）がトランザクション保証されている
 - [x] エラー時に自動的にROLLBACKされる
+- [x] 証明書生成・S3フォルダ作成はトランザクション完了後に実行（失敗時はエラーthrow）
+- [x] メール送信のみ失敗してもエラーにならない（warnログのみ）
 
 ---
 
@@ -892,6 +927,12 @@ frontend/src/components/Provider/OrganizationManagement.tsx
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.3.0 | 2026-04-07 | 組織新規作成時の処理フロー拡張・整理 | Cline |
+| | | - code_master 初期データ（35件）をDBトランザクション内（step 6）に追加 | |
+| | | - 組織スキーマ作成をDBトランザクション内（step 7）に移動 | |
+| | | - 証明書生成・S3フォルダ作成をエラーthrow（組織作成の必須処理）に変更 | |
+| | | - メール送信のみ warn ログ（失敗しても組織作成は成功）に据え置き | |
+| | | - セキュリティチェックリストのトランザクション管理記述を最新化 | |
 | 1.2.0 | 2026-03-05 | 契約情報3項目追加 | Cline |
 | | | - 組織一覧レスポンスに contractCapacity / contractedUsers / contractedProjects 追加 | |
 | | | - CSVダウンロード・アップロードの列定義に contract_capacity / contract_users / contract_projects 追加 | |

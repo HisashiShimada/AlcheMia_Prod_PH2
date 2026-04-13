@@ -1,0 +1,3 @@
+# frontend/.dockerignore
+.env.local
+.env.*.local

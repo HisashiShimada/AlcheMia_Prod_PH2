@@ -17,8 +17,15 @@ import type { Method, Transition, Place, Arc } from '../types/maiml-unified';
 /** file_id生成用UUIDネームスペース */
 const FILE_ID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
-/** Embedding生成時に使用するモデルバージョン */
-const EMBEDDING_MODEL_VERSION = 'embeddinggemma-768d-v1';
+/**
+ * Embedding生成時に使用するモデルバージョン
+ * - EMBEDDING_PROVIDER=bedrock → 'cohere-embed-v4-1024d-v1'
+ * - EMBEDDING_PROVIDER=ollama  → 'embeddinggemma-768d-v1'
+ */
+const EMBEDDING_MODEL_VERSION =
+  (process.env.EMBEDDING_PROVIDER || 'ollama').toLowerCase() === 'bedrock'
+    ? 'cohere-embed-v4-1024d-v1'
+    : 'embeddinggemma-768d-v1';
 /** 正規化テンプレートバージョン */
 const NORM_TEMPLATE_VERSION = 'v2.5';
 

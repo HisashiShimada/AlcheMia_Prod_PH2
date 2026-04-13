@@ -57,7 +57,8 @@ import type {
   InstanceRef,
   Extension,
   Globals,
-  Classifier
+  Classifier,
+  PropertyCustomElement
 } from '@/types/maiml-unified';
 
 /**
@@ -816,14 +817,64 @@ function convertResultTemplate(xmlTemplate: any, errorContext?: ErrorContext): T
 }
 
 /**
+ * xml-js要素を PropertyCustomElement に再帰変換するヘルパー
+ */
+function convertCustomElement(value: any): PropertyCustomElement {
+  if (!value || typeof value !== 'object') {
+    return { value: value !== undefined && value !== null ? String(value) : undefined };
+  }
+  const text = value._text !== undefined ? String(value._text) : undefined;
+  const attrs: Record<string, string> = {};
+  if (value._attributes) {
+    Object.entries(value._attributes).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) attrs[k] = String(v);
+    });
+  }
+  const children: Record<string, PropertyCustomElement> = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (k.startsWith('_')) continue;
+    children[k] = convertCustomElement(v);
+  }
+  return {
+    ...(text !== undefined ? { value: text } : {}),
+    ...(Object.keys(attrs).length > 0 ? { attributes: attrs } : {}),
+    ...(Object.keys(children).length > 0 ? { children } : {}),
+  };
+}
+
+/**
  * Content変換（xml-jsからContent Union型へ）
  */
 export function convertContent(xmlContent: any): Content {
   const key = xmlContent._attributes?.key || '';
-  const xsiType = (xmlContent._attributes?.['xsi:type'] || 'contentStringListType') as ContentType;
+  // xsi:type が未指定の場合は空文字として保持し、contentStringListType に強制変換しない
+  const xsiType = (xmlContent._attributes?.['xsi:type'] || '') as ContentType;
   const description = xmlContent.description?._text || undefined;
   
   console.log(`🔄 [convertContent] ${key} (${xsiType})`);
+
+  // ✅ カスタム属性（既知属性以外）を収集
+  const KNOWN_CONTENT_ATTRS = new Set(['key', 'xsi:type', 'axis', 'size', 'id', 'ref', 'units', 'formatString', 'scaleFactor']);
+  const customAttrs: Record<string, string> = {};
+  if (xmlContent._attributes) {
+    Object.entries(xmlContent._attributes).forEach(([k, v]) => {
+      if (!KNOWN_CONTENT_ATTRS.has(k) && v !== undefined && v !== null) {
+        customAttrs[k] = String(v);
+      }
+    });
+  }
+
+  // ✅ カスタム子要素（既知キー以外のタグ名）を収集
+  const KNOWN_CONTENT_KEYS = new Set([
+    '_attributes', 'description', 'value', 'values', 'property', 'content', 'uncertainty'
+  ]);
+  const customElements: Record<string, PropertyCustomElement> = {};
+  for (const [tagName, tagValue] of Object.entries(xmlContent)) {
+    if (KNOWN_CONTENT_KEYS.has(tagName)) continue;
+    // xml-js の _attributes, _text などの内部キーも除外
+    if (tagName.startsWith('_')) continue;
+    customElements[tagName] = convertCustomElement(tagValue);
+  }
   
   // 基本プロパティ
   const result: Content = {
@@ -841,6 +892,8 @@ export function convertContent(xmlContent: any): Content {
     properties: xmlContent.property ? convertArray(xmlContent.property, convertXmlJsProperty) : [],
     contents: xmlContent.content ? convertArray(xmlContent.content, convertContent) : [],
     uncertainty: [],
+    ...(Object.keys(customAttrs).length > 0 ? { attributes: customAttrs } : {}),
+    ...(Object.keys(customElements).length > 0 ? { customElements } : {}),
   };
   
   // ネストされたProperty
@@ -866,10 +919,26 @@ export function convertContent(xmlContent: any): Content {
  */
 export function convertXmlJsProperty(xmlProp: any): Property {
   const key = xmlProp._attributes?.key || '';
-  const xsiType = (xmlProp._attributes?.['xsi:type'] || 'stringType') as PropertyType;
+  // xsi:type が未指定の場合は undefined として保持し、stringType に強制変換しない
+  const rawXsiType = xmlProp._attributes?.['xsi:type'] as string | undefined;
+  // xsi:type が未指定の場合は空文字として保持し、stringType に強制変換しない
+  // 空文字の場合は末尾の「未指定」ブランチで処理される
+  const xsiType = (rawXsiType || '') as PropertyType;
   const description = xmlProp.description?._text || undefined;
   
   console.log(`🔄 [convertXmlJsProperty] ${key} (${xsiType})`);
+
+  // カスタム属性（既知キー以外）を抽出
+  const KNOWN_ATTRS = new Set(['key', 'xsi:type', 'units', 'formatString', 'scaleFactor', 'axis', 'size', 'id', 'ref']);
+  const customAttrs: Record<string, string> = {};
+  if (xmlProp._attributes) {
+    Object.entries(xmlProp._attributes).forEach(([k, v]) => {
+      if (!KNOWN_ATTRS.has(k) && v !== undefined && v !== null) {
+        customAttrs[k] = String(v);
+      }
+    });
+  }
+  const hasCustomAttrs = Object.keys(customAttrs).length > 0;
   
   // PropertyListTypeの場合（ネスト構造）
   if (xsiType === 'propertyListType') {
@@ -888,6 +957,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties,
       contents: xmlProp.content ? convertArray(xmlProp.content, convertContent) : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -916,6 +986,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -930,6 +1001,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -944,6 +1016,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -958,6 +1031,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -971,6 +1045,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -988,6 +1063,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
   
@@ -1001,19 +1077,47 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties : [],
       contents : []
     };
+    if (hasCustomAttrs) result.attributes = customAttrs;
     return result;
   }
-  
-  // デフォルトはString型として扱う
-  const result: Property = {
-    key,
-    xsiType: 'stringType',
-    description,
-    value: xmlProp.value?._text || '',
-    properties : [],
-    contents : []
-  };
-  return result;
+
+  // stringType 明示の場合
+  if (xsiType === 'stringType') {
+    const result: Property = {
+      key,
+      xsiType: 'stringType',
+      description,
+      value: xmlProp.value?._text || '',
+      properties : [],
+      contents : []
+    };
+    if (hasCustomAttrs) result.attributes = customAttrs;
+    return result;
+  }
+
+  // xsi:type 未指定の場合（xsiType === ''）:
+  // 空文字のまま保持し、すべての属性（key / xsi:type を除く）を attributes として保持する
+  // MAIMLパーサーはこの xsiType === '' を見て型固有の属性を復元しない
+  {
+    const allAttrs: Record<string, string> = {};
+    if (xmlProp._attributes) {
+      Object.entries(xmlProp._attributes).forEach(([k, v]) => {
+        if (k !== 'key' && k !== 'xsi:type' && v !== undefined && v !== null) {
+          allAttrs[k] = String(v);
+        }
+      });
+    }
+    const result: Property = {
+      key,
+      xsiType: '', // 未指定を空文字で明示（undefined の代わり）
+      description,
+      value: xmlProp.value?._text || '',
+      properties : [],
+      contents : []
+    };
+    if (Object.keys(allAttrs).length > 0) result.attributes = allAttrs;
+    return result;
+  }
 }
 
 /**
@@ -1061,13 +1165,16 @@ function convertHash(xmlHash: any): Hash {
 
 /**
  * Insertion変換
+ * 
+ * XSD仕様: uri/format/uuid は子要素（xs:element）
+ * 後方互換: 属性として書かれている場合もフォールバックで対応
  */
 function convertInsertion(xmlInsertion: any): Insertion {
   return {
-    uri: xmlInsertion._attributes?.uri || '',
+    uri: xmlInsertion.uri?._text || xmlInsertion._attributes?.uri || '',
     hash: xmlInsertion.hash ? convertHash(xmlInsertion.hash) : undefined,
     uuid: xmlInsertion.uuid?._text,
-    format: xmlInsertion._attributes?.format
+    format: xmlInsertion.format?._text || xmlInsertion._attributes?.format
   };
 }
 

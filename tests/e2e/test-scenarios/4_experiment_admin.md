@@ -25,19 +25,23 @@
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|------|-----------|-----------|------|-------|-------|
 | **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M | 23件 | Playwright自動 | 15 | 0 | 8 |
-| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 39件 | 手動 | 26 | 0 | 13 |
+| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 53件 | 手動 | 26 | 0 | 27 |
 | **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 9件 | Playwright自動 | 9 | 0 | 0 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 7件 | Playwright自動 | 7 | 0 | 0 |
 | **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 10件 | Playwright自動 | 10 | 0 | 0 |
 | **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 13件 | Playwright自動 | 13 | 0 | 0 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 | 7 | 0 | 0 |
-| **4-8** | フォーマット管理 | 要件書#13 | 48件 | Playwright自動 | 40 | 0 | 8 |
+| **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 55件 | Playwright自動 | 40 | 0 | 15 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） | 10 | 0 | 0 |
 | **4-10** | プロジェクト公開 | 追加機能S | 11件 | Playwright自動（フロントエンド実装後） | 4 | 0 | 0 |
-| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 | 10 | 0 | 0 |
+| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件（手動2件含む） | Playwright自動 + 手動 | 10 | 0 | 7 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | Playwright自動 | 8 | 0 | 0 |
-| **合計** | - | - | **188件** | - | **164** | **0** | **24** |
-
+| **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | - | - | 16 |
+| **4-14** | PropertyViewer 値なし区別表示・ツールチップ | `docs/改善仕様調査/No.8/result.md`（No.8対応） | 15件 | 手動 | - | - | 15 |
+| **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | - | - | 15 |
+| **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | - | - | 4 |
+| **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | - | - | 16 |
+| **合計** | - | - | **281件** | - | **164** | **0** | **93** |
 
 ### スコープ外
 
@@ -144,6 +148,20 @@
 | 4-2-37 | `<position>` タグを含むMAIMLファイルを読み込むと、ノードが保存時の座標に配置されること（自動レイアウトが適用されないこと） | 正常系 | `docs/改善仕様調査/No.6/result.md` §修正ファイル2・3・`reactFlowConverter.ts` | - | 保存前後でキャンバス上のノード位置が一致することを目視確認 |
 | 4-2-38 | `<position>` タグを含まない旧形式のMAIMLファイルを読み込むと、自動レイアウト（`calculateSimpleLayout`）が適用されてノードが配置されること | 正常系 | `docs/改善仕様調査/No.6/README.md` §5・フォールバック動作 | - | `<position>` タグなしのMAIMLを用意してインポートする |
 | 4-2-39 | ノードを任意の位置に移動→保存→MAIMLファイルをダウンロード→再読み込みの一連操作で、ノード位置が保存前と一致すること（往復整合性） | 正常系 | `docs/改善仕様調査/No.6/result.md` §データフロー | - | 単一Method・複数Methodの両パターンで確認すること |
+| 4-2-40 | Placeノードをクリックすると PropertyViewer（Drawer）が開き、基本情報・テンプレート・データの3タブが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 | - | No.8対応: PropertyViewer値なし区別 |
+| 4-2-41 | 基本情報タブで値が `undefined` のプロパティは「未設定」斜体テキストとして表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | 変更前は識別不能だった状態 |
+| 4-2-42 | 基本情報タブで値が `undefined` のプロパティにカーソルを合わせると「値が設定されていません」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 renderValue()修正 | - | Tooltip title="値が設定されていません" |
+| 4-2-43 | 基本情報タブで値が `null` のプロパティは「null」斜体テキストとして表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | `undefined` の「未設定」とは異なるテキスト |
+| 4-2-44 | 基本情報タブで値が `null` のプロパティにカーソルを合わせると「null が設定されています」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 renderValue()修正 | - | Tooltip title="null が設定されています" |
+| 4-2-45 | 基本情報タブで値が空文字（`""`）のプロパティは `""(空文字)` として表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | `undefined`・`null` とは異なる表示 |
+| 4-2-46 | 基本情報タブで値が空文字（`""`）のプロパティにカーソルを合わせると「空の文字列が設定されています」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1 renderValue()修正 | - | Tooltip title="空の文字列が設定されています" |
+| 4-2-47 | 基本情報タブで boolean 値 `true` のプロパティは `<Tag color="success">true</Tag>` として表示されること（「はい」ではなく「true」） | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | 承認コメント「false を「いいえ」ではなく「false」表示に変更」 |
+| 4-2-48 | 基本情報タブで boolean 値 `false` のプロパティは `<Tag color="error">false</Tag>` として表示されること（「いいえ」ではなく「false」） | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応1「区別表示まとめ」 | - | `false` が「未設定」と誤表示されないこと |
+| 4-2-49 | テンプレートタブで `xsi:type` が設定されていない列にカーソルを合わせると「xsi:type が設定されていません」ツールチップ付きの「-」が表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応2 xsi:type列レンダラー | - | 変更前は `null`（セル空白）だった |
+| 4-2-50 | テンプレートタブで説明/単位が設定されていない列にカーソルを合わせると「説明・単位が設定されていません」ツールチップ付きの「-」が表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応2 説明/単位列レンダラー | - | 変更前は `null`（セル空白）だった |
+| 4-2-51 | テンプレートタブにプロパティが存在しない場合、「表示するプロパティがありません」テキストにカーソルを合わせると「このノードにはテンプレートが設定されていません」ツールチップが表示されること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応2 テンプレート/データタブが空の場合 | - | テンプレート未設定ノードで確認 |
+| 4-2-52 | PropertyViewerWithSelectionコンポーネント（プロパティ選択チェックボックス付きビューア）においても、同様の `undefined`/`null`/`""` 区別表示とツールチップが機能すること | 表示確認 | `docs/改善仕様調査/No.8/result.md` §対応ファイル一覧 `PropertyViewerWithSelection.tsx` | - | ビューア選択画面でも同一ロジックが適用されること |
+| 4-2-53 | 保存ダイアログ（SaveConfirmDialog）のダイアログを閉じるボタンのラベルが「閉じる」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §SaveConfirmDialog.tsx | - | No.24対応（低優先）: 「キャンセル」→「閉じる」に変更 |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -156,6 +174,14 @@
 - XMLビュー（4-2-27〜4-2-34）用: ペトリネットにノード/エッジが少なくとも1件以上存在すること
 - Positionタグ書き込み確認（4-2-35〜4-2-39）用: place ノードおよび transition ノードがそれぞれ1件以上存在し、ノードをドラッグ移動できる状態であること
 - 4-2-38用: `<position>` タグを含まない旧形式のMAIMLテストファイルを用意すること（`tests/e2e/fixtures/maiml/no_position.maiml` など）
+- PropertyViewer値なし区別確認（4-2-40〜4-2-52）用: 以下の値を持つプロパティが含まれるテスト用MAIMLファイルを用意すること
+  - `value` が設定されていないプロパティ（`undefined` に相当）
+  - `value` が `null` のプロパティ
+  - `value` が空文字 (`""`) のプロパティ
+  - `value` が `true` / `false` の boolean プロパティ
+  - `xsi:type` が設定されていないテンプレートプロパティ（4-2-49用）
+  - 説明/単位が設定されていないテンプレートプロパティ（4-2-50用）
+  - テンプレートが設定されていないノード（4-2-51用）
 
 **手動テスト手順（概要）:**
 1. プロジェクト管理画面からプロジェクトを選択し、「編集」ボタンをクリックしてPetriNetEditorを開く
@@ -259,6 +285,7 @@
 | 4-5-4 | 送信済みの指示は削除ボタンが非表示であること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.3 | - | OK | |
 | 4-5-5 | 指示が0件の場合に一括送信ボタンが無効化されること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.4 | - | OK | |
 | 4-5-6 | 指示登録状況（未送信件数/送信済み件数/合計）が表示されること | 表示確認 | 追加機能I | GET `/api/v1/projects/:projectName/instructions/status` | OK | |
+| 4-5-7 | 送信済み指示の詳細ダイアログ（InstructionEditDialog）の「閉じる」ボタンがグレー（非プライマリ・`type="default"`）で表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §InstructionEditDialog.tsx | - | - | No.24対応: 参照専用ダイアログの「閉じる」ボタンを `type="primary"` → `type="default"` に変更 |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -345,7 +372,7 @@
 | 4-8-27 | 単一ファイルモードで複数ファイルを選択すると最後の1ファイルのみが選択状態になること | 表示確認 | `ui_format_upload_dialog.md` §3.1.3 | - | OK | |
 | 4-8-29 | アップロード中にファイル完了件数とパーセントが進捗表示されること | 表示確認 | `ui_format_upload_dialog.md` §2.2.7 / §3.1.8 | - | OK | |
 | 4-8-30 | アップロード完了後に成功メッセージが表示されること | 表示確認 | `ui_format_upload_dialog.md` §2.2.7 | - | OK | |
-| 4-8-31 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示されること | 異常系 | `ui_format_upload_dialog.md` §3.1.10 / §6.2 | - | OK | |
+| 4-8-31 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示され、OKボタンが「中断する」（赤色・dangerスタイル）、キャンセルボタンが「続行」と表示されること | 異常系 | `ui_format_upload_dialog.md` §3.1.10 / §6.2、`docs/改善仕様調査/No.16-24/result.md` | - | OK | No.24対応: 中断確認ダイアログのボタンラベル・スタイル変更 |
 | 4-8-32 | MAIMLファイル（.maiml）の「編集」ボタンをクリックするとPetriNetEditorがフルスクリーンで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | POST `/api/worker/load-maiml-file` | OK | |
 | 4-8-33 | XMLファイル（.xml）の「編集」ボタンをクリックするとTemplateEditorDialogがモーダルで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | - | OK | |
 | 4-8-35 | .maimlでも.xmlでもないファイルの「編集」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_format_management.md` §6.3 | - | OK | |
@@ -360,6 +387,15 @@
 | 4-8-46 | XMLビューで有効なXMLを入力してバリデーションを実行するとエラーメッセージが表示されないこと | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`validateTemplateXML` | - | エラーAlertが表示されないこと |
 | 4-8-47 | XMLビューから保存するとXMLがパースされてテンプレートデータが正しく保存されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` | - | `validateTemplateXML` → `parseXMLToTemplate` → 保存の順で処理されること |
 | 4-8-48 | XMLビューでエラーがある状態で保存しようとするとエラーメッセージが表示されること | 異常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase7、`handleSave` バリデーション | - | 不正なXMLのまま保存ボタンを押すとエラーが表示されること |
+| 4-8-49 | フォーマットアップロード開始後、プログレスバーの右上に「キャンセル」ボタンが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 キャンセルボタンのUI | - | - | |
+| 4-8-50 | アップロード完了（progress=100）後はキャンセルボタンが無効化（disabled）になること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1「アップロード完了後はキャンセルボタン無効化」 | - | - | |
+| 4-8-51 | アップロード中にキャンセルボタンを押すとアップロードが即座に中断されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 handleCancelUpload | POST `/api/v1/files/upload` | - | AbortController.abort()でHTTPリクエストが中断されること |
+| 4-8-52 | キャンセル実行後に「アップロードがキャンセルされました」メッセージが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §12「キャンセル後のUI/UX」 | - | - | |
+| 4-8-53 | キャンセル実行後にダイアログのアップロード状態（進捗バー・isUploading）がリセットされること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 状態管理 | - | - | |
+| 4-8-54 | キャンセル実行後、途中までアップロードされたファイルがバックエンド（ストレージ・DB）から削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.2 cancelBatch API | POST `/api/v1/files/batches/:batchId/cancel` | - | cancelBatch APIのレスポンス（`deletedFileCount`）で確認 |
+| 4-8-55 | 複数ファイルアップロード中にキャンセルした場合、アップロード済みの全ファイルが削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §8「複数ファイルアップロード中のキャンセル」 | POST `/api/v1/files/batches/:batchId/cancel` | - | `deletedFileCount` ≥ 1 であること |
+| 4-8-56 | フォーマット未選択時のフッターボタンが「キャンセル」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §FormatUploadDialog.tsx | - | - | No.24対応: 未選択時フッター「閉じる」→「キャンセル」に変更 |
+| 4-8-57 | TemplateEditorDialogで名前空間ファイルを選択した際の確認ダイアログのOKボタンが「取り込む」と表示されること | 表示確認 | `docs/改善仕様調査/No.16-24/result.md` §TemplateEditorDialog.tsx | - | - | No.16対応: 「取り込み」→「取り込む」に統一 |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -475,14 +511,22 @@
 | 4-11-5 | アップロード中にファイル完了件数とパーセントが進捗表示されること | 表示確認 | `ui_bulk_upload_dialog.md` §3.6.2 | - | OK | |
 | 4-11-6 | アップロード完了後に成功メッセージが表示されること | 表示確認 | `ui_bulk_upload_dialog.md` §3.6.2 | - | OK | |
 | 4-11-7 | ファイルを選択せずにアップロードボタンを押すと警告メッセージが表示されること | 異常系 | `ui_bulk_upload_dialog.md` §7.2 | - | OK | |
-| 4-11-8 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示されること | 異常系 | `ui_bulk_upload_dialog.md` §3.7 | - | OK | |
+| 4-11-8 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示され、OKボタンが「中断する」（赤色・dangerスタイル）、キャンセルボタンが「続行」と表示されること | 異常系 | `ui_bulk_upload_dialog.md` §3.7、`docs/改善仕様調査/No.16-24/result.md` | - | OK | No.24対応: 中断確認ダイアログのボタンラベル・スタイル変更 |
 | 4-11-9 | 単一ファイルモードで複数ファイルを選択すると最後の1ファイルのみが選択状態になること | 表示確認 | `ui_bulk_upload_dialog.md` §3.2.3 | - | OK | |
 | 4-11-10 | モード切り替え時に選択済みファイルリストがクリアされること | 表示確認 | `ui_bulk_upload_dialog.md` §3.1.2 | - | OK | |
+| 4-11-11 | アップロード開始後、プログレスバーの右上に「キャンセル」ボタンが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 キャンセルボタンのUI | - | - | |
+| 4-11-12 | アップロード完了（progress=100）後はキャンセルボタンが無効化（disabled）になること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §4.1「アップロード完了後はキャンセルボタン無効化」 | - | - | |
+| 4-11-13 | アップロード中にキャンセルボタンを押すとアップロードが即座に中断されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 handleCancelUpload | POST `/api/v1/files/upload` | - | AbortController.abort()でHTTPリクエストが中断されること |
+| 4-11-14 | キャンセル実行後に「アップロードがキャンセルされました」メッセージが表示されること | 表示確認 | `docs/改善仕様調査/No.13/PLAN.md` §12「キャンセル後のUI/UX」 | - | - | |
+| 4-11-15 | キャンセル実行後にダイアログのアップロード状態（進捗バー・isUploading）がリセットされること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.1 状態管理 | - | - | |
+| 4-11-16 | キャンセル実行後、途中までアップロードされたファイルがバックエンド（ストレージ・DB）から削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §4.2 cancelBatch API | POST `/api/v1/files/batches/:batchId/cancel` | - | cancelBatch APIのレスポンス（`deletedFileCount`）で確認 |
+| 4-11-17 | 複数ファイルアップロード中にキャンセルした場合、アップロード済みの全ファイルが削除されること | 正常系 | `docs/改善仕様調査/No.13/PLAN.md` §8「複数ファイルアップロード中のキャンセル」 | POST `/api/v1/files/batches/:batchId/cancel` | - | `deletedFileCount` ≥ 1 であること |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
 - テスト用プロジェクトがDB・S3に存在し、プロジェクト管理タブで選択済みである
 - プロジェクト管理画面のツールバーに「アップロード」ボタンが表示されている
+- キャンセル機能確認シナリオ（4-11-11〜4-11-17）用: アップロードが完了する前にキャンセルボタンを押せるよう、大きめのファイル（1MB以上）またはネットワーク速度制限環境を使用すること
 
 **後処理:**
 - アップロードしたファイルをS3から削除
@@ -534,6 +578,376 @@
 - `project`: プロジェクト単位
 - `task`: タスク単位
 - `transition`: トランジション単位
+
+---
+
+### 4-13: ノード表示切替ドロップダウン
+
+> **テスト方法**: 手動テスト（ReactFlowキャンバス上のリアルタイムラベル切替確認はGUI目視が必要なため）  
+> **対応改善仕様**: No.7a ペトリネットTemplate表示確認  
+> **実装ドキュメント**: `docs/改善仕様調査/No.7a/result.md`
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 結果 | 備考 |
+|-----------|-----------|------|------|------|------|
+| 4-13-1 | ペトリネットモード時にツールバーの「ペトリネット/テンプレート」トグルの直右に「ノード名 ▼」ドロップダウンが表示されること | 表示確認 | `result.md` §3「EditorToolbar修正」 | - | ドロップダウン幅は160px |
+| 4-13-2 | テンプレートモードに切り替えるとドロップダウンが非表示になること | 表示確認 | `result.md` §3「EditorToolbar修正」 | - | `viewMode === 'petriNet'` の条件確認 |
+| 4-13-3 | ペトリネットモードに戻るとドロップダウンが再表示されること | 表示確認 | `result.md` §3「EditorToolbar修正」 | - | モード切替の往復確認 |
+| 4-13-4 | ドロップダウンに「ノード名」「ノードID」「ノードDesc」「テンプレートID」「テンプレート名」「テンプレートDesc」の6選択肢が表示されること | 表示確認 | `result.md` §1「AttributeDisplayContext」選択肢一覧 | - | デフォルト選択は「ノード名」 |
+| 4-13-5 | 「ノード名」を選択するとすべてのノード（Material/Condition/Result/Transition）のラベルがノードの `<name>` テキストに切り替わること | 正常系 | `result.md` §2「ノードコンポーネント修正」 | - | デフォルト選択肢 |
+| 4-13-6 | 「ノードID」を選択するとすべてのノードのラベルが `place/transition` の `@id` 属性値に切り替わること | 正常系 | `result.md` §1 選択肢一覧 `node_id` | - | |
+| 4-13-7 | 「ノードDesc」を選択するとすべてのノードのラベルが `place/transition` の `<description>` テキストに切り替わること | 正常系 | `result.md` §1 選択肢一覧 `node_description` | - | descriptionが未設定のノードは空文字表示 |
+| 4-13-8 | 「テンプレートID」を選択するとPlaceノードのラベルがテンプレートの `@id` 属性値に切り替わること | 正常系 | `result.md` §1 選択肢一覧 `template_id` | - | テンプレート未設定ノードは空文字表示 |
+| 4-13-9 | 「テンプレート名」を選択するとPlaceノードのラベルがテンプレートの `<name>` テキストに切り替わること | 正常系 | `result.md` §1 選択肢一覧 `template_name`、`README.md` §10.3 | - | `data.template?.name` を参照。テンプレート未設定ノードは空文字表示 |
+| 4-13-10 | 「テンプレートDesc」を選択するとPlaceノードのラベルがテンプレートの `<description>` テキストに切り替わること | 正常系 | `result.md` §1 選択肢一覧 `template_description`、`README.md` §10.3 | - | `data.template?.description` を参照。テンプレート未設定ノードは空文字表示 |
+| 4-13-11 | 「テンプレート名」を選択したとき、テンプレートが設定されていないPlaceノードのラベルが空文字（または空白）で表示されること | 正常系 | `PLAN.md` §テスト計画「テンプレートが設定されていないノードで空表示になることを確認」 | - | テンプレート未設定ノードを含むプロジェクトで確認 |
+| 4-13-12 | 「テンプレートDesc」を選択したとき、テンプレートが設定されていないPlaceノードのラベルが空文字（または空白）で表示されること | 正常系 | `PLAN.md` §テスト計画「テンプレートが設定されていないノードで空表示になることを確認」 | - | テンプレート未設定ノードを含むプロジェクトで確認 |
+| 4-13-13 | ドロップダウンで選択肢を切り替えるとすべてのノードのラベルがリアルタイム（即時）に更新されること | 正常系 | `result.md` §「技術的な補足」Context伝播経路 | - | ページリロード不要で即時反映されることを確認 |
+| 4-13-14 | ドロップダウンで選択した表示属性がページリロード後も復元されること（localStorage永続化） | 正常系 | `result.md` §「localStorage キー」`maiml_editor_attribute_display` | - | ブラウザのリロード後に前回選択状態が維持されることを確認 |
+| 4-13-15 | ペトリネットモード→テンプレートモード→ペトリネットモードへ戻した際に直前のドロップダウン選択状態が維持されること | 正常系 | `PLAN.md` §テスト計画「テンプレートモード切替時に影響しないことを確認」 | - | |
+| 4-13-16 | MaterialTemplateNode・ConditionTemplateNode・ResultTemplateNode・TransitionNode の4種類すべてのノードが `useAttributeDisplay` フックで選択状態を取得していること（全ノードにドロップダウン選択が反映されること） | 正常系 | `result.md` §2「ノードコンポーネント修正」対象ファイル一覧 | - | 各ノード種別が混在するMAIMLで切替確認 |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在し、PetriNetEditorで開かれていること
+- テスト用MAIMLファイルに以下のノードが含まれること：
+  - Material/Condition/Result の各Placeノードが少なくとも1件ずつ
+  - Transitionノードが少なくとも1件
+  - テンプレートが設定されているノードが少なくとも1件（4-13-9〜4-13-10用）
+  - テンプレートが設定されていないノードが少なくとも1件（4-13-11〜4-13-12用）
+- ブラウザの localStorage が有効であること（4-13-14用）
+
+**手動テスト手順（概要）:**
+1. 実験管理者としてログインし、テスト用プロジェクトのPetriNetEditorを開く
+2. ビューモードが「ペトリネット」であることを確認し、ツールバーにドロップダウンが表示されていることを確認（4-13-1）
+3. ビューモードを「テンプレート」に切り替え、ドロップダウンが非表示になることを確認（4-13-2）
+4. ビューモードを「ペトリネット」に戻し、ドロップダウンが再表示されることを確認（4-13-3）
+5. ドロップダウンを開き、6つの選択肢が表示されることを確認（4-13-4）
+6. 各選択肢（ノード名/ノードID/ノードDesc/テンプレートID/テンプレート名/テンプレートDesc）を順に選択し、全ノードのラベルが即時切り替わることを確認（4-13-5〜4-13-10、4-13-13）
+7. テンプレートが設定されていないノードで「テンプレート名」「テンプレートDesc」を選択し、空文字表示になることを確認（4-13-11〜4-13-12）
+8. ドロップダウンで「ノードID」を選択した状態でページをリロードし、「ノードID」選択状態が復元されることを確認（4-13-14）
+9. 「テンプレートID」選択状態でペトリネット→テンプレート→ペトリネットとモード切替し、「テンプレートID」選択が維持されることを確認（4-13-15）
+10. Material/Condition/Result/Transitionの全ノード種別にラベル変更が反映されることを確認（4-13-16）
+
+**注意事項:**
+- 本機能のノードコンポーネントは `frontend/src/components/nodes/` 配下の `*TemplateNode.tsx` であり、`frontend/src/components/editorv2/components/nodes/` 配下（削除済み）ではない点に注意（`result.md` §2「注意」参照）
+- localStorage のキーは `maiml_editor_attribute_display`（`result.md` §「localStorage キー」参照）
+- テンプレート名・テンプレートDescは `data.template?.name` / `data.template?.description` を参照する（旧 reference 実装の `data.templateName` / `data.templateDescription` とは異なる）
+- Transitionノードのテンプレート系選択肢（テンプレートID/テンプレート名/テンプレートDesc）はそれぞれ `instructionId` / `instructionName` / `instructionDescription` にマッピングされる（`PLAN.md` §ノードコンポーネントのラベル生成ロジック Transition参照）
+
+---
+
+### 4-14: PropertyViewer 値なし区別表示・ツールチップ
+
+> **テスト方法**: 手動テスト（PropertyViewer Drawer の表示内容はブラウザでの目視確認が必要なため）  
+> **対応改善仕様**: No.8 テンプレート「値なし」表示に対応  
+> **実装ドキュメント**: `docs/改善仕様調査/No.8/result.md`  
+> **対象コンポーネント**:
+> - `frontend/src/components/viewer/dialogs/PropertyViewer.tsx`
+> - `frontend/src/components/viewer/dialogs/PropertyViewerWithSelection.tsx`
+> - `frontend/src/components/viewer/dialogs/StructuredPropertySelector.tsx`
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 結果 | 備考 |
+|-----------|-----------|------|------|------|------|
+| 4-14-1 | Placeノードをクリックすると PropertyViewer（Drawer）が開き、基本情報・テンプレート・データの3タブが表示されること | 表示確認 | `result.md` §対応ファイル一覧 | - | Drawer起動の前提確認 |
+| 4-14-2 | 基本情報タブで値が `undefined`（未設定）のプロパティは「未設定」斜体グレーテキストとして表示されること | 表示確認 | `result.md` §対応1「区別表示まとめ」 | - | `PropertyViewer.tsx` `renderValue()` |
+| 4-14-3 | 基本情報タブで値が `undefined` のプロパティにカーソルを合わせると「値が設定されていません」ツールチップが表示されること | 表示確認 | `result.md` §対応1 renderValue()修正 | - | Tooltip title="値が設定されていません" |
+| 4-14-4 | 基本情報タブで値が `null`（明示的null）のプロパティは「null」斜体グレーテキストとして表示されること | 表示確認 | `result.md` §対応1「区別表示まとめ」 | - | `undefined` の「未設定」とは異なるテキスト |
+| 4-14-5 | 基本情報タブで値が `null` のプロパティにカーソルを合わせると「null が設定されています」ツールチップが表示されること | 表示確認 | `result.md` §対応1 renderValue()修正 | - | Tooltip title="null が設定されています" |
+| 4-14-6 | 基本情報タブで値が空文字（`""`）のプロパティは `""(空文字)` として表示されること | 表示確認 | `result.md` §対応1「区別表示まとめ」 | - | `undefined`・`null` とは異なる表示 |
+| 4-14-7 | 基本情報タブで値が空文字（`""`）のプロパティにカーソルを合わせると「空の文字列が設定されています」ツールチップが表示されること | 表示確認 | `result.md` §対応1 renderValue()修正 | - | Tooltip title="空の文字列が設定されています" |
+| 4-14-8 | 基本情報タブで値が数値 `0` のプロパティは「未設定」ではなく「0」として正しく表示されること | 表示確認 | `docs/改善仕様調査/No.8/PLAN.md` §目的「0 や false が「未設定」と誤表示されない」 | - | falsy値の誤判定がないことを確認 |
+| 4-14-9 | 基本情報タブで boolean 値 `true` のプロパティは `<Tag color="success">true</Tag>` として表示されること（「はい」ではなく「true」） | 表示確認 | `result.md` §対応1「区別表示まとめ」 | - | 承認コメント「false を「いいえ」ではなく「false」表示に変更」 |
+| 4-14-10 | 基本情報タブで boolean 値 `false` のプロパティは `<Tag color="error">false</Tag>` として表示されること（「いいえ」でも「未設定」でもなく「false」） | 表示確認 | `result.md` §対応1「区別表示まとめ」 | - | falsy値の誤判定がないことを確認 |
+| 4-14-11 | テンプレートタブで `xsi:type` が設定されていない列には「-」が表示され、カーソルを合わせると「xsi:type が設定されていません」ツールチップが表示されること | 表示確認 | `result.md` §対応2 xsi:type列レンダラー | - | 変更前は `null`（セル空白）だった |
+| 4-14-12 | テンプレートタブで説明/単位が設定されていない列には「-」が表示され、カーソルを合わせると「説明・単位が設定されていません」ツールチップが表示されること | 表示確認 | `result.md` §対応2 説明/単位列レンダラー | - | 変更前は `null`（セル空白）だった |
+| 4-14-13 | テンプレートタブ・データタブにプロパティが存在しない場合、「表示するプロパティがありません」テキストにカーソルを合わせると「このノードにはテンプレートが設定されていません」ツールチップが表示されること | 表示確認 | `result.md` §対応2 テンプレート/データタブが空の場合 | - | テンプレート未設定ノードで確認 |
+| 4-14-14 | `StructuredPropertySelector`（プロパティ選択チェックボックス付きビューア）においても、`undefined` / `null` / `""` の値が同様に区別表示されること | 表示確認 | `result.md` §対応3 `StructuredPropertySelector.tsx` の修正 | - | `formatPropertyValue()` の kind 付きオブジェクト返却が機能すること |
+| 4-14-15 | `PropertyViewerWithSelection`（チェックボックス選択付きPropertyViewer）においても、`undefined` / `null` / `""` の区別表示とツールチップが機能すること | 表示確認 | `result.md` §対応ファイル一覧 `PropertyViewerWithSelection.tsx` | - | `PropertyViewer.tsx` と同一ロジックが適用されること |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在し、PetriNetEditorまたはビューアモードで開いていること
+- 以下の値を持つプロパティが含まれるテスト用MAIMLファイルを用意すること：
+
+| 確認内容 | 必要なデータ | 対応シナリオ |
+|---------|-----------|------------|
+| `undefined`（未設定）の表示 | `value` 要素なし（`<property key="xxx" xsi:type="stringType"/>` 形式） | 4-14-2、4-14-3 |
+| `null`（明示的null）の表示 | `value` が `null` に設定されたプロパティ | 4-14-4、4-14-5 |
+| 空文字（`""`）の表示 | `<value></value>` または `<value/>` 形式のプロパティ | 4-14-6、4-14-7 |
+| 数値 `0` の表示 | `<value>0</value>` のプロパティ | 4-14-8 |
+| boolean `true` の表示 | `xsi:type="booleanType"` で `<value>true</value>` のプロパティ | 4-14-9 |
+| boolean `false` の表示 | `xsi:type="booleanType"` で `<value>false</value>` のプロパティ | 4-14-10 |
+| `xsi:type` 未設定テンプレートプロパティ | `xsi:type` 属性なしのテンプレートプロパティ | 4-14-11 |
+| 説明/単位未設定プロパティ | `description` なし・`units` なしのテンプレートプロパティ | 4-14-12 |
+| テンプレートが設定されていないノード | テンプレート紐づけのないPlaceノード | 4-14-13 |
+
+**手動テスト手順（概要）:**
+1. 実験管理者としてログインし、テスト用MAIMLプロジェクトをビューアモードまたはPetriNetEditorで開く
+2. 各種プロパティを持つPlaceノードをクリックしてPropertyViewer Drawerを開く（4-14-1）
+3. 基本情報タブで各値の表示を目視確認し、ホバーでツールチップを確認する（4-14-2〜4-14-10）
+   - `undefined` プロパティ → 「未設定」斜体グレー（ツールチップ: 「値が設定されていません」）
+   - `null` プロパティ → 「null」斜体グレー（ツールチップ: 「null が設定されています」）
+   - 空文字プロパティ → `""(空文字)` 表示（ツールチップ: 「空の文字列が設定されています」）
+   - `0` プロパティ → 「0」テキスト（「未設定」と表示されないこと）
+   - `true` プロパティ → 緑タグ「true」（「はい」と表示されないこと）
+   - `false` プロパティ → 赤タグ「false」（「いいえ」・「未設定」と表示されないこと）
+4. テンプレートタブで `xsi:type` 未設定列・説明/単位未設定列にカーソルを合わせてツールチップを確認する（4-14-11〜4-14-12）
+5. テンプレートが設定されていないノードをクリックし、空テンプレートタブのツールチップを確認する（4-14-13）
+6. `StructuredPropertySelector` コンポーネントが表示される画面（プロパティ選択UI）でも同様の表示を確認する（4-14-14）
+7. `PropertyViewerWithSelection` が使用される画面でも同様の表示を確認する（4-14-15）
+
+**注意事項:**
+- No.8対応前後の比較確認（変更前は `null` / `undefined` / `""` がすべて「未設定」と表示されていた）
+- `0` および `false` が「未設定」と誤表示されないことを重点的に確認すること（No.8対応の主要な修正点）
+- ツールチップはホバー時に表示されるため、マウス操作による確認が必要
+- `PropertyViewerWithSelection`（4-14-15）は `PropertyViewer.tsx` と同一の `renderValue()` ロジックを使用しているため、基本的に同じ動作になるが、UIの配置が異なるため個別に確認すること
+- `StructuredPropertySelector`（4-14-14）は `formatPropertyValue()` が `{ text, kind }` オブジェクトを返却するよう変更されているため、各 `kind` に対応するツールチップが正しく表示されることを確認すること
+
+---
+
+### 4-15: 未保存変更チェック
+
+> **テスト方法**: 手動テスト（PetriNetEditor の編集状態はReactFlowキャンバス操作を伴うため、Playwrightによる自動化対象外）  
+> **対応改善仕様**: No.19 保存後メッセージ改善  
+> **実装ドキュメント**: `docs/改善仕様調査/No.19/PLAN.md`  
+> **対象コンポーネント**:
+> - `frontend/src/components/editorv2/PetriNetEditorInner.tsx`（`onContentChange` prop 追加・各ハンドラーで呼び出し）
+> - `frontend/src/components/editorv2/PetriNetEditorScreen.tsx`（`hasUnsavedChanges` ステート管理・`handleBack` での確認ダイアログ制御）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 結果 | 備考 |
+|-----------|-----------|------|------|------|------|
+| 4-15-1 | 何も変更せずに「戻る」ボタンをクリックすると確認ダイアログが表示されずに前画面へ遷移すること | 正常系 | `PLAN.md` §目的 `hasUnsavedChanges = false` の場合 | - | 初期状態（変更なし）での「戻る」動作 |
+| 4-15-2 | ノードを追加した後に「戻る」ボタンをクリックすると「保存されていない変更があります。破棄して戻りますか？」確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleAddNode` | - | Material/Condition/Result/Transitionノード追加いずれも対象 |
+| 4-15-3 | ノードを削除した後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleNodesDelete`、`handleDeleteNode` | - | キャンバスからの削除・PropertyPanelからの削除いずれも対象 |
+| 4-15-4 | エッジを接続した後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleConnect` | - | ノード間をドラッグして接続 |
+| 4-15-5 | エッジを削除した後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleEdgesDelete`、`handleDeleteEdge` | - | キャンバスからの削除・PropertyPanelからの削除いずれも対象 |
+| 4-15-6 | ノードをドラッグ移動した後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleNodeDragStop` | - | ドラッグ完了（mouseup）後にフラグが立つこと |
+| 4-15-7 | PropertyPanelでノードプロパティを更新した後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleUpdateNodeProperty` | - | ノード名・説明など任意のプロパティ変更 |
+| 4-15-8 | PropertyPanelでノードIDを変更した後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleUpdateNodeId` | - | ID変更はプロパティ更新とは別ハンドラーで処理 |
+| 4-15-9 | PropertyPanelでエッジIDを変更した後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleUpdateEdgeProperty` | - | エッジプロパティ（エッジID等）の変更 |
+| 4-15-10 | ショートカットキー（M/C/R/T + クリック）でノードを追加した後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handlePaneClick` | - | `handlePaneClick` 経由でのノード追加操作 |
+| 4-15-11 | Documentボタンからドキュメント情報を保存した後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleSaveDocument` | - | Document編集ダイアログから保存 |
+| 4-15-12 | テンプレート保存操作を行った後に「戻る」ボタンをクリックすると確認ダイアログが表示されること | 正常系 | `PLAN.md` §Phase1 `handleSaveTemplate` | - | テンプレートモードでの保存 |
+| 4-15-13 | 確認ダイアログで「破棄して戻る」（OK）を選択すると前画面へ遷移すること | 正常系 | `PLAN.md` §目的 確認ダイアログ OK | - | 変更内容は破棄され、S3への保存は行われないこと |
+| 4-15-14 | 確認ダイアログで「キャンセル」を選択するとエディタ画面に留まり変更内容が保持されること | 正常系 | `PLAN.md` §目的 確認ダイアログ キャンセル | - | キャンセル後も編集内容（追加ノード等）がキャンバスに残ること |
+| 4-15-15 | 変更後にS3保存を完了させてから「戻る」ボタンをクリックすると確認ダイアログが表示されずに前画面へ遷移すること | 正常系 | `PLAN.md` §目的 保存完了後 `hasUnsavedChanges = false` | - | 保存完了後は未保存フラグがリセットされること |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在し、MAIMLファイルが登録済みであること
+- プロジェクトがチェックアウト済みであること（編集ロックを取得済み）
+- プロジェクト管理タブでプロジェクトを選択後、「編集」ボタンから実験フロー編集画面（PetriNetEditorScreen）を開いていること
+- 4-15-2〜4-15-3用: キャンバスにノードが少なくとも1件以上存在すること（削除シナリオのため）
+- 4-15-4〜4-15-5用: 接続可能な2ノード間にエッジがない状態、またはエッジが存在する状態を用意すること
+- 4-15-10用: M/C/R/T ショートカットキーでのノード追加を試みるため、キャンバスペインがアクティブな状態（入力フォームにフォーカスが当たっていない状態）であること
+- 4-15-15用: S3保存ダイアログを表示してS3への保存を正常完了させること（`handleSaveConfirmAction` 完了後）
+
+**手動テスト手順（概要）:**
+1. 実験管理者としてログインし、チェックアウト済みプロジェクトのPetriNetEditorを開く
+2. 何も変更せず「戻る」ボタンをクリックし、確認ダイアログが表示されないことを確認（4-15-1）
+3. ノードを1件追加し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-2）
+4. 確認ダイアログで「キャンセル」を選択してエディタに留まることを確認（4-15-14）
+5. 既存ノードを削除し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-3）
+6. エッジを接続し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-4）
+7. エッジを削除し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-5）
+8. ノードをドラッグ移動し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-6）
+9. PropertyPanelでノード名を変更し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-7）
+10. PropertyPanelでノードIDを変更し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-8）
+11. PropertyPanelでエッジIDを変更し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-9）
+12. Mキーを押しながらキャンバスをクリックしてノードを追加し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-10）
+13. Documentボタンからドキュメント情報を保存し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-11）
+14. テンプレートを保存し「戻る」ボタンをクリックして確認ダイアログが表示されることを確認（4-15-12）
+15. 確認ダイアログで「破棄して戻る」（OK）を選択して前画面へ遷移することを確認（4-15-13）
+16. エディタを再度開き、ノードを追加後にS3保存を完了させ、その後「戻る」ボタンをクリックして確認ダイアログが表示されないことを確認（4-15-15）
+
+**注意事項:**
+- 本テストはPetriNetEditorScreenの `hasUnsavedChanges` ステートが正しく更新されるかを検証する（`PetriNetEditorInner.tsx` の各ハンドラーから `onContentChange()` が呼び出され、`PetriNetEditorScreen.tsx` 内の `handleContentChange` が `setHasUnsavedChanges(true)` を実行することを確認する）
+- 保存フラグのリセット（4-15-15）は `onContentSaved` コールバック経由で `setHasUnsavedChanges(false)` が呼び出されることを確認する（S3保存成功後・ローカルダウンロード完了後）
+- `handleSaveDocument`・`handleSaveTemplate` は保存操作であるが、これらもコンテンツの変更として扱われるため、`onContentChange` が呼び出されることに注意
+- 手動テスト実施者はMAIML仕様の基礎知識と操作方法を事前に確認すること
+
+---
+
+### 4-16: テンプレートモード時のツールバーボタン非活性化
+
+> **テスト方法**: 手動テスト（PetriNetEditor のツールバー表示状態はGUI目視が必要なため）  
+> **対応改善仕様**: No.20 テンプレートタブ選択時のボタン非活性化  
+> **実装ドキュメント**: `docs/改善仕様調査/No.20/PLAN.md`  
+> **対象コンポーネント**:
+> - `frontend/src/components/editorv2/components/EditorToolbar.tsx`（`isTemplateMode` フラグ追加・Material/Condition/Result/Transition/ワークフローボタンに `disabled={isTemplateMode}` 付与）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 結果 | 備考 |
+|-----------|-----------|------|------|------|------|
+| 4-16-1 | ペトリネットタブ選択中に Material・Condition・Result・Transition・ワークフローの5ボタンが活性状態（クリック可能）であること | 表示確認 | `PLAN.md` §期待される成果「ペトリネットタブ選択中は通常通り活性状態」 | - | `viewMode === 'petriNet'` 時に `disabled` が付与されないことを確認 |
+| 4-16-2 | テンプレートタブ選択中に Material・Condition・Result・Transition・ワークフローの5ボタンが非活性（グレーアウト・クリック不可）になること | 表示確認 | `PLAN.md` §期待される成果「テンプレートタブ選択中、5ボタンが非活性」 | - | `viewMode === 'templates'` 時に各ボタンに `disabled` が付与されること |
+| 4-16-3 | テンプレートタブからペトリネットタブに切り替えると、非活性だった5ボタンが再び活性状態に戻ること | 表示確認 | `PLAN.md` §期待される成果「テンプレートタブ→ペトリネットタブに切り替え: ボタンが再度活性化」 | - | モード往復後にボタン状態が正しく復元されること |
+| 4-16-4 | テンプレートタブ選択中に Document・バリデーション・保存・Undo・Redoボタンは活性状態のまま操作可能であること | 表示確認 | `PLAN.md` §期待される成果「Document・バリデーション・保存・Undo/Redo は影響を受けない」 | - | `isTemplateMode` の影響を受けないボタンが正常動作すること |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在し、MAIMLファイルが登録済みであること
+- プロジェクト管理タブでプロジェクトを選択後、「編集」ボタンからPetriNetEditorを開いていること
+- ツールバーのSegmentedコントロール（ペトリネット / テンプレート切り替え）が表示されていること
+
+**非活性化対象ボタン（5件）:**
+
+| ボタン名 | `onClick` ハンドラー | 備考 |
+|---------|-------------------|------|
+| Material | `onAddNode('material')` | `isTemplateMode` 時 `disabled` |
+| Condition | `onAddNode('condition')` | `isTemplateMode` 時 `disabled` |
+| Result | `onAddNode('result')` | `isTemplateMode` 時 `disabled` |
+| Transition | `onAddNode('transition')` | `isTemplateMode` 時 `disabled` |
+| ワークフロー | `onAddWorkflow` | `isTemplateMode` 時 `disabled` |
+
+**非活性化対象外ボタン（影響を受けないボタン）:**
+- Document（ドキュメント編集）
+- バリデーション
+- 保存
+- Undo
+- Redo
+
+**手動テスト手順（概要）:**
+1. 実験管理者としてログインし、チェックアウト済みプロジェクトのPetriNetEditorを開く
+2. ツールバーがペトリネットモードであることを確認し、Material/Condition/Result/Transition/ワークフローの5ボタンがクリック可能な活性状態であることを目視確認（4-16-1）
+3. ツールバーのSegmentedコントロールで「テンプレート」タブを選択する
+4. Material/Condition/Result/Transition/ワークフローの5ボタンがグレーアウトされクリック不可になっていることを目視確認（4-16-2）
+5. テンプレートタブ選択中にDocument・バリデーション・保存・Undo・Redoボタンが引き続き活性状態で操作できることを確認（4-16-4）
+6. ツールバーのSegmentedコントロールで「ペトリネット」タブに戻す
+7. 手順4でグレーアウトした5ボタンが再び活性状態（クリック可能）に戻ることを確認（4-16-3）
+
+**注意事項:**
+- `isTemplateMode` フラグは `viewMode === 'templates'` で導出される（`EditorToolbar.tsx` 内で定義）
+- `viewMode` は `EditorToolbarProps` に既存定義されており、`PetriNetEditorInner` から渡される
+- `viewMode` が `undefined` の場合、`'templates'` との比較は `false` となるため安全に動作する
+- ボタンの非活性化はCSSによるグレーアウトと、クリックイベントの無効化の両方で確認すること
+
+---
+
+### 4-17: SubNetViewer トランジション用テンプレート表示
+
+> **テスト方法**: 手動テスト（SubNetViewerはPetriNetViewer上のTransitionノードクリックで起動するダイアログであり、ReactFlow/DOM操作の目視確認が必要なため）  
+> **対応改善仕様**: No.28 SubNetViewer templateMapsキー不一致修正  
+> **実装ドキュメント**: `docs/改善仕様調査/No.28/result.md`  
+> **対象コンポーネント**:
+> - `frontend/src/components/viewer/PetriNetViewer.tsx`（Fix1, Fix6, Fix8c）
+> - `frontend/src/components/viewer/dialogs/SubNetViewer.tsx`（Fix2, Fix3, Fix8b）
+> - `frontend/src/reference/components/SubNetViewer/index.js`（Fix2: reference版）
+> - `frontend/src/components/viewer/dialogs/PropertyViewer.tsx`（Fix4）
+> - `frontend/src/components/viewer/dialogs/PropertyViewerWithSelection.tsx`（Fix5, Fix7）
+> - `frontend/src/utils/maimlDataExtractor.ts`（Fix8a: 新規作成）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 結果 | 備考 |
+|-----------|-----------|------|------|------|------|
+| 4-17-1 | PetriNetViewer でTransitionノードをクリックするとSubNetViewerダイアログが開くこと | 正常系 | `result.md` §動作確認ポイント4 | - | SubNetViewer起動の前提確認 |
+| 4-17-2 | SubNetViewer内の入力Placeノードのテンプレート種別（Material/Condition/Result）が正しく表示されること | 正常系 | `result.md` §Fix2「templateMapキー不一致修正」 | - | placeIdキーでtemplateMaplにヒットすること |
+| 4-17-3 | SubNetViewer内の出力Placeノードのテンプレート種別（Material/Condition/Result）が正しく表示されること | 正常系 | `result.md` §Fix2「templateMapキー不一致修正」 | - | placeIdキーでtemplateMaplにヒットすること |
+| 4-17-4 | SubNetViewer内でPlaceノードをクリックするとPropertyViewerが開くこと | 正常系 | `result.md` §動作確認ポイント1 | - | ノードクリック時のDrawer起動確認 |
+| 4-17-5 | SubNetViewerのPropertyViewer「テンプレートタブ」に `property` 要素がキー / xsi:type / 値 / 説明・単位 の列で表示されること | 正常系 | `result.md` §Fix3「extractTemplateInfo新実装」、§Fix4「テンプレートタブ専用カラム」 | - | 変更前は「表示するプロパティがありません」と表示されていた |
+| 4-17-6 | SubNetViewerのPropertyViewer「基本情報タブ」に id / 名前 / 説明 / 種別 が表示されること | 正常系 | `result.md` §Fix3「uuid/description追加」 | - | placeRef が表示されないこと（内部参照のため非表示） |
+| 4-17-7 | SubNetViewerのPropertyViewer「基本情報タブ」に placeRef が表示されないこと | 正常系 | `result.md` §Fix3「placeRef除外」 | - | 変更前はplaceRef要素がテンプレートタブに表示されていた |
+| 4-17-8 | SubNetViewerのPropertyViewer「データタブ」に `<data><results>` の実験結果値が個別フィールドに展開されて表示されること | 正常系 | `result.md` §Fix8b「SubNetViewerのデータタブ設定」、§Fix8d「property_*の個別展開表示」 | - | `temperature (value)` / `temperature (type)` / `temperature (units)` 等が個別行に展開されること |
+| 4-17-9 | placeId と templateId が異なるケース（placeIdキーでヒットしない場合）でも、templateIdキーでフォールバックしてテンプレート情報が取得されること | 正常系 | `result.md` §Fix2「フォールバック: templateIdキー」 | - | フォールバックケースでも「テンプレート詳細情報が取得できませんでした」と表示されないこと |
+| 4-17-10 | PetriNetViewer でPlaceノードをクリックすると PropertyViewer（Drawer）が開き、テンプレートタブにプロパティが表示されること | 正常系 | `result.md` §Fix6「extractTemplateInfoForNode新実装」 | - | SubNetViewer経由ではなく、PetriNetViewer直接クリック時の表示確認 |
+| 4-17-11 | PetriNetViewer のPlaceノードのPropertyViewer「データタブ」に実験結果値が表示されること | 正常系 | `result.md` §Fix8c「PetriNetViewerのデータタブ設定」 | - | `templateMap[node.id].element.getAttribute('id')` でテンプレートIDを取得してマッチ |
+| 4-17-12 | PropertyViewer のテンプレートタブで `property_` プレフィックスが除去されたキー名が表示されること | 表示確認 | `result.md` §Fix4「property_プレフィックス除去」 | - | `property_temperature` ではなく `temperature` と表示されること |
+| 4-17-13 | PropertyViewerWithSelection で Object型の値がキー・値ペアに展開されて表示されること（`[object Object]` が表示されないこと） | 表示確認 | `result.md` §Fix5「Object型値のフラット展開表示」 | - | 変更前は `[object Object]` として表示されていた |
+| 4-17-14 | 複数種別（material / condition / result）が混在するMAIMLファイルで SubNetViewer を開いた際、各Placeノードの種別が正しく識別されること | 正常系 | `result.md` §動作確認ポイント1 | - | 同一SubNetViewer内に3種類のPlaceが混在するケースで確認 |
+| 4-17-15 | SubNetViewer（reference版 JavaScript）でも placeIdキーでtemplateMaplにヒットし、テンプレート種別が正しく表示されること | 正常系 | `result.md` §Fix2「reference版（index.js）」 | - | TypeScript版と同様の修正がreference版にも適用されていること |
+| 4-17-16 | SubNetViewer で templateMap にヒットしないPlaceノードが存在した場合でも、他のPlaceノードは正常に表示されること（部分的な失敗が全体に波及しないこと） | 正常系 | `result.md` §Fix2「ログ警告」 | - | 1件のPlaceがtemplateMaplにヒットしなくても他Placeは表示されること |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在し、MAIMLファイルが登録済みであること
+- 以下の構造を持つテスト用MAIMLファイルを用意すること：
+  - Material/Condition/Result の各Placeノードが少なくとも1件ずつ存在すること
+  - Transitionノードが少なくとも1件存在し、入力Place（Material/Condition）・出力Place（Result）が接続されていること
+  - 各PlaceノードにMAIMLテンプレート（`materialTemplate` / `conditionTemplate` / `resultTemplate`）が定義されており、`placeRef ref="..."` で接続されていること
+  - テンプレートに `<property>` 要素が少なくとも1件以上定義されていること（4-17-5、4-17-8用）
+  - `<data><results>` セクションに実験結果値が記録されていること（4-17-8、4-17-11用）
+- PetriNetViewer で対象プロジェクトのMAIMLを閲覧できる状態であること（ビューアモードで開いている）
+- 4-17-9用: `placeRef.ref` が設定されておらず、テンプレートIDでフォールバックするケースのMAIMLデータを用意すること（または既存MAIMLを調整）
+- 4-17-15（reference版）用: reference版 SubNetViewer を使用する画面（WorkerDashboard等）が存在する場合、そちらでも確認すること
+
+**テスト用MAIMLファイルのサンプル構造（最小構成）:**
+
+```xml
+<maiml>
+  <method id="method_001">
+    <petriNet>
+      <place id="p_mat_001"><name>材料A</name></place>
+      <place id="p_cond_001"><name>条件B</name></place>
+      <place id="p_result_001"><name>結果C</name></place>
+      <transition id="t_001"><name>処理T</name></transition>
+      <arc source="p_mat_001" target="t_001"/>
+      <arc source="p_cond_001" target="t_001"/>
+      <arc source="t_001" target="p_result_001"/>
+    </petriNet>
+    <templates>
+      <materialTemplate id="mt_001">
+        <name>材料Aテンプレート</name>
+        <description>材料Aの説明</description>
+        <placeRef ref="p_mat_001"/>
+        <property key="temperature" xsi:type="doubleType" units="K">
+          <value>300</value>
+          <description>温度</description>
+        </property>
+      </materialTemplate>
+      <conditionTemplate id="ct_001">
+        <name>条件Bテンプレート</name>
+        <placeRef ref="p_cond_001"/>
+        <property key="pressure" xsi:type="doubleType" units="Pa">
+          <value>101325</value>
+        </property>
+      </conditionTemplate>
+      <resultTemplate id="rt_001">
+        <name>結果Cテンプレート</name>
+        <placeRef ref="p_result_001"/>
+        <property key="yield" xsi:type="doubleType" units="%">
+          <value>85.5</value>
+        </property>
+      </resultTemplate>
+    </templates>
+  </method>
+  <data id="data_001">
+    <results id="results_001">
+      <material ref="mt_001">
+        <property key="temperature"><value>320</value></property>
+      </material>
+    </results>
+  </data>
+</maiml>
+```
+
+**手動テスト手順（概要）:**
+1. 実験管理者としてログインし、テスト用プロジェクトをビューアモード（PetriNetViewer）で開く
+2. MAIMLのペトリネットが描画されていることを確認する（4-17-1の前提）
+3. Transitionノードをクリックして SubNetViewer ダイアログが開くことを確認（4-17-1）
+4. SubNetViewer 内に入力Placeと出力Placeが表示され、各PlaceのテンプレートType（Material/Condition/Result）が正しく表示されることを確認（4-17-2、4-17-3）
+5. 入力Placeノード（Material）をクリックして PropertyViewer が開くことを確認（4-17-4）
+6. PropertyViewer「テンプレートタブ」にプロパティが表示されることを確認（4-17-5）
+   - キー列: `temperature`（`property_` プレフィックスなし）
+   - xsi:type列: `doubleType`
+   - 値列: `300`
+   - 説明・単位列: `温度 / 単位: K`
+7. PropertyViewer「基本情報タブ」の内容を確認（4-17-6）
+   - id, 名前, 説明, 種別が表示されること
+   - placeRef が表示されないこと（4-17-7）
+8. PropertyViewer「データタブ」に実験結果値が個別フィールドに展開されて表示されることを確認（4-17-8）
+9. Conditionノード・Resultノードでも同様に表示されることを確認（4-17-14）
+10. PlaceノードをPetriNetViewer上で直接クリックし（SubNetViewerを経由せず）、PropertyViewerにテンプレートプロパティが表示されることを確認（4-17-10）
+11. PetriNetViewer上のPlaceノードのデータタブにも実験結果値が表示されることを確認（4-17-11）
+12. `property_temperature` ではなく `temperature` と表示されることを確認（4-17-12）
+13. PropertyViewerWithSelectionを使用する画面でObjectの展開表示を確認（4-17-13）
+
+**注意事項:**
+- No.28修正前は以下の問題が存在していた（修正後に解消されていることを確認すること）：
+  - SubNetViewerのPropertyViewerで「テンプレート詳細情報が取得できませんでした」が表示される
+  - テンプレートタブに「表示するプロパティがありません」と表示される
+  - Object型のプロパティが `[object Object]` として表示される
+  - placeRef 要素がテンプレートタブに表示される
+- `buildTemplateMap()` のキーは **placeId**（`placeRef.ref` の値）であることを前提として確認する（`placeId ≠ templateId` のケースが存在する）
+- reference版（index.js）は JavaScript で実装されており、TypeScript版と同様の修正が適用されているかを個別に確認すること
+- `<data><results>.*ref` は **テンプレートID** を参照する（placeID ではない）ため、データタブ確認時は `templateMap[node.id].element.getAttribute('id')` でテンプレートIDを取得してマッチしていることを意識すること
 
 ---
 

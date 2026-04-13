@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-27
-- **バージョン**: 3.4.0
-- **最終更新**: 2026-03-16
+- **バージョン**: 3.5.0
+- **最終更新**: 2026-04-07
 
 - **担当**: Development Team
 - **実装状況**: ✅ 実装済み
@@ -122,11 +122,41 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 | data | object | ○ | 実験データ（PropertySet形式） | `{ templateId, templateType, properties }` の形式 |
 | data.templateId | string | ○ | テンプレートID | |
 | data.templateType | string | ○ | テンプレート種別 | material, condition, result |
-| data.properties | array | ○ | プロパティ配列 | `[{ key, xsiType, value, units, description?, formatString?, scaleFactor? }]` の形式 |
-
+| data.properties | array | ○ | プロパティ配列 | 下記「プロパティ要素の詳細」を参照 |
 | comment | string | × | コメント | 最大2000文字 |
 
 > **注意**: `templateType`・`templateId` はトップレベルには含めず、`data` オブジェクト内に含めてください。
+
+#### プロパティ要素（`data.properties[]`）の詳細
+
+| フィールド | 型 | 必須 | 説明 |
+|-----------|----|----|------|
+| key | string | ○ | プロパティキー |
+| xsiType | string | ○ | プロパティ型（`stringType`, `intType`, `floatType`, `booleanType`, `dateType`, `dateTimeType`, `contentStringListType`, `contentIntListType`, `contentDoubleListType` 等） |
+| value | any | × | プロパティ値（型により異なる。下表参照） |
+| units | string | × | 単位 |
+| description | string | × | 説明文 |
+| formatString | string | × | フォーマット文字列（`floatType` の精度算出に使用） |
+| scaleFactor | number | × | スケールファクター |
+| contents | array | × | Content 型の子要素（`propertyListType` 内に Content が存在する場合のみ。各要素は `{ key, xsiType, value: string[] }` 形式） |
+| properties | array | × | ネストされた子プロパティ（`propertyListType` の場合のみ。再帰的に同じ `Property` 型） |
+
+**`value` の型対応表:**
+
+| xsiType | value の型 | 例 |
+|---------|-----------|-----|
+| stringType | `string \| null` | `"25.0"` |
+| intType | `number \| null` | `25` |
+| floatType | `number \| null` | `25.5` |
+| booleanType | `boolean \| null` | `true` |
+| dateType | `string \| null` | `"2026-04-07"` |
+| dateTimeType | `string \| null` | `"2026-04-07 12:00:00"` |
+| content*ListType（全種） | `string[] \| null` | `["1.0 2.0 3.0", "4.0 5.0 6.0"]` |
+| propertyListType | `null`（子要素は `properties` フィールドに格納） | `null` |
+
+> **注意**: Content 型（`contentStringListType`, `contentIntListType`, `contentLongListType`, `contentShortListType`, `contentByteListType`, `contentUnsignedIntListType`, `contentFloatListType`, `contentDoubleListType`, `contentDecimalListType`, `contentBooleanListType`, `contentDateTimeListType`）はすべて `value: string[]` で送信してください。各要素は1行分のデータを表し、スペース区切りで複数値を含めることができます。
+
+> **注意**: `propertyListType` の場合、ネストされた子プロパティは `properties` フィールドに格納し、子 Content は `contents` フィールドに格納します。
 
 ### レスポンス
 
@@ -928,6 +958,12 @@ backend/tests/controllers/experimentController.test.ts
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 3.5.0 | 2026-04-07 | DataRecordDialog ネスト子要素表示修正・ContentValue 配列送信修正 | Cline |
+| | | - `data.properties[].value` が Content 型（`contentXxxListType`）の場合に `string[]` 配列となることを明記 | |
+| | | - `data.properties[]` にネスト子要素フィールド（`contents`・`properties`）の仕様を追加 | |
+| | | - `contents[]` : Content型の子要素（各要素は `{ key, xsiType, value: string[] }`） | |
+| | | - `properties[]` : ネストプロパティ（各要素は自身と同じ `Property` 型の再帰構造） | |
+| | | - `propertyListType` のプロパティが子 Content と子 Property を保持することを追記 | |
 | 3.4.0 | 2026-03-16 | maimlDataWriter仕様修正に伴うプロパティ形式の更新 | Cline |
 | | | - `data.properties` 要素に `description?`・`formatString?`・`scaleFactor?` フィールドを追加 | |
 | | | - `templateDataRepository.ts` の `PropertySetProperty` を廃止し `Property[]`（maiml-unified）に統一 | |

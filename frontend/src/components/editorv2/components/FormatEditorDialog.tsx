@@ -49,6 +49,7 @@ import type {
 import { Template, Insertion, PlaceRef, Property, Content } from '@/types/maiml-unified';
 import NestedPropertyEditor, { type PropertyData } from './NestedPropertyEditor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {
   convertPropertiesArrayToNestedFormat,
   convertPropertiesArrayToNestedFormatRecursive,
@@ -145,6 +146,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // ✅ Phase 4: バリデーション用State
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // Attributeマスタ取得（属性追加ダイアログの選択肢用）
+  const { attributeRecords } = useAttributeMasters();
 
   /**
    * テンプレートタイプ判定
@@ -1161,6 +1165,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 onDeleteNestedElement={handleDeleteNestedElement}
                 onDeleteProperty={handleDeleteProperty}
                 forceRenderKey={forceRenderKey}
+                attributeRecords={attributeRecords}
               />
             ))
           )}
@@ -1293,6 +1298,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     onDeleteNestedElement={handleDeleteContentElement}
                     onDeleteProperty={handleDeleteContent}
                     forceRenderKey={forceContentRenderKey}
+                    attributeRecords={attributeRecords}
                   />
                 ))
               )}

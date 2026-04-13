@@ -1071,3 +1071,263 @@ export async function downloadVendorsCsv(req: Request, res: Response, next: Next
     next(error);
   }
 }
+
+// =============================================================
+// Attributeマスタ関連コントローラー
+// =============================================================
+
+/**
+ * Attributeマスタ一覧取得
+ *
+ * GET /api/v1/master/attribute
+ */
+export async function getAttributes(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const organizationId = req.user?.organizationId;
+
+    const { search, is_active, apply_department_filter } = req.query;
+    const filters: any = {};
+    if (search) filters.search = String(search);
+    if (is_active !== undefined) filters.isActive = is_active === 'true' || is_active === '1';
+
+    // apply_department_filter=true の場合のみ部署フィルタを適用
+    // ログインユーザーの部署コードでフィルタリング（マスタ管理画面では使用しない）
+    if (apply_department_filter === 'true') {
+      const departmentCd = req.session?.departmentCd;
+      if (departmentCd) {
+        filters.departmentCd = departmentCd;
+      }
+    }
+
+    const attributes = await masterService.getAttributeMastersWithFilters(String(organizationId), filters);
+
+    res.json({
+      success: true,
+      data: attributes,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: req.headers['x-request-id'] || uuidv4(),
+      },
+    });
+  } catch (error) {
+    console.error('Get attributes error:', error);
+    next(error);
+  }
+}
+
+/**
+ * Attribute主キー指定取得
+ *
+ * GET /api/v1/master/attribute/:attributeId
+ * ※ attributeId は "attributeName__attributeValue" 形式（URLエンコード済み）
+ */
+export async function getAttributeById(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const organizationId = req.user?.organizationId;
+    const { attributeId } = req.params;
+    // attributeId は "name__value" 形式でエンコードされているのでデコードして分割
+    const decoded = decodeURIComponent(attributeId);
+    const separatorIdx = decoded.indexOf('__');
+    const attributeName = separatorIdx >= 0 ? decoded.substring(0, separatorIdx) : decoded;
+    const attributeValue = separatorIdx >= 0 ? decoded.substring(separatorIdx + 2) : '';
+
+    const attribute = await masterService.getAttributeById(String(organizationId), attributeName, attributeValue);
+
+    if (!attribute) {
+      res.status(404).json({ success: false, error: { code: 'E6001', message: 'Attributeマスタが見つかりません' } });
+      return;
+    }
+
+    res.json({ success: true, data: attribute });
+  } catch (error) {
+    console.error('Get attribute by id error:', error);
+    next(error);
+  }
+}
+
+/**
+ * Attributeマスタ新規作成
+ *
+ * POST /api/v1/master/attribute
+ */
+export async function createAttribute(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
+    const lang = req.headers['accept-language']?.startsWith('en') ? 'en' : 'ja';
+
+    const { attributeName, attributeValue, attributeRemark, departmentCd, isActive } = req.body;
+
+    if (!attributeName) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'attribute_name は必須です' } });
+      return;
+    }
+
+    const attribute = await masterService.createAttributeMaster(
+      String(organizationId),
+      { attributeName, attributeValue, attributeRemark, departmentCd, isActive },
+      String(userId),
+      lang
+    );
+
+    res.status(201).json({
+      success: true,
+      data: attribute,
+      meta: { timestamp: new Date().toISOString(), requestId: req.headers['x-request-id'] || uuidv4() },
+    });
+  } catch (error: any) {
+    if (error.statusCode === 409) {
+      res.status(409).json({ success: false, error: { code: error.code || 'E7001', message: error.message } });
+      return;
+    }
+    console.error('Create attribute error:', error);
+    next(error);
+  }
+}
+
+/**
+ * Attributeマスタ更新
+ *
+ * PUT /api/v1/master/attribute/:attributeId
+ * ※ attributeId は URLエンコードされた attributeName
+ *    attributeValue はリクエストボディから取得（PKの一部）
+ */
+export async function updateAttribute(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
+    const { attributeId } = req.params;
+    // attributeId はURLエンコードされた attributeName
+    const attributeName = decodeURIComponent(attributeId);
+    const { attributeValue, attributeRemark, departmentCd, isActive } = req.body;
+
+    const attribute = await masterService.updateAttributeMaster(
+      String(organizationId),
+      attributeName,
+      { attributeValue, attributeRemark, departmentCd, isActive },
+      String(userId)
+    );
+
+    if (!attribute) {
+      res.status(404).json({ success: false, error: { code: 'E6001', message: 'Attributeマスタが見つかりません' } });
+      return;
+    }
+
+    res.json({ success: true, data: attribute });
+  } catch (error) {
+    console.error('Update attribute error:', error);
+    next(error);
+  }
+}
+
+/**
+ * Attributeマスタ ステータス更新
+ *
+ * PATCH /api/v1/master/attribute/:attributeId/status
+ * ※ attributeId は "attributeName__attributeValue" 形式（URLエンコード済み）
+ */
+export async function updateAttributeStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
+    const { attributeId } = req.params;
+    const { isActive } = req.body;
+
+    if (isActive === undefined) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'isActive は必須です' } });
+      return;
+    }
+
+    // attributeId は "attributeName__attributeValue" 形式
+    // Expressがルートパラメータを自動でURLデコードするため、二重デコード不要
+    const attribute = await masterService.updateAttributeStatus(
+      String(organizationId),
+      attributeId,
+      Boolean(isActive),
+      String(userId)
+    );
+
+    if (!attribute) {
+      res.status(404).json({ success: false, error: { code: 'E6001', message: 'Attributeマスタが見つかりません' } });
+      return;
+    }
+
+    res.json({ success: true, data: attribute });
+  } catch (error) {
+    console.error('Update attribute status error:', error);
+    next(error);
+  }
+}
+
+/**
+ * AttributeマスタCSVダウンロード
+ *
+ * GET /api/v1/master/attribute/download-csv
+ */
+export async function downloadAttributesCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const organizationId = req.user?.organizationId;
+    const { search, is_active } = req.query;
+
+    const filters: any = {};
+    if (search) filters.search = String(search);
+    if (is_active !== undefined) filters.isActive = is_active === 'true' || is_active === '1';
+
+    const attributes = await masterService.getAttributeMastersWithFilters(String(organizationId), filters);
+
+    const csvData = attributes.map((a: any) => ({
+      'attribute_name': a.attributeName,
+      'attribute_value': a.attributeValue,
+      'attribute_remark': a.attributeRemark,
+      'department_cd': a.departmentCd,
+      'is_active': a.isActive,
+    }));
+
+    const csv = Papa.unparse(csvData, { header: true });
+
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+    const filename = `master_attribute_${timestamp}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send('\uFEFF' + csv);
+  } catch (error) {
+    console.error('Download attributes CSV error:', error);
+    next(error);
+  }
+}
+
+/**
+ * AttributeマスタCSVアップロード
+ *
+ * POST /api/v1/master/attribute/upload-csv
+ */
+export async function uploadAttributesCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
+
+    if (!req.file) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'CSVファイルが必要です' } });
+      return;
+    }
+
+    const csvContent = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+    const result = await masterService.uploadAttributesCsv(String(organizationId), csvContent, String(userId));
+
+    if (result.errors.length > 0) {
+      res.status(400).json({ success: false, data: result });
+      return;
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    if (error.message?.includes('CSV内に重複した')) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: error.message } });
+      return;
+    }
+    console.error('Upload attributes CSV error:', error);
+    next(error);
+  }
+}

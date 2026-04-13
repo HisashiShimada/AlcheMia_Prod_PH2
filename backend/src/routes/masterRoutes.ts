@@ -368,4 +368,98 @@ router.patch(
   masterController.updateCreatorStatus
 );
 
+// =============================================================
+// Attributeマスタルート
+// =============================================================
+
+/**
+ * Attributeマスタ一覧取得
+ * GET /api/v1/master/attribute
+ */
+router.get(
+  '/attribute',
+  authMiddleware,
+  [
+    query('search').optional().isString().withMessage('search must be a string'),
+    query('is_active').optional().isBoolean().withMessage('is_active must be a boolean'),
+  ],
+  handleValidationErrors,
+  masterController.getAttributes
+);
+
+/**
+ * AttributeマスタCSVダウンロード
+ * GET /api/v1/master/attribute/download-csv
+ * 注意: このルートは /attribute/:attributeId より前に定義する必要がある
+ */
+router.get(
+  '/attribute/download-csv',
+  authMiddleware,
+  masterController.downloadAttributesCsv
+);
+
+/**
+ * AttributeマスタCSVアップロード
+ * POST /api/v1/master/attribute/upload-csv
+ * 注意: このルートは /attribute/:attributeId より前に定義する必要がある
+ */
+router.post(
+  '/attribute/upload-csv',
+  authMiddleware,
+  upload.single('file'),
+  masterController.uploadAttributesCsv
+);
+
+/**
+ * Attribute ID指定で1件取得
+ * GET /api/v1/master/attribute/:attributeId
+ */
+router.get(
+  '/attribute/:attributeId',
+  authMiddleware,
+  [
+    param('attributeId').notEmpty().withMessage('attributeId is required').isString(),
+  ],
+  handleValidationErrors,
+  masterController.getAttributeById
+);
+
+/**
+ * Attributeマスタを新規作成
+ * POST /api/v1/master/attribute
+ */
+router.post(
+  '/attribute',
+  authMiddleware,
+  masterController.createAttribute
+);
+
+/**
+ * Attributeマスタを更新
+ * PUT /api/v1/master/attribute/:attributeId
+ */
+router.put(
+  '/attribute/:attributeId',
+  authMiddleware,
+  [
+    param('attributeId').notEmpty().withMessage('attributeId is required').isString(),
+  ],
+  handleValidationErrors,
+  masterController.updateAttribute
+);
+
+/**
+ * Attributeマスタのアクティブ状態を更新
+ * PATCH /api/v1/master/attribute/:attributeId/status
+ */
+router.patch(
+  '/attribute/:attributeId/status',
+  authMiddleware,
+  [
+    param('attributeId').notEmpty().withMessage('attributeId is required').isString(),
+  ],
+  handleValidationErrors,
+  masterController.updateAttributeStatus
+);
+
 export default router;

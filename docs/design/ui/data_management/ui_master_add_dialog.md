@@ -4,10 +4,10 @@
 ---
 title: マスタ追加ダイアログUI設計書
 category: UI設計
-version: 1.0.0
-last_updated: 2026-01-23
+version: 1.1.0
+last_updated: 2026-04-08
 author: Development Team
-tags: [data-admin, master, dialog, create, creator, vendor, instrument]
+tags: [data-admin, master, dialog, create, creator, vendor, instrument, attribute]
 ---
 
 ## 関連ドキュメント
@@ -34,7 +34,7 @@ tags: [data-admin, master, dialog, create, creator, vendor, instrument]
 
 ### 2.1. 目的
 
-データ管理者が新しいマスタデータ（Creator、Vendor、Instrument）を登録するためのダイアログを定義します。マスタ種別に応じた入力項目を表示し、マスタデータを追加します。
+データ管理者が新しいマスタデータ（Creator、Vendor、Instrument、Attribute）を登録するためのダイアログを定義します。マスタ種別に応じた入力項目を表示し、マスタデータを追加します。
 
 ### 2.2. 利用権限
 
@@ -79,7 +79,45 @@ tags: [data-admin, master, dialog, create, creator, vendor, instrument]
 └────────────────────────────────────────────┘
 ```
 
-### 3.3. レイアウト（Instrument の場合）
+### 3.3. レイアウト（Attribute の場合）
+
+```
+┌────────────────────────────────────────────┐
+│ Attribute追加                       × │
+├────────────────────────────────────────────┤
+│                                            │
+│  Attribute名 *                             │
+│  ┌──────────────────────────────────────┐ │
+│  │                                      │ │
+│  └──────────────────────────────────────┘ │
+│  最大255文字                               │
+│                                            │
+│  Attribute値 *                             │
+│  ┌──────────────────────────────────────┐ │
+│  │                                      │ │
+│  └──────────────────────────────────────┘ │
+│  最大255文字                               │
+│                                            │
+│  備考                                      │
+│  ┌──────────────────────────────────────┐ │
+│  │                                      │ │
+│  └──────────────────────────────────────┘ │
+│  最大1000文字                              │
+│                                            │
+│  部門コード                                │
+│  ┌──────────────────────────────────────┐ │
+│  │ ▼ 部門コードを選択                   │ │
+│  └──────────────────────────────────────┘ │
+│                                            │
+│  状態                                      │
+│  ○ アクティブ  ○ 非アクティブ            │
+│                                            │
+├────────────────────────────────────────────┤
+│                    [キャンセル] [保存]    │
+└────────────────────────────────────────────┘
+```
+
+### 3.4. レイアウト（Instrument の場合）
 
 ```
 ┌────────────────────────────────────────────┐
@@ -227,6 +265,95 @@ const fetchVendors = async () => {
     message.error('Vendor一覧の取得に失敗しました');
   }
 };
+```
+
+### 4.5. Attribute 専用フィールド（Attribute マスタのみ）
+
+> Attribute は `(attribute_name, attribute_value)` が複合PKとなるため、ID 入力フォームは使用しません。
+
+#### Attribute名（必須）
+
+| 項目 | 値 |
+|------|-----|
+| ラベル | 「Attribute名」 |
+| プレースホルダー | 「Attribute名を入力」 |
+| 必須 | ○ |
+| 最大文字数 | 255文字 |
+
+#### Attribute値（必須）
+
+| 項目 | 値 |
+|------|-----|
+| ラベル | 「Attribute値」 |
+| プレースホルダー | 「Attribute値を入力」 |
+| 必須 | ○ |
+| 最大文字数 | 255文字 |
+| 重複チェック | 同一組織・同一 `attribute_name` での `attribute_value` 重複を確認 |
+
+#### 備考（任意）
+
+| 項目 | 値 |
+|------|-----|
+| ラベル | 「備考」 |
+| プレースホルダー | 「備考を入力」 |
+| 必須 | × |
+| 最大文字数 | 1000文字 |
+
+#### 部門コード（任意）
+
+| 項目 | 値 |
+|------|-----|
+| ラベル | 「部門コード」 |
+| 型 | Select |
+| プレースホルダー | 「部門コードを選択」 |
+| 必須 | × |
+| 選択肢 | アクティブな department マスタから取得（`department_cd - department_name`） |
+
+**選択肢の取得**:
+```typescript
+const fetchDepartments = async () => {
+  const response = await apiClient.get('/api/v1/departments', {
+    params: { is_active: true },
+    headers: { 'x-organization-id': organizationId }
+  });
+  return response.data.data.map((d: any) => ({
+    label: `${d.departmentCd} - ${d.departmentName}`,
+    value: d.departmentCd
+  }));
+};
+```
+
+**リクエストボディ（Attribute）**:
+```json
+{
+  "attributeName": "温度",
+  "attributeValue": "高温",
+  "attributeRemark": "400℃以上の条件",
+  "departmentCd": "dept_001",
+  "isActive": true
+}
+```
+
+**レスポンス（Attribute）**:
+```json
+{
+  "success": true,
+  "data": {
+    "organizationId": "9eea5300-db8b-4b2d-8e9e-ec306c476b12",
+    "attributeName": "温度",
+    "attributeValue": "高温",
+    "attributeRemark": "400℃以上の条件",
+    "departmentCd": "dept_001",
+    "departmentName": "材料科学部門",
+    "isActive": true,
+    "createAt": "2026-04-08T10:30:00.000Z",
+    "updateAt": "2026-04-08T10:30:00.000Z"
+  },
+  "meta": {
+    "timestamp": "2026-04-08T10:30:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
 ```
 
 ### 4.4. 状態（必須）
@@ -775,3 +902,6 @@ export default function MasterAddDialog({
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-23 | 初版作成 | Development Team |
+| 1.1.0 | 2026-04-08 | Attributeマスタ追加 | Cline |
+| | | - Attribute追加フォーム（attribute_name, attribute_value, attribute_remark, department_cd）| |
+| | | - 複合PKによる重複チェックロジック追加 | |

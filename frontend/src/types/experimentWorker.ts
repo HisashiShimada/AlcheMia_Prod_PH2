@@ -193,6 +193,21 @@ export interface Property {
 }
 
 
+/**
+ * テンプレートレベルの <insertion> タグの型（非カスタム）
+ * MAIML の resultTemplate / conditionTemplate に直接含まれるファイル添付フィールド
+ */
+export interface InsertionField {
+  /** 既存ファイルの URI（新規の場合は空文字列） */
+  uri: string;
+  /** ファイルのハッシュ値（SHA256） */
+  hash?: string;
+  /** ファイルのMIMEタイプ（例: "image/tiff", "txt/ascii"） */
+  format?: string;
+  /** フィールドの説明 */
+  description?: string;
+}
+
 // テンプレート定義
 export interface Template {
   templateId: string;
@@ -201,6 +216,7 @@ export interface Template {
   description?: string;
   properties: Property[];
   contents?: ContentField[];           // テンプレートトップレベルの Content（Property と別枠）
+  insertions?: InsertionField[];       // テンプレートトップレベルの <insertion>（非カスタム）
 }
 
 // 実験データ値

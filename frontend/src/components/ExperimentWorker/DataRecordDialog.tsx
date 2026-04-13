@@ -55,6 +55,7 @@ import {
   CustomPropertyValue,
   ContainerType,
   CustomPropertyType,
+  InsertionField,
 } from '@/types/experimentWorker';
 
 /**
@@ -264,6 +265,23 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
         }))
       : [];
 
+    // テンプレートトップレベルの Insertion を InsertionField[] に変換（非カスタム）
+    const rawInsertionsTop = rawData.insertions as Array<Record<string, unknown>> | undefined;
+    const insertions: InsertionField[] = Array.isArray(rawInsertionsTop)
+      ? rawInsertionsTop
+          .filter((ins) => !ins.isCustomProperty)
+          .map((ins) => ({
+            uri: String(ins.uri ?? ''),
+            hash: ins.hash
+              ? typeof ins.hash === 'object'
+                ? String((ins.hash as Record<string, unknown>).value ?? '')
+                : String(ins.hash)
+              : undefined,
+            format: ins.format ? String(ins.format) : undefined,
+            description: ins.description ? String(ins.description) : undefined,
+          }))
+      : [];
+
     const name = buildTemplateName(item.templateType, item.templateId);
 
     return {
@@ -272,8 +290,33 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
       name,
       properties,
       ...(contents.length > 0 ? { contents } : {}),
+      ...(insertions.length > 0 ? { insertions } : {}),
     } satisfies Template;
   });
+}
+
+/**
+ * MIMEタイプ文字列を accept 属性文字列に変換するヘルパー
+ * 例: "image/tiff" → ".tif,.tiff"
+ *     "txt/ascii"  → ".txt"
+ */
+function getAcceptString(format: string | undefined): string | undefined {
+  if (!format) return undefined;
+  const formatMap: Record<string, string> = {
+    'txt/ascii':           '.txt',
+    'text/plain':          '.txt',
+    'image/tiff':          '.tif,.tiff',
+    'image/bmp':           '.bmp',
+    'image/jpeg':          '.jpg,.jpeg',
+    'image/png':           '.png',
+    'application/pdf':     '.pdf',
+    'application/xml':     '.xml',
+    'application/json':    '.json',
+    'text/csv':            '.csv',
+    'application/zip':     '.zip',
+    'application/octet-stream': '',
+  };
+  return formatMap[format] ?? undefined;
 }
 
 const { Title, Text } = Typography;
@@ -436,6 +479,11 @@ export default function DataRecordDialog({
 
   // ===== カスタムプロパティ用 state =====
   /** ユーザーが任意追加したカスタムプロパティ一覧（templateId → CustomPropertyValue[]） */
+  /** 非カスタム insertion のファイル管理（templateId → (insertionIndex → File|null)） */
+  const [insertionFiles, setInsertionFiles] = useState<Record<string, Record<number, File | null>>>({});
+  /** 非カスタム insertion の既存URI（templateId → (insertionIndex → uri)）- 復元時にセット */
+  const [insertionUris, setInsertionUris] = useState<Record<string, Record<number, string>>>({});
+
   const [customProperties, setCustomProperties] = useState<Record<string, CustomPropertyValue[]>>({});
 
   /**
@@ -546,6 +594,8 @@ export default function DataRecordDialog({
       setFetchedTemplates([]);     // ダイアログオープン時に前回取得分をリセット
       setFetchedTemplateItems([]); // GETレスポンス生データもリセット
       setCustomProperties({});     // カスタムプロパティをリセット
+      setInsertionFiles({});       // 非カスタム insertion ファイルをリセット
+      setInsertionUris({});        // 非カスタム insertion URI をリセット
 
       // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
       setStatusUpdateExpanded(isProjectEditable);
@@ -822,6 +872,23 @@ export default function DataRecordDialog({
               if (Object.keys(restoredCustomPropsMap).length > 0) {
                 setCustomProperties(restoredCustomPropsMap);
               }
+
+              // ⑤ 非カスタム insertion の既存URI を insertionUris ステートに復元
+              // convertTemplateDataItemsToTemplates で InsertionField[] を構築済みだが、
+              // ファイル選択ボタン表示・クリアボタン表示のために uri を ステートに持つ必要がある
+              const restoredInsertionUrisMap: Record<string, Record<number, string>> = {};
+              for (const tpl of converted) {
+                if (!tpl.insertions || tpl.insertions.length === 0) continue;
+                restoredInsertionUrisMap[tpl.templateId] = {};
+                tpl.insertions.forEach((ins, insIdx) => {
+                  if (ins.uri) {
+                    restoredInsertionUrisMap[tpl.templateId][insIdx] = ins.uri;
+                  }
+                });
+              }
+              if (Object.keys(restoredInsertionUrisMap).length > 0) {
+                setInsertionUris(restoredInsertionUrisMap);
+              }
             }
           } catch (error) {
             // 実績データ取得失敗は非致命的（初回記録時は404になる）
@@ -958,6 +1025,50 @@ export default function DataRecordDialog({
               : null;
           } else {
             baseData[prop.key] = values[formKey] ?? null;
+          }
+        });
+      }
+
+      // ── 非カスタム insertion（テンプレート定義）のファイルをS3にアップロード ──
+      // insertionFiles[template.templateId][insIdx] に File が存在する場合のみアップロードする
+      const tplInsertionFiles = insertionFiles[template.templateId] ?? {};
+      const nonCustomInsertionUriMap: Record<number, string> = {}; // insIdx → s3Key
+      for (const [insIdxStr, file] of Object.entries(tplInsertionFiles)) {
+        const insIdx = Number(insIdxStr);
+        if (!file) continue;
+        try {
+          const result = await uploadFiles({
+            uploadMode: 'single',
+            targetPath: `projects/${projectName}/attachments`,
+            files: [file],
+          });
+          const uploadedFile = result.files[0];
+          if (uploadedFile?.s3Key) {
+            nonCustomInsertionUriMap[insIdx] = uploadedFile.s3Key;
+          }
+        } catch (uploadErr) {
+          console.error(`非カスタム insertion ファイルアップロード失敗 (insIdx=${insIdx}):`, uploadErr);
+          message.error(`添付ファイルのアップロードに失敗しました（insertion #${insIdx + 1}）`);
+          return;
+        }
+      }
+
+      // ── 非カスタム insertion の URI を baseData.insertions に反映 ──
+      // baseData.insertions が配列として存在する場合（フォールバック形式）のみ処理する
+      if (Array.isArray(baseData.insertions)) {
+        const nonCustomInsertions = (baseData.insertions as Array<Record<string, unknown>>).filter(
+          (ins) => !ins.isCustomProperty
+        );
+        nonCustomInsertions.forEach((ins, insIdx) => {
+          // 新規アップロード済みの s3Key があれば上書き
+          if (nonCustomInsertionUriMap[insIdx]) {
+            ins.uri = nonCustomInsertionUriMap[insIdx];
+          } else {
+            // クリア操作 (insertionUris[tplId][insIdx] === '') の場合は uri を空文字に
+            const currentUri = insertionUris[template.templateId]?.[insIdx];
+            if (currentUri !== undefined) {
+              ins.uri = currentUri;
+            }
           }
         });
       }
@@ -2401,7 +2512,10 @@ export default function DataRecordDialog({
                         const isOutput = record.category === 'Results';
                         const ioLabel = isOutput ? 'OUT' : 'IN';
                         const ioColor = isOutput ? 'green' : 'blue';
-                        const propertyCount = record.properties?.length || 0;
+                        const propertyCount =
+                          (record.properties?.length ?? 0) +
+                          (record.insertions?.length ?? 0) +
+                          (record.contents?.length ?? 0);
                         
                         return (
                           <div>
@@ -2491,6 +2605,94 @@ export default function DataRecordDialog({
                             </Col>
                           ))}
                         </Row>
+                      </div>
+                    )}
+
+                    {/* トップレベル非カスタム Insertions セクション */}
+                    {selectedTemplate.insertions && selectedTemplate.insertions.length > 0 && (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ borderTop: `1px solid #e0e0e0`, paddingTop: 12, marginBottom: 8 }}>
+                          <Text type="secondary" style={{ fontSize: 12 }}>添付ファイル（insertion）</Text>
+                        </div>
+                        {selectedTemplate.insertions.map((ins, insIdx) => {
+                          const tplId = selectedTemplate.templateId;
+                          const fileForIns = insertionFiles[tplId]?.[insIdx] ?? null;
+                          const uriForIns = insertionUris[tplId]?.[insIdx] ?? ins.uri ?? '';
+                          const acceptStr = getAcceptString(ins.format);
+                          return (
+                            <div
+                              key={insIdx}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                marginBottom: 8,
+                                padding: '8px',
+                                background: token.colorBgContainer,
+                                borderRadius: token.borderRadiusSM,
+                                border: `1px solid ${token.colorBorder}`,
+                              }}
+                            >
+                              <Tag color="purple" style={{ flexShrink: 0 }}>insertion</Tag>
+                              {ins.description && (
+                                <Text type="secondary" style={{ fontSize: 12, flexShrink: 0 }}>
+                                  {ins.description}
+                                </Text>
+                              )}
+                              {ins.format && (
+                                <Tag color="geekblue" style={{ fontSize: 11, flexShrink: 0 }}>
+                                  {ins.format}
+                                </Tag>
+                              )}
+                              <Upload
+                                maxCount={1}
+                                showUploadList={false}
+                                accept={acceptStr}
+                                beforeUpload={(file) => {
+                                  setInsertionFiles((prev) => ({
+                                    ...prev,
+                                    [tplId]: { ...(prev[tplId] ?? {}), [insIdx]: file },
+                                  }));
+                                  return false;
+                                }}
+                                disabled={!isProjectEditable}
+                              >
+                                <Button icon={<UploadOutlined />} size="small" disabled={!isProjectEditable}>
+                                  {fileForIns ? fileForIns.name : 'ファイルを選択'}
+                                </Button>
+                              </Upload>
+                              {/* 既存URIまたは新規選択ファイル名の表示 */}
+                              {(fileForIns || uriForIns) && (
+                                <Text
+                                  type="secondary"
+                                  style={{ fontSize: 11, flex: 1 }}
+                                  ellipsis={{ tooltip: fileForIns?.name ?? uriForIns }}
+                                >
+                                  {fileForIns ? fileForIns.name : uriForIns.split('/').pop() ?? uriForIns}
+                                </Text>
+                              )}
+                              {/* 既存ファイルのクリアボタン */}
+                              {(fileForIns || uriForIns) && isProjectEditable && (
+                                <Button
+                                  type="text"
+                                  danger
+                                  size="small"
+                                  icon={<CloseOutlined />}
+                                  onClick={() => {
+                                    setInsertionFiles((prev) => ({
+                                      ...prev,
+                                      [tplId]: { ...(prev[tplId] ?? {}), [insIdx]: null },
+                                    }));
+                                    setInsertionUris((prev) => ({
+                                      ...prev,
+                                      [tplId]: { ...(prev[tplId] ?? {}), [insIdx]: '' },
+                                    }));
+                                  }}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </Form>

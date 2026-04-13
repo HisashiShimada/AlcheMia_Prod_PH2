@@ -131,6 +131,31 @@ MAIML Petri Netエディタ内で、Material/Condition/Resultテンプレート�
 - [新規Content追加]ボタン（PlusOutlined）
 - [テンプレートから取り込み]ボタン（DownloadOutlined）
 - NestedPropertyEditor コンポーネント（Contentごと）
+  - **Axis/Sizeマスタ対応**: content要素の `axis` 属性・`size` 属性編集時にマスタ候補を表示（詳細は後述）
+
+##### Axis/Sizeマスタ対応（ContentsセクションのNestedPropertyEditor）
+Resultテンプレートの `content` 要素において、`axis` 属性・`size` 属性の入力をマスタで補助する機能です。
+
+**対象属性:**
+
+| 属性名 | 概要 | マスタ取得先 |
+|--------|------|------------|
+| `axis` | content要素の軸情報 | Code Master（コードマスタ）の `axis` カテゴリ |
+| `size` | content要素のサイズ情報 | Code Master（コードマスタ）の `size` カテゴリ |
+
+**UI動作仕様:**
+- `axis` または `size` 属性の入力フィールドをクリックすると、対応するコードマスタ候補がドロップダウンで表示される
+- ユーザーはマスタ候補から値を選択、または直接テキストを入力することもできる（Select + 自由入力）
+- マスタが空または取得失敗の場合は通常のInput表示にフォールバック
+
+**マスタ取得APIとの連携:**
+- `GET /api/v1/codes?category=axis` → axis候補を取得
+- `GET /api/v1/codes?category=size` → size候補を取得
+- 取得はTemplateEditorDialog初期化時（ダイアログオープン時）に行い、ContentsセクションのNestedPropertyEditorへprops経由で渡す
+
+**実装ファイル:**
+- **フロントエンドサービス**: `frontend/src/services/codeApiService.ts`（`fetchCodeMaster`関数）
+- **State**: `TemplateEditorDialog` 内の `axisMasterItems`, `sizeMasterItems`
 
 #### 9. フッター
 - [キャンセル]ボタン
@@ -945,8 +970,65 @@ import {
     onDeleteNestedElement: (propertyKey: string, elemName: string) => void;
     onDeleteProperty: (propertyKey: string) => void;
     forceRenderKey: number;
+    attributeMasters?: AttributeMasterItem[];  // Attributeマスタ候補（属性追加ダイアログ向け）
+    allowedAttributes?: string[];              // 許可された属性名一覧（MAIML編集属性制限）
   }
   ```
+
+##### AttributeMasterItem型
+```typescript
+interface AttributeMasterItem {
+  attributeName: string;   // 属性名
+  attributeValue: string;  // 属性値候補
+}
+```
+
+##### 属性追加ダイアログ（AttributeAddDialog）
+NestedPropertyEditorの属性追加操作時に表示されるインラインダイアログです。
+
+**表示トリガー**: 各プロパティ行の「属性追加」ボタン（`+`）クリック時
+
+**UI構成:**
+```
+┌──────────────────────────────────┐
+│ 属性を追加                        │
+│ ┌──────────┐  ┌────────────────┐ │
+│ │ 属性名   ▼│  │ 属性値         │ │
+│ └──────────┘  └────────────────┘ │
+│ [キャンセル]            [追加]    │
+└──────────────────────────────────┘
+```
+
+**動作仕様:**
+- `attributeMasters` が渡されている場合、属性名フィールドはSelectコンポーネントで表示（マスタ候補からの選択）
+- 属性名を選択すると、同一 `attributeName` を持つマスタ候補が属性値のSelectに絞り込まれる
+- 属性値は手入力も可能（Select + 自由入力）
+- `attributeMasters` が空または未指定の場合は通常のInput表示にフォールバック
+- `allowedAttributes` が指定されている場合、リストにない属性名は選択不可（グレーアウト）
+
+**APIとの連携:**
+- ダイアログ初期表示時に `GET /api/v1/masters/attributes` を呼び出して `attributeMasters` を取得
+- 取得はTemplateEditorDialog側で行い、NestedPropertyEditorへprops経由で渡す
+
+##### MAIML編集属性制限（allowedAttributes）
+MAIML仕様に基づき、各プロパティの `xsi:type` 値に応じて追加可能な属性を制限する機能です。
+
+**仕様:**
+- `allowedAttributes` props に許可属性名の配列を渡すことで制限を適用
+- 属性追加ダイアログでは `allowedAttributes` に含まれる属性名のみ選択可能
+- 既存属性の編集・削除は制限なし（既に設定済みの属性は変更・削除可能）
+- `allowedAttributes` が未指定（`undefined`）の場合は制限なし（すべての属性を追加可能）
+
+**xsi:typeと許可属性の対応例:**
+
+| xsi:type値 | 許可される追加属性 |
+|-----------|----------------|
+| `maiml:QuantityValue` | `unit`, `uncertainty` |
+| `maiml:TextValue` | `lang` |
+| `xs:string` | なし（属性追加不可） |
+| 未設定 | 全属性を許可 |
+
+> **実装注意**: xsi:type→allowedAttributes のマッピングはTemplateEditorDialog側で解決し、NestedPropertyEditorへprops経由で渡す。
 
 ### カスタムフック
 
@@ -1084,6 +1166,13 @@ interface PlaceRef {
 
 | 日付 | バージョン | 変更内容 | 担当者 |
 |------|----------|---------|--------|
+| 2026-04-09 | 1.3.0 | NestedPropertyEditor Attributeマスタ対応・MAIML編集属性制限・Content Axis/Sizeマスタ対応 | Cline |
+| | | - NestedPropertyEditor の Props に `attributeMasters`, `allowedAttributes` を追加 | |
+| | | - `AttributeMasterItem` 型定義を追記 | |
+| | | - 属性追加ダイアログ（AttributeAddDialog）の UI/動作仕様を追記 | |
+| | | - MAIML編集属性制限（allowedAttributes・xsi:typeマッピング）の仕様を追記 | |
+| | | - ContentsセクションのAxis/Sizeマスタ対応仕様を追記 | |
+| | | - `GET /api/v1/masters/attributes`, `GET /api/v1/codes?category=axis/size` との連携を明記 | |
 | 2026-03-11 | 1.0.0 | 実装ベースでUI仕様書を新規作成 | Cline |
 | 2026-01-30 | - | Phase 2-1: NestedPropertyEditor実装完了（実装） | - |
 | 2025-XX-XX | - | EditorV2用Template編集ダイアログ初版作成（実装） | - |
