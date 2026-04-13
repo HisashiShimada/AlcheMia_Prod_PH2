@@ -15,6 +15,7 @@ CREATE TABLE project (
   , create_at timestamp
   , update_user_id VARCHAR(50)
   , update_at timestamp
+  , project_uuid UUID
   , CONSTRAINT project_PKC PRIMARY KEY (organization_id,project_id)
 ) ;
 
@@ -35,3 +36,4 @@ COMMENT ON COLUMN project.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN project.create_at IS '作成日時';
 COMMENT ON COLUMN project.update_user_id IS '更新者ユーザID';
 COMMENT ON COLUMN project.update_at IS '更新日時';
+COMMENT ON COLUMN project.project_uuid IS 'プロジェクトUUID: MAIMLファイルの<Document uuid>と同値。プロジェクト名変更時もこのUUIDは不変';

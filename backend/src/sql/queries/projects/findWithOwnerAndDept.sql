@@ -1,7 +1,7 @@
 -- プロジェクト詳細取得クエリ（オーナー名・部門名含む）
 -- 使用箇所:
 --   - progressService.ts - getWorkDetails()
--- パラメータ: $1=projectName, $2=organizationId
+-- パラメータ: $1=projectId, $2=organizationId
 
 SELECT
   p.organization_id,
@@ -23,5 +23,5 @@ LEFT JOIN department d
 LEFT JOIN organization_user ou
   ON p.owner_user_id = ou.user_id
   AND p.organization_id = ou.organization_id
-WHERE p.project_name = $1
+WHERE p.project_id = $1
   AND p.organization_id = $2

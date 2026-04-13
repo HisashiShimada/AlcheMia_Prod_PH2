@@ -160,7 +160,7 @@ export default function ExperimentWorkerMenu({
 
     setApprovalLoading(true);
     try {
-      const result = await requestApproval(selectedProjectData.projectName);
+      const result = await requestApproval(selectedProjectData.projectId);
       if (result.success) {
         message.success('承認依頼を送信しました');
         // プロジェクト一覧を再取得してステータスを更新
@@ -232,8 +232,8 @@ export default function ExperimentWorkerMenu({
       setSelectedProjectName('');
     }
     
-    // useInstructionsフックを呼び出し（プロジェクトIDとプロジェクト名の両方を渡す）
-    originalHandleProjectChange(projectValue, projectName);
+    // useInstructionsフック（指示一覧取得）にprojectIdを渡す
+    originalHandleProjectChange(projectValue);
     
     // プロジェクトが変更された場合、メソッドとタスクをリセット
     setSelectedMethodId(null);
@@ -303,7 +303,6 @@ export default function ExperimentWorkerMenu({
       children: (
         <ProgressCheckTab
             selectedProject={selectedProject}
-            selectedProjectName={selectedProjectName}
             onProjectChange={handleProjectChangeForChild}
             selectedMethodId={selectedMethodId}
             onSelectMethod={handleSelectMethod}
@@ -320,7 +319,6 @@ export default function ExperimentWorkerMenu({
       children: (
         <InstructionConfirmationTab
           selectedProject={selectedProject}
-          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChangeForChild}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
@@ -343,7 +341,6 @@ export default function ExperimentWorkerMenu({
       children: (
         <ExperimentRecordTab
           selectedProject={selectedProject}
-          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChangeForChild}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}

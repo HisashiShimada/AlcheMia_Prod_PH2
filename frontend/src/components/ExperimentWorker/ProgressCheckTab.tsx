@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { Card, Space, Typography, Tabs, theme, Badge, App } from 'antd';
@@ -15,29 +15,27 @@ import type { Task, Method, ProjectStatus } from '@/types/experimentWorker';
 const { Title, Text } = Typography;
 
 /**
- * 空状態アイコンのサイズ（UIポリシー準拠）
+ * 空状態アイコンのサイズ（UIポリシー基準）
  */
 const EMPTY_ICON_SIZE = 48;
 
 interface ProgressCheckTabProps {
-selectedProject: string | null;
-  selectedProjectName: string;
+  selectedProject: string | null;
   onProjectChange: (projectId: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string) => void;
   onTabChange?: (tabKey: string) => void;
   onSelectTaskAndTab?: (taskId: string, tabKey: string) => void;
-  /** trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用） */
+  /** trueのとき強制終了ボタンを無効化（リードオンリービュー用） */
   readOnly?: boolean;
 }
 
 /**
- * 進捗確認タブ - メインコンテナ
- * プロジェクト選択に連動してサブタスク一覧を表示
+ * 進捗確認タブ - メインコンポーネント
+ * プロジェクトを選択するとAPIからタスク一覧を取得して表示する
  */
 export default function ProgressCheckTab({
   selectedProject,
-  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
@@ -45,7 +43,7 @@ export default function ProgressCheckTab({
   onSelectTaskAndTab,
   readOnly = false,
 }: ProgressCheckTabProps) {
-  // テーマトークンを取得（UIポリシー準拠）
+  // デザイントークンを取得（UIポリシー基準）
   const { token } = theme.useToken();
   
   // Ant Design App コンテキストからmessageを取得
@@ -57,13 +55,13 @@ export default function ProgressCheckTab({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
   
-  // プロジェクトの状態を取得（暫定: APIから取得できるまでnull）
+  // プロジェクトの状態を取得（現時点ではAPIから取得できるまでnull）
   const projectStatus: ProjectStatus | null = null;
   
-  // プロジェクト選択時にAPI呼び出し
+  // プロジェクトを選択したらAPIからタスク一覧を取得
   useEffect(() => {
     const fetchWorkerTasks = async () => {
-      if (!selectedProject || !selectedProjectName) {
+      if (!selectedProject) {
         setMethods([]);
         setTasks([]);
         setProjectId(null);
@@ -72,9 +70,9 @@ export default function ProgressCheckTab({
 
       setLoading(true);
       try {
-        console.log('[DEBUG] ProgressCheckTab - Fetching worker tasks', { selectedProject, selectedProjectName });
+        console.log('[DEBUG] ProgressCheckTab - Fetching worker tasks', { selectedProject });
         
-        const result = await getWorkerTasks(selectedProjectName);
+        const result = await getWorkerTasks(selectedProject);
         
         if (result.success && result.data) {
           const apiData = result.data;
@@ -87,7 +85,7 @@ export default function ProgressCheckTab({
           // プロジェクトIDを保存
           setProjectId(apiData.project_id);
           
-          // メソッド一覧を変換（UI用の型に必須プロパティを補完）
+          // メソッド一覧を変換（APIレスポンスのプロパティをコンポーネント用にマッピング）
           const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
             methodId: method.method_id,
             methodName: method.method_name,
@@ -97,7 +95,7 @@ export default function ProgressCheckTab({
             transitions: [], // APIには存在しないためデフォルト値
           }));
           
-          // 全タスクを変換（UI用の型に必須プロパティを補完）
+          // 全タスクを変換（APIレスポンスのプロパティをコンポーネント用にマッピング）
           const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
             method.tasks.map((task: WorkerTask) => {
               console.log('[DEBUG] Converting task from API', {
@@ -111,7 +109,7 @@ export default function ProgressCheckTab({
               return {
                 taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
                 taskNo: task.task_no.toString(), // string型に変換
-                taskName: task.task_no.toString(), // task_nameカラム削除のため、task_noを代用
+                taskName: task.task_no.toString(), // task_nameフィールドは除外されているのでtask_noを代用
                 methodId: method.method_id,
                 methodName: method.method_name, // メソッド名を追加
                 status: task.task_status as Task['status'],
@@ -138,7 +136,7 @@ export default function ProgressCheckTab({
           setMethods(methodsData);
           setTasks(allTasks);
           
-          // API取得完了後、最初のメソッドを自動選択
+          // API取得完了後に最初のメソッドを自動選択
           if (methodsData.length > 0) {
             const sortedMethods = [...methodsData].sort((a, b) => a.experimentOrder - b.experimentOrder);
             console.log('[DEBUG] ProgressCheckTab - Auto-selecting after API fetch', {
@@ -166,9 +164,9 @@ export default function ProgressCheckTab({
     };
 
     fetchWorkerTasks();
-  }, [selectedProject, selectedProjectName]);
+  }, [selectedProject]);
   
-  // 前回のプロジェクトIDを保持（プロジェクト変更検知用）
+  // 前回のプロジェクトIDを保持（プロジェクト変更時の自動選択判定用）
   const prevProjectRef = useRef<string | null>(null);
   const [needsAutoSelect, setNeedsAutoSelect] = useState<boolean>(false);
   
@@ -180,7 +178,7 @@ export default function ProgressCheckTab({
         to: selectedProject
       });
       prevProjectRef.current = selectedProject;
-      setNeedsAutoSelect(true); // 自動選択フラグをセット
+      setNeedsAutoSelect(true); // 自動選択フラグを立てる
     }
   }, [selectedProject]);
   
@@ -192,7 +190,7 @@ export default function ProgressCheckTab({
       needsAutoSelect
     });
     
-    // プロジェクト変更後の自動選択（needsAutoSelectフラグで判定、selectedMethodIdは無視）
+    // プロジェクト変更後の自動選択はneedsAutoSelectフラグで判定（selectedMethodIdは無視）
     if (methods.length > 0 && needsAutoSelect) {
       const sortedMethods = [...methods].sort((a, b) => a.experimentOrder - b.experimentOrder);
       console.log('[DEBUG] ProgressCheckTab - Auto-selecting first method (after project change)', {
@@ -202,7 +200,7 @@ export default function ProgressCheckTab({
       onSelectMethod(sortedMethods[0].methodId);
       setNeedsAutoSelect(false); // フラグをクリア
     } else if (methods.length > 0 && !selectedMethodId && !needsAutoSelect) {
-      // 通常の自動選択ロジック（初回表示時など）
+      // 通常の自動選択（初回表示時など）
       const sortedMethods = [...methods].sort((a, b) => a.experimentOrder - b.experimentOrder);
       console.log('[DEBUG] ProgressCheckTab - Auto-selecting first method (normal)', {
         methodId: sortedMethods[0].methodId,
@@ -212,19 +210,19 @@ export default function ProgressCheckTab({
     }
   }, [methods, needsAutoSelect, selectedMethodId, onSelectMethod]);
   
-  // 問題管理モーダルの状態管理（報告・確認共通）
+  // 問題管理モーダルの状態管理（問題報告・確認・通知）
   const [issueModalVisible, setIssueModalVisible] = useState<boolean>(false);
   const [selectedTaskForIssue, setSelectedTaskForIssue] = useState<Task | null>(null);
   const [issueModalViewMode, setIssueModalViewMode] = useState<boolean>(false);
 
-  // 問題報告モーダルを開く（編集モード）
+  // 問題報告モーダルを開く（報告用モード）
   const handleOpenIssueReport = useCallback((task: Task) => {
     setSelectedTaskForIssue(task);
     setIssueModalViewMode(false);
     setIssueModalVisible(true);
   }, []);
 
-  // 問題確認モーダルを開く（参照専用モード）
+  // 問題確認モーダルを開く（参照・確認用モード）
   const handleOpenIssueCheck = useCallback((task: Task) => {
     setSelectedTaskForIssue(task);
     setIssueModalViewMode(true);
@@ -245,7 +243,7 @@ export default function ProgressCheckTab({
       return;
     }
 
-    // タスクからmethodIdを取得
+    // タスクのmethodIdを取得
     const task = tasks.find(t => t.taskId === taskId);
     if (!task || !task.methodId) {
       message.error('タスク情報が見つかりません');
@@ -261,7 +259,7 @@ export default function ProgressCheckTab({
               taskId,
               taskNo: task.taskNo,
               methodId: task.methodId,
-              projectName: selectedProjectName,
+              projectName: selectedProject,
               taskUpdatedAt: task.updatedAt,
               taskUpdatedAtType: typeof task.updatedAt,
               fullTask: task
@@ -270,19 +268,19 @@ export default function ProgressCheckTab({
             // task.updatedAtの検証
             if (!task.updatedAt) {
               console.error('[DEBUG] handleTaskAction - task.updatedAt is missing!', { task });
-              message.error('タスクの更新日時が取得できません。画面を再読み込みしてください。');
+              message.error('タスクの更新日時が取得できませんでした。画面を再読み込みしてください。');
               return;
             }
             
             // タスクステータスを'in_progress'に更新
-            // 楽観的ロック用に現在のupdatedAtを送信
+            // 楽観的ロック用にupdatedAtを送付
             const result = await updateTaskStatus(
-              selectedProjectName,
+              selectedProject,
               task.methodId,
               task.taskNo,
               'in_progress',
-              undefined,      // comment（オプショナル）
-              task.updatedAt  // currentUpdatedAt（楽観的ロック用・必須）
+              undefined,      // comment（オプション）
+              task.updatedAt  // currentUpdatedAt（楽観的ロック用）
             );
             
             if (result.success && result.data) {
@@ -295,7 +293,7 @@ export default function ProgressCheckTab({
               message.success('タスクを開始しました');
               
               // タスク一覧を再取得して最新の状態を反映
-              const tasksResult = await getWorkerTasks(selectedProjectName);
+              const tasksResult = await getWorkerTasks(selectedProject);
               if (tasksResult.success && tasksResult.data) {
                 const apiData = tasksResult.data;
                 
@@ -352,16 +350,16 @@ export default function ProgressCheckTab({
               errorStatus: (error as AxiosError)?.response?.status
             });
             
-            // エラーメッセージの詳細表示
+            // エラー種別に応じた詳細メッセージ
             if ((error as AxiosError)?.response?.status === 403) {
               message.error('このタスクを開始する権限がありません');
             } else if ((error as AxiosError)?.response?.status === 409) {
-              // 楽観的ロック競合エラー: 他のユーザーが先に更新した可能性
-              message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています...');
+              // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
+              message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています..');
               
               // タスク一覧を再取得して最新の状態を反映
               try {
-                const tasksResult = await getWorkerTasks(selectedProjectName);
+                const tasksResult = await getWorkerTasks(selectedProject);
                 if (tasksResult.success && tasksResult.data) {
                   const apiData = tasksResult.data;
                   
@@ -419,30 +417,30 @@ export default function ProgressCheckTab({
           break;
 
         case 'instruction':
-          // 指示確認タブへ遷移（メソッドとタスクを選択状態にする）
+          // 指示確認タブへ遷移（メソッドとタスクを選択してからタブ移動）
           if (onSelectTaskAndTab) {
             onSelectTaskAndTab(taskId, '2'); // 指示確認タブ
-            message.info('指示確認タブに移動します');
+            message.info('指示確認タブに移動します。');
           } else {
-            // フォールバック: メソッドのみ選択
+            // フォールバック: メソッドを先に選択
             if (task.methodId && onSelectMethod) {
               onSelectMethod(task.methodId);
             }
             if (onTabChange) {
               onTabChange('2'); // 指示確認タブ
-              message.info('指示確認タブに移動します');
+              message.info('指示確認タブに移動します。');
             }
           }
           break;
 
         case 'record':
-          // 実験記録タブへ遷移（タスクを選択状態にする）
+          // 実験記録タブへ遷移（タスクを選択してからタブ移動）
           if (onSelectTaskAndTab) {
             onSelectTaskAndTab(taskId, '3'); // 実験記録タブ
-            message.info('実験記録タブに移動します');
+            message.info('実験記録タブに移動します。');
           } else if (onTabChange) {
             onTabChange('3'); // フォールバック
-            message.info('実験記録タブに移動します');
+            message.info('実験記録タブに移動します。');
           }
           break;
 
@@ -452,7 +450,7 @@ export default function ProgressCheckTab({
           break;
         
         case 'issueCheck':
-          // 問題確認モーダルを開く（参照専用）
+          // 問題確認モーダルを開く（参照・確認用）
           handleOpenIssueCheck(task);
           break;
 
@@ -463,7 +461,7 @@ export default function ProgressCheckTab({
               taskId,
               taskNo: task.taskNo,
               methodId: task.methodId,
-              projectName: selectedProjectName,
+              projectName: selectedProject,
               taskUpdatedAt: task.updatedAt,
               taskUpdatedAtType: typeof task.updatedAt,
               fullTask: task
@@ -472,19 +470,19 @@ export default function ProgressCheckTab({
             // task.updatedAtの検証
             if (!task.updatedAt) {
               console.error('[DEBUG] handleTaskAction - task.updatedAt is missing!', { task });
-              message.error('タスクの更新日時が取得できません。画面を再読み込みしてください。');
+              message.error('タスクの更新日時が取得できませんでした。画面を再読み込みしてください。');
               return;
             }
             
             // タスクステータスを'forced_terminated'に更新
-            // 楽観的ロック用に現在のupdatedAtを送信
+            // 楽観的ロック用にupdatedAtを送付
             const result = await updateTaskStatus(
-              selectedProjectName,
+              selectedProject,
               task.methodId,
               task.taskNo,
               'forced_terminated',
-              undefined,      // comment（オプショナル）
-              task.updatedAt  // currentUpdatedAt（楽観的ロック用・必須）
+              undefined,      // comment（オプション）
+              task.updatedAt  // currentUpdatedAt（楽観的ロック用）
             );
             
             if (result.success && result.data) {
@@ -497,7 +495,7 @@ export default function ProgressCheckTab({
               message.success('タスクを強制終了しました');
               
               // タスク一覧を再取得して最新の状態を反映
-              const tasksResult = await getWorkerTasks(selectedProjectName);
+              const tasksResult = await getWorkerTasks(selectedProject);
               if (tasksResult.success && tasksResult.data) {
                 const apiData = tasksResult.data;
                 
@@ -554,16 +552,16 @@ export default function ProgressCheckTab({
               errorStatus: (error as AxiosError)?.response?.status
             });
             
-            // エラーメッセージの詳細表示
+            // エラー種別に応じた詳細メッセージ
             if ((error as AxiosError)?.response?.status === 403) {
               message.error('このタスクを強制終了する権限がありません');
             } else if ((error as AxiosError)?.response?.status === 409) {
-              // 楽観的ロック競合エラー: 他のユーザーが先に更新した可能性
-              message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています...');
+              // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
+              message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています..');
               
               // タスク一覧を再取得して最新の状態を反映
               try {
-                const tasksResult = await getWorkerTasks(selectedProjectName);
+                const tasksResult = await getWorkerTasks(selectedProject);
                 if (tasksResult.success && tasksResult.data) {
                   const apiData = tasksResult.data;
                   
@@ -621,7 +619,7 @@ export default function ProgressCheckTab({
           break;
 
         default:
-          message.warning('不明なアクションです');
+          message.warning('不明なアクションです。');
       }
     } catch (error) {
       console.error('タスクアクション処理エラー:', error);
@@ -662,10 +660,10 @@ export default function ProgressCheckTab({
     return { status: 'default', label: '未着手' };
   }, []);
 
-  // メソッドタブの生成（各メソッドに紐づくタスクのみを表示）
+  // メソッドタブを生成（各メソッドに紐づくタスクをフィルタリングして表示）
   const methodTabs = useMemo(() => {
     return methods.map((method) => {
-      // このメソッドに紐づくタスクのみをフィルタリング
+      // このメソッドに紐づくタスクをフィルタリング
       const methodTasks = tasks.filter(task => task.methodId === method.methodId);
       
       // メソッドのステータスを取得
@@ -701,7 +699,7 @@ export default function ProgressCheckTab({
                 projectStatus={projectStatus}
                 onTaskAction={handleTaskAction}
                 readOnly={readOnly}
-                projectName={selectedProjectName}
+                projectName={selectedProject || ''}
               />
             ) : (
               <div
@@ -810,7 +808,7 @@ export default function ProgressCheckTab({
         </Card>
       )}
 
-      {/* 問題管理モーダル（報告・確認共通） */}
+      {/* 問題管理モーダル（問題報告・確認・通知） */}
       {selectedTaskForIssue && projectId && (
         <IssueManagementModal
           open={issueModalVisible}

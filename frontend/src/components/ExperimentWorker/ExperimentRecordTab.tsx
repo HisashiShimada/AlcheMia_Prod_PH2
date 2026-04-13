@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, Space, Typography, theme, Button, Empty, message } from 'antd';
+import { Card, Space, Typography, theme, Button, message } from 'antd';
 import { 
   ExperimentOutlined, 
   CheckSquareOutlined, 
@@ -25,7 +25,7 @@ import { extractErrorMessage } from '@/utils/errorUtils';
 const { Title, Text } = Typography;
 
 /**
- * 空状態アイコンのサイズ（UIポリシー準拠）
+ * 空状態アイコンのサイズ定数
  */
 const EMPTY_ICON_SIZE = 48;
 
@@ -39,7 +39,6 @@ type ViewMode = 'list' | 'flow';
  */
 interface ExperimentRecordTabProps {
   selectedProject: string;
-  selectedProjectName: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string | null) => void;
@@ -47,18 +46,17 @@ interface ExperimentRecordTabProps {
   onSelectTask: (taskId: string) => void;
   onTaskCreated: (newTaskId: string) => void;
   selectedMethod: Method | null;
-  /** 選択中プロジェクトのステータス（数値）: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了 */
+  /** 選択中プロジェクトのステータス数値: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了 */
   selectedProjectStatus: number | null;
-  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  /** みなし進捗使用フラグ: organization.use_deemed_progress。false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
   useDeemedProgress?: boolean;
 }
 
 /**
- * 実験記録タブのコンテンツ
+ * 実験記録タブのコンポーネント
  */
 export default function ExperimentRecordTab({
   selectedProject,
-  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
@@ -69,22 +67,17 @@ export default function ExperimentRecordTab({
   selectedProjectStatus,
   useDeemedProgress = true,
 }: ExperimentRecordTabProps) {
-  // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
   const [modalOpen, setModalOpen] = useState(false);
-  // 表示モードの状態管理
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   
-  // データ記録モーダルの状態管理
   const [dataRecordModalOpen, setDataRecordModalOpen] = useState(false);
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
   
-  // 問題報告モーダルの状態管理
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [issueLoading, setIssueLoading] = useState<boolean>(false);
 
-  // API連携の状態管理
   const [loading, setLoading] = useState<boolean>(false);
   const [methods, setMethods] = useState<Method[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -92,7 +85,7 @@ export default function ExperimentRecordTab({
   const [progressData, setProgressData] = useState<Record<string, unknown>[]>([]);
   
   /**
-   * worker-accessible APIの数値ステータスをフロントエンドの ProjectStatus 型にマッピング
+   * worker-accessible APIの数値ステータスを ProjectStatus 型にマッピング
    * 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
    */
   const mapNumericStatusToProjectStatus = (status: number | null): ProjectStatus | null => {
@@ -110,11 +103,10 @@ export default function ExperimentRecordTab({
     }
   };
 
-  // prop から受け取った数値ステータスを ProjectStatus 型に変換
   const projectStatus: ProjectStatus | null = mapNumericStatusToProjectStatus(selectedProjectStatus);
 
   /**
-   * APIレスポンスの数値トランジションステータスをフロントエンドの ProgressStatus 文字列に変換
+   * APIレスポンスの数値トランジションステータスを ProgressStatus 文字列型に変換
    *
    * バックエンド TransitionStatusEnum との対応:
    *   0: INITIAL     → 'not_started'
@@ -139,10 +131,10 @@ export default function ExperimentRecordTab({
     }
   };
 
-  // プロジェクト選択時にAPI呼び出し
+  // プロジェクト選択時にAPIを呼び出す
   useEffect(() => {
     const fetchWorkerTasks = async () => {
-      if (!selectedProjectName) {
+      if (!selectedProject) {
         setMethods([]);
         setTasks([]);
         setProjectId(null);
@@ -152,11 +144,10 @@ export default function ExperimentRecordTab({
       setLoading(true);
       try {
         console.log('[DEBUG] ExperimentRecordTab - Fetching worker tasks', { 
-          selectedProject, 
-          selectedProjectName 
+          selectedProject
         });
         
-        const result = await getWorkerTasks(selectedProjectName);
+        const result = await getWorkerTasks(selectedProject);
         
         if (result.success && result.data) {
           const apiData = result.data;
@@ -166,10 +157,8 @@ export default function ExperimentRecordTab({
             methodCount: apiData.methods.length
           });
           
-          // プロジェクトIDを保存
           setProjectId(apiData.project_id);
           
-          // メソッド一覧を変換
           const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
             methodId: method.method_id,
             methodName: method.method_name,
@@ -179,12 +168,11 @@ export default function ExperimentRecordTab({
             transitions: [],
           }));
           
-          // 全タスクを変換
           const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
             method.tasks.map((task: WorkerTask) => ({
               taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
               taskNo: task.task_no.toString(),
-              taskName: task.task_no.toString(), // task_nameカラム削除のため、task_noを代用
+              taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
               status: task.task_status as Task['status'],
@@ -227,9 +215,8 @@ export default function ExperimentRecordTab({
     };
 
     fetchWorkerTasks();
-  }, [selectedProject, selectedProjectName]);
+  }, [selectedProject]);
 
-  // 選択されたメソッドに紐づくタスクをフィルタリング
   const filteredTasks = useMemo(() => {
     if (!selectedMethodId) return tasks;
     return tasks.filter(task => task.methodId === selectedMethodId);
@@ -237,16 +224,13 @@ export default function ExperimentRecordTab({
 
   /**
    * 進捗データを取得してstateを更新する
-   * handleDataSave からも呼び出せるよう useCallback で定義
    */
   const fetchProgress = useCallback(async () => {
-    if (!selectedProjectName || !selectedMethodId || !selectedTaskId) {
+    if (!selectedProject || !selectedMethodId || !selectedTaskId) {
       setProgressData([]);
       return;
     }
 
-    // selectedTaskIdからtaskNoを抽出（形式: projectId-methodId-taskNo）
-    // projectId は UUID（ハイフン含む）のため末尾要素を取得する
     const parts = selectedTaskId.split('-');
     const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
 
@@ -258,15 +242,14 @@ export default function ExperimentRecordTab({
 
     try {
       console.log('[DEBUG] ExperimentRecordTab - Fetching progress data', {
-        selectedProjectName,
+        selectedProject,
         selectedMethodId,
         taskNo,
       });
 
-      // GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
       const client = createApiClient();
       const response = await client.get(
-        `/progress/projects/${encodeURIComponent(selectedProjectName)}/methods/${encodeURIComponent(selectedMethodId)}/tasks/${taskNo}/transitions`
+        `/progress/projects/${encodeURIComponent(selectedProject)}/methods/${encodeURIComponent(selectedMethodId)}/tasks/${taskNo}/transitions`
       );
 
       if (response.data.success && response.data.data && response.data.data.transitions) {
@@ -280,41 +263,31 @@ export default function ExperimentRecordTab({
       }
     } catch (error) {
       console.error('[DEBUG] ExperimentRecordTab - Error fetching progress', error);
-      // エラー時は空配列を設定（デフォルト値で表示）
       setProgressData([]);
     }
-  }, [selectedProjectName, selectedMethodId, selectedTaskId]);
+  }, [selectedProject, selectedMethodId, selectedTaskId]);
 
-  // タスク選択時に進捗データを取得
   useEffect(() => {
     fetchProgress();
   }, [fetchProgress]);
 
-  // プロジェクトの状態が記録を参照・操作可能かどうか
-  // waiting_task / executing_task / waiting_approval の場合に活性
-  // projectStatus が null（取得前/エラー）の場合は安全側に倒して true（活性）とする
   const isProjectRecordable = projectStatus === null || isRecordViewableStatus(projectStatus);
 
-  // 記録ボタンクリックハンドラ
   const handleRecordClick = (transition: Transition) => {
     setSelectedTransition(transition);
     setDataRecordModalOpen(true);
   };
   
-  // 問題報告ボタンクリックハンドラ
   const handleIssueClick = async (transition: Transition) => {
-    // まずモーダルを開き、ローディング状態で待機させる
     setSelectedTransition(transition);
     setIssues([]);
     setIssueModalOpen(true);
 
-    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
-    // projectId は UUID（ハイフン含む）のため末尾要素を取得する
     const parts = selectedTaskId.split('-');
     const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
 
     if (!projectId || !selectedMethodId || taskNo === null || isNaN(taskNo)) {
-      console.warn('[handleIssueClick] 必要なパラメータが不足しています', {
+      console.warn('[handleIssueClick] 必須なパラメータが不足しています', {
         projectId,
         selectedMethodId,
         selectedTaskId,
@@ -340,35 +313,23 @@ export default function ExperimentRecordTab({
     }
   };
 
-  // データ記録モーダルを閉じる
   const handleDataRecordModalClose = () => {
     setDataRecordModalOpen(false);
     setSelectedTransition(null);
   };
   
-  // 問題報告モーダルを閉じる
   const handleIssueModalClose = () => {
     setIssueModalOpen(false);
     setSelectedTransition(null);
   };
 
-  /**
-   * データ保存コールバック（DataRecordDialog の onSave から呼ばれる）
-   * ※ 実際のAPI呼び出しは DataRecordDialog.handleSaveTemplate 内で完結している
-   */
   const handleDataSave = (_data: ExperimentDataValue[]) => {
-    // モーダルを閉じ、選択状態をリセット
     setDataRecordModalOpen(false);
     setSelectedTransition(null);
-
-    // 保存後に進捗データを再取得してトランジション一覧を最新状態に更新
     fetchProgress();
   };
   
-  // 新規問題報告送信ハンドラ
   const handleSubmitIssue = async (issue: IssueReportFormData) => {
-    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
-    // projectId は UUID（ハイフン含む）のため末尾要素を取得する
     const parts = selectedTaskId.split('-');
     const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
 
@@ -392,7 +353,6 @@ export default function ExperimentRecordTab({
 
       message.success('問題を報告しました');
 
-      // 問題一覧を再取得して最新状態を反映
       if (projectId && selectedMethodId && taskNo !== null && !isNaN(taskNo) && selectedTransition) {
         setIssueLoading(true);
         try {
@@ -405,7 +365,6 @@ export default function ExperimentRecordTab({
           setIssues(fetchedIssues);
         } catch (fetchError) {
           console.error('[handleSubmitIssue] 問題一覧再取得エラー', fetchError);
-          // 再取得失敗はサイレントに処理（報告自体は成功しているため）
         } finally {
           setIssueLoading(false);
         }
@@ -416,21 +375,17 @@ export default function ExperimentRecordTab({
     }
   };
   
-  // コメント送信ハンドラ
   const handleSubmitComment = async (issueId: string, comment: string) => {
-    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
-    // projectId は UUID（ハイフン含む）のため末尾要素を取得する
     const parts = selectedTaskId.split('-');
     const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
 
     try {
       await addComment({
-        projectName: selectedProjectName,
+        projectName: selectedProject,
         issueId,
         comment,
       });
 
-      // コメント投稿成功後に問題一覧を再取得して表示に反映
       if (projectId && selectedMethodId && taskNo !== null && !isNaN(taskNo) && selectedTransition) {
         setIssueLoading(true);
         try {
@@ -443,7 +398,6 @@ export default function ExperimentRecordTab({
           setIssues(fetchedIssues);
         } catch (fetchError) {
           console.error('[handleSubmitComment] 問題一覧再取得エラー', fetchError);
-          // 再取得失敗はサイレントに処理（コメント投稿自体は成功しているため）
         } finally {
           setIssueLoading(false);
         }
@@ -454,15 +408,6 @@ export default function ExperimentRecordTab({
     }
   };
 
-  // 進捗APIから取得したデータをトランジション一覧に変換
-  // selectedMethod.transitions は常に空配列のため、progressData を起点にマッピングする
-  // APIレスポンスフィールド対応:
-  //   material_count       → totalMaterialsCount  (MAIMLから取得した材料の定義数)
-  //   material_actual_count → inputMaterialsCount  (DBから取得した材料の実績数)
-  //   condition_count      → totalIngredientsCount (MAIMLから取得した条件の定義数)
-  //   condition_actual_count → inputIngredientsCount (DBから取得した条件の実績数)
-  //   result_count         → totalResultsCount    (MAIMLから取得した結果の定義数)
-  //   result_actual_count  → inputResultsCount    (DBから取得した結果の実績数)
   const transitionsWithProgress = useMemo(() => {
     if (!progressData || progressData.length === 0) {
       return [];
@@ -482,12 +427,10 @@ export default function ExperimentRecordTab({
     }));
   }, [progressData]);
 
-  // フロー図に切り替え
   const handleSwitchToFlow = () => {
     setViewMode('flow');
   };
 
-  // 一覧表示に切り替え
   const handleSwitchToList = () => {
     setViewMode('list');
   };
@@ -502,7 +445,6 @@ export default function ExperimentRecordTab({
         overflow: 'hidden'
       }}
     >
-      {/* 選択メソッド・タスクエリア（共通コンポーネント使用） */}
       <MethodTaskSelector
         selectedProject={selectedProject}
         selectedMethodId={selectedMethodId}
@@ -516,7 +458,6 @@ export default function ExperimentRecordTab({
         taskDisabled={!selectedMethodId || loading}
       />
 
-      {/* 表示切り替えボタン */}
       {selectedProject && selectedMethodId && (
         <div style={{ marginBottom: 8, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <Space size="middle">
@@ -545,11 +486,10 @@ export default function ExperimentRecordTab({
         </div>
       )}
 
-      {/* トランジション一覧カード - タスク選択後のみ表示 */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {!selectedProject ? (
           <Card data-testid="empty-project-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
                 🧪 実験記録
@@ -561,7 +501,7 @@ export default function ExperimentRecordTab({
           </Card>
         ) : !selectedMethodId ? (
           <Card data-testid="empty-method-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
                 📋 トランジション一覧
@@ -573,7 +513,7 @@ export default function ExperimentRecordTab({
           </Card>
         ) : !selectedTaskId ? (
           <Card data-testid="empty-task-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
                 📋 トランジション一覧
@@ -586,7 +526,6 @@ export default function ExperimentRecordTab({
         ) : (
           <Card data-testid="transition-content-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {viewMode === 'list' ? (
-              /* トランジション一覧表示 - タスク選択後のみ表示 */
               <div data-testid="transition-list-area" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
                   <BarChartOutlined style={{ marginRight: 8 }} />
@@ -601,14 +540,13 @@ export default function ExperimentRecordTab({
                     onTaskCreated={onTaskCreated}
                     projectId={selectedProject}
                     methodId={selectedMethodId || undefined}
-                    projectName={selectedProjectName}
+                    projectName={selectedProject}
                     onDataSaveComplete={fetchProgress}
                     useDeemedProgress={useDeemedProgress}
                   />
                 </div>
               </div>
             ) : (
-              /* フロー図表示 */
               <div data-testid="transition-flow-area" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
                   <PartitionOutlined style={{ marginRight: 8 }} />
@@ -629,7 +567,6 @@ export default function ExperimentRecordTab({
         )}
       </div>
 
-      {/* メソッド・タスク選択モーダル */}
       <MethodTaskSelectionModal
         data-testid="method-task-selection-modal"
         open={modalOpen}
@@ -644,7 +581,6 @@ export default function ExperimentRecordTab({
         methods={methods}
       />
 
-      {/* データ記録モーダル */}
       <DataRecordDialog
         open={dataRecordModalOpen}
         transition={selectedTransition}
@@ -652,18 +588,17 @@ export default function ExperimentRecordTab({
         onClose={handleDataRecordModalClose}
         onSave={handleDataSave}
         projectId={selectedProject}
-        projectName={selectedProjectName || undefined}
+        projectName={selectedProject || undefined}
         methodId={selectedMethodId || undefined}
         taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
         useDeemedProgress={useDeemedProgress}
       />
 
-      {/* 問題報告モーダル */}
       <IssueManagementModal
         open={issueModalOpen}
         targetName={selectedTransition?.transitionName || ''}
         projectId={projectId || ''}
-        projectName={selectedProjectName || ''}
+        projectName={selectedProject || ''}
         methodId={selectedMethodId || undefined}
         taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
         transitionId={selectedTransition?.transitionId || undefined}
