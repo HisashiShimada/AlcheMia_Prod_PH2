@@ -1525,8 +1525,6 @@
       "040000": "Experiment Administrator Menu",
       "050000": "Experiment Worker Menu"
     },
-  "functionPermissionDialog": {
-    "title": "Function Management",
     "buttons": {
       "cancel": "Cancel",
       "update": "Update Functions"
