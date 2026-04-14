@@ -825,10 +825,41 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
     const { uploadId } = req.params;
     const totalChunks = Number(req.body.totalChunks);
     const contentType: string = req.body.contentType || 'application/octet-stream';
+    const batchId: string | undefined = req.body.batchId;
 
     // チャンク結合・ストレージ保存
     const chunkService = new ChunkUploadService();
     const result = await chunkService.completeUpload(uploadId, organizationId, totalChunks, contentType);
+
+    // ──────────────────────────────────────────────────────────────────────
+    // キャンセル競合チェック
+    // completeUpload がストレージに書き込んだ後で batchId のステータスが
+    // 'cancelled' になっている場合、アップロード済みファイルを即削除して
+    // エラーを返す（「キャンセル → complete 完了」の競合状態を防ぐ）
+    // ──────────────────────────────────────────────────────────────────────
+    if (batchId) {
+      const batch = await UploadBatchRepository.findById(batchId);
+      if (batch?.status === 'cancelled') {
+        // ストレージからファイルを削除（best-effort）
+        try {
+          const { getStorageService: _getStorage } = await import('../services/storageService');
+          const _storageService = _getStorage();
+          await _storageService.deleteFile(organizationId, result.fileKey);
+          console.log(`🗑️ [ChunkComplete] キャンセル競合: アップロード済みファイルを削除: ${result.fileKey}`);
+        } catch (deleteErr) {
+          console.error(`⚠️ [ChunkComplete] キャンセル競合: ファイル削除失敗（処理続行）:`, deleteErr);
+        }
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'E7005',
+            message: 'アップロードはキャンセル済みのため、ファイルを保存できませんでした',
+          },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+    }
 
     // file_metadata テーブルへ保存
     // - fileKey 例: "projects/sample_project/sample_project.maiml"
@@ -848,36 +879,40 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
       : undefined;
     const now = new Date();
 
-    // チャンクアップロード用バッチID（1ファイル=1バッチ）
-    const chunkBatchId = uuidv4();
+    // フロントから渡された batchId を upload_batch_id として使用する。
+    // これにより cancelBatch の findByBatchId でファイルが正しく検索される。
+    // batchId がない場合のみ新規 UUID を生成（後方互換）。
+    const effectiveBatchId = batchId ?? uuidv4();
 
-    // MAIMLファイルのみ file_metadata テーブルへ保存
-    if (result.contentType === 'application/xml' || fileName.endsWith('.maiml')) {
-      try {
-        await repository.insertFileMetadata({
-          organization_id: organizationId,
-          file_key: truncateField(result.fileKey, FILE_METADATA_MAX_LENGTHS.file_key, 'file_key') || result.fileKey,
-          original_filename: truncateField(fileName, FILE_METADATA_MAX_LENGTHS.original_filename, 'original_filename') || fileName,
-          file_size: result.fileSize,
-          file_type: result.contentType,
-          uploaded_by: userId,
-          is_maiml_file: true,
-          s3_bucket: storageService.getBucketName(),
-          upload_batch_id: chunkBatchId,
-          upload_source: 'web_upload',
-          upload_method: 'multipart',
-          create_user_id: userId,
-          update_user_id: userId,
-          file_hash: result.fileHash,
-          ...(parentFolderPath && { parent_folder_path: parentFolderPath }),
-          created_at: now,
-          updated_at: now,
-        } as any);
-        console.log(`✅ [ChunkComplete] file_metadata保存成功: ${result.fileKey}`);
-      } catch (dbError) {
-        // file_metadata INSERT失敗は警告ログのみ（ストレージへのロールバックなし・処理続行）
-        console.error(`⚠️ [ChunkComplete] file_metadata INSERT失敗（処理続行）: ${result.fileKey}`, dbError);
-      }
+    const isMaimlFile = result.contentType === 'application/xml' || fileName.endsWith('.maiml');
+
+    // 全ファイルタイプで file_metadata へ保存する。
+    // is_maiml_file フラグでMAIML/非MAIMLを区別する。
+    // これにより cancelBatch がチャンクアップロード済みファイルを確実に削除できる。
+    try {
+      await repository.insertFileMetadata({
+        organization_id: organizationId,
+        file_key: truncateField(result.fileKey, FILE_METADATA_MAX_LENGTHS.file_key, 'file_key') || result.fileKey,
+        original_filename: truncateField(fileName, FILE_METADATA_MAX_LENGTHS.original_filename, 'original_filename') || fileName,
+        file_size: result.fileSize,
+        file_type: result.contentType,
+        uploaded_by: userId,
+        is_maiml_file: isMaimlFile,
+        s3_bucket: storageService.getBucketName(),
+        upload_batch_id: effectiveBatchId,
+        upload_source: 'web_upload',
+        upload_method: 'multipart',
+        create_user_id: userId,
+        update_user_id: userId,
+        file_hash: result.fileHash,
+        ...(parentFolderPath && { parent_folder_path: parentFolderPath }),
+        created_at: now,
+        updated_at: now,
+      } as any);
+      console.log(`✅ [ChunkComplete] file_metadata保存成功: ${result.fileKey} (batchId=${effectiveBatchId})`);
+    } catch (dbError) {
+      // file_metadata INSERT失敗は警告ログのみ（ストレージへのロールバックなし・処理続行）
+      console.error(`⚠️ [ChunkComplete] file_metadata INSERT失敗（処理続行）: ${result.fileKey}`, dbError);
     }
 
     // project_maiml_flg 更新
@@ -1066,6 +1101,67 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * バッチ先行作成
+ * POST /api/v1/files/batches/init
+ *
+ * アップロード開始前にバッチを in_progress 状態で先行作成し、batchId を返す。
+ * フロントエンドはこの batchId を使ってアップロード途中でもキャンセルを実行できる。
+ */
+export async function initBatch(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId, userId } = req.user!;
+    const { batchName, uploadType, totalFiles } = req.body as {
+      batchName?: string;
+      uploadType: 'single' | 'bulk' | 'folder';
+      totalFiles?: number;
+    };
+
+    console.log(`📦 [Batch Init] リクエスト開始:`, {
+      organizationId,
+      uploadType,
+      batchName,
+      requestId,
+    });
+
+    const batch = await UploadBatchRepository.create({
+      batchName: batchName || `Upload ${new Date().toISOString()}`,
+      uploadType,
+      organizationId,
+      uploadedBy: userId,
+      totalFiles: totalFiles ?? 0,
+    });
+
+    console.log(`✅ [Batch Init] バッチ先行作成成功: ${batch.batchId}`);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        batchId: batch.batchId,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+
+  } catch (error: any) {
+    logError('Batch init error', error, {
+      action: 'batch_init',
+      organizationId: req.user?.organizationId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'バッチの作成に失敗しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

@@ -236,6 +236,12 @@ export interface UploadMetadata {
   formatId?: string;
   batchName?: string;
   preserveFolderStructure?: boolean;
+  /**
+   * 事前作成済みのバッチID（initBatch で取得したもの）。
+   * 指定した場合、バックエンドは新規バッチを作成せず既存バッチを再利用する。
+   * これにより cancelBatch でアップロード前からキャンセルが可能になる。
+   */
+  batchId?: string;
 }
 
 /**
@@ -328,6 +334,17 @@ export interface ChunkUploadOptions {
    * UI 側でリトライ状態を表示するために使用する。
    */
   onRetry?: (state: UploadRetryState) => void;
+  /**
+   * アップロードをキャンセルするための AbortSignal。
+   * AbortController.signal を渡すことでチャンクアップロードを中断できる。
+   */
+  signal?: AbortSignal;
+  /**
+   * 事前作成済みのバッチID（initBatch で取得したもの）。
+   * complete リクエストに含めることで、バックエンドがキャンセル済みバッチを
+   * 検出した場合にアップロード済みファイルを即削除できる。
+   */
+  batchId?: string;
 }
 
 /**

@@ -333,19 +333,44 @@ export class FileAccessService {
       throw new ValidationError('不正なファイルパスが検出されました');
     }
 
-    // 2. Phase2-1: バッチ作成
+    // 2. Phase2-1: バッチ作成（または既存バッチの再利用）
+    // initBatch で事前作成されたバッチID（metadata.batchId）が渡された場合は
+    // 新規作成せず既存バッチを再利用する。これにより cancelBatch が正しく機能する。
     const uploadType: UploadType = uploadMode as UploadType;
     const batchName = metadata?.batchName || `${uploadMode} upload - ${new Date().toISOString()}`;
-    
-    const batch = await uploadBatchRepository.create({
-      batchName,
-      uploadType,
-      organizationId,
-      uploadedBy: userId,
-      totalFiles: files.length,
-    });
 
-    console.log(`📦 [Upload] バッチ作成完了: ${batch.batchId}`);
+    let batch;
+    const preBatchId = metadata?.batchId;
+    if (preBatchId) {
+      const existingBatch = await uploadBatchRepository.findById(preBatchId);
+      if (existingBatch) {
+        // 既存バッチを 'in_progress' に更新して再利用
+        await uploadBatchRepository.update(preBatchId, {
+          status: 'in_progress',
+        });
+        batch = { ...existingBatch, status: 'in_progress' as const };
+        console.log(`♻️ [Upload] 既存バッチを再利用: ${preBatchId}`);
+      } else {
+        console.warn(`⚠️ [Upload] 指定バッチID が見つからないため新規作成: ${preBatchId}`);
+        batch = await uploadBatchRepository.create({
+          batchName,
+          uploadType,
+          organizationId,
+          uploadedBy: userId,
+          totalFiles: files.length,
+        });
+      }
+    } else {
+      batch = await uploadBatchRepository.create({
+        batchName,
+        uploadType,
+        organizationId,
+        uploadedBy: userId,
+        totalFiles: files.length,
+      });
+    }
+
+    console.log(`📦 [Upload] バッチ準備完了: ${batch.batchId}`);
 
     // 3. ターゲットパスの正規化
     const normalizedPath = targetPath.replace(/^\/+|\/+$/g, '');
