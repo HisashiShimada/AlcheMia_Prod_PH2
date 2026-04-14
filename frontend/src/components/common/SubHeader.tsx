@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons';
 import { Permission, MenuType } from '@/types/auth';
 import { hasMenuPermission } from '@/utils/menuPermissions';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title } = Typography;
 
@@ -206,6 +207,7 @@ export default function SubHeader({
   userPermissions,
 }: SubHeaderProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const hasTabs = tabs && tabs.length > 0;
 
   // Ant Design TabsPropsの形式に変換
@@ -221,31 +223,31 @@ export default function SubHeader({
     {
       key: 'provider',
       menuType: 'provider' as MenuType,
-      label: 'プロバイダーメニュー',
+      label: t('menu.provider.title'),
       icon: <AppstoreOutlined />,
     },
     {
       key: 'system_admin',
       menuType: 'system_admin' as MenuType,
-      label: 'システム管理者メニュー',
+      label: t('menu.system_admin.title'),
       icon: <TeamOutlined />,
     },
     {
       key: 'data_admin',
       menuType: 'data_admin' as MenuType,
-      label: 'データ管理者メニュー',
+      label: t('menu.data_admin.title'),
       icon: <DatabaseOutlined />,
     },
     {
       key: 'experiment_admin',
       menuType: 'experiment_admin' as MenuType,
-      label: '実験管理者メニュー',
+      label: t('menu.experiment_admin.title'),
       icon: <ExperimentOutlined />,
     },
     {
       key: 'experiment_worker',
       menuType: 'experiment_worker' as MenuType,
-      label: '実験作業者メニュー',
+      label: t('menu.experiment_worker.title'),
       icon: <UserOutlined />,
     },
   ];
@@ -336,7 +338,7 @@ export default function SubHeader({
                         e.currentTarget.style.boxShadow = 'none';
                       }}
                     >
-                      メニュー切替
+                      {t('common.menuSwitch')}
                     </Button>
                   </Dropdown>
                 )}

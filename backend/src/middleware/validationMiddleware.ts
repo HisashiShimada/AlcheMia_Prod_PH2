@@ -77,28 +77,16 @@ function mapErrorToCode(error: ValidationError): string {
     return 'E1003';
   }
 
-  // msgから推測してコードを決定
-  const msg = error.msg.toLowerCase();
+  // error.type === 'field' が確定している（上の early return で保証）
+  // フィールドのパスから分類（メッセージ文字列に依存しない）
+  const path = error.path?.toLowerCase() ?? '';
 
-  if (msg.includes('required') || msg.includes('必須')) {
-    return 'REQUIRED_FIELD';
-  }
-  if (msg.includes('length') || msg.includes('文字')) {
-    return 'STRING_LENGTH_INVALID';
-  }
-  if (msg.includes('uuid') || msg.includes('format') || msg.includes('形式')) {
-    return 'INVALID_FORMAT';
-  }
-  if (msg.includes('integer') || msg.includes('整数')) {
-    return 'INVALID_TYPE';
-  }
-  if (msg.includes('range') || msg.includes('範囲')) {
-    return 'OUT_OF_RANGE';
-  }
-  if (msg.includes('invalid') || msg.includes('不正')) {
-    return 'INVALID_VALUE';
+  // UUID系フィールド: 末尾が 'id' のパス（例: userId, projectId）
+  if (path.endsWith('id')) {
+    return 'E1005';
   }
 
+  // 汎用バリデーションエラー
   return 'E1003';
 }
 

@@ -424,7 +424,7 @@ export default function ExperimentWorkerMenu({
               loading={approvalLoading}
               icon={approvalLoading ? <LoadingOutlined /> : undefined}
             >
-              承認依頼
+              {t('experimentWork.approvalRequest')}
             </Button>
           )}
         </Space>

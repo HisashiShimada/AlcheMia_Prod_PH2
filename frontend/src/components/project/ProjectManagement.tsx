@@ -525,7 +525,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         }));
       } catch (error) {
         console.error('❌ [ProjectManagement] Failed to fetch project files:', error);
-        message.error('ファイル一覧の取得に失敗しました');
+        message.error(t('formatManagement.messages.file_list_load_failed'));
       }
     };
     
@@ -1133,18 +1133,18 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     }
 
     Modal.confirm({
-      title: `プロジェクト「${selectedProject.name}」を削除しますか？`,
+      title: t('projectManagement.deleteProjectTitle').replace('{{name}}', selectedProject.name),
       content: (
         <div>
-          <p>この操作により、プロジェクトフォルダ配下のすべてのファイルが削除されます。</p>
-          <p style={{ color: 'red', fontWeight: 'bold' }}>この操作は取り消せません。</p>
+          <p>{t('projectManagement.deleteProjectContent')}</p>
+          <p style={{ color: 'red', fontWeight: 'bold' }}>{t('projectManagement.deleteProjectCannotUndo')}</p>
           <p style={{ fontSize: '0.9em', marginTop: '8px' }}>
-            ※ MAIMLファイルが存在する場合は削除できません
+            {t('projectManagement.deleteProjectMaimlNote')}
           </p>
         </div>
       ),
-      okText: '削除',
-      cancelText: 'キャンセル',
+      okText: t('common.delete'),
+      cancelText: t('common.cancel'),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
@@ -1155,7 +1155,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           
           console.log('✅ [ProjectManagement] プロジェクト削除成功:', result);
           
-          message.success(`プロジェクト「${selectedProject.name}」を削除しました（${result.deletedCount}ファイル削除）`);
+          message.success(t('projectManagement.deleteSuccess').replace('{{name}}', selectedProject.name).replace('{{count}}', String(result.deletedCount)));
           
           // プロジェクト一覧を再取得
           await refetchProjects();
@@ -1368,11 +1368,11 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       }
       
       // 成功メッセージ
-      message.success('プロジェクトの最新情報を読み込みました');
+      message.success(t('projectManagement.reloadSuccess'));
       console.log('✅ [ProjectManagement] リロード完了');
     } catch (error) {
       console.error('❌ [ProjectManagement] リロードエラー:', error);
-      message.error('プロジェクトの最新情報の取得に失敗しました');
+      message.error(t('projectManagement.reloadFailed'));
     } finally {
       setIsReloadingProject(false);
     }
@@ -1596,13 +1596,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             loading={isReloadingProject}
             disabled={isReloadingProject}
           >
-            {isReloadingProject ? 'リロード中...' : 'リロード'}
+            {isReloadingProject ? t('common.reloading') : t('common.reload')}
           </Button>
           <Button
             icon={<SearchOutlined />}
             onClick={() => setSemanticSearchModalOpen(true)}
           >
-            トランジション検索
+            {t('projectManagement.transitionSearch')}
           </Button>
         </Space>
         </div>
@@ -1642,8 +1642,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     <Title level={5} style={{ margin: 0, fontWeight: token.fontWeightStrong }}>
                       {selectedProject.name}
                     </Title>
-                    {/* プロジェクトステータス表示（statusNameを使用） */}
-                    {selectedProject.statusName && (
+                    {/* プロジェクトステータス表示（翻訳済みラベルを使用） */}
+                    {selectedProject.status !== undefined && (
                       <Tag 
                         color={
                           selectedProject.status === 0 ? 'default' : // プロジェクト計画中
@@ -1655,7 +1655,15 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           'default'
                         }
                       >
-                        {selectedProject.statusName}
+                        {
+                          selectedProject.status === 0 ? t('projectManagement.status_planning') :
+                          selectedProject.status === 1 ? t('projectManagement.status_pending') :
+                          selectedProject.status === 2 ? t('projectManagement.status_in_progress') :
+                          selectedProject.status === 3 ? t('projectManagement.status_review_waiting') :
+                          selectedProject.status === 4 ? t('projectManagement.status_completed') :
+                          selectedProject.status === 5 ? t('projectManagement.status_error') :
+                          String(selectedProject.status)
+                        }
                       </Tag>
                     )}
                     {/* チェックアウト状態表示 - プロジェクト単位 */}
@@ -1718,7 +1726,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     onClick={handleProjectDelete}
                     disabled={!selectedProject}
                   >
-                    削除
+                    {t('projectManagement.deleteButton')}
                   </Button>
                   <Button
                     type="primary"
@@ -1737,7 +1745,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     onClick={handleOpenIssueManagement}
                     style={{ backgroundColor: token.colorWarning, borderColor: token.colorWarning }}
                   >
-                    問題確認
+                    {t('projectManagement.issueCheck')}
                   </Button>
                   {isPublished ? (
                     <Button
@@ -1767,7 +1775,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     onClick={() => setRenameModalOpen(true)}
                     disabled={!selectedProject}
                   >
-                    プロジェクト名変更
+                    {t('projectManagement.renameProject')}
                   </Button>
                 </Space>
               </Card>

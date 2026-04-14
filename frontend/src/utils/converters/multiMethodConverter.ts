@@ -15,6 +15,7 @@ import {
   buildDocumentXML,
   Template,
 } from './reactFlowToMaiml';
+import { PLACE_DESC_IMPORTED, PLACE_DESC_EXISTING, PLACE_DESC_IMPORTED_EN } from '../../constants/placeDescriptions';
 import { DocumentData } from '../documentParser';
 
 /**
@@ -225,9 +226,9 @@ function buildMethodXML(method: MethodInfo, index: number, fileName: string): st
   // Place要素群
   places.forEach(place => {
     const hasDescription = place.data.description && 
-      place.data.description !== 'インポート済み' && 
-      place.data.description !== '既存プレース' && 
-      place.data.description !== 'imported';
+      place.data.description !== PLACE_DESC_IMPORTED &&
+      place.data.description !== PLACE_DESC_EXISTING &&
+      place.data.description !== PLACE_DESC_IMPORTED_EN;
     
     if (hasDescription) {
       methodXml += `        <place id="${escapeXml(place.id)}">\n`;

@@ -40,6 +40,7 @@ import TransitionSetBatchProcessingPanel from './TransitionSetBatchProcessingPan
 import { useSemanticSearch, DEFAULT_WEIGHTS, WEIGHT_PRESETS } from '@/hooks/useSemanticSearch';
 import { decomposeNaturalLanguageQuery } from '@/services/semanticSearchService';
 import type { SearchWeights, SemanticSearchRequest, DecomposedQuery } from '@/types/semanticSearch';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -53,13 +54,13 @@ interface TransitionSetSearchModalProps {
   initialProjectName?: string;
 }
 
-/** クイック検索ボタン定義 */
-const QUICK_SEARCH_BUTTONS = [
-  { key: 'structureFocused', icon: <ApartmentOutlined />, label: '構造重視' },
-  { key: 'procedureFocused', icon: <ThunderboltOutlined />, label: '手順重視' },
-  { key: 'inputFocused', icon: <InboxOutlined />, label: '入力重視' },
-  { key: 'outputFocused', icon: <ExportOutlined />, label: '出力重視' },
-  { key: 'balanced', icon: <StarOutlined />, label: 'バランス' },
+/** クイック検索ボタン定義（labelはt()で解決するためkeyのみ持つ） */
+const QUICK_SEARCH_BUTTON_DEFS = [
+  { key: 'structureFocused', icon: <ApartmentOutlined /> },
+  { key: 'procedureFocused', icon: <ThunderboltOutlined /> },
+  { key: 'inputFocused', icon: <InboxOutlined /> },
+  { key: 'outputFocused', icon: <ExportOutlined /> },
+  { key: 'balanced', icon: <StarOutlined /> },
 ] as const;
 
 /**
@@ -71,6 +72,8 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
   onOpenProject,
   initialProjectName,
 }) => {
+  const { t } = useLanguage();
+
   // 統合クエリ（メイン入力）
   const [query, setQuery] = useState('');
 
@@ -123,7 +126,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
    */
   const handleSearch = useCallback(async () => {
     if (!query.trim()) {
-      message.warning('検索クエリを入力してください');
+      message.warning(t('transitionSearch.queryRequired'));
       return;
     }
     const request = await buildRequest();
@@ -137,7 +140,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
   const handleQuickSearch = useCallback(
     async (presetKey: string) => {
       if (!query.trim()) {
-        message.warning('クイック検索には検索クエリを入力してください');
+        message.warning(t('transitionSearch.quickSearchQueryRequired'));
         return;
       }
       const preset = WEIGHT_PRESETS[presetKey];
@@ -171,7 +174,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
       title={
         <Space>
           <AccountBookOutlined />
-          <span>トランジション検索</span>
+          <span>{t('projectManagement.transitionSearch')}</span>
           {searched && hits.length > 0 && (
             <Badge count={hits.length} showZero color="blue" />
           )}
@@ -190,15 +193,15 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
         items={[
           {
             key: 'search',
-            label: '検索',
+            label: t('transitionSearch.searchTab'),
             children: (
               <div>
                 {/* ── 検索クエリ入力 ── */}
                 <div style={{ marginBottom: 12 }}>
-                  <Text style={{ fontSize: 12 }}>検索クエリ</Text>
+                  <Text style={{ fontSize: 12 }}>{t('transitionSearch.queryLabel')}</Text>
                   <TextArea
                     rows={3}
-                    placeholder="例: 532nmレーザーでラマン測定、CLS解析、スペクトルとTIFF画像を出力"
+                    placeholder={t('transitionSearch.queryPlaceholder')}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onPressEnter={(e) => {
@@ -210,7 +213,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
                     style={{ marginTop: 4, fontSize: 12 }}
                   />
                   <Text type="secondary" style={{ fontSize: 11 }}>
-                    💡 入力条件、実験手順、期待される出力を含めて記述してください
+                    {t('transitionSearch.queryHint')}
                   </Text>
                 </div>
 
@@ -225,20 +228,20 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
                     onClick={handleSearch}
                     style={{ minWidth: 140 }}
                   >
-                    {isProcessing ? '検索中...' : '検索実行'}
+                    {isProcessing ? t('transitionSearch.searching') : t('transitionSearch.searchButton')}
                   </Button>
                   <Button onClick={handleClear} disabled={isProcessing}>
-                    リセット
+                    {t('transitionSearch.reset')}
                   </Button>
                 </Space>
 
                 {/* ── クイック検索 ── */}
                 <div style={{ marginBottom: 16 }}>
                   <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
-                    ⚡ クイック検索（ワンクリックで重み調整済み検索）
+                    {t('transitionSearch.quickSearchLabel')}
                   </Text>
                   <Space wrap>
-                    {QUICK_SEARCH_BUTTONS.map(({ key, icon, label }) => (
+                    {QUICK_SEARCH_BUTTON_DEFS.map(({ key, icon }) => (
                       <Tooltip
                         key={key}
                         title={WEIGHT_PRESETS[key]?.description ?? ''}
@@ -249,7 +252,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
                           onClick={() => handleQuickSearch(key)}
                           disabled={isProcessing || !query.trim()}
                         >
-                          {label}
+                          {t(`transitionSearch.quickSearch.${key}`)}
                         </Button>
                       </Tooltip>
                     ))}
@@ -268,29 +271,29 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
                     }}
                   >
                     <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                      🤖 AI分析: クエリの4軸分解
+                      {t('transitionSearch.aiAnalysis')}
                     </Text>
                     <Row gutter={8}>
                       <Col span={12}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>📥 入力条件:</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{t('transitionSearch.decomposed.input')}</Text>
                         <Text style={{ fontSize: 11, display: 'block' }}>
                           {decomposed.q_in || '-'}
                         </Text>
                       </Col>
                       <Col span={12}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>⚡ 手順:</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{t('transitionSearch.decomposed.procedure')}</Text>
                         <Text style={{ fontSize: 11, display: 'block' }}>
                           {decomposed.q_tr || '-'}
                         </Text>
                       </Col>
                       <Col span={12}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>📤 出力:</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{t('transitionSearch.decomposed.output')}</Text>
                         <Text style={{ fontSize: 11, display: 'block' }}>
                           {decomposed.q_out || '-'}
                         </Text>
                       </Col>
                       <Col span={12}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>🕸️ 構造:</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{t('transitionSearch.decomposed.structure')}</Text>
                         <Text style={{ fontSize: 11, display: 'block' }}>
                           {decomposed.q_struct || '-'}
                         </Text>
@@ -309,7 +312,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
                       label: (
                         <Space size="small">
                           <SettingOutlined />
-                          <span style={{ fontSize: 12 }}>詳細な重み調整（上級者向け）</span>
+                          <span style={{ fontSize: 12 }}>{t('transitionSearch.advancedWeights')}</span>
                         </Space>
                       ),
                       children: (
@@ -351,23 +354,23 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
                   >
                     <SearchOutlined style={{ fontSize: 48, color: '#1677ff', marginBottom: 12 }} />
                     <Typography.Title level={5} type="secondary" style={{ marginBottom: 8 }}>
-                      トランジションセット検索を開始
+                      {t('transitionSearch.startHint')}
                     </Typography.Title>
                     <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                      4軸ベクトル検索により、実験プロトコルのトランジションレベルでの精密な類似度評価が可能です
+                      {t('transitionSearch.startHintDesc')}
                     </Text>
                     <div style={{ textAlign: 'left', maxWidth: 480, margin: '0 auto' }}>
                       <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
-                        📥 <strong>入力条件の例</strong>: 「シリコン基板、532nmレーザー、室温」
+                        {t('transitionSearch.exampleInput')}
                       </Text>
                       <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
-                        ⚡ <strong>手順の例</strong>: 「バックグラウンド補正、ピーク検出」
+                        {t('transitionSearch.exampleProcedure')}
                       </Text>
                       <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
-                        📤 <strong>出力の例</strong>: 「スペクトルデータCSV、TIFFイメージ」
+                        {t('transitionSearch.exampleOutput')}
                       </Text>
                       <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                        🕸️ <strong>構造の例</strong>: 「1入力2出力」「直列3ステップ」
+                        {t('transitionSearch.exampleStructure')}
                       </Text>
                     </div>
                   </div>
@@ -395,7 +398,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
             label: (
               <Space size="small">
                 <CloudUploadOutlined />
-                バッチ処理
+                {t('transitionSearch.batchTab')}
               </Space>
             ),
             children: <TransitionSetBatchProcessingPanel />,

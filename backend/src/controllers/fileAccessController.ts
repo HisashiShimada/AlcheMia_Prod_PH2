@@ -20,6 +20,44 @@ import { ProjectService } from '../services/projectService';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import { renameFile } from '../services/renameService';
 import { Project } from '../types/database';
+import { AppError } from '../enums/errorCodes';
+
+/**
+ * AppError.code または日本語メッセージキーワードから HTTP ステータスとエラーコードを導出する
+ * （fileAccessService が AppError に移行するまでのフォールバックを含む）
+ */
+function resolveFileError(error: unknown): { statusCode: number; errorCode: string; errorMessage: string } {
+  const msg = error instanceof Error ? error.message : '';
+
+  if (error instanceof AppError) {
+    let statusCode = 500;
+    if (error.code === 'E1003') statusCode = 400;
+    else if (error.code === 'E5015') statusCode = 403;
+    else if (error.code === 'E6001' || error.code === 'E6002') statusCode = 404;
+    else if (error.code === 'E4006') statusCode = 500;
+    return { statusCode, errorCode: error.code, errorMessage: msg };
+  }
+
+  // フォールバック: 日本語メッセージキーワードで分類（service 移行まで維持）
+  if (msg.includes('パストラバーサル') || msg.includes('不正なファイルパス') ||
+      msg.includes('ファイル名') || msg.includes('無効な') || msg.includes('ファイルキー') ||
+      msg.includes('不正なフォルダパス') || msg.includes('フォルダパス') ||
+      msg.includes('ファイルが選択されていません') || msg.includes('単一ファイルモード')) {
+    return { statusCode: 400, errorCode: 'E1003', errorMessage: msg };
+  }
+  if (msg.includes('アクセス権限') || msg.includes('権限がありません')) {
+    return { statusCode: 403, errorCode: 'E5015', errorMessage: msg };
+  }
+  if (msg.includes('見つかりません') || msg.includes('存在しません')) {
+    return { statusCode: 404, errorCode: 'E6001', errorMessage: msg };
+  }
+  if (msg.includes('署名付きURL') || msg.includes('ストレージ') || msg.includes('メタデータ') ||
+      msg.includes('ZIP生成') || msg.includes('ファイル一覧') || msg.includes('アップロード') ||
+      msg.includes('削除')) {
+    return { statusCode: 500, errorCode: 'E4006', errorMessage: msg };
+  }
+  return { statusCode: 500, errorCode: 'E4001', errorMessage: 'システムエラーが発生しました' };
+}
 
 /**
  * 単一ファイルダウンロード用署名付きURL取得エンドポイント
@@ -66,54 +104,11 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
       requestId,
     });
 
-    // エラータイプに応じたステータスコードとレスポンス
-    let statusCode = 500;
-    let errorCode = 'E4001';
-    let errorMessage = 'システムエラーが発生しました';
-
-    if (error.message) {
-      // ValidationErrorのチェック
-      if (error.message.includes('パストラバーサル') || 
-          error.message.includes('不正なファイルパス') ||
-          error.message.includes('ファイル名') ||
-          error.message.includes('無効な')) {
-        statusCode = 400;
-        errorCode = 'E1003';
-        errorMessage = error.message;
-      }
-      // AuthorizationErrorのチェック
-      else if (error.message.includes('アクセス権限') || 
-               error.message.includes('権限がありません')) {
-        statusCode = 403;
-        errorCode = 'E5015';
-        errorMessage = error.message;
-      }
-      // NotFoundErrorのチェック
-      else if (error.message.includes('見つかりません') || 
-               error.message.includes('存在しません')) {
-        statusCode = 404;
-        errorCode = 'E6001';
-        errorMessage = error.message;
-      }
-      // StorageErrorのチェック
-      else if (error.message.includes('署名付きURL') || 
-               error.message.includes('ストレージ')) {
-        statusCode = 500;
-        errorCode = 'E4006';
-        errorMessage = error.message;
-      }
-    }
-
+    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
     res.status(statusCode).json({
       success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
+      error: { code: errorCode, message: errorMessage },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }
@@ -230,48 +225,11 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
       requestId,
     });
 
-    // エラータイプに応じたステータスコードとレスポンス
-    let statusCode = 500;
-    let errorCode = 'E4001';
-    let errorMessage = 'システムエラーが発生しました';
-
-    if (error.message) {
-      // ValidationErrorのチェック
-      if (error.message.includes('パストラバーサル') || 
-          error.message.includes('不正なフォルダパス') ||
-          error.message.includes('フォルダパス') ||
-          error.message.includes('無効な')) {
-        statusCode = 400;
-        errorCode = 'E1003';
-        errorMessage = error.message;
-      }
-      // NotFoundErrorのチェック
-      else if (error.message.includes('見つかりません') || 
-               error.message.includes('存在しません')) {
-        statusCode = 404;
-        errorCode = 'E6001';
-        errorMessage = error.message;
-      }
-      // StorageErrorのチェック
-      else if (error.message.includes('ZIP生成') || 
-               error.message.includes('ストレージ') ||
-               error.message.includes('ファイル一覧')) {
-        statusCode = 500;
-        errorCode = 'E4006';
-        errorMessage = error.message;
-      }
-    }
-
+    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
     res.status(statusCode).json({
       success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
+      error: { code: errorCode, message: errorMessage },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }
@@ -366,58 +324,34 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
       requestId,
     });
 
-    // エラータイプに応じたステータスコードとレスポンス
-    let statusCode = 500;
-    let errorCode = 'E4001';
-    let errorMessage = 'システムエラーが発生しました';
-
-    if (error.message) {
-      // MAIMLバリデーションエラーのチェック（致命的エラー）
-      if (error.message.startsWith('MAIML_VALIDATION_ERROR:')) {
-        statusCode = 400;
-        errorCode = 'MAIML_VALIDATION_ERROR';
-        try {
-          const payload = JSON.parse(error.message.slice('MAIML_VALIDATION_ERROR:'.length));
-          res.status(statusCode).json({
-            success: false,
-            error: {
-              code: errorCode,
-              message: `MAIMLファイルに致命的なエラーがあります: ${payload.fileName}`,
-              details: {
-                fileName: payload.fileName,
-                errorCount: payload.errorCount,
-                errors: payload.errors,
-              },
+    // MAIMLバリデーションエラーのチェック（致命的エラー）- 特殊形式のため先行処理
+    if (error.message?.startsWith('MAIML_VALIDATION_ERROR:')) {
+      try {
+        const payload = JSON.parse(error.message.slice('MAIML_VALIDATION_ERROR:'.length));
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MAIML_VALIDATION_ERROR',
+            message: `MAIMLファイルに致命的なエラーがあります: ${payload.fileName}`,
+            details: {
+              fileName: payload.fileName,
+              errorCount: payload.errorCount,
+              errors: payload.errors,
             },
-            meta: {
-              timestamp: new Date().toISOString(),
-              requestId,
-            },
-          });
-          return;
-        } catch (_parseError) {
-          errorMessage = 'MAIMLファイルのバリデーションに失敗しました';
-        }
-      }
-      // ValidationErrorのチェック
-      else if (error.message.includes('パストラバーサル') || 
-          error.message.includes('不正なファイルパス') ||
-          error.message.includes('ファイルが選択されていません') ||
-          error.message.includes('単一ファイルモード') ||
-          error.message.includes('無効な')) {
-        statusCode = 400;
-        errorCode = 'E1003';
-        errorMessage = error.message;
-      }
-      // StorageErrorのチェック
-      else if (error.message.includes('アップロード') || 
-               error.message.includes('ストレージ') ||
-               error.message.includes('メタデータの保存')) {
-        statusCode = 500;
-        errorCode = 'E4006';
-        errorMessage = error.message;
+          },
+          meta: {
+            timestamp: new Date().toISOString(),
+            requestId,
+          },
+        });
+        return;
+      } catch (_parseError) {
+        // パース失敗時は resolveFileError() にフォールスルー
       }
     }
+
+    // その他のエラーは resolveFileError() で統一処理（AppError 優先 + 日本語フォールバック）
+    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
 
     res.status(statusCode).json({
       success: false,
@@ -477,48 +411,11 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
       requestId,
     });
 
-    // エラータイプに応じたステータスコードとレスポンス
-    let statusCode = 500;
-    let errorCode = 'E4001';
-    let errorMessage = 'システムエラーが発生しました';
-
-    if (error.message) {
-      // ValidationErrorのチェック
-      if (error.message.includes('パストラバーサル') || 
-          error.message.includes('不正なファイルパス') ||
-          error.message.includes('ファイルキー') ||
-          error.message.includes('無効な')) {
-        statusCode = 400;
-        errorCode = 'E1003';
-        errorMessage = error.message;
-      }
-      // NotFoundErrorのチェック
-      else if (error.message.includes('見つかりません') || 
-               error.message.includes('存在しません')) {
-        statusCode = 404;
-        errorCode = 'E6001';
-        errorMessage = error.message;
-      }
-      // StorageErrorのチェック
-      else if (error.message.includes('署名付きURL') || 
-               error.message.includes('ストレージ') ||
-               error.message.includes('メタデータ')) {
-        statusCode = 500;
-        errorCode = 'E4006';
-        errorMessage = error.message;
-      }
-    }
-
+    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
     res.status(statusCode).json({
       success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
+      error: { code: errorCode, message: errorMessage },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }
@@ -561,22 +458,7 @@ export async function getFileContentAsText(req: Request, res: Response): Promise
       requestId,
     });
 
-    let statusCode = 500;
-    let errorCode = 'E4001';
-    let errorMessage = 'システムエラーが発生しました';
-
-    if (error.message) {
-      if (error.message.includes('見つかりません') || error.message.includes('存在しません')) {
-        statusCode = 404;
-        errorCode = 'E6001';
-        errorMessage = error.message;
-      } else if (error.message.includes('パストラバーサル') || error.message.includes('不正な')) {
-        statusCode = 400;
-        errorCode = 'E1003';
-        errorMessage = error.message;
-      }
-    }
-
+    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
     res.status(statusCode).json({
       success: false,
       error: { code: errorCode, message: errorMessage },
@@ -622,18 +504,7 @@ export async function getFileViewUrl(req: Request, res: Response): Promise<void>
       requestId,
     });
 
-    let statusCode = 500;
-    let errorCode = 'E4001';
-    let errorMessage = 'システムエラーが発生しました';
-
-    if (error.message) {
-      if (error.message.includes('見つかりません') || error.message.includes('存在しません')) {
-        statusCode = 404;
-        errorCode = 'E6001';
-        errorMessage = error.message;
-      }
-    }
-
+    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
     res.status(statusCode).json({
       success: false,
       error: { code: errorCode, message: errorMessage },
@@ -797,47 +668,11 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
       requestId,
     });
 
-    // エラータイプに応じたステータスコードとレスポンス
-    let statusCode = 500;
-    let errorCode = 'E4001';
-    let errorMessage = 'システムエラーが発生しました';
-
-    if (error.message) {
-      // ValidationErrorのチェック
-      if (error.message.includes('パストラバーサル') || 
-          error.message.includes('不正なファイルパス') ||
-          error.message.includes('ファイルキー') ||
-          error.message.includes('無効な')) {
-        statusCode = 400;
-        errorCode = 'E1003';
-        errorMessage = error.message;
-      }
-      // NotFoundErrorのチェック
-      else if (error.message.includes('見つかりません') || 
-               error.message.includes('存在しません')) {
-        statusCode = 404;
-        errorCode = 'E6001';
-        errorMessage = error.message;
-      }
-      // StorageErrorのチェック
-      else if (error.message.includes('削除') || 
-               error.message.includes('ストレージ')) {
-        statusCode = 500;
-        errorCode = 'E4006';
-        errorMessage = error.message;
-      }
-    }
-
+    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
     res.status(statusCode).json({
       success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
+      error: { code: errorCode, message: errorMessage },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }
@@ -1286,46 +1121,11 @@ export async function cancelBatch(req: Request, res: Response): Promise<void> {
       requestId,
     });
 
-    // エラータイプに応じたステータスコードとレスポンス
-    let statusCode = 500;
-    let errorCode = 'E4001';
-    let errorMessage = 'システムエラーが発生しました';
-
-    if (error.message) {
-      // NotFoundErrorのチェック
-      if (error.message.includes('見つかりません') || 
-          error.message.includes('存在しません')) {
-        statusCode = 404;
-        errorCode = 'E6001';
-        errorMessage = error.message;
-      }
-      // ValidationErrorのチェック
-      else if (error.message.includes('既に') || 
-               error.message.includes('キャンセル') ||
-               error.message.includes('完了')) {
-        statusCode = 400;
-        errorCode = 'E1003';
-        errorMessage = error.message;
-      }
-      // StorageErrorのチェック
-      else if (error.message.includes('削除') || 
-               error.message.includes('ストレージ')) {
-        statusCode = 500;
-        errorCode = 'E4006';
-        errorMessage = error.message;
-      }
-    }
-
+    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
     res.status(statusCode).json({
       success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
+      error: { code: errorCode, message: errorMessage },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

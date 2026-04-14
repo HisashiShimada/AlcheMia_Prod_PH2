@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { FileAddOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { extractErrorCode } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -133,10 +134,9 @@ export default function CreateFormatFileModal({
       // バリデーションエラーまたは送信エラー
       if (err instanceof Error) {
         const errorMessage = err.message;
-        
-        // ファイル名重複エラーの場合、ファイル名フィールドにエラーを設定
-        if (errorMessage.includes('同じ名前のファイルが既に存在します') || 
-            errorMessage.includes('already exists')) {
+        // E6005（ファイル重複）の場合、ファイル名フィールドにエラーを設定
+        const errorCode = extractErrorCode(err);
+        if (errorCode === 'E6005') {
           form.setFields([
             {
               name: 'fileName',

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Space, Typography, theme, Button, message } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   ExperimentOutlined, 
   CheckSquareOutlined, 
@@ -71,6 +72,7 @@ export default function ExperimentRecordTab({
   useDeemedProgress = true,
 }: ExperimentRecordTabProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   
@@ -494,11 +496,11 @@ export default function ExperimentRecordTab({
           <Card data-testid="empty-project-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
-              <Title level={3} type="secondary">
-                🧪 実験記録
+          <Title level={3} type="secondary">
+                🧪 {t('menu.experiment_worker.tabs.experimentRecord')}
               </Title>
               <Text type="secondary">
-                プロジェクトを選択してください
+                {t('experimentWork.projectSelection.title')}
               </Text>
             </Space>
           </Card>
@@ -510,7 +512,7 @@ export default function ExperimentRecordTab({
                 📋 トランジション一覧
               </Title>
               <Text type="secondary">
-                メソッドを選択してください
+                {t('experimentWork.labels.methodPlaceholder')}
               </Text>
             </Space>
           </Card>
@@ -522,7 +524,7 @@ export default function ExperimentRecordTab({
                 📋 トランジション一覧
               </Title>
               <Text type="secondary">
-                タスクを選択してください
+                {t('experimentWork.labels.taskPlaceholder')}
               </Text>
             </Space>
           </Card>

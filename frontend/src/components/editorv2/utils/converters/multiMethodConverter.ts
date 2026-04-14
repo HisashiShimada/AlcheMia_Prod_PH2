@@ -14,6 +14,7 @@ import {
   buildDocumentXML,
   validatePetriNet 
 } from './reactFlowToMaiml';
+import { PLACE_DESC_IMPORTED, PLACE_DESC_EXISTING, PLACE_DESC_IMPORTED_EN } from '@/constants/placeDescriptions';
 
 import type { 
   NodeData,
@@ -375,9 +376,9 @@ function buildMethodXML(
   // Place要素群
   places.forEach((place: Node<NodeData>) => {
     const hasDescription = place.data.description && 
-      place.data.description !== 'インポート済み' && 
-      place.data.description !== '既存プレース' && 
-      place.data.description !== 'imported';
+      place.data.description !== PLACE_DESC_IMPORTED &&
+      place.data.description !== PLACE_DESC_EXISTING &&
+      place.data.description !== PLACE_DESC_IMPORTED_EN;
     const hasPosition = !!place.position;
 
     if (hasDescription || hasPosition) {
