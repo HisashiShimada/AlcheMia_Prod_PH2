@@ -319,7 +319,7 @@ export default function ProgressMonitoring() {
     setLoadingProjectId(record.projectId);
     try {
       // GET /api/v1/projects/:projectName/files を呼び出して実際のファイル情報を取得
-      const filesResponse = await getProjectFiles(record.projectName, false);
+      const filesResponse = await getProjectFiles(record.projectId, false);
 
       const mainFiles: ProjectFile[] = filesResponse.files ?? [];
 

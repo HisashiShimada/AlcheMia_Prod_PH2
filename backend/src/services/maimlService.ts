@@ -7,6 +7,7 @@
  */
 
 import { DOMParser } from '@xmldom/xmldom';
+import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { getStorageService } from './storageService';
 import * as crypto from 'crypto';
 import * as validationHistoryRepository from '../repositories/validationHistoryRepository';
@@ -91,7 +92,7 @@ async function uploadFileWithRetry(
   organizationId: string,
   fileKey: string,
   content: Buffer,
-  options: { contentType?: string; uploadedBy?: string; uploadSource?: string; uploadMethod?: string; metadata?: Record<string, string> },
+  options: { contentType?: string; uploadedBy?: string; uploadSource?: string; uploadMethod?: string; metadata?: Record<string, string>; project_uuid?: string },
   maxRetries: number = 3,
   timeoutMs: number = 60000
 ): Promise<void> {
@@ -162,6 +163,18 @@ export async function saveMaiML(
       console.log('ℹ️ [maimlService] アーカイブ化スキップ（上書き保存）');
     }
 
+    // MAIML の <Document uuid="..."> から UUID を抽出（アップロード前に取得）
+    const documentUuid = extractDocumentUuid(content);
+    if (documentUuid) {
+      console.log('🔍 [MAIML Save] Document UUID 抽出:', documentUuid);
+    } else {
+      console.warn('⚠️ [MAIML Save] Document UUID が抽出できませんでした');
+    }
+
+    // projects/ 配下かつ archive/ を含まない場合のみ project_uuid を渡す
+    const isProjectMainFile =
+      normalizedFileKey.includes('/projects/') && !normalizedFileKey.includes('/archive/');
+
     // S3/Swiftアップロード（リトライ機能付き・uploadedBy を渡して file_metadata を自動登録）
     await uploadFileWithRetry(
       organizationId,
@@ -174,6 +187,8 @@ export async function saveMaiML(
         metadata: {
           'edit-timestamp': new Date().toISOString(),
         },
+        // archive でない project ファイルの場合のみ project_uuid を設定
+        ...(isProjectMainFile && documentUuid ? { project_uuid: documentUuid } : {}),
       },
       3,    // maxRetries
       60000 // timeout: 60秒
@@ -184,15 +199,14 @@ export async function saveMaiML(
 
     console.log('✅ [maimlService] MAIML保存完了:', normalizedFileKey);
     
-    // MaiMLファイルの場合、project_maiml_flgを更新
+    // MaiMLファイルの場合、project_maiml_flg / project_uuid を更新
     if (normalizedFileKey.toLowerCase().endsWith('.maiml')) {
-      // project_maiml_flgをtrueに更新（プロジェクトファイルの場合のみ）
-      // fileKeyがprojects/を含む場合のみ実行
-      if (normalizedFileKey.includes('/projects/')) {
-        console.log('🔍 [MAIML Save] project_maiml_flg更新開始:', normalizedFileKey);
+      // projects/ 配下（かつ archive/ を含まない）場合のみ実行
+      if (isProjectMainFile) {
+        console.log('🔍 [MAIML Save] project更新開始:', normalizedFileKey);
         
         // fileKeyからproject_nameを抽出
-        // 想定形式: projects/sample_project/sample_project.maiml
+        // 想定形式: {orgId}/projects/{project_name}/{project_name}.maiml
         const pathParts = normalizedFileKey.split('/');
         console.log('🔍 [MAIML Save] pathParts:', pathParts);
         
@@ -200,47 +214,51 @@ export async function saveMaiML(
         const projectsIndex = pathParts.findIndex(part => part === 'projects');
         
         if (projectsIndex !== -1 && pathParts.length > projectsIndex + 1) {
-        const projectName = pathParts[projectsIndex + 1];
-        console.log('🔍 [MAIML Save] 抽出されたプロジェクト名:', projectName);
-        
-        // プロジェクト情報を取得
-        const existingProject = await projectRepository.findByName(organizationId, projectName);
-        
-        if (!existingProject) {
-          // プロジェクトが見つからない場合はエラー
-          const errorMsg = `Project not found: ${projectName} (organizationId: ${organizationId})`;
-          console.error('❌ [MAIML Save] プロジェクトが見つかりません:', {
-            projectName,
-            organizationId,
-            fileKey: normalizedFileKey,
-            pathParts,
-          });
-          throw new Error(errorMsg);
-        }
-        
-        // project_maiml_flgがfalseまたはnullの場合のみ更新
-        if (!existingProject.project_maiml_flg) {
-          // 既存のプロジェクトObjectのproject_maiml_flgをtrueに更新
-          // 注: update_atはprojectRepository.update()内で自動設定されるため、明示的に設定しない
-          const updatedProject: Project = {
-            ...existingProject,
-            project_maiml_flg: true,
-          };
+          const projectName = pathParts[projectsIndex + 1];
+          console.log('🔍 [MAIML Save] 抽出されたプロジェクト名:', projectName);
           
-          try {
-            // 共通のupdateメソッドで更新
-            await projectRepository.update(updatedProject);
-            console.log('✅ [MAIML Save] project_maiml_flg更新完了:', projectName);
-          } catch (updateError) {
-            // フラグ更新失敗時はエラーをthrow（保存処理全体が失敗）
-            console.error('❌ [MAIML Save] project_maiml_flg更新失敗:', {
+          // プロジェクト情報を取得
+          const existingProject = await projectRepository.findByName(organizationId, projectName);
+          
+          if (!existingProject) {
+            // プロジェクトが見つからない場合はエラー
+            const errorMsg = `Project not found: ${projectName} (organizationId: ${organizationId})`;
+            console.error('❌ [MAIML Save] プロジェクトが見つかりません:', {
               projectName,
-              error: updateError,
+              organizationId,
+              fileKey: normalizedFileKey,
+              pathParts,
             });
-            throw new Error(`Failed to update project_maiml_flg: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
+            throw new Error(errorMsg);
           }
+
+          // project_maiml_flg と project_uuid を必要に応じて更新
+          const needsFlagUpdate = !existingProject.project_maiml_flg;
+          const needsUuidUpdate = documentUuid && existingProject.project_uuid !== documentUuid;
+
+          if (needsFlagUpdate || needsUuidUpdate) {
+            const updatedProject: Project = {
+              ...existingProject,
+              ...(needsFlagUpdate ? { project_maiml_flg: true } : {}),
+              ...(needsUuidUpdate ? { project_uuid: documentUuid! } : {}),
+            };
+
+            try {
+              await projectRepository.update(updatedProject);
+              console.log('✅ [MAIML Save] project更新完了:', {
+                projectName,
+                project_maiml_flg: needsFlagUpdate ? true : existingProject.project_maiml_flg,
+                project_uuid: needsUuidUpdate ? documentUuid : existingProject.project_uuid,
+              });
+            } catch (updateError) {
+              console.error('❌ [MAIML Save] project更新失敗:', {
+                projectName,
+                error: updateError,
+              });
+              throw new Error(`Failed to update project: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
+            }
           } else {
-            console.log('ℹ️ [MAIML Save] project_maiml_flgは既にtrue:', projectName);
+            console.log('ℹ️ [MAIML Save] project の更新は不要（変更なし）:', projectName);
           }
         } else {
           // fileKeyの形式が不正な場合はエラー
@@ -253,8 +271,8 @@ export async function saveMaiML(
           throw new Error(errorMsg);
         }
       } else {
-        // フォーマットファイルの場合はproject_maiml_flg更新をスキップ
-        console.log('ℹ️ [MAIML Save] フォーマットファイルのためproject_maiml_flg更新をスキップ:', normalizedFileKey);
+        // フォーマットファイルの場合は project 更新をスキップ
+        console.log('ℹ️ [MAIML Save] フォーマットファイルのため project 更新をスキップ:', normalizedFileKey);
       }
     }
 
@@ -658,6 +676,27 @@ async function createBackup(filePath: string, organizationId: string): Promise<s
   } catch (error) {
     console.warn('⚠️ [maimlService] バックアップ作成失敗:', error);
     // バックアップ失敗は警告のみ（保存処理は継続）
+    return null;
+  }
+}
+
+/**
+ * MAIML XML の <document> 配下の <uuid> 子要素テキストを抽出する
+ *
+ * MAIMLの uuid は XML 属性ではなく子要素 <uuid>...</uuid> として定義されているため、
+ * MaimlParserTyped.getDocument().uuid を使用して正しく取得する。
+ *
+ * @param content - MAIML XML 文字列
+ * @returns Document uuid 値、存在しない場合は null
+ */
+function extractDocumentUuid(content: string): string | null {
+  try {
+    const parser = new MaimlParserTyped(content);
+    const doc = parser.getDocument();
+    const uuid = doc?.uuid;
+    return uuid && uuid.trim().length > 0 ? uuid.trim() : null;
+  } catch (err) {
+    console.warn('⚠️ [extractDocumentUuid] MaimlParserTyped による UUID 抽出失敗:', err instanceof Error ? err.message : err);
     return null;
   }
 }

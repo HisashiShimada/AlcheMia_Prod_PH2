@@ -19,7 +19,7 @@ import { logError } from '../utils/logger';
 /**
  * タスク登録情報を取得
  * 
- * GET /api/experiment_admin/projects/:projectName/task-registration
+ * GET /api/v1/projects/:projectId/task-registration
  * 
  * @param req - Expressリクエスト
  * @param res - Expressレスポンス
@@ -33,11 +33,11 @@ export async function getTaskRegistration(
   
   try {
     // バリデーションはミドルウェアで処理済み
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     const { organizationId } = req.user!;
     
     const result = await taskRegistrationService.getTaskRegistration(
-      projectName,
+      projectId,
       organizationId
     );
     
@@ -53,7 +53,7 @@ export async function getTaskRegistration(
     logError('Failed to get task registration', error as Error, {
       action: 'task_registration_get',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId
     });
     
@@ -79,7 +79,7 @@ export async function getTaskRegistration(
 /**
  * タスク登録情報を保存
  * 
- * POST /api/experiment_admin/projects/:projectName/task-registration
+ * POST /api/v1/projects/:projectId/task-registration
  * 
  * @param req - Expressリクエスト
  * @param res - Expressレスポンス
@@ -93,12 +93,12 @@ export async function saveTaskRegistration(
   
   try {
     // バリデーションはミドルウェアで処理済み
-    const { projectName } = req.params;
+    const { projectId } = req.params;
     const { organizationId, userId } = req.user!;
     const requestData = req.body as SaveTaskRegistrationRequest;
     
     const result = await taskRegistrationService.saveTaskRegistration(
-      projectName,
+      projectId,
       organizationId,
       userId,
       requestData
@@ -116,7 +116,7 @@ export async function saveTaskRegistration(
     logError('Failed to save task registration', error as Error, {
       action: 'task_registration_save',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       requestId
     });
     

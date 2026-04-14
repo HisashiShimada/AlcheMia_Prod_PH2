@@ -22,6 +22,9 @@ CREATE TABLE project (
 ALTER TABLE project ADD CONSTRAINT uk_project_project_name
 UNIQUE (project_name) ;
 
+ALTER TABLE project ADD CONSTRAINT uk_project_project_uuid
+UNIQUE (project_uuid) ;
+
 COMMENT ON TABLE project IS 'プロジェクト';
 COMMENT ON COLUMN project.organization_id IS '組織ID';
 COMMENT ON COLUMN project.project_id IS 'プロジェクトID';

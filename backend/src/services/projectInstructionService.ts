@@ -10,6 +10,7 @@ import * as projectRepository from '../repositories/projectRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import { getPool } from '../database/db';
 import { Project, ProjectInstruction } from '../types/database';
+import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import {
   TaskRegistrationStatusResponse,
   SaveInstructionRequest,
@@ -324,7 +325,7 @@ export async function sendInstructions(
 
     // MAIMLファイルをパースして method_id → program_id のマップを構築
     // パース失敗時は空マップで継続（programId は null として処理）
-    const programIdMap = await buildProgramIdMap(organizationId, projectName);
+    const programIdMap = await buildProgramIdMap(organizationId, projectId, projectName);
     
     // 1. 未送信指示を送信済に更新
     const sentCount = await projectInstructionRepository.bulkUpdateStatus(
@@ -394,18 +395,61 @@ export async function sendInstructions(
 /**
  * MAIMLファイルをパースして method_id → program_id のマップを構築する
  *
+ * file_metadata テーブルから project_uuid でMAIMLファイルの file_key を取得し、
+ * ストレージからダウンロードしてパースする。
+ * project_uuid が未設定の場合は projectName によるパスフォールバックを使用する。
+ *
  * @param organizationId 組織ID
- * @param projectName プロジェクト名
+ * @param projectId プロジェクトID
+ * @param projectName プロジェクト名（フォールバック用）
  * @returns method_id をキー、program_id を値とするマップ
  *          パース失敗時は空のマップを返す
  */
 async function buildProgramIdMap(
   organizationId: string,
+  projectId: string,
   projectName: string
 ): Promise<Record<string, string>> {
   try {
     const storageService = getStorageService();
-    const filePath = `projects/${projectName}/${projectName}.maiml`;
+
+    // project_uuid を取得し、file_metadata からMAIMLファイルの file_key を解決する
+    const nameRow = await projectRepository.findNameAndUuidById(organizationId, projectId);
+    const projectUuid = nameRow?.project_uuid ?? null;
+
+    let filePath: string;
+    if (projectUuid) {
+      const fileMetadataRepo = new FileMetadataRepository();
+      const meta = await fileMetadataRepo.findMaimlByProjectUuid(projectUuid);
+      if (meta) {
+        // file_key は "{organizationId}/..." 形式のフルキー
+        // storageService.downloadFile は組織プレフィックスを除いた相対パスを受け取る
+        filePath = meta.file_key.startsWith(`${organizationId}/`)
+          ? meta.file_key.slice(`${organizationId}/`.length)
+          : meta.file_key;
+        logger.info('[projectInstructionService] file_metadata からMAIMLパスを解決', {
+          projectId,
+          projectUuid,
+          filePath,
+        });
+      } else {
+        // file_metadata に未登録の場合は project_name でフォールバック
+        filePath = `projects/${projectName}/${projectName}.maiml`;
+        logger.warn('[projectInstructionService] file_metadata にMAIMLが未登録、project_name でフォールバック', {
+          projectId,
+          projectUuid,
+          filePath,
+        });
+      }
+    } else {
+      // project_uuid 未設定の場合は project_name でフォールバック
+      filePath = `projects/${projectName}/${projectName}.maiml`;
+      logger.warn('[projectInstructionService] project_uuid 未設定、project_name でフォールバック', {
+        projectId,
+        filePath,
+      });
+    }
+
     const fileBuffer = await storageService.downloadFile(organizationId, filePath);
     const maimlContent = fileBuffer.toString('utf-8');
 
@@ -438,6 +482,7 @@ async function buildProgramIdMap(
     // MAIMLファイル取得・パース失敗時は空マップで継続（ログのみ）
     logError('MAIMLファイルのパースに失敗しました（programIdMapは空で継続）', error as Error, {
       organizationId,
+      projectId,
       projectName,
     });
     return {};
