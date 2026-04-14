@@ -437,13 +437,21 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
             await Promise.all(ids.map((id) => abortChunkUpload(id)));
             activeUploadIdsRef.current = [];
           }
+          // upload_batch テーブルを cancelled に更新
+          if (batchId) {
+            try {
+              await cancelBatch(batchId);
+            } catch (cancelError) {
+              console.error('バッチキャンセルエラー:', cancelError);
+            }
+          }
           onClose();
         },
       });
     } else {
       onClose();
     }
-  }, [uploadState.isUploading, onClose]);
+  }, [uploadState.isUploading, batchId, onClose]);
 
   /**
    * ファイルリストの合計サイズ計算

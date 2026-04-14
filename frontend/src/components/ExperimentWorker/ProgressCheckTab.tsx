@@ -21,6 +21,8 @@ const EMPTY_ICON_SIZE = 48;
 
 interface ProgressCheckTabProps {
   selectedProject: string | null;
+  /** 選択中プロジェクトのプロジェクト名（UI表示用） */
+  selectedProjectName?: string;
   onProjectChange: (projectId: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string) => void;
@@ -36,6 +38,7 @@ interface ProgressCheckTabProps {
  */
 export default function ProgressCheckTab({
   selectedProject,
+  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,

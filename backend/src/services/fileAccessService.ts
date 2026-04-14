@@ -38,6 +38,7 @@ import { ErrorContent } from '../types/maimlValidation';
 import { truncateField, FILE_METADATA_MAX_LENGTHS } from '../utils/stringValidator';
 import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
+import { MaimlParserTyped } from '../utils/maimlParserTyped';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -378,13 +379,6 @@ export class FileAccessService {
           const pathParts = normalizedPath.split('/');
           if (pathParts.length >= 2) {
             const projectName = pathParts[1];
-            const fileBaseName = sanitizedFileName.replace(/\.maiml$/i, '');
-            if (fileBaseName !== projectName) {
-              console.error(`❌ [Upload] MAIMLファイル名不一致: ファイル名=${sanitizedFileName}, プロジェクト名=${projectName}`);
-              throw new ValidationError(
-                `ファイル名がプロジェクト名と一致しません（ファイル名: ${sanitizedFileName}、プロジェクト名: ${projectName}）`
-              );
-            }
 
             // ② MAIMLファイル重複チェック
             // プロジェクト直下に同名の .maiml ファイルが既に存在する場合はエラー
@@ -477,6 +471,24 @@ export class FileAccessService {
 
         // storageServiceを使用してS3/Swiftにアップロード（バリデーション通過後）
         // uploadedBy/uploadBatchId/uploadSource/uploadMethod を渡して file_metadata を自動登録
+        // MAIMLファイルの場合は project_uuid を抽出して渡す（file_metadata.project_uuid 更新のため）
+        let documentUuid: string | undefined;
+        if (isMaiml) {
+          try {
+            const maimlParser = new MaimlParserTyped(file.buffer.toString('utf-8'));
+            const doc = maimlParser.getDocument();
+            const uuid = doc?.uuid?.trim();
+            if (uuid && uuid.length > 0) {
+              documentUuid = uuid;
+              console.log('🔍 [Upload] Document UUID 抽出成功:', documentUuid);
+            } else {
+              console.warn('⚠️ [Upload] Document UUID が空です:', sanitizedFileName);
+            }
+          } catch (uuidErr) {
+            console.warn('⚠️ [Upload] Document UUID 抽出失敗（アップロードは続行）:', uuidErr instanceof Error ? uuidErr.message : uuidErr);
+          }
+        }
+
         const s3Key = await this.storageService.uploadFile(
           organizationId,
           filePath,
@@ -487,6 +499,8 @@ export class FileAccessService {
             uploadBatchId: batch.batchId,
             uploadSource: 'web_upload',
             uploadMethod: 'single',
+            // projects/ 配下の MAIMLメインファイルの場合のみ project_uuid を設定
+            ...(documentUuid && !filePath.includes('/archive/') ? { project_uuid: documentUuid } : {}),
           }
         );
 
@@ -499,6 +513,7 @@ export class FileAccessService {
           contentType: file.mimetype,
           uploadedAt: new Date().toISOString(),
           ...(maimlValidation && { maimlValidation }), // 警告がある場合のみ付加
+          ...(documentUuid ? { documentUuid } : {}),  // project_uuid 更新用
         };
       },
       concurrency
@@ -555,17 +570,31 @@ export class FileAccessService {
 
           if (!existingProject) {
             console.warn(`⚠️ [Upload] プロジェクトが見つかりません: ${projectName}`);
-          } else if (!existingProject.project_maiml_flg) {
-            // project_maiml_flgがfalseの場合のみtrueに更新
-            const updatedProject: Project = {
-              ...existingProject,
-              project_maiml_flg: true,
-            };
-
-            await projectRepository.update(updatedProject);
-            console.log('✅ [Upload] project_maiml_flg=true更新完了:', projectName);
           } else {
-            console.log('ℹ️ [Upload] project_maiml_flgは既にtrue:', projectName);
+            // project_maiml_flg と project_uuid を更新
+            // アップロードされた MAIML ファイルの documentUuid を取得
+            const maimlFile = uploadedFiles.find(f => f.fileName.endsWith('.maiml') && (f as any).documentUuid);
+            const newProjectUuid = maimlFile ? (maimlFile as any).documentUuid as string : undefined;
+
+            const needsFlagUpdate = !existingProject.project_maiml_flg;
+            const needsUuidUpdate = newProjectUuid && existingProject.project_uuid !== newProjectUuid;
+
+            if (needsFlagUpdate || needsUuidUpdate) {
+              const updatedProject: Project = {
+                ...existingProject,
+                ...(needsFlagUpdate ? { project_maiml_flg: true } : {}),
+                ...(needsUuidUpdate ? { project_uuid: newProjectUuid } : {}),
+              };
+
+              await projectRepository.update(updatedProject);
+              console.log('✅ [Upload] project更新完了:', {
+                projectName,
+                project_maiml_flg: needsFlagUpdate ? 'false→true' : '変更なし',
+                project_uuid: needsUuidUpdate ? `→${newProjectUuid}` : '変更なし',
+              });
+            } else {
+              console.log('ℹ️ [Upload] projectの更新不要（既に最新）:', projectName);
+            }
           }
         } catch (updateError) {
           // フラグ更新失敗は警告のみ（ファイルアップロードは成功しているため）

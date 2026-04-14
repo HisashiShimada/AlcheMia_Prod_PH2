@@ -93,7 +93,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching tasks');
       
       try {
-        const data = await getTaskRegistration(projectName);
+        const data = await getTaskRegistration(projectId);
 
         // タスク情報をUI用の形式に変換
         if (data.tasks && data.tasks.length > 0) {
@@ -133,7 +133,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching instructions');
 
       try {
-        const instructionList = await getInstructions(projectName);
+        const instructionList = await getInstructions(projectId);
         setInstructions(instructionList);
       } catch (error) {
         const errorMessage =

@@ -2376,10 +2376,10 @@ export default function DataRecordDialog({
                       disabled={!isProjectEditable}
                       onClick={async () => {
                         // パスパラメータのガードチェック
-                        if (!projectName || !methodId || !transition?.transitionId || taskNo === undefined) {
+                        if (!projectId || !methodId || !transition?.transitionId || taskNo === undefined) {
                           message.error('更新に必要なプロジェクト情報が不足しています');
-                          console.error('ステータス更新: projectName / methodId / transitionId / taskNo が未設定', {
-                            projectName,
+                          console.error('ステータス更新: projectId / methodId / transitionId / taskNo が未設定', {
+                            projectId,
                             methodId,
                             transitionId: transition?.transitionId,
                             taskNo,
@@ -2388,7 +2388,7 @@ export default function DataRecordDialog({
                         }
                           try {
                           setLoading(true);
-                          await updateTransitionStatus(projectName, methodId, transition.transitionId, {
+                          await updateTransitionStatus(projectId, methodId, transition.transitionId, {
                             taskNo,
                             status: selectedStatus,
                             progressRate: progress,

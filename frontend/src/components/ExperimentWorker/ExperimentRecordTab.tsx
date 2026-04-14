@@ -39,6 +39,8 @@ type ViewMode = 'list' | 'flow';
  */
 interface ExperimentRecordTabProps {
   selectedProject: string;
+  /** 選択中プロジェクトのプロジェクト名（S3パス構築・UI表示用） */
+  selectedProjectName?: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string | null) => void;
@@ -57,6 +59,7 @@ interface ExperimentRecordTabProps {
  */
 export default function ExperimentRecordTab({
   selectedProject,
+  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
@@ -540,7 +543,7 @@ export default function ExperimentRecordTab({
                     onTaskCreated={onTaskCreated}
                     projectId={selectedProject}
                     methodId={selectedMethodId || undefined}
-                    projectName={selectedProject}
+                    projectName={selectedProjectName || selectedProject}
                     onDataSaveComplete={fetchProgress}
                     useDeemedProgress={useDeemedProgress}
                   />
@@ -588,7 +591,7 @@ export default function ExperimentRecordTab({
         onClose={handleDataRecordModalClose}
         onSave={handleDataSave}
         projectId={selectedProject}
-        projectName={selectedProject || undefined}
+        projectName={selectedProjectName || selectedProject || undefined}
         methodId={selectedMethodId || undefined}
         taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
         useDeemedProgress={useDeemedProgress}
