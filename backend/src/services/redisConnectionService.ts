@@ -35,12 +35,14 @@ export class RedisConnectionService {
 
       // Redisクライアント作成
       const redisPassword = process.env.REDIS_PASSWORD;
+      const redisTls = process.env.REDIS_TLS === 'true';
       this.client = createClient({
         socket: {
           host: redisHost,
           port: redisPort,
           connectTimeout: 5000,  // 5秒でタイムアウト
           reconnectStrategy: false,  // 自動再接続を無効化（エラーの繰り返しを防ぐ）
+          tls: redisTls,  // REDIS_TLS=true の場合はTLS接続（ElastiCache等）
         },
         password: redisPassword || undefined,  // REDIS_PASSWORDが設定されている場合のみ使用
       });

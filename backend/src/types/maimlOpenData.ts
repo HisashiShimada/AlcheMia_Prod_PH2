@@ -223,7 +223,7 @@ export interface PublishJobData {
 export interface UnpublishJobData {
   jobId:          string;
   organizationId: string;
-  projectId:      string;
+  projectId?:     string;        // schedule トリガー時は省略可（maimlScannerWorker 等）
   projectName:    string;
   assetId:        bigint;
   triggerType:    'manual' | 'schedule';
