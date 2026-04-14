@@ -224,9 +224,10 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
         </Tooltip>
       );
     }
-    // boolean: true / false をそのまま表示
-    if (typeof value === 'boolean') {
-      return value
+    // boolean: JavaScript boolean型、または文字列 "true"/"false" を色付けして表示
+    if (typeof value === 'boolean' || value === 'true' || value === 'false') {
+      const isTruthy = value === true || value === 'true';
+      return isTruthy
         ? <Tag color="success">true</Tag>
         : <Tag color="error">false</Tag>;
     }
@@ -407,13 +408,16 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
             dataIndex: 'description',
             key: 'description',
             width: '27%',
-            render: (text: string) => text
-              ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
-              : (
-                <Tooltip title="説明・単位が設定されていません">
-                  <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
-                </Tooltip>
-              ),
+            render: (_: unknown, record: TableDataType) => {
+              const text = record.description;
+              return text && text.trim()
+                ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
+                : (
+                  <Tooltip title="説明・単位が設定されていません">
+                    <Text type="secondary" style={{ fontSize: 11, color: '#bfbfbf' }}>-</Text>
+                  </Tooltip>
+                );
+            },
           },
         ];
         return (
