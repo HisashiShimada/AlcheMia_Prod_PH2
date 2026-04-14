@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { 
   Input, 
   Typography, 
@@ -600,7 +601,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                         updatedNode.data.template = {
                           id: templateId,  // ✅ ノードIDとは異なる専用ID
                           category: placeType,
-                          uuid: updatedNode.data.template?.uuid || crypto.randomUUID(),  // ✅ UUID生成
+                          uuid: updatedNode.data.template?.uuid || uuidv4(),  // ✅ UUID生成
                           name: selectedNode.data.name || '',
                           description: selectedNode.data.description || '',
                           placeRefs: [{ id: '', ref: nodeId }],  // ✅ PlaceRef型で自ノードIDを設定

@@ -316,7 +316,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         key,
         value,
         type: xsiType,
-        description: [desc, units ? `単位: ${units}` : undefined].filter(Boolean).join(' / ') || key,
+        description: [desc, units ? `単位: ${units}` : undefined].filter(Boolean).join(' / ') || undefined,
       };
     });
 

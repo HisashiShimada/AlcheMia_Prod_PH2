@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Table,
   Button,
@@ -599,7 +600,7 @@ export default function OrganizationManagement() {
         await client.put(`/provider/organization/${editingOrg.organizationId}`, saveData);
         messageApi.success(t('organizationManagement.messages.saveSuccess'));
       } else {
-        const organizationId = crypto.randomUUID();
+        const organizationId = uuidv4();
         await client.post('/provider/organization', { organizationId, ...values });
         messageApi.success(t('organizationManagement.messages.addSuccess'));
       }

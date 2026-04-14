@@ -401,6 +401,8 @@ export const uploadFiles = async (
       },
       onSessionInit,
       onRetry,
+      signal, // ✅ AbortSignal をチャンクアップロードにも伝播
+      batchId: metadata?.batchId, // ✅ キャンセル競合検出用に batchId を伝播
     });
 
     completedCount++;
@@ -449,19 +451,36 @@ export const uploadFiles = async (
     }
   });
 
+  // キャンセルエラー判定ヘルパー
+  // ERR_CANCELED（axios）/ CanceledError / AbortError / "canceled" メッセージをすべてキャンセルとみなす
+  const isCanceledError = (reason: unknown): boolean => {
+    if (!reason) return false;
+    const r = reason as { code?: string; name?: string; message?: string };
+    return (
+      r.code === 'ERR_CANCELED' ||
+      r.name === 'CanceledError' ||
+      r.name === 'AbortError' ||
+      r.message === 'canceled'
+    );
+  };
+
+  // キャンセルエラーが1件でも含まれていたら CanceledError をスロー
+  // （一部成功・一部キャンセルの場合も「キャンセル」として扱う）
+  const hasCanceledError = results.some(
+    (r): r is PromiseRejectedResult =>
+      r.status === 'rejected' && isCanceledError(r.reason)
+  );
+
+  if (hasCanceledError) {
+    const cancelError = new Error('アップロードがキャンセルされました');
+    cancelError.name = 'CanceledError';
+    throw cancelError;
+  }
+
   // 全ファイルが失敗した場合は最初のエラーをそのままスロー
   // (AxiosError を維持することで extractErrorMessage が正確なメッセージを返す)
   if (failedCount === files.length) {
     const firstRejected = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
-
-    // Axios のキャンセルエラーを CanceledError に変換
-    const reason = firstRejected?.reason;
-    if (reason && (reason as { code?: string }).code === 'ERR_CANCELED') {
-      const cancelError = new Error('アップロードがキャンセルされました');
-      cancelError.name = 'CanceledError';
-      throw cancelError;
-    }
-
     throw firstRejected?.reason ?? new Error('すべてのファイルのアップロードに失敗しました');
   }
 
@@ -477,6 +496,40 @@ export const uploadFiles = async (
     failedFileNames,
   };
 };
+
+/**
+ * バッチ先行作成
+ *
+ * アップロード開始前にバッチを in_progress 状態で先行作成し、batchId を返す。
+ * フロントエンドはこの batchId を使ってアップロード途中でもキャンセルを実行できる。
+ *
+ * @param params.batchName バッチ名（省略時はサーバー側で自動生成）
+ * @param params.uploadType アップロード種別（single / bulk / folder）
+ * @returns batchId
+ * @throws Error APIエラー時
+ */
+export const initBatch = async (params: {
+  batchName?: string;
+  uploadType: 'single' | 'bulk' | 'folder';
+  totalFiles: number;
+}): Promise<string> => {
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<ApiResponse<{ batchId: string }>>(
+      '/files/batches/init',
+      params
+    );
+    if (!response.data.success) {
+      throw new Error('バッチの作成に失敗しました');
+    }
+    return (response.data as { success: true; data: { batchId: string } }).data.batchId;
+  } catch (error) {
+    console.error('バッチ先行作成エラー:', error);
+    throw error;
+  }
+};
+
 /**
  * バッチキャンセル
  * 
@@ -646,7 +699,8 @@ export const uploadFileWithChunks = async (
         fileName: file.name,
         totalChunks,
         filePath,
-      }
+      },
+      { signal: options.signal } // ✅ AbortSignal を渡す
     ),
     DEFAULT_RETRY_OPTIONS,
     options.onRetry
@@ -677,6 +731,7 @@ export const uploadFileWithChunks = async (
     await withRetry(
       () => client.post(`/files/chunks/${uploadId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        signal: options.signal, // ✅ AbortSignal を渡す
         onUploadProgress: (e: AxiosProgressEvent) => {
           // 統一計算式: (完了済みバイト数 + e.loaded) / file.size × 100
           // 完了済みバイト数 = 完了チャンク数 × chunkSize
@@ -704,7 +759,10 @@ export const uploadFileWithChunks = async (
       {
         totalChunks,
         contentType: file.type || 'application/octet-stream',
-      }
+        // ✅ batchId を渡すことでバックエンドがキャンセル済み判定を実施できる
+        ...(options.batchId && { batchId: options.batchId }),
+      },
+      { signal: options.signal } // ✅ AbortSignal を渡す
     ),
     DEFAULT_RETRY_OPTIONS,
     options.onRetry
