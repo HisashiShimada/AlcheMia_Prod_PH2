@@ -167,6 +167,18 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         newFileList = newFileList.slice(-1);
       }
 
+      // 複数MAIMLファイルチェック
+      // プロジェクトに登録できるMAIMLファイルは1件のみのため、2件以上選択された場合は警告して最後の1件のみ残す
+      const maimlFiles = newFileList.filter((f) =>
+        f.name.toLowerCase().endsWith('.maiml')
+      );
+      if (maimlFiles.length > 1) {
+        message.warning('プロジェクトに登録できるMAIMLファイルは1件のみです。最後に選択したMAIMLファイルのみ有効になります');
+        const nonMaiml = newFileList.filter((f) => !f.name.toLowerCase().endsWith('.maiml'));
+        const lastMaiml = maimlFiles[maimlFiles.length - 1];
+        newFileList = [...nonMaiml, lastMaiml];
+      }
+
       setFileList(newFileList);
       setResultSummary(null);
 
@@ -177,7 +189,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         setBatchName(`一括アップロード ${newFileList.length}ファイル`);
       }
     },
-    [uploadMode]
+    [uploadMode, message]
   );
 
   /**
@@ -195,7 +207,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
-      const uploadFilesList: UploadFile[] = Array.from(files).map((file, index) => {
+      let uploadFilesList: UploadFile[] = Array.from(files).map((file, index) => {
         const fileWithPath = file as File & { webkitRelativePath?: string };
         const rcFile = file as RcFile;
         rcFile.uid = `${Date.now()}-${index}`;
@@ -210,6 +222,18 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         };
       });
 
+      // 複数MAIMLファイルチェック
+      // プロジェクトに登録できるMAIMLファイルは1件のみのため、2件以上含まれる場合は警告して最後の1件のみ残す
+      const maimlFiles = uploadFilesList.filter((f) =>
+        f.name.toLowerCase().endsWith('.maiml')
+      );
+      if (maimlFiles.length > 1) {
+        message.warning('プロジェクトに登録できるMAIMLファイルは1件のみです。最後に選択したMAIMLファイルのみ有効になります');
+        const nonMaiml = uploadFilesList.filter((f) => !f.name.toLowerCase().endsWith('.maiml'));
+        const lastMaiml = maimlFiles[maimlFiles.length - 1];
+        uploadFilesList = [...nonMaiml, lastMaiml];
+      }
+
       setFileList(uploadFilesList);
       setResultSummary(null);
 
@@ -220,7 +244,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         setBatchName(`フォルダアップロード: ${folderName}`);
       }
     },
-    []
+    [message]
   );
 
   /**

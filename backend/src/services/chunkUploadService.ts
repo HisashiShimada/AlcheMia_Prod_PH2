@@ -38,6 +38,8 @@ export interface ChunkSession {
   tempDir: string;
   /** セッション作成日時 */
   createdAt: Date;
+  /** バッチID（同一バッチ内複数MAIMLチェック用） */
+  batchId?: string;
 }
 
 /** completeUpload() の戻り値 */
@@ -71,12 +73,13 @@ export class ChunkUploadService {
   /**
    * チャンクアップロードセッションを開始する
    *
-   * @param fileName   元のファイル名
-   * @param filePath   ストレージ保存先パス（相対パス）
+   * @param fileName    元のファイル名
+   * @param filePath    ストレージ保存先パス（相対パス）
    * @param totalChunks 総チャンク数
+   * @param batchId     バッチID（省略可）
    * @returns uploadId
    */
-  initSession(fileName: string, filePath: string, totalChunks: number): string {
+  initSession(fileName: string, filePath: string, totalChunks: number, batchId?: string): string {
     const uploadId = uuidv4();
     const tempDir = path.join(os.tmpdir(), 'chunks', uploadId);
 
@@ -90,13 +93,31 @@ export class ChunkUploadService {
       totalChunks,
       tempDir,
       createdAt: new Date(),
+      ...(batchId ? { batchId } : {}),
     };
 
     sessions.set(uploadId, session);
 
-    console.log(`🆕 [ChunkUpload] セッション開始: uploadId=${uploadId}, fileName=${fileName}, totalChunks=${totalChunks}`);
+    console.log(`🆕 [ChunkUpload] セッション開始: uploadId=${uploadId}, fileName=${fileName}, totalChunks=${totalChunks}${batchId ? `, batchId=${batchId}` : ''}`);
 
     return uploadId;
+  }
+
+  /**
+   * 同一バッチ内に既に MAIML ファイルのセッションが存在するかチェックする
+   *
+   * @param batchId  バッチID
+   * @param excludeUploadId チェック対象から除外する uploadId（自セッション）
+   * @returns 既に MAIML セッションがある場合 true
+   */
+  hasMaimlInBatch(batchId: string, excludeUploadId?: string): boolean {
+    for (const [uploadId, session] of sessions.entries()) {
+      if (uploadId === excludeUploadId) continue;
+      if (session.batchId === batchId && session.fileName.toLowerCase().endsWith('.maiml')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
