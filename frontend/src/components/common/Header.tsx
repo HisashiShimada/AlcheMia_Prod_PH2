@@ -32,12 +32,15 @@ export default function Header({ user, onLogout }: HeaderProps) {
   const { t, locale, setLocale } = useLanguage();
   const { token } = theme.useToken();
 
+  // 開発モードフラグ（development 環境のみ言語切り替えを有効にする）
+  const isDev = process.env.NODE_ENV === 'development';
+
   // ロール名の表示（roleNameはDBから取得される日本語文字列なのでそのまま表示）
   const getRoleLabel = (roleName: string): string => {
     return roleName;
   };
 
-  // 言語選択サブメニュー
+  // 言語選択サブメニュー（開発モード時のみ使用）
   const languageMenuItems: MenuProps['items'] = [
     {
       key: 'ja',
@@ -75,12 +78,17 @@ export default function Header({ user, onLogout }: HeaderProps) {
       icon: <SettingOutlined />,
       disabled: true,
     },
-    {
-      key: 'language',
-      label: t('common.language'),
-      icon: <GlobalOutlined />,
-      children: languageMenuItems,
-    },
+    // 言語切り替えメニューは開発モード時のみ表示
+    ...(isDev
+      ? [
+          {
+            key: 'language',
+            label: t('common.language'),
+            icon: <GlobalOutlined />,
+            children: languageMenuItems,
+          } as NonNullable<MenuProps['items']>[number],
+        ]
+      : []),
     {
       type: 'divider',
     },

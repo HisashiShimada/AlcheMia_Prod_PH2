@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, message } from 'antd';
 import { renameProject } from '@/services/projectApiService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RenameProjectModalProps {
   open: boolean;
@@ -21,6 +22,7 @@ const RenameProjectModal: React.FC<RenameProjectModalProps> = ({
   onCancel,
   onSuccess,
 }) => {
+  const { t } = useLanguage();
   const [form] = Form.useForm<{ newProjectName: string }>();
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +46,7 @@ const RenameProjectModal: React.FC<RenameProjectModalProps> = ({
 
       setLoading(true);
       const result = await renameProject(projectId, newName);
-      message.success(`プロジェクト名を「${result.newProjectName}」に変更しました`);
+      message.success(t('projectManagement.rename.success').replace('{{name}}', result.newProjectName));
       onSuccess(result.newProjectName);
     } catch (error: unknown) {
       // バリデーションエラーは Form が処理するので無視
@@ -55,11 +57,11 @@ const RenameProjectModal: React.FC<RenameProjectModalProps> = ({
       const msg = axiosError?.response?.data?.error?.message;
 
       if (code === 'E7001') {
-        message.error('同名のプロジェクトが既に存在します');
+        message.error(t('projectManagement.rename.duplicateError'));
       } else if (msg) {
         message.error(msg);
       } else {
-        message.error('プロジェクト名の変更に失敗しました');
+        message.error(t('projectManagement.rename.failed'));
       }
     } finally {
       setLoading(false);
@@ -73,26 +75,26 @@ const RenameProjectModal: React.FC<RenameProjectModalProps> = ({
 
   return (
     <Modal
-      title="プロジェクト名を変更"
+      title={t('projectManagement.rename.title')}
       open={open}
       onOk={handleOk}
       onCancel={handleCancel}
-      okText="変更"
-      cancelText="キャンセル"
+      okText={t('projectManagement.rename.okText')}
+      cancelText={t('common.cancel')}
       confirmLoading={loading}
       destroyOnClose
     >
       <Form form={form} layout="vertical">
         <Form.Item
-          label="新しいプロジェクト名"
+          label={t('projectManagement.rename.label')}
           name="newProjectName"
           rules={[
-            { required: true, message: 'プロジェクト名を入力してください' },
+            { required: true, message: t('projectManagement.rename.required') },
             {
               pattern: /^[a-zA-Z0-9_-]+$/,
-              message: 'プロジェクト名は英数字・アンダースコア・ハイフンのみ使用できます',
+              message: t('projectManagement.rename.patternError'),
             },
-            { max: 255, message: 'プロジェクト名は255文字以内で入力してください' },
+            { max: 255, message: t('projectManagement.rename.maxLengthError') },
           ]}
         >
           <Input autoFocus placeholder={currentProjectName} />

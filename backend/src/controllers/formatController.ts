@@ -1,5 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { formatService } from '../services/formatService';
+import { AppError } from '../enums/errorCodes';
+
+/** AppError のエラーコードから HTTP ステータスコードを導出する */
+function statusFromCode(code: string): number {
+  if (code.startsWith('E1') || code === 'E1009') return 400;
+  if (code.startsWith('E5')) return code === 'E5012' || code === 'E5015' ? 403 : 401;
+  if (code === 'E6002' || code === 'E6003' || code === 'E6004') return 404;
+  if (code === 'E6005' || code === 'E6006') return 409;
+  if (code === 'E7001') return 409;
+  if (code.startsWith('E6')) return 404;
+  if (code.startsWith('E7')) return 400;
+  return 500;
+}
 
 /**
  * フォーマット一覧取得
@@ -117,29 +130,15 @@ async function createFormatFolder(
     });
   } catch (error) {
     console.error('[formatController] createFormatFolder error:', error);
-    
-    // エラーメッセージに応じてステータスコードを設定
-    const errorMessage = (error as Error).message;
-    let statusCode = 500;
-    let errorCode = 'E4001';
 
-    if (errorMessage.includes('英数字とアンダースコア')) {
-      statusCode = 400;
-      errorCode = 'E1006';
-    } else if (errorMessage.includes('1〜255文字')) {
-      statusCode = 400;
-      errorCode = 'E1006';
-    } else if (errorMessage.includes('既に存在')) {
-      statusCode = 409;
-      errorCode = 'E6006';
-    }
+    const appError = error instanceof AppError ? error : null;
+    const errorCode = appError ? appError.code : 'E4001';
+    const statusCode = appError ? statusFromCode(appError.code) : 500;
+    const errorMessage = (error as Error).message;
 
     res.status(statusCode).json({
       success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
+      error: { code: errorCode, message: errorMessage },
       meta: {
         timestamp: new Date().toISOString(),
         requestId: req.headers['x-request-id'] as string || 'unknown',
@@ -181,35 +180,15 @@ async function createFormatSubfolder(
     });
   } catch (error) {
     console.error('[formatController] createFormatSubfolder error:', error);
-    
-    // エラーメッセージに応じてステータスコードを設定
-    const errorMessage = (error as Error).message;
-    let statusCode = 500;
-    let errorCode = 'E4001';
 
-    if (errorMessage.includes('英数字') || errorMessage.includes('アンダースコア') || errorMessage.includes('ハイフン')) {
-      statusCode = 400;
-      errorCode = 'E1007';
-    } else if (errorMessage.includes('1〜255文字')) {
-      statusCode = 400;
-      errorCode = 'E1007';
-    } else if (errorMessage.includes('既に存在')) {
-      statusCode = 409;
-      errorCode = 'E6006';
-    } else if (errorMessage.includes('親フォルダが存在しません')) {
-      statusCode = 404;
-      errorCode = 'E6004';
-    } else if (errorMessage.includes('フォーマット名が指定されていません')) {
-      statusCode = 400;
-      errorCode = 'E1009';
-    }
+    const appError = error instanceof AppError ? error : null;
+    const errorCode = appError ? appError.code : 'E4001';
+    const statusCode = appError ? statusFromCode(appError.code) : 500;
+    const errorMessage = (error as Error).message;
 
     res.status(statusCode).json({
       success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
+      error: { code: errorCode, message: errorMessage },
       meta: {
         timestamp: new Date().toISOString(),
         requestId: req.headers['x-request-id'] as string || 'unknown',
@@ -264,26 +243,15 @@ async function createFormatFile(
     });
   } catch (error) {
     console.error('[formatController] createFormatFile error:', error);
-    
-    // エラーメッセージに応じてステータスコードを設定
-    const errorMessage = (error as Error).message;
-    let statusCode = 500;
-    let errorCode = 'E4001';
 
-    if (errorMessage.includes('既に存在')) {
-      statusCode = 409;
-      errorCode = 'E6005';
-    } else if (errorMessage.includes('フォルダが見つかりません')) {
-      statusCode = 404;
-      errorCode = 'E6003';
-    }
+    const appError = error instanceof AppError ? error : null;
+    const errorCode = appError ? appError.code : 'E4001';
+    const statusCode = appError ? statusFromCode(appError.code) : 500;
+    const errorMessage = (error as Error).message;
 
     res.status(statusCode).json({
       success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
+      error: { code: errorCode, message: errorMessage },
       meta: {
         timestamp: new Date().toISOString(),
         requestId: req.headers['x-request-id'] as string || 'unknown',
@@ -316,7 +284,7 @@ async function updateFormatFile(
       res.status(400).json({
         success: false,
         error: {
-          code: 'INVALID_FILE_PATH',
+          code: 'E1005',
           message: 'ファイルパスが不正です',
         },
       });
@@ -352,26 +320,15 @@ async function updateFormatFile(
     });
   } catch (error) {
     console.error('[formatController] updateFormatFile error:', error);
-    
-    // エラーメッセージに応じてステータスコードを設定
-    const errorMessage = (error as Error).message;
-    let statusCode = 500;
-    let errorCode = 'E4001';
 
-    if (errorMessage.includes('見つかりません')) {
-      statusCode = 404;
-      errorCode = 'E6002';
-    } else if (errorMessage.includes('不正です')) {
-      statusCode = 400;
-      errorCode = 'E1008';
-    }
+    const appError = error instanceof AppError ? error : null;
+    const errorCode = appError ? appError.code : 'E4001';
+    const statusCode = appError ? statusFromCode(appError.code) : 500;
+    const errorMessage = (error as Error).message;
 
     res.status(statusCode).json({
       success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
+      error: { code: errorCode, message: errorMessage },
       meta: {
         timestamp: new Date().toISOString(),
         requestId: req.headers['x-request-id'] as string || 'unknown',

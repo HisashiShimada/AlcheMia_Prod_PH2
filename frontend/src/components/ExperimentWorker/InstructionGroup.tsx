@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, Button, Space, Typography, Empty, theme } from 'antd';
 import { CheckCircleOutlined, FileOutlined, ToolOutlined, AimOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
 import type { Instruction, ProjectStatus } from '@/types/experimentWorker';
+import { InstructionType, InstructionEmptyMessageKey } from '@/constants/instructionType';
 import InstructionCard from './InstructionCard';
 
 const { Title, Text } = Typography;
@@ -57,15 +58,11 @@ export default function InstructionGroup({
     }));
   };
 
-  // メッセージのマッピング
+  // メッセージのマッピング（InstructionEmptyMessage を使用、不足分はフォールバック）
   const noDataMessages: Record<string, string> = {
-    'プロジェクト指示': '実験全体への作業指示がありません',
-    'タスク指示': 'タスクへの作業指示がありません',
-    'トランジション単位指示': 'トランジションへの作業指示がありません',
-    // 後方互換性のため旧名称も残す
-    '全体指示': '実験全体への作業指示がありません',
-    'タスク単位指示': 'タスクへの作業指示がありません',
-    'メソッド単位指示': 'メソッドへの作業指示がありません',
+    ...InstructionEmptyMessageKey,
+    [InstructionType.TRANSITION_UNIT_INSTRUCTION]: 'トランジションへの作業指示がありません',
+    [InstructionType.METHOD_UNIT_INSTRUCTION]: 'メソッドへの作業指示がありません',
   };
 
   // メソッド単位指示の場合、メソッドごとにグループ化
@@ -108,7 +105,7 @@ export default function InstructionGroup({
   };
 
   // プロジェクト指示の場合（カードなしで表示）
-  if (title === 'プロジェクト指示' || title === '全体指示') {
+  if (title === InstructionType.PROJECT_INSTRUCTION || title === InstructionType.OVERALL_INSTRUCTION) {
     return (
       <div data-testid="instruction-group-file" style={{ marginBottom: 32 }}>
         {groupInstructions.length === 0 ? (
@@ -132,7 +129,7 @@ export default function InstructionGroup({
   }
 
   // タスク指示の場合
-  if (title === 'タスク指示' || title === 'タスク単位指示') {
+  if (title === InstructionType.TASK_INSTRUCTION || title === InstructionType.TASK_UNIT_INSTRUCTION) {
     const taskGroups = groupByTask();
     const taskIds = Object.keys(taskGroups);
 
@@ -251,7 +248,7 @@ export default function InstructionGroup({
   }
 
   // メソッド単位指示の場合
-  if (title === 'メソッド単位指示') {
+  if (title === InstructionType.METHOD_UNIT_INSTRUCTION) {
     const methodGroups = groupByMethod();
     const methodIds = Object.keys(methodGroups);
 
@@ -368,7 +365,7 @@ export default function InstructionGroup({
   }
 
   // トランジション単位指示の場合
-  if (title === 'トランジション単位指示') {
+  if (title === InstructionType.TRANSITION_UNIT_INSTRUCTION) {
     const transitionGroups = groupByTransition();
     const transitionIds = Object.keys(transitionGroups);
 

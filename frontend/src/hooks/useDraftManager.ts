@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Node, Edge } from 'reactflow';
 import { DocumentData } from '../utils/documentParser';
+import { AUTO_SAVE_PREFIX, isAutoSaveDraft } from '../constants/draftConstants';
 
 /**
  * Draft情報の型定義
@@ -258,7 +259,7 @@ const useDraftManager = (
       
       // 自動保存のみフィルタ（draft_nameに「自動保存」を含む）
       const autoSaves = currentDrafts
-        .filter(d => d.draft_name && d.draft_name.includes('自動保存'))
+        .filter(d => isAutoSaveDraft(d.draft_name))
         .sort((a, b) => new Date(b.last_saved_at).getTime() - new Date(a.last_saved_at).getTime());
       
       console.log(`🧹 [useDraftManager V2] 自動保存クリーンアップ: 総数${autoSaves.length}, 保持世代${autoSaveGenerations}`);

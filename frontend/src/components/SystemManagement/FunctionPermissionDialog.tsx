@@ -11,7 +11,8 @@ const { Text } = Typography;
  */
 interface FunctionItem {
   key: string;
-  label: string;
+  label: string;    // 画面表示用（翻訳済み）
+  dbValue: string;  // DB/API送信用（日本語固定値）
   description?: string;
   children?: FunctionItem[];
   checked: boolean;
@@ -50,12 +51,13 @@ export default function FunctionPermissionDialog({
   const { t } = useLanguage();
   
   // FunctionListに基づいた機能データ（カテゴリ分けなし、説明文削除）
+  // label: 画面表示用（翻訳済み）、dbValue: DB/API送信用（日本語固定値）
   const baseFunctions: FunctionItem[] = [
-    { key: '010000', label: 'プロバイダーメニュー', checked: false, writable: false },
-    { key: '020000', label: 'システム管理者メニュー', checked: false, writable: false },
-    { key: '030000', label: 'データ管理者メニュー', checked: false, writable: false },
-    { key: '040000', label: '実験管理者メニュー', checked: false, writable: false },
-    { key: '050000', label: '実験作業者メニュー', checked: false, writable: false },
+    { key: '010000', label: t('functionPermissionDialog.functions.010000'), dbValue: 'プロバイダーメニュー',      checked: false, writable: false },
+    { key: '020000', label: t('functionPermissionDialog.functions.020000'), dbValue: 'システム管理者メニュー',    checked: false, writable: false },
+    { key: '030000', label: t('functionPermissionDialog.functions.030000'), dbValue: 'データ管理者メニュー',      checked: false, writable: false },
+    { key: '040000', label: t('functionPermissionDialog.functions.040000'), dbValue: '実験管理者メニュー',        checked: false, writable: false },
+    { key: '050000', label: t('functionPermissionDialog.functions.050000'), dbValue: '実験作業者メニュー',        checked: false, writable: false },
   ];
 
   // 初期値の設定（useMemoで計算）
@@ -216,28 +218,28 @@ export default function FunctionPermissionDialog({
         // 親機能は含めない、子のみ
         func.children.forEach(child => {
           if (child.checked) {
-            // 表示用：権限アイコン付き
+            // 表示用：権限アイコン付き（翻訳済みlabelを使用）
             const permission = child.writable ? 'Ⓦ' : 'Ⓡ';
             selectedFunctionNames.push(`${permission}${child.label}`);
             
-            // API用：権限アイコンなし
-            allFunctionNames.push(child.label);
+            // API用：権限アイコンなし（DB格納値の日本語固定dbValueを使用）
+            allFunctionNames.push(child.dbValue);
             
             if (child.writable) {
-              writePermissionNames.push(child.label);
+              writePermissionNames.push(child.dbValue);
             }
           }
         });
       } else if (func.checked) {
-        // 表示用：権限アイコン付き
+        // 表示用：権限アイコン付き（翻訳済みlabelを使用）
         const permission = func.writable ? 'Ⓦ' : 'Ⓡ';
         selectedFunctionNames.push(`${permission}${func.label}`);
         
-        // API用：権限アイコンなし
-        allFunctionNames.push(func.label);
+        // API用：権限アイコンなし（DB格納値の日本語固定dbValueを使用）
+        allFunctionNames.push(func.dbValue);
         
         if (func.writable) {
-          writePermissionNames.push(func.label);
+          writePermissionNames.push(func.dbValue);
         }
       }
     });

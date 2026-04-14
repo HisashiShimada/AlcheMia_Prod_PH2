@@ -40,6 +40,7 @@ import {
   updateIssueStatus,
 } from '@/services/issueApiService';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -81,6 +82,7 @@ export default function IssueManagementModal({
   filterTaskId,
   projectStatus,
 }: IssueManagementModalProps) {
+  const { t } = useLanguage();
   const [form] = Form.useForm();
   const [commentForm] = Form.useForm();
 
@@ -161,23 +163,23 @@ export default function IssueManagementModal({
     if (status === 'resolved') {
       return (
         <Tag icon={<CheckCircleOutlined />} color="success">
-          解決済
+          {t('issueManagement.status.resolved')}
         </Tag>
       );
     }
     return (
       <Tag icon={<ExclamationCircleOutlined />} color="warning">
-        未解決
+        {t('issueManagement.status.unresolved')}
       </Tag>
     );
   };
 
   // 対象タイプ表示用のヘルパー関数
   const getTargetTypeText = (targetType: IssueTargetType) => {
-    const typeMap = {
-      project: 'プロジェクト',
-      task: 'タスク',
-      transition: 'トランジション',
+    const typeMap: Record<string, string> = {
+      project: t('issueManagement.targetType.project'),
+      task: t('issueManagement.targetType.task'),
+      transition: t('issueManagement.targetType.transition'),
     };
     return typeMap[targetType] || targetType;
   };
@@ -199,7 +201,7 @@ export default function IssueManagementModal({
   // 問題一覧テーブルの列定義（2行表示）
   const columns: ColumnsType<Issue> = [
     {
-      title: '問題情報',
+      title: t('issueManagement.issueInfo'),
       key: 'issueInfo',
       render: (_, record: Issue) => (
         <div style={{ padding: '4px 0' }}>
@@ -240,7 +242,7 @@ export default function IssueManagementModal({
         description: values.content,
       });
 
-      message.success('問題を報告しました');
+      message.success(t('issueManagement.messages.issueReported'));
       form.resetFields();
       setShowNewIssueForm(false);
       // 一覧を再取得
@@ -260,7 +262,7 @@ export default function IssueManagementModal({
     if (!selectedIssue) return;
 
     if (!newComment.trim()) {
-      message.warning('コメントを入力してください');
+      message.warning(t('issueManagement.messages.commentRequired'));
       return;
     }
 
@@ -271,7 +273,7 @@ export default function IssueManagementModal({
         comment: newComment.trim(),
       });
 
-      message.success('コメントを送信しました');
+      message.success(t('issueManagement.messages.commentPosted'));
       setNewComment('');
       commentForm.resetFields();
       // 一覧を再取得（コメントが追加された状態を反映）
@@ -287,7 +289,7 @@ export default function IssueManagementModal({
     if (!selectedIssue) return;
 
     if (!newComment.trim()) {
-      message.warning('コメントを入力してください');
+      message.warning(t('issueManagement.messages.commentRequired'));
       return;
     }
 
@@ -304,7 +306,7 @@ export default function IssueManagementModal({
         status: 'unresolved',
       });
 
-      message.success('ステータスを「未解決」に変更しました');
+      message.success(t('issueManagement.messages.setUnresolved'));
       setNewComment('');
       commentForm.resetFields();
       // 一覧を再取得
@@ -320,7 +322,7 @@ export default function IssueManagementModal({
     if (!selectedIssue) return;
 
     if (!newComment.trim()) {
-      message.warning('コメントを入力してください');
+      message.warning(t('issueManagement.messages.commentRequired'));
       return;
     }
 
@@ -337,7 +339,7 @@ export default function IssueManagementModal({
         status: 'resolved',
       });
 
-      message.success('ステータスを「解決済」に変更しました');
+      message.success(t('issueManagement.messages.setResolved'));
       setNewComment('');
       commentForm.resetFields();
       // 一覧を再取得
@@ -377,7 +379,7 @@ export default function IssueManagementModal({
         <Space>
           <ExclamationCircleOutlined style={{ color: '#faad14' }} />
           <span>
-            {viewMode ? '問題確認' : '問題報告'} - {targetName}
+            {viewMode ? t('issueManagement.viewTitle') : t('issueManagement.reportTitle')} - {targetName}
           </span>
         </Space>
       }
@@ -397,10 +399,10 @@ export default function IssueManagementModal({
             icon={<PlusOutlined />}
             onClick={handleNewIssueClick}
             disabled={isEditDisabled}
-            title={isApprovalPending ? 'プロジェクトが承認依頼中のため、新規問題報告はできません' : undefined}
+            title={isApprovalPending ? t('issueManagement.approvalPending.newIssue') : undefined}
             data-testid="issue-management-new-issue-button"
           >
-            新規問題報告
+            {t('issueManagement.newIssue')}
           </Button>
         </div>
       )}
@@ -410,7 +412,7 @@ export default function IssueManagementModal({
         {/* 左側: 問題一覧 */}
         <Col span={10}>
           <Card
-            title="問題一覧"
+            title={t('issueManagement.issueList')}
             size="small"
             style={{ height: 'calc(70vh - 100px)' }}
             styles={{ body: { padding: 12, overflow: 'auto', height: 'calc(100% - 38px)' } }}
@@ -418,7 +420,7 @@ export default function IssueManagementModal({
             {/* フィルタUI */}
             <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 12 }}>
               <Input
-                placeholder="タイトル、内容で検索..."
+                placeholder={t('issueManagement.searchPlaceholder')}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 allowClear
@@ -426,7 +428,7 @@ export default function IssueManagementModal({
                 data-testid="issue-management-search-input"
               />
               <Select
-                placeholder="ステータスで絞り込み"
+                placeholder={t('issueManagement.statusFilterPlaceholder')}
                 value={statusFilter}
                 onChange={(value) => setStatusFilter(value)}
                 style={{ width: '100%' }}
@@ -434,9 +436,9 @@ export default function IssueManagementModal({
                 onClear={() => setStatusFilter('all')}
                 data-testid="issue-management-status-filter"
               >
-                <Select.Option value="all">すべて</Select.Option>
-                <Select.Option value="unresolved">未解決</Select.Option>
-                <Select.Option value="resolved">解決済</Select.Option>
+                <Select.Option value="all">{t('issueManagement.all')}</Select.Option>
+                <Select.Option value="unresolved">{t('issueManagement.status.unresolved')}</Select.Option>
+                <Select.Option value="resolved">{t('issueManagement.status.resolved')}</Select.Option>
               </Select>
             </Space>
 
@@ -460,7 +462,7 @@ export default function IssueManagementModal({
                   },
                 })}
                 locale={{
-                  emptyText: '問題が報告されていません',
+                  emptyText: t('issueManagement.noIssues'),
                 }}
               />
             </Spin>
@@ -470,7 +472,7 @@ export default function IssueManagementModal({
         {/* 右側: 問題詳細または新規報告フォーム */}
         <Col span={14}>
           <Card
-            title={showNewIssueForm ? '新規問題報告' : '問題詳細'}
+            title={showNewIssueForm ? t('issueManagement.newIssue') : t('issueManagement.issueDetails')}
             size="small"
             style={{ height: 'calc(70vh - 100px)' }}
             styles={{ body: { padding: 16, overflow: 'auto', height: 'calc(100% - 38px)' } }}
@@ -479,36 +481,36 @@ export default function IssueManagementModal({
             {showNewIssueForm && (
               <Form form={form} layout="vertical" data-testid="issue-management-new-issue-form">
                 <Form.Item
-                  label="タイトル"
+                  label={t('issueManagement.form.title')}
                   name="title"
                   rules={[
-                    { required: true, message: 'タイトルを入力してください' },
-                    { max: 100, message: 'タイトルは100文字以内で入力してください' },
+                    { required: true, message: t('issueManagement.form.titleRequired') },
+                    { max: 100, message: t('issueManagement.form.titleMaxLength') },
                   ]}
                 >
-                  <Input placeholder="問題のタイトルを入力" maxLength={100} data-testid="issue-management-title-input" />
+                  <Input placeholder={t('issueManagement.form.titlePlaceholder')} maxLength={100} data-testid="issue-management-title-input" />
                 </Form.Item>
 
                 <Form.Item
-                  label="対象"
+                  label={t('issueManagement.form.targetType')}
                   name="targetType"
                   initialValue="transition"
-                  rules={[{ required: true, message: '対象を選択してください' }]}
+                  rules={[{ required: true, message: t('issueManagement.form.targetTypeRequired') }]}
                 >
                   <Select data-testid="issue-management-target-type-select">
-                    <Select.Option value="project">プロジェクト</Select.Option>
-                    <Select.Option value="task">タスク</Select.Option>
-                    <Select.Option value="transition">トランジション</Select.Option>
+                    <Select.Option value="project">{t('issueManagement.targetType.project')}</Select.Option>
+                    <Select.Option value="task">{t('issueManagement.targetType.task')}</Select.Option>
+                    <Select.Option value="transition">{t('issueManagement.targetType.transition')}</Select.Option>
                   </Select>
                 </Form.Item>
 
                 <Form.Item
-                  label="問題タイプ"
+                  label={t('issueManagement.form.issueType')}
                   name="issueType"
-                  rules={[{ required: true, message: '問題タイプを選択してください' }]}
+                  rules={[{ required: true, message: t('issueManagement.form.issueTypeRequired') }]}
                 >
                   <Select
-                    placeholder="問題タイプを選択"
+                    placeholder={t('issueManagement.form.issueTypePlaceholder')}
                     loading={issueTypeLoading}
                     options={issueTypeOptions}
                     data-testid="issue-management-issue-type-select"
@@ -516,16 +518,16 @@ export default function IssueManagementModal({
                 </Form.Item>
 
                 <Form.Item
-                  label="内容"
+                  label={t('issueManagement.form.content')}
                   name="content"
                   rules={[
-                    { required: true, message: '内容を入力してください' },
-                    { min: 10, message: '内容は10文字以上で入力してください' },
+                    { required: true, message: t('issueManagement.form.contentRequired') },
+                    { min: 10, message: t('issueManagement.form.contentMinLength') },
                   ]}
                 >
                   <TextArea
                     rows={8}
-                    placeholder="問題の詳細を具体的に入力してください"
+                    placeholder={t('issueManagement.form.contentPlaceholder')}
                     maxLength={1000}
                     showCount
                     data-testid="issue-management-content-textarea"
@@ -535,10 +537,10 @@ export default function IssueManagementModal({
                 <Form.Item style={{ marginBottom: 0 }}>
                   <Space style={{ float: 'right' }}>
                     <Button onClick={() => setShowNewIssueForm(false)} data-testid="issue-management-form-cancel-button">
-                      キャンセル
+                      {t('issueManagement.form.cancel')}
                     </Button>
                     <Button type="primary" onClick={handleSubmitNewIssue} data-testid="issue-management-form-save-button">
-                      保存
+                      {t('issueManagement.form.save')}
                     </Button>
                   </Space>
                 </Form.Item>
@@ -551,18 +553,18 @@ export default function IssueManagementModal({
                 {/* 基本情報 */}
                 <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
                   <div>
-                    <Text type="secondary">タイトル:</Text>
+                    <Text type="secondary">{t('issueManagement.details.title')}:</Text>
                     <Title level={5} style={{ margin: '4px 0 0 0' }}>
                       {selectedIssue.title}
                     </Title>
                   </div>
                   <Space size="large">
                     <div>
-                      <Text type="secondary">状態: </Text>
+                      <Text type="secondary">{t('issueManagement.details.status')}: </Text>
                       {getStatusTag(selectedIssue.status)}
                     </div>
                     <div>
-                      <Text type="secondary">対象: </Text>
+                      <Text type="secondary">{t('issueManagement.details.targetType')}: </Text>
                       <Text>
                         {getTargetTypeText(selectedIssue.targetType)}
                         {getTargetName(selectedIssue) && (
@@ -573,11 +575,11 @@ export default function IssueManagementModal({
                   </Space>
                   <Space size="large">
                     <div>
-                      <Text type="secondary">報告者: </Text>
+                      <Text type="secondary">{t('issueManagement.details.reportedBy')}: </Text>
                       <Text>{selectedIssue.reportedBy?.userName || '-'}</Text>
                     </div>
                     <div>
-                      <Text type="secondary">報告時刻: </Text>
+                      <Text type="secondary">{t('issueManagement.details.reportedAt')}: </Text>
                       <Text>
                         {new Date(selectedIssue.reportedAt).toLocaleString('ja-JP')}
                       </Text>
@@ -588,10 +590,10 @@ export default function IssueManagementModal({
                 <Divider style={{ margin: '12px 0' }} />
 
                 {/* 内容 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Text type="secondary" strong>
-                    内容:
-                  </Text>
+                  <div style={{ marginBottom: 16 }}>
+                   <Text type="secondary" strong>
+                     {t('issueManagement.details.content')}:
+                   </Text>
                   <div
                     style={{
                       marginTop: 8,
@@ -608,14 +610,14 @@ export default function IssueManagementModal({
                 <Divider style={{ margin: '12px 0' }} />
 
                 {/* コメント一覧 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Text type="secondary" strong>
-                    コメント: ({selectedIssue.comments.length})
-                  </Text>
-                  <List
-                    style={{ marginTop: 8, maxHeight: '200px', overflow: 'auto' }}
-                    dataSource={selectedIssue.comments}
-                    locale={{ emptyText: 'コメントがありません' }}
+                  <div style={{ marginBottom: 16 }}>
+                    <Text type="secondary" strong>
+                      {t('issueManagement.details.commentsCount')} ({selectedIssue.comments.length})
+                    </Text>
+                    <List
+                      style={{ marginTop: 8, maxHeight: '200px', overflow: 'auto' }}
+                      dataSource={selectedIssue.comments}
+                      locale={{ emptyText: t('issueManagement.details.noComments') }}
                     renderItem={(comment: IssueComment) => (
                       <List.Item style={{ padding: '8px 0' }}>
                         <div style={{ width: '100%' }}>
@@ -650,13 +652,13 @@ export default function IssueManagementModal({
                 {!viewMode && (
                   <div style={{ marginBottom: 16 }}>
                     <Text type="secondary" strong>
-                      コメントを追加
+                      {t('issueManagement.details.addComment')}
                     </Text>
                     <TextArea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       rows={3}
-                      placeholder={isApprovalPending ? 'プロジェクトが承認依頼中のため、コメントを追加できません' : 'コメントを入力...'}
+                      placeholder={isApprovalPending ? t('issueManagement.approvalPending.comment') : t('issueManagement.details.commentPlaceholder')}
                       maxLength={500}
                       showCount
                       style={{ marginTop: 8 }}
@@ -673,23 +675,23 @@ export default function IssueManagementModal({
                       type="primary"
                       onClick={handleCommentSubmit}
                       disabled={!newComment.trim() || isEditDisabled}
-                      title={isApprovalPending ? 'プロジェクトが承認依頼中のため、コメント送信はできません' : undefined}
+                      title={isApprovalPending ? t('issueManagement.approvalPending.commentSubmit') : undefined}
                       data-testid="issue-management-comment-submit-button"
                     >
-                      コメント送信
+                      {t('issueManagement.buttons.commentSubmit')}
                     </Button>
                     <Button
                       onClick={handleSetUnresolved}
                       disabled={!newComment.trim() || selectedIssue.status === 'unresolved' || isEditDisabled}
-                      title={isApprovalPending ? 'プロジェクトが承認依頼中のため、ステータス変更はできません' : undefined}
+                      title={isApprovalPending ? t('issueManagement.approvalPending.statusChange') : undefined}
                       data-testid="issue-management-set-unresolved-button"
                     >
-                      未解決
+                      {t('issueManagement.buttons.unresolved')}
                     </Button>
                     <Button
                       onClick={handleSetResolved}
                       disabled={!newComment.trim() || selectedIssue.status === 'resolved' || isEditDisabled}
-                      title={isApprovalPending ? 'プロジェクトが承認依頼中のため、ステータス変更はできません' : undefined}
+                      title={isApprovalPending ? t('issueManagement.approvalPending.statusChange') : undefined}
                       style={{
                         backgroundColor: newComment.trim() && selectedIssue.status === 'unresolved' && !isEditDisabled ? '#52c41a' : undefined,
                         borderColor: newComment.trim() && selectedIssue.status === 'unresolved' && !isEditDisabled ? '#52c41a' : undefined,
@@ -697,7 +699,7 @@ export default function IssueManagementModal({
                       }}
                       data-testid="issue-management-set-resolved-button"
                     >
-                      解決
+                      {t('issueManagement.buttons.resolved')}
                     </Button>
                   </div>
                 )}
@@ -715,7 +717,7 @@ export default function IssueManagementModal({
                   color: '#999',
                 }}
               >
-                <Text type="secondary">問題を選択してください</Text>
+              <Text type="secondary">{t('issueManagement.noIssueSelected')}</Text>
               </div>
             )}
           </Card>

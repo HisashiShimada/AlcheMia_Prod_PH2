@@ -1,5 +1,6 @@
 import { getStorageService } from './storageService';
 import { FormatFolder, FormatFile } from '../types/format';
+import { AppError, E1006, E1007, E1008, E1009, E4006, E6002, E6003, E6004, E6005, E6006 } from '../enums/errorCodes';
 
 /**
  * フォーマットフォルダ一覧を取得
@@ -294,11 +295,11 @@ export async function createFormatFolder(
     // 1. フォルダ名のバリデーション
     const folderNameRegex = /^[a-zA-Z0-9_]+$/;
     if (!folderNameRegex.test(folderName)) {
-      throw new Error('フォルダ名は英数字とアンダースコアのみ使用できます');
+      throw new AppError(E1006, 'Folder name must contain only alphanumeric characters and underscores.');
     }
 
     if (folderName.length < 1 || folderName.length > 255) {
-      throw new Error('フォルダ名は1〜255文字で指定してください');
+      throw new AppError(E1006, 'Folder name must be between 1 and 255 characters.');
     }
 
     // 2. 重複チェック
@@ -315,7 +316,7 @@ export async function createFormatFolder(
     });
 
     if (folderExists) {
-      throw new Error('同じ名前のフォルダが既に存在します');
+      throw new AppError(E6006, 'A folder with the same name already exists.');
     }
 
     // 3. フォルダパスを生成
@@ -335,7 +336,7 @@ export async function createFormatFolder(
       console.log('[formatService] 空フォルダ作成成功:', directoryMarker);
     } catch (uploadError) {
       console.error('[formatService] フォルダ作成エラー:', uploadError);
-      throw new Error('フォルダの作成に失敗しました');
+      throw new AppError(E4006, 'Failed to create folder in storage.');
     }
 
     // 5. レスポンスを返す
@@ -379,16 +380,16 @@ export async function createFormatSubfolder(
     // 1. サブフォルダ名のバリデーション
     const subfolderNameRegex = /^[a-zA-Z0-9_-]+$/;
     if (!subfolderNameRegex.test(subfolderName)) {
-      throw new Error('フォルダ名は英数字、アンダースコア、ハイフンのみ使用できます');
+      throw new AppError(E1007, 'Subfolder name must contain only alphanumeric characters, underscores, and hyphens.');
     }
 
     if (subfolderName.length < 1 || subfolderName.length > 255) {
-      throw new Error('フォルダ名は1〜255文字で指定してください');
+      throw new AppError(E1007, 'Subfolder name must be between 1 and 255 characters.');
     }
 
     // 2. フォーマット名のバリデーション
     if (!formatName || formatName.length === 0) {
-      throw new Error('フォーマット名が指定されていません');
+      throw new AppError(E1009, 'Format name is required.');
     }
 
     // 3. パスを構築
@@ -420,7 +421,7 @@ export async function createFormatSubfolder(
     });
 
     if (folderExists) {
-      throw new Error('同じ名前のフォルダが既に存在します');
+      throw new AppError(E6006, 'A folder with the same name already exists.');
     }
 
     // 5. 親フォルダの存在確認（parentPathが指定されている場合）
@@ -433,7 +434,7 @@ export async function createFormatSubfolder(
       });
 
       if (!parentExists) {
-        throw new Error('親フォルダが存在しません');
+        throw new AppError(E6004, 'Parent folder does not exist.');
       }
     }
 
@@ -451,7 +452,7 @@ export async function createFormatSubfolder(
       console.log('[formatService] サブフォルダ作成成功:', directoryMarker);
     } catch (uploadError) {
       console.error('[formatService] サブフォルダ作成エラー:', uploadError);
-      throw new Error('サブフォルダの作成に失敗しました');
+      throw new AppError(E4006, 'Failed to create subfolder in storage.');
     }
 
     // 7. レスポンスを返す
@@ -497,7 +498,7 @@ export async function createFormatFile(
     // 1. ファイル名から拡張子を判定
     const fileExtension = fileName.split('.').pop()?.toLowerCase();
     if (!fileExtension || !['xml', 'maiml'].includes(fileExtension)) {
-      throw new Error('ファイル名は.xmlまたは.maimlで終わる必要があります');
+      throw new AppError(E1008, 'File name must end with .xml or .maiml.');
     }
     const fileType = fileExtension as 'xml' | 'maiml';
 
@@ -514,7 +515,7 @@ export async function createFormatFile(
     // 4. ファイルの重複チェック
     const exists = await storageService.fileExists(organizationId, filePath);
     if (exists) {
-      throw new Error('同じ名前のファイルが既に存在します');
+      throw new AppError(E6005, 'A file with the same name already exists.');
     }
 
     // 5. 空のファイルコンテンツを生成
@@ -588,12 +589,12 @@ export async function updateFormatFile(
     // 1. ファイルの存在確認
     const exists = await storageService.fileExists(organizationId, filePath);
     if (!exists) {
-      throw new Error('ファイルが見つかりません');
+      throw new AppError(E6002, 'File not found.');
     }
 
     // 2. コンテンツのバリデーション
     if (typeof content !== 'string') {
-      throw new Error('ファイル内容が不正です');
+      throw new AppError(E1008, 'File content is invalid.');
     }
 
     // 3. S3へアップロード（上書き・uploadedBy を渡して file_metadata を自動登録）

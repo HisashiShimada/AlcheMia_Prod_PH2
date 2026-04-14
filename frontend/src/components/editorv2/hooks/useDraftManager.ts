@@ -14,6 +14,7 @@ import {
   EditState,
 } from '../../../types/editor';
 import * as draftService from '@/services/draftService';
+import { AUTO_SAVE_PREFIX, isAutoSaveDraft } from '@/constants/draftConstants';
 
 /**
  * useDraftManagerオプションの型定義
@@ -193,7 +194,7 @@ const useDraftManager = (
       // 常に最新のdraftsリストを参照する
       // （setDrafts()はReactの非同期更新のため、draftsステートは古い値になる場合がある）
       const autoSaves = draftsRef.current
-        .filter(d => d.draftName && d.draftName.includes('自動保存'))
+        .filter(d => isAutoSaveDraft(d.draftName))
         .sort((a, b) => new Date(b.lastSavedAt || new Date()).getTime() - new Date(a.lastSavedAt || new Date()).getTime());
       
       console.log(`🧹 [useDraftManager V2] 自動保存クリーンアップ: 総数${autoSaves.length}, 保持世代${autoSaveGenerations}`);

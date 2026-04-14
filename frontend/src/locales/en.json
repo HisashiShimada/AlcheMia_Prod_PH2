@@ -1,4 +1,27 @@
 {
+  "page": {
+    "loginSuccess": "Login successful",
+    "logoutSuccess": "Logged out successfully",
+    "logoutError": "An error occurred during logout, but local state has been cleared",
+    "sessionExpired": "Your session has expired. Please log in again.",
+    "unexpectedResponse": "An unexpected response was returned",
+    "unexpectedError": "An unexpected error occurred",
+    "passwordResetEmailSent": "Password reset instructions have been sent to your email. Please check your email.",
+    "passwordResetSuccess": "Your password has been changed. Please log in with your new password.",
+    "navigate": "Navigate",
+    "undefinedMenuType": "Undefined menu type",
+    "undefinedFunctionCode": "Undefined function code",
+    "menuSwitched": " has been activated",
+    "checkingLoginStatus": "Checking login status...",
+    "menuName": {
+      "provider": "Provider Menu",
+      "systemAdmin": "System Admin Menu",
+      "dataAdmin": "Data Admin Menu",
+      "experimentAdmin": "Experiment Admin Menu",
+      "experimentWorker": "Experiment Worker Menu",
+      "miEngineer": "MI Engineer Menu"
+    }
+  },
   "common": {
     "appName": "MMDPF",
     "appSubtitle": "Multimodal Data Platform",
@@ -21,7 +44,12 @@
     "warning": "Warning",
     "info": "Info",
     "total": "Total",
-    "items": "items"
+    "items": "items",
+    "menuSwitch": "Switch Menu",
+    "reload": "Reload",
+    "reloading": "Reloading...",
+    "close": "Close",
+    "searchJoiner": ", "
   },
   "languages": {
     "ja": "日本語",
@@ -50,7 +78,9 @@
         "systemOverview": "System Overview",
         "organizationStatistics": "Organization Statistics",
         "userManagement": "User Management",
-        "sessionManagement": "Session Management"
+        "sessionManagement": "Session Management",
+        "departmentManagement": "Department Management",
+        "roleManagement": "Role Management"
       }
     },
     "data_admin": {
@@ -116,7 +146,11 @@
     "approvalRequestButton": "Request Approval",
     "labels": {
       "project": "Project",
-      "method": "Method"
+      "method": "Method",
+      "task": "Task",
+      "methodPlaceholder": "Select a method",
+      "taskPlaceholder": "Select a task",
+      "noProjects": "No projects available"
     },
     "progressCheck": {
       "issueCheck": "Issue Check",
@@ -464,7 +498,35 @@
         "review_waiting_count": "Review Waiting",
         "completed_count": "Completed"
       }
-    }
+    },
+    "transitionSearch": "Transition Search",
+    "issueCheck": "Issue Check",
+    "renameProject": "Rename Project",
+    "deleteButton": "Delete",
+    "rename": {
+      "title": "Rename Project",
+      "okText": "Rename",
+      "label": "New Project Name",
+      "required": "Please enter a project name",
+      "patternError": "Project name can only contain alphanumeric characters, underscores, and hyphens",
+      "maxLengthError": "Project name must be 255 characters or less",
+      "success": "Project renamed to \"{{name}}\"",
+      "duplicateError": "A project with the same name already exists",
+      "failed": "Failed to rename project"
+    },
+    "deleteProjectTitle": "Delete project \"{{name}}\"?",
+    "deleteProjectContent": "All files under the project folder will be deleted.",
+    "deleteProjectCannotUndo": "This action cannot be undone.",
+    "deleteProjectMaimlNote": "* Cannot delete if a MAIML file exists",
+    "deleteSuccess": "Project \"{{name}}\" deleted ({{count}} files deleted)",
+    "deleteFailed": "Failed to delete project",
+    "reloadSuccess": "Project data reloaded successfully",
+    "reloadFailed": "Failed to reload project data",
+    "progressDetailTitle": "Project Progress Detail",
+    "progressDetailReload": "Reload"
+  },
+  "formatFolderTree": {
+    "title": "Format List"
   },
   "progress": {
     "title": "Progress Management",
@@ -531,17 +593,73 @@
       "total": "Total",
       "items": "items"
     },
+    "workStatus": {
+      "pending": "Pending",
+      "inProgress": "In Progress",
+      "error": "Error",
+      "reviewWaiting": "Review Waiting",
+      "completed": "Completed"
+    },
+    "status": {
+      "completed": "Completed",
+      "in_progress": "In Progress",
+      "preparing": "Preparing",
+      "suspended": "Suspended",
+      "abnormal": "Abnormal",
+      "not_started": "Not Started"
+    },
+    "detail": {
+      "projectInfo": "Project Information",
+      "projectName": "Project Name",
+      "projectId": "Project ID",
+      "description": "Description",
+      "owner": "Owner",
+      "department": "Department",
+      "updatedAt": "Updated At",
+      "method": "Method",
+      "allMethods": "All Methods",
+      "taskDetail": "Task Detail",
+      "taskNo": "Task No.",
+      "taskStatus": "Task Status",
+      "methodName": "Method Name",
+      "transitionSummary": "Transition Summary",
+      "statsTotal": "Total",
+      "statsCompleted": "Completed",
+      "statsWorking": "In Progress",
+      "statsNotStarted": "Not Started",
+      "statsCompletionRate": "Completion Rate",
+      "experimentFlow": "Experiment Flow",
+      "transitionDetail": "Transition Detail",
+      "worker": "Worker",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "noTransitionData": "No transition progress data",
+      "noWorkAssigned": "No Work ID assigned",
+      "noWorkAssignedDesc": "No Work ID is assigned to this file.",
+      "projectStatus": {
+        "completed": "Completed",
+        "in_progress": "In Progress",
+        "pending": "Pending",
+        "planning": "Planning"
+      }
+    },
     "actions": {
       "viewDetails": "View Details"
     }
   },
   "issueManagement": {
     "title": "Issue Reports",
+    "viewTitle": "Issue Check",
+    "reportTitle": "Issue Report",
     "newIssue": "New Issue Report",
     "issueList": "Issue List",
     "issueDetails": "Issue Details",
     "noIssueSelected": "Please select an issue",
     "noIssues": "No issues reported",
+    "issueInfo": "Issue Info",
+    "all": "All",
+    "searchPlaceholder": "Search by title, content...",
+    "statusFilterPlaceholder": "Filter by status",
     "columns": {
       "title": "Title",
       "status": "Status",
@@ -567,6 +685,9 @@
       "targetTypeRequired": "Please select a target",
       "content": "Content",
       "contentPlaceholder": "Please describe the issue in detail",
+      "issueType": "Issue Type",
+      "issueTypeRequired": "Please select an issue type",
+      "issueTypePlaceholder": "Select issue type",
       "contentRequired": "Please enter content",
       "contentMinLength": "Content must be at least 10 characters",
       "save": "Save",
@@ -589,7 +710,21 @@
     },
     "messages": {
       "issueReported": "Issue reported successfully",
-      "commentPosted": "Comment posted successfully"
+      "commentPosted": "Comment posted successfully",
+      "commentRequired": "Please enter a comment",
+      "setUnresolved": "Status changed to \"Unresolved\"",
+      "setResolved": "Status changed to \"Resolved\""
+    },
+    "buttons": {
+      "commentSubmit": "Submit Comment",
+      "unresolved": "Unresolved",
+      "resolved": "Resolve"
+    },
+    "approvalPending": {
+      "newIssue": "Cannot report new issues while project is pending approval",
+      "comment": "Cannot add comments while project is pending approval",
+      "commentSubmit": "Cannot submit comments while project is pending approval",
+      "statusChange": "Cannot change status while project is pending approval"
     }
   },
   "taskRegistration": {
@@ -997,7 +1132,9 @@
     "columns": {
       "roleCd": "Role CD",
       "roleName": "Role Name",
-      "functionName": "Function Name"
+      "functionName": "Function Name",
+      "initialScreenFunctionName": "Initial Screen Function",
+      "updatedAt": "Updated At"
     },
     "buttons": {
       "csvUpload": "CSV Upload",
@@ -1040,17 +1177,24 @@
       "activateConfirmTitle": "Activate selected roles?",
       "activateConfirmContent": "{count} role(s) will be activated.",
       "activateSuccess": "{count} role(s) activated",
+      "activateError": "Failed to activate",
       "deactivateConfirmTitle": "Deactivate selected roles?",
       "deactivateConfirmContent": "{count} role(s) will be deactivated.",
       "deactivateSuccess": "{count} role(s) deactivated",
+      "deactivateError": "Failed to deactivate",
       "toggleConfirmTitle": "Set {name} to {action}?",
       "toggleConfirmContent": "This role will be changed to {action} status.",
       "toggleSuccess": "{name} has been set to {action}",
+      "toggleError": "Failed to change status",
       "reloadSuccess": "Data reloaded",
       "csvUploadSuccess": "CSV uploaded",
+      "csvUploadError": "Failed to upload CSV",
       "csvDownloadSuccess": "CSV file downloaded",
+      "csvDownloadError": "Failed to download CSV",
       "functionUpdated": "Function updated",
+      "functionUpdateSuccess": "Function updated",
       "functionSet": "Function set (will be saved to DB when you click Save)",
+      "functionTempSaved": "Function set (will be saved to DB when you click Save)",
       "saveSuccess": "Role updated",
       "addSuccess": "Role added",
       "activateError": "Failed to activate",
@@ -1137,7 +1281,8 @@
       "selectPlaceholder": "Select {label}",
       "inputPlaceholder": "Enter {label}",
       "required": "Please enter {label}",
-      "requiredSelect": "Please select {label}"
+      "requiredSelect": "Please select {label}",
+      "searchPlaceholder": "Search by {fields}"
     },
     "csvError": {
       "title": "CSV Upload Error",
@@ -1146,6 +1291,14 @@
       "failureCount": "Failures: {count}"
     },
     "creatorWarning": "Records with missing or inactive Vendor or Instrument linked to Creator will be highlighted.",
+    "fields": {
+      "id": "ID",
+      "name": "Name",
+      "description": "Description",
+      "annotation": "Annotation",
+      "vendorName": "Vendor Name",
+      "instrumentName": "Instrument Name"
+    },
     "messages": {
       "fetchError": "Failed to fetch master data: {error}",
       "csvNotSupported": "This master does not support CSV upload",
@@ -1287,6 +1440,91 @@
       "deleteError": "An error occurred while deleting the instruction"
     }
   },
+  "transitionSearch": {
+    "queryRequired": "Please enter a search query",
+    "quickSearchQueryRequired": "Please enter a search query for quick search",
+    "searchTab": "Search",
+    "batchTab": "Batch Processing",
+    "queryLabel": "Search Query",
+    "queryHint": "💡 Include input conditions, experimental procedures, and expected outputs",
+    "queryPlaceholder": "e.g. Raman measurement with 532nm laser, CLS analysis, output spectrum and TIFF images",
+    "searching": "Searching...",
+    "searchButton": "Search",
+    "reset": "Reset",
+    "quickSearchLabel": "⚡ Quick Search (one-click search with adjusted weights)",
+    "quickSearch": {
+      "structureFocused": "Structure",
+      "procedureFocused": "Procedure",
+      "inputFocused": "Input",
+      "outputFocused": "Output",
+      "balanced": "Balanced"
+    },
+    "aiAnalysis": "🤖 AI Analysis: 4-axis query decomposition",
+    "decomposed": {
+      "input": "📥 Input conditions:",
+      "procedure": "⚡ Procedure:",
+      "output": "📤 Output:",
+      "structure": "🕸️ Structure:"
+    },
+    "advancedWeights": "Advanced weight adjustment (expert)",
+    "startHint": "Start Transition Set Search",
+    "startHintDesc": "4-axis vector search enables precise similarity evaluation at the transition level of experimental protocols",
+    "exampleInput": "📥 Input example: \"Silicon substrate, 532nm laser, room temperature\"",
+    "exampleProcedure": "⚡ Procedure example: \"Background correction, peak detection\"",
+    "exampleOutput": "📤 Output example: \"Spectrum data CSV, TIFF image\"",
+    "exampleStructure": "🕸️ Structure example: \"1 input 2 outputs\", \"3 serial steps\""
+  },
+  "instructionConfirmation": {
+    "instructionDetail": "Instruction Details",
+    "flowDiagram": "Flow Diagram",
+    "confirmComplete": "Confirm",
+    "confirmAllInstructions": "Confirm All Instructions",
+    "projectInstructionGroup": "Project Instructions",
+    "taskInstructionGroup": "Task Instructions",
+    "transitionInstructionGroup": "Transition Instructions",
+    "noInstructionsToConfirm": "No instructions require confirmation",
+    "noProjectInstructions": "No project instructions require confirmation",
+    "noProject": "No project selected",
+    "confirmSuccess": " confirmed (",
+    "confirmSuccessSuffix": " items)",
+    "confirmFailed": " confirmation failed (",
+    "confirmFailedSuffix": " items)",
+    "confirmPartialSuccess": " partially failed (success: ",
+    "confirmPartialFail": ", failed: ",
+    "confirmPartialSuffix": " items)",
+    "confirmProjectDialogTitle": "Confirm Project Instructions",
+    "confirmProjectDialogContent": "Confirm project instructions (",
+    "confirmProjectDialogContentSuffix": " items)?",
+    "confirmDialogContentSuffix": " instructions (",
+    "confirmDialogCountSuffix": " items) confirmed?",
+    "confirmAllDialogTitle": "Confirm All Instructions",
+    "confirmAllDialogContent1": "Confirm all instructions (",
+    "confirmAllDialogContent2": " total, ",
+    "confirmAllDialogContent3": " unconfirmed)?",
+    "okText": "Confirm",
+    "cancelText": "Cancel",
+    "countSuffix": " items"
+  },
+  "workProgressDetail": {
+    "fetchFileFailed": "Failed to fetch file details"
+  },
+  "progressStatus": {
+    "not_started": "Not Started",
+    "preparing": "Preparing",
+    "in_progress": "In Progress",
+    "suspended": "Suspended",
+    "abnormal": "Abnormal",
+    "completed": "Completed"
+  },
+  "functionPermissionDialog": {
+    "title": "Function Management",
+    "functions": {
+      "010000": "Provider Menu",
+      "020000": "System Administrator Menu",
+      "030000": "Data Administrator Menu",
+      "040000": "Experiment Administrator Menu",
+      "050000": "Experiment Worker Menu"
+    },
   "functionPermissionDialog": {
     "title": "Function Management",
     "buttons": {
@@ -1295,6 +1533,39 @@
     },
     "labels": {
       "writable": "Writable"
+    }
+  },
+  "roleFunctionPermission": {
+    "roles": {
+      "PROVIDER": "Provider",
+      "SYSTEM_MANAGER": "System Administrator",
+      "DATA_MANAGER": "Data Administrator",
+      "EXPERMENT_MANAGER": "Experiment Administrator",
+      "EXPERMENT_WORKER": "Experiment Worker",
+      "MI_ENGINEER": "MI Engineer"
+    },
+    "functions": {
+      "010000": "Provider Menu",
+      "020000": "System Administrator Menu",
+      "030000": "Data Administrator Menu",
+      "040000": "Experiment Administrator Menu",
+      "050000": "Experiment Worker Menu"
+    },
+    "permissions": {
+      "WRITER": "Writable",
+      "READER": "Read Only"
+    }
+  },
+  "instructionType": {
+    "project_instruction": "Project Instruction",
+    "overall_instruction": "Overall Instruction",
+    "task_instruction": "Task Instruction",
+    "task_unit_instruction": "Task Unit Instruction",
+    "method_unit_instruction": "Method Unit Instruction",
+    "transition_unit_instruction": "Transition Unit Instruction",
+    "emptyMessage": {
+      "project_instruction": "No work instructions for the entire experiment",
+      "task_instruction": "No work instructions for the task"
     }
   }
 }

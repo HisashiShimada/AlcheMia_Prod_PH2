@@ -15,6 +15,7 @@ import {
   SortDescendingOutlined,
   SortAscendingOutlined as SortIcon,
 } from '@ant-design/icons';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -60,7 +61,8 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
   onSortChange,
 }) => {
   const { token } = theme.useToken();
-  
+  const { t } = useLanguage();
+
   const getCategoryTagColor = (category: string): string => {
     const colors: Record<string, string> = {
       protocol: 'cyan',
@@ -137,7 +139,7 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <Text strong style={{ fontSize: token.fontSize }}>
-              フォーマット一覧
+              {t('formatFolderTree.title')}
             </Text>
             <div>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
