@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Modal,
   Button,
@@ -870,7 +871,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
    * UUID生成（UI非表示だが関数は保持）
    */
   const handleGenerateUuid = () => {
-    const newUuid = crypto.randomUUID();
+    const newUuid = uuidv4();
     setUuid(newUuid);
     setHasChanges(true);
   };

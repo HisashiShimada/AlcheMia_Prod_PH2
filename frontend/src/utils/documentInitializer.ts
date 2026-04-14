@@ -6,7 +6,7 @@
  * @module documentInitializer
  */
 
-import { v5 as uuidv5 } from 'uuid';
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 import type { User } from '@/types/auth';
 import type { DocumentTagData } from '@/types/maiml-unified';
 
@@ -48,7 +48,7 @@ export const generateOwnerUUID = (email?: string): string => {
   if (!email || !email.includes('@')) {
     // メールアドレスが無効な場合はUUID v4で代用
     console.warn('⚠️ [documentInitializer] メールアドレスが無効なため、UUID v4を生成します');
-    return crypto.randomUUID();
+    return uuidv4();
   }
   
   // UUID v5 DNS namespace: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
@@ -107,7 +107,7 @@ export const generateInitialDocumentData = (
   }
 ) => {
   const baseFileName = editingFileName ? editingFileName.replace('.maiml', '') : '';
-  const uuidFull = crypto.randomUUID();
+  const uuidFull = uuidv4();
   const uuidPrefix = uuidFull.substring(0, 8);
   
   // 日付フォーマット生成
