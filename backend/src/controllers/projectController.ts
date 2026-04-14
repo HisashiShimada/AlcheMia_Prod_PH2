@@ -298,7 +298,7 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
 
   try {
     const { organizationId } = req.user!;
-    const { projectName, methodId, taskNo: taskNoStr } = req.params;
+    const { projectId, methodId, taskNo: taskNoStr } = req.params;
 
     // taskNo を数値に変換（バリデーション済み前提だが念のため）
     const taskNo = parseInt(taskNoStr, 10);
@@ -314,11 +314,11 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // ── projectName → projectId 解決 ──────────────────────────────
+    // ── projectId でプロジェクト存在確認 ──────────────────────────
     const pool = getPool();
     const projectResult = await pool.query(
-      'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2',
-      [organizationId, projectName]
+      'SELECT project_id FROM project WHERE organization_id = $1 AND project_id = $2',
+      [organizationId, projectId]
     );
 
     if (projectResult.rows.length === 0) {
@@ -332,8 +332,6 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
       });
       return;
     }
-
-    const projectId: string = projectResult.rows[0].project_id;
 
     // taskId 文字列はレスポンスへの埋め込み用（フロントエンドで識別子として利用可能）
     const taskId = `${projectId}__${methodId}__${taskNo}`;
@@ -370,7 +368,7 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
     logError('getTaskDetail error', error as Error, {
       action: 'task_get_detail',
       organizationId: req.user?.organizationId,
-      projectName: req.params.projectName,
+      projectId: req.params.projectId,
       methodId: req.params.methodId,
       taskNo: req.params.taskNo,
       requestId,

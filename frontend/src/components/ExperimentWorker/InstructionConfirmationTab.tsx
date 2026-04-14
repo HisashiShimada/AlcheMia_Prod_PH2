@@ -13,6 +13,7 @@ import type { FileData, SubnetData } from './InstructionFlowDialog';
 import { Stats, Instruction, ProjectStatus, isEditableStatus, Method, Task } from '@/types/experimentWorker';
 import { getWorkerTasks, confirmInstruction, getProjectMaiml } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Title, Text } = Typography;
@@ -63,6 +64,7 @@ export default function InstructionConfirmationTab({
 }: InstructionConfirmationTabProps) {
   // デザイントークンを取得（UIポリシー基準）
   const { token } = theme.useToken();
+  const { t } = useLanguage();
 
   // API連携の状態管理
   const [loading, setLoading] = useState<boolean>(false);
@@ -252,7 +254,7 @@ export default function InstructionConfirmationTab({
   // フロー図ダイアログを開く（APIからMAIMLコンテンツを取得）
   const handleOpenFlowDiagram = async () => {
     if (!selectedProject) {
-      message.warning('プロジェクトが選択されていません');
+      message.warning(t('instructionConfirmation.noProject'));
       return;
     }
 
@@ -337,12 +339,12 @@ export default function InstructionConfirmationTab({
    */
   const confirmInstructions = async (instructions: Instruction[], groupName: string) => {
     if (!selectedProject) {
-      message.error('プロジェクトが選択されていません');
+      message.error(t('instructionConfirmation.noProject'));
       return;
     }
 
     if (instructions.length === 0) {
-      message.warning('確認する指示がありません');
+      message.warning(t('instructionConfirmation.noInstructionsToConfirm'));
       return;
     }
 
@@ -365,30 +367,30 @@ export default function InstructionConfirmationTab({
           } else {
             failCount++;
             errors.push(
-              `指示ID ${instruction.instructionId}: ${result.error?.message || '不明なエラー'}`
+              `ID ${instruction.instructionId}: ${result.error?.message || 'unknown error'}`
             );
           }
         } catch (error) {
           failCount++;
-          errors.push(`指示ID ${instruction.instructionId}: API呼び出しエラー`);
-          console.error('指示確認エラー:', error);
+          errors.push(`ID ${instruction.instructionId}: API call error`);
+          console.error('confirm instruction error:', error);
         }
       }
 
       // 結果メッセージ表示
       if (failCount === 0) {
-        message.success(`${groupName}を確認完了しました（${successCount}件）`);
+        message.success(`${groupName}${t('instructionConfirmation.confirmSuccess')}${successCount}${t('instructionConfirmation.confirmSuccessSuffix')}`);
       } else if (successCount === 0) {
-        message.error(`${groupName}の確認に失敗しました（${failCount}件）`);
+        message.error(`${groupName}${t('instructionConfirmation.confirmFailed')}${failCount}${t('instructionConfirmation.confirmFailedSuffix')}`);
         if (errors.length > 0) {
-          console.error('確認失敗の詳細:', errors);
+          console.error('confirm failure details:', errors);
         }
       } else {
         message.warning(
-          `${groupName}の確認が一部失敗しました（成功: ${successCount}件、失敗: ${failCount}件）`
+          `${groupName}${t('instructionConfirmation.confirmPartialSuccess')}${successCount}${t('instructionConfirmation.confirmPartialFail')}${failCount}${t('instructionConfirmation.confirmPartialSuffix')}`
         );
         if (errors.length > 0) {
-          console.error('確認失敗の詳細:', errors);
+          console.error('confirm failure details:', errors);
         }
       }
 
@@ -414,18 +416,18 @@ export default function InstructionConfirmationTab({
     );
 
     if (projectInstructions.length === 0) {
-      message.info('確認が必要なプロジェクト指示はありません');
+      message.info(t('instructionConfirmation.noProjectInstructions'));
       return;
     }
 
     // 確認ダイアログを表示
     Modal.confirm({
-      title: 'プロジェクト指示の確認完了',
-      content: `プロジェクト指示（${projectInstructions.length}件）を確認完了しますか？`,
-      okText: '確認完了',
-      cancelText: 'キャンセル',
+      title: t('instructionConfirmation.confirmProjectDialogTitle'),
+      content: `${t('instructionConfirmation.confirmProjectDialogContent')}${projectInstructions.length}${t('instructionConfirmation.confirmProjectDialogContentSuffix')}`,
+      okText: t('instructionConfirmation.okText'),
+      cancelText: t('instructionConfirmation.cancelText'),
       onOk: async () => {
-        await confirmInstructions(projectInstructions, 'プロジェクト指示');
+        await confirmInstructions(projectInstructions, t('instructionConfirmation.projectInstructionGroup'));
       },
     });
   };
@@ -437,20 +439,20 @@ export default function InstructionConfirmationTab({
     const unreadInstructions = taskInstructions.filter((i) => !i.isAcknowledged);
     
     if (unreadInstructions.length === 0) {
-      message.info('確認が必要な指示はありません');
+      message.info(t('instructionConfirmation.noInstructionsToConfirm'));
       return;
     }
 
-    const taskName = taskInstructions[0]?.taskName || 'タスク';
+    const taskName = taskInstructions[0]?.taskName || t('instructionConfirmation.taskInstructionGroup');
     
     // 確認ダイアログを表示
     Modal.confirm({
-      title: 'タスク指示の確認完了',
-      content: `${taskName}の指示（${unreadInstructions.length}件）を確認完了しますか？`,
-      okText: '確認完了',
-      cancelText: 'キャンセル',
+      title: t('instructionConfirmation.confirmComplete'),
+      content: `${taskName}${t('instructionConfirmation.confirmDialogContentSuffix')}${unreadInstructions.length}${t('instructionConfirmation.confirmDialogCountSuffix')}`,
+      okText: t('instructionConfirmation.okText'),
+      cancelText: t('instructionConfirmation.cancelText'),
       onOk: async () => {
-        await confirmInstructions(unreadInstructions, `${taskName}の指示`);
+        await confirmInstructions(unreadInstructions, `${taskName}`);
       },
     });
   };
@@ -462,20 +464,20 @@ export default function InstructionConfirmationTab({
     const unreadInstructions = transitionInstructions.filter((i) => !i.isAcknowledged);
     
     if (unreadInstructions.length === 0) {
-      message.info('確認が必要な指示はありません');
+      message.info(t('instructionConfirmation.noInstructionsToConfirm'));
       return;
     }
 
-    const transitionName = transitionInstructions[0]?.transitionName || 'トランジション';
+    const transitionName = transitionInstructions[0]?.transitionName || t('instructionConfirmation.transitionInstructionGroup');
     
     // 確認ダイアログを表示
     Modal.confirm({
-      title: 'トランジション指示の確認完了',
-      content: `${transitionName}の指示（${unreadInstructions.length}件）を確認完了しますか？`,
-      okText: '確認完了',
-      cancelText: 'キャンセル',
+      title: t('instructionConfirmation.confirmComplete'),
+      content: `${transitionName}${t('instructionConfirmation.confirmDialogContentSuffix')}${unreadInstructions.length}${t('instructionConfirmation.confirmDialogCountSuffix')}`,
+      okText: t('instructionConfirmation.okText'),
+      cancelText: t('instructionConfirmation.cancelText'),
       onOk: async () => {
-        await confirmInstructions(unreadInstructions, `${transitionName}の指示`);
+        await confirmInstructions(unreadInstructions, `${transitionName}`);
       },
     });
   };
@@ -488,18 +490,18 @@ export default function InstructionConfirmationTab({
     const unreadInstructions = filteredInstructions.filter((i) => !i.isAcknowledged);
 
     if (unreadInstructions.length === 0) {
-      message.info('確認が必要な指示はありません');
+      message.info(t('instructionConfirmation.noInstructionsToConfirm'));
       return;
     }
 
     // 確認ダイアログを表示
     Modal.confirm({
-      title: '全ての指示の確認完了',
-      content: `全ての指示（${filteredStats.total}件中${unreadInstructions.length}件未確認）を確認完了しますか？`,
-      okText: '確認完了',
-      cancelText: 'キャンセル',
+      title: t('instructionConfirmation.confirmAllDialogTitle'),
+      content: `${t('instructionConfirmation.confirmAllDialogContent1')}${filteredStats.total}${t('instructionConfirmation.confirmAllDialogContent2')}${unreadInstructions.length}${t('instructionConfirmation.confirmAllDialogContent3')}`,
+      okText: t('instructionConfirmation.okText'),
+      cancelText: t('instructionConfirmation.cancelText'),
       onOk: async () => {
-        await confirmInstructions(unreadInstructions, '全ての指示');
+        await confirmInstructions(unreadInstructions, t('instructionConfirmation.confirmAllInstructions'));
       },
     });
   };
@@ -518,10 +520,10 @@ export default function InstructionConfirmationTab({
             <FileTextOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               <FileTextOutlined style={{ marginRight: token.marginXS }} />
-              指示確認
+              {t('menu.experiment_worker.tabs.workInstruction')}
             </Title>
             <Text type="secondary">
-              プロジェクトを選択してください
+              {t('experimentWork.projectSelection.title')}
             </Text>
           </Space>
         </Card>
@@ -552,7 +554,7 @@ export default function InstructionConfirmationTab({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <FileTextOutlined style={{ fontSize: 18, color: token.colorPrimary }} />
-                  <span>指示詳細</span>
+                  <span>{t('instructionConfirmation.instructionDetail')}</span>
                 </div>
                 <Button
                   data-testid="instruction-flow-diagram-button"
@@ -568,7 +570,7 @@ export default function InstructionConfirmationTab({
                     gap: 4,
                   }}
                 >
-                  フロー図
+                  {t('instructionConfirmation.flowDiagram')}
                 </Button>
               </div>
             }
@@ -615,9 +617,9 @@ export default function InstructionConfirmationTab({
                   <Title level={4} style={{ margin: 0 }}>
                     {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />}{' '}
                     <FileOutlined style={{ marginRight: token.marginXS }} />
-                    プロジェクト指示 (
+                    {t('instructionConfirmation.projectInstructionGroup')} (
                     {filteredInstructions.filter((i) => i.targetType === 'file').length}
-                    件)
+                    {t('instructionConfirmation.countSuffix')})
                   </Title>
                 </div>
                 
@@ -643,14 +645,14 @@ export default function InstructionConfirmationTab({
                       borderColor: token.colorSuccess 
                     }}
                   >
-                    確認完了
+                    {t('instructionConfirmation.confirmComplete')}
                   </Button>
                 )}
               </div>
               {expandedGroups['file'] && (
                 <div style={{ marginTop: token.margin }}>
                   <InstructionGroup
-                    title="プロジェクト指示"
+                    title={t('instructionConfirmation.projectInstructionGroup')}
                     emoji="file"
                     instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'file'
@@ -685,18 +687,18 @@ export default function InstructionConfirmationTab({
                 <Title level={4} style={{ margin: 0 }}>
                   {expandedGroups['task'] ? <DownOutlined /> : <RightOutlined />}{' '}
                   <CheckSquareOutlined style={{ marginRight: token.marginXS }} />
-                  タスク指示 (
+                  {t('instructionConfirmation.taskInstructionGroup')} (
                   {
                     filteredInstructions.filter((i) => i.targetType === 'task')
                       .length
                   }
-                  件)
+                  {t('instructionConfirmation.countSuffix')})
                 </Title>
               </div>
               {expandedGroups['task'] && (
                 <div style={{ marginTop: token.margin }}>
                   <InstructionGroup
-                    title="タスク指示"
+                    title={t('instructionConfirmation.taskInstructionGroup')}
                     emoji="checkSquare"
                     instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'task'
@@ -733,19 +735,19 @@ export default function InstructionConfirmationTab({
                 <Title level={4} style={{ margin: 0 }}>
                   {expandedGroups['transition'] ? <DownOutlined /> : <RightOutlined />}{' '}
                   <AimOutlined style={{ marginRight: token.marginXS }} />
-                  トランジション指示 (
+                  {t('instructionConfirmation.transitionInstructionGroup')} (
                   {
                     filteredInstructions.filter(
                       (i) => i.targetType === 'transition'
                     ).length
                   }
-                  件)
+                  {t('instructionConfirmation.countSuffix')})
                 </Title>
               </div>
               {expandedGroups['transition'] && (
                 <div style={{ marginTop: token.margin }}>
                   <InstructionGroup
-                    title="トランジション単位指示"
+                    title={t('instructionConfirmation.transitionInstructionGroup')}
                     emoji="aim"
                     instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'transition'
@@ -793,8 +795,8 @@ export default function InstructionConfirmationTab({
                       ? undefined 
                       : token.colorSuccess,
                 }}
-              >
-                全ての指示の確認完了
+               >
+                {t('instructionConfirmation.confirmAllInstructions')}
               </Button>
             </div>
           </Card>

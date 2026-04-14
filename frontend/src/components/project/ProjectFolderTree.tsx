@@ -61,6 +61,19 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
     }
   };
 
+  /** プロジェクトステータス数値から翻訳済みラベルを返す */
+  const getStatusLabel = (status: number): string => {
+    switch (status) {
+      case 0: return t('projectManagement.status_planning');
+      case 1: return t('projectManagement.status_pending');
+      case 2: return t('projectManagement.status_in_progress');
+      case 3: return t('projectManagement.status_review_waiting');
+      case 4: return t('projectManagement.status_completed');
+      case 5: return t('projectManagement.status_error');
+      default: return String(status);
+    }
+  };
+
   const getSortLabel = (sort: 'name' | 'status' | 'createdAt'): string => {
     switch (sort) {
       case 'name':
@@ -162,12 +175,12 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
                 {project.name}
               </Text>
               <Space size="small" wrap>
-                {project.statusName && (
+                {project.status !== undefined && (
                   <Tag
                     color={getStatusChipColor(project.status) === 'primary' ? 'cyan' : getStatusChipColor(project.status)}
                     style={{ fontSize: token.fontSizeSM, margin: 0 }}
                   >
-                    {project.statusName}
+                    {getStatusLabel(project.status)}
                   </Tag>
                 )}
                 <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>

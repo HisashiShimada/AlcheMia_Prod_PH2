@@ -57,7 +57,7 @@ export const ROLE_CONFIG: RoleConfig = {
   fields: [
     {
       dbField: 'role',
-      displayName: 'ロールCD',
+      displayName: 'roleManagement.columns.roleCd',
       searchFixed: false,
       isDisplay: true,
       addable: true,
@@ -67,7 +67,7 @@ export const ROLE_CONFIG: RoleConfig = {
     },
     {
       dbField: 'roleName',
-      displayName: 'ロール名',
+      displayName: 'roleManagement.columns.roleName',
       searchFixed: false,
       isDisplay: true,
       addable: true,
@@ -87,7 +87,7 @@ export const ROLE_CONFIG: RoleConfig = {
     },
     {
       dbField: 'functionName',
-      displayName: '機能名',
+      displayName: 'roleManagement.columns.functionName',
       searchFixed: false,
       isDisplay: true,
       addable: false,
@@ -97,7 +97,7 @@ export const ROLE_CONFIG: RoleConfig = {
     },
     {
       dbField: 'initialScreenFunctionName',
-      displayName: '初期画面機能名',
+      displayName: 'roleManagement.columns.initialScreenFunctionName',
       searchFixed: false,
       isDisplay: true,
       addable: false,
@@ -123,7 +123,7 @@ export const ROLE_CONFIG: RoleConfig = {
     },
     {
       dbField: 'updatedAt',
-      displayName: '更新日時',
+      displayName: 'roleManagement.columns.updatedAt',
       searchFixed: false,
       isDisplay: true,
       addable: false,

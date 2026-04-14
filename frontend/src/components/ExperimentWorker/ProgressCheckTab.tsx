@@ -11,6 +11,7 @@ import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { AxiosError } from 'axios';
 import type { Task, Method, ProjectStatus } from '@/types/experimentWorker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -21,6 +22,8 @@ const EMPTY_ICON_SIZE = 48;
 
 interface ProgressCheckTabProps {
   selectedProject: string | null;
+  /** 選択中プロジェクトのプロジェクト名（UI表示用） */
+  selectedProjectName?: string;
   onProjectChange: (projectId: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string) => void;
@@ -36,6 +39,7 @@ interface ProgressCheckTabProps {
  */
 export default function ProgressCheckTab({
   selectedProject,
+  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
@@ -45,6 +49,7 @@ export default function ProgressCheckTab({
 }: ProgressCheckTabProps) {
   // デザイントークンを取得（UIポリシー基準）
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   
   // Ant Design App コンテキストからmessageを取得
   const { message } = App.useApp();
@@ -239,7 +244,7 @@ export default function ProgressCheckTab({
   // タスクアクション処理
   const handleTaskAction = useCallback(async (taskId: string, action: string) => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('experimentWork.projectSelection.title'));
       return;
     }
 
@@ -754,10 +759,10 @@ export default function ProgressCheckTab({
             <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               <CheckSquareOutlined style={{ marginRight: token.marginXS }} />
-              進捗確認
+              {t('menu.experiment_worker.tabs.progressCheck')}
             </Title>
             <Text type="secondary">
-              プロジェクトを選択してください
+              {t('experimentWork.projectSelection.title')}
             </Text>
           </Space>
         </Card>

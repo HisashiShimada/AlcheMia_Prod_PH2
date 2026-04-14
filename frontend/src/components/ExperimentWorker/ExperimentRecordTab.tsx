@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Space, Typography, theme, Button, message } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   ExperimentOutlined, 
   CheckSquareOutlined, 
@@ -39,6 +40,8 @@ type ViewMode = 'list' | 'flow';
  */
 interface ExperimentRecordTabProps {
   selectedProject: string;
+  /** 選択中プロジェクトのプロジェクト名（S3パス構築・UI表示用） */
+  selectedProjectName?: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string | null) => void;
@@ -57,6 +60,7 @@ interface ExperimentRecordTabProps {
  */
 export default function ExperimentRecordTab({
   selectedProject,
+  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
@@ -68,6 +72,7 @@ export default function ExperimentRecordTab({
   useDeemedProgress = true,
 }: ExperimentRecordTabProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   
@@ -491,11 +496,11 @@ export default function ExperimentRecordTab({
           <Card data-testid="empty-project-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
-              <Title level={3} type="secondary">
-                🧪 実験記録
+          <Title level={3} type="secondary">
+                🧪 {t('menu.experiment_worker.tabs.experimentRecord')}
               </Title>
               <Text type="secondary">
-                プロジェクトを選択してください
+                {t('experimentWork.projectSelection.title')}
               </Text>
             </Space>
           </Card>
@@ -507,7 +512,7 @@ export default function ExperimentRecordTab({
                 📋 トランジション一覧
               </Title>
               <Text type="secondary">
-                メソッドを選択してください
+                {t('experimentWork.labels.methodPlaceholder')}
               </Text>
             </Space>
           </Card>
@@ -519,7 +524,7 @@ export default function ExperimentRecordTab({
                 📋 トランジション一覧
               </Title>
               <Text type="secondary">
-                タスクを選択してください
+                {t('experimentWork.labels.taskPlaceholder')}
               </Text>
             </Space>
           </Card>
@@ -540,7 +545,7 @@ export default function ExperimentRecordTab({
                     onTaskCreated={onTaskCreated}
                     projectId={selectedProject}
                     methodId={selectedMethodId || undefined}
-                    projectName={selectedProject}
+                    projectName={selectedProjectName || selectedProject}
                     onDataSaveComplete={fetchProgress}
                     useDeemedProgress={useDeemedProgress}
                   />
@@ -588,7 +593,7 @@ export default function ExperimentRecordTab({
         onClose={handleDataRecordModalClose}
         onSave={handleDataSave}
         projectId={selectedProject}
-        projectName={selectedProject || undefined}
+        projectName={selectedProjectName || selectedProject || undefined}
         methodId={selectedMethodId || undefined}
         taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
         useDeemedProgress={useDeemedProgress}

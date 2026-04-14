@@ -15,6 +15,7 @@ import ExperimentAdminMenu from '@/components/menus/ExperimentAdminMenu';
 import ExperimentWorkerMenu from '@/components/menus/ExperimentWorkerMenu';
 import { authService, AuthServiceError } from '@/services/authService';
 import type { LoginCredentials, User, UserRole } from '@/types/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * 認証フロー状態
@@ -27,6 +28,7 @@ type AuthStep = 'login' | 'pin-code' | 'password-reset-request' | 'password-rese
 function HomeContent() {
   const searchParams = useSearchParams();
   const [messageApi, contextHolder] = message.useMessage();
+  const { t } = useLanguage();
 
   // URLクエリパラメータから組織IDを取得（開発環境用）
   const orgIdFromUrl = searchParams.get('orgId') || undefined;
@@ -106,7 +108,7 @@ function HomeContent() {
       if (showSuccessMessage) {
         // useEffectでメッセージを表示するため、次のティックで実行
         setTimeout(() => {
-          messageApi.success('ログインに成功しました');
+          messageApi.success(t('page.loginSuccess'));
         }, 0);
       }
     }
@@ -155,7 +157,7 @@ function HomeContent() {
         setAuthStep('pin-code');
       } else {
         // 予期しないレスポンス形式
-        setError('予期しないレスポンスが返されました');
+        setError(t('page.unexpectedResponse'));
         console.error('Unexpected response format:', response);
       }
     } catch (err) {
@@ -168,7 +170,7 @@ function HomeContent() {
           details: err.details,
         });
       } else {
-        setError('予期しないエラーが発生しました');
+        setError(t('page.unexpectedError'));
         console.error('Unexpected error:', err);
       }
     } finally {
@@ -204,7 +206,7 @@ function HomeContent() {
           details: err.details,
         });
       } else {
-        setError('予期しないエラーが発生しました');
+        setError(t('page.unexpectedError'));
         console.error('Unexpected error:', err);
       }
 
@@ -239,7 +241,7 @@ function HomeContent() {
           details: err.details,
         });
       } else {
-        setError('予期しないエラーが発生しました');
+        setError(t('page.unexpectedError'));
         console.error('Unexpected error:', err);
       }
 
@@ -284,10 +286,7 @@ function HomeContent() {
       const response = await authService.resetPasswordRequest(email, orgIdFromUrl);
       console.log('Password reset request successful:', response);
       
-      messageApi.success(
-        'パスワードリセットのご案内をメールで送信しました。メールをご確認ください。',
-        5
-      );
+      messageApi.success(t('page.passwordResetEmailSent'), 5);
     } catch (err) {
       if (err instanceof AuthServiceError) {
         setError(err.message);
@@ -297,7 +296,7 @@ function HomeContent() {
           details: err.details,
         });
       } else {
-        setError('予期しないエラーが発生しました');
+        setError(t('page.unexpectedError'));
         console.error('Unexpected error:', err);
       }
       throw err;
@@ -317,7 +316,7 @@ function HomeContent() {
       const response = await authService.resetPassword(resetToken, newPassword);
       console.log('Password reset successful:', response);
       
-      messageApi.success('パスワードを変更しました。新しいパスワードでログインしてください。', 5);
+      messageApi.success(t('page.passwordResetSuccess'), 5);
     } catch (err) {
       if (err instanceof AuthServiceError) {
         setError(err.message);
@@ -327,7 +326,7 @@ function HomeContent() {
           details: err.details,
         });
       } else {
-        setError('予期しないエラーが発生しました');
+        setError(t('page.unexpectedError'));
         console.error('Unexpected error:', err);
       }
       throw err;
@@ -352,7 +351,7 @@ function HomeContent() {
       // リダイレクトデータをクリア
       setPendingRedirectData(null);
       
-      messageApi.success('ログインに成功しました');
+      messageApi.success(t('page.loginSuccess'));
     }
   };
 
@@ -459,7 +458,7 @@ function HomeContent() {
       }
       
       // ユーザーに通知
-      messageApi.warning('セッションが期限切れになりました。再度ログインしてください。');
+      messageApi.warning(t('page.sessionExpired'));
       
       // 処理完了後、フラグをリセット
       setTimeout(() => {
@@ -483,7 +482,7 @@ function HomeContent() {
     try {
       // バックエンドのログアウトAPIを呼び出し
       await authService.logout();
-      messageApi.success('ログアウトしました');
+      messageApi.success(t('page.logoutSuccess'));
     } catch (error) {
       // エラーが発生してもローカル状態はクリアする
       console.error('Logout API error:', error);
@@ -492,9 +491,9 @@ function HomeContent() {
       if (error instanceof AuthServiceError && error.code === 'E5002') {
         // メッセージ表示なし（自動ログアウトイベントで表示済み）
       } else if (error instanceof AuthServiceError) {
-        messageApi.warning(`ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました: ${error.message}`);
+        messageApi.warning(`${t('page.logoutError')}: ${error.message}`);
       } else {
-        messageApi.warning('ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました');
+        messageApi.warning(t('page.logoutError'));
       }
     } finally {
       // 成功・失敗に関わらずローカル状態をクリア
@@ -520,7 +519,7 @@ function HomeContent() {
    * ナビゲーション処理（デモ用）
    */
   const handleNavigate = (path: string) => {
-    messageApi.info(`画面遷移: ${path}`);
+    messageApi.info(`${t('page.navigate')}: ${path}`);
   };
 
   /**
@@ -541,24 +540,24 @@ function HomeContent() {
 
     const functionCode = functionCodeMap[menuType];
     if (!functionCode) {
-      messageApi.error(`未定義のメニュータイプ: ${menuType}`);
+      messageApi.error(`${t('page.undefinedMenuType')}: ${menuType}`);
       return;
     }
 
     // 数値コードで設定（switchケースと一致する形式）
     setCurrentMenuType(functionCode);
 
-    // メニュー名の取得（日本語表示用）
+    // メニュー名の取得（多言語対応）
     const menuNames: Record<UserRole, string> = {
-      provider: 'プロバイダーメニュー',
-      system_admin: 'システム管理者メニュー',
-      data_admin: 'データ管理者メニュー',
-      experiment_admin: '実験管理者メニュー',
-      experiment_worker: '実験作業者メニュー',
-      mi_engineer: 'MI技術者メニュー',
+      provider: t('page.menuName.provider'),
+      system_admin: t('page.menuName.systemAdmin'),
+      data_admin: t('page.menuName.dataAdmin'),
+      experiment_admin: t('page.menuName.experimentAdmin'),
+      experiment_worker: t('page.menuName.experimentWorker'),
+      mi_engineer: t('page.menuName.miEngineer'),
     };
 
-    messageApi.success(`${menuNames[menuType]}に切り替えました`);
+    messageApi.success(`${menuNames[menuType]}${t('page.menuSwitched')}`);
   };
 
   // 条件分岐レンダリング
@@ -579,7 +578,7 @@ function HomeContent() {
       >
         <Spin size="large" />
         <div style={{ fontSize: '16px', color: '#595959' }}>
-          ログイン状態を確認中...
+          {t('page.checkingLoginStatus')}
         </div>
       </div>
     );
@@ -718,7 +717,7 @@ function HomeContent() {
         );
         break;
       default:
-        MenuComponent = <div>未定義の機能コード: {currentMenuType}</div>;
+        MenuComponent = <div>{t('page.undefinedFunctionCode')}: {currentMenuType}</div>;
     }
 
     return (

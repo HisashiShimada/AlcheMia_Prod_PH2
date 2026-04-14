@@ -1,4 +1,27 @@
 {
+  "page": {
+    "loginSuccess": "ログインに成功しました",
+    "logoutSuccess": "ログアウトしました",
+    "logoutError": "ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました",
+    "sessionExpired": "セッションが期限切れになりました。再度ログインしてください。",
+    "unexpectedResponse": "予期しないレスポンスが返されました",
+    "unexpectedError": "予期しないエラーが発生しました",
+    "passwordResetEmailSent": "パスワードリセットのご案内をメールで送信しました。メールをご確認ください。",
+    "passwordResetSuccess": "パスワードを変更しました。新しいパスワードでログインしてください。",
+    "navigate": "画面遷移",
+    "undefinedMenuType": "未定義のメニュータイプ",
+    "undefinedFunctionCode": "未定義の機能コード",
+    "menuSwitched": "に切り替えました",
+    "checkingLoginStatus": "ログイン状態を確認中...",
+    "menuName": {
+      "provider": "プロバイダーメニュー",
+      "systemAdmin": "システム管理者メニュー",
+      "dataAdmin": "データ管理者メニュー",
+      "experimentAdmin": "実験管理者メニュー",
+      "experimentWorker": "実験作業者メニュー",
+      "miEngineer": "MI技術者メニュー"
+    }
+  },
   "common": {
     "appName": "MMDPF",
     "appSubtitle": "マルチモーダルデータプラットフォーム",
@@ -21,7 +44,12 @@
     "warning": "警告",
     "info": "情報",
     "total": "合計",
-    "items": "件"
+    "items": "件",
+    "menuSwitch": "メニュー切替",
+    "reload": "リロード",
+    "reloading": "リロード中...",
+    "close": "閉じる",
+    "searchJoiner": "、"
   },
   "languages": {
     "ja": "日本語",
@@ -50,7 +78,9 @@
         "systemOverview": "システム概要",
         "organizationStatistics": "組織統計情報",
         "userManagement": "ユーザー管理",
-        "sessionManagement": "セッション管理"
+        "sessionManagement": "セッション管理",
+        "departmentManagement": "部署管理",
+        "roleManagement": "ロール管理"
       }
     },
     "data_admin": {
@@ -116,7 +146,11 @@
     "approvalRequestButton": "承認依頼",
     "labels": {
       "project": "プロジェクト",
-      "method": "メソッド"
+      "method": "メソッド",
+      "task": "タスク",
+      "methodPlaceholder": "メソッドを選択してください",
+      "taskPlaceholder": "タスクを選択してください",
+      "noProjects": "プロジェクトがありません"
     },
     "progressCheck": {
       "issueCheck": "問題確認",
@@ -464,6 +498,20 @@
         "review_waiting_count": "レビュー待ち",
         "completed_count": "完了"
       }
+    },
+    "deleteButton": "削除",
+    "issueCheck": "問題確認",
+    "renameProject": "プロジェクト名変更",
+    "rename": {
+      "title": "プロジェクト名を変更",
+      "okText": "変更",
+      "label": "新しいプロジェクト名",
+      "required": "プロジェクト名を入力してください",
+      "patternError": "プロジェクト名は英数字・アンダースコア・ハイフンのみ使用できます",
+      "maxLengthError": "プロジェクト名は255文字以内で入力してください",
+      "success": "プロジェクト名を「{{name}}」に変更しました",
+      "duplicateError": "同名のプロジェクトが既に存在します",
+      "failed": "プロジェクト名の変更に失敗しました"
     }
   },
   "progress": {
@@ -531,17 +579,73 @@
       "total": "合計",
       "items": "件"
     },
-      "actions": {
+    "workStatus": {
+      "pending": "作業待ち",
+      "inProgress": "作業中",
+      "error": "エラー",
+      "reviewWaiting": "レビュー待ち",
+      "completed": "完了"
+    },
+    "status": {
+      "completed": "完了",
+      "in_progress": "作業中",
+      "preparing": "準備中",
+      "suspended": "中断",
+      "abnormal": "異常",
+      "not_started": "未着手"
+    },
+    "detail": {
+      "projectInfo": "プロジェクト情報",
+      "projectName": "プロジェクト名",
+      "projectId": "プロジェクトID",
+      "description": "説明",
+      "owner": "オーナー",
+      "department": "部門",
+      "updatedAt": "更新日時",
+      "method": "メソッド",
+      "allMethods": "すべてのメソッド",
+      "taskDetail": "タスク詳細",
+      "taskNo": "タスクNo",
+      "taskStatus": "タスクステータス",
+      "methodName": "メソッド名",
+      "transitionSummary": "トランジションサマリー",
+      "statsTotal": "全体",
+      "statsCompleted": "完了",
+      "statsWorking": "作業中",
+      "statsNotStarted": "未着手",
+      "statsCompletionRate": "完了率",
+      "experimentFlow": "実験フロー図",
+      "transitionDetail": "トランジション詳細",
+      "worker": "作業者",
+      "startDate": "開始日",
+      "endDate": "終了日",
+      "noTransitionData": "トランジション進捗データがありません",
+      "noWorkAssigned": "作業IDが割り当てられていません",
+      "noWorkAssignedDesc": "このファイルには作業IDが割り当てられていません。",
+      "projectStatus": {
+        "completed": "完了",
+        "in_progress": "進行中",
+        "pending": "保留中",
+        "planning": "計画中"
+      }
+    },
+    "actions": {
       "viewDetails": "詳細表示"
     }
   },
   "issueManagement": {
     "title": "問題報告",
+    "viewTitle": "問題確認",
+    "reportTitle": "問題報告",
     "newIssue": "新規問題報告",
     "issueList": "問題一覧",
     "issueDetails": "問題詳細",
     "noIssueSelected": "問題を選択してください",
     "noIssues": "問題が報告されていません",
+    "issueInfo": "問題情報",
+    "all": "すべて",
+    "searchPlaceholder": "タイトル、内容で検索...",
+    "statusFilterPlaceholder": "ステータスで絞り込み",
     "columns": {
       "title": "タイトル",
       "status": "状態",
@@ -567,6 +671,9 @@
       "targetTypeRequired": "対象を選択してください",
       "content": "内容",
       "contentPlaceholder": "問題の詳細を具体的に入力してください",
+      "issueType": "問題タイプ",
+      "issueTypeRequired": "問題タイプを選択してください",
+      "issueTypePlaceholder": "問題タイプを選択",
       "contentRequired": "内容を入力してください",
       "contentMinLength": "内容は10文字以上で入力してください",
       "save": "保存",
@@ -587,9 +694,23 @@
       "commentRequired": "コメントを入力してください",
       "send": "送信"
     },
+    "buttons": {
+      "commentSubmit": "コメント送信",
+      "unresolved": "未解決",
+      "resolved": "解決"
+    },
     "messages": {
       "issueReported": "問題を報告しました",
-      "commentPosted": "コメントを投稿しました"
+      "commentPosted": "コメントを投稿しました",
+      "commentRequired": "コメントを入力してください",
+      "setUnresolved": "ステータスを「未解決」に変更しました",
+      "setResolved": "ステータスを「解決済」に変更しました"
+    },
+    "approvalPending": {
+      "newIssue": "プロジェクトが承認依頼中のため、新規問題報告はできません",
+      "comment": "プロジェクトが承認依頼中のため、コメントを追加できません",
+      "commentSubmit": "プロジェクトが承認依頼中のため、コメント送信はできません",
+      "statusChange": "プロジェクトが承認依頼中のため、ステータス変更はできません"
     }
   },
   "taskRegistration": {
@@ -997,7 +1118,9 @@
     "columns": {
       "roleCd": "ロールCD",
       "roleName": "ロール名",
-      "functionName": "機能名"
+      "functionName": "機能名",
+      "initialScreenFunctionName": "初期画面機能名",
+      "updatedAt": "更新日時"
     },
     "buttons": {
       "csvUpload": "CSVアップロード",
@@ -1137,7 +1260,8 @@
       "selectPlaceholder": "{label}を選択してください",
       "inputPlaceholder": "{label}を入力してください",
       "required": "{label}を入力してください",
-      "requiredSelect": "{label}を選択してください"
+      "requiredSelect": "{label}を選択してください",
+      "searchPlaceholder": "{fields}で検索"
     },
     "csvError": {
       "title": "CSVアップロードエラー",
@@ -1146,6 +1270,14 @@
       "failureCount": "失敗件数: {count}件"
     },
     "creatorWarning": "Creatorに紐づくVendorまたはInstrumentに不備がある場合、該当レコードは強調表示されます。",
+    "fields": {
+      "id": "ID",
+      "name": "名称",
+      "description": "説明",
+      "annotation": "注釈",
+      "vendorName": "Vendor名称",
+      "instrumentName": "Instrument名称"
+    },
     "messages": {
       "fetchError": "マスタの取得に失敗しました: {error}",
       "csvNotSupported": "このマスタはCSVアップロードに対応していません",
@@ -1188,6 +1320,13 @@
   },
   "functionPermissionDialog": {
     "title": "機能管理",
+    "functions": {
+      "010000": "プロバイダーメニュー",
+      "020000": "システム管理者メニュー",
+      "030000": "データ管理者メニュー",
+      "040000": "実験管理者メニュー",
+      "050000": "実験作業者メニュー"
+    },
     "buttons": {
       "cancel": "キャンセル",
       "update": "機能を更新"
@@ -1296,5 +1435,117 @@
       "deleteFailed": "指示の削除に失敗しました（送信済の可能性があります）",
       "deleteError": "指示の削除中にエラーが発生しました"
     }
+  },
+  "transitionSearch": {
+    "queryRequired": "検索クエリを入力してください",
+    "quickSearchQueryRequired": "クイック検索には検索クエリを入力してください",
+    "searchTab": "検索",
+    "batchTab": "バッチ処理",
+    "queryLabel": "検索クエリ",
+    "queryHint": "💡 入力条件、実験手順、期待される出力を含めて記述してください",
+    "queryPlaceholder": "例: 532nmレーザーでラマン測定、CLS解析、スペクトルとTIFF画像を出力",
+    "searching": "検索中...",
+    "searchButton": "検索実行",
+    "reset": "リセット",
+    "quickSearchLabel": "⚡ クイック検索（ワンクリックで重み調整済み検索）",
+    "quickSearch": {
+      "structureFocused": "構造重視",
+      "procedureFocused": "手順重視",
+      "inputFocused": "入力重視",
+      "outputFocused": "出力重視",
+      "balanced": "バランス"
+    },
+    "aiAnalysis": "🤖 AI分析: クエリの4軸分解",
+    "decomposed": {
+      "input": "📥 入力条件:",
+      "procedure": "⚡ 手順:",
+      "output": "📤 出力:",
+      "structure": "🕸️ 構造:"
+    },
+    "advancedWeights": "詳細な重み調整（上級者向け）",
+    "startHint": "トランジションセット検索を開始",
+    "startHintDesc": "4軸ベクトル検索により、実験プロトコルのトランジションレベルでの精密な類似度評価が可能です",
+    "exampleInput": "📥 入力条件の例: 「シリコン基板、532nmレーザー、室温」",
+    "exampleProcedure": "⚡ 手順の例: 「バックグラウンド補正、ピーク検出」",
+    "exampleOutput": "📤 出力の例: 「スペクトルデータCSV、TIFFイメージ」",
+    "exampleStructure": "🕸️ 構造の例: 「1入力2出力」「直列3ステップ」"
+  },
+  "instructionConfirmation": {
+    "instructionDetail": "指示詳細",
+    "flowDiagram": "フロー図",
+    "noProject": "プロジェクトが選択されていません",
+    "noInstructionsToConfirm": "確認が必要な指示はありません",
+    "noProjectInstructions": "確認が必要なプロジェクト指示はありません",
+    "confirmComplete": "確認完了",
+    "confirmAllInstructions": "全ての指示の確認完了",
+    "projectInstructionGroup": "プロジェクト指示",
+    "taskInstructionGroup": "タスク指示",
+    "transitionInstructionGroup": "トランジション指示",
+    "countSuffix": "件",
+    "okText": "確認完了",
+    "cancelText": "キャンセル",
+    "confirmSuccess": "を確認完了しました（",
+    "confirmSuccessSuffix": "件）",
+    "confirmFailed": "の確認に失敗しました（",
+    "confirmFailedSuffix": "件）",
+    "confirmPartialSuccess": "の確認が一部失敗しました（成功: ",
+    "confirmPartialFail": "件、失敗: ",
+    "confirmPartialSuffix": "件）",
+    "confirmProjectDialogTitle": "プロジェクト指示の確認完了",
+    "confirmProjectDialogContent": "プロジェクト指示（",
+    "confirmProjectDialogContentSuffix": "件）を確認完了しますか？",
+    "confirmDialogContentSuffix": "の指示（",
+    "confirmDialogCountSuffix": "件）を確認完了しますか？",
+    "confirmAllDialogTitle": "全ての指示の確認完了",
+    "confirmAllDialogContent1": "全ての指示（",
+    "confirmAllDialogContent2": "件中",
+    "confirmAllDialogContent3": "件未確認）を確認完了しますか？"
+  },
+  "workProgressDetail": {
+    "fetchFileFailed": "ファイル詳細の取得に失敗しました"
+  },
+  "progressStatus": {
+    "not_started": "未開始",
+    "preparing": "準備中",
+    "in_progress": "作業中",
+    "suspended": "休止中",
+    "abnormal": "異常中",
+    "completed": "完了"
+  },
+  "instructionType": {
+    "project_instruction": "プロジェクト指示",
+    "overall_instruction": "全体指示",
+    "task_instruction": "タスク指示",
+    "task_unit_instruction": "タスク単位指示",
+    "method_unit_instruction": "メソッド単位指示",
+    "transition_unit_instruction": "トランジション単位指示",
+    "emptyMessage": {
+      "project_instruction": "実験全体への作業指示がありません",
+      "task_instruction": "タスクへの作業指示がありません"
+    }
+  },
+  "roleFunctionPermission": {
+    "roles": {
+      "PROVIDER": "プロバイダー",
+      "SYSTEM_MANAGER": "システム管理者",
+      "DATA_MANAGER": "データ管理者",
+      "EXPERMENT_MANAGER": "実験管理者",
+      "EXPERMENT_WORKER": "実験作業者",
+      "MI_ENGINEER": "MI技術者"
+    },
+    "functions": {
+      "010000": "プロバイダーメニュー",
+      "020000": "システム管理者メニュー",
+      "030000": "データ管理者メニュー",
+      "040000": "実験管理者メニュー",
+      "050000": "実験作業者メニュー"
+    },
+    "permissions": {
+      "WRITER": "書込可",
+      "READER": "読取専用"
+    }
+  },
+  "formatFolderTree": {
+    "title": "フォーマット一覧"
   }
 }

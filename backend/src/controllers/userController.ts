@@ -5,6 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as userService from '../services/userService';
+import { AppError } from '../enums/errorCodes';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -179,38 +180,18 @@ export async function createUser(req: Request, res: Response, next: NextFunction
   } catch (error) {
     console.error('Create user error:', error);
     
-    // エラーメッセージに応じてステータスコードを変更
-    if (error instanceof Error) {
-      if (error.message.includes('既に使用されています')) {
-        res.status(409).json({
-          success: false,
-          error: {
-            code: 'USER_ALREADY_EXISTS',
-            message: error.message,
-          },
-          meta: {
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id'] || uuidv4(),
-          },
-        });
-        return;
-      }
-      if (error.message.includes('必須フィールド') || error.message.includes('形式が不正')) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'E1003',
-            message: error.message,
-          },
-          meta: {
-            timestamp: new Date().toISOString(),
-            requestId: req.headers['x-request-id'] || uuidv4(),
-          },
-        });
-        return;
-      }
+    if (error instanceof AppError) {
+      const statusCode = error.code === 'USER_ALREADY_EXISTS' ? 409 : 400;
+      res.status(statusCode).json({
+        success: false,
+        error: { code: error.code, message: error.message },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId: req.headers['x-request-id'] || uuidv4(),
+        },
+      });
+      return;
     }
-    
     next(error);
   }
 }
@@ -259,14 +240,10 @@ export async function updateUser(req: Request, res: Response, next: NextFunction
   } catch (error) {
     console.error('Update user error:', error);
     
-    // エラーメッセージに応じてステータスコードを変更
-    if (error instanceof Error && error.message.includes('見つかりません')) {
+    if (error instanceof AppError && error.code === 'USER_NOT_FOUND') {
       res.status(404).json({
         success: false,
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: error.message,
-        },
+        error: { code: error.code, message: error.message },
         meta: {
           timestamp: new Date().toISOString(),
           requestId: req.headers['x-request-id'] || uuidv4(),
@@ -274,7 +251,6 @@ export async function updateUser(req: Request, res: Response, next: NextFunction
       });
       return;
     }
-    
     next(error);
   }
 }
@@ -316,14 +292,10 @@ export async function updateUserStatus(req: Request, res: Response, next: NextFu
   } catch (error) {
     console.error('Update user status error:', error);
     
-    // エラーメッセージに応じてステータスコードを変更
-    if (error instanceof Error && error.message.includes('見つかりません')) {
+    if (error instanceof AppError && error.code === 'USER_NOT_FOUND') {
       res.status(404).json({
         success: false,
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: error.message,
-        },
+        error: { code: error.code, message: error.message },
         meta: {
           timestamp: new Date().toISOString(),
           requestId: req.headers['x-request-id'] || uuidv4(),
@@ -331,7 +303,6 @@ export async function updateUserStatus(req: Request, res: Response, next: NextFu
       });
       return;
     }
-    
     next(error);
   }
 }

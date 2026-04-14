@@ -196,6 +196,10 @@ CREATE TABLE IF NOT EXISTS file_metadata (
     project_uuid UUID
 );
 
+-- project_uuid用ユニーク制約（2026-04-14追加）
+ALTER TABLE file_metadata ADD CONSTRAINT uk_file_metadata_project_uuid
+UNIQUE (project_uuid) ;
+
 -- ============================================================
 -- インデックス作成
 -- ============================================================

@@ -49,6 +49,7 @@ import type {
 } from '../../../types/editor';
 import { Template, Insertion, PlaceRef} from '@/types/maiml-unified';
 import NestedPropertyEditor, { type PropertyData } from './NestedPropertyEditor';
+import { useLanguage } from '@/contexts/LanguageContext';
 import useNamespaceOperations, { type NamespaceData } from '../hooks/useNamespaceOperations';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {
@@ -101,6 +102,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   allNodes = [],
   templateErrors = {},
 }) => {
+  const { t } = useLanguage();
   const [hasChanges, setHasChanges] = useState(false);
 
   // 基本情報State
@@ -819,7 +821,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setFormatsResponse(result);
     } catch (error) {
       console.error('テンプレートファイル一覧取得エラー:', error);
-      message.error('テンプレートファイル一覧の取得に失敗しました');
+      message.error(t('formatManagement.messages.file_list_load_failed'));
       setFormatsResponse({ departments: [] });
     } finally {
       setIsLoadingTemplates(false);

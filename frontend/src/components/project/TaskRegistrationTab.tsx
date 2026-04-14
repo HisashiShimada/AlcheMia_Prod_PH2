@@ -138,7 +138,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
    */
   const refreshInstructions = useCallback(async () => {
     setInstructions([]); // stateをクリア
-    const instructionsData = await getInstructions(projectName).catch(err => {
+    const instructionsData = await getInstructions(projectId).catch(err => {
       console.warn('[DEBUG] TaskRegistrationTab - Failed to refresh instructions (continuing):', err);
       return []; // エラー時は空配列を返す
     });
@@ -161,7 +161,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
 
       try {
         // タスクデータを取得
-        const taskData = await getTaskRegistration(projectName);
+        const taskData = await getTaskRegistration(projectId);
 
         // MAIML登録状態を保存（チェックアウト状態はPropsから取得）
         setIsMaimlRegistered(taskData.isMaimlRegistered);
@@ -371,7 +371,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       }
       
       // 初回保存かどうかを判定（API取得データを再取得して確認）
-      const currentData = await getTaskRegistration(projectName);
+      const currentData = await getTaskRegistration(projectId);
       const isFirstSave = !currentData.tasks || currentData.tasks.length === 0;
       
       // 初回保存時は全タスクがチェックされているか確認
@@ -472,7 +472,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       };
 
       // APIを呼び出し
-      const response = await saveTaskRegistration(projectName, requestData);
+      const response = await saveTaskRegistration(projectId, requestData);
 
       // 保存成功後、共通関数でstateをクリア + DB再取得
       await refreshInstructions();

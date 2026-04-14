@@ -12,7 +12,7 @@ import { Form, Input, Button, Alert, Typography, Space, theme } from 'antd';
 import { MailOutlined, ReloadOutlined } from '@ant-design/icons';
 import { verifyPin, resendPin } from '../../utils/authApi';
 import type { VerifyPINResponse } from '../../types/auth';
-import { extractErrorMessage } from '@/utils/errorUtils';
+import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
 
 const { Text, Paragraph } = Typography;
 const { useToken } = theme;
@@ -116,11 +116,9 @@ export default function PINCodeForm({
       setError(errorMessage);
       onError(errorMessage);
       
-      // 試行回数超過エラーの場合（より厳密なチェック）
-      if (
-        errorMessage.includes('試行回数の上限') ||
-        errorMessage.includes('PINコード入力試行回数の上限に達しました')
-      ) {
+      // 試行回数超過エラーの場合: E5005（PIN試行回数超過）をエラーコードで判定
+      const errorCode = extractErrorCode(err);
+      if (errorCode === 'E5005') {
         onMaxAttemptsExceeded();
       }
     } finally {

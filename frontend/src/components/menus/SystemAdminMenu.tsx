@@ -66,12 +66,12 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
     },
     {
       key: '4',
-      label: '部署管理',
+      label: t('menu.system_admin.tabs.departmentManagement'),
       icon: <ShopOutlined />,
     },
     {
       key: '5',
-      label: 'ロール管理',
+      label: t('menu.system_admin.tabs.roleManagement'),
       icon: <AuditOutlined />,
     }
   ];

@@ -1059,6 +1059,44 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     console.log('➕ [PetriNetEditorInner] ノード追加（テンプレートなし）:', newNode);
   }, [setNodes, edges, pushState, onContentChange, screenToFlowPosition]);
 
+  // テンプレートとノードの紐づき（placeRef）を解除するヘルパー
+  // ノード自体は削除済み or 削除中の想定。テンプレート自体は削除しない。
+  // 全カテゴリ（material/condition/result）を網羅し、紐づくテンプレートをすべて解除する。
+  // TODO: Undo 時に placeRef を元に戻すには TemplateContext 側の履歴管理が必要（現在は対象外）
+  const unlinkTemplateFromNode = useCallback((targetNodes: Node<NodeData>[]) => {
+    const allTemplates = window.clineAllTemplates;
+    if (!allTemplates || !window.clineUpdateTemplate) return;
+
+    const categories = ['material', 'condition', 'result'] as const;
+
+    targetNodes.forEach(node => {
+      // transition はテンプレートなし
+      if (node.data.nodeType === 'transition') return;
+
+      // 全カテゴリを網羅して、このノードの ref を含むテンプレートをすべて解除
+      categories.forEach(cat => {
+        const templatesInCat = (allTemplates[cat] as Template[] | undefined) ?? [];
+        templatesInCat.forEach((template: Template) => {
+          if (!template.id) return;
+          if (!template.placeRefs?.some((pr: XsdPlaceRef) => pr.ref === node.id)) return;
+
+          // placeRefs から削除ノードの ref を除去
+          const updatedPlaceRefs = template.placeRefs.filter(
+            (pr: XsdPlaceRef) => pr.ref !== node.id
+          );
+
+          const updatedTemplate: Template = { ...template, placeRefs: updatedPlaceRefs };
+          window.clineUpdateTemplate!(template.id, updatedTemplate);
+          console.log('🔗 [unlinkTemplateFromNode] placeRef解除:', {
+            category: cat,
+            templateId: template.id,
+            nodeId: node.id,
+          });
+        });
+      });
+    });
+  }, []);
+
   // ノード削除ハンドラー（Phase 3A + 3C: 履歴追加 + エッジ削除修正）
   const handleNodesDelete = useCallback((deletedNodes: Node<NodeData>[]) => {
     const deletedIds = deletedNodes.map(n => n.id);
@@ -1087,24 +1125,45 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
               pushState({ nodes: newNodes, edges: newEdges });
               return newNodes;
             });
+
+            // テンプレートの placeRef 紐づきを解除（テンプレート自体は削除しない）
+            unlinkTemplateFromNode(deletedNodes);
+
             onContentChange?.();
-  }, [edges, setEdges, setNodes, pushState, onContentChange]);
+  }, [edges, setEdges, setNodes, pushState, onContentChange, unlinkTemplateFromNode]);
 
   // PropertyPanelからのノード削除ハンドラー
   const handleDeleteNode = useCallback((nodeId: string) => {
     console.log('🗑️ [PetriNetEditorInner] PropertyPanelからノード削除:', nodeId);
-    
+
+    // 接続エッジを特定
+    const affectedEdges = edges.filter((e: Edge<EdgeData>) =>
+      e.source === nodeId || e.target === nodeId
+    );
+
+    // エッジを削除
+    setEdges((eds: Edge<EdgeData>[]) =>
+      eds.filter((e: Edge<EdgeData>) => !affectedEdges.find((ae: Edge<EdgeData>) => ae.id === e.id))
+    );
+
+    // ノードを削除 + 履歴追加
     setNodes((nds) => {
       const newNodes = nds.filter(n => n.id !== nodeId);
-      // 履歴に追加
-      pushState({ nodes: newNodes, edges });
+      const newEdges = edges.filter((e: Edge<EdgeData>) => !affectedEdges.find((ae: Edge<EdgeData>) => ae.id === e.id));
+      pushState({ nodes: newNodes, edges: newEdges });
       return newNodes;
     });
-    
+
+    // テンプレートの placeRef 紐づきを解除（テンプレート自体は削除しない）
+    const targetNode = nodes.find(n => n.id === nodeId);
+    if (targetNode) {
+      unlinkTemplateFromNode([targetNode]);
+    }
+
     onContentChange?.();
     // 選択状態をクリア
     setSelectedNode(null);
-  }, [setNodes, edges, pushState, onContentChange]);
+  }, [nodes, edges, setEdges, setNodes, pushState, onContentChange, unlinkTemplateFromNode]);
 
   // エッジ接続ハンドラー（Phase 3A + 3C: 履歴追加）
   const handleConnect = useCallback((connection: Connection) => {

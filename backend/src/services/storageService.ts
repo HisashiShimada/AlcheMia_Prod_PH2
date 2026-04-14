@@ -67,6 +67,13 @@ interface UploadOptions {
   uploadSource?: string;
   /** アップロード方法（デフォルト: 'single'） */
   uploadMethod?: string;
+  /**
+   * プロジェクトUUID（project.project_uuid と同値）。
+   * projects/ 配下かつ archive/ を含まないファイルのアップロード時のみ
+   * file_metadata.project_uuid へ反映される。
+   * archiveバックアップやフォーマットファイルには設定しないこと（UUID で最新ファイルを一意特定するため）。
+   */
+  project_uuid?: string;
 }
 
 /**
@@ -200,6 +207,10 @@ export class StorageService {
             ? Buffer.byteLength(fileContent, 'utf-8')
             : 0; // Readable Stream の場合は 0
 
+        // project_uuid は projects/ 配下かつ archive/ を含まない場合のみ設定
+        // （archiveバックアップに同じ UUID が入ると最新ファイルを一意特定できなくなるため）
+        const isProjectFile = filePath.includes('projects/') && !filePath.includes('archive/');
+
         const repo = new FileMetadataRepository();
         await repo.insertIfNotExists({
           file_key: key,
@@ -214,7 +225,19 @@ export class StorageService {
           upload_source: options.uploadSource ?? 'system',
           upload_method: options.uploadMethod ?? 'single',
           parent_folder_path: key.substring(0, key.lastIndexOf('/')),
+          ...(isProjectFile && options.project_uuid ? { project_uuid: options.project_uuid } : {}),
         });
+
+        // insertIfNotExists は ON CONFLICT DO NOTHING のため、既存レコードの project_uuid が更新されない。
+        // project ファイルかつ project_uuid が指定されている場合は UPDATE で強制上書きする。
+        if (isProjectFile && options.project_uuid) {
+          await repo.updateFileMetadata(key, {
+            project_uuid: options.project_uuid,
+            file_size: fileSize,
+          });
+          console.log(`[StorageService] file_metadata.project_uuid 更新完了: ${key} => ${options.project_uuid}`);
+        }
+
         console.log(`[StorageService] file_metadata 登録完了: ${key}`);
       } catch (dbErr) {
         console.warn('[StorageService] file_metadata 登録失敗（処理続行）', dbErr);

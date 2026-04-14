@@ -3,6 +3,7 @@
 import React from 'react';
 import { Button, Select, Space, Typography, theme } from 'antd';
 import { CheckOutlined, CheckSquareOutlined, PartitionOutlined } from '@ant-design/icons';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -50,6 +51,7 @@ export default function MethodTaskSelector({
 }: MethodTaskSelectorProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
+  const { t } = useLanguage();
 
   // Selectコンポーネント用のオプションを生成
   const taskOptions = [
@@ -81,11 +83,11 @@ export default function MethodTaskSelector({
           {/* メソッド選択 */}
           <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
             <PartitionOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-            <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
+            <Text strong style={{ minWidth: 80 }}>{t('experimentWork.labels.method')}:</Text>
             <Select
               data-testid="method-select"
               style={{ width: 200 }}
-              placeholder="メソッドを選択してください"
+              placeholder={t('experimentWork.labels.methodPlaceholder')}
               value={selectedMethodId || undefined}
               onChange={(value) => onSelectMethod(value || null)}
               options={[
@@ -103,11 +105,11 @@ export default function MethodTaskSelector({
           {/* タスク選択 + 選択ボタン */}
           <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
             <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-            <Text strong style={{ minWidth: 80 }}>タスク:</Text>
+            <Text strong style={{ minWidth: 80 }}>{t('experimentWork.labels.task')}:</Text>
             <Select
               data-testid="task-select"
               style={{ width: 200 }}
-              placeholder="タスクを選択してください"
+              placeholder={t('experimentWork.labels.taskPlaceholder')}
               value={selectedTaskId || ''}
               onChange={onSelectTask}
               options={taskOptions}
@@ -122,7 +124,7 @@ export default function MethodTaskSelector({
               size="large"
               disabled={!selectedProject}
             >
-              選択
+              {t('experimentWork.selectButton')}
             </Button>
           </Space>
         </div>
