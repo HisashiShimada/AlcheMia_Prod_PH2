@@ -41,6 +41,12 @@ interface InstructionConfirmationTabProps {
   onInstructionsUpdated: () => Promise<void>;
   /** trueのとき確認完了ボタンを無効化（リードオンレイ閲覧モード用）*/
   readOnly?: boolean;
+  /**
+   * プロジェクトステータスコード（数値）
+   * 2 = executing_task（タスク実行中）のときのみ確認完了ボタンを活性化
+   * null = 未選択または取得前（非活性のまま）
+   */
+  projectStatusCode?: number | null;
 }
 
 
@@ -61,6 +67,7 @@ export default function InstructionConfirmationTab({
   toggleGroup,
   onInstructionsUpdated,
   readOnly = false,
+  projectStatusCode = null,
 }: InstructionConfirmationTabProps) {
   // デザイントークンを取得（UIポリシー基準）
   const { token } = theme.useToken();
@@ -87,10 +94,17 @@ export default function InstructionConfirmationTab({
   
   // メソッド・タスク選択モーダルの表示状態
   const [isModalVisible, setIsModalVisible] = useState(false);
-  
-  // プロジェクトの状態を取得（暫定: APIから取得できるまでnull）
+
+  /**
+   * タスク実行中（executing_task = コード値 2）のみ確認完了ボタンを活性化
+   * projectStatusCode が null（未選択・取得前）の場合も非活性
+   */
+  const isTaskExecuting = projectStatusCode === 2;
+
+  // InstructionGroup へ渡す projectStatus（表示用）は常に null のまま維持
   const projectStatus: ProjectStatus | null = null;
 
+  console.log
   // プロジェクト選択時にAPIを呼び出す
   useEffect(() => {
     const fetchWorkerTasks = async () => {
@@ -635,6 +649,7 @@ export default function InstructionConfirmationTab({
                     loading={confirmLoading}
                     disabled={
                       readOnly ||
+                      !isTaskExecuting ||
                       confirmLoading || 
                       filteredInstructions
                         .filter((i) => i.targetType === 'file')
@@ -667,33 +682,69 @@ export default function InstructionConfirmationTab({
             {/* タスク単位指示グループ*/}
             <div style={{ marginBottom: '8px' }}>
               <div
-                data-testid="instruction-group-task-toggle"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: token.marginXS,
-                  cursor: 'pointer',
-                  borderRadius: token.borderRadiusSM,
-                }}
-                onClick={() => toggleGroup('task')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
+                  gap: 8,
                 }}
               >
-                <Title level={4} style={{ margin: 0 }}>
-                  {expandedGroups['task'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                  <CheckSquareOutlined style={{ marginRight: token.marginXS }} />
-                  {t('instructionConfirmation.taskInstructionGroup')} (
-                  {
-                    filteredInstructions.filter((i) => i.targetType === 'task')
-                      .length
-                  }
-                  {t('instructionConfirmation.countSuffix')})
-                </Title>
+                {/* タイトル部分（クリック可能）*/}
+                <div
+                  data-testid="instruction-group-task-toggle"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: token.marginXS,
+                    cursor: 'pointer',
+                    borderRadius: token.borderRadiusSM,
+                  }}
+                  onClick={() => toggleGroup('task')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Title level={4} style={{ margin: 0 }}>
+                    {expandedGroups['task'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                    <CheckSquareOutlined style={{ marginRight: token.marginXS }} />
+                    {t('instructionConfirmation.taskInstructionGroup')} (
+                    {filteredInstructions.filter((i) => i.targetType === 'task').length}
+                    {t('instructionConfirmation.countSuffix')})
+                  </Title>
+                </div>
+
+                {/* 確認完了ボタン（展開時のみ表示）*/}
+                {expandedGroups['task'] && filteredInstructions.filter((i) => i.targetType === 'task').length > 0 && (
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleConfirmTaskInstructions(
+                        filteredInstructions.filter((i) => i.targetType === 'task')
+                      );
+                    }}
+                    loading={confirmLoading}
+                    disabled={
+                      readOnly ||
+                      !isTaskExecuting ||
+                      confirmLoading ||
+                      filteredInstructions
+                        .filter((i) => i.targetType === 'task')
+                        .every((i) => i.isAcknowledged)
+                    }
+                    style={{
+                      backgroundColor: token.colorSuccess,
+                      borderColor: token.colorSuccess,
+                    }}
+                  >
+                    {t('instructionConfirmation.confirmComplete')}
+                  </Button>
+                )}
               </div>
               {expandedGroups['task'] && (
                 <div style={{ marginTop: token.margin }}>
@@ -705,8 +756,9 @@ export default function InstructionConfirmationTab({
                     )}
                     projectStatus={projectStatus}
                     isClient={isClient}
-                    onConfirmInstructions={readOnly ? undefined : handleConfirmTaskInstructions}
+                    onConfirmInstructions={handleConfirmTaskInstructions}
                     confirmLoading={confirmLoading}
+                    readOnly={readOnly || !isTaskExecuting}
                   />
                 </div>
               )}
@@ -715,34 +767,69 @@ export default function InstructionConfirmationTab({
             {/* トランジション単位指示グループ*/}
             <div style={{ marginBottom: '8px' }}>
               <div
-                data-testid="instruction-group-transition-toggle"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: token.marginXS,
-                  cursor: 'pointer',
-                  borderRadius: token.borderRadiusSM,
-                }}
-                onClick={() => toggleGroup('transition')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
+                  gap: 8,
                 }}
               >
-                <Title level={4} style={{ margin: 0 }}>
-                  {expandedGroups['transition'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                  <AimOutlined style={{ marginRight: token.marginXS }} />
-                  {t('instructionConfirmation.transitionInstructionGroup')} (
-                  {
-                    filteredInstructions.filter(
-                      (i) => i.targetType === 'transition'
-                    ).length
-                  }
-                  {t('instructionConfirmation.countSuffix')})
-                </Title>
+                {/* タイトル部分（クリック可能）*/}
+                <div
+                  data-testid="instruction-group-transition-toggle"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: token.marginXS,
+                    cursor: 'pointer',
+                    borderRadius: token.borderRadiusSM,
+                  }}
+                  onClick={() => toggleGroup('transition')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Title level={4} style={{ margin: 0 }}>
+                    {expandedGroups['transition'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                    <AimOutlined style={{ marginRight: token.marginXS }} />
+                    {t('instructionConfirmation.transitionInstructionGroup')} (
+                    {filteredInstructions.filter((i) => i.targetType === 'transition').length}
+                    {t('instructionConfirmation.countSuffix')})
+                  </Title>
+                </div>
+
+                {/* 確認完了ボタン（展開時のみ表示）*/}
+                {expandedGroups['transition'] && filteredInstructions.filter((i) => i.targetType === 'transition').length > 0 && (
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleConfirmTransitionInstructions(
+                        filteredInstructions.filter((i) => i.targetType === 'transition')
+                      );
+                    }}
+                    loading={confirmLoading}
+                    disabled={
+                      readOnly ||
+                      !isTaskExecuting ||
+                      confirmLoading ||
+                      filteredInstructions
+                        .filter((i) => i.targetType === 'transition')
+                        .every((i) => i.isAcknowledged)
+                    }
+                    style={{
+                      backgroundColor: token.colorSuccess,
+                      borderColor: token.colorSuccess,
+                    }}
+                  >
+                    {t('instructionConfirmation.confirmComplete')}
+                  </Button>
+                )}
               </div>
               {expandedGroups['transition'] && (
                 <div style={{ marginTop: token.margin }}>
@@ -754,8 +841,9 @@ export default function InstructionConfirmationTab({
                     )}
                     projectStatus={projectStatus}
                     isClient={isClient}
-                    onConfirmInstructions={readOnly ? undefined : handleConfirmTransitionInstructions}
+                    onConfirmInstructions={handleConfirmTransitionInstructions}
                     confirmLoading={confirmLoading}
+                    readOnly={readOnly || !isTaskExecuting}
                   />
                 </div>
               )}

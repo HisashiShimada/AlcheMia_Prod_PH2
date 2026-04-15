@@ -163,11 +163,6 @@ export default function ExperimentWorkerMenu({
       const result = await requestApproval(selectedProjectData.projectId);
       if (result.success) {
         message.success('承認依頼を送信しました');
-        // プロジェクト一覧を再取得してステータスを更新
-        const projectsResult = await getWorkerAccessibleProjects();
-        if (projectsResult.success && projectsResult.data) {
-          setProjects(projectsResult.data.projects);
-        }
       } else {
         message.error(result.error?.message || extractErrorMessage(null));
       }
@@ -183,6 +178,17 @@ export default function ExperimentWorkerMenu({
         message.error(extractErrorMessage(error));
       }
     } finally {
+      // 承認依頼の成功・失敗に関わらず、プロジェクト一覧を再取得してステータスを最新化する
+      // （承認依頼が成功した場合: project_status が 3（タスク結果レビュー待ち）に更新される）
+      // （409 Conflict の場合: 既に承認待ち状態のため再取得で最新ステータスを反映）
+      try {
+        const projectsResult = await getWorkerAccessibleProjects();
+        if (projectsResult.success && projectsResult.data) {
+          setProjects(projectsResult.data.projects);
+        }
+      } catch (fetchError) {
+        console.error('プロジェクト一覧再取得エラー:', fetchError);
+      }
       setApprovalLoading(false);
     }
   };
@@ -331,7 +337,8 @@ export default function ExperimentWorkerMenu({
           expandedGroups={expandedGroups}
           toggleGroup={toggleGroup}
           onInstructionsUpdated={refetchInstructions}
-          readOnly={readOnly}
+          readOnly={readOnly || (selectedProjectStatus !== null && selectedProjectStatus !== 1 && selectedProjectStatus !== 2)}
+          projectStatusCode={selectedProjectStatus}
         />
       ),
     },
@@ -392,7 +399,7 @@ export default function ExperimentWorkerMenu({
             options={[
               { value: '', label: '-' },
               ...projects.map((project) => {
-                const statusLabel = projectStatusOptions.find(opt => opt.value === project.projectStatus)?.label ?? String(project.projectStatus);
+                const statusLabel = projectStatusOptions.find(opt => String(opt.value) === String(project.projectStatus))?.label ?? String(project.projectStatus);
                 return {
                   value: project.projectId,
                   label: `${project.projectName} - ${statusLabel}`
