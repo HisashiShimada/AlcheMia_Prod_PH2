@@ -69,9 +69,9 @@ readonly TASK_DEF_NGINX_FILE="aws/ecs-task-definition-alchemia-nginx.json"
 # Aurora の場合は psql コマンドで直接接続
 readonly DB_USER="${DB_USER:-maiml_user}"
 readonly DB_NAME="${DB_NAME:-maiml_db}"
-readonly DB_HOST="${DB_HOST:-}"
+readonly DB_HOST="${DB_HOST:-DB_HOST:-alchemia-staging-aurora.cluster-c7u0cw0em9f8.ap-northeast-1.rds.amazonaws.com}"
 readonly DB_PORT="${DB_PORT:-5432}"
-readonly DB_PASSWORD="${DB_PASSWORD:-}"
+readonly DB_PASSWORD="${DB_PASSWORD:-maiml_user}"
 
 # =============================================================================
 # パス設定
@@ -147,6 +147,19 @@ check_deploy_status() {
     local task_def_rev
     task_def_rev=$(echo "${task_def_arn}" | sed 's/.*://')
 
+    # タスク定義ファミリー名を抽出して最新Revを取得
+    local task_def_family latest_rev
+    task_def_family=$(echo "${task_def_arn}" | sed 's|.*/task-definition/||' | sed 's/:[0-9]*$//')
+    local latest_info latest_rev latest_registered_at
+    latest_info=$(aws ecs describe-task-definition \
+        --task-definition "${task_def_family}" \
+        --region "${AWS_REGION}" \
+        --query '[taskDefinition.revision, taskDefinition.registeredAt]' \
+        --output text 2>/dev/null || echo "取得失敗")
+    latest_rev=$(echo "${latest_info}" | awk '{print $1}')
+    latest_registered_at=$(echo "${latest_info}" | awk '{print $2}')
+    [[ "${latest_rev}" == "取得失敗" ]] && latest_rev="取得失敗" && latest_registered_at=""
+
     # running == desired かつ pending == 0 なら正常
     local health_icon
     if [[ "${running}" == "${desired}" && "${pending}" == "0" && "${desired}" != "0" ]]; then
@@ -163,7 +176,14 @@ check_deploy_status() {
     info "  │   desired       : ${desired}"
     info "  │   running       : ${running}"
     info "  │   pending       : ${pending}"
-    info "  │   タスク定義Rev : ${task_def_rev}"
+    # タスク定義Revと最新Revを比較して表示（登録日時付き）
+    if [[ "${latest_rev}" == "取得失敗" ]]; then
+        info "  │   タスク定義Rev : ${task_def_rev} / 最新: (取得失敗)"
+    elif [[ "${latest_rev}" == "${task_def_rev}" ]]; then
+        info "  │   タスク定義Rev : ${task_def_rev} / 最新: ${latest_rev} ✅ 最新  (登録日時: ${latest_registered_at})"
+    else
+        warn "  │   タスク定義Rev : ${task_def_rev} / 最新: ${latest_rev} ⚠️  最新ではありません  (最新登録日時: ${latest_registered_at})"
+    fi
 
     # 稼働中タスクのイメージタグを確認
     local task_arns
