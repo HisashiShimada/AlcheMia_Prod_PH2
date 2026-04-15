@@ -334,6 +334,7 @@ export default function ProgressMonitoring() {
       const resolvedFileData: FileData = {
         maimlFileKey: maimlFile.path, // 相対パス（例: projects/{name}/{name}.maiml）※organizationIdプレフィックスなし
         fileName: maimlFile.name,
+        projectId: record.projectId,
       };
       setFileData(resolvedFileData);
       setIsDetailDialogOpen(true);
