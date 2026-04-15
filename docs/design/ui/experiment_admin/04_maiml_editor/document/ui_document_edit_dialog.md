@@ -13,7 +13,6 @@ DocumentEditDialogは、MAIMLファイルのDocument要素（Creator、Vendor、
 - Creator/Vendor/Owner/Instrument要素の編集（MultiObjectEditor使用）
 - マスタデータからの選択機能
 - UUID自動生成
-- リアルタイムバリデーション
 
 ### 1.2 使用場面
 
@@ -54,8 +53,6 @@ DocumentEditDialogは、MAIMLファイルのDocument要素（Creator、Vendor、
 ├─────────────────────────────────────────────────────────────┤
 │ Modal Body (スクロール可能)                                 │
 │ ┌───────────────────────────────────────────────────────┐   │
-│ │ バリデーションエラー表示（エラー時のみ）              │   │
-│ ├───────────────────────────────────────────────────────┤   │
 │ │ [UUID一括生成] ボタン                                  │   │
 │ ├───────────────────────────────────────────────────────┤   │
 │ │ Collapse: 基本プロパティ（展開状態）                   │   │
@@ -94,35 +91,29 @@ DocumentEditDialogは、MAIMLファイルのDocument要素（Creator、Vendor、
 
 ### 3.2 主要UI要素
 
-#### 3.2.1 バリデーションエラー表示
-- エラー時のみ表示
-- リスト形式でエラー内容を表示
-
-#### 3.2.2 UUID一括生成ボタン
+#### 3.2.1 UUID一括生成ボタン
 - Documentのuuidを一括生成
 
-#### 3.2.3 基本プロパティ（Collapseパネル）
-- Document ID: 必須入力
+#### 3.2.2 基本プロパティ（Collapseパネル）
+- Document ID: 任意入力
 - UUID: UUID生成ボタン付き
-- Name: 必須入力
+- Name: 任意入力
 - Description: テキストエリア
 - Date: DatePicker（現在時刻設定ボタン付き）
 
-#### 3.2.4 MaiML ID属性（Collapseパネル）
+#### 3.2.3 MaiML ID属性（Collapseパネル）
 - Protocol ID, Method ID, PNML ID, Program ID
 - 最大64文字の英数字・アンダースコア・ハイフン
 
-#### 3.2.5 XML署名（Collapseパネル）
+#### 3.2.4 XML署名（Collapseパネル）
 - 改ざん防止のためのXML署名を行う（Checkbox）
 - W3C XMLDSig仕様に基づく署名
 
-#### 3.2.6 Creator/Vendor/Owner/Instrument編集
+#### 3.2.5 Creator/Vendor/Owner/Instrument編集
 - MultiObjectEditorコンポーネントを使用
 - 追加/削除/編集/並び替え機能
 - マスタデータから選択可能
-- Creator: 最低1件必須、Reference設定可能
-- Vendor: 最低1件必須
-- Owner: 最低1件必須
+- Creator: Reference設定可能
 - Instrument: 任意（0件可）
 
 ### 3.3 画面遷移
@@ -149,8 +140,7 @@ useEffect(() => {
   if (open && documentData) {
     // stateリセット
     setHasChanges(false);
-    setValidationErrors([]);
-    
+
     // フォーム初期化
     form.setFieldsValue({
       ...documentData,
@@ -169,21 +159,25 @@ useEffect(() => {
 useEffect(() => {
   const loadMasterData = async () => {
     if (!open) return;
-    
-    setIsLoadingMasters(true);
-    const [creatorsData, vendorsData, instrumentsData] = await Promise.all([
-      fetchMasters('creator'),
-      fetchMasters('vendor'),
-      fetchMasters('instrument'),
-    ]);
-    
-    setCreators(creatorsData.map(convertCreatorToDocumentTag));
-    setVendors(vendorsData.map(convertVendorToDocumentTag));
-    setInstruments(instrumentsData.map(convertInstrumentToDocumentTag));
+
+    try {
+      const [creatorsData, vendorsData, instrumentsData] = await Promise.all([
+        fetchMasters('creator'),
+        fetchMasters('vendor'),
+        fetchMasters('instrument'),
+      ]);
+
+      setCreators(creatorsData.map(convertCreatorToDocumentTag));
+      setVendors(vendorsData.map(convertVendorToDocumentTag));
+      setInstruments(instrumentsData.map(convertInstrumentToDocumentTag));
+    } catch (error) {
+      console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
+      message.error('マスタデータの取得に失敗しました');
+    }
   };
-  
+
   loadMasterData();
-}, [open]);
+}, [open, convertCreatorToDocumentTag, convertVendorToDocumentTag, convertInstrumentToDocumentTag]);
 ```
 
 ### 4.2 UUID生成機能
@@ -229,79 +223,15 @@ const handleSetCurrentDateTime = useCallback(() => {
 }, [form]);
 ```
 
-### 4.4 バリデーション機能
-
-#### 4.4.1 リアルタイムバリデーション
+### 4.4 フォーム変更検知
 
 ```typescript
 const handleFormChange = useCallback(() => {
   setHasChanges(true);
-
-  if (validationTimeoutRef.current) {
-    clearTimeout(validationTimeoutRef.current);
-  }
-
-  validationTimeoutRef.current = setTimeout(() => {
-    const values = form.getFieldsValue(true);
-    const errors = validateDocumentData(values);
-    setValidationErrors(errors);
-  }, 500);
-}, [form, validateDocumentData]);
-```
-
-**検証タイミング**: 入力後500msのデバウンス
-
-#### 4.4.2 バリデーションルール
-
-```typescript
-const validateDocumentData = useMemo(() => (data: DocumentData): string[] => {
-  const errors: string[] = [];
-  
-  // 基本プロパティ
-  if (!data.name?.trim()) {
-    errors.push('❌ Document name is required');
-  }
-  if (!data.id?.trim()) {
-    errors.push('❌ Document ID is required');
-  }
-  
-  // UUID形式チェック
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (data.uuid && !uuidRegex.test(data.uuid)) {
-    errors.push('❌ Invalid UUID format');
-  }
-  
-  // 日付形式チェック
-  if (data.date && isNaN(Date.parse(data.date))) {
-    errors.push('❌ Invalid date format');
-  }
-  
-  // 必須要素チェック
-  if (!data.creators || data.creators.length === 0) {
-    errors.push('❌ At least one Creator is required');
-  }
-  if (!data.vendors || data.vendors.length === 0) {
-    errors.push('❌ At least one Vendor is required');
-  }
-  if (!data.owners || data.owners.length === 0) {
-    errors.push('❌ At least one Owner is required');
-  }
-  
-  // ID重複チェック
-  const ids: string[] = [data.id];
-  if (data.creators) data.creators.forEach(c => c.id && ids.push(c.id));
-  if (data.vendors) data.vendors.forEach(v => v.id && ids.push(v.id));
-  if (data.owners) data.owners.forEach(o => o.id && ids.push(o.id));
-  if (data.instruments) data.instruments.forEach(i => i.id && ids.push(i.id));
-  
-  const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
-  if (duplicateIds.length > 0) {
-    errors.push(`❌ Duplicate IDs found: ${duplicateIds.join(', ')}`);
-  }
-  
-  return errors;
 }, []);
 ```
+
+> ⚠️ **注意**: バリデーション処理は削除済みです。フォームの入力内容に関わらず保存ボタンは常に有効です。
 
 ### 4.5 セクション展開管理
 
@@ -333,33 +263,25 @@ const handleMultiObjectDataChange = useCallback((
   objectKey: 'creators' | 'vendors' | 'owners' | 'instruments',
   objectsArray: DocumentTagData[]
 ) => {
-  form.setFieldsValue({ [objectKey]: objectsArray });
+  form.setFieldsValues({ [objectKey]: objectsArray });
+
+  if (objectKey === 'vendors') setCurrentVendors(objectsArray);
+  if (objectKey === 'instruments') setCurrentInstruments(objectsArray);
+
   setHasChanges(true);
-  
-  // バリデーション
-  if (validationTimeoutRef.current) {
-    clearTimeout(validationTimeoutRef.current);
-  }
-  validationTimeoutRef.current = setTimeout(() => {
-    const values = form.getFieldsValue(true);
-    const errors = validateDocumentData(values);
-    setValidationErrors(errors);
-  }, 500);
-}, [form, validateDocumentData]);
+}, [form]);
 ```
 
 #### 4.6.2 VendorとInstrumentのIDリスト算出
 
 ```typescript
 const vendorIds = useMemo(() => {
-  const vendors = form.getFieldValue('vendors') || [];
-  return vendors.map((v: DocumentTagData) => v.id).filter(Boolean);
-}, [form]);
+  return currentVendors.map((v) => v.id).filter(Boolean) as string[];
+}, [currentVendors]);
 
 const instrumentIds = useMemo(() => {
-  const instruments = form.getFieldValue('instruments') || [];
-  return instruments.map((i: DocumentTagData) => i.id).filter(Boolean);
-}, [form]);
+  return currentInstruments.map((i) => i.id).filter(Boolean) as string[];
+}, [currentInstruments]);
 ```
 
 **用途**: CreatorのReference設定時に、VendorとInstrumentのIDリストを渡す
@@ -368,34 +290,21 @@ const instrumentIds = useMemo(() => {
 
 ```typescript
 const handleSave = useCallback(async () => {
-  try {
-    await form.validateFields();
-    
-    const values = form.getFieldsValue(true);
+  const values = form.getFieldsValue(true);
 
-    const documentToSave: DocumentData = {
-      ...values,
-      date: values.date ? values.date : new Date(),
-      signatureEnabled: values.signatureEnabled,
-    };
+  const documentToSave: DocumentData = {
+    ...values,
+    date: values.date ? values.date : new Date(),
+    signatureEnabled: values.signatureEnabled,
+  };
 
-    const errors = validateDocumentData(documentToSave);
-    setValidationErrors(errors);
-    
-    if (errors.length > 0) {
-      message.error('バリデーションエラーがあります');
-      return;
-    }
-    
-    onSave(documentToSave);
-    onClose();
-    message.success('Document を保存しました');
-  } catch (error) {
-    console.error('Validation failed:', error);
-    message.error('入力内容を確認してください');
-  }
-}, [form, validateDocumentData, onSave, onClose]);
+  onSave(documentToSave);
+  onClose();
+  message.success('Document を保存しました');
+}, [form, onSave, onClose]);
 ```
+
+> ⚠️ **注意**: バリデーションチェックは行いません。入力内容に関わらず即時保存されます。
 
 ### 4.8 キャンセル処理
 
@@ -444,28 +353,26 @@ export interface DocumentEditDialogProps {
 ```typescript
 const [form] = Form.useForm();
 const [hasChanges, setHasChanges] = useState<boolean>(false);
-const [validationErrors, setValidationErrors] = useState<string[]>([]);
 const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ /* ... */ });
 const [creators, setCreators] = useState<DocumentTagData[]>([]);
 const [vendors, setVendors] = useState<DocumentTagData[]>([]);
 const [owners, setOwners] = useState<DocumentTagData[]>([]);
 const [instruments, setInstruments] = useState<DocumentTagData[]>([]);
-const [isLoadingMasters, setIsLoadingMasters] = useState(false);
-const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+const [currentVendors, setCurrentVendors] = useState<DocumentTagData[]>([]);
+const [currentInstruments, setCurrentInstruments] = useState<DocumentTagData[]>([]);
 ```
 
 | State名 | 型 | 初期値 | 説明 |
 |---------|---|--------|------|
 | form | FormInstance | - | Ant Design Formインスタンス |
 | hasChanges | boolean | false | 未保存の変更があるかフラグ |
-| validationErrors | string[] | [] | バリデーションエラー配列 |
 | expandedSections | Record<string, boolean> | {...} | セクション展開状態 |
 | creators | DocumentTagData[] | [] | Creatorマスタデータ |
 | vendors | DocumentTagData[] | [] | Vendorマスタデータ |
 | owners | DocumentTagData[] | [] | Ownerマスタデータ（保留） |
 | instruments | DocumentTagData[] | [] | Instrumentマスタデータ |
-| isLoadingMasters | boolean | false | マスタデータ読み込み中フラグ |
-| validationTimeoutRef | Ref<NodeJS.Timeout> | null | バリデーションデバウンス用タイマー |
+| currentVendors | DocumentTagData[] | [] | 現在設定中のVendor（vendorIds算出用） |
+| currentInstruments | DocumentTagData[] | [] | 現在設定中のInstrument（instrumentIds算出用） |
 
 ### 5.3 主要な型定義
 
@@ -541,9 +448,9 @@ interface InstrumentRecord {
 
 | フィールド名 | 型 | 必須 | 初期値 | 説明 |
 |-------------|---|------|--------|------|
-| id | string | ✅ | - | Document ID |
+| id | string | - | - | Document ID |
 | uuid | string | - | - | UUID（生成可能） |
-| name | string | ✅ | - | Document名 |
+| name | string | - | - | Document名 |
 | description | string | - | - | 説明 |
 | date | Dayjs | - | dayjs() | 日付 |
 | protocolId | string | - | - | Protocol ID |
@@ -551,9 +458,9 @@ interface InstrumentRecord {
 | pnmlId | string | - | - | PNML ID |
 | programId | string | - | - | Program ID |
 | signatureEnabled | boolean | - | false | XML署名有効化フラグ |
-| creators | DocumentTagData[] | ✅ | [] | Creator配列（最低1件） |
-| vendors | DocumentTagData[] | ✅ | [] | Vendor配列（最低1件） |
-| owners | DocumentTagData[] | ✅ | [] | Owner配列（最低1件） |
+| creators | DocumentTagData[] | - | [] | Creator配列 |
+| vendors | DocumentTagData[] | - | [] | Vendor配列 |
+| owners | DocumentTagData[] | - | [] | Owner配列 |
 | instruments | DocumentTagData[] | - | [] | Instrument配列（任意） |
 
 ---
@@ -685,9 +592,6 @@ const convertInstrumentToDocumentTag = (instrument: InstrumentRecord): DocumentT
 | エラーケース | HTTPステータス | エラーコード | 対処方法 |
 |-------------|---------------|-------------|----------|
 | マスタデータ取得失敗 | 400/500 | - | エラーメッセージ表示、ダイアログ表示継続 |
-| バリデーションエラー | - | - | エラーリスト表示、保存ボタン無効化 |
-| フォームバリデーション失敗 | - | - | エラーメッセージ表示、保存中断 |
-| 保存失敗 | - | - | エラーメッセージ表示 |
 | 未保存変更の破棄確認 | - | - | 確認ダイアログ表示 |
 
 ### 7.2 エラー処理コード
@@ -696,27 +600,18 @@ const convertInstrumentToDocumentTag = (instrument: InstrumentRecord): DocumentT
 
 ```typescript
 try {
-  setIsLoadingMasters(true);
   const [creatorsData, vendorsData, instrumentsData] = await Promise.all([
     fetchMasters('creator') as Promise<CreatorRecord[]>,
     fetchMasters('vendor') as Promise<VendorRecord[]>,
     fetchMasters('instrument') as Promise<InstrumentRecord[]>,
   ]);
-  
+
   setCreators(creatorsData.map(convertCreatorToDocumentTag));
   setVendors(vendorsData.map(convertVendorToDocumentTag));
   setInstruments(instrumentsData.map(convertInstrumentToDocumentTag));
-  
-  console.log('✅ [DocumentEditDialog] マスタデータ取得完了', {
-    creators: creatorsData.length,
-    vendors: vendorsData.length,
-    instruments: instrumentsData.length,
-  });
 } catch (error) {
   console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
   message.error('マスタデータの取得に失敗しました');
-} finally {
-  setIsLoadingMasters(false);
 }
 ```
 
@@ -725,63 +620,7 @@ try {
 - マスタデータなしでもダイアログ表示は継続
 - 手入力での編集は可能
 
-#### 7.2.2 バリデーションエラー表示
-
-```typescript
-{validationErrors.length > 0 && (
-  <Alert
-    message="バリデーションエラー"
-    description={
-      <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
-        {validationErrors.map((error, index) => (
-          <li key={index}>{error}</li>
-        ))}
-      </ul>
-    }
-    type="error"
-    showIcon
-  />
-)}
-```
-
-**エラー表示条件**:
-- リアルタイムバリデーション（500msデバウンス）
-- 保存ボタン無効化（`disabled={validationErrors.length > 0}`）
-
-#### 7.2.3 保存時のエラー処理
-
-```typescript
-const handleSave = useCallback(async () => {
-  try {
-    await form.validateFields();
-    
-    const values = form.getFieldsValue(true);
-
-    const documentToSave: DocumentData = {
-      ...values,
-      date: values.date ? values.date : new Date(),
-      signatureEnabled: values.signatureEnabled,
-    };
-
-    const errors = validateDocumentData(documentToSave);
-    setValidationErrors(errors);
-    
-    if (errors.length > 0) {
-      message.error('バリデーションエラーがあります');
-      return;
-    }
-    
-    onSave(documentToSave);
-    onClose();
-    message.success('Document を保存しました');
-  } catch (error) {
-    console.error('Validation failed:', error);
-    message.error('入力内容を確認してください');
-  }
-}, [form, validateDocumentData, onSave, onClose]);
-```
-
-#### 7.2.4 未保存変更の確認
+#### 7.2.2 未保存変更の確認
 
 ```typescript
 const handleCancel = useCallback(() => {
@@ -799,41 +638,14 @@ const handleCancel = useCallback(() => {
 }, [hasChanges, onClose]);
 ```
 
-### 7.3 バリデーションエラー詳細
+### 7.3 エラー回復方法
 
-| エラー種別 | エラーメッセージ | 発生条件 |
-|-----------|----------------|---------|
-| Document name required | ❌ Document name is required | name が空文字 |
-| Document ID required | ❌ Document ID is required | id が空文字 |
-| Invalid UUID format | ❌ Invalid UUID format | UUID形式が不正 |
-| Invalid date format | ❌ Invalid date format | 日付形式が不正 |
-| Creator required | ❌ At least one Creator is required | Creatorが0件 |
-| Vendor required | ❌ At least one Vendor is required | Vendorが0件 |
-| Owner required | ❌ At least one Owner is required | Ownerが0件 |
-| Duplicate IDs | ❌ Duplicate IDs found: {ids} | ID重複検出 |
-
-### 7.4 エラー回復方法
-
-#### 7.4.1 マスタデータ取得失敗時
+#### 7.3.1 マスタデータ取得失敗時
 
 1. エラーメッセージを確認
 2. ネットワーク接続を確認
 3. ダイアログを閉じて再度開く
 4. マスタデータなしでも手入力で編集可能
-
-#### 7.4.2 バリデーションエラー時
-
-1. 画面上部のエラーリストを確認
-2. 該当フィールドを修正
-3. 500ms後に自動再検証される
-4. エラーがなくなれば保存ボタンが有効化
-
-#### 7.4.3 保存失敗時
-
-1. エラーメッセージを確認
-2. 入力内容を見直す
-3. 再度保存を試みる
-4. ダイアログは閉じずに編集継続可能
 
 ---
 
@@ -862,3 +674,4 @@ const handleCancel = useCallback(() => {
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースでUI仕様書を新規作成（DocumentEditDialog.tsx 約600行を分析） | Cline |
+| 2026-04-14 | バリデーション処理削除に伴いUI仕様書を更新（4.4節変更・7章簡略化・State定義更新・フォームフィールド必須定義削除） | Cline |

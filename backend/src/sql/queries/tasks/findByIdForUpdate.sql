@@ -11,7 +11,7 @@ SELECT
   ptd.method_id,
   ptd.task_no,
   ptd.task_status,
-  to_char(DATE_TRUNC('milliseconds', ptd.update_at AT TIME ZONE 'Asia/Tokyo' AT TIME ZONE 'UTC'), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as update_at,
+  to_char(DATE_TRUNC('milliseconds', ptd.update_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as update_at,
   ptd.experiment_user_id,
   ou.user_name as experiment_user_name
 FROM project_task_detail ptd

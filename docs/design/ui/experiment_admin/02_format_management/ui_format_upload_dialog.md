@@ -65,9 +65,9 @@
 
 #### 2.2.1 モーダルヘッダー
 - **タイトル**: 「ファイルアップロード」
-- **アクションボタン**: 
-  - キャンセルボタン
-  - アップロード開始ボタン（プライマリ）
+- **フッターボタン**: 
+  - **「閉じる」ボタン**: アップロード中は `disabled`、それ以外は `onClose()` を即時呼び出し（確認なし）
+  - **「アップロード開始」ボタン**（プライマリ）
 
 #### 2.2.2 アップロードタイプセグメント
 - **タイプ**: Segmented（ボタングループ）
@@ -167,15 +167,15 @@
   - 進行状況が表示される
   - 完了後、成功メッセージが表示される
 
-#### 2.3.7 アップロード中のキャンセル
-- **操作**: 「キャンセル」ボタンをクリック
-- **結果**: 確認ダイアログが表示される
+#### 2.3.7 アップロード中のキャンセル（インライン「キャンセル」ボタン）
+- **操作**: 進捗Alert内の「キャンセル」ボタンをクリック
+- **結果**: 確認ダイアログが表示され、「中断する」押下でチャンクセッション中断・バッチキャンセル・HTTPリクエスト中断を実行する
 
 #### 2.3.8 モーダルを閉じる
-- **操作**: ×ボタン、またはキャンセルボタンをクリック
+- **操作**: ×ボタンをクリック（アップロード中でない場合はフッター「閉じる」ボタン）
 - **結果**: 
   - アップロード中でない場合: 即座に閉じる
-  - アップロード中の場合: 確認ダイアログが表示される
+  - アップロード中の場合（×ボタン）: 確認ダイアログが表示される
 
 ---
 
@@ -490,7 +490,32 @@ catch (error) {
 
 ### 3.6 アップロード中のキャンセル
 
-#### 3.6.1 キャンセル確認
+アップロード中断には **2つの経路** があります。
+
+#### 3.6.1 進捗Alert内インライン「キャンセル」ボタン（`handleCancelUpload`）
+
+```typescript
+const handleCancelUpload = useCallback(() => {
+  if (!abortController) return;
+  Modal.confirm({
+    title: 'アップロードを中断しますか？',
+    content: '中断するとアップロード済みのファイルも削除されます。',
+    okText: '中断する',
+    okButtonProps: { danger: true },
+    cancelText: '続行',
+    onOk: async () => {
+      abortController.abort();
+      await Promise.all(activeUploadIdsRef.current.map(abortChunkUpload));
+      activeUploadIdsRef.current = [];
+      if (batchIdRef.current) await cancelBatch(batchIdRef.current);
+    },
+  });
+}, [abortController]);
+```
+
+- **「続行」を押した場合**: 確認ダイアログのみ閉じ、アップロード継続
+
+#### 3.6.2 Modal × ボタン経由（`handleClose`）
 
 ```typescript
 const handleClose = useCallback(() => {
@@ -500,8 +525,12 @@ const handleClose = useCallback(() => {
       content: 'アップロード処理が進行中です。キャンセルしますか？',
       okText: '中断する',
       cancelText: '続行',
-      okButtonProps: { danger: true },
-      onOk: onClose,
+      onOk: async () => {
+        await Promise.all(activeUploadIdsRef.current.map(abortChunkUpload));
+        activeUploadIdsRef.current = [];
+        if (batchIdRef.current) await cancelBatch(batchIdRef.current);
+        onClose();
+      },
     });
   } else {
     onClose();
@@ -509,12 +538,19 @@ const handleClose = useCallback(() => {
 }, [uploadState.isUploading, onClose]);
 ```
 
-#### 3.6.2 UI動作
-- ユーザー操作: アップロード中に「キャンセル」ボタンをクリック
+#### 3.6.3 フッター「閉じる」ボタンの動作
+
+| 状態 | 動作 |
+|------|------|
+| アップロード中 | `disabled`（押せない） |
+| アップロード中でない | `onClose()` を即時呼び出し（確認なし） |
+
+#### 3.6.4 UI動作
+- ユーザー操作: アップロード中に進捗Alert内「キャンセル」ボタンをクリック
 - 画面変化: 
   - 確認ダイアログが表示される
-  - 「はい」をクリックすると、モーダルが閉じる
-  - 「いいえ」をクリックすると、アップロード続行
+  - 「中断する」をクリックするとアップロードが中断される
+  - 「続行」をクリックするとアップロード継続
 
 ---
 
@@ -658,4 +694,5 @@ const response = await uploadFiles({
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-04-14 | アップロード中断処理修正: フッター「閉じる」ボタン化・インラインキャンセルボタンに確認ダイアログ追加・batchId先行取得・catch順序修正 | Cline |
 | 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |

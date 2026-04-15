@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import ReactFlow, {
   useNodesState,
   useEdgesState,
@@ -1968,7 +1969,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   name: template.name || '',
                   description: template.description || '',
                   category: template.category,
-                  uuid: template.uuid || crypto.randomUUID(),
+                  uuid: template.uuid || uuidv4(),
                   placeRefs: template.placeRefs || [],
                   templateRef: template.templateRef,
                   properties: template.properties || [],
@@ -1979,7 +1980,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   name: template.name || '',
                   description: template.description || '',
                   category: template.category,
-                  uuid: template.uuid || crypto.randomUUID(),
+                  uuid: template.uuid || uuidv4(),
                   placeRefs: template.placeRefs || [],
                   templateRef: template.templateRef,
                   properties: template.properties || [],
@@ -2026,7 +2027,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   description: '',
                   category: category === 'material' ? 'material' :
                     category === 'condition' ? 'condition' : 'result',
-                  uuid: crypto.randomUUID(),
+                  uuid: uuidv4(),
                   placeRefs: [],
                   templateRef: undefined,
                   properties: [],
@@ -2038,7 +2039,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   description: '',
                   category: category === 'material' ? 'material' :
                     category === 'condition' ? 'condition' : 'result',
-                  uuid: crypto.randomUUID(),
+                  uuid: uuidv4(),
                   placeRefs: [],
                   templateRef: undefined,
                   properties: [],
