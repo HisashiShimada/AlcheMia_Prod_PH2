@@ -144,6 +144,7 @@
     "taskListButton": "タスク一覧",
     "batchProgressButton": "一括進捗報告",
     "approvalRequestButton": "承認依頼",
+    "approvalRequest": "承認依頼",
     "labels": {
       "project": "プロジェクト",
       "method": "メソッド",
@@ -499,6 +500,17 @@
         "completed_count": "完了"
       }
     },
+    "transitionSearch": "遷移検索",
+    "deleteProjectTitle": "プロジェクト「{{name}}」を削除しますか？",
+    "deleteProjectContent": "プロジェクトフォルダ配下のファイルがすべて削除されます。",
+    "deleteProjectCannotUndo": "この操作は取り消せません。",
+    "deleteProjectMaimlNote": "※MAIMLファイルが存在する場合は削除できません",
+    "deleteSuccess": "プロジェクト「{{name}}」を削除しました（{{count}}件のファイルを削除）",
+    "deleteFailed": "プロジェクトの削除に失敗しました",
+    "reloadSuccess": "プロジェクトデータをリロードしました",
+    "reloadFailed": "プロジェクトデータのリロードに失敗しました",
+    "progressDetailTitle": "プロジェクト進捗詳細",
+    "progressDetailReload": "リロード",
     "deleteButton": "削除",
     "issueCheck": "問題確認",
     "renameProject": "プロジェクト名変更",
