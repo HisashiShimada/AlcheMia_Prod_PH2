@@ -45,7 +45,7 @@ export function shouldUseMockAPI(): boolean {
 
 /**
  * トランジション進捗データを取得
- * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions
  *
  * @description
  * fileKey からプロジェクト名を抽出し、バックエンドの進捗APIを呼び出す。
@@ -146,7 +146,7 @@ export async function fetchTransitionStatus(
  *
  * ### TODO: バックエンドAPI実装後の対応方針
  * 1. バックエンドに一括取得API を追加:
- *    `GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/all-records`
+ *    `GET /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/all-records`
  * 2. この関数のシグネチャを `fetchExperimentRecords(projectName, methodId, taskNo)` に変更
  * 3. 上記APIを呼び出すよう実装を変更
  * 4. `PetriNetVisualization.tsx` の呼び出し箇所も合わせて変更
