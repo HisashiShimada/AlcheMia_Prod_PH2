@@ -478,7 +478,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
           description: [
             propObj.description,
             propObj.units ? `単位: ${propObj.units}` : undefined,
-          ].filter(Boolean).join(' / ') || propObj.key,
+          ].filter(Boolean).join(' / ') || undefined,
         };
       });
 
@@ -502,7 +502,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
                     key: `${displayKey} (value)`,
                     value: propObj.value,
                     type: propObj.xsiType ?? 'string',
-                    description: propObj.description ?? displayKey,
+                    description: propObj.description ?? undefined,
                   };
                 }
                 if (propObj.xsiType) {

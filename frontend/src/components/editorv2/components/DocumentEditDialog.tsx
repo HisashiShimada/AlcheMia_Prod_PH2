@@ -8,7 +8,7 @@
  * @date 2026-01-29
  */
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Modal,
   Button,
@@ -29,7 +29,7 @@ import {
   SaveOutlined,
   SecurityScanOutlined,
 } from '@ant-design/icons';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import MultiObjectEditor from './MultiObjectEditor';
 import type { 
   DocumentData,
@@ -51,7 +51,7 @@ export interface DocumentEditDialogProps {
   onSave: (document: DocumentData) => void;
   readOnly?: boolean;
 }
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 
 /**
@@ -68,7 +68,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [hasChanges, setHasChanges] = useState<boolean>(false);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
     maimlIds: false,
@@ -78,7 +77,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     owners: false,
     instruments: false,
   });
-  const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * マスタデータ変換関数
@@ -115,7 +113,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   const [vendors, setVendors] = useState<DocumentTagData[]>([]);
   const [owners, setOwners] = useState<DocumentTagData[]>([]);
   const [instruments, setInstruments] = useState<DocumentTagData[]>([]);
-  const [isLoadingMasters, setIsLoadingMasters] = useState(false);
 
   // 画面上で現在設定されているVendor/Instrumentのstate（vendorIds/instrumentIds算出に使用）
   const [currentVendors, setCurrentVendors] = useState<DocumentTagData[]>([]);
@@ -132,63 +129,12 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     });
   }, []);
 
-  /**
-   * バリデーション（強化版）
-   */
-  const validateDocumentData = useMemo(() => (data: DocumentData): string[] => {
-    const errors: string[] = [];
-    
-    // 基本プロパティチェック
-    if (!data.name?.trim()) {
-      errors.push('❌ Document name is required');
-    }
-    
-    if (!data.id?.trim()) {
-      errors.push('❌ Document ID is required');
-    }
-    
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (data.uuid && !uuidRegex.test(data.uuid)) {
-      errors.push('❌ Invalid UUID format');
-    }
-    
-    if (data.date && isNaN(Date.parse(data.date))) {
-      errors.push('❌ Invalid date format');
-    }
-    
-    // 必須要素チェック（配列対応）
-    if (!data.creators || data.creators.length === 0) {
-      errors.push('❌ At least one Creator is required');
-    }
-    if (!data.vendors || data.vendors.length === 0) {
-      errors.push('❌ At least one Vendor is required');
-    }
-    if (!data.owners || data.owners.length === 0) {
-      errors.push('❌ At least one Owner is required');
-    }
-    
-    // ID重複チェック（配列対応）
-    const ids: string[] = [data.id];
-    if (data.creators) data.creators.forEach((c: DocumentTagData) => c.id && ids.push(c.id));
-    if (data.vendors) data.vendors.forEach((v: DocumentTagData) => v.id && ids.push(v.id));
-    if (data.owners) data.owners.forEach((o: DocumentTagData) => o.id && ids.push(o.id));
-    if (data.instruments) data.instruments.forEach((i: DocumentTagData) => i.id && ids.push(i.id));
-    
-    const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
-    if (duplicateIds.length > 0) {
-      errors.push(`❌ Duplicate IDs found: ${duplicateIds.join(', ')}`);
-    }
-    
-    return errors;
-  }, []);
-
 
   // マスタデータの取得
   useEffect(() => {
     const loadMasterData = async () => {
       if (!open) return;
       
-      setIsLoadingMasters(true);
       try {
         const [creatorsData, vendorsData, instrumentsData] = await Promise.all([
           fetchMasters('creator') as Promise<CreatorRecord[]>,
@@ -209,8 +155,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       } catch (error) {
         console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
         message.error('マスタデータの取得に失敗しました');
-      } finally {
-        setIsLoadingMasters(false);
       }
     };
     
@@ -225,8 +169,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     if (open && documentData) {
       // stateリセット
       setHasChanges(false);
-      setValidationErrors([]);
-      
+
       // フォーム初期化（PetriNetEditorInnerから渡されたデータを使用）
       form.setFieldsValue({
         ...documentData,
@@ -287,17 +230,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     }
 
     setHasChanges(true);
-    
-    // バリデーション
-    if (validationTimeoutRef.current) {
-      clearTimeout(validationTimeoutRef.current);
-    }
-    validationTimeoutRef.current = setTimeout(() => {
-      const values = form.getFieldsValue(true);
-      const errors = validateDocumentData(values);
-      setValidationErrors(errors);
-    }, 500);
-  }, [form, validateDocumentData]);
+  }, [form]);
 
   /**
    * VendorとInstrumentのIDリスト算出
@@ -317,49 +250,24 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
    */
   const handleFormChange = useCallback(() => {
     setHasChanges(true);
-
-    if (validationTimeoutRef.current) {
-      clearTimeout(validationTimeoutRef.current);
-    }
-
-    validationTimeoutRef.current = setTimeout(() => {
-      const values = form.getFieldsValue(true);
-      const errors = validateDocumentData(values);
-      setValidationErrors(errors);
-    }, 500);
-  }, [form, validateDocumentData]);
+  }, []);
 
   /**
    * 保存処理
    */
   const handleSave = useCallback(async () => {
-    try {
-      await form.validateFields();
-      
-      const values = form.getFieldsValue(true);
+    const values = form.getFieldsValue(true);
 
-      const documentToSave: DocumentData = {
-        ...values,
-        date: values.date ? values.date : new Date(),
-        signatureEnabled: values.signatureEnabled,
-      };
+    const documentToSave: DocumentData = {
+      ...values,
+      date: values.date ? values.date : new Date(),
+      signatureEnabled: values.signatureEnabled,
+    };
 
-      const errors = validateDocumentData(documentToSave);
-      setValidationErrors(errors);
-      
-      if (errors.length > 0) {
-        message.error('バリデーションエラーがあります');
-        return;
-      }
-      
-      onSave(documentToSave);
-      onClose();
-      message.success('Document を保存しました');
-    } catch (error) {
-      console.error('Validation failed:', error);
-      message.error('入力内容を確認してください');
-    }
-  }, [form, validateDocumentData, onSave, onClose]);
+    onSave(documentToSave);
+    onClose();
+    message.success('Document を保存しました');
+  }, [form, onSave, onClose]);
 
   /**
    * キャンセル処理
@@ -377,17 +285,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       onClose();
     }
   }, [hasChanges, onClose]);
-
-  /**
-   * クリーンアップ
-   */
-  useEffect(() => {
-    return () => {
-      if (validationTimeoutRef.current) {
-        clearTimeout(validationTimeoutRef.current);
-      }
-    };
-  }, []);
 
   return (
     <Modal
@@ -407,7 +304,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
           key="save"
           type="primary"
           onClick={handleSave}
-          disabled={validationErrors.length > 0}
           icon={<SaveOutlined />}
         >
           💾 Document保存
@@ -416,22 +312,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     >
       <div style={{ maxHeight: 'calc(90vh - 200px)', overflow: 'auto' }}>
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          {/* バリデーションエラー */}
-          {validationErrors.length > 0 && (
-            <Alert
-              message="バリデーションエラー"
-              description={
-                <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
-                  {validationErrors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              }
-              type="error"
-              showIcon
-            />
-          )}
-
           {/* UUID一括生成ボタン */}
           <Button
             icon={<ThunderboltOutlined />}
@@ -471,7 +351,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                   <Form.Item
                     label="Document ID"
                     name="id"
-                    rules={[{ required: true, message: 'Document ID は必須です' }]}
                   >
                     <Input />
                   </Form.Item>
@@ -497,7 +376,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                   <Form.Item
                     label="Name"
                     name="name"
-                    rules={[{ required: true, message: 'Name は必須です' }]}
                   >
                     <Input />
                   </Form.Item>

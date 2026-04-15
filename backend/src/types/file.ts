@@ -89,6 +89,8 @@ export interface UploadMetadata {
   formatId?: string;
   batchName?: string;
   preserveFolderStructure?: boolean;
+  /** initBatch で事前作成されたバッチID（渡された場合は既存バッチを再利用） */
+  batchId?: string;
 }
 
 /**

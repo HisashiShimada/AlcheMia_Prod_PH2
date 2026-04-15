@@ -54,7 +54,7 @@
 │ バッチ名（オプション）                            │
 │ [例: 実験データ2024-01-15                  ]     │
 │                                                   │
-│                     [キャンセル] [アップロード開始]│
+│                       [閉じる] [アップロード開始]  │
 └───────────────────────────────────────────────────┘
 ```
 
@@ -189,74 +189,46 @@ const handleUpload = async () => {
     message.warning('ファイルを選択してください');
     return;
   }
-  
   if (!preselectedFolder) {
     message.error('プロジェクトが選択されていません');
     return;
   }
-  
-  // 2. アップロード状態初期化
-  setUploadState({
-    isUploading: true,
-    progress: 0,
-    uploadedCount: 0,
-    totalCount: fileList.length,
-    error: null,
-  });
-  
-  // 3. ファイル準備
-  const files = fileList
-    .map(f => {
-      const originFile = f.originFileObj;
-      if (!originFile) return null;
-      
-      // フォルダモードの場合、パスを含む新しいFileオブジェクトを作成
-      if (uploadMode === 'folder' && f.name.includes('/')) {
-        return new File([originFile], f.name, {
-          type: originFile.type,
-          lastModified: originFile.lastModified,
-        });
-      }
-      
-      return originFile as File;
-    })
-    .filter((f): f is File => !!f);
-  
-  // 4. API呼び出し
+
+  // 2. AbortController を作成（キャンセル用）
+  const controller = new AbortController();
+  setAbortController(controller);
+
+  // 3. アップロード状態初期化
+  setUploadState({ isUploading: true, progress: 0, uploadedCount: 0, totalCount: fileList.length, error: null });
+
+  // 4. batchId を先行取得（アップロード前にキャンセル可能にするため）
+  try {
+    const newBatchId = await initBatch({ uploadType: uploadMode, batchName: batchName || undefined });
+    setBatchId(newBatchId);
+    batchIdRef.current = newBatchId;
+  } catch (initError) {
+    console.warn('バッチ先行作成に失敗しました（続行）:', initError);
+  }
+
+  // 5. ファイル準備・API呼び出し
   const response = await uploadFiles({
     uploadMode,
     targetPath: getTargetPath(),
     files,
-    metadata: {
-      projectId,
-      batchName: batchName || undefined,
-    },
+    metadata: { projectId, batchName: batchName || undefined },
+    signal: controller.signal,
     onProgress: (progress) => {
-      setUploadState(prev => ({
-        ...prev,
-        progress: progress.percentage,
-        uploadedCount: progress.uploadedCount,
-      }));
+      setRetryState(null);
+      setUploadState(prev => ({ ...prev, progress: progress.percentage, uploadedCount: progress.uploadedCount }));
     },
+    onRetry: (state) => setRetryState(state),
+    onSessionInit: (uploadId) => { activeUploadIdsRef.current.push(uploadId); },
   });
-  
-  // 5. 成功処理
-  if (response) {
-    message.success('アップロードが完了しました');
-    onUploadComplete?.({
-      mode: uploadMode,
-      fileCount: fileList.length,
-      success: true,
-    });
-    
-    // 2秒後に状態リセット
-    setTimeout(() => {
-      setFileList([]);
-      setBatchName('');
-      setSubFolderPath('');
-      setUploadState({ /* 完了状態 */ });
-    }, 2000);
-  }
+
+  // 6. 結果サマリー表示
+  const summary = { successCount: response.summary.successfulFiles, failureCount: response.summary.failedFiles, failedFileNames: response.failedFileNames };
+  setResultSummary(summary);
+  setUploadState(prev => ({ ...prev, isUploading: false, progress: 100 }));
 };
 ```
 
@@ -273,22 +245,61 @@ onProgress: (progress) => {
 
 ### 3.5 キャンセル処理
 
+アップロード中断には **2つの経路** があります。
+
+#### 3.5.1 進捗Alert内インライン「キャンセル」ボタン（`handleCancelUpload`）
+
 ```typescript
-const handleClose = () => {
+const handleCancelUpload = useCallback(() => {
+  if (!abortController) return;
+  Modal.confirm({
+    title: 'アップロードを中断しますか？',
+    content: '中断するとアップロード済みのファイルも削除されます。',
+    okText: '中断する',
+    okButtonProps: { danger: true },
+    cancelText: '続行',
+    onOk: async () => {
+      abortController.abort();                                   // ① HTTP リクエスト中断
+      await Promise.all(activeUploadIdsRef.current.map(abortChunkUpload)); // ② チャンクセッション中断
+      activeUploadIdsRef.current = [];
+      if (batchIdRef.current) await cancelBatch(batchIdRef.current); // ③ バッチキャンセル
+    },
+  });
+}, [abortController]);
+```
+
+- **表示条件**: `uploadState.isUploading === true`
+- **「続行」を押した場合**: 確認ダイアログのみ閉じ、アップロード継続
+
+#### 3.5.2 Modal × ボタン経由（`handleClose`）
+
+```typescript
+const handleClose = useCallback(() => {
   if (uploadState.isUploading) {
     Modal.confirm({
       title: 'アップロード中',
       content: 'アップロード処理が進行中です。キャンセルしますか？',
       okText: '中断する',
       cancelText: '続行',
-      okButtonProps: { danger: true },
-      onOk: onClose,
+      onOk: async () => {
+        await Promise.all(activeUploadIdsRef.current.map(abortChunkUpload));
+        activeUploadIdsRef.current = [];
+        if (batchIdRef.current) await cancelBatch(batchIdRef.current);
+        onClose();
+      },
     });
   } else {
     onClose();
   }
-};
+}, [uploadState.isUploading, onClose]);
 ```
+
+#### 3.5.3 フッター「閉じる」ボタンの動作
+
+| 状態 | 動作 |
+|------|------|
+| アップロード中 | `disabled`（押せない） |
+| アップロード中でない | `onClose()` を即時呼び出し（確認なし） |
 
 ### 3.6 バッチ名の自動生成
 
@@ -388,7 +399,10 @@ interface UploadState {
 
 | # | API名 | メソッド | エンドポイント | 説明 |
 |---|------|---------|---------------|------|
-| 1 | uploadFiles | POST | `/api/v1/files/upload` | ファイル一括アップロード |
+| 1 | initBatch | POST | `/api/v1/files/batches/init` | バッチ先行作成（アップロード開始前にbatchId取得） |
+| 2 | uploadFiles | POST | `/api/v1/files/upload` | ファイル一括アップロード |
+| 3 | abortChunkUpload | POST | `/api/v1/files/upload/chunk/:uploadId/abort` | チャンクセッション中断 |
+| 4 | cancelBatch | POST | `/api/v1/files/batches/:batchId/cancel` | バッチキャンセル |
 
 ### 5.2 API呼び出し例
 
@@ -486,6 +500,7 @@ try {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-04-14 | アップロード中断処理修正: フッター「閉じる」ボタン化・インラインキャンセルボタンに確認ダイアログ追加・batchId先行取得・stale closure修正 | Cline |
 | 2026-04-01 | PR #138対応: Props `onUploadComplete` の `result` に `hasMaimlFile?: boolean` を追加 | Cline |
 | 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
 

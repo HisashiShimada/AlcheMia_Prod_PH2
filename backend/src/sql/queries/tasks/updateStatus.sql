@@ -36,7 +36,7 @@ WHERE organization_id = $2
   AND project_id = $3
   AND method_id = $4
   AND task_no = $5
-  AND to_char(DATE_TRUNC('milliseconds', update_at AT TIME ZONE 'Asia/Tokyo' AT TIME ZONE 'UTC'), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') = $6
+  AND to_char(DATE_TRUNC('milliseconds', update_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') = $6
 RETURNING 
   organization_id,
   project_id,

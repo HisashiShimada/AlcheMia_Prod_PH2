@@ -382,6 +382,35 @@ router.get(
 );
 
 /**
+ * バッチ先行作成
+ * POST /api/v1/files/batches/init
+ *
+ * アップロード開始前にバッチを in_progress 状態で先行作成し、batchId を返す。
+ * フロントエンドはこの batchId を使ってアップロード途中でもキャンセルを実行できる。
+ *
+ * @middleware authMiddleware - JWT認証
+ */
+router.post(
+  '/batches/init',
+  authMiddleware,
+  [
+    body('uploadType')
+      .notEmpty()
+      .withMessage('uploadTypeは必須です')
+      .isIn(['single', 'bulk', 'folder'])
+      .withMessage('uploadTypeはsingle, bulk, folderのいずれかである必要があります'),
+    body('batchName')
+      .optional()
+      .isString()
+      .withMessage('batchNameは文字列である必要があります')
+      .isLength({ max: 255 })
+      .withMessage('batchNameは255文字以内である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.initBatch
+);
+
+/**
  * バッチ履歴取得
  * GET /api/v1/files/batches
  * 

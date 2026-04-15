@@ -21,6 +21,7 @@ import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import { renameFile } from '../services/renameService';
 import { Project } from '../types/database';
 import { AppError } from '../enums/errorCodes';
+import { MaimlParserTyped } from '../utils/maimlParserTyped';
 
 /**
  * AppError.code または日本語メッセージキーワードから HTTP ステータスとエラーコードを導出する
@@ -687,23 +688,30 @@ export async function initChunkUpload(req: Request, res: Response): Promise<void
   const requestId = uuidv4();
 
   try {
-    const { fileName, totalChunks, filePath } = req.body;
+    const { organizationId } = req.user!;
+    const { fileName, totalChunks, filePath, batchId } = req.body;
 
-    // MAIMLファイル名 × projectName バリデーション（通常アップロードと同一ロジック）
-    // projects/ パスへの .maiml アップロード時、ファイル名（拡張子除く）がプロジェクト名と一致するか確認
-    if (typeof fileName === 'string' && fileName.endsWith('.maiml') &&
-        typeof filePath === 'string' && filePath.startsWith('projects/')) {
+    const isMaimlFile = typeof fileName === 'string' && fileName.toLowerCase().endsWith('.maiml');
+    const isProjectPath = typeof filePath === 'string' && filePath.startsWith('projects/');
+    const isArchivePath = typeof filePath === 'string' && filePath.includes('/archive/');
+
+    // ──────────────────────────────────────────────────────────────
+    // チェック1: 既存MAIMLプロジェクトへの上書き防止
+    // projects/ パスへの .maiml アップロードで archive/ 以外の場合、
+    // 対象プロジェクトが既に project_maiml_flg=true なら拒否する
+    // ──────────────────────────────────────────────────────────────
+    if (isMaimlFile && isProjectPath && !isArchivePath) {
       const pathParts = filePath.split('/');
       if (pathParts.length >= 2) {
         const projectName = pathParts[1];
-        const fileBaseName = fileName.replace(/\.maiml$/i, '');
-        if (fileBaseName !== projectName) {
-          console.error(`❌ [ChunkInit] MAIMLファイル名不一致: ファイル名=${fileName}, プロジェクト名=${projectName}`);
+        const existingProject = await projectRepository.findByName(organizationId, projectName);
+        if (existingProject?.project_maiml_flg) {
+          console.error(`❌ [ChunkInit] 既存MAIMLプロジェクトへの上書き拒否: projectName=${projectName}`);
           res.status(400).json({
             success: false,
             error: {
-              code: 'E1003',
-              message: `ファイル名がプロジェクト名と一致しません（ファイル名: ${fileName}、プロジェクト名: ${projectName}）`,
+              code: 'E7005',
+              message: `このプロジェクトには既にMAIMLファイルが登録されています。上書きする場合はプロジェクトの更新機能を使用してください（プロジェクト名: ${projectName}）`,
             },
             meta: { timestamp: new Date().toISOString(), requestId },
           });
@@ -712,8 +720,34 @@ export async function initChunkUpload(req: Request, res: Response): Promise<void
       }
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // チェック2: 同一バッチ内の複数MAIMLファイル防止
+    // プロジェクトに登録できるMAIMLファイルは1件のみのため、
+    // 同一バッチに複数の .maiml ファイルが含まれる場合は拒否する
+    // ──────────────────────────────────────────────────────────────
+    if (isMaimlFile && typeof batchId === 'string' && batchId.length > 0) {
+      const service = new ChunkUploadService();
+      if (service.hasMaimlInBatch(batchId)) {
+        console.error(`❌ [ChunkInit] 同一バッチ内複数MAIMLファイル拒否: batchId=${batchId}, fileName=${fileName}`);
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'E1003',
+            message: 'プロジェクトに登録できるMAIMLファイルは1件のみです。同一バッチに複数のMAIMLファイルを含めることはできません',
+          },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+    }
+
     const service = new ChunkUploadService();
-    const uploadId = service.initSession(fileName, filePath, Number(totalChunks));
+    const uploadId = service.initSession(
+      fileName,
+      filePath,
+      Number(totalChunks),
+      typeof batchId === 'string' && batchId.length > 0 ? batchId : undefined
+    );
 
     res.status(200).json({
       success: true,
@@ -825,10 +859,41 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
     const { uploadId } = req.params;
     const totalChunks = Number(req.body.totalChunks);
     const contentType: string = req.body.contentType || 'application/octet-stream';
+    const batchId: string | undefined = req.body.batchId;
 
     // チャンク結合・ストレージ保存
     const chunkService = new ChunkUploadService();
     const result = await chunkService.completeUpload(uploadId, organizationId, totalChunks, contentType);
+
+    // ──────────────────────────────────────────────────────────────────────
+    // キャンセル競合チェック
+    // completeUpload がストレージに書き込んだ後で batchId のステータスが
+    // 'cancelled' になっている場合、アップロード済みファイルを即削除して
+    // エラーを返す（「キャンセル → complete 完了」の競合状態を防ぐ）
+    // ──────────────────────────────────────────────────────────────────────
+    if (batchId) {
+      const batch = await UploadBatchRepository.findById(batchId);
+      if (batch?.status === 'cancelled') {
+        // ストレージからファイルを削除（best-effort）
+        try {
+          const { getStorageService: _getStorage } = await import('../services/storageService');
+          const _storageService = _getStorage();
+          await _storageService.deleteFile(organizationId, result.fileKey);
+          console.log(`🗑️ [ChunkComplete] キャンセル競合: アップロード済みファイルを削除: ${result.fileKey}`);
+        } catch (deleteErr) {
+          console.error(`⚠️ [ChunkComplete] キャンセル競合: ファイル削除失敗（処理続行）:`, deleteErr);
+        }
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'E7005',
+            message: 'アップロードはキャンセル済みのため、ファイルを保存できませんでした',
+          },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+    }
 
     // file_metadata テーブルへ保存
     // - fileKey 例: "projects/sample_project/sample_project.maiml"
@@ -848,36 +913,40 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
       : undefined;
     const now = new Date();
 
-    // チャンクアップロード用バッチID（1ファイル=1バッチ）
-    const chunkBatchId = uuidv4();
+    // フロントから渡された batchId を upload_batch_id として使用する。
+    // これにより cancelBatch の findByBatchId でファイルが正しく検索される。
+    // batchId がない場合のみ新規 UUID を生成（後方互換）。
+    const effectiveBatchId = batchId ?? uuidv4();
 
-    // MAIMLファイルのみ file_metadata テーブルへ保存
-    if (result.contentType === 'application/xml' || fileName.endsWith('.maiml')) {
-      try {
-        await repository.insertFileMetadata({
-          organization_id: organizationId,
-          file_key: truncateField(result.fileKey, FILE_METADATA_MAX_LENGTHS.file_key, 'file_key') || result.fileKey,
-          original_filename: truncateField(fileName, FILE_METADATA_MAX_LENGTHS.original_filename, 'original_filename') || fileName,
-          file_size: result.fileSize,
-          file_type: result.contentType,
-          uploaded_by: userId,
-          is_maiml_file: true,
-          s3_bucket: storageService.getBucketName(),
-          upload_batch_id: chunkBatchId,
-          upload_source: 'web_upload',
-          upload_method: 'multipart',
-          create_user_id: userId,
-          update_user_id: userId,
-          file_hash: result.fileHash,
-          ...(parentFolderPath && { parent_folder_path: parentFolderPath }),
-          created_at: now,
-          updated_at: now,
-        } as any);
-        console.log(`✅ [ChunkComplete] file_metadata保存成功: ${result.fileKey}`);
-      } catch (dbError) {
-        // file_metadata INSERT失敗は警告ログのみ（ストレージへのロールバックなし・処理続行）
-        console.error(`⚠️ [ChunkComplete] file_metadata INSERT失敗（処理続行）: ${result.fileKey}`, dbError);
-      }
+    const isMaimlFile = result.contentType === 'application/xml' || fileName.endsWith('.maiml');
+
+    // 全ファイルタイプで file_metadata へ保存する。
+    // is_maiml_file フラグでMAIML/非MAIMLを区別する。
+    // これにより cancelBatch がチャンクアップロード済みファイルを確実に削除できる。
+    try {
+      await repository.insertFileMetadata({
+        organization_id: organizationId,
+        file_key: truncateField(result.fileKey, FILE_METADATA_MAX_LENGTHS.file_key, 'file_key') || result.fileKey,
+        original_filename: truncateField(fileName, FILE_METADATA_MAX_LENGTHS.original_filename, 'original_filename') || fileName,
+        file_size: result.fileSize,
+        file_type: result.contentType,
+        uploaded_by: userId,
+        is_maiml_file: isMaimlFile,
+        s3_bucket: storageService.getBucketName(),
+        upload_batch_id: effectiveBatchId,
+        upload_source: 'web_upload',
+        upload_method: 'multipart',
+        create_user_id: userId,
+        update_user_id: userId,
+        file_hash: result.fileHash,
+        ...(parentFolderPath && { parent_folder_path: parentFolderPath }),
+        created_at: now,
+        updated_at: now,
+      } as any);
+      console.log(`✅ [ChunkComplete] file_metadata保存成功: ${result.fileKey} (batchId=${effectiveBatchId})`);
+    } catch (dbError) {
+      // file_metadata INSERT失敗は警告ログのみ（ストレージへのロールバックなし・処理続行）
+      console.error(`⚠️ [ChunkComplete] file_metadata INSERT失敗（処理続行）: ${result.fileKey}`, dbError);
     }
 
     // project_maiml_flg 更新
@@ -890,6 +959,8 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
       : result.fileKey;
 
     if (fileName.endsWith('.maiml') && relativeFileKey.startsWith('projects/')) {
+      // archive/ 配下のファイルは project_uuid 更新対象外
+      const isArchiveFile = relativeFileKey.includes('/archive/');
       const pathParts = relativeFileKey.split('/');
       if (pathParts.length >= 2 && pathParts[0] === 'projects') {
         const projectName = pathParts[1];
@@ -898,19 +969,69 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
 
           if (!existingProject) {
             console.warn(`⚠️ [ChunkComplete] プロジェクトが見つかりません: ${projectName}`);
-          } else if (!existingProject.project_maiml_flg) {
-            const updatedProject: Project = {
-              ...existingProject,
-              project_maiml_flg: true,
-            };
-            await projectRepository.update(updatedProject);
-            console.log(`✅ [ChunkComplete] project_maiml_flg=true更新完了: ${projectName}`);
           } else {
-            console.log(`ℹ️ [ChunkComplete] project_maiml_flgは既にtrue: ${projectName}`);
+            // ──────────────────────────────────────────────────────────────
+            // MAIMLファイルをパースして project_uuid（Document UUID）を抽出
+            // ChunkUploadService は Buffer を返さないため、ストレージから再取得する
+            // ──────────────────────────────────────────────────────────────
+            let documentUuid: string | null = null;
+            if (!isArchiveFile) {
+              try {
+                const maimlBuffer = await storageService.downloadFile(organizationId, relativeFileKey);
+                const maimlContent = maimlBuffer.toString('utf-8');
+                const maimlParser = new MaimlParserTyped(maimlContent);
+                const doc = maimlParser.getDocument();
+                const uuid = doc?.uuid?.trim();
+                if (uuid && uuid.length > 0) {
+                  documentUuid = uuid;
+                  console.log(`🔍 [ChunkComplete] Document UUID 抽出成功: ${documentUuid}`);
+                } else {
+                  console.warn(`⚠️ [ChunkComplete] Document UUID が空です: ${relativeFileKey}`);
+                }
+              } catch (parseErr) {
+                // パース失敗は警告のみ（アップロード自体は成功しているため処理続行）
+                console.warn(`⚠️ [ChunkComplete] MAIMLパース失敗（処理続行）:`, parseErr instanceof Error ? parseErr.message : parseErr);
+              }
+            }
+
+            // project_maiml_flg と project_uuid を必要に応じて更新
+            const needsFlagUpdate = !existingProject.project_maiml_flg;
+            const needsUuidUpdate = !isArchiveFile && documentUuid !== null && existingProject.project_uuid !== documentUuid;
+
+            if (needsFlagUpdate || needsUuidUpdate) {
+              const updatedProject: Project = {
+                ...existingProject,
+                ...(needsFlagUpdate ? { project_maiml_flg: true } : {}),
+                ...(needsUuidUpdate ? { project_uuid: documentUuid! } : {}),
+              };
+              await projectRepository.update(updatedProject);
+              console.log(`✅ [ChunkComplete] project更新完了:`, {
+                projectName,
+                project_maiml_flg: needsFlagUpdate ? 'false→true' : '変更なし',
+                project_uuid: needsUuidUpdate ? `→${documentUuid}` : '変更なし',
+              });
+            } else {
+              console.log(`ℹ️ [ChunkComplete] projectの更新不要（既に最新）: ${projectName}`);
+            }
+
+            // file_metadata.project_uuid を更新（archiveファイルは除く）
+            if (!isArchiveFile && documentUuid !== null) {
+              try {
+                const fullFileKey = result.fileKey.startsWith(`${organizationId}/`)
+                  ? result.fileKey
+                  : `${organizationId}/${relativeFileKey}`;
+                await repository.updateFileMetadata(fullFileKey, {
+                  project_uuid: documentUuid,
+                });
+                console.log(`✅ [ChunkComplete] file_metadata.project_uuid更新完了: ${fullFileKey} => ${documentUuid}`);
+              } catch (metaUpdateErr) {
+                console.warn(`⚠️ [ChunkComplete] file_metadata.project_uuid更新失敗（処理続行）:`, metaUpdateErr instanceof Error ? metaUpdateErr.message : metaUpdateErr);
+              }
+            }
           }
         } catch (flagError) {
           // フラグ更新失敗は警告のみ（ファイルアップロードは成功しているため処理続行）
-          console.error(`❌ [ChunkComplete] project_maiml_flg更新失敗（処理続行）:`, {
+          console.error(`❌ [ChunkComplete] project更新失敗（処理続行）:`, {
             projectName,
             error: flagError,
           });
@@ -1066,6 +1187,67 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * バッチ先行作成
+ * POST /api/v1/files/batches/init
+ *
+ * アップロード開始前にバッチを in_progress 状態で先行作成し、batchId を返す。
+ * フロントエンドはこの batchId を使ってアップロード途中でもキャンセルを実行できる。
+ */
+export async function initBatch(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId, userId } = req.user!;
+    const { batchName, uploadType, totalFiles } = req.body as {
+      batchName?: string;
+      uploadType: 'single' | 'bulk' | 'folder';
+      totalFiles?: number;
+    };
+
+    console.log(`📦 [Batch Init] リクエスト開始:`, {
+      organizationId,
+      uploadType,
+      batchName,
+      requestId,
+    });
+
+    const batch = await UploadBatchRepository.create({
+      batchName: batchName || `Upload ${new Date().toISOString()}`,
+      uploadType,
+      organizationId,
+      uploadedBy: userId,
+      totalFiles: totalFiles ?? 0,
+    });
+
+    console.log(`✅ [Batch Init] バッチ先行作成成功: ${batch.batchId}`);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        batchId: batch.batchId,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+
+  } catch (error: any) {
+    logError('Batch init error', error, {
+      action: 'batch_init',
+      organizationId: req.user?.organizationId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'バッチの作成に失敗しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

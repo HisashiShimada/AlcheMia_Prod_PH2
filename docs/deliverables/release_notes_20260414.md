@@ -3,7 +3,7 @@
 **リリース日**: 2026-04-14  
 **対象ブランチ**: main  
 **前回リリースコミット**: `5b7c00dc6dea5ae854bc359b196db7f74c006301`  
-**今回リリースコミット**: `551bd9253e092c9f762ff2efb7e58cf36984adfe`
+**今回リリースコミット**: `d89c11ee22536c4a78b93ecc973d921ca6477b60`
 
 ---
 
@@ -36,6 +36,33 @@
 
 - **根本原因**: `handleFolderClick` がフォルダ ID（`folder_rawdata` 形式）をそのまま `currentFolder` にセットしていたため、`subFolderFiles` のキー（`rawdata`）と不一致になりファイルが表示されなかった
 - **修正内容**: `handleFolderClick` 内で `folder_` プレフィックスを除去してからフォルダ名を `currentFolder` にセットするよう修正
+
+### 5. PropertyViewer の不具合対応（PR #171）
+
+- **`PropertyViewer` / `PropertyViewerWithSelection`**: ダイアログ表示時の不具合を修正
+- **`SubNetViewer`**: 表示処理の不具合を修正
+- **`PetriNetViewer`**: 関連する呼び出し処理を修正
+
+### 6. チャンク分割アップロードのキャンセル時ロールバック修正（PR #171）
+
+- **race condition の解消**: キャンセルボタン押下と `complete` リクエスト到達が競合した際に、アップロード済みファイルがストレージに残ってしまう問題を修正。`complete` リクエスト処理後にキャンセル済みバッチを検出した場合、ストレージからファイルを削除して 409 を返すよう対応
+- **`batchId` 紐付け不備の修正**: `completeChunkUpload` で `upload_batch_id` が毎回新規 UUID で生成されフロント側の `batchId` と不一致になっていた問題を修正。フロントから受け取った `batchId` を `effectiveBatchId` として使用するよう変更
+- **全ファイルタイプを `file_metadata` に登録**: 従来 MAIML ファイルのみ `file_metadata` に保存していたため `cancelBatch` で削除対象が0件になっていた問題を修正。全ファイルタイプを登録対象とし `is_maiml_file` フラグで区別するよう変更
+- **チャンクアップロード時の `project_uuid` 登録**: MAIML ファイルのチャンクアップロード完了時に `MaimlParserTyped` でパースして `project.project_uuid` および `file_metadata.project_uuid` を更新する処理を追加
+- **エラーメッセージの改善**: 複数 MAIML ファイル選択時の警告メッセージをプロジェクト単位の制約であることが伝わる表現に変更
+
+### 7. ECRデプロイ時 TypeScript ビルドエラー修正（PR #171）
+
+- **`UnpublishJobData.projectId` をオプショナルに変更**: Docker ビルド時に `tsc` がエラーで失敗していた問題を修正
+
+### 8. Redis 接続サービスのコード移植ミス修正（PR #171）
+
+- **`redisConnectionService.ts`**: コード移植時のミスを修正
+
+### 9. `crypto.randomUUID` が利用できない問題の修正（PR #171）
+
+- **根本原因**: `crypto.randomUUID()` は Web Crypto API のメソッドであり、HTTPS（セキュアコンテキスト）環境でのみ利用可能。HTTP 環境や一部の SSR 環境では `undefined` となり `TypeError` が発生していた
+- **対応**: `uuid` パッケージの `uuidv4()` に統一置換。対象ファイルは `documentInitializer.ts`、`documentParser.ts`、`OrganizationManagement.tsx`、`PropertyPanel.tsx`、`FormatEditorDialog.tsx`、`PetriNetEditorInner.tsx`（計6ファイル）
 
 ---
 
@@ -75,6 +102,12 @@
 | `backend/src/services/fileAccessService.ts` | `.maiml` ファイルアップロード時に UUID 抽出し `project_uuid` を付与する処理を追加 |
 | `backend/migrations/20260413_add_project_uuid_to_project_and_file_metadata.sql`（新規） | `project_uuid` カラム追加 |
 | `backend/migrations/20260414_add_unique_constraint_project_uuid.sql`（新規） | `project_uuid` ユニーク制約追加 |
+| `backend/src/controllers/fileAccessController.ts` | チャンクアップロードキャンセル時のrace condition対応・`effectiveBatchId` 統一・全ファイルタイプの `file_metadata` 登録・MAIML `project_uuid` 登録処理追加・複数MAIMLエラーメッセージ修正 |
+| `backend/src/routes/fileAccessRoutes.ts` | チャンクアップロード関連ルートの追加 |
+| `backend/src/services/chunkUploadService.ts` | チャンクアップロード処理の修正 |
+| `backend/src/types/file.ts` | `ChunkUploadOptions` に `batchId` フィールド追加 |
+| `backend/src/types/maimlOpenData.ts` | `UnpublishJobData.projectId` をオプショナルに変更 |
+| `backend/src/services/redisConnectionService.ts` | コード移植ミス修正 |
 
 ### フロントエンド
 
@@ -88,3 +121,14 @@
 | `frontend/src/components/ExperimentWorker/ProgressCheckTab.tsx` | selectedProjectName の受け渡し修正 |
 | `frontend/src/components/editorv2/PetriNetEditorInner.tsx` | ノード削除時のエッジ残存・placeRef 解除漏れを修正 |
 | `frontend/src/services/projectApiService.ts` | `renameProject()` 追加 |
+| `frontend/src/components/viewer/PetriNetViewer.tsx` | PropertyViewer 呼び出し処理の修正 |
+| `frontend/src/components/viewer/dialogs/PropertyViewer.tsx` | ダイアログ表示の不具合修正 |
+| `frontend/src/components/viewer/dialogs/PropertyViewerWithSelection.tsx` | ダイアログ表示の不具合修正 |
+| `frontend/src/components/viewer/dialogs/SubNetViewer.tsx` | 表示処理の不具合修正 |
+| `frontend/src/services/fileAccessService.ts` | `batchId` を `uploadFileWithChunks` に伝播・`complete` リクエストに含める修正 |
+| `frontend/src/components/project/BulkUploadDialog.tsx` | 複数 MAIML ファイル選択時の警告メッセージ修正 |
+| `frontend/src/utils/documentInitializer.ts` | `crypto.randomUUID()` → `uuidv4()` 置換 |
+| `frontend/src/utils/documentParser.ts` | `crypto.randomUUID()` → `uuidv4()` 置換 |
+| `frontend/src/components/Provider/OrganizationManagement.tsx` | `crypto.randomUUID()` → `uuidv4()` 置換 |
+| `frontend/src/components/editorv2/components/PropertyPanel.tsx` | `crypto.randomUUID()` → `uuidv4()` 置換 |
+| `frontend/src/components/editorv2/components/FormatEditorDialog.tsx` | `crypto.randomUUID()` → `uuidv4()` 置換 |

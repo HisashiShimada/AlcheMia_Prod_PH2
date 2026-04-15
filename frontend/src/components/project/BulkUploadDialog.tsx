@@ -4,7 +4,7 @@
  * Ant Design v6を使用し、UIポリシーに準拠
  */
 import React, { useState, useCallback, useRef } from 'react';
-import { uploadFiles, abortChunkUpload, cancelBatch } from '@/services/fileAccessService';
+import { uploadFiles, abortChunkUpload, cancelBatch, initBatch } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import type { UploadRetryState, UploadResultSummary } from '@/types/file';
 import {
@@ -119,6 +119,14 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
   const folderInputRef = useRef<HTMLInputElement>(null);
   /** チャンクアップロード中のセッションID（キャンセル時に abort するために保持） */
   const activeUploadIdsRef = useRef<string[]>([]);
+  /** batchId の ref（handleCancelUpload から非同期で参照するため state と併用） */
+  const batchIdRef = useRef<string | null>(null);
+  /**
+   * abortController の ref
+   * Modal.confirm の onOk は stale closure になりやすいため、
+   * state と並行して ref でも最新値を保持する
+   */
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
    * アップロード先パスを構築
@@ -159,6 +167,18 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         newFileList = newFileList.slice(-1);
       }
 
+      // 複数MAIMLファイルチェック
+      // プロジェクトに登録できるMAIMLファイルは1件のみのため、2件以上選択された場合は警告して最後の1件のみ残す
+      const maimlFiles = newFileList.filter((f) =>
+        f.name.toLowerCase().endsWith('.maiml')
+      );
+      if (maimlFiles.length > 1) {
+        message.warning('プロジェクトに登録できるMAIMLファイルは1件のみです。最後に選択したMAIMLファイルのみ有効になります');
+        const nonMaiml = newFileList.filter((f) => !f.name.toLowerCase().endsWith('.maiml'));
+        const lastMaiml = maimlFiles[maimlFiles.length - 1];
+        newFileList = [...nonMaiml, lastMaiml];
+      }
+
       setFileList(newFileList);
       setResultSummary(null);
 
@@ -169,7 +189,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         setBatchName(`一括アップロード ${newFileList.length}ファイル`);
       }
     },
-    [uploadMode]
+    [uploadMode, message]
   );
 
   /**
@@ -187,7 +207,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
-      const uploadFilesList: UploadFile[] = Array.from(files).map((file, index) => {
+      let uploadFilesList: UploadFile[] = Array.from(files).map((file, index) => {
         const fileWithPath = file as File & { webkitRelativePath?: string };
         const rcFile = file as RcFile;
         rcFile.uid = `${Date.now()}-${index}`;
@@ -202,6 +222,18 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         };
       });
 
+      // 複数MAIMLファイルチェック
+      // プロジェクトに登録できるMAIMLファイルは1件のみのため、2件以上含まれる場合は警告して最後の1件のみ残す
+      const maimlFiles = uploadFilesList.filter((f) =>
+        f.name.toLowerCase().endsWith('.maiml')
+      );
+      if (maimlFiles.length > 1) {
+        message.warning('プロジェクトに登録できるMAIMLファイルは1件のみです。最後に選択したMAIMLファイルのみ有効になります');
+        const nonMaiml = uploadFilesList.filter((f) => !f.name.toLowerCase().endsWith('.maiml'));
+        const lastMaiml = maimlFiles[maimlFiles.length - 1];
+        uploadFilesList = [...nonMaiml, lastMaiml];
+      }
+
       setFileList(uploadFilesList);
       setResultSummary(null);
 
@@ -212,7 +244,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         setBatchName(`フォルダアップロード: ${folderName}`);
       }
     },
-    []
+    [message]
   );
 
   /**
@@ -232,6 +264,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     // AbortController を作成
     const controller = new AbortController();
     setAbortController(controller);
+    abortControllerRef.current = controller;
     setResultSummary(null);
     setUploadState({
       isUploading: true,
@@ -242,6 +275,20 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     });
 
     try {
+      // batchId を先行取得（アップロード前にキャンセル可能にするため）
+      let initialBatchId: string | null = null;
+      try {
+        initialBatchId = await initBatch({
+          uploadType: uploadMode,
+          batchName: batchName || undefined,
+          totalFiles: fileList.length,
+        });
+        setBatchId(initialBatchId);
+        batchIdRef.current = initialBatchId;
+      } catch (initError) {
+        console.warn('バッチ先行作成に失敗しました（続行）:', initError);
+      }
+
       // originFileObjを抽出してFile型に変換
       // フォルダアップロードの場合、nameにパスを含む新しいFileオブジェクトを作成
       const files = fileList
@@ -271,6 +318,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         metadata: {
           projectId,
           batchName: batchName || undefined,
+          batchId: initialBatchId || undefined,
         },
         signal: controller.signal,
         onProgress: (progress) => {
@@ -336,10 +384,11 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       if ((error as { name?: string }).name === 'CanceledError') {
         message.info('アップロードがキャンセルされました');
         
-        // バックエンドに通知してファイル削除
-        if (batchId) {
+        // バックエンドに通知してファイル削除（batchIdRef.current で最新値を参照）
+        const currentBatchId = batchIdRef.current;
+        if (currentBatchId) {
           try {
-            await cancelBatch(batchId);
+            await cancelBatch(currentBatchId);
           } catch (cancelError) {
             console.error('バッチキャンセルエラー:', cancelError);
           }
@@ -406,19 +455,49 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     } finally {
       // クリーンアップ
       setAbortController(null);
+      abortControllerRef.current = null;
       setBatchId(null);
     }
   }, [fileList, uploadMode, projectId, preselectedFolder, getTargetPath, batchName, onUploadComplete, batchId]);
 
   /**
-   * アップロードキャンセル
+   * アップロードキャンセル（インライン「キャンセル」ボタン用）
+   * 確認ダイアログを表示してから中断する
    */
-  const handleCancelUpload = useCallback(async () => {
-    if (!abortController) return;
-    
-    // アップロードを即座に中断
-    abortController.abort();
-  }, [abortController]);
+  const handleCancelUpload = useCallback(() => {
+    // ref から最新の controller を取得（stale closure 対策）
+    const currentController = abortControllerRef.current;
+    if (!currentController) return;
+
+    Modal.confirm({
+      title: 'アップロードを中断しますか？',
+      content: '中断するとアップロード済みのファイルも削除されます。',
+      okText: '中断する',
+      okButtonProps: { danger: true },
+      cancelText: '続行',
+      onOk: async () => {
+        // HTTP リクエストを中断（ref から参照）
+        abortControllerRef.current?.abort();
+
+        // チャンクセッションを中断
+        const ids = activeUploadIdsRef.current;
+        if (ids.length > 0) {
+          await Promise.all(ids.map((id) => abortChunkUpload(id)));
+          activeUploadIdsRef.current = [];
+        }
+
+        // バッチをキャンセル（batchIdRef 経由で最新値を参照）
+        const currentBatchId = batchIdRef.current;
+        if (currentBatchId) {
+          try {
+            await cancelBatch(currentBatchId);
+          } catch (cancelError) {
+            console.error('バッチキャンセルエラー:', cancelError);
+          }
+        }
+      },
+    });
+  }, []);
 
   /**
    * ダイアログを閉じる
@@ -431,16 +510,20 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         okText: '中断する',
         cancelText: '続行',
         onOk: async () => {
+          // HTTP リクエストを中断（ref から参照）
+          abortControllerRef.current?.abort();
+
           // チャンクアップロード中のセッションをすべて中断してサーバー一時ファイルを削除
           const ids = activeUploadIdsRef.current;
           if (ids.length > 0) {
             await Promise.all(ids.map((id) => abortChunkUpload(id)));
             activeUploadIdsRef.current = [];
           }
-          // upload_batch テーブルを cancelled に更新
-          if (batchId) {
+          // upload_batch テーブルを cancelled に更新（batchIdRef 経由で最新値を参照）
+          const currentBatchId = batchIdRef.current;
+          if (currentBatchId) {
             try {
-              await cancelBatch(batchId);
+              await cancelBatch(currentBatchId);
             } catch (cancelError) {
               console.error('バッチキャンセルエラー:', cancelError);
             }
@@ -451,7 +534,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     } else {
       onClose();
     }
-  }, [uploadState.isUploading, batchId, onClose]);
+  }, [uploadState.isUploading, onClose]);
 
   /**
    * ファイルリストの合計サイズ計算
@@ -468,8 +551,8 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       onCancel={handleClose}
       width={800}
       footer={[
-        <Button key="cancel" onClick={handleClose} disabled={uploadState.isUploading}>
-          キャンセル
+        <Button key="close" onClick={handleClose} disabled={uploadState.isUploading}>
+          閉じる
         </Button>,
         <Button
           key="upload"
