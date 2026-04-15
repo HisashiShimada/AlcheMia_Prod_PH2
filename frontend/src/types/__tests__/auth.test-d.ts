@@ -75,15 +75,19 @@ const verifyPINResponse: VerifyPINResponse = {
     id: 'user_123',
     username: 'testuser',
     email: 'test@example.com',
-    role: 'experiment_admin',
+    roleName: '実験管理者',
+    roleCd: 'experiment_admin',
     organizationId: 'org_001',
     organizationName: 'Test Organization',
     displayName: 'Test User',
+    departmentCd: 'dept_001',
+    initialScreenFunctionCd: '040000',
   },
   session: {
     token: 'maiml_session-xyz789_9876543210',
     expiresAt: '2025-12-30T12:00:00Z',
   },
+  passwordChangeRequired: false,
   redirectUrl: '/experiment-admin',
 };
 

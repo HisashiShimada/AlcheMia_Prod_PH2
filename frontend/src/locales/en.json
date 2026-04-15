@@ -144,6 +144,7 @@
     "taskListButton": "Task List",
     "batchProgressButton": "Batch Progress Report",
     "approvalRequestButton": "Request Approval",
+    "approvalRequest": "Request Approval",
     "labels": {
       "project": "Project",
       "method": "Method",
@@ -1197,13 +1198,6 @@
       "functionTempSaved": "Function set (will be saved to DB when you click Save)",
       "saveSuccess": "Role updated",
       "addSuccess": "Role added",
-      "activateError": "Failed to activate",
-      "deactivateError": "Failed to deactivate",
-      "toggleError": "Failed to change status",
-      "csvUploadError": "Failed to upload CSV",
-      "csvDownloadError": "Failed to download CSV",
-      "functionUpdateSuccess": "Function updated successfully",
-      "functionTempSaved": "Function set (will be saved to DB when you click Save)",
       "saveError": "Failed to save",
       "duplicateIdError": "The entered ID already exists",
       "genericError": "An error occurred"
