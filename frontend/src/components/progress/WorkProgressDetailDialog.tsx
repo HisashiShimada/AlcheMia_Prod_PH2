@@ -93,18 +93,15 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
         timestamp: new Date().toISOString(),
       });
 
-      // maimlFileKey からプロジェクト名を抽出
-      // 形式: "projects/{projectName}/{projectName}.maiml"（organizationIdプレフィックスなし）
-      // ※ バックエンド(projectService.getProjectFiles)はorganizationIdを除去した相対パスを返す
-      const projectNameMatch = fileData.maimlFileKey.match(/(?:^|\/)projects\/([^/]+)\//);
-      const projectName = projectNameMatch ? decodeURIComponent(projectNameMatch[1]) : null;
+      // fileData.projectId（UUID）を使用してAPIを呼び出す
+      const projectId = fileData.projectId;
 
-      if (!projectName) {
-        throw new Error('maimlFileKeyからプロジェクト名を取得できませんでした');
+      if (!projectId) {
+        throw new Error('projectIdが設定されていません');
       }
 
-      console.log('🔍 [FileProgressDetail] プロジェクト名抽出:', {
-        projectName,
+      console.log('🔍 [FileProgressDetail] プロジェクトID使用:', {
+        projectId,
         timestamp: new Date().toISOString(),
       });
 
@@ -114,14 +111,14 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       const { createApiClient } = await import('@/utils/authUtils');
       const client = createApiClient();
       const response = await client.get(
-        `/progress/projects/${encodeURIComponent(projectName)}/work-details`
+        `/progress/projects/${projectId}/work-details`
       );
 
       if (response.data.success) {
         const { projectInfo, fileInfo, workDetails } = response.data.data;
 
         console.log('✅ [FileProgressDetail] ファイル詳細取得成功:', {
-          projectName,
+          projectId,
           workCount: workDetails?.length || 0,
         });
 

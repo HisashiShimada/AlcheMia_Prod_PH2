@@ -164,7 +164,7 @@ export interface ResetPasswordResponseData {
  * 実験データ保存リクエスト - records配列の1要素
  *
  * @remarks
- * API: POST /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ * API: POST /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
  * DDL: docs/design/db/ddl/template_data.sql
  */
 export interface ExperimentDataRecord {
@@ -235,7 +235,7 @@ export interface SaveBatchExperimentDataResponse {
  * テンプレート実績データの1要素
  *
  * @remarks
- * API: GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ * API: GET /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
  *
  * DBに実績データがある場合:
  *   data はフラットなkey-value形式（例: { "temperature": 25.5 }）
@@ -303,7 +303,7 @@ export interface GetTemplateDataResponse {
  * トランジションステータス更新リクエストボディ
  *
  * @remarks
- * API: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ * API: PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status
  */
 export interface UpdateTransitionStatusRequest {
   /** タスク連番（1以上の整数） */
@@ -323,7 +323,7 @@ export interface UpdateTransitionStatusRequest {
  * トランジションステータス更新レスポンスデータ
  *
  * @remarks
- * API: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ * API: PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status
  */
 export interface UpdateTransitionStatusResponse {
   transitionId: string;
@@ -382,7 +382,7 @@ export interface TaskRegistrationStatusResponse {
  * 指示保存リクエスト
  * 
  * @remarks
- * POST /api/v1/projects/:projectName/instructions
+ * POST /api/v1/projects/:projectId/instructions
  */
 export interface SaveInstructionRequest {
   /** メソッドID */
@@ -419,7 +419,7 @@ export interface SaveInstructionResponse {
  * 指示更新リクエスト
  * 
  * @remarks
- * PUT /api/v1/projects/:projectName/instructions/:instructionId
+ * PUT /api/v1/projects/:projectId/instructions/:instructionId
  */
 export interface UpdateInstructionRequest {
   /** メソッドID */
@@ -481,7 +481,7 @@ export interface TaskInput {
  * 指示送信リクエスト
  * 
  * @remarks
- * POST /api/v1/projects/:projectName/instructions/send
+ * POST /api/v1/projects/:projectId/instructions/send
  * タスク作成は別途タスク登録タブで実施されるため、このAPIではパラメータ不要
  */
 export type SendInstructionsRequest = Record<string, never>;

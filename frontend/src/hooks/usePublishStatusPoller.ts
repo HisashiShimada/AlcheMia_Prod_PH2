@@ -10,8 +10,8 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1_000;
 const POLLING_STATUSES = new Set(['pending', 'running']);
 
 export interface UsePublishStatusPollerOptions {
-  /** ポーリング対象のプロジェクト名 */
-  projectName: string;
+  /** ポーリング対象のプロジェクトID */
+  projectId: string;
   /**
    * ジョブが完了（done / error）またはタイムアウトした時のコールバック
    * @param status 最後に取得したステータス情報
@@ -37,7 +37,7 @@ export interface UsePublishStatusPollerOptions {
  * @example
  * ```tsx
  * const { start, stop, isPolling } = usePublishStatusPoller({
- *   projectName,
+ *   projectId,
  *   onComplete: (status) => {
  *     if (status.status === 'done') message.success('公開が完了しました');
  *     else message.error(status.error_message ?? '公開に失敗しました');
@@ -50,7 +50,7 @@ export interface UsePublishStatusPollerOptions {
  * ```
  */
 export function usePublishStatusPoller({
-  projectName,
+  projectId,
   onComplete,
   onError,
 }: UsePublishStatusPollerOptions) {
@@ -80,7 +80,7 @@ export function usePublishStatusPoller({
     // 3秒ごとに API を呼ぶ
     intervalRef.current = setInterval(async () => {
       try {
-        const status = await getPublishStatus(projectName);
+        const status = await getPublishStatus(projectId);
 
         // 完了または失敗ならポーリング停止
         if (!POLLING_STATUSES.has(status.status ?? '')) {
@@ -98,13 +98,13 @@ export function usePublishStatusPoller({
       stop();
       try {
         // タイムアウト時に最後のステータスを取得して通知
-        const status = await getPublishStatus(projectName);
+        const status = await getPublishStatus(projectId);
         onComplete(status);
       } catch (err) {
         onError?.(err);
       }
     }, POLL_TIMEOUT_MS);
-  }, [projectName, onComplete, onError, stop]);
+  }, [projectId, onComplete, onError, stop]);
 
   // アンマウント時にクリーンアップ
   useEffect(() => {

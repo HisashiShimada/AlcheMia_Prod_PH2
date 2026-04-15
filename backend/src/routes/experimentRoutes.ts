@@ -16,7 +16,7 @@ const router = Router();
 
 /**
  * テンプレート実績一覧取得
- * GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ * GET /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
  *
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
@@ -25,17 +25,17 @@ const router = Router();
  * @roles experiment_worker 以上
  */
 router.get(
-  '/projects/:projectName/methods/:methodId/tasks/:taskNo/data',
+  '/projects/:projectId/methods/:methodId/tasks/:taskNo/data',
   authMiddleware,
   tenantIsolation,
   checkPermission('050000', 0), // 実験作業者メニュー（experiment_worker）読取可
   [
-    param('projectName')
+    param('projectId')
       .trim()
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
     param('methodId')
       .trim()
       .notEmpty()
@@ -58,7 +58,7 @@ router.get(
 
 /**
  * 実験データ一括保存
- * POST /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ * POST /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
@@ -69,18 +69,18 @@ router.get(
  * @roles experiment_worker のみ
  */
 router.post(
-  '/projects/:projectName/methods/:methodId/tasks/:taskNo/data',
+  '/projects/:projectId/methods/:methodId/tasks/:taskNo/data',
   authMiddleware,
   tenantIsolation,
   checkPermission('050000', 1), // 実験作業者メニュー（experiment_worker）のみ書込可
   [
     // パスパラメータのバリデーション
-    param('projectName')
+    param('projectId')
       .trim()
       .notEmpty()
-      .withMessage('projectNameは必須です')
+      .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectNameは1〜255文字である必要があります'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
     param('methodId')
       .trim()
       .notEmpty()

@@ -19,6 +19,7 @@ export type ProjectStatus =
 export interface FileData {
   maimlFileKey: string;
   fileName: string;
+  projectId: string;
 }
 
 /**
