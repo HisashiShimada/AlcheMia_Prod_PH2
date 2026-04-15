@@ -331,7 +331,8 @@ export default function ExperimentWorkerMenu({
           expandedGroups={expandedGroups}
           toggleGroup={toggleGroup}
           onInstructionsUpdated={refetchInstructions}
-          readOnly={readOnly}
+          readOnly={readOnly || (selectedProjectStatus !== null && selectedProjectStatus !== 1 && selectedProjectStatus !== 2)}
+          projectStatusCode={selectedProjectStatus}
         />
       ),
     },
