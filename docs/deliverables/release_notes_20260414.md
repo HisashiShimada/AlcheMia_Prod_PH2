@@ -3,7 +3,7 @@
 **リリース日**: 2026-04-14  
 **対象ブランチ**: main  
 **前回リリースコミット**: `5b7c00dc6dea5ae854bc359b196db7f74c006301`  
-**今回リリースコミット**: `d89c11ee22536c4a78b93ecc973d921ca6477b60`
+**今回リリースコミット**: `1aa6cc46c32a6b4c7ba744b0b8e47fae7ec21652`
 
 ---
 
@@ -64,6 +64,11 @@
 - **根本原因**: `crypto.randomUUID()` は Web Crypto API のメソッドであり、HTTPS（セキュアコンテキスト）環境でのみ利用可能。HTTP 環境や一部の SSR 環境では `undefined` となり `TypeError` が発生していた
 - **対応**: `uuid` パッケージの `uuidv4()` に統一置換。対象ファイルは `documentInitializer.ts`、`documentParser.ts`、`OrganizationManagement.tsx`、`PropertyPanel.tsx`、`FormatEditorDialog.tsx`、`PetriNetEditorInner.tsx`（計6ファイル）
 
+### 10. タスクステータス更新 SQL のタイムゾーン設定ミス修正
+
+- **根本原因**: `findByIdForUpdate.sql` および `updateStatus.sql` において、`update_at` カラムの比較に使用するタイムゾーン変換（`AT TIME ZONE 'UTC'`）の設定が誤っていたため、楽観的ロック用の日時比較が正しく機能しない場合があった
+- **修正内容**: 両 SQL ファイルのタイムゾーン設定を正しい形式に修正
+
 ---
 
 ## 新機能・改善
@@ -79,6 +84,11 @@
 
 - フロントエンド全体の多言語化対応を実装
 - PR #170 にてビルドエラーを修正し、正常にビルド可能な状態に対応
+
+### 7. DocumentEditDialog バリデーション処理削除
+
+- **対応内容**: `DocumentEditDialog.tsx` に実装されていたバリデーション処理をすべて削除。Document 編集ダイアログで Document ID・Name 未入力や Creator / Vendor / Owner が0件の状態でも自由に保存できるよう変更
+- **削除した処理**: `validateDocumentData` 関数、`validationErrors` state、`validationTimeoutRef`、バリデーションエラー表示 Alert、保存ボタンの `disabled` 条件、Form フィールドの `required` ルール、`handleSave` 内の `form.validateFields()` など
 
 ---
 
@@ -108,6 +118,8 @@
 | `backend/src/types/file.ts` | `ChunkUploadOptions` に `batchId` フィールド追加 |
 | `backend/src/types/maimlOpenData.ts` | `UnpublishJobData.projectId` をオプショナルに変更 |
 | `backend/src/services/redisConnectionService.ts` | コード移植ミス修正 |
+| `backend/src/sql/queries/tasks/findByIdForUpdate.sql` | タイムゾーン設定ミス修正（楽観的ロック用日時比較） |
+| `backend/src/sql/queries/tasks/updateStatus.sql` | タイムゾーン設定ミス修正（楽観的ロック用日時比較） |
 
 ### フロントエンド
 
@@ -132,3 +144,4 @@
 | `frontend/src/components/Provider/OrganizationManagement.tsx` | `crypto.randomUUID()` → `uuidv4()` 置換 |
 | `frontend/src/components/editorv2/components/PropertyPanel.tsx` | `crypto.randomUUID()` → `uuidv4()` 置換 |
 | `frontend/src/components/editorv2/components/FormatEditorDialog.tsx` | `crypto.randomUUID()` → `uuidv4()` 置換 |
+| `frontend/src/components/editorv2/components/DocumentEditDialog.tsx` | バリデーション処理の全削除（`validateDocumentData`、`validationErrors` state、Alert 表示、保存ボタン disabled 条件等） |
