@@ -971,7 +971,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
   // ポーリングフック
   const { start: startPoller } = usePublishStatusPoller({
-    projectName: selectedProject?.name ?? '',
+    projectId: selectedProject?.id ?? '',
     onComplete: handlePollingComplete,
     onError: () => {
       setIsPolling(false);

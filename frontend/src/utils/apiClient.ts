@@ -48,38 +48,28 @@ export function shouldUseMockAPI(): boolean {
  * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions
  *
  * @description
- * fileKey からプロジェクト名を抽出し、バックエンドの進捗APIを呼び出す。
+ * バックエンドの進捗APIを呼び出す。
  * バックエンドレスポンス（snake_case・数値ステータス）を
  * フロントエンド期待形式（camelCase・文字列ステータス）に変換して返す。
  *
- * @param fileKey   - MAIMLファイルキー（例: orgId/projects/projectName/projectName.maiml）
+ * @param projectId - プロジェクトID
  * @param methodId  - メソッドID
  * @param taskNo    - タスク連番（1以上の整数）
  * @returns フロントエンド期待形式のトランジション進捗データ
  */
 export async function fetchTransitionStatus(
-  fileKey: string,
+  projectId: string,
   methodId: string,
   taskNo: number
 ): Promise<unknown> {
-  // fileKey からプロジェクト名を抽出
-  // 例: "550e8400-.../projects/sample_project/sample_project.maiml" → "sample_project"
-  const projectNameFromKey = fileKey.split('/projects/')[1]?.split('/')[0];
-  if (!projectNameFromKey) {
-    throw new Error(
-      `fileKey からプロジェクト名を抽出できませんでした。fileKey: ${fileKey}`
-    );
-  }
-
   console.log('🌐 [fetchTransitionStatus] 実API呼び出し:', {
-    fileKey,
-    projectName: projectNameFromKey,
+    projectId,
     methodId,
     taskNo,
   });
 
   const response = await fetch(
-    `${API_BASE_URL}/progress/projects/${encodeURIComponent(projectNameFromKey)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/transitions`,
+    `${API_BASE_URL}/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/transitions`,
     {
       method: 'GET',
       credentials: 'include',

@@ -614,12 +614,12 @@ export default function DataRecordDialog({
 
       // テンプレート実績データをAPIから取得してフォームの初期値を復元
       // 必須パスパラメータが揃っている場合のみ実行
-      if (projectName && methodId && taskNo !== undefined && transition.transitionId) {
+      if (projectId && methodId && taskNo !== undefined && transition.transitionId) {
         (async () => {
           try {
             setTemplateDataLoading(true);
             const response = await getTemplateData(
-              projectName,
+              projectId,
               methodId,
               taskNo,
               transition.transitionId
@@ -900,7 +900,7 @@ export default function DataRecordDialog({
         })();
       }
     }
-  }, [open, transition, form, isProjectEditable, projectName, methodId, taskNo, useDeemedProgressProp]);
+  }, [open, transition, form, isProjectEditable, projectId, methodId, taskNo, useDeemedProgressProp]);
 
   // テンプレート保存ハンドラ
   const handleSaveTemplate = async () => {
@@ -910,10 +910,10 @@ export default function DataRecordDialog({
     }
 
     // APIに必要なパスパラメータのガードチェック
-    if (!projectName || !methodId || taskNo === undefined) {
+    if (!projectId || !methodId || taskNo === undefined) {
       message.error('保存に必要なプロジェクト情報が不足しています');
-      console.error('handleSaveTemplate: projectName / methodId / taskNo が未設定', {
-        projectName,
+      console.error('handleSaveTemplate: projectId / methodId / taskNo が未設定', {
+        projectId,
         methodId,
         taskNo,
       });
@@ -1216,7 +1216,7 @@ export default function DataRecordDialog({
       };
 
       // バックエンドAPIへ保存
-      await saveBatchExperimentData(projectName, methodId, taskNo, { records: [record] });
+      await saveBatchExperimentData(projectId!, methodId, taskNo, { records: [record] });
 
       // onSave には保存した data を ExperimentDataValue 形式で渡す
       onSave([baseData as ExperimentDataValue]);
