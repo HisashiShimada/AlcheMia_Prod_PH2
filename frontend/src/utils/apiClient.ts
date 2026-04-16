@@ -45,31 +45,41 @@ export function shouldUseMockAPI(): boolean {
 
 /**
  * トランジション進捗データを取得
- * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions
+ * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
  *
  * @description
- * バックエンドの進捗APIを呼び出す。
+ * fileKey からプロジェクト名を抽出し、バックエンドの進捗APIを呼び出す。
  * バックエンドレスポンス（snake_case・数値ステータス）を
  * フロントエンド期待形式（camelCase・文字列ステータス）に変換して返す。
  *
- * @param projectId - プロジェクトID
+ * @param fileKey   - MAIMLファイルキー（例: orgId/projects/projectName/projectName.maiml）
  * @param methodId  - メソッドID
  * @param taskNo    - タスク連番（1以上の整数）
  * @returns フロントエンド期待形式のトランジション進捗データ
  */
 export async function fetchTransitionStatus(
-  projectId: string,
+  fileKey: string,
   methodId: string,
   taskNo: number
 ): Promise<unknown> {
+  // fileKey からプロジェクト名を抽出
+  // 例: "550e8400-.../projects/sample_project/sample_project.maiml" → "sample_project"
+  const projectNameFromKey = fileKey.split('/projects/')[1]?.split('/')[0];
+  if (!projectNameFromKey) {
+    throw new Error(
+      `fileKey からプロジェクト名を抽出できませんでした。fileKey: ${fileKey}`
+    );
+  }
+
   console.log('🌐 [fetchTransitionStatus] 実API呼び出し:', {
-    projectId,
+    fileKey,
+    projectName: projectNameFromKey,
     methodId,
     taskNo,
   });
 
   const response = await fetch(
-    `${API_BASE_URL}/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/transitions`,
+    `${API_BASE_URL}/progress/projects/${encodeURIComponent(projectNameFromKey)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/transitions`,
     {
       method: 'GET',
       credentials: 'include',
@@ -136,7 +146,7 @@ export async function fetchTransitionStatus(
  *
  * ### TODO: バックエンドAPI実装後の対応方針
  * 1. バックエンドに一括取得API を追加:
- *    `GET /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/all-records`
+ *    `GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/all-records`
  * 2. この関数のシグネチャを `fetchExperimentRecords(projectName, methodId, taskNo)` に変更
  * 3. 上記APIを呼び出すよう実装を変更
  * 4. `PetriNetVisualization.tsx` の呼び出し箇所も合わせて変更

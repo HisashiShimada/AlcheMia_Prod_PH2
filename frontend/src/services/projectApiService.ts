@@ -168,7 +168,7 @@ export interface ApprovalRequestResponse {
 
 /**
  * 実験作業者用タスク一覧レスポンス型
- * API: GET /api/v1/progress/projects/:projectId/worker-tasks
+ * API: GET /api/v1/progress/projects/:projectName/worker-tasks
  */
 export interface WorkerTasksResponse {
   project_id: string;
@@ -202,7 +202,7 @@ export interface WorkerTask {
 
 /**
  * タスクステータス更新レスポンス型
- * API: PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status
+ * API: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
  */
 export interface TaskStatusUpdateResponse {
   task_no: number;
@@ -218,7 +218,7 @@ export interface TaskStatusUpdateResponse {
 
 /**
  * 作業指示型（バックエンドAPIレスポンス）
- * API: GET /api/v1/projects/:projectId/worker-instructions
+ * API: GET /api/v1/projects/:projectName/worker-instructions
  */
 export interface WorkerInstruction {
   id: string;
@@ -241,7 +241,7 @@ export interface WorkerInstruction {
 
 /**
  * 指示確認データ型（バックエンドAPIレスポンス）
- * API: PUT /api/v1/projects/:projectId/instructions/:instructionId/confirm
+ * API: PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
  */
 export interface InstructionConfirmationData {
   instruction_id: string;
@@ -799,7 +799,7 @@ export const getProjectDetail = async (
 
 /**
  * 承認依頼を送信
- * PATCH /api/v1/projects/:projectId/approval-request
+ * PATCH /api/v1/projects/:projectName/approval-request
  * 
  * @param projectName プロジェクト名
  * @param comment コメント（任意、最大1000文字）
@@ -861,7 +861,7 @@ export const requestApproval = async (
 
 /**
  * 実験作業者用タスク一覧を取得
- * GET /api/v1/progress/projects/:projectId/worker-tasks
+ * GET /api/v1/progress/projects/:projectName/worker-tasks
  * 
  * @param projectName プロジェクト名
  * @param filters フィルター条件（オプション）
@@ -932,7 +932,7 @@ export const getWorkerTasks = async (
 
 /**
  * タスクステータスを更新
- * PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status
+ * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
  * 
  * @param projectName プロジェクト名
  * @param methodId メソッドID
@@ -1021,7 +1021,7 @@ export const updateTaskStatus = async (
 
 /**
  * 作業指示一覧を取得
- * GET /api/v1/projects/:projectId/worker-instructions
+ * GET /api/v1/projects/:projectName/worker-instructions
  * 
  * @param projectName プロジェクト名
  * @param filters フィルター条件（オプション）
@@ -1077,7 +1077,7 @@ export const getWorkerInstructions = async (
 
 /**
  * 指示を確認済みとしてマークする
- * PUT /api/v1/projects/:projectId/instructions/:instructionId/confirm
+ * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
  * 
  * @param projectName プロジェクト名
  * @param instructionId 指示ID
@@ -1132,7 +1132,7 @@ export const confirmInstruction = async (
 
 /**
  * トランジションステータスを更新
- * PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status
+ * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
  *
  * @param projectName プロジェクト名
  * @param methodId メソッドID

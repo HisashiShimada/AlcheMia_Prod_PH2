@@ -15,8 +15,6 @@ interface InstructionGroupProps {
   isClient: boolean;
   onConfirmInstructions?: (instructions: Instruction[]) => void;
   confirmLoading?: boolean;
-  /** trueのとき確認完了ボタンを非活性にする（readOnly閲覧モード用） */
-  readOnly?: boolean;
 }
 
 // アイコン
@@ -46,7 +44,6 @@ export default function InstructionGroup({
   isClient,
   onConfirmInstructions,
   confirmLoading,
-  readOnly = false,
 }: InstructionGroupProps) {
   const { token } = theme.useToken();
 
@@ -216,7 +213,6 @@ export default function InstructionGroup({
                       }}
                       loading={confirmLoading}
                       disabled={
-                        readOnly ||
                         confirmLoading || 
                         taskInstructions.every((i) => i.isAcknowledged)
                       }
@@ -334,7 +330,6 @@ export default function InstructionGroup({
                       }}
                       loading={confirmLoading}
                       disabled={
-                        readOnly ||
                         confirmLoading || 
                         methodInstructions.every((i) => i.isAcknowledged)
                       }
@@ -454,7 +449,6 @@ export default function InstructionGroup({
                       }}
                       loading={confirmLoading}
                       disabled={
-                        readOnly ||
                         confirmLoading || 
                         transitionInstructions.every((i) => i.isAcknowledged)
                       }

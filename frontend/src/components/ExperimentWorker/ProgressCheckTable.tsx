@@ -15,9 +15,7 @@ interface ProgressCheckTableProps {
   onTaskAction: (taskId: string, action: string) => void;
   /** trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用） */
   readOnly?: boolean;
-  /** プロジェクトID（MAIMLファイル取得に使用） */
-  projectId: string;
-  /** プロジェクト名（表示・パス生成用） */
+  /** プロジェクト名（MAIMLファイル取得に使用） */
   projectName: string;
 }
 
@@ -25,7 +23,7 @@ interface ProgressCheckTableProps {
  * 進捗確認テーブル（親コンポーネント）
  * タスク一覧を表示（メソッドはタブで選択済み）
  */
-export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction, readOnly = false, projectId, projectName }: ProgressCheckTableProps) {
+export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction, readOnly = false, projectName }: ProgressCheckTableProps) {
   // Ant Design App コンテキストからmessageを取得
   const { message } = App.useApp();
   // ViewRendererDialogの管理
@@ -42,14 +40,14 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction,
   
   // 進捗率クリック時のハンドラー
   const handleProgressRateClick = async (_task: Task) => {
-    if (!projectId) {
+    if (!projectName) {
       message.warning('プロジェクトが選択されていません');
       return;
     }
 
     try {
       // プロジェクトのMAIMLファイルをAPIから取得
-      const result = await getProjectMaiml(projectId);
+      const result = await getProjectMaiml(projectName);
 
       if (!result.success || !result.data) {
         message.error('MAIMLファイルの取得に失敗しました');

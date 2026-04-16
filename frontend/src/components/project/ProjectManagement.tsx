@@ -971,7 +971,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
   // ポーリングフック
   const { start: startPoller } = usePublishStatusPoller({
-    projectId: selectedProject?.id ?? '',
+    projectName: selectedProject?.name ?? '',
     onComplete: handlePollingComplete,
     onError: () => {
       setIsPolling(false);
@@ -1396,8 +1396,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     // （ファイル一覧: パスが変わったため再取得が必要）
     if (selectedProjectId && currentTab === 'file_management') {
       try {
-        console.log('📂 [ProjectManagement] リネーム後ファイル一覧を最新化:', selectedProjectId);
-        const fileResponse = await getProjectFiles(selectedProjectId, true);
+        console.log('📂 [ProjectManagement] リネーム後ファイル一覧を最新化:', newName);
+        const fileResponse = await getProjectFiles(newName, true);
         setProjectFilesData(prev => ({
           ...prev,
           [selectedProjectId]: {

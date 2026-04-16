@@ -16,7 +16,6 @@ import * as orgRepo            from '../repositories/organizationRepository';
 import * as projectRepo        from '../repositories/projectRepository';
 import * as projectTaskDetailRepo from '../repositories/projectTaskDetailRepository';
 import { getStorageService }   from './storageService';
-import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import {
   PublishJobResponse,
   PublishStatusResponse,
@@ -108,8 +107,7 @@ export async function enqueuePublish(
   console.log("重複なし");
 
   // ── 6. Swift/S3 ファイル存在確認 ───────────────────────
-  // project_uuid → file_metadata → file_key の順で解決し、未設定の場合は project_name でフォールバック
-  const fileUri = await resolveMaimlFilePath(organizationId, projectId, projectName);
+  const fileUri = `projects/${projectName}/${projectName}.maiml`;
   const storage = getStorageService();
   const exists  = await storage.fileExists(organizationId, fileUri);
   if (!exists) {

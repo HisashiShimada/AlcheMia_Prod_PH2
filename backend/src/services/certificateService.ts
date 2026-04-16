@@ -24,15 +24,13 @@ export interface CertificateGenerationResult {
  * 環境変数から証明書設定を取得
  */
 function getCertificateConfig() {
-  // アプリルートを取得:
-  //   ローカル (ts-node): backend/src/services → ../.. → backend/
-  //   ECS (compiled JS):  /app/dist/services  → ../.. → /app/
-  const appRoot = path.resolve(__dirname, '../..');
+  // プロジェクトルートを取得（backend/src/services/ から ../../.. で mmdpf/）
+  const projectRoot = path.resolve(__dirname, '../../..');
   
   const caCertPath = process.env.CA_CERT_PATH || 
-    path.join(appRoot, 'certs/ca/ca.crt');
+    path.join(projectRoot, 'backend/certs/ca/ca.crt');
   const caKeyPath = process.env.CA_KEY_PATH || 
-    path.join(appRoot, 'certs/ca/ca.key');
+    path.join(projectRoot, 'backend/certs/ca/ca.key');
   const p12Password = process.env.CERT_P12_PASSWORD || 'mmdpf123';
   const validityDays = parseInt(process.env.CERT_VALIDITY_DAYS || '365', 10);
 

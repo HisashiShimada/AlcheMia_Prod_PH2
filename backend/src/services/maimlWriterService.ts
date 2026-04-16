@@ -24,7 +24,6 @@ import {
   replaceDataAndEventLogInMaiml,
 } from '../utils/maimlDataWriter';
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
-import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 
 /**
  * maiml_event_log テーブルの1行
@@ -63,8 +62,7 @@ export class MaimlWriterService {
     const pool = getPool();
 
     // --- 1. MAIMLファイルの存在確認 ---
-    // project_uuid → file_metadata → file_key の順で解決し、未設定の場合は project_name でフォールバック
-    const filePath = await resolveMaimlFilePath(organizationId, projectId, projectName);
+    const filePath = `projects/${projectName}/${projectName}.maiml`;
     const fileExists = await storageService.fileExists(organizationId, filePath);
 
     if (!fileExists) {
