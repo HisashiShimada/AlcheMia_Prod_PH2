@@ -1132,7 +1132,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           id: selectedFormat.id,
           name: selectedFormat.name,
           folderName: selectedFormat.folderName,
-          departmentCd: user.departmentCd,
+          departmentCd: user.departmentCd || 'default',
         } : null}
         currentFolderPath={currentFolderPath}
         onUploadComplete={async (result) => {
