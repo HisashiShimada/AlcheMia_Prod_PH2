@@ -514,36 +514,22 @@ export class AuthService {
         }
       }
 
-      // 4. req.sessionに部門CDと会社IDを保存
-      if (req.session) {
-        req.session.departmentCd = userInfo.departmentCd;
-        req.session.corporationId = userInfo.corporationId || null;
-
-        await new Promise<void>((resolve, reject) => {
-          req.session.save((err) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        });
-      }
-
-      // 5. 権限情報を取得
+      // 4. 権限情報を取得
       const permissions = await this.rolePermissionRepository.getPermissionsByRoleId(
         userInfo.roleCd,
         userInfo.organizationId
       );
 
-      // 6. トークンペア生成
+      // 5. トークンペア生成（departmentCd と corporationId を JWT に含める）
       const newTokenId = uuidv4();
       const tokenPairResult = await this.jwtService.generateTokenPair({
         userId: userInfo.id,
         organizationId: userInfo.organizationId,
+        corporationId: userInfo.corporationId || undefined,
         sessionId: newTokenId,  // 後方互換性のため
         tokenId: newTokenId,     // アクセストークンとリフレッシュトークンで共通
         permissions,
+        departmentCd: userInfo.departmentCd || undefined,
       });
 
       if (!tokenPairResult.success) {
