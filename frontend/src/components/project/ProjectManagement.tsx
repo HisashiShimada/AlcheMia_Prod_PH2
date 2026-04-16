@@ -650,6 +650,19 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     return [];
   }, [selectedProjectId, currentFolder, selectedProject, projectFilesData]);
 
+  // プロジェクトにファイルが存在するかを判定（ダウンロードボタンの活性化制御）
+  const hasProjectFiles = useMemo(() => {
+    if (!selectedProjectId) return false;
+    const projectData = projectFilesData[selectedProjectId];
+    if (!projectData) return false;
+    // ルート直下に実ファイル（フォルダ以外）が存在するか確認
+    const rootFiles = (projectData.root || []).filter(f => !f.isFolder);
+    if (rootFiles.length > 0) return true;
+    // サブフォルダにファイルが存在するか確認
+    const subFolderFiles = projectData.subFolderFiles || {};
+    return Object.values(subFolderFiles).some(files => files.length > 0);
+  }, [selectedProjectId, projectFilesData]);
+
   // タスク結果一覧を取得（projectTasksDataから取得）
   const taskResults = useMemo((): Task[] => {
     if (!selectedProjectId) {
@@ -1723,7 +1736,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<DownloadOutlined />}
                     onClick={handleProjectDownload}
                     loading={isDownloading}
-                    disabled={!selectedProject || isDownloading}
+                    disabled={!selectedProject || isDownloading || !hasProjectFiles}
                     data-testid="project-download-button"
                   >
                     {isDownloading 
