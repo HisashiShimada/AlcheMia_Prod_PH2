@@ -132,8 +132,11 @@ export class ProjectService {
           project_status,
           checkout_status,
           project_maiml_flg,
-          create_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          create_at,
+          create_user_id,
+          update_user_id,
+          update_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *
       `;
 
@@ -148,6 +151,9 @@ export class ProjectService {
         0, // checkout_status: 0 (チェックイン中)
         false, // project_maiml_flg
         createAt,
+        userId,   // create_user_id
+        userId,   // update_user_id
+        createAt, // update_at
       ]);
 
       // Task 3.6: S3フォルダ作成
