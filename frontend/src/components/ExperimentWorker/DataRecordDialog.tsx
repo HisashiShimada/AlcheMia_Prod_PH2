@@ -957,6 +957,7 @@ export default function DataRecordDialog({
         (
           baseData.properties as Array<Record<string, unknown>>
         ).forEach((p) => {
+          if (p.isCustomProperty === true) return; // カスタムプロパティはスキップ（削除済みのエントリに value: null を書かないため）
           const formKey = `${template.templateId}_${String(p.key ?? '')}`;
           const xsiType = String(p.xsiType ?? '');
           if (xsiType === 'dateType') {
@@ -1102,16 +1103,32 @@ export default function DataRecordDialog({
 
       // ── カスタムプロパティを baseData に追記 ────────────────────────────
       // 選択中テンプレートに紐づくカスタムプロパティのみ対象とする
-      if (templateCustomProps.length > 0) {
-        if (baseData.properties && Array.isArray(baseData.properties)) {
-          // フォールバック形式: properties / contents 配列に追記
-          // property / content / insertion のカスタムエントリを毎回リセットして再構築する
-          // ※ ディープコピーで引き継いだ既存カスタムエントリがあると削除操作が反映されないため
-          baseData.properties = (
-            baseData.properties as Array<Record<string, unknown>>
-          ).filter((p) => !p.isCustomProperty);
+      if (baseData.properties && Array.isArray(baseData.properties)) {
+        // フォールバック形式: isCustomProperty: true のエントリを常に除去してから再構築する
+        // ※ 全削除（templateCustomProps.length === 0）の場合もクリーンアップを実行することで
+        //   Bug①（全削除しても消えない）・Bug③（content 混在削除が消えない）を修正する
+        baseData.properties = (
+          baseData.properties as Array<Record<string, unknown>>
+        ).filter((p) => !p.isCustomProperty);
+
+        // contents / insertions もカスタム分だけ除去（非カスタム分は保持）
+        if (Array.isArray(baseData.contents)) {
+          baseData.contents = (baseData.contents as Array<Record<string, unknown>>).filter(
+            (c) => !c.isCustomProperty
+          );
+        } else {
           baseData.contents = [];
+        }
+        if (Array.isArray(baseData.insertions)) {
+          baseData.insertions = (baseData.insertions as Array<Record<string, unknown>>).filter(
+            (ins) => !ins.isCustomProperty
+          );
+        } else {
           baseData.insertions = [];
+        }
+
+        // templateCustomProps が1件以上ある場合のみカスタムエントリを追記
+        if (templateCustomProps.length > 0) {
           const existingProps = baseData.properties as Array<Record<string, unknown>>;
           const existingContents = baseData.contents as Array<Record<string, unknown>>;
           const existingInsertions = baseData.insertions as Array<Record<string, unknown>>;
