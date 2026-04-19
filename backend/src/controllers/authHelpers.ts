@@ -121,37 +121,23 @@ export async function issueSessionTokens(
     }
   }
 
-  // 4. req.sessionに部門CDと会社IDを保存
-  if (req.session) {
-    req.session.departmentCd = user.department_cd;
-    req.session.corporationId = corporationId;  // クエリで取得したcorporationIdを使用
-    await new Promise<void>((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) {
-          reject(err);
-        } else {
-          console.log('Session saved successfully with departmentCd:', req.session.departmentCd, 'corporationId:', req.session.corporationId);
-          resolve();
-        }
-      });
-    });
-  }
-
-  // 5. 権限情報取得
+  // 4. 権限情報取得
   const rolePermissionRepository = new RolePermissionRepository();
   const permissions = await rolePermissionRepository.getPermissionsByRoleId(
     user.role_cd,
     user.organization_id
   );
 
-  // 6. トークンペア生成
+  // 5. トークンペア生成（departmentCd と corporationId を JWT に含める）
   const newTokenId = uuidv4();
   const tokenPairResult = await jwtService.generateTokenPair({
     userId: user.user_id,
     organizationId: user.organization_id,
+    corporationId: corporationId || undefined,
     sessionId: newTokenId,
     tokenId: newTokenId,
     permissions,
+    departmentCd: user.department_cd || undefined,
   });
 
   if (!tokenPairResult.success) {

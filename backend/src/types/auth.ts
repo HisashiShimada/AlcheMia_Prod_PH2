@@ -51,6 +51,8 @@ export interface JwtPayload {
   sessionId: string;  // 後方互換性のため残す（tokenIdと同じ値）
   tokenId: string;     // アクセストークンとリフレッシュトークンで共通のID
   permissions: Permission[];
+  /** 部門CD */
+  departmentCd?: string;
   iat: number;
   exp: number;
 }
