@@ -1016,20 +1016,6 @@ export default function DataRecordDialog({
             p.value = values[formKey] ?? null;
           }
         });
-        // ── トップレベル Contents（baseData.contents 配列）の value を更新 ──
-        if (Array.isArray(baseData.contents)) {
-          (baseData.contents as Array<Record<string, unknown>>).forEach((c) => {
-            if (c.isCustomProperty === true) return;
-            const contentKey = String(c.key ?? '');
-            if (!contentKey) return;
-            const formKey = `${template.templateId}_${contentKey}`;
-            const rawVal = values[formKey];
-            // ContentRowListInput は string[] を返す
-            if (Array.isArray(rawVal)) {
-              c.value = rawVal as string[];
-            }
-          });
-        }
       } else {
         // DB実績形式: フラットなkey-value
         // baseData[prop.key] をフォーム値で上書きする
@@ -1123,15 +1109,16 @@ export default function DataRecordDialog({
 
       // ── カスタムプロパティを baseData に追記 ────────────────────────────
       // 選択中テンプレートに紐づくカスタムプロパティのみ対象とする
-      if (baseData.properties && Array.isArray(baseData.properties)) {
-        // フォールバック形式: isCustomProperty: true のエントリを常に除去してから再構築する
-        // ※ 全削除（templateCustomProps.length === 0）の場合もクリーンアップを実行することで
-        //   Bug①（全削除しても消えない）・Bug③（content 混在削除が消えない）を修正する
-        baseData.properties = (
-          baseData.properties as Array<Record<string, unknown>>
-        ).filter((p) => !p.isCustomProperty);
-
-        // contents / insertions もカスタム分だけ除去（非カスタム分は保持）
+      // ※ baseData.properties の有無に関わらず（Property なしテンプレートも含む）処理を実行する
+      if (templateCustomProps.length > 0) {
+        // カスタムプロパティあり: クリーンアップ＋再追記
+        if (Array.isArray(baseData.properties)) {
+          baseData.properties = (baseData.properties as Array<Record<string, unknown>>).filter(
+            (p) => !p.isCustomProperty
+          );
+        } else {
+          baseData.properties = [];
+        }
         if (Array.isArray(baseData.contents)) {
           baseData.contents = (baseData.contents as Array<Record<string, unknown>>).filter(
             (c) => !c.isCustomProperty
@@ -1147,15 +1134,13 @@ export default function DataRecordDialog({
           baseData.insertions = [];
         }
 
-        // templateCustomProps が1件以上ある場合のみカスタムエントリを追記
-        if (templateCustomProps.length > 0) {
-          const existingProps = baseData.properties as Array<Record<string, unknown>>;
-          const existingContents = baseData.contents as Array<Record<string, unknown>>;
-          const existingInsertions = baseData.insertions as Array<Record<string, unknown>>;
-          for (const cp of templateCustomProps) {
-            // insertion は key 属性を持たないため、key チェックは property/content のみに適用する
-            if (!cp.key && cp.containerType !== 'insertion') continue;
-            if (cp.containerType === 'content') {
+        const existingProps = baseData.properties as Array<Record<string, unknown>>;
+        const existingContents = baseData.contents as Array<Record<string, unknown>>;
+        const existingInsertions = baseData.insertions as Array<Record<string, unknown>>;
+        for (const cp of templateCustomProps) {
+          // insertion は key 属性を持たないため、key チェックは property/content のみに適用する
+          if (!cp.key && cp.containerType !== 'insertion') continue;
+          if (cp.containerType === 'content') {
               // content コンテナは baseData.contents に追記（リセット済みなので push のみ）
               // value は string[]（各行がスペース区切り値）をそのまま渡す
               const rowsValue: string[] = Array.isArray(cp.value)
@@ -1204,39 +1189,22 @@ export default function DataRecordDialog({
               existingProps.push(cpEntry);
             }
           }
-        } else {
-          // フラット形式: baseData[cp.key] に値を追加
-          for (const cp of templateCustomProps) {
-            if (!cp.key) continue;
-            if (cp.containerType === 'insertion') {
-              // insertion は { uri, hash, format } オブジェクトとして保存する
-              // uri はS3アップロード後の s3Key、未アップロードの場合は既存 value を保持
-              baseData[cp.key] = {
-                uri: uploadedUriMap[cp.id] ?? cp.value ?? '',
-                hash: cp.hash ?? '',
-                format: cp.format ?? 'application/octet-stream',
-                customType: 'insertion',
-                isCustomProperty: true,
-              };
-            } else if (cp.containerType === 'content') {
-              // value は string[]（各行がスペース区切り値）をそのまま保存
-              const rowsValue: string[] = Array.isArray(cp.value)
-                ? (cp.value as string[])
-                : cp.value ? [cp.value as string] : [];
-              baseData[cp.key] = rowsValue;
-            } else {
-              const strVal2 = typeof cp.value === 'string' ? cp.value : null;
-              if (cp.customType === 'intType') {
-                baseData[cp.key] = strVal2 !== null ? parseInt(strVal2, 10) : null;
-              } else if (cp.customType === 'floatType') {
-                baseData[cp.key] = strVal2 !== null ? parseFloat(strVal2) : null;
-              } else if (cp.customType === 'booleanType') {
-                baseData[cp.key] = strVal2 === 'true';
-              } else {
-                baseData[cp.key] = strVal2;
-              }
-            }
-          }
+      } else {
+        // カスタムプロパティなし: クリーンアップのみ（削除を確定させる）
+        if (Array.isArray(baseData.properties)) {
+          baseData.properties = (baseData.properties as Array<Record<string, unknown>>).filter(
+            (p) => !p.isCustomProperty
+          );
+        }
+        if (Array.isArray(baseData.contents)) {
+          baseData.contents = (baseData.contents as Array<Record<string, unknown>>).filter(
+            (c) => !c.isCustomProperty
+          );
+        }
+        if (Array.isArray(baseData.insertions)) {
+          baseData.insertions = (baseData.insertions as Array<Record<string, unknown>>).filter(
+            (ins) => !ins.isCustomProperty
+          );
         }
       }
 

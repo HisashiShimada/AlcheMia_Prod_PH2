@@ -25,6 +25,29 @@
 
 ---
 
+## 追加修正（2026-04-20）
+
+### 追加バグ④ Propertyなしテンプレートにカスタムプロパティが出力されない
+
+**現象:** テンプレートに Property が一件もなく、Insertion や Content だけが存在する場合、カスタムプロパティが保存されない。
+
+**原因:** 修正②（1126行目付近）のクリーンアップ＆再追記処理が `if (baseData.properties && Array.isArray(baseData.properties))` 条件の内側に収まっているため、`baseData.properties` が存在しないテンプレートでは処理全体がスキップされる。
+
+**修正方針:**
+- `if (templateCustomProps.length > 0)` を外側の条件にする
+- `length > 0` の場合: クリーンアップ＋再追記（baseData.properties の有無に関わらず実行）
+- `length === 0` の場合: クリーンアップのみ（各配列を `filter(!isCustomProperty)` で除去）
+
+### 追加バグ⑤ Propertyなしテンプレートでトップレベル Contents の値更新がスキップされる
+
+**現象:** `baseData.properties` が存在しないテンプレートで、トップレベルの Contents フィールドへの値更新が反映されない。
+
+**原因:** トップレベル Contents の値更新処理（1019〜1032行目付近）が `if (baseData.properties && Array.isArray(baseData.properties))` ブロックの内側にある。
+
+**修正方針:** Contents 更新処理を `if (baseData.properties...)` ブロックの**外**（直後）に移動する。
+
+---
+
 ## バグ一覧と原因
 
 ### バグ① 全削除しても消えない（最初に報告されたバグ）
