@@ -171,6 +171,25 @@ export default function ExperimentRecordTab({
             description: '',
             category: 'experiment',
             transitions: [],
+            tasks: method.tasks.map((task: WorkerTask) => ({
+              taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
+              taskNo: task.task_no.toString(),
+              taskName: task.task_no.toString(),
+              methodId: method.method_id,
+              methodName: method.method_name,
+              status: task.task_status as Task['status'],
+              assignedUserId: task.experiment_user_id || undefined,
+              assignedUserName: task.experiment_user_name || undefined,
+              createdAt: task.created_at,
+              updatedAt: task.updated_at,
+              projectId: apiData.project_id,
+              sampleNumber: '',
+              notes: '',
+              progressRate: parseFloat(task.progress_rate),
+              transitionStatuses: [],
+              progressReport: '',
+              recordNumber: '',
+            })),
           }));
           
           const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
