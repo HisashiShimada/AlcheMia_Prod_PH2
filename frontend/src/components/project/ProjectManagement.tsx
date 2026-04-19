@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Card,
   Input,
@@ -405,10 +405,23 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   }, [currentFolder]);
 
   // リフレッシュ
-  const handleRefresh = useCallback(() => {
+  // プロジェクト一覧を最新化し、プロジェクトが選択されていれば MAIML も再取得する。
+  // リロードボタン押下時・編集画面から戻った際の両方で使用する共通処理。
+  const handleRefresh = useCallback(async () => {
     console.log('Refreshing project list...');
-    refetchProjects();
-  }, [refetchProjects]);
+    await refetchProjects();
+
+    // プロジェクトが選択されていれば MAIML も最新化（編集後のキャッシュ更新）
+    if (selectedProjectId) {
+      try {
+        console.log('🔄 [ProjectManagement] リフレッシュ後 MAIML 更新開始:', selectedProjectId);
+        await loadMaiml(selectedProjectId);
+        console.log('✅ [ProjectManagement] リフレッシュ後 MAIML 更新完了');
+      } catch (error) {
+        // エラーは Context 側でハンドリング済み
+      }
+    }
+  }, [refetchProjects, selectedProjectId, loadMaiml]);
 
   /**
    * 指示登録タブからの指示送信ハンドラ
@@ -637,6 +650,19 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     return [];
   }, [selectedProjectId, currentFolder, selectedProject, projectFilesData]);
 
+  // プロジェクトにファイルが存在するかを判定（ダウンロードボタンの活性化制御）
+  const hasProjectFiles = useMemo(() => {
+    if (!selectedProjectId) return false;
+    const projectData = projectFilesData[selectedProjectId];
+    if (!projectData) return false;
+    // ルート直下に実ファイル（フォルダ以外）が存在するか確認
+    const rootFiles = (projectData.root || []).filter(f => !f.isFolder);
+    if (rootFiles.length > 0) return true;
+    // サブフォルダにファイルが存在するか確認
+    const subFolderFiles = projectData.subFolderFiles || {};
+    return Object.values(subFolderFiles).some(files => files.length > 0);
+  }, [selectedProjectId, projectFilesData]);
+
   // タスク結果一覧を取得（projectTasksDataから取得）
   const taskResults = useMemo((): Task[] => {
     if (!selectedProjectId) {
@@ -792,6 +818,21 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       sessionStorage.removeItem('projectManagement_selectedProjectId');
     }
   }, [selectedProjectId]);
+
+  // 編集画面から戻った際のリフレッシュ処理
+  // 初回マウント時に selectedProjectId が sessionStorage から復元済みの場合、
+  // handleRefresh を呼び出してプロジェクト一覧と MAIML を最新化する。
+  // hasInitialRefreshRef により Strict Mode の二重発火を防ぐ。
+  const hasInitialRefreshRef = useRef(false);
+  useEffect(() => {
+    if (hasInitialRefreshRef.current) return;
+    hasInitialRefreshRef.current = true;
+
+    if (selectedProjectId) {
+      console.log('🔄 [ProjectManagement] 初期マウント - selectedProjectId 復元検知、リフレッシュ実行:', selectedProjectId);
+      handleRefresh();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Phase 5-2追加: 初期表示時のDraft確認（プロジェクト未選択時のみ）
   useEffect(() => {
@@ -1695,7 +1736,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<DownloadOutlined />}
                     onClick={handleProjectDownload}
                     loading={isDownloading}
-                    disabled={!selectedProject || isDownloading}
+                    disabled={!selectedProject || isDownloading || !hasProjectFiles}
                     data-testid="project-download-button"
                   >
                     {isDownloading 

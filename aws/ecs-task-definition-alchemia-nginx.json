@@ -56,6 +56,20 @@
         { "name": "BACKEND_HOST", "value": "alchemia-backend.alchemia.local" },
         { "name": "BACKEND_PORT", "value": "3001" }
       ],
+      "secrets": [
+        {
+          "name": "SSL_CERT",
+          "valueFrom": "arn:aws:ssm:ap-northeast-1:137068252939:parameter/alchemia/nginx/ssl-cert"
+        },
+        {
+          "name": "SSL_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-1:137068252939:parameter/alchemia/nginx/ssl-key"
+        },
+        {
+          "name": "SSL_CA_CERT",
+          "valueFrom": "arn:aws:ssm:ap-northeast-1:137068252939:parameter/alchemia/nginx/ssl-ca-cert"
+        }
+      ],
       "mountPoints": [],
       "logConfiguration": {
         "logDriver": "awslogs",

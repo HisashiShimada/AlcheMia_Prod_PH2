@@ -602,7 +602,7 @@ export default function UserManagement() {
           <Form.Item
             name="departmentCd"
             label={t('userManagement.form.department')}
-            rules={[{ required: true, message: t('userManagement.form.departmentRequired') }]}
+            rules={[]}
           >
             <Select placeholder={t('userManagement.form.departmentPlaceholder')} options={departments} />
           </Form.Item>

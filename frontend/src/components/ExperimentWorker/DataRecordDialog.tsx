@@ -451,14 +451,34 @@ export default function DataRecordDialog({
   /**
    * 現在のトランジションステータス（数値）
    * transition.status は型上 ProgressStatus（文字列型）だが、
-   * APIレスポンスでは実際に数値（0-6）が入っているため Number() で変換する
+   * APIレスポンスでは実際に数値（0-6）が入っているため Number() で変換する。
+   * ExperimentRecordTab 等で数値→文字列変換（例: 5→'completed'）が行われる場合も
+   * 文字列ステータスマップで数値に逆変換して正しい終端ステータス判定を行う。
    */
   const currentStatus = useMemo((): number => {
     if (!transition || transition.status === undefined || transition.status === null) {
       return 0;
     }
     const num = Number(transition.status);
-    return isNaN(num) ? 0 : num;
+    if (!isNaN(num)) return num;
+
+    // 文字列ステータス → 数値マッピング
+    // ExperimentRecordTab.tsx の変換ルールに対応:
+    //   0: INITIAL      → 'not_started'
+    //   1: PREPARING    → 'in_progress'
+    //   2: READY        → 'in_progress'
+    //   3: IN_PROGRESS  → 'in_progress'
+    //   4: PAUSED       → 'on_hold'
+    //   5: COMPLETED    → 'completed'
+    //   6: ERROR        → 'issue'
+    const statusStringMap: Record<string, number> = {
+      'not_started': 0,
+      'in_progress': 3,
+      'on_hold':     4,
+      'completed':   5,
+      'issue':       6,
+    };
+    return statusStringMap[transition.status as string] ?? 0;
   }, [transition]);
 
   /**
@@ -585,7 +605,7 @@ export default function DataRecordDialog({
       // 初期値は現在のトランジションステータスから遷移可能な最初の選択肢を設定
       // 終端ステータスの場合は選択肢がないため 0 のまま
       const allowedValues = ALLOWED_TRANSITIONS[currentStatus] ?? [];
-      setSelectedStatus((allowedValues[0] ?? 0) as TransitionStatus);
+      setSelectedStatus((allowedValues[0] ?? currentStatus) as TransitionStatus);
       setComment('');
       setProgress(0);
       setSelectedTemplateId(null);
