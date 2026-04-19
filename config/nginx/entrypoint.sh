@@ -33,15 +33,15 @@ echo "[entrypoint] Alchemia Staging Nginx コンテナ起動中..."
 # 環境変数から証明書を配置（ECS では Secrets Manager / SSM Parameter Store から渡す想定）
 if [ -n "${SSL_CERT}" ] && [ -n "${SSL_KEY}" ]; then
     echo "[entrypoint] 環境変数から SSL 証明書を配置..."
-    echo "${SSL_CERT}" | base64 -d > "${SSL_DIR}/server.crt" 2>/dev/null || echo "${SSL_CERT}" > "${SSL_DIR}/server.crt"
-    echo "${SSL_KEY}"  | base64 -d > "${SSL_DIR}/server.key" 2>/dev/null || echo "${SSL_KEY}"  > "${SSL_DIR}/server.key"
+    printf '%s' "${SSL_CERT}" | sed 's/\\n/\n/g' > "${SSL_DIR}/server.crt"
+    printf '%s' "${SSL_KEY}"  | sed 's/\\n/\n/g' > "${SSL_DIR}/server.key"
     chmod 600 "${SSL_DIR}/server.key"
     echo "[entrypoint] SSL 証明書を配置しました: ${SSL_DIR}/server.crt"
 fi
 
 if [ -n "${SSL_CA_CERT}" ]; then
     echo "[entrypoint] 環境変数から CA 証明書を配置..."
-    echo "${SSL_CA_CERT}" | base64 -d > "${SSL_DIR}/ca.crt" 2>/dev/null || echo "${SSL_CA_CERT}" > "${SSL_DIR}/ca.crt"
+    printf '%s' "${SSL_CA_CERT}" | sed 's/\\n/\n/g' > "${SSL_DIR}/ca.crt"
     echo "[entrypoint] CA 証明書を配置しました: ${SSL_DIR}/ca.crt"
 fi
 
