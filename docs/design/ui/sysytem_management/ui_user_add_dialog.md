@@ -228,7 +228,7 @@ tags: [system-admin, user-management, dialog, add-form]
 }
 ```
 
-### 3.5. 所属部署（必須）
+### 3.5. 所属部署（任意）
 
 **コンポーネント**: `<Form.Item>` + `<Select>`
 
@@ -236,10 +236,14 @@ tags: [system-admin, user-management, dialog, add-form]
 | 項目 | 値 |
 |------|-----|
 | ラベル | 「所属部署」 |
-| 必須 | ○ |
+| 必須 | - |
 | プレースホルダー | 「所属部署を選択」 |
 | データソース | departmentApiService.fetchMasters() |
 | 初期値 | なし |
+
+**注意事項**:
+- 部署が未設定（null）のユーザーも登録可能（例: 組織作成時に自動登録されるシステム管理者）
+- 部署未設定ユーザーがフォーマット管理を開いた場合、`formats/default/` フォルダを参照する
 
 **選択肢**:
 ```typescript
@@ -251,12 +255,7 @@ tags: [system-admin, user-management, dialog, add-form]
 ```
 
 **バリデーション**:
-```typescript
-{
-  required: true,
-  message: '所属部署を選択してください'
-}
-```
+- バリデーションなし（任意項目）
 
 ### 3.6. ロール（必須）
 
@@ -515,10 +514,12 @@ Authorization: Bearer {session_token}
 - メールアドレス
 - パスワード
 - パスワード確認
-- 所属部署
 - ロール
 - 二段階認証設定
 - アクティブ判定
+
+**任意項目**:
+- 所属部署（未選択可。未設定の場合は `formats/default/` フォルダを参照）
 
 **形式チェック**:
 - メールアドレス: email形式

@@ -81,8 +81,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteEdgeConfirmOpen, setDeleteEdgeConfirmOpen] = useState(false);
 
-  // ✅ TemplateContextから allTemplates を取得
-  const { allTemplates } = useTemplates();
+  // ✅ TemplateContextから allTemplates と commonTemplates を取得
+  const { allTemplates, commonTemplates } = useTemplates();
 
   // ノード/エッジの基本判定
   const isPlace = selectedNode?.data?.nodeType === 'place';
@@ -108,40 +108,23 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     return templates;
   }, [nodes, isPlace, placeType, selectedNode]);
 
-  // 共通テンプレート一覧（全methodから）
+  // 共通テンプレート一覧（TemplateContextのcommonTemplatesから取得: methodId=nullのテンプレート）
   const availableCommonTemplates = useMemo(() => {
-    if (!selectedNode || !isPlace || !methods || methods.length <= 1) return [];
-    
-    const commonTemplates: Array<{
-      id: string;
-      name: string;
-      methodIndex: number;
-      methodName: string;
-    }> = [];
-    
-    methods.forEach((method, index) => {
-      if (!method.nodes) return;
-      
-      const templates = method.nodes
-        .filter(node => 
-          node.data.nodeType === 'place' &&
-          node.data.placeType === placeType &&
-          node.data.isCommonTemplate === true &&
-          node.id !== selectedNode.id
-        )
-        .map(node => ({
-          id: node.id,
-          name: node.data.name || node.id,
-          methodIndex: index,
-          methodName: method.name || `Method ${index + 1}`,
-        }));
-      
-      commonTemplates.push(...templates);
-    });
-    
-    console.log('✅ [PropertyPanel] 共通テンプレート:', commonTemplates.length);
-    return commonTemplates;
-  }, [methods, isPlace, placeType, selectedNode]);
+    if (!selectedNode || !isPlace || !commonTemplates) return [];
+
+    // placeTypeに合致する共通テンプレートのみを抽出
+    const categoryTemplates = commonTemplates[placeType as 'material' | 'condition' | 'result'] || [];
+
+    const result = categoryTemplates
+      .filter(template => template.id !== selectedNode.id)
+      .map(template => ({
+        id: template.id,
+        name: template.name || template.id,
+      }));
+
+    console.log('✅ [PropertyPanel] 共通テンプレート (TemplateContext):', result.length);
+    return result;
+  }, [commonTemplates, isPlace, placeType, selectedNode]);
 
   // 早期リターン
   if (!selectedNode && !selectedEdge) return null;
@@ -445,7 +428,38 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <div>
                   <Checkbox
                     checked={selectedNode.data.isCommonTemplate || false}
-                    onChange={(e) => handleChange('isCommonTemplate', e.target.checked)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      if (!checked) {
+                        // ✅ チェックボックスOFF: commonTemplateRefもクリア + TemplateContextのplaceRefsから削除
+                        const prevRef = selectedNode.data.commonTemplateRef;
+                        if (prevRef && window.clineAllTemplates && window.clineUpdateTemplate) {
+                          const category = placeType as 'material' | 'condition' | 'result';
+                          const targetTemplate = window.clineAllTemplates[category]?.find((t) => t.id === prevRef);
+                          if (targetTemplate) {
+                            window.clineUpdateTemplate(prevRef, {
+                              ...targetTemplate,
+                              placeRefs: (targetTemplate.placeRefs || []).filter(
+                                (pr) => pr.ref !== selectedNode.id
+                              ),
+                            });
+                            console.log('✅ [PropertyPanel] チェックOFF: placeRefs削除:', {
+                              templateId: prevRef,
+                              nodeId: selectedNode.id,
+                            });
+                          }
+                        }
+                        onUpdate(selectedNode.id, {
+                          ...selectedNode.data,
+                          isCommonTemplate: false,
+                          commonTemplateRef: undefined,
+                          template: undefined,
+                          templateRef: undefined,
+                        });
+                      } else {
+                        handleChange('isCommonTemplate', true);
+                      }
+                    }}
                   >
                     共通テンプレート（全methodで共有）
                   </Checkbox>
@@ -485,12 +499,76 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     <Select
                       style={{ width: '100%' }}
                       value={selectedNode.data.commonTemplateRef || ''}
-                      onChange={(value) => handleChange('commonTemplateRef', value || null)}
+                      onChange={(value) => {
+                        // 共通テンプレートRefを設定・解除する際に isCommonTemplate も連動して更新する
+                        // value あり → isCommonTemplate = true（チェックボックスON）
+                        // value なし → isCommonTemplate = false（チェックボックスOFF）、
+                        //              継承した template / templateRef もクリアする
+                        if (value) {
+                          // 1. ノードデータを更新（チェックボックスON + refセット）
+                          onUpdate(selectedNode.id, {
+                            ...selectedNode.data,
+                            commonTemplateRef: value,
+                            isCommonTemplate: true,
+                          });
+                          // 2. TemplateContext の対象テンプレートの placeRefs にこのノードIDを追加
+                          if (window.clineAllTemplates && window.clineUpdateTemplate) {
+                            const allTemplates = window.clineAllTemplates;
+                            const category = placeType as 'material' | 'condition' | 'result';
+                            const targetTemplate = allTemplates[category]?.find((t) => t.id === value);
+                            if (targetTemplate) {
+                              const alreadyExists = targetTemplate.placeRefs?.some(
+                                (pr) => pr.ref === selectedNode.id
+                              );
+                              if (!alreadyExists) {
+                                window.clineUpdateTemplate(value, {
+                                  ...targetTemplate,
+                                  placeRefs: [
+                                    ...(targetTemplate.placeRefs || []),
+                                    { id: '', ref: selectedNode.id },
+                                  ],
+                                });
+                                console.log('✅ [PropertyPanel] placeRefs追加:', {
+                                  templateId: value,
+                                  nodeId: selectedNode.id,
+                                });
+                              }
+                            }
+                          }
+                        } else {
+                          // 解除時: TemplateContext の placeRefs からこのノードIDを削除
+                          const prevRef = selectedNode.data.commonTemplateRef;
+                          if (prevRef && window.clineAllTemplates && window.clineUpdateTemplate) {
+                            const allTemplates = window.clineAllTemplates;
+                            const category = placeType as 'material' | 'condition' | 'result';
+                            const targetTemplate = allTemplates[category]?.find((t) => t.id === prevRef);
+                            if (targetTemplate) {
+                              window.clineUpdateTemplate(prevRef, {
+                                ...targetTemplate,
+                                placeRefs: (targetTemplate.placeRefs || []).filter(
+                                  (pr) => pr.ref !== selectedNode.id
+                                ),
+                              });
+                              console.log('✅ [PropertyPanel] placeRefs削除:', {
+                                templateId: prevRef,
+                                nodeId: selectedNode.id,
+                              });
+                            }
+                          }
+                          onUpdate(selectedNode.id, {
+                            ...selectedNode.data,
+                            commonTemplateRef: undefined,
+                            isCommonTemplate: false,
+                            template: undefined,    // 継承テンプレートを解除
+                            templateRef: undefined, // 継承テンプレートRefを解除
+                          });
+                        }
+                      }}
                       options={[
                         { value: '', label: 'なし' },
                         ...availableCommonTemplates.map(tmpl => ({
                           value: tmpl.id,
-                          label: `${tmpl.name} (from ${tmpl.methodName})`,
+                          label: tmpl.name,
                         })),
                       ]}
                     />

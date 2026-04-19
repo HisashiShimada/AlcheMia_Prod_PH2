@@ -7,13 +7,16 @@ import { AppError, E1006, E1007, E1008, E1009, E4006, E6002, E6003, E6004, E6005
  */
 export async function getFormatFolders(
   organizationId: string,
-  departmentCd: string
+  departmentCd: string | null | undefined
 ): Promise<FormatFolder[]> {
   const storageService = getStorageService();
 
+  // departmentCd が未設定（null / '' / undefined）の場合は 'default' フォルダを参照
+  const effectiveDepartmentCd = departmentCd || 'default';
+
   try {
     // 1. S3の formats/{department_cd}/ 直下のすべてのファイル/フォルダを取得
-    const basePath = `formats/${departmentCd}`;
+    const basePath = `formats/${effectiveDepartmentCd}`;
     
     const allItems = await storageService.listFiles(organizationId, basePath);
 
@@ -29,7 +32,7 @@ export async function getFormatFolders(
       if (
         pathParts.length >= 4 &&
         pathParts[1] === 'formats' &&
-        pathParts[2] === departmentCd &&
+        pathParts[2] === effectiveDepartmentCd &&
         pathParts[3] !== '' // 空文字列を除外（フォルダ自体のパスを除外）
       ) {
         folderSet.add(pathParts[3]);
@@ -50,7 +53,7 @@ export async function getFormatFolders(
         try {
           const files = await storageService.listFiles(
             organizationId,
-            `formats/${departmentCd}/${folderName}`
+            `formats/${effectiveDepartmentCd}/${folderName}`
           );
           // ディレクトリマーカー（末尾が'/'で終わるもの）を除外してカウント
           // 実際のファイルのみをカウント
