@@ -879,7 +879,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
     const userInfo = getUserInfo();
     const orgId = userInfo?.organizationId ?? '';
-    const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+    // maimlFileKey が存在する場合はそれを使用（ファイル名がプロジェクト名と異なるケースに対応）
+    const sourceS3Key = selectedProject.maimlFileKey
+      ?? `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
     const params: MaimlEditorParams = {
       editMode: 'project',
       editingFileName: `${selectedProject.name}.maiml`,
@@ -905,7 +907,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     if (targetProject) {
       const userInfo = getUserInfo();
       const orgId = userInfo?.organizationId ?? '';
-      const sourceS3Key = `${orgId}/projects/${targetProject.name}/${targetProject.name}.maiml`;
+      // maimlFileKey が存在する場合はそれを使用（ファイル名がプロジェクト名と異なるケースに対応）
+      const sourceS3Key = targetProject.maimlFileKey
+        ?? `${orgId}/projects/${targetProject.name}/${targetProject.name}.maiml`;
       const params: MaimlEditorParams = {
         editMode: 'project',
         editingFileName: `${targetProject.name}.maiml`,
@@ -2146,7 +2150,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             if (targetProject) {
               const userInfo = getUserInfo();
               const orgId = userInfo?.organizationId ?? '';
-              const sourceS3Key = `${orgId}/projects/${targetProject.name}/${targetProject.name}.maiml`;
+              // maimlFileKey が存在する場合はそれを使用（ファイル名がプロジェクト名と異なるケースに対応）
+              const sourceS3Key = targetProject.maimlFileKey
+                ?? `${orgId}/projects/${targetProject.name}/${targetProject.name}.maiml`;
               const params: MaimlEditorParams = {
                 editMode: 'project',
                 editingFileName: `${targetProject.name}.maiml`,

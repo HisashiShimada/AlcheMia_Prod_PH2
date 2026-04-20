@@ -407,7 +407,16 @@ export class ProjectService {
             WHERE fm.organization_id = p.organization_id
               AND fm.file_key LIKE CAST(p.organization_id AS TEXT) || '/projects/' || p.project_name || '/%'
               AND fm.file_key NOT LIKE '%/.keep'
-          ) as file_count
+          ) as file_count,
+          (
+            SELECT fm2.file_key
+            FROM file_metadata fm2
+            WHERE fm2.project_uuid = p.project_uuid
+              AND fm2.file_key LIKE '%.maiml'
+              AND fm2.file_key NOT LIKE '%/archive/%'
+            ORDER BY fm2.created_at DESC
+            LIMIT 1
+          ) as maiml_file_key
         FROM project p
         LEFT JOIN project_task_detail ptd
           ON ptd.project_id = p.project_id
@@ -444,7 +453,8 @@ export class ProjectService {
           p.project_maiml_flg,
           p.checkout_status,
           p.create_at,
-          checkout_user.user_id
+          checkout_user.user_id,
+          p.project_uuid
         ORDER BY p.${sortBy} ${order.toUpperCase()}
       `;
 
@@ -498,6 +508,7 @@ export class ProjectService {
         updatedAt: row.update_at ? row.update_at.toISOString() : '', // 後で実装予定
         totalTasks: parseInt(row.task_count, 10),
         completedTasks: parseInt(row.completed_task_count, 10),
+        maimlFileKey: row.maiml_file_key || null,
       }));
 
       // ページネーション情報を構築（後方互換のため残す）
