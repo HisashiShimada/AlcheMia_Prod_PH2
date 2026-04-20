@@ -1,11 +1,11 @@
 # ファイルアクセスAPI仕様書
 
 **作成日**: 2026-02-19 17:05  
-**最終更新**: 2026-04-08  
-**バージョン**: 1.3.0  
+**最終更新**: 2026-04-20  
+**バージョン**: 1.4.0  
 **対象画面**: 全画面共通  
-**総API数**: 12個  
-**実装状況**: 12個実装済み、0個未実装
+**総API数**: 13個  
+**実装状況**: 13個実装済み、0個未実装
 
 ---
 
@@ -40,6 +40,7 @@
 | 10 | バッチキャンセル | POST | `/api/v1/files/batches/:batchId/cancel` | ✅ 実装済み | - |
 | 11 | ファイルリネーム | PATCH | `/api/v1/files/rename` | ✅ 実装済み | - |
 | 12 | バッチ先行作成 | POST | `/api/v1/files/batches/init` | ✅ 実装済み | - |
+| 13 | フォルダ削除 | DELETE | `/api/v1/files/delete-folder` | ✅ 実装済み | - |
 
 ---
 
@@ -1323,6 +1324,171 @@ try {
 
 ---
 
+---
+
+## API #12: バッチ先行作成 ✅
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | POST |
+| **エンドポイント** | `/api/v1/files/batches/init` |
+| **説明** | アップロード開始前にバッチIDを先行発行する |
+| **実装状態** | ✅ 実装済み |
+| **権限** | すべてのロール（マルチテナント分離で保護） |
+| **呼び出し元** | BulkUploadDialog.tsx, FormatUploadDialog.tsx |
+
+### リクエスト
+
+**リクエストボディ（JSON）**
+
+```json
+{
+  "uploadMode": "bulk",
+  "targetPath": "projects/sample_project/data",
+  "totalFiles": 10,
+  "totalSize": 123456
+}
+```
+
+| フィールド | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| `uploadMode` | string | ✅ | `single`, `bulk`, `folder` のいずれか |
+| `targetPath` | string | ✅ | アップロード先パス（organization_id省略） |
+| `totalFiles` | number | ✅ | アップロード予定ファイル数 |
+| `totalSize` | number | ✅ | 合計ファイルサイズ（バイト） |
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "data": {
+    "batchId": "batch-550e8400-e29b-41d4-a716-446655440000-1711785300000"
+  }
+}
+```
+
+---
+
+## API #13: フォルダ削除 ✅
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | DELETE |
+| **エンドポイント** | `/api/v1/files/delete-folder` |
+| **説明** | 指定フォルダ配下のファイルをすべて再帰的に削除する |
+| **実装状態** | ✅ 実装済み |
+| **実装日** | 2026-04-20 |
+| **権限** | すべてのロール（マルチテナント分離で保護） |
+| **呼び出し元** | ProjectManagement.tsx, FormatManagement.tsx |
+
+### リクエスト
+
+**リクエストボディ（JSON）**
+
+```json
+{
+  "folderPath": "projects/sample_project/rawdata"
+}
+```
+
+| フィールド | 型 | 必須 | 制約 |
+|-----------|-----|------|------|
+| `folderPath` | string | ✅ | 1〜1024文字（organization_id省略の相対パス） |
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "message": "フォルダを削除しました",
+  "data": {
+    "folderPath": "projects/sample_project/rawdata",
+    "deletedCount": 5
+  }
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `folderPath` | string | 削除したフォルダパス |
+| `deletedCount` | number | 削除されたファイル数 |
+
+**エラー時**
+
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | E1003 | `folderPath` が未指定・空文字・1024文字超 |
+| 401 | E5013 | 認証エラー |
+| 403 | E5015 | 権限不足 |
+| 500 | E4001 | サーバーエラー（S3/Swiftアクセスエラー含む） |
+
+### 処理フロー
+
+1. バリデーション（`folderPath` 必須・文字列・1〜1024文字）
+2. `fileAccessService.deleteFolderRecursive(organizationId, folderPath)` を呼び出し
+3. `storageService.deleteFolderRecursive()` がフォルダ配下のファイルを再帰的に列挙・削除
+4. 削除件数を含むレスポンスを返却
+
+### 実装ファイル
+
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`deleteFolder`)
+- **サービス**: `backend/src/services/fileAccessService.ts` (`deleteFolderRecursive`)
+- **ストレージ**: `backend/src/services/storageService.ts` (`deleteFolderRecursive`)
+
+### フロントエンド使用箇所
+
+| コンポーネント | 用途 |
+|-------------|------|
+| `ProjectManagement.tsx` | プロジェクトファイル管理画面でフォルダ削除 |
+| `FormatManagement.tsx` | フォーマット管理画面でフォルダ削除 |
+
+**フロントエンドサービス呼び出し例**:
+```typescript
+// frontend/src/services/fileAccessService.ts
+export async function deleteFolderByPath(folderPath: string): Promise<void> {
+  await apiClient.delete('/files/delete-folder', {
+    data: { folderPath },
+  });
+}
+```
+
+### セキュリティ考慮事項
+
+- **マルチテナント分離**: `organization_id` はセッションから自動取得。フォルダパスに自動付与されるため他組織フォルダへのアクセス不可
+- **再帰削除**: フォルダ配下のすべてのファイル（サブフォルダ含む）を削除するため、確認ダイアログを表示してから呼び出すこと
+- **権限チェック**: `authMiddleware` により認証済みユーザーのみ実行可能
+
+---
+
+## 📝 変更履歴（更新）
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|----------|--------|
+| 1.4.0 | 2026-04-20 | フォルダ削除機能追加 | Cline |
+| | | - API #13: フォルダ削除 DELETE /api/v1/files/delete-folder | |
+| | | - API #12: バッチ先行作成 POST /api/v1/files/batches/init | |
+| | | - 総API数を12→13に更新 | |
+| 1.3.0 | 2026-04-08 | ファイルリネーム機能追加 | Cline |
+| | | - API #11: ファイルリネーム PATCH /api/v1/files/rename | |
+| 1.2.0 | 2026-03-30 | アップロードキャンセル機能追加 | Cline |
+| | | - API #10: バッチキャンセル POST /api/v1/files/batches/:batchId/cancel | |
+| 1.1.0 | 2026-03-06 | ProjectManagement画面調査によりfileAccessService.tsから呼び出されるAPI追記 | Cline |
+| | | - API #7: ファイルテキスト内容取得 POST /api/v1/files/content-as-text | |
+| | | - API #8: ファイル削除 DELETE /api/v1/files/delete | |
+| 1.0.0 | 2026-02-19 17:05 | 初版作成 | Cline |
+
+---
+
 **作成者**: Cline
 **作成日**: 2026-02-19 17:05
-**最終更新**: 2026-04-08
+**最終更新**: 2026-04-20

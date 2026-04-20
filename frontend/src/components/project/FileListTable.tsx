@@ -44,6 +44,8 @@ interface FileListTableProps {
   onFolderClick?: (folderId: string) => void;
   onViewFile?: (file: ProjectFile) => void;
   onDeleteFile?: (file: ProjectFile) => void;
+  /** フォルダ削除ハンドラ（フォルダ行に削除ボタンを表示するために必要） */
+  onDeleteFolder?: (file: ProjectFile) => void;
   /** ファイル名変更後に呼び出すコールバック（ファイル一覧再取得用） */
   onRenameFile?: () => void;
 }
@@ -67,6 +69,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
   onFolderClick, 
   onViewFile,
   onDeleteFile,
+  onDeleteFolder,
   onRenameFile,
 }) => {
   const { token } = theme.useToken();
@@ -257,7 +260,27 @@ const FileListTable: React.FC<FileListTableProps> = ({
       width: 280,
       align: 'center',
       render: (_text: string, record: ProjectFile) => {
-        if (record.isFolder) return null;
+        // フォルダ行: 削除ボタンのみ表示（onDeleteFolder が渡されている場合）
+        if (record.isFolder) {
+          if (!onDeleteFolder) return null;
+          return (
+            <Space size="small">
+              <Button
+                type="default"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                data-testid="folder-delete-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteFolder(record);
+                }}
+              >
+                削除
+              </Button>
+            </Space>
+          );
+        }
 
         // ドロップダウンメニューの項目
         const menuItems: MenuProps['items'] = [
