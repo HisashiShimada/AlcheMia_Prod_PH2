@@ -310,7 +310,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       if (!key) return;
       const xsiType = prop.getAttribute('xsi:type') || prop.getAttribute('type') || 'string';
       const units = prop.getAttribute('units');
-      const value = prop.querySelector(':scope > value')?.textContent?.trim() ?? '';
+      const value = prop.querySelector(':scope > value')?.textContent?.trim() || undefined;
       const desc = prop.querySelector(':scope > description')?.textContent?.trim();
       templateProps[`property_${key}`] = {
         key,
