@@ -1036,6 +1036,21 @@ export default function DataRecordDialog({
         });
       }
 
+      // ── トップレベル Contents（baseData.contents 配列）の value を更新 ──
+      if (Array.isArray(baseData.contents)) {
+        (baseData.contents as Array<Record<string, unknown>>).forEach((c) => {
+          if (c.isCustomProperty === true) return;
+          const contentKey = String(c.key ?? '');
+          if (!contentKey) return;
+          const formKey = `${template.templateId}_${contentKey}`;
+          const rawVal = values[formKey];
+          // ContentRowListInput は string[] を返す
+          if (Array.isArray(rawVal)) {
+            c.value = rawVal as string[];
+          }
+        });
+      }
+
       // ── 非カスタム insertion（テンプレート定義）のファイルをS3にアップロード ──
       // insertionFiles[template.templateId][insIdx] に File が存在する場合のみアップロードする
       const tplInsertionFiles = insertionFiles[template.templateId] ?? {};
