@@ -438,6 +438,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const maimlDataRef = useRef('');
   const isLoadingRef = useRef(false); // 🔧 FIX: ローディング中フラグを追加
   const isFirstNodeRef = useRef(true); // Bug Fix: 初回ノード追加フラグ
+  // ✅ Fix: pushStateをsetNodesコールバック外で呼ぶために使用するref
+  const updatedNodesRef = useRef<Node<NodeData>[]>([]);
 
   // Phase 3C: history.presentとの同期
   useEffect(() => {
@@ -1737,10 +1739,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
 
       // ✅ 修正: 新規テンプレート作成時もnodesのdata.templateを更新する
       // （methodsのuseEffectがnodesの変化を監視しているため、ここで更新が必要）
+      const newPlaceRefsToUpdate = newTemplateForContext.placeRefs || [];
       setNodes((nds) => {
-        const placeRefsToUpdate = newTemplateForContext.placeRefs || [];
         const newNodes = nds.map((node: Node<NodeData>) => {
-          if (placeRefsToUpdate.some((pr) => pr.ref === node.id)) {
+          if (newPlaceRefsToUpdate.some((pr) => pr.ref === node.id)) {
             console.log('✅ [PetriNetEditorInner] 新規テンプレート: ノードにテンプレート設定:', {
               nodeId: node.id,
               templateId: templateId,
@@ -1762,15 +1764,49 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           }
           return node;
         });
-        pushState({ nodes: newNodes, edges });
+        // ✅ Fix: refに保存してコールバック外でpushState/setSelectedNodeを呼ぶ
+        updatedNodesRef.current = newNodes;
+        return newNodes;
+      });
 
-        // ✅ PropertyPanelを即時更新（選びなおし不要）
-        const updatedNode = newNodes.find(n => n.id === nodeId);
+      // ✅ Fix: setNodesコールバック外でpushStateとsetSelectedNodeを呼ぶ
+      // → pushStateがコールバック内にあると history.present 変化→useEffect発火→setNodes再実行で
+      //   2件目のノード更新が上書きされる問題を防ぐ
+      setTimeout(() => {
+        pushState({ nodes: updatedNodesRef.current, edges });
+        // ✅ Fix: nodeIdがcanvasノードIDでない場合（テンプレート管理ビュー経由）は
+        // newPlaceRefsToUpdateから最初にマッチしたノードをselectedNodeにする
+        const candidateId = updatedNodesRef.current.some(n => n.id === nodeId)
+          ? nodeId
+          : newPlaceRefsToUpdate[0]?.ref;
+        const updatedNode = updatedNodesRef.current.find(n => n.id === candidateId);
         if (updatedNode) {
           setSelectedNode(updatedNode);
         }
+      }, 0);
 
-        return newNodes;
+      // ✅ Fix: 非アクティブメソッドのノードも更新する
+      // setNodes はアクティブメソッドのみ更新するため、methods stateも更新する
+      setMethods(prev => {
+        return prev.map((method, idx) => {
+          if (idx === activeMethodIndex) return method; // アクティブメソッドはsetNodesで更新済み
+          const updatedNodes = method.nodes.map((node: Node<NodeData>) => {
+            if (newPlaceRefsToUpdate.some((pr) => pr.ref === node.id)) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  template: newTemplateForContext,
+                  templateRef: newTemplateForContext,
+                  isCommonTemplate: isCommonTemplate,
+                  commonTemplateRef: isCommonTemplate ? templateId : node.data.commonTemplateRef,
+                },
+              };
+            }
+            return node;
+          });
+          return { ...method, nodes: updatedNodes };
+        });
       });
 
       onContentChange?.();
@@ -1846,11 +1882,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     }
     
     // ✅ 修正: placeRefsに含まれる全てのノードにテンプレートを設定
+    const existingPlaceRefsToUpdate = convertedTemplateRef.placeRefs || [];
     setNodes((nds) => {
-      const placeRefsToUpdate = convertedTemplateRef.placeRefs || [];
       console.log('🔄 [PetriNetEditorInner] ノードにテンプレート紐付け:', {
         templateId: templateId,
-        placeRefsToUpdate,
+        existingPlaceRefsToUpdate,
         totalNodes: nds.length,
         isCommonTemplate: isCommonTemplate,
         methodId: methodId
@@ -1858,7 +1894,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       const newNodes = nds.map((node: Node<NodeData>) => {
         // placeRefsに含まれるノードにテンプレートを設定
-        if (placeRefsToUpdate.some((pr) => pr.ref === node.id)) {
+        if (existingPlaceRefsToUpdate.some((pr) => pr.ref === node.id)) {
           console.log('✅ [PetriNetEditorInner] ノードにテンプレート設定:', {
             nodeId: node.id,
             templateId: templateId,
@@ -1873,27 +1909,63 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
               template: convertedTemplateRef,
               templateRef: convertedTemplateRef, // 互換性のため両方保持
               isCommonTemplate: isCommonTemplate, // ✅ 追加: 共通テンプレートフラグを設定
+              // ✅ 修正: 共通テンプレートの場合、templateIdをcommonTemplateRefに設定
+              // これによりテンプレート管理ビューのPlaceRef追加後もPropertyPanelのドロップダウンが正しく表示される
+              commonTemplateRef: isCommonTemplate ? templateId : node.data.commonTemplateRef,
             },
           };
         }
         return node;
       });
       
-      // 履歴に追加
-      pushState({ nodes: newNodes, edges });
-      
-      // 選択ノードも更新
-      const updatedNode = newNodes.find(n => n.id === nodeId);
+      // ✅ Fix: refに保存してコールバック外でpushState/setSelectedNodeを呼ぶ
+      updatedNodesRef.current = newNodes;
+      return newNodes;
+    });
+
+    // ✅ Fix: setNodesコールバック外でpushStateとsetSelectedNodeを呼ぶ
+    // → pushStateがコールバック内にあると history.present 変化→useEffect発火→setNodes再実行で
+    //   2件目のノード更新が上書きされる問題を防ぐ
+    setTimeout(() => {
+      pushState({ nodes: updatedNodesRef.current, edges });
+      // ✅ Fix: nodeIdがcanvasノードIDでない場合（テンプレート管理ビュー経由）は
+      // existingPlaceRefsToUpdateから最初にマッチしたノードをselectedNodeにする
+      const candidateId = updatedNodesRef.current.some(n => n.id === nodeId)
+        ? nodeId
+        : existingPlaceRefsToUpdate[0]?.ref;
+      const updatedNode = updatedNodesRef.current.find(n => n.id === candidateId);
       if (updatedNode) {
         setSelectedNode(updatedNode);
       }
-      
-      return newNodes;
+    }, 0);
+
+    // ✅ Fix: 非アクティブメソッドのノードも更新する
+    // setNodes はアクティブメソッドのみ更新するため、methods stateも更新する
+    setMethods(prev => {
+      return prev.map((method, idx) => {
+        if (idx === activeMethodIndex) return method; // アクティブメソッドはsetNodesで更新済み
+        const updatedNodes = method.nodes.map((node: Node<NodeData>) => {
+          if (existingPlaceRefsToUpdate.some((pr) => pr.ref === node.id)) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                template: convertedTemplateRef,
+                templateRef: convertedTemplateRef,
+                isCommonTemplate: isCommonTemplate,
+                commonTemplateRef: isCommonTemplate ? templateId : node.data.commonTemplateRef,
+              },
+            };
+          }
+          return node;
+        });
+        return { ...method, nodes: updatedNodes };
+      });
     });
-    
+
     onContentChange?.();
     console.log('💾 [PetriNetEditorInner] Template保存完了:', { nodeId, templateId, convertedTemplateRef });  // ✅ templateIdを追加
-  }, [setNodes, edges, pushState, convertNestedPropertiesToArray, onContentChange]);
+  }, [setNodes, setMethods, activeMethodIndex, edges, pushState, convertNestedPropertiesToArray, onContentChange, methods, documentData]);
 
   // Document編集ダイアログを開く
   const handleOpenDocumentEditor = useCallback(() => {
@@ -3408,7 +3480,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           allNodes={(() => {
             // 共通テンプレートかどうかを判定
             const isCommonTemplate = 
-              !templateEditNode?.data?.template?.methodId ||
+              !templateEditNode?.data?.methodId ||
               showCommonTemplates;
             
             // ✅ 共通テンプレート：全methodsのnodesを返す

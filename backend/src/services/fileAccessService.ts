@@ -399,7 +399,6 @@ export class FileAccessService {
         const sanitizedFileName = sanitizedParts[sanitizedParts.length - 1];
 
         // MAIMLファイル名 × projectName バリデーション
-        // projects/ パスへの .maiml アップロード時、ファイル名（拡張子除く）がプロジェクト名と一致するか確認
         if (sanitizedFileName.endsWith('.maiml') && normalizedPath.startsWith('projects/')) {
           const pathParts = normalizedPath.split('/');
           if (pathParts.length >= 2) {
