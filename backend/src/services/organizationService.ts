@@ -382,7 +382,14 @@ export async function createOrganization(
     // ③ 基本フォルダ構造の作成（S3/Swift）
     logger.info(`[organizationService] 基本フォルダ構造を作成: organizationId=${data.organizationId}`);
     const storageService = getStorageService();
-    const organizationFolders = ['projects/', 'formats/'];
+    const organizationFolders = [
+      'projects/',
+      'formats/',
+      'formats/default/',
+      'formats/default/condition/',
+      'formats/default/material/',
+      'formats/default/result/',
+    ];
     await storageService.createFolders(data.organizationId, organizationFolders);
     logger.info(`[organizationService] 基本フォルダ構造作成完了: organizationId=${data.organizationId}`);
 

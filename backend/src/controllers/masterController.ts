@@ -1093,7 +1093,7 @@ export async function getAttributes(req: Request, res: Response, next: NextFunct
     // apply_department_filter=true の場合のみ部署フィルタを適用
     // ログインユーザーの部署コードでフィルタリング（マスタ管理画面では使用しない）
     if (apply_department_filter === 'true') {
-      const departmentCd = req.session?.departmentCd;
+      const departmentCd = req.user?.departmentCd;
       if (departmentCd) {
         filters.departmentCd = departmentCd;
       }

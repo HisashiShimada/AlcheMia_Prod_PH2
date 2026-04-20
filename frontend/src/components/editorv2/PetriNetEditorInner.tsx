@@ -815,7 +815,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                     ...node,
                     data: {
                       ...node.data,
-                      commonTemplateRef: referencedPlaceId
+                      commonTemplateRef: referencedPlaceId,
+                      isCommonTemplate: true, // ✅ 共通テンプレートRefを持つノードはチェックをONにする
                     }
                   };
                 }
@@ -1753,12 +1754,22 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                 template: newTemplateForContext,
                 templateRef: newTemplateForContext,
                 isCommonTemplate: isCommonTemplate,
+                // ✅ 共通テンプレートの場合、自分自身のテンプレートIDをcommonTemplateRefに設定
+                // これによりPropertyPanelの「共通テンプレート参照」ドロップダウンが選択状態になる
+                commonTemplateRef: isCommonTemplate ? templateId : node.data.commonTemplateRef,
               },
             };
           }
           return node;
         });
         pushState({ nodes: newNodes, edges });
+
+        // ✅ PropertyPanelを即時更新（選びなおし不要）
+        const updatedNode = newNodes.find(n => n.id === nodeId);
+        if (updatedNode) {
+          setSelectedNode(updatedNode);
+        }
+
         return newNodes;
       });
 
@@ -1955,6 +1966,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     setSelectedTemplate(template);
     
     // ✅ 修正: uuid, placeRefs, templateRefs, descriptionを含めた仮ノードを作成
+            // ✅ 共通テンプレートかどうかを判定（methodIdがnull/undefinedなら共通テンプレート）
+            const isCommonTmpl = template.methodId === null || template.methodId === undefined;
             const tempNode: Node<NodeData> = {
               id: template.id,
               position: { x: 0, y: 0 }, // ✅ 追加: position必須
@@ -1964,6 +1977,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                 description: template.description || '',
                 nodeType: 'place' as NodeType,
                 placeType: template.category,
+                isCommonTemplate: isCommonTmpl, // ✅ 修正: 共通テンプレートフラグを設定
+                methodId: template.methodId || null,
                 template: {
                   id: template.id,
                   name: template.name || '',

@@ -150,7 +150,7 @@ tags: [system-admin, user-management, dialog, edit-form]
 </Form.Item>
 ```
 
-### 3.3. 所属部署（必須）
+### 3.3. 所属部署（任意）
 
 **コンポーネント**: `<Form.Item>` + `<Select>`
 
@@ -158,10 +158,15 @@ tags: [system-admin, user-management, dialog, edit-form]
 | 項目 | 値 |
 |------|-----|
 | ラベル | 「所属部署」 |
-| 必須 | ○ |
+| 必須 | - |
 | プレースホルダー | 「所属部署を選択」 |
 | データソース | departmentApiService.fetchMasters() |
-| 初期値 | 選択したユーザーのdepartment_cd |
+| 初期値 | 選択したユーザーのdepartment_cd（nullの場合は空） |
+
+**注意事項**:
+- 部署が未設定（null）のユーザーも保存可能（例: 組織作成時に自動登録されるシステム管理者）
+- 部署未設定ユーザーがフォーマット管理を開いた場合、`formats/default/` フォルダを参照する
+- 既存ユーザーの部署を空に戻す（null化）も可能
 
 **選択肢**:
 ```typescript
@@ -173,12 +178,7 @@ tags: [system-admin, user-management, dialog, edit-form]
 ```
 
 **バリデーション**:
-```typescript
-{
-  required: true,
-  message: '所属部署を選択してください'
-}
-```
+- バリデーションなし（任意項目）
 
 ### 3.4. ロール（必須）
 
@@ -464,10 +464,12 @@ Authorization: Bearer {session_token}
 
 **必須チェック**:
 - ユーザー名
-- 所属部署
 - ロール
 - 二段階認証設定
 - アクティブ判定
+
+**任意項目**:
+- 所属部署（未選択可。未設定の場合は `formats/default/` フォルダを参照）
 
 **注意事項**:
 - メールアドレスは読み取り専用のため、バリデーション不要
@@ -491,7 +493,6 @@ Authorization: Bearer {session_token}
 | エラーコード | メッセージ | 表示場所 |
 |------------|----------|---------|
 | `VALIDATION_ERROR` | 「ユーザー名を入力してください」 | フォームフィールド |
-| `VALIDATION_ERROR` | 「所属部署を選択してください」 | フォームフィールド |
 | `VALIDATION_ERROR` | 「ロールを選択してください」 | フォームフィールド |
 | `RESOURCE_NOT_FOUND` | 「ユーザーが存在しません」 | トースト |
 | `SYSTEM_ERROR` | 「保存に失敗しました」 | トースト |
@@ -771,15 +772,15 @@ const handleModalOk = async () => {
       />
     </Form.Item>
 
-    {/* 所属部署 */}
+    {/* 所属部署（任意） */}
     <Form.Item
       name="departmentCd"
       label="所属部署"
-      rules={[{ required: true, message: '所属部署を選択してください' }]}
     >
       <Select
         placeholder="所属部署を選択"
         options={departments}
+        allowClear
       />
     </Form.Item>
 
