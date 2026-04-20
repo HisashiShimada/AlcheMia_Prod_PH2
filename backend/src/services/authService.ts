@@ -717,6 +717,7 @@ export class AuthService {
         sessionId: newTokenId,  // 後方互換性のため
         tokenId: newTokenId,     // アクセストークンとリフレッシュトークンで共通
         permissions,
+        departmentCd: user.department_cd || undefined,
       });
 
       if (!tokenPairResult.success) {
