@@ -542,9 +542,17 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
 
   // 空のオブジェクト追加
   const handleAdd = useCallback(() => {
+    // 既存IDの末尾数値の最大値を取得し、次の連番を算出（削除後の重複防止）
+    const existingNumbers = objects.map(obj => {
+      const match = obj.id?.match(/(\d+)$/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+    const nextNumber = maxNumber + 1;
+
     const newObject: DocumentTagData = {
       tagName: objectKey === 'creators' ? 'Creator' : objectKey === 'vendors' ? 'Vendor' : objectKey === 'owners' ? 'Owner' : 'Instrument',
-      id: `${objectKey}${objects.length + 1}`,
+      id: `${objectKey}${nextNumber}`,
       uuid: '',
       name: '',
       description: '',
