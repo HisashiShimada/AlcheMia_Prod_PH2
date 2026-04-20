@@ -791,6 +791,12 @@ export default function DataRecordDialog({
                       // 日時型
                       'dateType', 'dateTimeType',
                       // リスト型
+                      'stringType', 'tokenType', 'stringEnumType',
+                      'intType', 'longType', 'shortType', 'byteType',
+                      'unsignedIntType', 'unsignedLongType', 'unsignedShortType', 'unsignedByteType',
+                      'floatType', 'doubleType', 'decimalType',
+                      'booleanType',
+                      'dateType', 'dateTimeType',
                       'stringListType', 'intListType', 'longListType', 'shortListType', 'byteListType',
                       'unsignedIntListType', 'floatListType', 'doubleListType', 'decimalListType',
                       'booleanListType', 'dateTimeListType',
