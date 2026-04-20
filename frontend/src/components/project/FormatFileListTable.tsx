@@ -49,6 +49,8 @@ interface FormatFileListTableProps {
   onEdit?: (file: FormatFileData) => void;
   onDownload?: (file: FormatFileData) => void;
   onDelete?: (file: FormatFileData) => void;
+  /** フォルダ削除ハンドラ（フォルダ行に削除ボタンを表示するために必要） */
+  onDeleteFolder?: (file: FormatFileData) => void;
 }
 
 /**
@@ -61,7 +63,8 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
   onFolderClick,
   onEdit,
   onDownload,
-  onDelete 
+  onDelete,
+  onDeleteFolder,
 }) => {
   const { token } = theme.useToken();
   
@@ -135,8 +138,31 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
       key: 'actions',
       width: 200,
       align: 'center',
-      render: (_text: string, record: FormatFileData) =>
-        !record.isFolder ? (
+      render: (_text: string, record: FormatFileData) => {
+        // フォルダ行: 削除ボタンのみ表示（onDeleteFolder が渡されている場合）
+        // ただし「↑ 戻る」エントリ（id === 'back'）には表示しない
+        if (record.isFolder) {
+          if (!onDeleteFolder || record.id === 'back') return null;
+          return (
+            <Space size="small">
+              <Button
+                type="default"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                data-testid={`folder-delete-button-${record.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteFolder(record);
+                }}
+              >
+                削除
+              </Button>
+            </Space>
+          );
+        }
+
+        return (
           <Space size="small">
             <Button
               type="primary"
@@ -179,7 +205,8 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
               削除
             </Button>
           </Space>
-        ) : null,
+        );
+      },
     },
   ];
 

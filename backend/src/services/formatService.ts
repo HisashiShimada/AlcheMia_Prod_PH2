@@ -197,7 +197,7 @@ export async function getFormatFiles(
           filesAndFolders.push({
             id: subFolderName,
             name: subFolderName,
-            path: subFolderName,
+            path: subFolderFullPath,
             size: 0,
             lastModified: new Date().toISOString(),
             type: 'folder',
@@ -231,7 +231,7 @@ export async function getFormatFiles(
           filesAndFolders.push({
             id: subFolderName,
             name: subFolderName,
-            path: subFolderName,
+            path: subFolderFullPath,
             size: 0,
             lastModified: new Date().toISOString(),
             type: 'folder',

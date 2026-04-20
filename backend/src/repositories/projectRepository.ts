@@ -659,6 +659,34 @@ export async function deleteProjectRelatedData(
 }
 
 /**
+ * project_uuid をキーに project_maiml_flg を更新
+ *
+ * フォルダ削除等でMAIMLファイルが失われた場合に false にセットするために使用。
+ * file_metadata.project_uuid と project.project_uuid を紐付けて特定する。
+ *
+ * @param organizationId 組織ID（マルチテナント分離必須）
+ * @param projectUuid project.project_uuid の値
+ * @param maimlFlg 設定する値（通常は false）
+ */
+export async function updateMaimlFlgByUuid(
+  organizationId: string,
+  projectUuid: string,
+  maimlFlg: boolean
+): Promise<void> {
+  const pool = getPool();
+
+  const query = `
+    UPDATE project
+    SET project_maiml_flg = $1,
+        update_at = CURRENT_TIMESTAMP
+    WHERE organization_id = $2
+      AND project_uuid = $3
+  `;
+
+  await pool.query(query, [maimlFlg, organizationId, projectUuid]);
+}
+
+/**
  * プロジェクトを削除
  * 
  * @param organizationId 組織ID

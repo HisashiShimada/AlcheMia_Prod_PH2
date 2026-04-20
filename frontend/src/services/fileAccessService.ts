@@ -845,3 +845,34 @@ export const renameFile = async (
   );
   return response.data as RenameFileResponse;
 };
+
+// ---------------------------------------------------------------------------
+// フォルダ削除
+// ---------------------------------------------------------------------------
+
+/**
+ * フォルダ再帰削除API
+ *
+ * DELETE /api/v1/files/delete-folder
+ *
+ * 指定されたフォルダパス配下のファイルをすべて再帰的に削除する。
+ *
+ * @param folderPath 削除対象フォルダの相対パス（organizationId なし。例: "projects/foo/rawdata"）
+ * @returns 削除されたファイル数を含む結果
+ *
+ * @example
+ * // プロジェクト配下のサブフォルダを削除
+ * await deleteFolderByPath('projects/sample_project/rawdata');
+ *
+ * // フォーマット配下のサブフォルダを削除
+ * await deleteFolderByPath('formats/dept_001/chemistry');
+ */
+export const deleteFolderByPath = async (
+  folderPath: string
+): Promise<{ success: boolean; data?: { message: string; folderPath: string; deletedCount: number }; error?: { code: string; message: string } }> => {
+  const api = createApiClient();
+  const response = await api.delete('/files/delete-folder', {
+    data: { folderPath },
+  });
+  return response.data;
+};

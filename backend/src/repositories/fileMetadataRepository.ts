@@ -770,6 +770,38 @@ export class FileMetadataRepository {
   }
 
   /**
+   * 指定されたfile_keyの中でproject_uuidが設定されているレコードを取得
+   *
+   * フォルダ削除時にMAIMLファイルが含まれているか判定し、
+   * 対応するproject_uuidを収集するために使用する。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離に必須）
+   * @param fileKeys - 削除対象のファイルキー配列
+   * @returns project_uuidの一意な配列（重複除去済み）
+   */
+  async findProjectUuidsByFileKeys(
+    organizationId: string,
+    fileKeys: string[]
+  ): Promise<string[]> {
+    if (fileKeys.length === 0) {
+      return [];
+    }
+
+    const pool = getPool();
+
+    const query = `
+      SELECT DISTINCT project_uuid
+      FROM file_metadata
+      WHERE organization_id = $1
+        AND file_key = ANY($2::text[])
+        AND project_uuid IS NOT NULL
+    `;
+
+    const result = await pool.query(query, [organizationId, fileKeys]);
+    return result.rows.map((row: { project_uuid: string }) => row.project_uuid);
+  }
+
+  /**
    * プロジェクトUUIDからMAIMLファイルのfile_keyを取得
    *
    * project.project_uuid と紐付けられた最新のMAIMLファイルの

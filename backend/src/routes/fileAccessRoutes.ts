@@ -502,6 +502,30 @@ router.post(
 );
 
 /**
+ * フォルダ再帰削除
+ * DELETE /api/v1/files/delete-folder
+ *
+ * 指定されたフォルダパス配下のファイルを再帰的に削除する。
+ *
+ * @middleware authMiddleware - JWT認証
+ */
+router.delete(
+  '/delete-folder',
+  authMiddleware,
+  [
+    body('folderPath')
+      .notEmpty()
+      .withMessage('folderPathは必須です')
+      .isString()
+      .withMessage('folderPathは文字列である必要があります')
+      .isLength({ min: 1, max: 1024 })
+      .withMessage('folderPathは1〜1024文字である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.deleteFolder
+);
+
+/**
  * ファイル名変更
  * PATCH /api/v1/files/rename
  *

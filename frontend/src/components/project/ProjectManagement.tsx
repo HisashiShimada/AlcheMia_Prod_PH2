@@ -49,6 +49,7 @@ import { useApi } from '@/hooks/useApi';
 import {
   downloadFolderAsZip,
   deleteFileByKey,
+  deleteFolderByPath,
 } from '@/services/fileAccessService';
 import { getProjects } from '@/services/projectApiService';
 import {
@@ -1304,6 +1305,58 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     });
   }, [selectedProject, refetchProjects, reloadMaiml]);
 
+  // フォルダ削除ハンドラ
+  const handleDeleteFolder = useCallback(async (folder: ProjectFile) => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+    // 戻るボタン行は除外
+    if (folder.id === 'back') return;
+
+    Modal.confirm({
+      title: `フォルダ「${folder.name}」を削除しますか？`,
+      content: (
+        <div>
+          <p>このフォルダ内のファイルもすべて削除されます。この操作は取り消せません。</p>
+        </div>
+      ),
+      okText: '削除',
+      cancelText: 'キャンセル',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          console.log('🗑️ [ProjectManagement] フォルダ削除開始:', folder.path);
+          await deleteFolderByPath(folder.path);
+          console.log('✅ [ProjectManagement] フォルダ削除成功:', folder.path);
+          message.success(`フォルダ「${folder.name}」を削除しました`);
+
+          // ファイル一覧を再取得
+          const fileResponse = await getProjectFiles(selectedProject.id, true);
+          setProjectFilesData(prev => ({
+            ...prev,
+            [selectedProject.id]: {
+              root: fileResponse.files || [],
+              subFolderFiles: fileResponse.subFolderFiles || {},
+            }
+          }));
+
+          // 削除したフォルダを表示中だった場合はルートに戻す
+          if (currentFolder !== 'root') {
+            setCurrentFolder('root');
+          }
+        } catch (error) {
+          console.error('❌ [ProjectManagement] フォルダ削除失敗:', error);
+          if (error instanceof AxiosError && error.response?.data?.error?.message) {
+            message.error(error.response.data.error.message);
+          } else {
+            message.error('フォルダの削除に失敗しました');
+          }
+        }
+      },
+    });
+  }, [selectedProject, currentFolder]);
+
   // プロジェクト一括ダウンロードハンドラ（ZIP形式）
   const handleProjectDownload = useCallback(async () => {
     if (!selectedProject) {
@@ -1880,6 +1933,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         onFolderClick={handleFolderClick}
                         onViewFile={handleViewFile}
                         onDeleteFile={handleDeleteMaimlFile}
+                        onDeleteFolder={handleDeleteFolder}
                         onRenameFile={async () => {
                           // ファイルリネーム成功後にファイル一覧を再取得
                           const fileResponse = await getProjectFiles(selectedProject.id, true);
