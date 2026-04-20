@@ -28,6 +28,7 @@ export interface Project {
   updatedAt: string;
   completedTasks?: number;
   totalTasks?: number;
+  maimlFileKey?: string | null;
   tasks?: Task[];
 }
 
