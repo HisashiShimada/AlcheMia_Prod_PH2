@@ -9,6 +9,7 @@
 import { DOMParser } from '@xmldom/xmldom';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { getStorageService } from './storageService';
+import { createMaimlBackup } from '../utils/maimlArchiveHelper';
 import * as crypto from 'crypto';
 import * as validationHistoryRepository from '../repositories/validationHistoryRepository';
 import { EditSession, ParseResult,AnalysisResult  } from '../types/maimlValidation';
@@ -153,12 +154,12 @@ export async function saveMaiML(
     // ファイルのバックアップ（archiveがtrueの場合のみ）
     if (archive) {
       // normalizedFileKeyにはorgIdプレフィックスが付いているが、
-      // createBackup内のstorageServiceがorgIdを自動付加するため、
+      // createMaimlBackup内のstorageServiceがorgIdを自動付加するため、
       // 相対パス（orgIdなし）を渡す必要がある
       const relativeFileKey = normalizedFileKey.startsWith(organizationId + '/')
         ? normalizedFileKey.slice(organizationId.length + 1)
         : normalizedFileKey;
-      await createBackup(relativeFileKey, organizationId);
+      await createMaimlBackup(relativeFileKey, organizationId);
     } else {
       console.log('ℹ️ [maimlService] アーカイブ化スキップ（上書き保存）');
     }
@@ -603,82 +604,6 @@ export async function endEditSession(sessionData: any): Promise<any> {
 }
 
 // ========== ヘルパー関数 ==========
-
-/**
- * バックアップ作成
- * archive/サブフォルダに連番形式で保存
- */
-async function createBackup(filePath: string, organizationId: string): Promise<string | null> {
-  try {
-    // 1. ファイル存在確認
-    const exists = await storageService.fileExists(organizationId, filePath);
-    
-    console.log(filePath, exists);
-    if (!exists) {
-      return null;
-    }
-
-    // 2. パス解析
-    const pathParts = filePath.split('/');
-    const fileName = pathParts.pop(); // sample_project.maiml
-    const dirPath = pathParts.join('/'); // projects/sample_project
-    
-    if (!fileName) {
-      console.warn('⚠️ [maimlService] ファイル名が取得できません:', filePath);
-      return null;
-    }
-    
-    const baseName = fileName.replace('.maiml', ''); // sample_project
-    
-    // 3. archiveフォルダパス生成
-    const archivePath = `${dirPath}/archive`;
-
-    // 4. archive内の既存バックアップファイルを取得して最大バージョン番号を算出
-    // 命名規則: {baseName}_v{n}.maiml （s3_structure.md 規約準拠）
-    let maxNumber = 0;
-    try {
-      const files = await storageService.listFiles(organizationId, archivePath);
-      
-      // baseName_v{n}.maiml パターンのファイルから最大バージョン番号を取得
-      const pattern = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_v(\\d+)\\.maiml$`);
-      files.forEach((file: any) => {
-        const name = file.key.split('/').pop();
-        if (name) {
-          const match = name.match(pattern);
-          if (match) {
-            const num = parseInt(match[1], 10);
-            if (num > maxNumber) {
-              maxNumber = num;
-            }
-          }
-        }
-      });
-      
-      console.log(`📊 [maimlService] archive内の既存バックアップ最大バージョン番号: ${maxNumber}`);
-    } catch (error) {
-      // archiveフォルダが存在しない場合は v1 から開始
-      console.log('📁 [maimlService] archiveフォルダが存在しないため、v1から開始');
-    }
-
-    // 5. 新しいバックアップファイル名生成（_v{n} 形式）
-    const newNumber = maxNumber + 1;
-    const backupFileName = `${baseName}_v${newNumber}.maiml`;
-    const backupPath = `${archivePath}/${backupFileName}`;
-
-    // 6. 既存ファイルを取得
-    const buffer = await storageService.downloadFile(organizationId, filePath);
-
-    // 7. バックアップ保存（uploadedBy: 'system' を渡して file_metadata を自動登録）
-    await storageService.uploadFile(organizationId, backupPath, buffer, { uploadedBy: 'system' });
-
-    console.log('📋 [maimlService] バックアップ作成:', backupPath);
-    return backupPath;
-  } catch (error) {
-    console.warn('⚠️ [maimlService] バックアップ作成失敗:', error);
-    // バックアップ失敗は警告のみ（保存処理は継続）
-    return null;
-  }
-}
 
 /**
  * MAIML XML の <document> 配下の <uuid> 子要素テキストを抽出する

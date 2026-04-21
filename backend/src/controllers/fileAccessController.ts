@@ -760,16 +760,25 @@ export async function initChunkUpload(req: Request, res: Response): Promise<void
         const projectName = pathParts[1];
         const existingProject = await projectRepository.findByName(organizationId, projectName);
         if (existingProject?.project_maiml_flg) {
-          console.error(`❌ [ChunkInit] 既存MAIMLプロジェクトへの上書き拒否: projectName=${projectName}`);
-          res.status(400).json({
-            success: false,
-            error: {
-              code: 'E7005',
-              message: `このプロジェクトには既にMAIMLファイルが登録されています。上書きする場合はプロジェクトの更新機能を使用してください（プロジェクト名: ${projectName}）`,
-            },
-            meta: { timestamp: new Date().toISOString(), requestId },
-          });
-          return;
+          const documentUuid: string | undefined = req.body.documentUuid;
+          const projectUuid = existingProject.project_uuid;
+
+          if (documentUuid && projectUuid && documentUuid === projectUuid) {
+            // UUID一致 → 同一プロジェクトのMAIML更新として許可
+            console.log(`✅ [ChunkInit] UUID一致のため上書き許可: projectName=${projectName}, uuid=${documentUuid}`);
+          } else {
+            // UUID不一致 または UUID未送信 → 従来通り拒否
+            console.error(`❌ [ChunkInit] 既存MAIMLプロジェクトへの上書き拒否: projectName=${projectName}`);
+            res.status(400).json({
+              success: false,
+              error: {
+                code: 'E7005',
+                message: `このプロジェクトには既にMAIMLファイルが登録されています。上書きする場合はプロジェクトの更新機能を使用してください（プロジェクト名: ${projectName}）`,
+              },
+              meta: { timestamp: new Date().toISOString(), requestId },
+            });
+            return;
+          }
         }
       }
     }

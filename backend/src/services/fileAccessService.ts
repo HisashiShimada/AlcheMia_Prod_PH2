@@ -39,6 +39,7 @@ import { truncateField, FILE_METADATA_MAX_LENGTHS } from '../utils/stringValidat
 import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
+import { createMaimlBackup } from '../utils/maimlArchiveHelper';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -405,25 +406,63 @@ export class FileAccessService {
             const projectName = pathParts[1];
 
             // ② MAIMLファイル重複チェック
-            // プロジェクト直下に同名の .maiml ファイルが既に存在する場合はエラー
+            // プロジェクトに既にMAIMLファイルが登録済み（project_maiml_flg=true）の場合、
+            // UUID一致チェックを行う。ファイル名ではなくフラグで判定することで、
+            // ファイル名が異なる場合でも正しくブロックできる（チャンクアップロードと同仕様）。
+            const existingProject = await projectRepository.findByName(organizationId, projectName);
+            const maimlRegistered = existingProject?.project_maiml_flg ?? false;
+            const projectUuid = existingProject?.project_uuid ?? null;
+
+            // 既存MAIMLパス（バックアップ用）
             const existingMaimlPath = `${normalizedPath}/${sanitizedFileName}`;
-            const maimlExists = await this.storageService.fileExists(organizationId, existingMaimlPath);
-            if (maimlExists) {
-              console.error(`❌ [Upload] MAIMLファイル重複: ${existingMaimlPath}`);
-              throw new ValidationError(
-                `プロジェクトにMAIMLファイルが既に存在します: ${sanitizedFileName}`
-              );
+            const maimlExists = maimlRegistered
+              ? await this.storageService.fileExists(organizationId, existingMaimlPath)
+              : false;
+
+            if (maimlRegistered) {
+              // プロジェクトにMAIMLが既に登録済み → UUID一致チェック
+              // アップロードファイルのUUIDを MaimlParserTyped で抽出（既存パターンと同じ方式）
+              let documentUuidForCheck: string | undefined;
+              try {
+                const maimlParser = new MaimlParserTyped(file.buffer.toString('utf-8'));
+                const doc = maimlParser.getDocument();
+                const uuid = doc?.uuid?.trim();
+                if (uuid && uuid.length > 0) {
+                  documentUuidForCheck = uuid;
+                  console.log('🔍 [Upload] Document UUID 抽出成功（重複チェック用）:', documentUuidForCheck);
+                }
+              } catch (parseError) {
+                console.warn('⚠️ [Upload] UUID抽出失敗（重複チェック用）:', parseError);
+              }
+
+              if (documentUuidForCheck && projectUuid && documentUuidForCheck === projectUuid) {
+                // UUID一致 → 同一プロジェクトのMAIML更新として許可
+                // 上書き前に既存MAIMLをarchiveにバックアップ（同名ファイルが存在する場合のみ）
+                console.log(`✅ [Upload] UUID一致のため上書き許可: projectName=${projectName}, uuid=${documentUuidForCheck}`);
+                if (maimlExists) {
+                  await createMaimlBackup(existingMaimlPath, organizationId);
+                  // バックアップ失敗はcreateMaimlBackup内で警告のみ（nullを返すだけでthrowしない）
+                }
+              } else {
+                // UUID不一致 または UUID未取得 → 従来通り拒否
+                console.error(`❌ [Upload] MAIMLファイル重複（UUID不一致またはUUID未取得）: projectName=${projectName}, documentUuid=${documentUuidForCheck}, projectUuid=${projectUuid}`);
+                throw new ValidationError(
+                  `プロジェクトにMAIMLファイルが既に存在します: ${sanitizedFileName}`
+                );
+              }
             }
 
-            // ③ archiveフォルダ存在チェック
-            // プロジェクト内に archive フォルダが既に存在する場合はエラー
-            const archiveFolderPath = `projects/${projectName}/archive`;
-            const archiveFiles = await this.storageService.listFiles(organizationId, archiveFolderPath);
-            if (archiveFiles && archiveFiles.length > 0) {
-              console.error(`❌ [Upload] archiveフォルダ既存: ${archiveFolderPath}`);
-              throw new ValidationError(
-                `プロジェクトにarchiveフォルダが既に存在します`
-              );
+            // ③ archiveフォルダ存在チェック（新規登録時のみ）
+            // maimlRegistered=true の場合（UUID一致で許可済み）はスキップ
+            if (!maimlRegistered) {
+              const archiveFolderPath = `projects/${projectName}/archive`;
+              const archiveFiles = await this.storageService.listFiles(organizationId, archiveFolderPath);
+              if (archiveFiles && archiveFiles.length > 0) {
+                console.error(`❌ [Upload] archiveフォルダ既存: ${archiveFolderPath}`);
+                throw new ValidationError(
+                  `プロジェクトにarchiveフォルダが既に存在します`
+                );
+              }
             }
           }
         }
