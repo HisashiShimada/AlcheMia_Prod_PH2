@@ -32,15 +32,7 @@ git log --oneline -20
 
 ### 1-2. 前回リリースコミットの確認
 
-前回リリース時のリリースノート（`docs/deliverables/release_notes_YYYYMMDD.md`）を開き、
-**「今回リリースコミット」** の値を確認する。
-
-> **例**: `docs/deliverables/release_notes_20260420.md`
-> ```
-> 前回リリースコミット: cd028f7114dfe85e8e9f6e7af8fd9e695fd6b787
-> 今回リリースコミット: 4b24d6ab276a18959c0e7639f6559d438ef7fe65
-> ```
-> → 今回のデプロイでは前回の「今回リリースコミット」が `--from-commit` になる。
+最新のリリースタグを確認(release_2026XXXX_vXX.XX.XX)
 
 ### 1-3. コミット情報のメモ
 
