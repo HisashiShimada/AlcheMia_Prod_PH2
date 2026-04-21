@@ -470,7 +470,54 @@ aws ecs describe-services \
 
 > **正常**: `runningCount` = `desiredCount`、`pendingCount` = 0
 
-### 10-2. API ヘルスチェック
+### 10-2. スキーマの差分チェック
+
+デプロイ後、開発環境と検証環境（Aurora）のスキーマが一致していることを確認する。
+
+#### ① 開発環境（ローカル）のスキーマダンプ
+
+```bash
+bash scripts/dump-dev-schema.sh
+```
+
+> 出力先: `docs/deliverables/schema_dump_dev_<タイムスタンプ>.sql`
+
+※スクリプトに実行権限がない場合は下記を実行すること
+```bash
+chmod +x scripts/dump-dev-schema.sh
+```
+
+#### ② 検証環境（Aurora）のスキーマダンプ
+
+```bash
+bash scripts/dump-staging-schema.sh --key <秘密鍵ファイルパス>
+# 例: bash scripts/dump-staging-schema.sh --key ~/.ssh/alchemia_staging_stepping.pem
+```
+
+> 出力先: `docs/deliverables/schema_dump_staging_<タイムスタンプ>.sql`
+
+※スクリプトに実行権限がない場合は下記を実行すること
+```bash
+chmod +x scripts/dump-staging-schema.sh
+```
+
+#### ③ diff による差分チェック
+
+```bash
+diff \
+  docs/deliverables/schema_dump_dev_<タイムスタンプ>.sql \
+  docs/deliverables/schema_dump_staging_<タイムスタンプ>.sql
+```
+
+> **判断基準**
+>
+> | 結果 | 対応 |
+> |------|------|
+> | 差分なし（`diff` の出力が空） | スキーマ一致 → 次のステップへ |
+> | 差分あり（`CREATE TABLE` / `ADD COLUMN` 等） | マイグレーション未適用の可能性 → 内容を精査し、必要なら `--migrate` オプション付きで再デプロイ |
+> | 差分あり（コメント・`pg_dump` ヘッダー行のみ） | 実質的な差分なし → 無視して次のステップへ |
+
+### 10-3. API ヘルスチェック
 
 ```bash
 curl https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com/api/health
@@ -478,7 +525,7 @@ curl https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com/api/health
 # 期待レスポンス: {"status":"ok"}
 ```
 
-### 10-3. CloudWatch ログの確認
+### 10-4. CloudWatch ログの確認
 
 ```bash
 # バックエンドログ（直近10分）
@@ -490,7 +537,7 @@ aws logs tail /ecs/alchemia-nginx --region ap-northeast-1 --since 10m
 
 > **確認ポイント**: ERROR レベルのログが出ていないことを確認する。
 
-### 10-4. ブラウザでの画面確認
+### 10-5. ブラウザでの画面確認
 
 | 確認項目 | URL / 操作 | 期待結果 |
 |---------|-----------|---------|
@@ -498,7 +545,7 @@ aws logs tail /ecs/alchemia-nginx --region ap-northeast-1 --since 10m
 | ログイン | 管理者アカウントでログイン | ダッシュボードに遷移する |
 | 主要機能の動作 | 今回リリース内容に応じた画面操作 | 正常に動作する |
 
-### 10-5. 完了アナウンス
+### 10-6. 完了アナウンス
 
 Slack でデプロイ完了を通知する。
 
@@ -518,6 +565,9 @@ alchemia-staging へのデプロイが完了しました。
 
 - [ ] `alchemia-backend-service` の `runningCount` = `desiredCount` を確認した
 - [ ] `alchemia-nginx-service` の `runningCount` = `desiredCount` を確認した
+- [ ] `dump-dev-schema.sh` で開発環境のスキーマダンプを取得した
+- [ ] `dump-staging-schema.sh` で検証環境のスキーマダンプを取得した
+- [ ] `diff` でスキーマ差分を確認し、問題がないことを確認した（差分あった場合は内容を精査した）
 - [ ] `GET /api/health` が `{"status":"ok"}` を返すことを確認した
 - [ ] CloudWatch Logs に ERROR が出ていないことを確認した
 - [ ] ブラウザでログイン・主要機能の動作を確認した
@@ -559,7 +609,9 @@ STEP 9: デプロイスクリプトの実行
   - [ ] deploy.ecr.sh でデプロイ完了
 
 STEP 10: 動作確認
-  - [ ] ECS サービス状態・ヘルスチェック・ログ・ブラウザ動作を確認した
+  - [ ] ECS サービス状態を確認した
+  - [ ] スキーマ差分チェック（dump-dev / dump-staging → diff）を実施した
+  - [ ] ヘルスチェック・ログ・ブラウザ動作を確認した
   - [ ] Slack でデプロイ完了をアナウンスした
 ```
 
@@ -604,6 +656,8 @@ aws ecs update-service \
 | [`scripts/sync-to-staging.sh`](../../../scripts/sync-to-staging.sh) | 検証環境ファイル同期スクリプト |
 | [`scripts/deploy.ecr.sh`](../../../scripts/deploy.ecr.sh) | ECS デプロイスクリプト |
 | [`scripts/check-env-diff.sh`](../../../scripts/check-env-diff.sh) | 環境変数差分チェックスクリプト |
+| [`scripts/dump-dev-schema.sh`](../../../scripts/dump-dev-schema.sh) | 開発環境（ローカル）スキーマダンプスクリプト |
+| [`scripts/dump-staging-schema.sh`](../../../scripts/dump-staging-schema.sh) | 検証環境（Aurora）スキーマダンプスクリプト（SSH踏み台経由） |
 | `docs/deliverables/release_notes_YYYYMMDD.md` | リリースノート（デプロイごとに作成） |
 
 ---
