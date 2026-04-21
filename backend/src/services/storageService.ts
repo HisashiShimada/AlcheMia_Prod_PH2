@@ -582,12 +582,6 @@ export class StorageService {
 
       for (const file of files) {
         try {
-          // フォルダは除外（キーが'/'で終わるもの）
-          if (file.key.endsWith('/')) {
-            console.log(`📁 [StorageService] フォルダをスキップ: ${file.key}`);
-            continue;
-          }
-
           // organizationIdプレフィックスを除去して相対パスを生成
           // 例: "550e8400.../projects/sample/file.maiml" → "projects/sample/file.maiml"
           let relativePath = file.key;

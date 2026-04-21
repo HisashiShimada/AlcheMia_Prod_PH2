@@ -986,14 +986,23 @@ export class FileAccessService {
 
       // 4. DBからメタデータを一括論理削除
       if (fileKeys.length > 0) {
+        // 4-1. 削除対象ファイルに MAIMLファイルが含まれる場合、project_maiml_flg を false に更新
+        //      project_uuid は 1対1 なので取得されても最大1件
         try {
-          const dbDeletedCount = await this.repository.softDeleteBatch(
-            organizationId,
-            fileKeys
-          );
+          const projectUuids = await this.repository.findProjectUuidsByFileKeys(organizationId, fileKeys);
+          if (projectUuids.length > 0) {
+            await projectRepository.updateMaimlFlgByUuid(organizationId, projectUuids[0], false);
+            console.log(`✅ [Folder Delete] project_maiml_flg=false 更新: project_uuid=${projectUuids[0]}`);
+          }
+        } catch (error) {
+          console.error(`⚠️ [Folder Delete] project_maiml_flg 更新エラー（処理は続行）: ${normalizedFolderPath}`, error);
+        }
+
+        // 4-2. DBメタデータ一括論理削除
+        try {
+          const dbDeletedCount = await this.repository.softDeleteBatch(organizationId, fileKeys);
           console.log(`✅ [Folder Delete] DBメタデータ一括論理削除成功: ${dbDeletedCount}/${fileKeys.length}件`);
         } catch (error) {
-          // ログに記録するが、処理は続行（ストレージ削除は成功しているため）
           console.error(`⚠️ [Folder Delete] DBメタデータ一括論理削除エラー（処理は続行）: ${normalizedFolderPath}`, error);
         }
       } else {

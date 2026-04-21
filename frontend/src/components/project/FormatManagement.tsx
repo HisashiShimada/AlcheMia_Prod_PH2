@@ -36,7 +36,7 @@ import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
 import type { ProjectFile } from '@/types/file';
-import { getFileDownloadUrlByKey, deleteFileByKey } from '@/services/fileAccessService';
+import { getFileDownloadUrlByKey, deleteFileByKey, deleteFolderByPath } from '@/services/fileAccessService';
 import { createApiClient } from '@/utils/authUtils';
 import { 
   buildPropertyXML, 
@@ -551,6 +551,63 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       },
     });
   }, [selectedFormatId, currentFolderPath, handleRefresh, message]);
+
+  // フォルダ削除ハンドラ
+  const handleFolderDelete = useCallback(async (file: FormatFileData) => {
+    // 「↑ 戻る」エントリは除外
+    if (file.id === 'back') return;
+
+    modal.confirm({
+      title: `「${file.name}」を削除しますか？`,
+      content: 'このフォルダ内のファイルもすべて削除されます。この操作は取り消せません。',
+      okText: '削除',
+      okButtonProps: { danger: true },
+      cancelText: 'キャンセル',
+      onOk: async () => {
+        try {
+          console.log('🗑️ [FormatManagement] フォルダ削除開始:', file.path);
+
+          await deleteFolderByPath(file.path);
+
+          message.success(`「${file.name}」を削除しました`);
+
+          // ファイル一覧を更新
+          if (selectedFormatId) {
+            const currentPath = currentFolderPath.length > 0
+              ? currentFolderPath.join('/')
+              : undefined;
+
+            const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+
+            const cacheKey = currentPath
+              ? `${selectedFormatId}/${currentPath}`
+              : selectedFormatId;
+
+            setFormatFilesData(prev => ({
+              ...prev,
+              [cacheKey]: {
+                allFiles: (fileResponse.success && fileResponse.data?.files)
+                  ? fileResponse.data.files as FormatFileData[]
+                  : [],
+              }
+            }));
+
+            console.log('✅ [FormatManagement] フォルダ削除後にファイル一覧更新完了');
+          }
+
+          // フォーマット一覧も更新（ファイル数が変わる可能性があるため）
+          handleRefresh();
+        } catch (error) {
+          console.error('❌ [FormatManagement] フォルダ削除エラー:', error);
+          message.error(
+            `フォルダの削除に失敗しました: ${
+              error instanceof Error ? error.message : '不明なエラー'
+            }`
+          );
+        }
+      },
+    });
+  }, [selectedFormatId, currentFolderPath, handleRefresh, message, modal]);
 
   // ファイル詳細表示ハンドラ
   const handleFileDetail = useCallback((file: FormatFileDetailData) => {
@@ -1098,6 +1155,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                   onEdit={handleFileEdit}
                   onDownload={handleFileDownload}
                   onDelete={handleFileDelete}
+                  onDeleteFolder={handleFolderDelete}
                 />
                 )}
               </div>

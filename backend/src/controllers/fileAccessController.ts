@@ -679,6 +679,60 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * フォルダ再帰削除エンドポイント
+ * DELETE /api/v1/files/delete-folder
+ *
+ * 指定されたフォルダパス配下のファイルを再帰的に削除する。
+ * - folderPath: 削除対象フォルダの相対パス（organizationId なし）
+ */
+export async function deleteFolder(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { folderPath } = req.body;
+
+    console.log('🗑️ [Folder Delete] リクエスト開始:', {
+      organizationId,
+      folderPath,
+      requestId,
+    });
+
+    const repository = new FileMetadataRepository();
+    const accessValidator = new ProjectAccessValidator();
+    const service = new FileAccessService(repository, accessValidator);
+
+    const deletedCount = await service.deleteFolderRecursive(organizationId, folderPath);
+
+    console.log('✅ [Folder Delete] フォルダ削除成功:', { folderPath, deletedCount });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'フォルダを削除しました',
+        folderPath,
+        deletedCount,
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('Folder delete error', error, {
+      action: 'folder_delete',
+      organizationId: req.user?.organizationId,
+      folderPath: req.body?.folderPath,
+      requestId,
+    });
+
+    const { statusCode, errorCode, errorMessage } = resolveFileError(error);
+    res.status(statusCode).json({
+      success: false,
+      error: { code: errorCode, message: errorMessage },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
  * チャンクアップロードセッション開始
  * POST /api/v1/files/chunks/init
  *

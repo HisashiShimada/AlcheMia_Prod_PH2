@@ -512,7 +512,7 @@ const getFileIcon = (file: ProjectFile) => {
 - **オレンジ色**: `color: token.colorWarning`
 - **ファイル数表示**: `archive (5)`のように括弧内に件数表示
 - **サイズ・更新日時非表示**: フォルダの場合は空欄
-- **操作ボタン非表示**: フォルダの場合はボタンなし
+- **操作ボタン**: 通常フォルダは「削除」ボタンのみ表示、「↑ 戻る」疑似エントリには非表示
 
 ### 9.6 ダウンロード状態管理
 
@@ -533,3 +533,61 @@ const getFileIcon = (file: ProjectFile) => {
 - クリック可能要素にカーソル変更
 - ソート機能でデータ整理
 - Empty状態の明確な表示
+
+### 9.9 フォルダ削除機能
+
+#### 9.9.1 表示条件
+
+| 行の種類 | 削除ボタン表示 |
+|---------|--------------|
+| 通常フォルダ（`isFolder === true` かつ `id !== 'back'`） | ✅ 表示 |
+| 「↑ 戻る」疑似エントリ（`id === 'back'`） | ❌ 非表示 |
+| ファイル行 | ❌ 非表示（ファイル削除は別フロー） |
+
+#### 9.9.2 ボタン仕様
+
+```tsx
+<Button
+  danger
+  size="small"
+  icon={<DeleteOutlined />}
+  onClick={(e) => {
+    e.stopPropagation();
+    onDeleteFolder?.(record);
+  }}
+>
+  削除
+</Button>
+```
+
+- アイコン: `DeleteOutlined`
+- タイプ: `danger`（赤色ボタン）
+- サイズ: `small`
+
+#### 9.9.3 削除確認ダイアログ仕様
+
+親コンポーネント（`ProjectManagement`）の `handleDeleteFolder` ハンドラが表示する。
+
+| 項目 | 内容 |
+|------|------|
+| タイトル | 「{フォルダ名}」を削除しますか？ |
+| 内容 | このフォルダ内のファイルもすべて削除されます。この操作は取り消せません。 |
+| OKボタン | 削除（danger） |
+| キャンセルボタン | キャンセル |
+
+#### 9.9.4 削除後の動作
+
+1. `deleteFolderByPath(file.path)` を呼び出し（`DELETE /api/v1/files/delete-folder`）
+2. 成功後: `getProjectFiles` を再呼び出しして一覧を更新
+3. 成功メッセージを表示
+4. 失敗時はエラーメッセージを表示
+
+#### 9.9.5 Props追加
+
+```typescript
+interface FileListTableProps {
+  // ... 既存のprops ...
+  /** フォルダ削除ボタンクリック時のコールバック */
+  onDeleteFolder?: (file: ProjectFile) => void;
+}
+```
