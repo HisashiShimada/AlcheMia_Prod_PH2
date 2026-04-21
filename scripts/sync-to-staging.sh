@@ -11,6 +11,10 @@
 
 set -euo pipefail
 
+# 日本語パスを正しく扱うためにUTF-8ロケールを設定
+export LANG=ja_JP.UTF-8
+export LC_ALL=ja_JP.UTF-8
+
 # =============================
 # 色定義
 # =============================
@@ -185,7 +189,7 @@ while IFS=$'\t' read -r status old_path new_path; do
             [[ -n "$old_path" ]] && modified+=("$old_path")
             ;;
     esac
-done < <(git -C "$SRC_REPO" diff --name-status "$FROM_COMMIT" "$TO_COMMIT" 2>&1)
+done < <(git -C "$SRC_REPO" -c core.quotepath=false diff --name-status "$FROM_COMMIT" "$TO_COMMIT" 2>&1)
 
 # 差分がない場合
 if [[ ${#added[@]} -eq 0 && ${#modified[@]} -eq 0 && ${#deleted[@]} -eq 0 && ${#rename_old[@]} -eq 0 ]]; then
