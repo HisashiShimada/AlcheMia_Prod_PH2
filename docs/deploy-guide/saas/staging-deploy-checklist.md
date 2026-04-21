@@ -91,18 +91,7 @@ git log --oneline -20
 ```bash
 git pull
 ```
-
-### 3-2. テストの実行
-
-```bash
-# バックエンドテスト
-(cd backend && npm test 2>&1) | tail -30
-
-# フロントエンドテスト（必要に応じて）
-(cd frontend && npm test -- --passWithNoTests 2>&1) | tail -30
-```
-
-### 3-3. ビルド確認
+### 3-2. ビルド確認
 
 ```bash
 # バックエンドのビルド確認
@@ -112,7 +101,7 @@ git pull
 (cd frontend && npm run build 2>&1) | tail -20
 ```
 
-### 3-4. 差分ファイルの確認（ドライラン）
+### 3-3. 差分ファイルの確認（ドライラン）
 
 `sync-to-staging.sh` の `--dry-run` オプションで変更ファイルの一覧を事前確認する。
 
