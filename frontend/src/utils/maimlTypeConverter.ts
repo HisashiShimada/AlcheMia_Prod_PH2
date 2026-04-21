@@ -58,7 +58,9 @@ import type {
   Extension,
   Globals,
   Classifier,
-  PropertyCustomElement
+  PropertyCustomElement,
+  Parent,
+  Chain
 } from '@/types/maiml-unified';
 
 /**
@@ -441,8 +443,34 @@ function convertDocument(xmlDoc: XmlJsElement, errorContext?: ErrorContext): Mai
     vendors: convertArraySafe(xmlDoc.vendor, convertVendor, errorContext, 'vendor'),
     owners: convertArraySafe(xmlDoc.owner, convertOwner, errorContext, 'owner'),
     instruments: xmlDoc.instrument ? convertArraySafe(xmlDoc.instrument, convertInstrument, errorContext, 'instrument') : [],
-    chains:  [],
-    parents:  [],
+    chains:  (xmlDoc as any).chain  ? convertArraySafe((xmlDoc as any).chain,  (el: any) => convertChain(el),  errorContext, 'chain')  : [],
+    parents: (xmlDoc as any).parent ? convertArraySafe((xmlDoc as any).parent, (el: any) => convertParent(el), errorContext, 'parent') : [],
+  };
+}
+
+/**
+ * Parent変換（再帰対応）
+ */
+function convertParent(xmlParent: any, errorContext?: ErrorContext): Parent {
+  return {
+    uuid: xmlParent.uuid?._text || '',
+    hash: xmlParent.hash ? convertHash(xmlParent.hash) : { value: '' },
+    // normalizeTagCase により 'parent' キーは小文字化済み
+    parents: xmlParent.parent ? convertArray(xmlParent.parent, (el: any) => convertParent(el, errorContext)) : [],
+    key: xmlParent._attributes?.key,
+  };
+}
+
+/**
+ * Chain変換（再帰対応）
+ */
+function convertChain(xmlChain: any, errorContext?: ErrorContext): Chain {
+  return {
+    uuid: xmlChain.uuid?._text || '',
+    hash: xmlChain.hash ? convertHash(xmlChain.hash) : { value: '' },
+    // normalizeTagCase により 'chain' キーは小文字化済み
+    chains: xmlChain.chain ? convertArray(xmlChain.chain, (el: any) => convertChain(el, errorContext)) : [],
+    key: xmlChain._attributes?.key,
   };
 }
 

@@ -22,6 +22,7 @@ import { renameFile } from '../services/renameService';
 import { Project } from '../types/database';
 import { AppError } from '../enums/errorCodes';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
+import { injectParentTag } from '../utils/maimlParentInjector';
 
 /**
  * AppError.code または日本語メッセージキーワードから HTTP ステータスとエラーコードを導出する
@@ -394,14 +395,49 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
       fileKey
     );
 
+    // ──────────────────────────────────────────────────────────────
+    // MAIMLファイル かつ projects/ 配下の場合は <parent> タグを挿入する
+    // - fileKey 例: "projects/sample_project/sample_project.maiml"
+    // - archive/ 配下は除外しない（アーカイブにも来歴を記録する）
+    // - projectUuid が null の場合は挿入をスキップ（安全に素通り）
+    // ──────────────────────────────────────────────────────────────
+    let responseBuffer = result.buffer;
+
+    const relativeFileKey = fileKey.startsWith(`${organizationId}/`)
+      ? fileKey.slice(organizationId.length + 1)
+      : fileKey;
+    const isMaimlFile = relativeFileKey.endsWith('.maiml');
+    const isProjectPath = relativeFileKey.startsWith('projects/');
+
+    if (isMaimlFile && isProjectPath) {
+      // プロジェクト名を抽出して project_uuid を取得
+      const pathParts = relativeFileKey.split('/');
+      if (pathParts.length >= 2) {
+        const projectName = pathParts[1];
+        try {
+          const project = await projectRepository.findByName(organizationId, projectName);
+          const projectUuid = project?.project_uuid ?? null;
+
+          const maimlContent = result.buffer.toString('utf-8');
+          const injected = injectParentTag(maimlContent, projectUuid, result.buffer);
+          responseBuffer = Buffer.from(injected, 'utf-8');
+
+          console.log(`✅ [getFileDownloadUrl] <parent> タグ挿入完了: ${relativeFileKey}, projectUuid=${projectUuid ?? 'null(スキップ)'}`);
+        } catch (injectError) {
+          // <parent> 挿入失敗は警告のみ（ダウンロード自体は続行）
+          console.warn(`⚠️ [getFileDownloadUrl] <parent> タグ挿入失敗（元ファイルで返却）:`, injectError instanceof Error ? injectError.message : injectError);
+        }
+      }
+    }
+
     // 4. レスポンスヘッダーを設定
     const encodedFileName = encodeURIComponent(result.metadata.fileName);
     res.setHeader('Content-Type', result.metadata.contentType);
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFileName}`);
-    res.setHeader('Content-Length', result.buffer.length.toString());
+    res.setHeader('Content-Length', responseBuffer.length.toString());
 
     // 5. ファイルバッファをレスポンスとして送信
-    res.status(200).send(result.buffer);
+    res.status(200).send(responseBuffer);
 
   } catch (error: any) {
     // 6. エラーハンドリング

@@ -54,7 +54,9 @@ import type {
   InstanceRef,
   Extension,
   Globals,
-  Classifier
+  Classifier,
+  Parent,
+  Chain
 } from '../types/maiml-unified';
 
 /**
@@ -118,8 +120,32 @@ function convertDocument(xmlDoc: XmlJsElement): MaimlDocument {
     vendors: convertArray(xmlDoc.vendor, convertVendor),
     owners: convertArray(xmlDoc.owner, convertOwner),
     instruments: xmlDoc.instrument ? convertArray(xmlDoc.instrument, convertInstrument) : [],
-    chains:  [],
-    parents:  [],
+    chains:  (xmlDoc as any).chain  ? convertArray((xmlDoc as any).chain,  convertChain)  : [],
+    parents: (xmlDoc as any).parent ? convertArray((xmlDoc as any).parent, convertParent) : [],
+  };
+}
+
+/**
+ * Parent変換（再帰対応）
+ */
+function convertParent(xmlParent: any): Parent {
+  return {
+    uuid: xmlParent.uuid?._text || '',
+    hash: xmlParent.hash ? convertHash(xmlParent.hash) : { value: '' },
+    parents: xmlParent.parent ? convertArray(xmlParent.parent, convertParent) : [],
+    key: xmlParent._attributes?.key,
+  };
+}
+
+/**
+ * Chain変換（再帰対応）
+ */
+function convertChain(xmlChain: any): Chain {
+  return {
+    uuid: xmlChain.uuid?._text || '',
+    hash: xmlChain.hash ? convertHash(xmlChain.hash) : { value: '' },
+    chains: xmlChain.chain ? convertArray(xmlChain.chain, convertChain) : [],
+    key: xmlChain._attributes?.key,
   };
 }
 
