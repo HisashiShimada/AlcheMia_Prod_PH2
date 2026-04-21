@@ -87,6 +87,7 @@ git log --oneline -20
 ## STEP 3: ビルド確認
 
 ### 3-1. 最新コードの取得
+対象はmainブランチ
 
 ```bash
 git pull
@@ -127,6 +128,11 @@ bash scripts/sync-to-staging.sh \
 > - 想定外のファイルが含まれていないか
 > - 削除ファイルに重要なものがないか
 > - `backend/migrations/` に新規SQLが含まれているか（→ STEP 8 で対応）
+
+※スクリプトに実行権限がない場合は下記を実行すること
+```bash
+chmod +x scripts/sync-to-staging.sh
+```
 
 ### チェックリスト
 
