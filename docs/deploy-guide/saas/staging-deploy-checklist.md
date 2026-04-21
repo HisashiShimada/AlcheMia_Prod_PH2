@@ -94,6 +94,14 @@ git pull
 ### 3-2. ビルド確認
 
 ```bash
+# バックエンドの依存パッケージインストール
+(cd backend && npm install 2>&1) | tail -20
+
+# フロントエンドの依存パッケージインストール
+(cd frontend && npm install 2>&1) | tail -20
+```
+
+```bash
 # バックエンドのビルド確認
 (cd backend && npm run build 2>&1) | tail -20
 
