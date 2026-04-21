@@ -11,10 +11,10 @@
 1. [リリース対象コミット・前回リリースコミットの確認](#step-1-リリース対象コミット前回リリースコミットの確認)
 2. [開発メンバーへのアナウンス](#step-2-開発メンバーへのアナウンス)
 3. [ビルド確認](#step-3-ビルド確認)
-4. [リリースノートの作成](#step-4-リリースノートの作成)
-5. [計画書の移動](#step-5-計画書の移動)
-6. [島田さんへの連絡（デプロイ開始）](#step-6-島田さんへの連絡デプロイ開始)
-7. [環境変数の確認](#step-7-環境変数の確認)
+4. [環境変数の確認](#step-4-環境変数の確認)
+5. [リリースノートの作成](#step-5-リリースノートの作成)
+6. [計画書の移動](#step-6-計画書の移動)
+7. [島田さんへの連絡（デプロイ開始）](#step-7-島田さんへの連絡デプロイ開始)
 8. [DBのテーブル構成の確認](#step-8-dbのテーブル構成の確認)
 9. [デプロイスクリプトの実行](#step-9-デプロイスクリプトの実行)
 10. [動作確認](#step-10-動作確認)
@@ -143,15 +143,112 @@ chmod +x scripts/sync-to-staging.sh
 
 ---
 
-## STEP 4: リリースノートの作成
+## STEP 4: 環境変数の確認
 
-### 4-1. リリースノートファイルの作成
+### 4-0. 環境変数差分チェック（自動）
+
+前回リリースコミットと今回リリースコミット間で、`.env系ファイル` および `aws/ecs-task-definition-*.json` の環境変数差分を自動チェックする。
+
+```bash
+bash scripts/check-env-diff.sh \
+  --from-commit <前回リリースコミット> \
+  --to-commit   <今回リリースコミット>
+```
+
+> **機密値をマスクせず確認したい場合（ローカル環境のみ）:**
+> ```bash
+> bash scripts/check-env-diff.sh \
+>   --from-commit <前回リリースコミット> \
+>   --to-commit   <今回リリースコミット> \
+>   --show-secrets
+> ```
+
+スクリプトは以下の2フェーズで動作する。
+
+| フェーズ | 対象 | 内容 |
+|---------|------|------|
+| フェーズ1 | `.env*`, `docker-compose*.yml` | 追加(ADDED) / 変更(CHANGED) / 削除(REMOVED) された環境変数を列挙 |
+| フェーズ2 | `aws/ecs-task-definition-*.json` | フェーズ1の変更変数が ECS タスク定義にも反映されているかを照合 |
+
+実行後、結果は `docs/deliverables/env_diff_YYYYMMDD_HHMMSS.md` に自動保存される。
+
+> **確認ポイント**
+> - `⚠️ 要確認` と表示された変数は ECS タスク定義への反映が必要かどうかを確認する
+> - `ADDED` の変数で ECS 未追加の場合、タスク定義の更新が必要か検討する
+> - `CHANGED` の変数で ECS 未変更の場合、意図的な差分かどうかを確認する
+
+※スクリプトに実行権限がない場合は下記を実行すること
+```bash
+chmod +x scripts/check-env-diff.sh
+```
+
+### 4-1. AWS CLI 認証確認
+
+```bash
+aws sts get-caller-identity
+```
+
+> 正常レスポンス例:
+> ```json
+> {
+>   "UserId": "...",
+>   "Account": "137068252939",
+>   "Arn": "arn:aws:iam::137068252939:user/..."
+> }
+> ```
+
+### 4-2. `.env.prod.aws` の確認
+
+```bash
+# 必須項目が設定されているか確認（値は表示しない）
+grep -E "^(DB_HOST|DB_PASSWORD|REDIS_HOST|REDIS_PASSWORD|AWS_S3_BUCKET|JWT_SECRET|SESSION_SECRET|CORS_ORIGIN|FRONTEND_URL)=" .env.prod.aws
+```
+
+> **確認ポイント（必須項目）**
+
+| 環境変数 | 確認内容 |
+|---------|---------|
+| `DB_HOST` | Aurora エンドポイントが設定されている |
+| `DB_PASSWORD` | `CHANGE_ME` のままになっていないか |
+| `REDIS_HOST` | ElastiCache エンドポイントが設定されている |
+| `REDIS_PASSWORD` | `CHANGE_ME` のままになっていないか |
+| `AWS_S3_BUCKET` | 正しいバケット名（`mmdpf-files-production`）になっているか |
+| `JWT_SECRET` | `CHANGE_ME` のままになっていないか |
+| `SESSION_SECRET` | `CHANGE_ME` のままになっていないか |
+| `CORS_ORIGIN` | NLB の正しいドメインが設定されている |
+
+### 4-3. ECS タスク定義 JSON の確認
+
+```bash
+# バックエンドタスク定義の主要な環境変数を確認
+cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
+```
+
+> **確認ポイント**
+> - `DB_HOST` が実環境の Aurora エンドポイントになっているか
+> - `EMBEDDING_PROVIDER=bedrock` が設定されているか
+> - `BEDROCK_EMBEDDING_MODEL_ID` が正しいモデルIDになっているか
+
+### チェックリスト
+
+- [ ] `check-env-diff.sh` を実行し、環境変数の追加・変更・削除を確認した
+- [ ] `⚠️ 要確認` の変数が存在する場合、対応方針を決定した
+- [ ] `docs/deliverables/env_diff_*.md` にレポートが出力されていることを確認した
+- [ ] `aws sts get-caller-identity` で AWS CLI 認証が有効であることを確認した
+- [ ] `.env.prod.aws` の必須項目がすべて設定されていることを確認した
+- [ ] ECS タスク定義 JSON の環境変数が実環境の値になっていることを確認した
+
+---
+
+## STEP 5: リリースノートの作成
+
+### 5-1. リリースノートファイルの作成
 
 `docs/deliverables/release_notes_YYYYMMDD.md` を作成する。  
 clineのSkillにリリースノート作成を登録しているので、  
 今回リリースのコミット、前回リリースのコミットを指定して作成を依頼する。
 
-### 4-2. 変更内容の確認
+### 5-2. 変更内容の確認
 
 ```bash
 # コミット間の変更ファイルと差分を確認
@@ -167,11 +264,11 @@ git diff --name-status <前回リリースコミット> <今回リリースコ�
 
 ---
 
-## STEP 5: 計画書の移動
+## STEP 6: 計画書の移動
 
 `docs/` 配下（サブフォルダ含む）に残っているタスク計画書（`PLAN.md` 等）を `docs/cline_archives/` へ移動する。
 
-### 5-1. 移動対象の確認
+### 6-1. 移動対象の確認
 
 ```bash
 # docs/ 直下の .md ファイルを確認
@@ -181,7 +278,7 @@ ls docs/*.md
 ls -d docs/[0-9]*/
 ```
 
-### 5-2. アーカイブへ移動
+### 6-2. アーカイブへ移動
 
 ```bash
 # 例: docs/YYYYMMDD_HHMM_タスク名/ フォルダをアーカイブへ移動
@@ -198,7 +295,7 @@ mv docs/PLAN.md docs/cline_archives/YYYYMMDD_PLAN.md
 
 ---
 
-## STEP 6: 島田さんへの連絡（デプロイ開始）
+## STEP 7: 島田さんへの連絡（デプロイ開始）
 
 デプロイ実施前に島田さんへメールで連絡する。
 
@@ -225,63 +322,6 @@ mv docs/PLAN.md docs/cline_archives/YYYYMMDD_PLAN.md
 ### チェックリスト
 
 - [ ] 島田さんへデプロイ開始のメールを送信した
-
----
-
-## STEP 7: 環境変数の確認
-
-### 7-1. AWS CLI 認証確認
-
-```bash
-aws sts get-caller-identity
-```
-
-> 正常レスポンス例:
-> ```json
-> {
->   "UserId": "...",
->   "Account": "137068252939",
->   "Arn": "arn:aws:iam::137068252939:user/..."
-> }
-> ```
-
-### 7-2. `.env.prod.aws` の確認
-
-```bash
-# 必須項目が設定されているか確認（値は表示しない）
-grep -E "^(DB_HOST|DB_PASSWORD|REDIS_HOST|REDIS_PASSWORD|AWS_S3_BUCKET|JWT_SECRET|SESSION_SECRET|CORS_ORIGIN|FRONTEND_URL)=" .env.prod.aws
-```
-
-> **確認ポイント（必須項目）**
-
-| 環境変数 | 確認内容 |
-|---------|---------|
-| `DB_HOST` | Aurora エンドポイントが設定されている |
-| `DB_PASSWORD` | `CHANGE_ME` のままになっていないか |
-| `REDIS_HOST` | ElastiCache エンドポイントが設定されている |
-| `REDIS_PASSWORD` | `CHANGE_ME` のままになっていないか |
-| `AWS_S3_BUCKET` | 正しいバケット名（`mmdpf-files-production`）になっているか |
-| `JWT_SECRET` | `CHANGE_ME` のままになっていないか |
-| `SESSION_SECRET` | `CHANGE_ME` のままになっていないか |
-| `CORS_ORIGIN` | NLB の正しいドメインが設定されている |
-
-### 7-3. ECS タスク定義 JSON の確認
-
-```bash
-# バックエンドタスク定義の主要な環境変数を確認
-cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
-```
-
-> **確認ポイント**
-> - `DB_HOST` が実環境の Aurora エンドポイントになっているか
-> - `EMBEDDING_PROVIDER=bedrock` が設定されているか
-> - `BEDROCK_EMBEDDING_MODEL_ID` が正しいモデルIDになっているか
-
-### チェックリスト
-
-- [ ] `aws sts get-caller-identity` で AWS CLI 認証が有効であることを確認した
-- [ ] `.env.prod.aws` の必須項目がすべて設定されていることを確認した
-- [ ] ECS タスク定義 JSON の環境変数が実環境の値になっていることを確認した
 
 ---
 
@@ -498,17 +538,18 @@ STEP 3: ビルド確認
   - [ ] テスト通過・ビルド成功を確認した
   - [ ] --dry-run で差分ファイルを確認した
 
-STEP 4: リリースノートの作成
+STEP 4: 環境変数の確認
+  - [ ] check-env-diff.sh を実行し環境変数差分を確認した
+  - [ ] .env.prod.aws・ECS タスク定義を確認した
+
+STEP 5: リリースノートの作成
   - [ ] release_notes_YYYYMMDD.md を作成した
 
-STEP 5: 計画書の移動
+STEP 6: 計画書の移動
   - [ ] docs/ 配下の計画書を docs/cline_archives/ へ移動した
 
-STEP 6: 島田さんへの連絡
+STEP 7: 島田さんへの連絡
   - [ ] デプロイ開始メールを送信した
-
-STEP 7: 環境変数の確認
-  - [ ] AWS CLI 認証・.env.prod.aws・ECS タスク定義を確認した
 
 STEP 8: DBのテーブル構成の確認
   - [ ] migrations/ の新規 SQL 確認・マイグレーション要否を判断した
@@ -562,6 +603,7 @@ aws ecs update-service \
 | [`deploy-guide-aws.md`](./deploy-guide-aws.md) | SaaS版 AWS デプロイ手順書（詳細版） |
 | [`scripts/sync-to-staging.sh`](../../../scripts/sync-to-staging.sh) | 検証環境ファイル同期スクリプト |
 | [`scripts/deploy.ecr.sh`](../../../scripts/deploy.ecr.sh) | ECS デプロイスクリプト |
+| [`scripts/check-env-diff.sh`](../../../scripts/check-env-diff.sh) | 環境変数差分チェックスクリプト |
 | `docs/deliverables/release_notes_YYYYMMDD.md` | リリースノート（デプロイごとに作成） |
 
 ---
