@@ -205,9 +205,93 @@ print_err  "  削除:     ${#deleted[@]} 件"
 print_warn "  リネーム: ${#rename_old[@]} 件"
 echo ""
 
-# ドライランの場合はここで終了
+# ドライランの場合はここで結果をファイルに出力して終了
 if $DRY_RUN; then
     print_warn "[ドライランモード] 上記の差分を適用します（実行時は --dry-run を外してください）"
+
+    # =============================
+    # ドライラン結果をファイルに出力
+    # =============================
+    DELIVERABLES_DIR="$SRC_REPO/docs/deliverables"
+    TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
+    OUTPUT_FILE="$DELIVERABLES_DIR/dry-run-${TIMESTAMP}.md"
+
+    # 出力先ディレクトリの確認
+    if [[ ! -d "$DELIVERABLES_DIR" ]]; then
+        print_warn "[警告] 出力先ディレクトリが見つかりません: $DELIVERABLES_DIR"
+        print_warn "       ファイル出力をスキップします。"
+    else
+        # Markdown形式で結果を書き出す
+        {
+            echo "# ドライラン結果"
+            echo ""
+            echo "- **実行日時**: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "- **FROM_COMMIT**: \`${FROM_COMMIT}\`"
+            echo "- **TO_COMMIT**: \`${TO_COMMIT}\`"
+            echo "- **SRC_REPO**: \`${SRC_REPO}\`"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## 差分ファイル一覧"
+            echo ""
+
+            echo "### 追加 (${#added[@]} 件)"
+            if [[ ${#added[@]} -gt 0 ]]; then
+                for f in "${added[@]}"; do
+                    echo "- \`$f\`"
+                done
+            else
+                echo "なし"
+            fi
+            echo ""
+
+            echo "### 更新 (${#modified[@]} 件)"
+            if [[ ${#modified[@]} -gt 0 ]]; then
+                for f in "${modified[@]}"; do
+                    echo "- \`$f\`"
+                done
+            else
+                echo "なし"
+            fi
+            echo ""
+
+            echo "### 削除 (${#deleted[@]} 件)"
+            if [[ ${#deleted[@]} -gt 0 ]]; then
+                for f in "${deleted[@]}"; do
+                    echo "- \`$f\`"
+                done
+            else
+                echo "なし"
+            fi
+            echo ""
+
+            echo "### リネーム (${#rename_old[@]} 件)"
+            if [[ ${#rename_old[@]} -gt 0 ]]; then
+                for i in "${!rename_old[@]}"; do
+                    echo "- \`${rename_old[$i]}\` → \`${rename_new[$i]}\`"
+                done
+            else
+                echo "なし"
+            fi
+            echo ""
+
+            echo "---"
+            echo ""
+            echo "## サマリー"
+            echo ""
+            echo "| 種別 | 件数 |"
+            echo "|------|------|"
+            echo "| 追加 | ${#added[@]} |"
+            echo "| 更新 | ${#modified[@]} |"
+            echo "| 削除 | ${#deleted[@]} |"
+            echo "| リネーム | ${#rename_old[@]} |"
+            total=$(( ${#added[@]} + ${#modified[@]} + ${#deleted[@]} + ${#rename_old[@]} ))
+            echo "| **合計** | **${total}** |"
+        } > "$OUTPUT_FILE"
+
+        print_ok "[出力完了] ドライラン結果を保存しました: $OUTPUT_FILE"
+    fi
+
     exit 0
 fi
 
