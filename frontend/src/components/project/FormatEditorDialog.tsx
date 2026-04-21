@@ -1,5 +1,5 @@
 /**
- * TemplateEditorDialog - Template編集ダイアログ（EditorV2用）
+ * FormatEditorDialog - Template編集ダイアログ（EditorV2用）
  * 
  * Material-UI → Ant Design変換版
  * Phase 2-1: NestedPropertyEditor実装完了
@@ -46,9 +46,9 @@ import { fetchTemplateFiles, fetchTemplateContent, type ListFormatsResponse, typ
 import type { 
   NodeData, 
   TemplateError,
-} from '../../../types/editor';
+} from '../../types/editor';
 import { Template, Insertion, PlaceRef, Property, Content } from '@/types/maiml-unified';
-import NestedPropertyEditor, { type PropertyData } from './NestedPropertyEditor';
+import NestedPropertyEditor, { type PropertyData } from '../editorv2/components/NestedPropertyEditor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {
@@ -58,13 +58,13 @@ import {
   convertPropertyDataToContentsArray,
   parseNamespacesFromXml,
   buildTreeData,
-} from '../utils/templateConverter';
+} from '../editorv2/utils/templateConverter';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
-interface TemplateEditorDialogProps {
+interface FormatEditorDialogProps {
   open: boolean;
   node: {
     id: string;
@@ -86,9 +86,9 @@ interface TemplateEditorDialogProps {
 }
 
 /**
- * TemplateEditorDialog - メインコンポーネント
+ * FormatEditorDialog - メインコンポーネント
  */
-const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
+const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
   open,
   node,
   onClose,
@@ -251,7 +251,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
       // ✅ Phase 3: parsedPropertiesとparsedContentsを優先的に使用（フォーマット管理専用）
       if ('parsedProperties' in node.data || 'parsedContents' in node.data) {
-        console.log('📋 [TemplateEditorDialog] parsedPropertiesとparsedContentsを直接読み込み');
+        console.log('📋 [FormatEditorDialog] parsedPropertiesとparsedContentsを直接読み込み');
         
         // 型安全にデータを取得
         const parsedProperties = ('parsedProperties' in node.data && node.data.parsedProperties) 
@@ -280,7 +280,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         setForceRenderKey(Date.now());
         setForceContentRenderKey(Date.now());
         
-        console.log('✅ [TemplateEditorDialog] parsedProperties/Contents読み込み完了:', {
+        console.log('✅ [FormatEditorDialog] parsedProperties/Contents読み込み完了:', {
           propertiesCount: Object.keys(parsedProperties).length,
           contentsCount: Object.keys(parsedContents).length
         });
@@ -295,7 +295,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           Object.keys(mergedTemplate).length === 0 ||
           (mergedTemplate.id === '' && mergedTemplate.name === '')) {
         
-        console.log('🆕 [TemplateEditorDialog] 空テンプレート検出 - デフォルト値を設定');
+        console.log('🆕 [FormatEditorDialog] 空テンプレート検出 - デフォルト値を設定');
         
         // デフォルト値を設定
         const defaultId = `${node.data.placeType}_template_${Date.now()}`;
@@ -314,7 +314,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         setForceRenderKey(Date.now());
         setForceContentRenderKey(Date.now());
         
-        console.log('✅ [TemplateEditorDialog] デフォルト値設定完了:', {
+        console.log('✅ [FormatEditorDialog] デフォルト値設定完了:', {
           templateId: defaultId,
           name: defaultName,
           placeType: node.data.placeType
@@ -325,7 +325,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       }
       
       // 既存の処理（データがある場合）
-      console.log('📋 [TemplateEditorDialog] 既存テンプレート読み込み:', mergedTemplate.id);
+      console.log('📋 [FormatEditorDialog] 既存テンプレート読み込み:', mergedTemplate.id);
       
       // 基本情報の初期化（UI非表示だが保存時に必要）
       setTemplateId(mergedTemplate.id || '');
@@ -1574,4 +1574,4 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   );
 };
 
-export default TemplateEditorDialog;
+export default FormatEditorDialog;
