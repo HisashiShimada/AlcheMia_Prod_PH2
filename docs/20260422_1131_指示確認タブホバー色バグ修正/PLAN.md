@@ -27,6 +27,52 @@
 
 `token.colorFillSecondary` は Ant Design でリスト行・インタラクティブ要素のホバー背景に推奨されるトークンで、薄いグレー（`rgba(0, 0, 0, 0.06)` 相当）になる。
 
+### colorBgTextHover との使い分け
+
+プロジェクト内の `SelectionDialog.tsx` / `TaskSelectionDialog.tsx` / `UnifiedSelectionDialog.tsx` は `token.colorBgTextHover` を使用していますが、値は同一のため視覚的な差異は一切ありません。
+
+| トークン | 値（ライトテーマ） | セマンティクス（意味） |
+|---------|-----------------|---------------------|
+| `colorBgTextHover` | `rgba(0,0,0,0.06)` | **テキスト**要素のホバー背景 |
+| `colorFillSecondary` | `rgba(0,0,0,0.06)` | **コンテナ・行**のホバー背景 |
+
+使い分けの理由：
+- `colorBgTextHover`：選択ダイアログ内の**テキスト項目**（選択肢の文字列）にホバーする用途
+- `colorFillSecondary`：指示確認タブの**行ブロック全体**（div コンテナ）をクリッカブルにしてホバーする用途
+
+対象要素のセマンティクスに合わせてトークンを使い分けています。
+
+##全ファイル ホバー色実装 調査結果
+
+修正後、全ファイルのホバー色実装を調査した結果は以下の通り。
+
+### colorFillSecondary（今回修正）
+
+| ファイル | 箇所数 |
+|---------|------|
+| `InstructionConfirmationTab.tsx` | 3箇所 |
+| `InstructionGroup.tsx` | 3箇所 |
+| `InstructionConfirmationModal.tsx` | 3箇所 |
+| `DataRecordDialog.tsx` | 1箇所 |
+
+### colorBgTextHover（既存実装・問題なし）
+
+| ファイル | 箇所数 |
+|---------|------|
+| `SelectionDialog.tsx` | 1箇所 |
+| `TaskSelectionDialog.tsx` | 1箇所 |
+| `UnifiedSelectionDialog.tsx` | 4箇所 |
+
+値は `rgba(0,0,0,0.06)` で同一。セマンティクスの違いで使い分けている（詳細は修正方針参照）。
+
+### ハードコーディング（意図的な実装）
+
+| ファイル | 値 | 用途 |
+|---------|---|------|
+| `SubHeader.tsx` | `rgba(255,255,255,0.15)` | ヘッダーボタンホバー（濃色背景上の白ベース・意図的） |
+| `TransitionList.tsx` | `#fff5f7` | 行ホバー（薄いピンク・意図的なデザイン） |
+| `TransitionList.tsx` | `#a50020`, `#CF0027` | ボタン押下強調（赤系・機能的な意味あり） |
+
 ## 実装ステップ
 
 ### Phase 1: ファイル修正
