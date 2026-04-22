@@ -2306,7 +2306,7 @@ export default function DataRecordDialog({
               }}
               onClick={() => setStatusUpdateExpanded(!statusUpdateExpanded)}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                e.currentTarget.style.backgroundColor = token.colorFillSecondary;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
