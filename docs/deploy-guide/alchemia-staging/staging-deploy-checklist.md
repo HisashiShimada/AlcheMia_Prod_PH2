@@ -14,10 +14,10 @@
 4. [リリースノートの作成](#step-4-リリースノートの作成)
 5. [計画書の移動](#step-5-計画書の移動)
 6. [差分ファイルの確認（ドライラン）](#step-6-差分ファイルの確認ドライラン)
-7. [環境変数の確認](#step-7-環境変数の確認)
-8. [開発メンバーへのアナウンス](#step-8-開発メンバーへのアナウンス)
-9. [島田さんへの連絡（デプロイ開始）](#step-9-島田さんへの連絡デプロイ開始)
-10. [DBのテーブル構成の確認](#step-10-dbのテーブル構成の確認)
+7. [DBのテーブル構成の確認](#step-7-dbのテーブル構成の確認)
+8. [環境変数の確認](#step-8-環境変数の確認)
+9. [開発メンバーへのアナウンス](#step-9-開発メンバーへのアナウンス)
+10. [島田さんへの連絡（デプロイ開始）](#step-10-島田さんへの連絡デプロイ開始)
 11. [デプロイスクリプトの実行](#step-11-デプロイスクリプトの実行)
 12. [動作確認](#step-12-動作確認)
 
@@ -199,7 +199,7 @@ bash scripts/alchemia-staging/sync-to-staging.sh \
 > **確認ポイント**
 > - 想定外のファイルが含まれていないか
 > - 削除ファイルに重要なものがないか
-> - `backend/migrations/` に新規SQLが含まれているか（→ STEP 10 で対応）
+> - `backend/migrations/` に新規SQLが含まれているか（→ STEP 7 で対応）
 > - ドライラン結果は `docs/deliverables/<リリースタグ名>/dry-run-result.md` に自動保存される
 
 ※スクリプトに実行権限がない場合は下記を実行すること
@@ -213,9 +213,70 @@ chmod +x scripts/alchemia-staging/sync-to-staging.sh
 
 ---
 
-## STEP 7: 環境変数の確認
+## STEP 7: DBのテーブル構成の確認
 
-### 7-0. 環境変数差分チェック（自動）
+### 7-1. マイグレーションファイルの確認
+
+```bash
+# 前回リリース以降に追加されたマイグレーションファイルを確認
+git diff --name-only <前回リリースコミット> <今回リリースコミット> -- backend/migrations/
+```
+
+または
+
+```bash
+# backend/migrations/ 配下のファイルを日付順で確認
+ls -lt backend/migrations/*.sql | head -10
+```
+
+### 7-2. マイグレーション内容の確認
+
+新規 SQL ファイルが存在する場合、内容を確認してデプロイ時に `--migrate` が必要か判断する。
+
+```bash
+# 新規マイグレーションファイルの内容確認
+cat backend/migrations/YYYYMMDD_<説明>.sql
+```
+
+> **確認ポイント**
+> - `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` 等でべき等に書かれているか
+> - ロールバックSQLが必要かどうか
+> - データの移行が必要かどうか
+
+### 7-3. Aurora への疎通確認（必要に応じて）
+
+```bash
+# 踏み台サーバー経由でポートフォワード（必要な場合）
+# ssh -L 5432:YOUR_AURORA_ENDPOINT:5432 user@bastion-host
+
+# Aurora への接続確認
+PGPASSWORD=${DB_PASSWORD} psql \
+  -h ${DB_HOST} \
+  -p 5432 \
+  -U maiml_user \
+  -d maiml_db \
+  --set=sslmode=require \
+  -c "\dt"
+```
+
+### 7-4. マイグレーション要否の判断
+
+| 条件 | 対応 |
+|------|------|
+| 新規マイグレーションSQLなし | `--migrate` 不要 → STEP 11 へ |
+| 新規マイグレーションSQLあり | `--migrate` を付けて実行 → STEP 11 で対応 |
+
+### チェックリスト
+
+- [ ] `backend/migrations/` に新規 SQL ファイルがあるか確認した
+- [ ] 新規ファイルがある場合、内容（べき等性・影響範囲）を確認した
+- [ ] マイグレーション実施要否を判断した
+
+---
+
+## STEP 8: 環境変数の確認
+
+### 8-0. 環境変数差分チェック（自動）
 
 前回リリースコミットと今回リリースコミット間で、`.env系ファイル` および `aws/ecs-task-definition-*.json` の環境変数差分を自動チェックする。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
@@ -251,7 +312,7 @@ bash scripts/alchemia-staging/check-env-diff.sh \
 chmod +x scripts/alchemia-staging/check-env-diff.sh
 ```
 
-### 7-1. AWS CLI 認証確認
+### 8-1. AWS CLI 認証確認
 
 ```bash
 aws sts get-caller-identity
@@ -266,7 +327,7 @@ aws sts get-caller-identity
 > }
 > ```
 
-### 7-2. ECS タスク定義 JSON の確認
+### 8-2. ECS タスク定義 JSON の確認
 
 ```bash
 # バックエンドタスク定義の主要な環境変数を確認
@@ -288,7 +349,7 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 
 ---
 
-## STEP 8: 開発メンバーへのアナウンス
+## STEP 9: 開発メンバーへのアナウンス
 
 デプロイ作業中はブランチへのプッシュを避けてもらうため、開発メンバーに通知する（Teamsを使用）。
 
@@ -323,7 +384,7 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 
 ---
 
-## STEP 9: 島田さんへの連絡（デプロイ開始）
+## STEP 10: 島田さんへの連絡（デプロイ開始）
 
 デプロイ実施前に島田さんへメールで連絡する。
 
@@ -350,67 +411,6 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 ### チェックリスト
 
 - [ ] 島田さんへデプロイ開始のメールを送信した
-
----
-
-## STEP 10: DBのテーブル構成の確認
-
-### 10-1. マイグレーションファイルの確認
-
-```bash
-# 前回リリース以降に追加されたマイグレーションファイルを確認
-git diff --name-only <前回リリースコミット> <今回リリースコミット> -- backend/migrations/
-```
-
-または
-
-```bash
-# backend/migrations/ 配下のファイルを日付順で確認
-ls -lt backend/migrations/*.sql | head -10
-```
-
-### 10-2. マイグレーション内容の確認
-
-新規 SQL ファイルが存在する場合、内容を確認してデプロイ時に `--migrate` が必要か判断する。
-
-```bash
-# 新規マイグレーションファイルの内容確認
-cat backend/migrations/YYYYMMDD_<説明>.sql
-```
-
-> **確認ポイント**
-> - `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` 等でべき等に書かれているか
-> - ロールバックSQLが必要かどうか
-> - データの移行が必要かどうか
-
-### 10-3. Aurora への疎通確認（必要に応じて）
-
-```bash
-# 踏み台サーバー経由でポートフォワード（必要な場合）
-# ssh -L 5432:YOUR_AURORA_ENDPOINT:5432 user@bastion-host
-
-# Aurora への接続確認
-PGPASSWORD=${DB_PASSWORD} psql \
-  -h ${DB_HOST} \
-  -p 5432 \
-  -U maiml_user \
-  -d maiml_db \
-  --set=sslmode=require \
-  -c "\dt"
-```
-
-### 10-4. マイグレーション要否の判断
-
-| 条件 | 対応 |
-|------|------|
-| 新規マイグレーションSQLなし | `--migrate` 不要 → STEP 11 へ |
-| 新規マイグレーションSQLあり | `--migrate` を付けて実行 → STEP 11 で対応 |
-
-### チェックリスト
-
-- [ ] `backend/migrations/` に新規 SQL ファイルがあるか確認した
-- [ ] 新規ファイルがある場合、内容（べき等性・影響範囲）を確認した
-- [ ] マイグレーション実施要否を判断した
 
 ---
 
@@ -631,18 +631,18 @@ STEP 5: 計画書の移動
 STEP 6: 差分ファイルの確認（ドライラン）
   - [ ] --dry-run で差分ファイルを確認した
 
-STEP 7: 環境変数の確認
+STEP 7: DBのテーブル構成の確認
+  - [ ] migrations/ の新規 SQL 確認・マイグレーション要否を判断した
+
+STEP 8: 環境変数の確認
   - [ ] check-env-diff.sh を実行し環境変数差分を確認した
   - [ ] ECS タスク定義 JSON の環境変数が実環境の値になっていることを確認した
 
-STEP 8: 開発メンバーへのアナウンス
+STEP 9: 開発メンバーへのアナウンス
   - [ ] デプロイ開始を Teams でアナウンスした
 
-STEP 9: 島田さんへの連絡
+STEP 10: 島田さんへの連絡
   - [ ] デプロイ開始メールを送信した
-
-STEP 10: DBのテーブル構成の確認
-  - [ ] migrations/ の新規 SQL 確認・マイグレーション要否を判断した
 
 STEP 11: デプロイスクリプトの実行
   - [ ] sync-to-staging.sh でファイル同期完了
