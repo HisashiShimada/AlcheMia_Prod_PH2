@@ -11,11 +11,11 @@
 1. [ビルド確認](#step-1-ビルド確認)
 2. [リリース対象コミット・前回リリースコミットの確認](#step-2-リリース対象コミット前回リリースコミットの確認)
 3. [リリースディレクトリの初期化](#step-3-リリースディレクトリの初期化)
-4. [差分ファイルの確認（ドライラン）](#step-4-差分ファイルの確認ドライラン)
-5. [環境変数の確認](#step-5-環境変数の確認)
-6. [開発メンバーへのアナウンス](#step-6-開発メンバーへのアナウンス)
-7. [リリースノートの作成](#step-7-リリースノートの作成)
-8. [計画書の移動](#step-8-計画書の移動)
+4. [リリースノートの作成](#step-4-リリースノートの作成)
+5. [計画書の移動](#step-5-計画書の移動)
+6. [差分ファイルの確認（ドライラン）](#step-6-差分ファイルの確認ドライラン)
+7. [環境変数の確認](#step-7-環境変数の確認)
+8. [開発メンバーへのアナウンス](#step-8-開発メンバーへのアナウンス)
 9. [島田さんへの連絡（デプロイ開始）](#step-9-島田さんへの連絡デプロイ開始)
 10. [DBのテーブル構成の確認](#step-10-dbのテーブル構成の確認)
 11. [デプロイスクリプトの実行](#step-11-デプロイスクリプトの実行)
@@ -126,7 +126,72 @@ chmod +x scripts/init-release-dir.sh
 
 ---
 
-## STEP 4: 差分ファイルの確認（ドライラン）
+## STEP 4: リリースノートの作成
+
+### 4-1. リリースノートファイルの作成
+
+`docs/deliverables/release_notes_YYYYMMDD.md` を作成する。  
+Skillにリリースノート作成を登録しているので、clineに作成を依頼する。
+
+#### 指示テンプレート
+```
+リリースノートを作成してください。
+今回リリースするコミット、前回リリースしたコミットは、
+@\docs/deliverables/<リリースタグ名>/release_info.md
+に記載しています。
+リリースノートは
+@\docs/deliverables/<リリースタグ名>
+に出力してください。
+```
+
+### 4-2. 変更内容の確認
+
+```bash
+# コミット間の変更ファイルと差分を確認
+git log --oneline <前回リリースコミット>..<今回リリースコミット>
+git diff --name-status <前回リリースコミット> <今回リリースコミット>
+```
+
+### チェックリスト
+
+- [ ] `docs/deliverables/<リリースタグ名>/release_notes_YYYYMMDD.md` を作成した
+- [ ] バグ修正・新機能・インフラ対応・DBマイグレーション情報を記載した
+- [ ] 前回・今回のコミットハッシュを記載した
+
+---
+
+## STEP 5: 計画書の移動
+
+`docs/` 配下（サブフォルダ含む）に残っているタスク計画書（`PLAN.md` 等）を `docs/cline_archives/` へ移動する。
+
+### 5-1. 移動対象の確認
+
+```bash
+# docs/ 直下の .md ファイルを確認
+ls docs/*.md
+
+# docs/ 配下のタスクフォルダを確認（YYYYMMDD_ で始まるフォルダ）
+ls -d docs/[0-9]*/
+```
+
+### 5-2. アーカイブへ移動
+
+```bash
+# 例: docs/YYYYMMDD_HHMM_タスク名/ フォルダをアーカイブへ移動
+mv docs/YYYYMMDD_HHMM_タスク名 docs/cline_archives/
+
+# 例: docs/PLAN.md 単体ファイルを移動
+mv docs/PLAN.md docs/cline_archives/YYYYMMDD_PLAN.md
+```
+
+### チェックリスト
+
+- [ ] `docs/` 配下の計画書・タスクフォルダを確認した
+- [ ] 対象ファイル・フォルダを `docs/cline_archives/` へ移動した
+
+---
+
+## STEP 6: 差分ファイルの確認（ドライラン）
 
 `sync-to-staging.sh` の `--dry-run` オプションで変更ファイルの一覧を事前確認する。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
@@ -162,9 +227,9 @@ chmod +x scripts/sync-to-staging.sh
 
 ---
 
-## STEP 5: 環境変数の確認
+## STEP 7: 環境変数の確認
 
-### 5-0. 環境変数差分チェック（自動）
+### 7-0. 環境変数差分チェック（自動）
 
 前回リリースコミットと今回リリースコミット間で、`.env系ファイル` および `aws/ecs-task-definition-*.json` の環境変数差分を自動チェックする。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
@@ -200,7 +265,7 @@ bash scripts/check-env-diff.sh \
 chmod +x scripts/check-env-diff.sh
 ```
 
-### 5-1. AWS CLI 認証確認
+### 7-1. AWS CLI 認証確認
 
 ```bash
 aws sts get-caller-identity
@@ -215,7 +280,7 @@ aws sts get-caller-identity
 > }
 > ```
 
-### 5-2. `.env.prod.aws` の確認
+### 7-2. `.env.prod.aws` の確認
 
 ```bash
 # 必須項目が設定されているか確認（値は表示しない）
@@ -235,7 +300,7 @@ grep -E "^(DB_HOST|DB_PASSWORD|REDIS_HOST|REDIS_PASSWORD|AWS_S3_BUCKET|JWT_SECRE
 | `SESSION_SECRET` | `CHANGE_ME` のままになっていないか |
 | `CORS_ORIGIN` | NLB の正しいドメインが設定されている |
 
-### 5-3. ECS タスク定義 JSON の確認
+### 7-3. ECS タスク定義 JSON の確認
 
 ```bash
 # バックエンドタスク定義の主要な環境変数を確認
@@ -258,7 +323,7 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 
 ---
 
-## STEP 6: 開発メンバーへのアナウンス
+## STEP 8: 開発メンバーへのアナウンス
 
 デプロイ作業中はブランチへのプッシュを避けてもらうため、開発メンバーに通知する（Teamsを使用）。
 
@@ -290,71 +355,6 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 
 - [ ] Teamsでデプロイ開始をアナウンスした
 - [ ] メンバーから了承を得た（または十分な時間を置いた）
-
----
-
-## STEP 7: リリースノートの作成
-
-### 7-1. リリースノートファイルの作成
-
-`docs/deliverables/release_notes_YYYYMMDD.md` を作成する。  
-Skillにリリースノート作成を登録しているので、clineに作成を依頼する。
-
-#### 指示テンプレート
-```
-リリースノートを作成してください。
-今回リリースするコミット、前回リリースしたコミットは、
-@\docs/deliverables/<リリースタグ名>/release_info.md
-に記載しています。
-リリースノートは
-@\docs/deliverables/<リリースタグ名>
-に出力してください。
-```
-
-### 7-2. 変更内容の確認
-
-```bash
-# コミット間の変更ファイルと差分を確認
-git log --oneline <前回リリースコミット>..<今回リリースコミット>
-git diff --name-status <前回リリースコミット> <今回リリースコミット>
-```
-
-### チェックリスト
-
-- [ ] `docs/deliverables/<リリースタグ名>/release_notes_YYYYMMDD.md` を作成した
-- [ ] バグ修正・新機能・インフラ対応・DBマイグレーション情報を記載した
-- [ ] 前回・今回のコミットハッシュを記載した
-
----
-
-## STEP 8: 計画書の移動
-
-`docs/` 配下（サブフォルダ含む）に残っているタスク計画書（`PLAN.md` 等）を `docs/cline_archives/` へ移動する。
-
-### 8-1. 移動対象の確認
-
-```bash
-# docs/ 直下の .md ファイルを確認
-ls docs/*.md
-
-# docs/ 配下のタスクフォルダを確認（YYYYMMDD_ で始まるフォルダ）
-ls -d docs/[0-9]*/
-```
-
-### 8-2. アーカイブへ移動
-
-```bash
-# 例: docs/YYYYMMDD_HHMM_タスク名/ フォルダをアーカイブへ移動
-mv docs/YYYYMMDD_HHMM_タスク名 docs/cline_archives/
-
-# 例: docs/PLAN.md 単体ファイルを移動
-mv docs/PLAN.md docs/cline_archives/YYYYMMDD_PLAN.md
-```
-
-### チェックリスト
-
-- [ ] `docs/` 配下の計画書・タスクフォルダを確認した
-- [ ] 対象ファイル・フォルダを `docs/cline_archives/` へ移動した
 
 ---
 
@@ -657,21 +657,21 @@ STEP 3: リリースディレクトリの初期化
   - [ ] init-release-dir.sh を実行し、リリースディレクトリを作成した
   - [ ] release_info.md・checklist.md が作成されたことを確認した
 
-STEP 4: 差分ファイルの確認（ドライラン）
+STEP 4: リリースノートの作成
+  - [ ] release_notes_YYYYMMDD.md を作成した
+
+STEP 5: 計画書の移動
+  - [ ] docs/ 配下の計画書を docs/cline_archives/ へ移動した
+
+STEP 6: 差分ファイルの確認（ドライラン）
   - [ ] --dry-run で差分ファイルを確認した
 
-STEP 5: 環境変数の確認
+STEP 7: 環境変数の確認
   - [ ] check-env-diff.sh を実行し環境変数差分を確認した
   - [ ] .env.prod.aws・ECS タスク定義を確認した
 
-STEP 6: 開発メンバーへのアナウンス
+STEP 8: 開発メンバーへのアナウンス
   - [ ] デプロイ開始を Teams でアナウンスした
-
-STEP 7: リリースノートの作成
-  - [ ] release_notes_YYYYMMDD.md を作成した
-
-STEP 8: 計画書の移動
-  - [ ] docs/ 配下の計画書を docs/cline_archives/ へ移動した
 
 STEP 9: 島田さんへの連絡
   - [ ] デプロイ開始メールを送信した
