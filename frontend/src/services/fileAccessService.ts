@@ -355,6 +355,17 @@ export const uploadFiles = async (
       throw new Error(`${file.name} のアップロードに失敗しました`);
     }
 
+    // サーバー側でアップロードが拒否された場合（UUID不一致等）
+    // HTTP 200 でも files[] が空の場合は失敗扱いにする
+    const uploadedFile = response.data.data.files[0];
+    if (!uploadedFile) {
+      const failedFiles = response.data.data.summary?.failedFiles ?? 0;
+      const reason = failedFiles > 0
+        ? `${file.name} のアップロードがサーバーで拒否されました（アップロード先プロジェクトに異なるMAIMLが登録済みの可能性があります）`
+        : `${file.name} のアップロードに失敗しました`;
+      throw new Error(reason);
+    }
+
     // 完了通知
     completedCount++;
     if (onProgress) {
@@ -367,16 +378,7 @@ export const uploadFiles = async (
       });
     }
 
-    const uploadedFile = response.data.data.files[0];
-    return uploadedFile ?? {
-      fileId: filePath,
-      fileName: file.name,
-      filePath,
-      s3Key: filePath,
-      fileSize: file.size,
-      contentType: file.type || 'application/octet-stream',
-      uploadedAt: new Date().toISOString(),
-    };
+    return uploadedFile;
   };
 
   /**
@@ -484,6 +486,9 @@ export const uploadFiles = async (
     throw firstRejected?.reason ?? new Error('すべてのファイルのアップロードに失敗しました');
   }
 
+  // 成功したファイルの中に .maiml が含まれるか判定
+  const hasMaimlFile = successFiles.some(f => f.fileName.endsWith('.maiml'));
+
   return {
     uploadMode,
     files: successFiles,
@@ -494,6 +499,7 @@ export const uploadFiles = async (
       totalSize: successFiles.reduce((sum, f) => sum + f.fileSize, 0),
     },
     failedFileNames,
+    hasMaimlFile,
   };
 };
 
@@ -670,6 +676,29 @@ export const deleteFileByKey = async (
 };
 
 /**
+ * MAIMLファイルの Document UUID を抽出するヘルパー
+ *
+ * `<document>` 配下の `<uuid>` 子要素テキストを取得する。
+ * バックエンドの MaimlParserTyped.getDocument().uuid と同等の処理。
+ * 失敗した場合は null を返す（例外はスローしない）。
+ *
+ * @param file MAIMLファイル
+ * @returns Document UUID 文字列、取得できない場合は null
+ */
+const extractMaimlUuid = async (file: File): Promise<string | null> => {
+  try {
+    const { MaimlParserTyped } = await import('@/utils/maimlParserTyped');
+    const content = await file.text();
+    const maimlParser = new MaimlParserTyped(content);
+    const doc = maimlParser.getDocument();
+    const uuid = doc?.uuid?.trim();
+    return uuid && uuid.length > 0 ? uuid : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * 単一ファイルをチャンク分割してアップロードする
  *
  * チャンク分割アップロード実装 (2026-03-25)
@@ -691,6 +720,18 @@ export const uploadFileWithChunks = async (
   const chunkSize = options.chunkSize ?? DEFAULT_CHUNK_SIZE;
   const totalChunks = Math.ceil(file.size / chunkSize);
 
+  // MAIMLファイルの場合、事前にUUIDを抽出してセッション初期化に含める
+  // （options.documentUuid が既に指定されている場合はそれを優先）
+  let documentUuid = options.documentUuid;
+  if (documentUuid === undefined && file.name.toLowerCase().endsWith('.maiml')) {
+    documentUuid = (await extractMaimlUuid(file)) ?? undefined;
+    if (documentUuid) {
+      console.log(`🔍 [ChunkUpload] Document UUID 抽出成功: ${documentUuid}`);
+    } else {
+      console.warn('⚠️ [ChunkUpload] Document UUID 抽出失敗（上書きチェックをスキップ）');
+    }
+  }
+
   // 1. セッション開始（uploadId 取得）
   const initRes = await withRetry(
     () => client.post<ApiResponse<{ uploadId: string }>>(
@@ -699,6 +740,8 @@ export const uploadFileWithChunks = async (
         fileName: file.name,
         totalChunks,
         filePath,
+        // UUID一致チェック用: MAIMLファイルかつUUID抽出成功時のみ送信
+        ...(documentUuid ? { documentUuid } : {}),
       },
       { signal: options.signal } // ✅ AbortSignal を渡す
     ),

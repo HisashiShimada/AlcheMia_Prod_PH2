@@ -408,6 +408,7 @@ export class ProjectService {
               AND fm.file_key LIKE CAST(p.organization_id AS TEXT) || '/projects/' || p.project_name || '/%'
               AND fm.file_key NOT LIKE '%/.keep'
           ) as file_count,
+          p.project_uuid,
           (
             SELECT fm2.file_key
             FROM file_metadata fm2
@@ -509,6 +510,7 @@ export class ProjectService {
         totalTasks: parseInt(row.task_count, 10),
         completedTasks: parseInt(row.completed_task_count, 10),
         maimlFileKey: row.maiml_file_key || null,
+        project_uuid: row.project_uuid || null,
       }));
 
       // ページネーション情報を構築（後方互換のため残す）

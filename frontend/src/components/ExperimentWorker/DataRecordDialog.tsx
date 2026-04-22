@@ -773,7 +773,27 @@ export default function DataRecordDialog({
                     const cpKey = String(p.key ?? '');
                     const xsiType = String(p.xsiType ?? 'stringType');
                     const validTypes: CustomPropertyType[] = [
-                      'stringType', 'floatType', 'intType', 'booleanType', 'dateType', 'dateTimeType',
+                      'stringType', 'tokenType', 'stringEnumType',
+                      'intType', 'longType', 'shortType', 'byteType',
+                      'unsignedIntType', 'unsignedLongType', 'unsignedShortType', 'unsignedByteType',
+                      'floatType', 'doubleType', 'decimalType',
+                      'booleanType',
+                      'dateType', 'dateTimeType',
+                      // 文字列型
+                      'stringType', 'tokenType', 'stringEnumType',
+                      // 整数型
+                      'intType', 'longType', 'shortType', 'byteType',
+                      'unsignedIntType', 'unsignedLongType', 'unsignedShortType', 'unsignedByteType',
+                      // 浮動小数点型
+                      'floatType', 'doubleType', 'decimalType',
+                      // 真偽値型
+                      'booleanType',
+                      // 日時型
+                      'dateType', 'dateTimeType',
+                      // リスト型
+                      'stringListType', 'intListType', 'longListType', 'shortListType', 'byteListType',
+                      'unsignedIntListType', 'floatListType', 'doubleListType', 'decimalListType',
+                      'booleanListType', 'dateTimeListType',
                     ];
                     const customType: CustomPropertyType = validTypes.includes(xsiType as CustomPropertyType)
                       ? (xsiType as CustomPropertyType)

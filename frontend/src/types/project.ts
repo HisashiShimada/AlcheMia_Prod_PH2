@@ -29,6 +29,7 @@ export interface Project {
   completedTasks?: number;
   totalTasks?: number;
   maimlFileKey?: string | null;
+  project_uuid?: string | null;
   tasks?: Task[];
 }
 

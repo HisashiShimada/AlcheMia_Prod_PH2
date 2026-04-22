@@ -54,7 +54,9 @@ import type {
   InstanceRef,
   Extension,
   Globals,
-  Classifier
+  Classifier,
+  Parent,
+  Chain
 } from '../types/maiml-unified';
 
 /**
@@ -118,8 +120,32 @@ function convertDocument(xmlDoc: XmlJsElement): MaimlDocument {
     vendors: convertArray(xmlDoc.vendor, convertVendor),
     owners: convertArray(xmlDoc.owner, convertOwner),
     instruments: xmlDoc.instrument ? convertArray(xmlDoc.instrument, convertInstrument) : [],
-    chains:  [],
-    parents:  [],
+    chains:  (xmlDoc as any).chain  ? convertArray((xmlDoc as any).chain,  convertChain)  : [],
+    parents: (xmlDoc as any).parent ? convertArray((xmlDoc as any).parent, convertParent) : [],
+  };
+}
+
+/**
+ * Parent変換（再帰対応）
+ */
+function convertParent(xmlParent: any): Parent {
+  return {
+    uuid: xmlParent.uuid?._text || '',
+    hash: xmlParent.hash ? convertHash(xmlParent.hash) : { value: '' },
+    parents: xmlParent.parent ? convertArray(xmlParent.parent, convertParent) : [],
+    key: xmlParent._attributes?.key,
+  };
+}
+
+/**
+ * Chain変換（再帰対応）
+ */
+function convertChain(xmlChain: any): Chain {
+  return {
+    uuid: xmlChain.uuid?._text || '',
+    hash: xmlChain.hash ? convertHash(xmlChain.hash) : { value: '' },
+    chains: xmlChain.chain ? convertArray(xmlChain.chain, convertChain) : [],
+    key: xmlChain._attributes?.key,
   };
 }
 
@@ -403,15 +429,58 @@ function convertResultTemplate(xmlTemplate: any): Template {
 }
 
 /**
+ * xml-js要素から <value> / <values> タグの値を柔軟に取得するヘルパー関数
+ *
+ * @param xmlEl - xml-js要素
+ * @returns 取得した値（文字列）、または undefined（value/valuesタグが存在しない場合）
+ *
+ * @remarks
+ * - value/valuesタグが存在しない場合: undefined を返す（タグなし）
+ * - valueタグがあるがテキストなし（空タグ）: '' を返す
+ * - valueタグが複数（配列）: スペース区切りで連結
+ * - valuesタグ: テキストをそのまま返す
+ */
+function extractPropertyValue(xmlEl: any): string | undefined {
+  // <value>/<values> タグが存在しない場合 → undefined（タグなし）
+  if (xmlEl.value === undefined && xmlEl.values === undefined) {
+    return undefined;
+  }
+
+  // <values> タグの場合
+  if (xmlEl.values !== undefined) {
+    return xmlEl.values._text !== undefined ? String(xmlEl.values._text) : '';
+  }
+
+  // <value> タグが配列（複数）の場合 → スペース区切りで連結
+  if (Array.isArray(xmlEl.value)) {
+    const parts = (xmlEl.value as any[])
+      .map((v: any) => (v._text !== undefined ? String(v._text) : ''))
+      .filter((s: string) => s !== '');
+    return parts.length > 0 ? parts.join(' ') : '';
+  }
+
+  // <value> タグが単一オブジェクトの場合
+  if (xmlEl.value !== null && typeof xmlEl.value === 'object') {
+    return xmlEl.value._text !== undefined ? String(xmlEl.value._text) : '';
+  }
+
+  // フォールバック
+  return xmlEl.value !== undefined ? String(xmlEl.value) : '';
+}
+
+/**
  * Content変換（xml-jsからContent Union型へ）
  */
 export function convertContent(xmlContent: any): Content {
   const key = xmlContent._attributes?.key || '';
-  const xsiType = (xmlContent._attributes?.['xsi:type'] || 'contentStringListType') as ContentType;
+  const xsiType = (xmlContent._attributes?.['xsi:type'] || '') as ContentType;
   const description = xmlContent.description?._text || undefined;
   
   console.log(`🔄 [convertContent] ${key} (${xsiType})`);
-  
+
+  // value タグの有無で値を振り分け
+  const contentValueText = extractPropertyValue(xmlContent);
+
   // 基本プロパティ
   const result: Content = {
     key,
@@ -421,7 +490,7 @@ export function convertContent(xmlContent: any): Content {
     size: xmlContent._attributes?.size ? parseInt(xmlContent._attributes.size) : undefined,
     id: xmlContent._attributes?.id,
     ref: xmlContent._attributes?.ref,
-    value: xmlContent.value?._text || xmlContent.values?._text,
+    value: contentValueText,
     units: xmlContent._attributes?.units,
     formatString: xmlContent._attributes?.formatString,
     scaleFactor: xmlContent._attributes?.scaleFactor ? parseFloat(xmlContent._attributes.scaleFactor) : undefined,
@@ -467,7 +536,6 @@ export function convertXmlJsProperty(xmlProp: any): Property {
         properties.push(convertXmlJsProperty(p)); // 再帰
       });
     }
-    
     const result: Property = {
       key,
       xsiType: 'propertyListType',
@@ -477,128 +545,110 @@ export function convertXmlJsProperty(xmlProp: any): Property {
     };
     return result;
   }
-  
+
+  // value タグの有無を先に判定（全ブランチで共通利用）
+  const valueText = extractPropertyValue(xmlProp);
+
   // 数値型の場合
   if (xsiType === 'intType' || xsiType === 'doubleType' || xsiType === 'floatType' ||
       xsiType === 'longType' || xsiType === 'shortType' || xsiType === 'byteType' ||
-      xsiType === 'unsignedIntType' || xsiType === 'unsignedLongType' || 
+      xsiType === 'unsignedIntType' || xsiType === 'unsignedLongType' ||
       xsiType === 'unsignedShortType' || xsiType === 'unsignedByteType' ||
       xsiType === 'decimalType') {
-    const valueText = xmlProp.value?._text || '0';
-    const value = parseFloat(valueText);
     const units = xmlProp._attributes?.units;
     const formatString = xmlProp._attributes?.formatString;
     const scaleFactor = parseFloat(xmlProp._attributes?.scaleFactor || '1.0');
-    
+    // valueタグなし → undefined、あり → 数値変換（失敗時は 0）
+    let numValue: number | undefined;
+    if (valueText !== undefined) {
+      const parsed = parseFloat(valueText || '0');
+      const isIntegerType = ['intType', 'longType', 'shortType', 'byteType',
+        'unsignedIntType', 'unsignedLongType', 'unsignedShortType', 'unsignedByteType'].includes(xsiType);
+      numValue = isNaN(parsed) ? 0 : (isIntegerType ? Math.floor(parsed) : parsed);
+    }
     const result: Property = {
-      key,
-      xsiType,
-      description,
-      value: isNaN(value) ? 0 : (xsiType === 'intType' || xsiType.includes('Type') && 
-             ['longType', 'shortType', 'byteType', 'unsignedIntType', 'unsignedLongType', 
-              'unsignedShortType', 'unsignedByteType'].includes(xsiType) ? Math.floor(value) : value),
-      units,
-      formatString,
-      scaleFactor,
-      properties : [],
-      contents : []
+      key, xsiType, description,
+      value: numValue,
+      units, formatString, scaleFactor,
+      properties: [], contents: []
     };
     return result;
   }
-  
+
   // Boolean型の場合
   if (xsiType === 'booleanType') {
-    const valueText = xmlProp.value?._text || 'false';
+    // valueタグなし → undefined、あり → boolean変換
+    const boolValue = valueText !== undefined
+      ? (valueText.toLowerCase() === 'true')
+      : undefined;
     const result: Property = {
-      key,
-      xsiType: 'booleanType',
-      description,
-      value: valueText.toLowerCase() === 'true',
-      properties : [],
-      contents : []
+      key, xsiType: 'booleanType', description,
+      value: boolValue,
+      properties: [], contents: []
     };
     return result;
   }
-  
+
   // DateTime型の場合
   if (xsiType === 'dateTimeType') {
     const result: Property = {
-      key,
-      xsiType: 'dateTimeType',
-      description,
-      value: xmlProp.value?._text || '',
+      key, xsiType: 'dateTimeType', description,
+      value: valueText !== undefined ? valueText : undefined,
       formatString: xmlProp._attributes?.formatString,
-      properties : [],
-      contents : []
+      properties: [], contents: []
     };
     return result;
   }
-  
+
   // 文字列系特殊型の場合（tokenType, idType, idRefType, qualifiedNameType, uriType, uuidType, languageType）
-  if (['tokenType', 'idType', 'idRefType', 'qualifiedNameType', 'uriType', 
+  if (['tokenType', 'idType', 'idRefType', 'qualifiedNameType', 'uriType',
        'uuidType', 'languageType'].includes(xsiType)) {
     const result: Property = {
-      key,
-      xsiType,
-      description,
-      value: xmlProp.value?._text || '',
-      properties : [],
-      contents : []
+      key, xsiType, description,
+      value: valueText !== undefined ? valueText : undefined,
+      properties: [], contents: []
     };
     return result;
   }
-  
+
   // バイナリ型の場合（base64BinaryType, hexBinaryType）
   if (xsiType === 'base64BinaryType' || xsiType === 'hexBinaryType') {
     const result: Property = {
-      key,
-      xsiType,
-      description,
-      value: xmlProp.value?._text || '',
-      properties : [],
-      contents : []
+      key, xsiType, description,
+      value: valueText !== undefined ? valueText : undefined,
+      properties: [], contents: []
     };
     return result;
   }
-  
-  // リスト型の場合
+
+  // リスト型の場合（*ListType）
   if (xsiType.endsWith('ListType')) {
-    const valueText = xmlProp.value?._text || xmlProp.values?._text || '';
     const result: Property = {
-      key,
-      xsiType,
-      description,
-      value: valueText,
+      key, xsiType, description,
+      value: valueText !== undefined ? valueText : undefined,
       units: xmlProp._attributes?.units,
       formatString: xmlProp._attributes?.formatString,
       scaleFactor: xmlProp._attributes?.scaleFactor ? parseFloat(xmlProp._attributes.scaleFactor) : undefined,
-      properties : [],
-      contents : []
+      properties: [], contents: []
     };
     return result;
   }
-  
+
   // stringEnumType（列挙型）の場合
   if (xsiType === 'stringEnumType') {
     const result: Property = {
-      key,
-      xsiType: 'stringEnumType',
-      description,
-      value: xmlProp.value?._text || '',
-      properties : [],
-      contents : []
+      key, xsiType: 'stringEnumType', description,
+      value: valueText !== undefined ? valueText : undefined,
+      properties: [], contents: []
     };
     return result;
   }
-  
+
   // デフォルトはString型として扱う
   const result: Property = {
-    key,
-    xsiType: 'stringType',
-    description,
-    value: xmlProp.value?._text || '',
-    properties : [],
-    contents : []
+    key, xsiType: 'stringType', description,
+    value: valueText !== undefined ? valueText : undefined,
+    properties: [], contents: []
   };
   return result;
 }

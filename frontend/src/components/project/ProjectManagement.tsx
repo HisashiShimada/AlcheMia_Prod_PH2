@@ -463,15 +463,25 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     hasMaimlFile?: boolean;
   }) => {
     console.log('Upload completed:', result);
-    
-    // プロジェクト一覧を再取得（MAIMLファイルのフラグ更新は削除API側で自動実行）
-    await refetchProjects();
-    handleRefresh();
 
-    // ファイル一覧を再取得してUIに反映（selectedProject は後で宣言されるため projects + selectedProjectId を使用）
+    // refetchProjects() の前に currentProject を取得する。
+    // refetchProjects() は非同期 state 更新のため、呼び出し後に projects.find() しても
+    // Reactの state がまだ古い値のままである可能性があり、project_uuid などの最新値が
+    // 取得できない。そのため先に取得しておく。
     const currentProject = selectedProjectId
       ? projects.find(p => p.id === selectedProjectId) ?? null
       : null;
+
+    // MAIMLアップロードが更新か新規かを判断するため、refetch前に保持する
+    // project_uuid が設定済み、または maimlFileKey が存在する場合は「既存MAIMLあり」と判断する
+    // （project_uuid は古いプロジェクトでは未設定の場合があるため maimlFileKey も判定に使用）
+    const hadProjectUuid = result.hasMaimlFile
+      ? (currentProject?.project_uuid != null || currentProject?.maimlFileKey != null)
+      : false;
+
+    // プロジェクト一覧を再取得（MAIMLファイルのフラグ更新は削除API側で自動実行）
+    await refetchProjects();
+    handleRefresh();
 
     if (currentProject) {
       try {
@@ -498,6 +508,15 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         } catch (error) {
           console.error('❌ [ProjectManagement] アップロード後MAIMLリロード失敗:', error);
           // エラーはContextで処理済み
+        }
+
+        // UUID一致による更新アップロードだった場合の警告
+        // refetch前に保持した hadProjectUuid で判断する
+        if (hadProjectUuid) {
+          message.warning(
+            'MAIMLファイルを更新しました。手作業で編集した場合は、「Parent」タグが正しく設定されていることを確認してください。',
+            8  // 8秒間表示
+          );
         }
       }
     }
