@@ -11,14 +11,15 @@
 1. [ビルド確認](#step-1-ビルド確認)
 2. [リリース対象コミット・前回リリースコミットの確認](#step-2-リリース対象コミット前回リリースコミットの確認)
 3. [リリースディレクトリの初期化](#step-3-リリースディレクトリの初期化)
-4. [開発メンバーへのアナウンス](#step-4-開発メンバーへのアナウンス)
-5. [環境変数の確認](#step-5-環境変数の確認)
-6. [リリースノートの作成](#step-6-リリースノートの作成)
-7. [計画書の移動](#step-7-計画書の移動)
-8. [島田さんへの連絡（デプロイ開始）](#step-8-島田さんへの連絡デプロイ開始)
-9. [DBのテーブル構成の確認](#step-9-dbのテーブル構成の確認)
-10. [デプロイスクリプトの実行](#step-10-デプロイスクリプトの実行)
-11. [動作確認](#step-11-動作確認)
+4. [差分ファイルの確認（ドライラン）](#step-4-差分ファイルの確認ドライラン)
+5. [開発メンバーへのアナウンス](#step-5-開発メンバーへのアナウンス)
+6. [環境変数の確認](#step-6-環境変数の確認)
+7. [リリースノートの作成](#step-7-リリースノートの作成)
+8. [計画書の移動](#step-8-計画書の移動)
+9. [島田さんへの連絡（デプロイ開始）](#step-9-島田さんへの連絡デプロイ開始)
+10. [DBのテーブル構成の確認](#step-10-dbのテーブル構成の確認)
+11. [デプロイスクリプトの実行](#step-11-デプロイスクリプトの実行)
+12. [動作確認](#step-12-動作確認)
 
 ---
 
@@ -48,42 +49,11 @@ git pull
 (cd frontend && npm run build 2>&1) | tail -20
 ```
 
-### 1-3. 差分ファイルの確認（ドライラン）
-
-`sync-to-staging.sh` の `--dry-run` オプションで変更ファイルの一覧を事前確認する。  
-コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
-
-```bash
-# ドライラン（ファイルを操作せず差分のみ表示）
-bash scripts/sync-to-staging.sh \
-  --release-tag <リリースタグ名> \
-  --dry-run
-```
-
-> **実行例:**
-> ```bash
-> bash scripts/sync-to-staging.sh \
->   --release-tag release_20260422_v1.0.0 \
->   --dry-run
-> ```
-
-> **確認ポイント**
-> - 想定外のファイルが含まれていないか
-> - 削除ファイルに重要なものがないか
-> - `backend/migrations/` に新規SQLが含まれているか（→ STEP 9 で対応）
-> - ドライラン結果は `docs/deliverables/<リリースタグ名>/dry-run-result.md` に自動保存される
-
-※スクリプトに実行権限がない場合は下記を実行すること
-```bash
-chmod +x scripts/sync-to-staging.sh
-```
-
 ### チェックリスト
 
 - [ ] `git pull` で最新コードを取得した
 - [ ] テストがすべてパスした
 - [ ] バックエンド・フロントエンドのビルドが成功した
-- [ ] `--dry-run` で差分ファイルを確認し、問題がないことを確認した
 
 ---
 
@@ -156,7 +126,43 @@ chmod +x scripts/init-release-dir.sh
 
 ---
 
-## STEP 4: 開発メンバーへのアナウンス
+## STEP 4: 差分ファイルの確認（ドライラン）
+
+`sync-to-staging.sh` の `--dry-run` オプションで変更ファイルの一覧を事前確認する。  
+コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
+
+```bash
+# ドライラン（ファイルを操作せず差分のみ表示）
+bash scripts/sync-to-staging.sh \
+  --release-tag <リリースタグ名> \
+  --dry-run
+```
+
+> **実行例:**
+> ```bash
+> bash scripts/sync-to-staging.sh \
+>   --release-tag release_20260422_v1.0.0 \
+>   --dry-run
+> ```
+
+> **確認ポイント**
+> - 想定外のファイルが含まれていないか
+> - 削除ファイルに重要なものがないか
+> - `backend/migrations/` に新規SQLが含まれているか（→ STEP 10 で対応）
+> - ドライラン結果は `docs/deliverables/<リリースタグ名>/dry-run-result.md` に自動保存される
+
+※スクリプトに実行権限がない場合は下記を実行すること
+```bash
+chmod +x scripts/sync-to-staging.sh
+```
+
+### チェックリスト
+
+- [ ] `--dry-run` で差分ファイルを確認し、問題がないことを確認した
+
+---
+
+## STEP 5: 開発メンバーへのアナウンス
 
 デプロイ作業中はブランチへのプッシュを避けてもらうため、開発メンバーに通知する（Teamsを使用）。
 
@@ -191,9 +197,9 @@ chmod +x scripts/init-release-dir.sh
 
 ---
 
-## STEP 5: 環境変数の確認
+## STEP 6: 環境変数の確認
 
-### 5-0. 環境変数差分チェック（自動）
+### 6-0. 環境変数差分チェック（自動）
 
 前回リリースコミットと今回リリースコミット間で、`.env系ファイル` および `aws/ecs-task-definition-*.json` の環境変数差分を自動チェックする。
 
@@ -230,7 +236,7 @@ bash scripts/check-env-diff.sh \
 chmod +x scripts/check-env-diff.sh
 ```
 
-### 5-1. AWS CLI 認証確認
+### 6-1. AWS CLI 認証確認
 
 ```bash
 aws sts get-caller-identity
@@ -245,7 +251,7 @@ aws sts get-caller-identity
 > }
 > ```
 
-### 5-2. `.env.prod.aws` の確認
+### 6-2. `.env.prod.aws` の確認
 
 ```bash
 # 必須項目が設定されているか確認（値は表示しない）
@@ -265,7 +271,7 @@ grep -E "^(DB_HOST|DB_PASSWORD|REDIS_HOST|REDIS_PASSWORD|AWS_S3_BUCKET|JWT_SECRE
 | `SESSION_SECRET` | `CHANGE_ME` のままになっていないか |
 | `CORS_ORIGIN` | NLB の正しいドメインが設定されている |
 
-### 5-3. ECS タスク定義 JSON の確認
+### 6-3. ECS タスク定義 JSON の確認
 
 ```bash
 # バックエンドタスク定義の主要な環境変数を確認
@@ -288,15 +294,15 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 
 ---
 
-## STEP 6: リリースノートの作成
+## STEP 7: リリースノートの作成
 
-### 6-1. リリースノートファイルの作成
+### 7-1. リリースノートファイルの作成
 
 `docs/deliverables/release_notes_YYYYMMDD.md` を作成する。  
 clineのSkillにリリースノート作成を登録しているので、  
 今回リリースのコミット、前回リリースのコミットを指定して作成を依頼する。
 
-### 6-2. 変更内容の確認
+### 7-2. 変更内容の確認
 
 ```bash
 # コミット間の変更ファイルと差分を確認
@@ -312,11 +318,11 @@ git diff --name-status <前回リリースコミット> <今回リリースコ�
 
 ---
 
-## STEP 7: 計画書の移動
+## STEP 8: 計画書の移動
 
 `docs/` 配下（サブフォルダ含む）に残っているタスク計画書（`PLAN.md` 等）を `docs/cline_archives/` へ移動する。
 
-### 7-1. 移動対象の確認
+### 8-1. 移動対象の確認
 
 ```bash
 # docs/ 直下の .md ファイルを確認
@@ -326,7 +332,7 @@ ls docs/*.md
 ls -d docs/[0-9]*/
 ```
 
-### 7-2. アーカイブへ移動
+### 8-2. アーカイブへ移動
 
 ```bash
 # 例: docs/YYYYMMDD_HHMM_タスク名/ フォルダをアーカイブへ移動
@@ -343,7 +349,7 @@ mv docs/PLAN.md docs/cline_archives/YYYYMMDD_PLAN.md
 
 ---
 
-## STEP 8: 島田さんへの連絡（デプロイ開始）
+## STEP 9: 島田さんへの連絡（デプロイ開始）
 
 デプロイ実施前に島田さんへメールで連絡する。
 
@@ -373,9 +379,9 @@ mv docs/PLAN.md docs/cline_archives/YYYYMMDD_PLAN.md
 
 ---
 
-## STEP 9: DBのテーブル構成の確認
+## STEP 10: DBのテーブル構成の確認
 
-### 9-1. マイグレーションファイルの確認
+### 10-1. マイグレーションファイルの確認
 
 ```bash
 # 前回リリース以降に追加されたマイグレーションファイルを確認
@@ -389,7 +395,7 @@ git diff --name-only <前回リリースコミット> <今回リリースコミ�
 ls -lt backend/migrations/*.sql | head -10
 ```
 
-### 9-2. マイグレーション内容の確認
+### 10-2. マイグレーション内容の確認
 
 新規 SQL ファイルが存在する場合、内容を確認してデプロイ時に `--migrate` が必要か判断する。
 
@@ -403,7 +409,7 @@ cat backend/migrations/YYYYMMDD_<説明>.sql
 > - ロールバックSQLが必要かどうか
 > - データの移行が必要かどうか
 
-### 9-3. Aurora への疎通確認（必要に応じて）
+### 10-3. Aurora への疎通確認（必要に応じて）
 
 ```bash
 # 踏み台サーバー経由でポートフォワード（必要な場合）
@@ -419,12 +425,12 @@ PGPASSWORD=${DB_PASSWORD} psql \
   -c "\dt"
 ```
 
-### 9-4. マイグレーション要否の判断
+### 10-4. マイグレーション要否の判断
 
 | 条件 | 対応 |
 |------|------|
-| 新規マイグレーションSQLなし | `--migrate` 不要 → STEP 10 へ |
-| 新規マイグレーションSQLあり | `--migrate` を付けて実行 → STEP 10 で対応 |
+| 新規マイグレーションSQLなし | `--migrate` 不要 → STEP 11 へ |
+| 新規マイグレーションSQLあり | `--migrate` を付けて実行 → STEP 11 で対応 |
 
 ### チェックリスト
 
@@ -434,9 +440,9 @@ PGPASSWORD=${DB_PASSWORD} psql \
 
 ---
 
-## STEP 10: デプロイスクリプトの実行
+## STEP 11: デプロイスクリプトの実行
 
-### 10-1. ファイル同期（sync-to-staging.sh）
+### 11-1. ファイル同期（sync-to-staging.sh）
 
 検証環境用リポジトリへ差分ファイルを同期する。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` と `--dest-repo` のみ指定すればよい。
@@ -457,7 +463,7 @@ bash scripts/sync-to-staging.sh \
 
 > **完了メッセージの確認**: `同期が正常に完了しました。` が表示されることを確認する。
 
-### 10-2. ECS デプロイ（deploy.ecr.sh）
+### 11-2. ECS デプロイ（deploy.ecr.sh）
 
 #### ケース A: フルデプロイ（標準 / マイグレーションなし）
 
@@ -502,9 +508,9 @@ export DB_PASSWORD=YOUR_DB_PASSWORD
 
 ---
 
-## STEP 11: 動作確認
+## STEP 12: 動作確認
 
-### 11-1. ECS サービス状態の確認
+### 12-1. ECS サービス状態の確認
 
 ```bash
 # backend サービスの状態確認
@@ -524,7 +530,7 @@ aws ecs describe-services \
 
 > **正常**: `runningCount` = `desiredCount`、`pendingCount` = 0
 
-### 11-2. スキーマの差分チェック
+### 12-2. スキーマの差分チェック
 
 デプロイ後、開発環境と検証環境（Aurora）のスキーマが一致していることを確認する。
 
@@ -571,7 +577,7 @@ diff \
 > | 差分あり（`CREATE TABLE` / `ADD COLUMN` 等） | マイグレーション未適用の可能性 → 内容を精査し、必要なら `--migrate` オプション付きで再デプロイ |
 > | 差分あり（コメント・`pg_dump` ヘッダー行のみ） | 実質的な差分なし → 無視して次のステップへ |
 
-### 11-3. API ヘルスチェック
+### 12-3. API ヘルスチェック
 
 ```bash
 curl https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com/api/health
@@ -579,7 +585,7 @@ curl https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com/api/health
 # 期待レスポンス: {"status":"ok"}
 ```
 
-### 11-4. CloudWatch ログの確認
+### 12-4. CloudWatch ログの確認
 
 ```bash
 # バックエンドログ（直近10分）
@@ -591,7 +597,7 @@ aws logs tail /ecs/alchemia-nginx --region ap-northeast-1 --since 10m
 
 > **確認ポイント**: ERROR レベルのログが出ていないことを確認する。
 
-### 11-5. ブラウザでの画面確認
+### 12-5. ブラウザでの画面確認
 
 | 確認項目 | URL / 操作 | 期待結果 |
 |---------|-----------|---------|
@@ -599,7 +605,7 @@ aws logs tail /ecs/alchemia-nginx --region ap-northeast-1 --since 10m
 | ログイン | 管理者アカウントでログイン | ダッシュボードに遷移する |
 | 主要機能の動作 | 今回リリース内容に応じた画面操作 | 正常に動作する |
 
-### 11-6. 完了アナウンス
+### 12-6. 完了アナウンス
 
 Slack でデプロイ完了を通知する。
 
@@ -634,7 +640,6 @@ alchemia-staging へのデプロイが完了しました。
 ```
 STEP 1: ビルド確認
   - [ ] テスト通過・ビルド成功を確認した
-  - [ ] --dry-run で差分ファイルを確認した
 
 STEP 2: リリース対象コミット・前回リリースコミットの確認
   - [ ] 前回・今回のコミットハッシュを確認・記録した
@@ -643,30 +648,33 @@ STEP 3: リリースディレクトリの初期化
   - [ ] init-release-dir.sh を実行し、リリースディレクトリを作成した
   - [ ] release_info.md・checklist.md が作成されたことを確認した
 
-STEP 4: 開発メンバーへのアナウンス
+STEP 4: 差分ファイルの確認（ドライラン）
+  - [ ] --dry-run で差分ファイルを確認した
+
+STEP 5: 開発メンバーへのアナウンス
   - [ ] デプロイ開始を Teams でアナウンスした
 
-STEP 5: 環境変数の確認
+STEP 6: 環境変数の確認
   - [ ] check-env-diff.sh を実行し環境変数差分を確認した
   - [ ] .env.prod.aws・ECS タスク定義を確認した
 
-STEP 6: リリースノートの作成
+STEP 7: リリースノートの作成
   - [ ] release_notes_YYYYMMDD.md を作成した
 
-STEP 7: 計画書の移動
+STEP 8: 計画書の移動
   - [ ] docs/ 配下の計画書を docs/cline_archives/ へ移動した
 
-STEP 8: 島田さんへの連絡
+STEP 9: 島田さんへの連絡
   - [ ] デプロイ開始メールを送信した
 
-STEP 9: DBのテーブル構成の確認
+STEP 10: DBのテーブル構成の確認
   - [ ] migrations/ の新規 SQL 確認・マイグレーション要否を判断した
 
-STEP 10: デプロイスクリプトの実行
+STEP 11: デプロイスクリプトの実行
   - [ ] sync-to-staging.sh でファイル同期完了
   - [ ] deploy.ecr.sh でデプロイ完了
 
-STEP 11: 動作確認
+STEP 12: 動作確認
   - [ ] ECS サービス状態を確認した
   - [ ] スキーマ差分チェック（dump-dev / dump-staging → diff）を実施した
   - [ ] ヘルスチェック・ログ・ブラウザ動作を確認した
