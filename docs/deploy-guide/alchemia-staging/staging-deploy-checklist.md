@@ -158,10 +158,6 @@ Skillにリリースノート作成を登録しているので、clineに作成�
 
 ### 5-1. 移動対象の確認
 
-```bash
-# docs/ 直下の .md ファイルを確認
-ls docs/*.md
-
 # docs/ 配下のタスクフォルダを確認（YYYYMMDD_ で始まるフォルダ）
 ls -d docs/[0-9]*/
 ```
@@ -172,8 +168,6 @@ ls -d docs/[0-9]*/
 # 例: docs/YYYYMMDD_HHMM_タスク名/ フォルダをアーカイブへ移動
 mv docs/YYYYMMDD_HHMM_タスク名 docs/cline_archives/
 
-# 例: docs/PLAN.md 単体ファイルを移動
-mv docs/PLAN.md docs/cline_archives/YYYYMMDD_PLAN.md
 ```
 
 ### チェックリスト
