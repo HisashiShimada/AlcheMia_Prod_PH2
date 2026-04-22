@@ -90,7 +90,7 @@ git log --oneline -20
 STEP 2 で確認したコミット情報とリリースタグを使って、リリース作業用ディレクトリを初期化する。
 
 ```bash
-bash scripts/init-release-dir.sh \
+bash scripts/alchemia-staging/init-release-dir.sh \
   --to-commit   <今回リリースコミット> \
   --from-commit <前回リリースコミット> \
   --tag         <リリースタグ名>
@@ -98,7 +98,7 @@ bash scripts/init-release-dir.sh \
 
 > **実行例:**
 > ```bash
-> bash scripts/init-release-dir.sh \
+> bash scripts/alchemia-staging/init-release-dir.sh \
 >   --to-commit   a40d124e938672cdfb1360d7bcd4cd12fe17fdc3 \
 >   --from-commit e19f5d46513141f186c46f61d1e0192d9444bfe2 \
 >   --tag         release_20260422_v1.0.0
@@ -115,7 +115,7 @@ bash scripts/init-release-dir.sh \
 
 ※スクリプトに実行権限がない場合は下記を実行すること
 ```bash
-chmod +x scripts/init-release-dir.sh
+chmod +x scripts/alchemia-staging/init-release-dir.sh
 ```
 
 ### チェックリスト
@@ -198,14 +198,14 @@ mv docs/PLAN.md docs/cline_archives/YYYYMMDD_PLAN.md
 
 ```bash
 # ドライラン（ファイルを操作せず差分のみ表示）
-bash scripts/sync-to-staging.sh \
+bash scripts/alchemia-staging/sync-to-staging.sh \
   --release-tag <リリースタグ名> \
   --dry-run
 ```
 
 > **実行例:**
 > ```bash
-> bash scripts/sync-to-staging.sh \
+> bash scripts/alchemia-staging/sync-to-staging.sh \
 >   --release-tag release_20260422_v1.0.0 \
 >   --dry-run
 > ```
@@ -218,7 +218,7 @@ bash scripts/sync-to-staging.sh \
 
 ※スクリプトに実行権限がない場合は下記を実行すること
 ```bash
-chmod +x scripts/sync-to-staging.sh
+chmod +x scripts/alchemia-staging/sync-to-staging.sh
 ```
 
 ### チェックリスト
@@ -235,13 +235,13 @@ chmod +x scripts/sync-to-staging.sh
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
 
 ```bash
-bash scripts/check-env-diff.sh \
+bash scripts/alchemia-staging/check-env-diff.sh \
   --release-tag <リリースタグ名>
 ```
 
 > **機密値をマスクせず確認したい場合（ローカル環境のみ）:**
 > ```bash
-> bash scripts/check-env-diff.sh \
+> bash scripts/alchemia-staging/check-env-diff.sh \
 >   --release-tag <リリースタグ名> \
 >   --show-secrets
 > ```
@@ -262,7 +262,7 @@ bash scripts/check-env-diff.sh \
 
 ※スクリプトに実行権限がない場合は下記を実行すること
 ```bash
-chmod +x scripts/check-env-diff.sh
+chmod +x scripts/alchemia-staging/check-env-diff.sh
 ```
 
 ### 7-1. AWS CLI 認証確認
@@ -437,14 +437,14 @@ PGPASSWORD=${DB_PASSWORD} psql \
 
 ```bash
 # 実行（ドライランを外す）
-bash scripts/sync-to-staging.sh \
+bash scripts/alchemia-staging/sync-to-staging.sh \
   --release-tag <リリースタグ名> \
   --dest-repo   <検証環境用リポジトリのパス>
 ```
 
 > **実行例:**
 > ```bash
-> bash scripts/sync-to-staging.sh \
+> bash scripts/alchemia-staging/sync-to-staging.sh \
 >   --release-tag release_20260422_v1.0.0 \
 >   --dest-repo   /home/user/staging/mmdpf
 > ```
@@ -456,7 +456,7 @@ bash scripts/sync-to-staging.sh \
 #### ケース A: フルデプロイ（標準 / マイグレーションなし）
 
 ```bash
-./scripts/deploy.ecr.sh
+./scripts/alchemia-staging/deploy.ecr.phase1.sh
 ```
 
 #### ケース B: DBマイグレーション付きフルデプロイ
@@ -465,25 +465,25 @@ bash scripts/sync-to-staging.sh \
 export DB_HOST=YOUR_AURORA_ENDPOINT.cluster-xxxxxxxxxx.ap-northeast-1.rds.amazonaws.com
 export DB_PASSWORD=YOUR_DB_PASSWORD
 
-./scripts/deploy.ecr.sh --migrate
+./scripts/alchemia-staging/deploy.ecr.phase1.sh --migrate
 ```
 
 #### ケース C: バックエンドのみデプロイ
 
 ```bash
-./scripts/deploy.ecr.sh --backend
+./scripts/alchemia-staging/deploy.ecr.phase1.sh --backend
 ```
 
 #### ケース D: nginx（frontend含む）のみデプロイ
 
 ```bash
-./scripts/deploy.ecr.sh --nginx
+./scripts/alchemia-staging/deploy.ecr.phase1.sh --nginx
 ```
 
 #### ケース E: 安定化まで待機する場合
 
 ```bash
-./scripts/deploy.ecr.sh --wait
+./scripts/alchemia-staging/deploy.ecr.phase1.sh --wait
 ```
 
 > **デプロイログ**: `logs/deploy-ecr-*.log` に自動保存される。
@@ -525,28 +525,28 @@ aws ecs describe-services \
 #### ① 開発環境（ローカル）のスキーマダンプ
 
 ```bash
-bash scripts/dump-dev-schema.sh
+bash scripts/alchemia-staging/dump-dev-schema.sh
 ```
 
 > 出力先: `docs/deliverables/schema_dump_dev_<タイムスタンプ>.sql`
 
 ※スクリプトに実行権限がない場合は下記を実行すること
 ```bash
-chmod +x scripts/dump-dev-schema.sh
+chmod +x scripts/alchemia-staging/dump-dev-schema.sh
 ```
 
 #### ② 検証環境（Aurora）のスキーマダンプ
 
 ```bash
-bash scripts/dump-staging-schema.sh --key <秘密鍵ファイルパス>
-# 例: bash scripts/dump-staging-schema.sh --key ~/.ssh/alchemia_staging_stepping.pem
+bash scripts/alchemia-staging/dump-staging-schema.sh --key <秘密鍵ファイルパス>
+# 例: bash scripts/alchemia-staging/dump-staging-schema.sh --key ~/.ssh/alchemia_staging_stepping.pem
 ```
 
 > 出力先: `docs/deliverables/schema_dump_staging_<タイムスタンプ>.sql`
 
 ※スクリプトに実行権限がない場合は下記を実行すること
 ```bash
-chmod +x scripts/dump-staging-schema.sh
+chmod +x scripts/alchemia-staging/dump-staging-schema.sh
 ```
 
 #### ③ diff による差分チェック
@@ -707,11 +707,11 @@ aws ecs update-service \
 | ドキュメント | 内容 |
 |------------|------|
 | [`deploy-guide-aws.md`](./deploy-guide-aws.md) | SaaS版 AWS デプロイ手順書（詳細版） |
-| [`scripts/sync-to-staging.sh`](../../../scripts/sync-to-staging.sh) | 検証環境ファイル同期スクリプト |
-| [`scripts/deploy.ecr.sh`](../../../scripts/deploy.ecr.sh) | ECS デプロイスクリプト |
-| [`scripts/check-env-diff.sh`](../../../scripts/check-env-diff.sh) | 環境変数差分チェックスクリプト |
-| [`scripts/dump-dev-schema.sh`](../../../scripts/dump-dev-schema.sh) | 開発環境（ローカル）スキーマダンプスクリプト |
-| [`scripts/dump-staging-schema.sh`](../../../scripts/dump-staging-schema.sh) | 検証環境（Aurora）スキーマダンプスクリプト（SSH踏み台経由） |
+| [`scripts/alchemia-staging/sync-to-staging.sh`](../../../../alchemia-staging/scripts/sync-to-staging.sh) | 検証環境ファイル同期スクリプト |
+| [`scripts/alchemia-staging/deploy.ecr.sh`](../../../../scripts/alchemia-staging/deploy.ecr.sh) | ECS デプロイスクリプト |
+| [`scripts/alchemia-staging/check-env-diff.sh`](../../../../scripts/alchemia-staging/check-env-diff.sh) | 環境変数差分チェックスクリプト |
+| [`scripts/alchemia-staging/dump-dev-schema.sh`](../../../../scripts/alchemia-staging/dump-dev-schema.sh) | 開発環境（ローカル）スキーマダンプスクリプト |
+| [`scripts/alchemia-staging/dump-staging-schema.sh`](../../../../scripts/alchemia-staging/dump-staging-schema.sh) | 検証環境（Aurora）スキーマダンプスクリプト（SSH踏み台経由） |
 | `docs/deliverables/release_notes_YYYYMMDD.md` | リリースノート（デプロイごとに作成） |
 
 ---
