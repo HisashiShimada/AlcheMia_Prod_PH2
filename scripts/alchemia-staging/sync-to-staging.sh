@@ -4,16 +4,22 @@
 #
 # 使用例:
 #   # ドライラン（差分確認のみ）
-#   bash scripts/sync-to-staging.sh --from-commit abc1234 --to-commit def5678 --src-repo /home/user/mmdpf --dest-repo /home/user/staging/mmdpf --dry-run
+#   bash scripts/sync-to-staging.sh --release-tag release_20260422_v1.0.0 --dry-run
 #
 #   # 実行
-#   bash scripts/sync-to-staging.sh --from-commit abc1234 --to-commit def5678 --src-repo /home/user/mmdpf --dest-repo /home/user/staging/mmdpf
+#   bash scripts/sync-to-staging.sh --release-tag release_20260422_v1.0.0 --dest-repo /home/user/staging/mmdpf
 
 set -euo pipefail
 
 # 日本語パスを正しく扱うためにUTF-8ロケールを設定
 export LANG=ja_JP.UTF-8
 export LC_ALL=ja_JP.UTF-8
+
+# =============================
+# スクリプトのルートディレクトリ特定
+# =============================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # =============================
 # 色定義
@@ -35,24 +41,28 @@ print_err()  { echo -e "${COLOR_RED}$1${COLOR_RESET}" >&2; }
 usage() {
     cat <<EOF
 使用方法:
-  $0 --from-commit <コミット> --to-commit <コミット> --src-repo <パス> --dest-repo <パス> [--dry-run]
+  $0 --release-tag <タグ名> --dest-repo <パス> [--dry-run]
 
 オプション:
-  --from-commit <HASH>   前回デプロイ時のコミットハッシュ（必須）
-  --to-commit   <HASH>   今回デプロイするコミットハッシュ（必須）
-  --src-repo    <PATH>   開発用リポジトリのローカルフォルダパス（必須）
-  --dest-repo   <PATH>   検証環境用リポジトリのローカルフォルダパス（必須）
+  --release-tag <TAG>    リリースタグ名（必須）
+                         docs/deliverables/<TAG>/release_info.md から
+                         今回リリースコミットと前回リリースコミットを取得します
+  --dest-repo   <PATH>   検証環境用リポジトリのローカルフォルダパス
+                         （実行時は必須、--dry-run 時は不要）
   --dry-run              ファイル操作を行わず差分一覧のみ表示
   -h, --help             このヘルプを表示
 
 例:
-  # ドライラン
-  $0 --from-commit abc1234 --to-commit def5678 \\
-     --src-repo /home/user/mmdpf --dest-repo /home/user/staging/mmdpf --dry-run
+  # ドライラン（差分確認のみ）
+  $0 --release-tag release_20260422_v1.0.0 --dry-run
 
   # 実行
-  $0 --from-commit abc1234 --to-commit def5678 \\
-     --src-repo /home/user/mmdpf --dest-repo /home/user/staging/mmdpf
+  $0 --release-tag release_20260422_v1.0.0 \\
+     --dest-repo /home/user/staging/mmdpf
+
+備考:
+  開発用リポジトリ（SRC_REPO）はこのスクリプトが配置されているリポジトリルートを
+  自動的に使用します: ${REPO_ROOT}
 EOF
     exit 0
 }
@@ -60,24 +70,14 @@ EOF
 # =============================
 # 引数パース
 # =============================
-FROM_COMMIT=""
-TO_COMMIT=""
-SRC_REPO=""
+RELEASE_TAG=""
 DEST_REPO=""
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --from-commit)
-            FROM_COMMIT="$2"
-            shift 2
-            ;;
-        --to-commit)
-            TO_COMMIT="$2"
-            shift 2
-            ;;
-        --src-repo)
-            SRC_REPO="$2"
+        --release-tag)
+            RELEASE_TAG="$2"
             shift 2
             ;;
         --dest-repo)
@@ -101,11 +101,50 @@ done
 # =============================
 # 必須パラメータチェック
 # =============================
-if [[ -z "$FROM_COMMIT" || -z "$TO_COMMIT" || -z "$SRC_REPO" || -z "$DEST_REPO" ]]; then
-    print_err "[エラー] 必須パラメータが不足しています。"
+if [[ -z "$RELEASE_TAG" ]]; then
+    print_err "[エラー] --release-tag は必須です。"
     echo ""
     usage
 fi
+
+if ! $DRY_RUN && [[ -z "$DEST_REPO" ]]; then
+    print_err "[エラー] 実行モードでは --dest-repo が必須です。"
+    echo ""
+    usage
+fi
+
+# =============================
+# release_info.md からコミットハッシュを取得
+# =============================
+DELIVERABLES_DIR="${REPO_ROOT}/docs/deliverables"
+RELEASE_DIR="${DELIVERABLES_DIR}/${RELEASE_TAG}"
+RELEASE_INFO_FILE="${RELEASE_DIR}/release_info.md"
+
+if [[ ! -f "$RELEASE_INFO_FILE" ]]; then
+    print_err "[エラー] release_info.md が見つかりません: $RELEASE_INFO_FILE"
+    print_err "         先に 'bash scripts/init-release-dir.sh --tag ${RELEASE_TAG} ...' を実行してください。"
+    exit 1
+fi
+
+# 今回リリースコミット（--to-commit）を抽出
+TO_COMMIT="$(grep -oP '(?<=--to-commit）\*\*: `)\w+(?=`)' "$RELEASE_INFO_FILE" || true)"
+# 前回リリースコミット（--from-commit）を抽出
+FROM_COMMIT="$(grep -oP '(?<=--from-commit）\*\*: `)\w+(?=`)' "$RELEASE_INFO_FILE" || true)"
+
+if [[ -z "$TO_COMMIT" ]]; then
+    print_err "[エラー] release_info.md から今回リリースコミット（--to-commit）を取得できませんでした。"
+    print_err "         ファイルを確認してください: $RELEASE_INFO_FILE"
+    exit 1
+fi
+
+if [[ -z "$FROM_COMMIT" ]]; then
+    print_err "[エラー] release_info.md から前回リリースコミット（--from-commit）を取得できませんでした。"
+    print_err "         ファイルを確認してください: $RELEASE_INFO_FILE"
+    exit 1
+fi
+
+# SRC_REPO はリポジトリルートを自動設定
+SRC_REPO="${REPO_ROOT}"
 
 # =============================
 # 前提チェック
@@ -115,16 +154,18 @@ if $DRY_RUN; then
     print_warn "[ドライランモード] ファイルの操作は行いません。"
 fi
 echo ""
+print_info "  リリースタグ          : ${RELEASE_TAG}"
+print_info "  FROM_COMMIT (前回)    : ${FROM_COMMIT}"
+print_info "  TO_COMMIT   (今回)    : ${TO_COMMIT}"
+print_info "  SRC_REPO              : ${SRC_REPO}"
+if ! $DRY_RUN; then
+    print_info "  DEST_REPO             : ${DEST_REPO}"
+fi
+echo ""
 
 # git コマンドの存在確認
 if ! command -v git &>/dev/null; then
     print_err "[エラー] git コマンドが見つかりません。Git をインストールしてください。"
-    exit 1
-fi
-
-# 開発用リポジトリの存在確認
-if [[ ! -d "$SRC_REPO" ]]; then
-    print_err "[エラー] 開発用リポジトリが見つかりません: $SRC_REPO"
     exit 1
 fi
 
@@ -205,9 +246,92 @@ print_err  "  削除:     ${#deleted[@]} 件"
 print_warn "  リネーム: ${#rename_old[@]} 件"
 echo ""
 
-# ドライランの場合はここで終了
+# ドライランの場合はここで結果をファイルに出力して終了
 if $DRY_RUN; then
     print_warn "[ドライランモード] 上記の差分を適用します（実行時は --dry-run を外してください）"
+
+    # =============================
+    # ドライラン結果をファイルに出力
+    # =============================
+    OUTPUT_FILE="${RELEASE_DIR}/dry-run-result.md"
+
+    # 出力先ディレクトリの確認
+    if [[ ! -d "$RELEASE_DIR" ]]; then
+        print_warn "[警告] 出力先ディレクトリが見つかりません: $RELEASE_DIR"
+        print_warn "       ファイル出力をスキップします。"
+    else
+        # Markdown形式で結果を書き出す
+        {
+            echo "# ドライラン結果"
+            echo ""
+            echo "- **実行日時**: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "- **リリースタグ**: \`${RELEASE_TAG}\`"
+            echo "- **FROM_COMMIT**: \`${FROM_COMMIT}\`"
+            echo "- **TO_COMMIT**: \`${TO_COMMIT}\`"
+            echo "- **SRC_REPO**: \`${SRC_REPO}\`"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## 差分ファイル一覧"
+            echo ""
+
+            echo "### 追加 (${#added[@]} 件)"
+            if [[ ${#added[@]} -gt 0 ]]; then
+                for f in "${added[@]}"; do
+                    echo "- \`$f\`"
+                done
+            else
+                echo "なし"
+            fi
+            echo ""
+
+            echo "### 更新 (${#modified[@]} 件)"
+            if [[ ${#modified[@]} -gt 0 ]]; then
+                for f in "${modified[@]}"; do
+                    echo "- \`$f\`"
+                done
+            else
+                echo "なし"
+            fi
+            echo ""
+
+            echo "### 削除 (${#deleted[@]} 件)"
+            if [[ ${#deleted[@]} -gt 0 ]]; then
+                for f in "${deleted[@]}"; do
+                    echo "- \`$f\`"
+                done
+            else
+                echo "なし"
+            fi
+            echo ""
+
+            echo "### リネーム (${#rename_old[@]} 件)"
+            if [[ ${#rename_old[@]} -gt 0 ]]; then
+                for i in "${!rename_old[@]}"; do
+                    echo "- \`${rename_old[$i]}\` → \`${rename_new[$i]}\`"
+                done
+            else
+                echo "なし"
+            fi
+            echo ""
+
+            echo "---"
+            echo ""
+            echo "## サマリー"
+            echo ""
+            echo "| 種別 | 件数 |"
+            echo "|------|------|"
+            echo "| 追加 | ${#added[@]} |"
+            echo "| 更新 | ${#modified[@]} |"
+            echo "| 削除 | ${#deleted[@]} |"
+            echo "| リネーム | ${#rename_old[@]} |"
+            total=$(( ${#added[@]} + ${#modified[@]} + ${#deleted[@]} + ${#rename_old[@]} ))
+            echo "| **合計** | **${total}** |"
+        } > "$OUTPUT_FILE"
+
+        print_ok "[出力完了] ドライラン結果を保存しました: $OUTPUT_FILE"
+    fi
+
     exit 0
 fi
 
