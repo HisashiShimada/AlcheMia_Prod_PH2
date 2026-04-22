@@ -298,8 +298,18 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 ### 7-1. リリースノートファイルの作成
 
 `docs/deliverables/release_notes_YYYYMMDD.md` を作成する。  
-clineのSkillにリリースノート作成を登録しているので、  
-今回リリースのコミット、前回リリースのコミットを指定して作成を依頼する。
+Skillにリリースノート作成を登録しているので、clineに作成を依頼する。
+
+#### 指示テンプレート
+```
+リリースノートを作成してください。
+今回リリースするコミット、前回リリースしたコミットは、
+@\docs/deliverables/<リリースタグ名>/release_info.md
+に記載しています。
+リリースノートは
+@\docs/deliverables/<リリースタグ名>
+に出力してください。
+```
 
 ### 7-2. 変更内容の確認
 
@@ -311,7 +321,7 @@ git diff --name-status <前回リリースコミット> <今回リリースコ�
 
 ### チェックリスト
 
-- [ ] `docs/deliverables/release_notes_YYYYMMDD.md` を作成した
+- [ ] `docs/deliverables/<リリースタグ名>/release_notes_YYYYMMDD.md` を作成した
 - [ ] バグ修正・新機能・インフラ対応・DBマイグレーション情報を記載した
 - [ ] 前回・今回のコミットハッシュを記載した
 
