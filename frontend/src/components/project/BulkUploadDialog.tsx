@@ -3,7 +3,7 @@
  * プロジェクト管理画面用の一括ファイルアップロードダイアログ
  * Ant Design v6を使用し、UIポリシーに準拠
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { uploadFiles, abortChunkUpload, cancelBatch, initBatch } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import type { UploadRetryState, UploadResultSummary } from '@/types/file';
@@ -114,6 +114,31 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
   const [batchId, setBatchId] = useState<string | null>(null);
   /** アップロード結果サマリー（null = 未完了） */
   const [resultSummary, setResultSummary] = useState<UploadResultSummary | null>(null);
+
+  /**
+   * ダイアログが開くたびにstate（ファイルリスト・結果・エラー）をリセット
+   */
+  useEffect(() => {
+    if (open) {
+      setFileList([]);
+      setSubFolderPath('');
+      setBatchName('');
+      setUploadState({
+        isUploading: false,
+        progress: 0,
+        uploadedCount: 0,
+        totalCount: 0,
+        error: null,
+      });
+      setRetryState(null);
+      setResultSummary(null);
+      setAbortController(null);
+      setBatchId(null);
+      activeUploadIdsRef.current = [];
+      batchIdRef.current = null;
+      abortControllerRef.current = null;
+    }
+  }, [open]);
 
   // Refs
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -443,7 +468,12 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
             okText: '閉じる',
           });
         } else {
-          const errorMessage = extractErrorMessage(error);
+          // Axios レスポンスエラー（バックエンドからの HTTP エラー）はエラーコード変換を使用
+          // それ以外（fileAccessService が throw した Error など）はメッセージをそのまま表示
+          const axiosResponseError = (error as any)?.response;
+          const errorMessage = axiosResponseError
+            ? extractErrorMessage(error)
+            : (error instanceof Error ? error.message : extractErrorMessage(error));
           setUploadState(prev => ({
             ...prev,
             isUploading: false,

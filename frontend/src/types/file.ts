@@ -345,6 +345,13 @@ export interface ChunkUploadOptions {
    * 検出した場合にアップロード済みファイルを即削除できる。
    */
   batchId?: string;
+  /**
+   * MAIMLファイルの Document UUID（`<document>` 配下の `<uuid>` 子要素の値）。
+   * init リクエストに含めることで、バックエンドが既存プロジェクトの project_uuid と
+   * 比較し、UUID一致の場合は上書きアップロードを許可する。
+   * MAIMLファイル以外の場合は undefined を渡す。
+   */
+  documentUuid?: string;
 }
 
 /**
