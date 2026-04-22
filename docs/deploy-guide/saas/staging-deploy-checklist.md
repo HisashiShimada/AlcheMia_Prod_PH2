@@ -280,27 +280,7 @@ aws sts get-caller-identity
 > }
 > ```
 
-### 7-2. `.env.prod.aws` の確認
-
-```bash
-# 必須項目が設定されているか確認（値は表示しない）
-grep -E "^(DB_HOST|DB_PASSWORD|REDIS_HOST|REDIS_PASSWORD|AWS_S3_BUCKET|JWT_SECRET|SESSION_SECRET|CORS_ORIGIN|FRONTEND_URL)=" .env.prod.aws
-```
-
-> **確認ポイント（必須項目）**
-
-| 環境変数 | 確認内容 |
-|---------|---------|
-| `DB_HOST` | Aurora エンドポイントが設定されている |
-| `DB_PASSWORD` | `CHANGE_ME` のままになっていないか |
-| `REDIS_HOST` | ElastiCache エンドポイントが設定されている |
-| `REDIS_PASSWORD` | `CHANGE_ME` のままになっていないか |
-| `AWS_S3_BUCKET` | 正しいバケット名（`mmdpf-files-production`）になっているか |
-| `JWT_SECRET` | `CHANGE_ME` のままになっていないか |
-| `SESSION_SECRET` | `CHANGE_ME` のままになっていないか |
-| `CORS_ORIGIN` | NLB の正しいドメインが設定されている |
-
-### 7-3. ECS タスク定義 JSON の確認
+### 7-2. ECS タスク定義 JSON の確認
 
 ```bash
 # バックエンドタスク定義の主要な環境変数を確認
@@ -318,7 +298,6 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 - [ ] `⚠️ 要確認` の変数が存在する場合、対応方針を決定した
 - [ ] `docs/deliverables/<リリースタグ名>/env_diff_*.md` にレポートが出力されていることを確認した
 - [ ] `aws sts get-caller-identity` で AWS CLI 認証が有効であることを確認した
-- [ ] `.env.prod.aws` の必須項目がすべて設定されていることを確認した
 - [ ] ECS タスク定義 JSON の環境変数が実環境の値になっていることを確認した
 
 ---
@@ -668,7 +647,7 @@ STEP 6: 差分ファイルの確認（ドライラン）
 
 STEP 7: 環境変数の確認
   - [ ] check-env-diff.sh を実行し環境変数差分を確認した
-  - [ ] .env.prod.aws・ECS タスク定義を確認した
+  - [ ] ECS タスク定義 JSON の環境変数が実環境の値になっていることを確認した
 
 STEP 8: 開発メンバーへのアナウンス
   - [ ] デプロイ開始を Teams でアナウンスした
