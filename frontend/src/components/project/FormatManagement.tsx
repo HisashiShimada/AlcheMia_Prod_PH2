@@ -27,7 +27,7 @@ import CreateFormatModal from './CreateFormatModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
 import PetriNetEditorScreen from '@/components/editorv2/PetriNetEditorScreen';
 import type { MaimlEditorParams } from '@/types/maimlEditor';
-import FormatEditorDialog from '@/components/editorv2/components/FormatEditorDialog';
+import FormatEditorDialog from '@/components/project/FormatEditorDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { App } from 'antd';
 import { User } from '@/types/auth';
@@ -118,7 +118,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [maimlFileContent, setMaimlFileContent] = useState<string | null>(null);
   const [isLoadingMaimlContent, setIsLoadingMaimlContent] = useState(false);
   
-  // TemplateEditorDialog表示用State
+  // FormatEditorDialog表示用State
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [editingXmlFile, setEditingXmlFile] = useState<FormatFileDetailData | null>(null);
 
@@ -452,7 +452,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         };
       }
       
-      // XMLコンテンツとパース結果をファイル情報に追加してTemplateEditorDialogを開く
+      // XMLコンテンツとパース結果をファイル情報に追加してFormatEditorDialogを開く
       setEditingXmlFile({
         ...file,
         content: xmlContent,
@@ -1335,7 +1335,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         </div>
       )}
 
-      {/* TemplateEditorDialog表示エリア */}
+      {/* FormatEditorDialog表示エリア */}
       {showTemplateEditor && editingXmlFile && (() => {
         // 一時的なノードを作成（Date.now()の警告を回避するためuseMemoの代わりに即時関数を使用）
         const tempId = `temp_${editingXmlFile.id}_${editingXmlFile.lastModified}`;
