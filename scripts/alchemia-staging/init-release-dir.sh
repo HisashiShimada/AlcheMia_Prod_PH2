@@ -104,7 +104,7 @@ fi
 # スクリプトのルートディレクトリ特定
 # =============================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 DELIVERABLES_DIR="${REPO_ROOT}/docs/deliverables"
 RELEASE_DIR="${DELIVERABLES_DIR}/${RELEASE_TAG}"
 
@@ -153,7 +153,7 @@ EOF
 print_ok "✓ リリース情報ファイルを作成しました: ${INFO_FILE}"
 
 # checklist.md のコピー
-CHECKLIST_SRC="${REPO_ROOT}/docs/deploy-guide/saas/staging-deploy-checklist.md"
+CHECKLIST_SRC="${REPO_ROOT}/docs/deploy-guide/alchemia-staging/staging-deploy-checklist.md"
 CHECKLIST_DEST="${RELEASE_DIR}/checklist.md"
 
 if [[ ! -f "${CHECKLIST_SRC}" ]]; then

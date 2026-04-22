@@ -19,7 +19,7 @@ export LC_ALL=ja_JP.UTF-8
 # スクリプトのルートディレクトリ特定
 # =============================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # =============================
 # 色定義

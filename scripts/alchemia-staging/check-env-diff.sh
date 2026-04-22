@@ -38,7 +38,7 @@ fi
 # ---------------------------------------------------------------------------
 # release_info.md からコミットハッシュを取得
 # ---------------------------------------------------------------------------
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RELEASE_INFO_FILE="$REPO_ROOT/docs/deliverables/${RELEASE_TAG}/release_info.md"
 
 if [[ ! -f "$RELEASE_INFO_FILE" ]]; then
