@@ -48,8 +48,8 @@ if [[ ! -f "$RELEASE_INFO_FILE" ]]; then
 fi
 
 # release_info.md から FROM/TO コミットを抽出
-TO_COMMIT="$(grep '今回リリースコミット' "$RELEASE_INFO_FILE" | grep -oE '[0-9a-f]{40}' || true)"
-FROM_COMMIT="$(grep '前回リリースコミット' "$RELEASE_INFO_FILE" | grep -oE '[0-9a-f]{40}' || true)"
+TO_COMMIT="$(grep '今回リリースコミット' "$RELEASE_INFO_FILE" | grep -oE '[0-9a-f]{7,40}' || true)"
+FROM_COMMIT="$(grep '前回リリースコミット' "$RELEASE_INFO_FILE" | grep -oE '[0-9a-f]{7,40}' || true)"
 
 if [[ -z "$TO_COMMIT" ]]; then
   echo "エラー: release_info.md から今回リリースコミットを取得できませんでした。"
