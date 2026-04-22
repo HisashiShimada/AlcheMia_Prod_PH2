@@ -3,43 +3,73 @@
 # check-env-diff.sh — デプロイ前 環境変数差分チェックスクリプト
 #
 # 使い方:
-#   bash scripts/check-env-diff.sh --from-commit <前回リリースhash> --to-commit <今回リリースhash>
-#   bash scripts/check-env-diff.sh --from-commit <hash> --to-commit <hash> --show-secrets
+#   bash scripts/check-env-diff.sh --release-tag <リリースタグ名>
+#   bash scripts/check-env-diff.sh --release-tag <リリースタグ名> --show-secrets
+#
+# コミット情報の取得元:
+#   docs/deliverables/<リリースタグ名>/release_info.md
+#   （init-release-dir.sh で作成されたファイル）
 #
 # 出力:
 #   - ターミナル標準出力
-#   - docs/deliverables/env_diff_YYYYMMDD_HHMMSS.md（Markdownレポート）
+#   - docs/deliverables/<リリースタグ名>/env_diff_YYYYMMDD_HHMMSS.md（Markdownレポート）
 # =============================================================================
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
 # 引数解析
 # ---------------------------------------------------------------------------
-FROM_COMMIT=""
-TO_COMMIT=""
+RELEASE_TAG=""
 SHOW_SECRETS=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --from-commit)  FROM_COMMIT="$2"; shift 2 ;;
-    --to-commit)    TO_COMMIT="$2";   shift 2 ;;
+    --release-tag)  RELEASE_TAG="$2"; shift 2 ;;
     --show-secrets) SHOW_SECRETS=true; shift ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
-if [[ -z "$FROM_COMMIT" || -z "$TO_COMMIT" ]]; then
-  echo "Usage: $0 --from-commit <hash> --to-commit <hash> [--show-secrets]"
+if [[ -z "$RELEASE_TAG" ]]; then
+  echo "Usage: $0 --release-tag <リリースタグ名> [--show-secrets]"
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# release_info.md からコミットハッシュを取得
+# ---------------------------------------------------------------------------
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELEASE_INFO_FILE="$REPO_ROOT/docs/deliverables/${RELEASE_TAG}/release_info.md"
+
+if [[ ! -f "$RELEASE_INFO_FILE" ]]; then
+  echo "エラー: release_info.md が見つかりません: ${RELEASE_INFO_FILE}"
+  echo "init-release-dir.sh を先に実行してリリースディレクトリを作成してください。"
+  exit 1
+fi
+
+# release_info.md から FROM/TO コミットを抽出
+TO_COMMIT="$(grep '今回リリースコミット' "$RELEASE_INFO_FILE" | grep -oE '[0-9a-f]{40}' || true)"
+FROM_COMMIT="$(grep '前回リリースコミット' "$RELEASE_INFO_FILE" | grep -oE '[0-9a-f]{40}' || true)"
+
+if [[ -z "$TO_COMMIT" ]]; then
+  echo "エラー: release_info.md から今回リリースコミットを取得できませんでした。"
+  echo "ファイルを確認してください: ${RELEASE_INFO_FILE}"
+  exit 1
+fi
+
+if [[ -z "$FROM_COMMIT" ]]; then
+  echo "エラー: release_info.md から前回リリースコミットを取得できませんでした。"
+  echo "ファイルを確認してください: ${RELEASE_INFO_FILE}"
   exit 1
 fi
 
 # ---------------------------------------------------------------------------
 # 設定
 # ---------------------------------------------------------------------------
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DELIVERABLES_DIR="$REPO_ROOT/docs/deliverables"
+RELEASE_DIR="$DELIVERABLES_DIR/${RELEASE_TAG}"
 TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
-REPORT_FILE="$DELIVERABLES_DIR/env_diff_${TIMESTAMP}.md"
+REPORT_FILE="$RELEASE_DIR/env_diff_${TIMESTAMP}.md"
 
 # 対象ファイルパターン
 ENV_PATTERNS=(
@@ -111,6 +141,7 @@ report() {
 echo ""
 echo -e "${BOLD}============================================================${RESET}"
 echo -e "${BOLD}  環境変数差分チェック${RESET}"
+echo -e "  RELEASE TAG: ${CYAN}${RELEASE_TAG}${RESET}"
 echo -e "  FROM: ${CYAN}${FROM_COMMIT}${RESET}  →  TO: ${CYAN}${TO_COMMIT}${RESET}"
 echo -e "${BOLD}============================================================${RESET}"
 echo ""
@@ -118,6 +149,7 @@ echo ""
 report "# 環境変数差分レポート"
 report ""
 report "- **実行日時**: $(date '+%Y-%m-%d %H:%M:%S')"
+report "- **リリースタグ**: \`${RELEASE_TAG}\`"
 report "- **FROM**: \`${FROM_COMMIT}\`"
 report "- **TO**: \`${TO_COMMIT}\`"
 report ""
@@ -356,7 +388,7 @@ report ""
 # ---------------------------------------------------------------------------
 # Markdown レポートをファイルに書き出し
 # ---------------------------------------------------------------------------
-mkdir -p "$DELIVERABLES_DIR"
+mkdir -p "$RELEASE_DIR"
 printf '%s\n' "${REPORT_LINES[@]}" > "$REPORT_FILE"
 
 echo -e "📄 レポートを出力しました: ${CYAN}${REPORT_FILE}${RESET}"

@@ -12,8 +12,8 @@
 2. [リリース対象コミット・前回リリースコミットの確認](#step-2-リリース対象コミット前回リリースコミットの確認)
 3. [リリースディレクトリの初期化](#step-3-リリースディレクトリの初期化)
 4. [差分ファイルの確認（ドライラン）](#step-4-差分ファイルの確認ドライラン)
-5. [開発メンバーへのアナウンス](#step-5-開発メンバーへのアナウンス)
-6. [環境変数の確認](#step-6-環境変数の確認)
+5. [環境変数の確認](#step-5-環境変数の確認)
+6. [開発メンバーへのアナウンス](#step-6-開発メンバーへのアナウンス)
 7. [リリースノートの作成](#step-7-リリースノートの作成)
 8. [計画書の移動](#step-8-計画書の移動)
 9. [島田さんへの連絡（デプロイ開始）](#step-9-島田さんへの連絡デプロイ開始)
@@ -162,7 +162,103 @@ chmod +x scripts/sync-to-staging.sh
 
 ---
 
-## STEP 5: 開発メンバーへのアナウンス
+## STEP 5: 環境変数の確認
+
+### 5-0. 環境変数差分チェック（自動）
+
+前回リリースコミットと今回リリースコミット間で、`.env系ファイル` および `aws/ecs-task-definition-*.json` の環境変数差分を自動チェックする。  
+コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
+
+```bash
+bash scripts/check-env-diff.sh \
+  --release-tag <リリースタグ名>
+```
+
+> **機密値をマスクせず確認したい場合（ローカル環境のみ）:**
+> ```bash
+> bash scripts/check-env-diff.sh \
+>   --release-tag <リリースタグ名> \
+>   --show-secrets
+> ```
+
+スクリプトは以下の2フェーズで動作する。
+
+| フェーズ | 対象 | 内容 |
+|---------|------|------|
+| フェーズ1 | `.env*`, `docker-compose*.yml` | 追加(ADDED) / 変更(CHANGED) / 削除(REMOVED) された環境変数を列挙 |
+| フェーズ2 | `aws/ecs-task-definition-*.json` | フェーズ1の変更変数が ECS タスク定義にも反映されているかを照合 |
+
+実行後、結果は `docs/deliverables/<リリースタグ名>/env_diff_YYYYMMDD_HHMMSS.md` に自動保存される。
+
+> **確認ポイント**
+> - `⚠️ 要確認` と表示された変数は ECS タスク定義への反映が必要かどうかを確認する
+> - `ADDED` の変数で ECS 未追加の場合、タスク定義の更新が必要か検討する
+> - `CHANGED` の変数で ECS 未変更の場合、意図的な差分かどうかを確認する
+
+※スクリプトに実行権限がない場合は下記を実行すること
+```bash
+chmod +x scripts/check-env-diff.sh
+```
+
+### 5-1. AWS CLI 認証確認
+
+```bash
+aws sts get-caller-identity
+```
+
+> 正常レスポンス例:
+> ```json
+> {
+>   "UserId": "...",
+>   "Account": "137068252939",
+>   "Arn": "arn:aws:iam::137068252939:user/..."
+> }
+> ```
+
+### 5-2. `.env.prod.aws` の確認
+
+```bash
+# 必須項目が設定されているか確認（値は表示しない）
+grep -E "^(DB_HOST|DB_PASSWORD|REDIS_HOST|REDIS_PASSWORD|AWS_S3_BUCKET|JWT_SECRET|SESSION_SECRET|CORS_ORIGIN|FRONTEND_URL)=" .env.prod.aws
+```
+
+> **確認ポイント（必須項目）**
+
+| 環境変数 | 確認内容 |
+|---------|---------|
+| `DB_HOST` | Aurora エンドポイントが設定されている |
+| `DB_PASSWORD` | `CHANGE_ME` のままになっていないか |
+| `REDIS_HOST` | ElastiCache エンドポイントが設定されている |
+| `REDIS_PASSWORD` | `CHANGE_ME` のままになっていないか |
+| `AWS_S3_BUCKET` | 正しいバケット名（`mmdpf-files-production`）になっているか |
+| `JWT_SECRET` | `CHANGE_ME` のままになっていないか |
+| `SESSION_SECRET` | `CHANGE_ME` のままになっていないか |
+| `CORS_ORIGIN` | NLB の正しいドメインが設定されている |
+
+### 5-3. ECS タスク定義 JSON の確認
+
+```bash
+# バックエンドタスク定義の主要な環境変数を確認
+cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
+```
+
+> **確認ポイント**
+> - `DB_HOST` が実環境の Aurora エンドポイントになっているか
+> - `EMBEDDING_PROVIDER=bedrock` が設定されているか
+> - `BEDROCK_EMBEDDING_MODEL_ID` が正しいモデルIDになっているか
+
+### チェックリスト
+
+- [ ] `check-env-diff.sh` を実行し、環境変数の追加・変更・削除を確認した
+- [ ] `⚠️ 要確認` の変数が存在する場合、対応方針を決定した
+- [ ] `docs/deliverables/<リリースタグ名>/env_diff_*.md` にレポートが出力されていることを確認した
+- [ ] `aws sts get-caller-identity` で AWS CLI 認証が有効であることを確認した
+- [ ] `.env.prod.aws` の必須項目がすべて設定されていることを確認した
+- [ ] ECS タスク定義 JSON の環境変数が実環境の値になっていることを確認した
+
+---
+
+## STEP 6: 開発メンバーへのアナウンス
 
 デプロイ作業中はブランチへのプッシュを避けてもらうため、開発メンバーに通知する（Teamsを使用）。
 
@@ -194,103 +290,6 @@ chmod +x scripts/sync-to-staging.sh
 
 - [ ] Teamsでデプロイ開始をアナウンスした
 - [ ] メンバーから了承を得た（または十分な時間を置いた）
-
----
-
-## STEP 6: 環境変数の確認
-
-### 6-0. 環境変数差分チェック（自動）
-
-前回リリースコミットと今回リリースコミット間で、`.env系ファイル` および `aws/ecs-task-definition-*.json` の環境変数差分を自動チェックする。
-
-```bash
-bash scripts/check-env-diff.sh \
-  --from-commit <前回リリースコミット> \
-  --to-commit   <今回リリースコミット>
-```
-
-> **機密値をマスクせず確認したい場合（ローカル環境のみ）:**
-> ```bash
-> bash scripts/check-env-diff.sh \
->   --from-commit <前回リリースコミット> \
->   --to-commit   <今回リリースコミット> \
->   --show-secrets
-> ```
-
-スクリプトは以下の2フェーズで動作する。
-
-| フェーズ | 対象 | 内容 |
-|---------|------|------|
-| フェーズ1 | `.env*`, `docker-compose*.yml` | 追加(ADDED) / 変更(CHANGED) / 削除(REMOVED) された環境変数を列挙 |
-| フェーズ2 | `aws/ecs-task-definition-*.json` | フェーズ1の変更変数が ECS タスク定義にも反映されているかを照合 |
-
-実行後、結果は `docs/deliverables/env_diff_YYYYMMDD_HHMMSS.md` に自動保存される。
-
-> **確認ポイント**
-> - `⚠️ 要確認` と表示された変数は ECS タスク定義への反映が必要かどうかを確認する
-> - `ADDED` の変数で ECS 未追加の場合、タスク定義の更新が必要か検討する
-> - `CHANGED` の変数で ECS 未変更の場合、意図的な差分かどうかを確認する
-
-※スクリプトに実行権限がない場合は下記を実行すること
-```bash
-chmod +x scripts/check-env-diff.sh
-```
-
-### 6-1. AWS CLI 認証確認
-
-```bash
-aws sts get-caller-identity
-```
-
-> 正常レスポンス例:
-> ```json
-> {
->   "UserId": "...",
->   "Account": "137068252939",
->   "Arn": "arn:aws:iam::137068252939:user/..."
-> }
-> ```
-
-### 6-2. `.env.prod.aws` の確認
-
-```bash
-# 必須項目が設定されているか確認（値は表示しない）
-grep -E "^(DB_HOST|DB_PASSWORD|REDIS_HOST|REDIS_PASSWORD|AWS_S3_BUCKET|JWT_SECRET|SESSION_SECRET|CORS_ORIGIN|FRONTEND_URL)=" .env.prod.aws
-```
-
-> **確認ポイント（必須項目）**
-
-| 環境変数 | 確認内容 |
-|---------|---------|
-| `DB_HOST` | Aurora エンドポイントが設定されている |
-| `DB_PASSWORD` | `CHANGE_ME` のままになっていないか |
-| `REDIS_HOST` | ElastiCache エンドポイントが設定されている |
-| `REDIS_PASSWORD` | `CHANGE_ME` のままになっていないか |
-| `AWS_S3_BUCKET` | 正しいバケット名（`mmdpf-files-production`）になっているか |
-| `JWT_SECRET` | `CHANGE_ME` のままになっていないか |
-| `SESSION_SECRET` | `CHANGE_ME` のままになっていないか |
-| `CORS_ORIGIN` | NLB の正しいドメインが設定されている |
-
-### 6-3. ECS タスク定義 JSON の確認
-
-```bash
-# バックエンドタスク定義の主要な環境変数を確認
-cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
-```
-
-> **確認ポイント**
-> - `DB_HOST` が実環境の Aurora エンドポイントになっているか
-> - `EMBEDDING_PROVIDER=bedrock` が設定されているか
-> - `BEDROCK_EMBEDDING_MODEL_ID` が正しいモデルIDになっているか
-
-### チェックリスト
-
-- [ ] `check-env-diff.sh` を実行し、環境変数の追加・変更・削除を確認した
-- [ ] `⚠️ 要確認` の変数が存在する場合、対応方針を決定した
-- [ ] `docs/deliverables/env_diff_*.md` にレポートが出力されていることを確認した
-- [ ] `aws sts get-caller-identity` で AWS CLI 認証が有効であることを確認した
-- [ ] `.env.prod.aws` の必須項目がすべて設定されていることを確認した
-- [ ] ECS タスク定義 JSON の環境変数が実環境の値になっていることを確認した
 
 ---
 
@@ -651,12 +650,12 @@ STEP 3: リリースディレクトリの初期化
 STEP 4: 差分ファイルの確認（ドライラン）
   - [ ] --dry-run で差分ファイルを確認した
 
-STEP 5: 開発メンバーへのアナウンス
-  - [ ] デプロイ開始を Teams でアナウンスした
-
-STEP 6: 環境変数の確認
+STEP 5: 環境変数の確認
   - [ ] check-env-diff.sh を実行し環境変数差分を確認した
   - [ ] .env.prod.aws・ECS タスク定義を確認した
+
+STEP 6: 開発メンバーへのアナウンス
+  - [ ] デプロイ開始を Teams でアナウンスした
 
 STEP 7: リリースノートの作成
   - [ ] release_notes_YYYYMMDD.md を作成した
