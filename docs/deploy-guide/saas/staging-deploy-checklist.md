@@ -50,22 +50,28 @@ git pull
 
 ### 1-3. 差分ファイルの確認（ドライラン）
 
-`sync-to-staging.sh` の `--dry-run` オプションで変更ファイルの一覧を事前確認する。
+`sync-to-staging.sh` の `--dry-run` オプションで変更ファイルの一覧を事前確認する。  
+コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
 
 ```bash
 # ドライラン（ファイルを操作せず差分のみ表示）
 bash scripts/sync-to-staging.sh \
-  --from-commit <前回リリースコミット> \
-  --to-commit   <今回リリースコミット> \
-  --src-repo    /home/yukihiroomori/projects/mmdpf \
-  --dest-repo   <検証環境用リポジトリのパス> \
+  --release-tag <リリースタグ名> \
   --dry-run
 ```
+
+> **実行例:**
+> ```bash
+> bash scripts/sync-to-staging.sh \
+>   --release-tag release_20260422_v1.0.0 \
+>   --dry-run
+> ```
 
 > **確認ポイント**
 > - 想定外のファイルが含まれていないか
 > - 削除ファイルに重要なものがないか
 > - `backend/migrations/` に新規SQLが含まれているか（→ STEP 9 で対応）
+> - ドライラン結果は `docs/deliverables/<リリースタグ名>/dry-run-result.md` に自動保存される
 
 ※スクリプトに実行権限がない場合は下記を実行すること
 ```bash
@@ -432,16 +438,22 @@ PGPASSWORD=${DB_PASSWORD} psql \
 
 ### 10-1. ファイル同期（sync-to-staging.sh）
 
-検証環境用リポジトリへ差分ファイルを同期する。
+検証環境用リポジトリへ差分ファイルを同期する。  
+コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` と `--dest-repo` のみ指定すればよい。
 
 ```bash
 # 実行（ドライランを外す）
 bash scripts/sync-to-staging.sh \
-  --from-commit <前回リリースコミット> \
-  --to-commit   <今回リリースコミット> \
-  --src-repo    /home/yukihiroomori/projects/mmdpf \
+  --release-tag <リリースタグ名> \
   --dest-repo   <検証環境用リポジトリのパス>
 ```
+
+> **実行例:**
+> ```bash
+> bash scripts/sync-to-staging.sh \
+>   --release-tag release_20260422_v1.0.0 \
+>   --dest-repo   /home/user/staging/mmdpf
+> ```
 
 > **完了メッセージの確認**: `同期が正常に完了しました。` が表示されることを確認する。
 
