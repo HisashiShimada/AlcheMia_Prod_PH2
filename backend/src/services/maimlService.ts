@@ -362,7 +362,9 @@ export async function validateMaiML(organizationId : string, content: string, fi
     const analysisResult = await maimlParser.analyzeMaiMLFile(
       organizationId,
       content,
-      fileKey || (skipAnalysisSave ? 'realtime-validation' : 'temp-validation')
+      fileKey || (skipAnalysisSave ? 'realtime-validation' : 'temp-validation'),
+      skipAnalysisSave, // skipSave
+      'strict' // 編集画面保存時は厳格モード
     );
     
     // Generate quick suggestions for real-time feedback

@@ -147,9 +147,11 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
     }
 
     const { isValid, errors = [], warnings = [] } = validationResult;
-    const totalErrors = errors.length;
     const totalWarnings = warnings.length;
-    const criticalErrors = errors.filter(e => e.severity === 'critical').length;
+
+    // エラーを致命的/編集可能に分類（canBeIgnoredOnUploadフラグで判定）
+    const fatalErrors = errors.filter(e => e.severity === 'error' && !e.canBeIgnoredOnUpload);
+    const editableErrors = errors.filter(e => e.severity === 'error' && e.canBeIgnoredOnUpload);
 
     return (
       <Card style={{ marginBottom: 16 }}>
@@ -170,11 +172,11 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
             </div>
           </Space>
           <Space size="small" wrap>
-            {criticalErrors > 0 && (
-              <Tag color="error">致命的: {criticalErrors}</Tag>
+            {fatalErrors.length > 0 && (
+              <Tag color="error">致命的エラー: {fatalErrors.length}</Tag>
             )}
-            {totalErrors > 0 && (
-              <Tag color="error">エラー: {totalErrors}</Tag>
+            {editableErrors.length > 0 && (
+              <Tag color="orange">編集可能エラー: {editableErrors.length}</Tag>
             )}
             {totalWarnings > 0 && (
               <Tag color="warning">警告: {totalWarnings}</Tag>
@@ -227,9 +229,13 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                     <div style={{ flex: 1 }}>
                       <Space size="small" style={{ marginBottom: 4 }}>
                         <Tag 
-                          color={err.severity === 'critical' ? 'error' : 'warning'}
+                          color={
+                            err.canBeIgnoredOnUpload
+                              ? 'orange'    // 編集可能エラー（アップロード可）
+                              : 'error'     // 致命的エラー（アップロード不可）
+                          }
                         >
-                          {err.severity || 'error'}
+                          {err.canBeIgnoredOnUpload ? '編集可能' : 'エラー'}
                         </Tag>
                         <Text>{err.message}</Text>
                       </Space>
