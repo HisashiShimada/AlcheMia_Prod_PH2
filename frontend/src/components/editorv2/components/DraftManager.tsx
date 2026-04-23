@@ -22,7 +22,6 @@ import {
 } from 'antd';
 import {
   SaveOutlined,
-  ReloadOutlined,
   DeleteOutlined,
   FolderOpenOutlined,
   SearchOutlined,
@@ -30,6 +29,7 @@ import {
 import useDraftManager from '../hooks/useDraftManager';
 import { Draft, EditState } from '../../../types/editor';
 import * as draftService from '@/services/draftService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -57,6 +57,8 @@ const DraftManager: React.FC<DraftManagerProps> = ({
   currentDraftKey = null,
   projectId,
 }) => {
+  const { t } = useLanguage();
+
   // useDraftManager hook の使用
   const {
     drafts,
@@ -108,7 +110,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
    */
   const handleSaveNew = async () => {
     if (!newDraftName.trim()) {
-      Modal.error({ title: 'エラー', content: 'Draft名を入力してください' });
+      Modal.error({ title: t('draftManager.saveDialogErrorTitle'), content: t('draftManager.saveDialogErrorContent') });
       return;
     }
 
@@ -127,12 +129,12 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         projectId: projectId || null,
       });
 
-      Modal.success({ title: '保存完了', content: 'Draftを保存しました' });
+      Modal.success({ title: t('draftManager.saveSuccess'), content: t('draftManager.saveSuccessContent') });
       setShowSaveDialog(false);
       setNewDraftName('');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      Modal.error({ title: '保存エラー', content: errorMessage });
+      Modal.error({ title: t('draftManager.saveError'), content: errorMessage });
     }
   };
 
@@ -149,18 +151,18 @@ const DraftManager: React.FC<DraftManagerProps> = ({
 
     if (hasExistingContent) {
       const objectCounts = [
-        currentEditState.nodes?.length > 0 ? `${currentEditState.nodes.length}個のノード` : '',
-        currentEditState.edges?.length > 0 ? `${currentEditState.edges.length}個のアーク` : '',
+        currentEditState.nodes?.length > 0 ? `${currentEditState.nodes.length}${t('draftManager.nodeUnit')}` : '',
+        currentEditState.edges?.length > 0 ? `${currentEditState.edges.length}${t('draftManager.arcUnit')}` : '',
         currentEditState.templates && Object.keys(currentEditState.templates).length > 0
-          ? `${Object.keys(currentEditState.templates).length}個のテンプレート`
+          ? `${Object.keys(currentEditState.templates).length}${t('draftManager.templateUnit')}`
           : '',
       ]
         .filter(Boolean)
-        .join('、');
+        .join(t('common.searchJoiner'));
 
       Modal.confirm({
-        title: '編集中のMaiMLを破棄して読み込みますか？',
-        content: `現在のキャンバスには以下が存在します：\n${objectCounts}\n\n現在の編集内容は失われます。`,
+        title: t('draftManager.loadConfirmTitle'),
+        content: t('draftManager.loadConfirmContent').replace('{{objects}}', objectCounts),
         onOk: async () => {
           try {
             const data = await draftService.fetchDraftById(draft.draftKey);
@@ -185,7 +187,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
             onClose();
           } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-            Modal.error({ title: '読み込みエラー', content: errorMessage });
+            Modal.error({ title: t('draftManager.loadError'), content: errorMessage });
           }
         },
       });
@@ -214,7 +216,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         onClose();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        Modal.error({ title: '読み込みエラー', content: errorMessage });
+        Modal.error({ title: t('draftManager.loadError'), content: errorMessage });
       }
     }
   };
@@ -225,10 +227,10 @@ const DraftManager: React.FC<DraftManagerProps> = ({
   const handleDelete = async (draftKey: string, draftName: string) => {
     try {
       await deleteDraft(draftKey);
-      Modal.success({ title: '削除完了', content: `"${draftName}" を削除しました` });
+      Modal.success({ title: t('draftManager.deleteSuccess'), content: t('draftManager.deleteSuccessContent').replace('{{name}}', draftName) });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      Modal.error({ title: '削除エラー', content: errorMessage });
+      Modal.error({ title: t('draftManager.deleteError'), content: errorMessage });
     }
   };
 
@@ -299,7 +301,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         title={
           <Space>
             <FolderOpenOutlined />
-            <span>Draft管理</span>
+            <span>{t('draftManager.title')}</span>
           </Space>
         }
         open={show}
@@ -316,17 +318,14 @@ const DraftManager: React.FC<DraftManagerProps> = ({
             onClick={handleOpenSaveDialog}
             loading={isLoading}
           >
-            新規保存
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => fetchDrafts()} loading={isLoading}>
-            更新
+            {t('draftManager.saveButton')}
           </Button>
 
           {/* 自動保存トグル */}
           <Space>
             <Switch checked={autoSaveEnabled} onChange={handleAutoSaveToggle} />
             <Text>
-              {autoSaveEnabled ? '🟢' : '⚪'} 自動保存
+              {autoSaveEnabled ? '🟢' : '⚪'} {t('draftManager.autoSave')}
             </Text>
           </Space>
 
@@ -334,7 +333,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
 
           {/* 検索 */}
           <Input
-            placeholder="検索..."
+            placeholder={t('draftManager.searchPlaceholder')}
             prefix={<SearchOutlined />}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -348,9 +347,9 @@ const DraftManager: React.FC<DraftManagerProps> = ({
             onChange={setSortBy}
             style={{ width: 150 }}
             options={[
-              { label: '📅 日付順', value: 'date' },
-              { label: '📝 名前順', value: 'name' },
-              { label: '🔢 ノード数順', value: 'nodeCount' },
+              { label: t('draftManager.sortDate'), value: 'date' },
+              { label: t('draftManager.sortName'), value: 'name' },
+              { label: t('draftManager.sortNodeCount'), value: 'nodeCount' },
             ]}
           />
         </Space>
@@ -358,7 +357,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         {/* 自動保存ステータス表示 */}
         {autoSaveEnabled && currentDraftKey && (
           <Alert
-            message={`🟢 自動保存有効 | 編集中: ${currentDraftKey} | 間隔: 30秒`}
+            message={t('draftManager.autoSaveStatus').replace('{{key}}', currentDraftKey || '')}
             type="success"
             style={{ marginBottom: 16 }}
           />
@@ -366,7 +365,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
 
         {/* エラー表示 */}
         {error && (
-          <Alert message="エラー" description={error} type="error" style={{ marginBottom: 16 }} showIcon />
+          <Alert message={t('draftManager.errorTitle')} description={error} type="error" style={{ marginBottom: 16 }} showIcon />
         )}
 
         {/* Draft一覧 */}
@@ -376,8 +375,8 @@ const DraftManager: React.FC<DraftManagerProps> = ({
           </div>
         ) : autoSaveDrafts.length === 0 && manualDrafts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-            <Text type="secondary">🔭 Draftがありません</Text>
-            {searchQuery && <div><Text type="secondary">検索結果: 0件</Text></div>}
+            <Text type="secondary">{t('draftManager.noDrafts')}</Text>
+            {searchQuery && <div><Text type="secondary">{t('draftManager.searchResultEmpty')}</Text></div>}
           </div>
         ) : (
           <>
@@ -385,7 +384,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
             {autoSaveDrafts.length > 0 && (
               <Card
                 size="small"
-                title={<Text strong style={{ color: '#1677ff' }}>🤖 自動保存（最大3世代）</Text>}
+                title={<Text strong style={{ color: '#1677ff' }}>{t('draftManager.autoSaveSection')}</Text>}
                 style={{ marginBottom: 16, backgroundColor: '#f0f8ff' }}
               >
                 <Space orientation="vertical" style={{ width: '100%' }}>
@@ -394,7 +393,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                     onChange={setSelectedAutoSaveGeneration}
                     style={{ width: '100%', maxWidth: 300 }}
                     options={autoSaveDrafts.slice(0, 3).map((draft, index) => ({
-                      label: `${index === 0 ? '最新' : `${index}世代前`} - ${new Date(draft.lastSavedAt || new Date()).toLocaleString('ja-JP', {
+                      label: `${index === 0 ? t('draftManager.autoSaveLatest') : t('draftManager.autoSaveGeneration').replace('{{count}}', String(index))} - ${new Date(draft.lastSavedAt || new Date()).toLocaleString('ja-JP', {
                         month: '2-digit',
                         day: '2-digit',
                         hour: '2-digit',
@@ -407,10 +406,10 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                   {autoSaveDrafts[selectedAutoSaveGeneration] && (
                     <Space>
                       <Tag color="blue">
-                        🔵 {autoSaveDrafts[selectedAutoSaveGeneration].nodes?.length || 0} ノード
+                        {t('draftManager.nodeCount').replace('{{count}}', String(autoSaveDrafts[selectedAutoSaveGeneration].nodes?.length || 0))}
                       </Tag>
                       <Tag color="blue">
-                        🔗 {autoSaveDrafts[selectedAutoSaveGeneration].edges?.length || 0} アーク
+                        {t('draftManager.arcCount').replace('{{count}}', String(autoSaveDrafts[selectedAutoSaveGeneration].edges?.length || 0))}
                       </Tag>
                       <Button
                         type="primary"
@@ -418,7 +417,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                         onClick={() => handleLoadDraft(autoSaveDrafts[selectedAutoSaveGeneration])}
                         loading={isLoading}
                       >
-                        読み込み
+                        {t('draftManager.loadButton')}
                       </Button>
                     </Space>
                   )}
@@ -430,7 +429,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
             {manualDrafts.length > 0 && (
               <>
                 <Divider>
-                  <Text strong>💾 手動保存（{manualDrafts.length}件）</Text>
+                  <Text strong>{t('draftManager.manualSaveSection').replace('{{count}}', String(manualDrafts.length))}</Text>
                 </Divider>
                 <List
                   dataSource={manualDrafts}
@@ -444,9 +443,9 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                       </div>
 
                       <Space wrap style={{ marginBottom: 8 }}>
-                        <Tag>🔵 {draft.nodes?.length || 0} ノード</Tag>
-                        <Tag>🔗 {draft.edges?.length || 0} アーク</Tag>
-                        <Tag>📋 {Object.keys(draft.templates || {}).length} テンプレート</Tag>
+                        <Tag>{t('draftManager.nodeCount').replace('{{count}}', String(draft.nodes?.length || 0))}</Tag>
+                        <Tag>{t('draftManager.arcCount').replace('{{count}}', String(draft.edges?.length || 0))}</Tag>
+                        <Tag>{t('draftManager.templateCount').replace('{{count}}', String(Object.keys(draft.templates || {}).length))}</Tag>
                       </Space>
 
                       {draft.originalFileKey && (
@@ -465,17 +464,17 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                           onClick={() => handleLoadDraft(draft)}
                           loading={isLoading}
                         >
-                          読み込み
+                          {t('draftManager.loadButton')}
                         </Button>
                         <Popconfirm
-                          title="Draft削除確認"
-                          description={`"${draft.draftName}" を削除しますか？`}
+                          title={t('draftManager.deleteConfirmTitle')}
+                          description={t('draftManager.deleteConfirmDescription').replace('{{name}}', draft.draftName)}
                           onConfirm={() => handleDelete(draft.draftKey, draft.draftName)}
-                          okText="削除"
-                          cancelText="キャンセル"
+                          okText={t('draftManager.deleteOkText')}
+                          cancelText={t('draftManager.deleteCancelText')}
                         >
                           <Button danger size="small" icon={<DeleteOutlined />} loading={isLoading}>
-                            削除
+                            {t('draftManager.deleteButton')}
                           </Button>
                         </Popconfirm>
                       </Space>
@@ -490,16 +489,16 @@ const DraftManager: React.FC<DraftManagerProps> = ({
 
       {/* 新規保存モーダル */}
       <Modal
-        title="💾 新規Draft保存"
+        title={t('draftManager.saveDialogTitle')}
         open={showSaveDialog}
         onOk={handleSaveNew}
         onCancel={() => setShowSaveDialog(false)}
-        okText="保存"
-        cancelText="キャンセル"
+        okText={t('draftManager.saveDialogOkText')}
+        cancelText={t('draftManager.saveDialogCancelText')}
         confirmLoading={isLoading}
       >
         <Input
-          placeholder="Draft名を入力"
+          placeholder={t('draftManager.saveDialogPlaceholder')}
           value={newDraftName}
           onChange={(e) => setNewDraftName(e.target.value)}
           onPressEnter={handleSaveNew}

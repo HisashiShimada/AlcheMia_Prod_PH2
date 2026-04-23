@@ -391,6 +391,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     lastAutoSaveTime, // number | null
     deleteDraft,
     fetchDrafts,
+    stopAutoSaveTimer,
+    resumeAutoSaveTimer,
   } = useDraftManager(currentEditState, {
     userId: currentUserId,
     autoSaveInterval: 30 * 1000, // 30秒
@@ -1996,6 +1998,30 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     setDraftManagerOpen(false);
   }, []);
 
+  // ✅ 修正③: DraftManagerダイアログ表示中は自動保存を停止・再開する
+  useEffect(() => {
+    if (draftManagerOpen) {
+      console.log('🛑 [PetriNetEditorInner] DraftManagerダイアログ表示 - 自動保存停止');
+      stopAutoSaveTimer();
+    } else {
+      console.log('▶️ [PetriNetEditorInner] DraftManagerダイアログ非表示 - 自動保存再開');
+      resumeAutoSaveTimer(); // isPausedRefを解除してからタイマーを開始
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftManagerOpen]);
+
+  // ✅ 修正④: 自動保存トグルハンドラー（resumeAutoSaveTimer/stopAutoSaveTimerを直接呼ぶ）
+  const handleAutoSaveToggle = useCallback((enabled: boolean) => {
+    setAutoSaveEnabled(enabled);
+    if (enabled) {
+      console.log('▶️ [PetriNetEditorInner] 自動保存トグル ON - タイマー開始');
+      resumeAutoSaveTimer(); // isPausedRefを解除してからタイマーを開始
+    } else {
+      console.log('🛑 [PetriNetEditorInner] 自動保存トグル OFF - タイマー停止');
+      stopAutoSaveTimer();
+    }
+  }, [setAutoSaveEnabled, resumeAutoSaveTimer, stopAutoSaveTimer]);
+
   // ビューモード切替ハンドラー
   const handleViewModeChange = useCallback((newMode: 'petriNet' | 'templates' | 'xml') => {
     console.log('🔄 [PetriNetEditorInner] ビューモード切替:', { from: viewMode, to: newMode });
@@ -2978,6 +3004,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         handleOpenDraftManager={handleOpenDraftManager}
         autoSaveEnabled={autoSaveEnabled}
         setAutoSaveEnabled={setAutoSaveEnabled}
+        onAutoSaveToggle={handleAutoSaveToggle}
         lastAutoSaveTime={lastAutoSaveTime}
         viewMode={viewMode}
         handleViewModeChange={handleViewModeChange}
@@ -3085,6 +3112,7 @@ interface PetriNetEditorInnerUIProps {
   handleOpenDraftManager: () => void;
   autoSaveEnabled: boolean;
   setAutoSaveEnabled: (enabled: boolean) => void;
+  onAutoSaveToggle: (enabled: boolean) => void;
   lastAutoSaveTime: Date | null;
   
   // ビューモード
@@ -3195,6 +3223,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   handleOpenDraftManager,
   autoSaveEnabled,
   setAutoSaveEnabled,
+  onAutoSaveToggle,
   lastAutoSaveTime,
   viewMode,
   handleViewModeChange,
@@ -3315,7 +3344,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           workflowModeActive={selectedTool === 'workflow'}
           onOpenDraftManager={handleOpenDraftManager}
           autoSaveEnabled={autoSaveEnabled}
-          onAutoSaveToggle={() => setAutoSaveEnabled(!autoSaveEnabled)}
+          onAutoSaveToggle={onAutoSaveToggle}
           lastAutoSaveTime={lastAutoSaveTime !== null ? new Date(lastAutoSaveTime) : null}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
@@ -3532,7 +3561,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           currentEditState={currentEditState}
           userId={currentUserId}
           autoSaveEnabled={autoSaveEnabled}
-          onAutoSaveToggle={() => setAutoSaveEnabled(!autoSaveEnabled)}
+          onAutoSaveToggle={onAutoSaveToggle}
           currentDraftKey={lastSavedDraft?.draftKey || null}
           projectId={projectId}
         />
