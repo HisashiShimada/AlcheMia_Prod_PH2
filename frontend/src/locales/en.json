@@ -1559,5 +1559,30 @@
       "project_instruction": "No work instructions for the entire experiment",
       "task_instruction": "No work instructions for the task"
     }
+  },
+  "instructionEditDialog": {
+    "titleDetail": "Instruction Detail",
+    "titleCreate": "Add New Instruction",
+    "titleEdit": "Edit Instruction",
+    "saveButton": "Add",
+    "saveAndContinueButton": "Continue Adding",
+    "targetLabel": "🎯 Instruction Target",
+    "wholeProject": "Whole Project",
+    "priorityLabel": "Priority",
+    "priorityRequired": "Please select a priority",
+    "typeLabel": "Type",
+    "typeRequired": "Please select a type",
+    "taskLabel": "🎯 Target Task",
+    "taskPlaceholder": "Select task number...",
+    "taskOption": "Task {taskNum}",
+    "transitionLabel": "🔗 Transition ID",
+    "transitionPlaceholder": "Select transition...",
+    "alertSelected": "Selected:",
+    "alertCategory": "Category:",
+    "alertDescription": "Description:",
+    "contentLabel": "Instruction Content",
+    "contentRequired": "Please enter instruction content",
+    "contentMaxLength": "Must be 1000 characters or less",
+    "contentPlaceholder": "Enter specific instructions for the worker..."
   }
 }
