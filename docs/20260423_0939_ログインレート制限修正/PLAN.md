@@ -16,25 +16,31 @@
 
 ## 目的と期待される成果
 
-- [ ] レート制限が正しく組織IDとユーザーIDで識別されるようにする
-- [ ] 失敗ログインのみカウントし、成功ログインでロックアウトされないようにする
-- [ ] フロントエンドとバックエンドのフィールド名を統一する
+- [x] レート制限が正しく組織IDとユーザーIDで識別されるようにする
+- [x] 失敗ログインのみカウントし、成功ログインでロックアウトされないようにする
+- [x] フロントエンドとバックエンドのフィールド名を統一する
+- [x] login_history に書き込む user_id をレート制限クエリと同一値（入力userId）に統一する
 
 ## 実装ステップ
 
 ### Phase 1: rateLimitMiddleware.ts の修正
-- [ ] `loginRateLimit` の `keyGenerator` を `x-organization-id` ヘッダーにも対応
-- [ ] SQLクエリの `organizationId` 取得をヘッダー対応に修正
-- [ ] SQLクエリに `AND login_sf = false` を追加（失敗のみカウント）
-- [ ] `userId` の split 方式を廃止し直接取得に変更
+- [x] `loginRateLimit` の `keyGenerator` を `x-organization-id` ヘッダーにも対応
+- [x] SQLクエリの `organizationId` 取得をヘッダー対応に修正
+- [x] SQLクエリに `AND login_sf = false` を追加（失敗のみカウント）
+- [x] `userId` の split 方式を廃止し直接取得に変更
 
 ### Phase 2: authApi.ts の修正
-- [ ] リクエストボディのフィールド名を `username` → `userId` に修正
+- [x] リクエストボディのフィールド名を `username` → `userId` に修正
+
+### Phase 3: authService.ts の修正（追加調査で判明）
+- [x] アカウント無効チェック時の `recordLogin` 呼び出しを `user.user_id` → `userId`（入力値）に修正
+- [x] パスワード不一致時の `recordLogin` 呼び出しを `user.user_id` → `userId`（入力値）に修正
 
 ## 変更ファイル
 
 1. `backend/src/middleware/rateLimitMiddleware.ts` - レート制限の orgId・userId 取得修正、失敗のみカウント
 2. `frontend/src/utils/authApi.ts` - フィールド名 username → userId
+3. `backend/src/services/authService.ts` - recordLogin の user_id 引数を入力値 userId に統一
 
 ## リスク
 
