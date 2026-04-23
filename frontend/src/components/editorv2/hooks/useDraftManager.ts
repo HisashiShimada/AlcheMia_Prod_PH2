@@ -50,6 +50,7 @@ export interface UseDraftManagerReturn {
   setAutoSaveEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   startAutoSaveTimer: () => void;
   stopAutoSaveTimer: () => void;
+  resumeAutoSaveTimer: () => void;
   cleanupOldAutoSaves: () => Promise<void>;
 }
 
@@ -83,6 +84,8 @@ const useDraftManager = (
 
   // タイマー参照
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // 一時停止フラグ（ダイアログ表示中などに外部からstopAutoSaveTimerで立てる）
+  const isPausedRef = useRef(false);
   const lastFetchTimeRef = useRef<number>(0);
   const FETCH_COOLDOWN = 2000;
 
@@ -220,6 +223,12 @@ const useDraftManager = (
    * 自動保存タイマーの開始
    */
   const startAutoSaveTimer = useCallback(() => {
+    // 一時停止中はタイマーを開始しない
+    if (isPausedRef.current) {
+      console.log('⏸️ [useDraftManager V2] 一時停止中 - タイマー開始スキップ');
+      return;
+    }
+
     if (autoSaveTimerRef.current) {
       clearInterval(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
@@ -288,15 +297,26 @@ const useDraftManager = (
   ]);
 
   /**
-   * 自動保存タイマーの停止
+   * 自動保存タイマーの停止（一時停止フラグを立てて、再生成された startAutoSaveTimer からも保護）
    */
   const stopAutoSaveTimer = useCallback(() => {
+    isPausedRef.current = true;
     if (autoSaveTimerRef.current) {
       console.log('🛑 [useDraftManager V2] 自動保存タイマー停止');
       clearInterval(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
   }, []);
+
+  /**
+   * 自動保存タイマーの再開（一時停止フラグを解除してからタイマーを開始）
+   */
+  const resumeAutoSaveTimer = useCallback(() => {
+    isPausedRef.current = false;
+    if (autoSaveEnabled) {
+      startAutoSaveTimer();
+    }
+  }, [autoSaveEnabled, startAutoSaveTimer]);
 
   // ==================== エフェクト ====================
 
@@ -313,7 +333,11 @@ const useDraftManager = (
     return () => {
       stopAutoSaveTimer();
     };
-  }, [autoSaveEnabled, autoSaveInterval, startAutoSaveTimer, stopAutoSaveTimer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // startAutoSaveTimer/stopAutoSaveTimerを依存配列に含めると、
+    // currentEditState（ノード/エッジ編集）が変化するたびに関数が再生成され、
+    // このuseEffectが再実行されてタイマーが意図せず再起動する問題を防ぐため除外する
+  }, [autoSaveEnabled, autoSaveInterval]);
 
   /**
    * コンポーネントアンマウント時のクリーンアップ
@@ -346,6 +370,7 @@ const useDraftManager = (
     setAutoSaveEnabled,
     startAutoSaveTimer,
     stopAutoSaveTimer,
+    resumeAutoSaveTimer,
     cleanupOldAutoSaves,
   };
 };
