@@ -330,7 +330,7 @@ alchemia-nginx-service タスク              ├──/api/*──▶ alchemia-
                             │ TCP/3001（VPC 内 Service Discovery）
                             ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  ECS Fargate: alchemia-backend-service（desiredCount=1 ⚠️, assignPublicIp=DISABLED）│
+│  ECS Fargate: alchemia-backend-service（desiredCount=1 ⚠️, assignPublicIp=DISABLED, ただし実際はパブリックIP付与⚠️）│
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
 │  │  mmdpf-backend コンテナ（3001）                                       │  │
@@ -401,6 +401,11 @@ alchemia-nginx-service タスク              ├──/api/*──▶ alchemia-
 │  サービス         │  ・launchType=FARGATE                                   │
 │                  │  ・assignPublicIp=DISABLED                              │
 │                  │  ・Circuit Breaker: 無効 ⚠️                              │
+│                  │  ・配置サブネット: alchemia-public-1c ⚠️                  │
+│                  │    ※ MapPublicIpOnLaunch=true のため ENI に               │
+│                  │      パブリックIP（13.115.91.45）が自動付与される ⚠️       │
+│                  │    ※ 実態はパブリックサブネット配置（設計意図と乖離）⚠️     │
+│                  │  ・アウトバウンド: IGW 経由（パブリックIP経由）⚠️           │
 │                  │  コンテナ: mmdpf-backend(3001)                          │
 ├──────────────────┼─────────────────────────────────────────────────────────┤
 │  Aurora          │  クラスターID: alchemia-staging-aurora                  │
@@ -501,6 +506,9 @@ alchemia-nginx-service タスク              ├──/api/*──▶ alchemia-
 ```
 
 ---
+
+> **⚠️ 図3 補足**: `alchemia-public-1c`（パブリックサブネット）の「配置リソース」には、図中に記載のない **`alchemia-backend-service`（ECS Fargate タスク）も実際には配置されています**。  
+> `assignPublicIp=DISABLED` と設定されていても、`MapPublicIpOnLaunch=true` のパブリックサブネットに配置されているため、ENI にパブリックIP（13.115.91.45）が自動付与されます。これは設計意図（プライベートサブネット配置）と乖離した状態です。⚠️
 
 ### 図4: セキュリティグループ詳細（検証環境）
 
