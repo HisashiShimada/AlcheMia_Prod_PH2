@@ -93,7 +93,7 @@ export async function login(
     const response = await axios.post(
       `${API_BASE_URL}/auth/login`,
       {
-        username,
+        userId: username, // バックエンドは "userId" フィールドを期待する
         password,
       },
       {

@@ -86,17 +86,21 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
         const result = await pool.query(query, [key, windowStart]);
         currentAttempts = parseInt(result.rows[0].count, 10);
       } else {
-        // login_historyテーブルから全試行回数を取得
-        const organizationId = req.query.orgId as string | undefined;
-        const userId = key.split('_')[1];
+        // login_historyテーブルから失敗試行回数を取得
+        // orgId は query パラメータまたは x-organization-id ヘッダーから取得
+        const organizationId = (req.query.orgId || req.headers['x-organization-id']) as string | undefined;
+        // userId は req.body から直接取得（split方式を廃止）
+        const userId = (req.body?.userId || req.body?.username) as string | undefined;
         
         // インデックス idx_login_history_query (organization_id, user_id, entry_execute_flg) を利用
+        // login_sf = false で失敗ログインのみカウント（成功ログインはカウントしない）
         const query = `
           SELECT COUNT(*) as count 
           FROM login_history 
           WHERE login_at > $1 
           AND user_id = $2 
           AND organization_id = $3
+          AND login_sf = false
         `;
         const result = await pool.query(query, [windowStart, userId, organizationId]);
         currentAttempts = parseInt(result.rows[0].count, 10);
@@ -138,7 +142,13 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
 export const loginRateLimit = rateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15分
   maxAttempts: 5,
-  keyGenerator: (req) => `${req.query.orgId}_${req.body.userId}`,
+  // orgId は query パラメータまたは x-organization-id ヘッダーから取得
+  // userId は body.userId（バックエンド仕様）または body.username（後方互換）に対応
+  keyGenerator: (req) => {
+    const orgId = (req.query.orgId || req.headers['x-organization-id']) as string;
+    const userId = (req.body?.userId || req.body?.username) as string;
+    return orgId && userId ? `${orgId}__${userId}` : '';
+  },
   errorCode: E5007,
   message: 'ログイン試行回数が上限に達しました。15分後に再試行してください。',
 });
