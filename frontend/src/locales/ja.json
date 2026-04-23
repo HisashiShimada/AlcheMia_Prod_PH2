@@ -526,6 +526,28 @@
       "failed": "プロジェクト名の変更に失敗しました"
     }
   },
+  "auth": {
+    "pin": {
+      "title": "PINコード認証",
+      "inputLabel": "PINコード",
+      "inputPlaceholder": "000000",
+      "submitButton": "確認",
+      "resendButton": "PINコードを再送信",
+      "resendCooldown": "再送信可能まで {{time}}",
+      "emailSent": "{{email}} にPINコードを送信しました。",
+      "enterCode": "メールに記載された6桁のコードを入力してください。",
+      "expiresIn": "有効期限: {{time}}",
+      "errors": {
+        "required": "PINコードを入力してください",
+        "invalid": "PINコードは6桁の数字で入力してください",
+        "pinInvalid": "PINコードが正しくありません",
+        "pinExpired": "PINコードの有効期限が切れました。再送信してください",
+        "maxAttemptsExceeded": "入力試行回数が上限に達しました。最初からやり直してください",
+        "resendLimitExceeded": "PINコード再送信回数が上限に達しました。しばらくしてから再度お試しください"
+      },
+      "maxAttemptsMessage": "入力試行回数が上限に達しました。最初からやり直してください"
+    }
+  },
   "progress": {
     "title": "進捗管理",
     "lastUpdated": "最終更新",
