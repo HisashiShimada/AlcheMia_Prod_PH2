@@ -44,7 +44,8 @@ export async function getIsEntry(
   }
 
   // is_entryがnullの場合はデフォルトでtrue（二段階認証あり）
-  return result.rows[0].is_entry ?? true;
+  // PostgreSQL の integer 型は Node.js で数値(1/0)として返るため、明示的に boolean 変換する
+  return Boolean(result.rows[0].is_entry ?? true);
 }
 
 /**

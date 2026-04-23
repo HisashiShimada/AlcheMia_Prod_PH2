@@ -23,8 +23,8 @@ import {
   FileTextOutlined,
   AimOutlined,
   PlusOutlined,
-  SaveOutlined,
 } from '@ant-design/icons';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type {
   InstructionData,
   TransitionInfo,
@@ -132,6 +132,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   saveMode = 'immediate',
 }) => {
   const { token } = useToken();
+  const { t } = useLanguage();
   const [form] = Form.useForm();
   const { maimlRoot } = useProjectMaiml();
 
@@ -363,7 +364,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   return (
     <Modal
       data-testid="instruction-edit-dialog"
-      title={isSentInstruction ? '指示詳細' : mode === 'create' ? '新規指示の追加' : '指示の編集'}
+      title={isSentInstruction ? t('instructionEditDialog.titleDetail') : mode === 'create' ? t('instructionEditDialog.titleCreate') : t('instructionEditDialog.titleEdit')}
       open={open}
       onCancel={handleCancel}
       width={700}
@@ -371,12 +372,12 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         isSentInstruction ? [
           // 送信済：閉じるボタンのみ
           <Button key="close" type="default" onClick={handleCancel}>
-            閉じる
+            {t('common.close')}
           </Button>,
         ] : [
           // 未送信：通常のフッター
           <Button key="cancel" onClick={handleCancel}>
-            キャンセル
+            {t('common.cancel')}
           </Button>,
           mode === 'create' && (
             <Button
@@ -385,17 +386,17 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               icon={<PlusOutlined />}
               onClick={handleSaveAndContinue}
             >
-              連続指示
+              {t('instructionEditDialog.saveAndContinueButton')}
             </Button>
           ),
           <Button
             key="save"
             type="primary"
-            icon={<SaveOutlined />}
+            icon={<PlusOutlined />}
             onClick={handleSave}
             data-testid="instruction-edit-dialog-save-button"
           >
-            保存
+            {t('instructionEditDialog.saveButton')}
           </Button>,
         ]
       }
@@ -414,7 +415,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
           {/* 指示対象（表示のみ） */}
           <div>
             <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-              🎯 指示対象
+              {t('instructionEditDialog.targetLabel')}
             </Text>
             <Card size="small" style={{ backgroundColor: token.colorPrimaryBg }}>
               <Space orientation="vertical" size={4} style={{ width: '100%' }}>
@@ -431,7 +432,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
                   </>
                 ) : (
                   <Text>
-                    <FileTextOutlined /> プロジェクト全体
+                    <FileTextOutlined /> {t('instructionEditDialog.wholeProject')}
                   </Text>
                 )}
               </Space>
@@ -441,8 +442,8 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
           {/* 優先度 */}
           <Form.Item
             name="priority"
-            label="優先度"
-            rules={[{ required: true, message: '優先度を選択してください' }]}
+            label={t('instructionEditDialog.priorityLabel')}
+            rules={[{ required: true, message: t('instructionEditDialog.priorityRequired') }]}
           >
             <Select 
               style={{ width: '100%' }} 
@@ -470,8 +471,8 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
           {/* タイプ */}
           <Form.Item
             name="type"
-            label="タイプ"
-            rules={[{ required: true, message: 'タイプを選択してください' }]}
+            label={t('instructionEditDialog.typeLabel')}
+            rules={[{ required: true, message: t('instructionEditDialog.typeRequired') }]}
           >
             <Select 
               style={{ width: '100%' }} 
@@ -500,16 +501,16 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
           {/* 対象タスク */}
           <Form.Item
             name="taskNumber"
-            label="🎯 対象タスク"
+            label={t('instructionEditDialog.taskLabel')}
           >
             <Select
-              placeholder="タスク番号を選択..."
+              placeholder={t('instructionEditDialog.taskPlaceholder')}
               disabled={isSentInstruction || !selectedMethodId || !selectedTask || selectedTask.experimentCondition !== 1}
               allowClear
             >
               {selectedTask?.taskNumberOptions.map((taskNum) => (
                 <Select.Option key={taskNum} value={taskNum}>
-                  タスク {taskNum}
+                  {t('instructionEditDialog.taskOption').replace('{taskNum}', String(taskNum))}
                 </Select.Option>
               ))}
             </Select>
@@ -518,10 +519,10 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
           {/* トランジションID */}
           <Form.Item
             name="transitionId"
-            label="🔗 トランジションID"
+            label={t('instructionEditDialog.transitionLabel')}
           >
             <Select
-              placeholder="トランジションを選択..."
+              placeholder={t('instructionEditDialog.transitionPlaceholder')}
               disabled={isSentInstruction || !selectedMethodId}
               onChange={(value) => setSelectedTransitionId(value)}
               allowClear
@@ -542,14 +543,14 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               message={
                 <Space orientation="vertical" size="small">
                   <Text>
-                    <Text strong>選択中:</Text> {selectedTransition.displayName}
+                    <Text strong>{t('instructionEditDialog.alertSelected')}</Text> {selectedTransition.displayName}
                   </Text>
                   <Text>
-                    <Text strong>カテゴリ:</Text> {selectedTransition.category}
+                    <Text strong>{t('instructionEditDialog.alertCategory')}</Text> {selectedTransition.category}
                   </Text>
                   {selectedTransition.description && (
                     <Text>
-                      <Text strong>説明:</Text> {selectedTransition.description}
+                      <Text strong>{t('instructionEditDialog.alertDescription')}</Text> {selectedTransition.description}
                     </Text>
                   )}
                 </Space>
@@ -564,16 +565,16 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
             name="content"
             label={
               <>
-                指示内容 {!isSentInstruction && <Text type="danger">*</Text>}
+                {t('instructionEditDialog.contentLabel')} {!isSentInstruction && <Text type="danger">*</Text>}
               </>
             }
             rules={[
-              { required: true, message: '指示内容を入力してください' },
-              { max: 1000, message: '1000文字以内で入力してください' },
+              { required: true, message: t('instructionEditDialog.contentRequired') },
+              { max: 1000, message: t('instructionEditDialog.contentMaxLength') },
             ]}
           >
           <TextArea
-              placeholder="作業者への具体的な指示を入力してください..."
+              placeholder={t('instructionEditDialog.contentPlaceholder')}
               rows={6}
               showCount
               maxLength={1000}

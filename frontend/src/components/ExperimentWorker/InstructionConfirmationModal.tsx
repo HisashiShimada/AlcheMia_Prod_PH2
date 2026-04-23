@@ -159,7 +159,7 @@ export default function InstructionConfirmationModal({
                   }}
                   onClick={() => setFileInstructionsExpanded(!fileInstructionsExpanded)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    e.currentTarget.style.backgroundColor = token.colorFillSecondary;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
@@ -209,7 +209,7 @@ export default function InstructionConfirmationModal({
                   }}
                   onClick={() => setMethodInstructionsExpanded(!methodInstructionsExpanded)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    e.currentTarget.style.backgroundColor = token.colorFillSecondary;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
@@ -259,7 +259,7 @@ export default function InstructionConfirmationModal({
                   }}
                   onClick={() => setTransitionInstructionsExpanded(!transitionInstructionsExpanded)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    e.currentTarget.style.backgroundColor = token.colorFillSecondary;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';

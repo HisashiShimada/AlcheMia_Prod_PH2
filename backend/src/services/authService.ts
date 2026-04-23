@@ -107,8 +107,8 @@ export class AuthService {
       if (!user.is_active) {
         await loginHistoryRepository.recordLogin(
           this.pool,
-          user.user_id,
-          user.organization_id,
+          userId,          // user.user_id（UUID）ではなく入力値 userId を使用（レート制限クエリと一致させる）
+          organizationId,
           false,
           'Account disabled',
           ipAddress,
@@ -136,8 +136,8 @@ export class AuthService {
       if (!passwordResult.success || !passwordResult.data) {
         await loginHistoryRepository.recordLogin(
           this.pool,
-          user.user_id,
-          user.organization_id,
+          userId,          // user.user_id（UUID）ではなく入力値 userId を使用（レート制限クエリと一致させる）
+          organizationId,
           false,
           'Invalid password',
           ipAddress,
@@ -468,7 +468,19 @@ export class AuthService {
       if (!verifyResult.success) {
         // PINコード不正の場合、試行回数をインクリメント
         if (verifyResult.error?.code === 'AUTH_PIN_INVALID') {
-          await this.pinCodeService.incrementAttempts(sessionToken);
+          const incrementResult = await this.pinCodeService.incrementAttempts(sessionToken);
+          
+          // インクリメント後のカウントが上限に達した場合は E5005 を返す
+          // （3回目の失敗時点で即座に「上限到達」エラーを表示）
+          if (incrementResult.success && incrementResult.data >= this.pinCodeService.maxAttempts) {
+            return {
+              success: false,
+              error: {
+                code: 'E5005',
+                message: 'PINコード入力試行回数の上限に達しました。最初からやり直してください',
+              },
+            };
+          }
         }
         
         return {

@@ -427,6 +427,11 @@ MMDPF Authentication System
 
 初回ログイン後、必ず新しいパスワードに変更してください。
 
+【重要】クライアント証明書について
+MMDPFへのログインには、クライアント証明書（.p12ファイル）が必要です。
+クライアント証明書は別途ご担当者よりお送りします。
+証明書が届き次第、ブラウザにインストールしてからログインしてください。
+
 このメールに心当たりがない場合は、管理者にお問い合わせください。
 
 ---
@@ -455,6 +460,7 @@ MMDPF System
     .button { display: inline-block; padding: 15px 30px; background-color: #CF0027;
               color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
     .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+    .cert-notice { background-color: #e8f4f8; border-left: 4px solid #0093CF; padding: 15px; margin: 20px 0; }
     .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
   </style>
 </head>
@@ -485,6 +491,14 @@ MMDPF System
       </div>
       <div style="text-align: center;">
         <a href="${loginUrl}" class="button">ログインページへ</a>
+      </div>
+      <div class="cert-notice">
+        <p><strong>🔐 クライアント証明書について（重要）</strong></p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+          <li>MMDPFへのログインには、クライアント証明書（.p12ファイル）が必要です。</li>
+          <li>クライアント証明書は<strong>別途ご担当者よりお送りします</strong>。</li>
+          <li>証明書が届き次第、ブラウザにインストールしてからログインしてください。</li>
+        </ul>
       </div>
       <p>このメールに心当たりがない場合は、管理者にお問い合わせください。</p>
     </div>
