@@ -580,7 +580,7 @@ export default function CorporationManagement() {
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100'],
           showTotal: (total) => t('corporationManagement.pagination.showTotal').replace('{total}', String(total)),
           }}
           rowClassName={(record) => (!record.isActive ? 'inactive-row' : '')}

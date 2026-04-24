@@ -292,8 +292,9 @@ export default function SessionManagement() {
             size="small"
             scroll={{ x: 800 }}
             pagination={{
-              pageSize: 10,
+              pageSize: 20,
               showSizeChanger: true,
+              pageSizeOptions: ['20', '50', '100'],
               showTotal: (total) => t('sessionManagement.pagination.showTotal').replace('{total}', String(total)),
             }}
           />
