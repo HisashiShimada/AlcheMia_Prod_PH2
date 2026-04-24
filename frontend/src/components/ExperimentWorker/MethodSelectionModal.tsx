@@ -263,10 +263,10 @@ export default function MethodSelectionModal({
           dataSource={filteredData}
           rowSelection={rowSelection}
           pagination={{
-            pageSize: 10,
+            pageSize: 20,
             showSizeChanger: true,
             showTotal: (total) => `全 ${total} 件`,
-            pageSizeOptions: ['10', '20', '50'],
+            pageSizeOptions: ['20', '50', '100'],
             showQuickJumper: true,
           }}
           scroll={{ y: 350 }}

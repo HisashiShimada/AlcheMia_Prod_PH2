@@ -1520,7 +1520,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100'],
             showTotal: (total) => t('masterManagement.pagination.showTotal').replace('{total}', String(total)),
           }}
           rowClassName={(record) => {
