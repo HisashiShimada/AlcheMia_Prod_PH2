@@ -28,10 +28,24 @@ function isErrorResponse(data: unknown): data is { error: ErrorResponse['error']
 }
 
 /**
+ * エラーコードを保持するカスタムエラークラス
+ * extractErrorCode() がコードを取り出せるようにするために使用する。
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+/**
  * エラーハンドリング共通処理
  * 
  * @param error - Axiosエラーオブジェクト
- * @throws Error - ユーザーフレンドリーなエラーメッセージを含むError
+ * @throws ApiError - エラーコードとユーザーフレンドリーなメッセージを含むApiError
  */
 function handleApiError(error: unknown): never {
   if (axios.isAxiosError(error)) {
@@ -44,23 +58,23 @@ function handleApiError(error: unknown): never {
       if (isErrorResponse(data)) {
         const errorCode = data.error.code;
         const errorMessage = data.error.message || mapErrorToMessage(errorCode);
-        throw new Error(errorMessage);
+        throw new ApiError(errorMessage, errorCode);
       }
     }
 
     // タイムアウトエラー
     if (axiosError.code === 'ECONNABORTED') {
-      throw new Error('リクエストがタイムアウトしました。しばらくしてから再度お試しください');
+      throw new ApiError('リクエストがタイムアウトしました。しばらくしてから再度お試しください', 'E3002');
     }
 
     // ネットワークエラー
     if (!axiosError.response) {
-      throw new Error('ネットワークエラーが発生しました。インターネット接続を確認してください');
+      throw new ApiError('ネットワークエラーが発生しました。インターネット接続を確認してください', 'E3003');
     }
   }
 
   // その他のエラー
-  throw new Error('予期しないエラーが発生しました。しばらくしてから再度お試しください');
+  throw new ApiError('予期しないエラーが発生しました。しばらくしてから再度お試しください', 'E9999');
 }
 
 /**
@@ -93,7 +107,7 @@ export async function login(
     const response = await axios.post(
       `${API_BASE_URL}/auth/login`,
       {
-        username,
+        userId: username, // バックエンドは "userId" フィールドを期待する
         password,
       },
       {

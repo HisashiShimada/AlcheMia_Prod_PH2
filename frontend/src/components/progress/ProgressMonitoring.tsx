@@ -581,10 +581,10 @@ export default function ProgressMonitoring() {
           columns={columns}
           rowKey="key"
           pagination={{
-            pageSize: 10,
+            pageSize: 20,
             showSizeChanger: true,
             showTotal: (total) => `${t('progress.table.total') || '合計'} ${total} ${t('progress.table.items') || '件'}`,
-            pageSizeOptions: ['5', '10', '25', '50'],
+            pageSizeOptions: ['20', '50', '100'],
           }}
           scroll={{ x: 1200 }}
           size="middle"

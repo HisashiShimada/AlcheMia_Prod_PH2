@@ -530,7 +530,7 @@ export default function TransitionList({
             showSizeChanger: true,
             showQuickJumper: false,
             showTotal: (total, range) => `全${total}件`,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100'],
             position: ['bottomRight'],
             locale: {
               items_per_page: '件/ページ',

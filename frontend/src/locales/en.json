@@ -529,6 +529,28 @@
   "formatFolderTree": {
     "title": "Format List"
   },
+  "auth": {
+    "pin": {
+      "title": "PIN Code Authentication",
+      "inputLabel": "PIN Code",
+      "inputPlaceholder": "000000",
+      "submitButton": "Verify",
+      "resendButton": "Resend PIN Code",
+      "resendCooldown": "Resend available in {{time}}",
+      "emailSent": "A PIN code has been sent to {{email}}.",
+      "enterCode": "Please enter the 6-digit code from your email.",
+      "expiresIn": "Expires in: {{time}}",
+      "errors": {
+        "required": "Please enter your PIN code",
+        "invalid": "PIN code must be a 6-digit number",
+        "pinInvalid": "Incorrect PIN code",
+        "pinExpired": "PIN code has expired. Please request a new one",
+        "maxAttemptsExceeded": "Maximum attempts reached. Please start over",
+        "resendLimitExceeded": "PIN resend limit reached. Please try again later"
+      },
+      "maxAttemptsMessage": "Maximum attempts reached. Please start over"
+    }
+  },
   "progress": {
     "title": "Progress Management",
     "lastUpdated": "Last Updated",

@@ -290,7 +290,7 @@ export default function TaskListTable({
         showSizeChanger: true,
         showQuickJumper: false,
         showTotal: (total) => `全${total}件`,
-        pageSizeOptions: ['10', '20', '50', '100'],
+        pageSizeOptions: ['20', '50', '100'],
         locale: {
           items_per_page: '件/ページ',
           jump_to: 'ページ',
