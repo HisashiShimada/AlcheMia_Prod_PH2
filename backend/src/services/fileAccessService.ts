@@ -484,7 +484,7 @@ export class FileAccessService {
               organizationId,
               content,
               filePath,
-              true, // skipSave=true: DB保存はスキップ
+              false, // skipSave=false: DB保存を行う（バリデーション結果を記録）
               'lenient' // アップロード時は緩和モード（編集可能な項目は警告に降格）
             );
           } catch (analysisError) {

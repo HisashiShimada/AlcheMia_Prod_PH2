@@ -2,84 +2,116 @@
 
 ## メタデータ
 - **作成日時**: 2026-04-23 16:20
-- **更新日時**: 2026-04-23 16:40
+- **更新日時**: 2026-04-24 08:30
 - **タスクID**: maiml-validation-button
 - **優先度**: 中
 - **推定工数**: 4〜6時間
 
+---
+
 ## タスク概要
 
-`ProjectManagement.tsx` にて、プロジェクト選択後に対象プロジェクトの MAIMLファイルの
-バリデーションを実行するボタンを追加する。
+以下の3点を実装する。
 
-解析結果に問題がある場合、以下の箇所に警告アイコン/バッジを表示する。
-1. **プロジェクト情報ヘッダー**のプロジェクト名の横
-2. **ファイル一覧テーブル**の MAIMLファイル行の横
+1. **プロジェクト管理画面にバリデーション実行ボタンを追加する**
+2. **ボタン押下時にダイアログを開き、DB保存済みの結果を表示 + その場で再バリデーション可能にする**
+3. **すべてのバリデーション実行時（エディタ保存前・ValidationPanel・アップロード時・プロジェクト管理画面）に結果をDBに保存するよう変更する**
 
 ---
 
 ## 調査結果サマリー
 
-### 既存のバリデーション API
-- **POST `/api/v1/maiml/validate`**
-  - リクエスト: `{ content: string (Base64), fileKey?: string, skipAnalysisSave?: boolean }`
-  - `skipAnalysisSave = true`（デフォルト）→ DB保存なし（エディタ用）
-  - `skipAnalysisSave = false` → `maiml_analysis_results` テーブルに自動UPSERT保存
-  - フロント: `validateMaiml(content, strict)` ← 引数を `fileKey`, `skipAnalysisSave` に拡張が必要
+### バリデーション実行箇所（現状）
 
-### バリデーション結果のDB保存（既存）
-- テーブル: `maiml_analysis_results`
-  - 主キー: `id (SERIAL)`、ユニーク: `file_key`
-  - カラム: `is_valid`, `errors (JSONB)`, `warnings (JSONB)`, `statistics`, `analysis_timestamp` 等
-- Repository: `maimlAnalysisResultRepository.ts` に `upsert()`, `getByFileKey()` 関数あり
+| 箇所 | 呼び出し関数 | fileKey有無 | DB保存 |
+|------|------------|-----------|-------|
+| エディタ：保存前バリデーション | `handleOpenSaveConfirmDialog` → `maimlService.validateMaiml(base64Data)` | ❌ なし | ❌ |
+| エディタ：ValidationPanel開く | `handleOpenValidationPanel` → `maimlService.validateMaiml(base64Data)` | ❌ なし | ❌ |
+| ファイルアップロード時 | `fileAccessService.ts` → `analyzeMaiMLFile(..., true, 'lenient')` | ✅ あり | ❌ skipSave=true 明示 |
+| プロジェクト管理画面 | ❌ 未実装 | — | — |
 
-### DB保存済み結果の取得 API（**未実装 → 新規追加が必要**）
-- `GET /api/v1/maiml/analysis-result?fileKey=xxx` を新規追加する
-- プロジェクト選択時に呼び出し → 過去の結果があれば警告アイコンを表示
+### 既存インフラ（実装済みで使われていない）
 
-### 型定義
-- `AnalysisResult` 型: `frontend/src/types/maimlValidation.ts` に定義済み
-  - `isValid`, `errors: ErrorContent[]`, `warnings: ErrorContent[]` 等
+| 要素 | 状態 |
+|------|------|
+| `maiml_analysis_results` テーブル | ✅ DDL定義済み |
+| Repository `upsert()` / `getByFileKey()` | ✅ 実装済み |
+| `maimlParser.ts` の `saveAnalysisResults()` | ✅ 実装済み（skipSave=false 時のみ動作） |
+| `skipSave=false` で呼ぶ箇所 | ❌ 0件 |
 
-### 変更対象コンポーネント
-- **バックエンド**: `maimlController.ts`, `maimlRoutes.ts`（analysis-result取得エンドポイント追加）
-- **フロントエンド**:
-  - `maimlApiService.ts`（validateMaiml 引数拡張、getAnalysisResult 追加）
-  - `ProjectManagement.tsx`（バリデーションボタン・警告アイコン・モーダル追加）
-  - `FileListTable.tsx`（MAIMLファイル行への警告アイコン追加）
+### バックエンド バリデーション関数シグネチャ
 
-### ValidationPanel.tsx の参考
-- `ValidationPanel.tsx` が既にバリデーション結果表示UIとして存在
-- 自動補正機能がある → 今回は **不要** のため `onAutoCorrect` を渡さない（シンプルな Props で再利用）
-- またはモーダル内でインラインに結果表示（Collapse + List で同等UIを構築）
+```typescript
+// maimlService.ts
+export async function validateMaiML(
+  organizationId: string,
+  content: string,
+  fileKey: string = '',
+  skipAnalysisSave: boolean = true  // ← デフォルト true = DB保存しない
+): Promise<AnalysisResult>
+```
+
+```typescript
+// maimlApiService.ts（フロントエンド）
+export const validateMaiml = async (
+  content: string,
+  strict: boolean = false          // ← fileKey, skipAnalysisSave を渡せない
+): Promise<ApiResponse<AnalysisResult>>
+```
 
 ---
 
 ## 目的と期待される成果
 
-### 目的
-- プロジェクト管理画面から直接 MAIMLファイルのバリデーションを実行できるようにする
-- バリデーション結果をDBに保存し、次回アクセス時も警告状態を維持する
-- バリデーション結果（エラー/警告）を画面上で視覚的に確認できるようにする
+- [ ] プロジェクト管理画面にバリデーションボタンが表示される
+- [ ] ボタン押下でダイアログが開き、DB保存済みの結果（最終バリデーション日時・エラー/警告一覧）が表示される
+- [ ] ダイアログ内で「再バリデーション」ボタンを押すと、その場でバリデーションが実行される
+- [ ] **バリデーション結果に問題がある場合（isValid=false）、以下の箇所に警告アイコンを常時表示する**
+  - プロジェクト一覧テーブルのプロジェクト名横（DB保存済み結果を反映）
+  - プロジェクト詳細ヘッダーのプロジェクト名横
+  - ファイル一覧テーブルのMAIMLファイル行横
+- [ ] **エディタ保存前バリデーション・ValidationPanel・アップロード・プロジェクト管理画面のすべてのバリデーションでDB保存が行われる**
 
-### 期待される成果
-- [ ] プロジェクト選択時に DB から過去のバリデーション結果を自動取得・表示する
-- [ ] ファイル操作ツールバーに「バリデーション」ボタンが表示される
-- [ ] ボタン押下時に MAIMLバリデーション API が呼び出され、結果が DB に保存される
-- [ ] バリデーション結果がモーダル（ValidationPanel 流用）で表示される
-- [ ] エラー・警告がある場合、プロジェクト名の横に警告アイコンが表示される
-- [ ] エラー・警告がある場合、ファイル一覧の MAIMLファイル行の横に警告アイコンが表示される
-- [ ] MAIMLファイルが存在しない場合はボタンが無効化される
+---
+
+## 実装方針
+
+### バリデーション結果のDB保存を全箇所で有効化する方針
+
+**バックエンド側の変更（最小限）**:
+- `maimlService.validateMaiML` のデフォルトを `skipAnalysisSave = false` に変更
+- ただし `fileKey` が空文字の場合はDB保存をスキップ（エディタで新規作成中など保存先が未確定の場合）
+- アップロード時（`fileAccessService.ts`）は引き続き `skipSave=true` を明示（アップロード中の一時バリデーションはDB保存不要 → ただし今回の要件で「全て保存」なら `false` に変更）
+
+**フロントエンド側の変更**:
+- `validateMaiml` 関数に `fileKey` を渡せるよう引数を拡張
+- エディタ内の呼び出し箇所に `fileKey`（現在開いているファイルのキー）を渡す
 
 ---
 
 ## 実装ステップ
 
-### Phase 1: バックエンド — 分析結果取得 API 追加
+### Phase 1: バックエンド変更
 
-**新規エンドポイント**: `GET /api/v1/maiml/analysis-result`
+#### 1-1. `maimlService.ts` — デフォルト変更
 
-**maimlController.ts に追加**:
+```typescript
+// 変更前
+export async function validateMaiML(
+  organizationId: string, content: string, fileKey: string = '', skipAnalysisSave: boolean = true
+)
+
+// 変更後
+export async function validateMaiML(
+  organizationId: string, content: string, fileKey: string = '', skipAnalysisSave: boolean = false
+)
+```
+
+> **注意**: `fileKey` が空の場合 `maimlParser.ts` 内で保存スキップされる仕組みを確認する。
+> 空の場合は `skipSave=true` にフォールバックするロジックを追加する。
+
+#### 1-2. `maimlController.ts` — DB保存済み結果の取得エンドポイント追加
+
 ```typescript
 /**
  * MAIML分析結果取得（DB保存済み）
@@ -89,7 +121,6 @@ export async function getAnalysisResult(req: Request, res: Response): Promise<vo
   try {
     const { fileKey } = req.query as { fileKey: string };
     const result = await maimlAnalysisResultRepository.getByFileKey(fileKey);
-    
     res.json({
       success: true,
       data: result || null,
@@ -101,7 +132,8 @@ export async function getAnalysisResult(req: Request, res: Response): Promise<vo
 }
 ```
 
-**maimlRoutes.ts に追加**:
+#### 1-3. `maimlRoutes.ts` — エンドポイント登録
+
 ```typescript
 router.get(
   '/analysis-result',
@@ -112,19 +144,35 @@ router.get(
 );
 ```
 
-**validate エンドポイントの変更**: `skipAnalysisSave` のデフォルトをそのまま維持
-- プロジェクト管理画面からは `skipAnalysisSave = false`, `fileKey` を渡して呼び出す
+#### 1-4. `fileAccessService.ts` — アップロード時バリデーションをDB保存有効化
+
+```typescript
+// 変更前
+true, // skipSave=true: DB保存はスキップ
+
+// 変更後
+false, // skipSave=false: DB保存を行う
+```
+
+---
 
 ### Phase 2: フロントエンド — maimlApiService.ts 変更
 
-**`validateMaiml` 関数の引数を拡張**（既存の `strict` 引数は残す or 整理）:
+#### 2-1. `validateMaiml` 関数の引数拡張
+
 ```typescript
+// 変更前
+export const validateMaiml = async (
+  content: string,
+  strict: boolean = false
+): Promise<ApiResponse<AnalysisResult>>
+
+// 変更後
 export const validateMaiml = async (
   content: string,
   options?: {
-    fileKey?: string;
-    skipAnalysisSave?: boolean;
     strict?: boolean;
+    fileKey?: string;
   }
 ): Promise<ApiResponse<AnalysisResult>> => {
   const client = createApiClient();
@@ -132,17 +180,31 @@ export const validateMaiml = async (
     '/maiml/validate',
     {
       content,
-      fileKey: options?.fileKey,
-      skipAnalysisSave: options?.skipAnalysisSave ?? true,
       strict: options?.strict ?? false,
+      fileKey: options?.fileKey ?? '',
     }
   );
   return response.data;
 };
 ```
 
-**`getAnalysisResult` 関数を新規追加**:
+#### 2-2. `getAnalysisResult` 関数を新規追加
+
 ```typescript
+/** DB保存済みの分析結果行 */
+export interface MaimlAnalysisResultRow {
+  id: number;
+  file_key: string;
+  is_valid: boolean;
+  errors: string;      // JSON文字列
+  warnings: string;    // JSON文字列
+  analysis_timestamp: string;
+}
+
+/**
+ * MAIML分析結果取得（DB保存済み）
+ * GET /maiml/analysis-result?fileKey=xxx
+ */
 export const getAnalysisResult = async (
   fileKey: string
 ): Promise<ApiResponse<MaimlAnalysisResultRow | null>> => {
@@ -154,73 +216,97 @@ export const getAnalysisResult = async (
 };
 ```
 
-**型定義の追加** (`maimlApiService.ts` 内 or `types/maimlValidation.ts`):
+---
+
+### Phase 3: フロントエンド — PetriNetEditorInner.tsx 変更
+
+#### 方針: すべてのバリデーションはDB保存。ValidationPanelを開く際はDB保存済み結果を初期表示し、再実行も可能にする。
+
+#### 3-1. バリデーション呼び出し2箇所に `fileKey` を追加
+
 ```typescript
-/** DB保存済みの分析結果（maiml_analysis_results テーブル） */
-export interface MaimlAnalysisResultRow {
-  id: number;
-  file_key: string;
-  is_valid: boolean;
-  errors: string; // JSON文字列
-  warnings: string; // JSON文字列
-  analysis_timestamp: string;
-  // ...
-}
+// handleOpenSaveConfirmDialog 内
+const response = await maimlService.validateMaiml(base64Data, { fileKey: currentFileKey });
+
+// handleOpenValidationPanel 内
+const response = await maimlService.validateMaiml(base64Data, { fileKey: currentFileKey });
 ```
 
-### Phase 3: ProjectManagement.tsx の変更
+> `currentFileKey` はエディタが現在開いているファイルキー（既存の状態変数から取得）。
+> 新規作成中（fileKeyなし）の場合は空文字のままでOK（DB保存スキップ）。
 
-**追加するステート**:
+#### 3-2. ValidationPanel を開く際にDB保存済み結果を初期取得
+
+`handleOpenValidationPanel` の先頭でDBから前回の結果を取得し、ValidationPanelに初期値として渡す。
+取得後、パネルを開く。ユーザーが「再バリデーション実行」を押した場合のみAPIを呼ぶ。
+
+```typescript
+const handleOpenValidationPanel = useCallback(async () => {
+  // DB保存済み結果を取得して初期表示
+  if (currentFileKey) {
+    const savedResult = await maimlService.getAnalysisResult(currentFileKey);
+    if (savedResult?.data) {
+      setSavedValidationResult(savedResult.data);
+    }
+  }
+  setValidationPanelOpen(true);
+  // 再バリデーションは ValidationPanel 内の「再実行ボタン」から呼ぶ
+}, [...]);
+```
+
+ValidationPanel 内に「再バリデーション実行」ボタンを追加（または既存の「再検証」ボタンを流用）し、
+押下時に `handleRevalidate`（`validateMaiml` with `fileKey`）を呼ぶ。
+
+---
+
+### Phase 4: フロントエンド — ProjectManagement.tsx 変更
+
+#### 追加するステート
+
 ```typescript
 const [isValidating, setIsValidating] = useState(false);
 const [validationResult, setValidationResult] = useState<AnalysisResult | null>(null);
-const [validationModalOpen, setValidationModalOpen] = useState(false);
+const [savedValidationRow, setSavedValidationRow] = useState<MaimlAnalysisResultRow | null>(null);
+const [validationDialogOpen, setValidationDialogOpen] = useState(false);
 ```
 
-**プロジェクト選択時に DB から過去の結果を取得**:
+#### プロジェクト選択時にDB保存済み結果を取得
+
 ```typescript
-// selectedProject が変わるたびに過去のバリデーション結果を取得
 useEffect(() => {
   if (!selectedProject?.maimlFileKey) {
+    setSavedValidationRow(null);
     setValidationResult(null);
     return;
   }
   getAnalysisResult(selectedProject.maimlFileKey)
-    .then(res => {
-      if (res.data) {
-        // DB保存済みの結果を AnalysisResult 形式に変換
-        setValidationResult({
-          fileKey: res.data.file_key,
-          isValid: res.data.is_valid,
-          errors: JSON.parse(res.data.errors || '[]'),
-          warnings: JSON.parse(res.data.warnings || '[]'),
-          autoCorrections: [],
-        });
-      } else {
-        setValidationResult(null);
-      }
-    })
-    .catch(() => setValidationResult(null));
+    .then(res => setSavedValidationRow(res.data ?? null))
+    .catch(() => setSavedValidationRow(null));
 }, [selectedProject?.maimlFileKey]);
 ```
 
-**バリデーション実行ハンドラ**:
+#### バリデーション実行ハンドラ
+
 ```typescript
 const handleValidate = useCallback(async () => {
   if (!selectedProject?.maimlFileKey || !maimlContent) return;
-  
   setIsValidating(true);
   try {
-    // ブラウザ環境での Base64 エンコード
     const base64Content = btoa(unescape(encodeURIComponent(maimlContent)));
     const res = await validateMaiml(base64Content, {
       fileKey: selectedProject.maimlFileKey,
-      skipAnalysisSave: false, // DB保存あり
     });
-    
     if (res.success && res.data) {
       setValidationResult(res.data);
-      setValidationModalOpen(true);
+      // DB保存済み結果も更新
+      setSavedValidationRow({
+        id: 0,
+        file_key: selectedProject.maimlFileKey,
+        is_valid: res.data.isValid,
+        errors: JSON.stringify(res.data.errors),
+        warnings: JSON.stringify(res.data.warnings),
+        analysis_timestamp: new Date().toISOString(),
+      });
     }
   } catch (error) {
     message.error('バリデーションの実行に失敗しました');
@@ -230,67 +316,94 @@ const handleValidate = useCallback(async () => {
 }, [selectedProject, maimlContent]);
 ```
 
-**バリデーションボタン追加**（ファイル操作ツールバー内）:
+#### バリデーションボタン（プロジェクト操作エリアに追加）
+
 ```tsx
 <Button
   icon={<SafetyCertificateOutlined />}
-  onClick={handleValidate}
-  loading={isValidating}
-  disabled={!selectedProject || !maimlContent}
+  onClick={() => setValidationDialogOpen(true)}
+  disabled={!selectedProject}
 >
-  MAIMLバリデーション
+  バリデーション確認
 </Button>
 ```
 
-**プロジェクト名横の警告アイコン**（プロジェクト情報ヘッダー内）:
+#### プロジェクト名横の警告アイコン
+
 ```tsx
-{validationResult && !validationResult.isValid && (
-  <Tooltip
-    title={`バリデーションエラーがあります (エラー${validationResult.errors.length}件・警告${validationResult.warnings.length}件)`}
-  >
+{savedValidationRow && !savedValidationRow.is_valid && (
+  <Tooltip title={`バリデーションエラーがあります（最終確認: ${new Date(savedValidationRow.analysis_timestamp).toLocaleString()}）`}>
     <WarningOutlined style={{ color: token.colorWarning, fontSize: 18, marginLeft: 8 }} />
   </Tooltip>
 )}
 ```
 
-**バリデーション結果モーダル** — `ValidationPanel` を再利用（自動補正なし）:
+#### バリデーション結果ダイアログ（ValidationPanel 流用）
+
 ```tsx
-<ValidationPanel
-  show={validationModalOpen}
-  validationResult={validationResult}
-  onClose={() => setValidationModalOpen(false)}
-  onRevalidate={handleValidate}
-  isValidating={isValidating}
-  // onAutoCorrect は渡さない（自動補正不要）
-/>
+<Modal
+  title="🔍 MAIMLバリデーション"
+  open={validationDialogOpen}
+  onCancel={() => setValidationDialogOpen(false)}
+  footer={null}
+  width={800}
+>
+  {/* DB保存済み結果がある場合は最終確認日時を表示 */}
+  {savedValidationRow && (
+    <Alert
+      type={savedValidationRow.is_valid ? 'success' : 'warning'}
+      message={`最終バリデーション: ${new Date(savedValidationRow.analysis_timestamp).toLocaleString()}`}
+      style={{ marginBottom: 16 }}
+    />
+  )}
+  
+  {/* 再バリデーションボタン */}
+  <Button
+    icon={<SafetyCertificateOutlined />}
+    onClick={handleValidate}
+    loading={isValidating}
+    disabled={!maimlContent}
+    style={{ marginBottom: 16 }}
+  >
+    再バリデーション実行
+  </Button>
+
+  {/* バリデーション結果表示（ValidationPanel 流用 or インライン） */}
+  {validationResult && (
+    <ValidationPanel
+      show={true}
+      validationResult={validationResult}
+      embedded={true}         // モーダル内埋め込みモード
+      isValidating={isValidating}
+    />
+  )}
+  {!validationResult && savedValidationRow && (
+    <ValidationResultFromRow row={savedValidationRow} />
+  )}
+</Modal>
 ```
 
-### Phase 4: FileListTable.tsx の変更
+---
 
-**Props に警告情報を追加**:
+### Phase 5: フロントエンド — FileListTable.tsx 変更
+
+#### Props 追加
+
 ```typescript
 interface FileListTableProps {
   // 既存のProps...
-  maimlValidationResult?: AnalysisResult | null;
+  maimlValidationRow?: MaimlAnalysisResultRow | null;
 }
 ```
 
-**MAIMLファイル行のファイル名カラムに警告アイコン追加**:
-- `record.name` が `.maiml` で終わる行 かつ `maimlValidationResult?.isValid === false` の場合に表示
+#### MAIMLファイル行への警告アイコン
+
 ```tsx
-{record.name?.endsWith('.maiml') && maimlValidationResult && !maimlValidationResult.isValid && (
-  <Tooltip title={`バリデーションエラーあり`}>
+{record.name?.endsWith('.maiml') && maimlValidationRow && !maimlValidationRow.is_valid && (
+  <Tooltip title="バリデーションエラーあり">
     <WarningOutlined style={{ color: token.colorWarning, marginLeft: 6 }} />
   </Tooltip>
 )}
-```
-
-**ProjectManagement.tsx 側で渡す**:
-```tsx
-<FileListTable
-  ...
-  maimlValidationResult={validationResult}
-/>
 ```
 
 ---
@@ -301,6 +414,8 @@ interface FileListTableProps {
 
 | ファイル | 変更内容 |
 |---------|---------|
+| `backend/src/services/maimlService.ts` | `skipAnalysisSave` デフォルトを `false` に変更（fileKeyが空の場合はスキップ） |
+| `backend/src/services/fileAccessService.ts` | アップロード時の `skipSave=true` を `false` に変更 |
 | `backend/src/controllers/maimlController.ts` | `getAnalysisResult` 関数を追加 |
 | `backend/src/routes/maimlRoutes.ts` | `GET /analysis-result` エンドポイントを追加 |
 
@@ -308,38 +423,137 @@ interface FileListTableProps {
 
 | ファイル | 変更内容 |
 |---------|---------|
-| `frontend/src/services/maimlApiService.ts` | `validateMaiml` 引数拡張、`getAnalysisResult` 関数追加 |
-| `frontend/src/components/project/ProjectManagement.tsx` | バリデーションステート、ハンドラ、ボタン、警告アイコン、モーダル追加 |
-| `frontend/src/components/project/FileListTable.tsx` | `maimlValidationResult` prop 追加、MAIMLファイル行の警告アイコン表示 |
+| `frontend/src/services/maimlApiService.ts` | `validateMaiml` 引数拡張、`getAnalysisResult`・`MaimlAnalysisResultRow` 追加 |
+| `frontend/src/components/editorv2/PetriNetEditorInner.tsx` | バリデーション呼び出し2箇所に `fileKey` を追加 |
+| `frontend/src/components/project/ProjectManagement.tsx` | バリデーションボタン・ダイアログ・警告アイコン追加、DB結果取得 useEffect 追加、`maimlHasErrors` 算出と `TaskRegistrationTab` への受け渡し |
+| `frontend/src/components/project/FileListTable.tsx` | `maimlValidationRow` prop 追加、MAIMLファイル行の警告アイコン追加 |
+| `frontend/src/components/project/TaskRegistrationTab.tsx` | `maimlHasErrors` prop 追加、エラー時のAlert表示・保存ボタン等の無効化 |
 
 ---
 
 ## UI仕様詳細
 
-### バリデーションボタン
+### バリデーションボタン（ProjectManagement 操作エリア）
+
 | 状態 | 表示 |
 |------|------|
-| MAIMLファイルなし | 無効（`disabled`） |
-| バリデーション前 | 「MAIMLバリデーション」（`SafetyCertificateOutlined`アイコン） |
-| バリデーション中 | ローディングスピナー + 「MAIMLバリデーション」 |
+| プロジェクト未選択 | 無効（`disabled`） |
+| プロジェクト選択済み | 有効「バリデーション確認」ボタン |
+
+### バリデーション結果ダイアログ
+
+| 要素 | 内容 |
+|------|------|
+| ヘッダー | 最終バリデーション日時（DBから取得） |
+| 結果バッジ | ✅ 有効 / ⚠️ エラーあり |
+| 再バリデーションボタン | 押下でMAIMLを取得しバリデーション実行→DB保存 |
+| エラー一覧 | severity/XPath/メッセージ（ValidationPanel 流用） |
+| 警告一覧 | 別セクション |
+| 自動補正ボタン | **なし**（ProjectManagement では不要） |
 
 ### 警告アイコン表示条件
-| 箇所 | 表示条件 |
-|------|---------|
-| プロジェクト名横 | `validationResult?.isValid === false` |
-| ファイル一覧のMAIMLファイル行 | 同上 |
-| 表示タイミング | ①プロジェクト選択時（DB取得結果を反映）、②バリデーション実行後 |
 
-### バリデーション結果モーダル（ValidationPanel 流用）
-- タイトル: 「🔍 バリデーション結果」
-- 成功時: `Alert` で「MaiMLファイルは有効です」
-- エラーあり: `Collapse + List` でエラー詳細（severity タグ, XPath, メッセージ等）
-- 警告あり: 別セクションで警告詳細
-- **自動補正ボタンなし**（`onAutoCorrect` を渡さない）
-- 「再検証」ボタンあり（`onRevalidate={handleValidate}`）
+| 箇所 | 対象コンポーネント | 条件 |
+|------|-------------------|------|
+| プロジェクト一覧テーブルのプロジェクト名横 | `ProjectFolderTree` or プロジェクト一覧 | DBから取得した `is_valid === false` |
+| プロジェクト詳細ヘッダーのプロジェクト名横 | `ProjectManagement.tsx` 詳細エリア | `savedValidationRow?.is_valid === false` |
+| ファイル一覧テーブルのMAIMLファイル行横 | `FileListTable.tsx` | 同上 |
+| 更新タイミング | — | ①プロジェクト選択時（DB取得）、②再バリデーション実行後 |
 
-### プロジェクト切り替え時の動作
-- 別プロジェクトを選択 → DB から新しい分析結果を取得（なければリセット）
+### プロジェクト一覧の警告アイコン実装方針
+
+プロジェクト一覧（`ProjectFolderTree` またはプロジェクト選択コンポーネント）にも警告アイコンを表示するには、
+**プロジェクト一覧取得時に各プロジェクトの `maiml_analysis_results` をまとめて取得する API が必要**。
+
+2つの実装方針：
+
+**方針A（推奨）: プロジェクト一覧API にバリデーション状態を含める**
+- `GET /api/v1/projects` のレスポンスに `validationStatus: { isValid: boolean, timestamp: string } | null` を追加
+- バックエンドで JOIN または別クエリで `maiml_analysis_results` を取得してレスポンスに付与
+
+**方針B: プロジェクト選択時のみ取得（Phase 4 の現行案）**
+- プロジェクト選択時にDB取得 → 詳細ヘッダー・ファイル一覧のみ対応
+- 一覧には警告アイコンを表示しない（シンプルな実装）
+
+**今回のスコープ**: 方針Bで実装し、プロジェクト一覧への警告アイコンは Phase 2 として後日対応。
+
+### エラー / ワーニングの区別と操作ブロック仕様
+
+`AnalysisResult` の型定義により、エラーとワーニングは**別フィールドで区別されている**。
+
+```typescript
+errors: ErrorContent[];   // エラー（致命的）→ 実験計画進行をブロック
+warnings: ErrorContent[]; // 警告（非致命的）→ 進行可能、警告アイコンのみ表示
+```
+
+DB（`maiml_analysis_results`）も `errors JSONB` と `warnings JSONB` で別カラム保存済み。
+
+#### 警告アイコン色分け
+
+| 状態 | アイコン色 | 意味 |
+|------|----------|------|
+| `errors.length > 0` | 🔴 赤（`colorError`） | チェックアウトをブロック |
+| `errors.length === 0 && warnings.length > 0` | 🟡 黄（`colorWarning`） | 進行可能・注意喚起のみ |
+| 問題なし | — | アイコンなし |
+
+#### 操作ブロック対象
+
+| 操作 | ブロック条件 | 対象コンポーネント |
+|------|------------|-----------------|
+| **タスク登録タブ内の操作** | `errors.length > 0`（MAIMLエラーあり） | `TaskRegistrationTab.tsx` |
+
+> チェックアウトボタンはブロックしない。
+> タスク登録タブ内でエラーがある場合は保存ボタン・メソッド追加ボタン等を無効化し、バリデーションエラーがある旨のAlert を表示する。
+
+#### Phase 6 の実装内容（操作ブロック）
+
+**`TaskRegistrationTab` に `maimlHasErrors` prop を追加**:
+
+```typescript
+// ProjectManagement.tsx から渡す
+const maimlHasErrors = useMemo(() => {
+  if (!savedValidationRow) return false;
+  try {
+    const errors = JSON.parse(savedValidationRow.errors || '[]');
+    return Array.isArray(errors) && errors.length > 0;
+  } catch {
+    return false;
+  }
+}, [savedValidationRow]);
+
+// TaskRegistrationTab に prop を追加
+<TaskRegistrationTab
+  // 既存のprops...
+  maimlHasErrors={maimlHasErrors}
+/>
+```
+
+**`TaskRegistrationTab.tsx` 内での制御**:
+
+```tsx
+// タブ上部に警告Alert を表示
+{maimlHasErrors && (
+  <Alert
+    type="error"
+    icon={<ExclamationCircleOutlined />}
+    message="MAIMLファイルにエラーがあります"
+    description="バリデーションエラーを解消するまでタスク登録の変更・保存はできません。プロジェクト管理画面のバリデーション確認ボタンで詳細を確認してください。"
+    showIcon
+    style={{ marginBottom: 16 }}
+  />
+)}
+
+// 保存ボタン・メソッド追加ボタン等
+<Button
+  disabled={loadingMethods || isCheckoutLocked || maimlHasErrors}
+  data-testid="task-registration-save-button"
+>
+  保存
+</Button>
+```
+
+**変更するファイルに追加**:
+- `frontend/src/components/project/TaskRegistrationTab.tsx` — `maimlHasErrors` prop 追加、Alertと操作ブロック追加
 
 ---
 
@@ -347,44 +561,185 @@ interface FileListTableProps {
 
 | リスク | 影響度 | 発生確率 | 対策 |
 |--------|--------|----------|------|
-| maiml_analysis_resultsにfileKeyが未登録 | 低 | 中 | getAnalysisResult が null を返す → 警告アイコム非表示（正常動作） |
-| Base64エンコード（日本語文字） | 低 | 低 | `btoa(unescape(encodeURIComponent(content)))` で対処 |
-| validateMaiml引数変更の既存影響 | 中 | 低 | options オブジェクト型にして後方互換を維持 |
-| FileListTableのmaiml行識別方法 | 低 | 低 | `record.name.endsWith('.maiml')` または `record.fileType` で判定 |
+| skipAnalysisSaveデフォルト変更の影響範囲 | 中 | 低 | fileKeyが空の場合は保存スキップのフォールバックを追加 |
+| アップロード時DB保存が重い | 低 | 低 | 既存の非同期処理内なので影響なし |
+| エディタでfileKeyが取れない（新規作成中） | 低 | 中 | fileKey=""の場合は保存スキップ（既存動作） |
+| ValidationPanel の embedded モード非対応 | 中 | 中 | 対応していない場合はインラインでCollapseを構築 |
 
 ---
 
 ## テスト計画
 
 ### 手動テスト
-- [ ] MAIMLファイルなしのプロジェクトでボタンが無効化されること
-- [ ] MAIMLファイルありのプロジェクトでボタンが有効化されること
-- [ ] プロジェクト選択時に過去のバリデーション結果がDBから取得されること
+
+- [ ] エディタ保存前バリデーション後にDBに結果が保存されていること
+- [ ] エディタ ValidationPanel バリデーション後にDBに結果が保存されていること
+- [ ] ファイルアップロード後にDBに結果が保存されていること
+- [ ] プロジェクト管理画面でボタンが表示されること
+- [ ] プロジェクト選択時にDB保存済みの結果が取得されること
 - [ ] 過去にエラーがあった場合、選択時から警告アイコンが表示されること
-- [ ] バリデーション実行後にDB保存されること（再選択後も警告が残ること）
+- [ ] ダイアログを開くと最終バリデーション日時と結果が表示されること
+- [ ] 再バリデーションボタンで実行でき、結果がDBに更新されること
 - [ ] バリデーション成功時に警告アイコンが消えること
-- [ ] ValidationPanel でエラー/警告一覧が表示されること
-- [ ] 「再検証」ボタンで再実行できること
 - [ ] ファイル一覧のMAIMLファイル行に警告アイコンが表示されること
 
 ---
 
 ## 承認記録
 
-- **計画書提示日時**: 2026-04-23 16:40
-- **承認日時**: （承認後記入）
-- **承認者コメント**: （承認後記入）
+- **計画書更新日時**: 2026-04-24 08:37
+- **承認日時**: 2026-04-24 08:38
+- **承認者コメント**: 承認。新しいセッションで実装を開始する。
 
 ---
 
 ## 実施記録
 
 ### 実施日時
-開始: （記入予定）
-完了: （記入予定）
+開始: 2026-04-24 09:00
+完了: 2026-04-24 09:50
+
+### 実施済み
+- [x] Phase 1: バックエンド変更（maimlService.ts / maimlController.ts / maimlRoutes.ts / fileAccessService.ts）
+- [x] Phase 2: フロントエンド maimlApiService.ts 変更（validateMaiml引数拡張・getAnalysisResult追加）
+- [x] Phase 3: フロントエンド PetriNetEditorInner.tsx 変更（fileKey渡し・DB結果初期表示）
+- [x] Phase 4: ProjectManagement.tsx（バリデーションボタン・ダイアログ・警告アイコン）
+- [x] Phase 5: FileListTable.tsx（maimlValidationRow prop・警告アイコン）
+- [x] Phase 6: TaskRegistrationTab.tsx（maimlHasErrors prop・Alert・操作ブロック）
+- [x] UI仕様書更新（ui_project_management.md / ui_file_list_table.md / ui_task_registration_tab.md）
 
 ### 計画からの変更点
-（実施後記入）
+- validateMaimlダイアログはMaimlValidationDialog.tsxとして独立コンポーネントに実装
+- ProjectManagement.tsxのmaimlHasErrors判定ロジックはgetAnalysisResult APIを使いタブアクティブ時に自動チェック
+- FileListTable.tsxにmaimlValidationRow: MaimlFileRow | nullを追加してWarningアイコン表示
+- TaskRegistrationTab.tsxにmaimlHasErrors?: booleanを追加してAlert + 保存ボタン無効化
 
 ### 発生した問題と解決方法
-（実施後記入）
+- 特になし。すべて計画通りに実装完了。
+
+---
+
+## 追加タスク計画書: MAIMLバリデーションダイアログ修正
+
+### メタデータ
+- **作成日時**: 2026-04-24 10:59
+- **タスクID**: maiml-validation-dialog-fix
+- **優先度**: 高
+- **推定工数**: 1時間
+
+### タスク概要
+
+以下の3点を修正する。
+
+1. アップロード直後にバリデーションダイアログを開いた際にアップロード時のバリデーション結果が表示されない
+2. バリデーションダイアログのレイアウトがValidationPanelと違う（ValidationPanelの構成に寄せる）
+3. MAIMLの保存時に実行しているバリデーション結果もDBに登録する
+
+### 原因分析
+
+#### ①アップロード後にDB結果が表示されない
+- `savedValidationRow` は `selectedProject?.maimlFileKey` の useEffect で `getAnalysisResult()` を呼び出して取得する
+- `handleUploadComplete` でアップロード後に `refetchProjects()` + `reloadMaiml()` しているが、`maimlFileKey` が変化しない場合（既存MAIMLの更新アップロード）は useEffect が再発火しない
+- 結果、アップロードでDBに保存されたバリデーション結果が画面に反映されない
+
+#### ②バリデーションダイアログのレイアウト
+- 現在: ul/li シンプルリスト表示
+- ValidationPanel: Card + Collapse + List + Tag で分類表示（致命的エラー/編集可能エラー/警告）
+
+#### ③MAIMLの保存時にDBに登録されない
+- `POST /maiml/save` → `maimlService.saveMaiML()` はバリデーションを実行しない
+- `maiml_analysis_results` テーブルが更新されないため保存後にバリデーション結果が古くなる
+
+### 実装ステップ
+
+- [ ] `ProjectManagement.tsx`: `handleUploadComplete` に `hasMaimlFile=true` の場合 `getAnalysisResult()` を呼んで `setSavedValidationRow()` を更新する処理を追加
+- [ ] `ProjectManagement.tsx`: Modal内のバリデーション結果表示部分を Card + Collapse + List + Tag 構成に書き直す
+- [ ] `backend/src/services/maimlService.ts`: `saveMaiML()` 完了後に `maimlParser.analyzeMaiMLFile()` を `skipSave=false` で呼び出す
+
+### 変更ファイル
+
+1. `frontend/src/components/project/ProjectManagement.tsx` - ①②の修正
+2. `backend/src/services/maimlService.ts` - ③の修正
+
+### 承認記録
+- **承認日時**: 2026-04-24 10:59
+
+---
+
+## 追加タスク計画書: MAIMLバリデーション表示バグ修正
+
+### メタデータ
+- **作成日時**: 2026-04-24 13:18
+- **タスクID**: maiml_validation_display_bugfix
+- **優先度**: 高
+- **推定工数**: 1時間
+
+### タスク概要
+
+MAIMLファイルのアップロード後にバリデーション警告アイコンが表示されない問題と、
+バリデーションダイアログを開いた際に警告詳細の中身が描画されない問題を修正する。
+
+### 原因分析
+
+#### Bug 1: アップロード後に警告アイコンが表示されない
+- `handleUploadComplete` 内で `refetchProjects()` 呼び出し**前**に `currentProject` を取得している
+- 初回MAIMLアップロード時: `currentProject.maimlFileKey` がまだ `null` のため、バリデーション取得のif条件が満たされずスキップされる
+- 修正方針: `refetchProjects()` 完了後に `getProjects()` API を直接呼んで最新の `maimlFileKey` を確定させてから `getAnalysisResult()` を呼ぶ
+
+#### Bug 2: ダイアログで警告の中身（Collapseパネル）が描画されない
+- Ant Design の `Modal` はデフォルトで `destroyOnClose={false}`
+- 一度開くと DOM に残り続けるため、2回目以降のオープン時に `Collapse` の `defaultActiveKey` は初回マウント時にのみ適用され、パネルが閉じたまま再表示される
+- 修正方針: `Modal` コンポーネントに `destroyOnClose` プロパティを追加する
+
+### 実装ステップ
+
+- [ ] `ProjectManagement.tsx`: `handleUploadComplete` 修正（`maimlFileKey` 確定後にバリデーション結果取得）
+- [ ] `MaimlValidationModal.tsx`: `Modal` に `destroyOnClose` 追加
+
+### 変更ファイル
+
+1. `frontend/src/components/project/ProjectManagement.tsx`
+2. `frontend/src/components/project/MaimlValidationModal.tsx`
+
+### 承認記録
+- **承認日時**: 2026-04-24 13:18
+
+---
+
+## 追加タスク計画書: 保存時ファイル名バグ修正
+
+### メタデータ
+- **作成日時**: 2026-04-24 14:06
+- **タスクID**: fix-save-filename-bug
+- **優先度**: 高
+- **推定工数**: 0.5時間
+
+### タスク概要
+
+プロジェクト名と異なる名前のファイルをアップロード後に編集して保存した際に、
+元のファイルがバックアップ・更新されず、プロジェクト名のファイルが新規生成されるバグを修正する。
+
+### 原因
+
+`PetriNetEditorInner.tsx` の S3 保存処理にて、保存先 `fileKey` のファイル名部分を
+`documentData?.name`（Document の name プロパティ）から決定しているが、
+`documentData.name` は MAIML 読み込み時に `originalFileName`（プロジェクト名）で上書きされるため、
+プロジェクト名のファイルが新規生成されてしまう。
+
+### 修正方針
+
+1. **sourceS3Key が存在する場合（既存ファイル編集）**: `sourceS3Key` をそのまま `fileKey` として使う
+2. **ユーザーがフォルダを選択した場合**: `folder` + `sourceS3Key` のファイル名部分
+3. **sourceS3Key がない場合（新規作成）**: `originalFileName`（プロジェクト名）でファイル名を決定
+4. **`documentData.name` は使用しない**（MAIML の Document 要素の name 属性であり、ファイル名とは別物）
+
+### 実装ステップ
+
+- [ ] `PetriNetEditorInner.tsx` の S3 保存ロジック（2758行目付近）を修正
+
+### 変更ファイル
+
+1. `frontend/src/components/editorv2/PetriNetEditorInner.tsx`
+
+### 承認記録
+- **承認日時**: 2026-04-24 14:06
