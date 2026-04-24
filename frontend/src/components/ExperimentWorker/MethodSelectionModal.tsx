@@ -49,6 +49,8 @@ export default function MethodSelectionModal({
   const [searchText, setSearchText] = useState<string>('');
   const [selectedMethodName, setSelectedMethodName] = useState<string | undefined>(undefined);
   const [selectedOwner, setSelectedOwner] = useState<string | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // ダイアログが開かれた時に現在の選択状態とフィルターをリセット
   useEffect(() => {
@@ -263,11 +265,23 @@ export default function MethodSelectionModal({
           dataSource={filteredData}
           rowSelection={rowSelection}
           pagination={{
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
             pageSize: 20,
+=======
+            current: currentPage,
+            pageSize: pageSize,
+>>>>>>> Stashed changes
+=======
+            current: currentPage,
+            pageSize: pageSize,
+>>>>>>> Stashed changes
             showSizeChanger: true,
             showTotal: (total) => `全 ${total} 件`,
             pageSizeOptions: ['20', '50', '100'],
             showQuickJumper: true,
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+            onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           }}
           scroll={{ y: 350 }}
           size="middle"

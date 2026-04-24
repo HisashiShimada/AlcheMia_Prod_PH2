@@ -52,6 +52,8 @@ export default function TransitionList({
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const [issues, setIssues] = useState<Issue[]>([]);
   const [issueLoading, setIssueLoading] = useState<boolean>(false);
@@ -526,12 +528,23 @@ export default function TransitionList({
           dataSource={filteredTransitions}
           rowKey="transitionId"
           pagination={{
-            pageSize: 20,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
             showQuickJumper: false,
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
             showTotal: (total, range) => `全${total}件`,
             pageSizeOptions: ['20', '50', '100'],
+=======
+=======
+>>>>>>> Stashed changes
+            showTotal: (total) => `全${total}件`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+>>>>>>> Stashed changes
             position: ['bottomRight'],
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+            onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
             locale: {
               items_per_page: '件/ページ',
               jump_to: 'ページ',

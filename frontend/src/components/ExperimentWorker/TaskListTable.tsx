@@ -51,7 +51,9 @@ export default function TaskListTable({
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | undefined>(undefined);
-  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   // ステータスの選択肢
   const statusOptions = [
     { label: '開始前', value: 'not_started' },
@@ -286,11 +288,21 @@ export default function TaskListTable({
       dataSource={filteredTasks}
       rowKey="taskId"
       pagination={{
-        pageSize: 20,
+        current: currentPage,
+        pageSize: pageSize,
         showSizeChanger: true,
         showQuickJumper: false,
         showTotal: (total) => `全${total}件`,
+<<<<<<< Updated upstream
         pageSizeOptions: ['20', '50', '100'],
+=======
+        pageSizeOptions: ['10', '20', '50', '100'],
+        onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+        onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
         locale: {
           items_per_page: '件/ページ',
           jump_to: 'ページ',

@@ -62,6 +62,8 @@ export default function UserManagement() {
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
   const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -126,6 +128,11 @@ export default function UserManagement() {
       return matchesSearch && matchesDepartment && matchesRole;
     });
   }, [users, searchText, selectedDepartment, selectedRole]);
+
+  // フィルタ変化時に1ページ目にリセット
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredUsers]);
 
   const rowSelection = {
     selectedRowKeys,
@@ -562,10 +569,19 @@ export default function UserManagement() {
           scroll={{ x: 1400 }}
           loading={loading}
           pagination={{
-            pageSize: 20,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
             showTotal: (total) => t('userManagement.pagination.showTotal').replace('{total}', String(total)),
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size);
+            },
+            onShowSizeChange: (_, size) => {
+              setCurrentPage(1);
+              setPageSize(size);
+            },
           }}
           rowClassName={(record) => (record.isActive ? 'active-row' : 'inactive-row')}
         />

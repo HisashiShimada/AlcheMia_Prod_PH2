@@ -57,6 +57,8 @@ export default function ProgressMonitoring() {
   const { token } = theme.useToken();
   const [searchText, setSearchText] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('my_only'); // my_only, all
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [checkoutFilter, setCheckoutFilter] = useState('all');
   const [projectStatusFilter, setProjectStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -581,10 +583,26 @@ export default function ProgressMonitoring() {
           columns={columns}
           rowKey="key"
           pagination={{
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
             pageSize: 20,
             showSizeChanger: true,
             showTotal: (total) => `${t('progress.table.total') || '合計'} ${total} ${t('progress.table.items') || '件'}`,
             pageSizeOptions: ['20', '50', '100'],
+=======
+=======
+>>>>>>> Stashed changes
+            current: currentPage,
+            pageSize: pageSize,
+            showSizeChanger: true,
+            showTotal: (total) => `${t('progress.table.total') || '合計'} ${total} ${t('progress.table.items') || '件'}`,
+            pageSizeOptions: ['5', '10', '25', '50'],
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+            onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
           }}
           scroll={{ x: 1200 }}
           size="middle"

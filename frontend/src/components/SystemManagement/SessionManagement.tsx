@@ -36,6 +36,8 @@ export default function SessionManagement() {
   const [searchText, setSearchText] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState<number>(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // セッション一覧取得
   const fetchSessions = React.useCallback(async () => {
@@ -73,6 +75,11 @@ export default function SessionManagement() {
 
     return () => clearInterval(timer);
   }, [autoRefresh, refreshInterval, handleReload]);
+
+  // フィルタ変化時に1ページ目にリセット
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText]);
 
   // フィルタリングされたセッション
   const filteredSessions = useMemo(() => {
@@ -292,10 +299,28 @@ export default function SessionManagement() {
             size="small"
             scroll={{ x: 800 }}
             pagination={{
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
               pageSize: 20,
+=======
+              current: currentPage,
+              pageSize: pageSize,
+>>>>>>> Stashed changes
+=======
+              current: currentPage,
+              pageSize: pageSize,
+>>>>>>> Stashed changes
               showSizeChanger: true,
               pageSizeOptions: ['20', '50', '100'],
               showTotal: (total) => t('sessionManagement.pagination.showTotal').replace('{total}', String(total)),
+              onChange: (page, size) => {
+                setCurrentPage(page);
+                setPageSize(size);
+              },
+              onShowSizeChange: (_, size) => {
+                setCurrentPage(1);
+                setPageSize(size);
+              },
             }}
           />
         </div>
