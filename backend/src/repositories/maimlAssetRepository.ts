@@ -583,6 +583,42 @@ export async function findAllWithRetention(
   );
 }
 
+// ============================================================
+// ストレージ使用量
+// ============================================================
+
+/**
+ * 組織スキーマの総使用容量をバイト単位で返す
+ *
+ * @description
+ *   pg_tables ビューを通じてスキーマ内の全テーブルを特定し、
+ *   pg_total_relation_size()（テーブル本体 + TOAST + インデックス）の合計を返す。
+ *   スキーマが存在しない場合、または対象テーブルが 0 件の場合は 0 を返す。
+ *
+ * @param organizationId - 組織 ID
+ * @returns 総使用容量（バイト）
+ */
+export async function getSchemaStorageSizeBytes(organizationId: string): Promise<number> {
+  const pgp = getPgp();
+  const schemaName = toSchemaName(organizationId);
+  validateSchemaName(schemaName);
+
+  const row = await pgp.oneOrNone<{ total_bytes: string }>(
+    `SELECT COALESCE(
+       SUM(pg_total_relation_size(quote_ident($1) || '.' || quote_ident(tablename))),
+       0
+     )::bigint AS total_bytes
+     FROM pg_tables
+     WHERE schemaname = $1`,
+    [schemaName]
+  );
+  return row ? Number(row.total_bytes) : 0;
+}
+
+// ============================================================
+// Scanner Worker 用: 期限切れアセット一覧取得
+// ============================================================
+
 /**
  * 全組織スキーマを横断して retention_until IS NOT NULL のアセットを返す
  *
