@@ -37,7 +37,7 @@ export default function SessionManagement() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState<number>(5);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   // セッション一覧取得
   const fetchSessions = React.useCallback(async () => {
@@ -101,7 +101,7 @@ export default function SessionManagement() {
     {
       title: (
         <div style={{ textAlign: 'center' }}>
-      <Space size="middle">
+          <Space size="middle">
             <span>{t('sessionManagement.columns.user')}</span>
             <Badge
               count={filteredSessions.length}
@@ -299,17 +299,8 @@ export default function SessionManagement() {
             size="small"
             scroll={{ x: 800 }}
             pagination={{
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-              pageSize: 20,
-=======
               current: currentPage,
               pageSize: pageSize,
->>>>>>> Stashed changes
-=======
-              current: currentPage,
-              pageSize: pageSize,
->>>>>>> Stashed changes
               showSizeChanger: true,
               pageSizeOptions: ['20', '50', '100'],
               showTotal: (total) => t('sessionManagement.pagination.showTotal').replace('{total}', String(total)),

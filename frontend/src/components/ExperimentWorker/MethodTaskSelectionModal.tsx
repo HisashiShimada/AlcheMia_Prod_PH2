@@ -350,28 +350,18 @@ export default function MethodTaskSelectionModal({
                 dataSource={filteredTasks}
                 rowKey={(record) => record.taskId}
                 rowClassName={(record) => {
-                  // 選択されたタスク行をハイライト
                   if (record.taskId === tempSelectedTaskId) {
                     return 'selected-row';
                   }
                   return '';
                 }}
                 pagination={{
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-                  pageSize: 20,
-=======
                   current: currentPage,
                   pageSize: pageSize,
->>>>>>> Stashed changes
-=======
-                  current: currentPage,
-                  pageSize: pageSize,
->>>>>>> Stashed changes
                   showSizeChanger: true,
                   showQuickJumper: false,
                   showTotal: (total) => t('experimentWork.methodTaskSelection.showTotal').replace('{total}', String(total)),
-                  pageSizeOptions: ['20', '50', '100'],
+                  pageSizeOptions: ['10', '20', '50', '100'],
                   position: ['bottomRight'],
                   onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
                   onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },

@@ -588,21 +588,10 @@ export default function CorporationManagement() {
             current: currentPage,
             pageSize: pageSize,
             showSizeChanger: true,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
             pageSizeOptions: ['20', '50', '100'],
-          showTotal: (total) => t('corporationManagement.pagination.showTotal').replace('{total}', String(total)),
-=======
-=======
->>>>>>> Stashed changes
-            pageSizeOptions: ['10', '20', '50', '100'],
             showTotal: (total) => t('corporationManagement.pagination.showTotal').replace('{total}', String(total)),
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
           }}
           rowClassName={(record) => (!record.isActive ? 'inactive-row' : '')}
         />

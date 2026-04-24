@@ -25,7 +25,7 @@ function getStatusConfig(status: TaskStatus) {
 }
 
 interface TaskListTableProps {
-tasks: Task[];
+  tasks: Task[];
   selectedMethodId: string | null;
   projectStatus: ProjectStatus | null;
   onTaskAction: (taskId: string, action: string) => void;
@@ -284,43 +284,36 @@ export default function TaskListTable({
       
       {/* タスク一覧テーブル */}
       <Table
-      columns={columns}
-      dataSource={filteredTasks}
-      rowKey="taskId"
-      pagination={{
-        current: currentPage,
-        pageSize: pageSize,
-        showSizeChanger: true,
-        showQuickJumper: false,
-        showTotal: (total) => `全${total}件`,
-<<<<<<< Updated upstream
-        pageSizeOptions: ['20', '50', '100'],
-=======
-        pageSizeOptions: ['10', '20', '50', '100'],
-        onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
-        onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-        locale: {
-          items_per_page: '件/ページ',
-          jump_to: 'ページ',
-          page: ''
-        }
-      }}
-      scroll={{ x: 750 }}
-      size="middle"
-      bordered
-      aria-label="タスク一覧"
-      data-testid="task-list-table"
-      style={{
-        background: '#ffffff',
-        borderRadius: '8px'
-      }}
-      locale={{
-        emptyText: 'タスクがありません'
-      }}
+        columns={columns}
+        dataSource={filteredTasks}
+        rowKey="taskId"
+        pagination={{
+          current: currentPage,
+          pageSize: pageSize,
+          showSizeChanger: true,
+          showQuickJumper: false,
+          showTotal: (total) => `全${total}件`,
+          pageSizeOptions: ['20', '50', '100'],
+          onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+          onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
+          locale: {
+            items_per_page: '件/ページ',
+            jump_to: 'ページ',
+            page: ''
+          }
+        }}
+        scroll={{ x: 750 }}
+        size="middle"
+        bordered
+        aria-label="タスク一覧"
+        data-testid="task-list-table"
+        style={{
+          background: '#ffffff',
+          borderRadius: '8px'
+        }}
+        locale={{
+          emptyText: 'タスクがありません'
+        }}
       />
     </div>
   );

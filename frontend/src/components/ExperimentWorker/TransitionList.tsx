@@ -532,16 +532,8 @@ export default function TransitionList({
             pageSize: pageSize,
             showSizeChanger: true,
             showQuickJumper: false,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            showTotal: (total, range) => `全${total}件`,
-            pageSizeOptions: ['20', '50', '100'],
-=======
-=======
->>>>>>> Stashed changes
             showTotal: (total) => `全${total}件`,
-            pageSizeOptions: ['10', '20', '50', '100'],
->>>>>>> Stashed changes
+            pageSizeOptions: ['20', '50', '100'],
             position: ['bottomRight'],
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },

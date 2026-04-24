@@ -235,17 +235,8 @@ export default function ProjectSelectionModal({
           rowSelection={rowSelection}
           loading={loading}
           pagination={{
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            pageSize: 20,
-=======
             current: currentPage,
             pageSize: pageSize,
->>>>>>> Stashed changes
-=======
-            current: currentPage,
-            pageSize: pageSize,
->>>>>>> Stashed changes
             showSizeChanger: true,
             showTotal: (total) => `合計: ${total} 件`,
             pageSizeOptions: ['10', '20', '50', '100'],
