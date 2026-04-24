@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import {
   MaimlAsset,
   MaimlInstance,
@@ -603,15 +604,8 @@ export async function getSchemaStorageSizeBytes(organizationId: string): Promise
   const schemaName = toSchemaName(organizationId);
   validateSchemaName(schemaName);
 
-  const row = await pgp.oneOrNone<{ total_bytes: string }>(
-    `SELECT COALESCE(
-       SUM(pg_total_relation_size(quote_ident($1) || '.' || quote_ident(tablename))),
-       0
-     )::bigint AS total_bytes
-     FROM pg_tables
-     WHERE schemaname = $1`,
-    [schemaName]
-  );
+  const sqlQuery = await loadSqlFile('maiml_asset/getSchemaStorageSizeBytes.sql');
+  const row = await pgp.oneOrNone<{ total_bytes: string }>(sqlQuery, [schemaName]);
   return row ? Number(row.total_bytes) : 0;
 }
 
