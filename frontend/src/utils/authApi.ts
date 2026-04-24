@@ -57,7 +57,7 @@ function handleApiError(error: unknown): never {
       
       if (isErrorResponse(data)) {
         const errorCode = data.error.code;
-        const errorMessage = data.error.message || mapErrorToMessage(errorCode);
+        const errorMessage = mapErrorToMessage(errorCode, data.error.message);
         throw new ApiError(errorMessage, errorCode);
       }
     }

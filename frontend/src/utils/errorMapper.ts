@@ -76,6 +76,9 @@ export const ERROR_MESSAGE_MAP: Record<string, string> = {
 
   // ===== E9xxx: UNKNOWN =====
   E9999: 'エラーが発生しました。しばらくしてから再度お試しください',
+
+  // ===== レガシーコード対応（バックエンドが旧コードを返す場合のフォールバック） =====
+  AUTH_PIN_INVALID: 'PINコードが正しくありません',
 } as const;
 
 /**
