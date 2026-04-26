@@ -298,19 +298,30 @@ alchemia-nginx-service タスク              ├──/api/*──▶ alchemia-
 └──────────────┬──────────────────────────────────────┬───────────────────────┘
                │ TCP/443（TLS パススルー）              │ HTTP/80
                ▼                                      ▼
-┌──────────────────────────────┐  ┌───────────────────────────────────────────┐
-│  NLB（Network Load Balancer）│  │  ALB（Application Load Balancer）         │
-│  alchemia-staging-nlb-       │  │  alchemia-staging-alb-987042084           │
-│  0fd64d466d1b557b            │  │  .ap-northeast-1.elb.amazonaws.com        │
-│  .elb.ap-northeast-1         │  │  ・HTTP:80 リスナー                        │
-│  .amazonaws.com              │  │  ・URL クエリ ?orgId= で organization_id   │
-│  ・TCPリスナー（TLS 終端なし）│  │    を取得（クライアント証明書不要）           │
-│  ・SG: TCP/443 → 0.0.0.0/0⚠️│  │  ・ターゲット: alchemia-nginx-service(80)  │
-└──────────────┬───────────────┘  └─────────────────────┬─────────────────────┘
-               │ TCP/443                                 │ HTTP/80
-               ▼                                         ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  ECS Fargate: alchemia-nginx-service（desiredCount=1 ⚠️, assignPublicIp=ENABLED）│
+│  VPC: vpc-037a0cb50e47092a0 (alchemia-staging-vpc) / CIDR: 10.1.0.0/16     │
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  パブリックサブネット（internet-facing LB ノード配置）                  │   │
+│  │  alchemia-public-1a (10.1.1.0/24) / alchemia-public-1c (10.1.2.0/24) │   │
+│  │                                                                      │   │
+│  │  ┌─────────────────────────────┐  ┌─────────────────────────────┐   │   │
+│  │  │  NLB（Network Load Balancer）│  │  ALB（Application Load Bal.）│   │   │
+│  │  │  alchemia-staging-nlb-      │  │  alchemia-staging-alb-      │   │   │
+│  │  │  0fd64d466d1b557b           │  │  987042084                  │   │   │
+│  │  │  .elb.ap-northeast-1        │  │  .ap-northeast-1.elb.       │   │   │
+│  │  │  .amazonaws.com             │  │  amazonaws.com              │   │   │
+│  │  │  ・TCPリスナー（終端なし）   │  │  ・HTTP:80 リスナー          │   │   │
+│  │  │  ・TCP/443 → 0.0.0.0/0 ⚠️  │  │  ・?orgId= で org_id 取得   │   │   │
+│  │  │  ※ internet-facing だが    │  │  ・ターゲット: nginx-svc(80) │   │   │
+│  │  │    VPC内サブネットに配置     │  │  ※ VPC内サブネットに配置     │   │   │
+│  │  └──────────────┬──────────────┘  └──────────────┬──────────────┘   │   │
+│  └─────────────────│────────────────────────────────│──────────────────┘   │
+│                    │ TCP/443                         │ HTTP/80              │
+│                    ▼                                 ▼                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  ECS Fargate: alchemia-nginx-service（desiredCount=1 ⚠️,             │   │
+│  │  assignPublicIp=ENABLED）                                            │   │
 │                                                                             │
 │  ┌──────────────────────────────────┐  ┌───────────────────────────────┐   │
 │  │  mmdpf-nginx コンテナ（443/80）  │  │  mmdpf-frontend コンテナ(3000)│   │
