@@ -59,6 +59,8 @@ export default function CorporationManagement() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingCorporation, setEditingCorporation] = useState<CorporationData | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [form] = Form.useForm();
 
   // 初回データ取得
@@ -104,6 +106,11 @@ export default function CorporationManagement() {
       return matchesSearch;
     });
   }, [corporations, searchText]);
+
+  // フィルタ変化時に1ページ目にリセット
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText]);
 
   // アクティブな会社数をカウント
   const activeCorporationCount = useMemo(() => {
@@ -578,10 +585,13 @@ export default function CorporationManagement() {
           loading={loading}
           scroll={{ x: 1000 }}
           pagination={{
-            pageSize: 20,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
-          showTotal: (total) => t('corporationManagement.pagination.showTotal').replace('{total}', String(total)),
+            showTotal: (total) => t('corporationManagement.pagination.showTotal').replace('{total}', String(total)),
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+            onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           }}
           rowClassName={(record) => (!record.isActive ? 'inactive-row' : '')}
         />

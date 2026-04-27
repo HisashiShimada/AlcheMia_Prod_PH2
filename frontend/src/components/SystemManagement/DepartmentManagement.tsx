@@ -69,6 +69,8 @@ export default function DepartmentManagement() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<DepartmentRecord | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [form] = Form.useForm();
 
   // 設定情報を取得
@@ -94,6 +96,11 @@ export default function DepartmentManagement() {
   useEffect(() => {
     fetchDepartments();
   }, []);
+
+  // フィルタ変化時に1ページ目にリセット
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText]);
 
   // フィルタリングされたデータ
   const filteredDepartments = useMemo(() => {
@@ -479,10 +486,19 @@ export default function DepartmentManagement() {
           size="small"
           scroll={{ x: 800 }}
           pagination={{
-            pageSize: 20,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
             showTotal: (total) => t('departmentManagement.pagination.showTotal').replace('{total}', String(total)),
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size);
+            },
+            onShowSizeChange: (_, size) => {
+              setCurrentPage(1);
+              setPageSize(size);
+            },
           }}
           rowClassName={(record) =>
             record.isActive === false ? 'active-row' : 'inactive-row'

@@ -57,6 +57,8 @@ export default function ProgressMonitoring() {
   const { token } = theme.useToken();
   const [searchText, setSearchText] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('my_only'); // my_only, all
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [checkoutFilter, setCheckoutFilter] = useState('all');
   const [projectStatusFilter, setProjectStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -112,14 +114,10 @@ export default function ProgressMonitoring() {
 
   // APIから取得したデータを進捗記録形式に変換
   const allData: ProgressRecord[] = useMemo(() => {
-    // ApiResponse<T> は ApiSuccessResponse<T> | ApiErrorResponse のユニオン型のため
-    // success チェックで型を ApiSuccessResponse に絞り込んでから data にアクセスする
     if (!projectsData || !projectsData.success) return [];
 
     const rawData = projectsData.data;
 
-    // APIレスポンスは data が Project[] 直接の場合（現在の実装）と
-    // data.projects の場合（UI仕様書の想定）があるため両方に対応する
     const projects = Array.isArray(rawData)
       ? (rawData as unknown as Project[])
       : ((rawData as unknown as ProjectListResponse)?.projects ?? []);
@@ -131,8 +129,6 @@ export default function ProgressMonitoring() {
         key: `${index + 1}`,
         projectId: item.id,
         projectName: item.name,
-        // APIの status は実際には数値（0〜5）で返ってくるため Number() で明示キャストし文字列キーに変換する
-        // @/types/progress の Project.status は ProjectStatus（文字列型）だが実データは数値
         projectStatus: getStatusStringFromNumber(Number(item.status)),
         department: item.department || '',
         isCheckedOut: item.isCheckedOut || false,
@@ -153,39 +149,27 @@ export default function ProgressMonitoring() {
   // フィルタリング処理
   const filteredData = useMemo(() => {
     return allData.filter((item) => {
-      // プロジェクトステータスの表示名を取得
       const getProjectStatusLabel = (status: string) => {
         switch (status) {
-          case 'planning':
-            return t('progress.filter.planning') || 'プロジェクト計画中';
-          case 'pending':
-            return t('progress.filter.pending') || 'タスク実行待ち';
-          case 'in_progress':
-            return t('progress.filter.inProgress') || 'タスク実行中';
-          case 'review_waiting':
-            return t('progress.filter.reviewWaiting') || 'タスク結果レビュー待ち';
-          case 'completed':
-            return t('progress.filter.completed') || 'プロジェクト完了';
-          case 'error':
-            return t('progress.filter.error') || 'タスク異常終了';
-          default:
-            return status;
+          case 'planning': return t('progress.filter.planning') || 'プロジェクト計画中';
+          case 'pending': return t('progress.filter.pending') || 'タスク実行待ち';
+          case 'in_progress': return t('progress.filter.inProgress') || 'タスク実行中';
+          case 'review_waiting': return t('progress.filter.reviewWaiting') || 'タスク結果レビュー待ち';
+          case 'completed': return t('progress.filter.completed') || 'プロジェクト完了';
+          case 'error': return t('progress.filter.error') || 'タスク異常終了';
+          default: return status;
         }
       };
 
-      // チェックアウトステータスの表示名を取得
       const getCheckoutStatusLabel = (isCheckedOut: boolean) => {
-        if (isCheckedOut) {
-          return t('projectManagement.checking_out') || 'チェックアウト中';
-        } else {
-          return t('projectManagement.checked_in') || 'チェックイン済み';
-        }
+        return isCheckedOut
+          ? t('projectManagement.checking_out') || 'チェックアウト中'
+          : t('projectManagement.checked_in') || 'チェックイン済み';
       };
 
       const projectStatusLabel = getProjectStatusLabel(item.projectStatus);
       const checkoutStatusLabel = getCheckoutStatusLabel(item.isCheckedOut);
 
-      // すべての項目で検索可能に（表示名も含む）
       const st = searchText.toLowerCase();
       const matchesSearch =
         searchText === '' ||
@@ -202,138 +186,83 @@ export default function ProgressMonitoring() {
 
       let matchesCheckout = true;
       if (checkoutFilter !== 'all') {
-        if (checkoutFilter === 'checkedOut') {
-          matchesCheckout = item.isCheckedOut === true;
-        } else if (checkoutFilter === 'checkedIn') {
-          matchesCheckout = item.isCheckedOut === false;
-        }
+        if (checkoutFilter === 'checkedOut') matchesCheckout = item.isCheckedOut === true;
+        else if (checkoutFilter === 'checkedIn') matchesCheckout = item.isCheckedOut === false;
       }
 
       let matchesProjectStatus = true;
-      if (projectStatusFilter !== 'all') {
-        matchesProjectStatus = item.projectStatus === projectStatusFilter;
-      }
+      if (projectStatusFilter !== 'all') matchesProjectStatus = item.projectStatus === projectStatusFilter;
 
       let matchesDepartment = true;
-      if (departmentFilter !== 'all') {
-        matchesDepartment = item.department === departmentFilter;
-      }
+      if (departmentFilter !== 'all') matchesDepartment = item.department === departmentFilter;
 
-      // ownerFilter: 'my_only' のとき、ログインユーザーが所有するプロジェクトのみに絞り込む
-      // 1次条件: ownerEmail とログインユーザーの email を比較
-      // 2次条件: ownerEmail が空の場合は ownerName と displayName を比較
-      // セッション情報が null の場合はフィルタしない（安全側）
       const userInfo = getUserInfo();
       let matchesOwner = true;
       if (ownerFilter === 'my_only' && userInfo) {
-        if (item.ownerEmail && userInfo.email) {
-          matchesOwner = item.ownerEmail === userInfo.email;
-        } else if (item.ownerName && userInfo.displayName) {
-          matchesOwner = item.ownerName === userInfo.displayName;
-        }
+        if (item.ownerEmail && userInfo.email) matchesOwner = item.ownerEmail === userInfo.email;
+        else if (item.ownerName && userInfo.displayName) matchesOwner = item.ownerName === userInfo.displayName;
       }
 
-      return (
-        matchesSearch &&
-        matchesOwner &&
-        matchesCheckout &&
-        matchesProjectStatus &&
-        matchesDepartment
-      );
+      return matchesSearch && matchesOwner && matchesCheckout && matchesProjectStatus && matchesDepartment;
     });
-  }, [
-    allData,
-    searchText,
-    ownerFilter,
-    checkoutFilter,
-    projectStatusFilter,
-    departmentFilter,
-    t,
-  ]);
+  }, [allData, searchText, ownerFilter, checkoutFilter, projectStatusFilter, departmentFilter, t]);
 
   // ソート処理
   const sortedData = useMemo(() => {
     const comparator = (a: ProgressRecord, b: ProgressRecord) => {
       const aValue: string | number | boolean = a[orderBy];
       const bValue: string | number | boolean = b[orderBy];
-
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return order === 'asc'
-          ? aValue.localeCompare(bValue, 'ja')
-          : bValue.localeCompare(aValue, 'ja');
+        return order === 'asc' ? aValue.localeCompare(bValue, 'ja') : bValue.localeCompare(aValue, 'ja');
       }
-
-      if (order === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return bValue < aValue ? -1 : bValue > aValue ? 1 : 0;
-      }
+      if (order === 'asc') return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      else return bValue < aValue ? -1 : bValue > aValue ? 1 : 0;
     };
-
     return [...filteredData].sort(comparator);
   }, [filteredData, order, orderBy]);
 
-  // 統計データ計算
   const totalProjects = filteredData.length;
 
   // プロジェクトステータスの色を取得する関数
   const getProjectStatusColor = (status: string): 'default' | 'info' | 'primary' | 'success' => {
     switch (status) {
-      case 'planning':
-        return 'default';
-      case 'pending':
-        return 'info';
-      case 'in_progress':
-        return 'primary';
-      case 'completed':
-        return 'success';
-      default:
-        return 'default';
+      case 'planning': return 'default';
+      case 'pending': return 'info';
+      case 'in_progress': return 'primary';
+      case 'completed': return 'success';
+      default: return 'default';
     }
   };
 
   // プロジェクトステータスのラベルを取得する関数
   const getProjectStatusLabel = (status: string) => {
     switch (status) {
-      case 'planning':
-        return t('progress.filter.planning') || 'プロジェクト計画中';
-      case 'pending':
-        return t('progress.filter.pending') || 'タスク実行待ち';
-      case 'in_progress':
-        return t('progress.filter.inProgress') || 'タスク実行中';
-      case 'review_waiting':
-        return t('progress.filter.reviewWaiting') || 'タスク結果レビュー待ち';
-      case 'completed':
-        return t('progress.filter.completed') || 'プロジェクト完了';
-      case 'error':
-        return t('progress.filter.error') || 'タスク異常終了';
-      default:
-        return status;
+      case 'planning': return t('progress.filter.planning') || 'プロジェクト計画中';
+      case 'pending': return t('progress.filter.pending') || 'タスク実行待ち';
+      case 'in_progress': return t('progress.filter.inProgress') || 'タスク実行中';
+      case 'review_waiting': return t('progress.filter.reviewWaiting') || 'タスク結果レビュー待ち';
+      case 'completed': return t('progress.filter.completed') || 'プロジェクト完了';
+      case 'error': return t('progress.filter.error') || 'タスク異常終了';
+      default: return status;
     }
   };
 
   // 詳細表示ハンドラ
-  // プロジェクトのMAIMLファイルをAPIから取得してダイアログを開く（Phase 2〜4）
   const handleViewDetails = async (record: ProgressRecord) => {
     setSelectedProject(record);
     setLoadingProjectId(record.projectId);
     try {
-      // GET /api/v1/projects/:projectName/files を呼び出して実際のファイル情報を取得
       const filesResponse = await getProjectFiles(record.projectId, false);
-
       const mainFiles: ProjectFile[] = filesResponse.files ?? [];
-
-      // archiveではなく現行ファイルから .maiml ファイルを探す
       const maimlFile = mainFiles.find((f: ProjectFile) => f.name.endsWith('.maiml'));
-
       if (!maimlFile) {
         message.error('MAIMLファイルが見つかりません');
         return;
       }
-
       const resolvedFileData: FileData = {
-        maimlFileKey: maimlFile.path, // 相対パス（例: projects/{name}/{name}.maiml）※organizationIdプレフィックスなし
+        maimlFileKey: maimlFile.path,
         fileName: maimlFile.name,
+        projectId: record.projectId,
       };
       setFileData(resolvedFileData);
       setIsDetailDialogOpen(true);
@@ -345,7 +274,6 @@ export default function ProgressMonitoring() {
     }
   };
   
-  // モーダルを閉じるハンドラ
   const handleCloseDialog = () => {
     setIsDetailDialogOpen(false);
     setSelectedProject(null);
@@ -395,29 +323,18 @@ export default function ProgressMonitoring() {
       width: 180,
       sorter: (a, b) => a.projectStatus.localeCompare(b.projectStatus),
       render: (status: string) => {
-        const getStatusColor = (status: string) => {
-          switch (status) {
-            case 'planning':
-              return 'default';
-            case 'pending':
-              return 'blue';
-            case 'in_progress':
-              return 'cyan';
-            case 'review_waiting':
-              return 'purple';
-            case 'completed':
-              return 'success';
-            case 'error':
-              return 'error';
-            default:
-              return 'default';
+        const getStatusColor = (s: string) => {
+          switch (s) {
+            case 'planning': return 'default';
+            case 'pending': return 'blue';
+            case 'in_progress': return 'cyan';
+            case 'review_waiting': return 'purple';
+            case 'completed': return 'success';
+            case 'error': return 'error';
+            default: return 'default';
           }
         };
-        return (
-          <Tag color={getStatusColor(status)}>
-            {getProjectStatusLabel(status)}
-          </Tag>
-        );
+        return <Tag color={getStatusColor(status)}>{getProjectStatusLabel(status)}</Tag>;
       },
     },
     {
@@ -580,10 +497,13 @@ export default function ProgressMonitoring() {
           columns={columns}
           rowKey="key"
           pagination={{
-            pageSize: 20,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
             showTotal: (total) => `${t('progress.table.total') || '合計'} ${total} ${t('progress.table.items') || '件'}`,
             pageSizeOptions: ['20', '50', '100'],
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+            onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           }}
           scroll={{ x: 1200 }}
           size="middle"
