@@ -332,7 +332,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
           <Title level={4} style={{ margin: 0 }}>
             🔍 バリデーション結果
           </Title>
-          <Space>
+          <Space style={{ marginRight: 32 }}>
             {onRevalidate && (
               <Tooltip title="再検証">
                 <Button 
