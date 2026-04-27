@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, message } from 'antd';
+import { App, Modal, Form, Input } from 'antd';
 import { renameProject } from '@/services/projectApiService';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -23,6 +23,7 @@ const RenameProjectModal: React.FC<RenameProjectModalProps> = ({
   onSuccess,
 }) => {
   const { t } = useLanguage();
+  const { message } = App.useApp();
   const [form] = Form.useForm<{ newProjectName: string }>();
   const [loading, setLoading] = useState(false);
 
@@ -82,7 +83,7 @@ const RenameProjectModal: React.FC<RenameProjectModalProps> = ({
       okText={t('projectManagement.rename.okText')}
       cancelText={t('common.cancel')}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical">
         <Form.Item

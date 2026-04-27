@@ -84,7 +84,6 @@ export default function IssueManagementModal({
 }: IssueManagementModalProps) {
   const { t } = useLanguage();
   const [form] = Form.useForm();
-  const [commentForm] = Form.useForm();
 
   // 問題一覧（内部state）
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -275,7 +274,6 @@ export default function IssueManagementModal({
 
       message.success(t('issueManagement.messages.commentPosted'));
       setNewComment('');
-      commentForm.resetFields();
       // 一覧を再取得（コメントが追加された状態を反映）
       await fetchIssues();
     } catch (error) {
@@ -308,7 +306,6 @@ export default function IssueManagementModal({
 
       message.success(t('issueManagement.messages.setUnresolved'));
       setNewComment('');
-      commentForm.resetFields();
       // 一覧を再取得
       await fetchIssues();
     } catch (error) {
@@ -341,7 +338,6 @@ export default function IssueManagementModal({
 
       message.success(t('issueManagement.messages.setResolved'));
       setNewComment('');
-      commentForm.resetFields();
       // 一覧を再取得
       await fetchIssues();
     } catch (error) {
@@ -351,11 +347,15 @@ export default function IssueManagementModal({
   };
 
   // モーダルを閉じる
+  useEffect(() => {
+    if (!open) {
+      form.resetFields();
+    }
+  }, [open, form]);
+
   const handleClose = () => {
     setSelectedIssueId(null);
     setShowNewIssueForm(false);
-    form.resetFields();
-    commentForm.resetFields();
     setNewComment('');
     setIssues([]);
     onClose();

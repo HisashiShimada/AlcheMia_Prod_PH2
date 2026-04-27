@@ -531,7 +531,6 @@ export default function TransitionList({
             showQuickJumper: false,
             showTotal: (total, range) => `全${total}件`,
             pageSizeOptions: ['20', '50', '100'],
-            position: ['bottomRight'],
             locale: {
               items_per_page: '件/ページ',
               jump_to: 'ページ',
@@ -560,21 +559,23 @@ export default function TransitionList({
       </div>
 
       {/* データ記録モーダル */}
-      <DataRecordDialog
-        open={dataRecordModalOpen}
-        transition={selectedTransition}
-        projectStatus={projectStatus}
-        onClose={handleDataRecordModalClose}
-        onSave={handleDataSave}
-        projectId={projectId}
-        projectName={projectName}
-        methodId={methodId}
-        taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
-        useDeemedProgress={useDeemedProgress}
-      />
+      {dataRecordModalOpen && (
+        <DataRecordDialog
+          open={dataRecordModalOpen}
+          transition={selectedTransition}
+          projectStatus={projectStatus}
+          onClose={handleDataRecordModalClose}
+          onSave={handleDataSave}
+          projectId={projectId}
+          projectName={projectName}
+          methodId={methodId}
+          taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
+          useDeemedProgress={useDeemedProgress}
+        />
+      )}
 
       {/* 問題管理モーダル */}
-      {selectedTransition && (
+      {issueModalOpen && selectedTransition && (
         <IssueManagementModal
           open={issueModalOpen}
           targetName={selectedTransition.transitionName}

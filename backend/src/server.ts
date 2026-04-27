@@ -56,8 +56,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Basic middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser()); // Cookie解析ミドルウェア
 
 // Health check endpoint

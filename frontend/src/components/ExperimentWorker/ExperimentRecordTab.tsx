@@ -219,9 +219,21 @@ export default function ExperimentRecordTab({
             methodCount: methodsData.length,
             taskCount: allTasks.length
           });
-          
-          setMethods(methodsData);
-          setTasks(allTasks);
+
+          // 重複 taskId を排除（同一 task_no が複数返された場合の React key 衝突を防止）
+          const uniqueTasksMap = new Map<string, Task>();
+          allTasks.forEach(task => uniqueTasksMap.set(task.taskId, task));
+          const uniqueTasks = Array.from(uniqueTasksMap.values());
+
+          // methodsData の tasks も同様に重複排除
+          const deduplicatedMethods = methodsData.map(method => {
+            const methodTasksMap = new Map<string, Task>();
+            (method.tasks ?? []).forEach((task: Task) => methodTasksMap.set(task.taskId, task));
+            return { ...method, tasks: Array.from(methodTasksMap.values()) };
+          });
+
+          setMethods(deduplicatedMethods);
+          setTasks(uniqueTasks);
         } else {
           console.error('[DEBUG] ExperimentRecordTab - API returned unsuccessful', result);
           message.error(extractErrorMessage(null));
@@ -513,7 +525,7 @@ export default function ExperimentRecordTab({
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {!selectedProject ? (
           <Card data-testid="empty-project-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
           <Title level={3} type="secondary">
                 🧪 {t('menu.experiment_worker.tabs.experimentRecord')}
@@ -525,7 +537,7 @@ export default function ExperimentRecordTab({
           </Card>
         ) : !selectedMethodId ? (
           <Card data-testid="empty-method-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
                 📋 トランジション一覧
@@ -537,7 +549,7 @@ export default function ExperimentRecordTab({
           </Card>
         ) : !selectedTaskId ? (
           <Card data-testid="empty-task-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
                 📋 トランジション一覧
@@ -605,30 +617,34 @@ export default function ExperimentRecordTab({
         methods={methods}
       />
 
-      <DataRecordDialog
-        open={dataRecordModalOpen}
-        transition={selectedTransition}
-        projectStatus={projectStatus}
-        onClose={handleDataRecordModalClose}
-        onSave={handleDataSave}
-        projectId={selectedProject}
-        projectName={selectedProjectName || selectedProject || undefined}
-        methodId={selectedMethodId || undefined}
-        taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
-        useDeemedProgress={useDeemedProgress}
-      />
+      {dataRecordModalOpen && (
+        <DataRecordDialog
+          open={dataRecordModalOpen}
+          transition={selectedTransition}
+          projectStatus={projectStatus}
+          onClose={handleDataRecordModalClose}
+          onSave={handleDataSave}
+          projectId={selectedProject}
+          projectName={selectedProjectName || selectedProject || undefined}
+          methodId={selectedMethodId || undefined}
+          taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
+          useDeemedProgress={useDeemedProgress}
+        />
+      )}
 
-      <IssueManagementModal
-        open={issueModalOpen}
-        targetName={selectedTransition?.transitionName || ''}
-        projectId={projectId || ''}
-        projectName={selectedProject || ''}
-        methodId={selectedMethodId || undefined}
-        taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
-        transitionId={selectedTransition?.transitionId || undefined}
-        onClose={handleIssueModalClose}
-        projectStatus={projectStatus}
-      />
+      {issueModalOpen && (
+        <IssueManagementModal
+          open={issueModalOpen}
+          targetName={selectedTransition?.transitionName || ''}
+          projectId={projectId || ''}
+          projectName={selectedProject || ''}
+          methodId={selectedMethodId || undefined}
+          taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
+          transitionId={selectedTransition?.transitionId || undefined}
+          onClose={handleIssueModalClose}
+          projectStatus={projectStatus}
+        />
+      )}
     </div>
   );
 }

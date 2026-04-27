@@ -88,11 +88,11 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
       key: 'errors',
       label: t('saveConfirmDialog.errorDetailLabel'),
       children: (
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           {validationResult?.errors?.slice(0, 3).map((error, index) => (
             <Alert
               key={index}
-              message={error.type || t('saveConfirmDialog.validationErrorFallback')}
+              title={error.type || t('saveConfirmDialog.validationErrorFallback')}
               description={
                 <>
                   <Text>{error.message || error.description || t('saveConfirmDialog.errorDetailNone')}</Text>
@@ -148,13 +148,13 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         </Space>
       }
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         {/* バリデーション結果統計（エラーがある場合のみ） */}
         {hasErrors && (
           <Alert
-            message={t('saveConfirmDialog.validationSummary')}
+            title={t('saveConfirmDialog.validationSummary')}
             description={
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 <Space>
                   <Text strong>{t('saveConfirmDialog.errorCount')}</Text>
                   <Text>{errorCount}{t('saveConfirmDialog.unit')}</Text>
@@ -188,7 +188,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
             border: '2px solid #1677ff',
           }}
         >
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <Space>
               <CloudUploadOutlined />
               <Text strong>{t('saveConfirmDialog.destinationLabel')}</Text>
@@ -216,7 +216,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
             {/* S3保存先パス表示 */}
             {saveDestination === 's3' && (
               <Alert
-                message={t('saveConfirmDialog.destinationFolderLabel')}
+                title={t('saveConfirmDialog.destinationFolderLabel')}
                 description={
                   <Space>
                     <FolderOpenOutlined />
@@ -245,7 +245,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         </Text>
 
         {/* アクションボタン */}
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           {/* 自動補正ボタン（エラーがある場合のみ） */}
           {hasErrors && hasCorrections && (
             <Button
@@ -289,7 +289,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         {/* 注意書き（エラーがある場合のみ） */}
         {hasErrors && (
           <Alert
-            message={t('saveConfirmDialog.hintMessage')}
+            title={t('saveConfirmDialog.hintMessage')}
             type="info"
             showIcon
           />

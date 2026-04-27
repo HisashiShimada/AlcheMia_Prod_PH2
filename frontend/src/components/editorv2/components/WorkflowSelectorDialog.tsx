@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, Input, Button, List, Tree, Alert, Typography, Tag, Spin, Space, Flex } from 'antd';
+import { Modal, Input, Button, Tree, Alert, Typography, Tag, Spin, Space, Flex } from 'antd';
 import {
   FileOutlined,
   SearchOutlined,
@@ -201,7 +201,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
         />
 
         {/* エラー表示 */}
-        {error && <Alert message={error} type="error" showIcon />}
+        {error && <Alert title={error} type="error" showIcon />}
 
         {/* フォルダツリーとファイル一覧 */}
         <Flex gap="middle" style={{ height: 400 }}>
@@ -254,45 +254,42 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
                 </Text>
               </div>
             ) : (
-              <List
-                size="small"
-                bordered
-                dataSource={filteredFiles}
-                renderItem={(file) => (
-                  <List.Item
+              <div style={{ border: '1px solid #d9d9d9', borderRadius: 6 }}>
+                {filteredFiles.map((file) => (
+                  <div
+                    key={file.key}
                     onClick={() => handleFileSelect(file)}
                     style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '8px 12px',
                       cursor: 'pointer',
                       backgroundColor: selectedFile?.key === file.key ? '#e6f7ff' : undefined,
                       border: selectedFile?.key === file.key ? '2px solid #1890ff' : undefined,
+                      borderBottom: '1px solid #f0f0f0',
                     }}
                   >
-                    <List.Item.Meta
-                      avatar={
-                        <FileOutlined
-                          style={{
-                            fontSize: 20,
-                            color: selectedFile?.key === file.key ? '#1890ff' : undefined,
-                          }}
-                        />
-                      }
-                      title={
-                        <Space>
-                          {file.name || file.key}
-                          {file.size && (
-                            <Tag color="blue">{formatFileSize(file.size)}</Tag>
-                          )}
-                        </Space>
-                      }
-                      description={
-                        <Text type="secondary" ellipsis style={{ fontSize: 12 }}>
-                          {file.key}
-                        </Text>
-                      }
+                    <FileOutlined
+                      style={{
+                        fontSize: 20,
+                        marginRight: 12,
+                        color: selectedFile?.key === file.key ? '#1890ff' : undefined,
+                      }}
                     />
-                  </List.Item>
-                )}
-              />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Space>
+                        {file.name || file.key}
+                        {file.size && (
+                          <Tag color="blue">{formatFileSize(file.size)}</Tag>
+                        )}
+                      </Space>
+                      <Text type="secondary" ellipsis style={{ fontSize: 12, display: 'block' }}>
+                        {file.key}
+                      </Text>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </Flex>
@@ -300,7 +297,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
         {/* 選択ファイル情報 */}
         {selectedFile && (
           <Alert
-            message="選択中のファイル"
+            title="選択中のファイル"
             description={
               <Space orientation="vertical" size="small">
                 <Text>

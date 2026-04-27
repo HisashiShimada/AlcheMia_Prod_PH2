@@ -10,6 +10,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
+  App,
   Modal,
   Button,
   Input,
@@ -21,7 +22,6 @@ import {
   Checkbox,
   DatePicker,
   Tag,
-  message,
 } from 'antd';
 import {
   ThunderboltOutlined,
@@ -38,8 +38,6 @@ import {
   DocumentTagData,
 } from '../../../types/maiml-unified'
 import { fetchMasters, type CreatorRecord, type VendorRecord, type InstrumentRecord } from '@/services/masterApiService';
-
-const { Panel } = Collapse;
 
 /**
  * DocumentEditDialogProps - DocumentEditDialogコンポーネントのProps型定義
@@ -66,6 +64,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   onClose,
   onSave,
 }) => {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -344,120 +343,120 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                   }, {} as Record<string, boolean>)
                 }));
               }}
-            >
-              {/* 基本プロパティ */}
-              <Panel header={<Text strong>📄 基本プロパティ</Text>} key="basic">
-                <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-                  <Form.Item
-                    label="Document ID"
-                    name="id"
-                  >
-                    <Input />
-                  </Form.Item>
-
-                  <Form.Item label="UUID">
-                    <Space.Compact style={{ width: '100%' }}>
-                      <Form.Item name="uuid" noStyle>
+              items={[
+                {
+                  key: 'basic',
+                  label: <Text strong>📄 基本プロパティ</Text>,
+                  children: (
+                    <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                      <Form.Item label="Document ID" name="id">
                         <Input />
                       </Form.Item>
-                      <Button
-                        icon={<ThunderboltOutlined />}
-                        onClick={() => {
-                          const uuid = generateUUID();
-                          form.setFieldValue('uuid', uuid);
-                          setHasChanges(true);
-                        }}
-                      >
-                        生成
-                      </Button>
-                    </Space.Compact>
-                  </Form.Item>
 
-                  <Form.Item
-                    label="Name"
-                    name="name"
-                  >
-                    <Input />
-                  </Form.Item>
+                      <Form.Item label="UUID">
+                        <Space.Compact style={{ width: '100%' }}>
+                          <Form.Item name="uuid" noStyle>
+                            <Input />
+                          </Form.Item>
+                          <Button
+                            icon={<ThunderboltOutlined />}
+                            onClick={() => {
+                              const uuid = generateUUID();
+                              form.setFieldValue('uuid', uuid);
+                              setHasChanges(true);
+                            }}
+                          >
+                            生成
+                          </Button>
+                        </Space.Compact>
+                      </Form.Item>
 
-                  <Form.Item label="Description" name="description">
-                    <TextArea rows={2} />
-                  </Form.Item>
+                      <Form.Item label="Name" name="name">
+                        <Input />
+                      </Form.Item>
 
-                  <Space.Compact style={{ width: '100%' }}>
-                    <Form.Item label="Date" name="date" noStyle>
-                        <DatePicker
-                          showTime
-                          style={{ width: '100%' }}
-                          format="YYYY-MM-DD HH:mm:ss"
+                      <Form.Item label="Description" name="description">
+                        <TextArea rows={2} />
+                      </Form.Item>
+
+                      <Space.Compact style={{ width: '100%' }}>
+                        <Form.Item label="Date" name="date" noStyle>
+                          <DatePicker
+                            showTime
+                            style={{ width: '100%' }}
+                            format="YYYY-MM-DD HH:mm:ss"
+                          />
+                        </Form.Item>
+                        <Button
+                          icon={<ClockCircleOutlined />}
+                          onClick={handleSetCurrentDateTime}
+                          title="現在時刻を設定"
+                        >
+                          現在
+                        </Button>
+                      </Space.Compact>
+                    </Space>
+                  ),
+                },
+                {
+                  key: 'maimlIds',
+                  label: <Text strong>🔑 MaiML ID属性（詳細設定）</Text>,
+                  children: (
+                    <>
+                      <Alert
+                        title="💡 MaiMLファイル内の各要素に設定されるID属性値を編集できます。"
+                        type="info"
+                        style={{ marginBottom: 16 }}
+                      />
+                      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                        <Form.Item label="Protocol ID" name="protocolId">
+                          <Input placeholder="protocolID" />
+                        </Form.Item>
+
+                        <Form.Item label="Method ID" name="methodId">
+                          <Input placeholder="methodID" />
+                        </Form.Item>
+
+                        <Form.Item label="PNML ID" name="pnmlId">
+                          <Input placeholder="pnmlID" />
+                        </Form.Item>
+
+                        <Form.Item label="Program ID" name="programId">
+                          <Input placeholder="programID" />
+                        </Form.Item>
+
+                        <Alert
+                          title="⚠️ ID値は英数字、アンダースコア(_)、ハイフン(-)のみ使用可能です。最大64文字まで設定できます。"
+                          type="warning"
                         />
-                    </Form.Item>
-                    <Button
-                      icon={<ClockCircleOutlined />}
-                      onClick={handleSetCurrentDateTime}
-                      title="現在時刻を設定"
-                    >
-                      現在
-                    </Button>
-                    </Space.Compact>
-                </Space>
-              </Panel>
+                      </Space>
+                    </>
+                  ),
+                },
+                {
+                  key: 'signature',
+                  label: (
+                    <Space>
+                      <SecurityScanOutlined />
+                      <Text strong>🔒 XML署名（改ざん防止）</Text>
+                    </Space>
+                  ),
+                  children: (
+                    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+                      <Alert
+                        title="📋 XML署名機能について"
+                        description="W3C XMLDSig仕様に基づくXML署名を追加します。MaiML保存時にSHA-256ハッシュを計算し、document要素内にSignature要素を挿入します。"
+                        type="info"
+                      />
 
-              {/* MaiML ID属性 */}
-              <Panel header={<Text strong>🔑 MaiML ID属性（詳細設定）</Text>} key="maimlIds">
-                <Alert
-                  message="💡 MaiMLファイル内の各要素に設定されるID属性値を編集できます。"
-                  type="info"
-                  style={{ marginBottom: 16 }}
-                />
-                
-                <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-                  <Form.Item label="Protocol ID" name="protocolId">
-                    <Input placeholder="protocolID" />
-                  </Form.Item>
-
-                  <Form.Item label="Method ID" name="methodId">
-                    <Input placeholder="methodID" />
-                  </Form.Item>
-
-                  <Form.Item label="PNML ID" name="pnmlId">
-                    <Input placeholder="pnmlID" />
-                  </Form.Item>
-
-                  <Form.Item label="Program ID" name="programId">
-                    <Input placeholder="programID" />
-                  </Form.Item>
-
-                  <Alert
-                    message="⚠️ ID値は英数字、アンダースコア(_)、ハイフン(-)のみ使用可能です。最大64文字まで設定できます。"
-                    type="warning"
-                  />
-                </Space>
-              </Panel>
-
-              {/* XML署名 */}
-              <Panel
-                header={
-                  <Space>
-                    <SecurityScanOutlined />
-                    <Text strong>🔒 XML署名（改ざん防止）</Text>
-                  </Space>
-                }
-                key="signature"
-              >
-                <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-                  <Alert
-                    message="📋 XML署名機能について"
-                    description="W3C XMLDSig仕様に基づくXML署名を追加します。MaiML保存時にSHA-256ハッシュを計算し、document要素内にSignature要素を挿入します。"
-                    type="info"
-                  />
-
-                  <Form.Item name="signatureEnabled" valuePropName="checked">
-                    <Checkbox>改ざん防止のためのXML署名を行う</Checkbox>
-                  </Form.Item>
-                </Space>
-              </Panel>
-            </Collapse>
+                      <Form.Item name="signatureEnabled" valuePropName="checked">
+                        <Checkbox>改ざん防止のためのXML署名を行う</Checkbox>
+                      </Form.Item>
+                    </Space>
+                  ),
+                },
+              ]}
+            />
           </Form>
 
           {/* Creator編集 */}
@@ -466,7 +465,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             title="Creator"
             icon="⚙️"
             includeReferences={true}
-            initialData={form.getFieldValue('creators') || []}
+            initialData={documentData?.creators || []}
             onDataChange={handleMultiObjectDataChange}
             minItems={1}
             isExpanded={expandedSections.creators}
@@ -482,7 +481,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             title="Vendor"
             icon="🏢"
             includeReferences={false}
-            initialData={form.getFieldValue('vendors') || []}
+            initialData={documentData?.vendors || []}
             onDataChange={handleMultiObjectDataChange}
             minItems={1}
             isExpanded={expandedSections.vendors}
@@ -496,7 +495,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             title="Owner"
             icon="👥"
             includeReferences={false}
-            initialData={form.getFieldValue('owners') || []}
+            initialData={documentData?.owners || []}
             onDataChange={handleMultiObjectDataChange}
             minItems={1}
             isExpanded={expandedSections.owners}
@@ -510,7 +509,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             title="Instrument"
             icon="🔬"
             includeReferences={false}
-            initialData={form.getFieldValue('instruments') || []}
+            initialData={documentData?.instruments || []}
             onDataChange={handleMultiObjectDataChange}
             minItems={0}
             isExpanded={expandedSections.instruments}
@@ -520,7 +519,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
 
           {/* ヒント */}
           <Alert
-            message="💡 ヒント"
+            title="💡 ヒント"
             description={
               <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
                 <li>UUIDジェネレーターボタンで一意の識別子を一括生成できます</li>

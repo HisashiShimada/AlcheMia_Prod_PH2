@@ -236,7 +236,7 @@ export default function ProjectSelectionModal({
             pageSize: 20,
             showSizeChanger: true,
             showTotal: (total) => `合計: ${total} 件`,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100'],
             showQuickJumper: true,
           }}
           scroll={{ y: 350 }}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
+  App,
   Card,
   Input,
   Button,
@@ -44,7 +45,6 @@ import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import TransitionSetSearchModal from '@/components/TransitionSetSearch/TransitionSetSearchModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ProjectMaimlProvider, useProjectMaiml } from '@/contexts/ProjectMaimlContext';
-import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
 import {
   downloadFolderAsZip,
@@ -96,6 +96,7 @@ interface ProjectManagementInnerProps {
 }
 
 const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit, onOpenWorkerScreen }) => {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
   
@@ -2250,7 +2251,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       )}
 
       {/* 問題確認モーダル */}
-      {selectedProject && (
+      {issueManagementModalOpen && selectedProject && (
         <IssueManagementModal
           open={issueManagementModalOpen}
           targetName={selectedProject.name}

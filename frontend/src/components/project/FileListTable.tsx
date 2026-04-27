@@ -393,7 +393,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
         cancelText="キャンセル"
         confirmLoading={renameLoading}
         width={420}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={renameForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
