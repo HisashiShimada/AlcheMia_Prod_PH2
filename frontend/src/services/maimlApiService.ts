@@ -61,7 +61,12 @@ export interface MaimlCorrectionResult {
  */
 export const validateMaiml = async (
   content: string,
-  strict: boolean = false
+  options?: {
+    strict?: boolean;
+    fileKey?: string;
+    /** true: DB保存スキップ（デフォルト）、false: DB保存あり */
+    skipAnalysisSave?: boolean;
+  }
 ): Promise<ApiResponse<AnalysisResult>> => {
   const client = createApiClient();
   
@@ -70,7 +75,12 @@ export const validateMaiml = async (
     
     const response = await client.post<ApiResponse<AnalysisResult>>(
       '/maiml/validate',
-      { content, strict }
+      {
+        content,
+        strict: options?.strict ?? false,
+        fileKey: options?.fileKey ?? '',
+        skipAnalysisSave: options?.skipAnalysisSave ?? true,
+      }
     );
     
     return response.data;
@@ -78,6 +88,37 @@ export const validateMaiml = async (
     console.error('❌ [maimlApiService] バリデーションエラー:', error);
     throw error;
   }
+};
+
+/** DB保存済みの分析結果行 */
+export interface MaimlAnalysisResultRow {
+  id: number;
+  file_key: string;
+  is_valid: boolean;
+  version?: number | null;
+  namespace?: string | null;
+  errors: string;       // JSON文字列
+  warnings: string;     // JSON文字列
+  suggestions?: string; // JSON文字列
+  statistics?: string;  // JSON文字列
+  processing_time?: number | null;
+  analysis_timestamp: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * MAIML分析結果取得（DB保存済み）
+ * GET /maiml/analysis-result?fileKey=xxx
+ */
+export const getAnalysisResult = async (
+  fileKey: string
+): Promise<ApiResponse<MaimlAnalysisResultRow | null>> => {
+  const client = createApiClient();
+  const response = await client.get<ApiResponse<MaimlAnalysisResultRow | null>>(
+    `/maiml/analysis-result?fileKey=${encodeURIComponent(fileKey)}`
+  );
+  return response.data;
 };
 
 /**

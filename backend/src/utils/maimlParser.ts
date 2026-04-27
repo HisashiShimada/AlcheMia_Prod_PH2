@@ -1,5 +1,5 @@
 import { XMLParser, XMLValidator} from 'fast-xml-parser';
-import { AnalysisResult} from '../types/maimlValidation';
+import { AnalysisResult, ValidationMode } from '../types/maimlValidation';
 import { X2jOptions } from 'fast-xml-parser';
 import { ErrorContent,statistics, Correction } from '../types/maimlValidation';
 import * as maimlAnalysisResultRepository from '../repositories/maimlAnalysisResultRepository';
@@ -35,7 +35,7 @@ const errorTypes = {
     VALIDATION_WARNING: 'validation_warning'
 };
 
-export async function analyzeMaiMLFile(organaizationId: string, maimlContent : string, fileKey: string, skipSave?: boolean)  {
+export async function analyzeMaiMLFile(organaizationId: string, maimlContent : string, fileKey: string, skipSave?: boolean, validationMode: ValidationMode = 'strict')  {
     const startTime = Date.now();
     
     try {
@@ -103,7 +103,7 @@ export async function analyzeMaiMLFile(organaizationId: string, maimlContent : s
 
       console.log('validateMaiMLStructure');
       // Phase 3: MaiML structure validation
-      const structureValidation = validateMaiMLStructure(parsedXML);
+      const structureValidation = validateMaiMLStructure(parsedXML, validationMode);
       analysisResult.errors.push(...structureValidation.errors);
       analysisResult.warnings.push(...structureValidation.warnings);
 
@@ -129,7 +129,7 @@ export async function analyzeMaiMLFile(organaizationId: string, maimlContent : s
 
       console.log('validateDuplicateIds');
       // Phase 6: Duplicate ID validation (🆕 追加)
-      const duplicateValidation = validateDuplicateIds(parsedXML);
+      const duplicateValidation = validateDuplicateIds(parsedXML, validationMode);
       analysisResult.errors.push(...duplicateValidation.errors);
       analysisResult.warnings.push(...duplicateValidation.warnings);
 
@@ -314,8 +314,10 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
 
   /**
    * Validate MaiML document structure against schema requirements
+   * @param parsedXML - パース済みXML
+   * @param mode - バリデーションモード ('strict' | 'lenient')
    */
-  function validateMaiMLStructure(parsedXML : any) {
+  function validateMaiMLStructure(parsedXML : any, mode: ValidationMode = 'strict') {
     const errors : ErrorContent[] = [];
     const warnings : ErrorContent[] = [];
     let isValid = true;
@@ -381,8 +383,8 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
         });
         isValid = false;
       } else {
-        // Validate document structure
-        const docValidation = validateDocumentStructure(maimlRoot.document);
+        // Validate document structure（モードを伝播）
+        const docValidation = validateDocumentStructure(maimlRoot.document, mode);
         errors.push(...docValidation.errors);
         warnings.push(...docValidation.warnings);
         if (!docValidation.isValid) isValid = false;
@@ -398,8 +400,8 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
         });
         isValid = false;
       } else {
-        // Validate protocol structure
-        const protocolValidation = validateProtocolStructure(maimlRoot.protocol);
+        // Validate protocol structure（モードを伝播）
+        const protocolValidation = validateProtocolStructure(maimlRoot.protocol, mode);
         errors.push(...protocolValidation.errors);
         warnings.push(...protocolValidation.warnings);
         if (!protocolValidation.isValid) isValid = false;
@@ -417,38 +419,82 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
 
   /**
    * Validate document element structure
+   * @param document - document要素
+   * @param mode - バリデーションモード ('strict' | 'lenient')
+   *   lenient: document id属性欠落・必須子要素欠落はerrors配列に追加するが canBeIgnoredOnUpload=true を付与
+   *   strict : すべてエラーとして扱い isValid=false にする
    */
-  function validateDocumentStructure(document : any) {
+  function validateDocumentStructure(document : any, mode: ValidationMode = 'strict') {
     const errors : ErrorContent[] = [];
     const warnings: ErrorContent[] = [];
     let isValid = true;
 
     // Check required ID attribute
+    // lenientモードではcanBeIgnoredOnUpload=trueでerrorsに追加（アップロードは許可）
     if (!document['@_id']) {
-      errors.push({
-        type: errorTypes.MISSING_REQUIRED,
-        severity: 'error',
-        message: 'Document element missing required "id" attribute',
-        suggestion: 'Add id="unique-document-id" to <document> element'
-      });
-      isValid = false;
-    }
-
-    // Check required child elements
-    const requiredChildren = ['uuid', 'creator', 'vendor', 'owner', 'date'];
-    for (const child of requiredChildren) {
-      if (!document[child]) {
+      if (mode === 'lenient') {
         errors.push({
           type: errorTypes.MISSING_REQUIRED,
           severity: 'error',
-          message: `Missing required "${child}" element in document`,
-          suggestion: `Add <${child}> element to document section`
+          canBeIgnoredOnUpload: true,
+          message: 'Document element missing "id" attribute (can be added in editor)',
+          suggestion: 'Add id="unique-document-id" to <document> element in the editor'
+        });
+        // isValidはfalseにしない（アップロード判定でcanBeIgnoredOnUploadを使用）
+      } else {
+        errors.push({
+          type: errorTypes.MISSING_REQUIRED,
+          severity: 'error',
+          canBeIgnoredOnUpload: false,
+          message: 'Document element missing required "id" attribute',
+          suggestion: 'Add id="unique-document-id" to <document> element'
         });
         isValid = false;
       }
     }
 
+    // Check required uuid element
+    // document UUIDはproject_uuidの設定に使われるため、アップロード後に変更不可
+    // → 両モードともエラー（lenientでも降格しない）
+    if (!document['uuid']) {
+      errors.push({
+        type: errorTypes.MISSING_REQUIRED,
+        severity: 'error',
+        message: 'Missing required "uuid" element in document (required for project identification)',
+        suggestion: 'Add <uuid> element with a valid UUID v4 value to <document> section'
+      });
+      isValid = false;
+    }
+
+    // Check other required child elements（uuid以外）
+    // lenientモードではcanBeIgnoredOnUpload=trueでerrorsに追加（アップロードは許可・情報は保持）
+    const editableRequiredChildren = ['creator', 'vendor', 'owner', 'date'];
+    for (const child of editableRequiredChildren) {
+      if (!document[child]) {
+        if (mode === 'lenient') {
+          errors.push({
+            type: errorTypes.MISSING_REQUIRED,
+            severity: 'error',
+            canBeIgnoredOnUpload: true,
+            message: `Missing "${child}" element in document (can be added in editor)`,
+            suggestion: `Add <${child}> element to document section in the editor`
+          });
+          // isValidはfalseにしない（アップロード判定でcanBeIgnoredOnUploadを使用）
+        } else {
+          errors.push({
+            type: errorTypes.MISSING_REQUIRED,
+            severity: 'error',
+            canBeIgnoredOnUpload: false,
+            message: `Missing required "${child}" element in document`,
+            suggestion: `Add <${child}> element to document section`
+          });
+          isValid = false;
+        }
+      }
+    }
+
     // Validate UUID format if present
+    // document UUIDはアップロード後に変更不可のため、両モードともエラー
     if (document.uuid) {
       const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[3-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
       if (!uuidRegex.test(document.uuid)) {
@@ -463,6 +509,7 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
     }
 
     // Validate date format if present
+    // 日付フォーマットは現状通り警告（両モード共通）
     if (document.date) {
       const dateValue = document.date;
       if (isNaN(Date.parse(dateValue))) {
@@ -481,13 +528,16 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
   /**
    * Validate protocol element structure
    * XSD: protocolType → hasIdAttributeType + globalObjectContentGroup + method(1以上)
+   * @param protocol - protocol要素
+   * @param mode - バリデーションモード ('strict' | 'lenient')
+   *   lenientでもprotocol id・uuid・methodは構造的に必須のためエラーを維持
    */
-  function validateProtocolStructure(protocol: any) {
+  function validateProtocolStructure(protocol: any, mode: ValidationMode = 'strict') {
     const errors: ErrorContent[] = [];
     const warnings: ErrorContent[] = [];
     let isValid = true;
 
-    // Check required id attribute (hasIdAttributeType: use="required")
+    // Check required id attribute（両モードともエラー：構造的に必須）
     if (!protocol['@_id']) {
       errors.push({
         type: errorTypes.MISSING_REQUIRED,
@@ -498,7 +548,7 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
       isValid = false;
     }
 
-    // Check required uuid element (globalObjectContentGroup)
+    // Check required uuid element（両モードともエラー：プロトコルの一意識別に必須）
     if (!protocol.uuid) {
       errors.push({
         type: errorTypes.MISSING_REQUIRED,
@@ -509,7 +559,7 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
       isValid = false;
     }
 
-    // Check required method element (maxOccurs="unbounded" → 1以上必須)
+    // Check required method element（両モードともエラー：methodは必須構造）
     const methods = protocol.method;
     if (!methods || (Array.isArray(methods) && methods.length === 0)) {
       errors.push({
@@ -520,10 +570,10 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
       });
       isValid = false;
     } else {
-      // Validate each method
+      // Validate each method（モードを伝播）
       const methodArray = Array.isArray(methods) ? methods : [methods];
       methodArray.forEach((method: any, index: number) => {
-        const methodValidation = validateMethodStructure(method, index);
+        const methodValidation = validateMethodStructure(method, index, mode);
         errors.push(...methodValidation.errors);
         warnings.push(...methodValidation.warnings);
         if (!methodValidation.isValid) isValid = false;
@@ -536,8 +586,13 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
   /**
    * Validate method element structure
    * XSD: methodType → hasIdAttributeType + globalObjectContentGroup + pnml(1以上) + program(1以上)
+   * @param method - method要素
+   * @param index - メソッドのインデックス
+   * @param mode - バリデーションモード ('strict' | 'lenient')
+   *   lenient: method id属性欠落を警告に降格
+   *   uuid/pnml/programは両モードともエラー（構造的に必須）
    */
-  function validateMethodStructure(method: any, index: number) {
+  function validateMethodStructure(method: any, index: number, mode: ValidationMode = 'strict') {
     const errors: ErrorContent[] = [];
     const warnings: ErrorContent[] = [];
     let isValid = true;
@@ -545,17 +600,30 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
     const methodLabel = method['@_id'] ? `method[id="${method['@_id']}"]` : `method[${index}]`;
 
     // Check required id attribute
+    // lenientモードではcanBeIgnoredOnUpload=trueでerrorsに追加（アップロードは許可）
     if (!method['@_id']) {
-      errors.push({
-        type: errorTypes.MISSING_REQUIRED,
-        severity: 'error',
-        message: `${methodLabel} missing required "id" attribute`,
-        suggestion: 'Add id="unique-method-id" to <method> element'
-      });
-      isValid = false;
+      if (mode === 'lenient') {
+        errors.push({
+          type: errorTypes.MISSING_REQUIRED,
+          severity: 'error',
+          canBeIgnoredOnUpload: true,
+          message: `method[${index}] missing "id" attribute (can be added in editor)`,
+          suggestion: 'Add id="unique-method-id" to <method> element in the editor'
+        });
+        // isValidはfalseにしない（アップロード判定でcanBeIgnoredOnUploadを使用）
+      } else {
+        errors.push({
+          type: errorTypes.MISSING_REQUIRED,
+          severity: 'error',
+          canBeIgnoredOnUpload: false,
+          message: `${methodLabel} missing required "id" attribute`,
+          suggestion: 'Add id="unique-method-id" to <method> element'
+        });
+        isValid = false;
+      }
     }
 
-    // Check required uuid element (globalObjectContentGroup)
+    // Check required uuid element（両モードともエラー：メソッドの一意識別に必須）
     if (!method.uuid) {
       errors.push({
         type: errorTypes.MISSING_REQUIRED,
@@ -566,7 +634,7 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
       isValid = false;
     }
 
-    // Check required pnml element (maxOccurs="unbounded" → 1以上必須)
+    // Check required pnml element（両モードともエラー：methodの必須子要素）
     const pnmls = method.pnml;
     if (!pnmls || (Array.isArray(pnmls) && pnmls.length === 0)) {
       errors.push({
@@ -578,7 +646,7 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
       isValid = false;
     }
 
-    // Check required program element (maxOccurs="unbounded" → 1以上必須)
+    // Check required program element（両モードともエラー：methodの必須子要素）
     const programs = method.program;
     if (!programs || (Array.isArray(programs) && programs.length === 0)) {
       errors.push({
@@ -824,8 +892,12 @@ function validateReferences(parsedXML : any) {
   /**
    * Validate for duplicate IDs within the document
    * 🆕 Phase 2: 重複IDバリデーション
+   * @param parsedXML - パース済みXML
+   * @param mode - バリデーションモード ('strict' | 'lenient')
+   *   lenient: 編集可能要素（place/transition/arc/materialTemplate/conditionTemplate/resultTemplate）の重複IDを警告に降格
+   *   strict : 全要素の重複IDをエラーとして扱う
    */
-  function validateDuplicateIds(parsedXML: any) {
+  function validateDuplicateIds(parsedXML: any, mode: ValidationMode = 'strict') {
     const errors: ErrorContent[] = [];
     const warnings: ErrorContent[] = [];
     const idMap = new Map<string, {elementType: string, path: string}[]>(); // id -> [{elementType, path}]
@@ -868,12 +940,12 @@ function validateReferences(parsedXML : any) {
             
             // Store ID with its element information
             if (!idMap.has(id)) {
-              idMap.set(id, []);
+              idMap.set(id, [{ elementType: currentElementType, path: path }]);
             } else {
-                idMap.get(id)?.push({
+              idMap.get(id)?.push({
                 elementType: currentElementType,
                 path: path
-                });
+              });
             }
           }
           
@@ -898,25 +970,28 @@ function validateReferences(parsedXML : any) {
       collectIds(parsedXML);
 
       // Check for duplicates
+      // ✅ ID重複は参照関係（placeRef等）を壊すため、モードに関わらず常にエラー
       for (const [id, occurrences] of idMap.entries()) {
         if (occurrences.length > 1) {
           // Found duplicate ID
           const elementTypes = occurrences.map(o => o.elementType).join(', ');
           const paths = occurrences.map(o => o.path);
-          
-          errors.push({
+
+          const errorEntry: ErrorContent = {
             type: errorTypes.DUPLICATE_ID,
-            severity: 'error',
+            severity: 'error', // 常にエラー（lenientモードでも降格しない）
             message: `Duplicate ID "${id}" found in ${occurrences.length} elements`,
-            duplicateId: id,  // 🔑 重複ID
+            duplicateId: id,
             occurrences: occurrences.length,
             elementTypes: elementTypes,
             paths: paths,
             details: `ID "${id}" is used ${occurrences.length} times in: ${elementTypes}`,
             suggestion: `Ensure each ID is unique. Change duplicate IDs to unique values.`
-          });
+          };
+
+          errors.push(errorEntry);
           
-          console.log(`⚠️ [MaiMLParser] Duplicate ID detected: ${id} (${occurrences.length} occurrences in ${elementTypes})`);
+          console.log(`⚠️ [MaiMLParser] Duplicate ID detected: ${id} (${occurrences.length} occurrences in ${elementTypes}) [error]`);
         }
       }
 

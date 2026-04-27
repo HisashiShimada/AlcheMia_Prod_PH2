@@ -26,7 +26,10 @@ import {
   FileTextOutlined,
   ExclamationCircleOutlined,
   UserOutlined,
+  SafetyCertificateOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
+import MaimlValidationModal from './MaimlValidationModal';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
 import TaskResultsTable from './TaskResultsTable';
@@ -51,7 +54,7 @@ import {
   deleteFileByKey,
   deleteFolderByPath,
 } from '@/services/fileAccessService';
-import { getProjects } from '@/services/projectApiService';
+import { getProjects, getProjectMaiml } from '@/services/projectApiService';
 import {
   getProjectFiles, 
   getProjectTasks,
@@ -75,6 +78,13 @@ import type { Draft } from '@/types/editor';
 import { getUserInfo } from '@/utils/sessionStorageHelper';
 import type { ProjectFile } from '@/types/file';
 import type { InstructionData } from '@/types/instructionRegistration';
+import {
+  validateMaiml,
+  getAnalysisResult,
+  type MaimlAnalysisResultRow,
+} from '@/services/maimlApiService';
+import type { AnalysisResult } from '@/types/maimlValidation';
+import { Tooltip } from 'antd';
 
 const { Title, Text } = Typography;
 
@@ -188,6 +198,11 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
   // プロジェクト名変更モーダル状態
   const [renameModalOpen, setRenameModalOpen] = useState(false);
+
+  // バリデーション関連ステート
+  const [isValidating, setIsValidating] = useState(false);
+  const [savedValidationRow, setSavedValidationRow] = useState<MaimlAnalysisResultRow | null>(null);
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
 
   // プロジェクト一覧をAPI経由で取得
   const {
@@ -500,7 +515,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         console.error('❌ [ProjectManagement] アップロード後ファイル一覧更新失敗:', error);
       }
 
-      // MAIMLファイルがアップロードされた場合はMAIMLもリロード
+        // MAIMLファイルがアップロードされた場合はMAIMLもリロード
       if (result.hasMaimlFile) {
         try {
           console.log('📄 [ProjectManagement] アップロード後MAIMLをリロード');
@@ -509,6 +524,50 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         } catch (error) {
           console.error('❌ [ProjectManagement] アップロード後MAIMLリロード失敗:', error);
           // エラーはContextで処理済み
+        }
+
+        // アップロード後にバリデーションを再実行してDBに最新結果を保存し、表示を更新する
+        // refetchProjects() は React state を非同期更新するため、コンポーネントの再レンダリング前は
+        // selectedProject / currentProject が古い値（maimlFileKey=null）のまま。
+        // そのため getProjects() を直接呼び出して最新の maimlFileKey を確定させてから実行する。
+        try {
+          console.log('🔍 [ProjectManagement] アップロード後バリデーション再実行（最新プロジェクト情報を直接取得）');
+          const latestProjectsRes = await getProjects();
+          const latestProjectsList = Array.isArray(latestProjectsRes.data)
+            ? latestProjectsRes.data
+            : ((latestProjectsRes.data as ProjectListResponse)?.projects || []);
+          const latestProject = latestProjectsList.find((p: Project) => p.id === currentProject.id) ?? null;
+          // 最新プロジェクト情報から maimlFileKey を取得。取得できない場合は currentProject の値をフォールバックとして使用
+          const fileKeyForValidation = latestProject?.maimlFileKey ?? currentProject?.maimlFileKey;
+          if (fileKeyForValidation) {
+            // reloadMaiml() は Context の state を更新するが、React state はレンダリングが完了するまで
+            // クロージャ内で古い値のままとなる。そのため getProjectMaiml() を直接呼んで
+            // 最新のMAIMLコンテンツを取得してからバリデーションを実行する。
+            setIsValidating(true);
+            try {
+              const maimlRes = await getProjectMaiml(currentProject.id);
+              const latestMaimlContent = maimlRes.data?.maimlContent ?? null;
+              if (latestMaimlContent) {
+                const base64Content = btoa(unescape(encodeURIComponent(latestMaimlContent)));
+                await validateMaiml(base64Content, {
+                  fileKey: fileKeyForValidation,
+                  skipAnalysisSave: false,
+                });
+              }
+            } catch {
+              console.warn('⚠️ [ProjectManagement] アップロード後バリデーション実行失敗（無視）');
+            } finally {
+              setIsValidating(false);
+            }
+            // DB から最新バリデーション結果を取得して表示を更新
+            const analysisRes = await getAnalysisResult(fileKeyForValidation);
+            setSavedValidationRow(analysisRes.data ?? null);
+            console.log('✅ [ProjectManagement] バリデーション結果リフレッシュ完了:', fileKeyForValidation);
+          } else {
+            console.warn('⚠️ [ProjectManagement] maimlFileKey が取得できなかったためバリデーション結果の取得をスキップ');
+          }
+        } catch (error) {
+          console.warn('⚠️ [ProjectManagement] バリデーション結果リフレッシュ失敗（無視）:', error);
         }
 
         // UUID一致による更新アップロードだった場合の警告
@@ -974,6 +1033,70 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     setHasBackendDraft(false);
     setSelectedProjectId(null);
   }, [draftToRestore]);
+
+  /**
+   * 選択中プロジェクトの有効な maimlFileKey を返すヘルパー。
+   * - project_uuid が設定済み → file_metadata 経由で取得された maimlFileKey を使用
+   * - project_uuid 未設定（旧プロジェクト）→ 命名規則から推定したパスをフォールバックとして使用
+   */
+  const resolvedMaimlFileKey = useMemo((): string | null => {
+    if (!selectedProject) return null;
+    if (selectedProject.maimlFileKey) return selectedProject.maimlFileKey;
+    // フォールバック: 組織ID + 命名規則からパスを推定
+    const userInfo = getUserInfo();
+    const orgId = userInfo?.organizationId ?? '';
+    if (!orgId) return null;
+    return `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+  }, [selectedProject]);
+
+  // プロジェクト選択時にDB保存済みバリデーション結果を取得
+  useEffect(() => {
+    if (!resolvedMaimlFileKey) {
+      setSavedValidationRow(null);
+      return;
+    }
+    getAnalysisResult(resolvedMaimlFileKey)
+      .then(res => setSavedValidationRow(res.data ?? null))
+      .catch(() => setSavedValidationRow(null));
+  }, [resolvedMaimlFileKey]);
+
+  // バリデーション実行ハンドラ
+  const handleValidate = useCallback(async () => {
+    if (!resolvedMaimlFileKey || !maimlContent) return;
+    setIsValidating(true);
+    try {
+      const base64Content = btoa(unescape(encodeURIComponent(maimlContent)));
+      await validateMaiml(base64Content, {
+        fileKey: resolvedMaimlFileKey,
+        skipAnalysisSave: false, // DB保存する（プロジェクト切り替え後も結果を引き当てられるよう）
+      });
+      // バリデーション後にDBから最新結果を取得（DBが唯一の情報源）
+      const analysisRes = await getAnalysisResult(resolvedMaimlFileKey);
+      setSavedValidationRow(analysisRes.data ?? null);
+    } catch {
+      message.error('バリデーションの実行に失敗しました');
+    } finally {
+      setIsValidating(false);
+    }
+  }, [resolvedMaimlFileKey, maimlContent]);
+
+  // MAIMLエラー有無の算出（TaskRegistrationTab に渡す）
+  const maimlHasErrors = useMemo(() => {
+    if (!savedValidationRow) return false;
+    // JSONB は node-postgres が自動で配列に変換する場合がある。
+    // 配列ならそのまま使い、文字列なら JSON.parse する。
+    const v = savedValidationRow.errors;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === 'string') {
+      try {
+        const parsed = JSON.parse(v);
+        return Array.isArray(parsed) && parsed.length > 0;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }, [savedValidationRow]);
 
   // 選択プロジェクト変更時に公開ステータスを取得
   useEffect(() => {
@@ -1788,6 +1911,35 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     {selectedProject.isCheckedOut && (
                       <Tag color="orange" data-testid="checkout-status-tag">{t('projectManagement.checking_out')}</Tag>
                     )}
+                    {/* バリデーション警告アイコン（エラーあり: 赤、警告のみ: 黄） */}
+                    {savedValidationRow && (() => {
+                      // JSONB は node-postgres が自動でオブジェクトに変換する場合がある。
+                      // 文字列なら JSON.parse、すでに配列ならそのまま使う。
+                      const parseField = (v: unknown): unknown[] => {
+                        if (Array.isArray(v)) return v;
+                        if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+                        return [];
+                      };
+                      let errCount = 0;
+                      let warnCount = 0;
+                      try { errCount = parseField(savedValidationRow.errors).length; } catch {}
+                      try { warnCount = parseField(savedValidationRow.warnings).length; } catch {}
+                      if (errCount > 0) {
+                        return (
+                          <Tooltip title={`バリデーションエラーがあります（${errCount}件）`}>
+                            <WarningOutlined style={{ color: token.colorError, fontSize: 18 }} />
+                          </Tooltip>
+                        );
+                      }
+                      if (warnCount > 0) {
+                        return (
+                          <Tooltip title={`バリデーション警告があります（${warnCount}件）`}>
+                            <WarningOutlined style={{ color: token.colorWarning, fontSize: 18 }} />
+                          </Tooltip>
+                        );
+                      }
+                      return null;
+                    })()}
                   </Space>
                   {/* プロジェクト概要 */}
                   {selectedProject.description && (
@@ -1895,6 +2047,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   >
                     {t('projectManagement.renameProject')}
                   </Button>
+                  <Button
+                    icon={<SafetyCertificateOutlined />}
+                    onClick={() => setValidationDialogOpen(true)}
+                    disabled={!selectedProject}
+                  >
+                    バリデーション確認
+                  </Button>
                 </Space>
               </Card>
 
@@ -1949,6 +2108,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       <FileListTable
                         files={projectFiles}
                         projectId={selectedProject.id}
+                        maimlValidationRow={savedValidationRow}
                         onFileClick={(file) => console.log('File clicked:', file.name)}
                         onFolderClick={handleFolderClick}
                         onViewFile={handleViewFile}
@@ -1977,6 +2137,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         projectName={selectedProject.name}
                         isActive={currentTab === 'task_registration'}
                         isCheckoutLocked={isProjectCheckedOut}
+                        maimlHasErrors={maimlHasErrors}
                       />
                     ),
                   },
@@ -2294,6 +2455,16 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           onSuccess={handleRenameSuccess}
         />
       )}
+
+      {/* バリデーション結果ダイアログ（外出しコンポーネント） */}
+      <MaimlValidationModal
+        open={validationDialogOpen}
+        onClose={() => setValidationDialogOpen(false)}
+        savedValidationRow={savedValidationRow}
+        isValidating={isValidating}
+        hasMaimlContent={!!maimlContent}
+        onValidate={handleValidate}
+      />
 
       {/* セマンティック検索モーダル */}
       <TransitionSetSearchModal

@@ -26,6 +26,7 @@ import {
   EditOutlined,
   EyeOutlined,
   MoreOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import {
@@ -34,6 +35,7 @@ import {
 } from '@/services/fileAccessService';
 import type { ProjectFile } from '@/types/file';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { MaimlAnalysisResultRow } from '@/services/maimlApiService';
 
 interface FileListTableProps {
   files: ProjectFile[];
@@ -48,6 +50,8 @@ interface FileListTableProps {
   onDeleteFolder?: (file: ProjectFile) => void;
   /** ファイル名変更後に呼び出すコールバック（ファイル一覧再取得用） */
   onRenameFile?: () => void;
+  /** MAIMLバリデーション結果（DB保存済み）。MAIMLファイル行に警告アイコンを表示するために使用 */
+  maimlValidationRow?: MaimlAnalysisResultRow | null;
 }
 
 /**
@@ -71,6 +75,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
   onDeleteFile,
   onDeleteFolder,
   onRenameFile,
+  maimlValidationRow,
 }) => {
   const { token } = theme.useToken();
   const { t } = useLanguage();
@@ -218,6 +223,38 @@ const FileListTable: React.FC<FileListTableProps> = ({
           return parts[parts.length - 1] || name;
         };
         const displayName = getDisplayName(text);
+
+        // MAIMLファイルのバリデーション警告アイコン
+        const maimlWarningIcon = (() => {
+          if (record.type !== 'maiml' || !maimlValidationRow) return null;
+          // JSONB は node-postgres が自動でオブジェクトに変換する場合がある。
+          // 文字列なら JSON.parse、すでに配列ならそのまま使う。
+          const parseField = (v: unknown): unknown[] => {
+            if (Array.isArray(v)) return v;
+            if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+            return [];
+          };
+          let errCount = 0;
+          let warnCount = 0;
+          try { errCount = parseField(maimlValidationRow.errors).length; } catch {}
+          try { warnCount = parseField(maimlValidationRow.warnings).length; } catch {}
+          if (errCount > 0) {
+            return (
+              <Tooltip title={`バリデーションエラーあり（${errCount}件）`}>
+                <WarningOutlined style={{ color: token.colorError, marginLeft: 6, fontSize: 14 }} />
+              </Tooltip>
+            );
+          }
+          if (warnCount > 0) {
+            return (
+              <Tooltip title={`バリデーション警告あり（${warnCount}件）`}>
+                <WarningOutlined style={{ color: token.colorWarning, marginLeft: 6, fontSize: 14 }} />
+              </Tooltip>
+            );
+          }
+          return null;
+        })();
+
         return (
           <Tooltip title={record.path} placement="topLeft">
             <span
@@ -229,6 +266,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
             >
               {displayName}
               {record.isFolder && record.fileCount !== undefined && ` (${record.fileCount})`}
+              {maimlWarningIcon}
             </span>
           </Tooltip>
         );

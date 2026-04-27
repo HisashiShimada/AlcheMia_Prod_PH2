@@ -138,12 +138,13 @@ export async function saveInstruction(
   const instructionId = `${projectName}_${String(nextNumber).padStart(3, '0')}`;
   
   // instruction_targetを決定（数値型）
+  // 注意: methodId/transitionId が空文字列('')の場合も考慮し、明示的に空文字チェックを行う
   let instructionTarget = 0; // デフォルト: ファイル全体
   if (request.taskNumber !== null && request.taskNumber !== undefined) {
     instructionTarget = 3; // タスク
-  } else if (request.transitionId) {
+  } else if (request.transitionId && request.transitionId !== '') {
     instructionTarget = 2; // トランジション
-  } else if (request.methodId) {
+  } else if (request.methodId && request.methodId !== '') {
     instructionTarget = 1; // メソッド
   }
   
@@ -350,7 +351,7 @@ export async function sendInstructions(
         organizationId,
         projectId,
         {
-          instructionTarget: instruction.instruction_target ?? 1,
+          instructionTarget: instruction.instruction_target ?? 0,
           methodId,
           transitionId: instruction.transition_id ?? null,
           programId,
