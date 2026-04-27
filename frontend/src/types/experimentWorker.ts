@@ -303,6 +303,7 @@ export interface Stats {
   total: number;
   file: number;
   method: number;
+  task: number;
   transition: number;
   unread: number;
 }

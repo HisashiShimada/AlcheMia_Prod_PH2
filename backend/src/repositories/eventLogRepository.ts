@@ -12,7 +12,7 @@ import { TransitionStatus } from '../types/transitionData';
  * 指示送信ログのパラメータ
  */
 export interface InstructionSentLogParams {
-  /** 指示対象: 1=ファイル全体、2=タスク、3=トランジション */
+  /** 指示対象: 0=ファイル全体、1=メソッド、2=トランジション、3=タスク */
   instructionTarget: number;
   /** メソッドID */
   methodId: string | null;
@@ -37,7 +37,7 @@ export interface InstructionSentLogParams {
  * 指示確認ログのパラメータ
  */
 export interface InstructionConfirmLogParams {
-  /** 指示対象: 1=ファイル全体、2=タスク、3=トランジション */
+  /** 指示対象: 0=ファイル全体、1=メソッド、2=トランジション、3=タスク */
   instructionTarget: number;
   /** メソッドID */
   methodId: string | null;
@@ -455,16 +455,36 @@ export class EventLogRepository {
           },
         },
       };
-    } else {
-      // ファイル全体（instruction_target = 1）: eventLog > log > trace > evnet（ref なし）
+    } else if (instructionTarget === 1) {
+      // メソッド指示: eventLog > log(@ref=methodId) > trace > evnet(@ref=experimentInstructionId)
       const traceId1 = `trace_${sequenceNo}`;
+      return {
+        eventLog: {
+          log: {
+            '@id': logId,
+            '@ref': methodId ?? '',
+            trace: {
+              '@id': traceId1,
+              // '@ref' は意図的に省略（programId は不要）
+              evnet: {
+                '@id': evnetId,
+                '@ref': experimentInstructionId,
+                property: properties,
+              },
+            },
+          },
+        },
+      };
+    } else {
+      // ファイル全体（instruction_target = 0）: eventLog > log > trace > evnet（ref なし）
+      const traceId0 = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
             // '@ref' は意図的に省略（ファイル全体指示はrefなし）
             trace: {
-              '@id': traceId1,
+              '@id': traceId0,
               // '@ref' は意図的に省略
               evnet: {
                 '@id': evnetId,
@@ -758,17 +778,36 @@ export class EventLogRepository {
           },
         },
       };
-    } else {
-      // ファイル全体（instruction_target = 1）: eventLog > log > trace > evnet（他ターゲットと同じ階層構造）
-      // ref は不要なため @id のみ付与する（@ref キーを持たせない）
+    } else if (instructionTarget === 1) {
+      // メソッド指示: eventLog > log(@ref=methodId) > trace > evnet(@ref=experimentInstructionId)
       const traceId1 = `trace_${sequenceNo}`;
+      return {
+        eventLog: {
+          log: {
+            '@id': logId,
+            '@ref': methodId ?? '',
+            trace: {
+              '@id': traceId1,
+              // '@ref' は意図的に省略（programId は不要）
+              evnet: {
+                '@id': evnetId,
+                '@ref': experimentInstructionId,
+                property: properties,
+              },
+            },
+          },
+        },
+      };
+    } else {
+      // ファイル全体（instruction_target = 0）: eventLog > log > trace > evnet（ref なし）
+      const traceId0 = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
             // '@ref' は意図的に省略（ファイル全体指示はrefなし）
             trace: {
-              '@id': traceId1,
+              '@id': traceId0,
               // '@ref' は意図的に省略
               evnet: {
                 '@id': evnetId,

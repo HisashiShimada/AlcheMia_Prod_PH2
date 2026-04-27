@@ -1513,6 +1513,7 @@
     "confirmComplete": "確認完了",
     "confirmAllInstructions": "全ての指示の確認完了",
     "projectInstructionGroup": "プロジェクト指示",
+    "methodInstructionGroup": "メソッド指示",
     "taskInstructionGroup": "タスク指示",
     "transitionInstructionGroup": "トランジション指示",
     "countSuffix": "件",

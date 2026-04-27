@@ -373,7 +373,13 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       // 初回保存かどうかを判定（API取得データを再取得して確認）
       const currentData = await getTaskRegistration(projectId);
       const isFirstSave = !currentData.tasks || currentData.tasks.length === 0;
-      
+
+      // MAIML登録状態チェック（最新データで判定 - stateは古い値の可能性があるため）
+      if (!currentData.isMaimlRegistered) {
+        message.warning(t('taskRegistration.messages.maimlNotRegistered'));
+        return;
+      }
+
       // 初回保存時は全タスクがチェックされているか確認
       if (isFirstSave) {
         const allTaskIds = taskDetails.map(t => t.id);
@@ -408,12 +414,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       // チェックアウト状態チェック
       if (isCheckoutLocked) {
         message.warning(t('taskRegistration.messages.checkedOut'));
-        return;
-      }
-
-      // MAIML登録状態チェック
-      if (!isMaimlRegistered) {
-        message.warning(t('taskRegistration.messages.maimlNotRegistered'));
         return;
       }
 
@@ -487,7 +487,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [taskDetails, checkedTaskIds, instructions, availableMethods, projectName, isCheckoutLocked, isMaimlRegistered, refreshInstructions, onTasksChange, t]);
+  }, [taskDetails, checkedTaskIds, instructions, availableMethods, projectName, isCheckoutLocked, refreshInstructions, onTasksChange, t]);
 
   /**
    * ドラッグ&ドロップセンサーの設定

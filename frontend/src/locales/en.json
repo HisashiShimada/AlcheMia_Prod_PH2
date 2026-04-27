@@ -1496,6 +1496,7 @@
     "confirmComplete": "Confirm",
     "confirmAllInstructions": "Confirm All Instructions",
     "projectInstructionGroup": "Project Instructions",
+    "methodInstructionGroup": "Method Instructions",
     "taskInstructionGroup": "Task Instructions",
     "transitionInstructionGroup": "Transition Instructions",
     "noInstructionsToConfirm": "No instructions require confirmation",
