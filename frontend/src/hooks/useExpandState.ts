@@ -8,6 +8,7 @@ export function useExpandState() {
   // 折りたたみ状態管理
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     file: true,
+    method: true,
     task: true,
     transition: true,
   });
@@ -32,7 +33,7 @@ export function useExpandState() {
 
   // プロジェクト変更時に全て展開状態にリセット
   const resetExpandState = () => {
-    setExpandedGroups({ file: true, task: true, transition: true });
+    setExpandedGroups({ file: true, method: true, task: true, transition: true });
     setExpandedMethods({});
     setExpandedTransitions({});
   };

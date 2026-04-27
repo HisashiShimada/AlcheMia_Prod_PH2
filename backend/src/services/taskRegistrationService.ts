@@ -52,11 +52,50 @@ export async function getTaskRegistration(
   
   const projectName = project.project_name ?? '';
   
-  // 2. チェックアウト状態とMAIMLファイル登録状態を確認
+  // 2. チェックアウト状態を確認
   const isCheckoutLocked = project.checkout_status === 1;
-  const isMaimlRegistered = project.project_maiml_flg === true;
-  
-  // 3. project_taskテーブルから全タスクを取得
+
+  // 3. MAIMLファイル登録状態をストレージ実態で確認（DBフラグは古い場合があるため）
+  let isMaimlRegistered = project.project_maiml_flg === true;
+  try {
+    const maimlFilePathForCheck = await resolveMaimlFilePath(organizationId, projectId, projectName);
+    const storageService = getStorageService();
+    const maimlExists = await storageService.fileExists(organizationId, maimlFilePathForCheck);
+    if (maimlExists && !isMaimlRegistered) {
+      // ストレージには存在するがDBフラグが false → 自動修復
+      logger.warn('[TaskRegistrationService] project_maiml_flg不整合を検出。DBフラグを自動修復します。', {
+        projectId,
+        organizationId,
+        dbFlag: isMaimlRegistered,
+        storageExists: maimlExists,
+      });
+      const updatedProject: import('../types/database').Project = {
+        ...project,
+        project_maiml_flg: true,
+      };
+      await projectRepository.update(updatedProject);
+      isMaimlRegistered = true;
+    } else if (!maimlExists) {
+      // ストレージにも存在しない → フラグが true でも false に修復
+      if (isMaimlRegistered) {
+        logger.warn('[TaskRegistrationService] ストレージにMAIMLなし。DBフラグをfalseに修復します。', {
+          projectId,
+          organizationId,
+        });
+        const updatedProject: import('../types/database').Project = {
+          ...project,
+          project_maiml_flg: false,
+        };
+        await projectRepository.update(updatedProject);
+      }
+      isMaimlRegistered = false;
+    }
+  } catch (storageCheckError) {
+    // ストレージ確認失敗時はDBフラグにフォールバック（処理は継続）
+    logger.warn('[TaskRegistrationService] MAIMLストレージ確認失敗、DBフラグで判定継続:', { error: String(storageCheckError) });
+  }
+
+  // 4. project_taskテーブルから全タスクを取得
   const dbTasks = await projectTaskRepository.findByProject(organizationId, project.project_id);
   
   // 4. DBの全タスクをUI用の形式に変換
@@ -159,9 +198,35 @@ export async function saveTaskRegistration(
     throw new Error('Project is checked out. Cannot save task registration.');
   }
   
-  // 3. MAIMLファイル登録状態を確認
-  if (project.project_maiml_flg !== true) {
-    throw new Error('MAIML file is not registered. Cannot save task registration.');
+  // 3. MAIMLファイル登録状態をストレージ実態で確認（DBフラグは古い場合があるため）
+  try {
+    const maimlFilePathForCheck = await resolveMaimlFilePath(organizationId, projectId, projectName);
+    const storageService = getStorageService();
+    const maimlExists = await storageService.fileExists(organizationId, maimlFilePathForCheck);
+    if (!maimlExists) {
+      throw new Error('MAIML file is not registered. Cannot save task registration.');
+    }
+    // ストレージに存在するがDBフラグが false → 自動修復
+    if (maimlExists && project.project_maiml_flg !== true) {
+      logger.warn('[TaskRegistrationService][save] project_maiml_flg不整合を検出。DBフラグを自動修復します。', {
+        projectId,
+        organizationId,
+      });
+      const updatedProject: import('../types/database').Project = {
+        ...project,
+        project_maiml_flg: true,
+      };
+      await projectRepository.update(updatedProject);
+    }
+  } catch (storageCheckError) {
+    if ((storageCheckError as Error).message?.includes('Cannot save task registration')) {
+      throw storageCheckError;
+    }
+    // ストレージ確認失敗時はDBフラグにフォールバック
+    logger.warn('[TaskRegistrationService][save] MAIMLストレージ確認失敗、DBフラグで判定:', { error: String(storageCheckError) });
+    if (project.project_maiml_flg !== true) {
+      throw new Error('MAIML file is not registered. Cannot save task registration.');
+    }
   }
   
   // 4. バリデーション

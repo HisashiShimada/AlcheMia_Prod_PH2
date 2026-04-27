@@ -1969,9 +1969,9 @@ export class ProjectService {
       //    トランジション（target=3）・タスク（target=2）の場合、
       //    <program id="..."> の id を trace @ref に使用する。
       let programId: string | null = null;
-      const instructionTarget = instruction.instruction_target ?? 1;
+      const instructionTarget = instruction.instruction_target ?? 0;
 
-      if (instruction.method_id && (instructionTarget === 2 || instructionTarget === 3)) {
+      if (instruction.method_id && (instructionTarget === 1 || instructionTarget === 2 || instructionTarget === 3)) {
         try {
           // MAIMLファイル取得: project_uuid → file_metadata 経由で最新 file_key を取得
           const projectInfoForMaiml = await projectRepository.findNameAndUuidById(organizationId, projectId);

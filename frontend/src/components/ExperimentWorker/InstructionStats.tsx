@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Row, Col, Typography, theme } from 'antd';
-import { FileTextOutlined, FileOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
+import { FileTextOutlined, FileOutlined, ToolOutlined, AimOutlined, BranchesOutlined } from '@ant-design/icons';
 
 const { Text, Title } = Typography;
 
@@ -9,6 +9,7 @@ interface InstructionStatsProps {
     total: number;
     file: number;
     method: number;
+    task: number;
     transition: number;
     unread: number;
   };
@@ -90,7 +91,7 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
       }}
     >
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={5}>
           <StatCard
             icon={<FileTextOutlined />}
             label="全指示数"
@@ -99,7 +100,7 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
             iconColor="#1890ff"
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={5}>
           <StatCard
             icon={<FileOutlined />}
             label="プロジェクト指示"
@@ -108,16 +109,25 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
             iconColor="#52c41a"
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={4}>
+          <StatCard
+            icon={<BranchesOutlined />}
+            label="メソッド指示"
+            value={stats.method}
+            borderColor="#722ed1"
+            iconColor="#722ed1"
+          />
+        </Col>
+        <Col xs={24} sm={12} md={5}>
           <StatCard
             icon={<ToolOutlined />}
             label="タスク指示"
-            value={stats.method}
+            value={stats.task}
             borderColor="#fa8c16"
             iconColor="#fa8c16"
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={5}>
           <StatCard
             icon={<AimOutlined />}
             label="トランジション指示"
