@@ -712,10 +712,10 @@ export default function RoleManagementMock() {
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredMasters}
-          rowKey={(record) => {
-            if (!selectedMasterInfo) return String(Math.random());
+          rowKey={(record, index) => {
+            if (!selectedMasterInfo) return String(index);
             const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
-            return String(record[idField] || Math.random());
+            return String(record[idField] ?? index);
           }}
           onRow={(record) => ({
             style: { backgroundColor: record.isActive === false ? '#D3D3D3' : undefined },

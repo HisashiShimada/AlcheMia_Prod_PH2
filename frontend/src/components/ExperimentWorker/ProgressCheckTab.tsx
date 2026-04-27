@@ -102,7 +102,7 @@ export default function ProgressCheckTab({
           
           // 全タスクを変換（APIレスポンスのプロパティをコンポーネント用にマッピング）
           const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-            method.tasks.map((task: WorkerTask) => {
+            method.tasks.map((task: WorkerTask, taskIndex: number) => {
               console.log('[DEBUG] Converting task from API', {
                 task_no: task.task_no,
                 created_at: task.created_at,
@@ -112,7 +112,7 @@ export default function ProgressCheckTab({
               });
               
               return {
-                taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
+                taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}-${taskIndex}`,
                 taskNo: task.task_no.toString(), // string型に変換
                 taskName: task.task_no.toString(), // task_nameフィールドは除外されているのでtask_noを代用
                 methodId: method.method_id,
@@ -138,8 +138,12 @@ export default function ProgressCheckTab({
             taskCount: allTasks.length
           });
           
+          // 重複 taskId を排除
+          const uniqueTasksMap1 = new Map<string, Task>();
+          allTasks.forEach(task => uniqueTasksMap1.set(task.taskId, task));
+          const uniqueTasks1 = Array.from(uniqueTasksMap1.values());
           setMethods(methodsData);
-          setTasks(allTasks);
+          setTasks(uniqueTasks1);
           
           // API取得完了後に最初のメソッドを自動選択
           if (methodsData.length > 0) {
@@ -314,8 +318,8 @@ export default function ProgressCheckTab({
                 
                 // 全タスクを変換
                 const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-                  method.tasks.map((apiTask: WorkerTask) => ({
-                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
+                  method.tasks.map((apiTask: WorkerTask, taskIndex: number) => ({
+                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}-${taskIndex}`,
                     taskNo: apiTask.task_no.toString(),
                     taskName: apiTask.task_no.toString(),
                     methodId: method.method_id,
@@ -380,8 +384,8 @@ export default function ProgressCheckTab({
                   
                   // 全タスクを変換
                   const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-                    method.tasks.map((apiTask: WorkerTask) => ({
-                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
+                    method.tasks.map((apiTask: WorkerTask, taskIndex: number) => ({
+                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}-${taskIndex}`,
                       taskNo: apiTask.task_no.toString(),
                       taskName: apiTask.task_no.toString(),
                       methodId: method.method_id,
@@ -516,8 +520,8 @@ export default function ProgressCheckTab({
                 
                 // 全タスクを変換
                 const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-                  method.tasks.map((apiTask: WorkerTask) => ({
-                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
+                  method.tasks.map((apiTask: WorkerTask, taskIndex: number) => ({
+                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}-${taskIndex}`,
                     taskNo: apiTask.task_no.toString(),
                     taskName: apiTask.task_no.toString(),
                     methodId: method.method_id,
@@ -582,8 +586,8 @@ export default function ProgressCheckTab({
                   
                   // 全タスクを変換
                   const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-                    method.tasks.map((apiTask: WorkerTask) => ({
-                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
+                    method.tasks.map((apiTask: WorkerTask, taskIndex: number) => ({
+                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}-${taskIndex}`,
                       taskNo: apiTask.task_no.toString(),
                       taskName: apiTask.task_no.toString(),
                       methodId: method.method_id,
@@ -814,7 +818,7 @@ export default function ProgressCheckTab({
       )}
 
       {/* 問題管理モーダル（問題報告・確認・通知） */}
-      {selectedTaskForIssue && projectId && (
+      {issueModalVisible && selectedTaskForIssue && projectId && (
         <IssueManagementModal
           open={issueModalVisible}
           targetName={selectedTaskForIssue.taskName}

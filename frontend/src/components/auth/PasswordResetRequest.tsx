@@ -99,7 +99,7 @@ export default function PasswordResetRequest({
       {/* エラーメッセージ表示 */}
       {error && (
         <Alert
-          message={error}
+          title={error}
           type="error"
           showIcon
           closable

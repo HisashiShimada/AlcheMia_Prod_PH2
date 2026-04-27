@@ -198,7 +198,9 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
               height: '100%',
             }}
           >
-            <Spin size="large" tip="ファイルを読み込み中..." />
+            <Spin size="large" tip="ファイルを読み込み中...">
+              <div />
+            </Spin>
           </div>
         ) : (
           <ViewRenderer

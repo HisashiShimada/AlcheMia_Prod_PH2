@@ -90,9 +90,9 @@ export default function PasswordResetExecute({
 
       {/* パスワード要件の表示 */}
       <Alert
-        message="パスワード要件"
+        title="パスワード要件"
         description={
-          <Space direction="vertical" size="small">
+          <Space orientation="vertical" size="small">
             <Text>
               <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
               8文字以上
@@ -111,7 +111,7 @@ export default function PasswordResetExecute({
       {/* エラーメッセージ表示 */}
       {error && (
         <Alert
-          message={error}
+          title={error}
           type="error"
           showIcon
           closable

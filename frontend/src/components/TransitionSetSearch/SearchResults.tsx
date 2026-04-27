@@ -8,7 +8,6 @@
 
 import React, { useState } from 'react';
 import {
-  List,
   Typography,
   Tag,
   Space,
@@ -70,7 +69,9 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 40 }}>
-        <Spin size="large" tip="検索中..." />
+        <Spin size="large" tip="検索中...">
+          <div />
+        </Spin>
       </div>
     );
   }
@@ -100,142 +101,139 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         </Text>
       </div>
 
-      <List
-        dataSource={hits}
-        renderItem={(hit, index) => {
-          const isExpanded = expandedIds.has(hit.transition_set_id);
-          const scorePercent = Math.round(hit.score * 100);
+      {hits.map((hit, index) => {
+        const isExpanded = expandedIds.has(hit.transition_set_id);
+        const scorePercent = Math.round(hit.score * 100);
 
-          return (
-            <List.Item
-              style={{
-                padding: '8px 0',
-                borderBottom: '1px solid #f0f0f0',
-                alignItems: 'flex-start',
-              }}
-            >
-              <div style={{ width: '100%' }}>
-                {/* ヘッダー行 */}
-                <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Space size="small">
-                    <Text strong style={{ fontSize: 13 }}>
-                      #{index + 1}
-                    </Text>
-                    <Tag color="blue" icon={<FileTextOutlined />}>
-                      {hit.transition_id}
-                    </Tag>
-                    {hit.technique && <Tag color="purple">{hit.technique}</Tag>}
-                    {hit.project_name && (
-                      <Tag
-                        color="green"
-                        icon={<FolderOpenOutlined />}
-                        style={{ cursor: onOpenProject ? 'pointer' : 'default' }}
-                        onClick={() => onOpenProject && hit.project_name && onOpenProject(hit.project_name)}
-                      >
-                        {hit.project_name}
-                      </Tag>
-                    )}
-                  </Space>
-
-                  <Space size="small">
-                    <Progress
-                      type="circle"
-                      size={36}
-                      percent={scorePercent}
-                      strokeColor={scoreToColor(hit.score)}
-                      format={(p) => (
-                        <span style={{ fontSize: 10 }}>{p}%</span>
-                      )}
-                    />
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<DownOutlined rotate={isExpanded ? 180 : 0} />}
-                      onClick={() => toggleExpand(hit.transition_set_id)}
+        return (
+          <div
+            key={hit.transition_set_id}
+            style={{
+              padding: '8px 0',
+              borderBottom: '1px solid #f0f0f0',
+            }}
+          >
+            <div style={{ width: '100%' }}>
+              {/* ヘッダー行 */}
+              <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Space size="small">
+                  <Text strong style={{ fontSize: 13 }}>
+                    #{index + 1}
+                  </Text>
+                  <Tag color="blue" icon={<FileTextOutlined />}>
+                    {hit.transition_id}
+                  </Tag>
+                  {hit.technique && <Tag color="purple">{hit.technique}</Tag>}
+                  {hit.project_name && (
+                    <Tag
+                      color="green"
+                      icon={<FolderOpenOutlined />}
+                      style={{ cursor: onOpenProject ? 'pointer' : 'default' }}
+                      onClick={() => onOpenProject && hit.project_name && onOpenProject(hit.project_name)}
                     >
-                      詳細
-                    </Button>
-                  </Space>
+                      {hit.project_name}
+                    </Tag>
+                  )}
                 </Space>
 
-                {/* ファイルパス */}
-                <div style={{ marginTop: 4 }}>
-                  <Text type="secondary" style={{ fontSize: 11 }}>
-                    {hit.file_path}
-                  </Text>
-                </div>
-
-                {/* 展開コンテンツ */}
-                {isExpanded && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      padding: 8,
-                      background: '#fafafa',
-                      borderRadius: 4,
-                      fontSize: 12,
-                    }}
+                <Space size="small">
+                  <Progress
+                    type="circle"
+                    size={36}
+                    percent={scorePercent}
+                    strokeColor={scoreToColor(hit.score)}
+                    format={(p) => (
+                      <span style={{ fontSize: 10 }}>{p}%</span>
+                    )}
+                  />
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<DownOutlined rotate={isExpanded ? 180 : 0} />}
+                    onClick={() => toggleExpand(hit.transition_set_id)}
                   >
-                    {/* スコア内訳 */}
-                    <div style={{ marginBottom: 8 }}>
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        スコア内訳:
-                      </Text>
-                      <Space size="small" style={{ marginLeft: 8 }}>
-                        <Tag>入力 {Math.round(hit.score_detail.input_score * 100)}%</Tag>
-                        <Tag>手法 {Math.round(hit.score_detail.transition_score * 100)}%</Tag>
-                        <Tag>出力 {Math.round(hit.score_detail.output_score * 100)}%</Tag>
-                        <Tag>構造 {Math.round(hit.score_detail.structure_score * 100)}%</Tag>
-                      </Space>
-                    </div>
+                    詳細
+                  </Button>
+                </Space>
+              </Space>
 
-                    {/* 4軸テキスト */}
-                    <Collapse
-                      size="small"
-                      ghost
-                      items={[
-                        {
-                          key: 'input',
-                          label: <Text style={{ fontSize: 11 }}>Input テキスト</Text>,
-                          children: (
-                            <Paragraph
-                              style={{ fontSize: 11, whiteSpace: 'pre-wrap', margin: 0 }}
-                            >
-                              {hit.input_text}
-                            </Paragraph>
-                          ),
-                        },
-                        {
-                          key: 'transition',
-                          label: <Text style={{ fontSize: 11 }}>Transition テキスト</Text>,
-                          children: (
-                            <Paragraph
-                              style={{ fontSize: 11, whiteSpace: 'pre-wrap', margin: 0 }}
-                            >
-                              {hit.transition_text}
-                            </Paragraph>
-                          ),
-                        },
-                        {
-                          key: 'output',
-                          label: <Text style={{ fontSize: 11 }}>Output テキスト</Text>,
-                          children: (
-                            <Paragraph
-                              style={{ fontSize: 11, whiteSpace: 'pre-wrap', margin: 0 }}
-                            >
-                              {hit.output_text}
-                            </Paragraph>
-                          ),
-                        },
-                      ]}
-                    />
-                  </div>
-                )}
+              {/* ファイルパス */}
+              <div style={{ marginTop: 4 }}>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  {hit.file_path}
+                </Text>
               </div>
-            </List.Item>
-          );
-        }}
-      />
+
+              {/* 展開コンテンツ */}
+              {isExpanded && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: 8,
+                    background: '#fafafa',
+                    borderRadius: 4,
+                    fontSize: 12,
+                  }}
+                >
+                  {/* スコア内訳 */}
+                  <div style={{ marginBottom: 8 }}>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      スコア内訳:
+                    </Text>
+                    <Space size="small" style={{ marginLeft: 8 }}>
+                      <Tag>入力 {Math.round(hit.score_detail.input_score * 100)}%</Tag>
+                      <Tag>手法 {Math.round(hit.score_detail.transition_score * 100)}%</Tag>
+                      <Tag>出力 {Math.round(hit.score_detail.output_score * 100)}%</Tag>
+                      <Tag>構造 {Math.round(hit.score_detail.structure_score * 100)}%</Tag>
+                    </Space>
+                  </div>
+
+                  {/* 4軸テキスト */}
+                  <Collapse
+                    size="small"
+                    ghost
+                    items={[
+                      {
+                        key: 'input',
+                        label: <Text style={{ fontSize: 11 }}>Input テキスト</Text>,
+                        children: (
+                          <Paragraph
+                            style={{ fontSize: 11, whiteSpace: 'pre-wrap', margin: 0 }}
+                          >
+                            {hit.input_text}
+                          </Paragraph>
+                        ),
+                      },
+                      {
+                        key: 'transition',
+                        label: <Text style={{ fontSize: 11 }}>Transition テキスト</Text>,
+                        children: (
+                          <Paragraph
+                            style={{ fontSize: 11, whiteSpace: 'pre-wrap', margin: 0 }}
+                          >
+                            {hit.transition_text}
+                          </Paragraph>
+                        ),
+                      },
+                      {
+                        key: 'output',
+                        label: <Text style={{ fontSize: 11 }}>Output テキスト</Text>,
+                        children: (
+                          <Paragraph
+                            style={{ fontSize: 11, whiteSpace: 'pre-wrap', margin: 0 }}
+                          >
+                            {hit.output_text}
+                          </Paragraph>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

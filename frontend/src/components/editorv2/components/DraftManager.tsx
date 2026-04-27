@@ -357,7 +357,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         {/* 自動保存ステータス表示 */}
         {autoSaveEnabled && currentDraftKey && (
           <Alert
-            message={t('draftManager.autoSaveStatus').replace('{{key}}', currentDraftKey || '')}
+            title={t('draftManager.autoSaveStatus').replace('{{key}}', currentDraftKey || '')}
             type="success"
             style={{ marginBottom: 16 }}
           />
@@ -365,7 +365,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
 
         {/* エラー表示 */}
         {error && (
-          <Alert message={t('draftManager.errorTitle')} description={error} type="error" style={{ marginBottom: 16 }} showIcon />
+          <Alert title={t('draftManager.errorTitle')} description={error} type="error" style={{ marginBottom: 16 }} showIcon />
         )}
 
         {/* Draft一覧 */}

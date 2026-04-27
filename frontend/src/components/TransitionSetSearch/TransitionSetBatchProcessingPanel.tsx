@@ -15,7 +15,6 @@ import {
   Switch,
   InputNumber,
   Alert,
-  List,
   Tag,
   Progress,
   Spin,
@@ -226,7 +225,7 @@ const TransitionSetBatchProcessingPanel: React.FC = () => {
         {error && (
           <Alert
             type="error"
-            message={error}
+            title={error}
             closable
             onClose={() => setError(null)}
             style={{ marginTop: 12 }}
@@ -235,7 +234,7 @@ const TransitionSetBatchProcessingPanel: React.FC = () => {
         {successMessage && (
           <Alert
             type="success"
-            message={successMessage}
+            title={successMessage}
             closable
             onClose={() => setSuccessMessage(null)}
             style={{ marginTop: 12 }}
@@ -278,10 +277,12 @@ const TransitionSetBatchProcessingPanel: React.FC = () => {
             <Text type="secondary">バッチジョブがありません</Text>
           </div>
         ) : (
-          <List
-            dataSource={jobs}
-            renderItem={(job) => (
-              <List.Item style={{ padding: '8px 0' }}>
+          <div>
+            {jobs.map((job) => (
+              <div
+                key={job.id}
+                style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}
+              >
                 <div style={{ width: '100%' }}>
                   <Space style={{ marginBottom: 4 }} wrap>
                     <Text strong style={{ fontSize: 12 }}>
@@ -328,7 +329,7 @@ const TransitionSetBatchProcessingPanel: React.FC = () => {
                   {job.error_message && (
                     <Alert
                       type="error"
-                      message={job.error_message}
+                      title={job.error_message}
                       style={{ marginTop: 4 }}
                       banner
                     />
@@ -345,10 +346,9 @@ const TransitionSetBatchProcessingPanel: React.FC = () => {
                     )}
                   </div>
                 </div>
-              </List.Item>
-            )}
-            split={true}
-          />
+              </div>
+            ))}
+          </div>
         )}
       </Card>
     </div>

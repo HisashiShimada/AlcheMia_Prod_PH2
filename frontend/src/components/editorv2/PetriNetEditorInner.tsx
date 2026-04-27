@@ -2923,7 +2923,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       >
         <Alert
           type="error"
-          message="致命的なエラーが発生しました"
+          title="致命的なエラーが発生しました"
           description="ペトリネットを表示できません。"
           showIcon
           style={{ maxWidth: 600, width: '100%' }}
@@ -2933,7 +2933,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             <Alert 
               key={idx} 
               type="error" 
-              message={err.message}
+              title={err.message}
               showIcon
             />
           ))}
@@ -2952,7 +2952,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       >
         <Alert
           type="error"
-          message={error}
+          title={error}
           showIcon
           style={{ maxWidth: 600 }}
         />

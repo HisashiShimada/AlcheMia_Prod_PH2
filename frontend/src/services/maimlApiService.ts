@@ -261,6 +261,36 @@ export const parseMaiml = async (
   }
 };
 
+/**
+ * MAIMLパース（ペトリネット構造 / 複数method対応）
+ * POST /maiml/parse-petri-net-structure
+ *
+ * parseMaiml（/maiml/parse）は places/transitions の `data.label` / `data.stereotype` を
+ * 含まないため、PetriNetVisualization が必要とする完全な構造はこちらを使用する。
+ *
+ * @param content MAIMLコンテンツ（XML文字列）
+ * @returns Petri Net構造データ（isMultiMethod / methods[] 含む）
+ */
+export const parsePetriNetStructure = async (
+  content: string
+): Promise<ApiResponse<PetriNetStructure>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('📊 [maimlApiService] MAIMLペトリネット構造パース実行');
+
+    const response = await client.post<ApiResponse<PetriNetStructure>>(
+      '/maiml/parse-petri-net-structure',
+      { content }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('❌ [maimlApiService] ペトリネット構造パースエラー:', error);
+    throw error;
+  }
+};
+
 // ============================================================================
 // MAIMLファイル操作API
 // ============================================================================

@@ -549,7 +549,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
           {/* 選択されたトランジションの詳細 */}
           {selectedTransition && (
             <Alert
-              message={
+              title={
                 <Space orientation="vertical" size="small">
                   <Text>
                     <Text strong>{t('instructionEditDialog.alertSelected')}</Text> {selectedTransition.displayName}

@@ -170,7 +170,7 @@ export default function PINCodeForm({
       }}
     >
       {/* 説明文 */}
-      <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: token.marginLG }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%', marginBottom: token.marginLG }}>
         <div style={{ textAlign: 'center' }}>
           <MailOutlined style={{ fontSize: 48, color: token.colorPrimary }} />
         </div>
@@ -192,7 +192,7 @@ export default function PINCodeForm({
       {/* エラーメッセージ表示 */}
       {error && (
         <Alert
-          message={error}
+          title={error}
           type="error"
           showIcon
           closable
