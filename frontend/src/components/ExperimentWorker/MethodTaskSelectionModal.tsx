@@ -50,7 +50,7 @@ export default function MethodTaskSelectionModal({
   const [selectedTaskName, setSelectedTaskName] = useState<string | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   // モーダルが開かれた時に現在の選択状態を一時変数に設定
   useEffect(() => {
@@ -361,7 +361,7 @@ export default function MethodTaskSelectionModal({
                   showSizeChanger: true,
                   showQuickJumper: false,
                   showTotal: (total) => t('experimentWork.methodTaskSelection.showTotal').replace('{total}', String(total)),
-                  pageSizeOptions: ['10', '20', '50', '100'],
+                  pageSizeOptions: ['20', '50', '100'],
                   position: ['bottomRight'],
                   onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
                   onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },

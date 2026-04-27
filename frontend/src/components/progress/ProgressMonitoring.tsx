@@ -58,7 +58,7 @@ export default function ProgressMonitoring() {
   const [searchText, setSearchText] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('my_only'); // my_only, all
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
   const [checkoutFilter, setCheckoutFilter] = useState('all');
   const [projectStatusFilter, setProjectStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
