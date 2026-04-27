@@ -6,6 +6,7 @@
 import axios, { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
 import { setTokenPair, clearAllTokens } from '@/utils/tokenStorage';
+import { mapErrorToMessage } from '@/utils/errorMapper';
 import type { LoginCredentials } from '@/types/auth';
 import type {
   ApiResponse,
@@ -64,10 +65,11 @@ const handleApiError = (error: unknown): AuthServiceError => {
     // APIエラーレスポンス（バックエンドが error.code を返している場合）
     const response = axiosError.response.data;
     if (response && !response.success && response.error) {
-      // ✅ コードをそのまま保持（翻訳しない）
+      // ✅ mapErrorToMessage を経由して日本語メッセージに変換
+      const code = response.error.code || 'E9999';
       return new AuthServiceError(
-        response.error.message || 'エラーが発生しました',
-        response.error.code || 'E9999',
+        mapErrorToMessage(code, response.error.message || 'エラーが発生しました'),
+        code,
         response.error.details
       );
     }

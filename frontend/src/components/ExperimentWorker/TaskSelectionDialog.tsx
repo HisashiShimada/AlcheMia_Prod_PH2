@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal, List, Typography, Space, Tag, Button, theme } from 'antd';
+import { Modal, Typography, Space, Tag, Button, theme } from 'antd';
 import { AimOutlined, CheckOutlined } from '@ant-design/icons';
 import { projectsData } from '@/data/projectsData';
 import { Method, Task } from '@/types/experimentWorker';
@@ -97,9 +97,11 @@ export default function TaskSelectionDialog({
     };
 
     return (
-      <List.Item
+      <div
         onClick={() => setTempTaskId(task.taskId)}
         style={{
+          display: 'flex',
+          alignItems: 'flex-start',
           cursor: 'pointer',
           padding: token.paddingMD,
           backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
@@ -110,44 +112,40 @@ export default function TaskSelectionDialog({
         }}
         onMouseEnter={(e) => {
           if (!isSelected) {
-            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
+            (e.currentTarget as HTMLDivElement).style.backgroundColor = token.colorBgTextHover;
           }
         }}
         onMouseLeave={(e) => {
           if (!isSelected) {
-            e.currentTarget.style.backgroundColor = 'transparent';
+            (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent';
           }
         }}
       >
-        <List.Item.Meta
-          avatar={<AimOutlined style={{ fontSize: 24, color: token.colorPrimary }} />}
-          title={
-            <Space>
-              <Text strong>{task.taskName}</Text>
-              {getStatusTag(task.status)}
-              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-              {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
-            </Space>
-          }
-          description={
-            <Space orientation="vertical" size={0}>
+        <AimOutlined style={{ fontSize: 24, color: token.colorPrimary, marginRight: 12, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <Space>
+            <Text strong>{task.taskName}</Text>
+            {getStatusTag(task.status)}
+            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+            {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
+          </Space>
+          <Space orientation="vertical" size={0} style={{ display: 'flex', flexDirection: 'column' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              タスクID: {task.taskId}
+            </Text>
+            {task.sampleNumber && (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                タスクID: {task.taskId}
+                サンプル番号: {task.sampleNumber}
               </Text>
-              {task.sampleNumber && (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  サンプル番号: {task.sampleNumber}
-                </Text>
-              )}
-              {task.notes && (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  備考: {task.notes}
-                </Text>
-              )}
-            </Space>
-          }
-        />
-      </List.Item>
+            )}
+            {task.notes && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                備考: {task.notes}
+              </Text>
+            )}
+          </Space>
+        </div>
+      </div>
     );
   };
 
@@ -202,12 +200,13 @@ export default function TaskSelectionDialog({
             </Text>
           </Space>
         ) : (
-          <List
-            dataSource={tasks}
-            renderItem={renderTaskItem}
-            style={{ padding: `${token.paddingSM}px 0` }}
-            data-testid="task-selection-list"
-          />
+          <div style={{ padding: `${token.paddingSM}px 0` }} data-testid="task-selection-list">
+            {tasks.map((task) => (
+              <React.Fragment key={task.taskId}>
+                {renderTaskItem(task)}
+              </React.Fragment>
+            ))}
+          </div>
         )}
       </div>
     </Modal>

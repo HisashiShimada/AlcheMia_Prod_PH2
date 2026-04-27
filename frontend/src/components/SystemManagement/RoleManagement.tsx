@@ -95,6 +95,8 @@ export default function RoleManagementMock() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingMaster, setEditingMaster] = useState<MasterRecord | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [form] = Form.useForm();
 
   const [isFunctionModalVisible, setIsFunctionModalVisible] = useState(false);
@@ -210,6 +212,11 @@ export default function RoleManagementMock() {
         };
       });
   }, [masters, t]);
+
+  // フィルタ変化時に1ページ目にリセット
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, selectedRoleNameFilter]);
 
   const filteredMasters = useMemo(() => {
     if (!selectedMasterInfo) return [];
@@ -712,10 +719,10 @@ export default function RoleManagementMock() {
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredMasters}
-          rowKey={(record) => {
-            if (!selectedMasterInfo) return String(Math.random());
+          rowKey={(record, index) => {
+            if (!selectedMasterInfo) return String(index);
             const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
-            return String(record[idField] || Math.random());
+            return String(record[idField] ?? index);
           }}
           onRow={(record) => ({
             style: { backgroundColor: record.isActive === false ? '#D3D3D3' : undefined },
@@ -723,10 +730,19 @@ export default function RoleManagementMock() {
           size="small"
           scroll={{ x: 1400 }}
           pagination={{
-            pageSize: 20,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100'],
             showTotal: (total) => t('roleManagement.pagination.showTotal').replace('{total}', String(total)),
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size);
+            },
+            onShowSizeChange: (_, size) => {
+              setCurrentPage(1);
+              setPageSize(size);
+            },
           }}
         />
       </div>

@@ -391,6 +391,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     lastAutoSaveTime, // number | null
     deleteDraft,
     fetchDrafts,
+    stopAutoSaveTimer,
+    resumeAutoSaveTimer,
   } = useDraftManager(currentEditState, {
     userId: currentUserId,
     autoSaveInterval: 30 * 1000, // 30秒
@@ -547,7 +549,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       // バリデーションAPI呼び出し
       console.log('🔍 [handleOpenSaveConfirmDialog] バリデーションAPI呼び出し');
-      const response = await maimlService.validateMaiml(base64Data);
+      const response = await maimlService.validateMaiml(base64Data, { fileKey: props.sourceS3Key ?? '' });
       
       if (!response.success) {
         throw new Error(`バリデーションエラー: ${response.error?.message}`);
@@ -912,7 +914,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                 organizationId: currentOrgId
               });
               
-              const validateResponse = await maimlService.validateMaiml(base64Data);
+              const validateResponse = await maimlService.validateMaiml(base64Data, { fileKey: props.sourceS3Key ?? '' });
               
               if (validateResponse.success) {
                 const validateResult = validateResponse.data as AnalysisResult;
@@ -1996,6 +1998,30 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     setDraftManagerOpen(false);
   }, []);
 
+  // ✅ 修正③: DraftManagerダイアログ表示中は自動保存を停止・再開する
+  useEffect(() => {
+    if (draftManagerOpen) {
+      console.log('🛑 [PetriNetEditorInner] DraftManagerダイアログ表示 - 自動保存停止');
+      stopAutoSaveTimer();
+    } else {
+      console.log('▶️ [PetriNetEditorInner] DraftManagerダイアログ非表示 - 自動保存再開');
+      resumeAutoSaveTimer(); // isPausedRefを解除してからタイマーを開始
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftManagerOpen]);
+
+  // ✅ 修正④: 自動保存トグルハンドラー（resumeAutoSaveTimer/stopAutoSaveTimerを直接呼ぶ）
+  const handleAutoSaveToggle = useCallback((enabled: boolean) => {
+    setAutoSaveEnabled(enabled);
+    if (enabled) {
+      console.log('▶️ [PetriNetEditorInner] 自動保存トグル ON - タイマー開始');
+      resumeAutoSaveTimer(); // isPausedRefを解除してからタイマーを開始
+    } else {
+      console.log('🛑 [PetriNetEditorInner] 自動保存トグル OFF - タイマー停止');
+      stopAutoSaveTimer();
+    }
+  }, [setAutoSaveEnabled, resumeAutoSaveTimer, stopAutoSaveTimer]);
+
   // ビューモード切替ハンドラー
   const handleViewModeChange = useCallback((newMode: 'petriNet' | 'templates' | 'xml') => {
     console.log('🔄 [PetriNetEditorInner] ビューモード切替:', { from: viewMode, to: newMode });
@@ -2523,7 +2549,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const base64Data = btoa(String.fromCharCode(...bytes));
       
       console.log('🔍 [handleOpenValidationPanel] バリデーションAPI呼び出し');
-      const response = await maimlService.validateMaiml(base64Data);
+      const response = await maimlService.validateMaiml(base64Data, { fileKey: props.sourceS3Key ?? '' });
       
       if (!response.success) {
         throw new Error(`バリデーションエラー: ${response.error}`);
@@ -2729,27 +2755,32 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const userInfo5 = userInfoStr5 ? JSON.parse(userInfoStr5) : null;
         const currentOrgId = userInfo5?.organizationId || null;
         
-        // ファイル名決定（DocumentEditDialogで設定した名前 > 元のファイル名 > デフォルト）
-        const baseFileName = documentData?.name 
-          || props.originalFileName?.replace('.maiml', '') 
-          || 'document';
-        const fileName = `${baseFileName}.maiml`;
-        
-        // フォルダ決定（SaveConfirmDialogで選択されたフォルダ、なければ元のS3Keyのフォルダ、最後にデフォルト）
+        // fileKey 決定ロジック
+        // - sourceS3Key が存在する場合（既存ファイル編集）: S3Key のファイル名を維持する
+        //   - フォルダ変更なし: sourceS3Key をそのまま使用
+        //   - フォルダ変更あり: 選択フォルダ + sourceS3Key のファイル名部分
+        // - sourceS3Key がない場合（新規作成）: originalFileName（プロジェクト名）でファイル名を決定
+        // ※ documentData.name は Document 要素の name 属性でありファイル名とは別物のため使用しない
         let fileKey;
-        if (folder) {
-          // ユーザーが選択したフォルダ
-          fileKey = `${folder}/${fileName}`;
-        } else if (props.sourceS3Key) {
-          // 元のS3Keyからフォルダ部分を抽出
-          const folderPart = props.sourceS3Key.substring(0, props.sourceS3Key.lastIndexOf('/'));
-          fileKey = folderPart ? `${folderPart}/${fileName}` : `${currentOrgId}/${fileName}`;
+        if (props.sourceS3Key) {
+          // 既存ファイル編集: sourceS3Key のファイル名を維持する
+          const sourceFileNameWithExt = props.sourceS3Key.substring(props.sourceS3Key.lastIndexOf('/') + 1);
+          if (folder) {
+            // ユーザーがフォルダを変更した場合: 選択フォルダ + 元のファイル名
+            fileKey = `${folder}/${sourceFileNameWithExt}`;
+          } else {
+            // フォルダ変更なし: sourceS3Key をそのまま使用
+            fileKey = props.sourceS3Key;
+          }
         } else {
-          // デフォルト（組織ルート）
-          fileKey = `${currentOrgId}/${fileName}`;
+          // 新規作成: originalFileName（プロジェクト名）でファイル名を決定
+          const newFileName = `${props.originalFileName?.replace('.maiml', '') || 'document'}.maiml`;
+          fileKey = folder
+            ? `${folder}/${newFileName}`
+            : `${currentOrgId}/${newFileName}`;
         }
         
-        console.log('💾 [PetriNetEditorInner] S3保存先:', { fileName, fileKey });
+        console.log('💾 [PetriNetEditorInner] S3保存先:', { fileKey });
 
         const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
         
@@ -2892,7 +2923,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       >
         <Alert
           type="error"
-          message="致命的なエラーが発生しました"
+          title="致命的なエラーが発生しました"
           description="ペトリネットを表示できません。"
           showIcon
           style={{ maxWidth: 600, width: '100%' }}
@@ -2902,7 +2933,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             <Alert 
               key={idx} 
               type="error" 
-              message={err.message}
+              title={err.message}
               showIcon
             />
           ))}
@@ -2921,7 +2952,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       >
         <Alert
           type="error"
-          message={error}
+          title={error}
           showIcon
           style={{ maxWidth: 600 }}
         />
@@ -2978,6 +3009,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         handleOpenDraftManager={handleOpenDraftManager}
         autoSaveEnabled={autoSaveEnabled}
         setAutoSaveEnabled={setAutoSaveEnabled}
+        onAutoSaveToggle={handleAutoSaveToggle}
         lastAutoSaveTime={lastAutoSaveTime}
         viewMode={viewMode}
         handleViewModeChange={handleViewModeChange}
@@ -3085,6 +3117,7 @@ interface PetriNetEditorInnerUIProps {
   handleOpenDraftManager: () => void;
   autoSaveEnabled: boolean;
   setAutoSaveEnabled: (enabled: boolean) => void;
+  onAutoSaveToggle: (enabled: boolean) => void;
   lastAutoSaveTime: Date | null;
   
   // ビューモード
@@ -3195,6 +3228,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   handleOpenDraftManager,
   autoSaveEnabled,
   setAutoSaveEnabled,
+  onAutoSaveToggle,
   lastAutoSaveTime,
   viewMode,
   handleViewModeChange,
@@ -3315,7 +3349,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           workflowModeActive={selectedTool === 'workflow'}
           onOpenDraftManager={handleOpenDraftManager}
           autoSaveEnabled={autoSaveEnabled}
-          onAutoSaveToggle={() => setAutoSaveEnabled(!autoSaveEnabled)}
+          onAutoSaveToggle={onAutoSaveToggle}
           lastAutoSaveTime={lastAutoSaveTime !== null ? new Date(lastAutoSaveTime) : null}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
@@ -3532,7 +3566,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           currentEditState={currentEditState}
           userId={currentUserId}
           autoSaveEnabled={autoSaveEnabled}
-          onAutoSaveToggle={() => setAutoSaveEnabled(!autoSaveEnabled)}
+          onAutoSaveToggle={onAutoSaveToggle}
           currentDraftKey={lastSavedDraft?.draftKey || null}
           projectId={projectId}
         />

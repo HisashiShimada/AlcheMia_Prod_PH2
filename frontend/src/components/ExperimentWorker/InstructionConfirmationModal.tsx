@@ -159,7 +159,7 @@ export default function InstructionConfirmationModal({
                   }}
                   onClick={() => setFileInstructionsExpanded(!fileInstructionsExpanded)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    e.currentTarget.style.backgroundColor = token.colorFillSecondary;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
@@ -177,7 +177,7 @@ export default function InstructionConfirmationModal({
                 {fileInstructionsExpanded && (
                   <Space
                     data-testid="instruction-confirmation-modal-file-section-list"
-                    direction="vertical"
+                    orientation="vertical"
                     size={8}
                     style={{ width: '100%' }}
                   >
@@ -209,7 +209,7 @@ export default function InstructionConfirmationModal({
                   }}
                   onClick={() => setMethodInstructionsExpanded(!methodInstructionsExpanded)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    e.currentTarget.style.backgroundColor = token.colorFillSecondary;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
@@ -227,7 +227,7 @@ export default function InstructionConfirmationModal({
                 {methodInstructionsExpanded && (
                   <Space
                     data-testid="instruction-confirmation-modal-method-section-list"
-                    direction="vertical"
+                    orientation="vertical"
                     size={8}
                     style={{ width: '100%' }}
                   >
@@ -259,7 +259,7 @@ export default function InstructionConfirmationModal({
                   }}
                   onClick={() => setTransitionInstructionsExpanded(!transitionInstructionsExpanded)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    e.currentTarget.style.backgroundColor = token.colorFillSecondary;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
@@ -277,7 +277,7 @@ export default function InstructionConfirmationModal({
                 {transitionInstructionsExpanded && (
                   <Space
                     data-testid="instruction-confirmation-modal-transition-section-list"
-                    direction="vertical"
+                    orientation="vertical"
                     size={8}
                     style={{ width: '100%' }}
                   >

@@ -54,6 +54,8 @@ export default function ProjectSelectionModal({
   // フィルター状態
   const [searchText, setSearchText] = useState<string>('');
   const [selectedProjectName, setSelectedProjectName] = useState<string | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // ダイアログが開かれた時に現在の選択状態とフィルターをリセット
   useEffect(() => {
@@ -233,11 +235,14 @@ export default function ProjectSelectionModal({
           rowSelection={rowSelection}
           loading={loading}
           pagination={{
-            pageSize: 10,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
             showTotal: (total) => `合計: ${total} 件`,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100'],
             showQuickJumper: true,
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+            onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           }}
           scroll={{ y: 350 }}
           size="middle"

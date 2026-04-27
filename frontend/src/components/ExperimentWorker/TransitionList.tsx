@@ -52,6 +52,8 @@ export default function TransitionList({
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const [issues, setIssues] = useState<Issue[]>([]);
   const [issueLoading, setIssueLoading] = useState<boolean>(false);
@@ -526,12 +528,16 @@ export default function TransitionList({
           dataSource={filteredTransitions}
           rowKey="transitionId"
           pagination={{
-            pageSize: 20,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
             showQuickJumper: false,
-            showTotal: (total, range) => `全${total}件`,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            showTotal: (total) => `全${total}件`,
+            pageSizeOptions: ['20', '50', '100'],
             position: ['bottomRight'],
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+            onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
+
             locale: {
               items_per_page: '件/ページ',
               jump_to: 'ページ',
@@ -560,21 +566,23 @@ export default function TransitionList({
       </div>
 
       {/* データ記録モーダル */}
-      <DataRecordDialog
-        open={dataRecordModalOpen}
-        transition={selectedTransition}
-        projectStatus={projectStatus}
-        onClose={handleDataRecordModalClose}
-        onSave={handleDataSave}
-        projectId={projectId}
-        projectName={projectName}
-        methodId={methodId}
-        taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
-        useDeemedProgress={useDeemedProgress}
-      />
+      {dataRecordModalOpen && (
+        <DataRecordDialog
+          open={dataRecordModalOpen}
+          transition={selectedTransition}
+          projectStatus={projectStatus}
+          onClose={handleDataRecordModalClose}
+          onSave={handleDataSave}
+          projectId={projectId}
+          projectName={projectName}
+          methodId={methodId}
+          taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
+          useDeemedProgress={useDeemedProgress}
+        />
+      )}
 
       {/* 問題管理モーダル */}
-      {selectedTransition && (
+      {issueModalOpen && selectedTransition && (
         <IssueManagementModal
           open={issueModalOpen}
           targetName={selectedTransition.transitionName}

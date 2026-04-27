@@ -133,7 +133,7 @@ export default function CreateProjectModal({
         {/* エラーメッセージ表示 */}
         {error && (
           <Alert
-            message={t('projectManagement.create.error') || '作成エラー'}
+            title={t('projectManagement.create.error') || '作成エラー'}
             description={error}
             type="error"
             showIcon

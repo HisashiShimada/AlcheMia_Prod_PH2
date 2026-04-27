@@ -4,7 +4,8 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 // Load environment variables FIRST (before any other imports that might use them)
-dotenv.config();
+// override: true により OS 環境変数より .env の値を優先させる
+dotenv.config({ override: true });
 
 // Import middleware
 import { setupSessionMiddleware } from './middleware/sessionMiddleware';
@@ -55,8 +56,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Basic middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser()); // Cookie解析ミドルウェア
 
 // Health check endpoint

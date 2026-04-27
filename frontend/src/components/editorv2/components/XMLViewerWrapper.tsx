@@ -117,7 +117,9 @@ const XMLViewerWrapper: React.FC<XMLViewerWrapperProps> = ({
           minHeight: '400px',
         }}
       >
-        <Spin size="large" tip="XML を生成中..." />
+        <Spin size="large" tip="XML を生成中...">
+          <div />
+        </Spin>
       </div>
     );
   }

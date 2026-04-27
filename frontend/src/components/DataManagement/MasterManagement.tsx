@@ -1259,6 +1259,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const [attributeNameOptions, setAttributeNameOptions] = useState<Array<{ value: string; label: string }>>([]);
   // 属性名選択で「新規入力」が選ばれているかどうか
   const [isNewAttributeName, setIsNewAttributeName] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Attributeマスタのmastersデータが更新されたら属性名選択肢を生成
   useEffect(() => {
@@ -1487,7 +1489,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         {/* Creatorマスタの場合のみ注意書きを表示 */}
         {selectedMasterInfo?.masterId === '1' && (
           <Alert
-            message={<strong>{t('masterManagement.creatorWarning')}</strong>}
+            title={<strong>{t('masterManagement.creatorWarning')}</strong>}
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
@@ -1518,10 +1520,13 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           size="small"
           scroll={{ x: 1400 }}
           pagination={{
-            pageSize: 20,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100'],
             showTotal: (total) => t('masterManagement.pagination.showTotal').replace('{total}', String(total)),
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+            onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           }}
           rowClassName={(record) => {
             // Creatorマスタ（masterId="1"）の場合、VendorとInstrumentの状態チェック

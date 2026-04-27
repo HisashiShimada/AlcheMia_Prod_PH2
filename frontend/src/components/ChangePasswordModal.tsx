@@ -59,9 +59,9 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       closable={false}
       width={500}
     >
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <Alert
-          message="一時パスワードでログインしています"
+          title="一時パスワードでログインしています"
           description="セキュリティのため、パスワードを変更してください。一時パスワードの有効期限は24時間です。"
           type="warning"
           showIcon
@@ -69,7 +69,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
         {error && (
           <Alert
-            message="エラー"
+            title="エラー"
             description={error}
             type="error"
             showIcon

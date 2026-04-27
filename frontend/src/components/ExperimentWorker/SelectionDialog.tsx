@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Modal, List, Typography, Space, Tag, theme } from 'antd';
+import { Modal, Typography, Space, Tag, theme } from 'antd';
 import { FolderOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
 
 const { Text, Title } = Typography;
@@ -95,68 +95,66 @@ export default function SelectionDialog({
         </Space>
       }
     >
-      <List
-        data-testid={`selection-dialog-list-${type}`}
-        dataSource={items}
-        renderItem={(item) => {
+      <div data-testid={`selection-dialog-list-${type}`}>
+        {items.map((item: SelectionItem) => {
           const isSelected = item.id === selectedId;
-          
           return (
-            <List.Item
+            <div
+              key={item.id}
               data-testid={`selection-dialog-item-${item.id}`}
               onClick={() => handleSelect(item.id)}
               style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 cursor: 'pointer',
                 padding: token.paddingMD,
                 backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
                 borderRadius: token.borderRadius,
                 marginBottom: token.marginXS,
                 transition: 'all 0.2s',
+                borderBottom: '1px solid #f0f0f0',
               }}
               onMouseEnter={(e) => {
                 if (!isSelected) {
-                  e.currentTarget.style.backgroundColor = token.colorBgTextHover;
+                  (e.currentTarget as HTMLDivElement).style.backgroundColor = token.colorBgTextHover;
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isSelected) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
+                  (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent';
                 }
               }}
             >
-              <List.Item.Meta
-                title={
-                  <Space>
-                    <Text strong={isSelected}>{item.name}</Text>
-                    {item.tag && (
-                      <Tag color={isSelected ? 'red' : 'default'}>
-                        {item.tag}
-                      </Tag>
-                    )}
-                  </Space>
-                }
-                description={
-                  <Space orientation="vertical" size={0}>
-                    {item.subtitle && (
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {item.subtitle}
-                      </Text>
-                    )}
-                    {item.description && (
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {item.description}
-                      </Text>
-                    )}
-                  </Space>
-                }
-              />
+              <div style={{ flex: 1 }}>
+                <Space>
+                  <Text strong={isSelected}>{item.name}</Text>
+                  {item.tag && (
+                    <Tag color={isSelected ? 'red' : 'default'}>
+                      {item.tag}
+                    </Tag>
+                  )}
+                </Space>
+                <Space orientation="vertical" size={0} style={{ display: 'flex', flexDirection: 'column' }}>
+                  {item.subtitle && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {item.subtitle}
+                    </Text>
+                  )}
+                  {item.description && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {item.description}
+                    </Text>
+                  )}
+                </Space>
+              </div>
               {isSelected && (
                 <Tag color="red">選択中</Tag>
               )}
-            </List.Item>
+            </div>
           );
-        }}
-      />
+        })}
+      </div>
     </Modal>
   );
 }

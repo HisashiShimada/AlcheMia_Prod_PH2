@@ -24,7 +24,6 @@ import {
   Space,
 } from 'antd';
 import {
-  ExpandOutlined,
   PlusOutlined,
   DeleteOutlined,
   ArrowUpOutlined,
@@ -34,7 +33,6 @@ import {
 import { DocumentTagData, Reference } from '@/types/maiml-unified';
 
 const { TextArea } = Input;
-const { Panel } = Collapse;
 
 interface SingleObjectEditorProps {
   index: number;
@@ -260,215 +258,218 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
     </div>
   );
 
+  const singlePanelContent = (
+    <div>
+      {/* マスタから追加された項目のAlert */}
+      {internalData.fromMaster && (
+        <Alert
+          title="📌 マスタデータから追加された項目"
+          description="この項目はマスタデータから追加されたため、編集できません。"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={12}>
+          <div>
+            <Typography.Text type="secondary">ID</Typography.Text>
+            <Input
+              value={internalData.id || ''}
+              onChange={(e) => handleInternalUpdate('id', e.target.value)}
+              size="small"
+              style={{ marginTop: 4 }}
+              disabled={internalData.fromMaster}
+            />
+          </div>
+        </Col>
+
+        <Col xs={24} sm={12}>
+          <div>
+            <Typography.Text type="secondary">UUID</Typography.Text>
+            <Space.Compact style={{ width: '100%', marginTop: 4 }}>
+              <Input
+                value={internalData.uuid || ''}
+                onChange={(e) => handleInternalUpdate('uuid', e.target.value)}
+                size="small"
+                disabled={internalData.fromMaster}
+              />
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={handleUUIDGenerate}
+                size="small"
+                title="Generate UUID"
+                disabled={internalData.fromMaster}
+              />
+            </Space.Compact>
+          </div>
+        </Col>
+
+        <Col xs={24} sm={12}>
+          <div>
+            <Typography.Text type="secondary">Name</Typography.Text>
+            <Input
+              value={internalData.name || ''}
+              onChange={(e) => handleInternalUpdate('name', e.target.value)}
+              size="small"
+              style={{ marginTop: 4 }}
+              disabled={internalData.fromMaster}
+            />
+          </div>
+        </Col>
+
+        <Col xs={24} sm={12}>
+          <div>
+            <Typography.Text type="secondary">Description</Typography.Text>
+            <Input
+              value={internalData.description || ''}
+              onChange={(e) => handleInternalUpdate('description', e.target.value)}
+              size="small"
+              style={{ marginTop: 4 }}
+              disabled={internalData.fromMaster}
+            />
+          </div>
+        </Col>
+
+        <Col xs={24}>
+          <div>
+            <Typography.Text type="secondary">Annotation</Typography.Text>
+            <TextArea
+              value={internalData.annotation || ''}
+              onChange={(e) => handleInternalUpdate('annotation', e.target.value)}
+              rows={2}
+              size="small"
+              style={{ marginTop: 4 }}
+              disabled={internalData.fromMaster}
+            />
+          </div>
+        </Col>
+
+        {includeReferences && (
+          <>
+            <Col xs={24}>
+              <Typography.Text strong>📋 References</Typography.Text>
+            </Col>
+
+            {shouldShowReference('vendorRef') ? (
+              <>
+                <Col xs={24} sm={12}>
+                  <div>
+                    <Typography.Text type="secondary">Vendor Reference ID</Typography.Text>
+                    <Input
+                      value={internalData.vendorRef?.id || ''}
+                      onChange={(e) => handleReferenceUpdate('vendorRef', 'id', e.target.value)}
+                      size="small"
+                      placeholder="vendorRef_example"
+                      style={{ marginTop: 4 }}
+                    />
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12}>
+                  <div>
+                    <Typography.Text type="secondary">Vendor Reference Target</Typography.Text>
+                    <Select
+                      value={internalData.vendorRef?.ref || undefined}
+                      onChange={(value) => handleReferenceUpdate('vendorRef', 'ref', value)}
+                      size="small"
+                      style={{ width: '100%', marginTop: 4 }}
+                      placeholder="Select vendor"
+                    >
+                      {vendorIds.length > 0 ? (
+                        vendorIds.map((vendorId) => (
+                          <Select.Option key={vendorId} value={vendorId}>
+                            {vendorId}
+                          </Select.Option>
+                        ))
+                      ) : (
+                        <Select.Option value="" disabled>
+                          No vendors registered
+                        </Select.Option>
+                      )}
+                    </Select>
+                  </div>
+                </Col>
+              </>
+            ) : (
+              <Col xs={24}>
+                <Button
+                  icon={<PlusOutlined />}
+                  onClick={() => handleReferenceUpdate('vendorRef', 'id', generateReferenceId('vendorRef'))}
+                  size="small"
+                  block
+                >
+                  Vendor Reference を追加
+                </Button>
+              </Col>
+            )}
+
+            {shouldShowReference('instrumentRef') ? (
+              <>
+                <Col xs={24} sm={12}>
+                  <div>
+                    <Typography.Text type="secondary">Instrument Reference ID</Typography.Text>
+                    <Input
+                      value={internalData.instrumentRef?.id || ''}
+                      onChange={(e) => handleReferenceUpdate('instrumentRef', 'id', e.target.value)}
+                      size="small"
+                      placeholder="instrumentRef_example"
+                      style={{ marginTop: 4 }}
+                    />
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12}>
+                  <div>
+                    <Typography.Text type="secondary">Instrument Reference Target</Typography.Text>
+                    <Select
+                      value={internalData.instrumentRef?.ref || undefined}
+                      onChange={(value) => handleReferenceUpdate('instrumentRef', 'ref', value)}
+                      size="small"
+                      style={{ width: '100%', marginTop: 4 }}
+                      placeholder="Select instrument"
+                    >
+                      {instrumentIds.length > 0 ? (
+                        instrumentIds.map((instrumentId) => (
+                          <Select.Option key={instrumentId} value={instrumentId}>
+                            {instrumentId}
+                          </Select.Option>
+                        ))
+                      ) : (
+                        <Select.Option value="" disabled>
+                          No instruments registered
+                        </Select.Option>
+                      )}
+                    </Select>
+                  </div>
+                </Col>
+              </>
+            ) : (
+              <Col xs={24}>
+                <Button
+                  icon={<PlusOutlined />}
+                  onClick={() => handleReferenceUpdate('instrumentRef', 'id', generateReferenceId('instrumentRef'))}
+                  size="small"
+                  block
+                >
+                  Instrument Reference を追加
+                </Button>
+              </Col>
+            )}
+          </>
+        )}
+      </Row>
+    </div>
+  );
+
   return (
     <Collapse
       activeKey={isExpanded ? ['1'] : []}
       onChange={() => onToggleExpanded(index)}
       style={{ marginBottom: 8 }}
-    >
-      <Panel header={panelHeader} key="1">
-        {/* マスタから追加された項目のAlert */}
-        {internalData.fromMaster && (
-          <Alert
-            message="📌 マスタデータから追加された項目"
-            description="この項目はマスタデータから追加されたため、編集できません。"
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12}>
-            <div>
-              <Typography.Text type="secondary">ID</Typography.Text>
-              <Input
-                value={internalData.id || ''}
-                onChange={(e) => handleInternalUpdate('id', e.target.value)}
-                size="small"
-                style={{ marginTop: 4 }}
-                disabled={internalData.fromMaster}
-              />
-            </div>
-          </Col>
-
-          <Col xs={24} sm={12}>
-            <div>
-              <Typography.Text type="secondary">UUID</Typography.Text>
-              <Space.Compact style={{ width: '100%', marginTop: 4 }}>
-                <Input
-                  value={internalData.uuid || ''}
-                  onChange={(e) => handleInternalUpdate('uuid', e.target.value)}
-                  size="small"
-                  disabled={internalData.fromMaster}
-                />
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={handleUUIDGenerate}
-                  size="small"
-                  title="Generate UUID"
-                  disabled={internalData.fromMaster}
-                />
-              </Space.Compact>
-            </div>
-          </Col>
-
-          <Col xs={24} sm={12}>
-            <div>
-              <Typography.Text type="secondary">Name</Typography.Text>
-              <Input
-                value={internalData.name || ''}
-                onChange={(e) => handleInternalUpdate('name', e.target.value)}
-                size="small"
-                style={{ marginTop: 4 }}
-                disabled={internalData.fromMaster}
-              />
-            </div>
-          </Col>
-
-          <Col xs={24} sm={12}>
-            <div>
-              <Typography.Text type="secondary">Description</Typography.Text>
-              <Input
-                value={internalData.description || ''}
-                onChange={(e) => handleInternalUpdate('description', e.target.value)}
-                size="small"
-                style={{ marginTop: 4 }}
-                disabled={internalData.fromMaster}
-              />
-            </div>
-          </Col>
-
-          <Col xs={24}>
-            <div>
-              <Typography.Text type="secondary">Annotation</Typography.Text>
-              <TextArea
-                value={internalData.annotation || ''}
-                onChange={(e) => handleInternalUpdate('annotation', e.target.value)}
-                rows={2}
-                size="small"
-                style={{ marginTop: 4 }}
-                disabled={internalData.fromMaster}
-              />
-            </div>
-          </Col>
-
-          {includeReferences && (
-            <>
-              <Col xs={24}>
-                <Typography.Text strong>📋 References</Typography.Text>
-              </Col>
-
-              {shouldShowReference('vendorRef') ? (
-                <>
-                  <Col xs={24} sm={12}>
-                    <div>
-                      <Typography.Text type="secondary">Vendor Reference ID</Typography.Text>
-                      <Input
-                        value={internalData.vendorRef?.id || ''}
-                        onChange={(e) => handleReferenceUpdate('vendorRef', 'id', e.target.value)}
-                        size="small"
-                        placeholder="vendorRef_example"
-                        style={{ marginTop: 4 }}
-                      />
-                    </div>
-                  </Col>
-
-                  <Col xs={24} sm={12}>
-                    <div>
-                      <Typography.Text type="secondary">Vendor Reference Target</Typography.Text>
-                      <Select
-                        value={internalData.vendorRef?.ref || undefined}
-                        onChange={(value) => handleReferenceUpdate('vendorRef', 'ref', value)}
-                        size="small"
-                        style={{ width: '100%', marginTop: 4 }}
-                        placeholder="Select vendor"
-                      >
-                        {vendorIds.length > 0 ? (
-                          vendorIds.map((vendorId) => (
-                            <Select.Option key={vendorId} value={vendorId}>
-                              {vendorId}
-                            </Select.Option>
-                          ))
-                        ) : (
-                          <Select.Option value="" disabled>
-                            No vendors registered
-                          </Select.Option>
-                        )}
-                      </Select>
-                    </div>
-                  </Col>
-                </>
-              ) : (
-                <Col xs={24}>
-                  <Button
-                    icon={<PlusOutlined />}
-                    onClick={() => handleReferenceUpdate('vendorRef', 'id', generateReferenceId('vendorRef'))}
-                    size="small"
-                    block
-                  >
-                    Vendor Reference を追加
-                  </Button>
-                </Col>
-              )}
-
-              {shouldShowReference('instrumentRef') ? (
-                <>
-                  <Col xs={24} sm={12}>
-                    <div>
-                      <Typography.Text type="secondary">Instrument Reference ID</Typography.Text>
-                      <Input
-                        value={internalData.instrumentRef?.id || ''}
-                        onChange={(e) => handleReferenceUpdate('instrumentRef', 'id', e.target.value)}
-                        size="small"
-                        placeholder="instrumentRef_example"
-                        style={{ marginTop: 4 }}
-                      />
-                    </div>
-                  </Col>
-
-                  <Col xs={24} sm={12}>
-                    <div>
-                      <Typography.Text type="secondary">Instrument Reference Target</Typography.Text>
-                      <Select
-                        value={internalData.instrumentRef?.ref || undefined}
-                        onChange={(value) => handleReferenceUpdate('instrumentRef', 'ref', value)}
-                        size="small"
-                        style={{ width: '100%', marginTop: 4 }}
-                        placeholder="Select instrument"
-                      >
-                        {instrumentIds.length > 0 ? (
-                          instrumentIds.map((instrumentId) => (
-                            <Select.Option key={instrumentId} value={instrumentId}>
-                              {instrumentId}
-                            </Select.Option>
-                          ))
-                        ) : (
-                          <Select.Option value="" disabled>
-                            No instruments registered
-                          </Select.Option>
-                        )}
-                      </Select>
-                    </div>
-                  </Col>
-                </>
-              ) : (
-                <Col xs={24}>
-                  <Button
-                    icon={<PlusOutlined />}
-                    onClick={() => handleReferenceUpdate('instrumentRef', 'id', generateReferenceId('instrumentRef'))}
-                    size="small"
-                    block
-                  >
-                    Instrument Reference を追加
-                  </Button>
-                </Col>
-              )}
-            </>
-          )}
-        </Row>
-      </Panel>
-    </Collapse>
+      items={[{ key: '1', label: panelHeader, children: singlePanelContent }]}
+    />
   );
 };
 
@@ -643,85 +644,86 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
     </Space>
   );
 
+  const multiPanelContent = (
+    <div>
+      {/* マスタデータから追加 */}
+      {masterData.length > 0 && (
+        <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
+          <Typography.Text type="secondary">
+            マスタデータから{title}を追加:
+          </Typography.Text>
+          <Space.Compact style={{ width: '100%' }}>
+            <Select
+              style={{ flex: 1 }}
+              placeholder={`${title}を選択してください`}
+              value={selectedMasterId}
+              onChange={setSelectedMasterId}
+              options={masterData.map(item => ({
+                label: `${item.name}${item.description ? ` (${item.description})` : ''}`,
+                value: item.id,
+              }))}
+              allowClear
+            />
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddFromMaster}
+              disabled={!selectedMasterId}
+            >
+              追加
+            </Button>
+          </Space.Compact>
+        </Space>
+      )}
+
+      {objects.length === 0 && (
+        <Alert
+          title={`${title}が登録されていません。最低${minItems}件必要です。`}
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {objects.map((obj, index) => (
+        <SingleObjectEditor
+          key={`${objectKey}-${index}`}
+          index={index}
+          objectData={obj}
+          objectKey={objectKey}
+          includeReferences={includeReferences}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          onMoveUp={handleMoveUp}
+          onMoveDown={handleMoveDown}
+          canMoveUp={index > 0}
+          canMoveDown={index < objects.length - 1}
+          canDelete={objects.length > minItems}
+          isExpanded={expandedItems[index] || false}
+          onToggleExpanded={handleToggleItem}
+          vendorIds={vendorIds}
+          instrumentIds={instrumentIds}
+        />
+      ))}
+
+      <Button
+        type="dashed"
+        icon={<PlusOutlined />}
+        onClick={handleAdd}
+        block
+        style={{ marginTop: 16 }}
+      >
+        空の{title}を追加
+      </Button>
+    </div>
+  );
+
   return (
     <Collapse
       activeKey={isExpanded ? ['1'] : []}
       onChange={() => onToggleExpanded(objectKey)}
-    >
-      <Panel header={panelHeader} key="1">
-        <div>
-          {/* マスタデータから追加 */}
-          {masterData.length > 0 && (
-            <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
-              <Typography.Text type="secondary">
-                マスタデータから{title}を追加:
-              </Typography.Text>
-              <Space.Compact style={{ width: '100%' }}>
-                <Select
-                  style={{ flex: 1 }}
-                  placeholder={`${title}を選択してください`}
-                  value={selectedMasterId}
-                  onChange={setSelectedMasterId}
-                  options={masterData.map(item => ({
-                    label: `${item.name}${item.description ? ` (${item.description})` : ''}`,
-                    value: item.id,
-                  }))}
-                  allowClear
-                />
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={handleAddFromMaster}
-                  disabled={!selectedMasterId}
-                >
-                  追加
-                </Button>
-              </Space.Compact>
-            </Space>
-          )}
-
-          {objects.length === 0 && (
-            <Alert
-              message={`${title}が登録されていません。最低${minItems}件必要です。`}
-              type="warning"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
-          
-          {objects.map((obj, index) => (
-            <SingleObjectEditor
-              key={`${objectKey}-${index}`}
-              index={index}
-              objectData={obj}
-              objectKey={objectKey}
-              includeReferences={includeReferences}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
-              onMoveUp={handleMoveUp}
-              onMoveDown={handleMoveDown}
-              canMoveUp={index > 0}
-              canMoveDown={index < objects.length - 1}
-              canDelete={objects.length > minItems}
-              isExpanded={expandedItems[index] || false}
-              onToggleExpanded={handleToggleItem}
-              vendorIds={vendorIds}
-              instrumentIds={instrumentIds}
-            />
-          ))}
-          
-          <Button
-            type="dashed"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            block
-            style={{ marginTop: 16 }}
-          >
-            空の{title}を追加
-          </Button>
-        </div>
-      </Panel>
-    </Collapse>
+      items={[{ key: '1', label: panelHeader, children: multiPanelContent }]}
+    />
   );
 };
 

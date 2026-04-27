@@ -36,6 +36,8 @@ export default function SessionManagement() {
   const [searchText, setSearchText] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState<number>(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // セッション一覧取得
   const fetchSessions = React.useCallback(async () => {
@@ -74,6 +76,11 @@ export default function SessionManagement() {
     return () => clearInterval(timer);
   }, [autoRefresh, refreshInterval, handleReload]);
 
+  // フィルタ変化時に1ページ目にリセット
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText]);
+
   // フィルタリングされたセッション
   const filteredSessions = useMemo(() => {
     return sessions.filter(session => {
@@ -94,7 +101,7 @@ export default function SessionManagement() {
     {
       title: (
         <div style={{ textAlign: 'center' }}>
-      <Space size="middle">
+          <Space size="middle">
             <span>{t('sessionManagement.columns.user')}</span>
             <Badge
               count={filteredSessions.length}
@@ -292,9 +299,19 @@ export default function SessionManagement() {
             size="small"
             scroll={{ x: 800 }}
             pagination={{
-              pageSize: 10,
+              current: currentPage,
+              pageSize: pageSize,
               showSizeChanger: true,
+              pageSizeOptions: ['20', '50', '100'],
               showTotal: (total) => t('sessionManagement.pagination.showTotal').replace('{total}', String(total)),
+              onChange: (page, size) => {
+                setCurrentPage(page);
+                setPageSize(size);
+              },
+              onShowSizeChange: (_, size) => {
+                setCurrentPage(1);
+                setPageSize(size);
+              },
             }}
           />
         </div>

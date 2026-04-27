@@ -49,7 +49,9 @@ export default function MethodTaskSelectionModal({
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTaskName, setSelectedTaskName] = useState<string | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | undefined>(undefined);
-  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   // モーダルが開かれた時に現在の選択状態を一時変数に設定
   useEffect(() => {
     if (open) {
@@ -348,19 +350,21 @@ export default function MethodTaskSelectionModal({
                 dataSource={filteredTasks}
                 rowKey={(record) => record.taskId}
                 rowClassName={(record) => {
-                  // 選択されたタスク行をハイライト
                   if (record.taskId === tempSelectedTaskId) {
                     return 'selected-row';
                   }
                   return '';
                 }}
                 pagination={{
-                  pageSize: 10,
+                  current: currentPage,
+                  pageSize: pageSize,
                   showSizeChanger: true,
                   showQuickJumper: false,
                   showTotal: (total) => t('experimentWork.methodTaskSelection.showTotal').replace('{total}', String(total)),
-                  pageSizeOptions: ['10', '20', '50'],
+                  pageSizeOptions: ['20', '50', '100'],
                   position: ['bottomRight'],
+                  onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+                  onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
                   locale: {
                     items_per_page: '件/ページ',
                     jump_to: 'ページ',

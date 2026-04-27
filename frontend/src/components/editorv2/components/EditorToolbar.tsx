@@ -182,7 +182,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             </Tooltip>
           )}
 
-          <Divider type="vertical" style={{ height: 24 }} />
+          <Divider orientation="vertical" style={{ height: 24 }} />
         </>
       )}
 
@@ -222,7 +222,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </Tooltip>
       </Space>
 
-      <Divider type="vertical" style={{ height: 24 }} />
+      <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* Transition追加ボタン */}
       <Tooltip title="Transitionを追加">
@@ -236,7 +236,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </Button>
       </Tooltip>
 
-      <Divider type="vertical" style={{ height: 24 }} />
+      <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* ワークフロー追加ボタン */}
       <Tooltip
@@ -257,7 +257,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </Button>
       </Tooltip>
 
-      <Divider type="vertical" style={{ height: 24 }} />
+      <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* Document編集ボタン */}
       <Tooltip title="Document編集">
@@ -270,7 +270,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </Button>
       </Tooltip>
 
-      <Divider type="vertical" style={{ height: 24 }} />
+      <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* バリデーションボタン */}
       <Tooltip title="バリデーション実行">
@@ -284,7 +284,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </Button>
       </Tooltip>
 
-      <Divider type="vertical" style={{ height: 24 }} />
+      <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* 保存ボタン */}
       <Tooltip title="保存 (Ctrl+S)">
@@ -312,7 +312,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </Tooltip>
       )}
 
-      <Divider type="vertical" style={{ height: 24 }} />
+      <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* Undo/Redoボタン */}
       <Space size={4}>
@@ -341,7 +341,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       {/* 自動保存トグル */}
       {onAutoSaveToggle && (
         <>
-          <Divider type="vertical" style={{ height: 24 }} />
+          <Divider orientation="vertical" style={{ height: 24 }} />
           <Space size={8} align="center">
             <Text style={{ fontSize: 12 }}>自動保存</Text>
             <Switch

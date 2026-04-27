@@ -590,4 +590,82 @@ interface FileListTableProps {
   /** フォルダ削除ボタンクリック時のコールバック */
   onDeleteFolder?: (file: ProjectFile) => void;
 }
+
+---
+
+## 10. MAIMLバリデーション警告アイコン
+
+### 10.1 概要
+
+ファイル一覧テーブルにMAIMLバリデーション警告アイコン機能を追加しました。MAIMLファイルの行に、DB保存済みのバリデーション結果に基づいてエラー/警告アイコンを表示します。
+
+### 10.2 Propsの追加
+
+```typescript
+interface FileListTableProps {
+  // 既存のProps...
+  /** MAIMLバリデーション結果（DB保存済み）。MAIMLファイル行に警告アイコンを表示するために使用 */
+  maimlValidationRow?: MaimlAnalysisResultRow | null;
+}
+```
+
+### 10.3 警告アイコン表示仕様
+
+**表示条件**: `record.type === 'maiml'` かつ `maimlValidationRow` が存在する場合
+
+**色分け**:
+
+| 条件 | アイコン | 色 | Tooltip |
+|------|---------|---|---------|
+| `errors.length > 0` | WarningOutlined | 🔴 赤（`colorError`） | `バリデーションエラーあり（N件）` |
+| `errors.length === 0 && warnings.length > 0` | WarningOutlined | 🟡 黄（`colorWarning`） | `バリデーション警告あり（N件）` |
+| エラーも警告もなし | 表示なし | — | — |
+
+**表示位置**: ファイル名の右横（`marginLeft: 6, fontSize: 14`）
+
+### 10.4 実装例
+
+```tsx
+// MAIMLファイルのバリデーション警告アイコン
+const maimlWarningIcon = (() => {
+  if (record.type !== 'maiml' || !maimlValidationRow) return null;
+  let errCount = 0;
+  let warnCount = 0;
+  try { errCount = JSON.parse(maimlValidationRow.errors || '[]').length; } catch {}
+  try { warnCount = JSON.parse(maimlValidationRow.warnings || '[]').length; } catch {}
+  if (errCount > 0) {
+    return (
+      <Tooltip title={`バリデーションエラーあり（${errCount}件）`}>
+        <WarningOutlined style={{ color: token.colorError, marginLeft: 6, fontSize: 14 }} />
+      </Tooltip>
+    );
+  }
+  if (warnCount > 0) {
+    return (
+      <Tooltip title={`バリデーション警告あり（${warnCount}件）`}>
+        <WarningOutlined style={{ color: token.colorWarning, marginLeft: 6, fontSize: 14 }} />
+      </Tooltip>
+    );
+  }
+  return null;
+})();
+```
+
+### 10.5 データ更新タイミング
+
+`maimlValidationRow` は親コンポーネント（ProjectManagement）から受け取る。更新タイミング：
+
+1. **プロジェクト選択時**: `GET /api/v1/maiml/analysis-result?fileKey=xxx` で取得
+2. **再バリデーション実行後**: バリデーション結果を即時反映
+
+---
+
+## 変更履歴
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|---------|--------|
+| 2.0 | 2026-04-24 | MAIMLバリデーション警告アイコン機能追加（セクション10追加） | Cline |
+| | | - maimlValidationRow prop 追加 | |
+| | | - MAIMLファイル行への警告アイコン表示（エラー赤・警告黄） | |
+| 1.0 | 2026-01-21 | 初版作成 | Cline |
 ```

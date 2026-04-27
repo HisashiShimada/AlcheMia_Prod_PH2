@@ -437,4 +437,24 @@ router.delete(
   maimlController.deleteDraft
 );
 
+/**
+ * バリデーション解析結果取得（保存済み）
+ * GET /api/v1/maiml/analysis-result?fileKey=xxx
+ *
+ * @description 指定ファイルキーに対して保存されたバリデーション解析結果を返す
+ */
+router.get(
+  '/analysis-result',
+  authMiddleware,
+  [
+    query('fileKey')
+      .notEmpty()
+      .withMessage('fileKeyは必須です')
+      .isString()
+      .withMessage('fileKeyは文字列である必要があります'),
+  ],
+  handleValidationErrors,
+  maimlController.getAnalysisResult
+);
+
 export default router;

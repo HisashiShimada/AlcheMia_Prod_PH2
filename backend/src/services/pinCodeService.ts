@@ -33,7 +33,7 @@ function maskEmail(email: string): string {
  */
 export class PinCodeService {
   private readonly PIN_EXPIRY_MINUTES = 5;
-  private readonly maxAttempts: number;
+  readonly maxAttempts: number;
 
   constructor(
     private pool: Pool,
@@ -113,12 +113,14 @@ export class PinCodeService {
     sessionToken: string
   ): Promise<Result<UserInfo>> {
     try {
-      // pin_codesとorganization_user、roleテーブルをJOINしてユーザー情報を取得
+      // セッショントークンのみで検索（PIN一致はアプリ側で判定）
+      // これにより、PIN不正の場合でも attempts_count を先にチェックできる
       // Parameterized Query使用
       const result = await this.pool.query(
         `SELECT 
            pc.user_id,
            pc.organization_id,
+           pc.pin_code,
            pc.expires_at,
            pc.attempts_count,
            ou.user_name as username,
@@ -133,11 +135,11 @@ export class PinCodeService {
          INNER JOIN organization_user ou ON pc.user_id = ou.user_id AND pc.organization_id = ou.organization_id
          INNER JOIN role r ON ou.role_cd = r.role_cd AND ou.organization_id = r.organization_id
          LEFT JOIN organization o ON pc.organization_id = o.organization_id
-         WHERE pc.pin_code = $1 AND pc.session_token = $2`,
-        [pinCode, sessionToken]
+         WHERE pc.session_token = $1`,
+        [sessionToken]
       );
 
-      // PINコードが見つからない場合
+      // セッショントークンに対応するレコードが見つからない場合
       if (result.rows.length === 0) {
         return {
           success: false,
@@ -150,7 +152,7 @@ export class PinCodeService {
 
       const row = result.rows[0];
 
-      // 有効期限チェック
+      // 有効期限チェック（試行回数より先に確認）
       const now = new Date();
       const expiresAt = new Date(row.expires_at);
       if (now > expiresAt) {
@@ -163,13 +165,25 @@ export class PinCodeService {
         };
       }
 
-      // 試行回数チェック
+      // 試行回数チェック（PIN一致チェックより先に確認）
+      // これにより、正しいPINを入力しても3回超えたら弾く
       if (row.attempts_count >= this.maxAttempts) {
         return {
           success: false,
           error: {
-            code: 'AUTH_PIN_MAX_ATTEMPTS',
-            message: 'Maximum PIN attempts exceeded',
+            code: 'E5005',
+            message: 'PINコード入力試行回数の上限に達しました。最初からやり直してください',
+          },
+        };
+      }
+
+      // PINコード一致チェック
+      if (row.pin_code !== pinCode) {
+        return {
+          success: false,
+          error: {
+            code: 'AUTH_PIN_INVALID',
+            message: 'Invalid PIN code',
           },
         };
       }
@@ -269,19 +283,20 @@ export class PinCodeService {
    * 試行回数をインクリメント
    * 
    * @param sessionToken - セッショントークン
-   * @returns 更新成功時にvoid
+   * @returns 更新後の attempts_count 値
    */
   async incrementAttempts(
     sessionToken: string
-  ): Promise<Result<void>> {
+  ): Promise<Result<number>> {
     try {
-      // attempts_countをインクリメント
+      // attempts_countをインクリメントし、更新後の値を返す
       // Parameterized Query使用
       // 注意: WHERE条件にpin_codeを含めない（誤ったPINコードが渡される可能性があるため）
       const result = await this.pool.query(
         `UPDATE pin_codes 
          SET attempts_count = attempts_count + 1 
-         WHERE session_token = $1`,
+         WHERE session_token = $1
+         RETURNING attempts_count`,
         [sessionToken]
       );
 
@@ -298,7 +313,7 @@ export class PinCodeService {
 
       return {
         success: true,
-        data: undefined,
+        data: result.rows[0].attempts_count as number,
       };
     } catch (error) {
       return {

@@ -93,6 +93,8 @@ export default function OrganizationManagement() {
   const [isDuplicate, setIsDuplicate] = useState(false);
   const [organizationCdValue, setOrganizationCdValue] = useState('');
   const [defaultRetentionDaysDefault, setDefaultRetentionDaysDefault] = useState<number>(30);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
     fetchOrganizations();
@@ -157,6 +159,11 @@ export default function OrganizationManagement() {
       return matchesSearch && matchesOrganizationDisplayName && matchesCompanyName && matchesIsEntry && matchesUseDeemedProgress;
     });
   }, [organizations, searchText, selectedOrganizationDisplayName, selectedCompanyCode, selectedIsEntry, selectedUseDeemedProgress]);
+
+  // フィルタ変化時に1ページ目にリセット
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, selectedOrganizationDisplayName, selectedCompanyCode, selectedIsEntry, selectedUseDeemedProgress]);
 
   const activeOrganizationCount = useMemo(() => {
     return filteredOrganizations.filter(org => org.isActive).length;
@@ -784,10 +791,13 @@ export default function OrganizationManagement() {
           loading={loading}
           scroll={{ x: 1540 }}
           pagination={{
-            pageSize: 20,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
+            pageSizeOptions: ['20', '50', '100'],
             showTotal: (total) => t('organizationManagement.pagination.showTotal').replace('{total}', String(total)),
+            onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+            onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           }}
           rowClassName={(record) => (!record.isActive ? 'inactive-row' : '')}
         />

@@ -1111,3 +1111,109 @@ useEffect(() => {
    - ファイル管理タブ: getProjectFiles()
    - 進捗確認タブ: getProjectTasks()
 5. メッセージ: 「プロジェクトの最新情報を読み込みました」
+
+---
+
+## 10. MAIMLバリデーション機能
+
+### 10.1 概要
+
+プロジェクト管理画面にMAIMLバリデーション機能を追加しました。プロジェクト選択時にDB保存済みの過去バリデーション結果を自動取得し、エラーがある場合は警告アイコンを表示します。また「バリデーション確認」ボタンからダイアログを開き、過去の結果確認と再バリデーション実行が可能です。
+
+### 10.2 バリデーションボタン
+
+ファイル操作ツールバーに「バリデーション確認」ボタンを追加。
+
+| 状態 | 表示 |
+|------|------|
+| プロジェクト未選択 | 無効（`disabled`） |
+| プロジェクト選択済み | 有効「バリデーション確認」ボタン（SafetyCertificateOutlined アイコン） |
+
+### 10.3 バリデーション結果ダイアログ
+
+「バリデーション確認」ボタン押下で開くモーダルダイアログ。
+
+| 要素 | 内容 |
+|------|------|
+| タイトル | 🔍 MAIMLバリデーション |
+| 最終バリデーション情報 | DBから取得した is_valid 状態と analysis_timestamp を Alert で表示 |
+| 結果バッジ | ✅ 有効（SafetyCertificateOutlined 緑） / ⚠️ エラーあり（WarningOutlined 赤） |
+| 再バリデーションボタン | 押下でMAIMLを取得しバリデーション実行→DB保存 |
+| バリデーション結果 | エラー一覧・警告一覧をインラインで表示 |
+| 自動補正ボタン | なし（ProjectManagement では不要） |
+
+**エラー・警告の色分け**:
+
+| 状態 | アイコン色 | 意味 |
+|------|----------|------|
+| `errors.length > 0` | 🔴 赤（colorError） | エラーあり |
+| `errors.length === 0 && warnings.length > 0` | 🟡 黄（colorWarning） | 警告のみ |
+| 問題なし | 緑（colorSuccess） | 正常 |
+
+### 10.4 警告アイコン（プロジェクト詳細ヘッダー）
+
+プロジェクト詳細ヘッダーのプロジェクト名横に警告アイコンを表示。
+
+**表示条件**: `savedValidationRow?.is_valid === false`
+
+**色分け**:
+- `errors.length > 0` → 🔴 赤（colorError）
+- `warnings.length > 0` のみ → 🟡 黄（colorWarning）
+
+**Tooltip**: `バリデーションエラーがあります（最終確認: YYYY/MM/DD HH:MM:SS）`
+
+### 10.5 プロジェクト選択時の自動取得
+
+プロジェクト選択時に `GET /api/v1/maiml/analysis-result?fileKey=xxx` を呼び出し、DB保存済みバリデーション結果を自動取得。
+
+```typescript
+useEffect(() => {
+  if (!selectedProject?.maimlFileKey) {
+    setSavedValidationRow(null);
+    setValidationResult(null);
+    return;
+  }
+  getAnalysisResult(selectedProject.maimlFileKey)
+    .then(res => setSavedValidationRow(res.data ?? null))
+    .catch(() => setSavedValidationRow(null));
+}, [selectedProject?.maimlFileKey]);
+```
+
+### 10.6 MAIMLエラー有無算出（maimlHasErrors）
+
+`savedValidationRow.errors` をパースしてエラー件数を算出。`TaskRegistrationTab` に `maimlHasErrors` prop として渡す。
+
+```typescript
+const maimlHasErrors = useMemo(() => {
+  if (!savedValidationRow) return false;
+  try {
+    const errors = JSON.parse(savedValidationRow.errors || '[]');
+    return Array.isArray(errors) && errors.length > 0;
+  } catch {
+    return false;
+  }
+}, [savedValidationRow]);
+```
+
+### 10.7 関連ステート
+
+| ステート名 | 型 | 説明 |
+|-----------|---|------|
+| `isValidating` | boolean | バリデーション実行中フラグ |
+| `validationResult` | AnalysisResult \| null | 再バリデーション実行後の結果 |
+| `savedValidationRow` | MaimlAnalysisResultRow \| null | DB保存済みバリデーション結果 |
+| `validationDialogOpen` | boolean | バリデーションダイアログ表示フラグ |
+
+---
+
+## 変更履歴
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|---------|--------|
+| 2.0 | 2026-04-24 | MAIMLバリデーション機能追加（セクション10追加） | Cline |
+| | | - バリデーション確認ボタン追加 | |
+| | | - バリデーション結果ダイアログ追加 | |
+| | | - プロジェクト詳細ヘッダーへの警告アイコン追加 | |
+| | | - プロジェクト選択時のDB結果自動取得 | |
+| | | - maimlHasErrors 算出ロジック追加 | |
+| 1.0 | 2026-01-21 | 初版作成 | Cline |

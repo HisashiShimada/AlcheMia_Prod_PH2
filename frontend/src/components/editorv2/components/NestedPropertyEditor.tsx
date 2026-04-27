@@ -485,7 +485,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           setShowAttributeAddModal(false);
         }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           {/* 属性名セレクト */}
           {(() => {
             const isContent = propertyData.tagName === 'content';
@@ -598,7 +598,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               )
             ) : OPTIONAL_MASTER_ATTRIBUTES.has(newAttributeName) ? (
               /* axis / size → AutoComplete（マスタ候補提示 + 手入力許可） */
-              <Space direction="vertical" style={{ width: '100%' }}>
+              <Space orientation="vertical" style={{ width: '100%' }}>
                 <AutoComplete
                   style={{ width: '100%' }}
                   placeholder={
@@ -642,7 +642,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               </Select>
             ) : REQUIRED_MASTER_ATTRIBUTES.has(newAttributeName) ? (
               /* units / formatString / scaleFactor でマスタ値が未登録 → 保存不可・エラー表示 */
-              <Space direction="vertical" style={{ width: '100%' }}>
+              <Space orientation="vertical" style={{ width: '100%' }}>
                 <Select
                   style={{ width: '100%' }}
                   disabled
@@ -726,7 +726,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           const elementOptions = isContent ? CONTENT_ELEMENT_OPTIONS : PROPERTY_ELEMENT_OPTIONS;
 
           return (
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               {/* 要素名セレクト */}
               <Select
                 placeholder="要素名を選択"
