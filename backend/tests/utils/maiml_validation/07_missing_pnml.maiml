@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!-- ケース07: pnml要素欠落（構造的エラー）
+     lenient: エラー → アップロード失敗
+     strict:  エラー → 保存失敗 -->
+<maiml version="1.0" xmlns="http://www.maiml.org/schemas">
+  <document id="doc-001">
+    <name>pnml欠落テスト</name>
+    <uuid>7066fe49-ea37-46af-942b-64a9280bda27</uuid>
+    <date>2026-04-23T10:00:00Z</date>
+    <creator id="creator-001">
+      <name>テスト作成者</name>
+      <uuid>7f3c8a9d-2b1e-4f6a-9c5d-8e7b4a3f2c1d</uuid>
+    </creator>
+    <vendor id="vendor-001">
+      <name>テストベンダー</name>
+      <uuid>f47ac10b-58cc-4372-a567-0e02b2c3d479</uuid>
+    </vendor>
+    <owner id="owner-001">
+      <name>テストオーナー</name>
+      <uuid>ddc8f712-b993-5c97-ba4c-f5afff437012</uuid>
+    </owner>
+  </document>
+  <protocol id="protocol-001">
+    <uuid>38c8e79c-603d-4cc1-aed2-50b4470062a9</uuid>
+    <method id="method-001">
+      <uuid>42dd5831-1498-4a4e-99a6-658ee26002a5</uuid>
+      <!-- pnml要素が欠落 -->
+      <program id="program-001">
+        <uuid>88f2d18a-e287-475d-8a2f-4ae7b5cfb117</uuid>
+      </program>
+    </method>
+  </protocol>
+</maiml>

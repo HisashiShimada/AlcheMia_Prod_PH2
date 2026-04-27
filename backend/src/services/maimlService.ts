@@ -277,6 +277,27 @@ export async function saveMaiML(
       }
     }
 
+    // ③ プロジェクトメインMAIMLファイルの場合、バリデーション結果をDBに保存
+    if (isProjectMainFile) {
+      try {
+        console.log('🔍 [maimlService] 保存後バリデーション実行:', normalizedFileKey);
+        // skipSave=false でバリデーション結果をDBに登録する
+        // normalizedFileKey（組織IDプレフィックス付き）でDB保存することで
+        // file_metadata.file_key と一致させる
+        await maimlParser.analyzeMaiMLFile(
+          organizationId,
+          content,
+          normalizedFileKey,
+          false, // skipSave: DB保存する
+          'strict'
+        );
+        console.log('✅ [maimlService] 保存後バリデーション完了・DB登録済み');
+      } catch (validationError) {
+        // バリデーション失敗はファイル保存の成否に影響させない（警告のみ）
+        console.warn('⚠️ [maimlService] 保存後バリデーション失敗（ファイル保存は成功）:', validationError);
+      }
+    }
+
     return {
       fileKey: normalizedFileKey,
       size: Buffer.byteLength(content, 'utf-8'),
@@ -356,13 +377,18 @@ export async function listMaiMLFiles(projectId: string, organizationId: string):
  * @param skipAnalysisSave - 分析結果保存をスキップするか
  * @returns バリデーション結果
  */
-export async function validateMaiML(organizationId : string, content: string, fileKey: string = '', skipAnalysisSave: boolean = true): Promise<AnalysisResult> {
+export async function validateMaiML(organizationId : string, content: string, fileKey: string = '', skipAnalysisSave: boolean = false): Promise<AnalysisResult> {
     console.log('✔️ [maimlService] MAIMLバリデーション開始');
+    
+    // fileKeyが空の場合はDB保存をスキップ（新規作成中など保存先が未確定）
+    const effectiveSkip = skipAnalysisSave || !fileKey;
     
     const analysisResult = await maimlParser.analyzeMaiMLFile(
       organizationId,
       content,
-      fileKey || (skipAnalysisSave ? 'realtime-validation' : 'temp-validation')
+      fileKey || 'realtime-validation',
+      effectiveSkip, // skipSave
+      'strict' // 編集画面保存時は厳格モード
     );
     
     // Generate quick suggestions for real-time feedback

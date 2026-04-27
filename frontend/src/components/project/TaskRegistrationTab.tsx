@@ -17,12 +17,14 @@ import {
   Spin,
   Empty,
   App,
+  Alert,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   SaveOutlined,
   HolderOutlined,
   PlusOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import {
   DndContext,
@@ -68,6 +70,8 @@ interface TaskRegistrationTabProps {
   projectName: string;
   isActive: boolean;
   isCheckoutLocked?: boolean;
+  /** MAIMLバリデーションエラーがある場合 true */
+  maimlHasErrors?: boolean;
   onTasksChange?: (tasks: TaskDetail[]) => void;
 }
 
@@ -86,6 +90,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   projectName,
   isActive,
   isCheckoutLocked: isCheckoutLockedProp,
+  maimlHasErrors,
   onTasksChange,
 }) => {
   const { token } = useToken();
@@ -591,11 +596,11 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
 
   /**
    * 実験条件・試行回数・指示追加ボタンの非活性判定
-   * チェックアウト中・ワーカー連携済みは変更不可
+   * チェックアウト中・ワーカー連携済み・MAIMLエラーあり は変更不可
    */
   const isFieldDisabled = useCallback((record: TaskDetail) => {
-    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg;
-  }, [isSaving, loadingMethods, isCheckoutLocked]);
+    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg || !!maimlHasErrors;
+  }, [isSaving, loadingMethods, isCheckoutLocked, maimlHasErrors]);
 
   /**
    * ドラッグ可能な行コンポーネント
@@ -829,13 +834,23 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* MAIMLバリデーションエラー警告バナー */}
+      {maimlHasErrors && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<ExclamationCircleOutlined />}
+          message={t('taskRegistration.maimlErrorWarning')}
+          style={{ marginBottom: token.marginSM, marginLeft: token.paddingLG, marginRight: token.paddingLG }}
+        />
+      )}
       <div style={{ marginBottom: token.marginMD, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `0 ${token.paddingLG}px` }}>
         <Text type="secondary">{t('taskRegistration.dragHint')}</Text>
         <Space>
           <Button
             type="primary"
             onClick={handleProjectInstructionClick}
-            disabled={loadingMethods || isCheckoutLocked}
+            disabled={loadingMethods || isCheckoutLocked || maimlHasErrors}
             data-testid="project-instruction-button"
           >
             {t('taskRegistration.buttons.projectInstruction')}
@@ -845,7 +860,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             icon={<SaveOutlined />}
             onClick={handleSave}
             loading={isSaving}
-            disabled={loadingMethods || isCheckoutLocked}
+            disabled={loadingMethods || isCheckoutLocked || maimlHasErrors}
             data-testid="task-registration-save-button"
           >
             {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}
