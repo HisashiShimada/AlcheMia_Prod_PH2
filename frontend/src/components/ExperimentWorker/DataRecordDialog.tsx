@@ -599,7 +599,8 @@ export default function DataRecordDialog({
   // ダイアログを開いたときにフォームをリセット＆テンプレート実績データを取得
   useEffect(() => {
     if (open && transition) {
-      form.resetFields();
+      // Form が DOM に接続される前に resetFields が呼ばれると警告が出るため try/catch で保護
+      try { form.resetFields(); } catch { /* form 未接続時は無視 */ }
       setFormData({});
       setDataGrids({});
       // 初期値は現在のトランジションステータスから遷移可能な最初の選択肢を設定
@@ -2614,13 +2615,14 @@ export default function DataRecordDialog({
               </div>
 
               {/* フォームまたは選択促進メッセージ */}
+              <Form
+                form={form}
+                layout="vertical"
+                autoComplete="off"
+              >
               {selectedTemplate ? (
                 <>
-                  <Form
-                    form={form}
-                    layout="vertical"
-                    autoComplete="off"
-                  >
+                  <div>
                     <Row gutter={16}>
                       {selectedTemplate.properties.map((prop) => (
                         <Col
@@ -2735,7 +2737,7 @@ export default function DataRecordDialog({
                         })}
                       </div>
                     )}
-                  </Form>
+                  </div>
 
                   {/* ===== カスタムプロパティセクション ===== */}
                   {isProjectEditable && (
@@ -2777,12 +2779,13 @@ export default function DataRecordDialog({
                 </>
               ) : (
                 <Alert
-                  message="テンプレートを選択してください"
+                  title="テンプレートを選択してください"
                   description="左側のテンプレート一覧から記録したいテンプレートを選択してください。"
                   type="info"
                   showIcon
                 />
               )}
+              </Form>
             </div>
           </Content>
         </Layout>

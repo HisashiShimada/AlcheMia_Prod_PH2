@@ -10,6 +10,7 @@ import { Request, Response } from 'express';
 import * as maimlService from '../services/maimlService';
 import { JwtPayload } from '../types/auth';
 import { ingestSingleFileAsync } from '../services/singleFileIngestService';
+import * as maimlAnalysisResultRepository from '../repositories/maimlAnalysisResultRepository';
 
 /**
  * 共通エラーハンドラ
@@ -591,6 +592,48 @@ export async function listFormats(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     handleError(res, error, 'フォーマット一覧取得エラー');
+  }
+}
+
+/**
+ * バリデーション解析結果取得（保存済み）
+ * GET /api/v1/maiml/analysis-result?fileKey=xxx
+ *
+ * @description 指定ファイルキーに対して直近に保存されたバリデーション解析結果を返す。
+ * 存在しない場合は 404 を返す。
+ */
+export async function getAnalysisResult(req: Request, res: Response): Promise<void> {
+  try {
+    const authUser = req.user as JwtPayload;
+    const { fileKey } = req.query;
+
+    if (!fileKey || typeof fileKey !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: { code: 'E1004', message: 'fileKey は必須です' },
+        meta: { timestamp: new Date().toISOString() },
+      });
+      return;
+    }
+
+    const record = await maimlAnalysisResultRepository.getByFileKey(fileKey);
+
+    if (!record) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'E6001', message: '解析結果が見つかりません' },
+        meta: { timestamp: new Date().toISOString() },
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: record,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    handleError(res, error, '解析結果取得エラー');
   }
 }
 

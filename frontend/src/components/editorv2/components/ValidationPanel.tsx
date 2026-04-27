@@ -18,7 +18,6 @@ import {
   Collapse,
   Button,
   Progress,
-  List,
   Checkbox,
   Space,
   Spin,
@@ -36,7 +35,6 @@ import {
 import { AnalysisResult } from '@/types/maimlValidation';
 
 const { Text, Title, Paragraph } = Typography;
-const { Panel } = Collapse;
 
 /**
  * unknown型を文字列に安全に変換するヘルパー関数
@@ -147,9 +145,11 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
     }
 
     const { isValid, errors = [], warnings = [] } = validationResult;
-    const totalErrors = errors.length;
     const totalWarnings = warnings.length;
-    const criticalErrors = errors.filter(e => e.severity === 'critical').length;
+
+    // エラーを致命的/編集可能に分類（canBeIgnoredOnUploadフラグで判定）
+    const fatalErrors = errors.filter(e => e.severity === 'error' && !e.canBeIgnoredOnUpload);
+    const editableErrors = errors.filter(e => e.severity === 'error' && e.canBeIgnoredOnUpload);
 
     return (
       <Card style={{ marginBottom: 16 }}>
@@ -170,11 +170,11 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
             </div>
           </Space>
           <Space size="small" wrap>
-            {criticalErrors > 0 && (
-              <Tag color="error">致命的: {criticalErrors}</Tag>
+            {fatalErrors.length > 0 && (
+              <Tag color="error">致命的エラー: {fatalErrors.length}</Tag>
             )}
-            {totalErrors > 0 && (
-              <Tag color="error">エラー: {totalErrors}</Tag>
+            {editableErrors.length > 0 && (
+              <Tag color="orange">編集可能エラー: {editableErrors.length}</Tag>
             )}
             {totalWarnings > 0 && (
               <Tag color="warning">警告: {totalWarnings}</Tag>
@@ -198,13 +198,58 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         activeKey={activeKeys}
         onChange={(keys) => setActiveKeys(keys as string[])}
         style={{ marginBottom: 16 }}
-      >
-        <Panel 
-          header={
+        items={[{
+          key: 'errors',
+          label: (
             <Space>
               <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
               <Text strong>エラー詳細 ({validationResult.errors.length}件)</Text>
             </Space>
+          ),
+          children: (
+            <div>
+              {validationResult.errors.map((err, index) => {
+                const elementStr = err.element ? convertToString(err.element) : '';
+                const suggestionStr = err.suggestion ? convertToString(err.suggestion) : '';
+                return (
+                  <div key={index} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', width: '100%' }}>
+                      <Checkbox
+                        checked={selectedErrors.includes(index)}
+                        onChange={(e) => handleErrorCheckChange(index, e.target.checked)}
+                        style={{ marginRight: 8, marginTop: 4 }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <Space size="small" style={{ marginBottom: 4 }}>
+                          <Tag 
+                            color={err.severity === 'critical' ? 'error' : 'warning'}
+                          >
+                            {err.severity || 'error'}
+                          </Tag>
+                          <Text>{err.message}</Text>
+                        </Space>
+                        <div style={{ marginTop: 4 }}>
+                          {err.path && (
+                            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                              XPath: {err.path}
+                            </Text>
+                          )}
+                          {elementStr && (
+                            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                              要素: {elementStr}
+                            </Text>
+                          )}
+                          {err.line && (
+                            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                              行: {err.line}
+                            </Text>
+                          )}
+                          {suggestionStr && (
+                            <Text style={{ fontSize: 11, display: 'block', marginTop: 4, color: '#1890ff' }}>
+                              💡 修正案: {suggestionStr}
+                            </Text>
+                          )}
+                        </div>
           }
           key="errors"
         >
@@ -227,9 +272,13 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                     <div style={{ flex: 1 }}>
                       <Space size="small" style={{ marginBottom: 4 }}>
                         <Tag 
-                          color={err.severity === 'critical' ? 'error' : 'warning'}
+                          color={
+                            err.canBeIgnoredOnUpload
+                              ? 'orange'    // 編集可能エラー（アップロード可）
+                              : 'error'     // 致命的エラー（アップロード不可）
+                          }
                         >
-                          {err.severity || 'error'}
+                          {err.canBeIgnoredOnUpload ? '編集可能' : 'エラー'}
                         </Tag>
                         <Text>{err.message}</Text>
                       </Space>
@@ -257,12 +306,12 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                       </div>
                     </div>
                   </div>
-                </List.Item>
-              );
-            }}
-          />
-        </Panel>
-      </Collapse>
+                );
+              })}
+            </div>
+          ),
+        }]}
+      />
     );
   };
 
@@ -279,49 +328,45 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         activeKey={activeKeys}
         onChange={(keys) => setActiveKeys(keys as string[])}
         style={{ marginBottom: 16 }}
-      >
-        <Panel 
-          header={
+        items={[{
+          key: 'warnings',
+          label: (
             <Space>
               <WarningOutlined style={{ color: '#faad14' }} />
               <Text strong>警告詳細 ({validationResult.warnings.length}件)</Text>
             </Space>
-          }
-          key="warnings"
-        >
-          <List
-            size="small"
-            dataSource={validationResult.warnings}
-            renderItem={(warn, index) => {
-              // 文字列変換を事前に実行
-              const elementStr = warn.element ? convertToString(warn.element) : '';
-              
-              return (
-                <List.Item key={index}>
-                  <div style={{ width: '100%' }}>
-                    <Space size="small" style={{ marginBottom: 4 }}>
-                      <Tag color="warning">warning</Tag>
-                      <Text>{warn.message}</Text>
-                    </Space>
-                    <div style={{ marginTop: 4 }}>
-                      {warn.path && (
-                        <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                          XPath: {warn.path}
-                        </Text>
-                      )}
-                      {elementStr && (
-                        <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                          要素: {elementStr}
-                        </Text>
-                      )}
+          ),
+          children: (
+            <div>
+              {validationResult.warnings.map((warn, index) => {
+                const elementStr = warn.element ? convertToString(warn.element) : '';
+                return (
+                  <div key={index} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ width: '100%' }}>
+                      <Space size="small" style={{ marginBottom: 4 }}>
+                        <Tag color="warning">warning</Tag>
+                        <Text>{warn.message}</Text>
+                      </Space>
+                      <div style={{ marginTop: 4 }}>
+                        {warn.path && (
+                          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                            XPath: {warn.path}
+                          </Text>
+                        )}
+                        {elementStr && (
+                          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                            要素: {elementStr}
+                          </Text>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </List.Item>
-              );
-            }}
-          />
-        </Panel>
-      </Collapse>
+                );
+              })}
+            </div>
+          ),
+        }]}
+      />
     );
   };
 
@@ -404,7 +449,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         {/* 成功メッセージ */}
         {validationResult && validationResult.isValid && (
           <Alert
-            message="✅ MaiMLファイルは有効です"
+            title="✅ MaiMLファイルは有効です"
             description="スキーマバリデーションに合格しました。"
             type="success"
             showIcon

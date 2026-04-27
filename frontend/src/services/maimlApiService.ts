@@ -61,7 +61,12 @@ export interface MaimlCorrectionResult {
  */
 export const validateMaiml = async (
   content: string,
-  strict: boolean = false
+  options?: {
+    strict?: boolean;
+    fileKey?: string;
+    /** true: DB保存スキップ（デフォルト）、false: DB保存あり */
+    skipAnalysisSave?: boolean;
+  }
 ): Promise<ApiResponse<AnalysisResult>> => {
   const client = createApiClient();
   
@@ -70,7 +75,12 @@ export const validateMaiml = async (
     
     const response = await client.post<ApiResponse<AnalysisResult>>(
       '/maiml/validate',
-      { content, strict }
+      {
+        content,
+        strict: options?.strict ?? false,
+        fileKey: options?.fileKey ?? '',
+        skipAnalysisSave: options?.skipAnalysisSave ?? true,
+      }
     );
     
     return response.data;
@@ -78,6 +88,37 @@ export const validateMaiml = async (
     console.error('❌ [maimlApiService] バリデーションエラー:', error);
     throw error;
   }
+};
+
+/** DB保存済みの分析結果行 */
+export interface MaimlAnalysisResultRow {
+  id: number;
+  file_key: string;
+  is_valid: boolean;
+  version?: number | null;
+  namespace?: string | null;
+  errors: string;       // JSON文字列
+  warnings: string;     // JSON文字列
+  suggestions?: string; // JSON文字列
+  statistics?: string;  // JSON文字列
+  processing_time?: number | null;
+  analysis_timestamp: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * MAIML分析結果取得（DB保存済み）
+ * GET /maiml/analysis-result?fileKey=xxx
+ */
+export const getAnalysisResult = async (
+  fileKey: string
+): Promise<ApiResponse<MaimlAnalysisResultRow | null>> => {
+  const client = createApiClient();
+  const response = await client.get<ApiResponse<MaimlAnalysisResultRow | null>>(
+    `/maiml/analysis-result?fileKey=${encodeURIComponent(fileKey)}`
+  );
+  return response.data;
 };
 
 /**
@@ -216,6 +257,36 @@ export const parseMaiml = async (
     return response.data;
   } catch (error) {
     console.error('❌ [maimlApiService] パースエラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * MAIMLパース（ペトリネット構造 / 複数method対応）
+ * POST /maiml/parse-petri-net-structure
+ *
+ * parseMaiml（/maiml/parse）は places/transitions の `data.label` / `data.stereotype` を
+ * 含まないため、PetriNetVisualization が必要とする完全な構造はこちらを使用する。
+ *
+ * @param content MAIMLコンテンツ（XML文字列）
+ * @returns Petri Net構造データ（isMultiMethod / methods[] 含む）
+ */
+export const parsePetriNetStructure = async (
+  content: string
+): Promise<ApiResponse<PetriNetStructure>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('📊 [maimlApiService] MAIMLペトリネット構造パース実行');
+
+    const response = await client.post<ApiResponse<PetriNetStructure>>(
+      '/maiml/parse-petri-net-structure',
+      { content }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('❌ [maimlApiService] ペトリネット構造パースエラー:', error);
     throw error;
   }
 };

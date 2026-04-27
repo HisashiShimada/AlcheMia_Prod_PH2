@@ -928,6 +928,10 @@ frontend/src/components/project/TaskRegistrationTab.tsx
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|---------|--------|
+| 2.0 | 2026-04-24 | MAIMLバリデーションエラー時の操作ブロック機能追加 | Cline |
+| | | - maimlHasErrors prop 追加 | |
+| | | - エラー時のAlert表示（タブ上部） | |
+| | | - 保存ボタン・メソッド追加ボタン等の無効化 | |
 | 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: TaskRegistrationTab.tsx） | Cline |
 
 ---

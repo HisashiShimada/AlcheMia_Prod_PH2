@@ -19,7 +19,6 @@ import {
   Space,
   Typography,
   Divider,
-  List,
   App,
 } from 'antd';
 import {
@@ -807,15 +806,13 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
                   <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                     <Text>成功: 0 件 / 失敗: {resultSummary.failureCount} 件</Text>
                     <Text strong>失敗したファイル:</Text>
-                    <List
-                      size="small"
-                      dataSource={resultSummary.failedFileNames}
-                      renderItem={(name) => (
-                        <List.Item style={{ padding: '2px 0' }}>
+                    <div>
+                      {resultSummary.failedFileNames.map((name, i) => (
+                        <div key={i} style={{ padding: '2px 0' }}>
                           <Text style={{ fontSize: 12 }}>{name}</Text>
-                        </List.Item>
-                      )}
-                    />
+                        </div>
+                      ))}
+                    </div>
                   </Space>
                 }
                 type="error"
@@ -831,15 +828,13 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
                       成功: {resultSummary.successCount} 件 / 失敗: {resultSummary.failureCount} 件
                     </Text>
                     <Text strong>失敗したファイル:</Text>
-                    <List
-                      size="small"
-                      dataSource={resultSummary.failedFileNames}
-                      renderItem={(name) => (
-                        <List.Item style={{ padding: '2px 0' }}>
+                    <div>
+                      {resultSummary.failedFileNames.map((name, i) => (
+                        <div key={i} style={{ padding: '2px 0' }}>
                           <Text style={{ fontSize: 12 }}>{name}</Text>
-                        </List.Item>
-                      )}
-                    />
+                        </div>
+                      ))}
+                    </div>
                   </Space>
                 }
                 type="warning"

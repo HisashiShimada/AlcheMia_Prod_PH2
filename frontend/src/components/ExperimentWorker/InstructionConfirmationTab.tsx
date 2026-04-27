@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { Card, Typography, Space, theme, Divider, Button, message, Modal } from 'antd';
-import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, AimOutlined, CheckCircleOutlined, NodeIndexOutlined, CheckSquareOutlined } from '@ant-design/icons';
+import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, AimOutlined, CheckCircleOutlined, NodeIndexOutlined, CheckSquareOutlined, BranchesOutlined } from '@ant-design/icons';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import InstructionStats from './InstructionStats';
@@ -232,6 +232,14 @@ export default function InstructionConfirmationTab({
       if (instruction.targetType === 'file' || instruction.targetType === 'transition') {
         return true;
       }
+      // メソッド単位指示の場合
+      if (instruction.targetType === 'method') {
+        // メソッド選択済みの場合、選択されたメソッドに属するものに限定
+        if (selectedMethodId && instruction.methodId !== selectedMethodId) {
+          return false;
+        }
+        return true;
+      }
       // タスク単位指示の場合
       if (instruction.targetType === 'task') {
         // メソッド選択済みの場合、選択されたメソッドに属するタスクのみに限定
@@ -252,6 +260,7 @@ export default function InstructionConfirmationTab({
   // 選択されたタスクに合わせた統計情報を再計算
   const filteredStats = useMemo(() => {
     const fileInstructions = filteredInstructions.filter((i) => i.targetType === 'file');
+    const methodInstructions = filteredInstructions.filter((i) => i.targetType === 'method');
     const taskInstructions = filteredInstructions.filter((i) => i.targetType === 'task');
     const transitionInstructions = filteredInstructions.filter((i) => i.targetType === 'transition');
     const unreadInstructions = filteredInstructions.filter((i) => !i.isRead);
@@ -259,7 +268,8 @@ export default function InstructionConfirmationTab({
     return {
       total: filteredInstructions.length,
       file: fileInstructions.length,
-      method: taskInstructions.length, // 後方互換性のためmethodキーを残してtaskInstructionsを使用
+      method: methodInstructions.length,
+      task: taskInstructions.length,
       transition: transitionInstructions.length,
       unread: unreadInstructions.length,
     };
@@ -442,6 +452,30 @@ export default function InstructionConfirmationTab({
       cancelText: t('instructionConfirmation.cancelText'),
       onOk: async () => {
         await confirmInstructions(projectInstructions, t('instructionConfirmation.projectInstructionGroup'));
+      },
+    });
+  };
+
+  /**
+   * メソッド単位指示の確認完了ハンドラ
+   */
+  const handleConfirmMethodInstructions = () => {
+    const methodInstructions = filteredInstructions.filter(
+      (i) => i.targetType === 'method' && !i.isAcknowledged
+    );
+
+    if (methodInstructions.length === 0) {
+      message.info(t('instructionConfirmation.noInstructionsToConfirm'));
+      return;
+    }
+
+    Modal.confirm({
+      title: t('instructionConfirmation.confirmComplete'),
+      content: `${t('instructionConfirmation.methodInstructionGroup')}${t('instructionConfirmation.confirmDialogContentSuffix')}${methodInstructions.length}${t('instructionConfirmation.confirmDialogCountSuffix')}`,
+      okText: t('instructionConfirmation.okText'),
+      cancelText: t('instructionConfirmation.cancelText'),
+      onOk: async () => {
+        await confirmInstructions(methodInstructions, t('instructionConfirmation.methodInstructionGroup'));
       },
     });
   };
@@ -671,6 +705,86 @@ export default function InstructionConfirmationTab({
                     emoji="file"
                     instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'file'
+                    )}
+                    projectStatus={projectStatus}
+                    isClient={isClient}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* メソッド単位指示グループ*/}
+            <div style={{ marginBottom: '8px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                }}
+              >
+                {/* タイトル部分（クリック可能）*/}
+                <div
+                  data-testid="instruction-group-method-toggle"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: token.marginXS,
+                    cursor: 'pointer',
+                    borderRadius: token.borderRadiusSM,
+                  }}
+                  onClick={() => toggleGroup('method')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = token.colorFillSecondary;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Title level={4} style={{ margin: 0 }}>
+                    {expandedGroups['method'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                    <BranchesOutlined style={{ marginRight: token.marginXS }} />
+                    {t('instructionConfirmation.methodInstructionGroup')} (
+                    {filteredInstructions.filter((i) => i.targetType === 'method').length}
+                    {t('instructionConfirmation.countSuffix')})
+                  </Title>
+                </div>
+
+                {/* 確認完了ボタン（展開時のみ表示）*/}
+                {expandedGroups['method'] && filteredInstructions.filter((i) => i.targetType === 'method').length > 0 && (
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleConfirmMethodInstructions();
+                    }}
+                    loading={confirmLoading}
+                    disabled={
+                      readOnly ||
+                      !isTaskExecuting ||
+                      confirmLoading ||
+                      filteredInstructions
+                        .filter((i) => i.targetType === 'method')
+                        .every((i) => i.isAcknowledged)
+                    }
+                    style={{
+                      backgroundColor: token.colorSuccess,
+                      borderColor: token.colorSuccess,
+                    }}
+                  >
+                    {t('instructionConfirmation.confirmComplete')}
+                  </Button>
+                )}
+              </div>
+              {expandedGroups['method'] && (
+                <div style={{ marginTop: token.margin }}>
+                  <InstructionGroup
+                    title={t('instructionConfirmation.methodInstructionGroup')}
+                    emoji="branches"
+                    instructions={filteredInstructions.filter(
+                      (i) => i.targetType === 'method'
                     )}
                     projectStatus={projectStatus}
                     isClient={isClient}

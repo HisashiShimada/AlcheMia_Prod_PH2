@@ -484,7 +484,8 @@ export class FileAccessService {
               organizationId,
               content,
               filePath,
-              true // skipSave=true: DB保存はスキップ
+              false, // skipSave=false: DB保存を行う（バリデーション結果を記録）
+              'lenient' // アップロード時は緩和モード（編集可能な項目は警告に降格）
             );
           } catch (analysisError) {
             // 解析自体が例外を投げた場合は警告のみ（アップロードは続行）
@@ -493,17 +494,26 @@ export class FileAccessService {
           }
 
           if (analysisResult) {
-            const fatalErrors = (analysisResult.errors as ErrorContent[]).filter((e) => e.severity === 'error');
+            // canBeIgnoredOnUpload=falseのerrorのみをfatalErrorsとしてカウント
+            const fatalErrors = (analysisResult.errors as ErrorContent[]).filter(
+              (e) => e.severity === 'error' && !e.canBeIgnoredOnUpload
+            );
+            // canBeIgnoredOnUpload=trueのerrorはアップロード許可（DB保存時はerrorとして記録される）
+            const ignorableErrors = (analysisResult.errors as ErrorContent[]).filter(
+              (e) => e.severity === 'error' && e.canBeIgnoredOnUpload
+            );
             const warnings = analysisResult.warnings as ErrorContent[];
 
             console.log(`📊 [MAIML Validation] 解析結果 ${sanitizedFileName}:`, {
               isValid: analysisResult.isValid,
               totalErrors: analysisResult.errors.length,
               fatalErrors: fatalErrors.length,
+              ignorableErrors: ignorableErrors.length,
               warnings: warnings.length,
               errorDetails: (analysisResult.errors as ErrorContent[]).map((e) => ({
                 type: e.type,
                 severity: e.severity,
+                canBeIgnoredOnUpload: e.canBeIgnoredOnUpload,
                 message: e.message,
               })),
             });
@@ -520,11 +530,13 @@ export class FileAccessService {
               );
             }
 
-            // warningsのみの場合はアップロード成功として警告情報を付加
-            if (warnings.length > 0) {
+            // ignorableErrors or warningsがある場合はアップロード成功として情報を付加
+            if (ignorableErrors.length > 0 || warnings.length > 0) {
               maimlValidation = {
                 fileName: sanitizedFileName,
                 isValid: true,
+                ignorableErrorCount: ignorableErrors.length,
+                ignorableErrors,
                 warningCount: warnings.length,
                 warnings,
               };

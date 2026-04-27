@@ -48,7 +48,7 @@ import {
   fetchTransitionStatus as fetchTransitionStatusAPI,
   fetchExperimentRecords as fetchExperimentRecordsAPI,
 } from '@/utils/apiClient';
-import { parseMaiml } from '@/services/maimlApiService';
+import { parsePetriNetStructure, getStorageFileContent } from '@/services/maimlApiService';
 import { ProgressStatus } from '@/constants/progressStatus';
 
 const { Text } = Typography;
@@ -422,8 +422,13 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
       // 実APIを使用
       console.log('🌐 [PetriNetVisualization] 実APIからデータ取得中...');
 
-      // ペトリネット構造取得: POST /api/v1/maiml/parse-petri-net-structure
-      structureResult = await parseMaiml(fileKey);
+      // ペトリネット構造取得: まずストレージから XML を取得し、POST /api/v1/maiml/parse に渡す
+      const fileContentResponse = await getStorageFileContent(fileKey);
+      const xmlContent = fileContentResponse.data?.data?.content;
+      if (!xmlContent) {
+        throw new Error('MAIMLファイルの取得に失敗しました');
+      }
+      structureResult = await parsePetriNetStructure(xmlContent);
 
       // トランジション進捗取得（エラーでも続行）
       try {
@@ -1163,7 +1168,7 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
           />
           <Text style={{ fontSize: token.fontSizeSM }}>Transition</Text>
         </Flex>
-        <Divider type="vertical" />
+        <Divider orientation="vertical" />
         <Tag color="success">✅ 完了</Tag>
         <Tag color="processing">🔵 作業中</Tag>
       </Flex>

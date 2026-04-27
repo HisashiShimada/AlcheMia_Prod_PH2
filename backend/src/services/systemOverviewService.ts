@@ -7,6 +7,7 @@ import * as systemOverviewRepository from '../repositories/systemOverviewReposit
 import { RefreshTokenService } from './refreshTokenService';
 import { getStorageService } from './storageService';
 import { logError } from '../utils/logger';
+import { getSchemaStorageSizeBytes } from '../repositories/maimlAssetRepository';
 
 /**
  * システム概要レスポンスの型定義
@@ -142,7 +143,27 @@ async function getStorageStats(organizationId: string): Promise<{ totalFiles: nu
     const actualFiles = allObjects.filter(f => !f.key.endsWith('/') && !f.key.endsWith('.keep'));
 
     const totalFiles = actualFiles.length;
-    const totalBytes = actualFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+    const s3TotalBytes = actualFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+
+    // 公開用スキーマ（PostgreSQL）の容量を加算
+    let schemaSizeBytes = 0;
+    try {
+      schemaSizeBytes = await getSchemaStorageSizeBytes(organizationId);
+    } catch (err) {
+      logError('Failed to get schema storage size', err as Error, { organizationId });
+    }
+
+    const totalBytes = s3TotalBytes + schemaSizeBytes;
+
+    // デバッグ用: ストレージ使用量の内訳をコンソール出力
+    console.info(
+      `[getStorageStats] organizationId=${organizationId}\n` +
+      `  swift/S3  : ${s3TotalBytes}B (${(s3TotalBytes / 1024).toFixed(2)}KB / ${(s3TotalBytes / 1048576).toFixed(2)}MB / ${(s3TotalBytes / 1073741824).toFixed(4)}GB)\n` +
+      `  schema    : ${schemaSizeBytes}B (${(schemaSizeBytes / 1024).toFixed(2)}KB / ${(schemaSizeBytes / 1048576).toFixed(2)}MB / ${(schemaSizeBytes / 1073741824).toFixed(4)}GB)\n` +
+      `  total     : ${totalBytes}B (${(totalBytes / 1024).toFixed(2)}KB / ${(totalBytes / 1048576).toFixed(2)}MB / ${(totalBytes / 1073741824).toFixed(4)}GB)\n` +
+      `  usedCapacityGB (toFixed 3) : ${(totalBytes / 1073741824).toFixed(3)}`
+    );
+
     const usedCapacityGB = parseFloat((totalBytes / 1073741824).toFixed(3)); // GB、小数点3桁
 
     return { totalFiles, usedCapacityGB };

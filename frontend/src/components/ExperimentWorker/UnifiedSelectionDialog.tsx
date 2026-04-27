@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal, List, Typography, Space, Tag, Button, theme } from 'antd';
+import { Modal, Typography, Space, Tag, Button, theme } from 'antd';
 import { FolderOutlined, ToolOutlined, AimOutlined, CheckOutlined, ArrowLeftOutlined, MinusOutlined } from '@ant-design/icons';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
@@ -149,44 +149,29 @@ export default function UnifiedSelectionDialog({
     const color = type === 'project' ? token.colorPrimary : token.colorInfo;
 
     return (
-      <List.Item
+      <div
         onClick={() => type === 'project' ? handleProjectSelect('') : handleMethodSelect('')}
         style={{
-          cursor: 'pointer',
-          padding: token.paddingMD,
+          display: 'flex', alignItems: 'flex-start',
+          cursor: 'pointer', padding: token.paddingMD,
           backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
-          borderRadius: token.borderRadius,
-          marginBottom: token.marginXS,
+          borderRadius: token.borderRadius, marginBottom: token.marginXS,
           transition: 'all 0.2s',
           border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
         }}
-        onMouseEnter={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }
-        }}
+        onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = token.colorBgTextHover; }}
+        onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent'; }}
       >
-        <List.Item.Meta
-          avatar={React.cloneElement(icon, { style: { fontSize: 24, color } })}
-          title={
-            <Space>
-              <Text strong>-</Text>
-              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-              {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
-            </Space>
-          }
-          description={
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {label}を選択しない
-            </Text>
-          }
-        />
-      </List.Item>
+        {React.cloneElement(icon, { style: { fontSize: 24, color, marginRight: 12, marginTop: 2 } })}
+        <div style={{ flex: 1 }}>
+          <Space>
+            <Text strong>-</Text>
+            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+            {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
+          </Space>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{label}を選択しない</Text>
+        </div>
+      </div>
     );
   };
 
@@ -195,50 +180,33 @@ export default function UnifiedSelectionDialog({
     const project = projectsData[projectId];
     const isSelected = tempProject === projectId;
     const isCurrentlySelected = selectedProject === projectId;
-
     return (
-      <List.Item
+      <div
+        key={projectId}
         onClick={() => handleProjectSelect(projectId)}
         style={{
-          cursor: 'pointer',
-          padding: token.paddingMD,
+          display: 'flex', alignItems: 'flex-start',
+          cursor: 'pointer', padding: token.paddingMD,
           backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
-          borderRadius: token.borderRadius,
-          marginBottom: token.marginXS,
+          borderRadius: token.borderRadius, marginBottom: token.marginXS,
           transition: 'all 0.2s',
           border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
         }}
-        onMouseEnter={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }
-        }}
+        onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = token.colorBgTextHover; }}
+        onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent'; }}
       >
-        <List.Item.Meta
-          avatar={<FolderOutlined style={{ fontSize: 24, color: token.colorPrimary }} />}
-          title={
-            <Space>
-              <Text strong>{project.projectName}</Text>
-              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-            </Space>
-          }
-          description={
-            <Space orientation="vertical" size={0}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {project.fileName}
-              </Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {project.methods?.length || 0} メソッド
-              </Text>
-            </Space>
-          }
-        />
-      </List.Item>
+        <FolderOutlined style={{ fontSize: 24, color: token.colorPrimary, marginRight: 12, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <Space>
+            <Text strong>{project.projectName}</Text>
+            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+          </Space>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{project.fileName}</Text>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{project.methods?.length || 0} メソッド</Text>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -246,50 +214,33 @@ export default function UnifiedSelectionDialog({
   const renderMethodItem = (method: Method) => {
     const isSelected = tempMethodId === method.methodId;
     const isCurrentlySelected = selectedMethodId === method.methodId;
-
     return (
-      <List.Item
+      <div
+        key={method.methodId}
         onClick={() => handleMethodSelect(method.methodId)}
         style={{
-          cursor: 'pointer',
-          padding: token.paddingMD,
+          display: 'flex', alignItems: 'flex-start',
+          cursor: 'pointer', padding: token.paddingMD,
           backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
-          borderRadius: token.borderRadius,
-          marginBottom: token.marginXS,
+          borderRadius: token.borderRadius, marginBottom: token.marginXS,
           transition: 'all 0.2s',
           border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
         }}
-        onMouseEnter={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }
-        }}
+        onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = token.colorBgTextHover; }}
+        onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent'; }}
       >
-        <List.Item.Meta
-          avatar={<ToolOutlined style={{ fontSize: 24, color: token.colorInfo }} />}
-          title={
-            <Space>
-              <Text strong>{method.methodName}</Text>
-              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-            </Space>
-          }
-          description={
-            <Space orientation="vertical" size={0}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {method.methodId}
-              </Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {method.transitions?.length || 0} トランジション
-              </Text>
-            </Space>
-          }
-        />
-      </List.Item>
+        <ToolOutlined style={{ fontSize: 24, color: token.colorInfo, marginRight: 12, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <Space>
+            <Text strong>{method.methodName}</Text>
+            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+          </Space>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{method.methodId}</Text>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{method.transitions?.length || 0} トランジション</Text>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -297,49 +248,32 @@ export default function UnifiedSelectionDialog({
   const renderTaskItem = (task: Task) => {
     const isSelected = tempTaskId === task.taskId;
     const isCurrentlySelected = selectedTaskId === task.taskId;
-
     return (
-      <List.Item
+      <div
+        key={task.taskId}
         onClick={() => setTempTaskId(task.taskId)}
         style={{
-          cursor: 'pointer',
-          padding: token.paddingMD,
+          display: 'flex', alignItems: 'flex-start',
+          cursor: 'pointer', padding: token.paddingMD,
           backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
-          borderRadius: token.borderRadius,
-          marginBottom: token.marginXS,
+          borderRadius: token.borderRadius, marginBottom: token.marginXS,
           transition: 'all 0.2s',
           border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
         }}
-        onMouseEnter={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }
-        }}
+        onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = token.colorBgTextHover; }}
+        onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent'; }}
       >
-        <List.Item.Meta
-          avatar={<AimOutlined style={{ fontSize: 24, color: token.colorPrimary }} />}
-          title={
-            <Space>
-              <Text strong>{task.taskName}</Text>
-              {task.tag && <Tag>{task.tag}</Tag>}
-              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-              {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
-            </Space>
-          }
-          description={
-            <Space orientation="vertical" size={0}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {task.taskId}
-              </Text>
-            </Space>
-          }
-        />
-      </List.Item>
+        <AimOutlined style={{ fontSize: 24, color: token.colorPrimary, marginRight: 12, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <Space>
+            <Text strong>{task.taskName}</Text>
+            {task.tag && <Tag>{task.tag}</Tag>}
+            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+            {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
+          </Space>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{task.taskId}</Text>
+        </div>
+      </div>
     );
   };
 
@@ -385,29 +319,21 @@ export default function UnifiedSelectionDialog({
     if (step === 'project') {
       return (
         <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-          <List>
-            {/* "-" オプション */}
-            {renderEmptyOption('project')}
-            {/* プロジェクト一覧 */}
-            {Object.keys(projectsData).map(renderProjectItem)}
-          </List>
+          {renderEmptyOption('project')}
+          {Object.keys(projectsData).map(renderProjectItem)}
         </div>
       );
     } else if (step === 'method') {
       return (
         <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-          <List>
-            {/* "-" オプション */}
-            {renderEmptyOption('method')}
-            {/* メソッド一覧 */}
-            {methods.length === 0 ? (
-              <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
-                <Text type="secondary">メソッドがありません</Text>
-              </Space>
-            ) : (
-              methods.map(renderMethodItem)
-            )}
-          </List>
+          {renderEmptyOption('method')}
+          {methods.length === 0 ? (
+            <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+              <Text type="secondary">メソッドがありません</Text>
+            </Space>
+          ) : (
+            methods.map(renderMethodItem)
+          )}
         </div>
       );
     } else {
@@ -418,10 +344,7 @@ export default function UnifiedSelectionDialog({
               <Text type="secondary">タスクがありません</Text>
             </Space>
           ) : (
-            <List
-              dataSource={tasks}
-              renderItem={renderTaskItem}
-            />
+            <div>{tasks.map(renderTaskItem)}</div>
           )}
         </div>
       );

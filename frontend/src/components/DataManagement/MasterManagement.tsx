@@ -1489,7 +1489,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         {/* Creatorマスタの場合のみ注意書きを表示 */}
         {selectedMasterInfo?.masterId === '1' && (
           <Alert
-            message={<strong>{t('masterManagement.creatorWarning')}</strong>}
+            title={<strong>{t('masterManagement.creatorWarning')}</strong>}
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
