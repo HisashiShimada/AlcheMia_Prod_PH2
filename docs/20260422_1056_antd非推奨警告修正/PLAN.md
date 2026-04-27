@@ -823,18 +823,6 @@ rowKey={(record, index) => {
 
 ---
 
-## 残課題
-
-> 発見済みだが未対応のエラー。優先度・工数の都合で本タスクでは対応しなかったもの。
-
-| No. | 画面名 | 操作方法 | 発生ファイル | エラー概要 | 未対応理由 |
-|-----|--------|---------|------------|----------|----------|
-| 14 | 実験管理者 > MAIML エディタ > Document編集ダイアログ | 編集ボタンを押下したとき（エディタ画面表示時） | `frontend/src/components/editorv2/components/DocumentEditDialog.tsx` | `useForm` 未接続警告（4箇所） | `documentData` props の型・構造を確認した上で対応が必要。誤った参照先を使用するとダイアログの初期値が壊れるリスクがある |
-| 16 | 実験管理者 > MAIML エディタ > Document編集ダイアログ | Document編集ダイアログ内での操作時 | `frontend/src/components/editorv2/components/DocumentEditDialog.tsx` | `rc-collapse` の `children`/`Panel` 記法 → `items` 配列形式への移行 | 3パネル分の JSX を `{ key, label, children }` オブジェクト配列に書き直す作業量が多く、影響範囲が広い |
-| 8 | 実験管理者 > プロジェクト管理 | チェックアウト・チェックイン等の API 操作を行ったとき | `frontend/src/services/projectApiService.ts` | `[DEBUG]` プレフィックス付き `console.log` / `console.error` が全 API 関数に残存（計82件）。チェックイン操作が実際にエラーを返しているかは DevTools の Network タブで確認要 | デバッグログの一括削除のみで済むか、API エラー調査も必要かを確認してから対応予定 |
-
----
-
 ## 変更ファイル
 
 | No. | ファイル | 変更内容 |
