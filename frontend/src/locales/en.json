@@ -755,6 +755,7 @@
     "loading": "Loading method information...",
     "noMethods": "No methods available",
     "dragHint": "🔀 Drag rows or enter order directly to change sequence",
+    "maimlErrorWarning": "The MAIML file has validation errors. Please fix the errors before registering tasks.",
     "saveButton": "Save Task Information",
     "saving": "Saving...",
     "columns": {

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!-- ケース01: 完全に正常なMAIML → エラーなし・警告なし -->
+<maiml version="1.0" xmlns="http://www.maiml.org/schemas">
+  <document id="doc-001">
+    <name>テストMAIML正常ケース</name>
+    <uuid>7066fe49-ea37-46af-942b-64a9280bda27</uuid>
+    <date>2026-04-23T10:00:00Z</date>
+    <creator id="creator-001">
+      <name>テスト作成者</name>
+      <uuid>7f3c8a9d-2b1e-4f6a-9c5d-8e7b4a3f2c1d</uuid>
+    </creator>
+    <vendor id="vendor-001">
+      <name>テストベンダー</name>
+      <uuid>f47ac10b-58cc-4372-a567-0e02b2c3d479</uuid>
+    </vendor>
+    <owner id="owner-001">
+      <name>テストオーナー</name>
+      <uuid>ddc8f712-b993-5c97-ba4c-f5afff437012</uuid>
+    </owner>
+  </document>
+  <protocol id="protocol-001">
+    <uuid>38c8e79c-603d-4cc1-aed2-50b4470062a9</uuid>
+    <method id="method-001">
+      <uuid>42dd5831-1498-4a4e-99a6-658ee26002a5</uuid>
+      <pnml id="pnml-001">
+        <uuid>cc23e273-cce6-4a38-ae3d-23e1614f522f</uuid>
+        <place id="place-001">
+          <position x="100" y="100"/>
+        </place>
+        <transition id="transition-001">
+          <position x="200" y="100"/>
+        </transition>
+        <arc id="arc-001" source="place-001" target="transition-001">
+        </arc>
+      </pnml>
+      <program id="program-001">
+        <uuid>88f2d18a-e287-475d-8a2f-4ae7b5cfb117</uuid>
+        <instruction id="instruction-001">
+          <uuid>01f835ab-b4be-4926-b766-c192b132d16e</uuid>
+          <transitionRef id="tref-001" ref="transition-001"/>
+        </instruction>
+      </program>
+    </method>
+  </protocol>
+</maiml>

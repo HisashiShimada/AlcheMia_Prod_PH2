@@ -46,6 +46,12 @@ export interface AnalysisResult {
 export interface ErrorContent {
   type: string;
   severity?: string;
+  /**
+   * trueの場合、アップロード時にこのエラーを無視してアップロードを許可する。
+   * 編集画面で補正・追記可能な項目（document id, creator, vendor, owner, date, method id等）に設定。
+   * DB保存時はerrorとして記録され、情報が失われない。
+   */
+  canBeIgnoredOnUpload?: boolean;
   message: string;
   details?: string;
   suggestion?: string;
