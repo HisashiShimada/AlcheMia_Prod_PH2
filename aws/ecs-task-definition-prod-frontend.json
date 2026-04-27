@@ -1,0 +1,78 @@
+{
+  "_comment": "=================================================================",
+  "_comment2": "本番検証環境用 ECS タスク定義 - prod-frontend",
+  "_comment3": "=================================================================",
+  "_comment4": "使い方:",
+  "_comment5": "  1. NEXT_PUBLIC_API_URL の <ALB_DNS> を実際の ALB の DNS 名に置き換えてください",
+  "_comment6": "     例: prod-verification-alb-xxxxxxxxx.ap-northeast-1.elb.amazonaws.com",
+  "_comment7": "  2. 登録コマンド:",
+  "_comment8": "     aws ecs register-task-definition --cli-input-json file://aws/ecs-task-definition-prod-frontend.json --region ap-northeast-1",
+  "_comment9": "=================================================================",
+
+  "family": "prod-frontend",
+  "taskRoleArn": "arn:aws:iam::137068252939:role/ecsTaskRole",
+  "executionRoleArn": "arn:aws:iam::137068252939:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+
+  "containerDefinitions": [
+    {
+      "name": "mmdpf-frontend",
+      "image": "137068252939.dkr.ecr.ap-northeast-1.amazonaws.com/mmdpf-frontend:staging",
+      "essential": true,
+
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+
+      "environment": [
+        { "name": "NODE_ENV",                "value": "production" },
+        { "name": "PORT",                    "value": "3000" },
+        { "name": "NEXT_TELEMETRY_DISABLED", "value": "1" },
+        {
+          "_comment_api_url": "⚠️ <ALB_DNS> を実際の prod-verification-alb の DNS 名に置き換えること",
+          "name": "NEXT_PUBLIC_API_URL",
+          "value": "https://<ALB_DNS>"
+        }
+      ],
+
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/prod-frontend",
+          "awslogs-region":        "ap-northeast-1",
+          "awslogs-stream-prefix": "frontend",
+          "awslogs-create-group":  "true"
+        }
+      },
+
+      "healthCheck": {
+        "command":     ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"],
+        "interval":    30,
+        "timeout":     10,
+        "retries":     3,
+        "startPeriod": 60
+      },
+
+      "ulimits": [
+        {
+          "name": "nofile",
+          "softLimit": 65536,
+          "hardLimit": 65536
+        }
+      ]
+    }
+  ],
+
+  "tags": [
+    { "key": "Project",     "value": "alchemia-staging" },
+    { "key": "Environment", "value": "staging" },
+    { "key": "Service",     "value": "prod-frontend" }
+  ]
+}
