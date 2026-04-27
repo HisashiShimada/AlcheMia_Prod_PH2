@@ -15,7 +15,7 @@ import { EmailService } from './emailService';
 import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
 import { getMessage } from '../utils/messages';
-import { createSchemaIfNotExists, createSchemaTables } from '../repositories/maimlAssetRepository';
+import { createSchemaIfNotExists, createSchemaTables, getSchemaStorageSizeBytes } from '../repositories/maimlAssetRepository';
 
 /**
  * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
@@ -633,6 +633,27 @@ export async function downloadOrganizationsInformation(lang: string = 'ja'): Pro
         error: err instanceof Error ? err.message : String(err),
       });
     }
+
+    // 公開用スキーマ（PostgreSQL）の容量を加算
+    const s3Bytes = storageSizeBytes;
+    let schemaSizeBytes = 0;
+    try {
+      schemaSizeBytes = await getSchemaStorageSizeBytes(org.organization_id);
+      storageSizeBytes += schemaSizeBytes;
+    } catch (err) {
+      logger.warn(`[organizationService] 公開用スキーマ容量取得失敗: organizationId=${org.organization_id}`, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    // デバッグ用: ストレージ使用量の内訳をコンソール出力
+    console.info(
+      `[downloadOrganizationsInformation] organizationId=${org.organization_id}\n` +
+      `  swift/S3  : ${s3Bytes}B (${(s3Bytes / 1024).toFixed(2)}KB / ${(s3Bytes / 1048576).toFixed(2)}MB / ${(s3Bytes / 1073741824).toFixed(4)}GB)\n` +
+      `  schema    : ${schemaSizeBytes}B (${(schemaSizeBytes / 1024).toFixed(2)}KB / ${(schemaSizeBytes / 1048576).toFixed(2)}MB / ${(schemaSizeBytes / 1073741824).toFixed(4)}GB)\n` +
+      `  total     : ${storageSizeBytes}B (${(storageSizeBytes / 1024).toFixed(2)}KB / ${(storageSizeBytes / 1048576).toFixed(2)}MB / ${(storageSizeBytes / 1073741824).toFixed(4)}GB)\n` +
+      `  storageSizeGb (toFixed 2) : ${(storageSizeBytes / 1073741824).toFixed(2)}`
+    );
 
     // バイト → GB 変換（小数点2桁）
     const storageSizeGb = (storageSizeBytes / (1024 * 1024 * 1024)).toFixed(2);

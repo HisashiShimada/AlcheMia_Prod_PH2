@@ -752,6 +752,7 @@
     "loading": "メソッド情報を読み込み中...",
     "noMethods": "利用可能なメソッドがありません",
     "dragHint": "🔀 行をドラッグまたは作業順序を直接入力して順序を変更できます",
+    "maimlErrorWarning": "MAIMLファイルにバリデーションエラーがあります。エラーを修正してからタスク登録を行ってください。",
     "saveButton": "タスク情報を保存",
     "saving": "保存中...",
     "columns": {
@@ -1513,6 +1514,7 @@
     "confirmComplete": "確認完了",
     "confirmAllInstructions": "全ての指示の確認完了",
     "projectInstructionGroup": "プロジェクト指示",
+    "methodInstructionGroup": "メソッド指示",
     "taskInstructionGroup": "タスク指示",
     "transitionInstructionGroup": "トランジション指示",
     "countSuffix": "件",

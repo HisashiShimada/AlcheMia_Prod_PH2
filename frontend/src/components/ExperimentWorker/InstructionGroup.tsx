@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Button, Space, Typography, Empty, theme } from 'antd';
-import { CheckCircleOutlined, FileOutlined, ToolOutlined, AimOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, FileOutlined, ToolOutlined, AimOutlined, DownOutlined, RightOutlined, BranchesOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import type { Instruction, ProjectStatus } from '@/types/experimentWorker';
 import { InstructionType, InstructionEmptyMessageKey } from '@/constants/instructionType';
 import InstructionCard from './InstructionCard';
@@ -105,7 +105,7 @@ export default function InstructionGroup({
   };
 
   // プロジェクト指示の場合（カードなしで表示）
-  if (title === InstructionType.PROJECT_INSTRUCTION || title === InstructionType.OVERALL_INSTRUCTION) {
+  if (emoji === 'file') {
     return (
       <div data-testid="instruction-group-file" style={{ marginBottom: 32 }}>
         {groupInstructions.length === 0 ? (
@@ -129,7 +129,7 @@ export default function InstructionGroup({
   }
 
   // タスク指示の場合
-  if (title === InstructionType.TASK_INSTRUCTION || title === InstructionType.TASK_UNIT_INSTRUCTION) {
+  if (emoji === 'checkSquare') {
     const taskGroups = groupByTask();
     const taskIds = Object.keys(taskGroups);
 
@@ -248,7 +248,7 @@ export default function InstructionGroup({
   }
 
   // メソッド単位指示の場合
-  if (title === InstructionType.METHOD_UNIT_INSTRUCTION) {
+  if (emoji === 'branches') {
     const methodGroups = groupByMethod();
     const methodIds = Object.keys(methodGroups);
 
@@ -365,7 +365,7 @@ export default function InstructionGroup({
   }
 
   // トランジション単位指示の場合
-  if (title === InstructionType.TRANSITION_UNIT_INSTRUCTION) {
+  if (emoji === 'aim') {
     const transitionGroups = groupByTransition();
     const transitionIds = Object.keys(transitionGroups);
 

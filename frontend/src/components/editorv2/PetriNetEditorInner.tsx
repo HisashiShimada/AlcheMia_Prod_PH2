@@ -549,7 +549,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       // バリデーションAPI呼び出し
       console.log('🔍 [handleOpenSaveConfirmDialog] バリデーションAPI呼び出し');
-      const response = await maimlService.validateMaiml(base64Data);
+      const response = await maimlService.validateMaiml(base64Data, { fileKey: props.sourceS3Key ?? '' });
       
       if (!response.success) {
         throw new Error(`バリデーションエラー: ${response.error?.message}`);
@@ -914,7 +914,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                 organizationId: currentOrgId
               });
               
-              const validateResponse = await maimlService.validateMaiml(base64Data);
+              const validateResponse = await maimlService.validateMaiml(base64Data, { fileKey: props.sourceS3Key ?? '' });
               
               if (validateResponse.success) {
                 const validateResult = validateResponse.data as AnalysisResult;
@@ -2549,7 +2549,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const base64Data = btoa(String.fromCharCode(...bytes));
       
       console.log('🔍 [handleOpenValidationPanel] バリデーションAPI呼び出し');
-      const response = await maimlService.validateMaiml(base64Data);
+      const response = await maimlService.validateMaiml(base64Data, { fileKey: props.sourceS3Key ?? '' });
       
       if (!response.success) {
         throw new Error(`バリデーションエラー: ${response.error}`);
@@ -2755,27 +2755,32 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const userInfo5 = userInfoStr5 ? JSON.parse(userInfoStr5) : null;
         const currentOrgId = userInfo5?.organizationId || null;
         
-        // ファイル名決定（DocumentEditDialogで設定した名前 > 元のファイル名 > デフォルト）
-        const baseFileName = documentData?.name 
-          || props.originalFileName?.replace('.maiml', '') 
-          || 'document';
-        const fileName = `${baseFileName}.maiml`;
-        
-        // フォルダ決定（SaveConfirmDialogで選択されたフォルダ、なければ元のS3Keyのフォルダ、最後にデフォルト）
+        // fileKey 決定ロジック
+        // - sourceS3Key が存在する場合（既存ファイル編集）: S3Key のファイル名を維持する
+        //   - フォルダ変更なし: sourceS3Key をそのまま使用
+        //   - フォルダ変更あり: 選択フォルダ + sourceS3Key のファイル名部分
+        // - sourceS3Key がない場合（新規作成）: originalFileName（プロジェクト名）でファイル名を決定
+        // ※ documentData.name は Document 要素の name 属性でありファイル名とは別物のため使用しない
         let fileKey;
-        if (folder) {
-          // ユーザーが選択したフォルダ
-          fileKey = `${folder}/${fileName}`;
-        } else if (props.sourceS3Key) {
-          // 元のS3Keyからフォルダ部分を抽出
-          const folderPart = props.sourceS3Key.substring(0, props.sourceS3Key.lastIndexOf('/'));
-          fileKey = folderPart ? `${folderPart}/${fileName}` : `${currentOrgId}/${fileName}`;
+        if (props.sourceS3Key) {
+          // 既存ファイル編集: sourceS3Key のファイル名を維持する
+          const sourceFileNameWithExt = props.sourceS3Key.substring(props.sourceS3Key.lastIndexOf('/') + 1);
+          if (folder) {
+            // ユーザーがフォルダを変更した場合: 選択フォルダ + 元のファイル名
+            fileKey = `${folder}/${sourceFileNameWithExt}`;
+          } else {
+            // フォルダ変更なし: sourceS3Key をそのまま使用
+            fileKey = props.sourceS3Key;
+          }
         } else {
-          // デフォルト（組織ルート）
-          fileKey = `${currentOrgId}/${fileName}`;
+          // 新規作成: originalFileName（プロジェクト名）でファイル名を決定
+          const newFileName = `${props.originalFileName?.replace('.maiml', '') || 'document'}.maiml`;
+          fileKey = folder
+            ? `${folder}/${newFileName}`
+            : `${currentOrgId}/${newFileName}`;
         }
         
-        console.log('💾 [PetriNetEditorInner] S3保存先:', { fileName, fileKey });
+        console.log('💾 [PetriNetEditorInner] S3保存先:', { fileKey });
 
         const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
         

@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import {
   MaimlAsset,
   MaimlInstance,
@@ -582,6 +583,35 @@ export async function findAllWithRetention(
     `SELECT * FROM "${schemaName}".maiml_asset WHERE retention_until IS NOT NULL`
   );
 }
+
+// ============================================================
+// ストレージ使用量
+// ============================================================
+
+/**
+ * 組織スキーマの総使用容量をバイト単位で返す
+ *
+ * @description
+ *   pg_tables ビューを通じてスキーマ内の全テーブルを特定し、
+ *   pg_total_relation_size()（テーブル本体 + TOAST + インデックス）の合計を返す。
+ *   スキーマが存在しない場合、または対象テーブルが 0 件の場合は 0 を返す。
+ *
+ * @param organizationId - 組織 ID
+ * @returns 総使用容量（バイト）
+ */
+export async function getSchemaStorageSizeBytes(organizationId: string): Promise<number> {
+  const pgp = getPgp();
+  const schemaName = toSchemaName(organizationId);
+  validateSchemaName(schemaName);
+
+  const sqlQuery = await loadSqlFile('maiml_asset/getSchemaStorageSizeBytes.sql');
+  const row = await pgp.oneOrNone<{ total_bytes: string }>(sqlQuery, [schemaName]);
+  return row ? Number(row.total_bytes) : 0;
+}
+
+// ============================================================
+// Scanner Worker 用: 期限切れアセット一覧取得
+// ============================================================
 
 /**
  * 全組織スキーマを横断して retention_until IS NOT NULL のアセットを返す

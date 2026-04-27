@@ -229,7 +229,7 @@ export interface WorkerInstruction {
   transition_id: string;
   transition_name: string;
   task_no: string | null; // タスク連番（文字列またはnull）
-  instruction_target: string; // "1": file, "2": task, "3": transition
+  instruction_target: string; // "0": file, "1": method, "2": transition, "3": task
   instruction_content: string;
   priority: string; // "0": low, "1": normal, "2": medium, "3": high
   type: string; // "0": general, "1": setup, "2": measurement, "3": safety, "4": cleanup
@@ -1217,10 +1217,12 @@ export const updateTransitionStatus = async (
  */
 export function convertApiToInstruction(apiData: WorkerInstruction): Instruction {
   // instruction_target → targetType 変換マップ（文字列キー）
+  // バックエンド: 0=ファイル全体, 1=メソッド, 2=トランジション, 3=タスク
   const targetTypeMap: Record<string, TargetType> = {
-    '1': 'file',       // プロジェクト指示
-    '2': 'task',       // タスク指示
-    '3': 'transition'  // トランジション指示
+    '0': 'file',        // プロジェクト指示（ファイル全体）
+    '1': 'method',      // メソッド指示
+    '2': 'transition',  // トランジション指示
+    '3': 'task',        // タスク指示
   };
   
   // priority → Priority 変換マップ（文字列キー）

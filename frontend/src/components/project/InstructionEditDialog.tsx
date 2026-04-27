@@ -63,12 +63,19 @@ const INSTRUCTION_PRIORITIES_LOCAL = {
 
 /**
  * 対象タイプの定数（code_master.instruction_target の code_value）
+ * バックエンド projectInstructionService.ts の instructionTarget と一致させる
+ *   0: FILE（プロジェクト全体）
+ *   1: METHOD（メソッド指示）
+ *   2: TRANSITION（トランジション指示）
+ *   3: TASK（タスク指示）
  */
 const TARGET_TYPES_LOCAL = {
   FILE: 0,
-  TASK: 1,
+  METHOD: 1,
   TRANSITION: 2,
+  TASK: 3,
 } as const;
+
 
 /**
  * 優先度のラベルマッピング（code_value → code_name）
@@ -292,7 +299,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         priority: values.priority,
         type: values.type,
         targetType: TARGET_TYPES_LOCAL.FILE, // デフォルト
-        methodId: values.methodId || '',
+        methodId: values.methodId || selectedMethodId || '',
         transitionId: values.transitionId || '',
         taskNumber: values.taskNumber,
       };
@@ -302,6 +309,8 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         instructionData.targetType = TARGET_TYPES_LOCAL.TRANSITION;
       } else if (instructionData.taskNumber !== undefined) {
         instructionData.targetType = TARGET_TYPES_LOCAL.TASK;
+      } else if (instructionData.methodId) {
+        instructionData.targetType = TARGET_TYPES_LOCAL.METHOD;
       } else {
         instructionData.targetType = TARGET_TYPES_LOCAL.FILE;
       }
