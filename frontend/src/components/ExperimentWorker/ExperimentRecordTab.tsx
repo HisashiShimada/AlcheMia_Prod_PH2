@@ -95,6 +95,8 @@ export default function ExperimentRecordTab({
    */
   const mapNumericStatusToProjectStatus = (status: number | null): ProjectStatus | null => {
     switch (status) {
+      case 0:
+        return 'planning';
       case 1:
         return 'waiting_task';
       case 2:
