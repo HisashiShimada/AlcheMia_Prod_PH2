@@ -5,7 +5,10 @@
 - **AWSアカウントID**: `137068252939`
 - **リージョン**: `ap-northeast-1`
 
-> ⚠️ **重要**: 本手順書は既存環境（NLB / 既存ALB / nginx-service）を **一切変更せず**、新規リソースを追加する手順です。
+> ⚠️ **重要**: 本手順書は既存環境（NLB / 既存ALB / nginx-service）を **一切変更せず**、新規リソースを追加する手順です。  
+> ただし **backend ECS サービスのみ例外**として、`prod-backend-tg` を追加紐付けするための再作成（削除→再作成）を行います。  
+> ECS Fargate の仕様上、サービス作成後にロードバランサーの紐付けを追加することはできないためです。  
+> 詳細: [設計検討ドキュメント](../design/backend-alb-integration-design.md)
 
 ---
 
@@ -757,11 +760,174 @@ aws logs tail /ecs/prod-frontend \
 
 > ✅ エラーが出ていないこと、Next.js の起動ログが確認できること。
 
-### チェックリスト
+### チェックリスト（frontend-service）
 - [ ] prod-frontend-service を作成した
 - [ ] runningCount が desiredCount (1) と一致することを確認した
 - [ ] コンテナが RUNNING / HEALTHY であることを確認した
 - [ ] CloudWatch ログにエラーがないことを確認した
+
+---
+
+### 10-5. 既存 backend サービスの現在設定確認
+
+> ⚠️ **重要**: ECS Fargate はサービス作成後にロードバランサーの紐付けを変更できません。  
+> `prod-backend-tg` を追加するには、既存 backend サービスを**削除→再作成**する必要があります。  
+> 再作成中（旧サービス削除〜新サービス RUNNING まで）は数分間のダウンタイムが発生します。
+
+まず既存サービスの設定を確認し、再作成コマンドに必要な値をメモする。
+
+```bash
+# クラスター内のサービス一覧を確認（backend サービス名を特定）
+aws ecs list-services \
+  --cluster alchemia-staging \
+  --region ap-northeast-1
+```
+
+> **出力例:** `alchemia-staging/alchemia-backend-service` など  
+> → **BACKEND_SERVICE_NAME** をメモする（例: `alchemia-backend-service`）
+
+```bash
+# 既存サービスの loadBalancers / networkConfiguration / taskDefinition を確認
+aws ecs describe-services \
+  --cluster alchemia-staging \
+  --services <BACKEND_SERVICE_NAME> \
+  --region ap-northeast-1 \
+  --query 'services[0].{loadBalancers:loadBalancers,networkConfig:networkConfiguration,taskDef:taskDefinition,desired:desiredCount}'
+```
+
+> **確認すべき値:**
+> - `loadBalancers` → 現在紐付いているターゲットグループARN一覧（再作成時にすべて引き継ぐ）
+> - `networkConfiguration.awsvpcConfiguration.subnets` → **BACKEND_SUBNETS**
+> - `networkConfiguration.awsvpcConfiguration.securityGroups` → **BACKEND_SGS**
+> - `networkConfiguration.awsvpcConfiguration.assignPublicIp` → **BACKEND_ASSIGN_PUBLIC_IP**
+> - `taskDef` → **BACKEND_TASK_DEF**（例: `alchemia-backend:5`）
+> - `desired` → **BACKEND_DESIRED_COUNT**
+
+### 10-6. backend サービスの再作成（prod-backend-tg を追加）
+
+> ⏱️ **所要時間**: 旧サービス削除〜新サービス RUNNING まで 5〜10分程度
+
+#### 10-6-1. 既存サービスのタスク数を 0 にして停止
+
+```bash
+aws ecs update-service \
+  --cluster alchemia-staging \
+  --service <BACKEND_SERVICE_NAME> \
+  --desired-count 0 \
+  --region ap-northeast-1
+```
+
+```bash
+# タスクが 0 になるまで待機
+aws ecs describe-services \
+  --cluster alchemia-staging \
+  --services <BACKEND_SERVICE_NAME> \
+  --region ap-northeast-1 \
+  --query 'services[0].{running:runningCount,pending:pendingCount}'
+```
+
+> ✅ `running: 0`, `pending: 0` になったことを確認する。
+
+#### 10-6-2. 既存サービスの削除
+
+```bash
+aws ecs delete-service \
+  --cluster alchemia-staging \
+  --service <BACKEND_SERVICE_NAME> \
+  --force \
+  --region ap-northeast-1
+```
+
+#### 10-6-3. 既存サービスの削除完了確認
+
+```bash
+aws ecs describe-services \
+  --cluster alchemia-staging \
+  --services <BACKEND_SERVICE_NAME> \
+  --region ap-northeast-1 \
+  --query 'services[0].status'
+```
+
+> ✅ `"INACTIVE"` が返れば削除完了。
+
+#### 10-6-4. prod-backend-tg を追加して再作成
+
+> 📌 `--load-balancers` には **既存のTG（10-5 で確認した値）をすべて列挙**したうえで、新規 `<BACKEND_TG_ARN>` を追加する。  
+> 既存TGが存在しない場合（初回作成時）は `<BACKEND_TG_ARN>` のみ指定する。
+
+```bash
+aws ecs create-service \
+  --cluster alchemia-staging \
+  --service-name <BACKEND_SERVICE_NAME> \
+  --task-definition <BACKEND_TASK_DEF> \
+  --desired-count <BACKEND_DESIRED_COUNT> \
+  --launch-type FARGATE \
+  --platform-version LATEST \
+  --network-configuration "awsvpcConfiguration={subnets=[<BACKEND_SUBNETS>],securityGroups=[<BACKEND_SGS>],assignPublicIp=<BACKEND_ASSIGN_PUBLIC_IP>}" \
+  --load-balancers \
+    "targetGroupArn=<既存TG_ARN_1>,containerName=mmdpf-backend,containerPort=3001" \
+    "targetGroupArn=<BACKEND_TG_ARN>,containerName=mmdpf-backend,containerPort=3001" \
+  --deployment-configuration "minimumHealthyPercent=100,maximumPercent=200" \
+  --deployment-controller type=ECS \
+  --region ap-northeast-1
+```
+
+> ⚠️ `<既存TG_ARN_1>` は 10-5 で確認した `loadBalancers` の値に置き換える。  
+> 既存TGが複数ある場合は `--load-balancers` の行を増やしてすべて列挙すること。  
+> 既存TGがない場合はその行を削除し、`<BACKEND_TG_ARN>` のみ指定する。
+
+#### 10-6-5. 再作成後の起動確認
+
+```bash
+aws ecs describe-services \
+  --cluster alchemia-staging \
+  --services <BACKEND_SERVICE_NAME> \
+  --region ap-northeast-1 \
+  --query 'services[0].{running:runningCount,pending:pendingCount,desired:desiredCount,status:status}'
+```
+
+> ✅ `running` が `desired` と一致し、`status: ACTIVE` になるまで待機する。
+
+```bash
+# タスクの状態確認
+BACKEND_TASK_ARN=$(aws ecs list-tasks \
+  --cluster alchemia-staging \
+  --service-name <BACKEND_SERVICE_NAME> \
+  --region ap-northeast-1 \
+  --query 'taskArns[0]' \
+  --output text)
+
+aws ecs describe-tasks \
+  --cluster alchemia-staging \
+  --tasks $BACKEND_TASK_ARN \
+  --region ap-northeast-1 \
+  --query 'tasks[0].containers[*].{name:name,status:lastStatus,health:healthStatus}'
+```
+
+> ✅ コンテナの `status: RUNNING`、`health: HEALTHY` であることを確認する。
+
+#### 10-6-6. ECS Service Discovery による nginx 疎通確認
+
+nginx は `BACKEND_HOST=alchemia-backend.alchemia.local` で backend に接続しています。  
+backend サービス再作成後、ECS Service Discovery が DNS を自動更新するため、nginx からの通信は自動的に復旧します。
+
+```bash
+# backend-tg のターゲット状態確認（healthy になるまで待機）
+aws elbv2 describe-target-health \
+  --target-group-arn <BACKEND_TG_ARN> \
+  --region ap-northeast-1 \
+  --query 'TargetHealthDescriptions[*].{Target:Target.Id,Port:Target.Port,Health:TargetHealth.State}'
+```
+
+> ✅ `Health: healthy` になれば、既存の ALB/NLB → nginx → backend の通信も正常に復旧している。
+
+### チェックリスト（backend-service 再作成）
+- [ ] 既存 backend サービスの loadBalancers / networkConfiguration / taskDefinition を確認した
+- [ ] 既存サービスのタスク数を 0 にして停止した
+- [ ] 既存サービスを削除し INACTIVE を確認した
+- [ ] prod-backend-tg を追加して backend サービスを再作成した
+- [ ] runningCount が desiredCount と一致することを確認した
+- [ ] backend-tg のターゲットが `healthy` になったことを確認した
 
 ---
 
@@ -836,7 +1002,7 @@ curl -k "https://<ALB_DNS>/api/health"
 ### 削除手順（逆順）
 
 ```bash
-# 1. ECS サービスの削除（まずタスク数を 0 にする）
+# 1. prod-frontend-service の削除（まずタスク数を 0 にする）
 aws ecs update-service \
   --cluster alchemia-staging \
   --service prod-frontend-service \
@@ -849,7 +1015,37 @@ aws ecs delete-service \
   --force \
   --region ap-northeast-1
 
-# 2. ECS タスク定義の登録解除
+# 2. backend サービスのロールバック（prod-backend-tg なしで再作成）
+# ※ まずタスク数を 0 にして削除
+aws ecs update-service \
+  --cluster alchemia-staging \
+  --service <BACKEND_SERVICE_NAME> \
+  --desired-count 0 \
+  --region ap-northeast-1
+
+aws ecs delete-service \
+  --cluster alchemia-staging \
+  --service <BACKEND_SERVICE_NAME> \
+  --force \
+  --region ap-northeast-1
+
+# ※ prod-backend-tg を含めず、元のTG構成で再作成する
+aws ecs create-service \
+  --cluster alchemia-staging \
+  --service-name <BACKEND_SERVICE_NAME> \
+  --task-definition <BACKEND_TASK_DEF> \
+  --desired-count <BACKEND_DESIRED_COUNT> \
+  --launch-type FARGATE \
+  --platform-version LATEST \
+  --network-configuration "awsvpcConfiguration={subnets=[<BACKEND_SUBNETS>],securityGroups=[<BACKEND_SGS>],assignPublicIp=<BACKEND_ASSIGN_PUBLIC_IP>}" \
+  --load-balancers \
+    "targetGroupArn=<既存TG_ARN_1>,containerName=mmdpf-backend,containerPort=3001" \
+  --deployment-configuration "minimumHealthyPercent=100,maximumPercent=200" \
+  --deployment-controller type=ECS \
+  --region ap-northeast-1
+
+# 3. ECS タスク定義の登録解除
+
 aws ecs deregister-task-definition \
   --task-definition prod-frontend:1 \
   --region ap-northeast-1
@@ -954,8 +1150,13 @@ STEP 9: ECS タスク定義の登録
 
 STEP 10: ECS サービスの作成
   - [ ] prod-frontend-service を作成した
-  - [ ] runningCount が 1 になったことを確認した
-  - [ ] CloudWatch ログにエラーがないことを確認した
+  - [ ] frontend runningCount が 1 になったことを確認した
+  - [ ] frontend CloudWatch ログにエラーがないことを確認した
+  - [ ] 既存 backend サービスの loadBalancers / networkConfiguration / taskDefinition を確認した
+  - [ ] 既存 backend サービスを削除し INACTIVE を確認した
+  - [ ] prod-backend-tg を追加して backend サービスを再作成した
+  - [ ] backend runningCount が desiredCount と一致することを確認した
+  - [ ] backend-tg のターゲットが healthy になったことを確認した
 
 STEP 11: 動作確認
   - [ ] frontend-tg のターゲットが healthy であることを確認した
