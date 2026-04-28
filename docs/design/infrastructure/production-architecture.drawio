@@ -23,16 +23,16 @@
                     <mxGeometry x="880" y="250" width="60" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="vpc" value="VPC (ap-northeast-1)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontStyle=1;fontSize=12;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
-                    <mxGeometry x="400" y="380" width="1500" height="1560" as="geometry"/>
+                    <mxGeometry x="400" y="380" width="1500" height="1060" as="geometry"/>
                 </mxCell>
                 <mxCell id="az-c" value="Availability Zone: ap-northeast-1c" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="20" y="50" width="1150" height="380" as="geometry"/>
+                    <mxGeometry x="20" y="50" width="1220" height="380" as="geometry"/>
                 </mxCell>
                 <mxCell id="az-c-public" value="Public subnet (ALBノード)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
                     <mxGeometry x="30" y="100" width="300" height="310" as="geometry"/>
                 </mxCell>
                 <mxCell id="alb" value="ALB (Application Load Balancer)&#xa;internet-facing  HTTPS:443 のみ受付" style="swimlane;startSize=40;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=11;" parent="vpc" vertex="1">
-                    <mxGeometry x="40" y="120" width="280" height="270" as="geometry"/>
+                    <mxGeometry x="40" y="130" width="280" height="270" as="geometry"/>
                 </mxCell>
                 <mxCell id="alb-listener" value="リスナー: HTTPS:443&#xa;ACM サーバー証明書 (app.your-domain.com) 自動更新&#xa;mTLS: verify モード&#xa;ACM Trust Store (ca.crt を登録)&#xa;クライアント証明書を検証&#xa;Subject ヘッダーを付与&#xa;X-Amzn-Mtls-Clientcert-Subject:&#xa;CN=&lt;org-uuid&gt;,O=MMDPF,... 付与" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffde7;strokeColor=#d6b656;align=left;fontSize=9;" parent="alb" vertex="1">
                     <mxGeometry x="10" y="45" width="160" height="205" as="geometry"/>
@@ -47,10 +47,10 @@
                     <mxGeometry x="180" y="215" width="90" height="45" as="geometry"/>
                 </mxCell>
                 <mxCell id="az-c-private" value="Private subnet" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="340" y="100" width="820" height="310" as="geometry"/>
+                    <mxGeometry x="340" y="100" width="880" height="310" as="geometry"/>
                 </mxCell>
                 <mxCell id="ecs-frontend-c" value="alchemia-frontend-service (ECS Fargate) AZ-1c" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=10;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="350" y="120" width="380" height="260" as="geometry"/>
+                    <mxGeometry x="380" y="130" width="380" height="260" as="geometry"/>
                 </mxCell>
                 <mxCell id="frontend-c-task1" value="タスク1  mmdpf-frontend  port 3000&#xa;Next.js フロントエンド" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;fontSize=9;" parent="ecs-frontend-c" vertex="1">
                     <mxGeometry x="10" y="40" width="170" height="50" as="geometry"/>
@@ -62,7 +62,7 @@
                     <mxGeometry x="10" y="105" width="355" height="35" as="geometry"/>
                 </mxCell>
                 <mxCell id="ecs-backend-c" value="alchemia-backend-service (ECS Fargate) AZ-1c" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=10;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="740" y="120" width="410" height="260" as="geometry"/>
+                    <mxGeometry x="790" y="130" width="410" height="260" as="geometry"/>
                 </mxCell>
                 <mxCell id="backend-c-task1" value="タスク1  mmdpf-backend  port 3001&#xa;organization_id 取得:&#xa;X-Amzn-Mtls-Clientcert-Subject&#xa;から CN (UUID) を解析" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;fontSize=9;" parent="ecs-backend-c" vertex="1">
                     <mxGeometry x="10" y="40" width="185" height="80" as="geometry"/>
@@ -74,19 +74,19 @@
                     <mxGeometry x="10" y="135" width="380" height="35" as="geometry"/>
                 </mxCell>
                 <mxCell id="az-a" value="Availability Zone: ap-northeast-1a" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="20" y="450" width="1150" height="340" as="geometry"/>
+                    <mxGeometry x="20" y="540" width="1220" height="340" as="geometry"/>
                 </mxCell>
                 <mxCell id="az-a-public" value="Public subnet&#xa;(ALBノード)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="30" y="500" width="300" height="270" as="geometry"/>
+                    <mxGeometry x="30" y="580" width="300" height="270" as="geometry"/>
                 </mxCell>
                 <mxCell id="alb-node-a" value="ALBノード&#xa;(ap-northeast-1a)" style="shape=mxgraph.aws4.application_load_balancer;fillColor=#8C4FFF;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="vpc" vertex="1">
-                    <mxGeometry x="135" y="550" width="60" height="60" as="geometry"/>
+                    <mxGeometry x="150" y="640" width="60" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="az-a-private" value="Private subnet" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="340" y="500" width="820" height="270" as="geometry"/>
+                    <mxGeometry x="350" y="580" width="880" height="270" as="geometry"/>
                 </mxCell>
                 <mxCell id="ecs-frontend-a" value="alchemia-frontend-service (ECS Fargate) AZ-1a" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=10;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="350" y="520" width="380" height="220" as="geometry"/>
+                    <mxGeometry x="380" y="610" width="380" height="220" as="geometry"/>
                 </mxCell>
                 <mxCell id="frontend-a-task1" value="タスク1  mmdpf-frontend  port 3000&#xa;Next.js フロントエンド" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;fontSize=9;" parent="ecs-frontend-a" vertex="1">
                     <mxGeometry x="10" y="40" width="170" height="50" as="geometry"/>
@@ -98,7 +98,7 @@
                     <mxGeometry x="10" y="105" width="355" height="35" as="geometry"/>
                 </mxCell>
                 <mxCell id="ecs-backend-a" value="alchemia-backend-service (ECS Fargate) AZ-1a" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=10;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="740" y="520" width="410" height="220" as="geometry"/>
+                    <mxGeometry x="790" y="610" width="410" height="220" as="geometry"/>
                 </mxCell>
                 <mxCell id="backend-a-task1" value="タスク1  mmdpf-backend  port 3001&#xa;organization_id 取得:&#xa;X-Amzn-Mtls-Clientcert-Subject&#xa;から CN (UUID) を解析" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;fontSize=9;" parent="ecs-backend-a" vertex="1">
                     <mxGeometry x="10" y="40" width="185" height="80" as="geometry"/>
@@ -110,13 +110,168 @@
                     <mxGeometry x="10" y="135" width="380" height="35" as="geometry"/>
                 </mxCell>
                 <mxCell id="aurora" value="Aurora PostgreSQL  Multi-AZ&#xa;alchemia-production-aurora&#xa;db.r6g.large 以上&#xa;MultiAZ: true&#xa;DeletionProtection: 有効&#xa;BackupRetentionPeriod: 7日以上&#xa;SG: alchemia-aurora-sg&#xa;TCP:5432 ← backend-sg のみ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;fontSize=9;" parent="vpc" vertex="1">
-                    <mxGeometry x="1200" y="500" width="240" height="140" as="geometry"/>
+                    <mxGeometry x="1310" y="500" width="180" height="140" as="geometry"/>
                 </mxCell>
                 <mxCell id="redis" value="ElastiCache Redis  Multi-AZ&#xa;alchemia-production-redis&#xa;cache.r6g.large&#xa;MultiAZ: 有効&#xa;AutoFailover: 有効&#xa;SnapshotRetentionLimit: 3日以上&#xa;TransitEncryption: 有効&#xa;SG: alchemia-redis-sg&#xa;TCP:6379 ← backend-sg のみ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;fontSize=9;" parent="vpc" vertex="1">
-                    <mxGeometry x="1200" y="280" width="240" height="160" as="geometry"/>
+                    <mxGeometry x="1300" y="280" width="180" height="160" as="geometry"/>
                 </mxCell>
-                <mxCell id="vpc-endpoints-area" value="VPC Endpoints (PrivateLink) ★採用済み — インターネットを経由せずAWSサービスへアクセス" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9673a6;fontStyle=1;fontSize=11;verticalAlign=top;align=center;spacingTop=5;" parent="vpc" vertex="1">
-                    <mxGeometry x="20" y="820" width="1150" height="170" as="geometry"/>
+                <mxCell id="acm-cert" value="ACM パブリック証明書&#xa;app.your-domain.com&#xa;自動更新 (60日前から)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="130" y="570" width="160" height="65" as="geometry"/>
+                </mxCell>
+                <mxCell id="external-services" value="外部 AWS サービス（VPC 外のリージョンサービス / VPC Endpoint 経由でプライベートアクセス）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="360" y="1640" width="1500" height="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="ecr" value="Amazon ECR&#xa;mmdpf-backend  (production)&#xa;mmdpf-frontend  (production)&#xa;mmdpf-nginx リポジトリ廃止&#xa;ecr.api + ecr.dkr Endpoint&#xa;経由でアクセス (採用済み)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=10;" parent="external-services" vertex="1">
+                    <mxGeometry x="30" y="45" width="220" height="145" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3" value="Amazon S3&#xa;mmdpf-files-production&#xa;バージョニング: 有効&#xa;ライフサイクル設定: 有効&#xa;暗号化 AES256: 有効&#xa;パブリックアクセスブロック: 有効&#xa;s3 Gateway Endpoint 経由 (採用済み)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=10;fontStyle=1;" parent="external-services" vertex="1">
+                    <mxGeometry x="270" y="45" width="220" height="145" as="geometry"/>
+                </mxCell>
+                <mxCell id="bedrock" value="AWS Bedrock&#xa;AI モデル&#xa;ap-northeast-1&#xa;IAM ロールで認証&#xa;bedrock-runtime Endpoint&#xa;経由でアクセス (採用済み)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=10;" parent="external-services" vertex="1">
+                    <mxGeometry x="510" y="45" width="220" height="145" as="geometry"/>
+                </mxCell>
+                <mxCell id="secrets-manager" value="AWS Secrets Manager&#xa;alchemia/production/*&#xa;  db-password&#xa;  redis-password&#xa;  jwt-secret (64文字以上)&#xa;  session-secret (64文字以上)&#xa;ECS タスク定義 secrets から参照&#xa;VPC Interface Endpoint 経由でアクセス" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=10;" parent="external-services" vertex="1">
+                    <mxGeometry x="750" y="45" width="220" height="145" as="geometry"/>
+                </mxCell>
+                <mxCell id="cloudwatch" value="Amazon CloudWatch&#xa;アラーム各種&#xa;ECS / Aurora / Redis / ALB&#xa;の主要メトリクスを監視&#xa;VPC Interface Endpoint 経由でアクセス" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;fontSize=10;" parent="external-services" vertex="1">
+                    <mxGeometry x="990" y="45" width="220" height="145" as="geometry"/>
+                </mxCell>
+                <mxCell id="sg-legend" value="セキュリティグループ構成&#xa;&#xa;alchemia-alb-sg  (ALB用)&#xa;  インバウンド: TCP:443 ← 0.0.0.0/0&#xa;&#xa;alchemia-backend-sg  (backend ECSタスク用)&#xa;  インバウンド: TCP:3001 ← alchemia-alb-sg のみ&#xa;&#xa;alchemia-frontend-sg  (frontend ECSタスク用)&#xa;  インバウンド: TCP:3000 ← alchemia-alb-sg のみ&#xa;&#xa;alchemia-aurora-sg  (Aurora用)&#xa;  インバウンド: TCP:5432 ← alchemia-backend-sg のみ&#xa;&#xa;alchemia-redis-sg  (ElastiCache用)&#xa;  インバウンド: TCP:6379 ← alchemia-backend-sg のみ&#xa;&#xa;alchemia-vpce-sg  (VPC Endpoint用)&#xa;  インバウンド: TCP:443 ← backend-sg / frontend-sg" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="1950" y="560" width="380" height="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="diff-legend" value="検証環境 → 本番環境  主な変更点&#xa;&#xa;NLB 廃止 → ALB (mTLS verify) に変更&#xa;nginx コンテナ廃止&#xa;frontend を独立サービスに分離 (新規)&#xa;desiredCount: 1 → 2以上&#xa;Circuit Breaker: 無効 → 有効&#xa;Secrets Manager でシークレット管理&#xa;AWS WAF を ALB にアタッチ&#xa;Route 53 + 独自ドメイン設定&#xa;Aurora: SingleAZ/t3.medium → MultiAZ/r6g.large&#xa;Redis: SingleAZ → MultiAZ/AutoFailover&#xa;S3 バージョニング有効化&#xa;CloudWatch アラーム設定&#xa;★ VPC Interface Endpoint 採用 (新規)&#xa;  ECR/Bedrock/Secrets Manager/Logs を&#xa;  PrivateLink 経由でアクセス" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="1950" y="880" width="380" height="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="vpc-endpoint-note" value="【VPC Endpoint (PrivateLink) 採用済み】&#xa;&#xa;ECR・Bedrock・S3 へのアクセスは&#xa;すべて VPC Endpoint 経由でプライベート接続:&#xa;&#xa;・ecr.api   (Interface) ← ECR API&#xa;・ecr.dkr   (Interface) ← ECR イメージpull&#xa;・s3         (Gateway)  ← ECRレイヤー/S3データ&#xa;・bedrock-runtime (Interface) ← AI推論&#xa;・secretsmanager (Interface) ← シークレット取得&#xa;・logs        (Interface) ← CloudWatch Logs&#xa;&#xa;インターネット経由を排除し&#xa;通信は AWS バックボーン内で完結。&#xa;NAT Gateway は不要。" style="text;html=1;strokeColor=#9673a6;fillColor=#f3e8ff;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="1950" y="1170" width="380" height="270" as="geometry"/>
+                </mxCell>
+                <mxCell id="mtls-flow" value="mTLS 認証フロー&#xa;&#xa;1. ブラウザが HTTPS:443 に接続&#xa;   クライアント証明書 .p12 を提示&#xa;&#xa;2. ALB がサーバー証明書を提示 (ACM)&#xa;   ブラウザが CA証明書でサーバー証明書を検証&#xa;&#xa;3. ALB が ACM Trust Store (ca.crt) でクライアント証明書を検証&#xa;   検証成功 → 4へ進む&#xa;   検証失敗 → 400 エラーを返す&#xa;&#xa;4. ALB が Subject ヘッダーを backend へ付与&#xa;   X-Amzn-Mtls-Clientcert-Subject:&#xa;   CN=b6ae9356-...,O=MMDPF,...&#xa;&#xa;5. backend が CN を解析 → organization_id として使用&#xa;&#xa;backend SG は alb-sg からのみ通信を許可&#xa;直接アクセス・ヘッダー偽装を防止" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="1950" y="1470" width="380" height="270" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-user-r53" value="① DNS名前解決" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#FF8000;fontColor=#FF8000;fontSize=9;" parent="1" source="user-browser" target="route53" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-user-igw" value="② HTTPS:443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0000FF;fontColor=#0000FF;fontSize=9;" parent="1" source="user-browser" target="igw" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-igw-alb" value="HTTPS:443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0000FF;fontColor=#0000FF;fontSize=9;" parent="1" source="igw" target="alb" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="910" y="350"/>
+                            <mxPoint x="580" y="350"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrow-acmcert-alb" value="ALBにアタッチ (TLS終端)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;endArrow=open;endFill=0;" parent="1" source="acm-cert" target="alb" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-tg-frontend-c" value="/* (port:3000)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=9;" parent="1" source="frontend-tg" target="ecs-frontend-c" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-tg-backend-c" value="/api/* (port:3001)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=9;" parent="1" source="backend-tg" target="ecs-backend-c" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="950" y="670"/>
+                            <mxPoint x="950" y="670"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrow-tg-frontend-a" value="/* (port:3000)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=9;" parent="1" source="frontend-tg" target="ecs-frontend-a" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="970" y="760"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrow-tg-backend-a" value="/api/* (port:3001)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=9;" parent="1" source="backend-tg" target="ecs-backend-a" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1390" y="700"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrow-backend-c-aurora" value="TCP/5432 (SSL)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0066CC;fontColor=#0066CC;fontSize=9;" parent="1" source="ecs-backend-c" target="aurora" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1650" y="660"/>
+                            <mxPoint x="1650" y="920"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrow-backend-a-aurora" value="TCP/5432 (SSL)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0066CC;fontColor=#0066CC;fontSize=9;" parent="1" source="ecs-backend-a" target="aurora" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1680" y="1100"/>
+                            <mxPoint x="1680" y="950"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrow-backend-c-redis" value="TCP/6379 (TLS)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#009900;fontColor=#009900;fontSize=9;" parent="1" source="ecs-backend-c" target="redis" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1670" y="620"/>
+                            <mxPoint x="1670" y="740"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrow-backend-a-redis" value="TCP/6379 (TLS)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#009900;fontColor=#009900;fontSize=9;" parent="1" source="ecs-backend-a" target="redis" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1660" y="1080"/>
+                            <mxPoint x="1660" y="760"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrow-ep-ecr-api-ecr" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;" parent="1" source="ep-ecr-api" target="ecr" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-ep-ecr-dkr-ecr" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;" parent="1" source="ep-ecr-dkr" target="ecr" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-ep-s3-s3" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#27ae60;fontColor=#27ae60;fontSize=9;dashed=1;" parent="1" source="ep-s3" target="s3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-ep-bedrock-bedrock" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;" parent="1" source="ep-bedrock" target="bedrock" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-ep-secretsmanager-sm" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;" parent="1" source="ep-secretsmanager" target="secrets-manager" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-ep-logs-cw" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=9;dashed=1;" parent="1" source="ep-logs" target="cloudwatch" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-r53-alb" value="ALB の IP を返す" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#FF8000;fontColor=#FF8000;fontSize=9;" parent="1" source="route53" target="alb" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="570" y="410"/>
+                            <mxPoint x="570" y="410"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="waf" value="AWS WAF&#xa;IP フィルタリング&#xa;レートリミット&#xa;マネージドルール&#xa;SQLi / XSS 等" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="130" y="430" width="120" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-waf-alb" value="ALBにアタッチ" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontColor=#b85450;fontSize=9;dashed=1;endArrow=open;endFill=0;" parent="1" source="waf" target="alb" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="345" y="485"/>
+                            <mxPoint x="345" y="590"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="acm-trust" value="ACM Trust Store&#xa;ca.crt 自己署名CA&#xa;notAfter=Feb 2036" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="130" y="670" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-acmtrust-alb" value="ALBにアタッチ (mTLS検証)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;endArrow=open;endFill=0;" parent="1" source="acm-trust" target="alb" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="410" y="700"/>
+                            <mxPoint x="410" y="700"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="vpc-endpoints-area" value="VPC Endpoints (PrivateLink) ★採用済み — インターネットを経由せずAWSサービスへアクセス" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9673a6;fontStyle=1;fontSize=11;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="1350" width="1150" height="170" as="geometry"/>
                 </mxCell>
                 <mxCell id="ep-ecr-api" value="ecr.api&#xa;Interface Endpoint&#xa;ECR API&#xa;(認証・マニフェスト)&#xa;TCP:443" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9673a6;align=center;fontSize=9;" parent="vpc-endpoints-area" vertex="1">
                     <mxGeometry x="15" y="45" width="155" height="100" as="geometry"/>
@@ -136,131 +291,69 @@
                 <mxCell id="ep-logs" value="logs&#xa;Interface Endpoint&#xa;CloudWatch Logs&#xa;(ログ送信)&#xa;TCP:443" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#9673a6;align=center;fontSize=9;" parent="vpc-endpoints-area" vertex="1">
                     <mxGeometry x="840" y="45" width="155" height="100" as="geometry"/>
                 </mxCell>
-                <mxCell id="waf" value="AWS WAF&#xa;IP フィルタリング&#xa;レートリミット&#xa;マネージドルール&#xa;SQLi / XSS 等" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;fontSize=10;" parent="1" vertex="1">
-                    <mxGeometry x="1960" y="390" width="200" height="110" as="geometry"/>
-                </mxCell>
-                <mxCell id="acm-cert" value="ACM パブリック証明書&#xa;app.your-domain.com&#xa;自動更新 (60日前から)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontSize=10;" parent="1" vertex="1">
-                    <mxGeometry x="1960" y="520" width="200" height="65" as="geometry"/>
-                </mxCell>
-                <mxCell id="acm-trust" value="ACM Trust Store&#xa;ca.crt 自己署名CA&#xa;notAfter=Feb 2036" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontSize=10;" parent="1" vertex="1">
-                    <mxGeometry x="1960" y="600" width="200" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="external-services" value="外部 AWS サービス（VPC 外のリージョンサービス / VPC Endpoint 経由でプライベートアクセス）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
-                    <mxGeometry x="400" y="2000" width="1500" height="210" as="geometry"/>
-                </mxCell>
-                <mxCell id="ecr" value="Amazon ECR&#xa;mmdpf-backend  (production)&#xa;mmdpf-frontend  (production)&#xa;mmdpf-nginx リポジトリ廃止&#xa;ecr.api + ecr.dkr Endpoint&#xa;経由でアクセス (採用済み)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=10;" parent="external-services" vertex="1">
-                    <mxGeometry x="30" y="45" width="220" height="145" as="geometry"/>
-                </mxCell>
-                <mxCell id="s3" value="Amazon S3&#xa;mmdpf-files-production&#xa;バージョニング: 有効&#xa;ライフサイクル設定: 有効&#xa;暗号化 AES256: 有効&#xa;パブリックアクセスブロック: 有効&#xa;s3 Gateway Endpoint 経由 (採用済み)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=10;fontStyle=1;" parent="external-services" vertex="1">
-                    <mxGeometry x="270" y="45" width="220" height="145" as="geometry"/>
-                </mxCell>
-                <mxCell id="bedrock" value="AWS Bedrock&#xa;AI モデル&#xa;ap-northeast-1&#xa;IAM ロールで認証&#xa;bedrock-runtime Endpoint&#xa;経由でアクセス (採用済み)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=10;" parent="external-services" vertex="1">
-                    <mxGeometry x="510" y="45" width="220" height="145" as="geometry"/>
-                </mxCell>
-                <mxCell id="secrets-manager" value="AWS Secrets Manager&#xa;alchemia/production/*&#xa;  db-password&#xa;  redis-password&#xa;  jwt-secret (64文字以上)&#xa;  session-secret (64文字以上)&#xa;ECS タスク定義 secrets から参照&#xa;VPC Interface Endpoint 経由でアクセス" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=10;" parent="external-services" vertex="1">
-                    <mxGeometry x="750" y="45" width="220" height="145" as="geometry"/>
-                </mxCell>
-                <mxCell id="cloudwatch" value="Amazon CloudWatch&#xa;アラーム各種&#xa;ECS / Aurora / Redis / ALB&#xa;の主要メトリクスを監視&#xa;VPC Interface Endpoint 経由でアクセス" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;fontSize=10;" parent="external-services" vertex="1">
-                    <mxGeometry x="990" y="45" width="220" height="145" as="geometry"/>
-                </mxCell>
-                <mxCell id="sg-legend" value="セキュリティグループ構成&#xa;&#xa;alchemia-alb-sg  (ALB用)&#xa;  インバウンド: TCP:443 ← 0.0.0.0/0&#xa;&#xa;alchemia-backend-sg  (backend ECSタスク用)&#xa;  インバウンド: TCP:3001 ← alchemia-alb-sg のみ&#xa;&#xa;alchemia-frontend-sg  (frontend ECSタスク用)&#xa;  インバウンド: TCP:3000 ← alchemia-alb-sg のみ&#xa;&#xa;alchemia-aurora-sg  (Aurora用)&#xa;  インバウンド: TCP:5432 ← alchemia-backend-sg のみ&#xa;&#xa;alchemia-redis-sg  (ElastiCache用)&#xa;  インバウンド: TCP:6379 ← alchemia-backend-sg のみ&#xa;&#xa;alchemia-vpce-sg  (VPC Endpoint用)&#xa;  インバウンド: TCP:443 ← backend-sg / frontend-sg" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
-                    <mxGeometry x="2230" y="700" width="380" height="300" as="geometry"/>
-                </mxCell>
-                <mxCell id="diff-legend" value="検証環境 → 本番環境  主な変更点&#xa;&#xa;NLB 廃止 → ALB (mTLS verify) に変更&#xa;nginx コンテナ廃止&#xa;frontend を独立サービスに分離 (新規)&#xa;desiredCount: 1 → 2以上&#xa;Circuit Breaker: 無効 → 有効&#xa;Secrets Manager でシークレット管理&#xa;AWS WAF を ALB にアタッチ&#xa;Route 53 + 独自ドメイン設定&#xa;Aurora: SingleAZ/t3.medium → MultiAZ/r6g.large&#xa;Redis: SingleAZ → MultiAZ/AutoFailover&#xa;S3 バージョニング有効化&#xa;CloudWatch アラーム設定&#xa;★ VPC Interface Endpoint 採用 (新規)&#xa;  ECR/Bedrock/Secrets Manager/Logs を&#xa;  PrivateLink 経由でアクセス" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
-                    <mxGeometry x="2230" y="1020" width="380" height="260" as="geometry"/>
-                </mxCell>
-                <mxCell id="vpc-endpoint-note" value="【VPC Endpoint (PrivateLink) 採用済み】&#xa;&#xa;ECR・Bedrock・S3 へのアクセスは&#xa;すべて VPC Endpoint 経由でプライベート接続:&#xa;&#xa;・ecr.api   (Interface) ← ECR API&#xa;・ecr.dkr   (Interface) ← ECR イメージpull&#xa;・s3         (Gateway)  ← ECRレイヤー/S3データ&#xa;・bedrock-runtime (Interface) ← AI推論&#xa;・secretsmanager (Interface) ← シークレット取得&#xa;・logs        (Interface) ← CloudWatch Logs&#xa;&#xa;インターネット経由を排除し&#xa;通信は AWS バックボーン内で完結。&#xa;NAT Gateway は不要。" style="text;html=1;strokeColor=#9673a6;fillColor=#f3e8ff;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
-                    <mxGeometry x="2230" y="1300" width="380" height="270" as="geometry"/>
-                </mxCell>
-                <mxCell id="mtls-flow" value="mTLS 認証フロー&#xa;&#xa;1. ブラウザが HTTPS:443 に接続&#xa;   クライアント証明書 .p12 を提示&#xa;&#xa;2. ALB がサーバー証明書を提示 (ACM)&#xa;   ブラウザが CA証明書でサーバー証明書を検証&#xa;&#xa;3. ALB が ACM Trust Store (ca.crt) でクライアント証明書を検証&#xa;   検証成功 → 4へ進む&#xa;   検証失敗 → 400 エラーを返す&#xa;&#xa;4. ALB が Subject ヘッダーを backend へ付与&#xa;   X-Amzn-Mtls-Clientcert-Subject:&#xa;   CN=b6ae9356-...,O=MMDPF,...&#xa;&#xa;5. backend が CN を解析 → organization_id として使用&#xa;&#xa;backend SG は alb-sg からのみ通信を許可&#xa;直接アクセス・ヘッダー偽装を防止" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
-                    <mxGeometry x="2230" y="1590" width="380" height="270" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-user-r53" value="① DNS名前解決" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#FF8000;fontColor=#FF8000;fontSize=9;" parent="1" source="user-browser" target="route53" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-r53-alb" value="ALB の IP を返す" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#FF8000;fontColor=#FF8000;fontSize=9;" parent="1" source="route53" target="alb" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-user-igw" value="② HTTPS:443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0000FF;fontColor=#0000FF;fontSize=9;" parent="1" source="user-browser" target="igw" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-igw-alb" value="HTTPS:443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0000FF;fontColor=#0000FF;fontSize=9;" parent="1" source="igw" target="alb" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-waf-alb" value="ALBにアタッチ" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontColor=#b85450;fontSize=9;dashed=1;endArrow=open;endFill=0;" parent="1" source="waf" target="alb" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-acmcert-alb" value="ALBにアタッチ (TLS終端)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;endArrow=open;endFill=0;" parent="1" source="acm-cert" target="alb" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-acmtrust-alb" value="ALBにアタッチ (mTLS検証)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;endArrow=open;endFill=0;" parent="1" source="acm-trust" target="alb" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-tg-frontend-c" value="/* (port:3000)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=9;" parent="1" source="frontend-tg" target="ecs-frontend-c" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-tg-backend-c" value="/api/* (port:3001)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=9;" parent="1" source="backend-tg" target="ecs-backend-c" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-tg-frontend-a" value="/* (port:3000)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=9;" parent="1" source="frontend-tg" target="ecs-frontend-a" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-tg-backend-a" value="/api/* (port:3001)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=9;" parent="1" source="backend-tg" target="ecs-backend-a" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-backend-c-aurora" value="TCP/5432 (SSL)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0066CC;fontColor=#0066CC;fontSize=9;" parent="1" source="ecs-backend-c" target="aurora" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-backend-a-aurora" value="TCP/5432 (SSL)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0066CC;fontColor=#0066CC;fontSize=9;" parent="1" source="ecs-backend-a" target="aurora" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-backend-c-redis" value="TCP/6379 (TLS)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#009900;fontColor=#009900;fontSize=9;" parent="1" source="ecs-backend-c" target="redis" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-backend-a-redis" value="TCP/6379 (TLS)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#009900;fontColor=#009900;fontSize=9;" parent="1" source="ecs-backend-a" target="redis" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
                 <mxCell id="arrow-frontend-c-ep-ecr-api" value="ECR API (PrivateLink)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=9;" parent="1" source="ecs-frontend-c" target="ep-ecr-api" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-frontend-c-ep-ecr-dkr" value="ECR Docker (PrivateLink)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=9;" parent="1" source="ecs-frontend-c" target="ep-ecr-dkr" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="940" y="830"/>
+                            <mxPoint x="513" y="830"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="arrow-backend-c-ep-ecr-api" value="ECR API (PrivateLink)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" parent="1" source="ecs-backend-c" target="ep-ecr-api" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1270" y="850"/>
+                            <mxPoint x="540" y="850"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="arrow-frontend-c-ep-ecr-dkr" value="ECR Docker (PrivateLink)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=9;" parent="1" source="ecs-frontend-c" target="ep-ecr-dkr" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="950" y="840"/>
+                            <mxPoint x="678" y="840"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="arrow-backend-c-ep-ecr-dkr" value="ECR Docker (PrivateLink)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" parent="1" source="ecs-backend-c" target="ep-ecr-dkr" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1310" y="870"/>
+                            <mxPoint x="700" y="870"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="arrow-backend-c-ep-s3" value="S3 (Gateway Endpoint)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#27ae60;fontColor=#27ae60;fontSize=9;" parent="1" source="ecs-backend-c" target="ep-s3" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1345" y="880"/>
+                            <mxPoint x="843" y="880"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="arrow-backend-c-ep-bedrock" value="Bedrock (PrivateLink)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" parent="1" source="ecs-backend-c" target="ep-bedrock" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1370" y="890"/>
+                            <mxPoint x="1008" y="890"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="arrow-backend-c-ep-secrets" value="Secrets Manager (PrivateLink)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" parent="1" source="ecs-backend-c" target="ep-secretsmanager" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1395" y="900"/>
+                            <mxPoint x="1183" y="900"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="arrow-backend-c-ep-logs" value="CloudWatch Logs (PrivateLink)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" parent="1" source="ecs-backend-c" target="ep-logs" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-ep-ecr-api-ecr" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;" parent="1" source="ep-ecr-api" target="ecr" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-ep-ecr-dkr-ecr" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;" parent="1" source="ep-ecr-dkr" target="ecr" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-ep-s3-s3" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#27ae60;fontColor=#27ae60;fontSize=9;dashed=1;" parent="1" source="ep-s3" target="s3" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-ep-bedrock-bedrock" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;" parent="1" source="ep-bedrock" target="bedrock" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-ep-secretsmanager-sm" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;dashed=1;" parent="1" source="ep-secretsmanager" target="secrets-manager" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="arrow-ep-logs-cw" value="AWSバックボーン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=9;dashed=1;" parent="1" source="ep-logs" target="cloudwatch" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1520" y="910"/>
+                            <mxPoint x="1338" y="910"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
             </root>
         </mxGraphModel>

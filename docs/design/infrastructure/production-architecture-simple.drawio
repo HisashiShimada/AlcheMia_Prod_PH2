@@ -143,8 +143,8 @@
                 <mxCell id="e-back-a-ep-s3" value="VPCエンドポイント(Gateway)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#3F8624;fontColor=#3F8624;fontSize=9;" parent="1" source="ecs-backend-c" target="ep-s3" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
-                            <mxPoint x="1180" y="390"/>
-                            <mxPoint x="1180" y="585"/>
+                            <mxPoint x="1170" y="400"/>
+                            <mxPoint x="1170" y="585"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
@@ -256,6 +256,18 @@
                             <mxPoint x="810" y="350"/>
                             <mxPoint x="810" y="393"/>
                         </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="2" value="VPCエンドポイント(Gateway)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#3F8624;fontColor=#3F8624;fontSize=9;exitX=0.854;exitY=0.842;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.08;entryY=0.52;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ecs-frontend-c" target="ep-s3">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="679" y="450"/>
+                            <mxPoint x="1160" y="450"/>
+                            <mxPoint x="1160" y="595"/>
+                            <mxPoint x="1236" y="595"/>
+                        </Array>
+                        <mxPoint x="907" y="410" as="sourcePoint"/>
+                        <mxPoint x="1250" y="595" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
             </root>
