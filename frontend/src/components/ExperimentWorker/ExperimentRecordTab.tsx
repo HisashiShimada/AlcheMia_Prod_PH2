@@ -253,8 +253,10 @@ export default function ExperimentRecordTab({
     fetchWorkerTasks();
   }, [selectedProject]);
 
+  // 選択されたメソッドに絞ったタスクをフィルタリング
+  // メソッド未選択時は空配列を返す（全メソッドのタスクが混在して重複表示されるのを防ぐ）
   const filteredTasks = useMemo(() => {
-    if (!selectedMethodId) return tasks;
+    if (!selectedMethodId) return [];
     return tasks.filter(task => task.methodId === selectedMethodId);
   }, [tasks, selectedMethodId]);
 
