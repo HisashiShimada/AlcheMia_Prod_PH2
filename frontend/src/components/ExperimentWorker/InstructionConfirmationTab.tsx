@@ -188,13 +188,19 @@ export default function InstructionConfirmationTab({
             }))
           );
           
+          // 重複 taskId を排除（APIから同一 taskId が複数返された場合の重複表示を防止）
+          const uniqueTasksMap = new Map<string, Task>();
+          allTasks.forEach(task => uniqueTasksMap.set(task.taskId, task));
+          const uniqueTasks = Array.from(uniqueTasksMap.values());
+
           console.log('[DEBUG] InstructionConfirmationTab - Converted data', {
             methodCount: methodsData.length,
-            taskCount: allTasks.length
+            taskCount: allTasks.length,
+            uniqueTaskCount: uniqueTasks.length
           });
           
           setMethods(methodsData);
-          setTasks(allTasks);
+          setTasks(uniqueTasks);
         } else if (!result.success) {
           console.error('[DEBUG] InstructionConfirmationTab - API returned unsuccessful', result);
           message.error(result.error?.message || extractErrorMessage(null));
@@ -219,8 +225,9 @@ export default function InstructionConfirmationTab({
   }, [selectedProject]);
 
   // 選択されたメソッドに絞ったタスクをフィルタリング
+  // メソッド未選択時は空配列を返す（全メソッドのタスクが混在して重複表示されるのを防ぐ）
   const filteredTasks = useMemo(() => {
-    if (!selectedMethodId) return tasks;
+    if (!selectedMethodId) return [];
     return tasks.filter(task => task.methodId === selectedMethodId);
   }, [tasks, selectedMethodId]);
 
@@ -228,9 +235,22 @@ export default function InstructionConfirmationTab({
   // タスクIDに絞った指示のみをフィルタリング
   const filteredInstructions = useMemo(() => {
     return sortedInstructions.filter((instruction) => {
-      // 全体指示とトランジション単位指示はそのまま表示
-      if (instruction.targetType === 'file' || instruction.targetType === 'transition') {
+      // 全体指示はそのまま表示
+      if (instruction.targetType === 'file') {
         return true;
+      }
+      // トランジション指示：メソッドフィルタ→タスクフィルタの順で適用
+      if (instruction.targetType === 'transition') {
+        // メソッド指定あり かつ 選択メソッドと不一致 → 非表示
+        if (selectedMethodId && instruction.methodId && instruction.methodId !== selectedMethodId) {
+          return false;
+        }
+        // タスク指定なし → 常に表示
+        if (!instruction.taskId) return true;
+        // タスク指定あり かつ タスク未選択 → 全件表示
+        if (!selectedTaskId || selectedTaskId === '' || selectedTaskId === 'new') return true;
+        // タスク指定あり かつ タスク選択済み → 選択タスクと一致するもののみ表示
+        return instruction.taskId === selectedTaskId;
       }
       // メソッド単位指示の場合
       if (instruction.targetType === 'method') {
