@@ -38,7 +38,7 @@
         {
           "_comment_api_url": "⚠️ <ALB_DNS> を実際の prod-verification-alb の DNS 名に置き換えること",
           "name": "NEXT_PUBLIC_API_URL",
-          "value": "https://<ALB_DNS>"
+          "value": "https://prod-verification-alb-1495997713.ap-northeast-1.elb.amazonaws.com"
         }
       ],
 

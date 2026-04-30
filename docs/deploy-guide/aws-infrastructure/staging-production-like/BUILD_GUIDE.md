@@ -102,7 +102,7 @@ openssl req -x509 -newkey rsa:2048 -nodes \
   -keyout /tmp/acm-cert/cert.key \
   -out    /tmp/acm-cert/cert.pem \
   -days   365 \
-  -subj   "/CN=prod-verification-alb"
+  -subj   "/CN=prod-verification-alb.internal"
 ```
 
 > ✅ `/tmp/acm-cert/cert.key`（秘密鍵）と `/tmp/acm-cert/cert.pem`（証明書）が生成されること。
@@ -137,6 +137,7 @@ aws acm describe-certificate \
 ```
 
 > ✅ `"Status": "ISSUED"`, `"Type": "IMPORTED"` が返れば完了。
+> ✅ DomainName が FQDN 形式（ドット含む）であることを確認。
 
 > ⚠️ **自己署名証明書の制限事項:**  
 > - ブラウザでアクセスすると「この接続ではプライバシーが保護されません」等の証明書エラーが表示されます（検証環境のため許容）。  
