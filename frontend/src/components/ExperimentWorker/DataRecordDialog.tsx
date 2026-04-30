@@ -213,15 +213,17 @@ function convertRawPropertyToProperty(
 }
 
 /**
- * templateType からデフォルトのテンプレート名を生成する
+ * テンプレート名を解決する
+ * 優先順位: MAIMLファイル内のテンプレート名 > テンプレートID
  */
-function buildTemplateName(templateType: string, templateId: string): string {
-  switch (templateType) {
-    case 'material':  return `材料テンプレート`;
-    case 'condition': return `条件テンプレート`;
-    case 'result':    return `結果テンプレート`;
-    default:          return templateId;
+function resolveTemplateName(
+  templateName: string | null | undefined,
+  templateId: string
+): string {
+  if (templateName && templateName.trim().length > 0) {
+    return templateName.trim();
   }
+  return templateId;
 }
 
 /**
@@ -282,7 +284,7 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
           }))
       : [];
 
-    const name = buildTemplateName(item.templateType, item.templateId);
+    const name = resolveTemplateName(item.templateName, item.templateId);
 
     return {
       templateId: item.templateId,
