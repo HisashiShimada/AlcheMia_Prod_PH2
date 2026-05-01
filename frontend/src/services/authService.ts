@@ -5,6 +5,7 @@
 
 import axios, { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
+import { HTTP_STATUS } from '@/constants/httpStatus';
 import { setTokenPair, clearAllTokens } from '@/utils/tokenStorage';
 import { mapErrorToMessage } from '@/utils/errorMapper';
 import type { LoginCredentials } from '@/types/auth';
@@ -76,13 +77,13 @@ const handleApiError = (error: unknown): AuthServiceError => {
 
     // レスポンスはあるがエラー構造が不正な場合 → HTTPステータスからコードを推定
     const statusCode = axiosError.response.status;
-    if (statusCode === 401) {
+    if (statusCode === HTTP_STATUS.UNAUTHORIZED) {
       return new AuthServiceError('認証が必要です', 'E5013');
-    } else if (statusCode === 403) {
+    } else if (statusCode === HTTP_STATUS.FORBIDDEN) {
       return new AuthServiceError('アクセスが拒否されました', 'E5012');
-    } else if (statusCode === 404) {
+    } else if (statusCode === HTTP_STATUS.NOT_FOUND) {
       return new AuthServiceError('リソースが見つかりません', 'E6001');
-    } else if (statusCode >= 500) {
+    } else if (statusCode >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
       return new AuthServiceError('サーバーエラーが発生しました', 'E4001');
     }
 
@@ -226,7 +227,7 @@ export const authService = {
       }
     } catch (error) {
       // 401エラー（リフレッシュトークンなし/期限切れ）は正常ケースなのでログ出力しない
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
+      if (axios.isAxiosError(error) && error.response?.status === HTTP_STATUS.UNAUTHORIZED) {
         // 通常ログイン時の初回アクセスなので、静かに処理
         clearAllTokens();
         if (typeof window !== 'undefined') {

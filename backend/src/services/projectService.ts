@@ -12,7 +12,7 @@ import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
-import { TaskStatusEnum } from './taskService';
+import { ProjectStatusEnum, CheckoutStatusEnum, InstructionTargetEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
@@ -202,10 +202,10 @@ export class ProjectService {
         department: insertResult.rows[0].department_cd || '',
         members: [],
         tags: [],
-        isCheckedOut: insertResult.rows[0].checkout_status === 1,
+        isCheckedOut: insertResult.rows[0].checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy:
-          insertResult.rows[0].checkout_status === 1 ? insertResult.rows[0].owner_user_id : null,
-        checkedOutAt: insertResult.rows[0].checkout_status === 1 ? new Date().toISOString() : null,
+          insertResult.rows[0].checkout_status === CheckoutStatusEnum.CHECKED_OUT ? insertResult.rows[0].owner_user_id : null,
+        checkedOutAt: insertResult.rows[0].checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
         createdAt: new Date(insertResult.rows[0].create_at).toISOString(),
         updatedAt: new Date(insertResult.rows[0].create_at).toISOString(),
         totalTasks: 0,
@@ -502,9 +502,9 @@ export class ProjectService {
         departmentName: row.department_name || undefined,
         members: [], // 後で実装予定
         tags: [], // 後で実装予定
-        isCheckedOut: row.checkout_status === 1,
-        checkedOutBy: row.checkout_status === 1 ? row.checkout_user_id : null,
-        checkedOutAt: row.checkout_status === 1 ? new Date().toISOString() : null,
+        isCheckedOut: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
+        checkedOutBy: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? row.checkout_user_id : null,
+        checkedOutAt: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
         createdAt: row.create_at ? row.create_at.toISOString() : '',
         updatedAt: row.update_at ? row.update_at.toISOString() : '', // 後で実装予定
         totalTasks: parseInt(row.task_count, 10),
@@ -615,7 +615,7 @@ export class ProjectService {
       }
 
       // バリデーション2: プロジェクトステータスチェック（計画中=0、承認待ち=3、異常終了=5 のいずれかを許可）
-      const allowedStatuses = [0, 3, 5];
+      const allowedStatuses = [ProjectStatusEnum.PLANNING, ProjectStatusEnum.REVIEW_WAITING, ProjectStatusEnum.ERROR];
       if (!allowedStatuses.includes(project.project_status ?? -1)) {
         await client.query('ROLLBACK');
         const statusNames: { [key: number]: string } = {
@@ -638,7 +638,7 @@ export class ProjectService {
               projectName: project.project_name,
               currentStatus: project.project_status,
               currentStatusName,
-              allowedStatuses: [0, 3, 5],
+              allowedStatuses: [ProjectStatusEnum.PLANNING, ProjectStatusEnum.REVIEW_WAITING, ProjectStatusEnum.ERROR],
               allowedStatusNames: [
                 'プロジェクト計画中',
                 'タスク結果レビュー待ち',
@@ -690,7 +690,7 @@ export class ProjectService {
       }
 
       // チェックアウト状態確認
-      if (project.checkout_status === 1) {
+      if (project.checkout_status === CheckoutStatusEnum.CHECKED_OUT) {
         // 既にチェックアウト中
         if (project.owner_user_id === userId) {
           // 同一ユーザー: 冪等性を保つ（200 OK）
@@ -863,7 +863,7 @@ export class ProjectService {
       }
 
       // チェックイン状態確認
-      if (project.checkout_status === 0) {
+      if (project.checkout_status === CheckoutStatusEnum.CHECKED_IN) {
         // 既にチェックイン済み: 冪等性を保つ（200 OK）
         await client.query('COMMIT');
 
@@ -971,9 +971,9 @@ export class ProjectService {
       const checkoutInfo: ProjectCheckoutInfo = {
         projectId: project.project_id,
         projectName: project.project_name,
-        isCheckedOut: project.checkout_status === 1,
-        checkedOutBy: project.checkout_status === 1 ? project.owner_user_id : null,
-        checkedOutAt: project.checkout_status === 1 ? new Date().toISOString() : null,
+        isCheckedOut: project.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
+        checkedOutBy: project.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? project.owner_user_id : null,
+        checkedOutAt: project.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
       };
 
       return {
@@ -1259,7 +1259,7 @@ export class ProjectService {
       }
 
       // プロジェクトステータス検証: task_in_progress (2) のみ許可
-      if (project.project_status !== 2) {
+      if (project.project_status !== ProjectStatusEnum.TASK_IN_PROGRESS) {
         // ステータス名のマッピング
         const statusNames: { [key: number]: string } = {
           0: 'プロジェクト計画中',
@@ -1273,7 +1273,7 @@ export class ProjectService {
 
         // waiting_approval (3) の場合は特別なメッセージ
         const message =
-          project.project_status === 3
+          project.project_status === ProjectStatusEnum.REVIEW_WAITING
             ? '既に承認依頼が送信されています'
             : `プロジェクトステータスがタスク実行中ではありません。現在のステータス: ${currentStatusName}`;
 
@@ -1971,7 +1971,7 @@ export class ProjectService {
       let programId: string | null = null;
       const instructionTarget = instruction.instruction_target ?? 0;
 
-      if (instruction.method_id && (instructionTarget === 1 || instructionTarget === 2 || instructionTarget === 3)) {
+      if (instruction.method_id && (instructionTarget === InstructionTargetEnum.SPECIFIC_TASK || instructionTarget === InstructionTargetEnum.SPECIFIC_TRANSITION)) {
         try {
           // MAIMLファイル取得: project_uuid → file_metadata 経由で最新 file_key を取得
           const projectInfoForMaiml = await projectRepository.findNameAndUuidById(organizationId, projectId);

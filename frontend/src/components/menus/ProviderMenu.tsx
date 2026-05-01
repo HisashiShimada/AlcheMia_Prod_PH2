@@ -1,14 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography, theme } from 'antd';
+import { Layout, theme } from 'antd';
 import {
   ShopOutlined,
-  TeamOutlined,
-  SettingOutlined,
   AuditOutlined,
   DatabaseOutlined,
-  BarChartOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
@@ -34,7 +31,6 @@ const InformationDownload = dynamic(
 );
 
 const { Content } = Layout;
-const { Title, Text } = Typography;
 
 /**
  * プロバイダーメニューのProps
@@ -50,7 +46,7 @@ interface ProviderMenuProps {
  * プロバイダーメニュー画面
  * タブ形式でメニューを表示
  */
-export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange }: ProviderMenuProps) {
+export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderMenuProps) {
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
@@ -85,8 +81,6 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
       onMenuChange(menuType);
     }
   };
-
-  const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   // Header + SubHeaderの高さ (Header: 64px, SubHeader with tabs: 約76px)
   const HEADER_TOTAL_HEIGHT = 140;

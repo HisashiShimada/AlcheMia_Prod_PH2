@@ -12,6 +12,7 @@ import { extractErrorMessage } from '@/utils/errorUtils';
 import { AxiosError } from 'axios';
 import type { Task, Method, ProjectStatus } from '@/types/experimentWorker';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { HTTP_STATUS } from '@/constants/httpStatus';
 
 const { Title, Text } = Typography;
 
@@ -28,7 +29,7 @@ interface ProgressCheckTabProps {
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string) => void;
   onTabChange?: (tabKey: string) => void;
-  onSelectTaskAndTab?: (taskId: string, tabKey: string) => void;
+  onSelectTaskAndTab?: (taskId: string, tabKey: string, methodId?: string) => void;
   /** trueのとき強制終了ボタンを無効化（リードオンリービュー用） */
   readOnly?: boolean;
 }
@@ -102,7 +103,7 @@ export default function ProgressCheckTab({
           
           // 全タスクを変換（APIレスポンスのプロパティをコンポーネント用にマッピング）
           const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-            method.tasks.map((task: WorkerTask, taskIndex: number) => {
+            method.tasks.map((task: WorkerTask) => {
               console.log('[DEBUG] Converting task from API', {
                 task_no: task.task_no,
                 created_at: task.created_at,
@@ -112,7 +113,7 @@ export default function ProgressCheckTab({
               });
               
               return {
-                taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}-${taskIndex}`,
+                taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
                 taskNo: task.task_no.toString(), // string型に変換
                 taskName: task.task_no.toString(), // task_nameフィールドは除外されているのでtask_noを代用
                 methodId: method.method_id,
@@ -318,8 +319,8 @@ export default function ProgressCheckTab({
                 
                 // 全タスクを変換
                 const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-                  method.tasks.map((apiTask: WorkerTask, taskIndex: number) => ({
-                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}-${taskIndex}`,
+                  method.tasks.map((apiTask: WorkerTask) => ({
+                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
                     taskNo: apiTask.task_no.toString(),
                     taskName: apiTask.task_no.toString(),
                     methodId: method.method_id,
@@ -360,9 +361,9 @@ export default function ProgressCheckTab({
             });
             
             // エラー種別に応じた詳細メッセージ
-            if ((error as AxiosError)?.response?.status === 403) {
+            if ((error as AxiosError)?.response?.status === HTTP_STATUS.FORBIDDEN) {
               message.error('このタスクを開始する権限がありません');
-            } else if ((error as AxiosError)?.response?.status === 409) {
+            } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.CONFLICT) {
               // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
               message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています..');
               
@@ -384,8 +385,8 @@ export default function ProgressCheckTab({
                   
                   // 全タスクを変換
                   const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-                    method.tasks.map((apiTask: WorkerTask, taskIndex: number) => ({
-                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}-${taskIndex}`,
+                    method.tasks.map((apiTask: WorkerTask) => ({
+                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
                       taskNo: apiTask.task_no.toString(),
                       taskName: apiTask.task_no.toString(),
                       methodId: method.method_id,
@@ -417,7 +418,7 @@ export default function ProgressCheckTab({
                 console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
                 message.warning('最新の情報取得に失敗しました。画面を再読み込みしてください。');
               }
-            } else if ((error as AxiosError)?.response?.status === 404) {
+            } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
               message.error('タスクが見つかりません');
             } else {
               message.error('タスクの開始中にエラーが発生しました');
@@ -428,7 +429,7 @@ export default function ProgressCheckTab({
         case 'instruction':
           // 指示確認タブへ遷移（メソッドとタスクを選択してからタブ移動）
           if (onSelectTaskAndTab) {
-            onSelectTaskAndTab(taskId, '2'); // 指示確認タブ
+            onSelectTaskAndTab(taskId, '2', task.methodId); // 指示確認タブ・methodIdを渡す
             message.info('指示確認タブに移動します。');
           } else {
             // フォールバック: メソッドを先に選択
@@ -445,7 +446,7 @@ export default function ProgressCheckTab({
         case 'record':
           // 実験記録タブへ遷移（タスクを選択してからタブ移動）
           if (onSelectTaskAndTab) {
-            onSelectTaskAndTab(taskId, '3'); // 実験記録タブ
+            onSelectTaskAndTab(taskId, '3', task.methodId); // 実験記録タブ・methodIdを渡す
             message.info('実験記録タブに移動します。');
           } else if (onTabChange) {
             onTabChange('3'); // フォールバック
@@ -520,8 +521,8 @@ export default function ProgressCheckTab({
                 
                 // 全タスクを変換
                 const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-                  method.tasks.map((apiTask: WorkerTask, taskIndex: number) => ({
-                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}-${taskIndex}`,
+                  method.tasks.map((apiTask: WorkerTask) => ({
+                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
                     taskNo: apiTask.task_no.toString(),
                     taskName: apiTask.task_no.toString(),
                     methodId: method.method_id,
@@ -562,9 +563,9 @@ export default function ProgressCheckTab({
             });
             
             // エラー種別に応じた詳細メッセージ
-            if ((error as AxiosError)?.response?.status === 403) {
+            if ((error as AxiosError)?.response?.status === HTTP_STATUS.FORBIDDEN) {
               message.error('このタスクを強制終了する権限がありません');
-            } else if ((error as AxiosError)?.response?.status === 409) {
+            } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.CONFLICT) {
               // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
               message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています..');
               
@@ -586,8 +587,8 @@ export default function ProgressCheckTab({
                   
                   // 全タスクを変換
                   const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-                    method.tasks.map((apiTask: WorkerTask, taskIndex: number) => ({
-                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}-${taskIndex}`,
+                    method.tasks.map((apiTask: WorkerTask) => ({
+                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
                       taskNo: apiTask.task_no.toString(),
                       taskName: apiTask.task_no.toString(),
                       methodId: method.method_id,
@@ -619,7 +620,7 @@ export default function ProgressCheckTab({
                 console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
                 message.warning('最新の情報取得に失敗しました。画面を再読み込みしてください。');
               }
-            } else if ((error as AxiosError)?.response?.status === 404) {
+            } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
               message.error('タスクが見つかりません');
             } else {
               message.error('タスクの強制終了中にエラーが発生しました');

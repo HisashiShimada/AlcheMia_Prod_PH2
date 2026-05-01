@@ -250,59 +250,6 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                             </Text>
                           )}
                         </div>
-          }
-          key="errors"
-        >
-          <List
-            size="small"
-            dataSource={validationResult.errors}
-            renderItem={(err, index) => {
-              // 文字列変換を事前に実行
-              const elementStr = err.element ? convertToString(err.element) : '';
-              const suggestionStr = err.suggestion ? convertToString(err.suggestion) : '';
-              
-              return (
-                <List.Item key={index}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', width: '100%' }}>
-                    <Checkbox
-                      checked={selectedErrors.includes(index)}
-                      onChange={(e) => handleErrorCheckChange(index, e.target.checked)}
-                      style={{ marginRight: 8, marginTop: 4 }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <Space size="small" style={{ marginBottom: 4 }}>
-                        <Tag 
-                          color={
-                            err.canBeIgnoredOnUpload
-                              ? 'orange'    // 編集可能エラー（アップロード可）
-                              : 'error'     // 致命的エラー（アップロード不可）
-                          }
-                        >
-                          {err.canBeIgnoredOnUpload ? '編集可能' : 'エラー'}
-                        </Tag>
-                        <Text>{err.message}</Text>
-                      </Space>
-                      <div style={{ marginTop: 4 }}>
-                        {err.path && (
-                          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                            XPath: {err.path}
-                          </Text>
-                        )}
-                        {elementStr && (
-                          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                            要素: {elementStr}
-                          </Text>
-                        )}
-                        {err.line && (
-                          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                            行: {err.line}
-                          </Text>
-                        )}
-                        {suggestionStr && (
-                          <Text style={{ fontSize: 11, display: 'block', marginTop: 4, color: '#1890ff' }}>
-                            💡 修正案: {suggestionStr}
-                          </Text>
-                        )}
                       </div>
                     </div>
                   </div>

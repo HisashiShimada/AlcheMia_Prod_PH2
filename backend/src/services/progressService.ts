@@ -39,6 +39,7 @@ import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { logger } from '../utils/logger';
 import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
+import { CheckoutStatusEnum } from '../enums/codeMaster.enum';
 
 /**
  * ステータス遷移マトリクス（数値型）
@@ -790,7 +791,7 @@ export class ProgressService {
         maimlFileKey: maimlResult.maimlFileKey,
         organizationId,
         checkoutStatus: {
-          isCheckedOut: proj.checkout_status !== null && proj.checkout_status !== 0,
+          isCheckedOut: proj.checkout_status !== null && proj.checkout_status !== CheckoutStatusEnum.CHECKED_IN,
           checkoutBy: null
         }
       };

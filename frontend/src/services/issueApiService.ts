@@ -8,6 +8,7 @@
 import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
 import type { Issue, IssueComment, User, IssueTargetType, IssueStatus } from '@/types/experimentWorker';
+import { InstructionStatus } from '@/constants/codeMaster';
 
 // ============================================================
 // APIレスポンス型定義（バックエンドのレスポンス構造に合わせる）
@@ -174,8 +175,8 @@ function mapToIssueComment(c: IssueCommentApiData, issueId: string): IssueCommen
  * @returns IssueStatus 文字列
  */
 function mapToIssueStatus(status: 'unresolved' | 'resolved' | number): IssueStatus {
-  if (status === 0 || status === 'unresolved') return 'unresolved';
-  if (status === 1 || status === 'resolved') return 'resolved';
+  if (status === InstructionStatus.UNSENT || status === 'unresolved') return 'unresolved';
+  if (status === InstructionStatus.SENT || status === 'resolved') return 'resolved';
   // 想定外の値はデフォルトで未解決とする
   return 'unresolved';
 }
@@ -361,7 +362,7 @@ export async function updateIssueStatus(params: UpdateIssueStatusParams): Promis
   const client = createApiClient();
 
   // IssueStatus 文字列を API設計書準拠の integer に変換
-  const statusInt = params.status === 'resolved' ? 1 : 0;
+  const statusInt = params.status === 'resolved' ? InstructionStatus.SENT : InstructionStatus.UNSENT;
 
   try {
     console.log('[DEBUG] updateIssueStatus - Start', {

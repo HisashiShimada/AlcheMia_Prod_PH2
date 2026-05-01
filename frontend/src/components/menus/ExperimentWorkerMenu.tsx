@@ -27,6 +27,7 @@ import { getWorkerAccessibleProjects, requestApproval, type WorkerProject } from
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 import { AxiosError } from 'axios';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { HTTP_STATUS } from '@/constants/httpStatus';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -170,9 +171,9 @@ export default function ExperimentWorkerMenu({
       console.error('承認依頼エラー:', error);
       const axiosError = error as AxiosError<{ error: { code: string; message: string } }>;
       
-      if (axiosError.response?.status === 409) {
+      if (axiosError.response?.status === HTTP_STATUS.CONFLICT) {
         message.error('既に承認依頼が送信されています');
-      } else if (axiosError.response?.status === 404) {
+      } else if (axiosError.response?.status === HTTP_STATUS.NOT_FOUND) {
         message.error('プロジェクトが見つかりません');
       } else {
         message.error(extractErrorMessage(error));
@@ -266,10 +267,11 @@ export default function ExperimentWorkerMenu({
   };
 
   // タスク選択とタブ切り替えを同時に実行するハンドラー
-  const handleSelectTaskAndTab = (taskId: string, tabKey: string) => {
-    // TODO: API化後、タスクからメソッドIDを取得するロジックを実装
-    // 現在はモックデータを使用していないため、メソッドIDの取得は省略
-    
+  const handleSelectTaskAndTab = (taskId: string, tabKey: string, methodId?: string) => {
+    // methodId が渡された場合はメソッドも選択する
+    if (methodId) {
+      setSelectedMethodId(methodId);
+    }
     // タスクを選択
     setSelectedTaskId(taskId);
     // タブを切り替え

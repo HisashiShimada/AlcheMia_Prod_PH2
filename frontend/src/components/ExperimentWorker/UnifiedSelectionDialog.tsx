@@ -2,9 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Space, Tag, Button, theme } from 'antd';
-import { FolderOutlined, ToolOutlined, AimOutlined, CheckOutlined, ArrowLeftOutlined, MinusOutlined } from '@ant-design/icons';
-import { projectsData } from '@/data/projectsData';
+import { FolderOutlined, ToolOutlined, AimOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { Method } from '@/types/experimentWorker';
+
+/**
+ * プロジェクト情報の型定義（UnifiedSelectionDialog用）
+ */
+interface ProjectInfo {
+  projectId: string;
+  projectName: string;
+  fileName?: string;
+  methods?: Method[];
+}
 
 const { Text } = Typography;
 
@@ -20,6 +29,8 @@ interface UnifiedSelectionDialogProps {
   onProjectChange: (value: string) => void;
   onSelectMethod: (methodId: string) => void;
   onSelectTask: (taskId: string) => void;
+  /** APIから取得したプロジェクト一覧 */
+  projects?: ProjectInfo[];
 }
 
 /**
@@ -49,6 +60,7 @@ export default function UnifiedSelectionDialog({
   onProjectChange,
   onSelectMethod,
   onSelectTask,
+  projects = [],
 }: UnifiedSelectionDialogProps) {
   const { token } = theme.useToken();
   const [step, setStep] = useState<SelectionStep>('project');
@@ -67,18 +79,14 @@ export default function UnifiedSelectionDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // 選択中のプロジェクト情報を取得
+  const currentProjectInfo = projects.find((p) => p.projectId === tempProject) ?? null;
+
   // 選択中のプロジェクトのメソッド一覧を取得
-  const methods: Method[] = tempProject ? (projectsData[tempProject]?.methods || []) : [];
-  
-  // 選択中のメソッドに紐づくタスク一覧を取得（TODO: 実際のデータはAPIから取得）
-  const tasks: Task[] = tempMethodId
-    ? [
-        { taskId: 'new', taskName: '新規タスク', tag: '新規' },
-        { taskId: 'task001', taskName: 'タスク001' },
-        { taskId: 'task002', taskName: 'タスク002' },
-        { taskId: 'task003', taskName: 'タスク003' },
-      ]
-    : [];
+  const methods: Method[] = currentProjectInfo?.methods ?? [];
+
+  // 選択中のメソッドに紐づくタスク一覧（将来的にはAPIから取得）
+  const tasks: Task[] = [];
 
   // プロジェクト選択時の処理
   const handleProjectSelect = (projectId: string) => {
@@ -176,14 +184,13 @@ export default function UnifiedSelectionDialog({
   };
 
   // プロジェクトリストアイテム
-  const renderProjectItem = (projectId: string) => {
-    const project = projectsData[projectId];
-    const isSelected = tempProject === projectId;
-    const isCurrentlySelected = selectedProject === projectId;
+  const renderProjectItem = (project: ProjectInfo) => {
+    const isSelected = tempProject === project.projectId;
+    const isCurrentlySelected = selectedProject === project.projectId;
     return (
       <div
-        key={projectId}
-        onClick={() => handleProjectSelect(projectId)}
+        key={project.projectId}
+        onClick={() => handleProjectSelect(project.projectId)}
         style={{
           display: 'flex', alignItems: 'flex-start',
           cursor: 'pointer', padding: token.paddingMD,
@@ -279,7 +286,7 @@ export default function UnifiedSelectionDialog({
 
   // ステップに応じたタイトルとアイコンを取得
   const getModalTitle = () => {
-    const projectName = tempProject ? projectsData[tempProject]?.projectName : '';
+    const projectName = currentProjectInfo?.projectName ?? '';
     const methodName = tempMethodId
       ? methods.find((m) => m.methodId === tempMethodId)?.methodName
       : '';
@@ -320,7 +327,7 @@ export default function UnifiedSelectionDialog({
       return (
         <div style={{ maxHeight: 500, overflowY: 'auto' }}>
           {renderEmptyOption('project')}
-          {Object.keys(projectsData).map(renderProjectItem)}
+          {projects.map(renderProjectItem)}
         </div>
       );
     } else if (step === 'method') {

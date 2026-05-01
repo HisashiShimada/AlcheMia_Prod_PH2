@@ -46,9 +46,6 @@ interface ProgressRecord {
   totalTasks: number;
 }
 
-type Order = 'asc' | 'desc';
-type OrderBy = keyof ProgressRecord;
-
 /**
  * 進捗管理画面コンポーネント
  */
@@ -62,25 +59,15 @@ export default function ProgressMonitoring() {
   const [checkoutFilter, setCheckoutFilter] = useState('all');
   const [projectStatusFilter, setProjectStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
-  const [lastUpdated] = useState(new Date().toLocaleString('ja-JP'));
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [order, setOrder] = useState<Order>('asc');
-  const [orderBy, setOrderBy] = useState<OrderBy>('projectName');
-  
   // モーダル関連のState
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<ProgressRecord | null>(null);
   const [fileData, setFileData] = useState<FileData | null>(null);
-  const [managerId] = useState<string>(() => getUserInfo()?.id ?? '');
   // 詳細ボタン押下時のローディング状態（Phase 3）: クリックしたプロジェクトIDを保持
   const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
 
   // プロジェクト一覧をAPI経由で取得
   const { 
     data: projectsData, 
-    isLoading: isLoadingProjects, 
-    error: projectsError, 
     refetch: refetchProjects 
   } = useApi<ProjectApiResponse<ProjectListResponse>>(
     getProjects,
@@ -207,32 +194,7 @@ export default function ProgressMonitoring() {
     });
   }, [allData, searchText, ownerFilter, checkoutFilter, projectStatusFilter, departmentFilter, t]);
 
-  // ソート処理
-  const sortedData = useMemo(() => {
-    const comparator = (a: ProgressRecord, b: ProgressRecord) => {
-      const aValue: string | number | boolean = a[orderBy];
-      const bValue: string | number | boolean = b[orderBy];
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return order === 'asc' ? aValue.localeCompare(bValue, 'ja') : bValue.localeCompare(aValue, 'ja');
-      }
-      if (order === 'asc') return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      else return bValue < aValue ? -1 : bValue > aValue ? 1 : 0;
-    };
-    return [...filteredData].sort(comparator);
-  }, [filteredData, order, orderBy]);
-
   const totalProjects = filteredData.length;
-
-  // プロジェクトステータスの色を取得する関数
-  const getProjectStatusColor = (status: string): 'default' | 'info' | 'primary' | 'success' => {
-    switch (status) {
-      case 'planning': return 'default';
-      case 'pending': return 'info';
-      case 'in_progress': return 'primary';
-      case 'completed': return 'success';
-      default: return 'default';
-    }
-  };
 
   // プロジェクトステータスのラベルを取得する関数
   const getProjectStatusLabel = (status: string) => {
@@ -249,7 +211,6 @@ export default function ProgressMonitoring() {
 
   // 詳細表示ハンドラ
   const handleViewDetails = async (record: ProgressRecord) => {
-    setSelectedProject(record);
     setLoadingProjectId(record.projectId);
     try {
       const filesResponse = await getProjectFiles(record.projectId, false);
@@ -276,7 +237,6 @@ export default function ProgressMonitoring() {
   
   const handleCloseDialog = () => {
     setIsDetailDialogOpen(false);
-    setSelectedProject(null);
     setFileData(null);
   };
 
@@ -515,7 +475,6 @@ export default function ProgressMonitoring() {
         open={isDetailDialogOpen}
         onClose={handleCloseDialog}
         fileData={fileData}
-        managerId={managerId}
       />
     </div>
   );

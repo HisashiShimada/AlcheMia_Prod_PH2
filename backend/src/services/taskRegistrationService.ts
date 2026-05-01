@@ -14,7 +14,6 @@ import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
-import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import type {
   GetTaskRegistrationResponse,
   TaskRegistrationData,
@@ -28,6 +27,7 @@ import { getStorageService } from './storageService';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { logger } from '../utils/logger';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
+import { CheckoutStatusEnum } from '../enums/codeMaster.enum';
 
 const transitionDataRepository = new TransitionDataRepository();
 const templateDataRepository = new TemplateDataRepository();
@@ -53,7 +53,7 @@ export async function getTaskRegistration(
   const projectName = project.project_name ?? '';
   
   // 2. チェックアウト状態を確認
-  const isCheckoutLocked = project.checkout_status === 1;
+  const isCheckoutLocked = project.checkout_status === CheckoutStatusEnum.CHECKED_OUT;
 
   // 3. MAIMLファイル登録状態をストレージ実態で確認（DBフラグは古い場合があるため）
   let isMaimlRegistered = project.project_maiml_flg === true;
@@ -194,7 +194,7 @@ export async function saveTaskRegistration(
   const projectName = project.project_name ?? '';
   
   // 2. チェックアウト状態を確認
-  if (project.checkout_status === 1) {
+  if (project.checkout_status === CheckoutStatusEnum.CHECKED_OUT) {
     throw new Error('Project is checked out. Cannot save task registration.');
   }
   

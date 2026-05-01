@@ -9,7 +9,7 @@
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import { getPool } from '../database/db';
-import { Project, ProjectInstruction } from '../types/database';
+import { ProjectInstruction } from '../types/database';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import {
   TaskRegistrationStatusResponse,
@@ -25,6 +25,7 @@ import { logger, logError } from '../utils/logger';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
 import { XMLParser } from 'fast-xml-parser';
+import { InstructionStatusEnum } from '../enums/codeMaster.enum';
 
 /**
  * 指示一覧を取得
@@ -59,8 +60,8 @@ export async function getInstructions(
     methodId: inst.method_id || '',
     transitionId: inst.transition_id || '',
     taskNumber: inst.task_no ?? undefined,
-    isSent: inst.instruction_status === 1,
-    instruction_status: inst.instruction_status ?? 0
+    isSent: inst.instruction_status === InstructionStatusEnum.SENT,
+    instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT
   }));
   
   logger.info('指示一覧を取得しました', {
@@ -160,7 +161,7 @@ export async function saveInstruction(
     type: request.type,
     instructions: request.content,
     instruction_target: instructionTarget,
-    instruction_status: 0, // 未送信
+    instruction_status: InstructionStatusEnum.UNSENT,
     instruction_user_id: userId,
     create_user_id: userId,
     update_user_id: userId,

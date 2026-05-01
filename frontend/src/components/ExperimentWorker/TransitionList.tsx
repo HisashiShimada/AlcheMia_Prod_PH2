@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress, Button } from 'antd';
+import { Table, Tag, Typography, Input, Select, Row, Col, message } from 'antd';
 import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
 import { getIssues, createIssue, addComment, updateIssueStatus } from '@/services/issueApiService';
 import { extractErrorMessage } from '@/utils/errorUtils';
-import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 

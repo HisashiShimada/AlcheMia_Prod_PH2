@@ -29,19 +29,13 @@ import {
 import {
   SaveOutlined,
   ThunderboltOutlined,
-  CloseOutlined,
   ExperimentOutlined,
   SettingOutlined,
   BarChartOutlined,
   PlusOutlined,
   DeleteOutlined,
-  DownOutlined,
-  RightOutlined,
-  CopyOutlined,
   DownloadOutlined,
   FileSearchOutlined,
-  FolderOutlined,
-  FileOutlined,
 } from '@ant-design/icons';
 import { fetchTemplateFiles, type ListFormatsResponse } from '@/services/templateApi';
 import type { 

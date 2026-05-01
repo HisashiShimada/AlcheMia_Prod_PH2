@@ -18,7 +18,6 @@ import {
   Alert,
   Space,
   Flex,
-  Divider,
   theme,
   Grid,
   Row,
@@ -28,7 +27,6 @@ import {
 import {
   CloseOutlined,
   ReloadOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   PauseCircleOutlined,
@@ -52,7 +50,6 @@ interface WorkProgressDetailDialogProps {
   open: boolean;
   onClose: () => void;
   fileData: FileData | null;
-  managerId: string;
 }
 
 /**
@@ -62,7 +59,6 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
   open,
   onClose,
   fileData,
-  managerId,
 }) => {
   const { token } = theme.useToken();
   const screens = useBreakpoint();

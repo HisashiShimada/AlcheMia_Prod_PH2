@@ -253,6 +253,11 @@ export interface TemplateDataItem {
   /** テンプレートID（テンプレート定義の特定に使用） */
   templateId: string;
   /**
+   * MAIMLファイル内のテンプレート名（<name>タグの値）
+   * 存在しない場合、または旧データの場合は null / undefined
+   */
+  templateName?: string | null;
+  /**
    * 実験データ本体
    * - DB実績あり: フラットなkey-value形式（フォームの既存値復元に使用）
    * - フォールバック: { templateId, templateType, properties } 形式（MAIMLテンプレート定義）

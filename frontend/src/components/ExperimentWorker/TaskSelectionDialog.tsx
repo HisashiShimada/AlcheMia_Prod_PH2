@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Space, Tag, Button, theme } from 'antd';
 import { AimOutlined, CheckOutlined } from '@ant-design/icons';
-import { projectsData } from '@/data/projectsData';
 import { Method, Task } from '@/types/experimentWorker';
 
 const { Text } = Typography;
@@ -18,6 +17,10 @@ interface TaskSelectionDialogProps {
   selectedMethodId: string | null;
   selectedTaskId: string | null;
   onSelectTask: (taskId: string) => void;
+  /** APIから取得したメソッド一覧 */
+  methods?: Method[];
+  /** 表示用のプロジェクト名 */
+  projectName?: string;
 }
 
 /**
@@ -31,6 +34,8 @@ export default function TaskSelectionDialog({
   selectedMethodId,
   selectedTaskId,
   onSelectTask,
+  methods: propsMethods = [],
+  projectName,
 }: TaskSelectionDialogProps) {
   const { token } = theme.useToken();
   const [tempTaskId, setTempTaskId] = useState<string | null>(selectedTaskId);
@@ -43,17 +48,12 @@ export default function TaskSelectionDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // 選択中のプロジェクト情報を取得
-  const projectData = selectedProject ? projectsData[selectedProject] : null;
-  
-  // 選択中のメソッド情報を取得（選択プロジェクトと選択メソッドに紐づくタスクのみを取得）
-  const methods: Method[] = projectData?.methods || [];
+  // 選択中のメソッド情報を取得（propsから受け取ったメソッド一覧から検索）
   const methodData = selectedMethodId
-    ? methods.find((m) => m.methodId === selectedMethodId)
+    ? propsMethods.find((m) => m.methodId === selectedMethodId)
     : null;
   
   // 選択中のメソッドに紐づくタスク一覧を取得
-  // これにより、選択プロジェクトと選択メソッドに関連するタスクのみが表示される
   const tasks: Task[] = methodData?.tasks || [];
 
   // 決定ボタンの処理
@@ -157,7 +157,7 @@ export default function TaskSelectionDialog({
         <Text strong>タスクを選択</Text>
       </Space>
       <Text type="secondary" style={{ fontSize: 12 }}>
-        プロジェクト: {projectData?.projectName || '未選択'} / メソッド: {methodData?.methodName || '未選択'}
+        プロジェクト: {projectName || '未選択'} / メソッド: {methodData?.methodName || '未選択'}
       </Text>
     </Space>
   );
@@ -193,7 +193,7 @@ export default function TaskSelectionDialog({
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
             <Text type="secondary">選択されたメソッドにタスクがありません</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              プロジェクト: {projectData?.projectName || '未選択'}
+              プロジェクト: {projectName || '未選択'}
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
               メソッド: {methodData?.methodName || '未選択'}
