@@ -148,21 +148,12 @@ export async function fetchExperimentRecords(workId: string): Promise<unknown> {
 
   console.log('📦 [fetchExperimentRecords] モックデータを返却（バックエンドAPI未実装）:', { workId });
 
-  try {
-    const mockData = await import('@/data/mock/mockExperimentRecords.json');
-    return {
-      success: true,
-      data: mockData.default || mockData,
-    };
-  } catch (error) {
-    console.warn('⚠️ mockExperimentRecords.json not found, returning empty data');
-    return {
-      success: true,
-      data: {
-        materials: [],
-        conditions: [],
-        results: [],
-      },
-    };
-  }
+  return {
+    success: true,
+    data: {
+      materials: [],
+      conditions: [],
+      results: [],
+    },
+  };
 }
