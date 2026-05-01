@@ -206,10 +206,10 @@ aws elbv2 create-trust-store \
 ### 1.5-3. Trust Store の状態確認
 
 ```bash
-aws elbv2 describe-trust-store \
-  --trust-store-arn <TRUST_STORE_ARN> \
+aws elbv2 describe-trust-stores \
+  --trust-store-arns <TRUST_STORE_ARN> \
   --region ap-northeast-1 \
-  --query 'TrustStore.{Name:Name,Status:Status,NumberOfCACertificates:NumberOfCACertificates}'
+  --query 'TrustStores[0].{Name:Name,Status:Status,NumberOfCaCertificates:NumberOfCaCertificates}'
 ```
 
 > ✅ `Status: ACTIVE` かつ `NumberOfCACertificates: 1` であることを確認する。
