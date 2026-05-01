@@ -73,6 +73,8 @@ interface TaskRegistrationTabProps {
   isCheckoutLocked?: boolean;
   /** MAIMLバリデーションエラーがある場合 true */
   maimlHasErrors?: boolean;
+  /** プロジェクト完了状態（status === 4）の場合 true */
+  isProjectCompleted?: boolean;
   onTasksChange?: (tasks: TaskDetail[]) => void;
 }
 
@@ -92,6 +94,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   isActive,
   isCheckoutLocked: isCheckoutLockedProp,
   maimlHasErrors,
+  isProjectCompleted,
   onTasksChange,
 }) => {
   const { token } = useToken();
@@ -600,7 +603,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
    * チェックアウト中・ワーカー連携済み・MAIMLエラーあり は変更不可
    */
   const isFieldDisabled = useCallback((record: TaskDetail) => {
-    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg || !!maimlHasErrors;
+    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg || !!maimlHasErrors || !!isProjectCompleted;
   }, [isSaving, loadingMethods, isCheckoutLocked, maimlHasErrors]);
 
   /**
@@ -851,7 +854,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           <Button
             type="primary"
             onClick={handleProjectInstructionClick}
-            disabled={loadingMethods || isCheckoutLocked || maimlHasErrors}
+            disabled={loadingMethods || isCheckoutLocked || maimlHasErrors || !!isProjectCompleted}
             data-testid="project-instruction-button"
           >
             {t('taskRegistration.buttons.projectInstruction')}

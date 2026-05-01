@@ -1979,6 +1979,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<UploadOutlined />}
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenUploadDialog}
+                    disabled={!selectedProject || selectedProject.status === 4}
+                    title={selectedProject?.status === 4 ? 'プロジェクト完了後はアップロードできません' : undefined}
                   >
                     {t('projectManagement.upload')}
                   </Button>
@@ -1986,8 +1988,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     type="primary"
                     icon={<EditOutlined />}
                     onClick={handleEditButtonClick}
-                    disabled={!selectedProject || isProjectCheckedOut}
-                    title={isProjectCheckedOut ? 'チェックイン状態でのみ編集できます' : undefined}
+                    disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4}
+                    title={selectedProject?.status === 4 ? 'プロジェクト完了後は編集できません' : isProjectCheckedOut ? 'チェックイン状態でのみ編集できます' : undefined}
                   >
                     {t('projectManagement.edit')}
                   </Button>
@@ -1995,7 +1997,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     danger
                     icon={<DeleteOutlined />}
                     onClick={handleProjectDelete}
-                    disabled={!selectedProject}
+                    disabled={!selectedProject || selectedProject.status === 4}
+                    title={selectedProject?.status === 4 ? 'プロジェクト完了後は削除できません' : undefined}
                   >
                     {t('projectManagement.deleteButton')}
                   </Button>
@@ -2139,6 +2142,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         isActive={currentTab === 'task_registration'}
                         isCheckoutLocked={isProjectCheckedOut}
                         maimlHasErrors={maimlHasErrors}
+                        isProjectCompleted={selectedProject?.status === 4}
                       />
                     ),
                   },
