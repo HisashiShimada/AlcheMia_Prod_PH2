@@ -10,6 +10,84 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を作
 
 ## 一般原則
 
+### マジックナンバー禁止（Magic Number Prohibition）
+
+**コード内に数値・文字列リテラルを直接記述することを禁止する。**
+
+#### 必須ルール
+
+1. **code_master に登録されているコード値は必ずENUM定数を使用する**
+
+   ```typescript
+   // ❌ 禁止: マジックナンバーの直接使用
+   if (project.project_status === 2) { ... }
+   if (inst.instruction_status === 0) { ... }
+   const statusFilter = 'AND project_status IN (1, 2, 3)';
+   
+   // ✅ 正しい: ENUM定数を使用
+   if (project.project_status === ProjectStatusEnum.TASK_IN_PROGRESS) { ... }
+   if (inst.instruction_status === InstructionStatusEnum.UNSENT) { ... }
+   const allowed = [ProjectStatusEnum.TASK_PENDING, ProjectStatusEnum.TASK_IN_PROGRESS, ProjectStatusEnum.REVIEW_WAITING];
+   const statusFilter = `AND project_status IN (${allowed.join(', ')})`;
+   ```
+
+2. **ローカル定数による回避も禁止する**
+
+   ```typescript
+   // ❌ 禁止: ファイル内のローカル定数による定義
+   const PROJECT_STATUS_REVIEW_WAITING = 3; // ← 別ファイルでも同じ定義が生まれる
+   
+   // ✅ 正しい: 共通ENUMファイルから import
+   import { ProjectStatusEnum } from '../enums/projectStatus.enum';
+   ```
+
+3. **同じマッピングを複数ファイルで再定義しない**
+
+   ```typescript
+   // ❌ 禁止: 各ファイルで独自に TASK_STATUS_MAP を定義
+   const TASK_STATUS_MAP = { 0: 'pending', 1: 'in_progress', ... }; // ← 重複
+   
+   // ✅ 正しい: 共通の型定義ファイルから import
+   import { TASK_STATUS_MAP } from '../types/project';
+   ```
+
+4. **HTTPステータスコードも定数化を推奨する**
+
+   ```typescript
+   // 🟡 推奨（必須ではないが推奨）
+   // ❌ 非推奨
+   if (error.response?.status === 409) { ... }
+   
+   // ✅ 推奨
+   import { HTTP_STATUS } from '../constants/httpStatus';
+   if (error.response?.status === HTTP_STATUS.CONFLICT) { ... }
+   ```
+
+#### ENUM定義ファイルの場所
+
+| 対象 | バックエンド | フロントエンド |
+|------|------------|--------------|
+| code_master のコード値 | `backend/src/enums/*.enum.ts` | `frontend/src/constants/*.ts` |
+| HTTPステータスコード | `backend/src/constants/httpStatus.ts` | `frontend/src/constants/httpStatus.ts` |
+| 共通マッピング | `backend/src/types/*.ts` | `frontend/src/types/*.ts` |
+
+#### 対応済みENUM一覧
+
+| code_division | バックエンドENUM | フロントエンド定数 |
+|--------------|----------------|----------------|
+| `project_status` | `ProjectStatusEnum` (`enums/projectStatus.enum.ts`) | `ProjectStatus` (`constants/projectStatus.ts`) |
+| `checkout_status` | `CheckoutStatusEnum` (`enums/projectStatus.enum.ts`) | `CheckoutStatus` (`constants/projectStatus.ts`) |
+| `instruction_status` | `InstructionStatusEnum` (`enums/instructionStatus.enum.ts`) | `InstructionStatus` (`constants/instructionStatus.ts`) |
+| `instruction_priority` | `InstructionPriorityEnum` (`enums/instructionStatus.enum.ts`) | `InstructionPriority` (`constants/instructionStatus.ts`) |
+| `instruction_target` | `InstructionTargetEnum` (`enums/instructionStatus.enum.ts`) | `InstructionTarget` (`constants/instructionStatus.ts`) |
+| `instruction_type`（数値） | `InstructionTypeEnum` (`enums/instructionStatus.enum.ts`) | `InstructionTypeCode` (`constants/instructionStatus.ts`) |
+| `issue_type` | `IssueTypeEnum` (`enums/issueType.enum.ts`) | `IssueType` (`constants/issueType.ts`) |
+| `experiment_condition` | `ExperimentConditionEnum` (`enums/experimentCondition.enum.ts`) | `ExperimentCondition` (`constants/experimentCondition.ts`) |
+| `task_status` | `TaskStatusEnum` (`services/taskService.ts`) | — |
+| トランジションステータス | `TransitionStatusEnum` (`types/transitionData.ts`) | — |
+
+---
+
 ### DRY (Don't Repeat Yourself)
 - 重複するコードを避け、再利用可能な関数・コンポーネントに抽出する
 - 共通ロジックはユーティリティ関数やサービス層に配置する

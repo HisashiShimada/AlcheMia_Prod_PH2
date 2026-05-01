@@ -12,6 +12,7 @@
 
 import axios from 'axios';
 import { DecomposedQuery } from '../types/semanticSearch';
+import { HTTP_STATUS } from '../constants/httpStatus';
 
 // gpt-oss-20b 接続設定（環境変数から取得）
 const GPT_OSS_ENABLED = process.env.GPT_OSS_ENABLED === 'true';
@@ -97,7 +98,7 @@ async function callDecomposeAPIWithRetry(
           data: error.response.data,
         });
         // 4xx（429除く）はリトライしない
-        if (status >= 400 && status < 500 && status !== 429) {
+        if (status >= HTTP_STATUS.BAD_REQUEST && status < HTTP_STATUS.INTERNAL_SERVER_ERROR && status !== HTTP_STATUS.TOO_MANY_REQUESTS) {
           throw new Error(`HTTP ${status}: ${JSON.stringify(error.response.data)}`);
         }
       } else if (error.code === 'ECONNREFUSED') {

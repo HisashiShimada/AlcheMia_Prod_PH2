@@ -21,6 +21,7 @@ import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import { renameFile } from '../services/renameService';
 import { Project } from '../types/database';
 import { AppError } from '../enums/errorCodes';
+import { ProjectStatusEnum } from '../enums/codeMaster.enum';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { injectParentTag } from '../utils/maimlParentInjector';
 
@@ -619,7 +620,7 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
           );
 
           // project_status != 0 の場合はエラー
-          if (projectInfo && projectInfo.project_status !== 0) {
+          if (projectInfo && projectInfo.project_status !== ProjectStatusEnum.PLANNING) {
             // code_masterテーブルからステータス名を取得
             const currentStatusMaster = await codeMasterRepository.findByValue(
               organizationId,

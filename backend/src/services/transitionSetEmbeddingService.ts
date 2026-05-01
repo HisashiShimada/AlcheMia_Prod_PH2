@@ -9,6 +9,7 @@
 
 import axios from 'axios';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { HTTP_STATUS } from '../constants/httpStatus';
 
 // ============================================================
 // 環境変数
@@ -251,7 +252,7 @@ export async function healthCheck(): Promise<boolean> {
       return true;
     } else {
       const response = await axios.get(`${OLLAMA_HOST}/api/tags`, { timeout: 5000 });
-      return response.status === 200;
+      return response.status === HTTP_STATUS.OK;
     }
   } catch {
     return false;

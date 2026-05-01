@@ -58,6 +58,7 @@ import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { getTaskRegistration, saveTaskRegistration, saveInstruction, getInstructions } from '@/services/projectApiService';
 import { createSelectOptionsFromCodeMaster, createRangeOptions } from '@/utils/selectUtils';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
+import { InstructionStatus } from '@/constants/codeMaster';
 
 const { Text } = Typography;
 const { useToken } = theme;
@@ -314,7 +315,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     // instruction_status=0（未送信）として追加
     const newInstruction: InstructionData = {
       ...instruction,
-      instruction_status: 0,
+      instruction_status: InstructionStatus.UNSENT,
       isNewlyAdded: true // 新規追加フラグを設定
     };
     
@@ -357,7 +358,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   const handleSave = useCallback(async () => {
     try {
       // バリデーション: 新規追加 + DBから取得したinstruction_status=0の指示
-      const unsentInstructions = instructions.filter(inst => inst.instruction_status === 0);
+      const unsentInstructions = instructions.filter(inst => inst.instruction_status === InstructionStatus.UNSENT);
       
       if (unsentInstructions.length === 0) {
         message.warning(t('taskRegistration.messages.requireInstruction'));
