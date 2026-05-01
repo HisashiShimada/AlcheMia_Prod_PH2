@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, Input, Button, Tree, Alert, Typography, Tag, Spin, Space, Flex } from 'antd';
+import { Modal, Input, Button, Tree, Alert, Typography, Tag, Space, Flex } from 'antd';
 import {
   FileOutlined,
   SearchOutlined,
@@ -18,7 +18,7 @@ import {
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 /**
  * ファイル情報の型定義

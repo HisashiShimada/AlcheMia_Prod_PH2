@@ -9,7 +9,7 @@
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import { getPool } from '../database/db';
-import { Project, ProjectInstruction } from '../types/database';
+import { ProjectInstruction } from '../types/database';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import {
   TaskRegistrationStatusResponse,

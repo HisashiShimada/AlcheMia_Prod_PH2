@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography, theme, App } from 'antd';
+import { Layout, theme, App } from 'antd';
 import {
   TeamOutlined,
   ShopOutlined,
-  FolderOutlined,
   ExperimentOutlined,
   AuditOutlined,
   EyeOutlined,
@@ -19,12 +18,10 @@ import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import SystemOverview from '../SystemManagement/SystemOverview';
 import UserManagement from '../SystemManagement/UserManagement';
 import SessionManagement from '../SystemManagement/SessionManagement';
-import MasterManagement from '../DataManagement/MasterManagement';
 import RoleManagement from '../SystemManagement/RoleManagement';
 import DepartmentManagement from '../SystemManagement/DepartmentManagement';
 
 const { Content } = Layout;
-const { Title, Text } = Typography;
 
 /**
  * システム管理者メニューのProps
@@ -40,7 +37,7 @@ interface SystemAdminMenuProps {
  * システム管理者メニュー画面
  * タブ形式でメニューを表示
  */
-export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChange }: SystemAdminMenuProps) {
+export default function SystemAdminMenu({ user, onLogout, onMenuChange }: SystemAdminMenuProps) {
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
@@ -85,8 +82,6 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
       onMenuChange(menuType);
     }
   };
-
-  const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   // Header + SubHeaderの高さ (Header: 64px, SubHeader with tabs: 約76px)
   const HEADER_TOTAL_HEIGHT = 140;

@@ -1,14 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography, theme } from 'antd';
+import { Layout, theme } from 'antd';
 import {
   FolderOutlined,
-  EditOutlined,
-  SearchOutlined,
-  ExperimentOutlined,
-  DownloadOutlined,
-  BarChartOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
@@ -18,7 +13,6 @@ import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import MasterManagement from '../DataManagement/MasterManagement';
 
 const { Content } = Layout;
-const { Title, Text } = Typography;
 
 /**
  * データ管理者メニューのProps
@@ -34,7 +28,7 @@ interface DataAdminMenuProps {
  * データ管理者メニュー画面
  * サブヘッダーに埋め込まれたタブでメニューを表示
  */
-export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange }: DataAdminMenuProps) {
+export default function DataAdminMenu({ user, onLogout, onMenuChange }: DataAdminMenuProps) {
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
@@ -59,8 +53,6 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
       onMenuChange(menuType);
     }
   };
-
-  const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   // Header + SubHeaderの高さ (Header: 64px, SubHeader with tabs: 約76px)
   const HEADER_TOTAL_HEIGHT = 140;

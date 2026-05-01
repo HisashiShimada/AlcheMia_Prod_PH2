@@ -35,7 +35,6 @@ import { processConcurrently, getConcurrency } from '../utils/concurrencyControl
 import { isMaimlFile } from '../utils/maimlAnalyzer';
 import { analyzeMaiMLFile } from '../utils/maimlParser';
 import { ErrorContent } from '../types/maimlValidation';
-import { truncateField, FILE_METADATA_MAX_LENGTHS } from '../utils/stringValidator';
 import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';

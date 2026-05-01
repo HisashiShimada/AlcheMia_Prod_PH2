@@ -740,7 +740,6 @@ export async function uploadCreatorsCsv(req: Request, res: Response, next: NextF
     }
 
     const csvContent = req.file.buffer.toString('utf-8');
-    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
     const result = await masterService.uploadCreatorsCsv(String(organizationId), csvContent, String(userId), corporationId);
 
     res.json({
@@ -861,7 +860,6 @@ export async function uploadInstrumentsCsv(req: Request, res: Response, next: Ne
     const corporationId = await getCorporationId(req, String(organizationId));
 
     const csvContent = req.file.buffer.toString('utf-8');
-    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
     const result = await masterService.uploadInstrumentsCsv(String(organizationId), csvContent, String(userId), corporationId);
 
     res.json({
@@ -980,7 +978,6 @@ export async function uploadVendorsCsv(req: Request, res: Response, next: NextFu
     const corporationId = await getCorporationId(req, String(organizationId));
 
     const csvContent = req.file.buffer.toString('utf-8');
-    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
     const result = await masterService.uploadVendorsCsv(String(organizationId), csvContent, String(userId), corporationId);
 
     res.json({

@@ -10,7 +10,7 @@
  * 主キー: (organization_id, project_id, method_id, task_no)
  */
 
-import { getPool, getPgp } from '../database/db';
+import { getPool } from '../database/db';
 import { ProjectTaskDetail } from '../types/database';
 import { loadSqlFile } from '../sql/loader';
 import type { ITask } from 'pg-promise';

@@ -604,7 +604,6 @@ export async function listFormats(req: Request, res: Response): Promise<void> {
  */
 export async function getAnalysisResult(req: Request, res: Response): Promise<void> {
   try {
-    const authUser = req.user as JwtPayload;
     const { fileKey } = req.query;
 
     if (!fileKey || typeof fileKey !== 'string') {

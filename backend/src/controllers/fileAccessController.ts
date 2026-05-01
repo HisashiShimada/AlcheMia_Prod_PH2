@@ -16,7 +16,6 @@ import { ingestSingleFileAsync } from '../services/singleFileIngestService';
 import UploadBatchRepository from '../repositories/UploadBatchRepository';
 import { ChunkUploadService } from '../services/chunkUploadService';
 import * as projectRepository from '../repositories/projectRepository';
-import { ProjectService } from '../services/projectService';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import { renameFile } from '../services/renameService';
 import { Project } from '../types/database';
@@ -348,7 +347,7 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
           },
         });
         return;
-      } catch (_parseError) {
+      } catch {
         // パース失敗時は resolveFileError() にフォールスルー
       }
     }

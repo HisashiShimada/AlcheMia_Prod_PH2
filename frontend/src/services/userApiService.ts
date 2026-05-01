@@ -5,8 +5,6 @@
  */
 
 import { createApiClient } from '@/utils/authUtils';
-import { AxiosError } from 'axios';
-
 /**
  * APIレスポンスの型定義
  */
