@@ -280,6 +280,38 @@ aws ec2 authorize-security-group-ingress \
   --region ap-northeast-1
 ```
 
+> ⚠️ **作業用 EC2 からのログ確認について（重要）**:  
+> STEP 4 で作成する VPC Endpoint に `--private-dns-enabled` を指定するため、VPC 内のすべてのホストで  
+> `ecr.api`, `ecr.dkr`, `logs` 等の AWS サービス DNS が VPC Endpoint に向きます。  
+> 作業用 EC2 から `aws logs tail` 等を実行する場合も VPC Endpoint 経由となるため、  
+> **作業用 EC2 のセキュリティグループ（`<EC2_SG_ID>`）も `prod-vpce-sg` の許可対象に追加**する必要があります。  
+> 追加しない場合は `Connect timeout` エラーが発生します。
+
+```bash
+# HTTPS/443: 作業用 EC2 の SG からも許可（aws logs tail / aws ecr 等の確認作業用）
+# <EC2_SG_ID> は作業用 EC2 インスタンスのセキュリティグループ ID に置き換える
+aws ec2 authorize-security-group-ingress \
+  --group-id <PROD_VPCE_SG_ID> \
+  --protocol tcp \
+  --port 443 \
+  --source-group <EC2_SG_ID> \
+  --region ap-northeast-1
+```
+
+> ⚠️ **backend ECS タスクの ECR アクセスについて（重要）**:  
+> ECR Interface Endpoint に `--private-dns-enabled` を指定しているため、**既存の backend ECS タスクが ECR からイメージをプルする際も VPC Endpoint 経由**になります。  
+> **backend-sg（既存 backend ECS タスクの SG: `sg-0920f1a670e75b444`）も `prod-vpce-sg` の許可対象に追加しないと、backend タスクが `pending` のまま起動しません。**
+
+```bash
+# HTTPS/443: backend ECS タスクの SG からも許可（ECR イメージプル用）
+aws ec2 authorize-security-group-ingress \
+  --group-id <PROD_VPCE_SG_ID> \
+  --protocol tcp \
+  --port 443 \
+  --source-group sg-0920f1a670e75b444 \
+  --region ap-northeast-1
+```
+
 ### 3-4. backend-sg への追加（既存SG変更）
 
 > ⚠️ **既存リソースの変更**: インバウンドルールの**追加のみ**を行う（削除しない）
@@ -676,7 +708,7 @@ aws ecs register-task-definition \
   --region ap-northeast-1
 ```
 
-> **出力の `taskDefinitionArn` をメモ** → **TASK_DEF_ARN**
+> **出力の `taskDefinitionArn` をメモ** → **TASK_DEF_ARN** : arn:aws:ecs:ap-northeast-1:137068252939:task-definition/prod-frontend:1
 
 ### 9-3. 登録確認
 
@@ -692,8 +724,8 @@ aws ecs describe-task-definition \
 ### チェックリスト
 - [✓] `aws/ecs-task-definition-prod-frontend.json` を作成した
 - [✓] `NEXT_PUBLIC_API_URL` に ALB の DNS 名を設定した
-- [ ] タスク定義を登録した
-- [ ] Status が `ACTIVE` であることを確認した
+- [✓] タスク定義を登録した
+- [✓] Status が `ACTIVE` であることを確認した
 
 ---
 
@@ -753,6 +785,11 @@ aws ecs describe-tasks \
 
 ### 10-4. CloudWatch ログの確認
 
+> ⚠️ **前提確認**: STEP 4-4 で `--private-dns-enabled` 付きの CloudWatch Logs VPC Endpoint を作成しているため、  
+> VPC 内からの `logs.ap-northeast-1.amazonaws.com` への通信はすべて VPC Endpoint 経由になります。  
+> **作業用 EC2 のセキュリティグループが `prod-vpce-sg`（`sg-054a6952c1d475d25`）に TCP/443 で許可されていること**を確認してください。  
+> 許可されていない場合は `Connect timeout` エラーが発生します（STEP 3-3 の追加許可コマンドを実行してください）。
+
 ```bash
 aws logs tail /ecs/prod-frontend \
   --region ap-northeast-1 \
@@ -762,10 +799,10 @@ aws logs tail /ecs/prod-frontend \
 > ✅ エラーが出ていないこと、Next.js の起動ログが確認できること。
 
 ### チェックリスト（frontend-service）
-- [ ] prod-frontend-service を作成した
-- [ ] runningCount が desiredCount (1) と一致することを確認した
-- [ ] コンテナが RUNNING / HEALTHY であることを確認した
-- [ ] CloudWatch ログにエラーがないことを確認した
+- [✓] prod-frontend-service を作成した
+- [✓] runningCount が desiredCount (1) と一致することを確認した
+- [✓] コンテナが RUNNING / HEALTHY であることを確認した
+- [✓] CloudWatch ログにエラーがないことを確認した
 
 ---
 
@@ -785,7 +822,7 @@ aws ecs list-services \
 ```
 
 > **出力例:** `alchemia-staging/alchemia-backend-service` など  
-> → **BACKEND_SERVICE_NAME** をメモする（例: `alchemia-backend-service`）
+> → **BACKEND_SERVICE_NAME** をメモする（例: `alchemia-backend-service`） : alchemia-backend-service
 
 ```bash
 # 既存サービスの loadBalancers / networkConfiguration / taskDefinition を確認
@@ -797,12 +834,30 @@ aws ecs describe-services \
 ```
 
 > **確認すべき値:**
-> - `loadBalancers` → 現在紐付いているターゲットグループARN一覧（再作成時にすべて引き継ぐ）
-> - `networkConfiguration.awsvpcConfiguration.subnets` → **BACKEND_SUBNETS**
-> - `networkConfiguration.awsvpcConfiguration.securityGroups` → **BACKEND_SGS**
-> - `networkConfiguration.awsvpcConfiguration.assignPublicIp` → **BACKEND_ASSIGN_PUBLIC_IP**
-> - `taskDef` → **BACKEND_TASK_DEF**（例: `alchemia-backend:5`）
-> - `desired` → **BACKEND_DESIRED_COUNT**
+> - `loadBalancers` → 現在紐付いているターゲットグループARN一覧（再作成時にすべて引き継ぐ） : なし
+> - `networkConfiguration.awsvpcConfiguration.subnets` → **BACKEND_SUBNETS** : subnet-0c386da2db38952dc, subnet-0388f1051ba7b98ce
+> - `networkConfiguration.awsvpcConfiguration.securityGroups` → **BACKEND_SGS** : sg-0920f1a670e75b444
+> - `networkConfiguration.awsvpcConfiguration.assignPublicIp` → **BACKEND_ASSIGN_PUBLIC_IP** : ENABLED
+> - `taskDef` → **BACKEND_TASK_DEF**（例: `alchemia-backend:5`） : arn:aws:ecs:ap-northeast-1:137068252939:task-definition/alchemia-backend:28
+> - `desired` → **BACKEND_DESIRED_COUNT** : 1
+> - `serviceRegistries` → Cloud Map サービス ARN（再作成時に必ず引き継ぐ） : 下記コマンドで確認
+
+```bash
+# ECS Service Discovery の設定を確認
+aws ecs describe-services \
+  --cluster alchemia-staging \
+  --services <BACKEND_SERVICE_NAME> \
+  --region ap-northeast-1 \
+  --query 'services[0].serviceRegistries'
+```
+
+> ⚠️ **Service Discovery が設定されている場合は必ず引き継ぐこと（重要）**:  
+> nginx が `BACKEND_HOST=alchemia-backend.alchemia.local` で backend に接続しているため、  
+> `--service-registries` を省略すると新しい backend タスクが Cloud Map に IP を登録せず、  
+> nginx → backend の DNS 解決が失敗して **502 エラー**が発生する。  
+> 詳細: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+
+> **メモ** → **BACKEND_SERVICE_REGISTRY_ARN** : arn:aws:servicediscovery:ap-northeast-1:137068252939:service/srv-ohk4a5wcrxi5cs3c
 
 ### 10-6. backend サービスの再作成（prod-backend-tg を追加）
 
@@ -923,12 +978,12 @@ aws elbv2 describe-target-health \
 > ✅ `Health: healthy` になれば、既存の ALB/NLB → nginx → backend の通信も正常に復旧している。
 
 ### チェックリスト（backend-service 再作成）
-- [ ] 既存 backend サービスの loadBalancers / networkConfiguration / taskDefinition を確認した
-- [ ] 既存サービスのタスク数を 0 にして停止した
-- [ ] 既存サービスを削除し INACTIVE を確認した
-- [ ] prod-backend-tg を追加して backend サービスを再作成した
-- [ ] runningCount が desiredCount と一致することを確認した
-- [ ] backend-tg のターゲットが `healthy` になったことを確認した
+- [✓] 既存 backend サービスの loadBalancers / networkConfiguration / taskDefinition を確認した
+- [✓] 既存サービスのタスク数を 0 にして停止した
+- [✓] 既存サービスを削除し INACTIVE を確認した
+- [✓] prod-backend-tg を追加して backend サービスを再作成した
+- [✓] runningCount が desiredCount と一致することを確認した
+- [✓] backend-tg のターゲットが `healthy` になったことを確認した
 
 ---
 
@@ -986,11 +1041,11 @@ curl -k "https://<ALB_DNS>/api/health"
 | API 疎通 | ログイン後の画面遷移 | APIエラーが出ないこと |
 
 ### チェックリスト
-- [ ] frontend-tg のターゲットが `healthy` であることを確認した
-- [ ] backend-tg のターゲットが `healthy` であることを確認した
-- [ ] HTTP → HTTPS リダイレクトが機能することを確認した
-- [ ] `https://<ALB_DNS>/` でフロントエンドが表示されることを確認した
-- [ ] `https://<ALB_DNS>/api/health` が `{"status":"ok"}` を返すことを確認した
+- [✓] frontend-tg のターゲットが `healthy` であることを確認した
+- [✓]backend-tg のターゲットが `healthy` であることを確認した
+- [✓] HTTP → HTTPS リダイレクトが機能することを確認した
+- [✓] `https://<ALB_DNS>/` でフロントエンドが表示されることを確認した
+- [✓] `https://<ALB_DNS>/api/health` が `{"status":"ok"}` を返すことを確認した
 - [ ] ブラウザからログインできることを確認した
 
 ---

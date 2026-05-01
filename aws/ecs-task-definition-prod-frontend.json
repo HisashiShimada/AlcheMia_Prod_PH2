@@ -1,14 +1,4 @@
 {
-  "_comment": "=================================================================",
-  "_comment2": "本番検証環境用 ECS タスク定義 - prod-frontend",
-  "_comment3": "=================================================================",
-  "_comment4": "使い方:",
-  "_comment5": "  1. NEXT_PUBLIC_API_URL の <ALB_DNS> を実際の ALB の DNS 名に置き換えてください",
-  "_comment6": "     例: prod-verification-alb-xxxxxxxxx.ap-northeast-1.elb.amazonaws.com",
-  "_comment7": "  2. 登録コマンド:",
-  "_comment8": "     aws ecs register-task-definition --cli-input-json file://aws/ecs-task-definition-prod-frontend.json --region ap-northeast-1",
-  "_comment9": "=================================================================",
-
   "family": "prod-frontend",
   "taskRoleArn": "arn:aws:iam::137068252939:role/ecsTaskRole",
   "executionRoleArn": "arn:aws:iam::137068252939:role/ecsTaskExecutionRole",
@@ -36,7 +26,6 @@
         { "name": "PORT",                    "value": "3000" },
         { "name": "NEXT_TELEMETRY_DISABLED", "value": "1" },
         {
-          "_comment_api_url": "⚠️ <ALB_DNS> を実際の prod-verification-alb の DNS 名に置き換えること",
           "name": "NEXT_PUBLIC_API_URL",
           "value": "https://prod-verification-alb-1495997713.ap-northeast-1.elb.amazonaws.com"
         }

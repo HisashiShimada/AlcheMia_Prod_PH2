@@ -280,6 +280,38 @@ aws ec2 authorize-security-group-ingress \
   --region ap-northeast-1
 ```
 
+> ⚠️ **作業用 EC2 からのログ確認について（重要）**:  
+> STEP 4 で作成する VPC Endpoint に `--private-dns-enabled` を指定するため、VPC 内のすべてのホストで  
+> `ecr.api`, `ecr.dkr`, `logs` 等の AWS サービス DNS が VPC Endpoint に向きます。  
+> 作業用 EC2 から `aws logs tail` 等を実行する場合も VPC Endpoint 経由となるため、  
+> **作業用 EC2 のセキュリティグループ（`<EC2_SG_ID>`）も `prod-vpce-sg` の許可対象に追加**する必要があります。  
+> 追加しない場合は `Connect timeout` エラーが発生します。
+
+```bash
+# HTTPS/443: 作業用 EC2 の SG からも許可（aws logs tail / aws ecr 等の確認作業用）
+# <EC2_SG_ID> は作業用 EC2 インスタンスのセキュリティグループ ID に置き換える
+aws ec2 authorize-security-group-ingress \
+  --group-id <PROD_VPCE_SG_ID> \
+  --protocol tcp \
+  --port 443 \
+  --source-group <EC2_SG_ID> \
+  --region ap-northeast-1
+```
+
+> ⚠️ **backend ECS タスクの ECR アクセスについて（重要）**:  
+> ECR Interface Endpoint に `--private-dns-enabled` を指定しているため、**既存の backend ECS タスクが ECR からイメージをプルする際も VPC Endpoint 経由**になります。  
+> **backend-sg（既存 backend ECS タスクの SG: `sg-0920f1a670e75b444`）も `prod-vpce-sg` の許可対象に追加しないと、backend タスクが `pending` のまま起動しません。**
+
+```bash
+# HTTPS/443: backend ECS タスクの SG からも許可（ECR イメージプル用）
+aws ec2 authorize-security-group-ingress \
+  --group-id <PROD_VPCE_SG_ID> \
+  --protocol tcp \
+  --port 443 \
+  --source-group sg-0920f1a670e75b444 \
+  --region ap-northeast-1
+```
+
 ### 3-4. backend-sg への追加（既存SG変更）
 
 > ⚠️ **既存リソースの変更**: インバウンドルールの**追加のみ**を行う（削除しない）
@@ -753,6 +785,11 @@ aws ecs describe-tasks \
 
 ### 10-4. CloudWatch ログの確認
 
+> ⚠️ **前提確認**: STEP 4-4 で `--private-dns-enabled` 付きの CloudWatch Logs VPC Endpoint を作成しているため、  
+> VPC 内からの `logs.ap-northeast-1.amazonaws.com` への通信はすべて VPC Endpoint 経由になります。  
+> **作業用 EC2 のセキュリティグループが `prod-vpce-sg`（`sg-054a6952c1d475d25`）に TCP/443 で許可されていること**を確認してください。  
+> 許可されていない場合は `Connect timeout` エラーが発生します（STEP 3-3 の追加許可コマンドを実行してください）。
+
 ```bash
 aws logs tail /ecs/prod-frontend \
   --region ap-northeast-1 \
@@ -803,6 +840,24 @@ aws ecs describe-services \
 > - `networkConfiguration.awsvpcConfiguration.assignPublicIp` → **BACKEND_ASSIGN_PUBLIC_IP**
 > - `taskDef` → **BACKEND_TASK_DEF**（例: `alchemia-backend:5`）
 > - `desired` → **BACKEND_DESIRED_COUNT**
+> - `serviceRegistries` → Cloud Map サービス ARN（再作成時に必ず引き継ぐ）: 下記コマンドで確認
+
+```bash
+# ECS Service Discovery の設定を確認
+aws ecs describe-services \
+  --cluster alchemia-staging \
+  --services <BACKEND_SERVICE_NAME> \
+  --region ap-northeast-1 \
+  --query 'services[0].serviceRegistries'
+```
+
+> ⚠️ **Service Discovery が設定されている場合は必ず引き継ぐこと（重要）**:  
+> nginx が `BACKEND_HOST=alchemia-backend.alchemia.local` で backend に接続しているため、  
+> `--service-registries` を省略すると新しい backend タスクが Cloud Map に IP を登録せず、  
+> nginx → backend の DNS 解決が失敗して **502 エラー**が発生する。  
+> 詳細: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+
+> **メモ** → **BACKEND_SERVICE_REGISTRY_ARN**
 
 ### 10-6. backend サービスの再作成（prod-backend-tg を追加）
 
