@@ -73,8 +73,6 @@ interface FormatUploadDialogProps {
     folderName: string;
     departmentCd?: string;
   } | null;
-  /** 現在開いているフォルダパス */
-  currentFolderPath?: string[];
 }
 
 /**
@@ -96,7 +94,6 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
   onClose,
   onUploadComplete,
   baseFolder,
-  currentFolderPath = [],
 }) => {
   const { message } = App.useApp();
   

@@ -31,7 +31,7 @@ import { Draft, EditState } from '../../../types/editor';
 import * as draftService from '@/services/draftService';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface DraftManagerProps {
   show: boolean;

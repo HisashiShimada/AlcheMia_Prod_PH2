@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Typography,
   Tag,
@@ -25,8 +25,6 @@ interface ProjectFolderTreeProps {
   projects: Project[];
   selectedProjectId: string | null;
   onProjectSelect: (projectId: string) => void;
-  expandedFolders: Set<string>;
-  onToggleFolder: (folderId: string) => void;
   sortBy: 'name' | 'status' | 'createdAt';
   sortOrder: 'asc' | 'desc';
   onSortChange: (sortBy: 'name' | 'status' | 'createdAt') => void;
@@ -40,8 +38,6 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   projects,
   selectedProjectId,
   onProjectSelect,
-  expandedFolders,
-  onToggleFolder,
   sortBy,
   sortOrder,
   onSortChange,
@@ -72,19 +68,6 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
       case ProjectStatus.COMPLETED: return t('projectManagement.status_completed');
       case ProjectStatus.ERROR: return t('projectManagement.status_error');
       default: return String(status);
-    }
-  };
-
-  const getSortLabel = (sort: 'name' | 'status' | 'createdAt'): string => {
-    switch (sort) {
-      case 'name':
-        return t('projectManagement.folder_tree.sort.name');
-      case 'status':
-        return t('projectManagement.folder_tree.sort.status');
-      case 'createdAt':
-        return t('projectManagement.folder_tree.sort.created_at');
-      default:
-        return sort;
     }
   };
 

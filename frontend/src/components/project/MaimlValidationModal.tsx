@@ -39,33 +39,6 @@ function parseJsonField<T>(field: unknown, fallback: T): T {
   return field as T;
 }
 
-/**
- * DB行（MaimlAnalysisResultRow）を AnalysisResult に変換するユーティリティ
- */
-function parseRowToAnalysisResult(row: MaimlAnalysisResultRow): AnalysisResult | null {
-  try {
-    const errors      = parseJsonField<AnalysisResult['errors']>(row.errors, []);
-    const warnings    = parseJsonField<AnalysisResult['warnings']>(row.warnings, []);
-    const suggestions = parseJsonField<AnalysisResult['suggestions']>(row.suggestions, []);
-    const statistics  = parseJsonField<AnalysisResult['statistics']>(row.statistics, {} as AnalysisResult['statistics']);
-    return {
-      isValid: row.is_valid,
-      version: row.version ?? undefined,
-      namespace: row.namespace ?? undefined,
-      errors,
-      warnings,
-      suggestions,
-      statistics,
-      processingTime: row.processing_time ?? undefined,
-      timestamp: row.analysis_timestamp as string,
-      autoCorrections: [],
-      fileKey: row.file_key,
-    } as AnalysisResult;
-  } catch {
-    return null;
-  }
-}
-
 const { Text } = Typography;
 
 interface MaimlValidationModalProps {

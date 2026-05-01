@@ -11,7 +11,7 @@
  * 主キー: (organization_id, project_id, method_id, experiment_order)
  */
 
-import { getPool, getPgp } from '../database/db';
+import { getPool } from '../database/db';
 import { ProjectTask } from '../types/database';
 import type { TaskWithProject } from '../types/progress';
 import type { MethodTaskRecord, TaskFilters } from '../types/task';
