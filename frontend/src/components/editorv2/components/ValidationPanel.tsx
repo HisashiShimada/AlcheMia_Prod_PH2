@@ -217,7 +217,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                       <Checkbox
                         checked={selectedErrors.includes(index)}
                         onChange={(e) => handleErrorCheckChange(index, e.target.checked)}
-                        style={{ marginRight: 8, marginTop: 4 }}
+                        style={{ display: 'none' }}
                       />
                       <div style={{ flex: 1 }}>
                         <Space size="small" style={{ marginBottom: 4 }}>
@@ -366,8 +366,8 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         {/* 警告詳細 */}
         {renderWarnings()}
 
-        {/* 自動補正ボタン */}
-        {validationResult && validationResult.errors && validationResult.errors.length > 0 && (
+        {/* 自動補正ボタン（非表示：実装は保持） */}
+        {false && validationResult && validationResult.errors && validationResult.errors.length > 0 && (
           <Card style={{ marginTop: 16 }}>
             <Title level={5}>🔧 自動補正</Title>
             <Paragraph type="secondary" style={{ fontSize: 12 }}>
