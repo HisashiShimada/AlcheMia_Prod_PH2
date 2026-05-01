@@ -3,13 +3,17 @@
 import React from 'react';
 import { Card, Space, Typography, theme } from 'antd';
 import { FolderOutlined } from '@ant-design/icons';
-import { projectsData } from '@/data/projectsData';
-
 const { Text } = Typography;
 
 interface ProjectSelectorProps {
   selectedProject: string;
   onProjectChange?: (value: string) => void;
+  /** 選択中のプロジェクト名 */
+  projectName?: string;
+  /** 選択中のプロジェクトのファイル名 */
+  fileName?: string;
+  /** 選択中のプロジェクトのメソッド数 */
+  methodCount?: number;
 }
 
 /**
@@ -18,11 +22,11 @@ interface ProjectSelectorProps {
  */
 export default function ProjectSelector({
   selectedProject,
+  projectName,
+  fileName,
+  methodCount,
 }: ProjectSelectorProps) {
   const { token } = theme.useToken();
-
-  // 選択中のプロジェクト情報を取得
-  const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
 
   return (
     <Card
@@ -41,13 +45,13 @@ export default function ProjectSelector({
         </Space>
 
         {/* 選択中の情報 */}
-        {selectedProjectData ? (
+        {selectedProject && projectName ? (
           <Space orientation="vertical" size={0} style={{ paddingLeft: 24 }}>
             <Text strong style={{ fontSize: 14 }}>
-              {selectedProjectData.projectName}
+              {projectName}
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {selectedProjectData.fileName} • {selectedProjectData.methods?.length || 0} メソッド
+              {fileName} • {methodCount ?? 0} メソッド
             </Text>
           </Space>
         ) : (

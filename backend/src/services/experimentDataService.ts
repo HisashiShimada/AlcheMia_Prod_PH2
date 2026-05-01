@@ -448,6 +448,7 @@ function buildFallbackTemplates(
       const propertySet: PropertySet = {
         templateId: template.id || '',
         templateType,
+        templateName: template.name ?? null,
         properties: properties as unknown as Property[],
         contents: contents as unknown as Content[],
         ...(insertions.length > 0 && { insertions }),

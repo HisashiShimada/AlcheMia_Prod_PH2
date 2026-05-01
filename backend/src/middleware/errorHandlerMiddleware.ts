@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { HTTP_STATUS } from '../constants/httpStatus';
 
 /**
  * エラーハンドリングミドルウェア
@@ -25,7 +26,7 @@ export const errorHandler = (
 
   // ユーザーフレンドリーなエラーメッセージ
   let errorMessage: string;
-  if (statusCode === 500) {
+  if (statusCode === HTTP_STATUS.INTERNAL_SERVER_ERROR) {
     // 500エラーの場合は汎用メッセージを使用（内部エラー詳細を隠す）
     errorMessage = 'システムエラーが発生しました';
   } else {

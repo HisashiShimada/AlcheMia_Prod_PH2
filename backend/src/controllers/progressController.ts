@@ -24,24 +24,26 @@ import { TaskFilters } from '../types/task';
 import { logger } from '../utils/logger';
 import { TransitionDataUpdate } from '../types/transitionData';
 import * as projectRepository from '../repositories/projectRepository';
+import { ProjectStatusEnum } from '../enums/codeMaster.enum';
+import { HTTP_STATUS } from '../constants/httpStatus';
 
 /**
  * エラーコードからHTTPステータスコードへのマッピング
  */
 function getHttpStatusFromErrorCode(errorCode: string): number {
   const statusMap: Record<string, number> = {
-    'E1003': 400,
-    'AUTH_TOKEN_MISSING': 401,
-    'E5002': 401,
-    'PERMISSION_DENIED': 403,
-    'E7008': 404,
-    'MAIML_DOWNLOAD_FAILED': 500,
-    'MAIML_PARSE_FAILED': 500,
-    'DATABASE_ERROR': 500,
-    'E4001': 500
+    'E1003': HTTP_STATUS.BAD_REQUEST,
+    'AUTH_TOKEN_MISSING': HTTP_STATUS.UNAUTHORIZED,
+    'E5002': HTTP_STATUS.UNAUTHORIZED,
+    'PERMISSION_DENIED': HTTP_STATUS.FORBIDDEN,
+    'E7008': HTTP_STATUS.NOT_FOUND,
+    'MAIML_DOWNLOAD_FAILED': HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    'MAIML_PARSE_FAILED': HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    'DATABASE_ERROR': HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    'E4001': HTTP_STATUS.INTERNAL_SERVER_ERROR
   };
 
-  return statusMap[errorCode] || 500;
+  return statusMap[errorCode] || HTTP_STATUS.INTERNAL_SERVER_ERROR;
 }
 
 /**
@@ -97,7 +99,7 @@ export async function getProgressData(req: Request, res: Response): Promise<void
         requestId
       });
 
-      res.status(200).json({
+      res.status(HTTP_STATUS.OK).json({
         success: true,
         data: result.data,
         meta: {
@@ -138,7 +140,7 @@ export async function getProgressData(req: Request, res: Response): Promise<void
       requestId
     });
 
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
       error: {
         code: 'E4001',
@@ -185,8 +187,8 @@ export async function updateTransitionStatus(
     }
 
     // プロジェクトステータスが編集可能かチェック
-    // 1: pending (タスク実行待ち), 2: in_progress (タスク実行中)
-    const editableStatuses = [1, 2];
+    // TASK_PENDING (1): タスク実行待ち, TASK_IN_PROGRESS (2): タスク実行中
+    const editableStatuses: number[] = [ProjectStatusEnum.TASK_PENDING, ProjectStatusEnum.TASK_IN_PROGRESS];
     const projectStatus = Number(project.project_status); // 文字列から数値に変換
     if (!editableStatuses.includes(projectStatus)) {
       const error: any = new Error('Project is not editable');
@@ -215,7 +217,7 @@ export async function updateTransitionStatus(
     );
 
     // 成功レスポンスを返す
-    res.status(200).json({
+    res.status(HTTP_STATUS.OK).json({
       success: true,
       data: {
         transitionId: transitionId,
@@ -377,7 +379,7 @@ export async function getWorkDetails(
         requestId
       });
 
-      res.status(200).json({
+      res.status(HTTP_STATUS.OK).json({
         success: true,
         data: result.data,
         meta: { timestamp, requestId }
@@ -448,7 +450,7 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
         requestId
       });
 
-      res.status(404).json({
+      res.status(HTTP_STATUS.NOT_FOUND).json({
         success: false,
         error: {
           code: 'E6001',
@@ -463,8 +465,8 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
     }
 
     // Step 2: プロジェクトステータスが編集可能かチェック
-    // 1: pending (タスク実行待ち), 2: in_progress (タスク実行中)
-    const editableStatuses = [1, 2];
+    // TASK_PENDING (1): タスク実行待ち, TASK_IN_PROGRESS (2): タスク実行中
+    const editableStatuses: number[] = [ProjectStatusEnum.TASK_PENDING, ProjectStatusEnum.TASK_IN_PROGRESS];
     const projectStatus = Number(project.project_status); // 文字列から数値に変換
     if (!editableStatuses.includes(projectStatus)) {
       logger.warn('Project is not in editable status', {
@@ -474,7 +476,7 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
         requestId
       });
 
-      res.status(409).json({
+      res.status(HTTP_STATUS.CONFLICT).json({
         success: false,
         error: {
           code: 'E5015',
@@ -506,21 +508,21 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       
       // エラーコードからHTTPステータスコードへマッピング
       const statusCodeMap: Record<string, number> = {
-        'E1003': 400,
-        'E1005': 400,
-        'VALIDATION_INVALID_STATUS': 400,
-        'E1004': 400,
-        'INVALID_STATUS_TRANSITION': 400,
-        'E5002': 401,
-        'E5015': 403,
-        'E6001': 404,
-        'CONCURRENT_UPDATE_DETECTED': 409,
-        'E4002': 500,
-        'DATABASE_ERROR': 500,
+        'E1003': HTTP_STATUS.BAD_REQUEST,
+        'E1005': HTTP_STATUS.BAD_REQUEST,
+        'VALIDATION_INVALID_STATUS': HTTP_STATUS.BAD_REQUEST,
+        'E1004': HTTP_STATUS.BAD_REQUEST,
+        'INVALID_STATUS_TRANSITION': HTTP_STATUS.BAD_REQUEST,
+        'E5002': HTTP_STATUS.UNAUTHORIZED,
+        'E5015': HTTP_STATUS.FORBIDDEN,
+        'E6001': HTTP_STATUS.NOT_FOUND,
+        'CONCURRENT_UPDATE_DETECTED': HTTP_STATUS.CONFLICT,
+        'E4002': HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        'DATABASE_ERROR': HTTP_STATUS.INTERNAL_SERVER_ERROR,
         'NOT_IMPLEMENTED': 501,
       };
       
-      const statusCode = statusCodeMap[errorCode] || 500;
+      const statusCode = statusCodeMap[errorCode] || HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
       logger.error('Task status update failed', {
         errorCode,
@@ -557,7 +559,7 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       requestId
     });
 
-    res.status(200).json({
+    res.status(HTTP_STATUS.OK).json({
       success: true,
       data: {
         task_no: result.data!.taskNo,
@@ -584,7 +586,7 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       requestId
     });
 
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
       error: {
         code: 'E4001',
@@ -597,3 +599,4 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
     });
   }
 }
+

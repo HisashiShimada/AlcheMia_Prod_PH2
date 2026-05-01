@@ -24,6 +24,7 @@ import {
   HeadObjectCommandInput,
   CopyObjectCommandInput,
 } from '@aws-sdk/client-s3';
+import { HTTP_STATUS } from '../constants/httpStatus';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 import path from 'path';
@@ -353,7 +354,7 @@ export class StorageService {
 
       return true;
     } catch (error: any) {
-      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === HTTP_STATUS.NOT_FOUND) {
         return false;
       }
       throw error;
@@ -522,7 +523,7 @@ export class StorageService {
     } catch (error: any) {
       const statusCode = error.$metadata?.httpStatusCode;
 
-      if (statusCode === 404 || error.name === 'NotFound' || error.name === 'NoSuchBucket') {
+      if (statusCode === HTTP_STATUS.NOT_FOUND || error.name === 'NotFound' || error.name === 'NoSuchBucket') {
         // バケットが存在しない → 作成する
         console.log(`⚠️  Bucket/Container not found. Creating: ${this.bucketName}`);
         try {

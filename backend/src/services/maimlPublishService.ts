@@ -20,19 +20,10 @@ import {
   PublishJobResponse,
   PublishStatusResponse,
 } from '../types/maimlOpenData';
+import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 
-/** タスクステータス: 完了 */
-const TASK_STATUS_COMPLETED = 3;
-/** タスクステータス: 異常終了（強制終了） */
-const TASK_STATUS_ABORTED = 4;
-/** プロジェクトステータス: タスク結果レビュー待ち */
-const PROJECT_STATUS_REVIEW_WAITING = 3;
-/** プロジェクトステータス: プロジェクト完了 */
-const PROJECT_STATUS_COMPLETED = 4;
 /** 公開可能なプロジェクトステータス一覧（レビュー待ち or 完了） */
-const ALLOWED_PUBLISH_STATUSES = [PROJECT_STATUS_REVIEW_WAITING, PROJECT_STATUS_COMPLETED];
-/** チェックアウトステータス: チェックアウト中 */
-const CHECKOUT_STATUS_CHECKED_OUT = 1;
+const ALLOWED_PUBLISH_STATUSES = [ProjectStatusEnum.REVIEW_WAITING, ProjectStatusEnum.COMPLETED];
 
 // ============================================================
 // 公開（publish）
@@ -73,14 +64,14 @@ export async function enqueuePublish(
   console.log("projectあり");
 
   // ── 2. チェックアウト状態確認 ────────────────────────────
-  if (project.checkout_status !== CHECKOUT_STATUS_CHECKED_OUT) {
+  if (project.checkout_status !== CheckoutStatusEnum.CHECKED_OUT) {
     throw new Error('PROJECT_NOT_CHECKED_OUT');
   }
   console.log("チェックアウト済み");
 
   // ── 3. プロジェクトステータス確認 ───────────────────────
   // タスク結果レビュー待ち（3）または プロジェクト完了（4）のみ公開可能（再公開も許可）
-  if (!ALLOWED_PUBLISH_STATUSES.includes(project.project_status ?? -1)) {
+  if (!ALLOWED_PUBLISH_STATUSES.includes((project.project_status ?? -1) as typeof ALLOWED_PUBLISH_STATUSES[number])) {
     throw new Error('PROJECT_STATUS_INVALID');
   }
   console.log("レビュー待ち、完了");
@@ -90,8 +81,8 @@ export async function enqueuePublish(
   if (taskDetails.length > 0) {
     const hasIncomplete = taskDetails.some(
       (t) =>
-        t.task_status !== TASK_STATUS_COMPLETED &&
-        t.task_status !== TASK_STATUS_ABORTED
+        t.task_status !== TaskStatusEnum.COMPLETED &&
+        t.task_status !== TaskStatusEnum.FORCED_TERMINATED
     );
     if (hasIncomplete) {
       throw new Error('TASKS_NOT_COMPLETED');
@@ -149,7 +140,7 @@ export async function enqueuePublish(
   // ── 9. プロジェクトステータスを「プロジェクト完了（4）」に更新 ──
   await projectRepo.updateStatus(
     projectId,
-    PROJECT_STATUS_COMPLETED,
+    ProjectStatusEnum.COMPLETED,
     organizationId,
     userId ?? 'system'
   );

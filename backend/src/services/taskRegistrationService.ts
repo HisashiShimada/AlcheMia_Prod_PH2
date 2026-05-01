@@ -27,6 +27,8 @@ import type { ProjectTask } from '../types/database';
 import { getStorageService } from './storageService';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { logger } from '../utils/logger';
+import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
+import { CheckoutStatusEnum } from '../enums/codeMaster.enum';
 
 const transitionDataRepository = new TransitionDataRepository();
 const templateDataRepository = new TemplateDataRepository();
@@ -52,7 +54,7 @@ export async function getTaskRegistration(
   const projectName = project.project_name ?? '';
   
   // 2. チェックアウト状態を確認
-  const isCheckoutLocked = project.checkout_status === 1;
+  const isCheckoutLocked = project.checkout_status === CheckoutStatusEnum.CHECKED_OUT;
 
   // 3. MAIMLファイル登録状態をストレージ実態で確認（DBフラグは古い場合があるため）
   let isMaimlRegistered = project.project_maiml_flg === true;
@@ -193,7 +195,7 @@ export async function saveTaskRegistration(
   const projectName = project.project_name ?? '';
   
   // 2. チェックアウト状態を確認
-  if (project.checkout_status === 1) {
+  if (project.checkout_status === CheckoutStatusEnum.CHECKED_OUT) {
     throw new Error('Project is checked out. Cannot save task registration.');
   }
   
@@ -332,57 +334,6 @@ export async function saveTaskRegistration(
       message: 'Task registration saved successfully'
     };
   });
-}
-
-/**
- * MAIMLファイルのストレージ相対パスを解決する
- *
- * project_uuid が設定されている場合は file_metadata テーブルから file_key を取得する。
- * project_uuid が未設定、または file_metadata に該当レコードがない場合は
- * project_name ベースのパス（`projects/{projectName}/{projectName}.maiml`）にフォールバックする。
- *
- * @param organizationId - 組織ID
- * @param projectId - プロジェクトID
- * @param projectName - プロジェクト名（フォールバック用）
- * @returns storageService.downloadFile に渡す相対パス
- */
-async function resolveMaimlFilePath(
-  organizationId: string,
-  projectId: string,
-  projectName: string
-): Promise<string> {
-  const nameRow = await projectRepository.findNameAndUuidById(organizationId, projectId);
-  const projectUuid = nameRow?.project_uuid ?? null;
-
-  if (projectUuid) {
-    const fileMetadataRepo = new FileMetadataRepository();
-    const meta = await fileMetadataRepo.findMaimlByProjectUuid(projectUuid);
-    if (meta) {
-      // file_key は "{organizationId}/..." 形式のフルキー
-      // storageService.downloadFile は組織プレフィックスを除いた相対パスを受け取る
-      const filePath = meta.file_key.startsWith(`${organizationId}/`)
-        ? meta.file_key.slice(`${organizationId}/`.length)
-        : meta.file_key;
-      logger.info('[TaskRegistrationService] file_metadata からMAIMLパスを解決', {
-        projectId,
-        projectUuid,
-        filePath,
-      });
-      return filePath;
-    }
-    // file_metadata に未登録の場合はフォールバック
-    logger.warn('[TaskRegistrationService] file_metadata にMAIMLが未登録、project_name でフォールバック', {
-      projectId,
-      projectUuid,
-    });
-  } else {
-    // project_uuid 未設定の場合はフォールバック
-    logger.warn('[TaskRegistrationService] project_uuid 未設定、project_name でフォールバック', {
-      projectId,
-    });
-  }
-
-  return `projects/${projectName}/${projectName}.maiml`;
 }
 
 /**

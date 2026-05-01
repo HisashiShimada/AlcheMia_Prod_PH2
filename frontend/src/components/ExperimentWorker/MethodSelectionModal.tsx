@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Table, Typography, Space, Button, theme, Input, Select, Row, Col } from 'antd';
 import { ToolOutlined, CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { projectsData } from '@/data/projectsData';
+import { Method } from '@/types/experimentWorker';
 
 const { Text } = Typography;
 
@@ -17,6 +17,8 @@ interface MethodSelectionModalProps {
   selectedProject: string;
   selectedMethodId: string | null;
   onMethodChange: (methodId: string | null) => void;
+  /** APIから取得したメソッド一覧 */
+  methods?: Method[];
 }
 
 /**
@@ -41,6 +43,7 @@ export default function MethodSelectionModal({
   selectedProject,
   selectedMethodId,
   onMethodChange,
+  methods: propsMethods = [],
 }: MethodSelectionModalProps) {
   const { token } = theme.useToken();
   const [tempMethodId, setTempMethodId] = useState<string | null>(selectedMethodId);
@@ -63,32 +66,17 @@ export default function MethodSelectionModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // 選択されたプロジェクトのメソッド一覧を取得
-  const methods = useMemo(() => {
-    if (!selectedProject) return [];
-    const project = projectsData[selectedProject];
-    return project?.methods || [];
-  }, [selectedProject]);
-
-  // プロジェクト情報を取得（所有者情報用）
-  const projectInfo = useMemo(() => {
-    if (!selectedProject) return null;
-    return projectsData[selectedProject];
-  }, [selectedProject]);
-
   // テーブルデータの作成
   const allTableData: MethodTableData[] = useMemo(() => {
-    const owner = projectInfo?.workAssignment?.assignedBy?.userName || '不明';
-    
-    return methods.map((method) => ({
+    return propsMethods.map((method: Method) => ({
       key: method.methodId,
       methodId: method.methodId,
       methodName: method.methodName,
       description: method.description || '',
-      owner,
+      owner: '不明',
       isCurrentlySelected: selectedMethodId === method.methodId,
     }));
-  }, [methods, projectInfo, selectedMethodId]);
+  }, [propsMethods, selectedMethodId]);
 
   // メソッド名の選択肢
   const methodNameOptions = useMemo(() => {

@@ -14,18 +14,13 @@ import * as projectRepository from '../repositories/projectRepository';
 import { getPgp } from '../database/db';
 import { logger } from '../utils/logger';
 import { loadSqlFile } from '../sql/loader';
+import { TaskStatusEnum as _TaskStatusEnum, ProjectStatusEnum, CheckoutStatusEnum } from '../enums/codeMaster.enum';
 
 /**
  * タスクステータスのEnum定義（データベース値）
- * @description データベースのtask_statusカラムに対応する数値
+ * @description codeMaster.enum.ts から再エクスポート。後方互換のため維持。
  */
-export const TaskStatusEnum = {
-  PENDING: 0,
-  IN_PROGRESS: 1,
-  REVIEW_WAITING: 2,  // レビュー待ち（承認依頼後）
-  COMPLETED: 3,
-  FORCED_TERMINATED: 4
-} as const;
+export const TaskStatusEnum = _TaskStatusEnum;
 
 /**
  * TaskStatusEnumの型定義
@@ -338,7 +333,7 @@ export async function updateTaskStatus(
           params.organizationId
         );
 
-        if (currentProject && currentProject.project_status === 1) {
+        if (currentProject && currentProject.project_status === ProjectStatusEnum.TASK_PENDING) {
           // 既存レコードに更新値を反映して update を呼び出す
           await projectRepository.update({
             ...currentProject,

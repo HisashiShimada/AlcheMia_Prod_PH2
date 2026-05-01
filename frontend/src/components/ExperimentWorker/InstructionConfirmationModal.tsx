@@ -7,19 +7,19 @@ import {
   Space,
   Typography,
   theme,
+  Spin,
 } from 'antd';
 import {
-  CheckOutlined,
   CloseOutlined,
   FileTextOutlined,
   DownOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import { Transition, Instruction, ProjectStatus } from '@/types/experimentWorker';
-import { projectsData } from '@/data/projectsData';
+import { Instruction, ProjectStatus, Transition } from '@/types/experimentWorker';
+import { getWorkerInstructions, convertApiToInstruction } from '@/services/projectApiService';
 import InstructionCard from './InstructionCard';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface InstructionConfirmationModalProps {
   open: boolean;
@@ -33,6 +33,7 @@ interface InstructionConfirmationModalProps {
 /**
  * 作業指示確認モーダルコンポーネント
  * トランジションの作業指示を確認してから実験データ記録へ進む
+ * APIから作業指示を取得して表示する
  */
 export default function InstructionConfirmationModal({
   open,
@@ -48,38 +49,66 @@ export default function InstructionConfirmationModal({
   const [methodInstructionsExpanded, setMethodInstructionsExpanded] = useState(true);
   const [transitionInstructionsExpanded, setTransitionInstructionsExpanded] = useState(true);
 
+  // APIから取得した指示データ
+  const [allInstructions, setAllInstructions] = useState<Instruction[]>([]);
+  const [loading, setLoading] = useState(false);
+
   // クライアント判定
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // 作業指示を取得
-  const instructions = useMemo(() => {
-    if (!projectId || !transition) return [];
-    
-    const project = projectsData[projectId];
-    if (!project || !project.instructions) return [];
+  // モーダルが開いたときにAPIから作業指示を取得
+  useEffect(() => {
+    if (!open || !projectId) {
+      setAllInstructions([]);
+      return;
+    }
 
-    // このトランジションに紐づく作業指示をフィルタリング
-    return project.instructions.filter((instruction) => {
+    const fetchInstructions = async () => {
+      setLoading(true);
+      try {
+        const result = await getWorkerInstructions(projectId);
+        if (result.success && result.data) {
+          const converted = result.data.map(convertApiToInstruction);
+          setAllInstructions(converted);
+        } else {
+          setAllInstructions([]);
+        }
+      } catch (error) {
+        console.error('[InstructionConfirmationModal] 作業指示の取得に失敗しました:', error);
+        setAllInstructions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInstructions();
+  }, [open, projectId]);
+
+  // このトランジション/メソッドに紐づく作業指示をフィルタリング
+  const instructions = useMemo(() => {
+    if (!transition) return [];
+
+    return allInstructions.filter((instruction) => {
       // 全体指示（ファイル単位）
       if (instruction.targetType === 'file') {
         return true;
       }
-      
+
       // メソッド単位指示
       if (instruction.targetType === 'method' && methodId) {
         return instruction.methodId === methodId;
       }
-      
+
       // トランジション単位指示
       if (instruction.targetType === 'transition') {
         return instruction.transitionId === transition.transitionId;
       }
-      
+
       return false;
     });
-  }, [projectId, methodId, transition]);
+  }, [allInstructions, methodId, transition]);
 
   // 作業指示を種類別にグループ化
   const groupedInstructions = useMemo(() => {
@@ -133,7 +162,11 @@ export default function InstructionConfirmationModal({
       ]}
     >
       <div data-testid="instruction-confirmation-modal-body">
-        {instructions.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: token.marginXL }}>
+            <Spin size="large" />
+          </div>
+        ) : instructions.length === 0 ? (
           <div
             data-testid="instruction-confirmation-modal-empty"
             style={{ textAlign: 'center', padding: token.marginXL }}
