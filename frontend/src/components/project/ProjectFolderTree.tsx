@@ -16,6 +16,7 @@ import {
   SortAscendingOutlined as SortIcon,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ProjectStatus } from '@/constants/codeMaster';
 import type { Project } from '@/types/project';
 
 const { Text } = Typography;
@@ -51,12 +52,12 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   const getStatusChipColor = (status: number): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
     // status: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
     switch (status) {
-      case 0: return 'default';  // プロジェクト計画中
-      case 1: return 'info';     // タスク実行待ち
-      case 2: return 'primary';  // タスク実行中
-      case 3: return 'warning';  // 承認待ち
-      case 4: return 'success';  // プロジェクト完了
-      case 5: return 'error';    // タスク異常終了
+      case ProjectStatus.PLANNING: return 'default';
+      case ProjectStatus.TASK_PENDING: return 'info';
+      case ProjectStatus.TASK_IN_PROGRESS: return 'primary';
+      case ProjectStatus.REVIEW_WAITING: return 'warning';
+      case ProjectStatus.COMPLETED: return 'success';
+      case ProjectStatus.ERROR: return 'error';
       default: return 'default';
     }
   };
@@ -64,12 +65,12 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   /** プロジェクトステータス数値から翻訳済みラベルを返す */
   const getStatusLabel = (status: number): string => {
     switch (status) {
-      case 0: return t('projectManagement.status_planning');
-      case 1: return t('projectManagement.status_pending');
-      case 2: return t('projectManagement.status_in_progress');
-      case 3: return t('projectManagement.status_review_waiting');
-      case 4: return t('projectManagement.status_completed');
-      case 5: return t('projectManagement.status_error');
+      case ProjectStatus.PLANNING: return t('projectManagement.status_planning');
+      case ProjectStatus.TASK_PENDING: return t('projectManagement.status_pending');
+      case ProjectStatus.TASK_IN_PROGRESS: return t('projectManagement.status_in_progress');
+      case ProjectStatus.REVIEW_WAITING: return t('projectManagement.status_review_waiting');
+      case ProjectStatus.COMPLETED: return t('projectManagement.status_completed');
+      case ProjectStatus.ERROR: return t('projectManagement.status_error');
       default: return String(status);
     }
   };

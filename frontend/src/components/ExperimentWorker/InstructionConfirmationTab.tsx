@@ -11,6 +11,7 @@ import InstructionFlowDialog from './InstructionFlowDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
 import type { FileData, SubnetData } from './InstructionFlowDialog';
 import { Stats, Instruction, ProjectStatus, isEditableStatus, Method, Task } from '@/types/experimentWorker';
+import { ProjectStatus as ProjectStatusCode } from '@/constants/codeMaster';
 import { getWorkerTasks, confirmInstruction, getProjectMaiml } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -99,7 +100,7 @@ export default function InstructionConfirmationTab({
    * タスク実行中（executing_task = コード値 2）のみ確認完了ボタンを活性化
    * projectStatusCode が null（未選択・取得前）の場合も非活性
    */
-  const isTaskExecuting = projectStatusCode === 2;
+  const isTaskExecuting = projectStatusCode === ProjectStatusCode.TASK_IN_PROGRESS;
 
   // InstructionGroup へ渡す projectStatus（表示用）は常に null のまま維持
   const projectStatus: ProjectStatus | null = null;

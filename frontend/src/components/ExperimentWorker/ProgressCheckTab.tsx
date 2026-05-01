@@ -12,6 +12,7 @@ import { extractErrorMessage } from '@/utils/errorUtils';
 import { AxiosError } from 'axios';
 import type { Task, Method, ProjectStatus } from '@/types/experimentWorker';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { HTTP_STATUS } from '@/constants/httpStatus';
 
 const { Title, Text } = Typography;
 
@@ -360,9 +361,9 @@ export default function ProgressCheckTab({
             });
             
             // エラー種別に応じた詳細メッセージ
-            if ((error as AxiosError)?.response?.status === 403) {
+            if ((error as AxiosError)?.response?.status === HTTP_STATUS.FORBIDDEN) {
               message.error('このタスクを開始する権限がありません');
-            } else if ((error as AxiosError)?.response?.status === 409) {
+            } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.CONFLICT) {
               // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
               message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています..');
               
@@ -417,7 +418,7 @@ export default function ProgressCheckTab({
                 console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
                 message.warning('最新の情報取得に失敗しました。画面を再読み込みしてください。');
               }
-            } else if ((error as AxiosError)?.response?.status === 404) {
+            } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
               message.error('タスクが見つかりません');
             } else {
               message.error('タスクの開始中にエラーが発生しました');
@@ -562,9 +563,9 @@ export default function ProgressCheckTab({
             });
             
             // エラー種別に応じた詳細メッセージ
-            if ((error as AxiosError)?.response?.status === 403) {
+            if ((error as AxiosError)?.response?.status === HTTP_STATUS.FORBIDDEN) {
               message.error('このタスクを強制終了する権限がありません');
-            } else if ((error as AxiosError)?.response?.status === 409) {
+            } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.CONFLICT) {
               // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
               message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています..');
               
@@ -619,7 +620,7 @@ export default function ProgressCheckTab({
                 console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
                 message.warning('最新の情報取得に失敗しました。画面を再読み込みしてください。');
               }
-            } else if ((error as AxiosError)?.response?.status === 404) {
+            } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
               message.error('タスクが見つかりません');
             } else {
               message.error('タスクの強制終了中にエラーが発生しました');

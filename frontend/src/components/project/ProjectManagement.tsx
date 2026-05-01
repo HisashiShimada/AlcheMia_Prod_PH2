@@ -47,6 +47,7 @@ import { fetchDrafts, deleteDraft } from '@/services/draftService';
 import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import TransitionSetSearchModal from '@/components/TransitionSetSearch/TransitionSetSearchModal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ProjectStatus } from '@/constants/codeMaster';
 import { ProjectMaimlProvider, useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { useApi } from '@/hooks/useApi';
 import {
@@ -796,7 +797,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const isOrderChangeLocked = useMemo(() => {
     if (!selectedProject) return false;
     // プロジェクトステータスが0（プロジェクト計画中）以外は順序変更不可
-    return selectedProject.status !== 0;
+    return selectedProject.status !== ProjectStatus.PLANNING;
   }, [selectedProject]);
 
   // チェックイン/チェックアウト切り替えハンドラ
@@ -1887,22 +1888,22 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     {selectedProject.status !== undefined && (
                       <Tag 
                         color={
-                          selectedProject.status === 0 ? 'default' : // プロジェクト計画中
-                          selectedProject.status === 1 ? 'blue' :     // タスク実行待ち
-                          selectedProject.status === 2 ? 'cyan' :     // タスク実行中
-                          selectedProject.status === 3 ? 'purple' :   // 承認待ち
-                          selectedProject.status === 4 ? 'success' :  // プロジェクト完了
-                          selectedProject.status === 5 ? 'error' :    // タスク異常終了
+                          selectedProject.status === ProjectStatus.PLANNING ? 'default' :
+                          selectedProject.status === ProjectStatus.TASK_PENDING ? 'blue' :
+                          selectedProject.status === ProjectStatus.TASK_IN_PROGRESS ? 'cyan' :
+                          selectedProject.status === ProjectStatus.REVIEW_WAITING ? 'purple' :
+                          selectedProject.status === ProjectStatus.COMPLETED ? 'success' :
+                          selectedProject.status === ProjectStatus.ERROR ? 'error' :
                           'default'
                         }
                       >
                         {
-                          selectedProject.status === 0 ? t('projectManagement.status_planning') :
-                          selectedProject.status === 1 ? t('projectManagement.status_pending') :
-                          selectedProject.status === 2 ? t('projectManagement.status_in_progress') :
-                          selectedProject.status === 3 ? t('projectManagement.status_review_waiting') :
-                          selectedProject.status === 4 ? t('projectManagement.status_completed') :
-                          selectedProject.status === 5 ? t('projectManagement.status_error') :
+                          selectedProject.status === ProjectStatus.PLANNING ? t('projectManagement.status_planning') :
+                          selectedProject.status === ProjectStatus.TASK_PENDING ? t('projectManagement.status_pending') :
+                          selectedProject.status === ProjectStatus.TASK_IN_PROGRESS ? t('projectManagement.status_in_progress') :
+                          selectedProject.status === ProjectStatus.REVIEW_WAITING ? t('projectManagement.status_review_waiting') :
+                          selectedProject.status === ProjectStatus.COMPLETED ? t('projectManagement.status_completed') :
+                          selectedProject.status === ProjectStatus.ERROR ? t('projectManagement.status_error') :
                           String(selectedProject.status)
                         }
                       </Tag>
@@ -1978,6 +1979,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<UploadOutlined />}
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenUploadDialog}
+                    disabled={!selectedProject || selectedProject.status === 4}
+                    title={selectedProject?.status === 4 ? 'プロジェクト完了後はアップロードできません' : undefined}
                   >
                     {t('projectManagement.upload')}
                   </Button>
@@ -1985,8 +1988,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     type="primary"
                     icon={<EditOutlined />}
                     onClick={handleEditButtonClick}
-                    disabled={!selectedProject || isProjectCheckedOut}
-                    title={isProjectCheckedOut ? 'チェックイン状態でのみ編集できます' : undefined}
+                    disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4}
+                    title={selectedProject?.status === 4 ? 'プロジェクト完了後は編集できません' : isProjectCheckedOut ? 'チェックイン状態でのみ編集できます' : undefined}
                   >
                     {t('projectManagement.edit')}
                   </Button>
@@ -1994,7 +1997,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     danger
                     icon={<DeleteOutlined />}
                     onClick={handleProjectDelete}
-                    disabled={!selectedProject}
+                    disabled={!selectedProject || selectedProject.status === 4}
+                    title={selectedProject?.status === 4 ? 'プロジェクト完了後は削除できません' : undefined}
                   >
                     {t('projectManagement.deleteButton')}
                   </Button>
@@ -2002,8 +2006,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     type="primary"
                     icon={<FileTextOutlined />}
                     onClick={handleToggleCheckout}
-                    disabled={selectedProject?.status === 4}
-                    title={selectedProject?.status === 4 ? 'プロジェクト完了後はチェックインできません' : undefined}
+                    disabled={selectedProject?.status === ProjectStatus.COMPLETED}
+                    title={selectedProject?.status === ProjectStatus.COMPLETED ? 'プロジェクト完了後はチェックインできません' : undefined}
                     style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     data-testid="checkout-checkin-button"
                   >
@@ -2035,7 +2039,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
                       onClick={handlePublish}
                       loading={publishStatusLoading || isPolling}
-                      disabled={!selectedProject || !(selectedProject?.status === 3 || selectedProject?.status === 4) || publishStatusLoading || isPolling}
+                      disabled={!selectedProject || !(selectedProject?.status === ProjectStatus.REVIEW_WAITING || selectedProject?.status === ProjectStatus.COMPLETED) || publishStatusLoading || isPolling}
                     >
                       {isPolling ? '処理中...' : t('projectManagement.publish')}
                     </Button>
@@ -2138,6 +2142,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         isActive={currentTab === 'task_registration'}
                         isCheckoutLocked={isProjectCheckedOut}
                         maimlHasErrors={maimlHasErrors}
+                        isProjectCompleted={selectedProject?.status === 4}
                       />
                     ),
                   },
@@ -2419,7 +2424,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           projectId={selectedProject.id}
           projectName={selectedProject.name}
           onClose={handleCloseIssueManagement}
-          viewMode={selectedProject.status === 4}
+          viewMode={selectedProject.status === ProjectStatus.COMPLETED}
         />
       )}
 

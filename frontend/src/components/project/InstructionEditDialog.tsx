@@ -35,68 +35,18 @@ import type {
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { getMultipleSelectOptions, type SelectOption } from '@/services/codeMasterApiService';
+import {
+  ExperimentCondition,
+  InstructionTypeCode,
+  InstructionPriority,
+  InstructionTarget,
+} from '@/constants/codeMaster';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 const { useToken } = theme;
 
-/**
- * 指示タイプの定数（code_master.instruction_type の code_value）
- */
-const INSTRUCTION_TYPES_LOCAL = {
-  GENERAL: 0,
-  SETUP: 1,
-  MEASUREMENT: 2,
-  SAFETY: 3,
-  CLEANUP: 4,
-} as const;
 
-/**
- * 優先度の定数（code_master.instruction_priority の code_value）
- */
-const INSTRUCTION_PRIORITIES_LOCAL = {
-  LOW: 0,
-  NORMAL: 1,
-  MEDIUM: 2,
-  HIGH: 3,
-} as const;
-
-/**
- * 対象タイプの定数（code_master.instruction_target の code_value）
- * バックエンド projectInstructionService.ts の instructionTarget と一致させる
- *   0: FILE（プロジェクト全体）
- *   1: METHOD（メソッド指示）
- *   2: TRANSITION（トランジション指示）
- *   3: TASK（タスク指示）
- */
-const TARGET_TYPES_LOCAL = {
-  FILE: 0,
-  METHOD: 1,
-  TRANSITION: 2,
-  TASK: 3,
-} as const;
-
-
-/**
- * 優先度のラベルマッピング（code_value → code_name）
- */
-const PRIORITY_LABELS: Record<number, string> = {
-  0: '低',
-  1: '通常',
-  2: '中',
-  3: '高',
-};
-
-/**
- * 指示タイプのラベルマッピング（code_value → code_name）
- */
-const TYPE_LABELS: Record<number, string> = {
-  0: '一般',
-  1: 'セットアップ',
-  2: '測定',
-  3: '安全',
-  4: '清掃',
-};
 
 /**
  * 指示編集ダイアログのプロパティ
@@ -224,8 +174,8 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
       // 新規作成モード：初期値を設定
       const initialMethodId = fixedMethodId || '';
       form.setFieldsValue({
-        priority: INSTRUCTION_PRIORITIES_LOCAL.NORMAL,
-        type: INSTRUCTION_TYPES_LOCAL.GENERAL,
+        priority: InstructionPriority.NORMAL,
+        type: InstructionTypeCode.GENERAL,
         methodId: initialMethodId,
         taskNumber: undefined,
         transitionId: '',
@@ -298,7 +248,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         content: values.content.trim(),
         priority: values.priority,
         type: values.type,
-        targetType: TARGET_TYPES_LOCAL.FILE, // デフォルト
+        targetType: InstructionTarget.ENTIRE_FILE, // デフォルト
         methodId: values.methodId || selectedMethodId || '',
         transitionId: values.transitionId || '',
         taskNumber: values.taskNumber,
@@ -306,13 +256,13 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
 
       // 対象タイプを判定
       if (instructionData.transitionId) {
-        instructionData.targetType = TARGET_TYPES_LOCAL.TRANSITION;
+        instructionData.targetType = InstructionTarget.SPECIFIC_TRANSITION;
       } else if (instructionData.taskNumber !== undefined) {
-        instructionData.targetType = TARGET_TYPES_LOCAL.TASK;
+        instructionData.targetType = InstructionTarget.SPECIFIC_TASK;
       } else if (instructionData.methodId) {
-        instructionData.targetType = TARGET_TYPES_LOCAL.METHOD;
+        instructionData.targetType = InstructionTarget.ENTIRE_FILE; // メソッド指示はFILE扱い（バックエンドと一致）
       } else {
-        instructionData.targetType = TARGET_TYPES_LOCAL.FILE;
+        instructionData.targetType = InstructionTarget.ENTIRE_FILE;
       }
 
       // 保存コールバック
@@ -325,8 +275,8 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         
         form.resetFields();
         form.setFieldsValue({
-          priority: INSTRUCTION_PRIORITIES_LOCAL.NORMAL,
-          type: INSTRUCTION_TYPES_LOCAL.GENERAL,
+          priority: InstructionPriority.NORMAL,
+          type: InstructionTypeCode.GENERAL,
           methodId: currentMethodId, // メソッドIDを引き継ぐ
           taskNumber: undefined,
           transitionId: '',
@@ -468,10 +418,10 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               ) : (
                 // フォールバック: ハードコードされた値
                 <>
-                  <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.HIGH}>高</Select.Option>
-                  <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.MEDIUM}>中</Select.Option>
-                  <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.NORMAL}>通常</Select.Option>
-                  <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.LOW}>低</Select.Option>
+                  <Select.Option value={InstructionPriority.HIGH}>高</Select.Option>
+                  <Select.Option value={InstructionPriority.MEDIUM}>中</Select.Option>
+                  <Select.Option value={InstructionPriority.NORMAL}>通常</Select.Option>
+                  <Select.Option value={InstructionPriority.LOW}>低</Select.Option>
                 </>
               )}
             </Select>
@@ -497,11 +447,11 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               ) : (
                 // フォールバック: ハードコードされた値
                 <>
-                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.GENERAL}>一般</Select.Option>
-                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.SETUP}>セットアップ</Select.Option>
-                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.MEASUREMENT}>測定</Select.Option>
-                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.SAFETY}>安全</Select.Option>
-                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.CLEANUP}>清掃</Select.Option>
+                  <Select.Option value={InstructionTypeCode.GENERAL}>一般</Select.Option>
+                  <Select.Option value={InstructionTypeCode.SETUP}>セットアップ</Select.Option>
+                  <Select.Option value={InstructionTypeCode.MEASUREMENT}>測定</Select.Option>
+                  <Select.Option value={InstructionTypeCode.SAFETY}>安全</Select.Option>
+                  <Select.Option value={InstructionTypeCode.CLEANING}>清掃</Select.Option>
                 </>
               )}
             </Select>
@@ -514,7 +464,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
           >
             <Select
               placeholder={t('instructionEditDialog.taskPlaceholder')}
-              disabled={isSentInstruction || !selectedMethodId || !selectedTask || selectedTask.experimentCondition !== 1}
+              disabled={isSentInstruction || !selectedMethodId || !selectedTask || selectedTask.experimentCondition !== ExperimentCondition.INDIVIDUAL_CONDITIONS}
               allowClear
             >
               {selectedTask?.taskNumberOptions.map((taskNum) => (
