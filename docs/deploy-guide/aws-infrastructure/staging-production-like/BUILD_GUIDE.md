@@ -37,6 +37,7 @@
 | カテゴリ | リソース名 | 概要 |
 |---------|-----------|------|
 | ACM | （任意名） | 新規ALB用 SSL/TLS 証明書 |
+| ACM Trust Store | mmdpf-ca-trust-store | ALB mTLS 用 CA 証明書ストア |
 | サブネット | prod-app-private-1a | 10.1.21.0/24 / AZ: ap-northeast-1a |
 | サブネット | prod-app-private-1c | 10.1.22.0/24 / AZ: ap-northeast-1c |
 | SG | prod-alb-sg | TCP/80,443 ← 0.0.0.0/0 |
@@ -149,6 +150,66 @@ aws acm describe-certificate \
 - [ ] ACM に証明書をインポートした
 - [ ] Status が `ISSUED`、Type が `IMPORTED` であることを確認した
 - [ ] CertificateArn をメモした
+
+---
+
+## STEP 1.5: ACM Trust Store の作成（mTLS 用 CA 証明書登録）
+
+> 📌 ALB で mTLS（クライアント証明書認証）を有効にするため、CA 証明書を ACM Trust Store に登録します。  
+> **既存の `backend/certs/ca/ca.crt` をそのまま使用します。CA は再生成しません。**
+
+> ⚠️ CA を再生成すると既存のクライアント証明書（各組織の `.p12`）がすべて無効になります。本手順では CA は変更しません。
+
+### 1.5-1. CA 証明書を S3 にアップロード
+
+ACM Trust Store に CA 証明書をインポートするには、S3 経由で渡す必要があります。
+
+```bash
+# 既存 CA 証明書を S3 にアップロード（バケット名は環境に合わせて変更）
+aws s3 cp backend/certs/ca/ca.crt \
+  s3://137068252939-acm-truststore/mmdpf-ca.crt \
+  --region ap-northeast-1
+```
+
+> ✅ アップロード先の S3 URI をメモしておく（例: `s3://137068252939-acm-truststore/mmdpf-ca.crt`）  
+> バケットが存在しない場合は先に作成してください:  
+> `aws s3 mb s3://137068252939-acm-truststore --region ap-northeast-1`
+
+### 1.5-2. Trust Store の作成
+
+```bash
+aws elbv2 create-trust-store \
+  --name mmdpf-ca-trust-store \
+  --ca-certificates-bundle-s3-bucket 137068252939-acm-truststore \
+  --ca-certificates-bundle-s3-key    mmdpf-ca.crt \
+  --region ap-northeast-1
+```
+
+> **出力例:**
+> ```json
+> {
+>   "TrustStoreArn": "arn:aws:acm:ap-northeast-1:137068252939:truststore/mmdpf-ca-trust-store/xxxxxxxxxxxxxxxx",
+>   "Name": "mmdpf-ca-trust-store"
+> }
+> ```
+> → **TRUST_STORE_ARN をメモしておく**（STEP 8-2 で使用）
+
+### 1.5-3. Trust Store の状態確認
+
+```bash
+aws elbv2 describe-trust-store \
+  --trust-store-arn <TRUST_STORE_ARN> \
+  --region ap-northeast-1 \
+  --query 'TrustStore.{Name:Name,Status:Status,CACerts:NumberOfCACertificates}'
+```
+
+> ✅ `Status: ACTIVE`、`NumberOfCACertificates: 1` であることを確認する。
+
+### チェックリスト
+- [ ] CA 証明書 (`backend/certs/ca/ca.crt`) を S3 にアップロードした
+- [ ] Trust Store を作成した
+- [ ] Status が `ACTIVE`、CA 証明書数が `1` であることを確認した
+- [ ] TRUST_STORE_ARN をメモした
 
 ---
 
@@ -599,9 +660,14 @@ aws elbv2 create-listener \
   --port 443 \
   --ssl-policy ELBSecurityPolicy-TLS13-1-2-2021-06 \
   --certificates CertificateArn=<CertificateArn> \
+  --mutual-authentication "Mode=verify,TrustStoreArn=<TRUST_STORE_ARN>,IgnoreClientCertificateExpiry=false" \
   --default-actions '[{"Type":"forward","TargetGroupArn":"<FRONTEND_TG_ARN>"}]' \
   --region ap-northeast-1
 ```
+
+> 📌 **`--mutual-authentication` について**:  
+> `Mode=verify` を指定すると、ALB はクライアント証明書を必須とします（mTLS 有効）。  
+> 既存の各組織の `.p12` クライアント証明書（STEP 1.5 で登録した CA が署名したもの）が引き続き使用できます。
 
 > **出力の `ListenerArn` をメモ** → **HTTPS_LISTENER_ARN**（パスルール追加で使用）
 
@@ -1147,7 +1213,10 @@ aws ec2 revoke-security-group-ingress \
 aws ec2 delete-subnet --subnet-id <SUBNET_1A_ID> --region ap-northeast-1
 aws ec2 delete-subnet --subnet-id <SUBNET_1C_ID> --region ap-northeast-1
 
-# 12. ACM 証明書の削除
+# 12. ACM Trust Store の削除
+aws elbv2 delete-trust-store --trust-store-arn <TRUST_STORE_ARN> --region ap-northeast-1
+
+# 13. ACM 証明書の削除
 aws acm delete-certificate --certificate-arn <CertificateArn> --region ap-northeast-1
 ```
 
@@ -1156,11 +1225,17 @@ aws acm delete-certificate --certificate-arn <CertificateArn> --region ap-northe
 ## 構築チェックリスト
 
 ```
-STEP 1: ACM 証明書の発行
-  - [ ] 証明書をリクエストした
-  - [ ] DNS 検証レコードを登録した
-  - [ ] Status が ISSUED になったことを確認した
+STEP 1: ACM 証明書の準備（自己署名証明書）
+  - [ ] openssl で自己署名証明書を生成した
+  - [ ] ACM に証明書をインポートした
+  - [ ] Status が ISSUED、Type が IMPORTED であることを確認した
   - [ ] CertificateArn をメモした
+
+STEP 1.5: ACM Trust Store の作成
+  - [ ] CA 証明書 (backend/certs/ca/ca.crt) を S3 にアップロードした
+  - [ ] Trust Store (mmdpf-ca-trust-store) を作成した
+  - [ ] Status が ACTIVE、CA 証明書数が 1 であることを確認した
+  - [ ] TRUST_STORE_ARN をメモした
 
 STEP 2: アプリ層プライベートサブネットの作成
   - [ ] prod-app-private-1a (10.1.21.0/24) を作成した
@@ -1247,6 +1322,7 @@ STEP 11: 動作確認
 | ALB_ARN | |
 | ALB_DNS | |
 | HTTPS_LISTENER_ARN | |
+| TRUST_STORE_ARN | |
 
 ---
 

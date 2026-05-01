@@ -37,6 +37,7 @@
 | カテゴリ | リソース名 | 概要 |
 |---------|-----------|------|
 | ACM | （任意名） | 新規ALB用 SSL/TLS 証明書 |
+| ACM Trust Store | mmdpf-ca-trust-store | ALB mTLS 用 CA 証明書ストア |
 | サブネット | prod-app-private-1a | 10.1.21.0/24 / AZ: ap-northeast-1a |
 | サブネット | prod-app-private-1c | 10.1.22.0/24 / AZ: ap-northeast-1c |
 | SG | prod-alb-sg | TCP/80,443 ← 0.0.0.0/0 |
@@ -149,6 +150,76 @@ aws acm describe-certificate \
 - [✓] ACM に証明書をインポートした
 - [✓] Status が `ISSUED`、Type が `IMPORTED` であることを確認した
 - [✓] CertificateArn をメモした
+
+---
+
+## STEP 1.5: ACM Trust Store の作成（mTLS 用）
+
+> **目的**: ALB の mTLS（相互TLS認証）を有効化するために、クライアント証明書を署名した CA 証明書を  
+> ACM Trust Store に登録します。ALB はこの Trust Store を使ってクライアント証明書を検証します。
+
+> ⚠️ **CA 証明書について**: `backend/certs/ca/ca.crt` をそのまま使用します。再生成不要です。  
+> CA を再生成するとすべての既存クライアント証明書（各組織の `.p12`）が無効になります。
+
+### 1.5-1. ca.crt を S3 にアップロード
+
+ACM Trust Store の作成には CA 証明書を S3 経由で渡す必要があります。
+
+```bash
+# バケット一覧を確認してアップロード先を決定
+aws s3 ls --region ap-northeast-1
+```
+
+```bash
+# ca.crt を S3 にアップロード（<YOUR_S3_BUCKET> を実際のバケット名に置き換える）
+aws s3 cp backend/certs/ca/ca.crt \
+  s3://<YOUR_S3_BUCKET>/certs/ca.crt \
+  --region ap-northeast-1
+
+# アップロード確認
+aws s3 ls s3://<YOUR_S3_BUCKET>/certs/
+```
+
+> ✅ `ca.crt` がリストに表示されれば完了。
+
+### 1.5-2. Trust Store を作成
+
+```bash
+aws elbv2 create-trust-store \
+  --name "mmdpf-ca-trust-store" \
+  --ca-certificates-bundle-s3-bucket "<YOUR_S3_BUCKET>" \
+  --ca-certificates-bundle-s3-key "certs/ca.crt" \
+  --region ap-northeast-1
+```
+
+> **出力例:**
+> ```json
+> {
+>   "TrustStoreArn": "arn:aws:acm:ap-northeast-1:137068252939:truststore/mmdpf-ca-trust-store/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+>   "TrustStoreName": "mmdpf-ca-trust-store"
+> }
+> ```
+> → **TrustStoreArn をメモ**（STEP 8 で使用）
+
+> **メモ** → **TRUST_STORE_ARN**:
+
+### 1.5-3. Trust Store の状態確認
+
+```bash
+aws elbv2 describe-trust-store \
+  --trust-store-arn <TRUST_STORE_ARN> \
+  --region ap-northeast-1 \
+  --query 'TrustStore.{Name:Name,Status:Status,NumberOfCACertificates:NumberOfCACertificates}'
+```
+
+> ✅ `Status: ACTIVE` かつ `NumberOfCACertificates: 1` であることを確認する。
+
+### チェックリスト
+- [ ] アップロード先の S3 バケットを決定した
+- [ ] `backend/certs/ca/ca.crt` を S3 にアップロードした
+- [ ] ACM Trust Store を作成した
+- [ ] TrustStoreArn をメモした
+- [ ] Status が `ACTIVE` であることを確認した
 
 ---
 
@@ -592,6 +663,10 @@ aws elbv2 create-listener \
 > `--certificates CertificateArn=<CertificateArn>` パラメータにより、STEP 1 で発行した ACM 証明書をこの HTTPS リスナーにアタッチしています。  
 > アーキテクチャ図の「ACM → ALB（ALBにアタッチ）」の操作はこのコマンドに含まれています。
 
+> 📌 **mTLS の有効化について**:  
+> `--mutual-authentication` パラメータにより、STEP 1.5 で作成した Trust Store を使ってクライアント証明書を検証します。  
+> `Mode=verify` を指定することで、クライアント証明書が有効な場合は `X-Amzn-Mtls-Clientcert-Subject` ヘッダーが付与されます。
+
 ```bash
 aws elbv2 create-listener \
   --load-balancer-arn <ALB_ARN> \
@@ -599,6 +674,7 @@ aws elbv2 create-listener \
   --port 443 \
   --ssl-policy ELBSecurityPolicy-TLS13-1-2-2021-06 \
   --certificates CertificateArn=<CertificateArn> \
+  --mutual-authentication Mode=verify,TrustStoreArn=<TRUST_STORE_ARN>,IgnoreClientCertificateExpiry=false \
   --default-actions '[{"Type":"forward","TargetGroupArn":"<FRONTEND_TG_ARN>"}]' \
   --region ap-northeast-1
 ```
@@ -1149,6 +1225,9 @@ aws ec2 delete-subnet --subnet-id <SUBNET_1C_ID> --region ap-northeast-1
 
 # 12. ACM 証明書の削除
 aws acm delete-certificate --certificate-arn <CertificateArn> --region ap-northeast-1
+
+# 13. ACM Trust Store の削除（STEP 1.5 で作成した場合）
+aws elbv2 delete-trust-store --trust-store-arn <TRUST_STORE_ARN> --region ap-northeast-1
 ```
 
 ---
@@ -1156,11 +1235,18 @@ aws acm delete-certificate --certificate-arn <CertificateArn> --region ap-northe
 ## 構築チェックリスト
 
 ```
-STEP 1: ACM 証明書の発行
-  - [ ] 証明書をリクエストした
-  - [ ] DNS 検証レコードを登録した
-  - [ ] Status が ISSUED になったことを確認した
+STEP 1: ACM 証明書の発行（自己署名）
+  - [ ] openssl で自己署名証明書を生成した
+  - [ ] ACM に証明書をインポートした
+  - [ ] Status が ISSUED、Type が IMPORTED であることを確認した
   - [ ] CertificateArn をメモした
+
+STEP 1.5: ACM Trust Store の作成（mTLS 用）
+  - [ ] アップロード先の S3 バケットを決定した
+  - [ ] backend/certs/ca/ca.crt を S3 にアップロードした
+  - [ ] ACM Trust Store (mmdpf-ca-trust-store) を作成した
+  - [ ] TrustStoreArn をメモした
+  - [ ] Status が ACTIVE であることを確認した
 
 STEP 2: アプリ層プライベートサブネットの作成
   - [ ] prod-app-private-1a (10.1.21.0/24) を作成した
@@ -1232,6 +1318,7 @@ STEP 11: 動作確認
 | 項目 | 値 |
 |-----|---|
 | CertificateArn | arn:aws:acm:ap-northeast-1:137068252939:certificate/d6147869-2c9e-445f-ab11-19643a3bb10c　|
+| TRUST_STORE_ARN | （STEP 1.5 実施後に記入） |
 | SUBNET_1A_ID | subnet-05b22a899314768b5 |
 | SUBNET_1C_ID | subnet-048d49e3c1f98334c |
 | PROD_ALB_SG_ID | sg-008a8e0fb60e0c06e |
