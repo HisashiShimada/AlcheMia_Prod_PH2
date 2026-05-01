@@ -681,6 +681,12 @@ aws elbv2 create-listener \
 
 > **出力の `ListenerArn` をメモ** → **HTTPS_LISTENER_ARN**（パスルール追加で使用） : arn:aws:elasticloadbalancing:ap-northeast-1:137068252939:listener/app/prod-verification-alb/b901f038a9a6be79/f47479226ac6683d
 
+> ℹ️ **作成後に `describe-listeners` で mTLS 設定を確認する際、`{"Mode": "off"}` が返ってきた場合について**:  
+> AWS の ALB は API バージョンによって、mTLS 未設定の状態でも `{"Mode": "off"}` を明示的に返すことがあります。  
+> `null` や項目なし・`Mode: "off"` はいずれも「mTLS 無効」を意味しており機能的に同一の状態です。  
+> 本手順では `create-listener` 時に `--mutual-authentication Mode=verify` を指定しているため、作成直後は `Mode: "verify"` が返るはずです。  
+> もし `Mode: "off"` が返った場合は mTLS が反映されていないため、[ALB_MTLS_SETUP_GUIDE.md](./ALB_MTLS_SETUP_GUIDE.md) の STEP C-2 の `modify-listener` コマンドで手動設定してください。
+
 ### 8-3. パスベースルール: `/api/*` → backend-tg の追加
 
 ```bash

@@ -114,7 +114,8 @@ aws elbv2 describe-listeners \
   --query 'Listeners[0].{Protocol:Protocol,Port:Port,MutualAuthentication:MutualAuthentication}'
 ```
 
-> ✅ `MutualAuthentication` が `null` または存在しなければ mTLS 未設定の状態（想定通り）。
+> ✅ `MutualAuthentication` が `null` または存在しない、あるいは `{"Mode": "off"}` であれば mTLS 未設定の状態（想定通り）。  
+> ℹ️ **`{"Mode": "off"}` が返ってきた場合も問題なし。** AWS の ALB は API バージョンによって、mTLS 未設定の場合でも `{"Mode": "off"}` を明示的に返すことがあります。`null`・項目なし・`Mode: "off"` はすべて「mTLS 無効」であり機能的に同一の状態です。そのまま C-2 に進んでください。
 
 ### C-2. mTLS を有効化（modify-listener）
 
@@ -152,8 +153,8 @@ aws elbv2 describe-listeners \
 > ```
 
 ### チェックリスト
-- [ ] 既存リスナーに mTLS を設定した（Mode=verify）
-- [ ] MutualAuthentication の設定が反映されていることを確認した
+- [✓] 既存リスナーに mTLS を設定した（Mode=verify）
+- [✓] MutualAuthentication の設定が反映されていることを確認した
 
 ---
 
