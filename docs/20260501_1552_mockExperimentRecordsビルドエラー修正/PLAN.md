@@ -1,43 +1,56 @@
 # タスク計画書: mockExperimentRecords ビルドエラー修正
 
 ## メタデータ
-- **作成日時**: 2026-05-01 15:52
-- **タスクID**: mockExperimentRecords-build-error
+- **作成日時**: 2026-05-01 16:14
+- **タスクID**: mockExperimentRecordsビルドエラー修正
 - **優先度**: 高
-- **推定工数**: 0.1時間
+- **推定工数**: 0.5時間
 
 ## タスク概要
 
 フロントエンドのビルド時に以下のエラーが発生している。
 
 ```
-Type error: Cannot find module '@/data/mock/mockExperimentRecords.json'
-or its corresponding type declarations.
+Type error: Cannot find module 'data/mock/mockExperimentRecords.json'
+  > 152 |     const mockData = await import('data/mock/mockExperimentRecords.json');
 ```
 
-`frontend/src/utils/apiClient.ts` の `fetchExperimentRecords` 関数が、存在しないモックJSONファイルを動的インポートしようとしているため、Next.jsのビルド時（静的解析フェーズ）にエラーが発生している。
+`fetchExperimentRecords` 関数が存在しないモックJSONファイルをimportしようとしていたが、
+すでに空データを返すよう修正されている。
+この関数は **バックエンドAPIが未実装のため、常に空データを返すだけ** であり、
+呼び出し元の `PetriNetVisualization.tsx` への影響もない。
 
-## 原因分析
+そのため、モック関連の不要な関数をまとめて削除してビルドエラーを解消する。
 
-- **エラー箇所**: `frontend/src/utils/apiClient.ts` の152行目
-- **問題コード**: `const mockData = await import('@/data/mock/mockExperimentRecords.json');`
-- **原因**: `frontend/src/data/mock/mockExperimentRecords.json` が存在しない
-- **補足**: `try/catch` で囲まれているため実行時は `catch` ブロックの空データが返されるが、Next.jsのビルドは動的インポートのパスを静的解析するためビルドエラーになる
+## 目的と期待される成果
+- [x] ビルドエラー（`Cannot find module 'data/mock/mockExperimentRecords.json'`）を解消
+- [ ] 不要なモック関数（`fetchExperimentRecords`・`simulateApiDelay`・`shouldUseMockAPI`）を削除
+- [ ] `PetriNetVisualization.tsx` から `fetchExperimentRecords` の呼び出しを削除
 
-## 修正方針
+## 実装ステップ
 
-`fetchExperimentRecords` はバックエンドAPIが未実装なためモックを返す関数（コメントに明記）。
-`catch` ブロックが返す空データを直接返すよう変更し、存在しないJSONファイルへの参照を除去する。
+### Phase 1: タスク計画書作成
+- [x] PLAN.md 作成
+
+### Phase 2: apiClient.ts からモック関連コードを削除
+- [ ] `simulateApiDelay` 関数を削除
+- [ ] `shouldUseMockAPI` 関数を削除
+- [ ] `fetchExperimentRecords` 関数を削除
+
+### Phase 3: PetriNetVisualization.tsx から呼び出しを削除
+- [ ] importから `fetchExperimentRecords as fetchExperimentRecordsAPI` を削除
+- [ ] `ExperimentRecordsData` 型インポートを削除（未使用になる場合）
+- [ ] `experimentRecordsData` state と `setExperimentRecordsData` を削除
+- [ ] `fetchedExperimentRecords` 変数と `fetchExperimentRecordsAPI` 呼び出しブロックを削除
 
 ## 変更ファイル
+1. `frontend/src/utils/apiClient.ts` - モック関連3関数を削除
+2. `frontend/src/components/progress/PetriNetVisualization.tsx` - 呼び出し箇所を削除
 
-1. `frontend/src/utils/apiClient.ts` - `fetchExperimentRecords` 関数の `try/catch` を削除し、空データを直接返す
+## 影響範囲
+- ペトリネット図のツールチップ「実験記録進捗」は `0/?` 表示のまま（変化なし）
+- バックエンドAPIが未実装のため、機能的な影響はなし
 
 ## 承認記録
-- **計画書提示日時**: 2026-05-01 15:52
-- **承認日時**: 2026-05-01 15:52
-
-## 実施記録
-
-### 最終的な成果物
-- [x] `frontend/src/utils/apiClient.ts` 修正完了
+- **承認日時**: 2026-05-01 16:14
+- **承認者コメント**: 削除してください

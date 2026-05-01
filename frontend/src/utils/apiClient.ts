@@ -7,13 +7,6 @@ import type { FileInfo } from '@/types/file';
 
 export type { FileInfo };
 
-/**
- * API遅延シミュレーション
- * 実際のAPI呼び出しのような遅延を再現
- */
-const simulateApiDelay = (ms: number = 200) => 
-  new Promise(resolve => setTimeout(resolve, ms));
-
 // API ベースURL（環境変数から取得）
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
@@ -32,15 +25,6 @@ function getTransitionStatusLabel(status: number): string {
     6: 'エラー',
   };
   return TRANSITION_STATUS_LABELS[status] ?? '未開始';
-}
-
-/**
- * モックAPIを使用するかどうかを判定
- *
- * 常に実APIを使用するため false を返す。
- */
-export function shouldUseMockAPI(): boolean {
-  return false;
 }
 
 /**
@@ -122,38 +106,3 @@ export async function fetchTransitionStatus(
   };
 }
 
-/**
- * 実験記録データを取得
- *
- * @description
- * 指定されたワークID（タスク）に紐づく実験記録データを返す。
- *
- * ## ⚠️ 現状: モックデータを返しています
- *
- * ### 理由
- * この関数が想定していた `GET /api/experiment-records/by-work-id/:workId` は
- * バックエンドに実装されておらず、対応するエンドポイントが存在しない。
- *
- * ### TODO: バックエンドAPI実装後の対応方針
- * 1. バックエンドに一括取得API を追加:
- *    `GET /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/all-records`
- * 2. この関数のシグネチャを `fetchExperimentRecords(projectName, methodId, taskNo)` に変更
- * 3. 上記APIを呼び出すよう実装を変更
- * 4. `PetriNetVisualization.tsx` の呼び出し箇所も合わせて変更
- *
- * @param workId - ワークID（タスクの識別子）※現状は未使用（バックエンドAPIが未実装のためモックを返す）
- */
-export async function fetchExperimentRecords(workId: string): Promise<unknown> {
-  await simulateApiDelay();
-
-  console.log('📦 [fetchExperimentRecords] モックデータを返却（バックエンドAPI未実装）:', { workId });
-
-  return {
-    success: true,
-    data: {
-      materials: [],
-      conditions: [],
-      results: [],
-    },
-  };
-}

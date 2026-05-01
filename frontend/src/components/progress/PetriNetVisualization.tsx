@@ -46,7 +46,6 @@ import type {
 } from '@/types/progress';
 import {
   fetchTransitionStatus as fetchTransitionStatusAPI,
-  fetchExperimentRecords as fetchExperimentRecordsAPI,
 } from '@/utils/apiClient';
 import { parsePetriNetStructure, getStorageFileContent } from '@/services/maimlApiService';
 import { ProgressStatus } from '@/constants/progressStatus';
@@ -441,24 +440,6 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
       } catch (error) {
         console.warn('⚠️ [PetriNetVisualization] トランジション進捗取得失敗（続行）:', error);
         progressResult = { success: true, data: { transitionStatus: [] } };
-      }
-
-      // 実験記録データ取得（workId必須）
-      if (workId) {
-        try {
-          const recordsData = await fetchExperimentRecordsAPI(workId);
-          if (recordsData && typeof recordsData === 'object' && 'data' in recordsData) {
-            fetchedExperimentRecords = (recordsData as { data: ExperimentRecordsData }).data;
-            setExperimentRecordsData(fetchedExperimentRecords);
-            console.log('✅ [PetriNetVisualization] 実験記録データ取得成功:', {
-              materials: fetchedExperimentRecords?.materials?.length || 0,
-              conditions: fetchedExperimentRecords?.conditions?.length || 0,
-              results: fetchedExperimentRecords?.results?.length || 0,
-            });
-          }
-        } catch (error) {
-          console.warn('⚠️ [PetriNetVisualization] 実験記録データ取得エラー:', error);
-        }
       }
 
       // 進捗データ処理
