@@ -4,6 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { HTTP_STATUS } from '@/constants/httpStatus';
 
 // トークン更新状態の管理（モジュールスコープ）
 let isRefreshing = false;
@@ -93,13 +94,13 @@ export const createApiClient = (): AxiosInstance => {
       );
 
       // ログイン前のエンドポイントへの401エラーはそのまま返す（トークン更新不要）
-      if (error.response?.status === 401 && isAuthEndpoint) {
+      if (error.response?.status === HTTP_STATUS.UNAUTHORIZED && isAuthEndpoint) {
         console.log('[authUtils] 認証エンドポイントの401エラー: トークン更新をスキップします');
         return Promise.reject(error);
       }
 
       // /auth/refresh への401エラーは無限ループ防止のため特別処理
-      if (error.response?.status === 401 && originalRequest?.url?.includes('/auth/refresh')) {
+      if (error.response?.status === HTTP_STATUS.UNAUTHORIZED && originalRequest?.url?.includes('/auth/refresh')) {
         console.log('[authUtils] リフレッシュトークンが期限切れまたは無効です - ログイン画面を表示します');
         
         // セッション情報をクリア
@@ -128,7 +129,7 @@ export const createApiClient = (): AxiosInstance => {
       }
 
       // 401エラーでリトライ未実施の場合のみ処理
-      if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      if (error.response?.status === HTTP_STATUS.UNAUTHORIZED && originalRequest && !originalRequest._retry) {
         
         // トークン更新中の場合、キューに追加して待機
         if (isRefreshing) {

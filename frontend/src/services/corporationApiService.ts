@@ -5,6 +5,7 @@
  */
 
 import { createApiClient } from '@/utils/authUtils';
+import { HTTP_STATUS } from '@/constants/httpStatus';
 import type { MasterDataType, MasterDataConfig } from '@/types/masterDataTypes';
 import { getMasterDataConfig } from '@/types/masterDataTypes';
 import { AxiosError } from 'axios';
@@ -99,7 +100,7 @@ export async function createMaster(
     }
   } catch (error) {
     const axiosError = error as AxiosError<ApiResponse<MasterRecord>>;
-    if (axiosError.response?.status === 409) {
+    if (axiosError.response?.status === HTTP_STATUS.CONFLICT) {
       throw new Error('入力されたIDは既に存在しています');
     }
     console.error('API Error:', axiosError.response?.data || axiosError.message);

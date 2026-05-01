@@ -57,6 +57,7 @@ import {
   CustomPropertyType,
   InsertionField,
 } from '@/types/experimentWorker';
+import { TransitionStatusCode } from '@/constants/codeMaster';
 
 /**
  * ステータス遷移ルール（progressService.ts の ALLOWED_TRANSITIONS と同一）
@@ -64,26 +65,26 @@ import {
  * 値: 遷移可能なステータス値の配列（数値）
  */
 const ALLOWED_TRANSITIONS: Record<number, number[]> = {
-  0: [1, 5, 6],       // 初期状態 → 準備状態、終状態、異常終了
-  1: [2, 5, 6],       // 準備状態 → 準備完了、終状態、異常終了
-  2: [2, 3, 5, 6],    // 準備完了 → 準備完了（自己遷移）、動作状態、終状態、異常終了
-  3: [4, 5, 6],       // 動作状態 → 休止状態、終状態、異常終了
-  4: [3, 5, 6],       // 休止状態 → 動作状態、終状態、異常終了
-  5: [],              // 終状態 → 変更不可
-  6: [],              // 異常終了 → 変更不可
+  [TransitionStatusCode.INITIAL]:   [TransitionStatusCode.PREPARING, TransitionStatusCode.COMPLETED, TransitionStatusCode.ERROR],
+  [TransitionStatusCode.PREPARING]: [TransitionStatusCode.READY, TransitionStatusCode.COMPLETED, TransitionStatusCode.ERROR],
+  [TransitionStatusCode.READY]:     [TransitionStatusCode.READY, TransitionStatusCode.IN_PROGRESS, TransitionStatusCode.COMPLETED, TransitionStatusCode.ERROR],
+  [TransitionStatusCode.IN_PROGRESS]: [TransitionStatusCode.PAUSED, TransitionStatusCode.COMPLETED, TransitionStatusCode.ERROR],
+  [TransitionStatusCode.PAUSED]:    [TransitionStatusCode.IN_PROGRESS, TransitionStatusCode.COMPLETED, TransitionStatusCode.ERROR],
+  [TransitionStatusCode.COMPLETED]: [],  // 終状態 → 変更不可
+  [TransitionStatusCode.ERROR]:     [],  // 異常終了 → 変更不可
 };
 
 /**
  * 全ステータスの定義
  */
 const ALL_STATUS_OPTIONS: { value: TransitionStatus; label: string }[] = [
-  { value: 0 as TransitionStatus, label: '初期状態' },
-  { value: 1 as TransitionStatus, label: '準備状態' },
-  { value: 2 as TransitionStatus, label: '準備完了状態' },
-  { value: 3 as TransitionStatus, label: '動作状態' },
-  { value: 4 as TransitionStatus, label: '休止状態' },
-  { value: 5 as TransitionStatus, label: '終状態' },
-  { value: 6 as TransitionStatus, label: '異常終了状態' },
+  { value: TransitionStatusCode.INITIAL as TransitionStatus, label: '初期状態' },
+  { value: TransitionStatusCode.PREPARING as TransitionStatus, label: '準備状態' },
+  { value: TransitionStatusCode.READY as TransitionStatus, label: '準備完了状態' },
+  { value: TransitionStatusCode.IN_PROGRESS as TransitionStatus, label: '動作状態' },
+  { value: TransitionStatusCode.PAUSED as TransitionStatus, label: '休止状態' },
+  { value: TransitionStatusCode.COMPLETED as TransitionStatus, label: '終状態' },
+  { value: TransitionStatusCode.ERROR as TransitionStatus, label: '異常終了状態' },
 ];
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
 import { uploadFiles } from '@/services/fileAccessService';
@@ -485,7 +486,7 @@ export default function DataRecordDialog({
    * 終端ステータス（完了・エラー）かどうか
    * 終端ステータスの場合はステータス変更不可
    */
-  const isTerminalStatus = currentStatus === 5 || currentStatus === 6;
+  const isTerminalStatus = currentStatus === TransitionStatusCode.COMPLETED || currentStatus === TransitionStatusCode.ERROR;
 
   // ステータスとコメント用の状態
   // 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー

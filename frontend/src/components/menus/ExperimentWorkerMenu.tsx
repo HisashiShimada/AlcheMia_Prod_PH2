@@ -27,6 +27,7 @@ import { getWorkerAccessibleProjects, requestApproval, type WorkerProject } from
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 import { AxiosError } from 'axios';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { HTTP_STATUS } from '@/constants/httpStatus';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -170,9 +171,9 @@ export default function ExperimentWorkerMenu({
       console.error('承認依頼エラー:', error);
       const axiosError = error as AxiosError<{ error: { code: string; message: string } }>;
       
-      if (axiosError.response?.status === 409) {
+      if (axiosError.response?.status === HTTP_STATUS.CONFLICT) {
         message.error('既に承認依頼が送信されています');
-      } else if (axiosError.response?.status === 404) {
+      } else if (axiosError.response?.status === HTTP_STATUS.NOT_FOUND) {
         message.error('プロジェクトが見つかりません');
       } else {
         message.error(extractErrorMessage(error));
