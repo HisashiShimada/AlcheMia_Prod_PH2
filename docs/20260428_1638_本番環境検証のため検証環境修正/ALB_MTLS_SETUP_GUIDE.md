@@ -189,6 +189,75 @@ aws elbv2 describe-listeners \
 
 ALB が付与する `X-Amzn-Mtls-Clientcert-Subject` ヘッダーから CN（organization_id）を抽出するよう変更します。
 
+### D-0. authRoutes.ts の変更（バリデーション修正）
+
+**変更ファイル**: `backend/src/routes/authRoutes.ts`
+
+> ⚠️ **この変更が不足していると `E1003` バリデーションエラーが発生します。**  
+> `validateOrgId()` はコントローラーへ到達する前に実行されるため、  
+> mTLS ヘッダーを許容しないと ALB 構成でのログインが必ず 400 になります。
+
+**① CORS `allowedHeaders` の変更:**
+
+`X-Amzn-Mtls-Clientcert-Subject` を許可するヘッダーに追加します。
+
+**変更前:**
+```typescript
+allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id'],
+```
+
+**変更後:**
+```typescript
+allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id', 'X-Amzn-Mtls-Clientcert-Subject'],
+```
+
+**② `validateOrgId()` の変更:**
+
+ALB mTLS ヘッダーを最優先の条件として追加します。
+
+**変更前:**
+```typescript
+const validateOrgId = () => {
+  return oneOf([
+    query('orgId')
+      .notEmpty()
+      .withMessage('Organization ID is required in query parameter'),
+    header('x-organization-id')
+      .notEmpty()
+      .withMessage('Organization ID is required in header'),
+  ], { message: 'Organization ID is required in either query parameter (orgId) or header (X-Organization-Id)' });
+};
+```
+
+**変更後:**
+```typescript
+// 優先順位:
+//   ① x-amzn-mtls-clientcert-subject（ALB mTLS が自動付与 / 新ALB構成）
+//   ② x-organization-id（nginx が付与 / 既存nginx構成）
+//   ③ orgId クエリパラメータ（ローカル開発・後方互換）
+const validateOrgId = () => {
+  return oneOf([
+    header('x-amzn-mtls-clientcert-subject')
+      .notEmpty()
+      .withMessage('Organization ID is required in mTLS client cert subject'),
+    header('x-organization-id')
+      .notEmpty()
+      .withMessage('Organization ID is required in header'),
+    query('orgId')
+      .notEmpty()
+      .withMessage('Organization ID is required in query parameter'),
+  ], { message: 'Organization ID is required in either query parameter (orgId) or header (X-Organization-Id)' });
+};
+```
+
+> **適用エンドポイント（`validateOrgId()` を使用している全箇所）:**
+> - `POST /login`
+> - `POST /verify-pin`
+> - `POST /resend-pin`
+> - `POST /reset-password-request`
+
+---
+
 ### D-1. authController.ts の変更
 
 **変更ファイル**: `backend/src/controllers/authController.ts`
@@ -276,6 +345,8 @@ aws ecs describe-services \
 > ✅ `running=1, desired=1, pending=0` になるまで待ちます。
 
 ### チェックリスト
+- [ ] `authRoutes.ts` の `validateOrgId()` に mTLS ヘッダー条件を追加した
+- [ ] `authRoutes.ts` の CORS `allowedHeaders` に `X-Amzn-Mtls-Clientcert-Subject` を追加した
 - [ ] `authController.ts` の `organizationId` 取得箇所（3箇所）を変更した
 - [ ] `rateLimitMiddleware.ts` の `loginRateLimit.keyGenerator` を変更した
 - [ ] backend イメージをビルドして ECR にプッシュした
