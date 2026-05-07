@@ -9,12 +9,11 @@ import { Request, Response } from 'express';
 import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
-import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse,MaimlPublishRequest,MaimlPublishResponse } from '../types/api';
+import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse,MaimlPublishRequest } from '../types/api';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { enqueuePublish, enqueueUnpublish, getPublishStatus as fetchPublishStatus } from '../services/maimlPublishService';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
-import * as projectRepository from '../repositories/projectRepository';
 import { renameProject } from '../services/renameService';
 
 /**
@@ -1400,12 +1399,10 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
  */
 export async function publish(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
-  const projectService = new ProjectService();
 
   try {
     const { organizationId } = req.user!;
     const { projectId } = req.params;
-    const body = req.body as MaimlPublishRequest;
 
     // 公開ジョブを bullmq キューに投入（非同期）
     // ファイル存在確認・各種バリデーションは enqueuePublish 内部で実施

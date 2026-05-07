@@ -84,7 +84,6 @@ import {
   getAnalysisResult,
   type MaimlAnalysisResultRow,
 } from '@/services/maimlApiService';
-import type { AnalysisResult } from '@/types/maimlValidation';
 import { Tooltip } from 'antd';
 
 const { Title, Text } = Typography;
@@ -1858,8 +1857,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             projects={sortedProjects}
             selectedProjectId={selectedProjectId}
             onProjectSelect={handleProjectSelect}
-            expandedFolders={expandedFolders}
-            onToggleFolder={handleToggleFolder}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
@@ -2111,7 +2108,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     children: (
                       <FileListTable
                         files={projectFiles}
-                        projectId={selectedProject.id}
                         maimlValidationRow={savedValidationRow}
                         onFileClick={(file) => console.log('File clicked:', file.name)}
                         onFolderClick={handleFolderClick}

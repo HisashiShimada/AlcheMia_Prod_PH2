@@ -7,13 +7,6 @@ import type { FileInfo } from '@/types/file';
 
 export type { FileInfo };
 
-/**
- * API遅延シミュレーション
- * 実際のAPI呼び出しのような遅延を再現
- */
-const simulateApiDelay = (ms: number = 200) => 
-  new Promise(resolve => setTimeout(resolve, ms));
-
 // API ベースURL（環境変数から取得）
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
@@ -35,51 +28,32 @@ function getTransitionStatusLabel(status: number): string {
 }
 
 /**
- * モックAPIを使用するかどうかを判定
- *
- * 常に実APIを使用するため false を返す。
- */
-export function shouldUseMockAPI(): boolean {
-  return false;
-}
-
-/**
  * トランジション進捗データを取得
- * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions
  *
  * @description
- * fileKey からプロジェクト名を抽出し、バックエンドの進捗APIを呼び出す。
+ * バックエンドの進捗APIを呼び出す。
  * バックエンドレスポンス（snake_case・数値ステータス）を
  * フロントエンド期待形式（camelCase・文字列ステータス）に変換して返す。
  *
- * @param fileKey   - MAIMLファイルキー（例: orgId/projects/projectName/projectName.maiml）
+ * @param projectId - プロジェクトID
  * @param methodId  - メソッドID
  * @param taskNo    - タスク連番（1以上の整数）
  * @returns フロントエンド期待形式のトランジション進捗データ
  */
 export async function fetchTransitionStatus(
-  fileKey: string,
+  projectId: string,
   methodId: string,
   taskNo: number
 ): Promise<unknown> {
-  // fileKey からプロジェクト名を抽出
-  // 例: "550e8400-.../projects/sample_project/sample_project.maiml" → "sample_project"
-  const projectNameFromKey = fileKey.split('/projects/')[1]?.split('/')[0];
-  if (!projectNameFromKey) {
-    throw new Error(
-      `fileKey からプロジェクト名を抽出できませんでした。fileKey: ${fileKey}`
-    );
-  }
-
   console.log('🌐 [fetchTransitionStatus] 実API呼び出し:', {
-    fileKey,
-    projectName: projectNameFromKey,
+    projectId,
     methodId,
     taskNo,
   });
 
   const response = await fetch(
-    `${API_BASE_URL}/progress/projects/${encodeURIComponent(projectNameFromKey)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/transitions`,
+    `${API_BASE_URL}/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/transitions`,
     {
       method: 'GET',
       credentials: 'include',
@@ -132,47 +106,3 @@ export async function fetchTransitionStatus(
   };
 }
 
-/**
- * 実験記録データを取得
- *
- * @description
- * 指定されたワークID（タスク）に紐づく実験記録データを返す。
- *
- * ## ⚠️ 現状: モックデータを返しています
- *
- * ### 理由
- * この関数が想定していた `GET /api/experiment-records/by-work-id/:workId` は
- * バックエンドに実装されておらず、対応するエンドポイントが存在しない。
- *
- * ### TODO: バックエンドAPI実装後の対応方針
- * 1. バックエンドに一括取得API を追加:
- *    `GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/all-records`
- * 2. この関数のシグネチャを `fetchExperimentRecords(projectName, methodId, taskNo)` に変更
- * 3. 上記APIを呼び出すよう実装を変更
- * 4. `PetriNetVisualization.tsx` の呼び出し箇所も合わせて変更
- *
- * @param workId - ワークID（タスクの識別子）※現状は未使用（バックエンドAPIが未実装のためモックを返す）
- */
-export async function fetchExperimentRecords(workId: string): Promise<unknown> {
-  await simulateApiDelay();
-
-  console.log('📦 [fetchExperimentRecords] モックデータを返却（バックエンドAPI未実装）:', { workId });
-
-  try {
-    const mockData = await import('@/data/mock/mockExperimentRecords.json');
-    return {
-      success: true,
-      data: mockData.default || mockData,
-    };
-  } catch (error) {
-    console.warn('⚠️ mockExperimentRecords.json not found, returning empty data');
-    return {
-      success: true,
-      data: {
-        materials: [],
-        conditions: [],
-        results: [],
-      },
-    };
-  }
-}

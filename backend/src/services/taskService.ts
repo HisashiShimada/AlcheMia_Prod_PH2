@@ -14,13 +14,7 @@ import * as projectRepository from '../repositories/projectRepository';
 import { getPgp } from '../database/db';
 import { logger } from '../utils/logger';
 import { loadSqlFile } from '../sql/loader';
-import { TaskStatusEnum as _TaskStatusEnum, ProjectStatusEnum, CheckoutStatusEnum } from '../enums/codeMaster.enum';
-
-/**
- * タスクステータスのEnum定義（データベース値）
- * @description codeMaster.enum.ts から再エクスポート。後方互換のため維持。
- */
-export const TaskStatusEnum = _TaskStatusEnum;
+import { TaskStatusEnum, ProjectStatusEnum } from '../enums/codeMaster.enum';
 
 /**
  * TaskStatusEnumの型定義

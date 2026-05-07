@@ -14,7 +14,6 @@ import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
-import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import type {
   GetTaskRegistrationResponse,
   TaskRegistrationData,

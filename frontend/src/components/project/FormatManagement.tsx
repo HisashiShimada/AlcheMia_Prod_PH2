@@ -26,7 +26,6 @@ import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatF
 import CreateFormatModal from './CreateFormatModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
 import PetriNetEditorScreen from '@/components/editorv2/PetriNetEditorScreen';
-import type { MaimlEditorParams } from '@/types/maimlEditor';
 import FormatEditorDialog from '@/components/project/FormatEditorDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { App } from 'antd';
@@ -35,7 +34,6 @@ import { useApi } from '@/hooks/useApi';
 import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder, createFormatFolder, updateFormatFileContent } from '@/utils/formatApi';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
-import type { ProjectFile } from '@/types/file';
 import { getFileDownloadUrlByKey, deleteFileByKey, deleteFolderByPath } from '@/services/fileAccessService';
 import { createApiClient } from '@/utils/authUtils';
 import { 
@@ -63,22 +61,6 @@ interface Format {
   createdAt: string;
   updatedAt: string;
   tags: string[];
-}
-
-/**
- * フォーマットファイルの型定義
- */
-interface FormatFile {
-  root: Array<{
-    id: string;
-    name: string;
-    path: string;
-    size: number;
-    lastModified: string;
-    type: string;
-    version?: string;
-    description?: string;
-  }>;
 }
 
 /**
@@ -115,7 +97,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   // PetriNetEditor表示用State
   const [showPetriNetEditor, setShowPetriNetEditor] = useState(false);
   const [editingMaimlFile, setEditingMaimlFile] = useState<FormatFileDetailData | null>(null);
-  const [maimlFileContent, setMaimlFileContent] = useState<string | null>(null);
+  const [, setMaimlFileContent] = useState<string | null>(null);
   const [isLoadingMaimlContent, setIsLoadingMaimlContent] = useState(false);
   
   // FormatEditorDialog表示用State
@@ -125,8 +107,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   // フォーマット一覧をAPI経由で取得
   const { 
     data: formatsData, 
-    isLoading: isLoadingFormats, 
-    error: formatsError, 
     refetch: refetchFormats 
   } = useApi<ApiResponse<FormatListResponse>>(
     fetchFormats,
@@ -217,11 +197,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
 
     return sorted;
   }, [formats, searchQuery, categoryFilter, fileTypeFilter, sortBy, sortOrder, t]);
-
-  // フォーマット選択時
-  const handleFormatSelect = useCallback((formatId: string) => {
-    setSelectedFormatId(formatId);
-  }, []);
 
   // リフレッシュ
   const handleRefresh = React.useCallback(() => {
@@ -1192,7 +1167,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           folderName: selectedFormat.folderName,
           departmentCd: user.departmentCd || 'default',
         } : null}
-        currentFolderPath={currentFolderPath}
         onUploadComplete={async (result) => {
           console.log('✅ [FormatManagement] アップロード完了:', result);
           

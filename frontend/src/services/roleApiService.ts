@@ -6,8 +6,6 @@
 
 import { createApiClient } from '@/utils/authUtils';
 import { getRoleConfig } from '@/types/roleTypes';
-import { AxiosError } from 'axios';
-
 /**
  * APIレスポンスの型定義
  */
