@@ -600,10 +600,10 @@ const [searchStats, setSearchStats] = useState<SearchStats | null>(null);
 ## 7. 実装ファイル
 
 ### 7.1 ファイルパス
-- **メインファイル**: `frontend/src/components/project/FormatSearchModal.tsx`
+- **メインファイル**: `frontend/src/components/format/FormatSearchModal.tsx`
 
 ### 7.2 関連ファイル
-- **親コンポーネント**: `frontend/src/components/project/FormatManagement.tsx`
+- **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
 - **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`
 
 ### 7.3 依存ライブラリ

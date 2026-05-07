@@ -449,13 +449,13 @@ const xmlContent = await fetchTemplateContent(fileKey);
 ## 8. 実装ファイル
 
 ### 8.1 ファイルパス
-- **メインファイル**: `frontend/src/components/project/FormatEditorDialog.tsx`
+- **メインファイル**: `frontend/src/components/format/FormatEditorDialog.tsx`
 
 ### 8.2 関連ファイル
 
 | ファイル | 役割 |
 |---------|------|
-| `frontend/src/components/project/FormatManagement.tsx` | 親コンポーネント（ダイアログの開閉・onSave処理） |
+| `frontend/src/components/format/FormatManagement.tsx` | 親コンポーネント（ダイアログの開閉・onSave処理） |
 | `frontend/src/components/editorv2/components/NestedPropertyEditor.tsx` | プロパティ・Content のネスト編集UI |
 | `frontend/src/services/templateApi.ts` | テンプレートファイル一覧・内容取得API |
 | `frontend/src/components/editorv2/utils/templateConverter.ts` | Property変換ユーティリティ |

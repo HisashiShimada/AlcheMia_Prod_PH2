@@ -44,9 +44,7 @@ import type {
   MethodData,
   ExperimentRecordsData,
 } from '@/types/progress';
-import {
-  fetchTransitionStatus as fetchTransitionStatusAPI,
-} from '@/utils/apiClient';
+import { fetchTransitionStatus as fetchTransitionStatusAPI } from '@/services/projectApiService';
 import { parsePetriNetStructure, getStorageFileContent } from '@/services/maimlApiService';
 import { ProgressStatus } from '@/constants/progressStatus';
 

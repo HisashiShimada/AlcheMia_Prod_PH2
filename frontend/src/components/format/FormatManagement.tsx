@@ -26,7 +26,7 @@ import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatF
 import CreateFormatModal from './CreateFormatModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
 import PetriNetEditorScreen from '@/components/editorv2/PetriNetEditorScreen';
-import FormatEditorDialog from '@/components/project/FormatEditorDialog';
+import FormatEditorDialog from '@/components/format/FormatEditorDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { App } from 'antd';
 import { User } from '@/types/auth';
