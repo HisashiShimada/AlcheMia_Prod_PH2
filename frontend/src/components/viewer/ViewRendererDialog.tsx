@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Spin, message, Button, Typography } from 'antd';
+import { App, Spin, Button, Typography } from 'antd';
 import { CloseOutlined, MinusOutlined, ExpandOutlined } from '@ant-design/icons';
 import { Rnd } from 'react-rnd';
 import ViewRenderer from './ViewRenderer';
@@ -90,6 +90,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
   onFocus,
   onOpenSubNetViewer,
 }) => {
+  const { message } = App.useApp();
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);

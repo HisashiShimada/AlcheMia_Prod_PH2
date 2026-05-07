@@ -306,8 +306,10 @@ const TransitionNode = memo<{ data: CustomNodeData }>(({ data }) => {
       <Tooltip 
         title={<span style={{ whiteSpace: 'pre-line' }}>{tooltip}</span>} 
         placement="top"
-        overlayInnerStyle={{
-          color: token.colorText,  // テキスト色: 黒
+        styles={{
+          container: {
+            color: token.colorText,  // テキスト色: 黒
+          },
         }}
       >
         {nodeContent}
