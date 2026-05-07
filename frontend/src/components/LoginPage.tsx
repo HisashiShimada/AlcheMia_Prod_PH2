@@ -5,6 +5,7 @@ import { Card, Input, Button, Typography, Alert, Space, Spin, theme } from 'antd
 import { EyeOutlined, EyeInvisibleOutlined, LoginOutlined } from '@ant-design/icons';
 import { LoginCredentials } from '@/types/auth';
 import { validateEmail, validatePassword } from '@/utils/validation';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -25,6 +26,7 @@ interface LoginPageProps {
  * UIポリシーに基づいたモダンで清潔感のあるデザイン
  */
 export default function LoginPage({ onLogin, onForgotPassword, error, loading = false, debugPanel }: LoginPageProps) {
+  const { t } = useLanguage();
   const { token } = theme.useToken();
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
@@ -138,7 +140,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
                 fontWeight: token.fontWeightStrong,
               }}
             >
-              MMDPF
+              {t('common.appName')}
             </Title>
             <Text
               type="secondary"
@@ -146,7 +148,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
                 fontSize: token.fontSizeHeading4,
               }}
             >
-              マルチモーダルデータプラットフォーム
+              {t('common.appSubtitle')}
             </Text>
           </Space>
 
