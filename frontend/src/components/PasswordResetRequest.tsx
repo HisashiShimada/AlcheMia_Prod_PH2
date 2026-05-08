@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card, Input, Button, Typography, Alert, Space, theme } from 'antd';
 import { ArrowLeftOutlined, SendOutlined } from '@ant-design/icons';
 import { validateUsername } from '@/utils/validation';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -29,6 +30,7 @@ export default function PasswordResetRequest({
   error,
   loading = false,
 }: PasswordResetRequestProps) {
+  const { t } = useLanguage();
   const { token } = theme.useToken();
   const [email, setEmail] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -120,7 +122,7 @@ export default function PasswordResetRequest({
                 fontWeight: token.fontWeightStrong,
               }}
             >
-              MMDPF
+              {t('common.appName')}
             </Title>
             <Title
               level={2}

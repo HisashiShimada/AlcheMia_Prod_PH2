@@ -379,10 +379,10 @@ if (!file) {
 ## 7. 実装ファイル
 
 ### 7.1 ファイルパス
-- **メインファイル**: `frontend/src/components/project/FormatFileDetailModal.tsx`
+- **メインファイル**: `frontend/src/components/format/FormatFileDetailModal.tsx`
 
 ### 7.2 関連ファイル
-- **親コンポーネント**: `frontend/src/components/project/FormatManagement.tsx`
+- **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
 - **ユーティリティ**: 
   - `frontend/src/utils/formatters.ts` (formatFileSize, formatRelativeTime)
 - **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`

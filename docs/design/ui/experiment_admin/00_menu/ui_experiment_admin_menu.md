@@ -395,7 +395,7 @@ const permissions = getPermissionsFromToken();
   - パス: `frontend/src/components/project/ProjectManagement.tsx`
 - `<FormatManagement />` - フォーマット管理画面
   - Props: user
-  - パス: `frontend/src/components/project/FormatManagement.tsx`
+  - パス: `frontend/src/components/format/FormatManagement.tsx`
 - `<ProgressMonitoring />` - 進捗確認画面
   - Props: なし
   - パス: `frontend/src/components/progress/ProgressMonitoring.tsx`

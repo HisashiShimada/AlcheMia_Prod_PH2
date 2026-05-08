@@ -148,15 +148,15 @@
 
 | 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
 |--------|--------|--------------|----------|-----------|
-| FormatManagement.tsx | フォーマット管理 | frontend/src/components/project/FormatManagement.tsx | [ui_format_management.md](experiment_admin/02_format_management/ui_format_management.md) | フォーマットファイル管理画面 |
-| FormatFolderTree.tsx | フォーマットフォルダツリー | frontend/src/components/project/FormatFolderTree.tsx | [ui_format_folder_tree.md](experiment_admin/02_format_management/ui_format_folder_tree.md) | フォーマットフォルダツリー表示 |
-| FormatFileListTable.tsx | フォーマットファイル一覧テーブル | frontend/src/components/project/FormatFileListTable.tsx | [ui_format_file_list_table.md](experiment_admin/02_format_management/ui_format_file_list_table.md) | フォーマットファイル一覧テーブル |
-| CreateFormatFileModal.tsx | フォーマットファイル作成モーダル | frontend/src/components/project/CreateFormatFileModal.tsx | [ui_create_format_file_modal.md](experiment_admin/02_format_management/ui_create_format_file_modal.md) | フォーマットファイル作成モーダル |
-| CreateFormatFolderModal.tsx | フォーマットフォルダ作成モーダル | frontend/src/components/project/CreateFormatFolderModal.tsx | [ui_create_format_folder_modal.md](experiment_admin/02_format_management/ui_create_format_folder_modal.md) | フォーマットフォルダ作成モーダル |
-| CreateFormatModal.tsx | フォーマット作成モーダル | frontend/src/components/project/CreateFormatModal.tsx | [ui_create_format_modal.md](experiment_admin/02_format_management/ui_create_format_modal.md) | 新規フォーマット（部門・フォルダ）作成モーダル |
-| FormatFileDetailModal.tsx | フォーマットファイル詳細モーダル | frontend/src/components/project/FormatFileDetailModal.tsx | [ui_format_file_detail_modal.md](experiment_admin/02_format_management/ui_format_file_detail_modal.md) | フォーマットファイル詳細モーダル |
-| FormatSearchModal.tsx | フォーマット検索モーダル | frontend/src/components/project/FormatSearchModal.tsx | [ui_format_search_modal.md](experiment_admin/02_format_management/ui_format_search_modal.md) | フォーマット検索モーダル |
-| FormatUploadDialog.tsx | フォーマットアップロードダイアログ | frontend/src/components/project/FormatUploadDialog.tsx | [ui_format_upload_dialog.md](experiment_admin/02_format_management/ui_format_upload_dialog.md) | フォーマットアップロードダイアログ |
+| FormatManagement.tsx | フォーマット管理 | frontend/src/components/format/FormatManagement.tsx | [ui_format_management.md](experiment_admin/02_format_management/ui_format_management.md) | フォーマットファイル管理画面 |
+| FormatFolderTree.tsx | フォーマットフォルダツリー | frontend/src/components/format/FormatFolderTree.tsx | [ui_format_folder_tree.md](experiment_admin/02_format_management/ui_format_folder_tree.md) | フォーマットフォルダツリー表示 |
+| FormatFileListTable.tsx | フォーマットファイル一覧テーブル | frontend/src/components/format/FormatFileListTable.tsx | [ui_format_file_list_table.md](experiment_admin/02_format_management/ui_format_file_list_table.md) | フォーマットファイル一覧テーブル |
+| CreateFormatFileModal.tsx | フォーマットファイル作成モーダル | frontend/src/components/format/CreateFormatFileModal.tsx | [ui_create_format_file_modal.md](experiment_admin/02_format_management/ui_create_format_file_modal.md) | フォーマットファイル作成モーダル |
+| CreateFormatFolderModal.tsx | フォーマットフォルダ作成モーダル | frontend/src/components/format/CreateFormatFolderModal.tsx | [ui_create_format_folder_modal.md](experiment_admin/02_format_management/ui_create_format_folder_modal.md) | フォーマットフォルダ作成モーダル |
+| CreateFormatModal.tsx | フォーマット作成モーダル | frontend/src/components/format/CreateFormatModal.tsx | [ui_create_format_modal.md](experiment_admin/02_format_management/ui_create_format_modal.md) | 新規フォーマット（部門・フォルダ）作成モーダル |
+| FormatFileDetailModal.tsx | フォーマットファイル詳細モーダル | frontend/src/components/format/FormatFileDetailModal.tsx | [ui_format_file_detail_modal.md](experiment_admin/02_format_management/ui_format_file_detail_modal.md) | フォーマットファイル詳細モーダル |
+| FormatSearchModal.tsx | フォーマット検索モーダル | frontend/src/components/format/FormatSearchModal.tsx | [ui_format_search_modal.md](experiment_admin/02_format_management/ui_format_search_modal.md) | フォーマット検索モーダル |
+| FormatUploadDialog.tsx | フォーマットアップロードダイアログ | frontend/src/components/format/FormatUploadDialog.tsx | [ui_format_upload_dialog.md](experiment_admin/02_format_management/ui_format_upload_dialog.md) | フォーマットアップロードダイアログ |
 
 **TransitionSet検索（TransitionSetSearch）:**
 
@@ -374,6 +374,7 @@
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-05-07 | フォーマット管理コンポーネント9ファイルのファイルパスを `project/` → `format/` に変更（ファイル移動に伴うドキュメント更新） | Cline |
 | 2026-04-07 | プロバイダ用画面のタブ順序を変更（会社管理→組織管理 の順 → 組織管理→会社管理 の順）、機能画面一覧をモックから実装済みコンポーネントに更新し、UI仕様書リンクを追加 | Cline |
 | 2026-03-06 | UI仕様書追加 - project/（WorkerScreenOverlay, FormatManagement系9ファイル）とTransitionSetSearch/（4ファイル）のUI仕様書を新規作成し、ui_screen_list.mdにリンクを追記 | Cline |
 | 2026-02-19 17:12 | 使用API一覧を更新 - プロジェクト管理API（13/16実装済み）、MAIML編集API（17/17、100%完了）、ファイルアクセスAPI（6/6、100%完了）を反映 | Cline |

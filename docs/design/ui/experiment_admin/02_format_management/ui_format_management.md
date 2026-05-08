@@ -1156,7 +1156,7 @@ const handleOpenCreateFileModal = useCallback(() => {
 ## 7. 実装ファイル
 
 ### 7.1 ファイルパス
-- **メインファイル**: `frontend/src/components/project/FormatManagement.tsx`
+- **メインファイル**: `frontend/src/components/format/FormatManagement.tsx`
 
 ### 7.2 関連ファイル
 - **型定義**:

@@ -58,6 +58,9 @@ export interface Project {
   ownerId?: string;
   ownerEmail?: string;
   ownerName?: string;
+  // MAIMLファイル情報（progress.ts ではオプション）
+  maimlFileKey?: string | null;
+  project_uuid?: string | null;
 }
 
 /**

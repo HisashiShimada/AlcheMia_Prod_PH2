@@ -391,10 +391,10 @@ interface Format {
 ## 7. 実装ファイル
 
 ### 7.1 ファイルパス
-- **メインファイル**: `frontend/src/components/project/FormatFolderTree.tsx`
+- **メインファイル**: `frontend/src/components/format/FormatFolderTree.tsx`
 
 ### 7.2 関連ファイル
-- **親コンポーネント**: `frontend/src/components/project/FormatManagement.tsx`
+- **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
 - **型定義**: このファイル内で定義（Format型）
 
 ### 7.3 依存ライブラリ

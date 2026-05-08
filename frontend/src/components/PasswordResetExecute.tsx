@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card, Input, Button, Typography, Alert, Space, theme } from 'antd';
 import { EyeOutlined, EyeInvisibleOutlined, CheckOutlined } from '@ant-design/icons';
 import { validatePassword } from '@/utils/validation';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -29,6 +30,7 @@ export default function PasswordResetExecute({
   error,
   loading = false,
 }: PasswordResetExecuteProps) {
+  const { t } = useLanguage();
   const { token } = theme.useToken();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -152,7 +154,7 @@ export default function PasswordResetExecute({
                 fontWeight: token.fontWeightStrong,
               }}
             >
-              MMDPF
+              {t('common.appName')}
             </Title>
             <Title
               level={2}
