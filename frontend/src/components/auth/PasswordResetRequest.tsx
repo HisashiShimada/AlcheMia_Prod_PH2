@@ -11,6 +11,7 @@ import { Form, Input, Button, Alert, Typography, theme } from 'antd';
 import { UserOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { resetPasswordRequest } from '../../utils/authApi';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Paragraph } = Typography;
 const { useToken } = theme;
@@ -51,6 +52,7 @@ export default function PasswordResetRequest({
   organizationId,
 }: PasswordResetRequestProps) {
   const { token } = useToken();
+  const { t } = useLanguage();
   const [form] = Form.useForm<ResetFormValues>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,12 +89,12 @@ export default function PasswordResetRequest({
       {/* タイトルと説明 */}
       <div style={{ marginBottom: token.marginLG }}>
         <Title level={3} style={{ textAlign: 'center', marginBottom: token.marginMD }}>
-          パスワードリセット
+          {t('auth.passwordReset.requestTitle')}
         </Title>
         <Paragraph style={{ textAlign: 'center', color: token.colorTextSecondary }}>
-          ユーザー名を入力してください。
+          {t('auth.passwordReset.requestDescription')}
           <br />
-          パスワードリセット用のリンクをメールで送信します。
+          {t('auth.passwordReset.requestDescriptionSub')}
         </Paragraph>
       </div>
 
@@ -118,15 +120,15 @@ export default function PasswordResetRequest({
         {/* ユーザー名入力 */}
         <Form.Item
           name="username"
-          label="ユーザー名"
+          label={t('auth.login.username')}
           rules={[
-            { required: true, message: 'ユーザー名を入力してください' },
-            { min: 1, max: 100, message: 'ユーザー名は1-100文字で入力してください' },
+            { required: true, message: t('auth.login.usernameRequired') },
+            { min: 1, max: 100, message: t('auth.login.usernameLengthError') },
           ]}
         >
           <Input
             prefix={<UserOutlined style={{ color: token.colorTextSecondary }} />}
-            placeholder="ユーザー名を入力"
+            placeholder={t('auth.login.usernamePlaceholder')}
             autoComplete="username"
             disabled={loading}
           />
@@ -141,7 +143,7 @@ export default function PasswordResetRequest({
             block
             size="large"
           >
-            リセットリンクを送信
+            {t('auth.passwordReset.sendResetLinkButton')}
           </Button>
         </Form.Item>
 
@@ -154,7 +156,7 @@ export default function PasswordResetRequest({
             disabled={loading}
             style={{ padding: 0 }}
           >
-            ログイン画面に戻る
+            {t('auth.passwordReset.backToLogin')}
           </Button>
         </Form.Item>
       </Form>

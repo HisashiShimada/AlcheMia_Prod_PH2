@@ -4,8 +4,8 @@
  * バリデーション結果の詳細表示、エラー/警告の階層的表示、自動補正機能
  * Material-UI → Ant Design変換版
  * 
- * @version 2.0.0
- * @date 2026-01-29
+ * @version 2.1.0
+ * @date 2026-05-01
  */
 
 import React, { useState } from 'react';
@@ -33,6 +33,7 @@ import {
   CloseOutlined,
 } from '@ant-design/icons';
 import { AnalysisResult } from '@/types/maimlValidation';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -74,6 +75,8 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   isValidating = false,
   isCorrecting = false,
 }) => {
+  const { t } = useLanguage();
+
   console.log('🎨 [ValidationPanel V2] Rendering with props:', {
     show,
     hasResult: !!validationResult,
@@ -107,7 +110,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
    */
   const handleApplyCorrections = () => {
     if (selectedErrors.length === 0) {
-      message.warning('補正するエラーを選択してください');
+      message.warning(t('editor.validationPanel.autoCorrectSelectRequired'));
       return;
     }
 
@@ -137,7 +140,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         <Card style={{ marginBottom: 16, backgroundColor: '#f5f5f5' }}>
           <Space>
             <Title level={5} style={{ margin: 0, color: 'rgba(0, 0, 0, 0.45)' }}>
-              バリデーション結果がありません
+              {t('editor.validationPanel.noResult')}
             </Title>
           </Space>
         </Card>
@@ -162,22 +165,22 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
             )}
             <div>
               <Title level={5} style={{ margin: 0 }}>
-                {isValid ? '✅ バリデーション成功' : '❌ バリデーション失敗'}
+                {isValid ? t('editor.validationPanel.success') : t('editor.validationPanel.failure')}
               </Title>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                スキーマバージョン: {validationResult.version || '不明'}
+                {t('editor.validationPanel.schemaVersion')}{validationResult.version || t('editor.validationPanel.schemaVersionUnknown')}
               </Text>
             </div>
           </Space>
           <Space size="small" wrap>
             {fatalErrors.length > 0 && (
-              <Tag color="error">致命的エラー: {fatalErrors.length}</Tag>
+              <Tag color="error">{t('editor.validationPanel.fatalErrors')}{fatalErrors.length}</Tag>
             )}
             {editableErrors.length > 0 && (
-              <Tag color="orange">編集可能エラー: {editableErrors.length}</Tag>
+              <Tag color="orange">{t('editor.validationPanel.editableErrors')}{editableErrors.length}</Tag>
             )}
             {totalWarnings > 0 && (
-              <Tag color="warning">警告: {totalWarnings}</Tag>
+              <Tag color="warning">{t('editor.validationPanel.warnings')}{totalWarnings}</Tag>
             )}
           </Space>
         </div>
@@ -203,7 +206,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
           label: (
             <Space>
               <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-              <Text strong>エラー詳細 ({validationResult.errors.length}件)</Text>
+              <Text strong>{t('editor.validationPanel.errorDetailLabel')}{validationResult.errors.length}{t('editor.validationPanel.errorDetailSuffix')}</Text>
             </Space>
           ),
           children: (
@@ -236,20 +239,21 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                           )}
                           {elementStr && (
                             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                              要素: {elementStr}
+                              {t('editor.validationPanel.element')}{elementStr}
                             </Text>
                           )}
                           {err.line && (
                             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                              行: {err.line}
+                              {t('editor.validationPanel.line')}{err.line}
                             </Text>
                           )}
                           {suggestionStr && (
                             <Text style={{ fontSize: 11, display: 'block', marginTop: 4, color: '#1890ff' }}>
-                              💡 修正案: {suggestionStr}
+                              {t('editor.validationPanel.suggestion')}{suggestionStr}
                             </Text>
                           )}
                         </div>
+          
                       </div>
                     </div>
                   </div>
@@ -280,7 +284,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
           label: (
             <Space>
               <WarningOutlined style={{ color: '#faad14' }} />
-              <Text strong>警告詳細 ({validationResult.warnings.length}件)</Text>
+              <Text strong>{t('editor.validationPanel.warningDetailLabel')}{validationResult.warnings.length}{t('editor.validationPanel.warningDetailSuffix')}</Text>
             </Space>
           ),
           children: (
@@ -302,7 +306,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                         )}
                         {elementStr && (
                           <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                            要素: {elementStr}
+                            {t('editor.validationPanel.element')}{elementStr}
                           </Text>
                         )}
                       </div>
@@ -322,11 +326,11 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       title={
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Title level={4} style={{ margin: 0 }}>
-            🔍 バリデーション結果
+            {t('editor.validationPanel.title')}
           </Title>
           <Space style={{ marginRight: 32 }}>
             {onRevalidate && (
-              <Tooltip title="再検証">
+              <Tooltip title={t('editor.validationPanel.revalidateTooltip')}>
                 <Button 
                   icon={<ReloadOutlined />}
                   onClick={onRevalidate}
@@ -351,8 +355,8 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
           <div style={{ marginBottom: 16 }}>
             <Progress percent={100} status="active" showInfo={false} />
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-              {isValidating && '🔍 検証中...'}
-              {isCorrecting && '🔧 補正適用中...'}
+              {isValidating && t('editor.validationPanel.validating')}
+              {isCorrecting && t('editor.validationPanel.correcting')}
             </Text>
           </div>
         )}
@@ -369,9 +373,9 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         {/* 自動補正ボタン */}
         {validationResult && validationResult.errors && validationResult.errors.length > 0 && (
           <Card style={{ marginTop: 16 }}>
-            <Title level={5}>🔧 自動補正</Title>
+            <Title level={5}>{t('editor.validationPanel.autoCorrectTitle')}</Title>
             <Paragraph type="secondary" style={{ fontSize: 12 }}>
-              修正したいエラーを選択して、自動補正を試行できます。
+              {t('editor.validationPanel.autoCorrectDescription')}
             </Paragraph>
             <Button
               type="primary"
@@ -381,13 +385,13 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
               block
             >
               {isCorrecting 
-                ? '補正適用中...' 
-                : `選択したエラーを自動補正 (${selectedErrors.length}件)`
+                ? t('editor.validationPanel.autoCorrectApplying')
+                : `${t('editor.validationPanel.autoCorrectButton')}${selectedErrors.length}${t('editor.validationPanel.autoCorrectButtonSuffix')}`
               }
             </Button>
             {selectedErrors.length > 0 && (
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8 }}>
-                ⚠️ 自動補正は完璧ではありません。適用後に必ず内容を確認してください。
+                {t('editor.validationPanel.autoCorrectWarning')}
               </Text>
             )}
           </Card>
@@ -396,8 +400,8 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         {/* 成功メッセージ */}
         {validationResult && validationResult.isValid && (
           <Alert
-            title="✅ MaiMLファイルは有効です"
-            description="スキーマバリデーションに合格しました。"
+            title={t('editor.validationPanel.validSuccess')}
+            description={t('editor.validationPanel.validSuccessDescription')}
             type="success"
             showIcon
             style={{ marginTop: 16 }}

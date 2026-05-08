@@ -156,7 +156,7 @@ export default function ProgressCheckTab({
             onSelectMethod(sortedMethods[0].methodId);
           }
           
-          message.success('タスク一覧を取得しました');
+          message.success(t('progress.taskListFetched'));
         } else {
           console.error('[DEBUG] ProgressCheckTab - API returned unsuccessful', result);
           message.error(extractErrorMessage(null));
@@ -256,7 +256,7 @@ export default function ProgressCheckTab({
     // タスクのmethodIdを取得
     const task = tasks.find(t => t.taskId === taskId);
     if (!task || !task.methodId) {
-      message.error('タスク情報が見つかりません');
+      message.error(t('progress.taskNotFound'));
       return;
     }
 
@@ -278,7 +278,7 @@ export default function ProgressCheckTab({
             // task.updatedAtの検証
             if (!task.updatedAt) {
               console.error('[DEBUG] handleTaskAction - task.updatedAt is missing!', { task });
-              message.error('タスクの更新日時が取得できませんでした。画面を再読み込みしてください。');
+              message.error(t('progress.taskUpdatedAtMissing'));
               return;
             }
             
@@ -300,7 +300,7 @@ export default function ProgressCheckTab({
                 newStatus: result.data.new_status
               });
               
-              message.success('タスクを開始しました');
+              message.success(t('progress.taskStarted'));
               
               // タスク一覧を再取得して最新の状態を反映
               const tasksResult = await getWorkerTasks(selectedProject);
@@ -350,7 +350,7 @@ export default function ProgressCheckTab({
               }
             } else {
               console.error('[DEBUG] handleTaskAction - Update failed', result);
-              message.error('タスクの開始に失敗しました');
+              message.error(t('progress.taskStartFailed'));
             }
           } catch (error) {
             console.error('[DEBUG] handleTaskAction - Error starting task', {
@@ -362,10 +362,10 @@ export default function ProgressCheckTab({
             
             // エラー種別に応じた詳細メッセージ
             if ((error as AxiosError)?.response?.status === HTTP_STATUS.FORBIDDEN) {
-              message.error('このタスクを開始する権限がありません');
+              message.error(t('progress.taskStartForbidden'));
             } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.CONFLICT) {
               // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
-              message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています..');
+              message.error(t('progress.taskConflict'));
               
               // タスク一覧を再取得して最新の状態を反映
               try {
@@ -416,12 +416,12 @@ export default function ProgressCheckTab({
                 }
               } catch (refreshError) {
                 console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
-                message.warning('最新の情報取得に失敗しました。画面を再読み込みしてください。');
+                message.warning(t('progress.refreshFailed'));
               }
             } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
-              message.error('タスクが見つかりません');
+              message.error(t('progress.taskNotFound'));
             } else {
-              message.error('タスクの開始中にエラーが発生しました');
+              message.error(t('progress.taskStartError'));
             }
           }
           break;
@@ -430,7 +430,7 @@ export default function ProgressCheckTab({
           // 指示確認タブへ遷移（メソッドとタスクを選択してからタブ移動）
           if (onSelectTaskAndTab) {
             onSelectTaskAndTab(taskId, '2', task.methodId); // 指示確認タブ・methodIdを渡す
-            message.info('指示確認タブに移動します。');
+            message.info(t('progress.goToInstructionTab'));
           } else {
             // フォールバック: メソッドを先に選択
             if (task.methodId && onSelectMethod) {
@@ -438,7 +438,7 @@ export default function ProgressCheckTab({
             }
             if (onTabChange) {
               onTabChange('2'); // 指示確認タブ
-              message.info('指示確認タブに移動します。');
+              message.info(t('progress.goToInstructionTab'));
             }
           }
           break;
@@ -447,10 +447,10 @@ export default function ProgressCheckTab({
           // 実験記録タブへ遷移（タスクを選択してからタブ移動）
           if (onSelectTaskAndTab) {
             onSelectTaskAndTab(taskId, '3', task.methodId); // 実験記録タブ・methodIdを渡す
-            message.info('実験記録タブに移動します。');
+            message.info(t('progress.goToRecordTab'));
           } else if (onTabChange) {
             onTabChange('3'); // フォールバック
-            message.info('実験記録タブに移動します。');
+            message.info(t('progress.goToRecordTab'));
           }
           break;
 
@@ -480,7 +480,7 @@ export default function ProgressCheckTab({
             // task.updatedAtの検証
             if (!task.updatedAt) {
               console.error('[DEBUG] handleTaskAction - task.updatedAt is missing!', { task });
-              message.error('タスクの更新日時が取得できませんでした。画面を再読み込みしてください。');
+              message.error(t('progress.taskUpdatedAtMissing'));
               return;
             }
             
@@ -502,7 +502,7 @@ export default function ProgressCheckTab({
                 newStatus: result.data.new_status
               });
               
-              message.success('タスクを強制終了しました');
+              message.success(t('progress.taskForceTerminated'));
               
               // タスク一覧を再取得して最新の状態を反映
               const tasksResult = await getWorkerTasks(selectedProject);
@@ -552,7 +552,7 @@ export default function ProgressCheckTab({
               }
             } else {
               console.error('[DEBUG] handleTaskAction - Force terminate failed', result);
-              message.error('タスクの強制終了に失敗しました');
+              message.error(t('progress.taskForceTerminateFailed'));
             }
           } catch (error) {
             console.error('[DEBUG] handleTaskAction - Error force terminating task', {
@@ -564,10 +564,10 @@ export default function ProgressCheckTab({
             
             // エラー種別に応じた詳細メッセージ
             if ((error as AxiosError)?.response?.status === HTTP_STATUS.FORBIDDEN) {
-              message.error('このタスクを強制終了する権限がありません');
+              message.error(t('progress.taskForceTerminateForbidden'));
             } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.CONFLICT) {
               // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
-              message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています..');
+              message.error(t('progress.taskConflict'));
               
               // タスク一覧を再取得して最新の状態を反映
               try {
@@ -618,22 +618,22 @@ export default function ProgressCheckTab({
                 }
               } catch (refreshError) {
                 console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
-                message.warning('最新の情報取得に失敗しました。画面を再読み込みしてください。');
+                message.warning(t('progress.refreshFailed'));
               }
             } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
-              message.error('タスクが見つかりません');
+              message.error(t('progress.taskNotFound'));
             } else {
-              message.error('タスクの強制終了中にエラーが発生しました');
+              message.error(t('progress.taskForceTerminateError'));
             }
           }
           break;
 
         default:
-          message.warning('不明なアクションです。');
+          message.warning(t('progress.unknownAction'));
       }
     } catch (error) {
-      console.error('タスクアクション処理エラー:', error);
-      message.error('タスクの更新に失敗しました');
+      console.error('Task action processing error:', error);
+      message.error(t('progress.taskUpdateFailed'));
     }
   }, [selectedProject, tasks, onTabChange, onSelectTaskAndTab, onSelectMethod]);
 
@@ -643,31 +643,31 @@ export default function ProgressCheckTab({
     label: string;
   } => {
     if (methodTasks.length === 0) {
-      return { status: 'default', label: '未着手' };
+      return { status: 'default', label: t('task.status.notStarted') };
     }
 
     // 強制終了タスクがあればエラー
-    const hasForceTerminated = methodTasks.some(t => t.status === 'forced_terminated');
+    const hasForceTerminated = methodTasks.some(task => task.status === 'forced_terminated');
     if (hasForceTerminated) {
-      return { status: 'error', label: 'エラー' };
+      return { status: 'error', label: t('experimentWork.status.completed') };
     }
 
     // 全タスクが完了していれば完了
-    const allCompleted = methodTasks.every(t => t.status === 'completed');
+    const allCompleted = methodTasks.every(task => task.status === 'completed');
     if (allCompleted) {
-      return { status: 'success', label: '完了' };
+      return { status: 'success', label: t('task.status.completed') };
     }
 
     // 作業中のタスクがあれば作業中
     const hasInProgress = methodTasks.some(
-      t => t.status === 'in_progress'
+      task => task.status === 'in_progress'
     );
     if (hasInProgress) {
-      return { status: 'processing', label: '作業中' };
+      return { status: 'processing', label: t('task.status.inProgress') };
     }
 
     // それ以外は未着手
-    return { status: 'default', label: '未着手' };
+    return { status: 'default', label: t('task.status.notStarted') };
   }, []);
 
   // メソッドタブを生成（各メソッドに紐づくタスクをフィルタリングして表示）
@@ -697,7 +697,7 @@ export default function ProgressCheckTab({
               <Badge status={methodStatus.status} />
               <span>{methodStatus.label}</span>
               <span style={{ margin: '0 4px' }}>|</span>
-              <span>{methodTasks.length}タスク</span>
+              <span>{methodTasks.length} {t('common.items')}</span>
             </div>
           </div>
         ),
@@ -721,7 +721,7 @@ export default function ProgressCheckTab({
                   fontSize: '14px'
                 }}
               >
-                タスクが見つかりません
+                {t('progress.taskNotFound')}
               </div>
             )}
           </div>
@@ -749,7 +749,7 @@ export default function ProgressCheckTab({
               </span>
             </div>
             <Text type="secondary" style={{ marginTop: token.margin }}>
-              タスク一覧を読み込んでいます...
+              {t('common.loading')}
             </Text>
           </Space>
         </Card>
@@ -783,10 +783,10 @@ export default function ProgressCheckTab({
           <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
             <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
-              メソッドが見つかりません
+              {t('experimentWork.labels.methodPlaceholder')}
             </Title>
             <Text type="secondary">
-              このプロジェクトにはメソッドが登録されていません
+              {t('experimentWork.messages.selectProjectAndMethod')}
             </Text>
           </Space>
         </Card>

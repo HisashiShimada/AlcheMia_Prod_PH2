@@ -5,6 +5,7 @@ import { Card, Input, Button, Typography, Alert, Space, Spin, theme } from 'antd
 import { EyeOutlined, EyeInvisibleOutlined, LoginOutlined } from '@ant-design/icons';
 import { LoginCredentials } from '@/types/auth';
 import { validateEmail, validatePassword } from '@/utils/validation';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -26,6 +27,7 @@ interface LoginPageProps {
  */
 export default function LoginPage({ onLogin, onForgotPassword, error, loading = false, debugPanel }: LoginPageProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -87,12 +89,12 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
 
     // バリデーション失敗時は送信しない
     if (!userIdValidation.isValid) {
-      setValidationError(userIdValidation.error || '入力値を確認してください');
+      setValidationError(userIdValidation.error || t('auth.login.checkInputValues'));
       return;
     }
 
     if (!passwordValidation.isValid) {
-      setValidationError(passwordValidation.error || '入力値を確認してください');
+      setValidationError(passwordValidation.error || t('auth.login.checkInputValues'));
       return;
     }
 
@@ -146,7 +148,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
                 fontSize: token.fontSizeHeading4,
               }}
             >
-              マルチモーダルデータプラットフォーム
+              {t('auth.appSubtitle')}
             </Text>
           </Space>
 
@@ -178,14 +180,14 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
                     color: token.colorText,
                   }}
                 >
-                  ユーザーID <span style={{ color: token.colorError }}>*</span>
+                  {t('auth.login.userIdLabel')} <span style={{ color: token.colorError }}>*</span>
                 </label>
                 <Input
                   id="userId"
                   name="userId"
                   type="text"
                   size="large"
-                  placeholder="ユーザーIDを入力"
+                  placeholder={t('auth.login.userIdPlaceholder')}
                   value={userId}
                   onChange={handleUserIdChange}
                   onBlur={handleUserIdBlur}
@@ -212,13 +214,13 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
                     color: token.colorText,
                   }}
                 >
-                  パスワード <span style={{ color: token.colorError }}>*</span>
+                  {t('auth.login.passwordLabel')} <span style={{ color: token.colorError }}>*</span>
                 </label>
                 <Input.Password
                   id="password"
                   name="password"
                   size="large"
-                  placeholder="パスワードを入力"
+                  placeholder={t('auth.login.passwordPlaceholder')}
                   value={password}
                   onChange={handlePasswordChange}
                   onBlur={handlePasswordBlur}
@@ -248,7 +250,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
                   height: token.controlHeightLG * 1.55,
                 }}
               >
-                {loading ? 'ログイン中...' : 'ログイン'}
+                {loading ? t('auth.login.loggingIn') : t('auth.login.loginButton')}
               </Button>
 
               {/* パスワードを忘れた場合のリンク */}
@@ -264,7 +266,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
                       fontSize: token.fontSize,
                     }}
                   >
-                    パスワードを忘れた場合
+                    {t('auth.login.forgotPassword')}
                   </Button>
                 </div>
               )}

@@ -104,14 +104,14 @@ export function handleFileUploadError(file: File | null, error: Error): AppError
   const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
   if (file && file.size > MAX_FILE_SIZE) {
     return createError('E1001', {
-      detail: `ファイルサイズ: ${(file.size / 1024 / 1024).toFixed(2)}MB（上限: 50MB）`,
+      detail: `File size: ${(file.size / 1024 / 1024).toFixed(2)}MB (limit: 50MB)`,
       originalError: error,
     });
   }
   const ext = file?.name.split('.').pop()?.toLowerCase();
   if (file && ext && !['maiml', 'xml', 'json', 'csv'].includes(ext)) {
     return createError('E1002', {
-      detail: `ファイル形式: .${ext}`,
+      detail: `File extension: .${ext}`,
       originalError: error,
     });
   }

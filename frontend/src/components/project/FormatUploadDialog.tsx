@@ -7,6 +7,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { uploadFiles, abortChunkUpload, cancelBatch, initBatch } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { UploadRetryState, UploadResultSummary } from '@/types/file';
 import {
   Modal,
@@ -96,6 +97,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
   baseFolder,
 }) => {
   const { message } = App.useApp();
+  const { t } = useLanguage();
   
   // 状態管理
   const [uploadMode, setUploadMode] = useState<UploadMode>('single');
@@ -221,12 +223,12 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
    */
   const handleUpload = useCallback(async () => {
     if (fileList.length === 0) {
-      message.warning('ファイルを選択してください');
+      message.warning(t('upload.noFileSelected'));
       return;
     }
 
     if (!baseFolder) {
-      message.error('フォーマットが選択されていません');
+      message.error(t('upload.noFormatSelected'));
       return;
     }
     // ✨ AbortControllerを作成
@@ -329,17 +331,17 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       }
 
       if (summary.failureCount === 0) {
-        message.success('アップロードが完了しました');
+        message.success(t('upload.completed'));
       } else if (summary.successCount === 0) {
-        message.error('すべてのファイルのアップロードに失敗しました');
+        message.error(t('upload.allFailed'));
       } else {
-        message.warning(`${summary.failureCount} 件のファイルがアップロードに失敗しました`);
+        message.warning(`${summary.failureCount} ${t('upload.partialFailed')}`);
       }
 
     } catch (error) {
       // キャンセルエラーの処理（最初に判定）
       if ((error as { name?: string }).name === 'CanceledError') {
-        message.info('アップロードがキャンセルされました');
+        message.info(t('upload.cancelled'));
         // バックエンドに通知してアップロード済みファイルを削除（batchIdRef.current で最新値を参照）
         const currentBatchId = batchIdRef.current;
         if (currentBatchId) {
@@ -503,18 +505,18 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
   if (!baseFolder) {
     return (
       <Modal
-        title="ファイルアップロード"
+        title={t('upload.fileUploadTitle')}
         open={open}
         onCancel={onClose}
       footer={[
         <Button key="close" onClick={onClose}>
-          閉じる
+          {t('common.close')}
         </Button>,
       ]}
       >
         <Alert
-          title="フォーマットが選択されていません"
-          description="先にフォーマットを選択してください。"
+          title={t('upload.noFormatSelectedAlert')}
+          description={t('upload.noFormatSelectedAlert')}
           type="warning"
           showIcon
         />
@@ -524,13 +526,13 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
 
   return (
     <Modal
-      title="ファイルアップロード"
+      title={t('upload.fileUploadTitle')}
       open={open}
       onCancel={handleClose}
       width={800}
       footer={[
         <Button key="close" onClick={handleClose} disabled={uploadState.isUploading}>
-          閉じる
+          {t('common.close')}
         </Button>,
         <Button
           key="upload"
@@ -539,7 +541,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           disabled={fileList.length === 0 || uploadState.isUploading}
           icon={uploadState.isUploading ? <LoadingOutlined /> : <UploadOutlined />}
         >
-          {uploadState.isUploading ? 'アップロード中...' : 'アップロード開始'}
+          {uploadState.isUploading ? t('common.loading') : t('common.add')}
         </Button>,
       ]}
       styles={{
@@ -745,7 +747,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         {/* アップロード進行状況 */}
         {uploadState.isUploading && (
           <Alert
-            title="アップロード中"
+            title={t('upload.uploadingTitle')}
             description={
               <div style={{ position: 'relative' }}>
                 <button
@@ -790,7 +792,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           <>
             {resultSummary.failureCount === 0 ? (
               <Alert
-                title="アップロード完了"
+                title={t('upload.completedTitle')}
                 description={`成功: ${resultSummary.successCount} 件 / 失敗: 0 件`}
                 type="success"
                 showIcon
@@ -798,11 +800,11 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
               />
             ) : resultSummary.successCount === 0 ? (
               <Alert
-                title="アップロード失敗"
+                title={t('upload.failedTitle')}
                 description={
                   <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-                    <Text>成功: 0 件 / 失敗: {resultSummary.failureCount} 件</Text>
-                    <Text strong>失敗したファイル:</Text>
+                    <Text>Success: 0 / Failed: {resultSummary.failureCount}</Text>
+                    <Text strong>{t('upload.failedFiles')}</Text>
                     <div>
                       {resultSummary.failedFileNames.map((name, i) => (
                         <div key={i} style={{ padding: '2px 0' }}>
@@ -818,13 +820,13 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
               />
             ) : (
               <Alert
-                title="アップロード完了（一部失敗）"
+                title={t('upload.partialFailedTitle')}
                 description={
                   <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                     <Text>
-                      成功: {resultSummary.successCount} 件 / 失敗: {resultSummary.failureCount} 件
+                      Success: {resultSummary.successCount} / Failed: {resultSummary.failureCount}
                     </Text>
-                    <Text strong>失敗したファイル:</Text>
+                    <Text strong>{t('upload.failedFiles')}</Text>
                     <div>
                       {resultSummary.failedFileNames.map((name, i) => (
                         <div key={i} style={{ padding: '2px 0' }}>
@@ -845,7 +847,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         {/* エラー表示 */}
         {uploadState.error && (
           <Alert
-            title="アップロードエラー"
+            title={t('upload.errorTitle')}
             description={uploadState.error}
             type="error"
             showIcon

@@ -8,6 +8,8 @@ import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
 import { getIssues, createIssue, addComment, updateIssueStatus } from '@/services/issueApiService';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
+import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 
@@ -56,6 +58,7 @@ export default function TransitionList({
 
   const [issues, setIssues] = useState<Issue[]>([]);
   const [issueLoading, setIssueLoading] = useState<boolean>(false);
+  const { t } = useLanguage();
 
   // トランジション名の選択肢を生成
   const transitionNameOptions = useMemo(() => {
@@ -86,7 +89,7 @@ export default function TransitionList({
 
   // データ保存ハンドラ
   const handleDataSave = (_data: ExperimentDataValue[]) => {
-    message.success('実験データを保存しました');
+    message.success(t('worker.experimentDataSaved'));
     setDataRecordModalOpen(false);
     setSelectedTransition(null);
     // 保存後に親コンポーネントの進捗データを再取得してトランジション一覧を最新状態に更新
@@ -100,11 +103,11 @@ export default function TransitionList({
     }
 
     const statusConfig = {
-      not_started: { color: 'default', icon: <MinusCircleOutlined />, text: '未開始' },
-      in_progress: { color: 'processing', icon: <ClockCircleOutlined />, text: '作業中' },
-      completed: { color: 'success', icon: <CheckCircleOutlined />, text: '完了' },
-      on_hold: { color: 'warning', icon: <ExclamationCircleOutlined />, text: '保留中' },
-      issue: { color: 'error', icon: <ExclamationCircleOutlined />, text: '問題あり' }
+      not_started: { color: 'default', icon: <MinusCircleOutlined />, text: t('experimentWork.status.notStarted') },
+      in_progress: { color: 'processing', icon: <ClockCircleOutlined />, text: t('experimentWork.status.working') },
+      completed: { color: 'success', icon: <CheckCircleOutlined />, text: t('experimentWork.status.completed') },
+      on_hold: { color: 'warning', icon: <ExclamationCircleOutlined />, text: t('experimentWork.status.onHold') },
+      issue: { color: 'error', icon: <ExclamationCircleOutlined />, text: t('experimentWork.status.issue') }
     };
 
     const config = statusConfig[status] || statusConfig.not_started;
@@ -171,7 +174,7 @@ export default function TransitionList({
 
     if (!projectId) {
       console.warn('[handleSubmitIssue] projectId が未設定です');
-      message.error('プロジェクトが選択されていません');
+      message.error(t('project.selectProjectWarning'));
       return;
     }
 
@@ -187,7 +190,7 @@ export default function TransitionList({
         description: issue.content,
       });
 
-      message.success('問題を報告しました');
+      message.success(t('worker.issueReported'));
 
       // 問題一覧を再取得して最新状態を反映
       if (projectId && methodId && !isNaN(taskNo) && selectedTransition) {
@@ -217,7 +220,7 @@ export default function TransitionList({
   const handleSubmitComment = async (issueId: string, comment: string) => {
     if (!projectName) {
       console.warn('[handleSubmitComment] projectName が未設定です');
-      message.error('プロジェクトが選択されていません');
+      message.error(t('project.selectProjectWarning'));
       return;
     }
 
@@ -259,7 +262,7 @@ export default function TransitionList({
   const handleUpdateStatus = async (issueId: string, status: Issue['status']) => {
     if (!projectName) {
       console.warn('[handleUpdateStatus] projectName が未設定です');
-      message.error('プロジェクトが選択されていません');
+      message.error(t('project.selectProjectWarning'));
       return;
     }
 
@@ -300,7 +303,7 @@ export default function TransitionList({
   // テーブルの列定義
   const columns: ColumnsType<Transition> = [
     {
-      title: 'トランジション名',
+      title: t('experimentWork.table.transitionName'),
       dataIndex: 'transitionName',
       key: 'transitionName',
       width: 160,
@@ -313,7 +316,7 @@ export default function TransitionList({
       )
     },
     {
-      title: 'ステータス',
+      title: t('experimentWork.table.status'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
@@ -322,7 +325,7 @@ export default function TransitionList({
       render: (status: ProgressStatus | undefined) => getStatusDisplay(status)
     },
     {
-      title: '進捗率',
+      title: t('experimentWork.table.progressRate'),
       dataIndex: 'progressRate',
       key: 'progressRate',
       width: 65,
@@ -337,7 +340,7 @@ export default function TransitionList({
       }
     },
     {
-        title: '材料',
+        title: t('experimentWork.table.materials'),
         key: 'materials',
         width: 55,
         align: 'center' as const,
@@ -356,7 +359,7 @@ export default function TransitionList({
         }
       },
       {
-        title: '条件',
+        title: t('experimentWork.table.conditions'),
         key: 'conditions',
         width: 55,
         align: 'center' as const,
@@ -375,7 +378,7 @@ export default function TransitionList({
         }
       },
       {
-        title: '結果',
+        title: t('experimentWork.table.results'),
         key: 'results',
         width: 55,
         align: 'center' as const,
@@ -394,7 +397,7 @@ export default function TransitionList({
         }
       },
       {
-        title: '記録',
+        title: t('experimentWork.table.record'),
         key: 'record',
         width: 65,
         align: 'center' as const,
@@ -435,13 +438,13 @@ export default function TransitionList({
                 }
               }}
             >
-              記録
+              {t('experimentWork.actions.recordData')}
             </button>
           );
         }
       },
       {
-        title: '問題報告',
+        title: t('experimentWork.table.issueReport'),
         key: 'issue',
         width: 65,
         align: 'center' as const,
@@ -472,13 +475,13 @@ export default function TransitionList({
                 e.currentTarget.style.backgroundColor = '#ffffff';
               }}
             >
-              報告
+              {t('experimentWork.actions.report')}
             </button>
           );
         }
       },
     {
-      title: '説明',
+      title: t('experimentWork.table.description'),
       dataIndex: 'description',
       key: 'description',
       width: 140,
@@ -498,24 +501,24 @@ export default function TransitionList({
         <Row gutter={[16, 8]} style={{ marginBottom: 16 }} data-testid="transition-list-filter-row">
           <Col xs={24} sm={12} md={12}>
             <Input
-              placeholder="トランジション名、説明で検索..."
+              placeholder={t('experimentWork.table.transitionName') + '、' + t('experimentWork.table.description') + t('common.searchJoiner') + '...'}
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
-              aria-label="全カラム検索"
+              aria-label={t('common.search')}
               data-testid="transition-list-search-input"
             />
           </Col>
           <Col xs={24} sm={12} md={12}>
             <Select
-              placeholder="トランジション名で絞り込み"
+              placeholder={t('experimentWork.table.transitionName')}
               style={{ width: '100%' }}
               value={selectedTransitionName}
               onChange={(value) => setSelectedTransitionName(value)}
               allowClear
               options={transitionNameOptions}
-              aria-label="トランジション名で絞り込み"
+              aria-label={t('experimentWork.table.transitionName')}
               data-testid="transition-list-name-filter"
             />
           </Col>
@@ -531,15 +534,15 @@ export default function TransitionList({
             pageSize: pageSize,
             showSizeChanger: true,
             showQuickJumper: false,
-            showTotal: (total) => `全${total}件`,
+            showTotal: (total) => `${t('common.total')}${total}${t('common.items')}`,
             pageSizeOptions: ['20', '50', '100'],
             position: ['bottomRight'],
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
 
             locale: {
-              items_per_page: '件/ページ',
-              jump_to: 'ページ',
+              items_per_page: `${t('common.items')}/page`,
+              jump_to: 'Page',
               page: ''
             }
           }}
@@ -549,7 +552,7 @@ export default function TransitionList({
           }}
           size="middle"
           bordered
-          aria-label="トランジション一覧"
+          aria-label={t('experimentWork.table.transitionName')}
           aria-describedby="transition-list-description"
           data-testid="transition-list-table"
           rowClassName={(_, index) => index % 2 === 0 ? 'table-row-light' : 'table-row-dark'}
@@ -559,7 +562,7 @@ export default function TransitionList({
           }}
           className="transition-list-table"
           locale={{
-            emptyText: 'トランジションが登録されていません'
+            emptyText: t('taskRegistration.emptyState')
           }}
         />
       </div>

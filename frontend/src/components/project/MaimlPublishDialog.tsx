@@ -3,19 +3,9 @@
 import React, { useState } from 'react';
 import { Modal, Alert, Button, Space, Typography } from 'antd';
 import { publishProject } from '@/services/projectApiService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
-
-/** エラーコードに対応する日本語メッセージ（E系コードに統一） */
-const ERROR_MESSAGES: Record<string, string> = {
-  E6001: 'プロジェクトが見つかりません',
-  E6002: 'MAIMLファイルが存在しません',
-  E7002: 'プロジェクトがチェックアウトされていません',
-  E7005: 'プロジェクトステータスがタスク結果レビュー待ちではありません',
-  E7010: '完了・異常終了以外のタスクが残っています',
-  E7011: '公開処理がすでに進行中です',
-  E4001: 'システムエラーが発生しました',
-};
 
 export interface MaimlPublishDialogProps {
   /** ダイアログの表示状態 */
@@ -48,6 +38,7 @@ const MaimlPublishDialog: React.FC<MaimlPublishDialogProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
@@ -78,24 +69,31 @@ const MaimlPublishDialog: React.FC<MaimlPublishDialogProps> = ({
     }
   };
 
-  const errorMessage = errorCode ? (ERROR_MESSAGES[errorCode] ?? ERROR_MESSAGES['E4001']) : null;
+  const getErrorMessage = (code: string): string => {
+    const key = `maimlPublish.errors.${code}`;
+    const msg = t(key);
+    // キーがそのまま返ってきた場合はフォールバック
+    return msg === key ? t('maimlPublish.errors.E4001') : msg;
+  };
+
+  const errorMessage = errorCode ? getErrorMessage(errorCode) : null;
 
   return (
     <Modal
-      title="MaiML 公開確認"
+      title={t('maimlPublish.title')}
       open={open}
       onCancel={handleClose}
       footer={
         <Space>
           <Button onClick={handleClose} disabled={loading}>
-            キャンセル
+            {t('maimlPublish.cancel')}
           </Button>
           <Button
             type="primary"
             onClick={handlePublish}
             loading={loading}
           >
-            公開する
+            {t('maimlPublish.publish')}
           </Button>
         </Space>
       }
@@ -103,14 +101,14 @@ const MaimlPublishDialog: React.FC<MaimlPublishDialogProps> = ({
     >
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Text>
-          プロジェクト <Text strong>{projectName}</Text> を公開します。よろしいですか？
+          {t('maimlPublish.confirmText').replace('{{projectName}}', projectName)}
         </Text>
 
         {errorMessage && (
           <Alert
             type="error"
             showIcon
-            message="公開できません"
+            message={t('maimlPublish.errorTitle')}
             description={errorMessage}
           />
         )}

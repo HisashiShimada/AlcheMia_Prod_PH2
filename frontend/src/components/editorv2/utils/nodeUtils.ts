@@ -9,6 +9,7 @@
 
 import type { Node } from 'reactflow';
 import { NodeData } from '../../../types/editor';
+import { getTranslation } from '../../../contexts/LanguageContext';
 
 /**
  * ノードタイプの定義
@@ -35,20 +36,20 @@ export const validateNode = (node: Node<NodeData>): { valid: boolean; errors: st
   const errors: string[] = [];
   
   if (!node.id) {
-    errors.push('ノードIDが存在しません');
+    errors.push(getTranslation('editor.validation.nodeIdMissing'));
   }
   
   if (!node.data) {
-    errors.push('ノードデータが存在しません');
+    errors.push(getTranslation('editor.validation.nodeDataMissing'));
   }
   
   if (!node.data.name || node.data.name.trim() === '') {
-    errors.push('ノード名が空です');
+    errors.push(getTranslation('editor.validation.nodeNameEmpty'));
   }
   
   const nodeType = getNodeType(node);
   if (!nodeType) {
-    errors.push('ノードタイプが不明です');
+    errors.push(getTranslation('editor.validation.unknownNodeType'));
   }
   
   return {

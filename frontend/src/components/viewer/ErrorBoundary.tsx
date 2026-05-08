@@ -44,7 +44,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     });
 
     // エラーログ出力
-    console.error('コンポーネントエラー:', error, errorInfo);
+    console.error('Component error:', error, errorInfo);
   }
 
   /**
@@ -66,15 +66,15 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         <div style={{ padding: 24 }}>
           <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             <Alert
-              message="コンポーネント表示エラー"
-              description="このコンポーネントの表示中にエラーが発生しました。"
+              message="Component Display Error"
+              description="An error occurred while rendering this component."
               type="error"
               showIcon
               icon={<WarningOutlined />}
             />
 
             <Card 
-              title="エラーの詳細" 
+              title="Error Details" 
               size="small"
               extra={
                 <Button 
@@ -83,14 +83,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                   icon={<ReloadOutlined />}
                   onClick={this.handleReset}
                 >
-                  再表示を試みる
+                  Retry
                 </Button>
               }
             >
               <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 {error && (
                   <div>
-                    <Text strong>エラーメッセージ:</Text>
+                    <Text strong>Error Message:</Text>
                     <Paragraph code copyable style={{ marginTop: 8 }}>
                       {error.toString()}
                     </Paragraph>
@@ -99,7 +99,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                 
                 {errorInfo && errorInfo.componentStack && (
                   <div>
-                    <Text strong>コンポーネントスタック:</Text>
+                    <Text strong>Component Stack:</Text>
                     <Paragraph 
                       code 
                       copyable

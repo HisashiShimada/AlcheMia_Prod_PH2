@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Space, Tag, Button, theme } from 'antd';
 import { FolderOutlined, ToolOutlined, AimOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { Method } from '@/types/experimentWorker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * プロジェクト情報の型定義（UnifiedSelectionDialog用）
@@ -63,6 +64,7 @@ export default function UnifiedSelectionDialog({
   projects = [],
 }: UnifiedSelectionDialogProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [step, setStep] = useState<SelectionStep>('project');
   const [tempProject, setTempProject] = useState<string>(selectedProject);
   const [tempMethodId, setTempMethodId] = useState<string | null>(selectedMethodId);
@@ -153,7 +155,7 @@ export default function UnifiedSelectionDialog({
     const isSelected = type === 'project' ? !tempProject : !tempMethodId;
     const isCurrentlySelected = type === 'project' ? !selectedProject : !selectedMethodId;
     const icon = type === 'project' ? <FolderOutlined /> : <ToolOutlined />;
-    const label = type === 'project' ? 'プロジェクト' : 'メソッド';
+    const label = type === 'project' ? t('worker.selectProject') : t('worker.selectMethod');
     const color = type === 'project' ? token.colorPrimary : token.colorInfo;
 
     return (
@@ -174,10 +176,10 @@ export default function UnifiedSelectionDialog({
         <div style={{ flex: 1 }}>
           <Space>
             <Text strong>-</Text>
-            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-            {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
+            {isCurrentlySelected && <Tag color="blue">{t('common.currentlySelected')}</Tag>}
+            {isSelected && !isCurrentlySelected && <Tag color="red">{t('common.selected')}</Tag>}
           </Space>
-          <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{label}を選択しない</Text>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{label}</Text>
         </div>
       </div>
     );
@@ -206,11 +208,11 @@ export default function UnifiedSelectionDialog({
         <div style={{ flex: 1 }}>
           <Space>
             <Text strong>{project.projectName}</Text>
-            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+            {isCurrentlySelected && <Tag color="blue">{t('common.currentlySelected')}</Tag>}
           </Space>
           <div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{project.fileName}</Text>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{project.methods?.length || 0} メソッド</Text>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{project.methods?.length || 0} {t('worker.selectMethod')}</Text>
           </div>
         </div>
       </div>
@@ -240,11 +242,11 @@ export default function UnifiedSelectionDialog({
         <div style={{ flex: 1 }}>
           <Space>
             <Text strong>{method.methodName}</Text>
-            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+            {isCurrentlySelected && <Tag color="blue">{t('common.currentlySelected')}</Tag>}
           </Space>
           <div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{method.methodId}</Text>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{method.transitions?.length || 0} トランジション</Text>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{method.transitions?.length || 0} Transitions</Text>
           </div>
         </div>
       </div>
@@ -275,8 +277,8 @@ export default function UnifiedSelectionDialog({
           <Space>
             <Text strong>{task.taskName}</Text>
             {task.tag && <Tag>{task.tag}</Tag>}
-            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-            {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
+            {isCurrentlySelected && <Tag color="blue">{t('common.currentlySelected')}</Tag>}
+            {isSelected && !isCurrentlySelected && <Tag color="red">{t('common.selected')}</Tag>}
           </Space>
           <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{task.taskId}</Text>
         </div>
@@ -295,14 +297,14 @@ export default function UnifiedSelectionDialog({
       return (
         <Space>
           <FolderOutlined style={{ color: token.colorPrimary }} />
-          <Text strong>プロジェクトを選択</Text>
+          <Text strong>{t('worker.selectProject')}</Text>
         </Space>
       );
     } else if (step === 'method') {
       return (
         <Space>
           <ToolOutlined style={{ color: token.colorInfo }} />
-          <Text strong>メソッドを選択</Text>
+          <Text strong>{t('worker.selectMethod')}</Text>
           <Text type="secondary" style={{ fontSize: 14 }}>
             （プロジェクト: {projectName}）
           </Text>
@@ -312,7 +314,7 @@ export default function UnifiedSelectionDialog({
       return (
         <Space>
           <AimOutlined style={{ color: token.colorPrimary }} />
-          <Text strong>タスクを選択</Text>
+          <Text strong>{t('worker.selectTask')}</Text>
           <Text type="secondary" style={{ fontSize: 14 }}>
             （プロジェクト: {projectName} / メソッド: {methodName}）
           </Text>
@@ -336,7 +338,7 @@ export default function UnifiedSelectionDialog({
           {renderEmptyOption('method')}
           {methods.length === 0 ? (
             <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
-              <Text type="secondary">メソッドがありません</Text>
+              <Text type="secondary">{t('worker.noMethods')}</Text>
             </Space>
           ) : (
             methods.map(renderMethodItem)
@@ -348,7 +350,7 @@ export default function UnifiedSelectionDialog({
         <div style={{ maxHeight: 500, overflowY: 'auto' }}>
           {tasks.length === 0 ? (
             <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
-              <Text type="secondary">タスクがありません</Text>
+              <Text type="secondary">{t('worker.noTasks')}</Text>
             </Space>
           ) : (
             <div>{tasks.map(renderTaskItem)}</div>
@@ -364,34 +366,34 @@ export default function UnifiedSelectionDialog({
       onCancel={handleCancel}
       width={700}
       title={getModalTitle()}
-      okText="決定"
-      cancelText="キャンセル"
+      okText={t('experimentWork.projectSelection.confirm')}
+      cancelText={t('common.cancel')}
       data-testid="unified-selection-dialog"
       footer={
         step === 'project' ? (
           <Space>
-            <Button onClick={handleCancel}>キャンセル</Button>
+            <Button onClick={handleCancel}>{t('common.cancel')}</Button>
           </Space>
         ) : step === 'method' ? (
           <Space>
             <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
-              戻る
+              {t('projectManagement.backButton').replace('↑ ', '')}
             </Button>
-            <Button onClick={handleCancel}>キャンセル</Button>
+            <Button onClick={handleCancel}>{t('common.cancel')}</Button>
           </Space>
         ) : (
           <Space>
             <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
-              戻る
+              {t('projectManagement.backButton').replace('↑ ', '')}
             </Button>
-            <Button onClick={handleCancel}>キャンセル</Button>
+            <Button onClick={handleCancel}>{t('common.cancel')}</Button>
             <Button
               type="primary"
               onClick={handleOk}
               disabled={!tempTaskId}
               icon={<CheckOutlined />}
             >
-              決定
+              {t('experimentWork.projectSelection.confirm')}
             </Button>
           </Space>
         )

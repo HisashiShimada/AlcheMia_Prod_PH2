@@ -10,6 +10,7 @@
 import type { Node, Edge } from 'reactflow';
 import { getNodeType } from './nodeUtils';
 import { EdgeData, NodeData } from '../../../types/editor';
+import { getTranslation } from '../../../contexts/LanguageContext';
 
 /**
  * エッジの生成
@@ -129,30 +130,30 @@ export const validateEdge = (
   const errors: string[] = [];
   
   if (!edge.id) {
-    errors.push('エッジIDが存在しません');
+    errors.push(getTranslation('editor.validation.edgeIdMissing'));
   }
   
   if (!edge.source) {
-    errors.push('ソースノードIDが存在しません');
+    errors.push(getTranslation('editor.validation.sourceNodeIdMissing'));
   }
   
   if (!edge.target) {
-    errors.push('ターゲットノードIDが存在しません');
+    errors.push(getTranslation('editor.validation.targetNodeIdMissing'));
   }
   
   const sourceNode = nodes.find(n => n.id === edge.source);
   const targetNode = nodes.find(n => n.id === edge.target);
   
   if (!sourceNode) {
-    errors.push(`ソースノード(${edge.source})が見つかりません`);
+    errors.push(`${getTranslation('editor.validation.sourceNodeNotFoundPrefix')}(${edge.source})${getTranslation('editor.validation.notFoundSuffix')}`);
   }
   
   if (!targetNode) {
-    errors.push(`ターゲットノード(${edge.target})が見つかりません`);
+    errors.push(`${getTranslation('editor.validation.targetNodeNotFoundPrefix')}(${edge.target})${getTranslation('editor.validation.notFoundSuffix')}`);
   }
   
   if (sourceNode && targetNode && !isValidConnection(sourceNode, targetNode)) {
-    errors.push('無効な接続タイプです');
+    errors.push(getTranslation('editor.validation.invalidConnectionType'));
   }
   
   return {

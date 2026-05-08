@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { uploadFiles, abortChunkUpload, cancelBatch, initBatch } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { UploadRetryState, UploadResultSummary } from '@/types/file';
 import {
   Modal,
@@ -93,6 +94,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
   projectId,
 }) => {
   const { message } = App.useApp();
+  const { t } = useLanguage();
 
   // 状態管理
   const [uploadMode, setUploadMode] = useState<UploadMode>('single');
@@ -198,7 +200,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         f.name.toLowerCase().endsWith('.maiml')
       );
       if (maimlFiles.length > 1) {
-        message.warning('プロジェクトに登録できるMAIMLファイルは1件のみです。最後に選択したMAIMLファイルのみ有効になります');
+        message.warning(t('upload.maimlSingleFileWarning'));
         const nonMaiml = newFileList.filter((f) => !f.name.toLowerCase().endsWith('.maiml'));
         const lastMaiml = maimlFiles[maimlFiles.length - 1];
         newFileList = [...nonMaiml, lastMaiml];
@@ -253,7 +255,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         f.name.toLowerCase().endsWith('.maiml')
       );
       if (maimlFiles.length > 1) {
-        message.warning('プロジェクトに登録できるMAIMLファイルは1件のみです。最後に選択したMAIMLファイルのみ有効になります');
+        message.warning(t('upload.maimlSingleFileWarning'));
         const nonMaiml = uploadFilesList.filter((f) => !f.name.toLowerCase().endsWith('.maiml'));
         const lastMaiml = maimlFiles[maimlFiles.length - 1];
         uploadFilesList = [...nonMaiml, lastMaiml];
@@ -277,12 +279,12 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
    */
   const handleUpload = useCallback(async () => {
     if (fileList.length === 0) {
-      message.warning('ファイルを選択してください');
+      message.warning(t('upload.noFileSelected'));
       return;
     }
 
     if (!preselectedFolder) {
-      message.error('プロジェクトが選択されていません');
+      message.error(t('upload.noProjectSelected'));
       return;
     }
 
@@ -397,17 +399,17 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       }
 
       if (summary.failureCount === 0) {
-        message.success('アップロードが完了しました');
+        message.success(t('upload.completed'));
       } else if (summary.successCount === 0) {
-        message.error('すべてのファイルのアップロードに失敗しました');
+        message.error(t('upload.allFailed'));
       } else {
-        message.warning(`${summary.failureCount} 件のファイルがアップロードに失敗しました`);
+        message.warning(`${summary.failureCount} ${t('upload.partialFailed')}`);
       }
 
     } catch (error) {
       // キャンセルエラーの処理
       if ((error as { name?: string }).name === 'CanceledError') {
-        message.info('アップロードがキャンセルされました');
+        message.info(t('upload.cancelled'));
         
         // バックエンドに通知してファイル削除（batchIdRef.current で最新値を参照）
         const currentBatchId = batchIdRef.current;
@@ -576,13 +578,13 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
 
   return (
     <Modal
-      title="一括ファイルアップロード"
+      title={t('upload.bulkUploadTitle')}
       open={open}
       onCancel={handleClose}
       width={800}
       footer={[
         <Button key="close" onClick={handleClose} disabled={uploadState.isUploading}>
-          閉じる
+          {t('common.close')}
         </Button>,
         <Button
           key="upload"
@@ -591,7 +593,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
           disabled={fileList.length === 0 || uploadState.isUploading}
           icon={uploadState.isUploading ? <LoadingOutlined /> : <UploadOutlined />}
         >
-          {uploadState.isUploading ? 'アップロード中...' : 'アップロード開始'}
+          {uploadState.isUploading ? t('common.loading') : t('common.add')}
         </Button>,
       ]}
       styles={{
@@ -765,8 +767,8 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
 
         {!preselectedFolder && (
           <Alert
-            title="プロジェクトが選択されていません"
-            description="プロジェクトを選択してからアップロードしてください"
+            title={t('upload.noProjectSelectedAlert')}
+            description={t('upload.noProjectSelectedAlert')}
             type="warning"
             showIcon
           />
@@ -818,7 +820,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         {/* アップロード進行状況 */}
         {uploadState.isUploading && (
           <Alert
-            title="アップロード中"
+            title={t('upload.uploadingTitle')}
             description={
               <div style={{ position: 'relative' }}>
                 <button
@@ -863,7 +865,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
           <>
             {resultSummary.failureCount === 0 ? (
               <Alert
-                title="アップロード完了"
+                title={t('upload.completedTitle')}
                 description={`成功: ${resultSummary.successCount} 件 / 失敗: 0 件`}
                 type="success"
                 showIcon
@@ -871,11 +873,11 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
               />
             ) : resultSummary.successCount === 0 ? (
               <Alert
-                title="アップロード失敗"
+                title={t('upload.failedTitle')}
                 description={
                   <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-                    <Text>成功: 0 件 / 失敗: {resultSummary.failureCount} 件</Text>
-                    <Text strong>失敗したファイル:</Text>
+                    <Text>Success: 0 / Failed: {resultSummary.failureCount}</Text>
+                    <Text strong>{t('upload.failedFiles')}</Text>
                     <List
                       size="small"
                       dataSource={resultSummary.failedFileNames}
@@ -893,13 +895,13 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
               />
             ) : (
               <Alert
-                title="アップロード完了（一部失敗）"
+                title={t('upload.partialFailedTitle')}
                 description={
                   <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                     <Text>
-                      成功: {resultSummary.successCount} 件 / 失敗: {resultSummary.failureCount} 件
+                      Success: {resultSummary.successCount} / Failed: {resultSummary.failureCount}
                     </Text>
-                    <Text strong>失敗したファイル:</Text>
+                    <Text strong>{t('upload.failedFiles')}</Text>
                     <List
                       size="small"
                       dataSource={resultSummary.failedFileNames}
@@ -922,7 +924,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         {/* エラー表示 */}
         {uploadState.error && (
           <Alert
-            title="アップロードエラー"
+            title={t('upload.errorTitle')}
             description={uploadState.error}
             type="error"
             showIcon

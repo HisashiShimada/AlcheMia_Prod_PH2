@@ -28,6 +28,7 @@ import ReactFlow, {
 } from 'reactflow';
 import { Flex, Spin, Alert, Typography, Space, theme } from 'antd';
 import { TemplateProvider, useTemplates } from '../../contexts/TemplateContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { AttributeDisplayProvider } from '../../contexts/AttributeDisplayContext';
 import TemplateList from './components/TemplateViewer/TemplateList';
 import EditorToolbar from './components/EditorToolbar';
@@ -107,6 +108,7 @@ const getErrorMessage = (err: unknown): string => {
 
 // 内部コンポーネント
 const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, initialDocumentId, initialDescription, onContentChange, onContentSaved, ...props }: PetriNetEditorInnerProps) => {
+  const { t } = useLanguage();
   const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<EdgeData>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -571,9 +573,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
       console.error('❌ [PetriNetEditorInner] バリデーションエラー:', errorMessage);
-      alert(`バリデーション実行に失敗しました: ${errorMessage}`);
+      alert(t('editor.alert.validation_failed') + `: ${errorMessage}`);
     }
-  }, [nodes, edges, documentData, getViewport, methods, activeMethodIndex, multiMethodMode]);
+  }, [nodes, edges, documentData, getViewport, methods, activeMethodIndex, multiMethodMode, t]);
 
   // ===== Phase 8 Step 2: キーボードショートカット統合 =====
   // useKeyboardShortcutsフックを使用
@@ -1319,7 +1321,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     } catch (err: unknown) {
       const error = err as Error;
       console.error('❌ [PetriNetEditorInner] ファイル一覧取得エラー:', error);
-      alert(`ファイル一覧の取得に失敗しました: ${error.message}`);
+      alert(t('editor.alert.file_list_failed') + `: ${error.message}`);
       setWorkflowDialogOpen(false);
       setSelectedTool('select');
       setPendingClickPosition(null);
@@ -2253,9 +2255,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
       console.error('❌ [PetriNetEditorInner] バリデーションエラー:', errorMessage);
-      alert(`バリデーション実行に失敗しました: ${errorMessage}`);
+      alert(t('editor.alert.validation_failed') + `: ${errorMessage}`);
     }
-  }, [setNodes, setEdges, reset, fitView]);
+  }, [setNodes, setEdges, reset, fitView, t]);
 
   // Method切り替えハンドラー
   const handleMethodChange = useCallback((newIndex: number) => {
@@ -2335,7 +2337,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     console.log('🗑️ [PetriNetEditorInner] Method削除:', index);
     
     if (methods.length === 1) {
-      alert('最後のMethodは削除できません。');
+      alert(t('editor.alert.last_method_cannot_delete'));
       return;
     }
     
@@ -2469,7 +2471,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         }
 
         console.log('✅ [PetriNetEditorInner] ワークフロー追加完了:', result2.message);
-        alert(result2.message);
+        alert(t('editor.alert.workflow_added') || result2.message);
         
         // ワークフローモード解除
         setSelectedTool('select');
@@ -2481,7 +2483,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
       console.error('❌ [PetriNetEditorInner] ワークフロー追加エラー:', errorMessage);
-      alert(`ワークフロー追加に失敗しました: ${errorMessage}`);
+      alert(t('editor.alert.workflow_add_failed') + `: ${errorMessage}`);
       // エラー時もモード解除
       setSelectedTool('select');
       setPendingClickPosition(null);
@@ -2573,11 +2575,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     } catch (err) {
       const errorMessage = getErrorMessage(err);
       console.error('❌ [handleOpenValidationPanel] バリデーションエラー:', errorMessage);
-      alert(`バリデーション実行に失敗しました: ${errorMessage}`);
+      alert(t('editor.alert.validation_exec_failed') + `: ${errorMessage}`);
     } finally {
       setIsValidating(false);
     }
-  }, [nodes, edges, documentData]);
+  }, [nodes, edges, documentData, t]);
 
   // Week2: ValidationPanelを閉じる
   const handleCloseValidationPanel = useCallback(() => {
@@ -2623,12 +2625,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       // 補正結果を反映する場合はここで処理
       // （現在は簡易実装のため、再検証を促すのみ）
-      alert('自動補正が完了しました。再検証を実行してください。');
+      alert(t('editor.alert.auto_correct_done'));
       
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
       console.error('❌ [PetriNetEditorInner] 自動補正エラー:', errorMessage);
-      alert(`自動補正に失敗しました: ${errorMessage}`);
+      alert(t('editor.alert.auto_correct_failed') + `: ${errorMessage}`);
     } finally {
       setIsCorrecting(false);
     }
@@ -2800,7 +2802,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const result = response.data;
         console.log('✅ [PetriNetEditorInner] S3保存完了:', result);
 
-        alert(`ペトリネット "${metadata.name}" をS3に保存しました`);
+        alert(t('editor.alert.s3_saved').replace('{name}', metadata.name));
 
         // S3保存成功時のみDraftを全削除（自動保存Draftをクリア）
         try {
@@ -2851,7 +2853,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         
         console.log('✅ [PetriNetEditorInner] ローカルダウンロード完了:', `${fileName}.maiml`);
         
-        alert(`ペトリネット "${fileName}" をダウンロードしました`);
+        alert(t('editor.alert.local_downloaded').replace('{name}', fileName));
       }
       
       // 保存成功: 未保存フラグをリセット
@@ -2871,7 +2873,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           stack: err.stack
         } : { raw: String(err) }
       });
-      alert(`保存に失敗しました: ${errorMessage}\n\n詳細はコンソールログを確認してください。`);
+      alert(t('editor.alert.save_failed').replace('{message}', errorMessage));
     } finally {
       setIsSaving(false);
     }

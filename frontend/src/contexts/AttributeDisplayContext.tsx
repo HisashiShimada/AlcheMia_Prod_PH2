@@ -35,18 +35,6 @@ export const ATTRIBUTE_OPTIONS = {
   TEMPLATE_NAME: 'templateName',
 } as const;
 
-/**
- * 表示属性の選択肢ラベル（ドロップダウン表示用）
- */
-export const ATTRIBUTE_LABELS: Record<string, string> = {
-  [ATTRIBUTE_OPTIONS.NODE_ID]:           'ノードID',
-  [ATTRIBUTE_OPTIONS.TEMPLATE_ID]:       'テンプレートID',
-  [ATTRIBUTE_OPTIONS.NODE_DESCRIPTION]:  'ノードDesc',
-  [ATTRIBUTE_OPTIONS.NODE_NAME]:         'ノード名',
-  [ATTRIBUTE_OPTIONS.TEMPLATE_DESCRIPTION]: 'テンプレートDesc',
-  [ATTRIBUTE_OPTIONS.TEMPLATE_NAME]:     'テンプレート名',
-};
-
 /** 選択肢の型 */
 export type AttributeOption = typeof ATTRIBUTE_OPTIONS[keyof typeof ATTRIBUTE_OPTIONS];
 

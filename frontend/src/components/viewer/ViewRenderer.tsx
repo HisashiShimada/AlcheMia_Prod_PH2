@@ -140,26 +140,26 @@ const NoSelectionView: React.FC<{
         </Title>
         
         <Text type="secondary">
-          デスクトップ/モバイル統一実験記録システム版
+          Unified Desktop/Mobile Experiment Recording System
         </Text>
         
         <Paragraph>
-          ファイルを選択してください
+          Please select a file
         </Paragraph>
         
         <Card>
           <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-            <Text strong>🎯 統一UX動線（デスクトップ/モバイル対応）</Text>
-            <Text>• 左のFileExplorerまたは検索でMAIMLファイル選択 → ペトリネット図表示</Text>
-            <Text>• 右上の「編集開始」ボタン → 新規/既存選択 → 編集画面</Text>
-            <Text>• 右上の「🧪 実験記録」ボタン → デスクトップ/モバイル統一実験記録システム起動</Text>
+            <Text strong>🎯 Unified UX Flow (Desktop/Mobile)</Text>
+            <Text>• Select a MAIML file from the File Explorer or search on the left → Petri net diagram view</Text>
+            <Text>• Click "Start Editing" button (top right) → Choose new/existing → Edit screen</Text>
+            <Text>• Click "🧪 Experiment Record" button (top right) → Launch unified desktop/mobile experiment recording system</Text>
           </Space>
         </Card>
         
         {enhancedMode && (
           <Alert
-            message="Enhanced v2.0 モード有効"
-            description="Parquet/Glueベース高速検索対応"
+            message="Enhanced v2.0 Mode Enabled"
+            description="Parquet/Glue-based high-speed search supported"
             type="success"
             showIcon
             icon={<RocketOutlined />}
@@ -170,27 +170,27 @@ const NoSelectionView: React.FC<{
           title={
             <Space>
               <DeviceIcon />
-              <Text>デバイス情報</Text>
+          <Text>Device Info</Text>
             </Space>
           }
           size="small"
         >
           <Space orientation="vertical" size="small" style={{ width: '100%' }}>
             <Text>
-              <Text strong>タイプ:</Text> {deviceType}
+              <Text strong>Type:</Text> {deviceType}
             </Text>
             <Text>
-              <Text strong>モバイル:</Text> <Tag color={isMobileDevice ? 'green' : 'default'}>
+              <Text strong>Mobile:</Text> <Tag color={isMobileDevice ? 'green' : 'default'}>
                 {isMobileDevice ? 'Yes' : 'No'}
               </Tag>
             </Text>
             <Text>
-              <Text strong>タブレット:</Text> <Tag color={isTabletDevice ? 'blue' : 'default'}>
+              <Text strong>Tablet:</Text> <Tag color={isTabletDevice ? 'blue' : 'default'}>
                 {isTabletDevice ? 'Yes' : 'No'}
               </Tag>
             </Text>
             <Text>
-              <Text strong>画面サイズ:</Text> {typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'N/A'}
+              <Text strong>Screen Size:</Text> {typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'N/A'}
             </Text>
           </Space>
         </Card>
@@ -218,11 +218,11 @@ const UnsupportedFileView: React.FC<{
         <FileTextOutlined style={{ fontSize: 64, color: '#8c8c8c' }} />
         
         <Title level={3}>
-          このファイルタイプはビューアで表示できません
+          This file type cannot be displayed in the viewer
         </Title>
         
         <Paragraph type="secondary">
-          ダウンロードして別のアプリケーションで開くことができます。
+          You can download it and open it with another application.
         </Paragraph>
         
         <Button
@@ -232,7 +232,7 @@ const UnsupportedFileView: React.FC<{
           loading={downloadingFile}
           onClick={() => onFileDownload?.(selectedFile.key, selectedFile.name)}
         >
-          {downloadingFile ? 'ダウンロード中...' : 'ファイルをダウンロード'}
+          {downloadingFile ? 'Downloading...' : 'Download File'}
         </Button>
       </Space>
     </div>
@@ -288,14 +288,14 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
 
     // 既に同じファイルをチェック済みの場合はスキップ
     if (checkedFileKey === selectedFile.key) {
-      console.log('ℹ️ [ViewRenderer] 既にチェック済み - スキップ:', selectedFile.key);
+      console.log('ℹ️ [ViewRenderer] Already checked - skipping:', selectedFile.key);
       return;
     }
 
     const checkMultipleMethods = () => {
       try {
         setLoadingMethods(true);
-        console.log('🔍 [ViewRenderer] 複数メソッドチェック開始:', selectedFile.key);
+        console.log('🔍 [ViewRenderer] Checking multiple methods:', selectedFile.key);
 
         const parser = new MaimlParserTyped(fileContent);
         const parsedMethods: Method[] = parser.getMethods();
@@ -321,25 +321,25 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
             })),
           }));
 
-          console.log('✅ [ViewRenderer] 複数メソッド検出:', methodDataList.length);
+          console.log('✅ [ViewRenderer] Multiple methods detected:', methodDataList.length);
           setMethods(methodDataList);
           setIsMultiMethod(true);
           setSelectedMethodIndex(0);
 
           message.success({
-            content: `${methodDataList.length}個のメソッドを検出しました`,
+            content: `${methodDataList.length} method(s) detected`,
             key: 'multiple-methods-detected',
             duration: 3,
           });
         } else {
-          console.log('ℹ️ [ViewRenderer] 単一メソッド');
+          console.log('ℹ️ [ViewRenderer] Single method');
           setMethods([]);
           setIsMultiMethod(false);
         }
 
         setCheckedFileKey(selectedFile.key);
       } catch (error) {
-        console.error('❌ [ViewRenderer] 複数メソッドチェックエラー:', error);
+        console.error('❌ [ViewRenderer] Multiple method check error:', error);
         setMethods([]);
         setIsMultiMethod(false);
         setCheckedFileKey(selectedFile.key);
@@ -420,7 +420,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
           >
             {loadingMethods && (
               <div style={{ padding: 16, textAlign: 'center', backgroundColor: '#fafafa' }}>
-                <Spin size="small" /> <Text type="secondary">メソッド情報を確認中...</Text>
+                <Spin size="small" /> <Text type="secondary">Checking method info...</Text>
               </div>
             )}
             <ErrorBoundary>
@@ -481,7 +481,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
               editMode="view"
               onError={(error: Error) => {
                 console.error('❌ [ViewRenderer] PetriNetEditor error:', error);
-                message.error('エディタの初期化に失敗しました');
+                message.error('Failed to initialize editor');
               }}
             />
           </ReactFlowProvider>
@@ -498,13 +498,13 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
       <div style={{ padding: 24 }}>
         <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           <Alert
-            message="実験記録システム"
-            description="実験記録機能は未実装です"
+            message="Experiment Recording System"
+            description="Experiment recording feature is not yet implemented"
             type="warning"
             showIcon
             action={
               <Button size="small" onClick={onExitExperiment}>
-                メイン画面に戻る
+                Back to Main
               </Button>
             }
           />
@@ -521,13 +521,13 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
       <div style={{ padding: 24 }}>
         <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           <Alert
-            message="実験制御（実験管理者）"
-            description="実験制御機能は未実装です"
+            message="Experiment Control (Experiment Manager)"
+            description="Experiment control feature is not yet implemented"
             type="warning"
             showIcon
             action={
               <Button size="small" onClick={onExitExperimentControl}>
-                メイン画面に戻る
+                Back to Main
               </Button>
             }
           />

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card, Input, Button, Typography, Alert, Space, theme } from 'antd';
 import { EyeOutlined, EyeInvisibleOutlined, CheckOutlined } from '@ant-design/icons';
 import { validatePassword } from '@/utils/validation';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -30,6 +31,7 @@ export default function PasswordResetExecute({
   loading = false,
 }: PasswordResetExecuteProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export default function PasswordResetExecute({
     // 確認用パスワードもタッチされている場合は一致確認
     if (touched.confirmPassword && confirmPassword) {
       setConfirmPasswordError(
-        value === confirmPassword ? null : 'パスワードが一致しません'
+      value === confirmPassword ? null : t('auth.passwordReset.confirmPasswordMismatch')
       );
     }
   };
@@ -64,7 +66,7 @@ export default function PasswordResetExecute({
     // タッチされている場合のみバリデーション
     if (touched.confirmPassword) {
       setConfirmPasswordError(
-        value === newPassword ? null : 'パスワードが一致しません'
+        value === newPassword ? null : t('auth.passwordReset.confirmPasswordMismatch')
       );
     }
   };
@@ -79,7 +81,7 @@ export default function PasswordResetExecute({
   const handleConfirmPasswordBlur = () => {
     setTouched(prev => ({ ...prev, confirmPassword: true }));
     setConfirmPasswordError(
-      confirmPassword === newPassword ? null : 'パスワードが一致しません'
+      confirmPassword === newPassword ? null : t('auth.passwordReset.confirmPasswordMismatch')
     );
   };
 
@@ -96,16 +98,16 @@ export default function PasswordResetExecute({
 
     // エラーを設定
     setNewPasswordError(passwordValidation.isValid ? null : passwordValidation.error || null);
-    setConfirmPasswordError(passwordsMatch ? null : 'パスワードが一致しません');
+    setConfirmPasswordError(passwordsMatch ? null : t('auth.passwordReset.confirmPasswordMismatch'));
 
     // バリデーション失敗時は送信しない
     if (!passwordValidation.isValid) {
-      setValidationError(passwordValidation.error || '入力値を確認してください');
+      setValidationError(passwordValidation.error || t('auth.passwordReset.checkInputValues'));
       return;
     }
 
     if (!passwordsMatch) {
-      setValidationError('パスワードが一致しません');
+      setValidationError(t('auth.passwordReset.confirmPasswordMismatch'));
       return;
     }
 
@@ -162,7 +164,7 @@ export default function PasswordResetExecute({
                 fontWeight: 'normal',
               }}
             >
-              新しいパスワードの設定
+              {t('auth.passwordReset.executeTitle')}
             </Title>
             <Text
               type="secondary"
@@ -170,9 +172,9 @@ export default function PasswordResetExecute({
                 fontSize: token.fontSize,
               }}
             >
-              新しいパスワードを入力してください。
+              {t('auth.passwordReset.executeDescription')}
               <br />
-              パスワードは8文字以上である必要があります。
+              {t('auth.passwordReset.requirementsMin8')}
             </Text>
           </Space>
 
@@ -204,13 +206,13 @@ export default function PasswordResetExecute({
                     color: token.colorText,
                   }}
                 >
-                  新しいパスワード <span style={{ color: token.colorError }}>*</span>
+                  {t('auth.passwordReset.newPassword')} <span style={{ color: token.colorError }}>*</span>
                 </label>
                 <Input.Password
                   id="newPassword"
                   name="newPassword"
                   size="large"
-                  placeholder="新しいパスワードを入力（8文字以上）"
+                  placeholder={t('auth.passwordReset.newPasswordPlaceholder')}
                   value={newPassword}
                   onChange={handleNewPasswordChange}
                   onBlur={handleNewPasswordBlur}
@@ -240,13 +242,13 @@ export default function PasswordResetExecute({
                     color: token.colorText,
                   }}
                 >
-                  パスワード確認 <span style={{ color: token.colorError }}>*</span>
+                  {t('auth.passwordReset.confirmPassword')} <span style={{ color: token.colorError }}>*</span>
                 </label>
                 <Input.Password
                   id="confirmPassword"
                   name="confirmPassword"
                   size="large"
-                  placeholder="パスワードを再入力"
+                  placeholder={t('auth.passwordReset.confirmPasswordPlaceholder')}
                   value={confirmPassword}
                   onChange={handleConfirmPasswordChange}
                   onBlur={handleConfirmPasswordBlur}
@@ -277,7 +279,7 @@ export default function PasswordResetExecute({
                   height: token.controlHeightLG * 1.55,
                 }}
               >
-                {loading ? 'パスワード変更中...' : 'パスワードを変更'}
+                {loading ? t('auth.passwordReset.changingButton') : t('auth.passwordReset.changePasswordButton')}
               </Button>
             </Space>
           </form>
