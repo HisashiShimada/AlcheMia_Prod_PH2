@@ -32,7 +32,6 @@ export default function PasswordResetExecute({
 }: PasswordResetExecuteProps) {
   const { t } = useLanguage();
   const { token } = theme.useToken();
-  const { t } = useLanguage();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);

@@ -21,6 +21,9 @@ import {
   Progress,
   Space,
   Tooltip,
+  Checkbox,
+  Spin,
+  message,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -28,11 +31,12 @@ import {
   WarningOutlined,
   ReloadOutlined,
   CloseOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { AnalysisResult } from '@/types/maimlValidation';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const { Text, Title } = Typography;
+const { Text, Title, Paragraph } = Typography;
 
 /**
  * unknown型を文字列に安全に変換するヘルパー関数
@@ -55,7 +59,9 @@ export interface ValidationPanelProps {
   validationResult: AnalysisResult | null;
   onClose: () => void;
   onRevalidate?: () => void;
+  onAutoCorrect?: (selectedErrors: number[]) => void;
   isValidating?: boolean;
+  isCorrecting?: boolean;
 }
 
 /**
@@ -66,7 +72,9 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   validationResult = null,
   onClose,
   onRevalidate,
+  onAutoCorrect,
   isValidating = false,
+  isCorrecting = false,
 }) => {
   const { t } = useLanguage();
 
@@ -81,6 +89,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   // State管理
   const [activeKeys, setActiveKeys] = useState<string[]>(['errors']);
   const [prevValidationResult, setPrevValidationResult] = useState<AnalysisResult | null>(null);
+  const [selectedErrors, setSelectedErrors] = useState<number[]>([]);
 
   // validationResult変更検知（ESLintエラー回避のため手動比較）
   if (validationResult !== prevValidationResult) {

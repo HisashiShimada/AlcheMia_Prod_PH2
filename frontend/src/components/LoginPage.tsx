@@ -28,7 +28,6 @@ interface LoginPageProps {
 export default function LoginPage({ onLogin, onForgotPassword, error, loading = false, debugPanel }: LoginPageProps) {
   const { t } = useLanguage();
   const { token } = theme.useToken();
-  const { t } = useLanguage();
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);

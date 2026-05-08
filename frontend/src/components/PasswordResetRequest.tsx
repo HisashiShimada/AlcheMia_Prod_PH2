@@ -32,7 +32,6 @@ export default function PasswordResetRequest({
 }: PasswordResetRequestProps) {
   const { t } = useLanguage();
   const { token } = theme.useToken();
-  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
