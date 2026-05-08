@@ -1,38 +1,50 @@
 #!/bin/bash
 # =============================================================================
-# Alchemia Staging - 本番検証環境デプロイスクリプト
-# （ALB追加 / nginx無し構成検証: prod-frontend-service）
+# Alchemia Staging - 本番検証環境デプロイスクリプト（統合版）
 # =============================================================================
 #
-# 【対象環境】
-#   prod-verification（新規追加構成）
-#   ・フロントエンドのみ独立した ECS サービスとして配置
-#   ・nginx なし、ALB (prod-verification-alb) が直接フロントエンドに転送
-#   ・バックエンドは既存 alchemia-backend-service を共用
+# 【対応構成】
 #
-# 【前提条件】
-#   BUILD_GUIDE.md の STEP 1〜10 が完了していること:
-#     - prod-verification-alb が作成済みであること
-#     - prod-frontend-service が作成済みであること
-#     - aws/ecs-task-definition-prod-frontend.json が存在すること
+#   [prod-verification] ALB追加 / nginx無し構成検証 (デフォルト)
+#     ・フロントエンドのみ独立した ECS サービスとして配置
+#     ・nginx なし、ALB (prod-verification-alb) が直接フロントエンドに転送
+#     ・バックエンドは既存 alchemia-backend-service を共用
+#     ・前提: BUILD_GUIDE.md の STEP 1〜10 が完了していること
+#
+#   [phase1] ALB（HTTP:80）＋ NLB（HTTPS:443）共存構成
+#     ・nginx を更新する際は以下の2サービスを両方更新:
+#         alchemia-nginx-service       (ALB → HTTP:80)
+#         alchemia-nginx-service-https (NLB → TCP:443)
+#     ・フェーズ2（NLBのみ）に移行後は通常の deploy.ecr.sh を使用
+#
+#   [all] 上記2構成を順番にデプロイ
 #
 # 使い方:
 #   chmod +x scripts/alchemia-staging/deploy.prod-verification.sh
 #   ./scripts/alchemia-staging/deploy.prod-verification.sh [OPTIONS]
 #
 # オプション:
+#   --mode <MODE>     デプロイ構成を選択（デフォルト: prod-verification）
+#                       prod-verification : ALB追加/nginx無し構成のみ
+#                       phase1            : ALB+NLB共存構成のみ
+#                       all               : 両方を順にデプロイ
 #   --no-build        イメージのビルドをスキップ（既存イメージを再デプロイ）
 #   --no-push         ECRへのプッシュをスキップ
 #   --no-deploy       ECSデプロイをスキップ（ビルド＆プッシュのみ）
-#   --alb-dns <DNS>   ALB の DNS 名を直接指定（省略時は AWS CLI で自動取得）
+#   --alb-dns <DNS>   [prod-verification/all] ALB の DNS 名を直接指定
+#                     （省略時は AWS CLI で自動取得）
 #                     例: prod-verification-alb-xxxxxxxxx.ap-northeast-1.elb.amazonaws.com
+#   --migrate         [phase1/all] DBマイグレーションを実行
+#   --backend         [phase1/all] バックエンドのみ対象
+#   --nginx           [phase1/all] nginx（frontend含む）のみ対象
 #   --wait            ECSサービス安定化まで待機（デフォルト: スキップ）
 #   --check           デプロイせず現在のECSサービス状態のみ確認
+#   --health          [prod-verification/all] デプロイ後にヘルスチェック（curl）を実行
 #   --tag <TAG>       イメージタグを指定（デフォルト: staging）
-#   --health          デプロイ後にヘルスチェック（curl）を実行
 #   --help            このヘルプを表示
 #
 # 実行例:
+#   # --- prod-verification モード ---
 #   # フルデプロイ（ビルド→プッシュ→ECSデプロイ）
 #   ./scripts/alchemia-staging/deploy.prod-verification.sh
 #
@@ -46,8 +58,26 @@
 #   # 安定化まで待機＋ヘルスチェック
 #   ./scripts/alchemia-staging/deploy.prod-verification.sh --wait --health
 #
-#   # 現在のサービス状態を確認
-#   ./scripts/alchemia-staging/deploy.prod-verification.sh --check
+#   # --- phase1 モード ---
+#   # フルデプロイ（ALB+NLB共存）
+#   ./scripts/alchemia-staging/deploy.prod-verification.sh --mode phase1
+#
+#   # DBマイグレーション付きフルデプロイ
+#   ./scripts/alchemia-staging/deploy.prod-verification.sh --mode phase1 --migrate
+#
+#   # バックエンドのみ、安定化まで待機
+#   ./scripts/alchemia-staging/deploy.prod-verification.sh --mode phase1 --backend --wait
+#
+#   # nginx（frontend含む）のみデプロイ（両サービス更新）
+#   ./scripts/alchemia-staging/deploy.prod-verification.sh --mode phase1 --nginx
+#
+#   # --- all モード ---
+#   # 両構成を順番にフルデプロイ
+#   ./scripts/alchemia-staging/deploy.prod-verification.sh --mode all
+#
+#   # --- 共通 ---
+#   # 現在のサービス状態を確認（全構成）
+#   ./scripts/alchemia-staging/deploy.prod-verification.sh --mode all --check
 #
 #   # ビルド＆プッシュのみ（ECSデプロイなし）
 #   ./scripts/alchemia-staging/deploy.prod-verification.sh --no-deploy
@@ -56,17 +86,41 @@
 set -euo pipefail
 
 # =============================================================================
-# 固定設定
+# 共通固定設定
 # =============================================================================
 readonly AWS_ACCOUNT_ID="137068252939"
 readonly AWS_REGION="ap-northeast-1"
 readonly ECS_CLUSTER="alchemia-staging"
-readonly ECS_SERVICE_FRONTEND="prod-frontend-service"
 readonly ECR_REPO_FRONTEND="mmdpf-frontend"
 readonly ECR_BASE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 readonly ECR_FRONTEND="${ECR_BASE}/${ECR_REPO_FRONTEND}"
+
+# =============================================================================
+# prod-verification 構成の固定設定
+# =============================================================================
+readonly ECS_SERVICE_FRONTEND="prod-frontend-service"
 readonly ALB_NAME="prod-verification-alb"
 readonly TASK_DEF_FRONTEND_FILE="aws/ecs-task-definition-prod-frontend.json"
+
+# =============================================================================
+# phase1（ALB+NLB共存）構成の固定設定
+# =============================================================================
+readonly ECS_SERVICE_BACKEND="alchemia-backend-service"
+readonly ECS_SERVICE_NGINX="alchemia-nginx-service"
+readonly ECS_SERVICE_NGINX_HTTPS="alchemia-nginx-service-https"
+readonly ECR_REPO_BACKEND="mmdpf-backend"
+readonly ECR_REPO_NGINX="mmdpf-nginx"
+readonly ECR_BACKEND="${ECR_BASE}/${ECR_REPO_BACKEND}"
+readonly ECR_NGINX="${ECR_BASE}/${ECR_REPO_NGINX}"
+readonly TASK_DEF_BACKEND_FILE="aws/ecs-task-definition-alchemia-backend.json"
+readonly TASK_DEF_NGINX_FILE="aws/ecs-task-definition-alchemia-nginx.json"
+
+# DB接続情報（--migrate 使用時。環境変数または .env から取得）
+readonly DB_USER="${DB_USER:-maiml_user}"
+readonly DB_NAME="${DB_NAME:-maiml_db}"
+readonly DB_HOST="${DB_HOST:-alchemia-staging-aurora.cluster-c7u0cw0em9f8.ap-northeast-1.rds.amazonaws.com}"
+readonly DB_PORT="${DB_PORT:-5432}"
+readonly DB_PASSWORD="${DB_PASSWORD:-maiml_user}"
 
 # =============================================================================
 # パス設定
@@ -75,18 +129,23 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 LOG_DIR="${PROJECT_DIR}/logs"
 LOG_FILE="${LOG_DIR}/deploy-prod-verification-$(date +%Y%m%d_%H%M%S).log"
+MIGRATIONS_DIR="${PROJECT_DIR}/backend/migrations"
 
 # =============================================================================
 # デフォルトオプション
 # =============================================================================
+DEPLOY_MODE="prod-verification"  # prod-verification / phase1 / all
 BUILD=true
 PUSH=true
 DEPLOY=true
+MIGRATE=false
+DEPLOY_BACKEND=true
+DEPLOY_NGINX=true
 WAIT_STABLE=false
 CHECK_ONLY=false
 HEALTH_CHECK=false
 IMAGE_TAG="staging"
-ALB_DNS_OVERRIDE=""   # --alb-dns で上書き可能
+ALB_DNS_OVERRIDE=""
 
 # =============================================================================
 # ユーティリティ関数
@@ -112,7 +171,7 @@ on_error() {
 trap 'on_error $LINENO' ERR
 
 # =============================================================================
-# ALB DNS 名取得関数
+# ALB DNS 名取得関数（prod-verification 用）
 # --alb-dns オプション指定時はそちらを優先、なければ AWS CLI で取得
 # =============================================================================
 get_alb_dns() {
@@ -121,7 +180,7 @@ get_alb_dns() {
         return
     fi
 
-    info "  [ALB] prod-verification-alb の DNS 名を取得中..."
+    info "  [ALB] ${ALB_NAME} の DNS 名を取得中..."
     local dns
     dns=$(aws elbv2 describe-load-balancers \
         --names "${ALB_NAME}" \
@@ -199,7 +258,6 @@ check_deploy_status() {
         warn "  │   タスク定義Rev : ${task_def_rev} / 最新: ${latest_rev} ⚠️  最新ではありません  (最新登録日時: ${latest_registered_at})"
     fi
 
-    # 稼働中タスクのイメージタグ確認
     local task_arns
     task_arns=$(aws ecs list-tasks \
         --cluster "${ECS_CLUSTER}" \
@@ -229,7 +287,6 @@ check_deploy_status() {
         info "  │   稼働中イメージ: (稼働タスクなし)"
     fi
 
-    # 直近3件のサービスイベント
     info "  │   直近イベント:"
     aws ecs describe-services \
         --cluster "${ECS_CLUSTER}" \
@@ -289,49 +346,41 @@ check_target_group_health() {
 # =============================================================================
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --mode)
+            DEPLOY_MODE="$2"
+            if [[ "${DEPLOY_MODE}" != "prod-verification" && "${DEPLOY_MODE}" != "phase1" && "${DEPLOY_MODE}" != "all" ]]; then
+                error "--mode には prod-verification / phase1 / all を指定してください"
+                exit 1
+            fi
+            shift 2
+            ;;
         --no-build)   BUILD=false;              shift ;;
         --no-push)    PUSH=false;               shift ;;
         --no-deploy)  DEPLOY=false;             shift ;;
+        --migrate)    MIGRATE=true;             shift ;;
+        --backend)    DEPLOY_NGINX=false;       shift ;;
+        --nginx)      DEPLOY_BACKEND=false;     shift ;;
         --wait)       WAIT_STABLE=true;         shift ;;
         --check)      CHECK_ONLY=true;          shift ;;
         --health)     HEALTH_CHECK=true;        shift ;;
         --alb-dns)    ALB_DNS_OVERRIDE="$2";    shift 2 ;;
         --tag)        IMAGE_TAG="$2";           shift 2 ;;
         -h|--help)
-            sed -n '3,65p' "$0"
+            sed -n '3,78p' "$0"
             exit 0
             ;;
         *)
             error "不明なオプション: $1"
-            echo "使い方: $0 [--no-build] [--no-push] [--no-deploy] [--alb-dns <DNS>] [--wait] [--check] [--health] [--tag <TAG>]"
+            echo "使い方: $0 [--mode <prod-verification|phase1|all>] [--no-build] [--no-push] [--no-deploy] [--alb-dns <DNS>] [--migrate] [--backend] [--nginx] [--wait] [--check] [--health] [--tag <TAG>]"
             exit 1
             ;;
     esac
 done
 
 # =============================================================================
-# メイン処理
+# AWS 認証・ECSクラスター 前提条件チェック関数（共通）
 # =============================================================================
-main() {
-    mkdir -p "${LOG_DIR}"
-
-    info "============================================================"
-    info "  本番検証環境 (prod-verification) デプロイ開始"
-    info "  対象サービス: prod-frontend-service (nginx無し構成検証)"
-    info "============================================================"
-    info "  クラスター  : ${ECS_CLUSTER}"
-    info "  リージョン  : ${AWS_REGION}"
-    info "  イメージタグ: ${IMAGE_TAG}"
-    info "  ビルド      : ${BUILD}"
-    info "  プッシュ    : ${PUSH}"
-    info "  デプロイ    : ${DEPLOY}"
-    info "  ALB DNS手動指定: ${ALB_DNS_OVERRIDE:-（自動取得）}"
-    info "  ログ        : ${LOG_FILE}"
-    info "============================================================"
-
-    # ------------------------------------------------------------------
-    # 前提条件チェック
-    # ------------------------------------------------------------------
+check_prerequisites() {
     info "--- Step 1: 前提条件チェック ---"
 
     if ! command -v aws &>/dev/null; then
@@ -365,39 +414,35 @@ main() {
         exit 1
     fi
     success "ECSクラスター: ${ECS_CLUSTER} (${cluster_status})"
+}
 
-    # --check モード
-    if [[ "${CHECK_ONLY}" == "true" ]]; then
-        info "--- [--check] 現在のECSサービス状態確認 ---"
-        check_deploy_status "prod-frontend" "${ECS_SERVICE_FRONTEND}"
+# =============================================================================
+# ECR ログイン関数（共通）
+# =============================================================================
+ecr_login() {
+    info "--- ECR ログイン ---"
+    aws ecr get-login-password --region "${AWS_REGION}" \
+        | docker login --username AWS --password-stdin "${ECR_BASE}" 2>&1 | tee -a "${LOG_FILE}"
+    success "ECR ログイン完了: ${ECR_BASE}"
+}
 
-        info ""
-        info "--- ターゲットグループのヘルス確認 ---"
-        check_target_group_health "frontend-tg" "prod-frontend-tg"
-        check_target_group_health "backend-tg"  "prod-backend-tg"
-
-        local alb_state
-        alb_state=$(aws elbv2 describe-load-balancers \
-            --names "${ALB_NAME}" \
-            --region "${AWS_REGION}" \
-            --query 'LoadBalancers[0].{State:State.Code,DNS:DNSName}' \
-            --output text 2>/dev/null || echo "取得失敗")
-        info ""
-        info "  ALB (${ALB_NAME}) 状態: ${alb_state}"
-
-        info ""
-        info "  AWSコンソール:"
-        info "    https://console.aws.amazon.com/ecs/home?region=${AWS_REGION}#/clusters/${ECS_CLUSTER}/services"
-        info "  ログ: ${LOG_FILE}"
-        exit 0
-    fi
+# =============================================================================
+# prod-verification 構成のデプロイ関数
+# =============================================================================
+deploy_prod_verification() {
+    info "============================================================"
+    info "  [prod-verification] ALB追加/nginx無し構成検証 デプロイ開始"
+    info "  対象サービス: ${ECS_SERVICE_FRONTEND}"
+    info "============================================================"
 
     # タスク定義ファイルの存在確認
-    if [[ ! -f "${PROJECT_DIR}/${TASK_DEF_FRONTEND_FILE}" ]]; then
-        error "タスク定義ファイルが見つかりません: ${TASK_DEF_FRONTEND_FILE}"
-        exit 1
+    if [[ "${DEPLOY}" == "true" ]]; then
+        if [[ ! -f "${PROJECT_DIR}/${TASK_DEF_FRONTEND_FILE}" ]]; then
+            error "タスク定義ファイルが見つかりません: ${TASK_DEF_FRONTEND_FILE}"
+            exit 1
+        fi
+        success "タスク定義ファイル: ${TASK_DEF_FRONTEND_FILE} ✅"
     fi
-    success "タスク定義ファイル: ${TASK_DEF_FRONTEND_FILE} ✅"
 
     if [[ "${BUILD}" == "true" ]]; then
         if ! command -v docker &>/dev/null; then
@@ -407,35 +452,17 @@ main() {
         success "Docker: $(docker --version | head -1)"
     fi
 
-    success "前提条件: すべてOK"
-
-    # ------------------------------------------------------------------
     # ALB DNS 名の取得
-    # ------------------------------------------------------------------
-    local ALB_DNS
+    local ALB_DNS=""
     if [[ "${DEPLOY}" == "true" || "${HEALTH_CHECK}" == "true" ]]; then
-        info "--- Step 1.5: ALB DNS 名の確認 ---"
+        info "--- [prod-verification] ALB DNS 名の確認 ---"
         ALB_DNS=$(get_alb_dns)
         success "ALB DNS 名: ${ALB_DNS}"
     fi
 
-    # ------------------------------------------------------------------
-    # Step 2: ECR ログイン
-    # ------------------------------------------------------------------
-    if [[ "${BUILD}" == "true" || "${PUSH}" == "true" ]]; then
-        info "--- Step 2: ECR ログイン ---"
-        aws ecr get-login-password --region "${AWS_REGION}" \
-            | docker login --username AWS --password-stdin "${ECR_BASE}" 2>&1 | tee -a "${LOG_FILE}"
-        success "ECR ログイン完了: ${ECR_BASE}"
-    else
-        info "--- Step 2: ECR ログインをスキップ（ビルド・プッシュなし）---"
-    fi
-
-    # ------------------------------------------------------------------
-    # Step 3: Docker イメージ ビルド（frontend のみ）
-    # ------------------------------------------------------------------
+    # Docker イメージ ビルド（frontend のみ）
     if [[ "${BUILD}" == "true" ]]; then
-        info "--- Step 3: Docker イメージ ビルド ---"
+        info "--- [prod-verification] Docker イメージ ビルド ---"
         info "[Frontend] ビルド中... (${ECR_FRONTEND}:${IMAGE_TAG})"
         docker build \
             --no-cache \
@@ -444,30 +471,24 @@ main() {
             "${PROJECT_DIR}/frontend" 2>&1 | tee -a "${LOG_FILE}"
         success "[Frontend] ビルド完了"
     else
-        warn "--- Step 3: ビルドをスキップ（--no-build）---"
+        warn "--- [prod-verification] ビルドをスキップ（--no-build）---"
     fi
 
-    # ------------------------------------------------------------------
-    # Step 4: ECR プッシュ
-    # ------------------------------------------------------------------
+    # ECR プッシュ
     if [[ "${PUSH}" == "true" ]]; then
-        info "--- Step 4: ECR プッシュ ---"
+        info "--- [prod-verification] ECR プッシュ ---"
         info "[Frontend] プッシュ中... ${ECR_FRONTEND}:${IMAGE_TAG}"
         docker push "${ECR_FRONTEND}:${IMAGE_TAG}" 2>&1 | tee -a "${LOG_FILE}"
         success "[Frontend] プッシュ完了: ${ECR_FRONTEND}:${IMAGE_TAG}"
     else
-        warn "--- Step 4: ECRプッシュをスキップ（--no-push）---"
+        warn "--- [prod-verification] ECRプッシュをスキップ（--no-push）---"
     fi
 
-    # ------------------------------------------------------------------
-    # Step 5: ECSタスク定義の登録 & サービス更新
-    # ------------------------------------------------------------------
+    # ECSタスク定義の登録 & サービス更新
     if [[ "${DEPLOY}" == "true" ]]; then
-        info "--- Step 5: ECSタスク定義の登録 & サービス更新 ---"
+        info "--- [prod-verification] ECSタスク定義の登録 & サービス更新 ---"
         info "  NEXT_PUBLIC_API_URL = https://${ALB_DNS}"
 
-        # タスク定義 JSON 内の <ALB_DNS> プレースホルダーを実際の DNS 名に置換
-        # また _comment* キーを除去（AWS CLI が受け付けないため）
         local task_def_json
         task_def_json=$(sed \
             -e "s|<ALB_DNS>|${ALB_DNS}|g" \
@@ -476,7 +497,6 @@ main() {
             | grep -v '"_comment' \
         )
 
-        # ALB_DNS が正しく置換されたか確認
         if echo "${task_def_json}" | grep -q '<ALB_DNS>'; then
             error "タスク定義内の <ALB_DNS> が置換できていません"
             exit 1
@@ -502,7 +522,6 @@ main() {
         fi
         success "[prod-frontend] タスク定義登録完了: ${FRONTEND_TASK_ARN}"
 
-        # prod-frontend-service の存在確認
         local svc_status
         svc_status=$(aws ecs describe-services \
             --cluster "${ECS_CLUSTER}" \
@@ -513,7 +532,7 @@ main() {
 
         if [[ "${svc_status}" != "ACTIVE" ]]; then
             error "ECSサービス '${ECS_SERVICE_FRONTEND}' が見つからないか ACTIVE ではありません（status: ${svc_status}）"
-            error "BUILD_GUIDE.md の STEP 10 を実行して prod-frontend-service を作成してください"
+            error "BUILD_GUIDE.md の STEP 10 を実行して ${ECS_SERVICE_FRONTEND} を作成してください"
             exit 1
         fi
 
@@ -528,19 +547,16 @@ main() {
             --output table 2>&1 | tee -a "${LOG_FILE}"
         success "[prod-frontend] サービス更新リクエスト送信完了"
 
-        # デプロイ直後の状態確認
-        info "--- Step 5.5: デプロイ開始直後のECSサービス状態確認 ---"
+        info "--- [prod-verification] デプロイ開始直後のECSサービス状態確認 ---"
         info "  ※ ローリングアップデート開始直後のため pending > 0 は正常です"
         check_deploy_status "prod-frontend" "${ECS_SERVICE_FRONTEND}"
     else
-        warn "--- Step 5: ECSデプロイをスキップ（--no-deploy）---"
+        warn "--- [prod-verification] ECSデプロイをスキップ（--no-deploy）---"
     fi
 
-    # ------------------------------------------------------------------
-    # Step 6: ECSサービス安定化待ち（--wait オプション時）
-    # ------------------------------------------------------------------
+    # ECSサービス安定化待ち
     if [[ "${WAIT_STABLE}" == "true" && "${DEPLOY}" == "true" ]]; then
-        info "--- Step 6: ECSサービス安定化待ち（最大10分）---"
+        info "--- [prod-verification] ECSサービス安定化待ち（最大10分）---"
         info "[prod-frontend] 安定化を待機中..."
         aws ecs wait services-stable \
             --cluster "${ECS_CLUSTER}" \
@@ -549,23 +565,19 @@ main() {
         success "[prod-frontend] 安定化シグナル受信 — 詳細確認中..."
         check_deploy_status "prod-frontend" "${ECS_SERVICE_FRONTEND}"
 
-        # ターゲットグループのヘルス確認
-        info "--- ターゲットグループのヘルス確認 ---"
+        info "--- [prod-verification] ターゲットグループのヘルス確認 ---"
         check_target_group_health "frontend-tg" "prod-frontend-tg"
         check_target_group_health "backend-tg"  "prod-backend-tg"
     else
-        info "--- Step 6: 安定化待ちをスキップ（--wait を付けると待機・詳細確認）---"
+        info "--- [prod-verification] 安定化待ちをスキップ（--wait を付けると待機・詳細確認）---"
     fi
 
-    # ------------------------------------------------------------------
-    # Step 7: ヘルスチェック（--health または --wait オプション時）
-    # ------------------------------------------------------------------
+    # ヘルスチェック
     if [[ "${HEALTH_CHECK}" == "true" || "${WAIT_STABLE}" == "true" ]]; then
         if [[ -n "${ALB_DNS:-}" ]]; then
-            info "--- Step 7: ALB ヘルスチェック (curl) ---"
+            info "--- [prod-verification] ALB ヘルスチェック (curl) ---"
             info "  対象: https://${ALB_DNS}"
 
-            # フロントエンドのヘルスチェック（自己署名証明書のため -k）
             info "  [Frontend] GET https://${ALB_DNS}/"
             local frontend_status
             frontend_status=$(curl -sk --max-time 20 \
@@ -577,7 +589,6 @@ main() {
                 warn "  [Frontend] HTTP ${frontend_status} ⚠️  (期待: 200)"
             fi
 
-            # バックエンド API ヘルスチェック
             info "  [Backend API] GET https://${ALB_DNS}/api/health"
             local api_response api_status
             api_status=$(curl -sk --max-time 20 \
@@ -591,7 +602,6 @@ main() {
                 warn "  [Backend API] HTTP ${api_status} / レスポンス: ${api_response} ⚠️  (期待: 200)"
             fi
 
-            # HTTP → HTTPS リダイレクト確認
             info "  [Redirect] HTTP → HTTPS リダイレクト確認"
             local redirect_status
             redirect_status=$(curl -s --max-time 10 \
@@ -603,48 +613,515 @@ main() {
                 warn "  [Redirect] HTTP ${redirect_status} ⚠️  (期待: 301 or 302)"
             fi
         else
-            warn "--- Step 7: ALB DNS が不明のためヘルスチェックをスキップします ---"
+            warn "--- [prod-verification] ALB DNS が不明のためヘルスチェックをスキップします ---"
         fi
     fi
 
-    # ------------------------------------------------------------------
-    # 完了サマリー
-    # ------------------------------------------------------------------
+    # サマリー表示
     info ""
     info "============================================================"
-    success "  本番検証環境 (prod-verification) デプロイ完了！"
+    success "  [prod-verification] デプロイ完了！"
     info "============================================================"
-    info ""
-    info "  デプロイ情報:"
-    info "    イメージタグ : ${IMAGE_TAG}"
-    info "    クラスター   : ${ECS_CLUSTER}"
-    info "    リージョン   : ${AWS_REGION}"
     if [[ -n "${ALB_DNS:-}" ]]; then
         info "    ALB DNS      : ${ALB_DNS}"
         info "    アクセス URL : https://${ALB_DNS}/"
         info "    API URL      : https://${ALB_DNS}/api/health"
     fi
-    info ""
-
     if [[ "${DEPLOY}" == "true" ]]; then
         info "  ▼ 現在のECSサービス状態（デプロイ後）"
         check_deploy_status "prod-frontend" "${ECS_SERVICE_FRONTEND}"
-        info ""
         if [[ "${WAIT_STABLE}" == "false" ]]; then
             info "  ℹ️  --wait オプションなしのため、デプロイは非同期で進行中です"
             info "     以下のコマンドで状態を再確認できます:"
-            info "       ./scripts/alchemia-staging/deploy.prod-verification.sh --check"
-            info ""
+            info "       ./scripts/alchemia-staging/deploy.prod-verification.sh --mode prod-verification --check"
+        fi
+    fi
+    info "  CloudWatch Logs:"
+    info "    Frontend: https://console.aws.amazon.com/cloudwatch/home?region=${AWS_REGION}#logsV2:log-groups/log-group/%2Fecs%2Fprod-frontend"
+    info "  ALB コンソール: https://console.aws.amazon.com/ec2/v2/home?region=${AWS_REGION}#LoadBalancers:search=${ALB_NAME}"
+    info "============================================================"
+}
+
+# =============================================================================
+# phase1（ALB+NLB共存）構成のデプロイ関数
+# =============================================================================
+deploy_phase1() {
+    info "============================================================"
+    info "  [phase1] ALB（HTTP:80）＋NLB（HTTPS:443）共存構成 デプロイ開始"
+    if [[ "${DEPLOY_BACKEND}" == "true" && "${DEPLOY_NGINX}" == "true" ]]; then
+        info "  対象: backend + nginx(frontend含む)"
+    elif [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+        info "  対象: backend のみ"
+    else
+        info "  対象: nginx(frontend含む) のみ"
+    fi
+    if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+        info "  ⚠️  [phase1] nginx更新対象サービス:"
+        info "       - ${ECS_SERVICE_NGINX}       (ALB → HTTP:80)"
+        info "       - ${ECS_SERVICE_NGINX_HTTPS}  (NLB → TCP:443)"
+    fi
+    info "============================================================"
+
+    # タスク定義ファイルの存在確認
+    if [[ "${DEPLOY}" == "true" ]]; then
+        if [[ "${DEPLOY_BACKEND}" == "true" && ! -f "${PROJECT_DIR}/${TASK_DEF_BACKEND_FILE}" ]]; then
+            error "バックエンドタスク定義ファイルが見つかりません: ${TASK_DEF_BACKEND_FILE}"
+            exit 1
+        fi
+        if [[ "${DEPLOY_NGINX}" == "true" && ! -f "${PROJECT_DIR}/${TASK_DEF_NGINX_FILE}" ]]; then
+            error "nginx タスク定義ファイルが見つかりません: ${TASK_DEF_NGINX_FILE}"
+            exit 1
         fi
     fi
 
+    if [[ "${BUILD}" == "true" ]]; then
+        if ! command -v docker &>/dev/null; then
+            error "Docker がインストールされていません"
+            exit 1
+        fi
+        success "Docker: $(docker --version | head -1)"
+    fi
+
+    # フェーズ1: nginx-service-https の存在確認
+    if [[ "${DEPLOY_NGINX}" == "true" && "${DEPLOY}" == "true" ]]; then
+        local https_svc_status
+        https_svc_status=$(aws ecs describe-services \
+            --cluster "${ECS_CLUSTER}" \
+            --services "${ECS_SERVICE_NGINX_HTTPS}" \
+            --region "${AWS_REGION}" \
+            --query 'services[0].status' \
+            --output text 2>/dev/null || echo "MISSING")
+        if [[ "${https_svc_status}" != "ACTIVE" ]]; then
+            warn "[phase1] ${ECS_SERVICE_NGINX_HTTPS} が見つからないか ACTIVE ではありません（status: ${https_svc_status}）"
+            warn "  → フェーズ1のNLB用サービスがまだ作成されていない可能性があります"
+            warn "  → nlb-migration-guide.md の Step 5 を参照してサービスを作成してください"
+            warn "  → ${ECS_SERVICE_NGINX} のみ更新して続行します"
+        else
+            success "[phase1] ${ECS_SERVICE_NGINX_HTTPS}: ACTIVE（NLBサービス確認OK）"
+        fi
+    fi
+
+    # --migrate 使用時の DB 接続情報チェック
+    if [[ "${MIGRATE}" == "true" ]]; then
+        if [[ -z "${DB_HOST}" ]]; then
+            error "--migrate が指定されましたが DB_HOST が設定されていません"
+            error "環境変数 DB_HOST に Aurora エンドポイントを設定してください"
+            exit 1
+        fi
+        if ! command -v psql &>/dev/null; then
+            error "--migrate が指定されましたが psql コマンドが見つかりません"
+            error "psql をインストールするか、docker run で実行してください"
+            exit 1
+        fi
+    fi
+
+    # Docker イメージ ビルド
+    if [[ "${BUILD}" == "true" ]]; then
+        info "--- [phase1] Docker イメージ ビルド ---"
+
+        if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+            info "[Backend] ビルド中... (${ECR_BACKEND}:${IMAGE_TAG})"
+            docker build \
+                --no-cache \
+                -f "${PROJECT_DIR}/backend/Dockerfile.prod" \
+                -t "${ECR_BACKEND}:${IMAGE_TAG}" \
+                "${PROJECT_DIR}/backend" 2>&1 | tee -a "${LOG_FILE}"
+            success "[Backend] ビルド完了"
+        fi
+
+        if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+            info "[Frontend] ビルド中... (${ECR_FRONTEND}:${IMAGE_TAG})"
+            docker build \
+                --no-cache \
+                -f "${PROJECT_DIR}/frontend/Dockerfile.prod" \
+                -t "${ECR_FRONTEND}:${IMAGE_TAG}" \
+                "${PROJECT_DIR}/frontend" 2>&1 | tee -a "${LOG_FILE}"
+            success "[Frontend] ビルド完了"
+
+            info "[Nginx] ビルド中... (${ECR_NGINX}:${IMAGE_TAG})"
+            docker build \
+                --no-cache \
+                -f "${PROJECT_DIR}/config/nginx/Dockerfile" \
+                -t "${ECR_NGINX}:${IMAGE_TAG}" \
+                "${PROJECT_DIR}/config/nginx" 2>&1 | tee -a "${LOG_FILE}"
+            success "[Nginx] ビルド完了"
+        fi
+    else
+        warn "--- [phase1] ビルドをスキップ（--no-build）---"
+    fi
+
+    # ECR プッシュ
+    if [[ "${PUSH}" == "true" ]]; then
+        info "--- [phase1] ECR プッシュ ---"
+
+        if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+            info "[Backend] プッシュ中... ${ECR_BACKEND}:${IMAGE_TAG}"
+            docker push "${ECR_BACKEND}:${IMAGE_TAG}" 2>&1 | tee -a "${LOG_FILE}"
+            success "[Backend] プッシュ完了: ${ECR_BACKEND}:${IMAGE_TAG}"
+        fi
+
+        if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+            info "[Frontend] プッシュ中... ${ECR_FRONTEND}:${IMAGE_TAG}"
+            docker push "${ECR_FRONTEND}:${IMAGE_TAG}" 2>&1 | tee -a "${LOG_FILE}"
+            success "[Frontend] プッシュ完了: ${ECR_FRONTEND}:${IMAGE_TAG}"
+
+            info "[Nginx] プッシュ中... ${ECR_NGINX}:${IMAGE_TAG}"
+            docker push "${ECR_NGINX}:${IMAGE_TAG}" 2>&1 | tee -a "${LOG_FILE}"
+            success "[Nginx] プッシュ完了: ${ECR_NGINX}:${IMAGE_TAG}"
+        fi
+    else
+        warn "--- [phase1] ECRプッシュをスキップ（--no-push）---"
+    fi
+
+    # DBマイグレーション
+    if [[ "${MIGRATE}" == "true" ]]; then
+        info "--- [phase1] DBマイグレーション実行（Aurora 直接接続）---"
+        info "  Aurora エンドポイント: ${DB_HOST}:${DB_PORT}"
+        info "  DB: ${DB_NAME} / ユーザー: ${DB_USER}"
+
+        local migration_files
+        migration_files=$(ls "${MIGRATIONS_DIR}"/*.sql 2>/dev/null | grep -v rollback | sort || true)
+
+        if [[ -z "${migration_files}" ]]; then
+            warn "適用するマイグレーションファイルが見つかりません: ${MIGRATIONS_DIR}"
+        else
+            info "適用するマイグレーションファイル一覧:"
+            echo "${migration_files}" | while read -r f; do
+                info "  - $(basename "${f}")"
+            done
+
+            echo "${migration_files}" | while read -r sql_file; do
+                local filename
+                filename=$(basename "${sql_file}")
+                info "[Migration] 実行中: ${filename}"
+
+                PGPASSWORD="${DB_PASSWORD}" psql \
+                    -h "${DB_HOST}" \
+                    -p "${DB_PORT}" \
+                    -U "${DB_USER}" \
+                    -d "${DB_NAME}" \
+                    --set=sslmode=require \
+                    -f "${sql_file}" 2>&1 | tee -a "${LOG_FILE}" || {
+                    warn "[Migration] ${filename} の実行中にエラーが発生しました（既適用の場合は無視）"
+                }
+                success "[Migration] 完了: ${filename}"
+            done
+        fi
+    else
+        info "--- [phase1] DBマイグレーションをスキップ（--migrate で実行）---"
+    fi
+
+    # ECSタスク定義の登録 & サービス更新
+    if [[ "${DEPLOY}" == "true" ]]; then
+        info "--- [phase1] ECSタスク定義の登録 & サービス更新 ---"
+
+        local BACKEND_TASK_ARN=""
+        local NGINX_TASK_ARN=""
+
+        if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+            info "[Backend] タスク定義を登録中..."
+            local task_def_json_backend
+            task_def_json_backend=$(sed "s|:staging\"|:${IMAGE_TAG}\"|g" \
+                "${PROJECT_DIR}/${TASK_DEF_BACKEND_FILE}")
+
+            local tmp_task_def_backend
+            tmp_task_def_backend=$(mktemp /tmp/task-def-backend-XXXXXX.json)
+            echo "${task_def_json_backend}" > "${tmp_task_def_backend}"
+
+            BACKEND_TASK_ARN=$(aws ecs register-task-definition \
+                --region "${AWS_REGION}" \
+                --cli-input-json "file://${tmp_task_def_backend}" \
+                --query 'taskDefinition.taskDefinitionArn' \
+                --output text 2>&1)
+            rm -f "${tmp_task_def_backend}"
+
+            if [[ -z "${BACKEND_TASK_ARN}" || "${BACKEND_TASK_ARN}" == "None" ]]; then
+                error "[Backend] タスク定義の登録に失敗しました"
+                exit 1
+            fi
+            success "[Backend] タスク定義登録完了: ${BACKEND_TASK_ARN}"
+
+            info "[Backend] ECSサービスを更新中..."
+            aws ecs update-service \
+                --region "${AWS_REGION}" \
+                --cluster "${ECS_CLUSTER}" \
+                --service "${ECS_SERVICE_BACKEND}" \
+                --task-definition "${BACKEND_TASK_ARN}" \
+                --force-new-deployment \
+                --query 'service.{service:serviceName,running:runningCount,pending:pendingCount,desired:desiredCount}' \
+                --output table 2>&1 | tee -a "${LOG_FILE}"
+            success "[Backend] サービス更新リクエスト送信完了"
+        fi
+
+        if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+            info "[Nginx] タスク定義を登録中..."
+            local task_def_json_nginx
+            task_def_json_nginx=$(sed "s|:staging\"|:${IMAGE_TAG}\"|g" \
+                "${PROJECT_DIR}/${TASK_DEF_NGINX_FILE}")
+
+            local tmp_task_def_nginx
+            tmp_task_def_nginx=$(mktemp /tmp/task-def-nginx-XXXXXX.json)
+            echo "${task_def_json_nginx}" > "${tmp_task_def_nginx}"
+
+            NGINX_TASK_ARN=$(aws ecs register-task-definition \
+                --region "${AWS_REGION}" \
+                --cli-input-json "file://${tmp_task_def_nginx}" \
+                --query 'taskDefinition.taskDefinitionArn' \
+                --output text 2>&1)
+            rm -f "${tmp_task_def_nginx}"
+
+            if [[ -z "${NGINX_TASK_ARN}" || "${NGINX_TASK_ARN}" == "None" ]]; then
+                error "[Nginx] タスク定義の登録に失敗しました"
+                exit 1
+            fi
+            success "[Nginx] タスク定義登録完了: ${NGINX_TASK_ARN}"
+
+            # ALB サービスを更新
+            info "[Nginx] ECSサービスを更新中... (ALB: ${ECS_SERVICE_NGINX})"
+            aws ecs update-service \
+                --region "${AWS_REGION}" \
+                --cluster "${ECS_CLUSTER}" \
+                --service "${ECS_SERVICE_NGINX}" \
+                --task-definition "${NGINX_TASK_ARN}" \
+                --force-new-deployment \
+                --query 'service.{service:serviceName,running:runningCount,pending:pendingCount,desired:desiredCount}' \
+                --output table 2>&1 | tee -a "${LOG_FILE}"
+            success "[Nginx] サービス更新リクエスト送信完了 (ALB: ${ECS_SERVICE_NGINX})"
+
+            # NLB サービスを更新（ACTIVE の場合のみ）
+            info "[Nginx] ECSサービスを更新中... (NLB: ${ECS_SERVICE_NGINX_HTTPS})"
+            local https_svc_current_status
+            https_svc_current_status=$(aws ecs describe-services \
+                --cluster "${ECS_CLUSTER}" \
+                --services "${ECS_SERVICE_NGINX_HTTPS}" \
+                --region "${AWS_REGION}" \
+                --query 'services[0].status' \
+                --output text 2>/dev/null || echo "MISSING")
+
+            if [[ "${https_svc_current_status}" == "ACTIVE" ]]; then
+                aws ecs update-service \
+                    --region "${AWS_REGION}" \
+                    --cluster "${ECS_CLUSTER}" \
+                    --service "${ECS_SERVICE_NGINX_HTTPS}" \
+                    --task-definition "${NGINX_TASK_ARN}" \
+                    --force-new-deployment \
+                    --query 'service.{service:serviceName,running:runningCount,pending:pendingCount,desired:desiredCount}' \
+                    --output table 2>&1 | tee -a "${LOG_FILE}"
+                success "[Nginx] サービス更新リクエスト送信完了 (NLB: ${ECS_SERVICE_NGINX_HTTPS})"
+            else
+                warn "[Nginx] ${ECS_SERVICE_NGINX_HTTPS} が ACTIVE ではないためスキップしました（status: ${https_svc_current_status}）"
+                warn "  → nlb-migration-guide.md の Step 5 を参照してサービスを作成してください"
+            fi
+        fi
+
+        info "--- [phase1] デプロイ開始直後のECSサービス状態確認 ---"
+        info "  ※ ローリングアップデート開始直後のため pending > 0 は正常です"
+        if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+            check_deploy_status "Backend" "${ECS_SERVICE_BACKEND}"
+        fi
+        if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+            check_deploy_status "Nginx+Frontend (ALB)" "${ECS_SERVICE_NGINX}"
+            check_deploy_status "Nginx+Frontend (NLB)" "${ECS_SERVICE_NGINX_HTTPS}"
+        fi
+    else
+        warn "--- [phase1] ECSデプロイをスキップ（--no-deploy）---"
+    fi
+
+    # ECSサービス安定化待ち
+    if [[ "${WAIT_STABLE}" == "true" && "${DEPLOY}" == "true" ]]; then
+        info "--- [phase1] ECSサービス安定化待ち（最大10分）---"
+
+        if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+            info "[Backend] 安定化を待機中..."
+            aws ecs wait services-stable \
+                --cluster "${ECS_CLUSTER}" \
+                --services "${ECS_SERVICE_BACKEND}" \
+                --region "${AWS_REGION}" 2>&1 | tee -a "${LOG_FILE}"
+            success "[Backend] 安定化シグナル受信 — 詳細確認中..."
+            check_deploy_status "Backend" "${ECS_SERVICE_BACKEND}"
+        fi
+
+        if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+            info "[Nginx] 安定化を待機中... (ALB: ${ECS_SERVICE_NGINX})"
+            aws ecs wait services-stable \
+                --cluster "${ECS_CLUSTER}" \
+                --services "${ECS_SERVICE_NGINX}" \
+                --region "${AWS_REGION}" 2>&1 | tee -a "${LOG_FILE}"
+            success "[Nginx] 安定化シグナル受信 — 詳細確認中... (ALB)"
+            check_deploy_status "Nginx+Frontend (ALB)" "${ECS_SERVICE_NGINX}"
+
+            local https_svc_wait_status
+            https_svc_wait_status=$(aws ecs describe-services \
+                --cluster "${ECS_CLUSTER}" \
+                --services "${ECS_SERVICE_NGINX_HTTPS}" \
+                --region "${AWS_REGION}" \
+                --query 'services[0].status' \
+                --output text 2>/dev/null || echo "MISSING")
+            if [[ "${https_svc_wait_status}" == "ACTIVE" ]]; then
+                info "[Nginx] 安定化を待機中... (NLB: ${ECS_SERVICE_NGINX_HTTPS})"
+                aws ecs wait services-stable \
+                    --cluster "${ECS_CLUSTER}" \
+                    --services "${ECS_SERVICE_NGINX_HTTPS}" \
+                    --region "${AWS_REGION}" 2>&1 | tee -a "${LOG_FILE}"
+                success "[Nginx] 安定化シグナル受信 — 詳細確認中... (NLB)"
+                check_deploy_status "Nginx+Frontend (NLB)" "${ECS_SERVICE_NGINX_HTTPS}"
+            else
+                warn "[Nginx] ${ECS_SERVICE_NGINX_HTTPS} が ACTIVE ではないため安定化待ちをスキップしました"
+            fi
+        fi
+
+        info "--- [phase1] NLBヘルスチェック ---"
+        local nlb_url="https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com"
+        if curl -sf -k --max-time 15 "${nlb_url}/api/health" >/dev/null 2>&1; then
+            success "[phase1] NLBヘルスチェック: OK (${nlb_url}/api/health)"
+        else
+            warn "[phase1] NLBヘルスチェック: 応答なし (${nlb_url}/api/health)"
+            warn "  → サービス起動直後の場合は数秒後に再確認してください"
+        fi
+    else
+        info "--- [phase1] 安定化待ちをスキップ（--wait を付けると待機・詳細確認）---"
+    fi
+
+    # サマリー表示
+    info ""
+    info "============================================================"
+    success "  [phase1] ALB+NLB共存構成 デプロイ完了！"
+    info "============================================================"
+    if [[ "${DEPLOY}" == "true" ]]; then
+        info "  ▼ 現在のECSサービス状態（デプロイ後）"
+        if [[ "${DEPLOY_BACKEND}" == "true" ]]; then
+            check_deploy_status "Backend" "${ECS_SERVICE_BACKEND}"
+        fi
+        if [[ "${DEPLOY_NGINX}" == "true" ]]; then
+            check_deploy_status "Nginx+Frontend (ALB)" "${ECS_SERVICE_NGINX}"
+            check_deploy_status "Nginx+Frontend (NLB)" "${ECS_SERVICE_NGINX_HTTPS}"
+        fi
+        if [[ "${WAIT_STABLE}" == "false" ]]; then
+            info "  ℹ️  --wait オプションなしのため、デプロイは非同期で進行中です"
+            info "     以下のコマンドで状態を再確認できます:"
+            info "       ./scripts/alchemia-staging/deploy.prod-verification.sh --mode phase1 --check"
+        fi
+    fi
+    info "  CloudWatch Logs:"
+    info "    Backend: https://console.aws.amazon.com/cloudwatch/home?region=${AWS_REGION}#logsV2:log-groups/log-group/%2Fecs%2Falchemia-backend"
+    info "    Nginx  : https://console.aws.amazon.com/cloudwatch/home?region=${AWS_REGION}#logsV2:log-groups/log-group/%2Fecs%2Falchemia-nginx"
+    info "============================================================"
+}
+
+# =============================================================================
+# メイン処理
+# =============================================================================
+main() {
+    mkdir -p "${LOG_DIR}"
+
+    info "============================================================"
+    info "  Alchemia Staging デプロイ開始"
+    info "  モード       : ${DEPLOY_MODE}"
+    info "============================================================"
+    info "  クラスター  : ${ECS_CLUSTER}"
+    info "  リージョン  : ${AWS_REGION}"
+    info "  イメージタグ: ${IMAGE_TAG}"
+    info "  ビルド      : ${BUILD}"
+    info "  プッシュ    : ${PUSH}"
+    info "  デプロイ    : ${DEPLOY}"
+    if [[ "${DEPLOY_MODE}" != "prod-verification" ]]; then
+        info "  マイグレ    : ${MIGRATE}"
+    fi
+    if [[ "${DEPLOY_MODE}" == "prod-verification" || "${DEPLOY_MODE}" == "all" ]]; then
+        info "  ALB DNS手動指定: ${ALB_DNS_OVERRIDE:-（自動取得）}"
+    fi
+    info "  ログ        : ${LOG_FILE}"
+    info "============================================================"
+
+    # ------------------------------------------------------------------
+    # 前提条件チェック（共通）
+    # ------------------------------------------------------------------
+    check_prerequisites
+
+    # ------------------------------------------------------------------
+    # --check モード
+    # ------------------------------------------------------------------
+    if [[ "${CHECK_ONLY}" == "true" ]]; then
+        info "--- [--check] 現在のECSサービス状態確認 (mode: ${DEPLOY_MODE}) ---"
+
+        if [[ "${DEPLOY_MODE}" == "prod-verification" || "${DEPLOY_MODE}" == "all" ]]; then
+            info ""
+            info "  [prod-verification 構成]"
+            check_deploy_status "prod-frontend" "${ECS_SERVICE_FRONTEND}"
+
+            info ""
+            info "  ターゲットグループのヘルス確認:"
+            check_target_group_health "frontend-tg" "prod-frontend-tg"
+            check_target_group_health "backend-tg"  "prod-backend-tg"
+
+            local alb_state
+            alb_state=$(aws elbv2 describe-load-balancers \
+                --names "${ALB_NAME}" \
+                --region "${AWS_REGION}" \
+                --query 'LoadBalancers[0].{State:State.Code,DNS:DNSName}' \
+                --output text 2>/dev/null || echo "取得失敗")
+            info "  ALB (${ALB_NAME}) 状態: ${alb_state}"
+        fi
+
+        if [[ "${DEPLOY_MODE}" == "phase1" || "${DEPLOY_MODE}" == "all" ]]; then
+            info ""
+            info "  [phase1 構成]"
+            check_deploy_status "Backend" "${ECS_SERVICE_BACKEND}"
+            check_deploy_status "Nginx+Frontend (ALB)" "${ECS_SERVICE_NGINX}"
+            check_deploy_status "Nginx+Frontend (NLB)" "${ECS_SERVICE_NGINX_HTTPS}"
+        fi
+
+        info ""
+        info "  AWSコンソール:"
+        info "    https://console.aws.amazon.com/ecs/home?region=${AWS_REGION}#/clusters/${ECS_CLUSTER}/services"
+        info "  ログ: ${LOG_FILE}"
+        exit 0
+    fi
+
+    # ------------------------------------------------------------------
+    # ECR ログイン（ビルド or プッシュがある場合）
+    # ------------------------------------------------------------------
+    if [[ "${BUILD}" == "true" || "${PUSH}" == "true" ]]; then
+        ecr_login
+    else
+        info "ECR ログインをスキップ（ビルド・プッシュなし）"
+    fi
+
+    # ------------------------------------------------------------------
+    # 構成別デプロイ実行
+    # ------------------------------------------------------------------
+    case "${DEPLOY_MODE}" in
+        prod-verification)
+            deploy_prod_verification
+            ;;
+        phase1)
+            deploy_phase1
+            ;;
+        all)
+            info "============================================================"
+            info "  [all モード] phase1 → prod-verification の順にデプロイします"
+            info "============================================================"
+            deploy_phase1
+            info ""
+            info "  ▶ 次に prod-verification 構成のデプロイを開始します..."
+            info ""
+            deploy_prod_verification
+            ;;
+    esac
+
+    # ------------------------------------------------------------------
+    # 最終サマリー
+    # ------------------------------------------------------------------
+    info ""
+    info "============================================================"
+    success "  Alchemia Staging デプロイ完了！(mode: ${DEPLOY_MODE})"
+    info "============================================================"
+    info "  イメージタグ : ${IMAGE_TAG}"
+    info "  クラスター   : ${ECS_CLUSTER}"
+    info "  リージョン   : ${AWS_REGION}"
+    info ""
     info "  AWSコンソール:"
     info "    ECS サービス: https://console.aws.amazon.com/ecs/home?region=${AWS_REGION}#/clusters/${ECS_CLUSTER}/services"
-    info "    ALB (prod-verification-alb): https://console.aws.amazon.com/ec2/v2/home?region=${AWS_REGION}#LoadBalancers:search=${ALB_NAME}"
-    info ""
-    info "  CloudWatch Logs:"
-    info "    Frontend: https://console.aws.amazon.com/cloudwatch/home?region=${AWS_REGION}#logsV2:log-groups/log-group/%2Fecs%2Fprod-frontend"
-    info ""
     info "  デプロイログ: ${LOG_FILE}"
     info "============================================================"
 }
