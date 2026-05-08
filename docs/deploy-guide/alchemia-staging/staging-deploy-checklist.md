@@ -9,17 +9,16 @@
 ## 目次
 
 1. [ビルド確認](#step-1-ビルド確認)
-2. [リリース対象コミット・前回リリースコミットの確認](#step-2-リリース対象コミット前回リリースコミットの確認)
-3. [リリースディレクトリの初期化](#step-3-リリースディレクトリの初期化)
-4. [リリースノートの作成](#step-4-リリースノートの作成)
-5. [計画書の移動](#step-5-計画書の移動)
-6. [差分ファイルの確認（ドライラン）](#step-6-差分ファイルの確認ドライラン)
-7. [DBのテーブル構成の確認](#step-7-dbのテーブル構成の確認)
-8. [環境変数の確認](#step-8-環境変数の確認)
-9. [開発メンバーへのアナウンス](#step-9-開発メンバーへのアナウンス)
-10. [島田さんへの連絡（デプロイ開始）](#step-10-島田さんへの連絡デプロイ開始)
-11. [デプロイスクリプトの実行](#step-11-デプロイスクリプトの実行)
-12. [動作確認](#step-12-動作確認)
+2. [リリース対象の確認 / リリースディレクトリの初期化](#step-2-リリース対象の確認--リリースディレクトリの初期化)
+3. [リリースノートの作成](#step-3-リリースノートの作成)
+4. [計画書の移動](#step-4-計画書の移動)
+5. [差分ファイルの確認（ドライラン）](#step-5-差分ファイルの確認ドライラン)
+6. [DBのテーブル構成の確認](#step-6-dbのテーブル構成の確認)
+7. [環境変数の確認](#step-7-環境変数の確認)
+8. [開発メンバーへのアナウンス](#step-8-開発メンバーへのアナウンス)
+9. [島田さんへの連絡（デプロイ開始）](#step-9-島田さんへの連絡デプロイ開始)
+10. [デプロイスクリプトの実行](#step-10-デプロイスクリプトの実行)
+11. [動作確認](#step-11-動作確認)
 
 ---
 
@@ -57,7 +56,7 @@ git pull
 
 ---
 
-## STEP 2: リリース対象コミット・前回リリースコミットの確認
+## STEP 2: リリース対象の確認 / リリースディレクトリの初期化
 
 ### 2-1. 最新コミット一覧の確認
 
@@ -77,17 +76,9 @@ git log --oneline -20
 | 前回リリースコミット（`--from-commit`） | *(前回リリースノートの「今回リリースコミット」を記入)* |
 | 今回リリースコミット（`--to-commit`） | *(今回デプロイする最新コミットを記入)* |
 
-### チェックリスト
+### 2-4. リリースディレクトリの初期化
 
-- [ ] `git log` で今回のリリース対象コミットハッシュを特定した
-- [ ] 前回リリースノートから `--from-commit` を確認した
-- [ ] 上記テーブルにコミットハッシュを記録した
-
----
-
-## STEP 3: リリースディレクトリの初期化
-
-STEP 2 で確認したコミット情報とリリースタグを使って、リリース作業用ディレクトリを初期化する。
+上記で確認したコミット情報とリリースタグを使って、リリース作業用ディレクトリを初期化する。
 
 ```bash
 bash scripts/alchemia-staging/init-release-dir.sh \
@@ -120,15 +111,18 @@ chmod +x scripts/alchemia-staging/init-release-dir.sh
 
 ### チェックリスト
 
+- [ ] `git log` で今回のリリース対象コミットハッシュを特定した
+- [ ] 前回リリースノートから `--from-commit` を確認した
+- [ ] 上記テーブルにコミットハッシュを記録した
 - [ ] `init-release-dir.sh` を実行し、リリースディレクトリが作成されたことを確認した
 - [ ] `docs/deliverables/<リリースタグ名>/release_info.md` の内容が正しいことを確認した
 - [ ] `docs/deliverables/<リリースタグ名>/checklist.md` が作成されたことを確認した
 
 ---
 
-## STEP 4: リリースノートの作成
+## STEP 3: リリースノートの作成
 
-### 4-1. リリースノートファイルの作成
+### 3-1. リリースノートファイルの作成
 
 `docs/deliverables/release_notes_YYYYMMDD.md` を作成する。  
 Skillにリリースノート作成を登録しているので、clineに作成を依頼する。
@@ -152,17 +146,17 @@ Skillにリリースノート作成を登録しているので、clineに作成�
 
 ---
 
-## STEP 5: 計画書の移動
+## STEP 4: 計画書の移動
 
 `docs/` 配下（サブフォルダ含む）に残っているタスク計画書（`PLAN.md` 等）を `docs/cline_archives/` へ移動する。
 
-### 5-1. 移動対象の確認
+### 4-1. 移動対象の確認
 
 # docs/ 配下のタスクフォルダを確認（YYYYMMDD_ で始まるフォルダ）
 ls -d docs/[0-9]*/
 ```
 
-### 5-2. アーカイブへ移動
+### 4-2. アーカイブへ移動
 
 ```bash
 # 例: docs/YYYYMMDD_HHMM_タスク名/ フォルダをアーカイブへ移動
@@ -170,14 +164,40 @@ mv docs/YYYYMMDD_HHMM_タスク名 docs/cline_archives/
 
 ```
 
+### 4-3. コミット・プッシュ
+
+移動後、変更をコミット・プッシュする（手作業）。
+
+```bash
+git add docs/
+git commit -m "chore: move task plans to cline_archives"
+git push
+```
+
+### 4-4. リリース対象コミットの更新
+
+上記のコミット・プッシュにより、今回のリリース対象コミット（`--to-commit`）が変わる。  
+以下の3箇所を最新のコミットハッシュに更新すること。
+
+1. **STEP 2-3 のコミット情報メモ**（本手順書の「今回リリースコミット（`--to-commit`）」欄）
+2. **`docs/deliverables/<リリースタグ名>/release_info.md`** の今回リリースコミット欄
+3. **`docs/deliverables/<リリースタグ名>/release_notes_YYYYMMDD.md`** の今回リリースコミット欄
+
+```bash
+# 最新コミットハッシュの確認
+git log --oneline -3
+```
+
 ### チェックリスト
 
 - [ ] `docs/` 配下の計画書・タスクフォルダを確認した
 - [ ] 対象ファイル・フォルダを `docs/cline_archives/` へ移動した
+- [ ] 移動をコミット・プッシュした
+- [ ] STEP 2-3 のコミット情報メモ・`release_info.md`・リリースノートの今回リリースコミットを最新ハッシュに更新した
 
 ---
 
-## STEP 6: 差分ファイルの確認（ドライラン）
+## STEP 5: 差分ファイルの確認（ドライラン）
 
 `sync-to-staging.sh` の `--dry-run` オプションで変更ファイルの一覧を事前確認する。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
@@ -199,7 +219,7 @@ bash scripts/alchemia-staging/sync-to-staging.sh \
 > **確認ポイント**
 > - 想定外のファイルが含まれていないか
 > - 削除ファイルに重要なものがないか
-> - `backend/migrations/` に新規SQLが含まれているか（→ STEP 7 で対応）
+> - `backend/migrations/` に新規SQLが含まれているか（→ STEP 6 で対応）
 > - ドライラン結果は `docs/deliverables/<リリースタグ名>/dry-run-result.md` に自動保存される
 
 ※スクリプトに実行権限がない場合は下記を実行すること
@@ -213,9 +233,9 @@ chmod +x scripts/alchemia-staging/sync-to-staging.sh
 
 ---
 
-## STEP 7: DBのテーブル構成の確認
+## STEP 6: DBのテーブル構成の確認
 
-### 7-1. マイグレーションファイルの確認
+### 6-1. マイグレーションファイルの確認
 
 ```bash
 # 前回リリース以降に追加されたマイグレーションファイルを確認
@@ -229,7 +249,7 @@ git diff --name-only <前回リリースコミット> <今回リリースコミ�
 ls -lt backend/migrations/*.sql | head -10
 ```
 
-### 7-2. マイグレーション内容の確認
+### 6-2. マイグレーション内容の確認
 
 新規 SQL ファイルが存在する場合、内容を確認してデプロイ時に `--migrate` が必要か判断する。
 
@@ -243,7 +263,7 @@ cat backend/migrations/YYYYMMDD_<説明>.sql
 > - ロールバックSQLが必要かどうか
 > - データの移行が必要かどうか
 
-### 7-3. Aurora への疎通確認（必要に応じて）
+### 6-3. Aurora への疎通確認（必要に応じて）
 
 ```bash
 # 踏み台サーバー経由でポートフォワード（必要な場合）
@@ -259,12 +279,12 @@ PGPASSWORD=${DB_PASSWORD} psql \
   -c "\dt"
 ```
 
-### 7-4. マイグレーション要否の判断
+### 6-4. マイグレーション要否の判断
 
 | 条件 | 対応 |
 |------|------|
-| 新規マイグレーションSQLなし | `--migrate` 不要 → STEP 11 へ |
-| 新規マイグレーションSQLあり | `--migrate` を付けて実行 → STEP 11 で対応 |
+| 新規マイグレーションSQLなし | `--migrate` 不要 → STEP 10 へ |
+| 新規マイグレーションSQLあり | `--migrate` を付けて実行 → STEP 10 で対応 |
 
 ### チェックリスト
 
@@ -274,9 +294,9 @@ PGPASSWORD=${DB_PASSWORD} psql \
 
 ---
 
-## STEP 8: 環境変数の確認
+## STEP 7: 環境変数の確認
 
-### 8-0. 環境変数差分チェック（自動）
+### 7-0. 環境変数差分チェック（自動）
 
 前回リリースコミットと今回リリースコミット間で、`.env系ファイル` および `aws/ecs-task-definition-*.json` の環境変数差分を自動チェックする。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
@@ -312,7 +332,7 @@ bash scripts/alchemia-staging/check-env-diff.sh \
 chmod +x scripts/alchemia-staging/check-env-diff.sh
 ```
 
-### 8-1. AWS CLI 認証確認
+### 7-1. AWS CLI 認証確認
 
 ```bash
 aws sts get-caller-identity
@@ -327,7 +347,7 @@ aws sts get-caller-identity
 > }
 > ```
 
-### 8-2. ECS タスク定義 JSON の確認
+### 7-2. ECS タスク定義 JSON の確認
 
 ```bash
 # バックエンドタスク定義の主要な環境変数を確認
@@ -349,7 +369,7 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 
 ---
 
-## STEP 9: 開発メンバーへのアナウンス
+## STEP 8: 開発メンバーへのアナウンス
 
 デプロイ作業中はブランチへのプッシュを避けてもらうため、開発メンバーに通知する（Teamsを使用）。
 
@@ -384,7 +404,7 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 
 ---
 
-## STEP 10: 島田さんへの連絡（デプロイ開始）
+## STEP 9: 島田さんへの連絡（デプロイ開始）
 
 デプロイ実施前に島田さんへメールで連絡する。
 
@@ -414,9 +434,9 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 
 ---
 
-## STEP 11: デプロイスクリプトの実行
+## STEP 10: デプロイスクリプトの実行
 
-### 11-1. ファイル同期（sync-to-staging.sh）
+### 10-1. ファイル同期（sync-to-staging.sh）
 
 検証環境用リポジトリへ差分ファイルを同期する。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` と `--dest-repo` のみ指定すればよい。
@@ -437,7 +457,7 @@ bash scripts/alchemia-staging/sync-to-staging.sh \
 
 > **完了メッセージの確認**: `同期が正常に完了しました。` が表示されることを確認する。
 
-### 11-2. ECS デプロイ（deploy.ecr.sh）
+### 10-2. ECS デプロイ（deploy.ecr.sh）
 
 #### ケース A: フルデプロイ（標準 / マイグレーションなし）
 
@@ -482,9 +502,9 @@ export DB_PASSWORD=YOUR_DB_PASSWORD
 
 ---
 
-## STEP 12: 動作確認
+## STEP 11: 動作確認
 
-### 12-1. ECS サービス状態の確認
+### 11-1. ECS サービス状態の確認
 
 ```bash
 # backend サービスの状態確認
@@ -504,7 +524,7 @@ aws ecs describe-services \
 
 > **正常**: `runningCount` = `desiredCount`、`pendingCount` = 0
 
-### 12-2. スキーマの差分チェック
+### 11-2. スキーマの差分チェック
 
 デプロイ後、開発環境と検証環境（Aurora）のスキーマが一致していることを確認する。
 
@@ -551,7 +571,7 @@ diff \
 > | 差分あり（`CREATE TABLE` / `ADD COLUMN` 等） | マイグレーション未適用の可能性 → 内容を精査し、必要なら `--migrate` オプション付きで再デプロイ |
 > | 差分あり（コメント・`pg_dump` ヘッダー行のみ） | 実質的な差分なし → 無視して次のステップへ |
 
-### 12-3. API ヘルスチェック
+### 11-3. API ヘルスチェック
 
 ```bash
 curl https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com/api/health
@@ -559,7 +579,7 @@ curl https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com/api/health
 # 期待レスポンス: {"status":"ok"}
 ```
 
-### 12-4. CloudWatch ログの確認
+### 11-4. CloudWatch ログの確認
 
 ```bash
 # バックエンドログ（直近10分）
@@ -571,7 +591,7 @@ aws logs tail /ecs/alchemia-nginx --region ap-northeast-1 --since 10m
 
 > **確認ポイント**: ERROR レベルのログが出ていないことを確認する。
 
-### 12-5. ブラウザでの画面確認
+### 11-5. ブラウザでの画面確認
 
 | 確認項目 | URL / 操作 | 期待結果 |
 |---------|-----------|---------|
@@ -579,7 +599,7 @@ aws logs tail /ecs/alchemia-nginx --region ap-northeast-1 --since 10m
 | ログイン | 管理者アカウントでログイン | ダッシュボードに遷移する |
 | 主要機能の動作 | 今回リリース内容に応じた画面操作 | 正常に動作する |
 
-### 12-6. 完了アナウンス
+### 11-6. 完了アナウンス
 
 Slack でデプロイ完了を通知する。
 
@@ -615,40 +635,40 @@ alchemia-staging へのデプロイが完了しました。
 STEP 1: ビルド確認
   - [ ] テスト通過・ビルド成功を確認した
 
-STEP 2: リリース対象コミット・前回リリースコミットの確認
+STEP 2: リリース対象の確認 / リリースディレクトリの初期化
   - [ ] 前回・今回のコミットハッシュを確認・記録した
-
-STEP 3: リリースディレクトリの初期化
   - [ ] init-release-dir.sh を実行し、リリースディレクトリを作成した
   - [ ] release_info.md・checklist.md が作成されたことを確認した
 
-STEP 4: リリースノートの作成
+STEP 3: リリースノートの作成
   - [ ] release_notes_YYYYMMDD.md を作成した
 
-STEP 5: 計画書の移動
+STEP 4: 計画書の移動
   - [ ] docs/ 配下の計画書を docs/cline_archives/ へ移動した
+  - [ ] 移動をコミット・プッシュした
+  - [ ] release_info.md・リリースノートの今回リリースコミットを最新ハッシュに更新した
 
-STEP 6: 差分ファイルの確認（ドライラン）
+STEP 5: 差分ファイルの確認（ドライラン）
   - [ ] --dry-run で差分ファイルを確認した
 
-STEP 7: DBのテーブル構成の確認
+STEP 6: DBのテーブル構成の確認
   - [ ] migrations/ の新規 SQL 確認・マイグレーション要否を判断した
 
-STEP 8: 環境変数の確認
+STEP 7: 環境変数の確認
   - [ ] check-env-diff.sh を実行し環境変数差分を確認した
   - [ ] ECS タスク定義 JSON の環境変数が実環境の値になっていることを確認した
 
-STEP 9: 開発メンバーへのアナウンス
+STEP 8: 開発メンバーへのアナウンス
   - [ ] デプロイ開始を Teams でアナウンスした
 
-STEP 10: 島田さんへの連絡
+STEP 9: 島田さんへの連絡
   - [ ] デプロイ開始メールを送信した
 
-STEP 11: デプロイスクリプトの実行
+STEP 10: デプロイスクリプトの実行
   - [ ] sync-to-staging.sh でファイル同期完了
   - [ ] deploy.ecr.sh でデプロイ完了
 
-STEP 12: 動作確認
+STEP 11: 動作確認
   - [ ] ECS サービス状態を確認した
   - [ ] スキーマ差分チェック（dump-dev / dump-staging → diff）を実施した
   - [ ] ヘルスチェック・ログ・ブラウザ動作を確認した
