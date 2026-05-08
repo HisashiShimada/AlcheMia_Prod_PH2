@@ -1,11 +1,11 @@
 /**
  * ValidationPanel - バリデーション結果表示パネル（EditorV2用）
  * 
- * バリデーション結果の詳細表示、エラー/警告の階層的表示、自動補正機能
+ * バリデーション結果の詳細表示、エラー/警告の階層的表示
  * Material-UI → Ant Design変換版
  * 
- * @version 2.0.0
- * @date 2026-01-29
+ * @version 2.1.0
+ * @date 2026-05-08
  */
 
 import React, { useState } from 'react';
@@ -18,23 +18,19 @@ import {
   Collapse,
   Button,
   Progress,
-  Checkbox,
   Space,
-  Spin,
   Tooltip,
-  message,
 } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   WarningOutlined,
-  ToolOutlined,
   ReloadOutlined,
   CloseOutlined,
 } from '@ant-design/icons';
 import { AnalysisResult } from '@/types/maimlValidation';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Title } = Typography;
 
 /**
  * unknown型を文字列に安全に変換するヘルパー関数
@@ -56,42 +52,35 @@ export interface ValidationPanelProps {
   show: boolean;
   validationResult: AnalysisResult | null;
   onClose: () => void;
-  onAutoCorrect?: (selectedErrors: number[]) => void;
   onRevalidate?: () => void;
   isValidating?: boolean;
-  isCorrecting?: boolean;
 }
 
 /**
- * ValidationPanel - バリデーション結果表示・自動補正機能
+ * ValidationPanel - バリデーション結果表示
  */
 const ValidationPanel: React.FC<ValidationPanelProps> = ({
   show = false,
   validationResult = null,
   onClose,
-  onAutoCorrect,
   onRevalidate,
   isValidating = false,
-  isCorrecting = false,
 }) => {
   console.log('🎨 [ValidationPanel V2] Rendering with props:', {
     show,
     hasResult: !!validationResult,
     isValidating,
-    isCorrecting,
     errorCount: validationResult?.errors?.length || 0,
     warningCount: validationResult?.warnings?.length || 0
   });
 
   // State管理
-  const [selectedErrors, setSelectedErrors] = useState<number[]>([]);
   const [activeKeys, setActiveKeys] = useState<string[]>(['errors']);
   const [prevValidationResult, setPrevValidationResult] = useState<AnalysisResult | null>(null);
 
   // validationResult変更検知（ESLintエラー回避のため手動比較）
   if (validationResult !== prevValidationResult) {
     setPrevValidationResult(validationResult);
-    setSelectedErrors([]);
     
     if (validationResult) {
       console.log('✅ [ValidationPanel V2] Validation result updated:', {
@@ -101,32 +90,6 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       });
     }
   }
-
-  /**
-   * 自動補正実行ハンドラー
-   */
-  const handleApplyCorrections = () => {
-    if (selectedErrors.length === 0) {
-      message.warning('補正するエラーを選択してください');
-      return;
-    }
-
-    if (onAutoCorrect) {
-      console.log('🔧 [ValidationPanel V2] Applying corrections for errors:', selectedErrors);
-      onAutoCorrect(selectedErrors);
-    }
-  };
-
-  /**
-   * エラーチェックボックス変更ハンドラー
-   */
-  const handleErrorCheckChange = (index: number, checked: boolean) => {
-    if (checked) {
-      setSelectedErrors(prev => [...prev, index]);
-    } else {
-      setSelectedErrors(prev => prev.filter(i => i !== index));
-    }
-  };
 
   /**
    * バリデーション結果サマリーレンダリング
@@ -213,43 +176,36 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                 const suggestionStr = err.suggestion ? convertToString(err.suggestion) : '';
                 return (
                   <div key={index} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', width: '100%' }}>
-                      <Checkbox
-                        checked={selectedErrors.includes(index)}
-                        onChange={(e) => handleErrorCheckChange(index, e.target.checked)}
-                        style={{ display: 'none' }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <Space size="small" style={{ marginBottom: 4 }}>
-                          <Tag 
-                            color={err.severity === 'critical' ? 'error' : 'warning'}
-                          >
-                            {err.severity || 'error'}
-                          </Tag>
-                          <Text>{err.message}</Text>
-                        </Space>
-                        <div style={{ marginTop: 4 }}>
-                          {err.path && (
-                            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                              XPath: {err.path}
-                            </Text>
-                          )}
-                          {elementStr && (
-                            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                              要素: {elementStr}
-                            </Text>
-                          )}
-                          {err.line && (
-                            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                              行: {err.line}
-                            </Text>
-                          )}
-                          {suggestionStr && (
-                            <Text style={{ fontSize: 11, display: 'block', marginTop: 4, color: '#1890ff' }}>
-                              💡 修正案: {suggestionStr}
-                            </Text>
-                          )}
-                        </div>
+                    <div style={{ width: '100%' }}>
+                      <Space size="small" style={{ marginBottom: 4 }}>
+                        <Tag 
+                          color={err.severity === 'critical' ? 'error' : 'warning'}
+                        >
+                          {err.severity || 'error'}
+                        </Tag>
+                        <Text>{err.message}</Text>
+                      </Space>
+                      <div style={{ marginTop: 4 }}>
+                        {err.path && (
+                          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                            XPath: {err.path}
+                          </Text>
+                        )}
+                        {elementStr && (
+                          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                            要素: {elementStr}
+                          </Text>
+                        )}
+                        {err.line && (
+                          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                            行: {err.line}
+                          </Text>
+                        )}
+                        {suggestionStr && (
+                          <Text style={{ fontSize: 11, display: 'block', marginTop: 4, color: '#1890ff' }}>
+                            💡 修正案: {suggestionStr}
+                          </Text>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -347,12 +303,11 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
     >
       <div style={{ maxHeight: 'calc(90vh - 120px)', overflow: 'auto' }}>
         {/* 進行状態バー */}
-        {(isValidating || isCorrecting) && (
+        {isValidating && (
           <div style={{ marginBottom: 16 }}>
             <Progress percent={100} status="active" showInfo={false} />
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-              {isValidating && '🔍 検証中...'}
-              {isCorrecting && '🔧 補正適用中...'}
+              🔍 検証中...
             </Text>
           </div>
         )}
@@ -365,33 +320,6 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
 
         {/* 警告詳細 */}
         {renderWarnings()}
-
-        {/* 自動補正ボタン（非表示：実装は保持） */}
-        {false && validationResult && validationResult.errors && validationResult.errors.length > 0 && (
-          <Card style={{ marginTop: 16 }}>
-            <Title level={5}>🔧 自動補正</Title>
-            <Paragraph type="secondary" style={{ fontSize: 12 }}>
-              修正したいエラーを選択して、自動補正を試行できます。
-            </Paragraph>
-            <Button
-              type="primary"
-              onClick={handleApplyCorrections}
-              disabled={selectedErrors.length === 0 || isCorrecting || isValidating}
-              icon={isCorrecting ? <Spin size="small" /> : <ToolOutlined />}
-              block
-            >
-              {isCorrecting 
-                ? '補正適用中...' 
-                : `選択したエラーを自動補正 (${selectedErrors.length}件)`
-              }
-            </Button>
-            {selectedErrors.length > 0 && (
-              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8 }}>
-                ⚠️ 自動補正は完璧ではありません。適用後に必ず内容を確認してください。
-              </Text>
-            )}
-          </Card>
-        )}
 
         {/* 成功メッセージ */}
         {validationResult && validationResult.isValid && (

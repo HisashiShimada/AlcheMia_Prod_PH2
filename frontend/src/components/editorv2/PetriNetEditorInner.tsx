@@ -126,7 +126,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // ここではContextをラップせずにステートのみ管理
   const [validationPanelOpen, setValidationPanelOpen] = useState<boolean>(false);
   const [isValidating, setIsValidating] = useState<boolean>(false);
-  const [isCorrecting, setIsCorrecting] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   
   // Phase 3 (Error Handling Enhancement): エラー分類
@@ -2584,55 +2583,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     setValidationPanelOpen(false);
   }, []);
 
-  // Week2: 自動補正実行
-  const handleAutoCorrect = useCallback(async (selectedErrors: number[]) => {
-    try {
-      console.log('🔧 [PetriNetEditorInner] 自動補正実行:', selectedErrors);
-      setIsCorrecting(true);
-      
-      // MaiML生成
-      const metadata = {
-        name: documentData?.name || 'Untitled',
-        description: documentData?.description || '',
-      };
-      const maimlXml = await convertReactFlowToMaiML(nodes, edges, metadata, documentData);
-      
-      // Base64エンコード
-      const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
-      
-      // 自動補正API呼び出し（新APIエンドポイント使用）
-      const userInfoStr3 = localStorage.getItem('userInfo');
-      const userInfo3 = userInfoStr3 ? JSON.parse(userInfoStr3) : null;
-      const currentOrgId = userInfo3?.organizationId || null;
-      
-      if (!currentOrgId) {
-        throw new Error('組織IDが取得できません');
-      }
-      
-      const response = await maimlService.autoCorrectMaimlRealtime(
-        base64Data,
-        selectedErrors,
-        currentOrgId
-      );
-      
-      if (!response.success || !response.data) {
-        throw new Error(response.error?.message || '自動補正に失敗しました');
-      }
-      
-      console.log('✅ [PetriNetEditorInner] 自動補正完了');
-      
-      // 補正結果を反映する場合はここで処理
-      // （現在は簡易実装のため、再検証を促すのみ）
-      alert('自動補正が完了しました。再検証を実行してください。');
-      
-    } catch (err: unknown) {
-      const errorMessage = getErrorMessage(err);
-      console.error('❌ [PetriNetEditorInner] 自動補正エラー:', errorMessage);
-      alert(`自動補正に失敗しました: ${errorMessage}`);
-    } finally {
-      setIsCorrecting(false);
-    }
-  }, [nodes, edges, documentData]);
 
   // Week2: 再検証実行
   const handleRevalidate = useCallback(async () => {
@@ -3042,9 +2992,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         handleSaveDocument={handleSaveDocument}
         validationPanelOpen={validationPanelOpen}
         handleCloseValidationPanel={handleCloseValidationPanel}
-        handleAutoCorrect={handleAutoCorrect}
         handleRevalidate={handleRevalidate}
-        isCorrecting={isCorrecting}
         workflowDialogOpen={workflowDialogOpen}
         handleCloseWorkflowDialog={handleCloseWorkflowDialog}
         handleWorkflowFileSelect={handleWorkflowFileSelect}
@@ -3166,9 +3114,7 @@ interface PetriNetEditorInnerUIProps {
   
   validationPanelOpen: boolean;
   handleCloseValidationPanel: () => void;
-  handleAutoCorrect: (selectedErrors: number[]) => void;
   handleRevalidate: () => void;
-  isCorrecting: boolean;
   
   workflowDialogOpen: boolean;
   handleCloseWorkflowDialog: () => void;
@@ -3260,9 +3206,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   handleSaveDocument,
   validationPanelOpen,
   handleCloseValidationPanel,
-  handleAutoCorrect,
   handleRevalidate,
-  isCorrecting,
   workflowDialogOpen,
   handleCloseWorkflowDialog,
   handleWorkflowFileSelect,
@@ -3540,10 +3484,8 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           show={validationPanelOpen}
           validationResult={validationResult}
           onClose={handleCloseValidationPanel}
-          onAutoCorrect={handleAutoCorrect}
           onRevalidate={handleRevalidate}
           isValidating={isValidating}
-          isCorrecting={isCorrecting}
         />
 
         {/* ワークフロー選択ダイアログ */}
