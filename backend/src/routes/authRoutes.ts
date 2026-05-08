@@ -18,20 +18,27 @@ const corsOptions = {
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id', 'X-Amzn-Mtls-Clientcert-Subject'],
 };
 
 router.use(cors(corsOptions));
 
-// 共通バリデータ関数: queryまたはheaderにorgIdがあればOK
+// 共通バリデータ関数: mTLSヘッダー・X-Organization-Idヘッダー・クエリパラメータのいずれかにorgIdがあればOK
+// 優先順位:
+//   ① x-amzn-mtls-clientcert-subject（ALB mTLS が自動付与 / 新ALB構成）
+//   ② x-organization-id（nginx が付与 / 既存nginx構成）
+//   ③ orgId クエリパラメータ（ローカル開発・後方互換）
 const validateOrgId = () => {
   return oneOf([
-    query('orgId')
+    header('x-amzn-mtls-clientcert-subject')
       .notEmpty()
-      .withMessage('Organization ID is required in query parameter'),
+      .withMessage('Organization ID is required in mTLS client cert subject'),
     header('x-organization-id')
       .notEmpty()
       .withMessage('Organization ID is required in header'),
+    query('orgId')
+      .notEmpty()
+      .withMessage('Organization ID is required in query parameter'),
   ], { message: 'Organization ID is required in either query parameter (orgId) or header (X-Organization-Id)' });
 };
 

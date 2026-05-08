@@ -1,0 +1,67 @@
+{
+  "family": "prod-frontend",
+  "taskRoleArn": "arn:aws:iam::137068252939:role/ecsTaskRole",
+  "executionRoleArn": "arn:aws:iam::137068252939:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+
+  "containerDefinitions": [
+    {
+      "name": "mmdpf-frontend",
+      "image": "137068252939.dkr.ecr.ap-northeast-1.amazonaws.com/mmdpf-frontend:staging",
+      "essential": true,
+
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+
+      "environment": [
+        { "name": "NODE_ENV",                "value": "production" },
+        { "name": "PORT",                    "value": "3000" },
+        { "name": "NEXT_TELEMETRY_DISABLED", "value": "1" },
+        {
+          "name": "NEXT_PUBLIC_API_URL",
+          "value": "https://prod-verification-alb-1495997713.ap-northeast-1.elb.amazonaws.com"
+        }
+      ],
+
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/prod-frontend",
+          "awslogs-region":        "ap-northeast-1",
+          "awslogs-stream-prefix": "frontend",
+          "awslogs-create-group":  "true"
+        }
+      },
+
+      "healthCheck": {
+        "command":     ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"],
+        "interval":    30,
+        "timeout":     10,
+        "retries":     3,
+        "startPeriod": 60
+      },
+
+      "ulimits": [
+        {
+          "name": "nofile",
+          "softLimit": 65536,
+          "hardLimit": 65536
+        }
+      ]
+    }
+  ],
+
+  "tags": [
+    { "key": "Project",     "value": "alchemia-staging" },
+    { "key": "Environment", "value": "staging" },
+    { "key": "Service",     "value": "prod-frontend" }
+  ]
+}
