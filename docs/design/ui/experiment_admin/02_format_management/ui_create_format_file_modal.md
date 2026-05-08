@@ -458,10 +458,10 @@ const [form] = Form.useForm();                        // Ant Design Form イン�
 ## 7. 実装ファイル
 
 ### 7.1 ファイルパス
-- **メインファイル**: `frontend/src/components/project/CreateFormatFileModal.tsx`
+- **メインファイル**: `frontend/src/components/format/CreateFormatFileModal.tsx`
 
 ### 7.2 関連ファイル
-- **親コンポーネント**: `frontend/src/components/project/FormatManagement.tsx`
+- **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
 - **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`
 - **型定義**: このファイル内で定義・export（CreateFormatFileData型）
 

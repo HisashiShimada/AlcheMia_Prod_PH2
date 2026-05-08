@@ -26,6 +26,7 @@ interface LoginPageProps {
  * UIポリシーに基づいたモダンで清潔感のあるデザイン
  */
 export default function LoginPage({ onLogin, onForgotPassword, error, loading = false, debugPanel }: LoginPageProps) {
+  const { t } = useLanguage();
   const { token } = theme.useToken();
   const { t } = useLanguage();
   const [userId, setUserId] = useState('');
@@ -140,7 +141,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
                 fontWeight: token.fontWeightStrong,
               }}
             >
-              MMDPF
+              {t('common.appName')}
             </Title>
             <Text
               type="secondary"
@@ -148,7 +149,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
                 fontSize: token.fontSizeHeading4,
               }}
             >
-              {t('auth.appSubtitle')}
+              {t('common.appSubtitle')}
             </Text>
           </Space>
 

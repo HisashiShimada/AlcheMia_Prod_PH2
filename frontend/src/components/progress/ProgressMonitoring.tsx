@@ -12,12 +12,14 @@ import {
   Typography,
   theme,
   message,
+  Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   SearchOutlined,
   ReloadOutlined,
   EyeOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import WorkProgressDetailDialog from './WorkProgressDetailDialog';
@@ -44,6 +46,8 @@ interface ProgressRecord {
   ownerName: string;
   completedTasks: number;
   totalTasks: number;
+  /** MAIMLファイルが登録済みか（project_uuid または maimlFileKey が存在する場合 true） */
+  hasMaiml: boolean;
 }
 
 /**
@@ -123,6 +127,8 @@ export default function ProgressMonitoring() {
         ownerName: item.ownerName || item.owner || '',
         completedTasks: item.completedTasks || 0,
         totalTasks: item.totalTasks || 0,
+        // project_uuid または maimlFileKey が存在する場合は MAIML 登録済みとみなす
+        hasMaiml: !!(item.project_uuid || item.maimlFileKey),
       })
     );
   }, [projectsData]);
@@ -334,22 +340,41 @@ export default function ProgressMonitoring() {
     {
       title: t('progress.table.actions') || '操作',
       key: 'actions',
-      width: 120,
+      width: 150,
       align: 'center',
-      render: (_text: string, record: ProgressRecord) => (
-        <Button
-          type="primary"
-          ghost
-          icon={<EyeOutlined />}
-          size="small"
-          data-testid={`progress-detail-button-${record.projectId}`}
-          loading={loadingProjectId === record.projectId}
-          disabled={loadingProjectId !== null && loadingProjectId !== record.projectId}
-          onClick={() => handleViewDetails(record)}
-        >
-          {t('progress.actions.viewDetails')}
-        </Button>
-      ),
+      render: (_text: string, record: ProgressRecord) => {
+        const isOtherLoading = loadingProjectId !== null && loadingProjectId !== record.projectId;
+        const isThisLoading = loadingProjectId === record.projectId;
+        // MAIMLファイル未登録の場合はボタンを非活性にする
+        const isMaimlMissing = !record.hasMaiml;
+        const isDisabled = isOtherLoading || isMaimlMissing;
+
+        const button = (
+          <Button
+            type="primary"
+            ghost
+            icon={isMaimlMissing ? <WarningOutlined /> : <EyeOutlined />}
+            size="small"
+            data-testid={`progress-detail-button-${record.projectId}`}
+            loading={isThisLoading}
+            disabled={isDisabled}
+            onClick={() => handleViewDetails(record)}
+          >
+            {t('progress.actions.viewDetails')}
+          </Button>
+        );
+
+        if (isMaimlMissing) {
+          return (
+            <Tooltip title="MAIMLファイルが未登録のため詳細を表示できません">
+              {/* disabled なボタンは Tooltip が効かないため span でラップ */}
+              <span>{button}</span>
+            </Tooltip>
+          );
+        }
+
+        return button;
+      },
     },
   ];
 

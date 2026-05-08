@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.scss";
 import ThemeProviderWrapper from "@/components/ThemeProviderWrapper";
+import jaTranslations from "@/locales/ja.json";
 
 export const metadata: Metadata = {
-  title: "MMDPF - マルチモーダルデータプラットフォーム",
-  description: "材料科学分野における実験データ管理・可視化プラットフォーム",
+  title: jaTranslations.common.appName,
+  description: jaTranslations.common.appSubtitle,
 };
 
 export default function RootLayout({

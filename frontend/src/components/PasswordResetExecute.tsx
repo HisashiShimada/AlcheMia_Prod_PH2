@@ -30,6 +30,7 @@ export default function PasswordResetExecute({
   error,
   loading = false,
 }: PasswordResetExecuteProps) {
+  const { t } = useLanguage();
   const { token } = theme.useToken();
   const { t } = useLanguage();
   const [newPassword, setNewPassword] = useState('');
@@ -154,7 +155,7 @@ export default function PasswordResetExecute({
                 fontWeight: token.fontWeightStrong,
               }}
             >
-              MMDPF
+              {t('common.appName')}
             </Title>
             <Title
               level={2}

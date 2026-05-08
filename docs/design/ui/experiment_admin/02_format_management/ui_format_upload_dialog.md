@@ -656,10 +656,10 @@ const response = await uploadFiles({
 ## 7. 実装ファイル
 
 ### 7.1 ファイルパス
-- **メインファイル**: `frontend/src/components/project/FormatUploadDialog.tsx`
+- **メインファイル**: `frontend/src/components/format/FormatUploadDialog.tsx`
 
 ### 7.2 関連ファイル
-- **親コンポーネント**: `frontend/src/components/project/FormatManagement.tsx`
+- **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
 - **サービス**: `frontend/src/services/fileAccessService.ts` (uploadFiles)
 - **ユーティリティ**: `frontend/src/utils/errorUtils.ts` (extractErrorMessage)
 

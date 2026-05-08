@@ -23,8 +23,8 @@
     }
   },
   "common": {
-    "appName": "MMDPF",
-    "appSubtitle": "マルチモーダルデータプラットフォーム",
+    "appName": "Alchemia",
+    "appSubtitle": "材料科学分野における実験データ管理・可視化プラットフォーム",
     "login": "ログイン",
     "logout": "ログアウト",
     "profile": "プロフィール",

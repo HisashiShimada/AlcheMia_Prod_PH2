@@ -24,7 +24,10 @@ export async function login(req: Request, res: Response): Promise<void> {
 
   try {
     const { userId, password } = req.body;
-    const organizationId = (req.headers['x-organization-id'] || req.query.orgId) as string;
+    // ALB mTLS が付与する Subject ヘッダーから CN（organization_id UUID）を抽出
+    const mtlsSubject = req.headers['x-amzn-mtls-clientcert-subject'] as string;
+    const mtlsMatch = mtlsSubject?.match(/CN=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+    const organizationId = (mtlsMatch?.[1] ?? req.headers['x-organization-id'] ?? req.query.orgId) as string;
 
     const result = await authService.processLogin({
       userId,
@@ -101,7 +104,10 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
 
   try {
     const { email } = req.body;
-    const organizationId = (req.headers['x-organization-id'] || req.query.orgId) as string;
+    // ALB mTLS が付与する Subject ヘッダーから CN（organization_id UUID）を抽出
+    const mtlsSubject = req.headers['x-amzn-mtls-clientcert-subject'] as string;
+    const mtlsMatch = mtlsSubject?.match(/CN=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+    const organizationId = (mtlsMatch?.[1] ?? req.headers['x-organization-id'] ?? req.query.orgId) as string;
 
     console.log(organizationId, email);
     const result = await authService.processPasswordResetRequest({
@@ -230,7 +236,10 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
 
   try {
     const authHeader = req.headers.authorization as string;
-    const organizationId = (req.headers['x-organization-id'] || req.query.orgId) as string;
+    // ALB mTLS が付与する Subject ヘッダーから CN（organization_id UUID）を抽出
+    const mtlsSubject = req.headers['x-amzn-mtls-clientcert-subject'] as string;
+    const mtlsMatch = mtlsSubject?.match(/CN=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+    const organizationId = (mtlsMatch?.[1] ?? req.headers['x-organization-id'] ?? req.query.orgId) as string;
 
     // Authorizationヘッダーからトークン抽出
     const tokenMatch = authHeader.match(/^Bearer (.+)$/);

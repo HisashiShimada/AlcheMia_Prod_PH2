@@ -30,6 +30,7 @@ export default function PasswordResetRequest({
   error,
   loading = false,
 }: PasswordResetRequestProps) {
+  const { t } = useLanguage();
   const { token } = theme.useToken();
   const { t } = useLanguage();
   const [email, setEmail] = useState('');
@@ -122,7 +123,7 @@ export default function PasswordResetRequest({
                 fontWeight: token.fontWeightStrong,
               }}
             >
-              MMDPF
+              {t('common.appName')}
             </Title>
             <Title
               level={2}

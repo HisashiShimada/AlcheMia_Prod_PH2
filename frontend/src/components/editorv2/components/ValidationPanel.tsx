@@ -1,11 +1,12 @@
 /**
  * ValidationPanel - バリデーション結果表示パネル（EditorV2用）
  * 
- * バリデーション結果の詳細表示、エラー/警告の階層的表示、自動補正機能
+ * バリデーション結果の詳細表示、エラー/警告の階層的表示
  * Material-UI → Ant Design変換版
  * 
  * @version 2.1.0
- * @date 2026-05-01
+
+ * @date 2026-05-08
  */
 
 import React, { useState } from 'react';
@@ -18,24 +19,20 @@ import {
   Collapse,
   Button,
   Progress,
-  Checkbox,
   Space,
-  Spin,
   Tooltip,
-  message,
 } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   WarningOutlined,
-  ToolOutlined,
   ReloadOutlined,
   CloseOutlined,
 } from '@ant-design/icons';
 import { AnalysisResult } from '@/types/maimlValidation';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Title } = Typography;
 
 /**
  * unknown型を文字列に安全に変換するヘルパー関数
@@ -57,23 +54,19 @@ export interface ValidationPanelProps {
   show: boolean;
   validationResult: AnalysisResult | null;
   onClose: () => void;
-  onAutoCorrect?: (selectedErrors: number[]) => void;
   onRevalidate?: () => void;
   isValidating?: boolean;
-  isCorrecting?: boolean;
 }
 
 /**
- * ValidationPanel - バリデーション結果表示・自動補正機能
+ * ValidationPanel - バリデーション結果表示
  */
 const ValidationPanel: React.FC<ValidationPanelProps> = ({
   show = false,
   validationResult = null,
   onClose,
-  onAutoCorrect,
   onRevalidate,
   isValidating = false,
-  isCorrecting = false,
 }) => {
   const { t } = useLanguage();
 
@@ -81,20 +74,17 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
     show,
     hasResult: !!validationResult,
     isValidating,
-    isCorrecting,
     errorCount: validationResult?.errors?.length || 0,
     warningCount: validationResult?.warnings?.length || 0
   });
 
   // State管理
-  const [selectedErrors, setSelectedErrors] = useState<number[]>([]);
   const [activeKeys, setActiveKeys] = useState<string[]>(['errors']);
   const [prevValidationResult, setPrevValidationResult] = useState<AnalysisResult | null>(null);
 
   // validationResult変更検知（ESLintエラー回避のため手動比較）
   if (validationResult !== prevValidationResult) {
     setPrevValidationResult(validationResult);
-    setSelectedErrors([]);
     
     if (validationResult) {
       console.log('✅ [ValidationPanel V2] Validation result updated:', {
@@ -132,6 +122,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   };
 
   /**
+  
    * バリデーション結果サマリーレンダリング
    */
   const renderValidationSummary = () => {
@@ -216,6 +207,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                 const suggestionStr = err.suggestion ? convertToString(err.suggestion) : '';
                 return (
                   <div key={index} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+
                     <div style={{ display: 'flex', alignItems: 'flex-start', width: '100%' }}>
                       <Checkbox
                         checked={selectedErrors.includes(index)}
@@ -253,7 +245,6 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                             </Text>
                           )}
                         </div>
-          
                       </div>
                     </div>
                   </div>
@@ -351,7 +342,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
     >
       <div style={{ maxHeight: 'calc(90vh - 120px)', overflow: 'auto' }}>
         {/* 進行状態バー */}
-        {(isValidating || isCorrecting) && (
+        {isValidating && (
           <div style={{ marginBottom: 16 }}>
             <Progress percent={100} status="active" showInfo={false} />
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
@@ -369,7 +360,6 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
 
         {/* 警告詳細 */}
         {renderWarnings()}
-
         {/* 自動補正ボタン */}
         {validationResult && validationResult.errors && validationResult.errors.length > 0 && (
           <Card style={{ marginTop: 16 }}>
@@ -396,7 +386,6 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
             )}
           </Card>
         )}
-
         {/* 成功メッセージ */}
         {validationResult && validationResult.isValid && (
           <Alert

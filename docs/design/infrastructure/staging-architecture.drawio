@@ -1,0 +1,157 @@
+<mxfile host="65bd71144e">
+    <diagram id="5xZWI8Ff6cndg9QeNico" name="ページ1">
+        <mxGraphModel dx="1434" dy="899" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="検証環境 AWSシステム構成図（alchemia-staging）" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="327" y="20" width="1000" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="user-group" value="エンドユーザー（Chrome）" style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="327" y="80" width="1000" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="user-https" value="HTTPS アクセス&#xa;・CA証明書（MMDPF CA）インポート済み&#xa;・クライアント証明書（.p12）インポート済み&#xa;　※パスワード: mmdpf123 ⚠️" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="357" y="120" width="340" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="user-http" value="HTTP アクセス&#xa;・URL に orgId クエリパラメータ付与&#xa;　例: ?orgId=a0718dc5-..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="757" y="120" width="340" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="vpc" value="VPC: vpc-037a0cb50e47092a0 (alchemia-staging-vpc) / CIDR: 10.1.0.0/16" style="swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontStyle=1;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="270" width="1454" height="1270" as="geometry"/>
+                </mxCell>
+                <mxCell id="lb-area" value="パブリックサブネット配置のロードバランサー（internet-facing）&#xa;※ NLB・ALB はVPC内のパブリックサブネットにノードが配置される" style="swimlane;startSize=40;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=10;" parent="vpc" vertex="1">
+                    <mxGeometry x="20" y="40" width="1000" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="nlb" value="NLB（Network Load Balancer）&lt;br&gt;alchemia-staging-nlb-0fd64d466d1b557b.elb.ap-northeast-1.amazonaws.com&lt;br&gt;・TCPリスナー（TLS 終端なし）TCP/443&lt;br&gt;・SG: TCP/443 → 0.0.0.0/0 ⚠️全開放&lt;br&gt;ノード: alchemia-public-1a / 1c に配置" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=10;align=left;" parent="lb-area" vertex="1">
+                    <mxGeometry x="20" y="45" width="420" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="alb" value="ALB（Application Load Balancer）&lt;br&gt;alchemia-staging-alb-987042084.ap-northeast-1.elb.amazonaws.com&lt;br&gt;・HTTP:80 リスナー&lt;br&gt;・URL クエリ ?orgId= で organization_id を取得&lt;br&gt;・ターゲット: alchemia-nginx-service(80)&lt;br&gt;ノード: alchemia-public-1a / 1c に配置" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=10;align=left;" parent="lb-area" vertex="1">
+                    <mxGeometry x="460" y="45" width="510" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="az-1a" value="AZ: ap-northeast-1a" style="swimlane;startSize=25;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=10;" parent="vpc" vertex="1">
+                    <mxGeometry x="20" y="200" width="690" height="1040" as="geometry"/>
+                </mxCell>
+                <mxCell id="pub-1a" value="パブリックサブネット&#xa;alchemia-public-1a&#xa;subnet-0c386da2db38952dc&#xa;10.1.1.0/24 / MapPublicIp: True" style="swimlane;startSize=55;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" parent="az-1a" vertex="1">
+                    <mxGeometry x="20" y="35" width="650" height="430" as="geometry"/>
+                </mxCell>
+                <mxCell id="nlb-node-1a" value="NLB ノード (1a)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.classic_load_balancer;labelBackgroundColor=#ffffff;sketch=0;fontStyle=0;fontSize=9;" parent="pub-1a" vertex="1">
+                    <mxGeometry x="20" y="60" width="60" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="alb-node-1a" value="ALB ノード (1a)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.application_load_balancer;labelBackgroundColor=#ffffff;sketch=0;fontStyle=0;fontSize=9;" parent="pub-1a" vertex="1">
+                    <mxGeometry x="110" y="60" width="60" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="ecs-nginx-service" value="ECS Fargate: alchemia-nginx-service&#xa;desiredCount=1 ⚠️ / launchType=FARGATE&#xa;assignPublicIp=ENABLED ✅ / Circuit Breaker: 無効 ⚠️&#xa;SG: sg-08569630d4e399b60 (alchemia-nginx-sg)&#xa;配置: パブリックサブネット (alchemia-public-1a / 1c)" style="swimlane;startSize=50;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=10;" parent="pub-1a" vertex="1">
+                    <mxGeometry x="10" y="145" width="625" height="265" as="geometry"/>
+                </mxCell>
+                <mxCell id="container-nginx" value="mmdpf-nginx コンテナ（443/80）&#xa;・SSL 終端（TCP/443）&#xa;・クライアント証明書認証（mTLS）&#xa;　CN（UUID）→ organization_id&#xa;・X-Organization-Id ヘッダー付与&#xa;・HTTP/80: ALB 経由 ?orgId= から org_id&#xa;・/api/ → backend (Service Discovery)&#xa;・/ → localhost:3000&#xa;サーバー証明書: CN=alchemia-staging-nlb-...&#xa;　notAfter=Feb 2027&#xa;CA証明書: CN=MMDPF CA ⚠️ notAfter=Feb 2036" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;fontSize=9;" parent="ecs-nginx-service" vertex="1">
+                    <mxGeometry x="10" y="60" width="330" height="155" as="geometry"/>
+                </mxCell>
+                <mxCell id="container-frontend" value="mmdpf-frontend コンテナ（3000）&#xa;Next.js フロントエンド" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;fontSize=9;" parent="ecs-nginx-service" vertex="1">
+                    <mxGeometry x="360" y="60" width="310" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="priv-1a" value="プライベートサブネット&#xa;alchemia-private-1a&#xa;subnet-0b0981a2507f1042c&#xa;10.1.11.0/24 / MapPublicIp: False" style="swimlane;startSize=55;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" parent="az-1a" vertex="1">
+                    <mxGeometry x="20" y="585" width="650" height="435" as="geometry"/>
+                </mxCell>
+                <mxCell id="aurora-1a" value="Aurora PostgreSQL&#xa;alchemia-staging-aurora&#xa;(Primary Instance)&#xa;────────────&#xa;db.t3.medium ⚠️&#xa;シングルノード ⚠️&#xa;MultiAZ: false ⚠️&#xa;DeletionProtection: false ⚠️&#xa;BackupRetentionPeriod: 1日 ⚠️&#xa;EngineVersion: 15.8&#xa;Endpoint: *.cluster-c7u0cw0em9f8&#xa;SG: sg-02d0638a1a2185f47" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;fontSize=9;" parent="priv-1a" vertex="1">
+                    <mxGeometry x="20" y="65" width="280" height="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="redis-1a" value="ElastiCache Redis&#xa;alchemia-staging-redis&#xa;(001 ノード)&#xa;────────────&#xa;cache.t3.small ⚠️&#xa;1ノードのみ ⚠️&#xa;AutomaticFailover: disabled ⚠️&#xa;MultiAZ: disabled ⚠️&#xa;TransitEncryption: 有効 ✅&#xa;AtRestEncryption: 有効 ✅&#xa;SnapshotRetentionLimit: 0日 ⚠️&#xa;SG: sg-0e21f75613471063b" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;fontSize=9;" parent="priv-1a" vertex="1">
+                    <mxGeometry x="340" y="65" width="280" height="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="bastion" value="踏み台 EC2&#xa;IP: 10.1.11.44&#xa;SG: sg-0e22cd8f637e8d514" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=9;" parent="priv-1a" vertex="1">
+                    <mxGeometry x="20" y="275" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="az-1c" value="AZ: ap-northeast-1c" style="swimlane;startSize=25;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=10;" parent="vpc" vertex="1">
+                    <mxGeometry x="744" y="200" width="690" height="1040" as="geometry"/>
+                </mxCell>
+                <mxCell id="pub-1c" value="パブリックサブネット&#xa;alchemia-public-1c&#xa;subnet-0388f1051ba7b98ce&#xa;10.1.2.0/24 / MapPublicIp: True" style="swimlane;startSize=55;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" parent="az-1c" vertex="1">
+                    <mxGeometry x="20" y="35" width="650" height="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="nlb-node-1c" value="NLB ノード (1c)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.classic_load_balancer;labelBackgroundColor=#ffffff;sketch=0;fontStyle=0;fontSize=9;" parent="pub-1c" vertex="1">
+                    <mxGeometry x="20" y="60" width="60" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="alb-node-1c" value="ALB ノード (1c)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.application_load_balancer;labelBackgroundColor=#ffffff;sketch=0;fontStyle=0;fontSize=9;" parent="pub-1c" vertex="1">
+                    <mxGeometry x="110" y="60" width="60" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="ecs-backend-service" value="ECS Fargate: alchemia-backend-service&#xa;desiredCount=1 ⚠️ / launchType=FARGATE&#xa;assignPublicIp=ENABLED ✅ / Circuit Breaker: 無効 ⚠️&#xa;配置: パブリックサブネット (alchemia-public-1a / 1c)&#xa;SG: sg-0920f1a670e75b444" style="swimlane;startSize=65;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=10;" parent="pub-1c" vertex="1">
+                    <mxGeometry x="10" y="145" width="625" height="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="container-backend" value="mmdpf-backend コンテナ（3001）&#xa;Node.js / Express API サーバー&#xa;環境変数はタスク定義 JSON に平文記述 ⚠️" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;fontSize=10;" parent="ecs-backend-service" vertex="1">
+                    <mxGeometry x="10" y="70" width="400" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="iam-role" value="IAM ロール: ecsTaskRole&#xa;（インラインポリシー ⚠️）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="ecs-backend-service" vertex="1">
+                    <mxGeometry x="490" y="75" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="priv-1c" value="プライベートサブネット&#xa;alchemia-private-1c&#xa;subnet-07f168ac7f7902dfe&#xa;10.1.12.0/24 / MapPublicIp: False" style="swimlane;startSize=55;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" parent="az-1c" vertex="1">
+                    <mxGeometry x="20" y="515" width="650" height="500" as="geometry"/>
+                </mxCell>
+                <mxCell id="aurora-1c" value="Aurora PostgreSQL&#xa;（レプリカなし ⚠️）&#xa;MultiAZ: false のため&#xa;フェイルオーバー不可 ⚠️" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;fontSize=10;" parent="priv-1c" vertex="1">
+                    <mxGeometry x="20" y="65" width="280" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="redis-1c" value="ElastiCache Redis&#xa;（レプリカなし ⚠️）&#xa;AutoFailover: disabled" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;fontSize=10;" parent="priv-1c" vertex="1">
+                    <mxGeometry x="340" y="65" width="280" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="external-services" value="外部 AWS サービス（IAM ロール経由でアクセス）" style="swimlane;startSize=30;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="327" y="1620" width="1100" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3" value="Amazon S3&#xa;mmdpf-files-production&#xa;暗号化(AES256): 有効 ✅&#xa;パブリックアクセスブロック: 有効 ✅&#xa;バージョニング: 無効 ⚠️&#xa;ライフサイクル: 未設定 ⚠️" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=9;" parent="external-services" vertex="1">
+                    <mxGeometry x="20" y="40" width="230" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="bedrock" value="AWS Bedrock&#xa;リージョン: ap-northeast-1&#xa;Ollama の代替として使用" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=9;" parent="external-services" vertex="1">
+                    <mxGeometry x="270" y="40" width="220" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ssm" value="AWS SSM Parameter Store&#xa;証明書格納&#xa;（インラインポリシーでアクセス ⚠️）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=9;" parent="external-services" vertex="1">
+                    <mxGeometry x="510" y="40" width="260" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ecr" value="Amazon ECR&#xa;137068252939.dkr.ecr.ap-northeast-1&#xa;・mmdpf-backend (タグ: staging)&#xa;・mmdpf-frontend (タグ: staging)&#xa;・mmdpf-nginx (タグ: staging)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;fontSize=9;" parent="external-services" vertex="1">
+                    <mxGeometry x="790" y="40" width="280" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-user-nlb" value="TCP/443&#xa;TCPパススルー" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;strokeColor=#0000FF;fontColor=#0000FF;fontSize=9;" parent="1" source="user-https" target="nlb" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-user-alb" value="HTTP/80" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#0000FF;fontColor=#0000FF;fontSize=9;" parent="1" source="user-http" target="alb" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-nlb-nginx" value="TCP/443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;strokeColor=#FF8000;fontColor=#FF8000;fontSize=9;" parent="1" source="nlb" target="ecs-nginx-service" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-alb-nginx" value="HTTP/80" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.7;exitY=1;exitDx=0;exitDy=0;entryX=0.7;entryY=0;entryDx=0;entryDy=0;strokeColor=#FF8000;fontColor=#FF8000;fontSize=9;" parent="1" source="alb" target="ecs-nginx-service" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-nginx-backend" value="TCP/3001&#xa;Service Discovery&#xa;alchemia-backend.alchemia.local" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6600CC;fontColor=#6600CC;fontSize=9;" parent="1" source="ecs-nginx-service" target="ecs-backend-service" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-backend-aurora" value="TCP/5432 (SSL)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.2;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#0066CC;fontColor=#0066CC;fontSize=9;" parent="1" source="ecs-backend-service" target="aurora-1a" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-backend-redis" value="TCP/6379 (TLS)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.4;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#009900;fontColor=#009900;fontSize=9;" parent="1" source="ecs-backend-service" target="redis-1a" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-backend-s3" value="IAM ロール&#xa;(S3アクセス)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.2;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" parent="1" source="ecs-backend-service" target="s3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-backend-bedrock" value="IAM ロール&#xa;(Bedrockアクセス)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" parent="1" source="ecs-backend-service" target="bedrock" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-backend-ssm" value="IAM ロール&#xa;(SSMアクセス)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.7;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" parent="1" source="ecs-backend-service" target="ssm" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="arrow-backend-ecr" value="イメージ取得" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.9;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=9;" parent="1" source="ecs-backend-service" target="ecr" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sg-legend" value="【セキュリティグループ構成】&#xa;■ sg-0b315366936dbbf03 (ALB用): TCP/80,443 ← 0.0.0.0/0&#xa;■ sg-08569630d4e399b60 (nginx-sg): TCP/80,443 ← 0.0.0.0/0 ⚠️全開放&#xa;■ sg-0920f1a670e75b444 (backend現行-sg): TCP/3001 ← nginx-sg のみ&#xa;■ sg-02d0638a1a2185f47 (rds-sg): TCP/5432 ← backend-sg のみ&#xa;■ sg-0e21f75613471063b (redis-sg): TCP/6379 ← backend-sg のみ&#xa;&#xa;⚠️ = 本番稼働前に対応が必要な項目  ✅ = 適切に設定済みの項目" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="1610" y="270" width="420" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd-legend" value="【Service Discovery】&#xa;名前空間: alchemia.local&#xa;ID: ns-qpfu4ddhzvys7xqb&#xa;backend DNS:&#xa;alchemia-backend.alchemia.local" style="text;html=1;strokeColor=#6600CC;fillColor=#f3e8ff;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="1610" y="460" width="300" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="secret-warning" value="【⚠️ シークレット管理 警告】&#xa;ECS タスク定義 JSON に平文記述 ⚠️&#xa;DB_PASSWORD, JWT_SECRET, SESSION_SECRET&#xa;REDIS_PASSWORD 等&#xa;Secrets Manager への移行: 未実施 ⚠️" style="text;html=1;strokeColor=#FF0000;fillColor=#FFCCCC;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="1610" y="590" width="300" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="monitoring-warning" value="【⚠️ 監視・アラート 未設定 ⚠️】&#xa;CloudWatch アラーム: 未設定 ⚠️" style="text;html=1;strokeColor=#FF0000;fillColor=#FFCCCC;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="1610" y="710" width="300" height="50" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

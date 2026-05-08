@@ -142,10 +142,13 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
 export const loginRateLimit = rateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15分
   maxAttempts: 5,
-  // orgId は query パラメータまたは x-organization-id ヘッダーから取得
+  // orgId は ALB mTLS ヘッダー > x-organization-id ヘッダー > query パラメータの優先順位で取得
   // userId は body.userId（バックエンド仕様）または body.username（後方互換）に対応
   keyGenerator: (req) => {
-    const orgId = (req.query.orgId || req.headers['x-organization-id']) as string;
+    // ALB mTLS が付与する Subject ヘッダーから CN（organization_id UUID）を抽出
+    const mtlsSubject = req.headers['x-amzn-mtls-clientcert-subject'] as string;
+    const mtlsMatch = mtlsSubject?.match(/CN=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+    const orgId = (mtlsMatch?.[1] ?? req.query.orgId ?? req.headers['x-organization-id']) as string;
     const userId = (req.body?.userId || req.body?.username) as string;
     return orgId && userId ? `${orgId}__${userId}` : '';
   },
