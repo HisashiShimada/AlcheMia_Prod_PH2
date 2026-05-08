@@ -267,10 +267,11 @@ export default function ExperimentWorkerMenu({
   };
 
   // タスク選択とタブ切り替えを同時に実行するハンドラー
-  const handleSelectTaskAndTab = (taskId: string, tabKey: string) => {
-    // TODO: API化後、タスクからメソッドIDを取得するロジックを実装
-    // 現在はモックデータを使用していないため、メソッドIDの取得は省略
-    
+  const handleSelectTaskAndTab = (taskId: string, tabKey: string, methodId?: string) => {
+    // methodId が渡された場合はメソッドも選択する
+    if (methodId) {
+      setSelectedMethodId(methodId);
+    }
     // タスクを選択
     setSelectedTaskId(taskId);
     // タブを切り替え

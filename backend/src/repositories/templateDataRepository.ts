@@ -27,6 +27,8 @@ import type { Property, Content, Insertion } from '../types/maiml-unified';
 export interface PropertySet {
   templateId: string;
   templateType: 'material' | 'condition' | 'result';
+  /** MAIMLファイル内のテンプレート名（<name>タグ）。存在しない場合はnull */
+  templateName?: string | null;
   properties: Property[];
   /** insertion コンテナ型のカスタムプロパティ（containerType === 'insertion'） */
   insertions?: Insertion[];

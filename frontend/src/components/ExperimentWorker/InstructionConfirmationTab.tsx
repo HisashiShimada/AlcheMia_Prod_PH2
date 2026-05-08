@@ -996,6 +996,7 @@ export default function InstructionConfirmationTab({
                 loading={confirmLoading}
                 disabled={
                   readOnly ||
+                  !isTaskExecuting ||
                   filteredStats.total === 0 || 
                   confirmLoading || 
                   filteredInstructions.every((i) => i.isAcknowledged)
@@ -1007,12 +1008,14 @@ export default function InstructionConfirmationTab({
                   fontWeight: 600,
                   backgroundColor: 
                     (readOnly ||
+                     !isTaskExecuting ||
                      filteredStats.total === 0 || 
                      filteredInstructions.every((i) => i.isAcknowledged)) 
                       ? undefined 
                       : token.colorSuccess,
                   borderColor: 
                     (readOnly ||
+                     !isTaskExecuting ||
                      filteredStats.total === 0 || 
                      filteredInstructions.every((i) => i.isAcknowledged)) 
                       ? undefined 

@@ -6,7 +6,7 @@
 
 import { createApiClient } from '@/utils/authUtils';
 import { HTTP_STATUS } from '@/constants/httpStatus';
-import type { MasterDataType, MasterDataConfig } from '@/types/masterDataTypes';
+import type { MasterDataType } from '@/types/masterDataTypes';
 import { getMasterDataConfig } from '@/types/masterDataTypes';
 import { AxiosError } from 'axios';
 

@@ -63,30 +63,6 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
   const { token } = theme.useToken();
   const { t } = useLanguage();
 
-  const getCategoryTagColor = (category: string): string => {
-    const colors: Record<string, string> = {
-      protocol: 'cyan',
-      material: 'success',
-      measurement: 'blue',
-      analysis: 'orange',
-      sample: 'purple',
-      device: 'red',
-    };
-    return colors[category] || 'default';
-  };
-
-  const getCategoryLabel = (category: string): string => {
-    const labels: Record<string, string> = {
-      protocol: 'プロトコル',
-      material: '材料',
-      measurement: '測定',
-      analysis: '解析',
-      sample: '試料',
-      device: '装置',
-    };
-    return labels[category] || category;
-  };
-
   const menuItems: MenuProps['items'] = [
     {
       key: 'name',

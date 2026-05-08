@@ -39,7 +39,6 @@ import type { MaimlAnalysisResultRow } from '@/services/maimlApiService';
 
 interface FileListTableProps {
   files: ProjectFile[];
-  projectId: string;
   /** 現在表示中のフォルダパス（'root' またはパス文字列） */
   currentFolder?: string;
   onFileClick?: (file: ProjectFile) => void;
@@ -55,20 +54,10 @@ interface FileListTableProps {
 }
 
 /**
- * フォルダ名（フルパスを含む可能性あり）から表示用の末尾セグメントのみを返す
- * 例: "rawdata/sub/" → "sub", "rawdata" → "rawdata"
- */
-const extractFolderDisplayName = (name: string): string => {
-  const parts = name.split('/').filter(s => s !== '');
-  return parts[parts.length - 1] || name;
-};
-
-/**
  * ファイル一覧テーブルコンポーネント
  */
 const FileListTable: React.FC<FileListTableProps> = ({ 
   files, 
-  projectId, 
   onFileClick, 
   onFolderClick, 
   onViewFile,

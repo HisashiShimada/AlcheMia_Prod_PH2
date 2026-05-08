@@ -128,7 +128,7 @@ async function _runBatch(
   organizationId: string,
   options: BatchIngestOptions
 ): Promise<void> {
-  const { forceReprocess = false, maxFiles = null } = options;
+  const { maxFiles = null } = options;
   const storageService = getStorageService();
 
   try {

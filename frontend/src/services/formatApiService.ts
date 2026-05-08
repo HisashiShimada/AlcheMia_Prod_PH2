@@ -5,11 +5,7 @@
  * API設計書: docs/design/api/api_format_management.md
  */
 
-import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
-
-// API Base URL（環境変数から取得、デフォルトは相対パス）
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 /**
  * 統一レスポンス形式

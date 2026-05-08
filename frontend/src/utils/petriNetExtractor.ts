@@ -13,7 +13,7 @@ import type {
   Property,
   PropertyCustomElement
 } from '@/types/maiml-unified';
-import { xml2js, ElementCompact, Element as XmlJsNonCompactElement } from 'xml-js';
+import { xml2js, Element as XmlJsNonCompactElement } from 'xml-js';
 
 /**
  * テンプレートマップを構築
