@@ -78,13 +78,13 @@ const ALLOWED_TRANSITIONS: Record<number, number[]> = {
  * 全ステータスの定義
  */
 const ALL_STATUS_OPTIONS: { value: TransitionStatus; label: string }[] = [
-  { value: TransitionStatusCode.INITIAL as TransitionStatus, label: '初期状態' },
-  { value: TransitionStatusCode.PREPARING as TransitionStatus, label: '準備状態' },
-  { value: TransitionStatusCode.READY as TransitionStatus, label: '準備完了状態' },
-  { value: TransitionStatusCode.IN_PROGRESS as TransitionStatus, label: '動作状態' },
-  { value: TransitionStatusCode.PAUSED as TransitionStatus, label: '休止状態' },
-  { value: TransitionStatusCode.COMPLETED as TransitionStatus, label: '終状態' },
-  { value: TransitionStatusCode.ERROR as TransitionStatus, label: '異常終了状態' },
+  { value: TransitionStatusCode.INITIAL as TransitionStatus, label: 'Initial' },
+  { value: TransitionStatusCode.PREPARING as TransitionStatus, label: 'Preparing' },
+  { value: TransitionStatusCode.READY as TransitionStatus, label: 'Ready' },
+  { value: TransitionStatusCode.IN_PROGRESS as TransitionStatus, label: 'In Progress' },
+  { value: TransitionStatusCode.PAUSED as TransitionStatus, label: 'Paused' },
+  { value: TransitionStatusCode.COMPLETED as TransitionStatus, label: 'Completed' },
+  { value: TransitionStatusCode.ERROR as TransitionStatus, label: 'Error' },
 ];
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
 import { uploadFiles } from '@/services/fileAccessService';
@@ -561,11 +561,11 @@ export default function DataRecordDialog({
   const getTemplateCategoryLabel = (category: TemplateCategory): string => {
     switch (category) {
       case 'Materials':
-        return '材料';
+        return 'Materials';
       case 'Conditions':
-        return '条件';
+        return 'Conditions';
       case 'Results':
-        return '結果';
+        return 'Results';
       default:
         return category;
     }
@@ -638,12 +638,12 @@ export default function DataRecordDialog({
 
       // テンプレート実績データをAPIから取得してフォームの初期値を復元
       // 必須パスパラメータが揃っている場合のみ実行
-      if (projectName && methodId && taskNo !== undefined && transition.transitionId) {
+      if (projectId && methodId && taskNo !== undefined && transition.transitionId) {
         (async () => {
           try {
             setTemplateDataLoading(true);
             const response = await getTemplateData(
-              projectName,
+              projectId,
               methodId,
               taskNo,
               transition.transitionId
@@ -937,27 +937,27 @@ export default function DataRecordDialog({
           } catch (error) {
             // 実績データ取得失敗は非致命的（初回記録時は404になる）
             // エラーメッセージは表示しない（フォームは空の状態で開く）
-            console.warn('テンプレート実績データの取得に失敗しました（初回記録の場合は正常）:', error);
+            console.warn('Failed to fetch template data (expected on first record):', error);
           } finally {
             setTemplateDataLoading(false);
           }
         })();
       }
     }
-  }, [open, transition, form, isProjectEditable, projectName, methodId, taskNo, useDeemedProgressProp]);
+  }, [open, transition, form, isProjectEditable, projectId, methodId, taskNo, useDeemedProgressProp]);
 
   // テンプレート保存ハンドラ
   const handleSaveTemplate = async () => {
     if (!selectedTemplate) {
-      message.error('テンプレートが選択されていません');
+      message.error('No template selected');
       return;
     }
 
     // APIに必要なパスパラメータのガードチェック
-    if (!projectName || !methodId || taskNo === undefined) {
-      message.error('保存に必要なプロジェクト情報が不足しています');
-      console.error('handleSaveTemplate: projectName / methodId / taskNo が未設定', {
-        projectName,
+    if (!projectId || !methodId || taskNo === undefined) {
+      message.error('Missing project information required for saving');
+      console.error('handleSaveTemplate: projectId / methodId / taskNo not set', {
+        projectId,
         methodId,
         taskNo,
       });
@@ -967,8 +967,8 @@ export default function DataRecordDialog({
     // ── Key重複チェック ───────────────────────────────────────────────────
     // 選択中テンプレートのカスタムプロパティに重複Keyがある場合は保存を中断する
     if (duplicateCustomKeys.size > 0) {
-      const duplicatedList = Array.from(duplicateCustomKeys).join('、');
-      message.error(`カスタムプロパティのKeyが重複しています: ${duplicatedList}`);
+      const duplicatedList = Array.from(duplicateCustomKeys).join(', ');
+      message.error(`Duplicate custom property keys: ${duplicatedList}`);
       return;
     }
 
@@ -1260,12 +1260,12 @@ export default function DataRecordDialog({
       };
 
       // バックエンドAPIへ保存
-      await saveBatchExperimentData(projectName, methodId, taskNo, { records: [record] });
+      await saveBatchExperimentData(projectId!, methodId, taskNo, { records: [record] });
 
       // onSave には保存した data を ExperimentDataValue 形式で渡す
       onSave([baseData as ExperimentDataValue]);
       message.success(
-        `「${template.name}」を保存しました（ステータス: ${statusOptions.find((opt) => opt.value === selectedStatus)?.label}）`
+        `Saved "${template.name}" (Status: ${statusOptions.find((opt) => opt.value === selectedStatus)?.label})`
       );
     } catch (error: unknown) {
       console.error('handleSaveTemplate error:', error);
@@ -1273,9 +1273,9 @@ export default function DataRecordDialog({
       const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
       const serverMessage = axiosError?.response?.data?.error?.message;
       if (serverMessage) {
-        message.error(`保存に失敗しました: ${serverMessage}`);
+        message.error(`Failed to save: ${serverMessage}`);
       } else if (axiosError?.message) {
-        message.error(`保存に失敗しました: ${axiosError.message}`);
+        message.error(`Failed to save: ${axiosError.message}`);
       } else {
         message.error(extractErrorMessage(error));
       }
@@ -1870,7 +1870,7 @@ export default function DataRecordDialog({
       const hash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
       handleUpdateCustomProperty(templateId, id, { file, hash, format, value: file.name });
     } catch (err) {
-      message.error('ファイル処理に失敗しました');
+      message.error('File processing failed');
       console.error('handleInsertionFileSelect error:', err);
     }
   };
@@ -1987,7 +1987,7 @@ export default function DataRecordDialog({
               }}
             >
               <Button icon={<UploadOutlined />} size="small">
-                {cp.value ? cp.value : 'ファイルを選択'}
+                {cp.value ? cp.value : 'Select File'}
               </Button>
             </Upload>
             {cp.value && (
@@ -2354,7 +2354,7 @@ export default function DataRecordDialog({
                     ) : (
                       <>
                         <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
-                          現在: {ALL_STATUS_OPTIONS.find(o => o.value === currentStatus)?.label ?? '不明'}
+                          Current: {ALL_STATUS_OPTIONS.find(o => o.value === currentStatus)?.label ?? 'Unknown'}
                         </Text>
                         <Select
                           style={{ width: '100%' }}
@@ -2421,8 +2421,8 @@ export default function DataRecordDialog({
                       onClick={async () => {
                         // パスパラメータのガードチェック
                         if (!projectId || !methodId || !transition?.transitionId || taskNo === undefined) {
-                          message.error('更新に必要なプロジェクト情報が不足しています');
-                          console.error('ステータス更新: projectId / methodId / transitionId / taskNo が未設定', {
+                          message.error('Missing project information required for update');
+                          console.error('Status update: projectId / methodId / transitionId / taskNo not set', {
                             projectId,
                             methodId,
                             transitionId: transition?.transitionId,
@@ -2445,7 +2445,7 @@ export default function DataRecordDialog({
                           // TransitionList の handleDataSave は _data を参照しないため空配列を渡して問題なし
                           onSave([]);
                         } catch (error: unknown) {
-                          console.error('ステータス更新エラー:', error);
+                          console.error('Status update error:', error);
                           const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
                           const serverMessage = axiosError?.response?.data?.error?.message;
                           if (serverMessage) {
@@ -2518,9 +2518,9 @@ export default function DataRecordDialog({
                   allowClear
                   style={{ width: '100%' }}
                   options={[
-                    { label: '材料', value: 'Materials' },
-                    { label: '条件', value: 'Conditions' },
-                    { label: '結果', value: 'Results' },
+                    { label: 'Materials', value: 'Materials' },
+                    { label: 'Conditions', value: 'Conditions' },
+                    { label: 'Results', value: 'Results' },
                   ]}
                 />
               </Space>
@@ -2548,7 +2548,7 @@ export default function DataRecordDialog({
                   showHeader={false}
                   columns={[
                     {
-                      title: 'テンプレート',
+                      title: 'Template',
                       dataIndex: 'name',
                       key: 'name',
                       render: (name: string, record: Template) => {
@@ -2703,7 +2703,7 @@ export default function DataRecordDialog({
                                 disabled={!isProjectEditable}
                               >
                                 <Button icon={<UploadOutlined />} size="small" disabled={!isProjectEditable}>
-                                  {fileForIns ? fileForIns.name : 'ファイルを選択'}
+                                  {fileForIns ? fileForIns.name : 'Select File'}
                                 </Button>
                               </Upload>
                               {/* 既存URIまたは新規選択ファイル名の表示 */}

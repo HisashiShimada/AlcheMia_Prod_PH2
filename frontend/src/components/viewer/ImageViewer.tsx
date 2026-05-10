@@ -47,7 +47,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
       setImageUrl(null);
 
       try {
-        console.log('🔍 [ImageViewer] 署名付きURLを取得中:', fileKey);
+        console.log('🔍 [ImageViewer] Fetching signed URL:', fileKey);
         const url = await getFileViewUrl(fileKey);
         if (!isMounted) return;
 
@@ -55,22 +55,22 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
         const img = new Image();
         img.onload = () => {
           if (!isMounted) return;
-          console.log('✅ [ImageViewer] 画像読み込み成功:', img.width, 'x', img.height);
+          console.log('✅ [ImageViewer] Image loaded:', img.width, 'x', img.height);
           setImageUrl(url);
           setImageDimensions({ width: img.width, height: img.height });
           setLoading(false);
         };
         img.onerror = (e) => {
           if (!isMounted) return;
-          console.error('❌ [ImageViewer] 画像読み込みエラー:', e);
-          setError('画像の読み込みに失敗しました。サポートされていない形式かもしれません。');
+          console.error('❌ [ImageViewer] Image load error:', e);
+          setError('Failed to load image. The format may not be supported.');
           setLoading(false);
         };
         img.src = url;
       } catch (err) {
         if (!isMounted) return;
-        console.error('❌ [ImageViewer] URL取得エラー:', err);
-        setError(`画像URLの取得に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`);
+        console.error('❌ [ImageViewer] URL fetch error:', err);
+        setError(`Failed to fetch image URL: ${err instanceof Error ? err.message : 'Unknown error'}`);
         setLoading(false);
       }
     };
@@ -113,7 +113,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
           <Space>
             <FileImageOutlined style={{ fontSize: 20, color: '#CF0027' }} />
             <Title level={5} style={{ margin: 0 }}>
-              {fileName || '画像ファイル'}
+              {fileName || 'Image File'}
             </Title>
           </Space>
           
@@ -124,7 +124,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
               onClick={handleZoomIn}
               disabled={loading || !!error}
             >
-              拡大
+              Zoom In
             </Button>
             <Button 
               size="small"
@@ -132,7 +132,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
               onClick={handleZoomOut}
               disabled={loading || !!error}
             >
-              縮小
+              Zoom Out
             </Button>
             <Button 
               size="small"
@@ -140,7 +140,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
               onClick={handleReset}
               disabled={loading || !!error}
             >
-              リセット
+              Reset
             </Button>
             {error && (
               <Button 
@@ -149,7 +149,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
                 icon={<ReloadOutlined />}
                 onClick={handleReload}
               >
-                再読み込み
+                Reload
               </Button>
             )}
           </Space>
@@ -173,20 +173,20 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
               indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
               size="large"
             />
-            <Text type="secondary">画像を読み込み中...</Text>
+            <Text type="secondary">Loading image...</Text>
           </Space>
         )}
 
         {/* エラー */}
         {error && (
           <Alert
-            message="エラー"
+            message="Error"
             description={error}
             type="error"
             showIcon
             action={
               <Button size="small" onClick={handleReload}>
-                再試行
+                Retry
               </Button>
             }
           />
@@ -203,7 +203,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
             }}>
               <AntImage
                 src={imageUrl}
-                alt={fileName || '画像ファイル'}
+                alt={fileName || 'Image File'}
                 style={{
                   transform: `scale(${scale})`,
                   transformOrigin: 'center center',
@@ -212,7 +212,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
                   objectFit: 'contain'
                 }}
                 preview={{
-                  mask: 'プレビュー'
+                  mask: 'Preview'
                 }}
               />
             </div>
@@ -222,14 +222,14 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
               <Space orientation="vertical" size="small">
                 {imageDimensions.width > 0 && (
                   <Text type="secondary">
-                    サイズ: {imageDimensions.width} x {imageDimensions.height} px
+                    Size: {imageDimensions.width} x {imageDimensions.height} px
                   </Text>
                 )}
                 <Text type="secondary">
-                  ズーム倍率: {scale.toFixed(2)}x
+                  Zoom: {scale.toFixed(2)}x
                 </Text>
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  ファイルキー: {fileKey}
+                  File Key: {fileKey}
                 </Text>
               </Space>
             </Card>

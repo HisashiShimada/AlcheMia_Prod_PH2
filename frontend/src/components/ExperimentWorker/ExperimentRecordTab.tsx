@@ -375,7 +375,7 @@ export default function ExperimentRecordTab({
 
     if (!projectId) {
       console.warn('[handleSubmitIssue] projectId が未設定です');
-      message.error('プロジェクトが選択されていません');
+      message.error(t('project.selectProjectWarning'));
       return;
     }
 
@@ -391,7 +391,7 @@ export default function ExperimentRecordTab({
         description: issue.content,
       });
 
-      message.success('問題を報告しました');
+      message.success(t('worker.issueReported'));
 
       if (projectId && selectedMethodId && taskNo !== null && !isNaN(taskNo) && selectedTransition) {
         setIssueLoading(true);
@@ -509,7 +509,7 @@ export default function ExperimentRecordTab({
                 onClick={handleSwitchToFlow}
                 size="large"
               >
-                フロー図に切り替え
+                {t('experimentRecord.switchToFlow')}
               </Button>
             ) : (
               <Button
@@ -519,7 +519,7 @@ export default function ExperimentRecordTab({
                 onClick={handleSwitchToList}
                 size="large"
               >
-                一覧表示に切り替え
+                {t('experimentRecord.switchToList')}
               </Button>
             )}
           </Space>
@@ -544,7 +544,7 @@ export default function ExperimentRecordTab({
             <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
-                📋 トランジション一覧
+                📋 {t('experimentRecord.transitionListTitle')}
               </Title>
               <Text type="secondary">
                 {t('experimentWork.labels.methodPlaceholder')}
@@ -556,7 +556,7 @@ export default function ExperimentRecordTab({
             <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
-                📋 トランジション一覧
+                📋 {t('experimentRecord.transitionListTitle')}
               </Title>
               <Text type="secondary">
                 {t('experimentWork.labels.taskPlaceholder')}
@@ -569,7 +569,7 @@ export default function ExperimentRecordTab({
               <div data-testid="transition-list-area" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
                   <BarChartOutlined style={{ marginRight: 8 }} />
-                  トランジション一覧
+                  {t('experimentRecord.transitionListTitle')}
                 </Title>
                 <div style={{ flex: 1, minHeight: 0 }}>
                   <TransitionList
@@ -590,7 +590,7 @@ export default function ExperimentRecordTab({
               <div data-testid="transition-flow-area" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
                   <PartitionOutlined style={{ marginRight: 8 }} />
-                  フロー図
+                  {t('experimentRecord.flowDiagramTitle')}
                 </Title>
                 <div style={{ flex: 1, minHeight: 0 }}>
                   <TransitionFlowDiagram

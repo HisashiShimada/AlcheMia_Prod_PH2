@@ -11,6 +11,7 @@ import type { Node, Edge } from 'reactflow';
 import { validateNode } from './nodeUtils';
 import { validateEdge, detectCycle } from './edgeUtils';
 import { NodeData,EdgeData } from '../../../types/editor';
+import { getTranslation } from '../../../contexts/LanguageContext';
 
 export interface ValidationResult {
   valid: boolean;
@@ -30,7 +31,7 @@ export const validateWorkflow = (
 
   // ノード数チェック
   if (nodes.length === 0) {
-    errors.push('ノードが1つも存在しません');
+    errors.push(getTranslation('editor.validation.noNodes'));
     return { valid: false, errors, warnings };
   }
 
@@ -38,7 +39,7 @@ export const validateWorkflow = (
   for (const node of nodes) {
     const result = validateNode(node);
     if (!result.valid) {
-      errors.push(`ノード ${node.id}: ${result.errors.join(', ')}`);
+      errors.push(`${getTranslation('editor.validation.nodePrefix')} ${node.id}: ${result.errors.join(', ')}`);
     }
   }
 
@@ -46,7 +47,7 @@ export const validateWorkflow = (
   for (const edge of edges) {
     const result = validateEdge(edge, nodes);
     if (!result.valid) {
-      errors.push(`エッジ ${edge.id}: ${result.errors.join(', ')}`);
+      errors.push(`${getTranslation('editor.validation.edgePrefix')} ${edge.id}: ${result.errors.join(', ')}`);
     }
   }
 
@@ -60,14 +61,14 @@ export const validateWorkflow = (
   const isolatedNodes = nodes.filter(node => !connectedNodeIds.has(node.id));
   if (isolatedNodes.length > 0) {
     warnings.push(
-      `孤立ノードが${isolatedNodes.length}個存在します: ${isolatedNodes.map(n => n.data.name).join(', ')}`
+      `${getTranslation('editor.validation.isolatedNodesPrefix')}${isolatedNodes.length}${getTranslation('editor.validation.isolatedNodesSuffix')}: ${isolatedNodes.map(n => n.data.name).join(', ')}`
     );
   }
 
   // 循環参照の検出
   for (const node of nodes) {
     if (detectCycle(node.id, edges)) {
-      warnings.push(`循環参照が検出されました: ノード ${node.id} から`);
+      warnings.push(`${getTranslation('editor.validation.cycleDetectedPrefix')} ${node.id} ${getTranslation('editor.validation.cycleDetectedSuffix')}`);
       break;
     }
   }

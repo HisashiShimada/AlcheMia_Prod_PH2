@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Space, Tag, Button, theme } from 'antd';
 import { AimOutlined, CheckOutlined } from '@ant-design/icons';
 import { Method, Task } from '@/types/experimentWorker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -38,6 +39,7 @@ export default function TaskSelectionDialog({
   projectName,
 }: TaskSelectionDialogProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [tempTaskId, setTempTaskId] = useState<string | null>(selectedTaskId);
 
   // ダイアログが開かれた時に現在の選択状態を一時変数に設定
@@ -80,17 +82,17 @@ export default function TaskSelectionDialog({
     const getStatusTag = (status: string) => {
       switch (status) {
         case 'not_started':
-          return <Tag>未着手</Tag>;
+          return <Tag>{t('taskStatus.not_started')}</Tag>;
         case 'started':
-          return <Tag color="blue">着手</Tag>;
+          return <Tag color="blue">{t('taskStatus.started')}</Tag>;
         case 'in_progress':
-          return <Tag color="orange">進行中</Tag>;
+          return <Tag color="orange">{t('taskStatus.in_progress')}</Tag>;
         case 'completed':
-          return <Tag color="green">完了</Tag>;
+          return <Tag color="green">{t('taskStatus.completed')}</Tag>;
         case 'suspended':
-          return <Tag color="red">中断</Tag>;
+          return <Tag color="red">{t('taskStatus.suspended')}</Tag>;
         case 'forced_terminated':
-          return <Tag color="red">強制終了</Tag>;
+          return <Tag color="red">{t('taskStatus.forced_terminated')}</Tag>;
         default:
           return null;
       }
@@ -126,21 +128,21 @@ export default function TaskSelectionDialog({
           <Space>
             <Text strong>{task.taskName}</Text>
             {getStatusTag(task.status)}
-            {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-            {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
+            {isCurrentlySelected && <Tag color="blue">{t('common.currentlySelected')}</Tag>}
+            {isSelected && !isCurrentlySelected && <Tag color="red">{t('common.selected')}</Tag>}
           </Space>
           <Space orientation="vertical" size={0} style={{ display: 'flex', flexDirection: 'column' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              タスクID: {task.taskId}
+              {t('worker.taskId')}: {task.taskId}
             </Text>
             {task.sampleNumber && (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                サンプル番号: {task.sampleNumber}
+                {t('worker.sampleNumber')}: {task.sampleNumber}
               </Text>
             )}
             {task.notes && (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                備考: {task.notes}
+                {t('worker.notes')}: {task.notes}
               </Text>
             )}
           </Space>
@@ -154,10 +156,10 @@ export default function TaskSelectionDialog({
     <Space orientation="vertical" size={0}>
       <Space>
         <AimOutlined style={{ color: token.colorPrimary }} />
-        <Text strong>タスクを選択</Text>
+        <Text strong>{t('worker.selectTask')}</Text>
       </Space>
       <Text type="secondary" style={{ fontSize: 12 }}>
-        プロジェクト: {projectName || '未選択'} / メソッド: {methodData?.methodName || '未選択'}
+        {t('worker.selectProject')}: {projectName || t('common.notSelected')} / {t('worker.selectMethod')}: {methodData?.methodName || t('common.notSelected')}
       </Text>
     </Space>
   );
@@ -169,8 +171,8 @@ export default function TaskSelectionDialog({
       onOk={handleOk}
       width={700}
       title={modalTitle}
-      okText="決定"
-      cancelText="キャンセル"
+      okText={t('experimentWork.projectSelection.confirm')}
+      cancelText={t('common.cancel')}
       okButtonProps={{
         disabled: !tempTaskId,
         icon: <CheckOutlined />,
@@ -181,22 +183,22 @@ export default function TaskSelectionDialog({
         {!selectedProject ? (
           <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-project">
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
-            <Text type="secondary">プロジェクトを選択してください</Text>
+            <Text type="secondary">{t('worker.selectProjectPlease')}</Text>
           </Space>
         ) : !selectedMethodId ? (
           <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-method">
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
-            <Text type="secondary">メソッドを選択してください</Text>
+            <Text type="secondary">{t('worker.selectMethodPlease')}</Text>
           </Space>
         ) : tasks.length === 0 ? (
           <Space orientation="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-tasks">
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
-            <Text type="secondary">選択されたメソッドにタスクがありません</Text>
+            <Text type="secondary">{t('worker.noTasksForMethod')}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              プロジェクト: {projectName || '未選択'}
+              {t('worker.selectProject')}: {projectName || t('common.notSelected')}
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              メソッド: {methodData?.methodName || '未選択'}
+              {t('worker.selectMethod')}: {methodData?.methodName || t('common.notSelected')}
             </Text>
           </Space>
         ) : (

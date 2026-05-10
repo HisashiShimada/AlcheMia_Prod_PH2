@@ -10,6 +10,7 @@
 import type { Node, Edge } from 'reactflow';
 import { maimlToReactFlow } from '../utils/converters/maimlToReactFlow';
 import type { NodeData, EdgeData } from '../../../types/editor';
+import { getTranslation } from '../../../contexts/LanguageContext';
 
 export interface LoadMaimlResult {
   nodes: Node<NodeData>[];
@@ -35,7 +36,7 @@ export const loadMaimlFromXml = async (
         nodes: [],
         edges: [],
         success: false,
-        error: 'XMLのパースに失敗しました',
+        error: getTranslation('editor.loader.xmlParseFailed'),
       };
     }
 
@@ -52,7 +53,7 @@ export const loadMaimlFromXml = async (
       nodes: [],
       edges: [],
       success: false,
-      error: error instanceof Error ? error.message : '不明なエラー',
+      error: error instanceof Error ? error.message : getTranslation('editor.loader.unknownError'),
     };
   }
 };
@@ -72,7 +73,7 @@ export const loadMaimlFromFile = async (
       nodes: [],
       edges: [],
       success: false,
-      error: error instanceof Error ? error.message : 'ファイル読み込みエラー',
+      error: error instanceof Error ? error.message : getTranslation('editor.loader.fileReadError'),
     };
   }
 };
@@ -97,7 +98,7 @@ export const loadMaimlFromUrl = async (
       nodes: [],
       edges: [],
       success: false,
-      error: error instanceof Error ? error.message : 'URL読み込みエラー',
+      error: error instanceof Error ? error.message : getTranslation('editor.loader.urlReadError'),
     };
   }
 };
@@ -125,7 +126,7 @@ export const loadMaimlWithValidation = async (
     
     if (isolatedNodes.length > 0) {
       warnings.push(
-        `孤立ノードが${isolatedNodes.length}個存在します`
+        `${getTranslation('editor.validation.isolatedNodesPrefix')}${isolatedNodes.length}${getTranslation('editor.validation.isolatedNodesSuffix')}`
       );
     }
 
@@ -138,7 +139,7 @@ export const loadMaimlWithValidation = async (
     
     if (nodesWithoutTemplates.length > 0) {
       warnings.push(
-        `テンプレートが未設定のノードが${nodesWithoutTemplates.length}個存在します`
+        `${getTranslation('editor.loader.noTemplateNodesPrefix')}${nodesWithoutTemplates.length}${getTranslation('editor.loader.noTemplateNodesSuffix')}`
       );
     }
   }

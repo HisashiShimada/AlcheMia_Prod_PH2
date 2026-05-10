@@ -12,7 +12,7 @@ import SubHeader from '../common/SubHeader';
 import { MenuType } from '@/types/auth';
 import ProjectManagement from '../project/ProjectManagement';
 import WorkerScreenOverlay from '../project/WorkerScreenOverlay';
-import FormatManagement from '../project/FormatManagement';
+import FormatManagement from '../format/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
 import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';

@@ -7,6 +7,7 @@ import { ReactFlowProvider } from 'reactflow';
 import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
 import { getFileContentAsText } from '@/services/fileAccessService';
 import type { MaimlEditorParams } from '@/types/maimlEditor';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * PetriNetエディタのフルスクリーン表示画面
@@ -31,6 +32,7 @@ export default function PetriNetEditorScreen({
   params,
   onClose,
 }: PetriNetEditorScreenProps) {
+  const { t } = useLanguage();
   const {
     editMode,
     editingFileName,
@@ -86,9 +88,7 @@ export default function PetriNetEditorScreen({
     console.log('🔙 [PetriNetEditorScreen] Back button clicked');
 
     if (hasUnsavedChanges) {
-      const confirmed = window.confirm(
-        '保存されていない変更があります。破棄して戻りますか？'
-      );
+      const confirmed = window.confirm(t('editor.screen.confirmDiscard'));
       if (confirmed) {
         console.log('✅ [PetriNetEditorScreen] User confirmed, closing editor');
         onClose();
@@ -154,7 +154,7 @@ export default function PetriNetEditorScreen({
           onClick={handleBack}
           size="middle"
         >
-          戻る
+          {t('editor.screen.back')}
         </Button>
 
         <div style={{ flex: 1 }}>
@@ -164,7 +164,7 @@ export default function PetriNetEditorScreen({
             fontWeight: 600,
             color: '#262626'
           }}>
-            {editMode === 'project' ? '実験フロー編集' : 'フォーマット編集'} - {displayTitle}
+            {editMode === 'project' ? t('editor.screen.titleProject') : t('editor.screen.titleFormat')} - {displayTitle}
           </h1>
           {displaySubtitle && (
             <p style={{
@@ -186,7 +186,7 @@ export default function PetriNetEditorScreen({
             fontSize: '14px',
             color: '#d46b08'
           }}>
-            ● 未保存の変更があります
+            {t('editor.screen.unsavedChanges')}
           </div>
         )}
       </div>

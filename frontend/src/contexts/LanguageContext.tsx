@@ -11,7 +11,7 @@ type Locale = 'ja' | 'en';
 interface LanguageContextType {
   locale: Locale;
   setLocale: (locale: Locale) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string>) => string;
   translations: Translations;
 }
 
@@ -20,13 +20,49 @@ const translations: Record<Locale, Translations> = {
   en: enTranslations,
 };
 
+// グローバルな翻訳関数の参照（Provider 外からも利用可能）
+let currentT: (key: string, params?: Record<string, string>) => string = (key: string, params?: Record<string, string>): string => {
+  const keys = key.split('.');
+  let value: string | Record<string, unknown> | unknown = translations.ja;
+  for (const k of keys) {
+    if (value && typeof value === 'object' && k in value) {
+      value = (value as Record<string, unknown>)[k];
+    } else {
+      return key;
+    }
+  }
+  let result = typeof value === 'string' ? value : key;
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+    });
+  }
+  return result;
+};
+
+/**
+ * Provider がマウントされたら currentT を最新の t() に更新する
+ * React 外（.ts ファイル等）から呼び出す側が利用
+ */
+export function updateGlobalT(t: (key: string, params?: Record<string, string>) => string): void {
+  currentT = t;
+}
+
+/**
+ * React 外（.ts ファイル等）から翻訳キーを解決するスタンドアロン関数
+ * Provider がマウントされていない場合は ja のデフォルト翻訳を使用する
+ */
+export function getTranslation(key: string, params?: Record<string, string>): string {
+  return currentT(key, params);
+}
+
 // デフォルト値を設定（Providerなしでも動作するように）
 const defaultContextValue: LanguageContextType = {
   locale: 'ja',
   setLocale: () => {
     console.warn('LanguageProvider is not wrapped. Using default locale.');
   },
-  t: (key: string): string => {
+  t: (key: string, params?: Record<string, string>): string => {
     const keys = key.split('.');
     let value: string | Record<string, unknown> | unknown = translations.ja;
 
@@ -39,7 +75,13 @@ const defaultContextValue: LanguageContextType = {
       }
     }
 
-    return typeof value === 'string' ? value : key;
+    let result = typeof value === 'string' ? value : key;
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+      });
+    }
+    return result;
   },
   translations: translations.ja,
 };
@@ -168,7 +210,7 @@ export function LanguageProvider({
    * @param key - ドット区切りのキー（例: 'common.login', 'menu.provider.title'）
    * @returns 翻訳された文字列
    */
-  const t = (key: string): string => {
+  const t = (key: string, params?: Record<string, string>): string => {
     const keys = key.split('.');
     let value: string | Record<string, unknown> | unknown = mergedTranslations;
 
@@ -181,8 +223,21 @@ export function LanguageProvider({
       }
     }
 
-    return typeof value === 'string' ? value : key;
+    let result = typeof value === 'string' ? value : key;
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+      });
+    }
+    return result;
   };
+
+  // Provider がマウント・更新されたら globalT を最新の t() に同期する
+  // これにより React 外の .ts ファイルからも getTranslation() で正しい翻訳が取得できる
+  useEffect(() => {
+    updateGlobalT(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale, mergedTranslations]);
 
   const value: LanguageContextType = {
     locale,

@@ -26,7 +26,7 @@ import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatF
 import CreateFormatModal from './CreateFormatModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
 import PetriNetEditorScreen from '@/components/editorv2/PetriNetEditorScreen';
-import FormatEditorDialog from '@/components/project/FormatEditorDialog';
+import FormatEditorDialog from '@/components/format/FormatEditorDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { App } from 'antd';
 import { User } from '@/types/auth';
@@ -517,15 +517,11 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           handleRefresh();
         } catch (error) {
           console.error('❌ 削除エラー:', error);
-          message.error(
-            `ファイルの削除に失敗しました: ${
-              error instanceof Error ? error.message : '不明なエラー'
-            }`
-          );
+          message.error(t('formatManagement.dialog.delete_failed'));
         }
       },
     });
-  }, [selectedFormatId, currentFolderPath, handleRefresh, message]);
+  }, [selectedFormatId, currentFolderPath, handleRefresh, message, t]);
 
   // フォルダ削除ハンドラ
   const handleFolderDelete = useCallback(async (file: FormatFileData) => {
@@ -533,18 +529,18 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     if (file.id === 'back') return;
 
     modal.confirm({
-      title: `「${file.name}」を削除しますか？`,
-      content: 'このフォルダ内のファイルもすべて削除されます。この操作は取り消せません。',
-      okText: '削除',
+      title: t('formatManagement.dialog.folder_delete_title').replace('{{folderName}}', file.name),
+      content: t('formatManagement.dialog.folder_delete_content'),
+      okText: t('formatManagement.dialog.folder_delete_ok'),
       okButtonProps: { danger: true },
-      cancelText: 'キャンセル',
+      cancelText: t('formatManagement.dialog.folder_delete_cancel'),
       onOk: async () => {
         try {
           console.log('🗑️ [FormatManagement] フォルダ削除開始:', file.path);
 
           await deleteFolderByPath(file.path);
 
-          message.success(`「${file.name}」を削除しました`);
+          message.success(t('formatManagement.dialog.folder_delete_success').replace('{{folderName}}', file.name));
 
           // ファイル一覧を更新
           if (selectedFormatId) {
@@ -574,11 +570,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           handleRefresh();
         } catch (error) {
           console.error('❌ [FormatManagement] フォルダ削除エラー:', error);
-          message.error(
-            `フォルダの削除に失敗しました: ${
-              error instanceof Error ? error.message : '不明なエラー'
-            }`
-          );
+          message.error(t('formatManagement.dialog.folder_delete_failed'));
         }
       },
     });
@@ -737,7 +729,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       console.error('❌ [FormatManagement] ファイル作成エラー:', error);
       
       // Axiosエラーからメッセージを抽出
-      let errorMessage = 'ファイルの作成に失敗しました';
+      let errorMessage = t('formatManagement.create.error');
       
       // 型ガードでAxiosエラーかチェック
       if (error && typeof error === 'object' && 'response' in error) {
@@ -1428,7 +1420,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                 
                 console.log('✅ [FormatManagement] ファイル保存成功:', editingXmlFile.path);
                 
-                message.success('保存しました');
+                message.success(t('formatManagement.messages.file_saved'));
                 
                 // ファイル一覧を更新
                 if (selectedFormatId && selectedFormat) {
@@ -1453,7 +1445,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                 setEditingXmlFile(null);
               } catch (error) {
                 console.error('❌ [FormatManagement] デバッグエラー:', error);
-                message.error('デバッグ処理でエラーが発生しました: ' + (error as Error).message);
+                message.error(t('formatManagement.messages.debug_error'));
               }
             }}
           />

@@ -4,6 +4,8 @@
  * このファイルはAPI呼び出しを行うための関数を提供します。
  */
 import type { FileInfo } from '@/types/file';
+import { getTranslation } from '@/contexts/LanguageContext';
+import { mapErrorToMessage } from '@/utils/errorMapper';
 
 export type { FileInfo };
 
@@ -15,16 +17,17 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/a
  * バックエンドの数値ステータス → フロントエンドの表示文字列へのマッピング
  */
 function getTransitionStatusLabel(status: number): string {
-  const TRANSITION_STATUS_LABELS: Record<number, string> = {
-    0: '未開始',
-    1: '準備中',
-    2: '準備完了',
-    3: '実行中',
-    4: '一時停止',
-    5: '完了',
-    6: 'エラー',
+  const TRANSITION_STATUS_KEYS: Record<number, string> = {
+    0: 'progressStatus.notStarted',
+    1: 'progressStatus.preparing',
+    2: 'progressStatus.ready',
+    3: 'progressStatus.running',
+    4: 'progressStatus.paused',
+    5: 'progressStatus.completed',
+    6: 'progressStatus.error',
   };
-  return TRANSITION_STATUS_LABELS[status] ?? '未開始';
+  const key = TRANSITION_STATUS_KEYS[status] ?? 'progressStatus.notStarted';
+  return getTranslation(key);
 }
 
 /**
@@ -66,8 +69,8 @@ export async function fetchTransitionStatus(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(
-      errorData.error?.message ||
-        `トランジション進捗の取得に失敗しました: ${response.status}`
+      mapErrorToMessage(errorData.error?.code) ||
+        `${getTranslation('apiClient.fetchTransitionError')}: ${response.status}`
     );
   }
 
@@ -106,3 +109,37 @@ export async function fetchTransitionStatus(
   };
 }
 
+/**
+ * 実験記録データを取得
+ *
+ * @description
+ * 指定されたワークID（タスク）に紐づく実験記録データを返す。
+ *
+ * ## ⚠️ 現状: モックデータを返しています
+ *
+ * ### 理由
+ * この関数が想定していた `GET /api/experiment-records/by-work-id/:workId` は
+ * バックエンドに実装されておらず、対応するエンドポイントが存在しない。
+ *
+ * ### TODO: バックエンドAPI実装後の対応方針
+ * 1. バックエンドに一括取得API を追加:
+ *    `GET /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/all-records`
+ * 2. この関数のシグネチャを `fetchExperimentRecords(projectName, methodId, taskNo)` に変更
+ * 3. 上記APIを呼び出すよう実装を変更
+ * 4. `PetriNetVisualization.tsx` の呼び出し箇所も合わせて変更
+ *
+ * @param workId - ワークID（タスクの識別子）※現状は未使用（バックエンドAPIが未実装のためモックを返す）
+ */
+export async function fetchExperimentRecords(workId: string): Promise<unknown> {
+  console.log('📦 [fetchExperimentRecords] モックデータを返却（バックエンドAPI未実装）:', { workId });
+
+  // モックファイルは削除済みのため空データを返す
+  return {
+    success: true,
+    data: {
+      materials: [],
+      conditions: [],
+      results: [],
+    },
+  };
+}

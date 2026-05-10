@@ -2010,3 +2010,120 @@ export const deleteProject = async (
     throw error;
   }
 };
+
+// ---------------------------------------------------------------------------
+// トランジション進捗
+// ---------------------------------------------------------------------------
+
+/**
+ * トランジション番号に対応するステータスラベル文字列を返す
+ * バックエンドの数値ステータス → フロントエンドの表示文字列へのマッピング
+ */
+function getTransitionStatusLabel(status: number): string {
+  const TRANSITION_STATUS_LABELS: Record<number, string> = {
+    0: '未開始',
+    1: '準備中',
+    2: '準備完了',
+    3: '実行中',
+    4: '一時停止',
+    5: '完了',
+    6: 'エラー',
+  };
+  return TRANSITION_STATUS_LABELS[status] ?? '未開始';
+}
+
+/**
+ * トランジション進捗レスポンス型
+ */
+export interface TransitionStatusItem {
+  transitionId: string;
+  transitionName: string;
+  progressStatus: string;
+  latestStatus: string;
+  progressPercentage: number;
+}
+
+export interface FetchTransitionStatusResponse {
+  success: true;
+  data: {
+    transitionStatus: TransitionStatusItem[];
+  };
+}
+
+/**
+ * トランジション進捗データを取得
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions
+ *
+ * @description
+ * バックエンドの進捗APIを呼び出す。
+ * バックエンドレスポンス（snake_case・数値ステータス）を
+ * フロントエンド期待形式（camelCase・文字列ステータス）に変換して返す。
+ *
+ * @param projectId - プロジェクトID
+ * @param methodId  - メソッドID
+ * @param taskNo    - タスク連番（1以上の整数）
+ * @returns フロントエンド期待形式のトランジション進捗データ
+ */
+export const fetchTransitionStatus = async (
+  projectId: string,
+  methodId: string,
+  taskNo: number
+): Promise<FetchTransitionStatusResponse> => {
+  const client = createApiClient();
+
+  console.log('🌐 [fetchTransitionStatus] 実API呼び出し:', {
+    projectId,
+    methodId,
+    taskNo,
+  });
+
+  try {
+    const response = await client.get<{
+      success: boolean;
+      data: {
+        transitions: Array<{
+          transition_id: string;
+          transition_name: string;
+          status: number;
+          progress: number;
+          last_updated: string | null;
+          material_count?: number;
+          condition_count?: number;
+          result_count?: number;
+        }>;
+      };
+    }>(
+      `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/transitions`
+    );
+
+    const rawTransitions = response.data.data?.transitions ?? [];
+
+    console.log('✅ [fetchTransitionStatus] APIレスポンス取得成功:', {
+      success: response.data.success,
+      transitionsCount: rawTransitions.length,
+    });
+
+    const transitionStatus: TransitionStatusItem[] = rawTransitions.map((t) => ({
+      transitionId: t.transition_id,
+      transitionName: t.transition_name,
+      progressStatus: getTransitionStatusLabel(t.status),
+      latestStatus: getTransitionStatusLabel(t.status),
+      progressPercentage: t.progress ?? 0,
+    }));
+
+    return {
+      success: true,
+      data: {
+        transitionStatus,
+      },
+    };
+  } catch (error) {
+    console.error('[DEBUG] fetchTransitionStatus - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};

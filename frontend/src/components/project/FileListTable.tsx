@@ -112,19 +112,21 @@ const FileListTable: React.FC<FileListTableProps> = ({
       });
 
       if (!result.success) {
-        const errMsg = result.error?.message ?? 'ファイル名の変更に失敗しました';
-        message.error(errMsg);
+        message.error(t('projectManagement.fileManagement.messages.renameFailed'));
         return;
       }
 
-      message.success(`「${renamingFile.name}」を「${newFileName}」に変更しました`);
+      message.success(
+        t('projectManagement.fileManagement.messages.renameSuccess')
+          .replace('{{oldName}}', renamingFile.name)
+          .replace('{{newName}}', newFileName)
+      );
       setRenameModalOpen(false);
       // ファイル一覧を再取得
       onRenameFile?.();
     } catch (error) {
       console.error('ファイル名変更エラー:', error);
-      const errMsg = error instanceof Error ? error.message : 'ファイル名の変更に失敗しました';
-      message.error(errMsg);
+      message.error(t('projectManagement.fileManagement.messages.renameFailed'));
     } finally {
       setRenameLoading(false);
     }
@@ -229,14 +231,14 @@ const FileListTable: React.FC<FileListTableProps> = ({
           try { warnCount = parseField(maimlValidationRow.warnings).length; } catch {}
           if (errCount > 0) {
             return (
-              <Tooltip title={`バリデーションエラーあり（${errCount}件）`}>
+              <Tooltip title={`${t('file.validationErrors')} (${errCount})`}>
                 <WarningOutlined style={{ color: token.colorError, marginLeft: 6, fontSize: 14 }} />
               </Tooltip>
             );
           }
           if (warnCount > 0) {
             return (
-              <Tooltip title={`バリデーション警告あり（${warnCount}件）`}>
+              <Tooltip title={`${t('file.validationWarnings')} (${warnCount})`}>
                 <WarningOutlined style={{ color: token.colorWarning, marginLeft: 6, fontSize: 14 }} />
               </Tooltip>
             );
@@ -303,7 +305,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
                   onDeleteFolder(record);
                 }}
               >
-                削除
+                {t('common.delete')}
               </Button>
             </Space>
           );
@@ -313,7 +315,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
         const menuItems: MenuProps['items'] = [
           {
             key: 'rename',
-            label: <span data-testid="file-menu-rename">名前の変更</span>,
+            label: <span data-testid="file-menu-rename">{t('file.renameMenuLabel')}</span>,
             icon: <EditOutlined />,
             onClick: (info) => {
               info.domEvent.stopPropagation();
@@ -325,7 +327,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
           },
           {
             key: 'delete',
-            label: <span data-testid="file-menu-delete">削除</span>,
+            label: <span data-testid="file-menu-delete">{t('common.delete')}</span>,
             icon: <DeleteOutlined />,
             danger: true,
             onClick: () => {
@@ -412,12 +414,12 @@ const FileListTable: React.FC<FileListTableProps> = ({
 
       {/* ファイル名変更モーダル */}
       <Modal
-        title="名前の変更"
+        title={t('file.renameModalTitle')}
         open={renameModalOpen}
         onOk={handleRenameConfirm}
         onCancel={handleRenameCancel}
-        okText="変更"
-        cancelText="キャンセル"
+        okText={t('common.save')}
+        cancelText={t('common.cancel')}
         confirmLoading={renameLoading}
         width={420}
         destroyOnHidden
@@ -425,16 +427,16 @@ const FileListTable: React.FC<FileListTableProps> = ({
         <Form form={renameForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="newFileName"
-            label="新しいファイル名"
+            label={t('file.renameNewNameLabel')}
             rules={[
-              { required: true, message: 'ファイル名を入力してください' },
-              { whitespace: true, message: 'ファイル名に空白のみは使用できません' },
-              { max: 255, message: 'ファイル名は255文字以内で入力してください' },
+              { required: true, message: t('file.renameRequired') },
+              { whitespace: true, message: t('file.renameNoWhitespace') },
+              { max: 255, message: t('file.renameMaxLength') },
             ]}
           >
             <Input
               autoFocus
-              placeholder="ファイル名を入力"
+              placeholder={t('file.renameInputPlaceholder')}
               onPressEnter={handleRenameConfirm}
               addonAfter={
                 renamingFile && renamingFile.name.lastIndexOf('.') > 0

@@ -15,6 +15,7 @@ import { convertReactFlowToMaiML } from '../utils/converters/reactFlowToMaiml';
 import { convertMultipleMethodsToMaiML } from '../utils/converters/multiMethodConverter';
 import type { Node, Edge } from 'reactflow';
 import type { NodeData, EdgeData, DocumentData, MethodData } from '../../../types/editor';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * XMLViewerWrapperProps - Props型定義
@@ -39,6 +40,7 @@ const XMLViewerWrapper: React.FC<XMLViewerWrapperProps> = ({
   methods,
   activeMethodIndex,
 }) => {
+  const { t } = useLanguage();
   const [xmlContent, setXmlContent] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -93,7 +95,7 @@ const XMLViewerWrapper: React.FC<XMLViewerWrapperProps> = ({
         const err = error instanceof Error ? error : new Error(String(error));
         console.error('❌ [XMLViewerWrapper] XML生成エラー:', err);
         if (isMounted) {
-          setXmlContent(`<!-- XMLの生成中にエラーが発生しました: ${err.message} -->`);
+          setXmlContent(`<!-- ${t('editor.xmlViewer.generateError')}: ${err.message} -->`);
           setLoading(false);
         }
       }
@@ -117,7 +119,7 @@ const XMLViewerWrapper: React.FC<XMLViewerWrapperProps> = ({
           minHeight: '400px',
         }}
       >
-        <Spin size="large" tip="XML を生成中...">
+        <Spin size="large" tip={t('editor.xmlViewer.generating')}>
           <div />
         </Spin>
       </div>

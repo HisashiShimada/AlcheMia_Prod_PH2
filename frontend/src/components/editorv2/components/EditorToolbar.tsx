@@ -29,9 +29,9 @@ import {
 import {
   useAttributeDisplay,
   ATTRIBUTE_OPTIONS,
-  ATTRIBUTE_LABELS,
   AttributeOption,
 } from '@/contexts/AttributeDisplayContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 const { Text } = Typography;
 
 /**
@@ -111,14 +111,15 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onViewModeChange,
 }) => {
   // テンプレートモード / XMLビューモード時はペトリネット編集ボタンを非活性化
+  const { t } = useLanguage();
   const isTemplateMode = viewMode === 'templates' || viewMode === 'xml';
   // ノード表示属性切替（Context 経由で管理）
   const { selectedAttribute, setSelectedAttribute } = useAttributeDisplay();
 
-  // ドロップダウンの選択肢リスト
+  // ドロップダウンの選択肢リスト（翻訳キー経由でラベルを取得）
   const attributeSelectOptions = Object.values(ATTRIBUTE_OPTIONS).map((value) => ({
     value,
-    label: ATTRIBUTE_LABELS[value] || value,
+    label: t(`viewer.attributeLabels.${value}`),
   }));
 
   return (
@@ -143,7 +144,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 label: (
                   <Space size={4}>
                     <NodeIndexOutlined />
-                    <span>ペトリネット</span>
+                    <span>{t('editor.toolbar.viewPetriNet')}</span>
                   </Space>
                 ),
                 value: 'petriNet',
@@ -152,7 +153,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 label: (
                   <Space size={4}>
                     <UnorderedListOutlined />
-                    <span>テンプレート</span>
+                    <span>{t('editor.toolbar.viewTemplates')}</span>
                   </Space>
                 ),
                 value: 'templates',
@@ -161,7 +162,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 label: (
                   <Space size={4}>
                     <CodeOutlined />
-                    <span>XMLビュー</span>
+                    <span>{t('editor.toolbar.viewXml')}</span>
                   </Space>
                 ),
                 value: 'xml',
@@ -171,7 +172,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
           {/* ノード表示属性切替ドロップダウン（トグル直右） */}
           {viewMode === 'petriNet' && (
-            <Tooltip title="ノードに表示する属性を切り替えます">
+            <Tooltip title={t('editor.toolbar.nodeDisplayAttrTooltip')}>
               <Select
                 size="small"
                 value={selectedAttribute}
@@ -188,7 +189,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       {/* ノード追加ボタン */}
       <Space size={8}>
-        <Tooltip title="Material Placeを追加">
+        <Tooltip title={t('editor.toolbar.addMaterialTooltip')}>
           <Button
             size="small"
             icon={<PlusCircleOutlined />}
@@ -199,7 +200,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </Button>
         </Tooltip>
 
-        <Tooltip title="Condition Placeを追加">
+        <Tooltip title={t('editor.toolbar.addConditionTooltip')}>
           <Button
             size="small"
             icon={<BorderOutlined />}
@@ -210,7 +211,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </Button>
         </Tooltip>
 
-        <Tooltip title="Result Placeを追加">
+        <Tooltip title={t('editor.toolbar.addResultTooltip')}>
           <Button
             size="small"
             icon={<RadiusSettingOutlined />}
@@ -225,7 +226,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* Transition追加ボタン */}
-      <Tooltip title="Transitionを追加">
+      <Tooltip title={t('editor.toolbar.addTransitionTooltip')}>
         <Button
           size="small"
           icon={<SwapOutlined />}
@@ -242,8 +243,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       <Tooltip
         title={
           workflowModeActive
-            ? 'ワークフローモード（キャンバスをクリック）'
-            : 'ワークフロー追加（他MaiMLファイルを統合）'
+            ? t('editor.toolbar.workflowModeActive')
+            : t('editor.toolbar.addWorkflowTooltip')
         }
       >
         <Button
@@ -253,14 +254,14 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           onClick={onAddWorkflow}
           disabled={isTemplateMode}
         >
-          {workflowModeActive ? 'ワークフロー (有効)' : 'ワークフロー'}
+          {workflowModeActive ? t('editor.toolbar.workflowActive') : t('editor.toolbar.workflow')}
         </Button>
       </Tooltip>
 
       <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* Document編集ボタン */}
-      <Tooltip title="Document編集">
+      <Tooltip title={t('editor.toolbar.editDocumentTooltip')}>
         <Button
           size="small"
           icon={<FileTextOutlined />}
@@ -273,21 +274,21 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* バリデーションボタン */}
-      <Tooltip title="バリデーション実行">
+      <Tooltip title={t('editor.toolbar.validateTooltip')}>
         <Button
           size="small"
           icon={<CheckCircleOutlined />}
           onClick={onValidate}
           loading={isValidating}
         >
-          {isValidating ? '検証中...' : 'バリデーション'}
+          {isValidating ? t('editor.toolbar.validating') : t('editor.toolbar.validate')}
         </Button>
       </Tooltip>
 
       <Divider orientation="vertical" style={{ height: 24 }} />
 
       {/* 保存ボタン */}
-      <Tooltip title="保存 (Ctrl+S)">
+      <Tooltip title={t('editor.toolbar.saveTooltip')}>
         <Button
           size="small"
           type="primary"
@@ -295,13 +296,13 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           onClick={onSave}
           disabled={!canSave}
         >
-          保存
+          {t('editor.toolbar.save')}
         </Button>
       </Tooltip>
 
       {/* Draft管理ボタン */}
       {onOpenDraftManager && (
-        <Tooltip title="Draft管理（一時保存・読み込み）">
+        <Tooltip title={t('editor.toolbar.draftTooltip')}>
           <Button
             size="small"
             icon={<FolderOpenOutlined />}
@@ -343,7 +344,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <>
           <Divider orientation="vertical" style={{ height: 24 }} />
           <Space size={8} align="center">
-            <Text style={{ fontSize: 12 }}>自動保存</Text>
+            <Text style={{ fontSize: 12 }}>{t('editor.toolbar.autoSave')}</Text>
             <Switch
               size="small"
               checked={autoSaveEnabled || false}
@@ -351,7 +352,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             />
             {lastAutoSaveTime && (
               <Text type="secondary" style={{ fontSize: 11 }}>
-                (最終: {formatAutoSaveTime(lastAutoSaveTime)})
+                ({t('editor.toolbar.lastSaved')}: {formatAutoSaveTime(lastAutoSaveTime)})
               </Text>
             )}
           </Space>
@@ -360,7 +361,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       {/* ヒント表示 */}
       <Text type="secondary" style={{ fontSize: 11, marginLeft: 16 }}>
-        ヒント: Ctrl+Sで保存 | Ctrl+Z/Yで取り消し/やり直し | M/C/R/T+クリックでノード追加
+        {t('editor.toolbar.hint')}
       </Text>
     </Flex>
   );

@@ -16,6 +16,7 @@ import { getWorkerTasks, confirmInstruction, getProjectMaiml } from '@/services/
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { mapErrorToMessage } from '@/utils/errorMapper';
 
 const { Title, Text } = Typography;
 
@@ -204,7 +205,7 @@ export default function InstructionConfirmationTab({
           setTasks(uniqueTasks);
         } else if (!result.success) {
           console.error('[DEBUG] InstructionConfirmationTab - API returned unsuccessful', result);
-          message.error(result.error?.message || extractErrorMessage(null));
+          message.error(mapErrorToMessage(result.error?.code ?? '') || extractErrorMessage(null));
           setMethods([]);
           setTasks([]);
         } else {

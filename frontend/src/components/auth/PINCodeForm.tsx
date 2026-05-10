@@ -13,6 +13,7 @@ import { MailOutlined, ReloadOutlined } from '@ant-design/icons';
 import { verifyPin, resendPin } from '../../utils/authApi';
 import type { VerifyPINResponse } from '../../types/auth';
 import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text, Paragraph } = Typography;
 const { useToken } = theme;
@@ -67,6 +68,7 @@ export default function PINCodeForm({
   organizationId,
 }: PINCodeFormProps) {
   const { token } = useToken();
+  const { t } = useLanguage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -176,15 +178,15 @@ export default function PINCodeForm({
         </div>
         
         <Paragraph style={{ textAlign: 'center', marginBottom: 0 }}>
-          <Text strong>{maskedEmail}</Text> にPINコードを送信しました。
+          <Text strong>{maskedEmail}</Text>{t('auth.pin.sentMessage')}
           <br />
-          メールに記載された6桁のコードを入力してください。
+          {t('auth.pin.enterCode')}
         </Paragraph>
 
         {/* 有効期限表示 */}
         {remainingTime > 0 && (
           <Text type="secondary" style={{ display: 'block', textAlign: 'center' }}>
-            有効期限: {formatTime(remainingTime)}
+            {t('auth.pin.expiry')}{formatTime(remainingTime)}
           </Text>
         )}
       </Space>
@@ -211,10 +213,10 @@ export default function PINCodeForm({
         {/* PINコード入力 */}
         <Form.Item
           name="pinCode"
-          label="PINコード"
+          label={t('auth.pin.pinCode')}
           rules={[
-            { required: true, message: 'PINコードを入力してください' },
-            { pattern: /^\d{6}$/, message: 'PINコードは6桁の数字で入力してください' },
+            { required: true, message: t('auth.pin.pinRequired') },
+            { pattern: /^\d{6}$/, message: t('auth.pin.pinFormatError') },
           ]}
         >
           <Input
@@ -236,7 +238,7 @@ export default function PINCodeForm({
             block
             size="large"
           >
-            確認
+            {t('auth.pin.verifyButton')}
           </Button>
         </Form.Item>
 
@@ -250,7 +252,7 @@ export default function PINCodeForm({
             loading={resending}
             style={{ padding: 0 }}
           >
-            {canResend ? 'PINコードを再送信' : `再送信可能まで ${formatTime(remainingTime)}`}
+            {canResend ? t('auth.pin.resendButton') : `${t('auth.pin.resendCountdown')}${formatTime(remainingTime)}`}
           </Button>
         </Form.Item>
       </Form>

@@ -73,6 +73,7 @@ import {
   type PublishStatusResponse,
 } from '@/services/projectApiService';
 import { AxiosError } from 'axios';
+import { mapErrorToMessage } from '@/utils/errorMapper';
 import type { Project, Task } from '@/types/project';
 import type { MaimlEditorParams } from '@/types/maimlEditor';
 import type { Draft } from '@/types/editor';
@@ -225,7 +226,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     
     if (projectsError) {
       console.error('❌ [ProjectManagement] API error:', projectsError);
-      message.error('プロジェクト一覧の取得に失敗しました');
+      message.error(t('project.fetchListFailed'));
       return;
     }
     
@@ -574,7 +575,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         // refetch前に保持した hadProjectUuid で判断する
         if (hadProjectUuid) {
           message.warning(
-            'MAIMLファイルを更新しました。手作業で編集した場合は、「Parent」タグが正しく設定されていることを確認してください。',
+            t('project.maimlFileUpdatedWarning'),
             8  // 8秒間表示
           );
         }
@@ -717,7 +718,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
       const backButton: ProjectFile = {
         id: 'back',
-        name: '↑ 戻る',
+        name: t('projectManagement.backButton'),
         path: '',
         size: 0,
         lastModified: '',
@@ -816,7 +817,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         // プロジェクト一覧を再取得してステータス更新を反映
         await refetchProjects();
         
-        message.success(`プロジェクト「${selectedProject.name}」をチェックインしました`);
+        message.success(t('project.checkinSuccess').replace('{name}', selectedProject.name));
       } else {
         // チェックアウト処理
         console.log('🔒 [ProjectManagement] チェックアウト開始:', selectedProject.name);
@@ -829,7 +830,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         // プロジェクト一覧を再取得してステータス更新を反映
         await refetchProjects();
         
-        message.success(`プロジェクト「${selectedProject.name}」をチェックアウトしました`);
+        message.success(t('project.checkoutSuccess').replace('{name}', selectedProject.name));
       }
     } catch (error) {
       console.error('❌ [ProjectManagement] チェックイン/チェックアウトエラー:', error);
@@ -838,39 +839,39 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       if (error instanceof AxiosError && error.response?.data) {
         const errorData = error.response.data;
         const errorCode = errorData.error?.code || 'UNKNOWN_ERROR';
-        const errorMessage = errorData.error?.message || 'チェックイン/チェックアウトに失敗しました';
+        const errorMessage = errorData.error?.message || t('project.checkInOutError');
         const errorDetails = errorData.error?.details;
         
         // エラーコード別のメッセージ表示
         switch (errorCode) {
           case 'TASK_IN_PROGRESS':
-            message.error('実行中のタスクが存在するため、チェックインできません');
+            message.error(t('project.checkinErrorTaskInProgress'));
             break;
           case 'CHECKOUT_NO_MAIML_FILE':
-            message.error('MAIMLファイルが存在しません。先にプロジェクトを編集してMAIMLファイルを作成してください。');
+            message.error(t('project.checkoutErrorNoMaiml'));
             break;
           case 'CHECKOUT_INVALID_STATUS':
-            const currentStatus = errorDetails?.currentStatusName || '不明';
-            message.error(`プロジェクトステータスがタスク実行待ちではありません（現在: ${currentStatus}）`);
+            const currentStatus = errorDetails?.currentStatusName || t('common.unknown');
+            message.error(t('project.checkoutErrorInvalidStatus').replace('{status}', currentStatus));
             break;
           case 'CHECKOUT_NO_TASKS':
-            message.error('タスクが登録されていません。先にタスク登録タブからタスクを登録してください。');
+            message.error(t('project.checkoutErrorNoTasks'));
             break;
           case 'CHECKOUT_UNSENT_INSTRUCTIONS':
-            message.error('未送信の指示が存在します。先に指示送信タブから指示を送信してください。');
+            message.error(t('project.checkoutErrorUnsentInstructions'));
             break;
           case 'PROJECT_ALREADY_CHECKED_OUT':
-            const checkedOutBy = errorDetails?.checkedOutBy || '他のユーザー';
-            message.warning(`このプロジェクトは既に${checkedOutBy}によってチェックアウトされています。`);
+            const checkedOutBy = errorDetails?.checkedOutBy || t('common.otherUser');
+            message.warning(t('project.checkoutWarningAlreadyCheckedOut').replace('{user}', checkedOutBy));
             break;
           case 'RESOURCE_NOT_FOUND':
-            message.error('プロジェクトが見つかりません');
+            message.error(t('project.notFound'));
             break;
           default:
             message.error(errorMessage);
         }
       } else {
-        message.error('チェックイン/チェックアウト処理中にエラーが発生しました');
+        message.error(t('project.checkInOutError'));
       }
     }
   }, [selectedProject, isProjectCheckedOut, refetchProjects]);
@@ -878,7 +879,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // 問題確認モーダルを開く
   const handleOpenIssueManagement = useCallback(() => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('project.selectProjectWarning'));
       return;
     }
     setIssueManagementModalOpen(true);
@@ -951,7 +952,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // Phase 6追加: 編集ボタンクリックハンドラー（Draftチェックなし・直接エディタへ）
   const handleEditButtonClick = useCallback(() => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('project.selectProjectWarning'));
       return;
     }
 
@@ -1074,7 +1075,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       const analysisRes = await getAnalysisResult(resolvedMaimlFileKey);
       setSavedValidationRow(analysisRes.data ?? null);
     } catch {
-      message.error('バリデーションの実行に失敗しました');
+      message.error(t('project.validationFailed'));
     } finally {
       setIsValidating(false);
     }
@@ -1140,12 +1141,12 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     setIsPolling(false);
     if (status.status === 'done') {
       if (status.job_type === 'publish') {
-        message.success(`プロジェクト「${selectedProject?.name}」の公開が完了しました`);
+        message.success(t('project.publishSuccess').replace('{name}', selectedProject?.name ?? ''));
       } else {
-        message.success(`プロジェクト「${selectedProject?.name}」の非公開が完了しました`);
+        message.success(t('project.unpublishSuccess').replace('{name}', selectedProject?.name ?? ''));
       }
     } else if (status.status === 'error') {
-      message.error(status.error_message ?? '処理に失敗しました');
+      message.error(status.error_message ?? t('project.processingFailed'));
     }
     // ステータスを再取得
     if (selectedProject) {
@@ -1164,14 +1165,14 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     onComplete: handlePollingComplete,
     onError: () => {
       setIsPolling(false);
-      message.error('ステータスの取得に失敗しました');
+      message.error(t('project.statusFetchFailed'));
     },
   });
 
   // 公開ボタンハンドラ → 確認ダイアログを開く
   const handlePublish = useCallback(() => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('project.selectProjectWarning'));
       return;
     }
     setPublishDialogOpen(true);
@@ -1180,7 +1181,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // 非公開ボタンハンドラ → 確認ダイアログを開く
   const handleUnpublish = useCallback(() => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('project.selectProjectWarning'));
       return;
     }
     setUnpublishDialogOpen(true);
@@ -1212,7 +1213,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const handleViewFile = useCallback((file: ProjectFile) => {
     // 上限チェック（5個まで）
     if (openDialogs.length >= 5) {
-      message.warning('同時に開けるダイアログは5個までです');
+      message.warning(t('project.maxDialogsWarning'));
       return;
     }
 
@@ -1295,7 +1296,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   }) => {
     // 上限チェック（5個まで）
     if (openDialogs.length >= 5) {
-      message.warning('同時に開けるダイアログは5個までです');
+      message.warning(t('project.maxDialogsWarning'));
       return;
     }
 
@@ -1317,7 +1318,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // プロジェクト削除ハンドラ
   const handleProjectDelete = useCallback(async () => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('project.selectProjectWarning'));
       return;
     }
 
@@ -1355,10 +1356,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           console.error('❌ [ProjectManagement] プロジェクト削除失敗:', error);
           
           // エラーレスポンスから詳細メッセージを取得
-          if (error instanceof AxiosError && error.response?.data?.error?.message) {
-            message.error(error.response.data.error.message);
+          if (error instanceof AxiosError && error.response?.data?.error?.code) {
+            message.error(mapErrorToMessage(error.response.data.error.code));
           } else {
-            message.error('プロジェクトの削除に失敗しました');
+            message.error(t('project.deleteFailed'));
           }
         }
       },
@@ -1368,7 +1369,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // ファイル削除ハンドラ（MAIMLファイル + 一般ファイル）
   const handleDeleteMaimlFile = useCallback(async (file: ProjectFile) => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('project.selectProjectWarning'));
       return;
     }
 
@@ -1377,27 +1378,27 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     
     // 確認ダイアログの内容を設定
     const confirmTitle = isMaimlFile
-      ? `MAIMLファイル「${file.name}」を削除しますか？`
-      : `ファイル「${file.name}」を削除しますか？`;
+      ? t('project.maimlFileDeleteConfirmTitle').replace('{name}', file.name)
+      : t('project.fileDeleteConfirmTitle').replace('{name}', file.name);
     
     const confirmContent = isMaimlFile ? (
       <div>
-        <p>この操作は取り消せません。</p>
+        <p>{t('project.fileDeleteCannotUndo')}</p>
         <p style={{ fontSize: '0.9em', marginTop: '8px' }}>
-          ※ プロジェクトステータスがタスク計画中の場合のみ削除できます
+          {t('project.maimlFileDeleteNote')}
         </p>
       </div>
     ) : (
       <div>
-        <p>この操作は取り消せません。</p>
+        <p>{t('project.fileDeleteCannotUndo')}</p>
       </div>
     );
 
     Modal.confirm({
       title: confirmTitle,
       content: confirmContent,
-      okText: '削除',
-      cancelText: 'キャンセル',
+      okText: t('common.delete'),
+      cancelText: t('common.cancel'),
       okButtonProps: { danger: true, 'data-testid': 'maiml-delete-confirm-button', id: 'maiml-delete-confirm-button' } as any,
       cancelButtonProps: { 'data-testid': 'maiml-delete-cancel-button', id: 'maiml-delete-cancel-button' } as any,
       onOk: async () => {
@@ -1410,7 +1411,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             await deleteFileByKey(file.path, true);
             console.log('✅ [ProjectManagement] MAIMLファイル削除成功:', file.path);
             
-            message.success(`MAIMLファイル「${file.name}」を削除しました`);
+            message.success(t('project.maimlDeleteSuccess').replace('{name}', file.name));
             
             // プロジェクト一覧を再取得（project_maiml_flgの更新反映）
             await refetchProjects();
@@ -1421,7 +1422,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             // 一般ファイル: 共通削除API（無条件削除）
             await deleteFileByKey(file.path);
             console.log('✅ [ProjectManagement] 一般ファイル削除成功:', file.path);
-            message.success(`ファイル「${file.name}」を削除しました`);
+            message.success(t('project.fileDeleteSuccess').replace('{name}', file.name));
           }
           
           // ファイル一覧を再取得
@@ -1438,10 +1439,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           console.error('❌ [ProjectManagement] ファイル削除失敗:', error);
           
           // エラーレスポンスから詳細メッセージを取得
-          if (error instanceof AxiosError && error.response?.data?.error?.message) {
-            message.error(error.response.data.error.message);
+          if (error instanceof AxiosError && error.response?.data?.error?.code) {
+            message.error(mapErrorToMessage(error.response.data.error.code));
           } else {
-            message.error('ファイルの削除に失敗しました');
+            message.error(t('project.fileDeleteFailed'));
           }
         }
       },
@@ -1451,28 +1452,28 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // フォルダ削除ハンドラ
   const handleDeleteFolder = useCallback(async (folder: ProjectFile) => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('project.selectProjectWarning'));
       return;
     }
     // 戻るボタン行は除外
     if (folder.id === 'back') return;
 
     Modal.confirm({
-      title: `フォルダ「${folder.name}」を削除しますか？`,
+      title: t('project.folderDeleteConfirmTitle').replace('{name}', folder.name),
       content: (
         <div>
-          <p>このフォルダ内のファイルもすべて削除されます。この操作は取り消せません。</p>
+          <p>{t('project.folderDeleteWarning')}</p>
         </div>
       ),
-      okText: '削除',
-      cancelText: 'キャンセル',
+      okText: t('common.delete'),
+      cancelText: t('common.cancel'),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           console.log('🗑️ [ProjectManagement] フォルダ削除開始:', folder.path);
           await deleteFolderByPath(folder.path);
           console.log('✅ [ProjectManagement] フォルダ削除成功:', folder.path);
-          message.success(`フォルダ「${folder.name}」を削除しました`);
+          message.success(t('project.folderDeleteSuccess').replace('{name}', folder.name));
 
           // ファイル一覧を再取得
           const fileResponse = await getProjectFiles(selectedProject.id, true);
@@ -1490,10 +1491,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           }
         } catch (error) {
           console.error('❌ [ProjectManagement] フォルダ削除失敗:', error);
-          if (error instanceof AxiosError && error.response?.data?.error?.message) {
-            message.error(error.response.data.error.message);
+          if (error instanceof AxiosError && error.response?.data?.error?.code) {
+            message.error(mapErrorToMessage(error.response.data.error.code));
           } else {
-            message.error('フォルダの削除に失敗しました');
+            message.error(t('project.folderDeleteFailed'));
           }
         }
       },
@@ -1503,7 +1504,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // プロジェクト一括ダウンロードハンドラ（ZIP形式）
   const handleProjectDownload = useCallback(async () => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('project.selectProjectWarning'));
       return;
     }
 
@@ -1518,10 +1519,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       // ZIPダウンロード実行
       await downloadFolderAsZip(folderPath);
       
-      message.success(`プロジェクト「${selectedProject.name}」をZIPファイルでダウンロードしました`);
+      message.success(t('project.zipDownloadSuccess').replace('{name}', selectedProject.name));
     } catch (error) {
       console.error('❌ [ProjectManagement] ZIP download failed:', error);
-      message.error('プロジェクトのダウンロードに失敗しました');
+      message.error(t('project.downloadFailed'));
     } finally {
       setIsDownloading(false);
     }
@@ -1554,7 +1555,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       
       // プロジェクトが選択されていない場合はここで終了
       if (!selectedProject) {
-        message.success('プロジェクト一覧を更新しました');
+        message.success(t('projectManagement.listReloadSuccess'));
         console.log('✅ [ProjectManagement] プロジェクト一覧のみ更新完了（プロジェクト未選択）');
         return;
       }
@@ -1687,7 +1688,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       
       // 成功メッセージを表示
       message.success({
-        content: t('projectManagement.create.success') || 'プロジェクトが正常に作成されました',
+        content: t('projectManagement.create.success'),
         duration: 3,
       });
       
@@ -1699,7 +1700,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       // エラーメッセージをユーザーに表示
       const errorMessage = error instanceof Error 
         ? error.message 
-        : (t('projectManagement.create.error') || 'プロジェクトの作成に失敗しました');
+        : t('projectManagement.create.error');
       
       message.error({
         content: errorMessage,
@@ -1924,14 +1925,14 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       try { warnCount = parseField(savedValidationRow.warnings).length; } catch {}
                       if (errCount > 0) {
                         return (
-                          <Tooltip title={`バリデーションエラーがあります（${errCount}件）`}>
+                          <Tooltip title={t('project.validationErrorTooltip').replace('{count}', String(errCount))}>
                             <WarningOutlined style={{ color: token.colorError, fontSize: 18 }} />
                           </Tooltip>
                         );
                       }
                       if (warnCount > 0) {
                         return (
-                          <Tooltip title={`バリデーション警告があります（${warnCount}件）`}>
+                          <Tooltip title={t('project.validationWarningTooltip').replace('{count}', String(warnCount))}>
                             <WarningOutlined style={{ color: token.colorWarning, fontSize: 18 }} />
                           </Tooltip>
                         );
@@ -1967,7 +1968,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     data-testid="project-download-button"
                   >
                     {isDownloading 
-                      ? 'ZIPダウンロード中...'
+                      ? t('projectManagement.project_downloading')
                       : t('projectManagement.project_download')
                     }
                   </Button>
@@ -1977,7 +1978,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenUploadDialog}
                     disabled={!selectedProject || selectedProject.status === 4}
-                    title={selectedProject?.status === 4 ? 'プロジェクト完了後はアップロードできません' : undefined}
+                    title={selectedProject?.status === 4 ? t('projectManagement.uploadDisabledTitle') : undefined}
                   >
                     {t('projectManagement.upload')}
                   </Button>
@@ -1986,7 +1987,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<EditOutlined />}
                     onClick={handleEditButtonClick}
                     disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4}
-                    title={selectedProject?.status === 4 ? 'プロジェクト完了後は編集できません' : isProjectCheckedOut ? 'チェックイン状態でのみ編集できます' : undefined}
+                    title={selectedProject?.status === 4 ? t('projectManagement.editDisabledTitle') : isProjectCheckedOut ? t('projectManagement.editCheckedOutTitle') : undefined}
                   >
                     {t('projectManagement.edit')}
                   </Button>
@@ -1995,7 +1996,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<DeleteOutlined />}
                     onClick={handleProjectDelete}
                     disabled={!selectedProject || selectedProject.status === 4}
-                    title={selectedProject?.status === 4 ? 'プロジェクト完了後は削除できません' : undefined}
+                    title={selectedProject?.status === 4 ? t('projectManagement.deleteDisabledTitle') : undefined}
                   >
                     {t('projectManagement.deleteButton')}
                   </Button>
@@ -2004,7 +2005,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<FileTextOutlined />}
                     onClick={handleToggleCheckout}
                     disabled={selectedProject?.status === ProjectStatus.COMPLETED}
-                    title={selectedProject?.status === ProjectStatus.COMPLETED ? 'プロジェクト完了後はチェックインできません' : undefined}
+                    title={selectedProject?.status === ProjectStatus.COMPLETED ? t('projectManagement.checkinDisabledTitle') : undefined}
                     style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     data-testid="checkout-checkin-button"
                   >
@@ -2027,7 +2028,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       loading={publishStatusLoading || isPolling}
                       disabled={!selectedProject || publishStatusLoading || isPolling}
                     >
-                      {isPolling ? '処理中...' : (t('projectManagement.unpublish') || '非公開')}
+                      {isPolling ? t('projectManagement.processing') : t('projectManagement.unpublish')}
                     </Button>
                   ) : (
                     <Button
@@ -2038,7 +2039,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       loading={publishStatusLoading || isPolling}
                       disabled={!selectedProject || !(selectedProject?.status === ProjectStatus.REVIEW_WAITING || selectedProject?.status === ProjectStatus.COMPLETED) || publishStatusLoading || isPolling}
                     >
-                      {isPolling ? '処理中...' : t('projectManagement.publish')}
+                      {isPolling ? t('projectManagement.processing') : t('projectManagement.publish')}
                     </Button>
                   )}
                   <Button
@@ -2053,7 +2054,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     onClick={() => setValidationDialogOpen(true)}
                     disabled={!selectedProject}
                   >
-                    バリデーション確認
+                    {t('projectManagement.validationConfirmButton')}
                   </Button>
                 </Space>
               </Card>
@@ -2096,7 +2097,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     }
                   } catch (error) {
                     console.error('❌ [ProjectManagement] Tab data loading failed:', error);
-                    message.error('データの取得に失敗しました');
+                    message.error(t('project.dataFetchFailed'));
                   } finally {
                     setIsLoadingTabData(false);
                   }
@@ -2167,21 +2168,21 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                             icon={<UserOutlined />}
                             onClick={() => onOpenWorkerScreen?.(selectedProject.id, selectedProject.name)}
                             disabled={!isProjectCheckedOut}
-                            title={!isProjectCheckedOut ? 'チェックアウト後に操作できます' : undefined}
+                            title={!isProjectCheckedOut ? t('projectManagement.workerScreenDisabledTitle') : undefined}
                           >
-                            作業確認
+                            {t('projectManagement.workerScreenButton')}
                           </Button>
                           <Button
                             type="primary"
                             style={{ marginRight: 16 }}
                             data-testid="complete-review-button"
                             disabled={taskStats.review_waiting === 0}
-                            title={taskStats.review_waiting === 0 ? 'レビュー待ちのタスクがありません' : undefined}
+                            title={taskStats.review_waiting === 0 ? t('projectManagement.completeReviewDisabledTitle') : undefined}
                             onClick={async () => {
                               if (!selectedProject) return;
                               try {
                                 const res = await completeReviewTasks(selectedProject.id);
-                                message.success(res.data?.message || 'レビュー待ちタスクを完了に更新しました');
+                                message.success(res.data?.message || t('projectManagement.completeReviewSuccess'));
                                 // タスク一覧を再取得
                                 const taskResponse = await getProjectTasks(selectedProject.id, 'all');
                                 setProjectTasksData(prev => ({
@@ -2192,11 +2193,11 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                                   }
                                 }));
                               } catch {
-                                message.error('タスク確認完了処理に失敗しました');
+                                message.error(t('projectManagement.completeReviewFailed'));
                               }
                             }}
                           >
-                            タスク確認完了
+                            {t('projectManagement.completeReviewButton')}
                           </Button>
                         </Flex>
                         {/* 統計カード: コード値順 total / pending(0) / in_progress(1) / review_waiting(2) / completed(3) / forced_terminated(4) */}

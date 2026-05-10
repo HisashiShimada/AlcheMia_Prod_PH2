@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { App } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Task, ProjectStatus } from '@/types/experimentWorker';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
@@ -15,7 +16,9 @@ interface ProgressCheckTableProps {
   onTaskAction: (taskId: string, action: string) => void;
   /** trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用） */
   readOnly?: boolean;
-  /** プロジェクト名（MAIMLファイル取得に使用） */
+  /** プロジェクトID（MAIMLファイル取得に使用） */
+  projectId: string;
+  /** プロジェクト名（表示・パス生成用） */
   projectName: string;
 }
 
@@ -23,9 +26,10 @@ interface ProgressCheckTableProps {
  * 進捗確認テーブル（親コンポーネント）
  * タスク一覧を表示（メソッドはタブで選択済み）
  */
-export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction, readOnly = false, projectName }: ProgressCheckTableProps) {
+export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction, readOnly = false, projectId, projectName }: ProgressCheckTableProps) {
   // Ant Design App コンテキストからmessageを取得
   const { message } = App.useApp();
+  const { t } = useLanguage();
   // ViewRendererDialogの管理
   const [viewerDialogs, setViewerDialogs] = useState<Array<{
     id: string;
@@ -40,17 +44,17 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction,
   
   // 進捗率クリック時のハンドラー
   const handleProgressRateClick = async (_task: Task) => {
-    if (!projectName) {
-      message.warning('プロジェクトが選択されていません');
+    if (!projectId) {
+      message.warning(t('worker.selectProjectPlease'));
       return;
     }
 
     try {
       // プロジェクトのMAIMLファイルをAPIから取得
-      const result = await getProjectMaiml(projectName);
+      const result = await getProjectMaiml(projectId);
 
       if (!result.success || !result.data) {
-        message.error('MAIMLファイルの取得に失敗しました');
+        message.error(t('progress.maimlNotFound'));
         return;
       }
 
@@ -76,7 +80,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction,
       setNextZIndex(nextZIndex + 1);
     } catch (error) {
       console.error('[ProgressCheckTable] MAIMLファイル取得エラー:', error);
-      message.error('MAIMLファイルの取得中にエラーが発生しました');
+      message.error(t('progress.fileInfoFetchFailed'));
     }
   };
 

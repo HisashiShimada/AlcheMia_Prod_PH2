@@ -64,17 +64,17 @@ function handleApiError(error: unknown): never {
 
     // タイムアウトエラー
     if (axiosError.code === 'ECONNABORTED') {
-      throw new ApiError('リクエストがタイムアウトしました。しばらくしてから再度お試しください', 'E3002');
+      throw new ApiError('リクエストがタイムアウトしました。しばらく経ってから再試行してください。', 'E3002');
     }
 
     // ネットワークエラー
     if (!axiosError.response) {
-      throw new ApiError('ネットワークエラーが発生しました。インターネット接続を確認してください', 'E3003');
+      throw new ApiError('ネットワークエラーが発生しました。インターネット接続を確認してください。', 'E3003');
     }
   }
 
   // その他のエラー
-  throw new ApiError('予期しないエラーが発生しました。しばらくしてから再度お試しください', 'E9999');
+  throw new ApiError('予期しないエラーが発生しました。しばらく経ってから再試行してください。', 'E9999');
 }
 
 /**

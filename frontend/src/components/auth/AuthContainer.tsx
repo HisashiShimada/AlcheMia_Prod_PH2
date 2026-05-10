@@ -10,6 +10,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, Typography, message, theme } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 import LoginForm from './LoginForm';
 import PINCodeForm from './PINCodeForm';
 import PasswordResetRequest from './PasswordResetRequest';
@@ -45,6 +46,7 @@ export default function AuthContainer({
 }: AuthContainerProps) {
   const { token } = useToken();
   const router = useRouter();
+  const { t } = useLanguage();
   
   // 認証フロー状態
   const [flowState, setFlowState] = useState<AuthFlowState>('login');
@@ -82,7 +84,7 @@ export default function AuthContainer({
    * PINコード検証成功ハンドラ
    */
   const handlePINVerifySuccess = (response: VerifyPINResponse) => {
-    message.success('ログインに成功しました');
+    message.success(t('auth.loginSuccess'));
     
     // JWTトークンをsessionStorageに保存
     // 仮セッショントークンを上書き（同じキー名を使用）
@@ -106,7 +108,7 @@ export default function AuthContainer({
    * PINコード試行回数超過ハンドラ
    */
   const handlePINMaxAttemptsExceeded = () => {
-    message.error('PINコード入力試行回数の上限に達しました。最初からやり直してください');
+    message.error(t('auth.pinMaxAttemptsExceeded'));
     
     // SessionStorageをクリア
     if (typeof window !== 'undefined') {
@@ -125,7 +127,7 @@ export default function AuthContainer({
    */
   const handleResetRequestSuccess = () => {
     setFlowState('reset-sent');
-    message.success('パスワードリセット用のリンクをメールに送信しました');
+    message.success(t('auth.passwordReset.resetLinkSent'));
   };
 
   /**
@@ -163,15 +165,15 @@ export default function AuthContainer({
   const getTitle = (): string => {
     switch (flowState) {
       case 'login':
-        return 'ログイン';
+        return t('auth.title.login');
       case 'pin-input':
-        return 'PINコード入力';
+        return t('auth.title.pinInput');
       case 'reset-request':
-        return 'パスワードリセット';
+        return t('auth.title.resetRequest');
       case 'reset-sent':
-        return 'メール送信完了';
+        return t('auth.title.resetSent');
       default:
-        return 'ログイン';
+        return t('auth.title.login');
     }
   };
 
@@ -222,12 +224,10 @@ export default function AuthContainer({
         return (
           <div style={{ textAlign: 'center', padding: token.paddingLG }}>
             <Typography.Paragraph>
-              パスワードリセット用のリンクをメールに送信しました。
-              <br />
-              メールに記載されたリンクからパスワードを変更してください。
+              {t('auth.passwordReset.resetSentDescription')}
             </Typography.Paragraph>
             <Typography.Link onClick={handleBackToLogin}>
-              ログイン画面に戻る
+              {t('auth.passwordReset.backToLogin')}
             </Typography.Link>
           </div>
         );

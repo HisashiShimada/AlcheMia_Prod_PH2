@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Typography, Space, theme } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -17,7 +18,7 @@ export interface CreateFormatModalProps {
 
 /**
  * 新規フォーマットフォルダ作成モーダル
- * 
+ *
  * 部門直下に新規フォーマットフォルダを作成する
  */
 const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
@@ -26,6 +27,7 @@ const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
   onSubmit,
   departmentName,
 }) => {
+  const { t } = useLanguage();
   const { token } = theme.useToken();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,7 @@ const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
       onCancel();
     } catch (error) {
       console.error('❌ [CreateFormatModal] エラー:', error);
-      
+
       // APIエラーの場合、エラーメッセージを表示
       const apiError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
       if (apiError?.response?.data?.error?.message) {
@@ -74,12 +76,12 @@ const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
 
   return (
     <Modal
-      title="新規フォーマットフォルダ作成"
+      title={t('createFormatModal.title')}
       open={open}
       onOk={handleSubmit}
       onCancel={onCancel}
-      okText="作成"
-      cancelText="キャンセル"
+      okText={t('createFormatModal.create')}
+      cancelText={t('createFormatModal.cancel')}
       confirmLoading={loading}
       width={500}
       destroyOnHidden
@@ -92,24 +94,24 @@ const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
         {/* フォルダ名入力 */}
         <Form.Item
           name="folderName"
-          label="フォルダ名"
+          label={t('createFormatModal.folderName')}
           validateStatus={errorMessage ? 'error' : undefined}
           help={errorMessage || undefined}
           rules={[
-            { required: true, message: 'フォルダ名を入力してください' },
+            { required: true, message: t('createFormatModal.rules.required') },
             {
               pattern: /^[a-zA-Z0-9_]+$/,
-              message: '英数字とアンダースコアのみ使用できます',
+              message: t('createFormatModal.rules.pattern'),
             },
             {
               min: 1,
               max: 255,
-              message: 'フォルダ名は1〜255文字で指定してください',
+              message: t('createFormatModal.rules.length'),
             },
           ]}
         >
           <Input
-            placeholder="フォルダ名を入力"
+            placeholder={t('createFormatModal.placeholder')}
             maxLength={255}
           />
         </Form.Item>
@@ -117,11 +119,11 @@ const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
         {/* 補足説明 */}
         <Space orientation="vertical" size="small" style={{ width: '100%' }}>
           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-            使用可能な文字: 英数字 (a-z, A-Z, 0-9) とアンダースコア (_)
+            {t('createFormatModal.allowedChars')}
           </Text>
           {departmentName && (
             <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-              ※ あなたの所属部門（{departmentName}）配下にフォルダが作成されます
+              {t('createFormatModal.departmentNote').replace('{{departmentName}}', departmentName)}
             </Text>
           )}
         </Space>

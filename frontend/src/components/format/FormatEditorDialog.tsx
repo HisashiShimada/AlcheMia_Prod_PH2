@@ -384,12 +384,12 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
 
   const handleAddProperty = () => {
     if (!newPropertyKey.trim()) {
-      message.error('プロパティキーを入力してください');
+      message.error(t('formatEditor.propKeyRequired'));
       return;
     }
 
     if (properties[newPropertyKey.trim()]) {
-      message.error('同じキーのプロパティが既に存在します');
+      message.error(t('formatEditor.propKeyDuplicate'));
       return;
     }
 
@@ -457,7 +457,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
     // 重複チェック実行
     const hasDuplicate = checkDuplicateKey(properties, parentKey, childKey);
     if (hasDuplicate) {
-      message.error(`エラー: 同じ階層に既に「${childKey}」というキーの子要素が存在します。\n別のキー名を指定してください。`);
+      message.error(t('editor.template.childKeyDuplicate', { key: childKey }));
       console.error('❌ [handleAddNestedChild] 重複キーエラー:', { parentKey, childKey });
       return;
     }
@@ -548,7 +548,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
 
   const handleAddSameLevelCopy = (sourceData: PropertyData, newKey: string) => {
     if (properties[newKey]) {
-      message.error('同じキーのプロパティが既に存在します');
+      message.error(t('formatEditor.propKeyDuplicate'));
       return;
     }
 
@@ -744,12 +744,12 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
 
   const handleAddContent = () => {
     if (!newContentKey.trim()) {
-      message.error('Contentキーを入力してください');
+      message.error(t('formatEditor.contentKeyRequired'));
       return;
     }
 
     if (contents[newContentKey.trim()]) {
-      message.error('同じキーのContentが既に存在します');
+      message.error(t('formatEditor.contentKeyDuplicate'));
       return;
     }
 
@@ -804,7 +804,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
 
   const handleAddContentSameLevelCopy = (sourceData: PropertyData, newKey: string) => {
     if (contents[newKey]) {
-      message.error('同じキーのContentが既に存在します');
+      message.error(t('formatEditor.contentKeyDuplicate'));
       return;
     }
 
@@ -924,7 +924,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
     
     const organizationId = localStorage.getItem('organizationPrefix') || '';
     if (!organizationId) {
-      setNamespaceData({ error: '組織IDが取得できません' });
+      setNamespaceData({ error: t('formatEditor.orgIdMissing') });
       return;
     }
     
@@ -949,7 +949,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
     } catch (error) {
       console.error('プレビュー読み込みエラー:', error);
       setNamespaceData({
-        error: 'プレビューの読み込みに失敗しました'
+        error: t('formatEditor.previewLoadFailed')
       });
     }
   };
@@ -959,7 +959,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
    */
   const handleConfirmImportWithDuplicateCheck = async () => {
     if (!selectedNamespaceFile) {
-      message.error('テンプレートファイルを選択してください');
+      message.error(t('formatEditor.nsFileRequired'));
       return;
     }
 
@@ -969,7 +969,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
     if (!parsedNamespaces) {
       const organizationId = localStorage.getItem('organizationPrefix') || '';
       if (!organizationId) {
-        message.error('組織IDが取得できません');
+        message.error(t('formatEditor.orgIdMissing'));
         return;
       }
 
@@ -979,7 +979,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
         parsedNamespaces = parseNamespacesFromXml(xmlContent);
       } catch (error) {
         console.error('名前空間取り込みエラー:', error);
-        message.error('名前空間の取り込みに失敗しました');
+        message.error(t('formatEditor.nsImportFailed'));
         return;
       }
     }
@@ -997,7 +997,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
    */
   const handleImportNamespace = () => {
     if (!namespaceData.properties) {
-      message.error('取り込むプロパティがありません');
+      message.error(t('formatEditor.noPropToImport'));
       return;
     }
 
@@ -1041,7 +1041,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
       setHasChanges(true);
     } catch (error) {
       console.error('[名前空間取り込み] エラー:', error);
-      message.error(`取り込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+      message.error(t('formatEditor.nsImportError', { error: error instanceof Error ? error.message : String(error) }));
     }
   };
 
@@ -1105,7 +1105,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
       }}
       footer={[
         <Button key="cancel" onClick={onClose}>
-          キャンセル
+          {t('common.cancel')}
         </Button>,
         <Button key="save" type="primary" icon={<SaveOutlined />} onClick={handleSave}>
           保存
@@ -1140,7 +1140,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
         
         <Space style={{ marginBottom: 12 }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowAddModal(true)}>
-            新規プロパティ追加
+            {t('formatEditor.addPropTitle')}
           </Button>
           <Button icon={<DownloadOutlined />} onClick={() => handleOpenNamespaceImport('replace_all_properties')}>
             テンプレートから取り込み
@@ -1148,7 +1148,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
         </Space>
 
           {Object.keys(properties).length === 0 ? (
-            <Alert title="プロパティがありません。「新規プロパティ追加」ボタンから追加してください。" type="info" />
+            <Alert title={t('formatEditor.propsEmpty')} type="info" />
           ) : (
             Object.entries(properties).map(([key, data]) => (
               <NestedPropertyEditor
@@ -1186,13 +1186,13 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
                       <Text strong>
                         🔗 継承元プロパティ（親テンプレート: {inheritedTemplate.id}）
                       </Text>
-                      <Tag color="blue">読み取り専用</Tag>
+                      <Tag color="blue">{t('common.readOnly')}</Tag>
                     </Space>
                   ),
                   children: (
                     <div style={{ padding: 16, backgroundColor: '#f0f5ff' }}>
                       <Alert
-                        title="このプロパティは親テンプレートから継承されています"
+                        title={t('formatEditor.inheritedAlert')}
                         description="編集する場合は、親テンプレート側で変更してください"
                         type="info"
                         showIcon
@@ -1251,7 +1251,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
                         ))
                       ) : (
                         <Alert
-                          title="親テンプレートにプロパティがありません"
+                          title={t('formatEditor.parentPropsEmpty')}
                           type="warning"
                           showIcon
                         />
@@ -1273,7 +1273,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
               
               <Space style={{ marginBottom: 12 }}>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowContentAddModal(true)}>
-                  新規Content追加
+                  {t('formatEditor.addContentTitle')}
                 </Button>
                 <Button icon={<DownloadOutlined />} onClick={() => handleOpenNamespaceImport('replace_all_contents')}>
                   テンプレートから取り込み
@@ -1281,7 +1281,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
               </Space>
 
               {Object.keys(contents).length === 0 ? (
-                <Alert title="Contentがありません。「新規Contentを追加」ボタンから追加してください。" type="info" />
+                <Alert title={t('formatEditor.contentsEmpty')} type="info" />
               ) : (
                 Object.entries(contents).map(([key, data]) => (
                   <NestedPropertyEditor
@@ -1329,8 +1329,8 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
             overflowY: 'auto'
           }
         }}
-        okText="取り込む"
-        cancelText="キャンセル"
+        okText={t('formatEditor.nsModalOk')}
+        cancelText={t('formatEditor.nsModalCancel')}
         okButtonProps={{ disabled: !selectedNamespaceFile }}
       >
         <Space orientation="vertical" style={{ width: '100%' }} size="large">
@@ -1347,9 +1347,9 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
           />
 
           {/* ✅ Phase 3-1 & 3-2: テンプレートファイル選択（TreeSelect版 + プレビュー連動） */}
-          <Form.Item label="テンプレートファイル">
+          <Form.Item label={t('formatEditor.nsFileLabel')}>
             <TreeSelect
-              placeholder="テンプレートファイルを選択してください"
+              placeholder={t('formatEditor.nsFilePlaceholder')}
               value={selectedNamespaceFile}
               onChange={handleSelectNamespaceFile}
               loading={isLoadingTemplates}
@@ -1368,7 +1368,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
             <>
               {namespaceData.error && (
                 <Alert
-                  title="プレビューエラー"
+                  title={t('formatEditor.previewError')}
                   description={namespaceData.error}
                   type="error"
                   style={{ marginBottom: 16 }}
@@ -1409,7 +1409,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
                   items={[
                     {
                       key: 'xml',
-                      label: '📄 XMLプレビュー（最初の500行）',
+                      label: t('formatEditor.xmlPreviewLabel'),
                       children: (
                         <pre style={{
                           maxHeight: 300,
@@ -1432,8 +1432,8 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
           {/* テンプレートファイル一覧 */}
           {!isLoadingTemplates && templateFiles.length === 0 && (
             <Alert
-              title="テンプレートファイルが見つかりませんでした"
-              description="対象カテゴリのテンプレートファイルが存在しません"
+              title={t('formatEditor.nsFileNotFound')}
+              description={t('formatEditor.nsFileNotFoundDesc')}
               type="warning"
             />
           )}
@@ -1442,20 +1442,20 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
 
       {/* プロパティ追加モーダル */}
       <Modal
-        title="新規プロパティ追加"
+        title={t('formatEditor.addPropTitle')}
         open={showAddModal}
         onCancel={() => setShowAddModal(false)}
         onOk={handleAddProperty}
       >
         <Space orientation="vertical" style={{ width: '100%' }}>
           <Input
-            placeholder="プロパティキー（例: compound, concentration）"
+            placeholder={t('formatEditor.propKeyPlaceholder')}
             value={newPropertyKey}
             onChange={(e) => setNewPropertyKey(e.target.value)}
           />
           <Select
             style={{ width: '100%' }}
-            placeholder="タグ名を選択"
+            placeholder={t('formatEditor.tagNamePlaceholder')}
             value={newPropertyTagName}
             onChange={setNewPropertyTagName}
           >
@@ -1468,20 +1468,20 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
 
       {/* Phase 3.2: Content追加モーダル */}
       <Modal
-        title="新規Content追加"
+        title={t('formatEditor.addContentTitle')}
         open={showContentAddModal}
         onCancel={() => setShowContentAddModal(false)}
         onOk={handleAddContent}
       >
         <Space orientation="vertical" style={{ width: '100%' }}>
           <Input
-            placeholder="プロパティキー（例: compound, concentration）"
+            placeholder={t('formatEditor.contentKeyPlaceholder')}
             value={newContentKey}
             onChange={(e) => setNewContentKey(e.target.value)}
           />
           <Select
             style={{ width: '100%' }}
-            placeholder="タグ名を選択"
+            placeholder={t('formatEditor.tagNamePlaceholder')}
             value={newContentTagName}
             onChange={setNewContentTagName}
           >
@@ -1494,15 +1494,15 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
 
       {/* ✅ Phase 3-3: 取り込み確認ダイアログ */}
       <Modal
-        title="⚠️ プロパティ取り込み確認"
+        title={t('formatEditor.confirmImportTitle')}
         open={showConfirmDialog}
         onCancel={() => {
           setShowConfirmDialog(false);
           setDuplicateKeys([]);
         }}
         onOk={handleImportNamespace}
-        okText="取り込む"
-        cancelText="キャンセル"
+        okText={t('formatEditor.confirmImportOk')}
+        cancelText={t('formatEditor.confirmImportCancel')}
         width={720}
         style={{ top: 20 }}
         styles={{
@@ -1515,10 +1515,10 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
         <Space orientation="vertical" style={{ width: '100%' }} size="large">
           {duplicateKeys.length > 0 ? (
             <Alert
-              title={`⚠️ 重複するプロパティキーが ${duplicateKeys.length} 件あります`}
+              title={t('formatEditor.confirmImportTitle') + ` (${duplicateKeys.length})`}
               description={
                 <div>
-                  <p>以下のプロパティは既に存在します。取り込むと上書きされます：</p>
+                  <p>{t('formatEditor.propsEmpty')}</p>
                   <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 8 }}>
                     {duplicateKeys.map(key => (
                       <Tag key={key} color="warning" style={{ marginBottom: 4 }}>
@@ -1533,8 +1533,8 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
             />
           ) : (
             <Alert
-              title="✅ 重複なし"
-              description="すべてのプロパティは新規追加されます"
+              title={t('formatEditor.noDuplicateTitle')}
+              description={t('formatEditor.noDuplicateDesc')}
               type="success"
               showIcon
             />
@@ -1542,7 +1542,7 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
           
           {namespaceData.properties && (
             <div>
-              <Text strong>取り込むプロパティ: {Object.keys(namespaceData.properties).length}件</Text>
+              <Text strong>{t('formatEditor.addPropTitle')}: {Object.keys(namespaceData.properties).length}</Text>
               <div style={{ 
                 maxHeight: 300, 
                 overflowY: 'auto', 

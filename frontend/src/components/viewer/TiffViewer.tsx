@@ -37,17 +37,17 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
 
     const fetchUrl = async () => {
       try {
-        console.log('🔍 [TiffViewer] 署名付きURLを取得中:', fileKey);
+        console.log('🔍 [TiffViewer] Fetching signed URL:', fileKey);
         const url = await getFileViewUrl(fileKey);
         if (isMounted) {
           setSignedUrl(url);
           setUrlError(null);
-          console.log('✅ [TiffViewer] URL取得成功');
+          console.log('✅ [TiffViewer] URL fetched successfully');
         }
       } catch (err) {
         if (isMounted) {
-          console.error('❌ [TiffViewer] URL取得エラー:', err);
-          setUrlError(`URLの取得に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`);
+          console.error('❌ [TiffViewer] URL fetch error:', err);
+          setUrlError(`Failed to fetch URL: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
       }
     };
@@ -79,14 +79,14 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
    */
   const handleDownload = useCallback((): void => {
     if (!signedUrl) {
-      console.warn('[TiffViewer] ダウンロードURLがまだ取得されていません');
+      console.warn('[TiffViewer] Download URL not yet available');
       return;
     }
     const link = document.createElement('a');
     link.href = signedUrl;
     link.download = fileName;
     link.click();
-    console.log('✅ [TiffViewer] TIFFファイルダウンロード開始:', fileName);
+    console.log('✅ [TiffViewer] TIFF download started:', fileName);
   }, [signedUrl, fileName]);
 
   return (
@@ -100,7 +100,7 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
           <Space>
             <FileImageOutlined style={{ fontSize: 20, color: '#CF0027' }} />
             <Title level={5} style={{ margin: 0 }}>
-              {fileName || 'TIFFファイル'}
+              {fileName || 'TIFF File'}
             </Title>
           </Space>
           
@@ -110,21 +110,21 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
               icon={<ZoomInOutlined />}
               onClick={handleZoomIn}
             >
-              拡大
+              Zoom In
             </Button>
             <Button 
               size="small"
               icon={<ZoomOutOutlined />}
               onClick={handleZoomOut}
             >
-              縮小
+              Zoom Out
             </Button>
             <Button 
               size="small"
               icon={<ReloadOutlined />}
               onClick={handleReset}
             >
-              リセット
+              Reset
             </Button>
             <Button 
               type="primary"
@@ -133,7 +133,7 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
               onClick={handleDownload}
               disabled={!signedUrl}
             >
-              ダウンロード
+              Download
             </Button>
           </Space>
         </Flex>
@@ -152,7 +152,7 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
         <Space orientation="vertical" size="large" style={{ textAlign: 'center' }}>
           {urlError && (
             <Alert
-              message="URLの取得に失敗しました"
+              message="Failed to fetch URL"
               description={urlError}
               type="error"
               showIcon
@@ -160,15 +160,15 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
           )}
 
           <Alert
-            message="TIFFファイルが選択されました"
+            message="TIFF File Selected"
             description={
               <Space orientation="vertical" size="small">
                 <Text>{fileName}</Text>
                 <Text type="secondary">
-                  ブラウザでのTIFF表示には制限があります。
+                  Browser support for displaying TIFF files is limited.
                 </Text>
                 <Text type="secondary">
-                  ダウンロードボタンを使用して画像を表示することをお勧めします。
+                  We recommend using the download button to view the image.
                 </Text>
               </Space>
             }
@@ -183,16 +183,16 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
             onClick={handleDownload}
             disabled={!signedUrl}
           >
-            TIFFファイルをダウンロード
+            Download TIFF File
           </Button>
 
           <Card size="small" style={{ marginTop: 16 }}>
             <Space orientation="vertical" size="small">
               <Text type="secondary" style={{ fontSize: 12 }}>
-                ファイルキー: {fileKey}
+                File Key: {fileKey}
               </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                ズーム倍率: {scale.toFixed(2)}x
+                Zoom: {scale.toFixed(2)}x
               </Text>
             </Space>
           </Card>

@@ -13,6 +13,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { login } from '../../utils/authApi';
 import type { LoginResponse } from '../../types/auth';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { useToken } = theme;
 
@@ -55,6 +56,7 @@ export default function LoginForm({
   organizationId,
 }: LoginFormProps) {
   const { token } = useToken();
+  const { t } = useLanguage();
   const [form] = Form.useForm<LoginFormValues>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,15 +116,15 @@ export default function LoginForm({
         {/* ユーザー名入力 */}
         <Form.Item
           name="username"
-          label="ユーザー名"
+          label={t('auth.login.username')}
           rules={[
-            { required: true, message: 'ユーザー名を入力してください' },
-            { min: 1, max: 100, message: 'ユーザー名は1-100文字で入力してください' },
+            { required: true, message: t('auth.login.usernameRequired') },
+            { min: 1, max: 100, message: t('auth.login.usernameLengthError') },
           ]}
         >
           <Input
             prefix={<UserOutlined style={{ color: token.colorTextSecondary }} />}
-            placeholder="ユーザー名を入力"
+            placeholder={t('auth.login.usernamePlaceholder')}
             autoComplete="username"
             disabled={loading}
           />
@@ -131,15 +133,15 @@ export default function LoginForm({
         {/* パスワード入力 */}
         <Form.Item
           name="password"
-          label="パスワード"
+          label={t('auth.login.password')}
           rules={[
-            { required: true, message: 'パスワードを入力してください' },
-            { min: 8, max: 255, message: 'パスワードは8-255文字で入力してください' },
+            { required: true, message: t('auth.login.passwordRequired') },
+            { min: 8, max: 255, message: t('auth.login.passwordLengthError') },
           ]}
         >
           <Input.Password
             prefix={<LockOutlined style={{ color: token.colorTextSecondary }} />}
-            placeholder="パスワードを入力"
+            placeholder={t('auth.login.passwordPlaceholder')}
             autoComplete="current-password"
             disabled={loading}
           />
@@ -154,7 +156,7 @@ export default function LoginForm({
             block
             size="large"
           >
-            ログイン
+            {t('auth.login.loginButton')}
           </Button>
         </Form.Item>
 
@@ -166,7 +168,7 @@ export default function LoginForm({
             disabled={loading}
             style={{ padding: 0 }}
           >
-            パスワードをお忘れですか？
+            {t('auth.login.forgotPassword')}
           </Button>
         </Form.Item>
       </Form>

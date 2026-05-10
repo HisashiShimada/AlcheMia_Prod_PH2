@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card, Input, Button, Typography, Alert, Space, theme } from 'antd';
 import { ArrowLeftOutlined, SendOutlined } from '@ant-design/icons';
 import { validateUsername } from '@/utils/validation';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -29,6 +30,7 @@ export default function PasswordResetRequest({
   error,
   loading = false,
 }: PasswordResetRequestProps) {
+  const { t } = useLanguage();
   const { token } = theme.useToken();
   const [email, setEmail] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export default function PasswordResetRequest({
 
     // バリデーション失敗時は送信しない
     if (!emailValidation.isValid) {
-      setValidationError(emailValidation.error || '入力値を確認してください');
+      setValidationError(emailValidation.error || t('auth.passwordReset.checkInputValues'));
       return;
     }
 
@@ -81,7 +83,7 @@ export default function PasswordResetRequest({
       await onSuccess(email.trim());
       // 成功時のメッセージは親コンポーネントで処理されることを想定
       // しかし、画面遷移しない場合のために、ここでもメッセージを表示
-      setSuccessMessage('パスワードリセットのご案内をメールで送信しました。メールをご確認ください。');
+      setSuccessMessage(t('page.passwordResetEmailSent'));
     } catch (err) {
       // エラーは親コンポーネントで処理
       console.error('Password reset request failed:', err);
@@ -120,7 +122,7 @@ export default function PasswordResetRequest({
                 fontWeight: token.fontWeightStrong,
               }}
             >
-              MMDPF
+              {t('common.appName')}
             </Title>
             <Title
               level={2}
@@ -130,7 +132,7 @@ export default function PasswordResetRequest({
                 fontWeight: 'normal',
               }}
             >
-              パスワードリセット
+              {t('auth.passwordReset.requestTitle')}
             </Title>
             <Text
               type="secondary"
@@ -138,9 +140,9 @@ export default function PasswordResetRequest({
                 fontSize: token.fontSize,
               }}
             >
-              登録されているメールアドレスを入力してください。
+              {t('auth.passwordReset.requestDescriptionEmail')}
               <br />
-              パスワードリセットのご案内をお送りします。
+              {t('auth.passwordReset.requestDescriptionEmailSub')}
             </Text>
           </Space>
 
@@ -186,14 +188,14 @@ export default function PasswordResetRequest({
                     color: token.colorText,
                   }}
                 >
-                  メールアドレス <span style={{ color: token.colorError }}>*</span>
+                  {t('auth.passwordReset.emailLabel')} <span style={{ color: token.colorError }}>*</span>
                 </label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
                   size="large"
-                  placeholder="メールアドレスを入力"
+                  placeholder={t('auth.passwordReset.emailPlaceholder')}
                   value={email}
                   onChange={handleEmailChange}
                   onBlur={handleEmailBlur}
@@ -222,7 +224,7 @@ export default function PasswordResetRequest({
                   height: token.controlHeightLG * 1.55,
                 }}
               >
-                {loading ? '送信中...' : 'リセットのご案内を送信'}
+                {loading ? t('auth.passwordReset.sendingButton') : t('auth.passwordReset.sendRequestButton')}
               </Button>
 
               <Button
@@ -235,7 +237,7 @@ export default function PasswordResetRequest({
                   marginTop: token.marginXS,
                 }}
               >
-                ログイン画面に戻る
+                {t('auth.passwordReset.backToLogin')}
               </Button>
             </Space>
           </form>

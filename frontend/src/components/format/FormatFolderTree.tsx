@@ -61,14 +61,39 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
   onSortChange,
 }) => {
   const { token } = theme.useToken();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ja-JP';
+
+  const getCategoryTagColor = (category: string): string => {
+    const colors: Record<string, string> = {
+      protocol: 'cyan',
+      material: 'success',
+      measurement: 'blue',
+      analysis: 'orange',
+      sample: 'purple',
+      device: 'red',
+    };
+    return colors[category] || 'default';
+  };
+
+  const getCategoryLabel = (category: string): string => {
+    const labels: Record<string, string> = {
+      protocol: t('format.tree.categoryProtocol'),
+      material: t('format.tree.categoryMaterial'),
+      measurement: t('format.tree.categoryMeasurement'),
+      analysis: t('format.tree.categoryAnalysis'),
+      sample: t('format.tree.categorySample'),
+      device: t('format.tree.categoryDevice'),
+    };
+    return labels[category] || category;
+  };
 
   const menuItems: MenuProps['items'] = [
     {
       key: 'name',
       label: (
         <Space>
-          <span>フォーマット名</span>
+          <span>{t('format.tree.nameColumn')}</span>
           {sortBy === 'name' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
         </Space>
       ),
@@ -78,7 +103,7 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
       key: 'category',
       label: (
         <Space>
-          <span>カテゴリ</span>
+          <span>{t('format.tree.categoryColumn')}</span>
           {sortBy === 'category' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
         </Space>
       ),
@@ -88,7 +113,7 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
       key: 'updatedAt',
       label: (
         <Space>
-          <span>更新日</span>
+          <span>{t('format.tree.updatedAtColumn')}</span>
           {sortBy === 'updatedAt' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
         </Space>
       ),
@@ -119,7 +144,7 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
             </Text>
             <div>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                {formats.length} フォーマット
+                {formats.length} {t('format.tree.formatCount')}
               </Text>
             </div>
           </div>
@@ -161,11 +186,11 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
               </Space>
               <Space size="small" wrap>
                 <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                  {format.fileCount} ファイル
+                  {format.fileCount} {t('format.tree.fileCount')}
                 </Text>
               </Space>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                更新: {new Date(format.updatedAt).toLocaleDateString('ja-JP')}
+                {t('format.tree.updatedAt')} {new Date(format.updatedAt).toLocaleDateString(dateLocale)}
               </Text>
             </div>
           </div>
