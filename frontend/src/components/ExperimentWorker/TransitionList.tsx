@@ -533,7 +533,6 @@ export default function TransitionList({
             showQuickJumper: false,
             showTotal: (total) => `全${total}件`,
             pageSizeOptions: ['20', '50', '100'],
-            position: ['bottomRight'],
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
 

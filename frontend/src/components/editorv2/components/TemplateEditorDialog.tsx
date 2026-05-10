@@ -1438,7 +1438,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           </Space>
 
           {Object.keys(properties).length === 0 ? (
-            <Alert message="プロパティがありません。「新規プロパティ追加」ボタンから追加してください。" type="info" />
+            <Alert title="プロパティがありません。「新規プロパティ追加」ボタンから追加してください。" type="info" />
           ) : (
             Object.entries(properties).map(([key, data]) => (
               <NestedPropertyEditor
@@ -1570,7 +1570,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               </Space>
 
               {Object.keys(contents).length === 0 ? (
-                <Alert message="Contentがありません。「新規Contentを追加」ボタンから追加してください。" type="info" />
+                <Alert title="Contentがありません。「新規Contentを追加」ボタンから追加してください。" type="info" />
               ) : (
                 Object.entries(contents).map(([key, data]) => (
                   <NestedPropertyEditor
