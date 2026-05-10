@@ -74,42 +74,42 @@ interface FormatSearchModalProps {
 }
 
 /**
- * 検索属性カテゴリの定義
+ * 検索属性カテゴリの定義（アイコン・カラーのみ）
  */
-const ATTRIBUTE_CATEGORIES = {
-  document: { label: 'Document情報', icon: '📄', color: '#CF0027' },
-  data: { label: '測定データ', icon: '📊', color: '#0093CF' },
-  structure: { label: 'ファイル構造', icon: '🏗️', color: '#ed6c02' },
-  attributes: { label: 'MaiML属性', icon: '🏷️', color: '#2e7d32' },
+const ATTRIBUTE_CATEGORY_STYLES: Record<string, { icon: string; color: string }> = {
+  document: { icon: '📄', color: '#CF0027' },
+  data: { icon: '📊', color: '#0093CF' },
+  structure: { icon: '🏗️', color: '#ed6c02' },
+  attributes: { icon: '🏷️', color: '#2e7d32' },
 };
 
 /**
- * 検索可能な属性の定義
+ * 検索可能な属性の定義（valueとcategoryのみ。labelはt()で生成）
  */
-const SEARCHABLE_ATTRIBUTES: Array<{
+const SEARCHABLE_ATTRIBUTE_DEFS: Array<{
   value: string;
-  label: string;
+  labelKey: string;
   category: string;
   isNew?: boolean;
 }> = [
   // Document情報
-  { value: 'document.uuid', label: 'Document UUID', category: 'document' },
-  { value: 'document.name', label: 'Document名', category: 'document' },
-  { value: 'document.description', label: 'Document説明', category: 'document' },
-  
+  { value: 'document.uuid', labelKey: 'format.search.attr.documentUuid', category: 'document' },
+  { value: 'document.name', labelKey: 'format.search.attr.documentName', category: 'document' },
+  { value: 'document.description', labelKey: 'format.search.attr.documentDescription', category: 'document' },
+
   // 測定データ
-  { value: 'measurement_value', label: '測定値', category: 'data' },
-  { value: 'units', label: '単位', category: 'data' },
-  
+  { value: 'measurement_value', labelKey: 'format.search.attr.measurementValue', category: 'data' },
+  { value: 'units', labelKey: 'format.search.attr.units', category: 'data' },
+
   // ファイル構造
-  { value: 'section_type', label: 'セクション種別', category: 'structure' },
-  
+  { value: 'section_type', labelKey: 'format.search.attr.sectionType', category: 'structure' },
+
   // MaiML属性（新規追加）
-  { value: 'id', label: 'ID属性', category: 'attributes', isNew: true },
-  { value: 'ref', label: 'Ref属性', category: 'attributes', isNew: true },
-  { value: 'key', label: 'Key属性', category: 'attributes', isNew: true },
-  { value: 'element', label: 'Element名', category: 'attributes', isNew: true },
-  { value: 'value', label: '汎用Value', category: 'attributes', isNew: true },
+  { value: 'id', labelKey: 'format.search.attr.idAttr', category: 'attributes', isNew: true },
+  { value: 'ref', labelKey: 'format.search.attr.refAttr', category: 'attributes', isNew: true },
+  { value: 'key', labelKey: 'format.search.attr.keyAttr', category: 'attributes', isNew: true },
+  { value: 'element', labelKey: 'format.search.attr.elementName', category: 'attributes', isNew: true },
+  { value: 'value', labelKey: 'format.search.attr.genericValue', category: 'attributes', isNew: true },
 ];
 
 /**
@@ -120,7 +120,8 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
   onClose,
   onFileSelect,
 }) => {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const dateLocale = locale === 'en' ? 'en-US' : 'ja-JP';
   const [searchCriteria, setSearchCriteria] = useState<SearchCriteria[]>([
     { attribute: '', value: '' },
   ]);
@@ -190,7 +191,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
     );
 
     if (validCriteria.length === 0) {
-      setError('検索条件を1つ以上設定してください');
+      setError(t('formatSearch.emptyCondition'));
       return;
     }
 
@@ -218,7 +219,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
           category: 'material',
           matchCount: 2,
           matchedAttributes: validCriteria.map(c => ({
-            attribute: SEARCHABLE_ATTRIBUTES.find(a => a.value === c.attribute)?.label || c.attribute,
+            attribute: t(SEARCHABLE_ATTRIBUTE_DEFS.find(a => a.value === c.attribute)?.labelKey || c.attribute),
             value: c.value,
           })),
         },
@@ -235,7 +236,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
           category: 'measurement',
           matchCount: 1,
           matchedAttributes: validCriteria.slice(0, 1).map(c => ({
-            attribute: SEARCHABLE_ATTRIBUTES.find(a => a.value === c.attribute)?.label || c.attribute,
+            attribute: t(SEARCHABLE_ATTRIBUTE_DEFS.find(a => a.value === c.attribute)?.labelKey || c.attribute),
             value: c.value,
           })),
         },
@@ -252,12 +253,12 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
       });
 
       if (mockResults.length === 0) {
-        setError('検索条件に一致するファイルが見つかりませんでした');
+        setError(t('formatSearch.noResults'));
       }
     } catch (err) {
       console.error('❌ 検索エラー:', err);
-      const errorMessage = err instanceof Error ? err.message : '不明なエラーが発生しました';
-      setError(`検索エラー: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : t('formatSearch.unknownError');
+      setError(`${t('formatSearch.unknownError')}: ${errorMessage}`);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -278,12 +279,12 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
    */
   const getCategoryLabel = (category: string) => {
     const categoryMap: Record<string, string> = {
-      protocol: 'プロトコル',
-      material: '材料',
-      measurement: '測定',
-      analysis: '分析',
-      sample: 'サンプル',
-      device: 'デバイス',
+      protocol: t('format.search.category.protocol'),
+      material: t('format.search.category.material'),
+      measurement: t('format.search.category.measurement'),
+      analysis: t('format.search.category.analysis'),
+      sample: t('format.search.category.sample'),
+      device: t('format.search.category.device'),
     };
     return categoryMap[category] || category;
   };
@@ -299,18 +300,24 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
    * 属性セレクトのオプション生成
    */
   const attributeOptions = useMemo(() => {
-    return Object.entries(ATTRIBUTE_CATEGORIES).map(([category, catInfo]) => ({
+    const categoryLabelKeys: Record<string, string> = {
+      document: 'format.search.categoryLabel.document',
+      data: 'format.search.categoryLabel.data',
+      structure: 'format.search.categoryLabel.structure',
+      attributes: 'format.search.categoryLabel.attributes',
+    };
+    return Object.entries(ATTRIBUTE_CATEGORY_STYLES).map(([category, catStyle]) => ({
       label: (
         <span>
-          <span style={{ marginRight: 8 }}>{catInfo.icon}</span>
-          {catInfo.label}
+          <span style={{ marginRight: 8 }}>{catStyle.icon}</span>
+          {t(categoryLabelKeys[category] ?? category)}
         </span>
       ),
-      options: SEARCHABLE_ATTRIBUTES.filter(attr => attr.category === category).map(attr => ({
+      options: SEARCHABLE_ATTRIBUTE_DEFS.filter(attr => attr.category === category).map(attr => ({
         value: attr.value,
         label: (
           <span>
-            {attr.label}
+            {t(attr.labelKey)}
             {attr.isNew && (
               <Tag color="success" style={{ marginLeft: 8, fontSize: 10 }}>
                 NEW
@@ -320,7 +327,8 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
         ),
       })),
     }));
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   /**
    * ファイルサイズをフォーマット
@@ -336,7 +344,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
       title={
         <Space>
           <SearchOutlined style={{ color: '#CF0027' }} />
-          <span>フォーマットファイル詳細検索</span>
+          <span>{t('format.search.title')}</span>
         </Space>
       }
       open={open}
@@ -350,8 +358,8 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
     >
       {/* 検索説明 */}
       <Alert
-        message="MAIML統合テーブル高速検索"
-        description="高速化されたMaiML統合テーブル検索で、検索条件に一致するフォーマットファイル（XML/MAIML）を表示します。最大5つまで検索条件を組み合わせることができます。"
+        message={t('format.search.integratedSearchTitle')}
+        description={t('formatSearch.description')}
         type="info"
         showIcon
         style={{ marginBottom: 24 }}
@@ -362,7 +370,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
         title={
           <Space>
             <SearchOutlined />
-            <span>検索条件</span>
+            <span>{t('format.search.conditionsLabel')}</span>
           </Space>
         }
         variant="borderless"
@@ -376,7 +384,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
                 onClick={addSearchCriteria}
                 size="small"
               >
-                条件追加
+                {t('format.search.addCondition')}
               </Button>
             )}
             <Button
@@ -385,7 +393,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
               onClick={handleReset}
               size="small"
             >
-              リセット
+                {t('format.search.reset')}
             </Button>
           </Space>
         }
@@ -412,7 +420,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
                 </div>
 
                 <Select
-                  placeholder="属性を選択"
+                  placeholder={t('format.search.attrPlaceholder')}
                   value={criteria.attribute || undefined}
                   onChange={(value) => updateSearchCriteria(index, 'attribute', value)}
                   style={{ width: 280 }}
@@ -422,7 +430,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
                 />
 
                 <Input
-                  placeholder="検索値を入力"
+                  placeholder={t('format.search.valuePlaceholder')}
                   value={criteria.value}
                   onChange={(e) => updateSearchCriteria(index, 'value', e.target.value)}
                   style={{ flex: 1 }}
@@ -456,7 +464,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
             loading={isSearching}
             size="large"
           >
-            検索
+            {t('common.search')}
           </Button>
         </div>
       </Card>
@@ -464,7 +472,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
       {/* エラー表示 */}
       {error && (
         <Alert
-          message="エラー"
+          message={t('format.search.errorLabel')}
           description={error}
           type="error"
           showIcon
@@ -483,27 +491,27 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
         >
           <Space split={<Divider type="vertical" />} wrap>
             <Text>
-              <Text strong>ファイル数: </Text>
+              <Text strong>{t('format.search.fileCount')} </Text>
               <Text style={{ color: '#2e7d32', fontWeight: 600 }}>
-                {searchStats.totalFiles}件
+                {searchStats.totalFiles}{t('format.search.fileCountUnit')}
               </Text>
             </Text>
             <Text>
-              <Text strong>マッチ数: </Text>
+              <Text strong>{t('format.search.matchCount')} </Text>
               <Text style={{ color: '#2e7d32', fontWeight: 600 }}>
-                {searchStats.totalMatches}箇所
+                {searchStats.totalMatches}{t('format.search.matchCountUnit')}
               </Text>
             </Text>
             <Text>
-              <Text strong>検索時間: </Text>
+              <Text strong>{t('format.search.searchTime')} </Text>
               <Text style={{ color: '#2e7d32', fontWeight: 600 }}>
                 {searchStats.searchDuration}ms
               </Text>
             </Text>
             <Text>
-              <Text strong>検索条件: </Text>
+              <Text strong>{t('format.search.conditionText')} </Text>
               <Text style={{ color: '#2e7d32', fontWeight: 600 }}>
-                {searchStats.totalCriteria}件
+                {searchStats.totalCriteria}{t('common.countUnit')}
               </Text>
             </Text>
           </Space>
@@ -515,9 +523,9 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
         title={
           <Space>
             <FileTextOutlined />
-            <span>検索結果</span>
+            <span>{t('format.search.resultsLabel')}</span>
             {searchResults.length > 0 && (
-              <Tag color="success">{searchResults.length}件</Tag>
+              <Tag color="success">{searchResults.length}{t('common.countUnit')}</Tag>
             )}
           </Space>
         }
@@ -555,7 +563,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
                     {file.version && (
                       <Tag color="default">v{file.version}</Tag>
                     )}
-                    <Tag color="success">{file.matchCount}マッチ</Tag>
+                    <Tag color="success">{file.matchCount}{t('format.search.matchTag')}</Tag>
                   </Space>
                 </Space>
 
@@ -593,7 +601,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
                     {formatFileSize(file.size)}
                   </Tag>
                   <Tag icon={<span>📅</span>} color="default">
-                    {new Date(file.lastModified).toLocaleDateString('ja-JP')}
+                    {new Date(file.lastModified).toLocaleDateString(dateLocale)}
                   </Tag>
                 </Space>
 
@@ -604,7 +612,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
                       type="secondary"
                       style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, display: 'block' }}
                     >
-                      🎯 ヒット属性:
+                      {t('formatSearch.hitAttributes')}
                     </Text>
                     <Space wrap size="small">
                       {file.matchedAttributes.map((match, matchIndex) => (
@@ -633,10 +641,10 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
           <Empty
             description={
               isSearching
-                ? '検索中...'
+                ? t('formatSearch.searching')
                 : searchStats
-                ? '検索条件に一致するファイルが見つかりませんでした'
-                : '検索条件を設定して「検索」ボタンを押してください'
+                ? t('formatSearch.noResults')
+                : t('formatSearch.noResultsHint')
             }
             style={{ padding: '40px 0' }}
           />

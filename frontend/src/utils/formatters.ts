@@ -1,6 +1,7 @@
 /**
  * ユーティリティ関数: データフォーマッター
  */
+import { getTranslation } from '@/contexts/LanguageContext';
 
 /**
  * ファイルサイズを人間が読みやすい形式に変換
@@ -30,11 +31,11 @@ export const formatRelativeTime = (dateString: string): string => {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'たった今';
-  if (diffMins < 60) return `${diffMins}分前`;
-  if (diffHours < 24) return `${diffHours}時間前`;
-  if (diffDays === 1) return '昨日';
-  if (diffDays < 7) return `${diffDays}日前`;
+  if (diffMins < 1) return getTranslation('formatters.justNow');
+  if (diffMins < 60) return getTranslation('formatters.minutesAgo').replace('{n}', String(diffMins));
+  if (diffHours < 24) return getTranslation('formatters.hoursAgo').replace('{n}', String(diffHours));
+  if (diffDays === 1) return getTranslation('formatters.yesterday');
+  if (diffDays < 7) return getTranslation('formatters.daysAgo').replace('{n}', String(diffDays));
   
   // 1週間以上前は日付を表示
   const year = date.getFullYear();
@@ -51,12 +52,12 @@ export const formatRelativeTime = (dateString: string): string => {
  */
 export const formatProjectStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
-    'active': '進行中',
-    'completed': '完了',
-    'on_hold': '保留中',
-    'archived': 'アーカイブ済み'
+    'active': getTranslation('formatters.status.active'),
+    'completed': getTranslation('formatters.status.completed'),
+    'on_hold': getTranslation('formatters.status.onHold'),
+    'archived': getTranslation('formatters.status.archived'),
   };
-  
+
   return statusMap[status] || status;
 };
 

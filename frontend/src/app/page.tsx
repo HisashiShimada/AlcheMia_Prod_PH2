@@ -15,7 +15,7 @@ import ExperimentAdminMenu from '@/components/menus/ExperimentAdminMenu';
 import ExperimentWorkerMenu from '@/components/menus/ExperimentWorkerMenu';
 import { authService, AuthServiceError } from '@/services/authService';
 import type { LoginCredentials, User, UserRole } from '@/types/auth';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useLanguage, getTranslation } from '@/contexts/LanguageContext';
 
 /**
  * 認証フロー状態
@@ -762,7 +762,7 @@ export default function Home() {
         >
           <Spin size="large" />
           <div style={{ fontSize: '16px', color: '#595959' }}>
-            読み込み中...
+            {getTranslation('common.loading')}
           </div>
         </div>
       }

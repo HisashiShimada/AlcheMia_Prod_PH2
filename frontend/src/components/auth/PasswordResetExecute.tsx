@@ -11,6 +11,7 @@ import { Form, Input, Button, Alert, Typography, Space, theme } from 'antd';
 import { LockOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { resetPassword } from '../../utils/authApi';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Paragraph, Text } = Typography;
 const { useToken } = theme;
@@ -46,6 +47,7 @@ export default function PasswordResetExecute({
   onError,
 }: PasswordResetExecuteProps) {
   const { token } = useToken();
+  const { t } = useLanguage();
   const [form] = Form.useForm<ResetFormValues>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,25 +83,25 @@ export default function PasswordResetExecute({
       {/* タイトルと説明 */}
       <div style={{ marginBottom: token.marginLG }}>
         <Title level={3} style={{ textAlign: 'center', marginBottom: token.marginMD }}>
-          新しいパスワードを設定
+          {t('auth.passwordReset.executeTitle')}
         </Title>
         <Paragraph style={{ textAlign: 'center', color: token.colorTextSecondary }}>
-          新しいパスワードを入力してください。
+          {t('auth.passwordReset.executeDescription')}
         </Paragraph>
       </div>
 
       {/* パスワード要件の表示 */}
       <Alert
-        title="パスワード要件"
+        title={t('auth.passwordReset.requirementsTitle')}
         description={
           <Space orientation="vertical" size="small">
             <Text>
               <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
-              8文字以上
+              {t('auth.passwordReset.requirementsLength')}
             </Text>
             <Text>
               <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
-              大文字・小文字・数字・記号を含めることを推奨
+              {t('auth.passwordReset.requirementsComplexity')}
             </Text>
           </Space>
         }
@@ -130,17 +132,17 @@ export default function PasswordResetExecute({
         {/* 新しいパスワード入力 */}
         <Form.Item
           name="newPassword"
-          label="新しいパスワード"
+          label={t('auth.passwordReset.newPassword')}
           rules={[
-            { required: true, message: '新しいパスワードを入力してください' },
-            { min: 8, message: 'パスワードは8文字以上で入力してください' },
-            { max: 255, message: 'パスワードは255文字以内で入力してください' },
+            { required: true, message: t('auth.passwordReset.newPasswordRequired') },
+            { min: 8, message: t('auth.passwordReset.newPasswordMinLength') },
+            { max: 255, message: t('auth.passwordReset.newPasswordMaxLength') },
           ]}
           hasFeedback
         >
           <Input.Password
             prefix={<LockOutlined style={{ color: token.colorTextSecondary }} />}
-            placeholder="新しいパスワード"
+            placeholder={t('auth.passwordReset.newPasswordPlaceholder')}
             autoComplete="new-password"
             disabled={loading}
           />
@@ -149,16 +151,16 @@ export default function PasswordResetExecute({
         {/* パスワード確認入力 */}
         <Form.Item
           name="confirmPassword"
-          label="パスワード確認"
+          label={t('auth.passwordReset.confirmPassword')}
           dependencies={['newPassword']}
           rules={[
-            { required: true, message: 'パスワードを再入力してください' },
+            { required: true, message: t('auth.passwordReset.confirmPasswordRequired') },
             ({ getFieldValue }) => ({
               validator(_, value) {
                 if (!value || getFieldValue('newPassword') === value) {
                   return Promise.resolve();
                 }
-                return Promise.reject(new Error('パスワードが一致しません'));
+                return Promise.reject(new Error(t('auth.passwordReset.confirmPasswordMismatch')));
               },
             }),
           ]}
@@ -166,7 +168,7 @@ export default function PasswordResetExecute({
         >
           <Input.Password
             prefix={<LockOutlined style={{ color: token.colorTextSecondary }} />}
-            placeholder="パスワードを再入力"
+            placeholder={t('auth.passwordReset.confirmPasswordPlaceholder')}
             autoComplete="new-password"
             disabled={loading}
           />
@@ -181,7 +183,7 @@ export default function PasswordResetExecute({
             block
             size="large"
           >
-            パスワードを変更
+            {t('auth.passwordReset.changePasswordButton')}
           </Button>
         </Form.Item>
       </Form>

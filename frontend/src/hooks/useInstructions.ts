@@ -41,7 +41,7 @@ export function useInstructions() {
         setInstructions([]);
       }
     } catch (err) {
-      console.error('指示取得エラー:', err);
+      console.error('Failed to fetch instructions:', err);
       setError('指示の取得に失敗しました');
       setInstructions([]);
     } finally {
@@ -70,7 +70,7 @@ export function useInstructions() {
         setError(result.error?.message || '指示の取得に失敗しました');
       }
     } catch (err) {
-      console.error('指示取得エラー:', err);
+      console.error('Failed to fetch instructions:', err);
       setError('指示の取得に失敗しました');
     } finally {
       setLoading(false);

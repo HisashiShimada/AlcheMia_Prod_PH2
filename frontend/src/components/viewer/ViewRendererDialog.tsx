@@ -118,15 +118,15 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
     const loadContent = async () => {
       setLoading(true);
       try {
-        console.log('🔍 [ViewRendererDialog] MAIMLファイルをS3から読み込み中:', file.name, 'path:', file.path);
+        console.log('🔍 [ViewRendererDialog] Loading MAIML file from S3:', file.name, 'path:', file.path);
         const content = await getFileContentAsText(file.path);
         if (isMounted) {
           setFileContent(content);
-          console.log('✅ [ViewRendererDialog] ファイル読み込み成功:', { size: content.length });
+          console.log('✅ [ViewRendererDialog] File loaded successfully:', { size: content.length });
         }
       } catch (error) {
-        console.error('❌ [ViewRendererDialog] ファイル読み込みエラー:', error);
-        message.error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+        console.error('❌ [ViewRendererDialog] File load error:', error);
+        message.error(`Failed to load file: ${error instanceof Error ? error.message : 'Unknown error'}`);
         if (isMounted) {
           setFileContent(null);
         }
@@ -150,12 +150,12 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
       return file.name;
     }
     if (contentType === 'subnet' && subnetData) {
-      return `サブネット: ${subnetData.transitionName}`;
+      return `Subnet: ${subnetData.transitionName}`;
     }
     if (contentType === 'edit' && file) {
-      return `🚀 編集: ${file.name}`;
+      return `🚀 Edit: ${file.name}`;
     }
-    return '不明';
+    return 'Unknown';
   };
 
   // コンテンツ描画
@@ -340,7 +340,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
                 e.stopPropagation();
                 setIsMinimized(!isMinimized);
               }}
-              title={isMinimized ? '展開' : '最小化'}
+              title={isMinimized ? 'Expand' : 'Minimize'}
             />
             <Button
               type="text"
@@ -349,7 +349,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
                 e.stopPropagation();
                 onClose(id);
               }}
-              title="閉じる"
+              title="Close"
             />
           </div>
         </div>

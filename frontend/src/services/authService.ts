@@ -55,12 +55,12 @@ const handleApiError = (error: unknown): AuthServiceError => {
 
     // タイムアウトエラー
     if (axiosError.code === 'ECONNABORTED') {
-      return new AuthServiceError('リクエストがタイムアウトしました', 'E3002');
+      return new AuthServiceError('Request timed out', 'E3002');
     }
 
     // ネットワークエラー（レスポンスなし）
     if (!axiosError.response) {
-      return new AuthServiceError('サーバーに接続できません', 'E3001');
+      return new AuthServiceError('Unable to connect to server', 'E3001');
     }
 
     // APIエラーレスポンス（バックエンドが error.code を返している場合）
@@ -69,7 +69,7 @@ const handleApiError = (error: unknown): AuthServiceError => {
       // ✅ mapErrorToMessage を経由して日本語メッセージに変換
       const code = response.error.code || 'E9999';
       return new AuthServiceError(
-        mapErrorToMessage(code, response.error.message || 'エラーが発生しました'),
+        mapErrorToMessage(code, response.error.message || 'An error occurred'),
         code,
         response.error.details
       );
@@ -78,20 +78,20 @@ const handleApiError = (error: unknown): AuthServiceError => {
     // レスポンスはあるがエラー構造が不正な場合 → HTTPステータスからコードを推定
     const statusCode = axiosError.response.status;
     if (statusCode === HTTP_STATUS.UNAUTHORIZED) {
-      return new AuthServiceError('認証が必要です', 'E5013');
+      return new AuthServiceError('Authentication required', 'E5013');
     } else if (statusCode === HTTP_STATUS.FORBIDDEN) {
-      return new AuthServiceError('アクセスが拒否されました', 'E5012');
+      return new AuthServiceError('Access denied', 'E5012');
     } else if (statusCode === HTTP_STATUS.NOT_FOUND) {
-      return new AuthServiceError('リソースが見つかりません', 'E6001');
+      return new AuthServiceError('Resource not found', 'E6001');
     } else if (statusCode >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
-      return new AuthServiceError('サーバーエラーが発生しました', 'E4001');
+      return new AuthServiceError('A server error occurred', 'E4001');
     }
 
-    return new AuthServiceError('エラーが発生しました', 'E9999');
+    return new AuthServiceError('An error occurred', 'E9999');
   }
 
   // その他のエラー
-  return new AuthServiceError('エラーが発生しました', 'E9999');
+  return new AuthServiceError('An error occurred', 'E9999');
 };
 
 /**
@@ -123,7 +123,7 @@ export const authService = {
 
       // エラーレスポンスの場合（通常はAxiosErrorとして捕捉されるため、ここには到達しにくい）
       throw new AuthServiceError(
-        response.data.error?.message || 'ログインに失敗しました',
+        response.data.error?.message || 'Login failed',
         response.data.error?.code || 'E9999',
         response.data.error?.details
       );
@@ -158,7 +158,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('PIN検証に失敗しました', 'PIN_VERIFY_FAILED');
+      throw new AuthServiceError('PIN verification failed', 'PIN_VERIFY_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -186,7 +186,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('PIN再送信に失敗しました', 'PIN_RESEND_FAILED');
+      throw new AuthServiceError('PIN resend failed', 'PIN_RESEND_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -214,11 +214,11 @@ export const authService = {
         // 新しいアクセストークンを保存
         setTokenPair(response.data.data.accessToken);
 
-        console.log('[authService] トークン更新成功');
+        console.log('[authService] Token refresh successful');
         return response.data.data.accessToken;
       } else {
         // リフレッシュトークンが無効（期限切れなど）
-        console.error('[authService] リフレッシュトークンが無効です');
+        console.error('[authService] Refresh token is invalid');
         clearAllTokens();
         if (typeof window !== 'undefined') {
           localStorage.removeItem('userInfo');
@@ -237,7 +237,7 @@ export const authService = {
       }
       
       // その他のエラー（ネットワークエラーなど）はログ出力
-      console.error('[authService] トークン更新エラー:', error);
+      console.error('[authService] Token refresh error:', error);
       clearAllTokens();
       if (typeof window !== 'undefined') {
         localStorage.removeItem('userInfo');
@@ -305,7 +305,7 @@ export const authService = {
         };
       } else {
         // リフレッシュトークンが無効（期限切れなど）
-        throw new AuthServiceError('リフレッシュトークンが無効です', 'AUTH_TOKEN_INVALID');
+        throw new AuthServiceError('Refresh token is invalid', 'AUTH_TOKEN_INVALID');
       }
     } catch (error) {
       throw handleApiError(error);
@@ -335,7 +335,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('ログアウトに失敗しました', 'LOGOUT_FAILED');
+      throw new AuthServiceError('Logout failed', 'LOGOUT_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -362,7 +362,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('パスワードリセット要求に失敗しました', 'RESET_REQUEST_FAILED');
+      throw new AuthServiceError('Password reset request failed', 'RESET_REQUEST_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -385,7 +385,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('パスワードリセットに失敗しました', 'RESET_FAILED');
+      throw new AuthServiceError('Password reset failed', 'RESET_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -409,7 +409,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('パスワード変更に失敗しました', 'CHANGE_PASSWORD_FAILED');
+      throw new AuthServiceError('Password change failed', 'CHANGE_PASSWORD_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }

@@ -28,6 +28,7 @@ import { useCodeMaster } from '@/hooks/useCodeMaster';
 import { AxiosError } from 'axios';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { HTTP_STATUS } from '@/constants/httpStatus';
+import { mapErrorToMessage } from '@/utils/errorMapper';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -132,7 +133,7 @@ export default function ExperimentWorkerMenu({
         if (result.success && result.data) {
           setProjects(result.data.projects);
         } else if (!result.success) {
-          message.error(result.error?.message || extractErrorMessage(null));
+          message.error(mapErrorToMessage(result.error?.code ?? '') || extractErrorMessage(null));
         }
       } catch (error) {
         console.error('プロジェクト一覧取得エラー:', error);
@@ -148,14 +149,14 @@ export default function ExperimentWorkerMenu({
   // 承認依頼ハンドラー
   const handleApprovalRequest = async () => {
     if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('project.selectProjectWarning'));
       return;
     }
 
     // 選択されたプロジェクトの情報を取得
     const selectedProjectData = projects.find(p => p.projectId === selectedProject);
     if (!selectedProjectData) {
-      message.error('プロジェクト情報が見つかりません');
+      message.error(t('project.infoNotFound'));
       return;
     }
 
@@ -163,18 +164,18 @@ export default function ExperimentWorkerMenu({
     try {
       const result = await requestApproval(selectedProjectData.projectId);
       if (result.success) {
-        message.success('承認依頼を送信しました');
+        message.success(t('worker.approvalRequestSent'));
       } else {
-        message.error(result.error?.message || extractErrorMessage(null));
+        message.error(mapErrorToMessage(result.error?.code ?? '') || extractErrorMessage(null));
       }
     } catch (error) {
-      console.error('承認依頼エラー:', error);
+      console.error('Approval request error:', error);
       const axiosError = error as AxiosError<{ error: { code: string; message: string } }>;
       
       if (axiosError.response?.status === HTTP_STATUS.CONFLICT) {
-        message.error('既に承認依頼が送信されています');
+        message.error(t('worker.approvalRequestAlreadySent'));
       } else if (axiosError.response?.status === HTTP_STATUS.NOT_FOUND) {
-        message.error('プロジェクトが見つかりません');
+        message.error(t('project.notFound'));
       } else {
         message.error(extractErrorMessage(error));
       }
@@ -397,7 +398,7 @@ export default function ExperimentWorkerMenu({
             loading={projectsLoading}
             /* overlayMode: fixedProjectId がある場合はプロジェクト変更不可 */
             disabled={projectsLoading || (overlayMode && !!fixedProjectId)}
-            notFoundContent={projectsLoading ? <Spin size="small" /> : 'プロジェクトがありません'}
+            notFoundContent={projectsLoading ? <Spin size="small" /> : t('experimentWork.labels.noProjects')}
             options={[
               { value: '', label: '-' },
               ...projects.map((project) => {

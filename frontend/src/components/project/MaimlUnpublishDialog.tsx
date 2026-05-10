@@ -3,15 +3,9 @@
 import React, { useState } from 'react';
 import { Modal, Alert, Button, Space, Typography } from 'antd';
 import { unpublishProject } from '@/services/projectApiService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
-
-/** エラーコードに対応する日本語メッセージ */
-const ERROR_MESSAGES: Record<string, string> = {
-  NOT_PUBLISHED:       '公開済みアセットが存在しません',
-  ALREADY_IN_PROGRESS: '非公開処理がすでに進行中です',
-  SYSTEM_ERROR:        'システムエラーが発生しました',
-};
 
 export interface MaimlUnpublishDialogProps {
   /** ダイアログの表示状態 */
@@ -44,6 +38,7 @@ const MaimlUnpublishDialog: React.FC<MaimlUnpublishDialogProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
@@ -74,17 +69,23 @@ const MaimlUnpublishDialog: React.FC<MaimlUnpublishDialogProps> = ({
     }
   };
 
-  const errorMessage = errorCode ? (ERROR_MESSAGES[errorCode] ?? ERROR_MESSAGES['SYSTEM_ERROR']) : null;
+  const getErrorMessage = (code: string): string => {
+    const key = `maimlUnpublish.errors.${code}`;
+    const msg = t(key);
+    return msg === key ? t('maimlUnpublish.errors.SYSTEM_ERROR') : msg;
+  };
+
+  const errorMessage = errorCode ? getErrorMessage(errorCode) : null;
 
   return (
     <Modal
-      title="MaiML 非公開確認"
+      title={t('maimlUnpublish.title')}
       open={open}
       onCancel={handleClose}
       footer={
         <Space>
           <Button onClick={handleClose} disabled={loading}>
-            キャンセル
+            {t('maimlUnpublish.cancel')}
           </Button>
           <Button
             danger
@@ -92,7 +93,7 @@ const MaimlUnpublishDialog: React.FC<MaimlUnpublishDialogProps> = ({
             onClick={handleUnpublish}
             loading={loading}
           >
-            非公開にする
+            {t('maimlUnpublish.unpublish')}
           </Button>
         </Space>
       }
@@ -100,14 +101,14 @@ const MaimlUnpublishDialog: React.FC<MaimlUnpublishDialogProps> = ({
     >
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Text>
-          プロジェクト <Text strong>{projectName}</Text> の公開を取り消します。よろしいですか？
+          {t('maimlUnpublish.confirmText').replace('{{projectName}}', projectName)}
         </Text>
 
         {errorMessage && (
           <Alert
             type="error"
             showIcon
-            message="非公開処理に失敗しました"
+            message={t('maimlUnpublish.errorTitle')}
             description={errorMessage}
           />
         )}

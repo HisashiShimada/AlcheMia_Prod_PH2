@@ -9,6 +9,7 @@
 import { escapeXml } from './reactFlowToMaiml';
 import { Insertion, Hash } from '@/types/maiml-unified';
 import type { PropertyData } from '../../components/NestedPropertyEditor';
+import { getTranslation } from '@/contexts/LanguageContext';
 
 // ===== 型定義 =====
 
@@ -316,7 +317,7 @@ export function parseXMLToTemplate(xmlString: string): ParseXMLResult {
         errors: [
           {
             type: 'parse_error',
-            message: 'XML形式が不正です',
+            message: getTranslation('editor.templateXml.parseError'),
             details: parseError.textContent ?? undefined,
           },
         ],
@@ -337,7 +338,7 @@ export function parseXMLToTemplate(xmlString: string): ParseXMLResult {
         errors: [
           {
             type: 'invalid_root',
-            message: `不正なルート要素: ${templateTag}`,
+            message: getTranslation('editor.templateXml.invalidRoot').replace('{{tag}}', templateTag),
             details:
               'materialTemplate, conditionTemplate, resultTemplate のいずれかが必要です',
           },
@@ -422,7 +423,7 @@ export function parseXMLToTemplate(xmlString: string): ParseXMLResult {
       errors: [
         {
           type: 'exception',
-          message: 'XMLパース中にエラーが発生しました',
+          message: getTranslation('editor.templateXml.parseException'),
           details: err.message,
         },
       ],
@@ -518,7 +519,7 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
     if (parseError) {
       errors.push({
         type: 'xml_syntax_error',
-        message: 'XML構文エラー',
+        message: getTranslation('editor.templateXml.xmlSyntaxError'),
         details: parseError.textContent ?? undefined,
       });
       return { isValid: false, errors };
@@ -534,7 +535,7 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
     ) {
       errors.push({
         type: 'invalid_root_element',
-        message: `不正なルート要素: ${templateTag}`,
+        message: getTranslation('editor.templateXml.invalidRoot').replace('{{tag}}', templateTag),
         details:
           'materialTemplate, conditionTemplate, resultTemplate のいずれかが必要です',
       });
@@ -544,8 +545,8 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
     if (!templateId) {
       errors.push({
         type: 'missing_id',
-        message: 'テンプレートIDが指定されていません',
-        details: 'id属性は必須です',
+        message: getTranslation('editor.templateXml.missingId'),
+        details: getTranslation('editor.templateXml.missingIdDetails'),
       });
     }
 
@@ -555,8 +556,8 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
       if (!key) {
         errors.push({
           type: 'missing_property_key',
-          message: `property要素[${index}]にkey属性がありません`,
-          details: 'すべてのproperty要素にはkey属性が必要です',
+          message: getTranslation('editor.templateXml.missingPropertyKey').replace('{{index}}', String(index)),
+          details: getTranslation('editor.templateXml.missingPropertyKeyDetails'),
         });
       }
     });
@@ -568,8 +569,8 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
         if (!key) {
           errors.push({
             type: 'missing_content_key',
-            message: `content要素[${index}]にkey属性がありません`,
-            details: 'すべてのcontent要素にはkey属性が必要です',
+            message: getTranslation('editor.templateXml.missingContentKey').replace('{{index}}', String(index)),
+            details: getTranslation('editor.templateXml.missingContentKeyDetails'),
           });
         }
       });
@@ -586,7 +587,7 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
     console.error('❌ [validateTemplateXML] バリデーションエラー:', err);
     errors.push({
       type: 'validation_exception',
-      message: 'バリデーション中にエラーが発生しました',
+      message: getTranslation('editor.templateXml.validationException'),
       details: err.message,
     });
     return { isValid: false, errors };

@@ -42,6 +42,7 @@ import {
 } from '@/utils/xsiTypeValidator';
 import { getAllowedAttributeNames } from '@/utils/xsiTypeAttributes';
 import type { AttributeRecord } from '@/services/masterApiService';
+import { useLanguage, getTranslation } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -227,6 +228,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   attributeRecords = [],
 }) => {
   const { modal } = App.useApp();
+  const { t } = useLanguage();
   const [showAttributeAddModal, setShowAttributeAddModal] = useState(false);
   const [showElementAddModal, setShowElementAddModal] = useState(false);
   const [showChildAddModal, setShowChildAddModal] = useState(false);
@@ -343,16 +345,16 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           {/* 操作ボタン */}
           <Space size="small">
             <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setShowAttributeAddModal(true)}>
-              属性
+              {t('nestedPropertyEditor.addAttribute')}
             </Button>
             <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setShowElementAddModal(true)}>
-              要素
+              {t('nestedPropertyEditor.addElement')}
             </Button>
             <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setShowChildAddModal(true)}>
-              子要素
+              {t('nestedPropertyEditor.addChild')}
             </Button>
             <Button size="small" icon={<CopyOutlined />} onClick={() => setShowCopyModal(true)}>
-              コピー
+              {t('nestedPropertyEditor.copy')}
             </Button>
             <Button
               size="small"
@@ -360,7 +362,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               icon={<DeleteOutlined />}
               onClick={() => {
                 modal.confirm({
-                  title: `プロパティ「${propertyKey}」を削除しますか？`,
+                  title: t('nestedPropertyEditor.deletePropertyConfirm', { key: propertyKey }),
                   onOk: () => onDeleteProperty(propertyKey),
                 });
               }}
@@ -371,7 +373,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         {/* 属性セクション */}
         {hasAttributes && (
           <div style={{ marginBottom: 8 }}>
-            <Text type="success" strong style={{ fontSize: 12 }}>📋 属性</Text>
+            <Text type="success" strong style={{ fontSize: 12 }}>{t('nestedPropertyEditor.attributesSection')}</Text>
             {Object.entries(propertyData.attributes).map(([attrName, attrValue]) => (
               <div key={attrName} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Text style={{ minWidth: 100, fontSize: 12 }}>{attrName}:</Text>
@@ -396,7 +398,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         {/* 要素セクション */}
         {hasElements && (
           <div style={{ marginBottom: 8 }}>
-            <Text type="secondary" strong style={{ fontSize: 12 }}>📄 要素</Text>
+            <Text type="secondary" strong style={{ fontSize: 12 }}>{t('nestedPropertyEditor.elementsSection')}</Text>
             {Object.entries(propertyData.elements).map(([elemName, elemValue]) => (
               <div key={elemName} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Text style={{ minWidth: 100, fontSize: 12 }}>{elemName}:</Text>
@@ -422,7 +424,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         {hasChildren && isExpanded && (
           <div style={{ marginTop: 8 }}>
             <Text style={{ fontSize: 12, color: '#722ed1', fontWeight: 'bold' }}>
-              🌿 子要素 ({propertyData.children?.length || 0}件)
+              {t('nestedPropertyEditor.childrenSection', { count: String(propertyData.children?.length || 0) })}
             </Text>
             {propertyData.children.map((child, index) => {
               const childKey = child.key || `${child.tagName || 'child'}_${index}`;
@@ -452,7 +454,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
       {/* モーダル群 */}
       {/* 属性追加モーダル */}
       <Modal
-        title="➕ 属性追加"
+        title={t('nestedPropertyEditor.modalAddAttribute')}
         open={showAttributeAddModal}
         onCancel={() => {
           setShowAttributeAddModal(false);
@@ -470,12 +472,12 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           const finalAttributeName = newAttributeName.trim();
 
           if (!finalAttributeName) {
-            message.error('属性名を選択してください');
+            message.error(t('nestedPropertyEditor.selectAttributeName'));
             return;
           }
 
           if (!newAttributeValue.trim()) {
-            message.error('属性値を入力または選択してください');
+            message.error(t('nestedPropertyEditor.enterAttributeValue'));
             return;
           }
 
@@ -504,7 +506,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
             return (
               <Select
                 style={{ width: '100%' }}
-                placeholder="属性名を選択"
+                placeholder={t('nestedPropertyEditor.placeholderAttributeName')}
                 value={newAttributeName || undefined}
                 onChange={(value) => {
                   setNewAttributeName(value);
@@ -516,40 +518,40 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 }}
               >
                 {/* 固定属性グループ */}
-                <Select.OptGroup label="固定属性">
+                <Select.OptGroup label={t('nestedPropertyEditor.fixedAttributes')}>
                   <Option value="xsi:type" disabled={existingAttrNames.has('xsi:type')}>
-                    xsi:type（MaiML型定義）{existingAttrNames.has('xsi:type') ? '（設定済み）' : ''}
+                    {`xsi:type${t('nestedPropertyEditor.maimlTypeDef')}${existingAttrNames.has('xsi:type') ? t('nestedPropertyEditor.alreadySet') : ''}`}
                   </Option>
                   <Option value="key" disabled={existingAttrNames.has('key')}>
-                    key（キー・必須）{existingAttrNames.has('key') ? '（設定済み）' : ''}
+                    {`key${t('nestedPropertyEditor.keyRequired')}${existingAttrNames.has('key') ? t('nestedPropertyEditor.alreadySet') : ''}`}
                   </Option>
-                  {isContent && <Option value="axis" disabled={existingAttrNames.has('axis')}>axis（軸名: x / y / z / time）{existingAttrNames.has('axis') ? '（設定済み）' : ''}</Option>}
-                  {isContent && <Option value="size" disabled={existingAttrNames.has('size')}>size（データサイズ・整数）{existingAttrNames.has('size') ? '（設定済み）' : ''}</Option>}
-                  {isContent && <Option value="id" disabled={existingAttrNames.has('id')}>id（XML ID）{existingAttrNames.has('id') ? '（設定済み）' : ''}</Option>}
-                  {isContent && <Option value="ref" disabled={existingAttrNames.has('ref')}>ref（XML IDREF）{existingAttrNames.has('ref') ? '（設定済み）' : ''}</Option>}
+                  {isContent && <Option value="axis" disabled={existingAttrNames.has('axis')}>{`axis${t('nestedPropertyEditor.axisName')}${existingAttrNames.has('axis') ? t('nestedPropertyEditor.alreadySet') : ''}`}</Option>}
+                  {isContent && <Option value="size" disabled={existingAttrNames.has('size')}>{`size${t('nestedPropertyEditor.dataSize')}${existingAttrNames.has('size') ? t('nestedPropertyEditor.alreadySet') : ''}`}</Option>}
+                  {isContent && <Option value="id" disabled={existingAttrNames.has('id')}>{`id${t('nestedPropertyEditor.xmlId')}${existingAttrNames.has('id') ? t('nestedPropertyEditor.alreadySet') : ''}`}</Option>}
+                  {isContent && <Option value="ref" disabled={existingAttrNames.has('ref')}>{`ref${t('nestedPropertyEditor.xmlIdref')}${existingAttrNames.has('ref') ? t('nestedPropertyEditor.alreadySet') : ''}`}</Option>}
                   {/* xsi:type に応じた追加属性（units / formatString / scaleFactor） */}
                   {showUnits && (
                     <Option value="units" disabled={existingAttrNames.has('units')}>
-                      units（単位）{existingAttrNames.has('units') ? '（設定済み）' : ''}
+                      {`units${t('nestedPropertyEditor.units')}${existingAttrNames.has('units') ? t('nestedPropertyEditor.alreadySet') : ''}`}
                     </Option>
                   )}
                   {showFormatString && (
                     <Option value="formatString" disabled={existingAttrNames.has('formatString')}>
-                      formatString（フォーマット文字列）{existingAttrNames.has('formatString') ? '（設定済み）' : ''}
+                      {`formatString${t('nestedPropertyEditor.formatString')}${existingAttrNames.has('formatString') ? t('nestedPropertyEditor.alreadySet') : ''}`}
                     </Option>
                   )}
                   {showScaleFactor && (
                     <Option value="scaleFactor" disabled={existingAttrNames.has('scaleFactor')}>
-                      scaleFactor（スケールファクター）{existingAttrNames.has('scaleFactor') ? '（設定済み）' : ''}
+                      {`scaleFactor${t('nestedPropertyEditor.scaleFactor')}${existingAttrNames.has('scaleFactor') ? t('nestedPropertyEditor.alreadySet') : ''}`}
                     </Option>
                   )}
                 </Select.OptGroup>
                 {/* マスタ属性グループ（Attributeマスタから動的生成・制限なし） */}
                 {masterAttributeNames.length > 0 && (
-                  <Select.OptGroup label="マスタ属性">
+                  <Select.OptGroup label={t('nestedPropertyEditor.masterAttributes')}>
                     {masterAttributeNames.map((name) => (
                       <Option key={name} value={name} disabled={existingAttrNames.has(name)}>
-                        {name}{existingAttrNames.has(name) ? '（設定済み）' : ''}
+                        {name}{existingAttrNames.has(name) ? t('nestedPropertyEditor.alreadySet') : ''}
                       </Option>
                     ))}
                   </Select.OptGroup>
@@ -565,7 +567,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               propertyData.tagName === 'content' ? (
                 <Select
                   style={{ width: '100%' }}
-                  placeholder="Content Type"
+                  placeholder={t('nestedPropertyEditor.contentTypePlaceholder')}
                   value={newAttributeValue || undefined}
                   onChange={setNewAttributeValue}
                 >
@@ -578,7 +580,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               ) : (
                 <Select
                   style={{ width: '100%' }}
-                  placeholder="MaiML Property Type"
+                  placeholder={t('nestedPropertyEditor.maimlPropertyTypePlaceholder')}
                   value={newAttributeValue || undefined}
                   onChange={setNewAttributeValue}
                 >
@@ -603,8 +605,8 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                   style={{ width: '100%' }}
                   placeholder={
                     newAttributeName === 'axis'
-                      ? '軸名を入力（例: x / y / z / time）'
-                      : 'データサイズを入力（例: 1024）'
+                      ? t('nestedPropertyEditor.placeholderAxis')
+                      : t('nestedPropertyEditor.placeholderSize')
                   }
                   value={newAttributeValue}
                   onChange={setNewAttributeValue}
@@ -622,7 +624,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 {masterAttributeValues.length > 0 && (
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     <InfoCircleOutlined style={{ marginRight: 4 }} />
-                    マスタに登録された候補を表示しています（手入力も可能です）
+                    {t('nestedPropertyEditor.masterCandidateHint')}
                   </Text>
                 )}
               </Space>
@@ -630,7 +632,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               /* マスタ由来の属性値が存在する → 属性値Selectプルダウン（備考付き: "value（remark）"） */
               <Select
                 style={{ width: '100%' }}
-                placeholder="属性値を選択"
+                placeholder={t('nestedPropertyEditor.placeholderAttributeValue')}
                 value={newAttributeValue || undefined}
                 onChange={setNewAttributeValue}
               >
@@ -646,19 +648,19 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 <Select
                   style={{ width: '100%' }}
                   disabled
-                  placeholder="マスタに値が登録されていません"
+                  placeholder={t('nestedPropertyEditor.noMasterValues')}
                 />
                 <Alert
                   type="error"
                   showIcon
-                  message={`「${newAttributeName}」はマスタ登録が必要です`}
-                  description="属性値がマスタに登録されていないため保存できません。システム管理者にお問い合わせください。"
+                  message={t('nestedPropertyEditor.masterRequired', { name: newAttributeName })}
+                  description={t('nestedPropertyEditor.masterRequiredDesc')}
                 />
               </Space>
             ) : (
               /* その他の固定属性（key / id / ref）→ テキスト入力 */
               <Input
-                placeholder="属性値を入力"
+                placeholder={t('nestedPropertyEditor.placeholderAttrValueInput')}
                 value={newAttributeValue}
                 onChange={(e) => setNewAttributeValue(e.target.value)}
               />
@@ -669,7 +671,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
 
       {/* 要素追加モーダル */}
       <Modal
-        title="➕ 要素追加"
+        title={t('nestedPropertyEditor.modalAddElement')}
         open={showElementAddModal}
         onCancel={() => {
           setShowElementAddModal(false);
@@ -685,7 +687,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               : newElementName.trim();
 
           if (!finalElementName) {
-            message.error('要素名を入力してください');
+            message.error(t('nestedPropertyEditor.enterElementName'));
             return;
           }
 
@@ -694,21 +696,19 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           if (finalElementName === 'value' && xsiType) {
             const result = validateByXsiType(xsiType, newElementValue);
             if (!result.isValid) {
-              message.error(result.errorMessage ?? '入力値が不正です');
+              message.error(result.errorMessage ?? t('nestedPropertyEditor.invalidValue'));
               return;
             }
           }
 
           // propertyListType のとき value 要素は追加不可
           if (xsiType === 'propertyListType' && finalElementName === 'value') {
-            message.error(
-              'propertyListType には value 要素を追加できません。子要素（property）を追加してください。'
-            );
+            message.error(t('nestedPropertyEditor.cannotAddValueToPropertyList'));
             return;
           }
 
           if (!newElementValue.trim() && finalElementName !== 'value') {
-            message.error('要素値を入力してください');
+            message.error(t('nestedPropertyEditor.enterElementValue'));
             return;
           }
 
@@ -729,7 +729,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
             <Space orientation="vertical" style={{ width: '100%' }}>
               {/* 要素名セレクト */}
               <Select
-                placeholder="要素名を選択"
+                placeholder={t('nestedPropertyEditor.placeholderElementName')}
                 value={newElementName || undefined}
                 onChange={(val: string) => {
                   setNewElementName(val);
@@ -746,7 +746,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                   >
                     {opt.label}
                     {isPropertyListType && opt.value === 'value'
-                      ? '（propertyListType には使用不可）'
+                      ? t('nestedPropertyEditor.notForPropertyList')
                       : ''}
                   </Option>
                 ))}
@@ -755,7 +755,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               {/* カスタム要素名入力欄 */}
               {newElementName === '__custom__' && (
                 <Input
-                  placeholder="カスタム要素名を入力（例: customField）"
+                  placeholder={t('nestedPropertyEditor.placeholderCustomElement')}
                   value={customElementName}
                   onChange={(e) => setCustomElementName(e.target.value)}
                 />
@@ -768,8 +768,8 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                   {isPropertyListType && newElementName === 'value' ? (
                     <Alert
                       type="warning"
-                      message="propertyListType には value 要素は追加できません"
-                      description="子要素（property）ボタンから子プロパティを追加してください。"
+                      message={t('nestedPropertyEditor.cannotAddValueTitle')}
+                      description={t('nestedPropertyEditor.cannotAddValueDesc')}
                       showIcon
                     />
                   ) : newElementName === 'value' && xsiType ? (
@@ -783,7 +783,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                     /* value 以外の標準要素、または xsi:type 未設定の value → TextArea */
                     <TextArea
                       rows={3}
-                      placeholder="要素値を入力"
+                      placeholder={t('nestedPropertyEditor.placeholderElementValue')}
                       value={newElementValue}
                       onChange={(e) => setNewElementValue(e.target.value)}
                     />
@@ -792,7 +792,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                   {newElementName === 'value' && xsiType && (
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       <InfoCircleOutlined style={{ marginRight: 4 }} />
-                      xsi:type: <Tag>{xsiType}</Tag> に応じた入力欄が表示されています
+                      xsi:type: <Tag>{xsiType}</Tag> {t('nestedPropertyEditor.xsiTypeInputHint')}
                     </Text>
                   )}
                 </>
@@ -802,7 +802,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               {newElementName === '__custom__' && customElementName.trim() && (
                 <TextArea
                   rows={3}
-                  placeholder="要素値を入力"
+                  placeholder={t('nestedPropertyEditor.placeholderElementValue')}
                   value={newElementValue}
                   onChange={(e) => setNewElementValue(e.target.value)}
                 />
@@ -814,7 +814,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
 
       {/* 子要素追加モーダル */}
       <Modal
-        title="➕ 子要素追加"
+        title={t('nestedPropertyEditor.modalAddChild')}
         open={showChildAddModal}
         onCancel={() => {
           setShowChildAddModal(false);
@@ -832,17 +832,17 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
       >
         <Space orientation="vertical" style={{ width: '100%' }}>
           <Alert
-            title={`親要素: ${propertyKey} | 現在の子要素数: ${propertyData.children?.length || 0}件`}
+            title={t('nestedPropertyEditor.childModalInfo', { key: propertyKey, count: String(propertyData.children?.length || 0) })}
             type="info"
           />
           <Input
-            placeholder="要素キー（必須）"
+            placeholder={t('nestedPropertyEditor.placeholderChildKey')}
             value={copyKey}
             onChange={(e) => setCopyKey(e.target.value)}
           />
           <Select
             style={{ width: '100%' }}
-            placeholder="タグ名を選択"
+            placeholder={t('nestedPropertyEditor.placeholderTagName')}
             value={newChildTagName}
             onChange={setNewChildTagName}
           >
@@ -855,7 +855,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
 
       {/* 同階層コピーモーダル */}
       <Modal
-        title="📋 同階層コピー"
+        title={t('nestedPropertyEditor.modalCopy')}
         open={showCopyModal}
         onCancel={() => setShowCopyModal(false)}
         onOk={() => {
@@ -867,9 +867,9 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         }}
       >
         <Space orientation="vertical" style={{ width: '100%' }}>
-          <Alert title={`コピー元: ${propertyKey}`} type="info" />
+          <Alert title={t('nestedPropertyEditor.copySource', { key: propertyKey })} type="info" />
           <Input
-            placeholder={`新しいキー名（例: ${propertyKey}_copy）`}
+            placeholder={t('nestedPropertyEditor.placeholderCopyKey', { key: propertyKey })}
             value={copyKey}
             onChange={(e) => setCopyKey(e.target.value)}
           />
@@ -900,13 +900,15 @@ interface ElementValueInputProps {
  * - その他 → TextArea
  */
 const ElementValueInput: React.FC<ElementValueInputProps> = ({ xsiType, value, onChange }) => {
+  const { t } = useLanguage();
+
   // ----- 整数型 -----
   if (isIntegerXsiType(xsiType)) {
     const min = isUnsignedIntXsiType(xsiType) ? 0 : undefined;
     return (
       <InputNumber
         style={{ width: '100%' }}
-        placeholder="整数値を入力"
+        placeholder={t('nestedPropertyEditor.elementValue.integerPlaceholder')}
         precision={0}
         min={min}
         value={value !== '' ? Number(value) : undefined}
@@ -920,7 +922,7 @@ const ElementValueInput: React.FC<ElementValueInputProps> = ({ xsiType, value, o
     return (
       <InputNumber
         style={{ width: '100%' }}
-        placeholder="数値を入力（例: 3.14）"
+        placeholder={t('nestedPropertyEditor.elementValue.floatPlaceholder')}
         value={value !== '' ? Number(value) : undefined}
         onChange={(v) => onChange(v !== null && v !== undefined ? String(v) : '')}
       />
@@ -932,7 +934,7 @@ const ElementValueInput: React.FC<ElementValueInputProps> = ({ xsiType, value, o
     return (
       <Select
         style={{ width: '100%' }}
-        placeholder="値を選択"
+        placeholder={t('nestedPropertyEditor.elementValue.boolPlaceholder')}
         value={value || undefined}
         onChange={(v) => onChange(v)}
       >
@@ -949,7 +951,7 @@ const ElementValueInput: React.FC<ElementValueInputProps> = ({ xsiType, value, o
         showTime
         style={{ width: '100%' }}
         format="YYYY-MM-DD HH:mm:ss"
-        placeholder="日時を選択"
+        placeholder={t('nestedPropertyEditor.elementValue.dateTimePlaceholder')}
         value={value ? dayjs(value) : undefined}
         onChange={(_, dateStr) =>
           onChange(typeof dateStr === 'string' ? dateStr : '')
@@ -964,7 +966,7 @@ const ElementValueInput: React.FC<ElementValueInputProps> = ({ xsiType, value, o
       <DatePicker
         style={{ width: '100%' }}
         format="YYYY-MM-DD"
-        placeholder="日付を選択"
+        placeholder={t('nestedPropertyEditor.elementValue.datePlaceholder')}
         value={value ? dayjs(value, 'YYYY-MM-DD') : undefined}
         onChange={(_, dateStr) =>
           onChange(typeof dateStr === 'string' ? dateStr : '')
@@ -979,13 +981,13 @@ const ElementValueInput: React.FC<ElementValueInputProps> = ({ xsiType, value, o
       <>
         <TextArea
           rows={3}
-          placeholder="スペース区切りで値を入力（例: 1.0 2.5 3.7）"
+          placeholder={t('nestedPropertyEditor.elementValue.listPlaceholder')}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
         <Text type="secondary" style={{ fontSize: 12 }}>
           <InfoCircleOutlined style={{ marginRight: 4 }} />
-          リスト型: 値をスペース区切りで入力してください
+          {t('nestedPropertyEditor.elementValue.listHint')}
         </Text>
       </>
     );
@@ -995,7 +997,7 @@ const ElementValueInput: React.FC<ElementValueInputProps> = ({ xsiType, value, o
   return (
     <TextArea
       rows={3}
-      placeholder="値を入力"
+      placeholder={t('nestedPropertyEditor.elementValue.defaultPlaceholder')}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />

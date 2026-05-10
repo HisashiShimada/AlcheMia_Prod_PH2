@@ -17,6 +17,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Card, Button, Space, Typography, Alert, Spin, Flex, Switch, Dropdown, message } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { MenuProps } from 'antd';
 import { 
   DownloadOutlined,
@@ -100,6 +101,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   selectedMethodId,  // 🆕 複数メソッド対応
   onOpenSubNetViewer
 }) => {
+  const { t } = useLanguage();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(false);
@@ -190,7 +192,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       if (!targetMethod) {
         setNodes([]);
         setEdges([]);
-        setError('メソッドが見つかりません');
+        setError(t('viewer.methodNotFound'));
         return;
       }
 
@@ -261,7 +263,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       });
     } catch (err) {
       console.error('❌ [PetriNetViewer] 初期化エラー:', err);
-      setError(err instanceof Error ? err.message : 'ペトリネット構造の読み込みに失敗しました');
+      setError(err instanceof Error ? err.message : t('viewer.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -449,7 +451,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       console.log('🔍 [PetriNetViewer] Transitionノードクリック:', node.id);
       
       if (!petriNetStructure || !maimlData) {
-        message.error('サブネット情報が取得できません');
+        message.error(t('viewer.subnetInfoMissing'));
         return;
       }
       
@@ -464,7 +466,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       } else {
         // コールバックがない場合は警告（開発時のデバッグ用）
         console.warn('⚠️ [PetriNetViewer] onOpenSubNetViewerコールバックが設定されていません');
-        message.info('サブネット表示機能は準備中です');
+        message.info(t('viewer.subnetComingSoon'));
       }
     }
   }, [petriNetStructure, maimlData, templateMap, onOpenSubNetViewer, extractTemplateInfoForNode]);
@@ -526,28 +528,28 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   }, [selectedNodeId, structuredProperties, setNodes]);
 
   // エクスポートメニュー
-  const exportMenuItems: MenuProps['items'] = [
+  const exportMenuItems: MenuProps['items'] = useMemo(() => [
     {
       key: 'png',
-      label: 'PNG画像として保存',
+      label: t('viewer.exportPng'),
       icon: <DownloadOutlined />,
       onClick: () => {
-        message.info('PNG出力機能は今後実装予定です');
+        message.info(t('viewer.exportPngSoon'));
         console.log('PNG出力');
       },
     },
     {
       key: 'svg',
-      label: 'SVG形式として保存',
+      label: t('viewer.exportSvg'),
       icon: <DownloadOutlined />,
       onClick: () => {
-        message.info('SVG出力機能は今後実装予定です');
+        message.info(t('viewer.exportSvgSoon'));
         console.log('SVG出力');
       },
     },
     {
       key: 'json',
-      label: 'JSON形式として保存',
+      label: t('viewer.exportJson'),
       icon: <DownloadOutlined />,
       onClick: () => {
         const flowData = {
@@ -570,10 +572,10 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         link.click();
         
         URL.revokeObjectURL(url);
-        message.success('JSON形式で保存しました');
+        message.success(t('viewer.exportJsonSuccess'));
       },
     },
-  ];
+  ], [t, nodes, edges, message]);
 
   // アーク属性表示のためのエッジ更新
   const displayEdges: Edge[] = useMemo(() => {
@@ -594,8 +596,8 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   if (!maimlData && !dotData) {
     return (
       <Alert
-        title="データなし"
-        description="MAIMLデータまたはDOTデータが指定されていません"
+        title={t('viewer.noData')}
+        description={t('viewer.noDataDesc')}
         type="info"
         showIcon
       />
@@ -613,7 +615,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       }}>
         <Space orientation="vertical" size="large" align="center">
           <Spin size="large" />
-          <Text type="secondary">ペトリネット構造を読み込み中...</Text>
+          <Text type="secondary">{t('viewer.loading')}</Text>
         </Space>
       </div>
     );
@@ -623,7 +625,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   if (error) {
     return (
       <Alert
-        title="エラー"
+        title={t('viewer.error')}
         description={error}
         type="error"
         showIcon
@@ -638,7 +640,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         <Flex justify="space-between" align="center">
           <Space>
             <Title level={5} style={{ margin: 0 }}>
-              ペトリネット図 (React Flow)
+              {t('viewer.title')}
             </Title>
             {enhancedMode && (
               <Text type="secondary" style={{ fontSize: 12 }}>
@@ -651,14 +653,14 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
               </Text>
             )}
             <Text type="secondary" style={{ fontSize: 12 }}>
-              ノード: {nodes.length} | エッジ: {edges.length}
+              {t('viewer.nodeCount').replace('{{count}}', String(nodes.length))} | {t('viewer.edgeCount').replace('{{count}}', String(edges.length))}
             </Text>
           </Space>
 
           <Space>
             <Space size="small">
               <Text type="secondary" style={{ fontSize: 12 }}>
-                アーク名表示
+                {t('viewer.arcLabelDisplay')}
               </Text>
               <Switch
                 size="small"
@@ -669,7 +671,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
 
             <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
               <Button size="small" icon={<DownloadOutlined />}>
-                エクスポート
+                {t('viewer.export')}
               </Button>
             </Dropdown>
           </Space>
@@ -728,7 +730,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         <Card size="small" style={{ marginTop: 16 }}>
           <Space orientation="vertical" size="small" style={{ width: '100%' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              <strong>パフォーマンス統計:</strong>
+              <strong>{t('viewer.perfStats')}</strong>
             </Text>
             <pre style={{ fontSize: 12, margin: 0, color: '#8c8c8c' }}>
               {JSON.stringify(performanceStats as Record<string, unknown>, null, 2)}

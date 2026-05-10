@@ -11,6 +11,7 @@ import type {
   CreateFormatFileRequest,
   CreateFormatFileResponse,
 } from '@/types/format';
+import { getTranslation } from '@/contexts/LanguageContext';
 
 /**
  * フォーマット一覧を取得
@@ -27,7 +28,7 @@ export async function getFormats(): Promise<ApiResponse<FormatListResponse>> {
 
     if (!response.data.success) {
       throw new Error(
-        response.data.error?.message || 'フォーマット一覧の取得に失敗しました'
+        response.data.error?.message || getTranslation('formatApi.getFormatsError')
       );
     }
 
@@ -60,7 +61,7 @@ export async function getFormatFiles(
 
     if (!response.data.success) {
       throw new Error(
-        response.data.error?.message || 'ファイル一覧の取得に失敗しました'
+        response.data.error?.message || getTranslation('formatApi.getFormatFilesError')
       );
     }
 
@@ -109,7 +110,7 @@ export async function createFormatSubfolder(
 
     if (!response.data.success) {
       throw new Error(
-        response.data.error?.message || 'サブフォルダの作成に失敗しました'
+        response.data.error?.message || getTranslation('formatApi.createSubfolderError')
       );
     }
 
@@ -142,7 +143,7 @@ export async function createFormatFile(
 
     if (!response.data.success) {
       throw new Error(
-        response.data.error?.message || 'ファイルの作成に失敗しました'
+        response.data.error?.message || getTranslation('formatApi.createFileError')
       );
     }
 
@@ -183,7 +184,7 @@ export async function createFormatFolder(
 
     if (!response.data.success) {
       throw new Error(
-        response.data.error?.message || 'フォルダの作成に失敗しました'
+        response.data.error?.message || getTranslation('formatApi.createFolderError')
       );
     }
 
@@ -219,7 +220,7 @@ export async function updateFormatFileContent(
 
     if (!response.data.success) {
       throw new Error(
-        response.data.error?.message || 'ファイルの更新に失敗しました'
+        response.data.error?.message || getTranslation('formatApi.updateFileError')
       );
     }
 

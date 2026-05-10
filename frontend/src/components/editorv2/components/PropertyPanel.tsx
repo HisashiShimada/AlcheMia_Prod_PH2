@@ -40,6 +40,7 @@ import type {
 import type { ErrorContent } from '../../../types/maimlValidation';
 import { useTemplates } from '../../../contexts/TemplateContext';
 import { Reference, Template } from '@/types/maiml-unified';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 /**
  * PropertyPanelProps - PropertyPanelコンポーネントのProps型定義
@@ -78,6 +79,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   methods,
   activeMethodIndex,
 }) => {
+  const { t } = useLanguage();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteEdgeConfirmOpen, setDeleteEdgeConfirmOpen] = useState(false);
 
@@ -224,7 +226,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       >
         <Space orientation="vertical" style={{ width: '100%' }}>
           <Text strong style={{ color: '#ff9800' }}>
-            <WarningOutlined /> {errors.length}件の警告
+            <WarningOutlined /> {t('editor.property.warningCount', { count: String(errors.length) })}
           </Text>
           {errors.map((error, idx) => (
             <div key={idx} style={{ paddingLeft: 8, borderLeft: '2px solid #ff9800' }}>
@@ -235,7 +237,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <>
                   <br />
                   <Text type="secondary" style={{ fontSize: 10 }}>
-                    詳細: {String(error.details)}
+                    {t('editor.property.details')} {String(error.details)}
                   </Text>
                 </>
               )}
@@ -275,8 +277,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         }}
       >
         <Title level={5} style={{ margin: 0, color: '#fff' }}>
-          {isEdge ? 'Arc プロパティ' :
-           isPlace ? 'Place プロパティ' : 'Transition プロパティ'}
+          {isEdge ? t('property.arcProps') :
+           isPlace ? t('property.placeProps') : t('property.transitionProps')}
         </Title>
         <Button
           type="text"
@@ -294,9 +296,9 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             {renderErrors(selectedEdge.data?.errors)}
             
             <Card size="small" style={{ backgroundColor: '#f5f5f5' }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>要素タイプ</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>{t('editor.property.elementType')}</Text>
               <br />
-              <Text strong>Arc (エッジ)</Text>
+              <Text strong>{t('editor.property.arcEdge')}</Text>
             </Card>
 
             <Divider style={{ margin: '8px 0' }} />
@@ -314,13 +316,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 style={{ marginTop: 4 }}
               />
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                Arc IDを編集できます（重複チェックは保存時に行われます）
+                {t('editor.property.arcIdHint')}
               </Text>
             </div>
 
             <div>
               <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                接続情報
+                {t('editor.property.connectionInfo')}
               </Text>
               <Card size="small" style={{ backgroundColor: '#fafafa' }}>
                 <Space orientation="vertical" style={{ width: '100%' }}>
@@ -335,7 +337,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </Space>
               </Card>
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                Source/Targetは変更できません
+                {t('editor.property.sourceTargetHint')}
               </Text>
             </div>
 
@@ -347,10 +349,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               onClick={() => setDeleteEdgeConfirmOpen(true)}
               block
             >
-              エッジを削除
+              {t('editor.property.deleteEdge')}
             </Button>
             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-              このエッジを完全に削除します
+              {t('editor.property.deleteEdgeDesc')}
             </Text>
           </Space>
         )}
@@ -361,7 +363,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             {renderErrors(selectedNode.data?.errors)}
             
             <Card size="small" style={{ backgroundColor: '#f5f5f5' }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>ノードタイプ</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>{t('editor.property.nodeType')}</Text>
               <br />
               <Text strong>
                 {isPlace ? `${placeType.charAt(0).toUpperCase() + placeType.slice(1)} Place` : 'Transition'}
@@ -371,20 +373,20 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <Divider style={{ margin: '8px 0' }} />
 
             <div>
-              <Text strong style={{ fontSize: 12 }}>ノードID</Text>
+              <Text strong style={{ fontSize: 12 }}>{t('editor.property.nodeId')}</Text>
               <Input
                 value={selectedNode.id || ''}
                 onChange={(e) => {
                   const newId = e.target.value;
                   
                   if (!newId.trim()) {
-                    message.error('ノードIDは空にできません');
+                    message.error(t('editor.property.nodeIdEmpty'));
                     return;
                   }
                   
                   const isDuplicate = nodes.some(n => n.id === newId && n.id !== selectedNode.id);
                   if (isDuplicate) {
-                    message.error(`ID "${newId}" は既に使用されています`);
+                    message.error(t('editor.property.nodeIdDuplicate', { id: newId }));
                     return;
                   }
                   
@@ -392,31 +394,31 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     onUpdateNodeId(selectedNode.id, newId);
                   }
                 }}
-                placeholder="ノードID"
+                placeholder={t('editor.property.nodeId')}
                 style={{ marginTop: 4 }}
               />
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                ノードIDを変更できます（重複不可）
+                {t('editor.property.nodeIdHint')}
               </Text>
             </div>
 
             <div>
-              <Text strong style={{ fontSize: 12 }}>名前</Text>
+              <Text strong style={{ fontSize: 12 }}>{t('editor.property.name')}</Text>
               <Input
                 value={selectedNode.data.name || ''}
                 onChange={(e) => handleChange('name', e.target.value)}
-                placeholder={`${placeType} の名前を入力`}
+                placeholder={t('editor.property.namePlaceholder', { placeType })}
                 style={{ marginTop: 4 }}
               />
             </div>
 
             <div>
-              <Text strong style={{ fontSize: 12 }}>説明</Text>
+              <Text strong style={{ fontSize: 12 }}>{t('editor.property.description')}</Text>
               <TextArea
                 rows={4}
                 value={selectedNode.data.description || ''}
                 onChange={(e) => handleChange('description', e.target.value)}
-                placeholder="ノードの説明を入力"
+                placeholder={t('editor.property.descriptionPlaceholder')}
                 style={{ marginTop: 4 }}
               />
             </div>
@@ -461,24 +463,24 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       }
                     }}
                   >
-                    共通テンプレート（全methodで共有）
+                    {t('editor.property.commonTemplate')}
                   </Checkbox>
                   <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                    チェックすると、このテンプレートを他のmethodからも参照できます
+                    {t('editor.property.commonTemplateHint')}
                   </Text>
                 </div>
 
                 {availableTemplatesForInheritance.length > 0 && (
                   <div>
                     <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                      テンプレート継承
+                      {t('editor.property.templateInheritance')}
                     </Text>
                     <Select
                       style={{ width: '100%' }}
                       value={selectedNode.data.templateRef?.id || ''}
                       onChange={handleTemplateRefChange}
                       options={[
-                        { value: '', label: 'なし（独立テンプレート）' },
+                        { value: '', label: t('editor.property.noInheritance') },
                         ...availableTemplatesForInheritance.map(tmpl => ({
                           value: `#${tmpl.id}`,
                           label: tmpl.name,
@@ -486,7 +488,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       ]}
                     />
                     <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                      同一method内のテンプレートからプロパティを継承
+                      {t('editor.property.templateInheritanceHint')}
                     </Text>
                   </div>
                 )}
@@ -494,7 +496,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 {availableCommonTemplates.length > 0 && (
                   <div>
                     <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                      共通テンプレート参照
+                      {t('editor.property.commonTemplateRef')}
                     </Text>
                     <Select
                       style={{ width: '100%' }}
@@ -565,7 +567,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                         }
                       }}
                       options={[
-                        { value: '', label: 'なし' },
+                        { value: '', label: t('editor.property.none') },
                         ...availableCommonTemplates.map(tmpl => ({
                           value: tmpl.id,
                           label: tmpl.name,
@@ -573,19 +575,19 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       ]}
                     />
                     <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                      共通テンプレートへのplaceRef参照を追加
+                      {t('editor.property.commonTemplateRefHint')}
                     </Text>
                   </div>
                 )}
 
                 <div>
                   <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                    テンプレート情報
+                    {t('editor.property.templateInfo')}
                   </Text>
                   <Card size="small" style={{ backgroundColor: '#fafafa', marginBottom: 8 }}>
                     <Space orientation="vertical" style={{ width: '100%' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>種類:</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{t('editor.property.kind')}</Text>
                         <Text style={{ fontSize: 12 }}>
                           {placeType === 'material' ? 'Material Template' :
                            placeType === 'condition' ? 'Condition Template' :
@@ -593,9 +595,9 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                         </Text>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>プロパティ数:</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{t('editor.property.propertyCount')}</Text>
                         <Text style={{ fontSize: 12 }}>
-                          {selectedNode.data.templateRef?.properties?.length || 0}件
+                          {selectedNode.data.templateRef?.properties?.length || 0}{t('editor.property.propertyCountUnit')}
                         </Text>
                       </div>
                     </Space>
@@ -723,10 +725,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     }}
                     block
                   >
-                    テンプレート編集
+                    {t('editor.property.editTemplate')}
                   </Button>
                   <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                    プロパティの追加・編集・削除
+                    {t('editor.property.editTemplateDesc')}
                   </Text>
                 </div>
               </>
@@ -740,10 +742,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               onClick={() => setDeleteConfirmOpen(true)}
               block
             >
-              ノードを削除
+              {t('editor.property.deleteNode')}
             </Button>
             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-              このノードを完全に削除します
+              {t('editor.property.deleteNodeDesc')}
             </Text>
           </Space>
         )}
@@ -752,18 +754,18 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* ノード削除確認モーダル */}
       {selectedNode && (
         <Modal
-          title="ノード削除の確認"
+          title={t('editor.property.deleteNodeTitle')}
           open={deleteConfirmOpen}
           onOk={handleDeleteConfirm}
           onCancel={() => setDeleteConfirmOpen(false)}
-          okText="削除"
-          cancelText="キャンセル"
+          okText={t('common.delete')}
+          cancelText={t('common.cancel')}
           okButtonProps={{ danger: true }}
         >
           <p>
-            ノード &ldquo;{selectedNode.data.name || selectedNode.id}&rdquo; を削除してもよろしいですか？
+            {t('editor.property.deleteNodeContent', { name: selectedNode.data.name || selectedNode.id })}
             <br />
-            この操作は元に戻せません。
+            {t('editor.property.irreversible')}
           </p>
         </Modal>
       )}
@@ -771,7 +773,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* エッジ削除確認モーダル */}
       {selectedEdge && (
         <Modal
-          title="エッジ削除の確認"
+          title={t('editor.property.deleteEdgeTitle')}
           open={deleteEdgeConfirmOpen}
           onOk={() => {
             if (onDeleteEdge) {
@@ -781,14 +783,14 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             onClose();
           }}
           onCancel={() => setDeleteEdgeConfirmOpen(false)}
-          okText="削除"
-          cancelText="キャンセル"
+          okText={t('common.delete')}
+          cancelText={t('common.cancel')}
           okButtonProps={{ danger: true }}
         >
           <p>
-            エッジ &ldquo;{selectedEdge.id}&rdquo; を削除してもよろしいですか？
+            {t('editor.property.deleteEdgeContent', { id: selectedEdge.id })}
             <br />
-            この操作は元に戻せません。
+            {t('editor.property.irreversible')}
           </p>
         </Modal>
       )}

@@ -12,6 +12,7 @@ import { Tabs, Tag, Button, Tooltip, Modal, Input, Space, message } from 'antd';
 import { PlusOutlined, EditOutlined, CloseOutlined } from '@ant-design/icons';
 import type { Node } from 'reactflow';
 import type { MethodData } from '../../../types/editor';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * MethodTabPanelProps - MethodTabPanelコンポーネントのProps型定義
@@ -51,6 +52,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
   onEditMethodId,
   onDeleteMethod,
 }) => {
+  const { t } = useLanguage();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMethodIndex, setEditingMethodIndex] = useState<number | null>(null);
   const [newMethodId, setNewMethodId] = useState('');
@@ -102,7 +104,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
   const handleSaveMethodId = () => {
     // バリデーション
     if (!newMethodId || newMethodId.trim() === '') {
-      setIdError('Method IDは必須です');
+      setIdError(t('editor.method.idRequired'));
       return;
     }
 
@@ -112,7 +114,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
     );
 
     if (isDuplicate) {
-      setIdError('このMethod IDは既に使用されています');
+      setIdError(t('editor.method.idDuplicate'));
       return;
     }
 
@@ -139,22 +141,22 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
     
     // 0 nodeの場合のみ削除可能
     if (nodeCount > 0) {
-      message.warning(`このMethodには${nodeCount}個のノードが含まれています。削除するには、まずすべてのノードを削除してください。`);
+      message.warning(`${t('editor.method.deleteHasNodes1')}${nodeCount}${t('editor.method.deleteHasNodes2')}`);
       return;
     }
     
     // 最後の1つは削除不可
     if (methods.length === 1) {
-      message.warning('最後のMethodは削除できません。');
+      message.warning(t('editor.method.deleteLastMethod'));
       return;
     }
     
     // 確認ダイアログ
     Modal.confirm({
-      title: 'Method削除',
-      content: `Method "${method.methodId}" を削除しますか？`,
-      okText: '削除',
-      cancelText: 'キャンセル',
+      title: t('editor.method.deleteTitle'),
+      content: `${t('editor.method.deleteConfirm1')} "${method.methodId}" ${t('editor.method.deleteConfirm2')}`,
+      okText: t('common.delete'),
+      cancelText: t('common.cancel'),
       okType: 'danger',
       onOk: () => {
         if (onDeleteMethod) {
@@ -257,12 +259,12 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
 
       {/* Method ID編集モーダル */}
       <Modal
-        title="Method ID編集"
+        title={t('editor.method.editTitle')}
         open={editDialogOpen}
         onOk={handleSaveMethodId}
         onCancel={handleCloseEditDialog}
-        okText="保存"
-        cancelText="キャンセル"
+        okText={t('common.save')}
+        cancelText={t('common.cancel')}
       >
         <Input
           autoFocus
@@ -281,7 +283,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
         )}
         {!idError && (
           <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>
-            MaiMLファイル内で一意のIDを指定してください
+            {t('editor.method.idHint')}
           </div>
         )}
       </Modal>

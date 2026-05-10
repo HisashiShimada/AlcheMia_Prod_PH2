@@ -223,7 +223,7 @@ export default function ProgressMonitoring() {
       const mainFiles: ProjectFile[] = filesResponse.files ?? [];
       const maimlFile = mainFiles.find((f: ProjectFile) => f.name.endsWith('.maiml'));
       if (!maimlFile) {
-        message.error('MAIMLファイルが見つかりません');
+        message.error(t('progress.maimlNotFound'));
         return;
       }
       const resolvedFileData: FileData = {
@@ -235,7 +235,7 @@ export default function ProgressMonitoring() {
       setIsDetailDialogOpen(true);
     } catch (error) {
       console.error('handleViewDetails error:', error);
-      message.error('ファイル情報の取得に失敗しました');
+      message.error(t('progress.fileInfoFetchFailed'));
     } finally {
       setLoadingProjectId(null);
     }

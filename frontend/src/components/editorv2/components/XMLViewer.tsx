@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import './XMLViewer.css';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * XMLViewerProps - XMLViewerコンポーネントのProps型定義
@@ -30,6 +31,7 @@ const XMLViewer: React.FC<XMLViewerProps> = ({
   maxHeight = '600px',
   onError = null,
 }) => {
+  const { t } = useLanguage();
   const [highlightedXML, setHighlightedXML] = useState<string>('');
   const [parseError, setParseError] = useState<string | null>(null);
   const [lineCount, setLineCount] = useState<number>(0);
@@ -103,7 +105,7 @@ const XMLViewer: React.FC<XMLViewerProps> = ({
       // パースエラーチェック
       const parserError = xmlDoc.getElementsByTagName('parsererror');
       if (parserError.length > 0) {
-        const errorText = parserError[0].textContent || 'XMLパースエラー';
+        const errorText = parserError[0].textContent || t('xmlViewer.parseError');
         setParseError(errorText);
         if (onError) {
           onError(new Error(errorText));
@@ -138,11 +140,11 @@ const XMLViewer: React.FC<XMLViewerProps> = ({
       navigator.clipboard
         .writeText(xmlContent)
         .then(() => {
-          alert('XMLをクリップボードにコピーしました');
+          alert(t('xmlViewer.copySuccess'));
         })
         .catch((err: Error) => {
           console.error('❌ [XMLViewer] コピー失敗:', err);
-          alert('コピーに失敗しました');
+          alert(t('xmlViewer.copyFailed'));
         });
     }
   };
@@ -166,7 +168,7 @@ const XMLViewer: React.FC<XMLViewerProps> = ({
     return (
       <div className="xml-viewer-empty">
         <div className="xml-viewer-empty-icon">📄</div>
-        <div className="xml-viewer-empty-text">XML内容がありません</div>
+        <div className="xml-viewer-empty-text">{t('xmlViewer.noContent')}</div>
       </div>
     );
   }
@@ -176,7 +178,7 @@ const XMLViewer: React.FC<XMLViewerProps> = ({
       {/* ツールバー */}
       <div className="xml-viewer-toolbar">
         <div className="xml-viewer-info">
-          <span className="xml-viewer-info-item">📊 {lineCount} 行</span>
+          <span className="xml-viewer-info-item">📊 {lineCount} {t('xmlViewer.lines')}</span>
           <span className="xml-viewer-info-item">
             📦 {(new Blob([xmlContent]).size / 1024).toFixed(2)} KB
           </span>
@@ -186,16 +188,16 @@ const XMLViewer: React.FC<XMLViewerProps> = ({
           <button
             className="xml-viewer-btn"
             onClick={handleCopy}
-            title="XMLをコピー"
+            title={t('xmlViewer.copyTitle')}
           >
-            📋 コピー
+            📋 {t('xmlViewer.copyButton')}
           </button>
           <button
             className="xml-viewer-btn"
             onClick={handleDownload}
-            title="XMLをダウンロード"
+            title={t('xmlViewer.downloadTitle')}
           >
-            💾 ダウンロード
+            💾 {t('xmlViewer.downloadButton')}
           </button>
         </div>
       </div>
@@ -203,7 +205,7 @@ const XMLViewer: React.FC<XMLViewerProps> = ({
       {/* エラー表示 */}
       {highlightErrors && parseError && (
         <div className="xml-viewer-error">
-          <div className="xml-viewer-error-title">⚠️ XMLパースエラー</div>
+          <div className="xml-viewer-error-title">⚠️ {t('xmlViewer.parseErrorTitle')}</div>
           <div className="xml-viewer-error-message">{parseError}</div>
         </div>
       )}

@@ -38,13 +38,13 @@ import {
   FileSearchOutlined,
 } from '@ant-design/icons';
 import { fetchTemplateFiles, type ListFormatsResponse } from '@/services/templateApi';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { 
   NodeData, 
   TemplateError,
 } from '../../../types/editor';
 import { Template, Insertion, PlaceRef} from '@/types/maiml-unified';
 import NestedPropertyEditor, { type PropertyData } from './NestedPropertyEditor';
-import { useLanguage } from '@/contexts/LanguageContext';
 import useNamespaceOperations, { type NamespaceData } from '../hooks/useNamespaceOperations';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {
@@ -313,12 +313,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   const handleAddProperty = () => {
     if (!newPropertyKey.trim()) {
-      message.error('プロパティキーを入力してください');
+      message.error(t('editor.template.propKeyRequired'));
       return;
     }
 
     if (properties[newPropertyKey.trim()]) {
-      message.error('同じキーのプロパティが既に存在します');
+      message.error(t('editor.template.propKeyDuplicate'));
       return;
     }
 
@@ -386,7 +386,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     // 重複チェック実行
     const hasDuplicate = checkDuplicateKey(properties, parentKey, childKey);
     if (hasDuplicate) {
-      message.error(`エラー: 同じ階層に既に「${childKey}」というキーの子要素が存在します。\n別のキー名を指定してください。`);
+      message.error(t('editor.template.childKeyDuplicate', { key: childKey }));
       console.error('❌ [handleAddNestedChild] 重複キーエラー:', { parentKey, childKey });
       return;
     }
@@ -475,7 +475,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   const handleAddSameLevelCopy = (sourceData: PropertyData, newKey: string) => {
     if (properties[newKey]) {
-      message.error('同じキーのプロパティが既に存在します');
+      message.error(t('editor.template.propKeyDuplicate'));
       return;
     }
 
@@ -671,12 +671,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   const handleAddContent = () => {
     if (!newContentKey.trim()) {
-      alert('Contentキーを入力してください');
+      message.error(t('editor.template.propKeyRequired'));
       return;
     }
 
     if (contents[newContentKey.trim()]) {
-      alert('同じキーのContentが既に存在します');
+      message.error(t('editor.template.propKeyDuplicate'));
       return;
     }
 
@@ -731,7 +731,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   const handleAddContentSameLevelCopy = (sourceData: PropertyData, newKey: string) => {
     if (contents[newKey]) {
-      alert('同じキーのContentが既に存在します');
+      message.error(t('editor.template.propKeyDuplicate'));
       return;
     }
 
@@ -839,7 +839,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setNamespacePreview({ parsedData: parsed });
     } catch (error) {
       console.error('プレビュー読み込みエラー:', error);
-      setNamespacePreview({ error: 'プレビューの読み込みに失敗しました' });
+      setNamespacePreview({ error: t('editor.template.previewFailed') });
     }
   };
 
@@ -848,7 +848,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
    */
   const handleConfirmImportWithDuplicateCheck = async () => {
     if (!selectedNamespaceFile) {
-      message.error('テンプレートファイルを選択してください');
+      message.error(t('editor.template.nsFileRequired'));
       return;
     }
 
@@ -859,7 +859,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         setNamespacePreview({ parsedData: parsed });
       } catch (error) {
         console.error('名前空間取り込みエラー:', error);
-        message.error('名前空間の取り込みに失敗しました');
+        message.error(t('editor.template.nsImportFailed'));
         return;
       }
     }
@@ -882,7 +882,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const handleImportNamespace = () => {
     const parsed = namespacePreview.parsedData;
     if (!parsed) {
-      message.error('取り込むデータがありません');
+      message.error(t('editor.template.noDataToImport'));
       return;
     }
 
@@ -905,7 +905,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           }
         );
         setForceRenderKey(Date.now());
-        message.success(`${Object.keys(parsed.properties).length} 個のプロパティを取り込みました`);
+        message.success(t('editor.template.nsPropsImported', { count: String(Object.keys(parsed.properties).length) }));
       } else {
         replaceTemplateWithNamespace(
           parsed,
@@ -921,7 +921,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           }
         );
         setForceContentRenderKey(Date.now());
-        message.success(`${Object.keys(parsed.contents).length} 個のContentsを取り込みました`);
+        message.success(t('editor.template.nsContentsImported', { count: String(Object.keys(parsed.contents).length) }));
       }
 
       const fileName = selectedNamespaceFile.split('/').pop() || selectedNamespaceFile;
@@ -935,7 +935,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setHasChanges(true);
     } catch (error) {
       console.error('[名前空間取り込み] エラー:', error);
-      message.error(`取り込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+      message.error(t('editor.template.importFailed', { error: error instanceof Error ? error.message : String(error) }));
     }
   };
 
@@ -978,7 +978,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       } catch (err) {
         const e = err instanceof Error ? err : new Error(String(err));
         console.error('❌ [XMLビュー] UI→XML変換エラー:', e);
-        setXmlErrors([{ type: 'conversion_error', message: 'XMLへの変換に失敗しました', details: e.message }]);
+        setXmlErrors([{ type: 'conversion_error', message: t('editor.template.xmlConvFailed'), details: e.message }]);
       }
     }
 
@@ -1000,7 +1000,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         setHasUnsyncedXmlChanges(false);
         console.log('✅ [XMLビュー] XML→UI同期成功');
       } else {
-        message.warning('XMLのパースに失敗しました。UI編集タブに切り替えますが、XMLの変更は反映されません。');
+      message.warning(t('editor.template.xmlParseFailed'));
         setXmlErrors(parseResult.errors);
         setHasUnsyncedXmlChanges(false);
       }
@@ -1016,9 +1016,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     const result = validateTemplateXML(xmlContent);
     setXmlErrors(result.errors);
     if (result.isValid) {
-      message.success('✅ XMLは有効です！');
+      message.success(t('editor.template.xmlValid'));
     } else {
-      message.error(`⚠️ ${result.errors.length}件のエラーが見つかりました`);
+      message.error(t('editor.template.xmlErrors', { count: String(result.errors.length) }));
     }
   };
 
@@ -1055,16 +1055,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
     // ✅ Phase 1-2: 基本チェック
     if (!templateId.trim()) {
-      message.error('テンプレートIDを入力してください');
+      message.error(t('editor.template.idRequired'));
       return;
     }
     
     // ✅ Phase 1-2: ノードIDとの重複チェック
     const nodeIds = allNodes.map(n => n.id);
     if (nodeIds.includes(templateId) && templateId !== node.id) {
-      message.error(
-        `テンプレートID "${templateId}" は既にノードIDとして使用されています。別のIDを指定してください。`
-      );
+      message.error(t('template.idDuplicateNodeId', { id: templateId }));
       return;
     }
     
@@ -1087,9 +1085,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       });
       
       if (allTemplateIds.includes(templateId)) {
-        message.error(
-          `テンプレートID "${templateId}" は既に他のテンプレートで使用されています。別のIDを指定してください。`
-        );
+        message.error(t('template.idDuplicateTemplate', { id: templateId }));
         return;
       }
     }
@@ -1136,7 +1132,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       title={
         <Space>
           {templateIcon}
-          <span>{nodeCategory}を編集</span>
+          <span>{t('template.editTitle', { category: nodeCategory })}</span>
         </Space>
       }
       open={open}
@@ -1145,10 +1141,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       style={{ top: 20 }}
       footer={[
         <Button key="cancel" onClick={onClose}>
-          キャンセル
+          {t('template.cancelButton')}
         </Button>,
         <Button key="save" type="primary" icon={<SaveOutlined />} onClick={handleSave}>
-          保存
+          {t('template.saveButton')}
         </Button>
       ]}
     >
@@ -1156,8 +1152,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         activeKey={activeTabKey}
         onChange={handleTabChange}
         items={[
-          { key: 'ui', label: '✏️ UI編集' },
-          { key: 'xml', label: '💻 XMLビュー' },
+          { key: 'ui', label: t('template.tabUiEdit') },
+          { key: 'xml', label: t('template.tabXmlView') },
         ]}
         style={{ marginBottom: 8 }}
       />
@@ -1168,7 +1164,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           {/* XMLエラー表示 */}
           {xmlErrors.length > 0 && (
             <Alert
-              message={`⚠️ ${xmlErrors.length}件のXMLエラー`}
+              message={t('template.xmlErrorsAlert', { count: String(xmlErrors.length) })}
               description={
                 <div>
                   {xmlErrors.map((error, index) => (
@@ -1189,8 +1185,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           {/* 未保存変更の警告 */}
           {hasUnsyncedXmlChanges && (
             <Alert
-              message="XMLに未保存の変更があります"
-              description="「UI編集」タブに戻ると自動的に同期されます。"
+              message={t('template.xmlUnsavedAlert')}
+              description={t('template.xmlUnsavedDesc')}
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
@@ -1199,9 +1195,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
           {/* バリデーションボタン */}
           <Space style={{ marginBottom: 16 }}>
-            <Button onClick={handleValidateXml}>🔍 XMLバリデーション</Button>
+            <Button onClick={handleValidateXml}>{t('template.validateXmlButton')}</Button>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              💡 XMLを直接編集できます。「UI編集」タブに戻ると自動的に同期されます。
+              {t('template.xmlEditHint')}
             </Text>
           </Space>
 
@@ -1213,16 +1209,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               setXmlContent(e.target.value);
               setHasUnsyncedXmlChanges(true);
             }}
-            placeholder="XMLコンテンツ"
+            placeholder={t('template.xmlPlaceholder')}
             style={{ fontFamily: 'monospace', fontSize: 13 }}
           />
 
           {/* XML情報 */}
           <div style={{ marginTop: 12, padding: 12, backgroundColor: '#f8f9fa', borderRadius: 4 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              <strong>XML形式:</strong> MaiML準拠の {node.data.placeType}Template　　
-              <strong>文字数:</strong> {xmlContent.length}文字　　
-              <strong>行数:</strong> {xmlContent.split('\n').length}行
+              <strong>{t('template.xmlInfoFormat')}</strong> MaiML {node.data.placeType}Template　　
+              <strong>{t('template.xmlInfoChars')}</strong> {xmlContent.length}　　
+              <strong>{t('template.xmlInfoLines')}</strong> {xmlContent.split('\n').length}
             </Text>
           </div>
         </div>
@@ -1232,9 +1228,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       {activeTabKey === 'ui' && (
       <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
         {/* エラー表示 */}
-        {mergedTemplate && templateErrors[mergedTemplate.id] && templateErrors[mergedTemplate.id].length > 0 && (
+          {mergedTemplate && templateErrors[mergedTemplate.id] && templateErrors[mergedTemplate.id].length > 0 && (
           <Alert
-            message={`⚠️ バリデーション警告（${templateErrors[mergedTemplate.id].length}件）`}
+            message={t('template.validationWarning', { count: String(templateErrors[mergedTemplate.id].length) })}
             description={
               <div>
                 {templateErrors[mergedTemplate.id].map((error, index) => (
@@ -1252,9 +1248,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         {/* 基本情報・PlaceRef・Insertion を1つの枠で囲む */}
         <div style={{ marginBottom: 24, padding: 16, backgroundColor: '#f0f5ff', borderRadius: 8 }}>
           {/* 基本情報 */}
-          <Title level={5}>📋 基本情報</Title>
+          <Title level={5}>{t('template.sectionBasicInfo')}</Title>
           
-          <Form.Item label="テンプレートID">
+          <Form.Item label={t('template.labelTemplateId')}>
             <Input
               value={templateId}
               onChange={(e) => {
@@ -1265,7 +1261,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             />
           </Form.Item>
 
-          <Form.Item label="UUID">
+          <Form.Item label={t('template.labelUuid')}>
             <Space.Compact style={{ width: '100%' }}>
               <Input
                 value={uuid}
@@ -1276,7 +1272,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 placeholder="例: urn:uuid:12345678-1234-1234-1234-123456789abc"
               />
               <Button icon={<ThunderboltOutlined />} onClick={handleGenerateUuid}>
-                生成
+                {t('template.generateButton')}
               </Button>
             </Space.Compact>
           </Form.Item>
@@ -1316,13 +1312,13 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               icon={<PlusOutlined />}
               onClick={() => setShowPlaceRefAddDialog(true)}
             >
-              追加
+              {t('template.addButton')}
             </Button>
           </div>
           
           {placeRefs.length === 0 ? (
             <Alert
-              message="Place Referenceが登録されていません。「追加」ボタンから登録してください。"
+              message={t('template.placeRefEmpty')}
               type="info"
               showIcon
             />
@@ -1364,11 +1360,11 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           )}
           
           {/* Insertion（MaterialTemplate・ResultTemplateの場合表示） */}
-          {(node.data.placeType === 'material' || node.data.placeType === 'result') && (
+              {(node.data.placeType === 'material' || node.data.placeType === 'result') && (
             <>
               <Divider />
               <Title level={5} style={{ marginBottom: 16 }}>
-                📎 Insertion情報
+                {t('template.sectionInsertion')}
               </Title>
               
               <Form.Item label="URI">
@@ -1428,17 +1424,17 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         <Divider />
         <div style={{ marginBottom: 16 }}>
           <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
-            <Title level={5}>🏷️ Properties</Title>
+            <Title level={5}>{t('template.sectionProperties')}</Title>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowAddModal(true)}>
-              新規プロパティ追加
+              {t('template.addPropertyButton')}
             </Button>
             <Button icon={<DownloadOutlined />} onClick={() => handleOpenNamespaceImport('replace_all_properties')}>
-              テンプレートから取り込み
+              {t('template.importFromTemplateButton')}
             </Button>
           </Space>
 
           {Object.keys(properties).length === 0 ? (
-            <Alert title="プロパティがありません。「新規プロパティ追加」ボタンから追加してください。" type="info" />
+            <Alert title={t('template.propertiesEmpty')} type="info" />
           ) : (
             Object.entries(properties).map(([key, data]) => (
               <NestedPropertyEditor
@@ -1474,16 +1470,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     <Space>
                       <FileSearchOutlined />
                       <Text strong>
-                        🔗 継承元プロパティ（親テンプレート: {inheritedTemplate.id}）
+                        🔗 {t('template.inheritedProps', { id: inheritedTemplate.id })}
                       </Text>
-                      <Tag color="blue">読み取り専用</Tag>
+                      <Tag color="blue">{t('common.readOnly')}</Tag>
                     </Space>
                   ),
                   children: (
                     <div style={{ padding: 16, backgroundColor: '#f0f5ff' }}>
                       <Alert
-                        message="このプロパティは親テンプレートから継承されています"
-                        description="編集する場合は、親テンプレート側で変更してください"
+                        message={t('template.inheritedPropsMessage')}
+                        description={t('template.inheritedPropsDesc')}
                         type="info"
                         showIcon
                         style={{ marginBottom: 16 }}
@@ -1541,7 +1537,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                         ))
                       ) : (
                         <Alert
-                          message="親テンプレートにプロパティがありません"
+                          message={t('template.inheritedPropsEmpty')}
                           type="warning"
                           showIcon
                         />
@@ -1559,18 +1555,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           <>
             <Divider />
             <div style={{ marginBottom: 16 }}>
-              <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
-                <Title level={5}>🏷️ Contents</Title>
+          <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
+                <Title level={5}>{t('template.sectionContents')}</Title>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowContentAddModal(true)}>
-                  新規Content追加
+                  {t('template.addContentButton')}
                 </Button>
                 <Button icon={<DownloadOutlined />} onClick={() => handleOpenNamespaceImport('replace_all_contents')}>
-                  テンプレートから取り込み
+                  {t('template.importFromTemplateButton')}
                 </Button>
               </Space>
 
               {Object.keys(contents).length === 0 ? (
-                <Alert title="Contentがありません。「新規Contentを追加」ボタンから追加してください。" type="info" />
+                <Alert title={t('template.contentsEmpty')} type="info" />
               ) : (
                 Object.entries(contents).map(([key, data]) => (
                   <NestedPropertyEditor
@@ -1601,7 +1597,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         title={
           <Space>
             <DownloadOutlined />
-            <span>テンプレートから名前空間を取り込み</span>
+        <span>{t('template.importNsLabel')}</span>
           </Space>
         }
         open={showNamespaceDialog}
@@ -1612,27 +1608,27 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         }}
         onOk={handleConfirmImportWithDuplicateCheck}
         width={800}
-        okText="取り込む"
-        cancelText="キャンセル"
+        okText={t('common.import')}
+        cancelText={t('common.cancel')}
         okButtonProps={{ disabled: !selectedNamespaceFile }}
       >
         <Space orientation="vertical" style={{ width: '100%' }} size="large">
           <Alert
-            message="テンプレートファイルから名前空間（properties定義）を取り込みます"
+            message={t('template.nsImportModalDesc')}
             description={
               <div>
-                <p>・選択したテンプレートファイルのproperties定義を現在のテンプレートに追加します</p>
-                <p>・同じキーのプロパティは上書きされます</p>
-                <p>・複数のテンプレートから取り込むことができます</p>
+                <p>・{t('template.nsImportDesc1')}</p>
+                <p>・{t('template.nsImportDesc2')}</p>
+                <p>・{t('template.nsImportDesc3')}</p>
               </div>
             }
             type="info"
           />
 
           {/* テンプレートファイル選択（TreeSelect） */}
-          <Form.Item label="テンプレートファイル">
+          <Form.Item label={t('template.importNsLabel')}>
             <TreeSelect
-              placeholder="テンプレートファイルを選択してください"
+              placeholder={t('template.nsFilePlaceholder')}
               value={selectedNamespaceFile}
               onChange={handleSelectNamespaceFile}
               loading={isLoadingTemplates}
@@ -1662,7 +1658,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             <>
               {namespacePreview.error && (
                 <Alert
-                  message="プレビューエラー"
+                  message={t('template.nsPreviewError')}
                   description={namespacePreview.error}
                   type="error"
                   style={{ marginBottom: 16 }}
@@ -1705,8 +1701,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           {/* ファイルなし警告 */}
           {!isLoadingTemplates && formatsResponse.departments.length === 0 && (
             <Alert
-              message="テンプレートファイルが見つかりませんでした"
-              description="formats/ 配下に .xml ファイルが存在しません"
+              message={t('template.nsNoFilesFound')}
+              description={t('template.nsNoFilesDesc')}
               type="warning"
             />
           )}
@@ -1715,20 +1711,20 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
       {/* プロパティ追加モーダル */}
       <Modal
-        title="新規プロパティ追加"
+        title={t('template.addPropTitle')}
         open={showAddModal}
         onCancel={() => setShowAddModal(false)}
         onOk={handleAddProperty}
       >
         <Space orientation="vertical" style={{ width: '100%' }}>
           <Input
-            placeholder="プロパティキー（例: compound, concentration）"
+            placeholder={t('template.propKeyPlaceholder')}
             value={newPropertyKey}
             onChange={(e) => setNewPropertyKey(e.target.value)}
           />
           <Select
             style={{ width: '100%' }}
-            placeholder="タグ名を選択"
+            placeholder={t('template.tagNamePlaceholder')}
             value={newPropertyTagName}
             onChange={setNewPropertyTagName}
           >
@@ -1741,24 +1737,24 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
       {/* ✅ Phase 3-3: 取り込み確認ダイアログ */}
       <Modal
-        title="⚠️ プロパティ取り込み確認"
+        title={t('template.nsConfirmTitle')}
         open={showConfirmDialog}
         onCancel={() => {
           setShowConfirmDialog(false);
           setDuplicateKeys([]);
         }}
         onOk={handleImportNamespace}
-        okText="取り込む"
-        cancelText="キャンセル"
+        okText={t('common.import')}
+        cancelText={t('common.cancel')}
         width={600}
       >
         <Space orientation="vertical" style={{ width: '100%' }} size="large">
           {duplicateKeys.length > 0 ? (
             <Alert
-              message={`⚠️ 重複するプロパティキーが ${duplicateKeys.length} 件あります`}
+              message={t('template.nsDuplicateCount', { count: String(duplicateKeys.length) })}
               description={
                 <div>
-                  <p>以下のプロパティは既に存在します。取り込むと上書きされます：</p>
+                    <p>{t('template.nsDuplicateKeys', { keys: duplicateKeys.join(', ') })}</p>
                   <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 8 }}>
                     {duplicateKeys.map(key => (
                       <Tag key={key} color="warning" style={{ marginBottom: 4 }}>
@@ -1773,8 +1769,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             />
           ) : (
             <Alert
-              message="✅ 重複なし"
-              description="すべてのプロパティは新規追加されます"
+              message={t('template.nsNoDuplicates')}
+              description={t('template.nsNoDuplicatesDesc')}
               type="success"
               showIcon
             />
@@ -1816,20 +1812,20 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       
       {/* Phase 3.2: Content追加モーダル */}
       <Modal
-        title="新規Content追加"
+        title={t('template.addContentTitle')}
         open={showContentAddModal}
         onCancel={() => setShowContentAddModal(false)}
         onOk={handleAddContent}
       >
         <Space orientation="vertical" style={{ width: '100%' }}>
           <Input
-            placeholder="プロパティキー（例: compound, concentration）"
+            placeholder={t('template.propKeyPlaceholder')}
             value={newContentKey}
             onChange={(e) => setNewContentKey(e.target.value)}
           />
           <Select
             style={{ width: '100%' }}
-            placeholder="タグ名を選択"
+            placeholder={t('template.tagNamePlaceholder')}
             value={newContentTagName}
             onChange={setNewContentTagName}
           >
@@ -1842,18 +1838,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
       {/* ✅ Phase 1-1: Place Reference追加ダイアログ */}
       <Modal
-        title="🔗 Place Reference追加"
+        title={t('template.addPlaceRefTitle')}
         open={showPlaceRefAddDialog}
         onCancel={() => setShowPlaceRefAddDialog(false)}
         footer={[
           <Button key="close" onClick={() => setShowPlaceRefAddDialog(false)}>
-            閉じる
+            {t('common.close')}
           </Button>
         ]}
         width={600}
       >
         <Alert
-          message="既存のPlace（現在未登録）から選択してください"
+          message={t('template.placeRefSelectHint')}
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -1877,14 +1873,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     setPlaceRefs([...placeRefs, {id: '', ref :place.id}]);
                     setShowPlaceRefAddDialog(false);
                     setHasChanges(true);
-                    message.success('Place Referenceを追加しました');
+                    message.success(t('template.placeRefAdded'));
                   }}
                 >
                   <div>
                     <Text strong>{place.id}</Text>
                     <br />
                     <Text type="secondary">
-                      {place.data?.name || '(名前なし)'} | {place.data?.placeType}
+                      {place.data?.name || t('template.noName')} | {place.data?.placeType}
                     </Text>
                   </div>
                 </Button>
@@ -1895,8 +1891,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               .filter(n => !placeRefs.some((pr) => pr.ref === n.id))
               .length === 0 && (
               <Alert
-                message="追加可能なPlaceがありません"
-                description="すべてのPlaceが既に登録されているか、Placeが存在しません"
+                message={t('template.placeRefNoPlaces')}
+                description={t('template.placeRefNoPlacesDesc')}
                 type="warning"
                 showIcon
               />

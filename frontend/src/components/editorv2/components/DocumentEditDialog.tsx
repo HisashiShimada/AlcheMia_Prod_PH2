@@ -38,6 +38,7 @@ import {
   DocumentTagData,
 } from '../../../types/maiml-unified'
 import { fetchMasters, type CreatorRecord, type VendorRecord, type InstrumentRecord } from '@/services/masterApiService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * DocumentEditDialogProps - DocumentEditDialogコンポーネントのProps型定義
@@ -65,6 +66,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   onSave,
 }) => {
   const { message } = App.useApp();
+  const { t } = useLanguage();
   const [form] = Form.useForm();
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -153,7 +155,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
         });
       } catch (error) {
         console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
-        message.error('マスタデータの取得に失敗しました');
+        message.error(t('document.masterDataLoadFailed'));
       }
     };
     
@@ -192,7 +194,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       uuid: generateUUID(),
     });
     setHasChanges(true);
-    message.success('UUID を生成しました');
+    message.success(t('document.uuidGenerated'));
   }, [form, generateUUID]);
 
   /**
@@ -201,7 +203,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   const handleSetCurrentDateTime = useCallback(() => {
     form.setFieldValue('date', dayjs());
     setHasChanges(true);
-    message.success('現在時刻を設定しました');
+    message.success(t('document.currentTimeSet'));
   }, [form]);
 
   /**
@@ -265,7 +267,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
 
     onSave(documentToSave);
     onClose();
-    message.success('Document を保存しました');
+    message.success(t('document.saved'));
   }, [form, onSave, onClose]);
 
   /**
@@ -274,10 +276,10 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   const handleCancel = useCallback(() => {
     if (hasChanges) {
       Modal.confirm({
-        title: '未保存の変更があります',
-        content: '変更を破棄しますか？',
-        okText: '破棄',
-        cancelText: 'キャンセル',
+        title: t('document.unsavedChangesTitle'),
+        content: t('document.unsavedChangesContent'),
+        okText: t('document.discardButton'),
+        cancelText: t('common.cancel'),
         onOk: onClose,
       });
     } else {
@@ -287,17 +289,17 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
 
   return (
     <Modal
-      title="📄 Document編集"
+      title={t('document.editTitle')}
       open={open}
       onCancel={handleCancel}
       width={900}
       style={{ top: 20 }}
       footer={[
         <Space key="status" style={{ marginRight: 'auto' }}>
-          {hasChanges && <Tag color="warning">⚠️ 未保存の変更があります</Tag>}
+          {hasChanges && <Tag color="warning">{t('document.unsavedChangesTag')}</Tag>}
         </Space>,
         <Button key="cancel" onClick={handleCancel}>
-          キャンセル
+          {t('common.cancel')}
         </Button>,
         <Button
           key="save"
@@ -305,7 +307,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
           onClick={handleSave}
           icon={<SaveOutlined />}
         >
-          💾 Document保存
+          {t('document.saveButton')}
         </Button>,
       ]}
     >
@@ -317,7 +319,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             onClick={handleAutoGenerateUUIDs}
             block
           >
-            UUID一括生成
+            {t('document.generateUuidBulk')}
           </Button>
 
           {/* フォーム */}
@@ -346,7 +348,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
               items={[
                 {
                   key: 'basic',
-                  label: <Text strong>📄 基本プロパティ</Text>,
+                   label: <Text strong>{t('document.sectionBasic')}</Text>,
                   children: (
                     <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                       <Form.Item label="Document ID" name="id">
@@ -365,9 +367,9 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                               form.setFieldValue('uuid', uuid);
                               setHasChanges(true);
                             }}
-                          >
-                            生成
-                          </Button>
+                           >
+                            {t('document.generateButton')}
+                           </Button>
                         </Space.Compact>
                       </Form.Item>
 
@@ -390,9 +392,9 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                         <Button
                           icon={<ClockCircleOutlined />}
                           onClick={handleSetCurrentDateTime}
-                          title="現在時刻を設定"
-                        >
-                          現在
+                           title={t('document.setCurrentTime')}
+                         >
+                           {t('document.currentTimeButton')}
                         </Button>
                       </Space.Compact>
                     </Space>
@@ -400,11 +402,11 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                 },
                 {
                   key: 'maimlIds',
-                  label: <Text strong>🔑 MaiML ID属性（詳細設定）</Text>,
+                   label: <Text strong>{t('document.sectionMaimlIds')}</Text>,
                   children: (
                     <>
                       <Alert
-                        title="💡 MaiMLファイル内の各要素に設定されるID属性値を編集できます。"
+                         title={t('document.maimlIdsInfo')}
                         type="info"
                         style={{ marginBottom: 16 }}
                       />
@@ -426,7 +428,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                         </Form.Item>
 
                         <Alert
-                          title="⚠️ ID値は英数字、アンダースコア(_)、ハイフン(-)のみ使用可能です。最大64文字まで設定できます。"
+                           title={t('document.maimlIdsWarning')}
                           type="warning"
                         />
                       </Space>
@@ -438,19 +440,19 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                   label: (
                     <Space>
                       <SecurityScanOutlined />
-                      <Text strong>🔒 XML署名（改ざん防止）</Text>
+                       <Text strong>{t('document.sectionSignature')}</Text>
                     </Space>
                   ),
                   children: (
                     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                       <Alert
-                        title="📋 XML署名機能について"
-                        description="W3C XMLDSig仕様に基づくXML署名を追加します。MaiML保存時にSHA-256ハッシュを計算し、document要素内にSignature要素を挿入します。"
+                         title={t('document.signatureTitle')}
+                         description={t('document.signatureDescription')}
                         type="info"
                       />
 
                       <Form.Item name="signatureEnabled" valuePropName="checked">
-                        <Checkbox>改ざん防止のためのXML署名を行う</Checkbox>
+                        <Checkbox>{t('document.signatureCheckbox')}</Checkbox>
                       </Form.Item>
                     </Space>
                   ),
@@ -519,14 +521,14 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
 
           {/* ヒント */}
           <Alert
-            title="💡 ヒント"
+            title={t('document.hintTitle')}
             description={
               <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
-                <li>UUIDジェネレーターボタンで一意の識別子を一括生成できます</li>
-                <li>Creator、Vendor、Ownerは最低1件必要です</li>
-                <li>Instrumentは任意（0件可）です</li>
-                <li>各要素は追加/削除/並び替えが可能です</li>
-                <li>XML署名を有効にすると、MaiML保存時に自動的に署名が追加されます</li>
+                <li>{t('document.hint1')}</li>
+                <li>{t('document.hint2')}</li>
+                <li>{t('document.hint3')}</li>
+                <li>{t('document.hint4')}</li>
+                <li>{t('document.hint5')}</li>
               </ul>
             }
             type="info"

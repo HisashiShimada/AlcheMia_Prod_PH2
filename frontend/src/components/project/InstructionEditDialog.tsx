@@ -236,7 +236,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         form.setFields([
           {
             name: 'content',
-            errors: ['指示内容を入力してください'],
+            errors: [t('instruction.contentRequired')],
           },
         ]);
         return;
@@ -418,10 +418,10 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               ) : (
                 // フォールバック: ハードコードされた値
                 <>
-                  <Select.Option value={InstructionPriority.HIGH}>高</Select.Option>
-                  <Select.Option value={InstructionPriority.MEDIUM}>中</Select.Option>
-                  <Select.Option value={InstructionPriority.NORMAL}>通常</Select.Option>
-                  <Select.Option value={InstructionPriority.LOW}>低</Select.Option>
+                  <Select.Option value={InstructionPriority.HIGH}>{t('instruction.priority.high')}</Select.Option>
+                  <Select.Option value={InstructionPriority.MEDIUM}>{t('instruction.priority.medium')}</Select.Option>
+                  <Select.Option value={InstructionPriority.NORMAL}>{t('instruction.priority.normal')}</Select.Option>
+                  <Select.Option value={InstructionPriority.LOW}>{t('instruction.priority.low')}</Select.Option>
                 </>
               )}
             </Select>
@@ -447,11 +447,11 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               ) : (
                 // フォールバック: ハードコードされた値
                 <>
-                  <Select.Option value={InstructionTypeCode.GENERAL}>一般</Select.Option>
-                  <Select.Option value={InstructionTypeCode.SETUP}>セットアップ</Select.Option>
-                  <Select.Option value={InstructionTypeCode.MEASUREMENT}>測定</Select.Option>
-                  <Select.Option value={InstructionTypeCode.SAFETY}>安全</Select.Option>
-                  <Select.Option value={InstructionTypeCode.CLEANING}>清掃</Select.Option>
+                  <Select.Option value={InstructionTypeCode.GENERAL}>{t('instruction.type.general')}</Select.Option>
+                  <Select.Option value={InstructionTypeCode.SETUP}>{t('instruction.type.setup')}</Select.Option>
+                  <Select.Option value={InstructionTypeCode.MEASUREMENT}>{t('instruction.type.measurement')}</Select.Option>
+                  <Select.Option value={InstructionTypeCode.SAFETY}>{t('instruction.type.safety')}</Select.Option>
+                  <Select.Option value={InstructionTypeCode.CLEANING}>{t('instruction.type.cleaning')}</Select.Option>
                 </>
               )}
             </Select>

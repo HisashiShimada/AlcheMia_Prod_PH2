@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Modal, Form, Input, Button, Alert, Space } from 'antd';
 import { LockOutlined, EyeTwoTone, EyeInvisibleOutlined } from '@ant-design/icons';
 import { authService, AuthServiceError } from '@/services/authService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ChangePasswordModalProps {
   open: boolean;
@@ -17,6 +18,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   open,
   onSuccess,
 }) => {
+  const { t } = useLanguage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       if (err instanceof AuthServiceError) {
         setError(err.message);
       } else {
-        setError('パスワード変更中にエラーが発生しました');
+        setError(t('auth.changePassword.errorMessage'));
       }
     } finally {
       setLoading(false);
@@ -52,7 +54,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
   return (
     <Modal
-      title="パスワード変更（必須）"
+      title={t('auth.changePassword.title')}
       open={open}
       footer={null}
       maskClosable={false}
@@ -61,15 +63,15 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     >
       <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <Alert
-          title="一時パスワードでログインしています"
-          description="セキュリティのため、パスワードを変更してください。一時パスワードの有効期限は24時間です。"
+          title={t('auth.changePassword.alertTitle')}
+          description={t('auth.changePassword.alertDescription')}
           type="warning"
           showIcon
         />
 
         {error && (
           <Alert
-            title="エラー"
+            title={t('common.error')}
             description={error}
             type="error"
             showIcon
@@ -87,14 +89,14 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           {/* 現在のパスワード */}
           <Form.Item
             name="currentPassword"
-            label="現在のパスワード（一時パスワード）"
+            label={t('auth.changePassword.currentPasswordLabel')}
             rules={[
-              { required: true, message: '現在のパスワードを入力してください' },
+              { required: true, message: t('auth.changePassword.currentPasswordRequired') },
             ]}
           >
             <Input.Password
               prefix={<LockOutlined />}
-              placeholder="メールで送信された一時パスワード"
+              placeholder={t('auth.changePassword.currentPasswordPlaceholder')}
               iconRender={(visible) =>
                 visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
               }
@@ -104,20 +106,20 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           {/* 新しいパスワード */}
           <Form.Item
             name="newPassword"
-            label="新しいパスワード"
+            label={t('auth.changePassword.newPasswordLabel')}
             rules={[
-              { required: true, message: '新しいパスワードを入力してください' },
-              { min: 8, message: 'パスワードは8文字以上である必要があります' },
+              { required: true, message: t('auth.changePassword.newPasswordRequired') },
+              { min: 8, message: t('auth.changePassword.newPasswordMin8') },
               {
                 pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                message: '大文字、小文字、数字を含める必要があります',
+                message: t('auth.changePassword.newPasswordPattern'),
               },
             ]}
             hasFeedback
           >
             <Input.Password
               prefix={<LockOutlined />}
-              placeholder="8文字以上（大文字、小文字、数字を含む）"
+              placeholder={t('auth.changePassword.newPasswordPlaceholder')}
               iconRender={(visible) =>
                 visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
               }
@@ -127,24 +129,24 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           {/* 新しいパスワード（確認） */}
           <Form.Item
             name="confirmPassword"
-            label="新しいパスワード（確認）"
+            label={t('auth.changePassword.confirmPasswordLabel')}
             dependencies={['newPassword']}
             hasFeedback
             rules={[
-              { required: true, message: 'パスワードを再入力してください' },
+              { required: true, message: t('auth.changePassword.confirmPasswordRequired') },
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   if (!value || getFieldValue('newPassword') === value) {
                     return Promise.resolve();
                   }
-                  return Promise.reject(new Error('パスワードが一致しません'));
+                  return Promise.reject(new Error(t('auth.passwordReset.confirmPasswordMismatch')));
                 },
               }),
             ]}
           >
             <Input.Password
               prefix={<LockOutlined />}
-              placeholder="新しいパスワードを再入力"
+              placeholder={t('auth.passwordReset.confirmPasswordPlaceholder')}
               iconRender={(visible) =>
                 visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
               }
@@ -160,7 +162,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
               block
               size="large"
             >
-              パスワードを変更
+              {t('auth.passwordReset.changePasswordButton')}
             </Button>
           </Form.Item>
         </Form>
