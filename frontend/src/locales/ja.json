@@ -54,7 +54,10 @@
     "selected": "選択中",
     "notSelected": "未選択",
     "readOnly": "読み取り専用",
-    "countUnit": "件"
+    "countUnit": "件",
+    "import": "取り込む",
+    "otherUser": "他のユーザー",
+    "unknown": "不明"
   },
   "languages": {
     "ja": "日本語",
@@ -825,8 +828,18 @@
       "requireInstruction": "プロジェクト指示またはタスク指示を最低1つ設定してください",
       "selectMethods": "保存するメソッドを選択してください",
       "selectAllMethodsFirst": "初回保存時は全てのメソッドを選択する必要があります",
-      "cannotChangeOrder": "チェックアウト済みのメソッドは順序変更できません"
+      "cannotChangeOrder": "チェックアウト済みのメソッドは順序変更できません",
+      "fetchFailed": "タスク登録情報の取得に失敗しました",
+      "saveFailed": "タスク情報の保存に失敗しました"
     }
+  },
+  "taskStatus": {
+    "not_started": "未着手",
+    "started": "着手",
+    "in_progress": "進行中",
+    "suspended": "中断",
+    "forced_terminated": "強制終了",
+    "completed": "完了"
   },
   "corporationManagement": {
     "title": "会社管理",
@@ -1115,6 +1128,7 @@
       "csvUploadSuccess": "CSVファイルをアップロードしました",
       "csvUploadError": "CSVアップロードに失敗しました",
       "csvDownloadSuccess": "CSVファイルをダウンロードしました",
+      "csvDownloadError": "CSVダウンロードに失敗しました",
       "saveSuccess": "ユーザー情報を更新しました",
       "addSuccess": "ユーザーを追加しました",
       "saveError": "保存に失敗しました"
@@ -1276,7 +1290,8 @@
     "buttons": {
       "reload": "リロード",
       "terminate": "終了",
-      "self": "自分"
+      "self": "自分",
+      "cancel": "キャンセル"
     },
     "autoRefresh": {
       "label": "自動更新",
@@ -1948,10 +1963,18 @@
       "local_downloaded": "ペトリネット \"{name}\" をダウンロードしました",
       "save_failed": "保存に失敗しました: {message}\n\n詳細はコンソールログを確認してください。"
     },
-    "template": {
-      "xmlConvFailed": "XMLへの変換に失敗しました",
-      "previewFailed": "プレビューの読み込みに失敗しました"
-    },
+      "template": {
+        "xmlConvFailed": "XMLへの変換に失敗しました",
+        "previewFailed": "プレビューの読み込みに失敗しました",
+        "idRequired": "テンプレートIDを入力してください",
+        "propKeyRequired": "プロパティキーを入力してください",
+        "propKeyDuplicate": "同じキーのプロパティが既に存在します",
+        "nsFileRequired": "テンプレートファイルを選択してください",
+        "nsImportFailed": "名前空間の取り込みに失敗しました",
+        "noDataToImport": "取り込むデータがありません",
+        "xmlParseFailed": "XMLのパースに失敗しました。UI編集タブに切り替えますが、XMLの変更は反映されません。",
+        "xmlValid": "✅ XMLは有効です！"
+      },
     "templateXml": {
       "parseError": "XML形式が不正です",
       "invalidRoot": "不正なルート要素: {{tag}}",
@@ -2141,7 +2164,9 @@
     "maimlFileDeleteNote": "※ プロジェクトステータスがタスク計画中の場合のみ削除できます",
     "folderDeleteConfirmTitle": "フォルダ「{name}」を削除しますか？",
     "validationErrorTooltip": "バリデーションエラーがあります（{count}件）",
-    "validationWarningTooltip": "バリデーション警告があります（{count}件）"
+    "validationWarningTooltip": "バリデーション警告があります（{count}件）",
+    "maimlFileUpdatedWarning": "MAIMLファイルが更新されました。最新の内容を確認してください。",
+    "processingFailed": "処理に失敗しました"
   },
   "worker": {
     "approvalRequestSent": "承認依頼を送信しました",
@@ -2248,6 +2273,7 @@
     "hint5": "XML署名を有効にすると、MaiML保存時に自動的に署名が追加されます"
   },
   "instruction": {
+    "contentRequired": "内容を入力してください",
     "priority": {
       "high": "高",
       "medium": "中",
@@ -2404,6 +2430,7 @@
   },
   "formatSearch": {
     "title": "フォーマットファイル詳細検索",
+    "description": "検索条件に一致するフォーマットファイル（XML/MAIML）を表示します。",
     "alertTitle": "MAIML統合テーブル高速検索",
     "alertDesc": "高速化されたMaiML統合テーブル検索で、検索条件に一致するフォーマットファイル（XML/MAIML）を表示します。最大5つまで検索条件を組み合わせることができます。",
     "conditionsTitle": "検索条件",
