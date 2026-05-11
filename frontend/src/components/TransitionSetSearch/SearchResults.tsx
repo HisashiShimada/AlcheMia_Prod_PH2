@@ -77,7 +77,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   }
 
   if (error) {
-    return <Alert type="error" message="検索エラー" description={error} showIcon />;
+    return <Alert type="error" title="検索エラー" description={error} showIcon />;
   }
 
   if (!searched) {

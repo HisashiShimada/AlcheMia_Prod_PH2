@@ -21,7 +21,6 @@ import {
   Statistic,
   Row,
   Col,
-  Divider,
   Tooltip,
 } from 'antd';
 import {
@@ -182,7 +181,7 @@ const TransitionSetBatchProcessingPanel: React.FC = () => {
               <Statistic
                 title="失敗ファイル"
                 value={stats.total_files_failed}
-                valueStyle={{ color: stats.total_files_failed > 0 ? '#ff4d4f' : undefined }}
+                styles={{ content: { color: stats.total_files_failed > 0 ? '#ff4d4f' : undefined } }}
               />
             </Col>
             <Col span={6}>

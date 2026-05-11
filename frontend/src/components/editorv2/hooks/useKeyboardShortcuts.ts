@@ -7,9 +7,9 @@
  * @date 2026-01-30
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Node } from 'reactflow';
-import { NodeData, EdgeData } from '../../../types/editor';
+import { NodeData } from '../../../types/editor';
 import { ClipboardData } from '../../../types/editor';
 
 export interface UseKeyboardShortcutsProps {

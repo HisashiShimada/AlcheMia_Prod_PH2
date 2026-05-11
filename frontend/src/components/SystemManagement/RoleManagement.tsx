@@ -14,7 +14,6 @@ import {
   Row,
   Col,
   theme,
-  Checkbox,
 } from 'antd';
 import {
   SearchOutlined,
@@ -26,15 +25,11 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import Papa from 'papaparse';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { getRoleConfig } from '@/types/roleTypes';
 import { getMenuPermission } from '@/utils/menuPermissions';
-import type { RoleConfig, FieldConfig } from '@/types/roleTypes';
 import {
   fetchMasters,
-  createMaster,
-  updateMaster,
   updateMasterStatus,
   batchUpdateMasterStatus,
   uploadCsv,
@@ -719,10 +714,10 @@ export default function RoleManagementMock() {
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredMasters}
-          rowKey={(record, index) => {
-            if (!selectedMasterInfo) return String(index);
+          rowKey={(record) => {
+            if (!selectedMasterInfo) return String(record.role ?? record.roleName ?? JSON.stringify(record));
             const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
-            return String(record[idField] ?? index);
+            return String(record[idField] ?? `${record.role}_${record.functionName}`);
           }}
           onRow={(record) => ({
             style: { backgroundColor: record.isActive === false ? '#D3D3D3' : undefined },

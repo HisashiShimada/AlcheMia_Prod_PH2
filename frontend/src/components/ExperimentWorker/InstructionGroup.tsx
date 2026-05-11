@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Button, Space, Typography, Empty, theme } from 'antd';
-import { CheckCircleOutlined, FileOutlined, ToolOutlined, AimOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, ToolOutlined, AimOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
 import type { Instruction, ProjectStatus } from '@/types/experimentWorker';
 import { InstructionType, InstructionEmptyMessageKey } from '@/constants/instructionType';
 import InstructionCard from './InstructionCard';

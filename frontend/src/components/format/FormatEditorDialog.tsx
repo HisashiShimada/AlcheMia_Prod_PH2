@@ -27,22 +27,14 @@ import {
 } from 'antd';
 import {
   SaveOutlined,
-  ThunderboltOutlined,
-  CloseOutlined,
   ExperimentOutlined,
   SettingOutlined,
   BarChartOutlined,
   PlusOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  RightOutlined,
-  CopyOutlined,
   DownloadOutlined,
   FileSearchOutlined,
-  FolderOutlined,
-  FileOutlined,
 } from '@ant-design/icons';
-import { fetchTemplateFiles, fetchTemplateContent, type ListFormatsResponse, type FormatTemplateFile } from '@/services/templateApi';
+import { fetchTemplateFiles, fetchTemplateContent, type FormatTemplateFile } from '@/services/templateApi';
 import type { 
   NodeData, 
   TemplateError,

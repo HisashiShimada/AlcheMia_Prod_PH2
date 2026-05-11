@@ -13,7 +13,6 @@ import ReactFlow, {
   Node,
   Edge,
   ReactFlowProvider,
-  Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Card, Button, Space, Typography, Alert, Spin, Flex, Switch, Dropdown, message } from 'antd';
@@ -21,10 +20,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import type { MenuProps } from 'antd';
 import { 
   DownloadOutlined,
-  ZoomInOutlined,
-  ZoomOutOutlined,
-  ReloadOutlined,
-  FullscreenOutlined,
 } from '@ant-design/icons';
 
 // カスタムノードコンポーネント
@@ -596,7 +591,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   if (!maimlData && !dotData) {
     return (
       <Alert
-        message={t('viewer.noData')}
+        title={t('viewer.noData')}
         description={t('viewer.noDataDesc')}
         type="info"
         showIcon
@@ -625,7 +620,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   if (error) {
     return (
       <Alert
-        message={t('viewer.error')}
+        title={t('viewer.error')}
         description={error}
         type="error"
         showIcon
@@ -747,7 +742,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
           setSelectedNode(null);
           setSelectedNodeId(null);
         }}
-        width={450}
+        size="large"
         getContainer={containerElementId ? () => document.getElementById(containerElementId) as HTMLElement : document.body}
         styles={{ body: { padding: 0 } }}
       >

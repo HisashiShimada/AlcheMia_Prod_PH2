@@ -1434,7 +1434,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           </Space>
 
           {Object.keys(properties).length === 0 ? (
-            <Alert message={t('template.propertiesEmpty')} type="info" />
+            <Alert title={t('template.propertiesEmpty')} type="info" />
           ) : (
             Object.entries(properties).map(([key, data]) => (
               <NestedPropertyEditor
@@ -1566,7 +1566,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               </Space>
 
               {Object.keys(contents).length === 0 ? (
-                <Alert message={t('template.contentsEmpty')} type="info" />
+                <Alert title={t('template.contentsEmpty')} type="info" />
               ) : (
                 Object.entries(contents).map(([key, data]) => (
                   <NestedPropertyEditor

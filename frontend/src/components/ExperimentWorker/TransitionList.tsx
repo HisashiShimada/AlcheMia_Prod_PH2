@@ -9,7 +9,6 @@ import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus,
 import { getIssues, createIssue, addComment, updateIssueStatus } from '@/services/issueApiService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
-import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 
@@ -536,7 +535,6 @@ export default function TransitionList({
             showQuickJumper: false,
             showTotal: (total) => `${t('common.total')}${total}${t('common.items')}`,
             pageSizeOptions: ['20', '50', '100'],
-            position: ['bottomRight'],
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
 

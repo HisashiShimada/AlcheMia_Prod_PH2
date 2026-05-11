@@ -63,8 +63,6 @@ import {
   checkoutProject,
   checkinProject,
   completeReviewTasks,
-  publishProject,
-  unpublishProject,
   getPublishStatus,
   deleteProject as deleteProjectApi,
   type CreateProjectRequest,
