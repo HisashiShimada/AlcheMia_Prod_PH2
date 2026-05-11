@@ -536,7 +536,6 @@ export default function TransitionList({
             showQuickJumper: false,
             showTotal: (total) => `${t('common.total')}${total}${t('common.items')}`,
             pageSizeOptions: ['20', '50', '100'],
-            position: ['bottomRight'],
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
 

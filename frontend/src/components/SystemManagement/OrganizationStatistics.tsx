@@ -120,7 +120,7 @@ const OrganizationStatisticsMock: React.FC = () => {
                 value={statistics.storage.used}
                 precision={4}
                 suffix={`/ ${statistics.storage.total.toFixed(4)} ${statistics.storage.unit}`}
-                valueStyle={{ fontSize: '28px', fontWeight: 'bold', color: '#212121' }}
+                styles={{ content: { fontSize: '28px', fontWeight: 'bold', color: '#212121' } }}
               />
               <div style={{ fontSize: '12px', color: '#9e9e9e', marginTop: '8px' }}>
                 {t('organizationStatistics.storage.usageRate')}: {(statistics.storage.usageRate * 100).toFixed(2)}%
@@ -151,7 +151,7 @@ const OrganizationStatisticsMock: React.FC = () => {
               <Statistic
                 value={statistics.projects.count}
                 suffix={`/ ${statistics.projects.total}`}
-                valueStyle={{ fontSize: '28px', fontWeight: 'bold', color: '#212121' }}
+                styles={{ content: { fontSize: '28px', fontWeight: 'bold', color: '#212121' } }}
               />
               <div style={{ fontSize: '12px', color: '#9e9e9e', marginTop: '8px' }}>
                 {t('organizationStatistics.projects.registrationRate')}: {statistics.projects.registrationRate.toFixed(2)}%
@@ -179,7 +179,7 @@ const OrganizationStatisticsMock: React.FC = () => {
               <Statistic
                 value={statistics.activeUsers.count}
                 suffix={`/ ${statistics.activeUsers.total}`}
-                valueStyle={{ fontSize: '28px', fontWeight: 'bold', color: '#212121' }}
+                styles={{ content: { fontSize: '28px', fontWeight: 'bold', color: '#212121' } }}
               />
               <div style={{ fontSize: '12px', color: '#9e9e9e', marginTop: '8px' }}>
                 {t('organizationStatistics.activeUsers.registrationRate')}: {statistics.activeUsers.registrationRate.toFixed(2)}%

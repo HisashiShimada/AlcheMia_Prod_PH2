@@ -596,7 +596,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   if (!maimlData && !dotData) {
     return (
       <Alert
-        message={t('viewer.noData')}
+        title={t('viewer.noData')}
         description={t('viewer.noDataDesc')}
         type="info"
         showIcon
@@ -625,7 +625,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   if (error) {
     return (
       <Alert
-        message={t('viewer.error')}
+        title={t('viewer.error')}
         description={error}
         type="error"
         showIcon
@@ -747,7 +747,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
           setSelectedNode(null);
           setSelectedNodeId(null);
         }}
-        width={450}
+        size="large"
         getContainer={containerElementId ? () => document.getElementById(containerElementId) as HTMLElement : document.body}
         styles={{ body: { padding: 0 } }}
       >
