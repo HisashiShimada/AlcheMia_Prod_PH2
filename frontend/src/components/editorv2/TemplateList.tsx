@@ -6,7 +6,7 @@
 import React from 'react';
 import { Card, Typography, Badge, Spin, Checkbox, Tooltip, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useTemplates } from '../../../../contexts/TemplateContext';
+import { useTemplates } from '../../contexts/TemplateContext';
 import TemplateItem from './TemplateItem';
 import { Template } from '@/types/maiml-unified';
 import type { TemplatesByCategory } from '@/types/editor';

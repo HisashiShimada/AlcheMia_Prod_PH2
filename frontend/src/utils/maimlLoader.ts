@@ -8,9 +8,9 @@
  */
 
 import type { Node, Edge } from 'reactflow';
-import { maimlToReactFlow } from '../utils/converters/maimlToReactFlow';
-import type { NodeData, EdgeData } from '../../../types/editor';
-import { getTranslation } from '../../../contexts/LanguageContext';
+import { maimlToReactFlow } from './maimlToReactFlow';
+import type { NodeData, EdgeData } from '../types/editor';
+import { getTranslation } from '../contexts/LanguageContext';
 
 export interface LoadMaimlResult {
   nodes: Node<NodeData>[];

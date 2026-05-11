@@ -33,10 +33,10 @@ import dayjs from 'dayjs';
 import MultiObjectEditor from './MultiObjectEditor';
 import type { 
   DocumentData,
-} from '../../../types/editor';
+} from '../../types/editor';
 import {
   DocumentTagData,
-} from '../../../types/maiml-unified'
+} from '../../types/maiml-unified'
 import { fetchMasters, type CreatorRecord, type VendorRecord, type InstrumentRecord } from '@/services/masterApiService';
 import { useLanguage } from '@/contexts/LanguageContext';
 

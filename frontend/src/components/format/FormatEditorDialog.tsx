@@ -40,7 +40,7 @@ import type {
   TemplateError,
 } from '../../types/editor';
 import { Template, Insertion, PlaceRef, Property, Content } from '@/types/maiml-unified';
-import NestedPropertyEditor, { type PropertyData } from '../editorv2/components/NestedPropertyEditor';
+import NestedPropertyEditor, { type PropertyData } from '../editorv2/NestedPropertyEditor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {
@@ -50,7 +50,7 @@ import {
   convertPropertyDataToContentsArray,
   parseNamespacesFromXml,
   buildTreeData,
-} from '../editorv2/utils/templateConverter';
+} from '../../utils/templateConverter';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
