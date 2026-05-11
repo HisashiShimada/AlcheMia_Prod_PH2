@@ -10,7 +10,7 @@ import { getMessage } from '../utils/messages';
 import { UserSearchFilters } from '../types/database';
 import Papa from 'papaparse';
 import { getPgp } from '../database/db';
-import { AppError, E1003, E1004, E6001, E1005 } from '../enums/errorCodes';
+import { AppError, E1004, E1005 } from '../enums/errorCodes';
 
 /**
  * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）

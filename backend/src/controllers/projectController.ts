@@ -9,7 +9,7 @@ import { Request, Response } from 'express';
 import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
-import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse,MaimlPublishRequest } from '../types/api';
+import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse } from '../types/api';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { enqueuePublish, enqueueUnpublish, getPublishStatus as fetchPublishStatus } from '../services/maimlPublishService';
 import { getPool } from '../database/db';

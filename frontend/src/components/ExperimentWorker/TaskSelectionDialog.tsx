@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Typography, Space, Tag, Button, theme } from 'antd';
+import { Modal, Typography, Space, Tag, theme } from 'antd';
 import { AimOutlined, CheckOutlined } from '@ant-design/icons';
 import { Method, Task } from '@/types/experimentWorker';
 import { useLanguage } from '@/contexts/LanguageContext';

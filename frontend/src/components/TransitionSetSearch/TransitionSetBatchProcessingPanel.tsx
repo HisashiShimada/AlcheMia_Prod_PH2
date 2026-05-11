@@ -21,7 +21,6 @@ import {
   Statistic,
   Row,
   Col,
-  Divider,
   Tooltip,
 } from 'antd';
 import {

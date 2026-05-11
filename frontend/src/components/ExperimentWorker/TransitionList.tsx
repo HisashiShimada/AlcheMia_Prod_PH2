@@ -9,7 +9,6 @@ import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus,
 import { getIssues, createIssue, addComment, updateIssueStatus } from '@/services/issueApiService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
-import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 

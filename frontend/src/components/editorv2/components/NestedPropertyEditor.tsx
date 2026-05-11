@@ -7,7 +7,7 @@
  * @date 2026-02-13
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   AutoComplete,
   Button,
@@ -22,7 +22,6 @@ import {
   Modal,
   App,
   DatePicker,
-  Tooltip,
 } from 'antd';
 import {
   CloseOutlined,
@@ -42,7 +41,7 @@ import {
 } from '@/utils/xsiTypeValidator';
 import { getAllowedAttributeNames } from '@/utils/xsiTypeAttributes';
 import type { AttributeRecord } from '@/services/masterApiService';
-import { useLanguage, getTranslation } from '@/contexts/LanguageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 const { TextArea } = Input;

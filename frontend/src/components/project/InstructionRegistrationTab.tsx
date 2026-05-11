@@ -8,7 +8,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Card,
   Button,
   Table,
   Space,
@@ -20,7 +19,6 @@ import {
   Empty,
 } from 'antd';
 import {
-  PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SendOutlined,
@@ -31,13 +29,11 @@ import InstructionEditDialog from './InstructionEditDialog';
 import type {
   InstructionData,
   TransitionInfo,
-  InstructionRegistrationData,
 } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import {
-  getTaskRegistrationStatus,
   sendInstructions,
   getInstructions,
   saveInstruction,
@@ -45,7 +41,6 @@ import {
   deleteInstruction,
   getTaskRegistration,
 } from '@/services/projectApiService';
-import type { TaskInput } from '@/types/api';
 
 const { Text } = Typography;
 const { useToken } = theme;

@@ -13,7 +13,6 @@ import ReactFlow, {
   Node,
   Edge,
   ReactFlowProvider,
-  Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Card, Button, Space, Typography, Alert, Spin, Flex, Switch, Dropdown, message } from 'antd';
@@ -21,10 +20,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import type { MenuProps } from 'antd';
 import { 
   DownloadOutlined,
-  ZoomInOutlined,
-  ZoomOutOutlined,
-  ReloadOutlined,
-  FullscreenOutlined,
 } from '@ant-design/icons';
 
 // カスタムノードコンポーネント
