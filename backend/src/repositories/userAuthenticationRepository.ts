@@ -186,7 +186,7 @@ export class UserAuthenticationRepository {
       const query = `
         UPDATE user_authentication
         SET password = $1,
-            password_expires_at = NOW() + INTERVAL '30 days',
+            password_expires_at = NULL,
             is_temporary_flg = false,
             update_at = NOW()
         WHERE user_id = $2 AND organization_id = $3
