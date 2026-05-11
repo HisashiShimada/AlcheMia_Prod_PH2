@@ -14,7 +14,7 @@ import {
   EditState,
 } from '../../../types/editor';
 import * as draftService from '@/services/draftService';
-import { AUTO_SAVE_PREFIX, isAutoSaveDraft } from '@/constants/draftConstants';
+import { isAutoSaveDraft } from '@/constants/draftConstants';
 
 /**
  * useDraftManagerオプションの型定義

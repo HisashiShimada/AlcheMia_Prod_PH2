@@ -23,7 +23,6 @@ import type {
   Property,
   Content,
   Insertion,
-  Event,
 } from '../types/maiml-unified';
 import type {
   ParsedMaimlData,

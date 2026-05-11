@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Spin, message } from 'antd';
+import { Button, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { ReactFlowProvider } from 'reactflow';
 import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';

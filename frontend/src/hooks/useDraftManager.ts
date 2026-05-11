@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Node, Edge } from 'reactflow';
 import { DocumentData } from '../utils/documentParser';
-import { AUTO_SAVE_PREFIX, isAutoSaveDraft } from '../constants/draftConstants';
+import { isAutoSaveDraft } from '../constants/draftConstants';
 
 /**
  * Draft情報の型定義

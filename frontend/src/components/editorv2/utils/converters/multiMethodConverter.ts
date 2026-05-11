@@ -26,7 +26,7 @@ import type {
 
 import type { Node, Edge } from 'reactflow';
 
-import type { Reference, Property, PlaceRef, Template } from '@/types/maiml-unified';
+import type { Property, PlaceRef, Template } from '@/types/maiml-unified';
 
 /**
  * メタデータ
