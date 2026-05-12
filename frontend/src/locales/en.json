@@ -1797,6 +1797,8 @@
       "title": "Change Password (Required)",
       "alertTitle": "You are logged in with a temporary password",
       "alertDescription": "Please change your password for security. The temporary password expires in 24 hours.",
+      "expiredAlertTitle": "Your password has expired",
+      "expiredAlertDescription": "Your password has expired. Please set a new password.",
       "errorMessage": "An error occurred while changing the password",
       "currentPasswordLabel": "Current Password (Temporary Password)",
       "currentPasswordRequired": "Please enter your current password",
