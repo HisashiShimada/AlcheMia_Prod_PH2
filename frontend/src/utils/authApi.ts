@@ -12,7 +12,7 @@ import type {
   MessageResponse,
   ErrorResponse,
 } from '../types/auth';
-import { mapErrorToMessage } from './errorMapper';
+import { mapErrorToMessage } from './errorUtils';
 
 // API ベースURL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';

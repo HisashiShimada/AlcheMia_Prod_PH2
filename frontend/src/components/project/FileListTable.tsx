@@ -28,7 +28,7 @@ import {
   MoreOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
+import { formatFileSize, formatRelativeTime } from '@/utils/formatUtils';
 import {
   getFileDownloadUrlByKey,
   renameFile,
