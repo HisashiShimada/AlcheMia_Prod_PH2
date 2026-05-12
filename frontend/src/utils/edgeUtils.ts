@@ -9,8 +9,8 @@
 
 import type { Node, Edge } from 'reactflow';
 import { getNodeType } from './nodeUtils';
-import { EdgeData, NodeData } from '../../../types/editor';
-import { getTranslation } from '../../../contexts/LanguageContext';
+import { EdgeData, NodeData } from '../types/editor';
+import { getTranslation } from '../contexts/LanguageContext';
 
 /**
  * エッジの生成

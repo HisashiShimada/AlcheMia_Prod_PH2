@@ -11,10 +11,10 @@
 import React, { useState, useEffect } from 'react';
 import { Spin } from 'antd';
 import XMLViewer from './XMLViewer';
-import { convertReactFlowToMaiML } from '../utils/converters/reactFlowToMaiml';
-import { convertMultipleMethodsToMaiML } from '../utils/converters/multiMethodConverter';
+import { convertReactFlowToMaiML } from '../../utils/reactFlowToMaiml';
+import { convertMultipleMethodsToMaiML } from '../../utils/multiMethodConverter';
 import type { Node, Edge } from 'reactflow';
-import type { NodeData, EdgeData, DocumentData, MethodData } from '../../../types/editor';
+import type { NodeData, EdgeData, DocumentData, MethodData } from '../../types/editor';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 /**

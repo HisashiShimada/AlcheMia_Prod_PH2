@@ -8,8 +8,8 @@
  */
 
 import type { Node } from 'reactflow';
-import { NodeData } from '../../../types/editor';
-import { getTranslation } from '../../../contexts/LanguageContext';
+import { NodeData } from '../types/editor';
+import { getTranslation } from '../contexts/LanguageContext';
 
 /**
  * ノードタイプの定義

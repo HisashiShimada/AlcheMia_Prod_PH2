@@ -9,7 +9,7 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Alert, Typography, Space, theme } from 'antd';
 import { LockOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { resetPassword } from '../../utils/authApi';
+import { authService, AuthServiceError } from '@/services/authService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -60,11 +60,11 @@ export default function PasswordResetExecute({
     setError(null);
 
     try {
-      await resetPassword(resetToken, values.newPassword);
+      await authService.resetPassword(resetToken, values.newPassword);
       
       onSuccess();
     } catch (err) {
-      const errorMessage = extractErrorMessage(err);
+      const errorMessage = err instanceof AuthServiceError ? err.message : extractErrorMessage(err);
       setError(errorMessage);
       onError(errorMessage);
     } finally {

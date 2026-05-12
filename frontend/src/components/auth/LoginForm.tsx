@@ -10,8 +10,8 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Alert, theme } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { login } from '../../utils/authApi';
-import type { LoginResponse } from '../../types/auth';
+import { authService, AuthServiceError } from '@/services/authService';
+import type { LoginResponseData } from '@/types/api';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -22,7 +22,7 @@ interface LoginFormProps {
    * ログイン成功時のコールバック
    * @param response - ログインAPIレスポンス
    */
-  onSuccess: (response: LoginResponse) => void;
+  onSuccess: (response: LoginResponseData) => void;
   
   /**
    * ログイン失敗時のコールバック
@@ -69,15 +69,14 @@ export default function LoginForm({
     setError(null);
 
     try {
-      const response = await login(
-        values.username.trim(),
-        values.password,
+      const response = await authService.login(
+        { userId: values.username.trim(), password: values.password, organizationId },
         organizationId
       );
       
       onSuccess(response);
     } catch (err) {
-      const errorMessage = extractErrorMessage(err);
+      const errorMessage = err instanceof AuthServiceError ? err.message : extractErrorMessage(err);
       setError(errorMessage);
       onError(errorMessage);
     } finally {

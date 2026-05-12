@@ -13,12 +13,32 @@ import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import AuthContainer from '../AuthContainer';
-import * as authApi from '../../../utils/authApi';
-import type { LoginResponse, ROLE_REDIRECT_MAP } from '../../../types/auth';
+import { authService } from '@/services/authService';
+import type { LoginResponseData } from '@/types/api';
+import type { ROLE_REDIRECT_MAP } from '../../../types/auth';
 
-// authApiをモック化
-jest.mock('../../../utils/authApi');
-const mockedAuthApi = authApi as jest.Mocked<typeof authApi>;
+// authServiceをモック化
+jest.mock('@/services/authService', () => ({
+  authService: {
+    login: jest.fn(),
+    verifyPin: jest.fn(),
+    resendPin: jest.fn(),
+    resetPasswordRequest: jest.fn(),
+    resetPassword: jest.fn(),
+    logout: jest.fn(),
+    refreshToken: jest.fn(),
+    refreshAccessToken: jest.fn(),
+    changePassword: jest.fn(),
+  },
+  AuthServiceError: class AuthServiceError extends Error {
+    code: string;
+    constructor(message: string, code: string) {
+      super(message);
+      this.code = code;
+    }
+  },
+}));
+const mockedAuthService = authService as jest.Mocked<typeof authService>;
 
 // Next.js routerをモック化
 const mockPush = jest.fn();
@@ -79,7 +99,7 @@ describe('AuthContainer アクセシビリティテスト', () => {
     test('エラーメッセージがaria-describedbyで入力フィールドに関連付けられている', async () => {
       const user = userEvent.setup();
       
-      mockedAuthApi.login.mockRejectedValueOnce(
+      mockedAuthService.login.mockRejectedValueOnce(
         new Error('ユーザー名またはパスワードが正しくありません')
       );
 
@@ -118,13 +138,13 @@ describe('AuthContainer アクセシビリティテスト', () => {
     test('PINコード入力画面でもaria属性が適切に設定されている', async () => {
       const user = userEvent.setup();
 
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 300,
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       render(
         <AuthContainer
@@ -176,13 +196,13 @@ describe('AuthContainer アクセシビリティテスト', () => {
     test('Enterキーでログインフォームを送信できる', async () => {
       const user = userEvent.setup();
 
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 300,
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       render(
         <AuthContainer
@@ -198,20 +218,20 @@ describe('AuthContainer アクセシビリティテスト', () => {
       await user.keyboard('{Enter}');
 
       await waitFor(() => {
-        expect(mockedAuthApi.login).toHaveBeenCalled();
+        expect(mockedAuthService.login).toHaveBeenCalled();
       });
     });
 
     test('PINコード入力後Enterキーで検証できる', async () => {
       const user = userEvent.setup();
 
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 300,
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       render(
         <AuthContainer
@@ -235,7 +255,7 @@ describe('AuthContainer アクセシビリティテスト', () => {
       await user.keyboard('{Enter}');
 
       await waitFor(() => {
-        expect(mockedAuthApi.verifyPin).toHaveBeenCalled();
+        expect(mockedAuthService.verifyPin).toHaveBeenCalled();
       });
     });
   });
@@ -259,13 +279,13 @@ describe('AuthContainer アクセシビリティテスト', () => {
     test('PINコード入力画面に遷移時、PINコード入力フィールドにフォーカスされる', async () => {
       const user = userEvent.setup();
 
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 300,
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       render(
         <AuthContainer
@@ -288,7 +308,7 @@ describe('AuthContainer アクセシビリティテスト', () => {
     test('エラー発生時、フォーカスが適切なフィールドに移動する', async () => {
       const user = userEvent.setup();
 
-      mockedAuthApi.login.mockRejectedValueOnce(
+      mockedAuthService.login.mockRejectedValueOnce(
         new Error('ユーザー名またはパスワードが正しくありません')
       );
 
@@ -319,7 +339,7 @@ describe('AuthContainer アクセシビリティテスト', () => {
       const user = userEvent.setup();
 
       // ローディングが長時間続くようにモック
-      mockedAuthApi.login.mockImplementation(
+      mockedAuthService.login.mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(
@@ -355,7 +375,7 @@ describe('AuthContainer アクセシビリティテスト', () => {
     test('エラーメッセージがroleを持ち、スクリーンリーダーで読み上げられる', async () => {
       const user = userEvent.setup();
 
-      mockedAuthApi.login.mockRejectedValueOnce(
+      mockedAuthService.login.mockRejectedValueOnce(
         new Error('ユーザー名またはパスワードが正しくありません')
       );
 
@@ -384,13 +404,13 @@ describe('AuthContainer アクセシビリティテスト', () => {
     test('動的コンテンツの変更がaria-liveで通知される', async () => {
       const user = userEvent.setup();
 
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 300,
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       render(
         <AuthContainer
@@ -431,7 +451,7 @@ describe('AuthContainer アクセシビリティテスト', () => {
     test('色だけに依存しない情報伝達（エラーメッセージにはテキストとアイコン）', async () => {
       const user = userEvent.setup();
 
-      mockedAuthApi.login.mockRejectedValueOnce(
+      mockedAuthService.login.mockRejectedValueOnce(
         new Error('ユーザー名またはパスワードが正しくありません')
       );
 

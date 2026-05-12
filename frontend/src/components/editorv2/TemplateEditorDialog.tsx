@@ -42,10 +42,10 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import type { 
   NodeData, 
   TemplateError,
-} from '../../../types/editor';
+} from '../../types/editor';
 import { Template, Insertion, PlaceRef} from '@/types/maiml-unified';
 import NestedPropertyEditor, { type PropertyData } from './NestedPropertyEditor';
-import useNamespaceOperations, { type NamespaceData } from '../hooks/useNamespaceOperations';
+import useNamespaceOperations, { type NamespaceData } from '../../hooks/useNamespaceOperations';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {
   convertPropertiesArrayToNestedFormat,
@@ -53,7 +53,7 @@ import {
   convertPropertyDataToPropertiesArray,
   convertPropertyDataToContentsArray,
   convertContentsArrayToNestedFormat,
-} from '../utils/templateConverter';
+} from '../../utils/templateConverter';
 import {
   convertTemplateToXML,
   parseXMLToTemplate,
@@ -61,7 +61,7 @@ import {
   type ParseError,
   type NestedPropertyData,
   type NestedContentData,
-} from '../utils/converters/templateToXML';
+} from '../../utils/templateToXML';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

@@ -54,7 +54,10 @@
     "selected": "Selected",
     "notSelected": "Not Selected",
     "readOnly": "Read Only",
-    "countUnit": ""
+    "countUnit": "",
+    "import": "Import",
+    "otherUser": "Other User",
+    "unknown": "Unknown"
   },
   "languages": {
     "ja": "日本語",
@@ -828,8 +831,18 @@
       "requireInstruction": "Please set at least one project instruction or task instruction",
       "selectMethods": "Please select methods to save",
       "selectAllMethodsFirst": "All methods must be selected for initial save",
-      "cannotChangeOrder": "Cannot change order of checked-out methods"
+      "cannotChangeOrder": "Cannot change order of checked-out methods",
+      "fetchFailed": "Failed to fetch task registration information",
+      "saveFailed": "Failed to save task information"
     }
+  },
+  "taskStatus": {
+    "not_started": "Not Started",
+    "started": "Started",
+    "in_progress": "In Progress",
+    "suspended": "Suspended",
+    "forced_terminated": "Force Terminated",
+    "completed": "Completed"
   },
   "corporationManagement": {
     "title": "Corporation Management",
@@ -1118,6 +1131,7 @@
       "csvUploadSuccess": "CSV file uploaded",
       "csvUploadError": "Failed to upload CSV",
       "csvDownloadSuccess": "CSV file downloaded",
+      "csvDownloadError": "Failed to download CSV",
       "saveSuccess": "User updated",
       "addSuccess": "User added",
       "saveError": "Failed to save"
@@ -1279,7 +1293,8 @@
     "buttons": {
       "reload": "Reload",
       "terminate": "Terminate",
-      "self": "You"
+      "self": "You",
+      "cancel": "Cancel"
     },
     "autoRefresh": {
       "label": "Auto Refresh",
@@ -1952,7 +1967,15 @@
     },
     "template": {
       "xmlConvFailed": "Failed to convert to XML",
-      "previewFailed": "Failed to load preview"
+      "previewFailed": "Failed to load preview",
+      "idRequired": "Please enter a template ID",
+      "propKeyRequired": "Please enter a property key",
+      "propKeyDuplicate": "A property with the same key already exists",
+      "nsFileRequired": "Please select a template file",
+      "nsImportFailed": "Failed to import namespace",
+      "noDataToImport": "No data to import",
+      "xmlParseFailed": "Failed to parse XML. Switching to UI edit tab, but XML changes will not be reflected.",
+      "xmlValid": "✅ XML is valid!"
     },
     "templateXml": {
       "parseError": "Invalid XML format",
@@ -1966,6 +1989,47 @@
       "missingContentKey": "content element [{{index}}] is missing the key attribute",
       "missingContentKeyDetails": "All content elements must have a key attribute",
       "validationException": "An error occurred during validation"
+    },
+    "property": {
+      "warningCount": "⚠️ {count} Warning(s)",
+      "details": "Details:",
+      "elementType": "Element Type",
+      "arcEdge": "Arc (Edge)",
+      "arcIdHint": "Arc ID is the identifier of the edge. Changing it will update the connection information.",
+      "connectionInfo": "Connection Info",
+      "sourceTargetHint": "Source and target cannot be edited. Delete the edge and reconnect.",
+      "deleteEdge": "Delete Edge",
+      "deleteEdgeDesc": "Delete this Arc (edge).",
+      "nodeType": "Node Type",
+      "nodeId": "Node ID",
+      "nodeIdEmpty": "Node ID cannot be empty",
+      "nodeIdDuplicate": "ID \"{id}\" is already in use",
+      "nodeIdHint": "Node ID must be unique. Changing it will automatically update connection information.",
+      "name": "Name",
+      "namePlaceholder": "Enter {placeType} name",
+      "description": "Description",
+      "descriptionPlaceholder": "Enter description (optional)",
+      "commonTemplate": "Register as Common Template",
+      "commonTemplateHint": "When ON, this Place's template can be referenced from other methods.",
+      "templateInheritance": "Template Inheritance (within same method)",
+      "noInheritance": "No inheritance",
+      "templateInheritanceHint": "Inherit a template from another Place within the same method.",
+      "commonTemplateRef": "Common Template Reference",
+      "none": "None",
+      "commonTemplateRefHint": "Inherit a template by referencing a common template.",
+      "templateInfo": "Template Info",
+      "kind": "Kind:",
+      "propertyCount": "Properties:",
+      "propertyCountUnit": "",
+      "editTemplate": "Edit Template",
+      "editTemplateDesc": "Edit the template (property definitions) for this Place.",
+      "deleteNode": "Delete Node",
+      "deleteNodeDesc": "Delete this node and all its connections.",
+      "deleteNodeTitle": "Confirm Node Deletion",
+      "deleteNodeContent": "Delete node \"{name}\"?",
+      "irreversible": "This action cannot be undone.",
+      "deleteEdgeTitle": "Confirm Edge Deletion",
+      "deleteEdgeContent": "Delete Arc \"{id}\"?"
     }
   },
   "errors": {
@@ -2102,7 +2166,9 @@
     "maimlFileDeleteNote": "* Can only be deleted when project status is Planning",
     "folderDeleteConfirmTitle": "Delete folder \"{name}\"?",
     "validationErrorTooltip": "Validation errors ({count})",
-    "validationWarningTooltip": "Validation warnings ({count})"
+    "validationWarningTooltip": "Validation warnings ({count})",
+    "maimlFileUpdatedWarning": "The MAIML file has been updated. Please check the latest content.",
+    "processingFailed": "Processing failed"
   },
   "worker": {
     "approvalRequestSent": "Approval request has been sent",
@@ -2270,6 +2336,7 @@
     }
   },
   "instruction": {
+    "contentRequired": "Please enter content",
     "priority": {
       "high": "High",
       "medium": "Medium",
@@ -2426,6 +2493,7 @@
   },
   "formatSearch": {
     "title": "Format File Advanced Search",
+    "description": "Search format files (XML/MAIML) matching your criteria.",
     "alertTitle": "MaiML Integrated Table Fast Search",
     "alertDesc": "Search format files (XML/MAIML) matching your criteria using the optimized MaiML integrated table. Up to 5 search conditions can be combined.",
     "conditionsTitle": "Search Conditions",
