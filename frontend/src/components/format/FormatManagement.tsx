@@ -40,9 +40,9 @@ import {
   buildPropertyXML, 
   buildContentXML,
   escapeXml
-} from '@/components/editorv2/utils/converters/reactFlowToMaiml';
+} from '@/utils/reactFlowToMaiml';
 import { Property, Content } from '@/types/maiml-unified';
-import { PropertyData } from '@/components/editorv2/components/NestedPropertyEditor';
+import { PropertyData } from '@/components/editorv2/NestedPropertyEditor';
 
 const { Title, Text } = Typography;
 

@@ -4,56 +4,79 @@
  * Undo/Redo機能のためのCommandパターン実装
  * Phase 3C: Undo/Redo基本機能
  * 
- * @version 2.0.0-beta (reference版と同じ)
- * @date 2025-12-23
+ * @version 2.1.0
+ * @date 2026-02-06
  */
 
 import { useState, useCallback } from 'react';
 import { Node, Edge } from 'reactflow';
-
-const MAX_HISTORY_SIZE = 50; // 履歴の最大保持数
+import type { NodeData, EdgeData } from '../types/editor';
 
 /**
- * 履歴状態の型定義
+ * 最大履歴保持数
  */
-export interface HistoryState {
-  nodes: Node[];
-  edges: Edge[];
+const MAX_HISTORY_SIZE = 50;
+
+/**
+ * エディタの状態を表す型
+ */
+export interface EditorState {
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
 }
 
 /**
- * 履歴管理の型定義
+ * 履歴構造を表す型
  */
-interface History {
-  past: HistoryState[];
-  present: HistoryState;
-  future: HistoryState[];
+export interface History {
+  past: EditorState[];      // 過去の状態配列
+  present: EditorState;     // 現在の状態
+  future: EditorState[];    // やり直し可能な状態配列
 }
 
 /**
- * useHistory戻り値の型定義
+ * useHistoryの返り値型
  */
-interface UseHistoryReturn {
+export interface UseHistoryReturn {
   history: History;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  pushState: (newState: HistoryState) => void;
-  reset: (newState: HistoryState) => void;
+  pushState: (newState: EditorState) => void;
+  reset: (newState: EditorState) => void;
 }
 
 /**
- * useHistory
+ * useHistory - 履歴管理フック
+ * 
+ * Undo/Redo機能を提供するカスタムフック
+ * CommandパターンでReact Flowのノードとエッジの状態を管理
  * 
  * @param initialState - 初期状態（nodes, edges）
  * @returns 履歴管理オブジェクト
+ * 
+ * @example
+ * ```typescript
+ * const { undo, redo, canUndo, canRedo, pushState } = useHistory({
+ *   nodes: [],
+ *   edges: []
+ * });
+ * 
+ * // 状態変更時
+ * pushState({ nodes: newNodes, edges: newEdges });
+ * 
+ * // Undo実行
+ * if (canUndo) {
+ *   undo();
+ * }
+ * ```
  */
-const useHistory = (initialState: HistoryState): UseHistoryReturn => {
+const useHistory = (initialState: EditorState): UseHistoryReturn => {
   const [history, setHistory] = useState<History>({
-    past: [],                // 過去の状態配列
-    present: initialState,   // 現在の状態
-    future: [],              // やり直し可能な状態配列
+    past: [],
+    present: initialState,
+    future: [],
   });
 
   // Undo可能かどうか
@@ -64,6 +87,8 @@ const useHistory = (initialState: HistoryState): UseHistoryReturn => {
 
   /**
    * Undo - 操作を取り消す
+   * 
+   * 現在の状態をfutureに移動し、pastから最後の状態を取り出してpresentに設定
    */
   const undo = useCallback(() => {
     if (!canUndo) {
@@ -91,6 +116,8 @@ const useHistory = (initialState: HistoryState): UseHistoryReturn => {
 
   /**
    * Redo - 操作をやり直す
+   * 
+   * 現在の状態をpastに追加し、futureから最初の状態を取り出してpresentに設定
    */
   const redo = useCallback(() => {
     if (!canRedo) {
@@ -119,9 +146,12 @@ const useHistory = (initialState: HistoryState): UseHistoryReturn => {
   /**
    * pushState - 新しい状態を履歴に追加
    * 
+   * 新しい操作が実行されたときに呼び出す
+   * futureはクリアされ、現在の状態がpastに追加される
+   * 
    * @param newState - 新しい状態
    */
-  const pushState = useCallback((newState: HistoryState) => {
+  const pushState = useCallback((newState: EditorState) => {
     setHistory((prevHistory) => {
       // 履歴サイズ制限を適用
       const newPast = [...prevHistory.past, prevHistory.present]
@@ -129,8 +159,8 @@ const useHistory = (initialState: HistoryState): UseHistoryReturn => {
 
       console.log('📝 [useHistory] 履歴追加:', {
         pastLength: newPast.length,
-        nodesCount: newState.nodes?.length,
-        edgesCount: newState.edges?.length,
+        nodesCount: newState.nodes?.length ?? 0,
+        edgesCount: newState.edges?.length ?? 0,
       });
 
       return {
@@ -144,9 +174,12 @@ const useHistory = (initialState: HistoryState): UseHistoryReturn => {
   /**
    * reset - 履歴をリセット
    * 
+   * ファイルを新規作成・読み込み時などに使用
+   * すべての履歴をクリアして新しい初期状態を設定
+   * 
    * @param newState - 新しい初期状態
    */
-  const reset = useCallback((newState: HistoryState) => {
+  const reset = useCallback((newState: EditorState) => {
     console.log('🔄 [useHistory] 履歴リセット');
     setHistory({
       past: [],
