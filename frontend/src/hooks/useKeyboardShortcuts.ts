@@ -9,8 +9,8 @@
 
 import { useEffect, useState } from 'react';
 import { Node } from 'reactflow';
-import { NodeData } from '../../../types/editor';
-import { ClipboardData } from '../../../types/editor';
+import { NodeData } from '../types/editor';
+import { ClipboardData } from '../types/editor';
 
 export interface UseKeyboardShortcutsProps {
   // 状態

@@ -8,7 +8,7 @@
 
 import { escapeXml } from './reactFlowToMaiml';
 import { Insertion, Hash } from '@/types/maiml-unified';
-import type { PropertyData } from '../../components/NestedPropertyEditor';
+import type { PropertyData } from '../components/editorv2/NestedPropertyEditor';
 import { getTranslation } from '@/contexts/LanguageContext';
 
 // ===== 型定義 =====

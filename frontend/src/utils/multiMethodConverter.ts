@@ -22,7 +22,7 @@ import type {
   MethodData,
   EdgeData,
   TemplatesByCategory
-} from '../../../../types/editor';
+} from '../types/editor';
 
 import type { Node, Edge } from 'reactflow';
 
