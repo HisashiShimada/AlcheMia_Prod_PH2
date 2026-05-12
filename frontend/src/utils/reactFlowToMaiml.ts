@@ -15,7 +15,7 @@ import {
   MethodData,
   EdgeData,
   TemplatesByCategory
-} from '../../../../types/editor';
+} from '../types/editor';
 
 import { Property, Content, Template } from '@/types/maiml-unified';
 import { PLACE_DESC_IMPORTED, PLACE_DESC_EXISTING, PLACE_DESC_IMPORTED_EN } from '@/constants/placeDescriptions';

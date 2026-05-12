@@ -9,11 +9,11 @@
  */
 
 import { Node, Edge } from 'reactflow';
-import type { NodeData, EdgeData } from '../../../../types/editor';
+import type { NodeData, EdgeData } from '../types/editor';
 import { MaimlParserTyped } from '@/utils/maimlParserTyped';
-import { convertToReactFlowFormat } from '../../../../utils/reactFlowConverter';
+import { convertToReactFlowFormat } from './reactFlowConverter';
 import { buildTemplateMap } from '@/utils/petriNetExtractor';
-import { PetriNetData } from '../../../../utils/reactFlowConverter';
+import { PetriNetData } from './reactFlowConverter';
 import { Template } from '@/types/maiml-unified';
 
 /**

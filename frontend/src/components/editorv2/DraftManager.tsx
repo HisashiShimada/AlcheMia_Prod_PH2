@@ -26,8 +26,8 @@ import {
   FolderOpenOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import useDraftManager from '../hooks/useDraftManager';
-import { Draft, EditState } from '../../../types/editor';
+import useDraftManager from '../../hooks/useDraftManager';
+import { Draft, EditState } from '../../types/editor';
 import * as draftService from '@/services/draftService';
 import { useLanguage } from '@/contexts/LanguageContext';
 

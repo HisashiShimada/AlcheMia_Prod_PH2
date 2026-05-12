@@ -36,11 +36,11 @@ import type {
   MethodData, 
   NodeData, 
   EdgeData,
-} from '../../../types/editor';
-import type { ErrorContent } from '../../../types/maimlValidation';
-import { useTemplates } from '../../../contexts/TemplateContext';
+} from '../../types/editor';
+import type { ErrorContent } from '../../types/maimlValidation';
+import { useTemplates } from '../../contexts/TemplateContext';
 import { Reference, Template } from '@/types/maiml-unified';
-import { useLanguage } from '../../../contexts/LanguageContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 /**
  * PropertyPanelProps - PropertyPanelコンポーネントのProps型定義

@@ -36,8 +36,8 @@ export interface FormatFileDetailData {
   // ✅ Phase 2: XMLパース結果（Template型経由）
   parsedTemplate?: import('@/types/maiml-unified').Template;  // パースされたTemplate型オブジェクト
   // ✅ Phase 3: XMLパース結果（PropertyData形式直接）
-  parsedProperties?: Record<string, import('@/components/editorv2/components/NestedPropertyEditor').PropertyData>;
-  parsedContents?: Record<string, import('@/components/editorv2/components/NestedPropertyEditor').PropertyData>;
+  parsedProperties?: Record<string, import('@/components/editorv2/NestedPropertyEditor').PropertyData>;
+  parsedContents?: Record<string, import('@/components/editorv2/NestedPropertyEditor').PropertyData>;
 }
 
 /**
