@@ -31,7 +31,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { App } from 'antd';
 import { User } from '@/types/auth';
 import { useApi } from '@/hooks/useApi';
-import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder, createFormatFolder, updateFormatFileContent } from '@/utils/formatApi';
+import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder, createFormatFolder, updateFormatFileContent } from '@/services/formatApiService';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
 import { getFileDownloadUrlByKey, deleteFileByKey, deleteFolderByPath } from '@/services/fileAccessService';
