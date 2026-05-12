@@ -7,6 +7,7 @@
 
 import { getPgp } from '../database/db';
 import { MaimlPublishJob } from '../types/maimlOpenData';
+import { loadSqlFile } from '../sql/loader';
 
 // ============================================================
 // INSERT
@@ -20,16 +21,8 @@ import { MaimlPublishJob } from '../types/maimlOpenData';
  */
 export async function insert(data: Omit<MaimlPublishJob, 'job_id' | 'created_at'>): Promise<MaimlPublishJob> {
   const pgp = getPgp();
-
-  const query = `
-    INSERT INTO maiml_publish_job
-      (job_type, organization_id, project_id, asset_id, status,
-       triggered_by, trigger_type, error_message, started_at, finished_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-    RETURNING *
-  `;
-
-  return await pgp.one<MaimlPublishJob>(query, [
+  const sqlQuery = await loadSqlFile('maiml_publish_job/insert.sql');
+  return await pgp.one<MaimlPublishJob>(sqlQuery, [
     data.job_type,
     data.organization_id,
     data.project_id,
@@ -112,17 +105,8 @@ export async function findLatestByProject(
   projectId:      string
 ): Promise<MaimlPublishJob | null> {
   const pgp = getPgp();
-
-  const query = `
-    SELECT *
-    FROM maiml_publish_job
-    WHERE organization_id = $1
-      AND project_id      = $2
-    ORDER BY created_at DESC
-    LIMIT 1
-  `;
-
-  return await pgp.oneOrNone<MaimlPublishJob>(query, [organizationId, projectId]);
+  const sqlQuery = await loadSqlFile('maiml_publish_job/findLatestByProject.sql');
+  return await pgp.oneOrNone<MaimlPublishJob>(sqlQuery, [organizationId, projectId]);
 }
 
 /**
@@ -133,14 +117,8 @@ export async function findLatestByProject(
  */
 export async function findByJobId(jobId: string): Promise<MaimlPublishJob | null> {
   const pgp = getPgp();
-
-  const query = `
-    SELECT *
-    FROM maiml_publish_job
-    WHERE job_id = $1
-  `;
-
-  return await pgp.oneOrNone<MaimlPublishJob>(query, [jobId]);
+  const sqlQuery = await loadSqlFile('maiml_publish_job/findByJobId.sql');
+  return await pgp.oneOrNone<MaimlPublishJob>(sqlQuery, [jobId]);
 }
 
 /**
@@ -157,26 +135,13 @@ export async function findPublishedAssetId(
   projectId:      string
 ): Promise<bigint | null> {
   const pgp = getPgp();
-
-  // 最新 done ジョブを取得して job_type を確認する
-  const query = `
-    SELECT job_type, asset_id
-    FROM maiml_publish_job
-    WHERE organization_id = $1
-      AND project_id      = $2
-      AND status          = 'done'
-    ORDER BY created_at DESC
-    LIMIT 1
-  `;
-
+  const sqlQuery = await loadSqlFile('maiml_publish_job/findPublishedAssetId.sql');
   const row = await pgp.oneOrNone<{ job_type: string; asset_id: bigint | null }>(
-    query,
+    sqlQuery,
     [organizationId, projectId]
   );
-
   if (!row) return null;
   // 最新 done ジョブが unpublish なら非公開済みとみなす
   if (row.job_type === 'unpublish') return null;
-
   return row.asset_id ?? null;
 }

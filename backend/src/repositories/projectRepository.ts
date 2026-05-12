@@ -159,20 +159,8 @@ export async function updateStatus(
 ): Promise<void> {
   // トランザクション引数がある場合はそれを使用、なければプールを使用
   const executor = client || getPool();
-  
-  // Parameterized Query使用（SQLインジェクション対策）
-  // organization_idフィルタ必須（マルチテナント分離）
-  const query = `
-    UPDATE project
-    SET 
-      project_status = $1,
-      update_at = CURRENT_TIMESTAMP,
-      update_user_id = $2
-    WHERE organization_id = $3
-      AND project_id = $4
-  `;
-  
-  await executor.query(query, [newStatus, userId, organizationId, projectId]);
+  const sqlQuery = await loadSqlFile('projects/updateStatus.sql');
+  await executor.query(sqlQuery, [newStatus, userId, organizationId, projectId]);
 }
 
 /**
@@ -253,21 +241,9 @@ export async function findByIdFull(
   organizationId: string,
   projectId: string
 ): Promise<Project | null> {
-  const pool = getPool();
-  
-  const query = `
-    SELECT * FROM project
-    WHERE organization_id = $1
-      AND project_id = $2
-  `;
-  
-  const result = await pool.query(query, [organizationId, projectId]);
-  
-  if (result.rows.length === 0) {
-    return null;
-  }
-  
-  return result.rows[0] as Project;
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('projects/findByIdFull.sql');
+  return await pgp.oneOrNone<Project>(sqlQuery, [organizationId, projectId]);
 }
 
 /**
@@ -281,21 +257,9 @@ export async function findByName(
   organizationId: string,
   projectName: string
 ): Promise<Project | null> {
-  const pool = getPool();
-  
-  const query = `
-    SELECT * FROM project
-    WHERE organization_id = $1
-      AND project_name = $2
-  `;
-  
-  const result = await pool.query(query, [organizationId, projectName]);
-  
-  if (result.rows.length === 0) {
-    return null;
-  }
-  
-  return result.rows[0] as Project;
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('projects/findByName.sql');
+  return await pgp.oneOrNone<Project>(sqlQuery, [organizationId, projectName]);
 }
 
 /**
@@ -392,7 +356,7 @@ export async function findProjectTasks(
   status?: 'all' | 'pending' | 'in_progress' | 'completed' | 'failed'
 ): Promise<any[]> {
   const pool = getPool();
-  
+
   // タスクステータスマップ（文字列 → 数値）
   const TASK_STATUS_MAP: { [key: string]: number } = {
     'pending': 0,
@@ -401,59 +365,23 @@ export async function findProjectTasks(
     'completed': 3,
     'forced_terminated': 4,
   };
-  
-  let query = `
-    SELECT
-      ptd.organization_id,
-      ptd.project_id,
-      ptd.method_id,
-      ptd.task_no,
-      ptd.task_status,
-      ptd.experiment_start_at,
-      ptd.experiment_end_at,
-      ptd.experiment_user_id,
-      ou.user_name as experiment_user_name,
-      ptd.reviewed_at,
-      ptd.review_user_id,
-      ru.user_name as review_user_name,
-      pt_agg.min_experiment_order
-    FROM project_task_detail ptd
-    LEFT JOIN (
-      SELECT
-        organization_id,
-        project_id,
-        method_id,
-        MIN(experiment_order) AS min_experiment_order
-      FROM project_task
-      GROUP BY organization_id, project_id, method_id
-    ) pt_agg
-      ON pt_agg.organization_id = ptd.organization_id
-      AND pt_agg.project_id = ptd.project_id
-      AND pt_agg.method_id = ptd.method_id
-    LEFT JOIN organization_user ou
-      ON ou.user_id = ptd.experiment_user_id
-      AND ou.organization_id = ptd.organization_id
-    LEFT JOIN organization_user ru
-      ON ru.user_id = ptd.review_user_id
-      AND ru.organization_id = ptd.organization_id
-    WHERE ptd.organization_id = $1
-      AND ptd.project_id = $2
-  `;
-  
+
+  // ベースSQLをファイルから読み込み（動的WHEREとORDER BYはRepository層で付加）
+  let sqlQuery = await loadSqlFile('projects/findProjectTasks.sql');
   const params: any[] = [organizationId, projectId];
-  
+
   // statusパラメータに応じてWHERE条件を追加
   if (status && status !== 'all') {
     const statusValue = TASK_STATUS_MAP[status];
     if (statusValue !== undefined) {
-      query += ` AND ptd.task_status = $3`;
+      sqlQuery += ` AND ptd.task_status = $3`;
       params.push(statusValue);
     }
   }
-  
-  query += ` ORDER BY pt_agg.min_experiment_order ASC, ptd.task_no ASC`;
-  
-  const result = await pool.query(query, params);
+
+  sqlQuery += ` ORDER BY pt_agg.min_experiment_order ASC, ptd.task_no ASC`;
+
+  const result = await pool.query(sqlQuery, params);
   return result.rows;
 }
 
@@ -468,19 +396,9 @@ export async function countProjectTasksByStatus(
   organizationId: string,
   projectId: string
 ): Promise<any[]> {
-  const pool = getPool();
-  
-  const query = `
-    SELECT 
-      task_status,
-      COUNT(*) as count
-    FROM project_task_detail
-    WHERE organization_id = $1 AND project_id = $2
-    GROUP BY task_status
-  `;
-  
-  const result = await pool.query(query, [organizationId, projectId]);
-  return result.rows;
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('projects/countTasksByStatus.sql');
+  return await pgp.any(sqlQuery, [organizationId, projectId]);
 }
 
 /**
@@ -494,19 +412,9 @@ export async function completeReviewTasks(
   organizationId: string,
   projectId: string
 ): Promise<number> {
-  const pool = getPool();
-
-  // task_status = 2 (review_waiting) を 3 (completed) に更新
-  const query = `
-    UPDATE project_task_detail
-    SET task_status = 3,
-        update_at = CURRENT_TIMESTAMP
-    WHERE organization_id = $1
-      AND project_id = $2
-      AND task_status = 2
-  `;
-
-  const result = await pool.query(query, [organizationId, projectId]);
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('projects/completeReviewTasks.sql');
+  const result = await pgp.result(sqlQuery, [organizationId, projectId]);
   return result.rowCount ?? 0;
 }
 
@@ -544,21 +452,9 @@ export async function findProjectBasicInfo(
   organizationId: string,
   projectId: string
 ): Promise<{ project_id: string; project_name: string } | null> {
-  const pool = getPool();
-  
-  const query = `
-    SELECT project_id, project_name
-    FROM project
-    WHERE organization_id = $1 AND project_id = $2
-  `;
-  
-  const result = await pool.query(query, [organizationId, projectId]);
-  
-  if (result.rows.length === 0) {
-    return null;
-  }
-  
-  return result.rows[0];
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('projects/findBasicInfo.sql');
+  return await pgp.oneOrNone<{ project_id: string; project_name: string }>(sqlQuery, [organizationId, projectId]);
 }
 
 /**
@@ -574,20 +470,9 @@ export async function findProjectForDelete(
   projectId: string,
   client: PoolClient
 ): Promise<{ project_maiml_flg: boolean; project_name: string } | null> {
-  const query = `
-    SELECT project_maiml_flg, project_name
-    FROM project
-    WHERE organization_id = $1 AND project_id = $2
-    FOR UPDATE
-  `;
-  
-  const result = await client.query(query, [organizationId, projectId]);
-  
-  if (result.rows.length === 0) {
-    return null;
-  }
-  
-  return result.rows[0];
+  const sqlQuery = await loadSqlFile('projects/findForDelete.sql');
+  const result = await client.query(sqlQuery, [organizationId, projectId]);
+  return result.rows.length > 0 ? result.rows[0] : null;
 }
 
 /**
@@ -674,16 +559,8 @@ export async function updateMaimlFlgByUuid(
   maimlFlg: boolean
 ): Promise<void> {
   const pool = getPool();
-
-  const query = `
-    UPDATE project
-    SET project_maiml_flg = $1,
-        update_at = CURRENT_TIMESTAMP
-    WHERE organization_id = $2
-      AND project_uuid = $3
-  `;
-
-  await pool.query(query, [maimlFlg, organizationId, projectUuid]);
+  const sqlQuery = await loadSqlFile('projects/updateMaimlFlgByUuid.sql');
+  await pool.query(sqlQuery, [maimlFlg, organizationId, projectUuid]);
 }
 
 /**
@@ -702,4 +579,206 @@ export async function deleteProject(
     'DELETE FROM project WHERE organization_id = $1 AND project_id = $2',
     [organizationId, projectId]
   );
+}
+
+// ============================================================
+// Phase 1 追加メソッド: projectService.ts から移行
+// ============================================================
+
+/**
+ * プロジェクト名の重複チェック
+ *
+ * @param organizationId 組織ID
+ * @param projectName プロジェクト名
+ * @param client トランザクション用のクライアント
+ * @returns 重複している場合は true
+ */
+export async function existsByName(
+  organizationId: string,
+  projectName: string,
+  client: PoolClient
+): Promise<boolean> {
+  const sqlQuery = await loadSqlFile('projects/existsByName.sql');
+  const result = await client.query(sqlQuery, [organizationId, projectName]);
+  return parseInt(result.rows[0].count, 10) > 0;
+}
+
+/**
+ * プロジェクト一覧をユーザー名・部署名・タスク数・ファイル数と共に取得
+ *
+ * @param organizationId 組織ID
+ * @param includeCompleted 完了済みを含むか
+ * @param sortBy ソートカラム
+ * @param order ソート順
+ * @returns プロジェクト一覧
+ */
+export async function findAllWithDetails(
+  organizationId: string,
+  includeCompleted: boolean,
+  sortBy: string = 'create_at',
+  order: 'asc' | 'desc' = 'desc'
+): Promise<any[]> {
+  const pgp = getPgp();
+  // ソートカラムはホワイトリストで検証（SQLインジェクション対策）
+  const allowedSortColumns = ['create_at', 'update_at', 'project_name', 'project_status'];
+  const safeSortBy = allowedSortColumns.includes(sortBy) ? `p.${sortBy}` : 'p.create_at';
+  const safeSortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+  const sqlQuery = await loadSqlFile('projects/findAllWithDetails.sql');
+  // ORDER BY はホワイトリスト検証済みの値を文字列結合で付加（SQLインジェクション対策済み）
+  const sqlWithOrder = `${sqlQuery.trimEnd()}\nORDER BY ${safeSortBy} ${safeSortOrder}`;
+
+  return await pgp.any(sqlWithOrder, [organizationId, includeCompleted]);
+}
+
+/**
+ * プロジェクト総件数取得
+ *
+ * @param organizationId 組織ID
+ * @param includeCompleted 完了済みを含むか
+ * @returns 総件数
+ */
+export async function countAll(
+  organizationId: string,
+  includeCompleted: boolean
+): Promise<number> {
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('projects/countAll.sql');
+  const result = await pgp.one<{ total: string }>(sqlQuery, [organizationId, includeCompleted]);
+  return parseInt(result.total, 10);
+}
+
+/**
+ * プロジェクト情報を排他ロック付きで取得（SELECT FOR UPDATE）
+ * チェックアウト・チェックイン処理のトランザクション内で使用
+ *
+ * @param client トランザクション用のクライアント
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns プロジェクト情報（見つからない場合は null）
+ */
+export async function findForUpdate(
+  client: PoolClient,
+  organizationId: string,
+  projectId: string
+): Promise<{
+  project_id: string;
+  project_name: string;
+  project_status: number;
+  project_maiml_flg: boolean;
+  checkout_status: number;
+  owner_user_id: string;
+} | null> {
+  const sqlQuery = await loadSqlFile('projects/findForUpdate.sql');
+  const result = await client.query(sqlQuery, [organizationId, projectId]);
+  return result.rows.length > 0 ? result.rows[0] : null;
+}
+
+/**
+ * チェックアウト実行（checkout_status=1, project_status=1 に更新）
+ *
+ * @param client トランザクション用のクライアント
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param userId チェックアウトするユーザーID
+ */
+export async function updateCheckoutStatus(
+  client: PoolClient,
+  organizationId: string,
+  projectId: string,
+  userId: string
+): Promise<void> {
+  const sqlQuery = await loadSqlFile('projects/updateCheckoutStatus.sql');
+  await client.query(sqlQuery, [organizationId, projectId, userId]);
+}
+
+/**
+ * チェックイン実行（checkout_status=0 に更新）
+ *
+ * @param client トランザクション用のクライアント
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ */
+export async function updateCheckinStatus(
+  client: PoolClient,
+  organizationId: string,
+  projectId: string
+): Promise<void> {
+  const sqlQuery = await loadSqlFile('projects/updateCheckinStatus.sql');
+  await client.query(sqlQuery, [organizationId, projectId]);
+}
+
+/**
+ * プロジェクト情報とオーナーユーザー名を結合して取得
+ * チェックアウト状態照会で使用
+ *
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns プロジェクト情報（見つからない場合は null）
+ */
+export async function findWithOwner(
+  organizationId: string,
+  projectId: string
+): Promise<{
+  project_id: string;
+  project_name: string;
+  checkout_status: number;
+  owner_user_id: string;
+  owner_user_name: string | null;
+} | null> {
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('projects/findWithOwner.sql');
+  return await pgp.oneOrNone(sqlQuery, [organizationId, projectId]);
+}
+
+/**
+ * チェックアウト保持者のユーザー名を取得
+ * （checkout_status=1 の別ユーザーがいる場合の競合エラーメッセージ用）
+ *
+ * @param client トランザクション用のクライアント
+ * @param organizationId 組織ID
+ * @param userId ユーザーID
+ * @returns ユーザー名（見つからない場合は null）
+ */
+export async function findCheckedOutUserName(
+  client: PoolClient,
+  organizationId: string,
+  userId: string
+): Promise<string | null> {
+  const result = await client.query(
+    'SELECT user_name FROM organization_user WHERE organization_id = $1 AND user_id = $2',
+    [organizationId, userId]
+  );
+  return result.rows[0]?.user_name ?? null;
+}
+
+/**
+ * プロジェクト詳細情報をオーナー名・部門名付きで取得
+ *
+ * progressService の getWorkDetails() から移行。
+ *
+ * @param projectId プロジェクトID
+ * @param organizationId 組織ID
+ * @returns プロジェクト行（見つからない場合は null）
+ */
+export async function findWithOwnerAndDept(
+  projectId: string,
+  organizationId: string
+): Promise<{
+  organization_id: string;
+  project_id: string;
+  project_name: string;
+  description: string | null;
+  department_cd: string | null;
+  department_name: string | null;
+  owner_user_id: string | null;
+  owner_name: string | null;
+  project_status: number;
+  checkout_status: number | null;
+  create_at: Date;
+  update_at: Date;
+} | null> {
+  const pgp = getPgp();
+  const sql = await loadSqlFile('projects/findWithOwnerAndDept.sql');
+  return pgp.oneOrNone(sql, [projectId, organizationId]);
 }
