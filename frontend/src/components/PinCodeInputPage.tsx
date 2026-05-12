@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { Card, Button, Typography, Alert, Space, Spin, theme } from 'antd';
 import { LoginOutlined, MailOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { validatePinCode } from '@/utils/validation';
+import { validatePinCode } from '@/utils/validationUtils';
 
 const { Title, Text, Paragraph } = Typography;
 

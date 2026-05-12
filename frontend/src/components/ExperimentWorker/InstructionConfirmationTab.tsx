@@ -16,7 +16,7 @@ import { getWorkerTasks, confirmInstruction, getProjectMaiml } from '@/services/
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';
-import { mapErrorToMessage } from '@/utils/errorMapper';
+import { mapErrorToMessage } from '@/utils/errorUtils';
 
 const { Title, Text } = Typography;
 

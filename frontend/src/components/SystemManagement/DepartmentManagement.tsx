@@ -25,7 +25,7 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { formatDateTime } from '@/utils/dateFormatter';
+import { formatDateTime } from '@/utils/formatUtils';
 import { getDepartmentConfig } from '@/types/departmentTypes';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
