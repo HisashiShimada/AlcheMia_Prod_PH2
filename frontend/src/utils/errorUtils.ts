@@ -9,7 +9,7 @@
 import axios, { AxiosError } from 'axios';
 import { mapErrorToMessage } from './errorMapper';
 import { HTTP_STATUS_TO_ERROR_CODE } from './errorCodes';
-import { ApiError } from './authApi';
+import { AuthServiceError } from '@/services/authService';
 
 /**
  * APIエラーレスポンス型定義
@@ -29,8 +29,8 @@ interface ApiErrorResponse {
  * @returns エラーコード（例: 'E5001'）
  */
 export function extractErrorCode(error: unknown): string {
-  // ApiError（authApi.ts のカスタムエラー）からコードを優先して取得
-  if (error instanceof ApiError) {
+  // AuthServiceError（authService.ts のカスタムエラー）からコードを優先して取得
+  if (error instanceof AuthServiceError) {
     return error.code;
   }
 

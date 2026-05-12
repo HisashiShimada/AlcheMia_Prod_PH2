@@ -10,8 +10,8 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Alert, Typography, Space, theme } from 'antd';
 import { MailOutlined, ReloadOutlined } from '@ant-design/icons';
-import { verifyPin, resendPin } from '../../utils/authApi';
-import type { VerifyPINResponse } from '../../types/auth';
+import { authService, AuthServiceError } from '@/services/authService';
+import type { VerifyPinResponseData } from '@/types/api';
 import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -37,7 +37,7 @@ interface PINCodeFormProps {
   /**
    * PINコード検証成功時のコールバック
    */
-  onSuccess: (response: VerifyPINResponse) => void;
+  onSuccess: (response: VerifyPinResponseData) => void;
   
   /**
    * エラー発生時のコールバック
@@ -106,7 +106,7 @@ export default function PINCodeForm({
     setError(null);
 
     try {
-      const response = await verifyPin(
+      const response = await authService.verifyPin(
         values.pinCode.trim(),
         sessionToken,
         organizationId
@@ -136,7 +136,7 @@ export default function PINCodeForm({
     setError(null);
 
     try {
-      const response = await resendPin(sessionToken, organizationId);
+      const response = await authService.resendPin(sessionToken, organizationId);
       
       // カウントダウンタイマーをリセット
       setRemainingTime(response.expiresIn);
@@ -146,7 +146,7 @@ export default function PINCodeForm({
       setError(null);
       form.resetFields();
     } catch (err) {
-      const errorMessage = extractErrorMessage(err);
+      const errorMessage = err instanceof AuthServiceError ? err.message : extractErrorMessage(err);
       setError(errorMessage);
       onError(errorMessage);
     } finally {
