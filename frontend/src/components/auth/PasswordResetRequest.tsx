@@ -9,7 +9,7 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Alert, Typography, theme } from 'antd';
 import { UserOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { resetPasswordRequest } from '../../utils/authApi';
+import { authService, AuthServiceError } from '@/services/authService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -65,12 +65,12 @@ export default function PasswordResetRequest({
     setError(null);
 
     try {
-      await resetPasswordRequest(values.username.trim(), organizationId);
+      await authService.resetPasswordRequest(values.username.trim(), organizationId);
       
       // 成功時は親コンポーネントに通知
       onSuccess();
     } catch (err) {
-      const errorMessage = extractErrorMessage(err);
+      const errorMessage = err instanceof AuthServiceError ? err.message : extractErrorMessage(err);
       setError(errorMessage);
       onError(errorMessage);
     } finally {

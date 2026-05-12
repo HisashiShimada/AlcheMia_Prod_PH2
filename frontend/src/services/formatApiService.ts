@@ -3,254 +3,234 @@
  * 
  * MAIMLワークフローテンプレートとXMLテンプレートファイルの管理機能を提供
  * API設計書: docs/design/api/api_format_management.md
+ * 
+ * @remarks
+ * utils/formatApi.ts から services/ へ統合済み（2026-05-12）
  */
 
+import type { ApiResponse } from '@/types/api';
+import type {
+  FormatListResponse,
+  CreateFormatFileRequest,
+  CreateFormatFileResponse,
+} from '@/types/format';
+import { getTranslation } from '@/contexts/LanguageContext';
 import { createApiClient } from '@/utils/authUtils';
-
-/**
- * 統一レスポンス形式
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown[];
-  };
-  meta: {
-    timestamp: string;
-    requestId: string;
-  };
-}
-
-
-/**
- * フォーマット情報の型定義
- */
-export interface Format {
-  format_id: string;
-  format_prefix: string;
-  file_type: 'maiml' | 'xml';
-  description: string;
-  subfolder_count: number;
-  file_count: number;
-  created_at: string;
-  updated_at: string;
-}
-
-/**
- * フォーマットファイル情報の型定義
- */
-export interface FormatFile {
-  file_id: string;
-  file_name: string;
-  file_path: string;
-  file_size: number;
-  file_type: 'maiml' | 'xml';
-  created_at: string;
-  updated_at: string;
-}
-
-/**
- * フォーマットフォルダ情報の型定義
- */
-export interface FormatFolder {
-  subfolder_id: string;
-  subfolder_name: string;
-  subfolder_path: string;
-  file_count: number;
-  created_at: string;
-}
-
-/**
- * フォーマット一覧レスポンスの型定義
- */
-export interface FormatListResponse {
-  formats: Format[];
-}
-
-/**
- * フォーマットファイル一覧レスポンスの型定義
- */
-export interface FormatFileListResponse {
-  format_id: string;
-  format_prefix: string;
-  file_type: 'maiml' | 'xml';
-  current_path: string;
-  folders: FormatFolder[];
-  files: FormatFile[];
-}
 
 /**
  * フォーマット一覧を取得
  * GET /api/v1/formats
- * 
- * @param fileType ファイル種別フィルタ（all, maiml, xml）
- * @returns フォーマット一覧
  */
-export const getFormats = async (
-  fileType: 'all' | 'maiml' | 'xml' = 'all'
-): Promise<ApiResponse<FormatListResponse>> => {
+export async function getFormats(): Promise<ApiResponse<FormatListResponse>> {
   const client = createApiClient();
-  
+
   try {
-    console.log('📋 [formatApiService] フォーマット一覧取得');
-    
     const response = await client.get<ApiResponse<FormatListResponse>>(
-      '/api/v1/formats',
-      { params: { file_type: fileType } }
+      '/formats'
     );
-    
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || getTranslation('formatApi.getFormatsError')
+      );
+    }
+
     return response.data;
   } catch (error) {
-    console.error('❌ [formatApiService] フォーマット一覧取得エラー:', error);
+    console.error('getFormats error:', error);
     throw error;
   }
-};
+}
 
 /**
  * フォーマットファイル一覧を取得
- * GET /api/v1/formats/:formatId/files
+ * GET /api/v1/formats/:folderName/files
  * 
- * @param formatId フォーマットID
- * @param subfolderId サブフォルダID（省略時はルート）
- * @returns フォーマットファイル・フォルダ一覧
+ * @param folderName - フォルダ名
+ * @param subPath - サブパス（オプション）
  */
-export const getFormatFiles = async (
-  formatId: string,
-  subfolderId?: string
-): Promise<ApiResponse<FormatFileListResponse>> => {
+export async function getFormatFiles(
+  folderName: string,
+  subPath?: string
+): Promise<ApiResponse<{ files: unknown[] }>> {
   const client = createApiClient();
-  
+
   try {
-    console.log('📁 [formatApiService] フォーマットファイル一覧取得', { formatId, subfolderId });
-    
-    const response = await client.get<ApiResponse<FormatFileListResponse>>(
-      `/api/v1/formats/${formatId}/files`,
-      { params: subfolderId ? { subfolder_id: subfolderId } : {} }
+    const queryParams = subPath ? `?path=${encodeURIComponent(subPath)}` : '';
+    const response = await client.get<ApiResponse<{ files: unknown[] }>>(
+      `/formats/${folderName}/files${queryParams}`
     );
-    
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || getTranslation('formatApi.getFormatFilesError')
+      );
+    }
+
     return response.data;
   } catch (error) {
-    console.error('❌ [formatApiService] フォーマットファイル一覧取得エラー:', error);
+    console.error('getFormatFiles error:', error);
     throw error;
   }
-};
+}
 
 /**
- * フォーマット一覧を取得（モック版）
- * 実際のAPIが未実装の場合に使用
+ * フォーマット内にサブフォルダを作成
+ * POST /api/v1/formats/subfolders
+ * 
+ * @param formatName - フォーマット名（例: chemistry, materials）
+ * @param subfolderName - サブフォルダ名（1-255文字、英数字・アンダースコア・ハイフン）
+ * @param parentPath - 親フォルダのパス（オプション、空文字列=ルート直下）
  */
-export const getFormatsMock = async (
-  fileType: 'all' | 'maiml' | 'xml' = 'all'
-): Promise<ApiResponse<FormatListResponse>> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  console.log('📋 [formatApiService] フォーマット一覧取得（モック）');
-  
-  // モックデータ
-  const allFormats: Format[] = [
-    {
-      format_id: 'format-1',
-      format_prefix: 'chemistry',
-      file_type: 'maiml',
-      description: '化学実験用ワークフロー',
-      subfolder_count: 2,
-      file_count: 5,
-      created_at: '2026-01-20T10:00:00Z',
-      updated_at: '2026-01-23T14:00:00Z'
-    },
-    {
-      format_id: 'format-2',
-      format_prefix: 'materials',
-      file_type: 'xml',
-      description: '材料テンプレート',
-      subfolder_count: 1,
-      file_count: 3,
-      created_at: '2026-01-20T11:00:00Z',
-      updated_at: '2026-01-22T15:00:00Z'
-    },
-    {
-      format_id: 'format-3',
-      format_prefix: 'biology',
-      file_type: 'maiml',
-      description: '生物学実験用ワークフロー',
-      subfolder_count: 0,
-      file_count: 2,
-      created_at: '2026-01-21T09:00:00Z',
-      updated_at: '2026-01-23T13:00:00Z'
+export async function createFormatSubfolder(
+  formatName: string,
+  subfolderName: string,
+  parentPath?: string
+): Promise<ApiResponse<{
+  folder_name: string;
+  folder_path: string;
+  full_swift_path: string;
+  created_at: string;
+}>> {
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<ApiResponse<{
+      folder_name: string;
+      folder_path: string;
+      full_swift_path: string;
+      created_at: string;
+    }>>(
+      '/formats/subfolders',
+      {
+        formatName,
+        subfolderName,
+        parentPath: parentPath || '',
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || getTranslation('formatApi.createSubfolderError')
+      );
     }
-  ];
-  
-  // ファイルタイプでフィルタリング
-  const filteredFormats = fileType === 'all' 
-    ? allFormats 
-    : allFormats.filter(f => f.file_type === fileType);
-  
-  return {
-    success: true,
-    data: {
-      formats: filteredFormats
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      requestId: `req_${Date.now()}`
-    }
-  };
-};
+
+    return response.data;
+  } catch (error) {
+    console.error('createFormatSubfolder error:', error);
+    throw error;
+  }
+}
 
 /**
- * フォーマットファイル一覧を取得（モック版）
- * 実際のAPIが未実装の場合に使用
+ * フォーマットファイルを作成
+ * POST /api/v1/formats/:folderName/files
+ * 
+ * @param folderName - フォーマットフォルダ名（例: chemistry）
+ * @param data - ファイル作成データ
  */
-export const getFormatFilesMock = async (
-  formatId: string,
-  subfolderId?: string
-): Promise<ApiResponse<FormatFileListResponse>> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  console.log('📁 [formatApiService] フォーマットファイル一覧取得（モック）', { formatId, subfolderId });
-  
-  // モックデータ
-  return {
-    success: true,
-    data: {
-      format_id: formatId,
-      format_prefix: 'chemistry',
-      file_type: 'maiml',
-      current_path: subfolderId ? 'chemistry/synthesis' : 'chemistry',
-      folders: subfolderId ? [] : [
-        {
-          subfolder_id: 'subfolder-1',
-          subfolder_name: 'synthesis',
-          subfolder_path: 'chemistry/synthesis',
-          file_count: 3,
-          created_at: '2026-01-20T10:00:00Z'
-        },
-        {
-          subfolder_id: 'subfolder-2',
-          subfolder_name: 'analysis',
-          subfolder_path: 'chemistry/analysis',
-          file_count: 2,
-          created_at: '2026-01-20T11:00:00Z'
-        }
-      ],
-      files: [
-        {
-          file_id: 'file-1',
-          file_name: 'workflow.maiml',
-          file_path: 'org_maiml_lab_001/formats/chemistry/workflow.maiml',
-          file_size: 12345,
-          file_type: 'maiml',
-          created_at: '2026-01-20T10:00:00Z',
-          updated_at: '2026-01-23T14:00:00Z'
-        }
-      ]
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      requestId: `req_${Date.now()}`
+export async function createFormatFile(
+  folderName: string,
+  data: CreateFormatFileRequest
+): Promise<ApiResponse<CreateFormatFileResponse>> {
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<ApiResponse<CreateFormatFileResponse>>(
+      `/formats/${folderName}/files`,
+      data
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || getTranslation('formatApi.createFileError')
+      );
     }
-  };
-};
+
+    return response.data;
+  } catch (error) {
+    console.error('createFormatFile error:', error);
+    throw error;
+  }
+}
+
+/**
+ * フォーマットフォルダを作成（部門直下）
+ * POST /api/v1/formats/folders
+ * 
+ * @param folderName - フォルダ名
+ */
+export async function createFormatFolder(
+  folderName: string
+): Promise<ApiResponse<{
+  folder_name: string;
+  folder_path: string;
+  department_cd: string;
+  created_at: string;
+}>> {
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<ApiResponse<{
+      folder_name: string;
+      folder_path: string;
+      department_cd: string;
+      created_at: string;
+    }>>(
+      '/formats/folders',
+      { folderName }
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || getTranslation('formatApi.createFolderError')
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('createFormatFolder error:', error);
+    throw error;
+  }
+}
+
+/**
+ * フォーマットファイルの内容を更新
+ * PUT /api/v1/formats/files
+ * 
+ * @param filePath - ファイルパス
+ * @param content - ファイル内容
+ */
+export async function updateFormatFileContent(
+  filePath: string,
+  content: string
+): Promise<ApiResponse<{ message: string }>> {
+  const client = createApiClient();
+
+  try {
+    const response = await client.put<ApiResponse<{ message: string }>>(
+      '/formats/files',
+      {
+        content,
+        filePath,
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || getTranslation('formatApi.updateFileError')
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('updateFormatFileContent error:', error);
+    throw error;
+  }
+}
+
+/**
+ * 互換性のためのエイリアス
+ */
+export const fetchFormats = getFormats;
+export const fetchFormatFiles = getFormatFiles;

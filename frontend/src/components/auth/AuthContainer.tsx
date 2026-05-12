@@ -16,11 +16,13 @@ import PINCodeForm from './PINCodeForm';
 import PasswordResetRequest from './PasswordResetRequest';
 import type {
   AuthFlowState,
-  LoginResponse,
-  VerifyPINResponse,
   UserRole,
   ROLE_REDIRECT_MAP,
 } from '../../types/auth';
+import type {
+  LoginResponseData,
+  VerifyPinResponseData,
+} from '@/types/api';
 
 const { Title } = Typography;
 const { useToken } = theme;
@@ -59,15 +61,15 @@ export default function AuthContainer({
   /**
    * ログイン成功ハンドラ
    */
-  const handleLoginSuccess = (response: LoginResponse) => {
+  const handleLoginSuccess = (response: LoginResponseData) => {
     // SessionStorageに保存（authServiceのインターセプターが参照）
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('sessionToken', response.sessionToken);
+      sessionStorage.setItem('sessionToken', response.sessionToken ?? '');
     }
     
-    setSessionToken(response.sessionToken);
-    setMaskedEmail(response.email);
-    setPinExpiresIn(response.expiresIn);
+    setSessionToken(response.sessionToken ?? null);
+    setMaskedEmail(response.email ?? null);
+    setPinExpiresIn(response.expiresIn ?? null);
     setFlowState('pin-input');
     
     message.success(response.message);
@@ -83,7 +85,7 @@ export default function AuthContainer({
   /**
    * PINコード検証成功ハンドラ
    */
-  const handlePINVerifySuccess = (response: VerifyPINResponse) => {
+  const handlePINVerifySuccess = (response: VerifyPinResponseData) => {
     message.success(t('auth.loginSuccess'));
     
     // JWTトークンをsessionStorageに保存
