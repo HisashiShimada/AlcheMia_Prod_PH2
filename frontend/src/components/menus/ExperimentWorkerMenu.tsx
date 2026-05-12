@@ -27,7 +27,7 @@ import { useCodeMaster } from '@/hooks/useCodeMaster';
 import { AxiosError } from 'axios';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { HTTP_STATUS } from '@/constants/httpStatus';
-import { mapErrorToMessage } from '@/utils/errorMapper';
+import { mapErrorToMessage } from '@/utils/errorUtils';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;

@@ -5,6 +5,8 @@
  * - PNG形式エクスポート
  * - SVG形式エクスポート
  * - JSON形式エクスポート
+ *
+ * exportHelpers.ts（ReactFlow対応版）も統合済み。
  */
 
 import { toPng, toSvg } from 'html-to-image';
@@ -173,7 +175,7 @@ function downloadFile(dataUrl: string, fileName: string): void {
 }
 
 /**
- * エクスポート可能かチェック
+ * エクスポート可能かチェック（要素IDベース）
  * 
  * @param elementId エクスポート対象の要素ID
  * @returns チェック結果
@@ -182,3 +184,168 @@ export function canExport(elementId: string): boolean {
   const element = document.getElementById(elementId);
   return element !== null;
 }
+
+// ---------------------------------------------------------------------------
+// 以下は exportHelpers.ts より統合（ReactFlow対応版）
+// ---------------------------------------------------------------------------
+
+import type { Node, Edge, Viewport } from 'reactflow';
+
+/**
+ * エクスポートオプション（ReactFlow版）
+ */
+export interface ExportOptions {
+  /** ファイル名のプレフィックス（デフォルト: 'petri-net'） */
+  filePrefix?: string;
+  /** 背景色（デフォルト: '#ffffff'） */
+  backgroundColor?: string;
+  /** PNG品質（0.0-1.0、デフォルト: 1.0） */
+  quality?: number;
+  /** ピクセル比率（デフォルト: 2） */
+  pixelRatio?: number;
+}
+
+/**
+ * JSONエクスポートメタデータ
+ */
+export interface ExportMetadata {
+  exportedAt: string;
+  nodeCount: number;
+  edgeCount: number;
+  version: string;
+  projectName?: string;
+  methodName?: string;
+}
+
+/**
+ * エクスポート形式の型
+ */
+export type ExportFormat = 'png' | 'svg' | 'json';
+
+/**
+ * PNG形式でエクスポート（CSSセレクタ版）
+ */
+export const exportToPngBySelector = async (
+  elementSelector: string = '.react-flow',
+  options: ExportOptions = {}
+): Promise<void> => {
+  const {
+    filePrefix = 'petri-net',
+    backgroundColor = '#ffffff',
+    quality = 1.0,
+    pixelRatio = 2
+  } = options;
+
+  const element = document.querySelector(elementSelector) as HTMLElement;
+  if (!element) {
+    throw new Error(`Export target element not found: ${elementSelector}`);
+  }
+
+  const dataUrl = await toPng(element, { backgroundColor, quality, pixelRatio, cacheBust: true });
+  const link = document.createElement('a');
+  link.download = `${filePrefix}_${Date.now()}.png`;
+  link.href = dataUrl;
+  link.click();
+};
+
+/**
+ * SVG形式でエクスポート（CSSセレクタ版）
+ */
+export const exportToSvgBySelector = async (
+  elementSelector: string = '.react-flow',
+  options: ExportOptions = {}
+): Promise<void> => {
+  const { filePrefix = 'petri-net', backgroundColor = '#ffffff' } = options;
+
+  const element = document.querySelector(elementSelector) as HTMLElement;
+  if (!element) {
+    throw new Error(`Export target element not found: ${elementSelector}`);
+  }
+
+  const dataUrl = await toSvg(element, { backgroundColor, cacheBust: true });
+  const link = document.createElement('a');
+  link.download = `${filePrefix}_${Date.now()}.svg`;
+  link.href = dataUrl;
+  link.click();
+};
+
+/**
+ * JSON形式でエクスポート（ReactFlow版）
+ */
+export const exportFlowToJson = (
+  nodes: Node[],
+  edges: Edge[],
+  viewport: Viewport,
+  options: ExportOptions = {},
+  metadata?: Partial<ExportMetadata>
+): void => {
+  const { filePrefix = 'petri-net' } = options;
+  const flowData = {
+    nodes, edges, viewport,
+    metadata: {
+      exportedAt: new Date().toISOString(),
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+      version: '1.0.0',
+      ...metadata
+    }
+  };
+  const dataStr = JSON.stringify(flowData, null, 2);
+  const dataBlob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.download = `${filePrefix}_${Date.now()}.json`;
+  link.href = url;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+};
+
+/**
+ * 統合エクスポート関数（ReactFlow版）
+ */
+export const exportPetriNet = async (
+  format: ExportFormat,
+  params: {
+    elementSelector?: string;
+    nodes?: Node[];
+    edges?: Edge[];
+    viewport?: Viewport;
+    options?: ExportOptions;
+    metadata?: Partial<ExportMetadata>;
+  }
+): Promise<void> => {
+  const {
+    elementSelector = '.react-flow',
+    nodes = [],
+    edges = [],
+    viewport = { x: 0, y: 0, zoom: 1 },
+    options = {},
+    metadata
+  } = params;
+
+  switch (format) {
+    case 'png':
+      await exportToPngBySelector(elementSelector, options);
+      break;
+    case 'svg':
+      await exportToSvgBySelector(elementSelector, options);
+      break;
+    case 'json':
+      exportFlowToJson(nodes, edges, viewport, options, metadata);
+      break;
+    default:
+      throw new Error(`Unsupported export format: ${format}`);
+  }
+};
+
+/**
+ * エクスポート可能かチェック（ReactFlow版）
+ */
+export const canExportFlow = (
+  format: ExportFormat,
+  elementSelector: string = '.react-flow',
+  hasData: boolean = false
+): boolean => {
+  if (format === 'json') return hasData;
+  return document.querySelector(elementSelector) !== null;
+};

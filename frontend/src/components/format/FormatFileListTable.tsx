@@ -18,7 +18,7 @@ import {
   EditOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
-import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
+import { formatFileSize, formatRelativeTime } from '@/utils/formatUtils';
 
 const { Text } = Typography;
 
