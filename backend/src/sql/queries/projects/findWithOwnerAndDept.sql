@@ -1,8 +1,6 @@
--- プロジェクト詳細取得クエリ（オーナー名・部門名含む）
--- 使用箇所:
---   - progressService.ts - getWorkDetails()
--- パラメータ: $1=projectId, $2=organizationId
-
+-- プロジェクト詳細をオーナー名・部門名付きで取得（progressService.getWorkDetails() から移行）
+-- $1: project_id
+-- $2: organization_id
 SELECT
   p.organization_id,
   p.project_id,
@@ -18,10 +16,10 @@ SELECT
   p.update_at
 FROM project p
 LEFT JOIN department d
-  ON p.department_cd = d.department_cd
-  AND p.organization_id = d.organization_id
+  ON d.organization_id = p.organization_id
+  AND d.department_cd = p.department_cd
 LEFT JOIN organization_user ou
-  ON p.owner_user_id = ou.user_id
-  AND p.organization_id = ou.organization_id
+  ON ou.organization_id = p.organization_id
+  AND ou.user_id = p.owner_user_id
 WHERE p.project_id = $1
   AND p.organization_id = $2

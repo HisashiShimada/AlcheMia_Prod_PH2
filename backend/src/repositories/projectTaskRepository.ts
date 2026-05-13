@@ -12,7 +12,8 @@
  */
 
 import { getPool } from '../database/db';
-import { ProjectTask } from '../types/database';
+import { getPgp } from '../database/db';
+import { ProjectTask, ProjectTaskRow } from '../types/database';
 import type { TaskWithProject } from '../types/progress';
 import type { MethodTaskRecord, TaskFilters } from '../types/task';
 import { loadSqlFile } from '../sql/loader';
@@ -101,18 +102,10 @@ export async function hasRunningTasks(
   organizationId: string,
   projectId: string
 ): Promise<boolean> {
-  const pool = getPool();
-  
-  const query = `
-    SELECT EXISTS(
-      SELECT 1 
-      FROM project_task_detail
-      WHERE organization_id = $1 AND project_id = $2 AND task_status = 1
-    ) as has_running_tasks
-  `;
-  
-  const result = await pool.query<{ has_running_tasks: boolean }>(query, [organizationId, projectId]);
-  return result.rows[0].has_running_tasks;
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('project_tasks/hasRunningTasks.sql');
+  const result = await pgp.one<{ has_running_tasks: boolean }>(sqlQuery, [organizationId, projectId]);
+  return result.has_running_tasks;
 }
 
 /**
@@ -130,23 +123,10 @@ export async function hasIncompleteTasks(
   organizationId: string,
   projectId: string
 ): Promise<boolean> {
-  const pool = getPool();
-  
-  const query = `
-    SELECT EXISTS(
-      SELECT 1 
-      FROM project_task_detail
-      WHERE organization_id = $1 
-        AND project_id = $2 
-        AND task_status NOT IN (3, 4)
-    ) as has_incomplete_tasks
-  `;
-  
-  const result = await pool.query<{ has_incomplete_tasks: boolean }>(
-    query, 
-    [organizationId, projectId]
-  );
-  return result.rows[0].has_incomplete_tasks;
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('project_tasks/hasIncompleteTasks.sql');
+  const result = await pgp.one<{ has_incomplete_tasks: boolean }>(sqlQuery, [organizationId, projectId]);
+  return result.has_incomplete_tasks;
 }
 
 /**
@@ -424,14 +404,8 @@ export async function deleteByProjectAndWorkerLinkedFlg(
   projectId: string,
   workerLinkedFlg: boolean
 ): Promise<void> {
-  const query = `
-    DELETE FROM project_task
-    WHERE organization_id = $1 
-      AND project_id = $2 
-      AND worker_linked_flg = $3
-  `;
-  
-  await t.none(query, [organizationId, projectId, workerLinkedFlg]);
+  const sqlQuery = await loadSqlFile('project_tasks/deleteByWorkerLinkedFlg.sql');
+  await t.none(sqlQuery, [organizationId, projectId, workerLinkedFlg]);
 }
 
 /**
@@ -501,24 +475,25 @@ export async function updateWorkerLinkedFlgByProject(
   workerLinkedFlg: boolean,
   userId: string
 ): Promise<number> {
-  const query = `
-    UPDATE project_task
-    SET 
-      worker_linked_flg = $1,
-      update_user_id = $2,
-      update_at = CURRENT_TIMESTAMP
-    WHERE organization_id = $3 
-      AND project_id = $4
-  `;
-  
-  const result = await client.query(query, [
-    workerLinkedFlg,
-    userId,
-    organizationId,
-    projectId
-  ]);
-  
+  const sqlQuery = await loadSqlFile('project_tasks/updateWorkerLinkedFlg.sql');
+  const result = await client.query(sqlQuery, [workerLinkedFlg, userId, organizationId, projectId]);
   return result.rowCount || 0;
+}
+
+/**
+ * プロジェクトのタスク一覧を取得（progressService.getWorkDetails() から移行）
+ *
+ * @param projectId プロジェクトID
+ * @param organizationId 組織ID
+ * @returns タスク行の配列
+ */
+export async function findByProjectId(
+  projectId: string,
+  organizationId: string
+): Promise<ProjectTaskRow[]> {
+  const pgp = getPgp();
+  const sql = await loadSqlFile('project_tasks/findByProjectId.sql');
+  return pgp.any<ProjectTaskRow>(sql, [projectId, organizationId]);
 }
 
 /**
@@ -539,24 +514,7 @@ export async function bulkUpdateTaskStatusByProject(
   toStatus: number,
   userId: string
 ): Promise<number> {
-  const query = `
-    UPDATE project_task_detail
-    SET
-      task_status = $1,
-      update_user_id = $2,
-      update_at = CURRENT_TIMESTAMP
-    WHERE organization_id = $3
-      AND project_id = $4
-      AND task_status = $5
-  `;
-
-  const result = await client.query(query, [
-    toStatus,
-    userId,
-    organizationId,
-    projectId,
-    fromStatus,
-  ]);
-
+  const sqlQuery = await loadSqlFile('project_tasks/bulkUpdateTaskStatus.sql');
+  const result = await client.query(sqlQuery, [toStatus, userId, organizationId, projectId, fromStatus]);
   return result.rowCount || 0;
 }

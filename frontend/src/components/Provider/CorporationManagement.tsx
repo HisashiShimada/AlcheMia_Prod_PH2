@@ -25,7 +25,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { createApiClient } from '@/utils/authUtils';
-import { formatDateTime } from '@/utils/dateFormatter';
+import { formatDateTime } from '@/utils/formatUtils';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';

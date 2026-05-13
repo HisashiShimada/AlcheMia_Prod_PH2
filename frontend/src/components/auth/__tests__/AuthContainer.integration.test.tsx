@@ -11,17 +11,37 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AuthContainer from '../AuthContainer';
-import * as authApi from '../../../utils/authApi';
+import { authService } from '@/services/authService';
 import type {
-  LoginResponse,
-  VerifyPINResponse,
-  MessageResponse,
-  ROLE_REDIRECT_MAP,
-} from '../../../types/auth';
+  LoginResponseData,
+  VerifyPinResponseData,
+  ResendPinResponseData,
+  ResetPasswordRequestResponseData,
+} from '@/types/api';
+import type { ROLE_REDIRECT_MAP } from '../../../types/auth';
 
-// authApiをモック化
-jest.mock('../../../utils/authApi');
-const mockedAuthApi = authApi as jest.Mocked<typeof authApi>;
+// authServiceをモック化
+jest.mock('@/services/authService', () => ({
+  authService: {
+    login: jest.fn(),
+    verifyPin: jest.fn(),
+    resendPin: jest.fn(),
+    resetPasswordRequest: jest.fn(),
+    resetPassword: jest.fn(),
+    logout: jest.fn(),
+    refreshToken: jest.fn(),
+    refreshAccessToken: jest.fn(),
+    changePassword: jest.fn(),
+  },
+  AuthServiceError: class AuthServiceError extends Error {
+    code: string;
+    constructor(message: string, code: string) {
+      super(message);
+      this.code = code;
+    }
+  },
+}));
+const mockedAuthService = authService as jest.Mocked<typeof authService>;
 
 // Next.js routerをモック化
 const mockPush = jest.fn();
@@ -66,16 +86,16 @@ describe('AuthContainer 統合テスト', () => {
       const user = userEvent.setup();
 
       // Step 1: ログイン成功のモック
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123_1735185000',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 300,
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       // Step 2: PINコード検証成功のモック
-      const verifyResponse: VerifyPINResponse = {
+      const verifyResponse: VerifyPinResponseData = {
         user: {
           id: '550e8400-e29b-41d4-a716-446655440000',
           username: 'user001',
@@ -113,7 +133,7 @@ describe('AuthContainer 統合テスト', () => {
           passwordChangeRequired: false,
           redirectUrl: '/experiment-admin',
       };
-      mockedAuthApi.verifyPin.mockResolvedValueOnce(verifyResponse);
+      mockedAuthService.verifyPin.mockResolvedValueOnce(verifyResponse);
 
       // コンポーネントをレンダリング（必須propsを渡す）
       render(
@@ -137,9 +157,8 @@ describe('AuthContainer 統合テスト', () => {
 
       // APIが正しく呼ばれたことを確認
       await waitFor(() => {
-        expect(mockedAuthApi.login).toHaveBeenCalledWith(
-          'user001',
-          'password123',
+        expect(mockedAuthService.login).toHaveBeenCalledWith(
+          { userId: 'user001', password: 'password123', organizationId: TEST_ORG_ID },
           TEST_ORG_ID
         );
       });
@@ -160,7 +179,7 @@ describe('AuthContainer 統合テスト', () => {
 
       // PINコード検証APIが呼ばれたことを確認
       await waitFor(() => {
-        expect(mockedAuthApi.verifyPin).toHaveBeenCalledWith(
+        expect(mockedAuthService.verifyPin).toHaveBeenCalledWith(
           '123456',
           'temp_session_abc123_1735185000',
           TEST_ORG_ID
@@ -191,15 +210,15 @@ describe('AuthContainer 統合テスト', () => {
       for (const { role, expectedUrl } of roles) {
         jest.clearAllMocks();
 
-        const loginResponse: LoginResponse = {
+        const loginResponse: LoginResponseData = {
           sessionToken: `temp_session_${role}`,
           message: 'PINコードをメールに送信しました',
           email: 'use***@example.com',
           expiresIn: 300,
         };
-        mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+        mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
-        const verifyResponse: VerifyPINResponse = {
+        const verifyResponse: VerifyPinResponseData = {
           user: {
             id: '550e8400-e29b-41d4-a716-446655440000',
             username: 'testuser',
@@ -219,7 +238,7 @@ describe('AuthContainer 統合テスト', () => {
           passwordChangeRequired: false,
           redirectUrl: expectedUrl,
         };
-        mockedAuthApi.verifyPin.mockResolvedValueOnce(verifyResponse);
+        mockedAuthService.verifyPin.mockResolvedValueOnce(verifyResponse);
 
         const { unmount } = render(
           <AuthContainer
@@ -252,7 +271,7 @@ describe('AuthContainer 統合テスト', () => {
     test('認証失敗: 不正なユーザー名/パスワード', async () => {
       const user = userEvent.setup();
 
-      mockedAuthApi.login.mockRejectedValueOnce(
+      mockedAuthService.login.mockRejectedValueOnce(
         new Error('ユーザー名またはパスワードが正しくありません')
       );
 
@@ -281,16 +300,16 @@ describe('AuthContainer 統合テスト', () => {
       const user = userEvent.setup();
 
       // ログイン成功
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 300,
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       // PINコード検証失敗（試行回数超過）
-      mockedAuthApi.verifyPin.mockRejectedValueOnce(
+      mockedAuthService.verifyPin.mockRejectedValueOnce(
         new Error('PINコード入力試行回数の上限に達しました。最初からやり直してください')
       );
 
@@ -325,16 +344,16 @@ describe('AuthContainer 統合テスト', () => {
       const user = userEvent.setup();
 
       // ログイン成功
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 300,
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       // PINコード期限切れ
-      mockedAuthApi.verifyPin.mockRejectedValueOnce(
+      mockedAuthService.verifyPin.mockRejectedValueOnce(
         new Error('PINコードの有効期限が切れました。再送信してください')
       );
 
@@ -372,7 +391,7 @@ describe('AuthContainer 統合テスト', () => {
     test('レート制限超過: エラーメッセージを表示', async () => {
       const user = userEvent.setup();
 
-      mockedAuthApi.login.mockRejectedValueOnce(
+      mockedAuthService.login.mockRejectedValueOnce(
         new Error(
           'ログイン試行回数が上限に達しました。しばらくしてから再度お試しください'
         )
@@ -406,10 +425,11 @@ describe('AuthContainer 統合テスト', () => {
     test('パスワードリセット要求 → リセットリンク送信完了', async () => {
       const user = userEvent.setup();
 
-      const resetResponse: MessageResponse = {
+      const resetResponse: ResetPasswordRequestResponseData = {
         message: 'パスワードリセット用のリンクをメールに送信しました',
+        email: 'use***@example.com',
       };
-      mockedAuthApi.resetPasswordRequest.mockResolvedValueOnce(resetResponse);
+      mockedAuthService.resetPasswordRequest.mockResolvedValueOnce(resetResponse);
 
       render(
         <AuthContainer
@@ -439,7 +459,7 @@ describe('AuthContainer 統合テスト', () => {
 
       // APIが呼ばれたことを確認
       await waitFor(() => {
-        expect(mockedAuthApi.resetPasswordRequest).toHaveBeenCalledWith(
+        expect(mockedAuthService.resetPasswordRequest).toHaveBeenCalledWith(
           'user001',
           TEST_ORG_ID
         );
@@ -462,21 +482,21 @@ describe('AuthContainer 統合テスト', () => {
       const user = userEvent.setup();
 
       // ログイン成功
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 1, // 1秒で期限切れ（再送信可能になるまで短縮）
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       // 再送信成功
-      const resendResponse = {
+      const resendResponse: ResendPinResponseData = {
         message: 'PINコードを再送信しました',
         email: 'use***@example.com',
         expiresIn: 300,
       };
-      mockedAuthApi.resendPin.mockResolvedValueOnce(resendResponse);
+      mockedAuthService.resendPin.mockResolvedValueOnce(resendResponse);
 
       render(
         <AuthContainer
@@ -510,7 +530,7 @@ describe('AuthContainer 統合テスト', () => {
 
       // APIが呼ばれたことを確認
       await waitFor(() => {
-        expect(mockedAuthApi.resendPin).toHaveBeenCalledWith(
+        expect(mockedAuthService.resendPin).toHaveBeenCalledWith(
           'temp_session_abc123',
           TEST_ORG_ID
         );
@@ -521,16 +541,16 @@ describe('AuthContainer 統合テスト', () => {
       const user = userEvent.setup();
 
       // ログイン成功
-      const loginResponse: LoginResponse = {
+      const loginResponse: LoginResponseData = {
         sessionToken: 'temp_session_abc123',
         message: 'PINコードをメールに送信しました',
         email: 'use***@example.com',
         expiresIn: 1,
       };
-      mockedAuthApi.login.mockResolvedValueOnce(loginResponse);
+      mockedAuthService.login.mockResolvedValueOnce(loginResponse);
 
       // 再送信失敗（レート制限）
-      mockedAuthApi.resendPin.mockRejectedValueOnce(
+      mockedAuthService.resendPin.mockRejectedValueOnce(
         new Error('PINコード再送信回数が上限に達しました')
       );
 

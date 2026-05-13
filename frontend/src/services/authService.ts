@@ -7,7 +7,7 @@ import axios, { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
 import { HTTP_STATUS } from '@/constants/httpStatus';
 import { setTokenPair, clearAllTokens } from '@/utils/tokenStorage';
-import { mapErrorToMessage } from '@/utils/errorMapper';
+import { mapErrorToMessage } from '@/utils/errorUtils';
 import type { LoginCredentials } from '@/types/auth';
 import type {
   ApiResponse,

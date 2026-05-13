@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Card, Input, Button, Typography, Alert, Space, theme } from 'antd';
 import { EyeOutlined, EyeInvisibleOutlined, CheckOutlined } from '@ant-design/icons';
-import { validatePassword } from '@/utils/validation';
+import { validatePassword } from '@/utils/validationUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title, Text } = Typography;

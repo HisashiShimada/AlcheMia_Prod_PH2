@@ -11,7 +11,7 @@ import {
 } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
+import { formatFileSize, formatRelativeTime } from '@/utils/formatUtils';
 
 const { Text } = Typography;
 

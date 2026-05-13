@@ -71,7 +71,7 @@ import {
   type PublishStatusResponse,
 } from '@/services/projectApiService';
 import { AxiosError } from 'axios';
-import { mapErrorToMessage } from '@/utils/errorMapper';
+import { mapErrorToMessage } from '@/utils/errorUtils';
 import type { Project, Task } from '@/types/project';
 import type { MaimlEditorParams } from '@/types/maimlEditor';
 import type { Draft } from '@/types/editor';
