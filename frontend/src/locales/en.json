@@ -57,7 +57,10 @@
     "countUnit": "",
     "import": "Import",
     "otherUser": "Other User",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "itemsPerPage": "items/page",
+    "jumpToPage": "Go to page",
+    "page": ""
   },
   "languages": {
     "ja": "日本語",

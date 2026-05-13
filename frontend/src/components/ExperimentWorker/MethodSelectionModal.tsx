@@ -6,6 +6,7 @@ import { ToolOutlined, CheckOutlined, CloseOutlined, SearchOutlined } from '@ant
 import type { ColumnsType } from 'antd/es/table';
 import { Method } from '@/types/experimentWorker';
 import type { MethodTableData } from '@/types/project';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -35,6 +36,7 @@ export default function MethodSelectionModal({
   methods: propsMethods = [],
 }: MethodSelectionModalProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [tempMethodId, setTempMethodId] = useState<string | null>(selectedMethodId);
   
   // フィルター状態
@@ -245,7 +247,7 @@ export default function MethodSelectionModal({
             current: currentPage,
             pageSize: pageSize,
             showSizeChanger: true,
-            showTotal: (total) => `全 ${total} 件`,
+            showTotal: (total) => `${t('common.total')}${total}${t('common.items')}`,
             pageSizeOptions: ['20', '50', '100'],
             showQuickJumper: true,
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
