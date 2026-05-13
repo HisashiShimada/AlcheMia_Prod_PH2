@@ -26,7 +26,7 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { formatDateTime } from '@/utils/dateFormatter';
+import { formatDateTime } from '@/utils/formatUtils';
 import { getMasterDataConfig, getAllMasterDataConfigs } from '@/types/masterDataTypes';
 import type { MasterDataType } from '@/types/masterDataTypes';
 import * as masterApi from '@/services/masterApiService';

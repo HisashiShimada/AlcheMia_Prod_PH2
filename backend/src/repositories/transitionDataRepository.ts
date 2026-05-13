@@ -8,6 +8,7 @@ import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { TransitionStatus } from '../types/transitionData';
 import type { PoolClient } from 'pg';
+import type { TransitionProgressRow, TransitionForUpdate } from '../types/database';
 
 /**
  * トランジションデータのデータベース行型
@@ -333,6 +334,62 @@ export class TransitionDataRepository {
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while updating transition status (deemed progress)',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * タスクに紐づくトランジション進捗一覧を取得
+   *
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @param methodId メソッドID
+   * @param taskNo タスク番号
+   * @returns トランジション進捗行の配列
+   */
+  async findByTask(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number
+  ): Promise<TransitionProgressRow[]> {
+    try {
+      const pgp = getPgp();
+      const query = await loadSqlFile('transition_data/findByTask.sql');
+      return await pgp.any<TransitionProgressRow>(query, [organizationId, projectId, methodId, taskNo]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding transitions by task',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * トランジションIDでレコードを排他ロック付きで取得（トランザクション内用）
+   *
+   * @param client PoolClient（トランザクション）
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @param methodId メソッドID
+   * @param transitionId トランジションID
+   * @returns トランジション行（見つからない場合はnull）
+   */
+  async findByTransitionIdForUpdate(
+    client: PoolClient,
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    transitionId: string
+  ): Promise<TransitionForUpdate | null> {
+    try {
+      const query = await loadSqlFile('transition_data/findByTransitionId.sql');
+      const result = await client.query(query, [organizationId, projectId, methodId, transitionId]);
+      return result.rows[0] ?? null;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding transition by id for update',
         error as Error
       );
     }

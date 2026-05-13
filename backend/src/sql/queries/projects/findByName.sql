@@ -1,13 +1,7 @@
--- プロジェクト名からプロジェクト情報を取得
--- 使用箇所: 
---   - progressController.ts - updateTaskStatus()
---   - progressController.ts - getWorkerTasks()
--- パラメータ: $1=projectName, $2=organizationId
-
-SELECT 
-  project_id, 
-  project_name, 
-  project_status
+-- プロジェクト名から全カラム取得
+-- $1: organization_id
+-- $2: project_name
+SELECT *
 FROM project
-WHERE project_name = $1 
-  AND organization_id = $2
+WHERE organization_id = $1
+  AND project_name = $2

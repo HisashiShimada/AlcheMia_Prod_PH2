@@ -167,8 +167,9 @@ export class UserAuthenticationRepository {
   }
 
   /**
-   * パスワードを更新（有効期限と一時パスワードフラグをクリア）
-   * パスワード変更時に使用
+   * パスワードを更新（有効期限を PASSWORD_EXPIRY_DAYS 日後に設定、一時パスワードフラグを解除）
+   * ユーザーがパスワード変更モーダルから新しいパスワードを設定する際に使用
+   * （仮パスワードからの変更、有効期限切れ・未設定の場合の更新 の両方に対応）
    * 
    * @param pool - PostgreSQLコネクションプール
    * @param userId - ユーザーID
@@ -176,17 +177,18 @@ export class UserAuthenticationRepository {
    * @param hashedPassword - ハッシュ化されたパスワード
    * @returns 成功/失敗
    */
-  async clearPasswordExpiry(
+  async updatePasswordAfterChange(
     pool: Pool,
     userId: string,
     organizationId: string,
     hashedPassword: string
   ): Promise<Result<void>> {
     try {
+      const expiryDays = parseInt(process.env.PASSWORD_EXPIRY_DAYS ?? '30', 10);
       const query = `
         UPDATE user_authentication
         SET password = $1,
-            password_expires_at = NULL,
+            password_expires_at = NOW() + ($4 || ' days')::INTERVAL,
             is_temporary_flg = false,
             update_at = NOW()
         WHERE user_id = $2 AND organization_id = $3
@@ -196,6 +198,7 @@ export class UserAuthenticationRepository {
         hashedPassword,
         userId,
         organizationId,
+        expiryDays,
       ]);
 
       if (result.rowCount === 0) {

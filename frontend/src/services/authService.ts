@@ -7,7 +7,7 @@ import axios, { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
 import { HTTP_STATUS } from '@/constants/httpStatus';
 import { setTokenPair, clearAllTokens } from '@/utils/tokenStorage';
-import { mapErrorToMessage } from '@/utils/errorMapper';
+import { mapErrorToMessage } from '@/utils/errorUtils';
 import type { LoginCredentials } from '@/types/auth';
 import type {
   ApiResponse,
@@ -259,6 +259,7 @@ export const authService = {
       const response = await apiClient.post<ApiResponse<{
         accessToken: string;
         expiresIn: number;
+        passwordChangeRequired: boolean;
         user: {
           id: string;
           username: string;
@@ -277,7 +278,7 @@ export const authService = {
       );
 
       if (response.data.success) {
-        const { accessToken, user } = response.data.data;
+        const { accessToken, user, passwordChangeRequired } = response.data.data;
         
         // 新しいアクセストークンを保存
         setTokenPair(accessToken);
@@ -300,7 +301,7 @@ export const authService = {
             token: accessToken,
             expiresAt: new Date(Date.now() + response.data.data.expiresIn * 1000).toISOString(),
           },
-          passwordChangeRequired: false,
+          passwordChangeRequired: passwordChangeRequired ?? false,
           redirectUrl: '/', // デフォルトのリダイレクト先
         };
       } else {

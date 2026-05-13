@@ -7,6 +7,7 @@
  */
 
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
+import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { TransitionDataRepository, TransitionDataRow } from '../repositories/transitionDataRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
@@ -721,30 +722,12 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 1: プロジェクト基本情報を DB から取得
       // ─────────────────────────────────────────────
-      const pgp = getPgp();
+      const proj = await projectRepository.findWithOwnerAndDept(projectId, organizationId);
 
-      const projectSql = await loadSqlFile('projects/findWithOwnerAndDept.sql');
-      const projectRows = await pgp.any<{
-        organization_id: string;
-        project_id: string;
-        project_name: string;
-        description: string | null;
-        department_cd: string | null;
-        department_name: string | null;
-        owner_user_id: string | null;
-        owner_name: string | null;
-        project_status: number;
-        checkout_status: number | null;
-        create_at: Date;
-        update_at: Date;
-      }>(projectSql, [projectId, organizationId]);
-
-      if (projectRows.length === 0) {
+      if (!proj) {
         logger.warn('[ProgressService.getWorkDetails] プロジェクトが見つかりません', { projectId, organizationId });
         return { success: false, error: { code: 'TASK_NOT_FOUND', message: 'プロジェクトが見つかりません' } };
       }
-
-      const proj = projectRows[0];
 
       // ─────────────────────────────────────────────
       // Step 2: MAIML ダウンロード & パース
@@ -799,17 +782,7 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 5: タスク一覧を DB から取得
       // ─────────────────────────────────────────────
-      const taskSql = await loadSqlFile('project_tasks/findByProjectId.sql');
-      const taskRows = await pgp.any<{
-        organization_id: string;
-        project_id: string;
-        method_id: string;
-        experiment_order: number;
-        experiment_condition: number | null;
-        attempts_count: number | null;
-        create_at: Date;
-        update_at: Date;
-      }>(taskSql, [proj.project_id, organizationId]);
+      const taskRows = await projectTaskRepository.findByProjectId(proj.project_id, organizationId);
 
       // ─────────────────────────────────────────────
       // Step 6: タスクごとのトランジション進捗を並列取得
@@ -824,9 +797,6 @@ export class ProgressService {
         6: '異常中'
       };
 
-      const transitionSql = await loadSqlFile('transition_data/findByTask.sql');
-      const taskDetailSql = await loadSqlFile('project_tasks/findTaskDetailsByMethodId.sql');
-
       const workDetails: WorkDetailItem[] = await Promise.all(
         taskRows.map(async (task) => {
           // workId は "{methodId}_{experimentOrder}" 形式
@@ -838,30 +808,23 @@ export class ProgressService {
             ? method.transitions.map((t: any) => String(t.id ?? t.transitionId ?? t))
             : [];
 
-          // DB からトランジション進捗を取得
-          // project_task_detail から当該メソッドの task_no 一覧を取得し、
-          // 各 task_no ごとに transition_data をクエリして全件集約する
-          // （transition_data の主キー: organization_id, project_id, method_id, task_no, transition_id）
-          const taskDetailRows = await pgp.any<{ task_no: number }>(
-            taskDetailSql,
-            [organizationId, proj.project_id, task.method_id]
+          // project_task_detail から当該メソッドの task_no 一覧を取得
+          const taskDetailRows = await projectTaskDetailRepository.findByMethodId(
+            organizationId,
+            proj.project_id,
+            task.method_id
           );
-
-          // task_no 一覧が取得できない場合は空配列を返す
           const taskNos: number[] = taskDetailRows.map(r => Number(r.task_no));
 
           // 各 task_no の transition_data を並列取得してフラットに集約
           const tdRowsPerTaskNo = await Promise.all(
             taskNos.map(taskNo =>
-              pgp.any<{
-                transition_id: string;
-                status: number;
-                progress_rate: number;
-                update_user_id: string | null;
-                worker_name: string | null;
-                create_at: Date;
-                update_at: Date;
-              }>(transitionSql, [organizationId, proj.project_id, task.method_id, taskNo])
+              this.transitionDataRepository.findByTask(
+                organizationId,
+                proj.project_id,
+                task.method_id,
+                taskNo
+              )
             )
           );
           const tdRows = tdRowsPerTaskNo.flat();
@@ -881,12 +844,12 @@ export class ProgressService {
               };
             }
             return {
-                transitionId: row.transition_id,
-                progressStatus: TRANSITION_STATUS_LABELS[row.status] ?? '未開始',
-                assignedWorker: row.worker_name ?? undefined,
-                startDate: row.create_at ? row.create_at.toISOString() : undefined,
-                endDate: row.status === 5 && row.update_at ? row.update_at.toISOString() : undefined
-              };
+              transitionId: row.transition_id,
+              progressStatus: TRANSITION_STATUS_LABELS[row.status] ?? '未開始',
+              assignedWorker: row.worker_name ?? undefined,
+              startDate: row.create_at ? row.create_at.toISOString() : undefined,
+              endDate: row.status === 5 && row.update_at ? row.update_at.toISOString() : undefined
+            };
           });
 
           // 統計情報の算出
