@@ -57,6 +57,7 @@ function HomeContent() {
 
   // パスワード変更モーダル用の状態
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [changePasswordReason, setChangePasswordReason] = useState<'temporary' | 'expired'>('temporary');
   const [pendingRedirectData, setPendingRedirectData] = useState<{
     user: User;
     menuType: string | null;
@@ -70,13 +71,15 @@ function HomeContent() {
    * @param passwordChangeRequired パスワード変更が必要かどうか
    * @param context ログインコンテキスト（ログ出力用）
    * @param showSuccessMessage 成功メッセージを表示するか（自動ログイン時はfalse）
+   * @param isTemporaryPassword 仮パスワードによるログインかどうか（trueなら'temporary'、falseなら'expired'）
    */
   const handleLoginSuccess = (
     user: User,
     sessionToken: string,
     passwordChangeRequired: boolean,
     context: string,
-    showSuccessMessage = true
+    showSuccessMessage = true,
+    isTemporaryPassword = true
   ): void => {
     // ユーザー情報とセッショントークンをLocal Storageに保存
     if (typeof window !== 'undefined') {
@@ -84,9 +87,11 @@ function HomeContent() {
       localStorage.setItem('userInfo', JSON.stringify(user));
     }
 
-    // 一時パスワードでログインした場合
+    // パスワード変更が必要な場合
     if (passwordChangeRequired) {
-      console.log(`[${context}] 一時パスワードでログイン - パスワード変更モーダルを表示`);
+      // 仮パスワードか有効期限切れかでメッセージを切り替える
+      const reason = isTemporaryPassword ? 'temporary' : 'expired';
+      console.log(`[${context}] パスワード変更必要 (reason: ${reason}) - パスワード変更モーダルを表示`);
       
       // メニュー遷移に必要な情報を保存
       setPendingRedirectData({
@@ -94,7 +99,8 @@ function HomeContent() {
         menuType: user.initialScreenFunctionCd,
       });
       
-      // パスワード変更モーダルを表示
+      // モーダル表示理由を設定してから表示
+      setChangePasswordReason(reason);
       setShowChangePasswordModal(true);
     } else {
       // 通常のパスワードでログイン - メニュー画面へ遷移
@@ -378,30 +384,21 @@ function HomeContent() {
       try {
         // 1. refreshAccessToken()でRedisのリフレッシュトークンを確認
         // （httpOnly Cookieが自動送信される）
-        // DB負荷を避けるため、アクセストークンのみ取得（ユーザー情報は取得しない）
-        const accessToken = await authService.refreshAccessToken();
+        // refreshToken() でユーザー情報・パスワード有効期限チェックを含めて取得
+        const refreshResult = await authService.refreshToken();
         
-        if (accessToken) {
-          // 2. Redisにリフレッシュトークンが存在 → 新しいアクセストークンを取得
-          // 3. Local Storageから既存のユーザー情報を取得（必須）
-          if (typeof window !== 'undefined') {
-            const existingUserInfo = localStorage.getItem('userInfo');
-            
-            if (existingUserInfo) {
-              try {
-                const user = JSON.parse(existingUserInfo);
-                
-                // バリデーション: 必須フィールドの確認
-                if (user.id && user.username && user.initialScreenFunctionCd) {
-                  // 4. Local Storageのユーザー情報 + 新しいアクセストークンでログイン
-                  handleLoginSuccess(user, accessToken, false, 'Auto-Login', false);
-                  return;
-                }
-              } catch (parseError) {
-                // パースエラー: 通常ログイン画面を表示
-                console.log('[Auto-Login] userInfo parse error:', parseError);
-              }
+        if (refreshResult) {
+          const { user, session, passwordChangeRequired } = refreshResult;
+          // バリデーション: 必須フィールドの確認
+          if (user.id && user.username && user.initialScreenFunctionCd) {
+            // Local Storageのユーザー情報を最新化
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('userInfo', JSON.stringify(user));
             }
+            // ログイン成功処理（パスワード有効期限チェック結果を反映）
+            // 自動ログイン時にパスワード変更が必要な場合は有効期限切れ（isTemporaryPassword=false）
+            handleLoginSuccess(user, session.token, passwordChangeRequired || false, 'Auto-Login', false, false);
+            return;
           }
         }
       } catch {
@@ -595,10 +592,11 @@ function HomeContent() {
           error={error}
           loading={loading}
         />
-        {/* パスワード変更モーダル（一時パスワードでログイン時に表示） */}
+        {/* パスワード変更モーダル（仮パスワード or 有効期限切れでログイン時に表示） */}
         <ChangePasswordModal
           open={showChangePasswordModal}
           onSuccess={handleChangePasswordSuccess}
+          reason={changePasswordReason}
         />
       </>
     );
@@ -619,10 +617,11 @@ function HomeContent() {
           error={error}
           loading={loading}
         />
-        {/* パスワード変更モーダル（一時パスワードでログイン時に表示） */}
+        {/* パスワード変更モーダル（仮パスワード or 有効期限切れでログイン時に表示） */}
         <ChangePasswordModal
           open={showChangePasswordModal}
           onSuccess={handleChangePasswordSuccess}
+          reason={changePasswordReason}
         />
       </>
     );
@@ -732,10 +731,11 @@ function HomeContent() {
   return (
     <>
       {contextHolder}
-      {/* パスワード変更モーダル（一時パスワードでログイン時に表示） */}
+      {/* パスワード変更モーダル（仮パスワード or 有効期限切れでログイン時に表示） */}
       <ChangePasswordModal
         open={showChangePasswordModal}
         onSuccess={handleChangePasswordSuccess}
+        reason={changePasswordReason}
       />
     </>
   );
