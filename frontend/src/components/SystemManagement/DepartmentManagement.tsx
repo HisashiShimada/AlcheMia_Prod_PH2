@@ -363,7 +363,7 @@ export default function DepartmentManagement() {
           departmentName: values.displayName,
           isActive: values.isActive !== undefined ? values.isActive : true,
         };
-        await createMaster(createRequest as unknown as import('@/services/departmentApiService').MasterRecord);
+        await createMaster(createRequest as unknown as MasterRecord);
         await fetchDepartments();
         message.success(t('departmentManagement.messages.addSuccess'));
       }
