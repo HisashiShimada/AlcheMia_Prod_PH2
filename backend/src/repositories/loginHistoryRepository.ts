@@ -4,6 +4,7 @@
  */
 
 import { Pool } from 'pg';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * 最終ログイン情報の型
@@ -36,25 +37,9 @@ export async function getLastSuccessfulLogin(
   userId: string,
   organizationId: string
 ): Promise<LastLogin | null> {
-  const query = `
-    SELECT 
-      user_id,
-      organization_id,
-      login_at
-    FROM login_history
-    WHERE user_id = $1
-      AND organization_id = $2
-      AND login_sf = true
-    ORDER BY login_at DESC
-    LIMIT 1
-  `;
-
-  const result = await pool.query(query, [userId, organizationId]);
-
-  if (result.rows.length === 0) {
-    return null;
-  }
-
+  const sqlQuery = await loadSqlFile('login_history/getLastSuccessfulLogin.sql');
+  const result = await pool.query(sqlQuery, [userId, organizationId]);
+  if (result.rows.length === 0) return null;
   return {
     user_id: result.rows[0].user_id,
     organization_id: result.rows[0].organization_id,
@@ -76,26 +61,9 @@ export async function getLastTwoFactorAuthLogin(
   userId: string,
   organizationId: string
 ): Promise<LastTwoFactorAuthLogin | null> {
-  const query = `
-    SELECT 
-      user_id,
-      organization_id,
-      login_at
-    FROM login_history
-    WHERE user_id = $1
-      AND organization_id = $2
-      AND login_sf = true
-      AND entry_execute_flg = true
-    ORDER BY login_at DESC
-    LIMIT 1
-  `;
-
-  const result = await pool.query(query, [userId, organizationId]);
-
-  if (result.rows.length === 0) {
-    return null;
-  }
-
+  const sqlQuery = await loadSqlFile('login_history/getLastTwoFactorAuthLogin.sql');
+  const result = await pool.query(sqlQuery, [userId, organizationId]);
+  if (result.rows.length === 0) return null;
   return {
     user_id: result.rows[0].user_id,
     organization_id: result.rows[0].organization_id,
@@ -125,23 +93,8 @@ export async function recordLogin(
   userAgent: string,
   entryExecuteFlg: boolean = false
 ): Promise<void> {
-  const query = `
-    INSERT INTO login_history (
-      user_id,
-      organization_id,
-      login_at,
-      login_sf,
-      failure_reason,
-      ip_address,
-      user_agent,
-      entry_execute_flg,
-      create_user_id,
-      create_at
-    )
-    VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $1, CURRENT_TIMESTAMP)
-  `;
-
-  await pool.query(query, [
+  const sqlQuery = await loadSqlFile('login_history/recordLogin.sql');
+  await pool.query(sqlQuery, [
     userName,
     organizationId,
     success,

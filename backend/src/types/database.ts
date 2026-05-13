@@ -380,6 +380,143 @@ export interface MaimlEventLog {
   update_at?: Date;
 }
 
+// ============================================================
+// Repository メソッド戻り値型定義（progressService移行分）
+// ============================================================
+
+/**
+ * findWithOwnerAndDept クエリの戻り値型
+ *
+ * @remarks
+ * SQL: projects/findWithOwnerAndDept.sql
+ * Repository: projectRepository.findWithOwnerAndDept()
+ */
+export interface ProjectWithOwnerAndDept {
+  organization_id: string;
+  project_id: string;
+  project_name: string;
+  description: string | null;
+  department_cd: string | null;
+  department_name: string | null;
+  owner_user_id: string | null;
+  owner_name: string | null;
+  project_status: number;
+  checkout_status: number | null;
+  create_at: Date;
+  update_at: Date;
+}
+
+/**
+ * findForUpdate クエリの戻り値型（SELECT FOR UPDATE）
+ *
+ * @remarks
+ * SQL: projects/findForUpdate.sql
+ * Repository: projectRepository.findForUpdate()
+ */
+export interface ProjectForUpdate {
+  project_id: string;
+  project_name: string;
+  project_status: number;
+  project_maiml_flg: boolean;
+  checkout_status: number;
+  owner_user_id: string;
+}
+
+/**
+ * findWithOwner クエリの戻り値型
+ *
+ * @remarks
+ * SQL: projects/findWithOwner.sql
+ * Repository: projectRepository.findWithOwner()
+ */
+export interface ProjectWithOwner {
+  project_id: string;
+  project_name: string;
+  checkout_status: number;
+  owner_user_id: string;
+  owner_user_name: string | null;
+}
+
+/**
+ * findByProjectId クエリの戻り値型
+ *
+ * @remarks
+ * SQL: project_tasks/findByProjectId.sql
+ * Repository: projectTaskRepository.findByProjectId()
+ */
+export interface ProjectTaskRow {
+  organization_id: string;
+  project_id: string;
+  method_id: string;
+  experiment_order: number;
+  experiment_condition: number | null;
+  attempts_count: number | null;
+  create_at: Date;
+  update_at: Date;
+}
+
+/**
+ * findTaskDetailsByMethodId クエリの戻り値型
+ *
+ * @remarks
+ * SQL: project_tasks/findTaskDetailsByMethodId.sql
+ * Repository: projectTaskDetailRepository.findByMethodId()
+ */
+export interface ProjectTaskDetailByMethod {
+  organization_id: string;
+  project_id: string;
+  method_id: string;
+  task_no: number;
+  task_status: number | null;
+  experiment_start_at: Date | null;
+  experiment_end_at: Date | null;
+  experiment_user_id: string | null;
+  create_at: Date;
+  update_at: Date;
+}
+
+/**
+ * findByTask クエリの戻り値型
+ *
+ * @remarks
+ * SQL: transition_data/findByTask.sql
+ * Repository: transitionDataRepository.findByTask()
+ */
+export interface TransitionProgressRow {
+  transition_id: string;
+  status: number;
+  progress_rate: number;
+  update_user_id: string | null;
+  worker_name: string | null;
+  create_at: Date;
+  update_at: Date;
+}
+
+/**
+ * findByTransitionIdForUpdate クエリの戻り値型
+ *
+ * @remarks
+ * SQL: transition_data/findByTransitionId.sql
+ * Repository: transitionDataRepository.findByTransitionIdForUpdate()
+ */
+export interface TransitionForUpdate {
+  method_id: string;
+  task_no: number;
+  status: number;
+}
+
+/**
+ * countActualByPlaceIds クエリの戻り値型
+ *
+ * @remarks
+ * SQL: template_data/countActualByPlaceIds.sql
+ * Repository: templateDataRepository.countActualByPlaceIds()
+ */
+export interface TemplateActualCount {
+  template_type: string;
+  count: string;
+}
+
 /**
  * User検索フィルター型定義
  */

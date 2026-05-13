@@ -2096,26 +2096,28 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     key: 'file_management',
                     label: t('projectManagement.tabs.file_management'),
                     children: (
-                      <FileListTable
-                        files={projectFiles}
-                        maimlValidationRow={savedValidationRow}
-                        onFileClick={(file) => console.log('File clicked:', file.name)}
-                        onFolderClick={handleFolderClick}
-                        onViewFile={handleViewFile}
-                        onDeleteFile={handleDeleteMaimlFile}
-                        onDeleteFolder={handleDeleteFolder}
-                        onRenameFile={async () => {
-                          // ファイルリネーム成功後にファイル一覧を再取得
-                          const fileResponse = await getProjectFiles(selectedProject.id, true);
-                          setProjectFilesData(prev => ({
-                            ...prev,
-                            [selectedProject.id]: {
-                              root: fileResponse.files || [],
-                              subFolderFiles: fileResponse.subFolderFiles || {},
-                            }
-                          }));
-                        }}
-                      />
+                      <div style={{ overflow: 'auto', height: '100%' }}>
+                        <FileListTable
+                          files={projectFiles}
+                          maimlValidationRow={savedValidationRow}
+                          onFileClick={(file) => console.log('File clicked:', file.name)}
+                          onFolderClick={handleFolderClick}
+                          onViewFile={handleViewFile}
+                          onDeleteFile={handleDeleteMaimlFile}
+                          onDeleteFolder={handleDeleteFolder}
+                          onRenameFile={async () => {
+                            // ファイルリネーム成功後にファイル一覧を再取得
+                            const fileResponse = await getProjectFiles(selectedProject.id, true);
+                            setProjectFilesData(prev => ({
+                              ...prev,
+                              [selectedProject.id]: {
+                                root: fileResponse.files || [],
+                                subFolderFiles: fileResponse.subFolderFiles || {},
+                              }
+                            }));
+                          }}
+                        />
+                      </div>
                     ),
                   },
                   {
@@ -2300,6 +2302,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   display: 'flex',
                   flexDirection: 'column',
                   overflow: 'hidden',
+                  minHeight: 0,
                 }}
               />
             </>
