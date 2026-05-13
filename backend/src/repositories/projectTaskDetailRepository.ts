@@ -10,8 +10,8 @@
  * 主キー: (organization_id, project_id, method_id, task_no)
  */
 
-import { getPool } from '../database/db';
-import { ProjectTaskDetail } from '../types/database';
+import { getPool, getPgp } from '../database/db';
+import { ProjectTaskDetail, ProjectTaskDetailByMethod } from '../types/database';
 import { loadSqlFile } from '../sql/loader';
 import type { ITask } from 'pg-promise';
 import { TaskDetailResponse, TaskDetailTransitionItem, TaskDetailStats } from '../types/api';
@@ -28,15 +28,8 @@ export async function findByProject(
   projectId: string
 ): Promise<ProjectTaskDetail[]> {
   const pool = getPool();
-  
-  const query = `
-    SELECT *
-    FROM project_task_detail
-    WHERE organization_id = $1 AND project_id = $2
-    ORDER BY method_id ASC, task_no ASC
-  `;
-  
-  const result = await pool.query<ProjectTaskDetail>(query, [organizationId, projectId]);
+  const sqlQuery = await loadSqlFile('project_task_detail/findByProject.sql');
+  const result = await pool.query<ProjectTaskDetail>(sqlQuery, [organizationId, projectId]);
   return result.rows;
 }
 
@@ -56,21 +49,8 @@ export async function findByPrimaryKey(
   taskNo: number
 ): Promise<ProjectTaskDetail | null> {
   const pool = getPool();
-  
-  const query = `
-    SELECT *
-    FROM project_task_detail
-    WHERE organization_id = $1 
-      AND project_id = $2 
-      AND method_id = $3 
-      AND task_no = $4
-  `;
-  
-  const result = await pool.query<ProjectTaskDetail>(
-    query,
-    [organizationId, projectId, methodId, taskNo]
-  );
-  
+  const sqlQuery = await loadSqlFile('project_task_detail/findByPrimaryKey.sql');
+  const result = await pool.query<ProjectTaskDetail>(sqlQuery, [organizationId, projectId, methodId, taskNo]);
   return result.rows[0] || null;
 }
 
@@ -414,6 +394,26 @@ export async function deleteByProjectAndStatus(
  * @param userId ユーザーID
  * @param tasks タスクデータ配列
  */
+/**
+ * メソッドIDに紐づくタスク詳細一覧を取得
+ *
+ * progressService の getWorkDetails() から移行。
+ *
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param methodId メソッドID
+ * @returns タスク詳細行の配列
+ */
+export async function findByMethodId(
+  organizationId: string,
+  projectId: string,
+  methodId: string
+): Promise<ProjectTaskDetailByMethod[]> {
+  const pgp = getPgp();
+  const sql = await loadSqlFile('project_tasks/findTaskDetailsByMethodId.sql');
+  return pgp.any<ProjectTaskDetailByMethod>(sql, [organizationId, projectId, methodId]);
+}
+
 export async function batchInsert(
   t: ITask<unknown>,
   organizationId: string,

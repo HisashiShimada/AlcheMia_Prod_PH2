@@ -12,8 +12,10 @@
  */
 
 import { PoolClient } from 'pg';
+import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import type { Property, Content, Insertion } from '../types/maiml-unified';
+import type { TemplateActualCount } from '../types/database';
 
 /**
  * property_set JSONB の型定義
@@ -245,6 +247,37 @@ export class TemplateDataRepository {
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while inserting template data',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * プレースID群ごとのテンプレート実績数をtype別に集計
+   *
+   * progressService の getSingleTransitionProgress() から移行。
+   *
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @param methodId メソッドID
+   * @param taskNo タスク番号
+   * @param placeIds プレースIDの配列
+   * @returns template_type / count の配列
+   */
+  async countActualByPlaceIds(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    placeIds: string[]
+  ): Promise<TemplateActualCount[]> {
+    try {
+      const pgp = getPgp();
+      const query = await loadSqlFile('template_data/countActualByPlaceIds.sql');
+      return await pgp.any<TemplateActualCount>(query, [organizationId, projectId, methodId, taskNo, placeIds]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while counting actual by place ids',
         error as Error
       );
     }

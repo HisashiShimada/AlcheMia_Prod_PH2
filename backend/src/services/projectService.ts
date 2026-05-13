@@ -94,18 +94,14 @@ export class ProjectService {
       client = await pool.connect();
       await client.query('BEGIN');
 
-      // Task 3.3: 重複チェック
-      const duplicateCheckQuery = `
-        SELECT COUNT(*) as count
-        FROM project
-        WHERE organization_id = $1 AND project_name = $2
-      `;
-      const duplicateResult = await client.query(duplicateCheckQuery, [
+      // Task 3.3: 重複チェック（Repository層経由）
+      const isDuplicate = await projectRepository.existsByName(
         organizationId,
         data.projectName,
-      ]);
+        client
+      );
 
-      if (parseInt(duplicateResult.rows[0].count, 10) > 0) {
+      if (isDuplicate) {
         await client.query('ROLLBACK');
         return {
           success: false,
@@ -116,45 +112,26 @@ export class ProjectService {
         };
       }
 
-      // Task 3.4: プロジェクトレコード登録
+      // Task 3.4: プロジェクトレコード登録（Repository層経由）
       // project_id 形式: 'project_' (8文字) + nanoid(12) = 20文字固定
       const projectId = `project_${nanoid(12)}`;
       const createAt = new Date().toISOString();
 
-      const insertQuery = `
-        INSERT INTO project (
-          organization_id,
-          project_id,
-          project_name,
-          description,
-          department_cd,
-          owner_user_id,
-          project_status,
-          checkout_status,
-          project_maiml_flg,
-          create_at,
-          create_user_id,
-          update_user_id,
-          update_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        RETURNING *
-      `;
-
-      const insertResult = await client.query(insertQuery, [
-        organizationId,
-        projectId,
-        data.projectName,
-        data.description || null,
-        departmentId,
-        userId,
-        0, // project_status: 0 (プロジェクト計画中)
-        0, // checkout_status: 0 (チェックイン中)
-        false, // project_maiml_flg
-        createAt,
-        userId,   // create_user_id
-        userId,   // update_user_id
-        createAt, // update_at
-      ]);
+      const insertResult = await projectRepository.insert({
+        organization_id: organizationId,
+        project_id: projectId,
+        project_name: data.projectName,
+        description: data.description || undefined,
+        department_cd: departmentId ?? undefined,
+        owner_user_id: userId,
+        project_status: 0, // プロジェクト計画中
+        checkout_status: 0, // チェックイン中
+        project_maiml_flg: false,
+        create_at: createAt as any,
+        create_user_id: userId,
+        update_user_id: userId,
+        update_at: createAt as any,
+      });
 
       // Task 3.6: S3フォルダ作成
       const storageService = getStorageService();
@@ -188,26 +165,27 @@ export class ProjectService {
       await client.query('COMMIT');
 
       // レスポンスデータ構築（フロントエンドの型に合わせる）
+      // insert() は Project オブジェクトを直接返す（.rows[0] は不要）
       const projectData: Project = {
-        id: insertResult.rows[0].project_id,
-        name: insertResult.rows[0].project_name,
-        folderName: insertResult.rows[0].project_name,
-        description: insertResult.rows[0].description || '',
-        status: insertResult.rows[0].project_status, // 数値のまま返す
+        id: insertResult.project_id ?? projectId,
+        name: insertResult.project_name ?? data.projectName,
+        folderName: insertResult.project_name ?? data.projectName,
+        description: insertResult.description || '',
+        status: insertResult.project_status ?? 0, // 数値のまま返す
         fileCount: 0,
         totalSize: 0,
-        owner: insertResult.rows[0].owner_user_id,
+        owner: insertResult.owner_user_id ?? '',
         ownerName: undefined,
         ownerEmail: undefined,
-        department: insertResult.rows[0].department_cd || '',
+        department: insertResult.department_cd || '',
         members: [],
         tags: [],
-        isCheckedOut: insertResult.rows[0].checkout_status === CheckoutStatusEnum.CHECKED_OUT,
+        isCheckedOut: insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy:
-          insertResult.rows[0].checkout_status === CheckoutStatusEnum.CHECKED_OUT ? insertResult.rows[0].owner_user_id : null,
-        checkedOutAt: insertResult.rows[0].checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
-        createdAt: new Date(insertResult.rows[0].create_at).toISOString(),
-        updatedAt: new Date(insertResult.rows[0].create_at).toISOString(),
+          insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? insertResult.owner_user_id ?? null : null,
+        checkedOutAt: insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
+        createdAt: new Date(insertResult.create_at as any).toISOString(),
+        updatedAt: new Date(insertResult.create_at as any).toISOString(),
         totalTasks: 0,
         completedTasks: 0,
       };
@@ -373,117 +351,11 @@ export class ProjectService {
     try {
       const { includeCompleted, sortBy = 'create_at', order = 'desc' } = options;
 
-      // プロジェクト一覧取得クエリ（ユーザー名、部署名、チェックアウト情報も取得）
-      const projectQuery = `
-        SELECT 
-          p.organization_id,
-          p.project_id,
-          p.project_name,
-          p.description,
-          p.department_cd,
-          d.department_name,
-          p.owner_user_id,
-          ou.user_name as owner_user_name,
-          ou.mail_address as owner_email,
-          p.project_status,
-          ps.code_name as project_status_name,
-          p.project_maiml_flg,
-          p.checkout_status,
-          p.create_at,
-          checkout_user.user_id as checkout_user_id,
-          COUNT(DISTINCT CASE 
-            WHEN ptd.method_id IS NOT NULL AND ptd.task_no IS NOT NULL 
-            THEN ptd.method_id || '_' || ptd.task_no::TEXT 
-            ELSE NULL 
-          END) as task_count,
-          COUNT(DISTINCT CASE 
-            WHEN ptd.task_status = 4 
-            THEN ptd.method_id || '_' || ptd.task_no::TEXT 
-            ELSE NULL 
-          END) as completed_task_count,
-          (
-            SELECT COUNT(*)
-            FROM file_metadata fm
-            WHERE fm.organization_id = p.organization_id
-              AND fm.file_key LIKE CAST(p.organization_id AS TEXT) || '/projects/' || p.project_name || '/%'
-              AND fm.file_key NOT LIKE '%/.keep'
-          ) as file_count,
-          p.project_uuid,
-          (
-            SELECT fm2.file_key
-            FROM file_metadata fm2
-            WHERE fm2.project_uuid = p.project_uuid
-              AND fm2.file_key LIKE '%.maiml'
-              AND fm2.file_key NOT LIKE '%/archive/%'
-            ORDER BY fm2.created_at DESC
-            LIMIT 1
-          ) as maiml_file_key
-        FROM project p
-        LEFT JOIN project_task_detail ptd
-          ON ptd.project_id = p.project_id
-          AND ptd.organization_id = p.organization_id
-        LEFT JOIN organization_user ou
-          ON ou.user_id = p.owner_user_id
-          AND ou.organization_id = p.organization_id
-        LEFT JOIN department d
-          ON d.department_cd = p.department_cd
-          AND d.organization_id = p.organization_id
-        LEFT JOIN code_master ps
-          ON ps.code_division = 'project_status'
-          AND ps.code_value = CAST(p.project_status AS VARCHAR)
-          AND ps.organization_id = p.organization_id
-        LEFT JOIN organization_user checkout_user
-          ON checkout_user.user_id = p.owner_user_id
-          AND checkout_user.organization_id = p.organization_id
-          AND p.checkout_status = 1
-        WHERE p.organization_id = $1
-          AND ($2::boolean IS NULL OR 
-               ($2 = true OR p.project_status != 4))
-        GROUP BY 
-          p.organization_id,
-          p.project_id,
-          p.project_name,
-          p.description,
-          p.department_cd,
-          d.department_name,
-          p.owner_user_id,
-          ou.user_name,
-          ou.mail_address,
-          p.project_status,
-          ps.code_name,
-          p.project_maiml_flg,
-          p.checkout_status,
-          p.create_at,
-          checkout_user.user_id,
-          p.project_uuid
-        ORDER BY p.${sortBy} ${order.toUpperCase()}
-      `;
-
-      const projectParams = [
-        organizationId,
-        includeCompleted,
-      ];
-
-      // 総件数取得クエリ
-      const countQuery = `
-        SELECT COUNT(*) as total
-        FROM project
-        WHERE organization_id = $1
-          AND ($2::boolean IS NULL OR 
-               ($2 = true OR project_status != 4))
-      `;
-
-      const countParams = [organizationId, includeCompleted];
-
-      // クエリ実行
-      const pool = getPool();
-      const [projectsResult, countResult] = await Promise.all([
-        pool.query(projectQuery, projectParams),
-        pool.query(countQuery, countParams),
+      // Repository層経由でプロジェクト一覧・総件数を並列取得
+      const [projects, totalItems] = await Promise.all([
+        projectRepository.findAllWithDetails(organizationId, includeCompleted, sortBy, order),
+        projectRepository.countAll(organizationId, includeCompleted),
       ]);
-
-      const projects = projectsResult.rows;
-      const totalItems = parseInt(countResult.rows[0].total, 10);
 
       // データを変換（フロントエンドの型に合わせる）
       const formattedProjects: Project[] = projects.map((row: any) => ({
@@ -567,24 +439,11 @@ export class ProjectService {
       client = await pool.connect();
       await client.query('BEGIN');
 
-      // SELECT ... FOR UPDATEで排他ロック取得（project_maiml_flgを追加）
-      const selectQuery = `
-        SELECT
-          project_id,
-          project_name,
-          project_status,
-          project_maiml_flg,
-          checkout_status,
-          owner_user_id
-        FROM project
-        WHERE organization_id = $1 AND project_id = $2
-        FOR UPDATE
-      `;
-
-      const selectResult = await client.query(selectQuery, [organizationId, projectId]);
+      // SELECT ... FOR UPDATEで排他ロック取得（Repository層経由）
+      const project = await projectRepository.findForUpdate(client, organizationId, projectId);
 
       // プロジェクト存在確認
-      if (selectResult.rows.length === 0) {
+      if (!project) {
         await client.query('ROLLBACK');
         return {
           success: false,
@@ -594,8 +453,6 @@ export class ProjectService {
           },
         };
       }
-
-      const project = selectResult.rows[0];
 
       // バリデーション1: MAIMLファイル存在チェック
       if (!project.project_maiml_flg) {
@@ -616,7 +473,7 @@ export class ProjectService {
 
       // バリデーション2: プロジェクトステータスチェック（計画中=0、承認待ち=3、異常終了=5 のいずれかを許可）
       const allowedStatuses = [ProjectStatusEnum.PLANNING, ProjectStatusEnum.REVIEW_WAITING, ProjectStatusEnum.ERROR];
-      if (!allowedStatuses.includes(project.project_status ?? -1)) {
+      if (!allowedStatuses.includes((project.project_status ?? -1) as typeof ProjectStatusEnum.PLANNING)) {
         await client.query('ROLLBACK');
         const statusNames: { [key: number]: string } = {
           0: 'プロジェクト計画中',
@@ -710,14 +567,13 @@ export class ProjectService {
           // 別ユーザー: 409 Conflict
           await client.query('ROLLBACK');
 
-          // チェックアウト保持者のユーザー名を取得
-          const userQuery = `
-            SELECT user_name 
-            FROM organization_user 
-            WHERE organization_id = $1 AND user_id = $2
-          `;
-          const userResult = await client.query(userQuery, [organizationId, project.owner_user_id]);
-          const checkedOutByName = userResult.rows[0]?.user_name || project.owner_user_id;
+          // チェックアウト保持者のユーザー名を取得（Repository層経由）
+          const checkedOutUserName = await projectRepository.findCheckedOutUserName(
+            client,
+            organizationId,
+            project.owner_user_id
+          );
+          const checkedOutByName = checkedOutUserName || project.owner_user_id;
 
           return {
             success: false,
@@ -733,18 +589,8 @@ export class ProjectService {
         }
       }
 
-      // チェックアウト実行: checkout_status = 1, project_status = 1 に更新
-      const updateQuery = `
-        UPDATE project
-        SET checkout_status = 1, 
-            project_status = 1,
-            owner_user_id = $3,
-            update_user_id = $3,
-            update_at = CURRENT_TIMESTAMP
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-
-      await client.query(updateQuery, [organizationId, projectId, userId]);
+      // チェックアウト実行: checkout_status = 1, project_status = 1 に更新（Repository層経由）
+      await projectRepository.updateCheckoutStatus(client, organizationId, projectId, userId);
 
       // project_taskのworker_linked_flgをtrueに更新
       const updatedTaskCount = await projectTaskRepository.updateWorkerLinkedFlgByProject(
@@ -813,22 +659,11 @@ export class ProjectService {
       client = await pool.connect();
       await client.query('BEGIN');
 
-      // SELECT ... FOR UPDATEで排他ロック取得
-      const selectQuery = `
-        SELECT 
-          project_id,
-          project_name,
-          checkout_status,
-          owner_user_id
-        FROM project
-        WHERE organization_id = $1 AND project_id = $2
-        FOR UPDATE
-      `;
-
-      const selectResult = await client.query(selectQuery, [organizationId, projectId]);
+      // SELECT ... FOR UPDATEで排他ロック取得（Repository層経由）
+      const project = await projectRepository.findForUpdate(client, organizationId, projectId);
 
       // プロジェクト存在確認
-      if (selectResult.rows.length === 0) {
+      if (!project) {
         await client.query('ROLLBACK');
         return {
           success: false,
@@ -838,8 +673,6 @@ export class ProjectService {
           },
         };
       }
-
-      const project = selectResult.rows[0];
 
       // 前提条件チェック: task_status が 3 (completed) または 4 (error) 以外のタスク存在確認（Repository層経由）
       const hasIncomplete = await projectTaskRepository.hasIncompleteTasks(
@@ -879,14 +712,8 @@ export class ProjectService {
         };
       }
 
-      // チェックイン実行: checkout_status = 0に更新
-      const updateQuery = `
-        UPDATE project
-        SET checkout_status = 0
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-
-      await client.query(updateQuery, [organizationId, projectId]);
+      // チェックイン実行: checkout_status = 0に更新（Repository層経由）
+      await projectRepository.updateCheckinStatus(client, organizationId, projectId);
 
       // トランザクションコミット
       await client.query('COMMIT');
@@ -935,27 +762,11 @@ export class ProjectService {
     projectId: string
   ): Promise<ServiceResult<ProjectCheckoutInfo>> {
     try {
-      const pool = getPool();
-
-      // プロジェクト情報取得
-      const selectQuery = `
-        SELECT 
-          p.project_id,
-          p.project_name,
-          p.checkout_status,
-          p.owner_user_id,
-          ou.user_name as owner_user_name
-        FROM project p
-        LEFT JOIN organization_user ou 
-          ON ou.user_id = p.owner_user_id 
-          AND ou.organization_id = p.organization_id
-        WHERE p.organization_id = $1 AND p.project_id = $2
-      `;
-
-      const result = await pool.query(selectQuery, [organizationId, projectId]);
+      // プロジェクト情報取得（Repository層経由: owner_user_name を JOIN して取得）
+      const project = await projectRepository.findWithOwner(organizationId, projectId);
 
       // プロジェクト存在確認
-      if (result.rows.length === 0) {
+      if (!project) {
         return {
           success: false,
           error: {
@@ -964,8 +775,6 @@ export class ProjectService {
           },
         };
       }
-
-      const project = result.rows[0];
 
       // レスポンスデータ構築
       const checkoutInfo: ProjectCheckoutInfo = {
