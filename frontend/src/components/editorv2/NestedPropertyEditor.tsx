@@ -40,7 +40,7 @@ import {
   isListXsiType,
 } from '@/utils/xsiTypeValidator';
 import { getAllowedAttributeNames } from '@/utils/xsiTypeAttributes';
-import type { AttributeRecord } from '@/services/masterApiService';
+import type { AttributeRecord } from '@/types/masterDataTypes';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
@@ -71,26 +71,7 @@ const CONTENT_ELEMENT_OPTIONS = [
 /**
  * NamespaceSource型定義（名前空間取り込み元情報）
  */
-export interface NamespaceSource {
-  fileName?: string;
-  uri?: string;
-  hierarchyPath?: string;
-  importedAt?: string;
-}
-
-/**
- * PropertyData型定義（NestedPropertyEditor用）
- */
-export interface PropertyData {
-  key: string;
-  tagName: string;
-  attributes: Record<string, string>;
-  elements: Record<string, string>;
-  children: PropertyData[];
-  // ✅ Reference版から統合: 名前空間取り込みメタデータ
-  namespaceOrigin?: boolean;
-  namespaceSource?: NamespaceSource;
-}
+import type { NamespaceSource, PropertyData } from '@/types/editor';
 
 /**
  * NestedPropertyEditor Props

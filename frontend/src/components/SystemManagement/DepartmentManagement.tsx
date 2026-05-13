@@ -27,6 +27,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { formatDateTime } from '@/utils/formatUtils';
 import { getDepartmentConfig } from '@/types/departmentTypes';
+import type { DepartmentUIRecord, MasterRecord } from '@/types/departmentTypes';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';
@@ -43,16 +44,6 @@ import {
 const { Text } = Typography;
 
 /**
- * 部署データの型定義
- */
-interface DepartmentRecord {
-  departmentId: string;
-  displayName: string;
-  updatedAt?: string;
-  isActive: boolean;
-}
-
-/**
  * 部署管理画面のコンポーネント
  */
 export default function DepartmentManagement() {
@@ -63,12 +54,12 @@ export default function DepartmentManagement() {
   const isReadOnly = getMenuPermission('system_admin') === 0;
 
   // State管理
-  const [departments, setDepartments] = useState<DepartmentRecord[]>([]);
+  const [departments, setDepartments] = useState<DepartmentUIRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingDepartment, setEditingDepartment] = useState<DepartmentRecord | null>(null);
+  const [editingDepartment, setEditingDepartment] = useState<DepartmentUIRecord | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [form] = Form.useForm();
@@ -81,7 +72,7 @@ export default function DepartmentManagement() {
     try {
       setLoading(true);
       const data = await fetchMasters();
-      setDepartments(data as unknown as DepartmentRecord[]);
+      setDepartments(data as unknown as DepartmentUIRecord[]);
       console.log('Loaded departments from API:', data.length, 'records');
     } catch (error) {
       console.error('Fetch error:', error);
@@ -108,7 +99,7 @@ export default function DepartmentManagement() {
       const searchLower = searchText.toLowerCase();
       if (!searchText.trim()) return true;
 
-      const deptRecord = dept as DepartmentRecord;
+      const deptRecord = dept as DepartmentUIRecord;
       return (
         deptRecord.departmentId?.toLowerCase().includes(searchLower) ||
         deptRecord.displayName?.toLowerCase().includes(searchLower)
@@ -117,7 +108,7 @@ export default function DepartmentManagement() {
   }, [departments, searchText]);
 
   // テーブルカラム定義
-  const columns: ColumnsType<DepartmentRecord> = useMemo(() => {
+  const columns: ColumnsType<DepartmentUIRecord> = useMemo(() => {
     return [
       {
         title: <div style={{ textAlign: 'center' }}>{t('departmentManagement.columns.departmentCd')}</div>,
@@ -126,8 +117,8 @@ export default function DepartmentManagement() {
         width: 150,
         align: 'left',
         sorter: (a, b) => {
-          const aRecord = a as DepartmentRecord;
-          const bRecord = b as DepartmentRecord;
+          const aRecord = a as DepartmentUIRecord;
+          const bRecord = b as DepartmentUIRecord;
           return aRecord.departmentId.localeCompare(bRecord.departmentId);
         },
       },
@@ -138,11 +129,11 @@ export default function DepartmentManagement() {
         width: 300,
         align: 'left',
         sorter: (a, b) => {
-          const aRecord = a as DepartmentRecord;
-          const bRecord = b as DepartmentRecord;
+          const aRecord = a as DepartmentUIRecord;
+          const bRecord = b as DepartmentUIRecord;
           return aRecord.displayName.localeCompare(bRecord.displayName);
         },
-        render: (text: string, record: DepartmentRecord) => (
+        render: (text: string, record: DepartmentUIRecord) => (
           <Text
             style={{
               fontWeight: token.fontWeightStrong,
@@ -160,8 +151,8 @@ export default function DepartmentManagement() {
         width: 180,
         align: 'right',
         sorter: (a, b) => {
-          const aRecord = a as DepartmentRecord;
-          const bRecord = b as DepartmentRecord;
+          const aRecord = a as DepartmentUIRecord;
+          const bRecord = b as DepartmentUIRecord;
           return (aRecord.updatedAt || '').localeCompare(bRecord.updatedAt || '');
         },
         render: (text: string) => formatDateTime(text || ''),
@@ -211,7 +202,7 @@ export default function DepartmentManagement() {
   };
 
   // 部署編集
-  const handleEdit = (department: DepartmentRecord) => {
+  const handleEdit = (department: DepartmentUIRecord) => {
     setEditingDepartment(department);
     form.setFieldsValue(department);
     setIsModalVisible(true);
@@ -271,8 +262,8 @@ export default function DepartmentManagement() {
   };
 
   // 個別のアクティブ/非アクティブ切り替え
-  const handleToggleActive = async (record: DepartmentRecord) => {
-    const deptRecord = record as DepartmentRecord;
+  const handleToggleActive = async (record: DepartmentUIRecord) => {
+    const deptRecord = record as DepartmentUIRecord;
     const departmentName = deptRecord.displayName || 'この部署';
     const currentStatus = record.isActive !== false;
     const actionText = currentStatus ? t('departmentManagement.status.inactive') : t('departmentManagement.status.active');
@@ -356,12 +347,12 @@ export default function DepartmentManagement() {
       
       if (editingDepartment) {
         // 編集の場合
-        const editingRecord = editingDepartment as DepartmentRecord;
+        const editingRecord = editingDepartment as DepartmentUIRecord;
         await updateMaster(editingRecord.departmentId, {
-          ...(editingRecord as unknown as import('@/services/departmentApiService').MasterRecord),
+          ...(editingRecord as unknown as MasterRecord),
           department_name: values.displayName,
           is_active: values.isActive,
-        } as import('@/services/departmentApiService').MasterRecord);
+        } as MasterRecord);
         await fetchDepartments();
         message.success(t('departmentManagement.messages.saveSuccess'));
       } else {
@@ -370,7 +361,7 @@ export default function DepartmentManagement() {
           department_cd: values.departmentId,
           department_name: values.displayName,
           is_active: values.isActive !== undefined ? values.isActive : true,
-        } as unknown as import('@/services/departmentApiService').MasterRecord);
+        } as unknown as MasterRecord);
         await fetchDepartments();
         message.success(t('departmentManagement.messages.addSuccess'));
       }

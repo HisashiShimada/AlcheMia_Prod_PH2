@@ -11,24 +11,7 @@ import { useCallback } from 'react';
 import type { Node, Edge } from 'reactflow';
 import type { NodeData, EdgeData, ClipboardData } from '../types/editor';
 import type { EditorState } from './useHistory';
-
-export interface UseEditorActionsProps {
-  nodes: Node<NodeData>[];
-  edges: Edge<EdgeData>[];
-  selectedNodes: Node<NodeData>[];
-  clipboard: ClipboardData | null;
-  setNodes: React.Dispatch<React.SetStateAction<Node<NodeData>[]>>;
-  setEdges: React.Dispatch<React.SetStateAction<Edge<EdgeData>[]>>;
-  setClipboard: (clipboard: ClipboardData | null) => void;
-  setSelectedNode: (node: Node<NodeData>) => void;
-  setSelectedEdge: (edge: Edge<EdgeData>) => void;
-  pushState: (state: EditorState) => void;
-}
-
-export interface UseEditorActionsResult {
-  handleCopy: () => void;
-  handlePaste: () => void;
-}
+import type { UseEditorActionsProps, UseEditorActionsResult } from '../types/hooks';
 
 /**
  * エディタアクションフック

@@ -12,20 +12,9 @@ import {
 } from 'antd';
 import { FolderAddOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { CreateProjectData } from '@/types/project';
 
 const { Text } = Typography;
-
-/**
- * プロジェクト作成データの型定義
- */
-export interface CreateProjectData {
-  projectName: string;
-  description: string;
-  folderName: string;
-  owner: string;
-  department: string;
-  organizationId: string;
-}
 
 /**
  * CreateProjectModalのProps型定義

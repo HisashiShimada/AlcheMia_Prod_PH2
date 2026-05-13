@@ -98,17 +98,6 @@ export interface TaskListResponse {
 }
 
 /**
- * プロジェクト作成データ
- */
-export interface CreateProjectData {
-  name: string;
-  folderName: string;
-  description: string;
-  owner: string;
-  department: string;
-}
-
-/**
  * プロジェクト更新データ
  */
 export interface UpdateProjectData {
@@ -153,10 +142,27 @@ export interface ProjectListResponse {
 }
 
 /**
- * プロジェクト詳細レスポンス
+ * プロジェクト詳細レスポンス（フロントエンド用）
  */
 export interface ProjectDetailResponse {
   project: Project;
+}
+
+/**
+ * プロジェクト詳細APIレスポンス（バックエンドの実レスポンス形式）
+ * API: GET /api/v1/projects/:projectId
+ */
+export interface ProjectDetailApiResponse {
+  project_id: string;
+  project_name: string;
+  description: string | null;
+  project_status: string;
+  is_checked_out: boolean;
+  checked_out_by: string | null;
+  checked_out_at: string | null;
+  checked_out_user_name: string | null;
+  create_at: string;
+  update_at: string;
 }
 
 /**
@@ -174,5 +180,264 @@ export interface CheckoutProjectResponse {
   projectId: string;
   checkedOutBy: string;
   checkedOutAt: string;
+}
+
+/**
+ * プロジェクト作成リクエスト型
+ * 使用箇所: services/projectApiService.ts
+ */
+export interface CreateProjectRequest {
+  projectName: string;
+  description?: string;
+}
+
+/**
+ * プロジェクト作成レスポンス型
+ * 使用箇所: services/projectApiService.ts
+ */
+export interface CreateProjectResponse {
+  projectId: string;
+  projectName: string;
+  description: string;
+  status: string;
+  organizationId: string;
+  departmentId: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+/**
+ * 実験作業者用プロジェクト型
+ * APIレスポンス: GET /api/v1/projects/worker-accessible
+ */
+export interface WorkerProject {
+  projectId: string;
+  projectName: string;
+  projectCd?: string;
+  projectStatus: number;
+  useDeemedProgress?: boolean;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 実験作業者用プロジェクト一覧レスポンス型
+ */
+export interface WorkerProjectListResponse {
+  projects: WorkerProject[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
+}
+
+/**
+ * 承認依頼レスポンス型
+ */
+export interface ApprovalRequestResponse {
+  project_id: string;
+  project_name: string;
+  status: 2;
+  update_at: string;
+}
+
+/**
+ * 実験作業者用タスク型
+ */
+export interface WorkerTask {
+  task_no: number;
+  task_status: 'not_started' | 'started' | 'in_progress' | 'completed' | 'forced_terminated';
+  experiment_user_id: string;
+  experiment_user_name: string;
+  created_at: string;
+  updated_at: string;
+  progress: number;
+  progress_rate: string;
+}
+
+/**
+ * 実験作業者用メソッド型
+ */
+export interface WorkerMethod {
+  method_id: string;
+  method_name: string;
+  experiment_order: number;
+  tasks: WorkerTask[];
+}
+
+/**
+ * 実験作業者用タスク一覧レスポンス型
+ * API: GET /api/v1/progress/projects/:projectId/worker-tasks
+ */
+export interface WorkerTasksResponse {
+  project_id: string;
+  project_name: string;
+  methods: WorkerMethod[];
+}
+
+/**
+ * タスクステータス更新レスポンス型
+ */
+export interface TaskStatusUpdateResponse {
+  task_no: number;
+  project_name: string;
+  method_id: string;
+  previous_status: string;
+  new_status: string;
+  updated_by: string;
+  updated_by_name: string;
+  updated_at: string;
+  comment?: string;
+}
+
+/**
+ * 作業指示型（バックエンドAPIレスポンス）
+ */
+export interface WorkerInstruction {
+  id: string;
+  project_id: string;
+  project_name: string;
+  method_id: string;
+  method_name: string;
+  transition_id: string;
+  transition_name: string;
+  task_no: string | null;
+  instruction_target: string;
+  instruction_content: string;
+  priority: string;
+  type: string;
+  create_at: string;
+  created_by: string;
+  created_by_name: string;
+  is_acknowledged: boolean;
+}
+
+/**
+ * 指示確認データ型（バックエンドAPIレスポンス）
+ */
+export interface InstructionConfirmationData {
+  instruction_id: string;
+  is_acknowledged: boolean;
+  acknowledged_at: string;
+  acknowledged_user_id: string;
+  acknowledged_user_name: string;
+}
+
+/**
+ * プロジェクトファイル一覧レスポンス型（API用）
+ * サービス層で使用するレスポンス型
+ */
+export interface ProjectFileListResponse {
+  projectId: string;
+  projectName: string;
+  files: import('./file').ProjectFile[];
+  subFolderFiles: Record<string, import('./file').ProjectFile[]>;
+}
+
+/**
+ * 進捗情報の表示用型定義
+ * ProgressMonitoring コンポーネントで使用
+ */
+export interface ProgressRecord {
+  key: string;
+  projectId: string;
+  projectName: string;
+  projectStatus: string;
+  department: string;
+  isCheckedOut: boolean;
+  ownerEmail: string;
+  ownerName: string;
+  completedTasks: number;
+  totalTasks: number;
+  /** MAIMLファイルが登録済みか（project_uuid または maimlFileKey が存在する場合 true） */
+  hasMaiml: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// ExperimentWorker / ProjectSelectionModal 用
+// ---------------------------------------------------------------------------
+
+/**
+ * プロジェクト選択モーダルのテーブル行データ
+ * ExperimentWorker/ProjectSelectionModal で使用
+ */
+export interface ProjectTableData {
+  key: string;
+  projectId: string;
+  projectName: string;
+  projectCd?: string;
+  projectStatus: number;
+  isCurrentlySelected: boolean;
+}
+
+/**
+ * メソッド選択モーダルのテーブル行データ
+ * ExperimentWorker/MethodSelectionModal で使用
+ */
+export interface MethodTableData {
+  key: string;
+  methodId: string;
+  methodName: string;
+  description: string;
+  owner: string;
+  isCurrentlySelected: boolean;
+}
+
+/**
+ * プロジェクト作成データ
+ * 移動元: components/project/CreateProjectModal.tsx
+ */
+export interface CreateProjectData {
+  projectName: string;
+  description: string;
+  folderName: string;
+  owner: string;
+  department: string;
+  organizationId: string;
+}
+
+/**
+ * ファイルアップロードモード
+ * 移動元: components/project/BulkUploadDialog.tsx
+ */
+export type UploadMode = 'single' | 'bulk' | 'folder';
+
+/**
+ * MaiML 公開ステータスレスポンス型
+ * バックエンドの PublishStatusResponse に対応
+ */
+export interface PublishStatusResponse {
+  job_id: string | null;
+  job_type: 'publish' | 'unpublish' | null;
+  status: 'pending' | 'running' | 'done' | 'error' | null;
+  asset_id: string | null;
+  project_name: string;
+  started_at: string | null;
+  finished_at: string | null;
+  error_message: string | null;
+}
+
+/**
+ * アップロード状態
+ * 移動元: components/project/BulkUploadDialog.tsx
+ */
+export interface UploadState {
+  isUploading: boolean;
+  progress: number;
+  uploadedCount: number;
+  totalCount: number;
+  error: string | null;
+}
+
+/**
+ * プロジェクトのファイルデータ（ルート + サブフォルダ）
+ * 移動元: components/project/ProjectManagement.tsx
+ */
+export interface ProjectFilesData {
+  root: import('./file').ProjectFile[];
+  subFolderFiles: Record<string, import('./file').ProjectFile[]>;
 }
 

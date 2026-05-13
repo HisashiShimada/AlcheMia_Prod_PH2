@@ -5,6 +5,7 @@ import { Modal, Table, Typography, Space, Button, theme, Input, Select, Row, Col
 import { ToolOutlined, CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Method } from '@/types/experimentWorker';
+import type { MethodTableData } from '@/types/project';
 
 const { Text } = Typography;
 
@@ -19,18 +20,6 @@ interface MethodSelectionModalProps {
   onMethodChange: (methodId: string | null) => void;
   /** APIから取得したメソッド一覧 */
   methods?: Method[];
-}
-
-/**
- * テーブルデータの型定義
- */
-interface MethodTableData {
-  key: string;
-  methodId: string;
-  methodName: string;
-  description: string;
-  owner: string;
-  isCurrentlySelected: boolean;
 }
 
 /**

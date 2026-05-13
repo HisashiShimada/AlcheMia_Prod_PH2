@@ -8,6 +8,7 @@ import { createApiClient } from '@/utils/authUtils';
 import { HTTP_STATUS } from '@/constants/httpStatus';
 import { setTokenPair, clearAllTokens } from '@/utils/tokenStorage';
 import { mapErrorToMessage } from '@/utils/errorUtils';
+import { AuthServiceError } from '@/types/error';
 import type { LoginCredentials } from '@/types/auth';
 import type {
   ApiResponse,
@@ -20,27 +21,6 @@ import type {
 } from '@/types/api';
 
 const apiClient = createApiClient();
-
-/**
- * APIエラーハンドリング
- *
- * エラーコードはそのまま保持してthrowする（翻訳しない）。
- * メッセージ変換は errorMapper.ts が唯一の変換場所。
- */
-export class AuthServiceError extends Error {
-  constructor(
-    message: string,
-    public code: string = 'E9999',
-    public details?: Array<{
-      field: string;
-      message: string;
-      code: string;
-    }>
-  ) {
-    super(message);
-    this.name = 'AuthServiceError';
-  }
-}
 
 /**
  * Axiosエラーをハンドリング

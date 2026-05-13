@@ -8,6 +8,7 @@ import { uploadFiles, abortChunkUpload, cancelBatch, initBatch } from '@/service
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { UploadRetryState, UploadResultSummary } from '@/types/file';
+import type { UploadMode, UploadState } from '@/types/project';
 import {
   Modal,
   Segmented,
@@ -35,22 +36,6 @@ import {
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
 const { Text, Paragraph } = Typography;
 const { Dragger } = Upload;
-/**
- * アップロードモード
- */
-type UploadMode = 'single' | 'bulk' | 'folder';
-
-/**
- * アップロード状態
- */
-interface UploadState {
-  isUploading: boolean;
-  progress: number;
-  uploadedCount: number;
-  totalCount: number;
-  error: string | null;
-}
-
 /**
  * プロパティ
  */

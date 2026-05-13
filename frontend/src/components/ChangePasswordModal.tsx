@@ -6,7 +6,8 @@
 import React, { useState } from 'react';
 import { Modal, Form, Input, Button, Alert, Space } from 'antd';
 import { LockOutlined, EyeTwoTone, EyeInvisibleOutlined } from '@ant-design/icons';
-import { authService, AuthServiceError } from '@/services/authService';
+import { authService } from '@/services/authService';
+import { AuthServiceError } from '@/types/error';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ChangePasswordModalProps {

@@ -16,22 +16,7 @@
  */
 
 import axios from 'axios';
-
-/** ログエントリ */
-interface LogEntry {
-  /** 発生日時（ISO 8601） */
-  timestamp: string;
-  /** ログレベル */
-  level: 'log' | 'info' | 'warn' | 'error';
-  /** メッセージ文字列 */
-  message: string;
-  /** 発生URL */
-  url: string;
-  /** ユーザーエージェント */
-  userAgent: string;
-  /** スタックトレース（error レベルのみ） */
-  stackTrace?: string;
-}
+import type { LogEntry } from '@/types/common';
 
 /** バッファの最大件数（古いエントリを削除） */
 const MAX_LOGS = 500;

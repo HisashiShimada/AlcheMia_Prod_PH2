@@ -11,8 +11,8 @@
 import React from 'react';
 import { Property, Content, PropertyCustomElement } from '@/types/maiml-unified';
 import { xml2js, ElementCompact } from 'xml-js';
-import type { PropertyData } from '../components/editorv2/NestedPropertyEditor';
-import type { FormatTemplateFile } from '@/services/templateApi';
+import type { PropertyData } from '@/types/editor';
+import type { FormatTemplateFile } from '@/types/format';
 import { FileOutlined, FolderOutlined } from '@ant-design/icons';
 
 // ===== Property変換系 =====

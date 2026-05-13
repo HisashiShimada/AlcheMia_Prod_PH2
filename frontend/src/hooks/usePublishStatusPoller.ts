@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { getPublishStatus, PublishStatusResponse } from '@/services/projectApiService';
+import { getPublishStatus } from '@/services/projectApiService';
+import type { PublishStatusResponse } from '@/types/project';
 
 /** ポーリング間隔（ms） */
 const POLL_INTERVAL_MS = 3_000;
