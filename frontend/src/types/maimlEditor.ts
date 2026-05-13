@@ -44,3 +44,63 @@ export interface MaimlEditorParams {
    */
   openDraftManagerOnStart?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// maimlApiService から移動した型
+// ---------------------------------------------------------------------------
+
+/**
+ * MAIML自動補正結果
+ * maimlApiService / MAIMLEditorPage で使用
+ */
+export interface MaimlCorrectionResult {
+  corrected: boolean;
+  originalContent: string;
+  correctedContent: string;
+  corrections: Array<{ type: string }>;
+  warnings: Array<{ message: string }>;
+}
+
+/**
+ * DB保存済みの分析結果行
+ * maimlApiService / MAIMLEditorPage で使用
+ */
+export interface MaimlAnalysisResultRow {
+  id: number;
+  file_key: string;
+  is_valid: boolean;
+  version?: number | null;
+  namespace?: string | null;
+  errors: string;
+  warnings: string;
+  suggestions?: string;
+  statistics?: string;
+  processing_time?: number | null;
+  analysis_timestamp: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * MAIMLファイル保存結果
+ * maimlApiService / SaveConfirmDialog で使用
+ */
+export interface SaveMaimlResult {
+  saved: boolean;
+  filePath: string;
+  backupPath?: string;
+  timestamp: string;
+}
+
+/**
+ * MAIMLファイル情報
+ * maimlApiService / MAIMLEditorPage で使用
+ */
+export interface MaimlFileInfo {
+  key: string;
+  name: string;
+  context: 'project' | 'format';
+  size: number;
+  lastModified: string;
+  isArchive?: boolean;
+}

@@ -13,23 +13,9 @@ import {
 import { FileAddOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorCode } from '@/utils/errorUtils';
+import type { CreateFormatFileData } from '@/types/format';
 
 const { Text } = Typography;
-
-/**
- * フォーマットファイル作成データの型定義
- */
-export interface CreateFormatFileData {
-  fileName: string;
-  fileNameWithExtension: string;
-  formatId: string;
-  formatName: string;
-  fileType: 'xml' | 'maiml';
-  templateType?: 'material' | 'condition' | 'result';
-  createdBy: string;
-  createdByName: string;
-  currentPath?: string; // 現在のサブフォルダパス
-}
 
 /**
  * CreateFormatFileModalのProps型定義

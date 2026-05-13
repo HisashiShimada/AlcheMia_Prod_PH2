@@ -48,6 +48,29 @@ export interface ApiErrorResponse {
 export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 /**
+ * サービス層内部で使用するシンプルなAPIレスポンス型
+ *
+ * @remarks
+ * 各 service ファイルで重複定義されていた ApiResponse<T> を一元管理するための型。
+ * `success` フラグと `data` / `error` の組み合わせによる軽量なレスポンス表現。
+ * `ApiSuccessResponse<T> | ApiErrorResponse`（完全形）とは異なり、
+ * メタ情報なしで簡潔にレスポンスを扱いたい場面で使用する。
+ */
+export interface ServiceApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown[];
+  };
+  meta?: {
+    timestamp: string;
+    requestId: string;
+  };
+}
+
+/**
  * データ取得状態の共通型
  * useApi フック等で使用するローディング・エラー・データを統合した状態型
  */

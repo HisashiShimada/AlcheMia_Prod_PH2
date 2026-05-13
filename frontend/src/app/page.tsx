@@ -13,7 +13,8 @@ import SystemAdminMenu from '@/components/menus/SystemAdminMenu';
 import DataAdminMenu from '@/components/menus/DataAdminMenu';
 import ExperimentAdminMenu from '@/components/menus/ExperimentAdminMenu';
 import ExperimentWorkerMenu from '@/components/menus/ExperimentWorkerMenu';
-import { authService, AuthServiceError } from '@/services/authService';
+import { authService } from '@/services/authService';
+import { AuthServiceError } from '@/types/error';
 import type { LoginCredentials, User, UserRole } from '@/types/auth';
 import { useLanguage, getTranslation } from '@/contexts/LanguageContext';
 

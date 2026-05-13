@@ -34,40 +34,11 @@ import { getSystemConfig } from '@/services/systemConfigApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import type { OrganizationData, CorporationData } from '@/types/organization';
+import type { OptionType } from '@/types/common';
 
 const { Text } = Typography;
 const { useToken } = theme;
-
-interface OrganizationData {
-  organizationId: string;
-  organizationCd: string;
-  organizationDisplayName: string;
-  organizationEmail: string;
-  chiefUserId: string;
-  chiefUserName: string;
-  corporationName: string;
-  isEntry: number;
-  useDeemedProgress: boolean;
-  isActive: boolean;
-  contractCapacity: number | null;
-  contractedUsers: number | null;
-  contractedProjects: number | null;
-  defaultRetentionDays: number;
-  updatedAt: string;
-}
-
-interface CorporationData {
-  corporationId: string;
-  corporationName: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface OptionType {
-  label: string;
-  value: string;
-}
 
 export default function OrganizationManagement() {
   const { modal, message: messageApi } = App.useApp();

@@ -6,54 +6,11 @@
 
 import { createApiClient } from '@/utils/authUtils';
 import { getRoleConfig } from '@/types/roleTypes';
-/**
- * APIレスポンスの型定義
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
+import type { RoleRecord } from '@/types/roleTypes';
+import type { ServiceApiResponse } from '@/types/api';
 
-/**
- * ロールデータの型（インデックスシグネチャ付き）
- */
-export interface RoleRecord {
-  // role
-  roleName: string;
-  initialScreenFunctionCd: string | null;
-  initialScreenFunctionName: string;
-  isActive: boolean;
-  // permission
-  functionCd: string | null;
-  functionName: string;
-  functionIds: string;
-  functions: string;
-  functionWritePermissions: string;
-  permission: number | null;
-  writableFunctionIds: string;
-  // 共通部品
-  roleCd: string;
-  roleId: string;
-  role: string;
-  organizationId: string; // UUID
-  corporationId: string; // UUID
-  createUserId: string;
-  updateUserId: string;
-  createAt: Date;
-  updatedAt: Date | null;
-  
-  // 動的プロパティアクセス用のインデックスシグネチャ
-  [key: string]: unknown;
-}
-
-/**
- * ロールデータの汎用型
- */
-export type MasterRecord = RoleRecord;
+/** roleApiService 内部の汎用型エイリアス */
+type MasterRecord = RoleRecord;
 
 /**
  * ロール一覧を取得
@@ -67,7 +24,7 @@ export async function fetchMasters(
   console.log('Endpoint:', config.apiEndpoint);
   
   try {
-    const response = await client.get<ApiResponse<MasterRecord[]>>(config.apiEndpoint);
+    const response = await client.get<ServiceApiResponse<MasterRecord[]>>(config.apiEndpoint);
     
     console.log('Response status:', response.status);
     console.log('API Response:', response.data);
@@ -98,7 +55,7 @@ export async function fetchMasterById(
   console.log('ID:', id);
   
   try {
-    const response = await client.get<ApiResponse<MasterRecord>>(endpoint);
+    const response = await client.get<ServiceApiResponse<MasterRecord>>(endpoint);
     
     console.log('Response status:', response.status);
     console.log('API Response:', response.data);
@@ -128,7 +85,7 @@ export async function createMaster(
   console.log('Data:', data);
   
   try {
-    const response = await client.post<ApiResponse<MasterRecord>>(config.apiEndpoint, data);
+    const response = await client.post<ServiceApiResponse<MasterRecord>>(config.apiEndpoint, data);
     
     console.log('Response status:', response.status);
     
@@ -159,7 +116,7 @@ export async function updateMaster(
   console.log('Data:', data);
   
   try {
-    const response = await client.put<ApiResponse<MasterRecord>>(endpoint, data);
+    const response = await client.put<ServiceApiResponse<MasterRecord>>(endpoint, data);
     
     console.log('Response status:', response.status);
     
@@ -240,7 +197,7 @@ export async function uploadCsv(
   formData.append('file', file);
   
   try {
-    const response = await client.post<ApiResponse<unknown>>(endpoint, formData, {
+    const response = await client.post<ServiceApiResponse<unknown>>(endpoint, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -271,7 +228,7 @@ export async function createRole(roleData: {
   console.log('roleData:', roleData);
 
   try {
-    const response = await client.post<ApiResponse<void>>(config.apiEndpoint, roleData);
+    const response = await client.post<ServiceApiResponse<void>>(config.apiEndpoint, roleData);
     
     console.log('Response status:', response.status);
     console.log('Create result:', response.data);
@@ -306,7 +263,7 @@ export async function updateRole(
   console.log('roleData:', roleData);
 
   try {
-    const response = await client.put<ApiResponse<void>>(endpoint, roleData);
+    const response = await client.put<ServiceApiResponse<void>>(endpoint, roleData);
 
     console.log('Response status:', response.status);
     console.log('Update result:', response.data);
@@ -339,7 +296,7 @@ export async function updateRolePermissions(
   console.log('functionWritePermissions:', functionWritePermissions);
 
   try {
-    const response = await client.put<ApiResponse<void>>(endpoint, {
+    const response = await client.put<ServiceApiResponse<void>>(endpoint, {
       functionName,
       functionWritePermissions,
     });

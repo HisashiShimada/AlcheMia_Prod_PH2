@@ -36,7 +36,8 @@ import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
-import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
+import CreateProjectModal from './CreateProjectModal';
+import type { CreateProjectData } from '@/types/project';
 import RenameProjectModal from './RenameProjectModal';
 import MaimlPublishDialog from './MaimlPublishDialog';
 import MaimlUnpublishDialog from './MaimlUnpublishDialog';
@@ -65,14 +66,12 @@ import {
   completeReviewTasks,
   getPublishStatus,
   deleteProject as deleteProjectApi,
-  type CreateProjectRequest,
-  type ApiResponse,
-  type ProjectListResponse,
-  type PublishStatusResponse,
 } from '@/services/projectApiService';
+import type { CreateProjectRequest, ProjectListResponse, PublishStatusResponse } from '@/types/project';
+import type { ServiceApiResponse as ApiResponse } from '@/types/api';
 import { AxiosError } from 'axios';
 import { mapErrorToMessage } from '@/utils/errorUtils';
-import type { Project, Task } from '@/types/project';
+import type { Project, Task, ProjectFilesData } from '@/types/project';
 import type { MaimlEditorParams } from '@/types/maimlEditor';
 import type { Draft } from '@/types/editor';
 import { getUserInfo } from '@/utils/sessionStorageHelper';
@@ -81,19 +80,11 @@ import type { InstructionData } from '@/types/instructionRegistration';
 import {
   validateMaiml,
   getAnalysisResult,
-  type MaimlAnalysisResultRow,
 } from '@/services/maimlApiService';
+import type { MaimlAnalysisResultRow } from '@/types/maimlEditor';
 import { Tooltip } from 'antd';
 
 const { Title, Text } = Typography;
-
-/**
- * プロジェクトファイルデータ
- */
-interface ProjectFilesData {
-  root: ProjectFile[];
-  subFolderFiles: Record<string, ProjectFile[]>;
-}
 
 /**
  * プロジェクト管理画面メインコンポーネント（内部実装）
@@ -1134,6 +1125,98 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     );
   }, [publishStatus]);
 
+  /**
+   * プロジェクトリロードハンドラー
+   * 
+   * 処理フロー:
+   * 1. プロジェクト一覧を最新化
+   * 2. 選択中のプロジェクトを復元（プロジェクト選択中の場合のみ）
+   * 3. 選択中のタブのデータを最新化（プロジェクト選択中の場合のみ）
+   * 4. MAIMLデータを最新化（プロジェクト選択中の場合のみ）
+   * 
+   * @remarks プロジェクト未選択時はプロジェクト一覧のみ再取得する
+   */
+  const handleProjectReload = useCallback(async () => {
+    try {
+      setIsReloadingProject(true);
+      
+      console.log('🔄 [ProjectManagement] リロード開始:', {
+        projectId: selectedProject?.id,
+        projectName: selectedProject?.name,
+        currentTab,
+      });
+      
+      // 1. プロジェクト一覧を最新化（プロジェクト未選択時もこれだけ実行）
+      console.log('📋 [ProjectManagement] プロジェクト一覧を最新化');
+      await refetchProjects();
+      
+      // プロジェクトが選択されていない場合はここで終了
+      if (!selectedProject) {
+        message.success(t('projectManagement.listReloadSuccess'));
+        console.log('✅ [ProjectManagement] プロジェクト一覧のみ更新完了（プロジェクト未選択）');
+        return;
+      }
+      
+      // 2. 現在の選択状態を保存
+      const currentProjectId = selectedProject.id;
+      const currentProjectName = selectedProject.name;
+      const currentTabKey = currentTab;
+      
+      // 3. プロジェクト選択を復元
+      console.log('🎯 [ProjectManagement] プロジェクト選択を復元:', currentProjectId);
+      setSelectedProjectId(currentProjectId);
+      
+      // 4. MAIMLデータを最新化
+      console.log('📄 [ProjectManagement] MAIMLデータを最新化');
+      try {
+        await reloadMaiml();
+        console.log('✅ [ProjectManagement] MAIML更新完了');
+      } catch (error) {
+        console.error('❌ [ProjectManagement] MAIML更新失敗:', error);
+        // エラーはContextで処理済み（メッセージ表示済み）
+      }
+      
+      // 5. 選択中のタブに応じてデータを最新化
+      if (currentTabKey === 'file_management') {
+        console.log('📂 [ProjectManagement] ファイル一覧を最新化');
+        const fileResponse = await getProjectFiles(currentProjectId, true);
+        setProjectFilesData(prev => ({
+          ...prev,
+          [currentProjectId]: {
+            root: fileResponse.files || [],
+            subFolderFiles: fileResponse.subFolderFiles || {},
+          }
+        }));
+        console.log('✅ [ProjectManagement] ファイル一覧更新完了:', {
+          root: fileResponse.files?.length || 0,
+          subFolderKeys: Object.keys(fileResponse.subFolderFiles || {}),
+        });
+      } else if (currentTabKey === 'task_results') {
+        console.log('📋 [ProjectManagement] タスク一覧を最新化');
+        const taskResponse = await getProjectTasks(currentProjectId, 'all');
+        setProjectTasksData(prev => ({
+          ...prev,
+          [currentProjectId]: {
+            tasks: taskResponse.tasks || [],
+            statistics: taskResponse.statistics || {},
+          }
+        }));
+        console.log('✅ [ProjectManagement] タスク一覧更新完了:', {
+          tasks: taskResponse.tasks?.length || 0,
+        });
+      }
+      
+      // 成功メッセージ
+      message.success(t('projectManagement.reloadSuccess'));
+      console.log('✅ [ProjectManagement] リロード完了');
+    } catch (error) {
+      console.error('❌ [ProjectManagement] リロードエラー:', error);
+      message.error(t('projectManagement.reloadFailed'));
+    } finally {
+      setIsReloadingProject(false);
+    }
+  }, [selectedProject, currentTab, refetchProjects, reloadMaiml]);
+
   // 公開完了/非公開完了時にポーリングを停止してステータスを再取得
   const handlePollingComplete = useCallback(async (status: PublishStatusResponse) => {
     setIsPolling(false);
@@ -1146,7 +1229,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     } else if (status.status === 'error') {
       message.error(status.error_message ?? t('project.processingFailed'));
     }
-    // ステータスを再取得
+    // publishStatus を再取得
     if (selectedProject) {
       try {
         const latest = await getPublishStatus(selectedProject.id);
@@ -1155,7 +1238,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         setPublishStatus(null);
       }
     }
-  }, [selectedProject]);
+    // リロードボタンと同等の処理でプロジェクト一覧・MAIML・タブデータを最新化
+    try {
+      await handleProjectReload();
+    } catch {
+      console.warn('[ProjectManagement] handlePollingComplete: handleProjectReload failed');
+    }
+  }, [selectedProject, handleProjectReload]);
 
   // ポーリングフック
   const { start: startPoller } = usePublishStatusPoller({
@@ -1186,16 +1275,28 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   }, [selectedProject]);
 
   // 公開ダイアログ成功時
-  const handlePublishSuccess = useCallback((_jobId: string) => {
+  const handlePublishSuccess = useCallback(async (_jobId: string) => {
     setIsPolling(true);
     startPoller();
-  }, [startPoller]);
+    // API受付完了時点でリロードボタンと同等の処理を実行（ステータスが即座に更新されるため）
+    try {
+      await handleProjectReload();
+    } catch {
+      console.warn('[ProjectManagement] handlePublishSuccess: handleProjectReload failed');
+    }
+  }, [startPoller, handleProjectReload]);
 
   // 非公開ダイアログ成功時
-  const handleUnpublishSuccess = useCallback((_jobId: string) => {
+  const handleUnpublishSuccess = useCallback(async (_jobId: string) => {
     setIsPolling(true);
     startPoller();
-  }, [startPoller]);
+    // API受付完了時点でリロードボタンと同等の処理を実行（ステータスが即座に更新されるため）
+    try {
+      await handleProjectReload();
+    } catch {
+      console.warn('[ProjectManagement] handleUnpublishSuccess: handleProjectReload failed');
+    }
+  }, [startPoller, handleProjectReload]);
 
   // 新規プロジェクト作成モーダルを開く
   const handleOpenCreateModal = useCallback(() => {
@@ -1525,98 +1626,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       setIsDownloading(false);
     }
   }, [selectedProject]);
-
-  /**
-   * プロジェクトリロードハンドラー
-   * 
-   * 処理フロー:
-   * 1. プロジェクト一覧を最新化
-   * 2. 選択中のプロジェクトを復元（プロジェクト選択中の場合のみ）
-   * 3. 選択中のタブのデータを最新化（プロジェクト選択中の場合のみ）
-   * 4. MAIMLデータを最新化（プロジェクト選択中の場合のみ）
-   * 
-   * @remarks プロジェクト未選択時はプロジェクト一覧のみ再取得する
-   */
-  const handleProjectReload = useCallback(async () => {
-    try {
-      setIsReloadingProject(true);
-      
-      console.log('🔄 [ProjectManagement] リロード開始:', {
-        projectId: selectedProject?.id,
-        projectName: selectedProject?.name,
-        currentTab,
-      });
-      
-      // 1. プロジェクト一覧を最新化（プロジェクト未選択時もこれだけ実行）
-      console.log('📋 [ProjectManagement] プロジェクト一覧を最新化');
-      await refetchProjects();
-      
-      // プロジェクトが選択されていない場合はここで終了
-      if (!selectedProject) {
-        message.success(t('projectManagement.listReloadSuccess'));
-        console.log('✅ [ProjectManagement] プロジェクト一覧のみ更新完了（プロジェクト未選択）');
-        return;
-      }
-      
-      // 2. 現在の選択状態を保存
-      const currentProjectId = selectedProject.id;
-      const currentProjectName = selectedProject.name;
-      const currentTabKey = currentTab;
-      
-      // 3. プロジェクト選択を復元
-      console.log('🎯 [ProjectManagement] プロジェクト選択を復元:', currentProjectId);
-      setSelectedProjectId(currentProjectId);
-      
-      // 4. MAIMLデータを最新化
-      console.log('📄 [ProjectManagement] MAIMLデータを最新化');
-      try {
-        await reloadMaiml();
-        console.log('✅ [ProjectManagement] MAIML更新完了');
-      } catch (error) {
-        console.error('❌ [ProjectManagement] MAIML更新失敗:', error);
-        // エラーはContextで処理済み（メッセージ表示済み）
-      }
-      
-      // 5. 選択中のタブに応じてデータを最新化
-      if (currentTabKey === 'file_management') {
-        console.log('📂 [ProjectManagement] ファイル一覧を最新化');
-        const fileResponse = await getProjectFiles(currentProjectId, true);
-        setProjectFilesData(prev => ({
-          ...prev,
-          [currentProjectId]: {
-            root: fileResponse.files || [],
-            subFolderFiles: fileResponse.subFolderFiles || {},
-          }
-        }));
-        console.log('✅ [ProjectManagement] ファイル一覧更新完了:', {
-          root: fileResponse.files?.length || 0,
-          subFolderKeys: Object.keys(fileResponse.subFolderFiles || {}),
-        });
-      } else if (currentTabKey === 'task_results') {
-        console.log('📋 [ProjectManagement] タスク一覧を最新化');
-        const taskResponse = await getProjectTasks(currentProjectId, 'all');
-        setProjectTasksData(prev => ({
-          ...prev,
-          [currentProjectId]: {
-            tasks: taskResponse.tasks || [],
-            statistics: taskResponse.statistics || {},
-          }
-        }));
-        console.log('✅ [ProjectManagement] タスク一覧更新完了:', {
-          tasks: taskResponse.tasks?.length || 0,
-        });
-      }
-      
-      // 成功メッセージ
-      message.success(t('projectManagement.reloadSuccess'));
-      console.log('✅ [ProjectManagement] リロード完了');
-    } catch (error) {
-      console.error('❌ [ProjectManagement] リロードエラー:', error);
-      message.error(t('projectManagement.reloadFailed'));
-    } finally {
-      setIsReloadingProject(false);
-    }
-  }, [selectedProject, currentTab, refetchProjects, reloadMaiml]);
 
   // プロジェクト名変更成功ハンドラ
   const handleRenameSuccess = useCallback(async (newName: string) => {

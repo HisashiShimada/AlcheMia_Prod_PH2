@@ -19,7 +19,8 @@
 
 import axios, { AxiosError } from 'axios';
 import { getTranslation } from '../contexts/LanguageContext';
-import { AuthServiceError } from '@/services/authService';
+import { AuthServiceError } from '@/types/error';
+import type { AppError } from '@/types/error';
 
 // =============================================================================
 // エラーコード定数（旧 errorCodes.ts）
@@ -295,22 +296,6 @@ export function mapErrorToMessage(errorCode: string, defaultMessage?: string): s
 // =============================================================================
 
 /**
- * アプリケーション内部で使用するエラー情報オブジェクト
- */
-export interface AppError {
-  /** エラーコード（例: 'E5001'） */
-  code: string;
-  /** ユーザー向け表示メッセージ */
-  message: string;
-  /** 詳細説明 */
-  detail: string;
-  /** 発生日時（ISO 8601） */
-  timestamp: string;
-  /** 元の Error オブジェクト */
-  originalError: Error | null;
-}
-
-/**
  * エラーコードからエラー情報オブジェクトを生成する
  */
 export function createError(
@@ -413,9 +398,10 @@ export function normalizeError(error: unknown): AppError {
 // =============================================================================
 
 /**
- * APIエラーレスポンス型定義
+ * AxiosError のレスポンスボディ型（内部用）
+ * types/api.ts の ApiErrorResponse とは構造が異なるため専用型として定義
  */
-interface ApiErrorResponse {
+interface AxiosApiErrorBody {
   success?: boolean;
   error?: {
     message?: string;
@@ -436,7 +422,7 @@ export function extractErrorCode(error: unknown): string {
   }
 
   if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError<ApiErrorResponse>;
+    const axiosError = error as AxiosError<AxiosApiErrorBody>;
 
     // タイムアウト
     if (axiosError.code === 'ECONNABORTED') return 'E3002';

@@ -6,28 +6,9 @@
 import React, { useState } from 'react';
 import { Typography, Tabs, Table, Card, Button, Space, Tag, theme, Tooltip } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
+import type { PropertyObject, StructuredProperties } from '@/types/editor';
 
 const { Title, Text } = Typography;
-
-/**
- * プロパティオブジェクトの型定義
- */
-interface PropertyObject {
-  key?: string;
-  value?: unknown;
-  type?: string;
-  description?: string;
-  defaultValue?: string;
-}
-
-/**
- * 構造化されたプロパティの型定義
- */
-interface StructuredProperties {
-  basic: Record<string, PropertyObject>;
-  template: Record<string, PropertyObject>;
-  data: Record<string, PropertyObject>;
-}
 
 /**
  * プロパティビューアコンポーネント

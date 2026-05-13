@@ -9,40 +9,8 @@ import { HTTP_STATUS } from '@/constants/httpStatus';
 import type { MasterDataType } from '@/types/masterDataTypes';
 import { getMasterDataConfig } from '@/types/masterDataTypes';
 import { AxiosError } from 'axios';
-
-/**
- * APIレスポンスの型定義
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
-
-/**
- * 会社データの型（インデックスシグネチャ付き）
- */
-export interface CorporationRecord {
-  corporationId: string; // UUID
-  corporationName: string;
-  isActive: boolean;
-  is_active: boolean;
-  create_user_id: string;
-  update_user_id: string;
-  create_at: Date;
-  update_at: Date;
-  
-  // 動的プロパティアクセス用のインデックスシグネチャ
-  [key: string]: unknown;
-}
-
-/**
- * 会社データの汎用型
- */
-export type MasterRecord = CorporationRecord;
+import type { CorporationRecord, MasterRecord } from '@/types/organization';
+import type { ServiceApiResponse } from '@/types/api';
 
 /**
  * 会社一覧を取得
@@ -57,7 +25,7 @@ export async function fetchMasters(
   console.log('Endpoint:', config.apiEndpoint);
   
   try {
-    const response = await client.get<ApiResponse<MasterRecord[]>>(config.apiEndpoint);
+    const response = await client.get<ServiceApiResponse<MasterRecord[]>>(config.apiEndpoint);
     
     console.log('Response status:', response.status);
     console.log('API Response:', response.data);
@@ -68,7 +36,7 @@ export async function fetchMasters(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<MasterRecord[]>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<MasterRecord[]>>;
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
   }
@@ -89,7 +57,7 @@ export async function createMaster(
   console.log('Data:', data);
   
   try {
-    const response = await client.post<ApiResponse<MasterRecord>>(config.apiEndpoint, data);
+    const response = await client.post<ServiceApiResponse<MasterRecord>>(config.apiEndpoint, data);
     
     console.log('Response status:', response.status);
     
@@ -99,7 +67,7 @@ export async function createMaster(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<MasterRecord>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<MasterRecord>>;
     if (axiosError.response?.status === HTTP_STATUS.CONFLICT) {
       throw new Error('入力されたIDは既に存在しています');
     }
@@ -125,7 +93,7 @@ export async function updateMaster(
   console.log('Data:', data);
   
   try {
-    const response = await client.put<ApiResponse<MasterRecord>>(endpoint, data);
+    const response = await client.put<ServiceApiResponse<MasterRecord>>(endpoint, data);
     
     console.log('Response status:', response.status);
     
@@ -135,7 +103,7 @@ export async function updateMaster(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<MasterRecord>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<MasterRecord>>;
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
   }
@@ -161,7 +129,7 @@ export async function updateMasterStatus(
     const response = await client.patch(endpoint, { isActive });
     console.log('Response status:', response.status);
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<void>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<void>>;
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
   }
@@ -211,7 +179,7 @@ export async function uploadCsv(
   formData.append('file', file);
   
   try {
-    const response = await client.post<ApiResponse<unknown>>(endpoint, formData, {
+    const response = await client.post<ServiceApiResponse<unknown>>(endpoint, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -220,7 +188,7 @@ export async function uploadCsv(
     console.log('Response status:', response.status);
     console.log('Upload result:', response.data);
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<unknown>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<unknown>>;
     const errorMessage = axiosError.response?.data?.error?.message || 'CSVアップロードに失敗しました';
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(errorMessage);

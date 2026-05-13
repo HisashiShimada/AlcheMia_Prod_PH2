@@ -12,7 +12,25 @@ import type {
   UpdateTransitionStatusRequest,
   UpdateTransitionStatusResponse,
 } from '@/types/api';
-import type { Task, TaskStatistics, Project } from '@/types/project';
+import type {
+  Task,
+  TaskStatistics,
+  Project,
+  CreateProjectRequest,
+  CreateProjectResponse,
+  WorkerProject,
+  WorkerProjectListResponse,
+  WorkerTasksResponse,
+  WorkerMethod,
+  WorkerTask,
+  TaskStatusUpdateResponse,
+  WorkerInstruction,
+  InstructionConfirmationData,
+  ApprovalRequestResponse,
+  ProjectFileListResponse,
+  ProjectDetailApiResponse,
+  PublishStatusResponse,
+} from '@/types/project';
 import type {
   GetTaskRegistrationResponse,
   SaveTaskRegistrationRequest,
@@ -32,7 +50,8 @@ import type {
   UpdateInstructionResponse,
   DeleteInstructionResponse,
   SendInstructionsRequest,
-  SendInstructionsResponse
+  SendInstructionsResponse,
+  ServiceApiResponse,
 } from '@/types/api';
 import type { InstructionData } from '@/types/instructionRegistration';
 
@@ -73,186 +92,7 @@ export interface TaskListResponse {
 }
 
 /**
- * 統一レスポンス形式
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown[];
-  };
-  meta: {
-    timestamp: string;
-    requestId: string;
-  };
-}
-
-/**
- * プロジェクト作成リクエスト型
- */
-export interface CreateProjectRequest {
-  projectName: string;
-  description?: string;
-}
-
-/**
- * プロジェクト作成レスポンス型
- */
-export interface CreateProjectResponse {
-  projectId: string;
-  projectName: string;
-  description: string;
-  status: string;
-  organizationId: string;
-  departmentId: string;
-  createdBy: string;
-  createdAt: string;
-}
-
-/**
- * 実験作業者用プロジェクト型
- * APIレスポンス: GET /api/v1/projects/worker-accessible
- */
-export interface WorkerProject {
-  projectId: string;           // プロジェクトID（UUID）
-  projectName: string;         // プロジェクト名
-  projectCd?: string;          // プロジェクトCD（APIレスポンスに含まれない場合がある）
-  projectStatus: number;       // プロジェクトステータス（0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了）
-  useDeemedProgress?: boolean; // みなし進捗使用フラグ（organization.use_deemed_progress）省略時はtrue
-  description: string;         // プロジェクトの説明
-  createdAt: string;           // 作成日時（ISO 8601）
-  updatedAt: string;           // 更新日時（ISO 8601）
-}
-
-/**
- * 実験作業者用プロジェクト一覧レスポンス型
- */
-export interface WorkerProjectListResponse {
-  projects: WorkerProject[];
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    totalItems: number;
-    itemsPerPage: number;
-  };
-}
-
-/**
- * プロジェクト詳細レスポンス型
- * API: GET /api/v1/projects/:projectId
- */
-export interface ProjectDetailResponse {
-  project_id: string;
-  project_name: string;
-  description: string | null;
-  project_status: string;
-  is_checked_out: boolean;
-  checked_out_by: string | null;
-  checked_out_at: string | null;
-  checked_out_user_name: string | null;
-  create_at: string;
-  update_at: string;
-}
-
-/**
- * 承認依頼レスポンス型
- */
-export interface ApprovalRequestResponse {
-  project_id: string;
-  project_name: string;
-  status: 2;  // 承認待ち
-  update_at: string;
-}
-
-/**
- * 実験作業者用タスク一覧レスポンス型
- * API: GET /api/v1/progress/projects/:projectName/worker-tasks
- */
-export interface WorkerTasksResponse {
-  project_id: string;
-  project_name: string;
-  methods: WorkerMethod[];
-}
-
-/**
- * 実験作業者用メソッド型
- */
-export interface WorkerMethod {
-  method_id: string;
-  method_name: string;
-  experiment_order: number;
-  tasks: WorkerTask[];
-}
-
-/**
- * 実験作業者用タスク型
- */
-export interface WorkerTask {
-  task_no: number;
-  task_status: 'not_started' | 'started' | 'in_progress' | 'completed' | 'forced_terminated';
-  experiment_user_id: string;
-  experiment_user_name: string;
-  created_at: string;
-  updated_at: string;
-  progress: number;
-  progress_rate: string;  // APIレスポンスでは文字列型（例: "50.0000000000000000"）
-}
-
-/**
- * タスクステータス更新レスポンス型
- * API: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
- */
-export interface TaskStatusUpdateResponse {
-  task_no: number;
-  project_name: string;
-  method_id: string;
-  previous_status: string;
-  new_status: string;
-  updated_by: string;
-  updated_by_name: string;
-  updated_at: string;
-  comment?: string;
-}
-
-/**
- * 作業指示型（バックエンドAPIレスポンス）
- * API: GET /api/v1/projects/:projectName/worker-instructions
- */
-export interface WorkerInstruction {
-  id: string;
-  project_id: string;
-  project_name: string;
-  method_id: string;
-  method_name: string;
-  transition_id: string;
-  transition_name: string;
-  task_no: string | null; // タスク連番（文字列またはnull）
-  instruction_target: string; // "0": file, "1": method, "2": transition, "3": task
-  instruction_content: string;
-  priority: string; // "0": low, "1": normal, "2": medium, "3": high
-  type: string; // "0": general, "1": setup, "2": measurement, "3": safety, "4": cleanup
-  create_at: string;
-  created_by: string;
-  created_by_name: string;
-  is_acknowledged: boolean;
-}
-
-/**
- * 指示確認データ型（バックエンドAPIレスポンス）
- * API: PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
- */
-export interface InstructionConfirmationData {
-  instruction_id: string;
-  is_acknowledged: boolean;
-  acknowledged_at: string;
-  acknowledged_user_id: string;
-  acknowledged_user_name: string;
-}
-
-/**
- * APIエラーレスポンス型
+ * APIエラーレスポンス型（内部用）
  */
 interface ApiErrorResponse {
   success: false;
@@ -309,7 +149,7 @@ interface ProjectListApiResponse {
  */
 export const getProjects = async (
   status?: 'active' | 'archived' | 'all'
-): Promise<ApiResponse<ProjectListResponse>> => {
+): Promise<ServiceApiResponse<ProjectListResponse>> => {
   const client = createApiClient();
 
   try {
@@ -690,7 +530,7 @@ export const getWorkerAccessibleProjects = async (
   status?: '1' | '2' | '3',
   sortBy: 'create_at' | 'project_name' | 'update_at' = 'project_name',
   order: 'asc' | 'desc' = 'asc'
-): Promise<ApiResponse<WorkerProjectListResponse>> => {
+): Promise<ServiceApiResponse<WorkerProjectListResponse>> => {
   const client = createApiClient();
 
   try {
@@ -761,7 +601,7 @@ export const getWorkerAccessibleProjects = async (
  */
 export const getProjectDetail = async (
   projectId: string
-): Promise<ApiResponse<ProjectDetailResponse>> => {
+): Promise<ServiceApiResponse<ProjectDetailApiResponse>> => {
   const client = createApiClient();
 
   try {
@@ -769,7 +609,7 @@ export const getProjectDetail = async (
 
     const response = await client.get<{
       success: boolean;
-      data: ProjectDetailResponse;
+      data: ProjectDetailApiResponse;
       meta: {
         timestamp: string;
         requestId: string;
@@ -799,7 +639,7 @@ export const getProjectDetail = async (
 
 /**
  * 承認依頼を送信
- * PATCH /api/v1/projects/:projectName/approval-request
+ * PATCH /api/v1/projects/:projectId/approval-request
  * 
  * @param projectName プロジェクト名
  * @param comment コメント（任意、最大1000文字）
@@ -818,7 +658,7 @@ export const getProjectDetail = async (
 export const requestApproval = async (
   projectId: string,
   comment?: string
-): Promise<ApiResponse<ApprovalRequestResponse>> => {
+): Promise<ServiceApiResponse<ApprovalRequestResponse>> => {
   const client = createApiClient();
 
   try {
@@ -861,7 +701,7 @@ export const requestApproval = async (
 
 /**
  * 実験作業者用タスク一覧を取得
- * GET /api/v1/progress/projects/:projectName/worker-tasks
+ * GET /api/v1/progress/projects/:projectId/worker-tasks
  * 
  * @param projectName プロジェクト名
  * @param filters フィルター条件（オプション）
@@ -886,7 +726,7 @@ export const getWorkerTasks = async (
     sortBy?: 'task_no' | 'created_at' | 'updated_at' | 'status';
     order?: 'asc' | 'desc';
   }
-): Promise<ApiResponse<WorkerTasksResponse>> => {
+): Promise<ServiceApiResponse<WorkerTasksResponse>> => {
   const client = createApiClient();
 
   try {
@@ -932,7 +772,7 @@ export const getWorkerTasks = async (
 
 /**
  * タスクステータスを更新
- * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
+ * PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status
  * 
  * @param projectName プロジェクト名
  * @param methodId メソッドID
@@ -960,7 +800,7 @@ export const updateTaskStatus = async (
   status: 'not_started' | 'started' | 'in_progress' | 'completed' | 'forced_terminated',
   comment?: string,
   currentUpdatedAt?: string
-): Promise<ApiResponse<TaskStatusUpdateResponse>> => {
+): Promise<ServiceApiResponse<TaskStatusUpdateResponse>> => {
   const client = createApiClient();
 
   try {
@@ -1021,7 +861,7 @@ export const updateTaskStatus = async (
 
 /**
  * 作業指示一覧を取得
- * GET /api/v1/projects/:projectName/worker-instructions
+ * GET /api/v1/projects/:projectId/worker-instructions
  * 
  * @param projectName プロジェクト名
  * @param filters フィルター条件（オプション）
@@ -1040,7 +880,7 @@ export const updateTaskStatus = async (
  */
 export const getWorkerInstructions = async (
   projectId: string
-): Promise<ApiResponse<WorkerInstruction[]>> => {
+): Promise<ServiceApiResponse<WorkerInstruction[]>> => {
   const client = createApiClient();
 
   try {
@@ -1077,7 +917,7 @@ export const getWorkerInstructions = async (
 
 /**
  * 指示を確認済みとしてマークする
- * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
+ * PUT /api/v1/projects/:projectId/instructions/:instructionId/confirm
  * 
  * @param projectName プロジェクト名
  * @param instructionId 指示ID
@@ -1094,7 +934,7 @@ export const getWorkerInstructions = async (
 export const confirmInstruction = async (
   projectId: string,
   instructionId: string
-): Promise<ApiResponse<InstructionConfirmationData>> => {
+): Promise<ServiceApiResponse<InstructionConfirmationData>> => {
   const client = createApiClient();
 
   try {
@@ -1132,7 +972,7 @@ export const confirmInstruction = async (
 
 /**
  * トランジションステータスを更新
- * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ * PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status
  *
  * @param projectName プロジェクト名
  * @param methodId メソッドID
@@ -1156,7 +996,7 @@ export const updateTransitionStatus = async (
   methodId: string,
   transitionId: string,
   request: UpdateTransitionStatusRequest
-): Promise<ApiResponse<UpdateTransitionStatusResponse>> => {
+): Promise<ServiceApiResponse<UpdateTransitionStatusResponse>> => {
   const client = createApiClient();
 
   try {
@@ -1333,7 +1173,7 @@ export const getInstructions = async (
  */
 export const completeReviewTasks = async (
   projectId: string
-): Promise<ApiResponse<{ updatedCount: number; message: string }>> => {
+): Promise<ServiceApiResponse<{ updatedCount: number; message: string }>> => {
   const client = createApiClient();
   try {
     console.log('[DEBUG] completeReviewTasks - Request', { projectId });
@@ -1344,7 +1184,7 @@ export const completeReviewTasks = async (
     console.log('[DEBUG] completeReviewTasks - Success', {
       updatedCount: response.data.data.updatedCount,
     });
-    return response.data as ApiResponse<{ updatedCount: number; message: string }>;
+    return response.data as ServiceApiResponse<{ updatedCount: number; message: string }>;
   } catch (error) {
     console.error('[DEBUG] completeReviewTasks - Error', { error });
     throw error;
@@ -1740,7 +1580,7 @@ export const checkinProject = async (
  */
 export const publishProject = async (
   projectId: string
-): Promise<ApiResponse<PublishJobResponse>> => {
+): Promise<ServiceApiResponse<PublishJobResponse>> => {
   const client = createApiClient();
 
   try {
@@ -1785,21 +1625,6 @@ export interface PublishJobResponse {
 }
 
 /**
- * MaiML 公開ステータスレスポンス型
- * バックエンドの PublishStatusResponse に対応
- */
-export interface PublishStatusResponse {
-  job_id: string | null;
-  job_type: 'publish' | 'unpublish' | null;
-  status: 'pending' | 'running' | 'done' | 'error' | null;
-  asset_id: string | null;
-  project_name: string;
-  started_at: string | null;
-  finished_at: string | null;
-  error_message: string | null;
-}
-
-/**
  * プロジェクトの MaiML を非公開にする
  * POST /api/v1/projects/:projectId/unpublish
  *
@@ -1813,7 +1638,7 @@ export interface PublishStatusResponse {
  */
 export const unpublishProject = async (
   projectId: string
-): Promise<ApiResponse<PublishJobResponse>> => {
+): Promise<ServiceApiResponse<PublishJobResponse>> => {
   const client = createApiClient();
 
   try {
@@ -1916,13 +1741,13 @@ export interface ProjectMaimlResponse {
  */
 export const getProjectMaiml = async (
   projectId: string
-): Promise<ApiResponse<ProjectMaimlResponse>> => {
+): Promise<ServiceApiResponse<ProjectMaimlResponse>> => {
   const client = createApiClient();
 
   try {
     console.log('[DEBUG] getProjectMaiml - Request', { projectId });
     
-    const response = await client.get<ApiResponse<ProjectMaimlResponse>>(
+    const response = await client.get<ServiceApiResponse<ProjectMaimlResponse>>(
       `/projects/${encodeURIComponent(projectId)}/maiml`
     );
 

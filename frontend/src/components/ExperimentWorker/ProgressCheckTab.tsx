@@ -7,7 +7,7 @@ import type { BadgeProps } from 'antd';
 import ProgressCheckTable from './ProgressCheckTable';
 import IssueManagementModal from './IssueManagementModal';
 import { getWorkerTasks, updateTaskStatus } from '@/services/projectApiService';
-import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
+import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { AxiosError } from 'axios';
 import type { Task, Method, ProjectStatus } from '@/types/experimentWorker';

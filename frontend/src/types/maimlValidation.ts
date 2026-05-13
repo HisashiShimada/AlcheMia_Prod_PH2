@@ -64,6 +64,8 @@ export interface ErrorContent {
   elementTypes? : string;
   paths? : string[];
   element? :unknown;
+  /** ValidationError との互換性のためのインデックスシグネチャ */
+  [key: string]: unknown;
 }
 
 export interface statistics {
@@ -82,4 +84,41 @@ export interface Correction {
     original: string;
     fixed: string;
     ref? : string;
+}
+
+/**
+ * バリデーションエラーの型定義
+ * SaveConfirmDialog などで使用するバリデーション結果の1件分
+ */
+export interface ValidationError {
+  type?: string;
+  message?: string;
+  description?: string;
+  xpath?: string;
+  /** 参照先テンプレートID */
+  ref?: string;
+  /** JSON属性 @_ref（xml-js 形式） */
+  '@_ref'?: string;
+  /** 関連パスリスト */
+  paths?: string[];
+  [key: string]: unknown;
+}
+
+/**
+ * バリデーション結果の型定義
+ * SaveConfirmDialog などで使用するバリデーション結果全体
+ */
+export interface ValidationResult {
+  errors?: ValidationError[];
+  warnings?: ValidationError[];
+  corrections?: unknown[];
+}
+
+/**
+ * ワークフロー検証結果の型定義（validationUtils.ts より移動）
+ */
+export interface WorkflowValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
 }

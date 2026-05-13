@@ -7,37 +7,9 @@ import React, { useState } from 'react';
 import { Typography, Tabs, Table, Button, Space, Tag, theme, Checkbox, Empty, Tooltip } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import type { PropertyObject, StructuredProperties, SelectedProperties, TableDataType } from '@/types/editor';
 
 const { Title, Text } = Typography;
-
-/**
- * 選択されたプロパティの状態
- */
-interface SelectedProperties {
-  basic: string[];
-  template: string[];
-  data: string[];
-}
-
-/**
- * プロパティオブジェクトの型定義
- */
-interface PropertyObject {
-  key?: string;
-  value?: unknown;
-  type?: string;
-  description?: string;
-  defaultValue?: string;
-}
-
-/**
- * 構造化されたプロパティの型定義
- */
-interface StructuredProperties {
-  basic: Record<string, PropertyObject>;
-  template: Record<string, PropertyObject>;
-  data: Record<string, PropertyObject>;
-}
 
 /**
  * プロパティビューア with 選択機能コンポーネント
@@ -65,17 +37,6 @@ interface PropertyViewerWithSelectionProps {
   
   // 閉じるボタンのハンドラ
   onClose?: () => void;
-}
-
-/**
- * テーブルデータの型
- */
-interface TableDataType {
-  key: string;       // 内部キー（プロパティ名）
-  propKey: string;   // 表示用プロパティ名
-  value: unknown;    // 値
-  xsiType?: string;  // テンプレートタブ用 xsi:type
-  description?: string; // テンプレートタブ用 説明/単位
 }
 
 const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = ({

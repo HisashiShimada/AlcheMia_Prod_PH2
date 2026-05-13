@@ -37,7 +37,8 @@ import type {
 import {
   DocumentTagData,
 } from '../../types/maiml-unified'
-import { fetchMasters, type CreatorRecord, type VendorRecord, type InstrumentRecord } from '@/services/masterApiService';
+import { fetchMasters } from '@/services/masterApiService';
+import type { CreatorRecord, VendorRecord, InstrumentRecord } from '@/types/masterDataTypes';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 /**

@@ -18,11 +18,13 @@ import type {
   Property,
   Template,
   Content,
-  Document
+  Document,
+  Method,
 } from '@/types/maiml-unified';
-import { 
-  ErrorContent
-} from './maimlValidation'
+import {
+  ErrorContent,
+} from './maimlValidation';
+import type { AnalysisResult } from '@/types/maimlValidation';
 // ============================================
 // 基本型定義
 // ============================================
@@ -150,6 +152,7 @@ export interface MethodData {
 export interface FileInfo {
   key: string;
   name?: string;  // オプショナルに変更（S3ファイル一覧からkeyのみ取得される場合がある）
+  content?: string;
   lastModified?: string;
   size?: number;
 }
@@ -252,4 +255,313 @@ export interface TemplatesByCategory {
 export interface SaveData {
   name: string;
   description: string;
+}
+
+// ============================================
+// useWorkflow 関連の型定義
+// ============================================
+
+/**
+ * ノード境界情報の型定義
+ * 使用箇所: useWorkflow.ts
+ */
+export interface NodeBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  center: {
+    x: number;
+    y: number;
+  };
+}
+
+/**
+ * ID重複解決結果の型定義
+ * 使用箇所: useWorkflow.ts
+ */
+export interface IdConflictResolution {
+  mappedNodes: Node<NodeData>[];
+  mappedEdges: Edge<EdgeData>[];
+  idMapping: Record<string, string>;
+}
+
+/**
+ * ワークフロー追加結果の型定義
+ * 使用箇所: useWorkflow.ts
+ */
+export interface WorkflowAddResult {
+  success: boolean;
+  nodes?: Node<NodeData>[];
+  edges?: Edge<EdgeData>[];
+  templates?: TemplatesByCategory;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * ワークフローノードタイプ定義（useWorkflow用）
+ * NodeType（'place' | 'transition'）とは区別するため WorkflowNodeType とする
+ * 使用箇所: useWorkflow.ts
+ */
+export type WorkflowNodeType =
+  | 'materialPlace'
+  | 'conditionPlace'
+  | 'resultPlace'
+  | 'transition'
+  | 'materialTemplate'
+  | 'conditionTemplate'
+  | 'resultTemplate';
+
+/**
+ * useWorkflow パラメータの型定義
+ * 使用箇所: useWorkflow.ts
+ */
+export interface UseWorkflowParams {
+  addToHistory: (action: string, data: unknown) => void;
+}
+
+/**
+ * useWorkflow の返り値型
+ * 使用箇所: useWorkflow.ts
+ */
+export interface UseWorkflowReturn {
+  // 状態
+  methods: MethodData[];
+  activeMethodIndex: number;
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+  templates: TemplatesByCategory;
+
+  // メソッド操作
+  setActiveMethodIndex: (index: number) => void;
+
+  // ノード操作
+  addNode: (nodeType: WorkflowNodeType, position: { x: number; y: number }) => void;
+  updateNode: (nodeId: string, updates: Partial<Node>) => void;
+  deleteNode: (nodeId: string) => void;
+
+  // エッジ操作
+  addEdge: (connection: import('reactflow').Connection) => void;
+  deleteEdge: (edgeId: string) => void;
+
+  // ReactFlow連携
+  updateNodesFromChanges: (changes: import('reactflow').NodeChange[]) => void;
+  updateEdgesFromChanges: (changes: import('reactflow').EdgeChange[]) => void;
+
+  // ワークフロー追加
+  addWorkflow: (
+    clickPosition: { x: number; y: number },
+    maimlContent: string,
+    fileName?: string
+  ) => Promise<WorkflowAddResult>;
+
+  // データ読み込み・保存
+  loadMaimlData: (maimlContent: string) => Promise<void>;
+  exportToMaiml: () => string;
+}
+
+// ============================================
+// reactFlowConverter 用型定義
+// ============================================
+
+/**
+ * Petri Netデータ型（reactFlowConverter.ts より移動）
+ */
+export interface PetriNetData {
+  methods: Method[];
+  places: Place[];
+  transitions: Transition[];
+  arcs: Arc[];
+}
+
+/**
+ * React Flow変換結果の型定義（reactFlowConverter.ts より移動）
+ */
+export interface ReactFlowFormat {
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+}
+
+// ============================================
+// maimlToReactFlow 用型定義
+// ============================================
+
+/**
+ * maimlToReactFlow 変換結果型（maimlToReactFlow.ts より移動）
+ */
+export interface ConversionResult {
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+}
+
+/**
+ * maimlToReactFlow 変換統計情報型（maimlToReactFlow.ts より移動）
+ */
+export interface ConversionStats {
+  totalNodes: number;
+  placeNodes: number;
+  transitionNodes: number;
+  materialPlaces: number;
+  conditionPlaces: number;
+  resultPlaces: number;
+  totalEdges: number;
+}
+
+// ---------------------------------------------------------------------------
+// TemplateContext
+// ---------------------------------------------------------------------------
+
+/**
+ * TemplateContext の値型
+ * （TemplateContext.tsx より移動）
+ */
+// ---------------------------------------------------------------------------
+// viewer/dialogs 共通型
+// ---------------------------------------------------------------------------
+
+/**
+ * プロパティオブジェクト（PropertyViewer / PropertyViewerWithSelection / StructuredPropertySelector 共通）
+ */
+export interface PropertyObject {
+  key?: string;
+  value?: unknown;
+  type?: string;
+  description?: string;
+  defaultValue?: string;
+  elements?: {
+    value?: unknown;
+  };
+  children?: unknown[];
+}
+
+/**
+ * 構造化されたプロパティ（basic / template / data の3区分）
+ */
+export interface StructuredProperties {
+  basic: Record<string, PropertyObject>;
+  template: Record<string, PropertyObject>;
+  data: Record<string, PropertyObject>;
+}
+
+/**
+ * 選択されたプロパティキーの状態
+ */
+export interface SelectedProperties {
+  basic: string[];
+  template: string[];
+  data: string[];
+}
+
+/**
+ * PropertyViewerWithSelection テーブル行データ型
+ */
+export interface TableDataType {
+  key: string;
+  propKey: string;
+  value: unknown;
+  xsiType?: string;
+  description?: string;
+}
+
+// ---------------------------------------------------------------------------
+// viewer/ViewRendererDialog・ExperimentWorker/InstructionFlowDialog 共通型
+// ---------------------------------------------------------------------------
+
+/**
+ * ファイルデータ型
+ * viewer/ViewRendererDialog / ExperimentWorker/InstructionFlowDialog で使用
+ */
+export interface FileData {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  lastModified: string;
+  type: string;
+  isFolder?: boolean;
+  fileCount?: number;
+  /** APIから取得済みのファイルコンテンツ（設定されていればfetchをスキップ） */
+  content?: string;
+}
+
+/**
+ * サブネットデータ型
+ * viewer/ViewRendererDialog / ExperimentWorker/InstructionFlowDialog で使用
+ */
+export interface SubnetData {
+  transitionName: string;
+  maimlData: string;
+  templateMap: Record<string, { element: Element }>;
+  petriNetData: {
+    places: Array<{
+      id: string;
+      data: {
+        label?: string;
+        stereotype?: string;
+        template?: { id: string };
+        templateId?: string;
+      };
+    }>;
+    arcs: Array<{
+      id: string;
+      source: string;
+      target: string;
+    }>;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// progress/PetriNetVisualization 用型
+// ---------------------------------------------------------------------------
+
+/**
+ * カスタムノードのデータ型
+ * progress/PetriNetVisualization で使用
+ */
+export interface CustomNodeData {
+  label: string;
+  stereotype?: string;
+  isFired?: boolean;
+  isCompleted?: boolean;
+  isInProgress?: boolean;
+  progressChip?: React.ReactNode;
+  tooltip?: string;
+}
+
+/**
+ * NestedPropertyEditor の名前空間ソース情報
+ * 移動元: components/editorv2/NestedPropertyEditor.tsx
+ */
+export interface NamespaceSource {
+  fileName?: string;
+  uri?: string;
+  hierarchyPath?: string;
+  importedAt?: string;
+}
+
+/**
+ * NestedPropertyEditor 用プロパティデータ
+ * 移動元: components/editorv2/NestedPropertyEditor.tsx
+ */
+export interface PropertyData {
+  key: string;
+  tagName: string;
+  attributes: Record<string, string>;
+  elements: Record<string, string>;
+  children: PropertyData[];
+  namespaceOrigin?: boolean;
+  namespaceSource?: NamespaceSource;
+}
+
+export interface TemplateContextType {
+  templates: TemplatesByCategory;
+  allTemplates: TemplatesByCategory;
+  commonTemplates: TemplatesByCategory;
+  templateErrors: Record<string, TemplateError[]>;
+  isLoading: boolean;
+  addTemplate: (templateData: { category: 'material' | 'condition' | 'result'; template: Template }) => void;
+  deleteTemplate: (templateId: string) => void;
+  updateTemplate: (templateId: string, updatedTemplate: Template) => void;
+  validationResult?: AnalysisResult | null;
 }

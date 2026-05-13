@@ -20,6 +20,8 @@ import type {
   ChunkUploadOptions,
   UploadRetryOptions,
   UploadRetryState,
+  RenameFileRequest,
+  RenameFileResponse,
 } from '@/types/file';
 
 /** チャンク分割の閾値: 10MB を超えるファイルはチャンク方式に切り替える */
@@ -856,19 +858,6 @@ export const formatFileSize = (bytes: number): string => {
 // ---------------------------------------------------------------------------
 // ファイル名変更
 // ---------------------------------------------------------------------------
-
-export interface RenameFileRequest {
-  /** 対象ファイルの相対パス（organizationId なし。例: "projects/foo/bar.csv"） */
-  fileKey: string;
-  /** 新しいファイル名（拡張子込み） */
-  newFileName: string;
-}
-
-export interface RenameFileResponse {
-  success: boolean;
-  data?: { newFileKey: string };
-  error?: { code: string; message: string };
-}
 
 /**
  * ファイル名変更API

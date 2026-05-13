@@ -9,33 +9,11 @@
  */
 
 import { Node, Edge } from 'reactflow';
-import type { NodeData, EdgeData } from '../types/editor';
+import type { NodeData, EdgeData, PetriNetData, ConversionResult, ConversionStats } from '../types/editor';
 import { MaimlParserTyped } from '@/utils/maimlParserTyped';
 import { convertToReactFlowFormat } from './reactFlowConverter';
 import { buildTemplateMap } from '@/utils/petriNetExtractor';
-import { PetriNetData } from './reactFlowConverter';
 import { Template } from '@/types/maiml-unified';
-
-/**
- * 変換結果型
- */
-export interface ConversionResult {
-  nodes: Node<NodeData>[];
-  edges: Edge<EdgeData>[];
-}
-
-/**
- * 変換統計情報型
- */
-export interface ConversionStats {
-  totalNodes: number;
-  placeNodes: number;
-  transitionNodes: number;
-  materialPlaces: number;
-  conditionPlaces: number;
-  resultPlaces: number;
-  totalEdges: number;
-}
 
 /**
  * MaiMLデータをReact Flow形式に変換

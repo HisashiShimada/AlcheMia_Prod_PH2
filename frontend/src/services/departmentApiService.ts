@@ -6,39 +6,8 @@
 
 import { createApiClient } from '@/utils/authUtils';
 import { getDepartmentConfig } from '@/types/departmentTypes';
-/**
- * APIレスポンスの型定義
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
-
-/**
- * 部署データの型（インデックスシグネチャ付き）
- */
-export interface DepartmentRecord {
-  organization_id: string; // UUID
-  department_cd: string;
-  department_name: string;
-  is_active: boolean;
-  create_user_id: string;
-  update_user_id: string;
-  create_at: Date;
-  update_at: Date;
-  
-  // 動的プロパティアクセス用のインデックスシグネチャ
-  [key: string]: unknown;
-}
-
-/**
- * 部署データの汎用型
- */
-export type MasterRecord = DepartmentRecord;
+import type { DepartmentRecord, MasterRecord, CsvUploadResult, CreateDepartmentRequest } from '@/types/departmentTypes';
+import type { ApiResponse } from '@/types/api';
 
 /**
  * 部署一覧を取得
@@ -169,19 +138,6 @@ export async function batchUpdateMasterStatus(
   for (const id of ids) {
     await updateMasterStatus(id, isActive);
   }
-}
-
-/**
- * CSVアップロード結果の型定義
- */
-interface CsvUploadResult {
-  successCount: number;
-  failureCount: number;
-  errors: Array<{
-    row: number;
-    field: string;
-    message: string;
-  }>;
 }
 
 /**

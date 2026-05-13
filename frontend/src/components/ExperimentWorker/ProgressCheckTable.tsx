@@ -6,7 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Task, ProjectStatus } from '@/types/experimentWorker';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
-import type { FileData, SubnetData } from '@/components/viewer/ViewRendererDialog';
+import type { FileData, SubnetData } from '@/types/editor';
 import TaskListTable from './TaskListTable';
 import { getProjectMaiml } from '@/services/projectApiService';
 

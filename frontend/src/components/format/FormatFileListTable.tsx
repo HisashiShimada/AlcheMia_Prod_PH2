@@ -19,25 +19,9 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatUtils';
+import type { FormatFileData } from '@/types/format';
 
 const { Text } = Typography;
-
-/**
- * フォーマットファイルの型定義
- */
-export interface FormatFileData {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  lastModified: string;
-  type: string;
-  version?: string;
-  description?: string;
-  creator?: string;
-  isFolder?: boolean;
-  fileCount?: number;
-}
 
 /**
  * FormatFileListTableのProps

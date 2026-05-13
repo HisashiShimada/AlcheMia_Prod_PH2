@@ -28,35 +28,14 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { formatDateTime } from '@/utils/formatUtils';
 import { getMasterDataConfig, getAllMasterDataConfigs } from '@/types/masterDataTypes';
-import type { MasterDataType } from '@/types/masterDataTypes';
+import type { MasterDataType, CsvValidationError, MasterItemCategory } from '@/types/masterDataTypes';
 import * as masterApi from '@/services/masterApiService';
-import type { MasterRecord } from '@/services/masterApiService';
+import type { MasterRecord } from '@/types/masterDataTypes';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
 
 const { Text } = Typography;
-
-/**
- * CSVバリデーションエラーの型定義
- */
-interface CsvValidationError {
-  row: number;
-  field: string;
-  message: string;
-}
-
-/**
- * 項目カテゴリの型定義
- */
-interface ItemCategory {
-  headerName: string;
-  searchFixed: boolean;
-  isDisplay: boolean;
-  addable: boolean;
-  update: boolean;
-  required?: boolean;
-}
 
 /**
  * マスタ管理画面のProps
@@ -143,7 +122,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     const config = getMasterDataConfig(masterType);
     
     // 古い構造（itemCategories）に変換して互換性を保つ
-    const itemCategories: Record<string, ItemCategory | undefined> = {};
+    const itemCategories: Record<string, MasterItemCategory | undefined> = {};
     config.fields.forEach(field => {
       // i18nKeyが設定されている場合は翻訳済みの表示名を使用、なければdisplayNameをフォールバックとして使用
       const headerName = field.i18nKey ? t(field.i18nKey) : field.displayName;

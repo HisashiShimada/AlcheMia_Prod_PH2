@@ -5,74 +5,8 @@
  */
 
 import { createApiClient } from '@/utils/authUtils';
-/**
- * APIレスポンスの型定義
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
-
-/**
- * ユーザーデータの型（4テーブルJOIN）
- * バックエンドからcamelCaseで返却されるため、フロントエンド側もcamelCaseで定義
- */
-export interface UserRecord {
-  userId: string; // メールアドレス（主キー）
-  userName: string;
-  mailAddress: string;
-  departmentCd?: string;
-  departmentName?: string; // JOINで取得
-  roleCd: string;
-  roleName?: string; // JOINで取得
-  isActive: boolean;
-  createUserId?: string;
-  updateUserId?: string;
-  createAt?: Date;
-  updateAt?: Date;
-  
-  // 動的プロパティアクセス用のインデックスシグネチャ
-  [key: string]: unknown;
-}
-
-/**
- * ユーザー作成リクエストの型（パスワード含む）
- */
-export interface CreateUserRequest {
-  userId: string; // メールアドレス
-  userName: string;
-  mailAddress: string;
-  departmentCd?: string;
-  roleCd: string;
-  isActive?: boolean;
-  password?: string; // パスワード（オプション）
-}
-
-/**
- * ユーザー更新リクエストの型（パスワード不要）
- */
-export interface UpdateUserRequest {
-  userName?: string;
-  departmentCd?: string;
-  roleCd?: string;
-  isActive?: boolean;
-}
-
-/**
- * ユーザー一覧検索フィルターの型
- */
-export interface UserFilters {
-  search?: string;
-  is_active?: boolean;
-  department_cd?: string;
-  role_cd?: string;
-  sort_by?: 'user_id' | 'user_name' | 'update_at';
-  sort_order?: 'asc' | 'desc';
-}
+import type { ApiResponse } from '@/types/api';
+import type { UserRecord, CreateUserRequest, UpdateUserRequest, UserFilters } from '@/types/user';
 
 /**
  * APIエンドポイント

@@ -3,18 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Space, Tag, Button, theme } from 'antd';
 import { FolderOutlined, ToolOutlined, AimOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { Method } from '@/types/experimentWorker';
+import { Method, ProjectInfo, SelectionStep } from '@/types/experimentWorker';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-/**
- * プロジェクト情報の型定義（UnifiedSelectionDialog用）
- */
-interface ProjectInfo {
-  projectId: string;
-  projectName: string;
-  fileName?: string;
-  methods?: Method[];
-}
 
 const { Text } = Typography;
 
@@ -33,11 +23,6 @@ interface UnifiedSelectionDialogProps {
   /** APIから取得したプロジェクト一覧 */
   projects?: ProjectInfo[];
 }
-
-/**
- * 選択ステップの型定義
- */
-type SelectionStep = 'project' | 'method' | 'task';
 
 /**
  * タスクの型定義
