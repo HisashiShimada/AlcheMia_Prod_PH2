@@ -10,6 +10,16 @@ import type { DepartmentRecord, MasterRecord, CsvUploadResult } from '@/types/de
 import type { ApiResponse } from '@/types/api';
 
 /**
+ * 部署新規作成 API リクエストの型（camelCase）
+ * バックエンドの departmentRoutes.ts バリデーション（body('departmentCd') 等）に合わせた型定義
+ */
+export interface CreateDepartmentRequest {
+  departmentCd: string;
+  departmentName: string;
+  isActive?: boolean;
+}
+
+/**
  * 部署一覧を取得
  */
 export async function fetchMasters(
