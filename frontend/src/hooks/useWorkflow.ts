@@ -11,114 +11,24 @@
  * @date 2026-01-29
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { Node, Edge, Connection, XYPosition, NodeChange, EdgeChange } from 'reactflow';
 import { maimlToReactFlow } from '../utils/maimlToReactFlow';
 import { Template } from '@/types/maiml-unified';
-import { TemplatesByCategory, NodeData, EdgeData } from '@/types/editor';
+import {
+  TemplatesByCategory,
+  NodeData,
+  EdgeData,
+  NodeBounds,
+  IdConflictResolution,
+  WorkflowAddResult,
+  MethodData,
+  WorkflowNodeType,
+  UseWorkflowParams,
+  UseWorkflowReturn,
+} from '@/types/editor';
 
-/**
- * ノード境界情報の型定義
- */
-interface NodeBounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-  center: {
-    x: number;
-    y: number;
-  };
-}
-
-/**
- * ID重複解決結果の型定義
- */
-interface IdConflictResolution {
-  mappedNodes: Node<NodeData>[];
-  mappedEdges: Edge<EdgeData>[];
-  idMapping: Record<string, string>;
-}
-
-/**
- * ワークフロー追加結果の型定義
- */
-export interface WorkflowAddResult {
-  success: boolean;
-  nodes?: Node<NodeData>[];
-  edges?: Edge<EdgeData>[];
-  templates?: TemplatesByCategory;
-  message?: string;
-  error?: string;
-}
-
-/**
- * メソッドデータの型定義
- */
-export interface MethodData {
-  methodId: string;
-  nodes: Node<NodeData>[];
-  edges: Edge<EdgeData>[];
-}
-
-/**
- * ノードタイプ定義
- */
-export type NodeType = 
-  | 'materialPlace'
-  | 'conditionPlace'
-  | 'resultPlace'
-  | 'transition'
-  | 'materialTemplate'
-  | 'conditionTemplate'
-  | 'resultTemplate';
-
-/**
- * useWorkflowパラメータの型定義（Phase 9拡張版）
- */
-export interface UseWorkflowParams {
-  addToHistory: (action: string, data: unknown) => void;
-}
-
-/**
- * useWorkflowの返り値型（Phase 9拡張版）
- */
-export interface UseWorkflowReturn {
-  // 状態
-  methods: MethodData[];
-  activeMethodIndex: number;
-  nodes: Node<NodeData>[];
-  edges: Edge<EdgeData>[];
-  templates: TemplatesByCategory;
-  
-  // メソッド操作
-  setActiveMethodIndex: (index: number) => void;
-  
-  // ノード操作
-  addNode: (nodeType: NodeType, position: XYPosition) => void;
-  updateNode: (nodeId: string, updates: Partial<Node>) => void;
-  deleteNode: (nodeId: string) => void;
-  
-  // エッジ操作
-  addEdge: (connection: Connection) => void;
-  deleteEdge: (edgeId: string) => void;
-  
-  // ReactFlow連携
-  updateNodesFromChanges: (changes: NodeChange[]) => void;
-  updateEdgesFromChanges: (changes: EdgeChange[]) => void;
-  
-  // ワークフロー追加
-  addWorkflow: (
-    clickPosition: { x: number; y: number },
-    maimlContent: string,
-    fileName?: string
-  ) => Promise<WorkflowAddResult>;
-  
-  // データ読み込み・保存
-  loadMaimlData: (maimlContent: string) => Promise<void>;
-  exportToMaiml: () => string;
-}
 
 /**
  * ワークフロー管理カスタムフック（Phase 9完全実装版）
@@ -136,7 +46,7 @@ export const useWorkflow = ({
   
   // メソッド配列（複数メソッド対応）
   const [methods, setMethods] = useState<MethodData[]>([
-    { methodId: 'method1', nodes: [], edges: [] }
+    { methodId: 'method1', methodIndex: 0, name: 'Method 1', nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }
   ]);
   
   // アクティブメソッドインデックス
@@ -217,7 +127,7 @@ export const useWorkflow = ({
   /**
    * ノード追加
    */
-  const addNode = useCallback((nodeType: NodeType, position: XYPosition) => {
+  const addNode = useCallback((nodeType: WorkflowNodeType, position: XYPosition) => {
     const newNode: Node = {
       id: `${nodeType}-${Date.now()}`,
       type: nodeType,
@@ -561,8 +471,8 @@ export const useWorkflow = ({
  * @param nodeType - ノードタイプ
  * @returns ラベル文字列
  */
-const getNodeLabelFromType = (nodeType: NodeType): string => {
-  const labels: Record<NodeType, string> = {
+const getNodeLabelFromType = (nodeType: WorkflowNodeType): string => {
+  const labels: Record<WorkflowNodeType, string> = {
     materialPlace: 'Material',
     conditionPlace: 'Condition',
     resultPlace: 'Result',
@@ -579,7 +489,7 @@ const getNodeLabelFromType = (nodeType: NodeType): string => {
  * @param nodeType - ノードタイプ
  * @returns プレイスタイプ文字列
  */
-const getPlaceTypeFromNodeType = (nodeType: NodeType): string | undefined => {
+const getPlaceTypeFromNodeType = (nodeType: WorkflowNodeType): string | undefined => {
   if (nodeType.includes('material')) return 'material';
   if (nodeType.includes('condition')) return 'condition';
   if (nodeType.includes('result')) return 'result';

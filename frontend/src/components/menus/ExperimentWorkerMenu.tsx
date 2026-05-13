@@ -22,7 +22,8 @@ import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmat
 import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
 import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
-import { getWorkerAccessibleProjects, requestApproval, type WorkerProject } from '@/services/projectApiService';
+import type { WorkerProject } from '@/types/project';
+import { getWorkerAccessibleProjects, requestApproval } from '@/services/projectApiService';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 import { AxiosError } from 'axios';
 import { extractErrorMessage } from '@/utils/errorUtils';

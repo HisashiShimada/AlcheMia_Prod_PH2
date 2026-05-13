@@ -35,7 +35,7 @@ import {
 } from '@/services/fileAccessService';
 import type { ProjectFile } from '@/types/file';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { MaimlAnalysisResultRow } from '@/services/maimlApiService';
+import type { MaimlAnalysisResultRow } from '@/types/maimlEditor';
 
 interface FileListTableProps {
   files: ProjectFile[];

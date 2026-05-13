@@ -47,21 +47,9 @@ import type {
 import { fetchTransitionStatus as fetchTransitionStatusAPI } from '@/services/projectApiService';
 import { parsePetriNetStructure, getStorageFileContent } from '@/services/maimlApiService';
 import { ProgressStatus } from '@/constants/progressStatus';
+import type { CustomNodeData } from '@/types/editor';
 
 const { Text } = Typography;
-
-/**
- * カスタムノードのデータ型定義
- */
-interface CustomNodeData {
-  label: string;
-  stereotype?: string;
-  isFired?: boolean;
-  isCompleted?: boolean;
-  isInProgress?: boolean;
-  progressChip?: React.ReactNode;
-  tooltip?: string;
-}
 
 /**
  * カスタムノード: MaterialTemplate（円形、内部は空）- 30%縮小

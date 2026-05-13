@@ -19,12 +19,13 @@ import {
   FolderAddOutlined,
 } from '@ant-design/icons';
 import FormatFolderTree from './FormatFolderTree';
-import FormatFileListTable, { type FormatFileData } from './FormatFileListTable';
+import FormatFileListTable from './FormatFileListTable';
 import FormatUploadDialog from './FormatUploadDialog';
-import CreateFormatFileModal, { CreateFormatFileData } from './CreateFormatFileModal';
-import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatFolderModal';
+import CreateFormatFileModal from './CreateFormatFileModal';
+import CreateFormatFolderModal from './CreateFormatFolderModal';
 import CreateFormatModal from './CreateFormatModal';
-import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
+import FormatFileDetailModal from './FormatFileDetailModal';
+import type { FormatFileData, FormatFileDetailData, CreateFormatFileData, CreateFormatFolderData } from '@/types/format';
 import PetriNetEditorScreen from '@/components/editorv2/PetriNetEditorScreen';
 import FormatEditorDialog from '@/components/format/FormatEditorDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -33,7 +34,7 @@ import { User } from '@/types/auth';
 import { useApi } from '@/hooks/useApi';
 import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder, createFormatFolder, updateFormatFileContent } from '@/services/formatApiService';
 import type { ApiResponse } from '@/types/api';
-import type { FormatListResponse } from '@/types/format';
+import type { FormatListResponse, Format } from '@/types/format';
 import { getFileDownloadUrlByKey, deleteFileByKey, deleteFolderByPath } from '@/services/fileAccessService';
 import { createApiClient } from '@/utils/authUtils';
 import { 
@@ -42,26 +43,9 @@ import {
   escapeXml
 } from '@/utils/reactFlowToMaiml';
 import { Property, Content } from '@/types/maiml-unified';
-import { PropertyData } from '@/components/editorv2/NestedPropertyEditor';
+import type { PropertyData } from '@/types/editor';
 
 const { Title, Text } = Typography;
-
-/**
- * フォーマットの型定義
- */
-interface Format {
-  id: string;
-  name: string;
-  folderName: string;
-  description: string;
-  fileCount: number;
-  fileType: 'xml' | 'maiml';
-  category: string;
-  department: string;
-  createdAt: string;
-  updatedAt: string;
-  tags: string[];
-}
 
 /**
  * FormatManagementのProps型定義

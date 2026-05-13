@@ -140,3 +140,91 @@ export const ROLE_CONFIG: RoleConfig = {
 export function getRoleConfig(): RoleConfig {
   return ROLE_CONFIG;
 }
+
+// ---------------------------------------------------------------------------
+// roleApiService から移動した型
+// ---------------------------------------------------------------------------
+
+/**
+ * ロールレコード（API レスポンス）
+ * MasterRecord は roleApiService との互換性のためのエイリアス
+ */
+export type MasterRecord = RoleRecord;
+
+export interface RoleRecord {
+  roleName: string;
+initialScreenFunctionCd: string | null;
+initialScreenFunctionName: string;
+  isActive: boolean;
+  functionCd: string | null;
+  functionName: string;
+  functionIds: string;
+  functions: string;
+  functionWritePermissions: string;
+  permission: number | null;
+  writableFunctionIds: string;
+  roleCd: string;
+  roleId: string;
+  role: string;
+  organizationId: string;
+  corporationId: string;
+  createUserId: string;
+  updateUserId: string;
+  createAt: Date;
+  updatedAt: Date | null;
+}
+
+/**
+ * 機能アイテムの型定義
+ * （FunctionPermissionDialog.tsx より移動）
+ */
+export interface FunctionItem {
+  key: string;
+  label: string;
+  dbValue: string;
+  description?: string;
+  children?: FunctionItem[];
+  checked: boolean;
+  writable: boolean;
+}
+
+/**
+ * アイテムカテゴリの型定義
+ * （RoleManagement.tsx より移動）
+ */
+export interface ItemCategory {
+  headerName: string;
+  searchFixed: boolean;
+  isDisplay: boolean;
+  addable: boolean;
+  update: boolean;
+}
+
+/**
+ * マスタータイプデータの型定義
+ * （RoleManagement.tsx より移動）
+ */
+export interface MasterTypeData {
+  masterId: string;
+  role: string;
+  relationData: string;
+  displayName: string;
+  itemCategories: Record<string, ItemCategory | undefined>;
+  isActive: boolean;
+}
+
+/** マスターレコードの汎用型（RoleManagement 用） */
+export type RoleMasterRecord = Record<string, unknown>;
+
+/**
+ * ロールAPIレスポンスの型定義
+ * （RoleManagement.tsx より移動）
+ */
+export interface RoleApiResponse {
+  roleId: string;
+  roleName: string;
+  functionName: string;
+  functionWritePermissions: string;
+  isActive: boolean;
+  updatedAt: string;
+}

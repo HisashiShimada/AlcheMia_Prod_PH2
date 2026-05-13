@@ -34,13 +34,15 @@ import {
   DownloadOutlined,
   FileSearchOutlined,
 } from '@ant-design/icons';
-import { fetchTemplateFiles, fetchTemplateContent, type FormatTemplateFile } from '@/services/templateApi';
+import { fetchTemplateFiles, fetchTemplateContent } from '@/services/templateApi';
+import type { FormatTemplateFile } from '@/types/format';
 import type { 
   NodeData, 
   TemplateError,
 } from '../../types/editor';
 import { Template, Insertion, PlaceRef, Property, Content } from '@/types/maiml-unified';
-import NestedPropertyEditor, { type PropertyData } from '../editorv2/NestedPropertyEditor';
+import NestedPropertyEditor from '../editorv2/NestedPropertyEditor';
+import type { PropertyData } from '@/types/editor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {

@@ -530,3 +530,102 @@ export interface IssueReportFormData {
   issueType: IssueType;    // 問題タイプ
   content: string;         // 内容
 }
+
+/**
+ * 問題報告APIのリクエストボディ
+ * POST /api/v1/issues
+ * 移動元: services/issueApiService.ts
+ */
+export interface CreateIssueParams {
+  /** プロジェクトID（UUID、必須） */
+  projectId: string;
+  /** メソッドID（オプション） */
+  methodId?: string;
+  /** 問題タイプ（必須）: code_master.code_value（整数） */
+  issueType: number;
+  /** 対象タイプ（必須） */
+  targetType: string;
+  /** タスク連番（オプション） */
+  taskNo?: number;
+  /** トランジションID（オプション） */
+  transitionId?: string;
+  /** タイトル（必須、最大200文字） */
+  title: string;
+  /** 内容（必須、最大2000文字） */
+  description: string;
+}
+
+/**
+ * コメント追加APIのリクエストパラメータ
+ * POST /api/v1/issues/comments
+ * 移動元: services/issueApiService.ts
+ */
+export interface AddCommentParams {
+  /** プロジェクト名（必須） */
+  projectName: string;
+  /** 問題ID（UUID、必須） */
+  issueId: string;
+  /** コメント内容（必須） */
+  comment: string;
+}
+
+/**
+ * 問題一覧取得APIのクエリパラメータ
+ * GET /api/v1/issues
+ * 移動元: services/issueApiService.ts
+ */
+export interface GetIssuesParams {
+  /** プロジェクトID（UUID、必須） */
+  projectId: string;
+  /** メソッドID（オプション。省略時はプロジェクト全件を返す） */
+  methodId?: string;
+  /** タスク連番（オプション） */
+  taskNo?: number;
+  /** トランジションID（オプション） */
+  transitionId?: string;
+  /** ステータスフィルタ（オプション） */
+  status?: 'unresolved' | 'resolved';
+  /** 問題タイプフィルタ（オプション）: code_master.code_value（整数） */
+  issueType?: number;
+}
+
+/**
+ * UnifiedSelectionDialog 用プロジェクト情報
+ * 移動元: components/ExperimentWorker/UnifiedSelectionDialog.tsx
+ */
+export interface ProjectInfo {
+  projectId: string;
+  projectName: string;
+  fileName?: string;
+  methods?: Method[];
+}
+
+/**
+ * 統合選択ダイアログのステップ
+ * 移動元: components/ExperimentWorker/UnifiedSelectionDialog.tsx
+ */
+export type SelectionStep = 'project' | 'method' | 'task';
+
+/**
+ * 実験記録タブの表示モード
+ * 移動元: components/ExperimentWorker/ExperimentRecordTab.tsx
+ */
+export type ViewMode = 'list' | 'flow';
+
+/**
+ * 選択ダイアログのタイプ
+ * 移動元: components/ExperimentWorker/SelectionDialog.tsx
+ */
+export type SelectionType = 'project' | 'method' | 'task';
+
+/**
+ * 選択ダイアログのアイテム
+ * 移動元: components/ExperimentWorker/SelectionDialog.tsx
+ */
+export interface SelectionItem {
+  id: string;
+  name: string;
+  subtitle?: string;
+  description?: string;
+  tag?: string;
+}

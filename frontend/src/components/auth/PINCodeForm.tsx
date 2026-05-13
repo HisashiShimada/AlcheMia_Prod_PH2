@@ -10,7 +10,8 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Alert, Typography, Space, theme } from 'antd';
 import { MailOutlined, ReloadOutlined } from '@ant-design/icons';
-import { authService, AuthServiceError } from '@/services/authService';
+import { authService } from '@/services/authService';
+import { AuthServiceError } from '@/types/error';
 import type { VerifyPinResponseData } from '@/types/api';
 import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';

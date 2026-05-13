@@ -13,46 +13,9 @@ import {
   Draft,
   EditState,
 } from '../types/editor';
+import type { UseDraftManagerOptions, UseDraftManagerReturn } from '@/types/hooks';
 import * as draftService from '@/services/draftService';
 import { isAutoSaveDraft } from '@/constants/draftConstants';
-
-/**
- * useDraftManagerオプションの型定義
- */
-export interface UseDraftManagerOptions {
-  userId?: string;
-  autoSaveInterval?: number;
-  autoSaveGenerations?: number;
-  onAutoSaveSuccess?: (result: { draft_key: string }) => void;
-  onAutoSaveError?: (error: Error) => void;
-  /** プロジェクトID（Draft保存時に記録し、復元時のプロジェクト特定に使用） */
-  projectId?: string;
-}
-
-/**
- * useDraftManagerの返り値型
- */
-export interface UseDraftManagerReturn {
-  // 状態
-  drafts: Draft[];
-  isLoading: boolean;
-  error: string | null;
-  autoSaveEnabled: boolean;
-  lastSavedDraft: Draft | null;
-  lastAutoSaveTime: Date | null;
-  
-  // 操作関数
-  fetchDrafts: () => Promise<Draft[] | undefined>;
-  saveDraft: (draftData: Draft) => Promise<Draft>;
-  deleteDraft: (draftKey: string) => Promise<unknown>;
-  
-  // 自動保存制御
-  setAutoSaveEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-  startAutoSaveTimer: () => void;
-  stopAutoSaveTimer: () => void;
-  resumeAutoSaveTimer: () => void;
-  cleanupOldAutoSaves: () => Promise<void>;
-}
 
 /**
  * useDraftManager - Draft管理カスタムフック

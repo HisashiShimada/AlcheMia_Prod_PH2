@@ -6,31 +6,9 @@
 import React, { useState } from 'react';
 import { Modal, Drawer, Tabs, Table, Checkbox, Tag, Typography, Space, Empty, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { PropertyObject, StructuredProperties, SelectedProperties } from '@/types/editor';
 
 const { Text } = Typography;
-
-interface PropertyObject {
-  key?: string;
-  value?: unknown;
-  type?: string;
-  description?: string;
-  elements?: {
-    value?: unknown;
-  };
-  children?: unknown[];
-}
-
-interface StructuredProperties {
-  basic: Record<string, PropertyObject>;
-  template: Record<string, PropertyObject>;
-  data: Record<string, PropertyObject>;
-}
-
-interface SelectedProperties {
-  basic: string[];
-  template: string[];
-  data: string[];
-}
 
 interface StructuredPropertySelectorProps {
   open: boolean;

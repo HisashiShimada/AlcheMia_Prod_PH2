@@ -17,27 +17,10 @@ import {
   FolderOpenOutlined,
 } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
+import type { FileInfo } from '@/types/editor';
+import type { FolderNode } from '@/types/storage';
 
 const { Text } = Typography;
-
-/**
- * ファイル情報の型定義
- */
-interface FileInfo {
-  key: string;
-  name?: string;
-  size?: number;
-}
-
-/**
- * フォルダツリーノードの型定義
- */
-interface FolderNode {
-  name: string;
-  path: string;
-  children: FolderNode[];
-  fileCount: number;
-}
 
 /**
  * WorkflowSelectorDialog Props

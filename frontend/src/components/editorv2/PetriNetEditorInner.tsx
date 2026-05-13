@@ -1308,8 +1308,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const maimlFiles = response.data.files
         .filter((file: StorageFile) => file.key && file.key.endsWith('.maiml'))
         .map((file: StorageFile) => ({
-          key: file.key,
-          name: file.name || file.key.split('/').pop() || '',
+          key: file.key as string,
+          name: file.name || (file.key ? file.key.split('/').pop() : '') || '',
           lastModified: file.lastModified,
           size: file.size,
         }));
@@ -2407,7 +2407,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       }
       
       // ✅ 修正: FileContentResponseはdataプロパティにネストされている
-      const maimlContent = response.data.data.content;
+      const maimlContent = response.data.data?.content ?? response.data.content ?? '';
       
       console.log('✅ [PetriNetEditorInner] MaiMLファイル取得完了:', {
         fileKey: file.key,

@@ -30,21 +30,9 @@ import {
   FolderOpenOutlined,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { ValidationError, ValidationResult } from '@/types/maimlValidation';
 
 const { Text } = Typography;
-
-interface ValidationError {
-  type?: string;
-  message?: string;
-  description?: string;
-  xpath?: string;
-}
-
-interface ValidationResult {
-  errors?: ValidationError[];
-  warnings?: ValidationError[];
-  corrections?: unknown[];
-}
 
 interface SaveConfirmDialogProps {
   open: boolean;

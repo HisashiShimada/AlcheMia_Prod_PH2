@@ -8,6 +8,8 @@ import type {
   NodeData,
   EdgeData,
   Position,
+  PetriNetData,
+  ReactFlowFormat,
 } from '@/types/editor';
 // XSD準拠型（maiml-unified.ts）
 import type {
@@ -18,25 +20,6 @@ import type {
   Method,
 } from '@/types/maiml-unified';
 import { MaimlParserTyped } from './maimlParserTyped';
-
-
-/**
- * Petri Netデータ型定義（reactFlowConverter用）
- */
-export interface PetriNetData {
-  methods : Method[];
-  places: Place[];
-  transitions: Transition[];
-  arcs: Arc[];
-}
-
-/**
- * React Flow変換結果の型定義
- */
-interface ReactFlowFormat {
-  nodes: Node<NodeData>[];
-  edges: Edge<EdgeData>[];
-}
 
 /**
  * ペトリネット構造をReact Flow形式に変換

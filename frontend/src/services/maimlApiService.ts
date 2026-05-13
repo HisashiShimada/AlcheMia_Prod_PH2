@@ -12,44 +12,14 @@ import type {
   FileContentResponse, 
   AutoCorrectResponse 
 } from '@/types/storage';
+import type { ServiceApiResponse } from '@/types/api';
 
-/**
- * 統一レスポンス形式
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown[];
-  };
-  meta: {
-    timestamp: string;
-    requestId: string;
-  };
-}
-
-/**
- * MAIML自動補正結果の型定義
- */
-export interface MaimlCorrectionResult {
-  corrected: boolean;
-  originalContent: string;
-  correctedContent: string;
-  corrections: Array<{
-    type: string;
-    message: string;
-    line?: number;
-    element?: string;
-    attribute?: string;
-    value?: string;
-  }>;
-  warnings: Array<{
-    message: string;
-    elements?: string[];
-  }>;
-}
+import type {
+  MaimlCorrectionResult,
+  MaimlAnalysisResultRow,
+  SaveMaimlResult,
+  MaimlFileInfo,
+} from '@/types/maimlEditor';
 
 /**
  * MAIMLバリデーション
@@ -67,13 +37,13 @@ export const validateMaiml = async (
     /** true: DB保存スキップ（デフォルト）、false: DB保存あり */
     skipAnalysisSave?: boolean;
   }
-): Promise<ApiResponse<AnalysisResult>> => {
+): Promise<ServiceApiResponse<AnalysisResult>> => {
   const client = createApiClient();
   
   try {
     console.log('🔍 [maimlApiService] MAIMLバリデーション実行');
     
-    const response = await client.post<ApiResponse<AnalysisResult>>(
+    const response = await client.post<ServiceApiResponse<AnalysisResult>>(
       '/maiml/validate',
       {
         content,
@@ -90,32 +60,15 @@ export const validateMaiml = async (
   }
 };
 
-/** DB保存済みの分析結果行 */
-export interface MaimlAnalysisResultRow {
-  id: number;
-  file_key: string;
-  is_valid: boolean;
-  version?: number | null;
-  namespace?: string | null;
-  errors: string;       // JSON文字列
-  warnings: string;     // JSON文字列
-  suggestions?: string; // JSON文字列
-  statistics?: string;  // JSON文字列
-  processing_time?: number | null;
-  analysis_timestamp: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
 /**
  * MAIML分析結果取得（DB保存済み）
  * GET /maiml/analysis-result?fileKey=xxx
  */
 export const getAnalysisResult = async (
   fileKey: string
-): Promise<ApiResponse<MaimlAnalysisResultRow | null>> => {
+): Promise<ServiceApiResponse<MaimlAnalysisResultRow | null>> => {
   const client = createApiClient();
-  const response = await client.get<ApiResponse<MaimlAnalysisResultRow | null>>(
+  const response = await client.get<ServiceApiResponse<MaimlAnalysisResultRow | null>>(
     `/maiml/analysis-result?fileKey=${encodeURIComponent(fileKey)}`
   );
   return response.data;
@@ -132,13 +85,13 @@ export const getAnalysisResult = async (
 export const correctMaiml = async (
   content: string,
   correctionLevel: 'safe' | 'moderate' | 'aggressive' = 'safe'
-): Promise<ApiResponse<MaimlCorrectionResult>> => {
+): Promise<ServiceApiResponse<MaimlCorrectionResult>> => {
   const client = createApiClient();
   
   try {
     console.log('🔧 [maimlApiService] MAIML自動補正実行');
     
-    const response = await client.post<ApiResponse<MaimlCorrectionResult>>(
+    const response = await client.post<ServiceApiResponse<MaimlCorrectionResult>>(
       '/maiml/correct',
       { content, correctionLevel }
     );
@@ -208,28 +161,6 @@ export interface PetriNetStructure {
   };
 }
 
-/**
- * MAIML保存結果の型定義
- */
-export interface SaveMaimlResult {
-  saved: boolean;
-  filePath: string;
-  backupPath?: string;
-  timestamp: string;
-}
-
-/**
- * MAIMLファイル情報の型定義
- */
-export interface MaimlFileInfo {
-  key: string;
-  name: string;
-  context: 'project' | 'format';
-  size: number;
-  lastModified: string;
-  isArchive?: boolean;
-}
-
 // ============================================================================
 // MAIMLパースAPI
 // ============================================================================
@@ -243,13 +174,13 @@ export interface MaimlFileInfo {
  */
 export const parseMaiml = async (
   content: string
-): Promise<ApiResponse<PetriNetStructure>> => {
+): Promise<ServiceApiResponse<PetriNetStructure>> => {
   const client = createApiClient();
   
   try {
     console.log('📊 [maimlApiService] MAIMLパース実行');
     
-    const response = await client.post<ApiResponse<PetriNetStructure>>(
+    const response = await client.post<ServiceApiResponse<PetriNetStructure>>(
       '/maiml/parse',
       { content }
     );
@@ -273,13 +204,13 @@ export const parseMaiml = async (
  */
 export const parsePetriNetStructure = async (
   content: string
-): Promise<ApiResponse<PetriNetStructure>> => {
+): Promise<ServiceApiResponse<PetriNetStructure>> => {
   const client = createApiClient();
 
   try {
     console.log('📊 [maimlApiService] MAIMLペトリネット構造パース実行');
 
-    const response = await client.post<ApiResponse<PetriNetStructure>>(
+    const response = await client.post<ServiceApiResponse<PetriNetStructure>>(
       '/maiml/parse-petri-net-structure',
       { content }
     );
@@ -309,13 +240,13 @@ export const saveMaiml = async (
   fileKey : string,
   content: string,
   archive: boolean = true
-): Promise<ApiResponse<SaveMaimlResult>> => {
+): Promise<ServiceApiResponse<SaveMaimlResult>> => {
   const client = createApiClient();
   
   try {
     console.log(`💾 [maimlApiService] MAIMLファイル保存 (${fileKey}, archive: ${archive})`);
     
-    const response = await client.post<ApiResponse<SaveMaimlResult>>(
+    const response = await client.post<ServiceApiResponse<SaveMaimlResult>>(
       '/maiml/save',
       { fileKey, content, archive }
     );
@@ -339,7 +270,7 @@ export const saveMaiml = async (
 export const loadMaiml = async (
   context: 'project' | 'format',
   id: string
-): Promise<ApiResponse<{ content: string }>> => {
+): Promise<ServiceApiResponse<{ content: string }>> => {
   const client = createApiClient();
   
   try {
@@ -349,7 +280,7 @@ export const loadMaiml = async (
       ? `/projects/${id}/maiml`
       : `/formats/${id}/maiml`;
     
-    const response = await client.get<ApiResponse<{ content: string }>>(endpoint);
+    const response = await client.get<ServiceApiResponse<{ content: string }>>(endpoint);
     
     return response.data;
   } catch (error) {
@@ -369,7 +300,7 @@ export const loadMaiml = async (
 export const listMaimlFiles = async (
   context?: 'project' | 'format',
   includeArchive?: boolean
-): Promise<ApiResponse<{ files: MaimlFileInfo[] }>> => {
+): Promise<ServiceApiResponse<{ files: MaimlFileInfo[] }>> => {
   const client = createApiClient();
   
   try {
@@ -379,7 +310,7 @@ export const listMaimlFiles = async (
     if (context) params.append('context', context);
     if (includeArchive !== undefined) params.append('include_archive', String(includeArchive));
     
-    const response = await client.get<ApiResponse<{ files: MaimlFileInfo[] }>>(
+    const response = await client.get<ServiceApiResponse<{ files: MaimlFileInfo[] }>>(
       `/maiml-files?${params.toString()}`
     );
     
@@ -403,13 +334,13 @@ export const listMaimlFiles = async (
  */
 export const listStorageFiles = async (
   organizationId: string
-): Promise<ApiResponse<ListFilesResponse>> => {
+): Promise<ServiceApiResponse<ListFilesResponse>> => {
   const client = createApiClient();
   
   try {
     console.log('📁 [maimlApiService] ストレージファイル一覧取得');
     
-    const response = await client.get<ApiResponse<ListFilesResponse>>(
+    const response = await client.get<ServiceApiResponse<ListFilesResponse>>(
       `/maiml/files?organizationId=${organizationId}`
     );
     
@@ -429,13 +360,13 @@ export const listStorageFiles = async (
  */
 export const getStorageFileContent = async (
   fileKey: string
-): Promise<ApiResponse<FileContentResponse>> => {
+): Promise<ServiceApiResponse<FileContentResponse>> => {
   const client = createApiClient();
   
   try {
     console.log('📄 [maimlApiService] ストレージファイル内容取得:', fileKey);
     
-    const response = await client.get<ApiResponse<FileContentResponse>>(
+    const response = await client.get<ServiceApiResponse<FileContentResponse>>(
       `/maiml/file-content?key=${encodeURIComponent(fileKey)}`
     );
     
@@ -459,13 +390,13 @@ export const autoCorrectMaimlRealtime = async (
   maimlContent: string,
   selectedErrors: number[],
   organizationId: string
-): Promise<ApiResponse<AutoCorrectResponse>> => {
+): Promise<ServiceApiResponse<AutoCorrectResponse>> => {
   const client = createApiClient();
   
   try {
     console.log('🔧 [maimlApiService] MAIML自動補正（リアルタイム）実行');
     
-    const response = await client.post<ApiResponse<AutoCorrectResponse>>(
+    const response = await client.post<ServiceApiResponse<AutoCorrectResponse>>(
       '/maiml/auto-correct',
       {
         maimlContent,

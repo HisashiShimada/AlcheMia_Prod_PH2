@@ -12,37 +12,12 @@ import { createApiClient } from '@/utils/authUtils';
 
 // ========== 型定義 ==========
 
-/**
- * フォーマットテンプレートファイル型
- */
-export interface FormatTemplateFile {
-  key: string;       // 組織IDなし相対パス（例: formats/dept_001/material/template1.xml）
-  fileName: string;  // ファイル名のみ
-  size: number;
-}
-
-/**
- * フォーマットフォルダ型
- */
-export interface FormatFolder {
-  folderName: 'material' | 'condition' | 'result';
-  files: FormatTemplateFile[];
-}
-
-/**
- * 部門ごとのフォーマット情報型
- */
-export interface FormatDepartment {
-  departmentCd: string;
-  folders: FormatFolder[];
-}
-
-/**
- * GET /api/v1/maiml/formats レスポンス型
- */
-export interface ListFormatsResponse {
-  departments: FormatDepartment[];
-}
+import type {
+  FormatTemplateFile,
+  FormatFolder,
+  FormatDepartment,
+  ListFormatsResponse,
+} from '@/types/format';
 
 // ========== API 関数 ==========
 

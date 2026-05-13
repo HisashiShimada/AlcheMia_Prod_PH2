@@ -29,19 +29,9 @@ import { formatDateTime } from '@/utils/formatUtils';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import type { CorporationData } from '@/types/organization';
 
 const { Text } = Typography;
-
-/**
- * 会社データの型定義（DB連携版）
- */
-interface CorporationData {
-  corporationId: string; // UUID
-  corporationName: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
 
 /**
  * 会社管理画面コンポーネント（DB連携版）

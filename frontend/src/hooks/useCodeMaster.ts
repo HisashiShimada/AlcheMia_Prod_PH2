@@ -9,7 +9,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getSelectOptions, type SelectOption } from '@/services/codeMasterApiService';
+import { getSelectOptions } from '@/services/codeMasterApiService';
+import type { SelectOption } from '@/types/common';
 
 /**
  * useCodeMaster Hook の戻り値型

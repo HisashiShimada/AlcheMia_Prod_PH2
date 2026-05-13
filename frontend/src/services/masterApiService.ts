@@ -9,93 +9,16 @@ import { HTTP_STATUS } from '@/constants/httpStatus';
 import type { MasterDataType } from '@/types/masterDataTypes';
 import { getMasterDataConfig } from '@/types/masterDataTypes';
 import { AxiosError } from 'axios';
+import type { ServiceApiResponse } from '@/types/api';
 
-/**
- * APIレスポンスの型定義
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
-
-/**
- * マスタレコード共通基底型（インデックスシグネチャ付き）
- */
-export interface BaseMasterRecord {
-  // 共通フィールド
-  organizationId: string;
-  corporationId: string;
-  isActive: boolean;
-  createUserId: string;
-  updateUserId: string;
-  createdAt: string;  // ISO 8601形式の文字列
-  updatedAt: string;  // ISO 8601形式の文字列
-  
-  // 動的プロパティアクセス用のインデックスシグネチャ
-  [key: string]: unknown;
-}
-
-/**
- * Creatorマスタのレコード型
- */
-export interface CreatorRecord extends BaseMasterRecord {
-  // Creator固有フィールド
-  creatorId: string;
-  creatorUuid: string;
-  creatorName: string;
-  creatorDescription: string;
-  creatorAnnotation: string;
-  vendorName?: string;      // JOIN時に含まれる（オプショナル）
-  instrumentName?: string;  // JOIN時に含まれる（オプショナル）
-  vendorIsActive?: boolean; // JOIN時のVendorのアクティブ状態（オプショナル）
-  instrumentIsActive?: boolean; // JOIN時のInstrumentのアクティブ状態（オプショナル）
-}
-
-/**
- * Instrumentマスタのレコード型
- */
-export interface InstrumentRecord extends BaseMasterRecord {
-  // Instrument固有フィールド
-  instrumentId: string;
-  instrumentUuid: string;
-  instrumentName: string;
-  instrumentDescription: string;
-  instrumentAnnotation: string;
-}
-
-/**
- * Vendorマスタのレコード型
- */
-export interface VendorRecord extends BaseMasterRecord {
-  // Vendor固有フィールド
-  vendorId: string;
-  vendorUuid: string;
-  vendorName: string;
-  vendorDescription: string;
-  vendorAnnotation: string;
-}
-
-/**
- * Attributeマスタのレコード型
- * 主キー: (organization_id, attribute_name, attribute_value)
- */
-export interface AttributeRecord extends BaseMasterRecord {
-  // Attribute固有フィールド（attributeIdは廃止済み）
-  attributeName: string;
-  attributeValue: string;
-  attributeRemark?: string;  // 属性_備考（nullable）
-  departmentCd: string;
-  departmentName: string;
-}
-
-/**
- * マスタデータの汎用型（Union型）
- */
-export type MasterRecord = CreatorRecord | InstrumentRecord | VendorRecord | AttributeRecord;
+import type {
+  BaseMasterRecord,
+  CreatorRecord,
+  InstrumentRecord,
+  VendorRecord,
+  AttributeRecord,
+  MasterApiRecord,
+} from '@/types/masterDataTypes';
 
 /**
  * マスタ一覧を取得
@@ -107,7 +30,7 @@ export async function fetchMasters(
     search?: string;
     isActive?: boolean;
   }
-): Promise<MasterRecord[]> {
+): Promise<MasterApiRecord[]> {
   const config = getMasterDataConfig(type);
   const client = createApiClient();
   
@@ -129,7 +52,7 @@ export async function fetchMasters(
   console.log('Params:', params);
   
   try {
-    const response = await client.get<ApiResponse<MasterRecord[]>>(config.apiEndpoint, {
+    const response = await client.get<ServiceApiResponse<MasterApiRecord[]>>(config.apiEndpoint, {
       params,
     });
     
@@ -142,7 +65,7 @@ export async function fetchMasters(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<MasterRecord[]>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<MasterApiRecord[]>>;
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
   }
@@ -153,8 +76,8 @@ export async function fetchMasters(
  */
 export async function createMaster(
   type: MasterDataType,
-  data: MasterRecord
-): Promise<MasterRecord> {
+  data: MasterApiRecord
+): Promise<MasterApiRecord> {
   const config = getMasterDataConfig(type);
   const client = createApiClient();
   
@@ -163,7 +86,7 @@ export async function createMaster(
   console.log('Data:', data);
   
   try {
-    const response = await client.post<ApiResponse<MasterRecord>>(config.apiEndpoint, data);
+    const response = await client.post<ServiceApiResponse<MasterApiRecord>>(config.apiEndpoint, data);
     
     console.log('Response status:', response.status);
     
@@ -173,7 +96,7 @@ export async function createMaster(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<MasterRecord>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<MasterApiRecord>>;
     if (axiosError.response?.status === HTTP_STATUS.CONFLICT) {
       throw new Error('入力されたIDは既に存在しています');
     }
@@ -188,8 +111,8 @@ export async function createMaster(
 export async function updateMaster(
   type: MasterDataType,
   id: string,
-  data: MasterRecord
-): Promise<MasterRecord> {
+  data: MasterApiRecord
+): Promise<MasterApiRecord> {
   const config = getMasterDataConfig(type);
   const client = createApiClient();
   const endpoint = `${config.apiEndpoint}/${id}`;
@@ -199,7 +122,7 @@ export async function updateMaster(
   console.log('Data:', data);
   
   try {
-    const response = await client.put<ApiResponse<MasterRecord>>(endpoint, data);
+    const response = await client.put<ServiceApiResponse<MasterApiRecord>>(endpoint, data);
     
     console.log('Response status:', response.status);
     
@@ -209,7 +132,7 @@ export async function updateMaster(
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<MasterRecord>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<MasterApiRecord>>;
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
   }
@@ -236,7 +159,7 @@ export async function updateMasterStatus(
     const response = await client.patch(endpoint, { isActive });
     console.log('Response status:', response.status);
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<void>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<void>>;
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(`API Error: ${axiosError.response?.status || 'Unknown'} - ${axiosError.response?.data?.error?.message || axiosError.message}`);
   }
@@ -286,7 +209,7 @@ export async function uploadCsv(
   formData.append('file', file);
   
   try {
-    const response = await client.post<ApiResponse<unknown>>(endpoint, formData, {
+    const response = await client.post<ServiceApiResponse<unknown>>(endpoint, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -295,7 +218,7 @@ export async function uploadCsv(
     console.log('Response status:', response.status);
     console.log('Upload result:', response.data);
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<unknown>>;
+    const axiosError = error as AxiosError<ServiceApiResponse<unknown>>;
     const errorMessage = axiosError.response?.data?.error?.message || 'CSVアップロードに失敗しました';
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(errorMessage);
@@ -386,7 +309,7 @@ export async function fetchAttributeMasters(applyDepartmentFilter?: boolean): Pr
     if (applyDepartmentFilter) {
       params.apply_department_filter = 'true';
     }
-    const response = await client.get<ApiResponse<AttributeRecord[]>>(config.apiEndpoint, { params });
+    const response = await client.get<ServiceApiResponse<AttributeRecord[]>>(config.apiEndpoint, { params });
     if (response.data.success && Array.isArray(response.data.data)) {
       return response.data.data;
     }

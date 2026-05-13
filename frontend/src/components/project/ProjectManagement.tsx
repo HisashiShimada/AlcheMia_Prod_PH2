@@ -36,7 +36,8 @@ import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
-import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
+import CreateProjectModal from './CreateProjectModal';
+import type { CreateProjectData } from '@/types/project';
 import RenameProjectModal from './RenameProjectModal';
 import MaimlPublishDialog from './MaimlPublishDialog';
 import MaimlUnpublishDialog from './MaimlUnpublishDialog';
@@ -65,14 +66,12 @@ import {
   completeReviewTasks,
   getPublishStatus,
   deleteProject as deleteProjectApi,
-  type CreateProjectRequest,
-  type ApiResponse,
-  type ProjectListResponse,
-  type PublishStatusResponse,
 } from '@/services/projectApiService';
+import type { CreateProjectRequest, ProjectListResponse, PublishStatusResponse } from '@/types/project';
+import type { ServiceApiResponse as ApiResponse } from '@/types/api';
 import { AxiosError } from 'axios';
 import { mapErrorToMessage } from '@/utils/errorUtils';
-import type { Project, Task } from '@/types/project';
+import type { Project, Task, ProjectFilesData } from '@/types/project';
 import type { MaimlEditorParams } from '@/types/maimlEditor';
 import type { Draft } from '@/types/editor';
 import { getUserInfo } from '@/utils/sessionStorageHelper';
@@ -81,19 +80,11 @@ import type { InstructionData } from '@/types/instructionRegistration';
 import {
   validateMaiml,
   getAnalysisResult,
-  type MaimlAnalysisResultRow,
 } from '@/services/maimlApiService';
+import type { MaimlAnalysisResultRow } from '@/types/maimlEditor';
 import { Tooltip } from 'antd';
 
 const { Title, Text } = Typography;
-
-/**
- * プロジェクトファイルデータ
- */
-interface ProjectFilesData {
-  root: ProjectFile[];
-  subFolderFiles: Record<string, ProjectFile[]>;
-}
 
 /**
  * プロジェクト管理画面メインコンポーネント（内部実装）

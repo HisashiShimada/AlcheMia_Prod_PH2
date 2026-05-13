@@ -24,31 +24,15 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import WorkProgressDetailDialog from './WorkProgressDetailDialog';
 import type { FileData, Project } from '@/types/progress';
+import type { ProgressRecord } from '@/types/project';
 import type { ProjectFile } from '@/types/file';
 import { useApi } from '@/hooks/useApi';
 import { getProjects, getProjectFiles } from '@/services/projectApiService';
-import type { ApiResponse as ProjectApiResponse, ProjectListResponse } from '@/services/projectApiService';
+import type { ProjectListResponse } from '@/types/project';
+import type { ServiceApiResponse as ProjectApiResponse } from '@/types/api';
 import { getUserInfo } from '@/utils/sessionStorageHelper';
 
 const { Text } = Typography;
-
-/**
- * 進捗情報の型定義（表示用）
- */
-interface ProgressRecord {
-  key: string;
-  projectId: string;
-  projectName: string;
-  projectStatus: string;
-  department: string;
-  isCheckedOut: boolean;
-  ownerEmail: string;
-  ownerName: string;
-  completedTasks: number;
-  totalTasks: number;
-  /** MAIMLファイルが登録済みか（project_uuid または maimlFileKey が存在する場合 true） */
-  hasMaiml: boolean;
-}
 
 /**
  * 進捗管理画面コンポーネント

@@ -1,102 +1,96 @@
 /**
- * S3/Swiftストレージ関連の型定義（Frontend）
- * 
- * @description ファイル操作、一覧取得、自動補正などの型
- * @reference Backend版: backend/src/types/storage.ts
+ * ストレージ（S3/Swift）関連の型定義
+ * 使用箇所: useNamespaceOperations.ts, maimlApiService.ts など
  */
 
 /**
- * ファイル情報
+ * S3ファイル情報の型定義
  */
-export interface StorageFile {
-  key: string;
-  name: string;
-  size: number;
-  lastModified: string;
-  isFolder: boolean;
-  organizationId: string;
-  isCheckedOut: boolean;
-  checkedOutBy: string | null;
-  managerId: string | null;
-  checkoutTime: string | null;
-  workId: string | null;
-  workUuid: string | null;
-  workerId: string | null;
-  assignedWorkerId: string | null;
-  assignedTo: string | null;
+export interface S3File {
+  key?: string;
+  name?: string;
+  size?: number;
+  lastModified?: string;
 }
 
 /**
- * ファイル一覧取得のレスポンス
+ * ストレージファイル情報の型定義（S3File の別名）
+ * 使用箇所: PetriNetEditorInner.tsx
+ */
+export type StorageFile = S3File;
+
+/**
+ * S3フォルダ情報の型定義
+ */
+export interface S3Folder {
+  name: string;
+  path: string;
+  level: number;
+  children: Record<string, S3Folder>;
+  files: string[];
+  xmlFileCount: number;
+  totalFileCount: number;
+  totalXmlFileCount?: number;
+  totalAllFileCount?: number;
+}
+
+// ============================================================================
+// maimlApiService.ts 用 APIレスポンス型
+// ============================================================================
+
+/**
+ * ストレージファイル一覧取得レスポンス
+ * 使用箇所: maimlApiService.ts listStorageFiles()
  */
 export interface ListFilesResponse {
-  files: StorageFile[];
-  hierarchicalData: unknown[]; // TODO: Phase 7で階層構造の型定義を追加
-  totalCount: number;
-  organizationId: string;
-  cached: boolean;
-  processingTime?: number;
-  cacheAge?: number;
-  timestamp: string;
+  files: S3File[];
+  totalCount?: number;
 }
 
 /**
- * ファイル内容取得のレスポンス
+ * ストレージファイル内容取得レスポンス
+ * 使用箇所: maimlApiService.ts getStorageFileContent()
+ * APIレスポンスは { data: { content, fileKey, ... } } のネスト構造
  */
 export interface FileContentResponse {
-  data: {
+  content?: string;
+  fileKey?: string;
+  contentType?: string;
+  size?: number;
+  /** APIレスポンスのネスト構造（response.data.data.content でアクセス） */
+  data?: {
     content: string;
-    fileKey: string;
-    contentLength: number;
-    lastModified: string;
-    contentType: string;
+    fileKey?: string;
+    contentType?: string;
+    size?: number;
   };
 }
 
 /**
- * 自動補正の適用結果
- */
-export interface CorrectionResult {
-  errorIndex: number;
-  type: string;
-  description: string;
-  applied: boolean;
-  reason?: string;
-}
-
-/**
- * 自動補正のレスポンス
+ * MAIML自動補正レスポンス
+ * 使用箇所: maimlApiService.ts autoCorrectMaimlRealtime()
  */
 export interface AutoCorrectResponse {
   correctedContent: string;
-  appliedCorrections: CorrectionResult[];
-  correctionCount: number;
-  totalAttempted: number;
-  message: string;
-  timestamp: string;
+  correctedCount: number;
+  corrections: Array<{
+    errorIndex: number;
+    description: string;
+    applied: boolean;
+  }>;
 }
 
-/**
- * ファイル一覧取得のリクエストパラメータ
- */
-export interface ListFilesRequest {
-  organizationId: string;
-  prefix?: string;
-  maxResults?: number;
-}
+// ---------------------------------------------------------------------------
+// editorv2/WorkflowSelectorDialog 用
+// ---------------------------------------------------------------------------
 
 /**
- * ファイル内容取得のリクエストパラメータ
+ * フォルダツリーノード型
+ * editorv2/WorkflowSelectorDialog で使用
  */
-export interface GetFileContentRequest {
-  key: string;
-}
-
-/**
- * 自動補正のリクエストパラメータ
- */
-export interface AutoCorrectRequest {
-  maimlContent: string;
-  selectedErrors: number[];
-  organizationId: string;
+export interface FolderNode {
+  name: string;
+  path: string;
+  children: FolderNode[];
+  fileCount: number;
 }
