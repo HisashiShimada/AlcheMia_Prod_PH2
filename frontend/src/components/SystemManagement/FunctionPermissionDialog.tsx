@@ -8,6 +8,12 @@ import type { FunctionItem } from '@/types/roleTypes';
 const { Text } = Typography;
 
 /**
+ * 読取専用（read-only）権限を選択できる機能キーのホワイトリスト
+ * ここに含まれない機能は常に「書込可」に固定される
+ */
+const READ_ONLY_SELECTABLE_KEYS = ['030000']; // データ管理者メニューのみ
+
+/**
  * コンポーネントのプロパティ型定義
  */
 interface FunctionPermissionDialogProps {
@@ -53,15 +59,25 @@ export default function FunctionPermissionDialog({
     // 機能IDベースで判定
     return baseFunctions.map(func => {
       const isChecked = initialFunctionIds.includes(func.key);
-      const hasWritePermission = initialWritableFunctionIds.includes(func.key);
+      // READ_ONLY_SELECTABLE_KEYS に含まれない機能はチェック済みなら常に writable: true に強制
+      const hasWritePermission = READ_ONLY_SELECTABLE_KEYS.includes(func.key)
+        ? initialWritableFunctionIds.includes(func.key)
+        : isChecked; // 読取専用非対応の機能はチェックされていれば常に書込可
       
       if (func.children) {
         // 親機能の場合、子の状態もチェック
-        const updatedChildren = func.children.map(child => ({
-          ...child,
-          checked: initialFunctionIds.includes(child.key),
-          writable: initialWritableFunctionIds.includes(child.key),
-        }));
+        const updatedChildren = func.children.map(child => {
+          const childChecked = initialFunctionIds.includes(child.key);
+          // 子機能も同様に強制writable処理
+          const childWritable = READ_ONLY_SELECTABLE_KEYS.includes(child.key)
+            ? initialWritableFunctionIds.includes(child.key)
+            : childChecked;
+          return {
+            ...child,
+            checked: childChecked,
+            writable: childWritable,
+          };
+        });
         
         // 親機能自体がチェックされているか、子が全てチェックされている場合、親もチェック
         const allChildrenChecked = updatedChildren.every(child => child.checked);
@@ -151,7 +167,10 @@ export default function FunctionPermissionDialog({
           return {
             ...func,
             checked: newChecked,
-            writable: newChecked ? func.writable : false,
+            // 読取専用非対応の機能はチェック時に writable: true を強制
+            writable: newChecked
+              ? (!READ_ONLY_SELECTABLE_KEYS.includes(func.key) ? true : func.writable)
+              : false,
           };
         }
         
@@ -316,7 +335,7 @@ export default function FunctionPermissionDialog({
                   <Checkbox
                     checked={func.writable}
                     onChange={() => handleWritableCheck(func.key)}
-                    disabled={!func.checked}
+                    disabled={!func.checked || !READ_ONLY_SELECTABLE_KEYS.includes(func.key)}
                   >
                     <Text
                       style={{
