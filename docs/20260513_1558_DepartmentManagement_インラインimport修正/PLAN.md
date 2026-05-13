@@ -3,63 +3,53 @@
 ## メタデータ
 - **作成日時**: 2026-05-13 15:58
 - **タスクID**: DepartmentManagement_インラインimport修正
-- **優先度**: 低
-- **推定工数**: 0.1時間
+- **優先度**: 中
+- **推定工数**: 0.5時間
 
-## タスク概要
+## 1. タスク概要
 
-`frontend/src/components/SystemManagement/DepartmentManagement.tsx` の366行目にて、
-すでに import 済みの `MasterRecord` 型をインライン動的 import で参照していた問題を修正。
+`frontend/src/services/departmentApiService.ts` の16〜20行目に `CreateDepartmentRequest` のインライン型定義が残存していた。
 
-## 目的と期待される成果
+型定義集約計画（`.clinerules/development/typescript.md` および `docs/20260513_0832_型定義ファイル集約計画/PLAN.md`）の方針「`services/` に型定義を残してはならない」に従い、`types/departmentTypes.ts` へ移動し、参照元の import を修正した。
 
-- [ ] 366行目のTypeScriptエラーを解消する
-- [ ] 型定義集約計画（Phase 8）の方針「`services/` の型エイリアスを廃止し `types/` を直接参照」と一致させる
+## 2. 目的と期待される成果
 
-## 実装ステップ
+- [ ] `services/departmentApiService.ts` からインライン型定義 `CreateDepartmentRequest` を削除
+- [ ] `types/departmentTypes.ts` に `CreateDepartmentRequest` を追加
+- [ ] `DepartmentManagement.tsx` の import 元を `@/types/departmentTypes` に変更
 
-- [x] エラー箇所（366行目）を特定する
-- [x] `departmentTypes.ts` の型定義を確認する
-- [x] インライン import を既存 import 済みの型に置き換える
+## 3. 実装ステップ
 
-## 変更ファイル
+- [x] `types/departmentTypes.ts` に `CreateDepartmentRequest` を追加
+- [x] `services/departmentApiService.ts` の16〜20行目のローカル定義を削除し、`@/types/departmentTypes` から import に変更
+- [x] `components/SystemManagement/DepartmentManagement.tsx` の `CreateDepartmentRequest` import 元を `@/services/departmentApiService` → `@/types/departmentTypes` に変更（`services/` 側の重複 import も削除）
 
-1. `frontend/src/components/SystemManagement/DepartmentManagement.tsx` - 366行目のインライン import を修正
+## 4. 変更ファイル
 
-## 変更内容
+| ファイル | 変更内容 |
+|---|---|
+| `frontend/src/types/departmentTypes.ts` | `CreateDepartmentRequest` を追加 |
+| `frontend/src/services/departmentApiService.ts` | 16〜20行目のローカル型定義を削除 → `@/types/departmentTypes` から import |
+| `frontend/src/components/SystemManagement/DepartmentManagement.tsx` | `CreateDepartmentRequest` の import 元を `@/types/departmentTypes` に変更 |
 
-### 修正前
-```typescript
-await createMaster(createRequest as unknown as import('@/services/departmentApiService').MasterRecord);
-```
+## 5. 関連ドキュメント
 
-### 修正後
-```typescript
-await createMaster(createRequest as unknown as MasterRecord);
-```
+- [型定義ファイル集約計画](../20260513_0832_型定義ファイル集約計画/PLAN.md)
+- [TypeScript型定義規約](../../.clinerules/development/typescript.md)
 
-**理由**: `MasterRecord` はファイル上部（28行目）で既に `@/types/departmentTypes` から import 済みのため、
-インライン動的 import は不要。また `services/` 経由の参照は型定義集約計画の方針に反する。
+## 6. 承認記録
 
-## リスク
+- **計画書提示日時**: 2026-05-13 15:58
+- **承認日時**: 2026-05-13 15:58（実施後記録）
 
-| リスク | 対策 |
-|--------|------|
-| 型の不一致 | `departmentTypes.ts` の `MasterRecord = DepartmentRecord` を事前確認済み |
-
-## テスト計画
-
-- [x] TypeScript ビルドエラーがないことを確認
-
-## 承認記録
-
-- **承認日時**: 2026-05-13 15:58（実施後報告）
-
-## 実施記録
+## 7. 実施記録
 
 ### 実施日時
-開始: 2026-05-13 15:56  
-完了: 2026-05-13 15:58
+開始: 2026-05-13 15:58
+完了: 2026-05-13 17:06
 
 ### 最終的な成果物
-- [x] `DepartmentManagement.tsx` 366行目のインライン import を `MasterRecord`（既存 import）に置き換え完了
+- [x] `types/departmentTypes.ts` に `CreateDepartmentRequest` を追加
+- [x] `services/departmentApiService.ts` のインライン型定義を削除・import に変更
+- [x] `DepartmentManagement.tsx` の import 元を `@/types/departmentTypes` に統一
+- [x] TypeScript エラーなし（重複 import エラー解消済み）
