@@ -5,7 +5,7 @@
  * 検証: エラーコード（E1xxx〜E9xxx）→ 日本語メッセージへの変換
  */
 
-import { mapErrorToMessage, ERROR_MESSAGE_MAP } from '../errorMapper';
+import { mapErrorToMessage, ERROR_MESSAGE_MAP } from '../errorUtils';
 
 describe('mapErrorToMessage', () => {
   // ─────────────────────────────────────────────
