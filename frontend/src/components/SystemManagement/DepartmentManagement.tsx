@@ -38,6 +38,7 @@ import {
   batchUpdateMasterStatus,
   uploadCsv,
   downloadCsv,
+  CreateDepartmentRequest,
 } from '@/services/departmentApiService';
 
 const { Text } = Typography;
@@ -365,12 +366,13 @@ export default function DepartmentManagement() {
         await fetchDepartments();
         message.success(t('departmentManagement.messages.saveSuccess'));
       } else {
-        // 新規追加の場合
-        await createMaster({
-          department_cd: values.departmentId,
-          department_name: values.displayName,
-          is_active: values.isActive !== undefined ? values.isActive : true,
-        } as unknown as import('@/services/departmentApiService').MasterRecord);
+        // 新規追加の場合（camelCase でバックエンドのバリデーションに合わせる）
+        const createRequest: CreateDepartmentRequest = {
+          departmentCd: values.departmentId,
+          departmentName: values.displayName,
+          isActive: values.isActive !== undefined ? values.isActive : true,
+        };
+        await createMaster(createRequest as unknown as import('@/services/departmentApiService').MasterRecord);
         await fetchDepartments();
         message.success(t('departmentManagement.messages.addSuccess'));
       }
