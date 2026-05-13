@@ -32,3 +32,51 @@ export const DEPARTMENT_CONFIG: DepartmentConfig = {
 export function getDepartmentConfig(): DepartmentConfig {
   return DEPARTMENT_CONFIG;
 }
+
+/**
+ * 部署データの型（インデックスシグネチャ付き）
+ * 移動元: services/departmentApiService.ts
+ */
+export interface DepartmentRecord {
+  organization_id: string; // UUID
+  department_cd: string;
+  department_name: string;
+  is_active: boolean;
+  create_user_id: string;
+  update_user_id: string;
+  create_at: Date;
+  update_at: Date;
+
+  // 動的プロパティアクセス用のインデックスシグネチャ
+  [key: string]: unknown;
+}
+
+/**
+ * 部署UIレコード型（DepartmentManagement.tsx 用・camelCase）
+ */
+export interface DepartmentUIRecord {
+  departmentId: string;
+  displayName: string;
+  updatedAt?: string;
+  isActive: boolean;
+}
+
+/**
+ * 部署データの汎用型エイリアス
+ * 移動元: services/departmentApiService.ts
+ */
+export type MasterRecord = DepartmentRecord;
+
+/**
+ * CSV一括操作の結果型
+ * 移動元: services/departmentApiService.ts（CsvUploadResult）
+ */
+export interface CsvUploadResult {
+  successCount: number;
+  failureCount: number;
+  errors: Array<{
+    row: number;
+    field: string;
+    message: string;
+  }>;
+}

@@ -9,6 +9,7 @@ import { uploadFiles, abortChunkUpload, cancelBatch, initBatch } from '@/service
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { UploadRetryState, UploadResultSummary } from '@/types/file';
+import type { UploadMode, UploadState } from '@/types/format';
 import {
   Modal,
   Segmented,
@@ -36,22 +37,6 @@ import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
 
 const { Text, Paragraph } = Typography;
 const { Dragger } = Upload;
-
-/**
- * アップロードモード
- */
-type UploadMode = 'single' | 'bulk' | 'folder';
-
-/**
- * アップロード状態
- */
-interface UploadState {
-  isUploading: boolean;
-  progress: number;
-  uploadedCount: number;
-  totalCount: number;
-  error: string | null;
-}
 
 /**
  * プロパティ
@@ -139,9 +124,6 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
     setResultSummary(null);
   }, []);
 
-  /**
-   * ファイル選択時の処理
-   */
   const handleFileChange: UploadProps['onChange'] = useCallback(
     (info: { fileList: UploadFile[] }) => {
       let newFileList = [...info.fileList];

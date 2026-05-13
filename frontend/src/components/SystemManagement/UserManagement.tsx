@@ -26,6 +26,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import type { UserRecord, CreateUserRequest, UpdateUserRequest } from '@/types/user';
 import {
   fetchUsers,
   createUser,
@@ -34,9 +35,6 @@ import {
   batchUpdateUserStatus,
   uploadCsv,
   downloadCsv,
-  UserRecord,
-  CreateUserRequest,
-  UpdateUserRequest,
 } from '@/services/userApiService';
 import { fetchMasters as fetchDepartments } from '@/services/departmentApiService';
 import { fetchMasters as fetchRoles } from '@/services/roleApiService';

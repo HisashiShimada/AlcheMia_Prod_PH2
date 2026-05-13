@@ -3,21 +3,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Checkbox, Button, Space, Typography, theme, App } from 'antd';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { FunctionItem } from '@/types/roleTypes';
 
 const { Text } = Typography;
-
-/**
- * 機能アイテムの型定義
- */
-interface FunctionItem {
-  key: string;
-  label: string;    // 画面表示用（翻訳済み）
-  dbValue: string;  // DB/API送信用（日本語固定値）
-  description?: string;
-  children?: FunctionItem[];
-  checked: boolean;
-  writable: boolean;
-}
 
 /**
  * コンポーネントのプロパティ型定義

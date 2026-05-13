@@ -6,23 +6,7 @@
 
 import { createApiClient } from '@/utils/authUtils';
 import { Draft } from '@/types/editor';
-
-/**
- * 統一レスポンス形式
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown[];
-  };
-  meta: {
-    timestamp: string;
-    requestId: string;
-  };
-}
+import type { ServiceApiResponse } from '@/types/api';
 
 // ============================================================================
 // Draft操作API
@@ -40,7 +24,7 @@ export const fetchDrafts = async (): Promise<Draft[]> => {
   try {
     console.log('📂 [draftService] Draft一覧取得開始');
     
-    const response = await client.get<ApiResponse<Draft[]>>('/maiml/drafts');
+    const response = await client.get<ServiceApiResponse<Draft[]>>('/maiml/drafts');
     
     console.log('🔍 [draftService] レスポンス詳細:', {
       response全体: response,
@@ -50,7 +34,7 @@ export const fetchDrafts = async (): Promise<Draft[]> => {
     });
     
     // 統一レスポンス形式の場合、response.data.dataにアクセス
-    const apiResponse = response.data as ApiResponse<Draft[]>;
+    const apiResponse = response.data as ServiceApiResponse<Draft[]>;
     const drafts = apiResponse?.data || [];
     
     console.log(`✅ [draftService] Draft取得成功: ${Array.isArray(drafts) ? drafts.length : 0}件`, drafts);
@@ -75,14 +59,14 @@ export const fetchDraftById = async (draftKey: string): Promise<Draft> => {
   try {
     console.log('📖 [draftService] Draft読み込み:', draftKey);
     
-    const response = await client.get<ApiResponse<Draft>>(
+    const response = await client.get<ServiceApiResponse<Draft>>(
       `/maiml/draft/${encodeURIComponent(draftKey)}`
     );
     
     console.log('🔍 [draftService] Draft読み込みレスポンス:', response.data);
     
     // 統一レスポンス形式の場合、response.data.dataにアクセス
-    const apiResponse = response.data as ApiResponse<Draft>;
+    const apiResponse = response.data as ServiceApiResponse<Draft>;
     const draft = apiResponse?.data || response.data;
     
     console.log('✅ [draftService] Draft読み込み成功:', draft);
@@ -107,10 +91,10 @@ export const saveDraft = async (draftData: Draft): Promise<Draft> => {
   try {
     console.log('💾 [draftService] Draft保存開始:', draftData.draftName);
     
-    const response = await client.post<ApiResponse<Draft>>('/maiml/draft', draftData);
+    const response = await client.post<ServiceApiResponse<Draft>>('/maiml/draft', draftData);
     
     // 統一レスポンス形式の場合、response.data.dataにアクセス
-    const apiResponse = response.data as ApiResponse<Draft>;
+    const apiResponse = response.data as ServiceApiResponse<Draft>;
     const draft = apiResponse?.data || response.data;
     
     console.log('✅ [draftService] Draft保存成功:', (draft as Draft)?.draftKey);
@@ -135,10 +119,10 @@ export const deleteDraft = async (draftKey: string): Promise<unknown> => {
   try {
     console.log('🗑️ [draftService] Draft削除開始:', draftKey);
     
-    const response = await client.delete<ApiResponse<unknown>>(`/maiml/draft/${encodeURIComponent(draftKey)}`);
+    const response = await client.delete<ServiceApiResponse<unknown>>(`/maiml/draft/${encodeURIComponent(draftKey)}`);
     
     // 統一レスポンス形式の場合、response.data.dataにアクセス
-    const apiResponse = response.data as ApiResponse<unknown>;
+    const apiResponse = response.data as ServiceApiResponse<unknown>;
     const result = apiResponse?.data || response.data;
     
     console.log('✅ [draftService] Draft削除成功');

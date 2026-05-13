@@ -8,27 +8,13 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { TemplateError, TemplatesByCategory, MethodData } from '@/types/editor';
+import { TemplateError, TemplatesByCategory, MethodData, TemplateContextType } from '@/types/editor';
 import { Template } from '@/types/maiml-unified';
 import {
   mapValidationErrorsToTemplates,
 } from '@/services/templateService';
 import { MaimlParserTyped } from '@/utils/maimlParserTyped';
 import { AnalysisResult } from '@/types/maimlValidation';
-
-/**
- * TemplateContext型定義
- */
-interface TemplateContextType {
-  templates: TemplatesByCategory;
-  allTemplates: TemplatesByCategory;
-  commonTemplates: TemplatesByCategory;
-  templateErrors: Record<string, TemplateError[]>;
-  isLoading: boolean;
-  addTemplate: (templateData: { category: 'material' | 'condition' | 'result'; template: Template }) => void;
-  deleteTemplate: (templateId: string) => void;
-  updateTemplate: (templateId: string, updatedTemplate: Template) => void;
-}
 
 const TemplateContext = createContext<TemplateContextType | null>(null);
 

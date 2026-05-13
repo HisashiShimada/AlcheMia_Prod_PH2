@@ -13,23 +13,11 @@ import {
   SwapOutlined,
 } from '@ant-design/icons';
 import { Permission, MenuType } from '@/types/auth';
+import type { ThemeToken, TabItem } from '@/types/common';
 import { hasMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Title } = Typography;
-
-// テーマトークン用の型定義
-interface ThemeToken {
-  colorInfo: string;
-  colorBorderSecondary: string;
-  paddingXS: number;
-  paddingLG: number;
-  paddingXL: number;
-  marginLG: number;
-  fontSizeHeading4: number;
-  fontWeightStrong: number;
-  fontSize: number;
-}
 
 /**
  * サブヘッダーのルートコンテナ
@@ -158,16 +146,6 @@ const ActionsWrapper = styled.div<{ hasTabs: boolean; token: ThemeToken }>`
 `;
 
 /**
- * タブアイテムの型定義
- */
-interface TabItem {
-  key: string;
-  label: string;
-  icon?: React.ReactNode;
-  disabled?: boolean;
-}
-
-/**
  * サブヘッダーコンポーネントのProps
  */
 interface SubHeaderProps {
@@ -266,11 +244,11 @@ export default function SubHeader({
     }));
 
   return (
-    <SubHeaderContainer token={token}>
-      <SubHeaderInner token={token}>
-        <SubHeaderContent token={token}>
+    <SubHeaderContainer token={token as ThemeToken}>
+      <SubHeaderInner token={token as ThemeToken}>
+        <SubHeaderContent token={token as ThemeToken}>
           {/* 左側: タイトル */}
-          <TitleWrapper hasTabs={!!hasTabs} token={token}>
+          <TitleWrapper hasTabs={!!hasTabs} token={token as ThemeToken}>
             <Title
               level={4}
               style={{
@@ -299,7 +277,7 @@ export default function SubHeader({
 
           {/* 右側: アクションボタン + メニュー切り替え */}
           {(actions || (onMenuChange && menuItems.length > 0)) && (
-            <ActionsWrapper hasTabs={!!hasTabs} token={token}>
+            <ActionsWrapper hasTabs={!!hasTabs} token={token as ThemeToken}>
               <Space size="small">
                 {actions}
                 {onMenuChange && menuItems.length > 0 && (

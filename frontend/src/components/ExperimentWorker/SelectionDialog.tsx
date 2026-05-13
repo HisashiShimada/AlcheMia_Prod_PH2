@@ -3,24 +3,9 @@
 import React from 'react';
 import { Modal, Typography, Space, Tag, theme } from 'antd';
 import { FolderOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
+import { SelectionType, SelectionItem } from '@/types/experimentWorker';
 
 const { Text, Title } = Typography;
-
-/**
- * 選択タイプ
- */
-export type SelectionType = 'project' | 'method' | 'task';
-
-/**
- * 選択アイテムの型
- */
-export interface SelectionItem {
-  id: string;
-  name: string;
-  subtitle?: string;
-  description?: string;
-  tag?: string;
-}
 
 /**
  * 選択ダイアログのProps

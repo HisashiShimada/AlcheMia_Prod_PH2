@@ -29,7 +29,81 @@ export interface MasterDataResponse {
 /**
  * マスタデータタイプの列挙
  */
-export type MasterDataType = 
+// ---------------------------------------------------------------------------
+// masterApiService から移動した型
+// ---------------------------------------------------------------------------
+
+/**
+ * マスタレコードの共通フィールド
+ */
+export interface BaseMasterRecord {
+  organizationId: string;
+  corporationId: string;
+  isActive: boolean;
+  createUserId: string;
+  updateUserId: string;
+  createdAt: string;
+  updatedAt: string;
+  /** 動的プロパティアクセス用（MasterManagement等でキー名を動的に参照するため） */
+  [key: string]: unknown;
+}
+
+/**
+ * 作成者レコード
+ */
+export interface CreatorRecord extends BaseMasterRecord {
+  creatorId: string;
+  creatorUuid: string;
+  creatorName: string;
+  creatorDescription: string;
+  creatorAnnotation: string;
+  vendorName?: string;
+  instrumentName?: string;
+  vendorIsActive?: boolean;
+  instrumentIsActive?: boolean;
+}
+
+/**
+ * 機器レコード
+ */
+export interface InstrumentRecord extends BaseMasterRecord {
+  instrumentId: string;
+  instrumentUuid: string;
+  instrumentName: string;
+  instrumentDescription: string;
+  instrumentAnnotation: string;
+}
+
+/**
+ * ベンダーレコード
+ */
+export interface VendorRecord extends BaseMasterRecord {
+  vendorId: string;
+  vendorUuid: string;
+  vendorName: string;
+  vendorDescription: string;
+  vendorAnnotation: string;
+}
+
+/**
+ * 属性レコード
+ */
+export interface AttributeRecord extends BaseMasterRecord {
+  attributeName: string;
+  attributeValue: string;
+  attributeRemark?: string;
+  departmentCd: string;
+  departmentName: string;
+}
+
+/**
+ * マスタレコードのユニオン型
+ */
+export type MasterApiRecord = CreatorRecord | InstrumentRecord | VendorRecord | AttributeRecord;
+/** MasterApiRecord の後方互換エイリアス */
+export type MasterRecord = MasterApiRecord;
+
+export type MasterDataType =
   | 'instrument'      // Instrumentマスタ
   | 'vendor'          // Vendorマスタ
   | 'creator'         // Creatorマスタ
@@ -422,4 +496,27 @@ export function getMasterDataConfig(type: MasterDataType): MasterDataConfig {
  */
 export function getAllMasterDataConfigs(): MasterDataConfig[] {
   return Object.values(MASTER_DATA_CONFIGS);
+}
+
+/**
+ * CSVバリデーションエラーの型定義
+ * （MasterManagement.tsx より移動）
+ */
+export interface CsvValidationError {
+  row: number;
+  field: string;
+  message: string;
+}
+
+/**
+ * 項目カテゴリの型定義
+ * （MasterManagement.tsx より移動）
+ */
+export interface MasterItemCategory {
+  headerName: string;
+  searchFixed: boolean;
+  isDisplay: boolean;
+  addable: boolean;
+  update: boolean;
+  required?: boolean;
 }

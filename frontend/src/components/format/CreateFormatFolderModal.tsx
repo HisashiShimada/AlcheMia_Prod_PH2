@@ -4,17 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Space, Typography, theme, message } from 'antd';
 import { FolderAddOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { CreateFormatFolderData } from '@/types/format';
 
 const { Text } = Typography;
-
-/**
- * 新規フォルダ作成データ型
- */
-export interface CreateFormatFolderData {
-  formatId: string;
-  folderName: string;
-  currentPath?: string; // 現在のサブフォルダパス
-}
 
 /**
  * 新規フォルダ作成モーダルのProps

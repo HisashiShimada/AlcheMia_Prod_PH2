@@ -9,19 +9,7 @@
 
 import { TemplatesByCategory, TemplateError } from "@/types/editor";
 
-/**
- * ValidationResult型定義
- */
-interface ValidationResult {
-  errors?: Array<{
-    message?: string;
-    type?: string;
-    xpath?: string;
-    paths?: string[];
-    ref?: string;
-    '@_ref'?: string;
-  }>;
-}
+import type { ValidationResult } from '@/types/maimlValidation';
 
 /**
  * バリデーション結果からテンプレート関連エラーを抽出してマッピング

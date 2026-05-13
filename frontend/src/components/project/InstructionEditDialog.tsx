@@ -34,7 +34,8 @@ import type {
 } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
-import { getMultipleSelectOptions, type SelectOption } from '@/services/codeMasterApiService';
+import { getMultipleSelectOptions } from '@/services/codeMasterApiService';
+import type { SelectOption } from '@/types/common';
 import {
   ExperimentCondition,
   InstructionTypeCode,

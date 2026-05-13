@@ -22,47 +22,9 @@ import {
   FileTextOutlined,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { SearchCriteria, FormatSearchResult, SearchStats } from '@/types/format';
 
 const { Text } = Typography;
-
-/**
- * 検索条件の型定義
- */
-interface SearchCriteria {
-  attribute: string;
-  value: string;
-}
-
-/**
- * 検索結果の型定義（フォーマットファイル）
- */
-interface SearchResult {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  lastModified: string;
-  type: string;
-  version?: string;
-  description?: string;
-  formatName: string;
-  category: string;
-  matchCount: number;
-  matchedAttributes?: Array<{
-    attribute: string;
-    value: string;
-  }>;
-}
-
-/**
- * 検索統計の型定義
- */
-interface SearchStats {
-  totalFiles: number;
-  totalMatches: number;
-  searchDuration: number;
-  totalCriteria: number;
-}
 
 /**
  * プロップスの型定義
@@ -70,7 +32,7 @@ interface SearchStats {
 interface FormatSearchModalProps {
   open: boolean;
   onClose: () => void;
-  onFileSelect: (file: SearchResult) => void;
+  onFileSelect: (file: FormatSearchResult) => void;
 }
 
 /**
@@ -125,7 +87,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
   const [searchCriteria, setSearchCriteria] = useState<SearchCriteria[]>([
     { attribute: '', value: '' },
   ]);
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<FormatSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchStats, setSearchStats] = useState<SearchStats | null>(null);
@@ -205,7 +167,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
       // const results = await searchFormatFilesEnhanced(validCriteria);
       
       // モックデータ（開発用）
-      const mockResults: SearchResult[] = [
+      const mockResults: FormatSearchResult[] = [
         {
           id: 'format_file_001',
           name: 'material_template_v1.xml',
@@ -268,7 +230,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
   /**
    * ファイル選択
    */
-  const handleFileSelect = (file: SearchResult) => {
+  const handleFileSelect = (file: FormatSearchResult) => {
     console.log('📄 ファイル選択:', file.name);
     onFileSelect(file);
     handleClose();
