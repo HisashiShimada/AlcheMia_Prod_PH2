@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography, theme } from 'antd';
+import { Layout, theme } from 'antd';
 import {
   LineChartOutlined,
   FileTextOutlined,
@@ -21,7 +21,6 @@ import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import type { MaimlEditorParams } from '@/types/maimlEditor';
 
 const { Content } = Layout;
-const { Title, Text } = Typography;
 
 /**
  * 実験管理者メニューのProps
@@ -113,11 +112,6 @@ export default function ExperimentAdminMenu({
     setEditorProjectParams(null);
   };
 
-  const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
-
-  // タブ '1', '2', '3' は全幅表示
-  const isFullWidthTab = currentTab === '1' || currentTab === '2' || currentTab === '3';
-
   // Header(64px) + SubHeader(タブ込みで約76px) = 140px
   const HEADER_HEIGHT = 64;
   const SUBHEADER_HEIGHT = 76;
@@ -151,46 +145,28 @@ export default function ExperimentAdminMenu({
       <Content
         style={{
           marginTop: TOTAL_HEADER_HEIGHT,
-          padding: isFullWidthTab ? 0 : token.paddingLG,
-          height: isFullWidthTab ? `calc(100vh - ${TOTAL_HEADER_HEIGHT}px)` : 'auto',
-          overflow: isFullWidthTab ? 'hidden' : 'auto',
+          padding: 0,
+          height: `calc(100vh - ${TOTAL_HEADER_HEIGHT}px)`,
+          overflow: 'hidden',
         }}
       >
-        {currentTab === '1' ? (
-          // プロジェクト管理: 全幅表示
-          <div style={{ height: '100%', overflow: 'hidden' }}>
-            <ProjectManagement
-              onEdit={handleEditProject}
-              onOpenWorkerScreen={handleOpenWorkerScreen}
-            />
-          </div>
-        ) : currentTab === '2' ? (
-          // フォーマット管理: 全幅表示
-          <div style={{ height: '100%', overflow: 'hidden' }}>
-            <FormatManagement user={user} />
-          </div>
-        ) : currentTab === '3' ? (
-          // 進捗確認: 全幅表示
-          <div style={{ height: '100%', overflow: 'auto' }}>
-            <ProgressMonitoring />
-          </div>
-        ) : (
-          // その他のタブ: カード内に表示
-          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-            <Card
-              style={{
-                minHeight: 400,
-              }}
-            >
-              <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
-                {currentTabLabel}
-              </Title>
-              <Text type="secondary">
-                {t('content.notImplemented') || 'コンテンツエリア（未実装）'}
-              </Text>
-            </Card>
-          </div>
-        )}
+        {/* タブ1: プロジェクト管理 - display:none でマウント維持し state を保持 */}
+        <div style={{ display: currentTab === '1' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
+          <ProjectManagement
+            onEdit={handleEditProject}
+            onOpenWorkerScreen={handleOpenWorkerScreen}
+          />
+        </div>
+
+        {/* タブ2: フォーマット管理 - display:none でマウント維持し state を保持 */}
+        <div style={{ display: currentTab === '2' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
+          <FormatManagement user={user} />
+        </div>
+
+        {/* タブ3: 進捗確認 - display:none でマウント維持し state を保持 */}
+        <div style={{ display: currentTab === '3' ? 'block' : 'none', height: '100%', overflow: 'auto' }}>
+          <ProgressMonitoring />
+        </div>
       </Content>
       {/* 作業者画面オーバーレイ */}
       <WorkerScreenOverlay
