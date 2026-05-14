@@ -349,10 +349,9 @@ export default function DepartmentManagement() {
         // 編集の場合
         const editingRecord = editingDepartment as DepartmentUIRecord;
         await updateMaster(editingRecord.departmentId, {
-          ...(editingRecord as unknown as MasterRecord),
-          department_name: values.displayName,
-          is_active: values.isActive,
-        } as MasterRecord);
+          departmentName: values.displayName,
+          isActive: values.isActive,
+        } as unknown as MasterRecord);
         await fetchDepartments();
         message.success(t('departmentManagement.messages.saveSuccess'));
       } else {
