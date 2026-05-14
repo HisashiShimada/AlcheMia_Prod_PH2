@@ -52,7 +52,13 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const { message, modal } = App.useApp();
   const { t } = useLanguage();
 
-  const isReadOnly = getMenuPermission('data_admin') === 0;
+  // 読取専用フラグ（localStorage はブラウザ側でのみ読めるため useEffect で設定）
+  const [isReadOnly, setIsReadOnly] = useState(false);
+
+  useEffect(() => {
+    const permission = getMenuPermission('data_admin');
+    setIsReadOnly(permission === 0);
+  }, []);
 
   // State管理
   const [masters, setMasters] = useState<MasterRecord[]>([]);
@@ -364,7 +370,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     });
 
     return dynamicColumns;
-  }, [selectedMasterInfo, token]);
+  // isReadOnly をdeps に追加: 読取専用状態が変化した際にインラインボタンの disabled を正しく更新するため
+  }, [selectedMasterInfo, token, isReadOnly]);
 
   // テーブルの行選択
   const rowSelection = {

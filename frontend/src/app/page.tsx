@@ -521,10 +521,27 @@ function HomeContent() {
   };
 
   /**
-   * メニュー切り替え処理（デモ用）
+   * メニュー切り替え処理
+   * メニュー切替前にトークンリフレッシュを行い、権限情報（localStorage）を最新化する。
+   * これにより、管理者がロール権限を変更した直後でも再ログイン不要で最新権限が反映される。
    */
-  const handleMenuChange = (menuType: UserRole) => {
+  const handleMenuChange = async (menuType: UserRole) => {
     if (!currentUser) return;
+
+    // メニュー切替前にトークンリフレッシュで権限情報を最新化
+    try {
+      const refreshResult = await authService.refreshToken();
+      if (refreshResult) {
+        const { user } = refreshResult;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('userInfo', JSON.stringify(user));
+        }
+        setCurrentUser(user);
+      }
+    } catch {
+      // リフレッシュ失敗はログのみ（メニュー切替は続行）
+      console.warn('[handleMenuChange] Token refresh failed, using cached permissions');
+    }
 
     // UserRoleを数値コード（initialScreenFunctionCd）に変換
     const functionCodeMap: Record<UserRole, string> = {
