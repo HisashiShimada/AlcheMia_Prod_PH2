@@ -451,9 +451,37 @@ export class FileAccessService {
               }
             }
 
-            // ③ archiveフォルダ存在チェック（新規登録時のみ）
-            // maimlRegistered=true の場合（UUID一致で許可済み）はスキップ
+            // ③ 新規登録時の追加チェック（maimlRegistered=false の場合）
             if (!maimlRegistered) {
+              // ③-a UUID重複チェック: アップロードファイルのUUIDが別プロジェクトに登録済みでないか確認
+              let documentUuidForNewCheck: string | undefined;
+              try {
+                const maimlParser = new MaimlParserTyped(file.buffer.toString('utf-8'));
+                const doc = maimlParser.getDocument();
+                const uuid = doc?.uuid?.trim();
+                if (uuid && uuid.length > 0) {
+                  documentUuidForNewCheck = uuid;
+                }
+              } catch (parseError) {
+                console.warn('⚠️ [Upload] UUID抽出失敗（新規UUID重複チェック用）:', parseError);
+              }
+
+              if (documentUuidForNewCheck) {
+                const conflictProjectName = await projectRepository.findProjectNameByUuid(
+                  organizationId,
+                  documentUuidForNewCheck,
+                  projectName
+                );
+                if (conflictProjectName) {
+                  console.error(`❌ [CRITICAL][Upload] UUID重複: uuid=${documentUuidForNewCheck} は既にプロジェクト「${conflictProjectName}」に登録済み`);
+                  throw new ValidationError(
+                    `このMAIMLファイルのUUID（${documentUuidForNewCheck}）は別のプロジェクト「${conflictProjectName}」に既に登録されています。`,
+                    'E7013'
+                  );
+                }
+              }
+
+              // ③-b archiveフォルダ存在チェック
               const archiveFolderPath = `projects/${projectName}/archive`;
               const archiveFiles = await this.storageService.listFiles(organizationId, archiveFolderPath);
               if (archiveFiles && archiveFiles.length > 0) {
@@ -593,7 +621,8 @@ export class FileAccessService {
       concurrency
     );
 
-    // 5. MAIMLバリデーションエラーが含まれている場合は再スロー
+    // 5. 致命的エラーが含まれている場合は再スロー
+    // 5-a. MAIMLバリデーションエラー（致命的エラー）
     const maimlValidationFailure = uploadResults.find(
       r => !r.success && r.error && r.error.startsWith('MAIML_VALIDATION_ERROR:')
     );
@@ -604,6 +633,19 @@ export class FileAccessService {
         endTime: new Date(),
       });
       throw new Error(maimlValidationFailure.error);
+    }
+
+    // 5-b. E7013（UUID重複：別プロジェクトに登録済み）は HTTP 400 として再スロー
+    // processConcurrently が error.message に変換するため、errorCode を使って元のエラーコードを復元する
+    const e7013Failure = uploadResults.find(
+      r => !r.success && r.errorCode === 'E7013'
+    );
+    if (e7013Failure) {
+      await uploadBatchRepository.update(batch.batchId, {
+        status: 'failed',
+        endTime: new Date(),
+      });
+      throw new ValidationError(e7013Failure.error ?? 'MAIMLのUUIDが別プロジェクトに既に登録されています', 'E7013');
     }
 
     // 5. 結果を集計

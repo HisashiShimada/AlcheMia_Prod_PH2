@@ -20,6 +20,10 @@ export interface ConcurrencyResult<T> {
   data?: T;
   /** エラーメッセージ（失敗時） */
   error?: string;
+  /** エラーコード（失敗時・エラークラスが code プロパティを持つ場合） */
+  errorCode?: string;
+  /** 元のエラーオブジェクト（失敗時） */
+  originalError?: unknown;
 }
 
 /**
@@ -92,9 +96,20 @@ export async function processConcurrently<T, R>(
         const data = await asyncFunction(item, globalIndex);
         return { success: true, data } as ConcurrencyResult<R>;
       } catch (error) {
+        // エラーコードを保持
+        // 優先順位:
+        //   1. AxiosError のレスポンスボディ（error.response.data.error.code）
+        //      → initChunkUpload 等がバックエンドから返した E7013 など
+        //   2. カスタムエラークラスの code プロパティ（ValidationError 等）
+        //      → バックエンドで throw された Error.code
+        //   3. どちらも取れない場合は undefined
+        const axiosApiCode = (error as any)?.response?.data?.error?.code as string | undefined;
+        const errorCode: string | undefined = axiosApiCode ?? ((error as any)?.code as string | undefined);
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error',
+          ...(errorCode ? { errorCode } : {}),
+          originalError: error,
         } as ConcurrencyResult<R>;
       }
     });
