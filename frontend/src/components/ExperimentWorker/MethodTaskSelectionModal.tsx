@@ -366,9 +366,9 @@ export default function MethodTaskSelectionModal({
                   onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
                   onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
                   locale: {
-                    items_per_page: '件/ページ',
-                    jump_to: 'ページ',
-                    page: ''
+                    items_per_page: t('common.itemsPerPage'),
+                    jump_to: t('common.jumpToPage'),
+                    page: t('common.page')
                   }
                 }}
                 scroll={{ x: 600 }}

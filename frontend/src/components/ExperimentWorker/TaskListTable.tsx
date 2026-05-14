@@ -292,14 +292,14 @@ export default function TaskListTable({
           pageSize: pageSize,
           showSizeChanger: true,
           showQuickJumper: false,
-          showTotal: (total) => `全${total}件`,
+          showTotal: (total) => `${t('common.total')}${total}${t('common.items')}`,
           pageSizeOptions: ['20', '50', '100'],
           onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
           onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
           locale: {
-            items_per_page: '件/ページ',
-            jump_to: 'ページ',
-            page: ''
+            items_per_page: t('common.itemsPerPage'),
+            jump_to: t('common.jumpToPage'),
+            page: t('common.page')
           }
         }}
         scroll={{ x: 750 }}
