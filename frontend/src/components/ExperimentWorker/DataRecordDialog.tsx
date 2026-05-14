@@ -72,21 +72,10 @@ const ALLOWED_TRANSITIONS: Record<number, number[]> = {
   [TransitionStatusCode.ERROR]:     [],  // 異常終了 → 変更不可
 };
 
-/**
- * 全ステータスの定義
- */
-const ALL_STATUS_OPTIONS: { value: TransitionStatus; label: string }[] = [
-  { value: TransitionStatusCode.INITIAL as TransitionStatus, label: 'Initial' },
-  { value: TransitionStatusCode.PREPARING as TransitionStatus, label: 'Preparing' },
-  { value: TransitionStatusCode.READY as TransitionStatus, label: 'Ready' },
-  { value: TransitionStatusCode.IN_PROGRESS as TransitionStatus, label: 'In Progress' },
-  { value: TransitionStatusCode.PAUSED as TransitionStatus, label: 'Paused' },
-  { value: TransitionStatusCode.COMPLETED as TransitionStatus, label: 'Completed' },
-  { value: TransitionStatusCode.ERROR as TransitionStatus, label: 'Error' },
-];
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
 import { uploadFiles } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { validateByXsiType } from '@/utils/xsiTypeValidator';
 import { updateTransitionStatus } from '@/services/projectApiService';
 import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
@@ -414,6 +403,7 @@ export default function DataRecordDialog({
   useDeemedProgress: useDeemedProgressProp = true,
 }: DataRecordDialogProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [form] = Form.useForm();
   const [formData, setFormData] = useState<Record<string, ExperimentDataValue>>({});
   const [dataGrids, setDataGrids] = useState<Record<string, number[][]>>({});
@@ -508,14 +498,28 @@ export default function DataRecordDialog({
   const [customProperties, setCustomProperties] = useState<Record<string, CustomPropertyValue[]>>({});
 
   /**
+   * 全ステータス選択肢（t() を使って多言語化）
+   * コンポーネント内で定義することで useLanguage の t() を利用できる
+   */
+  const allStatusOptions = useMemo((): { value: TransitionStatus; label: string }[] => [
+    { value: TransitionStatusCode.INITIAL     as TransitionStatus, label: t('progressStatus.notStarted') },
+    { value: TransitionStatusCode.PREPARING   as TransitionStatus, label: t('progressStatus.preparing') },
+    { value: TransitionStatusCode.READY       as TransitionStatus, label: t('progressStatus.ready') },
+    { value: TransitionStatusCode.IN_PROGRESS as TransitionStatus, label: t('progressStatus.running') },
+    { value: TransitionStatusCode.PAUSED      as TransitionStatus, label: t('progressStatus.paused') },
+    { value: TransitionStatusCode.COMPLETED   as TransitionStatus, label: t('progressStatus.completed') },
+    { value: TransitionStatusCode.ERROR       as TransitionStatus, label: t('progressStatus.error') },
+  ], [t]);
+
+  /**
    * 現在のステータスから遷移可能なステータスの選択肢（useMemo でメモ化）
    * ALLOWED_TRANSITIONS に基づいて選択肢をフィルタリングする
    * 終端ステータス（5: 終状態、6: 異常終了）の場合は空配列
    */
   const statusOptions = useMemo(() => {
     const allowedValues = ALLOWED_TRANSITIONS[currentStatus] ?? [];
-    return ALL_STATUS_OPTIONS.filter(opt => allowedValues.includes(opt.value as number));
-  }, [currentStatus]);
+    return allStatusOptions.filter((opt: { value: TransitionStatus; label: string }) => allowedValues.includes(opt.value as number));
+  }, [currentStatus, allStatusOptions]);
 
   // クライアント判定
   useEffect(() => {
@@ -947,13 +951,13 @@ export default function DataRecordDialog({
   // テンプレート保存ハンドラ
   const handleSaveTemplate = async () => {
     if (!selectedTemplate) {
-      message.error('No template selected');
+      message.error(t('format.dataRecordDialog.noTemplateSelected'));
       return;
     }
 
     // APIに必要なパスパラメータのガードチェック
     if (!projectId || !methodId || taskNo === undefined) {
-      message.error('Missing project information required for saving');
+      message.error(t('format.dataRecordDialog.missingProjectInfoForSave'));
       console.error('handleSaveTemplate: projectId / methodId / taskNo not set', {
         projectId,
         methodId,
@@ -966,7 +970,7 @@ export default function DataRecordDialog({
     // 選択中テンプレートのカスタムプロパティに重複Keyがある場合は保存を中断する
     if (duplicateCustomKeys.size > 0) {
       const duplicatedList = Array.from(duplicateCustomKeys).join(', ');
-      message.error(`Duplicate custom property keys: ${duplicatedList}`);
+      message.error(t('format.dataRecordDialog.duplicateCustomPropertyKeys', { keys: duplicatedList }));
       return;
     }
 
@@ -1263,7 +1267,7 @@ export default function DataRecordDialog({
       // onSave には保存した data を ExperimentDataValue 形式で渡す
       onSave([baseData as ExperimentDataValue]);
       message.success(
-        `Saved "${template.name}" (Status: ${statusOptions.find((opt) => opt.value === selectedStatus)?.label})`
+        t('format.dataRecordDialog.saveSuccess', { name: template.name, status: statusOptions.find((opt) => opt.value === selectedStatus)?.label ?? '' })
       );
     } catch (error: unknown) {
       console.error('handleSaveTemplate error:', error);
@@ -1271,11 +1275,11 @@ export default function DataRecordDialog({
       const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
       const serverMessage = axiosError?.response?.data?.error?.message;
       if (serverMessage) {
-        message.error(`Failed to save: ${serverMessage}`);
+        message.error(t('format.dataRecordDialog.saveFailed', { message: serverMessage }));
       } else if (axiosError?.message) {
-        message.error(`Failed to save: ${axiosError.message}`);
+        message.error(t('format.dataRecordDialog.saveFailed', { message: axiosError.message }));
       } else {
-        message.error(extractErrorMessage(error));
+        message.error(t('format.dataRecordDialog.saveFailedUnknown'));
       }
     } finally {
       setLoading(false);
@@ -1868,7 +1872,7 @@ export default function DataRecordDialog({
       const hash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
       handleUpdateCustomProperty(templateId, id, { file, hash, format, value: file.name });
     } catch (err) {
-      message.error('File processing failed');
+      message.error(t('format.dataRecordDialog.fileProcessingFailed'));
       console.error('handleInsertionFileSelect error:', err);
     }
   };
@@ -2337,14 +2341,14 @@ export default function DataRecordDialog({
                     </Text>
                     {isTerminalStatus ? (
                       <Alert
-                        message={`現在のステータスは「${ALL_STATUS_OPTIONS.find(o => o.value === currentStatus)?.label}」です。これ以上変更できません。`}
+                        message={t('format.dataRecordDialog.terminalStatusMessage', { label: allStatusOptions.find((o: { value: TransitionStatus; label: string }) => o.value === currentStatus)?.label ?? '' })}
                         type="warning"
                         showIcon
                         style={{ marginBottom: 0 }}
                       />
                     ) : statusOptions.length === 0 ? (
                       <Alert
-                        message="遷移可能なステータスがありません"
+                        message={t('format.dataRecordDialog.noTransitionAvailable')}
                         type="info"
                         showIcon
                         style={{ marginBottom: 0 }}
@@ -2352,7 +2356,7 @@ export default function DataRecordDialog({
                     ) : (
                       <>
                         <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
-                          Current: {ALL_STATUS_OPTIONS.find(o => o.value === currentStatus)?.label ?? 'Unknown'}
+                          {t('format.dataRecordDialog.currentStatus', { label: allStatusOptions.find((o: { value: TransitionStatus; label: string }) => o.value === currentStatus)?.label ?? '' })}
                         </Text>
                         <Select
                           style={{ width: '100%' }}
@@ -2419,7 +2423,7 @@ export default function DataRecordDialog({
                       onClick={async () => {
                         // パスパラメータのガードチェック
                         if (!projectId || !methodId || !transition?.transitionId || taskNo === undefined) {
-                          message.error('Missing project information required for update');
+                          message.error(t('format.dataRecordDialog.missingProjectInfoForUpdate'));
                           console.error('Status update: projectId / methodId / transitionId / taskNo not set', {
                             projectId,
                             methodId,
@@ -2437,7 +2441,7 @@ export default function DataRecordDialog({
                             comment: comment || undefined,
                           });
                           message.success(
-                            `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
+                            t('format.dataRecordDialog.statusUpdated', { status: statusOptions.find(opt => opt.value === selectedStatus)?.label ?? '', progress: String(progress) })
                           );
                           // onSave を呼び出してダイアログを閉じ、親のトランジション一覧を最新状態に更新する
                           // TransitionList の handleDataSave は _data を参照しないため空配列を渡して問題なし
