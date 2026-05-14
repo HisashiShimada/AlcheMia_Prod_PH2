@@ -303,6 +303,20 @@ export default function ExperimentWorkerMenu({
     handleProjectChange(projectId);
   };
 
+  // タスクステータス変更後にプロジェクト一覧を再取得するハンドラー
+  // ProgressCheckTabで実験開始・強制終了が成功したときに呼び出される。
+  // プロジェクトステータスが変化するため、指示確認・実験記録タブのボタン活性状態を即座に更新する。
+  const handleTaskStatusChanged = async () => {
+    try {
+      const result = await getWorkerAccessibleProjects();
+      if (result.success && result.data) {
+        setProjects(result.data.projects);
+      }
+    } catch (error) {
+      console.error('プロジェクト一覧再取得エラー（タスクステータス変更後）:', error);
+    }
+  };
+
   // タブアイテムの定義
   const tabItems = [
     {
@@ -319,6 +333,7 @@ export default function ExperimentWorkerMenu({
             onTabChange={handleTabChange}
             onSelectTaskAndTab={handleSelectTaskAndTab}
             readOnly={readOnly}
+            onTaskStatusChanged={handleTaskStatusChanged}
           />
       ),
     },
