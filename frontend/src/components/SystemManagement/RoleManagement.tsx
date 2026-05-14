@@ -598,7 +598,6 @@ export default function RoleManagementMock() {
       } else {
         setTempFunctionData({ functionName, apiFunctionNames, functionWritePermissions });
         form.setFieldsValue({ functionName, functionWritePermissions });
-        message.success(t('roleManagement.messages.functionTempSaved'));
       }
     } catch (error) {
       message.error(extractErrorMessage(error, t('roleManagement.messages.genericError')));

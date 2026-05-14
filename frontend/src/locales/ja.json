@@ -1268,8 +1268,6 @@
       "csvDownloadError": "CSVダウンロードに失敗しました",
       "functionUpdated": "機能を更新しました",
       "functionUpdateSuccess": "機能を更新しました",
-      "functionSet": "機能を設定しました（「保存」ボタンでDBに反映されます）",
-      "functionTempSaved": "機能を設定しました（「保存」ボタンでDBに反映されます）",
       "saveSuccess": "ロール情報を更新しました",
       "addSuccess": "ロールを追加しました",
       "saveError": "保存に失敗しました",
