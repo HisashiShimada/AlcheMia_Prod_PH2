@@ -17,7 +17,7 @@ import {
   SafetyCertificateOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import type { MaimlAnalysisResultRow } from '@/services/maimlApiService';
+import type { MaimlAnalysisResultRow } from '@/types/maimlEditor';
 import type { AnalysisResult } from '@/types/maimlValidation';
 
 /**

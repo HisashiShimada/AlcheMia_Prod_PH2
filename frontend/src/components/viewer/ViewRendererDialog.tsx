@@ -11,47 +11,9 @@ import { Rnd } from 'react-rnd';
 import ViewRenderer from './ViewRenderer';
 import SubNetViewer from './dialogs/SubNetViewer';
 import { getFileContentAsText } from '@/services/fileAccessService';
+import type { FileData, SubnetData } from '@/types/editor';
 
 const { Text } = Typography;
-
-/**
- * ファイルデータ型定義
- */
-export interface FileData {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  lastModified: string;
-  type: string;
-  isFolder?: boolean;
-  fileCount?: number;
-}
-
-/**
- * サブネットデータ型定義
- */
-export interface SubnetData {
-  transitionName: string;
-  maimlData: string;
-  templateMap: Record<string, { element: Element }>;
-  petriNetData: {
-    places: Array<{
-      id: string;
-      data: {
-        label?: string;
-        stereotype?: string;
-        template?: { id: string };
-        templateId?: string;
-      };
-    }>;
-    arcs: Array<{
-      id: string;
-      source: string;
-      target: string;
-    }>;
-  };
-}
 
 /**
  * ViewRendererDialog Props

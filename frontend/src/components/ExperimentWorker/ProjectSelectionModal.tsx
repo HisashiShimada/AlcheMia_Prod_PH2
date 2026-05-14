@@ -5,7 +5,8 @@ import { Modal, Table, Typography, Space, Button, theme, Input, Select, Row, Col
 import { FolderOutlined, CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { WorkerProject } from '@/services/projectApiService';
+import type { WorkerProject } from '@/types/project';
+import type { ProjectTableData } from '@/types/project';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 
 const { Text } = Typography;
@@ -20,18 +21,6 @@ interface ProjectSelectionModalProps {
   onProjectChange: (value: string | null) => void;
   projects: WorkerProject[];
   loading: boolean;
-}
-
-/**
- * テーブルデータの型定義
- */
-interface ProjectTableData {
-  key: string;
-  projectId: string;
-  projectName: string;
-  projectCd?: string;
-  projectStatus: number;
-  isCurrentlySelected: boolean;
 }
 
 /**

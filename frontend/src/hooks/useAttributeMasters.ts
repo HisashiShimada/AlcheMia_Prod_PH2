@@ -11,10 +11,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  fetchAttributeMasters,
-  type AttributeRecord,
-} from '@/services/masterApiService';
+import { fetchAttributeMasters } from '@/services/masterApiService';
+import type { AttributeRecord } from '@/types/masterDataTypes';
 
 // ===== 固定属性名（Attributeマスタの選択肢から除外する属性名） =====
 const FIXED_ATTRIBUTE_NAMES = new Set(['key', 'xsi:type', 'id', 'ref', 'axis', 'size']);

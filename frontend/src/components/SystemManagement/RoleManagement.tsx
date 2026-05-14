@@ -37,8 +37,8 @@ import {
   createRole,
   updateRole,
   updateRolePermissions,
-  type MasterRecord as ApiMasterRecord,
 } from '@/services/roleApiService';
+import type { MasterRecord as ApiMasterRecord, ItemCategory, MasterTypeData, RoleMasterRecord, RoleApiResponse } from '@/types/roleTypes';
 import FunctionPermissionDialog from './FunctionPermissionDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';
@@ -48,34 +48,6 @@ const NO_FUNCTION_SELECTED = '－';
 
 const { Text } = Typography;
 
-interface ItemCategory {
-  headerName: string;
-  searchFixed: boolean;
-  isDisplay: boolean;
-  addable: boolean;
-  update: boolean;
-}
-
-interface MasterTypeData {
-  masterId: string;
-  role: string;
-  relationData: string;
-  displayName: string;
-  itemCategories: Record<string, ItemCategory | undefined>;
-  isActive: boolean;
-}
-
-type MasterRecord = Record<string, unknown>;
-
-interface RoleApiResponse {
-  roleId: string;
-  roleName: string;
-  functionName: string;
-  functionWritePermissions: string;
-  isActive: boolean;
-  updatedAt: string;
-}
-
 export default function RoleManagementMock() {
   const { token } = theme.useToken();
   const { message, modal } = App.useApp();
@@ -83,19 +55,19 @@ export default function RoleManagementMock() {
 
   const isReadOnly = getMenuPermission('system_admin') === 0;
 
-  const [masters, setMasters] = useState<MasterRecord[]>([]);
+  const [masters, setMasters] = useState<RoleMasterRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchText, setSearchText] = useState('');
   const [selectedRoleNameFilter, setSelectedRoleNameFilter] = useState<string>('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingMaster, setEditingMaster] = useState<MasterRecord | null>(null);
+  const [editingMaster, setEditingMaster] = useState<RoleMasterRecord | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [form] = Form.useForm();
 
   const [isFunctionModalVisible, setIsFunctionModalVisible] = useState(false);
-  const [editingFunctionMaster, setEditingFunctionMaster] = useState<MasterRecord | null>(null);
+  const [editingFunctionMaster, setEditingFunctionMaster] = useState<RoleMasterRecord | null>(null);
   const [functionDialogMode, setFunctionDialogMode] = useState<'direct' | 'temporary'>('temporary');
 
   const [tempFunctionData, setTempFunctionData] = useState<{
@@ -229,7 +201,7 @@ export default function RoleManagementMock() {
     });
   }, [masters, searchText, selectedRoleNameFilter, fuzzySearchFields, selectedMasterInfo]);
 
-  const columns: ColumnsType<MasterRecord> = useMemo(() => {
+  const columns: ColumnsType<RoleMasterRecord> = useMemo(() => {
     if (!selectedMasterInfo) return [];
 
     const dynamicColumns = Object.entries(selectedMasterInfo.itemCategories)
@@ -248,10 +220,10 @@ export default function RoleManagementMock() {
           key: key,
           width: columnWidth,
           align: align,
-          sorter: (a: MasterRecord, b: MasterRecord) => {
+          sorter: (a: RoleMasterRecord, b: RoleMasterRecord) => {
             return String(a[key] || '').localeCompare(String(b[key] || ''));
           },
-          render: (text: unknown, record: MasterRecord) => {
+          render: (text: unknown, record: RoleMasterRecord) => {
             if (key.includes('updated') || key.includes('Updated')) {
               return formatDateTime(String(text || ''));
             }
@@ -299,7 +271,7 @@ export default function RoleManagementMock() {
           },
         };
       })
-      .filter((col): col is NonNullable<typeof col> => col !== null) as ColumnsType<MasterRecord>;
+      .filter((col): col is NonNullable<typeof col> => col !== null) as ColumnsType<RoleMasterRecord>;
 
     dynamicColumns.push({
       title: '',
@@ -347,7 +319,7 @@ export default function RoleManagementMock() {
     setIsModalVisible(true);
   };
 
-  const handleEdit = (master: MasterRecord) => {
+  const handleEdit = (master: RoleMasterRecord) => {
     setEditingMaster(master);
     form.setFieldsValue(master);
     setTempFunctionData(null);
@@ -417,7 +389,7 @@ export default function RoleManagementMock() {
     });
   };
 
-  const handleToggleActive = async (record: MasterRecord) => {
+  const handleToggleActive = async (record: RoleMasterRecord) => {
     const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
     const nameField = Object.keys(selectedMasterInfo?.itemCategories || {})[1];
     const masterName = record[nameField] || 'このロール';
@@ -557,7 +529,7 @@ export default function RoleManagementMock() {
     setTempFunctionData(null);
   };
 
-  const handleOpenFunctionModalDirect = async (record: MasterRecord) => {
+  const handleOpenFunctionModalDirect = async (record: RoleMasterRecord) => {
     try {
       const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
       const roleId = String(record[idField] || '');
@@ -595,7 +567,7 @@ export default function RoleManagementMock() {
     }
   };
 
-  const handleOpenFunctionModalTemporary = (record: MasterRecord) => {
+  const handleOpenFunctionModalTemporary = (record: RoleMasterRecord) => {
     setFunctionDialogMode('temporary');
     setEditingFunctionMaster(record);
     setIsFunctionModalVisible(true);

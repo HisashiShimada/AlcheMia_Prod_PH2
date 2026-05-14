@@ -11,6 +11,8 @@
 import { useCallback, useState } from 'react';
 import { createApiClient } from '@/utils/authUtils';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import type { S3File, S3Folder } from '@/types/storage';
+import type { ParsedElement, CollectedElement, NamespaceData } from '@/types/format';
 
 /**
  * ファイル一覧取得（S3から）
@@ -58,71 +60,6 @@ const fetchFileContent = async (fileKey: string): Promise<string> => {
     throw error;
   }
 };
-
-/**
- * S3ファイル情報の型定義
- */
-export interface S3File {
-  key?: string;
-  name?: string;
-  size?: number;
-  lastModified?: string;
-}
-
-/**
- * S3フォルダ情報の型定義
- */
-export interface S3Folder {
-  name: string;
-  path: string;
-  level: number;
-  children: Record<string, S3Folder>;
-  files: string[];
-  xmlFileCount: number;
-  totalFileCount: number;
-  totalXmlFileCount?: number;
-  totalAllFileCount?: number;
-}
-
-/**
- * 解析された要素の型定義
- */
-export interface ParsedElement {
-  tagName: string;
-  attributes: Record<string, string>;
-  elements: Record<string, string>;
-  children: ParsedElement[];
-  key?: string;
-  namespaceOrigin?: boolean;
-  namespaceSource?: {
-    uri: string;
-    hierarchyPath: string[];
-    importedAt: string;
-    originalKey?: string;
-  };
-}
-
-/**
- * 要素コレクションアイテムの型定義
- */
-interface CollectedElement {
-  key: string;
-  element: ParsedElement;
-  path: string[];
-  hierarchyScore: number;
-  xsiType: string;
-}
-
-/**
- * 名前空間データの型定義
- */
-export interface NamespaceData {
-  namespaceURI: string;
-  hierarchyPath: string[];
-  properties: Record<string, ParsedElement>;
-  contents: Record<string, ParsedElement>;
-  totalElements: number;
-}
 
 /**
  * テンプレート型定義（setEditingTemplate用）

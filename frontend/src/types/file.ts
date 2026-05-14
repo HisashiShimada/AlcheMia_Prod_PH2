@@ -396,5 +396,43 @@ export interface UploadRetryState {
   // ✨ Task: アップロードキャンセル機能実装
   // アップロードをキャンセルするためのAbortSignal
   signal?: AbortSignal;
+}
 
+// ---------------------------------------------------------------------------
+// ファイル名変更
+// ---------------------------------------------------------------------------
+
+/**
+ * ファイル名変更リクエスト型
+ * fileAccessService で使用
+ */
+export interface RenameFileRequest {
+  /** 対象ファイルの相対パス（organizationId なし。例: "projects/foo/bar.csv"） */
+  fileKey: string;
+  /** 新しいファイル名（拡張子込み） */
+  newFileName: string;
+}
+
+/**
+ * ファイル名変更レスポンス型
+ * fileAccessService で使用
+ */
+export interface RenameFileResponse {
+  success: boolean;
+  data?: { newFileKey: string };
+  error?: { code: string; message: string };
+}
+
+// ---------------------------------------------------------------------------
+// ビューア用ファイルデータ
+// ---------------------------------------------------------------------------
+
+/**
+ * ビューア表示用ファイルデータ型
+ * viewer/ViewRendererDialog / ExperimentWorker/InstructionFlowDialog で使用
+ */
+export interface FileData {
+  fileKey: string;
+  fileName: string;
+  fileType?: string;
 }

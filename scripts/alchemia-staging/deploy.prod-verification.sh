@@ -180,7 +180,9 @@ get_alb_dns() {
         return
     fi
 
-    info "  [ALB] ${ALB_NAME} の DNS 名を取得中..."
+    # >&2 でログ行を stderr に向けることで、
+    # ALB_DNS=$(get_alb_dns) 時にログ行が変数に混入するのを防ぐ
+    info "  [ALB] ${ALB_NAME} の DNS 名を取得中..." >&2
     local dns
     dns=$(aws elbv2 describe-load-balancers \
         --names "${ALB_NAME}" \
@@ -189,8 +191,8 @@ get_alb_dns() {
         --output text 2>/dev/null || echo "")
 
     if [[ -z "${dns}" || "${dns}" == "None" ]]; then
-        error "ALB '${ALB_NAME}' の DNS 名を取得できませんでした"
-        error "ALB が作成済みであるか確認するか、--alb-dns オプションで直接指定してください"
+        error "ALB '${ALB_NAME}' の DNS 名を取得できませんでした" >&2
+        error "ALB が作成済みであるか確認するか、--alb-dns オプションで直接指定してください" >&2
         exit 1
     fi
 

@@ -9,7 +9,8 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Alert, Typography, theme } from 'antd';
 import { UserOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { authService, AuthServiceError } from '@/services/authService';
+import { authService } from '@/services/authService';
+import { AuthServiceError } from '@/types/error';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 

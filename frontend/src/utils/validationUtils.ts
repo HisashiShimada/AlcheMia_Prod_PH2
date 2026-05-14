@@ -7,15 +7,8 @@
  * ワークフロー検証ユーティリティ（旧 validationUtils.ts）も統合済み。
  */
 
-/**
- * バリデーション結果の型定義
- */
-export interface ValidationResult {
-  /** バリデーションが成功したか */
-  isValid: boolean;
-  /** エラーメッセージ（バリデーション失敗時のみ） */
-  error?: string;
-}
+
+import type { FormValidationResult } from '@/types/common';
 
 /**
  * ユーザー名バリデーション
@@ -27,7 +20,7 @@ export interface ValidationResult {
  * @param username - 検証するユーザー名
  * @returns バリデーション結果
  */
-export function validateUsername(username: string): ValidationResult {
+export function validateUsername(username: string): FormValidationResult {
   // 空文字チェック
   if (!username || username.trim().length === 0) {
     return {
@@ -57,7 +50,7 @@ export function validateUsername(username: string): ValidationResult {
  * @param password - 検証するパスワード
  * @returns バリデーション結果
  */
-export function validatePassword(password: string): ValidationResult {
+export function validatePassword(password: string): FormValidationResult {
   // 空文字チェック
   if (!password || password.length === 0) {
     return {
@@ -87,7 +80,7 @@ export function validatePassword(password: string): ValidationResult {
  * @param pinCode - 検証するPINコード
  * @returns バリデーション結果
  */
-export function validatePinCode(pinCode: string): ValidationResult {
+export function validatePinCode(pinCode: string): FormValidationResult {
   // 空文字チェック
   if (!pinCode || pinCode.trim().length === 0) {
     return {
@@ -119,7 +112,7 @@ export function validatePinCode(pinCode: string): ValidationResult {
  * @param password - 検証する新パスワード
  * @returns バリデーション結果
  */
-export function validateNewPassword(password: string): ValidationResult {
+export function validateNewPassword(password: string): FormValidationResult {
   // 空文字チェック
   if (!password || password.length === 0) {
     return {
@@ -153,7 +146,7 @@ export function validateNewPassword(password: string): ValidationResult {
 export function validatePasswordConfirmation(
   password: string,
   confirmPassword: string
-): ValidationResult {
+): FormValidationResult {
   // 空文字チェック
   if (!confirmPassword || confirmPassword.length === 0) {
     return {
@@ -183,7 +176,7 @@ export function validatePasswordConfirmation(
  * @param email - 検証するメールアドレスまたはユーザーID
  * @returns バリデーション結果
  */
-export function validateEmail(email: string): ValidationResult {
+export function validateEmail(email: string): FormValidationResult {
   // 空文字チェック
   if (!email || email.trim().length === 0) {
     return {
@@ -211,8 +204,8 @@ export function validateEmail(email: string): ValidationResult {
  * @returns 統合されたバリデーション結果
  */
 export function combineValidationResults(
-  results: ValidationResult[]
-): ValidationResult {
+  results: FormValidationResult[]
+): FormValidationResult {
   const firstError = results.find((result) => !result.isValid);
 
   if (firstError) {
@@ -234,15 +227,7 @@ import { validateNode } from './nodeUtils';
 import { validateEdge, detectCycle } from './edgeUtils';
 import type { NodeData, EdgeData } from '../types/editor';
 import { getTranslation } from '../contexts/LanguageContext';
-
-/**
- * ワークフロー検証結果の型定義
- */
-export interface WorkflowValidationResult {
-  valid: boolean;
-  errors: string[];
-  warnings: string[];
-}
+import type { WorkflowValidationResult } from '@/types/maimlValidation';
 
 /**
  * ワークフロー全体の検証

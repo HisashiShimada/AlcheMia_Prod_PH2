@@ -21,6 +21,8 @@ import PetriNetViewer from './PetriNetViewer';
 import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
 import { MaimlParserTyped } from '@/utils/maimlParserTyped';
 import type { Method } from '@/types/maiml-unified';
+import type { FileInfo } from '@/types/editor';
+import type { DeviceType, ViewType } from '@/types/common';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -38,26 +40,6 @@ const getFileType = (fileName: string): 'maiml' | 'tiff' | 'image' | 'unknown' =
   return 'unknown';
 };
 
-/**
- * デバイスタイプ
- */
-type DeviceType = 'desktop' | 'tablet' | 'mobile';
-
-/**
- * ビュータイプ
- */
-type ViewType = 'main' | 'edit' | 'experiment' | 'experimentControl';
-
-/**
- * ファイル情報
- */
-interface FileInfo {
-  key: string;
-  name: string;
-  content?: string;
-  size?: number;
-  lastModified?: string;
-}
 
 /**
  * ViewRenderer Props
@@ -230,7 +212,7 @@ const UnsupportedFileView: React.FC<{
           size="large"
           icon={<DownloadOutlined />}
           loading={downloadingFile}
-          onClick={() => onFileDownload?.(selectedFile.key, selectedFile.name)}
+          onClick={() => onFileDownload?.(selectedFile.key, selectedFile.name ?? '')}
         >
           {downloadingFile ? 'Downloading...' : 'Download File'}
         </Button>
@@ -278,7 +260,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
 
   // 🎯 複数メソッドチェック: fileContentが変わったら実行
   useEffect(() => {
-    if (!fileContent || !selectedFile || getFileType(selectedFile.name) !== 'maiml') {
+    if (!fileContent || !selectedFile || getFileType(selectedFile.name ?? '') !== 'maiml') {
       setMethods([]);
       setIsMultiMethod(false);
       setSelectedMethodIndex(0);
@@ -367,7 +349,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
       );
     }
     
-    const fileType = getFileType(selectedFile.name);
+    const fileType = getFileType(selectedFile.name ?? '');
     
     switch (fileType) {
       case 'maiml':
@@ -441,7 +423,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
           <ErrorBoundary>
             <TiffViewer 
               fileKey={selectedFile.key} 
-              fileName={selectedFile.name}
+              fileName={selectedFile.name ?? ''}
             />
           </ErrorBoundary>
         );
@@ -451,7 +433,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
           <ErrorBoundary>
             <ImageViewer 
               fileKey={selectedFile.key} 
-              fileName={selectedFile.name}
+              fileName={selectedFile.name ?? ''}
             />
           </ErrorBoundary>
         );

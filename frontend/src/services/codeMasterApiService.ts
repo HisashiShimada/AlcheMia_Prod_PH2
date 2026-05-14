@@ -10,14 +10,7 @@
 
 import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
-
-/**
- * Selectオプション型定義
- */
-export interface SelectOption {
-  value: number | string;
-  label: string;
-}
+import type { SelectOption } from '@/types/common';
 
 /**
  * Selectオプション取得

@@ -65,7 +65,7 @@ export function checkPermission(
       res.status(403).json({
         success: false,
         error: {
-          code: 'PERMISSION_DENIED',
+          code: 'E5012',
           message: `機能へのアクセス権限がありません（機能CD: ${requiredFunctionId}）`
         },
         meta: {
@@ -80,7 +80,7 @@ export function checkPermission(
       res.status(403).json({
         success: false,
         error: {
-          code: 'INSUFFICIENT_PERMISSION',
+          code: 'E5015',
           message: `必要な権限レベルが不足しています（必要: ${requiredPermission}, 所有: ${userPermission.permission}）`
         },
         meta: {
@@ -144,7 +144,7 @@ export function checkPermissionPairs(
       res.status(403).json({
         success: false,
         error: {
-          code: 'PERMISSION_DENIED',
+          code: 'E5012',
           message: `必要な権限がありません（必要な権限: ${pairDescriptions}）`
         },
         meta: {
@@ -201,7 +201,7 @@ export function checkAnyPermission(
       res.status(403).json({
         success: false,
         error: {
-          code: 'PERMISSION_DENIED',
+          code: 'E5012',
           message: `必要な権限がありません（機能CD: ${functionIds.join(', ')}）`
         },
         meta: {

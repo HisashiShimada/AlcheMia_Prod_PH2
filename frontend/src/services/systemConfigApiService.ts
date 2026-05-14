@@ -5,9 +5,7 @@
 
 import { createApiClient } from '@/utils/authUtils';
 import { AxiosError } from 'axios';
-
-/** システム設定値の型（キー名 → 値） */
-export type SystemConfig = Record<string, string | number | boolean>;
+import type { SystemConfig } from '@/types/common';
 
 /**
  * システム設定値を取得

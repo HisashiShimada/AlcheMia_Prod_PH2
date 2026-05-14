@@ -17,9 +17,9 @@ import IssueManagementModal from './IssueManagementModal';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import { getIssues, createIssue, addComment } from '@/services/issueApiService';
-import { Method, ProjectStatus, ProgressStatus, Transition, Issue, IssueReportFormData, Task, ExperimentDataValue, isRecordViewableStatus } from '@/types/experimentWorker';
+import { Method, ProjectStatus, ProgressStatus, Transition, Issue, IssueReportFormData, Task, ExperimentDataValue, isRecordViewableStatus, ViewMode } from '@/types/experimentWorker';
 import { getWorkerTasks } from '@/services/projectApiService';
-import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
+import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { createApiClient } from '@/utils/authUtils';
 import { extractErrorMessage } from '@/utils/errorUtils';
 
@@ -29,11 +29,6 @@ const { Title, Text } = Typography;
  * 空状態アイコンのサイズ定数
  */
 const EMPTY_ICON_SIZE = 48;
-
-/**
- * 表示モード
- */
-type ViewMode = 'list' | 'flow';
 
 /**
  * 実験記録タブのProps

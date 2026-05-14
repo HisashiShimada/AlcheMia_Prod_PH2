@@ -12,33 +12,9 @@ import {
 import { FileTextOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatUtils';
+import type { FormatFileDetailData } from '@/types/format';
 
 const { Text } = Typography;
-
-/**
- * フォーマットファイル詳細データの型定義
- */
-export interface FormatFileDetailData {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  lastModified: string;
-  type: string;
-  version?: string;
-  description?: string;
-  createdBy?: string;
-  createdByName?: string;
-  createdAt?: string;
-  // ✅ Phase 1: XML/MAIMLファイル編集用プロパティ
-  content?: string;      // ファイルの内容（XML/MAIML文字列）
-  isNewFile?: boolean;   // 新規ファイルフラグ
-  // ✅ Phase 2: XMLパース結果（Template型経由）
-  parsedTemplate?: import('@/types/maiml-unified').Template;  // パースされたTemplate型オブジェクト
-  // ✅ Phase 3: XMLパース結果（PropertyData形式直接）
-  parsedProperties?: Record<string, import('@/components/editorv2/NestedPropertyEditor').PropertyData>;
-  parsedContents?: Record<string, import('@/components/editorv2/NestedPropertyEditor').PropertyData>;
-}
 
 /**
  * FormatFileDetailModalのProps型定義

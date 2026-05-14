@@ -4,6 +4,7 @@
 'use client';
 
 import React, { Component, ReactNode, ErrorInfo } from 'react';
+import type { ErrorBoundaryState } from '@/types/common';
 import { Alert, Button, Space, Typography, Card } from 'antd';
 import { WarningOutlined, ReloadOutlined } from '@ant-design/icons';
 
@@ -13,11 +14,6 @@ interface ErrorBoundaryProps {
   children: ReactNode;
 }
 
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
-}
 
 /**
  * ErrorBoundary コンポーネント

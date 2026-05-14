@@ -7,67 +7,21 @@
 
 import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
-import type { Issue, IssueComment, User, IssueTargetType, IssueStatus } from '@/types/experimentWorker';
+import type {
+  Issue,
+  IssueComment,
+  User,
+  IssueTargetType,
+  IssueStatus,
+  CreateIssueParams,
+  AddCommentParams,
+  GetIssuesParams,
+} from '@/types/experimentWorker';
 import { InstructionStatus } from '@/constants/codeMaster';
 
 // ============================================================
 // APIレスポンス型定義（バックエンドのレスポンス構造に合わせる）
 // ============================================================
-
-/**
- * 問題報告APIのリクエストボディ
- * POST /api/v1/issues
- */
-export interface CreateIssueParams {
-  /** プロジェクトID（UUID、必須） */
-  projectId: string;
-  /** メソッドID（オプション） */
-  methodId?: string;
-  /** 問題タイプ（必須）: code_master.code_value（整数） */
-  issueType: number;
-  /** 対象タイプ（必須） */
-  targetType: string;
-  /** タスク連番（オプション） */
-  taskNo?: number;
-  /** トランジションID（オプション） */
-  transitionId?: string;
-  /** タイトル（必須、最大200文字） */
-  title: string;
-  /** 内容（必須、最大2000文字） */
-  description: string;
-}
-
-/**
- * コメント追加APIのリクエストパラメータ
- * POST /api/v1/issues/comments
- */
-export interface AddCommentParams {
-  /** プロジェクト名（必須） */
-  projectName: string;
-  /** 問題ID（UUID、必須） */
-  issueId: string;
-  /** コメント内容（必須） */
-  comment: string;
-}
-
-/**
- * 問題一覧取得APIのクエリパラメータ
- * GET /api/v1/issues
- */
-export interface GetIssuesParams {
-  /** プロジェクトID（UUID、必須） */
-  projectId: string;
-  /** メソッドID（オプション。省略時はプロジェクト全件を返す） */
-  methodId?: string;
-  /** タスク連番（オプション） */
-  taskNo?: number;
-  /** トランジションID（オプション） */
-  transitionId?: string;
-  /** ステータスフィルタ（オプション） */
-  status?: 'unresolved' | 'resolved';
-  /** 問題タイプフィルタ（オプション）: code_master.code_value（整数） */
-  issueType?: number;
-}
 
 /**
  * 問題報告APIのレスポンスデータ（1件分）

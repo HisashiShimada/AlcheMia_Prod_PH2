@@ -18,6 +18,7 @@ import type {
   SemanticSearchHealth,
   SearchHistoryItem,
 } from '@/types/semanticSearch';
+import type { UseSemanticSearchReturn } from '@/types/hooks';
 
 /** デフォルト重み */
 export const DEFAULT_WEIGHTS: SearchWeights = {
@@ -55,33 +56,6 @@ export const WEIGHT_PRESETS: Record<string, { name: string; description: string;
     weights: { input: 0.10, transition: 0.05, output: 0.05, structure: 0.80 },
   },
 };
-
-export interface UseSemanticSearchReturn {
-  /** 検索結果 */
-  hits: SemanticSearchHit[];
-  /** ローディング状態 */
-  loading: boolean;
-  /** エラー */
-  error: string | null;
-  /** 検索実行済みか */
-  searched: boolean;
-  /** 検索実行時間(ms) */
-  elapsedMs: number | null;
-  /** インデックス統計 */
-  stats: IndexStatsResponse | null;
-  /** ヘルス情報 */
-  health: SemanticSearchHealth | null;
-  /** 検索履歴 */
-  history: SearchHistoryItem[];
-  /** 検索実行 */
-  search: (request: SemanticSearchRequest) => Promise<void>;
-  /** 統計取得 */
-  fetchStats: () => Promise<void>;
-  /** ヘルスチェック */
-  fetchHealth: () => Promise<void>;
-  /** 結果クリア */
-  clearResults: () => void;
-}
 
 /**
  * セマンティック検索カスタムフック

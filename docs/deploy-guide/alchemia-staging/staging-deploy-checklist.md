@@ -11,7 +11,7 @@
 1. [ビルド確認](#step-1-ビルド確認)
 2. [リリース対象の確認 / リリースディレクトリの初期化](#step-2-リリース対象の確認--リリースディレクトリの初期化)
 3. [リリースノートの作成](#step-3-リリースノートの作成)
-4. [計画書の移動](#step-4-計画書の移動)
+4. [計画書の削除](#step-4-計画書の削除)
 5. [差分ファイルの確認（ドライラン）](#step-5-差分ファイルの確認ドライラン)
 6. [DBのテーブル構成の確認](#step-6-dbのテーブル構成の確認)
 7. [環境変数の確認](#step-7-環境変数の確認)
@@ -146,22 +146,20 @@ Skillにリリースノート作成を登録しているので、clineに作成�
 
 ---
 
-## STEP 4: 計画書の移動
+## STEP 4: 計画書の削除
 
-`docs/` 配下（サブフォルダ含む）に残っているタスク計画書（`PLAN.md` 等）を `docs/cline_archives/` へ移動する。
+`docs/` 配下（サブフォルダ含む）に残っているタスク計画書（`PLAN.md` 等）を削除する
 
 ### 4-1. 移動対象の確認
-
+```bash
 # docs/ 配下のタスクフォルダを確認（YYYYMMDD_ で始まるフォルダ）
 ls -d docs/[0-9]*/
 ```
 
-### 4-2. アーカイブへ移動
+### 4-2. 削除
 
 ```bash
-# 例: docs/YYYYMMDD_HHMM_タスク名/ フォルダをアーカイブへ移動
-mv docs/YYYYMMDD_HHMM_タスク名 docs/cline_archives/
-
+rm -rf docs/[0-9]*/
 ```
 
 ### 4-3. コミット・プッシュ
@@ -169,7 +167,7 @@ mv docs/YYYYMMDD_HHMM_タスク名 docs/cline_archives/
 移動後、変更をコミット・プッシュする（手作業）。
 
 ```bash
-git add docs/
+git add docs/[0-9]*/
 git commit -m "chore: move task plans to cline_archives"
 git push
 ```

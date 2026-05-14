@@ -37,15 +37,18 @@ import {
   DownloadOutlined,
   FileSearchOutlined,
 } from '@ant-design/icons';
-import { fetchTemplateFiles, type ListFormatsResponse } from '@/services/templateApi';
+import { fetchTemplateFiles } from '@/services/templateApi';
+import type { ListFormatsResponse } from '@/types/format';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { 
   NodeData, 
   TemplateError,
 } from '../../types/editor';
 import { Template, Insertion, PlaceRef} from '@/types/maiml-unified';
-import NestedPropertyEditor, { type PropertyData } from './NestedPropertyEditor';
-import useNamespaceOperations, { type NamespaceData } from '../../hooks/useNamespaceOperations';
+import NestedPropertyEditor from './NestedPropertyEditor';
+import type { PropertyData } from '@/types/editor';
+import useNamespaceOperations from '../../hooks/useNamespaceOperations';
+import type { NamespaceData } from '@/types/format';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {
   convertPropertiesArrayToNestedFormat,

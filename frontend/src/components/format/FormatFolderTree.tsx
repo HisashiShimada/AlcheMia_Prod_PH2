@@ -16,25 +16,9 @@ import {
   SortAscendingOutlined as SortIcon,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { Format } from '@/types/format';
 
 const { Text } = Typography;
-
-/**
- * フォーマットフォルダの型定義
- */
-interface Format {
-  id: string;
-  name: string;
-  folderName: string;
-  description: string;
-  fileCount: number;
-  fileType: 'xml' | 'maiml';
-  category: string;
-  department: string;
-  createdAt: string;
-  updatedAt: string;
-  tags: string[];
-}
 
 /**
  * FormatFolderTreeのProps
