@@ -405,7 +405,7 @@ for file in "${modified[@]:-}"; do
 done
 
 # ---------- リネームファイルの処理 ----------
-for i in "${!rename_old[@]:-}"; do
+for i in "${!rename_old[@]}"; do
     old_file="${rename_old[$i]}"
     new_file="${rename_new[$i]}"
 

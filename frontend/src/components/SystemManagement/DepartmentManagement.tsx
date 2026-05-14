@@ -27,7 +27,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { formatDateTime } from '@/utils/formatUtils';
 import { getDepartmentConfig } from '@/types/departmentTypes';
-import type { DepartmentUIRecord, MasterRecord } from '@/types/departmentTypes';
+import type { DepartmentUIRecord, MasterRecord, CreateDepartmentRequest } from '@/types/departmentTypes';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage } from '@/utils/errorUtils';
@@ -39,7 +39,6 @@ import {
   batchUpdateMasterStatus,
   uploadCsv,
   downloadCsv,
-  CreateDepartmentRequest,
 } from '@/services/departmentApiService';
 
 const { Text } = Typography;
@@ -363,7 +362,7 @@ export default function DepartmentManagement() {
           departmentName: values.displayName,
           isActive: values.isActive !== undefined ? values.isActive : true,
         };
-        await createMaster(createRequest as unknown as import('@/services/departmentApiService').MasterRecord);
+        await createMaster(createRequest as unknown as MasterRecord);
         await fetchDepartments();
         message.success(t('departmentManagement.messages.addSuccess'));
       }

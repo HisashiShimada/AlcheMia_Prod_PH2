@@ -68,6 +68,16 @@ export interface DepartmentUIRecord {
 export type MasterRecord = DepartmentRecord;
 
 /**
+ * 部署新規作成 API リクエストの型（camelCase）
+ * バックエンドの departmentRoutes.ts バリデーション（body('departmentCd') 等）に合わせた型定義
+ */
+export interface CreateDepartmentRequest {
+  departmentCd: string;
+  departmentName: string;
+  isActive?: boolean;
+}
+
+/**
  * CSV一括操作の結果型
  * 移動元: services/departmentApiService.ts（CsvUploadResult）
  */
