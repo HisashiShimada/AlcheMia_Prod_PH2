@@ -2646,6 +2646,8 @@
       "E6002": "MAIML file does not exist",
       "E7002": "Project is not checked out",
       "E7005": "Project status is not awaiting task review",
+      "E5012": "You need write permission for Experiment Management to publish",
+      "E5015": "You need write permission for Experiment Management to publish",
       "E7010": "There are tasks that are not completed or terminated",
       "E7011": "Publish process is already in progress",
       "E4001": "A system error occurred"
