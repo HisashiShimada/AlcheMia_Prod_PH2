@@ -57,7 +57,10 @@
     "countUnit": "件",
     "import": "取り込む",
     "otherUser": "他のユーザー",
-    "unknown": "不明"
+    "unknown": "不明",
+    "itemsPerPage": "件/ページ",
+    "jumpToPage": "ページ",
+    "page": ""
   },
   "languages": {
     "ja": "日本語",
