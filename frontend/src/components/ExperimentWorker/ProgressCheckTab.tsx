@@ -32,6 +32,11 @@ interface ProgressCheckTabProps {
   onSelectTaskAndTab?: (taskId: string, tabKey: string, methodId?: string) => void;
   /** trueのとき強制終了ボタンを無効化（リードオンリービュー用） */
   readOnly?: boolean;
+  /**
+   * タスクステータス変更（実験開始・強制終了）成功後に呼び出されるコールバック。
+   * 親コンポーネントがプロジェクト一覧を再取得してステータスを最新化するために使用する。
+   */
+  onTaskStatusChanged?: () => void;
 }
 
 /**
@@ -47,6 +52,7 @@ export default function ProgressCheckTab({
   onTabChange,
   onSelectTaskAndTab,
   readOnly = false,
+  onTaskStatusChanged,
 }: ProgressCheckTabProps) {
   // デザイントークンを取得（UIポリシー基準）
   const { token } = theme.useToken();
@@ -348,6 +354,9 @@ export default function ProgressCheckTab({
                   taskCount: allTasks.length
                 });
               }
+              // タスク開始成功後、親コンポーネントにプロジェクト一覧の再取得を通知
+              // （プロジェクトステータスが変化するため、指示確認・実験記録タブのボタン活性状態を更新する）
+              onTaskStatusChanged?.();
             } else {
               console.error('[DEBUG] handleTaskAction - Update failed', result);
               message.error(t('progress.taskStartFailed'));
@@ -550,6 +559,9 @@ export default function ProgressCheckTab({
                   taskCount: allTasks.length
                 });
               }
+              // 強制終了成功後、親コンポーネントにプロジェクト一覧の再取得を通知
+              // （プロジェクトステータスが変化するため、指示確認・実験記録タブのボタン活性状態を更新する）
+              onTaskStatusChanged?.();
             } else {
               console.error('[DEBUG] handleTaskAction - Force terminate failed', result);
               message.error(t('progress.taskForceTerminateFailed'));
