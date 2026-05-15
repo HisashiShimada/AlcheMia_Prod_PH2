@@ -86,10 +86,12 @@ export default function UserManagement() {
   const loadDepartments = async () => {
     try {
       const data = await fetchDepartments();
-      const options = data.map((d) => ({
-        value: String(d.departmentId),
-        label: String(d.displayName),
-      }));
+      const options = data
+        .filter((d) => (d as unknown as { isActive: boolean }).isActive !== false) // アクティブな部署のみ表示
+        .map((d) => ({
+          value: String(d.departmentId),
+          label: String(d.displayName),
+        }));
       setDepartments(options);
     } catch (error) {
       console.error('部署一覧の取得に失敗:', error);

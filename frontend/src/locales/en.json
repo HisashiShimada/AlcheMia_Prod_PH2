@@ -2090,6 +2090,13 @@
     "E7008": "The specified task or method was not found",
     "E9999": "An error occurred. Please try again later.",
     "AUTH_PIN_INVALID": "Invalid PIN code",
+    "PIN_VERIFY_FAILED": "PIN code verification failed. Please try again.",
+    "PIN_RESEND_FAILED": "Failed to resend PIN code. Please try again.",
+    "AUTH_TOKEN_INVALID": "Session is invalid. Please log in again.",
+    "LOGOUT_FAILED": "Logout failed. Please try again.",
+    "RESET_REQUEST_FAILED": "Password reset request failed. Please try again.",
+    "RESET_FAILED": "Password reset failed. Please try again.",
+    "CHANGE_PASSWORD_FAILED": "Failed to change password. Please try again.",
 
     "CHECKOUT_NO_MAIML_FILE": "MAIML file does not exist",
     "CHECKOUT_INVALID_STATUS": "Project status does not allow this operation",
@@ -2604,6 +2611,22 @@
     "confirmImportCancel": "Cancel",
     "noDuplicateTitle": "✅ No Duplicates",
     "noDuplicateDesc": "All properties will be added as new"
+  },
+  "format": {
+    "dataRecordDialog": {
+      "noTemplateSelected": "No template selected",
+      "missingProjectInfoForSave": "Project information required for saving is missing",
+      "duplicateCustomPropertyKeys": "Duplicate custom property keys: {{keys}}",
+      "saveSuccess": "\"{{name}}\" saved (status: {{status}})",
+      "saveFailed": "Save failed: {{message}}",
+      "saveFailedUnknown": "Save failed",
+      "fileProcessingFailed": "File processing failed",
+      "missingProjectInfoForUpdate": "Project information required for status update is missing",
+      "statusUpdated": "Status updated ({status}, progress: {progress}%)",
+      "terminalStatusMessage": "Current status is \"{label}\". No further changes allowed.",
+      "noTransitionAvailable": "No transitions available",
+      "currentStatus": "Current: {label}"
+    }
   },
   "viewer": {
     "methodNotFound": "Method not found",
