@@ -57,7 +57,10 @@
     "countUnit": "件",
     "import": "取り込む",
     "otherUser": "他のユーザー",
-    "unknown": "不明"
+    "unknown": "不明",
+    "itemsPerPage": "件/ページ",
+    "jumpToPage": "ページ",
+    "page": ""
   },
   "languages": {
     "ja": "日本語",
@@ -2087,6 +2090,13 @@
     "E7008": "指定されたタスクまたはメソッドが見つかりません",
     "E9999": "エラーが発生しました。しばらくしてから再度お試しください",
     "AUTH_PIN_INVALID": "PINコードが正しくありません",
+    "PIN_VERIFY_FAILED": "PINコードの検証に失敗しました。再度お試しください",
+    "PIN_RESEND_FAILED": "PINコードの再送信に失敗しました。再度お試しください",
+    "AUTH_TOKEN_INVALID": "セッションが無効です。再度ログインしてください",
+    "LOGOUT_FAILED": "ログアウトに失敗しました。再度お試しください",
+    "RESET_REQUEST_FAILED": "パスワードリセットの要求に失敗しました。再度お試しください",
+    "RESET_FAILED": "パスワードのリセットに失敗しました。再度お試しください",
+    "CHANGE_PASSWORD_FAILED": "パスワードの変更に失敗しました。再度お試しください",
 
     "CHECKOUT_NO_MAIML_FILE": "MAIMLファイルが存在しません",
     "CHECKOUT_INVALID_STATUS": "プロジェクトのステータスが操作を許可していません",
@@ -2097,13 +2107,13 @@
     "PROJECT_ALREADY_CHECKED_OUT": "このプロジェクトは既に他のユーザーによってチェックアウトされています"
   },
   "progressStatus": {
-    "notStarted": "未開始",
-    "preparing": "準備中",
-    "ready": "準備完了",
-    "running": "実行中",
-    "paused": "一時停止",
-    "completed": "完了",
-    "error": "エラー"
+    "notStarted": "初期状態",
+    "preparing": "準備状態",
+    "ready": "準備完了状態",
+    "running": "動作状態",
+    "paused": "休止状態",
+    "completed": "終状態",
+    "error": "異常終了状態"
   },
   "formatters": {
     "justNow": "たった今",
@@ -2679,6 +2689,20 @@
         "elementName": "Element名",
         "genericValue": "汎用Value"
       }
+    },
+    "dataRecordDialog": {
+      "noTemplateSelected": "テンプレートが選択されていません",
+      "missingProjectInfoForSave": "保存に必要なプロジェクト情報が不足しています",
+      "duplicateCustomPropertyKeys": "カスタムプロパティのキーが重複しています: {{keys}}",
+      "saveSuccess": "\"{name}\" を保存しました（ステータス: {status}）",
+      "saveFailed": "保存に失敗しました: {{message}}",
+      "saveFailedUnknown": "保存に失敗しました",
+      "fileProcessingFailed": "ファイルの処理に失敗しました",
+      "missingProjectInfoForUpdate": "ステータス更新に必要なプロジェクト情報が不足しています",
+      "statusUpdated": "ステータスを更新しました（{status}、進捗: {progress}%）",
+      "terminalStatusMessage": "現在のステータスは「{label}」です。これ以上変更できません。",
+      "noTransitionAvailable": "遷移可能なステータスがありません",
+      "currentStatus": "現在: {label}"
     },
     "tree": {
       "nameColumn": "フォーマット名",

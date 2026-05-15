@@ -227,7 +227,7 @@ export default function ProjectSelectionModal({
             current: currentPage,
             pageSize: pageSize,
             showSizeChanger: true,
-            showTotal: (total) => `合計: ${total} 件`,
+            showTotal: (total) => `${t('common.total')}${total}${t('common.items')}`,
             pageSizeOptions: ['20', '50', '100'],
             showQuickJumper: true,
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },

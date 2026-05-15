@@ -469,7 +469,7 @@ export default function ProgressMonitoring() {
             current: currentPage,
             pageSize: pageSize,
             showSizeChanger: true,
-            showTotal: (total) => `${t('progress.table.total') || '合計'} ${total} ${t('progress.table.items') || '件'}`,
+            showTotal: (total) => `${t('common.total')}${total}${t('common.items')}`,
             pageSizeOptions: ['20', '50', '100'],
             onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },

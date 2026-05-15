@@ -539,9 +539,9 @@ export default function TransitionList({
             onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
 
             locale: {
-              items_per_page: `${t('common.items')}/page`,
-              jump_to: 'Page',
-              page: ''
+              items_per_page: t('common.itemsPerPage'),
+              jump_to: t('common.jumpToPage'),
+              page: t('common.page')
             }
           }}
           scroll={{ 
