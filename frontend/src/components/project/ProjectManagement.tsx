@@ -274,21 +274,16 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
       const checkoutStatusLabel = getCheckoutStatusLabel(project.isCheckedOut);
 
-      // 検索クエリでフィルタリング - すべての項目を対象（statusNameも含む）
+      // 検索クエリでフィルタリング - 一覧表示項目かつドロップダウンフィルタなしの項目のみ
+      // 対象: プロジェクト名、説明、オーナー名
+      // 除外: ステータス名・チェックアウト状態・部門（ドロップダウンフィルタあり）、
+      //       内部ID・日時・タグ（非表示・重複・未実装）
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         searchQuery === '' ||
-        (project.id ?? '').toLowerCase().includes(q) ||
         (project.name ?? '').toLowerCase().includes(q) ||
-        (project.folderName ?? '').toLowerCase().includes(q) ||
         (project.description ?? '').toLowerCase().includes(q) ||
-        (project.owner ?? '').toLowerCase().includes(q) ||
-        (project.department ?? '').toLowerCase().includes(q) ||
-        ((project.statusName ?? '').toLowerCase().includes(q)) ||
-        checkoutStatusLabel.toLowerCase().includes(q) ||
-        (project.createdAt ?? '').toLowerCase().includes(q) ||
-        (project.updatedAt ?? '').toLowerCase().includes(q) ||
-        (project.tags ?? []).some((tag: string) => tag.toLowerCase().includes(q));
+        (project.ownerName ?? '').toLowerCase().includes(q);
 
       // チェックアウト状態でフィルタリング（プロジェクト単位）
       let matchesCheckout = true;
