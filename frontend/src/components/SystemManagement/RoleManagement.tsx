@@ -418,6 +418,7 @@ export default function RoleManagementMock() {
   const handleReload = () => {
     if (!selectedMasterInfo) return;
     fetchRoleMasters();
+    message.success(t('roleManagement.messages.reloadSuccess'));
   };
 
   const handleUpload = () => {
