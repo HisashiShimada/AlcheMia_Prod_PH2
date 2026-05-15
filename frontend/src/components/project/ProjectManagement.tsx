@@ -103,11 +103,41 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // ProjectMaimlContextを使用
   const { loadMaiml, reloadMaiml, maimlRoot, maimlContent, isLoading: isMaimlLoading } = useProjectMaiml();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [ownerFilter, setOwnerFilter] = useState<string>('my_only'); // my_only, all
-  const [checkoutFilter, setCheckoutFilter] = useState<string>('all'); // all, checked_in, checked_out
-  const [projectStatusFilter, setProjectStatusFilter] = useState<string>('all'); // all, planning, pending, in_progress, completed
-  const [departmentFilter, setDepartmentFilter] = useState<string>('all'); // 初期値: 全部門
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    // ペトリネット編集画面から戻った際に検索クエリを復元
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('projectManagement_searchQuery') ?? '';
+    }
+    return '';
+  });
+  const [ownerFilter, setOwnerFilter] = useState<string>(() => {
+    // ペトリネット編集画面から戻った際にオーナーフィルタを復元
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('projectManagement_ownerFilter') ?? 'my_only';
+    }
+    return 'my_only';
+  }); // my_only, all
+  const [checkoutFilter, setCheckoutFilter] = useState<string>(() => {
+    // ペトリネット編集画面から戻った際にチェックアウトフィルタを復元
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('projectManagement_checkoutFilter') ?? 'all';
+    }
+    return 'all';
+  }); // all, checked_in, checked_out
+  const [projectStatusFilter, setProjectStatusFilter] = useState<string>(() => {
+    // ペトリネット編集画面から戻った際にプロジェクトステータスフィルタを復元
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('projectManagement_projectStatusFilter') ?? 'all';
+    }
+    return 'all';
+  }); // all, planning, pending, in_progress, completed
+  const [departmentFilter, setDepartmentFilter] = useState<string>(() => {
+    // ペトリネット編集画面から戻った際に部門フィルタを復元
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('projectManagement_departmentFilter') ?? 'all';
+    }
+    return 'all';
+  }); // 初期値: 全部門
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
     // 編集画面から戻った際に直前の選択状態を復元
     if (typeof window !== 'undefined') {
@@ -115,8 +145,26 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     }
     return null;
   });
-  const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt'); // ソート項目
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // ソート順序
+  const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>(() => {
+    // ペトリネット編集画面から戻った際にソート項目を復元
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('projectManagement_sortBy');
+      if (saved === 'name' || saved === 'status' || saved === 'createdAt') {
+        return saved;
+      }
+    }
+    return 'createdAt';
+  }); // ソート項目
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => {
+    // ペトリネット編集画面から戻った際にソート順序を復元
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('projectManagement_sortOrder');
+      if (saved === 'asc' || saved === 'desc') {
+        return saved;
+      }
+    }
+    return 'desc';
+  }); // ソート順序
   const [currentFolder, setCurrentFolder] = useState<string>('root');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -888,6 +936,42 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       sessionStorage.removeItem('projectManagement_selectedProjectId');
     }
   }, [selectedProjectId]);
+
+  // フィルタ・ソート状態を sessionStorage に保存（ペトリネット編集画面から戻った際に復元するため）
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem('projectManagement_searchQuery', searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem('projectManagement_ownerFilter', ownerFilter);
+  }, [ownerFilter]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem('projectManagement_checkoutFilter', checkoutFilter);
+  }, [checkoutFilter]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem('projectManagement_projectStatusFilter', projectStatusFilter);
+  }, [projectStatusFilter]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem('projectManagement_departmentFilter', departmentFilter);
+  }, [departmentFilter]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem('projectManagement_sortBy', sortBy);
+  }, [sortBy]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem('projectManagement_sortOrder', sortOrder);
+  }, [sortOrder]);
 
   // 編集画面から戻った際のリフレッシュ処理
   // 初回マウント時に selectedProjectId が sessionStorage から復元済みの場合、
