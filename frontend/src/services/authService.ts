@@ -35,12 +35,12 @@ const handleApiError = (error: unknown): AuthServiceError => {
 
     // タイムアウトエラー
     if (axiosError.code === 'ECONNABORTED') {
-      return new AuthServiceError('Request timed out', 'E3002');
+      return new AuthServiceError(mapErrorToMessage('E3002'), 'E3002');
     }
 
     // ネットワークエラー（レスポンスなし）
     if (!axiosError.response) {
-      return new AuthServiceError('Unable to connect to server', 'E3001');
+      return new AuthServiceError(mapErrorToMessage('E3001'), 'E3001');
     }
 
     // APIエラーレスポンス（バックエンドが error.code を返している場合）
@@ -58,20 +58,20 @@ const handleApiError = (error: unknown): AuthServiceError => {
     // レスポンスはあるがエラー構造が不正な場合 → HTTPステータスからコードを推定
     const statusCode = axiosError.response.status;
     if (statusCode === HTTP_STATUS.UNAUTHORIZED) {
-      return new AuthServiceError('Authentication required', 'E5013');
+      return new AuthServiceError(mapErrorToMessage('E5013'), 'E5013');
     } else if (statusCode === HTTP_STATUS.FORBIDDEN) {
-      return new AuthServiceError('Access denied', 'E5012');
+      return new AuthServiceError(mapErrorToMessage('E5012'), 'E5012');
     } else if (statusCode === HTTP_STATUS.NOT_FOUND) {
-      return new AuthServiceError('Resource not found', 'E6001');
+      return new AuthServiceError(mapErrorToMessage('E6001'), 'E6001');
     } else if (statusCode >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
-      return new AuthServiceError('A server error occurred', 'E4001');
+      return new AuthServiceError(mapErrorToMessage('E4001'), 'E4001');
     }
 
-    return new AuthServiceError('An error occurred', 'E9999');
+    return new AuthServiceError(mapErrorToMessage('E9999'), 'E9999');
   }
 
   // その他のエラー
-  return new AuthServiceError('An error occurred', 'E9999');
+  return new AuthServiceError(mapErrorToMessage('E9999'), 'E9999');
 };
 
 /**
@@ -103,7 +103,7 @@ export const authService = {
 
       // エラーレスポンスの場合（通常はAxiosErrorとして捕捉されるため、ここには到達しにくい）
       throw new AuthServiceError(
-        response.data.error?.message || 'Login failed',
+        mapErrorToMessage(response.data.error?.code || 'E9999', response.data.error?.message),
         response.data.error?.code || 'E9999',
         response.data.error?.details
       );
@@ -138,7 +138,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('PIN verification failed', 'PIN_VERIFY_FAILED');
+      throw new AuthServiceError(mapErrorToMessage('PIN_VERIFY_FAILED'), 'PIN_VERIFY_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -166,7 +166,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('PIN resend failed', 'PIN_RESEND_FAILED');
+      throw new AuthServiceError(mapErrorToMessage('PIN_RESEND_FAILED'), 'PIN_RESEND_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -286,7 +286,7 @@ export const authService = {
         };
       } else {
         // リフレッシュトークンが無効（期限切れなど）
-        throw new AuthServiceError('Refresh token is invalid', 'AUTH_TOKEN_INVALID');
+        throw new AuthServiceError(mapErrorToMessage('AUTH_TOKEN_INVALID'), 'AUTH_TOKEN_INVALID');
       }
     } catch (error) {
       throw handleApiError(error);
@@ -316,7 +316,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('Logout failed', 'LOGOUT_FAILED');
+      throw new AuthServiceError(mapErrorToMessage('LOGOUT_FAILED'), 'LOGOUT_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -343,7 +343,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('Password reset request failed', 'RESET_REQUEST_FAILED');
+      throw new AuthServiceError(mapErrorToMessage('RESET_REQUEST_FAILED'), 'RESET_REQUEST_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -366,7 +366,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('Password reset failed', 'RESET_FAILED');
+      throw new AuthServiceError(mapErrorToMessage('RESET_FAILED'), 'RESET_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
@@ -390,7 +390,7 @@ export const authService = {
         return response.data.data;
       }
       
-      throw new AuthServiceError('Password change failed', 'CHANGE_PASSWORD_FAILED');
+      throw new AuthServiceError(mapErrorToMessage('CHANGE_PASSWORD_FAILED'), 'CHANGE_PASSWORD_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }
