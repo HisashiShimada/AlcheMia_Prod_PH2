@@ -248,7 +248,16 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   E9999: 'errors.E9999',
 
   // ===== レガシーコード対応（バックエンドが旧コードを返す場合のフォールバック） =====
-  AUTH_PIN_INVALID: 'errors.AUTH_PIN_INVALID',
+  AUTH_PIN_INVALID:        'errors.AUTH_PIN_INVALID',
+
+  // ===== 認証サービス内部エラーコード =====
+  PIN_VERIFY_FAILED:       'errors.PIN_VERIFY_FAILED',
+  PIN_RESEND_FAILED:       'errors.PIN_RESEND_FAILED',
+  AUTH_TOKEN_INVALID:      'errors.AUTH_TOKEN_INVALID',
+  LOGOUT_FAILED:           'errors.LOGOUT_FAILED',
+  RESET_REQUEST_FAILED:    'errors.RESET_REQUEST_FAILED',
+  RESET_FAILED:            'errors.RESET_FAILED',
+  CHANGE_PASSWORD_FAILED:  'errors.CHANGE_PASSWORD_FAILED',
 
   // ===== プロジェクト操作系（チェックアウト・チェックイン・削除） =====
   CHECKOUT_NO_MAIML_FILE:       'errors.CHECKOUT_NO_MAIML_FILE',
