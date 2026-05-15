@@ -536,12 +536,6 @@ export default function DepartmentManagement() {
       </Modal>
 
       <style jsx global>{`
-        .ant-form-item-has-error .ant-input {
-          background-color: #ffcccc !important;
-        }
-        .ant-form-item-has-error .ant-input:focus {
-          background-color: #ffcccc !important;
-        }
 
         .active-row td {
           background-color: #d3d3d3 !important;

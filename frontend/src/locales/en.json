@@ -499,7 +499,7 @@
     "tabs": {
       "file_management": "File Management",
       "task_registration": "Task Registration",
-      "instruction_registration": "Instruction List",
+      "instruction_rgistration": "Instruction List",
       "task_results": "Task Results"
     },
     "task_results": {
@@ -1137,7 +1137,8 @@
       "csvDownloadError": "Failed to download CSV",
       "saveSuccess": "User updated",
       "addSuccess": "User added",
-      "saveError": "Failed to save"
+      "saveError": "Failed to save",
+      "duplicateEmailError": "This email address is already in use"
     },
     "pagination": {
       "showTotal": "Total {total} items"
@@ -2104,7 +2105,10 @@
     "CHECKOUT_UNSENT_INSTRUCTIONS": "Unsent instructions exist",
     "TASK_NOT_COMPLETED": "Tasks are not in a state that allows check-in",
     "BUSINESS_MAIML_FILE_EXISTS": "Cannot delete project because a MAIML file exists",
-    "PROJECT_ALREADY_CHECKED_OUT": "This project is already checked out by another user"
+    "PROJECT_ALREADY_CHECKED_OUT": "This project is already checked out by another user",
+    "DUPLICATE_CORPORATION_NAME": "This corporation name is already in use",
+    "USER_ALREADY_EXISTS": "This user ID is already in use",
+    "DUPLICATE_ROLE_CD": "The entered ID already exists"
   },
   "progressStatus": {
     "notStarted": "Not Started",
