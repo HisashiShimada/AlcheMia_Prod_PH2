@@ -13,14 +13,11 @@ export interface Project {
   status: number; // プロジェクトステータス（数値コード: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了）
   statusName?: string; // code_masterから取得したステータス名（日本語）
   fileCount: number;
-  totalSize: number;
   owner: string;
   ownerName?: string;
   ownerEmail?: string;
   department: string;
   departmentName?: string; // 部署名（日本語）
-  members: string[];
-  tags: string[];
   isCheckedOut: boolean;
   checkedOutBy: string | null;
   checkedOutAt: string | null;
@@ -30,7 +27,6 @@ export interface Project {
   totalTasks?: number;
   maimlFileKey?: string | null;
   project_uuid?: string | null;
-  tasks?: Task[];
 }
 
 /**
