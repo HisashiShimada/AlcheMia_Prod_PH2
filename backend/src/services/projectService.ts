@@ -173,21 +173,16 @@ export class ProjectService {
         description: insertResult.description || '',
         status: insertResult.project_status ?? 0, // 数値のまま返す
         fileCount: 0,
-        totalSize: 0,
         owner: insertResult.owner_user_id ?? '',
         ownerName: undefined,
         ownerEmail: undefined,
         department: insertResult.department_cd || '',
-        members: [],
-        tags: [],
         isCheckedOut: insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy:
           insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? insertResult.owner_user_id ?? null : null,
         checkedOutAt: insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
         createdAt: new Date(insertResult.create_at as any).toISOString(),
         updatedAt: new Date(insertResult.create_at as any).toISOString(),
-        totalTasks: 0,
-        completedTasks: 0,
       };
 
       return {
@@ -361,19 +356,16 @@ export class ProjectService {
       const formattedProjects: Project[] = projects.map((row: any) => ({
         id: row.project_id,
         name: row.project_name,
-        folderName: row.project_name, // プロジェクト名をフォルダ名としても使用
+        folderName: row.project_name,
         description: row.description || '',
         status: row.project_status, // 数値のまま返す
         statusName: row.project_status_name || undefined, // code_masterから取得した日本語名
         fileCount: parseInt(row.file_count, 10) || 0,
-        totalSize: 0,
         owner: row.owner_user_id,
         ownerName: row.owner_user_name || undefined,
         ownerEmail: row.owner_email || undefined,
         department: row.department_cd || '',
         departmentName: row.department_name || undefined,
-        members: [], // 後で実装予定
-        tags: [], // 後で実装予定
         isCheckedOut: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? row.checkout_user_id : null,
         checkedOutAt: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,

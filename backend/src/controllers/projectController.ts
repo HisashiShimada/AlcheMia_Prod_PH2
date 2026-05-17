@@ -28,7 +28,7 @@ export async function create(req: Request, res: Response): Promise<void> {
 
   try {
     const { organizationId, userId } = req.user!;
-    const departmentId = null; // req.session?.department_id || null; ToDo プルリク#38待ち
+    const departmentCd = req.user!.departmentCd ?? null;
     
     // 型定義を適用
     const requestBody = req.body as CreateProjectRequest;
@@ -51,7 +51,7 @@ export async function create(req: Request, res: Response): Promise<void> {
     }
 
     // Task 2.3: Service層呼び出し
-    const result = await projectService.create(organizationId, userId, departmentId, {
+    const result = await projectService.create(organizationId, userId, departmentCd, {
       projectName,
       description,
     });
