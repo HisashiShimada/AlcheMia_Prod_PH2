@@ -162,7 +162,7 @@ export default function ProgressCheckTab({
             onSelectMethod(sortedMethods[0].methodId);
           }
           
-          message.success(t('progress.taskListFetched'));
+          message.success(t('experimentWork.messages.taskListFetched'));
         } else {
           console.error('[DEBUG] ProgressCheckTab - API returned unsuccessful', result);
           message.error(extractErrorMessage(null));
@@ -262,7 +262,7 @@ export default function ProgressCheckTab({
     // タスクのmethodIdを取得
     const task = tasks.find(t => t.taskId === taskId);
     if (!task || !task.methodId) {
-      message.error(t('progress.taskNotFound'));
+      message.error(t('experimentWork.messages.taskNotFound'));
       return;
     }
 
@@ -284,7 +284,7 @@ export default function ProgressCheckTab({
             // task.updatedAtの検証
             if (!task.updatedAt) {
               console.error('[DEBUG] handleTaskAction - task.updatedAt is missing!', { task });
-              message.error(t('progress.taskUpdatedAtMissing'));
+              message.error(t('experimentWork.messages.taskUpdatedAtMissing'));
               return;
             }
             
@@ -306,7 +306,7 @@ export default function ProgressCheckTab({
                 newStatus: result.data.new_status
               });
               
-              message.success(t('progress.taskStarted'));
+              message.success(t('experimentWork.messages.taskStarted'));
               
               // タスク一覧を再取得して最新の状態を反映
               const tasksResult = await getWorkerTasks(selectedProject);
@@ -359,7 +359,7 @@ export default function ProgressCheckTab({
               onTaskStatusChanged?.();
             } else {
               console.error('[DEBUG] handleTaskAction - Update failed', result);
-              message.error(t('progress.taskStartFailed'));
+              message.error(t('experimentWork.messages.taskStartFailed'));
             }
           } catch (error) {
             console.error('[DEBUG] handleTaskAction - Error starting task', {
@@ -371,10 +371,10 @@ export default function ProgressCheckTab({
             
             // エラー種別に応じた詳細メッセージ
             if ((error as AxiosError)?.response?.status === HTTP_STATUS.FORBIDDEN) {
-              message.error(t('progress.taskStartForbidden'));
+              message.error(t('experimentWork.messages.taskStartForbidden'));
             } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.CONFLICT) {
               // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
-              message.error(t('progress.taskConflict'));
+              message.error(t('experimentWork.messages.taskConflict'));
               
               // タスク一覧を再取得して最新の状態を反映
               try {
@@ -425,12 +425,12 @@ export default function ProgressCheckTab({
                 }
               } catch (refreshError) {
                 console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
-                message.warning(t('progress.refreshFailed'));
+                message.warning(t('experimentWork.messages.refreshFailed'));
               }
             } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
-              message.error(t('progress.taskNotFound'));
+              message.error(t('experimentWork.messages.taskNotFound'));
             } else {
-              message.error(t('progress.taskStartError'));
+              message.error(t('experimentWork.messages.taskStartError'));
             }
           }
           break;
@@ -439,7 +439,7 @@ export default function ProgressCheckTab({
           // 指示確認タブへ遷移（メソッドとタスクを選択してからタブ移動）
           if (onSelectTaskAndTab) {
             onSelectTaskAndTab(taskId, '2', task.methodId); // 指示確認タブ・methodIdを渡す
-            message.info(t('progress.goToInstructionTab'));
+            message.info(t('experimentWork.messages.goToInstructionTab'));
           } else {
             // フォールバック: メソッドを先に選択
             if (task.methodId && onSelectMethod) {
@@ -447,7 +447,7 @@ export default function ProgressCheckTab({
             }
             if (onTabChange) {
               onTabChange('2'); // 指示確認タブ
-              message.info(t('progress.goToInstructionTab'));
+              message.info(t('experimentWork.messages.goToInstructionTab'));
             }
           }
           break;
@@ -456,10 +456,10 @@ export default function ProgressCheckTab({
           // 実験記録タブへ遷移（タスクを選択してからタブ移動）
           if (onSelectTaskAndTab) {
             onSelectTaskAndTab(taskId, '3', task.methodId); // 実験記録タブ・methodIdを渡す
-            message.info(t('progress.goToRecordTab'));
+            message.info(t('experimentWork.messages.goToRecordTab'));
           } else if (onTabChange) {
             onTabChange('3'); // フォールバック
-            message.info(t('progress.goToRecordTab'));
+            message.info(t('experimentWork.messages.goToRecordTab'));
           }
           break;
 
@@ -489,7 +489,7 @@ export default function ProgressCheckTab({
             // task.updatedAtの検証
             if (!task.updatedAt) {
               console.error('[DEBUG] handleTaskAction - task.updatedAt is missing!', { task });
-              message.error(t('progress.taskUpdatedAtMissing'));
+              message.error(t('experimentWork.messages.taskUpdatedAtMissing'));
               return;
             }
             
@@ -511,7 +511,7 @@ export default function ProgressCheckTab({
                 newStatus: result.data.new_status
               });
               
-              message.success(t('progress.taskForceTerminated'));
+              message.success(t('experimentWork.messages.taskForceTerminated'));
               
               // タスク一覧を再取得して最新の状態を反映
               const tasksResult = await getWorkerTasks(selectedProject);
@@ -564,7 +564,7 @@ export default function ProgressCheckTab({
               onTaskStatusChanged?.();
             } else {
               console.error('[DEBUG] handleTaskAction - Force terminate failed', result);
-              message.error(t('progress.taskForceTerminateFailed'));
+              message.error(t('experimentWork.messages.taskForceTerminateFailed'));
             }
           } catch (error) {
             console.error('[DEBUG] handleTaskAction - Error force terminating task', {
@@ -576,10 +576,10 @@ export default function ProgressCheckTab({
             
             // エラー種別に応じた詳細メッセージ
             if ((error as AxiosError)?.response?.status === HTTP_STATUS.FORBIDDEN) {
-              message.error(t('progress.taskForceTerminateForbidden'));
+              message.error(t('experimentWork.messages.taskForceTerminateForbidden'));
             } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.CONFLICT) {
               // 楽観的ロックの競合エラー: 他のユーザーが先に更新した可能性
-              message.error(t('progress.taskConflict'));
+              message.error(t('experimentWork.messages.taskConflict'));
               
               // タスク一覧を再取得して最新の状態を反映
               try {
@@ -630,22 +630,22 @@ export default function ProgressCheckTab({
                 }
               } catch (refreshError) {
                 console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
-                message.warning(t('progress.refreshFailed'));
+                message.warning(t('experimentWork.messages.refreshFailed'));
               }
             } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
-              message.error(t('progress.taskNotFound'));
+              message.error(t('experimentWork.messages.taskNotFound'));
             } else {
-              message.error(t('progress.taskForceTerminateError'));
+              message.error(t('experimentWork.messages.taskForceTerminateError'));
             }
           }
           break;
 
         default:
-          message.warning(t('progress.unknownAction'));
+          message.warning(t('experimentWork.messages.unknownAction'));
       }
     } catch (error) {
       console.error('Task action processing error:', error);
-      message.error(t('progress.taskUpdateFailed'));
+      message.error(t('experimentWork.messages.taskUpdateFailed'));
     }
   }, [selectedProject, tasks, onTabChange, onSelectTaskAndTab, onSelectMethod]);
 
@@ -655,19 +655,19 @@ export default function ProgressCheckTab({
     label: string;
   } => {
     if (methodTasks.length === 0) {
-      return { status: 'default', label: t('task.status.notStarted') };
+      return { status: 'default', label: t('experimentWork.methodStatus.notStarted') };
     }
 
     // 強制終了タスクがあればエラー
     const hasForceTerminated = methodTasks.some(task => task.status === 'forced_terminated');
     if (hasForceTerminated) {
-      return { status: 'error', label: t('experimentWork.status.completed') };
+      return { status: 'error', label: t('experimentWork.methodStatus.error') };
     }
 
     // 全タスクが完了していれば完了
     const allCompleted = methodTasks.every(task => task.status === 'completed');
     if (allCompleted) {
-      return { status: 'success', label: t('task.status.completed') };
+      return { status: 'success', label: t('experimentWork.methodStatus.completed') };
     }
 
     // 作業中のタスクがあれば作業中
@@ -675,11 +675,11 @@ export default function ProgressCheckTab({
       task => task.status === 'in_progress'
     );
     if (hasInProgress) {
-      return { status: 'processing', label: t('task.status.inProgress') };
+      return { status: 'processing', label: t('experimentWork.methodStatus.inProgress') };
     }
 
     // それ以外は未着手
-    return { status: 'default', label: t('task.status.notStarted') };
+    return { status: 'default', label: t('experimentWork.methodStatus.notStarted') };
   }, []);
 
   // メソッドタブを生成（各メソッドに紐づくタスクをフィルタリングして表示）
@@ -733,7 +733,7 @@ export default function ProgressCheckTab({
                   fontSize: '14px'
                 }}
               >
-                {t('progress.taskNotFound')}
+                {t('experimentWork.messages.taskNotFound')}
               </div>
             )}
           </div>

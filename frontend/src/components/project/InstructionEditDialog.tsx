@@ -452,7 +452,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
                   <Select.Option value={InstructionTypeCode.SETUP}>{t('instruction.type.setup')}</Select.Option>
                   <Select.Option value={InstructionTypeCode.MEASUREMENT}>{t('instruction.type.measurement')}</Select.Option>
                   <Select.Option value={InstructionTypeCode.SAFETY}>{t('instruction.type.safety')}</Select.Option>
-                  <Select.Option value={InstructionTypeCode.CLEANING}>{t('instruction.type.cleaning')}</Select.Option>
+                  <Select.Option value={InstructionTypeCode.CLEANING}>{t('instruction.type.cleanup')}</Select.Option>
                 </>
               )}
             </Select>

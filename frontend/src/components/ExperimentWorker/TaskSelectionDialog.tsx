@@ -82,17 +82,17 @@ export default function TaskSelectionDialog({
     const getStatusTag = (status: string) => {
       switch (status) {
         case 'not_started':
-          return <Tag>{t('taskStatus.not_started')}</Tag>;
+          return <Tag>{t('task.status.notStarted')}</Tag>;
         case 'started':
-          return <Tag color="blue">{t('taskStatus.started')}</Tag>;
+          return <Tag color="blue">{t('task.status.started')}</Tag>;
         case 'in_progress':
-          return <Tag color="orange">{t('taskStatus.in_progress')}</Tag>;
+          return <Tag color="orange">{t('task.status.inProgress')}</Tag>;
         case 'completed':
-          return <Tag color="green">{t('taskStatus.completed')}</Tag>;
+          return <Tag color="green">{t('task.status.completed')}</Tag>;
         case 'suspended':
-          return <Tag color="red">{t('taskStatus.suspended')}</Tag>;
+          return <Tag color="red">{t('task.status.suspended')}</Tag>;
         case 'forced_terminated':
-          return <Tag color="red">{t('taskStatus.forced_terminated')}</Tag>;
+          return <Tag color="red">{t('task.status.forceTerminated')}</Tag>;
         default:
           return null;
       }

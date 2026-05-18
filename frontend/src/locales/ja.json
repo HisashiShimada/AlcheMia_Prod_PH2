@@ -253,21 +253,41 @@
       "inProgress": "進行中",
       "completed": "完了",
       "forcedTerminated": "強制終了",
-      "suspended": "中断",
+      "suspended": "中断"
+    },
+    "transitionStatus": {
+      "notStarted": "未着手",
       "working": "作業中",
-      "onHold": "保留中",
+      "completed": "完了",
+      "onHold": "保留",
       "issue": "問題あり"
+    },
+    "methodStatus": {
+      "notStarted": "未着手",
+      "inProgress": "作業中",
+      "completed": "完了",
+      "error": "エラー"
     },
     "messages": {
       "selectProjectAndMethod": "プロジェクトとメソッドを選択してください",
       "noTasksFound": "タスクが見つかりません",
+      "taskListFetched": "タスク一覧を取得しました",
+      "taskNotFound": "タスクが見つかりません",
+      "taskUpdatedAtMissing": "タスクの更新日時が取得できませんでした。画面を再読み込みしてください。",
       "taskStarted": "タスクを開始しました",
-      "taskCompleted": "タスクを完了しました",
-      "moveToExperimentRecord": "実験記録タブに移動します",
-      "moveToProgressReport": "進捗報告タブに移動します",
-      "updateFailed": "タスクの更新に失敗しました",
-      "batchProgressNotImplemented": "一括進捗報告機能は今後実装予定です",
-      "approvalRequestNotImplemented": "承認依頼機能は今後実装予定です"
+      "taskStartFailed": "タスクの開始に失敗しました",
+      "taskStartForbidden": "このタスクを開始する権限がありません",
+      "taskConflict": "このタスクは他のユーザーによって更新されました。最新の情報を取得しています..",
+      "refreshFailed": "最新の情報取得に失敗しました。画面を再読み込みしてください。",
+      "taskStartError": "タスクの開始中にエラーが発生しました",
+      "goToInstructionTab": "指示確認タブに移動します。",
+      "goToRecordTab": "実験記録タブに移動します。",
+      "taskForceTerminated": "タスクを強制終了しました",
+      "taskForceTerminateFailed": "タスクの強制終了に失敗しました",
+      "taskForceTerminateForbidden": "このタスクを強制終了する権限がありません",
+      "taskForceTerminateError": "タスクの強制終了中にエラーが発生しました",
+      "unknownAction": "不明なアクションです。",
+      "taskUpdateFailed": "タスクの更新に失敗しました"
     }
   },
   "formatManagement": {
@@ -693,23 +713,6 @@
     "actions": {
       "viewDetails": "詳細表示"
     },
-    "taskListFetched": "タスク一覧を取得しました",
-    "taskNotFound": "タスクが見つかりません",
-    "taskUpdatedAtMissing": "タスクの更新日時が取得できませんでした。画面を再読み込みしてください。",
-    "taskStarted": "タスクを開始しました",
-    "taskStartFailed": "タスクの開始に失敗しました",
-    "taskStartForbidden": "このタスクを開始する権限がありません",
-    "taskConflict": "このタスクは他のユーザーによって更新されました。最新の情報を取得しています..",
-    "refreshFailed": "最新の情報取得に失敗しました。画面を再読み込みしてください。",
-    "taskStartError": "タスクの開始中にエラーが発生しました",
-    "goToInstructionTab": "指示確認タブに移動します。",
-    "goToRecordTab": "実験記録タブに移動します。",
-    "taskForceTerminated": "タスクを強制終了しました",
-    "taskForceTerminateFailed": "タスクの強制終了に失敗しました",
-    "taskForceTerminateForbidden": "このタスクを強制終了する権限がありません",
-    "taskForceTerminateError": "タスクの強制終了中にエラーが発生しました",
-    "unknownAction": "不明なアクションです。",
-    "taskUpdateFailed": "タスクの更新に失敗しました",
     "maimlNotFound": "MAIMLファイルが見つかりません",
     "fileInfoFetchFailed": "ファイル情報の取得に失敗しました"
   },
@@ -835,14 +838,6 @@
       "fetchFailed": "タスク登録情報の取得に失敗しました",
       "saveFailed": "タスク情報の保存に失敗しました"
     }
-  },
-  "taskStatus": {
-    "not_started": "未着手",
-    "started": "着手",
-    "in_progress": "進行中",
-    "suspended": "中断",
-    "forced_terminated": "強制終了",
-    "completed": "完了"
   },
   "corporationManagement": {
     "title": "会社管理",
@@ -1134,7 +1129,8 @@
       "csvDownloadError": "CSVダウンロードに失敗しました",
       "saveSuccess": "ユーザー情報を更新しました",
       "addSuccess": "ユーザーを追加しました",
-      "saveError": "保存に失敗しました"
+      "saveError": "保存に失敗しました",
+      "duplicateEmailError": "このメールアドレスは既に使用されています"
     },
     "pagination": {
       "showTotal": "全 {total} 件"
@@ -1472,12 +1468,6 @@
       "normal": "通常",
       "low": "低"
     },
-    "priorityLabels": {
-      "0": "低",
-      "1": "通常",
-      "2": "中",
-      "3": "高"
-    },
     "type": {
       "0": "一般",
       "1": "セットアップ",
@@ -1489,13 +1479,6 @@
       "measurement": "測定",
       "safety": "安全",
       "cleanup": "清掃"
-    },
-    "typeLabels": {
-      "0": "一般",
-      "1": "セットアップ",
-      "2": "測定",
-      "3": "安全",
-      "4": "清掃"
     },
     "target": {
       "method": "メソッド",
@@ -1597,14 +1580,6 @@
   },
   "workProgressDetail": {
     "fetchFileFailed": "ファイル詳細の取得に失敗しました"
-  },
-  "progressStatus": {
-    "not_started": "未開始",
-    "preparing": "準備中",
-    "in_progress": "作業中",
-    "suspended": "休止中",
-    "abnormal": "異常中",
-    "completed": "完了"
   },
   "instructionType": {
     "project_instruction": "プロジェクト指示",
@@ -2102,7 +2077,10 @@
     "CHECKOUT_UNSENT_INSTRUCTIONS": "未送信の指示が存在します",
     "TASK_NOT_COMPLETED": "チェックイン可能なタスクステータスではありません",
     "BUSINESS_MAIML_FILE_EXISTS": "MAIMLファイルが存在するためプロジェクトを削除できません",
-    "PROJECT_ALREADY_CHECKED_OUT": "このプロジェクトは既に他のユーザーによってチェックアウトされています"
+    "PROJECT_ALREADY_CHECKED_OUT": "このプロジェクトは既に他のユーザーによってチェックアウトされています",
+    "DUPLICATE_CORPORATION_NAME": "この会社名は既に使用されています",
+    "USER_ALREADY_EXISTS": "このユーザーIDは既に使用されています",
+    "DUPLICATE_ROLE_CD": "入力されたIDは既に存在しています"
   },
   "progressStatus": {
     "notStarted": "初期状態",
@@ -2295,7 +2273,7 @@
       "setup": "セットアップ",
       "measurement": "測定",
       "safety": "安全",
-      "cleaning": "清掃"
+      "cleanup": "清掃"
     }
   },
   "nestedPropertyEditor": {
