@@ -345,14 +345,14 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
    * 優先度のラベル（code_value → code_name）
    */
   const getPriorityLabel = useCallback((priority: number): string => {
-    return t(`instructionRegistration.priorityLabels.${priority}`) || String(priority);
+    return t(`instructionRegistration.priority.${priority}`) || String(priority);
   }, [t]);
 
   /**
    * タイプのラベル（code_value → code_name）
    */
   const getTypeLabel = useCallback((type: number): string => {
-    return t(`instructionRegistration.typeLabels.${type}`) || String(type);
+    return t(`instructionRegistration.type.${type}`) || String(type);
   }, [t]);
 
   /**

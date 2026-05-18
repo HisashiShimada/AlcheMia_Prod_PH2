@@ -28,7 +28,7 @@ import { createApiClient } from '@/utils/authUtils';
 import { formatDateTime } from '@/utils/formatUtils';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { extractErrorMessage } from '@/utils/errorUtils';
+import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
 import type { CorporationData } from '@/types/organization';
 
 const { Text } = Typography;
@@ -476,6 +476,21 @@ export default function CorporationManagement() {
         return;
       }
       console.error('保存エラー:', error);
+
+      // 重複エラー（DUPLICATE_CORPORATION_NAME / E7001）はフォームインラインで表示
+      const code = extractErrorCode(error);
+      if (code === 'DUPLICATE_CORPORATION_NAME' || code === 'E7001') {
+        const dupMsg = t('errors.DUPLICATE_CORPORATION_NAME');
+        form.setFields([
+          {
+            name: 'corporationName',
+            errors: [dupMsg],
+          },
+        ]);
+        messageApi.error(dupMsg);
+        return;
+      }
+
       messageApi.error(extractErrorMessage(error, t('corporationManagement.messages.saveError')));
     }
   };
@@ -605,7 +620,9 @@ export default function CorporationManagement() {
               { max: 50, message: t('corporationManagement.form.corporationNameMaxLength') },
             ]}
           >
-            <Input placeholder={t('corporationManagement.form.corporationNamePlaceholder')} />
+            <Input
+              placeholder={t('corporationManagement.form.corporationNamePlaceholder')}
+            />
           </Form.Item>
 
           <Form.Item

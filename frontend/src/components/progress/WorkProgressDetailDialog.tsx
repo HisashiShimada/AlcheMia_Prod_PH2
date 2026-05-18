@@ -121,7 +121,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
         setFileDetails({
           projectInfo: projectInfo ? {
             ...projectInfo,
-            status: projectInfo.status as 'planning' | 'in_progress' | 'pending' | 'completed'
+            status: projectInfo.status as 'planning' | 'in_progress' | 'pending' | 'review_waiting' | 'completed' | 'error'
           } : undefined,
           fileInfo: {
             ...fileInfo,
@@ -394,15 +394,27 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                       {fileDetails.projectInfo.projectName}
                     </Text>
                     {fileDetails.projectInfo.status && (
-                      <Tag 
+                      <Tag
                         color={
                           fileDetails.projectInfo.status === 'completed' ? 'success' :
-                          fileDetails.projectInfo.status === 'in_progress' ? 'processing' :
-                          fileDetails.projectInfo.status === 'pending' ? 'warning' :
+                          fileDetails.projectInfo.status === 'in_progress' ? 'cyan' :
+                          fileDetails.projectInfo.status === 'review_waiting' ? 'purple' :
+                          fileDetails.projectInfo.status === 'pending' ? 'blue' :
+                          fileDetails.projectInfo.status === 'error' ? 'error' :
                           'default'
                         }
                       >
-                        {t(`progress.detail.projectStatus.${fileDetails.projectInfo.status}`)}
+                        {(() => {
+                          switch (fileDetails.projectInfo.status) {
+                            case 'planning': return t('progress.filter.planning');
+                            case 'pending': return t('progress.filter.pending');
+                            case 'in_progress': return t('progress.filter.inProgress');
+                            case 'review_waiting': return t('progress.filter.reviewWaiting');
+                            case 'completed': return t('progress.filter.completed');
+                            case 'error': return t('progress.filter.error');
+                            default: return fileDetails.projectInfo.status;
+                          }
+                        })()}
                       </Tag>
                     )}
                   </Space>

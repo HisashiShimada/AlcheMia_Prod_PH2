@@ -60,9 +60,6 @@ export default function OrganizationManagement() {
   const [form] = Form.useForm();
   const [companyOptions, setCompanyOptions] = useState<OptionType[]>([]);
   const [systemAdminOptions, setSystemAdminOptions] = useState<OptionType[]>([]);
-  const [isDuplicateChecking, setIsDuplicateChecking] = useState(false);
-  const [isDuplicate, setIsDuplicate] = useState(false);
-  const [organizationCdValue, setOrganizationCdValue] = useState('');
   const [defaultRetentionDaysDefault, setDefaultRetentionDaysDefault] = useState<number>(30);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -322,36 +319,8 @@ export default function OrganizationManagement() {
     }
   };
 
-  useEffect(() => {
-    if (editingOrg || !organizationCdValue || organizationCdValue.length === 0) {
-      setIsDuplicate(false);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setIsDuplicateChecking(true);
-      try {
-        const client = createApiClient();
-        const response = await client.get(`/provider/organization/check-cd/${organizationCdValue}`);
-        if (response.data.exists) {
-          setIsDuplicate(true);
-          form.setFields([{ name: 'organizationCd', errors: [t('organizationManagement.form.organizationCdDuplicate')] }]);
-        } else {
-          setIsDuplicate(false);
-          form.setFields([{ name: 'organizationCd', errors: [] }]);
-        }
-      } catch (_error) {
-        setIsDuplicate(false);
-      } finally {
-        setIsDuplicateChecking(false);
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [organizationCdValue, form, editingOrg]);
-
   const handleAdd = () => {
     setEditingOrg(null);
-    setIsDuplicate(false);
-    setOrganizationCdValue('');
     form.resetFields();
     form.setFieldsValue({
       organizationCd: '',
@@ -567,11 +536,6 @@ export default function OrganizationManagement() {
     try {
       const values = await form.validateFields();
 
-      // 組織CD重複チェック中 or 重複確定の場合は送信しない
-      if (!editingOrg && (isDuplicateChecking || isDuplicate)) {
-        return;
-      }
-
       const client = createApiClient();
       if (editingOrg) {
         const { chiefUserEmail, ...saveData } = values;
@@ -583,7 +547,6 @@ export default function OrganizationManagement() {
         messageApi.success(t('organizationManagement.messages.addSuccess'));
       }
       setIsModalVisible(false);
-      setOrganizationCdValue('');
       form.resetFields();
       await fetchOrganizations();
     } catch (error) {
@@ -598,8 +561,9 @@ export default function OrganizationManagement() {
         if (axiosError.response?.status === 409) {
           const code = axiosError.response?.data?.error?.code;
           if (code === 'DUPLICATE_ORGANIZATION_CD') {
-            form.setFields([{ name: 'organizationCd', errors: [t('organizationManagement.form.organizationCdDuplicate')] }]);
-            setIsDuplicate(true);
+            const dupMsg = t('organizationManagement.form.organizationCdDuplicate');
+            form.setFields([{ name: 'organizationCd', errors: [dupMsg] }]);
+            messageApi.error(dupMsg);
             return;
           }
         }
@@ -611,7 +575,6 @@ export default function OrganizationManagement() {
 
   const handleModalCancel = () => {
     setIsModalVisible(false);
-    setIsDuplicate(false);
     form.resetFields();
   };
 
@@ -910,7 +873,7 @@ export default function OrganizationManagement() {
                 label={t('organizationManagement.form.organizationCd')}
                 rules={[{ required: true, message: t('organizationManagement.form.organizationCdRequired') }]}
               >
-                <Input onChange={(e) => setOrganizationCdValue(e.target.value)} />
+                <Input />
               </Form.Item>
               <Form.Item
                 name="organizationDisplayName"

@@ -1185,8 +1185,12 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       console.error('エラー:', error);
       
       // エラーメッセージを取得
-      const errorMessage = extractErrorMessage(error, t('masterManagement.messages.genericError'));
-      
+      // plain Error（axios エラーでないもの）は error.message をそのまま使用
+      // Axios エラーは extractErrorMessage でエラーコードを解決
+      const errorMessage = (error instanceof Error && !('isAxiosError' in error))
+        ? error.message
+        : extractErrorMessage(error, t('masterManagement.messages.genericError'));
+
       // 409エラー（ID重複）の場合: E6001〜E6006 または HTTP 409 をエラーコードで判定
       const errorCode = extractErrorCode(error);
       if (errorCode === 'E6001' || errorCode === 'E6005' || errorCode === 'E6006') {
