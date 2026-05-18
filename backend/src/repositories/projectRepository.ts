@@ -782,3 +782,28 @@ export async function findWithOwnerAndDept(
   const sql = await loadSqlFile('projects/findWithOwnerAndDept.sql');
   return pgp.oneOrNone(sql, [projectId, organizationId]);
 }
+
+/**
+ * project_uuid が他のプロジェクト（除外プロジェクト以外）に既に登録されているか確認
+ *
+ * @param organizationId 組織ID（マルチテナント分離必須）
+ * @param projectUuid 確認する UUID
+ * @param excludeProjectName 除外するプロジェクト名（アップロード先プロジェクト自身）
+ * @returns 重複しているプロジェクト名（null = 重複なし）
+ */
+export async function findProjectNameByUuid(
+  organizationId: string,
+  projectUuid: string,
+  excludeProjectName?: string
+): Promise<string | null> {
+  const pgp = getPgp();
+  // SQLファイル: projects/findProjectNameByUuid.sql
+  // excludeProjectName が undefined の場合は空文字で渡す（WHERE project_name != '' は実質スキップされない点に注意）
+  // → 通常は excludeProjectName を必ず指定すること
+  const sqlQuery = await loadSqlFile('projects/findProjectNameByUuid.sql');
+  const result = await pgp.oneOrNone<{ project_name: string }>(
+    sqlQuery,
+    [organizationId, projectUuid, excludeProjectName ?? '']
+  );
+  return result?.project_name ?? null;
+}

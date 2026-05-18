@@ -13,14 +13,22 @@
  */
 export class ValidationError extends Error {
   public readonly statusCode = 400;
-  public readonly code = 'E1003';
+  public readonly code: string;
   public readonly details?: any[];
 
-  constructor(message: string, details?: any[]) {
+  constructor(message: string, detailsOrCode?: any[] | string, details?: any[]) {
     super(message);
     this.name = 'ValidationError';
-    this.details = details;
-    
+
+    // 第2引数が文字列の場合はエラーコード、配列の場合は旧来のdetails
+    if (typeof detailsOrCode === 'string') {
+      this.code = detailsOrCode;
+      this.details = details;
+    } else {
+      this.code = 'E1003';
+      this.details = detailsOrCode;
+    }
+
     // TypeScript の制約により、Error を継承する場合は必要
     Object.setPrototypeOf(this, ValidationError.prototype);
   }

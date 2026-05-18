@@ -9,6 +9,7 @@
 
 import axios from 'axios';
 import { createApiClient } from '@/utils/authUtils';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import type { ApiResponse } from '@/types/api';
 import type { AxiosProgressEvent } from 'axios';
 import type {
@@ -443,6 +444,7 @@ export const uploadFiles = async (
   const successFiles: UploadedFileInfo[] = [];
   let failedCount = 0;
   const failedFileNames: string[] = [];
+  const failedFileReasons: Record<string, string> = {};
 
   results.forEach((result, idx) => {
     if (result.status === 'fulfilled') {
@@ -451,7 +453,14 @@ export const uploadFiles = async (
       failedCount++;
       const file = files[idx];
       failedFileNames.push(file.name);
-      console.error(`[uploadFiles] ${file.name} アップロード失敗:`, result.reason);
+      // AxiosError のレスポンスボディからエラーコードを取得し、日本語メッセージに変換
+      const reason = result.reason;
+      const apiCode = (reason as any)?.response?.data?.error?.code as string | undefined;
+      const errorMessage = apiCode
+        ? extractErrorMessage(reason)
+        : (reason instanceof Error ? reason.message : extractErrorMessage(reason));
+      failedFileReasons[file.name] = errorMessage;
+      console.error(`[uploadFiles] ${file.name} アップロード失敗 (${apiCode ?? 'unknown'}):`, reason);
     }
   });
 
@@ -501,6 +510,7 @@ export const uploadFiles = async (
       totalSize: successFiles.reduce((sum, f) => sum + f.fileSize, 0),
     },
     failedFileNames,
+    failedFileReasons,
     hasMaimlFile,
   };
 };

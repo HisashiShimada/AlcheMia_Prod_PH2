@@ -226,6 +226,10 @@ export interface UploadResponseData {
   // ✨ Task: アップロードキャンセル機能実装
   // バッチID（キャンセル処理で使用）
   batchId?: string;
+  /** 失敗したファイル名の一覧 */
+  failedFileNames: string[];
+  /** 失敗したファイルの理由（ファイル名 → エラーメッセージ）*/
+  failedFileReasons?: Record<string, string>;
 }
 
 /**
@@ -287,6 +291,8 @@ export interface UploadResultSummary {
   failureCount: number;
   /** 失敗したファイル名の一覧 */
   failedFileNames: string[];
+  /** 失敗したファイルの理由（ファイル名 → エラーメッセージ） */
+  failedFileReasons?: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
