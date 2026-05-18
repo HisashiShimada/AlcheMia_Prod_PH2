@@ -24,6 +24,7 @@ import { XMLParser } from 'fast-xml-parser';
 import type { Project, Pagination, ProjectListResponse } from '../types/project';
 import type { ProjectFileResponse, GetProjectFilesData, StorageFileEntry } from '../types/file';
 import { nanoid } from 'nanoid';
+import { v4 as uuidv4 } from 'uuid';
 
 interface ListOptions {
   includeCompleted: boolean;
@@ -117,6 +118,9 @@ export class ProjectService {
       const projectId = `project_${nanoid(12)}`;
       const createAt = new Date().toISOString();
 
+      // project_uuid はプロジェクト作成時に uuidv4() で採番し、以降は変更しない
+      const projectUuid = uuidv4();
+
       const insertResult = await projectRepository.insert({
         organization_id: organizationId,
         project_id: projectId,
@@ -127,6 +131,7 @@ export class ProjectService {
         project_status: 0, // プロジェクト計画中
         checkout_status: 0, // チェックイン中
         project_maiml_flg: false,
+        project_uuid: projectUuid,
         create_at: createAt as any,
         create_user_id: userId,
         update_user_id: userId,

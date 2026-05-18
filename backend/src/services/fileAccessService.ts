@@ -419,68 +419,75 @@ export class FileAccessService {
               : false;
 
             if (maimlRegistered) {
-              // プロジェクトにMAIMLが既に登録済み → UUID一致チェック
-              // アップロードファイルのUUIDを MaimlParserTyped で抽出（既存パターンと同じ方式）
-              let documentUuidForCheck: string | undefined;
+              // プロジェクトにMAIMLが既に登録済み → ストレージの現在MAIMLと Document UUID を比較
+              // ※ project_uuid はシステム採番のため documentUuid との比較は廃止
+              // アップロードファイルの Document UUID を抽出
+              let uploadingDocumentUuid: string | undefined;
               try {
                 const maimlParser = new MaimlParserTyped(file.buffer.toString('utf-8'));
                 const doc = maimlParser.getDocument();
                 const uuid = doc?.uuid?.trim();
                 if (uuid && uuid.length > 0) {
-                  documentUuidForCheck = uuid;
-                  console.log('🔍 [Upload] Document UUID 抽出成功（重複チェック用）:', documentUuidForCheck);
+                  uploadingDocumentUuid = uuid;
+                  console.log('🔍 [Upload] Document UUID 抽出成功（上書きチェック用）:', uploadingDocumentUuid);
                 }
               } catch (parseError) {
-                console.warn('⚠️ [Upload] UUID抽出失敗（重複チェック用）:', parseError);
+                console.warn('⚠️ [Upload] UUID抽出失敗（上書きチェック用）:', parseError);
               }
 
-              if (documentUuidForCheck && projectUuid && documentUuidForCheck === projectUuid) {
-                // UUID一致 → 同一プロジェクトのMAIML更新として許可
-                // 上書き前に既存MAIMLをarchiveにバックアップ（同名ファイルが存在する場合のみ）
-                console.log(`✅ [Upload] UUID一致のため上書き許可: projectName=${projectName}, uuid=${documentUuidForCheck}`);
-                if (maimlExists) {
-                  await createMaimlBackup(existingMaimlPath, organizationId);
-                  // バックアップ失敗はcreateMaimlBackup内で警告のみ（nullを返すだけでthrowしない）
+              // file_metadata から現在のMAIMLの fileKey を取得してDocument UUID を比較
+              // project_uuid が設定済みなら findMaimlByProjectUuid、未設定なら findMaimlByProjectName にフォールバック
+              let allowOverwrite = false;
+              const currentMaimlMeta = existingProject?.project_uuid
+                ? await this.repository.findMaimlByProjectUuid(existingProject.project_uuid)
+                : await this.repository.findMaimlByProjectName(organizationId, projectName);
+
+              if (currentMaimlMeta?.file_key) {
+                try {
+                  // 取得した fileKey でストレージから現在のMAIMLを取得して Document UUID を抽出
+                  const relKey = currentMaimlMeta.file_key.startsWith(`${organizationId}/`)
+                    ? currentMaimlMeta.file_key.slice(organizationId.length + 1)
+                    : currentMaimlMeta.file_key;
+                  const currentBuffer = await this.storageService.downloadFile(organizationId, relKey);
+                  const currentContent = currentBuffer.toString('utf-8');
+                  const currentParser = new MaimlParserTyped(currentContent);
+                  const currentDoc = currentParser.getDocument();
+                  const currentDocumentUuid = currentDoc?.uuid?.trim();
+
+                  if (uploadingDocumentUuid && currentDocumentUuid && uploadingDocumentUuid === currentDocumentUuid) {
+                    // Document UUID 一致 → 同一MAIMLをベースにした変更 → 上書き許可
+                    allowOverwrite = true;
+                    console.log(`✅ [Upload] Document UUID一致のため上書き許可: projectName=${projectName}, documentUuid=${uploadingDocumentUuid}`);
+                    if (maimlExists) {
+                      await createMaimlBackup(existingMaimlPath, organizationId);
+                    }
+                  } else {
+                    console.error(`❌ [Upload] Document UUID不一致: uploading=${uploadingDocumentUuid}, current=${currentDocumentUuid}`);
+                  }
+                } catch (storageErr) {
+                  console.error(`❌ [Upload] ストレージからのMAIML取得失敗:`, storageErr instanceof Error ? storageErr.message : storageErr);
                 }
               } else {
-                // UUID不一致 または UUID未取得 → 従来通り拒否
-                console.error(`❌ [Upload] MAIMLファイル重複（UUID不一致またはUUID未取得）: projectName=${projectName}, documentUuid=${documentUuidForCheck}, projectUuid=${projectUuid}`);
+                // file_metadata が見つからない（データ不整合）→ 上書き許可として扱う
+                allowOverwrite = true;
+                console.warn(`⚠️ [Upload] file_metadataが見つからないため上書き許可（データ不整合の可能性）: projectName=${projectName}`);
+                if (maimlExists) {
+                  await createMaimlBackup(existingMaimlPath, organizationId);
+                }
+              }
+
+              if (!allowOverwrite) {
                 throw new ValidationError(
-                  `プロジェクトにMAIMLファイルが既に存在します: ${sanitizedFileName}`
+                  `別のMAIMLファイルへの上書きは許可されていません。同じMAIMLをベースにした変更のみ許可されます（プロジェクト名: ${projectName}）`,
+                  'E7013'
                 );
               }
             }
 
             // ③ 新規登録時の追加チェック（maimlRegistered=false の場合）
+            // ※ ③-a UUID重複チェック（findProjectNameByUuid による E7013）は廃止
+            //   project_uuid はシステム採番のため、Document UUID での重複チェックは不要
             if (!maimlRegistered) {
-              // ③-a UUID重複チェック: アップロードファイルのUUIDが別プロジェクトに登録済みでないか確認
-              let documentUuidForNewCheck: string | undefined;
-              try {
-                const maimlParser = new MaimlParserTyped(file.buffer.toString('utf-8'));
-                const doc = maimlParser.getDocument();
-                const uuid = doc?.uuid?.trim();
-                if (uuid && uuid.length > 0) {
-                  documentUuidForNewCheck = uuid;
-                }
-              } catch (parseError) {
-                console.warn('⚠️ [Upload] UUID抽出失敗（新規UUID重複チェック用）:', parseError);
-              }
-
-              if (documentUuidForNewCheck) {
-                const conflictProjectName = await projectRepository.findProjectNameByUuid(
-                  organizationId,
-                  documentUuidForNewCheck,
-                  projectName
-                );
-                if (conflictProjectName) {
-                  console.error(`❌ [CRITICAL][Upload] UUID重複: uuid=${documentUuidForNewCheck} は既にプロジェクト「${conflictProjectName}」に登録済み`);
-                  throw new ValidationError(
-                    `このMAIMLファイルのUUID（${documentUuidForNewCheck}）は別のプロジェクト「${conflictProjectName}」に既に登録されています。`,
-                    'E7013'
-                  );
-                }
-              }
-
               // ③-b archiveフォルダ存在チェック
               const archiveFolderPath = `projects/${projectName}/archive`;
               const archiveFiles = await this.storageService.listFiles(organizationId, archiveFolderPath);
@@ -601,8 +608,8 @@ export class FileAccessService {
             uploadBatchId: batch.batchId,
             uploadSource: 'web_upload',
             uploadMethod: 'single',
-            // projects/ 配下の MAIMLメインファイルの場合のみ project_uuid を設定
-            ...(documentUuid && !filePath.includes('/archive/') ? { project_uuid: documentUuid } : {}),
+            // ※ project_uuid は project.project_uuid（プロジェクト作成時採番）を使用するため
+            //   Document UUID をここでは渡さない。project_uuid は後続の project 更新処理で設定する。
           }
         );
 
@@ -615,7 +622,6 @@ export class FileAccessService {
           contentType: file.mimetype,
           uploadedAt: new Date().toISOString(),
           ...(maimlValidation && { maimlValidation }), // 警告がある場合のみ付加
-          ...(documentUuid ? { documentUuid } : {}),  // project_uuid 更新用
         };
       },
       concurrency
@@ -645,7 +651,7 @@ export class FileAccessService {
         status: 'failed',
         endTime: new Date(),
       });
-      throw new ValidationError(e7013Failure.error ?? 'MAIMLのUUIDが別プロジェクトに既に登録されています', 'E7013');
+      throw new ValidationError(e7013Failure.error ?? '別のMAIMLファイルへの上書きは許可されていません。同じMAIMLをベースにした変更のみ許可されます', 'E7013');
     }
 
     // 5. 結果を集計
@@ -687,29 +693,40 @@ export class FileAccessService {
           if (!existingProject) {
             console.warn(`⚠️ [Upload] プロジェクトが見つかりません: ${projectName}`);
           } else {
-            // project_maiml_flg と project_uuid を更新
-            // アップロードされた MAIML ファイルの documentUuid を取得
-            const maimlFile = uploadedFiles.find(f => f.fileName.endsWith('.maiml') && (f as any).documentUuid);
-            const newProjectUuid = maimlFile ? (maimlFile as any).documentUuid as string : undefined;
-
+            // project_maiml_flg を必要に応じて更新
+            // ※ project_uuid はプロジェクト作成時に採番済みのため、Document UUID で上書きしない
             const needsFlagUpdate = !existingProject.project_maiml_flg;
-            const needsUuidUpdate = newProjectUuid && existingProject.project_uuid !== newProjectUuid;
 
-            if (needsFlagUpdate || needsUuidUpdate) {
+            if (needsFlagUpdate) {
               const updatedProject: Project = {
                 ...existingProject,
-                ...(needsFlagUpdate ? { project_maiml_flg: true } : {}),
-                ...(needsUuidUpdate ? { project_uuid: newProjectUuid } : {}),
+                project_maiml_flg: true,
               };
 
               await projectRepository.update(updatedProject);
               console.log('✅ [Upload] project更新完了:', {
                 projectName,
-                project_maiml_flg: needsFlagUpdate ? 'false→true' : '変更なし',
-                project_uuid: needsUuidUpdate ? `→${newProjectUuid}` : '変更なし',
+                project_maiml_flg: 'false→true',
               });
             } else {
               console.log('ℹ️ [Upload] projectの更新不要（既に最新）:', projectName);
+            }
+
+            // file_metadata.project_uuid を更新（project.project_uuid を使用）
+            const maimlFile = uploadedFiles.find(f => f.fileName.endsWith('.maiml'));
+            if (maimlFile && existingProject.project_uuid) {
+              try {
+                const fullFileKey = `${organizationId}/${maimlFile.filePath}`;
+                await this.repository.updateFileMetadata(fullFileKey, {
+                  project_uuid: existingProject.project_uuid,
+                });
+                console.log('✅ [Upload] file_metadata.project_uuid更新完了:', {
+                  fileKey: fullFileKey,
+                  project_uuid: existingProject.project_uuid,
+                });
+              } catch (metaUpdateErr) {
+                console.warn('⚠️ [Upload] file_metadata.project_uuid更新失敗（処理続行）:', metaUpdateErr instanceof Error ? metaUpdateErr.message : metaUpdateErr);
+              }
             }
           }
         } catch (updateError) {

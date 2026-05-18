@@ -819,4 +819,23 @@ export class FileMetadataRepository {
     return await pgp.oneOrNone<{ file_key: string; original_filename: string }>(sql, [projectUuid]);
   }
 
+  /**
+   * プロジェクト名からMAIMLファイルのfile_keyを取得（project_uuid未設定時のフォールバック）
+   *
+   * project.project_uuid が NULL または file_metadata に該当がない場合に、
+   * organization_id と project_name でMAIMLファイルを特定する。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離に必須）
+   * @param projectName - プロジェクト名
+   * @returns file_key, original_filename, project_uuid、存在しない場合は null
+   */
+  async findMaimlByProjectName(
+    organizationId: string,
+    projectName: string
+  ): Promise<{ file_key: string; original_filename: string; project_uuid: string | null } | null> {
+    const pgp = getPgp();
+    const sql = await loadSqlFile('file_metadata/findMaimlByProjectName.sql');
+    return await pgp.oneOrNone<{ file_key: string; original_filename: string; project_uuid: string | null }>(sql, [organizationId, projectName]);
+  }
+
 }
