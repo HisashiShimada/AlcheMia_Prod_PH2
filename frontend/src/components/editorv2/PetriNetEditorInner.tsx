@@ -2751,7 +2751,16 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const result = response.data;
         console.log('✅ [PetriNetEditorInner] S3保存完了:', result);
 
-        alert(t('editor.alert.s3_saved').replace('{name}', metadata.name));
+        // Document UUID が自動更新された場合、state を更新
+        if (result?.uuidChanged && result?.documentUuid) {
+          setDocumentData(prev => prev ? { ...prev, uuid: result.documentUuid! } : prev);
+          console.log('🔄 [PetriNetEditorInner] Document UUID が自動更新されました:', result.documentUuid);
+        }
+
+        const alertKey = result?.uuidChanged
+          ? 'editor.alert.s3_saved_with_uuid_update'
+          : 'editor.alert.s3_saved';
+        alert(t(alertKey).replace('{name}', metadata.name));
 
         // S3保存成功時のみDraftを全削除（自動保存Draftをクリア）
         try {

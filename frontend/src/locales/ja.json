@@ -1940,6 +1940,7 @@
       "auto_correct_done": "自動補正が完了しました。再検証を実行してください。",
       "auto_correct_failed": "自動補正に失敗しました",
       "s3_saved": "ペトリネット \"{name}\" をS3に保存しました",
+      "s3_saved_with_uuid_update": "ペトリネット \"{name}\" をS3に保存しました\n（Document UUID が自動更新されました）",
       "local_downloaded": "ペトリネット \"{name}\" をダウンロードしました",
       "save_failed": "保存に失敗しました: {message}\n\n詳細はコンソールログを確認してください。"
     },

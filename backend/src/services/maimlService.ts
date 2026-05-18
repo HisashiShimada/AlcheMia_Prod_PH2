@@ -10,6 +10,7 @@ import { DOMParser } from '@xmldom/xmldom';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { getStorageService } from './storageService';
 import { createMaimlBackup } from '../utils/maimlArchiveHelper';
+import { updateDocumentUuid, normalizeForDiffCheck } from '../utils/maimlDocumentUtils';
 import * as crypto from 'crypto';
 import * as validationHistoryRepository from '../repositories/validationHistoryRepository';
 import { EditSession, ParseResult,AnalysisResult  } from '../types/maimlValidation';
@@ -164,8 +165,55 @@ export async function saveMaiML(
       console.log('ℹ️ [maimlService] アーカイブ化スキップ（上書き保存）');
     }
 
-    // MAIML の <Document uuid="..."> から UUID を抽出（アップロード前に取得）
-    const documentUuid = extractDocumentUuid(content);
+    // ── Document UUID の自動更新（差分チェック） ──────────────────────────────
+    // 処理順:
+    //   1. ストレージから既存ファイルを取得して手動変更検知 + 内容差分チェック
+    //   2. UUID が手動変更されていれば: 自動更新をスキップしてユーザーの値を尊重
+    //   3. UUID が変わっていなければ: 内容差分チェックを行い、差分あり → UUID 自動更新
+    //   4. 既存ファイルなし（初回保存）: そのまま保存
+    let contentToSave = content;
+    let uuidWasAutoUpdated = false;
+
+    const relativeFileKeyForDiff = normalizedFileKey.startsWith(organizationId + '/')
+      ? normalizedFileKey.slice(organizationId.length + 1)
+      : normalizedFileKey;
+
+    try {
+      const existingBuffer = await storageService.downloadFile(organizationId, relativeFileKeyForDiff);
+      const existingContent = existingBuffer.toString('utf-8');
+
+      const existingUuid = extractDocumentUuid(existingContent);
+      const newUuid      = extractDocumentUuid(content);
+
+      if (existingUuid !== newUuid) {
+        // UUID が変更されている → ユーザーが手動変更した → 自動更新をスキップ
+        console.log('ℹ️ [MAIML Save] Document UUID が手動変更されています → 自動更新スキップ:', {
+          existing: existingUuid,
+          new: newUuid,
+        });
+      } else {
+        // UUID は変わっていない → 内容差分チェック
+        const existingNormalized = normalizeForDiffCheck(existingContent);
+        const newNormalized      = normalizeForDiffCheck(content);
+
+        if (existingNormalized !== newNormalized) {
+          // 差分あり → Document UUID を自動更新
+          contentToSave = updateDocumentUuid(content);
+          uuidWasAutoUpdated = true;
+          console.log('🔄 [MAIML Save] 内容変更あり → Document UUID を自動更新');
+        } else {
+          console.log('ℹ️ [MAIML Save] 内容変更なし → Document UUID を維持');
+        }
+      }
+    } catch {
+      // 既存ファイルなし（初回保存）→ そのまま保存
+      console.log('ℹ️ [MAIML Save] 既存ファイルなし → Document UUID を維持（初回保存）');
+    }
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // MAIML の <Document uuid="..."> から UUID を抽出（contentToSave から取得）
+    // ※ 自動更新された場合は更新後の UUID が取得される
+    const documentUuid = extractDocumentUuid(contentToSave);
     if (documentUuid) {
       console.log('🔍 [MAIML Save] Document UUID 抽出:', documentUuid);
     } else {
@@ -180,7 +228,7 @@ export async function saveMaiML(
     await uploadFileWithRetry(
       organizationId,
       normalizedFileKey,
-      Buffer.from(content, 'utf-8'),
+      Buffer.from(contentToSave, 'utf-8'),
       {
         contentType: 'application/xml',
         uploadedBy: 'system',
@@ -196,7 +244,7 @@ export async function saveMaiML(
     );
 
     // 5. コンテンツハッシュ計算
-    const contentHash = calculateContentHash(content);
+    const contentHash = calculateContentHash(contentToSave);
 
     console.log('✅ [maimlService] MAIML保存完了:', normalizedFileKey);
     
@@ -300,9 +348,11 @@ export async function saveMaiML(
 
     return {
       fileKey: normalizedFileKey,
-      size: Buffer.byteLength(content, 'utf-8'),
+      size: Buffer.byteLength(contentToSave, 'utf-8'),
       lastModified: new Date().toISOString(),
       contentHash,
+      documentUuid: documentUuid ?? undefined,
+      uuidChanged: uuidWasAutoUpdated,
     };
   } catch (error) {
     console.error('❌ [maimlService] MAIML保存エラー:', error);
