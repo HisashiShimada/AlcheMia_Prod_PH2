@@ -1783,18 +1783,22 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     } catch (error) {
       console.error('❌ [ProjectManagement] Project creation failed:', error);
       
-      // エラーメッセージをユーザーに表示
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : t('projectManagement.create.error');
+      // AxiosError からバックエンドのエラーメッセージを抽出する
+      // 優先順位: response.data.error.message → response.data.error.code → デフォルト
+      let errorMessage: string;
+      if (error instanceof AxiosError && error.response?.data?.error?.message) {
+        // バックエンドの日本語メッセージを優先（例: "プロジェクト名が既に存在します"）
+        errorMessage = error.response.data.error.message;
+      } else if (error instanceof AxiosError && error.response?.data?.error?.code) {
+        // エラーコードから翻訳メッセージに変換（例: E7001）
+        errorMessage = mapErrorToMessage(error.response.data.error.code);
+      } else {
+        errorMessage = t('projectManagement.create.error');
+      }
       
-      message.error({
-        content: errorMessage,
-        duration: 5,
-      });
-      
+      // CreateProjectModal の Alert で表示するため、message.error トーストは出さない（二重表示防止）
       // エラーを再スローしてCreateProjectModalでキャッチさせる
-      throw error;
+      throw new Error(errorMessage);
     }
   }, [t, handleCloseCreateModal, refetchProjects]);
 
