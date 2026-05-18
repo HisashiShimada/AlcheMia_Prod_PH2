@@ -34,7 +34,8 @@ import { UploadType, BatchStatus } from '../types/uploadBatch';
 import { processConcurrently, getConcurrency } from '../utils/concurrencyControl';
 import { isMaimlFile } from '../utils/maimlAnalyzer';
 import { analyzeMaiMLFile } from '../utils/maimlParser';
-import { ErrorContent } from '../types/maimlValidation';
+import { AnalysisResult, ErrorContent } from '../types/maimlValidation';
+import * as maimlAnalysisResultRepository from '../repositories/maimlAnalysisResultRepository';
 import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
@@ -501,17 +502,20 @@ export class FileAccessService {
         // Phase2-3 改修: MAIMLファイルの場合はアップロード前にバリデーション実行
         let maimlValidation;
         const isMaiml = isMaimlFile(sanitizedFileName, file.mimetype);
+        // アップロード後のDB保存で使用するためブロック外で宣言
+        let analysisResult: AnalysisResult | null = null;
         console.log(`🔍 [MAIML Validation] ファイル判定: ${sanitizedFileName} → isMaimlFile=${isMaiml}, mimetype=${file.mimetype}`);
         if (isMaiml) {
           const content = file.buffer.toString('utf-8');
           console.log(`🔍 [MAIML Validation] analyzeMaiMLFile 開始: ${sanitizedFileName}`);
-          let analysisResult;
+          // 方針1: 組織IDプレフィックスを付与した完全キーを渡す（組織IDなしレコード増殖防止）
+          const fullFileKey = `${organizationId}/${filePath}`;
           try {
             analysisResult = await analyzeMaiMLFile(
               organizationId,
               content,
-              filePath,
-              false, // skipSave=false: DB保存を行う（バリデーション結果を記録）
+              fullFileKey,
+              true, // skipSave=true: バリデーションのみ実行（DB保存はアップロード後に行う）
               'lenient' // アップロード時は緩和モード（編集可能な項目は警告に降格）
             );
           } catch (analysisError) {
@@ -605,6 +609,64 @@ export class FileAccessService {
             ...(documentUuid && !filePath.includes('/archive/') ? { project_uuid: documentUuid } : {}),
           }
         );
+
+        // アップロード完了後にバリデーション結果をDBに保存
+        // （バリデーション時はskipSave=trueにしているため、ここで保存する）
+        if (isMaiml && analysisResult) {
+          const normalizedKey = `${organizationId}/${filePath}`;
+
+          // Step A: maiml_analysis_results に詳細保存（upsert）
+          try {
+            const analysisData = {
+              file_key: normalizedKey,
+              is_valid: analysisResult.isValid,
+              version: analysisResult.version || null,
+              namespace: analysisResult.namespace || null,
+              errors: JSON.stringify(analysisResult.errors),
+              warnings: JSON.stringify(analysisResult.warnings),
+              suggestions: JSON.stringify(analysisResult.suggestions || []),
+              statistics: JSON.stringify(analysisResult.statistics || {}),
+              processing_time: analysisResult.processingTime || null,
+              analysis_timestamp: analysisResult.timestamp || new Date().toISOString(),
+            };
+            await maimlAnalysisResultRepository.upsert(analysisData);
+            console.log(`📊 [Upload] maiml_analysis_results 保存完了: ${normalizedKey}`);
+          } catch (saveError) {
+            // 解析結果の保存失敗はアップロード成功扱い（ログのみ）
+            console.warn(`⚠️ [Upload] maiml_analysis_results 保存失敗（アップロードは成功）: ${normalizedKey}`, saveError);
+          }
+
+          // Step B: file_metadata のバリデーション結果カラムを UPDATE
+          try {
+            const errorCount = analysisResult.errors.length;
+            const warningCount = analysisResult.warnings.length;
+            let analysisStatus: string;
+            if (errorCount > 0) {
+              analysisStatus = 'has_errors';
+            } else if (warningCount > 0) {
+              analysisStatus = 'has_warnings';
+            } else if (analysisResult.isValid) {
+              analysisStatus = 'valid';
+            } else {
+              analysisStatus = 'analyzed';
+            }
+
+            const fileMetadataRepo = new FileMetadataRepository();
+            await fileMetadataRepo.updateFileMetadata(normalizedKey, {
+              maiml_analysis_status: analysisStatus,
+              maiml_error_count: errorCount,
+              maiml_warning_count: warningCount,
+              maiml_transitions_count: analysisResult.statistics?.transitionsCount || 0,
+              maiml_places_count: analysisResult.statistics?.placesCount || 0,
+              maiml_version: String(analysisResult.version || ''),
+              maiml_last_analyzed: new Date(),
+            });
+            console.log(`✅ [Upload] file_metadata バリデーション結果更新完了: ${normalizedKey} (status=${analysisStatus})`);
+          } catch (updateError) {
+            // バリデーション結果の更新失敗はアップロード成功扱い（ログのみ）
+            console.warn(`⚠️ [Upload] file_metadata バリデーション結果更新失敗（アップロードは成功）: ${normalizedKey}`, updateError);
+          }
+        }
 
         return {
           fileId: undefined,
