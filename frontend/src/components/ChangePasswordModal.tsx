@@ -13,14 +13,11 @@ import { useLanguage } from '@/contexts/LanguageContext';
 interface ChangePasswordModalProps {
   open: boolean;
   onSuccess: () => void;
-  /** モーダルを表示する理由。'temporary': 仮パスワード, 'expired': 有効期限切れ */
-  reason?: 'temporary' | 'expired';
 }
 
 const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   open,
   onSuccess,
-  reason = 'temporary',
 }) => {
   const { t } = useLanguage();
   const [form] = Form.useForm();
@@ -67,16 +64,8 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     >
       <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <Alert
-          title={
-            reason === 'expired'
-              ? t('auth.changePassword.expiredAlertTitle')
-              : t('auth.changePassword.alertTitle')
-          }
-          description={
-            reason === 'expired'
-              ? t('auth.changePassword.expiredAlertDescription')
-              : t('auth.changePassword.alertDescription')
-          }
+          title={t('auth.changePassword.alertTitle')}
+          description={t('auth.changePassword.alertDescription')}
           type="warning"
           showIcon
         />
