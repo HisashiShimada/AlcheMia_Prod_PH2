@@ -2064,6 +2064,7 @@
     "E7006": "Project instruction not found",
     "E7007": "The task is currently in progress",
     "E7008": "The specified task or method was not found",
+    "E7013": "The UUID of this MAIML file is already registered in another project",
     "E9999": "An error occurred. Please try again later.",
     "AUTH_PIN_INVALID": "Invalid PIN code",
     "PIN_VERIFY_FAILED": "PIN code verification failed. Please try again.",

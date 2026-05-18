@@ -122,6 +122,7 @@
 | E7006 | プロジェクト指示不存在 | 400 | `POST /projects/:name/checkout` — 指示が存在しない |
 | E7007 | タスク作業中 | 400 | `POST /projects/:name/checkin` — タスクが作業中のため操作不可 |
 | E7008 | タスク・メソッド不存在 | 404 | `GET /progress/...` — タスクまたはメソッドが見つからない |
+| E7013 | MAIML UUID重複（別プロジェクトに登録済み） | 400 | `POST /files/upload`, `POST /files/chunks/init` — MAIMLのUUIDが別プロジェクトに既に登録されている |
 
 ---
 
