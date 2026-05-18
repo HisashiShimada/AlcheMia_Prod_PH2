@@ -265,6 +265,11 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   TASK_NOT_COMPLETED:           'errors.TASK_NOT_COMPLETED',
   BUSINESS_MAIML_FILE_EXISTS:   'errors.BUSINESS_MAIML_FILE_EXISTS',
   PROJECT_ALREADY_CHECKED_OUT:  'errors.PROJECT_ALREADY_CHECKED_OUT',
+
+  // ===== 会社管理・ユーザー管理・ロール管理 重複エラー =====
+  DUPLICATE_CORPORATION_NAME:   'errors.DUPLICATE_CORPORATION_NAME',
+  USER_ALREADY_EXISTS:          'errors.USER_ALREADY_EXISTS',
+  DUPLICATE_ROLE_CD:            'errors.DUPLICATE_ROLE_CD',
 } as const;
 
 /**

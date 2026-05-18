@@ -91,6 +91,15 @@ export async function createRole(
   },
   userId: string
 ): Promise<void> {
+  // 重複チェック
+  const exists = await roleRepository.existsById(organizationId, roleData.roleId);
+  if (exists) {
+    throw {
+      statusCode: 409,
+      code: 'DUPLICATE_ROLE_CD',
+      message: getMessage('ja', 'role.csv.alreadyExists', { roleCd: roleData.roleId }),
+    };
+  }
   await roleRepository.createRole(organizationId, roleData, userId);
 }
 

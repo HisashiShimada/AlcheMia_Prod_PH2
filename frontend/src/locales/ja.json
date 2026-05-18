@@ -1134,7 +1134,8 @@
       "csvDownloadError": "CSVダウンロードに失敗しました",
       "saveSuccess": "ユーザー情報を更新しました",
       "addSuccess": "ユーザーを追加しました",
-      "saveError": "保存に失敗しました"
+      "saveError": "保存に失敗しました",
+      "duplicateEmailError": "このメールアドレスは既に使用されています"
     },
     "pagination": {
       "showTotal": "全 {total} 件"
@@ -2104,7 +2105,10 @@
     "CHECKOUT_UNSENT_INSTRUCTIONS": "未送信の指示が存在します",
     "TASK_NOT_COMPLETED": "チェックイン可能なタスクステータスではありません",
     "BUSINESS_MAIML_FILE_EXISTS": "MAIMLファイルが存在するためプロジェクトを削除できません",
-    "PROJECT_ALREADY_CHECKED_OUT": "このプロジェクトは既に他のユーザーによってチェックアウトされています"
+    "PROJECT_ALREADY_CHECKED_OUT": "このプロジェクトは既に他のユーザーによってチェックアウトされています",
+    "DUPLICATE_CORPORATION_NAME": "この会社名は既に使用されています",
+    "USER_ALREADY_EXISTS": "このユーザーIDは既に使用されています",
+    "DUPLICATE_ROLE_CD": "入力されたIDは既に存在しています"
   },
   "progressStatus": {
     "notStarted": "初期状態",
