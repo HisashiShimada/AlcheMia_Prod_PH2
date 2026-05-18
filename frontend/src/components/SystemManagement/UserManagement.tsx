@@ -40,7 +40,7 @@ import { fetchMasters as fetchDepartments } from '@/services/departmentApiServic
 import { fetchMasters as fetchRoles } from '@/services/roleApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { extractErrorMessage } from '@/utils/errorUtils';
+import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -469,6 +469,21 @@ export default function UserManagement() {
       if (error && typeof error === 'object' && 'errorFields' in error) {
         return;
       }
+
+      // メールアドレス重複エラー（USER_ALREADY_EXISTS）はフォームインラインで表示
+      const code = extractErrorCode(error);
+      if (code === 'USER_ALREADY_EXISTS') {
+        const dupMsg = t('userManagement.messages.duplicateEmailError');
+        form.setFields([
+          {
+            name: 'mailAddress',
+            errors: [dupMsg],
+          },
+        ]);
+        message.error(dupMsg);
+        return;
+      }
+
       message.error(extractErrorMessage(error, t('userManagement.messages.saveError')));
     } finally {
       setLoading(false);

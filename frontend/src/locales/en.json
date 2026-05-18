@@ -253,21 +253,41 @@
       "inProgress": "In Progress",
       "completed": "Completed",
       "forcedTerminated": "Forced Terminated",
-      "suspended": "Suspended",
+      "suspended": "Suspended"
+    },
+    "transitionStatus": {
+      "notStarted": "Not Started",
       "working": "Working",
+      "completed": "Completed",
       "onHold": "On Hold",
       "issue": "Issue"
+    },
+    "methodStatus": {
+      "notStarted": "Not Started",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "error": "Error"
     },
     "messages": {
       "selectProjectAndMethod": "Please select a project and method",
       "noTasksFound": "No tasks found",
-      "taskStarted": "Task started successfully",
-      "taskCompleted": "Task completed successfully",
-      "moveToExperimentRecord": "Moving to Experiment Record tab",
-      "moveToProgressReport": "Moving to Progress Report tab",
-      "updateFailed": "Failed to update task",
-      "batchProgressNotImplemented": "Batch progress report feature will be implemented in the future",
-      "approvalRequestNotImplemented": "Approval request feature will be implemented in the future"
+      "taskListFetched": "Task list retrieved",
+      "taskNotFound": "Task not found",
+      "taskUpdatedAtMissing": "Could not retrieve task update time. Please reload the page.",
+      "taskStarted": "Task started",
+      "taskStartFailed": "Failed to start task",
+      "taskStartForbidden": "You do not have permission to start this task",
+      "taskConflict": "This task was updated by another user. Fetching latest information..",
+      "refreshFailed": "Failed to retrieve latest information. Please reload the page.",
+      "taskStartError": "An error occurred while starting the task",
+      "goToInstructionTab": "Moving to the Instruction Confirmation tab.",
+      "goToRecordTab": "Moving to the Experiment Record tab.",
+      "taskForceTerminated": "Task force terminated",
+      "taskForceTerminateFailed": "Failed to force terminate task",
+      "taskForceTerminateForbidden": "You do not have permission to force terminate this task",
+      "taskForceTerminateError": "An error occurred while force terminating the task",
+      "unknownAction": "Unknown action.",
+      "taskUpdateFailed": "Failed to update task"
     }
   },
   "formatManagement": {
@@ -499,7 +519,7 @@
     "tabs": {
       "file_management": "File Management",
       "task_registration": "Task Registration",
-      "instruction_registration": "Instruction List",
+      "instruction_rgistration": "Instruction List",
       "task_results": "Task Results"
     },
     "task_results": {
@@ -696,23 +716,6 @@
     "actions": {
       "viewDetails": "View Details"
     },
-    "taskListFetched": "Task list retrieved",
-    "taskNotFound": "Task not found",
-    "taskUpdatedAtMissing": "Could not retrieve task update time. Please reload the page.",
-    "taskStarted": "Task started",
-    "taskStartFailed": "Failed to start task",
-    "taskStartForbidden": "You do not have permission to start this task",
-    "taskConflict": "This task was updated by another user. Fetching latest information..",
-    "refreshFailed": "Failed to retrieve latest information. Please reload the page.",
-    "taskStartError": "An error occurred while starting the task",
-    "goToInstructionTab": "Moving to the Instruction Confirmation tab.",
-    "goToRecordTab": "Moving to the Experiment Record tab.",
-    "taskForceTerminated": "Task force terminated",
-    "taskForceTerminateFailed": "Failed to force terminate task",
-    "taskForceTerminateForbidden": "You do not have permission to force terminate this task",
-    "taskForceTerminateError": "An error occurred while force terminating the task",
-    "unknownAction": "Unknown action.",
-    "taskUpdateFailed": "Failed to update task",
     "maimlNotFound": "MAIML file not found",
     "fileInfoFetchFailed": "Failed to retrieve file information"
   },
@@ -838,14 +841,6 @@
       "fetchFailed": "Failed to fetch task registration information",
       "saveFailed": "Failed to save task information"
     }
-  },
-  "taskStatus": {
-    "not_started": "Not Started",
-    "started": "Started",
-    "in_progress": "In Progress",
-    "suspended": "Suspended",
-    "forced_terminated": "Force Terminated",
-    "completed": "Completed"
   },
   "corporationManagement": {
     "title": "Corporation Management",
@@ -1137,7 +1132,8 @@
       "csvDownloadError": "Failed to download CSV",
       "saveSuccess": "User updated",
       "addSuccess": "User added",
-      "saveError": "Failed to save"
+      "saveError": "Failed to save",
+      "duplicateEmailError": "This email address is already in use"
     },
     "pagination": {
       "showTotal": "Total {total} items"
@@ -1458,12 +1454,6 @@
       "normal": "Normal",
       "low": "Low"
     },
-    "priorityLabels": {
-      "0": "Low",
-      "1": "Normal",
-      "2": "Medium",
-      "3": "High"
-    },
     "type": {
       "0": "General",
       "1": "Setup",
@@ -1475,13 +1465,6 @@
       "measurement": "Measurement",
       "safety": "Safety",
       "cleanup": "Cleanup"
-    },
-    "typeLabels": {
-      "0": "General",
-      "1": "Setup",
-      "2": "Measurement",
-      "3": "Safety",
-      "4": "Cleanup"
     },
     "target": {
       "method": "Method",
@@ -1583,14 +1566,6 @@
   },
   "workProgressDetail": {
     "fetchFileFailed": "Failed to fetch file details"
-  },
-  "progressStatus": {
-    "not_started": "Not Started",
-    "preparing": "Preparing",
-    "in_progress": "In Progress",
-    "suspended": "Suspended",
-    "abnormal": "Abnormal",
-    "completed": "Completed"
   },
   "functionPermissionDialog": {
     "title": "Function Management",
@@ -2104,7 +2079,10 @@
     "CHECKOUT_UNSENT_INSTRUCTIONS": "Unsent instructions exist",
     "TASK_NOT_COMPLETED": "Tasks are not in a state that allows check-in",
     "BUSINESS_MAIML_FILE_EXISTS": "Cannot delete project because a MAIML file exists",
-    "PROJECT_ALREADY_CHECKED_OUT": "This project is already checked out by another user"
+    "PROJECT_ALREADY_CHECKED_OUT": "This project is already checked out by another user",
+    "DUPLICATE_CORPORATION_NAME": "This corporation name is already in use",
+    "USER_ALREADY_EXISTS": "This user ID is already in use",
+    "DUPLICATE_ROLE_CD": "The entered ID already exists"
   },
   "progressStatus": {
     "notStarted": "Not Started",
@@ -2343,6 +2321,20 @@
       "categoryAnalysis": "Analysis",
       "categorySample": "Sample",
       "categoryDevice": "Device"
+    },
+    "dataRecordDialog": {
+      "noTemplateSelected": "No template selected",
+      "missingProjectInfoForSave": "Project information required for saving is missing",
+      "duplicateCustomPropertyKeys": "Duplicate custom property keys: {{keys}}",
+      "saveSuccess": "\"{{name}}\" saved (status: {{status}})",
+      "saveFailed": "Save failed: {{message}}",
+      "saveFailedUnknown": "Save failed",
+      "fileProcessingFailed": "File processing failed",
+      "missingProjectInfoForUpdate": "Project information required for status update is missing",
+      "statusUpdated": "Status updated ({status}, progress: {progress}%)",
+      "terminalStatusMessage": "Current status is \"{label}\". No further changes allowed.",
+      "noTransitionAvailable": "No transitions available",
+      "currentStatus": "Current: {label}"
     }
   },
   "instruction": {
@@ -2358,7 +2350,7 @@
       "setup": "Setup",
       "measurement": "Measurement",
       "safety": "Safety",
-      "cleaning": "Cleaning"
+      "cleanup": "Cleanup"
     }
   },
   "template": {
@@ -2611,22 +2603,6 @@
     "confirmImportCancel": "Cancel",
     "noDuplicateTitle": "✅ No Duplicates",
     "noDuplicateDesc": "All properties will be added as new"
-  },
-  "format": {
-    "dataRecordDialog": {
-      "noTemplateSelected": "No template selected",
-      "missingProjectInfoForSave": "Project information required for saving is missing",
-      "duplicateCustomPropertyKeys": "Duplicate custom property keys: {{keys}}",
-      "saveSuccess": "\"{{name}}\" saved (status: {{status}})",
-      "saveFailed": "Save failed: {{message}}",
-      "saveFailedUnknown": "Save failed",
-      "fileProcessingFailed": "File processing failed",
-      "missingProjectInfoForUpdate": "Project information required for status update is missing",
-      "statusUpdated": "Status updated ({status}, progress: {progress}%)",
-      "terminalStatusMessage": "Current status is \"{label}\". No further changes allowed.",
-      "noTransitionAvailable": "No transitions available",
-      "currentStatus": "Current: {label}"
-    }
   },
   "viewer": {
     "methodNotFound": "Method not found",

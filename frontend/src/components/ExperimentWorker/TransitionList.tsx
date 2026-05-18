@@ -102,11 +102,11 @@ export default function TransitionList({
     }
 
     const statusConfig = {
-      not_started: { color: 'default', icon: <MinusCircleOutlined />, text: t('experimentWork.status.notStarted') },
-      in_progress: { color: 'processing', icon: <ClockCircleOutlined />, text: t('experimentWork.status.working') },
-      completed: { color: 'success', icon: <CheckCircleOutlined />, text: t('experimentWork.status.completed') },
-      on_hold: { color: 'warning', icon: <ExclamationCircleOutlined />, text: t('experimentWork.status.onHold') },
-      issue: { color: 'error', icon: <ExclamationCircleOutlined />, text: t('experimentWork.status.issue') }
+      not_started: { color: 'default', icon: <MinusCircleOutlined />, text: t('experimentWork.transitionStatus.notStarted') },
+      in_progress: { color: 'processing', icon: <ClockCircleOutlined />, text: t('experimentWork.transitionStatus.working') },
+      completed: { color: 'success', icon: <CheckCircleOutlined />, text: t('experimentWork.transitionStatus.completed') },
+      on_hold: { color: 'warning', icon: <ExclamationCircleOutlined />, text: t('experimentWork.transitionStatus.onHold') },
+      issue: { color: 'error', icon: <ExclamationCircleOutlined />, text: t('experimentWork.transitionStatus.issue') }
     };
 
     const config = statusConfig[status] || statusConfig.not_started;
