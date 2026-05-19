@@ -506,22 +506,13 @@ export class AuthService {
       );
       
       let passwordChangeRequired = false;
-      let isPasswordExpired = false;
       let isTemporaryPassword = false;
 
       if (authResult.success) {
         const authData = authResult.data;
         isTemporaryPassword = authData.is_temporary_flg || false;
         
-        const now = new Date();
-        const expiresAt = authData.password_expires_at ? new Date(authData.password_expires_at) : null;
-        
-        // 期限切れ → パスワード変更を要求
-        if (expiresAt && now > expiresAt) {
-          isPasswordExpired = true;
-          passwordChangeRequired = true;
-          console.log(`[WARN] パスワード期限切れ: user_id=${userInfo.id}`);
-        } else if (isTemporaryPassword) {
+        if (isTemporaryPassword) {
           passwordChangeRequired = true;
           console.log(`[INFO] 一時パスワードでログイン: user_id=${userInfo.id}`);
         }
@@ -619,7 +610,6 @@ export class AuthService {
             expiresAt: expiresAt.toISOString(),
           },
           passwordChangeRequired,
-          isPasswordExpired,
           isTemporaryPassword,
         },
       };
