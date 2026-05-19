@@ -85,10 +85,10 @@ Phase A 完了後の追加調査で、以下4件のインラインSQL残存を�
 
 ## 4. 期待される成果（Phase B）
 
-- [ ] `UploadBatchRepository.findById()` のSQL外部ファイル化
-- [ ] `UploadBatchRepository.delete()` のSQL外部ファイル化
-- [ ] `attributeRepository.existsByPk()` のSQL外部ファイル化
-- [ ] `creatorRepository.create()` のSQL外部ファイル化
+- [x] `UploadBatchRepository.findById()` のSQL外部ファイル化
+- [x] `UploadBatchRepository.delete()` のSQL外部ファイル化
+- [x] `attributeRepository.existsByPk()` のSQL外部ファイル化
+- [x] `creatorRepository.create()` のSQL外部ファイル化
 
 ---
 

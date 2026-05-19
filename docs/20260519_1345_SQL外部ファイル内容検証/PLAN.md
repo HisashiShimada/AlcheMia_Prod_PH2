@@ -125,36 +125,52 @@
 
 ### 5-1. 対象コミット情報
 
-- **外部ファイル化コミットハッシュ**: （実施後記入）
+- **外部ファイル化コミットハッシュ**: `25bcbe8e`
 - **コミット日時**: 2026-05-19 12:31
+- **検証基準**: `git show 25bcbe8e^:<Repositoryファイル>` で取得したインラインSQL（コミット直前）と、コミット後SQLファイル内容を比較
 
 ### 5-2. Repository別 検証結果
 
-| Repository | SQLファイル数 | 齟齬あり | 齟齬内容 |
-|-----------|------------|---------|---------|
-| `organizationRepository.ts` | 3 | - | - |
-| `passwordResetTokenRepository.ts` | 2 | - | - |
-| `rolePermissionRepository.ts` | 2 | - | - |
-| `maimlAnalysisResultRepository.ts` | 2 | - | - |
-| `codeMasterRepository.ts` | 2 | - | - |
-| `maimlDraftsRepository.ts` | 4 | - | - |
-| `organizationUserRepository.ts` | 4 | - | - |
-| `userAuthenticationRepository.ts` | 4 | - | - |
-| `validationHistoryRepository.ts` | 4 | - | - |
-| `fileMetadataRepository.ts` | 10 | - | - |
-| `projectRepository.ts` | 12 | - | - |
-| `projectTaskRepository.ts` | 3 | - | - |
-| `projectInstructionRepository.ts` | 8 | - | - |
-| `UploadBatchRepository.ts` | 4 | - | - |
-| `creatorRepository.ts` | 16 | - | - |
-| `eventLogRepository.ts` | 2 | - | - |
-| **合計** | **約82** | **-** | |
+| Repository | SQLファイル数 | 齟齬あり | 備考 |
+|-----------|------------|---------|------|
+| `organizationRepository.ts` | 3 | **なし** | |
+| `passwordResetTokenRepository.ts` | 2 | **なし** | |
+| `rolePermissionRepository.ts` | 2 | **なし** | |
+| `maimlAnalysisResultRepository.ts` | 2 | **なし** | |
+| `codeMasterRepository.ts` | 2 | **なし** | |
+| `maimlDraftsRepository.ts` | 4 | **なし** | |
+| `organizationUserRepository.ts` | 4 | **なし** | |
+| `userAuthenticationRepository.ts` | 4 | **なし** | |
+| `validationHistoryRepository.ts` | 4 | **なし** | |
+| `fileMetadataRepository.ts` | 10 | **なし** | `executeBatch`系はUNNEST動的INSERTのためインライン継続（設計上の例外） |
+| `projectRepository.ts` | 12+2追加 | **なし** | `getById.sql`・`findCheckedOutUserName.sql`がコミット25bcbe8eで新規追加。パラメータ順・SQL内容ともに一致 |
+| `projectTaskRepository.ts` | 3 | **なし** | |
+| `projectInstructionRepository.ts` | 8 | **なし** | |
+| `UploadBatchRepository.ts` | 4 | **なし** | |
+| `creatorRepository.ts` | 16 | **なし** | `update()`の動的SET句はインライン継続（設計上の例外）。`findAll`・`findAllWithFilters`のベースクエリSQLファイルは一致 |
+| `eventLogRepository.ts` | 2 | **なし** | |
+| **合計** | **約84** | **0** | |
 
-### 5-3. 修正サマリー
+### 5-3. 特記事項（インライン継続が設計上妥当なもの）
 
-- **検証済みSQLファイル数**: （実施後記入）
-- **齟齬検出件数**: （実施後記入）
-- **修正件数**: （実施後記入）
+コミット25bcbe8eにて意図的にインラインのまま残されている以下のパターンは、PLAN.md「検証対象外」の定義に合致しており問題なし。
+
+| Repository | メソッド | 理由 |
+|-----------|---------|------|
+| `fileMetadataRepository.ts` | `insertIfNotExists()`, `insertFileMetadata()`, `updateFileMetadata()`, `executeBatch*()` | 動的カラムリストINSERT/UPDATE・UNNESTバッチ処理 |
+| `creatorRepository.ts` | `create()` vendorUuid/instrumentUuid取得部, `update()` 動的SET句 | 条件分岐による動的SQL |
+| `projectRepository.ts` | `insert()`, `update()` | DB操作規約準拠の動的INSERT/UPDATE |
+| `projectInstructionRepository.ts` | `insert()`, `update()` | DB操作規約準拠の動的INSERT/UPDATE |
+| `projectTaskRepository.ts` | （なし） | |
+| `validationHistoryRepository.ts` | `deleteOldRecords()` | `daysToKeep` 動的 INTERVAL |
+
+### 5-4. 修正サマリー
+
+- **検証済みSQLファイル数**: 約84ファイル（全16 Repository）
+- **齟齬検出件数**: **0件**
+- **修正件数**: **0件**
+- **結論**: コミット `25bcbe8e` にて作成された全SQLファイルの内容は、元のインラインSQLと完全に一致していることを確認。
+
 
 ---
 

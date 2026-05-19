@@ -117,7 +117,7 @@ export class UploadBatchRepository {
     console.log('📦 [UploadBatchRepository] バッチ取得:', batchId);
 
     const pool = getPool();
-    const query = 'SELECT * FROM upload_batch WHERE batch_id = $1';
+    const query = await loadSqlFile('upload_batches/findById.sql');
     const result = await pool.query(query, [batchId]);
     
     if (result.rows.length === 0) {
@@ -213,7 +213,7 @@ export class UploadBatchRepository {
     console.log('📦 [UploadBatchRepository] バッチ削除:', batchId);
 
     const pool = getPool();
-    const query = 'DELETE FROM upload_batch WHERE batch_id = $1';
+    const query = await loadSqlFile('upload_batches/delete.sql');
     const result = await pool.query(query, [batchId]);
 
     if (result.rowCount === 0) {

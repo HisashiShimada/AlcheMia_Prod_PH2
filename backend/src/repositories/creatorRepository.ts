@@ -255,33 +255,7 @@ export async function create(
     instrumentUuid = instrumentResult.rows[0]?.instrument_uuid || null;
   }
   
-  const query = `
-    INSERT INTO creator (
-      organization_id,
-      creator_uuid,
-      creator_id,
-      creator_name,
-      creator_description,
-      creator_annotation,
-      vendor_uuid,
-      instrument_uuid,
-      corporation_id,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
-    )
-    RETURNING 
-      creator_id,
-      creator_name,
-      creator_description,
-      creator_annotation,
-      is_active,
-      update_at
-  `;
+  const query = await loadSqlFile('creators/create.sql');
   
   const values = [
     organizationId,
