@@ -11,39 +11,31 @@ import { loadSqlFile } from '../sql/loader';
  * ファイルメタデータ型定義
  */
 export interface FileMetadata {
-  file_key:string;
-  s3_bucket:string;
-  organization_id:string;
-  original_filename:string;
-  file_size:number;
-  file_type?:string;
-  file_extension?:string;
-  is_maiml_file?:boolean;
-  maiml_analysis_status?:string;
-  maiml_error_count?:number;
-  maiml_warning_count?:number;
-  maiml_version?:string;
-  maiml_transitions_count?:number;
-  maiml_places_count?:number;
-  maiml_validation_result?:string;
-  maiml_last_analyzed?:Date;
-  uploaded_by:string;
-  create_user_id?:string;
-  update_user_id?:string;
-  created_at?:Date;
-  updated_at?:Date;
-  custom_metadata?:string;
-  tags?:string;
-  search_keywords?:string[];
-  description?:string;
-  file_hash?:string;
-  parent_folder_path?:string;
-  upload_batch_id?:string;
-  upload_source?:string;
-  upload_method?:string;
-  s3_storage_class?:string;
-  s3_etag?:string;
-  last_edit_timestamp?: Date;
+  file_key: string;
+  s3_bucket: string;
+  organization_id: string;
+  original_filename: string;
+  file_size: number;
+  file_type?: string;
+  file_extension?: string;
+  is_maiml_file?: boolean;
+  maiml_analysis_status?: string;
+  maiml_error_count?: number;
+  maiml_warning_count?: number;
+  maiml_version?: string;
+  maiml_transitions_count?: number;
+  maiml_places_count?: number;
+  maiml_last_analyzed?: Date;
+  uploaded_by: string;
+  create_user_id?: string;
+  update_user_id?: string;
+  created_at?: Date;
+  updated_at?: Date;
+  file_hash?: string;
+  parent_folder_path?: string;
+  upload_batch_id?: string;
+  upload_source?: string;
+  upload_method?: string;
   /** プロジェクトUUID: project.project_uuidと同値。MAIMLファイル特定に使用 */
   project_uuid?: string;
 }
@@ -476,7 +468,7 @@ export class FileMetadataRepository {
   async insertIfNotExists(data: Partial<FileMetadata>): Promise<void> {
     const pool = getPool();
 
-    const JSONB_COLUMNS = new Set(['custom_metadata', 'tags', 'search_keywords']);
+    const JSONB_COLUMNS = new Set<string>([]);
     const columns: string[] = [];
     const placeholders: string[] = [];
     const values: any[] = [];
@@ -516,11 +508,8 @@ export class FileMetadataRepository {
     const pool = getPool();
 
     // JSONB型カラムの一覧（::jsonbキャストが必要）
-    const JSONB_COLUMNS = new Set([
-      'custom_metadata',
-      'tags',
-      'search_keywords',
-    ]);
+    // ※ 削除済み: custom_metadata, tags, search_keywords
+    const JSONB_COLUMNS = new Set<string>([]);
 
     // 動的にカラムとプレースホルダーを構築
     const columns: string[] = [];
@@ -568,11 +557,9 @@ export class FileMetadataRepository {
     const pool = getPool();
 
     // JSONB型カラムの一覧（::jsonbキャストが必要）
+    // ※ 削除済み: custom_metadata, tags, search_keywords
     const JSONB_COLUMNS = new Set([
       'draft_metadata',
-      'custom_metadata',
-      'tags',
-      'search_keywords',
     ]);
 
     const setClause = [];
