@@ -363,6 +363,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         successCount: response.summary.successfulFiles,
         failureCount: response.summary.failedFiles,
         failedFileNames: response.failedFileNames,
+        failedFileReasons: response.failedFileReasons,
       };
       setResultSummary(summary);
 
@@ -867,8 +868,13 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
                       size="small"
                       dataSource={resultSummary.failedFileNames}
                       renderItem={(name) => (
-                        <List.Item style={{ padding: '2px 0' }}>
-                          <Text style={{ fontSize: 12 }}>{name}</Text>
+                        <List.Item style={{ padding: '2px 0', flexDirection: 'column', alignItems: 'flex-start' }}>
+                          <Text style={{ fontSize: 12, fontWeight: 500 }}>{name}</Text>
+                          {resultSummary.failedFileReasons?.[name] && (
+                            <Text type="secondary" style={{ fontSize: 11, marginTop: 2 }}>
+                              理由: {resultSummary.failedFileReasons[name]}
+                            </Text>
+                          )}
                         </List.Item>
                       )}
                     />
@@ -891,8 +897,13 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
                       size="small"
                       dataSource={resultSummary.failedFileNames}
                       renderItem={(name) => (
-                        <List.Item style={{ padding: '2px 0' }}>
-                          <Text style={{ fontSize: 12 }}>{name}</Text>
+                        <List.Item style={{ padding: '2px 0', flexDirection: 'column', alignItems: 'flex-start' }}>
+                          <Text style={{ fontSize: 12, fontWeight: 500 }}>{name}</Text>
+                          {resultSummary.failedFileReasons?.[name] && (
+                            <Text type="secondary" style={{ fontSize: 11, marginTop: 2 }}>
+                              理由: {resultSummary.failedFileReasons[name]}
+                            </Text>
+                          )}
                         </List.Item>
                       )}
                     />

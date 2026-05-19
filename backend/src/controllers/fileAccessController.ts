@@ -20,6 +20,7 @@ import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import { renameFile } from '../services/renameService';
 import { Project } from '../types/database';
 import { AppError } from '../enums/errorCodes';
+import { ValidationError } from '../utils/errorClasses';
 import { ProjectStatusEnum } from '../enums/codeMaster.enum';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { injectParentTag } from '../utils/maimlParentInjector';
@@ -31,9 +32,16 @@ import { injectParentTag } from '../utils/maimlParentInjector';
 function resolveFileError(error: unknown): { statusCode: number; errorCode: string; errorMessage: string } {
   const msg = error instanceof Error ? error.message : '';
 
+  // ValidationError（errorClasses.ts）は statusCode=400 固定・code は動的
+  // AppError より先にチェックする（ValidationError は AppError でないため）
+  if (error instanceof ValidationError) {
+    return { statusCode: error.statusCode, errorCode: error.code, errorMessage: msg };
+  }
+
   if (error instanceof AppError) {
     let statusCode = 500;
     if (error.code === 'E1003') statusCode = 400;
+    else if (error.code === 'E7013') statusCode = 400;
     else if (error.code === 'E5015') statusCode = 403;
     else if (error.code === 'E6001' || error.code === 'E6002') statusCode = 404;
     else if (error.code === 'E4006') statusCode = 500;
@@ -814,6 +822,42 @@ export async function initChunkUpload(req: Request, res: Response): Promise<void
               meta: { timestamp: new Date().toISOString(), requestId },
             });
             return;
+          }
+        }
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // チェック1-b: 新規登録時のUUID重複チェック
+    // project_maiml_flg=false（MAIML未登録）の場合、documentUuidが
+    // 別プロジェクトに既に登録済みでないか確認する
+    // ──────────────────────────────────────────────────────────────
+    if (isMaimlFile && isProjectPath && !isArchivePath) {
+      const pathParts = filePath.split('/');
+      if (pathParts.length >= 2) {
+        const projectName = pathParts[1];
+        const existingProject = await projectRepository.findByName(organizationId, projectName);
+        if (!existingProject?.project_maiml_flg) {
+          // MAIML未登録プロジェクトへの新規アップロード → UUID重複チェック
+          const documentUuid: string | undefined = req.body.documentUuid;
+          if (documentUuid) {
+            const conflictProjectName = await projectRepository.findProjectNameByUuid(
+              organizationId,
+              documentUuid,
+              projectName
+            );
+            if (conflictProjectName) {
+              console.error(`❌ [ChunkInit] UUID重複: uuid=${documentUuid} は既にプロジェクト「${conflictProjectName}」に登録済み`);
+              res.status(400).json({
+                success: false,
+                error: {
+                  code: 'E7013',
+                  message: `このMAIMLファイルのUUID（${documentUuid}）は別のプロジェクト「${conflictProjectName}」に既に登録されています。`,
+                },
+                meta: { timestamp: new Date().toISOString(), requestId },
+              });
+              return;
+            }
           }
         }
       }

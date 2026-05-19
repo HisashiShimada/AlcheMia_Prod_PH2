@@ -416,17 +416,51 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     
     // 選択したプロジェクトのMAIMLを読み込み
     const project = projects.find(p => p.id === projectId);
-    if (project) {
-      console.log('🎯 [ProjectManagement] プロジェクト選択 - MAIML読み込み開始:', project.id);
-      try {
-        await loadMaiml(project.id);
-        console.log('✅ [ProjectManagement] MAIML読み込み完了');
-      } catch (error) {
-        console.error('❌ [ProjectManagement] MAIML読み込み失敗:', error);
-        // エラーはContextで処理済み（メッセージ表示済み）
-      }
+    if (!project) return;
+
+    console.log('🎯 [ProjectManagement] プロジェクト選択 - MAIML読み込み開始:', project.id);
+    try {
+      await loadMaiml(project.id);
+      console.log('✅ [ProjectManagement] MAIML読み込み完了');
+    } catch (error) {
+      console.error('❌ [ProjectManagement] MAIML読み込み失敗:', error);
+      // エラーはContextで処理済み（メッセージ表示済み）
     }
-  }, [projects, loadMaiml]);
+
+    // 現在選択中のタブのデータを再取得（プロジェクト変更時）
+    try {
+      setIsLoadingTabData(true);
+
+      if (currentTab === 'file_management') {
+        console.log('📂 [ProjectManagement] プロジェクト変更 - ファイル一覧を再取得:', project.name);
+        const fileResponse = await getProjectFiles(project.id, true);
+        setProjectFilesData(prev => ({
+          ...prev,
+          [projectId]: {
+            root: fileResponse.files || [],
+            subFolderFiles: fileResponse.subFolderFiles || {},
+          }
+        }));
+      } else if (currentTab === 'task_results') {
+        console.log('📋 [ProjectManagement] プロジェクト変更 - タスク一覧を再取得:', project.name);
+        const taskResponse = await getProjectTasks(project.id, 'all');
+        setProjectTasksData(prev => ({
+          ...prev,
+          [projectId]: {
+            tasks: taskResponse.tasks || [],
+            statistics: taskResponse.statistics || {},
+          }
+        }));
+      }
+      // task_registration / instruction_registration は
+      // コンポーネント内部で projectId の変更を検知して自動更新するため不要
+    } catch (error) {
+      console.error('❌ [ProjectManagement] タブデータ取得失敗:', error);
+      message.error(t('project.dataFetchFailed'));
+    } finally {
+      setIsLoadingTabData(false);
+    }
+  }, [projects, loadMaiml, currentTab, getProjectFiles, getProjectTasks]);
 
   // フォルダクリック時
   const handleFolderClick = useCallback((folderId: string) => {
