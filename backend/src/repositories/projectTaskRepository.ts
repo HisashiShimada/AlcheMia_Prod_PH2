@@ -32,12 +32,7 @@ export async function findByProject(
 ): Promise<ProjectTask[]> {
   const pool = getPool();
   
-  const query = `
-    SELECT *
-    FROM project_task
-    WHERE organization_id = $1 AND project_id = $2
-    ORDER BY experiment_order ASC
-  `;
+  const query = await loadSqlFile('project_tasks/findByProject.sql');
   
   const result = await pool.query<ProjectTask>(query, [organizationId, projectId]);
   return result.rows;
@@ -58,11 +53,7 @@ export async function findByPrimaryKey(
 ): Promise<ProjectTask | null> {
   const pool = getPool();
   
-  const query = `
-    SELECT *
-    FROM project_task
-    WHERE organization_id = $1 AND project_id = $2 AND method_id = $3
-  `;
+  const query = await loadSqlFile('project_tasks/findByPrimaryKey.sql');
   
   const result = await pool.query<ProjectTask>(query, [organizationId, projectId, methodId]);
   return result.rows[0] || null;
@@ -81,11 +72,7 @@ export async function countByProject(
 ): Promise<number> {
   const pool = getPool();
   
-  const query = `
-    SELECT COUNT(*) as count
-    FROM project_task
-    WHERE organization_id = $1 AND project_id = $2
-  `;
+  const query = await loadSqlFile('project_tasks/countByProject.sql');
   
   const result = await pool.query<{ count: string }>(query, [organizationId, projectId]);
   return parseInt(result.rows[0].count, 10);

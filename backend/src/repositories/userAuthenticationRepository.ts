@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import type { Result } from '../types/service';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * user_authenticationテーブルに対するデータアクセス層
@@ -26,11 +27,7 @@ export class UserAuthenticationRepository {
     organizationId: string
   ): Promise<Result<PasswordStatus>> {
     try {
-      const query = `
-        SELECT is_temporary_flg, password_expires_at
-        FROM user_authentication
-        WHERE user_id = $1 AND organization_id = $2
-      `;
+      const query = await loadSqlFile('user_authentication/getPasswordStatus.sql');
 
       const result = await pool.query(query, [userId, organizationId]);
 
@@ -76,14 +73,7 @@ export class UserAuthenticationRepository {
     hashedPassword: string
   ): Promise<Result<void>> {
     try {
-      const query = `
-        UPDATE user_authentication
-        SET password = $1,
-            password_expires_at = NOW() + INTERVAL '24 hours',
-            is_temporary_flg = true,
-            update_at = NOW()
-        WHERE user_id = $2 AND organization_id = $3
-      `;
+      const query = await loadSqlFile('user_authentication/updateAsTemporary.sql');
 
       await pool.query(query, [hashedPassword, userId, organizationId]);
 
@@ -124,14 +114,7 @@ export class UserAuthenticationRepository {
     isTemporary: boolean
   ): Promise<Result<void>> {
     try {
-      const query = `
-        UPDATE user_authentication
-        SET password = $1,
-            password_expires_at = $2,
-            is_temporary_flg = $3,
-            update_at = NOW()
-        WHERE user_id = $4 AND organization_id = $5
-      `;
+      const query = await loadSqlFile('user_authentication/updatePasswordWithExpiry.sql');
 
       const result = await pool.query(query, [
         hashedPassword,
@@ -185,14 +168,7 @@ export class UserAuthenticationRepository {
   ): Promise<Result<void>> {
     try {
       const expiryDays = parseInt(process.env.PASSWORD_EXPIRY_DAYS ?? '30', 10);
-      const query = `
-        UPDATE user_authentication
-        SET password = $1,
-            password_expires_at = NOW() + ($4 || ' days')::INTERVAL,
-            is_temporary_flg = false,
-            update_at = NOW()
-        WHERE user_id = $2 AND organization_id = $3
-      `;
+      const query = await loadSqlFile('user_authentication/updatePasswordAfterChange.sql');
 
       const result = await pool.query(query, [
         hashedPassword,

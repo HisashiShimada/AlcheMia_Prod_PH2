@@ -12,6 +12,7 @@ import {
   BatchSearchParams,
   BatchProgress 
 } from '../types/uploadBatch';
+import { loadSqlFile } from '../sql/loader';
 
 export class UploadBatchRepository {
   /**
@@ -35,14 +36,7 @@ export class UploadBatchRepository {
 
     console.log('📦 [UploadBatchRepository] バッチ作成:', { batchId, batchName, uploadType: params.uploadType });
 
-    const query = `
-      INSERT INTO upload_batch (
-        batch_id, batch_name, upload_type, organization_id, 
-        upload_by, total_files, status, start_time, create_at, update_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', NOW(), NOW(), NOW())
-      RETURNING *
-    `;
+    const query = await loadSqlFile('upload_batches/create.sql');
 
     const values = [
       batchId,
@@ -190,25 +184,7 @@ export class UploadBatchRepository {
   async getProgress(batchId: string): Promise<BatchProgress | null> {
     console.log('📦 [UploadBatchRepository] バッチ進捗取得:', batchId);
 
-    const query = `
-      SELECT 
-        batch_id,
-        batch_name,
-        total_files,
-        completed_files,
-        failed_files,
-        status,
-        ROUND(
-          CASE 
-            WHEN total_files > 0 THEN (completed_files::NUMERIC / total_files * 100)
-            ELSE 0
-          END,
-          2
-        ) as progress_percent
-      FROM upload_batch
-      WHERE batch_id = $1
-    `;
-
+    const query = await loadSqlFile('upload_batches/getProgress.sql');
     const pool = getPool();
     const result = await pool.query(query, [batchId]);
     
@@ -251,12 +227,7 @@ export class UploadBatchRepository {
    * 組織内のバッチ件数取得
    */
   async countByOrganization(organizationId: string): Promise<number> {
-    const query = `
-      SELECT COUNT(*) as count
-      FROM upload_batch
-      WHERE organization_id = $1
-    `;
-
+    const query = await loadSqlFile('upload_batches/countByOrganization.sql');
     const pool = getPool();
     const result = await pool.query(query, [organizationId]);
     return parseInt(result.rows[0].count, 10);
@@ -268,12 +239,7 @@ export class UploadBatchRepository {
   async findInProgress(organizationId: string): Promise<UploadBatch[]> {
     console.log('📦 [UploadBatchRepository] 進行中バッチ取得:', organizationId);
 
-    const query = `
-      SELECT * FROM upload_batch
-      WHERE organization_id = $1 AND status = 'in_progress'
-      ORDER BY create_at DESC
-    `;
-
+    const query = await loadSqlFile('upload_batches/findInProgress.sql');
     const pool = getPool();
     const result = await pool.query(query, [organizationId]);
     

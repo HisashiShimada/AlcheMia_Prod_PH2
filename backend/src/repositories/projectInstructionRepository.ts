@@ -15,6 +15,7 @@
 
 import { getPool } from '../database/db';
 import { ProjectInstruction } from '../types/database';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * 指示をInsert（規約準拠: テーブル型Objectから動的にクエリ構築）
@@ -116,18 +117,7 @@ export async function bulkUpdateStatus(
 ): Promise<number> {
   const pool = getPool();
   
-  const query = `
-    UPDATE project_instruction
-    SET
-      instruction_status = 1,
-      instruction_user_id = $1,
-      instruction_date = CURRENT_TIMESTAMP,
-      update_at = CURRENT_TIMESTAMP
-    WHERE organization_id = $2
-      AND project_id = $3
-      AND instruction_status = 0
-  `;
-  
+  const query = await loadSqlFile('project_instructions/bulkUpdateStatus.sql');
   const result = await pool.query(query, [instructionUserId, organizationId, projectId]);
   return result.rowCount ?? 0;
 }
@@ -181,14 +171,7 @@ export async function findById(
 ): Promise<ProjectInstruction | null> {
   const pool = getPool();
   
-  const query = `
-    SELECT *
-    FROM project_instruction
-    WHERE organization_id = $1
-      AND project_id = $2
-      AND experiment_instruction_id = $3
-  `;
-  
+  const query = await loadSqlFile('project_instructions/findById.sql');
   const result = await pool.query<ProjectInstruction>(query, [
     organizationId,
     projectId,
@@ -223,16 +206,7 @@ export async function deleteById(
     await client.query('BEGIN');
     
     // 1. 削除対象の指示を取得（未送信のみ）
-    const targetQuery = `
-      SELECT experiment_instruction_id
-      FROM project_instruction
-      WHERE organization_id = $1
-        AND project_id = $2
-        AND experiment_instruction_id = $3
-        AND instruction_status = 0
-      FOR UPDATE
-    `;
-    
+    const targetQuery = await loadSqlFile('project_instructions/deleteById_findTarget.sql');
     const targetResult = await client.query(targetQuery, [
       organizationId,
       projectId,
@@ -246,10 +220,7 @@ export async function deleteById(
     }
     
     // 2. プロジェクト名と削除対象の連番を取得
-    const projectQuery = `
-      SELECT project_name FROM project
-      WHERE organization_id = $1 AND project_id = $2
-    `;
+    const projectQuery = await loadSqlFile('project_instructions/deleteById_findProjectName.sql');
     const projectResult = await client.query(projectQuery, [organizationId, projectId]);
     const projectName = projectResult.rows[0].project_name;
     
@@ -257,16 +228,7 @@ export async function deleteById(
     const deletedNumber = parseInt(experimentInstructionId.split('_').pop() || '0', 10);
     
     // 3. 削除対象より後の連番の指示を取得（未送信のみ、連番順）
-    const subsequentQuery = `
-      SELECT *
-      FROM project_instruction
-      WHERE organization_id = $1
-        AND project_id = $2
-        AND instruction_status = 0
-      ORDER BY experiment_instruction_id ASC
-      FOR UPDATE
-    `;
-    
+    const subsequentQuery = await loadSqlFile('project_instructions/deleteById_findSubsequent.sql');
     const subsequentResult = await client.query<ProjectInstruction>(
       subsequentQuery,
       [organizationId, projectId]
@@ -279,14 +241,7 @@ export async function deleteById(
     });
     
     // 4. 削除対象を削除
-    const deleteQuery = `
-      DELETE FROM project_instruction
-      WHERE organization_id = $1
-        AND project_id = $2
-        AND experiment_instruction_id = $3
-        AND instruction_status = 0
-    `;
-    
+    const deleteQuery = await loadSqlFile('project_instructions/deleteById_delete.sql');
     await client.query(deleteQuery, [
       organizationId,
       projectId,
@@ -301,15 +256,7 @@ export async function deleteById(
       const newId = `${projectName}_${String(newNumber).padStart(3, '0')}`;
       
       // IDを更新
-      const updateQuery = `
-        UPDATE project_instruction
-        SET experiment_instruction_id = $1,
-            update_at = CURRENT_TIMESTAMP
-        WHERE organization_id = $2
-          AND project_id = $3
-          AND experiment_instruction_id = $4
-      `;
-      
+      const updateQuery = await loadSqlFile('project_instructions/deleteById_renumber.sql');
       await client.query(updateQuery, [
         newId,
         organizationId,
@@ -342,15 +289,7 @@ export async function hasUnsentInstructions(
 ): Promise<boolean> {
   const pool = getPool();
   
-  // Parameterized Query使用（SQLインジェクション対策）
-  // organization_idフィルタ必須（マルチテナント分離）
-  // instruction_status = 0 が未送信
-  const query = `
-    SELECT COUNT(*) as count
-    FROM project_instruction
-    WHERE organization_id = $1 AND project_id = $2 AND instruction_status = 0
-  `;
-  
+  const query = await loadSqlFile('project_instructions/hasUnsentInstructions.sql');
   const result = await pool.query<{ count: string }>(query, [organizationId, projectId]);
   const count = parseInt(result.rows[0].count, 10);
   return count > 0;
