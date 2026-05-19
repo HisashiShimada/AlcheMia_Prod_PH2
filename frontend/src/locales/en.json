@@ -1940,7 +1940,6 @@
       "auto_correct_done": "Auto-correction complete. Please re-validate.",
       "auto_correct_failed": "Auto-correction failed",
       "s3_saved": "Petri net \"{name}\" saved to S3",
-      "s3_saved_with_uuid_update": "Petri net \"{name}\" saved to S3\n(Document UUID has been automatically updated)",
       "local_downloaded": "Petri net \"{name}\" downloaded",
       "save_failed": "Save failed: {message}\n\nCheck the console log for details."
     },

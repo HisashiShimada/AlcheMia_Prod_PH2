@@ -15,7 +15,7 @@ module.exports = {
     'node_modules/(?!(uuid)/)',
   ],
   moduleNameMapper: {
-    '^uuid$': '<rootDir>/node_modules/uuid/dist/index.js',
+    '^uuid$': require.resolve('uuid'),
   },
   collectCoverageFrom: [
     'src/**/*.ts',
