@@ -137,14 +137,12 @@ export async function findByProject(
 ): Promise<ProjectInstruction[]> {
   const pool = getPool();
   
-  let query = `
-    SELECT *
-    FROM project_instruction
-    WHERE organization_id = $1 AND project_id = $2
-  `;
+  // ベースクエリを外部ファイルから読み込み
+  let query = await loadSqlFile('project_instructions/findByProject.sql');
   
   const params: any[] = [organizationId, projectId];
   
+  // オプション条件を動的に追加
   if (instructionStatus !== undefined) {
     query += ` AND instruction_status = $3`;
     params.push(instructionStatus);
