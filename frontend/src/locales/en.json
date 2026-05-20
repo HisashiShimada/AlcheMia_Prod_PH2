@@ -820,7 +820,7 @@
     "trialCountPlaceholder": "Trial count",
     "emptyState": "No tasks available",
     "buttons": {
-      "addInstruction": "Add Instruction",
+      "addInstruction": "Add Work Unit Instruction",
       "projectInstruction": "Project Instruction"
     },
     "labels": {
