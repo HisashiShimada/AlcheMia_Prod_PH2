@@ -424,7 +424,7 @@ export class AuthService {
       }
 
       // 4. パスワードを更新
-      await this.userAuthenticationRepository.updatePasswordAfterChange(
+      await this.userAuthenticationRepository.clearPasswordExpiry(
         this.pool,
         userId,
         organizationId,
@@ -506,22 +506,13 @@ export class AuthService {
       );
       
       let passwordChangeRequired = false;
-      let isPasswordExpired = false;
       let isTemporaryPassword = false;
 
       if (authResult.success) {
         const authData = authResult.data;
         isTemporaryPassword = authData.is_temporary_flg || false;
         
-        const now = new Date();
-        const expiresAt = authData.password_expires_at ? new Date(authData.password_expires_at) : null;
-        
-        // NULLまたは期限切れ → パスワード変更を要求（NULL = 旧バージョンで変更済みユーザーも含む）
-        if (!expiresAt || now > expiresAt) {
-          isPasswordExpired = true;
-          passwordChangeRequired = true;
-          console.log(`[WARN] パスワード期限切れまたは未設定: user_id=${userInfo.id}`);
-        } else if (isTemporaryPassword) {
+        if (isTemporaryPassword) {
           passwordChangeRequired = true;
           console.log(`[INFO] 一時パスワードでログイン: user_id=${userInfo.id}`);
         }
@@ -619,7 +610,6 @@ export class AuthService {
             expiresAt: expiresAt.toISOString(),
           },
           passwordChangeRequired,
-          isPasswordExpired,
           isTemporaryPassword,
         },
       };
@@ -716,27 +706,6 @@ export class AuthService {
         };
       }
 
-      // 4.5. パスワード有効期限チェック
-      let passwordChangeRequired = false;
-      const authQuery = `
-        SELECT is_temporary_flg, password_expires_at
-        FROM user_authentication
-        WHERE user_id = $1 AND organization_id = $2
-      `;
-      const authResult = await this.pool.query(authQuery, [user.user_id, user.organization_id]);
-      if (authResult.rows.length > 0) {
-        const authData = authResult.rows[0];
-        const isTemporaryPassword = authData.is_temporary_flg || false;
-        const now = new Date();
-        const expiresAt = authData.password_expires_at ? new Date(authData.password_expires_at) : null;
-        // NULLまたは期限切れ → パスワード変更を要求（NULL = 旧バージョンで変更済みユーザーも含む）
-        if (!expiresAt || now > expiresAt) {
-          passwordChangeRequired = true;
-        } else if (isTemporaryPassword) {
-          passwordChangeRequired = true;
-        }
-      }
-
       // 5. 権限情報を取得
       const permissions = await this.rolePermissionRepository.getPermissionsByRoleId(
         user.role_cd,
@@ -789,7 +758,6 @@ export class AuthService {
           newRefreshToken,
           refreshMaxAge: this.jwtService.getRefreshTokenMaxAge(),
           expiresIn: 900, // 15分（秒）
-          passwordChangeRequired,
           user: {
             id: user.user_id,
             username: user.user_name,

@@ -310,8 +310,8 @@ ALTER TABLE public.role_permission ENABLE TRIGGER ALL;
 
 ALTER TABLE public.user_authentication DISABLE TRIGGER ALL;
 
-COPY public.user_authentication (user_id, organization_id, password, is_temporary_flg, password_expires_at, create_user_id, update_user_id, create_at, update_at) FROM stdin;
-provider@example.com	370e959e-19fd-40a1-9584-6f45ea138d93	$2b$12$6tRfE85Sd6db4G4gNa5Gyu94k8I1Lx38.K4/Q42SIao8.QGg0xi4e	f	2026-04-25 15:01:06.51	system.admin@example.com	system.admin@example.com	2026-02-25 15:01:06.698	2026-02-25 15:01:06.698
+COPY public.user_authentication (user_id, organization_id, password, is_temporary_flg, create_user_id, update_user_id, create_at, update_at) FROM stdin;
+provider@example.com	370e959e-19fd-40a1-9584-6f45ea138d93	$2b$12$6tRfE85Sd6db4G4gNa5Gyu94k8I1Lx38.K4/Q42SIao8.QGg0xi4e	f	system.admin@example.com	system.admin@example.com	2026-02-25 15:01:06.698	2026-02-25 15:01:06.698
 system.admin@aiml.com	a0718dc5-21f3-44e6-87e9-cc2ae83f3385	$2b$12$es73DezKzUGLOjmcEnMMR.BHOr8OaAGwlXbxaXObznq8i4./QhBI6	f	2026-04-25 15:01:06.51	system.admin@example.com	system.admin@example.com	2026-02-25 15:01:06.698	2026-02-25 15:01:06.698
 data.admin@aiml.com	a0718dc5-21f3-44e6-87e9-cc2ae83f3385	$2b$12$vjsxb8r.do6CGZdAshU41OyjiiLZQfjOTZXCoHDeUK7.6cBz8Hv.q	f	2026-04-25 15:01:06.51	system.admin@example.com	system.admin@example.com	2026-02-25 15:01:06.698	2026-02-25 15:01:06.698
 exp.admin@aiml.com	a0718dc5-21f3-44e6-87e9-cc2ae83f3385	$2b$12$wEd3r00O7fj0rJjCP5TptOEFaRdpJ/pU9DY7Qg010XwPvEwxWCIUy	f	2026-04-25 15:01:06.51	system.admin@example.com	system.admin@example.com	2026-02-25 15:01:06.698	2026-02-25 15:01:06.698

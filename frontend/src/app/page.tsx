@@ -58,7 +58,6 @@ function HomeContent() {
 
   // パスワード変更モーダル用の状態
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [changePasswordReason, setChangePasswordReason] = useState<'temporary' | 'expired'>('temporary');
   const [pendingRedirectData, setPendingRedirectData] = useState<{
     user: User;
     menuType: string | null;
@@ -90,9 +89,7 @@ function HomeContent() {
 
     // パスワード変更が必要な場合
     if (passwordChangeRequired) {
-      // 仮パスワードか有効期限切れかでメッセージを切り替える
-      const reason = isTemporaryPassword ? 'temporary' : 'expired';
-      console.log(`[${context}] パスワード変更必要 (reason: ${reason}) - パスワード変更モーダルを表示`);
+      console.log(`[${context}] パスワード変更必要 - パスワード変更モーダルを表示`);
       
       // メニュー遷移に必要な情報を保存
       setPendingRedirectData({
@@ -100,8 +97,6 @@ function HomeContent() {
         menuType: user.initialScreenFunctionCd,
       });
       
-      // モーダル表示理由を設定してから表示
-      setChangePasswordReason(reason);
       setShowChangePasswordModal(true);
     } else {
       // 通常のパスワードでログイン - メニュー画面へ遷移
@@ -614,7 +609,6 @@ function HomeContent() {
         <ChangePasswordModal
           open={showChangePasswordModal}
           onSuccess={handleChangePasswordSuccess}
-          reason={changePasswordReason}
         />
       </>
     );
@@ -639,7 +633,6 @@ function HomeContent() {
         <ChangePasswordModal
           open={showChangePasswordModal}
           onSuccess={handleChangePasswordSuccess}
-          reason={changePasswordReason}
         />
       </>
     );
@@ -753,7 +746,6 @@ function HomeContent() {
       <ChangePasswordModal
         open={showChangePasswordModal}
         onSuccess={handleChangePasswordSuccess}
-        reason={changePasswordReason}
       />
     </>
   );
