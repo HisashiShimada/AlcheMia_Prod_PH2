@@ -1579,7 +1579,8 @@
       "update": "Update Functions"
     },
     "labels": {
-      "writable": "Writable"
+      "writable": "Writable",
+      "readOnly": "Read Only"
     }
   },
   "roleFunctionPermission": {

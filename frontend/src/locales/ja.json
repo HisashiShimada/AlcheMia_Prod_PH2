@@ -1419,7 +1419,8 @@
       "update": "機能を更新"
     },
     "labels": {
-      "writable": "書込可"
+      "writable": "書込可",
+      "readOnly": "読取専用"
     }
   },
   "organizationStatistics": {

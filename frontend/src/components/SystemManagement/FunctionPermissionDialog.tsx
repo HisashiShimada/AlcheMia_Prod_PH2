@@ -291,7 +291,7 @@ export default function FunctionPermissionDialog({
       }
     >
       <div style={{ maxHeight: 600, overflowY: 'auto' }}>
-        {functions.map((func, funcIndex) => (
+        {functions.filter(func => READ_ONLY_SELECTABLE_KEYS.includes(func.key)).map((func, funcIndex) => (
           <div key={func.key}>
             {/* 親機能または通常の機能 */}
             <div
@@ -332,24 +332,26 @@ export default function FunctionPermissionDialog({
                 </div>
                 <div style={{ flex: 1 }} />
                 <div style={{ width: 100 }}>
-                  <Checkbox
-                    checked={func.writable}
-                    onChange={() => handleWritableCheck(func.key)}
-                    disabled={!func.checked || !READ_ONLY_SELECTABLE_KEYS.includes(func.key)}
-                  >
-                    <Text
-                      style={{
-                        color: !func.checked 
-                          ? token.colorTextDisabled
-                          : func.writable 
-                            ? token.colorSuccess
-                            : token.colorInfo,
-                        fontSize: token.fontSize,
-                      }}
+                  {READ_ONLY_SELECTABLE_KEYS.includes(func.key) ? (
+                    <Checkbox
+                      checked={!func.writable}
+                      onChange={() => handleWritableCheck(func.key)}
+                      disabled={!func.checked}
                     >
-                      {t('functionPermissionDialog.labels.writable')}
-                    </Text>
-                  </Checkbox>
+                      <Text
+                        style={{
+                          color: !func.checked 
+                            ? token.colorTextDisabled
+                            : !func.writable 
+                              ? token.colorInfo
+                              : token.colorSuccess,
+                          fontSize: token.fontSize,
+                        }}
+                      >
+                        {t('functionPermissionDialog.labels.readOnly')}
+                      </Text>
+                    </Checkbox>
+                  ) : null}
                 </div>
                 <div style={{ flex: 1 }} />
               </div>

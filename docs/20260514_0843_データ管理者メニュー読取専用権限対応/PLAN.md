@@ -8,7 +8,7 @@
 
 ## タスク概要
 
-ロール管理画面の機能管理ダイアログにおいて、データ管理者メニュー（機能ID: `030000`）のみ「読取専用」権限を選択できるように制限する。その他のメニュー（プロバイダーメニュー、システム管理者メニュー、実験管理者メニュー、実験作業者メニュー）は常に「書込可（Ⓦ）」に固定し、読取専用への変更を不可とする。
+ロール管理画面の機能管理ダイアログにおいて、データ管理者メニュー（機能ID: `030000`）のみ「読取専用」権限を選択できるように制限する。その他のメニュー（プロバイダーメニュー、システム管理者メニュー、実験管理者メニュー、実験作業者メニュー）は常に「書込可（Ⓦ）」に固定し、読取専用への変更を不可とする。また、機能管理ダイアログのレイアウトとして、データ管理者メニュー以外の行では「書込可」チェックボックス自体を非表示にし、読取専用が設定できないメニューに対してdisabledなチェックボックスが表示される紛らわしいUIを排除する。
 
 また、読取専用権限（permission=0）が設定されたデータ管理者メニューにアクセスした際、データの追加・更新・削除を伴うすべてのコントロールを非活性にする。
 
@@ -21,7 +21,7 @@
 
 ### 期待される成果
 - [x] ロール管理画面の機能管理ダイアログで、データ管理者メニューのみ「書込可」チェックを外すことができる
-- [x] 他の4メニュー（プロバイダー/システム管理者/実験管理者/実験作業者）の「書込可」チェックボックスがdisabled（操作不可）となる
+- [x] 他の4メニュー（プロバイダー/システム管理者/実験管理者/実験作業者）の「書込可」チェックボックスが非表示となる（チェックボックス自体を表示しない）
 - [x] 読取専用（permission=0）が設定されたデータ管理者メニューにアクセスした場合、`MasterManagement.tsx` の isReadOnly 制御により Create/Update/Delete 操作が不可になる（※ `isReadOnly` フラグと各ボタンへの `disabled={isReadOnly}` は実装済みだったが、`columns` useMemoの依存配列に `isReadOnly` が含まれておらずテーブル行インラインボタンが正しく制御されないバグがあったため、依存配列への追加を本タスクで実施）
 - [x] 権限変更後にメニュー切替ボタンを押すだけで最新権限が即時反映される（再ログイン不要）
 
@@ -29,7 +29,7 @@
 
 ### Step 1: FunctionPermissionDialog.tsx の修正
 - [x] 読取専用選択可能な機能のホワイトリスト定数 `READ_ONLY_SELECTABLE_KEYS` を定義（`['030000']`）
-- [x] 「書込可」チェックボックスの `disabled` 条件を変更：`!func.checked || !READ_ONLY_SELECTABLE_KEYS.includes(func.key)`
+- [x] 「書込可」チェックボックスをデータ管理者メニュー（`030000`）のみ表示し、他メニューは非表示にする（`READ_ONLY_SELECTABLE_KEYS.includes(func.key)` で条件分岐）
 - [x] 読取専用非対応の機能がチェックされた際、`writable: true` を強制する処理を `handleFunctionCheck` に追加
 - [x] 既存の状態（`initialWritableFunctionIds`）から読み込む際、読取専用非対応の機能は `writable: true` に強制する処理を `initialFunctions` の useMemo に追加
 
@@ -81,12 +81,19 @@
 // 読取専用が選択できる機能（データ管理者メニューのみ）
 const READ_ONLY_SELECTABLE_KEYS = ['030000'];
 
-// 書込可チェックボックス：読取専用非対応の機能はdisabled
-<Checkbox
-  checked={func.writable}
-  onChange={() => handleWritableCheck(func.key)}
-  disabled={!func.checked || !READ_ONLY_SELECTABLE_KEYS.includes(func.key)}
->
+// ダイアログのレンダリング: データ管理者メニューのみ表示
+{functions.filter(func => READ_ONLY_SELECTABLE_KEYS.includes(func.key)).map((func) => (
+  // ...機能行のレンダリング
+
+  // 「読取専用」チェックボックス: checked は writable の反転（チェックON = 読取専用）
+  <Checkbox
+    checked={!func.writable}
+    onChange={() => handleWritableCheck(func.key)}
+    disabled={!func.checked}
+  >
+    {t('functionPermissionDialog.labels.readOnly')}  {/* 「読取専用」ラベル */}
+  </Checkbox>
+))}
 ```
 
 ### Step 2: MasterManagement.tsx
@@ -117,7 +124,7 @@ const columns: ColumnsType<MasterRecord> = useMemo(() => {
 ### 手動テスト
 - [ ] ロール管理画面を開き、任意のロールの機能名をクリック
 - [ ] 機能管理ダイアログでデータ管理者メニューの「書込可」チェックを外せることを確認
-- [ ] プロバイダーメニューなど他のメニューの「書込可」チェックがdisabledであることを確認（グレーアウト）
+- [ ] プロバイダーメニューなど他のメニューの「書込可」チェックボックスが非表示であることを確認
 - [ ] データ管理者メニューを読取専用（書込可OFF）で保存後、data_adminでログインし追加・編集・CSVアップロード・有効化・無効化ボタンが非活性であることを確認
 - [ ] 書込可（書込可ON）のロールで data_admin にログインし、すべてのボタンが活性状態であることを確認
 
@@ -131,7 +138,7 @@ const columns: ColumnsType<MasterRecord> = useMemo(() => {
 
 ### 実施日時
 開始: 2026-05-14 08:48
-完了: 2026-05-14 11:57
+完了: 2026-05-20 09:22（追加修正含む）
 
 ### 最終的な成果物
 - [x] `frontend/src/components/SystemManagement/FunctionPermissionDialog.tsx` 修正完了
@@ -144,7 +151,7 @@ const columns: ColumnsType<MasterRecord> = useMemo(() => {
 1. `READ_ONLY_SELECTABLE_KEYS = ['030000']` 定数を追加
 2. `initialFunctions` useMemo：読取専用非対応機能の `writable: true` 強制処理を追加
 3. `handleFunctionCheck`：チェック時に読取専用非対応機能を `writable: true` に強制
-4. 親機能「書込可」Checkboxの `disabled` 条件を `!func.checked || !READ_ONLY_SELECTABLE_KEYS.includes(func.key)` に変更
+4. 「書込可」Checkboxをデータ管理者メニューのみ表示するよう条件分岐を追加（`READ_ONLY_SELECTABLE_KEYS.includes(func.key) ? <Checkbox ...> : null`）
 
 #### MasterManagement.tsx
 1. `isReadOnly` を `const` 定義から `useState` + `useEffect` に変更
