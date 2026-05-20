@@ -1064,6 +1064,11 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
 
     const isMaimlFile = result.contentType === 'application/xml' || fileName.endsWith('.maiml');
 
+    // ファイル名から拡張子を取得（file_extension カラムへの保存用）
+    const fileExt = fileName.includes('.')
+      ? fileName.split('.').pop()?.toLowerCase() || null
+      : null;
+
     // 全ファイルタイプで file_metadata へ保存する。
     // is_maiml_file フラグでMAIML/非MAIMLを区別する。
     // これにより cancelBatch がチャンクアップロード済みファイルを確実に削除できる。
@@ -1074,6 +1079,7 @@ export async function completeChunkUpload(req: Request, res: Response): Promise<
         original_filename: truncateField(fileName, FILE_METADATA_MAX_LENGTHS.original_filename, 'original_filename') || fileName,
         file_size: result.fileSize,
         file_type: result.contentType,
+        file_extension: fileExt,
         uploaded_by: userId,
         is_maiml_file: isMaimlFile,
         s3_bucket: storageService.getBucketName(),
