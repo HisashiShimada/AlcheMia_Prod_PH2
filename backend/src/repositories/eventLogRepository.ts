@@ -32,6 +32,12 @@ export interface InstructionSentLogParams {
   userId: string;
   /** 送信日時（ISO8601文字列） */
   sentAt: string;
+  /** 指示内容テキスト */
+  instructions: string | null;
+  /** 優先度 */
+  priority: number | null;
+  /** 指示タイプ */
+  type: number | null;
 }
 
 /**
@@ -312,6 +318,9 @@ export class EventLogRepository {
       experimentInstructionId,
       userId,
       sentAt,
+      instructions,
+      priority,
+      type,
     } = params;
 
     const logId = `log_${sequenceNo}`;
@@ -333,6 +342,26 @@ export class EventLogRepository {
         '@key': 'instruction_user_id',
         '@xsi:type': 'stringType',
         '#text': userId,
+      },
+      {
+        '@key': 'instructions',
+        '@xsi:type': 'stringType',
+        '#text': instructions ?? '',
+      },
+      {
+        '@key': 'priority',
+        '@xsi:type': 'intType',
+        '#text': priority ?? 0,
+      },
+      {
+        '@key': 'type',
+        '@xsi:type': 'intType',
+        '#text': type ?? 0,
+      },
+      {
+        '@key': 'instruction_target',
+        '@xsi:type': 'intType',
+        '#text': instructionTarget,
       },
     ];
 

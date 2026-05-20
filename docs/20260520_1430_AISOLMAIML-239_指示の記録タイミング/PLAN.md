@@ -259,5 +259,30 @@ return {
 ## 承認記録
 
 - **計画書提示日時**: 2026-05-20 14:30
-- **承認日時**: （承認後記入）
-- **承認者コメント**: （フィードバック記入）
+- **承認日時**: 承認済み
+- **承認者コメント**: 承認済み
+
+## 実施記録
+
+### 実施日時
+開始: 2026-05-20 17:48  
+完了: 2026-05-20 17:55
+
+### 実装内容
+
+#### Phase 1: eventLogRepository 拡張（完了）
+- `InstructionSentLogParams` に `instructions / priority / type` フィールドを追加
+- `buildInstructionSentLogJson()` の `properties` 配列に4項目を追加出力
+  - `instructions` (stringType), `priority` (intType), `type` (intType), `instruction_target` (intType)
+
+#### Phase 2: projectInstructionService 呼び出し側修正（完了）
+- `sendInstructions()` 内の `insertInstructionSentLog()` 呼び出しに新フィールドを渡す実装済み
+
+#### Phase 3: MaimlWriterService に writeEventLogOnly() を追加（完了）
+- `backend/src/utils/maimlDataWriter.ts` に `replaceEventLogInMaiml()` を追加
+- `backend/src/services/maimlWriterService.ts` に `writeEventLogOnly()` メソッドを追加
+  - MAIMLファイル存在確認 → ダウンロード → maiml_event_log全件取得 → eventLog XML 生成 → アーカイブ作成 → 上書き保存
+
+#### Phase 4: projectService checkout() に MAIML書き出し追加（完了）
+- COMMIT後に `writeEventLogOnly()` を呼び出す処理を追加
+- エラー時は警告ログのみ、チェックアウト成功を妨げない（non-fatal）

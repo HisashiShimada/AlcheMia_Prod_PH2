@@ -702,3 +702,23 @@ export function replaceDataAndEventLogInMaiml(
 
   return result;
 }
+
+/**
+ * MAIML XML 文字列の <eventLog> タグのみを
+ * 指定された新しい XML 文字列で丸ごと置き換える
+ *
+ * <data> セクションは変更しない。
+ * チェックアウト時点では template_data が空のため、
+ * writeDataAndEventLog() を使うと <data> が空で上書きされる問題を回避するために使用する。
+ *
+ * @param maimlContent - 置き換え前の MAIML XML 全文字列
+ * @param eventLogXml  - 新しい <eventLog>...</eventLog> XML 文字列（buildEventLogXML() の戻り値）
+ * @returns 置き換え後の MAIML XML 全文字列
+ */
+export function replaceEventLogInMaiml(
+  maimlContent: string,
+  eventLogXml: string
+): string {
+  // <eventLog ...>...</eventLog> を丸ごと置換（複数行対応）
+  return maimlContent.replace(/<eventLog[^>]*>[\s\S]*?<\/eventLog>/g, eventLogXml.trimEnd());
+}
