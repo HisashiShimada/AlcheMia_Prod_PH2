@@ -121,12 +121,7 @@ export async function getById(
 ): Promise<Project | null> {
   const pool = getPool();
   
-  // Parameterized Query使用（SQLインジェクション対策）
-  // organization_idフィルタ必須（マルチテナント分離）
-  const query = `
-    SELECT * FROM project
-    WHERE project_id = $1 AND organization_id = $2
-  `;
+  const query = await loadSqlFile('projects/getById.sql');
   
   const result = await pool.query(query, [projectId, organizationId]);
   
@@ -487,60 +482,34 @@ export async function deleteProjectRelatedData(
   projectId: string,
   client: PoolClient
 ): Promise<void> {
+  const params = [organizationId, projectId];
+
   // 孫テーブル: project_task_detail
-  await client.query(
-    'DELETE FROM project_task_detail WHERE organization_id = $1 AND project_id = $2',
-    [organizationId, projectId]
-  );
+  await client.query(await loadSqlFile('projects/deleteRelatedData_taskDetail.sql'), params);
 
   // 孫テーブル: template_data
-  await client.query(
-    'DELETE FROM template_data WHERE organization_id = $1 AND project_id = $2',
-    [organizationId, projectId]
-  );
+  await client.query(await loadSqlFile('projects/deleteRelatedData_templateData.sql'), params);
 
   // 孫テーブル: transition_data
-  await client.query(
-    'DELETE FROM transition_data WHERE organization_id = $1 AND project_id = $2',
-    [organizationId, projectId]
-  );
+  await client.query(await loadSqlFile('projects/deleteRelatedData_transitionData.sql'), params);
 
   // 孫テーブル: instruction_acknowledged_history
-  await client.query(
-    `DELETE FROM instruction_acknowledged_history 
-     WHERE organization_id = $1 AND project_id = $2`,
-    [organizationId, projectId]
-  );
+  await client.query(await loadSqlFile('projects/deleteRelatedData_instructionHistory.sql'), params);
 
   // 子テーブル: project_task
-  await client.query(
-    'DELETE FROM project_task WHERE organization_id = $1 AND project_id = $2',
-    [organizationId, projectId]
-  );
+  await client.query(await loadSqlFile('projects/deleteRelatedData_projectTask.sql'), params);
 
   // 子テーブル: project_instruction
-  await client.query(
-    'DELETE FROM project_instruction WHERE organization_id = $1 AND project_id = $2',
-    [organizationId, projectId]
-  );
+  await client.query(await loadSqlFile('projects/deleteRelatedData_projectInstruction.sql'), params);
 
   // 子テーブル: issue
-  await client.query(
-    'DELETE FROM issue WHERE organization_id = $1 AND project_id = $2',
-    [organizationId, projectId]
-  );
+  await client.query(await loadSqlFile('projects/deleteRelatedData_issue.sql'), params);
 
   // 子テーブル: issue_comment
-  await client.query(
-    'DELETE FROM issue_comment WHERE organization_id = $1 AND project_id = $2',
-    [organizationId, projectId]
-  );
+  await client.query(await loadSqlFile('projects/deleteRelatedData_issueComment.sql'), params);
 
   // 子テーブル: maiml_event_log
-  await client.query(
-    'DELETE FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2',
-    [organizationId, projectId]
-  );
+  await client.query(await loadSqlFile('projects/deleteRelatedData_eventLog.sql'), params);
 }
 
 /**
@@ -575,10 +544,8 @@ export async function deleteProject(
   projectId: string,
   client: PoolClient
 ): Promise<void> {
-  await client.query(
-    'DELETE FROM project WHERE organization_id = $1 AND project_id = $2',
-    [organizationId, projectId]
-  );
+  const sqlQuery = await loadSqlFile('projects/delete.sql');
+  await client.query(sqlQuery, [organizationId, projectId]);
 }
 
 // ============================================================
@@ -745,10 +712,8 @@ export async function findCheckedOutUserName(
   organizationId: string,
   userId: string
 ): Promise<string | null> {
-  const result = await client.query(
-    'SELECT user_name FROM organization_user WHERE organization_id = $1 AND user_id = $2',
-    [organizationId, userId]
-  );
+  const sqlQuery = await loadSqlFile('projects/findCheckedOutUserName.sql');
+  const result = await client.query(sqlQuery, [organizationId, userId]);
   return result.rows[0]?.user_name ?? null;
 }
 

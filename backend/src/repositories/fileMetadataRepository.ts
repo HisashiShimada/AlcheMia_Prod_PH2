@@ -11,39 +11,31 @@ import { loadSqlFile } from '../sql/loader';
  * ファイルメタデータ型定義
  */
 export interface FileMetadata {
-  file_key:string;
-  s3_bucket:string;
-  organization_id:string;
-  original_filename:string;
-  file_size:number;
-  file_type?:string;
-  file_extension?:string;
-  is_maiml_file?:boolean;
-  maiml_analysis_status?:string;
-  maiml_error_count?:number;
-  maiml_warning_count?:number;
-  maiml_version?:string;
-  maiml_transitions_count?:number;
-  maiml_places_count?:number;
-  maiml_validation_result?:string;
-  maiml_last_analyzed?:Date;
-  uploaded_by:string;
-  create_user_id?:string;
-  update_user_id?:string;
-  created_at?:Date;
-  updated_at?:Date;
-  custom_metadata?:string;
-  tags?:string;
-  search_keywords?:string[];
-  description?:string;
-  file_hash?:string;
-  parent_folder_path?:string;
-  upload_batch_id?:string;
-  upload_source?:string;
-  upload_method?:string;
-  s3_storage_class?:string;
-  s3_etag?:string;
-  last_edit_timestamp?: Date;
+  file_key: string;
+  s3_bucket: string;
+  organization_id: string;
+  original_filename: string;
+  file_size: number;
+  file_type?: string;
+  file_extension?: string;
+  is_maiml_file?: boolean;
+  maiml_analysis_status?: string;
+  maiml_error_count?: number;
+  maiml_warning_count?: number;
+  maiml_version?: string;
+  maiml_transitions_count?: number;
+  maiml_places_count?: number;
+  maiml_last_analyzed?: Date;
+  uploaded_by: string;
+  create_user_id?: string;
+  update_user_id?: string;
+  created_at?: Date;
+  updated_at?: Date;
+  file_hash?: string;
+  parent_folder_path?: string;
+  upload_batch_id?: string;
+  upload_source?: string;
+  upload_method?: string;
   /** プロジェクトUUID: project.project_uuidと同値。MAIMLファイル特定に使用 */
   project_uuid?: string;
 }
@@ -106,11 +98,7 @@ export class FileMetadataRepository {
     fileName: string
   ): Promise<FileMetadata | null> {
     const pool = getPool();
-    const query = `
-      SELECT * FROM file_metadata
-      WHERE organization_id = $1 AND file_name = $2
-      LIMIT 1
-    `;
+    const query = await loadSqlFile('file_metadata/getFileMetadata.sql');
     const params = [organizationId, fileName];
     try {
       const result = await pool.query(query, params);
@@ -128,14 +116,7 @@ export class FileMetadataRepository {
   ): Promise<FileMetadata | null> {
     const pool = getPool();
 
-    // Parameterized Queryを使用してSQLインジェクション対策
-    // organization_idフィルタを必須とすることでマルチテナント分離を保証
-    const query = `
-      SELECT
-        *
-      FROM file_metadata
-      WHERE file_key = $1
-    `;
+    const query = await loadSqlFile('file_metadata/getFileMetadataByFileKey.sql');
 
     const params = [fileKey];
 
@@ -175,18 +156,7 @@ export class FileMetadataRepository {
   ): Promise<FileMetadata[]> {
     const pool = getPool();
 
-    // Parameterized Queryを使用してSQLインジェクション対策
-    // organization_idとproject_idでフィルタリング
-    // deleted_at IS NULLで論理削除されていないレコードのみ取得
-    const query = `
-      SELECT
-        *
-      FROM file_metadata
-      WHERE organization_id = $1
-        AND project_id = $2
-        AND deleted_at IS NULL
-      ORDER BY object_key
-    `;
+    const query = await loadSqlFile('file_metadata/getByProject.sql');
 
     const params = [organizationId, projectId];
 
@@ -430,26 +400,13 @@ export class FileMetadataRepository {
 
     try {
       // 1. 総件数を取得
-      const countQuery = `
-        SELECT COUNT(*) as count
-        FROM file_metadata
-        WHERE organization_id = $1
-          AND object_key LIKE $2
-      `;
+      const countQuery = await loadSqlFile('file_metadata/listProjectFilesCount.sql');
       const countParams = [organizationId, projectPathPrefix];
       const countResult = await pool.query(countQuery, countParams);
       const totalCount = parseInt(countResult.rows[0]?.count || '0', 10);
 
       // 2. ファイル一覧を取得（ページネーション + ソート）
-      const selectQuery = `
-        SELECT
-          *
-        FROM file_metadata
-        WHERE organization_id = $1
-          AND object_key LIKE $2
-        ORDER BY last_modified DESC
-        LIMIT $3 OFFSET $4
-      `;
+      const selectQuery = await loadSqlFile('file_metadata/listProjectFiles.sql');
       const selectParams = [organizationId, projectPathPrefix, limit, offset];
       const selectResult = await pool.query(selectQuery, selectParams);
 
@@ -476,7 +433,7 @@ export class FileMetadataRepository {
   async insertIfNotExists(data: Partial<FileMetadata>): Promise<void> {
     const pool = getPool();
 
-    const JSONB_COLUMNS = new Set(['custom_metadata', 'tags', 'search_keywords']);
+    const JSONB_COLUMNS = new Set<string>([]);
     const columns: string[] = [];
     const placeholders: string[] = [];
     const values: any[] = [];
@@ -516,11 +473,8 @@ export class FileMetadataRepository {
     const pool = getPool();
 
     // JSONB型カラムの一覧（::jsonbキャストが必要）
-    const JSONB_COLUMNS = new Set([
-      'custom_metadata',
-      'tags',
-      'search_keywords',
-    ]);
+    // ※ 削除済み: custom_metadata, tags, search_keywords
+    const JSONB_COLUMNS = new Set<string>([]);
 
     // 動的にカラムとプレースホルダーを構築
     const columns: string[] = [];
@@ -568,11 +522,9 @@ export class FileMetadataRepository {
     const pool = getPool();
 
     // JSONB型カラムの一覧（::jsonbキャストが必要）
+    // ※ 削除済み: custom_metadata, tags, search_keywords
     const JSONB_COLUMNS = new Set([
       'draft_metadata',
-      'custom_metadata',
-      'tags',
-      'search_keywords',
     ]);
 
     const setClause = [];
@@ -632,13 +584,7 @@ export class FileMetadataRepository {
   ): Promise<number> {
     const pool = getPool();
 
-    // Parameterized Queryを使用してSQLインジェクション対策
-    // organization_idとfile_keyでフィルタリング
-    const query = `
-      DELETE FROM file_metadata
-      WHERE organization_id = $1
-        AND file_key = $2
-    `;
+    const query = await loadSqlFile('file_metadata/softDeleteByFileKey.sql');
 
     const params = [organizationId, fileKey];
 
@@ -677,14 +623,7 @@ export class FileMetadataRepository {
 
     const pool = getPool();
 
-    // UNNESTを使用したバッチDELETE
-    const query = `
-      DELETE FROM file_metadata
-      WHERE file_key IN (
-        SELECT * FROM UNNEST($1::text[])
-      )
-      AND organization_id = $2
-    `;
+    const query = await loadSqlFile('file_metadata/softDeleteBatch.sql');
 
     const params = [fileKeys, organizationId];
 
@@ -713,10 +652,7 @@ export class FileMetadataRepository {
   async deleteFileMetadata(fileKey: string): Promise<number> {
     const pool = getPool();
 
-    const query = `
-      DELETE FROM file_metadata
-      WHERE file_key = $1
-    `;
+    const query = await loadSqlFile('file_metadata/deleteFileMetadata.sql');
 
     const params = [fileKey];
 
@@ -750,12 +686,7 @@ export class FileMetadataRepository {
   async findByBatchId(batchId: string): Promise<FileMetadata[]> {
     const pool = getPool();
 
-    const query = `
-      SELECT *
-      FROM file_metadata
-      WHERE upload_batch_id = $1
-      ORDER BY created_at ASC
-    `;
+    const query = await loadSqlFile('file_metadata/findByBatchId.sql');
 
     const params = [batchId];
 
@@ -789,13 +720,7 @@ export class FileMetadataRepository {
 
     const pool = getPool();
 
-    const query = `
-      SELECT DISTINCT project_uuid
-      FROM file_metadata
-      WHERE organization_id = $1
-        AND file_key = ANY($2::text[])
-        AND project_uuid IS NOT NULL
-    `;
+    const query = await loadSqlFile('file_metadata/findProjectUuidsByFileKeys.sql');
 
     const result = await pool.query(query, [organizationId, fileKeys]);
     return result.rows.map((row: { project_uuid: string }) => row.project_uuid);
@@ -817,6 +742,25 @@ export class FileMetadataRepository {
     const pgp = getPgp();
     const sql = await loadSqlFile('file_metadata/findMaimlByProjectUuid.sql');
     return await pgp.oneOrNone<{ file_key: string; original_filename: string }>(sql, [projectUuid]);
+  }
+
+  /**
+   * プロジェクト名からMAIMLファイルのfile_keyを取得（project_uuid未設定時のフォールバック）
+   *
+   * project.project_uuid が NULL または file_metadata に該当がない場合に、
+   * organization_id と project_name でMAIMLファイルを特定する。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離に必須）
+   * @param projectName - プロジェクト名
+   * @returns file_key, original_filename, project_uuid、存在しない場合は null
+   */
+  async findMaimlByProjectName(
+    organizationId: string,
+    projectName: string
+  ): Promise<{ file_key: string; original_filename: string; project_uuid: string | null } | null> {
+    const pgp = getPgp();
+    const sql = await loadSqlFile('file_metadata/findMaimlByProjectName.sql');
+    return await pgp.oneOrNone<{ file_key: string; original_filename: string; project_uuid: string | null }>(sql, [organizationId, projectName]);
   }
 
 }

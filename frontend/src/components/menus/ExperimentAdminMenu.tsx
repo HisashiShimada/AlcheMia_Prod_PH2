@@ -164,7 +164,7 @@ export default function ExperimentAdminMenu({
         </div>
 
         {/* タブ3: 進捗確認 - display:none でマウント維持し state を保持 */}
-        <div style={{ display: currentTab === '3' ? 'block' : 'none', height: '100%', overflow: 'auto' }}>
+        <div style={{ display: currentTab === '3' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
           <ProgressMonitoring />
         </div>
       </Content>

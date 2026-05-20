@@ -7,6 +7,7 @@
 
 import { PoolClient } from 'pg';
 import { TransitionStatus } from '../types/transitionData';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * 指示送信ログのパラメータ
@@ -100,6 +101,9 @@ export class DatabaseError extends Error {
  * すべての操作でorganization_idによるマルチテナント分離を保証します。
  */
 export class EventLogRepository {
+  private sequenceQueryPromise: Promise<string> = loadSqlFile('event_log/getNextSequenceNo.sql');
+  private insertQueryPromise: Promise<string> = loadSqlFile('event_log/insertEventLog.sql');
+
   /**
    * イベントログを記録
    * 
@@ -120,13 +124,7 @@ export class EventLogRepository {
   ): Promise<void> {
     try {
       // sequence_noの自動採番
-      // organization_idとproject_idの組み合わせで最大値を取得し、+1する
-      const sequenceQuery = `
-        SELECT COALESCE(MAX(sequence_no), 0) + 1 as next_sequence_no
-        FROM maiml_event_log
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-
+      const sequenceQuery = await this.sequenceQueryPromise;
       const sequenceResult = await client.query(sequenceQuery, [
         organizationId,
         projectId,
@@ -134,31 +132,7 @@ export class EventLogRepository {
 
       const nextSequenceNo = sequenceResult.rows[0].next_sequence_no;
 
-      // イベントログをJSONB形式で保存
-      // Parameterized Queryを使用してSQLインジェクション対策
-      // organization_idフィルタを含め、マルチテナント分離を保証
-      const insertQuery = `
-        INSERT INTO maiml_event_log (
-          organization_id,
-          project_id,
-          sequence_no,
-          log,
-          create_user_id,
-          create_at,
-          update_user_id,
-          update_at
-        )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4::jsonb,
-          $5,
-          CURRENT_TIMESTAMP,
-          $5,
-          CURRENT_TIMESTAMP
-        )
-      `;
+      const insertQuery = await this.insertQueryPromise;
 
       // イベントデータをJSONオブジェクトとして構築
       // undefinedのフィールドはJSONに含めない
@@ -234,11 +208,7 @@ export class EventLogRepository {
   ): Promise<void> {
     try {
       // sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
-      const sequenceQuery = `
-        SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next_sequence_no
-        FROM maiml_event_log
-        WHERE organization_id = $1 AND project_id = $2
-      `;
+      const sequenceQuery = await this.sequenceQueryPromise;
       const sequenceResult = await client.query(sequenceQuery, [
         organizationId,
         projectId,
@@ -248,29 +218,7 @@ export class EventLogRepository {
       // instruction_target に応じた JSON 構造を構築
       const logJson = this.buildEventLogJson(params, nextSequenceNo);
 
-      // maiml_event_log にINSERT（Parameterized Query）
-      const insertQuery = `
-        INSERT INTO maiml_event_log (
-          organization_id,
-          project_id,
-          sequence_no,
-          log,
-          create_user_id,
-          create_at,
-          update_user_id,
-          update_at
-        )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4::jsonb,
-          $5,
-          CURRENT_TIMESTAMP,
-          $5,
-          CURRENT_TIMESTAMP
-        )
-      `;
+      const insertQuery = await this.insertQueryPromise;
 
       await client.query(insertQuery, [
         organizationId,
@@ -318,11 +266,7 @@ export class EventLogRepository {
   ): Promise<void> {
     try {
       // sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
-      const sequenceQuery = `
-        SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next_sequence_no
-        FROM maiml_event_log
-        WHERE organization_id = $1 AND project_id = $2
-      `;
+      const sequenceQuery = await this.sequenceQueryPromise;
       const sequenceResult = await client.query(sequenceQuery, [
         organizationId,
         projectId,
@@ -332,29 +276,7 @@ export class EventLogRepository {
       // instruction_target に応じた JSON 構造を構築
       const logJson = this.buildInstructionSentLogJson(params, nextSequenceNo);
 
-      // maiml_event_log にINSERT（Parameterized Query）
-      const insertQuery = `
-        INSERT INTO maiml_event_log (
-          organization_id,
-          project_id,
-          sequence_no,
-          log,
-          create_user_id,
-          create_at,
-          update_user_id,
-          update_at
-        )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4::jsonb,
-          $5,
-          CURRENT_TIMESTAMP,
-          $5,
-          CURRENT_TIMESTAMP
-        )
-      `;
+      const insertQuery = await this.insertQueryPromise;
 
       await client.query(insertQuery, [
         organizationId,
@@ -556,11 +478,7 @@ export class EventLogRepository {
   ): Promise<void> {
     try {
       // 1. sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
-      const sequenceQuery = `
-        SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next_sequence_no
-        FROM maiml_event_log
-        WHERE organization_id = $1 AND project_id = $2
-      `;
+      const sequenceQuery = await this.sequenceQueryPromise;
       const sequenceResult = await client.query(sequenceQuery, [
         organizationId,
         projectId,
@@ -654,29 +572,8 @@ export class EventLogRepository {
         },
       };
 
-      // 5. maiml_event_log にINSERT（Parameterized Query）
-      const insertQuery = `
-        INSERT INTO maiml_event_log (
-          organization_id,
-          project_id,
-          sequence_no,
-          log,
-          create_user_id,
-          create_at,
-          update_user_id,
-          update_at
-        )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4::jsonb,
-          $5,
-          CURRENT_TIMESTAMP,
-          $5,
-          CURRENT_TIMESTAMP
-        )
-      `;
+      // 5. maiml_event_log にINSERT
+      const insertQuery = await this.insertQueryPromise;
 
       await client.query(insertQuery, [
         organizationId,

@@ -14,8 +14,6 @@ CREATE TABLE user_authentication (
     -- 認証情報
     password CHARACTER VARYING(255) NOT NULL,
     is_temporary_flg BOOLEAN NOT NULL DEFAULT false,
-    password_expires_at TIMESTAMP,
-    
     -- 監査証跡
     create_user_id VARCHAR(50),
     update_user_id VARCHAR(50),
@@ -34,7 +32,6 @@ COMMENT ON COLUMN user_authentication.user_id IS 'ユーザID';
 COMMENT ON COLUMN user_authentication.organization_id IS '組織ID';
 COMMENT ON COLUMN user_authentication.password IS 'ハッシュパスワード';
 COMMENT ON COLUMN user_authentication.is_temporary_flg IS '仮パスワードフラグ';
-COMMENT ON COLUMN user_authentication.password_expires_at IS 'パスワード有効期限';
 COMMENT ON COLUMN user_authentication.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN user_authentication.update_user_id IS '更新者ユーザID';
 COMMENT ON COLUMN user_authentication.create_at IS '作成日時';

@@ -18,6 +18,7 @@ import { maimlSaveResult} from '../types/maimlEditor';
 import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
 import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
+import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import type { Draft } from '../types/editor';
 import {
   ListFilesResponse,
@@ -177,6 +178,8 @@ export async function saveMaiML(
       normalizedFileKey.includes('/projects/') && !normalizedFileKey.includes('/archive/');
 
     // S3/Swiftアップロード（リトライ機能付き・uploadedBy を渡して file_metadata を自動登録）
+    // ※ project_uuid は project.project_uuid（プロジェクト作成時採番）を使用するため
+    //   ここでは Document UUID を渡さない。project_uuid は後続の file_metadata 更新で設定する。
     await uploadFileWithRetry(
       organizationId,
       normalizedFileKey,
@@ -188,8 +191,6 @@ export async function saveMaiML(
         metadata: {
           'edit-timestamp': new Date().toISOString(),
         },
-        // archive でない project ファイルの場合のみ project_uuid を設定
-        ...(isProjectMainFile && documentUuid ? { project_uuid: documentUuid } : {}),
       },
       3,    // maxRetries
       60000 // timeout: 60秒
@@ -233,23 +234,21 @@ export async function saveMaiML(
             throw new Error(errorMsg);
           }
 
-          // project_maiml_flg と project_uuid を必要に応じて更新
+          // project_maiml_flg を必要に応じて更新
+          // ※ project_uuid はプロジェクト作成時に採番済みのため、Document UUID で上書きしない
           const needsFlagUpdate = !existingProject.project_maiml_flg;
-          const needsUuidUpdate = documentUuid && existingProject.project_uuid !== documentUuid;
 
-          if (needsFlagUpdate || needsUuidUpdate) {
+          if (needsFlagUpdate) {
             const updatedProject: Project = {
               ...existingProject,
-              ...(needsFlagUpdate ? { project_maiml_flg: true } : {}),
-              ...(needsUuidUpdate ? { project_uuid: documentUuid! } : {}),
+              project_maiml_flg: true,
             };
 
             try {
               await projectRepository.update(updatedProject);
               console.log('✅ [MAIML Save] project更新完了:', {
                 projectName,
-                project_maiml_flg: needsFlagUpdate ? true : existingProject.project_maiml_flg,
-                project_uuid: needsUuidUpdate ? documentUuid : existingProject.project_uuid,
+                project_maiml_flg: 'false→true',
               });
             } catch (updateError) {
               console.error('❌ [MAIML Save] project更新失敗:', {
@@ -260,6 +259,23 @@ export async function saveMaiML(
             }
           } else {
             console.log('ℹ️ [MAIML Save] project の更新は不要（変更なし）:', projectName);
+          }
+
+          // file_metadata.project_uuid を更新（project.project_uuid を使用）
+          if (existingProject.project_uuid) {
+            try {
+              const fileMetadataRepository = new FileMetadataRepository();
+              await fileMetadataRepository.updateFileMetadata(normalizedFileKey, {
+                project_uuid: existingProject.project_uuid,
+              });
+              console.log('✅ [MAIML Save] file_metadata.project_uuid更新完了:', {
+                fileKey: normalizedFileKey,
+                project_uuid: existingProject.project_uuid,
+              });
+            } catch (metaUpdateErr) {
+              // file_metadata更新失敗は警告のみ（ファイル保存は成功しているため処理続行）
+              console.warn('⚠️ [MAIML Save] file_metadata.project_uuid更新失敗（処理続行）:', metaUpdateErr instanceof Error ? metaUpdateErr.message : metaUpdateErr);
+            }
           }
         } else {
           // fileKeyの形式が不正な場合はエラー
