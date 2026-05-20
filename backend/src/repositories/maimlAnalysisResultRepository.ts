@@ -12,6 +12,7 @@
  */
 
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * MAIML分析結果の型定義
@@ -112,10 +113,7 @@ export async function getByFileKey(
 ): Promise<MaimlAnalysisResult | null> {
   const pool = getPool();
 
-  const query = `
-    SELECT * FROM maiml_analysis_results
-    WHERE file_key = $1
-  `;
+  const query = await loadSqlFile('maiml_analysis_results/getByFileKey.sql');
 
   try {
     const result = await pool.query(query, [fileKey]);
@@ -135,10 +133,7 @@ export async function getByFileKey(
 export async function deleteByFileKey(fileKey: string): Promise<number> {
   const pool = getPool();
 
-  const query = `
-    DELETE FROM maiml_analysis_results
-    WHERE file_key = $1
-  `;
+  const query = await loadSqlFile('maiml_analysis_results/deleteByFileKey.sql');
 
   try {
     const result = await pool.query(query, [fileKey]);

@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import type { Result } from '../types/service';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * user_authenticationテーブルに対するデータアクセス層
