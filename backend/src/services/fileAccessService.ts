@@ -39,6 +39,7 @@ import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { createMaimlBackup } from '../utils/maimlArchiveHelper';
+import { extractParentUuids } from '../utils/maimlParentInjector';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -419,23 +420,11 @@ export class FileAccessService {
               : false;
 
             if (maimlRegistered) {
-              // プロジェクトにMAIMLが既に登録済み → ストレージの現在MAIMLと Document UUID を比較
-              // ※ project_uuid はシステム採番のため documentUuid との比較は廃止
-              // アップロードファイルの Document UUID を抽出
-              let uploadingDocumentUuid: string | undefined;
-              try {
-                const maimlParser = new MaimlParserTyped(file.buffer.toString('utf-8'));
-                const doc = maimlParser.getDocument();
-                const uuid = doc?.uuid?.trim();
-                if (uuid && uuid.length > 0) {
-                  uploadingDocumentUuid = uuid;
-                  console.log('🔍 [Upload] Document UUID 抽出成功（上書きチェック用）:', uploadingDocumentUuid);
-                }
-              } catch (parseError) {
-                console.warn('⚠️ [Upload] UUID抽出失敗（上書きチェック用）:', parseError);
-              }
+              // プロジェクトにMAIMLが既に登録済み → アップロードするMAIMLのParentチェーンに
+              // 現在ストレージにあるMAIMLのDocument UUIDが含まれているかで判定する
+              // （injectParentTag()によりDocument UUIDが再採番されるため、UUID完全一致チェックは廃止）
 
-              // file_metadata から現在のMAIMLの fileKey を取得してDocument UUID を比較
+              // file_metadata から現在のMAIMLの fileKey を取得
               // project_uuid が設定済みなら findMaimlByProjectUuid、未設定なら findMaimlByProjectName にフォールバック
               let allowOverwrite = false;
               const currentMaimlMeta = existingProject?.project_uuid
@@ -454,15 +443,21 @@ export class FileAccessService {
                   const currentDoc = currentParser.getDocument();
                   const currentDocumentUuid = currentDoc?.uuid?.trim();
 
-                  if (uploadingDocumentUuid && currentDocumentUuid && uploadingDocumentUuid === currentDocumentUuid) {
-                    // Document UUID 一致 → 同一MAIMLをベースにした変更 → 上書き許可
+                  // アップロードするMAIMLのParentチェーンに現在のDocument UUIDが含まれるかチェック
+                  const uploadingContent = file.buffer.toString('utf-8');
+                  const parentUuids = extractParentUuids(uploadingContent);
+
+                  const isBaseMatch = currentDocumentUuid != null && parentUuids.includes(currentDocumentUuid);
+
+                  if (isBaseMatch) {
+                    // Parentチェーンに現在のDocument UUIDが含まれる → 同一MAIMLをベースにした変更 → 上書き許可
                     allowOverwrite = true;
-                    console.log(`✅ [Upload] Document UUID一致のため上書き許可: projectName=${projectName}, documentUuid=${uploadingDocumentUuid}`);
+                    console.log(`✅ [Upload] Parentチェーン一致のため上書き許可: projectName=${projectName}, currentDocumentUuid=${currentDocumentUuid}, parentUuids=${JSON.stringify(parentUuids)}`);
                     if (maimlExists) {
                       await createMaimlBackup(existingMaimlPath, organizationId);
                     }
                   } else {
-                    console.error(`❌ [Upload] Document UUID不一致: uploading=${uploadingDocumentUuid}, current=${currentDocumentUuid}`);
+                    console.error(`❌ [Upload] Parentチェーン不一致: currentDocumentUuid=${currentDocumentUuid}, parentUuids=${JSON.stringify(parentUuids)}`);
                   }
                 } catch (storageErr) {
                   console.error(`❌ [Upload] ストレージからのMAIML取得失敗:`, storageErr instanceof Error ? storageErr.message : storageErr);

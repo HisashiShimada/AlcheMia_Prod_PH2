@@ -10,6 +10,8 @@ import { MaimlParserTyped } from './maimlParserTyped';
  *
  * 既存 <parent> がある場合はネストして来歴チェーンを保持する。
  * 同一 projectUuid を持つ <parent> が既に先頭にある場合のみスキップ（重複防止）。
+ *
+ * injectParentTag() はParentタグ挿入後にDocument直下の <uuid> を再採番する。
  */
 
 /**
@@ -17,6 +19,128 @@ import { MaimlParserTyped } from './maimlParserTyped';
  */
 export function computeSha256Base64(buffer: Buffer): string {
   return crypto.createHash('sha256').update(buffer).digest('base64');
+}
+
+/**
+ * MAIMLコンテンツの `<document>` 直下の `<uuid>` 要素を新しいUUIDで置換する
+ *
+ * `<document>` 開始タグ直後の最初の `<uuid>...</uuid>` のみを置換する。
+ * 子要素（parent等）内の `<uuid>` は置換しない。
+ *
+ * @param maimlContent - MAIML XML文字列
+ * @param newUuid      - 置換後のUUID
+ * @returns 置換後のMAIML XML文字列
+ */
+function replaceDocumentUuid(maimlContent: string, newUuid: string): string {
+  // <document ...> の開始タグを検索
+  const documentTagMatch = maimlContent.match(/<document(\s[^>]*)?>/);
+  if (!documentTagMatch || documentTagMatch.index === undefined) {
+    console.warn('[maimlParentInjector] replaceDocumentUuid: <document> タグが見つかりませんでした。');
+    return maimlContent;
+  }
+
+  const documentTagEndIndex = documentTagMatch.index + documentTagMatch[0].length;
+
+  // <document> 直後から最初の <uuid> を検索する
+  // ただし他タグ（<parent>等）が <uuid> より先に来る場合は Document直下ではないため置換しない
+  const afterDocument = maimlContent.substring(documentTagEndIndex);
+
+  // <uuid> と他の開始タグのどちらが先に出現するかを確認
+  // ※ <parent> や <procedure> などが <uuid> より前に来る場合は Document直下の <uuid> がない
+  const uuidIdx = afterDocument.indexOf('<uuid>');
+  if (uuidIdx === -1) {
+    console.warn('[maimlParentInjector] replaceDocumentUuid: <document> 直下に <uuid> が見つかりませんでした。');
+    return maimlContent;
+  }
+
+  // <uuid> より前に他の開始タグが存在するかチェック（空白・改行は除く）
+  // ※ </xxx> 終了タグや <?xml...?> は無視、<xxx> 開始タグが先にあれば Document直下ではない
+  const beforeUuid = afterDocument.substring(0, uuidIdx);
+  // 他の開始タグ（<parent>, <procedure> 等）が <uuid> より前にある場合はスキップ
+  const otherOpenTagMatch = beforeUuid.match(/<(?!\/)[^!?][^>]*>/);
+  if (otherOpenTagMatch) {
+    console.warn(
+      `[maimlParentInjector] replaceDocumentUuid: <uuid> より前に別タグ "${otherOpenTagMatch[0]}" が検出されました。置換をスキップします。`
+    );
+    return maimlContent;
+  }
+
+  // </uuid> を検索
+  const uuidEndTag = '</uuid>';
+  const uuidCloseIdx = afterDocument.indexOf(uuidEndTag, uuidIdx);
+  if (uuidCloseIdx === -1) {
+    console.warn('[maimlParentInjector] replaceDocumentUuid: </uuid> が見つかりませんでした。');
+    return maimlContent;
+  }
+
+  // 置換: documentTagEndIndex + uuidIdx ～ uuidCloseIdx + uuidEndTag.length の範囲
+  const absoluteUuidStart = documentTagEndIndex + uuidIdx;
+  const absoluteUuidEnd = documentTagEndIndex + uuidCloseIdx + uuidEndTag.length;
+
+  const replaced =
+    maimlContent.substring(0, absoluteUuidStart) +
+    `<uuid>${newUuid}</uuid>` +
+    maimlContent.substring(absoluteUuidEnd);
+
+  return replaced;
+}
+
+/**
+ * MAIMLコンテンツの `<parent>` タグチェーンを再帰的にたどり、UUID一覧を配列で返す
+ *
+ * 例:
+ *   `<parent><uuid>A</uuid><parent><uuid>B</uuid></parent></parent>` → `["A", "B"]`
+ *
+ * @param maimlContent - MAIML XML文字列
+ * @returns Parentチェーン内のUUID配列（先頭が最新）
+ */
+export function extractParentUuids(maimlContent: string): string[] {
+  const uuids: string[] = [];
+
+  // <document> 内側の文字列を取得
+  const documentTagMatch = maimlContent.match(/<document(\s[^>]*)?>/);
+  if (!documentTagMatch || documentTagMatch.index === undefined) {
+    return uuids;
+  }
+  const documentTagEndIndex = documentTagMatch.index + documentTagMatch[0].length;
+  const documentCloseIndex = maimlContent.indexOf('</document>', documentTagEndIndex);
+  if (documentCloseIndex === -1) {
+    return uuids;
+  }
+  const documentInner = maimlContent.substring(documentTagEndIndex, documentCloseIndex);
+
+  // <parent> ブロックを再帰的にたどって <uuid> を収集
+  function collectUuids(content: string): void {
+    // 最初の <parent> ブロックを抽出
+    const parentBlock = extractFirstParentBlock(content);
+    if (!parentBlock) return;
+
+    // <parent> ブロック内の最初の <uuid> を取得（直接子のみ）
+    const uuidMatch = parentBlock.block.match(/<uuid>([^<]*)<\/uuid>/);
+    if (uuidMatch) {
+      const uuid = uuidMatch[1].trim();
+      if (uuid) {
+        uuids.push(uuid);
+      }
+    }
+
+    // ネストされた <parent> を再帰的に処理
+    // 外側の <parent><uuid>...</uuid><hash>...</hash> 部分を除いて内側を渡す
+    const innerContent = parentBlock.block;
+    // 外側タグの uuid と hash を除いた内側の <parent> を探す
+    const firstUuidEnd = innerContent.indexOf('</uuid>');
+    const firstHashEnd = innerContent.indexOf('</hash>');
+    const innerStart = Math.max(
+      firstUuidEnd !== -1 ? firstUuidEnd + '</uuid>'.length : 0,
+      firstHashEnd !== -1 ? firstHashEnd + '</hash>'.length : 0
+    );
+    if (innerStart > 0 && innerStart < innerContent.length) {
+      collectUuids(innerContent.substring(innerStart));
+    }
+  }
+
+  collectUuids(documentInner);
+  return uuids;
 }
 
 /**
@@ -204,13 +328,20 @@ export function injectParentTag(
       '\n' +
       after;
 
-    const result =
+    const withParent =
       maimlContent.substring(0, documentTagEndIndex) +
       newDocumentInner +
       maimlContent.substring(documentCloseIndex);
 
+    // Parentタグ挿入後、Document直下の <uuid> を再採番
+    const newDocumentUuid = crypto.randomUUID();
+    const result = replaceDocumentUuid(withParent, newDocumentUuid);
+
     console.log(
       `[maimlParentInjector] 既存 <parent> をネストして新しい <parent> (uuid=${projectUuid}) を挿入しました。`
+    );
+    console.log(
+      `[maimlParentInjector] Document UUID を再採番しました: ${newDocumentUuid}`
     );
     return result;
   }
@@ -225,10 +356,17 @@ export function injectParentTag(
 
   const before = maimlContent.substring(0, documentTagEndIndex);
   const after = maimlContent.substring(documentTagEndIndex);
-  const result = before + '\n' + newParentBlock + after;
+  const withParent = before + '\n' + newParentBlock + after;
+
+  // Parentタグ挿入後、Document直下の <uuid> を再採番
+  const newDocumentUuid = crypto.randomUUID();
+  const result = replaceDocumentUuid(withParent, newDocumentUuid);
 
   console.log(
     `[maimlParentInjector] 新規 <parent> (uuid=${projectUuid}) を <document> 直下に挿入しました。`
+  );
+  console.log(
+    `[maimlParentInjector] Document UUID を再採番しました: ${newDocumentUuid}`
   );
   return result;
 }
