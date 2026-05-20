@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import type { Result } from '../types/service';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * organization_userテーブルに対するデータアクセス層
@@ -38,20 +39,7 @@ export class OrganizationUserRepository {
     organizationId: string
   ): Promise<Result<OrganizationUser>> {
     try {
-      const query = `
-        SELECT 
-          ou.user_id,
-          ou.user_name,
-          ou.mail_address,
-          ou.role_cd,
-          ou.organization_id,
-          ou.is_active,
-          ou.department_cd,
-          o.corporation_id
-        FROM organization_user ou
-        LEFT JOIN organization o ON ou.organization_id = o.organization_id
-        WHERE ou.user_id = $1 AND ou.organization_id = $2
-      `;
+      const query = await loadSqlFile('organization_users/findByUserId.sql');
 
       const result = await pool.query(query, [userId, organizationId]);
 
@@ -94,20 +82,7 @@ export class OrganizationUserRepository {
     organizationId: string
   ): Promise<Result<OrganizationUser>> {
     try {
-      const query = `
-        SELECT 
-          ou.user_id,
-          ou.user_name,
-          ou.mail_address,
-          ou.role_cd,
-          ou.organization_id,
-          ou.is_active,
-          ou.department_cd,
-          o.corporation_id
-        FROM organization_user ou
-        LEFT JOIN organization o ON ou.organization_id = o.organization_id
-        WHERE ou.mail_address = $1 AND ou.organization_id = $2
-      `;
+      const query = await loadSqlFile('organization_users/findByEmail.sql');
 
       const result = await pool.query(query, [email, organizationId]);
 
@@ -151,24 +126,7 @@ export class OrganizationUserRepository {
     organizationId: string
   ): Promise<Result<OrganizationUserWithRole>> {
     try {
-      const query = `
-        SELECT 
-          ou.user_id,
-          ou.user_name,
-          ou.mail_address,
-          ou.role_cd,
-          ou.organization_id,
-          ou.is_active,
-          ou.department_cd,
-          o.corporation_id,
-          r.initial_screen_function_cd,
-          r.role_name,
-          o.organization_display_name
-        FROM organization_user ou
-        JOIN role r ON ou.role_cd = r.role_cd AND ou.organization_id = r.organization_id
-        LEFT JOIN organization o ON ou.organization_id = o.organization_id
-        WHERE ou.user_id = $1 AND ou.organization_id = $2
-      `;
+      const query = await loadSqlFile('organization_users/findByUserIdWithRole.sql');
 
       const result = await pool.query(query, [userId, organizationId]);
 
@@ -212,16 +170,7 @@ export class OrganizationUserRepository {
     organizationId: string
   ): Promise<Result<{ user_id: string; organization_id: string; user_name: string; mail_address: string }>> {
     try {
-      const query = `
-        SELECT 
-          pc.user_id,
-          pc.organization_id,
-          ou.user_name,
-          ou.mail_address
-        FROM pin_codes pc
-        JOIN organization_user ou ON pc.user_id = ou.user_id AND pc.organization_id = ou.organization_id
-        WHERE pc.session_token = $1 AND pc.organization_id = $2
-      `;
+      const query = await loadSqlFile('organization_users/findBySessionToken.sql');
 
       const result = await pool.query(query, [sessionToken, organizationId]);
 

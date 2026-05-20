@@ -590,7 +590,6 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
         accessToken: result.data.accessToken,
         expiresIn: result.data.expiresIn,
         user: result.data.user,
-        passwordChangeRequired: result.data.passwordChangeRequired ?? false,
       },
       meta: {
         timestamp: new Date().toISOString(),

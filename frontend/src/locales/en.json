@@ -519,7 +519,7 @@
     "tabs": {
       "file_management": "File Management",
       "task_registration": "Task Registration",
-      "instruction_rgistration": "Instruction List",
+      "instruction_registration": "Instruction List",
       "task_results": "Task Results"
     },
     "task_results": {
@@ -1790,8 +1790,6 @@
       "title": "Change Password (Required)",
       "alertTitle": "You are logged in with a temporary password",
       "alertDescription": "Please change your password for security. The temporary password expires in 24 hours.",
-      "expiredAlertTitle": "Your password has expired",
-      "expiredAlertDescription": "Your password has expired. Please set a new password.",
       "errorMessage": "An error occurred while changing the password",
       "currentPasswordLabel": "Current Password (Temporary Password)",
       "currentPasswordRequired": "Please enter your current password",
@@ -2063,7 +2061,7 @@
     "E7006": "Project instruction not found",
     "E7007": "The task is currently in progress",
     "E7008": "The specified task or method was not found",
-    "E7013": "The UUID of this MAIML file is already registered in another project",
+    "E7013": "A different MAIML may already be registered in the destination project",
     "E9999": "An error occurred. Please try again later.",
     "AUTH_PIN_INVALID": "Invalid PIN code",
     "PIN_VERIFY_FAILED": "PIN code verification failed. Please try again.",

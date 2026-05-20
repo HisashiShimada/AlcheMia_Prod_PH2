@@ -363,9 +363,16 @@ export default function ProgressMonitoring() {
   ];
 
   return (
-    <div style={{ padding: token.paddingLG, backgroundColor: token.colorBgLayout, minHeight: '100vh' }}>
+    <div style={{ backgroundColor: token.colorBgLayout, height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* 検索・フィルタエリア */}
-      <Card style={{ marginBottom: token.paddingLG }} variant="borderless">
+      <Card
+        variant="borderless"
+        style={{
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+          borderRadius: 0,
+        }}
+        styles={{ body: { padding: `${token.margin}px ${token.paddingLG}px` } }}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <Space orientation="horizontal" size="middle" wrap>
             <Space size={4} orientation="horizontal">

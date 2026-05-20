@@ -5,6 +5,7 @@
  */
 
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import type { Permission } from '../types/auth';
 
 /**
@@ -26,12 +27,9 @@ export class RolePermissionRepository {
     
     try {
       // role_permissionテーブルから権限情報を取得
+      const sql = await loadSqlFile('role_permissions/getPermissionsByRoleId.sql');
       const result = await pool.query<{ function_cd: string; permission: number }>(
-        `SELECT function_cd, permission
-         FROM role_permission 
-         WHERE role_cd = $1 
-           AND organization_id = $2
-         ORDER BY function_cd`,
+        sql,
         [roleCd, organizationId]
       );
 
@@ -63,13 +61,9 @@ export class RolePermissionRepository {
     const pool = getPool();
     
     try {
+      const sql = await loadSqlFile('role_permissions/hasPermission.sql');
       const result = await pool.query<{ exists: boolean }>(
-        `SELECT EXISTS(
-          SELECT 1 FROM role_permission 
-          WHERE role_cd = $1 
-            AND organization_id = $2 
-            AND function_cd = $3
-         ) as exists`,
+        sql,
         [roleId, organizationId, functionId]
       );
 

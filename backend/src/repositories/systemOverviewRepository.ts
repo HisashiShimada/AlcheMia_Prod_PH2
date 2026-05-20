@@ -111,10 +111,6 @@ export async function getStorageStats(organizationId: string): Promise<StorageSt
  */
 export async function getOrganizationContractInfo(organizationId: string): Promise<OrganizationContractInfo> {
   const pgp = getPgp();
-  const query = `
-    SELECT contract_users, contract_capacity, contract_projects
-    FROM organization
-    WHERE organization_id = $1
-  `;
+  const query = await loadSqlFile('system_overview/getOrganizationContractInfo.sql');
   return await pgp.one<OrganizationContractInfo>(query, [organizationId]);
 }

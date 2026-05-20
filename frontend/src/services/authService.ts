@@ -239,7 +239,6 @@ export const authService = {
       const response = await apiClient.post<ApiResponse<{
         accessToken: string;
         expiresIn: number;
-        passwordChangeRequired: boolean;
         user: {
           id: string;
           username: string;
@@ -258,7 +257,7 @@ export const authService = {
       );
 
       if (response.data.success) {
-        const { accessToken, user, passwordChangeRequired } = response.data.data;
+        const { accessToken, user } = response.data.data;
         
         // 新しいアクセストークンを保存
         setTokenPair(accessToken);
@@ -281,7 +280,6 @@ export const authService = {
             token: accessToken,
             expiresAt: new Date(Date.now() + response.data.data.expiresIn * 1000).toISOString(),
           },
-          passwordChangeRequired: passwordChangeRequired ?? false,
           redirectUrl: '/', // デフォルトのリダイレクト先
         };
       } else {
