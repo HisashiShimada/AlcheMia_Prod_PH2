@@ -31,6 +31,28 @@ const CHUNK_THRESHOLD = 10 * 1024 * 1024; // 10MB
 /** デフォルトのチャンクサイズ: 10MB */
 const DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
 
+/**
+ * ファイルの MIME タイプを解決する
+ *
+ * ブラウザが MIME タイプを認識しない拡張子（.maiml 等）では `File.type` が空文字列になるため、
+ * 拡張子ベースのマッピングでフォールバックする。
+ *
+ * @param file アップロード対象のファイル
+ * @returns 解決された MIME タイプ文字列
+ */
+const getMimeType = (file: File): string => {
+  if (file.type) return file.type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  const mimeMap: Record<string, string> = {
+    maiml: 'application/xml',
+    xml:   'application/xml',
+    csv:   'text/csv',
+    json:  'application/json',
+    txt:   'text/plain',
+  };
+  return mimeMap[ext ?? ''] || 'application/octet-stream';
+};
+
 // ---------------------------------------------------------------------------
 // リトライ機能 (2026-03-26)
 // ---------------------------------------------------------------------------
@@ -427,7 +449,7 @@ export const uploadFiles = async (
       filePath,
       s3Key: fileKey,
       fileSize: file.size,
-      contentType: file.type || 'application/octet-stream',
+      contentType: getMimeType(file),
       uploadedAt: new Date().toISOString(),
     };
   };
@@ -814,7 +836,7 @@ export const uploadFileWithChunks = async (
       `/files/chunks/${uploadId}/complete`,
       {
         totalChunks,
-        contentType: file.type || 'application/octet-stream',
+        contentType: getMimeType(file),
         // ✅ batchId を渡すことでバックエンドがキャンセル済み判定を実施できる
         ...(options.batchId && { batchId: options.batchId }),
       },
