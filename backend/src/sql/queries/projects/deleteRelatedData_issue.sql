@@ -1,0 +1,5 @@
+-- プロジェクト関連データ削除: issue
+-- $1: organization_id, $2: project_id
+DELETE FROM issue
+WHERE organization_id = $1
+  AND project_id = $2
