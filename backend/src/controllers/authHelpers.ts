@@ -94,29 +94,22 @@ export async function issueSessionTokens(
     ? roleResult.rows[0].role_name?.trim() || user.role_cd
     : user.role_cd;
 
-  // 3. パスワード期限と種別のチェック
+  // 3. パスワード種別のチェック（仮パスワードフラグのみ）
   const authQuery = `
-    SELECT is_temporary_flg, password_expires_at
+    SELECT is_temporary_flg
     FROM user_authentication
     WHERE user_id = $1 AND organization_id = $2
   `;
   const authResult = await pool.query(authQuery, [user.user_id, user.organization_id]);
   
   let passwordChangeRequired = false;
-  let isPasswordExpired = false;
   let isTemporaryPassword = false;
 
   if (authResult.rows.length > 0) {
     const authData = authResult.rows[0];
     isTemporaryPassword = authData.is_temporary_flg || false;
     
-    const now = new Date();
-    const expiresAt = authData.password_expires_at ? new Date(authData.password_expires_at) : null;
-    
-    if (expiresAt && now > expiresAt) {
-      isPasswordExpired = true;
-      passwordChangeRequired = true;
-    } else if (isTemporaryPassword) {
+    if (isTemporaryPassword) {
       passwordChangeRequired = true;
     }
   }
@@ -204,7 +197,6 @@ export async function issueSessionTokens(
         expiresAt: expiresAt.toISOString(),
       },
       passwordChangeRequired,
-      isPasswordExpired,
       isTemporaryPassword,
       ...(pinExemptionApplied && { pinExemptionApplied: true }),
     },

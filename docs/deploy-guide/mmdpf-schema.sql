@@ -3185,7 +3185,6 @@ CREATE TABLE public.user_authentication (
     organization_id uuid NOT NULL,
     password character varying(255) NOT NULL,
     is_temporary_flg boolean DEFAULT false NOT NULL,
-    password_expires_at timestamp without time zone,
     create_user_id character varying(50),
     update_user_id character varying(50),
     create_at timestamp without time zone,
@@ -3226,13 +3225,6 @@ COMMENT ON COLUMN public.user_authentication.password IS 'ハッシュパスワ�
 --
 
 COMMENT ON COLUMN public.user_authentication.is_temporary_flg IS '仮パスワードフラグ';
-
-
---
--- Name: COLUMN user_authentication.password_expires_at; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.user_authentication.password_expires_at IS 'パスワード有効期限';
 
 
 --

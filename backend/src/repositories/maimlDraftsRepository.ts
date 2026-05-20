@@ -7,6 +7,7 @@
  */
 
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import type { Draft } from '../types/editor';
 
 /**
@@ -63,42 +64,7 @@ export class MaimlDraftsRepository {
 
     // UPSERT (INSERT ... ON CONFLICT DO UPDATE)
     // Parameterized Query使用（SQLインジェクション対策）
-    const query = `
-      INSERT INTO maiml_drafts (
-        draft_key,
-        user_id,
-        organization_id,
-        draft_name,
-        original_file_key,
-        nodes,
-        arcs,
-        templates,
-        document_data,
-        node_count,
-        arc_count,
-        template_count,
-        project_id,
-        created_at,
-        last_saved_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (draft_key)
-      DO UPDATE SET
-        draft_name = EXCLUDED.draft_name,
-        original_file_key = EXCLUDED.original_file_key,
-        nodes = EXCLUDED.nodes,
-        arcs = EXCLUDED.arcs,
-        templates = EXCLUDED.templates,
-        document_data = EXCLUDED.document_data,
-        node_count = EXCLUDED.node_count,
-        arc_count = EXCLUDED.arc_count,
-        template_count = EXCLUDED.template_count,
-        project_id = EXCLUDED.project_id,
-        last_saved_at = CURRENT_TIMESTAMP
-      WHERE maiml_drafts.organization_id = $3
-        AND maiml_drafts.user_id = $2
-      RETURNING *
-    `;
+    const query = await loadSqlFile('maiml_drafts/save.sql');
 
     const values = [
       draft.draftKey,
@@ -143,13 +109,7 @@ export class MaimlDraftsRepository {
 
     // Parameterized Query使用（SQLインジェクション対策）
     // organization_id + user_idフィルタ必須（マルチテナント分離）
-    const query = `
-      SELECT *
-      FROM maiml_drafts
-      WHERE draft_key = $1
-        AND organization_id = $2
-        AND user_id = $3
-    `;
+    const query = await loadSqlFile('maiml_drafts/findByKey.sql');
 
     const result = await pool.query(query, [draftKey, organizationId, userId]);
 
@@ -178,12 +138,7 @@ export class MaimlDraftsRepository {
 
     // Parameterized Query使用（SQLインジェクション対策）
     // organization_id + user_idフィルタ必須（マルチテナント分離）
-    const query = `
-      DELETE FROM maiml_drafts
-      WHERE draft_key = $1
-        AND organization_id = $2
-        AND user_id = $3
-    `;
+    const query = await loadSqlFile('maiml_drafts/delete.sql');
 
     const result = await pool.query(query, [draftKey, organizationId, userId]);
 
@@ -205,13 +160,7 @@ export class MaimlDraftsRepository {
 
     // Parameterized Query使用（SQLインジェクション対策）
     // organization_id + user_idフィルタ必須（マルチテナント分離）
-    const query = `
-      SELECT *
-      FROM maiml_drafts
-      WHERE organization_id = $1
-        AND user_id = $2
-      ORDER BY last_saved_at DESC
-    `;
+    const query = await loadSqlFile('maiml_drafts/findAll.sql');
 
     const result = await pool.query(query, [organizationId, userId]);
 

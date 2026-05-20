@@ -98,11 +98,7 @@ export class FileMetadataRepository {
     fileName: string
   ): Promise<FileMetadata | null> {
     const pool = getPool();
-    const query = `
-      SELECT * FROM file_metadata
-      WHERE organization_id = $1 AND file_name = $2
-      LIMIT 1
-    `;
+    const query = await loadSqlFile('file_metadata/getFileMetadata.sql');
     const params = [organizationId, fileName];
     try {
       const result = await pool.query(query, params);
@@ -120,14 +116,7 @@ export class FileMetadataRepository {
   ): Promise<FileMetadata | null> {
     const pool = getPool();
 
-    // Parameterized Queryを使用してSQLインジェクション対策
-    // organization_idフィルタを必須とすることでマルチテナント分離を保証
-    const query = `
-      SELECT
-        *
-      FROM file_metadata
-      WHERE file_key = $1
-    `;
+    const query = await loadSqlFile('file_metadata/getFileMetadataByFileKey.sql');
 
     const params = [fileKey];
 
@@ -167,18 +156,7 @@ export class FileMetadataRepository {
   ): Promise<FileMetadata[]> {
     const pool = getPool();
 
-    // Parameterized Queryを使用してSQLインジェクション対策
-    // organization_idとproject_idでフィルタリング
-    // deleted_at IS NULLで論理削除されていないレコードのみ取得
-    const query = `
-      SELECT
-        *
-      FROM file_metadata
-      WHERE organization_id = $1
-        AND project_id = $2
-        AND deleted_at IS NULL
-      ORDER BY object_key
-    `;
+    const query = await loadSqlFile('file_metadata/getByProject.sql');
 
     const params = [organizationId, projectId];
 
@@ -422,26 +400,13 @@ export class FileMetadataRepository {
 
     try {
       // 1. 総件数を取得
-      const countQuery = `
-        SELECT COUNT(*) as count
-        FROM file_metadata
-        WHERE organization_id = $1
-          AND object_key LIKE $2
-      `;
+      const countQuery = await loadSqlFile('file_metadata/listProjectFilesCount.sql');
       const countParams = [organizationId, projectPathPrefix];
       const countResult = await pool.query(countQuery, countParams);
       const totalCount = parseInt(countResult.rows[0]?.count || '0', 10);
 
       // 2. ファイル一覧を取得（ページネーション + ソート）
-      const selectQuery = `
-        SELECT
-          *
-        FROM file_metadata
-        WHERE organization_id = $1
-          AND object_key LIKE $2
-        ORDER BY last_modified DESC
-        LIMIT $3 OFFSET $4
-      `;
+      const selectQuery = await loadSqlFile('file_metadata/listProjectFiles.sql');
       const selectParams = [organizationId, projectPathPrefix, limit, offset];
       const selectResult = await pool.query(selectQuery, selectParams);
 
@@ -619,13 +584,7 @@ export class FileMetadataRepository {
   ): Promise<number> {
     const pool = getPool();
 
-    // Parameterized Queryを使用してSQLインジェクション対策
-    // organization_idとfile_keyでフィルタリング
-    const query = `
-      DELETE FROM file_metadata
-      WHERE organization_id = $1
-        AND file_key = $2
-    `;
+    const query = await loadSqlFile('file_metadata/softDeleteByFileKey.sql');
 
     const params = [organizationId, fileKey];
 
@@ -664,14 +623,7 @@ export class FileMetadataRepository {
 
     const pool = getPool();
 
-    // UNNESTを使用したバッチDELETE
-    const query = `
-      DELETE FROM file_metadata
-      WHERE file_key IN (
-        SELECT * FROM UNNEST($1::text[])
-      )
-      AND organization_id = $2
-    `;
+    const query = await loadSqlFile('file_metadata/softDeleteBatch.sql');
 
     const params = [fileKeys, organizationId];
 
@@ -700,10 +652,7 @@ export class FileMetadataRepository {
   async deleteFileMetadata(fileKey: string): Promise<number> {
     const pool = getPool();
 
-    const query = `
-      DELETE FROM file_metadata
-      WHERE file_key = $1
-    `;
+    const query = await loadSqlFile('file_metadata/deleteFileMetadata.sql');
 
     const params = [fileKey];
 
@@ -737,12 +686,7 @@ export class FileMetadataRepository {
   async findByBatchId(batchId: string): Promise<FileMetadata[]> {
     const pool = getPool();
 
-    const query = `
-      SELECT *
-      FROM file_metadata
-      WHERE upload_batch_id = $1
-      ORDER BY created_at ASC
-    `;
+    const query = await loadSqlFile('file_metadata/findByBatchId.sql');
 
     const params = [batchId];
 
@@ -776,13 +720,7 @@ export class FileMetadataRepository {
 
     const pool = getPool();
 
-    const query = `
-      SELECT DISTINCT project_uuid
-      FROM file_metadata
-      WHERE organization_id = $1
-        AND file_key = ANY($2::text[])
-        AND project_uuid IS NOT NULL
-    `;
+    const query = await loadSqlFile('file_metadata/findProjectUuidsByFileKeys.sql');
 
     const result = await pool.query(query, [organizationId, fileKeys]);
     return result.rows.map((row: { project_uuid: string }) => row.project_uuid);

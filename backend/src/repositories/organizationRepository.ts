@@ -5,6 +5,7 @@
 
 import { Pool } from 'pg';
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 // ============================================================
 // 組織行の型定義
@@ -31,11 +32,7 @@ export async function getIsEntry(
   pool: Pool,
   organizationId: string
 ): Promise<boolean> {
-  const query = `
-    SELECT is_entry
-    FROM organization
-    WHERE organization_id = $1
-  `;
+  const query = await loadSqlFile('organizations/getIsEntry.sql');
 
   const result = await pool.query(query, [organizationId]);
 
@@ -59,11 +56,7 @@ export async function getUseDeemedProgress(
   pool: Pool,
   organizationId: string
 ): Promise<boolean> {
-  const query = `
-    SELECT use_deemed_progress
-    FROM organization
-    WHERE organization_id = $1
-  `;
+  const query = await loadSqlFile('organizations/getUseDeemedProgress.sql');
 
   const result = await pool.query(query, [organizationId]);
 
@@ -84,17 +77,7 @@ export async function getUseDeemedProgress(
 export async function findById(organizationId: string): Promise<OrganizationRow | null> {
   const pool = getPool();
 
-  const query = `
-    SELECT
-      organization_id,
-      organization_cd,
-      organization_display_name,
-      is_entry,
-      use_deemed_progress,
-      COALESCE(default_retention_days, 365) AS default_retention_days
-    FROM organization
-    WHERE organization_id = $1
-  `;
+  const query = await loadSqlFile('organizations/findByIdSimple.sql');
 
   const result = await pool.query(query, [organizationId]);
   return result.rows.length > 0 ? (result.rows[0] as OrganizationRow) : null;
