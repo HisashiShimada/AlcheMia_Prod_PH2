@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Card, Input, Button, Typography, Alert, Space, Spin, theme } from 'antd';
 import { EyeOutlined, EyeInvisibleOutlined, LoginOutlined } from '@ant-design/icons';
 import { LoginCredentials } from '@/types/auth';
 import { validateEmail, validatePassword } from '@/utils/validationUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 /**
  * ログインページのProps
@@ -131,26 +132,27 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
           }}
         >
           {/* ロゴ・タイトル */}
-          <Space orientation="vertical" size="middle" style={{ width: '100%', textAlign: 'center', marginBottom: token.marginXXL }}>
-            <Title
-              level={1}
-              style={{
-                margin: 0,
-                color: 'var(--color-primary)',
-                fontWeight: token.fontWeightStrong,
-              }}
-            >
-              {t('common.appName')}
-            </Title>
-            <Text
-              type="secondary"
-              style={{
-                fontSize: token.fontSizeHeading4,
-              }}
-            >
-              {t('common.appSubtitle')}
-            </Text>
-          </Space>
+          <div style={{ width: '100%', textAlign: 'center', marginBottom: token.marginXXL }}>
+            <Image
+              src="/icons/logo_alchemia.png"
+              alt={t('common.appName')}
+              width={260}
+              height={80}
+              style={{ objectFit: 'contain', maxWidth: '100%' }}
+              priority
+            />
+            <div style={{ marginTop: 0 }}>
+              <Text
+                type="secondary"
+                style={{
+                  fontSize: token.fontSizeHeading4,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t('common.appSubtitle')}
+              </Text>
+            </div>
+          </div>
 
           {/* エラーメッセージ */}
           {(error || validationError) && (

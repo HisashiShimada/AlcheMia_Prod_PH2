@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Layout, Typography, Avatar, Dropdown, Space, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -14,7 +15,7 @@ import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Header: AntHeader } = Layout;
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 /**
  * ヘッダーコンポーネントのProps
@@ -118,20 +119,34 @@ export default function Header({ user, onLogout }: HeaderProps) {
         lineHeight: '64px',
       }}
     >
-      {/* アプリケーション名 */}
-      <Title
-        level={1}
-        className="header-title"
+      {/* アプリケーション名（ロゴ画像2枚横並び） */}
+      <div
         style={{
-          margin: 0,
-          marginRight: token.marginLG,
-          fontSize: token.fontSizeHeading1,
-          fontWeight: token.fontWeightStrong,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0,
+          marginRight: 1,
           cursor: 'default',
+          flexShrink: 0,
         }}
       >
-        {t('common.appName')}
-      </Title>
+        <Image
+          src="/icons/icon_alchemia.png"
+          alt={t('common.appName')}
+          width={36}
+          height={36}
+          style={{ objectFit: 'contain' }}
+          priority
+        />
+        <Image
+          src="/icons/logo_alchemia.png"
+          alt=""
+          width={160}
+          height={36}
+          style={{ objectFit: 'contain', marginTop: 4 }}
+          priority
+        />
+      </div>
 
       {/* サブタイトル */}
       <Text
