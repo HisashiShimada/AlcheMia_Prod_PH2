@@ -291,7 +291,7 @@ export default function FunctionPermissionDialog({
       }
     >
       <div style={{ maxHeight: 600, overflowY: 'auto' }}>
-        {functions.filter(func => READ_ONLY_SELECTABLE_KEYS.includes(func.key)).map((func, funcIndex) => (
+        {functions.map((func, funcIndex) => (
           <div key={func.key}>
             {/* 親機能または通常の機能 */}
             <div

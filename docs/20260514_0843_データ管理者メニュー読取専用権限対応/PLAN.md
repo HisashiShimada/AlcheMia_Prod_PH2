@@ -29,7 +29,7 @@
 
 ### Step 1: FunctionPermissionDialog.tsx の修正
 - [x] 読取専用選択可能な機能のホワイトリスト定数 `READ_ONLY_SELECTABLE_KEYS` を定義（`['030000']`）
-- [x] 「書込可」チェックボックスをデータ管理者メニュー（`030000`）のみ表示し、他メニューは非表示にする（`READ_ONLY_SELECTABLE_KEYS.includes(func.key)` で条件分岐）
+- [x] 「読取専用」チェックボックスをデータ管理者メニュー（`030000`）のみ表示し、他メニューは非表示にする（`READ_ONLY_SELECTABLE_KEYS.includes(func.key)` で条件分岐）
 - [x] 読取専用非対応の機能がチェックされた際、`writable: true` を強制する処理を `handleFunctionCheck` に追加
 - [x] 既存の状態（`initialWritableFunctionIds`）から読み込む際、読取専用非対応の機能は `writable: true` に強制する処理を `initialFunctions` の useMemo に追加
 
@@ -45,9 +45,11 @@
 ## 変更ファイル
 
 ### 修正済み
-1. `frontend/src/components/SystemManagement/FunctionPermissionDialog.tsx` - 読取専用選択制限の追加
+1. `frontend/src/components/SystemManagement/FunctionPermissionDialog.tsx` - 読取専用選択制限・全メニュー表示・読取専用チェックボックスのUIレイアウト修正
 2. `frontend/src/components/DataManagement/MasterManagement.tsx` - `columns` useMemo依存配列への `isReadOnly` 追加
 3. `frontend/src/app/page.tsx` - `handleMenuChange` 非同期化・メニュー切替前トークンリフレッシュ追加（権限即時反映）
+4. `frontend/src/locales/ja.json` - `functionPermissionDialog.labels.readOnly` キー追加
+5. `frontend/src/locales/en.json` - `functionPermissionDialog.labels.readOnly` キー追加
 
 ### 変更なし（確認済み）
 - バックエンド - 権限 0/1 の仕組みは既に動作中
@@ -81,18 +83,20 @@
 // 読取専用が選択できる機能（データ管理者メニューのみ）
 const READ_ONLY_SELECTABLE_KEYS = ['030000'];
 
-// ダイアログのレンダリング: データ管理者メニューのみ表示
-{functions.filter(func => READ_ONLY_SELECTABLE_KEYS.includes(func.key)).map((func) => (
-  // ...機能行のレンダリング
+// ダイアログのレンダリング: 全5メニューを表示（functions.map）
+{functions.map((func) => (
+  // ...機能行のレンダリング（全メニュー表示）
 
-  // 「読取専用」チェックボックス: checked は writable の反転（チェックON = 読取専用）
-  <Checkbox
-    checked={!func.writable}
-    onChange={() => handleWritableCheck(func.key)}
-    disabled={!func.checked}
-  >
-    {t('functionPermissionDialog.labels.readOnly')}  {/* 「読取専用」ラベル */}
-  </Checkbox>
+  // 「読取専用」チェックボックス: データ管理者メニューのみ表示、他は null（非表示）
+  {READ_ONLY_SELECTABLE_KEYS.includes(func.key) ? (
+    <Checkbox
+      checked={!func.writable}  // チェックON = 読取専用（writable の反転）
+      onChange={() => handleWritableCheck(func.key)}
+      disabled={!func.checked}
+    >
+      {t('functionPermissionDialog.labels.readOnly')}  {/* 「読取専用」ラベル */}
+    </Checkbox>
+  ) : null}
 ))}
 ```
 
@@ -138,12 +142,14 @@ const columns: ColumnsType<MasterRecord> = useMemo(() => {
 
 ### 実施日時
 開始: 2026-05-14 08:48
-完了: 2026-05-20 09:22（追加修正含む）
+完了: 2026-05-20 16:24（UIレイアウト追加修正含む）
 
 ### 最終的な成果物
-- [x] `frontend/src/components/SystemManagement/FunctionPermissionDialog.tsx` 修正完了
+- [x] `frontend/src/components/SystemManagement/FunctionPermissionDialog.tsx` 修正完了（全メニュー表示・読取専用CBはデータ管理者のみ）
 - [x] `frontend/src/components/DataManagement/MasterManagement.tsx` 修正完了（useMemo依存配列バグ修正）
 - [x] `frontend/src/app/page.tsx` 修正完了（handleMenuChange 非同期化・権限即時反映）
+- [x] `frontend/src/locales/ja.json` 修正完了（readOnly キー追加）
+- [x] `frontend/src/locales/en.json` 修正完了（readOnly キー追加）
 
 ### 変更内容詳細
 
@@ -151,7 +157,9 @@ const columns: ColumnsType<MasterRecord> = useMemo(() => {
 1. `READ_ONLY_SELECTABLE_KEYS = ['030000']` 定数を追加
 2. `initialFunctions` useMemo：読取専用非対応機能の `writable: true` 強制処理を追加
 3. `handleFunctionCheck`：チェック時に読取専用非対応機能を `writable: true` に強制
-4. 「書込可」Checkboxをデータ管理者メニューのみ表示するよう条件分岐を追加（`READ_ONLY_SELECTABLE_KEYS.includes(func.key) ? <Checkbox ...> : null`）
+4. レンダリングを `functions.filter(...).map(...)` から `functions.map(...)` に変更し、全5メニューを表示
+5. チェックボックスのラベルを「書込可」→「読取専用」に変更。`checked={!func.writable}`（反転）とし、データ管理者メニュー（`030000`）の行のみ表示（他は `null`）
+6. `ja.json` / `en.json` に `functionPermissionDialog.labels.readOnly` キーを追加（「読取専用」 / "Read Only"）
 
 #### MasterManagement.tsx
 1. `isReadOnly` を `const` 定義から `useState` + `useEffect` に変更
