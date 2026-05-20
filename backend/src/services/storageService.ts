@@ -186,11 +186,29 @@ export class StorageService {
   ): Promise<string> {
     const key = this.buildKey(organizationId, filePath);
 
+    // ファイル名から MIME タイプを解決する
+    // ブラウザが認識しない拡張子（.maiml 等）では Multer が 'application/octet-stream' を
+    // 設定してしまうため、拡張子ベースのマッピングでフォールバックする
+    const resolveMimeType = (contentType: string | undefined, fileName: string): string => {
+      if (contentType && contentType !== 'application/octet-stream') return contentType;
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      const mimeMap: Record<string, string> = {
+        maiml: 'application/xml',
+        xml:   'application/xml',
+        csv:   'text/csv',
+        json:  'application/json',
+        txt:   'text/plain',
+      };
+      return mimeMap[ext ?? ''] || 'application/octet-stream';
+    };
+
+    const resolvedContentType = resolveMimeType(options?.contentType, path.basename(filePath));
+
     const params: PutObjectCommandInput = {
       Bucket: this.bucketName,
       Key: key,
       Body: fileContent,
-      ContentType: options?.contentType || 'application/octet-stream',
+      ContentType: resolvedContentType,
       Metadata: options?.metadata,
     };
 
@@ -212,14 +230,21 @@ export class StorageService {
         // （archiveバックアップに同じ UUID が入ると最新ファイルを一意特定できなくなるため）
         const isProjectFile = filePath.includes('projects/') && !filePath.includes('archive/');
 
+        // ファイル名から拡張子を取得（file_extension カラムへの保存用）
+        const fileName = path.basename(filePath);
+        const fileExt = fileName.includes('.')
+          ? fileName.split('.').pop()?.toLowerCase() || undefined
+          : undefined;
+
         const repo = new FileMetadataRepository();
         await repo.insertIfNotExists({
           file_key: key,
           s3_bucket: this.bucketName,
           organization_id: organizationId,
-          original_filename: path.basename(filePath),
+          original_filename: fileName,
           file_size: fileSize,
-          file_type: options.contentType ?? 'application/octet-stream',
+          file_type: resolvedContentType,
+          file_extension: fileExt,
           uploaded_by: options.uploadedBy,
           is_maiml_file: filePath.endsWith('.maiml'),
           upload_batch_id: options.uploadBatchId,

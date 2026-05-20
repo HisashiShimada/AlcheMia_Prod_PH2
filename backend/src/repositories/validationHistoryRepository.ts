@@ -8,6 +8,7 @@
 
 import { getPool } from '../database/db';
 import { v4 as uuidv4 } from 'uuid';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * バリデーション履歴型定義
@@ -42,28 +43,7 @@ export async function createValidationHistory(
 
   const validation_id = data.validation_id || uuidv4();
 
-  const query = `
-    INSERT INTO maiml_validation_history (
-      validation_id,
-      organization_id,
-      project_id,
-      file_key,
-      user_id,
-      validation_mode,
-      is_valid,
-      total_errors,
-      total_warnings,
-      error_details,
-      warning_details,
-      validation_duration_ms,
-      elements_validated,
-      attributes_validated,
-      nodes_validated,
-      arcs_validated,
-      created_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP)
-    RETURNING *
-  `;
+  const query = await loadSqlFile('maiml_validation_history/create.sql');
 
   const values = [
     validation_id,
@@ -143,11 +123,7 @@ export async function findById(
 ): Promise<ValidationHistory | null> {
   const pool = getPool();
 
-  const query = `
-    SELECT *
-    FROM maiml_validation_history
-    WHERE validation_id = $1 AND organization_id = $2
-  `;
+  const query = await loadSqlFile('maiml_validation_history/findById.sql');
 
   const result = await pool.query(query, [validationId, organizationId]);
 
@@ -163,17 +139,7 @@ export async function getProjectStatistics(
 ): Promise<any> {
   const pool = getPool();
 
-  const query = `
-    SELECT 
-      COUNT(*) AS total_validations,
-      SUM(CASE WHEN is_valid THEN 1 ELSE 0 END) AS valid_count,
-      SUM(CASE WHEN is_valid THEN 0 ELSE 1 END) AS invalid_count,
-      ROUND(AVG(validation_duration_ms), 2) AS avg_duration_ms,
-      ROUND(AVG(total_errors), 2) AS avg_errors,
-      ROUND(AVG(total_warnings), 2) AS avg_warnings
-    FROM maiml_validation_history
-    WHERE project_id = $1 AND organization_id = $2
-  `;
+  const query = await loadSqlFile('maiml_validation_history/getProjectStatistics.sql');
 
   const result = await pool.query(query, [projectId, organizationId]);
 
@@ -233,13 +199,9 @@ export async function deleteOldRecords(
 ): Promise<number> {
   const pool = getPool();
 
-  const query = `
-    DELETE FROM maiml_validation_history
-    WHERE organization_id = $1
-      AND created_at < CURRENT_TIMESTAMP - INTERVAL '${daysToKeep} days'
-  `;
+  const query = await loadSqlFile('maiml_validation_history/deleteOldRecords.sql');
 
-  const result = await pool.query(query, [organizationId]);
+  const result = await pool.query(query, [organizationId, daysToKeep]);
 
   return result.rowCount || 0;
 }

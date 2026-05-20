@@ -35,7 +35,7 @@ const errorTypes = {
     VALIDATION_WARNING: 'validation_warning'
 };
 
-export async function analyzeMaiMLFile(organaizationId: string, maimlContent : string, fileKey: string, skipSave?: boolean, validationMode: ValidationMode = 'strict')  {
+export async function analyzeMaiMLFile(organaizationId: string, maimlContent : string, fileKey: string, skipSave?: boolean, validationMode: ValidationMode = 'strict'): Promise<AnalysisResult>  {
     const startTime = Date.now();
     
     try {
@@ -199,9 +199,14 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
 
     console.log(`📈 [MaiMLParser] Determined status: ${analysisStatus} (E:${errorCount}, W:${warningCount})`);
 
+    // 組織IDプレフィックスの正規化（冪等: 既に付いていれば何もしない）
+    const normalizedFileKey = analysisResult.fileKey.startsWith(`${organizationId}/`)
+      ? analysisResult.fileKey
+      : `${organizationId}/${analysisResult.fileKey}`;
+
     // Step 2: maiml_analysis_resultsテーブルに保存（Repository使用）
     const analysisData = {
-      file_key: analysisResult.fileKey,
+      file_key: normalizedFileKey,
       is_valid: analysisResult.isValid,
       version: analysisResult.version || null,
       namespace: analysisResult.namespace || null,
@@ -218,15 +223,15 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
 
     // Step 3: file_metadataテーブルの確認と更新（Repository使用）
     const fileMetadataRepository = new FileMetadataRepository();
-    const existingMetadata = await fileMetadataRepository.getFileMetadataByFileKey(analysisResult.fileKey);
+    const existingMetadata = await fileMetadataRepository.getFileMetadataByFileKey(normalizedFileKey);
 
     if (!existingMetadata) {
       // ファイルメタデータが存在しない場合は新規作成
-      console.warn(`⚠️ [MaiMLParser] File not found in file_metadata: ${analysisResult.fileKey}`);
+      console.warn(`⚠️ [MaiMLParser] File not found in file_metadata: ${normalizedFileKey}`);
       
-      const filename = analysisResult.fileKey.split('/').pop() || 'unknown.maiml';
+      const filename = normalizedFileKey.split('/').pop() || 'unknown.maiml';
       const newMetadata = {
-        file_key: analysisResult.fileKey,
+        file_key: normalizedFileKey,
         organization_id: organizationId,
         original_filename: filename,
         file_size: 0, // Unknown size
@@ -246,7 +251,7 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
       };
 
       await fileMetadataRepository.insertFileMetadata(newMetadata);
-      console.log(`🔧 [MaiMLParser] Created missing file_metadata entry for: ${analysisResult.fileKey}`);
+      console.log(`🔧 [MaiMLParser] Created missing file_metadata entry for: ${normalizedFileKey}`);
     } else {
       // 既存のfile_metadataを更新
       console.log(`📋 [MaiMLParser] File exists in file_metadata, updating...`);
@@ -262,7 +267,7 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
       };
 
       const updated = await fileMetadataRepository.updateFileMetadata(
-        analysisResult.fileKey,
+        normalizedFileKey,
         updateData
       );
 
@@ -273,7 +278,7 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
       console.log(`   - warnings: ${updated.maiml_warning_count}`);
     }
 
-    console.log(`✅ [MaiMLParser] Database save completed successfully for ${analysisResult.fileKey}`);
+    console.log(`✅ [MaiMLParser] Database save completed successfully for ${normalizedFileKey}`);
     return savedAnalysis.id || 0;
 
   } catch (error) {

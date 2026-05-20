@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import type { Result } from '../types/service';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * password_reset_tokensテーブルに対するデータアクセス層
@@ -27,16 +28,7 @@ export class PasswordResetTokenRepository {
     resetToken: string
   ): Promise<Result<PasswordResetToken>> {
     try {
-      const query = `
-        SELECT 
-          user_id,
-          organization_id,
-          role_cd,
-          expires_at,
-          is_used
-        FROM password_reset_tokens
-        WHERE reset_token = $1
-      `;
+      const query = await loadSqlFile('password_reset_tokens/findByToken.sql');
 
       const result = await pool.query(query, [resetToken]);
 
@@ -77,10 +69,7 @@ export class PasswordResetTokenRepository {
     resetToken: string
   ): Promise<Result<void>> {
     try {
-      const query = `
-        DELETE FROM password_reset_tokens
-        WHERE reset_token = $1
-      `;
+      const query = await loadSqlFile('password_reset_tokens/deleteByToken.sql');
 
       await pool.query(query, [resetToken]);
 

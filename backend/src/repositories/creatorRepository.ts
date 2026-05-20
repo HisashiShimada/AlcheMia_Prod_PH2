@@ -51,32 +51,8 @@ export async function findAll(
   console.log('organizationId:', organizationId);
   console.log('filters:', filters);
   
-  let query = `
-    SELECT 
-      cm.creator_id,
-      cm.creator_uuid,
-      cm.creator_name,
-      cm.creator_description,
-      cm.creator_annotation,
-      cm.is_active,
-      vm.vendor_name,
-      vm.is_active as vendor_is_active,
-      im.instrument_name,
-      im.is_active as instrument_is_active,
-      cm.update_at
-    FROM creator cm
-    LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
-      AND (
-        (cm.corporation_id IS NOT NULL AND cm.corporation_id = vm.corporation_id) OR
-        (cm.corporation_id IS NULL AND cm.organization_id = vm.organization_id)
-      )
-    LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
-      AND (
-        (cm.corporation_id IS NOT NULL AND cm.corporation_id = im.corporation_id) OR
-        (cm.corporation_id IS NULL AND cm.organization_id = im.organization_id)
-      )
-    WHERE cm.organization_id = $1
-  `;
+  let query = await loadSqlFile('creators/findAll.sql');
+  query += ` WHERE cm.organization_id = $1`;
   
   const params: any[] = [organizationId];
   let paramIndex = 2;
@@ -136,61 +112,11 @@ export async function findById(
   
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      SELECT 
-        cm.creator_id,
-        cm.creator_uuid,
-        cm.creator_name,
-        cm.creator_description,
-        cm.creator_annotation,
-        cm.is_active,
-        vm.vendor_name,
-        vm.is_active as vendor_is_active,
-        im.instrument_name,
-        im.is_active as instrument_is_active,
-        cm.update_at
-      FROM creator cm
-      LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
-        AND (
-          (cm.corporation_id IS NOT NULL AND cm.corporation_id = vm.corporation_id) OR
-          (cm.corporation_id IS NULL AND cm.organization_id = vm.organization_id)
-        )
-      LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
-        AND (
-          (cm.corporation_id IS NOT NULL AND cm.corporation_id = im.corporation_id) OR
-          (cm.corporation_id IS NULL AND cm.organization_id = im.organization_id)
-        )
-      WHERE cm.corporation_id = $1 AND cm.creator_id = $2
-    `;
+    query = await loadSqlFile('creators/findByIdByCorporation.sql');
     values = [corporationId, creatorId];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      SELECT 
-        cm.creator_id,
-        cm.creator_uuid,
-        cm.creator_name,
-        cm.creator_description,
-        cm.creator_annotation,
-        cm.is_active,
-        vm.vendor_name,
-        vm.is_active as vendor_is_active,
-        im.instrument_name,
-        im.is_active as instrument_is_active,
-        cm.update_at
-      FROM creator cm
-      LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
-        AND (
-          (cm.corporation_id IS NOT NULL AND cm.corporation_id = vm.corporation_id) OR
-          (cm.corporation_id IS NULL AND cm.organization_id = vm.organization_id)
-        )
-      LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
-        AND (
-          (cm.corporation_id IS NOT NULL AND cm.corporation_id = im.corporation_id) OR
-          (cm.corporation_id IS NULL AND cm.organization_id = im.organization_id)
-        )
-      WHERE cm.organization_id = $1 AND cm.creator_id = $2
-    `;
+    query = await loadSqlFile('creators/findByIdByOrganization.sql');
     values = [organizationId, creatorId];
   }
   
@@ -208,12 +134,7 @@ export async function findById(
 export async function count(organizationId: string): Promise<number> {
   const pool: Pool = getPool();
   
-  const query = `
-    SELECT COUNT(*) as count
-    FROM creator
-    WHERE organization_id = $1
-  `;
-  
+  const query = await loadSqlFile('creators/count.sql');
   const result = await pool.query(query, [organizationId]);
   return parseInt(result.rows[0].count, 10);
 }
@@ -285,41 +206,19 @@ export async function create(
     let vendorParams: any[];
 
     if (corporationId !== null && corporationId !== undefined) {
-      // corporation_idが存在する場合：corporation_id、vendor_id、vendor_nameで照合
       if (data.vendorId) {
-        vendorQuery = `
-          SELECT vendor_uuid
-          FROM vendor
-          WHERE corporation_id = $1 AND vendor_id = $2 AND vendor_name = $3
-          LIMIT 1
-        `;
+        vendorQuery = await loadSqlFile('creators/findVendorUuidByCorporation.sql');
         vendorParams = [corporationId, data.vendorId, data.vendorName];
       } else {
-        vendorQuery = `
-          SELECT vendor_uuid
-          FROM vendor
-          WHERE corporation_id = $1 AND vendor_name = $2
-          LIMIT 1
-        `;
+        vendorQuery = await loadSqlFile('creators/findVendorUuidByCorporationNoId.sql');
         vendorParams = [corporationId, data.vendorName];
       }
     } else {
-      // corporation_idがNULLの場合：organization_id、vendor_id、vendor_nameで照合
       if (data.vendorId) {
-        vendorQuery = `
-          SELECT vendor_uuid
-          FROM vendor
-          WHERE organization_id = $1 AND vendor_id = $2 AND vendor_name = $3
-          LIMIT 1
-        `;
+        vendorQuery = await loadSqlFile('creators/findVendorUuidByOrganization.sql');
         vendorParams = [organizationId, data.vendorId, data.vendorName];
       } else {
-        vendorQuery = `
-          SELECT vendor_uuid
-          FROM vendor
-          WHERE organization_id = $1 AND vendor_name = $2
-          LIMIT 1
-        `;
+        vendorQuery = await loadSqlFile('creators/findVendorUuidByOrganizationNoId.sql');
         vendorParams = [organizationId, data.vendorName];
       }
     }
@@ -335,41 +234,19 @@ export async function create(
     let instrumentParams: any[];
 
     if (corporationId !== null && corporationId !== undefined) {
-      // corporation_idが存在する場合：corporation_id、instrument_id、instrument_nameで照合
       if (data.instrumentId) {
-        instrumentQuery = `
-          SELECT instrument_uuid
-          FROM instrument
-          WHERE corporation_id = $1 AND instrument_id = $2 AND instrument_name = $3
-          LIMIT 1
-        `;
+        instrumentQuery = await loadSqlFile('creators/findInstrumentUuidByCorporation.sql');
         instrumentParams = [corporationId, data.instrumentId, data.instrumentName];
       } else {
-        instrumentQuery = `
-          SELECT instrument_uuid
-          FROM instrument
-          WHERE corporation_id = $1 AND instrument_name = $2
-          LIMIT 1
-        `;
+        instrumentQuery = await loadSqlFile('creators/findInstrumentUuidByCorporationNoId.sql');
         instrumentParams = [corporationId, data.instrumentName];
       }
     } else {
-      // corporation_idがNULLの場合：organization_id、instrument_id、instrument_nameで照合
       if (data.instrumentId) {
-        instrumentQuery = `
-          SELECT instrument_uuid
-          FROM instrument
-          WHERE organization_id = $1 AND instrument_id = $2 AND instrument_name = $3
-          LIMIT 1
-        `;
+        instrumentQuery = await loadSqlFile('creators/findInstrumentUuidByOrganization.sql');
         instrumentParams = [organizationId, data.instrumentId, data.instrumentName];
       } else {
-        instrumentQuery = `
-          SELECT instrument_uuid
-          FROM instrument
-          WHERE organization_id = $1 AND instrument_name = $2
-          LIMIT 1
-        `;
+        instrumentQuery = await loadSqlFile('creators/findInstrumentUuidByOrganizationNoId.sql');
         instrumentParams = [organizationId, data.instrumentName];
       }
     }
@@ -378,33 +255,7 @@ export async function create(
     instrumentUuid = instrumentResult.rows[0]?.instrument_uuid || null;
   }
   
-  const query = `
-    INSERT INTO creator (
-      organization_id,
-      creator_uuid,
-      creator_id,
-      creator_name,
-      creator_description,
-      creator_annotation,
-      vendor_uuid,
-      instrument_uuid,
-      corporation_id,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
-    )
-    RETURNING 
-      creator_id,
-      creator_name,
-      creator_description,
-      creator_annotation,
-      is_active,
-      update_at
-  `;
+  const query = await loadSqlFile('creators/create.sql');
   
   const values = [
     organizationId,
@@ -467,41 +318,19 @@ export async function update(
       let vendorParams: any[];
 
       if (corporationId !== null && corporationId !== undefined) {
-        // corporation_idが存在する場合：corporation_id、vendor_id、vendor_nameで照合
         if (data.vendorId) {
-          vendorQuery = `
-            SELECT vendor_uuid
-            FROM vendor
-            WHERE corporation_id = $1 AND vendor_id = $2 AND vendor_name = $3
-            LIMIT 1
-          `;
+          vendorQuery = await loadSqlFile('creators/findVendorUuidByCorporation.sql');
           vendorParams = [corporationId, data.vendorId, data.vendorName];
         } else {
-          vendorQuery = `
-            SELECT vendor_uuid
-            FROM vendor
-            WHERE corporation_id = $1 AND vendor_name = $2
-            LIMIT 1
-          `;
+          vendorQuery = await loadSqlFile('creators/findVendorUuidByCorporationNoId.sql');
           vendorParams = [corporationId, data.vendorName];
         }
       } else {
-        // corporation_idがNULLの場合：organization_id、vendor_id、vendor_nameで照合
         if (data.vendorId) {
-          vendorQuery = `
-            SELECT vendor_uuid
-            FROM vendor
-            WHERE organization_id = $1 AND vendor_id = $2 AND vendor_name = $3
-            LIMIT 1
-          `;
+          vendorQuery = await loadSqlFile('creators/findVendorUuidByOrganization.sql');
           vendorParams = [organizationId, data.vendorId, data.vendorName];
         } else {
-          vendorQuery = `
-            SELECT vendor_uuid
-            FROM vendor
-            WHERE organization_id = $1 AND vendor_name = $2
-            LIMIT 1
-          `;
+          vendorQuery = await loadSqlFile('creators/findVendorUuidByOrganizationNoId.sql');
           vendorParams = [organizationId, data.vendorName];
         }
       }
@@ -519,41 +348,19 @@ export async function update(
       let instrumentParams: any[];
 
       if (corporationId !== null && corporationId !== undefined) {
-        // corporation_idが存在する場合：corporation_id、instrument_id、instrument_nameで照合
         if (data.instrumentId) {
-          instrumentQuery = `
-            SELECT instrument_uuid
-            FROM instrument
-            WHERE corporation_id = $1 AND instrument_id = $2 AND instrument_name = $3
-            LIMIT 1
-          `;
+          instrumentQuery = await loadSqlFile('creators/findInstrumentUuidByCorporation.sql');
           instrumentParams = [corporationId, data.instrumentId, data.instrumentName];
         } else {
-          instrumentQuery = `
-            SELECT instrument_uuid
-            FROM instrument
-            WHERE corporation_id = $1 AND instrument_name = $2
-            LIMIT 1
-          `;
+          instrumentQuery = await loadSqlFile('creators/findInstrumentUuidByCorporationNoId.sql');
           instrumentParams = [corporationId, data.instrumentName];
         }
       } else {
-        // corporation_idがNULLの場合：organization_id、instrument_id、instrument_nameで照合
         if (data.instrumentId) {
-          instrumentQuery = `
-            SELECT instrument_uuid
-            FROM instrument
-            WHERE organization_id = $1 AND instrument_id = $2 AND instrument_name = $3
-            LIMIT 1
-          `;
+          instrumentQuery = await loadSqlFile('creators/findInstrumentUuidByOrganization.sql');
           instrumentParams = [organizationId, data.instrumentId, data.instrumentName];
         } else {
-          instrumentQuery = `
-            SELECT instrument_uuid
-            FROM instrument
-            WHERE organization_id = $1 AND instrument_name = $2
-            LIMIT 1
-          `;
+          instrumentQuery = await loadSqlFile('creators/findInstrumentUuidByOrganizationNoId.sql');
           instrumentParams = [organizationId, data.instrumentName];
         }
       }
@@ -675,27 +482,11 @@ export async function updateStatus(
   
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      UPDATE creator
-      SET is_active = $1,
-          update_user_id = $2,
-          update_at = NOW()
-      WHERE corporation_id = $3
-        AND creator_id = $4
-      RETURNING *
-    `;
+    query = await loadSqlFile('creators/updateStatusByCorporation.sql');
     values = [isActive, userId, corporationId, creatorId];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      UPDATE creator
-      SET is_active = $1,
-          update_user_id = $2,
-          update_at = NOW()
-      WHERE organization_id = $3
-        AND creator_id = $4
-      RETURNING *
-    `;
+    query = await loadSqlFile('creators/updateStatusByOrganization.sql');
     values = [isActive, userId, organizationId, creatorId];
   }
   
@@ -771,33 +562,8 @@ export async function findAllWithFilters(
     paramIndex++;
   }
   
-  const query = `
-    SELECT 
-      cm.creator_id,
-      cm.creator_uuid,
-      cm.creator_name,
-      cm.creator_description,
-      cm.creator_annotation,
-      cm.is_active,
-      vm.vendor_name,
-      vm.is_active as vendor_is_active,
-      im.instrument_name,
-      im.is_active as instrument_is_active,
-      cm.update_at
-    FROM creator cm
-    LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
-      AND (
-        (cm.corporation_id IS NOT NULL AND cm.corporation_id = vm.corporation_id) OR
-        (cm.corporation_id IS NULL AND cm.organization_id = vm.organization_id)
-      )
-    LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
-      AND (
-        (cm.corporation_id IS NOT NULL AND cm.corporation_id = im.corporation_id) OR
-        (cm.corporation_id IS NULL AND cm.organization_id = im.organization_id)
-      )
-    WHERE ${whereClauses.join(' AND ')}
-    ORDER BY cm.creator_id
-  `;
+  const baseQuery = await loadSqlFile('creators/findAllWithFilters.sql');
+  const query = `${baseQuery} WHERE ${whereClauses.join(' AND ')} ORDER BY cm.creator_id`;
   
   console.log('Executing query:', query);
   console.log('With params:', values);

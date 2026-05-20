@@ -94,7 +94,7 @@ export const E7009 = 'E7009'; // MAIMLファイル存在
 export const E7010 = 'E7010'; // タスク未完了
 export const E7011 = 'E7011'; // 処理中
 export const E7012 = 'E7012'; // 非公開済み
-export const E7013 = 'E7013'; // MAIML UUID重複（別プロジェクトに登録済み）
+export const E7013 = 'E7013'; // 別MAIMLへの上書き禁止（同一MAIMLベースの変更のみ許可）
 
 // ===== E9xxx: UNKNOWN =====
 export const E9999 = 'E9999'; // 予期しないエラー
