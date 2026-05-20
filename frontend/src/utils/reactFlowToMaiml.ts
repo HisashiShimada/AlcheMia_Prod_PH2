@@ -17,7 +17,7 @@ import {
   TemplatesByCategory
 } from '../types/editor';
 
-import { Property, Content, Template } from '@/types/maiml-unified';
+import { Property, Content, Template, Parent } from '@/types/maiml-unified';
 import { PLACE_DESC_IMPORTED, PLACE_DESC_EXISTING, PLACE_DESC_IMPORTED_EN } from '@/constants/placeDescriptions';
 
 /**
@@ -345,6 +345,30 @@ export function validatePetriNet(
 }
 
 /**
+ * <parent> タグを再帰的に生成する（内部ヘルパー）
+ */
+function buildParentXML(parent: Parent, indentLevel: number): string {
+  const ind = '  '.repeat(indentLevel);
+  const childInd = '  '.repeat(indentLevel + 1);
+  let xml = `\n${ind}<parent>`;
+  if (parent.uuid) {
+    xml += `\n${childInd}<uuid>${escapeXml(parent.uuid)}</uuid>`;
+  }
+  if (parent.hash?.value) {
+    const methodAttr = parent.hash.method ? ` method="${escapeXml(parent.hash.method)}"` : '';
+    xml += `\n${childInd}<hash${methodAttr}>${escapeXml(parent.hash.value)}</hash>`;
+  }
+  // ネストされた <parent> を再帰的に出力
+  if (Array.isArray(parent.parents)) {
+    for (const nested of parent.parents) {
+      xml += buildParentXML(nested, indentLevel + 1);
+    }
+  }
+  xml += `\n${ind}</parent>`;
+  return xml;
+}
+
+/**
  * Document要素のXMLを生成（複数要素対応版）
  * @param documentData - Document情報
  * @returns Document要素のXML文字列
@@ -357,7 +381,15 @@ export function buildDocumentXML(documentData: DocumentData | null): string {
   const doc = documentData;
   let documentXml = `  <document id="${escapeXml(doc.id || 'documentID')}">
     <name>${escapeXml(doc.name || 'document')}</name>`;
-  
+
+  // <parent> ブロック（<uuid> の前に出力 - XSD仕様に準拠）
+  const parents = (doc as { parents?: Parent[] }).parents;
+  if (Array.isArray(parents) && parents.length > 0) {
+    for (const p of parents) {
+      documentXml += buildParentXML(p, 2);
+    }
+  }
+
   if (doc.uuid) {
     documentXml += `\n    <uuid>${escapeXml(doc.uuid)}</uuid>`;
   }

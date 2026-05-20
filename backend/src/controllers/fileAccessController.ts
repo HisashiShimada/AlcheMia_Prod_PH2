@@ -484,9 +484,7 @@ export async function getFileContentAsText(req: Request, res: Response): Promise
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
 
-    const result = await service.streamFileByKey(organizationId, fileKey);
-
-    const text = result.buffer.toString('utf-8');
+    const text = await service.getFileTextWithParentInjection(organizationId, fileKey);
 
     res.status(200).json({
       success: true,

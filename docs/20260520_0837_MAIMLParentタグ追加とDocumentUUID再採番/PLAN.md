@@ -307,26 +307,115 @@ if (isBaseMatch) {
 
 ### 実施日時
 開始: 2026-05-20 11:19
-完了: 2026-05-20 11:24
+完了: 2026-05-20 17:26
 
-### 計画からの変更点
+---
 
-- **フロントエンド側の連動修正が必要と判明**: `fileAccessService.ts`（バックエンド）の上書きチェック変更に伴い、フロントエンド側でもアップロード時に `documentUuid` ではなく `parentUuids` を送信する必要があった。以下のファイルを追加修正：
-  - `frontend/src/types/file.ts`
-  - `frontend/src/utils/maimlParentInjector.ts`（新規作成）
-  - `frontend/src/services/fileAccessService.ts`
-- **副産物: en.json のタイポ修正**: フロントエンドビルド時に `instruction_rgistration` → `instruction_registration` のタイポエラーを検出・修正（本タスクの変更起因ではなく既存のバグ）
+### 修正1: Document UUID再採番（Phase 1 / 計画通り）
 
-### 最終的な成果物
-- [x] `backend/src/utils/maimlParentInjector.ts` 修正完了（`replaceDocumentUuid()` 追加、`injectParentTag()` でDocument UUID再採番、`extractParentUuids()` 追加）
-- [x] `backend/src/services/fileAccessService.ts` 上書きチェック修正完了（Document UUID完全一致 → Parentチェーン照合）
-- [x] `backend/src/controllers/fileAccessController.ts` チャンクアップロード上書きチェック修正完了（`documentUuid` → `parentUuids` チェーン照合）
-- [x] `frontend/src/types/file.ts` 型定義修正完了（`documentUuid` → `parentUuids?: string[]`）
-- [x] `frontend/src/utils/maimlParentInjector.ts` 新規作成完了（`extractParentUuids()` フロントエンド版）
-- [x] `frontend/src/services/fileAccessService.ts` 修正完了（`parentUuids` 送信対応）
-- [x] `frontend/src/locales/en.json` タイポ修正完了（副産物）
-- [x] バックエンド TypeScript ビルド確認（`tsc --noEmit` EXIT:0）
-- [x] フロントエンド TypeScript ビルド確認（`tsc --noEmit` EXIT:0、エラーゼロ）
-- [ ] 動作確認: 編集→保存でE7013エラーが出ないこと（手動確認待ち）
-- [ ] 動作確認: 全く別のMAIMLのアップロードはE7013で弾かれること（手動確認待ち）
-- [ ] 動作確認: Document UUIDがダウンロード/編集開始時に再採番されること（手動確認待ち）
+**対象ファイル**: `backend/src/utils/maimlParentInjector.ts`
+
+**内容**:
+- `replaceDocumentUuid(maimlContent, newUuid)` ヘルパー関数を新規追加
+  - `<document>` 開始直後の最初の `<uuid>` のみを置換（子要素の `<uuid>` は置換しない）
+- `injectParentTag()` 内でParentタグ挿入が成功した場合のみ `replaceDocumentUuid()` を呼び出し
+  - スキップパス（projectUuid未設定 / パース失敗 / 重複スキップ / documentタグ未検出）では呼ばない
+
+---
+
+### 修正2: アップロード上書きチェック変更（Phase 2 / 計画通り）
+
+**対象ファイル1**: `backend/src/utils/maimlParentInjector.ts`
+
+**内容**:
+- `extractParentUuids(maimlContent)` ユーティリティ関数を新規追加（export）
+  - MAIMLの `<parent>` タグチェーンを再帰的にたどり、UUID一覧を配列で返す
+  - 例: `<parent><uuid>A</uuid><parent><uuid>B</uuid></parent></parent>` → `["A", "B"]`
+
+**対象ファイル2**: `backend/src/services/fileAccessService.ts`
+
+**内容**:
+- 単一ファイルアップロード（`uploadFiles()`）の上書きチェックロジックを変更
+  - 変更前: アップロードするMAIMLのDocument UUIDと現在ストレージのDocument UUIDが完全一致する場合のみ上書き許可
+  - 変更後: アップロードするMAIMLの `<parent>` チェーンに現在ストレージのDocument UUIDが含まれる場合に上書き許可
+  - 上書き許可時: `createMaimlBackup()` でアーカイブ → 旧ストレージファイルを `deleteFile()` で削除 → 旧 `file_metadata` レコードを `softDeleteByFileKey()` で削除 → 新ファイルを `uploadFile()` でアップロード（`insertIfNotExists` が成功し、新レコードが最新扱いになる）
+
+**対象ファイル3**: `backend/src/controllers/fileAccessController.ts`
+
+**内容**:
+- チャンクアップロード完了時の上書きチェックロジックも同様に変更（Document UUID完全一致 → Parentチェーン照合）
+
+---
+
+### 修正3: フロントエンド側のchunkアップロード対応（計画外追加）
+
+Phase 2の上書きチェック変更に伴い、フロントエンド側でもチャンクアップロード開始時に `documentUuid` ではなく `parentUuids` を送信する必要があると判明。
+
+**対象ファイル1**: `frontend/src/types/file.ts`
+- `ChunkUploadOptions.documentUuid: string` → `parentUuids?: string[]` に変更
+
+**対象ファイル2**: `frontend/src/utils/maimlParentInjector.ts`（新規作成）
+- `extractParentUuids()` のフロントエンド版を実装
+- バックエンド版と同一ロジック（MAIMLの `<parent>` タグを再帰的にたどってUUID配列を返す）
+
+**対象ファイル3**: `frontend/src/services/fileAccessService.ts`
+- `/files/chunks/init` リクエストのパラメータを `documentUuid` → `parentUuids` に変更
+- `extractParentUuids()` を使って送信値を生成
+
+---
+
+### 修正4: 保存時の `<parent>` タグ消失バグ修正（計画外追加）
+
+エディタでの編集・保存後にMAIMLから `<parent>` ブロックが消える問題を発見・修正。
+
+**原因**: `buildDocumentXML()` が `DocumentData.parents` フィールドを参照せず、XML生成時に `<parent>` ブロックを出力していなかった。
+
+**対象ファイル**: `frontend/src/utils/reactFlowToMaiml.ts`
+
+**内容**:
+- `buildParentXML(parent: Parent, indentLevel: number)` ヘルパー関数を新規追加
+  - `Parent` 型（`@/types/maiml-unified` から import）を使用
+  - `<parent>` ブロックを再帰的に生成（ネストしたParentチェーンに対応）
+  - `<uuid>`、`<hash>`、ネストされた `<parent>` を出力
+- `buildDocumentXML()` に `parents` 出力処理を追加
+  - `<uuid>` タグの前に `<parent>` ブロックを出力（XSD仕様準拠）
+  - `documentData.parents` が存在する場合のみ出力
+
+---
+
+### 副産物修正
+
+**対象ファイル**: `frontend/src/locales/en.json`
+- `instruction_rgistration` → `instruction_registration` のタイポを修正（フロントエンドビルド時に検出。本タスクの変更起因ではなく既存のバグ）
+
+---
+
+### 変更ファイル一覧
+
+| ファイル | 変更種別 | 内容 |
+|---------|---------|------|
+| `backend/src/utils/maimlParentInjector.ts` | 修正 | `replaceDocumentUuid()` 追加、`injectParentTag()` でDocument UUID再採番、`extractParentUuids()` 追加 |
+| `backend/src/services/fileAccessService.ts` | 修正 | アップロード上書きチェック変更（Parentチェーン照合）、旧ストレージファイル削除、旧 file_metadata レコード削除 |
+| `backend/src/controllers/fileAccessController.ts` | 修正 | チャンクアップロード上書きチェック変更（Parentチェーン照合） |
+| `frontend/src/types/file.ts` | 修正 | `ChunkUploadOptions.documentUuid` → `parentUuids?: string[]` |
+| `frontend/src/utils/maimlParentInjector.ts` | 新規作成 | `extractParentUuids()` フロントエンド版 |
+| `frontend/src/services/fileAccessService.ts` | 修正 | `/files/chunks/init` で `parentUuids` を送信 |
+| `frontend/src/utils/reactFlowToMaiml.ts` | 修正 | `buildParentXML()` 追加、`buildDocumentXML()` に `<parent>` 出力追加 |
+| `frontend/src/locales/en.json` | 修正（副産物） | タイポ修正 |
+
+---
+
+### ビルド確認
+
+- [x] バックエンド TypeScript ビルド（`tsc --noEmit` EXIT:0）
+- [x] フロントエンド TypeScript ビルド（`tsc --noEmit` EXIT:0）
+
+---
+
+### 手動確認待ち
+
+- [ ] 動作確認: 編集→保存でE7013エラーが出ないこと
+- [ ] 動作確認: 全く別のMAIMLのアップロードはE7013で弾かれること
+- [ ] 動作確認: Document UUIDがダウンロード/編集開始時に再採番されること
+- [ ] 動作確認: 編集→保存後の再編集でParentタグが正しくネストされること
+- [ ] 動作確認: ファイル名が異なるMAIMLをアップロードしても旧ファイルが残らないこと
