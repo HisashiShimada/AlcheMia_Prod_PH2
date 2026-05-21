@@ -140,6 +140,48 @@ await eventLogRepo.insertInstructionSentLog(
 );
 ```
 
+### 5. buildInstructionSentLogJson() の数値→文字列変換（code_master参照方式）
+
+`priority` / `type` / `instruction_target` の3項目について、`maiml_event_log` への記録時点で  
+数値を `code_master` テーブルの `code_name` に変換して出力する。
+
+| フィールド | code_division |
+|-----------|--------------|
+| `priority` | `instruction_priority` |
+| `type` | `instruction_type` |
+| `instruction_target` | `instruction_target` |
+
+変換ルール:
+- `organization_id` と一致するレコードのうち `code_value`（文字列）が数値と一致する `code_name` を使用
+- `code_master` に該当コードが存在しない場合は `String(数値)` にフォールバック
+- `@xsi:type` は `stringType`（intType から変更）
+
+```typescript
+// insertInstructionSentLog() 内で3区分を並列取得
+const [priorityMasters, typeMasters, targetMasters] = await Promise.all([
+  findByDivision(organizationId, 'instruction_priority'),
+  findByDivision(organizationId, 'instruction_type'),
+  findByDivision(organizationId, 'instruction_target'),
+]);
+
+// code_value（文字列） → code_name のマップを構築
+const priorityLabelMap = Object.fromEntries(
+  priorityMasters.map(m => [Number(m.code_value), m.code_name])
+);
+const typeLabelMap = Object.fromEntries(
+  typeMasters.map(m => [Number(m.code_value), m.code_name])
+);
+const targetLabelMap = Object.fromEntries(
+  targetMasters.map(m => [Number(m.code_value), m.code_name])
+);
+
+// buildInstructionSentLogJson() にマップを引数として渡す
+const logJson = this.buildInstructionSentLogJson(
+  params, nextSequenceNo,
+  priorityLabelMap, typeLabelMap, targetLabelMap
+);
+```
+
 ### 4. checkout() へのMAIML書き出し追加
 
 ```typescript
@@ -286,3 +328,14 @@ return {
 #### Phase 4: projectService checkout() に MAIML書き出し追加（完了）
 - COMMIT後に `writeEventLogOnly()` を呼び出す処理を追加
 - エラー時は警告ログのみ、チェックアウト成功を妨げない（non-fatal）
+
+#### Phase 5: eventLogRepository 数値→文字列変換対応（Phase 6で置き換え）
+- `buildInstructionSentLogJson()` にハードコードの変換マップ定数を追加（後にPhase 6でcode_master参照方式へ変更）
+
+#### Phase 6: eventLogRepository 変換方式をcode_master参照に変更（完了）
+- `insertInstructionSentLog()` 内で `codeMasterRepository.findByDivision()` を3区分並列実行
+  - `instruction_priority` / `instruction_type` / `instruction_target`
+- `code_value`（文字列）→ `code_name` のマップを動的に構築
+- `buildInstructionSentLogJson()` のシグネチャに3つのラベルマップ引数を追加
+- ハードコードマップ定数（`PRIORITY_LABEL` / `TYPE_LABEL` / `TARGET_LABEL`）を削除
+- `code_master` に存在しない値の場合は `String(数値)` にフォールバック
