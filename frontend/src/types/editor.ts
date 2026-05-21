@@ -77,6 +77,8 @@ export interface NodeData {
   pnmlId?: string | null;
   transition?: Transition;
   instructionId?: string;
+  /** MAIML UUID管理: place/transitionのuuid値（編集中のUUID状態管理用） */
+  maimlUuid?: string;
 }
 
 // ============================================
@@ -90,6 +92,8 @@ export interface EdgeData {
   id?: string;
   hasError?: boolean;
   errors?: ErrorContent[];
+  /** MAIML UUID管理: arcのuuid値（編集中のUUID状態管理用） */
+  maimlUuid?: string;
 }
 
 // ============================================
@@ -564,4 +568,74 @@ export interface TemplateContextType {
   deleteTemplate: (templateId: string) => void;
   updateTemplate: (templateId: string, updatedTemplate: Template) => void;
   validationResult?: AnalysisResult | null;
+}
+
+// ============================================
+// MAIML UUID管理型定義
+// ============================================
+
+/**
+ * 上位タグのUUID状態管理型
+ * pnml/program/method/protocol の UUID を保持する。
+ * document.uuid はタスクAが採番済みのため対象外。
+ *
+ * 使用箇所: PetriNetEditorInner.tsx
+ */
+export interface UpperUuids {
+  /** protocol タグの UUID */
+  protocol: string;
+  /** methodId → method タグの UUID */
+  methods: Map<string, string>;
+  /** methodId → pnml タグの UUID */
+  pnmls: Map<string, string>;
+  /** methodId → program タグの UUID */
+  programs: Map<string, string>;
+}
+
+/**
+ * 変更フラグ管理型
+ * 下位タグが変更された際に上位タグの UUID を再生成するかを制御する。
+ *
+ * 使用箇所: PetriNetEditorInner.tsx
+ */
+export interface DirtyFlags {
+  /** protocol タグが変更済みか */
+  protocol: boolean;
+  /** 変更のあった method の methodId セット */
+  methods: Set<string>;
+  /** 変更のあった pnml の methodId セット */
+  pnmls: Set<string>;
+  /** 変更のあった program の methodId セット */
+  programs: Set<string>;
+}
+
+/**
+ * MAIML UUID 抽出結果型
+ * maimlUuidExtractor.extractUuidsFromMaiml() の戻り値。
+ *
+ * 使用箇所: PetriNetEditorInner.tsx, maimlUuidExtractor.ts
+ */
+export interface ExtractedUuids {
+  /** place ID → uuid */
+  places: Map<string, string>;
+  /** transition ID → uuid */
+  transitions: Map<string, string>;
+  /** arc ID → uuid */
+  arcs: Map<string, string>;
+  /** template ID → uuid (全レベル共通) */
+  templates: Map<string, string>;
+  /** instruction ID → uuid */
+  instructions: Map<string, string>;
+  /** protocol uuid */
+  protocol: string;
+  /** methodId → method uuid */
+  methods: Map<string, string>;
+  /** methodId → pnml uuid */
+  pnmls: Map<string, string>;
+  /** methodId → program uuid */
+  programs: Map<string, string>;
+  /** data タグの uuid（変更なし保存で維持するため） */
+  dataUuid?: string;
+  /** eventLog タグの uuid（変更なし保存で維持するため） */
+  eventLogUuid?: string;
 }
