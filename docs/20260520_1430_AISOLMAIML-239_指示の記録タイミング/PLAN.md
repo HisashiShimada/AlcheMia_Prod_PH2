@@ -386,3 +386,110 @@ const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
 - `buildDataXML()` への `existingUuids` 渡しは変更しない  
   （`<data>` セクションの UUID 継続性は意図された挙動）
 - 上記修正により、書き出しのたびに `randomUUID()` で新規 UUID が払い出される
+
+---
+
+## 追加タスク: MAIMLファイル更新時に document uuid 更新 + parent タグ追加（2026-05-21）
+
+### 目的
+
+MAIMLファイルを書き出す際、`<document>` タグ直下の `<uuid>` を毎回新規払い出しに更新し、
+更新前の uuid 値を `<parent><uuid>...</uuid></parent>` として記録する。
+
+### 出力される構造（更新後）
+
+```xml
+<document id="project_Xxxx">
+  <uuid>new-uuid-here</uuid>
+  <parent>
+     <uuid>old-uuid-before-update</uuid>
+  </parent>
+  <name>...</name>
+  ...
+</document>
+```
+
+> **注意**: `<parent>` が既に存在する場合（2回目以降の更新）は上書きする。
+
+### 変更ファイル
+
+| # | ファイル | 変更内容 |
+|---|---------|---------|
+| 1 | `backend/src/utils/maimlDataWriter.ts` | `updateDocumentUuidAndParent()` 関数を追加・export |
+| 2 | `backend/src/services/maimlWriterService.ts` | import 追加 + `writeDataAndEventLog()` / `writeEventLogOnly()` の両メソッドで呼び出し追加 |
+
+### 詳細設計
+
+#### 1. `backend/src/utils/maimlDataWriter.ts` — 関数追加
+
+```typescript
+/**
+ * MAIML XML 文字列の <document> タグ直下の <uuid> を新しい UUID に更新し、
+ * 更新前の uuid 値を <parent><uuid>旧uuid</uuid></parent> として追加（または上書き）する。
+ *
+ * @param maimlContent - 更新前の MAIML XML 文字列
+ * @returns 更新後の MAIML XML 文字列
+ */
+export function updateDocumentUuidAndParent(maimlContent: string): string {
+  // document 直下の <uuid> を抽出
+  const docUuidMatch = maimlContent.match(
+    /<document[^>]*>[\s\S]*?<uuid>([^<]+)<\/uuid>/
+  );
+  if (!docUuidMatch) {
+    return maimlContent;
+  }
+
+  const oldUuid = docUuidMatch[1].trim();
+  const newUuid = randomUUID();
+
+  let result = maimlContent;
+
+  // 1. 既存の <parent>...</parent> を除去（重複防止）
+  result = result.replace(/<parent>[\s\S]*?<\/parent>\n?/g, '');
+
+  // 2. document 直下の <uuid> を新しい UUID に置き換え
+  result = result.replace(
+    /(<document[^>]*>[\s\S]*?)<uuid>[^<]+<\/uuid>/,
+    `$1<uuid>${newUuid}</uuid>`
+  );
+
+  // 3. <uuid>new</uuid> の直後に <parent><uuid>old</uuid></parent> を挿入
+  result = result.replace(
+    `<uuid>${newUuid}</uuid>`,
+    `<uuid>${newUuid}</uuid>\n    <parent>\n       <uuid>${escapeXml(oldUuid)}</uuid>\n    </parent>`
+  );
+
+  return result;
+}
+```
+
+#### 2. `backend/src/services/maimlWriterService.ts` — 呼び出し追加
+
+**import 追加:**
+```typescript
+import {
+  buildDataXML,
+  buildEventLogXML,
+  replaceDataAndEventLogInMaiml,
+  replaceEventLogInMaiml,
+  updateDocumentUuidAndParent,  // ★ 追加
+} from '../utils/maimlDataWriter';
+```
+
+**`writeDataAndEventLog()` のステップ8直後:**
+```typescript
+// --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
+let updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
+
+// ★ 追加: document の uuid を更新し、旧 uuid を <parent> に記録
+updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
+```
+
+**`writeEventLogOnly()` のステップ7直後:**
+```typescript
+// --- 7. 既存 MAIML の <eventLog> タグのみを置き換え ---
+let updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
+
+// ★ 追加: document の uuid を更新し、旧 uuid を <parent> に記録
+updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
+```

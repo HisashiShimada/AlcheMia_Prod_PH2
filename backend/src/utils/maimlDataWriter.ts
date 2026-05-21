@@ -703,6 +703,57 @@ export function replaceDataAndEventLogInMaiml(
   return result;
 }
 
+// ============================================================
+// updateDocumentUuidAndParent
+// ============================================================
+
+/**
+ * MAIML XML 文字列の <document> タグ直下の <uuid> を新しい UUID に更新し、
+ * 更新前の uuid 値を <parent><uuid>旧uuid</uuid></parent> として追加（または上書き）する。
+ *
+ * 処理手順:
+ *   1. 既存の <parent>...</parent> を除去（重複防止）
+ *   2. <document> 直下の <uuid> を randomUUID() で新規生成した値に置き換え
+ *   3. 新しい <uuid> の直後に <parent><uuid>旧uuid</uuid></parent> を挿入
+ *
+ * @param maimlContent - 更新前の MAIML XML 文字列
+ * @returns 更新後の MAIML XML 文字列
+ *          （<document> タグが存在しない場合や <uuid> が見つからない場合はそのまま返す）
+ */
+export function updateDocumentUuidAndParent(maimlContent: string): string {
+  // <document> 直下の最初の <uuid> 値を抽出
+  // [\s\S]*? の最短マッチで <document> 開きタグ直後の <uuid> のみを対象とする
+  const docUuidMatch = maimlContent.match(
+    /<document[^>]*>[\s\S]*?<uuid>([^<]+)<\/uuid>/
+  );
+  if (!docUuidMatch) {
+    // <document> タグまたは直下の <uuid> が見つからない場合はそのまま返す
+    return maimlContent;
+  }
+
+  const oldUuid = docUuidMatch[1].trim();
+  const newUuid = randomUUID();
+
+  let result = maimlContent;
+
+  // 1. 既存の <parent>...</parent> を除去（2回目以降の書き出しでの重複防止）
+  result = result.replace(/<parent>[\s\S]*?<\/parent>\n?/g, '');
+
+  // 2. <document> 直下の <uuid> を新しい UUID に置き換え
+  result = result.replace(
+    /(<document[^>]*>[\s\S]*?)<uuid>[^<]+<\/uuid>/,
+    `$1<uuid>${newUuid}</uuid>`
+  );
+
+  // 3. 新しい <uuid> の直後に <parent><uuid>旧uuid</uuid></parent> を挿入
+  result = result.replace(
+    `<uuid>${newUuid}</uuid>`,
+    `<uuid>${newUuid}</uuid>\n    <parent>\n       <uuid>${escapeXml(oldUuid)}</uuid>\n    </parent>`
+  );
+
+  return result;
+}
+
 /**
  * MAIML XML 文字列の <eventLog> タグのみを
  * 指定された新しい XML 文字列で丸ごと置き換える

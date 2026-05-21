@@ -23,6 +23,7 @@ import {
   buildEventLogXML,
   replaceDataAndEventLogInMaiml,
   replaceEventLogInMaiml,
+  updateDocumentUuidAndParent,
 } from '../utils/maimlDataWriter';
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
@@ -136,7 +137,10 @@ export class MaimlWriterService {
     const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
 
     // --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
-    const updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
+    let updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
+
+    // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
+    updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
 
     // --- 9. 上書き保存前にアーカイブ処理 ---
     // 既存ファイルを archive/{projectName}_v{n}.maiml として保存する。
@@ -273,7 +277,10 @@ export class MaimlWriterService {
     const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
 
     // --- 7. 既存 MAIML の <eventLog> タグのみを置き換え（<data> は変更しない）---
-    const updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
+    let updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
+
+    // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
+    updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
 
     // --- 8. 上書き保存前にアーカイブ処理 ---
     try {
