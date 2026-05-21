@@ -607,6 +607,8 @@ export interface DirtyFlags {
   pnmls: Set<string>;
   /** 変更のあった program の methodId セット */
   programs: Set<string>;
+  /** dirty な templateId のセット（templateUUID再生成対象） */
+  templates: Set<string>;
 }
 
 /**
