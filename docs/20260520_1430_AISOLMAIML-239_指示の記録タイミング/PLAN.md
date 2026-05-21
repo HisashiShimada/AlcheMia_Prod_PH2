@@ -339,3 +339,50 @@ return {
 - `buildInstructionSentLogJson()` のシグネチャに3つのラベルマップ引数を追加
 - ハードコードマップ定数（`PRIORITY_LABEL` / `TYPE_LABEL` / `TARGET_LABEL`）を削除
 - `code_master` に存在しない値の場合は `String(数値)` にフォールバック
+
+---
+
+## 追加タスク: eventLog UUID 毎回新規払い出し対応（2026-05-21）
+
+### 問題
+
+MAIMLファイルを書き出すたびに `<eventLog>` セクション内の `<uuid>` 要素に同じ値が
+出力され続ける。
+
+### 原因
+
+`maimlWriterService.ts` の `writeEventLogOnly()` / `writeDataAndEventLog()` 内で
+`extractUuidsFromMaiml()` で抽出した UUID マップ（`existingUuids`）を
+`buildEventLogXML()` に渡しているため、既存の UUID が再利用される。
+
+詳細は `report.md` の「7. MAIMLファイル書き出し時のUUID保持の仕組み」を参照。
+
+### 修正内容
+
+**変更ファイル**: `backend/src/services/maimlWriterService.ts`（2行のみ）
+
+#### `writeEventLogOnly()`（273行目付近）
+
+```typescript
+// Before
+const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
+
+// After
+const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
+```
+
+#### `writeDataAndEventLog()`（136行目付近）
+
+```typescript
+// Before
+const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
+
+// After
+const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
+```
+
+### 備考
+
+- `buildDataXML()` への `existingUuids` 渡しは変更しない  
+  （`<data>` セクションの UUID 継続性は意図された挙動）
+- 上記修正により、書き出しのたびに `randomUUID()` で新規 UUID が払い出される

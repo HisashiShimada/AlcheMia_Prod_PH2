@@ -374,3 +374,67 @@ XML生成: `backend/src/utils/maimlDataWriter.ts` `buildEventLogXML()`
 | `property: sent_at` | ✅ | ✅ | ✅ | ✅ |
 | `property: experiment_instruction_id` | ✅ | ✅ | ✅ | ✅ |
 | `property: instruction_user_id` | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+## 7. MAIMLファイル書き出し時のUUID保持の仕組み（追調査 2026-05-21）
+
+### 7.1 問題の概要
+
+MAIMLファイルを書き出すたびに、`<eventLog>` セクション内の `<uuid>` 要素に
+同じ値が出力され続ける。
+
+### 7.2 UUID保持の仕組み
+
+UUID の再利用は以下のフローで実現されている。
+
+```
+maimlWriterService.ts
+  writeEventLogOnly() / writeDataAndEventLog()
+    ↓
+  extractUuidsFromMaiml(maimlContent)
+    ← 既存MAIMLから <uuid> 値をすべて抽出し Map<識別キー, UUID文字列> に保存
+    ↓  existingUuids: Map<string, string>
+  buildEventLogXML(logJsonArray, eventLogId, existingUuids)
+    ← existingUuids を渡す
+    ↓
+  resolveUuid('eventLog', existingUuids, randomUUID)
+    ← Map にキーがあれば既存 UUID を返す（再利用）
+    ← Map にキーがなければ randomUUID() で新規生成
+```
+
+**UUID識別キーの設計**（`maimlUuidExtractor.ts`）:
+
+| 要素         | 識別キー形式      | 例                             |
+|--------------|------------------|-------------------------------|
+| `<eventLog>` | `"eventLog"`     | `"eventLog"`                  |
+| `<log>`      | `"log:{id}"`     | `"log:log_1"`                 |
+| `<trace>`    | `"trace:{id}"`   | `"trace:trace_1"`             |
+| `<event>`    | `"event:{id}"`   | `"event:event_report_xxx_ts"` |
+| `<evnet>`    | `"evnet:{id}"`   | `"evnet:evnet_1"`             |
+
+チェックアウト・チェックイン等で同じ MAIMLファイルに何度書き出しても、
+`<eventLog>` / `<log>` / `<trace>` / `<evnet>` の `<uuid>` は最初に書かれた値が
+ずっと保持され続ける。
+
+### 7.3 影響範囲
+
+| セクション   | UUID再利用     | 書き出しの意味                                                   |
+|-------------|---------------|----------------------------------------------------------------|
+| `<data>`    | ✅ 再利用      | 同じ実験データが繰り返し書き出されるため意図的な挙動              |
+| `<eventLog>`| ✅ 再利用（問題）| 追記のたびに新規UUIDが払い出されるべきだが既存値が再利用されている |
+
+### 7.4 修正方針
+
+`maimlWriterService.ts` で `buildEventLogXML()` を呼び出す際に
+`existingUuids` を渡さない（`undefined` にする）。
+
+対象箇所は2か所。
+
+| メソッド | 現在 | 修正後 |
+|---------|------|-------|
+| `writeEventLogOnly()`（273行目付近） | `buildEventLogXML(logJsonArray, eventLogId, existingUuids)` | `buildEventLogXML(logJsonArray, eventLogId)` |
+| `writeDataAndEventLog()`（136行目付近） | `buildEventLogXML(logJsonArray, eventLogId, existingUuids)` | `buildEventLogXML(logJsonArray, eventLogId)` |
+
+> **`buildDataXML()` への `existingUuids` 渡しは変更しない。**  
+> `<data>` セクションは同じ実験データが繰り返し書き出される設計であり、UUID の継続性が意図された挙動のため。
