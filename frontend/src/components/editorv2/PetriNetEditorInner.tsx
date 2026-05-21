@@ -59,6 +59,7 @@ import { addEdge } from 'reactflow';
 import 'reactflow/dist/style.css';
 // Phase 2: maimlParserTyped導入
 import { MaimlParserTyped } from '../../utils/maimlParserTyped';
+import { extractDocumentFromMaiML } from '../../utils/documentParser';
 import type { Template, PlaceRef as XsdPlaceRef, Method, Property, Document as MaimlDocument } from '../../types/maiml-unified';
 // Owner初期値生成用
 import { generateInitialDocumentData, generateInitialMethod } from '../../utils/documentInitializer';
@@ -788,14 +789,36 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           }
 
           if (extractedDoc) {
+            // extractDocumentFromMaiML で protocolId/methodId/pnmlId/programId を補完
+            // （MaimlParserTyped.getDocument() はこれらを返さないため）
+            const fullDocFromParser = extractDocumentFromMaiML(maimlData);
             const documentWithCorrectName: DocumentData = {
               ...extractedDoc,
               name: props.originalFileName 
                 ? props.originalFileName.replace('.maiml', '') 
                 : (extractedDoc.name || 'document'),
+              // protocol/method/pnml/program の id を引き継ぐ（空文字やデフォルト値は上書きしない）
+              protocolId: fullDocFromParser?.protocolId && fullDocFromParser.protocolId !== 'protocolID'
+                ? fullDocFromParser.protocolId
+                : (extractedDoc as DocumentData).protocolId,
+              methodId: fullDocFromParser?.methodId && fullDocFromParser.methodId !== 'methodID'
+                ? fullDocFromParser.methodId
+                : (extractedDoc as DocumentData).methodId,
+              pnmlId: fullDocFromParser?.pnmlId && fullDocFromParser.pnmlId !== 'pnmlID'
+                ? fullDocFromParser.pnmlId
+                : (extractedDoc as DocumentData).pnmlId,
+              programId: fullDocFromParser?.programId && fullDocFromParser.programId !== 'programID'
+                ? fullDocFromParser.programId
+                : (extractedDoc as DocumentData).programId,
             };
             setDocumentData(documentWithCorrectName);
             console.log('📄 [PetriNetEditorInner] Document情報を読み込みました（型安全）:', documentWithCorrectName);
+            console.log('🔑 [PetriNetEditorInner] ID引き継ぎ:', {
+              protocolId: documentWithCorrectName.protocolId,
+              methodId: documentWithCorrectName.methodId,
+              pnmlId: documentWithCorrectName.pnmlId,
+              programId: documentWithCorrectName.programId,
+            });
           }
             
               

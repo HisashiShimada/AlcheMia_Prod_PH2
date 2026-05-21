@@ -441,7 +441,8 @@ function buildMethodXML(
   transitions.forEach((transition: Node<NodeData>) => {
     const instructionId = transition.data.instructionId || `instruction_${transition.id}`;
     methodXml += `        <instruction id="${instructionId}">\n`;
-    methodXml += `          <uuid>${generateUUID()}</uuid>\n`;
+    // savedUuids に保存済みUUIDがあれば再利用（下位タグ変更なし→上位UUID継続）
+    methodXml += `          <uuid>${savedUuids?.instructions.get(instructionId) || generateUUID()}</uuid>\n`;
     methodXml += `          <description>${transition.data.description || transition.data.name || transition.id}</description>\n`;
     methodXml += `          <transitionRef id="TR_${transition.id}" ref="${transition.id}"/>\n`;
     methodXml += `        </instruction>\n`;

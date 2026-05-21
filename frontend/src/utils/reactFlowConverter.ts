@@ -198,7 +198,9 @@ export const convertToReactFlowFormat = (
         position: position,
         data: {
           id: transition.id,
-          name: transition.name || transition.description || transition.id,
+          // MAIMLの<name>タグ値のみ（なければ空文字）
+          // reactFlowToMaiml.ts が hasName チェックで空文字を弾くため、<name>タグが不正追加されない
+          name: transition.name ?? '',
           nodeId: transition.id,
           nodeType: 'transition',
           placeType: 'transition',
