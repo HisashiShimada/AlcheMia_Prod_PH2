@@ -133,15 +133,26 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
         >
           {/* ロゴ・タイトル */}
           <div style={{ width: '100%', textAlign: 'center', marginBottom: token.marginXXL }}>
-            <Image
-              src="/icons/logo_alchemia.png"
-              alt={t('common.appName')}
-              width={260}
-              height={80}
-              style={{ objectFit: 'contain', maxWidth: '100%' }}
-              priority
-            />
-            <div style={{ marginTop: 0 }}>
+            {/* アイコンとテキストロゴを横並び */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <Image
+                src="/icons/icon_alchemia.png"
+                alt="AlcheMia icon"
+                width={50}
+                height={50}
+                style={{ objectFit: 'contain' }}
+                priority
+              />
+              <Image
+                src="/icons/logo_alchemia.png"
+                alt={t('common.appName')}
+                width={200}
+                height={60}
+                style={{ objectFit: 'contain' }}
+                priority
+              />
+            </div>
+            <div style={{ marginTop: 4 }}>
               <Text
                 type="secondary"
                 style={{
