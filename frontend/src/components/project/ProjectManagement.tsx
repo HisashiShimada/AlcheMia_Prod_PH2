@@ -2082,7 +2082,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                 }}
                 styles={{ body: { padding: token.margin } }}
               >
-                <Space size="small">
+                <Space size="small" wrap>
                   <Button
                     type="primary"
                     icon={<DownloadOutlined />}
