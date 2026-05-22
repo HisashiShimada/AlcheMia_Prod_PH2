@@ -484,6 +484,7 @@ function convertCreator(xmlCreator: XmlJsElement): DocumentTagData {
     uuid: extractText(xmlCreator.uuid as XmlJsElement) || '',
     name: extractText(xmlCreator.name as XmlJsElement),
     description: extractText(xmlCreator.description as XmlJsElement),
+    annotation: extractText(xmlCreator.annotation as XmlJsElement) || undefined,
     vendorRef: (xmlCreator as any).vendorref ? convertRef((xmlCreator as any).vendorref) : undefined,
     instrumentRef: (xmlCreator as any).instrumentref ? convertRef((xmlCreator as any).instrumentref) : undefined
   };
@@ -498,7 +499,8 @@ function convertVendor(xmlVendor: XmlJsElement): DocumentTagData {
     id: getAttribute(xmlVendor, 'id') || '',
     uuid: extractText(xmlVendor.uuid as XmlJsElement) || '',
     name: extractText(xmlVendor.name as XmlJsElement),
-    description: extractText(xmlVendor.description as XmlJsElement)
+    description: extractText(xmlVendor.description as XmlJsElement),
+    annotation: extractText(xmlVendor.annotation as XmlJsElement) || undefined,
   };
 }
 
@@ -511,7 +513,8 @@ function convertOwner(xmlOwner: XmlJsElement): DocumentTagData {
     id: getAttribute(xmlOwner, 'id') || '',
     uuid: extractText(xmlOwner.uuid as XmlJsElement) || '',
     name: extractText(xmlOwner.name as XmlJsElement),
-    description: extractText(xmlOwner.description as XmlJsElement)
+    description: extractText(xmlOwner.description as XmlJsElement),
+    annotation: extractText(xmlOwner.annotation as XmlJsElement) || undefined,
   };
 }
 
@@ -524,7 +527,8 @@ function convertInstrument(xmlInstrument: XmlJsElement): DocumentTagData {
     id: getAttribute(xmlInstrument, 'id') || '',
     uuid: extractText(xmlInstrument.uuid as XmlJsElement) || '',
     name: extractText(xmlInstrument.name as XmlJsElement),
-    description: extractText(xmlInstrument.description as XmlJsElement)
+    description: extractText(xmlInstrument.description as XmlJsElement),
+    annotation: extractText(xmlInstrument.annotation as XmlJsElement) || undefined,
   };
 }
 

@@ -128,8 +128,6 @@ export const generateInitialDocumentData = (
     // エディター用拡張プロパティ
     protocolId: `protocol_${baseFileName}_${uuidPrefix}`,
     methodId: `method_${baseFileName}_${uuidPrefix}`,
-    pnmlId: `pnml_${baseFileName}_${uuidPrefix}`,
-    programId: `program_${baseFileName}_${uuidPrefix}`,
     chains: [],
     parents: []
   };

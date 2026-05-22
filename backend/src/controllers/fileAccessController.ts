@@ -23,7 +23,7 @@ import { AppError } from '../enums/errorCodes';
 import { ValidationError } from '../utils/errorClasses';
 import { ProjectStatusEnum } from '../enums/codeMaster.enum';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
-import { injectParentTag } from '../utils/maimlParentInjector';
+import { injectParentTag, extractParentUuids } from '../utils/maimlParentInjector';
 import { getStorageService } from '../services/storageService';
 
 /**
@@ -484,9 +484,7 @@ export async function getFileContentAsText(req: Request, res: Response): Promise
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
 
-    const result = await service.streamFileByKey(organizationId, fileKey);
-
-    const text = result.buffer.toString('utf-8');
+    const text = await service.getFileTextWithParentInjection(organizationId, fileKey);
 
     res.status(200).json({
       success: true,
@@ -806,8 +804,21 @@ export async function initChunkUpload(req: Request, res: Response): Promise<void
         const projectName = pathParts[1];
         const existingProject = await projectRepository.findByName(organizationId, projectName);
         if (existingProject?.project_maiml_flg) {
-          // アップロードファイルの Document UUID（フロントから送信）
-          const uploadingDocumentUuid: string | undefined = req.body.documentUuid;
+          // フロントから parentUuids（JSON文字列）を受け取る
+          // injectParentTag() により Document UUID が再採番されるため、
+          // Document UUID の直接比較は廃止し、Parentチェーンによる照合を行う
+          const parentUuidsRaw: string | undefined = req.body.parentUuids;
+          let uploadingParentUuids: string[] = [];
+          if (parentUuidsRaw) {
+            try {
+              const parsed = JSON.parse(parentUuidsRaw);
+              if (Array.isArray(parsed)) {
+                uploadingParentUuids = parsed;
+              }
+            } catch {
+              // パース失敗は無視
+            }
+          }
 
           // file_metadata からプロジェクトの現在のMAIMLの fileKey を取得
           // project_uuid が設定済みなら findMaimlByProjectUuid、未設定なら findMaimlByProjectName にフォールバック
@@ -830,12 +841,15 @@ export async function initChunkUpload(req: Request, res: Response): Promise<void
               const currentDoc = currentParser.getDocument();
               const currentDocumentUuid = currentDoc?.uuid?.trim();
 
-              if (uploadingDocumentUuid && currentDocumentUuid && uploadingDocumentUuid === currentDocumentUuid) {
-                // Document UUID 一致 → 同一MAIMLをベースにした変更 → 上書き許可
+              if (uploadingParentUuids.length > 0 && currentDocumentUuid && uploadingParentUuids.includes(currentDocumentUuid)) {
+                // Parentチェーンに現在のDocument UUIDが含まれる → 同一MAIMLをベースにした変更 → 上書き許可
                 allowOverwrite = true;
-                console.log(`✅ [ChunkInit] Document UUID一致のため上書き許可: projectName=${projectName}, documentUuid=${uploadingDocumentUuid}`);
+                console.log(`✅ [ChunkInit] Parentチェーン一致のため上書き許可: projectName=${projectName}, currentDocumentUuid=${currentDocumentUuid}, parentUuids=${JSON.stringify(uploadingParentUuids)}`);
+              } else if (uploadingParentUuids.length === 0) {
+                // parentUuids 未送信 = Parentタグなし（初回アップロードだが既存MAIMLあり）→ 上書き拒否
+                console.error(`❌ [ChunkInit] parentUuids未送信のため上書き拒否: projectName=${projectName}, currentDocumentUuid=${currentDocumentUuid}`);
               } else {
-                console.error(`❌ [ChunkInit] Document UUID不一致: uploading=${uploadingDocumentUuid}, current=${currentDocumentUuid}`);
+                console.error(`❌ [ChunkInit] Parentチェーン不一致: currentDocumentUuid=${currentDocumentUuid}, parentUuids=${JSON.stringify(uploadingParentUuids)}`);
               }
             } catch (storageErr) {
               // ストレージ読み込み失敗時は安全側に倒して上書きを拒否
