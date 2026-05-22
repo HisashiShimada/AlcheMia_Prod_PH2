@@ -342,52 +342,6 @@ return {
 
 ---
 
-## 追加タスク: eventLog UUID 毎回新規払い出し対応（2026-05-21）
-
-### 問題
-
-MAIMLファイルを書き出すたびに `<eventLog>` セクション内の `<uuid>` 要素に同じ値が
-出力され続ける。
-
-### 原因
-
-`maimlWriterService.ts` の `writeEventLogOnly()` / `writeDataAndEventLog()` 内で
-`extractUuidsFromMaiml()` で抽出した UUID マップ（`existingUuids`）を
-`buildEventLogXML()` に渡しているため、既存の UUID が再利用される。
-
-詳細は `report.md` の「7. MAIMLファイル書き出し時のUUID保持の仕組み」を参照。
-
-### 修正内容
-
-**変更ファイル**: `backend/src/services/maimlWriterService.ts`（2行のみ）
-
-#### `writeEventLogOnly()`（273行目付近）
-
-```typescript
-// Before
-const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
-
-// After
-const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
-```
-
-#### `writeDataAndEventLog()`（136行目付近）
-
-```typescript
-// Before
-const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
-
-// After
-const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
-```
-
-### 備考
-
-- `buildDataXML()` への `existingUuids` 渡しは変更しない  
-  （`<data>` セクションの UUID 継続性は意図された挙動）
-- 上記修正により、書き出しのたびに `randomUUID()` で新規 UUID が払い出される
-
----
 
 ## 追加タスク: MAIMLファイル更新時に document uuid 更新 + parent タグ追加（2026-05-21）
 
@@ -493,3 +447,71 @@ let updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
 // ★ 追加: document の uuid を更新し、旧 uuid を <parent> に記録
 updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
 ```
+
+---
+
+## 追加タスク: eventLog UUID 変化時のみ新規払い出し対応（2026-05-22）
+
+### 要件
+
+`<eventLog>` タグ直下の `<uuid>` の払い出しルールを以下のように変更する。
+
+| 条件 | 動作 |
+|------|------|
+| eventLog 配下の子要素（log/trace/evnet）に変化（追加・削除）がある | 新規UUID払い出し |
+| eventLog 配下の子要素に変化がない（全IDが既存MAIMLと一致） | 既存UUID再利用 |
+
+`<log>` / `<trace>` / `<evnet>` 自身については、ID が初出（新規追加）なら新規払い出し、既存IDなら再利用するルールはこれまで通り。
+
+### 変更方針
+
+`buildEventLogXML()` の内部で「変化の検出」を行う：
+
+1. `logJsonArray` 内の各 `log` の `@id` を抽出し、`newLogIds` セットを作成
+2. `existingUuids` から `log:*` プレフィックスのキーを抽出し、`existingLogIds` セットを作成
+3. 2つのセットに差分があれば「変化あり」と判定
+4. 変化ありなら `eventLog` UUID は `randomUUID()`、変化なしなら `resolveUuid('eventLog', ...)` で再利用
+
+```typescript
+// logJsonArray から log ID の集合を取得
+const newLogIds = new Set(
+  logJsonArray.flatMap(logJson => {
+    const eventLogObj = logJson['eventLog'] as Record<string, unknown> | undefined;
+    if (!eventLogObj) return [];
+    const rawLog = eventLogObj['log'];
+    const entries = Array.isArray(rawLog) ? rawLog : rawLog ? [rawLog] : [];
+    return (entries as Record<string, unknown>[])
+      .map(e => e['@id'] as string)
+      .filter(Boolean);
+  })
+);
+
+// existingUuids 内の log:* キーの集合を取得
+const existingLogIds = new Set(
+  [...(existingUuids?.keys() ?? [])]
+    .filter(k => k.startsWith('log:'))
+    .map(k => k.slice(4))
+);
+
+// いずれかに差分があれば変化あり
+const hasChanges =
+  [...newLogIds].some(id => !existingLogIds.has(id)) ||
+  [...existingLogIds].some(id => !newLogIds.has(id));
+
+// eventLog UUID の決定
+const eventLogUuidValue = hasChanges
+  ? randomUUID()
+  : resolveUuid('eventLog', existingUuids, randomUUID);
+```
+
+### 変更ファイル
+
+| # | ファイル | 変更内容 |
+|---|---------|---------|
+| 1 | `backend/src/utils/maimlDataWriter.ts` | `buildEventLogXML()` 内に変化検出ロジックを追加し、eventLog UUID の決定方法を変更 |
+| 2 | `backend/src/services/maimlWriterService.ts` | `buildEventLogXML()` の呼び出し2箇所に `existingUuids` を渡す |
+
+### 備考
+
+- `buildDataXML()` への `existingUuids` 渡しは変更しない（`<data>` セクションの UUID 継続性は意図された挙動）
+- 変化検出は `<log>` の `@id` のみを対象とする（trace/evnet の変化は log 単位での追加・削除と連動するため）

@@ -132,9 +132,9 @@ export class MaimlWriterService {
     // 新規要素・新規ファイルの場合は randomUUID() で生成する。
     const existingUuids = extractUuidsFromMaiml(maimlContent);
 
-    // --- 7. XML を生成（data: 既存UUID再利用 / eventLog: 毎回新規UUID払い出し）---
+    // --- 7. XML を生成（data: 既存UUID再利用 / eventLog: 変化があった要素のみ新規UUID払い出し）---
     const dataXml = buildDataXML(templateDataRows, dataId, existingUuids);
-    const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
+    const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
 
     // --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
     let updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
@@ -273,8 +273,8 @@ export class MaimlWriterService {
     // --- 5. 既存 MAIMLから UUID マッピングを抽出（改竄防止: UUID 再利用のため）---
     const existingUuids = extractUuidsFromMaiml(maimlContent);
 
-    // --- 6. <eventLog> XML を生成（毎回新規UUID払い出し）---
-    const eventLogXml = buildEventLogXML(logJsonArray, eventLogId);
+    // --- 6. <eventLog> XML を生成（変化があった要素のみ新規UUID払い出し）---
+    const eventLogXml = buildEventLogXML(logJsonArray, eventLogId, existingUuids);
 
     // --- 7. 既存 MAIML の <eventLog> タグのみを置き換え（<data> は変更しない）---
     let updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
