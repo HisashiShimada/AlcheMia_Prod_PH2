@@ -817,7 +817,7 @@
     "trialCountPlaceholder": "試行回数",
     "emptyState": "タスクがありません",
     "buttons": {
-      "addInstruction": "指示追加",
+      "addInstruction": "作業単位の指示追加",
       "projectInstruction": "プロジェクト指示"
     },
     "labels": {
