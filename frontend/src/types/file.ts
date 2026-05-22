@@ -352,12 +352,15 @@ export interface ChunkUploadOptions {
    */
   batchId?: string;
   /**
-   * MAIMLファイルの Document UUID（`<document>` 配下の `<uuid>` 子要素の値）。
-   * init リクエストに含めることで、バックエンドが既存プロジェクトの project_uuid と
-   * 比較し、UUID一致の場合は上書きアップロードを許可する。
-   * MAIMLファイル以外の場合は undefined を渡す。
+   * MAIMLファイルの Parent チェーン UUID 配列（`<parent>` 配下の `<uuid>` 子要素の値の配列）。
+   * init リクエストに含めることで、バックエンドが既存プロジェクトの Document UUID と
+   * 比較し、Parentチェーンに含まれる場合は上書きアップロードを許可する。
+   *
+   * injectParentTag() により Document UUID が再採番されるため、
+   * Document UUID の直接比較は行わず、Parentチェーンによる照合を行う。
+   * MAIMLファイル以外、またはParentタグが存在しない初回アップロードの場合は undefined を渡す。
    */
-  documentUuid?: string;
+  parentUuids?: string[];
 }
 
 /**

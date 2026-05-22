@@ -24,6 +24,8 @@ import type {
   Document as MaimlDocument,
   Arc,
   Place,
+  Data,
+  EventLog,
 } from '@/types/maiml-unified';
 import { xml2js, Element as XmlJsNonCompactElement } from 'xml-js';
 import { TemplatesByCategory } from '@/types/editor';
@@ -150,7 +152,25 @@ export class MaimlParserTyped {
     }
     return this.typedMaiml.document;
   }
-  
+
+  /**
+   * Dataセクションを取得
+   *
+   * @returns {Data | null} Data オブジェクト、存在しない場合は null
+   */
+  getData(): Data | null {
+    return this.typedMaiml.data ?? null;
+  }
+
+  /**
+   * EventLogセクションを取得
+   *
+   * @returns {EventLog | null} EventLog オブジェクト、存在しない場合は null
+   */
+  getEventLog(): EventLog | null {
+    return this.typedMaiml.eventLog ?? null;
+  }
+
   /**
    * Protocolを取得
    * 

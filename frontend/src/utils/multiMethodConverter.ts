@@ -11,6 +11,7 @@ import {
   escapeXml, 
   generateUUID, 
   buildPropertyXML, 
+  buildContentXML,
   buildDocumentXML,
   validatePetriNet 
 } from './reactFlowToMaiml';
@@ -21,12 +22,13 @@ import type {
   DocumentData,
   MethodData,
   EdgeData,
-  TemplatesByCategory
+  TemplatesByCategory,
+  ExtractedUuids,
 } from '../types/editor';
 
 import type { Node, Edge } from 'reactflow';
 
-import type { Property, PlaceRef, Template } from '@/types/maiml-unified';
+import type { Property, PlaceRef, Template, Content } from '@/types/maiml-unified';
 
 /**
  * メタデータ
@@ -118,7 +120,8 @@ export function convertMultipleMethodsToMaiML(
   methods: MethodData[],
   metadata: Metadata = {},
   documentData: DocumentData | null = null,
-  allTemplates: TemplatesByCategory | null = null
+  allTemplates: TemplatesByCategory | null = null,
+  savedUuids: ExtractedUuids | null = null
 ): string {
   if (!methods || methods.length === 0) {
     throw new Error('methodsが空です');
@@ -169,18 +172,16 @@ export function convertMultipleMethodsToMaiML(
       instruments: [],
       protocolId: 'protocolID',
       methodId: 'methodID',
-      pnmlId: 'pnmlID',
-      programId: 'programID',
       chains: [],
       parents: []
     };
     maiml += buildDocumentXML(defaultDoc);
   }
   
-  // Protocol要素
+  // Protocol要素（savedUuidsがあれば既存UUIDを使用、なければ新規生成）
   const protocolId = documentData?.protocolId || 'protocolID';
-  const protocolUuid = generateUUID();
-  
+  const protocolUuid = savedUuids?.protocol || generateUUID();
+
   maiml += `  <protocol id="${protocolId}">\n`;
   maiml += `    <uuid>${protocolUuid}</uuid>\n`;
   
@@ -302,9 +303,9 @@ export function convertMultipleMethodsToMaiML(
   // XSD準拠: protocolType は uuid → method+ → materialTemplate* → conditionTemplate* → resultTemplate* の順
   // 共通テンプレートは method の後に出力する
 
-  // 各method要素を出力（allTemplatesを渡す）
+  // 各method要素を出力（allTemplates, savedUuidsを渡す）
   methods.forEach((method: MethodData, index: number) => {
-    maiml += buildMethodXML(method, index, fileName, allTemplates);
+    maiml += buildMethodXML(method, index, fileName, allTemplates, savedUuids);
   });
 
   // 共通テンプレートを method の後に出力
@@ -336,10 +337,12 @@ export function convertMultipleMethodsToMaiML(
   
   // XSD準拠: data/eventLog は globalObjectContentGroup により uuid が必須
   maiml += `  <data id="dataID">\n`;
-  maiml += `    <uuid>${generateUUID()}</uuid>\n`;
+  // savedUuids に dataUuid があれば再利用して UUID 書き換えを防ぐ
+  maiml += `    <uuid>${savedUuids?.dataUuid || generateUUID()}</uuid>\n`;
   maiml += `  </data>\n`;
   maiml += `  <eventLog id="eventLogID">\n`;
-  maiml += `    <uuid>${generateUUID()}</uuid>\n`;
+  // savedUuids に eventLogUuid があれば再利用して UUID 書き換えを防ぐ
+  maiml += `    <uuid>${savedUuids?.eventLogUuid || generateUUID()}</uuid>\n`;
   maiml += `  </eventLog>\n`;
   
   maiml += `</maiml>`;
@@ -354,14 +357,16 @@ function buildMethodXML(
   method: MethodData,
   index: number,
   fileName: string,
-  allTemplates: TemplatesByCategory | null = null
+  allTemplates: TemplatesByCategory | null = null,
+  savedUuids: ExtractedUuids | null = null
 ): string {
   const { nodes, edges, methodId } = method;
-  const methodUuid = generateUUID();
+  // savedUuidsがあれば既存UUIDを優先使用（変更なしの場合にUUIDを維持）
+  const methodUuid = savedUuids?.methods.get(methodId) || generateUUID();
   const pnmlId = `pnml_${methodId}`;
-  const pnmlUuid = generateUUID();
+  const pnmlUuid = savedUuids?.pnmls.get(methodId) || generateUUID();
   const programId = `program_${methodId}`;
-  const programUuid = generateUUID();
+  const programUuid = savedUuids?.programs.get(methodId) || generateUUID();
   
   // ノードを種類別に分類
   const places = nodes.filter((n: Node<NodeData>) => n.type !== 'transition');
@@ -435,7 +440,8 @@ function buildMethodXML(
   transitions.forEach((transition: Node<NodeData>) => {
     const instructionId = transition.data.instructionId || `instruction_${transition.id}`;
     methodXml += `        <instruction id="${instructionId}">\n`;
-    methodXml += `          <uuid>${generateUUID()}</uuid>\n`;
+    // savedUuids に保存済みUUIDがあれば再利用（下位タグ変更なし→上位UUID継続）
+    methodXml += `          <uuid>${savedUuids?.instructions.get(instructionId) || generateUUID()}</uuid>\n`;
     methodXml += `          <description>${transition.data.description || transition.data.name || transition.id}</description>\n`;
     methodXml += `          <transitionRef id="TR_${transition.id}" ref="${transition.id}"/>\n`;
     methodXml += `        </instruction>\n`;
@@ -651,6 +657,13 @@ function buildTemplateXML(
   if (template.properties && template.properties.length > 0) {
     template.properties.forEach((prop: Property) => {
       templateXml += buildPropertyXML(prop, 5);
+    });
+  }
+
+  // content要素群
+  if (template.contents && template.contents.length > 0) {
+    template.contents.forEach((content: Content) => {
+      templateXml += buildContentXML(content, 5);
     });
   }
   

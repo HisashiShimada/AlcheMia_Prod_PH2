@@ -8,6 +8,7 @@
 import { PoolClient } from 'pg';
 import { TransitionStatus } from '../types/transitionData';
 import { loadSqlFile } from '../sql/loader';
+import { findByDivision } from './codeMasterRepository';
 
 /**
  * 指示送信ログのパラメータ
@@ -32,6 +33,12 @@ export interface InstructionSentLogParams {
   userId: string;
   /** 送信日時（ISO8601文字列） */
   sentAt: string;
+  /** 指示内容テキスト */
+  instructions: string | null;
+  /** 優先度 */
+  priority: number | null;
+  /** 指示タイプ */
+  type: number | null;
 }
 
 /**
@@ -273,8 +280,32 @@ export class EventLogRepository {
       ]);
       const nextSequenceNo: number = sequenceResult.rows[0].next_sequence_no;
 
+      // code_master から各区分のラベルマップを並列取得
+      const [priorityMasters, typeMasters, targetMasters] = await Promise.all([
+        findByDivision(organizationId, 'instruction_priority'),
+        findByDivision(organizationId, 'instruction_type'),
+        findByDivision(organizationId, 'instruction_target'),
+      ]);
+
+      // code_value（文字列）→ code_name のマップを構築
+      const priorityLabelMap: Record<number, string> = Object.fromEntries(
+        priorityMasters.map(m => [Number(m.code_value), m.code_name])
+      );
+      const typeLabelMap: Record<number, string> = Object.fromEntries(
+        typeMasters.map(m => [Number(m.code_value), m.code_name])
+      );
+      const targetLabelMap: Record<number, string> = Object.fromEntries(
+        targetMasters.map(m => [Number(m.code_value), m.code_name])
+      );
+
       // instruction_target に応じた JSON 構造を構築
-      const logJson = this.buildInstructionSentLogJson(params, nextSequenceNo);
+      const logJson = this.buildInstructionSentLogJson(
+        params,
+        nextSequenceNo,
+        priorityLabelMap,
+        typeLabelMap,
+        targetLabelMap,
+      );
 
       const insertQuery = await this.insertQueryPromise;
 
@@ -298,11 +329,17 @@ export class EventLogRepository {
    *
    * @param params - 指示送信ログパラメータ
    * @param sequenceNo - 採番済みの sequence_no（ID生成に使用）
+   * @param priorityLabelMap - code_master(instruction_priority) の数値→code_name マップ
+   * @param typeLabelMap - code_master(instruction_type) の数値→code_name マップ
+   * @param targetLabelMap - code_master(instruction_target) の数値→code_name マップ
    * @returns eventLog JSON オブジェクト
    */
   private buildInstructionSentLogJson(
     params: InstructionSentLogParams,
-    sequenceNo: number
+    sequenceNo: number,
+    priorityLabelMap: Record<number, string>,
+    typeLabelMap: Record<number, string>,
+    targetLabelMap: Record<number, string>,
   ): Record<string, unknown> {
     const {
       instructionTarget,
@@ -312,12 +349,17 @@ export class EventLogRepository {
       experimentInstructionId,
       userId,
       sentAt,
+      instructions,
+      priority,
+      type,
     } = params;
 
     const logId = `log_${sequenceNo}`;
     const evnetId = `evnet_${sequenceNo}`;
 
     // property 配列（3ターゲット共通）
+    // priority / type / instruction_target は code_master の code_name を使用
+    // code_master に存在しない値の場合は String(数値) にフォールバック
     const properties = [
       {
         '@key': 'sent_at',
@@ -333,6 +375,26 @@ export class EventLogRepository {
         '@key': 'instruction_user_id',
         '@xsi:type': 'stringType',
         '#text': userId,
+      },
+      {
+        '@key': 'instructions',
+        '@xsi:type': 'stringType',
+        '#text': instructions ?? '',
+      },
+      {
+        '@key': 'priority',
+        '@xsi:type': 'stringType',
+        '#text': priorityLabelMap[priority ?? 0] ?? String(priority ?? 0),
+      },
+      {
+        '@key': 'type',
+        '@xsi:type': 'stringType',
+        '#text': typeLabelMap[type ?? 0] ?? String(type ?? 0),
+      },
+      {
+        '@key': 'instruction_target',
+        '@xsi:type': 'stringType',
+        '#text': targetLabelMap[instructionTarget] ?? String(instructionTarget),
       },
     ];
 

@@ -83,7 +83,8 @@ interface TemplateEditorDialogProps {
     isNewTemplate: boolean,
     templateCategory: string,
     isCommonTemplate: boolean,
-    methodId: string | null
+    methodId: string | null,
+    originalTemplateId: string
   ) => void;
   allNodes?: Array<{ id: string; data: NodeData }>;
   templateErrors?: Record<string, TemplateError[]>;
@@ -105,6 +106,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // 基本情報State
   const [templateId, setTemplateId] = useState('');
+  // ✅ 修正: 編集開始時点のテンプレートIDを保持（ID変更時の旧ID特定に使用）
+  const [originalTemplateId, setOriginalTemplateId] = useState('');
   const [uuid, setUuid] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -253,6 +256,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   useEffect(() => {
     if (open && node && mergedTemplate) {
       setTemplateId(mergedTemplate.id || '');
+      // ✅ 修正: ダイアログを開いた時点の元のテンプレートIDを記録（ID変更時の旧ID特定に使用）
+      setOriginalTemplateId(mergedTemplate.id || '');
       setUuid(mergedTemplate.uuid || '');
       setName(mergedTemplate.name || '');
       setDescription(mergedTemplate.description || '');
@@ -1123,7 +1128,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     const isCommonTemplate = node.data.isCommonTemplate || false;
     const methodId = node.data.methodId || null;
     
-    onSave(node.id, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId);
+    // ✅ 修正: 編集開始時点の元のテンプレートIDを渡す（ID変更時の旧ID特定に使用）
+    onSave(node.id, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId, originalTemplateId);
     onClose();
     setHasChanges(false);
   };

@@ -360,6 +360,10 @@ export async function sendInstructions(
           experimentInstructionId: instruction.experiment_instruction_id!,
           userId,
           sentAt,
+          // ★ 追加: 指示の詳細情報
+          instructions: instruction.instructions ?? null,
+          priority: instruction.priority ?? null,
+          type: instruction.type ?? null,
         },
         client
       );
