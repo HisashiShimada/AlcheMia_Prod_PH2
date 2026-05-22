@@ -1270,8 +1270,6 @@
       "csvDownloadError": "Failed to download CSV",
       "functionUpdated": "Function updated",
       "functionUpdateSuccess": "Function updated",
-      "functionSet": "Function set (will be saved to DB when you click Save)",
-      "functionTempSaved": "Function set (will be saved to DB when you click Save)",
       "saveSuccess": "Role updated",
       "addSuccess": "Role added",
       "saveError": "Failed to save",
@@ -1581,7 +1579,8 @@
       "update": "Update Functions"
     },
     "labels": {
-      "writable": "Writable"
+      "writable": "Writable",
+      "readOnly": "Read Only"
     }
   },
   "roleFunctionPermission": {

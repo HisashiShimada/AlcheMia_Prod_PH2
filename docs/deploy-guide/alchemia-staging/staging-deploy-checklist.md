@@ -19,6 +19,26 @@
 9. [島田さんへの連絡（デプロイ開始）](#step-9-島田さんへの連絡デプロイ開始)
 10. [デプロイスクリプトの実行](#step-10-デプロイスクリプトの実行)
 11. [動作確認](#step-11-動作確認)
+12. [デプロイ記録のコミット・タグ作成](#step-12-デプロイ記録のコミットタグ作成)
+
+---
+
+## 事前準備: WSL でターミナルを開く
+
+本手順書のコマンドはすべて **WSL（シェル環境）** で実行する。  
+スクリプトがシェルスクリプト（`.sh`）のため、Windows のコマンドプロンプトや PowerShell では実行できない。
+
+**WSL ターミナルを起動し、プロジェクトルートに移動する：**
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+
+```bash
+cd /home/ssv/projects/mmdpf
+```
+
+> ✅ **成功時の表示**: プロンプトが `/home/ssv/projects/mmdpf` になる（例: `ssv@hostname:/home/ssv/projects/mmdpf$`）
+
+> **VSCode でファイルを確認・編集する場合:** [`vscode-wsl-setup.md`](./vscode-wsl-setup.md) を参照
 
 ---
 
@@ -27,10 +47,19 @@
 ### 1-1. 最新コードの取得
 対象はmainブランチ
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 git pull
 ```
+
+> ✅ **成功時の表示**: `Already up to date.` または差分ファイルの更新ログが表示される
+
 ### 1-2. ビルド確認
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
 
 ```bash
 # バックエンドの依存パッケージインストール
@@ -40,6 +69,11 @@ git pull
 (cd frontend && npm install 2>&1) | tail -20
 ```
 
+> ✅ **成功時の表示**: `added XXX packages` または `up to date, audited XXX packages` が表示される（`npm error` が含まれないこと）
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 # バックエンドのビルド確認
 (cd backend && npm run build 2>&1) | tail -20
@@ -48,11 +82,16 @@ git pull
 (cd frontend && npm run build 2>&1) | tail -20
 ```
 
+> ✅ **成功時の表示（バックエンド）**: 出力に `error TS` が含まれない（TypeScript エラー 0件）
+> ✅ **成功時の表示（フロントエンド）**: `Compiled successfully` が表示される
+
 ### チェックリスト
 
 - [ ] `git pull` で最新コードを取得した
-- [ ] テストがすべてパスした
-- [ ] バックエンド・フロントエンドのビルドが成功した
+- [ ] バックエンド `npm install` が `added XXX packages` または `up to date` で完了した（`npm error` なし）
+- [ ] フロントエンド `npm install` が `added XXX packages` または `up to date` で完了した（`npm error` なし）
+- [ ] バックエンド `npm run build` が **TypeScript エラー 0件** で完了した（出力に `error TS` が含まれない）
+- [ ] フロントエンド `npm run build` が **`Compiled successfully`** で完了した
 
 ---
 
@@ -60,14 +99,61 @@ git pull
 
 ### 2-1. 最新コミット一覧の確認
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 # 直近のコミット一覧（git log）
 git log --oneline -20
 ```
 
-### 2-2. 前回リリースコミットの確認
+> ✅ **成功時の表示**: コミットハッシュとメッセージの一覧が20件表示される（例: `a40d124 fix: ログイン処理修正`）
 
-最新のリリースタグを確認(release_2026XXXX_vXX.XX.XX)
+> **確認ポイント**
+> - 一番上のコミットハッシュを「今回リリースコミット（`--to-commit`）」として STEP 2-3 に記録する
+> - 今回リリース対象の Issue 対応コミットが含まれていることを確認する
+> - 想定外のコミットが混入していないことを確認する
+
+### 2-2. 前回リリースタグの確認
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
+**① リリースタグ一覧を確認する**
+
+```bash
+git tag -l "release-*" --sort=-creatordate | head -5
+```
+
+> ✅ 新しい順にタグが表示される。**2番目**が前回のタグ
+
+> **出力例:**
+> ```
+> release-20260519-v00.00.07   ← 今回のタグ
+> release-20260513-v00.00.06   ← 前回のタグ
+> ```
+
+| 項目 | 値（実行後に記入） |
+|------|-----------------|
+| 今回のタグ（1番目） | |
+| 前回のタグ（2番目） | |
+
+> **タグが1件しかない場合（初回デプロイ）:** ② をスキップして以下を実行し、表示された値を「前回のタグのコミットハッシュ」欄に記入する
+> ```bash
+> git rev-list --max-parents=0 HEAD
+> ```
+
+**② 前回のタグのコミットハッシュを取得する（`--from-commit` に使用）**
+
+```bash
+git rev-list -n 1 <前回のタグ名>
+```
+
+> ✅ 40桁のハッシュが1行表示される
+
+| 項目 | 値（実行後に記入） |
+|------|-----------------|
+| 前回のタグのコミットハッシュ | |
 
 ### 2-3. コミット情報のメモ
 
@@ -78,7 +164,16 @@ git log --oneline -20
 
 ### 2-4. リリースディレクトリの初期化
 
-上記で確認したコミット情報とリリースタグを使って、リリース作業用ディレクトリを初期化する。
+STEP 2-1・2-2 で確認した値を以下に当てはめて実行する。
+
+| パラメータ | 値の取得元 |
+|-----------|-----------|
+| `--to-commit` | STEP 2-1 の `git log` で確認した**一番上のコミットハッシュ** |
+| `--from-commit` | STEP 2-2 ② で確認した**前回のタグのコミットハッシュ**（初回デプロイの場合は `git rev-list --max-parents=0 HEAD` で取得したハッシュ） |
+| `--tag` | STEP 2-2 ① で確認した**今回のタグ名（1番目）** ※コミットハッシュではなくタグ名を指定すること |
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
 
 ```bash
 bash scripts/alchemia-staging/init-release-dir.sh \
@@ -101,6 +196,8 @@ bash scripts/alchemia-staging/init-release-dir.sh \
 |---------|------|
 | `release_info.md` | リリースタグ・コミットハッシュ・作成日時 |
 | `checklist.md` | 本手順書のコピー（デプロイ作業記録用） |
+
+> ✅ **成功時の表示**: `release_info.md` と `checklist.md` が `docs/deliverables/<リリースタグ名>/` に作成されたメッセージが表示される
 
 > **以降のデプロイ作業は `docs/deliverables/<リリースタグ名>/checklist.md` に記録すること。**
 
@@ -151,46 +248,74 @@ Skillにリリースノート作成を登録しているので、clineに作成�
 `docs/` 配下（サブフォルダ含む）に残っているタスク計画書（`PLAN.md` 等）を削除する
 
 ### 4-1. 移動対象の確認
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 # docs/ 配下のタスクフォルダを確認（YYYYMMDD_ で始まるフォルダ）
 ls -d docs/[0-9]*/
 ```
 
+> ✅ **成功時の表示**: `docs/20260512_XXXX_.../` のようなフォルダ一覧が表示される（対象フォルダが存在しない場合はエラーが出るが問題なし）
+
 ### 4-2. 削除
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
 
 ```bash
 rm -rf docs/[0-9]*/
 ```
 
+> ✅ **成功時の表示**: 何も表示されない（エラーなし = 正常）
+
 ### 4-3. コミット・プッシュ
 
-移動後、変更をコミット・プッシュする（手作業）。
+削除後、コミット・プッシュする（手作業）。
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
 
 ```bash
 git add docs/[0-9]*/
-git commit -m "chore: move task plans to cline_archives"
+git commit -m "chore: remove task plans"
 git push
 ```
 
+> ✅ **成功時の表示**: `git push` 完了後に `main -> main` などのブランチ名と共に push 完了メッセージが表示される
+
 ### 4-4. リリース対象コミットの更新
 
-上記のコミット・プッシュにより、今回のリリース対象コミット（`--to-commit`）が変わる。  
-以下の3箇所を最新のコミットハッシュに更新すること。
+STEP 4-3 の `git push` により「計画書削除のコミット」が新たに追加された。  
+このコミットが「今回の最終的なリリースコミット（`--to-commit`）」となるため、以下のコマンドで新しいコミットハッシュを確認し、3箇所を更新する。
 
-1. **STEP 2-3 のコミット情報メモ**（本手順書の「今回リリースコミット（`--to-commit`）」欄）
-2. **`docs/deliverables/<リリースタグ名>/release_info.md`** の今回リリースコミット欄
-3. **`docs/deliverables/<リリースタグ名>/release_notes_YYYYMMDD.md`** の今回リリースコミット欄
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
 
 ```bash
 # 最新コミットハッシュの確認
 git log --oneline -3
 ```
 
+> ✅ **成功時の表示**: 最新3件のコミットが表示される。**一番上の行のハッシュ**（7桁）が新しいリリースコミット
+> ```
+> abc1234 chore: remove task plans    ← このハッシュを使う
+> e7bf953 fix: 前のコミット
+> a40d124 fix: さらに前のコミット
+> ```
+
+以下の3箇所を上記で確認したハッシュに更新する。
+
+1. **STEP 2-3 のコミット情報メモ**（本手順書の「今回リリースコミット（`--to-commit`）」欄）
+2. **`docs/deliverables/<リリースタグ名>/release_info.md`** の今回リリースコミット欄
+3. **`docs/deliverables/<リリースタグ名>/release_notes_YYYYMMDD.md`** の今回リリースコミット欄
+
 ### チェックリスト
 
 - [ ] `docs/` 配下の計画書・タスクフォルダを確認した
-- [ ] 対象ファイル・フォルダを `docs/cline_archives/` へ移動した
-- [ ] 移動をコミット・プッシュした
+- [ ] 対象ファイル・フォルダを削除した
+- [ ] 削除をコミット・プッシュした
 - [ ] STEP 2-3 のコミット情報メモ・`release_info.md`・リリースノートの今回リリースコミットを最新ハッシュに更新した
 
 ---
@@ -200,12 +325,19 @@ git log --oneline -3
 `sync-to-staging.sh` の `--dry-run` オプションで変更ファイルの一覧を事前確認する。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
 
+> 📖 スクリプトの仕組みについては [`scripts-guide.md`](../../deliverables/scripts-guide.md) を参照
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 # ドライラン（ファイルを操作せず差分のみ表示）
 bash scripts/alchemia-staging/sync-to-staging.sh \
   --release-tag <リリースタグ名> \
   --dry-run
 ```
+
+> ✅ **成功時の表示**: 差分ファイルの一覧が出力され、最後に `docs/deliverables/<リリースタグ名>/dry-run-result.md` にレポートが保存されたメッセージが表示される
 
 > **実行例:**
 > ```bash
@@ -217,7 +349,6 @@ bash scripts/alchemia-staging/sync-to-staging.sh \
 > **確認ポイント**
 > - 想定外のファイルが含まれていないか
 > - 削除ファイルに重要なものがないか
-> - `backend/migrations/` に新規SQLが含まれているか（→ STEP 6 で対応）
 > - ドライラン結果は `docs/deliverables/<リリースタグ名>/dry-run-result.md` に自動保存される
 
 ※スクリプトに実行権限がない場合は下記を実行すること
@@ -235,26 +366,31 @@ chmod +x scripts/alchemia-staging/sync-to-staging.sh
 
 ### 6-1. マイグレーションファイルの確認
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 # 前回リリース以降に追加されたマイグレーションファイルを確認
 git diff --name-only <前回リリースコミット> <今回リリースコミット> -- backend/migrations/
 ```
 
-または
-
-```bash
-# backend/migrations/ 配下のファイルを日付順で確認
-ls -lt backend/migrations/*.sql | head -10
-```
+> ✅ **成功時の表示**: 新規追加されたSQLファイルのパスが表示される（例: `backend/migrations/20260519_add_column.sql`）。新規ファイルがなければ何も表示されない
 
 ### 6-2. マイグレーション内容の確認
 
 新規 SQL ファイルが存在する場合、内容を確認してデプロイ時に `--migrate` が必要か判断する。
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 # 新規マイグレーションファイルの内容確認
-cat backend/migrations/YYYYMMDD_<説明>.sql
+# （上記 git diff で表示されたファイル名をそのまま使う）
+cat <上記で表示されたファイルパス>
+# 例: cat backend/migrations/20260519_add_file_metadata_column.sql
 ```
+
+> ✅ **成功時の表示**: SQLの内容が出力される
 
 > **確認ポイント**
 > - `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` 等でべき等に書かれているか
@@ -262,6 +398,9 @@ cat backend/migrations/YYYYMMDD_<説明>.sql
 > - データの移行が必要かどうか
 
 ### 6-3. Aurora への疎通確認（必要に応じて）
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）※踏み台ポートフォワード時はローカルから実行
+> 📂 **実行ディレクトリ**: 任意のディレクトリ
 
 ```bash
 # 踏み台サーバー経由でポートフォワード（必要な場合）
@@ -276,6 +415,8 @@ PGPASSWORD=${DB_PASSWORD} psql \
   --set=sslmode=require \
   -c "\dt"
 ```
+
+> ✅ **成功時の表示**: テーブル名の一覧が表示される（例: `public | users | table | maiml_user`）
 
 ### 6-4. マイグレーション要否の判断
 
@@ -299,10 +440,15 @@ PGPASSWORD=${DB_PASSWORD} psql \
 前回リリースコミットと今回リリースコミット間で、`.env系ファイル` および `aws/ecs-task-definition-*.json` の環境変数差分を自動チェックする。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` のみ指定すればよい。
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 bash scripts/alchemia-staging/check-env-diff.sh \
   --release-tag <リリースタグ名>
 ```
+
+> ✅ **成功時の表示**: 環境変数の差分一覧（ADDED / CHANGED / REMOVED）が出力され、最後に `docs/deliverables/<リリースタグ名>/env_diff_YYYYMMDD_HHMMSS.md` に保存完了メッセージが表示される
 
 > **機密値をマスクせず確認したい場合（ローカル環境のみ）:**
 > ```bash
@@ -332,11 +478,14 @@ chmod +x scripts/alchemia-staging/check-env-diff.sh
 
 ### 7-1. AWS CLI 認証確認
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: 任意のディレクトリ
+
 ```bash
 aws sts get-caller-identity
 ```
 
-> 正常レスポンス例:
+> ✅ **成功時の表示**: `"Account": "137068252939"` を含む JSON が返る（下記例）
 > ```json
 > {
 >   "UserId": "...",
@@ -347,10 +496,15 @@ aws sts get-caller-identity
 
 ### 7-2. ECS タスク定義 JSON の確認
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 # バックエンドタスク定義の主要な環境変数を確認
 cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 ```
+
+> ✅ **成功時の表示**: 環境変数名（`"name": "DB_HOST"` 等）と値が一覧で出力される
 
 > **確認ポイント**
 > - `DB_HOST` が実環境の Aurora エンドポイントになっているか
@@ -439,11 +593,14 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 検証環境用リポジトリへ差分ファイルを同期する。  
 コミット情報は `docs/deliverables/<リリースタグ名>/release_info.md` から自動取得されるため、`--release-tag` と `--dest-repo` のみ指定すればよい。
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 # 実行（ドライランを外す）
 bash scripts/alchemia-staging/sync-to-staging.sh \
   --release-tag <リリースタグ名> \
-  --dest-repo   <検証環境用リポジトリのパス>
+  --dest-repo   /home/ssv/projects/Alchemia_Staging
 ```
 
 > **実行例:**
@@ -453,17 +610,49 @@ bash scripts/alchemia-staging/sync-to-staging.sh \
 >   --dest-repo   /home/user/staging/mmdpf
 > ```
 
-> **完了メッセージの確認**: `同期が正常に完了しました。` が表示されることを確認する。
+> ✅ **成功時の表示**: `同期が正常に完了しました。` が表示される
 
-### 10-2. ECS デプロイ（deploy.ecr.sh）
+### 10-2. コミット・プッシュ
+
+同期後、検証環境用リポジトリで変更をコミット・プッシュする（手作業）。
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
+
+```bash
+git add .
+git commit -m ""
+git push
+```
+
+> ✅ **成功時の表示**: `main -> main` などの push 完了メッセージが表示される
+
+以降、踏み台サーバで作業
+
+### 10-3. ソースコードのフェッチ、プル
+
+> 🖥️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）に SSH ログインして実行
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
+
+> ✅ **成功時の表示**: `Already up to date.` または最新コミットの差分が表示される
+
+### 10-4. ECS デプロイ（deploy.prod-verification.sh）
 
 #### ケース A: フルデプロイ（標準 / マイグレーションなし）
 
+> 🖥️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
+
 ```bash
-./scripts/alchemia-staging/deploy.ecr.phase1.sh
+./scripts/alchemia-staging/deploy.prod-verification.sh --mode all
 ```
 
+> ✅ **成功時の表示**: `✅ [prod-verification] デプロイ完了！` が表示される
+
 #### ケース B: DBマイグレーション付きフルデプロイ
+
+> 🖥️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
 
 ```bash
 export DB_HOST=YOUR_AURORA_ENDPOINT.cluster-xxxxxxxxxx.ap-northeast-1.rds.amazonaws.com
@@ -472,23 +661,40 @@ export DB_PASSWORD=YOUR_DB_PASSWORD
 ./scripts/alchemia-staging/deploy.ecr.phase1.sh --migrate
 ```
 
+> ✅ **成功時の表示**: マイグレーション完了後に `✅ Alchemia Staging ECR デプロイ完了！` が表示される
+
 #### ケース C: バックエンドのみデプロイ
+
+> 🖥️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
 
 ```bash
 ./scripts/alchemia-staging/deploy.ecr.phase1.sh --backend
 ```
 
+> ✅ **成功時の表示**: `✅ Alchemia Staging ECR デプロイ完了！` が表示される
+
 #### ケース D: nginx（frontend含む）のみデプロイ
+
+> 🖥️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
 
 ```bash
 ./scripts/alchemia-staging/deploy.ecr.phase1.sh --nginx
 ```
 
+> ✅ **成功時の表示**: `✅ Alchemia Staging ECR デプロイ完了！` が表示される
+
 #### ケース E: 安定化まで待機する場合
+
+> 🖥️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
 
 ```bash
 ./scripts/alchemia-staging/deploy.ecr.phase1.sh --wait
 ```
+
+> ✅ **成功時の表示**: ECS サービスが安定状態になるまで待機し、`✅ Alchemia Staging ECR デプロイ完了！` が表示される
 
 > **デプロイログ**: `logs/deploy-ecr-*.log` に自動保存される。
 
@@ -503,6 +709,18 @@ export DB_PASSWORD=YOUR_DB_PASSWORD
 ## STEP 11: 動作確認
 
 ### 11-1. ECS サービス状態の確認
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
+```bash
+./scripts/alchemia-staging/deploy.prod-verification.sh --mode all --check
+```
+
+> ✅ **成功時の表示**: backend・nginx 各サービスのステータスが表示され、すべて正常稼働中であることが確認できる
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: 任意のディレクトリ
 
 ```bash
 # backend サービスの状態確認
@@ -520,6 +738,15 @@ aws ecs describe-services \
   --query 'services[0].{running:runningCount,pending:pendingCount,desired:desiredCount}'
 ```
 
+> ✅ **成功時の表示**: 以下のように `running` = `desired`、`pending` = `0` が返る
+> ```json
+> {
+>     "running": 1,
+>     "pending": 0,
+>     "desired": 1
+> }
+> ```
+
 > **正常**: `runningCount` = `desiredCount`、`pendingCount` = 0
 
 ### 11-2. スキーマの差分チェック
@@ -528,9 +755,14 @@ aws ecs describe-services \
 
 #### ① 開発環境（ローカル）のスキーマダンプ
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 bash scripts/alchemia-staging/dump-dev-schema.sh
 ```
+
+> ✅ **成功時の表示**: `✅ スキーマダンプ完了: docs/deliverables/schema_dump_dev_<タイムスタンプ>.sql` のようなメッセージが表示される
 
 > 出力先: `docs/deliverables/schema_dump_dev_<タイムスタンプ>.sql`
 
@@ -541,10 +773,15 @@ chmod +x scripts/alchemia-staging/dump-dev-schema.sh
 
 #### ② 検証環境（Aurora）のスキーマダンプ
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）※踏み台EC2経由でSSH接続して Aurora にダンプを取得
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 bash scripts/alchemia-staging/dump-staging-schema.sh --key <秘密鍵ファイルパス>
 # 例: bash scripts/alchemia-staging/dump-staging-schema.sh --key ~/.ssh/alchemia_staging_stepping.pem
 ```
+
+> ✅ **成功時の表示**: `✅ スキーマダンプ完了: docs/deliverables/schema_dump_staging_<タイムスタンプ>.sql` のようなメッセージが表示される
 
 > 出力先: `docs/deliverables/schema_dump_staging_<タイムスタンプ>.sql`
 
@@ -555,11 +792,16 @@ chmod +x scripts/alchemia-staging/dump-staging-schema.sh
 
 #### ③ diff による差分チェック
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
 ```bash
 diff \
   docs/deliverables/schema_dump_dev_<タイムスタンプ>.sql \
   docs/deliverables/schema_dump_staging_<タイムスタンプ>.sql
 ```
+
+> ✅ **成功時の表示**: 何も出力されない（= 差分なし・スキーマ一致）
 
 > **判断基準**
 >
@@ -571,13 +813,21 @@ diff \
 
 ### 11-3. API ヘルスチェック
 
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: 任意のディレクトリ
+
 ```bash
 curl https://your-nlb-domain.ap-northeast-1.elb.amazonaws.com/api/health
 
 # 期待レスポンス: {"status":"ok"}
 ```
 
+> ✅ **成功時の表示**: `{"status":"ok"}` が返る
+
 ### 11-4. CloudWatch ログの確認
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: 任意のディレクトリ
 
 ```bash
 # バックエンドログ（直近10分）
@@ -586,6 +836,8 @@ aws logs tail /ecs/alchemia-backend --region ap-northeast-1 --since 10m
 # nginx / frontend ログ（直近10分）
 aws logs tail /ecs/alchemia-nginx --region ap-northeast-1 --since 10m
 ```
+
+> ✅ **成功時の表示**: ログが流れ、`ERROR` レベルのログが含まれない
 
 > **確認ポイント**: ERROR レベルのログが出ていないことを確認する。
 
@@ -641,9 +893,9 @@ STEP 2: リリース対象の確認 / リリースディレクトリの初期化
 STEP 3: リリースノートの作成
   - [ ] release_notes_YYYYMMDD.md を作成した
 
-STEP 4: 計画書の移動
-  - [ ] docs/ 配下の計画書を docs/cline_archives/ へ移動した
-  - [ ] 移動をコミット・プッシュした
+STEP 4: 計画書の削除
+  - [ ] docs/ 配下の計画書・タスクフォルダを削除した
+  - [ ] 削除をコミット・プッシュした
   - [ ] release_info.md・リリースノートの今回リリースコミットを最新ハッシュに更新した
 
 STEP 5: 差分ファイルの確認（ドライラン）
@@ -675,9 +927,63 @@ STEP 11: 動作確認
 
 ---
 
+## STEP 12: デプロイ記録のコミット・タグ作成
+
+デプロイ作業中に作成・更新されたファイル（チェックリスト・リリースノート等）をコミットし、リリースタグを打つ。
+
+### 12-1. デプロイ作業ファイルのコミット
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
+コミット対象のファイル（存在するものだけ add すること）：
+- `docs/deliverables/<リリースタグ名>/checklist.md`（本手順書の記録）
+- `docs/deliverables/<リリースタグ名>/release_info.md`
+- `docs/deliverables/<リリースタグ名>/release_notes_YYYYMMDD.md`
+- `docs/deliverables/<リリースタグ名>/dry-run-result.md`
+- `docs/deliverables/<リリースタグ名>/env_diff_*.md`
+- `docs/deliverables/schema_dump_dev_*.sql`
+- `docs/deliverables/schema_dump_staging_*.sql`
+
+```bash
+git add docs/deliverables/
+git commit -m "chore: add release records for <リリースタグ名>"
+git push
+```
+
+> ✅ **成功時の表示**: `git push` 完了後に `main -> main` などの push 完了メッセージが表示される
+
+### 12-2. リリースタグの作成・プッシュ
+
+タグは STEP 2-2 ① で確認した「今回のタグ名」を使用する。
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
+```bash
+# タグを作成
+git tag <リリースタグ名>
+
+# タグをリモートにプッシュ
+git push origin <リリースタグ名>
+```
+
+> ✅ **成功時の表示（tag）**: 何も出力されない（エラーなし = 正常）
+> ✅ **成功時の表示（push）**: `* [new tag]  <リリースタグ名> -> <リリースタグ名>` と表示される
+
+### チェックリスト
+
+- [ ] デプロイ作業ファイルをコミット・プッシュした
+- [ ] リリースタグを作成・プッシュした
+
+---
+
 ## ロールバック手順
 
 問題が発生した場合は以下の手順でロールバックする。
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: 任意のディレクトリ
 
 ```bash
 # タスク定義リビジョン一覧を確認
@@ -704,6 +1010,9 @@ aws ecs update-service \
   --region ap-northeast-1
 ```
 
+> ✅ **成功時の表示（list-task-definitions）**: `alchemia-backend:XX` 形式のARN一覧が表示される
+> ✅ **成功時の表示（update-service）**: ECS サービスの JSON 情報が返り、ローリングデプロイが開始される
+
 ---
 
 ## 参照ドキュメント
@@ -711,11 +1020,11 @@ aws ecs update-service \
 | ドキュメント | 内容 |
 |------------|------|
 | [`deploy-guide-aws.md`](./deploy-guide-aws.md) | SaaS版 AWS デプロイ手順書（詳細版） |
-| [`scripts/alchemia-staging/sync-to-staging.sh`](../../../../alchemia-staging/scripts/sync-to-staging.sh) | 検証環境ファイル同期スクリプト |
-| [`scripts/alchemia-staging/deploy.ecr.sh`](../../../../scripts/alchemia-staging/deploy.ecr.sh) | ECS デプロイスクリプト |
-| [`scripts/alchemia-staging/check-env-diff.sh`](../../../../scripts/alchemia-staging/check-env-diff.sh) | 環境変数差分チェックスクリプト |
-| [`scripts/alchemia-staging/dump-dev-schema.sh`](../../../../scripts/alchemia-staging/dump-dev-schema.sh) | 開発環境（ローカル）スキーマダンプスクリプト |
-| [`scripts/alchemia-staging/dump-staging-schema.sh`](../../../../scripts/alchemia-staging/dump-staging-schema.sh) | 検証環境（Aurora）スキーマダンプスクリプト（SSH踏み台経由） |
+| [`scripts/alchemia-staging/sync-to-staging.sh`](../../../scripts/alchemia-staging/sync-to-staging.sh) | 検証環境ファイル同期スクリプト |
+| [`scripts/alchemia-staging/deploy.ecr.sh`](../../../scripts/alchemia-staging/deploy.ecr.sh) | ECS デプロイスクリプト |
+| [`scripts/alchemia-staging/check-env-diff.sh`](../../../scripts/alchemia-staging/check-env-diff.sh) | 環境変数差分チェックスクリプト |
+| [`scripts/alchemia-staging/dump-dev-schema.sh`](../../../scripts/alchemia-staging/dump-dev-schema.sh) | 開発環境（ローカル）スキーマダンプスクリプト |
+| [`scripts/alchemia-staging/dump-staging-schema.sh`](../../../scripts/alchemia-staging/dump-staging-schema.sh) | 検証環境（Aurora）スキーマダンプスクリプト（SSH踏み台経由） |
 | `docs/deliverables/release_notes_YYYYMMDD.md` | リリースノート（デプロイごとに作成） |
 
 ---
