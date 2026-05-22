@@ -59,7 +59,6 @@ import { addEdge } from 'reactflow';
 import 'reactflow/dist/style.css';
 // Phase 2: maimlParserTyped導入
 import { MaimlParserTyped } from '../../utils/maimlParserTyped';
-import { extractDocumentFromMaiML } from '../../utils/documentParser';
 import type { Template, PlaceRef as XsdPlaceRef, Method, Property, Document as MaimlDocument } from '../../types/maiml-unified';
 // Owner初期値生成用
 import { generateInitialDocumentData, generateInitialMethod } from '../../utils/documentInitializer';
@@ -790,27 +789,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           }
 
           if (extractedDoc) {
-            // extractDocumentFromMaiML で protocolId/methodId/pnmlId/programId を補完
             // （MaimlParserTyped.getDocument() はこれらを返さないため）
-            const fullDocFromParser = extractDocumentFromMaiML(maimlData);
             const documentWithCorrectName: DocumentData = {
               ...extractedDoc,
               name: props.originalFileName 
                 ? props.originalFileName.replace('.maiml', '') 
                 : (extractedDoc.name || 'document'),
-              // protocol/method/pnml/program の id を引き継ぐ（空文字やデフォルト値は上書きしない）
-              protocolId: fullDocFromParser?.protocolId && fullDocFromParser.protocolId !== 'protocolID'
-                ? fullDocFromParser.protocolId
-                : (extractedDoc as DocumentData).protocolId,
-              methodId: fullDocFromParser?.methodId && fullDocFromParser.methodId !== 'methodID'
-                ? fullDocFromParser.methodId
-                : (extractedDoc as DocumentData).methodId,
-              pnmlId: fullDocFromParser?.pnmlId && fullDocFromParser.pnmlId !== 'pnmlID'
-                ? fullDocFromParser.pnmlId
-                : (extractedDoc as DocumentData).pnmlId,
-              programId: fullDocFromParser?.programId && fullDocFromParser.programId !== 'programID'
-                ? fullDocFromParser.programId
-                : (extractedDoc as DocumentData).programId,
             };
             setDocumentData(documentWithCorrectName);
             console.log('📄 [PetriNetEditorInner] Document情報を読み込みました（型安全）:', documentWithCorrectName);
@@ -1524,6 +1508,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     // ミニマップ強調: 最後に追加したノードIDを更新（2秒後に自動解除）
     setLastAddedNodeId(newNode.id);
     setTimeout(() => setLastAddedNodeId(null), 2000);
+    // ── UUID: ノード追加でpnml/method/protocolをdirtyにする ──
+    markPnmlDirtyForCurrentMethod();
     onContentChange?.();
     
     console.log(`✨ [PetriNetEditorInner] ${isFirstNode ? '🎯初回' : '2回目以降'}ノード追加（テンプレートなし）:`, {
@@ -1572,6 +1558,23 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // ノードID変更ハンドラー
   const handleUpdateNodeId = useCallback((oldId: string, newId: string) => {
     console.log('🔄 [PetriNetEditorInner] ノードID変更:', { oldId, newId });
+
+    // ── Phase B-4b: clineUpdateTemplate の前に dirty な templateId を収集する ──
+    // （clineUpdateTemplate でplaceRefsがnewIdに書き換わるため、収集は必ず前に行う）
+    const dirtyTemplateIds: string[] = [];
+    if (window.clineAllTemplates) {
+      (['material', 'condition', 'result'] as const).forEach(cat => {
+        (window.clineAllTemplates?.[cat] || []).forEach((t) => {
+          if (!t?.id) return;
+          if (t.placeRefs?.some((pr) => pr.ref === oldId)) {
+            dirtyTemplateIds.push(t.id);
+          }
+        });
+      });
+      if (dirtyTemplateIds.length > 0) {
+        console.log('🔑 [handleUpdateNodeId] template dirty フラグ収集（更新前）:', { oldId, dirtyTemplateIds });
+      }
+    }
     
     // ✅ TemplateContextのテンプレートも更新（placeRefsの参照を更新）
     if (window.clineAllTemplates && window.clineUpdateTemplate) {
@@ -1643,25 +1646,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     });
     // ── UUID: ノードID変更でpnml/method/protocolをdirtyにする ──
     markPnmlDirtyForCurrentMethod();
-    // ── Phase B-4b: 旧IDをplaceRef.refとして持つtemplateもdirtyにする（templateUUID再生成） ──
-    if (window.clineAllTemplates) {
-      const allTmpl = window.clineAllTemplates;
-      const dirtyTemplateIds: string[] = [];
-      (['material', 'condition', 'result'] as const).forEach(cat => {
-        (allTmpl[cat] || []).forEach((t) => {
-          if (!t?.id) return;
-          if (t.placeRefs?.some((pr) => pr.ref === oldId)) {
-            dirtyTemplateIds.push(t.id);
-          }
-        });
-      });
-      if (dirtyTemplateIds.length > 0) {
-        setDirtyFlags(prev => ({
-          ...prev,
-          templates: new Set([...prev.templates, ...dirtyTemplateIds]),
-        }));
-        console.log('🔑 [handleUpdateNodeId] template dirty フラグ追加:', { oldId, dirtyTemplateIds });
-      }
+    // ── Phase B-4b: dirtyTemplateIdsは clineUpdateTemplate の前に収集済み ──
+    if (dirtyTemplateIds.length > 0) {
+      setDirtyFlags(prev => ({
+        ...prev,
+        templates: new Set([...prev.templates, ...dirtyTemplateIds]),
+      }));
+      console.log('🔑 [handleUpdateNodeId] template dirty フラグ追加:', { oldId, dirtyTemplateIds });
     }
     onContentChange?.();
   }, [setNodes, setEdges, pushState, onContentChange, markPnmlDirtyForCurrentMethod, setDirtyFlags]);
@@ -2005,11 +1996,14 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const allTemplates = window.clineAllTemplates;
         let originalTemplate: Template = {id: '', name: '', uuid: '', category: '', placeRefs : [], properties: [], contents: []};
         
-        // 全カテゴリから元のテンプレートを検索（templateIdで検索）
+        // 全カテゴリから元のテンプレートを検索（変更前のIDで検索）
+        // ✅ 修正5: node.data.template?.id（変更前の旧ID）を検索キーに使用
+        // templateId（新ID）で検索すると配列に旧IDしかないため見つからない
+        const searchId = templateEditNode?.data?.template?.id || templateId;
         (['material', 'condition', 'result'] as const).forEach((category) => {
         const templates : Template[] = (allTemplates[category] || []).filter((t): t is Template => t != null && typeof t === 'object' && !!t.id);
           if (!originalTemplate.id && templates.length > 0) {
-            const found = templates.find((t: Template) => t.id === templateId);
+            const found = templates.find((t: Template) => t.id === searchId);
             if (found) {  // ✅ 修正: find()がundefinedを返す場合に備えてチェック
               originalTemplate = found;
             }
@@ -2028,9 +2022,23 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const finalMethodId = originalTemplate?.methodId !== undefined ? originalTemplate.methodId : methodId;
       
       // TemplateContextを更新（window.clineUpdateTemplateを使用）
+      // ✅ 修正1: IDが変更された場合は旧IDで検索して更新する
+      // （新IDで検索すると旧エントリが見つからず更新されないため）
+      const oldTemplateId = originalTemplate.id || templateId;
+      const idChanged = oldTemplateId !== templateId;
+      if (idChanged) {
+        console.log('🔄 [PetriNetEditorInner] Template ID変更検知:', { oldId: oldTemplateId, newId: templateId });
+        // ✅ savedUuidsから旧IDのエントリを削除（新IDで再採番させるため）
+        setSavedUuids(prev => {
+          if (!prev) return prev;
+          const updatedTemplates = new Map(prev.templates);
+          updatedTemplates.delete(oldTemplateId);
+          return { ...prev, templates: updatedTemplates };
+        });
+      }
       if (window.clineUpdateTemplate) {
-        window.clineUpdateTemplate(templateId, {  // ✅ 修正: templateIdを使用
-            id: templateId,  // ✅ 修正: templateIdを使用
+        window.clineUpdateTemplate(oldTemplateId, {  // 旧IDを第1引数に渡す（検索キー）
+            id: templateId,  // 新IDをオブジェクトにセット
             uuid: convertedTemplateRef.uuid,
             name: convertedTemplateRef.name || '',
             description: convertedTemplateRef.description,
@@ -2042,6 +2050,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             methodId: finalMethodId,
         });
         console.log('✅ [PetriNetEditorInner] TemplateContext更新完了:', {
+          oldTemplateId,
+          templateId,
           finalTemplateCategory,
           finalMethodId
         });
@@ -2588,6 +2598,21 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         pnmls: new Set([...prev.pnmls, oldMethodId]),
         programs: new Set([...prev.programs, oldMethodId]),
       }));
+
+      // ── Phase C-2: savedUuidsから旧methodIdのエントリを削除 ──
+      // methodIDが変わると pnml_${newMethodId} / program_${newMethodId} という新IDが採用される。
+      // savedUuidsに旧methodIdのエントリが残っていると旧UUIDが再利用されてしまうため削除する。
+      // （pnmlは偶然的に新UUIDが生成されていたが、programは旧UUIDが残るため明示的に削除が必要）
+      setSavedUuids(prev => {
+        if (!prev) return prev;
+        const updatedPnmls = new Map(prev.pnmls);
+        updatedPnmls.delete(oldMethodId);
+        const updatedPrograms = new Map(prev.programs);
+        updatedPrograms.delete(oldMethodId);
+        const updatedMethods = new Map(prev.methods);
+        updatedMethods.delete(oldMethodId);
+        return { ...prev, pnmls: updatedPnmls, programs: updatedPrograms, methods: updatedMethods };
+      });
     }
 
     // ── Phase D: TemplateContext内のtemplate.methodIdを新methodIdに更新 ──

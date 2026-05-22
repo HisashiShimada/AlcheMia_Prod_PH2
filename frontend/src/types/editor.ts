@@ -119,10 +119,6 @@ export interface DocumentData extends Document {
   protocolId?: string;
   /** Method要素のID（エディター用、UI表示で使用） */
   methodId?: string;
-  /** PNML要素のID（エディター用、UI表示で使用） */
-  pnmlId?: string;
-  /** Program要素のID（エディター用、UI表示で使用） */
-  programId?: string;
   
   /** 署名情報（エディター用、下位互換性のため） */
   signatureEnabled?: boolean;

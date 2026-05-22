@@ -11,6 +11,7 @@ import {
   escapeXml, 
   generateUUID, 
   buildPropertyXML, 
+  buildContentXML,
   buildDocumentXML,
   validatePetriNet 
 } from './reactFlowToMaiml';
@@ -27,7 +28,7 @@ import type {
 
 import type { Node, Edge } from 'reactflow';
 
-import type { Property, PlaceRef, Template } from '@/types/maiml-unified';
+import type { Property, PlaceRef, Template, Content } from '@/types/maiml-unified';
 
 /**
  * メタデータ
@@ -171,8 +172,6 @@ export function convertMultipleMethodsToMaiML(
       instruments: [],
       protocolId: 'protocolID',
       methodId: 'methodID',
-      pnmlId: 'pnmlID',
-      programId: 'programID',
       chains: [],
       parents: []
     };
@@ -658,6 +657,13 @@ function buildTemplateXML(
   if (template.properties && template.properties.length > 0) {
     template.properties.forEach((prop: Property) => {
       templateXml += buildPropertyXML(prop, 5);
+    });
+  }
+
+  // content要素群
+  if (template.contents && template.contents.length > 0) {
+    template.contents.forEach((content: Content) => {
+      templateXml += buildContentXML(content, 5);
     });
   }
   

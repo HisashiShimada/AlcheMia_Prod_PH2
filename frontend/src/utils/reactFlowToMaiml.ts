@@ -834,13 +834,13 @@ export async function convertReactFlowToMaiML(
   });
   
   // documentDataからIDを取得（優先）、なければ元構造、最後にデフォルト値
-  const protocolId = documentData?.protocolId || originalStructure?.protocol?.id || 'protocolID';
-  const methodId = documentData?.methodId || originalStructure?.method?.id || 'methodID';
-  const pnmlId = documentData?.pnmlId || originalStructure?.pnml?.id || 'pnmlID';
-  const pnmlName = originalStructure?.pnml?.name || `${fileName}PNML`;
-  const pnmlDescription = originalStructure?.pnml?.description || '';
-  const programId = documentData?.programId || originalStructure?.program?.id || 'programID';
-  const programDescription = originalStructure?.program?.description || '';
+  const protocolId = documentData?.protocolId|| 'protocolID';
+  const methodId = documentData?.methodId|| 'methodID';
+  const pnmlId = documentData?.pnmlId|| `pnml_${methodId}`;
+  const pnmlName = `${fileName}_${methodId}`;
+  const pnmlDescription ='';
+  const programId = `program_${methodId}`;
+  const programDescription =  '';
 
   // savedUuidsがあれば既存UUIDを優先使用（変更なし時にUUIDを維持）
   const protocolUuid = savedUuids?.protocol || originalStructure?.protocol?.uuid || generateUUID();
@@ -1264,8 +1264,11 @@ export async function convertReactFlowToMaiML(
     
     maiml += `        <materialTemplate id="${escapeXml(templateId)}">\n`;
     
-    // uuid: savedUuids フォールバック → template.uuid → 新規生成
-    const materialTemplateUuid = savedUuids?.templates.get(templateId) ?? template.uuid ?? generateUUID();
+    // uuid: savedUuids が存在する場合はそのキーで解決（キーなし=dirty → 新規生成）
+    //       savedUuids が null（新規作成）の場合は template.uuid を使用
+    const materialTemplateUuid = savedUuids !== null
+      ? (savedUuids.templates.get(templateId) ?? generateUUID())
+      : (template.uuid ?? generateUUID());
     maiml += `          <uuid>${escapeXml(materialTemplateUuid)}</uuid>\n`;
     
     // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
@@ -1337,8 +1340,11 @@ export async function convertReactFlowToMaiML(
     
     maiml += `        <conditionTemplate id="${escapeXml(templateId)}">\n`;
     
-    // uuid: savedUuids フォールバック → template.uuid → 新規生成
-    const conditionTemplateUuid = savedUuids?.templates.get(templateId) ?? template.uuid ?? generateUUID();
+    // uuid: savedUuids が存在する場合はそのキーで解決（キーなし=dirty → 新規生成）
+    //       savedUuids が null（新規作成）の場合は template.uuid を使用
+    const conditionTemplateUuid = savedUuids !== null
+      ? (savedUuids.templates.get(templateId) ?? generateUUID())
+      : (template.uuid ?? generateUUID());
     maiml += `          <uuid>${escapeXml(conditionTemplateUuid)}</uuid>\n`;
     
     // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
@@ -1410,8 +1416,11 @@ export async function convertReactFlowToMaiML(
     
     maiml += `        <resultTemplate id="${escapeXml(templateId)}">\n`;
     
-    // uuid: savedUuids フォールバック → template.uuid → 新規生成
-    const resultTemplateUuid = savedUuids?.templates.get(templateId) ?? template.uuid ?? generateUUID();
+    // uuid: savedUuids が存在する場合はそのキーで解決（キーなし=dirty → 新規生成）
+    //       savedUuids が null（新規作成）の場合は template.uuid を使用
+    const resultTemplateUuid = savedUuids !== null
+      ? (savedUuids.templates.get(templateId) ?? generateUUID())
+      : (template.uuid ?? generateUUID());
     maiml += `          <uuid>${escapeXml(resultTemplateUuid)}</uuid>\n`;
     
     // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
