@@ -225,13 +225,11 @@ export async function createOrganization(
   // (bcryptはCPU負荷が高いためトランザクション外で実行)
   let plainPassword: string | null = null;
   let passwordHash: string | null = null;
-  let passwordExpiresAt: Date | null = null;
 
   if (data.chiefUserEmail) {
     plainPassword = generateRandomPassword();
     const saltRounds = 12;
     passwordHash = await bcrypt.hash(plainPassword, saltRounds);
-    passwordExpiresAt = new Date();
   }
 
   let fullOrganization;
@@ -335,13 +333,12 @@ export async function createOrganization(
       await organizationRepository.createRolePermissions(permissions, userId, t);
 
       // 5. user_authenticationテーブルに挿入（パスワード認証情報）
-      if (data.chiefUserEmail && passwordHash && passwordExpiresAt) {
+      if (data.chiefUserEmail && passwordHash) {
         const authValues = [
           data.chiefUserEmail,         // user_id（代表者メールアドレス）
           data.organizationId,         // organization_id
           passwordHash,                // password（bcryptハッシュ）
           true,                        // is_temporary_flg（仮パスワード）
-          passwordExpiresAt,           // password_expires_at（有効期限）
           userId,                      // create_user_id
           userId,                      // update_user_id
         ];

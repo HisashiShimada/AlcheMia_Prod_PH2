@@ -41,23 +41,7 @@ export async function findByDivision(
 ): Promise<CodeMaster[]> {
   const pool = getPool();
   
-  const query = `
-    SELECT
-      organization_id,
-      code_division,
-      code_value,
-      code_name,
-      code_description,
-      code_remark,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    FROM code_master
-    WHERE organization_id = $1
-      AND code_division = $2
-    ORDER BY code_value
-  `;
+  const query = await loadSqlFile('codeMaster/findByDivision.sql');
   
   const result = await pool.query(query, [organizationId, codeDivision]);
   return result.rows;
@@ -78,23 +62,7 @@ export async function findByValue(
 ): Promise<CodeMaster | null> {
   const pool = getPool();
   
-  const query = `
-    SELECT
-      organization_id,
-      code_division,
-      code_value,
-      code_name,
-      code_description,
-      code_remark,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    FROM code_master
-    WHERE organization_id = $1
-      AND code_division = $2
-      AND code_value = $3
-  `;
+  const query = await loadSqlFile('codeMaster/findByValue.sql');
   
   const result = await pool.query(query, [organizationId, codeDivision, codeValue]);
   return result.rows[0] || null;

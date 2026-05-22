@@ -58,7 +58,6 @@ function HomeContent() {
 
   // パスワード変更モーダル用の状態
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [changePasswordReason, setChangePasswordReason] = useState<'temporary' | 'expired'>('temporary');
   const [pendingRedirectData, setPendingRedirectData] = useState<{
     user: User;
     menuType: string | null;
@@ -90,9 +89,7 @@ function HomeContent() {
 
     // パスワード変更が必要な場合
     if (passwordChangeRequired) {
-      // 仮パスワードか有効期限切れかでメッセージを切り替える
-      const reason = isTemporaryPassword ? 'temporary' : 'expired';
-      console.log(`[${context}] パスワード変更必要 (reason: ${reason}) - パスワード変更モーダルを表示`);
+      console.log(`[${context}] パスワード変更必要 - パスワード変更モーダルを表示`);
       
       // メニュー遷移に必要な情報を保存
       setPendingRedirectData({
@@ -100,8 +97,6 @@ function HomeContent() {
         menuType: user.initialScreenFunctionCd,
       });
       
-      // モーダル表示理由を設定してから表示
-      setChangePasswordReason(reason);
       setShowChangePasswordModal(true);
     } else {
       // 通常のパスワードでログイン - メニュー画面へ遷移
@@ -521,10 +516,27 @@ function HomeContent() {
   };
 
   /**
-   * メニュー切り替え処理（デモ用）
+   * メニュー切り替え処理
+   * メニュー切替前にトークンリフレッシュを行い、権限情報（localStorage）を最新化する。
+   * これにより、管理者がロール権限を変更した直後でも再ログイン不要で最新権限が反映される。
    */
-  const handleMenuChange = (menuType: UserRole) => {
+  const handleMenuChange = async (menuType: UserRole) => {
     if (!currentUser) return;
+
+    // メニュー切替前にトークンリフレッシュで権限情報を最新化
+    try {
+      const refreshResult = await authService.refreshToken();
+      if (refreshResult) {
+        const { user } = refreshResult;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('userInfo', JSON.stringify(user));
+        }
+        setCurrentUser(user);
+      }
+    } catch {
+      // リフレッシュ失敗はログのみ（メニュー切替は続行）
+      console.warn('[handleMenuChange] Token refresh failed, using cached permissions');
+    }
 
     // UserRoleを数値コード（initialScreenFunctionCd）に変換
     const functionCodeMap: Record<UserRole, string> = {
@@ -597,7 +609,6 @@ function HomeContent() {
         <ChangePasswordModal
           open={showChangePasswordModal}
           onSuccess={handleChangePasswordSuccess}
-          reason={changePasswordReason}
         />
       </>
     );
@@ -622,7 +633,6 @@ function HomeContent() {
         <ChangePasswordModal
           open={showChangePasswordModal}
           onSuccess={handleChangePasswordSuccess}
-          reason={changePasswordReason}
         />
       </>
     );
@@ -736,7 +746,6 @@ function HomeContent() {
       <ChangePasswordModal
         open={showChangePasswordModal}
         onSuccess={handleChangePasswordSuccess}
-        reason={changePasswordReason}
       />
     </>
   );

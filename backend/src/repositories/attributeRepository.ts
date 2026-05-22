@@ -235,12 +235,7 @@ export const existsByPk = async (
   attributeValue: string
 ): Promise<boolean> => {
   const pgp = getPgp();
-  const query = `
-    SELECT EXISTS (
-      SELECT 1 FROM attribute
-      WHERE organization_id = $1 AND attribute_name = $2 AND attribute_value = $3
-    ) as exists
-  `;
+  const query = await loadSqlFile('attributes/existsByPk.sql');
   const result = await pgp.one<{ exists: boolean }>(query, [organizationId, attributeName, attributeValue]);
   return result.exists;
 };

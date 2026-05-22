@@ -93,7 +93,6 @@
   - `password` - ハッシュパスワード
   - `entry_flg` - 二段階認証アプリ連携フラグ
   - `is_temporary_flg` - 仮パスワードフラグ
-  - `password_expires_at` - パスワード有効期限
   - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
   - `update_user_id` - 更新者ユーザID
