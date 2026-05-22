@@ -282,4 +282,4 @@ openssl x509 -in /tmp/acm-cert-new/cert.pem -noout -text | grep -A 5 "Subject\|S
 
 ---
 
-*本手順書は BUILD_GUIDE.md STEP 1 で生成した自己署名証明書の CN/SAN 不一致による「保護されていない通信」警告を解消するための追加手順書です。*
+*本手順書は prod-verification-alb-build-guide.md STEP 1 で生成した自己署名証明書の CN/SAN 不一致による「保護されていない通信」警告を解消するための追加手順書です。*

@@ -2,9 +2,9 @@
 
 - **作成日**: 2026-05-01
 - **対象環境**: alchemia-staging（prod-verification-alb）
-- **前提**: `BUILD_GUIDE.md` の STEP 1〜11 が完了していること
+- **前提**: `prod-verification-alb-build-guide.md` の STEP 1〜11 が完了していること
 
-> **目的**: BUILD_GUIDE.md で作成した `prod-verification-alb` に mTLS（相互TLS認証）を追加し、  
+> **目的**: prod-verification-alb-build-guide.md で作成した `prod-verification-alb` に mTLS（相互TLS認証）を追加し、  
 > クライアント証明書の CN（= organization_id）を `X-Amzn-Mtls-Clientcert-Subject` ヘッダーで  
 > バックエンドに渡せるようにする。
 
@@ -102,12 +102,12 @@ aws elbv2 describe-trust-stores \
 
 ## STEP C: ALB リスナーに mTLS 設定を追加
 
-BUILD_GUIDE.md STEP 8 で作成した HTTPS/443 リスナーを変更して mTLS を有効化します。
+prod-verification-alb-build-guide.md STEP 8 で作成した HTTPS/443 リスナーを変更して mTLS を有効化します。
 
 ### C-1. 現在のリスナー設定を確認
 
 ```bash
-# BUILD_GUIDE.md でメモした HTTPS_LISTENER_ARN を使用
+# prod-verification-alb-build-guide.md でメモした HTTPS_LISTENER_ARN を使用
 aws elbv2 describe-listeners \
   --listener-arns <HTTPS_LISTENER_ARN> \
   --region ap-northeast-1 \
@@ -431,11 +431,11 @@ curl -k -v "https://${ALB_DNS}/api/health" 2>&1 | grep "< HTTP"
 
 | ドキュメント | 内容 |
 |-------------|------|
-| [BUILD_GUIDE.md](./BUILD_GUIDE.md) | ALB 作成手順（STEP 1〜11） |
+| [prod-verification-alb-build-guide.md](./prod-verification-alb-build-guide.md) | ALB 作成手順（STEP 1〜11） |
 | [alb-organization-id-extraction.md](../deploy-guide/aws-infrastructure/research/alb-organization-id-extraction.md) | ALB mTLS 調査レポート |
 | [acm-trust-store.md](../deploy-guide/aws-infrastructure/research/acm-trust-store.md) | ACM Trust Store 設定手順 |
 | [server-cert-regenerate-guide.md](../deploy-guide/aws-infrastructure/staging/server-cert-regenerate-guide.md) | サーバー証明書再生成手順（CA は変更しない） |
 
 ---
 
-*本手順書は BUILD_GUIDE.md の補足手順として作成。mTLS を有効化することで nginx なし構成でも organization_id を抽出できるようになります。*
+*本手順書は prod-verification-alb-build-guide.md の補足手順として作成。mTLS を有効化することで nginx なし構成でも organization_id を抽出できるようになります。*

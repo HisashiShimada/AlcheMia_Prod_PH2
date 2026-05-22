@@ -82,7 +82,7 @@ X509v3 Subject Alternative Name:
 ### Step 5: SSM Parameter Store に証明書を再登録
 
 ```bash
-./scripts/setup-ssm-ssl.sh
+./scripts/alchemia-staging/setup-ssm-ssl.sh
 ```
 
 ### Step 6: nginx を再デプロイ
@@ -153,6 +153,6 @@ CA証明書 (backend/certs/ca/ca.crt)        ← 変更しない
 | `backend/certs/ca/ca.key` | CA秘密鍵（変更しない） |
 | `backend/certs/server/server.crt` | サーバー証明書（今回再生成） |
 | `backend/certs/server/server.key` | サーバー秘密鍵（今回再生成） |
-| `scripts/setup-ssm-ssl.sh` | SSM Parameter Store へ証明書を登録するスクリプト |
+| `scripts/alchemia-staging/setup-ssm-ssl.sh` | SSM Parameter Store へ証明書を登録するスクリプト |
 | `scripts/generate-certificates.sh` | 証明書一括生成スクリプト（CA含む ⚠️ 本手順では使用しない） |
 | `docs/deploy-guide/saas/ssl-ssm-setup-guide.md` | SSM証明書登録手順書 |

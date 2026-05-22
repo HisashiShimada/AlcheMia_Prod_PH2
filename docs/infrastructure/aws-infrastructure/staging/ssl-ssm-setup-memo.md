@@ -27,7 +27,7 @@
   /alchemia/nginx/ssl-ca-cert (String)       ← ca.crt
 
 [DRY-RUN] --dry-run を外して実行すると実際に登録されます。
-[ec2-user@ip-10-1-11-44 Alchemia_Staging]$ ./scripts/setup-ssm-ssl.sh
+[ec2-user@ip-10-1-11-44 Alchemia_Staging]$ ./scripts/alchemia-staging/setup-ssm-ssl.sh
 ========================================
  SSL証明書 SSM Parameter Store 登録
 ========================================

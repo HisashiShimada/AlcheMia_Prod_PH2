@@ -1,7 +1,7 @@
 # S3 Gateway Endpoint が必要な理由
 
 > **作成日**: 2026-04-27  
-> **対象**: BUILD_GUIDE.md の STEP 4「VPC Endpoints の作成」に関する補足説明
+> **対象**: prod-verification-alb-build-guide.md の STEP 4「VPC Endpoints の作成」に関する補足説明
 
 ---
 
@@ -36,7 +36,7 @@ S3（AWS内部でECRのバックエンドとして使用）
 
 ## なぜS3 Gateway Endpointが必要か
 
-BUILD_GUIDEでは、frontendのECSタスクを**プライベートサブネット（インターネット経路なし）**に配置しています。
+prod-verification-alb-build-guide.mdでは、frontendのECSタスクを**プライベートサブネット（インターネット経路なし）**に配置しています。
 
 | サブネット | インターネットアクセス |
 |-----------|----------------------|
@@ -46,7 +46,7 @@ BUILD_GUIDEでは、frontendのECSタスクを**プライベートサブネッ�
 インターネット経路がないため、通常のルートではS3に到達できません。  
 そのためVPC内からS3へプライベートにアクセスするために **S3 Gateway Endpoint** が必要です。
 
-BUILD_GUIDE.md STEP 4 の説明コメントにも明記されています：
+prod-verification-alb-build-guide.md STEP 4 の説明コメントにも明記されています：
 
 > `S3 Gateway` → **S3 への Privateアクセス（ECR レイヤー取得用）**
 

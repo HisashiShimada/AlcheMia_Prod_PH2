@@ -1,14 +1,14 @@
 # backend ECS サービスと prod-backend-tg の接続方式 設計検討
 
 - **作成日**: 2026-04-28
-- **関連手順書**: [BUILD_GUIDE.md](../staging-production-like/BUILD_GUIDE.md)
+- **関連手順書**: [prod-verification-alb-build-guide.md](../staging-production-like/prod-verification-alb-build-guide.md)
 - **対象環境**: alchemia-staging（VPC: vpc-037a0cb50e47092a0）
 
 ---
 
 ## 1. 背景・問題提起
 
-BUILD_GUIDE.md の STEP 6 で `prod-backend-tg`（バックエンド用ALBターゲットグループ）を新規作成するが、  
+prod-verification-alb-build-guide.md の STEP 6 で `prod-backend-tg`（バックエンド用ALBターゲットグループ）を新規作成するが、  
 STEP 10 の ECS サービス作成では **新規フロントエンドサービス（prod-frontend-service）のみ** `FRONTEND_TG_ARN` を紐付けていた。
 
 ```
@@ -188,9 +188,9 @@ backend サービスを再作成する際、以下のパラメータを元の設
 | ファイル | 内容 |
 |---------|------|
 | `config/nginx/nginx.prod.conf` | nginx の `BACKEND_HOST` 設定（ECS Service Discovery DNS 使用を確認） |
-| `docs/deploy-guide/aws-infrastructure/staging-production-like/BUILD_GUIDE.md` | 実際の構築手順（STEP 10-5 / 10-6） |
+| `docs/deploy-guide/aws-infrastructure/staging-production-like/prod-verification-alb-build-guide.md` | 実際の構築手順（STEP 10-5 / 10-6） |
 | `docs/deploy-guide/aws-infrastructure/research/alb-target-group.md` | ALB ターゲットグループの調査資料 |
 
 ---
 
-*本ドキュメントは `BUILD_GUIDE.md` の設計検討内容を補足するものです。*
+*本ドキュメントは `prod-verification-alb-build-guide.md` の設計検討内容を補足するものです。*

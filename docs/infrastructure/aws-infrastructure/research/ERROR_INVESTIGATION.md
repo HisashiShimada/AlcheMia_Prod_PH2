@@ -1,7 +1,7 @@
 # エラー調査レポート: UnsupportedCertificate
 
 - **発生日時**: 2026-04-30
-- **発生箇所**: BUILD_GUIDE.md「8-2. HTTPS/443 リスナーの作成」
+- **発生箇所**: prod-verification-alb-build-guide.md「8-2. HTTPS/443 リスナーの作成」
 - **担当者**: Cline
 
 ---
@@ -35,7 +35,7 @@ must have a fully-qualified domain name, a supported signature, and a supported 
 
 ### 直接原因
 
-BUILD_GUIDE.md の STEP 1-1 で自己署名証明書を生成する際の `-subj` オプションに、**FQDN（完全修飾ドメイン名）ではない値**を指定していたため。
+prod-verification-alb-build-guide.md の STEP 1-1 で自己署名証明書を生成する際の `-subj` オプションに、**FQDN（完全修飾ドメイン名）ではない値**を指定していたため。
 
 ```bash
 # 問題のコマンド（修正前）
@@ -115,14 +115,14 @@ aws elbv2 create-listener \
   --region ap-northeast-1
 ```
 
-### BUILD_GUIDE.md の恒久修正
+### prod-verification-alb-build-guide.md の恒久修正
 
 STEP 1-1 の `-subj` オプションを以下のように修正した（2ファイル）。
 
 | ファイル | 修正箇所 |
 |---------|---------|
-| `docs/20260428_1638_本番環境検証のため検証環境修正/BUILD_GUIDE.md` | STEP 1-1 の `-subj` |
-| `docs/deploy-guide/aws-infrastructure/staging-production-like/BUILD_GUIDE.md` | STEP 1-1 の `-subj` |
+| `docs/20260428_1638_本番環境検証のため検証環境修正/prod-verification-alb-build-guide.md` | STEP 1-1 の `-subj` |
+| `docs/deploy-guide/aws-infrastructure/staging-production-like/prod-verification-alb-build-guide.md` | STEP 1-1 の `-subj` |
 
 **修正内容:**
 
@@ -151,7 +151,7 @@ AWS ALB の HTTPS リスナーにアタッチ可能な証明書の要件（AWS �
 
 | ファイル | 概要 |
 |---------|------|
-| `docs/20260428_1638_本番環境検証のため検証環境修正/BUILD_GUIDE.md` | 本番検証環境構築手順書（今回の作業ファイル） |
+| `docs/20260428_1638_本番環境検証のため検証環境修正/prod-verification-alb-build-guide.md` | 本番検証環境構築手順書（今回の作業ファイル） |
 
 ---
 
@@ -160,7 +160,7 @@ AWS ALB の HTTPS リスナーにアタッチ可能な証明書の要件（AWS �
 # エラー調査レポート: backend ECS タスクが pending のまま起動しない
 
 - **発生日時**: 2026-04-30
-- **発生箇所**: BUILD_GUIDE.md「10-6-5. 再作成後の起動確認」
+- **発生箇所**: prod-verification-alb-build-guide.md「10-6-5. 再作成後の起動確認」
 - **担当者**: Cline
 
 ---
@@ -250,7 +250,7 @@ aws ecs describe-services \
 
 > ✅ `running: 1`, `pending: 0`, `desired: 1` になれば復旧完了。
 
-### BUILD_GUIDE.md の恒久修正
+### prod-verification-alb-build-guide.md の恒久修正
 
 - **STEP 3-3**: `prod-vpce-sg` 作成時に、`backend-sg` からの TCP/443 許可コマンドと注記を追加した。
 
@@ -271,8 +271,8 @@ aws ecs describe-services \
 
 | ファイル | 概要 |
 |---------|------|
-| `docs/20260428_1638_本番環境検証のため検証環境修正/BUILD_GUIDE.md` | 本番検証環境構築手順書（今回の作業ファイル） |
-| `docs/deploy-guide/aws-infrastructure/staging-production-like/BUILD_GUIDE.md` | デプロイガイド正式版（同内容を管理） |
+| `docs/20260428_1638_本番環境検証のため検証環境修正/prod-verification-alb-build-guide.md` | 本番検証環境構築手順書（今回の作業ファイル） |
+| `docs/deploy-guide/aws-infrastructure/staging-production-like/prod-verification-alb-build-guide.md` | デプロイガイド正式版（同内容を管理） |
 
 ---
 
@@ -281,7 +281,7 @@ aws ecs describe-services \
 # エラー調査レポート: CloudWatch Logs タイムアウト（Connect timeout）
 
 - **発生日時**: 2026-04-30
-- **発生箇所**: BUILD_GUIDE.md「10-4. CloudWatch ログの確認」
+- **発生箇所**: prod-verification-alb-build-guide.md「10-4. CloudWatch ログの確認」
 - **担当者**: Cline
 
 ---
@@ -353,7 +353,7 @@ aws logs tail /ecs/prod-frontend \
   --since 10m
 ```
 
-### BUILD_GUIDE.md の恒久修正
+### prod-verification-alb-build-guide.md の恒久修正
 
 - **STEP 3-3**: `prod-vpce-sg` 作成時に、作業用 EC2 の SG 許可コマンドを手順として追加した。
 - **STEP 10-4**: 実行前提の確認注記を追加した。
@@ -375,4 +375,4 @@ aws logs tail /ecs/prod-frontend \
 
 | ファイル | 概要 |
 |---------|------|
-| `docs/20260428_1638_本番環境検証のため検証環境修正/BUILD_GUIDE.md` | 本番検証環境構築手順書（今回の作業ファイル） |
+| `docs/20260428_1638_本番環境検証のため検証環境修正/prod-verification-alb-build-guide.md` | 本番検証環境構築手順書（今回の作業ファイル） |

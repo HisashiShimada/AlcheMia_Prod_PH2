@@ -46,7 +46,7 @@ aws-infrastructure/
 │   ├── ssl-ssm-setup-guide.md                        # HTTPS「保護されていない通信」解消手順書
 │   └── ssl-ssm-setup-memo.md                         # SSL/SSM セットアップ作業メモ
 ├── staging-production-like/                           # 検証環境ベースの本番想定構成（ALB・nginx なし）の手順書
-│   ├── BUILD_GUIDE.md                                # 本番検証環境構築手順書（ALB追加 / nginx無し構成検証）
+│   ├── prod-verification-alb-build-guide.md           # 本番検証環境構築手順書（ALB追加 / nginx無し構成検証）
 │   └── PLAN_ACM_SELF_SIGNED.md                      # タスク計画書: ACM証明書手順の修正（自己署名証明書対応）
 └── production/                                        # 本番環境の手順書
 ```
@@ -121,7 +121,7 @@ aws-infrastructure/
 
 | ファイル | 内容 |
 |---|---|
-| [`BUILD_GUIDE.md`](./staging-production-like/BUILD_GUIDE.md) | 本番検証環境構築手順書（ALB追加 / nginx無し構成検証） |
+| [`prod-verification-alb-build-guide.md`](./staging-production-like/prod-verification-alb-build-guide.md) | 本番検証環境構築手順書（ALB追加 / nginx無し構成検証） |
 | [`PLAN_ACM_SELF_SIGNED.md`](./staging-production-like/PLAN_ACM_SELF_SIGNED.md) | タスク計画書: ACM証明書手順の修正（自己署名証明書対応） |
 
 ---

@@ -1,4 +1,4 @@
-# タスク計画書: BUILD_GUIDE.md ACM証明書手順の修正（自己署名証明書対応）
+# タスク計画書: prod-verification-alb-build-guide.md ACM証明書手順の修正（自己署名証明書対応）
 
 ## メタデータ
 - **作成日時**: 2026-04-27 15:48
@@ -8,7 +8,7 @@
 
 ## タスク概要
 
-`BUILD_GUIDE.md` の STEP 1（ACM 証明書の発行）において、ドメイン名プレースホルダー `prod-verification.example.com` を使用していたが、実際のドメインが未決定のため、自己署名証明書を使用した代替手順に差し替える。また、正規ドメイン決定後の対応手順を付録として末尾に追記する。
+`prod-verification-alb-build-guide.md` の STEP 1（ACM 証明書の発行）において、ドメイン名プレースホルダー `prod-verification.example.com` を使用していたが、実際のドメインが未決定のため、自己署名証明書を使用した代替手順に差し替える。また、正規ドメイン決定後の対応手順を付録として末尾に追記する。
 
 ## 目的と期待される成果
 - [ ] ドメイン未決定の状態でも環境構築を進められるよう STEP 1 を自己署名証明書手順に変更する
@@ -16,16 +16,16 @@
 
 ## 実装ステップ
 - [ ] タスク計画書（本ファイル）を作成する
-- [ ] BUILD_GUIDE.md の STEP 1 を自己署名証明書手順に差し替える
+- [ ] prod-verification-alb-build-guide.md の STEP 1 を自己署名証明書手順に差し替える
   - openssl で自己署名証明書を生成する手順
   - `aws acm import-certificate` でインポートする手順
   - 自己署名証明書の注意事項（ブラウザ警告など）を明記
   - DNS 検証待ち不要の旨を明記
-- [ ] BUILD_GUIDE.md 末尾に「付録: 正規ドメインで ACM 証明書を発行する場合」を追加する
+- [ ] prod-verification-alb-build-guide.md 末尾に「付録: 正規ドメインで ACM 証明書を発行する場合」を追加する
   - 元の DNS 検証手順（`aws acm request-certificate` → CNAME 登録 → ISSUED 確認）を移動
 
 ## 変更ファイル
-1. `docs/20260427_1046_本番検証環境構築/BUILD_GUIDE.md` - STEP 1 の差し替えおよび付録追加
+1. `docs/20260427_1046_本番検証環境構築/prod-verification-alb-build-guide.md` - STEP 1 の差し替えおよび付録追加
 
 ## リスク
 | リスク | 対策 |

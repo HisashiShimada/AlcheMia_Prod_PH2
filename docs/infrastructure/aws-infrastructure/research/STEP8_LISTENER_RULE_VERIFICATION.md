@@ -1,7 +1,7 @@
 # STEP 8-4 リスナールール確認結果
 
 - **確認日時**: 2026-04-30
-- **確認箇所**: BUILD_GUIDE.md「8-4. リスナールールの確認」
+- **確認箇所**: prod-verification-alb-build-guide.md「8-4. リスナールールの確認」
 
 ---
 
@@ -54,7 +54,7 @@ aws elbv2 describe-rules \
 | `10` | `/api/*` (path-pattern) | `forward` | `/api/*` へのリクエストを `prod-backend-tg` に転送 |
 | `default` | なし（全トラフィック） | `forward` | その他すべてのリクエストを `prod-frontend-tg` に転送 |
 
-BUILD_GUIDE.md の確認条件（以下）を満たしている。
+prod-verification-alb-build-guide.md の確認条件（以下）を満たしている。
 
 > - Priority 10: `/api/*` → `prod-backend-tg` に forward
 > - default: `/*` → `prod-frontend-tg` に forward

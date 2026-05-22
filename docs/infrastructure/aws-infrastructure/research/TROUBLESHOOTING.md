@@ -32,7 +32,7 @@
 
 ### 直接原因
 
-**BUILD_GUIDE.md STEP 10-6 で backend ECS サービスを削除→再作成した際に、`--service-registries` オプションを付けなかった。**
+**prod-verification-alb-build-guide.md STEP 10-6 で backend ECS サービスを削除→再作成した際に、`--service-registries` オプションを付けなかった。**
 
 その結果、新しい backend タスクが Cloud Map（`alchemia-backend.alchemia.local`）に自分の IP を登録しなかった。
 
@@ -115,14 +115,14 @@ aws servicediscovery list-instances \
 # → AWS_INSTANCE_IPV4 に backend タスクの IP が登録されていれば成功
 ```
 
-### BUILD_GUIDE.md の恒久修正
+### prod-verification-alb-build-guide.md の恒久修正
 
 `STEP 10-5` と `STEP 10-6-4` を修正し、`--service-registries` の確認・引き継ぎ手順を追加した（2ファイル）。
 
 | ファイル | 修正箇所 |
 |---------|---------|
-| `docs/20260428_1638_本番環境検証のため検証環境修正/BUILD_GUIDE.md` | STEP 10-5 / 10-6-4 |
-| `docs/deploy-guide/aws-infrastructure/staging-production-like/BUILD_GUIDE.md` | STEP 10-5 / 10-6-4 |
+| `docs/20260428_1638_本番環境検証のため検証環境修正/prod-verification-alb-build-guide.md` | STEP 10-5 / 10-6-4 |
+| `docs/deploy-guide/aws-infrastructure/staging-production-like/prod-verification-alb-build-guide.md` | STEP 10-5 / 10-6-4 |
 
 ---
 
@@ -142,6 +142,6 @@ aws servicediscovery list-instances \
 
 | ファイル | 概要 |
 |---------|------|
-| `docs/20260428_1638_本番環境検証のため検証環境修正/BUILD_GUIDE.md` | 本番検証環境構築手順書 |
-| `docs/deploy-guide/aws-infrastructure/staging-production-like/BUILD_GUIDE.md` | デプロイガイド正式版 |
+| `docs/20260428_1638_本番環境検証のため検証環境修正/prod-verification-alb-build-guide.md` | 本番検証環境構築手順書 |
+| `docs/deploy-guide/aws-infrastructure/staging-production-like/prod-verification-alb-build-guide.md` | デプロイガイド正式版 |
 | `docs/20260428_1638_本番環境検証のため検証環境修正/ERROR_INVESTIGATION.md` | 過去のエラー調査レポート |
