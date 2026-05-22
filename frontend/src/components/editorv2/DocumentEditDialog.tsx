@@ -72,7 +72,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
-    maimlIds: false,
     signature: false,
     creators: false,
     vendors: false,
@@ -399,41 +398,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                         </Button>
                       </Space.Compact>
                     </Space>
-                  ),
-                },
-                {
-                  key: 'maimlIds',
-                   label: <Text strong>{t('document.sectionMaimlIds')}</Text>,
-                  children: (
-                    <>
-                      <Alert
-                         title={t('document.maimlIdsInfo')}
-                        type="info"
-                        style={{ marginBottom: 16 }}
-                      />
-                      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-                        <Form.Item label="Protocol ID" name="protocolId">
-                          <Input placeholder="protocolID" />
-                        </Form.Item>
-
-                        <Form.Item label="Method ID" name="methodId">
-                          <Input placeholder="methodID" />
-                        </Form.Item>
-
-                        <Form.Item label="PNML ID" name="pnmlId">
-                          <Input placeholder="pnmlID" />
-                        </Form.Item>
-
-                        <Form.Item label="Program ID" name="programId">
-                          <Input placeholder="programID" />
-                        </Form.Item>
-
-                        <Alert
-                           title={t('document.maimlIdsWarning')}
-                          type="warning"
-                        />
-                      </Space>
-                    </>
                   ),
                 },
                 {

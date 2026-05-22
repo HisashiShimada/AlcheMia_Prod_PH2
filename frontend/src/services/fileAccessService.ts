@@ -10,6 +10,7 @@
 import axios from 'axios';
 import { createApiClient } from '@/utils/authUtils';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { extractParentUuids } from '@/utils/maimlParentInjector';
 import type { ApiResponse } from '@/types/api';
 import type { AxiosProgressEvent } from 'axios';
 import type {
@@ -710,23 +711,20 @@ export const deleteFileByKey = async (
 };
 
 /**
- * MAIMLファイルの Document UUID を抽出するヘルパー
+ * MAIMLファイルの Parent チェーン UUID を抽出するヘルパー
  *
- * `<document>` 配下の `<uuid>` 子要素テキストを取得する。
- * バックエンドの MaimlParserTyped.getDocument().uuid と同等の処理。
+ * `<parent>` タグ配下の `<uuid>` 子要素テキストの配列を取得する。
+ * injectParentTag() により Document UUID が再採番されるため、
+ * 上書きチェックには Document UUID 直接比較ではなく Parentチェーンを使用する。
  * 失敗した場合は null を返す（例外はスローしない）。
  *
  * @param file MAIMLファイル
- * @returns Document UUID 文字列、取得できない場合は null
+ * @returns Parent UUID 配列（Parentタグが存在しない場合は空配列、取得失敗は null）
  */
-const extractMaimlUuid = async (file: File): Promise<string | null> => {
+const extractMaimlParentUuids = async (file: File): Promise<string[] | null> => {
   try {
-    const { MaimlParserTyped } = await import('@/utils/maimlParserTyped');
     const content = await file.text();
-    const maimlParser = new MaimlParserTyped(content);
-    const doc = maimlParser.getDocument();
-    const uuid = doc?.uuid?.trim();
-    return uuid && uuid.length > 0 ? uuid : null;
+    return extractParentUuids(content);
   } catch {
     return null;
   }
@@ -754,15 +752,18 @@ export const uploadFileWithChunks = async (
   const chunkSize = options.chunkSize ?? DEFAULT_CHUNK_SIZE;
   const totalChunks = Math.ceil(file.size / chunkSize);
 
-  // MAIMLファイルの場合、事前にUUIDを抽出してセッション初期化に含める
-  // （options.documentUuid が既に指定されている場合はそれを優先）
-  let documentUuid = options.documentUuid;
-  if (documentUuid === undefined && file.name.toLowerCase().endsWith('.maiml')) {
-    documentUuid = (await extractMaimlUuid(file)) ?? undefined;
-    if (documentUuid) {
-      console.log(`🔍 [ChunkUpload] Document UUID 抽出成功: ${documentUuid}`);
+  // MAIMLファイルの場合、事前にParentチェーンUUIDを抽出してセッション初期化に含める
+  // （options.parentUuids が既に指定されている場合はそれを優先）
+  // injectParentTag() により Document UUID が再採番されるため、
+  // Document UUID の直接比較は廃止し、Parentチェーンによる照合を行う
+  let parentUuids = options.parentUuids;
+  if (parentUuids === undefined && file.name.toLowerCase().endsWith('.maiml')) {
+    const extracted = await extractMaimlParentUuids(file);
+    if (extracted !== null && extracted.length > 0) {
+      parentUuids = extracted;
+      console.log(`🔍 [ChunkUpload] Parent UUID 抽出成功: ${JSON.stringify(parentUuids)}`);
     } else {
-      console.warn('⚠️ [ChunkUpload] Document UUID 抽出失敗（上書きチェックをスキップ）');
+      console.warn('⚠️ [ChunkUpload] Parent UUID 抽出失敗またはParentタグなし（初回アップロードとして扱う）');
     }
   }
 
@@ -774,8 +775,8 @@ export const uploadFileWithChunks = async (
         fileName: file.name,
         totalChunks,
         filePath,
-        // UUID一致チェック用: MAIMLファイルかつUUID抽出成功時のみ送信
-        ...(documentUuid ? { documentUuid } : {}),
+        // Parentチェーン一致チェック用: MAIMLファイルかつParent UUID抽出成功時のみ送信
+        ...(parentUuids && parentUuids.length > 0 ? { parentUuids: JSON.stringify(parentUuids) } : {}),
       },
       { signal: options.signal } // ✅ AbortSignal を渡す
     ),

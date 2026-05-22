@@ -603,6 +603,21 @@ export class ProjectService {
       // トランザクションコミット
       await client.query('COMMIT');
 
+      // ★ MAIMLファイルへのイベントログ書き出し（COMMIT後・non-fatal）
+      // <data> セクションは変更せず、<eventLog> セクションのみ更新する
+      try {
+        const maimlWriterService = new MaimlWriterService();
+        await maimlWriterService.writeEventLogOnly(
+          organizationId,
+          projectId,
+          project.project_name
+        );
+        console.log(`[checkout] MAIML eventLog write completed: projectId=${projectId}`);
+      } catch (writeError) {
+        // MAIML write failure does not block checkout success (warning log only)
+        console.warn('[checkout] MAIML eventLog write failed (checkout succeeded):', writeError);
+      }
+
       return {
         success: true,
         data: {

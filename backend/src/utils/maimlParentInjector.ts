@@ -10,6 +10,8 @@ import { MaimlParserTyped } from './maimlParserTyped';
  *
  * 既存 <parent> がある場合はネストして来歴チェーンを保持する。
  * 同一 projectUuid を持つ <parent> が既に先頭にある場合のみスキップ（重複防止）。
+ *
+ * injectParentTag() はParentタグ挿入後にDocument直下の <uuid> を再採番する。
  */
 
 /**
@@ -17,6 +19,125 @@ import { MaimlParserTyped } from './maimlParserTyped';
  */
 export function computeSha256Base64(buffer: Buffer): string {
   return crypto.createHash('sha256').update(buffer).digest('base64');
+}
+
+/**
+ * MAIMLコンテンツの `<document>` 直下の `<uuid>` 要素を新しいUUIDで置換する
+ *
+ * `<document>` 開始タグ直後の最初の `<uuid>...</uuid>` のみを置換する。
+ * 子要素（parent等）内の `<uuid>` は置換しない。
+ *
+ * @param maimlContent - MAIML XML文字列
+ * @param newUuid      - 置換後のUUID
+ * @returns 置換後のMAIML XML文字列
+ */
+function replaceDocumentUuid(maimlContent: string, newUuid: string): string {
+  // <document ...> の開始タグを検索
+  const documentTagMatch = maimlContent.match(/<document(\s[^>]*)?>/);
+  if (!documentTagMatch || documentTagMatch.index === undefined) {
+    console.warn('[maimlParentInjector] replaceDocumentUuid: <document> タグが見つかりませんでした。');
+    return maimlContent;
+  }
+
+  const documentTagEndIndex = documentTagMatch.index + documentTagMatch[0].length;
+  const documentCloseIndex = maimlContent.indexOf('</document>', documentTagEndIndex);
+  if (documentCloseIndex === -1) {
+    console.warn('[maimlParentInjector] replaceDocumentUuid: </document> タグが見つかりませんでした。');
+    return maimlContent;
+  }
+
+  const documentInner = maimlContent.substring(documentTagEndIndex, documentCloseIndex);
+
+  // <parent> ブロックが存在する場合はその終端より後ろから <uuid> を探す
+  // （injectParentTag() で <parent> が <document> 直後に挿入されるため）
+  let searchStartInInner = 0;
+  const parentBlock = extractFirstParentBlock(documentInner);
+  if (parentBlock) {
+    // parentBlock.lineEnd は <parent>...</parent> の終端（改行含む）の位置
+    searchStartInInner = parentBlock.lineEnd;
+  }
+
+  const uuidIdx = documentInner.indexOf('<uuid>', searchStartInInner);
+  if (uuidIdx === -1) {
+    console.warn('[maimlParentInjector] replaceDocumentUuid: <document> 直下に <uuid> が見つかりませんでした。');
+    return maimlContent;
+  }
+
+  const uuidEndTag = '</uuid>';
+  const uuidCloseIdx = documentInner.indexOf(uuidEndTag, uuidIdx);
+  if (uuidCloseIdx === -1) {
+    console.warn('[maimlParentInjector] replaceDocumentUuid: </uuid> が見つかりませんでした。');
+    return maimlContent;
+  }
+
+  // 絶対位置に変換して置換
+  const absoluteUuidStart = documentTagEndIndex + uuidIdx;
+  const absoluteUuidEnd = documentTagEndIndex + uuidCloseIdx + uuidEndTag.length;
+
+  const replaced =
+    maimlContent.substring(0, absoluteUuidStart) +
+    `<uuid>${newUuid}</uuid>` +
+    maimlContent.substring(absoluteUuidEnd);
+
+  return replaced;
+}
+
+/**
+ * MAIMLコンテンツの `<parent>` タグチェーンを再帰的にたどり、UUID一覧を配列で返す
+ *
+ * 例:
+ *   `<parent><uuid>A</uuid><parent><uuid>B</uuid></parent></parent>` → `["A", "B"]`
+ *
+ * @param maimlContent - MAIML XML文字列
+ * @returns Parentチェーン内のUUID配列（先頭が最新）
+ */
+export function extractParentUuids(maimlContent: string): string[] {
+  const uuids: string[] = [];
+
+  // <document> 内側の文字列を取得
+  const documentTagMatch = maimlContent.match(/<document(\s[^>]*)?>/);
+  if (!documentTagMatch || documentTagMatch.index === undefined) {
+    return uuids;
+  }
+  const documentTagEndIndex = documentTagMatch.index + documentTagMatch[0].length;
+  const documentCloseIndex = maimlContent.indexOf('</document>', documentTagEndIndex);
+  if (documentCloseIndex === -1) {
+    return uuids;
+  }
+  const documentInner = maimlContent.substring(documentTagEndIndex, documentCloseIndex);
+
+  // <parent> ブロックを再帰的にたどって <uuid> を収集
+  function collectUuids(content: string): void {
+    // 最初の <parent> ブロックを抽出
+    const parentBlock = extractFirstParentBlock(content);
+    if (!parentBlock) return;
+
+    // <parent> ブロック内の最初の <uuid> を取得（直接子のみ）
+    const uuidMatch = parentBlock.block.match(/<uuid>([^<]*)<\/uuid>/);
+    if (uuidMatch) {
+      const uuid = uuidMatch[1].trim();
+      if (uuid) {
+        uuids.push(uuid);
+      }
+    }
+
+    // ネストされた <parent> を再帰的に処理
+    // 外側の <parent><uuid>...</uuid><hash>...</hash> 部分を除いて内側を渡す
+    const innerContent = parentBlock.block;
+    // 外側タグの uuid と hash を除いた内側の <parent> を探す
+    const firstUuidEnd = innerContent.indexOf('</uuid>');
+    const firstHashEnd = innerContent.indexOf('</hash>');
+    const innerStart = Math.max(
+      firstUuidEnd !== -1 ? firstUuidEnd + '</uuid>'.length : 0,
+      firstHashEnd !== -1 ? firstHashEnd + '</hash>'.length : 0
+    );
+    if (innerStart > 0 && innerStart < innerContent.length) {
+      collectUuids(innerContent.substring(innerStart));
+    }
+  }
+
+  collectUuids(documentInner);
+  return uuids;
 }
 
 /**
@@ -95,33 +216,32 @@ function addIndentToBlock(block: string, prefix: string): string {
  * MAIMLコンテンツの `<document>` 直下に `<parent>` タグを挿入する
  *
  * 処理フロー:
- * 1. MaimlParserTyped でMAIMLをパースし document.parents の現状を確認
- * 2. projectUuid が falsy の場合はスキップ
- * 3. 先頭 parent の uuid が projectUuid と同一の場合は重複スキップ
+ * 1. MaimlParserTyped でMAIMLをパースし document.uuid（現在のDocument UUID）と
+ *    document.parents の現状を確認
+ * 2. 現在のDocument UUID が falsy の場合はスキップ
+ * 3. 先頭 parent の uuid が現在のDocument UUID と同一の場合は重複スキップ
  * 4. 既存 <parent> がある場合はネストして新しい <parent> に置換
  * 5. 既存 <parent> がない場合は <document> 直後に新規挿入
+ * 6. <parent> 挿入後に Document 直下の <uuid> を新規UUIDに再採番
  *
- * @param maimlContent  元のMAIML XML文字列
- * @param projectUuid   プロジェクトのDocument UUID（project.project_uuid）
- * @param fileBuffer    元ファイルのBuffer（SHA-256計算用）
- * @returns             `<parent>` タグが挿入されたMAIML XML文字列
+ * @param maimlContent        元のMAIML XML文字列
+ * @param _legacyProjectUuid  後方互換のために残す（処理には使用しない）
+ * @param fileBuffer          元ファイルのBuffer（SHA-256計算用）
+ * @returns                   `<parent>` タグが挿入されたMAIML XML文字列
  */
 export function injectParentTag(
   maimlContent: string,
-  projectUuid: string | null | undefined,
+  _legacyProjectUuid: string | null | undefined,
   fileBuffer: Buffer
 ): string {
-  // projectUuid が未設定の場合はスキップ
-  if (!projectUuid) {
-    console.log('[maimlParentInjector] projectUuid が未設定のため <parent> 挿入をスキップします。');
-    return maimlContent;
-  }
-
-  // MaimlParserTyped でパースして document.parents の現状を確認
+  // MaimlParserTyped でパースして現在のDocument UUID と document.parents の現状を確認
+  let currentDocumentUuid: string | null = null;
   let existingParentUuid: string | null = null;
   try {
     const parser = new MaimlParserTyped(maimlContent);
     const doc = parser.getDocument();
+    // 現在の Document UUID を取得（これを <parent> の <uuid> に書き込む）
+    currentDocumentUuid = doc.uuid?.trim() ?? null;
     if (doc.parents && doc.parents.length > 0) {
       existingParentUuid = doc.parents[0].uuid?.trim() ?? null;
     }
@@ -133,10 +253,16 @@ export function injectParentTag(
     return maimlContent;
   }
 
-  // 同一UUIDの <parent> が既に先頭にある → 重複スキップ
-  if (existingParentUuid === projectUuid) {
+  // 現在の Document UUID が未設定の場合はスキップ
+  if (!currentDocumentUuid) {
+    console.log('[maimlParentInjector] Document UUID が未設定のため <parent> 挿入をスキップします。');
+    return maimlContent;
+  }
+
+  // 同一 Document UUID の <parent> が既に先頭にある → 重複スキップ
+  if (existingParentUuid === currentDocumentUuid) {
     console.log(
-      `[maimlParentInjector] 同一 projectUuid (${projectUuid}) の <parent> が既に存在します。挿入をスキップします。`
+      `[maimlParentInjector] 同一 Document UUID (${currentDocumentUuid}) の <parent> が既に存在します。挿入をスキップします。`
     );
     return maimlContent;
   }
@@ -185,7 +311,7 @@ export function injectParentTag(
     // 新しい <parent> ブロック（開始・終了タグは existingParent.indent で揃える）
     const newParentBlock = [
       `<parent>`,
-      `${childIndent}<uuid>${projectUuid}</uuid>`,
+      `${childIndent}<uuid>${currentDocumentUuid}</uuid>`,
       `${childIndent}<hash method="SHA-256">${hashBase64}</hash>`,
       nestedBlock,
       `${existingParent.indent}</parent>`,
@@ -204,13 +330,20 @@ export function injectParentTag(
       '\n' +
       after;
 
-    const result =
+    const withParent =
       maimlContent.substring(0, documentTagEndIndex) +
       newDocumentInner +
       maimlContent.substring(documentCloseIndex);
 
+    // Parentタグ挿入後、Document直下の <uuid> を再採番
+    const newDocumentUuid = crypto.randomUUID();
+    const result = replaceDocumentUuid(withParent, newDocumentUuid);
+
     console.log(
-      `[maimlParentInjector] 既存 <parent> をネストして新しい <parent> (uuid=${projectUuid}) を挿入しました。`
+      `[maimlParentInjector] 既存 <parent> をネストして新しい <parent> (uuid=${currentDocumentUuid}) を挿入しました。`
+    );
+    console.log(
+      `[maimlParentInjector] Document UUID を再採番しました: ${newDocumentUuid}`
     );
     return result;
   }
@@ -218,17 +351,24 @@ export function injectParentTag(
   // 既存 <parent> なし → <document> 開始タグ直後に新規挿入
   const newParentBlock = [
     `${baseIndent}<parent>`,
-    `${childIndent}<uuid>${projectUuid}</uuid>`,
+    `${childIndent}<uuid>${currentDocumentUuid}</uuid>`,
     `${childIndent}<hash method="SHA-256">${hashBase64}</hash>`,
     `${baseIndent}</parent>`,
   ].join('\n');
 
   const before = maimlContent.substring(0, documentTagEndIndex);
   const after = maimlContent.substring(documentTagEndIndex);
-  const result = before + '\n' + newParentBlock + after;
+  const withParent = before + '\n' + newParentBlock + after;
+
+  // Parentタグ挿入後、Document直下の <uuid> を再採番
+  const newDocumentUuid = crypto.randomUUID();
+  const result = replaceDocumentUuid(withParent, newDocumentUuid);
 
   console.log(
-    `[maimlParentInjector] 新規 <parent> (uuid=${projectUuid}) を <document> 直下に挿入しました。`
+    `[maimlParentInjector] 新規 <parent> (uuid=${currentDocumentUuid}) を <document> 直下に挿入しました。`
+  );
+  console.log(
+    `[maimlParentInjector] Document UUID を再採番しました: ${newDocumentUuid}`
   );
   return result;
 }

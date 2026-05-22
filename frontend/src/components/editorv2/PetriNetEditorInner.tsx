@@ -47,6 +47,7 @@ import ValidationPanel from './ValidationPanel';
 import XMLViewerWrapper from './XMLViewerWrapper';
 import { convertReactFlowToMaiML } from '../../utils/reactFlowToMaiml';
 import { convertMultipleMethodsToMaiML } from '../../utils/multiMethodConverter';
+import { extractUuidsFromMaiml, createEmptyExtractedUuids } from '../../utils/maimlUuidExtractor';
 // Viewer用ノードをインポート（既存の正しいノード描画）
 import MaterialTemplateNode from '../nodes/MaterialTemplateNode';
 import ConditionTemplateNode from '../nodes/ConditionTemplateNode';
@@ -58,7 +59,7 @@ import { addEdge } from 'reactflow';
 import 'reactflow/dist/style.css';
 // Phase 2: maimlParserTyped導入
 import { MaimlParserTyped } from '../../utils/maimlParserTyped';
-import type { Template, PlaceRef as XsdPlaceRef, Method, Property, Document as MaimlDocument } from '../../types/maiml-unified';
+import type { Template, PlaceRef as XsdPlaceRef, Method, Property, Document as MaimlDocument, Protocol, Method } from '../../types/maiml-unified';
 // Owner初期値生成用
 import { generateInitialDocumentData, generateInitialMethod } from '../../utils/documentInitializer';
 // 型定義をインポート
@@ -71,7 +72,10 @@ import type {
   ClipboardData,
   NodeType,
   Draft, 
-  EditState
+  EditState,
+  UpperUuids,
+  DirtyFlags,
+  ExtractedUuids,
 } from '../../types/editor';
 import type { NodeTypes } from 'reactflow';
 
@@ -83,6 +87,7 @@ import type { TemplatesByCategory } from '@/types/editor';
 import * as maimlService from '../../services/maimlApiService';
 import { AnalysisResult, ErrorContent } from '@/types/maimlValidation';
 import type { StorageFile } from '@/types/storage';
+import { parse } from 'path';
 // ✅ window.cline* の型定義
 declare global {
   interface Window {
@@ -363,6 +368,23 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const [methods, setMethods] = useState<MethodData[]>([]);
   const [activeMethodIndex, setActiveMethodIndex] = useState<number>(0);
   const [multiMethodMode, setMultiMethodMode] = useState<boolean>(false);
+
+  // MAIML UUID管理State（下位タグ変更検知と上位タグUUID連鎖再生成）
+  const [upperUuids, setUpperUuids] = useState<UpperUuids>({
+    protocol: '',
+    methods: new Map<string, string>(),
+    pnmls: new Map<string, string>(),
+    programs: new Map<string, string>(),
+  });
+  const [dirtyFlags, setDirtyFlags] = useState<DirtyFlags>({
+    protocol: false,
+    methods: new Set<string>(),
+    pnmls: new Set<string>(),
+    programs: new Set<string>(),
+    templates: new Set<string>(),
+  });
+  /** 保存済みUUID全体（place/transition/arc/template/instruction含む） */
+  const [savedUuids, setSavedUuids] = useState<ExtractedUuids | null>(null);
   
   const { fitView, screenToFlowPosition, getViewport, setViewport } = useReactFlow();
   
@@ -526,11 +548,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       if (multiMethodMode && methods.length > 0) {
         console.log('📋 [handleOpenSaveConfirmDialog] 複数methodモード: convertMultipleMethodsToMaiMLを使用');
         // Method[]を直接渡す（convertMultipleMethodsToMaiMLはMethod[]を期待）
-        maimlXml = convertMultipleMethodsToMaiML(updatedMethods, metadata, documentData, allTemplatesFromContext);
+        maimlXml = convertMultipleMethodsToMaiML(updatedMethods, metadata, documentData, allTemplatesFromContext, savedUuids);
         console.log('✅ [handleOpenSaveConfirmDialog] convertMultipleMethodsToMaiML完了');
       } else {
         console.log('📋 [handleOpenSaveConfirmDialog] 単一methodモード: convertReactFlowToMaiMLを使用');
-        maimlXml = await convertReactFlowToMaiML(nodes, edges, metadata, documentData, null, allTemplatesFromContext);
+        maimlXml = await convertReactFlowToMaiML(nodes, edges, metadata, documentData, null, allTemplatesFromContext, null, savedUuids);
         console.log('✅ [handleOpenSaveConfirmDialog] convertReactFlowToMaiML完了');
       }
       
@@ -760,22 +782,33 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           console.log('📋 [PetriNetEditorInner] 共通テンプレート一覧 (型安全):', Array.from(commonTemplateIds));
           console.log('🔗 [PetriNetEditorInner] 参照関係マップ:', commonTemplateRefMap);
           
+          let extractProtocol : Protocol = null;
+          let extractFirstMethods : Method = null;
           let extractedDoc: MaimlDocument | null = null;
           try {
+            extractProtocol = parser.getProtocol();
+            extractFirstMethods = extractProtocol.methods[0];
             extractedDoc = parser.getDocument();
           } catch (docError) {
             console.warn('⚠️ [fetchPetriNetData] Document取得エラー（処理続行）:', docError);
           }
 
-          if (extractedDoc) {
+          if (extractProtocol && extractedDoc && extractFirstMethods) {
+            // （MaimlParserTyped.getDocument() はこれらを返さないため）
             const documentWithCorrectName: DocumentData = {
               ...extractedDoc,
               name: props.originalFileName 
                 ? props.originalFileName.replace('.maiml', '') 
                 : (extractedDoc.name || 'document'),
+                protocolId : extractProtocol.id,
+                methodId : extractFirstMethods.id,
             };
             setDocumentData(documentWithCorrectName);
             console.log('📄 [PetriNetEditorInner] Document情報を読み込みました（型安全）:', documentWithCorrectName);
+            console.log('🔑 [PetriNetEditorInner] ID引き継ぎ:', {
+              protocolId: documentWithCorrectName.protocolId,
+              methodId: documentWithCorrectName.methodId,
+            });
           }
             
               
@@ -881,6 +914,35 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             }))
           });
               
+          // ── UUID初期化（MAIMLロード時に上位タグのUUIDを抽出して保持）──
+          try {
+            const extractedUuids = extractUuidsFromMaiml(maimlData);
+            setSavedUuids(extractedUuids);
+            setUpperUuids({
+              protocol: extractedUuids.protocol,
+              methods: new Map(extractedUuids.methods),
+              pnmls: new Map(extractedUuids.pnmls),
+              programs: new Map(extractedUuids.programs),
+            });
+            // ロード直後は変更なし
+            setDirtyFlags({
+              protocol: false,
+              methods: new Set<string>(),
+              pnmls: new Set<string>(),
+              programs: new Set<string>(),
+              templates: new Set<string>(),
+            });
+            console.log('🔑 [PetriNetEditorInner] UUID初期化完了:', {
+              protocol: extractedUuids.protocol,
+              methodCount: extractedUuids.methods.size,
+              placeCount: extractedUuids.places.size,
+              transitionCount: extractedUuids.transitions.size,
+              arcCount: extractedUuids.arcs.size,
+            });
+          } catch (uuidErr) {
+            console.warn('⚠️ [PetriNetEditorInner] UUID抽出エラー（処理続行）:', uuidErr);
+          }
+
           // methods配列を設定
           setMethods(convertedMethods);
           setActiveMethodIndex(0);
@@ -1025,6 +1087,45 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     fetchPetriNetData();
   }, [maimlData]); // 依存配列を最小限に（maimlDataの変更時のみ実行）
 
+  // ── UUID dirtyFlags ヘルパー ────────────────────────────────────────────
+  const markPnmlDirtyForCurrentMethod = useCallback(() => {
+    const currentMethodId = methods[activeMethodIndex]?.methodId;
+    if (!currentMethodId) return;
+    setDirtyFlags(prev => ({
+      ...prev,
+      protocol: true,
+      methods: new Set([...prev.methods, currentMethodId]),
+      pnmls: new Set([...prev.pnmls, currentMethodId]),
+    }));
+  }, [methods, activeMethodIndex, setDirtyFlags]);
+
+  const markProgramDirtyForCurrentMethod = useCallback(() => {
+    const currentMethodId = methods[activeMethodIndex]?.methodId;
+    if (!currentMethodId) return;
+    setDirtyFlags(prev => ({
+      ...prev,
+      protocol: true,
+      methods: new Set([...prev.methods, currentMethodId]),
+      programs: new Set([...prev.programs, currentMethodId]),
+    }));
+  }, [methods, activeMethodIndex, setDirtyFlags]);
+
+  const markTemplateDirty = useCallback((
+    templateLevel: 'protocol' | 'method' | 'program',
+    methodId?: string
+  ) => {
+    setDirtyFlags(prev => {
+      const next = { ...prev, protocol: true };
+      if (templateLevel === 'method' || templateLevel === 'program') {
+        next.methods = new Set([...prev.methods, methodId!]);
+      }
+      if (templateLevel === 'program') {
+        next.programs = new Set([...prev.programs, methodId!]);
+      }
+      return next;
+    });
+  }, [setDirtyFlags]);
+
   // ノード追加ハンドラー（Phase 3A + 3C: 履歴追加）
   const handleAddNode = useCallback((nodeType: string) => {
     // 現在の画面中央をフロー座標に変換（ビューポート中心配置）
@@ -1062,9 +1163,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     // ミニマップ強調: 最後に追加したノードIDを更新（2秒後に自動解除）
     setLastAddedNodeId(newNode.id);
     setTimeout(() => setLastAddedNodeId(null), 2000);
+    // ── UUID: ノード追加でpnml/method/protocolをdirtyにする ──
+    markPnmlDirtyForCurrentMethod();
     onContentChange?.();
     console.log('➕ [PetriNetEditorInner] ノード追加（テンプレートなし）:', newNode);
-  }, [setNodes, edges, pushState, onContentChange, screenToFlowPosition]);
+  }, [setNodes, edges, pushState, onContentChange, screenToFlowPosition, markPnmlDirtyForCurrentMethod]);
 
   // テンプレートとノードの紐づき（placeRef）を解除するヘルパー
   // ノード自体は削除済み or 削除中の想定。テンプレート自体は削除しない。
@@ -1136,8 +1239,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             // テンプレートの placeRef 紐づきを解除（テンプレート自体は削除しない）
             unlinkTemplateFromNode(deletedNodes);
 
+            // ── UUID: ノード削除でpnml/method/protocolをdirtyにする ──
+            markPnmlDirtyForCurrentMethod();
+
             onContentChange?.();
-  }, [edges, setEdges, setNodes, pushState, onContentChange, unlinkTemplateFromNode]);
+  }, [edges, setEdges, setNodes, pushState, onContentChange, unlinkTemplateFromNode, markPnmlDirtyForCurrentMethod]);
 
   // PropertyPanelからのノード削除ハンドラー
   const handleDeleteNode = useCallback((nodeId: string) => {
@@ -1199,9 +1305,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       pushState({ nodes, edges: newEdges });
       return newEdges;
     });
+    // ── UUID: arc追加でpnml/method/protocolをdirtyにする ──
+    markPnmlDirtyForCurrentMethod();
     onContentChange?.();
     console.log('🔗 [PetriNetEditorInner] エッジ追加:', newEdge);
-  }, [setEdges, nodes, pushState, onContentChange]);
+  }, [setEdges, nodes, pushState, onContentChange, markPnmlDirtyForCurrentMethod]);
 
   // エッジ削除ハンドラー（Phase 3A + 3C: 履歴追加）
   const handleEdgesDelete = useCallback((deletedEdges: Edge<EdgeData>[]) => {
@@ -1219,10 +1327,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       return newEdges;
     });
     
+    // ── UUID: arc削除でpnml/method/protocolをdirtyにする ──
+    markPnmlDirtyForCurrentMethod();
     onContentChange?.();
     // 選択状態をクリア
     setSelectedEdge(null);
-  }, [nodes, setEdges, pushState, onContentChange]);
+  }, [nodes, setEdges, pushState, onContentChange, markPnmlDirtyForCurrentMethod]);
 
   // PropertyPanelからのエッジ削除ハンドラー（Phase 3.1）
   const handleDeleteEdge = useCallback((edgeId: string) => {
@@ -1235,10 +1345,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       return newEdges;
     });
     
+    // ── UUID: arc削除でpnml/method/protocolをdirtyにする ──
+    markPnmlDirtyForCurrentMethod();
     onContentChange?.();
     // 選択状態をクリア
     setSelectedEdge(null);
-  }, [setEdges, nodes, pushState, onContentChange]);
+  }, [setEdges, nodes, pushState, onContentChange, markPnmlDirtyForCurrentMethod]);
 
   // ノードドラッグ停止ハンドラー（Phase 3A + 3C: 履歴追加）
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node<NodeData>) => {
@@ -1401,6 +1513,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     // ミニマップ強調: 最後に追加したノードIDを更新（2秒後に自動解除）
     setLastAddedNodeId(newNode.id);
     setTimeout(() => setLastAddedNodeId(null), 2000);
+    // ── UUID: ノード追加でpnml/method/protocolをdirtyにする ──
+    markPnmlDirtyForCurrentMethod();
     onContentChange?.();
     
     console.log(`✨ [PetriNetEditorInner] ${isFirstNode ? '🎯初回' : '2回目以降'}ノード追加（テンプレートなし）:`, {
@@ -1433,13 +1547,39 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       return newNodes;
     });
+    // ── UUID: ノードデータ変更でpnml/method/protocolをdirtyにする ──
+    markPnmlDirtyForCurrentMethod();
+    // ── UUID: ノードに紐づくtemplateIdもdirtyにする（templateプロパティ変更検知）──
+    if (newData.templateId) {
+      setDirtyFlags(prev => ({
+        ...prev,
+        templates: new Set([...prev.templates, newData.templateId!]),
+      }));
+    }
     onContentChange?.();
     console.log('📝 [PetriNetEditorInner] プロパティ更新:', { nodeId, newData });
-  }, [setNodes, edges, pushState, onContentChange]);
+  }, [setNodes, edges, pushState, onContentChange, markPnmlDirtyForCurrentMethod, setDirtyFlags]);
 
   // ノードID変更ハンドラー
   const handleUpdateNodeId = useCallback((oldId: string, newId: string) => {
     console.log('🔄 [PetriNetEditorInner] ノードID変更:', { oldId, newId });
+
+    // ── Phase B-4b: clineUpdateTemplate の前に dirty な templateId を収集する ──
+    // （clineUpdateTemplate でplaceRefsがnewIdに書き換わるため、収集は必ず前に行う）
+    const dirtyTemplateIds: string[] = [];
+    if (window.clineAllTemplates) {
+      (['material', 'condition', 'result'] as const).forEach(cat => {
+        (window.clineAllTemplates?.[cat] || []).forEach((t) => {
+          if (!t?.id) return;
+          if (t.placeRefs?.some((pr) => pr.ref === oldId)) {
+            dirtyTemplateIds.push(t.id);
+          }
+        });
+      });
+      if (dirtyTemplateIds.length > 0) {
+        console.log('🔑 [handleUpdateNodeId] template dirty フラグ収集（更新前）:', { oldId, dirtyTemplateIds });
+      }
+    }
     
     // ✅ TemplateContextのテンプレートも更新（placeRefsの参照を更新）
     if (window.clineAllTemplates && window.clineUpdateTemplate) {
@@ -1509,8 +1649,18 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       return newNodes;
     });
+    // ── UUID: ノードID変更でpnml/method/protocolをdirtyにする ──
+    markPnmlDirtyForCurrentMethod();
+    // ── Phase B-4b: dirtyTemplateIdsは clineUpdateTemplate の前に収集済み ──
+    if (dirtyTemplateIds.length > 0) {
+      setDirtyFlags(prev => ({
+        ...prev,
+        templates: new Set([...prev.templates, ...dirtyTemplateIds]),
+      }));
+      console.log('🔑 [handleUpdateNodeId] template dirty フラグ追加:', { oldId, dirtyTemplateIds });
+    }
     onContentChange?.();
-  }, [setNodes, setEdges, pushState, onContentChange]);
+  }, [setNodes, setEdges, pushState, onContentChange, markPnmlDirtyForCurrentMethod, setDirtyFlags]);
 
   // エッジプロパティ更新（Phase 3: エッジID変更対応）
   const handleUpdateEdgeProperty = useCallback((edgeId: string, newId: string) => {
@@ -1529,9 +1679,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       return newEdges;
     });
+    // ── UUID: エッジID変更でpnml/method/protocolをdirtyにする ──
+    markPnmlDirtyForCurrentMethod();
     onContentChange?.();
     console.log('📝 [PetriNetEditorInner] エッジID更新:', { oldId: edgeId, newId });
-  }, [setEdges, nodes, pushState, onContentChange]);
+  }, [setEdges, nodes, pushState, onContentChange, markPnmlDirtyForCurrentMethod]);
 
   // Phase 4A: テンプレート編集ダイアログを開く
   const handleOpenTemplateEditor = useCallback((node: Node<NodeData>) => {
@@ -1652,7 +1804,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     isNewTemplate: boolean, 
     templateCategory: string, 
     isCommonTemplate: boolean, 
-    methodId: string | undefined
+    methodId: string | undefined,
+    originalTemplateId: string = ''
   ) => {
     console.log('💾 [PetriNetEditorInner] Template保存開始:', { 
       nodeId, 
@@ -1812,6 +1965,18 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         });
       });
 
+      // ── UUID: 新規テンプレート追加でdirtyFlagsをセット ──
+      const newTemplateLevel = isCommonTemplate
+        ? 'protocol' as const
+        : correctMethodId
+          ? 'method' as const
+          : 'protocol' as const;
+      markTemplateDirty(newTemplateLevel, correctMethodId);
+      // ── Phase B-4c: templateId単位のdirtyフラグをセット（templateUUID再生成用）──
+      setDirtyFlags(prev => ({
+        ...prev,
+        templates: new Set([...prev.templates, templateId]),
+      }));
       onContentChange?.();
       // テンプレートエディタを閉じる
       setTemplateEditorOpen(false);
@@ -1837,11 +2002,15 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const allTemplates = window.clineAllTemplates;
         let originalTemplate: Template = {id: '', name: '', uuid: '', category: '', placeRefs : [], properties: [], contents: []};
         
-        // 全カテゴリから元のテンプレートを検索（templateIdで検索）
+        // 全カテゴリから元のテンプレートを検索（変更前のIDで検索）
+        // ✅ 修正: originalTemplateId（ダイアログを開いた時点の旧ID）を検索キーに使用
+        // templateEditNodeはuseCallbackのクロージャ問題でnullになるため、
+        // TemplateEditorDialogから引数として受け取ったoriginalTemplateIdを使用する
+        const searchId = originalTemplateId || templateId;
         (['material', 'condition', 'result'] as const).forEach((category) => {
         const templates : Template[] = (allTemplates[category] || []).filter((t): t is Template => t != null && typeof t === 'object' && !!t.id);
           if (!originalTemplate.id && templates.length > 0) {
-            const found = templates.find((t: Template) => t.id === templateId);
+            const found = templates.find((t: Template) => t.id === searchId);
             if (found) {  // ✅ 修正: find()がundefinedを返す場合に備えてチェック
               originalTemplate = found;
             }
@@ -1860,9 +2029,23 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const finalMethodId = originalTemplate?.methodId !== undefined ? originalTemplate.methodId : methodId;
       
       // TemplateContextを更新（window.clineUpdateTemplateを使用）
+      // ✅ 修正1: IDが変更された場合は旧IDで検索して更新する
+      // （新IDで検索すると旧エントリが見つからず更新されないため）
+      const oldTemplateId = originalTemplate.id || templateId;
+      const idChanged = oldTemplateId !== templateId;
+      if (idChanged) {
+        console.log('🔄 [PetriNetEditorInner] Template ID変更検知:', { oldId: oldTemplateId, newId: templateId });
+        // ✅ savedUuidsから旧IDのエントリを削除（新IDで再採番させるため）
+        setSavedUuids(prev => {
+          if (!prev) return prev;
+          const updatedTemplates = new Map(prev.templates);
+          updatedTemplates.delete(oldTemplateId);
+          return { ...prev, templates: updatedTemplates };
+        });
+      }
       if (window.clineUpdateTemplate) {
-        window.clineUpdateTemplate(templateId, {  // ✅ 修正: templateIdを使用
-            id: templateId,  // ✅ 修正: templateIdを使用
+        window.clineUpdateTemplate(oldTemplateId, {  // 旧IDを第1引数に渡す（検索キー）
+            id: templateId,  // 新IDをオブジェクトにセット
             uuid: convertedTemplateRef.uuid,
             name: convertedTemplateRef.name || '',
             description: convertedTemplateRef.description,
@@ -1874,6 +2057,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             methodId: finalMethodId,
         });
         console.log('✅ [PetriNetEditorInner] TemplateContext更新完了:', {
+          oldTemplateId,
+          templateId,
           finalTemplateCategory,
           finalMethodId
         });
@@ -1966,9 +2151,27 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       });
     });
 
+    // ── UUID: 既存テンプレート更新でdirtyFlagsをセット ──
+    if (window.clineAllTemplates) {
+      const allTmpl = window.clineAllTemplates;
+      let updatedMethodId: string | undefined;
+      (['material', 'condition', 'result'] as const).forEach(cat => {
+        const found = (allTmpl[cat] || []).find((t) => t?.id === templateId);
+        if (found) updatedMethodId = found.methodId || undefined;
+      });
+      const updateLevel = updatedMethodId ? 'method' as const : 'protocol' as const;
+      markTemplateDirty(updateLevel, updatedMethodId);
+    } else {
+      markTemplateDirty('protocol');
+    }
+    // ── Phase B-4c: 既存テンプレート更新時も templateId 単位の dirty フラグをセット ──
+    setDirtyFlags(prev => ({
+      ...prev,
+      templates: new Set([...prev.templates, templateId]),
+    }));
     onContentChange?.();
     console.log('💾 [PetriNetEditorInner] Template保存完了:', { nodeId, templateId, convertedTemplateRef });  // ✅ templateIdを追加
-  }, [setNodes, setMethods, activeMethodIndex, edges, pushState, convertNestedPropertiesToArray, onContentChange, methods, documentData]);
+  }, [setNodes, setMethods, activeMethodIndex, edges, pushState, convertNestedPropertiesToArray, onContentChange, methods, documentData, markTemplateDirty, setDirtyFlags]);
 
   // Document編集ダイアログを開く
   const handleOpenDocumentEditor = useCallback(() => {
@@ -2195,7 +2398,24 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     } else {
       console.error('❌ [PetriNetEditorInner] deleteTemplate関数が見つかりません');
     }
-  }, []);
+
+    // ── UUID: テンプレート削除でdirtyFlagsをセット ──
+    // 削除されるテンプレートのレベルをallTemplatesから判定
+    const allTmpl = window.clineAllTemplates;
+    if (allTmpl) {
+      let deletedMethodId: string | undefined;
+      (['material', 'condition', 'result'] as const).forEach(cat => {
+        const found = (allTmpl[cat] || []).find((t) => t?.id === templateId);
+        if (found) deletedMethodId = found.methodId || undefined;
+      });
+      const level = deletedMethodId ? 'method' as const : 'protocol' as const;
+      markTemplateDirty(level, deletedMethodId);
+    } else {
+      // allTemplatesが取れない場合はprotocolをdirtyにする
+      markTemplateDirty('protocol');
+    }
+    onContentChange?.();
+  }, [markTemplateDirty, onContentChange]);
 
   // Draft読み込みハンドラー
   const handleLoadDraft = useCallback((draft: Draft) => {
@@ -2361,7 +2581,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // Method ID編集ハンドラー
   const handleEditMethodId = useCallback((index: number, newMethodId: string) => {
     console.log('✏️ [PetriNetEditorInner] Method ID編集:', { index, newMethodId });
-    
+
+    // 旧methodIdを取得（dirtyFlagsのキーは旧methodId）
+    const oldMethodId = methods[index]?.methodId;
+
     setMethods(prev => {
       const updated = [...prev];
       updated[index] = {
@@ -2370,9 +2593,57 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       };
       return updated;
     });
-    
+
+    // ── Phase C: UUID連鎖再生成のためにdirtyFlagsをセット ──
+    // savedUuidsのキーは旧methodIdなので、旧methodIdをdirtyにすることで
+    // filteredUuidsから除外され、新UUIDが生成される
+    if (oldMethodId) {
+      setDirtyFlags(prev => ({
+        ...prev,
+        protocol: true,
+        methods: new Set([...prev.methods, oldMethodId]),
+        pnmls: new Set([...prev.pnmls, oldMethodId]),
+        programs: new Set([...prev.programs, oldMethodId]),
+      }));
+
+      // ── Phase C-2: savedUuidsから旧methodIdのエントリを削除 ──
+      // methodIDが変わると pnml_${newMethodId} / program_${newMethodId} という新IDが採用される。
+      // savedUuidsに旧methodIdのエントリが残っていると旧UUIDが再利用されてしまうため削除する。
+      // （pnmlは偶然的に新UUIDが生成されていたが、programは旧UUIDが残るため明示的に削除が必要）
+      setSavedUuids(prev => {
+        if (!prev) return prev;
+        const updatedPnmls = new Map(prev.pnmls);
+        updatedPnmls.delete(oldMethodId);
+        const updatedPrograms = new Map(prev.programs);
+        updatedPrograms.delete(oldMethodId);
+        const updatedMethods = new Map(prev.methods);
+        updatedMethods.delete(oldMethodId);
+        return { ...prev, pnmls: updatedPnmls, programs: updatedPrograms, methods: updatedMethods };
+      });
+    }
+
+    // ── Phase D: TemplateContext内のtemplate.methodIdを新methodIdに更新 ──
+    // template.methodIdが旧methodIdのままだとbuildMethodXML/convertReactFlowToMaiMLで
+    // templateがヒットせずMAIML出力に含まれなくなる
+    if (oldMethodId && window.clineAllTemplates && window.clineUpdateTemplate) {
+      (['material', 'condition', 'result'] as const).forEach(category => {
+        const templates: Template[] = (window.clineAllTemplates?.[category] || []).filter(
+          (t): t is Template => t != null && typeof t === 'object' && !!t.id
+        );
+        templates.forEach((t: Template) => {
+          if (t.methodId === oldMethodId) {
+            window.clineUpdateTemplate?.(t.id, { ...t, methodId: newMethodId });
+            console.log('🔄 [handleEditMethodId] template.methodId更新:', {
+              templateId: t.id, oldMethodId, newMethodId
+            });
+          }
+        });
+      });
+    }
+
+    onContentChange?.();
     console.log('✅ [PetriNetEditorInner] Method ID編集完了');
-  }, []);
+  }, [methods, onContentChange]);
 
   // ワークフロー追加モード切り替え
   const handleWorkflowModeToggle = useCallback(() => {
@@ -2537,11 +2808,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       // ✅ 複数method対応: multiMethodModeの場合は全methodsでバリデーション
       if (multiMethodMode && methods.length > 0) {
         console.log('📋 [handleOpenValidationPanel] 複数methodモード: convertMultipleMethodsToMaiMLを使用');
-        maimlXml = convertMultipleMethodsToMaiML(updatedMethods, metadata, documentData, allTemplatesFromContext);
+        maimlXml = convertMultipleMethodsToMaiML(updatedMethods, metadata, documentData, allTemplatesFromContext, savedUuids);
         console.log('✅ [handleOpenValidationPanel] convertMultipleMethodsToMaiML完了');
       } else {
         console.log('📋 [handleOpenValidationPanel] 単一methodモード: convertReactFlowToMaiMLを使用');
-        maimlXml = await convertReactFlowToMaiML(nodes, edges, metadata, documentData ?? null, null, allTemplatesFromContext);
+        maimlXml = await convertReactFlowToMaiML(nodes, edges, metadata, documentData ?? null, null, allTemplatesFromContext, null, savedUuids);
         console.log('✅ [handleOpenValidationPanel] convertReactFlowToMaiML完了');
       }
       
@@ -2628,7 +2899,51 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         condition: allTemplatesFromContext?.condition?.length || 0,
         result: allTemplatesFromContext?.result?.length || 0
       });
-      
+
+      // ── Step 4: dirtyFlagsに基づいてUUIDをフィルタリング ──
+      // dirtyなタグのUUIDはsavedUuidsから除外し、新UUIDを生成させる
+      const filteredUuids: ExtractedUuids | null = savedUuids
+        ? {
+            ...savedUuids,
+            // protocolがdirtyなら除外（''にすることでgenerateUUIDが呼ばれる）
+            protocol: dirtyFlags.protocol ? '' : savedUuids.protocol,
+            // 各methodがdirtyなら除外
+            methods: new Map(
+              [...savedUuids.methods.entries()].filter(
+                ([mid]) => !dirtyFlags.methods.has(mid)
+              )
+            ),
+            // 各pnmlがdirtyなら除外
+            pnmls: new Map(
+              [...savedUuids.pnmls.entries()].filter(
+                ([mid]) => !dirtyFlags.pnmls.has(mid)
+              )
+            ),
+            // 各programがdirtyなら除外
+            programs: new Map(
+              [...savedUuids.programs.entries()].filter(
+                ([mid]) => !dirtyFlags.programs.has(mid)
+              )
+            ),
+            // 各templateがdirtyなら除外し新UUIDを生成させる
+            templates: new Map(
+              [...savedUuids.templates.entries()].filter(
+                ([tid]) => !dirtyFlags.templates.has(tid)
+              )
+            ),
+          }
+        : null;
+
+      console.log('🔑 [handleSaveConfirmAction] filteredUuids:', {
+        protocolDirty: dirtyFlags.protocol,
+        dirtyMethods: [...dirtyFlags.methods],
+        dirtyPnmls: [...dirtyFlags.pnmls],
+        dirtyPrograms: [...dirtyFlags.programs],
+        filteredProtocol: filteredUuids?.protocol || '(新規生成)',
+        filteredMethodCount: filteredUuids?.methods.size,
+        filteredPnmlCount: filteredUuids?.pnmls.size,
+      });
+
       // ✅ 複数method対応: multiMethodModeの場合は全methodsを保存
       if (multiMethodMode && methods.length > 0) {
         console.log('📋 [PetriNetEditorInner] 複数methodモード: convertMultipleMethodsToMaiMLを使用');
@@ -2645,16 +2960,16 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         
         console.log('📋 [PetriNetEditorInner] 保存するmethod数:', updatedMethods.length);
 
-        // Method[]を直接渡す（convertMultipleMethodsToMaiMLはMethod[]を期待）
+        // filteredUuidsを渡してdirtyなタグのUUIDのみ再生成
         console.log('🔍 [PetriNetEditorInner] convertMultipleMethodsToMaiML呼び出し');
-        maimlXml = convertMultipleMethodsToMaiML(updatedMethods, metadata, documentData, allTemplatesFromContext);
+        maimlXml = convertMultipleMethodsToMaiML(updatedMethods, metadata, documentData, allTemplatesFromContext, filteredUuids);
         console.log('✅ [PetriNetEditorInner] convertMultipleMethodsToMaiML完了');
       } else {
         console.log('📋 [PetriNetEditorInner] 単一methodモード: convertReactFlowToMaiMLを使用');
         
-        // 単一method用コンバーター使用（allTemplatesを渡す）
+        // filteredUuidsを渡してdirtyなタグのUUIDのみ再生成
         console.log('🔍 [PetriNetEditorInner] convertReactFlowToMaiML呼び出し');
-        maimlXml = await convertReactFlowToMaiML(nodes, edges, metadata, documentData ?? null, null, allTemplatesFromContext);
+        maimlXml = await convertReactFlowToMaiML(nodes, edges, metadata, documentData ?? null, null, allTemplatesFromContext, null, filteredUuids);
         console.log('✅ [PetriNetEditorInner] convertReactFlowToMaiML完了');
       }
       
@@ -2751,6 +3066,29 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const result = response.data;
         console.log('✅ [PetriNetEditorInner] S3保存完了:', result);
 
+        // ── Step 5: 保存完了後にdirtyFlagsリセット ──
+        // 保存したMAIMLから新しいUUIDを抽出してupperUuidsを更新
+        try {
+          const newExtracted = extractUuidsFromMaiml(maimlXml);
+          setSavedUuids(newExtracted);
+          setUpperUuids({
+            protocol: newExtracted.protocol,
+            methods: new Map(newExtracted.methods),
+            pnmls: new Map(newExtracted.pnmls),
+            programs: new Map(newExtracted.programs),
+          });
+          setDirtyFlags({
+            protocol: false,
+            methods: new Set<string>(),
+            pnmls: new Set<string>(),
+            programs: new Set<string>(),
+            templates: new Set<string>(),
+          });
+          console.log('🔑 [PetriNetEditorInner] 保存後のUUID更新・dirtyFlagsリセット完了');
+        } catch (uuidErr) {
+          console.warn('⚠️ [PetriNetEditorInner] 保存後UUID更新エラー（無視）:', uuidErr);
+        }
+
         alert(t('editor.alert.s3_saved').replace('{name}', metadata.name));
 
         // S3保存成功時のみDraftを全削除（自動保存Draftをクリア）
@@ -2826,7 +3164,16 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     } finally {
       setIsSaving(false);
     }
-  }, [nodes, edges, documentData, handleCloseSaveConfirmDialog, onContentSaved]);
+  }, [
+    nodes, edges, documentData,
+    handleCloseSaveConfirmDialog, onContentSaved,
+    dirtyFlags,        // 追加: dirtyチェックに使用
+    savedUuids,        // 追加: filteredUuids構築に使用
+    multiMethodMode,   // 追加: 保存分岐（単一/複数method）で使用
+    methods,           // 追加: multiMethodMode時に updatedMethods で使用
+    activeMethodIndex, // 追加: updatedMethods[activeMethodIndex] で使用
+    // metadata は関数内のローカル変数のため依存配列不要
+  ]);
 
   // エッジ選択ハンドラー（Phase 3: エッジ選択でPropertyPanel表示）
   const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge<EdgeData>) => {
@@ -3105,7 +3452,8 @@ interface PetriNetEditorInnerUIProps {
     isNewTemplate: boolean,
     templateCategory: string,
     isCommonTemplate: boolean,
-    methodId: string | undefined
+    methodId: string | undefined,
+    originalTemplateId?: string
   ) => void;
   
   documentDialogOpen: boolean;
@@ -3455,7 +3803,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           open={templateEditorOpen}
           onClose={handleCloseTemplateEditor}
           node={templateEditNode ?? { id: '', data: {} as NodeData }}
-          onSave={(nodeId: string, templateRef: Template, isNewTemplate: boolean, templateCategory: string, isCommonTemplate: boolean, methodId: string | null) => handleSaveTemplate(nodeId, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId || undefined)}
+          onSave={(nodeId: string, templateRef: Template, isNewTemplate: boolean, templateCategory: string, isCommonTemplate: boolean, methodId: string | null, originalTemplateId: string) => handleSaveTemplate(nodeId, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId || undefined, originalTemplateId)}
           allNodes={(() => {
             // 共通テンプレートかどうかを判定
             const isCommonTemplate = 

@@ -40,6 +40,7 @@ import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { createMaimlBackup } from '../utils/maimlArchiveHelper';
+import { extractParentUuids, injectParentTag } from '../utils/maimlParentInjector';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -228,6 +229,47 @@ export class FileAccessService {
     return { url, expiresAt, expiresIn };
   }
 
+  /**
+   * MAIMLファイル（projects/ 配下）の場合は <parent> タグを挿入した上でテキストを返す
+   *
+   * - getFileContentAsText エンドポイント（編集画面起動・ダウンロード）から使用する
+   * - archive/ 配下は除外しない
+   * - MAIML以外 / projects/ 以外のファイルはそのままテキストを返す
+   *
+   * @param organizationId 組織ID
+   * @param fileKey        ファイルキー（organizationIdプレフィックス付き可）
+   * @returns テキストコンテンツ（<parent> タグ挿入済みMAIML、またはそのままのテキスト）
+   */
+  async getFileTextWithParentInjection(
+    organizationId: string,
+    fileKey: string
+  ): Promise<string> {
+    const result = await this.streamFileByKey(organizationId, fileKey);
+
+    const relativeFileKey = fileKey.startsWith(`${organizationId}/`)
+      ? fileKey.slice(organizationId.length + 1)
+      : fileKey;
+
+    const isMaiml = relativeFileKey.endsWith('.maiml');
+    const isProject = relativeFileKey.startsWith('projects/');
+
+    if (isMaiml && isProject) {
+      try {
+        const maimlContent = result.buffer.toString('utf-8');
+        const injected = injectParentTag(maimlContent, null, result.buffer);
+        console.log(`✅ [FileAccessService] <parent> タグ挿入完了: ${relativeFileKey}`);
+        return injected;
+      } catch (injectError) {
+        console.warn(
+          `⚠️ [FileAccessService] <parent> タグ挿入失敗（元ファイルで返却）:`,
+          injectError instanceof Error ? injectError.message : injectError
+        );
+      }
+    }
+
+    return result.buffer.toString('utf-8');
+  }
+
   async streamFileByKey(
     organizationId: string,
     fileKey: string
@@ -413,30 +455,12 @@ export class FileAccessService {
             const maimlRegistered = existingProject?.project_maiml_flg ?? false;
             const projectUuid = existingProject?.project_uuid ?? null;
 
-            // 既存MAIMLパス（バックアップ用）
-            const existingMaimlPath = `${normalizedPath}/${sanitizedFileName}`;
-            const maimlExists = maimlRegistered
-              ? await this.storageService.fileExists(organizationId, existingMaimlPath)
-              : false;
-
             if (maimlRegistered) {
-              // プロジェクトにMAIMLが既に登録済み → ストレージの現在MAIMLと Document UUID を比較
-              // ※ project_uuid はシステム採番のため documentUuid との比較は廃止
-              // アップロードファイルの Document UUID を抽出
-              let uploadingDocumentUuid: string | undefined;
-              try {
-                const maimlParser = new MaimlParserTyped(file.buffer.toString('utf-8'));
-                const doc = maimlParser.getDocument();
-                const uuid = doc?.uuid?.trim();
-                if (uuid && uuid.length > 0) {
-                  uploadingDocumentUuid = uuid;
-                  console.log('🔍 [Upload] Document UUID 抽出成功（上書きチェック用）:', uploadingDocumentUuid);
-                }
-              } catch (parseError) {
-                console.warn('⚠️ [Upload] UUID抽出失敗（上書きチェック用）:', parseError);
-              }
+              // プロジェクトにMAIMLが既に登録済み → アップロードするMAIMLのParentチェーンに
+              // 現在ストレージにあるMAIMLのDocument UUIDが含まれているかで判定する
+              // （injectParentTag()によりDocument UUIDが再採番されるため、UUID完全一致チェックは廃止）
 
-              // file_metadata から現在のMAIMLの fileKey を取得してDocument UUID を比較
+              // file_metadata から現在のMAIMLの fileKey を取得
               // project_uuid が設定済みなら findMaimlByProjectUuid、未設定なら findMaimlByProjectName にフォールバック
               let allowOverwrite = false;
               const currentMaimlMeta = existingProject?.project_uuid
@@ -446,6 +470,8 @@ export class FileAccessService {
               if (currentMaimlMeta?.file_key) {
                 try {
                   // 取得した fileKey でストレージから現在のMAIMLを取得して Document UUID を抽出
+                  // relKey = ストレージ相対パス（organizationIdプレフィックスを除いたもの）
+                  // これが実際にストレージに存在する既存MAIMLのパスであり、バックアップ対象となる
                   const relKey = currentMaimlMeta.file_key.startsWith(`${organizationId}/`)
                     ? currentMaimlMeta.file_key.slice(organizationId.length + 1)
                     : currentMaimlMeta.file_key;
@@ -455,15 +481,40 @@ export class FileAccessService {
                   const currentDoc = currentParser.getDocument();
                   const currentDocumentUuid = currentDoc?.uuid?.trim();
 
-                  if (uploadingDocumentUuid && currentDocumentUuid && uploadingDocumentUuid === currentDocumentUuid) {
-                    // Document UUID 一致 → 同一MAIMLをベースにした変更 → 上書き許可
+                  // アップロードするMAIMLのParentチェーンに現在のDocument UUIDが含まれるかチェック
+                  const uploadingContent = file.buffer.toString('utf-8');
+                  const parentUuids = extractParentUuids(uploadingContent);
+
+                  const isBaseMatch = currentDocumentUuid != null && parentUuids.includes(currentDocumentUuid);
+
+                  if (isBaseMatch) {
+                    // Parentチェーンに現在のDocument UUIDが含まれる → 同一MAIMLをベースにした変更 → 上書き許可
                     allowOverwrite = true;
-                    console.log(`✅ [Upload] Document UUID一致のため上書き許可: projectName=${projectName}, documentUuid=${uploadingDocumentUuid}`);
-                    if (maimlExists) {
-                      await createMaimlBackup(existingMaimlPath, organizationId);
+                    console.log(`✅ [Upload] Parentチェーン一致のため上書き許可: projectName=${projectName}, currentDocumentUuid=${currentDocumentUuid}, parentUuids=${JSON.stringify(parentUuids)}`);
+                    // アーカイブ: relKey（現在ストレージにある既存MAIMLのパス）を使ってバックアップ
+                    // ※ アップロードするファイル名ではなく、実際に存在するファイルのパスでバックアップする
+                    await createMaimlBackup(relKey, organizationId);
+                    // 旧ファイルをストレージから削除
+                    // ファイル名が同じ場合は uploadFile で上書きされるが、
+                    // ファイル名が異なる場合は別パスに保存されるため旧ファイルが残ってしまう。
+                    // アーカイブ済みなので安全に削除できる。
+                    try {
+                      await this.storageService.deleteFile(organizationId, relKey);
+                      console.log(`✅ [Upload] 旧ストレージファイル削除完了: ${relKey}`);
+                    } catch (delErr) {
+                      console.warn(`⚠️ [Upload] 旧ストレージファイル削除失敗（アップロードは続行）:`, delErr instanceof Error ? delErr.message : delErr);
+                    }
+                    // 旧 file_metadata レコードを削除（アップロード後の insertIfNotExists で新レコードが正しく登録されるよう）
+                    // storageService.uploadFile は ON CONFLICT DO NOTHING のため、旧レコードが残っていると新レコードが作成されない
+                    const oldFileKey = currentMaimlMeta.file_key;
+                    try {
+                      await this.repository.softDeleteByFileKey(organizationId, oldFileKey);
+                      console.log(`✅ [Upload] 旧 file_metadata 削除完了: ${oldFileKey}`);
+                    } catch (softDelErr) {
+                      console.warn(`⚠️ [Upload] 旧 file_metadata 削除失敗（アップロードは続行）:`, softDelErr instanceof Error ? softDelErr.message : softDelErr);
                     }
                   } else {
-                    console.error(`❌ [Upload] Document UUID不一致: uploading=${uploadingDocumentUuid}, current=${currentDocumentUuid}`);
+                    console.error(`❌ [Upload] Parentチェーン不一致: currentDocumentUuid=${currentDocumentUuid}, parentUuids=${JSON.stringify(parentUuids)}`);
                   }
                 } catch (storageErr) {
                   console.error(`❌ [Upload] ストレージからのMAIML取得失敗:`, storageErr instanceof Error ? storageErr.message : storageErr);
@@ -472,9 +523,7 @@ export class FileAccessService {
                 // file_metadata が見つからない（データ不整合）→ 上書き許可として扱う
                 allowOverwrite = true;
                 console.warn(`⚠️ [Upload] file_metadataが見つからないため上書き許可（データ不整合の可能性）: projectName=${projectName}`);
-                if (maimlExists) {
-                  await createMaimlBackup(existingMaimlPath, organizationId);
-                }
+                // file_metadataがない場合はバックアップ対象パスが不明なのでスキップ
               }
 
               if (!allowOverwrite) {
