@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Card, Input, Button, Typography, Alert, Space, Spin, theme } from 'antd';
 import { EyeOutlined, EyeInvisibleOutlined, LoginOutlined } from '@ant-design/icons';
 import { LoginCredentials } from '@/types/auth';
 import { validateEmail, validatePassword } from '@/utils/validationUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 /**
  * ログインページのProps
@@ -131,26 +132,38 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
           }}
         >
           {/* ロゴ・タイトル */}
-          <Space orientation="vertical" size="middle" style={{ width: '100%', textAlign: 'center', marginBottom: token.marginXXL }}>
-            <Title
-              level={1}
-              style={{
-                margin: 0,
-                color: 'var(--color-primary)',
-                fontWeight: token.fontWeightStrong,
-              }}
-            >
-              {t('common.appName')}
-            </Title>
-            <Text
-              type="secondary"
-              style={{
-                fontSize: token.fontSizeHeading4,
-              }}
-            >
-              {t('common.appSubtitle')}
-            </Text>
-          </Space>
+          <div style={{ width: '100%', textAlign: 'center', marginBottom: token.marginXXL }}>
+            {/* アイコンとテキストロゴを横並び */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <Image
+                src="/icons/icon_alchemia.png"
+                alt="AlcheMia icon"
+                width={50}
+                height={50}
+                style={{ objectFit: 'contain' }}
+                priority
+              />
+              <Image
+                src="/icons/logo_alchemia.png"
+                alt={t('common.appName')}
+                width={200}
+                height={60}
+                style={{ objectFit: 'contain' }}
+                priority
+              />
+            </div>
+            <div style={{ marginTop: 4 }}>
+              <Text
+                type="secondary"
+                style={{
+                  fontSize: token.fontSizeHeading4,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t('common.appSubtitle')}
+              </Text>
+            </div>
+          </div>
 
           {/* エラーメッセージ */}
           {(error || validationError) && (
