@@ -232,12 +232,44 @@ export function buildEventLogXML(
   eventLogId: string = 'eventLogID',
   existingUuids?: Map<string, string>
 ): string {
+  // ── eventLog UUID の変化検出 ────────────────────────────────────────────
+  // logJsonArray 内の log @id セットと、existingUuids 内の log:* セットを比較し
+  // 差分があれば新規UUID払い出し、差分なしなら既存UUID再利用する。
+  const newLogIds = new Set(
+    logJsonArray.flatMap((logJson) => {
+      const eventLogObj = logJson['eventLog'] as Record<string, unknown> | undefined;
+      if (!eventLogObj) return [];
+      const rawLog = eventLogObj['log'];
+      const entries: Record<string, unknown>[] = Array.isArray(rawLog)
+        ? (rawLog as Record<string, unknown>[])
+        : rawLog
+        ? [rawLog as Record<string, unknown>]
+        : [];
+      return entries.map((e) => e['@id'] as string).filter(Boolean);
+    })
+  );
+
+  const existingLogIds = new Set(
+    [...(existingUuids?.keys() ?? [])]
+      .filter((k) => k.startsWith('log:'))
+      .map((k) => k.slice(4))
+  );
+
+  const hasChanges =
+    [...newLogIds].some((id) => !existingLogIds.has(id)) ||
+    [...existingLogIds].some((id) => !newLogIds.has(id));
+
+  // 変化ありなら新規UUID、変化なしなら既存UUID再利用
+  const eventLogUuidValue = hasChanges
+    ? randomUUID()
+    : resolveUuid('eventLog', existingUuids, randomUUID);
+
   if (!logJsonArray || logJsonArray.length === 0) {
     // XSD準拠: eventLogType は log が必須（minOccurs=1）のため最小構造を返す
     const emptyLogId = `log_${eventLogId}_empty`;
     return [
       `<eventLog id="${escapeXml(eventLogId)}">`,
-      `    <uuid>${resolveUuid('eventLog', existingUuids, randomUUID)}</uuid>`,
+      `    <uuid>${eventLogUuidValue}</uuid>`,
       `    <log id="${escapeXml(emptyLogId)}" ref="${escapeXml(emptyLogId)}">`,
       `      <uuid>${resolveUuid(`log:${emptyLogId}`, existingUuids, randomUUID)}</uuid>`,
       `      <trace id="${escapeXml(emptyLogId)}_trace" ref="${escapeXml(emptyLogId)}_trace">`,
@@ -254,7 +286,7 @@ export function buildEventLogXML(
 
   // XSD準拠: eventLogType の globalObjectContentGroup に uuid が必須
   let xml = `  <eventLog id="${escapeXml(eventLogId)}">\n`;
-  xml += `    <uuid>${resolveUuid('eventLog', existingUuids, randomUUID)}</uuid>\n`;
+  xml += `    <uuid>${eventLogUuidValue}</uuid>\n`;
 
   for (const logJson of logJsonArray) {
     const eventLogObj = logJson['eventLog'] as Record<string, unknown> | undefined;
@@ -701,4 +733,75 @@ export function replaceDataAndEventLogInMaiml(
   result = result.replace(/<eventLog[^>]*>[\s\S]*?<\/eventLog>/g, eventLogXml.trimEnd());
 
   return result;
+}
+
+// ============================================================
+// updateDocumentUuidAndParent
+// ============================================================
+
+/**
+ * MAIML XML 文字列の <document> タグ直下の <uuid> を新しい UUID に更新し、
+ * 更新前の uuid 値を <parent><uuid>旧uuid</uuid></parent> として追加（または上書き）する。
+ *
+ * 処理手順:
+ *   1. 既存の <parent>...</parent> を除去（重複防止）
+ *   2. <document> 直下の <uuid> を randomUUID() で新規生成した値に置き換え
+ *   3. 新しい <uuid> の直後に <parent><uuid>旧uuid</uuid></parent> を挿入
+ *
+ * @param maimlContent - 更新前の MAIML XML 文字列
+ * @returns 更新後の MAIML XML 文字列
+ *          （<document> タグが存在しない場合や <uuid> が見つからない場合はそのまま返す）
+ */
+export function updateDocumentUuidAndParent(maimlContent: string): string {
+  // <document> 直下の最初の <uuid> 値を抽出
+  // [\s\S]*? の最短マッチで <document> 開きタグ直後の <uuid> のみを対象とする
+  const docUuidMatch = maimlContent.match(
+    /<document[^>]*>[\s\S]*?<uuid>([^<]+)<\/uuid>/
+  );
+  if (!docUuidMatch) {
+    // <document> タグまたは直下の <uuid> が見つからない場合はそのまま返す
+    return maimlContent;
+  }
+
+  const oldUuid = docUuidMatch[1].trim();
+  const newUuid = randomUUID();
+
+  let result = maimlContent;
+
+  // 1. 既存の <parent>...</parent> を除去（2回目以降の書き出しでの重複防止）
+  result = result.replace(/<parent>[\s\S]*?<\/parent>\n?/g, '');
+
+  // 2. <document> 直下の <uuid> を新しい UUID に置き換え
+  result = result.replace(
+    /(<document[^>]*>[\s\S]*?)<uuid>[^<]+<\/uuid>/,
+    `$1<uuid>${newUuid}</uuid>`
+  );
+
+  // 3. 新しい <uuid> の直後に <parent><uuid>旧uuid</uuid></parent> を挿入
+  result = result.replace(
+    `<uuid>${newUuid}</uuid>`,
+    `<uuid>${newUuid}</uuid>\n    <parent>\n       <uuid>${escapeXml(oldUuid)}</uuid>\n    </parent>`
+  );
+
+  return result;
+}
+
+/**
+ * MAIML XML 文字列の <eventLog> タグのみを
+ * 指定された新しい XML 文字列で丸ごと置き換える
+ *
+ * <data> セクションは変更しない。
+ * チェックアウト時点では template_data が空のため、
+ * writeDataAndEventLog() を使うと <data> が空で上書きされる問題を回避するために使用する。
+ *
+ * @param maimlContent - 置き換え前の MAIML XML 全文字列
+ * @param eventLogXml  - 新しい <eventLog>...</eventLog> XML 文字列（buildEventLogXML() の戻り値）
+ * @returns 置き換え後の MAIML XML 全文字列
+ */
+export function replaceEventLogInMaiml(
+  maimlContent: string,
+  eventLogXml: string
+): string {
+  // <eventLog ...>...</eventLog> を丸ごと置換（複数行対応）
+  return maimlContent.replace(/<eventLog[^>]*>[\s\S]*?<\/eventLog>/g, eventLogXml.trimEnd());
 }
