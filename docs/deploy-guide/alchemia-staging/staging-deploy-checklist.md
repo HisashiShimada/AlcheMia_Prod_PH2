@@ -19,24 +19,26 @@
 9. [島田さんへの連絡（デプロイ開始）](#step-9-島田さんへの連絡デプロイ開始)
 10. [デプロイスクリプトの実行](#step-10-デプロイスクリプトの実行)
 11. [動作確認](#step-11-動作確認)
+12. [デプロイ記録のコミット・タグ作成](#step-12-デプロイ記録のコミットタグ作成)
 
 ---
 
-## 事前準備: VSCode を WSL から開く
+## 事前準備: WSL でターミナルを開く
 
-本手順書のコマンドはすべて **WSL** で実行する。  
-VSCode を Windows 側から開いている場合、作成されたファイルが見えないため、必ず WSL から開くこと。
+本手順書のコマンドはすべて **WSL（シェル環境）** で実行する。  
+スクリプトがシェルスクリプト（`.sh`）のため、Windows のコマンドプロンプトや PowerShell では実行できない。
 
-**WSL ターミナルで以下を実行する：**
+**WSL ターミナルを起動し、プロジェクトルートに移動する：**
 
 > 🖥️ **実行環境**: WSL（ローカル開発PC）
 
 ```bash
-code /home/ssv/projects/mmdpf
+cd /home/ssv/projects/mmdpf
 ```
 
-> ✅ **成功時の表示**: VSCode が `/home/ssv/projects/mmdpf` を開いた状態で起動する  
-> （VSCode ウィンドウ左下に `WSL: Ubuntu` と表示されていることを確認する）
+> ✅ **成功時の表示**: プロンプトが `/home/ssv/projects/mmdpf` になる（例: `ssv@hostname:/home/ssv/projects/mmdpf$`）
+
+> **VSCode でファイルを確認・編集する場合:** [`vscode-wsl-setup.md`](./vscode-wsl-setup.md) を参照
 
 ---
 
@@ -922,6 +924,57 @@ STEP 11: 動作確認
   - [ ] ヘルスチェック・ログ・ブラウザ動作を確認した
   - [ ] Slack でデプロイ完了をアナウンスした
 ```
+
+---
+
+## STEP 12: デプロイ記録のコミット・タグ作成
+
+デプロイ作業中に作成・更新されたファイル（チェックリスト・リリースノート等）をコミットし、リリースタグを打つ。
+
+### 12-1. デプロイ作業ファイルのコミット
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
+コミット対象のファイル（存在するものだけ add すること）：
+- `docs/deliverables/<リリースタグ名>/checklist.md`（本手順書の記録）
+- `docs/deliverables/<リリースタグ名>/release_info.md`
+- `docs/deliverables/<リリースタグ名>/release_notes_YYYYMMDD.md`
+- `docs/deliverables/<リリースタグ名>/dry-run-result.md`
+- `docs/deliverables/<リリースタグ名>/env_diff_*.md`
+- `docs/deliverables/schema_dump_dev_*.sql`
+- `docs/deliverables/schema_dump_staging_*.sql`
+
+```bash
+git add docs/deliverables/
+git commit -m "chore: add release records for <リリースタグ名>"
+git push
+```
+
+> ✅ **成功時の表示**: `git push` 完了後に `main -> main` などの push 完了メッセージが表示される
+
+### 12-2. リリースタグの作成・プッシュ
+
+タグは STEP 2-2 ① で確認した「今回のタグ名」を使用する。
+
+> 🖥️ **実行環境**: WSL（ローカル開発PC）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+
+```bash
+# タグを作成
+git tag <リリースタグ名>
+
+# タグをリモートにプッシュ
+git push origin <リリースタグ名>
+```
+
+> ✅ **成功時の表示（tag）**: 何も出力されない（エラーなし = 正常）
+> ✅ **成功時の表示（push）**: `* [new tag]  <リリースタグ名> -> <リリースタグ名>` と表示される
+
+### チェックリスト
+
+- [ ] デプロイ作業ファイルをコミット・プッシュした
+- [ ] リリースタグを作成・プッシュした
 
 ---
 
