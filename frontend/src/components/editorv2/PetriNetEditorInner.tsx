@@ -59,7 +59,7 @@ import { addEdge } from 'reactflow';
 import 'reactflow/dist/style.css';
 // Phase 2: maimlParserTyped導入
 import { MaimlParserTyped } from '../../utils/maimlParserTyped';
-import type { Template, PlaceRef as XsdPlaceRef, Method, Property, Document as MaimlDocument } from '../../types/maiml-unified';
+import type { Template, PlaceRef as XsdPlaceRef, Method, Property, Document as MaimlDocument, Protocol, Method } from '../../types/maiml-unified';
 // Owner初期値生成用
 import { generateInitialDocumentData, generateInitialMethod } from '../../utils/documentInitializer';
 // 型定義をインポート
@@ -87,6 +87,7 @@ import type { TemplatesByCategory } from '@/types/editor';
 import * as maimlService from '../../services/maimlApiService';
 import { AnalysisResult, ErrorContent } from '@/types/maimlValidation';
 import type { StorageFile } from '@/types/storage';
+import { parse } from 'path';
 // ✅ window.cline* の型定義
 declare global {
   interface Window {
@@ -781,28 +782,32 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           console.log('📋 [PetriNetEditorInner] 共通テンプレート一覧 (型安全):', Array.from(commonTemplateIds));
           console.log('🔗 [PetriNetEditorInner] 参照関係マップ:', commonTemplateRefMap);
           
+          let extractProtocol : Protocol = null;
+          let extractFirstMethods : Method = null;
           let extractedDoc: MaimlDocument | null = null;
           try {
+            extractProtocol = parser.getProtocol();
+            extractFirstMethods = extractProtocol.methods[0];
             extractedDoc = parser.getDocument();
           } catch (docError) {
             console.warn('⚠️ [fetchPetriNetData] Document取得エラー（処理続行）:', docError);
           }
 
-          if (extractedDoc) {
+          if (extractProtocol && extractedDoc && extractFirstMethods) {
             // （MaimlParserTyped.getDocument() はこれらを返さないため）
             const documentWithCorrectName: DocumentData = {
               ...extractedDoc,
               name: props.originalFileName 
                 ? props.originalFileName.replace('.maiml', '') 
                 : (extractedDoc.name || 'document'),
+                protocolId : extractProtocol.id,
+                methodId : extractFirstMethods.id,
             };
             setDocumentData(documentWithCorrectName);
             console.log('📄 [PetriNetEditorInner] Document情報を読み込みました（型安全）:', documentWithCorrectName);
             console.log('🔑 [PetriNetEditorInner] ID引き継ぎ:', {
               protocolId: documentWithCorrectName.protocolId,
               methodId: documentWithCorrectName.methodId,
-              pnmlId: documentWithCorrectName.pnmlId,
-              programId: documentWithCorrectName.programId,
             });
           }
             
@@ -1799,7 +1804,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     isNewTemplate: boolean, 
     templateCategory: string, 
     isCommonTemplate: boolean, 
-    methodId: string | undefined
+    methodId: string | undefined,
+    originalTemplateId: string = ''
   ) => {
     console.log('💾 [PetriNetEditorInner] Template保存開始:', { 
       nodeId, 
@@ -1997,9 +2003,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         let originalTemplate: Template = {id: '', name: '', uuid: '', category: '', placeRefs : [], properties: [], contents: []};
         
         // 全カテゴリから元のテンプレートを検索（変更前のIDで検索）
-        // ✅ 修正5: node.data.template?.id（変更前の旧ID）を検索キーに使用
-        // templateId（新ID）で検索すると配列に旧IDしかないため見つからない
-        const searchId = templateEditNode?.data?.template?.id || templateId;
+        // ✅ 修正: originalTemplateId（ダイアログを開いた時点の旧ID）を検索キーに使用
+        // templateEditNodeはuseCallbackのクロージャ問題でnullになるため、
+        // TemplateEditorDialogから引数として受け取ったoriginalTemplateIdを使用する
+        const searchId = originalTemplateId || templateId;
         (['material', 'condition', 'result'] as const).forEach((category) => {
         const templates : Template[] = (allTemplates[category] || []).filter((t): t is Template => t != null && typeof t === 'object' && !!t.id);
           if (!originalTemplate.id && templates.length > 0) {
@@ -3445,7 +3452,8 @@ interface PetriNetEditorInnerUIProps {
     isNewTemplate: boolean,
     templateCategory: string,
     isCommonTemplate: boolean,
-    methodId: string | undefined
+    methodId: string | undefined,
+    originalTemplateId?: string
   ) => void;
   
   documentDialogOpen: boolean;
@@ -3795,7 +3803,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           open={templateEditorOpen}
           onClose={handleCloseTemplateEditor}
           node={templateEditNode ?? { id: '', data: {} as NodeData }}
-          onSave={(nodeId: string, templateRef: Template, isNewTemplate: boolean, templateCategory: string, isCommonTemplate: boolean, methodId: string | null) => handleSaveTemplate(nodeId, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId || undefined)}
+          onSave={(nodeId: string, templateRef: Template, isNewTemplate: boolean, templateCategory: string, isCommonTemplate: boolean, methodId: string | null, originalTemplateId: string) => handleSaveTemplate(nodeId, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId || undefined, originalTemplateId)}
           allNodes={(() => {
             // 共通テンプレートかどうかを判定
             const isCommonTemplate = 
