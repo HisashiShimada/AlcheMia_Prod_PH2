@@ -515,3 +515,68 @@ const eventLogUuidValue = hasChanges
 
 - `buildDataXML()` への `existingUuids` 渡しは変更しない（`<data>` セクションの UUID 継続性は意図された挙動）
 - 変化検出は `<log>` の `@id` のみを対象とする（trace/evnet の変化は log 単位での追加・削除と連動するため）
+
+---
+
+## 追加タスク: maimlWriterService の maiml_event_log 取得 SQL を外部ファイル化（2026-05-22）
+
+### 目的
+
+`maimlWriterService.ts` の `writeEventLogOnly()` および `writeDataAndEventLog()` で  
+インラインに記述されていた `maiml_event_log` 全件取得 SQL を外部 SQL ファイルに切り出し、  
+`database.md` の規約（複雑なクエリは外部ファイル管理）に準拠させる。
+
+### 変更ファイル
+
+| # | ファイル | 変更内容 |
+|---|---------|---------|
+| 1 | `backend/src/sql/queries/event_log/findAllByProject.sql` | 新規作成（maiml_event_log 全件取得 SQL） |
+| 2 | `backend/src/services/maimlWriterService.ts` | `loadSqlFile` import 追加 + 2箇所のインラインSQL外部化 |
+
+### 詳細設計
+
+#### 1. `backend/src/sql/queries/event_log/findAllByProject.sql` — 新規作成
+
+```sql
+-- maiml_event_log 全件取得クエリ（プロジェクト単位）
+-- sequence_no 昇順で取得してイベントの発生順序を保持する
+SELECT
+  sequence_no,
+  log
+FROM maiml_event_log
+WHERE organization_id = $1
+  AND project_id = $2
+ORDER BY sequence_no ASC
+```
+
+#### 2. `backend/src/services/maimlWriterService.ts` — 変更内容
+
+**import 追加:**
+```typescript
+import { loadSqlFile } from '../sql/loader';
+```
+
+**`writeDataAndEventLog()` ステップ4（変更前）:**
+```typescript
+const eventLogResult = await pool.query<EventLogRow>(
+  `SELECT
+     sequence_no,
+     log
+   FROM maiml_event_log
+   WHERE organization_id = $1
+     AND project_id = $2
+   ORDER BY sequence_no ASC`,
+  [organizationId, projectId]
+);
+```
+
+**`writeDataAndEventLog()` ステップ4（変更後）:**
+```typescript
+const findAllEventLogSql = await loadSqlFile('event_log/findAllByProject.sql');
+const eventLogResult = await pool.query<EventLogRow>(
+  findAllEventLogSql,
+  [organizationId, projectId]
+);
+```
+
+**`writeEventLogOnly()` ステップ3 も同様に変更（同一 SQL ファイルを共有）。**

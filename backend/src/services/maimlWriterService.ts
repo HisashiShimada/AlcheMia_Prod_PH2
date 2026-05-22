@@ -15,6 +15,7 @@
  */
 
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import { getStorageService } from './storageService';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
 import type { EventLogJsonRecord } from '../utils/maimlDataWriter';
@@ -104,14 +105,9 @@ export class MaimlWriterService {
 
     // --- 4. maiml_event_log を全件取得（プロジェクト単位）---
     // sequence_no 昇順で取得してイベントの発生順序を保持する
+    const findAllEventLogSql = await loadSqlFile('event_log/findAllByProject.sql');
     const eventLogResult = await pool.query<EventLogRow>(
-      `SELECT
-         sequence_no,
-         log
-       FROM maiml_event_log
-       WHERE organization_id = $1
-         AND project_id = $2
-       ORDER BY sequence_no ASC`,
+      findAllEventLogSql,
       [organizationId, projectId]
     );
     const eventLogRows: EventLogRow[] = eventLogResult.rows;
@@ -251,14 +247,9 @@ export class MaimlWriterService {
 
     // --- 3. maiml_event_log を全件取得（プロジェクト単位）---
     // sequence_no 昇順で取得してイベントの発生順序を保持する
+    const findAllEventLogSql = await loadSqlFile('event_log/findAllByProject.sql');
     const eventLogResult = await pool.query<EventLogRow>(
-      `SELECT
-         sequence_no,
-         log
-       FROM maiml_event_log
-       WHERE organization_id = $1
-         AND project_id = $2
-       ORDER BY sequence_no ASC`,
+      findAllEventLogSql,
       [organizationId, projectId]
     );
     const eventLogRows: EventLogRow[] = eventLogResult.rows;
