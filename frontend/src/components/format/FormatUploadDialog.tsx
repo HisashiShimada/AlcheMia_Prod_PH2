@@ -336,7 +336,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         setUploadState(prev => ({
           ...prev,
           isUploading: false,
-          error: 'キャンセルされました',
+          error: t('upload.cancelledError'),
         }));
       } else {
         // MAIMLバリデーションエラーの処理
@@ -347,12 +347,12 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           const errorList = (details?.errors ?? []) as Array<{ type: string; severity: string; message: string; suggestion?: string }>;
           setUploadState(prev => ({ ...prev, isUploading: false, error: null }));
           Modal.error({
-            title: `MAIMLバリデーションエラー: ${details?.fileName ?? ''}`,
+            title: t('upload.maimlValidationErrorTitle', { fileName: details?.fileName ?? '' }),
             width: 640,
             content: (
               <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                 <Paragraph style={{ marginBottom: 8 }}>
-                  致命的なエラーが{details?.errorCount ?? errorList.length}件検出されたため、アップロードを中止しました。
+                  {t('upload.maimlValidationErrorContent', { count: String(details?.errorCount ?? errorList.length) })}
                 </Paragraph>
                 {errorList.map((e, i) => (
                   <div
@@ -379,7 +379,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
                 ))}
               </div>
             ),
-            okText: '閉じる',
+            okText: t('upload.closeButton'),
           });
         } else {
           const errorMessage = extractErrorMessage(error);
@@ -409,11 +409,11 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
     if (!currentController) return;
 
     Modal.confirm({
-      title: 'アップロードを中断しますか？',
-      content: '中断するとアップロード済みのファイルも削除されます。',
-      okText: '中断する',
+      title: t('upload.cancelConfirmTitle'),
+      content: t('upload.cancelConfirmContent'),
+      okText: t('upload.cancelConfirmOk'),
       okButtonProps: { danger: true },
-      cancelText: '続行',
+      cancelText: t('upload.cancelConfirmCancel'),
       onOk: async () => {
         // HTTP リクエストを中断（ref から参照）
         abortControllerRef.current?.abort();
@@ -436,7 +436,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         }
       },
     });
-  }, []);
+  }, [t]);
 
   /**
    * ダイアログを閉じる
@@ -444,10 +444,10 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
   const handleClose = useCallback(() => {
     if (uploadState.isUploading) {
       Modal.confirm({
-        title: 'アップロード中',
-        content: 'アップロード処理が進行中です。キャンセルしますか？',
-        okText: '中断する',
-        cancelText: '続行',
+        title: t('upload.uploadingConfirmTitle'),
+        content: t('upload.uploadingConfirmContent'),
+        okText: t('upload.cancelConfirmOk'),
+        cancelText: t('upload.cancelConfirmCancel'),
         onOk: async () => {
           // HTTP リクエストを中断（ref から参照）
           abortControllerRef.current?.abort();
@@ -534,7 +534,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         {/* アップロードタイプ選択 */}
         <div>
           <Text strong style={{ display: 'block', marginBottom: 8 }}>
-            アップロードタイプ
+            {t('upload.uploadType')}
           </Text>
           <Segmented
             value={uploadMode}
@@ -543,17 +543,17 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
             block
             options={[
               {
-                label: '単一ファイル',
+                label: t('upload.singleFile'),
                 value: 'single',
                 icon: <FileOutlined />,
               },
               {
-                label: '一括ファイル',
+                label: t('upload.bulkFiles'),
                 value: 'bulk',
                 icon: <InboxOutlined />,
               },
               {
-                label: 'フォルダ',
+                label: t('upload.folder'),
                 value: 'folder',
                 icon: <FolderOutlined />,
               },
@@ -571,7 +571,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
               block
               size="large"
             >
-              フォルダを選択
+              {t('upload.selectFolder')}
             </Button>
             <input
               ref={folderInputRef}
@@ -598,10 +598,10 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
               <InboxOutlined style={{ fontSize: 48, color: '#0093CF' }} />
             </p>
             <p className="ant-upload-text" style={{ fontSize: 16 }}>
-              ファイルをドラッグ&ドロップ
+              {t('upload.dragDropText')}
             </p>
             <p className="ant-upload-hint" style={{ fontSize: 14 }}>
-              または、クリックしてファイルを選択
+              {t('upload.dragDropHint')}
             </p>
           </Dragger>
         )}
@@ -616,7 +616,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
             }}
           >
             <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-              <Text strong>選択ファイル ({fileList.length}個)</Text>
+              <Text strong>{t('upload.selectedFiles', { count: String(fileList.length) })}</Text>
               <div
                 style={{
                   maxHeight: 200,
@@ -648,7 +648,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
                 {fileList.length > 10 && (
                   <div style={{ textAlign: 'center', padding: 8 }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      他 {fileList.length - 10} ファイル...
+                      {t('upload.moreFiles', { count: String(fileList.length - 10) })}
                     </Text>
                   </div>
                 )}
@@ -662,7 +662,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
                 }}
               >
                 <Text style={{ fontSize: 12, color: '#007AB3' }}>
-                  総サイズ: {formatFileSize(totalSize)}
+                  {t('upload.totalSize', { size: formatFileSize(totalSize) })}
                 </Text>
               </div>
             </Space>
@@ -683,16 +683,16 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           >
             <Space orientation="vertical" size={4} style={{ width: '100%' }}>
               <Text strong style={{ color: '#007AB3', fontSize: 13 }}>
-                アップロード先フォーマット
+                {t('upload.targetFormat')}
               </Text>
               <Text style={{ fontSize: 15, fontWeight: 500 }}>
                 {baseFolder.name}
               </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                パス: {getTargetPath() || 
+                {t('upload.pathLabel', { path: getTargetPath() || 
                   (baseFolder.departmentCd 
                     ? `formats/${baseFolder.departmentCd}/${baseFolder.folderName}`
-                    : `formats/${baseFolder.folderName}`)}
+                    : `formats/${baseFolder.folderName}`) })}
               </Text>
             </Space>
           </div>
@@ -702,16 +702,16 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         {baseFolder && (
           <div>
             <Text strong style={{ display: 'block', marginBottom: 8 }}>
-              サブフォルダパス（オプション）
+              {t('upload.subFolderLabel')}
             </Text>
             <Input
               value={subFolderPath}
               onChange={(e) => setSubFolderPath(e.target.value)}
-              placeholder="例: subfolder（空欄の場合は選択フォーマットフォルダ直下）"
+              placeholder={t('upload.subFolderPlaceholderFormat')}
               disabled={uploadState.isUploading}
             />
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-              サブフォルダを指定しない場合は、選択フォーマットフォルダ直下にアップロードされます
+              {t('upload.subFolderHintFormat')}
             </Text>
           </div>
         )}
@@ -719,7 +719,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         {/* リトライ中表示 */}
         {retryState && uploadState.isUploading && (
           <Alert
-            title={`接続エラーが発生しました。自動リトライ中... (${retryState.retryCount}/${retryState.maxRetries})`}
+            title={t('upload.retryingAlert', { count: String(retryState.retryCount), max: String(retryState.maxRetries) })}
             type="warning"
             showIcon
             icon={<LoadingOutlined />}
@@ -751,12 +751,12 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
                     opacity: (abortController && uploadState.progress < 100) ? 1 : 0.6,
                   }}
                 >
-                  キャンセル
+                  {t('upload.cancelButton')}
                 </button>
                 <div style={{ paddingRight: '90px' }}>
                   <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                     <Text>
-                      {uploadState.uploadedCount} / {uploadState.totalCount} ファイル完了
+                      {t('upload.progressText', { uploaded: String(uploadState.uploadedCount), total: String(uploadState.totalCount) })}
                     </Text>
                     <Progress percent={uploadState.progress} status="active" />
                   </Space>
@@ -775,7 +775,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
             {resultSummary.failureCount === 0 ? (
               <Alert
                 title={t('upload.completedTitle')}
-                description={`成功: ${resultSummary.successCount} 件 / 失敗: 0 件`}
+                description={t('upload.successSummary', { success: String(resultSummary.successCount) })}
                 type="success"
                 showIcon
                 icon={<CheckCircleOutlined />}
