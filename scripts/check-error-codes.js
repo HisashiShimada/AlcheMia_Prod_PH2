@@ -17,7 +17,7 @@
  *
  * 【出力先】
  *   - コンソール出力（サマリ）
- *   - scripts/error-codes-check-report.txt（詳細レポート）
+ *   - scripts/result/error-codes-check-report.txt（詳細レポート）
  *
  * 【対象ファイル】
  *   - backend/src/enums/errorCodes.ts
@@ -41,7 +41,8 @@ const BACKEND_ERROR_CODES_PATH  = path.join(ROOT, 'backend/src/enums/errorCodes.
 const FRONTEND_ERROR_UTILS_PATH = path.join(ROOT, 'frontend/src/utils/errorUtils.ts');
 const JA_JSON_PATH              = path.join(ROOT, 'frontend/src/locales/ja.json');
 const EN_JSON_PATH              = path.join(ROOT, 'frontend/src/locales/en.json');
-const REPORT_PATH               = path.join(__dirname, 'error-codes-check-report.txt');
+const RESULT_DIR                = path.join(__dirname, 'result');
+const REPORT_PATH               = path.join(RESULT_DIR, 'error-codes-check-report.txt');
 
 /** チェック 8/9 でスキャンするディレクトリ */
 const BACKEND_SRC_DIR  = path.join(ROOT, 'backend/src');
@@ -775,6 +776,10 @@ if (totalIssues === 0) {
 console.log('');
 
 // ========== ファイル出力 ==========
+
+if (!fs.existsSync(RESULT_DIR)) {
+  fs.mkdirSync(RESULT_DIR, { recursive: true });
+}
 
 fs.writeFileSync(REPORT_PATH, report, 'utf-8');
 console.log(`詳細レポートを出力しました: ${REPORT_PATH}`);

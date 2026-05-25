@@ -8,7 +8,7 @@
  *
  * 【出力先】
  *   - コンソール出力（サマリ）
- *   - scripts/i18n-check-report.txt（詳細レポート）
+ *   - scripts/result/i18n-check-report.txt（詳細レポート）
  */
 
 const fs = require('fs');
@@ -317,7 +317,12 @@ console.log('');
 
 // ========== ファイル出力 ==========
 
-const reportPath = path.join(__dirname, 'i18n-check-report.txt');
+const resultDir = path.join(__dirname, 'result');
+if (!fs.existsSync(resultDir)) {
+  fs.mkdirSync(resultDir, { recursive: true });
+}
+
+const reportPath = path.join(resultDir, 'i18n-check-report.txt');
 fs.writeFileSync(reportPath, report, 'utf-8');
 
 console.log(`詳細レポートを出力しました: ${reportPath}`);
