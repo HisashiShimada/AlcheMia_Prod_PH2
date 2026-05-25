@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Alert, Space, Typography, Card, Button, Tag, Tabs, Spin, message } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   RocketOutlined, 
   FileTextOutlined, 
@@ -241,6 +242,8 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
   onExitExperimentControl,
   onOpenSubNetViewer,
 }) => {
+  const { t } = useLanguage();
+
   // 🎯 複数メソッド対応: 型定義
   interface MethodData {
     methodId: string;
@@ -463,7 +466,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
               editMode="view"
               onError={(error: Error) => {
                 console.error('❌ [ViewRenderer] PetriNetEditor error:', error);
-                message.error('Failed to initialize editor');
+                message.error(t('viewer.initializeEditorError'));
               }}
             />
           </ReactFlowProvider>

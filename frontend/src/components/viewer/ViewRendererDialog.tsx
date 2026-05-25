@@ -11,6 +11,7 @@ import { Rnd } from 'react-rnd';
 import ViewRenderer from './ViewRenderer';
 import SubNetViewer from './dialogs/SubNetViewer';
 import { getFileContentAsText } from '@/services/fileAccessService';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { FileData, SubnetData } from '@/types/editor';
 
 const { Text } = Typography;
@@ -53,6 +54,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
   onOpenSubNetViewer,
 }) => {
   const { message } = App.useApp();
+  const { t } = useLanguage();
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -88,7 +90,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
         }
       } catch (error) {
         console.error('❌ [ViewRendererDialog] File load error:', error);
-        message.error(`Failed to load file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        message.error(t('viewer.loadFileError'));
         if (isMounted) {
           setFileContent(null);
         }

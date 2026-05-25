@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 /**
- * i18nキー整合性チェックスクリプト
- * 
- * コンポーネントで使用されている t('xxx') のキーが
- * ja.json / en.json に存在するかチェックする
+ * i18nキー整合性 & ハードコードメッセージ チェックスクリプト
+ *
+ * 【チェック内容】
+ *   1. コンポーネントで使用されている t('xxx') のキーが ja.json / en.json に存在するか
+ *   2. message.xxx() に文字列リテラルが直接渡されていないか（i18n化推奨）
+ *
+ * 【出力先】
+ *   - コンソール出力（サマリ）
+ *   - scripts/i18n-check-report.txt（詳細レポート）
  */
 
 const fs = require('fs');
@@ -24,6 +29,15 @@ function flattenKeys(obj, prefix = '') {
     }
   }
   return keys;
+}
+
+/** 現在日時を "YYYY-MM-DD HH:MM:SS" 形式で返す */
+function now() {
+  return new Date().toLocaleString('ja-JP', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
 }
 
 // ========== 言語ファイル読み込み ==========
@@ -83,40 +97,206 @@ for (const key of [...usedKeys].sort()) {
 const inJaNotEn = [...jaKeys].filter(k => !enKeys.has(k)).sort();
 const inEnNotJa = [...enKeys].filter(k => !jaKeys.has(k)).sort();
 
-// ========== 結果出力 ==========
+// ========== message ハードコード検出 ==========
 
-console.log('='.repeat(60));
-console.log('i18n キー整合性チェック結果');
-console.log('='.repeat(60));
-console.log(`\n収集済みコンポーネントキー数: ${usedKeys.size}`);
+/**
+ * frontend/src 配下の全 .tsx / .ts ファイルを走査し、
+ * message.xxx(文字列リテラル) のハードコードを検出する
+ *
+ * 除外パターン（正しい形式）:
+ *   - t( を含む行（i18nキー使用）
+ *   - extractErrorMessage を含む行
+ *   - mapErrorToMessage を含む行
+ *   - extractErrorCode を含む行
+ */
+
+/** frontend/src 配下のファイル一覧を再帰取得 */
+function collectSourceFiles(dir) {
+  const results = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectSourceFiles(fullPath));
+    } else if (entry.isFile() && (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts'))) {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+
+// ハードコード検出結果: { filePath, lineNo, lineContent }[]
+const hardcodeFindings = [];
+
+// 検出パターン:
+//   message.(error|success|warning|info)(  で始まり、
+//   その後に シングルクォート / ダブルクォート / テンプレートリテラル が続く
+const messageHardcodeRe = /message\s*\.\s*(error|success|warning|info|loading)\s*\(\s*(?:'[^']*'|"[^"]*"|`[^`]*`)/;
+
+// 除外キーワード（これを含む行は正しい形式とみなして除外）
+const excludeKeywords = [
+  "t('",
+  't("',
+  'extractErrorMessage',
+  'mapErrorToMessage',
+  'extractErrorCode',
+];
+
+const sourceFiles = collectSourceFiles(srcDir);
+
+for (const filePath of sourceFiles) {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!messageHardcodeRe.test(line)) continue;
+    // 除外キーワードが含まれていればスキップ
+    if (excludeKeywords.some(kw => line.includes(kw))) continue;
+    // コメント行はスキップ
+    if (/^\s*(\/\/|\/\*)/.test(line)) continue;
+
+    hardcodeFindings.push({
+      filePath: path.relative(path.join(__dirname, '..'), filePath),
+      lineNo: i + 1,
+      lineContent: line.trim(),
+    });
+  }
+}
+
+// ファイルパス → 検出一覧 のマップに整理
+const hardcodeByFile = new Map();
+for (const finding of hardcodeFindings) {
+  if (!hardcodeByFile.has(finding.filePath)) {
+    hardcodeByFile.set(finding.filePath, []);
+  }
+  hardcodeByFile.get(finding.filePath).push(finding);
+}
+
+// ========== レポート生成 ==========
+
+const SEP = '='.repeat(60);
+const lines = [];
+
+const push = (str = '') => lines.push(str);
+
+push(SEP);
+push('i18n キー整合性 & ハードコードメッセージ チェック結果');
+push(SEP);
+push(`実行日時: ${now()}`);
+push(`対象: frontend/src/`);
+push('');
+push(`収集済みコンポーネントキー数: ${usedKeys.size}`);
+push(`ja.json 定義キー数: ${jaKeys.size}`);
+push(`en.json 定義キー数: ${enKeys.size}`);
+push('');
+
+// 【1】
+push(SEP);
+push(`【1】コンポーネントで使用 & ja.json にも en.json にも未定義: ${missingInBoth.length} 件`);
+push(SEP);
+if (missingInBoth.length === 0) {
+  push('  （なし）');
+} else {
+  missingInBoth.forEach(k => push('  MISSING_BOTH: ' + k));
+}
+push('');
+
+// 【2】
+push(SEP);
+push(`【2】コンポーネントで使用 & ja.json のみ未定義: ${missingInJa.length} 件`);
+push(SEP);
+if (missingInJa.length === 0) {
+  push('  （なし）');
+} else {
+  missingInJa.forEach(k => push('  MISSING_JA: ' + k));
+}
+push('');
+
+// 【3】
+push(SEP);
+push(`【3】コンポーネントで使用 & en.json のみ未定義: ${missingInEn.length} 件`);
+push(SEP);
+if (missingInEn.length === 0) {
+  push('  （なし）');
+} else {
+  missingInEn.forEach(k => push('  MISSING_EN: ' + k));
+}
+push('');
+
+// 【4】
+push(SEP);
+push(`【4】ja.json にあって en.json に未定義: ${inJaNotEn.length} 件`);
+push(SEP);
+if (inJaNotEn.length === 0) {
+  push('  （なし）');
+} else {
+  inJaNotEn.forEach(k => push('  JA_ONLY: ' + k));
+}
+push('');
+
+// 【5】
+push(SEP);
+push(`【5】en.json にあって ja.json に未定義: ${inEnNotJa.length} 件`);
+push(SEP);
+if (inEnNotJa.length === 0) {
+  push('  （なし）');
+} else {
+  inEnNotJa.forEach(k => push('  EN_ONLY: ' + k));
+}
+push('');
+
+// 【6】
+push(SEP);
+push(`【6】message部品のハードコード（i18n化推奨）: ${hardcodeFindings.length} 件`);
+push(SEP);
+push('');
+push('  ※ message.error/success/warning/info/loading に文字列リテラルが直接渡されている箇所です。');
+push('  ※ t("key") や extractErrorMessage() などを使って i18n化することを推奨します。');
+push('');
+if (hardcodeFindings.length === 0) {
+  push('  （なし）');
+} else {
+  for (const [filePath, findings] of hardcodeByFile) {
+    push(`📁 ${filePath}`);
+    for (const f of findings) {
+      push(`    行 ${f.lineNo}: ${f.lineContent}`);
+    }
+    push('');
+  }
+}
+
+push(SEP);
+push('チェック完了');
+push(SEP);
+
+const report = lines.join('\n');
+
+// ========== コンソール出力（サマリ） ==========
+
+console.log(SEP);
+console.log('i18n キー整合性 & ハードコードメッセージ チェック結果');
+console.log(SEP);
+console.log(`実行日時: ${now()}`);
+console.log(`対象: frontend/src/`);
+console.log('');
+console.log(`収集済みコンポーネントキー数: ${usedKeys.size}`);
 console.log(`ja.json 定義キー数: ${jaKeys.size}`);
 console.log(`en.json 定義キー数: ${enKeys.size}`);
+console.log('');
+console.log(`【1】MISSING_BOTH (ja & en 未定義):   ${missingInBoth.length} 件`);
+console.log(`【2】MISSING_JA   (ja のみ未定義):    ${missingInJa.length} 件`);
+console.log(`【3】MISSING_EN   (en のみ未定義):    ${missingInEn.length} 件`);
+console.log(`【4】JA_ONLY      (ja にあって en 無): ${inJaNotEn.length} 件`);
+console.log(`【5】EN_ONLY      (en にあって ja 無): ${inEnNotJa.length} 件`);
+console.log(`【6】ハードコード  (message 直書き):   ${hardcodeFindings.length} 件`);
+console.log('');
 
-console.log('\n' + '='.repeat(60));
-console.log(`【1】コンポーネントで使用 & ja.json にも en.json にも未定義: ${missingInBoth.length} 件`);
-console.log('='.repeat(60));
-missingInBoth.forEach(k => console.log('  MISSING_BOTH: ' + k));
+// ========== ファイル出力 ==========
 
-console.log('\n' + '='.repeat(60));
-console.log(`【2】コンポーネントで使用 & ja.json のみ未定義: ${missingInJa.length} 件`);
-console.log('='.repeat(60));
-missingInJa.forEach(k => console.log('  MISSING_JA: ' + k));
+const reportPath = path.join(__dirname, 'i18n-check-report.txt');
+fs.writeFileSync(reportPath, report, 'utf-8');
 
-console.log('\n' + '='.repeat(60));
-console.log(`【3】コンポーネントで使用 & en.json のみ未定義: ${missingInEn.length} 件`);
-console.log('='.repeat(60));
-missingInEn.forEach(k => console.log('  MISSING_EN: ' + k));
-
-console.log('\n' + '='.repeat(60));
-console.log(`【4】ja.json にあって en.json に未定義: ${inJaNotEn.length} 件`);
-console.log('='.repeat(60));
-inJaNotEn.forEach(k => console.log('  JA_ONLY: ' + k));
-
-console.log('\n' + '='.repeat(60));
-console.log(`【5】en.json にあって ja.json に未定義: ${inEnNotJa.length} 件`);
-console.log('='.repeat(60));
-inEnNotJa.forEach(k => console.log('  EN_ONLY: ' + k));
-
-console.log('\n' + '='.repeat(60));
+console.log(`詳細レポートを出力しました: ${reportPath}`);
+console.log(SEP);
 console.log('チェック完了');
-console.log('='.repeat(60));
+console.log(SEP);

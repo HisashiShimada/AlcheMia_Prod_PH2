@@ -2529,6 +2529,8 @@
   },
   "viewer": {
     "methodNotFound": "メソッドが見つかりません",
+    "initializeEditorError": "エディタの初期化に失敗しました",
+    "loadFileError": "ファイルの読み込みに失敗しました",
     "loadFailed": "ペトリネット構造の読み込みに失敗しました",
     "subnetInfoMissing": "サブネット情報が取得できません",
     "subnetComingSoon": "サブネット表示機能は準備中です",
@@ -2678,7 +2680,10 @@
       "statusUpdated": "ステータスを更新しました（{status}、進捗: {progress}%）",
       "terminalStatusMessage": "現在のステータスは「{label}」です。これ以上変更できません。",
       "noTransitionAvailable": "遷移可能なステータスがありません",
-      "currentStatus": "現在: {label}"
+      "currentStatus": "現在: {label}",
+      "attachmentUploadError": "添付ファイルのアップロードに失敗しました（#{number}）",
+      "fileUploadError": "ファイルのアップロードに失敗しました: {key}",
+      "updateError": "更新に失敗しました: {message}"
     },
     "tree": {
       "nameColumn": "フォーマット名",

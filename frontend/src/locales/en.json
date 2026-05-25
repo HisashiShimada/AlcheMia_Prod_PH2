@@ -2332,7 +2332,10 @@
       "statusUpdated": "Status updated ({status}, progress: {progress}%)",
       "terminalStatusMessage": "Current status is \"{label}\". No further changes allowed.",
       "noTransitionAvailable": "No transitions available",
-      "currentStatus": "Current: {label}"
+      "currentStatus": "Current: {label}",
+      "attachmentUploadError": "Failed to upload attachment (#{number})",
+      "fileUploadError": "Failed to upload file: {key}",
+      "updateError": "Failed to update: {message}"
     }
   },
   "instruction": {
@@ -2604,6 +2607,8 @@
   },
   "viewer": {
     "methodNotFound": "Method not found",
+    "initializeEditorError": "Failed to initialize editor",
+    "loadFileError": "Failed to load file",
     "loadFailed": "Failed to load Petri net structure",
     "subnetInfoMissing": "Cannot retrieve subnet information",
     "subnetComingSoon": "Subnet display feature is coming soon",
