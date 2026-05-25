@@ -98,12 +98,12 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   const [selectedMethodId, setSelectedMethodId] = useState<string>('');
   const [selectedTaskNumber, setSelectedTaskNumber] = useState<number | undefined>(undefined);
   const [selectedTransitionId, setSelectedTransitionId] = useState<string>('');
-  const [priorityOptions, setPriorityOptions] = useState<SelectOption[]>([]);
-  const [typeOptions, setTypeOptions] = useState<SelectOption[]>([]);
+  const [rawPriorityOptions, setRawPriorityOptions] = useState<SelectOption[]>([]);
+  const [rawTypeOptions, setRawTypeOptions] = useState<SelectOption[]>([]);
   const [isLoadingCodeMaster, setIsLoadingCodeMaster] = useState<boolean>(false);
 
   /**
-   * コードマスタから優先度・タイプを取得
+   * コードマスタから優先度・タイプを取得（生のi18nキーを保持）
    */
   useEffect(() => {
     const fetchCodeMasterOptions = async () => {
@@ -113,14 +113,12 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
           'instruction_priority',
           'instruction_type'
         ]);
-        
-        setPriorityOptions(options.instruction_priority || []);
-        setTypeOptions(options.instruction_type || []);
+        setRawPriorityOptions(options.instruction_priority || []);
+        setRawTypeOptions(options.instruction_type || []);
       } catch (error) {
         console.error('コードマスタ取得エラー:', error);
-        // フォールバック: 空配列（ハードコードされた値を使用）
-        setPriorityOptions([]);
-        setTypeOptions([]);
+        setRawPriorityOptions([]);
+        setRawTypeOptions([]);
       } finally {
         setIsLoadingCodeMaster(false);
       }
@@ -128,6 +126,10 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
 
     fetchCodeMasterOptions();
   }, []);
+
+  // ロケール変更時に再翻訳されるよう render 時に t() を適用
+  const priorityOptions = rawPriorityOptions.map((opt) => ({ ...opt, label: t(opt.label) }));
+  const typeOptions = rawTypeOptions.map((opt) => ({ ...opt, label: t(opt.label) }));
 
   /**
    * メソッド選択時にトランジションを動的にフィルタリング

@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getSelectOptions } from '@/services/codeMasterApiService';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { SelectOption } from '@/types/common';
 
 /**
@@ -45,9 +46,10 @@ export const useCodeMaster = (
   codeDivision: string,
   enabled: boolean = true
 ): UseCodeMasterResult => {
-  const [options, setOptions] = useState<SelectOption[]>([]);
+  const [rawOptions, setRawOptions] = useState<SelectOption[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const { t } = useLanguage();
 
   const fetchOptions = useCallback(async () => {
     if (!codeDivision) {
@@ -60,7 +62,7 @@ export const useCodeMaster = (
 
     try {
       const data = await getSelectOptions(codeDivision);
-      setOptions(data);
+      setRawOptions(data);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('コードマスター取得に失敗しました');
       setError(error);
@@ -75,6 +77,12 @@ export const useCodeMaster = (
       fetchOptions();
     }
   }, [codeDivision, enabled, fetchOptions]);
+
+  // labelがi18nキー形式（"codeMaster.xxx.yyy"）の場合は翻訳する
+  const options: SelectOption[] = rawOptions.map((opt) => ({
+    ...opt,
+    label: t(opt.label),
+  }));
 
   return {
     options,
