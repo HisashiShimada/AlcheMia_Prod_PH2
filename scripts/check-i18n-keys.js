@@ -128,10 +128,15 @@ function collectSourceFiles(dir) {
 // ハードコード検出結果: { filePath, lineNo, lineContent }[]
 const hardcodeFindings = [];
 
-// 検出パターン:
-//   message.(error|success|warning|info)(  で始まり、
+// 検出パターン1:
+//   message.(error|success|warning|info|loading)(  で始まり、
 //   その後に シングルクォート / ダブルクォート / テンプレートリテラル が続く
 const messageHardcodeRe = /message\s*\.\s*(error|success|warning|info|loading)\s*\(\s*(?:'[^']*'|"[^"]*"|`[^`]*`)/;
+
+// 検出パターン2:
+//   message.(error|success|warning|info|loading)( に続く第1引数が t() でない変数で、
+//   かつ || を含む（例: response.message || t('...')）
+const messageVarFallbackRe = /message\s*\.\s*(error|success|warning|info|loading)\s*\(\s*(?!t\()[a-zA-Z_$][a-zA-Z0-9_$.]*\s*\|\|/;
 
 // 除外キーワード（これを含む行は正しい形式とみなして除外）
 const excludeKeywords = [
@@ -149,17 +154,36 @@ for (const filePath of sourceFiles) {
   const lines = content.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (!messageHardcodeRe.test(line)) continue;
-    // 除外キーワードが含まれていればスキップ
-    if (excludeKeywords.some(kw => line.includes(kw))) continue;
     // コメント行はスキップ
     if (/^\s*(\/\/|\/\*)/.test(line)) continue;
 
-    hardcodeFindings.push({
-      filePath: path.relative(path.join(__dirname, '..'), filePath),
-      lineNo: i + 1,
-      lineContent: line.trim(),
-    });
+    // パターン1: message.xxx('固定文字列') の直接ハードコード
+    if (messageHardcodeRe.test(line)) {
+      // 除外キーワードが含まれていればスキップ
+      if (!excludeKeywords.some(kw => line.includes(kw))) {
+        hardcodeFindings.push({
+          filePath: path.relative(path.join(__dirname, '..'), filePath),
+          lineNo: i + 1,
+          lineContent: line.trim(),
+          reason: 'HARDCODE_LITERAL',
+        });
+        continue;
+      }
+    }
+
+    // パターン2: message.xxx(variable || ...) — 変数フォールバック（非i18nの可能性）
+    if (messageVarFallbackRe.test(line)) {
+      // extractErrorMessage / mapErrorToMessage / extractErrorCode を含む行は除外
+      const varFallbackExclude = ['extractErrorMessage', 'mapErrorToMessage', 'extractErrorCode'];
+      if (!varFallbackExclude.some(kw => line.includes(kw))) {
+        hardcodeFindings.push({
+          filePath: path.relative(path.join(__dirname, '..'), filePath),
+          lineNo: i + 1,
+          lineContent: line.trim(),
+          reason: 'VAR_FALLBACK',
+        });
+      }
+    }
   }
 }
 

@@ -487,7 +487,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       await refreshInstructions();
       
       onTasksChange?.(checkedTasks);
-      message.success(response.message || t('taskRegistration.messages.saved'));
+      message.success(t('taskRegistration.messages.saved'));
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : t('taskRegistration.messages.saveFailed') || 'Failed to save task';
