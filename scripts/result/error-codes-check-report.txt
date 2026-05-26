@@ -1,0 +1,1046 @@
+======================================================================
+エラーコード 相互チェック結果
+======================================================================
+実行日時: 2026/05/26 08:53:35
+
+【対象ファイル】
+  バックエンド定義:   backend/src/enums/errorCodes.ts
+  フロントエンド定義: frontend/src/utils/errorUtils.ts
+  日本語翻訳:         frontend/src/locales/ja.json
+  英語翻訳:           frontend/src/locales/en.json
+  バックエンドスキャン: backend/src/**/*.ts  (199 ファイル)
+  フロントエンドスキャン: frontend/src/**/*.ts,tsx  (244 ファイル)
+
+【統計情報】
+  バックエンド定義コード数:        57 件
+  フロントエンド定義コード数:      57 件
+  LEGACY_CODE_MAP キー数:         58 件
+  ERROR_CODE_TO_KEY エントリ数:   75 件
+    うち Exxxx 形式:              57 件
+    うちレガシー/内部コード:       18 件
+  ja.json errors.* キー数:        76 件
+  en.json errors.* キー数:        76 件
+
+  ⚠️  検出された問題の合計: 243 件
+
+======================================================================
+【1】バックエンド定義コード vs フロントエンド定数定義 の差分
+    （backend/src/enums/errorCodes.ts ↔ frontend/src/utils/errorUtils.ts）
+----------------------------------------------------------------------
+  バックエンドのみに存在（フロントエンド定数が未定義）: 0 件
+    （なし）
+
+  フロントエンドのみに存在（バックエンドに未定義）: 0 件
+    （なし）
+
+======================================================================
+【2】バックエンド定義コード vs ERROR_CODE_TO_KEY マッピング の差分
+----------------------------------------------------------------------
+  バックエンドに定義されているが ERROR_CODE_TO_KEY に未登録: 0 件
+    （なし）
+
+  ERROR_CODE_TO_KEY にあるがバックエンドに未定義の Exxxx コード: 0 件
+    （なし）
+
+======================================================================
+【3】ERROR_CODE_TO_KEY の翻訳キー vs ja.json の差分
+----------------------------------------------------------------------
+  ERROR_CODE_TO_KEY に登録されているが ja.json に未定義の翻訳キー: 0 件
+    （なし）
+
+======================================================================
+【4】ERROR_CODE_TO_KEY の翻訳キー vs en.json の差分
+----------------------------------------------------------------------
+  ERROR_CODE_TO_KEY に登録されているが en.json に未定義の翻訳キー: 0 件
+    （なし）
+
+======================================================================
+【5】ja.json の errors.* キー vs en.json の errors.* キー の差分
+----------------------------------------------------------------------
+  ja.json にあるが en.json に未定義: 0 件
+    （なし）
+
+  en.json にあるが ja.json に未定義: 0 件
+    （なし）
+
+======================================================================
+【6】ja.json の errors.Exxxx キーが ERROR_CODE_TO_KEY に未登録
+----------------------------------------------------------------------
+  件数: 0 件
+    （なし）
+
+======================================================================
+【7】en.json の errors.Exxxx キーが ERROR_CODE_TO_KEY に未登録
+----------------------------------------------------------------------
+  件数: 0 件
+    （なし）
+
+======================================================================
+【8】バックエンドソース内での旧コード（LEGACY_CODE_MAP キー）使用箇所
+    ※ 新コード（Exxxx 形式）に置き換えを推奨
+----------------------------------------------------------------------
+  検出件数: 116 件
+
+  📄 backend/src/controllers/authHelpers.ts
+    L 140: [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+           code: 'SYSTEM_JWT_GENERATION_FAILED',
+
+  📄 backend/src/controllers/progressController.ts
+    L 191: [旧] TASK_IN_PROGRESS → [新] E7007
+           const editableStatuses: number[] = [ProjectStatusEnum.TASK_PENDING, ProjectStatusEnum.TASK_IN_PROGRE
+    L 469: [旧] TASK_IN_PROGRESS → [新] E7007
+           const editableStatuses: number[] = [ProjectStatusEnum.TASK_PENDING, ProjectStatusEnum.TASK_IN_PROGRE
+
+  📄 backend/src/controllers/projectController.ts
+    L1416: [旧] PROJECT_NOT_FOUND → [新] E6001
+           if (code === 'PROJECT_NOT_FOUND') {
+    L1424: [旧] PROJECT_NOT_CHECKED_OUT → [新] E7002
+           if (code === 'PROJECT_NOT_CHECKED_OUT') {
+    L1432: [旧] PROJECT_STATUS_INVALID → [新] E7005
+           if (code === 'PROJECT_STATUS_INVALID' || code === 'E7005') {
+    L1440: [旧] TASKS_NOT_COMPLETED → [新] E7010
+           if (code === 'TASKS_NOT_COMPLETED') {
+    L1448: [旧] ALREADY_IN_PROGRESS → [新] E7011
+           if (code === 'ALREADY_IN_PROGRESS') {
+    L1456: [旧] MAIML_NOT_FOUND → [新] E6002
+           if (code === 'MAIML_NOT_FOUND') {
+    L1520: [旧] NOT_PUBLISHED → [新] E7012
+           if (code === 'NOT_PUBLISHED') {
+    L1523: [旧] NOT_PUBLISHED → [新] E7012
+           error: { code: 'NOT_PUBLISHED', message: '公開済みアセットが存在しません' },
+    L1528: [旧] ALREADY_IN_PROGRESS → [新] E7011
+           if (code === 'ALREADY_IN_PROGRESS') {
+    L1531: [旧] ALREADY_IN_PROGRESS → [新] E7011
+           error: { code: 'ALREADY_IN_PROGRESS', message: '既に処理中のジョブがあります' },
+
+  📄 backend/src/controllers/sessionController.ts
+    L  63: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           const statusCode = result.error?.code === 'SYSTEM_REDIS_ERROR' ? 503 : 500;
+    L 158: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           case 'SYSTEM_REDIS_ERROR':
+
+  📄 backend/src/enums/codeMaster.enum.ts
+    L  28: [旧] TASK_IN_PROGRESS → [新] E7007
+           TASK_IN_PROGRESS: 2,
+
+  📄 backend/src/repositories/organizationUserRepository.ts
+    L  64: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 107: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 151: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 196: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+
+  📄 backend/src/repositories/passwordResetTokenRepository.ts
+    L  53: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L  84: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+
+  📄 backend/src/repositories/userAuthenticationRepository.ts
+    L  55: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L  98: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 154: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+
+  📄 backend/src/services/authService.ts
+    L 322: [旧] SYSTEM_EMAIL_SEND_FAILED → [新] E4003
+           code: 'SYSTEM_EMAIL_SEND_FAILED',
+    L 470: [旧] AUTH_PIN_INVALID → [新] E5003
+           if (verifyResult.error?.code === 'AUTH_PIN_INVALID') {
+    L 543: [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+           code: 'SYSTEM_JWT_GENERATION_FAILED',
+    L 657: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 730: [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+           code: 'SYSTEM_JWT_GENERATION_FAILED',
+    L 915: [旧] AUTH_RESET_TOKEN_INVALID → [新] E5009
+           code: 'AUTH_RESET_TOKEN_INVALID',
+    L 930: [旧] AUTH_RESET_TOKEN_EXPIRED → [新] E5010
+           code: 'AUTH_RESET_TOKEN_EXPIRED',
+    L 941: [旧] AUTH_RESET_TOKEN_USED → [新] E5011
+           code: 'AUTH_RESET_TOKEN_USED',
+    L 971: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: updateResult.error?.code || 'SYSTEM_DATABASE_ERROR',
+
+  📄 backend/src/services/emailService.ts
+    L 240: [旧] SYSTEM_EMAIL_SEND_FAILED → [新] E4003
+           code: 'SYSTEM_EMAIL_SEND_FAILED',
+
+  📄 backend/src/services/jwtService.ts
+    L 114: [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+           code: 'SYSTEM_JWT_GENERATION_FAILED',
+    L 170: [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+           code: 'SYSTEM_JWT_GENERATION_FAILED',
+    L 221: [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+           code: 'SYSTEM_JWT_GENERATION_FAILED',
+
+  📄 backend/src/services/maimlPublishService.ts
+    L  62: [旧] PROJECT_NOT_FOUND → [新] E6001
+           throw new Error('PROJECT_NOT_FOUND');
+    L  69: [旧] PROJECT_NOT_CHECKED_OUT → [新] E7002
+           throw new Error('PROJECT_NOT_CHECKED_OUT');
+    L  76: [旧] PROJECT_STATUS_INVALID → [新] E7005
+           throw new Error('PROJECT_STATUS_INVALID');
+    L  89: [旧] TASKS_NOT_COMPLETED → [新] E7010
+           throw new Error('TASKS_NOT_COMPLETED');
+    L  97: [旧] ALREADY_IN_PROGRESS → [新] E7011
+           throw new Error('ALREADY_IN_PROGRESS');
+    L 107: [旧] MAIML_NOT_FOUND → [新] E6002
+           throw new Error('MAIML_NOT_FOUND');
+    L 187: [旧] PROJECT_NOT_FOUND → [新] E6001
+           throw new Error('PROJECT_NOT_FOUND');
+    L 194: [旧] NOT_PUBLISHED → [新] E7012
+           throw new Error('NOT_PUBLISHED');
+    L 200: [旧] ALREADY_IN_PROGRESS → [新] E7011
+           throw new Error('ALREADY_IN_PROGRESS');
+
+  📄 backend/src/services/passwordService.ts
+    L 136: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 186: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+
+  📄 backend/src/services/pinCodeService.ts
+    L  96: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 147: [旧] AUTH_PIN_INVALID → [新] E5003
+           code: 'AUTH_PIN_INVALID',
+    L 162: [旧] AUTH_PIN_EXPIRED → [新] E5004
+           code: 'AUTH_PIN_EXPIRED',
+    L 185: [旧] AUTH_PIN_INVALID → [新] E5003
+           code: 'AUTH_PIN_INVALID',
+    L 213: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 245: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 274: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 322: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 371: [旧] SYSTEM_EMAIL_SEND_FAILED → [新] E4003
+           code: 'SYSTEM_EMAIL_SEND_FAILED',
+    L 391: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+
+  📄 backend/src/services/pinExemptionService.ts
+    L 120: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+
+  📄 backend/src/services/progressService.ts
+    L 159: [旧] TASK_NOT_FOUND → [新] E7008
+           errorCode: 'TASK_NOT_FOUND',
+    L 166: [旧] TASK_NOT_FOUND → [新] E7008
+           code: 'TASK_NOT_FOUND',
+    L 206: [旧] METHOD_NOT_FOUND → [新] E7008
+           errorCode: 'METHOD_NOT_FOUND',
+    L 213: [旧] METHOD_NOT_FOUND → [新] E7008
+           code: 'METHOD_NOT_FOUND',
+    L 344: [旧] TASK_NOT_FOUND → [新] E7008
+           code: 'TASK_NOT_FOUND',
+    L 357: [旧] TASK_NOT_FOUND → [新] E7008
+           code: 'TASK_NOT_FOUND',
+    L 370: [旧] TASK_NOT_FOUND → [新] E7008
+           code: 'TASK_NOT_FOUND',
+    L 729: [旧] TASK_NOT_FOUND → [新] E7008
+           return { success: false, error: { code: 'TASK_NOT_FOUND', message: 'プロジェクトが見つかりません' } };
+
+  📄 backend/src/services/projectService.ts
+    L 110: [旧] BUSINESS_DUPLICATE_PROJECT_NAME → [新] E7001
+           code: 'BUSINESS_DUPLICATE_PROJECT_NAME',
+    L 204: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 251: [旧] RESOURCE_NOT_FOUND → [新] E6001
+           code: 'RESOURCE_NOT_FOUND',
+    L 263: [旧] BUSINESS_MAIML_FILE_EXISTS → [新] E7009
+           code: 'BUSINESS_MAIML_FILE_EXISTS',
+    L 328: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 407: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 578: [旧] PROJECT_ALREADY_CHECKED_OUT → [新] E7002
+           code: 'PROJECT_ALREADY_CHECKED_OUT',
+    L 638: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 750: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 808: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L1029: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L1083: [旧] TASK_IN_PROGRESS → [新] E7007
+           if (project.project_status !== ProjectStatusEnum.TASK_IN_PROGRESS) {
+    L1205: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L1371: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L1468: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L1668: [旧] FILE_NOT_FOUND → [新] E6002
+           code: 'FILE_NOT_FOUND',
+    L1702: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L1763: [旧] BUSINESS_ALREADY_ACKNOWLEDGED → [新] E7004
+           code: 'BUSINESS_ALREADY_ACKNOWLEDGED',
+    L1913: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L1980: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+
+  📄 backend/src/services/refreshTokenService.ts
+    L  56: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 109: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 140: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 171: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 199: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 223: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 252: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 280: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 306: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 360: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 389: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 410: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+
+  📄 backend/src/services/tempPasswordService.ts
+    L  96: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+    L 144: [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+           code: 'SYSTEM_DATABASE_ERROR',
+
+  📄 backend/src/services/tokenBlacklistService.ts
+    L  41: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L  65: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L  91: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 113: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 140: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 217: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 244: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+    L 265: [旧] SYSTEM_REDIS_ERROR → [新] E4005
+           code: 'SYSTEM_REDIS_ERROR',
+
+  📄 backend/src/types/progress.ts
+    L 113: [旧] TASK_NOT_FOUND → [新] E7008
+           | { code: 'TASK_NOT_FOUND'; message: string }
+    L 114: [旧] METHOD_NOT_FOUND → [新] E7008
+           | { code: 'METHOD_NOT_FOUND'; message: string }
+
+  📄 backend/src/types/validation.ts
+    L  23: [旧] VALIDATION_ERROR → [新] E1003
+           code: 'VALIDATION_ERROR';
+
+  📄 backend/src/utils/errorClasses.ts
+    L  89: [旧] PROJECT_NOT_FOUND → [新] E6001
+           public readonly code = 'PROJECT_NOT_FOUND';
+    L 137: [旧] TASK_NOT_FOUND → [新] E7008
+           public readonly code = 'TASK_NOT_FOUND';
+
+  📄 backend/src/utils/validation.ts
+    L  42: [旧] VALIDATION_INVALID_FORMAT → [新] E1005
+           code: 'VALIDATION_INVALID_FORMAT' as const,
+
+======================================================================
+【9】フロントエンドソース内での旧コード（LEGACY_CODE_MAP キー）使用箇所
+    ※ 新コード（Exxxx 形式）に置き換えを推奨
+----------------------------------------------------------------------
+  検出件数: 17 件
+
+  📄 frontend/src/components/ExperimentWorker/InstructionConfirmationTab.tsx
+    L 104: [旧] TASK_IN_PROGRESS → [新] E7007
+           const isTaskExecuting = projectStatusCode === ProjectStatusCode.TASK_IN_PROGRESS;
+
+  📄 frontend/src/components/project/MaimlUnpublishDialog.tsx
+    L  65: [旧] SYSTEM_ERROR → [新] E4001
+           const code = axiosErr?.response?.data?.error?.code ?? 'SYSTEM_ERROR';
+    L  75: [旧] SYSTEM_ERROR → [新] E4001
+           return msg === key ? t('maimlUnpublish.errors.SYSTEM_ERROR') : msg;
+
+  📄 frontend/src/components/project/ProjectFolderTree.tsx
+    L  53: [旧] TASK_IN_PROGRESS → [新] E7007
+           case ProjectStatus.TASK_IN_PROGRESS: return 'primary';
+    L  66: [旧] TASK_IN_PROGRESS → [新] E7007
+           case ProjectStatus.TASK_IN_PROGRESS: return t('projectManagement.status_in_progress');
+
+  📄 frontend/src/components/project/ProjectManagement.tsx
+    L 913: [旧] TASK_IN_PROGRESS → [新] E7007
+           case 'TASK_IN_PROGRESS':
+    L 929: [旧] PROJECT_ALREADY_CHECKED_OUT → [新] E7002
+           case 'PROJECT_ALREADY_CHECKED_OUT':
+    L 933: [旧] RESOURCE_NOT_FOUND → [新] E6001
+           case 'RESOURCE_NOT_FOUND':
+    L2015: [旧] TASK_IN_PROGRESS → [新] E7007
+           selectedProject.status === ProjectStatus.TASK_IN_PROGRESS ? 'cyan' :
+    L2025: [旧] TASK_IN_PROGRESS → [新] E7007
+           selectedProject.status === ProjectStatus.TASK_IN_PROGRESS ? t('projectManagement.status_in_progress'
+
+  📄 frontend/src/constants/__tests__/codeMaster.test.ts
+    L  38: [旧] TASK_IN_PROGRESS → [新] E7007
+           it('TASK_IN_PROGRESS は 2 である', () => {
+    L  39: [旧] TASK_IN_PROGRESS → [新] E7007
+           expect(ProjectStatus.TASK_IN_PROGRESS).toBe(2);
+    L 337: [旧] TASK_IN_PROGRESS → [新] E7007
+           expect(ProjectStatus.TASK_IN_PROGRESS).toBe(2);
+
+  📄 frontend/src/constants/codeMaster.ts
+    L  28: [旧] TASK_IN_PROGRESS → [新] E7007
+           TASK_IN_PROGRESS: 2,
+
+  📄 frontend/src/contexts/ProjectMaimlContext.tsx
+    L 112: [旧] FILE_NOT_FOUND → [新] E6002
+           if (response.error?.code === 'FILE_NOT_FOUND') {
+
+  📄 frontend/src/services/authService.ts
+    L 287: [旧] AUTH_TOKEN_INVALID → [新] E5002
+           throw new AuthServiceError(mapErrorToMessage('AUTH_TOKEN_INVALID'), 'AUTH_TOKEN_INVALID');
+
+  📄 frontend/src/types/__tests__/auth.test-d.ts
+    L 134: [旧] AUTH_INVALID_CREDENTIALS → [新] E5001
+           code: 'AUTH_INVALID_CREDENTIALS',
+
+======================================================================
+【10】バックエンドソースで使われているエラーコード文字列の未定義チェック
+     （code: 'XXXX' / errorCode: 'XXXX' パターンをスキャン）
+----------------------------------------------------------------------
+  10a) 未定義の Exxxx コード（errorCodes.ts に定義なし）: 0 件
+    （なし）
+
+  10b) LEGACY_CODE_MAP にも存在しないアドホックコード: 110 件
+       ※ LEGACY_CODE_MAP への追加 or 新 Exxxx コードへの置換を検討
+    📄 backend/src/controllers/authController.ts
+      L 541: [未列挙コード] AUTH_TOKEN_MISSING
+             code: 'AUTH_TOKEN_MISSING',
+
+    📄 backend/src/controllers/corporationController.ts
+      L  74: [未列挙コード] CORPORATION_NOT_FOUND
+             code: 'CORPORATION_NOT_FOUND',
+      L 151: [未列挙コード] CORPORATION_NOT_FOUND
+             code: 'CORPORATION_NOT_FOUND',
+      L 197: [未列挙コード] CORPORATION_NOT_FOUND
+             code: 'CORPORATION_NOT_FOUND',
+      L 233: [未列挙コード] FILE_REQUIRED
+             code: 'FILE_REQUIRED',
+
+    📄 backend/src/controllers/departmentControler.ts
+      L  82: [未列挙コード] DEPARTMENT_NOT_FOUND
+             code: 'DEPARTMENT_NOT_FOUND',
+      L 161: [未列挙コード] DEPARTMENT_NOT_FOUND
+             code: 'DEPARTMENT_NOT_FOUND',
+      L 209: [未列挙コード] DEPARTMENT_NOT_FOUND
+             code: 'DEPARTMENT_NOT_FOUND',
+      L 248: [未列挙コード] FILE_REQUIRED
+             code: 'FILE_REQUIRED',
+
+    📄 backend/src/controllers/experimentController.ts
+      L  86: [未列挙コード] ENDPOINT_DEPRECATED
+             code: 'ENDPOINT_DEPRECATED',
+
+    📄 backend/src/controllers/fileAccessController.ts
+      L 345: [未列挙コード] MAIML_VALIDATION_ERROR
+             code: 'MAIML_VALIDATION_ERROR',
+
+    📄 backend/src/controllers/issueController.ts
+      L 221: [未列挙コード] INVALID_FORMAT
+             code: 'INVALID_FORMAT',
+
+    📄 backend/src/controllers/maimlController.ts
+      L 377: [未列挙コード] DRAFT_NOT_FOUND
+             code: 'DRAFT_NOT_FOUND',
+      L 452: [未列挙コード] DRAFT_NOT_FOUND
+             code: 'DRAFT_NOT_FOUND',
+      L 499: [未列挙コード] FORBIDDEN
+             code: 'FORBIDDEN',
+      L 657: [未列挙コード] FORBIDDEN
+             code: 'FORBIDDEN',
+
+    📄 backend/src/controllers/masterController.ts
+      L 105: [未列挙コード] CREATOR_NOT_FOUND
+             code: 'CREATOR_NOT_FOUND',
+      L 202: [未列挙コード] INSTRUMENT_NOT_FOUND
+             code: 'INSTRUMENT_NOT_FOUND',
+      L 299: [未列挙コード] VENDOR_NOT_FOUND
+             code: 'VENDOR_NOT_FOUND',
+      L 382: [未列挙コード] INSTRUMENT_NOT_FOUND
+             code: 'INSTRUMENT_NOT_FOUND',
+      L 432: [未列挙コード] INSTRUMENT_NOT_FOUND
+             code: 'INSTRUMENT_NOT_FOUND',
+      L 510: [未列挙コード] VENDOR_NOT_FOUND
+             code: 'VENDOR_NOT_FOUND',
+      L 560: [未列挙コード] VENDOR_NOT_FOUND
+             code: 'VENDOR_NOT_FOUND',
+      L 641: [未列挙コード] CREATOR_NOT_FOUND
+             code: 'CREATOR_NOT_FOUND',
+      L 691: [未列挙コード] CREATOR_NOT_FOUND
+             code: 'CREATOR_NOT_FOUND',
+      L 731: [未列挙コード] FILE_REQUIRED
+             code: 'FILE_REQUIRED',
+      L 847: [未列挙コード] FILE_REQUIRED
+             code: 'FILE_REQUIRED',
+      L 965: [未列挙コード] FILE_REQUIRED
+             code: 'FILE_REQUIRED',
+
+    📄 backend/src/controllers/organizationController.ts
+      L  98: [未列挙コード] ORGANIZATION_NOT_FOUND
+             code: 'ORGANIZATION_NOT_FOUND',
+      L 172: [未列挙コード] ORGANIZATION_NOT_FOUND
+             code: 'ORGANIZATION_NOT_FOUND',
+      L 218: [未列挙コード] ORGANIZATION_NOT_FOUND
+             code: 'ORGANIZATION_NOT_FOUND',
+      L 280: [未列挙コード] FILE_REQUIRED
+             code: 'FILE_REQUIRED',
+      L 342: [未列挙コード] CERTIFICATE_NOT_FOUND
+             code: 'CERTIFICATE_NOT_FOUND',
+
+    📄 backend/src/controllers/roleController.ts
+      L  62: [未列挙コード] UNAUTHORIZED
+             code: 'UNAUTHORIZED',
+      L 190: [未列挙コード] UNAUTHORIZED
+             code: 'UNAUTHORIZED',
+      L 201: [未列挙コード] BAD_REQUEST
+             code: 'BAD_REQUEST',
+      L 249: [未列挙コード] ROLE_NOT_FOUND
+             code: 'ROLE_NOT_FOUND',
+      L 394: [未列挙コード] MISSING_FUNCTION_NAME
+             code: 'MISSING_FUNCTION_NAME',
+      L 454: [未列挙コード] INVALID_IS_ACTIVE
+             code: 'INVALID_IS_ACTIVE',
+
+    📄 backend/src/controllers/semanticSearchController.ts
+      L  62: [未列挙コード] INTERNAL_ERROR
+             error: { code: 'INTERNAL_ERROR', message },
+      L  91: [未列挙コード] INVALID_REQUEST
+             error: { code: 'INVALID_REQUEST', message: 'At least one query field is required' },
+      L 167: [未列挙コード] INVALID_REQUEST
+             error: { code: 'INVALID_REQUEST', message: 'filePath is required' },
+      L 201: [未列挙コード] INVALID_REQUEST
+             error: { code: 'INVALID_REQUEST', message: 'filePath is required' },
+      L 327: [未列挙コード] NOT_FOUND
+             error: { code: 'NOT_FOUND', message: 'ジョブが見つからないか、キャンセルできない状態です' },
+      L 357: [未列挙コード] INVALID_REQUEST
+             error: { code: 'INVALID_REQUEST', message: 'query is required' },
+
+    📄 backend/src/controllers/systemConfigController.ts
+      L  66: [未列挙コード] INVALID_CONFIG_KEY
+             code: 'INVALID_CONFIG_KEY',
+
+    📄 backend/src/controllers/userController.ts
+      L 101: [未列挙コード] USER_NOT_FOUND
+             code: 'USER_NOT_FOUND',
+      L 385: [未列挙コード] FILE_REQUIRED
+             code: 'FILE_REQUIRED',
+
+    📄 backend/src/middleware/authMiddleware.ts
+      L  39: [未列挙コード] AUTH_TOKEN_MISSING
+             code: 'AUTH_TOKEN_MISSING',
+      L  61: [未列挙コード] AUTH_TOKEN_MISSING
+             code: 'AUTH_TOKEN_MISSING',
+      L 102: [未列挙コード] AUTH_TOKEN_BLACKLISTED
+             code: 'AUTH_TOKEN_BLACKLISTED',
+
+    📄 backend/src/middleware/tenantIsolation.ts
+      L  41: [未列挙コード] AUTH_ORGANIZATION_MISSING
+             code: 'AUTH_ORGANIZATION_MISSING',
+
+    📄 backend/src/services/authService.ts
+      L 388: [未列挙コード] AUTH_INVALID_CURRENT_PASSWORD
+             code: 'AUTH_INVALID_CURRENT_PASSWORD',
+      L 684: [未列挙コード] AUTH_USER_NOT_FOUND
+             code: 'AUTH_USER_NOT_FOUND',
+
+    📄 backend/src/services/corporationService.ts
+      L 116: [未列挙コード] DUPLICATE_CORPORATION_NAME
+             error.code = 'DUPLICATE_CORPORATION_NAME';
+      L 160: [未列挙コード] DUPLICATE_CORPORATION_NAME
+             error.code = 'DUPLICATE_CORPORATION_NAME';
+
+    📄 backend/src/services/departmentService.ts
+      L 123: [未列挙コード] DUPLICATE_DEPARTMENT_CD
+             error.code = 'DUPLICATE_DEPARTMENT_CD';
+
+    📄 backend/src/services/emailService.ts
+      L 109: [未列挙コード] VALIDATION_INVALID_EMAIL
+             code: 'VALIDATION_INVALID_EMAIL',
+      L 145: [未列挙コード] VALIDATION_INVALID_EMAIL
+             code: 'VALIDATION_INVALID_EMAIL',
+      L 182: [未列挙コード] VALIDATION_INVALID_EMAIL
+             code: 'VALIDATION_INVALID_EMAIL',
+      L 192: [未列挙コード] VALIDATION_INVALID_TEMP_PASSWORD
+             code: 'VALIDATION_INVALID_TEMP_PASSWORD',
+      L 253: [未列挙コード] VALIDATION_INVALID_EMAIL
+             code: 'VALIDATION_INVALID_EMAIL',
+      L 260: [未列挙コード] VALIDATION_INVALID_PIN_CODE
+             code: 'VALIDATION_INVALID_PIN_CODE',
+
+    📄 backend/src/services/masterService.ts
+      L 230: [未列挙コード] DUPLICATE_CREATOR_ID
+             error.code = 'DUPLICATE_CREATOR_ID';
+      L 471: [未列挙コード] DUPLICATE_INSTRUMENT_ID
+             error.code = 'DUPLICATE_INSTRUMENT_ID';
+      L 568: [未列挙コード] DUPLICATE_VENDOR_ID
+             error.code = 'DUPLICATE_VENDOR_ID';
+      L1279: [未列挙コード] DUPLICATE_ATTRIBUTE_NAME
+             error.code = 'DUPLICATE_ATTRIBUTE_NAME';
+
+    📄 backend/src/services/organizationService.ts
+      L 208: [未列挙コード] DUPLICATE_ORGANIZATION_ID
+             error.code = 'DUPLICATE_ORGANIZATION_ID';
+      L 217: [未列挙コード] DUPLICATE_ORGANIZATION_CD
+             error.code = 'DUPLICATE_ORGANIZATION_CD';
+
+    📄 backend/src/services/passwordService.ts
+      L 117: [未列挙コード] USER_NOT_FOUND
+             code: 'USER_NOT_FOUND',
+      L 172: [未列挙コード] USER_NOT_FOUND
+             code: 'USER_NOT_FOUND',
+
+    📄 backend/src/services/pinCodeService.ts
+      L 308: [未列挙コード] PIN_NOT_FOUND
+             code: 'PIN_NOT_FOUND',
+
+    📄 backend/src/services/progressService.ts
+      L 293: [未列挙コード] DATABASE_ERROR
+             code: 'DATABASE_ERROR',
+      L 404: [未列挙コード] MAIML_PARSE_FAILED
+             code: 'MAIML_PARSE_FAILED',
+      L 431: [未列挙コード] MAIML_DOWNLOAD_FAILED
+             code: 'MAIML_DOWNLOAD_FAILED',
+      L 913: [未列挙コード] DATABASE_ERROR
+             error: { code: 'DATABASE_ERROR', message: 'データベースエラーが発生しました' }
+
+    📄 backend/src/services/projectService.ts
+      L 162: [未列挙コード] SYSTEM_S3_ERROR
+             code: 'SYSTEM_S3_ERROR',
+      L 460: [未列挙コード] CHECKOUT_NO_MAIML_FILE
+             code: 'CHECKOUT_NO_MAIML_FILE',
+      L 488: [未列挙コード] CHECKOUT_INVALID_STATUS
+             code: 'CHECKOUT_INVALID_STATUS',
+      L 514: [未列挙コード] CHECKOUT_NO_TASKS
+             code: 'CHECKOUT_NO_TASKS',
+      L 536: [未列挙コード] CHECKOUT_UNSENT_INSTRUCTIONS
+             code: 'CHECKOUT_UNSENT_INSTRUCTIONS',
+      L 700: [未列挙コード] TASK_NOT_COMPLETED
+             code: 'TASK_NOT_COMPLETED',
+      L1104: [未列挙コード] BUSINESS_STATUS_INVALID
+             code: 'BUSINESS_STATUS_INVALID',
+      L1685: [未列挙コード] SYSTEM_S3_ERROR
+             code: 'SYSTEM_S3_ERROR',
+
+    📄 backend/src/services/roleService.ts
+      L  99: [未列挙コード] DUPLICATE_ROLE_CD
+             code: 'DUPLICATE_ROLE_CD',
+      L 191: [未列挙コード] CSV_PARSE_ERROR
+             code: 'CSV_PARSE_ERROR',
+      L 202: [未列挙コード] EMPTY_CSV
+             code: 'EMPTY_CSV',
+      L 314: [未列挙コード] DUPLICATE_ROLE_CD
+             code: 'DUPLICATE_ROLE_CD',
+      L 367: [未列挙コード] FUNCTION_NOT_FOUND
+             code: 'FUNCTION_NOT_FOUND',
+      L 412: [未列挙コード] FUNCTION_NOT_FOUND
+             code: 'FUNCTION_NOT_FOUND',
+      L 448: [未列挙コード] TRANSACTION_ERROR
+             code: 'TRANSACTION_ERROR',
+
+    📄 backend/src/services/taskService.ts
+      L  67: [未列挙コード] INVALID_STATUS_TRANSITION
+             code: 'INVALID_STATUS_TRANSITION',
+      L  79: [未列挙コード] INVALID_STATUS_TRANSITION
+             code: 'INVALID_STATUS_TRANSITION',
+      L 100: [未列挙コード] INVALID_STATUS_TRANSITION
+             code: 'INVALID_STATUS_TRANSITION',
+      L 315: [未列挙コード] CONCURRENT_UPDATE_DETECTED
+             code: 'CONCURRENT_UPDATE_DETECTED',
+      L 393: [未列挙コード] DATABASE_ERROR
+             code: 'DATABASE_ERROR',
+
+    📄 backend/src/services/tempPasswordService.ts
+      L  85: [未列挙コード] RESOURCE_USER_NOT_FOUND
+             code: 'RESOURCE_USER_NOT_FOUND',
+
+    📄 backend/src/types/progress.ts
+      L 115: [未列挙コード] MAIML_DOWNLOAD_FAILED
+             | { code: 'MAIML_DOWNLOAD_FAILED'; message: string }
+      L 116: [未列挙コード] MAIML_PARSE_FAILED
+             | { code: 'MAIML_PARSE_FAILED'; message: string }
+      L 117: [未列挙コード] DATABASE_ERROR
+             | { code: 'DATABASE_ERROR'; message: string };
+
+    📄 backend/src/utils/errorClasses.ts
+      L  42: [未列挙コード] AUTHENTICATION_ERROR
+             public readonly code = 'AUTHENTICATION_ERROR';
+      L  56: [未列挙コード] AUTHORIZATION_ERROR
+             public readonly code = 'AUTHORIZATION_ERROR';
+      L  70: [未列挙コード] NOT_FOUND
+             public readonly code = 'NOT_FOUND';
+      L 110: [未列挙コード] PROJECT_NOT_EDITABLE
+             public readonly code = 'PROJECT_NOT_EDITABLE';
+      L 165: [未列挙コード] INVALID_STATUS_TRANSITION
+             public readonly code = 'INVALID_STATUS_TRANSITION';
+      L 206: [未列挙コード] DATABASE_ERROR
+             public readonly code = 'DATABASE_ERROR';
+      L 225: [未列挙コード] MAIML_PARSE_ERROR
+             public readonly code = 'MAIML_PARSE_ERROR';
+      L 247: [未列挙コード] CONFLICT
+             public readonly code = 'CONFLICT';
+      L 342: [未列挙コード] INTERNAL_SERVER_ERROR
+             code: 'INTERNAL_SERVER_ERROR',
+
+    📄 backend/src/utils/validation.ts
+      L  47: [未列挙コード] INVALID_FORMAT
+             code: 'INVALID_FORMAT' as const,
+
+
+  10c) 旧コード使用（LEGACY_CODE_MAP キーをレスポンスで直接使用）: 89 件
+       ※ チェック【8】の詳細と重複します
+    📄 backend/src/controllers/authHelpers.ts:140  [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+       code: 'SYSTEM_JWT_GENERATION_FAILED',
+    📄 backend/src/controllers/projectController.ts:1523  [旧] NOT_PUBLISHED → [新] E7012
+       error: { code: 'NOT_PUBLISHED', message: '公開済みアセットが存在しません' },
+    📄 backend/src/controllers/projectController.ts:1531  [旧] ALREADY_IN_PROGRESS → [新] E7011
+       error: { code: 'ALREADY_IN_PROGRESS', message: '既に処理中のジョブがあります' },
+    📄 backend/src/repositories/organizationUserRepository.ts:64  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/repositories/organizationUserRepository.ts:107  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/repositories/organizationUserRepository.ts:151  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/repositories/organizationUserRepository.ts:196  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/repositories/passwordResetTokenRepository.ts:53  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/repositories/passwordResetTokenRepository.ts:84  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/repositories/userAuthenticationRepository.ts:55  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/repositories/userAuthenticationRepository.ts:98  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/repositories/userAuthenticationRepository.ts:154  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/authService.ts:322  [旧] SYSTEM_EMAIL_SEND_FAILED → [新] E4003
+       code: 'SYSTEM_EMAIL_SEND_FAILED',
+    📄 backend/src/services/authService.ts:543  [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+       code: 'SYSTEM_JWT_GENERATION_FAILED',
+    📄 backend/src/services/authService.ts:657  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/authService.ts:730  [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+       code: 'SYSTEM_JWT_GENERATION_FAILED',
+    📄 backend/src/services/authService.ts:915  [旧] AUTH_RESET_TOKEN_INVALID → [新] E5009
+       code: 'AUTH_RESET_TOKEN_INVALID',
+    📄 backend/src/services/authService.ts:930  [旧] AUTH_RESET_TOKEN_EXPIRED → [新] E5010
+       code: 'AUTH_RESET_TOKEN_EXPIRED',
+    📄 backend/src/services/authService.ts:941  [旧] AUTH_RESET_TOKEN_USED → [新] E5011
+       code: 'AUTH_RESET_TOKEN_USED',
+    📄 backend/src/services/emailService.ts:240  [旧] SYSTEM_EMAIL_SEND_FAILED → [新] E4003
+       code: 'SYSTEM_EMAIL_SEND_FAILED',
+    📄 backend/src/services/jwtService.ts:114  [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+       code: 'SYSTEM_JWT_GENERATION_FAILED',
+    📄 backend/src/services/jwtService.ts:170  [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+       code: 'SYSTEM_JWT_GENERATION_FAILED',
+    📄 backend/src/services/jwtService.ts:221  [旧] SYSTEM_JWT_GENERATION_FAILED → [新] E4004
+       code: 'SYSTEM_JWT_GENERATION_FAILED',
+    📄 backend/src/services/passwordService.ts:136  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/passwordService.ts:186  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/pinCodeService.ts:96  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/pinCodeService.ts:147  [旧] AUTH_PIN_INVALID → [新] E5003
+       code: 'AUTH_PIN_INVALID',
+    📄 backend/src/services/pinCodeService.ts:162  [旧] AUTH_PIN_EXPIRED → [新] E5004
+       code: 'AUTH_PIN_EXPIRED',
+    📄 backend/src/services/pinCodeService.ts:185  [旧] AUTH_PIN_INVALID → [新] E5003
+       code: 'AUTH_PIN_INVALID',
+    📄 backend/src/services/pinCodeService.ts:213  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/pinCodeService.ts:245  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/pinCodeService.ts:274  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/pinCodeService.ts:322  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/pinCodeService.ts:371  [旧] SYSTEM_EMAIL_SEND_FAILED → [新] E4003
+       code: 'SYSTEM_EMAIL_SEND_FAILED',
+    📄 backend/src/services/pinCodeService.ts:391  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/pinExemptionService.ts:120  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/progressService.ts:166  [旧] TASK_NOT_FOUND → [新] E7008
+       code: 'TASK_NOT_FOUND',
+    📄 backend/src/services/progressService.ts:213  [旧] METHOD_NOT_FOUND → [新] E7008
+       code: 'METHOD_NOT_FOUND',
+    📄 backend/src/services/progressService.ts:344  [旧] TASK_NOT_FOUND → [新] E7008
+       code: 'TASK_NOT_FOUND',
+    📄 backend/src/services/progressService.ts:357  [旧] TASK_NOT_FOUND → [新] E7008
+       code: 'TASK_NOT_FOUND',
+    📄 backend/src/services/progressService.ts:370  [旧] TASK_NOT_FOUND → [新] E7008
+       code: 'TASK_NOT_FOUND',
+    📄 backend/src/services/progressService.ts:729  [旧] TASK_NOT_FOUND → [新] E7008
+       return { success: false, error: { code: 'TASK_NOT_FOUND', message: 'プロジェクトが見つかりません' } };
+    📄 backend/src/services/projectService.ts:110  [旧] BUSINESS_DUPLICATE_PROJECT_NAME → [新] E7001
+       code: 'BUSINESS_DUPLICATE_PROJECT_NAME',
+    📄 backend/src/services/projectService.ts:204  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:251  [旧] RESOURCE_NOT_FOUND → [新] E6001
+       code: 'RESOURCE_NOT_FOUND',
+    📄 backend/src/services/projectService.ts:263  [旧] BUSINESS_MAIML_FILE_EXISTS → [新] E7009
+       code: 'BUSINESS_MAIML_FILE_EXISTS',
+    📄 backend/src/services/projectService.ts:328  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:407  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:578  [旧] PROJECT_ALREADY_CHECKED_OUT → [新] E7002
+       code: 'PROJECT_ALREADY_CHECKED_OUT',
+    📄 backend/src/services/projectService.ts:638  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:750  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:808  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:1029  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:1205  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:1371  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:1468  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:1668  [旧] FILE_NOT_FOUND → [新] E6002
+       code: 'FILE_NOT_FOUND',
+    📄 backend/src/services/projectService.ts:1702  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:1763  [旧] BUSINESS_ALREADY_ACKNOWLEDGED → [新] E7004
+       code: 'BUSINESS_ALREADY_ACKNOWLEDGED',
+    📄 backend/src/services/projectService.ts:1913  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/projectService.ts:1980  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:56  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:109  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:140  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:171  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:199  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:223  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:252  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:280  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:306  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:360  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:389  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/refreshTokenService.ts:410  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/tempPasswordService.ts:96  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/tempPasswordService.ts:144  [旧] SYSTEM_DATABASE_ERROR → [新] E4002
+       code: 'SYSTEM_DATABASE_ERROR',
+    📄 backend/src/services/tokenBlacklistService.ts:41  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/tokenBlacklistService.ts:65  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/tokenBlacklistService.ts:91  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/tokenBlacklistService.ts:113  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/tokenBlacklistService.ts:140  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/tokenBlacklistService.ts:217  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/tokenBlacklistService.ts:244  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/services/tokenBlacklistService.ts:265  [旧] SYSTEM_REDIS_ERROR → [新] E4005
+       code: 'SYSTEM_REDIS_ERROR',
+    📄 backend/src/types/progress.ts:113  [旧] TASK_NOT_FOUND → [新] E7008
+       | { code: 'TASK_NOT_FOUND'; message: string }
+    📄 backend/src/types/progress.ts:114  [旧] METHOD_NOT_FOUND → [新] E7008
+       | { code: 'METHOD_NOT_FOUND'; message: string }
+    📄 backend/src/types/validation.ts:23  [旧] VALIDATION_ERROR → [新] E1003
+       code: 'VALIDATION_ERROR';
+    📄 backend/src/utils/errorClasses.ts:89  [旧] PROJECT_NOT_FOUND → [新] E6001
+       public readonly code = 'PROJECT_NOT_FOUND';
+    📄 backend/src/utils/errorClasses.ts:137  [旧] TASK_NOT_FOUND → [新] E7008
+       public readonly code = 'TASK_NOT_FOUND';
+    📄 backend/src/utils/validation.ts:42  [旧] VALIDATION_INVALID_FORMAT → [新] E1005
+       code: 'VALIDATION_INVALID_FORMAT' as const,
+
+======================================================================
+【参考】全エラーコード対照表
+----------------------------------------------------------------------
+  コード    | BE定義 | FE定数 | FEマッピング | ja.json | en.json
+  ---------------------------------------------------------------
+    E1001    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E1001
+    E1002    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E1002
+    E1003    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E1003
+    E1004    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E1004
+    E1005    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E1005
+    E1006    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E1006
+    E1007    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E1007
+    E1008    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E1008
+    E1009    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E1009
+    E2001    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E2001
+    E2002    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E2002
+    E2003    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E2003
+    E2004    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E2004
+    E3001    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E3001
+    E3002    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E3002
+    E3003    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E3003
+    E4001    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E4001
+    E4002    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E4002
+    E4003    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E4003
+    E4004    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E4004
+    E4005    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E4005
+    E4006    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E4006
+    E5001    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5001
+    E5002    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5002
+    E5003    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5003
+    E5004    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5004
+    E5005    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5005
+    E5006    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5006
+    E5007    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5007
+    E5008    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5008
+    E5009    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5009
+    E5010    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5010
+    E5011    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5011
+    E5012    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5012
+    E5013    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5013
+    E5014    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5014
+    E5015    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E5015
+    E6001    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E6001
+    E6002    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E6002
+    E6003    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E6003
+    E6004    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E6004
+    E6005    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E6005
+    E6006    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E6006
+    E7001    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7001
+    E7002    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7002
+    E7003    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7003
+    E7004    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7004
+    E7005    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7005
+    E7006    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7006
+    E7007    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7007
+    E7008    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7008
+    E7009    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7009
+    E7010    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7010
+    E7011    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7011
+    E7012    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7012
+    E7013    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E7013
+    E9999    | ✓      | ✓      | ✓            | ✓       | ✓  → errors.E9999
+
+======================================================================
+【参考】LEGACY_CODE_MAP（旧コード → 新コード 対応表）
+----------------------------------------------------------------------
+  旧コード                        → 新コード
+  --------------------------------------------------
+  VALIDATION_ERROR                 → E1003
+  VALIDATION_REQUIRED_FIELD        → E1004
+  REQUIRED_FIELD                   → E1004
+  VALIDATION_INVALID_FORMAT        → E1005
+  INVALID_FOLDER_NAME              → E1006
+  INVALID_FOLDER_NAME_LENGTH       → E1006
+  INVALID_SUBFOLDER_NAME           → E1007
+  INVALID_SUBFOLDER_NAME_LENGTH    → E1007
+  INVALID_CONTENT                  → E1008
+  FORMAT_NAME_REQUIRED             → E1009
+  SYSTEM_ERROR                     → E4001
+  SYSTEM_INTERNAL_ERROR            → E4001
+  SYSTEM_DATABASE_ERROR            → E4002
+  SYSTEM_EMAIL_SEND_FAILED         → E4003
+  SYSTEM_JWT_GENERATION_FAILED     → E4004
+  SYSTEM_REDIS_ERROR               → E4005
+  STORAGE_ERROR                    → E4006
+  AUTH_INVALID_CREDENTIALS         → E5001
+  AUTH_TOKEN_EXPIRED               → E5002
+  AUTH_TOKEN_INVALID               → E5002
+  AUTH_PIN_INVALID                 → E5003
+  AUTH_PIN_EXPIRED                 → E5004
+  AUTH_PIN_MAX_ATTEMPTS            → E5005
+  AUTH_ACCOUNT_DISABLED            → E5006
+  AUTH_RATE_LIMIT_EXCEEDED         → E5007
+  AUTH_RESEND_LIMIT_EXCEEDED       → E5008
+  AUTH_RESET_TOKEN_INVALID         → E5009
+  AUTH_RESET_TOKEN_EXPIRED         → E5010
+  AUTH_RESET_TOKEN_USED            → E5011
+  AUTH_FORBIDDEN                   → E5012
+  ACCESS_DENIED                    → E5012
+  AUTH_UNAUTHORIZED                → E5013
+  AUTH_REQUIRED                    → E5013
+  AUTH_SESSION_EXPIRED             → E5014
+  PERMISSION_INSUFFICIENT          → E5015
+  RESOURCE_NOT_FOUND               → E6001
+  FILE_NOT_FOUND                   → E6002
+  FOLDER_NOT_FOUND                 → E6003
+  PARENT_FOLDER_NOT_FOUND          → E6004
+  FILE_ALREADY_EXISTS              → E6005
+  FOLDER_ALREADY_EXISTS            → E6006
+  BUSINESS_DUPLICATE_PROJECT_NAME  → E7001
+  BUSINESS_PROJECT_CHECKED_OUT     → E7002
+  PROJECT_ALREADY_CHECKED_OUT      → E7002
+  BUSINESS_MAIML_NOT_REGISTERED    → E7003
+  BUSINESS_ALREADY_ACKNOWLEDGED    → E7004
+  PROJECT_STATUS_INVALID           → E7005
+  PROJECT_INSTRUCTION_NOT_FOUND    → E7006
+  TASK_IN_PROGRESS                 → E7007
+  TASK_NOT_FOUND                   → E7008
+  METHOD_NOT_FOUND                 → E7008
+  BUSINESS_MAIML_FILE_EXISTS       → E7009
+  TASKS_NOT_COMPLETED              → E7010
+  ALREADY_IN_PROGRESS              → E7011
+  NOT_PUBLISHED                    → E7012
+  PROJECT_NOT_FOUND                → E6001
+  PROJECT_NOT_CHECKED_OUT          → E7002
+  MAIML_NOT_FOUND                  → E6002
+
+======================================================================
+【参考】ERROR_CODE_TO_KEY 中のレガシー・内部コード一覧（Exxxx 以外）
+----------------------------------------------------------------------
+  AUTH_PIN_INVALID               → errors.AUTH_PIN_INVALID  (ja:✓ en:✓)
+  PIN_VERIFY_FAILED              → errors.PIN_VERIFY_FAILED  (ja:✓ en:✓)
+  PIN_RESEND_FAILED              → errors.PIN_RESEND_FAILED  (ja:✓ en:✓)
+  AUTH_TOKEN_INVALID             → errors.AUTH_TOKEN_INVALID  (ja:✓ en:✓)
+  LOGOUT_FAILED                  → errors.LOGOUT_FAILED  (ja:✓ en:✓)
+  RESET_REQUEST_FAILED           → errors.RESET_REQUEST_FAILED  (ja:✓ en:✓)
+  RESET_FAILED                   → errors.RESET_FAILED  (ja:✓ en:✓)
+  CHANGE_PASSWORD_FAILED         → errors.CHANGE_PASSWORD_FAILED  (ja:✓ en:✓)
+  CHECKOUT_NO_MAIML_FILE         → errors.CHECKOUT_NO_MAIML_FILE  (ja:✓ en:✓)
+  CHECKOUT_INVALID_STATUS        → errors.CHECKOUT_INVALID_STATUS  (ja:✓ en:✓)
+  CHECKOUT_NO_TASKS              → errors.CHECKOUT_NO_TASKS  (ja:✓ en:✓)
+  CHECKOUT_UNSENT_INSTRUCTIONS   → errors.CHECKOUT_UNSENT_INSTRUCTIONS  (ja:✓ en:✓)
+  TASK_NOT_COMPLETED             → errors.TASK_NOT_COMPLETED  (ja:✓ en:✓)
+  BUSINESS_MAIML_FILE_EXISTS     → errors.BUSINESS_MAIML_FILE_EXISTS  (ja:✓ en:✓)
+  PROJECT_ALREADY_CHECKED_OUT    → errors.PROJECT_ALREADY_CHECKED_OUT  (ja:✓ en:✓)
+  DUPLICATE_CORPORATION_NAME     → errors.DUPLICATE_CORPORATION_NAME  (ja:✓ en:✓)
+  USER_ALREADY_EXISTS            → errors.USER_ALREADY_EXISTS  (ja:✓ en:✓)
+  DUPLICATE_ROLE_CD              → errors.DUPLICATE_ROLE_CD  (ja:✓ en:✓)
+
+======================================================================
+チェック完了  問題合計: 243 件
+======================================================================

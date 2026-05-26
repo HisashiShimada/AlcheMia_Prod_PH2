@@ -1096,7 +1096,7 @@ export default function DataRecordDialog({
           }
         } catch (uploadErr) {
           console.error(`非カスタム insertion ファイルアップロード失敗 (insIdx=${insIdx}):`, uploadErr);
-          message.error(`添付ファイルのアップロードに失敗しました（insertion #${insIdx + 1}）`);
+          message.error(t('dataRecordDialog.attachmentUploadError', { number: String(insIdx + 1) }));
           return;
         }
       }
@@ -1142,7 +1142,7 @@ export default function DataRecordDialog({
               }
             } catch (uploadErr) {
             console.error(`insertion ファイルアップロード失敗 (key=${cp.key}):`, uploadErr);
-            message.error(`ファイルのアップロードに失敗しました: ${cp.key || cp.value}`);
+            message.error(t('dataRecordDialog.fileUploadError', { key: String(cp.key || cp.value) }));
             return; // アップロード失敗時は保存中断
           }
         }
@@ -1801,9 +1801,8 @@ export default function DataRecordDialog({
       >
         <Upload
           maxCount={1}
-          beforeUpload={(file) => {
+          beforeUpload={() => {
             // TODO: S3アップロード処理を実装
-            message.info(`${file.name}をアップロードします（未実装）`);
             return false;
           }}
           disabled={!isProjectEditable}
@@ -2451,9 +2450,9 @@ export default function DataRecordDialog({
                           const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
                           const serverMessage = axiosError?.response?.data?.error?.message;
                           if (serverMessage) {
-                            message.error(`更新に失敗しました: ${serverMessage}`);
+                            message.error(t('dataRecordDialog.updateError', { message: serverMessage }));
                           } else if (axiosError?.message) {
-                            message.error(`更新に失敗しました: ${axiosError.message}`);
+                            message.error(t('dataRecordDialog.updateError', { message: axiosError.message }));
                           } else {
                             message.error(extractErrorMessage(error));
                           }

@@ -242,6 +242,10 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   E7006: 'errors.E7006',
   E7007: 'errors.E7007',
   E7008: 'errors.E7008',
+  E7009: 'errors.E7009',
+  E7010: 'errors.E7010',
+  E7011: 'errors.E7011',
+  E7012: 'errors.E7012',
   E7013: 'errors.E7013',
 
   // ===== E9xxx: UNKNOWN =====

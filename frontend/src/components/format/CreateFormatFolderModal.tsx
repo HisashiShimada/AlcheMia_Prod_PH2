@@ -49,7 +49,7 @@ const CreateFormatFolderModal: React.FC<CreateFormatFolderModalProps> = ({
       const values = await form.validateFields();
       
       if (!formatId) {
-        message.error('フォーマットが選択されていません');
+        message.error(t('upload.noFormatSelectedAlert'));
         return;
       }
 
