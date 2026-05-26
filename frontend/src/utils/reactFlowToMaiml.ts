@@ -836,7 +836,7 @@ export async function convertReactFlowToMaiML(
   // documentDataからIDを取得（優先）、なければ元構造、最後にデフォルト値
   const protocolId = documentData?.protocolId|| 'protocolID';
   const methodId = documentData?.methodId|| 'methodID';
-  const pnmlId = documentData?.pnmlId|| `pnml_${methodId}`;
+  const pnmlId = `pnml_${methodId}`;
   const pnmlName = `${fileName}_${methodId}`;
   const pnmlDescription ='';
   const programId = `program_${methodId}`;
@@ -867,8 +867,6 @@ export async function convertReactFlowToMaiML(
       date: new Date().toISOString(),
       protocolId,
       methodId,
-      pnmlId,
-      programId,
       creators: [],
       vendors: [],
       owners: [],

@@ -40,8 +40,8 @@ export interface UsePublishStatusPollerOptions {
  * const { start, stop, isPolling } = usePublishStatusPoller({
  *   projectId,
  *   onComplete: (status) => {
- *     if (status.status === 'done') message.success('公開が完了しました');
- *     else message.error(status.error_message ?? '公開に失敗しました');
+ *     if (status.status === 'done') message.success(t('project.publishSuccess', { name: projectName }));
+ *     else message.error(status.error_message ?? t('errors.E4001'));
  *     refreshProjectStatus();
  *   },
  * });

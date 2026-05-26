@@ -14,6 +14,7 @@ import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import { ProjectStatusEnum, CheckoutStatusEnum, InstructionTargetEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
+import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
@@ -472,15 +473,13 @@ export class ProjectService {
       const allowedStatuses = [ProjectStatusEnum.PLANNING, ProjectStatusEnum.REVIEW_WAITING, ProjectStatusEnum.ERROR];
       if (!allowedStatuses.includes((project.project_status ?? -1) as typeof ProjectStatusEnum.PLANNING)) {
         await client.query('ROLLBACK');
-        const statusNames: { [key: number]: string } = {
-          0: 'プロジェクト計画中',
-          1: 'タスク実行待ち',
-          2: 'タスク実行中',
-          3: 'タスク結果レビュー待ち',
-          4: 'プロジェクト完了',
-          5: 'タスク異常終了',
-        };
-        const currentStatusName = statusNames[project.project_status ?? -1] || '不明';
+        // code_master から現在ステータスの日本語名称を取得（code_remark に日本語値を保存）
+        const statusMaster = await codeMasterRepository.findByValue(
+          organizationId,
+          'project_status',
+          String(project.project_status ?? -1)
+        );
+        const currentStatusName = statusMaster?.code_remark || statusMaster?.code_name || '不明';
 
         return {
           success: false,

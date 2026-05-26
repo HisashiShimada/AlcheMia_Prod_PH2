@@ -59,7 +59,7 @@ import { addEdge } from 'reactflow';
 import 'reactflow/dist/style.css';
 // Phase 2: maimlParserTyped導入
 import { MaimlParserTyped } from '../../utils/maimlParserTyped';
-import type { Template, PlaceRef as XsdPlaceRef, Method, Property, Document as MaimlDocument, Protocol, Method } from '../../types/maiml-unified';
+import type { Template, PlaceRef as XsdPlaceRef, Method, Property, Document as MaimlDocument, Protocol } from '../../types/maiml-unified';
 // Owner初期値生成用
 import { generateInitialDocumentData, generateInitialMethod } from '../../utils/documentInitializer';
 // 型定義をインポート
@@ -782,8 +782,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           console.log('📋 [PetriNetEditorInner] 共通テンプレート一覧 (型安全):', Array.from(commonTemplateIds));
           console.log('🔗 [PetriNetEditorInner] 参照関係マップ:', commonTemplateRefMap);
           
-          let extractProtocol : Protocol = null;
-          let extractFirstMethods : Method = null;
+          let extractProtocol : Protocol | null = null;
+          let extractFirstMethods : Method | null = null;
           let extractedDoc: MaimlDocument | null = null;
           try {
             extractProtocol = parser.getProtocol();
