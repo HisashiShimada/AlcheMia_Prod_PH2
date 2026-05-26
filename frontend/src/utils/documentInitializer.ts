@@ -136,8 +136,6 @@ export const generateInitialDocumentData = (
     documentId: documentData.id,
     protocolId: documentData.protocolId,
     methodId: documentData.methodId,
-    pnmlId: documentData.pnmlId,
-    programId: documentData.programId,
     name: documentData.name,
     ownersCount: documentData.owners.length
   });

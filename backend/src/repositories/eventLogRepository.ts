@@ -287,15 +287,17 @@ export class EventLogRepository {
         findByDivision(organizationId, 'instruction_target'),
       ]);
 
-      // code_value（文字列）→ code_name のマップを構築
+      // code_value（文字列）→ 日本語ラベル のマップを構築
+      // code_remark に日本語コード名称が設定されている（暫定対応）
+      // code_remark が空の場合は code_name にフォールバック
       const priorityLabelMap: Record<number, string> = Object.fromEntries(
-        priorityMasters.map(m => [Number(m.code_value), m.code_name])
+        priorityMasters.map(m => [Number(m.code_value), m.code_remark || m.code_name])
       );
       const typeLabelMap: Record<number, string> = Object.fromEntries(
-        typeMasters.map(m => [Number(m.code_value), m.code_name])
+        typeMasters.map(m => [Number(m.code_value), m.code_remark || m.code_name])
       );
       const targetLabelMap: Record<number, string> = Object.fromEntries(
-        targetMasters.map(m => [Number(m.code_value), m.code_name])
+        targetMasters.map(m => [Number(m.code_value), m.code_remark || m.code_name])
       );
 
       // instruction_target に応じた JSON 構造を構築

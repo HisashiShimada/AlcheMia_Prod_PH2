@@ -639,8 +639,8 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
               '0'
             );
 
-            const currentStatusName = currentStatusMaster?.code_name;
-            const requiredStatusName = requiredStatusMaster?.code_name;
+            const currentStatusName = currentStatusMaster?.code_remark || currentStatusMaster?.code_name;
+            const requiredStatusName = requiredStatusMaster?.code_remark || requiredStatusMaster?.code_name;
 
             console.log('❌ [File Delete] project_statusチェック失敗:', {
               currentStatus: projectInfo.project_status,

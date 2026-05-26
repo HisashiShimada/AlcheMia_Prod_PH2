@@ -37,9 +37,10 @@ export async function getSelectOptions(
     );
 
     // code_masterのデータをSelectOption形式に変換
+    // labelはi18nキーとして組み立て: codeMaster.{code_division}.{code_name}
     const options: SelectOption[] = codeMasters.map((cm) => ({
       value: isNaN(Number(cm.code_value)) ? cm.code_value : Number(cm.code_value),
-      label: cm.code_name,
+      label: `codeMaster.${cm.code_division}.${cm.code_name}`,
     }));
 
     logger.info('Code master options retrieved', {
