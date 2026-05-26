@@ -45,16 +45,24 @@ cd /home/ssv/projects/mmdpf
 ## STEP 1: ビルド確認
 
 ### 1-1. 最新コードの取得
-対象はmainブランチ
+mainブランチをプルして新ブランチを作成する
 
 > 🖥️ **実行環境**: WSL（ローカル開発PC）
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
 
 ```bash
+# main ブランチに切り替え・最新コードを取得
+git checkout main
 git pull
+
+# 新ブランチを作成して切り替え（日付とバージョン番号を変更して入力）
+git checkout -b release_YYYYMMDD_vXX.XX.XX
 ```
 
-> ✅ **成功時の表示**: `Already up to date.` または差分ファイルの更新ログが表示される
+> **例:** `git checkout -b release_20260526_v00.00.08`
+
+> ✅ **成功時の表示（pull）**: `Already up to date.` または差分ファイルの更新ログが表示される
+> ✅ **成功時の表示（checkout -b）**: `Switched to a new branch 'release_YYYYMMDD_vXX.XX.XX'` が表示される
 
 ### 1-2. ビルド確認
 
@@ -87,7 +95,8 @@ git pull
 
 ### チェックリスト
 
-- [ ] `git pull` で最新コードを取得した
+- [ ] `git checkout main` + `git pull` で main の最新コードを取得した
+- [ ] `git checkout -b release_YYYYMMDD_vXX.XX.XX` で新ブランチを作成した
 - [ ] バックエンド `npm install` が `added XXX packages` または `up to date` で完了した（`npm error` なし）
 - [ ] フロントエンド `npm install` が `added XXX packages` または `up to date` で完了した（`npm error` なし）
 - [ ] バックエンド `npm run build` が **TypeScript エラー 0件** で完了した（出力に `error TS` が含まれない）
@@ -122,21 +131,25 @@ git log --oneline -20
 **① リリースタグ一覧を確認する**
 
 ```bash
-git tag -l "release-*" --sort=-creatordate | head -5
+git tag -l "release*" --sort=-creatordate | head -5
 ```
 
-> ✅ 新しい順にタグが表示される。**2番目**が前回のタグ
+> ✅ 新しい順にタグが表示される。**1番目**が前回のタグ
 
 > **出力例:**
 > ```
-> release-20260519-v00.00.07   ← 今回のタグ
-> release-20260513-v00.00.06   ← 前回のタグ
+> release-20260519-v00.00.07   ← 前回のタグ
+> release-20260513-v00.00.06   ← 前々回のタグ
 > ```
+
+> **今回のタグは存在しない（新規作成する）。**  
+> 1番目のタグのバージョン番号を +1 し、日付を今日の日付にして今回のタグ名を決める。  
+> 例: `release-20260519-v00.00.07` の次 → `release-20260525-v00.00.08`
 
 | 項目 | 値（実行後に記入） |
 |------|-----------------|
-| 今回のタグ（1番目） | |
-| 前回のタグ（2番目） | |
+| 前回のタグ（1番目） | |
+| 今回のタグ（新規作成・日付+バージョン+1） | |
 
 > **タグが1件しかない場合（初回デプロイ）:** ② をスキップして以下を実行し、表示された値を「前回のタグのコミットハッシュ」欄に記入する
 > ```bash
@@ -146,10 +159,10 @@ git tag -l "release-*" --sort=-creatordate | head -5
 **② 前回のタグのコミットハッシュを取得する（`--from-commit` に使用）**
 
 ```bash
-git rev-list -n 1 <前回のタグ名>
+git rev-parse --short <前回のタグ名>
 ```
 
-> ✅ 40桁のハッシュが1行表示される
+> ✅ 短縮ハッシュ（7桁）が1行表示される
 
 | 項目 | 値（実行後に記入） |
 |------|-----------------|
@@ -170,7 +183,7 @@ STEP 2-1・2-2 で確認した値を以下に当てはめて実行する。
 |-----------|-----------|
 | `--to-commit` | STEP 2-1 の `git log` で確認した**一番上のコミットハッシュ** |
 | `--from-commit` | STEP 2-2 ② で確認した**前回のタグのコミットハッシュ**（初回デプロイの場合は `git rev-list --max-parents=0 HEAD` で取得したハッシュ） |
-| `--tag` | STEP 2-2 ① で確認した**今回のタグ名（1番目）** ※コミットハッシュではなくタグ名を指定すること |
+| `--tag` | STEP 2-2 ① で新規作成した**今回のタグ名**（バージョン+1・日付を今日にして作成） ※コミットハッシュではなくタグ名を指定すること |
 
 > 🖥️ **実行環境**: WSL（ローカル開発PC）
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
@@ -247,7 +260,7 @@ Skillにリリースノート作成を登録しているので、clineに作成�
 
 `docs/` 配下（サブフォルダ含む）に残っているタスク計画書（`PLAN.md` 等）を削除する
 
-### 4-1. 移動対象の確認
+### 4-1. 削除対象の確認
 
 > 🖥️ **実行環境**: WSL（ローカル開発PC）
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
@@ -278,12 +291,12 @@ rm -rf docs/[0-9]*/
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
 
 ```bash
-git add docs/[0-9]*/
-git commit -m "chore: remove task plans"
+git add -u docs/
+git commit -m "タスク計画書の削除"
 git push
 ```
 
-> ✅ **成功時の表示**: `git push` 完了後に `main -> main` などのブランチ名と共に push 完了メッセージが表示される
+> ✅ **成功時の表示**: `git push` 完了後に `release_YYYYMMDD_vXX.XX.XX -> release_YYYYMMDD_vXX.XX.XX` などのリリースブランチ名と共に push 完了メッセージが表示される
 
 ### 4-4. リリース対象コミットの更新
 
@@ -544,9 +557,12 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 ---
 
 との認識ですが、過不足あれば連絡ください。
+
+デプロイ完了のアナウンスまで、mainブランチへのマージはお控えください。
  
 また、デプロイ後にアナウンスするので、
 各自検証環境にて対応箇所を確認して、問題ないかどうかを連絡ください。
+ 
 ```
 
 ### チェックリスト
@@ -567,7 +583,7 @@ cat aws/ecs-task-definition-alchemia-backend.json | grep -A1 '"name":'
 
 島田様、山田様
 
-お世話になっております。ソフトサービス大森です。
+お世話になっております。ソフトサービス〇〇です。
 
 これから検証環境へのデプロイを実施します。
 
@@ -631,8 +647,15 @@ git push
 
 ### 10-3. ソースコードのフェッチ、プル
 
-> 🖥️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）に SSH ログインして実行
+> 📖 踏み台サーバーへの SSH 接続手順は [`bastion-ssh.md`](./bastion-ssh.md) を参照
+
+> ️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）に SSH ログインして実行
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
+
+```bash
+git fetch
+git pull
+```
 
 > ✅ **成功時の表示**: `Already up to date.` または最新コミットの差分が表示される
 
@@ -649,19 +672,22 @@ git push
 
 > ✅ **成功時の表示**: `✅ [prod-verification] デプロイ完了！` が表示される
 
-#### ケース B: DBマイグレーション付きフルデプロイ
+#### ケース B: DBマイグレーションありの場合
+
+ケース A（フルデプロイ）でアプリケーションをデプロイした後、A5M2 で SQL を手動実行する。  
+**SQL 実行前に必ずバックアップを取得すること。**
 
 > 🖥️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
 
-```bash
-export DB_HOST=YOUR_AURORA_ENDPOINT.cluster-xxxxxxxxxx.ap-northeast-1.rds.amazonaws.com
-export DB_PASSWORD=YOUR_DB_PASSWORD
+**① ケース A でフルデプロイを実行する**
 
-./scripts/alchemia-staging/deploy.ecr.phase1.sh --migrate
-```
+**② 対象テーブルのバックアップを取得する**
+（A5M2 で対象テーブルを右クリック → CSV/INSERT文等でエクスポート）
 
-> ✅ **成功時の表示**: マイグレーション完了後に `✅ Alchemia Staging ECR デプロイ完了！` が表示される
+**③ A5M2 でマイグレーション SQL を実行する**
+- A5M2 で検証環境のDB に接続（踏み台ポートフォワード経由）
+- `backend/migrations/` 配下の対象 SQL ファイルを開いて実行する
 
 #### ケース C: バックエンドのみデプロイ
 
@@ -669,7 +695,7 @@ export DB_PASSWORD=YOUR_DB_PASSWORD
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
 
 ```bash
-./scripts/alchemia-staging/deploy.ecr.phase1.sh --backend
+./scripts/alchemia-staging/deploy.prod-verification.sh --backend
 ```
 
 > ✅ **成功時の表示**: `✅ Alchemia Staging ECR デプロイ完了！` が表示される
@@ -680,7 +706,7 @@ export DB_PASSWORD=YOUR_DB_PASSWORD
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
 
 ```bash
-./scripts/alchemia-staging/deploy.ecr.phase1.sh --nginx
+./scripts/alchemia-staging/deploy.prod-verification.sh --nginx
 ```
 
 > ✅ **成功時の表示**: `✅ Alchemia Staging ECR デプロイ完了！` が表示される
@@ -691,7 +717,7 @@ export DB_PASSWORD=YOUR_DB_PASSWORD
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
 
 ```bash
-./scripts/alchemia-staging/deploy.ecr.phase1.sh --wait
+./scripts/alchemia-staging/deploy.prod-verification.sh --wait
 ```
 
 > ✅ **成功時の表示**: ECS サービスが安定状態になるまで待機し、`✅ Alchemia Staging ECR デプロイ完了！` が表示される
@@ -851,18 +877,14 @@ aws logs tail /ecs/alchemia-nginx --region ap-northeast-1 --since 10m
 
 ### 11-6. 完了アナウンス
 
-Slack でデプロイ完了を通知する。
+Teams でデプロイ完了を通知する。
 
 ```
-【検証環境デプロイ完了】
-alchemia-staging へのデプロイが完了しました。
-動作確認をお願いします。
-
-■ 今回のリリース内容
-  - （主な変更点）
-
-■ リリースノート
-  docs/deliverables/release_notes_YYYYMMDD.md
+デプロイ完了しました。
+お手数ですが、各自issueの動作確認をお願いします。
+ 
+検証環境で確認ができましたら連絡をください。
+島田さんにデプロイ完了の報告をします
 ```
 
 ### チェックリスト
@@ -875,7 +897,7 @@ alchemia-staging へのデプロイが完了しました。
 - [ ] `GET /api/health` が `{"status":"ok"}` を返すことを確認した
 - [ ] CloudWatch Logs に ERROR が出ていないことを確認した
 - [ ] ブラウザでログイン・主要機能の動作を確認した
-- [ ] Slack でデプロイ完了をアナウンスした
+- [ ] Teams でデプロイ完了をアナウンスした
 
 ---
 
@@ -922,7 +944,7 @@ STEP 11: 動作確認
   - [ ] ECS サービス状態を確認した
   - [ ] スキーマ差分チェック（dump-dev / dump-staging → diff）を実施した
   - [ ] ヘルスチェック・ログ・ブラウザ動作を確認した
-  - [ ] Slack でデプロイ完了をアナウンスした
+  - [ ] Teams でデプロイ完了をアナウンスした
 ```
 
 ---
