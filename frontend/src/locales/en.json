@@ -2694,5 +2694,61 @@
     "nodeIdEmpty": "Node ID cannot be empty",
     "deleteNodeConfirm": "Confirm Node Deletion",
     "deleteEdgeConfirm": "Confirm Edge Deletion"
+  },
+  "codeMaster": {
+    "checkout_status": {
+      "checkedIn": "Checked In",
+      "checkedOut": "Checked Out"
+    },
+    "experiment_condition": {
+      "allSameCondition": "All Same Condition",
+      "individualCondition": "Individual Conditions per Experiment"
+    },
+    "instruction_priority": {
+      "low": "Low",
+      "normal": "Normal",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "instruction_status": {
+      "unsent": "Unsent",
+      "sent": "Sent"
+    },
+    "instruction_target": {
+      "entireFile": "Entire File",
+      "specificTask": "Specific Task",
+      "specificTransition": "Specific Transition"
+    },
+    "instruction_type": {
+      "general": "General",
+      "setup": "Setup",
+      "measurement": "Measurement",
+      "safety": "Safety",
+      "cleaning": "Cleaning"
+    },
+    "issue_type": {
+      "materialShortage": "Material Shortage",
+      "equipmentFailure": "Equipment Failure",
+      "unclearProcedure": "Unclear Procedure",
+      "safetyConcern": "Safety Concern",
+      "qualityIssue": "Quality Issue",
+      "timeConstraint": "Time Constraint",
+      "other": "Other"
+    },
+    "project_status": {
+      "planning": "Planning",
+      "taskPending": "Task Pending",
+      "taskInProgress": "Task In Progress",
+      "reviewPending": "Review Pending",
+      "completed": "Completed",
+      "taskFailed": "Task Failed"
+    },
+    "task_status": {
+      "pending": "Pending",
+      "inProgress": "In Progress",
+      "reviewPending": "Review Pending",
+      "completed": "Completed",
+      "failed": "Failed"
+    }
   }
 }
