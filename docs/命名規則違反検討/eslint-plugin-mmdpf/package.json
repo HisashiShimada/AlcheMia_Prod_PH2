@@ -1,0 +1,8 @@
+{
+  "name": "eslint-plugin-mmdpf",
+  "version": "1.0.0",
+  "description": "mmdpfプロジェクト用カスタムESLintプラグイン（const命名規則強制）",
+  "main": "index.js",
+  "license": "UNLICENSED",
+  "private": true
+}
