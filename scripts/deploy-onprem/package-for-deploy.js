@@ -207,8 +207,8 @@ for (const srcFile of migrationFiles) {
 success('コピー: backend/migrations/*.sql');
 
 // ⑧ 起動スクリプト
-copyFile('scripts/start-onprem.sh', path.join(TMP_PKG, 'scripts', 'start-onprem.sh'));
-success('コピー: scripts/start-onprem.sh');
+copyFile('scripts/deploy-onprem/start-onprem.sh', path.join(TMP_PKG, 'scripts', 'start-onprem.sh'));
+success('コピー: scripts/deploy-onprem/start-onprem.sh');
 
 // =============================================================================
 // tar.gz に圧縮
