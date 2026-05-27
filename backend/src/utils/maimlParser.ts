@@ -1,4 +1,5 @@
 import { XMLParser, XMLValidator} from 'fast-xml-parser';
+import sax from 'sax';
 import { AnalysisResult, ValidationMode } from '../types/maimlValidation';
 import { X2jOptions } from 'fast-xml-parser';
 import { ErrorContent,statistics, Correction } from '../types/maimlValidation';
@@ -64,7 +65,7 @@ export async function analyzeMaiMLFile(organaizationId: string, maimlContent : s
 
       console.log('syntaxValidation');
       // Phase 1: Basic XML syntax validation
-      const syntaxValidation = validateXMLSyntax(maimlContent);
+      const syntaxValidation = await validateXMLSyntax(maimlContent);
       if (!syntaxValidation.isValid) {
         console.log(syntaxValidation)
         analysisResult.errors.push({
@@ -288,33 +289,56 @@ async function saveAnalysisResults(organizationId: string, analysisResult: Analy
 }
   
     /**
-     * Validate basic XML syntax
+     * Validate basic XML syntax using sax (strict mode).
+     *
+     * sax strict mode は W3C XML 仕様に準拠しており、フロントエンドの xml-js が
+     * 内部で使用する sax と同じ厳格さでバリデーションを行う。
+     * fast-xml-parser (XMLValidator) では検出できなかった以下の問題も捕捉できる:
+     *   - コメント内の "--" (XML spec §2.5 違反)
+     *   - その他の strict XML 仕様違反
      */
-    function validateXMLSyntax(xmlContent : string) {
-      try {
-        console.log('validateXMLSyntax');
-        const validation = XMLValidator.validate(xmlContent, {
-          allowBooleanAttributes: true
+    function validateXMLSyntax(xmlContent: string): Promise<{
+      isValid: boolean;
+      error?: string;
+      line?: number;
+      column?: number;
+    }> {
+      return new Promise((resolve) => {
+        console.log('validateXMLSyntax (sax strict)');
+
+        const parser = sax.createStream(true /* strict */, {
+          xmlns: false,
+          trim: false,
+          normalize: false,
         });
-        
-        console.log('validate');
-        if (validation === true) {
-          return { isValid: true };
-        } else {
-        console.log(xmlContent.substring(0,1));
-          return {
-            isValid: false,
-            error: validation.err.msg,
-            line: validation.err.line,
-            column: validation.err.col
-          };
-        }
-      } catch (error) {
-            return {
-            isValid: false,
-            error: error instanceof Error ? error.message : ''
-            };
-      }
+
+        let resolved = false;
+
+        parser.on('error', (err: Error & { line?: number; column?: number }) => {
+          if (!resolved) {
+            resolved = true;
+            resolve({
+              isValid: false,
+              error: err.message,
+              line: err.line != null ? err.line + 1 : undefined,   // sax は 0-origin
+              column: err.column != null ? err.column : undefined,
+            });
+          }
+          // エラー後もストリームが止まらないように resume
+          parser.resume();
+        });
+
+        parser.on('end', () => {
+          if (!resolved) {
+            resolved = true;
+            resolve({ isValid: true });
+          }
+        });
+
+        // Writable stream に書き込んで close
+        parser.write(xmlContent);
+        parser.end();
+      });
     }
 
   /**
