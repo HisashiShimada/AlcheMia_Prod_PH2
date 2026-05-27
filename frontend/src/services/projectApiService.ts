@@ -1068,9 +1068,17 @@ export function convertApiToInstruction(apiData: WorkerInstruction): Instruction
     taskNo: string | null | undefined,
     transitionId: string | null | undefined
   ): TargetType => {
-    if (taskNo !== null && taskNo !== undefined && taskNo !== '') return 'task';
-    if (transitionId) return 'transition';
-    if (methodId) return 'method';
+    const hasMethod = methodId !== null && methodId !== undefined && methodId !== '';
+    const hasTransition = transitionId !== null && transitionId !== undefined && transitionId !== '';
+    const hasTask = taskNo !== null && taskNo !== undefined && taskNo !== '';
+
+    // method_id・transition_id・task_no の全てに値がある → タスク指示
+    if (hasMethod && hasTransition && hasTask) return 'task';
+    // method_id・transition_id に値がある（task_no は空） → トランジション指示
+    if (hasMethod && hasTransition) return 'transition';
+    // method_id のみに値がある → メソッド指示
+    if (hasMethod) return 'method';
+    // いずれも空/null → ファイル全体指示
     return 'file';
   };
 

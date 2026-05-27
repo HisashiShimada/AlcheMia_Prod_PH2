@@ -4,11 +4,11 @@
  * project_instruction テーブルの instruction_target カラム削除に伴い、
  * method_id / task_no / transition_id から動的に指示対象を判定する。
  *
- * 判定ルール（指示送信ボタン処理と同一）:
- *   task_no が非NULL・非空         → 3: タスク
- *   transition_id が非NULL・非空  → 2: トランジション
- *   method_id が非NULL・非空      → 1: メソッド
- *   いずれも空/NULL               → 0: ファイル全体
+ * 判定ルール（カラムの値の有無による組み合わせ判定）:
+ *   method_id あり + transition_id あり + task_no あり → 3: タスク
+ *   method_id あり + transition_id あり + task_no なし → 2: トランジション
+ *   method_id あり + transition_id なし               → 1: メソッド
+ *   method_id なし                                    → 0: ファイル全体
  */
 
 /**
@@ -40,16 +40,20 @@ export function deriveInstructionTarget(
   taskNo: number | null | undefined,
   transitionId: string | null | undefined
 ): InstructionTargetValue {
-  // task_no が存在する（non-null）→ タスク指示
-  if (taskNo !== null && taskNo !== undefined) {
+  const hasMethod = methodId !== null && methodId !== undefined && methodId !== '';
+  const hasTransition = transitionId !== null && transitionId !== undefined && transitionId !== '';
+  const hasTask = taskNo !== null && taskNo !== undefined;
+
+  // method_id・transition_id・task_no の全てに値がある → タスク指示
+  if (hasMethod && hasTransition && hasTask) {
     return INSTRUCTION_TARGET.TASK;
   }
-  // transition_id が非空文字列 → トランジション指示
-  if (transitionId && transitionId !== '') {
+  // method_id・transition_id に値がある（task_no は空） → トランジション指示
+  if (hasMethod && hasTransition) {
     return INSTRUCTION_TARGET.TRANSITION;
   }
-  // method_id が非空文字列 → メソッド指示
-  if (methodId && methodId !== '') {
+  // method_id のみに値がある → メソッド指示
+  if (hasMethod) {
     return INSTRUCTION_TARGET.METHOD;
   }
   // いずれも空/NULL → ファイル全体指示
