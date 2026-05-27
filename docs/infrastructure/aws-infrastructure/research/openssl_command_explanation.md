@@ -1,6 +1,6 @@
 # openssl req コマンド解説
 
-対象コマンド（`BUILD_GUIDE.md` STEP 1-1 より）:
+対象コマンド（`prod-verification-alb-build-guide.md` STEP 1-1 より）:
 
 ```bash
 openssl req -x509 -newkey rsa:2048 -nodes \
@@ -131,4 +131,4 @@ aws acm import-certificate \
 | ブラウザ警告 | 「この接続ではプライバシーが保護されません」等の証明書エラーが表示される |
 | curl での確認 | `-k`（SSL 検証スキップ）フラグが必要 |
 | 信頼性 | 第三者 CA による署名がないため、外部公開には不向き |
-| 対処 | 正規ドメイン決定後に `BUILD_GUIDE.md` 付録の手順で ACM 証明書を差し替える |
+| 対処 | 正規ドメイン決定後に `prod-verification-alb-build-guide.md` 付録の手順で ACM 証明書を差し替える |

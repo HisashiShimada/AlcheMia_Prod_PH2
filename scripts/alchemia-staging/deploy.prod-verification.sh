@@ -9,7 +9,7 @@
 #     ・フロントエンドのみ独立した ECS サービスとして配置
 #     ・nginx なし、ALB (prod-verification-alb) が直接フロントエンドに転送
 #     ・バックエンドは既存 alchemia-backend-service を共用
-#     ・前提: BUILD_GUIDE.md の STEP 1〜10 が完了していること
+#     ・前提: prod-verification-alb-build-guide.md の STEP 1〜10 が完了していること
 #
 #   [phase1] ALB（HTTP:80）＋ NLB（HTTPS:443）共存構成
 #     ・nginx を更新する際は以下の2サービスを両方更新:
@@ -531,7 +531,7 @@ deploy_prod_verification() {
 
         if [[ "${svc_status}" != "ACTIVE" ]]; then
             error "ECSサービス '${ECS_SERVICE_FRONTEND}' が見つからないか ACTIVE ではありません（status: ${svc_status}）"
-            error "BUILD_GUIDE.md の STEP 10 を実行して ${ECS_SERVICE_FRONTEND} を作成してください"
+            error "prod-verification-alb-build-guide.md の STEP 10 を実行して ${ECS_SERVICE_FRONTEND} を作成してください"
             exit 1
         fi
 

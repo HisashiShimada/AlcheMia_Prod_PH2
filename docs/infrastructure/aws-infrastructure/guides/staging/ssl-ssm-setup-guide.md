@@ -40,7 +40,7 @@ ECSタスク起動時:
 | ファイル | 変更内容 |
 |---------|---------|
 | `aws/ecs-task-definition-alchemia-nginx.json` | `mmdpf-nginx` コンテナに `secrets` セクション追加（SSM ARN参照） |
-| `scripts/setup-ssm-ssl.sh` | SSM Parameter Store へ証明書を登録するスクリプト（新規作成） |
+| `scripts/alchemia-staging/setup-ssm-ssl.sh` | SSM Parameter Store へ証明書を登録するスクリプト（新規作成） |
 
 ---
 
@@ -52,10 +52,10 @@ ECSタスク起動時:
 
 ```bash
 # 登録内容をドライランで確認（実際には登録しない）
-./scripts/setup-ssm-ssl.sh --dry-run
+./scripts/alchemia-staging/setup-ssm-ssl.sh --dry-run
 
 # 問題なければ実際に登録
-./scripts/setup-ssm-ssl.sh
+./scripts/alchemia-staging/setup-ssm-ssl.sh
 ```
 
 **登録されるパラメータ:**
@@ -202,7 +202,7 @@ aws logs tail /ecs/alchemia-nginx --region ap-northeast-1 --since 5m --filter-pa
 
 | ファイル | 説明 |
 |---------|------|
-| `scripts/setup-ssm-ssl.sh` | SSM Parameter Store への証明書登録スクリプト |
+| `scripts/alchemia-staging/setup-ssm-ssl.sh` | SSM Parameter Store への証明書登録スクリプト |
 | `aws/ecs-task-definition-alchemia-nginx.json` | nginxタスク定義（secrets セクションでSSM参照） |
 | `config/nginx/nginx.prod.conf` | nginx 設定（SSL_CERT/SSL_KEY/SSL_CA_CERT 環境変数を使用） |
 | `scripts/generate-certificates.sh` | 自己署名CA・サーバー証明書の生成スクリプト |
