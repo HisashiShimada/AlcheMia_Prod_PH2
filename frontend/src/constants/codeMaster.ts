@@ -128,12 +128,14 @@ export type InstructionPriorityType = typeof InstructionPriority[keyof typeof In
  * code_division = 'instruction_target'
  */
 export const InstructionTarget = {
-  /** ファイル全体 */
+  /** ファイル全体（プロジェクト指示） */
   ENTIRE_FILE: 0,
-  /** 特定タスク */
-  SPECIFIC_TASK: 1,
+  /** 特定メソッド */
+  SPECIFIC_METHOD: 1,
   /** 特定トランジション */
   SPECIFIC_TRANSITION: 2,
+  /** 特定タスク */
+  SPECIFIC_TASK: 3,
 } as const;
 
 export type InstructionTargetType = typeof InstructionTarget[keyof typeof InstructionTarget];
