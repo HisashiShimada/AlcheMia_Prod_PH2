@@ -11,6 +11,7 @@ import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { AxiosError } from 'axios';
 import type { Task, Method, ProjectStatus } from '@/types/experimentWorker';
+import { TaskStatus } from '@/constants/codeMaster';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { HTTP_STATUS } from '@/constants/httpStatus';
 
@@ -124,7 +125,7 @@ export default function ProgressCheckTab({
                 taskName: task.task_no.toString(), // task_nameフィールドは除外されているのでtask_noを代用
                 methodId: method.method_id,
                 methodName: method.method_name, // メソッド名を追加
-                status: task.task_status as Task['status'],
+                status: task.task_status as unknown as Task['status'],
                 assignedUserId: task.experiment_user_id,
                 assignedUserName: task.experiment_user_name,
                 createdAt: task.created_at,
@@ -331,7 +332,7 @@ export default function ProgressCheckTab({
                     taskName: apiTask.task_no.toString(),
                     methodId: method.method_id,
                     methodName: method.method_name,
-                    status: apiTask.task_status as Task['status'],
+                    status: apiTask.task_status as unknown as Task['status'],
                     assignedUserId: apiTask.experiment_user_id,
                     assignedUserName: apiTask.experiment_user_name,
                     createdAt: apiTask.created_at,
@@ -400,37 +401,37 @@ export default function ProgressCheckTab({
                       taskName: apiTask.task_no.toString(),
                       methodId: method.method_id,
                       methodName: method.method_name,
-                      status: apiTask.task_status as Task['status'],
-                      assignedUserId: apiTask.experiment_user_id,
-                      assignedUserName: apiTask.experiment_user_name,
-                      createdAt: apiTask.created_at,
-                      updatedAt: apiTask.updated_at,
-                      projectId: apiData.project_id,
-                      sampleNumber: '',
-                      notes: '',
-                      progressRate: parseFloat(apiTask.progress_rate) || 0,
-                      transitionStatuses: [],
-                      progressReport: '',
-                      recordNumber: '',
-                    }))
-                  );
-                  
-                  setMethods(methodsData);
-                  setTasks(allTasks);
-                  
-                  console.log('[DEBUG] handleTaskAction - Tasks refreshed after 409 conflict', {
-                    methodCount: methodsData.length,
-                    taskCount: allTasks.length
-                  });
-                }
-              } catch (refreshError) {
-                console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
-                message.warning(t('experimentWork.messages.refreshFailed'));
+                      status: apiTask.task_status as unknown as Task['status'],
+                    assignedUserId: apiTask.experiment_user_id,
+                    assignedUserName: apiTask.experiment_user_name,
+                    createdAt: apiTask.created_at,
+                    updatedAt: apiTask.updated_at,
+                    projectId: apiData.project_id,
+                    sampleNumber: '',
+                    notes: '',
+                    progressRate: parseFloat(apiTask.progress_rate) || 0,
+                    transitionStatuses: [],
+                    progressReport: '',
+                    recordNumber: '',
+                  }))
+                );
+                
+                setMethods(methodsData);
+                setTasks(allTasks);
+                
+                console.log('[DEBUG] handleTaskAction - Tasks refreshed after 409 conflict', {
+                  methodCount: methodsData.length,
+                  taskCount: allTasks.length
+                });
               }
-            } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
-              message.error(t('experimentWork.messages.taskNotFound'));
-            } else {
-              message.error(t('experimentWork.messages.taskStartError'));
+            } catch (refreshError) {
+              console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
+              message.warning(t('experimentWork.messages.refreshFailed'));
+            }
+          } else if ((error as AxiosError)?.response?.status === HTTP_STATUS.NOT_FOUND) {
+            message.error(t('experimentWork.messages.taskNotFound'));
+          } else {
+            message.error(t('experimentWork.messages.taskStartError'));
             }
           }
           break;
@@ -536,7 +537,7 @@ export default function ProgressCheckTab({
                     taskName: apiTask.task_no.toString(),
                     methodId: method.method_id,
                     methodName: method.method_name,
-                    status: apiTask.task_status as Task['status'],
+                    status: apiTask.task_status as unknown as Task['status'],
                     assignedUserId: apiTask.experiment_user_id,
                     assignedUserName: apiTask.experiment_user_name,
                     createdAt: apiTask.created_at,
@@ -605,7 +606,7 @@ export default function ProgressCheckTab({
                       taskName: apiTask.task_no.toString(),
                       methodId: method.method_id,
                       methodName: method.method_name,
-                      status: apiTask.task_status as Task['status'],
+                      status: apiTask.task_status as unknown as Task['status'],
                       assignedUserId: apiTask.experiment_user_id,
                       assignedUserName: apiTask.experiment_user_name,
                       createdAt: apiTask.created_at,
@@ -659,20 +660,20 @@ export default function ProgressCheckTab({
     }
 
     // 強制終了タスクがあればエラー
-    const hasForceTerminated = methodTasks.some(task => task.status === 'forced_terminated');
+    const hasForceTerminated = methodTasks.some(task => task.status === TaskStatus.FORCED_TERMINATED);
     if (hasForceTerminated) {
       return { status: 'error', label: t('experimentWork.methodStatus.error') };
     }
 
     // 全タスクが完了していれば完了
-    const allCompleted = methodTasks.every(task => task.status === 'completed');
+    const allCompleted = methodTasks.every(task => task.status === TaskStatus.COMPLETED);
     if (allCompleted) {
       return { status: 'success', label: t('experimentWork.methodStatus.completed') };
     }
 
     // 作業中のタスクがあれば作業中
     const hasInProgress = methodTasks.some(
-      task => task.status === 'in_progress'
+      task => task.status === TaskStatus.IN_PROGRESS
     );
     if (hasInProgress) {
       return { status: 'processing', label: t('experimentWork.methodStatus.inProgress') };

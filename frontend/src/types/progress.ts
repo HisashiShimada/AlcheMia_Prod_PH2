@@ -2,16 +2,17 @@
  * 進捗確認関連の型定義
  */
 
+import {
+  ProjectStatusType,
+  TaskStatusType,
+} from '@/constants/codeMaster';
+
 /**
- * プロジェクトステータス
+ * プロジェクトステータス（数値コード）
+ * constants/codeMaster.ts の ProjectStatus を使用すること
+ * 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=レビュー待ち, 4=完了, 5=異常終了
  */
-export type ProjectStatus = 
-  | 'planning'          // 計画中
-  | 'pending'           // タスク実行待ち
-  | 'in_progress'       // タスク実行中
-  | 'review_waiting'    // タスク結果レビュー待ち
-  | 'completed'         // プロジェクト完了
-  | 'error';            // タスク異常終了
+export type ProjectStatus = ProjectStatusType;
 
 /**
  * ファイルデータ
@@ -23,12 +24,16 @@ export interface FileData {
 }
 
 /**
- * チェックアウト状態
+ * チェックアウト状態情報（UI表示用）
+ * ※ constants/codeMaster.ts の CheckoutStatus（数値定数）とは別物
  */
-export interface CheckoutStatus {
+export interface CheckoutStatusInfo {
   isCheckedOut: boolean;
   checkoutBy?: string;
 }
+
+/** @deprecated CheckoutStatusInfo を使用してください */
+export type CheckoutStatus = CheckoutStatusInfo;
 
 /**
  * プロジェクト基本情報（共通型定義）
@@ -133,14 +138,11 @@ export interface ProgressStats {
 }
 
 /**
- * タスクステータス
+ * タスクステータス（数値コード）
+ * constants/codeMaster.ts の TaskStatus を使用すること
+ * 0=実行待ち, 1=実行中, 2=レビュー待ち, 3=完了, 4=異常終了
  */
-export type TaskStatus = 
-  | 'pending'          // 実行待ち
-  | 'in_progress'      // 実行中
-  | 'error'            // 異常終了
-  | 'review_waiting'   // レビュー待ち
-  | 'completed';       // 完了
+export type TaskStatus = TaskStatusType;
 
 /**
  * 作業詳細

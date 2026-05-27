@@ -35,6 +35,7 @@ import {
   MinusCircleOutlined,
 } from '@ant-design/icons';
 import { ProgressStatus } from '@/constants/progressStatus';
+import { ProjectStatus, TaskStatus, TaskStatusType } from '@/constants/codeMaster';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PetriNetVisualization from './PetriNetVisualization';
 import type {
@@ -218,18 +219,18 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
    * 作業ステータスの色
    */
   const getWorkStatusColor = (
-    status: string
+    status: TaskStatusType
   ): 'processing' | 'warning' | 'success' | 'default' | 'error' => {
     switch (status) {
-      case 'pending':
+      case TaskStatus.PENDING:
         return 'default';
-      case 'in_progress':
+      case TaskStatus.IN_PROGRESS:
         return 'processing';
-      case 'error':
+      case TaskStatus.FORCED_TERMINATED:
         return 'error';
-      case 'review_waiting':
+      case TaskStatus.REVIEW_WAITING:
         return 'warning';
-      case 'completed':
+      case TaskStatus.COMPLETED:
         return 'success';
       default:
         return 'default';
@@ -239,20 +240,20 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
   /**
    * 作業ステータスラベル（i18n対応）
    */
-  const getWorkStatusLabel = (status: string): string => {
+  const getWorkStatusLabel = (status: TaskStatusType): string => {
     switch (status) {
-      case 'pending':
+      case TaskStatus.PENDING:
         return t('progress.workStatus.pending');
-      case 'in_progress':
+      case TaskStatus.IN_PROGRESS:
         return t('progress.workStatus.inProgress');
-      case 'error':
+      case TaskStatus.FORCED_TERMINATED:
         return t('progress.workStatus.error');
-      case 'review_waiting':
+      case TaskStatus.REVIEW_WAITING:
         return t('progress.workStatus.reviewWaiting');
-      case 'completed':
+      case TaskStatus.COMPLETED:
         return t('progress.workStatus.completed');
       default:
-        return status;
+        return String(status);
     }
   };
 
@@ -393,26 +394,26 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                     <Text strong style={{ fontSize: token.fontSize }}>
                       {fileDetails.projectInfo.projectName}
                     </Text>
-                    {fileDetails.projectInfo.status && (
+                    {fileDetails.projectInfo.status !== undefined && fileDetails.projectInfo.status !== null && (
                       <Tag
                         color={
-                          fileDetails.projectInfo.status === 'completed' ? 'success' :
-                          fileDetails.projectInfo.status === 'in_progress' ? 'cyan' :
-                          fileDetails.projectInfo.status === 'review_waiting' ? 'purple' :
-                          fileDetails.projectInfo.status === 'pending' ? 'blue' :
-                          fileDetails.projectInfo.status === 'error' ? 'error' :
+                          fileDetails.projectInfo.status === ProjectStatus.COMPLETED ? 'success' :
+                          fileDetails.projectInfo.status === ProjectStatus.TASK_IN_PROGRESS ? 'cyan' :
+                          fileDetails.projectInfo.status === ProjectStatus.REVIEW_WAITING ? 'purple' :
+                          fileDetails.projectInfo.status === ProjectStatus.TASK_PENDING ? 'blue' :
+                          fileDetails.projectInfo.status === ProjectStatus.ERROR ? 'error' :
                           'default'
                         }
                       >
                         {(() => {
                           switch (fileDetails.projectInfo.status) {
-                            case 'planning': return t('progress.filter.planning');
-                            case 'pending': return t('progress.filter.pending');
-                            case 'in_progress': return t('progress.filter.inProgress');
-                            case 'review_waiting': return t('progress.filter.reviewWaiting');
-                            case 'completed': return t('progress.filter.completed');
-                            case 'error': return t('progress.filter.error');
-                            default: return fileDetails.projectInfo.status;
+                            case ProjectStatus.PLANNING: return t('progress.filter.planning');
+                            case ProjectStatus.TASK_PENDING: return t('progress.filter.pending');
+                            case ProjectStatus.TASK_IN_PROGRESS: return t('progress.filter.inProgress');
+                            case ProjectStatus.REVIEW_WAITING: return t('progress.filter.reviewWaiting');
+                            case ProjectStatus.COMPLETED: return t('progress.filter.completed');
+                            case ProjectStatus.ERROR: return t('progress.filter.error');
+                            default: return String(fileDetails.projectInfo.status);
                           }
                         })()}
                       </Tag>

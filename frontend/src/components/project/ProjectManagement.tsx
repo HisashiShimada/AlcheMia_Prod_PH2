@@ -48,7 +48,7 @@ import { fetchDrafts, deleteDraft } from '@/services/draftService';
 import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import TransitionSetSearchModal from '@/components/TransitionSetSearch/TransitionSetSearchModal';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ProjectStatus } from '@/constants/codeMaster';
+import { ProjectStatus, TaskStatus } from '@/constants/codeMaster';
 import { ProjectMaimlProvider, useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { useApi } from '@/hooks/useApi';
 import {
@@ -832,19 +832,19 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
     taskResults.forEach((result) => {
       switch (result.workStatus) {
-        case 'pending':
+        case TaskStatus.PENDING:
           stats.pending++;
           break;
-        case 'in_progress':
+        case TaskStatus.IN_PROGRESS:
           stats.in_progress++;
           break;
-        case 'forced_terminated':
+        case TaskStatus.FORCED_TERMINATED:
           stats.forced_terminated++;
           break;
-        case 'review_waiting':
+        case TaskStatus.REVIEW_WAITING:
           stats.review_waiting++;
           break;
-        case 'completed':
+        case TaskStatus.COMPLETED:
           stats.completed++;
           break;
       }

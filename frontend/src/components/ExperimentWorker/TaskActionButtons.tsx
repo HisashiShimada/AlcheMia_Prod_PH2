@@ -4,6 +4,7 @@ import React from 'react';
 import { Button } from 'antd';
 import { PlayCircleOutlined, FormOutlined, LineChartOutlined, CheckCircleOutlined, AlertOutlined } from '@ant-design/icons';
 import { Task } from '@/types/experimentWorker';
+import { TaskStatus } from '@/constants/codeMaster';
 
 interface TaskActionButtonsProps {
   task: Task;
@@ -21,9 +22,9 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
 
   // 開始ボタン
   if (buttonType === 'start') {
-    // 開始前、完了、中断の場合のみ活性
-    const isDisabled = !(status === 'not_started' || status === 'completed' || status === 'suspended');
-    const label = status === 'not_started' ? 'タスクを開始' : 'タスクを再開';
+    // 開始待ち、完了の場合のみ活性
+    const isDisabled = !(status === TaskStatus.PENDING || status === TaskStatus.COMPLETED);
+    const label = status === TaskStatus.PENDING ? 'タスクを開始' : 'タスクを再開';
     
     return (
       <Button
@@ -46,8 +47,8 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
 
   // 結果記録ボタン
   if (buttonType === 'record') {
-    // 開始、作業中の場合のみ活性
-    const isDisabled = !(status === 'started' || status === 'in_progress');
+    // 実行中の場合のみ活性
+    const isDisabled = status !== TaskStatus.IN_PROGRESS;
     
     return (
       <Button
@@ -66,8 +67,8 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
 
   // 進捗報告ボタン
   if (buttonType === 'progress') {
-    // 開始、作業中の場合のみ活性
-    const isDisabled = !(status === 'started' || status === 'in_progress');
+    // 実行中の場合のみ活性
+    const isDisabled = status !== TaskStatus.IN_PROGRESS;
     
     return (
       <Button
@@ -86,8 +87,8 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
 
   // 問題報告ボタン（Phase 2追加）
   if (buttonType === 'issue') {
-    // 開始、作業中の場合のみ活性
-    const isDisabled = !(status === 'started' || status === 'in_progress');
+    // 実行中の場合のみ活性
+    const isDisabled = status !== TaskStatus.IN_PROGRESS;
     
     return (
       <Button
@@ -110,8 +111,8 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
 
   // 終了ボタン
   if (buttonType === 'complete') {
-    // 作業中の場合のみ活性
-    const isDisabled = status !== 'in_progress';
+    // 実行中の場合のみ活性
+    const isDisabled = status !== TaskStatus.IN_PROGRESS;
     
     return (
       <Button

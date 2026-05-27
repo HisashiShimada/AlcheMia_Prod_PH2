@@ -5,7 +5,20 @@
  * Task: 2.1 コントローラー層実装
  */
 
-export type TaskStatus = 'not_started' | 'in_progress' | 'review_waiting' | 'completed' | 'forced_terminated';
+import { TaskStatusEnumType } from '../enums/codeMaster.enum';
+
+/**
+ * タスクステータス文字列型（APIリクエスト/レスポンス境界用）
+ * フロントエンドから受け取るJSON文字列値→Enum数値への変換に使用。
+ * 内部ロジックでは TaskStatusEnumType（数値）を使用すること。
+ */
+export type TaskStatusString = 'not_started' | 'in_progress' | 'review_waiting' | 'completed' | 'forced_terminated';
+
+/** @deprecated TaskStatusString を使用してください */
+export type TaskStatus = TaskStatusString;
+
+/** TaskStatusEnum数値型（内部ロジック用） */
+export type { TaskStatusEnumType };
 
 export interface TaskStatusResponse {
   organizationId: string;

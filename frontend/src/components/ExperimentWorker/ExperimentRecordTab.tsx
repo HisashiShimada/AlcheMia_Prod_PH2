@@ -85,27 +85,10 @@ export default function ExperimentRecordTab({
   const [progressData, setProgressData] = useState<Record<string, unknown>[]>([]);
   
   /**
-   * worker-accessible APIの数値ステータスを ProjectStatus 型にマッピング
+   * selectedProjectStatus は数値コード（ProjectStatusType）をそのまま使用する
    * 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
    */
-  const mapNumericStatusToProjectStatus = (status: number | null): ProjectStatus | null => {
-    switch (status) {
-      case 0:
-        return 'planning';
-      case 1:
-        return 'waiting_task';
-      case 2:
-        return 'executing_task';
-      case 3:
-        return 'waiting_approval';
-      case 4:
-        return 'completed';
-      default:
-        return null;
-    }
-  };
-
-  const projectStatus: ProjectStatus | null = mapNumericStatusToProjectStatus(selectedProjectStatus);
+  const projectStatus: ProjectStatus | null = selectedProjectStatus as ProjectStatus | null;
 
   /**
    * APIレスポンスの数値トランジションステータスを ProgressStatus 文字列型に変換
@@ -174,7 +157,7 @@ export default function ExperimentRecordTab({
               taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.task_status as Task['status'],
+              status: task.task_status as unknown as Task['status'],
               assignedUserId: task.experiment_user_id || undefined,
               assignedUserName: task.experiment_user_name || undefined,
               createdAt: task.created_at,
@@ -196,7 +179,7 @@ export default function ExperimentRecordTab({
               taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.task_status as Task['status'],
+              status: task.task_status as unknown as Task['status'],
               assignedUserId: task.experiment_user_id || undefined,
               assignedUserName: task.experiment_user_name || undefined,
               createdAt: task.created_at,

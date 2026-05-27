@@ -1,3 +1,11 @@
+import {
+  ProjectStatusType,
+  ProjectStatus as ProjectStatusConst,
+  TaskStatusType,
+  TaskStatus as TaskStatusConst,
+  IssueTypeType,
+} from '@/constants/codeMaster';
+
 // 優先度の型
 export type Priority = 'high' | 'medium' | 'normal' | 'low';
 
@@ -244,13 +252,10 @@ export interface PastExperimentData {
   createdAt: string;
 }
 
-// プロジェクト状態
-export type ProjectStatus = 
-  | 'planning'           // 計画中
-  | 'waiting_task'       // タスク実行待ち
-  | 'executing_task'     // タスク実行中
-  | 'waiting_approval'   // 承認待ち
-  | 'completed';         // 完了
+// プロジェクト状態（数値コード）
+// constants/codeMaster.ts の ProjectStatus を使用すること
+// 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
+export type ProjectStatus = ProjectStatusType;
 
 // プロジェクトデータ
 export interface ProjectData {
@@ -272,30 +277,43 @@ export interface ProjectData {
 
 /**
  * 編集可能な状態かどうかを判定
- * @param status プロジェクト状態
+ * タスク実行待ち（1）またはタスク実行中（2）の場合に編集可能
+ * @param status プロジェクト状態（数値）
  * @returns 編集可能な場合true
  */
 export function isEditableStatus(status: ProjectStatus): boolean {
-  return ['waiting_task', 'executing_task'].includes(status);
+  return (
+    status === ProjectStatusConst.TASK_PENDING ||
+    status === ProjectStatusConst.TASK_IN_PROGRESS
+  );
 }
 
 /**
  * プロジェクト選択可能な状態かどうかを判定
- * @param status プロジェクト状態
+ * タスク実行待ち（1）・タスク実行中（2）・承認待ち（3）の場合に選択可能
+ * @param status プロジェクト状態（数値）
  * @returns 選択可能な場合true
  */
 export function isSelectableStatus(status: ProjectStatus): boolean {
-  return ['waiting_task', 'executing_task', 'waiting_approval'].includes(status);
+  return (
+    status === ProjectStatusConst.TASK_PENDING ||
+    status === ProjectStatusConst.TASK_IN_PROGRESS ||
+    status === ProjectStatusConst.REVIEW_WAITING
+  );
 }
 
 /**
  * 実験記録の参照・操作が可能な状態かどうかを判定
- * タスク実行中・承認待ち・完了の場合に記録ボタンを活性化する
- * @param status プロジェクト状態
+ * タスク実行中（2）・承認待ち（3）・完了（4）の場合に記録ボタンを活性化する
+ * @param status プロジェクト状態（数値）
  * @returns 記録を参照・操作可能な場合true
  */
 export function isRecordViewableStatus(status: ProjectStatus): boolean {
-  return ['executing_task', 'waiting_approval', 'completed'].includes(status);
+  return (
+    status === ProjectStatusConst.TASK_IN_PROGRESS ||
+    status === ProjectStatusConst.REVIEW_WAITING ||
+    status === ProjectStatusConst.COMPLETED
+  );
 }
 
 // 統計情報
@@ -337,14 +355,12 @@ export interface TransitionProgress {
 
 // ===== Phase 1: 実験作業タブ用の型定義 =====
 
-// タスクステータス（実験作業タブ用）
-export type TaskStatus = 
-  | 'not_started'       // 開始前
-  | 'started'           // 開始済み
-  | 'in_progress'       // 作業中
-  | 'completed'         // 完了
-  | 'forced_terminated' // 強制終了
-  | 'suspended';        // 中断
+/**
+ * タスクステータス（数値コード）
+ * constants/codeMaster.ts の TaskStatus を使用すること
+ * 0=実行待ち, 1=実行中, 2=レビュー待ち, 3=完了, 4=異常終了
+ */
+export type TaskStatus = TaskStatusType;
 
 // タスクデータ（実験作業タブ用）
 export interface Task {
@@ -378,9 +394,12 @@ export interface WorkflowStatistics {
 
 // ===== Phase: 問題報告モーダル用の型定義 =====
 
-// 問題タイプ（問題報告モーダル用）
-// code_master テーブルの code_division='issue_type' の code_value（整数）
-export type IssueType = number;
+/**
+ * 問題タイプ（数値コード）
+ * constants/codeMaster.ts の IssueType を使用すること
+ * 0=材料不足, 1=機器故障, 2=手順不明確, 3=安全性の懸念, 4=品質問題, 5=時間制約, 6=その他
+ */
+export type IssueType = IssueTypeType;
 
 // 問題報告データ（問題報告モーダル用）
 export interface IssueReportData {

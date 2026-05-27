@@ -150,7 +150,7 @@ export default function InstructionConfirmationTab({
               taskName: task.task_no.toString(), // task_nameカラム削除のためtask_noを代用
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.task_status as Task['status'],
+              status: task.task_status as unknown as Task['status'],
               assignedUserId: task.experiment_user_id || undefined,
               assignedUserName: task.experiment_user_name || undefined,
               createdAt: task.created_at,
@@ -174,7 +174,7 @@ export default function InstructionConfirmationTab({
               taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.task_status as Task['status'],
+              status: task.task_status as unknown as Task['status'],
               assignedUserId: task.experiment_user_id,
               assignedUserName: task.experiment_user_name,
               createdAt: task.created_at,
