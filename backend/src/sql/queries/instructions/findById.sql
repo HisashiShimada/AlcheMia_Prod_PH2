@@ -1,4 +1,4 @@
--- 指示の存在確認（instruction_target等の詳細情報も取得）
+-- 指示の存在確認（method_id / task_no / transition_id 等の詳細情報も取得）
 -- 使用箇所: instructionRepository.ts - findById()
 -- パラメータ: $1=instructionId, $2=projectId, $3=organizationId
 
@@ -7,7 +7,6 @@ SELECT
   project_id,
   organization_id,
   method_id,
-  instruction_target,
   task_no,
   transition_id
 FROM project_instruction

@@ -22,6 +22,7 @@ import {
   InstructionData
 } from '../types/api';
 import { logger, logError } from '../utils/logger';
+import { deriveInstructionTarget } from '../utils/instructionTargetUtils';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
 import { XMLParser } from 'fast-xml-parser';
@@ -138,17 +139,6 @@ export async function saveInstruction(
   const nextNumber = existingInstructions.length + 1;
   const instructionId = `${projectName}_${String(nextNumber).padStart(3, '0')}`;
   
-  // instruction_targetを決定（数値型）
-  // 注意: methodId/transitionId が空文字列('')の場合も考慮し、明示的に空文字チェックを行う
-  let instructionTarget = 0; // デフォルト: ファイル全体
-  if (request.taskNumber !== null && request.taskNumber !== undefined) {
-    instructionTarget = 3; // タスク
-  } else if (request.transitionId && request.transitionId !== '') {
-    instructionTarget = 2; // トランジション
-  } else if (request.methodId && request.methodId !== '') {
-    instructionTarget = 1; // メソッド
-  }
-  
   // 指示データを作成
   const instructionData: ProjectInstruction = {
     organization_id: organizationId,
@@ -160,7 +150,6 @@ export async function saveInstruction(
     priority: request.priority,
     type: request.type,
     instructions: request.content,
-    instruction_target: instructionTarget,
     instruction_status: InstructionStatusEnum.UNSENT,
     instruction_user_id: userId,
     create_user_id: userId,
@@ -352,7 +341,11 @@ export async function sendInstructions(
         organizationId,
         projectId,
         {
-          instructionTarget: instruction.instruction_target ?? 0,
+          instructionTarget: deriveInstructionTarget(
+            instruction.method_id,
+            instruction.task_no,
+            instruction.transition_id
+          ),
           methodId,
           transitionId: instruction.transition_id ?? null,
           programId,

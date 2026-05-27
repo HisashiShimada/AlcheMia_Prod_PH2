@@ -168,7 +168,7 @@ export interface Instruction {
   organization_id: string;
   project_id: string;
   experiment_instruction_id: string;
-  instruction_target: number;
+  method_id: string | null;
   priority: number;
   type: number;
   task_no: number | null;

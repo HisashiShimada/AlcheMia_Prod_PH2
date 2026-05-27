@@ -17,8 +17,6 @@ export interface InstructionRow {
   organization_id: string;
   /** メソッドID */
   method_id: string | null;
-  /** 指示対象: 1=ファイル全体、2=タスク、3=トランジション */
-  instruction_target: number | null;
   /** タスク連番 */
   task_no: number | null;
   /** トランジションID */
@@ -358,7 +356,6 @@ export async function batchInsert(
       projectId,
       instructionId,
       instruction.methodId,
-      instruction.targetType,
       instruction.priority,
       instruction.type,
       instruction.taskNumber,

@@ -1056,15 +1056,24 @@ export const updateTransitionStatus = async (
  * ```
  */
 export function convertApiToInstruction(apiData: WorkerInstruction): Instruction {
-  // instruction_target → targetType 変換マップ（文字列キー）
-  // バックエンド: 0=ファイル全体, 1=メソッド, 2=トランジション, 3=タスク
-  const targetTypeMap: Record<string, TargetType> = {
-    '0': 'file',        // プロジェクト指示（ファイル全体）
-    '1': 'method',      // メソッド指示
-    '2': 'transition',  // トランジション指示
-    '3': 'task',        // タスク指示
+  // instruction_target は DB カラムから削除済み。
+  // method_id / task_no / transition_id の値から targetType を導出する。
+  // バックエンドの deriveInstructionTarget() と同ロジック:
+  //   task_no が存在する → 'task'
+  //   transition_id が存在する → 'transition'
+  //   method_id が存在する → 'method'
+  //   それ以外 → 'file'
+  const deriveTargetType = (
+    methodId: string | null | undefined,
+    taskNo: string | null | undefined,
+    transitionId: string | null | undefined
+  ): TargetType => {
+    if (taskNo !== null && taskNo !== undefined && taskNo !== '') return 'task';
+    if (transitionId) return 'transition';
+    if (methodId) return 'method';
+    return 'file';
   };
-  
+
   // priority → Priority 変換マップ（文字列キー）
   const priorityMap: Record<string, Priority> = {
     '0': 'low',
@@ -1084,7 +1093,7 @@ export function convertApiToInstruction(apiData: WorkerInstruction): Instruction
   
   return {
     instructionId: apiData.id,
-    targetType: targetTypeMap[apiData.instruction_target] || 'file',
+    targetType: deriveTargetType(apiData.method_id, apiData.task_no, apiData.transition_id),
     transitionId: apiData.transition_id || undefined,
     transitionName: apiData.transition_name || undefined,
     methodId: apiData.method_id || undefined,

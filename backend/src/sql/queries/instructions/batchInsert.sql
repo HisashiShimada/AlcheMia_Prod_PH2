@@ -5,7 +5,6 @@ INSERT INTO project_instruction (
   project_id,
   experiment_instruction_id,
   method_id,
-  instruction_target,
   priority,
   type,
   task_no,
@@ -23,17 +22,16 @@ INSERT INTO project_instruction (
   $2,  -- project_id
   $3,  -- experiment_instruction_id (instructionId)
   $4,  -- method_id
-  $5,  -- instruction_target (targetType)
-  $6,  -- priority
-  $7,  -- type
-  $8,  -- task_no (taskNumber)
-  $9,  -- transition_id
-  $10, -- instructions (content)
-  $11, -- instruction_user_id (userId)
+  $5,  -- priority
+  $6,  -- type
+  $7,  -- task_no (taskNumber)
+  $8,  -- transition_id
+  $9,  -- instructions (content)
+  $10, -- instruction_user_id (userId)
   CURRENT_TIMESTAMP, -- instruction_date
-  $12, -- instruction_status (0: 未送信)
-  $13, -- create_user_id (userId)
+  $11, -- instruction_status (0: 未送信)
+  $12, -- create_user_id (userId)
   CURRENT_TIMESTAMP, -- create_at
-  $14, -- update_user_id (userId)
+  $13, -- update_user_id (userId)
   CURRENT_TIMESTAMP  -- update_at
 )

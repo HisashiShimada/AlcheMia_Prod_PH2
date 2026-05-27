@@ -298,7 +298,6 @@ export interface WorkerInstruction {
   transition_id: string;
   transition_name: string;
   task_no: string | null;
-  instruction_target: string;
   instruction_content: string;
   priority: string;
   type: string;
