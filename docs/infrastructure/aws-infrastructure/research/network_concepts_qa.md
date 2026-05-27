@@ -21,7 +21,7 @@
 pl-xxxxxxxxx        →  vpce-xxxxxxxx   （S3向けはVPC Endpoint経由）
 ```
 
-### BUILD_GUIDE.md における役割
+### prod-verification-alb-build-guide.md における役割
 
 本手順書では **`prod-app-private-rt`** という名前のルートテーブルを新規作成しています（STEP 5）。
 
@@ -98,7 +98,7 @@ Interface型は ENI（Elastic Network Interface）を使うため以下の特徴
 
 という歴史的・コスト的な理由で2種類が併存しています。
 
-### BUILD_GUIDE.md での使い分け
+### prod-verification-alb-build-guide.md での使い分け
 
 | Endpoint名 | 種別 | 理由 |
 |-----------|------|------|
@@ -109,4 +109,4 @@ Interface型は ENI（Elastic Network Interface）を使うため以下の特徴
 
 ---
 
-*本ファイルは BUILD_GUIDE.md 読解中に発生した質疑応答をまとめたものです。*
+*本ファイルは prod-verification-alb-build-guide.md 読解中に発生した質疑応答をまとめたものです。*
