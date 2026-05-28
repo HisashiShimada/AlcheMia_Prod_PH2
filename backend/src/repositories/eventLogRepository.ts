@@ -390,8 +390,9 @@ export class EventLogRepository {
       },
     ];
 
-    if (!!methodId && !!transitionId && taskNo != null) {
+    if (!!methodId && taskNo != null) {
       // タスク指示: eventLog > log > trace(@id, @ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
+      // transitionId は不要（methodId + taskNo でタスク指示を判定）
       const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {
@@ -693,8 +694,9 @@ export class EventLogRepository {
       },
     ];
 
-    if (!!methodId && !!transitionId && taskNo != null) {
+    if (!!methodId && taskNo != null) {
       // タスク指示: eventLog > log > trace(@id, @ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
+      // transitionId は不要（methodId + taskNo でタスク指示を判定）
       const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {

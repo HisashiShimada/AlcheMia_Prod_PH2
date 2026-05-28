@@ -134,7 +134,7 @@ export function useInstructions() {
       total: instructions.length,
       file: instructions.filter((i) => !i.methodId && !i.transitionId).length,
       method: instructions.filter((i) => !!i.methodId && !i.transitionId).length,
-      task: instructions.filter((i) => !!i.methodId && !!i.transitionId && !!i.taskId).length,
+      task: instructions.filter((i) => !!i.methodId && !!i.taskId).length,
       transition: instructions.filter((i) => !!i.methodId && !!i.transitionId && !i.taskId).length,
       unread: instructions.filter((i) => !i.isRead).length,
     }),
