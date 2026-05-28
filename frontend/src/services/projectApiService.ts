@@ -38,7 +38,6 @@ import type {
 } from '@/types/taskRegistration';
 import type {
   Instruction,
-  TargetType,
   Priority,
   InstructionType
 } from '@/types/experimentWorker';

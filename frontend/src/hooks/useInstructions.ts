@@ -1,23 +1,13 @@
 import { useState, useMemo } from 'react';
-import type { Instruction, Priority, InstructionType, TargetType, WorkAssignment } from '@/types/experimentWorker';
+import type { Instruction, Priority, InstructionType, WorkAssignment } from '@/types/experimentWorker';
 import type { WorkerInstruction } from '@/types/project';
 import { getWorkerInstructions } from '@/services/projectApiService';
 
 /**
  * WorkerInstruction をフロントエンド型 Instruction に変換する
- * method_id / task_no / transition_id の値から targetType を導出する。
+ * method_id / task_no / transition_id の有無からグループを判定する。
  */
 function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
-  const hasMethod = !!(apiData.method_id);
-  const hasTransition = !!(apiData.transition_id);
-  const hasTask = apiData.task_no !== null && apiData.task_no !== undefined && apiData.task_no !== '';
-
-  const targetType: TargetType =
-    hasMethod && hasTransition && hasTask ? 'task' :
-    hasMethod && hasTransition            ? 'transition' :
-    hasMethod                             ? 'method' :
-    'file';
-
   const priorityMap: Record<string, Priority> = {
     '0': 'low', '1': 'normal', '2': 'medium', '3': 'high',
   };
@@ -27,7 +17,6 @@ function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
 
   return {
     instructionId: apiData.id,
-    targetType,
     transitionId: apiData.transition_id || undefined,
     transitionName: apiData.transition_name || undefined,
     methodId: apiData.method_id || undefined,
@@ -143,11 +132,10 @@ export function useInstructions() {
   const stats = useMemo(
     () => ({
       total: instructions.length,
-      file: instructions.filter((i) => i.targetType === 'file').length,
-      method: instructions.filter((i) => i.targetType === 'method').length,
-      task: instructions.filter((i) => i.targetType === 'task').length,
-      transition: instructions.filter((i) => i.targetType === 'transition')
-        .length,
+      file: instructions.filter((i) => !i.methodId && !i.transitionId).length,
+      method: instructions.filter((i) => !!i.methodId && !i.transitionId).length,
+      task: instructions.filter((i) => !!i.methodId && !!i.transitionId && !!i.taskId).length,
+      transition: instructions.filter((i) => !!i.methodId && !!i.transitionId && !i.taskId).length,
       unread: instructions.filter((i) => !i.isRead).length,
     }),
     [instructions]

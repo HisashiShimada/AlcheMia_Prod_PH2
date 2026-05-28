@@ -12,7 +12,7 @@ import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
-import { ProjectStatusEnum, CheckoutStatusEnum, InstructionTargetEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
+import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
@@ -1790,16 +1790,8 @@ export class ProjectService {
       let programId: string | null = null;
       const hasMethod = !!(instruction.method_id);
       const hasTransition = !!(instruction.transition_id);
-      const hasTask = instruction.task_no != null;
-      const instructionTarget = hasMethod && hasTransition && hasTask
-        ? InstructionTargetEnum.SPECIFIC_TASK
-        : hasMethod && hasTransition
-        ? InstructionTargetEnum.SPECIFIC_TRANSITION
-        : hasMethod
-        ? InstructionTargetEnum.SPECIFIC_METHOD
-        : InstructionTargetEnum.ENTIRE_FILE;
 
-      if (instruction.method_id && (instructionTarget === InstructionTargetEnum.SPECIFIC_TASK || instructionTarget === InstructionTargetEnum.SPECIFIC_TRANSITION)) {
+      if (instruction.method_id && hasMethod && hasTransition) {
         try {
           // MAIMLファイル取得: project_uuid → file_metadata 経由で最新 file_key を取得
           const projectInfoForMaiml = await projectRepository.findNameAndUuidById(organizationId, projectId);
@@ -1871,7 +1863,6 @@ export class ProjectService {
         organizationId,
         projectId,
         {
-          instructionTarget,
           methodId: instruction.method_id ?? null,
           transitionId: instruction.transition_id ?? null,
           programId,

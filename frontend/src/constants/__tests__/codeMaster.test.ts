@@ -17,7 +17,6 @@ import {
   TaskStatus,
   InstructionStatus,
   InstructionPriority,
-  InstructionTarget,
   InstructionTypeCode,
   IssueType,
   ExperimentCondition,
@@ -136,24 +135,6 @@ describe('InstructionPriority', () => {
   it('値の重複がない', () => {
     const values = Object.values(InstructionPriority);
     expect(new Set(values).size).toBe(values.length);
-  });
-});
-
-// ============================================================
-// InstructionTarget
-// ============================================================
-describe('InstructionTarget', () => {
-  it('ENTIRE_FILE は 0 である', () => {
-    expect(InstructionTarget.ENTIRE_FILE).toBe(0);
-  });
-  it('SPECIFIC_TASK は 1 である', () => {
-    expect(InstructionTarget.SPECIFIC_TASK).toBe(1);
-  });
-  it('SPECIFIC_TRANSITION は 2 である', () => {
-    expect(InstructionTarget.SPECIFIC_TRANSITION).toBe(2);
-  });
-  it('全3種類の値を持つ', () => {
-    expect(Object.keys(InstructionTarget)).toHaveLength(3);
   });
 });
 
@@ -363,12 +344,6 @@ describe('フロントエンド定数とバックエンド ENUM の整合性', (
     expect(InstructionPriority.NORMAL).toBe(1);
     expect(InstructionPriority.MEDIUM).toBe(2);
     expect(InstructionPriority.HIGH).toBe(3);
-  });
-
-  it('InstructionTarget の全値がバックエンド InstructionTargetEnum と一致する', () => {
-    expect(InstructionTarget.ENTIRE_FILE).toBe(0);
-    expect(InstructionTarget.SPECIFIC_TASK).toBe(1);
-    expect(InstructionTarget.SPECIFIC_TRANSITION).toBe(2);
   });
 
   it('InstructionTypeCode の全値がバックエンド InstructionTypeEnum と一致する', () => {

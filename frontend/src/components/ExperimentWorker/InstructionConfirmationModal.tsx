@@ -15,25 +15,15 @@ import {
   DownOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import type { Instruction, InstructionType, TargetType, Priority, ProjectStatus, Transition } from '@/types/experimentWorker';
+import type { Instruction, InstructionType, Priority, ProjectStatus, Transition } from '@/types/experimentWorker';
 import type { WorkerInstruction } from '@/types/project';
 import { getWorkerInstructions } from '@/services/projectApiService';
 
 /**
  * WorkerInstruction をフロントエンド型 Instruction に変換する
- * method_id / task_no / transition_id の値から targetType を導出する。
+ * method_id / task_no / transition_id の有無からグループを判定する。
  */
 function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
-  const hasMethod = !!(apiData.method_id);
-  const hasTransition = !!(apiData.transition_id);
-  const hasTask = apiData.task_no !== null && apiData.task_no !== undefined && apiData.task_no !== '';
-
-  const targetType: TargetType =
-    hasMethod && hasTransition && hasTask ? 'task' :
-    hasMethod && hasTransition            ? 'transition' :
-    hasMethod                             ? 'method' :
-    'file';
-
   const priorityMap: Record<string, Priority> = {
     '0': 'low', '1': 'normal', '2': 'medium', '3': 'high',
   };
@@ -43,7 +33,6 @@ function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
 
   return {
     instructionId: apiData.id,
-    targetType,
     transitionId: apiData.transition_id || undefined,
     transitionName: apiData.transition_name || undefined,
     methodId: apiData.method_id || undefined,
@@ -140,18 +129,18 @@ export default function InstructionConfirmationModal({
     if (!transition) return [];
 
     return allInstructions.filter((instruction) => {
-      // 全体指示（ファイル単位）
-      if (instruction.targetType === 'file') {
+      // 全体指示（methodId も transitionId もない）
+      if (!instruction.methodId && !instruction.transitionId) {
         return true;
       }
 
-      // メソッド単位指示
-      if (instruction.targetType === 'method' && methodId) {
+      // メソッド単位指示（methodId あり・transitionId なし）
+      if (!!instruction.methodId && !instruction.transitionId && methodId) {
         return instruction.methodId === methodId;
       }
 
-      // トランジション単位指示
-      if (instruction.targetType === 'transition') {
+      // トランジション単位指示（methodId あり・transitionId あり・taskId なし）
+      if (!!instruction.methodId && !!instruction.transitionId && !instruction.taskId) {
         return instruction.transitionId === transition.transitionId;
       }
 
@@ -166,11 +155,11 @@ export default function InstructionConfirmationModal({
     const transitionInst: Instruction[] = [];
 
     instructions.forEach((instruction) => {
-      if (instruction.targetType === 'file') {
+      if (!instruction.methodId && !instruction.transitionId) {
         file.push(instruction);
-      } else if (instruction.targetType === 'method') {
+      } else if (!!instruction.methodId && !instruction.transitionId) {
         method.push(instruction);
-      } else if (instruction.targetType === 'transition') {
+      } else if (!!instruction.methodId && !!instruction.transitionId && !instruction.taskId) {
         transitionInst.push(instruction);
       }
     });

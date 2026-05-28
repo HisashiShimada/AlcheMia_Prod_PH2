@@ -9,9 +9,6 @@ import {
 // 優先度の型
 export type Priority = 'high' | 'medium' | 'normal' | 'low';
 
-// 対象タイプ
-export type TargetType = 'file' | 'method' | 'transition' | 'task';
-
 // 指示タイプ
 export type InstructionType = 'safety' | 'setup' | 'measurement' | 'cleanup' | 'general';
 
@@ -107,7 +104,6 @@ export interface User {
 // 指示データ
 export interface Instruction {
   instructionId: string;
-  targetType: TargetType;
   transitionId?: string;
   transitionName?: string;
   methodId?: string;

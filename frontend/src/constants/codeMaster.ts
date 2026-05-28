@@ -119,28 +119,6 @@ export const InstructionPriority = {
 export type InstructionPriorityType = typeof InstructionPriority[keyof typeof InstructionPriority];
 
 // ============================================================
-// instruction_target: 指示範囲
-// ============================================================
-
-/**
- * 指示ターゲット定数
- *
- * code_division = 'instruction_target'
- */
-export const InstructionTarget = {
-  /** ファイル全体（プロジェクト指示） */
-  ENTIRE_FILE: 0,
-  /** 特定メソッド */
-  SPECIFIC_METHOD: 1,
-  /** 特定トランジション */
-  SPECIFIC_TRANSITION: 2,
-  /** 特定タスク */
-  SPECIFIC_TASK: 3,
-} as const;
-
-export type InstructionTargetType = typeof InstructionTarget[keyof typeof InstructionTarget];
-
-// ============================================================
 // instruction_type: 実験指示タイプ（数値コード）
 // NOTE: 文字列ラベル用の InstructionType（constants/instructionType.ts）とは別物。
 // ============================================================
