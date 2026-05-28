@@ -260,8 +260,8 @@ export default function InstructionConfirmationTab({
         }
         return true;
       }
-      // タスク単位指示（methodId あり・transitionId あり・taskId あり）
-      if (!!instruction.methodId && !!instruction.transitionId && !!instruction.taskId) {
+      // タスク単位指示（methodId あり・taskId あり、transitionId は問わない）
+      if (!!instruction.methodId && !!instruction.taskId) {
         // メソッド選択済みの場合、選択されたメソッドに属するタスクのみに限定
         if (selectedMethodId && instruction.methodId !== selectedMethodId) {
           return false;
@@ -281,7 +281,7 @@ export default function InstructionConfirmationTab({
   const filteredStats = useMemo(() => {
     const fileInstructions = filteredInstructions.filter((i) => !i.methodId && !i.transitionId);
     const methodInstructions = filteredInstructions.filter((i) => !!i.methodId && !i.transitionId);
-    const taskInstructions = filteredInstructions.filter((i) => !!i.methodId && !!i.transitionId && !!i.taskId);
+    const taskInstructions = filteredInstructions.filter((i) => !!i.methodId && !!i.taskId);
     const transitionInstructions = filteredInstructions.filter((i) => !!i.methodId && !!i.transitionId && !i.taskId);
     const unreadInstructions = filteredInstructions.filter((i) => !i.isRead);
 
@@ -846,20 +846,20 @@ export default function InstructionConfirmationTab({
                     {expandedGroups['task'] ? <DownOutlined /> : <RightOutlined />}{' '}
                     <CheckSquareOutlined style={{ marginRight: token.marginXS }} />
                     {t('instructionConfirmation.taskInstructionGroup')} (
-                    {filteredInstructions.filter((i) => !!i.methodId && !!i.transitionId && !!i.taskId).length}
+                    {filteredInstructions.filter((i) => !!i.methodId && !!i.taskId).length}
                     {t('instructionConfirmation.countSuffix')})
                   </Title>
                 </div>
 
                 {/* 確認完了ボタン（展開時のみ表示）*/}
-                {expandedGroups['task'] && filteredInstructions.filter((i) => !!i.methodId && !!i.transitionId && !!i.taskId).length > 0 && (
+                {expandedGroups['task'] && filteredInstructions.filter((i) => !!i.methodId && !!i.taskId).length > 0 && (
                   <Button
                     type="primary"
                     icon={<CheckCircleOutlined />}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleConfirmTaskInstructions(
-                        filteredInstructions.filter((i) => !!i.methodId && !!i.transitionId && !!i.taskId)
+                        filteredInstructions.filter((i) => !!i.methodId && !!i.taskId)
                       );
                     }}
                     loading={confirmLoading}
@@ -868,7 +868,7 @@ export default function InstructionConfirmationTab({
                       !isTaskExecuting ||
                       confirmLoading ||
                       filteredInstructions
-                        .filter((i) => !!i.methodId && !!i.transitionId && !!i.taskId)
+                        .filter((i) => !!i.methodId && !!i.taskId)
                         .every((i) => i.isAcknowledged)
                     }
                     style={{
@@ -886,7 +886,7 @@ export default function InstructionConfirmationTab({
                     title={t('instructionConfirmation.taskInstructionGroup')}
                     emoji="checkSquare"
                     instructions={filteredInstructions.filter(
-                      (i) => !!i.methodId && !!i.transitionId && !!i.taskId
+                      (i) => !!i.methodId && !!i.taskId
                     )}
                     projectStatus={projectStatus}
                     isClient={isClient}

@@ -1790,8 +1790,9 @@ export class ProjectService {
       let programId: string | null = null;
       const hasMethod = !!(instruction.method_id);
       const hasTransition = !!(instruction.transition_id);
+      const hasTask = !!(instruction.task_no);
 
-      if (instruction.method_id && hasMethod && hasTransition) {
+      if (hasMethod && (hasTransition || hasTask)) {
         try {
           // MAIMLファイル取得: project_uuid → file_metadata 経由で最新 file_key を取得
           const projectInfoForMaiml = await projectRepository.findNameAndUuidById(organizationId, projectId);
