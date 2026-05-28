@@ -1,6 +1,55 @@
 import { useState, useMemo } from 'react';
-import type { Instruction, Priority, WorkAssignment } from '@/types/experimentWorker';
-import { getWorkerInstructions, convertApiToInstruction } from '@/services/projectApiService';
+import type { Instruction, Priority, InstructionType, TargetType, WorkAssignment } from '@/types/experimentWorker';
+import type { WorkerInstruction } from '@/types/project';
+import { getWorkerInstructions } from '@/services/projectApiService';
+
+/**
+ * WorkerInstruction をフロントエンド型 Instruction に変換する
+ * method_id / task_no / transition_id の値から targetType を導出する。
+ */
+function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
+  const hasMethod = !!(apiData.method_id);
+  const hasTransition = !!(apiData.transition_id);
+  const hasTask = apiData.task_no !== null && apiData.task_no !== undefined && apiData.task_no !== '';
+
+  const targetType: TargetType =
+    hasMethod && hasTransition && hasTask ? 'task' :
+    hasMethod && hasTransition            ? 'transition' :
+    hasMethod                             ? 'method' :
+    'file';
+
+  const priorityMap: Record<string, Priority> = {
+    '0': 'low', '1': 'normal', '2': 'medium', '3': 'high',
+  };
+  const instructionTypeMap: Record<string, InstructionType> = {
+    '0': 'general', '1': 'setup', '2': 'measurement', '3': 'safety', '4': 'cleanup',
+  };
+
+  return {
+    instructionId: apiData.id,
+    targetType,
+    transitionId: apiData.transition_id || undefined,
+    transitionName: apiData.transition_name || undefined,
+    methodId: apiData.method_id || undefined,
+    methodName: apiData.method_name || undefined,
+    taskId: apiData.task_no ? `${apiData.project_id}-${apiData.method_id}-${apiData.task_no}` : undefined,
+    taskName: apiData.task_no ? `Task ${apiData.task_no}` : undefined,
+    content: apiData.instruction_content,
+    priority: priorityMap[apiData.priority] || 'normal',
+    instructionType: instructionTypeMap[apiData.type] || 'general',
+    createdAt: apiData.create_at,
+    updatedAt: null,
+    createdBy: {
+      userId: apiData.created_by,
+      userName: apiData.created_by_name,
+    },
+    isRead: apiData.is_acknowledged,
+    isAcknowledged: apiData.is_acknowledged,
+    acknowledgedAt: undefined,
+    acknowledgedBy: undefined,
+    acknowledgedByName: undefined,
+  };
+}
 
 /**
  * 指示管理のカスタムフック
@@ -34,7 +83,7 @@ export function useInstructions() {
       
       if (result.success && result.data) {
         // バックエンドレスポンスをフロントエンド型に変換
-        const convertedInstructions: Instruction[] = result.data.map(convertApiToInstruction);
+        const convertedInstructions: Instruction[] = result.data.map(convertWorkerInstruction);
         setInstructions(convertedInstructions);
       } else {
         setError(result.error?.message || '指示の取得に失敗しました');
@@ -64,7 +113,7 @@ export function useInstructions() {
       const result = await getWorkerInstructions(selectedProject);
       
       if (result.success && result.data) {
-        const convertedInstructions: Instruction[] = result.data.map(convertApiToInstruction);
+        const convertedInstructions: Instruction[] = result.data.map(convertWorkerInstruction);
         setInstructions(convertedInstructions);
       } else {
         setError(result.error?.message || '指示の取得に失敗しました');

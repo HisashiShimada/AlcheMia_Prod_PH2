@@ -22,11 +22,10 @@ import {
   InstructionData
 } from '../types/api';
 import { logger, logError } from '../utils/logger';
-import { deriveInstructionTarget } from '../utils/instructionTargetUtils';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
 import { XMLParser } from 'fast-xml-parser';
-import { InstructionStatusEnum } from '../enums/codeMaster.enum';
+import { InstructionStatusEnum, InstructionTargetEnum } from '../enums/codeMaster.enum';
 
 /**
  * 指示一覧を取得
@@ -341,10 +340,14 @@ export async function sendInstructions(
         organizationId,
         projectId,
         {
-          instructionTarget: deriveInstructionTarget(
-            instruction.method_id,
-            instruction.task_no,
-            instruction.transition_id
+          instructionTarget: (
+            !!(instruction.method_id) && !!(instruction.transition_id) && instruction.task_no != null
+              ? InstructionTargetEnum.SPECIFIC_TASK
+              : !!(instruction.method_id) && !!(instruction.transition_id)
+              ? InstructionTargetEnum.SPECIFIC_TRANSITION
+              : !!(instruction.method_id)
+              ? InstructionTargetEnum.SPECIFIC_METHOD
+              : InstructionTargetEnum.ENTIRE_FILE
           ),
           methodId,
           transitionId: instruction.transition_id ?? null,

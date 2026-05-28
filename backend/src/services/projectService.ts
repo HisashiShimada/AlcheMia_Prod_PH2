@@ -21,7 +21,6 @@ import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { MaimlWriterService } from './maimlWriterService';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
-import { deriveInstructionTarget } from '../utils/instructionTargetUtils';
 import { XMLParser } from 'fast-xml-parser';
 import type { Project, Pagination, ProjectListResponse } from '../types/project';
 import type { ProjectFileResponse, GetProjectFilesData, StorageFileEntry } from '../types/file';
@@ -1789,11 +1788,16 @@ export class ProjectService {
       //    トランジション（target=3）・タスク（target=2）の場合、
       //    <program id="..."> の id を trace @ref に使用する。
       let programId: string | null = null;
-      const instructionTarget = deriveInstructionTarget(
-        instruction.method_id,
-        instruction.task_no,
-        instruction.transition_id
-      );
+      const hasMethod = !!(instruction.method_id);
+      const hasTransition = !!(instruction.transition_id);
+      const hasTask = instruction.task_no != null;
+      const instructionTarget = hasMethod && hasTransition && hasTask
+        ? InstructionTargetEnum.SPECIFIC_TASK
+        : hasMethod && hasTransition
+        ? InstructionTargetEnum.SPECIFIC_TRANSITION
+        : hasMethod
+        ? InstructionTargetEnum.SPECIFIC_METHOD
+        : InstructionTargetEnum.ENTIRE_FILE;
 
       if (instruction.method_id && (instructionTarget === InstructionTargetEnum.SPECIFIC_TASK || instructionTarget === InstructionTargetEnum.SPECIFIC_TRANSITION)) {
         try {
