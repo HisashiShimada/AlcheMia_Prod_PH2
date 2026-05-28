@@ -140,9 +140,13 @@ export default function InstructionConfirmationModal({
         return instruction.methodId === methodId;
       }
 
-      // トランジション/タスク単位指示（methodId あり・transitionId あり）
-      // taskId の有無にかかわらず対象トランジションのものを表示
-      if (instruction.methodId && instruction.transitionId) {
+    // タスク単位指示（methodId あり・transitionId あり・taskId あり）
+      if (instruction.methodId && instruction.transitionId && instruction.taskId) {
+        return instruction.transitionId === transition.transitionId;
+      }
+
+      // トランジション単位指示（methodId あり・transitionId あり・taskId なし）
+      if (instruction.methodId && instruction.transitionId && !instruction.taskId) {
         return instruction.transitionId === transition.transitionId;
       }
 
