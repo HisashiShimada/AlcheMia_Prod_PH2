@@ -135,9 +135,6 @@ export interface ProjectInstruction {
   /** メソッドID */
   method_id?: string | null;
   
-  /** 指示対象: 1=ファイル全体、2=タスク、3=トランジション */
-  instruction_target?: number | null;
-  
   /** 優先度 */
   priority?: number | null;
   

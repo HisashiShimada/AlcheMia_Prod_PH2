@@ -17,7 +17,7 @@ import type {
   AddCommentParams,
   GetIssuesParams,
 } from '@/types/experimentWorker';
-import { InstructionStatus } from '@/constants/codeMaster';
+import { InstructionStatus, IssueTypeType } from '@/constants/codeMaster';
 
 // ============================================================
 // APIレスポンス型定義（バックエンドのレスポンス構造に合わせる）
@@ -164,7 +164,7 @@ function mapToIssue(data: IssueApiData): Issue {
     // DBから数値（0/1）で返る場合があるため、文字列IssueStatusに変換する
     status: mapToIssueStatus(data.status as 'unresolved' | 'resolved' | number),
     targetType: data.targetType as IssueTargetType,
-    issueType: data.issueType,
+    issueType: data.issueType as IssueTypeType | undefined,
     reportedBy,
     reportedAt: data.reportedAt,
     comments,

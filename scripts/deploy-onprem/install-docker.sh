@@ -4,8 +4,8 @@
 # =============================================================================
 #
 # 使い方:
-#   chmod +x scripts/install-docker.sh
-#   sudo bash scripts/install-docker.sh
+#   chmod +x scripts/deploy-onprem/install-docker.sh
+#   sudo bash scripts/deploy-onprem/install-docker.sh
 #
 # 対応OS:
 #   Ubuntu 20.04 / 22.04 / 24.04 LTS

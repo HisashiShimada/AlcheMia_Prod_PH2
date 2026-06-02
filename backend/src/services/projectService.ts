@@ -12,7 +12,7 @@ import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
-import { ProjectStatusEnum, CheckoutStatusEnum, InstructionTargetEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
+import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
@@ -1445,7 +1445,6 @@ export class ProjectService {
         transition_id: row.transition_id,
         transition_name: '', // TODO: タスク2.2で実装
         task_no: row.task_no,
-        instruction_target: row.instruction_target,
         instruction_content: row.instruction_content,
         priority: row.priority,
         type: row.type,
@@ -1789,9 +1788,11 @@ export class ProjectService {
       //    トランジション（target=3）・タスク（target=2）の場合、
       //    <program id="..."> の id を trace @ref に使用する。
       let programId: string | null = null;
-      const instructionTarget = instruction.instruction_target ?? 0;
+      const hasMethod = !!(instruction.method_id);
+      const hasTransition = !!(instruction.transition_id);
+      const hasTask = !!(instruction.task_no);
 
-      if (instruction.method_id && (instructionTarget === InstructionTargetEnum.SPECIFIC_TASK || instructionTarget === InstructionTargetEnum.SPECIFIC_TRANSITION)) {
+      if (hasMethod && (hasTransition || hasTask)) {
         try {
           // MAIMLファイル取得: project_uuid → file_metadata 経由で最新 file_key を取得
           const projectInfoForMaiml = await projectRepository.findNameAndUuidById(organizationId, projectId);
@@ -1863,7 +1864,6 @@ export class ProjectService {
         organizationId,
         projectId,
         {
-          instructionTarget,
           methodId: instruction.method_id ?? null,
           transitionId: instruction.transition_id ?? null,
           programId,

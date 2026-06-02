@@ -14,9 +14,7 @@ import { findByDivision } from './codeMasterRepository';
  * 指示送信ログのパラメータ
  */
 export interface InstructionSentLogParams {
-  /** 指示対象: 0=ファイル全体、1=メソッド、2=トランジション、3=タスク */
-  instructionTarget: number;
-  /** メソッドID */
+  /** メソッドID（nullの場合はファイル全体指示） */
   methodId: string | null;
   /** トランジションID */
   transitionId: string | null;
@@ -45,9 +43,7 @@ export interface InstructionSentLogParams {
  * 指示確認ログのパラメータ
  */
 export interface InstructionConfirmLogParams {
-  /** 指示対象: 0=ファイル全体、1=メソッド、2=トランジション、3=タスク */
-  instructionTarget: number;
-  /** メソッドID */
+  /** メソッドID（nullの場合はファイル全体指示） */
   methodId: string | null;
   /** トランジションID */
   transitionId: string | null;
@@ -281,10 +277,9 @@ export class EventLogRepository {
       const nextSequenceNo: number = sequenceResult.rows[0].next_sequence_no;
 
       // code_master から各区分のラベルマップを並列取得
-      const [priorityMasters, typeMasters, targetMasters] = await Promise.all([
+      const [priorityMasters, typeMasters] = await Promise.all([
         findByDivision(organizationId, 'instruction_priority'),
         findByDivision(organizationId, 'instruction_type'),
-        findByDivision(organizationId, 'instruction_target'),
       ]);
 
       // code_value（文字列）→ 日本語ラベル のマップを構築
@@ -296,17 +291,13 @@ export class EventLogRepository {
       const typeLabelMap: Record<number, string> = Object.fromEntries(
         typeMasters.map(m => [Number(m.code_value), m.code_remark || m.code_name])
       );
-      const targetLabelMap: Record<number, string> = Object.fromEntries(
-        targetMasters.map(m => [Number(m.code_value), m.code_remark || m.code_name])
-      );
 
-      // instruction_target に応じた JSON 構造を構築
+      // methodId / transitionId / taskNo の有無に応じた JSON 構造を構築
       const logJson = this.buildInstructionSentLogJson(
         params,
         nextSequenceNo,
         priorityLabelMap,
         typeLabelMap,
-        targetLabelMap,
       );
 
       const insertQuery = await this.insertQueryPromise;
@@ -329,11 +320,16 @@ export class EventLogRepository {
   /**
    * 指示送信用の eventLog JSON 構造を生成するヘルパー
    *
+   * methodId / transitionId / taskNo の有無で JSON 構造を判定する:
+   * - methodId あり && transitionId あり && taskNo あり → タスク指示
+   * - methodId あり && transitionId あり               → トランジション指示
+   * - methodId あり                                    → メソッド指示
+   * - それ以外                                         → ファイル全体指示
+   *
    * @param params - 指示送信ログパラメータ
    * @param sequenceNo - 採番済みの sequence_no（ID生成に使用）
    * @param priorityLabelMap - code_master(instruction_priority) の数値→code_name マップ
    * @param typeLabelMap - code_master(instruction_type) の数値→code_name マップ
-   * @param targetLabelMap - code_master(instruction_target) の数値→code_name マップ
    * @returns eventLog JSON オブジェクト
    */
   private buildInstructionSentLogJson(
@@ -341,11 +337,10 @@ export class EventLogRepository {
     sequenceNo: number,
     priorityLabelMap: Record<number, string>,
     typeLabelMap: Record<number, string>,
-    targetLabelMap: Record<number, string>,
   ): Record<string, unknown> {
     const {
-      instructionTarget,
       methodId,
+      transitionId,
       programId,
       taskNo,
       experimentInstructionId,
@@ -359,8 +354,8 @@ export class EventLogRepository {
     const logId = `log_${sequenceNo}`;
     const evnetId = `evnet_${sequenceNo}`;
 
-    // property 配列（3ターゲット共通）
-    // priority / type / instruction_target は code_master の code_name を使用
+    // property 配列（全ターゲット共通）
+    // priority / type は code_master の code_name を使用
     // code_master に存在しない値の場合は String(数値) にフォールバック
     const properties = [
       {
@@ -393,24 +388,21 @@ export class EventLogRepository {
         '@xsi:type': 'stringType',
         '#text': typeLabelMap[type ?? 0] ?? String(type ?? 0),
       },
-      {
-        '@key': 'instruction_target',
-        '@xsi:type': 'stringType',
-        '#text': targetLabelMap[instructionTarget] ?? String(instructionTarget),
-      },
     ];
 
-    if (instructionTarget === 3) {
-      // トランジション: eventLog > log > trace(@id, @ref=programId) > evnet(@ref=experimentInstructionId)
-      const traceId3 = `trace_${sequenceNo}`;
+    if (!!methodId && taskNo != null) {
+      // タスク指示: eventLog > log > trace(@id, @ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
+      // transitionId は不要（methodId + taskNo でタスク指示を判定）
+      const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
-            '@ref': methodId ?? '',
+            '@ref': methodId,
             trace: {
-              '@id': traceId3,
-              '@ref': programId ?? traceId3,
+              '@id': traceId,
+              '@ref': programId ?? traceId,
+              '@taskno': String(taskNo),
               evnet: {
                 '@id': evnetId,
                 '@ref': experimentInstructionId,
@@ -420,18 +412,17 @@ export class EventLogRepository {
           },
         },
       };
-    } else if (instructionTarget === 2) {
-      // タスク: eventLog > log > trace(@id, @ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
-      const traceId2 = `trace_${sequenceNo}`;
+    } else if (!!methodId && !!transitionId) {
+      // トランジション指示: eventLog > log > trace(@id, @ref=programId) > evnet(@ref=experimentInstructionId)
+      const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
-            '@ref': methodId ?? '',
+            '@ref': methodId,
             trace: {
-              '@id': traceId2,
-              '@ref': programId ?? traceId2,
-              '@taskno': String(taskNo ?? ''),
+              '@id': traceId,
+              '@ref': programId ?? traceId,
               evnet: {
                 '@id': evnetId,
                 '@ref': experimentInstructionId,
@@ -441,16 +432,16 @@ export class EventLogRepository {
           },
         },
       };
-    } else if (instructionTarget === 1) {
+    } else if (!!methodId) {
       // メソッド指示: eventLog > log(@ref=methodId) > trace > evnet(@ref=experimentInstructionId)
-      const traceId1 = `trace_${sequenceNo}`;
+      const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
-            '@ref': methodId ?? '',
+            '@ref': methodId,
             trace: {
-              '@id': traceId1,
+              '@id': traceId,
               // '@ref' は意図的に省略（programId は不要）
               evnet: {
                 '@id': evnetId,
@@ -462,15 +453,15 @@ export class EventLogRepository {
         },
       };
     } else {
-      // ファイル全体（instruction_target = 0）: eventLog > log > trace > evnet（ref なし）
-      const traceId0 = `trace_${sequenceNo}`;
+      // ファイル全体指示: eventLog > log > trace > evnet（ref なし）
+      const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
             // '@ref' は意図的に省略（ファイル全体指示はrefなし）
             trace: {
-              '@id': traceId0,
+              '@id': traceId,
               // '@ref' は意図的に省略
               evnet: {
                 '@id': evnetId,
@@ -655,7 +646,13 @@ export class EventLogRepository {
   }
 
   /**
-   * 指示対象に応じた eventLog JSON 構造を生成するヘルパー
+   * 指示確認用の eventLog JSON 構造を生成するヘルパー
+   *
+   * methodId / transitionId / taskNo の有無で JSON 構造を判定する:
+   * - methodId あり && transitionId あり && taskNo あり → タスク指示
+   * - methodId あり && transitionId あり               → トランジション指示
+   * - methodId あり                                    → メソッド指示
+   * - それ以外                                         → ファイル全体指示
    *
    * @param params - 指示確認ログパラメータ
    * @param sequenceNo - 採番済みの sequence_no（ID生成に使用）
@@ -666,8 +663,8 @@ export class EventLogRepository {
     sequenceNo: number
   ): Record<string, unknown> {
     const {
-      instructionTarget,
       methodId,
+      transitionId,
       programId,
       taskNo,
       experimentInstructionId,
@@ -678,7 +675,7 @@ export class EventLogRepository {
     const logId = `log_${sequenceNo}`;
     const evnetId = `evnet_${sequenceNo}`;
 
-    // property 配列（3ターゲット共通）
+    // property 配列（全ターゲット共通）
     const properties = [
       {
         '@key': 'acknowledged_at',
@@ -697,18 +694,19 @@ export class EventLogRepository {
       },
     ];
 
-
-    if (instructionTarget === 3) {
-      // トランジション: eventLog > log > trace(@id, @ref=programId) > evnet(@ref=experimentInstructionId)
-      const traceId3 = `trace_${sequenceNo}`;
+    if (!!methodId && taskNo != null) {
+      // タスク指示: eventLog > log > trace(@id, @ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
+      // transitionId は不要（methodId + taskNo でタスク指示を判定）
+      const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
-            '@ref': methodId ?? '',
+            '@ref': methodId,
             trace: {
-              '@id': traceId3,
-              '@ref': programId ?? traceId3,
+              '@id': traceId,
+              '@ref': programId ?? traceId,
+              '@taskno': String(taskNo),
               evnet: {
                 '@id': evnetId,
                 '@ref': experimentInstructionId,
@@ -718,18 +716,17 @@ export class EventLogRepository {
           },
         },
       };
-    } else if (instructionTarget === 2) {
-      // タスク: eventLog > log > trace(@id, @ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
-      const traceId2 = `trace_${sequenceNo}`;
+    } else if (!!methodId && !!transitionId) {
+      // トランジション指示: eventLog > log > trace(@id, @ref=programId) > evnet(@ref=experimentInstructionId)
+      const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
-            '@ref': methodId ?? '',
+            '@ref': methodId,
             trace: {
-              '@id': traceId2,
-              '@ref': programId ?? traceId2,
-              '@taskno': String(taskNo ?? ''),
+              '@id': traceId,
+              '@ref': programId ?? traceId,
               evnet: {
                 '@id': evnetId,
                 '@ref': experimentInstructionId,
@@ -739,16 +736,16 @@ export class EventLogRepository {
           },
         },
       };
-    } else if (instructionTarget === 1) {
+    } else if (!!methodId) {
       // メソッド指示: eventLog > log(@ref=methodId) > trace > evnet(@ref=experimentInstructionId)
-      const traceId1 = `trace_${sequenceNo}`;
+      const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
-            '@ref': methodId ?? '',
+            '@ref': methodId,
             trace: {
-              '@id': traceId1,
+              '@id': traceId,
               // '@ref' は意図的に省略（programId は不要）
               evnet: {
                 '@id': evnetId,
@@ -760,15 +757,15 @@ export class EventLogRepository {
         },
       };
     } else {
-      // ファイル全体（instruction_target = 0）: eventLog > log > trace > evnet（ref なし）
-      const traceId0 = `trace_${sequenceNo}`;
+      // ファイル全体指示: eventLog > log > trace > evnet（ref なし）
+      const traceId = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
             // '@ref' は意図的に省略（ファイル全体指示はrefなし）
             trace: {
-              '@id': traceId0,
+              '@id': traceId,
               // '@ref' は意図的に省略
               evnet: {
                 '@id': evnetId,

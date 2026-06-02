@@ -4,8 +4,8 @@
 # =============================================================================
 #
 # 使い方:
-#   chmod +x scripts/build-and-export.sh
-#   ./scripts/build-and-export.sh
+#   chmod +x scripts/deploy-onprem/build-and-export.sh
+#   ./scripts/deploy-onprem/build-and-export.sh
 #
 # オプション:
 #   --backend   backend のみビルド & エクスポート
@@ -14,9 +14,9 @@
 #   --output    出力先ディレクトリを指定（デフォルト: ./dist）
 #
 # 例:
-#   ./scripts/build-and-export.sh
-#   ./scripts/build-and-export.sh --backend
-#   ./scripts/build-and-export.sh --pull --output /tmp/mmdpf-export
+#   ./scripts/deploy-onprem/build-and-export.sh
+#   ./scripts/deploy-onprem/build-and-export.sh --backend
+#   ./scripts/deploy-onprem/build-and-export.sh --pull --output /tmp/mmdpf-export
 #
 # 出力ファイル:
 #   dist/mmdpf-backend.tar.gz

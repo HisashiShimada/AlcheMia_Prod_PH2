@@ -4,8 +4,8 @@
 # =============================================================================
 #
 # 使い方:
-#   chmod +x scripts/package-for-deploy.sh   # 初回のみ
-#   ./scripts/package-for-deploy.sh
+#   chmod +x scripts/deploy-onprem/package-for-deploy.sh   # 初回のみ
+#   ./scripts/deploy-onprem/package-for-deploy.sh
 #
 # 前提条件:
 #   - dist/mmdpf-backend.tar.gz      (build-and-export.sh で生成済み)
@@ -153,9 +153,9 @@ cp backend/migrations/*.sql "${TMP_PKG}/backend/migrations/" 2>/dev/null || true
 success "コピー: backend/migrations/*.sql"
 
 # ⑧ 起動スクリプト
-cp scripts/start-onprem.sh "${TMP_PKG}/scripts/start-onprem.sh"
+cp scripts/deploy-onprem/start-onprem.sh "${TMP_PKG}/scripts/start-onprem.sh"
 chmod +x "${TMP_PKG}/scripts/start-onprem.sh"
-success "コピー: scripts/start-onprem.sh"
+success "コピー: scripts/deploy-onprem/start-onprem.sh"
 
 # =============================================================================
 # tar.gz に圧縮

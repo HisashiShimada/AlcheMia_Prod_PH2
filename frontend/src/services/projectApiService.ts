@@ -38,7 +38,6 @@ import type {
 } from '@/types/taskRegistration';
 import type {
   Instruction,
-  TargetType,
   Priority,
   InstructionType
 } from '@/types/experimentWorker';
@@ -1042,73 +1041,6 @@ export const updateTransitionStatus = async (
     throw error;
   }
 };
-
-/**
- * バックエンドAPIレスポンス（WorkerInstruction）をフロントエンド型（Instruction）に変換
- * 
- * @param apiData バックエンドAPIレスポンス
- * @returns フロントエンド型の指示データ
- * 
- * @example
- * ```typescript
- * const apiInstruction: WorkerInstruction = { ... };
- * const instruction: Instruction = convertApiToInstruction(apiInstruction);
- * ```
- */
-export function convertApiToInstruction(apiData: WorkerInstruction): Instruction {
-  // instruction_target → targetType 変換マップ（文字列キー）
-  // バックエンド: 0=ファイル全体, 1=メソッド, 2=トランジション, 3=タスク
-  const targetTypeMap: Record<string, TargetType> = {
-    '0': 'file',        // プロジェクト指示（ファイル全体）
-    '1': 'method',      // メソッド指示
-    '2': 'transition',  // トランジション指示
-    '3': 'task',        // タスク指示
-  };
-  
-  // priority → Priority 変換マップ（文字列キー）
-  const priorityMap: Record<string, Priority> = {
-    '0': 'low',
-    '1': 'normal',
-    '2': 'medium',
-    '3': 'high'
-  };
-  
-  // type → InstructionType 変換マップ（文字列キー）
-  const instructionTypeMap: Record<string, InstructionType> = {
-    '0': 'general',
-    '1': 'setup',
-    '2': 'measurement',
-    '3': 'safety',
-    '4': 'cleanup'
-  };
-  
-  return {
-    instructionId: apiData.id,
-    targetType: targetTypeMap[apiData.instruction_target] || 'file',
-    transitionId: apiData.transition_id || undefined,
-    transitionName: apiData.transition_name || undefined,
-    methodId: apiData.method_id || undefined,
-    methodName: apiData.method_name || undefined,
-    taskId: apiData.task_no ? `${apiData.project_id}-${apiData.method_id}-${apiData.task_no}` : undefined,
-    taskName: apiData.task_no ? `Task ${apiData.task_no}` : undefined,
-    content: apiData.instruction_content,
-    priority: priorityMap[apiData.priority] || 'normal',
-    instructionType: instructionTypeMap[apiData.type] || 'general',
-    createdAt: apiData.create_at,
-    updatedAt: null,
-    createdBy: {
-      userId: apiData.created_by,
-      userName: apiData.created_by_name
-    },
-    isRead: apiData.is_acknowledged,
-    // API仕様に基づく確認済みフラグ
-    isAcknowledged: apiData.is_acknowledged,
-    acknowledgedAt: undefined,
-    acknowledgedBy: undefined,
-    acknowledgedByName: undefined
-  };
-}
-
 
 
 // ========================================

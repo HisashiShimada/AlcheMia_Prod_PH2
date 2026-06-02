@@ -5,6 +5,7 @@ import { Table, Tag, Typography, Empty, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { Task } from '@/types/project';
+import { TaskStatus } from '@/constants/codeMaster';
 
 const { Text } = Typography;
 
@@ -22,20 +23,20 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
   const { token } = theme.useToken();
 
   // ステータスラベルを取得
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: number) => {
     switch (status) {
-      case 'pending':
+      case TaskStatus.PENDING:
         return t('projectManagement.task_results.status_pending') || '実行待ち';
-      case 'in_progress':
+      case TaskStatus.IN_PROGRESS:
         return t('projectManagement.task_results.status_in_progress') || '実行中';
-      case 'forced_terminated':
+      case TaskStatus.FORCED_TERMINATED:
         return t('projectManagement.task_results.status_error') || '異常終了';
-      case 'review_waiting':
+      case TaskStatus.REVIEW_WAITING:
         return t('projectManagement.task_results.status_review_waiting') || 'レビュー待ち';
-      case 'completed':
+      case TaskStatus.COMPLETED:
         return t('projectManagement.task_results.status_completed') || '完了';
       default:
-        return status;
+        return String(status);
     }
   };
 
@@ -62,22 +63,19 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
       key: 'workStatus',
       width: '14%',
       align: 'center',
-      sorter: (a, b) => {
-        const statusOrder = { pending: 0, in_progress: 1, forced_terminated: 2, review_waiting: 3, completed: 4 };
-        return (statusOrder[a.workStatus as keyof typeof statusOrder] || 0) - (statusOrder[b.workStatus as keyof typeof statusOrder] || 0);
-      },
-      render: (status: string) => {
-        const getStatusColor = (status: string) => {
+      sorter: (a, b) => (a.workStatus as number) - (b.workStatus as number),
+      render: (status: number) => {
+        const getStatusColor = (status: number) => {
           switch (status) {
-            case 'pending':
+            case TaskStatus.PENDING:
               return 'default';
-            case 'in_progress':
+            case TaskStatus.IN_PROGRESS:
               return 'processing';
-            case 'forced_terminated':
+            case TaskStatus.FORCED_TERMINATED:
               return 'error';
-            case 'review_waiting':
+            case TaskStatus.REVIEW_WAITING:
               return 'warning';
-            case 'completed':
+            case TaskStatus.COMPLETED:
               return 'success';
             default:
               return 'default';

@@ -13,7 +13,7 @@
     "export:backend": "mkdir -p dist && docker compose -f docker-compose.prod.yml build backend && docker save mmdpf-backend:latest | gzip > dist/mmdpf-backend.tar.gz && ls -lh dist/mmdpf-backend.tar.gz",
     "export:frontend": "mkdir -p dist && docker compose -f docker-compose.prod.yml build frontend && docker save mmdpf-frontend:latest | gzip > dist/mmdpf-frontend.tar.gz && ls -lh dist/mmdpf-frontend.tar.gz",
     "export:pull": "docker compose -f docker-compose.prod.yml pull --ignore-pull-failures; mkdir -p dist && docker compose -f docker-compose.prod.yml build backend frontend && docker save mmdpf-backend:latest | gzip > dist/mmdpf-backend.tar.gz && docker save mmdpf-frontend:latest | gzip > dist/mmdpf-frontend.tar.gz && ls -lh dist/mmdpf-*.tar.gz",
-    "package": "node scripts/package-for-deploy.js"
+    "package": "node scripts/deploy-onprem/package-for-deploy.js"
   },
   "dependencies": {
     "dayjs": "^1.11.19"

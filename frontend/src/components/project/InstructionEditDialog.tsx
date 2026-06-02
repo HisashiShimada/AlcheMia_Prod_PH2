@@ -30,8 +30,8 @@ import type {
   TransitionInfo,
   INSTRUCTION_TYPES,
   INSTRUCTION_PRIORITIES,
-  TARGET_TYPES,
 } from '@/types/instructionRegistration';
+import { TARGET_TYPES } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { getMultipleSelectOptions } from '@/services/codeMasterApiService';
@@ -40,7 +40,6 @@ import {
   ExperimentCondition,
   InstructionTypeCode,
   InstructionPriority,
-  InstructionTarget,
 } from '@/constants/codeMaster';
 
 const { Text } = Typography;
@@ -251,7 +250,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         content: values.content.trim(),
         priority: values.priority,
         type: values.type,
-        targetType: InstructionTarget.ENTIRE_FILE, // デフォルト
+        targetType: TARGET_TYPES.FILE, // デフォルト
         methodId: values.methodId || selectedMethodId || '',
         transitionId: values.transitionId || '',
         taskNumber: values.taskNumber,
@@ -259,13 +258,13 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
 
       // 対象タイプを判定
       if (instructionData.transitionId) {
-        instructionData.targetType = InstructionTarget.SPECIFIC_TRANSITION;
+        instructionData.targetType = TARGET_TYPES.TRANSITION;
       } else if (instructionData.taskNumber !== undefined) {
-        instructionData.targetType = InstructionTarget.SPECIFIC_TASK;
+        instructionData.targetType = TARGET_TYPES.TASK;
       } else if (instructionData.methodId) {
-        instructionData.targetType = InstructionTarget.ENTIRE_FILE; // メソッド指示はFILE扱い（バックエンドと一致）
+        instructionData.targetType = TARGET_TYPES.FILE; // メソッド指示はFILE扱い（バックエンドと一致）
       } else {
-        instructionData.targetType = InstructionTarget.ENTIRE_FILE;
+        instructionData.targetType = TARGET_TYPES.FILE;
       }
 
       // 保存コールバック

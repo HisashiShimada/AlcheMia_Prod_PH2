@@ -6,7 +6,6 @@ SELECT
   organization_id,
   project_id,
   COALESCE(method_id, '') as method_id,
-  instruction_target as target_type,
   priority,
   type,
   task_no,

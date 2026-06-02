@@ -2,6 +2,8 @@
  * プロジェクト関連の型定義
  */
 
+import { TaskStatusType } from '@/constants/codeMaster';
+
 /**
  * プロジェクト
  */
@@ -30,14 +32,11 @@ export interface Project {
 }
 
 /**
- * タスクステータス
+ * タスクステータス（数値コード）
+ * constants/codeMaster.ts の TaskStatus を使用すること
+ * 0=実行待ち, 1=実行中, 2=レビュー待ち, 3=完了, 4=異常終了
  */
-export type TaskStatus = 
-  | 'pending'            // 0: 実行待ち
-  | 'in_progress'        // 1: 実行中
-  | 'review_waiting'     // 2: レビュー待ち
-  | 'completed'          // 3: 完了
-  | 'forced_terminated'; // 4: 強制終了（異常終了）
+export type TaskStatus = TaskStatusType;
 
 /**
  * タスク
@@ -299,7 +298,6 @@ export interface WorkerInstruction {
   transition_id: string;
   transition_name: string;
   task_no: string | null;
-  instruction_target: string;
   instruction_content: string;
   priority: string;
   type: string;

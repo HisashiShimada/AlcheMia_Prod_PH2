@@ -4,7 +4,8 @@ import React, { useMemo, useState } from 'react';
 import { Table, Tag, Typography, Button, Input, Select, Row, Col } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { Task, TaskStatus, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
+import { Task, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
+import { TaskStatus, TaskStatusType } from '@/constants/codeMaster';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
@@ -12,16 +13,15 @@ const { Text } = Typography;
 /**
  * ステータスバッジの色とラベルを取得
  */
-function getStatusConfig(status: TaskStatus) {
-  const configs: Record<TaskStatus, { color: string; label: string }> = {
-    not_started: { color: 'default', label: '開始前' },
-    started: { color: 'blue', label: '開始済み' },
-    in_progress: { color: 'orange', label: '作業中' },
-    completed: { color: 'green', label: '完了' },
-    forced_terminated: { color: 'red', label: '強制終了' },
-    suspended: { color: 'purple', label: '中断' }
+function getStatusConfig(status: TaskStatusType): { color: string; label: string } {
+  const configs: Record<TaskStatusType, { color: string; label: string }> = {
+    [TaskStatus.PENDING]: { color: 'default', label: '実行待ち' },
+    [TaskStatus.IN_PROGRESS]: { color: 'orange', label: '実行中' },
+    [TaskStatus.REVIEW_WAITING]: { color: 'blue', label: 'レビュー待ち' },
+    [TaskStatus.COMPLETED]: { color: 'green', label: '完了' },
+    [TaskStatus.FORCED_TERMINATED]: { color: 'red', label: '強制終了' },
   };
-  return configs[status] || { color: 'default', label: '不明' };
+  return configs[status] ?? { color: 'default', label: '不明' };
 }
 
 interface TaskListTableProps {
@@ -50,34 +50,25 @@ export default function TaskListTable({
   
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<TaskStatus | undefined>(undefined);
+  const [selectedStatus, setSelectedStatus] = useState<TaskStatusType | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
   // ステータスの選択肢
   const statusOptions = [
-    { label: '開始前', value: 'not_started' },
-    { label: '開始済み', value: 'started' },
-    { label: '作業中', value: 'in_progress' },
-    { label: '完了', value: 'completed' },
-    { label: '強制終了', value: 'forced_terminated' },
-    { label: '中断', value: 'suspended' }
+    { label: '実行待ち', value: TaskStatus.PENDING },
+    { label: '実行中', value: TaskStatus.IN_PROGRESS },
+    { label: 'レビュー待ち', value: TaskStatus.REVIEW_WAITING },
+    { label: '完了', value: TaskStatus.COMPLETED },
+    { label: '強制終了', value: TaskStatus.FORCED_TERMINATED },
   ];
   
   // 絞り込み条件を適用（tasksは既にメソッドでフィルタリング済み）
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
       // ステータスバッジの色とラベルを取得
-      const getStatusLabel = (status: TaskStatus): string => {
-        const configs: Record<TaskStatus, string> = {
-          not_started: '開始前',
-          started: '開始済み',
-          in_progress: '作業中',
-          completed: '完了',
-          forced_terminated: '強制終了',
-          suspended: '中断'
-        };
-        return configs[status] || '不明';
+      const getStatusLabel = (status: TaskStatusType): string => {
+        return getStatusConfig(status).label;
       };
       
       // あいまい検索
@@ -113,8 +104,8 @@ export default function TaskListTable({
         key: 'status',
         width: 95,
         align: 'center',
-        sorter: (a, b) => a.status.localeCompare(b.status),
-        render: (status: TaskStatus) => {
+        sorter: (a, b) => a.status - b.status,
+        render: (status: TaskStatusType) => {
           const config = getStatusConfig(status);
           return (
             <Tag
@@ -176,7 +167,7 @@ export default function TaskListTable({
         align: 'center',
         render: (_, record: Task) => {
           const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
-          const isDisabled = record.status !== 'not_started' || !isProjectEditable;
+          const isDisabled = record.status !== TaskStatus.PENDING || !isProjectEditable;
           
           return (
             <Button
@@ -231,8 +222,8 @@ export default function TaskListTable({
         render: (_, record: Task) => {
           const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
           const isDisabled = 
-            record.status === 'completed' || 
-            record.status === 'forced_terminated' || 
+            record.status === TaskStatus.COMPLETED || 
+            record.status === TaskStatus.FORCED_TERMINATED || 
             !isProjectEditable;
           
           return (
@@ -273,7 +264,7 @@ export default function TaskListTable({
             placeholder="ステータス"
             style={{ width: '100%' }}
             value={selectedStatus}
-            onChange={(value) => setSelectedStatus(value as TaskStatus)}
+            onChange={(value) => setSelectedStatus(value as TaskStatusType)}
             allowClear
             options={statusOptions}
             aria-label="タスクステータスで絞り込み"

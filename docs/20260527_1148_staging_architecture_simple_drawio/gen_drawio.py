@@ -1,0 +1,333 @@
+"""
+検証環境 AWSシステム構成図（シンプル統合版）生成スクリプト
+- 通常Staging構成（NLB+ALB+nginx）と本番検証構成（prod-verification-alb）を1図に統合
+- backend / Aurora / Redis は両構成で共用
+"""
+import os
+
+OUTPUT = os.path.join(os.path.dirname(__file__),
+                      '../../docs/design/infrastructure/staging-architecture-simple.drawio')
+OUTPUT = os.path.normpath(OUTPUT)
+
+XML = """<mxfile host="65bd71144e">
+    <diagram id="staging-unified" name="検証環境 統合システム構成図">
+        <mxGraphModel dx="2000" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- タイトル -->
+                <mxCell id="title" value="検証環境 AWSシステム構成図（alchemia-staging）" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" parent="1" vertex="1">
+                    <mxGeometry x="200" y="20" width="1200" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- 凡例ボックス -->
+                <mxCell id="legend-staging" value="【通常Staging構成】&#xa;NLB(TCP:443 パススルー) → nginx-service&#xa;ALB(HTTP:80 / ?orgId=) → nginx-service&#xa;nginx: SSL終端 / mTLS認証 / org_id抽出" style="text;html=1;strokeColor=#d79b00;fillColor=#ffe6cc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="70" width="340" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend-pv" value="【本番検証構成 (prod-verification)】&#xa;prod-verification-alb(HTTPS:443) → prod-frontend-service&#xa;nginx / NLB / mTLS: なし&#xa;alchemia-backend-service は既存と共用" style="text;html=1;strokeColor=#0066CC;fillColor=#dae8fc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="370" y="70" width="380" height="75" as="geometry"/>
+                </mxCell>
+
+                <!-- ユーザー群（左側：通常Staging） -->
+                <mxCell id="user-https" value="ユーザー（mTLS）&#xa;クライアント証明書 .p12" style="shape=mxgraph.aws4.user;fillColor=#232F3E;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontStyle=1;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="30" y="230" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="user-http" value="ユーザー&#xa;?orgId=クエリ" style="shape=mxgraph.aws4.user;fillColor=#232F3E;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontStyle=1;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="30" y="360" width="50" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- ユーザー群（右側：prod-verification） -->
+                <mxCell id="user-pv" value="ユーザー&#xa;(prod-verification)" style="shape=mxgraph.aws4.user;fillColor=#232F3E;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontStyle=1;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="1580" y="290" width="50" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- AWS Cloud -->
+                <mxCell id="aws-cloud" value="AWS Cloud (ap-northeast-1)" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;grStroke=0;strokeColor=#232F3E;fillColor=#ffffff;verticalAlign=top;align=center;spacingTop=25;fontColor=#232F3E;dashed=0;fontStyle=1;fontSize=12;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="170" width="1460" height="760" as="geometry"/>
+                </mxCell>
+
+                <!-- VPC -->
+                <mxCell id="vpc" value="VPC: alchemia-staging-vpc (10.1.0.0/16)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontStyle=1;fontSize=11;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="120" y="210" width="1420" height="700" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== ロードバランサー群 ===== -->
+
+                <!-- NLB -->
+                <mxCell id="nlb" value="NLB&#xa;TCP:443&#xa;パススルー&#xa;(alchemia-staging-nlb)" style="shape=mxgraph.aws4.classic_load_balancer;fillColor=#8C4FFF;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="200" y="270" width="60" height="60" as="geometry"/>
+                </mxCell>
+
+                <!-- ALB（通常） -->
+                <mxCell id="alb" value="ALB HTTP:80&#xa;?orgId=ルーティング&#xa;(alchemia-staging-alb)" style="shape=mxgraph.aws4.application_load_balancer;fillColor=#8C4FFF;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="330" y="270" width="60" height="60" as="geometry"/>
+                </mxCell>
+
+                <!-- prod-verification ALB -->
+                <mxCell id="alb-pv" value="prod-verification-alb&#xa;HTTPS:443&#xa;(ALB / ACM証明書)" style="shape=mxgraph.aws4.application_load_balancer;fillColor=#0066CC;strokeColor=none;fontColor=#ffffff;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="1360" y="270" width="60" height="60" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== AZ: ap-northeast-1a ===== -->
+                <mxCell id="az-1a" value="AZ: ap-northeast-1a" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=10;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="450" width="680" height="430" as="geometry"/>
+                </mxCell>
+
+                <!-- Public Subnet 1a -->
+                <mxCell id="pub-1a" value="Public Subnet: alchemia-public-1a (10.1.1.0/24)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="155" y="490" width="650" height="180" as="geometry"/>
+                </mxCell>
+
+                <!-- nginx-service (1a) -->
+                <mxCell id="nginx-service" value="ECS Fargate: alchemia-nginx-service&#xa;(Public Subnet / Fargate)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="170" y="530" width="620" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="container-nginx" value="nginx コンテナ (443/80)&#xa;SSL終端 / mTLS / org_id抽出&#xa;/api/ → backend(SD)" style="shape=mxgraph.aws4.ecs;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=9;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="565" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="container-frontend-nginx" value="frontend コンテナ (3000)&#xa;Next.js" style="shape=mxgraph.aws4.ecs;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=9;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="630" y="565" width="50" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- Private Subnet 1a -->
+                <mxCell id="priv-1a" value="Private Subnet: alchemia-private-1a (10.1.11.0/24)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="155" y="690" width="650" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="aurora" value="Aurora PostgreSQL&#xa;alchemia-staging-aurora&#xa;(Primary / 共用)" style="shape=mxgraph.aws4.aurora;fillColor=#C7131F;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="230" y="730" width="60" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="redis" value="ElastiCache Redis&#xa;alchemia-staging-redis&#xa;(共用)" style="shape=mxgraph.aws4.elasticache;fillColor=#C7131F;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="650" y="730" width="60" height="60" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== AZ: ap-northeast-1c ===== -->
+                <mxCell id="az-1c" value="AZ: ap-northeast-1c" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=10;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="840" y="450" width="680" height="430" as="geometry"/>
+                </mxCell>
+
+                <!-- Public Subnet 1c -->
+                <mxCell id="pub-1c" value="Public Subnet: alchemia-public-1c (10.1.2.0/24)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="855" y="490" width="650" height="390" as="geometry"/>
+                </mxCell>
+
+                <!-- backend-service (共用) -->
+                <mxCell id="backend-service" value="ECS Fargate: alchemia-backend-service【両構成で共用】&#xa;(Public Subnet / Fargate)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="870" y="530" width="620" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="container-backend" value="backend コンテナ (3001)&#xa;Node.js / Express API" style="shape=mxgraph.aws4.ecs;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="1140" y="565" width="50" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- prod-frontend-service -->
+                <mxCell id="frontend-pv-service" value="ECS Fargate: prod-frontend-service&#xa;(prod-verification専用 / Public Subnet)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#0066CC;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="870" y="690" width="620" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="container-frontend-pv" value="frontend コンテナ (3000)&#xa;Next.js" style="shape=mxgraph.aws4.ecs;fillColor=#0066CC;strokeColor=none;fontColor=#ffffff;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="1140" y="725" width="50" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- Service Discovery ラベル -->
+                <mxCell id="sd-label" value="Service Discovery&#xa;alchemia-backend.alchemia.local" style="text;html=1;strokeColor=#6600CC;fillColor=#f3e8ff;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=9;" parent="1" vertex="1">
+                    <mxGeometry x="870" y="440" width="230" height="40" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== 外部サービス ===== -->
+                <mxCell id="ext-area" value="外部 AWS サービス（IAM Role 経由）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1;verticalAlign=top;align=center;spacingTop=5;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="950" width="1400" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3" value="S3&#xa;mmdpf-files" style="shape=mxgraph.aws4.s3;fillColor=#3F8624;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="200" y="990" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="bedrock-ext" value="Bedrock&#xa;AIモデル推論" style="shape=mxgraph.aws4.bedrock;fillColor=#01A88D;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="530" y="990" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="ssm" value="SSM&#xa;Parameter Store&#xa;証明書格納" style="shape=mxgraph.aws4.systems_manager_parameter_store;fillColor=#E7157B;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="850" y="990" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="ecr" value="ECR&#xa;コンテナイメージ&#xa;(stagingタグ)" style="shape=mxgraph.aws4.ecr;fillColor=#ED7100;strokeColor=none;fontColor=#232F3E;labelBackgroundColor=#ffffff;sketch=0;fontSize=10;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="1200" y="990" width="50" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- ===== エッジ（接続線） ===== -->
+
+                <!-- ユーザー → NLB -->
+                <mxCell id="e-user-nlb" value="HTTPS:443&#xa;クライアント証明書" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0000FF;fontColor=#0000FF;fontSize=9;" parent="1" source="user-https" target="nlb" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="90" y="255"/>
+                            <mxPoint x="90" y="300"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- ユーザー → ALB -->
+                <mxCell id="e-user-alb" value="HTTP:80 ?orgId=" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0066CC;fontColor=#0066CC;fontSize=9;" parent="1" source="user-http" target="alb" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="90" y="385"/>
+                            <mxPoint x="90" y="300"/>
+                            <mxPoint x="300" y="300"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- ユーザー(pv) → alb-pv -->
+                <mxCell id="e-user-pv" value="HTTPS:443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0066CC;fontColor=#0066CC;fontSize=9;" parent="1" source="user-pv" target="alb-pv" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1555" y="315"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- NLB → nginx-service -->
+                <mxCell id="e-nlb-nginx" value="TCP:443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#FF8000;fontColor=#FF8000;fontSize=9;" parent="1" source="nlb" target="nginx-service" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="230" y="400"/>
+                            <mxPoint x="230" y="530"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- ALB → nginx-service -->
+                <mxCell id="e-alb-nginx" value="HTTP:80" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#FF8000;fontColor=#FF8000;fontSize=9;" parent="1" source="alb" target="nginx-service" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="360" y="400"/>
+                            <mxPoint x="360" y="530"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- nginx-service → backend-service（Service Discovery） -->
+                <mxCell id="e-nginx-backend" value="TCP:3001&#xa;Service Discovery" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6600CC;fontColor=#6600CC;fontSize=9;" parent="1" source="nginx-service" target="backend-service" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="790" y="590"/>
+                            <mxPoint x="870" y="590"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- alb-pv → prod-frontend-service -->
+                <mxCell id="e-pv-frontend" value="/* port:3000" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0066CC;fontColor=#0066CC;fontSize=9;" parent="1" source="alb-pv" target="frontend-pv-service" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1390" y="400"/>
+                            <mxPoint x="1390" y="690"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- alb-pv → backend-service -->
+                <mxCell id="e-pv-backend" value="/api/* port:3001" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=9;" parent="1" source="alb-pv" target="backend-service" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1390" y="420"/>
+                            <mxPoint x="1490" y="420"/>
+                            <mxPoint x="1490" y="590"/>
+                            <mxPoint x="1490" y="590"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- backend → Aurora -->
+                <mxCell id="e-back-aurora" value="TCP:5432 (SSL)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#0066CC;fontColor=#0066CC;fontSize=9;" parent="1" source="backend-service" target="aurora" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="920" y="650"/>
+                            <mxPoint x="920" y="900"/>
+                            <mxPoint x="260" y="900"/>
+                            <mxPoint x="260" y="730"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- backend → Redis -->
+                <mxCell id="e-back-redis" value="TCP:6379 (TLS)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#009900;fontColor=#009900;fontSize=9;" parent="1" source="backend-service" target="redis" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1050" y="650"/>
+                            <mxPoint x="1050" y="910"/>
+                            <mxPoint x="680" y="910"/>
+                            <mxPoint x="680" y="730"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- backend → S3 -->
+                <mxCell id="e-back-s3" value="IAM Role" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#3F8624;fontColor=#3F8624;fontSize=9;dashed=1;" parent="1" source="backend-service" target="s3" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="900" y="650"/>
+                            <mxPoint x="900" y="930"/>
+                            <mxPoint x="225" y="930"/>
+                            <mxPoint x="225" y="990"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- backend → Bedrock -->
+                <mxCell id="e-back-bedrock" value="IAM Role" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#01A88D;fontColor=#01A88D;fontSize=9;dashed=1;" parent="1" source="backend-service" target="bedrock-ext" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1100" y="650"/>
+                            <mxPoint x="1100" y="940"/>
+                            <mxPoint x="555" y="940"/>
+                            <mxPoint x="555" y="990"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- backend → SSM -->
+                <mxCell id="e-back-ssm" value="IAM Role" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#E7157B;fontColor=#E7157B;fontSize=9;dashed=1;" parent="1" source="backend-service" target="ssm" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1350" y="650"/>
+                            <mxPoint x="1350" y="945"/>
+                            <mxPoint x="875" y="945"/>
+                            <mxPoint x="875" y="990"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- backend → ECR -->
+                <mxCell id="e-back-ecr" value="イメージ取得" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#ED7100;fontColor=#ED7100;fontSize=9;dashed=1;" parent="1" source="backend-service" target="ecr" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1480" y="590"/>
+                            <mxPoint x="1530" y="590"/>
+                            <mxPoint x="1530" y="955"/>
+                            <mxPoint x="1225" y="955"/>
+                            <mxPoint x="1225" y="990"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- prod-frontend-service → ECR -->
+                <mxCell id="e-front-pv-ecr" value="イメージ取得" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#ED7100;fontColor=#ED7100;fontSize=9;dashed=1;" parent="1" source="frontend-pv-service" target="ecr" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1480" y="750"/>
+                            <mxPoint x="1530" y="750"/>
+                            <mxPoint x="1530" y="955"/>
+                            <mxPoint x="1225" y="955"/>
+                            <mxPoint x="1225" y="990"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
+"""
+
+with open(OUTPUT, 'w', encoding='utf-8') as f:
+    f.write(XML)
+
+size = os.path.getsize(OUTPUT)
+print(f'Written: {OUTPUT}')
+print(f'Size: {size} bytes')

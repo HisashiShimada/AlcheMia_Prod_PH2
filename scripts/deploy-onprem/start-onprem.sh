@@ -3,7 +3,7 @@
 # mmdpf オンプレミス 起動スクリプト
 #
 # 使い方:
-#   bash scripts/start-onprem.sh
+#   bash scripts/deploy-onprem/start-onprem.sh
 #
 # 処理内容:
 #   1. Dockerイメージのロード（mmdpf-backend.tar.gz / mmdpf-frontend.tar.gz）

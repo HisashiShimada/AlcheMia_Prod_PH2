@@ -33,6 +33,7 @@ import {
   IssueComment,
   ProjectStatus,
 } from '@/types/experimentWorker';
+import { ProjectStatus as ProjectStatusCode } from '@/constants/codeMaster';
 import {
   getIssues,
   createIssue,
@@ -104,7 +105,7 @@ export default function IssueManagementModal({
   const { options: issueTypeOptions, loading: issueTypeLoading } = useCodeMaster('issue_type');
 
   // プロジェクトが承認依頼中の場合は編集不可
-  const isApprovalPending = projectStatus === 'waiting_approval';
+  const isApprovalPending = projectStatus === ProjectStatusCode.REVIEW_WAITING;
   const isEditDisabled = viewMode || isApprovalPending;
 
   // 問題一覧を再取得する関数

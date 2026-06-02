@@ -86,7 +86,7 @@ Docker インストールスクリプトをデプロイ先サーバへ転送し�
 
 ```bash
 # install-docker.sh をデプロイ先サーバへ転送
-scp scripts/install-docker.sh user@target-server-ip:~/install-docker.sh
+scp scripts/deploy-onprem/install-docker.sh user@target-server-ip:~/install-docker.sh
 ```
 
 > **続き（スクリプトの実行）** はデプロイ先サーバでの作業です。`deploy-guide-server.md` の STEP 1 を参照してください。
@@ -149,10 +149,10 @@ dist/
 
 ```bash
 # スクリプトに実行権限を付与（初回のみ）
-chmod +x scripts/build-and-export.sh
+chmod +x scripts/deploy-onprem/build-and-export.sh
 
 # ビルド & エクスポートを実行
-./scripts/build-and-export.sh
+./scripts/deploy-onprem/build-and-export.sh
 ```
 
 **オプション：**
@@ -166,13 +166,13 @@ chmod +x scripts/build-and-export.sh
 
 ```bash
 # 例: backend のみ再ビルドしてエクスポート
-./scripts/build-and-export.sh --backend
+./scripts/deploy-onprem/build-and-export.sh --backend
 
 # 例: ベースイメージを最新化してからビルド
-./scripts/build-and-export.sh --pull
+./scripts/deploy-onprem/build-and-export.sh --pull
 
 # 例: 出力先を指定してエクスポート
-./scripts/build-and-export.sh --output /tmp/mmdpf-export
+./scripts/deploy-onprem/build-and-export.sh --output /tmp/mmdpf-export
 ```
 
 </details>
@@ -413,8 +413,8 @@ npm run package
 
 ```bash
 cd /path/to/mmdpf
-chmod +x scripts/package-for-deploy.sh
-./scripts/package-for-deploy.sh
+chmod +x scripts/deploy-onprem/package-for-deploy.sh
+./scripts/deploy-onprem/package-for-deploy.sh
 ```
 
 </details>
@@ -432,7 +432,8 @@ chmod +x scripts/package-for-deploy.sh
 ├── mmdpf-schema.sql
 ├── mmdpf-config-data.sql
 ├── scripts/
-│   └── start-onprem.sh
+│   └── deploy-onprem/
+│       └── start-onprem.sh
 ├── config/
 │   └── nginx/
 │       ├── nginx.prod.conf
@@ -465,7 +466,7 @@ scp dist/mmdpf-deploy.tar.gz ${DEPLOY_USER}@${DEPLOY_HOST}:~/
 
 ## 8. 付録: デプロイ前チェックリスト
 
-`npm run package`（または `scripts/package-for-deploy.sh`）実行前に、以下がすべて揃っていることを確認してください。
+`npm run package`（または `scripts/deploy-onprem/package-for-deploy.sh`）実行前に、以下がすべて揃っていることを確認してください。
 
 | ファイル/ディレクトリ | 作成方法 |
 |---|---|
@@ -482,7 +483,7 @@ scp dist/mmdpf-deploy.tar.gz ${DEPLOY_USER}@${DEPLOY_HOST}:~/
 ### 転送チェックリスト
 
 - [ ] `dist/mmdpf-deploy.tar.gz` をサーバへ転送済み（`scp dist/mmdpf-deploy.tar.gz user@server:~/`）
-- [ ] `scripts/install-docker.sh` をサーバへ転送済み（STEP 1）
+- [ ] `scripts/deploy-onprem/install-docker.sh` をサーバへ転送済み（STEP 1）
 
 ---
 

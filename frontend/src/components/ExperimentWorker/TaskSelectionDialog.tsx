@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Typography, Space, Tag, theme } from 'antd';
 import { AimOutlined, CheckOutlined } from '@ant-design/icons';
 import { Method, Task } from '@/types/experimentWorker';
+import { TaskStatus, TaskStatusType } from '@/constants/codeMaster';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
@@ -79,19 +80,17 @@ export default function TaskSelectionDialog({
     const isCurrentlySelected = selectedTaskId === task.taskId;
 
     // ステータスに応じたタグ表示
-    const getStatusTag = (status: string) => {
+    const getStatusTag = (status: TaskStatusType) => {
       switch (status) {
-        case 'not_started':
+        case TaskStatus.PENDING:
           return <Tag>{t('task.status.notStarted')}</Tag>;
-        case 'started':
-          return <Tag color="blue">{t('task.status.started')}</Tag>;
-        case 'in_progress':
+        case TaskStatus.IN_PROGRESS:
           return <Tag color="orange">{t('task.status.inProgress')}</Tag>;
-        case 'completed':
+        case TaskStatus.REVIEW_WAITING:
+          return <Tag color="blue">{t('task.status.started')}</Tag>;
+        case TaskStatus.COMPLETED:
           return <Tag color="green">{t('task.status.completed')}</Tag>;
-        case 'suspended':
-          return <Tag color="red">{t('task.status.suspended')}</Tag>;
-        case 'forced_terminated':
+        case TaskStatus.FORCED_TERMINATED:
           return <Tag color="red">{t('task.status.forceTerminated')}</Tag>;
         default:
           return null;

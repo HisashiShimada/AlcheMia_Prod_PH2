@@ -15,8 +15,46 @@ import {
   DownOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import { Instruction, ProjectStatus, Transition } from '@/types/experimentWorker';
-import { getWorkerInstructions, convertApiToInstruction } from '@/services/projectApiService';
+import type { Instruction, InstructionType, Priority, ProjectStatus, Transition } from '@/types/experimentWorker';
+import type { WorkerInstruction } from '@/types/project';
+import { getWorkerInstructions } from '@/services/projectApiService';
+
+/**
+ * WorkerInstruction をフロントエンド型 Instruction に変換する
+ * method_id / task_no / transition_id の有無からグループを判定する。
+ */
+function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
+  const priorityMap: Record<string, Priority> = {
+    '0': 'low', '1': 'normal', '2': 'medium', '3': 'high',
+  };
+  const instructionTypeMap: Record<string, InstructionType> = {
+    '0': 'general', '1': 'setup', '2': 'measurement', '3': 'safety', '4': 'cleanup',
+  };
+
+  return {
+    instructionId: apiData.id,
+    transitionId: apiData.transition_id || undefined,
+    transitionName: apiData.transition_name || undefined,
+    methodId: apiData.method_id || undefined,
+    methodName: apiData.method_name || undefined,
+    taskId: apiData.task_no ? `${apiData.project_id}-${apiData.method_id}-${apiData.task_no}` : undefined,
+    taskName: apiData.task_no ? `Task ${apiData.task_no}` : undefined,
+    content: apiData.instruction_content,
+    priority: priorityMap[apiData.priority] || 'normal',
+    instructionType: instructionTypeMap[apiData.type] || 'general',
+    createdAt: apiData.create_at,
+    updatedAt: null,
+    createdBy: {
+      userId: apiData.created_by,
+      userName: apiData.created_by_name,
+    },
+    isRead: apiData.is_acknowledged,
+    isAcknowledged: apiData.is_acknowledged,
+    acknowledgedAt: undefined,
+    acknowledgedBy: undefined,
+    acknowledgedByName: undefined,
+  };
+}
 import InstructionCard from './InstructionCard';
 
 const { Text } = Typography;
@@ -48,6 +86,7 @@ export default function InstructionConfirmationModal({
   const [fileInstructionsExpanded, setFileInstructionsExpanded] = useState(true);
   const [methodInstructionsExpanded, setMethodInstructionsExpanded] = useState(true);
   const [transitionInstructionsExpanded, setTransitionInstructionsExpanded] = useState(true);
+  const [taskInstructionsExpanded, setTaskInstructionsExpanded] = useState(true);
 
   // APIから取得した指示データ
   const [allInstructions, setAllInstructions] = useState<Instruction[]>([]);
@@ -70,7 +109,7 @@ export default function InstructionConfirmationModal({
       try {
         const result = await getWorkerInstructions(projectId);
         if (result.success && result.data) {
-          const converted = result.data.map(convertApiToInstruction);
+          const converted = result.data.map(convertWorkerInstruction);
           setAllInstructions(converted);
         } else {
           setAllInstructions([]);
@@ -91,18 +130,23 @@ export default function InstructionConfirmationModal({
     if (!transition) return [];
 
     return allInstructions.filter((instruction) => {
-      // 全体指示（ファイル単位）
-      if (instruction.targetType === 'file') {
+      // 全体指示（methodId も transitionId もない）
+      if (!instruction.methodId && !instruction.transitionId) {
         return true;
       }
 
-      // メソッド単位指示
-      if (instruction.targetType === 'method' && methodId) {
+      // メソッド単位指示（methodId あり・transitionId なし）
+      if (instruction.methodId && !instruction.transitionId && methodId) {
         return instruction.methodId === methodId;
       }
 
-      // トランジション単位指示
-      if (instruction.targetType === 'transition') {
+    // タスク単位指示（methodId あり・transitionId あり・taskId あり）
+      if (instruction.methodId && instruction.transitionId && instruction.taskId) {
+        return instruction.transitionId === transition.transitionId;
+      }
+
+      // トランジション単位指示（methodId あり・transitionId あり・taskId なし）
+      if (instruction.methodId && instruction.transitionId && !instruction.taskId) {
         return instruction.transitionId === transition.transitionId;
       }
 
@@ -115,18 +159,21 @@ export default function InstructionConfirmationModal({
     const file: Instruction[] = [];
     const method: Instruction[] = [];
     const transitionInst: Instruction[] = [];
+    const task: Instruction[] = [];
 
     instructions.forEach((instruction) => {
-      if (instruction.targetType === 'file') {
+      if (!instruction.methodId && !instruction.transitionId) {
         file.push(instruction);
-      } else if (instruction.targetType === 'method') {
+      } else if (instruction.methodId && !instruction.transitionId) {
         method.push(instruction);
-      } else if (instruction.targetType === 'transition') {
+      } else if (instruction.methodId && instruction.transitionId && instruction.taskId) {
+        task.push(instruction);
+      } else if (instruction.methodId && instruction.transitionId && !instruction.taskId) {
         transitionInst.push(instruction);
       }
     });
 
-    return { file, method, transition: transitionInst };
+    return { file, method, transition: transitionInst, task };
   }, [instructions]);
 
   return (
@@ -265,6 +312,56 @@ export default function InstructionConfirmationModal({
                     style={{ width: '100%' }}
                   >
                     {groupedInstructions.method.map((instruction) => (
+                      <InstructionCard
+                        key={instruction.instructionId}
+                        instruction={instruction}
+                        projectStatus={projectStatus}
+                        isClient={isClient}
+                      />
+                    ))}
+                  </Space>
+                )}
+              </div>
+            )}
+
+            {/* タスク単位指示 */}
+            {groupedInstructions.task.length > 0 && (
+              <div style={{ marginBottom: token.marginMD }}>
+                <div
+                  data-testid="instruction-confirmation-modal-task-section-header"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    padding: token.marginXS,
+                    borderRadius: token.borderRadiusSM,
+                    marginBottom: token.marginXS,
+                  }}
+                  onClick={() => setTaskInstructionsExpanded(!taskInstructionsExpanded)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = token.colorFillSecondary;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  {taskInstructionsExpanded ? (
+                    <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
+                  ) : (
+                    <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
+                  )}
+                  <Text strong style={{ fontSize: 14 }}>
+                    📋 タスク指示 ({groupedInstructions.task.length}件)
+                  </Text>
+                </div>
+                {taskInstructionsExpanded && (
+                  <Space
+                    data-testid="instruction-confirmation-modal-task-section-list"
+                    orientation="vertical"
+                    size={8}
+                    style={{ width: '100%' }}
+                  >
+                    {groupedInstructions.task.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}
                         instruction={instruction}

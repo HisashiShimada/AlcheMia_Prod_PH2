@@ -16,7 +16,6 @@ SELECT
   pi.method_id,
   pi.transition_id,
   pi.task_no,
-  pi.instruction_target,
   pi.instructions as instruction_content,
   pi.priority,
   pi.type,
