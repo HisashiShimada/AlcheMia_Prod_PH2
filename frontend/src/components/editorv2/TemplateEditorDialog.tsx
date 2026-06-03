@@ -301,6 +301,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setExpandedContentNodes(new Set());
       setForceRenderKey(Date.now());
       setForceContentRenderKey(Date.now());
+
+      // ✅ 修正: XML関連stateをリセット（前回の編集内容が残らないように）
+      setXmlContent('');
+      setXmlErrors([]);
+      setHasUnsyncedXmlChanges(false);
+      setActiveTabKey('ui');
     }
   }, [open, node, mergedTemplate]);
 
@@ -1026,7 +1032,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     if (result.isValid) {
       message.success(t('editor.template.xmlValid'));
     } else {
-      message.error(t('editor.template.xmlErrors', { count: String(result.errors.length) }));
+      message.error(t('template.xmlErrors', { count: String(result.errors.length) }));
     }
   };
 
@@ -1034,7 +1040,15 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
    * 保存処理
    */
   const handleSave = () => {
-    // XMLビューから保存する場合、先にUI状態に同期
+    const isNewTemplate = node.data.isNewTemplate || false;
+    const templateCategory = node.data.templateCategory || node.data.placeType || 'material';
+    const isCommonTemplate = node.data.isCommonTemplate || false;
+    const methodId = node.data.methodId || null;
+
+    // ===== XMLタブから保存する場合の専用処理 =====
+    // Bug Fix: setState は非同期のため、setProperties/setContents 直後に
+    // state を参照しても古い値が取得される。
+    // parseXMLToTemplate のパース結果を直接使用することで問題を回避する。
     if (activeTabKey === 'xml' && hasUnsyncedXmlChanges) {
       const validationResult = validateTemplateXML(xmlContent);
       if (!validationResult.isValid) {
@@ -1050,17 +1064,85 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         );
         return;
       }
+
       const d = parseResult.data;
-      setTemplateId(d.id || templateId);
+      const parsedTemplateId = d.id || templateId;
+
+      // ノードIDとの重複チェック
+      const nodeIds = allNodes.map(n => n.id);
+      if (nodeIds.includes(parsedTemplateId) && parsedTemplateId !== node.id) {
+        message.error(t('template.idDuplicateNodeId', { id: parsedTemplateId }));
+        return;
+      }
+
+      // 他テンプレートIDとの重複チェック
+      if (window.clineAllTemplates) {
+        const allTemplateIds: string[] = [];
+        (['material', 'condition', 'result'] as const).forEach(category => {
+          const templates = window.clineAllTemplates[category];
+          if (templates && Array.isArray(templates)) {
+            templates.forEach((tpl: Template) => {
+              const currentTemplateId = node.data.template?.id || node.data.templateRef?.id;
+              if (tpl.id && tpl.id !== currentTemplateId) {
+                allTemplateIds.push(tpl.id);
+              }
+            });
+          }
+        });
+        if (allTemplateIds.includes(parsedTemplateId)) {
+          message.error(t('template.idDuplicateTemplate', { id: parsedTemplateId }));
+          return;
+        }
+      }
+
+      // ✅ パース結果を直接使用してtemplateRefを構築（stateの非同期更新を待たない）
+      const parsedPlaceRefs: PlaceRef[] = (d.placeRefs || []).map(ref => ({ id: '', ref }));
+      const templateRefFromXml: Template = {
+        ...(node.data.templateRef || {}),
+        id: parsedTemplateId,
+        uuid: d.uuid || '',
+        name: d.name || '',
+        category: nodeCategory,
+        description: d.description || '',
+        properties: convertPropertyDataToPropertiesArray(
+          (d.properties || {}) as Record<string, PropertyData>
+        ),
+        contents: convertPropertyDataToContentsArray(
+          (d.contents || {}) as Record<string, PropertyData>
+        ),
+        placeRefs: parsedPlaceRefs,
+      };
+
+      if (node.data.templateRef?.templateRef) {
+        templateRefFromXml.templateRef = node.data.templateRef.templateRef;
+      }
+
+      if (
+        (node.data.placeType === 'material' || node.data.placeType === 'result') &&
+        (insertion.uri || insertion.hash || insertion.format)
+      ) {
+        templateRefFromXml.insertion = insertion;
+      }
+
+      // 保存実行
+      onSave(node.id, templateRefFromXml, isNewTemplate, templateCategory, isCommonTemplate, methodId, originalTemplateId);
+
+      // 状態更新（次回ダイアログを開いたとき用）
+      setTemplateId(parsedTemplateId);
       setUuid(d.uuid || '');
       setName(d.name || '');
       setDescription(d.description || '');
       setProperties((d.properties || {}) as Record<string, PropertyData>);
       setContents((d.contents || {}) as Record<string, PropertyData>);
-      setPlaceRefs((d.placeRefs || []).map(ref => ({ id: '', ref })));
+      setPlaceRefs(parsedPlaceRefs);
       setHasUnsyncedXmlChanges(false);
+      setHasChanges(false);
+
+      onClose();
+      return; // ← XMLタブ処理ここで終了
     }
 
+    // ===== UIタブからの通常保存処理 =====
     // ✅ Phase 1-2: 基本チェック
     if (!templateId.trim()) {
       message.error(t('editor.template.idRequired'));
@@ -1122,11 +1204,6 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         (insertion.uri || insertion.hash || insertion.format)) {
       templateRef.insertion = insertion;
     }
-    
-    const isNewTemplate = node.data.isNewTemplate || false;
-    const templateCategory = node.data.templateCategory || node.data.placeType || 'material';
-    const isCommonTemplate = node.data.isCommonTemplate || false;
-    const methodId = node.data.methodId || null;
     
     // ✅ 修正: 編集開始時点の元のテンプレートIDを渡す（ID変更時の旧ID特定に使用）
     onSave(node.id, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId, originalTemplateId);
