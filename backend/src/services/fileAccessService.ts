@@ -32,7 +32,6 @@ import {
 import uploadBatchRepository from '../repositories/UploadBatchRepository';
 import { UploadType, BatchStatus } from '../types/uploadBatch';
 import { processConcurrently, getConcurrency } from '../utils/concurrencyControl';
-import { isMaimlFile } from '../utils/maimlAnalyzer';
 import { analyzeMaiMLFile } from '../utils/maimlParser';
 import { AnalysisResult, ErrorContent } from '../types/maimlValidation';
 import * as maimlAnalysisResultRepository from '../repositories/maimlAnalysisResultRepository';
@@ -557,10 +556,11 @@ export class FileAccessService {
 
         // Phase2-3 改修: MAIMLファイルの場合はアップロード前にバリデーション実行
         let maimlValidation;
-        const isMaiml = isMaimlFile(sanitizedFileName, file.mimetype);
+        // .maiml 拡張子のファイルのみMAIMLとして扱う（.xml はXMLテンプレートのため対象外）
+        const isMaiml = sanitizedFileName.toLowerCase().endsWith('.maiml');
         // アップロード後のDB保存で使用するためブロック外で宣言
         let analysisResult: AnalysisResult | null = null;
-        console.log(`🔍 [MAIML Validation] ファイル判定: ${sanitizedFileName} → isMaimlFile=${isMaiml}, mimetype=${file.mimetype}`);
+        console.log(`🔍 [MAIML Validation] ファイル判定: ${sanitizedFileName} → isMaiml=${isMaiml}`);
         if (isMaiml) {
           const content = file.buffer.toString('utf-8');
           console.log(`🔍 [MAIML Validation] analyzeMaiMLFile 開始: ${sanitizedFileName}`);
