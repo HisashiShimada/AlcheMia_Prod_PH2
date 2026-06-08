@@ -56,7 +56,7 @@ git checkout main
 git pull
 
 # 新ブランチを作成して切り替え（日付とバージョン番号を変更して入力）
-git checkout -b release_YYYYMMDD_vXX.XX.XX
+git checkout -b feature/deploy-MMDD
 ```
 
 > **例:** `git checkout -b release_20260526_v00.00.08`
