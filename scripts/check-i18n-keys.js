@@ -64,8 +64,9 @@ const rawOutput = execSync(
 const usedKeys = new Set();
 
 // t('some.key') および t("some.key") の両方を抽出
-const singleQuoteRegex = /\bt\('([a-zA-Z][a-zA-Z0-9_.]+)'\)/g;
-const doubleQuoteRegex = /\bt\("([a-zA-Z][a-zA-Z0-9_.]+)"\)/g;
+// キーの直後が ')' の場合（引数なし）と ',' の場合（params付き）の両方に対応
+const singleQuoteRegex = /\bt\('([a-zA-Z][a-zA-Z0-9_.]+)'[,)]/g;
+const doubleQuoteRegex = /\bt\("([a-zA-Z][a-zA-Z0-9_.]+)"[,)]/g;
 
 let m;
 while ((m = singleQuoteRegex.exec(rawOutput)) !== null) {

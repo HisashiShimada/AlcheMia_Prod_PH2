@@ -305,8 +305,11 @@ export function parseXMLToTemplate(xmlString: string): ParseXMLResult {
   console.log('📖 [parseXMLToTemplate] パース開始');
 
   try {
+    // 名前空間宣言が不足している場合は自動補完（外部貼り付けXML対応）
+    const normalizedXml = injectMissingNamespaces(xmlString);
+
     const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+    const xmlDoc = parser.parseFromString(normalizedXml, 'text/xml');
 
     const parseError = xmlDoc.querySelector('parsererror');
     if (parseError) {
@@ -499,6 +502,43 @@ function getElementText(parentElement: Element, tagName: string): string {
   return element ? (element.textContent?.trim() ?? '') : '';
 }
 
+// ===== 内部ヘルパー =====
+
+/**
+ * XML文字列に不足している名前空間宣言を自動補完する
+ *
+ * 外部からコピー&ペーストされたXMLは xmlns:xsi などが省略されていることがある。
+ * DOMParser は `text/xml` モードでは未宣言の名前空間プレフィックスを
+ * エラーとして扱うため、パース前に補完しておく。
+ *
+ * ※この関数はパース処理の内部でのみ使用する。
+ * ※補完はメモリ上の一時文字列に対してのみ行い、保存データには影響しない。
+ */
+function injectMissingNamespaces(xmlString: string): string {
+  // ルート要素の開きタグ（最初の '>' まで）を対象に属性を追加
+  // ※ /s フラグ（dotAll）は ES2018+ 必須のため使わず [\s\S] で代替
+  const rootTagMatch = xmlString.match(
+    /^(\s*<(?:material|condition|result)Template\b[\s\S]*?)(\/?>)/
+  );
+  if (!rootTagMatch) return xmlString;
+
+  const openTag = rootTagMatch[1];
+  const closing = rootTagMatch[2];
+  let injected = openTag;
+
+  // xsi:xxx が使われているが xmlns:xsi が未宣言の場合
+  if (/\bxsi:/.test(xmlString) && !/xmlns:xsi\s*=/.test(openTag)) {
+    injected += '\n  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+  }
+
+  // デフォルト名前空間が未宣言の場合
+  if (!/\bxmlns\s*=/.test(openTag)) {
+    injected += '\n  xmlns="http://www.jsbba.or.jp/maiml/1.0"';
+  }
+
+  return xmlString.replace(rootTagMatch[0], injected + closing);
+}
+
 // ===== バリデーション =====
 
 /**
@@ -512,8 +552,11 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
   const errors: ParseError[] = [];
 
   try {
+    // 名前空間宣言が不足している場合は自動補完（外部貼り付けXML対応）
+    const normalizedXml = injectMissingNamespaces(xmlString);
+
     const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+    const xmlDoc = parser.parseFromString(normalizedXml, 'text/xml');
 
     const parseError = xmlDoc.querySelector('parsererror');
     if (parseError) {
