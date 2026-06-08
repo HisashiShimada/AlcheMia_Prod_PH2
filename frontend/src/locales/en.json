@@ -1950,8 +1950,12 @@
       "nsImportFailed": "Failed to import namespace",
       "noDataToImport": "No data to import",
       "xmlParseFailed": "Failed to parse XML. Switching to UI edit tab, but XML changes will not be reflected.",
-      "xmlValid": "✅ XML is valid!"
-    },
+        "xmlValid": "✅ XML is valid!",
+        "childKeyDuplicate": "Key \"{key}\" already exists",
+        "importFailed": "Import failed: {error}",
+        "nsPropsImported": "Imported {count} properties",
+        "nsContentsImported": "Imported {count} contents"
+      },
     "templateXml": {
       "parseError": "Invalid XML format",
       "invalidRoot": "Invalid root element: {{tag}}",
@@ -2741,6 +2745,11 @@
     "nodeIdEmpty": "Node ID cannot be empty",
     "deleteNodeConfirm": "Confirm Node Deletion",
     "deleteEdgeConfirm": "Confirm Edge Deletion"
+  },
+  "dataRecordDialog": {
+    "attachmentUploadError": "Failed to upload attachment (#{number})",
+    "fileUploadError": "Failed to upload file: {key}",
+    "updateError": "Failed to update: {message}"
   },
   "codeMaster": {
     "checkout_status": {

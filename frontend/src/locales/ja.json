@@ -1950,7 +1950,11 @@
         "nsImportFailed": "名前空間の取り込みに失敗しました",
         "noDataToImport": "取り込むデータがありません",
         "xmlParseFailed": "XMLのパースに失敗しました。UI編集タブに切り替えますが、XMLの変更は反映されません。",
-        "xmlValid": "✅ XMLは有効です！"
+        "xmlValid": "✅ XMLは有効です！",
+        "childKeyDuplicate": "キー「{key}」は既に存在します",
+        "importFailed": "取り込みに失敗しました: {error}",
+        "nsPropsImported": "{count}件のプロパティを取り込みました",
+        "nsContentsImported": "{count}件のコンテンツを取り込みました"
       },
     "templateXml": {
       "parseError": "XML形式が不正です",
@@ -2741,6 +2745,11 @@
       "categorySample": "試料",
       "categoryDevice": "装置"
     }
+  },
+  "dataRecordDialog": {
+    "attachmentUploadError": "添付ファイルのアップロードに失敗しました（#{number}）",
+    "fileUploadError": "ファイルのアップロードに失敗しました: {key}",
+    "updateError": "更新に失敗しました: {message}"
   },
   "codeMaster": {
     "checkout_status": {
