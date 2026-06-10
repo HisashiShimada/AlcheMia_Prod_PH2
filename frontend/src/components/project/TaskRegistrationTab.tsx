@@ -48,16 +48,17 @@ import type {
   TaskRegistrationData,
   InstructionSaveItem,
 } from '@/types/taskRegistration';
+import type { TemplateDef, TemplateField } from '@/types/experimentPlan';
 import type {
   InstructionData,
   TransitionInfo,
 } from '@/types/instructionRegistration';
 import InstructionEditDialog from './InstructionEditDialog';
+import ExperimentPlanDialog from './ExperimentPlanDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { getTaskRegistration, saveTaskRegistration, saveInstruction, getInstructions } from '@/services/projectApiService';
-import { createSelectOptionsFromCodeMaster, createRangeOptions } from '@/utils/selectUtils';
-import { useCodeMaster } from '@/hooks/useCodeMaster';
+import { createRangeOptions } from '@/utils/selectUtils';
 import { InstructionStatus } from '@/constants/codeMaster';
 
 const { Text } = Typography;
@@ -120,6 +121,10 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   
   // プロジェクト指示用のダイアログ状態
   const [isProjectInstructionDialogOpen, setIsProjectInstructionDialogOpen] = useState<boolean>(false);
+
+  // 実験計画ダイアログの状態
+  const [isExperimentPlanDialogOpen, setIsExperimentPlanDialogOpen] = useState<boolean>(false);
+  const [selectedMethodIdForPlan, setSelectedMethodIdForPlan] = useState<string>('');
   
   // チェックアウト状態はPropsを優先し、なければAPI取得結果を使用
   const isCheckoutLocked = isCheckoutLockedProp ?? false;
@@ -139,8 +144,8 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     });
   }, []);
 
-  // コードマスターから実験条件オプションを取得
-  const { options: experimentConditionOptions, loading: loadingCodeMaster } = useCodeMaster('experiment_condition');
+  // コードマスターから実験条件オプションを取得（TODO: 本実装時に削除）
+  // const { options: experimentConditionOptions, loading: loadingCodeMaster } = useCodeMaster('experiment_condition');
 
   /**
    * 指示データのリフレッシュ（stateクリア + DB再取得）
@@ -304,11 +309,11 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   );
 
   /**
-   * 指示追加ボタンのクリックハンドラ
+   * 指示追加ボタンのクリックハンドラ（実験計画ダイアログを開く）
    */
   const handleAddInstructionClick = useCallback((methodId: string) => {
-    setSelectedMethodIdForInstruction(methodId);
-    setIsInstructionDialogOpen(true);
+    setSelectedMethodIdForPlan(methodId);
+    setIsExperimentPlanDialogOpen(true);
   }, []);
 
   /**
@@ -571,11 +576,75 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   }, [t]);
 
   /**
-   * 実験条件のSelectオプション（useMemoでメモ化）
+   * 実験条件のSelectオプション（TODO: 本実装時に削除）
    */
-  const experimentConditionSelectOptions = useMemo(() => {
-    return createSelectOptionsFromCodeMaster(experimentConditionOptions);
-  }, [experimentConditionOptions]);
+  // const experimentConditionSelectOptions = useMemo(() => {
+  //   return createSelectOptionsFromCodeMaster(experimentConditionOptions);
+  // }, [experimentConditionOptions]);
+
+  /**
+   * MAIMLのdocument情報からCreatorRef選択肢を生成
+   * document.creators[].name or id を選択肢として使用
+   */
+  const creatorRefOptions = useMemo((): string[] => {
+    if (!maimlRoot?.document?.creators) return [];
+    return maimlRoot.document.creators
+      .map((c) => c.name || c.id)
+      .filter(Boolean) as string[];
+  }, [maimlRoot]);
+
+  /**
+   * MAIMLのdocument情報からInstrumentRef選択肢を生成
+   */
+  const instrumentRefOptions = useMemo((): string[] => {
+    if (!maimlRoot?.document?.instruments) return [];
+    return maimlRoot.document.instruments
+      .map((c) => c.name || c.id)
+      .filter(Boolean) as string[];
+  }, [maimlRoot]);
+
+  /**
+   * MAIMLのdocument情報からOwnerRef選択肢を生成
+   */
+  const ownerRefOptions = useMemo((): string[] => {
+    if (!maimlRoot?.document?.owners) return [];
+    return maimlRoot.document.owners
+      .map((c) => c.name || c.id)
+      .filter(Boolean) as string[];
+  }, [maimlRoot]);
+
+  /**
+   * 選択中メソッドのテンプレート一覧を生成
+   * material/condition/resultTemplates を TemplateDef[] に変換
+   */
+  const methodTemplatesForPlan = useMemo((): TemplateDef[] => {
+    if (!maimlRoot?.protocol?.methods || !selectedMethodIdForPlan) return [];
+    const method = maimlRoot.protocol.methods.find((m) => m.id === selectedMethodIdForPlan);
+    if (!method) return [];
+
+    const toTemplateDef = (
+      templates: typeof method.materialTemplates,
+      category: 'material' | 'condition' | 'result'
+    ): TemplateDef[] =>
+      (templates ?? []).map((tmpl) => ({
+        id: tmpl.id,
+        label: tmpl.name || tmpl.id,
+        category,
+        fields: (tmpl.properties ?? []).map((prop): TemplateField => ({
+          key: prop.key || '',
+          label: prop.key || '',
+          type: 'text',
+          units: prop.units,
+          description: prop.description,
+        })),
+      }));
+
+    return [
+      ...toTemplateDef(method.materialTemplates, 'material'),
+      ...toTemplateDef(method.conditionTemplates, 'condition'),
+      ...toTemplateDef(method.resultTemplates, 'result'),
+    ];
+  }, [maimlRoot, selectedMethodIdForPlan]);
 
   /**
    * 作業順序のSelectオプション（useMemoでメモ化）
@@ -748,24 +817,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       },
     },
     {
-      title: t('taskRegistration.columns.condition'),
-      key: 'condition',
-      width: 200,
-      render: (_text, record) => (
-        <Select
-          value={record.experimentCondition}
-          onChange={(value) =>
-            handleUpdateTaskDetail(record.id, 'experimentCondition', value.toString())
-          }
-          disabled={isFieldDisabled(record)}
-          size="small"
-          style={{ width: '100%' }}
-          options={experimentConditionSelectOptions}
-          data-testid={`task-experiment-condition-select-${record.id}`}
-        />
-      ),
-    },
-    {
       title: t('taskRegistration.columns.trialCount'),
       key: 'trialCount',
       width: 120,
@@ -926,6 +977,28 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         onSave={handleInstructionSave}
         fixedMethodId=""
         saveMode="local"
+      />
+
+      {/* 実験計画詳細指示ダイアログ */}
+      <ExperimentPlanDialog
+        open={isExperimentPlanDialogOpen}
+        projectId={projectId}
+        methodId={selectedMethodIdForPlan}
+        taskNumbers={taskDetails
+          .filter((t) => t.methodId === selectedMethodIdForPlan)
+          .map((t) => t.id)}
+        creatorRefOptions={creatorRefOptions}
+        instrumentRefOptions={instrumentRefOptions}
+        ownerRefOptions={ownerRefOptions}
+        methodTemplates={methodTemplatesForPlan}
+        onClose={() => {
+          setIsExperimentPlanDialogOpen(false);
+          setSelectedMethodIdForPlan('');
+        }}
+        onSave={() => {
+          message.success('実験計画を保存しました（モック）');
+        }}
+        disabled={isCheckoutLocked || !!maimlHasErrors || !!isProjectCompleted}
       />
     </div>
   );

@@ -36,6 +36,7 @@ import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
+import ExperimentInstructionTab from './ExperimentInstructionTab';
 import CreateProjectModal from './CreateProjectModal';
 import type { CreateProjectData } from '@/types/project';
 import RenameProjectModal from './RenameProjectModal';
@@ -1977,7 +1978,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       {/* メインコンテンツ: 2カラムレイアウト */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* 左側: プロジェクト一覧（画面の約1/3） */}
-        <div style={{ width: '35%', minWidth: 400, maxWidth: 550, flexShrink: 0 }}>
+        <div style={{ width: '20%', minWidth: 280, maxWidth: 380, flexShrink: 0 }}>
           <ProjectFolderTree
             projects={sortedProjects}
             selectedProjectId={selectedProjectId}
@@ -2273,13 +2274,42 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     key: 'instruction_registration',
                     label: t('projectManagement.tabs.instruction_registration'),
                     children: (
-                      <InstructionRegistrationTab
-                        projectId={selectedProject.id}
-                        projectName={selectedProject.name}
-                        isActive={currentTab === 'instruction_registration'}
-                        isCheckoutLocked={isProjectCheckedOut}
-                        onInstructionsSubmit={handleInstructionsSubmit}
-                      />
+                      /* ── [モック] 指示管理サブタブ: プロジェクト指示 + 実験指示 ── */
+                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <Tabs
+                          type="card"
+                          size="small"
+                          style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                          tabBarStyle={{ marginBottom: 0, paddingTop: 4, paddingLeft: 4 }}
+                          items={[
+                            {
+                              key: 'project_instruction',
+                              label: 'プロジェクト指示',
+                              children: (
+                                <InstructionRegistrationTab
+                                  projectId={selectedProject.id}
+                                  projectName={selectedProject.name}
+                                  isActive={currentTab === 'instruction_registration'}
+                                  isCheckoutLocked={isProjectCheckedOut}
+                                  onInstructionsSubmit={handleInstructionsSubmit}
+                                />
+                              ),
+                            },
+                            {
+                              key: 'experiment_instruction',
+                              label: '実験指示',
+                              children: (
+                                <div style={{ height: '100%', padding: '4px 0' }}>
+                                  <ExperimentInstructionTab
+                                    projectId={selectedProject.id}
+                                    projectName={selectedProject.name}
+                                  />
+                                </div>
+                              ),
+                            },
+                          ]}
+                        />
+                      </div>
                     ),
                   },
                   {

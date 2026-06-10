@@ -1,7 +1,7 @@
 /**
  * InstructionEditDialog.tsx
- * 単一指示の編集/追加ダイアログコンポーネント
- * InstructionDialogの指示入力部分を独立させたコンポーネント
+ * プロジェクト指示の編集/追加ダイアログコンポーネント
+ * プロジェクト指示専用：「対象」と「指示内容」のみ表示
  */
 
 'use client';
@@ -10,11 +10,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   Form,
-  Select,
   Input,
   Space,
   Typography,
-  Alert,
   Card,
   theme,
   Button,
@@ -28,16 +26,10 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import type {
   InstructionData,
   TransitionInfo,
-  INSTRUCTION_TYPES,
-  INSTRUCTION_PRIORITIES,
 } from '@/types/instructionRegistration';
 import { TARGET_TYPES } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
-import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
-import { getMultipleSelectOptions } from '@/services/codeMasterApiService';
-import type { SelectOption } from '@/types/common';
 import {
-  ExperimentCondition,
   InstructionTypeCode,
   InstructionPriority,
 } from '@/constants/codeMaster';
@@ -74,83 +66,24 @@ interface InstructionEditDialogProps {
 }
 
 /**
- * 単一指示の編集/追加ダイアログコンポーネント
+ * プロジェクト指示の編集/追加ダイアログコンポーネント
+ * 「対象」と「指示内容」のみ表示
  */
 const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   open,
   mode,
   instruction,
-  tasks,
   availableMethods,
-  availableTransitions,
   onClose,
   onSave,
   fixedMethodId,
-  saveMode = 'immediate',
 }) => {
   const { token } = useToken();
   const { t } = useLanguage();
   const [form] = Form.useForm();
-  const { maimlRoot } = useProjectMaiml();
 
-  // 状態管理
+  // 表示用のメソッドID（対象表示に使用）
   const [selectedMethodId, setSelectedMethodId] = useState<string>('');
-  const [selectedTaskNumber, setSelectedTaskNumber] = useState<number | undefined>(undefined);
-  const [selectedTransitionId, setSelectedTransitionId] = useState<string>('');
-  const [rawPriorityOptions, setRawPriorityOptions] = useState<SelectOption[]>([]);
-  const [rawTypeOptions, setRawTypeOptions] = useState<SelectOption[]>([]);
-  const [isLoadingCodeMaster, setIsLoadingCodeMaster] = useState<boolean>(false);
-
-  /**
-   * コードマスタから優先度・タイプを取得（生のi18nキーを保持）
-   */
-  useEffect(() => {
-    const fetchCodeMasterOptions = async () => {
-      try {
-        setIsLoadingCodeMaster(true);
-        const options = await getMultipleSelectOptions([
-          'instruction_priority',
-          'instruction_type'
-        ]);
-        setRawPriorityOptions(options.instruction_priority || []);
-        setRawTypeOptions(options.instruction_type || []);
-      } catch (error) {
-        console.error('コードマスタ取得エラー:', error);
-        setRawPriorityOptions([]);
-        setRawTypeOptions([]);
-      } finally {
-        setIsLoadingCodeMaster(false);
-      }
-    };
-
-    fetchCodeMasterOptions();
-  }, []);
-
-  // ロケール変更時に再翻訳されるよう render 時に t() を適用
-  const priorityOptions = rawPriorityOptions.map((opt) => ({ ...opt, label: t(opt.label) }));
-  const typeOptions = rawTypeOptions.map((opt) => ({ ...opt, label: t(opt.label) }));
-
-  /**
-   * メソッド選択時にトランジションを動的にフィルタリング
-   */
-  const filteredTransitions = React.useMemo((): TransitionInfo[] => {
-    if (!selectedMethodId || !maimlRoot?.protocol?.methods) {
-      return [];
-    }
-    
-    const method = maimlRoot.protocol.methods.find(m => m.id === selectedMethodId);
-    if (!method?.pnml?.transitions) {
-      return [];
-    }
-    
-    return method.pnml.transitions.map((transition) => ({
-      id: transition.id,
-      displayName: transition.name || transition.id,
-      category: 'other',
-      description: transition.description,
-      isExperimentRelevant: true,
-    }));
-  }, [selectedMethodId, maimlRoot]);
 
   /**
    * ダイアログが開かれたときの初期化
@@ -161,70 +94,26 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
     if (mode === 'edit' && instruction) {
       // 編集モード：既存データをフォームに設定
       form.setFieldsValue({
-        priority: instruction.priority,
-        type: instruction.type,
         methodId: instruction.methodId,
-        taskNumber: instruction.taskNumber,
-        transitionId: instruction.transitionId,
         content: instruction.content,
       });
-      // 状態は初期化時のみ更新（cascading renderを避ける）
       setSelectedMethodId(instruction.methodId);
-      setSelectedTaskNumber(instruction.taskNumber);
-      setSelectedTransitionId(instruction.transitionId);
     } else {
       // 新規作成モード：初期値を設定
       const initialMethodId = fixedMethodId || '';
       form.setFieldsValue({
-        priority: InstructionPriority.NORMAL,
-        type: InstructionTypeCode.GENERAL,
         methodId: initialMethodId,
-        taskNumber: undefined,
-        transitionId: '',
         content: '',
       });
       setSelectedMethodId(initialMethodId);
-      setSelectedTaskNumber(undefined);
-      setSelectedTransitionId('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, fixedMethodId]);
 
   /**
-   * メソッド選択時
-   */
-  const handleMethodChange = useCallback((value: string) => {
-    setSelectedMethodId(value);
-    // トランジションとタスク番号をリセット
-    setSelectedTransitionId('');
-    setSelectedTaskNumber(undefined);
-    form.setFieldsValue({
-      transitionId: '',
-      taskNumber: undefined,
-    });
-  }, [form]);
-
-  /**
-   * 選択されたメソッドに対応するタスク一覧を取得
-   */
-  const methodTasks = React.useMemo(() => {
-    return tasks.filter(t => t.methodId === selectedMethodId);
-  }, [tasks, selectedMethodId]);
-
-  /**
-   * 選択されたタスクの情報を取得（最初のタスクを使用）
-   */
-  const selectedTask = methodTasks.length > 0 ? methodTasks[0] : undefined;
-
-  /**
    * 選択されたメソッド情報を取得
    */
   const selectedMethod = availableMethods?.find(m => m.id === selectedMethodId);
-
-  /**
-   * 選択されたトランジション情報を取得
-   */
-  const selectedTransition = filteredTransitions.find(t => t.id === selectedTransitionId);
 
   /**
    * 保存ハンドラ（共通処理）
@@ -244,55 +133,33 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         return;
       }
 
-      // 指示データを構築
+      // 指示データを構築（プロジェクト指示固定）
       const instructionData: InstructionData = {
-        id: instruction?.id || Date.now(), // 編集時は既存ID、新規時は現在時刻
+        id: instruction?.id || Date.now(),
         content: values.content.trim(),
-        priority: values.priority,
-        type: values.type,
-        targetType: TARGET_TYPES.FILE, // デフォルト
-        methodId: values.methodId || selectedMethodId || '',
-        transitionId: values.transitionId || '',
-        taskNumber: values.taskNumber,
+        priority: InstructionPriority.NORMAL,
+        type: InstructionTypeCode.GENERAL,
+        targetType: TARGET_TYPES.FILE,
+        methodId: selectedMethodId || '',
+        transitionId: '',
+        taskNumber: undefined,
       };
-
-      // 対象タイプを判定
-      if (instructionData.transitionId) {
-        instructionData.targetType = TARGET_TYPES.TRANSITION;
-      } else if (instructionData.taskNumber !== undefined) {
-        instructionData.targetType = TARGET_TYPES.TASK;
-      } else if (instructionData.methodId) {
-        instructionData.targetType = TARGET_TYPES.FILE; // メソッド指示はFILE扱い（バックエンドと一致）
-      } else {
-        instructionData.targetType = TARGET_TYPES.FILE;
-      }
 
       // 保存コールバック
       onSave(instructionData, keepDialogOpen);
 
       // ダイアログを開いたままにする場合のみフォームをリセット
       if (keepDialogOpen) {
-        // メソッドIDを保持
-        const currentMethodId = values.methodId || '';
-        
         form.resetFields();
         form.setFieldsValue({
-          priority: InstructionPriority.NORMAL,
-          type: InstructionTypeCode.GENERAL,
-          methodId: currentMethodId, // メソッドIDを引き継ぐ
-          taskNumber: undefined,
-          transitionId: '',
+          methodId: selectedMethodId,
           content: '',
         });
-        // メソッドIDは保持、トランジションとタスク番号のみリセット
-        setSelectedMethodId(currentMethodId);
-        setSelectedTaskNumber(undefined);
-        setSelectedTransitionId('');
       }
     } catch (error) {
       console.error('Validation failed:', error);
     }
-  }, [form, instruction, onSave]);
+  }, [form, instruction, onSave, selectedMethodId, t]);
 
   /**
    * 保存ハンドラ
@@ -314,8 +181,6 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   const handleCancel = useCallback(() => {
     form.resetFields();
     setSelectedMethodId('');
-    setSelectedTaskNumber(undefined);
-    setSelectedTransitionId('');
     onClose();
   }, [form, onClose]);
 
@@ -325,7 +190,13 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   return (
     <Modal
       data-testid="instruction-edit-dialog"
-      title={isSentInstruction ? t('instructionEditDialog.titleDetail') : mode === 'create' ? t('instructionEditDialog.titleCreate') : t('instructionEditDialog.titleEdit')}
+      title={
+        isSentInstruction
+          ? t('instructionEditDialog.titleDetail')
+          : mode === 'create'
+          ? t('instructionEditDialog.titleCreate')
+          : t('instructionEditDialog.titleEdit')
+      }
       open={open}
       onCancel={handleCancel}
       width={700}
@@ -367,7 +238,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         layout="vertical"
         style={{ marginTop: token.marginSM }}
       >
-        <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+        <Space direction="vertical" size="small" style={{ width: '100%' }}>
           {/* methodIdをhiddenフィールドとして保持 */}
           <Form.Item name="methodId" hidden>
             <Input />
@@ -379,7 +250,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               {t('instructionEditDialog.targetLabel')}
             </Text>
             <Card size="small" style={{ backgroundColor: token.colorPrimaryBg }}>
-              <Space orientation="vertical" size={4} style={{ width: '100%' }}>
+              <Space direction="vertical" size={4} style={{ width: '100%' }}>
                 {selectedMethodId ? (
                   <>
                     <Text strong style={{ fontSize: '16px' }}>
@@ -400,133 +271,13 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
             </Card>
           </div>
 
-          {/* 優先度 */}
-          <Form.Item
-            name="priority"
-            label={t('instructionEditDialog.priorityLabel')}
-            rules={[{ required: true, message: t('instructionEditDialog.priorityRequired') }]}
-          >
-            <Select 
-              style={{ width: '100%' }} 
-              disabled={isSentInstruction}
-              loading={isLoadingCodeMaster}
-            >
-              {priorityOptions.length > 0 ? (
-                priorityOptions.map((option) => (
-                  <Select.Option key={option.value} value={option.value}>
-                    {option.label}
-                  </Select.Option>
-                ))
-              ) : (
-                // フォールバック: ハードコードされた値
-                <>
-                  <Select.Option value={InstructionPriority.HIGH}>{t('instruction.priority.high')}</Select.Option>
-                  <Select.Option value={InstructionPriority.MEDIUM}>{t('instruction.priority.medium')}</Select.Option>
-                  <Select.Option value={InstructionPriority.NORMAL}>{t('instruction.priority.normal')}</Select.Option>
-                  <Select.Option value={InstructionPriority.LOW}>{t('instruction.priority.low')}</Select.Option>
-                </>
-              )}
-            </Select>
-          </Form.Item>
-
-          {/* タイプ */}
-          <Form.Item
-            name="type"
-            label={t('instructionEditDialog.typeLabel')}
-            rules={[{ required: true, message: t('instructionEditDialog.typeRequired') }]}
-          >
-            <Select 
-              style={{ width: '100%' }} 
-              disabled={isSentInstruction}
-              loading={isLoadingCodeMaster}
-            >
-              {typeOptions.length > 0 ? (
-                typeOptions.map((option) => (
-                  <Select.Option key={option.value} value={option.value}>
-                    {option.label}
-                  </Select.Option>
-                ))
-              ) : (
-                // フォールバック: ハードコードされた値
-                <>
-                  <Select.Option value={InstructionTypeCode.GENERAL}>{t('instruction.type.general')}</Select.Option>
-                  <Select.Option value={InstructionTypeCode.SETUP}>{t('instruction.type.setup')}</Select.Option>
-                  <Select.Option value={InstructionTypeCode.MEASUREMENT}>{t('instruction.type.measurement')}</Select.Option>
-                  <Select.Option value={InstructionTypeCode.SAFETY}>{t('instruction.type.safety')}</Select.Option>
-                  <Select.Option value={InstructionTypeCode.CLEANING}>{t('instruction.type.cleanup')}</Select.Option>
-                </>
-              )}
-            </Select>
-          </Form.Item>
-
-          {/* 対象タスク */}
-          <Form.Item
-            name="taskNumber"
-            label={t('instructionEditDialog.taskLabel')}
-          >
-            <Select
-              placeholder={t('instructionEditDialog.taskPlaceholder')}
-              disabled={isSentInstruction || !selectedMethodId || !selectedTask || selectedTask.experimentCondition !== ExperimentCondition.INDIVIDUAL_CONDITIONS}
-              allowClear
-            >
-              {selectedTask?.taskNumberOptions.map((taskNum) => (
-                <Select.Option key={taskNum} value={taskNum}>
-                  {t('instructionEditDialog.taskOption').replace('{taskNum}', String(taskNum))}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          {/* トランジションID */}
-          <Form.Item
-            name="transitionId"
-            label={t('instructionEditDialog.transitionLabel')}
-          >
-            <Select
-              placeholder={t('instructionEditDialog.transitionPlaceholder')}
-              disabled={isSentInstruction || !selectedMethodId}
-              onChange={(value) => setSelectedTransitionId(value)}
-              allowClear
-            >
-              {filteredTransitions.map((transition) => (
-                <Select.Option key={transition.id} value={transition.id}>
-                  {transition.isExperimentRelevant && '⭐ '}
-                  {transition.displayName}
-                  {transition.category !== 'other' && ` [${transition.category}]`}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          {/* 選択されたトランジションの詳細 */}
-          {selectedTransition && (
-            <Alert
-              title={
-                <Space orientation="vertical" size="small">
-                  <Text>
-                    <Text strong>{t('instructionEditDialog.alertSelected')}</Text> {selectedTransition.displayName}
-                  </Text>
-                  <Text>
-                    <Text strong>{t('instructionEditDialog.alertCategory')}</Text> {selectedTransition.category}
-                  </Text>
-                  {selectedTransition.description && (
-                    <Text>
-                      <Text strong>{t('instructionEditDialog.alertDescription')}</Text> {selectedTransition.description}
-                    </Text>
-                  )}
-                </Space>
-              }
-              type="success"
-              showIcon
-            />
-          )}
-
           {/* 指示内容 */}
           <Form.Item
             name="content"
             label={
               <>
-                {t('instructionEditDialog.contentLabel')} {!isSentInstruction && <Text type="danger">*</Text>}
+                {t('instructionEditDialog.contentLabel')}{' '}
+                {!isSentInstruction && <Text type="danger">*</Text>}
               </>
             }
             rules={[
@@ -534,7 +285,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               { max: 1000, message: t('instructionEditDialog.contentMaxLength') },
             ]}
           >
-          <TextArea
+            <TextArea
               placeholder={t('instructionEditDialog.contentPlaceholder')}
               rows={6}
               showCount
