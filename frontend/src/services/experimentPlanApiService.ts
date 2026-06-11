@@ -80,3 +80,46 @@ export async function getOwnerRefs(
     }, 300);
   });
 }
+
+// ──────────────────────────────────────────────────────────────
+// バックエンドAPI接続（モックエンドポイント）
+// ──────────────────────────────────────────────────────────────
+
+import { createApiClient } from '@/utils/authUtils';
+import type { TemplateDef } from '@/types/experimentPlan';
+
+/**
+ * ExperimentPlanDialog 用データ（transitions / templates / refs）を一括取得
+ * GET /api/v1/projects/:projectId/methods/:methodId/plan-dialog-data
+ */
+export interface PlanDialogData {
+  transitions: Array<{ id: string; name: string }>;
+  templates: TemplateDef[];
+  creatorRefs: string[];
+  instrumentRefs: string[];
+  ownerRefs: string[];
+}
+
+export async function getPlanDialogData(
+  projectId: string,
+  methodId: string
+): Promise<PlanDialogData> {
+  const apiClient = createApiClient();
+  const url = `/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/plan-dialog-data`;
+  const response = await apiClient.get<{ success: boolean; data: PlanDialogData }>(url);
+  return response.data.data;
+}
+
+/**
+ * 実験計画をバックエンドに保存
+ * POST /api/v1/projects/:projectId/experiment-plans
+ */
+export async function saveExperimentPlanToApi(
+  projectId: string,
+  data: SaveExperimentPlanRequest
+): Promise<SaveExperimentPlanResponse> {
+  const apiClient = createApiClient();
+  const url = `/projects/${encodeURIComponent(projectId)}/experiment-plans`;
+  const response = await apiClient.post<{ success: boolean; message: string }>(url, data);
+  return response.data;
+}

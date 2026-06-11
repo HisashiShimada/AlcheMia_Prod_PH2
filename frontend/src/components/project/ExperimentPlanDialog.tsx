@@ -53,7 +53,6 @@ import {
   CloseOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import {
   NoteType,
   NOTE_TYPE_LABELS,
@@ -68,7 +67,9 @@ import type {
 } from '@/types/experimentPlan';
 import {
   saveExperimentPlan,
+  getPlanDialogData,
 } from '@/services/experimentPlanApiService';
+import type { PlanDialogData } from '@/services/experimentPlanApiService';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -447,7 +448,10 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 }) => {
   const { token } = useToken();
   const { message } = App.useApp();
-  const { maimlRoot } = useProjectMaiml();
+
+  // --- APIデータ State ---
+  const [dialogData, setDialogData] = useState<PlanDialogData | null>(null);
+  const [dialogDataLoading, setDialogDataLoading] = useState(false);
 
   // --- State ---
 
@@ -472,10 +476,10 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
 
-  // Ref選択肢はpropsから取得
-  const creatorRefOptions = creatorRefOptionsProp;
-  const instrumentRefOptions = instrumentRefOptionsProp;
-  const ownerRefOptions = ownerRefOptionsProp;
+  // Ref選択肢はAPIデータ優先、なければpropsから取得
+  const creatorRefOptions = dialogData?.creatorRefs ?? creatorRefOptionsProp;
+  const instrumentRefOptions = dialogData?.instrumentRefs ?? instrumentRefOptionsProp;
+  const ownerRefOptions = dialogData?.ownerRefs ?? ownerRefOptionsProp;
 
   /** 注意事項追加用の選択中タイプ */
   const [pendingNoteType, setPendingNoteType] = useState<NoteTypeValue | undefined>(undefined);
@@ -532,59 +536,16 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     [activeTab, taskNumbers, overrideMap]
   );
 
-  /** MAIMLからメソッドに対応するトランジション一覧を取得 */
+  /** APIから取得したトランジション一覧 */
   const transitions = useMemo((): TransitionRow[] => {
-    if (!maimlRoot?.protocol?.methods) return [];
-    const method = maimlRoot.protocol.methods.find((m) => m.id === methodId);
-    const raw = method?.pnml?.transitions ?? [];
-    return raw.map((t) => ({ id: t.id, name: t.name || t.id }));
-  }, [maimlRoot, methodId]);
+    return dialogData?.transitions ?? [];
+  }, [dialogData]);
 
-  /**
-   * 選択中トランジションに紐づくテンプレートのみ抽出する
-   *
-   * 紐づき解決の手順:
-   * 1. PNML の Arc から selectedTransitionId に source or target で繋がる Place ID を収集
-   * 2. methodTemplates の placeRefs[].ref がその Place ID に含まれるものを返す
-   * 3. selectedTransitionId が null の場合は空配列を返す
-   */
+  /** APIから取得したテンプレート一覧（トランジション選択時に全件表示） */
   const filteredTemplates = useMemo((): TemplateDef[] => {
     if (!selectedTransitionId) return [];
-    if (methodTemplatesProp.length === 0) return [];
-
-    // PNML の Arc 一覧を取得
-    const method = maimlRoot?.protocol?.methods?.find((m) => m.id === methodId);
-    const arcs = method?.pnml?.arcs ?? [];
-
-    // 選択中トランジションに繋がる Place ID セットを構築
-    const connectedPlaceIds = new Set<string>();
-    arcs.forEach((arc) => {
-      if (arc.source === selectedTransitionId) {
-        connectedPlaceIds.add(arc.target);
-      } else if (arc.target === selectedTransitionId) {
-        connectedPlaceIds.add(arc.source);
-      }
-    });
-
-    // placeRefs に connectedPlaceId を含むテンプレートのみ返す
-    // placeRef.ref が Place の id に対応する
-    return methodTemplatesProp.filter((tmpl) => {
-      // TemplateDef には placeRefs がないため、maimlRoot の Template から照合する
-      // maimlRoot 側の Template.placeRefs[].ref と connectedPlaceIds で照合
-      const allTemplates = [
-        ...(method?.materialTemplates ?? []),
-        ...(method?.conditionTemplates ?? []),
-        ...(method?.resultTemplates ?? []),
-      ];
-      const rawTmpl = allTemplates.find((t) => t.id === tmpl.id);
-      if (!rawTmpl) return false;
-      if (rawTmpl.placeRefs.length === 0) {
-        // placeRefs が空のテンプレートは常に表示（紐づきなし = 全トランジション共通）
-        return true;
-      }
-      return rawTmpl.placeRefs.some((pr) => connectedPlaceIds.has(pr.ref));
-    });
-  }, [selectedTransitionId, methodTemplatesProp, maimlRoot, methodId]);
+    return dialogData?.templates ?? methodTemplatesProp;
+  }, [selectedTransitionId, dialogData, methodTemplatesProp]);
 
   /** タブアイテムの定義 */
   const tabItems = useMemo(() => {
@@ -594,16 +555,58 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     ];
   }, [taskNumbers]);
 
-  /** ダイアログオープン時に初期化 */
+  /** ダイアログオープン時にAPIデータ取得 & 状態初期化 */
   useEffect(() => {
     if (!open) return;
+
     setActiveTab(TAB_KEY_ALL);
     setSelectedTransitionId(null);
     setTabDataMap({});
     setOverrideMap({});
     setPendingNoteType(undefined);
     setInnerTab('basic');
-  }, [open]);
+
+    if (!projectId || !methodId) return;
+
+    const fetchDialogData = async () => {
+      setDialogDataLoading(true);
+      try {
+        const data = await getPlanDialogData(projectId, methodId);
+        setDialogData(data);
+      } catch (err) {
+        console.error('[ExperimentPlanDialog] getPlanDialogData error:', err);
+        message.error('実験計画データの取得に失敗しました');
+        setDialogData(null);
+      } finally {
+        setDialogDataLoading(false);
+      }
+    };
+
+    fetchDialogData();
+  }, [open, projectId, methodId, message]);
+
+  /** メソッドID変更時にAPIデータ再取得 */
+  useEffect(() => {
+    if (!open || !projectId || !methodId) return;
+
+    const fetchDialogData = async () => {
+      setDialogDataLoading(true);
+      setSelectedTransitionId(null);
+      try {
+        const data = await getPlanDialogData(projectId, methodId);
+        setDialogData(data);
+      } catch (err) {
+        console.error('[ExperimentPlanDialog] getPlanDialogData (methodId change) error:', err);
+        setDialogData(null);
+      } finally {
+        setDialogDataLoading(false);
+      }
+    };
+
+    fetchDialogData();
+    // open の変化では二重実行しないため methodId のみ依存
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [methodId]);
 
   // --- トランジション一覧カラム定義 ---
   const transitionColumns: ColumnsType<TransitionRow> = [

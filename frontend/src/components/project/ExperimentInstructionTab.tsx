@@ -33,7 +33,6 @@ import {
   CheckOutlined,
   CloseOutlined,
   FilterOutlined,
-  ReloadOutlined,
   EditOutlined,
 } from '@ant-design/icons';
 import ExperimentPlanDialog from './ExperimentPlanDialog';
@@ -386,13 +385,13 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       ),
     },
     {
-      title: 'トランジション',
-      dataIndex: 'transitionName',
-      width: 130,
+      title: 'トランジションID',
+      dataIndex: 'transitionId',
+      width: 180,
       ellipsis: { showTitle: false },
-      render: (v: string, r: FlatRow) => (
-        <Tooltip title={r.transitionId} placement="topLeft">
-          <Text style={{ fontSize: 12 }}>{v || r.transitionId}</Text>
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft">
+          <Text code style={{ fontSize: 11 }}>{v}</Text>
         </Tooltip>
       ),
     },
@@ -408,13 +407,13 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       ),
     },
     {
-      title: 'プロパティ',
-      dataIndex: 'propLabel',
-      width: 130,
+      title: 'Key',
+      dataIndex: 'propKey',
+      width: 160,
       ellipsis: { showTitle: false },
-      render: (v: string, r: FlatRow) => (
-        <Tooltip title={r.propKey} placement="topLeft">
-          <Text style={{ fontSize: 12 }}>{v || r.propKey}</Text>
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft">
+          <Text code style={{ fontSize: 11 }}>{v}</Text>
         </Tooltip>
       ),
     },
@@ -509,28 +508,6 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         >
           実験指示を編集
         </Button>
-        <Button
-          size="small"
-          icon={<ReloadOutlined />}
-          loading={loading}
-          onClick={fetchData}
-        >
-          更新
-        </Button>
-        {/* 登録済みメソッドのサマリバッジ */}
-        <Flex gap={4} align="center" style={{ marginLeft: 8 }}>
-          {methods.map((m) => (
-            <Tooltip key={m.id} title={m.id} placement="bottom">
-              <Tag
-                color="blue"
-                style={{ cursor: 'pointer', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}
-                onClick={() => handleOpenPlanDialog(m.id)}
-              >
-                {m.name}: 指示あり
-              </Tag>
-            </Tooltip>
-          ))}
-        </Flex>
       </Flex>
 
       {/* ── フィルタバー ── */}

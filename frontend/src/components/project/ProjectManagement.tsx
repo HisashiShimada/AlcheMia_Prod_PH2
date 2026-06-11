@@ -179,7 +179,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const [hasBackendDraft, setHasBackendDraft] = useState(false);
   /** 復元対象のDraftオブジェクト（projectId特定用） */
   const [draftToRestore, setDraftToRestore] = useState<Draft | null>(null);
-  const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results' | 'task_registration' | 'instruction_registration'>('file_management');
+  const [currentTab, setCurrentTab] = useState<'file_management' | 'task_registration' | 'project_instruction' | 'experiment_instruction'>('file_management');
   const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
   const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
   const [isLoadingTabData, setIsLoadingTabData] = useState(false);
@@ -442,18 +442,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             subFolderFiles: fileResponse.subFolderFiles || {},
           }
         }));
-      } else if (currentTab === 'task_results') {
-        console.log('📋 [ProjectManagement] プロジェクト変更 - タスク一覧を再取得:', project.name);
-        const taskResponse = await getProjectTasks(project.id, 'all');
-        setProjectTasksData(prev => ({
-          ...prev,
-          [projectId]: {
-            tasks: taskResponse.tasks || [],
-            statistics: taskResponse.statistics || {},
-          }
-        }));
       }
-      // task_registration / instruction_registration は
+      // task_registration / project_instruction / experiment_instruction は
       // コンポーネント内部で projectId の変更を検知して自動更新するため不要
     } catch (error) {
       console.error('❌ [ProjectManagement] タブデータ取得失敗:', error);
@@ -1305,20 +1295,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           root: fileResponse.files?.length || 0,
           subFolderKeys: Object.keys(fileResponse.subFolderFiles || {}),
         });
-      } else if (currentTabKey === 'task_results') {
-        console.log('📋 [ProjectManagement] タスク一覧を最新化');
-        const taskResponse = await getProjectTasks(currentProjectId, 'all');
-        setProjectTasksData(prev => ({
-          ...prev,
-          [currentProjectId]: {
-            tasks: taskResponse.tasks || [],
-            statistics: taskResponse.statistics || {},
-          }
-        }));
-        console.log('✅ [ProjectManagement] タスク一覧更新完了:', {
-          tasks: taskResponse.tasks?.length || 0,
-        });
       }
+      // project_instruction / experiment_instruction / task_registration は
+      // コンポーネント内部で自動更新するため不要
       
       // 成功メッセージ
       message.success(t('projectManagement.reloadSuccess'));
@@ -2188,10 +2167,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
               <Tabs
                 activeKey={currentTab}
                 onChange={async (key) => {
-                  const newTab = key as 'file_management' | 'task_results';
+                  const newTab = key as 'file_management' | 'task_registration' | 'project_instruction' | 'experiment_instruction';
                   setCurrentTab(newTab);
                   
-                  // タブ切り替え時に最新データを取得
+                  // タブ切り替え時に最新データを取得（ファイル管理タブのみ）
                   if (!selectedProjectId || !selectedProject) return;
                   
                   try {
@@ -2208,18 +2187,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           subFolderFiles: fileResponse.subFolderFiles || {},
                         }
                       }));
-                    } else if (newTab === 'task_results') {
-                      // タスク一覧を最新取得（APIサービスは既に展開済み）
-                      console.log('📋 [ProjectManagement] Loading tasks for tab switch:', selectedProject.name);
-                      const taskResponse = await getProjectTasks(selectedProject.id, 'all');
-                      setProjectTasksData(prev => ({
-                        ...prev,
-                        [selectedProjectId]: {
-                          tasks: taskResponse.tasks || [],
-                          statistics: taskResponse.statistics || {},
-                        }
-                      }));
                     }
+                    // task_registration / project_instruction / experiment_instruction は
+                    // コンポーネント内部で自動更新するため不要
                   } catch (error) {
                     console.error('❌ [ProjectManagement] Tab data loading failed:', error);
                     message.error(t('project.dataFetchFailed'));
@@ -2271,197 +2241,32 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     ),
                   },
                   {
-                    key: 'instruction_registration',
-                    label: t('projectManagement.tabs.instruction_registration'),
+                    key: 'project_instruction',
+                    label: 'プロジェクト指示',
                     children: (
-                      /* ── [モック] 指示管理サブタブ: プロジェクト指示 + 実験指示 ── */
-                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <Tabs
-                          type="card"
-                          size="small"
-                          style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
-                          tabBarStyle={{ marginBottom: 0, paddingTop: 4, paddingLeft: 4 }}
-                          items={[
-                            {
-                              key: 'project_instruction',
-                              label: 'プロジェクト指示',
-                              children: (
-                                <InstructionRegistrationTab
-                                  projectId={selectedProject.id}
-                                  projectName={selectedProject.name}
-                                  isActive={currentTab === 'instruction_registration'}
-                                  isCheckoutLocked={isProjectCheckedOut}
-                                  onInstructionsSubmit={handleInstructionsSubmit}
-                                />
-                              ),
-                            },
-                            {
-                              key: 'experiment_instruction',
-                              label: '実験指示',
-                              children: (
-                                <div style={{ height: '100%', padding: '4px 0' }}>
-                                  <ExperimentInstructionTab
-                                    projectId={selectedProject.id}
-                                    projectName={selectedProject.name}
-                                  />
-                                </div>
-                              ),
-                            },
-                          ]}
+                      <InstructionRegistrationTab
+                        projectId={selectedProject.id}
+                        projectName={selectedProject.name}
+                        isActive={currentTab === 'project_instruction'}
+                        isCheckoutLocked={isProjectCheckedOut}
+                        onInstructionsSubmit={handleInstructionsSubmit}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'experiment_instruction',
+                    label: '実験指示',
+                    children: (
+                      <div style={{ height: '100%', padding: '4px 0' }}>
+                        <ExperimentInstructionTab
+                          projectId={selectedProject.id}
+                          projectName={selectedProject.name}
                         />
                       </div>
                     ),
                   },
-                  {
-                    key: 'task_results',
-                    label: t('projectManagement.tabs.task_results'),
-                    children: (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        {/* ボタンエリア */}
-                        <Flex justify="flex-end" gap="small">
-                          <Button
-                            type="default"
-                            icon={<UserOutlined />}
-                            onClick={() => onOpenWorkerScreen?.(selectedProject.id, selectedProject.name)}
-                            disabled={!isProjectCheckedOut}
-                            title={!isProjectCheckedOut ? t('projectManagement.workerScreenDisabledTitle') : undefined}
-                          >
-                            {t('projectManagement.workerScreenButton')}
-                          </Button>
-                          <Button
-                            type="primary"
-                            style={{ marginRight: 16 }}
-                            data-testid="complete-review-button"
-                            disabled={taskStats.review_waiting === 0}
-                            title={taskStats.review_waiting === 0 ? t('projectManagement.completeReviewDisabledTitle') : undefined}
-                            onClick={async () => {
-                              if (!selectedProject) return;
-                              try {
-                                const res = await completeReviewTasks(selectedProject.id);
-                                message.success(res.data?.message || t('projectManagement.completeReviewSuccess'));
-                                // タスク一覧を再取得
-                                const taskResponse = await getProjectTasks(selectedProject.id, 'all');
-                                setProjectTasksData(prev => ({
-                                  ...prev,
-                                  [selectedProjectId!]: {
-                                    tasks: taskResponse.tasks || [],
-                                    statistics: taskResponse.statistics || {},
-                                  }
-                                }));
-                              } catch {
-                                message.error(t('projectManagement.completeReviewFailed'));
-                              }
-                            }}
-                          >
-                            {t('projectManagement.completeReviewButton')}
-                          </Button>
-                        </Flex>
-                        {/* 統計カード: コード値順 total / pending(0) / in_progress(1) / review_waiting(2) / completed(3) / forced_terminated(4) */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin, paddingLeft: token.paddingLG, paddingRight: token.paddingLG }}>
-                      <Card
-                        variant="borderless"
-                        style={{ backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}
-                        styles={{ body: { padding: token.margin } }}
-                      >
-                        <Flex vertical align="center">
-                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.total_tasks') || '総タスク数'}
-                          </Text>
-                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorText }}>
-                            {taskStats.total}
-                          </Title>
-                        </Flex>
-                      </Card>
-
-                      {/* 0: 実行待ち */}
-                      <Card
-                        variant="borderless"
-                        style={{ backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}
-                        styles={{ body: { padding: token.margin } }}
-                      >
-                        <Flex vertical align="center">
-                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.pending_count') || '実行待ち'}
-                          </Text>
-                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorTextSecondary }}>
-                            {taskStats.pending}
-                          </Title>
-                        </Flex>
-                      </Card>
-
-                      {/* 1: 実行中 */}
-                      <Card
-                        variant="borderless"
-                        style={{ backgroundColor: token.colorPrimaryBg, borderRadius: token.borderRadius }}
-                        styles={{ body: { padding: token.margin } }}
-                      >
-                        <Flex vertical align="center">
-                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.in_progress_count') || '実行中'}
-                          </Text>
-                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorPrimary }}>
-                            {taskStats.in_progress}
-                          </Title>
-                        </Flex>
-                      </Card>
-
-                      {/* 2: レビュー待ち */}
-                      <Card
-                        variant="borderless"
-                        style={{ backgroundColor: token.colorWarningBg, borderRadius: token.borderRadius }}
-                        styles={{ body: { padding: token.margin } }}
-                      >
-                        <Flex vertical align="center">
-                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.review_waiting_count') || 'レビュー待ち'}
-                          </Text>
-                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorWarning }}>
-                            {taskStats.review_waiting}
-                          </Title>
-                        </Flex>
-                      </Card>
-
-                      {/* 3: 完了 */}
-                      <Card
-                        variant="borderless"
-                        style={{ backgroundColor: token.colorSuccessBg, borderRadius: token.borderRadius }}
-                        styles={{ body: { padding: token.margin } }}
-                      >
-                        <Flex vertical align="center">
-                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.completed_count') || '完了'}
-                          </Text>
-                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorSuccess }}>
-                            {taskStats.completed}
-                          </Title>
-                        </Flex>
-                      </Card>
-
-                      {/* 4: 強制終了（異常終了） */}
-                      <Card
-                        variant="borderless"
-                        style={{ backgroundColor: token.colorErrorBg, borderRadius: token.borderRadius }}
-                        styles={{ body: { padding: token.margin } }}
-                      >
-                        <Flex vertical align="center">
-                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.error_count') || '異常終了'}
-                          </Text>
-                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorError }}>
-                            {taskStats.forced_terminated}
-                          </Title>
-                        </Flex>
-                      </Card>
-                    </div>
-
-                    {/* タスク結果テーブル */}
-                    <TaskResultsTable
-                      results={taskResults}
-                    />
-                  </div>
-                    ),
-                  },
                 ]}
+                tabBarStyle={{ marginLeft: 8 }}
                 style={{
                   flex: 1,
                   display: 'flex',

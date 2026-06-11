@@ -15,6 +15,8 @@ import {
   getProjectMethods,
   approveTask,
   recordNg,
+  getPlanDialogData,
+  saveExperimentPlan,
 } from '../controllers/experimentInstructionController';
 
 const router = Router();
@@ -45,6 +47,20 @@ router.put(
   '/:projectId/tasks/:methodId/:taskNumber/ng',
   authMiddleware,
   recordNg
+);
+
+// ExperimentPlanDialog 用データ取得
+router.get(
+  '/:projectId/methods/:methodId/plan-dialog-data',
+  authMiddleware,
+  getPlanDialogData
+);
+
+// 実験計画保存
+router.post(
+  '/:projectId/experiment-plans',
+  authMiddleware,
+  saveExperimentPlan
 );
 
 export default router;
