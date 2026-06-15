@@ -25,7 +25,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Modal,
   Tabs,
@@ -46,12 +46,16 @@ import {
   Table,
   Tag,
   Form,
+  Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined,
   CloseOutlined,
   FileTextOutlined,
+  ImportOutlined,
+  ExportOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import {
   NoteType,
@@ -102,6 +106,20 @@ function createInitialTabData(): ExperimentPlanTabData {
 interface TransitionRow {
   id: string;
   name: string;
+}
+
+/** カスタムプロパティ型（テンプレート入力で追加できるプロパティ） */
+type CustomPropType =
+  | 'stringType' | 'intType' | 'floatType' | 'doubleType' | 'booleanType'
+  | 'dateType' | 'dateTimeType';
+
+/** カスタムプロパティ値 */
+interface CustomPropValue {
+  id: string;
+  key: string;
+  type: CustomPropType;
+  value: string;
+  units: string;
 }
 
 /**
@@ -213,12 +231,25 @@ const RefSection: React.FC<RefSectionProps> = ({
  *
  * methodTemplates が空の場合は「テンプレートが未定義」メッセージを表示する
  */
+const CUSTOM_PROP_TYPE_OPTIONS: { value: CustomPropType; label: string }[] = [
+  { value: 'stringType',   label: '文字列 (string)' },
+  { value: 'intType',      label: '整数 (int)' },
+  { value: 'floatType',    label: '実数 (float)' },
+  { value: 'doubleType',   label: '実数 (double)' },
+  { value: 'booleanType',  label: '真偽値 (boolean)' },
+  { value: 'dateType',     label: '日付 (date)' },
+  { value: 'dateTimeType', label: '日時 (dateTime)' },
+];
+
 interface TemplateInputPanelProps {
   /** MAIMLから生成したテンプレート定義一覧 */
   methodTemplates: TemplateDef[];
   /** テンプレートの入力値 `{templateId_fieldKey: value}` 形式 */
   templateValues: Record<string, string | number | boolean>;
   onValueChange: (key: string, value: string | number | boolean) => void;
+  /** カスタムプロパティ（templateId → CustomPropValue[]） */
+  customProps: Record<string, CustomPropValue[]>;
+  onCustomPropsChange: (templateId: string, props: CustomPropValue[]) => void;
   disabled?: boolean;
 }
 
@@ -226,10 +257,15 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   methodTemplates,
   templateValues,
   onValueChange,
+  customProps,
+  onCustomPropsChange,
   disabled = false,
 }) => {
   const { token } = useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [pendingKey, setPendingKey] = useState('');
+  const [pendingType, setPendingType] = useState<CustomPropType>('stringType');
+  const [pendingUnits, setPendingUnits] = useState('');
 
   // methodTemplates が変わった（メソッド切り替え等）場合は選択リセット
   useEffect(() => {
@@ -237,6 +273,37 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   }, [methodTemplates]);
 
   const selectedTemplate = methodTemplates.find((t) => t.id === selectedTemplateId) ?? null;
+
+  /** 選択中テンプレートのカスタムプロパティを追加 */
+  const handleAddCustomProp = () => {
+    if (!selectedTemplate || !pendingKey.trim()) return;
+    const existing = customProps[selectedTemplate.id] ?? [];
+    const newProp: CustomPropValue = {
+      id: `cp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      key: pendingKey.trim(),
+      type: pendingType,
+      value: '',
+      units: pendingUnits,
+    };
+    onCustomPropsChange(selectedTemplate.id, [...existing, newProp]);
+    setPendingKey('');
+    setPendingUnits('');
+  };
+
+  /** カスタムプロパティを削除 */
+  const handleRemoveCustomProp = (templateId: string, propId: string) => {
+    const existing = customProps[templateId] ?? [];
+    onCustomPropsChange(templateId, existing.filter((p) => p.id !== propId));
+  };
+
+  /** カスタムプロパティの値を更新 */
+  const handleCustomPropValueChange = (templateId: string, propId: string, value: string) => {
+    const existing = customProps[templateId] ?? [];
+    onCustomPropsChange(
+      templateId,
+      existing.map((p) => (p.id === propId ? { ...p, value } : p))
+    );
+  };
 
   if (methodTemplates.length === 0) {
     return (
@@ -258,6 +325,8 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
       </div>
     );
   }
+
+  const currentCustomProps = selectedTemplate ? (customProps[selectedTemplate.id] ?? []) : [];
 
   return (
     <div>
@@ -346,12 +415,14 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
             <Card
               size="small"
               title={<Text style={{ fontSize: 12 }}>{selectedTemplate.label}</Text>}
-              styles={{ body: { maxHeight: 360, overflowY: 'auto' } }}
+              styles={{ body: { maxHeight: 420, overflowY: 'auto' } }}
             >
+              {/* ── 定義済みフィールド ── */}
               {selectedTemplate.fields.length === 0 ? (
                 <Empty
                   description="フィールドが定義されていません"
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  style={{ marginBottom: 8 }}
                 />
               ) : (
                 <Form layout="vertical" size="small">
@@ -419,6 +490,101 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                   })}
                 </Form>
               )}
+
+              <Divider style={{ margin: '8px 0' }} />
+
+              {/* ── カスタムプロパティ追加エリア ── */}
+              <div>
+                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                  プロパティを追加
+                </Text>
+                <Space wrap style={{ marginBottom: 6 }}>
+                  <Input
+                    placeholder="Key（プロパティ名）"
+                    value={pendingKey}
+                    onChange={(e) => setPendingKey(e.target.value)}
+                    style={{ width: 160 }}
+                    size="small"
+                    disabled={disabled}
+                  />
+                  <Select
+                    value={pendingType}
+                    onChange={setPendingType}
+                    options={CUSTOM_PROP_TYPE_OPTIONS}
+                    style={{ width: 160 }}
+                    size="small"
+                    disabled={disabled}
+                  />
+                  <Input
+                    placeholder="単位（任意）"
+                    value={pendingUnits}
+                    onChange={(e) => setPendingUnits(e.target.value)}
+                    style={{ width: 100 }}
+                    size="small"
+                    disabled={disabled}
+                  />
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={handleAddCustomProp}
+                    disabled={disabled || !pendingKey.trim()}
+                  >
+                    追加
+                  </Button>
+                </Space>
+
+                {/* 追加済みカスタムプロパティ一覧 */}
+                {currentCustomProps.length > 0 && (
+                  <div style={{ marginTop: 4 }}>
+                    {currentCustomProps.map((cp) => (
+                      <div
+                        key={cp.id}
+                        style={{
+                          display: 'flex',
+                          gap: 6,
+                          alignItems: 'center',
+                          marginBottom: 6,
+                          padding: '4px 8px',
+                          border: `1px solid ${token.colorBorder}`,
+                          borderRadius: token.borderRadius,
+                          backgroundColor: token.colorFillAlter,
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, minWidth: 90, flexShrink: 0 }}>
+                          {cp.key}
+                          {cp.units && (
+                            <Tag color="blue" style={{ fontSize: 9, margin: '0 0 0 4px' }}>
+                              {cp.units}
+                            </Tag>
+                          )}
+                        </Text>
+                        <Tag style={{ fontSize: 10, flexShrink: 0 }}>{cp.type}</Tag>
+                        <Input
+                          value={cp.value}
+                          onChange={(e) =>
+                            handleCustomPropValueChange(selectedTemplate.id, cp.id, e.target.value)
+                          }
+                          placeholder="値を入力"
+                          size="small"
+                          style={{ flex: 1, minWidth: 80 }}
+                          disabled={disabled}
+                        />
+                        <Tooltip title="削除">
+                          <Button
+                            type="text"
+                            danger
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemoveCustomProp(selectedTemplate.id, cp.id)}
+                            disabled={disabled}
+                          />
+                        </Tooltip>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Card>
           )}
         </Col>
@@ -448,6 +614,9 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 }) => {
   const { token } = useToken();
   const { message } = App.useApp();
+
+  // --- インポート用隠しinput ref ---
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // --- APIデータ State ---
   const [dialogData, setDialogData] = useState<PlanDialogData | null>(null);
@@ -617,6 +786,62 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       render: (name: string) => <Text style={{ fontSize: 13 }}>{name}</Text>,
     },
   ];
+
+  // --- カスタムプロパティ State（templateId → CustomPropValue[]） ---
+  const [customProps, setCustomProps] = useState<Record<string, CustomPropValue[]>>({});
+
+  const handleCustomPropsChange = useCallback((templateId: string, props: CustomPropValue[]) => {
+    setCustomProps((prev) => ({ ...prev, [templateId]: props }));
+  }, []);
+
+  // --- インポートハンドラ ---
+  const handleImport = useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  const handleImportFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const json = JSON.parse(event.target?.result as string);
+          // tabDataMapへの反映
+          if (json.tabDataMap) {
+            setTabDataMap(json.tabDataMap);
+          }
+          message.success('インポートしました');
+        } catch {
+          message.error('JSONの解析に失敗しました');
+        }
+      };
+      reader.readAsText(file);
+      // 同一ファイルを再選択できるようにリセット
+      e.target.value = '';
+    },
+    [message]
+  );
+
+  // --- エクスポートハンドラ ---
+  const handleExport = useCallback(() => {
+    const exportData = {
+      methodId,
+      projectId,
+      selectedTransitionId,
+      tabDataMap,
+      customProps,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `experiment-plan_${methodId}_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success('エクスポートしました');
+  }, [methodId, projectId, selectedTransitionId, tabDataMap, customProps, message]);
 
   // --- Ref操作ハンドラ ---
 
@@ -842,6 +1067,35 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       style={{ maxWidth: 1600, top: 24 }}
       styles={{ body: { padding: `${token.paddingSM}px ${token.paddingMD}px`, overflowX: 'hidden' } }}
       footer={[
+        /* 隠しinput（インポート用） */
+        <input
+          key="import-input"
+          ref={importInputRef}
+          type="file"
+          accept=".json"
+          style={{ display: 'none' }}
+          onChange={handleImportFileChange}
+        />,
+        <Tooltip key="import-tooltip" title="JSONファイルから設定を読み込む">
+          <Button
+            key="import"
+            icon={<ImportOutlined />}
+            onClick={handleImport}
+            disabled={isSaving}
+          >
+            インポート
+          </Button>
+        </Tooltip>,
+        <Tooltip key="export-tooltip" title="現在の設定をJSONファイルに書き出す">
+          <Button
+            key="export"
+            icon={<ExportOutlined />}
+            onClick={handleExport}
+            disabled={isSaving}
+          >
+            エクスポート
+          </Button>
+        </Tooltip>,
         <Button key="cancel" onClick={onClose} disabled={isSaving}>
           キャンセル
         </Button>,
@@ -1004,6 +1258,8 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                           methodTemplates={filteredTemplates}
                           templateValues={currentTabData.templateValues}
                           onValueChange={handleTemplateValueChange}
+                          customProps={customProps}
+                          onCustomPropsChange={handleCustomPropsChange}
                           disabled={disabled}
                         />
                       ),

@@ -16,6 +16,7 @@ import {
   Table,
   Tag,
   Button,
+  Dropdown,
   Space,
   Modal,
   Form,
@@ -29,11 +30,13 @@ import {
   Empty,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { MenuProps } from 'antd';
 import {
   CheckOutlined,
   CloseOutlined,
   FilterOutlined,
   EditOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import ExperimentPlanDialog from './ExperimentPlanDialog';
 import {
@@ -463,31 +466,38 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       title: '操作',
-      width: 90,
+      width: 60,
       align: 'center' as const,
       render: (_: unknown, r: FlatRow) => {
         if (r.taskStatus !== '04') return <Text type="secondary">—</Text>;
+        const menuItems: MenuProps['items'] = [
+          {
+            key: 'approve',
+            label: '承認',
+            icon: <CheckOutlined />,
+            onClick: () => setApproveTarget(r),
+          },
+          {
+            key: 'ng',
+            label: 'NG',
+            icon: <CloseOutlined />,
+            danger: true,
+            onClick: () => setNgTarget(r),
+          },
+        ];
         return (
-          <Space size={2} direction="vertical" style={{ width: '100%' }}>
+          <Dropdown
+            menu={{ items: menuItems }}
+            trigger={['click']}
+            placement="bottomRight"
+          >
             <Button
-              type="primary"
+              type="text"
               size="small"
-              icon={<CheckOutlined />}
-              block
-              onClick={() => setApproveTarget(r)}
-            >
-              承認
-            </Button>
-            <Button
-              danger
-              size="small"
-              icon={<CloseOutlined />}
-              block
-              onClick={() => setNgTarget(r)}
-            >
-              NG
-            </Button>
-          </Space>
+              icon={<MoreOutlined />}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Dropdown>
         );
       },
     },
