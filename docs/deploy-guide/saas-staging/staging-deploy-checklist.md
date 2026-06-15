@@ -56,7 +56,8 @@ git checkout main
 git pull
 
 # 新ブランチを作成して切り替え（日付とバージョン番号を変更して入力）
-git checkout -b release_YYYYMMDD_vXX.XX.XX
+# 前回のバージョン：mmdpf\docs\deliverables\release_YYYYMMDD_v00.00.**
+git checkout -b deploy-DDMM
 ```
 
 > **例:** `git checkout -b release_20260526_v00.00.08`
@@ -214,7 +215,7 @@ bash scripts/alchemia-staging/init-release-dir.sh \
 
 > **以降のデプロイ作業は `docs/deliverables/<リリースタグ名>/checklist.md` に記録すること。**
 
-※スクリプトに実行権限がない場合は下記を実行すること
+※スクリプトに実行権限がない場合は下記を実行すること（通常は不要）
 ```bash
 chmod +x scripts/alchemia-staging/init-release-dir.sh
 ```
@@ -489,7 +490,7 @@ bash scripts/alchemia-staging/check-env-diff.sh \
 chmod +x scripts/alchemia-staging/check-env-diff.sh
 ```
 
-### 7-1. AWS CLI 認証確認
+### 7-1. AWS CLI 認証確認（実施不要）
 
 > 🖥️ **実行環境**: WSL（ローカル開発PC）
 > 📂 **実行ディレクトリ**: 任意のディレクトリ
@@ -507,7 +508,7 @@ aws sts get-caller-identity
 > }
 > ```
 
-### 7-2. ECS タスク定義 JSON の確認
+### 7-2. ECS タスク定義 JSON の確認（実施不要）
 
 > 🖥️ **実行環境**: WSL（ローカル開発PC）
 > 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
@@ -637,7 +638,7 @@ bash scripts/alchemia-staging/sync-to-staging.sh \
 
 ```bash
 git add .
-git commit -m ""
+git commit -m "リリースノートの作成"
 git push
 ```
 
@@ -657,6 +658,7 @@ git fetch
 git pull
 ```
 
+sshキーのパスフレーズを要求された場合は入力（パスフレーズ：soft-service）
 > ✅ **成功時の表示**: `Already up to date.` または最新コミットの差分が表示される
 
 ### 10-4. ECS デプロイ（deploy.prod-verification.sh）
@@ -736,8 +738,8 @@ git pull
 
 ### 11-1. ECS サービス状態の確認
 
-> 🖥️ **実行環境**: WSL（ローカル開発PC）
-> 📂 **実行ディレクトリ**: `/home/ssv/projects/mmdpf`（プロジェクトルート）
+> 🖥️ **実行環境**: 踏み台サーバー（EC2 / alchemia-staging）
+> 📂 **実行ディレクトリ**: `/home/ssv/projects/Alchemia_Staging`
 
 ```bash
 ./scripts/alchemia-staging/deploy.prod-verification.sh --mode all --check
@@ -747,6 +749,8 @@ git pull
 
 > 🖥️ **実行環境**: WSL（ローカル開発PC）
 > 📂 **実行ディレクトリ**: 任意のディレクトリ
+
+以下のコマンドは実行不要。
 
 ```bash
 # backend サービスの状態確認
