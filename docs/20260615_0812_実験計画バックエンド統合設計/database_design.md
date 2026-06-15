@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS experiment_plan (
 
   -- 全データを Transition 単位にまとめた単一 JSONB カラム
   -- 構造: { [transitionId]: { [key]: value } }
-  template_values  jsonb  DEFAULT '{}'::jsonb,
+  planned_values  jsonb  DEFAULT '{}'::jsonb,
 
   -- 管理カラム
   create_user_id   varchar(50),
@@ -77,7 +77,7 @@ CREATE INDEX idx_experiment_plan_method
 | `project_id` | varchar(20) | ✅ | プロジェクトID（プロジェクト名） |
 | `method_id` | varchar | ✅ | MAIMLのMethodID |
 | `task_number` | integer | ✅ | 0=全体タブ、1〜N=タスクNタブ |
-| `template_values` | jsonb | | Transition単位の全設定データ（後述） |
+| `planned_values` | jsonb | | Transition単位の全設定データ（後述） |
 | `create_user_id` | varchar(50) | | 作成者ユーザーID |
 | `create_at` | timestamp | ✅ | 作成日時 |
 | `update_user_id` | varchar(50) | | 最終更新者ユーザーID |
@@ -88,7 +88,7 @@ CREATE INDEX idx_experiment_plan_method
 ```
 task_number = 0  → 「全体タブ」
   - このMethodで対象とする全Transitionの共通設定を格納
-  - template_values の各 transitionId キー配下に設定を持つ
+  - planned_values の各 transitionId キー配下に設定を持つ
 
 task_number = 1  → 「タスク1タブ」（Transition 1 に対応）
 task_number = 2  → 「タスク2タブ」（Transition 2 に対応）
@@ -98,9 +98,9 @@ task_number = N  → 「タスクNタブ」（Transition N に対応）
   - フロントエンドは「全体タブ値 + タスクN上書き値」をマージして表示
 ```
 
-### 2-4. template_values JSONB 構造（**Transition単位**）
+### 2-4. planned_values JSONB 構造（**Transition単位**）
 
-`template_values` は **TransitionID をトップレベルキー** とし、その配下に Ref情報・注意事項・テンプレート想定値をまとめて格納します。
+`planned_values` は **TransitionID をトップレベルキー** とし、その配下に Ref情報・注意事項・テンプレート想定値をまとめて格納します。
 
 ```typescript
 interface TransitionPlanValues {
@@ -179,7 +179,7 @@ interface ExperimentPlanTemplateValues {
 
 ### 2-5. MAIMLへの書き込み対応
 
-チェックアウト時に `template_values` から MAIML の各Transitionノードへ書き込む。
+チェックアウト時に `planned_values` から MAIML の各Transitionノードへ書き込む。
 
 | JSONBキー | MAIML書き込み先 | 格納形式 |
 |-----------|----------------|---------|
@@ -228,7 +228,7 @@ organization_id = 'org-uuid-001'
 project_id      = 'project_alpha'
 method_id       = 'method-uuid-001'
 task_number     = 0
-template_values = {
+planned_values = {
   "transition-uuid-1": { "mgr-instruction:requiredCreatorUUID": [...], "condition-template-1": { ... } },
   "transition-uuid-2": { "mgr-instruction:caution": "...", "condition-template-2": { ... } },
   "transition-uuid-3": { "mgr-instruction:requiredInstrumentUUID": [...], "result-template-1": { ... } }
@@ -239,7 +239,7 @@ organization_id = 'org-uuid-001'
 project_id      = 'project_alpha'
 method_id       = 'method-uuid-001'
 task_number     = 1
-template_values = {
+planned_values = {
   "transition-uuid-1": { "mgr-instruction:caution": "タスク1専用の追記", "condition-template-1": { "temperature": "26" } }
 }
 
@@ -248,7 +248,7 @@ organization_id = 'org-uuid-001'
 project_id      = 'project_alpha'
 method_id       = 'method-uuid-001'
 task_number     = 2
-template_values = {
+planned_values = {
   "transition-uuid-2": { "condition-template-2": { "reactionTime": "65" } }
 }
 ```

@@ -112,7 +112,7 @@ GET /api/v1/projects/:projectId/methods/:methodId/plan-dialog-data
     "existingPlans": [
       {
         "taskNumber": 0,
-        "templateValues": {
+        "plannedValues": {
           "transition-uuid-1": {
             "mgr-instruction:requiredCreatorUUID":    ["user-uuid-001"],
             "mgr-instruction:requiredInstrumentUUID": [],
@@ -162,7 +162,7 @@ GET /api/v1/projects/:projectId/experiment-plans?methodId=xxx
     "plans": [
       {
         "taskNumber": 0,
-        "templateValues": {
+        "plannedValues": {
           "transition-uuid-1": {
             "mgr-instruction:requiredCreatorUUID":    ["user-uuid-001"],
             "mgr-instruction:requiredInstrumentUUID": ["inst-uuid-001"],
@@ -190,7 +190,7 @@ GET /api/v1/projects/:projectId/experiment-plans?methodId=xxx
       },
       {
         "taskNumber": 1,
-        "templateValues": {
+        "plannedValues": {
           "transition-uuid-1": {
             "mgr-instruction:caution": "タスク1専用: 追加の保護具が必要",
             "condition-template-1": {
@@ -227,7 +227,7 @@ PUT /api/v1/projects/:projectId/experiment-plans/:methodId/:taskNumber
 **リクエストボディ:**
 ```json
 {
-  "templateValues": {
+  "plannedValues": {
     "transition-uuid-1": {
       "mgr-instruction:requiredCreatorUUID":    ["user-uuid-001"],
       "mgr-instruction:requiredInstrumentUUID": ["inst-uuid-001"],
@@ -267,7 +267,7 @@ PUT /api/v1/projects/:projectId/experiment-plans/:methodId/:taskNumber
 
 **バリデーション:**
 - `taskNumber` は 0 以上の整数
-- `templateValues` は `{ [transitionId: string]: { [key: string]: string | string[] } }` の形式
+- `plannedValues` は `{ [transitionId: string]: { [key: string]: string | string[] } }` の形式
 - `mgr-instruction:requiredCreatorUUID` / `requiredInstrumentUUID` / `requiredOwnerUUID` は文字列配列
 - `mgr-instruction:caution` 等の注意事項系は文字列
 - テンプレートIDキー（`mgr-instruction:` で始まらないもの）の値は `{ [fieldKey: string]: string }`
@@ -388,7 +388,7 @@ GET /api/v1/projects/:projectId/experiment-instructions
 ```
 
 **データ取得ロジック:**
-1. `experiment_plan` テーブルから想定値（`template_values`）を取得
+1. `experiment_plan` テーブルから想定値（`planned_values`）を取得
 2. `template_data` テーブルから実績値（`property_set`）を取得
 3. `project_task_detail` テーブルからタスクステータスを取得
 4. フィールド単位で想定値・実績値をマージして差分計算
@@ -545,8 +545,8 @@ PUT /api/v1/projects/:projectId/tasks/:methodId/:taskNumber/ng
 ```
 
 **書き込みルール:**
-- 全体タブの `template_values` は全タスクのMAIMLに適用
-- タスクNタブの `template_values` はタスクN専用のMAIMLノードに適用
+- 全体タブの `planned_values` は全タスクのMAIMLに適用
+- タスクNタブの `planned_values` はタスクN専用のMAIMLノードに適用
 - 既存の `mgr-instruction:` キーがある場合は上書き
 - `notes` は `mgr-instruction:notes` として JSON文字列で書き込み
 

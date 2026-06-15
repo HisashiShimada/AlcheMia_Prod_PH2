@@ -272,10 +272,10 @@ Manager                   Frontend               Backend               DB/Storag
 
 ### 5-1. experiment_plan → MAIML プロパティ変換
 
-`template_values` は **TransitionID をトップレベルキー** とする構造です。
+`planned_values` は **TransitionID をトップレベルキー** とする構造です。
 
 ```
-experiment_plan.template_values（JSONB） ※ TransitionID がトップレベルキー
+experiment_plan.planned_values（JSONB） ※ TransitionID がトップレベルキー
 {
   "transition-uuid-1": {
     "mgr-instruction:requiredCreatorUUID":    ["user-uuid-001"],
@@ -319,10 +319,10 @@ MAIML XML内 Transition "transition-uuid-1" の Condition
 ### 5-2. 全体タブ（task_number=0）→ タスクNタブへの適用
 
 ```
-task_number=0 の template_values
+task_number=0 の planned_values
   └── 全タスクのMAIMLノードに一括適用
 
-task_number=1 の template_values（タスク1専用）
+task_number=1 の planned_values（タスク1専用）
   └── タスク1のMAIMLノードのみに適用
   └── 全体タブと同じキーがある場合は タスクNタブが優先（上書き）
 
@@ -420,7 +420,7 @@ for (const field of template.fields) {
 ### 7-1. experiment_plan（想定値） ※ TransitionID がトップレベルキー
 
 ```
-org_id | project_id | method_id        | task_num | template_values
+org_id | project_id | method_id        | task_num | planned_values
 ───────┼────────────┼──────────────────┼──────────┼──────────────────────────────────────────────────
 org-1  | proj_alpha | method-uuid-001  | 0        | {
        |            |                  |          |   "tr-uuid-1": {
