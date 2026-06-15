@@ -1,0 +1,7 @@
+[
+  { "key": "ns-maiml",  "prefix": "maiml",   "uri": "http://www.maiml.org/schemas" },
+  { "key": "ns-corpa",  "prefix": "CorpA",   "uri": "https://www.corpa.co.jp/" },
+  { "key": "ns-xsi",    "prefix": "xsi",     "uri": "http://www.w3.org/2001/XMLSchema-instance" },
+  { "key": "ns-myword", "prefix": "MyWord",  "uri": "https://orcid.org/0000-0002-2494-9603" },
+  { "key": "ns-laba",   "prefix": "LabA",    "uri": "https://www.corpa.co.jp/lab-a/" }
+]
