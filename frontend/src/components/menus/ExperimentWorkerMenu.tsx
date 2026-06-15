@@ -3,12 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Space, Button, Tabs, theme, Select, App, Spin } from 'antd';
 import {
-  FileTextOutlined,
   FormOutlined,
   CheckSquareOutlined,
   FolderOutlined,
   CheckOutlined,
   LoadingOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import styled from '@emotion/styled';
 import Header from '../common/Header';
@@ -18,9 +18,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useExpandState } from '@/hooks/useExpandState';
-import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmationTab';
-import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
-import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
+import WorkRecordPanel from '../ExperimentWorker/WorkRecordPanel';
+import ProgressOverviewTab from '../ExperimentWorker/ProgressOverviewTab';
+import type { ProgressRow } from '../ExperimentWorker/ProgressOverviewTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import type { WorkerProject } from '@/types/project';
 import { getWorkerAccessibleProjects, requestApproval } from '@/services/projectApiService';
@@ -107,10 +107,11 @@ export default function ExperimentWorkerMenu({
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('4');
-  const [isClient, setIsClient] = useState(false);
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
   const [dialogOpen, setDialogOpen] = useState(false);
+  /** 問題報告モーダル（フェーズB: IssueManagementModal を接続） */
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [selectedProjectName, setSelectedProjectName] = useState<string>('');
 
   // プロジェクト一覧の状態管理
@@ -198,21 +199,9 @@ export default function ExperimentWorkerMenu({
   // カスタムフック
   const {
     selectedProject,
-    sortedInstructions,
-    stats,
     handleProjectChange: originalHandleProjectChange,
-    refetchInstructions,
   } = useInstructions();
 
-  const {
-    expandedGroups,
-    toggleGroup,
-  } = useExpandState();
-
-  // クライアント側フラグ（ハイドレーションエラー防止）
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // overlayMode: fixedProjectId が指定されたら初期選択として設定
   useEffect(() => {
@@ -267,22 +256,6 @@ export default function ExperimentWorkerMenu({
     setSelectedTaskId(newTaskId);
   };
 
-  // タスク選択とタブ切り替えを同時に実行するハンドラー
-  const handleSelectTaskAndTab = (taskId: string, tabKey: string, methodId?: string) => {
-    // methodId が渡された場合はメソッドも選択する
-    if (methodId) {
-      setSelectedMethodId(methodId);
-    }
-    // タスクを選択
-    setSelectedTaskId(taskId);
-    // タブを切り替え
-    setCurrentTab(tabKey);
-  };
-
-  // 選択されたメソッドを取得
-  // TODO: API化後、メソッド情報を取得するロジックを実装
-  const selectedMethod = null;
-
   // 選択中プロジェクトのステータス（数値）を取得
   // worker-accessible APIのレスポンスから直接参照することで、不要なAPIコールを排除
   const selectedProjectStatus = projects.find(p => p.projectId === selectedProject)?.projectStatus ?? null;
@@ -317,66 +290,46 @@ export default function ExperimentWorkerMenu({
     }
   };
 
-  // タブアイテムの定義
+  // ━━━ フェーズA: ProgressOverviewTab 用モックデータ ━━━
+  // フェーズBで API から取得したデータに置き換える
+  const mockProgressRows: ProgressRow[] = selectedProject
+    ? [
+        { rowKey: '1-tr001', taskNo: 1, methodId: 'method_01', transitionId: 'tr001', status: 'completed',   hasRecord: true  },
+        { rowKey: '1-tr002', taskNo: 1, methodId: 'method_01', transitionId: 'tr002', status: 'in_progress', hasRecord: false },
+        { rowKey: '2-tr001', taskNo: 2, methodId: 'method_02', transitionId: 'tr001', status: 'not_started', hasRecord: false },
+        { rowKey: '2-tr002', taskNo: 2, methodId: 'method_02', transitionId: 'tr002', status: 'not_started', hasRecord: false },
+        { rowKey: '3-tr001', taskNo: 3, methodId: 'method_01', transitionId: 'tr001', status: 'issue',       hasRecord: true  },
+      ]
+    : [];
+
+  // タブアイテムの定義（リデザイン後: 作業記録 / 全体進捗 の2タブ）
   const tabItems = [
-    {
-      key: '4',
-      label: t('menu.experiment_worker.tabs.progressCheck'),
-      icon: <CheckSquareOutlined />,
-      children: (
-        <ProgressCheckTab
-            selectedProject={selectedProject}
-            selectedProjectName={selectedProjectName}
-            onProjectChange={handleProjectChangeForChild}
-            selectedMethodId={selectedMethodId}
-            onSelectMethod={handleSelectMethod}
-            onTabChange={handleTabChange}
-            onSelectTaskAndTab={handleSelectTaskAndTab}
-            readOnly={readOnly}
-            onTaskStatusChanged={handleTaskStatusChanged}
-          />
-      ),
-    },
-    {
-      key: '2',
-      label: t('menu.experiment_worker.tabs.workInstruction'),
-      icon: <FileTextOutlined />,
-      children: (
-        <InstructionConfirmationTab
-          selectedProject={selectedProject}
-          onProjectChange={handleProjectChangeForChild}
-          selectedMethodId={selectedMethodId}
-          onSelectMethod={handleSelectMethod}
-          selectedTaskId={selectedTaskId}
-          onSelectTask={handleSelectTask}
-          sortedInstructions={sortedInstructions}
-          stats={stats}
-          isClient={isClient}
-          expandedGroups={expandedGroups}
-          toggleGroup={toggleGroup}
-          onInstructionsUpdated={refetchInstructions}
-          readOnly={readOnly || (selectedProjectStatus !== null && selectedProjectStatus !== 1 && selectedProjectStatus !== 2)}
-          projectStatusCode={selectedProjectStatus}
-        />
-      ),
-    },
     {
       key: '3',
       label: t('menu.experiment_worker.tabs.experimentRecord'),
       icon: <FormOutlined />,
       children: (
-        <ExperimentRecordTab
-          selectedProject={selectedProject}
-          selectedProjectName={selectedProjectName}
-          onProjectChange={handleProjectChangeForChild}
-          selectedMethodId={selectedMethodId}
-          onSelectMethod={handleSelectMethod}
-          selectedTaskId={selectedTaskId}
-          onSelectTask={handleSelectTask}
-          onTaskCreated={handleTaskCreated}
-          selectedMethod={selectedMethod}
-          selectedProjectStatus={selectedProjectStatus}
-          useDeemedProgress={selectedProjectUseDeemedProgress}
+        <div style={{ padding: 12, height: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+          <WorkRecordPanel />
+        </div>
+      ),
+    },
+    {
+      key: '4',
+      label: t('menu.experiment_worker.tabs.progressCheck'),
+      icon: <CheckSquareOutlined />,
+      children: (
+        <ProgressOverviewTab
+          rows={mockProgressRows}
+          onGoToWork={(taskNo, transitionId) => {
+            // フェーズB: transitionId からメソッドID・タスクIDを解決してタブ遷移
+            console.info('[ProgressOverviewTab] 作業へ:', taskNo, transitionId);
+            handleTabChange('3');
+          }}
+          onViewDetail={(taskNo, transitionId) => {
+            console.info('[ProgressOverviewTab] 詳細確認:', taskNo, transitionId);
+            handleTabChange('3');
+          }}
         />
       ),
     },
@@ -452,6 +405,18 @@ export default function ExperimentWorkerMenu({
               {t('experimentWork.approvalRequest')}
             </Button>
           )}
+
+          {/* 問題報告ボタン（フェーズB: IssueManagementModal に接続） */}
+          <Button
+            danger
+            type="default"
+            icon={<ExclamationCircleOutlined />}
+            size="large"
+            disabled={!selectedProject || selectedProject === ''}
+            onClick={() => setIssueModalOpen(true)}
+          >
+            問題報告
+          </Button>
         </Space>
       </div>
 

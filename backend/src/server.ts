@@ -21,6 +21,7 @@ import { getStorageService } from './services/storageService';
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
 import fileAccessRoutes from './routes/fileAccessRoutes';
+import experimentInstructionRoutes from './routes/experimentInstructionRoutes';
 import maimlRoutes from './routes/maimlRoutes';
 import masterRoutes from './routes/masterRoutes';
 import experimentRoutes from './routes/experimentRoutes';
@@ -104,6 +105,7 @@ async function startServer() {
     // Mount routes after session middleware
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/projects', projectRoutes);
+    app.use('/api/v1/projects', experimentInstructionRoutes); // 実験指示API（モックデータ返却）
     app.use('/api/v1/files', fileAccessRoutes); // 汎用ファイルアクセスAPI（共通化後）
     app.use('/api/v1/maiml', maimlRoutes);
     
