@@ -17,6 +17,8 @@ import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
 import termsMockRaw from '../../../mock/namespace/terms.json';
 import DetailModal, { type DetailTarget, type TermSaved, type NamespaceSaved } from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
+import TeamAddDialog from './TeamAddDialog';
+import TeamEditDialog from './TeamEditDialog';
 
 const { Text } = Typography;
 
@@ -111,6 +113,15 @@ const NamespaceMain: React.FC = () => {
   const [contextNode, setContextNode] = useState<NamespaceNode | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addChildParentKey, setAddChildParentKey] = useState<string | null>(null);
+
+  // チーム追加ダイアログ
+  const [teamAddOpen,       setTeamAddOpen]       = useState(false);
+  const [teamAddParentLabel, setTeamAddParentLabel] = useState('');
+
+  // チーム編集ダイアログ（メンバー追加）
+  const [teamEditOpen,    setTeamEditOpen]    = useState(false);
+  const [teamEditLabel,   setTeamEditLabel]   = useState('');
+  const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -236,90 +247,63 @@ const NamespaceMain: React.FC = () => {
 
   const cancelEditTerm = () => setEditingTermId(null);
 
-  // ──── ツリーノード右クリック：編集
-  const handleContextEdit = (node: NamespaceNode) => {
-    const found = nsNodes.find((n) => n.key === node.key);
-    if (found) {
-      setModalTarget({
-        kind: 'namespace',
-        nsKey: found.key,
-        prefix: found.prefix,
-        uri: found.uri,
-        level: found.level,
-        termCount: found.termCount,
-        displayName: found.displayName,
-        description: found.description,
-        createdAt: found.createdAt,
-        updatedAt: found.updatedAt,
-      });
-      setModalOpen(true);
-    }
+  // ──── チームノード右クリック：チームを追加
+  const handleContextAddTeam = (node: NamespaceNode) => {
+    setTeamAddParentLabel(node.label);
+    setTeamAddOpen(true);
   };
 
-  // ──── ツリーノード右クリック：子組織追加
-  const handleContextAddChild = (node: NamespaceNode) => {
-    setAddChildParentKey(node.key);
-    setAddDialogOpen(true);
+  // ──── チームノード右クリック：編集（メンバー追加）
+  const handleContextEditTeam = (node: NamespaceNode) => {
+    setTeamEditLabel(node.label);
+    // モック：既存メンバーは空（実際はAPIから取得）
+    setTeamEditMembers([]);
+    setTeamEditOpen(true);
   };
 
-  // ──── ツリーノード右クリック：削除
-  const handleContextDelete = (node: NamespaceNode) => {
-    Modal.confirm({
-      title: `「${node.label}」を削除しますか？`,
-      content: '削除すると元に戻せません。配下の子名前空間も削除されます。',
-      okText: '削除',
-      okButtonProps: { danger: true },
-      cancelText: 'キャンセル',
-      footer: (_: unknown, { OkBtn, CancelBtn }: { OkBtn: React.FC; CancelBtn: React.FC }) => (<><OkBtn /><CancelBtn /></>),
-      onOk: () => {
-        setNsNodes((prev) => prev.filter((n) => n.key !== node.key));
-        message.success(`「${node.label}」を削除しました`);
-      },
-    });
-  };
-
-  // ──── ツリーノードのタイトル（右クリックコンテキストメニュー付き）
+  // ──── ツリーノードのタイトル
+  // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
   const renderTreeTitle = (node: NamespaceNode, companyDepth: number) => {
-    const isParent = !!(node.children && node.children.length > 0);
-    // companyDepth: 0 = Global/Personal（カウント外）、1 = 株式会社…、2 = 部門、3 = グループ
-    const menuItems = [
+    // チームノード（companyDepth === 3）のみコンテキストメニューを表示
+    const isTeam = companyDepth === 3;
+
+    const teamMenuItems = [
       {
-        key: 'edit',
+        key: 'add-team',
+        label: 'チームを追加',
+        icon: <PlusOutlined />,
+        onClick: () => handleContextAddTeam(node),
+      },
+      {
+        key: 'edit-team',
         label: '編集',
         icon: <EditOutlined />,
-        onClick: () => handleContextEdit(node),
-      },
-      {
-        key: 'add-child',
-        label: '組織階層を追加',
-        icon: <PlusOutlined />,
-        onClick: () => handleContextAddChild(node),
-      },
-      { type: 'divider' as const },
-      {
-        key: 'delete',
-        label: '削除',
-        icon: <DeleteOutlined />,
-        danger: true,
-        onClick: () => handleContextDelete(node),
+        onClick: () => handleContextEditTeam(node),
       },
     ];
 
-    return (
-      <Dropdown menu={{ items: menuItems }} trigger={['contextMenu']}>
-        <span
-          style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0 }}
-          onContextMenu={(e) => { e.preventDefault(); setContextNode(node); }}
-        >
-          <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {node.label}
-          </span>
-          {node.count > 0 && (
-            <span style={{ color: '#8c8c8c', fontSize: 12, flexShrink: 0 }}>{node.count}</span>
-          )}
+    const titleContent = (
+      <span
+        style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0 }}
+      >
+        <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {node.label}
         </span>
-      </Dropdown>
+        {node.count > 0 && (
+          <span style={{ color: '#8c8c8c', fontSize: 12, flexShrink: 0 }}>{node.count}</span>
+        )}
+      </span>
     );
+
+    if (isTeam) {
+      return (
+        <Dropdown menu={{ items: teamMenuItems }} trigger={['contextMenu']}>
+          {titleContent}
+        </Dropdown>
+      );
+    }
+
+    return titleContent;
   };
 
   const toAntTree = (nodes: NamespaceNode[], companyDepth = 0): object[] =>
@@ -766,6 +750,28 @@ const NamespaceMain: React.FC = () => {
           setNsNodes((prev) => [...prev, newNode]);
           setAddDialogOpen(false);
           setAddChildParentKey(null);
+        }}
+      />
+
+      {/* ── チーム追加ダイアログ ── */}
+      <TeamAddDialog
+        open={teamAddOpen}
+        parentTeamLabel={teamAddParentLabel}
+        onClose={() => setTeamAddOpen(false)}
+        onCreated={(teamName, members) => {
+          message.success(`チーム「${teamName}」を作成しました（メンバー: ${members.length}名）`);
+          setTeamAddOpen(false);
+        }}
+      />
+
+      {/* ── チーム編集ダイアログ（メンバー追加）── */}
+      <TeamEditDialog
+        open={teamEditOpen}
+        teamLabel={teamEditLabel}
+        initialMembers={teamEditMembers}
+        onClose={() => setTeamEditOpen(false)}
+        onSaved={(members) => {
+          message.success(`「${teamEditLabel}」のメンバーを更新しました（${members.length}名）`);
         }}
       />
 
