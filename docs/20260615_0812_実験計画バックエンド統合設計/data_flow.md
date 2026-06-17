@@ -502,3 +502,141 @@ PUT /experiment-plans/:methodId/:taskNumber
   │
   └── チェックアウト前 → UPSERT 実行
 ```
+
+---
+
+## 9. トランジション順序フロー（新規追加）
+
+### 9-1. 全体データフロー概要
+
+```
+【Manager】                    【DB: transition_data】         【Worker】
+
+ExperimentPlanDialog
+  トランジション並べ替え
+  │ PUT .../transition-order
+  ▼
+transition_data テーブル
+  task_no=0 行に work_order / is_order_fixed を保存
+  │
+  │ GET .../transition-order
+  ▼                                         ──────── 作業画面表示時 ────────▶
+                                            WorkRecordPanel
+                                            work_order 順にトランジション表示
+                                            order_fixed=true の場合はドラッグ不可表示
+```
+
+### 9-2. Manager 順序設定シーケンス
+
+```
+Manager                   Frontend               Backend               DB
+  │                          │                      │                   │
+  │ ダイアログ開く            │                      │                   │
+  │──────────────────────▶  │                      │                   │
+  │                          │ GET .../transition-order                 │
+  │                          │──────────────────────▶│                  │
+  │                          │                       │ SELECT transition_data
+  │                          │                       │ WHERE task_no=0  │
+  │                          │                       │  ORDER BY work_order ASC
+  │                          │                       │──────────────────▶│
+  │                          │                       │◀──────────────────│
+  │                          │◀─────────────────────│                   │
+  │◀─────────────────────── │                       │                   │
+  │ トランジションを並べ替え   │                       │                   │
+  │（ドラッグ＆ドロップ）      │                       │                   │
+  │──────────────────────▶  │                      │                   │
+  │                          │ PUT .../transition-order                 │
+  │                          │ { transitions: [{    │                   │
+  │                          │   transitionId,      │                   │
+  │                          │   workOrder,         │                   │
+  │                          │   isOrderFixed       │                   │
+  │                          │ }] }                 │                   │
+  │                          │──────────────────────▶│                  │
+  │                          │                       │ UPSERT transition_data
+  │                          │                       │ task_no=0        │
+  │                          │                       │ SET work_order   │
+  │                          │                       │     is_order_fixed│
+  │                          │                       │──────────────────▶│
+  │                          │                       │◀──────────────────│
+  │                          │◀─────────────────────│                   │
+  │◀─────────────────────── │                       │                   │
+  │ 順序保存完了              │                       │                   │
+```
+
+### 9-3. Worker 作業画面での順序表示シーケンス
+
+```
+Worker                    Frontend               Backend               DB
+  │                          │                      │                   │
+  │ 作業画面を開く            │                      │                   │
+  │──────────────────────▶  │                      │                   │
+  │                          │ GET .../transitions  │                   │
+  │                          │ （進捗取得API）       │                   │
+  │                          │──────────────────────▶│                  │
+  │                          │                       │ SELECT transition_data
+  │                          │                       │ WHERE task_no=0  │
+  │                          │                       │  ORDER BY work_order ASC
+  │                          │                       │ (work_order NULL → 末尾)
+  │                          │                       │──────────────────▶│
+  │                          │                       │◀──────────────────│
+  │                          │                       │                   │
+  │                          │                       │ SELECT transition_data
+  │                          │                       │ WHERE task_no=N  │
+  │                          │                       │ （Workerの進捗）  │
+  │                          │                       │──────────────────▶│
+  │                          │                       │◀──────────────────│
+  │                          │                       │                   │
+  │                          │                       │ 順序でソートして   │
+  │                          │                       │ レスポンス組立て   │
+  │                          │◀─────────────────────│                   │
+  │◀─────────────────────── │                       │                   │
+  │ work_order 順で           │                       │                   │
+  │ トランジションを表示       │                       │                   │
+  │ order_fixed=true は       │                       │                   │
+  │ 固定マーク表示             │                       │                   │
+```
+
+### 9-4. 初期データ投入（transition_data に task_no=0 行を作成）
+
+```
+タイミング: ExperimentPlanDialog を初めて開いた時（GET transition-order 呼び出し時）
+            または MAIML読み込み完了時（タスク登録時）
+
+Backend 処理:
+  │
+  ├── transition_data WHERE task_no=0 AND project_id=... を SELECT
+  │     │
+  │     ├── レコードあり → そのまま work_order を返す
+  │     │
+  │     └── レコードなし → MAIML から Transition 一覧を取得
+  │                         デフォルト順序（transition_id 昇順）で INSERT
+  │                         work_order = 1,2,3...
+  │                         order_fixed = false
+  │                         status / progress_rate = NULL
+  │
+  └── 順序データをレスポンス
+```
+
+### 9-5. transition_data テーブルの行種別
+
+```
+task_no = 0    【順序管理行】（Managerが設定）
+  ┌──────────────────────────────────────────────────────────┐
+  │  work_order    : 1, 2, 3...   ← Managerが並べ替えた順序   │
+  │  is_order_fixed: true/false   ← 固定順序フラグ            │
+  │  status        : NULL         ← 使用しない               │
+  │  progress_rate : NULL         ← 使用しない               │
+  └──────────────────────────────────────────────────────────┘
+
+task_no = 1〜N 【作業実績行】（Workerが記録）
+  ┌──────────────────────────────────────────────────────────┐
+  │  work_order    : 1, 2, 3...   ← task_no=0 と同値         │
+  │  is_order_fixed: true/false   ← task_no=0 と同値         │
+  │  status        : 0〜N         ← Workerの作業ステータス    │
+  │  progress_rate : 0〜100       ← Workerの進捗率            │
+  └──────────────────────────────────────────────────────────┘
+
+※ task_no=1〜N への work_order / is_order_fixed 同期:
+   順序変更APIが呼ばれた時に task_no=0 の値を task_no=1〜N にも反映する。
+   ただし task_no=1〜N のレコードが存在しない場合は同期しない（Worker作業開始時に同期）。
+```
