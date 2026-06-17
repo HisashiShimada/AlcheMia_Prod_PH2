@@ -5,5 +5,7 @@ import type { ThemeConfig } from 'antd';
  * UIポリシーに基づいた Ant Design テーマ設定
  */
 export const theme: ThemeConfig = {
-  
+  token: {
+    fontFamily: 'Arial, Helvetica, sans-serif',
+  },
 };

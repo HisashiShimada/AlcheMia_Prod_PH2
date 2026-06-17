@@ -16,6 +16,7 @@
   "author": "mmdpf team",
   "license": "ISC",
   "dependencies": {
-    "md-to-pdf": "^5.2.5"
+    "md-to-pdf": "^5.2.5",
+    "xlsx": "^0.18.5"
   }
 }
