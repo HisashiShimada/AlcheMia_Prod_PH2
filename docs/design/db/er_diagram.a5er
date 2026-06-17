@@ -1,7 +1,7 @@
 ﻿# A5:ER FORMAT:21
 # A5:ER ENCODING:UTF8
 # A5:ER Mk-1 Copyright © 2007 m.matsubara
-# A5:SQL Mk-2 Version 2.21.1 Copyright © 1997 - 2026 m.matsubara
+# A5:SQL Mk-2 Version 2.21.2 Copyright © 1997 - 2026 m.matsubara
 #  https://a5m2.mmatsubara.com
 
 [Manager]
@@ -74,7 +74,7 @@ EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
 ModifiedDateTime=20260306080351
-Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,100,588,503
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,100,679,503
 ZOrder=4
 
 [Entity]
@@ -149,7 +149,7 @@ Index=idx_pin_codes_token=0,session_token
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260206092236
+ModifiedDateTime=20260615083831
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,1450,590,448
 ZOrder=115
 
@@ -243,7 +243,7 @@ Color=$000000
 BkColor=$FFFFFF
 ModifiedDateTime=20260206092059
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,100,588,503
-ZOrder=45
+ZOrder=153
 
 [Relation]
 Entity1=corporation
@@ -276,7 +276,7 @@ Fields1=organization_id
 Fields2=organization_id
 Cardinarity1=
 Cardinarity2=
-Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,1360,8640,1355,R,R,""
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,1360,8640,1565,R,R,""
 Dependence=1
 Caption=
 PName=
@@ -284,7 +284,7 @@ ModifiedDateTime=20251119103033
 LineMode=0
 Bar1=136
 Bar2=864
-Bar3=136
+Bar3=156
 TermPos1=R
 TermPos2=R
 ZOrder=48
@@ -887,7 +887,7 @@ Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260206092140
+ModifiedDateTime=20260617093546
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",1900,450,588,503
 ZOrder=117
 
@@ -922,14 +922,14 @@ Fields1=organization_id
 Fields2=organization_id
 Cardinarity1=
 Cardinarity2=
-Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,2190,1373,5707,R,R,""
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,2190,1295,5707,R,R,""
 Dependence=0
 Caption=
 PName=
 ModifiedDateTime=20260114105250
 LineMode=0
 Bar1=219
-Bar2=137
+Bar2=130
 Bar3=571
 TermPos1=R
 TermPos2=R
@@ -1312,3 +1312,197 @@ BkColor=$FFFFFF
 ModifiedDateTime=20260408165110
 Position="材料開発データ管理システム_共通_ER図.A5ER",1000,900,593,496
 ZOrder=143
+
+[Relation]
+Entity1=organization
+Entity2=organization
+RelationType1=1
+RelationType2=3
+Fields1=organization_id
+Fields2=
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,7500,2500,9500,R,R,""
+Dependence=0
+Caption=
+PName=
+LineMode=0
+Bar1=750
+Bar2=250
+Bar3=950
+TermPos1=R
+TermPos2=R
+ZOrder=146
+
+[Entity]
+PName=namespace
+LName=名前空間
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=1900
+Top=1000
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="接頭辞","prefix","@VARCHAR(255)","NOT NULL",1,"","xs:NCName規則に準拠。例: MyCompany",$FFFFFFFF,""
+Field="名前空間ID","namespace_id","@VARCHAR(20)","NOT NULL",,"","",$FFFFFFFF,""
+Field="部署CD","department_cd","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="ユーザID","user_id","@VARCHAR(50)","NOT NULL",,"","",$FFFFFFFF,""
+Field="スコープキー","scope_key","@VARCHAR(100)",,,"","",$FFFFFFFF,""
+Field="URI","uri","text","NOT NULL",,"","",$FFFFFFFF,""
+Field="グローバルフラグ","global_flg","@BOOLEAN","NOT NULL",,"","TRUE=グローバル",$FFFFFFFF,""
+Field="表示名","display_name","@VARCHAR(255)",,,"","",$FFFFFFFF,""
+Field="説明","description","text",,,"","",$FFFFFFFF,""
+Field="親名前空間ID","parent_id","@VARCHAR(255)",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20260617144017
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1900,1000,609,443
+ZOrder=148
+
+[Entity]
+PName=namespace_term
+LName=名前空間用語
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=1900
+Top=1550
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="接頭辞","prefix","@VARCHAR(255)","NOT NULL",1,"","namespace.prefix",$FFFFFFFF,""
+Field="ローカル名","local_name","@VARCHAR(255)","NOT NULL",2,"","",$FFFFFFFF,""
+Field="表示名","display_name","@VARCHAR(255)",,,"","",$FFFFFFFF,""
+Field="説明","description","text",,,"","",$FFFFFFFF,""
+Field="データ型ヒント","type_hint","@VARCHAR(100)",,,"","",$FFFFFFFF,""
+Field="単位ヒント","unit_hint","@VARCHAR(100)",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20260617141943
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1900,1550,616,390
+ZOrder=149
+
+[Entity]
+PName=department_unit
+LName=部署ユニット
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=1900
+Top=2050
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="部署ユニットID","department_unit_id","@VARCHAR(50)","NOT NULL",1,"","",$FFFFFFFF,""
+Field="部署CD","department_cd","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="ユニット名","unit_name","@VARCHAR(255)","NOT NULL",,"","",$FFFFFFFF,""
+Field="階層番号","layer","@INT","NOT NULL",,"","1, 2, 3 ...",$FFFFFFFF,""
+Field="説明","description","text",,,"","",$FFFFFFFF,""
+Field="アクティブ判定","is_active","@BOOLEAN","NOT NULL",,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20260617143403
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1900,2050,618,495
+ZOrder=150
+
+[Relation]
+Entity1=namespace
+Entity2=organization
+RelationType1=2
+RelationType2=2
+Fields1=organization_id
+Fields2=organization_id
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",5,2511,500,5711,L,R,""
+Dependence=0
+Caption=
+PName=
+ModifiedDateTime=20260617143726
+LineMode=5
+Bar1=251
+Bar2=50
+Bar3=571
+TermPos1=L
+TermPos2=R
+ZOrder=152
+
+[Relation]
+Entity1=namespace
+Entity2=namespace_term
+RelationType1=2
+RelationType2=3
+Fields1=organization_id,prefix
+Fields2=organization_id,prefix
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",5,5976,500,4354,R,R,""
+Dependence=1
+Caption=
+PName=
+ModifiedDateTime=20260617144048
+LineMode=5
+Bar1=598
+Bar2=50
+Bar3=435
+TermPos1=R
+TermPos2=R
+ZOrder=156
+
+[Relation]
+Entity1=department
+Entity2=department_unit
+RelationType1=4
+RelationType2=3
+Fields1=organization_id,department_cd
+Fields2=organization_id,department_cd
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",6,2339,500,3971,R,R,""
+Dependence=0
+Caption=
+PName=
+ModifiedDateTime=20260617144554
+LineMode=6
+Bar1=234
+Bar2=50
+Bar3=397
+TermPos1=R
+TermPos2=R
+ZOrder=157
+
+[Relation]
+Entity1=organization
+Entity2=department_unit
+RelationType1=4
+RelationType2=3
+Fields1=organization_id
+Fields2=organization_id
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",2,8819,1204,326,R,R,""
+Dependence=0
+Caption=
+PName=
+ModifiedDateTime=20260617145041
+LineMode=2
+Bar1=882
+Bar2=120
+Bar3=33
+TermPos1=R
+TermPos2=R
+ZOrder=158
