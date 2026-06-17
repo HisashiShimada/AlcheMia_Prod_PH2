@@ -38,6 +38,7 @@ import codeMasterRoutes from './routes/codeMasterRoutes';
 import semanticSearchRoutes from './routes/semanticSearchRoutes';
 import systemOverviewRoutes from './routes/systemOverviewRoutes';
 import systemConfigRoutes from './routes/systemConfigRoutes';
+import encryptionRoutes from './routes/encryptionRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -143,6 +144,9 @@ async function startServer() {
     app.use('/api/v1/semantic-search', semanticSearchRoutes);
     // Mount system overview routes
     app.use('/api/v1/systemManagement', systemOverviewRoutes);
+
+    // Mount encryption routes（暗号化管理API）
+    app.use('/api/v1/encryption', encryptionRoutes);
 
     // エラーハンドリングミドルウェア（全ルートの後に登録する必要がある）
     app.use(errorHandler);
