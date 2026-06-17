@@ -24,6 +24,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
     id: 'doc-001',
     label: 'document',
     isEncrypted: false,
+    isEncryptable: true,
     children: [
       {
         path: '/maiml/pnml',
@@ -31,6 +32,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
         id: 'pnml-001',
         label: 'pnml',
         isEncrypted: false,
+        isEncryptable: true, // pnml全体は暗号化可能（案A）
         children: [
           {
             path: "/maiml/pnml/method[@id='method-001']",
@@ -38,6 +40,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
             id: 'method-001',
             label: '実験手順A',
             isEncrypted: false,
+            isEncryptable: true,
             children: [
               {
                 path: "/maiml/pnml/method[@id='method-001']/place[@id='place-mat-001']",
@@ -46,6 +49,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                 placeType: 'Material',
                 label: '試料A（硫酸銅水溶液）',
                 isEncrypted: false,
+                isEncryptable: false, // place は暗号化不可（案A）
                 children: [
                   {
                     path: "/maiml/pnml/method[@id='method-001']/place[@id='place-mat-001']/property[@key='maiml:concentration']",
@@ -53,6 +57,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                     key: 'maiml:concentration',
                     label: '濃度',
                     isEncrypted: false,
+                    isEncryptable: true,
                   },
                   {
                     path: "/maiml/pnml/method[@id='method-001']/place[@id='place-mat-001']/property[@key='myns:secretFormula']",
@@ -60,6 +65,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                     key: 'myns:secretFormula',
                     label: '秘密の製造方法',
                     isEncrypted: true,
+                    isEncryptable: true,
                     encryptionInfo: {
                       algorithmUri: 'http://www.w3.org/2001/04/xmlenc#aes256-cbc',
                       keyName: 'maiml-experiment-key-2026',
@@ -75,6 +81,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                 id: 'trans-001',
                 label: '混合・反応',
                 isEncrypted: false,
+                isEncryptable: false, // transition は暗号化不可（案A）
               },
               {
                 path: "/maiml/pnml/method[@id='method-001']/place[@id='place-cond-001']",
@@ -83,6 +90,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                 placeType: 'Condition',
                 label: '温度・時間条件',
                 isEncrypted: false,
+                isEncryptable: false, // place は暗号化不可（案A）
                 children: [
                   {
                     path: "/maiml/pnml/method[@id='method-001']/place[@id='place-cond-001']/property[@key='maiml:temperature']",
@@ -90,6 +98,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                     key: 'maiml:temperature',
                     label: '反応温度 (℃)',
                     isEncrypted: false,
+                    isEncryptable: true,
                   },
                   {
                     path: "/maiml/pnml/method[@id='method-001']/place[@id='place-cond-001']/property[@key='maiml:reactionTime']",
@@ -97,6 +106,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                     key: 'maiml:reactionTime',
                     label: '反応時間 (min)',
                     isEncrypted: false,
+                    isEncryptable: true,
                   },
                 ],
               },
@@ -107,6 +117,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                 placeType: 'Result',
                 label: '生成物',
                 isEncrypted: false,
+                isEncryptable: false, // place は暗号化不可（案A）
                 children: [
                   {
                     path: "/maiml/pnml/method[@id='method-001']/place[@id='place-res-001']/property[@key='maiml:yield']",
@@ -114,6 +125,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                     key: 'maiml:yield',
                     label: '収率 (%)',
                     isEncrypted: false,
+                    isEncryptable: true,
                   },
                   {
                     path: "/maiml/pnml/method[@id='method-001']/place[@id='place-res-001']/property[@key='myns:secretResult']",
@@ -121,6 +133,7 @@ export const MOCK_MAIML_STRUCTURE: MaimlTreeNode[] = [
                     key: 'myns:secretResult',
                     label: '機密実験結果',
                     isEncrypted: true,
+                    isEncryptable: true,
                     encryptionInfo: {
                       algorithmUri: 'http://www.w3.org/2001/04/xmlenc#aes256-cbc',
                       keyName: 'results-encryption-key',

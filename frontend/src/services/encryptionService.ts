@@ -17,6 +17,7 @@ import type {
   DecryptResponse,
   KeyMethodType,
 } from '@/types/encryption';
+import { fetchAndParseMockMaiml } from '@/utils/parseMaimlToEncryptionTree';
 
 const BASE_URL = '/api/v1/encryption';
 
@@ -26,12 +27,22 @@ const BASE_URL = '/api/v1/encryption';
 
 /**
  * MAIMLファイルの暗号化対象ツリー構造を取得
+ *
+ * @remarks
+ * バックエンドAPI（/api/v1/encryption/projects/:name/structure）を試みる。
+ * 失敗した場合は /public/mocks/Raman.maiml をフロントエンドでパースして返す。
  */
 export async function getMaimlStructure(projectName: string): Promise<MaimlTreeNode[]> {
-  const res = await axios.get<{ success: boolean; data: { structure: MaimlTreeNode[] } }>(
-    `${BASE_URL}/projects/${encodeURIComponent(projectName)}/structure`,
-  );
-  return res.data.data.structure;
+  try {
+    const res = await axios.get<{ success: boolean; data: { structure: MaimlTreeNode[] } }>(
+      `${BASE_URL}/projects/${encodeURIComponent(projectName)}/structure`,
+    );
+    return res.data.data.structure;
+  } catch {
+    // バックエンドAPI未実装 / 失敗時: Raman.maiml をフロントエンドでパース
+    console.warn('[encryptionService] getMaimlStructure API failed → using Raman.maiml mock');
+    return fetchAndParseMockMaiml();
+  }
 }
 
 // ---------------------------------------------------------------------------

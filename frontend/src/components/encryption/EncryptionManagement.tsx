@@ -45,9 +45,12 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
   const [treeLoading, setTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState<string | null>(null);
 
-  /** 選択中のノードパス */
+  /** 選択中のノードパス（クリック選択） */
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<MaimlTreeNode | null>(null);
+
+  /** チェック済みパスの Set（チェックボックス選択） */
+  const [checkedPaths, setCheckedPaths] = useState<Set<string>>(new Set());
 
   /** 暗号化鍵一覧 */
   const [keys, setKeys] = useState<EncryptionKey[]>([]);
@@ -175,7 +178,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
               <Layout style={{ height: 'calc(100vh - 200px)', background: 'transparent' }}>
                 {/* 左ペイン: MAIMLツリー */}
                 <Sider
-                  width={320}
+                  width={480}
                   style={{
                     background: '#fff',
                     border: '1px solid #f0f0f0',
@@ -199,7 +202,9 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
                     <EncryptionTargetTree
                       treeData={treeData}
                       selectedPath={selectedPath}
+                      checkedPaths={checkedPaths}
                       onSelect={handleSelectNode}
+                      onCheck={setCheckedPaths}
                     />
                   )}
                 </Sider>

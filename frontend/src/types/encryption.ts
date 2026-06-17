@@ -156,6 +156,26 @@ export interface MaimlTreeNode {
   label?: string;
   /** 既に暗号化済みか */
   isEncrypted: boolean;
+  /**
+   * 暗号化可能かどうか（MAIML仕様に基づく）
+   *
+   * @remarks
+   * - true: チェックボックスで選択可能
+   * - false: グレーアウト（disabled + 灰色テキスト）
+   *
+   * 暗号化可能な要素:
+   *   - globalObjectContentGroup を持つ型（document, creator, vendor, owner, instrument,
+   *     protocol, method, pnml, program, instruction,
+   *     materialTemplate, conditionTemplate, resultTemplate,
+   *     data, results, material, condition, result, etc.）
+   *   - property / content 要素（全派生型）
+   *
+   * 暗号化不可な要素（グレーアウト）:
+   *   - uuid, name, description, annotation, insertion, date（メタデータ）
+   *   - place, transition, arc（Petri Net構造要素・案A）
+   *   - vendorRef その他
+   */
+  isEncryptable: boolean;
   /** 暗号化方式情報（暗号化済みの場合） */
   encryptionInfo?: EncryptedNodeInfo;
   /** 子ノード */
