@@ -93,9 +93,25 @@ const makeEmptyRow = (): NewTermRow => ({
 });
 
 // ──────────────────────────────────────────────
+// Props定義
+// ──────────────────────────────────────────────
+interface NamespaceMainProps {
+  /** trueのとき左ペイン（名前空間ツリー）を非表示にする */
+  hideTree?: boolean;
+  /** 外部から名前空間選択キーを制御する場合に指定 */
+  externalSelectedNsKey?: string | null;
+  /** 外部から名前空間選択が変わったときのコールバック */
+  onNsKeyChange?: (key: string | null) => void;
+}
+
+// ──────────────────────────────────────────────
 // メインコンポーネント
 // ──────────────────────────────────────────────
-const NamespaceMain: React.FC = () => {
+const NamespaceMain: React.FC<NamespaceMainProps> = ({
+  hideTree = false,
+  externalSelectedNsKey,
+  onNsKeyChange,
+}) => {
   const [nsSearch,      setNsSearch]      = useState('');
   const [termSearch,    setTermSearch]    = useState('');
   const [selectedNsKey, setSelectedNsKey] = useState<string | null>(null);
@@ -337,16 +353,19 @@ const NamespaceMain: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nsSearch]);
 
+  // 外部キーが渡された場合はそちらを優先
+  const effectiveNsKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+
   // ツリーで選択中のノードに対応する prefix を特定
   const selectedPrefix = useMemo(() => {
-    if (!selectedNsKey) return null;
+    if (!effectiveNsKey) return null;
     // nsNodes は FlatNsNode[] だが prefix をそのまま持つ
-    const found = nsNodes.find((n) => n.key === selectedNsKey);
+    const found = nsNodes.find((n) => n.key === effectiveNsKey);
     if (found) return found.prefix;
     // ツリー JSON から直接検索（ネスト構造）
     const findInTree = (nodes: NamespaceNode[]): string | null => {
       for (const node of nodes) {
-        if (node.key === selectedNsKey) {
+        if (node.key === effectiveNsKey) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (node as any).prefix ?? null;
         }
@@ -639,24 +658,30 @@ const NamespaceMain: React.FC = () => {
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-        {/* ── 左ペイン：名前空間ツリー ── */}
-        <div style={{
-          width: '30%', minWidth: 280, maxWidth: 420,
-          background: '#fafafa', borderRight: '1px solid #f0f0f0',
-          overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '12px 12px 8px',
-        }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <Input
-              prefix={<SearchOutlined />} placeholder="名前空間を検索..." allowClear
-              value={nsSearch} onChange={(e) => setNsSearch(e.target.value)} style={{ flex: 1 }}
+        {/* ── 左ペイン：名前空間ツリー（hideTree=true のとき非表示） ── */}
+        {!hideTree && (
+          <div style={{
+            width: '30%', minWidth: 280, maxWidth: 420,
+            background: '#fafafa', borderRight: '1px solid #f0f0f0',
+            overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '12px 12px 8px',
+          }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <Input
+                prefix={<SearchOutlined />} placeholder="名前空間を検索..." allowClear
+                value={nsSearch} onChange={(e) => setNsSearch(e.target.value)} style={{ flex: 1 }}
+              />
+            </div>
+            <Tree
+              blockNode defaultExpandAll treeData={treeData}
+              style={{ background: 'transparent' }}
+              onSelect={(keys) => {
+                const key = (keys[0] as string) ?? null;
+                setSelectedNsKey(key);
+                onNsKeyChange?.(key);
+              }}
             />
           </div>
-          <Tree
-            blockNode defaultExpandAll treeData={treeData}
-            style={{ background: 'transparent' }}
-            onSelect={(keys) => setSelectedNsKey((keys[0] as string) ?? null)}
-          />
-        </div>
+        )}
 
         {/* ── 右ペイン：用語リスト ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 40px', background: '#fafafa' }}>

@@ -105,7 +105,8 @@
       "tabs": {
         "projectManagement": "プロジェクト管理",
         "formatManagement": "フォーマット管理",
-        "progressMonitoring": "進捗確認"
+        "progressMonitoring": "進捗確認",
+        "templateManagement": "名前空間管理"
       }
     },
     "experiment_worker": {
@@ -115,6 +116,7 @@
         "workInstruction": "指示確認",
         "experimentRecord": "実験記録",
         "progressCheck": "進捗確認",
+        "uncertaintyRecord": "不確かさ記録",
         "maimlViewer": "MAIML閲覧",
         "fileUpload": "ファイルアップロード",
         "progressReport": "進捗報告",
@@ -520,7 +522,8 @@
       "file_management": "ファイル管理",
       "task_registration": "タスク登録",
       "instruction_registration": "指示一覧",
-      "task_results": "タスク結果確認"
+      "task_results": "実験指示",
+      "uncertainty_approval": "不確かさ承認"
     },
     "task_results": {
       "no_project_selected": "プロジェクトを選択してください",
@@ -1450,7 +1453,7 @@
     "sendButton": "指示送信",
     "columns": {
       "target": "指示対象",
-      "taskNumber": "タスク番号",
+      "taskNumber": "タスクNo.",
       "transitionId": "トランジションID",
       "priority": "優先度",
       "type": "タイプ",
@@ -2750,6 +2753,50 @@
     "attachmentUploadError": "添付ファイルのアップロードに失敗しました（#{number}）",
     "fileUploadError": "ファイルのアップロードに失敗しました: {key}",
     "updateError": "更新に失敗しました: {message}"
+  },
+  "uncertaintyApproval": {
+    "filter": {
+      "file": "ファイル",
+      "assignee": "担当者",
+      "assignedDate": "付与日",
+      "approvalStatus": "承認状態",
+      "all": "すべて",
+      "clearFilters": "フィルタをクリア",
+      "search": "検索"
+    },
+    "status": {
+      "pending": "未承認",
+      "approved": "承認済み",
+      "rejected": "差し戻し"
+    },
+    "column": {
+      "taskNumber": "タスク番号",
+      "targetType": "対象",
+      "methodName": "メソッド名",
+      "transitionName": "トランジション名",
+      "templateName": "不確かさ基準名",
+      "assignedValue": "付与値",
+      "assignedBy": "付与者",
+      "assignedAt": "日時",
+      "comment": "コメント",
+      "approvalStatus": "承認状態",
+      "action": "操作"
+    },
+    "targetType": {
+      "material": "Material",
+      "condition": "Condition",
+      "result": "Result"
+    },
+    "action": {
+      "bulkApprove": "一括承認",
+      "bulkReject": "差し戻し",
+      "markApproved": "承認済みにする",
+      "approve": "承認",
+      "reject": "差し戻し",
+      "resubmit": "再提出",
+      "detail": "詳細"
+    },
+    "totalCount": "{total} 件中 {from}-{to} 件を表示"
   },
   "codeMaster": {
     "checkout_status": {

@@ -1,0 +1,142 @@
+{
+  "templateKey": "measurement.temperature",
+  "templateName": "温度測定値",
+  "savedVersion": "v1",
+  "savedAt": "2025-10-01",
+  "summary": {
+    "changed": 4,
+    "added": 1,
+    "same": 6
+  },
+  "sections": [
+    {
+      "label": "基本情報",
+      "num": "①",
+      "fields": [
+        {
+          "fieldKey": "templateName",
+          "label": "テンプレート名（key属性）",
+          "required": true,
+          "changeType": "same",
+          "type": "text",
+          "oldValue": "measurement.temperature",
+          "newValue": "measurement.temperature"
+        },
+        {
+          "fieldKey": "qname",
+          "label": "名前空間プレビュー（QName）",
+          "required": false,
+          "changeType": "same",
+          "type": "namespace",
+          "oldValue": "http://sampletec.co.jp/maiml/rd/#measurement.temperature",
+          "newValue": "http://sampletec.co.jp/maiml/rd/#measurement.temperature"
+        },
+        {
+          "fieldKey": "scope",
+          "label": "スコープ（登録先）",
+          "required": true,
+          "changeType": "changed",
+          "type": "scope",
+          "oldValue": {
+            "company": "株式会社サンプルテック",
+            "dept": "経営企画部"
+          },
+          "newValue": {
+            "company": "株式会社サンプルテック",
+            "dept": "研究開発部"
+          }
+        },
+        {
+          "fieldKey": "desc",
+          "label": "説明文",
+          "required": false,
+          "changeType": "same",
+          "type": "textarea",
+          "oldValue": "温度測定値を記録するための共通テンプレート。\nSI単位系（℃または K）に対応。",
+          "newValue": "温度測定値を記録するための共通テンプレート。\nSI単位系（℃または K）に対応。"
+        }
+      ]
+    },
+    {
+      "label": "評価方式設定",
+      "num": "②",
+      "fields": [
+        {
+          "fieldKey": "evalMode",
+          "label": "評価方式",
+          "required": false,
+          "changeType": "same",
+          "type": "evalBadge",
+          "oldValue": "quantitative",
+          "newValue": "quantitative"
+        },
+        {
+          "fieldKey": "xsiType",
+          "label": "xsi:type",
+          "required": true,
+          "changeType": "same",
+          "type": "specTag",
+          "oldValue": "doubleType",
+          "newValue": "doubleType"
+        },
+        {
+          "fieldKey": "units",
+          "label": "units",
+          "required": true,
+          "changeType": "changed",
+          "type": "specTag",
+          "oldValue": "℃",
+          "newValue": "GPa"
+        },
+        {
+          "fieldKey": "formatString",
+          "label": "formatString",
+          "required": false,
+          "changeType": "changed",
+          "type": "specTag",
+          "oldValue": "#,##0.0",
+          "newValue": "#,###E0"
+        }
+      ]
+    },
+    {
+      "label": "適用範囲・有効期限",
+      "num": "③",
+      "fields": [
+        {
+          "fieldKey": "validPeriod",
+          "label": "有効期間",
+          "required": true,
+          "changeType": "changed",
+          "type": "dateRange",
+          "oldValue": {
+            "from": "2025-04-01",
+            "to": null
+          },
+          "newValue": {
+            "from": "2026-01-01",
+            "to": "2027-12-31"
+          }
+        },
+        {
+          "fieldKey": "validTo",
+          "label": "有効終了日",
+          "required": false,
+          "changeType": "added",
+          "type": "date",
+          "oldValue": null,
+          "newValue": "2027-12-31"
+        },
+        {
+          "fieldKey": "extends",
+          "label": "継承元テンプレート",
+          "required": false,
+          "changeType": "same",
+          "type": "extends",
+          "oldValue": "base.measurement",
+          "newValue": "base.measurement"
+        }
+      ]
+    }
+  ]
+}
