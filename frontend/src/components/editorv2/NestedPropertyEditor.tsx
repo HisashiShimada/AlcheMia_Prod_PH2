@@ -92,6 +92,8 @@ export interface NestedPropertyEditorProps {
   forceRenderKey: number;
   /** Attributeマスタデータ（親コンポーネントで取得してPropsとして渡す） */
   attributeRecords?: AttributeRecord[];
+  /** 不確かさ基準ボタン押下時のコールバック（省略時はボタン非表示） */
+  onOpenCriteriaSelector?: (propertyKey: string, propertyData: PropertyData) => void;
 }
 
 // ===== 固定属性名（Attributeマスタ選択肢から除外） =====
@@ -206,6 +208,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   onDeleteProperty,
   forceRenderKey,
   attributeRecords = [],
+  onOpenCriteriaSelector,
 }) => {
   const { modal } = App.useApp();
   const { t } = useLanguage();
@@ -324,6 +327,16 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
 
           {/* 操作ボタン */}
           <Space size="small">
+            {onOpenCriteriaSelector && (
+              <Button
+                size="small"
+                type="primary"
+                style={{ backgroundColor: '#1677ff' }}
+                onClick={() => onOpenCriteriaSelector(propertyKey, propertyData)}
+              >
+                ＋ 不確かさ選択
+              </Button>
+            )}
             <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setShowAttributeAddModal(true)}>
               {t('nestedPropertyEditor.addAttribute')}
             </Button>
@@ -424,6 +437,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                   onDeleteNestedElement={onDeleteNestedElement}
                   onDeleteProperty={onDeleteProperty}
                   forceRenderKey={forceRenderKey}
+                  onOpenCriteriaSelector={onOpenCriteriaSelector}
                 />
               );
             })}

@@ -1,0 +1,90 @@
+[
+  {
+    "key": "all",
+    "label": "すべて",
+    "count": 24,
+    "icon": "🗂️"
+  },
+  {
+    "key": "global",
+    "label": "Global",
+    "count": 4,
+    "icon": "🌐",
+    "children": [
+      {
+        "key": "global-std",
+        "label": "JIS K 0200 標準",
+        "count": 4,
+        "icon": "📜"
+      }
+    ]
+  },
+  {
+    "key": "company",
+    "label": "株式会社サンプルテック",
+    "count": 12,
+    "icon": "🏢",
+    "children": [
+      {
+        "key": "dept-rd",
+        "label": "研究開発部",
+        "count": 8,
+        "icon": "🔬",
+        "children": [
+          {
+            "key": "rd-materials",
+            "label": "材料グループ",
+            "count": 3,
+            "icon": "🧱"
+          },
+          {
+            "key": "rd-measurement",
+            "label": "計測チーム",
+            "count": 5,
+            "icon": "📐"
+          }
+        ]
+      },
+      {
+        "key": "dept-mfg",
+        "label": "生産技術部",
+        "count": 3,
+        "icon": "🏭",
+        "children": [
+          {
+            "key": "mfg-process",
+            "label": "プロセスチーム",
+            "count": 2,
+            "icon": "⚙️"
+          },
+          {
+            "key": "mfg-qa",
+            "label": "品質管理",
+            "count": 1,
+            "icon": "✅"
+          }
+        ]
+      },
+      {
+        "key": "dept-qa",
+        "label": "品質保証部",
+        "count": 1,
+        "icon": "🛡️"
+      }
+    ]
+  },
+  {
+    "key": "personal",
+    "label": "Personal",
+    "count": 8,
+    "icon": "👤",
+    "children": [
+      {
+        "key": "user-me",
+        "label": "山田 太郎（自分）",
+        "count": 8,
+        "icon": "🙋"
+      }
+    ]
+  }
+]

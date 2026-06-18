@@ -6,6 +6,7 @@ import {
   LineChartOutlined,
   FileTextOutlined,
   FolderAddOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
@@ -14,6 +15,7 @@ import ProjectManagement from '../project/ProjectManagement';
 import WorkerScreenOverlay from '../project/WorkerScreenOverlay';
 import FormatManagement from '../format/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
+import UncertaintyManagement from '../uncertainty/UncertaintyManagement';
 import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -85,6 +87,11 @@ export default function ExperimentAdminMenu({
       key: '3',
       label: t('menu.experiment_admin.tabs.progressMonitoring') || '進捗確認',
       icon: <LineChartOutlined />,
+    },
+    {
+      key: '4',
+      label: t('menu.experiment_admin.tabs.templateManagement') || 'テンプレート管理',
+      icon: <ExperimentOutlined />,
     },
   ];
 
@@ -166,6 +173,11 @@ export default function ExperimentAdminMenu({
         {/* タブ3: 進捗確認 - display:none でマウント維持し state を保持 */}
         <div style={{ display: currentTab === '3' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
           <ProgressMonitoring />
+        </div>
+
+        {/* タブ4: テンプレート管理 - display:none でマウント維持し state を保持 */}
+        <div style={{ display: currentTab === '4' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
+          <UncertaintyManagement />
         </div>
       </Content>
       {/* 作業者画面オーバーレイ */}
