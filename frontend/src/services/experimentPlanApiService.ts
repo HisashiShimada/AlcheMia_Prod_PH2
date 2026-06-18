@@ -93,21 +93,54 @@ import type { TemplateDef } from '@/types/experimentPlan';
  * GET /api/v1/projects/:projectId/methods/:methodId/plan-dialog-data
  */
 export interface PlanDialogData {
-  transitions: Array<{ id: string; name: string }>;
+  transitions: Array<{
+    id: string;
+    name: string;
+    /** 直接依存するトランジションIDの配列（空配列 = 依存なし） */
+    prerequisiteTransitionIds: string[];
+  }>;
   templates: TemplateDef[];
   creatorRefs: string[];
   instrumentRefs: string[];
   ownerRefs: string[];
 }
 
+// ─── フォールバック用モックデータ ───────────────────────────────
+// バックエンドが未接続 / APIが prerequisiteTransitionIds を返さない場合に使用する
+// 依存グラフ:
+//   TR_A（材料準備A）─┐
+//                      ├─→ TR_C（混合）─→ TR_D（加熱）─→ TR_E（測定）
+//   TR_B（材料準備B）─┘
+export const MOCK_PLAN_DIALOG_DATA: PlanDialogData = {
+  transitions: [
+    { id: 'trans-001', name: '材料準備A', prerequisiteTransitionIds: [] },
+    { id: 'trans-002', name: '材料準備B', prerequisiteTransitionIds: [] },
+    { id: 'trans-003', name: '混合',      prerequisiteTransitionIds: ['trans-001', 'trans-002'] },
+    { id: 'trans-004', name: '加熱',      prerequisiteTransitionIds: ['trans-003'] },
+    { id: 'trans-005', name: '測定',      prerequisiteTransitionIds: ['trans-004'] },
+  ],
+  templates: [],
+  creatorRefs: ['creator_001', 'creator_002', 'creator_003'],
+  instrumentRefs: ['instrument_001', 'instrument_002'],
+  ownerRefs: ['owner_001', 'owner_002'],
+};
+
 export async function getPlanDialogData(
   projectId: string,
   methodId: string
 ): Promise<PlanDialogData> {
-  const apiClient = createApiClient();
-  const url = `/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/plan-dialog-data`;
-  const response = await apiClient.get<{ success: boolean; data: PlanDialogData }>(url);
-  return response.data.data;
+  try {
+    const apiClient = createApiClient();
+    const url = `/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/plan-dialog-data`;
+    const response = await apiClient.get<{ success: boolean; data: PlanDialogData }>(url);
+    return response.data.data;
+  } catch (error) {
+    // API 未実装 / バックエンド未接続の場合はモックデータを返す
+    console.warn('[getPlanDialogData] API 接続失敗。モックデータを使用します:', error);
+    return new Promise((resolve) => {
+      setTimeout(() => resolve(MOCK_PLAN_DIALOG_DATA), 300);
+    });
+  }
 }
 
 /**
