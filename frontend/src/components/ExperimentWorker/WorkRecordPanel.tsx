@@ -34,7 +34,8 @@ import {
   Typography,
   theme,
 } from 'antd';
-import { PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import { CommentOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import ExperimentCommentDialog from './ExperimentCommentDialog';
 
 const { Sider, Content } = Layout;
 
@@ -362,6 +363,8 @@ interface PropertyListProps {
   onSave: (taskNo: number, transitionId: string) => void;
   onSaveAndNext: (taskNo: number, transitionId: string) => void;
   onTemplateIdxChange: (idx: number) => void;
+  /** コメントボタンクリック時のコールバック */
+  onCommentClick: () => void;
 }
 
 const PropertyList: React.FC<PropertyListProps> = ({
@@ -375,6 +378,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onSave,
   onSaveAndNext,
   onTemplateIdxChange,
+  onCommentClick,
 }) => {
   if (!template) {
     return (
@@ -426,6 +430,13 @@ const PropertyList: React.FC<PropertyListProps> = ({
       {/* 保存ボタン */}
       {!isReadOnly && displayKey && (
         <Flex justify="flex-end" gap={8} style={{ marginTop: 12, paddingBottom: 8 }}>
+          {/* コメントボタン（保存ボタンの左側） */}
+          <Button
+            icon={<CommentOutlined />}
+            onClick={onCommentClick}
+          >
+            コメント
+          </Button>
           <Button onClick={() => onSave(displayKey.taskNo, displayKey.transitionId)}>
             保存
           </Button>
@@ -577,6 +588,8 @@ interface PlanProps {
   onSave: (taskNo: number, transitionId: string) => void;
   onSaveAndNext: (taskNo: number, transitionId: string) => void;
   onClearViewing: () => void;
+  /** コメントボタンクリック時のコールバック */
+  onCommentClick: () => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -584,7 +597,7 @@ interface PlanProps {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanA: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing,
+  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onCommentClick,
 }) => {
   const [templateIdx, setTemplateIdx] = useState(0);
 
@@ -647,6 +660,7 @@ const PlanA: React.FC<PlanProps> = ({
           onSave={onSave}
           onSaveAndNext={onSaveAndNext}
           onTemplateIdxChange={setTemplateIdx}
+          onCommentClick={onCommentClick}
         />
       </div>
     </Flex>
@@ -658,7 +672,7 @@ const PlanA: React.FC<PlanProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing,
+  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onCommentClick,
 }) => {
   const { token } = theme.useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -825,6 +839,7 @@ const PlanB: React.FC<PlanProps> = ({
             onSave={onSave}
             onSaveAndNext={onSaveAndNext}
             onTemplateIdxChange={(idx) => setSelectedTemplateId(visibleTemplates[idx]?.id ?? null)}
+            onCommentClick={onCommentClick}
           />
         </Content>
       </Layout>
@@ -898,6 +913,15 @@ export default function WorkRecordPanel() {
     [tasks]
   );
 
+  // ─── コメントダイアログ用 state ───────────────────────────
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+
+  // コメント保存ハンドラ（モック: 現フェーズはUIのみ、バックエンド保存は別フェーズ）
+  const handleSaveComment = useCallback((comment: string) => {
+    console.info('[WorkRecordPanel] コメント保存（モック）:', comment);
+    Modal.success({ title: 'コメントを保存しました', content: comment });
+  }, []);
+
   const planProps: PlanProps = {
     tasks,
     activeTaskNo: ASSIGNED_TASK_NO,
@@ -907,11 +931,35 @@ export default function WorkRecordPanel() {
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,
     onClearViewing: () => setViewingKey(null),
+    onCommentClick: () => setCommentDialogOpen(true),
   };
+
+  // コメントダイアログに渡す displayKey（現在表示中のキー）
+  const activeTaskEntry = (() => {
+    const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
+    if (!task) return null;
+    for (const tid of ORDERED_TRANSITION_IDS) {
+      const tt = task.transitions.find((x) => x.transitionId === tid);
+      if (tt && tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tid };
+    }
+    return null;
+  })();
+  const commentTarget = viewingKey ?? activeTaskEntry;
 
   return (
     <div style={{ flex: 1, minHeight: 0 }}>
       <PlanB {...planProps} />
+
+      {/* コメントダイアログ */}
+      {commentDialogOpen && commentTarget && (
+        <ExperimentCommentDialog
+          open={commentDialogOpen}
+          taskNo={commentTarget.taskNo}
+          transitionId={commentTarget.transitionId}
+          onClose={() => setCommentDialogOpen(false)}
+          onSave={handleSaveComment}
+        />
+      )}
     </div>
   );
 }

@@ -112,7 +112,7 @@ GET /api/v1/projects/:projectId/methods/:methodId/plan-dialog-data
     "existingPlans": [
       {
         "taskNumber": 0,
-        "templateValues": {
+        "plannedValues": {
           "transition-uuid-1": {
             "mgr-instruction:requiredCreatorUUID":    ["user-uuid-001"],
             "mgr-instruction:requiredInstrumentUUID": [],
@@ -162,7 +162,7 @@ GET /api/v1/projects/:projectId/experiment-plans?methodId=xxx
     "plans": [
       {
         "taskNumber": 0,
-        "templateValues": {
+        "plannedValues": {
           "transition-uuid-1": {
             "mgr-instruction:requiredCreatorUUID":    ["user-uuid-001"],
             "mgr-instruction:requiredInstrumentUUID": ["inst-uuid-001"],
@@ -190,7 +190,7 @@ GET /api/v1/projects/:projectId/experiment-plans?methodId=xxx
       },
       {
         "taskNumber": 1,
-        "templateValues": {
+        "plannedValues": {
           "transition-uuid-1": {
             "mgr-instruction:caution": "タスク1専用: 追加の保護具が必要",
             "condition-template-1": {
@@ -227,7 +227,7 @@ PUT /api/v1/projects/:projectId/experiment-plans/:methodId/:taskNumber
 **リクエストボディ:**
 ```json
 {
-  "templateValues": {
+  "plannedValues": {
     "transition-uuid-1": {
       "mgr-instruction:requiredCreatorUUID":    ["user-uuid-001"],
       "mgr-instruction:requiredInstrumentUUID": ["inst-uuid-001"],
@@ -267,7 +267,7 @@ PUT /api/v1/projects/:projectId/experiment-plans/:methodId/:taskNumber
 
 **バリデーション:**
 - `taskNumber` は 0 以上の整数
-- `templateValues` は `{ [transitionId: string]: { [key: string]: string | string[] } }` の形式
+- `plannedValues` は `{ [transitionId: string]: { [key: string]: string | string[] } }` の形式
 - `mgr-instruction:requiredCreatorUUID` / `requiredInstrumentUUID` / `requiredOwnerUUID` は文字列配列
 - `mgr-instruction:caution` 等の注意事項系は文字列
 - テンプレートIDキー（`mgr-instruction:` で始まらないもの）の値は `{ [fieldKey: string]: string }`
@@ -388,7 +388,7 @@ GET /api/v1/projects/:projectId/experiment-instructions
 ```
 
 **データ取得ロジック:**
-1. `experiment_plan` テーブルから想定値（`template_values`）を取得
+1. `experiment_plan` テーブルから想定値（`planned_values`）を取得
 2. `template_data` テーブルから実績値（`property_set`）を取得
 3. `project_task_detail` テーブルからタスクステータスを取得
 4. フィールド単位で想定値・実績値をマージして差分計算
@@ -525,7 +525,124 @@ PUT /api/v1/projects/:projectId/tasks/:methodId/:taskNumber/ng
 
 ---
 
-## 5. チェックアウト処理の拡張
+## 5. トランジション順序API（新規）
+
+### 5-1. トランジション順序取得
+
+```
+GET /api/v1/projects/:projectId/methods/:methodId/transition-order
+```
+
+**目的:** 指定メソッドのトランジション順序一覧を取得する（ExperimentPlanDialog初期表示・Worker作業画面で使用）。
+
+**クエリパラメータ:**
+- なし（task_no=0 の順序を返す）
+
+**レスポンス:**
+```json
+{
+  "success": true,
+  "data": {
+    "methodId": "method-uuid-001",
+    "transitions": [
+      { "transitionId": "transition-uuid-1", "workOrder": 1, "isOrderFixed": false },
+      { "transitionId": "transition-uuid-2", "workOrder": 2, "isOrderFixed": false },
+      { "transitionId": "transition-uuid-3", "workOrder": 3, "isOrderFixed": true }
+    ]
+  }
+}
+```
+
+> `transitions` は `workOrder` 昇順で返す。  
+> `workOrder` が未設定（NULL）のトランジションは末尾に追加し、`transitionId` 昇順でソートする。
+
+**エラーコード:**
+| コード | HTTP | 条件 |
+|-------|------|------|
+| E6001 | 404 | プロジェクトが見つからない |
+| E5015 | 403 | 権限不足 |
+| E4001 | 500 | サーバーエラー |
+
+---
+
+### 5-2. トランジション順序一括更新
+
+```
+PUT /api/v1/projects/:projectId/methods/:methodId/transition-order
+```
+
+**目的:** ExperimentPlanDialog でManagerが設定したトランジションの作業順序を保存する（`transition_data.work_order` を更新）。
+
+**リクエストボディ:**
+```json
+{
+  "transitions": [
+    { "transitionId": "transition-uuid-2", "workOrder": 1, "isOrderFixed": false },
+    { "transitionId": "transition-uuid-1", "workOrder": 2, "isOrderFixed": false },
+    { "transitionId": "transition-uuid-3", "workOrder": 3, "isOrderFixed": true }
+  ]
+}
+```
+
+**処理内容:**
+1. `transition_data` テーブルの `task_no=0` レコードを UPSERT する
+2. 送信された全 `transitionId` に対して `work_order` と `is_order_fixed` を更新
+3. レコードが存在しない場合は INSERT（`status` / `progress_rate` は NULL）
+
+**レスポンス:**
+```json
+{
+  "success": true,
+  "data": {
+    "updatedCount": 3,
+    "savedAt": "2026-06-17T11:00:00.000Z"
+  }
+}
+```
+
+**バリデーション:**
+- `transitions` は配列で1件以上
+- 各要素の `transitionId` は文字列（必須）
+- 各要素の `workOrder` は 1 以上の整数（必須）
+- `workOrder` に重複がないこと
+- `isOrderFixed` は boolean（省略時は false）
+- チェックアウト済みプロジェクトへの更新は不可（E7005）
+
+**エラーコード:**
+| コード | HTTP | 条件 |
+|-------|------|------|
+| E1003 | 400 | バリデーションエラー（workOrder 重複等） |
+| E1004 | 400 | 必須項目不足 |
+| E6001 | 404 | プロジェクトが見つからない |
+| E5015 | 403 | 権限不足 |
+| E7005 | 400 | チェックアウト済みのため変更不可 |
+| E4001 | 500 | サーバーエラー |
+
+---
+
+### 5-3. ルーティング設計（追加分）
+
+```typescript
+// backend/src/routes/experimentPlanRoutes.ts に追加
+
+// トランジション順序取得
+router.get(
+  '/projects/:projectId/methods/:methodId/transition-order',
+  auth, tenantIsolation, permissionCheck('experiment_admin'),
+  controller.getTransitionOrder
+);
+
+// トランジション順序更新
+router.put(
+  '/projects/:projectId/methods/:methodId/transition-order',
+  auth, tenantIsolation, permissionCheck('experiment_admin'),
+  controller.updateTransitionOrder
+);
+```
+
+---
+
+## 6. チェックアウト処理の拡張
 
 既存の `POST /api/v1/projects/:projectId/checkout` を拡張する。
 
@@ -545,8 +662,8 @@ PUT /api/v1/projects/:projectId/tasks/:methodId/:taskNumber/ng
 ```
 
 **書き込みルール:**
-- 全体タブの `template_values` は全タスクのMAIMLに適用
-- タスクNタブの `template_values` はタスクN専用のMAIMLノードに適用
+- 全体タブの `planned_values` は全タスクのMAIMLに適用
+- タスクNタブの `planned_values` はタスクN専用のMAIMLノードに適用
 - 既存の `mgr-instruction:` キーがある場合は上書き
 - `notes` は `mgr-instruction:notes` として JSON文字列で書き込み
 

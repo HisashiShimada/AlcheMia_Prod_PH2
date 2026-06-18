@@ -56,7 +56,26 @@ import {
   ImportOutlined,
   ExportOutlined,
   DeleteOutlined,
+  HolderOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   NoteType,
   NOTE_TYPE_LABELS,
@@ -593,6 +612,115 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   );
 };
 
+// ============================================================
+// SortableTransitionRow — ドラッグ&ドロップ可能なトランジション行
+// ============================================================
+
+interface SortableTransitionRowProps {
+  id: string;
+  order: number;
+  name: string;
+  isFixed: boolean;
+  maxOrder: number;
+  onOrderChange: (id: string, newOrder: number) => void;
+  disabled: boolean;
+  token: ReturnType<typeof useToken>['token'];
+}
+
+const SortableTransitionRow: React.FC<SortableTransitionRowProps> = ({
+  id,
+  order,
+  name,
+  isFixed,
+  maxOrder,
+  onOrderChange,
+  disabled,
+  token,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled: disabled || isFixed });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : isFixed ? 0.65 : 1,
+    cursor: isFixed ? 'not-allowed' : undefined,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '3px 6px',
+    border: `1px solid ${isFixed ? token.colorWarningBorder : token.colorBorder}`,
+    borderRadius: token.borderRadius,
+    backgroundColor: isFixed ? token.colorWarningBg : token.colorFillAlter,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {/* ドラッグハンドル or 固定アイコン */}
+      {isFixed ? (
+        <LockOutlined style={{ color: token.colorWarning, fontSize: 12, flexShrink: 0 }} />
+      ) : (
+        <div
+          {...attributes}
+          {...listeners}
+          style={{ cursor: 'grab', color: token.colorTextQuaternary, flexShrink: 0, lineHeight: 1 }}
+        >
+          <HolderOutlined style={{ fontSize: 12 }} />
+        </div>
+      )}
+
+      {/* 順序番号 Select */}
+      <Select
+        size="small"
+        value={order}
+        onChange={(val) => onOrderChange(id, val)}
+        disabled={disabled || isFixed}
+        style={{
+          width: 52,
+          flexShrink: 0,
+          opacity: isFixed ? 0.55 : 1,
+          cursor: isFixed ? 'not-allowed' : undefined,
+          pointerEvents: isFixed ? 'none' : undefined,
+        }}
+        popupMatchSelectWidth={false}
+        options={Array.from({ length: maxOrder }, (_, i) => ({
+          label: String(i + 1),
+          value: i + 1,
+        }))}
+      />
+
+      {/* トランジション名 */}
+      <Text
+        style={{
+          fontSize: 11,
+          flex: 1,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          minWidth: 0,
+          color: isFixed ? token.colorTextTertiary : token.colorText,
+        }}
+        title={name}
+      >
+        {name}
+      </Text>
+
+      {/* 固定ラベル */}
+      {isFixed && (
+        <Tag color="warning" style={{ fontSize: 10, margin: 0, flexShrink: 0 }}>
+          固定
+        </Tag>
+      )}
+    </div>
+  );
+};
+
 /**
  * 実験計画詳細指示ダイアログ
  */
@@ -627,8 +755,16 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   /** アクティブなタブキー（'all' | 'task-N'） */
   const [activeTab, setActiveTab] = useState<string>(TAB_KEY_ALL);
 
-  /** 選択中のトランジションID（単体選択） */
+  /** 選択中のトランジションID（単体選択・ラジオボタン相当） */
   const [selectedTransitionId, setSelectedTransitionId] = useState<string | null>(null);
+
+  /**
+   * 実行順序リスト（全トランジションを表示し順序を設定する）
+   * 各要素: { id, order, isFixed }
+   * isFixed=true の場合はドラッグ&ドロップ・Select変更による順序変更が不可
+   * TODO: 将来的にはTransition/Arc/Place関係から isFixed を自動判定する
+   */
+  const [transitionOrder, setTransitionOrder] = useState<{ id: string; order: number; isFixed: boolean }[]>([]);
 
   /**
    * タブキー → ExperimentPlanTabData のマップ
@@ -730,6 +866,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
     setActiveTab(TAB_KEY_ALL);
     setSelectedTransitionId(null);
+    setTransitionOrder([]);
     setTabDataMap({});
     setOverrideMap({});
     setPendingNoteType(undefined);
@@ -914,6 +1051,77 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     [updateCurrentTabData]
   );
 
+  // --- 実行順序ハンドラ ---
+
+  /**
+   * トランジションが依存関係により順序固定かどうかを判定（モック実装）
+   * 構造: [混合A, 混合B] → 加熱(固定) → [冷却A, 冷却B] → 測定(固定)
+   * TODO: 将来的にはTransition ↔ Arc ↔ Placeの関係を解析して自動判定する
+   */
+  const isTransitionFixed = useCallback(
+    (transitionId: string): boolean => {
+      // モック: 3番目（index=2: 加熱）と 6番目（index=5: 測定）を固定とする
+      const idx = transitions.findIndex((t) => t.id === transitionId);
+      return idx === 2 || idx === 5;
+    },
+    [transitions]
+  );
+
+  /** transitions配列が変化したとき、transitionOrderを全件初期化 */
+  useEffect(() => {
+    if (transitions.length === 0) {
+      setTransitionOrder([]);
+      return;
+    }
+    setTransitionOrder(
+      transitions.map((trans, index) => ({
+        id: trans.id,
+        order: index + 1,
+        isFixed: isTransitionFixed(trans.id),
+      }))
+    );
+  }, [transitions, isTransitionFixed]);
+
+  /** ドラッグ&ドロップ用センサー */
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  /** ドラッグ終了ハンドラ */
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      setTransitionOrder((prev) => {
+        const oldIndex = prev.findIndex((item) => item.id === active.id);
+        const newIndex = prev.findIndex((item) => item.id === over.id);
+        if (prev[oldIndex]?.isFixed || prev[newIndex]?.isFixed) {
+          message.warning('依存関係により順序を変更できないトランジションが含まれています');
+          return prev;
+        }
+        const moved = arrayMove(prev, oldIndex, newIndex);
+        return moved.map((item, i) => ({ ...item, order: i + 1 }));
+      });
+    },
+    [message]
+  );
+
+  /** Select手入力による順序変更ハンドラ */
+  const handleOrderSelectChange = useCallback(
+    (transitionId: string, newOrder: number) => {
+      setTransitionOrder((prev) => {
+        const currentIndex = prev.findIndex((item) => item.id === transitionId);
+        if (currentIndex === -1 || prev[currentIndex]?.isFixed) return prev;
+        const targetIndex = newOrder - 1;
+        const moved = arrayMove(prev, currentIndex, targetIndex);
+        return moved.map((item, i) => ({ ...item, order: i + 1 }));
+      });
+    },
+    []
+  );
+
   // --- 保存処理（全タブ一括保存）---
 
   const handleSave = useCallback(async () => {
@@ -932,7 +1140,10 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
         const request: SaveExperimentPlanRequest = {
           methodId,
           taskNumber: tabNum,
-          selectedTransitions: selectedTransitionId ? [selectedTransitionId] : [],
+          // transitionOrder の順序を保存（全トランジションIDを order 順で渡す）
+          selectedTransitions: transitionOrder
+            .sort((a, b) => a.order - b.order)
+            .map((item) => item.id),
           creatorRefs: data.creatorRefs,
           instrumentRefs: data.instrumentRefs,
           ownerRefs: data.ownerRefs,
@@ -953,7 +1164,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [tabDataMap, taskNumbers, methodId, projectId, selectedTransitionId, onSave, onClose]);
+  }, [tabDataMap, taskNumbers, methodId, projectId, transitionOrder, onSave, onClose]);
 
   // --- 基本情報パネル（共通化） ---
 
@@ -1142,10 +1353,11 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       <Row gutter={16} style={{ minHeight: 680, overflowX: 'hidden' }}>
         {/* ====== 左側: トランジション一覧（テーブル、単体行選択）====== */}
         <Col span={5}>
+          {/* ── トランジション選択 ── */}
           <Card
             title="トランジション"
             size="small"
-            styles={{ body: { padding: 0, maxHeight: 640, overflowY: 'auto' } }}
+            styles={{ body: { padding: 0, maxHeight: 320, overflowY: 'auto' } }}
           >
             {transitions.length === 0 ? (
               <div style={{ padding: 16 }}>
@@ -1179,6 +1391,60 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                   },
                 })}
               />
+            )}
+          </Card>
+
+          {/* ── 実行順序リスト（ドラッグ&ドロップ + Select手入力）── */}
+          <Card
+            title={
+              <Space size={4}>
+                <Text style={{ fontSize: 12 }}>実行順序</Text>
+                {transitionOrder.length > 0 && (
+                  <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>
+                    {transitionOrder.length}件
+                  </Tag>
+                )}
+              </Space>
+            }
+            size="small"
+            style={{ marginTop: 8 }}
+            styles={{ body: { padding: '4px 8px', maxHeight: 360, overflowY: 'auto' } }}
+          >
+            {transitionOrder.length === 0 ? (
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', padding: '8px 0' }}>
+                トランジションがありません
+              </Text>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={transitionOrder.map((item) => item.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                    {transitionOrder.map((item) => {
+                      const trans = transitions.find((t) => t.id === item.id);
+                      const name = trans?.name ?? item.id;
+                      return (
+                        <SortableTransitionRow
+                          key={item.id}
+                          id={item.id}
+                          order={item.order}
+                          name={name}
+                          isFixed={item.isFixed}
+                          maxOrder={transitionOrder.length}
+                          onOrderChange={handleOrderSelectChange}
+                          disabled={disabled}
+                          token={token}
+                        />
+                      );
+                    })}
+                  </Space>
+                </SortableContext>
+              </DndContext>
             )}
           </Card>
         </Col>

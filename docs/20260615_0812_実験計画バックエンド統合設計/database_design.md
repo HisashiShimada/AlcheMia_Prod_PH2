@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS experiment_plan (
 
   -- 全データを Transition 単位にまとめた単一 JSONB カラム
   -- 構造: { [transitionId]: { [key]: value } }
-  template_values  jsonb  DEFAULT '{}'::jsonb,
+  planned_values  jsonb  DEFAULT '{}'::jsonb,
 
   -- 管理カラム
   create_user_id   varchar(50),
@@ -77,7 +77,7 @@ CREATE INDEX idx_experiment_plan_method
 | `project_id` | varchar(20) | ✅ | プロジェクトID（プロジェクト名） |
 | `method_id` | varchar | ✅ | MAIMLのMethodID |
 | `task_number` | integer | ✅ | 0=全体タブ、1〜N=タスクNタブ |
-| `template_values` | jsonb | | Transition単位の全設定データ（後述） |
+| `planned_values` | jsonb | | Transition単位の全設定データ（後述） |
 | `create_user_id` | varchar(50) | | 作成者ユーザーID |
 | `create_at` | timestamp | ✅ | 作成日時 |
 | `update_user_id` | varchar(50) | | 最終更新者ユーザーID |
@@ -88,7 +88,7 @@ CREATE INDEX idx_experiment_plan_method
 ```
 task_number = 0  → 「全体タブ」
   - このMethodで対象とする全Transitionの共通設定を格納
-  - template_values の各 transitionId キー配下に設定を持つ
+  - planned_values の各 transitionId キー配下に設定を持つ
 
 task_number = 1  → 「タスク1タブ」（Transition 1 に対応）
 task_number = 2  → 「タスク2タブ」（Transition 2 に対応）
@@ -98,9 +98,9 @@ task_number = N  → 「タスクNタブ」（Transition N に対応）
   - フロントエンドは「全体タブ値 + タスクN上書き値」をマージして表示
 ```
 
-### 2-4. template_values JSONB 構造（**Transition単位**）
+### 2-4. planned_values JSONB 構造（**Transition単位**）
 
-`template_values` は **TransitionID をトップレベルキー** とし、その配下に Ref情報・注意事項・テンプレート想定値をまとめて格納します。
+`planned_values` は **TransitionID をトップレベルキー** とし、その配下に Ref情報・注意事項・テンプレート想定値をまとめて格納します。
 
 ```typescript
 interface TransitionPlanValues {
@@ -179,7 +179,7 @@ interface ExperimentPlanTemplateValues {
 
 ### 2-5. MAIMLへの書き込み対応
 
-チェックアウト時に `template_values` から MAIML の各Transitionノードへ書き込む。
+チェックアウト時に `planned_values` から MAIML の各Transitionノードへ書き込む。
 
 | JSONBキー | MAIML書き込み先 | 格納形式 |
 |-----------|----------------|---------|
@@ -228,7 +228,7 @@ organization_id = 'org-uuid-001'
 project_id      = 'project_alpha'
 method_id       = 'method-uuid-001'
 task_number     = 0
-template_values = {
+planned_values = {
   "transition-uuid-1": { "mgr-instruction:requiredCreatorUUID": [...], "condition-template-1": { ... } },
   "transition-uuid-2": { "mgr-instruction:caution": "...", "condition-template-2": { ... } },
   "transition-uuid-3": { "mgr-instruction:requiredInstrumentUUID": [...], "result-template-1": { ... } }
@@ -239,7 +239,7 @@ organization_id = 'org-uuid-001'
 project_id      = 'project_alpha'
 method_id       = 'method-uuid-001'
 task_number     = 1
-template_values = {
+planned_values = {
   "transition-uuid-1": { "mgr-instruction:caution": "タスク1専用の追記", "condition-template-1": { "temperature": "26" } }
 }
 
@@ -248,7 +248,7 @@ organization_id = 'org-uuid-001'
 project_id      = 'project_alpha'
 method_id       = 'method-uuid-001'
 task_number     = 2
-template_values = {
+planned_values = {
   "transition-uuid-2": { "condition-template-2": { "reactionTime": "65" } }
 }
 ```
@@ -321,61 +321,115 @@ WHERE NOT EXISTS (
 
 ---
 
-## 5. 既存テーブルの参照関係
-
-### 5-1. `template_data` テーブル（変更なし）
-
-実験指示一覧での「実績値」参照に使用。変更は不要。
-
-```
-template_data
-  organization_id    : マルチテナント分離
-  project_id         : プロジェクトID
-  method_id          : MAIMLのMethodID
-  task_number        : タスク番号（1〜N）
-  template_id        : テンプレートID（"condition-template-1" 等）
-  property_set       : JSONB { fieldKey: 実績値 }
-  created_at
-  updated_at
-```
-
-### 5-2. テーブル関係図
-
-```
-project
-  │ (organization_id, project_id)
-  ├── experiment_plan (NEW)
-  │     └── 1レコード = 1Method × 1タスク番号の設定
-  │
-  ├── project_task_detail (既存 + review_result追加)
-  │     └── タスク承認/NG状態管理
-  │
-  └── template_data (既存・変更なし)
-        └── Worker記録の実績値
-
-code_master (既存 + task_status:06追加)
-  └── task_statusの表示名管理
-```
-
 ---
 
-## 6. マイグレーションファイル
+## 5. 既存テーブル拡張: `transition_data`（トランジション順序）
 
-### 実行順序
+### 5-1. 概要
+
+`transition_data` テーブルは、Workerのトランジション実績（`status`, `progress_rate`）を管理する既存テーブルです。  
+Managerが `ExperimentPlanDialog` で設定したトランジションの**作業順序**（`work_order`）と**固定順序フラグ**（`is_order_fixed`）を追加します。
+
+### 5-2. マイグレーション SQL
+
+```sql
+-- ===================================================================
+-- ファイル名: 20260617_001_add_order_to_transition_data.sql
+-- 概要: transition_data にトランジション実行順序を追加
+-- ===================================================================
+
+-- 1. work_order カラムを追加（Managerが設定した作業順序）
+ALTER TABLE transition_data
+  ADD COLUMN IF NOT EXISTS work_order INTEGER;
+
+-- 2. is_order_fixed カラムを追加（固定順序フラグ）
+ALTER TABLE transition_data
+  ADD COLUMN IF NOT EXISTS is_order_fixed BOOLEAN NOT NULL DEFAULT false;
+
+-- 3. コメント追加
+COMMENT ON COLUMN transition_data.work_order
+  IS 'トランジションの作業順序（1, 2, 3...）Manager が ExperimentPlanDialog で設定。task_no=0 の行を正として扱う';
+
+COMMENT ON COLUMN transition_data.is_order_fixed
+  IS '固定順序フラグ（true: 順序変更不可、デフォルト: false）';
+
+-- 4. 作業順序ソート用インデックス
+CREATE INDEX IF NOT EXISTS idx_transition_data_work_order
+  ON transition_data (organization_id, project_id, method_id, task_no, work_order);
+
+-- 5. 既存データへのデフォルト順序設定（transition_id 昇順）
+WITH ordered_transitions AS (
+  SELECT
+    organization_id,
+    project_id,
+    method_id,
+    task_no,
+    transition_id,
+    ROW_NUMBER() OVER (
+      PARTITION BY organization_id, project_id, method_id, task_no
+      ORDER BY transition_id
+    ) AS default_order
+  FROM transition_data
+  WHERE work_order IS NULL
+)
+UPDATE transition_data td
+SET work_order = ot.default_order
+FROM ordered_transitions ot
+WHERE td.organization_id = ot.organization_id
+  AND td.project_id      = ot.project_id
+  AND td.method_id       = ot.method_id
+  AND td.task_no         = ot.task_no
+  AND td.transition_id   = ot.transition_id;
+```
+
+### 5-3. 拡張後のカラム一覧
+
+| カラム名 | 型 | 必須 | 説明 |
+|---------|---|------|------|
+| `organization_id` | uuid | ✅ | 組織ID（主キー） |
+| `project_id` | varchar(20) | ✅ | プロジェクトID（主キー） |
+| `method_id` | varchar | ✅ | MAIMLのMethodID（主キー） |
+| `task_no` | numeric(3,0) | ✅ | タスク連番（主キー）0=全体タブ |
+| `transition_id` | varchar | ✅ | トランジションID（主キー） |
+| `status` | numeric(2,0) | | ステータス（Worker実績） |
+| `progress_rate` | numeric(3,0) | | 進捗率（Worker実績） |
+| `work_order` | integer | ✅ | **[NEW]** 作業順序（1〜N）Managerが設定 |
+| `is_order_fixed` | boolean | ✅ | **[NEW]** 固定順序フラグ（デフォルト: false） |
+| `create_user_id` | varchar(50) | | 作成者ユーザID |
+| `create_at` | timestamp | | 作成日時 |
+| `update_user_id` | varchar(50) | | 更新者ユーザID |
+| `update_at` | timestamp | | 更新日時 |
+
+### 5-4. task_no の意味
 
 ```
-1. 20260615_001_create_experiment_plan.sql        -- experiment_plan テーブル新規作成
-2. 20260615_002_add_review_result_to_task_detail.sql -- project_task_detail.review_result 追加
-3. 20260615_003_add_task_status_ng_to_code_master.sql -- code_master task_status:06 追加
+task_no = 0  → 「全体タブ」の順序設定
+  - ExperimentPlanDialog の保存時、全体タブで設定した順序を task_no=0 に保存
+  - チェックアウト時や Worker 画面では task_no=0 の順序を各タスクに適用
+
+task_no = 1〜N  → 「タスクNタブ」の進捗管理
+  - Worker 作業時の実績（status, progress_rate）を記録
+  - 順序は task_no=0 の値を参照（タスクごとに異なる順序は持たない）
 ```
 
-### ファイル配置先
+> **設計方針**: 順序は `task_no=0` にのみ保存し、各タスクは同じ順序を共有する。  
+> 将来的にタスクごとに異なる順序が必要になった場合は、`task_no=N` でも `work_order` を設定できる。
+
+### 5-5. データ例
+
 ```
-backend/migrations/
-  ├── 20260615_001_create_experiment_plan.sql
-  ├── 20260615_002_add_review_result_to_task_detail.sql
-  └── 20260615_003_add_task_status_ng_to_code_master.sql
+org_id | project_id  | method_id        | task_no | transition_id     | status | progress_rate | work_order | order_fixed
+───────┼─────────────┼──────────────────┼─────────┼───────────────────┼────────┼───────────────┼────────────┼────────────
+org-1  | proj_alpha  | method-uuid-001  |    0    | transition-uuid-1 | NULL   | NULL          |     1      | false
+org-1  | proj_alpha  | method-uuid-001  |    0    | transition-uuid-2 | NULL   | NULL          |     2      | false
+org-1  | proj_alpha  | method-uuid-001  |    0    | transition-uuid-3 | NULL   | NULL          |     3      | true   ← 固定
+org-1  | proj_alpha  | method-uuid-001  |    1    | transition-uuid-1 |   0    |    0          |     1      | false
+org-1  | proj_alpha  | method-uuid-001  |    1    | transition-uuid-2 |   1    |   50          |     2      | false
+org-1  | proj_alpha  | method-uuid-001  |    1    | transition-uuid-3 |   0    |    0          |     3      | true
 ```
+
+> **注意**: `task_no=0` の行は順序管理専用（status/progress_rate は NULL）。  
+> `task_no=1〜N` は Worker の作業記録（work_order/order_fixed は task_no=0 と同値に保つ）。
 
 ---
 
