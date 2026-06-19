@@ -1,13 +1,16 @@
 /**
  * namespace 関連ルート
  *
+ * @remarks
+ * 主キーが (organization_id, prefix, local_name) の複合キーのため、
+ * PUT / DELETE は /:prefix/:localName をパラメータとして使用する。
+ *
  * @module namespaceRoutes
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { Router } from 'express';
 import * as namespaceController from '../controllers/namespaceController';
-import { authMiddleware } from '../middleware/authMiddleware';
 
 const router = Router();
 
@@ -26,7 +29,7 @@ router.get(
  * 用語新規登録
  * POST /api/v1/namespaces/terms
  *
- * @remarks prefix から namespace.id を解決し namespace_term に INSERT する
+ * @body { organizationId, prefix, localName, displayName?, description?, typeHint?, unitHint? }
  */
 router.post(
   '/terms',
@@ -35,19 +38,23 @@ router.post(
 
 /**
  * 用語更新
- * PUT /api/v1/namespaces/terms/:id
+ * PUT /api/v1/namespaces/terms/:prefix/:localName
+ *
+ * @remarks prefix と localName で対象を特定する（organizationId はミドルウェアまたはクエリから取得）
  */
 router.put(
-  '/terms/:id',
+  '/terms/:prefix/:localName',
   namespaceController.updateTerm
 );
 
 /**
  * 用語削除
- * DELETE /api/v1/namespaces/terms/:id
+ * DELETE /api/v1/namespaces/terms/:prefix/:localName
+ *
+ * @remarks prefix と localName で対象を特定する（organizationId はミドルウェアまたはクエリから取得）
  */
 router.delete(
-  '/terms/:id',
+  '/terms/:prefix/:localName',
   namespaceController.deleteTerm
 );
 

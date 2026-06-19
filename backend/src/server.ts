@@ -39,6 +39,7 @@ import semanticSearchRoutes from './routes/semanticSearchRoutes';
 import systemOverviewRoutes from './routes/systemOverviewRoutes';
 import systemConfigRoutes from './routes/systemConfigRoutes';
 import namespaceRoutes from './routes/namespaceRoutes';
+import departmentUnitRoutes from './routes/departmentUnitRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -147,6 +148,9 @@ async function startServer() {
 
     // Mount namespace routes
     app.use('/api/v1/namespaces', namespaceRoutes);
+
+    // Mount department unit routes
+    app.use('/api/v1/department-units', departmentUnitRoutes);
 
     // エラーハンドリングミドルウェア（全ルートの後に登録する必要がある）
     app.use(errorHandler);

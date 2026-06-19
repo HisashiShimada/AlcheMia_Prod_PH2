@@ -3,8 +3,13 @@
  *
  * namespace_termテーブルへのデータアクセスを提供
  *
+ * @remarks
+ * DDL: docs/design/db/ddl/namespace_term.sql
+ * 主キー: (organization_id, prefix, local_name)
+ * FK: (organization_id, prefix) → namespace(organization_id, prefix)
+ *
  * @module namespaceTermRepository
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { getPool } from '../database/db';
@@ -14,18 +19,19 @@ import { getPool } from '../database/db';
  *
  * @remarks
  * DDL: docs/design/db/ddl/namespace_term.sql
- * 主キー: id (UUID)
+ * 主キー: (organization_id, prefix, local_name)
  */
 export interface NamespaceTerm {
-  id: string;
-  namespace_id: string;
+  organization_id: string;
+  prefix: string;
   local_name: string;
-  display_name_ja: string | null;
-  display_name_en: string | null;
+  display_name: string | null;
   description: string | null;
   type_hint: string | null;
   unit_hint: string | null;
+  create_user_id: string | null;
   create_at: Date | null;
+  update_user_id: string | null;
   update_at: Date | null;
 }
 
@@ -33,19 +39,17 @@ export interface NamespaceTerm {
  * API レスポンス用の用語型（フロントエンドの Term 型に対応）
  */
 export interface NamespaceTermRow {
-  id: string;
   qname: string;
   prefix: string;
   localName: string;
   displayName: string;
-  displayNameEn: string;
   description: string;
   type: string;
   unitHint: string;
 }
 
 /**
- * 組織に紐づく全用語を namespace テーブルと JOIN して取得
+ * 組織に紐づく全用語を取得
  *
  * @param organizationId - 組織ID
  * @returns 用語一覧（フロントエンド用に整形済み）
@@ -57,19 +61,16 @@ export async function findAllByOrganization(
 
   const query = `
     SELECT
-      t.id
-      , n.prefix || ':' || t.local_name AS qname
-      , n.prefix                         AS prefix
-      , t.local_name                     AS "localName"
-      , COALESCE(t.display_name_ja, '')  AS "displayName"
-      , COALESCE(t.display_name_en, '')  AS "displayNameEn"
-      , COALESCE(t.description, '')      AS description
+      t.prefix || ':' || t.local_name  AS qname
+      , t.prefix                        AS prefix
+      , t.local_name                    AS "localName"
+      , COALESCE(t.display_name, '')    AS "displayName"
+      , COALESCE(t.description, '')     AS description
       , COALESCE(t.type_hint, 'stringType') AS type
-      , COALESCE(t.unit_hint, '')        AS "unitHint"
+      , COALESCE(t.unit_hint, '')       AS "unitHint"
     FROM namespace_term t
-    INNER JOIN namespace n ON t.namespace_id = n.id
-    WHERE n.organization_id = $1
-    ORDER BY n.prefix ASC, t.local_name ASC
+    WHERE t.organization_id = $1
+    ORDER BY t.prefix ASC, t.local_name ASC
   `;
 
   const result = await pool.query(query, [organizationId]);
@@ -77,22 +78,26 @@ export async function findAllByOrganization(
 }
 
 /**
- * prefix から namespace.id を取得
+ * prefix に対応する namespace が存在するか確認
  *
+ * @param organizationId - 組織ID
  * @param prefix - 名前空間の接頭辞
- * @returns namespace の id（UUID）、見つからない場合は null
+ * @returns 存在する場合 true
  */
-export async function findNamespaceIdByPrefix(
+export async function existsNamespace(
+  organizationId: string,
   prefix: string
-): Promise<string | null> {
+): Promise<boolean> {
   const pool = getPool();
 
   const query = `
-    SELECT id FROM namespace WHERE prefix = $1 LIMIT 1
+    SELECT 1 FROM namespace
+    WHERE organization_id = $1 AND prefix = $2
+    LIMIT 1
   `;
 
-  const result = await pool.query(query, [prefix]);
-  return result.rows[0]?.id ?? null;
+  const result = await pool.query(query, [organizationId, prefix]);
+  return result.rowCount !== null && result.rowCount > 0;
 }
 
 /**
@@ -102,10 +107,10 @@ export async function findNamespaceIdByPrefix(
  * @returns 登録された用語（フロントエンド用に整形済み）
  */
 export async function create(data: {
-  namespaceId: string;
+  organizationId: string;
+  prefix: string;
   localName: string;
-  displayNameJa?: string;
-  displayNameEn?: string;
+  displayName?: string;
   description?: string;
   typeHint?: string;
   unitHint?: string;
@@ -114,70 +119,70 @@ export async function create(data: {
 
   const insertQuery = `
     INSERT INTO namespace_term (
-      id
-      , namespace_id
+      organization_id
+      , prefix
       , local_name
-      , display_name_ja
-      , display_name_en
+      , display_name
       , description
       , type_hint
       , unit_hint
       , create_at
       , update_at
     ) VALUES (
-      gen_random_uuid()
-      , $1, $2, $3, $4, $5, $6, $7
+      $1, $2, $3, $4, $5, $6, $7
       , CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     )
-    RETURNING id, namespace_id
   `;
 
-  const inserted = await pool.query(insertQuery, [
-    data.namespaceId,
+  await pool.query(insertQuery, [
+    data.organizationId,
+    data.prefix,
     data.localName,
-    data.displayNameJa ?? null,
-    data.displayNameEn ?? null,
+    data.displayName ?? null,
     data.description ?? null,
     data.typeHint ?? null,
     data.unitHint ?? null,
   ]);
 
-  const { id } = inserted.rows[0];
-
-  // 登録後、JOIN してフロントエンド用フォーマットで返す
+  // 登録後、フロントエンド用フォーマットで返す
   const selectQuery = `
     SELECT
-      t.id
-      , n.prefix || ':' || t.local_name AS qname
-      , n.prefix                         AS prefix
-      , t.local_name                     AS "localName"
-      , COALESCE(t.display_name_ja, '')  AS "displayName"
-      , COALESCE(t.display_name_en, '')  AS "displayNameEn"
-      , COALESCE(t.description, '')      AS description
+      t.prefix || ':' || t.local_name  AS qname
+      , t.prefix                        AS prefix
+      , t.local_name                    AS "localName"
+      , COALESCE(t.display_name, '')    AS "displayName"
+      , COALESCE(t.description, '')     AS description
       , COALESCE(t.type_hint, 'stringType') AS type
-      , COALESCE(t.unit_hint, '')        AS "unitHint"
+      , COALESCE(t.unit_hint, '')       AS "unitHint"
     FROM namespace_term t
-    INNER JOIN namespace n ON t.namespace_id = n.id
-    WHERE t.id = $1
+    WHERE t.organization_id = $1
+      AND t.prefix = $2
+      AND t.local_name = $3
   `;
 
-  const result = await pool.query(selectQuery, [id]);
+  const result = await pool.query(selectQuery, [
+    data.organizationId,
+    data.prefix,
+    data.localName,
+  ]);
   return result.rows[0];
 }
 
 /**
  * namespace_term を更新（UPDATE）
  *
- * @param id - 対象の用語ID
+ * @param organizationId - 組織ID
+ * @param prefix - 名前空間の接頭辞
+ * @param localName - ローカル名
  * @param data - 更新するフィールド
- * @returns 更新後の用語（フロントエンド用に整形済み）
+ * @returns 更新後の用語（フロントエンド用に整形済み）、対象なしの場合は null
  */
 export async function update(
-  id: string,
+  organizationId: string,
+  prefix: string,
+  localName: string,
   data: {
-    localName?: string;
-    displayNameJa?: string;
-    displayNameEn?: string;
+    displayName?: string;
     description?: string;
     typeHint?: string;
     unitHint?: string;
@@ -187,22 +192,21 @@ export async function update(
 
   const updateQuery = `
     UPDATE namespace_term SET
-      local_name       = COALESCE($2, local_name)
-      , display_name_ja = $3
-      , display_name_en = $4
-      , description     = $5
-      , type_hint       = $6
-      , unit_hint       = $7
-      , update_at       = CURRENT_TIMESTAMP
-    WHERE id = $1
-    RETURNING id
+      display_name  = $4
+      , description = $5
+      , type_hint   = $6
+      , unit_hint   = $7
+      , update_at   = CURRENT_TIMESTAMP
+    WHERE organization_id = $1
+      AND prefix = $2
+      AND local_name = $3
   `;
 
   const result = await pool.query(updateQuery, [
-    id,
-    data.localName ?? null,
-    data.displayNameJa ?? null,
-    data.displayNameEn ?? null,
+    organizationId,
+    prefix,
+    localName,
+    data.displayName ?? null,
     data.description ?? null,
     data.typeHint ?? null,
     data.unitHint ?? null,
@@ -210,43 +214,53 @@ export async function update(
 
   if (result.rowCount === 0) return null;
 
-  // 更新後、JOIN してフロントエンド用フォーマットで返す
+  // 更新後、フロントエンド用フォーマットで返す
   const selectQuery = `
     SELECT
-      t.id
-      , n.prefix || ':' || t.local_name AS qname
-      , n.prefix                         AS prefix
-      , t.local_name                     AS "localName"
-      , COALESCE(t.display_name_ja, '')  AS "displayName"
-      , COALESCE(t.display_name_en, '')  AS "displayNameEn"
-      , COALESCE(t.description, '')      AS description
+      t.prefix || ':' || t.local_name  AS qname
+      , t.prefix                        AS prefix
+      , t.local_name                    AS "localName"
+      , COALESCE(t.display_name, '')    AS "displayName"
+      , COALESCE(t.description, '')     AS description
       , COALESCE(t.type_hint, 'stringType') AS type
-      , COALESCE(t.unit_hint, '')        AS "unitHint"
+      , COALESCE(t.unit_hint, '')       AS "unitHint"
     FROM namespace_term t
-    INNER JOIN namespace n ON t.namespace_id = n.id
-    WHERE t.id = $1
+    WHERE t.organization_id = $1
+      AND t.prefix = $2
+      AND t.local_name = $3
   `;
 
-  const updated = await pool.query(selectQuery, [id]);
+  const updated = await pool.query(selectQuery, [organizationId, prefix, localName]);
   return updated.rows[0] ?? null;
 }
 
 /**
  * namespace_term を削除（DELETE）
  *
- * @param id - 対象の用語ID
+ * @param organizationId - 組織ID
+ * @param prefix - 名前空間の接頭辞
+ * @param localName - ローカル名
  * @returns 削除件数（0 = 対象なし）
  */
-export async function remove(id: string): Promise<number> {
+export async function remove(
+  organizationId: string,
+  prefix: string,
+  localName: string
+): Promise<number> {
   const pool = getPool();
 
-  const query = `DELETE FROM namespace_term WHERE id = $1`;
-  const result = await pool.query(query, [id]);
+  const query = `
+    DELETE FROM namespace_term
+    WHERE organization_id = $1
+      AND prefix = $2
+      AND local_name = $3
+  `;
+  const result = await pool.query(query, [organizationId, prefix, localName]);
   return result.rowCount ?? 0;
 }
 
 /**
- * 全組織の全用語を namespace テーブルと JOIN して取得（認証なし用）
+ * 全組織の全用語を取得（認証なし用・開発時のみ使用）
  *
  * @returns 用語一覧（フロントエンド用に整形済み）
  */
@@ -255,18 +269,15 @@ export async function findAll(): Promise<NamespaceTermRow[]> {
 
   const query = `
     SELECT
-      t.id
-      , n.prefix || ':' || t.local_name AS qname
-      , n.prefix                         AS prefix
-      , t.local_name                     AS "localName"
-      , COALESCE(t.display_name_ja, '')  AS "displayName"
-      , COALESCE(t.display_name_en, '')  AS "displayNameEn"
-      , COALESCE(t.description, '')      AS description
+      t.prefix || ':' || t.local_name  AS qname
+      , t.prefix                        AS prefix
+      , t.local_name                    AS "localName"
+      , COALESCE(t.display_name, '')    AS "displayName"
+      , COALESCE(t.description, '')     AS description
       , COALESCE(t.type_hint, 'stringType') AS type
-      , COALESCE(t.unit_hint, '')        AS "unitHint"
+      , COALESCE(t.unit_hint, '')       AS "unitHint"
     FROM namespace_term t
-    INNER JOIN namespace n ON t.namespace_id = n.id
-    ORDER BY n.prefix ASC, t.local_name ASC
+    ORDER BY t.prefix ASC, t.local_name ASC
   `;
 
   const result = await pool.query(query);
