@@ -261,8 +261,16 @@ const MOCK_DIALOG_DATA: Record<string, {
 }> = {
   'method_SampleSynthesis_a1b2c3d4': {
     transitions: [
-      { id: 'transition-1781057805603', name: '混合' },
+      // 並列グループ1（混合A・混合Bは互いに入れ替え可能）
+      { id: 'transition-1781057805603', name: '混合A' },
+      { id: 'transition-1781057805604', name: '混合B' },
+      // 固定（混合A/B の後に必ず実行）
       { id: 'transition-1781057812047', name: '加熱' },
+      // 並列グループ2（冷却A・冷却Bは互いに入れ替え可能）
+      { id: 'transition-1781057820001', name: '冷却A' },
+      { id: 'transition-1781057820002', name: '冷却B' },
+      // 固定（冷却A/B の後に必ず最後に実行）
+      { id: 'transition-1781057820003', name: '測定' },
     ],
     templates: [
       {

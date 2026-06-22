@@ -28,6 +28,7 @@ import {
   App,
   Spin,
   Empty,
+  Checkbox,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
@@ -37,8 +38,11 @@ import {
   FilterOutlined,
   EditOutlined,
   MoreOutlined,
+  SettingOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons';
 import ExperimentPlanDialog from './ExperimentPlanDialog';
+import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import {
   getExperimentInstructions,
   getProjectMethods,
@@ -49,6 +53,7 @@ import type {
   ExperimentInstruction,
   ProjectMethod,
 } from '@/types/experimentInstruction';
+import type { ProjectFile } from '@/types/file';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -133,6 +138,28 @@ const INITIAL_FILTER: FilterState = {
   templateName: null,
   propKey: null,
 };
+
+// ─────────────────────────────────────────────────────────────
+// 列カスタマイズ定数
+// ─────────────────────────────────────────────────────────────
+
+/** 固定列キー（非表示にできない列） */
+const FIXED_COLUMN_KEYS = ['taskNumber', 'propKey', 'actions'] as const;
+
+/** 切替可能な列の定義 */
+const TOGGLEABLE_COLUMN_DEFS: { key: string; label: string }[] = [
+  { key: 'methodName',    label: 'メソッド名' },
+  { key: 'transitionName', label: 'トランジション名' },
+  { key: 'templateName', label: 'テンプレート名' },
+  { key: 'xsiType',      label: 'xsi:type' },
+  { key: 'expected',     label: '想定値' },
+  { key: 'actual',       label: '実績値' },
+  { key: 'diff',         label: '差分' },
+  { key: 'taskStatus',   label: 'ステータス' },
+];
+
+/** デフォルトで表示するすべての列キー */
+const ALL_COLUMN_KEYS = TOGGLEABLE_COLUMN_DEFS.map((d) => d.key);
 
 // ─────────────────────────────────────────────────────────────
 // ユーティリティ
@@ -265,6 +292,17 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   const [planDialogOpen, setPlanDialogOpen]       = useState(false);
   const [planDialogMethodId, setPlanDialogMethodId] = useState<string>('');
 
+  // ── 列カスタマイズ ──
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>([...ALL_COLUMN_KEYS]);
+  const [columnDropdownOpen, setColumnDropdownOpen] = useState(false);
+
+  // ── ペトリネットビューア（ViewRendererDialog）──
+  const [viewerDialogs, setViewerDialogs] = useState<{
+    id: string;
+    file: ProjectFile;
+    zIndex: number;
+  }[]>([]);
+
   // ─────────────────────────────────────────────────────────
   // データ取得
   // ─────────────────────────────────────────────────────────
@@ -364,11 +402,45 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   }, [methods]);
 
   // ─────────────────────────────────────────────────────────
-  // テーブルカラム定義
+  // ペトリネットビューアを開く / 閉じる / フォーカス
   // ─────────────────────────────────────────────────────────
 
-  const columns: ColumnsType<FlatRow> = useMemo(() => [
+  const handleOpenPetriNetViewer = useCallback(() => {
+    if (!projectName) return;
+    const file: ProjectFile = {
+      id: `${projectName}.maiml`,
+      name: `${projectName}.maiml`,
+      path: `${projectName}/${projectName}.maiml`,
+      size: 0,
+      lastModified: '',
+      type: 'maiml',
+    };
+    setViewerDialogs((prev) => [
+      ...prev,
+      { id: `viewer_${Date.now()}`, file, zIndex: 1000 + prev.length },
+    ]);
+  }, [projectName]);
+
+  const handleCloseViewer = useCallback((id: string) => {
+    setViewerDialogs((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+
+  const handleFocusViewer = useCallback((id: string) => {
+    setViewerDialogs((prev) => {
+      const maxZ = Math.max(...prev.map((d) => d.zIndex), 999);
+      return prev.map((d) => (d.id === id ? { ...d, zIndex: maxZ + 1 } : d));
+    });
+  }, []);
+
+  // ─────────────────────────────────────────────────────────
+  // テーブルカラム全定義
+  // ─────────────────────────────────────────────────────────
+
+  /** 全列の定義（固定列 + 切替可能列をすべて含む） */
+  const allColumnDefs: ColumnsType<FlatRow> = useMemo(() => [
+    // ──── 固定列（常に表示） ────
     {
+      key: 'taskNumber',
       title: 'タスクNo',
       dataIndex: 'taskNumber',
       width: 80,
@@ -377,28 +449,50 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       render: (v: number) => <Text strong>#{v}</Text>,
     },
     {
-      title: 'メソッドID',
-      dataIndex: 'methodId',
+      key: 'propKey',
+      title: 'Key',
+      dataIndex: 'propKey',
+      width: 160,
+      ellipsis: { showTitle: false },
+      render: (v: string) => (
+        <Tooltip title={v} placement="topLeft">
+          <Text code style={{ fontSize: 11 }}>{v}</Text>
+        </Tooltip>
+      ),
+    },
+    // ──── 切替可能列 ────
+    {
+      key: 'methodName',
+      title: 'メソッド名',
+      dataIndex: 'methodName',
       width: 190,
       ellipsis: { showTitle: false },
-      render: (v: string) => (
-        <Tooltip title={v} placement="topLeft">
-          <Text code style={{ fontSize: 11 }}>{v}</Text>
-        </Tooltip>
-      ),
+      render: (v: string, r: FlatRow) => {
+        const display = v || r.methodId;
+        return (
+          <Tooltip title={display} placement="topLeft">
+            <Text style={{ fontSize: 12 }}>{display}</Text>
+          </Tooltip>
+        );
+      },
     },
     {
-      title: 'トランジションID',
-      dataIndex: 'transitionId',
+      key: 'transitionName',
+      title: 'トランジション名',
+      dataIndex: 'transitionName',
       width: 180,
       ellipsis: { showTitle: false },
-      render: (v: string) => (
-        <Tooltip title={v} placement="topLeft">
-          <Text code style={{ fontSize: 11 }}>{v}</Text>
-        </Tooltip>
-      ),
+      render: (v: string, r: FlatRow) => {
+        const display = v || r.transitionId;
+        return (
+          <Tooltip title={display} placement="topLeft">
+            <Text style={{ fontSize: 12 }}>{display}</Text>
+          </Tooltip>
+        );
+      },
     },
     {
+      key: 'templateName',
       title: 'テンプレート名',
       dataIndex: 'templateName',
       width: 180,
@@ -410,17 +504,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       ),
     },
     {
-      title: 'Key',
-      dataIndex: 'propKey',
-      width: 160,
-      ellipsis: { showTitle: false },
-      render: (v: string) => (
-        <Tooltip title={v} placement="topLeft">
-          <Text code style={{ fontSize: 11 }}>{v}</Text>
-        </Tooltip>
-      ),
-    },
-    {
+      key: 'xsiType',
       title: 'xsi:type',
       dataIndex: 'xsiType',
       width: 75,
@@ -434,6 +518,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       ),
     },
     {
+      key: 'expected',
       title: '想定値',
       dataIndex: 'expected',
       width: 100,
@@ -443,18 +528,21 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       ),
     },
     {
+      key: 'actual',
       title: '実績値',
       width: 100,
       align: 'right' as const,
       render: (_: unknown, r: FlatRow) => <ActualCell actual={r.actual} unit={r.unit} />,
     },
     {
+      key: 'diff',
       title: '差分',
       width: 85,
       align: 'right' as const,
       render: (_: unknown, r: FlatRow) => <DiffCell expected={r.expected} actual={r.actual} />,
     },
     {
+      key: 'taskStatus',
       title: 'ステータス',
       dataIndex: 'taskStatus',
       width: 110,
@@ -464,7 +552,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         return <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag>;
       },
     },
+    // ──── 固定列（常に末尾に表示） ────
     {
+      key: 'actions',
       title: '操作',
       width: 60,
       align: 'center' as const,
@@ -503,6 +593,48 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
   ], []);
 
+  /**
+   * visibleColumnKeys に応じてフィルタリングされたカラム配列
+   * 固定列は常に含め、切替可能列のみ表示/非表示を切り替える
+   */
+  const columns = useMemo(() => {
+    return allColumnDefs.filter((col) => {
+      const key = col.key as string;
+      if ((FIXED_COLUMN_KEYS as readonly string[]).includes(key)) return true;
+      return visibleColumnKeys.includes(key);
+    });
+  }, [allColumnDefs, visibleColumnKeys]);
+
+  /** 列カスタマイズ Dropdown のメニューアイテム */
+  const columnMenuItems: MenuProps['items'] = useMemo(() => [
+    ...TOGGLEABLE_COLUMN_DEFS.map(({ key, label }) => ({
+      key,
+      label: (
+        <Checkbox
+          checked={visibleColumnKeys.includes(key)}
+          onChange={(e) => {
+            setVisibleColumnKeys((prev) =>
+              e.target.checked ? [...prev, key] : prev.filter((k) => k !== key)
+            );
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {label}
+        </Checkbox>
+      ),
+    })),
+    { type: 'divider' as const },
+    {
+      key: '__reset__',
+      label: (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          デフォルトに戻す
+        </Text>
+      ),
+      onClick: () => setVisibleColumnKeys([...ALL_COLUMN_KEYS]),
+    },
+  ], [visibleColumnKeys]);
+
   // ─────────────────────────────────────────────────────────
   // レンダリング
   // ─────────────────────────────────────────────────────────
@@ -518,6 +650,25 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         >
           実験指示を編集
         </Button>
+        <Button
+          size="small"
+          icon={<FileSearchOutlined />}
+          onClick={handleOpenPetriNetViewer}
+          disabled={!projectName}
+        >
+          ペトリネットを表示
+        </Button>
+        <Dropdown
+          menu={{ items: columnMenuItems }}
+          trigger={['click']}
+          open={columnDropdownOpen}
+          onOpenChange={setColumnDropdownOpen}
+          placement="bottomRight"
+        >
+          <Button size="small" icon={<SettingOutlined />}>
+            列を選択 ▾
+          </Button>
+        </Dropdown>
       </Flex>
 
       {/* ── フィルタバー ── */}
@@ -633,6 +784,19 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           }}
         />
       )}
+
+      {/* ── ペトリネットビューア（ViewRendererDialog / フローティング） ── */}
+      {viewerDialogs.map((dialog) => (
+        <ViewRendererDialog
+          key={dialog.id}
+          id={dialog.id}
+          contentType="file"
+          file={dialog.file}
+          zIndex={dialog.zIndex}
+          onClose={handleCloseViewer}
+          onFocus={handleFocusViewer}
+        />
+      ))}
     </Flex>
   );
 };

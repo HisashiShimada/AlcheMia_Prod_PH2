@@ -1,0 +1,17 @@
+{
+  "detail": {
+    "qname": "CorpA:SampleID",
+    "localName": "SampleID",
+    "namespacePrefix": "CorpA",
+    "namespaceUri": "https://www.corpa.co.jp/",
+    "level": "organization",
+    "displayNameJa": "サンプルID",
+    "displayNameEn": "Sample Identifier",
+    "description": "サンプル識別子。実験プロトコルにて一意に識別。",
+    "typeHint": "stringType",
+    "unitHint": null,
+    "createdAt": "2026-04-15 10:30",
+    "updatedAt": "2026-05-01 09:15"
+  },
+  "xmlPreview": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<maiml version=\"1.0\"\n  xmlns=\"http://www.maiml.org/schemas\"\n  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n  xmlns:CorpA=\"https://www.corpa.co.jp/\"\n  xmlns:LabA=\"https://www.corpa.co.jp/lab-a/\"\n  xmlns:MyWord=\"https://orcid.org/0000-0002-2494-9603\"\n  xsi:type=\"maimlRootType\">"
+}

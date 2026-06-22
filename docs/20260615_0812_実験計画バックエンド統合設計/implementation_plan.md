@@ -91,8 +91,8 @@ export interface TransitionPlanValues {
   [templateId: string]: { [fieldKey: string]: string } | string[] | string | undefined;
 }
 
-// --- template_values 全体型（TransitionID をトップレベルキーとする） ---
-export interface ExperimentPlanTemplateValues {
+// --- planned_values 全体型（TransitionID をトップレベルキーとする） ---
+export interface ExperimentPlanPlannedValues {
   [transitionId: string]: TransitionPlanValues;
 }
 
@@ -102,7 +102,7 @@ export interface ExperimentPlanRow {
   project_id:       string;
   method_id:        string;
   task_number:      number;
-  template_values:  ExperimentPlanTemplateValues;
+  planned_values:  ExperimentPlanPlannedValues;
   create_user_id:   string | null;
   create_at:        Date;
   update_user_id:   string | null;
@@ -111,13 +111,13 @@ export interface ExperimentPlanRow {
 
 // --- APIリクエスト型 ---
 export interface UpsertExperimentPlanRequest {
-  templateValues: ExperimentPlanTemplateValues;
+  plannedValues: ExperimentPlanPlannedValues;
 }
 
 // --- APIレスポンス型（単一タブ） ---
 export interface ExperimentPlanResponse {
-  taskNumber:     number;
-  templateValues: ExperimentPlanTemplateValues;
+  taskNumber:    number;
+  plannedValues: ExperimentPlanPlannedValues;
   createdAt:      string;
   updatedAt:      string;
 }
@@ -261,7 +261,7 @@ deleteExperimentPlans(
 SELECT
   ep.method_id,
   ep.task_number,
-  ep.template_values   AS planned_values,
+  ep.planned_values,
   ep.notes             AS planned_notes,
   td.template_id,
   td.property_set      AS actual_values,
@@ -366,7 +366,7 @@ if (plans.length > 0) {
 
 ```typescript
 /**
- * experiment_plan の template_values を MAIML の property に書き込む
+ * experiment_plan の planned_values を MAIML の property に書き込む
  *
  * 書き込み形式:
  *   <property key="mgr-instruction:{fieldKey}">
@@ -468,7 +468,7 @@ writeToMaiml(
 
 ### API実装上の注意
 - `taskNumber` はURLパスパラメータとして受け取り、`parseInt()` で変換
-- JSONB型カラム（`notes`, `template_values`）はそのままJSONとして返却
+- JSONB型カラム（`planned_values`）はそのままJSONとして返却
 - `text[]` 型カラム（配列）はそのまま配列として返却
 
 ### セキュリティ注意

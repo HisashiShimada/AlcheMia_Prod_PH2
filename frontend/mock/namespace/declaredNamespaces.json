@@ -1,0 +1,8 @@
+[
+  { "key": "ns-maiml",       "prefix": "maiml",       "uri": "http://www.maiml.org/schemas",                  "order": 1, "auto": true  },
+  { "key": "ns-xsi",         "prefix": "xsi",         "uri": "http://www.w3.org/2001/XMLSchema-instance",     "order": 2, "auto": true  },
+  { "key": "ns-corpa",       "prefix": "CorpA",       "uri": "https://www.corpa.co.jp/",                      "order": 3, "auto": true  },
+  { "key": "ns-rd",          "prefix": "rd",          "uri": "https://www.corpa.co.jp/rd/",                   "order": 4, "auto": true  },
+  { "key": "ns-materials",   "prefix": "materials",   "uri": "https://www.corpa.co.jp/rd/materials/",         "order": 5, "auto": true  },
+  { "key": "ns-myword",      "prefix": "MyWord",      "uri": "https://orcid.org/0000-0002-2494-9603",         "order": 6, "auto": true  }
+]

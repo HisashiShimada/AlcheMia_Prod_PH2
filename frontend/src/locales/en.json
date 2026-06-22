@@ -105,7 +105,8 @@
       "tabs": {
         "projectManagement": "Project Management",
         "formatManagement": "Format Management",
-        "progressMonitoring": "Progress Monitoring"
+        "progressMonitoring": "Progress Monitoring",
+        "templateManagement": "Evaluation Criteria Management"
       }
     },
     "experiment_worker": {
@@ -115,6 +116,7 @@
         "workInstruction": "Instruction Confirmation",
         "experimentRecord": "Experiment Record",
         "progressCheck": "Progress Check",
+        "uncertaintyRecord": "Uncertainty Record",
         "maimlViewer": "MAIML Viewer",
         "fileUpload": "File Upload",
         "progressReport": "Progress Report",
@@ -520,7 +522,8 @@
       "file_management": "File Management",
       "task_registration": "Task Registration",
       "instruction_registration": "Instruction List",
-      "task_results": "Task Results"
+      "task_results": "Experiment Instructions",
+      "uncertainty_approval": "Uncertainty Approval"
     },
     "task_results": {
       "no_project_selected": "Please select a project",
@@ -2750,6 +2753,50 @@
     "attachmentUploadError": "Failed to upload attachment (#{number})",
     "fileUploadError": "Failed to upload file: {key}",
     "updateError": "Failed to update: {message}"
+  },
+  "uncertaintyApproval": {
+    "filter": {
+      "file": "File",
+      "assignee": "Assignee",
+      "assignedDate": "Assigned Date",
+      "approvalStatus": "Approval Status",
+      "all": "All",
+      "clearFilters": "Clear Filters",
+      "search": "Search"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "column": {
+      "taskNumber": "Task No.",
+      "targetType": "Target",
+      "methodName": "Method Name",
+      "transitionName": "Transition Name",
+      "templateName": "Uncertainty Criteria",
+      "assignedValue": "Assigned Value",
+      "assignedBy": "Assigned By",
+      "assignedAt": "Date/Time",
+      "comment": "Comment",
+      "approvalStatus": "Approval Status",
+      "action": "Action"
+    },
+    "targetType": {
+      "material": "Material",
+      "condition": "Condition",
+      "result": "Result"
+    },
+    "action": {
+      "bulkApprove": "Bulk Approve",
+      "bulkReject": "Reject",
+      "markApproved": "Mark as Approved",
+      "approve": "Approve",
+      "reject": "Reject",
+      "resubmit": "Resubmit",
+      "detail": "Detail"
+    },
+    "totalCount": "Showing {from}-{to} of {total} items"
   },
   "codeMaster": {
     "checkout_status": {

@@ -302,7 +302,7 @@ export default function ExperimentWorkerMenu({
       ]
     : [];
 
-  // タブアイテムの定義（リデザイン後: 作業記録 / 全体進捗 の2タブ）
+  // タブアイテムの定義（リデザイン後: 作業記録 / 全体進捗 / 不確かさ記録 の3タブ）
   const tabItems = [
     {
       key: '3',

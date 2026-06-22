@@ -207,7 +207,19 @@
 
 ---
 
-### 7. 実験作業者用画面（Experiment Worker）
+### 7. 名前空間管理ツール画面（Namespace Management）
+
+**機能画面:**
+
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| NamespaceMain.tsx | 名前空間管理メイン | frontend/src/components/namespace/NamespaceMain.tsx | [ui_namespace_main.md](namespace_management/ui_namespace_main.md) | 3ペイン構成のメイン画面（名前空間ツリー / 用語リスト / 詳細表示・XMLプレビュー） |
+| NamespaceAddDialog.tsx | 名前空間追加ダイアログ | frontend/src/components/namespace/NamespaceAddDialog.tsx | [ui_namespace_add_dialog.md](namespace_management/ui_namespace_add_dialog.md) | 名前空間追加モーダルダイアログ（グローバル / 組織 / 個人レベル対応） |
+| NamespaceMaimlEditor.tsx | MaiMLファイルエディター | frontend/src/components/namespace/NamespaceMaimlEditor.tsx | [ui_namespace_maiml_editor.md](namespace_management/ui_namespace_maiml_editor.md) | MaiMLファイルのxmlns宣言を管理するエディター（ドラッグ＆ドロップ対応） |
+
+---
+
+### 8. 実験作業者用画面（Experiment Worker）
 
 **メニュー:**
 

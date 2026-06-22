@@ -1,0 +1,111 @@
+[
+  {
+    "key": "global",
+    "title": "グローバル（Global）",
+    "prefix": "",
+    "uri": "",
+    "level": "global",
+    "termCount": 0,
+    "icon": "🌐",
+    "children": [
+      {
+        "key": "ns-maiml",
+        "title": "maiml  http://maiml.org/schemas  [12]",
+        "prefix": "maiml",
+        "uri": "http://maiml.org/schemas",
+        "level": "global",
+        "termCount": 12,
+        "icon": "📜"
+      },
+      {
+        "key": "ns-xsi",
+        "title": "xsi  http://www.w3.org/2001/XMLSchema-instance  [3]",
+        "prefix": "xsi",
+        "uri": "http://www.w3.org/2001/XMLSchema-instance",
+        "level": "global",
+        "termCount": 3,
+        "icon": "📜"
+      },
+      {
+        "key": "ns-qudt",
+        "title": "qudt  https://qudt.org/schema/qudt/  [24]",
+        "prefix": "qudt",
+        "uri": "https://qudt.org/schema/qudt/",
+        "level": "global",
+        "termCount": 24,
+        "icon": "📜"
+      }
+    ]
+  },
+  {
+    "key": "organization",
+    "title": "組織 (Organization) [8]",
+    "prefix": "",
+    "uri": "",
+    "level": "organization",
+    "termCount": 0,
+    "icon": "🏢",
+    "children": [
+      {
+        "key": "ns-corpa",
+        "title": "CorpA  https://www.corpa.co.jp/",
+        "prefix": "CorpA",
+        "uri": "https://www.corpa.co.jp/",
+        "level": "organization",
+        "termCount": 0,
+        "icon": "🏢",
+        "children": [
+          {
+            "key": "ns-laba",
+            "title": "LabA  https://corpa.co.jp/lab/  [5]",
+            "prefix": "LabA",
+            "uri": "https://corpa.co.jp/lab/",
+            "level": "organization",
+            "termCount": 5,
+            "icon": "🔬",
+            "children": [
+              {
+                "key": "ns-teamx",
+                "title": "TeamX  https://corpa.co.jp/lab/team-x/  [3]",
+                "prefix": "TeamX",
+                "uri": "https://corpa.co.jp/lab/team-x/",
+                "level": "organization",
+                "termCount": 3,
+                "icon": "⚙️"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "personal",
+    "title": "個人 (Personal) [7]",
+    "prefix": "",
+    "uri": "",
+    "level": "personal",
+    "termCount": 0,
+    "icon": "👤",
+    "children": [
+      {
+        "key": "ns-myword",
+        "title": "MyWord  https://orcid.org/0000-0002-2494-9603",
+        "prefix": "MyWord",
+        "uri": "https://orcid.org/0000-0002-2494-9603",
+        "level": "personal",
+        "termCount": 0,
+        "icon": "🙋"
+      },
+      {
+        "key": "ns-johndoe",
+        "title": "JohnDoe  https://example-univ.ac.jp/~johndoe  [2]",
+        "prefix": "JohnDoe",
+        "uri": "https://example-univ.ac.jp/~johndoe",
+        "level": "personal",
+        "termCount": 2,
+        "icon": "🙋"
+      }
+    ]
+  }
+]

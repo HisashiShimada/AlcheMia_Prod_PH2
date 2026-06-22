@@ -39,6 +39,7 @@ import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
 import ExperimentInstructionTab from './ExperimentInstructionTab';
+import UncertaintyApprovalTab from './UncertaintyApprovalTab';
 import CreateProjectModal from './CreateProjectModal';
 import type { CreateProjectData } from '@/types/project';
 import RenameProjectModal from './RenameProjectModal';
@@ -2266,8 +2267,17 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     ),
                   },
                   {
-                    key: 'experiment_instruction',
-                    label: '実験指示',
+                    key: 'uncertainty_approval',
+                    label: t('projectManagement.tabs.uncertainty_approval'),
+                    children: (
+                      <UncertaintyApprovalTab
+                        projectId={selectedProject.id}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'task_results',
+                    label: t('projectManagement.tabs.task_results'),
                     children: (
                       <div style={{ height: '100%', padding: '4px 0' }}>
                         <ExperimentInstructionTab

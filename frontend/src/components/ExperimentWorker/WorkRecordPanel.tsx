@@ -8,6 +8,9 @@
  *
  * フェーズA: モックデータのまま動作確認。
  * フェーズB: props 経由で実 API データに差し替え。
+ *
+ * 【実績値入力フロー】
+ * 実績値入力 →「保存して次へ」→ 次テンプレート実績値入力 or 次トランジション
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -34,7 +37,16 @@ import {
   Typography,
   theme,
 } from 'antd';
-import { PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import {
+  CommentOutlined,
+  PlusOutlined,
+  RightOutlined,
+  SearchOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+import ExperimentCommentDialog from './ExperimentCommentDialog';
+import UncertaintyCriteriaSelectorModal from '../uncertainty/UncertaintyCriteriaSelectorModal';
+import type { TargetProperty, AssignPayload } from '../uncertainty/UncertaintyCriteriaSelectorModal';
 
 const { Sider, Content } = Layout;
 
@@ -98,12 +110,12 @@ const PROJECT_NAME = 'SampleSynthesis';
 const METHOD_A_ID = `method_${PROJECT_NAME}_a1b2c3d4`;
 const METHOD_B_ID = `method_${PROJECT_NAME}_e5f6a7b8`;
 
-const MOCK_METHODS: MockMethod[] = [
+export const MOCK_METHODS: MockMethod[] = [
   { id: METHOD_A_ID, order: 1 },
   { id: METHOD_B_ID, order: 2 },
 ];
 
-const MOCK_TRANSITIONS: MockTransition[] = [
+export const MOCK_TRANSITIONS: MockTransition[] = [
   {
     id: 'transition-1781057805603',
     order: 1,
@@ -262,9 +274,12 @@ interface PropertyCardProps {
   actual: number | string | null;
   readOnly: boolean;
   onChange: (key: string, value: number | string | null) => void;
+  onOpenUncertainty: (prop: MockProperty) => void;
 }
 
-const PropertyCard: React.FC<PropertyCardProps> = ({ prop, actual, readOnly, onChange }) => (
+const PropertyCard: React.FC<PropertyCardProps> = ({
+  prop, actual, readOnly, onChange, onOpenUncertainty,
+}) => (
   <Card
     size="small"
     style={{
@@ -273,13 +288,19 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ prop, actual, readOnly, onC
       background: readOnly ? '#fafafa' : '#ffffff',
     }}
   >
-    {/* プロパティ情報（最上部） */}
+    {/* プロパティ情報（最上部）*/}
     <Flex align="center" gap={6} style={{ marginBottom: 6 }}>
       <Text strong style={{ fontSize: 13 }}>{prop.label}</Text>
       <Tag color={XSI_COLOR[prop.xsiType] ?? 'default'} style={{ fontSize: 11, margin: 0, lineHeight: '18px' }}>
         {XSI_SHORT[prop.xsiType] ?? prop.xsiType}
       </Tag>
       <Text type="secondary" style={{ fontSize: 11 }}>({prop.key})</Text>
+      {/* 不確かさ選択ボタン（右上） */}
+      {!readOnly && (
+        <Button type="primary" size="small" style={{ marginLeft: 'auto' }} onClick={() => onOpenUncertainty(prop)}>
+          不確かさ選択
+        </Button>
+      )}
     </Flex>
 
     {/* カラムヘッダー */}
@@ -344,6 +365,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ prop, actual, readOnly, onC
         </div>
       </Col>
     </Row>
+
   </Card>
 );
 
@@ -362,6 +384,8 @@ interface PropertyListProps {
   onSave: (taskNo: number, transitionId: string) => void;
   onSaveAndNext: (taskNo: number, transitionId: string) => void;
   onTemplateIdxChange: (idx: number) => void;
+  /** コメントボタンクリック時のコールバック */
+  onCommentClick: () => void;
 }
 
 const PropertyList: React.FC<PropertyListProps> = ({
@@ -375,7 +399,19 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onSave,
   onSaveAndNext,
   onTemplateIdxChange,
+  onCommentClick,
 }) => {
+  // ─── 不確かさ選択モーダル state ───────────────────────────
+  const [uncertaintyTarget, setUncertaintyTarget] = useState<MockProperty | null>(null);
+
+  const handleOpenUncertainty = useCallback((prop: MockProperty) => {
+    setUncertaintyTarget(prop);
+  }, []);
+
+  const handleAssignUncertainty = useCallback((_payload: AssignPayload) => {
+    setUncertaintyTarget(null);
+  }, []);
+
   if (!template) {
     return (
       <Flex justify="center" align="center" style={{ height: 200 }}>
@@ -383,6 +419,23 @@ const PropertyList: React.FC<PropertyListProps> = ({
       </Flex>
     );
   }
+
+  /** 「保存して次へ」: 次テンプレートへ進むか、トランジションを完了する */
+  const handleSaveAndNext = () => {
+    if (!displayKey) return;
+    const nextTemplateIdx = templateIdx + 1;
+    if (nextTemplateIdx < templateCount) {
+      onTemplateIdxChange(nextTemplateIdx);
+    } else {
+      onSaveAndNext(displayKey.taskNo, displayKey.transitionId);
+    }
+  };
+
+  const isLastTemplate = templateIdx === templateCount - 1;
+  const nextLabel = isLastTemplate
+    ? 'トランジション完了して次へ'
+    : `次のテンプレートへ (${templateIdx + 2}/${templateCount})`;
+
   return (
     <>
       <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
@@ -403,10 +456,29 @@ const PropertyList: React.FC<PropertyListProps> = ({
               onChange={(key, value) => {
                 if (displayKey) onActualChange(displayKey.taskNo, displayKey.transitionId, key, value);
               }}
+              onOpenUncertainty={handleOpenUncertainty}
             />
           </Col>
         ))}
       </Row>
+
+      {/* 不確かさ選択モーダル */}
+      {uncertaintyTarget && (
+        <UncertaintyCriteriaSelectorModal
+          open={true}
+          targetProperty={{
+            name: uncertaintyTarget.label,
+            xpath: uncertaintyTarget.key,
+            tag: 'property',
+            type: uncertaintyTarget.xsiType.replace('Value', ''),
+            value: '',
+            unit: uncertaintyTarget.unit,
+            section: 'condition',
+          }}
+          onClose={() => setUncertaintyTarget(null)}
+          onAssign={handleAssignUncertainty}
+        />
+      )}
 
       {/* 追加ボタン群（DataRecordDialog 準拠） */}
       {!isReadOnly && (
@@ -426,18 +498,22 @@ const PropertyList: React.FC<PropertyListProps> = ({
       {/* 保存ボタン */}
       {!isReadOnly && displayKey && (
         <Flex justify="flex-end" gap={8} style={{ marginTop: 12, paddingBottom: 8 }}>
+          {/* コメントボタン（保存ボタンの左側） */}
+          <Button
+            icon={<CommentOutlined />}
+            onClick={onCommentClick}
+          >
+            コメント
+          </Button>
           <Button onClick={() => onSave(displayKey.taskNo, displayKey.transitionId)}>
             保存
           </Button>
           <Button
             type="primary"
             icon={<RightOutlined />}
-            onClick={() => {
-              onTemplateIdxChange(0);
-              onSaveAndNext(displayKey.taskNo, displayKey.transitionId);
-            }}
+            onClick={handleSaveAndNext}
           >
-            保存して次へ
+            {nextLabel}
           </Button>
         </Flex>
       )}
@@ -577,6 +653,8 @@ interface PlanProps {
   onSave: (taskNo: number, transitionId: string) => void;
   onSaveAndNext: (taskNo: number, transitionId: string) => void;
   onClearViewing: () => void;
+  /** コメントボタンクリック時のコールバック */
+  onCommentClick: () => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -584,7 +662,7 @@ interface PlanProps {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanA: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing,
+  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onCommentClick,
 }) => {
   const [templateIdx, setTemplateIdx] = useState(0);
 
@@ -647,6 +725,7 @@ const PlanA: React.FC<PlanProps> = ({
           onSave={onSave}
           onSaveAndNext={onSaveAndNext}
           onTemplateIdxChange={setTemplateIdx}
+          onCommentClick={onCommentClick}
         />
       </div>
     </Flex>
@@ -658,7 +737,7 @@ const PlanA: React.FC<PlanProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing,
+  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onCommentClick,
 }) => {
   const { token } = theme.useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -825,6 +904,7 @@ const PlanB: React.FC<PlanProps> = ({
             onSave={onSave}
             onSaveAndNext={onSaveAndNext}
             onTemplateIdxChange={(idx) => setSelectedTemplateId(visibleTemplates[idx]?.id ?? null)}
+            onCommentClick={onCommentClick}
           />
         </Content>
       </Layout>
@@ -898,6 +978,15 @@ export default function WorkRecordPanel() {
     [tasks]
   );
 
+  // ─── コメントダイアログ用 state ───────────────────────────
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+
+  // コメント保存ハンドラ（モック: 現フェーズはUIのみ、バックエンド保存は別フェーズ）
+  const handleSaveComment = useCallback((comment: string) => {
+    console.info('[WorkRecordPanel] コメント保存（モック）:', comment);
+    Modal.success({ title: 'コメントを保存しました', content: comment });
+  }, []);
+
   const planProps: PlanProps = {
     tasks,
     activeTaskNo: ASSIGNED_TASK_NO,
@@ -907,11 +996,35 @@ export default function WorkRecordPanel() {
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,
     onClearViewing: () => setViewingKey(null),
+    onCommentClick: () => setCommentDialogOpen(true),
   };
+
+  // コメントダイアログに渡す displayKey（現在表示中のキー）
+  const activeTaskEntry = (() => {
+    const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
+    if (!task) return null;
+    for (const tid of ORDERED_TRANSITION_IDS) {
+      const tt = task.transitions.find((x) => x.transitionId === tid);
+      if (tt && tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tid };
+    }
+    return null;
+  })();
+  const commentTarget = viewingKey ?? activeTaskEntry;
 
   return (
     <div style={{ flex: 1, minHeight: 0 }}>
       <PlanB {...planProps} />
+
+      {/* コメントダイアログ */}
+      {commentDialogOpen && commentTarget && (
+        <ExperimentCommentDialog
+          open={commentDialogOpen}
+          taskNo={commentTarget.taskNo}
+          transitionId={commentTarget.transitionId}
+          onClose={() => setCommentDialogOpen(false)}
+          onSave={handleSaveComment}
+        />
+      )}
     </div>
   );
 }

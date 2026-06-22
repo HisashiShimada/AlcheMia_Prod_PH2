@@ -25,6 +25,7 @@ import {
   RadiusSettingOutlined,
   SwapOutlined,
   CodeOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import {
   useAttributeDisplay,
@@ -73,6 +74,9 @@ export interface EditorToolbarProps {
   // ビューモード切替
   viewMode?: 'petriNet' | 'templates' | 'xml';
   onViewModeChange?: (mode: 'petriNet' | 'templates' | 'xml') => void;
+
+  // 名前空間エディターを開く（省略可能：渡された場合のみボタン表示）
+  onOpenNamespaceEditor?: () => void;
 }
 
 /**
@@ -109,6 +113,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   lastAutoSaveTime,
   viewMode,
   onViewModeChange,
+  onOpenNamespaceEditor,
 }) => {
   // テンプレートモード / XMLビューモード時はペトリネット編集ボタンを非活性化
   const { t } = useLanguage();
@@ -271,7 +276,21 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </Button>
       </Tooltip>
 
-      <Divider orientation="vertical" style={{ height: 24 }} />
+      {/* 名前空間エディターボタン（onOpenNamespaceEditor が渡された場合のみ表示） */}
+      {onOpenNamespaceEditor && (
+        <>
+          <Tooltip title="名前空間を編集">
+            <Button
+              size="small"
+              icon={<GlobalOutlined />}
+              onClick={onOpenNamespaceEditor}
+            >
+              名前空間
+            </Button>
+          </Tooltip>
+          <Divider orientation="vertical" style={{ height: 24 }} />
+        </>
+      )}
 
       {/* バリデーションボタン */}
       <Tooltip title={t('editor.toolbar.validateTooltip')}>
