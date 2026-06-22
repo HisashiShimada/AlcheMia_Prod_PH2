@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button, Dropdown, Input, Modal, Select, Table, Tree, Tag, Tooltip, message, Typography } from 'antd';
 import {
   SearchOutlined,
@@ -288,6 +288,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
+  // ──── コンテキストメニュー状態（方針B: Tree.onRightClick 方式）
+  const [ctxMenu, setCtxMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    node: NamespaceNode | null;
+  }>({ visible: false, x: 0, y: 0, node: null });
+
   const [filterScope, setFilterScope] = useState<string | null>(null);
   const [filterType,  setFilterType]  = useState<string | null>(null);
 
@@ -429,34 +437,35 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setTeamEditOpen(true);
   };
 
-  // ──── ツリーノードのタイトル
+  // ──── コンテキストメニューを閉じる（mousedown で即座にキャッチ）
+  useEffect(() => {
+    const close = () => setCtxMenu((s) => ({ ...s, visible: false }));
+    window.addEventListener('mousedown', close);
+    return () => window.removeEventListener('mousedown', close);
+  }, []);
+
+  // ──── ツリーノードのタイトル（チームノードは onContextMenu を直接付与）
   // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
-  const renderTreeTitle = (node: NamespaceNode, companyDepth: number) => {
-    // チームノード（companyDepth === 3）のみコンテキストメニューを表示
-    const isTeam = companyDepth === 3;
-
-    const teamMenuItems = [
-      {
-        key: 'add-team',
-        label: 'チームを追加',
-        icon: <PlusOutlined />,
-        onClick: () => handleContextAddTeam(node),
-      },
-      {
-        key: 'edit-team',
-        label: '編集',
-        icon: <EditOutlined />,
-        onClick: () => handleContextEditTeam(node),
-      },
-    ];
-
+  const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
     // ログインユーザーの所属ノードは青背景で強調表示
     const isCurrentUserNode = node.key === CURRENT_USER_NS_KEY;
+    // チームノード（companyDepth === 3）のみ右クリックメニューを有効化
+    const isTeam = companyDepth === 3;
 
-    const titleContent = (
+    const handleContextMenu = isTeam
+      ? (e: React.MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, node });
+        }
+      : undefined;
+
+    return (
       <span
+        onContextMenu={handleContextMenu}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0,
+          cursor: isTeam ? 'context-menu' : undefined,
           ...(isCurrentUserNode ? {
             background: '#e6f4ff',
             borderLeft: '3px solid #1677ff',
@@ -474,18 +483,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         )}
       </span>
     );
+  }, []);
 
-    if (isTeam) {
-      return (
-        <Dropdown menu={{ items: teamMenuItems }} trigger={['contextMenu']}>
-          {titleContent}
-        </Dropdown>
-      );
-    }
-
-    return titleContent;
-  };
-
+  // ──── ノードの companyDepth を計算してツリーデータを構築
   const toAntTree = (nodes: NamespaceNode[], companyDepth = 0): object[] =>
     nodes.map((n) => {
       // 自分自身の depth を決定
@@ -515,7 +515,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         );
     return toAntTree(nsSearch ? filterNodes(allNodes) : allNodes);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nsSearch]);
+  }, [nsSearch, renderTreeTitle]);
 
   // 外部キーが渡された場合はそちらを優先
   const effectiveNsKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
@@ -956,6 +956,46 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                 onNsKeyChange?.(key);
               }}
             />
+
+            {/* コンテキストメニュー（右クリックメニュー） */}
+            {ctxMenu.visible && ctxMenu.node && (
+              <ul
+                style={{
+                  position: 'fixed',
+                  left: ctxMenu.x,
+                  top: ctxMenu.y,
+                  background: '#fff',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                  borderRadius: 6,
+                  listStyle: 'none',
+                  margin: 0,
+                  padding: '4px 0',
+                  zIndex: 1050,
+                  minWidth: 140,
+                  border: '1px solid #f0f0f0',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <li
+                  style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  onClick={() => { handleContextAddTeam(ctxMenu.node!); setCtxMenu((s) => ({ ...s, visible: false })); }}
+                >
+                  <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
+                  チームを追加
+                </li>
+                <li
+                  style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  onClick={() => { handleContextEditTeam(ctxMenu.node!); setCtxMenu((s) => ({ ...s, visible: false })); }}
+                >
+                  <EditOutlined style={{ fontSize: 12, color: '#1677ff' }} />
+                  編集
+                </li>
+              </ul>
+            )}
           </div>
         )}
 
