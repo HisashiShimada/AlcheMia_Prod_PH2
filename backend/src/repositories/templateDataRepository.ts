@@ -12,7 +12,7 @@
  */
 
 import { PoolClient } from 'pg';
-import { getPgp } from '../database/db';
+import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import type { Property, Content, Insertion } from '../types/maiml-unified';
 import type { TemplateActualCount } from '../types/database';
@@ -302,6 +302,31 @@ export class TemplateDataRepository {
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while deleting template data by project',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * プロジェクト全件のテンプレートデータを取得（実験指示一覧表示用）
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @returns テンプレートデータ行の配列（method_id / task_no / place_id 順）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findByProject(
+    organizationId: string,
+    projectId: string
+  ): Promise<TemplateDataRow[]> {
+    try {
+      const pool = getPool();
+      const query = await loadSqlFile('template_data/findByProject.sql');
+      const result = await pool.query<TemplateDataRow>(query, [organizationId, projectId]);
+      return result.rows;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding template data by project',
         error as Error
       );
     }

@@ -1132,7 +1132,7 @@ Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$0028FF
 BkColor=$FFFFFF
-ModifiedDateTime=20260617103038
+ModifiedDateTime=20260618134328
 Position="実験管理者",1750,550
 ZOrder=144
 

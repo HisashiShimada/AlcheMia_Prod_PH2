@@ -50,7 +50,7 @@ import {
   recordNg,
 } from '@/services/experimentInstructionApiService';
 import type {
-  ExperimentInstruction,
+  InstructionMethodResponse,
   ProjectMethod,
 } from '@/types/experimentInstruction';
 import type { ProjectFile } from '@/types/file';
@@ -169,26 +169,40 @@ function uniq<T>(arr: T[]): T[] {
   return [...new Set(arr)];
 }
 
-/** ExperimentInstruction[] をフラットな FlatRow[] に変換 */
-function flattenInstructions(instructions: ExperimentInstruction[]): FlatRow[] {
+/**
+ * task_status 数値 → 2桁ゼロ埋め文字列（表示・比較用）
+ * null / undefined の場合は '00' を返す
+ */
+function toTaskStatusStr(status: number | null | undefined): string {
+  if (status == null) return '00';
+  return String(status).padStart(2, '0');
+}
+
+/** InstructionMethodResponse[] をフラットな FlatRow[] に変換 */
+function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
   const rows: FlatRow[] = [];
-  instructions.forEach((inst) => {
-    inst.properties.forEach((prop, idx) => {
-      rows.push({
-        rowKey: `${inst.methodId}_${inst.taskNumber}_${inst.transitionId}_${inst.templateName}_${prop.key}_${idx}`,
-        methodId:      inst.methodId,
-        methodName:    inst.methodName,
-        taskNumber:    inst.taskNumber,
-        taskStatus:    inst.taskStatus,
-        transitionId:  inst.transitionId,
-        transitionName: inst.transitionName,
-        templateName:  inst.templateName,
-        propKey:       prop.key,
-        propLabel:     prop.label,
-        xsiType:       prop.xsiType,
-        expected:      prop.expected,
-        actual:        prop.actual,
-        unit:          prop.unit,
+  methods.forEach((method) => {
+    method.tasks.forEach((task) => {
+      const taskStatusStr = toTaskStatusStr(task.taskStatus);
+      task.templates.forEach((tmpl) => {
+        tmpl.fields.forEach((field, idx) => {
+          rows.push({
+            rowKey: `${method.methodId}_${task.taskNo}_${tmpl.templateId}_${field.key}_${idx}`,
+            methodId:      method.methodId,
+            methodName:    method.methodId, // MAIML パース統合後にメソッド名を追加予定
+            taskNumber:    task.taskNo,
+            taskStatus:    taskStatusStr,
+            transitionId:  '',             // MAIML パース統合後に追加予定
+            transitionName: '',            // MAIML パース統合後に追加予定
+            templateName:  tmpl.templateName ?? tmpl.templateId,
+            propKey:       field.key,
+            propLabel:     field.label,
+            xsiType:       field.xsiType ?? '',
+            expected:      field.plannedValue,
+            actual:        field.actualValue,
+            unit:          field.unit ?? '',
+          });
+        });
       });
     });
   });
@@ -275,7 +289,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   const { message } = App.useApp();
 
   // ── データ ──
-  const [instructions, setInstructions] = useState<ExperimentInstruction[]>([]);
+  const [instructions, setInstructions] = useState<InstructionMethodResponse[]>([]);
   const [methods, setMethods]           = useState<ProjectMethod[]>([]);
   const [loading, setLoading]           = useState(false);
 
@@ -767,13 +781,12 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           methodId={planDialogMethodId}
           taskNumbers={
             uniq(
-              instructions
-                .filter((i) => i.methodId === planDialogMethodId)
-                .map((i) => i.taskNumber)
+              (instructions.find((m) => m.methodId === planDialogMethodId)?.tasks ?? [])
+                .map((t) => t.taskNo)
             ).sort((a, b) => a - b)
           }
           allowMethodSelection
-          methodOptions={methods}
+          methodOptions={methods.map((m) => ({ id: m.id, name: m.name ?? m.id }))}
           onMethodChange={(newMethodId) => {
             setPlanDialogMethodId(newMethodId);
           }}
