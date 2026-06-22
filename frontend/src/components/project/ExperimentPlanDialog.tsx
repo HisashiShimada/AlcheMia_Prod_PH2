@@ -140,8 +140,66 @@ interface TransitionOrderItem {
   id: string;
   name: string;
   order: number;
+  /**
+   * ステップ番号（依存の深さ）
+   * - 依存なし → ステップ1
+   * - 全依存先の最大ステップ+1 → 自身のステップ
+   */
+  step: number;
   /** 前提となるトランジションIDの配列（空配列 = 依存なし） */
   prerequisiteTransitionIds: string[];
+}
+
+/**
+ * トランジションの依存関係からステップ番号を計算する。
+ *
+ * ステップの定義:
+ *   - 依存なし（前提トランジションがない）→ ステップ1
+ *   - 全依存先の最大ステップ番号 + 1 → 自身のステップ番号
+ *
+ * 例）画像の推移図:
+ *   A（依存なし）→ ステップ1
+ *   C（依存なし）→ ステップ1
+ *   B（A に依存）→ ステップ2
+ *   D（C に依存）→ ステップ2
+ *   E（B, D に依存）→ ステップ3
+ *   F（E に依存）→ ステップ4
+ *   G（E に依存）→ ステップ4
+ *   H（F, G に依存）→ ステップ5
+ */
+function calculateSteps(transitions: TransitionOrderItem[]): TransitionOrderItem[] {
+  const stepMap = new Map<string, number>();
+
+  const getStep = (id: string, visited = new Set<string>()): number => {
+    if (stepMap.has(id)) return stepMap.get(id)!;
+    if (visited.has(id)) return 1; // 循環参照の場合はステップ1として扱う
+
+    visited.add(id);
+    const trans = transitions.find((t) => t.id === id);
+
+    // 依存なし → ステップ1
+    if (!trans || trans.prerequisiteTransitionIds.length === 0) {
+      stepMap.set(id, 1);
+      return 1;
+    }
+
+    // 全依存先の最大ステップ番号 + 1
+    const maxPrereqStep = Math.max(
+      ...trans.prerequisiteTransitionIds.map((prereqId) =>
+        getStep(prereqId, new Set(visited))
+      )
+    );
+    const step = maxPrereqStep + 1;
+    stepMap.set(id, step);
+    return step;
+  };
+
+  transitions.forEach((t) => getStep(t.id));
+
+  return transitions.map((t) => ({
+    ...t,
+    step: stepMap.get(t.id) ?? 1,
+  }));
 }
 
 /**
@@ -793,6 +851,8 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
 interface SortableTransitionRowProps {
   id: string;
   order: number;
+  /** ステップ番号（依存の深さから計算） */
+  step: number;
   name: string;
   /** 前提となるトランジションIDの配列（空配列 = 依存なし） */
   prerequisiteTransitionIds: string[];
@@ -807,6 +867,7 @@ interface SortableTransitionRowProps {
 const SortableTransitionRow: React.FC<SortableTransitionRowProps> = ({
   id,
   order,
+  step,
   name,
   prerequisiteTransitionIds,
   allTransitionOrderItems,
@@ -869,6 +930,16 @@ const SortableTransitionRow: React.FC<SortableTransitionRowProps> = ({
           };
         })}
       />
+
+      {/* ステップ番号 Tag */}
+      <Tooltip title={`ステップ ${step}（依存の深さ ${step - 1}）`}>
+        <Tag
+          color="purple"
+          style={{ margin: 0, cursor: 'default', fontSize: 10, flexShrink: 0 }}
+        >
+          S{step}
+        </Tag>
+      </Tooltip>
 
       {/* トランジション名 */}
       <Text
@@ -969,13 +1040,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
    */
   const [tabDataMap, setTabDataMap] = useState<Record<string, ExperimentPlanTabData>>({});
 
-  /**
-   * タブキー → 上書き済みフィールドセットのマップ
-   * タスクNタブで直接編集されたフィールドは overrideMap['task-N'] に登録され、
-   * 全体タブからの継承対象から除外される
-   */
-  const [overrideMap, setOverrideMap] = useState<Record<string, Set<InheritableField>>>({});
-
   const [isSaving, setIsSaving] = useState(false);
 
   // Ref選択肢はAPIデータ優先、なければpropsから取得
@@ -999,43 +1063,30 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
   /**
    * 現在のタブのデータを更新するヘルパー
-   * activeTab が 'all'（全体）の場合、変更を各タスクNタブに継承する（上書き済み除く）
+   * activeTab が 'all'（一括）の場合、変更を各タスクNタブに無条件で伝播する
    */
   const updateCurrentTabData = useCallback(
     (
       field: InheritableField,
       updater: (prev: ExperimentPlanTabData) => ExperimentPlanTabData,
-      isUserEdit: boolean = true
     ) => {
       setTabDataMap((prev) => {
         const updated = updater(prev[activeTab] ?? createInitialTabData());
         const next: Record<string, ExperimentPlanTabData> = { ...prev, [activeTab]: updated };
 
-        // 全体タブの変更を各タスクNタブに伝播
+        // 一括タブの変更を各タスクNタブに無条件で伝播
         if (activeTab === TAB_KEY_ALL) {
           taskNumbers.forEach((n) => {
             const key = `task-${n}`;
-            const isOverridden = overrideMap[key]?.has(field) ?? false;
-            if (!isOverridden) {
-              const taskData = next[key] ?? createInitialTabData();
-              next[key] = { ...taskData, [field]: (updated as ExperimentPlanTabData)[field] };
-            }
+            const taskData = next[key] ?? createInitialTabData();
+            next[key] = { ...taskData, [field]: (updated as ExperimentPlanTabData)[field] };
           });
         }
 
         return next;
       });
-
-      // タスクNタブで直接編集された場合は overrideMap に登録
-      if (isUserEdit && activeTab !== TAB_KEY_ALL) {
-        setOverrideMap((prev) => {
-          const prevSet = prev[activeTab] ? new Set(prev[activeTab]) : new Set<InheritableField>();
-          prevSet.add(field);
-          return { ...prev, [activeTab]: prevSet };
-        });
-      }
     },
-    [activeTab, taskNumbers, overrideMap]
+    [activeTab, taskNumbers]
   );
 
   /** APIから取得したトランジション一覧 */
@@ -1052,7 +1103,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   /** タブアイテムの定義 */
   const tabItems = useMemo(() => {
     return [
-      { key: TAB_KEY_ALL, label: '全体' },
+      { key: TAB_KEY_ALL, label: '一括' },
       ...taskNumbers.map((n) => ({ key: `task-${n}`, label: `タスク${n}` })),
     ];
   }, [taskNumbers]);
@@ -1065,7 +1116,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     setSelectedTransitionId(null);
     setTransitionOrder([]);
     setTabDataMap({});
-    setOverrideMap({});
     setPendingNoteType(undefined);
     setInnerTab('basic');
 
@@ -1266,20 +1316,20 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
   // --- 実行順序ハンドラ ---
 
-  /** transitions配列が変化したとき、transitionOrderを全件初期化 */
+  /** transitions配列が変化したとき、transitionOrderを全件初期化（ステップを自動計算） */
   useEffect(() => {
     if (transitions.length === 0) {
       setTransitionOrder([]);
       return;
     }
-    setTransitionOrder(
-      transitions.map((trans, index) => ({
-        id: trans.id,
-        name: trans.name,
-        order: index + 1,
-        prerequisiteTransitionIds: trans.prerequisiteTransitionIds ?? [],
-      }))
-    );
+    const initialOrder = transitions.map((trans, index) => ({
+      id: trans.id,
+      name: trans.name,
+      order: index + 1,
+      step: 1, // calculateSteps で上書きされる暫定値
+      prerequisiteTransitionIds: trans.prerequisiteTransitionIds ?? [],
+    }));
+    setTransitionOrder(calculateSteps(initialOrder));
   }, [transitions]);
 
   /** ドラッグ&ドロップ用センサー */
@@ -1305,8 +1355,8 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
           return prev;
         }
 
-        // 子孫と一緒に移動
-        return moveTransitionWithSubtree(active.id as string, targetOrder, prev);
+        // 子孫と一緒に移動後、ステップを再計算
+        return calculateSteps(moveTransitionWithSubtree(active.id as string, targetOrder, prev));
       });
     },
     [message]
@@ -1323,8 +1373,8 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
           return prev;
         }
 
-        // 子孫と一緒に移動
-        return moveTransitionWithSubtree(transitionId, newOrder, prev);
+        // 子孫と一緒に移動後、ステップを再計算
+        return calculateSteps(moveTransitionWithSubtree(transitionId, newOrder, prev));
       });
     },
     [message]
@@ -1641,6 +1691,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                           key={item.id}
                           id={item.id}
                           order={item.order}
+                          step={item.step}
                           name={name}
                           prerequisiteTransitionIds={item.prerequisiteTransitionIds}
                           allTransitionOrderItems={transitionOrder}
@@ -1704,9 +1755,14 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                 <Text style={{ fontSize: 12, fontWeight: 600 }}>
                   {transitions.find((t) => t.id === selectedTransitionId)?.name ?? selectedTransitionId}
                 </Text>
+                {activeTab === TAB_KEY_ALL && (
+                  <Text type="secondary" style={{ fontSize: 11, marginLeft: 12 }}>
+                    ※ 一括タブで設定した内容は、他のすべてのタスクNoタブに反映されます。
+                  </Text>
+                )}
                 {activeTab !== TAB_KEY_ALL && (
                   <Text type="secondary" style={{ fontSize: 11, marginLeft: 12 }}>
-                    ※ 全体タブの設定を継承。このタブで変更すると個別上書きになります。
+                    ※ 一括タブの設定を継承。このタブで変更すると個別上書きになります。
                   </Text>
                 )}
               </div>
