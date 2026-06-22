@@ -3,8 +3,12 @@
  *
  * 名前空間・用語管理のAPIエンドポイント処理
  *
+ * @remarks
+ * Repository の主キーは (organization_id, prefix, local_name) の複合キー。
+ * URL パラメータは prefix と localName を使用する。
+ *
  * @module namespaceController
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -14,7 +18,7 @@ import * as namespaceTermRepository from '../repositories/namespaceTermRepositor
  * 用語新規登録
  * POST /api/v1/namespaces/terms
  *
- * @description prefix から namespace.id を解決し、namespace_term に INSERT する
+ * @body { organizationId, prefix, localName, displayName?, description?, typeHint?, unitHint? }
  */
 export async function createTerm(
   req: Request,
@@ -25,38 +29,41 @@ export async function createTerm(
     const {
       prefix,
       localName,
-      displayNameJa,
-      displayNameEn,
+      displayName,
       description,
       typeHint,
       unitHint,
     } = req.body as {
       prefix: string;
       localName: string;
-      displayNameJa?: string;
-      displayNameEn?: string;
+      displayName?: string;
       description?: string;
       typeHint?: string;
       unitHint?: string;
     };
 
-    if (!prefix || !localName) {
-      res.status(400).json({ error: 'prefix と localName は必須です' });
+    // organizationId はミドルウェアまたはリクエストボディから取得
+    const organizationId =
+      ((req as any).organizationId as string | undefined) ||
+      (req.body.organizationId as string | undefined);
+
+    if (!organizationId || !prefix || !localName) {
+      res.status(400).json({ error: 'organizationId・prefix・localName は必須です' });
       return;
     }
 
-    // prefix → namespace.id を解決
-    const namespaceId = await namespaceTermRepository.findNamespaceIdByPrefix(prefix);
-    if (!namespaceId) {
+    // prefix に対応する namespace が存在するか確認
+    const exists = await namespaceTermRepository.existsNamespace(organizationId, prefix);
+    if (!exists) {
       res.status(404).json({ error: `prefix "${prefix}" に対応する名前空間が見つかりません` });
       return;
     }
 
     const created = await namespaceTermRepository.create({
-      namespaceId,
+      organizationId,
+      prefix,
       localName,
-      displayNameJa,
-      displayNameEn,
+      displayName,
       description,
       typeHint,
       unitHint,
@@ -70,7 +77,7 @@ export async function createTerm(
 
 /**
  * 用語更新
- * PUT /api/v1/namespaces/terms/:id
+ * PUT /api/v1/namespaces/terms/:prefix/:localName
  */
 export async function updateTerm(
   req: Request,
@@ -78,34 +85,39 @@ export async function updateTerm(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { id } = req.params;
+    const { prefix, localName } = req.params;
+
+    // organizationId はミドルウェアまたはクエリから取得
+    const organizationId =
+      ((req as any).organizationId as string | undefined) ||
+      (req.query.organizationId as string | undefined);
+
+    if (!organizationId) {
+      res.status(400).json({ error: 'organizationId は必須です' });
+      return;
+    }
+
     const {
-      localName,
-      displayNameJa,
-      displayNameEn,
+      displayName,
       description,
       typeHint,
       unitHint,
     } = req.body as {
-      localName?: string;
-      displayNameJa?: string;
-      displayNameEn?: string;
+      displayName?: string;
       description?: string;
       typeHint?: string;
       unitHint?: string;
     };
 
-    const updated = await namespaceTermRepository.update(id, {
+    const updated = await namespaceTermRepository.update(
+      organizationId,
+      prefix,
       localName,
-      displayNameJa,
-      displayNameEn,
-      description,
-      typeHint,
-      unitHint,
-    });
+      { displayName, description, typeHint, unitHint }
+    );
 
     if (!updated) {
-      res.status(404).json({ error: `id "${id}" の用語が見つかりません` });
+      res.status(404).json({ error: `"${prefix}:${localName}" の用語が見つかりません` });
       return;
     }
 
@@ -117,7 +129,7 @@ export async function updateTerm(
 
 /**
  * 用語削除
- * DELETE /api/v1/namespaces/terms/:id
+ * DELETE /api/v1/namespaces/terms/:prefix/:localName
  */
 export async function deleteTerm(
   req: Request,
@@ -125,11 +137,21 @@ export async function deleteTerm(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { id } = req.params;
+    const { prefix, localName } = req.params;
 
-    const count = await namespaceTermRepository.remove(id);
+    // organizationId はミドルウェアまたはクエリから取得
+    const organizationId =
+      ((req as any).organizationId as string | undefined) ||
+      (req.query.organizationId as string | undefined);
+
+    if (!organizationId) {
+      res.status(400).json({ error: 'organizationId は必須です' });
+      return;
+    }
+
+    const count = await namespaceTermRepository.remove(organizationId, prefix, localName);
     if (count === 0) {
-      res.status(404).json({ error: `id "${id}" の用語が見つかりません` });
+      res.status(404).json({ error: `"${prefix}:${localName}" の用語が見つかりません` });
       return;
     }
 
@@ -139,6 +161,10 @@ export async function deleteTerm(
   }
 }
 
+/**
+ * 用語一覧取得
+ * GET /api/v1/namespaces/terms
+ */
 export async function getTerms(
   req: Request,
   res: Response,

@@ -8,6 +8,9 @@
  *
  * フェーズA: モックデータのまま動作確認。
  * フェーズB: props 経由で実 API データに差し替え。
+ *
+ * 【実績値入力フロー】
+ * 実績値入力 →「保存して次へ」→ 次テンプレート実績値入力 or 次トランジション
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -36,6 +39,8 @@ import {
 } from 'antd';
 import { CommentOutlined, FastForwardOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
+import UncertaintyCriteriaSelectorModal from '../uncertainty/UncertaintyCriteriaSelectorModal';
+import type { TargetProperty, AssignPayload } from '../uncertainty/UncertaintyCriteriaSelectorModal';
 
 const { Sider, Content } = Layout;
 
@@ -340,9 +345,12 @@ interface PropertyCardProps {
   actual: number | string | null;
   readOnly: boolean;
   onChange: (key: string, value: number | string | null) => void;
+  onOpenUncertainty: (prop: MockProperty) => void;
 }
 
-const PropertyCard: React.FC<PropertyCardProps> = ({ prop, actual, readOnly, onChange }) => (
+const PropertyCard: React.FC<PropertyCardProps> = ({
+  prop, actual, readOnly, onChange, onOpenUncertainty,
+}) => (
   <Card
     size="small"
     style={{
@@ -351,13 +359,19 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ prop, actual, readOnly, onC
       background: readOnly ? '#fafafa' : '#ffffff',
     }}
   >
-    {/* プロパティ情報（最上部） */}
+    {/* プロパティ情報（最上部）*/}
     <Flex align="center" gap={6} style={{ marginBottom: 6 }}>
       <Text strong style={{ fontSize: 13 }}>{prop.label}</Text>
       <Tag color={XSI_COLOR[prop.xsiType] ?? 'default'} style={{ fontSize: 11, margin: 0, lineHeight: '18px' }}>
         {XSI_SHORT[prop.xsiType] ?? prop.xsiType}
       </Tag>
       <Text type="secondary" style={{ fontSize: 11 }}>({prop.key})</Text>
+      {/* 不確かさ選択ボタン（右上） */}
+      {!readOnly && (
+        <Button type="primary" size="small" style={{ marginLeft: 'auto' }} onClick={() => onOpenUncertainty(prop)}>
+          不確かさ選択
+        </Button>
+      )}
     </Flex>
 
     {/* カラムヘッダー */}
@@ -422,6 +436,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ prop, actual, readOnly, onC
         </div>
       </Col>
     </Row>
+
   </Card>
 );
 
@@ -462,6 +477,17 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onTemplateIdxChange,
   onCommentClick,
 }) => {
+  // ─── 不確かさ選択モーダル state ───────────────────────────
+  const [uncertaintyTarget, setUncertaintyTarget] = useState<MockProperty | null>(null);
+
+  const handleOpenUncertainty = useCallback((prop: MockProperty) => {
+    setUncertaintyTarget(prop);
+  }, []);
+
+  const handleAssignUncertainty = useCallback((_payload: AssignPayload) => {
+    setUncertaintyTarget(null);
+  }, []);
+
   if (!template) {
     return (
       <Flex justify="center" align="center" style={{ height: 200 }}>
@@ -469,6 +495,23 @@ const PropertyList: React.FC<PropertyListProps> = ({
       </Flex>
     );
   }
+
+  /** 「保存して次へ」: 次テンプレートへ進むか、トランジションを完了する */
+  const handleSaveAndNext = () => {
+    if (!displayKey) return;
+    const nextTemplateIdx = templateIdx + 1;
+    if (nextTemplateIdx < templateCount) {
+      onTemplateIdxChange(nextTemplateIdx);
+    } else {
+      onSaveAndNext(displayKey.taskNo, displayKey.transitionId);
+    }
+  };
+
+  const isLastTemplate = templateIdx === templateCount - 1;
+  const nextLabel = isLastTemplate
+    ? 'トランジション完了して次へ'
+    : `次のテンプレートへ (${templateIdx + 2}/${templateCount})`;
+
   return (
     <>
       <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
@@ -489,10 +532,29 @@ const PropertyList: React.FC<PropertyListProps> = ({
               onChange={(key, value) => {
                 if (displayKey) onActualChange(displayKey.taskNo, displayKey.transitionId, key, value);
               }}
+              onOpenUncertainty={handleOpenUncertainty}
             />
           </Col>
         ))}
       </Row>
+
+      {/* 不確かさ選択モーダル */}
+      {uncertaintyTarget && (
+        <UncertaintyCriteriaSelectorModal
+          open={true}
+          targetProperty={{
+            name: uncertaintyTarget.label,
+            xpath: uncertaintyTarget.key,
+            tag: 'property',
+            type: uncertaintyTarget.xsiType.replace('Value', ''),
+            value: '',
+            unit: uncertaintyTarget.unit,
+            section: 'condition',
+          }}
+          onClose={() => setUncertaintyTarget(null)}
+          onAssign={handleAssignUncertainty}
+        />
+      )}
 
       {/* 追加ボタン群（DataRecordDialog 準拠） */}
       {!isReadOnly && (
@@ -535,12 +597,9 @@ const PropertyList: React.FC<PropertyListProps> = ({
           <Button
             type="primary"
             icon={<RightOutlined />}
-            onClick={() => {
-              onTemplateIdxChange(0);
-              onSaveAndNext(displayKey.taskNo, displayKey.transitionId);
-            }}
+            onClick={handleSaveAndNext}
           >
-            保存して次へ
+            {nextLabel}
           </Button>
         </Flex>
       )}

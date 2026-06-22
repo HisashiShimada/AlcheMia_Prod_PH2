@@ -94,6 +94,8 @@ import {
   MOCK_PLAN_DIALOG_DATA,
 } from '@/services/experimentPlanApiService';
 import type { PlanDialogData } from '@/services/experimentPlanApiService';
+import UncertaintyCriteriaSelectorModal from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
+import type { TargetProperty, AssignPayload } from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -420,6 +422,10 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   const [pendingType, setPendingType] = useState<CustomPropType>('stringType');
   const [pendingUnits, setPendingUnits] = useState('');
 
+  // 不確かさ基準選択モーダル用 state
+  const [criteriaSelectorOpen, setCriteriaSelectorOpen] = useState(false);
+  const [criteriaSelectorTarget, setCriteriaSelectorTarget] = useState<TargetProperty | null>(null);
+
   // methodTemplates が変わった（メソッド切り替え等）場合は選択リセット
   useEffect(() => {
     setSelectedTemplateId(null);
@@ -723,6 +729,25 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                           style={{ flex: 1, minWidth: 80 }}
                           disabled={disabled}
                         />
+                        <Button
+                          type="primary"
+                          size="small"
+                          disabled={disabled}
+                          onClick={() => {
+                            setCriteriaSelectorTarget({
+                              name: cp.key,
+                              xpath: cp.key,
+                              tag: 'property',
+                              type: cp.type,
+                              value: cp.value,
+                              unit: cp.units,
+                              section: selectedTemplate.category as 'material' | 'condition' | 'result',
+                            });
+                            setCriteriaSelectorOpen(true);
+                          }}
+                        >
+                          不確かさ選択
+                        </Button>
                         <Tooltip title="削除">
                           <Button
                             type="text"
@@ -742,6 +767,21 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
           )}
         </Col>
       </Row>
+
+      {/* 不確かさ基準選択モーダル */}
+      <UncertaintyCriteriaSelectorModal
+        open={criteriaSelectorOpen}
+        onClose={() => {
+          setCriteriaSelectorOpen(false);
+          setCriteriaSelectorTarget(null);
+        }}
+        targetProperty={criteriaSelectorTarget}
+        onAssign={(_payload: AssignPayload) => {
+          // 付与結果の処理（必要に応じて拡張）
+          setCriteriaSelectorOpen(false);
+          setCriteriaSelectorTarget(null);
+        }}
+      />
     </div>
   );
 };

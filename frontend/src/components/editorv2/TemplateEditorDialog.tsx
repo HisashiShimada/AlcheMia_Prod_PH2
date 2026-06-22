@@ -47,6 +47,8 @@ import type {
 import { Template, Insertion, PlaceRef} from '@/types/maiml-unified';
 import NestedPropertyEditor from './NestedPropertyEditor';
 import type { PropertyData } from '@/types/editor';
+import UncertaintyCriteriaSelectorModal from '../uncertainty/UncertaintyCriteriaSelectorModal';
+import type { TargetProperty, AssignPayload } from '../uncertainty/UncertaintyCriteriaSelectorModal';
 import useNamespaceOperations from '../../hooks/useNamespaceOperations';
 import type { NamespaceData } from '@/types/format';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
@@ -159,6 +161,46 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // ✅ Phase 4: バリデーション用State
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // ===== 不確かさ基準セレクターモーダル用State =====
+  const [criteriaSelectorOpen, setCriteriaSelectorOpen] = useState(false);
+  const [criteriaTargetProperty, setCriteriaTargetProperty] = useState<TargetProperty | null>(null);
+
+  /**
+   * 評価基準ボタン押下ハンドラー
+   * PropertyData → TargetProperty に変換してモーダルを開く
+   */
+  const handleOpenCriteriaSelector = (propertyKey: string, propertyData: PropertyData) => {
+    const section = (node.data.placeType as 'material' | 'condition' | 'result') ?? 'material';
+    const tagName = propertyData.tagName ?? 'property';
+    const tag: 'property' | 'content' = tagName === 'content' ? 'content' : 'property';
+    const xsiType = propertyData.attributes?.['xsi:type'] ?? '';
+    const value = propertyData.elements?.['value'] ?? '';
+    const unit = propertyData.attributes?.['units'] ?? '';
+    const desc = propertyData.elements?.['description'] ?? '';
+
+    const target: TargetProperty = {
+      name: propertyKey,
+      xpath: `${section}/${tag}[@key="${propertyKey}"]`,
+      tag,
+      type: xsiType,
+      value,
+      unit,
+      section,
+      desc,
+    };
+
+    setCriteriaTargetProperty(target);
+    setCriteriaSelectorOpen(true);
+  };
+
+  /**
+   * 評価基準付与コールバック（現時点はログ出力のみ）
+   */
+  const handleCriteriaAssign = (payload: AssignPayload) => {
+    console.log('[TemplateEditorDialog] 評価基準付与:', payload);
+    // TODO: 将来的にプロパティへの不確かさ情報の書き込みを実装
+  };
 
   // useNamespaceOperations フック
   const { analyzeNamespaceFile, replaceTemplateWithNamespace } = useNamespaceOperations();
@@ -1514,6 +1556,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowAddModal(true)}>
               {t('template.addPropertyButton')}
             </Button>
+            <Button icon={<PlusOutlined />} onClick={() => handleOpenCriteriaSelector('', { key: '', tagName: 'property', attributes: {}, elements: {}, children: [] })}>
+              ＋ 不確かさ選択
+            </Button>
             <Button icon={<DownloadOutlined />} onClick={() => handleOpenNamespaceImport('replace_all_properties')}>
               {t('template.importFromTemplateButton')}
             </Button>
@@ -1539,6 +1584,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 onDeleteProperty={handleDeleteProperty}
                 forceRenderKey={forceRenderKey}
                 attributeRecords={attributeRecords}
+                onOpenCriteriaSelector={handleOpenCriteriaSelector}
               />
             ))
           )}
@@ -1988,6 +2034,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       </Modal>
       </div>
       )}
+
+      {/* ===== 不確かさ基準セレクターモーダル ===== */}
+      <UncertaintyCriteriaSelectorModal
+        open={criteriaSelectorOpen}
+        onClose={() => setCriteriaSelectorOpen(false)}
+        targetProperty={criteriaTargetProperty}
+        onAssign={handleCriteriaAssign}
+      />
     </Modal>
   );
 };

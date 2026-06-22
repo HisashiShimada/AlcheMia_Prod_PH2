@@ -820,7 +820,73 @@ maiml_event_log
 23. transition_data.sql
 24. user_authentication.sql
 25. vendor_master.sql
+26. namespace.sql
+27. namespace_term.sql
+28. department_unit.sql
 
-**このドキュメントのテーブル数: 25個** ✅
+**このドキュメントのテーブル数: 28個** ✅
 
 すべてのDDLファイルがこのドキュメントに反映されています。
+
+---
+
+### 9. 名前空間管理関連テーブル（2テーブル）
+
+#### 9.1 namespace（名前空間）
+- **物理名**: `namespace`
+- **論理名**: 名前空間
+- **DDLファイル**: `docs/design/db/ddl/namespace.sql`
+- **主キー**: `(organization_id, prefix)` (複合主キー)
+- **主要カラム**:
+  - `organization_id` - 組織ID (FK: organization)
+  - `prefix` - 名前空間プレフィックス（例: maiml, xsi, rd）
+  - `uri` - 名前空間URI
+  - `display_name` - 表示名
+  - `description` - 説明
+  - `create_at` - 作成日時
+  - `update_at` - 更新日時
+- **外部キー**:
+  - `organization_id` → `organization(organization_id)`
+- **備考**: id / level / parent_id カラムは存在しない。ツリー構造はフロントエンド側で管理。
+
+---
+
+#### 9.2 namespace_term（名前空間用語）
+- **物理名**: `namespace_term`
+- **論理名**: 名前空間用語
+- **DDLファイル**: `docs/design/db/ddl/namespace_term.sql`
+- **主キー**: `(organization_id, prefix, local_name)` (複合主キー)
+- **主要カラム**:
+  - `organization_id` - 組織ID (FK: organization)
+  - `prefix` - 名前空間プレフィックス (FK: namespace)
+  - `local_name` - ローカル名
+  - `display_name` - 表示名
+  - `description` - 説明
+  - `type_hint` - 型ヒント（例: stringType, floatType, intType, dateTimeType, booleanType）
+  - `unit_hint` - 単位ヒント（例: celsius, Pa, %）
+  - `create_at` - 作成日時
+  - `update_at` - 更新日時
+- **外部キー**:
+  - `(organization_id, prefix)` → `namespace(organization_id, prefix)`
+- **備考**: id / namespace_id / display_name_ja / display_name_en カラムは存在しない。
+
+---
+
+### 10. 組織・チーム管理関連テーブル（1テーブル）
+
+#### 10.1 department_unit（チーム・ユニット）
+- **物理名**: `department_unit`
+- **論理名**: チーム・ユニット
+- **DDLファイル**: `docs/design/db/ddl/department_unit.sql`
+- **主キー**: `department_unit_id` (UUID)
+- **主要カラム**:
+  - `department_unit_id` - チームID
+  - `organization_id` - 組織ID (FK: organization)
+  - `unit_name` - チーム名
+  - `description` - 説明
+  - `is_active` - アクティブ判定
+  - `create_at` - 作成日時
+  - `update_at` - 更新日時
+- **外部キー**:
+  - `organization_id` → `organization(organization_id)`
+- **備考**: マイグレーションファイル: `backend/migrations/20260617_add_department_unit.sql`
