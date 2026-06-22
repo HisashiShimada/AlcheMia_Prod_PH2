@@ -143,6 +143,9 @@
 | InstructionEditDialog.tsx | 指示編集ダイアログ | frontend/src/components/project/InstructionEditDialog.tsx | [ui_instruction_edit_dialog.md](experiment_admin/01_project_management/ui_instruction_edit_dialog.md) | 単一指示の追加・編集ダイアログ（連続指示機能付き） |
 | InstructionDialog.tsx | 作業指示送信ダイアログ | frontend/src/components/project/InstructionDialog.tsx | [ui_instruction_registration_tab.md](experiment_admin/01_project_management/ui_instruction_registration_tab.md) | タスク詳細設定と複数指示入力の統合ダイアログ |
 | TaskResultsTable.tsx | タスク結果一覧テーブル | frontend/src/components/project/TaskResultsTable.tsx | [ui_task_results_table.md](experiment_admin/01_project_management/ui_task_results_table.md) | タスク実行結果の一覧表示 |
+| ExperimentPlanDialog.tsx | 実験計画ダイアログ | frontend/src/components/project/ExperimentPlanDialog.tsx | [ui_experiment_plan_dialog.md](experiment_admin/01_project_management/ui_experiment_plan_dialog.md) | 実験計画指示設定ダイアログ（Manager用・タスク別想定値・注意事項入力） |
+| ExperimentInstructionTab.tsx | 実験指示タブ | frontend/src/components/project/ExperimentInstructionTab.tsx | [ui_experiment_instruction_tab.md](experiment_admin/01_project_management/ui_experiment_instruction_tab.md) | 実験指示タブ（指示管理タブ内サブタブ・メソッド選択・実験計画指示ボタン） |
+| ExperimentInstructionTable.tsx | 実験指示テーブル | frontend/src/components/project/ExperimentInstructionTable.tsx | [ui_experiment_instruction_table.md](experiment_admin/01_project_management/ui_experiment_instruction_table.md) | 実験指示テーブル（想定値 vs 実績値対比・承認/NG操作） |
 
 **フォーマット管理:**
 
@@ -237,9 +240,11 @@
 
 **実験記録関連:**
 
-| 物理名 | 論理名 | ファイルパス | 用途・説明 |
-|--------|--------|--------------|-----------|
-| DataRecordDialog.tsx | データ記録ダイアログ | frontend/src/components/ExperimentWorker/DataRecordDialog.tsx | 実験データ記録ダイアログ |
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| WorkRecordPanel.tsx | 作業記録パネル | frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx | [ui_work_record_panel.md](experiment_worker/ui_work_record_panel.md) | 実験データ記録インラインパネル（想定値対比・ステータス更新・コメント入力） |
+| ProgressOverviewTab.tsx | 全体進捗タブ | frontend/src/components/ExperimentWorker/ProgressOverviewTab.tsx | [ui_progress_overview_tab.md](experiment_worker/ui_progress_overview_tab.md) | 全タスク進捗一覧・前提依存関係表示・作業記録タブへの遷移 |
+| DataRecordDialog.tsx | データ記録ダイアログ（参照用） | frontend/src/components/ExperimentWorker/DataRecordDialog.tsx | [ui_data_record_dialog.md](experiment_worker/ui_data_record_dialog.md) | 実験データ記録ダイアログ（WorkRecordPanel に置き換え済み・参照用として残す） |
 | TransitionList.tsx | トランジション一覧 | frontend/src/components/ExperimentWorker/TransitionList.tsx | トランジション一覧表示 |
 | InstructionFlowDialog.tsx | 指示フロー図ダイアログ | frontend/src/components/ExperimentWorker/InstructionFlowDialog.tsx | 指示フロー図表示ダイアログ |
 | TransitionFlowDiagram.tsx | トランジションフロー図 | frontend/src/components/ExperimentWorker/TransitionFlowDiagram.tsx | トランジションフロー図表示コンポーネント |
@@ -386,6 +391,7 @@
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-06-22 | 実験計画・指示・作業機能統合に伴う画面追加 - ExperimentPlanDialog / ExperimentInstructionTab / ExperimentInstructionTable（Manager用3件）、WorkRecordPanel / ProgressOverviewTab（Worker用2件）を追加 | Cline |
 | 2026-05-07 | フォーマット管理コンポーネント9ファイルのファイルパスを `project/` → `format/` に変更（ファイル移動に伴うドキュメント更新） | Cline |
 | 2026-04-07 | プロバイダ用画面のタブ順序を変更（会社管理→組織管理 の順 → 組織管理→会社管理 の順）、機能画面一覧をモックから実装済みコンポーネントに更新し、UI仕様書リンクを追加 | Cline |
 | 2026-03-06 | UI仕様書追加 - project/（WorkerScreenOverlay, FormatManagement系9ファイル）とTransitionSetSearch/（4ファイル）のUI仕様書を新規作成し、ui_screen_list.mdにリンクを追記 | Cline |
