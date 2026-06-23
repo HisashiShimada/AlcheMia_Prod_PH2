@@ -522,8 +522,7 @@
       "file_management": "File Management",
       "task_registration": "Task Registration",
       "instruction_registration": "Instruction List",
-      "task_results": "Experiment Instructions",
-      "uncertainty_approval": "Uncertainty Approval"
+      "task_results": "Experiment Instructions"
     },
     "task_results": {
       "no_project_selected": "Please select a project",

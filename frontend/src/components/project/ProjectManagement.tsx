@@ -37,7 +37,6 @@ import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
 import ExperimentInstructionTab from './ExperimentInstructionTab';
-import UncertaintyApprovalTab from './UncertaintyApprovalTab';
 import CreateProjectModal from './CreateProjectModal';
 import type { CreateProjectData } from '@/types/project';
 import RenameProjectModal from './RenameProjectModal';
@@ -2251,15 +2250,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         isActive={currentTab === 'project_instruction'}
                         isCheckoutLocked={isProjectCheckedOut}
                         onInstructionsSubmit={handleInstructionsSubmit}
-                      />
-                    ),
-                  },
-                  {
-                    key: 'uncertainty_approval',
-                    label: t('projectManagement.tabs.uncertainty_approval'),
-                    children: (
-                      <UncertaintyApprovalTab
-                        projectId={selectedProject.id}
                       />
                     ),
                   },

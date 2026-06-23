@@ -28,7 +28,6 @@ import {
   App,
   Spin,
   Empty,
-  Checkbox,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
@@ -115,8 +114,24 @@ interface FlatRow {
   propLabel: string;
   xsiType: string;
   expected: number | string | null;
+  /** 想定値（平均）: 同一 method/transition/template/key グループの想定値平均 */
+  expectedAverage: number | null;
   actual: number | string | null;
+  /** 実績値（平均）: 同一 method/transition/template/key グループの実績値平均 */
+  actualAverage: number | null;
   unit: string;
+  /** 不確かさ基準名 */
+  uncertaintyCriteriaName: string | null;
+  /** 不確かさ基準の種別（定性 / 定量） */
+  uncertaintyCriteriaType: 'qualitative' | 'quantitative' | null;
+  /** 不確かさ付与値 */
+  uncertaintyAssignedValue: string | null;
+  /** 不確かさ付与者 */
+  uncertaintyAssignedBy: string | null;
+  /** 不確かさ付与日時 */
+  uncertaintyAssignedAt: string | null;
+  /** 不確かさコメント */
+  uncertaintyComment: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -146,20 +161,36 @@ const INITIAL_FILTER: FilterState = {
 /** 固定列キー（非表示にできない列） */
 const FIXED_COLUMN_KEYS = ['taskNumber', 'propKey', 'actions'] as const;
 
-/** 切替可能な列の定義 */
-const TOGGLEABLE_COLUMN_DEFS: { key: string; label: string }[] = [
-  { key: 'methodName',    label: 'メソッド名' },
-  { key: 'transitionName', label: 'トランジション名' },
-  { key: 'templateName', label: 'テンプレート名' },
-  { key: 'xsiType',      label: 'xsi:type' },
-  { key: 'expected',     label: '想定値' },
-  { key: 'actual',       label: '実績値' },
-  { key: 'diff',         label: '差分' },
-  { key: 'taskStatus',   label: 'ステータス' },
+/** 切替可能な列の定義（width は各列の固定幅と一致させること） */
+const TOGGLEABLE_COLUMN_DEFS: { key: string; label: string; width: number }[] = [
+  { key: 'methodName',                  label: 'メソッド名',                    width: 190 },
+  { key: 'transitionName',              label: 'トランジション名',               width: 180 },
+  { key: 'templateName',                label: 'テンプレート名',                 width: 180 },
+  { key: 'xsiType',                     label: 'xsi:type',                      width:  75 },
+  { key: 'expected',                    label: '想定値',                         width: 100 },
+  { key: 'expectedAverage',             label: '想定値（平均）',                  width: 120 },
+  { key: 'actual',                      label: '実績値',                         width: 100 },
+  { key: 'actualAverage',               label: '実績値（平均）',                  width: 120 },
+  { key: 'diff',                        label: '差分',                           width:  85 },
+  { key: 'uncertaintyCriteriaName',     label: '不確かさ基準名',                  width: 200 },
+  { key: 'uncertaintyAssignedValue',    label: '不確かさ付与値',                  width: 140 },
+  { key: 'uncertaintyAssignedBy',       label: '不確かさ付与者',                  width: 140 },
+  { key: 'uncertaintyAssignedAt',       label: '不確かさ付与日時',                width: 160 },
+  { key: 'uncertaintyComment',          label: '不確かさについてのコメント',       width: 220 },
+  { key: 'taskStatus',                  label: 'ステータス',                      width: 110 },
 ];
 
 /** デフォルトで表示するすべての列キー */
 const ALL_COLUMN_KEYS = TOGGLEABLE_COLUMN_DEFS.map((d) => d.key);
+
+/** 「不確かさ確認」プリセットで表示する列キー */
+const UNCERTAINTY_COLUMN_KEYS: string[] = [
+  'uncertaintyCriteriaName',
+  'uncertaintyAssignedValue',
+  'uncertaintyAssignedBy',
+  'uncertaintyAssignedAt',
+  'uncertaintyComment',
+];
 
 // ─────────────────────────────────────────────────────────────
 // ユーティリティ
@@ -169,11 +200,71 @@ function uniq<T>(arr: T[]): T[] {
   return [...new Set(arr)];
 }
 
+/** モック用の不確かさデータ（画像と同様） */
+const MOCK_UNCERTAINTY_DATA: {
+  criteriaName: string;
+  criteriaType: 'qualitative' | 'quantitative';
+  assignedValue: string;
+  assignedBy: string;
+  assignedAt: string;
+  comment: string;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
+}[] = [
+  { criteriaName: 'ヤング率',     criteriaType: 'qualitative', assignedValue: '確か',           assignedBy: '佐藤 花子', assignedAt: '2024-05-20T10:15:00', comment: '文献Aの実験結果に基づく推定値',   approvalStatus: 'approved'  },
+  { criteriaName: '材料特性値',   criteriaType: 'qualitative', assignedValue: '確か',    assignedBy: '鈴木 一郎', assignedAt: '2024-05-20T09:45:00', comment: '測定装置の校正結果を反映',       approvalStatus: 'approved'  },
+  { criteriaName: '温度',         criteriaType: 'qualitative',  assignedValue: '不確か',            assignedBy: '田中 美咲', assignedAt: '2024-05-19T16:30:00', comment: '環境温度の測定値',               approvalStatus: 'approved' },
+  { criteriaName: '圧力',         criteriaType: 'qualitative', assignedValue: '確か',         assignedBy: '高橋 健太', assignedAt: '2024-05-19T14:20:00', comment: '気圧計の精度を考慮',             approvalStatus: 'approved'  },
+  { criteriaName: '降伏強度',     criteriaType: 'qualitative', assignedValue: 'OK',         assignedBy: '伊藤 翔太', assignedAt: '2024-05-18T11:05:00', comment: '引張試験の結果に基づく',         approvalStatus: 'approved' },
+  { criteriaName: '熱伝導率',     criteriaType: 'qualitative', assignedValue: 'NG',       assignedBy: '佐藤 花子', assignedAt: '2024-05-17T15:50:00', comment: 'レーザーフラッシュ法による...',  approvalStatus: 'approved'  },
+  { criteriaName: '硬度',         criteriaType: 'qualitative',  assignedValue: '確か',             assignedBy: '鈴木 一郎', assignedAt: '2024-05-17T10:30:00', comment: 'ビッカース硬さ試験の結果',       approvalStatus: 'approved' },
+  { criteriaName: '引張強度',     criteriaType: 'qualitative', assignedValue: '曖昧',         assignedBy: '田中 美咲', assignedAt: '2024-05-16T13:45:00', comment: 'JIS Z 2241に基づく試験結果',    approvalStatus: 'pending'  },
+  { criteriaName: '伸び',         criteriaType: 'qualitative', assignedValue: 'OK',            assignedBy: '高橋 健太', assignedAt: '2024-05-16T09:20:00', comment: '標点距離50mmでの測定値',        approvalStatus: 'approved' },
+  { criteriaName: 'ポアソン比',   criteriaType: 'qualitative', assignedValue: '確か',           assignedBy: '伊藤 翔太', assignedAt: '2024-05-15T16:00:00', comment: 'ひずみゲージ法による測定',       approvalStatus: 'pending'  },
+  { criteriaName: '比熱容量',     criteriaType: 'qualitative', assignedValue: '不確か',       assignedBy: '佐藤 花子', assignedAt: '2024-05-15T11:30:00', comment: 'DSC法による測定結果',            approvalStatus: 'rejected'  },
+  { criteriaName: '電気抵抗率',   criteriaType: 'qualitative',  assignedValue: '確か',    assignedBy: '鈴木 一郎', assignedAt: '2024-05-14T14:15:00', comment: '四端子法による測定',             approvalStatus: 'rejected' },
+  { criteriaName: '破壊靭性',     criteriaType: 'qualitative', assignedValue: 'NG',        assignedBy: '田中 美咲', assignedAt: '2024-05-14T10:00:00', comment: 'ASTM E399に基づく試験',         approvalStatus: 'pending' },
+  { criteriaName: '疲労限度',     criteriaType: 'qualitative',  assignedValue: '曖昧',           assignedBy: '高橋 健太', assignedAt: '2024-05-13T15:40:00', comment: 'S-N曲線から外挿した推定値',      approvalStatus: 'pending'  },
+  { criteriaName: '熱膨張係数',   criteriaType: 'qualitative', assignedValue: '曖昧',           assignedBy: '伊藤 翔太', assignedAt: '2024-05-13T09:10:00', comment: 'TMA法による25〜400°Cの平均',   approvalStatus: 'pending' },
+];
+
+/**
+ * 同一 methodId/transitionId/templateName/propKey グループの数値平均を計算する
+ * 文字列型や全 null の場合は null を返す
+ */
+function calcGroupAverage(
+  instructions: ExperimentInstruction[],
+  targetMethodId: string,
+  targetTransitionId: string,
+  targetTemplateName: string,
+  targetPropKey: string,
+  field: 'expected' | 'actual'
+): number | null {
+  const nums: number[] = [];
+  instructions.forEach((inst) => {
+    if (
+      inst.methodId    !== targetMethodId    ||
+      inst.transitionId !== targetTransitionId ||
+      inst.templateName !== targetTemplateName
+    ) return;
+    inst.properties.forEach((prop) => {
+      if (prop.key !== targetPropKey) return;
+      const val = prop[field];
+      if (typeof val === 'number') nums.push(val);
+    });
+  });
+  if (nums.length === 0) return null;
+  const sum = nums.reduce((acc, n) => acc + n, 0);
+  return parseFloat((sum / nums.length).toFixed(4));
+}
+
 /** ExperimentInstruction[] をフラットな FlatRow[] に変換 */
 function flattenInstructions(instructions: ExperimentInstruction[]): FlatRow[] {
   const rows: FlatRow[] = [];
+  let mockIdx = 0;
   instructions.forEach((inst) => {
     inst.properties.forEach((prop, idx) => {
+      const mock = MOCK_UNCERTAINTY_DATA[mockIdx % MOCK_UNCERTAINTY_DATA.length];
+      mockIdx++;
       rows.push({
         rowKey: `${inst.methodId}_${inst.taskNumber}_${inst.transitionId}_${inst.templateName}_${prop.key}_${idx}`,
         methodId:      inst.methodId,
@@ -187,8 +278,16 @@ function flattenInstructions(instructions: ExperimentInstruction[]): FlatRow[] {
         propLabel:     prop.label,
         xsiType:       prop.xsiType,
         expected:      prop.expected,
+        expectedAverage: calcGroupAverage(instructions, inst.methodId, inst.transitionId, inst.templateName, prop.key, 'expected'),
         actual:        prop.actual,
+        actualAverage: calcGroupAverage(instructions, inst.methodId, inst.transitionId, inst.templateName, prop.key, 'actual'),
         unit:          prop.unit,
+        uncertaintyCriteriaName:   mock.criteriaName,
+        uncertaintyCriteriaType:   mock.criteriaType,
+        uncertaintyAssignedValue:  mock.assignedValue,
+        uncertaintyAssignedBy:     mock.assignedBy,
+        uncertaintyAssignedAt:     mock.assignedAt,
+        uncertaintyComment:        mock.comment,
       });
     });
   });
@@ -528,6 +627,17 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       ),
     },
     {
+      key: 'expectedAverage',
+      title: <span style={{ whiteSpace: 'nowrap' }}>想定値（平均）</span>,
+      dataIndex: 'expectedAverage',
+      width: 120,
+      align: 'right' as const,
+      render: (v: number | null, r: FlatRow) =>
+        v !== null
+          ? <Text type="secondary">{v}{r.unit ? ` ${r.unit}` : ''}</Text>
+          : <Text type="secondary">—</Text>,
+    },
+    {
       key: 'actual',
       title: '実績値',
       width: 100,
@@ -535,11 +645,92 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       render: (_: unknown, r: FlatRow) => <ActualCell actual={r.actual} unit={r.unit} />,
     },
     {
+      key: 'actualAverage',
+      title: <span style={{ whiteSpace: 'nowrap' }}>実績値（平均）</span>,
+      dataIndex: 'actualAverage',
+      width: 120,
+      align: 'right' as const,
+      render: (v: number | null, r: FlatRow) =>
+        v !== null
+          ? <Text type="secondary">{v}{r.unit ? ` ${r.unit}` : ''}</Text>
+          : <Text type="secondary" italic>未記録</Text>,
+    },
+    {
       key: 'diff',
       title: '差分',
       width: 85,
       align: 'right' as const,
       render: (_: unknown, r: FlatRow) => <DiffCell expected={r.expected} actual={r.actual} />,
+    },
+    {
+      key: 'uncertaintyCriteriaName',
+      title: '不確かさ基準名',
+      dataIndex: 'uncertaintyCriteriaName',
+      width: 200,
+      ellipsis: { showTitle: false },
+      render: (v: string | null, r: FlatRow) => {
+        if (!v) return <Text type="secondary">—</Text>;
+        const typeTag = r.uncertaintyCriteriaType === 'qualitative'
+          ? <Tag color="green"  style={{ margin: '0 4px 0 0', fontSize: 10 }}>定性</Tag>
+          : r.uncertaintyCriteriaType === 'quantitative'
+          ? <Tag color="blue"   style={{ margin: '0 4px 0 0', fontSize: 10 }}>定量</Tag>
+          : null;
+        return (
+          <Tooltip title={v} placement="topLeft">
+            <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'nowrap' }}>
+              {typeTag}
+              <Text style={{ fontSize: 12 }}>{v}</Text>
+            </span>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      key: 'uncertaintyAssignedValue',
+      title: <span style={{ whiteSpace: 'nowrap' }}>不確かさ付与値</span>,
+      dataIndex: 'uncertaintyAssignedValue',
+      width: 140,
+      render: (v: string | null) =>
+        v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text>,
+    },
+    {
+      key: 'uncertaintyAssignedBy',
+      title: <span style={{ whiteSpace: 'nowrap' }}>不確かさ付与者</span>,
+      dataIndex: 'uncertaintyAssignedBy',
+      width: 140,
+      render: (v: string | null) =>
+        v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text>,
+    },
+    {
+      key: 'uncertaintyAssignedAt',
+      title: <span style={{ whiteSpace: 'nowrap' }}>不確かさ付与日時</span>,
+      dataIndex: 'uncertaintyAssignedAt',
+      width: 160,
+      render: (v: string | null) => {
+        if (!v) return <Text type="secondary">—</Text>;
+        const d = new Date(v);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        return <Text style={{ fontSize: 11 }}>{`${yyyy}/${mm}/${dd} ${hh}:${min}`}</Text>;
+      },
+    },
+    {
+      key: 'uncertaintyComment',
+      title: <span style={{ whiteSpace: 'nowrap' }}>不確かさについてのコメント</span>,
+      dataIndex: 'uncertaintyComment',
+      width: 220,
+      ellipsis: { showTitle: false },
+      render: (v: string | null) =>
+        v ? (
+          <Tooltip title={v} placement="topLeft">
+            <Text style={{ fontSize: 12 }}>{v}</Text>
+          </Tooltip>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
     },
     {
       key: 'taskStatus',
@@ -591,6 +782,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         );
       },
     },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   ], []);
 
   /**
@@ -605,25 +797,46 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     });
   }, [allColumnDefs, visibleColumnKeys]);
 
+  /**
+   * 表示中の列幅合計（固定列 + 可視切替列）
+   * 列の表示/非表示に応じて横スクロール幅を動的に調整する
+   */
+  const scrollX = useMemo(() => {
+    // 固定列の幅: taskNumber(80) + propKey(160) + actions(60)
+    const FIXED_WIDTH = 80 + 160 + 60;
+    const toggleableWidth = TOGGLEABLE_COLUMN_DEFS
+      .filter(({ key }) => visibleColumnKeys.includes(key))
+      .reduce((sum, { width }) => sum + width, 0);
+    return FIXED_WIDTH + toggleableWidth;
+  }, [visibleColumnKeys]);
+
   /** 列カスタマイズ Dropdown のメニューアイテム */
   const columnMenuItems: MenuProps['items'] = useMemo(() => [
     ...TOGGLEABLE_COLUMN_DEFS.map(({ key, label }) => ({
       key,
       label: (
-        <Checkbox
-          checked={visibleColumnKeys.includes(key)}
-          onChange={(e) => {
+        <span
+          style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+          onClick={(e) => {
+            e.stopPropagation();
             setVisibleColumnKeys((prev) =>
-              e.target.checked ? [...prev, key] : prev.filter((k) => k !== key)
+              prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
             );
           }}
-          onClick={(e) => e.stopPropagation()}
         >
+          <input type="checkbox" readOnly checked={visibleColumnKeys.includes(key)} style={{ cursor: 'pointer' }} />
           {label}
-        </Checkbox>
+        </span>
       ),
     })),
     { type: 'divider' as const },
+    {
+      key: '__uncertainty__',
+      label: (
+        <Text type="secondary" style={{ fontSize: 12 }}>不確かさ確認</Text>
+      ),
+      onClick: () => setVisibleColumnKeys([...UNCERTAINTY_COLUMN_KEYS]),
+    },
     {
       key: '__reset__',
       label: (
@@ -699,7 +912,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             size="small"
             pagination={false}
             bordered
-            scroll={{ x: 1200, y: 'calc(100vh - 360px)' }}
+            scroll={{ x: scrollX, y: 'calc(100vh - 360px)' }}
             style={{ fontSize: 12 }}
             rowClassName={(r) => r.taskStatus === '04' ? 'row-review-waiting' : ''}
           />
