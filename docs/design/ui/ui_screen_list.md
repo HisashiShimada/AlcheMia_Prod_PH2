@@ -191,6 +191,19 @@
 | MultiObjectEditor.tsx | 複数オブジェクトエディタ | frontend/src/components/editorv2/components/MultiObjectEditor.tsx | [ui_multi_object_editor.md](experiment_admin/04_maiml_editor/document/ui_multi_object_editor.md) | 複数オブジェクト一括編集エディタ |
 | DraftManager.tsx | ドラフト管理 | frontend/src/components/editorv2/components/DraftManager.tsx | [ui_draft_manager.md](experiment_admin/04_maiml_editor/document/ui_draft_manager.md) | 編集内容の一時保存・復元機能 |
 
+**暗号化管理:**
+
+| 物理名 | 論理名 | ファイルパス | 用途・説明 |
+|--------|--------|--------------|-----------|
+| KeyManagementScreen.tsx | 鍵管理画面 | frontend/src/components/key-management/KeyManagementScreen.tsx | 暗号化鍵の一覧・作成・削除を管理する画面（実験管理者メニュー タブ5） |
+| EncryptionManagement.tsx | 暗号化管理 | frontend/src/components/encryption/EncryptionManagement.tsx | MAIMLファイルの暗号化・復号化操作画面（プロジェクト管理画面のモーダル内） |
+| EncryptionManagementModal.tsx | 暗号化管理モーダル | frontend/src/components/encryption/EncryptionManagementModal.tsx | プロジェクト管理画面から呼び出される暗号化管理モーダル |
+| EncryptionTargetTree.tsx | 暗号化対象ツリー | frontend/src/components/encryption/EncryptionTargetTree.tsx | MAIMLタグ構造のツリー表示・暗号化対象選択コンポーネント |
+| EncryptionConfigPanel.tsx | 暗号化設定パネル | frontend/src/components/encryption/EncryptionConfigPanel.tsx | 暗号化アルゴリズム・鍵選択などの設定パネル |
+| EncryptionPreviewPanel.tsx | 暗号化プレビューパネル | frontend/src/components/encryption/EncryptionPreviewPanel.tsx | 暗号化前後のXMLプレビュー表示パネル |
+| KeyManagement.tsx | 鍵管理テーブル | frontend/src/components/encryption/KeyManagement.tsx | 暗号化鍵の一覧表示・削除テーブルコンポーネント |
+| KeyCreateModal.tsx | 鍵作成モーダル | frontend/src/components/encryption/KeyCreateModal.tsx | 新規暗号化鍵作成モーダル |
+
 **進捗管理:**
 
 | 物理名 | 論理名 | ファイルパス | 用途・説明 |

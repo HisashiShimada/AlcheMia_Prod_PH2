@@ -106,7 +106,8 @@
         "projectManagement": "Project Management",
         "formatManagement": "Format Management",
         "progressMonitoring": "Progress Monitoring",
-        "templateManagement": "Evaluation Criteria Management"
+        "templateManagement": "Evaluation Criteria Management",
+        "keyManagement": "Key Management"
       }
     },
     "experiment_worker": {

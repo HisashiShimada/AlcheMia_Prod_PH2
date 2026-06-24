@@ -106,7 +106,8 @@
         "projectManagement": "プロジェクト管理",
         "formatManagement": "フォーマット管理",
         "progressMonitoring": "進捗確認",
-        "templateManagement": "名前空間管理"
+        "templateManagement": "名前空間管理",
+        "keyManagement": "鍵管理"
       }
     },
     "experiment_worker": {

@@ -29,6 +29,16 @@ import {
   getKey,
   createKey,
   deleteKey,
+  exportKey,
+  importKey,
+  rotateKey,
+  generateKey,
+  uploadKeyFile,
+  checkUpaConstraints,
+  checkInsertion,
+  getEncryptedChildren,
+  decryptPreview,
+  executeDecrypt,
 } from '../controllers/encryptionController';
 
 const router = Router();
@@ -64,5 +74,47 @@ router.post('/keys', createKey);
 
 /** 鍵を削除 */
 router.delete('/keys/:keyId', deleteKey);
+
+/** 指定した鍵を1件エクスポート */
+router.post('/keys/:keyId/export', exportKey);
+
+/** 鍵ファイルをインポート */
+router.post('/keys/import', importKey);
+
+/** 鍵ローテーション（選択した鍵で暗号化された EncryptedData を再暗号化） */
+router.post('/keys/:keyId/rotate', rotateKey);
+
+// ---------------------------------------------------------------------------
+// 鍵生成 / アップロード
+// ---------------------------------------------------------------------------
+
+/** AES-256 鍵をランダム生成 */
+router.post('/keys/generate', generateKey);
+
+/** 既存鍵ファイル / 公開鍵をアップロード */
+router.post('/keys/upload', uploadKeyFile);
+
+// ---------------------------------------------------------------------------
+// 検証系
+// ---------------------------------------------------------------------------
+
+/** UPA制約チェック */
+router.post('/upa-check', checkUpaConstraints);
+
+/** insertion 存在確認 */
+router.get('/check-insertion/:projectName/:nodePath', checkInsertion);
+
+// ---------------------------------------------------------------------------
+// 暗号化済み子要素一覧 / 復号化プレビュー / 復号化実行
+// ---------------------------------------------------------------------------
+
+/** 選択ノード配下の暗号化済み要素一覧を取得 */
+router.get('/projects/:projectName/encrypted-children', getEncryptedChildren);
+
+/** 復号化プレビューXMLを取得 */
+router.post('/projects/:projectName/decrypt-preview', decryptPreview);
+
+/** 復号化を実行してMAIMLファイルを更新 */
+router.post('/projects/:projectName/decrypt-execute', executeDecrypt);
 
 export default router;

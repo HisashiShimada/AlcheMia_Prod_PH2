@@ -21,6 +21,24 @@ export const EncryptionAlgorithm = {
   RSA_OAEP: 'rsa-oaep-mgf1p',
 } as const;
 
+/**
+ * 選択可能なアルゴリズム一覧（UI表示順）
+ * 脆弱アルゴリズムは disabled: true
+ */
+export const ALGORITHM_OPTIONS: {
+  value: EncryptionAlgorithmType;
+  label: string;
+  disabled: boolean;
+  weak: boolean;
+}[] = [
+  { value: 'aes256-cbc', label: 'AES-256-CBC（推奨）', disabled: false, weak: false },
+  { value: 'aes128-cbc', label: 'AES-128-CBC',          disabled: false, weak: false },
+  { value: 'aes256-gcm', label: 'AES-256-GCM',          disabled: false, weak: false },
+  { value: 'aes192-cbc', label: 'AES-192-CBC（脆弱）',  disabled: true,  weak: true  },
+  { value: 'tripledes-cbc', label: 'Triple DES-CBC（脆弱）', disabled: true, weak: true },
+  { value: 'rsa-oaep-mgf1p', label: 'RSA-OAEP（脆弱）', disabled: true, weak: true  },
+];
+
 export type EncryptionAlgorithmType = (typeof EncryptionAlgorithm)[keyof typeof EncryptionAlgorithm];
 
 /** アルゴリズムの表示ラベルマップ */
@@ -44,6 +62,88 @@ export const EncryptionAlgorithmUri: Record<EncryptionAlgorithmType, string> = {
   'tripledes-cbc': 'http://www.w3.org/2001/04/xmlenc#tripledes-cbc',
   'rsa-oaep-mgf1p': 'http://www.w3.org/2001/04/xmlenc#rsa-oaep-mgf1p',
 };
+
+// ---------------------------------------------------------------------------
+// 秘匿レベル
+// ---------------------------------------------------------------------------
+
+/**
+ * 秘匿レベル
+ *
+ * - auto: 選択ノードに応じて自動判定（グローバル要素→L1、property/content→L2）
+ * - l1:   グローバル要素全体（UUID以外を一括暗号化）
+ * - l2:   汎用データコンテナのコンテンツのみ暗号化
+ */
+export const EncryptionLevel = {
+  AUTO: 'auto',
+  L1: 'l1',
+  L2: 'l2',
+} as const;
+
+export type EncryptionLevelType = (typeof EncryptionLevel)[keyof typeof EncryptionLevel];
+
+/** L1 対象となるグローバル要素タグ名一覧 */
+export const GLOBAL_ELEMENT_TAGS: string[] = [
+  'document', 'creator', 'vendor', 'owner', 'instrument',
+  'protocol', 'method', 'pnml', 'program', 'instruction',
+  'materialTemplate', 'conditionTemplate', 'resultTemplate',
+  'data', 'results', 'material', 'condition', 'result',
+];
+
+// ---------------------------------------------------------------------------
+// 鍵ソース
+// ---------------------------------------------------------------------------
+
+/**
+ * 鍵ソース種別
+ *
+ * - new_key:    AES-256鍵をランダム生成（.key形式で保存）
+ * - load_file:  既存キーファイルを読み込む（.key/.pem/.pfx）
+ * - public_key: 受信者公開鍵（.pem/.cer）
+ */
+export const KeySource = {
+  NEW_KEY: 'new_key',
+  LOAD_FILE: 'load_file',
+  PUBLIC_KEY: 'public_key',
+} as const;
+
+export type KeySourceType = (typeof KeySource)[keyof typeof KeySource];
+
+/** 鍵ソースごとの対応ファイル拡張子 */
+export const KEY_SOURCE_ACCEPT: Record<KeySourceType, string> = {
+  new_key: '',           // ファイル選択なし（自動生成）
+  load_file: '.key,.pem,.pfx',
+  public_key: '.pem,.cer',
+};
+
+/** ロード済み鍵情報 */
+export interface LoadedKeyInfo {
+  /** SHA-256ハッシュの先頭16文字 */
+  keyIdentifier: string;
+  /** 元のファイル名 */
+  fileName: string;
+  /** 鍵ソース */
+  source: KeySourceType;
+  /** サーバー保存後のID */
+  serverKeyId?: string;
+}
+
+// ---------------------------------------------------------------------------
+// UPA制約チェック
+// ---------------------------------------------------------------------------
+
+/** UPA制約違反情報 */
+export interface UpaViolation {
+  elementPath: string;
+  message: string;
+  suggestedFix?: string;
+}
+
+/** UPA制約チェック結果 */
+export interface UpaCheckResult {
+  isValid: boolean;
+  violations: UpaViolation[];
+}
 
 // ---------------------------------------------------------------------------
 // 暗号化スコープ
@@ -80,6 +180,8 @@ export interface EncryptionKey {
   keyId: string;
   /** 鍵の識別名（ds:KeyName に使用） */
   keyName: string;
+  /** 鍵のフィンガープリント（SHA-256ハッシュ先頭16文字） */
+  keyIdentifier?: string;
   /** 使用アルゴリズム */
   algorithm: EncryptionAlgorithmType;
   /** 鍵長（ビット） */
@@ -108,6 +210,60 @@ export interface CreateKeyRequest {
   description?: string;
   generationMethod: 'auto' | 'pbkdf2';
   password?: string;
+}
+
+// ---------------------------------------------------------------------------
+// 鍵エクスポート / インポート / ローテーション
+// ---------------------------------------------------------------------------
+
+/** 鍵エクスポートリクエスト */
+export interface ExportKeyRequest {
+  /** エクスポート対象の鍵ID一覧 */
+  keyIds: string[];
+  /** パスワード保護用パスワード（AES-256で鍵を暗号化） */
+  password: string;
+}
+
+/** 鍵エクスポートレスポンス */
+export interface ExportKeyResponse {
+  /** Base64エンコードされた鍵ファイル内容 */
+  fileContent: string;
+  /** ダウンロードファイル名 */
+  fileName: string;
+}
+
+/** 鍵インポートリクエスト */
+export interface ImportKeyRequest {
+  /** ファイル名 */
+  fileName: string;
+  /** Base64エンコードされたファイル内容 */
+  fileContent: string;
+  /** パスワード（.key/.pfx の場合） */
+  password?: string;
+}
+
+/** 鍵インポートレスポンス */
+export interface ImportKeyResponse {
+  /** インポートされた鍵情報 */
+  key: EncryptionKey;
+}
+
+/** 鍵ローテーションリクエスト */
+export interface RotateKeyRequest {
+  /** 新しい鍵のID（未指定の場合は新規生成） */
+  newKeyId?: string;
+}
+
+/** 鍵ローテーションレスポンス */
+export interface RotateKeyResponse {
+  /** ジョブID（非同期処理の場合） */
+  jobId?: string;
+  /** 再暗号化対象データ件数 */
+  targetCount: number;
+  /** 処理ステータス */
+  status: 'started' | 'completed' | 'not_implemented';
+  /** メッセージ */
+  message: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +336,23 @@ export interface MaimlTreeNode {
   encryptionInfo?: EncryptedNodeInfo;
   /** 子ノード */
   children?: MaimlTreeNode[];
+  /**
+   * 子要素に <insertion> が含まれるか
+   *
+   * @remarks
+   * true の場合、暗号化設定パネルに挿入履歴警告を表示する
+   */
+  hasInsertion?: boolean;
+  /** UPA制約チェック結果（L2選択時にバックエンドから取得） */
+  upaCheckResult?: UpaCheckResult;
+  /**
+   * ノード種別（秘匿レベル自動判定用）
+   *
+   * - global: グローバル要素 → 自動選択時 L1
+   * - property / content: → 自動選択時 L2
+   * - other: 暗号化対象外
+   */
+  nodeCategory?: 'global' | 'property' | 'content' | 'other';
 }
 
 /** 暗号化済みノードの情報 */
@@ -230,11 +403,32 @@ export interface Pbkdf2Config {
 export interface EncryptionConfig {
   /** 暗号化アルゴリズム */
   algorithm: EncryptionAlgorithmType;
-  /** 鍵指定方式 */
-  keyMethod: KeyMethodType;
-  /** 鍵名（keyMethod=keyName の場合） */
+  /**
+   * 秘匿レベル（新規追加）
+   *
+   * - auto: ノード種別に応じて自動判定
+   * - l1:   グローバル要素全体
+   * - l2:   データコンテナのコンテンツのみ
+   */
+  encryptionLevel: EncryptionLevelType;
+  /**
+   * 鍵ソース（旧 keyMethod から変更）
+   *
+   * - new_key:    AES-256鍵をランダム生成
+   * - load_file:  既存キーファイルを読み込む
+   * - public_key: 受信者公開鍵
+   */
+  keySource: KeySourceType;
+  /** ロード済み鍵情報（keySource が new_key/load_file/public_key いずれかで鍵を読み込んだ後に設定） */
+  loadedKey?: LoadedKeyInfo;
+  /**
+   * @deprecated keySource を使用してください
+   * 後方互換性のために残していますが、新規コードでは使用しないこと
+   */
+  keyMethod?: KeyMethodType;
+  /** 鍵名（後方互換用） */
   keyName?: string;
-  /** PBKDF2設定（keyMethod=pbkdf2 の場合） */
+  /** PBKDF2設定（後方互換用） */
   pbkdf2Config?: Pbkdf2Config;
   /** 暗号化スコープ */
   encryptionScope: EncryptionScopeType;
@@ -247,8 +441,9 @@ export interface EncryptionConfig {
 /** デフォルト暗号化設定 */
 export const DEFAULT_ENCRYPTION_CONFIG: EncryptionConfig = {
   algorithm: EncryptionAlgorithm.AES_256_CBC,
-  keyMethod: KeyMethod.KEY_NAME,
-  keyName: undefined,
+  encryptionLevel: EncryptionLevel.AUTO,
+  keySource: KeySource.NEW_KEY,
+  loadedKey: undefined,
   encryptionScope: EncryptionScope.ELEMENT,
   preserveChildInfo: {
     childUri: true,
@@ -321,4 +516,72 @@ export interface DecryptRequest {
 export interface DecryptResponse {
   success: boolean;
   decryptedXml?: string;
+}
+
+// ---------------------------------------------------------------------------
+// 暗号化済み子要素一覧
+// ---------------------------------------------------------------------------
+
+/**
+ * 暗号化済み子要素情報
+ *
+ * @remarks
+ * ツリーで選択した要素の配下にある暗号化済み要素の情報。
+ * 暗号化済み要素一覧タブで表示するデータ型。
+ */
+export interface EncryptedChildElement {
+  /** 要素のXPathパス */
+  path: string;
+  /** 親要素のID属性値 */
+  parentId: string;
+  /** 要素の種別（タグ名: 'material', 'condition', 'property' など） */
+  elementType: string;
+  /** 秘匿レベル */
+  encryptionLevel: 'L1' | 'L2';
+  /** 使用アルゴリズム（表示用ラベル: 'AES-256-CBC' など） */
+  algorithm: string;
+  /** 暗号化日時 */
+  encryptedAt?: string;
+}
+
+// ---------------------------------------------------------------------------
+// 復号化プレビュー
+// ---------------------------------------------------------------------------
+
+/** 復号化プレビューリクエスト */
+export interface DecryptPreviewRequest {
+  /** 対象プロジェクト名 */
+  projectName: string;
+  /** 復号化対象のXPathパス */
+  targetPath: string;
+  /** 使用する鍵のID */
+  keyId: string;
+  /** パスワード（PBKDF2の場合のみ） */
+  password?: string;
+}
+
+/** 復号化プレビューレスポンス */
+export interface DecryptPreviewResponse {
+  /** 復号化前XML（暗号化されたEncryptedData要素） */
+  beforeXml: string;
+  /** 復号化後XML（平文の要素） */
+  afterXml: string;
+}
+
+/** 復号化実行リクエスト（拡張版）*/
+export interface DecryptExecuteRequest {
+  /** 対象プロジェクト名 */
+  projectName: string;
+  /** 復号化対象のXPathパス */
+  targetPath: string;
+  /** 使用する鍵のID */
+  keyId: string;
+  /** パスワード（PBKDF2の場合のみ） */
+  password?: string;
+}
+
+/** 復号化実行レスポンス（拡張版）*/
+export interface DecryptExecuteResponse {
+  success: boolean;
+  updatedFilePath?: string;
 }
