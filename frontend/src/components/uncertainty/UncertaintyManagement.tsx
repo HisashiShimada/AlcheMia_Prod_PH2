@@ -153,13 +153,12 @@ export default function UncertaintyManagement() {
               />
             </div>
 
-            {/* 不確かさ基準管理タブ：一覧のみ */}
-            <div style={{ display: activeTab === 'criteria' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-              {/* ツールバー */}
+            {/* 不確かさ基準管理タブ：ツールバー＋一覧を1枚の Card に統合 */}
+            <div style={{ display: activeTab === 'criteria' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#fff' }}>
+              {/* ── 1段目: ボタン群（右寄せ） ── */}
               <div style={{
                 padding: '10px 16px',
-                borderBottom: '1px solid #e8e8e8',
-                background: '#fff',
+                borderBottom: '1px solid #f0f0f0',
                 display: 'flex',
                 justifyContent: 'flex-end',
                 flexShrink: 0,
@@ -184,7 +183,7 @@ export default function UncertaintyManagement() {
                   </Button>
                 </Space>
               </div>
-              {/* 一覧テーブル */}
+              {/* ── 一覧テーブル（直接配置、Card 不使用） ── */}
               <div style={{ flex: 1, overflow: 'hidden' }}>
                 <UncertaintyListTable
                   templates={templates}

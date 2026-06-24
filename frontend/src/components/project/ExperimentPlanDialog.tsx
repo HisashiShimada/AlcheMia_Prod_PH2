@@ -642,13 +642,20 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                   style={{ marginBottom: 8 }}
                 />
               ) : (
-                <Form layout="vertical" size="small">
+                <div>
                   {selectedTemplate.fields.map((field) => {
                     const valueKey = `${selectedTemplate.id}_${field.key}`;
                     return (
-                      <Form.Item
-                        key={valueKey}
-                        label={
+                      <div key={valueKey} style={{ marginBottom: 10 }}>
+                        {/* ラベル行: フィールド名・単位を左、不確かさ選択ボタンを右端 */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 4,
+                          }}
+                        >
                           <Space size={4}>
                             <Text style={{ fontSize: 12 }}>
                               {field.label || field.key}
@@ -662,16 +669,27 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                               </Tag>
                             )}
                           </Space>
-                        }
-                        extra={
-                          field.description ? (
-                            <Text type="secondary" style={{ fontSize: 10 }}>
-                              {field.description}
-                            </Text>
-                          ) : undefined
-                        }
-                        style={{ marginBottom: 10 }}
-                      >
+                          <Button
+                            type="primary"
+                            size="small"
+                            disabled={disabled}
+                            onClick={() => {
+                              setCriteriaSelectorTarget({
+                                name: field.label || field.key,
+                                xpath: field.key,
+                                tag: 'property',
+                                type: field.type,
+                                value: String(templateValues[valueKey] ?? ''),
+                                unit: field.units ?? '',
+                                section: selectedTemplate.category as 'material' | 'condition' | 'result',
+                              });
+                              setCriteriaSelectorOpen(true);
+                            }}
+                          >
+                            不確かさ選択
+                          </Button>
+                        </div>
+                        {/* 入力欄 */}
                         {field.type === 'number' ? (
                           <InputNumber
                             value={templateValues[valueKey] as number | undefined}
@@ -702,10 +720,15 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                             data-testid={`template-input-${field.key}`}
                           />
                         )}
-                      </Form.Item>
+                        {field.description && (
+                          <Text type="secondary" style={{ fontSize: 10 }}>
+                            {field.description}
+                          </Text>
+                        )}
+                      </div>
                     );
                   })}
-                </Form>
+                </div>
               )}
 
               <Divider style={{ margin: '8px 0' }} />
