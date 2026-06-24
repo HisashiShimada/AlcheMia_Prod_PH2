@@ -523,8 +523,7 @@
       "file_management": "ファイル管理",
       "task_registration": "タスク登録",
       "instruction_registration": "指示一覧",
-      "task_results": "実験指示",
-      "uncertainty_approval": "不確かさ承認"
+      "task_results": "実験指示"
     },
     "task_results": {
       "no_project_selected": "プロジェクトを選択してください",

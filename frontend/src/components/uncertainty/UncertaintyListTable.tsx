@@ -325,8 +325,8 @@ export default function UncertaintyListTable({
       <div
         style={{
           background: '#fff',
-          padding: '10px 16px',
-          borderBottom: '1px solid #e8e8e8',
+          padding: '10px 16px 8px',
+          borderBottom: 'none',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
@@ -334,14 +334,6 @@ export default function UncertaintyListTable({
           flexWrap: 'wrap',
         }}
       >
-        {/* スコープ表示 */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Text style={{ fontSize: 12, color: '#888', whiteSpace: 'nowrap' }}>スコープ：</Text>
-          <Text strong style={{ fontSize: 13, color: '#1677ff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {currentScopeLabel}
-          </Text>
-        </div>
-
         {/* 評価方式フィルタ */}
         <Select
           size="small"
@@ -388,7 +380,7 @@ export default function UncertaintyListTable({
       </div>
 
       {/* テーブルエリア */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '16px 16px 0' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '0 16px 0' }}>
         <Table<UncertaintyTemplate>
           rowKey="id"
           columns={columns}
