@@ -158,72 +158,96 @@ CREATE TABLE maiml_signatures (
 
 ---
 
-### ⚠️ C. `xml-crypto`パッケージの動作検証
+### ✅ C. `xml-crypto`パッケージの動作検証（調査完了）
 
-**背景**: 既存実装にない新規ライブラリ。インストール前に確認すべき事項がある。
+**調査日**: 2026-06-26  
+**確認バージョン**: xml-crypto v6.1.2（最新）
 
-**確認内容**:
-- [ ] `xml-crypto`の最新バージョン（v3.x系）がNode.js 24.x対応か
-- [ ] TypeScript型定義（`@types/xml-crypto`）の有無
-- [ ] `node-forge`との競合なし確認（`certificateService.ts`で使用中）
-- [ ] `enveloped-signature`変換（Signature要素自体を署名対象外にする処理）が正常動作するか
+| 確認項目 | 結果 | 詳細 |
+|---------|------|------|
+| Node.js 24.x対応 | ✅ | `engines: { node: '>=16' }` |
+| TypeScript型定義 | ✅ | パッケージ本体にバンドル済み（`lib/*.d.ts`） |
+| `node-forge`との競合 | ✅ なし | 依存関係が独立（`@xmldom/xmldom`, `xpath`のみ） |
+| `@xmldom/xmldom`競合 | ✅ なし | 既存と同じ`@xmldom/xmldom`を使用（共有可能） |
+| `enveloped-signature`対応 | ✅ | `lib/enveloped-signature.d.ts`がバンドル済み |
+| XML Encryption対応 | ✅ | descriptionに"xml encryption"と明記 |
 
-**インストールコマンド（確定後）**:
+**重要**: `@types/xml-crypto` v1.4.6はv3対応の古い型定義のため**不要**。本体バンドルの型定義を使用する。
+
+**インストールコマンド（確定）**:
 ```bash
+# xml-cryptoのみ。@types/xml-cryptoは不要
 npm install xml-crypto
-npm install --save-dev @types/xml-crypto
 ```
+
+**確認済み項目**:
+- [x] xml-crypto v6.1.2 がNode.js 24.x対応
+- [x] TypeScript型定義がバンドル済み（`@types/xml-crypto`不要）
+- [x] `node-forge`との競合なし
+- [x] `enveloped-signature`変換対応確認
+- [x] XML Encryption対応確認（項目Dも同時に解決）
 
 ---
 
-### ⚠️ D. XML Encryption実装のライブラリ選定
+### ✅ D. XML Encryption実装のライブラリ選定（調査完了）
 
-**背景**: 暗号化機能（`encryptionController.ts`）は現状スタブ実装。本実装に向けてライブラリが必要。
+**調査日**: 2026-06-26（項目Cと同時に確認）
 
-**候補**:
+**結果**: `xml-crypto v6.1.2`でXML Encryptionも対応可能。追加パッケージ不要。
 
-| ライブラリ | 特徴 | W3C準拠 |
-|----------|------|--------|
-| Node.js `crypto`（標準） | AES暗号化自体は実装可能。XMLへの適用は手動実装が必要 | △ |
-| `xml-enc`（仮称） | XML Encryption専用。存在するなら最適 | ◎ |
-| `xml-crypto` | XMLDSigに加えてXML Encryptionにも対応（要確認） | ◯ |
+| ライブラリ | W3C準拠 | 採用判断 |
+|----------|--------|---------|
+| Node.js `crypto`（標準） | △（XMLへの適用は手動実装が必要） | ❌ 非採用 |
+| `xml-crypto` v6.1.2 | ✅（description: "Xml digital signature and **encryption** library"） | ✅ 採用 |
 
-**確認内容**:
-- [ ] `xml-crypto`がXML Encryptionにも対応しているか確認
-- [ ] MAIMLスキーマの`encryptionGroup`（`childUri` / `childHash` / `childUuid`要素）への対応可否
+**確認済み項目**:
+- [x] `xml-crypto`がXML Encryptionに対応していることを確認（パッケージ説明文より）
+- [ ] MAIMLスキーマの`encryptionGroup`（`childUri` / `childHash` / `childUuid`要素）への対応可否は実装時に検証
 
 ---
 
 ## ⚠️ 要確定事項（仕様確認が必要なもの）
 
-### ⚠️ E. Document保存APIへの署名統合 vs 独立API
+### ✅ E. Document保存APIへの署名統合 vs 独立API（調査完了）
 
-**背景**: PLAN.mdでは2つのUIパターン（Document編集ダイアログ / セキュリティ設定モーダル）がある。
+**調査日**: 2026-06-26（既存ルートファイル調査による）
 
-**確認が必要な仕様**:
+#### 調査結果
 
-#### パターン1: Document編集ダイアログ経由の署名
-
-現在の**Document保存API**がどのエンドポイントか、リクエスト形式がどうなっているかを確認する必要がある。
-
-- [ ] Document保存のAPIエンドポイントは何か？
-  - 候補: `POST /api/v1/maiml/save-document` または `PATCH /api/v1/projects/:name/document`
-- [ ] `signatureEnabled: boolean`をリクエストに追加する形式で問題ないか？
-- [ ] Document保存とMAIMLファイル書き込み処理の既存フロー確認が必要
-
-#### パターン2: セキュリティ設定モーダル経由の独立API
-
-仕様書（signature_implementation_spec.md）では以下が示されているが、確定していない：
-
+**既存のMAIML保存API**:
 ```
-GET  /api/v1/projects/:name/signature/status
-POST /api/v1/projects/:name/signature/apply
-POST /api/v1/projects/:name/signature/remove
+POST /api/v1/maiml/save
+  body: { content: string, archive?: boolean }
 ```
 
-**確認すべきこと**:
-- [ ] `:name`はproject_nameかproject_idか（既存APIに合わせる）
-- [ ] 署名ステータス取得時にMAIMLファイルをS3から毎回ダウンロードするのか、DBキャッシュを持つのか
+**既存のプロジェクトAPI パラメータ形式**: `:projectId`（UUID）を使用
+
+#### 確定事項
+
+**署名は独立APIとして実装する**（パターン2を採用）
+
+理由:
+- 既存の`POST /api/v1/maiml/save`は汎用MAIML保存であり、署名処理を混在させることは責務の分離に反する
+- 既存`projectRoutes.ts`のパターン（`/:projectId/...`）に合わせて実装する
+
+**確定したエンドポイント**:
+```
+GET  /api/v1/projects/:projectId/signature/status
+POST /api/v1/projects/:projectId/signature/apply
+POST /api/v1/projects/:projectId/signature/remove
+```
+
+- `:projectId`はUUID形式（既存APIに統一）
+- 仕様書の`:name`表記は`:projectId`に変更確定
+
+**署名ステータス取得の実装方式**:
+- Phase 1: S3から毎回ダウンロードして解析（シンプル）
+- Phase 2: `maiml_evidence`テーブルが実装されたらDBキャッシュを使用
+
+**確認済み項目**:
+- [x] Document保存APIは`POST /api/v1/maiml/save`と確認
+- [x] 署名APIは独立APIとして`/:projectId/signature/*`に追加確定
+- [x] パラメータは`:projectId`（UUID）に確定
 
 ---
 
