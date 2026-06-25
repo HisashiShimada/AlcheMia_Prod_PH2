@@ -662,3 +662,118 @@ export interface MaimlPublishResponse {
   requestedAt: string;
 }
 
+// ============================================================
+// 実験指示関連の型定義
+// experimentInstructionService で使用
+// ============================================================
+
+/**
+ * 1 フィールドの実験指示情報
+ */
+export interface InstructionField {
+  key: string;
+  /** property_set 内の displayName。存在しない場合はキーをそのまま使用 */
+  label: string;
+  /** xsiType 文字列（例: "FloatValue", "StringValue"）*/
+  xsiType: string | null;
+  /** 実験計画（想定値）。未設定の場合は null */
+  plannedValue: string | null;
+  /** 実際の記録値。template_data の property_set.properties[n].content.value から取得 */
+  actualValue: string | null;
+  /** 単位（units 属性） */
+  unit: string | null;
+}
+
+/**
+ * 1 テンプレートの実験指示情報
+ */
+export interface InstructionTemplate {
+  templateId: string;
+  templateName: string | null;
+  templateType: 'material' | 'condition' | 'result';
+  fields: InstructionField[];
+}
+
+/**
+ * 1 タスクの実験指示情報
+ */
+export interface InstructionTask {
+  taskNo: number;
+  /** task_status の数値 */
+  taskStatus: number | null;
+  reviewedAt: string | null;
+  reviewUserId: string | null;
+  reviewResult: string | null;
+  templates: InstructionTemplate[];
+}
+
+/**
+ * 1 メソッドの実験指示情報
+ */
+export interface InstructionMethod {
+  methodId: string;
+  tasks: InstructionTask[];
+}
+
+/**
+ * getExperimentInstructions の戻り値
+ */
+export interface ExperimentInstructionsResult {
+  methods: InstructionMethod[];
+}
+
+/**
+ * getProjectMethods の戻り値
+ */
+export interface ProjectMethod {
+  id: string;
+}
+
+/**
+ * approveTask / recordNg の戻り値
+ */
+export interface TaskReviewResult {
+  /** 更新後の task_status */
+  taskStatus: number | null;
+  reviewedAt: string | null;
+  reviewUserId: string | null;
+  reviewResult: string | null;
+}
+
+// ============================================================
+// 実験計画関連の型定義
+// experimentPlanService で使用
+// ============================================================
+
+import type { ExperimentPlanValues } from './database';
+
+/**
+ * 実験計画 DTO（Service 層の出力）
+ */
+export interface ExperimentPlanDto {
+  taskNo: number;
+  plannedValues: ExperimentPlanValues;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+}
+
+/**
+ * getExperimentPlans の戻り値
+ */
+export interface GetExperimentPlansResult {
+  methodId: string;
+  plans: ExperimentPlanDto[];
+}
+
+/**
+ * upsertExperimentPlan の入力
+ */
+export interface UpsertExperimentPlanInput {
+  organizationId: string;
+  projectId: string;
+  methodId: string;
+  taskNo: number;
+  plannedValues: ExperimentPlanValues;
+  userId: string;
+}
+

@@ -37,13 +37,7 @@ import {
   Typography,
   theme,
 } from 'antd';
-import {
-  CommentOutlined,
-  PlusOutlined,
-  RightOutlined,
-  SearchOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
+import { CommentOutlined, FastForwardOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
 import UncertaintyCriteriaSelectorModal from '../uncertainty/UncertaintyCriteriaSelectorModal';
 import type { TargetProperty, AssignPayload } from '../uncertainty/UncertaintyCriteriaSelectorModal';
@@ -75,6 +69,15 @@ interface MockTemplate {
 interface MockTransition {
   id: string;
   order: number;
+  /**
+   * 前提となるトランジションIDの配列。
+   * これらが全て completed になるまでこのトランジションは開始不可。
+   * 空配列の場合は依存なし（いつでも開始可能）。
+   *
+   * @example [] // 依存なし
+   * @example ['TR_A', 'TR_B'] // TR_A と TR_B 両方完了後のみ開始可能
+   */
+  prerequisiteTransitionIds: string[];
   methodId: string;
   templates: MockTemplate[];
 }
@@ -106,20 +109,42 @@ const MOCK_PROJECT_INSTRUCTIONS = [
   '廃液は適切に分別して廃棄すること',
 ];
 
-const PROJECT_NAME = 'SampleSynthesis';
-const METHOD_A_ID = `method_${PROJECT_NAME}_a1b2c3d4`;
-const METHOD_B_ID = `method_${PROJECT_NAME}_e5f6a7b8`;
+// ─────────────────────────────────────────────────────────────
+// モックデータ構成:
+//   同一 MAIML を複数タスクで繰り返す構造のため、
+//   全タスクが同じメソッド・同じトランジション構成を持つ。
+//
+//   TR_A / TR_B / TR_C: isOrderFixed=false（順序自由・並列実行可能）
+//   TR_D:               isOrderFixed=true （A・B・C 全完了後のみ開始可能）
+//
+//   スキップシナリオ例:
+//     TR_A が難しくて一旦スキップ → TR_B・TR_C を先に完了
+//     → 後で TR_A に戻って完了 → TR_A/B/C 全完了で TR_D が開始可能に
+// ─────────────────────────────────────────────────────────────
 
-export const MOCK_METHODS: MockMethod[] = [
-  { id: METHOD_A_ID, order: 1 },
-  { id: METHOD_B_ID, order: 2 },
+const PROJECT_NAME = 'SampleSynthesis';
+const METHOD_ID    = `method_${PROJECT_NAME}_a1b2c3d4`;
+
+// TR_A: 混合条件（並列・順序自由）
+export const TR_A_ID = 'transition-1781057805603';
+// TR_B: 加熱条件（並列・順序自由）
+export const TR_B_ID = 'transition-1781057812047';
+// TR_C: 分離操作（並列・順序自由）
+export const TR_C_ID = 'transition-1781057819834';
+// TR_D: 最終評価（固定順序: A・B・C 全完了後のみ開始可能）
+export const TR_D_ID = 'transition-1781057826501';
+
+const MOCK_METHODS: MockMethod[] = [
+  { id: METHOD_ID, order: 1 },
 ];
 
-export const MOCK_TRANSITIONS: MockTransition[] = [
+const MOCK_TRANSITIONS: MockTransition[] = [
+  // ─── TR_A: 混合条件（前提なし・順序自由）────────────────────
   {
-    id: 'transition-1781057805603',
+    id: TR_A_ID,
     order: 1,
-    methodId: METHOD_A_ID,
+    prerequisiteTransitionIds: [],
+    methodId: METHOD_ID,
     templates: [
       {
         id: 'tpl-cond-mixing',
@@ -132,20 +157,22 @@ export const MOCK_TRANSITIONS: MockTransition[] = [
         ],
       },
       {
-        id: 'tpl-result-yield',
-        name: 'Result-Yield',
-        category: 'Results',
+        id: 'tpl-mat-reagent',
+        name: 'Material-Reagent',
+        category: 'Materials',
         properties: [
-          { key: 'ns1:Yield',  label: '収率', xsiType: 'FloatValue', unit: '%', expected: 90.0 },
-          { key: 'ns1:Purity', label: '純度', xsiType: 'FloatValue', unit: '%', expected: 99.5 },
+          { key: 'ns1:ReagentName', label: '試薬名', xsiType: 'StringValue', unit: '', expected: 'NaCl' },
+          { key: 'ns1:Amount',      label: '量',     xsiType: 'FloatValue',  unit: 'g', expected: 5.0   },
         ],
       },
     ],
   },
+  // ─── TR_B: 加熱条件（前提なし・順序自由）────────────────────
   {
-    id: 'transition-1781057812047',
+    id: TR_B_ID,
     order: 2,
-    methodId: METHOD_A_ID,
+    prerequisiteTransitionIds: [],
+    methodId: METHOD_ID,
     templates: [
       {
         id: 'tpl-cond-heating',
@@ -158,10 +185,12 @@ export const MOCK_TRANSITIONS: MockTransition[] = [
       },
     ],
   },
+  // ─── TR_C: 分離操作（前提なし・順序自由）────────────────────
   {
-    id: 'transition-1781057819834',
-    order: 1,
-    methodId: METHOD_B_ID,
+    id: TR_C_ID,
+    order: 3,
+    prerequisiteTransitionIds: [],
+    methodId: METHOD_ID,
     templates: [
       {
         id: 'tpl-cond-centri',
@@ -182,6 +211,24 @@ export const MOCK_TRANSITIONS: MockTransition[] = [
       },
     ],
   },
+  // ─── TR_D: 最終評価（A・B・C 全完了後のみ開始可能）──────────
+  {
+    id: TR_D_ID,
+    order: 4,
+    prerequisiteTransitionIds: [TR_A_ID, TR_B_ID, TR_C_ID],
+    methodId: METHOD_ID,
+    templates: [
+      {
+        id: 'tpl-result-yield',
+        name: 'Result-Yield',
+        category: 'Results',
+        properties: [
+          { key: 'ns1:Yield',  label: '収率', xsiType: 'FloatValue', unit: '%', expected: 90.0 },
+          { key: 'ns1:Purity', label: '純度', xsiType: 'FloatValue', unit: '%', expected: 99.5 },
+        ],
+      },
+    ],
+  },
 ];
 
 const ORDERED_TRANSITION_IDS: string[] = MOCK_METHODS
@@ -194,39 +241,63 @@ const ORDERED_TRANSITION_IDS: string[] = MOCK_METHODS
   );
 
 export const INITIAL_TASKS: MockTask[] = [
+  // ─── タスク1: 全完了済み ────────────────────────────────────
   {
     taskNo: 1,
     transitions: [
       {
-        transitionId: 'transition-1781057805603',
+        transitionId: TR_A_ID,
         status: 'completed',
         actuals: {
           'ns1:Temperature': 24.8, 'ns1:Pressure': 1.02, 'ns1:StirringSpeed': 295,
-          'ns1:Yield': 88.5, 'ns1:Purity': 99.1,
+          'ns1:ReagentName': 'NaCl', 'ns1:Amount': 5.1,
         },
       },
       {
-        transitionId: 'transition-1781057812047',
+        transitionId: TR_B_ID,
         status: 'completed',
         actuals: { 'ns1:Temperature': 79.5, 'ns1:HeatingTime': 31 },
       },
       {
-        transitionId: 'transition-1781057819834',
+        transitionId: TR_C_ID,
         status: 'completed',
         actuals: { 'ns1:RotationSpeed': 3000, 'ns1:Duration': 10, 'ns1:SolventName': 'EtOH' },
       },
+      {
+        transitionId: TR_D_ID,
+        status: 'completed',
+        actuals: { 'ns1:Yield': 88.5, 'ns1:Purity': 99.1 },
+      },
     ],
   },
+  // ─── タスク2: TR_B 完了、TR_A 作業中（スキップシナリオ想定）────
+  //   TR_B を先に完了させ、TR_A は後回し中。
+  //   TR_C は未着手。TR_D は A・B・C 全完了待ち。
   {
     taskNo: 2,
     transitions: [
       {
-        transitionId: 'transition-1781057805603',
+        transitionId: TR_A_ID,
         status: 'in_progress',
-        actuals: { 'ns1:Temperature': 25.3, 'ns1:Pressure': null, 'ns1:StirringSpeed': null, 'ns1:Yield': null, 'ns1:Purity': null },
+        actuals: { 'ns1:Temperature': 25.3, 'ns1:Pressure': null, 'ns1:StirringSpeed': null, 'ns1:ReagentName': null, 'ns1:Amount': null },
       },
-      { transitionId: 'transition-1781057812047', status: 'not_started', actuals: {} },
-      { transitionId: 'transition-1781057819834', status: 'not_started', actuals: {} },
+      {
+        transitionId: TR_B_ID,
+        status: 'completed',
+        actuals: { 'ns1:Temperature': 80.2, 'ns1:HeatingTime': 30 },
+      },
+      { transitionId: TR_C_ID, status: 'not_started', actuals: {} },
+      { transitionId: TR_D_ID, status: 'not_started', actuals: {} },
+    ],
+  },
+  // ─── タスク3: 未着手 ────────────────────────────────────────
+  {
+    taskNo: 3,
+    transitions: [
+      { transitionId: TR_A_ID, status: 'not_started', actuals: {} },
+      { transitionId: TR_B_ID, status: 'not_started', actuals: {} },
+      { transitionId: TR_C_ID, status: 'not_started', actuals: {} },
+      { transitionId: TR_D_ID, status: 'not_started', actuals: {} },
     ],
   },
 ];
@@ -380,9 +451,12 @@ interface PropertyListProps {
   taskTransition: TaskTransitionState | undefined;
   isReadOnly: boolean;
   displayKey: { taskNo: number; transitionId: string } | null;
+  /** スキップ可能かどうか（スキップボタンの有効/無効制御） */
+  canSkip?: boolean;
   onActualChange: (taskNo: number, transitionId: string, propKey: string, value: number | string | null) => void;
   onSave: (taskNo: number, transitionId: string) => void;
   onSaveAndNext: (taskNo: number, transitionId: string) => void;
+  onSkip: (taskNo: number, transitionId: string) => void;
   onTemplateIdxChange: (idx: number) => void;
   /** コメントボタンクリック時のコールバック */
   onCommentClick: () => void;
@@ -395,9 +469,11 @@ const PropertyList: React.FC<PropertyListProps> = ({
   taskTransition,
   isReadOnly,
   displayKey,
+  canSkip = false,
   onActualChange,
   onSave,
   onSaveAndNext,
+  onSkip,
   onTemplateIdxChange,
   onCommentClick,
 }) => {
@@ -508,6 +584,16 @@ const PropertyList: React.FC<PropertyListProps> = ({
           <Button onClick={() => onSave(displayKey.taskNo, displayKey.transitionId)}>
             保存
           </Button>
+          {/* スキップボタン: 他に実行可能なトランジションがある場合のみ有効 */}
+          <Tooltip title={canSkip ? 'このトランジションを後回しにして次へ進みます' : 'スキップできる別のトランジションがありません'}>
+            <Button
+              icon={<FastForwardOutlined />}
+              disabled={!canSkip}
+              onClick={() => onSkip(displayKey.taskNo, displayKey.transitionId)}
+            >
+              スキップ
+            </Button>
+          </Tooltip>
           <Button
             type="primary"
             icon={<RightOutlined />}
@@ -644,15 +730,86 @@ const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions 
 // 内部用Props（PlanA / PlanB 共通）
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// スキップロジック
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 対象トランジションにアクセス可能かどうかを判定する（WorkRecordPanel 内部用）。
+ * prerequisiteTransitionIds が空の場合は常にアクセス可能。
+ * prerequisiteTransitionIds が設定されている場合、それら全てが completed のときのみアクセス可能。
+ */
+function canAccessTransitionInTask(
+  target: MockTransition,
+  taskTransitions: TaskTransitionState[]
+): boolean {
+  const prereqs = target.prerequisiteTransitionIds;
+
+  // 前提なし → いつでもアクセス可能
+  if (!prereqs || prereqs.length === 0) return true;
+
+  // 全ての前提トランジションが completed であるか確認
+  return prereqs.every((prereqId) => {
+    const state = taskTransitions.find((s) => s.transitionId === prereqId);
+    return state?.status === 'completed';
+  });
+}
+
+/**
+ * 現在のトランジションをスキップした後の次の実行可能なトランジションを検索する。
+ * 1. 現在より後ろのインデックスから探す
+ * 2. 見つからなければ先頭から現在の前まで循環検索する
+ */
+function findNextAvailableTransition(
+  taskNo: number,
+  currentTransitionId: string,
+  skippedIds: string[],
+  tasks: MockTask[]
+): { taskNo: number; transitionId: string } | null {
+  const task = tasks.find((t) => t.taskNo === taskNo);
+  if (!task) return null;
+
+  const currentIdx = ORDERED_TRANSITION_IDS.indexOf(currentTransitionId);
+
+  // 後ろから順に探す
+  for (let i = currentIdx + 1; i < ORDERED_TRANSITION_IDS.length; i++) {
+    const tid = ORDERED_TRANSITION_IDS[i];
+    const tt = task.transitions.find((s) => s.transitionId === tid);
+    if (!tt) continue;
+    if (tt.status === 'completed' || tt.status === 'error') continue;
+    if (skippedIds.includes(tid)) continue;
+    const transition = MOCK_TRANSITIONS.find((t) => t.id === tid);
+    if (transition && !canAccessTransitionInTask(transition, task.transitions)) continue;
+    return { taskNo, transitionId: tid };
+  }
+
+  // 前から循環検索
+  for (let i = 0; i < currentIdx; i++) {
+    const tid = ORDERED_TRANSITION_IDS[i];
+    const tt = task.transitions.find((s) => s.transitionId === tid);
+    if (!tt) continue;
+    if (tt.status === 'completed' || tt.status === 'error') continue;
+    if (skippedIds.includes(tid)) continue;
+    const transition = MOCK_TRANSITIONS.find((t) => t.id === tid);
+    if (transition && !canAccessTransitionInTask(transition, task.transitions)) continue;
+    return { taskNo, transitionId: tid };
+  }
+
+  return null;
+}
+
 interface PlanProps {
   tasks: MockTask[];
   activeTaskNo: number;
   viewingKey: { taskNo: number; transitionId: string } | null;
+  skippedTransitionIds: string[];
   instructions: string[];
   onActualChange: (taskNo: number, transitionId: string, propKey: string, value: number | string | null) => void;
   onSave: (taskNo: number, transitionId: string) => void;
   onSaveAndNext: (taskNo: number, transitionId: string) => void;
   onClearViewing: () => void;
+  /** スキップボタン押下時: 現在のトランジションをスキップして次へ */
+  onSkip: (taskNo: number, transitionId: string) => void;
   /** コメントボタンクリック時のコールバック */
   onCommentClick: () => void;
 }
@@ -662,7 +819,7 @@ interface PlanProps {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanA: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onCommentClick,
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick,
 }) => {
   const [templateIdx, setTemplateIdx] = useState(0);
 
@@ -721,9 +878,11 @@ const PlanA: React.FC<PlanProps> = ({
           taskTransition={displayTT}
           isReadOnly={isReadOnly}
           displayKey={displayKey}
+          canSkip={!isReadOnly && displayKey !== null && findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null}
           onActualChange={onActualChange}
           onSave={onSave}
           onSaveAndNext={onSaveAndNext}
+          onSkip={onSkip}
           onTemplateIdxChange={setTemplateIdx}
           onCommentClick={onCommentClick}
         />
@@ -737,7 +896,7 @@ const PlanA: React.FC<PlanProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onCommentClick,
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick,
 }) => {
   const { token } = theme.useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -900,9 +1059,11 @@ const PlanB: React.FC<PlanProps> = ({
             taskTransition={displayTT}
             isReadOnly={isReadOnly}
             displayKey={displayKey}
+            canSkip={!isReadOnly && displayKey !== null && findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null}
             onActualChange={onActualChange}
             onSave={onSave}
             onSaveAndNext={onSaveAndNext}
+            onSkip={onSkip}
             onTemplateIdxChange={(idx) => setSelectedTemplateId(visibleTemplates[idx]?.id ?? null)}
             onCommentClick={onCommentClick}
           />
@@ -978,6 +1139,47 @@ export default function WorkRecordPanel() {
     [tasks]
   );
 
+  // ─── スキップ state ────────────────────────────────────────
+  const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
+
+  const handleSkip = useCallback(
+    (taskNo: number, transitionId: string) => {
+      // スキップリストに追加
+      setSkippedTransitionIds((prev) =>
+        prev.includes(transitionId) ? prev : [...prev, transitionId]
+      );
+
+      // 次の実行可能なトランジションを検索
+      const next = findNextAvailableTransition(
+        taskNo,
+        transitionId,
+        [...skippedTransitionIds, transitionId], // 今追加したものも含めて検索
+        tasks
+      );
+
+      if (next) {
+        // 次のトランジションが見つかったら viewingKey をリセット（activeEntry で自動選択）
+        setViewingKey(null);
+        Modal.info({
+          title: 'スキップしました',
+          content: (
+            <span>
+              次の作業: <Text code style={{ fontSize: 11 }}>{next.transitionId}</Text>
+            </span>
+          ),
+        });
+      } else {
+        // スキップできる次のトランジションなし → 進捗確認タブへの誘導メッセージ
+        setViewingKey(null);
+        Modal.warning({
+          title: 'スキップ先がありません',
+          content: '現在スキップできる別のトランジションがありません。進捗確認タブでスキップ中の作業を確認してください。',
+        });
+      }
+    },
+    [skippedTransitionIds, tasks]
+  );
+
   // ─── コメントダイアログ用 state ───────────────────────────
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
 
@@ -991,11 +1193,13 @@ export default function WorkRecordPanel() {
     tasks,
     activeTaskNo: ASSIGNED_TASK_NO,
     viewingKey,
+    skippedTransitionIds,
     instructions: MOCK_PROJECT_INSTRUCTIONS,
     onActualChange: handleActualChange,
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,
     onClearViewing: () => setViewingKey(null),
+    onSkip: handleSkip,
     onCommentClick: () => setCommentDialogOpen(true),
   };
 

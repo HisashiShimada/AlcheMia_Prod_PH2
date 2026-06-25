@@ -290,15 +290,81 @@ export default function ExperimentWorkerMenu({
     }
   };
 
+  // ━━━ スキップ状態の管理 ━━━
+  // フェーズB: WorkRecordPanel の onSkip コールバックで更新する
+  const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
+
+  // フェーズB: WorkRecordPanel の onSkip コールバックから呼び出す
+  // const handleTransitionSkipped = (transitionId: string) => {
+  //   setSkippedTransitionIds((prev) =>
+  //     prev.includes(transitionId) ? prev : [...prev, transitionId]
+  //   );
+  // };
+
+  const handleTransitionResumed = (transitionId: string) => {
+    setSkippedTransitionIds((prev) => prev.filter((id) => id !== transitionId));
+  };
+
   // ━━━ フェーズA: ProgressOverviewTab 用モックデータ ━━━
   // フェーズBで API から取得したデータに置き換える
+  //
+  // 構造の前提:
+  //   - タスクは同一 MAIML ファイルを繰り返す → 全タスクが同じ methodId・transitionId を持つ
+  //   - prerequisiteTransitionIds はトランジション自体の属性（MAIML 定義）であり、タスク横断で共通
+  //   - isSkipped は UI 側で管理し、skippedTransitionIds と同期
+  //   - prerequisiteTransitionIds は「直接の依存先のみ」を格納する（推移的依存は格納しない）
+  //
+  // モック構成: タスク1〜3、各タスクにトランジション A〜E の5本
+  //   依存グラフ:
+  //     TR_A（材料準備A）─┐
+  //                       ├─→ TR_C（混合）─→ TR_D（加熱）─→ TR_E（測定）
+  //     TR_B（材料準備B）─┘
+  //
+  //   - TR_A: prereqs=[]     （独立・並列実行可能）
+  //   - TR_B: prereqs=[]     （独立・並列実行可能）
+  //   - TR_C: prereqs=[A, B] （A・B 両方完了後に開始可能）← 直接依存のみ
+  //   - TR_D: prereqs=[C]    （C 完了後に開始可能）← 直接依存のみ
+  //   - TR_E: prereqs=[D]    （D 完了後に開始可能）← 直接依存のみ
+  //
+  // スキップシナリオ例（タスク2）:
+  //   TR_A は材料待ちでスキップ → TR_B を先に完了
+  //   → 後で TR_A に戻って完了 → A/B 完了で TR_C が開始可能に
+  //   → TR_C → TR_D → TR_E と順次進行
+  const MOCK_METHOD_ID = 'method_SampleSynthesis_a1b2c3d4';
+  const MOCK_TR_A = 'transition-1781057805603'; // 材料準備A（prereqs=[]）
+  const MOCK_TR_B = 'transition-1781057812047'; // 材料準備B（prereqs=[]）
+  const MOCK_TR_C = 'transition-1781057819834'; // 混合（prereqs=[A, B]）
+  const MOCK_TR_D = 'transition-1781057826501'; // 加熱（prereqs=[C]）
+  const MOCK_TR_E = 'transition-1781057833218'; // 測定（prereqs=[D]）
+
+  // 各トランジションの直接依存（直前のトランジションIDのみ）
+  const MOCK_TR_C_PREREQS = [MOCK_TR_A, MOCK_TR_B]; // 混合: A・B 両方完了後
+  const MOCK_TR_D_PREREQS = [MOCK_TR_C];             // 加熱: 混合完了後
+  const MOCK_TR_E_PREREQS = [MOCK_TR_D];             // 測定: 加熱完了後
+
   const mockProgressRows: ProgressRow[] = selectedProject
     ? [
-        { rowKey: '1-tr001', taskNo: 1, methodId: 'method_01', transitionId: 'tr001', status: 'completed',   hasRecord: true  },
-        { rowKey: '1-tr002', taskNo: 1, methodId: 'method_01', transitionId: 'tr002', status: 'in_progress', hasRecord: false },
-        { rowKey: '2-tr001', taskNo: 2, methodId: 'method_02', transitionId: 'tr001', status: 'not_started', hasRecord: false },
-        { rowKey: '2-tr002', taskNo: 2, methodId: 'method_02', transitionId: 'tr002', status: 'not_started', hasRecord: false },
-        { rowKey: '3-tr001', taskNo: 3, methodId: 'method_01', transitionId: 'tr001', status: 'issue',       hasRecord: true  },
+        // ─── タスク1（全完了済み）────────────────────────────
+        { rowKey: `1-${MOCK_TR_A}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_A, status: 'completed',   hasRecord: true,  order: 1, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_A) },
+        { rowKey: `1-${MOCK_TR_B}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_B, status: 'completed',   hasRecord: true,  order: 2, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_B) },
+        { rowKey: `1-${MOCK_TR_C}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_C, status: 'completed',   hasRecord: true,  order: 3, prerequisiteTransitionIds: MOCK_TR_C_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_C) },
+        { rowKey: `1-${MOCK_TR_D}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_D, status: 'completed',   hasRecord: true,  order: 4, prerequisiteTransitionIds: MOCK_TR_D_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_D) },
+        { rowKey: `1-${MOCK_TR_E}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_E, status: 'completed',   hasRecord: true,  order: 5, prerequisiteTransitionIds: MOCK_TR_E_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_E) },
+        // ─── タスク2（TR_B 完了・TR_A 作業中: スキップ可能なシナリオ）
+        //   材料準備B は完了、材料準備A は材料待ちで作業中
+        //   → TR_A をスキップして TR_B を先に完了済み
+        //   → TR_A に戻って完了させれば TR_C（混合）が開始可能に
+        { rowKey: `2-${MOCK_TR_A}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_A, status: 'in_progress', hasRecord: false, order: 1, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_A) },
+        { rowKey: `2-${MOCK_TR_B}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_B, status: 'completed',   hasRecord: true,  order: 2, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_B) },
+        { rowKey: `2-${MOCK_TR_C}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_C, status: 'not_started', hasRecord: false, order: 3, prerequisiteTransitionIds: MOCK_TR_C_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_C) },
+        { rowKey: `2-${MOCK_TR_D}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_D, status: 'not_started', hasRecord: false, order: 4, prerequisiteTransitionIds: MOCK_TR_D_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_D) },
+        { rowKey: `2-${MOCK_TR_E}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_E, status: 'not_started', hasRecord: false, order: 5, prerequisiteTransitionIds: MOCK_TR_E_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_E) },
+        // ─── タスク3（全未着手）──────────────────────────────
+        { rowKey: `3-${MOCK_TR_A}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_A, status: 'not_started', hasRecord: false, order: 1, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_A) },
+        { rowKey: `3-${MOCK_TR_B}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_B, status: 'not_started', hasRecord: false, order: 2, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_B) },
+        { rowKey: `3-${MOCK_TR_C}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_C, status: 'not_started', hasRecord: false, order: 3, prerequisiteTransitionIds: MOCK_TR_C_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_C) },
+        { rowKey: `3-${MOCK_TR_D}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_D, status: 'not_started', hasRecord: false, order: 4, prerequisiteTransitionIds: MOCK_TR_D_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_D) },
+        { rowKey: `3-${MOCK_TR_E}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_E, status: 'not_started', hasRecord: false, order: 5, prerequisiteTransitionIds: MOCK_TR_E_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_E) },
       ]
     : [];
 
@@ -322,12 +388,19 @@ export default function ExperimentWorkerMenu({
         <ProgressOverviewTab
           rows={mockProgressRows}
           onGoToWork={(taskNo, transitionId) => {
-            // フェーズB: transitionId からメソッドID・タスクIDを解決してタブ遷移
+            // 作業へ: スキップ中だった場合は解除してから作業記録タブに遷移
             console.info('[ProgressOverviewTab] 作業へ:', taskNo, transitionId);
+            handleTransitionResumed(transitionId);
             handleTabChange('3');
           }}
           onViewDetail={(taskNo, transitionId) => {
             console.info('[ProgressOverviewTab] 詳細確認:', taskNo, transitionId);
+            handleTabChange('3');
+          }}
+          onStartWork={(taskNo, transitionId) => {
+            // 開始: 未着手トランジションをスキップ解除（念のため）してから作業記録タブに遷移
+            console.info('[ProgressOverviewTab] 開始:', taskNo, transitionId);
+            handleTransitionResumed(transitionId);
             handleTabChange('3');
           }}
         />

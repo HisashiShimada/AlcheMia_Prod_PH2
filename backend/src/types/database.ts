@@ -98,6 +98,9 @@ export interface ProjectTaskDetail {
   
   /** レビュアーID */
   review_user_id?: string | null;
+
+  /** NG時のレビュー結果（NG理由・指摘内容）。承認時はNULL。DDL追加: 20260618_005 */
+  review_result?: string | null;
   
   /** 作成者ユーザID */
   create_user_id?: string;
@@ -536,3 +539,75 @@ export interface UserSearchFilters {
   /** ソート順 */
   sortOrder?: 'asc' | 'desc';
 }
+
+// ─────────────────────────────────────────────────────────
+// experiment_plan テーブル
+// ─────────────────────────────────────────────────────────
+
+/**
+ * Transition単位の実験計画値
+ *
+ * @remarks
+ * planned_values の各 transitionId キー配下の型。
+ * - `mgr-instruction:requiredCreatorUUID` 等の配列値
+ * - `mgr-instruction:caution` 等の文字列値
+ * - `[templateId]` キーのテンプレート想定値（fieldKey → value）
+ */
+export interface TransitionPlanValues {
+  /** CreatorRef UUID 配列 */
+  'mgr-instruction:requiredCreatorUUID'?: string[];
+  /** InstrumentRef UUID 配列 */
+  'mgr-instruction:requiredInstrumentUUID'?: string[];
+  /** OwnerRef UUID 配列 */
+  'mgr-instruction:requiredOwnerUUID'?: string[];
+  /** 安全上の注意事項 */
+  'mgr-instruction:caution'?: string;
+  /** 操作手順上の注記 */
+  'mgr-instruction:operationNote'?: string;
+  /** 実施前後の確認事項 */
+  'mgr-instruction:checkItem'?: string;
+  /** 禁止事項 */
+  'mgr-instruction:prohibitedAction'?: string;
+  /** その他注意事項 */
+  'mgr-instruction:OtherNotes'?: string;
+  /** テンプレート想定値（templateId → { fieldKey: value }） */
+  [templateId: string]: string[] | string | Record<string, string> | undefined;
+}
+
+/**
+ * experiment_plan テーブルの planned_values JSONB 型
+ *
+ * @remarks
+ * { [transitionId]: TransitionPlanValues } 形式
+ */
+export type ExperimentPlanValues = Record<string, TransitionPlanValues>;
+
+/**
+ * experiment_plan テーブルの型定義
+ *
+ * @remarks
+ * DDL: backend/migrations/20260618_004_add_experiment_plan.sql
+ * 主キー: (organization_id, project_id, method_id, task_no)
+ * task_no は 1〜N（project_task_detail.task_no と対応）
+ */
+export interface ExperimentPlan {
+  /** 組織ID（主キー） */
+  organization_id: string;
+  /** プロジェクトID（主キー） */
+  project_id: string;
+  /** MAIMLのMethodID（主キー） */
+  method_id: string;
+  /** タスク連番（主キー、1〜N） */
+  task_no: number;
+  /** 実験計画データ（Transition単位） */
+  planned_values?: ExperimentPlanValues;
+  /** 作成者ユーザID */
+  create_user_id?: string;
+  /** 作成日時 */
+  create_at?: Date;
+  /** 更新者ユーザID */
+  update_user_id?: string;
+  /** 更新日時 */
+  update_at?: Date;
+}
+
