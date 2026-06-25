@@ -32,6 +32,7 @@ import {
 } from '@ant-design/icons';
 import MaimlValidationModal from './MaimlValidationModal';
 import EncryptionManagementModal from '@/components/encryption/EncryptionManagementModal';
+import SignatureManagementModal from '@/components/signature/SignatureManagementModal';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
 import TaskResultsTable from './TaskResultsTable';
@@ -247,6 +248,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
   // 暗号化管理モーダルステート
   const [encryptionModalOpen, setEncryptionModalOpen] = useState(false);
+
+  // 電子署名管理モーダルステート
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
 
   // プロジェクト一覧をAPI経由で取得
   const {
@@ -2172,6 +2176,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   >
                     暗号化管理
                   </Button>
+                  <Button
+                    icon={<SafetyCertificateOutlined />}
+                    onClick={() => setSignatureModalOpen(true)}
+                    disabled={!selectedProject}
+                  >
+                    電子署名
+                  </Button>
                 </Space>
               </Card>
 
@@ -2462,6 +2473,15 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           open={encryptionModalOpen}
           projectName={selectedProject.name}
           onClose={() => setEncryptionModalOpen(false)}
+        />
+      )}
+
+      {/* 電子署名管理モーダル */}
+      {selectedProject && (
+        <SignatureManagementModal
+          open={signatureModalOpen}
+          projectName={selectedProject.name}
+          onClose={() => setSignatureModalOpen(false)}
         />
       )}
     </div>
