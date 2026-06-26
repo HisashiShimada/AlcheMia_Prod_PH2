@@ -6,8 +6,8 @@
  * - getExperimentInstructions: template_data + project_task_detail を結合し
  *   ネスト形式（methods → tasks → templates）で返す
  * - getProjectMethods: project_task の distinct method_id 一覧を返す
- * - approveTask: task_status=4 → 5（完了）に更新
- * - recordNg: task_status=4 → 6（NG）に更新
+ * - approveTask: task_status=2（レビュー待ち）→ 3（完了）に更新
+ * - recordNg: task_status=2（レビュー待ち）→ 5（NG）に更新
  */
 
 import { getPool } from '../database/db';

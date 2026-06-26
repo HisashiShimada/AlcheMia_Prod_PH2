@@ -209,31 +209,6 @@ function toTaskStatusStr(status: number | null | undefined): string {
   return String(status).padStart(2, '0');
 }
 
-/** InstructionMethodResponse[] をフラットな FlatRow[] に変換 */
-function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
-  const rows: FlatRow[] = [];
-  methods.forEach((method) => {
-    method.tasks.forEach((task) => {
-      const taskStatusStr = toTaskStatusStr(task.taskStatus);
-      task.templates.forEach((tmpl) => {
-        tmpl.fields.forEach((field, idx) => {
-          rows.push({
-            rowKey: `${method.methodId}_${task.taskNo}_${tmpl.templateId}_${field.key}_${idx}`,
-            methodId:      method.methodId,
-            methodName:    method.methodId, // MAIML パース統合後にメソッド名を追加予定
-            taskNumber:    task.taskNo,
-            taskStatus:    taskStatusStr,
-            transitionId:  '',             // MAIML パース統合後に追加予定
-            transitionName: '',            // MAIML パース統合後に追加予定
-            templateName:  tmpl.templateName ?? tmpl.templateId,
-            propKey:       field.key,
-            propLabel:     field.label,
-            xsiType:       field.xsiType ?? '',
-            expected:      field.plannedValue,
-            actual:        field.actualValue,
-            unit:          field.unit ?? '',
-          });
-        });
 /** モック用の不確かさデータ（画像と同様） */
 const MOCK_UNCERTAINTY_DATA: {
   criteriaName: string;
@@ -262,28 +237,30 @@ const MOCK_UNCERTAINTY_DATA: {
 ];
 
 /**
- * 同一 methodId/transitionId/templateName/propKey グループの数値平均を計算する
+ * 同一 methodId/templateId/propKey グループの数値平均を計算する
  * 文字列型や全 null の場合は null を返す
  */
 function calcGroupAverage(
-  instructions: ExperimentInstruction[],
+  methods: InstructionMethodResponse[],
   targetMethodId: string,
-  targetTransitionId: string,
-  targetTemplateName: string,
+  targetTemplateId: string,
   targetPropKey: string,
-  field: 'expected' | 'actual'
+  field: 'plannedValue' | 'actualValue'
 ): number | null {
   const nums: number[] = [];
-  instructions.forEach((inst) => {
-    if (
-      inst.methodId    !== targetMethodId    ||
-      inst.transitionId !== targetTransitionId ||
-      inst.templateName !== targetTemplateName
-    ) return;
-    inst.properties.forEach((prop) => {
-      if (prop.key !== targetPropKey) return;
-      const val = prop[field];
-      if (typeof val === 'number') nums.push(val);
+  methods.forEach((method) => {
+    if (method.methodId !== targetMethodId) return;
+    method.tasks.forEach((task) => {
+      task.templates.forEach((tmpl) => {
+        if (tmpl.templateId !== targetTemplateId) return;
+        tmpl.fields.forEach((fld) => {
+          if (fld.key !== targetPropKey) return;
+          const val = fld[field];
+          if (val === null || val === undefined) return;
+          const numVal = typeof val === 'number' ? val : parseFloat(val);
+          if (!isNaN(numVal)) nums.push(numVal);
+        });
+      });
     });
   });
   if (nums.length === 0) return null;
@@ -291,37 +268,42 @@ function calcGroupAverage(
   return parseFloat((sum / nums.length).toFixed(4));
 }
 
-/** ExperimentInstruction[] をフラットな FlatRow[] に変換 */
-function flattenInstructions(instructions: ExperimentInstruction[]): FlatRow[] {
+/** InstructionMethodResponse[] をフラットな FlatRow[] に変換 */
+function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
   const rows: FlatRow[] = [];
   let mockIdx = 0;
-  instructions.forEach((inst) => {
-    inst.properties.forEach((prop, idx) => {
-      const mock = MOCK_UNCERTAINTY_DATA[mockIdx % MOCK_UNCERTAINTY_DATA.length];
-      mockIdx++;
-      rows.push({
-        rowKey: `${inst.methodId}_${inst.taskNumber}_${inst.transitionId}_${inst.templateName}_${prop.key}_${idx}`,
-        methodId:      inst.methodId,
-        methodName:    inst.methodName,
-        taskNumber:    inst.taskNumber,
-        taskStatus:    inst.taskStatus,
-        transitionId:  inst.transitionId,
-        transitionName: inst.transitionName,
-        templateName:  inst.templateName,
-        propKey:       prop.key,
-        propLabel:     prop.label,
-        xsiType:       prop.xsiType,
-        expected:      prop.expected,
-        expectedAverage: calcGroupAverage(instructions, inst.methodId, inst.transitionId, inst.templateName, prop.key, 'expected'),
-        actual:        prop.actual,
-        actualAverage: calcGroupAverage(instructions, inst.methodId, inst.transitionId, inst.templateName, prop.key, 'actual'),
-        unit:          prop.unit,
-        uncertaintyCriteriaName:   mock.criteriaName,
-        uncertaintyCriteriaType:   mock.criteriaType,
-        uncertaintyAssignedValue:  mock.assignedValue,
-        uncertaintyAssignedBy:     mock.assignedBy,
-        uncertaintyAssignedAt:     mock.assignedAt,
-        uncertaintyComment:        mock.comment,
+  methods.forEach((method) => {
+    method.tasks.forEach((task) => {
+      const taskStatusStr = toTaskStatusStr(task.taskStatus);
+      task.templates.forEach((tmpl) => {
+        tmpl.fields.forEach((field, idx) => {
+          const mock = MOCK_UNCERTAINTY_DATA[mockIdx % MOCK_UNCERTAINTY_DATA.length];
+          mockIdx++;
+          rows.push({
+            rowKey: `${method.methodId}_${task.taskNo}_${tmpl.templateId}_${field.key}_${idx}`,
+            methodId:      method.methodId,
+            methodName:    method.methodId, // MAIML パース統合後にメソッド名を追加予定
+            taskNumber:    task.taskNo,
+            taskStatus:    taskStatusStr,
+            transitionId:  '',             // MAIML パース統合後に追加予定
+            transitionName: '',            // MAIML パース統合後に追加予定
+            templateName:  tmpl.templateName ?? tmpl.templateId,
+            propKey:       field.key,
+            propLabel:     field.label,
+            xsiType:       field.xsiType ?? '',
+            expected:      field.plannedValue,
+            expectedAverage: calcGroupAverage(methods, method.methodId, tmpl.templateId, field.key, 'plannedValue'),
+            actual:        field.actualValue,
+            actualAverage: calcGroupAverage(methods, method.methodId, tmpl.templateId, field.key, 'actualValue'),
+            unit:          field.unit ?? '',
+            uncertaintyCriteriaName:  mock.criteriaName,
+            uncertaintyCriteriaType:  mock.criteriaType,
+            uncertaintyAssignedValue: mock.assignedValue,
+            uncertaintyAssignedBy:    mock.assignedBy,
+            uncertaintyAssignedAt:    mock.assignedAt,
+            uncertaintyComment:       mock.comment,
+          });
+        });
       });
     });
   });

@@ -107,7 +107,7 @@ async function startServer() {
     // Mount routes after session middleware
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/projects', projectRoutes);
-    app.use('/api/v1/projects', experimentInstructionRoutes); // 実験指示API（モックデータ返却）
+    app.use('/api/v1/projects', experimentInstructionRoutes); // 実験指示API・実験計画API
     app.use('/api/v1/files', fileAccessRoutes); // 汎用ファイルアクセスAPI（共通化後）
     app.use('/api/v1/maiml', maimlRoutes);
     
