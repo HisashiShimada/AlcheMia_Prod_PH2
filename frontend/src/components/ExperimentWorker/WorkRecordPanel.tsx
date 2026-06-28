@@ -134,11 +134,11 @@ export const TR_C_ID = 'transition-1781057819834';
 // TR_D: 最終評価（固定順序: A・B・C 全完了後のみ開始可能）
 export const TR_D_ID = 'transition-1781057826501';
 
-const MOCK_METHODS: MockMethod[] = [
+export const MOCK_METHODS: MockMethod[] = [
   { id: METHOD_ID, order: 1 },
 ];
 
-const MOCK_TRANSITIONS: MockTransition[] = [
+export const MOCK_TRANSITIONS: MockTransition[] = [
   // ─── TR_A: 混合条件（前提なし・順序自由）────────────────────
   {
     id: TR_A_ID,

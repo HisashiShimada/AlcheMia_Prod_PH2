@@ -89,7 +89,9 @@ import type {
   TemplateDef,
 } from '@/types/experimentPlan';
 import {
-  saveExperimentPlan,
+  getExperimentPlans,
+  experimentPlansToTabDataMap,
+  upsertExperimentPlanToApi,
   getPlanDialogData,
   MOCK_PLAN_DIALOG_DATA,
 } from '@/services/experimentPlanApiService';
@@ -1147,6 +1149,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     const fetchDialogData = async () => {
       setDialogDataLoading(true);
       try {
+        // トランジション・テンプレート・Ref選択肢を取得
         const data = await getPlanDialogData(projectId, methodId);
         // API が prerequisiteTransitionIds を返さない場合はモックデータを使用
         const hasPrereqs = data.transitions.length > 0 &&
@@ -1156,6 +1159,13 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
           setDialogData(MOCK_PLAN_DIALOG_DATA);
         } else {
           setDialogData(data);
+        }
+
+        // 既存の実験計画データを取得して tabDataMap を復元
+        const existingPlans = await getExperimentPlans(projectId, methodId);
+        const restoredTabDataMap = experimentPlansToTabDataMap(existingPlans);
+        if (Object.keys(restoredTabDataMap).length > 0) {
+          setTabDataMap(restoredTabDataMap);
         }
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData error:', err);
@@ -1403,40 +1413,27 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     [message]
   );
 
-  // --- 保存処理（全タブ一括保存）---
+  // --- 保存処理（全タスク一括保存: 実API接続）---
 
   const handleSave = useCallback(async () => {
     try {
       setIsSaving(true);
 
-      // 全タブ（全体 + 各タスクN）を一括保存
-      const allTabKeys = [TAB_KEY_ALL, ...taskNumbers.map((n) => `task-${n}`)];
-      const savePromises = allTabKeys.map((tabKey) => {
+      // 各タスクNo（task-1, task-2, ...）を PUT で個別保存
+      // 「一括」タブ（TAB_KEY_ALL）はタスクNoを持たないためスキップ
+      const savePromises = taskNumbers.map((taskNo) => {
+        const tabKey = `task-${taskNo}`;
         const data = tabDataMap[tabKey] ?? createInitialTabData();
-        const tabNum =
-          tabKey === TAB_KEY_ALL
-            ? undefined
-            : parseInt(tabKey.replace('task-', ''), 10);
-
-        const request: SaveExperimentPlanRequest = {
-          methodId,
-          taskNumber: tabNum,
-          // transitionOrder の順序を保存（全トランジションIDを order 順で渡す）
-          selectedTransitions: transitionOrder
-            .sort((a, b) => a.order - b.order)
-            .map((item) => item.id),
-          creatorRefs: data.creatorRefs,
-          instrumentRefs: data.instrumentRefs,
-          ownerRefs: data.ownerRefs,
-          notes: data.notes,
-          templateValues: data.templateValues,
-        };
-
-        return saveExperimentPlan(projectId, request);
+        // transitionOrder（順序情報）を別途渡す
+        const orderEntries = transitionOrder.map((item) => ({
+          id: item.id,
+          order: item.order,
+        }));
+        return upsertExperimentPlanToApi(projectId, methodId, taskNo, data, orderEntries);
       });
 
       await Promise.all(savePromises);
-      message.success('実験計画を保存しました（モック）');
+      message.success('実験計画を保存しました');
       onSave?.();
       onClose();
     } catch (error) {

@@ -15,6 +15,8 @@ interface TeamEditDialogProps {
   open: boolean;
   teamLabel: string;           // 編集対象チームのラベル
   teamUnitId?: string;         // 編集対象チームの department_unit_id
+  /** 初期メンバーリスト（teamUnitId が未指定の場合に使用） */
+  initialMembers?: string[];
   onClose: () => void;
   onSaved: (members: string[]) => void;
 }

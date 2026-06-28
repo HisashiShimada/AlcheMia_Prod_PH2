@@ -14,6 +14,7 @@ import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
+import * as experimentPlanRepository from '../repositories/experimentPlanRepository';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
@@ -615,6 +616,35 @@ export class ProjectService {
       } catch (writeError) {
         // MAIML write failure does not block checkout success (warning log only)
         console.warn('[checkout] MAIML eventLog write failed (checkout succeeded):', writeError);
+      }
+
+      // ★ 実験計画データを MAIML の mgr-instruction: プロパティとして書き込み（non-fatal）
+      try {
+        const experimentPlans = await experimentPlanRepository.findByProject(
+          organizationId,
+          projectId
+        );
+
+        if (experimentPlans.length > 0) {
+          const maimlWriterService = new MaimlWriterService();
+          await maimlWriterService.writeExperimentPlanProperties(
+            organizationId,
+            projectId,
+            project.project_name,
+            experimentPlans
+          );
+          console.log(
+            `[checkout] Experiment plan MAIML write completed: ${experimentPlans.length} records`
+          );
+        } else {
+          console.log('[checkout] No experiment plans found, skipping MAIML write');
+        }
+      } catch (planWriteError) {
+        // 実験計画書き込みエラーはチェックアウト処理をブロックしない
+        console.warn(
+          '[checkout] Experiment plan MAIML write failed (checkout succeeded):',
+          planWriteError
+        );
       }
 
       return {

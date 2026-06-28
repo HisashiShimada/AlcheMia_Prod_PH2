@@ -20,6 +20,7 @@ function getStatusConfig(status: TaskStatusType): { color: string; label: string
     [TaskStatus.REVIEW_WAITING]: { color: 'blue', label: 'レビュー待ち' },
     [TaskStatus.COMPLETED]: { color: 'green', label: '完了' },
     [TaskStatus.FORCED_TERMINATED]: { color: 'red', label: '強制終了' },
+    [TaskStatus.REVIEW_NG]: { color: 'volcano', label: 'NG（再作業）' },
   };
   return configs[status] ?? { color: 'default', label: '不明' };
 }

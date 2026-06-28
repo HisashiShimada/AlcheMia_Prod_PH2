@@ -94,6 +94,29 @@ export async function upsert(data: ExperimentPlan): Promise<ExperimentPlan> {
 }
 
 /**
+ * 指定プロジェクトの全実験計画を取得（全メソッド・全タスク）
+ * チェックアウト時の MAIML 書き込みに使用
+ *
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @returns ExperimentPlan 配列（method_id 昇順, task_no 昇順）
+ */
+export async function findByProject(
+  organizationId: string,
+  projectId: string
+): Promise<ExperimentPlan[]> {
+  const pool = getPool();
+  const sql = await loadSqlFile('experiment_plans/findByProject.sql');
+
+  const result = await pool.query<ExperimentPlanRow>(sql, [
+    organizationId,
+    projectId,
+  ]);
+
+  return result.rows.map(rowToModel);
+}
+
+/**
  * 指定メソッドの全タスク分の実験計画を削除
  *
  * @param organizationId - 組織ID

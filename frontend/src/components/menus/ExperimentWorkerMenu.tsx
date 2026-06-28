@@ -23,7 +23,8 @@ import ProgressOverviewTab from '../ExperimentWorker/ProgressOverviewTab';
 import type { ProgressRow } from '../ExperimentWorker/ProgressOverviewTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import type { WorkerProject } from '@/types/project';
-import { getWorkerAccessibleProjects, requestApproval } from '@/services/projectApiService';
+import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus } from '@/services/projectApiService';
+import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 import { AxiosError } from 'axios';
 import { extractErrorMessage } from '@/utils/errorUtils';
@@ -291,82 +292,97 @@ export default function ExperimentWorkerMenu({
   };
 
   // ━━━ スキップ状態の管理 ━━━
-  // フェーズB: WorkRecordPanel の onSkip コールバックで更新する
   const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
-
-  // フェーズB: WorkRecordPanel の onSkip コールバックから呼び出す
-  // const handleTransitionSkipped = (transitionId: string) => {
-  //   setSkippedTransitionIds((prev) =>
-  //     prev.includes(transitionId) ? prev : [...prev, transitionId]
-  //   );
-  // };
 
   const handleTransitionResumed = (transitionId: string) => {
     setSkippedTransitionIds((prev) => prev.filter((id) => id !== transitionId));
   };
 
-  // ━━━ フェーズA: ProgressOverviewTab 用モックデータ ━━━
-  // フェーズBで API から取得したデータに置き換える
-  //
-  // 構造の前提:
-  //   - タスクは同一 MAIML ファイルを繰り返す → 全タスクが同じ methodId・transitionId を持つ
-  //   - prerequisiteTransitionIds はトランジション自体の属性（MAIML 定義）であり、タスク横断で共通
-  //   - isSkipped は UI 側で管理し、skippedTransitionIds と同期
-  //   - prerequisiteTransitionIds は「直接の依存先のみ」を格納する（推移的依存は格納しない）
-  //
-  // モック構成: タスク1〜3、各タスクにトランジション A〜E の5本
-  //   依存グラフ:
-  //     TR_A（材料準備A）─┐
-  //                       ├─→ TR_C（混合）─→ TR_D（加熱）─→ TR_E（測定）
-  //     TR_B（材料準備B）─┘
-  //
-  //   - TR_A: prereqs=[]     （独立・並列実行可能）
-  //   - TR_B: prereqs=[]     （独立・並列実行可能）
-  //   - TR_C: prereqs=[A, B] （A・B 両方完了後に開始可能）← 直接依存のみ
-  //   - TR_D: prereqs=[C]    （C 完了後に開始可能）← 直接依存のみ
-  //   - TR_E: prereqs=[D]    （D 完了後に開始可能）← 直接依存のみ
-  //
-  // スキップシナリオ例（タスク2）:
-  //   TR_A は材料待ちでスキップ → TR_B を先に完了
-  //   → 後で TR_A に戻って完了 → A/B 完了で TR_C が開始可能に
-  //   → TR_C → TR_D → TR_E と順次進行
-  const MOCK_METHOD_ID = 'method_SampleSynthesis_a1b2c3d4';
-  const MOCK_TR_A = 'transition-1781057805603'; // 材料準備A（prereqs=[]）
-  const MOCK_TR_B = 'transition-1781057812047'; // 材料準備B（prereqs=[]）
-  const MOCK_TR_C = 'transition-1781057819834'; // 混合（prereqs=[A, B]）
-  const MOCK_TR_D = 'transition-1781057826501'; // 加熱（prereqs=[C]）
-  const MOCK_TR_E = 'transition-1781057833218'; // 測定（prereqs=[D]）
+  // ━━━ ProgressOverviewTab 用: 実API接続 ━━━
+  const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
+  const [progressLoading, setProgressLoading] = useState(false);
 
-  // 各トランジションの直接依存（直前のトランジションIDのみ）
-  const MOCK_TR_C_PREREQS = [MOCK_TR_A, MOCK_TR_B]; // 混合: A・B 両方完了後
-  const MOCK_TR_D_PREREQS = [MOCK_TR_C];             // 加熱: 混合完了後
-  const MOCK_TR_E_PREREQS = [MOCK_TR_D];             // 測定: 加熱完了後
+  /**
+   * トランジションの数値ステータスを ProgressRow.status に変換
+   * (0=未開始, 1=準備中, 2=準備完了, 3=実行中, 4=一時停止, 5=完了, 6=エラー)
+   */
+  const toProgressRowStatus = (progressStatus: string): ProgressRow['status'] => {
+    if (progressStatus === '完了') return 'completed';
+    if (progressStatus === '実行中' || progressStatus === '準備中' || progressStatus === '準備完了') return 'in_progress';
+    if (progressStatus === '一時停止') return 'on_hold';
+    if (progressStatus === 'エラー') return 'issue';
+    return 'not_started';
+  };
 
-  const mockProgressRows: ProgressRow[] = selectedProject
-    ? [
-        // ─── タスク1（全完了済み）────────────────────────────
-        { rowKey: `1-${MOCK_TR_A}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_A, status: 'completed',   hasRecord: true,  order: 1, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_A) },
-        { rowKey: `1-${MOCK_TR_B}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_B, status: 'completed',   hasRecord: true,  order: 2, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_B) },
-        { rowKey: `1-${MOCK_TR_C}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_C, status: 'completed',   hasRecord: true,  order: 3, prerequisiteTransitionIds: MOCK_TR_C_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_C) },
-        { rowKey: `1-${MOCK_TR_D}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_D, status: 'completed',   hasRecord: true,  order: 4, prerequisiteTransitionIds: MOCK_TR_D_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_D) },
-        { rowKey: `1-${MOCK_TR_E}`, taskNo: 1, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_E, status: 'completed',   hasRecord: true,  order: 5, prerequisiteTransitionIds: MOCK_TR_E_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_E) },
-        // ─── タスク2（TR_B 完了・TR_A 作業中: スキップ可能なシナリオ）
-        //   材料準備B は完了、材料準備A は材料待ちで作業中
-        //   → TR_A をスキップして TR_B を先に完了済み
-        //   → TR_A に戻って完了させれば TR_C（混合）が開始可能に
-        { rowKey: `2-${MOCK_TR_A}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_A, status: 'in_progress', hasRecord: false, order: 1, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_A) },
-        { rowKey: `2-${MOCK_TR_B}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_B, status: 'completed',   hasRecord: true,  order: 2, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_B) },
-        { rowKey: `2-${MOCK_TR_C}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_C, status: 'not_started', hasRecord: false, order: 3, prerequisiteTransitionIds: MOCK_TR_C_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_C) },
-        { rowKey: `2-${MOCK_TR_D}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_D, status: 'not_started', hasRecord: false, order: 4, prerequisiteTransitionIds: MOCK_TR_D_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_D) },
-        { rowKey: `2-${MOCK_TR_E}`, taskNo: 2, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_E, status: 'not_started', hasRecord: false, order: 5, prerequisiteTransitionIds: MOCK_TR_E_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_E) },
-        // ─── タスク3（全未着手）──────────────────────────────
-        { rowKey: `3-${MOCK_TR_A}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_A, status: 'not_started', hasRecord: false, order: 1, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_A) },
-        { rowKey: `3-${MOCK_TR_B}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_B, status: 'not_started', hasRecord: false, order: 2, prerequisiteTransitionIds: [],              isSkipped: skippedTransitionIds.includes(MOCK_TR_B) },
-        { rowKey: `3-${MOCK_TR_C}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_C, status: 'not_started', hasRecord: false, order: 3, prerequisiteTransitionIds: MOCK_TR_C_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_C) },
-        { rowKey: `3-${MOCK_TR_D}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_D, status: 'not_started', hasRecord: false, order: 4, prerequisiteTransitionIds: MOCK_TR_D_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_D) },
-        { rowKey: `3-${MOCK_TR_E}`, taskNo: 3, methodId: MOCK_METHOD_ID, transitionId: MOCK_TR_E, status: 'not_started', hasRecord: false, order: 5, prerequisiteTransitionIds: MOCK_TR_E_PREREQS, isSkipped: skippedTransitionIds.includes(MOCK_TR_E) },
-      ]
-    : [];
+  // プロジェクトが変わったら全体進捗データを取得
+  useEffect(() => {
+    const fetchProgressRows = async () => {
+      if (!selectedProject) {
+        setProgressRows([]);
+        return;
+      }
+
+      setProgressLoading(true);
+      try {
+        const result = await getWorkerTasks(selectedProject);
+        if (!result.success || !result.data) {
+          setProgressRows([]);
+          return;
+        }
+
+        const apiData = result.data;
+        const rows: ProgressRow[] = [];
+
+        // 各メソッド × タスク × トランジション を ProgressRow に展開
+        for (const method of apiData.methods as WorkerMethod[]) {
+          for (const task of method.tasks as WorkerTask[]) {
+            try {
+              const tsRes = await fetchTransitionStatus(selectedProject, method.method_id, task.task_no);
+              const transitions = tsRes.data.transitionStatus;
+
+              transitions.forEach((tr, idx) => {
+                rows.push({
+                  rowKey: `${task.task_no}-${tr.transitionId}`,
+                  taskNo: task.task_no,
+                  methodId: method.method_id,
+                  transitionId: tr.transitionId,
+                  status: toProgressRowStatus(tr.progressStatus),
+                  hasRecord: tr.progressPercentage > 0,
+                  order: idx + 1,
+                  prerequisiteTransitionIds: [],
+                  isSkipped: skippedTransitionIds.includes(tr.transitionId),
+                });
+              });
+            } catch {
+              // トランジション取得失敗時は該当タスクをスキップ
+              console.warn('[ProgressOverviewTab] トランジション取得失敗 taskNo=', task.task_no);
+            }
+          }
+        }
+
+        setProgressRows(rows);
+      } catch (error) {
+        console.error('[ProgressOverviewTab] 全体進捗取得エラー:', error);
+        setProgressRows([]);
+      } finally {
+        setProgressLoading(false);
+      }
+    };
+
+    fetchProgressRows();
+  // skippedTransitionIds は依存から除外（スキップ状態は後から isSkipped を更新）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProject]);
+
+  // スキップ状態が変わったら progressRows の isSkipped フラグを更新
+  useEffect(() => {
+    setProgressRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        isSkipped: skippedTransitionIds.includes(row.transitionId),
+      }))
+    );
+  }, [skippedTransitionIds]);
 
   // タブアイテムの定義（リデザイン後: 作業記録 / 全体進捗 / 不確かさ記録 の3タブ）
   const tabItems = [
@@ -384,11 +400,14 @@ export default function ExperimentWorkerMenu({
       key: '4',
       label: t('menu.experiment_worker.tabs.progressCheck'),
       icon: <CheckSquareOutlined />,
-      children: (
+      children: progressLoading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+          <Spin tip="全体進捗を読み込み中..." />
+        </div>
+      ) : (
         <ProgressOverviewTab
-          rows={mockProgressRows}
+          rows={progressRows}
           onGoToWork={(taskNo, transitionId) => {
-            // 作業へ: スキップ中だった場合は解除してから作業記録タブに遷移
             console.info('[ProgressOverviewTab] 作業へ:', taskNo, transitionId);
             handleTransitionResumed(transitionId);
             handleTabChange('3');
@@ -398,7 +417,6 @@ export default function ExperimentWorkerMenu({
             handleTabChange('3');
           }}
           onStartWork={(taskNo, transitionId) => {
-            // 開始: 未着手トランジションをスキップ解除（念のため）してから作業記録タブに遷移
             console.info('[ProgressOverviewTab] 開始:', taskNo, transitionId);
             handleTransitionResumed(transitionId);
             handleTabChange('3');

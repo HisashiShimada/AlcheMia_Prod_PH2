@@ -3,7 +3,7 @@
 ## メタデータ
 
 - **作成日時**: 2026-06-18 14:52
-- **最終更新**: 2026-06-22 09:20
+- **最終更新**: 2026-06-26 16:38
 - **タスクID**: experiment-feature-integration
 - **対象期間**: 2026-06-08 〜 現在
 - **統合タスク数**: 9件
@@ -60,13 +60,15 @@ MAIMLベースの実験管理システムにおける「**実験計画 → 実�
 
 ### データベース
 
-| 変更内容 | 状態 |
-|---------|------|
-| `transition_data.prerequisite_transition_ids` 追加 | ✅ SQLファイル作成済（`20260618_002_...sql`）／**DB適用要確認** |
-| `experiment_plan` テーブル作成 | ✅ SQLファイル作成済（`20260618_004_...sql`）／**DB適用要確認** |
-| `project_task_detail.review_result` カラム追加 | ✅ SQLファイル作成済（`20260618_005_...sql`）／**DB適用要確認** |
-| `transition_data.work_order` カラム追加 | ❌ 未作成（`20260618_003_...sql`） |
-| `code_master` TaskStatus 06（NG）追加 | ❌ 未作成（`20260618_006_...sql`） |
+| 変更内容 | ファイル | 状態 |
+|---------|---------|------|
+| `transition_data.work_order` + `prerequisite_transition_ids` 追加 | `20260617_update_transition_data.sql`（001+002統合版） | ✅ SQLファイル作成済／**DB適用要確認** |
+| `experiment_plan` テーブル作成 | `20260618_004_add_experiment_plan.sql` | ✅ SQLファイル作成済／**DB適用要確認** |
+| `project_task_detail.review_result` カラム追加 | `20260618_005_add_review_result_to_task_detail.sql` | ✅ SQLファイル作成済／**DB適用要確認** |
+| `code_master` TaskStatus 05（承認済）/ 06（NG）追加 | `20260618_006_add_task_status_approved_and_ng.sql` | ✅ SQLファイル作成済／**DB適用要確認** |
+| `transition_data` DDL更新（`is_order_fixed`削除） | `docs/design/db/ddl/transition_data.sql` | ✅ 更新済 v4.0 |
+
+> **⚠️ 注意**: 旧マイグレーション `20260617_001_...` / `20260618_002_...` は統合版に置き換え済（削除済）
 
 ---
 
@@ -208,13 +210,15 @@ MAIMLベースの実験管理システムにおける「**実験計画 → 実�
 - `backend/src/services/projectService.ts`
 
 **実装内容**:
-- [ ] チェックアウト処理 (`checkout()`) に以下を追加:
+- [x] チェックアウト処理 (`checkout()`) に以下を追加（**2026-06-26 実装完了**）:
   1. `experiment_plan` テーブルからプロジェクトの実験計画データを取得
   2. MAIMLのData層に `mgr-instruction:` プレフィックスでプロパティを書き込み
      - `material.properties` への書き込み
      - `condition.properties` への書き込み
      - `result.properties` への書き込み
   3. 書き込みエラーは警告ログに記録（チェックアウト処理はブロックしない）
+  - 実装関数: `writeExperimentPlanProperties()` in `maimlWriterService.ts`
+  - `projectService.ts` の `checkout()` から呼び出し
 
 **MAIMLへの書き込み仕様**:
 ```xml
@@ -284,15 +288,18 @@ MAIMLベースの実験管理システムにおける「**実験計画 → 実�
 - [ ] ステータス更新セクション統合
 - [ ] API接続（`saveTransitionData`）
 
-#### 5-4: ProgressOverviewTab
+#### 5-4: ProgressOverviewTab ✅ 2026-06-26 完了
 
 **修正ファイル**:
-- `frontend/src/components/ExperimentWorker/ProgressOverviewTab.tsx`
+- `frontend/src/components/menus/ExperimentWorkerMenu.tsx`（モックデータを実API接続に切替）
 
 **実装内容**:
-- [ ] `getWorkerTasks` API接続
-- [ ] `prerequisite_transition_ids` データを API から取得
-- [ ] 「作業へ」ボタンでの作業記録タブへの遷移連携
+- [x] `getWorkerTasks` API接続（`ExperimentWorkerMenu` のモックデータを削除し、実API呼び出しに変更）
+- [x] `fetchTransitionStatus` でトランジション状態を取得し `ProgressRow` にマッピング
+- [x] スキップ状態変更時の `isSkipped` フラグ自動同期
+- [x] 取得中ローディング表示（`<Spin>` コンポーネント）
+- [x] TS コンパイルエラー：0件確認済み
+- ※ `prerequisite_transition_ids` は API レスポンスに含まれていないため、現時点では空配列（別途対応予定）
 
 ---
 
