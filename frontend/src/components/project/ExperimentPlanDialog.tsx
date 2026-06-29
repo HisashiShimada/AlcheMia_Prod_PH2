@@ -47,7 +47,9 @@ import {
   Tag,
   Form,
   Tooltip,
+  Switch,
 } from 'antd';
+import { DatePicker } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined,
@@ -76,6 +78,12 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import {
+  isIntegerXsiType,
+  isUnsignedIntXsiType,
+  isListXsiType,
+  isNumericXsiType,
+} from '@/utils/xsiTypeValidator';
 import {
   NoteType,
   NOTE_TYPE_LABELS,
@@ -124,6 +132,26 @@ function createInitialTabData(): ExperimentPlanTabData {
     notes: [],
     templateValues: {},
   };
+}
+
+/**
+ * テンプレート定義一覧から defaultValue を収集し、templateValues の初期値を生成する
+ *
+ * @param templates - APIから取得した TemplateDef[] (TemplateDef.fields[].defaultValue を使用)
+ * @returns `{templateId}_{fieldKey}` をキーとした初期 templateValues
+ */
+function buildDefaultTemplateValues(
+  templates: TemplateDef[]
+): Record<string, string | number | boolean> {
+  const values: Record<string, string | number | boolean> = {};
+  for (const tmpl of templates) {
+    for (const field of tmpl.fields) {
+      if (field.defaultValue !== undefined && field.defaultValue !== null) {
+        values[`${tmpl.id}_${field.key}`] = field.defaultValue;
+      }
+    }
+  }
+  return values;
 }
 
 /** トランジション行の型 */
@@ -434,18 +462,187 @@ const RefSection: React.FC<RefSectionProps> = ({
 };
 
 // ============================================================
-// テンプレート入力コンポーネント（MAIMLテンプレートデータベース）
+// FieldValueInput — xsi:type に応じた入力コンポーネント
+// TemplateEditorDialog の ElementValueInput に相当
 // ============================================================
 
+interface FieldValueInputProps {
+  /** MAIML の xsi:type 文字列（例: 'doubleType', 'booleanType', 'dateType'） */
+  xsiType: string | undefined;
+  /** field.type（バックエンドで変換済み: 'text' | 'number' | 'select'） */
+  fieldType: 'text' | 'number' | 'select';
+  /** select 型の選択肢 */
+  options?: string[];
+  /** 現在の値 */
+  value: string | number | boolean | undefined;
+  /** 値変更コールバック */
+  onChange: (value: string | number | boolean) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  testId?: string;
+}
+
 /**
- * テンプレート入力コンポーネント
+ * xsi:type に応じて適切な入力コンポーネントを返す。
  *
- * DataRecordDialog のレイアウトに準拠：
- * - 左側: メソッドに紐づくテンプレート一覧（行選択）
- * - 右側: 選択したテンプレートの入力フィールド一覧
- *
- * methodTemplates が空の場合は「テンプレートが未定義」メッセージを表示する
+ * 優先順位:
+ *   1. select 型 → Select（xsiType に関わらず）
+ *   2. booleanType → Switch
+ *   3. dateTimeType → DatePicker（showTime=true）
+ *   4. dateType → DatePicker
+ *   5. 整数型（intType, longType, ...） → InputNumber（precision=0）
+ *   6. 実数型（floatType, doubleType, decimalType） → InputNumber
+ *   7. リスト型 → TextArea
+ *   8. それ以外 → Input
  */
+const FieldValueInput: React.FC<FieldValueInputProps> = ({
+  xsiType,
+  fieldType,
+  options,
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
+  testId,
+}) => {
+  const xsi = xsiType ?? '';
+
+  // ── select 型（xsiType に関わらず field.type='select' を優先） ──
+  if (fieldType === 'select') {
+    return (
+      <Select
+        value={value as string | undefined}
+        onChange={(v) => onChange(v)}
+        options={(options ?? []).map((o) => ({ label: o, value: o }))}
+        style={{ width: '100%' }}
+        placeholder={placeholder}
+        disabled={disabled}
+        data-testid={testId}
+      />
+    );
+  }
+
+  // ── booleanType ──
+  if (xsi === 'booleanType') {
+    const checked = value === true || value === 'true' || value === '1';
+    return (
+      <Switch
+        checked={checked}
+        onChange={(v) => onChange(v)}
+        disabled={disabled}
+        checkedChildren="true"
+        unCheckedChildren="false"
+        data-testid={testId}
+      />
+    );
+  }
+
+  // ── dateTimeType ──
+  if (xsi === 'dateTimeType') {
+    return (
+      <DatePicker
+        showTime
+        value={value ? require('dayjs')(value as string) : null}
+        onChange={(_date, dateStr) => {
+          const str = Array.isArray(dateStr) ? dateStr[0] : dateStr;
+          onChange(str ?? '');
+        }}
+        format="YYYY-MM-DD HH:mm:ss"
+        style={{ width: '100%' }}
+        disabled={disabled}
+        data-testid={testId}
+      />
+    );
+  }
+
+  // ── dateType ──
+  if (xsi === 'dateType') {
+    return (
+      <DatePicker
+        value={value ? require('dayjs')(value as string) : null}
+        onChange={(_date, dateStr) => {
+          const str = Array.isArray(dateStr) ? dateStr[0] : dateStr;
+          onChange(str ?? '');
+        }}
+        format="YYYY-MM-DD"
+        style={{ width: '100%' }}
+        disabled={disabled}
+        data-testid={testId}
+      />
+    );
+  }
+
+  // ── 整数型 ──
+  if (isIntegerXsiType(xsi)) {
+    const min = isUnsignedIntXsiType(xsi) ? 0 : undefined;
+    return (
+      <InputNumber
+        value={value as number | undefined}
+        onChange={(v) => { if (v !== null) onChange(v); }}
+        precision={0}
+        min={min}
+        style={{ width: '100%' }}
+        placeholder={placeholder}
+        disabled={disabled}
+        data-testid={testId}
+      />
+    );
+  }
+
+  // ── 実数型 ──
+  if (['floatType', 'doubleType', 'decimalType'].includes(xsi)) {
+    return (
+      <InputNumber
+        value={value as number | undefined}
+        onChange={(v) => { if (v !== null) onChange(v); }}
+        style={{ width: '100%' }}
+        placeholder={placeholder}
+        disabled={disabled}
+        data-testid={testId}
+      />
+    );
+  }
+
+  // ── リスト型（TextArea でスペース区切り入力） ──
+  if (isListXsiType(xsi)) {
+    return (
+      <Input.TextArea
+        value={value as string | undefined}
+        onChange={(e) => onChange(e.target.value)}
+        rows={2}
+        placeholder={placeholder ?? 'スペース区切りで複数値を入力'}
+        disabled={disabled}
+        data-testid={testId}
+      />
+    );
+  }
+
+  // ── number（xsiType 未設定だが field.type='number'） ──
+  if (fieldType === 'number') {
+    return (
+      <InputNumber
+        value={value as number | undefined}
+        onChange={(v) => { if (v !== null) onChange(v); }}
+        style={{ width: '100%' }}
+        placeholder={placeholder}
+        disabled={disabled}
+        data-testid={testId}
+      />
+    );
+  }
+
+  // ── デフォルト: テキスト入力 ──
+  return (
+    <Input
+      value={value as string | undefined}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      disabled={disabled}
+      data-testid={testId}
+    />
+  );
+};
+
 const CUSTOM_PROP_TYPE_OPTIONS: { value: CustomPropType; label: string }[] = [
   { value: 'stringType',   label: '文字列 (string)' },
   { value: 'intType',      label: '整数 (int)' },
@@ -665,6 +862,19 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                                 <span style={{ color: token.colorError, marginLeft: 2 }}>*</span>
                               )}
                             </Text>
+                            {/* xsi:type Tag（元の xsi:type 文字列を表示。未定義なら入力タイプを表示） */}
+                            <Tag
+                              color={
+                                field.type === 'number'
+                                  ? 'green'
+                                  : field.type === 'select'
+                                  ? 'orange'
+                                  : 'default'
+                              }
+                              style={{ fontSize: 10 }}
+                            >
+                              {field.xsiType ?? field.type}
+                            </Tag>
                             {field.units && (
                               <Tag color="blue" style={{ fontSize: 10 }}>
                                 {field.units}
@@ -691,37 +901,21 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                             不確かさ選択
                           </Button>
                         </div>
-                        {/* 入力欄 */}
-                        {field.type === 'number' ? (
-                          <InputNumber
-                            value={templateValues[valueKey] as number | undefined}
-                            onChange={(value) => {
-                              if (value !== null) onValueChange(valueKey, value);
-                            }}
-                            style={{ width: '100%' }}
-                            placeholder={`${field.label || field.key}を入力`}
-                            disabled={disabled}
-                            data-testid={`template-input-${field.key}`}
-                          />
-                        ) : field.type === 'select' ? (
-                          <Select
-                            value={templateValues[valueKey] as string | undefined}
-                            onChange={(value) => onValueChange(valueKey, value)}
-                            options={(field.options ?? []).map((o) => ({ label: o, value: o }))}
-                            style={{ width: '100%' }}
-                            placeholder={`${field.label || field.key}を選択`}
-                            disabled={disabled}
-                            data-testid={`template-input-${field.key}`}
-                          />
-                        ) : (
-                          <Input
-                            value={templateValues[valueKey] as string | undefined}
-                            onChange={(e) => onValueChange(valueKey, e.target.value)}
-                            placeholder={`${field.label || field.key}を入力`}
-                            disabled={disabled}
-                            data-testid={`template-input-${field.key}`}
-                          />
-                        )}
+                        {/* 入力欄 — xsi:type に応じた入力コンポーネント */}
+                        <FieldValueInput
+                          xsiType={field.xsiType}
+                          fieldType={field.type}
+                          options={field.options}
+                          value={templateValues[valueKey]}
+                          onChange={(v) => onValueChange(valueKey, v)}
+                          placeholder={
+                            field.type === 'select'
+                              ? `${field.label || field.key}を選択`
+                              : `${field.label || field.key}を入力`
+                          }
+                          disabled={disabled}
+                          testId={`template-input-${field.key}`}
+                        />
                         {field.description && (
                           <Text type="secondary" style={{ fontSize: 10 }}>
                             {field.description}
@@ -1151,26 +1345,38 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       try {
         // トランジション・テンプレート・Ref選択肢を取得
         const data = await getPlanDialogData(projectId, methodId);
-        // API が prerequisiteTransitionIds を返さない場合はモックデータを使用
-        const hasPrereqs = data.transitions.length > 0 &&
-          data.transitions[0].prerequisiteTransitionIds !== undefined;
-        if (!hasPrereqs) {
-          console.warn('[ExperimentPlanDialog] APIが prerequisiteTransitionIds を返していません。モックデータを使用します。');
-          setDialogData(MOCK_PLAN_DIALOG_DATA);
-        } else {
-          setDialogData(data);
-        }
+        setDialogData(data);
 
         // 既存の実験計画データを取得して tabDataMap を復元
         const existingPlans = await getExperimentPlans(projectId, methodId);
         const restoredTabDataMap = experimentPlansToTabDataMap(existingPlans);
         if (Object.keys(restoredTabDataMap).length > 0) {
+          // 保存済みデータがある場合はそちらを優先
           setTabDataMap(restoredTabDataMap);
+        } else {
+          // 初回入力時: デフォルト値で一括タブを初期化
+          const defaultTemplateValues = buildDefaultTemplateValues(data.templates);
+          const info = data.defaultBasicInfo;
+          const defaultNotes: NoteItem[] = (info?.notes ?? []).map((n) => ({
+            id: `note_default_${n.type}_${Date.now()}`,
+            type: n.type as NoteTypeValue,
+            content: n.content,
+            properties: [],
+          }));
+          setTabDataMap({
+            [TAB_KEY_ALL]: {
+              ...createInitialTabData(),
+              creatorRefs: info?.creatorRefs ?? [],
+              instrumentRefs: info?.instrumentRefs ?? [],
+              ownerRefs: info?.ownerRefs ?? [],
+              notes: defaultNotes,
+              templateValues: defaultTemplateValues,
+            },
+          });
         }
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData error:', err);
         message.error('実験計画データの取得に失敗しました');
-        setDialogData(MOCK_PLAN_DIALOG_DATA);
       } finally {
         setDialogDataLoading(false);
       }
@@ -1188,18 +1394,10 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       setSelectedTransitionId(null);
       try {
         const data = await getPlanDialogData(projectId, methodId);
-        // API が prerequisiteTransitionIds を返さない場合はモックデータを使用
-        const hasPrereqs = data.transitions.length > 0 &&
-          data.transitions[0].prerequisiteTransitionIds !== undefined;
-        if (!hasPrereqs) {
-          console.warn('[ExperimentPlanDialog] (methodId change) APIが prerequisiteTransitionIds を返していません。モックデータを使用します。');
-          setDialogData(MOCK_PLAN_DIALOG_DATA);
-        } else {
-          setDialogData(data);
-        }
+        setDialogData(data);
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData (methodId change) error:', err);
-        setDialogData(MOCK_PLAN_DIALOG_DATA);
+        message.error('実験計画データの取得に失敗しました');
       } finally {
         setDialogDataLoading(false);
       }

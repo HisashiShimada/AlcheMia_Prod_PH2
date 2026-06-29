@@ -297,6 +297,23 @@ export interface PlanDialogData {
   creatorRefs: string[];
   instrumentRefs: string[];
   ownerRefs: string[];
+  /**
+   * Conditionテンプレートから抽出した基本情報の初期値
+   * 以下のキーを持つプロパティが存在する場合に設定される:
+   *   - mgr-instruction:requiredCreatorUUID
+   *   - mgr-instruction:requiredInstrumentUUID
+   *   - mgr-instruction:requiredOwnerUUID
+   *   - mgr-instruction:caution / operationNote / checkItem / prohibitedAction / OtherNotes
+   */
+  defaultBasicInfo?: {
+    creatorRefs?: string[];
+    instrumentRefs?: string[];
+    ownerRefs?: string[];
+    notes?: Array<{
+      type: string;
+      content: string;
+    }>;
+  };
 }
 
 // ─── フォールバック用モックデータ ───────────────────────────────

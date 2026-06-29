@@ -777,3 +777,93 @@ export interface UpsertExperimentPlanInput {
   userId: string;
 }
 
+// ============================================================
+// ExperimentPlanDialog 用データ型
+// getPlanDialogData (experimentInstructionController) で使用
+// ============================================================
+
+/**
+ * ExperimentPlanDialog の1フィールド定義
+ */
+export interface TemplateField {
+  /** プロパティキー（MAIMLの property.key） */
+  key: string;
+  /** 表示ラベル（description ?? key） */
+  label: string;
+  /** 入力タイプ */
+  type: 'text' | 'number' | 'select';
+  /** 単位（オプション） */
+  units?: string;
+  /** 必須フラグ（デフォルト false） */
+  required?: boolean;
+  /** select 型の場合の選択肢 */
+  options?: string[];
+  /** デフォルト値（MAIMLの Property.value から設定） */
+  defaultValue?: string | number | boolean;
+  /**
+   * MAIMLの xsi:type 文字列（例: 'doubleType', 'floatType', 'stringEnumType'）
+   * 入力タイプの判定に使われた元の値。フロントエンドでの表示用に保持する。
+   */
+  xsiType?: string;
+}
+
+/**
+ * ExperimentPlanDialog の1テンプレート定義
+ */
+export interface TemplateDef {
+  /** テンプレートID（MAIMLの template.id） */
+  id: string;
+  /** 表示ラベル（name ?? id） */
+  label: string;
+  /** テンプレートカテゴリ */
+  category: 'material' | 'condition' | 'result';
+  /** フィールド一覧 */
+  fields: TemplateField[];
+}
+
+/**
+ * getPlanDialogData API のレスポンス data 部分
+ * GET /api/v1/projects/:projectId/methods/:methodId/plan-dialog-data
+ */
+export interface PlanDialogData {
+  /** メソッドのトランジション一覧 */
+  transitions: Array<{
+    id: string;
+    name: string;
+    /** 直接依存するトランジションIDの配列（Petri Net の Arc から計算）*/
+    prerequisiteTransitionIds: string[];
+  }>;
+  /** テンプレート定義一覧 */
+  templates: TemplateDef[];
+  /** Creator 選択肢（document.creators の id） */
+  creatorRefs: string[];
+  /** Instrument 選択肢（document.instruments の id） */
+  instrumentRefs: string[];
+  /** Owner 選択肢（document.owners の id） */
+  ownerRefs: string[];
+  /**
+   * Conditionテンプレートから抽出した基本情報の初期値
+   * 以下のキーを持つプロパティが存在する場合に設定される:
+   *   - mgr-instruction:requiredCreatorUUID
+   *   - mgr-instruction:requiredInstrumentUUID
+   *   - mgr-instruction:requiredOwnerUUID
+   *   - mgr-instruction:caution / operationNote / checkItem / prohibitedAction / OtherNotes
+   */
+  defaultBasicInfo?: {
+    creatorRefs?: string[];
+    instrumentRefs?: string[];
+    ownerRefs?: string[];
+    /**
+     * 注意事項の初期値
+     * Conditionテンプレートに注意事項キー（mgr-instruction:caution 等）が
+     * 設定されている場合に生成される
+     */
+    notes?: Array<{
+      /** NoteType の値（例: 'mgr-instruction:caution'） */
+      type: string;
+      /** デフォルト内容（MAIMLの prop.value） */
+      content: string;
+    }>;
+  };
+}
+
