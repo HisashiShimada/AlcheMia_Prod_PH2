@@ -52,6 +52,21 @@ const PARENT_TEMPLATE_OPTIONS = [
   { value: 'numeric_base', label: 'numeric_base' },
 ];
 
+/** Key属性（prefix:用語）の選択肢 */
+const KEY_OPTIONS = [
+  { value: 'ex:elastic_modulus',     label: 'ex:elastic_modulus' },
+  { value: 'ex:temperature',         label: 'ex:temperature' },
+  { value: 'ex:pressure',            label: 'ex:pressure' },
+  { value: 'ex:measurement_value',   label: 'ex:measurement_value' },
+  { value: 'ex:uncertainty_level',   label: 'ex:uncertainty_level' },
+  { value: 'ex:confidence_interval', label: 'ex:confidence_interval' },
+  { value: 'maiml:standard',         label: 'maiml:standard' },
+  { value: 'maiml:uncertainty',      label: 'maiml:uncertainty' },
+  { value: 'rdfs:label',             label: 'rdfs:label' },
+  { value: 'owl:sameAs',             label: 'owl:sameAs' },
+  { value: 'xsd:double',             label: 'xsd:double' },
+];
+
 /** xsi:type の選択肢 */
 const XSI_TYPE_OPTIONS = [
   { value: 'doubleType', label: 'doubleType' },
@@ -80,11 +95,8 @@ export default function UncertaintyCreateModal({ open, onClose }: UncertaintyCre
   const [evalMode, setEvalMode] = useState<'quantitative' | 'qualitative'>('quantitative');
   const [templateKey, setTemplateKey] = useState('');
   const [selectedScope, setSelectedScope] = useState<string>('');
+  const [selectedKeyAttr, setSelectedKeyAttr] = useState<string | undefined>(undefined);
   const [qualitativeOptions, setQualitativeOptions] = useState<QualitativeOption[]>(DEFAULT_OPTIONS);
-
-  /** QNameプレビュー */
-  const qnamePreview = templateKey ? `ex:${templateKey}` : '';
-  const isValidQname = /^[a-zA-Z_][a-zA-Z0-9_.]*$/.test(templateKey);
 
   /** 名前空間URLプレビュー */
   const namespaceUrl = selectedScope ? (SCOPE_URL_MAP[selectedScope] ?? '') : '';
@@ -94,6 +106,7 @@ export default function UncertaintyCreateModal({ open, onClose }: UncertaintyCre
     setEvalMode('quantitative');
     setTemplateKey('');
     setSelectedScope('');
+    setSelectedKeyAttr(undefined);
     setQualitativeOptions(DEFAULT_OPTIONS);
     onClose();
   };
@@ -145,7 +158,7 @@ export default function UncertaintyCreateModal({ open, onClose }: UncertaintyCre
           </Form.Item>
 
           <Form.Item
-            label={<span>不確かさ基準名（key属性）<span style={{ color: '#ff4d4f' }}> *</span></span>}
+            label={<span>不確かさ基準名<span style={{ color: '#ff4d4f' }}> *</span></span>}
             style={{ marginBottom: 14 }}
           >
             <Input
@@ -155,30 +168,20 @@ export default function UncertaintyCreateModal({ open, onClose }: UncertaintyCre
             />
           </Form.Item>
 
-          <Form.Item label="名前空間プレビュー（QName）" style={{ marginBottom: 14 }}>
-            <div style={{ position: 'relative' }}>
-              <Input
-                readOnly
-                value={qnamePreview}
-                placeholder="ex:elastic_modulus"
-                style={{ background: '#fafafa', color: '#555', paddingRight: 150 }}
-              />
-              {templateKey && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    right: 10,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    fontSize: 12,
-                    color: isValidQname ? '#52c41a' : '#ff4d4f',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {isValidQname ? '✅ 有効なQNameです' : '❌ 無効なQNameです'}
-                </span>
-              )}
-            </div>
+          {/* Key属性設定 */}
+          <Form.Item label="Key属性設定" style={{ marginBottom: 14 }}>
+            <Select
+              value={selectedKeyAttr}
+              onChange={(v) => setSelectedKeyAttr(v)}
+              options={KEY_OPTIONS}
+              placeholder="prefix:用語 を選択"
+              allowClear
+              showSearch
+              filterOption={(input, option) =>
+                String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              style={{ width: '100%' }}
+            />
           </Form.Item>
 
           <Form.Item

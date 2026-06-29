@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Space, Button, Tabs, theme, Select, App, Spin } from 'antd';
+import { Layout, Typography, Space, Button, Tabs, theme, Select, App, Spin, Modal } from 'antd';
 import {
   FormOutlined,
   CheckSquareOutlined,
@@ -9,6 +9,7 @@ import {
   CheckOutlined,
   LoadingOutlined,
   ExclamationCircleOutlined,
+  AlertOutlined,
 } from '@ant-design/icons';
 import styled from '@emotion/styled';
 import Header from '../common/Header';
@@ -112,6 +113,8 @@ export default function ExperimentWorkerMenu({
   const [dialogOpen, setDialogOpen] = useState(false);
   /** 問題報告モーダル（フェーズB: IssueManagementModal を接続） */
   const [issueModalOpen, setIssueModalOpen] = useState(false);
+  /** NG理由モーダル */
+  const [ngReasonModalOpen, setNgReasonModalOpen] = useState(false);
   const [selectedProjectName, setSelectedProjectName] = useState<string>('');
 
   // プロジェクト一覧の状態管理
@@ -479,6 +482,18 @@ export default function ExperimentWorkerMenu({
             </Button>
           )}
 
+          {/* NG理由ボタン */}
+          <Button
+            danger
+            ghost
+            icon={<AlertOutlined />}
+            size="large"
+            disabled={!selectedProject || selectedProject === ''}
+            onClick={() => setNgReasonModalOpen(true)}
+          >
+            NG理由
+          </Button>
+
           {/* 問題報告ボタン（フェーズB: IssueManagementModal に接続） */}
           <Button
             danger
@@ -492,6 +507,28 @@ export default function ExperimentWorkerMenu({
           </Button>
         </Space>
       </div>
+
+      {/* NG理由モーダル */}
+      <Modal
+        open={ngReasonModalOpen}
+        onCancel={() => setNgReasonModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setNgReasonModalOpen(false)}>
+            閉じる
+          </Button>,
+        ]}
+        title={
+          <span style={{ color: '#ff4d4f' }}>
+            <AlertOutlined style={{ marginRight: 8 }} />
+            NG理由
+          </span>
+        }
+      >
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
+          {/* フェーズB: 選択中プロジェクトのNG理由をAPIから取得して表示 */}
+          タスク＃1の定性評価結果が正しくありません。
+        </p>
+      </Modal>
 
       {/* タブ */}
       <div style={{ borderRadius: 0 }}>

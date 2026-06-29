@@ -16,6 +16,7 @@ import {
   Table,
   Tag,
   Button,
+  Radio,
   Dropdown,
   Space,
   Modal,
@@ -32,11 +33,9 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import {
-  CheckOutlined,
-  CloseOutlined,
+  CheckCircleOutlined,
   FilterOutlined,
   EditOutlined,
-  MoreOutlined,
   SettingOutlined,
   FileSearchOutlined,
 } from '@ant-design/icons';
@@ -159,10 +158,11 @@ const INITIAL_FILTER: FilterState = {
 // ─────────────────────────────────────────────────────────────
 
 /** 固定列キー（非表示にできない列） */
-const FIXED_COLUMN_KEYS = ['taskNumber', 'propKey', 'actions'] as const;
+const FIXED_COLUMN_KEYS = ['taskNumber', 'propKey'] as const;
 
 /** 切替可能な列の定義（width は各列の固定幅と一致させること） */
 const TOGGLEABLE_COLUMN_DEFS: { key: string; label: string; width: number }[] = [
+  { key: 'taskStatus',                  label: 'タスクステータス',                width: 110 },
   { key: 'methodName',                  label: 'メソッド名',                    width: 190 },
   { key: 'transitionName',              label: 'トランジション名',               width: 180 },
   { key: 'templateName',                label: 'テンプレート名',                 width: 180 },
@@ -177,7 +177,6 @@ const TOGGLEABLE_COLUMN_DEFS: { key: string; label: string; width: number }[] = 
   { key: 'uncertaintyAssignedBy',       label: '不確かさ付与者',                  width: 140 },
   { key: 'uncertaintyAssignedAt',       label: '不確かさ付与日時',                width: 160 },
   { key: 'uncertaintyComment',          label: '不確かさについてのコメント',       width: 220 },
-  { key: 'taskStatus',                  label: 'ステータス',                      width: 110 },
 ];
 
 /** デフォルトで表示するすべての列キー */
@@ -185,6 +184,13 @@ const ALL_COLUMN_KEYS = TOGGLEABLE_COLUMN_DEFS.map((d) => d.key);
 
 /** 「不確かさ確認」プリセットで表示する列キー */
 const UNCERTAINTY_COLUMN_KEYS: string[] = [
+  'methodName',
+  'transitionName',
+  'templateName',
+  'expected',
+  'expectedAverage',
+  'actual',
+  'actualAverage',
   'uncertaintyCriteriaName',
   'uncertaintyAssignedValue',
   'uncertaintyAssignedBy',
@@ -211,6 +217,7 @@ function toTaskStatusStr(status: number | null | undefined): string {
 
 /** モック用の不確かさデータ（画像と同様） */
 const MOCK_UNCERTAINTY_DATA: {
+
   criteriaName: string;
   criteriaType: 'qualitative' | 'quantitative';
   assignedValue: string;
@@ -271,6 +278,7 @@ function calcGroupAverage(
 /** InstructionMethodResponse[] をフラットな FlatRow[] に変換 */
 function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
   const rows: FlatRow[] = [];
+  // [MOCK] バックエンド実装時に削除するインデックス変数
   let mockIdx = 0;
   methods.forEach((method) => {
     method.tasks.forEach((task) => {
@@ -403,6 +411,19 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   const [ngForm]                          = Form.useForm<{ ngReason: string }>();
   const [actionLoading, setActionLoading] = useState(false);
 
+  // ── 承認処理ダイアログ ──
+  const [bulkApproveOpen, setBulkApproveOpen]       = useState(false);
+  /** タスクキーごとの操作（'approve' or 'ng'） */
+  const [bulkActions, setBulkActions]               = useState<Record<string, 'approve' | 'ng'>>({});
+  /** タスクキーごとのNG理由 */
+  const [bulkNgReasons, setBulkNgReasons]           = useState<Record<string, string>>({});
+  /** ダイアログ内フィルター: メソッドID（null = 全件） */
+  const [bulkFilterMethodId, setBulkFilterMethodId] = useState<string | null>(null);
+  /** ダイアログ内フィルター: タスクNo（null = 全件） */
+  const [bulkFilterTaskNo, setBulkFilterTaskNo]     = useState<number | null>(null);
+  /** ダイアログ内フィルター: ステータス（null = 全件） */
+  const [bulkFilterTaskStatus, setBulkFilterTaskStatus] = useState<string | null>(null);
+
   // ── ExperimentPlanDialog ──
   const [planDialogOpen, setPlanDialogOpen]       = useState(false);
   const [planDialogMethodId, setPlanDialogMethodId] = useState<string>('');
@@ -460,6 +481,93 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       return true;
     });
   }, [allRows, filters]);
+
+  // ─────────────────────────────────────────────────────────
+  // レビュー待ちタスク（一括承認対象）
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * allRows からレビュー待ち（'04'）の methodId + taskNumber の組み合わせを
+   * 重複排除して抽出する
+   */
+  const reviewWaitingTasks = useMemo(() => {
+    const seen = new Set<string>();
+    const result: { methodId: string; methodName: string; taskNumber: number; taskStatus: string }[] = [];
+    allRows.forEach((r) => {
+      if (r.taskStatus !== '04') return;
+      const key = `${r.methodId}__${r.taskNumber}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push({ methodId: r.methodId, methodName: r.methodName, taskNumber: r.taskNumber, taskStatus: r.taskStatus });
+    });
+    return result.sort((a, b) => a.taskNumber - b.taskNumber);
+  }, [allRows]);
+
+  // ─────────────────────────────────────────────────────────
+  // 承認処理ダイアログを開く
+  // ─────────────────────────────────────────────────────────
+
+  const handleOpenBulkApproveDialog = useCallback(() => {
+    // ダイアログを開くときに全タスクの操作を「承認」にリセット
+    const allKeys = reviewWaitingTasks.map((t) => `${t.methodId}__${t.taskNumber}`);
+    const defaultActions: Record<string, 'approve' | 'ng'> = {};
+    allKeys.forEach((k) => { defaultActions[k] = 'approve'; });
+    setBulkActions(defaultActions);
+    setBulkNgReasons({});
+    // ダイアログ内フィルターをリセット
+    setBulkFilterMethodId(null);
+    setBulkFilterTaskNo(null);
+    setBulkFilterTaskStatus(null);
+    setBulkApproveOpen(true);
+  }, [reviewWaitingTasks]);
+
+  // ─────────────────────────────────────────────────────────
+  // 承認処理ダイアログ: 選択実行
+  // ─────────────────────────────────────────────────────────
+
+  const handleBulkExecute = useCallback(async () => {
+    const allKeys = reviewWaitingTasks.map((t) => `${t.methodId}__${t.taskNumber}`);
+    // NGを選択しているタスクでNG理由が未入力のものを検出
+    const missingNg = allKeys.filter(
+      (k) => bulkActions[k] === 'ng' && !bulkNgReasons[k]?.trim()
+    );
+    if (missingNg.length > 0) {
+      message.warning('NG理由が未入力のタスクがあります');
+      return;
+    }
+    if (allKeys.length === 0) return;
+
+    setActionLoading(true);
+    try {
+      await Promise.all(
+        allKeys.map((key) => {
+          const [methodId, taskNumberStr] = key.split('__');
+          const taskNumber = Number(taskNumberStr);
+          if (bulkActions[key] === 'ng') {
+            return recordNg(projectId, methodId, taskNumber, {
+              ngReason: bulkNgReasons[key] ?? '',
+            });
+          }
+          return approveTask(projectId, methodId, taskNumber);
+        })
+      );
+
+      const approveCount = allKeys.filter((k) => (bulkActions[k] ?? 'approve') === 'approve').length;
+      const ngCount      = allKeys.filter((k) => bulkActions[k] === 'ng').length;
+      const parts: string[] = [];
+      if (approveCount > 0) parts.push(`承認 ${approveCount} 件`);
+      if (ngCount      > 0) parts.push(`NG ${ngCount} 件`);
+      message.success(`処理が完了しました（${parts.join('、')}）`);
+
+      setBulkApproveOpen(false);
+      await fetchData();
+    } catch (err) {
+      console.error('[ExperimentInstructionTab] bulkExecute error:', err);
+      message.error('承認処理に失敗しました');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [reviewWaitingTasks, bulkActions, bulkNgReasons, projectId, fetchData, message]);
 
   // ─────────────────────────────────────────────────────────
   // 承認処理
@@ -563,6 +671,18 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       sorter: (a, b) => a.taskNumber - b.taskNumber,
       render: (v: number) => <Text strong>#{v}</Text>,
     },
+    // ──── 切替可能列 ────
+    {
+      key: 'taskStatus',
+      title: <span style={{ whiteSpace: 'normal', wordBreak: 'keep-all', textAlign: 'center', display: 'block' }}>タスク<br />ステータス</span>,
+      dataIndex: 'taskStatus',
+      width: 110,
+      align: 'center' as const,
+      render: (v: string) => {
+        const cfg = TASK_STATUS_CONFIG[v] ?? { label: v, color: 'default' };
+        return <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag>;
+      },
+    },
     {
       key: 'propKey',
       title: 'Key',
@@ -575,7 +695,6 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         </Tooltip>
       ),
     },
-    // ──── 切替可能列 ────
     {
       key: 'methodName',
       title: 'メソッド名',
@@ -748,56 +867,6 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           <Text type="secondary">—</Text>
         ),
     },
-    {
-      key: 'taskStatus',
-      title: 'ステータス',
-      dataIndex: 'taskStatus',
-      width: 110,
-      align: 'center' as const,
-      render: (v: string) => {
-        const cfg = TASK_STATUS_CONFIG[v] ?? { label: v, color: 'default' };
-        return <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag>;
-      },
-    },
-    // ──── 固定列（常に末尾に表示） ────
-    {
-      key: 'actions',
-      title: '操作',
-      width: 60,
-      align: 'center' as const,
-      render: (_: unknown, r: FlatRow) => {
-        if (r.taskStatus !== '04') return <Text type="secondary">—</Text>;
-        const menuItems: MenuProps['items'] = [
-          {
-            key: 'approve',
-            label: '承認',
-            icon: <CheckOutlined />,
-            onClick: () => setApproveTarget(r),
-          },
-          {
-            key: 'ng',
-            label: 'NG',
-            icon: <CloseOutlined />,
-            danger: true,
-            onClick: () => setNgTarget(r),
-          },
-        ];
-        return (
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={['click']}
-            placement="bottomRight"
-          >
-            <Button
-              type="text"
-              size="small"
-              icon={<MoreOutlined />}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </Dropdown>
-        );
-      },
-    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], []);
 
@@ -818,8 +887,8 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
    * 列の表示/非表示に応じて横スクロール幅を動的に調整する
    */
   const scrollX = useMemo(() => {
-    // 固定列の幅: taskNumber(80) + propKey(160) + actions(60)
-    const FIXED_WIDTH = 80 + 160 + 60;
+    // 固定列の幅: taskNumber(80) + propKey(160)
+    const FIXED_WIDTH = 80 + 160;
     const toggleableWidth = TOGGLEABLE_COLUMN_DEFS
       .filter(({ key }) => visibleColumnKeys.includes(key))
       .reduce((sum, { width }) => sum + width, 0);
@@ -898,6 +967,15 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             列を選択 ▾
           </Button>
         </Dropdown>
+        <Button
+          size="small"
+          type="primary"
+          icon={<CheckCircleOutlined />}
+          disabled={reviewWaitingTasks.length === 0}
+          onClick={handleOpenBulkApproveDialog}
+        >
+          承認処理
+        </Button>
       </Flex>
 
       {/* ── フィルタバー ── */}
@@ -910,7 +988,12 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       />
 
       {/* ── テーブル ── */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      <style>{`
+        .experiment-instruction-table .ant-table-thead > tr > th {
+          text-align: center !important;
+        }
+      `}</style>
+      <div className="experiment-instruction-table" style={{ flex: 1, overflow: 'hidden' }}>
         {loading ? (
           <Flex justify="center" align="center" style={{ height: 200 }}>
             <Spin tip="読み込み中..." />
@@ -986,6 +1069,160 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             </Form>
           </Space>
         )}
+      </Modal>
+
+      {/* ── 承認処理ダイアログ ── */}
+      <Modal
+        title="承認処理"
+        open={bulkApproveOpen}
+        onOk={handleBulkExecute}
+        onCancel={() => setBulkApproveOpen(false)}
+        okText="実行"
+        cancelText="キャンセル"
+        okButtonProps={{ loading: actionLoading, disabled: reviewWaitingTasks.length === 0 }}
+        width={760}
+        destroyOnClose
+      >
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          {/* ── フィルターバー ── */}
+          <Flex gap={8} align="center" wrap="wrap">
+            <FilterOutlined style={{ color: '#888', fontSize: 12 }} />
+            <Select
+              allowClear
+              size="small"
+              placeholder="メソッドID"
+              style={{ width: 220 }}
+              value={bulkFilterMethodId}
+              onChange={(v) => {
+                setBulkFilterMethodId(v ?? null);
+                setBulkFilterTaskNo(null);
+              }}
+              options={uniq(reviewWaitingTasks.map((t) => t.methodId)).map((id) => ({
+                label: id,
+                value: id,
+              }))}
+              popupMatchSelectWidth={false}
+            />
+            <Select
+              allowClear
+              size="small"
+              placeholder="タスクNo"
+              style={{ width: 100 }}
+              value={bulkFilterTaskNo}
+              onChange={(v) => setBulkFilterTaskNo(v ?? null)}
+              options={uniq(
+                reviewWaitingTasks
+                  .filter((t) => bulkFilterMethodId === null || t.methodId === bulkFilterMethodId)
+                  .map((t) => t.taskNumber)
+              )
+                .sort((a, b) => a - b)
+                .map((no) => ({ label: `#${no}`, value: no }))}
+              popupMatchSelectWidth={false}
+            />
+            <Select
+              allowClear
+              size="small"
+              placeholder="ステータス"
+              style={{ width: 130 }}
+              value={bulkFilterTaskStatus}
+              onChange={(v) => setBulkFilterTaskStatus(v ?? null)}
+              options={Object.entries(TASK_STATUS_CONFIG).map(([code, cfg]) => ({
+                label: cfg.label,
+                value: code,
+              }))}
+              popupMatchSelectWidth={false}
+            />
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {reviewWaitingTasks.filter((t) => {
+                if (bulkFilterMethodId   !== null && t.methodId   !== bulkFilterMethodId)   return false;
+                if (bulkFilterTaskNo     !== null && t.taskNumber !== bulkFilterTaskNo)     return false;
+                if (bulkFilterTaskStatus !== null && t.taskStatus !== bulkFilterTaskStatus) return false;
+                return true;
+              }).length} / {reviewWaitingTasks.length} 件表示
+            </Text>
+          </Flex>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            各タスクの「承認」または「NG」を選択してください。
+          </Text>
+          <Table
+            dataSource={reviewWaitingTasks.filter((t) => {
+              if (bulkFilterMethodId   !== null && t.methodId   !== bulkFilterMethodId)   return false;
+              if (bulkFilterTaskNo     !== null && t.taskNumber !== bulkFilterTaskNo)     return false;
+              if (bulkFilterTaskStatus !== null && t.taskStatus !== bulkFilterTaskStatus) return false;
+              return true;
+            })}
+            rowKey={(r) => `${r.methodId}__${r.taskNumber}`}
+            size="small"
+            pagination={false}
+            style={{ fontSize: 12 }}
+            columns={[
+              {
+                title: 'タスクNo',
+                dataIndex: 'taskNumber',
+                width: 80,
+                align: 'center' as const,
+                render: (v: number) => <Text strong>#{v}</Text>,
+              },
+              {
+                title: 'メソッドID',
+                dataIndex: 'methodId',
+                ellipsis: true,
+                render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
+              },
+              {
+                title: 'ステータス',
+                dataIndex: 'taskStatus',
+                width: 110,
+                align: 'center' as const,
+                render: (v: string) => {
+                  const cfg = TASK_STATUS_CONFIG[v] ?? { label: v, color: 'default' };
+                  return <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag>;
+                },
+              },
+              {
+                key: 'action',
+                title: '操作',
+                width: 180,
+                render: (_: unknown, r: { methodId: string; taskNumber: number }) => {
+                  const key = `${r.methodId}__${r.taskNumber}`;
+                  return (
+                    <Radio.Group
+                      size="small"
+                      value={bulkActions[key] ?? 'approve'}
+                      onChange={(e) => {
+                        setBulkActions((prev) => ({ ...prev, [key]: e.target.value }));
+                        if (e.target.value === 'approve') {
+                          setBulkNgReasons((prev) => { const n = { ...prev }; delete n[key]; return n; });
+                        }
+                      }}
+                    >
+                      <Radio value="approve">承認</Radio>
+                      <Radio value="ng">NG</Radio>
+                    </Radio.Group>
+                  );
+                },
+              },
+            ]}
+            expandable={{
+              expandedRowKeys: Object.keys(bulkActions).filter((k) => bulkActions[k] === 'ng'),
+              expandedRowRender: (r: { methodId: string; taskNumber: number }) => {
+                const key = `${r.methodId}__${r.taskNumber}`;
+                return (
+                  <Input.TextArea
+                    rows={2}
+                    placeholder="NG理由を入力してください（必須）"
+                    maxLength={500}
+                    showCount
+                    value={bulkNgReasons[key] ?? ''}
+                    onChange={(e) => setBulkNgReasons((prev) => ({ ...prev, [key]: e.target.value }))}
+                    style={{ fontSize: 12 }}
+                  />
+                );
+              },
+              showExpandColumn: false,
+            }}
+          />
+        </Space>
       </Modal>
 
       {/* ── ExperimentPlanDialog（実験指示編集） ── */}

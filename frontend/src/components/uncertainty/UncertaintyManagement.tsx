@@ -57,11 +57,37 @@ export default function UncertaintyManagement() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<UncertaintyTemplate | null>(null);
+  const [isLatestVersion, setIsLatestVersion] = useState(true);
 
   const templates = mockData as UncertaintyTemplate[];
 
+  /**
+   * バージョン文字列を数値配列に変換（例: "v2.1" → [2, 1]）
+   */
+  const parseVersion = (v: string): number[] =>
+    v.replace(/^v/i, '').split('.').map(Number);
+
+  /**
+   * 対象テンプレートが同名基準の中で最新バージョンかどうかを判定
+   */
+  const checkIsLatestVersion = (template: UncertaintyTemplate): boolean => {
+    const sameNameTemplates = templates.filter((t) => t.name === template.name);
+    const targetVer = parseVersion(template.version);
+    return sameNameTemplates.every((t) => {
+      const otherVer = parseVersion(t.version);
+      for (let i = 0; i < Math.max(targetVer.length, otherVer.length); i++) {
+        const a = targetVer[i] ?? 0;
+        const b = otherVer[i] ?? 0;
+        if (a > b) return true;
+        if (a < b) return false;
+      }
+      return true;
+    });
+  };
+
   const handleOpenDetail = (template: UncertaintyTemplate) => {
     setSelectedTemplate(template);
+    setIsLatestVersion(checkIsLatestVersion(template));
     setDetailModalOpen(true);
   };
 
@@ -202,6 +228,7 @@ export default function UncertaintyManagement() {
       <UncertaintyDetailModal
         open={detailModalOpen}
         template={selectedTemplate}
+        isLatestVersion={isLatestVersion}
         onClose={() => setDetailModalOpen(false)}
       />
       <UncertaintyCreateModal
