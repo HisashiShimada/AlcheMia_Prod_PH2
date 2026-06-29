@@ -524,6 +524,32 @@ export default function DepartmentManagement() {
             <Input placeholder={t('departmentManagement.form.departmentNamePlaceholder')} />
           </Form.Item>
 
+          <Form.Item
+            name="namespacePrefix"
+            label="名前空間Prefix"
+            rules={[
+              {
+                pattern: /^[a-zA-Z_][a-zA-Z0-9_\-]*$/,
+                message: '英字で始まり、英数字・ハイフン・アンダースコアのみ使用できます',
+              },
+            ]}
+          >
+            <Input placeholder="例: rd, materials" allowClear />
+          </Form.Item>
+
+          <Form.Item
+            name="namespaceUri"
+            label="名前空間URI"
+            rules={[
+              {
+                type: 'url',
+                message: '有効なURL形式で入力してください（例: https://example.com/rd/）',
+              },
+            ]}
+          >
+            <Input placeholder="例: https://example.com/rd/" allowClear />
+          </Form.Item>
+
           <Form.Item name="isActive" label={t('departmentManagement.form.status')}>
             <Select
               options={[

@@ -7,8 +7,16 @@ import {
 import {
   CheckOutlined, CloseOutlined, LinkOutlined,
 } from '@ant-design/icons';
+import { generateNamespaceUri } from '@/utils/namespaceUriGenerator';
 
 const { Text } = Typography;
+
+// ──────────────────────────────────────────────
+// モック: ログインユーザーの組織CD・部署CD
+// 本番実装では認証APIから取得する
+// ──────────────────────────────────────────────
+const MOCK_ORG_CD  = 'ORG001';
+const MOCK_DEPT_CD = 'RD';
 
 // ──────────────────────────────────────────────
 // 型定義
@@ -43,7 +51,7 @@ const parentOptions = [
 // ──────────────────────────────────────────────
 const uriGuidance: Record<Level, string> = {
   global:       'https:// または urn: で始まる有効なURIを入力してください',
-  organization: '組織のDNSドメインをベースにしたURIを推奨します（例: https://www.corpa.co.jp/）',
+  organization: '接頭辞（Prefix）をもとに自動生成されます',
   personal:     'https://orcid.org/XXXX-XXXX-XXXX-XXXX 形式のORCID URIを推奨します',
 };
 
@@ -52,7 +60,7 @@ const uriGuidance: Record<Level, string> = {
 // ──────────────────────────────────────────────
 const levelGuidance: Record<Level, string> = {
   global:       'グローバルレベルの名前空間は全組織・全ユーザーから参照可能な公式名前空間です。',
-  organization: 'DNSベースのURIを推奨します。組織内で一意なプレフィックスを使用してください。',
+  organization: 'URIは組織CD・部署CD・接頭辞（チームID）を連結して自動生成されます。',
   personal:     'ORCIDベースのURIを推奨します。',
 };
 
@@ -83,9 +91,19 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
   const [form]  = Form.useForm<NamespaceFormValues>();
   const [level, setLevel] = useState<Level>('organization');
 
+  // organization レベル時に Prefix の入力に連動してURIプレビューを生成
+  const watchedPrefix: string = Form.useWatch('prefix', form) ?? '';
+  const autoUri = level === 'organization'
+    ? generateNamespaceUri(MOCK_ORG_CD, MOCK_DEPT_CD, watchedPrefix || undefined)
+    : '';
+
   const handleLevelChange = (val: Level) => {
     setLevel(val);
     form.setFieldValue('parentNamespace', null);
+    // organization → 他レベルへ切り替えた際にURIをクリア
+    if (val !== 'organization') {
+      form.setFieldValue('uri', '');
+    }
   };
 
   const handleOrcidAutoFill = () => {
@@ -98,6 +116,10 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      // organization レベルの場合は自動生成URIをセット
+      if (level === 'organization') {
+        values.uri = autoUri;
+      }
       onRegistered(values);
       form.resetFields();
       setLevel('organization');
@@ -169,18 +191,42 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
         </Form.Item>
 
         {/* ── URI ── */}
-        <Form.Item
-          label="URI"
-          name="uri"
-          rules={[{ required: true, message: 'URIは必須です' }, { validator: validateUri }]}
-          extra={
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {uriGuidance[level]}
-            </Text>
-          }
-        >
-          <Input placeholder="例: https://www.corpa.co.jp/" maxLength={512} />
-        </Form.Item>
+        {level === 'organization' ? (
+          /* organization レベル: 自動生成プレビュー（読み取り専用） */
+          <Form.Item
+            label="URI（自動生成）"
+            extra={
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {uriGuidance[level]}（組織CD: {MOCK_ORG_CD} / 部署CD: {MOCK_DEPT_CD} / チームID: 接頭辞）
+              </Text>
+            }
+          >
+            <Input
+              value={autoUri || '（接頭辞を入力すると自動生成されます）'}
+              readOnly
+              style={{
+                backgroundColor: '#f5f5f5',
+                color: autoUri ? '#333' : '#aaa',
+                cursor: 'default',
+              }}
+              prefix={<LinkOutlined style={{ color: '#aaa' }} />}
+            />
+          </Form.Item>
+        ) : (
+          /* global / personal レベル: 手入力 */
+          <Form.Item
+            label="URI"
+            name="uri"
+            rules={[{ required: true, message: 'URIは必須です' }, { validator: validateUri }]}
+            extra={
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {uriGuidance[level]}
+              </Text>
+            }
+          >
+            <Input placeholder="例: https://www.corpa.co.jp/" maxLength={512} />
+          </Form.Item>
+        )}
 
         {/* ── 表示名（任意） ── */}
         <Form.Item
