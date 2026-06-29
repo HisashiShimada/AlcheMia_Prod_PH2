@@ -28,8 +28,11 @@ import {
   UserOutlined,
   SafetyCertificateOutlined,
   WarningOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import MaimlValidationModal from './MaimlValidationModal';
+import EncryptionManagementModal from '@/components/encryption/EncryptionManagementModal';
+import SignatureManagementModal from '@/components/signature/SignatureManagementModal';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
 import TaskResultsTable from './TaskResultsTable';
@@ -37,7 +40,6 @@ import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
 import ExperimentInstructionTab from './ExperimentInstructionTab';
-import UncertaintyApprovalTab from './UncertaintyApprovalTab';
 import CreateProjectModal from './CreateProjectModal';
 import type { CreateProjectData } from '@/types/project';
 import RenameProjectModal from './RenameProjectModal';
@@ -243,6 +245,12 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const [isValidating, setIsValidating] = useState(false);
   const [savedValidationRow, setSavedValidationRow] = useState<MaimlAnalysisResultRow | null>(null);
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+
+  // 暗号化管理モーダルステート
+  const [encryptionModalOpen, setEncryptionModalOpen] = useState(false);
+
+  // 電子署名管理モーダルステート
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
 
   // プロジェクト一覧をAPI経由で取得
   const {
@@ -2161,6 +2169,20 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   >
                     {t('projectManagement.validationConfirmButton')}
                   </Button>
+                  <Button
+                    icon={<LockOutlined />}
+                    onClick={() => setEncryptionModalOpen(true)}
+                    disabled={!selectedProject}
+                  >
+                    暗号化管理
+                  </Button>
+                  <Button
+                    icon={<SafetyCertificateOutlined />}
+                    onClick={() => setSignatureModalOpen(true)}
+                    disabled={!selectedProject}
+                  >
+                    電子署名
+                  </Button>
                 </Space>
               </Card>
 
@@ -2251,15 +2273,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         isActive={currentTab === 'project_instruction'}
                         isCheckoutLocked={isProjectCheckedOut}
                         onInstructionsSubmit={handleInstructionsSubmit}
-                      />
-                    ),
-                  },
-                  {
-                    key: 'uncertainty_approval',
-                    label: t('projectManagement.tabs.uncertainty_approval'),
-                    children: (
-                      <UncertaintyApprovalTab
-                        projectId={selectedProject.id}
                       />
                     ),
                   },
@@ -2453,6 +2466,24 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           }
         }}
       />
+
+      {/* 暗号化管理モーダル */}
+      {selectedProject && (
+        <EncryptionManagementModal
+          open={encryptionModalOpen}
+          projectName={selectedProject.name}
+          onClose={() => setEncryptionModalOpen(false)}
+        />
+      )}
+
+      {/* 電子署名管理モーダル */}
+      {selectedProject && (
+        <SignatureManagementModal
+          open={signatureModalOpen}
+          projectName={selectedProject.name}
+          onClose={() => setSignatureModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -86,157 +86,10 @@ const flattenTree = (nodes: NamespaceNode[]): FlatNsNode[] =>
     ...(n.children ? flattenTree(n.children) : []),
   ]);
 
-// ──────────────────────────────────────────────
-// prefix → スコープフルパス を返すユーティリティ
-// uncertainty-scope.json のツリーを再帰的にたどる
-// 例: "materials" → "🏢 株式会社サンプルテック › 研究開発部 › 材料グループ"
-// ──────────────────────────────────────────────
-type ScopeTreeNode = {
-  key: string;
-  label: string;
-  icon?: string;
-  prefix?: string;
-  children?: ScopeTreeNode[];
-};
-
-
-// ルートを含めてツリー全体から検索するラッパー
-const getScopeFullPath = (prefix: string): string => {
-  const tree = namespaceTreeRaw as ScopeTreeNode[];
-  // ルートノードのアイコンを付与したパスを構築
-  const searchWithIcon = (nodes: ScopeTreeNode[], ancestors: string[]): string | null => {
-    for (const node of nodes) {
-      const icon = node.icon ? `${node.icon} ` : '';
-      const nodeLabel = ancestors.length === 0 ? `${icon}${node.label}` : node.label;
-      const currentPath = [...ancestors, nodeLabel];
-      if ((node as any).prefix === prefix) {
-        return currentPath.join(' › ');
-      }
-      if (node.children) {
-        const found = searchWithIcon(node.children, currentPath);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-  return searchWithIcon(tree, []) ?? prefix;
-};
-
-// ──────────────────────────────────────────────
-// モック: ログイン中ユーザーの所属ノードキー
-// 本番実装では認証APIから取得する
-// ──────────────────────────────────────────────
-const CURRENT_USER_NS_KEY = 'rd-materials';
-
-// モック: ログイン中ユーザーの Personal ノードキー
-// 本番実装では認証APIから取得する
-const CURRENT_USER_PERSONAL_KEY = 'user-me';
-
-// ──────────────────────────────────────────────
-// 指定キーの祖先ノードキー集合を返すユーティリティ
-// ──────────────────────────────────────────────
-const getAncestorKeys = (targetKey: string, nodes: NamespaceNode[], ancestors: string[] = []): string[] | null => {
-  for (const node of nodes) {
-    if (node.key === targetKey) return ancestors;
-    if (node.children) {
-      const found = getAncestorKeys(targetKey, node.children, [...ancestors, node.key]);
-      if (found) return found;
-    }
-  }
-  return null;
-};
-
-// グローバルノード配下の全 prefix を返す
-const getGlobalPrefixes = (nodes: NamespaceNode[]): string[] => {
-  const globalNode = nodes.find((n) => n.key === 'global');
-  if (!globalNode?.children) return [];
-  const collect = (ns: NamespaceNode[]): string[] =>
-    ns.flatMap((n) => [(n as any).prefix as string | undefined, ...(n.children ? collect(n.children) : [])].filter(Boolean) as string[]);
-  return collect(globalNode.children);
-};
-
-// 指定キーノード配下の全 prefix を再帰収集
-const collectPrefixesUnder = (key: string, nodes: NamespaceNode[]): string[] => {
-  for (const n of nodes) {
-    if (n.key === key) {
-      const collect = (ns: NamespaceNode[]): string[] =>
-        ns.flatMap((c) => [
-          (c as any).prefix as string | undefined,
-          ...(c.children ? collect(c.children) : []),
-        ].filter(Boolean) as string[]);
-      const selfPrefix = (n as any).prefix as string | undefined;
-      return [...(selfPrefix ? [selfPrefix] : []), ...(n.children ? collect(n.children) : [])];
-    }
-    if (n.children) {
-      const r = collectPrefixesUnder(key, n.children);
-      if (r.length > 0) return r;
-    }
-  }
-  return [];
-};
-
-// 指定キーがどのルートノード（global/personal/company等）配下にあるかを返す
-const getRootKey = (nsKey: string, nodes: NamespaceNode[]): string | null => {
-  for (const root of nodes) {
-    if (root.key === nsKey) return root.key;
-    if (root.children) {
-      const found = getAncestorKeys(nsKey, root.children, []);
-      if (found !== null) return root.key;
-    }
-  }
-  return null;
-};
-
-// 選択ノード種別に応じた prefix 集合を返す
-// - Global ノード選択 → Global 配下の prefix のみ
-// - Personal ノード選択 → Personal（ログインユーザー）配下の prefix のみ
-// - 組織ノード選択 → そのノード配下の全 prefix（自分 + 子孫）
-const getRelatedPrefixes = (nsKey: string): Set<string> => {
-  const tree = namespaceTreeRaw as NamespaceNode[];
-  const result = new Set<string>();
-
-  const rootKey = getRootKey(nsKey, tree);
-
-  if (rootKey === 'global') {
-    // Global ノード or 配下 → Global 全 prefix
-    for (const gp of getGlobalPrefixes(tree)) result.add(gp);
-    return result;
-  }
-
-  if (rootKey === 'personal') {
-    // Personal ノード or 配下 → ログインユーザー配下の全 prefix
-    for (const pp of collectPrefixesUnder(CURRENT_USER_PERSONAL_KEY, tree)) result.add(pp);
-    return result;
-  }
-
-  // 組織ノード（company配下）→ ログインユーザーの自分 + 祖先の prefix のみ
-  // （他部署・他チームの用語は表示しない）
-  const findPrefix = (key: string, nodes: NamespaceNode[]): string | null => {
-    for (const n of nodes) {
-      if (n.key === key) return (n as any).prefix ?? null;
-      if (n.children) { const r = findPrefix(key, n.children); if (r) return r; }
-    }
-    return null;
-  };
-
-  // ログインユーザーの所属ノードの prefix
-  const selfPrefix = findPrefix(CURRENT_USER_NS_KEY, tree);
-  if (selfPrefix) result.add(selfPrefix);
-
-  // ログインユーザーの祖先ノードの prefix
-  const ancestorKeys = getAncestorKeys(CURRENT_USER_NS_KEY, tree) ?? [];
-  for (const ak of ancestorKeys) {
-    const p = findPrefix(ak, tree);
-    if (p) result.add(p);
-  }
-
-  return result;
-};
-
 const makeEmptyRow = (): NewTermRow => ({
   _rowId: `__new__${Date.now()}_${Math.random()}`,
   localName: '', displayName: '', displayNameEn: '',
-  description: '', type: '', unitHint: '',
+  description: '', type: 'stringType', unitHint: '',
 });
 
 // ──────────────────────────────────────────────
@@ -261,7 +114,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 }) => {
   const [nsSearch,      setNsSearch]      = useState('');
   const [termSearch,    setTermSearch]    = useState('');
-  const [selectedNsKey, setSelectedNsKey] = useState<string | null>(CURRENT_USER_NS_KEY);
+  const [selectedNsKey, setSelectedNsKey] = useState<string | null>(null);
   const [terms,         setTerms]         = useState<Term[]>([]);
   const [termsLoading,  setTermsLoading]  = useState(true);
 
@@ -284,20 +137,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // チーム編集ダイアログ（メンバー追加）
   const [teamEditOpen,    setTeamEditOpen]    = useState(false);
   const [teamEditLabel,   setTeamEditLabel]   = useState('');
-  const [teamEditUnitId,  setTeamEditUnitId]  = useState<string | undefined>(undefined);
   const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
-
-  // ──── コンテキストメニュー状態（方針B: Tree.onRightClick 方式）
-  const [ctxMenu, setCtxMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    node: NamespaceNode | null;
-  }>({ visible: false, x: 0, y: 0, node: null });
-
-  const [filterScope, setFilterScope] = useState<string | null>(null);
-  const [filterType,  setFilterType]  = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize,    setPageSize]    = useState(20);
@@ -431,8 +272,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // ──── チームノード右クリック：編集（メンバー追加）
   const handleContextEditTeam = (node: NamespaceNode) => {
     setTeamEditLabel(node.label);
-    // node.key を departmentUnitId として使用（DBから取得したツリーであればUUIDが入る）
-    setTeamEditUnitId((node as any).departmentUnitId ?? node.key ?? undefined);
+    // モック：既存メンバーは空（実際はAPIから取得）
     setTeamEditMembers([]);
     setTeamEditOpen(true);
   };
@@ -446,36 +286,30 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── ツリーノードのタイトル（チームノードは onContextMenu を直接付与）
   // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
-  const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
-    // ログインユーザーの所属ノードは青背景で強調表示
-    const isCurrentUserNode = node.key === CURRENT_USER_NS_KEY;
-    // チームノード（companyDepth === 3）のみ右クリックメニューを有効化
+  const renderTreeTitle = (node: NamespaceNode, companyDepth: number) => {
+    // チームノード（companyDepth === 3）のみコンテキストメニューを表示
     const isTeam = companyDepth === 3;
 
-    const handleContextMenu = isTeam
-      ? (e: React.MouseEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, node });
-        }
-      : undefined;
+    const teamMenuItems = [
+      {
+        key: 'add-team',
+        label: 'チームを追加',
+        icon: <PlusOutlined />,
+        onClick: () => handleContextAddTeam(node),
+      },
+      {
+        key: 'edit-team',
+        label: '編集',
+        icon: <EditOutlined />,
+        onClick: () => handleContextEditTeam(node),
+      },
+    ];
 
-    return (
+    const titleContent = (
       <span
-        onContextMenu={handleContextMenu}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0,
-          cursor: isTeam ? 'context-menu' : undefined,
-          ...(isCurrentUserNode ? {
-            background: '#e6f4ff',
-            borderLeft: '3px solid #1677ff',
-            borderRadius: 4,
-            paddingLeft: 6,
-            marginLeft: -6,
-          } : {}),
-        }}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0 }}
       >
-        <span style={{ flex: 1, fontWeight: isCurrentUserNode ? 700 : 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: isCurrentUserNode ? '#1677ff' : undefined }}>
+        <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {node.label}
         </span>
         {node.count > 0 && (
@@ -545,20 +379,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const filteredTerms = useMemo(() => {
     let result = terms;
-    // 選択されているノードがある場合は「自分 + 祖先 + グローバル」prefix で絞り込む
-    if (effectiveNsKey) {
-      const relatedPrefixes = getRelatedPrefixes(effectiveNsKey);
-      if (relatedPrefixes.size > 0) {
-        result = result.filter((t) => relatedPrefixes.has(t.prefix));
-      }
-    }
-    // スコープフィルター
-    if (filterScope) {
-      result = result.filter((t) => t.prefix === filterScope);
-    }
-    // データ型フィルター
-    if (filterType) {
-      result = result.filter((t) => t.type === filterType);
+    // ツリーでリーフノード（prefix あり）が選択されていれば絞り込む
+    if (selectedPrefix) {
+      result = result.filter((t) => t.prefix === selectedPrefix);
     }
     if (!termSearch) return result;
     return result.filter(
@@ -567,28 +390,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         t.displayName.toLowerCase().includes(termSearch.toLowerCase()) ||
         t.description.toLowerCase().includes(termSearch.toLowerCase()),
     );
-  }, [terms, termSearch, effectiveNsKey, filterScope, filterType]);
-
-  // スコープフィルターの選択肢（表示中用語の prefix 一覧）
-  const scopeFilterOptions = useMemo(() => {
-    const prefixSet = new Set<string>();
-    // effectiveNsKey でフィルタ済みの terms から prefix を収集
-    let base = terms;
-    if (effectiveNsKey) {
-      const related = getRelatedPrefixes(effectiveNsKey);
-      if (related.size > 0) base = base.filter((t) => related.has(t.prefix));
-    }
-    base.forEach((t) => prefixSet.add(t.prefix));
-    return [
-      { value: '', label: 'スコープ: すべて' },
-      ...[...prefixSet].sort().map((p) => {
-        const fullPath = getScopeFullPath(p);
-        const parts = fullPath.split(' › ');
-        const label = parts[parts.length - 1].trim();
-        return { value: p, label };
-      }),
-    ];
-  }, [terms, effectiveNsKey]);
+  }, [terms, termSearch, selectedPrefix]);
 
   const handleDelete = (termId: string) => {
     Modal.confirm({
@@ -681,18 +483,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async (ev) => {
+    reader.onload = (ev) => {
       try {
         const text  = (ev.target?.result as string).replace(/^\uFEFF/, '');
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         if (lines.length < 2) { message.error('CSVデータが空です'); return; }
-
-        // CSV パース
-        type ParsedRow = {
-          prefix: string; localName: string; displayName: string;
-          displayNameEn: string; description: string; type: string; unitHint: string;
-        };
-        const rows: ParsedRow[] = [];
+        const added: Term[] = [];
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g)?.map((c) =>
             c.startsWith('"') ? c.slice(1, -1).replace(/""/g, '"') : c
@@ -700,7 +496,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           if (cols.length < 6) continue;
           const [, prefix, localName, displayName, displayNameEn, description, type, unitHint] = cols;
           if (!localName) continue;
-          rows.push({
+          added.push({
+            id:            `term-${Date.now()}-${i}`,
+            qname:         `${prefix}:${localName}`,
             prefix:        prefix        ?? '',
             localName:     localName     ?? '',
             displayName:   displayName   ?? '',
@@ -710,48 +508,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             unitHint:      unitHint      ?? '',
           });
         }
-
-        if (rows.length === 0) { message.error('取込可能なデータがありませんでした'); return; }
-
-        // 各行を API で DB に保存
-        const added: Term[] = [];
-        const failed: string[] = [];
-
-        for (const row of rows) {
-          try {
-            const res = await fetch('/api/v1/namespaces/terms', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                prefix:        row.prefix,
-                localName:     row.localName,
-                displayNameJa: row.displayName,
-                displayNameEn: row.displayNameEn,
-                description:   row.description,
-                typeHint:      row.type || 'stringType',
-                unitHint:      row.unitHint,
-              }),
-            });
-            if (!res.ok) {
-              failed.push(row.localName);
-            } else {
-              const created: Term = await res.json();
-              added.push(created);
-            }
-          } catch {
-            failed.push(row.localName);
-          }
-        }
-
-        if (added.length > 0) {
-          setTerms((prev) => [...prev, ...added]);
-        }
-        if (failed.length > 0) {
-          message.warning(`${added.length}件保存、${failed.length}件失敗しました（失敗: ${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}）`);
-        } else {
-          message.success(`${added.length} 件の用語をDBに保存しました`);
-        }
+        if (added.length === 0) { message.error('取込可能なデータがありませんでした'); return; }
+        setTerms((prev) => [...prev, ...added]);
+        message.success(`${added.length} 件の用語を取り込みました`);
       } catch {
         message.error('CSVの解析に失敗しました');
       } finally {
@@ -829,43 +588,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
     },
     {
-      title: 'スコープ', key: 'scope', width: 180, align: 'center' as const,
-      onCell: () => ({ style: { background: '#ffffff' } }),
-      onHeaderCell: () => ({ style: { background: '#fafafa' } }),
-      sorter: (a, b) => {
-        if ('_rowId' in a || '_rowId' in b) return 0;
-        const pathA = getScopeFullPath((a as Term).prefix);
-        const pathB = getScopeFullPath((b as Term).prefix);
-        return pathA.localeCompare(pathB);
-      },
-      render: (_: unknown, record: Term | NewTermRow) => {
-        if ('_rowId' in record) return <span style={{ color: '#bbb' }}>—</span>;
-        const t = record as Term;
-        const fullPath = getScopeFullPath(t.prefix);
-        const parts = fullPath.split(' › ');
-        const label = parts[parts.length - 1].trim();
-        return (
-          <Tooltip title={fullPath}>
-            <Tag
-              style={{
-                fontSize: 11,
-                color: '#555',
-                background: '#f5f5f5',
-                borderColor: '#e8e8e8',
-                maxWidth: 160,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                display: 'inline-block',
-              }}
-            >
-              {label}
-            </Tag>
-          </Tooltip>
-        );
-      },
-    },
-    {
       title: '説明', dataIndex: 'description', key: 'description', width: 180, ellipsis: true,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
@@ -882,7 +604,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
     },
     {
-      title: '型', dataIndex: 'type', key: 'type', width: 140, align: 'center' as const,
+      title: '型', dataIndex: 'type', key: 'type', width: 140,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         return (a as Term).type.localeCompare((b as Term).type);
@@ -897,7 +619,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         const t = record as Term;
         return t.id === editingTermId
           ? <Select size="small" style={{ width: '100%' }} value={editingValues.type || undefined} onChange={(val) => setEditingValues((p) => ({ ...p, type: val }))} options={typeOptions} />
-          : <Tag style={{ fontSize: 11, color: '#555', background: '#f5f5f5', borderColor: '#e8e8e8' }}>{t.type}</Tag>;
+          : <Tag>{t.type}</Tag>;
       },
     },
     {
@@ -1001,32 +723,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
         {/* ── 右ペイン：用語リスト ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 40px', background: '#fafafa' }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, gap: 2 }}>
-            <Input
-              prefix={<SearchOutlined />} placeholder="用語を検索..." allowClear
-              value={termSearch} onChange={(e) => setTermSearch(e.target.value)}
-              style={{ flex: 1, minWidth: 120 }}
-            />
-            <Select
-              style={{ width: 160, flexShrink: 0 }}
-              value={filterScope ?? ''}
-              options={scopeFilterOptions}
-              onChange={(val) => { setFilterScope(val || null); setCurrentPage(1); }}
-            />
-            <Select
-              style={{ width: 160, flexShrink: 0 }}
-              value={filterType ?? ''}
-              options={[
-                { value: '', label: 'データ型: すべて' },
-                { value: 'stringType',   label: 'stringType' },
-                { value: 'integerType',  label: 'integerType' },
-                { value: 'floatType',    label: 'floatType' },
-                { value: 'booleanType',  label: 'booleanType' },
-                { value: 'dateTimeType', label: 'dateTimeType' },
-                { value: 'uriType',      label: 'uriType' },
-              ]}
-              onChange={(val) => { setFilterType(val || null); setCurrentPage(1); }}
-            />
+          {/* ── 1段目: ボタン群（右寄せ） ── */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 0, paddingBottom: 8, borderBottom: '1px solid #f0f0f0', gap: 8 }}>
             <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
             <Button onClick={() => csvInputRef.current?.click()}>インポート</Button>
             <Button onClick={handleCsvDownload}>エクスポート</Button>
@@ -1047,6 +745,18 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             <Button onClick={() => setNewTerms([])} disabled={newTerms.length === 0}>
               キャンセル
             </Button>
+          </div>
+
+          {/* ── 2段目: 検索欄（左寄せ）+ 件数表示 ── */}
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 0, paddingTop: 8, paddingBottom: 8, borderBottom: '1px solid #f0f0f0', gap: 8 }}>
+            <Input
+              prefix={<SearchOutlined />} placeholder="用語を検索..." allowClear
+              value={termSearch} onChange={(e) => setTermSearch(e.target.value)}
+              style={{ maxWidth: 320 }}
+            />
+            <span style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap' }}>
+              {filteredTerms.length} 件
+            </span>
           </div>
 
           <Table<Term | NewTermRow>
@@ -1129,7 +839,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       <TeamEditDialog
         open={teamEditOpen}
         teamLabel={teamEditLabel}
-        teamUnitId={teamEditUnitId}
+        initialMembers={teamEditMembers}
         onClose={() => setTeamEditOpen(false)}
         onSaved={(members) => {
           message.success(`「${teamEditLabel}」のメンバーを更新しました（${members.length}名）`);

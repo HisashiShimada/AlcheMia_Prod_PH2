@@ -38,6 +38,7 @@ import codeMasterRoutes from './routes/codeMasterRoutes';
 import semanticSearchRoutes from './routes/semanticSearchRoutes';
 import systemOverviewRoutes from './routes/systemOverviewRoutes';
 import systemConfigRoutes from './routes/systemConfigRoutes';
+import encryptionRoutes from './routes/encryptionRoutes';
 import namespaceRoutes from './routes/namespaceRoutes';
 import departmentUnitRoutes from './routes/departmentUnitRoutes';
 
@@ -106,7 +107,7 @@ async function startServer() {
     // Mount routes after session middleware
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/projects', projectRoutes);
-    app.use('/api/v1/projects', experimentInstructionRoutes); // 実験指示API（モックデータ返却）
+    app.use('/api/v1/projects', experimentInstructionRoutes); // 実験指示API・実験計画API
     app.use('/api/v1/files', fileAccessRoutes); // 汎用ファイルアクセスAPI（共通化後）
     app.use('/api/v1/maiml', maimlRoutes);
     
@@ -146,6 +147,8 @@ async function startServer() {
     // Mount system overview routes
     app.use('/api/v1/systemManagement', systemOverviewRoutes);
 
+    // Mount encryption routes（暗号化管理API）
+    app.use('/api/v1/encryption', encryptionRoutes);
     // Mount namespace routes
     app.use('/api/v1/namespaces', namespaceRoutes);
 

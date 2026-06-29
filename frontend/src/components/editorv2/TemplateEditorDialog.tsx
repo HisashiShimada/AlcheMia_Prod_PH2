@@ -1556,9 +1556,6 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowAddModal(true)}>
               {t('template.addPropertyButton')}
             </Button>
-            <Button icon={<PlusOutlined />} onClick={() => handleOpenCriteriaSelector('', { key: '', tagName: 'property', attributes: {}, elements: {}, children: [] })}>
-              ＋ 不確かさ選択
-            </Button>
             <Button icon={<DownloadOutlined />} onClick={() => handleOpenNamespaceImport('replace_all_properties')}>
               {t('template.importFromTemplateButton')}
             </Button>

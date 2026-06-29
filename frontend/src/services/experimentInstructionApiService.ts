@@ -3,9 +3,9 @@
  * 実験指示タブ用 API サービス
  *
  * @remarks
- * バックエンドの experimentInstructionController.ts (モック) に接続する。
+ * バックエンドの experimentInstructionController.ts に接続する。
  * エンドポイント:
- *   GET  /api/v1/projects/:projectId/experiment-instructions
+ *   GET  /api/v1/projects/:projectId/experiment-instructions   ← ネスト形式
  *   GET  /api/v1/projects/:projectId/methods
  *   PUT  /api/v1/projects/:projectId/tasks/:methodId/:taskNumber/approve
  *   PUT  /api/v1/projects/:projectId/tasks/:methodId/:taskNumber/ng
@@ -13,7 +13,7 @@
 
 import { createApiClient } from '@/utils/authUtils';
 import type {
-  ExperimentInstruction,
+  InstructionMethodResponse,
   ProjectMethod,
   ApproveTaskResponse,
   RecordNgResponse,
@@ -23,18 +23,18 @@ import type {
 } from '@/types/experimentInstruction';
 
 /**
- * 実験指示一覧を取得
+ * 実験指示一覧を取得（ネスト形式）
  * GET /api/v1/projects/:projectId/experiment-instructions
  */
 export async function getExperimentInstructions(
   projectId: string
-): Promise<ExperimentInstruction[]> {
+): Promise<InstructionMethodResponse[]> {
   const apiClient = createApiClient();
   const url = `/projects/${encodeURIComponent(projectId)}/experiment-instructions`;
 
   const response = await apiClient.get<GetExperimentInstructionsResponse>(url);
 
-  return response.data.data;
+  return response.data.data.methods;
 }
 
 /**

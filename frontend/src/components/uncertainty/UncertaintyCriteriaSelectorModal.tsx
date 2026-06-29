@@ -520,7 +520,7 @@ export default function UncertaintyCriteriaSelectorModal({
 
           {/* フィルタエリア */}
           <div style={filterAreaStyle}>
-            {/* 行1: 評価方式 / 対象セクション / 不確かさ基準名(Key属性) */}
+            {/* 行1: 評価方式 / 不確かさ基準名(Key属性) */}
             <div style={filterRowStyle}>
               <FilterLabel>評価方式</FilterLabel>
               <Select
@@ -532,20 +532,6 @@ export default function UncertaintyCriteriaSelectorModal({
                   { value: 'all', label: 'すべて' },
                   { value: 'quantitative', label: '定量' },
                   { value: 'qualitative', label: '定性' },
-                ]}
-              />
-
-              <FilterLabel style={{ marginLeft: 12 }}>対象セクション</FilterLabel>
-              <Select
-                size="small"
-                style={{ minWidth: 130 }}
-                value={filter.section}
-                onChange={(v) => setFilter((prev) => ({ ...prev, section: v }))}
-                options={[
-                  { value: 'all', label: 'すべて' },
-                  { value: 'material', label: 'material' },
-                  { value: 'condition', label: 'condition' },
-                  { value: 'result', label: 'result' },
                 ]}
               />
 

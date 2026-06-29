@@ -7,6 +7,7 @@ import {
   FileTextOutlined,
   FolderAddOutlined,
   ExperimentOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
@@ -16,6 +17,7 @@ import WorkerScreenOverlay from '../project/WorkerScreenOverlay';
 import FormatManagement from '../format/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
 import UncertaintyManagement from '../uncertainty/UncertaintyManagement';
+import KeyManagementScreen from '../key-management/KeyManagementScreen';
 import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -92,6 +94,11 @@ export default function ExperimentAdminMenu({
       key: '4',
       label: t('menu.experiment_admin.tabs.templateManagement') || 'テンプレート管理',
       icon: <ExperimentOutlined />,
+    },
+    {
+      key: '5',
+      label: t('menu.experiment_admin.tabs.keyManagement') || '鍵管理',
+      icon: <KeyOutlined />,
     },
   ];
 
@@ -178,6 +185,11 @@ export default function ExperimentAdminMenu({
         {/* タブ4: テンプレート管理 - display:none でマウント維持し state を保持 */}
         <div style={{ display: currentTab === '4' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
           <UncertaintyManagement />
+        </div>
+
+        {/* タブ5: 鍵管理 - display:none でマウント維持し state を保持 */}
+        <div style={{ display: currentTab === '5' ? 'block' : 'none', height: '100%', overflow: 'auto' }}>
+          <KeyManagementScreen />
         </div>
       </Content>
       {/* 作業者画面オーバーレイ */}

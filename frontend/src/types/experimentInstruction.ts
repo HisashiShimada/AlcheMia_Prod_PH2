@@ -3,53 +3,73 @@
  * 実験指示タブ（指示一覧 > 実験指示）の型定義
  *
  * @remarks
- * バックエンド experimentInstructionController.ts のモックレスポンス構造に対応する。
+ * バックエンド experimentInstructionService.ts のネスト形式レスポンスに対応する。
+ *
+ * レスポンス構造:
+ *   { methods: InstructionMethodResponse[] }
+ *
+ *   InstructionMethodResponse
+ *     └── tasks: InstructionTaskResponse[]
+ *           └── templates: InstructionTemplateResponse[]
+ *                 └── fields: InstructionFieldResponse[]
  */
 
 // ─────────────────────────────────────────────────────────────
-// API レスポンス型
+// API レスポンス型（ネスト形式）
 // ─────────────────────────────────────────────────────────────
 
-/**
- * プロパティ値（想定値と実績値のペア）
- */
-export interface ExperimentInstructionProperty {
+/** 1 フィールドの実験指示情報 */
+export interface InstructionFieldResponse {
   /** MAIMLプロパティキー（例: "ns1:Temperature"） */
   key: string;
-  /** 表示ラベル（例: "温度"） */
+  /** 表示ラベル */
   label: string;
-  /** MAIMLの xsi:type（例: "FloatValue", "IntegerValue", "StringValue"） */
-  xsiType: string;
-  /** 想定値（管理者が設定した指示値） */
-  expected: number | string | null;
-  /** 実績値（作業者が記録した値）。未記録の場合は null */
-  actual: number | string | null;
-  /** 単位（例: "℃", "rpm"） */
-  unit: string;
+  /** xsiType 文字列（例: "FloatValue", "StringValue"）*/
+  xsiType: string | null;
+  /** 実験計画（想定値）。未設定の場合は null */
+  plannedValue: string | null;
+  /** 実際の記録値。未記録の場合は null */
+  actualValue: string | null;
+  /** 単位 */
+  unit: string | null;
 }
 
-/**
- * 実験指示レコード（テンプレート単位）
- * 1件 = 1テンプレートの指示データ
- */
-export interface ExperimentInstruction {
-  /** メソッドID */
-  methodId: string;
-  /** メソッド名 */
-  methodName: string;
-  /** タスク番号 */
-  taskNumber: number;
-  /** タスクステータスコード（code_master: task_status） */
-  taskStatus: string;
-  /** トランジションID */
-  transitionId: string;
-  /** トランジション名 */
-  transitionName: string;
-  /** テンプレート名 */
-  templateName: string;
-  /** プロパティ値一覧（想定値 + 実績値） */
-  properties: ExperimentInstructionProperty[];
+/** 1 テンプレートの実験指示情報 */
+export interface InstructionTemplateResponse {
+  templateId: string;
+  templateName: string | null;
+  templateType: 'material' | 'condition' | 'result';
+  fields: InstructionFieldResponse[];
 }
+
+/** 1 タスクの実験指示情報 */
+export interface InstructionTaskResponse {
+  taskNo: number;
+  /** task_status の数値（0〜6）。null = 未設定 */
+  taskStatus: number | null;
+  reviewedAt: string | null;
+  reviewUserId: string | null;
+  reviewResult: string | null;
+  templates: InstructionTemplateResponse[];
+}
+
+/** 1 メソッドの実験指示情報 */
+export interface InstructionMethodResponse {
+  methodId: string;
+  tasks: InstructionTaskResponse[];
+}
+
+/** GET /api/v1/projects/:projectId/experiment-instructions のレスポンス全体 */
+export interface GetExperimentInstructionsResponse {
+  success: boolean;
+  data: {
+    methods: InstructionMethodResponse[];
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// その他 API レスポンス型
+// ─────────────────────────────────────────────────────────────
 
 /**
  * メソッド情報
@@ -57,17 +77,8 @@ export interface ExperimentInstruction {
 export interface ProjectMethod {
   /** メソッドID */
   id: string;
-  /** メソッド名 */
-  name: string;
-}
-
-// ─────────────────────────────────────────────────────────────
-// API レスポンスラッパー
-// ─────────────────────────────────────────────────────────────
-
-export interface GetExperimentInstructionsResponse {
-  success: boolean;
-  data: ExperimentInstruction[];
+  /** メソッド名（現時点では id と同値） */
+  name?: string;
 }
 
 export interface GetProjectMethodsResponse {
@@ -75,33 +86,26 @@ export interface GetProjectMethodsResponse {
   data: ProjectMethod[];
 }
 
+/** タスク承認レスポンス */
 export interface ApproveTaskResponse {
   success: boolean;
-  message: string;
+  data?: {
+    taskStatus: number | null;
+    reviewedAt: string | null;
+    reviewUserId: string | null;
+    reviewResult: string | null;
+  };
 }
 
+/** NG記録レスポンス */
 export interface RecordNgResponse {
   success: boolean;
-  message: string;
-}
-
-// ─────────────────────────────────────────────────────────────
-// フロントエンドUI用の集約型
-// ─────────────────────────────────────────────────────────────
-
-/**
- * タスクグループ
- * 同一 methodId + taskNumber でグループ化した単位
- */
-export interface TaskGroup {
-  /** グループキー（"methodId_taskNumber" 形式） */
-  key: string;
-  methodId: string;
-  methodName: string;
-  taskNumber: number;
-  taskStatus: string;
-  /** グループに属する実験指示レコード（テンプレート単位） */
-  instructions: ExperimentInstruction[];
+  data?: {
+    taskStatus: number | null;
+    reviewedAt: string | null;
+    reviewUserId: string | null;
+    reviewResult: string | null;
+  };
 }
 
 /**
@@ -109,6 +113,23 @@ export interface TaskGroup {
  */
 export interface RecordNgRequest {
   ngReason: string;
+}
+
+// ─────────────────────────────────────────────────────────────
+// フロントエンドUI用の集約型
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * タスクグループ（ExperimentPlanDialog 等に渡す用）
+ */
+export interface TaskGroup {
+  /** グループキー（"methodId__taskNo" 形式） */
+  key: string;
+  methodId: string;
+  taskNo: number;
+  taskStatus: number | null;
+  /** 2桁ゼロ埋め文字列（表示・比較用） */
+  taskStatusStr: string;
 }
 
 // ─────────────────────────────────────────────────────────────

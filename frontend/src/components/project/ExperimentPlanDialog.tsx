@@ -57,7 +57,7 @@ import {
   ExportOutlined,
   DeleteOutlined,
   HolderOutlined,
-  LockOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import {
   DndContext,
@@ -91,6 +91,7 @@ import type {
 import {
   saveExperimentPlan,
   getPlanDialogData,
+  MOCK_PLAN_DIALOG_DATA,
 } from '@/services/experimentPlanApiService';
 import type { PlanDialogData } from '@/services/experimentPlanApiService';
 import UncertaintyCriteriaSelectorModal from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
@@ -127,6 +128,197 @@ function createInitialTabData(): ExperimentPlanTabData {
 interface TransitionRow {
   id: string;
   name: string;
+  /** 前提となるトランジションIDの配列（空配列 = 依存なし） */
+  prerequisiteTransitionIds?: string[];
+}
+
+/**
+ * 実行順序リストの要素型
+ * isFixed を廃止し、prerequisiteTransitionIds による依存関係制約に移行
+ */
+interface TransitionOrderItem {
+  id: string;
+  name: string;
+  order: number;
+  /**
+   * ステップ番号（依存の深さ）
+   * - 依存なし → ステップ1
+   * - 全依存先の最大ステップ+1 → 自身のステップ
+   */
+  step: number;
+  /** 前提となるトランジションIDの配列（空配列 = 依存なし） */
+  prerequisiteTransitionIds: string[];
+}
+
+/**
+ * トランジションの依存関係からステップ番号を計算する。
+ *
+ * ステップの定義:
+ *   - 依存なし（前提トランジションがない）→ ステップ1
+ *   - 全依存先の最大ステップ番号 + 1 → 自身のステップ番号
+ *
+ * 例）画像の推移図:
+ *   A（依存なし）→ ステップ1
+ *   C（依存なし）→ ステップ1
+ *   B（A に依存）→ ステップ2
+ *   D（C に依存）→ ステップ2
+ *   E（B, D に依存）→ ステップ3
+ *   F（E に依存）→ ステップ4
+ *   G（E に依存）→ ステップ4
+ *   H（F, G に依存）→ ステップ5
+ */
+function calculateSteps(transitions: TransitionOrderItem[]): TransitionOrderItem[] {
+  const stepMap = new Map<string, number>();
+
+  const getStep = (id: string, visited = new Set<string>()): number => {
+    if (stepMap.has(id)) return stepMap.get(id)!;
+    if (visited.has(id)) return 1; // 循環参照の場合はステップ1として扱う
+
+    visited.add(id);
+    const trans = transitions.find((t) => t.id === id);
+
+    // 依存なし → ステップ1
+    if (!trans || trans.prerequisiteTransitionIds.length === 0) {
+      stepMap.set(id, 1);
+      return 1;
+    }
+
+    // 全依存先の最大ステップ番号 + 1
+    const maxPrereqStep = Math.max(
+      ...trans.prerequisiteTransitionIds.map((prereqId) =>
+        getStep(prereqId, new Set(visited))
+      )
+    );
+    const step = maxPrereqStep + 1;
+    stepMap.set(id, step);
+    return step;
+  };
+
+  transitions.forEach((t) => getStep(t.id));
+
+  return transitions.map((t) => ({
+    ...t,
+    step: stepMap.get(t.id) ?? 1,
+  }));
+}
+
+/**
+ * 指定トランジションを targetOrder へ移動できるか判定する。
+ *
+ * チェック項目:
+ *   A) 自分の依存先（prerequisiteTransitionIds）が全て targetOrder より小さい order にあるか
+ *   B) 自分に直接依存しているトランジションが全て targetOrder より大きい order にあるか
+ *      ※ 準備A が混合より後ろに移動するのを防ぐ
+ */
+function canMoveToOrder(
+  transitionId: string,
+  targetOrder: number,
+  currentOrderList: TransitionOrderItem[]
+): { canMove: boolean; reason?: string } {
+  const target = currentOrderList.find((t) => t.id === transitionId);
+  if (!target) return { canMove: false, reason: 'トランジションが見つかりません' };
+
+  // A) 依存先チェック（自分の prereqs が全て targetOrder より前にあるか）
+  for (const prereqId of target.prerequisiteTransitionIds) {
+    const prereq = currentOrderList.find((t) => t.id === prereqId);
+    if (prereq && prereq.order >= targetOrder) {
+      return {
+        canMove: false,
+        reason: `依存先「${prereq.name}」（順序: ${prereq.order}）より前には移動できません`,
+      };
+    }
+  }
+
+  // B) 子孫チェック（自分に直接依存しているトランジションが全て targetOrder より後ろにあるか）
+  const dependents = currentOrderList.filter((t) =>
+    t.prerequisiteTransitionIds.includes(transitionId)
+  );
+  for (const dep of dependents) {
+    if (dep.order <= targetOrder) {
+      return {
+        canMove: false,
+        reason: `依存されている「${dep.name}」（順序: ${dep.order}）より後ろには移動できません`,
+      };
+    }
+  }
+
+  return { canMove: true };
+}
+
+/**
+ * 指定トランジションとその「強制連動が必要な」子孫を収集する。
+ *
+ * 連動ルール:
+ *   子 C が連動対象になるのは「C の全 prereqs がすでに subtree に含まれている場合のみ」。
+ *   例: 混合（prereqs=[A, B]）は、A と B の両方が subtree に含まれている場合だけ連動。
+ *       B だけ移動するとき、A は subtree 外なので混合は連動しない。
+ *
+ * 返却値は currentOrder 順にソートされた TransitionOrderItem[]。
+ */
+function collectTransitionSubtree(
+  transitionId: string,
+  allTransitions: TransitionOrderItem[]
+): TransitionOrderItem[] {
+  const subtreeIds = new Set<string>();
+
+  // BFS で「全 prereqs が subtree 内に収まっている子」だけを追加していく
+  const queue: string[] = [transitionId];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (subtreeIds.has(id)) continue;
+    subtreeIds.add(id);
+
+    // このノードを subtree に追加したことで連動対象になる子を探す
+    for (const child of allTransitions) {
+      if (subtreeIds.has(child.id)) continue;
+      // 子の全 prereqs が subtree に含まれている場合のみ連動
+      const allPrereqsInSubtree = child.prerequisiteTransitionIds.every((prereqId) =>
+        subtreeIds.has(prereqId)
+      );
+      if (allPrereqsInSubtree && child.prerequisiteTransitionIds.length > 0) {
+        queue.push(child.id);
+      }
+    }
+  }
+
+  return allTransitions
+    .filter((t) => subtreeIds.has(t.id))
+    .sort((a, b) => a.order - b.order);
+}
+
+/**
+ * 指定トランジションとその全子孫を targetOrder に移動する。
+ * targetOrder は「移動対象グループの先頭が置かれるべき order 値」。
+ *
+ * アルゴリズム:
+ *   1. 移動対象グループ（transitionId + 全子孫）を収集
+ *   2. 残り（グループ以外）を元の order 順で並べる
+ *   3. 残りの列の targetOrder-1 の位置にグループを挿入
+ *   4. order を 1 から振り直す
+ */
+function moveTransitionWithSubtree(
+  transitionId: string,
+  targetOrder: number,
+  currentOrderList: TransitionOrderItem[]
+): TransitionOrderItem[] {
+  const subtree = collectTransitionSubtree(transitionId, currentOrderList);
+  const subtreeIds = new Set(subtree.map((t) => t.id));
+
+  // グループ以外を元の order 順で取得
+  const others = currentOrderList
+    .filter((t) => !subtreeIds.has(t.id))
+    .sort((a, b) => a.order - b.order);
+
+  // targetOrder-1 の位置にグループを挿入
+  const insertAt = Math.max(0, Math.min(targetOrder - 1, others.length));
+  const result = [
+    ...others.slice(0, insertAt),
+    ...subtree,
+    ...others.slice(insertAt),
+  ];
+
+  // order を 1 から振り直す
+  return result.map((item, i) => ({ ...item, order: i + 1 }));
 }
 
 /** カスタムプロパティ型（テンプレート入力で追加できるプロパティ） */
@@ -450,13 +642,20 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                   style={{ marginBottom: 8 }}
                 />
               ) : (
-                <Form layout="vertical" size="small">
+                <div>
                   {selectedTemplate.fields.map((field) => {
                     const valueKey = `${selectedTemplate.id}_${field.key}`;
                     return (
-                      <Form.Item
-                        key={valueKey}
-                        label={
+                      <div key={valueKey} style={{ marginBottom: 10 }}>
+                        {/* ラベル行: フィールド名・単位を左、不確かさ選択ボタンを右端 */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 4,
+                          }}
+                        >
                           <Space size={4}>
                             <Text style={{ fontSize: 12 }}>
                               {field.label || field.key}
@@ -470,16 +669,27 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                               </Tag>
                             )}
                           </Space>
-                        }
-                        extra={
-                          field.description ? (
-                            <Text type="secondary" style={{ fontSize: 10 }}>
-                              {field.description}
-                            </Text>
-                          ) : undefined
-                        }
-                        style={{ marginBottom: 10 }}
-                      >
+                          <Button
+                            type="primary"
+                            size="small"
+                            disabled={disabled}
+                            onClick={() => {
+                              setCriteriaSelectorTarget({
+                                name: field.label || field.key,
+                                xpath: field.key,
+                                tag: 'property',
+                                type: field.type,
+                                value: String(templateValues[valueKey] ?? ''),
+                                unit: field.units ?? '',
+                                section: selectedTemplate.category as 'material' | 'condition' | 'result',
+                              });
+                              setCriteriaSelectorOpen(true);
+                            }}
+                          >
+                            不確かさ選択
+                          </Button>
+                        </div>
+                        {/* 入力欄 */}
                         {field.type === 'number' ? (
                           <InputNumber
                             value={templateValues[valueKey] as number | undefined}
@@ -510,10 +720,15 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                             data-testid={`template-input-${field.key}`}
                           />
                         )}
-                      </Form.Item>
+                        {field.description && (
+                          <Text type="secondary" style={{ fontSize: 10 }}>
+                            {field.description}
+                          </Text>
+                        )}
+                      </div>
                     );
                   })}
-                </Form>
+                </div>
               )}
 
               <Divider style={{ margin: '8px 0' }} />
@@ -659,8 +874,13 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
 interface SortableTransitionRowProps {
   id: string;
   order: number;
+  /** ステップ番号（依存の深さから計算） */
+  step: number;
   name: string;
-  isFixed: boolean;
+  /** 前提となるトランジションIDの配列（空配列 = 依存なし） */
+  prerequisiteTransitionIds: string[];
+  /** 依存関係のルックアップ用（ツールチップに名前・順序を表示するため全件渡す） */
+  allTransitionOrderItems: TransitionOrderItem[];
   maxOrder: number;
   onOrderChange: (id: string, newOrder: number) => void;
   disabled: boolean;
@@ -670,13 +890,17 @@ interface SortableTransitionRowProps {
 const SortableTransitionRow: React.FC<SortableTransitionRowProps> = ({
   id,
   order,
+  step,
   name,
-  isFixed,
+  prerequisiteTransitionIds,
+  allTransitionOrderItems,
   maxOrder,
   onOrderChange,
   disabled,
   token,
 }) => {
+  const hasPrereqs = prerequisiteTransitionIds.length > 0;
+
   const {
     attributes,
     listeners,
@@ -684,56 +908,61 @@ const SortableTransitionRow: React.FC<SortableTransitionRowProps> = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id, disabled: disabled || isFixed });
+  } = useSortable({ id, disabled });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : isFixed ? 0.65 : 1,
-    cursor: isFixed ? 'not-allowed' : undefined,
+    opacity: isDragging ? 0.4 : 1,
     display: 'flex',
     alignItems: 'center',
     gap: 4,
     padding: '3px 6px',
-    border: `1px solid ${isFixed ? token.colorWarningBorder : token.colorBorder}`,
+    border: `1px solid ${hasPrereqs ? token.colorInfoBorder : token.colorBorder}`,
     borderRadius: token.borderRadius,
-    backgroundColor: isFixed ? token.colorWarningBg : token.colorFillAlter,
+    backgroundColor: hasPrereqs ? token.colorInfoBg : token.colorFillAlter,
   };
 
   return (
     <div ref={setNodeRef} style={style}>
-      {/* ドラッグハンドル or 固定アイコン */}
-      {isFixed ? (
-        <LockOutlined style={{ color: token.colorWarning, fontSize: 12, flexShrink: 0 }} />
-      ) : (
-        <div
-          {...attributes}
-          {...listeners}
-          style={{ cursor: 'grab', color: token.colorTextQuaternary, flexShrink: 0, lineHeight: 1 }}
-        >
-          <HolderOutlined style={{ fontSize: 12 }} />
-        </div>
-      )}
+      {/* ドラッグハンドル（常に表示） */}
+      <div
+        {...attributes}
+        {...listeners}
+        style={{ cursor: disabled ? 'not-allowed' : 'grab', color: token.colorTextQuaternary, flexShrink: 0, lineHeight: 1 }}
+      >
+        <HolderOutlined style={{ fontSize: 12 }} />
+      </div>
 
       {/* 順序番号 Select */}
       <Select
         size="small"
         value={order}
         onChange={(val) => onOrderChange(id, val)}
-        disabled={disabled || isFixed}
-        style={{
-          width: 52,
-          flexShrink: 0,
-          opacity: isFixed ? 0.55 : 1,
-          cursor: isFixed ? 'not-allowed' : undefined,
-          pointerEvents: isFixed ? 'none' : undefined,
-        }}
+        disabled={disabled}
+        style={{ width: 52, flexShrink: 0 }}
         popupMatchSelectWidth={false}
-        options={Array.from({ length: maxOrder }, (_, i) => ({
-          label: String(i + 1),
-          value: i + 1,
-        }))}
+        options={Array.from({ length: maxOrder }, (_, i) => {
+          const targetOrder = i + 1;
+          const { canMove } = canMoveToOrder(id, targetOrder, allTransitionOrderItems);
+          return {
+            label: String(targetOrder),
+            value: targetOrder,
+            // 依存先が targetOrder 以降にある場合は選択不可
+            disabled: !canMove,
+          };
+        })}
       />
+
+      {/* ステップ番号 Tag */}
+      <Tooltip title={`ステップ ${step}（依存の深さ ${step - 1}）`}>
+        <Tag
+          color="purple"
+          style={{ margin: 0, cursor: 'default', fontSize: 10, flexShrink: 0 }}
+        >
+          S{step}
+        </Tag>
+      </Tooltip>
 
       {/* トランジション名 */}
       <Text
@@ -744,18 +973,42 @@ const SortableTransitionRow: React.FC<SortableTransitionRowProps> = ({
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
           minWidth: 0,
-          color: isFixed ? token.colorTextTertiary : token.colorText,
+          color: token.colorText,
         }}
         title={name}
       >
         {name}
       </Text>
 
-      {/* 固定ラベル */}
-      {isFixed && (
-        <Tag color="warning" style={{ fontSize: 10, margin: 0, flexShrink: 0 }}>
-          固定
-        </Tag>
+      {/* 依存関係アイコン（prerequisiteTransitionIds が空でない場合のみ） */}
+      {hasPrereqs && (
+        <Tooltip
+          title={
+            <div>
+              <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
+                依存関係あり（以下より後に実行）
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 16 }}>
+                {prerequisiteTransitionIds.map((prereqId) => {
+                  const prereq = allTransitionOrderItems.find((t) => t.id === prereqId);
+                  return (
+                    <li key={prereqId}>
+                      {prereq?.name ?? prereqId}（順序: {prereq?.order ?? '?'}）
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          }
+        >
+          <Tag
+            color="blue"
+            icon={<LinkOutlined />}
+            style={{ margin: 0, cursor: 'default', fontSize: 10, flexShrink: 0 }}
+          >
+            依存
+          </Tag>
+        </Tooltip>
       )}
     </div>
   );
@@ -800,24 +1053,15 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
   /**
    * 実行順序リスト（全トランジションを表示し順序を設定する）
-   * 各要素: { id, order, isFixed }
-   * isFixed=true の場合はドラッグ&ドロップ・Select変更による順序変更が不可
-   * TODO: 将来的にはTransition/Arc/Place関係から isFixed を自動判定する
+   * prerequisiteTransitionIds による依存関係制約を使用する
    */
-  const [transitionOrder, setTransitionOrder] = useState<{ id: string; order: number; isFixed: boolean }[]>([]);
+  const [transitionOrder, setTransitionOrder] = useState<TransitionOrderItem[]>([]);
 
   /**
    * タブキー → ExperimentPlanTabData のマップ
    * 全体タブ（'all'）が変更されると、上書きされていない各タスクタブへ自動伝播する
    */
   const [tabDataMap, setTabDataMap] = useState<Record<string, ExperimentPlanTabData>>({});
-
-  /**
-   * タブキー → 上書き済みフィールドセットのマップ
-   * タスクNタブで直接編集されたフィールドは overrideMap['task-N'] に登録され、
-   * 全体タブからの継承対象から除外される
-   */
-  const [overrideMap, setOverrideMap] = useState<Record<string, Set<InheritableField>>>({});
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -842,43 +1086,30 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
   /**
    * 現在のタブのデータを更新するヘルパー
-   * activeTab が 'all'（全体）の場合、変更を各タスクNタブに継承する（上書き済み除く）
+   * activeTab が 'all'（一括）の場合、変更を各タスクNタブに無条件で伝播する
    */
   const updateCurrentTabData = useCallback(
     (
       field: InheritableField,
       updater: (prev: ExperimentPlanTabData) => ExperimentPlanTabData,
-      isUserEdit: boolean = true
     ) => {
       setTabDataMap((prev) => {
         const updated = updater(prev[activeTab] ?? createInitialTabData());
         const next: Record<string, ExperimentPlanTabData> = { ...prev, [activeTab]: updated };
 
-        // 全体タブの変更を各タスクNタブに伝播
+        // 一括タブの変更を各タスクNタブに無条件で伝播
         if (activeTab === TAB_KEY_ALL) {
           taskNumbers.forEach((n) => {
             const key = `task-${n}`;
-            const isOverridden = overrideMap[key]?.has(field) ?? false;
-            if (!isOverridden) {
-              const taskData = next[key] ?? createInitialTabData();
-              next[key] = { ...taskData, [field]: (updated as ExperimentPlanTabData)[field] };
-            }
+            const taskData = next[key] ?? createInitialTabData();
+            next[key] = { ...taskData, [field]: (updated as ExperimentPlanTabData)[field] };
           });
         }
 
         return next;
       });
-
-      // タスクNタブで直接編集された場合は overrideMap に登録
-      if (isUserEdit && activeTab !== TAB_KEY_ALL) {
-        setOverrideMap((prev) => {
-          const prevSet = prev[activeTab] ? new Set(prev[activeTab]) : new Set<InheritableField>();
-          prevSet.add(field);
-          return { ...prev, [activeTab]: prevSet };
-        });
-      }
     },
-    [activeTab, taskNumbers, overrideMap]
+    [activeTab, taskNumbers]
   );
 
   /** APIから取得したトランジション一覧 */
@@ -895,7 +1126,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   /** タブアイテムの定義 */
   const tabItems = useMemo(() => {
     return [
-      { key: TAB_KEY_ALL, label: '全体' },
+      { key: TAB_KEY_ALL, label: '一括' },
       ...taskNumbers.map((n) => ({ key: `task-${n}`, label: `タスク${n}` })),
     ];
   }, [taskNumbers]);
@@ -908,7 +1139,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     setSelectedTransitionId(null);
     setTransitionOrder([]);
     setTabDataMap({});
-    setOverrideMap({});
     setPendingNoteType(undefined);
     setInnerTab('basic');
 
@@ -918,11 +1148,19 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       setDialogDataLoading(true);
       try {
         const data = await getPlanDialogData(projectId, methodId);
-        setDialogData(data);
+        // API が prerequisiteTransitionIds を返さない場合はモックデータを使用
+        const hasPrereqs = data.transitions.length > 0 &&
+          data.transitions[0].prerequisiteTransitionIds !== undefined;
+        if (!hasPrereqs) {
+          console.warn('[ExperimentPlanDialog] APIが prerequisiteTransitionIds を返していません。モックデータを使用します。');
+          setDialogData(MOCK_PLAN_DIALOG_DATA);
+        } else {
+          setDialogData(data);
+        }
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData error:', err);
         message.error('実験計画データの取得に失敗しました');
-        setDialogData(null);
+        setDialogData(MOCK_PLAN_DIALOG_DATA);
       } finally {
         setDialogDataLoading(false);
       }
@@ -940,10 +1178,18 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       setSelectedTransitionId(null);
       try {
         const data = await getPlanDialogData(projectId, methodId);
-        setDialogData(data);
+        // API が prerequisiteTransitionIds を返さない場合はモックデータを使用
+        const hasPrereqs = data.transitions.length > 0 &&
+          data.transitions[0].prerequisiteTransitionIds !== undefined;
+        if (!hasPrereqs) {
+          console.warn('[ExperimentPlanDialog] (methodId change) APIが prerequisiteTransitionIds を返していません。モックデータを使用します。');
+          setDialogData(MOCK_PLAN_DIALOG_DATA);
+        } else {
+          setDialogData(data);
+        }
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData (methodId change) error:', err);
-        setDialogData(null);
+        setDialogData(MOCK_PLAN_DIALOG_DATA);
       } finally {
         setDialogDataLoading(false);
       }
@@ -1093,34 +1339,21 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
   // --- 実行順序ハンドラ ---
 
-  /**
-   * トランジションが依存関係により順序固定かどうかを判定（モック実装）
-   * 構造: [混合A, 混合B] → 加熱(固定) → [冷却A, 冷却B] → 測定(固定)
-   * TODO: 将来的にはTransition ↔ Arc ↔ Placeの関係を解析して自動判定する
-   */
-  const isTransitionFixed = useCallback(
-    (transitionId: string): boolean => {
-      // モック: 3番目（index=2: 加熱）と 6番目（index=5: 測定）を固定とする
-      const idx = transitions.findIndex((t) => t.id === transitionId);
-      return idx === 2 || idx === 5;
-    },
-    [transitions]
-  );
-
-  /** transitions配列が変化したとき、transitionOrderを全件初期化 */
+  /** transitions配列が変化したとき、transitionOrderを全件初期化（ステップを自動計算） */
   useEffect(() => {
     if (transitions.length === 0) {
       setTransitionOrder([]);
       return;
     }
-    setTransitionOrder(
-      transitions.map((trans, index) => ({
-        id: trans.id,
-        order: index + 1,
-        isFixed: isTransitionFixed(trans.id),
-      }))
-    );
-  }, [transitions, isTransitionFixed]);
+    const initialOrder = transitions.map((trans, index) => ({
+      id: trans.id,
+      name: trans.name,
+      order: index + 1,
+      step: 1, // calculateSteps で上書きされる暫定値
+      prerequisiteTransitionIds: trans.prerequisiteTransitionIds ?? [],
+    }));
+    setTransitionOrder(calculateSteps(initialOrder));
+  }, [transitions]);
 
   /** ドラッグ&ドロップ用センサー */
   const sensors = useSensors(
@@ -1128,38 +1361,46 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  /** ドラッグ終了ハンドラ */
+  /** ドラッグ終了ハンドラ（子孫と一緒に自動連動移動） */
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
       setTransitionOrder((prev) => {
-        const oldIndex = prev.findIndex((item) => item.id === active.id);
         const newIndex = prev.findIndex((item) => item.id === over.id);
-        if (prev[oldIndex]?.isFixed || prev[newIndex]?.isFixed) {
-          message.warning('依存関係により順序を変更できないトランジションが含まれています');
+        const targetOrder = newIndex + 1;
+
+        // 依存先チェック（Aチェックのみ）
+        const validation = canMoveToOrder(active.id as string, targetOrder, prev);
+        if (!validation.canMove) {
+          message.warning(validation.reason ?? '順序を変更できません');
           return prev;
         }
-        const moved = arrayMove(prev, oldIndex, newIndex);
-        return moved.map((item, i) => ({ ...item, order: i + 1 }));
+
+        // 子孫と一緒に移動後、ステップを再計算
+        return calculateSteps(moveTransitionWithSubtree(active.id as string, targetOrder, prev));
       });
     },
     [message]
   );
 
-  /** Select手入力による順序変更ハンドラ */
+  /** Select手入力による順序変更ハンドラ（子孫と一緒に自動連動移動） */
   const handleOrderSelectChange = useCallback(
     (transitionId: string, newOrder: number) => {
       setTransitionOrder((prev) => {
-        const currentIndex = prev.findIndex((item) => item.id === transitionId);
-        if (currentIndex === -1 || prev[currentIndex]?.isFixed) return prev;
-        const targetIndex = newOrder - 1;
-        const moved = arrayMove(prev, currentIndex, targetIndex);
-        return moved.map((item, i) => ({ ...item, order: i + 1 }));
+        // 依存先チェック（Aチェックのみ）
+        const validation = canMoveToOrder(transitionId, newOrder, prev);
+        if (!validation.canMove) {
+          message.warning(validation.reason ?? '順序を変更できません');
+          return prev;
+        }
+
+        // 子孫と一緒に移動後、ステップを再計算
+        return calculateSteps(moveTransitionWithSubtree(transitionId, newOrder, prev));
       });
     },
-    []
+    [message]
   );
 
   // --- 保存処理（全タブ一括保存）---
@@ -1473,8 +1714,10 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                           key={item.id}
                           id={item.id}
                           order={item.order}
+                          step={item.step}
                           name={name}
-                          isFixed={item.isFixed}
+                          prerequisiteTransitionIds={item.prerequisiteTransitionIds}
+                          allTransitionOrderItems={transitionOrder}
                           maxOrder={transitionOrder.length}
                           onOrderChange={handleOrderSelectChange}
                           disabled={disabled}
@@ -1535,9 +1778,14 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                 <Text style={{ fontSize: 12, fontWeight: 600 }}>
                   {transitions.find((t) => t.id === selectedTransitionId)?.name ?? selectedTransitionId}
                 </Text>
+                {activeTab === TAB_KEY_ALL && (
+                  <Text type="secondary" style={{ fontSize: 11, marginLeft: 12 }}>
+                    ※ 一括タブで設定した内容は、他のすべてのタスクNoタブに反映されます。
+                  </Text>
+                )}
                 {activeTab !== TAB_KEY_ALL && (
                   <Text type="secondary" style={{ fontSize: 11, marginLeft: 12 }}>
-                    ※ 全体タブの設定を継承。このタブで変更すると個別上書きになります。
+                    ※ 一括タブの設定を継承。このタブで変更すると個別上書きになります。
                   </Text>
                 )}
               </div>
