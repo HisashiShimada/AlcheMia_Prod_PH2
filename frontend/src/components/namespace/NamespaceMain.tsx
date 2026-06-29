@@ -277,6 +277,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setTeamEditOpen(true);
   };
 
+  // ──── コンテキストメニュー状態
+  const [ctxMenu, setCtxMenu] = useState<{ visible: boolean; x: number; y: number; node: NamespaceNode | null }>({
+    visible: false, x: 0, y: 0, node: null,
+  });
+
   // ──── コンテキストメニューを閉じる（mousedown で即座にキャッチ）
   useEffect(() => {
     const close = () => setCtxMenu((s) => ({ ...s, visible: false }));
@@ -286,7 +291,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── ツリーノードのタイトル（チームノードは onContextMenu を直接付与）
   // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
-  const renderTreeTitle = (node: NamespaceNode, companyDepth: number) => {
+  const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
     // チームノード（companyDepth === 3）のみコンテキストメニューを表示
     const isTeam = companyDepth === 3;
 
@@ -317,7 +322,17 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         )}
       </span>
     );
-  }, []);
+
+    if (isTeam) {
+      return (
+        <Dropdown menu={{ items: teamMenuItems }} trigger={['contextMenu']}>
+          {titleContent}
+        </Dropdown>
+      );
+    }
+    return titleContent;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleContextAddTeam, handleContextEditTeam]);
 
   // ──── ノードの companyDepth を計算してツリーデータを構築
   const toAntTree = (nodes: NamespaceNode[], companyDepth = 0): object[] =>
@@ -839,7 +854,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       <TeamEditDialog
         open={teamEditOpen}
         teamLabel={teamEditLabel}
-        initialMembers={teamEditMembers}
         onClose={() => setTeamEditOpen(false)}
         onSaved={(members) => {
           message.success(`「${teamEditLabel}」のメンバーを更新しました（${members.length}名）`);
