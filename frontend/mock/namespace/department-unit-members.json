@@ -1,0 +1,9 @@
+{
+  "rd-materials": [
+    { "userId": "user-001", "userName": "山田 太郎", "departmentUnitId": "rd-materials" },
+    { "userId": "user-002", "userName": "佐藤 花子", "departmentUnitId": "rd-materials" },
+    { "userId": "user-003", "userName": "鈴木 一郎", "departmentUnitId": "rd-materials" },
+    { "userId": "user-004", "userName": "田中 美咲", "departmentUnitId": "rd-materials" },
+    { "userId": "user-005", "userName": "伊藤 健二", "departmentUnitId": "rd-materials" }
+  ]
+}
