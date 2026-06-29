@@ -47,12 +47,20 @@ interface Term {
 
 interface NewTermRow {
   _rowId: string; // 一時ID（テーブル行のkey用）
+  prefix: string;  // 現在選択中の名前空間 prefix（QName生成に使用）
   localName: string;
   displayName: string;
   displayNameEn: string;
   description: string;
   type: string;
   unitHint: string;
+}
+
+// 組織に共有の共有先型
+interface ShareTarget {
+  prefix: string;
+  departmentName: string;
+  teamName: string;
 }
 
 interface FlatNsNode {
@@ -86,8 +94,9 @@ const flattenTree = (nodes: NamespaceNode[]): FlatNsNode[] =>
     ...(n.children ? flattenTree(n.children) : []),
   ]);
 
-const makeEmptyRow = (): NewTermRow => ({
+const makeEmptyRow = (prefix = ''): NewTermRow => ({
   _rowId: `__new__${Date.now()}_${Math.random()}`,
+  prefix,
   localName: '', displayName: '', displayNameEn: '',
   description: '', type: 'stringType', unitHint: '',
 });
@@ -145,6 +154,16 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const [editingTermId, setEditingTermId] = useState<string | null>(null);
   const [editingValues, setEditingValues] = useState<{ localName: string; displayName: string; displayNameEn: string; description: string; type: string; unitHint: string }>({ localName: '', displayName: '', displayNameEn: '', description: '', type: '', unitHint: '' });
+
+  // ──── 用語フィルター（C）
+  const [filterPrefix, setFilterPrefix] = useState<string | undefined>(undefined);
+  const [filterType,   setFilterType]   = useState<string | undefined>(undefined);
+  const [filterUnit,   setFilterUnit]   = useState<string | undefined>(undefined);
+
+  // ──── 組織に共有モーダル（A）
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  // モック共有先（実際は API から取得）
+  const shareTargetMock: ShareTarget = { prefix: 'rd', departmentName: '研究開発部', teamName: '材料チーム' };
 
   // ──── 初回マウント時に API から用語一覧を取得（失敗時はモックにフォールバック）
   useEffect(() => {
@@ -398,6 +417,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (selectedPrefix) {
       result = result.filter((t) => t.prefix === selectedPrefix);
     }
+    // フィルター（C）
+    if (filterPrefix) result = result.filter((t) => t.prefix === filterPrefix);
+    if (filterType)   result = result.filter((t) => t.type === filterType);
+    if (filterUnit)   result = result.filter((t) => (t.unitHint ?? '') === filterUnit);
     if (!termSearch) return result;
     return result.filter(
       (t) =>
@@ -405,7 +428,38 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         t.displayName.toLowerCase().includes(termSearch.toLowerCase()) ||
         t.description.toLowerCase().includes(termSearch.toLowerCase()),
     );
-  }, [terms, termSearch, selectedPrefix]);
+  }, [terms, termSearch, selectedPrefix, filterPrefix, filterType, filterUnit]);
+
+  // ──── フィルター用オプション（重複排除）
+  const prefixOptions = useMemo(() =>
+    [...new Set(terms.map((t) => t.prefix))].sort().map((p) => ({ value: p, label: p })),
+  [terms]);
+  const typeOptionsForFilter = useMemo(() =>
+    [...new Set(terms.map((t) => t.type))].sort().map((v) => ({ value: v, label: v })),
+  [terms]);
+  const unitOptions = useMemo(() =>
+    [...new Set(terms.map((t) => t.unitHint ?? '').filter(Boolean))].sort().map((v) => ({ value: v, label: v })),
+  [terms]);
+
+  // ──── 選択中のツリーノードが Personal かどうか
+  const isPersonalSelected = useMemo(() => {
+    if (!effectiveNsKey) return false;
+    const findLevel = (nodes: NamespaceNode[]): string | null => {
+      for (const n of nodes) {
+        if (n.key === effectiveNsKey) return (n as any).level ?? null;
+        if (n.children) { const r = findLevel(n.children); if (r) return r; }
+      }
+      return null;
+    };
+    return findLevel(namespaceTreeRaw as NamespaceNode[]) === 'personal';
+  }, [effectiveNsKey]);
+
+  // ──── 「組織に共有」実行
+  const handleShare = () => {
+    message.success(`${selectedTermIds.length}件の用語を「${shareTargetMock.departmentName} / ${shareTargetMock.teamName}」に共有しました`);
+    setShareModalOpen(false);
+    setSelectedTermIds([]);
+  };
 
   const handleDelete = (termId: string) => {
     Modal.confirm({
@@ -743,11 +797,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
             <Button onClick={() => csvInputRef.current?.click()}>インポート</Button>
             <Button onClick={handleCsvDownload}>エクスポート</Button>
-            {selectedTermIds.length > 0 && (
-              <Button danger icon={<DeleteOutlined />} onClick={handleBulkDelete}>
-                選択した用語を削除（{selectedTermIds.length}件）
-              </Button>
-            )}
             {/* 用語を追加：常に活性 */}
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAddRow}>
               用語を追加
@@ -762,14 +811,60 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             </Button>
           </div>
 
-          {/* ── 2段目: 検索欄（左寄せ）+ 件数表示 ── */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 0, paddingTop: 8, paddingBottom: 8, borderBottom: '1px solid #f0f0f0', gap: 8 }}>
+          {/* ── アクションバー（B/A）: チェック1件以上のとき表示 ── */}
+          {selectedTermIds.length > 0 && (
+            <div style={{
+              display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+              gap: 8, padding: '6px 0 6px', borderBottom: '1px solid #f0f0f0',
+              background: '#fff7e6',
+            }}>
+              <span style={{ fontSize: 12, color: '#8c8c8c', marginRight: 4 }}>
+                {selectedTermIds.length} 件を選択中
+              </span>
+              {/* 🏢 組織に共有（Personal ノード選択中のみ）*/}
+              {isPersonalSelected && (
+                <Button
+                  icon={<BankOutlined />}
+                  onClick={() => setShareModalOpen(true)}
+                >
+                  組織に共有（{selectedTermIds.length}件）
+                </Button>
+              )}
+              <Button danger icon={<DeleteOutlined />} onClick={handleBulkDelete}>
+                削除（{selectedTermIds.length}件）
+              </Button>
+            </div>
+          )}
+
+          {/* ── 2段目: 検索欄 + フィルター（C）+ 件数表示 ── */}
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 0, paddingTop: 8, paddingBottom: 8, borderBottom: '1px solid #f0f0f0', gap: 8, flexWrap: 'wrap' }}>
             <Input
               prefix={<SearchOutlined />} placeholder="用語を検索..." allowClear
               value={termSearch} onChange={(e) => setTermSearch(e.target.value)}
-              style={{ maxWidth: 320 }}
+              style={{ maxWidth: 240 }}
             />
-            <span style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap' }}>
+            <Select
+              allowClear placeholder="Prefix" size="small"
+              style={{ minWidth: 110 }}
+              options={prefixOptions}
+              value={filterPrefix}
+              onChange={(v) => setFilterPrefix(v)}
+            />
+            <Select
+              allowClear placeholder="型" size="small"
+              style={{ minWidth: 120 }}
+              options={typeOptionsForFilter}
+              value={filterType}
+              onChange={(v) => setFilterType(v)}
+            />
+            <Select
+              allowClear placeholder="単位" size="small"
+              style={{ minWidth: 90 }}
+              options={unitOptions}
+              value={filterUnit}
+              onChange={(v) => setFilterUnit(v)}
+            />
+            <span style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
               {filteredTerms.length} 件
             </span>
           </div>
@@ -867,6 +962,47 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         onTermSaved={handleTermSaved}
         onNamespaceSaved={handleNamespaceSaved}
       />
+
+      {/* ── 組織に共有 確認モーダル（A）── */}
+      <Modal
+        open={shareModalOpen}
+        onCancel={() => setShareModalOpen(false)}
+        title={<span style={{ fontSize: 16, fontWeight: 600 }}>🏢 組織に共有</span>}
+        width={480}
+        okText="共有する"
+        cancelText="キャンセル"
+        onOk={handleShare}
+      >
+        <p style={{ marginBottom: 8 }}>
+          選択した <strong>{selectedTermIds.length} 件</strong> の用語を、組織の名前空間に共有します。
+        </p>
+        <div style={{
+          background: '#f5f5f5', borderRadius: 6, padding: '10px 14px', marginBottom: 12,
+          display: 'flex', flexDirection: 'column', gap: 4,
+        }}>
+          <span style={{ fontSize: 13 }}>
+            <strong>共有先:</strong>{' '}
+            {shareTargetMock.departmentName} / {shareTargetMock.teamName}
+          </span>
+          <span style={{ fontSize: 12, color: '#8c8c8c' }}>
+            Prefix: <code>{shareTargetMock.prefix}</code>
+          </span>
+        </div>
+        <div style={{ background: '#fff7e6', borderRadius: 6, padding: '8px 14px', border: '1px solid #ffd591' }}>
+          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: '#595959' }}>
+            {selectedTermIds.slice(0, 5).map((id) => {
+              const t = terms.find((x) => x.id === id);
+              return t ? <li key={id}>{t.qname} — {t.displayName}</li> : null;
+            })}
+            {selectedTermIds.length > 5 && (
+              <li style={{ color: '#8c8c8c' }}>… 他 {selectedTermIds.length - 5} 件</li>
+            )}
+          </ul>
+        </div>
+        <p style={{ marginTop: 10, fontSize: 12, color: '#ff4d4f' }}>
+          ⚠ 共有後は組織メンバー全員が参照できるようになります。
+        </p>
+      </Modal>
 
       <style>{`
         .row-new-term td { background: #fffbe6 !important; }
