@@ -39,7 +39,6 @@ interface Term {
   prefix: string;
   localName: string;
   displayName: string;
-  displayNameEn?: string;
   description: string;
   type: string;
   unitHint?: string;
@@ -47,12 +46,18 @@ interface Term {
 
 interface NewTermRow {
   _rowId: string; // 一時ID（テーブル行のkey用）
+  prefix: string;
   localName: string;
   displayName: string;
-  displayNameEn: string;
   description: string;
   type: string;
   unitHint: string;
+}
+
+interface AttributeMaster {
+  attributeName: string;
+  attributeValue: string;
+  isActive: boolean;
 }
 
 interface FlatNsNode {
@@ -187,6 +192,54 @@ const getRootKey = (nsKey: string, nodes: NamespaceNode[]): string | null => {
   return null;
 };
 
+// ──────────────────────────────────────────────
+// ログインユーザーの所属パスのみを残してツリーを剪定する
+// - Global / Personal ルートはそのまま表示
+// - company 配下は自分のノードへの祖先パス + 自分のノードのみ残す
+// ──────────────────────────────────────────────
+const filterTreeForUser = (nodes: NamespaceNode[], userNsKey: string): NamespaceNode[] => {
+  // 自分のノードへの祖先キー集合（例: ['company', 'dept-rd']）
+  const ancestorKeys = new Set<string>(getAncestorKeys(userNsKey, nodes) ?? []);
+
+  const filterNodes = (ns: NamespaceNode[]): NamespaceNode[] =>
+    ns
+      .filter((n) => {
+        // Global / Personal ルートは常に表示
+        if (n.key === 'global' || n.key === 'personal') return true;
+        // company ルートは常に表示（配下を剪定する）
+        if (n.key === 'company') return true;
+        // 自分のノード自身 → 表示
+        if (n.key === userNsKey) return true;
+        // 祖先ノード → 表示
+        if (ancestorKeys.has(n.key)) return true;
+        // それ以外（兄弟・他部署など）→ 非表示
+        return false;
+      })
+      .map((n) => ({
+        ...n,
+        children: n.children ? filterNodes(n.children) : undefined,
+      }));
+
+  return filterNodes(nodes);
+};
+
+// ──────────────────────────────────────────────
+// terms 配列から prefix に一致する件数を集計（子孫も含む）
+// ──────────────────────────────────────────────
+const countTermsByPrefix = (prefixes: Set<string>, terms: { prefix: string }[]): number =>
+  terms.filter((t) => prefixes.has(t.prefix)).length;
+
+const collectAllPrefixesUnder = (node: NamespaceNode): Set<string> => {
+  const result = new Set<string>();
+  const traverse = (n: NamespaceNode) => {
+    const p = (n as any).prefix as string | undefined;
+    if (p) result.add(p);
+    n.children?.forEach(traverse);
+  };
+  traverse(node);
+  return result;
+};
+
 // 選択ノード種別に応じた prefix 集合を返す
 // - Global ノード選択 → Global 配下の prefix のみ
 // - Personal ノード選択 → Personal（ログインユーザー）配下の prefix のみ
@@ -198,8 +251,7 @@ const getRelatedPrefixes = (nsKey: string): Set<string> => {
   const rootKey = getRootKey(nsKey, tree);
 
   if (rootKey === 'global') {
-    // Global ノード or 配下 → Global 全 prefix
-    for (const gp of getGlobalPrefixes(tree)) result.add(gp);
+    // Global ノード or 配下 → グローバルprefixは表示しない
     return result;
   }
 
@@ -235,7 +287,8 @@ const getRelatedPrefixes = (nsKey: string): Set<string> => {
 
 const makeEmptyRow = (): NewTermRow => ({
   _rowId: `__new__${Date.now()}_${Math.random()}`,
-  localName: '', displayName: '', displayNameEn: '',
+  prefix: '',
+  localName: '', displayName: '',
   description: '', type: '', unitHint: '',
 });
 
@@ -245,6 +298,8 @@ const makeEmptyRow = (): NewTermRow => ({
 interface NamespaceMainProps {
   /** trueのとき左ペイン（名前空間ツリー）を非表示にする */
   hideTree?: boolean;
+  /** trueのときグローバル名前空間のみ表示・操作対象にする（ProviderMenu用） */
+  globalOnly?: boolean;
   /** 外部から名前空間選択キーを制御する場合に指定 */
   externalSelectedNsKey?: string | null;
   /** 外部から名前空間選択が変わったときのコールバック */
@@ -256,12 +311,15 @@ interface NamespaceMainProps {
 // ──────────────────────────────────────────────
 const NamespaceMain: React.FC<NamespaceMainProps> = ({
   hideTree = false,
+  globalOnly = false,
   externalSelectedNsKey,
   onNsKeyChange,
 }) => {
   const [nsSearch,      setNsSearch]      = useState('');
   const [termSearch,    setTermSearch]    = useState('');
-  const [selectedNsKey, setSelectedNsKey] = useState<string | null>(CURRENT_USER_NS_KEY);
+  const [selectedNsKey, setSelectedNsKey] = useState<string | null>(
+    globalOnly ? 'global' : CURRENT_USER_NS_KEY
+  );
   const [terms,         setTerms]         = useState<Term[]>([]);
   const [termsLoading,  setTermsLoading]  = useState(true);
 
@@ -294,16 +352,39 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     x: number;
     y: number;
     node: NamespaceNode | null;
-  }>({ visible: false, x: 0, y: 0, node: null });
+    parentLabel: string;
+  }>({ visible: false, x: 0, y: 0, node: null, parentLabel: '' });
 
-  const [filterScope, setFilterScope] = useState<string | null>(null);
-  const [filterType,  setFilterType]  = useState<string | null>(null);
+  const [filterPrefix,    setFilterPrefix]    = useState<string | null>(null);
+  const [filterScope,     setFilterScope]     = useState<string | null>(null);
+  const [filterType,      setFilterType]       = useState<string | null>(null);
+  const [filterUnit,      setFilterUnit]       = useState<string | null>(null);
+  const FALLBACK_UNITS = ['kg', 'g', 'mg', 'μg', 'L', 'mL', 'm', 'cm', 'mm', 'μm', 'nm', '℃', 'K', 'Pa', 'MPa', 'mol', 'wt%', 'vol%', '%', 'min', 'h', 's', 'なし'];
+  const [unitAttributes,  setUnitAttributes]  = useState<string[]>(FALLBACK_UNITS);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize,    setPageSize]    = useState(20);
 
   const [editingTermId, setEditingTermId] = useState<string | null>(null);
-  const [editingValues, setEditingValues] = useState<{ localName: string; displayName: string; displayNameEn: string; description: string; type: string; unitHint: string }>({ localName: '', displayName: '', displayNameEn: '', description: '', type: '', unitHint: '' });
+  const [editingValues, setEditingValues] = useState<{ prefix: string; localName: string; displayName: string; description: string; type: string; unitHint: string }>({ prefix: '', localName: '', displayName: '', description: '', type: '', unitHint: '' });
+
+  // ──── 初回マウント時に属性テーブルから単位一覧を取得（失敗時はダミーデータにフォールバック）
+  useEffect(() => {
+    fetch('/api/v1/master/attribute', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((json: { success: boolean; data: AttributeMaster[] }) => {
+        const units = json.data
+          .filter((a) => a.isActive)
+          .map((a) => a.attributeValue);
+        // データが0件の場合はフォールバックデータを使用
+        if (units.length > 0) {
+          setUnitAttributes(units);
+        }
+      })
+      .catch(() => {
+        // APIが失敗した場合はフォールバックデータをそのまま使用
+      });
+  }, []);
 
   // ──── 初回マウント時に API から用語一覧を取得（失敗時はモックにフォールバック）
   useEffect(() => {
@@ -357,7 +438,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             prefix:       selectedPrefix,
             localName:    row.localName,
             displayNameJa: row.displayName,
-            displayNameEn: row.displayNameEn,
             description:  row.description,
             typeHint:     row.type || 'stringType',
             unitHint:     row.unitHint,
@@ -384,7 +464,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const startEditTerm = (record: Term) => {
     setEditingTermId(record.id);
-    setEditingValues({ localName: record.localName, displayName: record.displayName, displayNameEn: record.displayNameEn ?? '', description: record.description, type: record.type, unitHint: record.unitHint ?? '' });
+  setEditingValues({ prefix: record.prefix ?? '', localName: record.localName, displayName: record.displayName, description: record.description, type: record.type, unitHint: record.unitHint ?? '' });
   };
 
   const saveEditTerm = async () => {
@@ -398,7 +478,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         body: JSON.stringify({
           localName:    editingValues.localName,
           displayNameJa: editingValues.displayName,
-          displayNameEn: editingValues.displayNameEn,
           description:  editingValues.description,
           typeHint:     editingValues.type,
           unitHint:     editingValues.unitHint,
@@ -422,9 +501,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const cancelEditTerm = () => setEditingTermId(null);
 
-  // ──── チームノード右クリック：チームを追加
-  const handleContextAddTeam = (node: NamespaceNode) => {
-    setTeamAddParentLabel(node.label);
+  // ──── チームノード右クリック：チームを追加（親ノードのラベルを追加先として表示）
+  const handleContextAddTeam = (_node: NamespaceNode) => {
+    setTeamAddParentLabel('研究開発部');
     setTeamAddOpen(true);
   };
 
@@ -444,11 +523,100 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     return () => window.removeEventListener('mousedown', close);
   }, []);
 
-  // ──── ツリーノードのタイトル（チームノードは onContextMenu を直接付与）
+  // Global または Personal 配下のノードが選択中かどうか
+  const isGlobalOrPersonalSelected = useMemo(() => {
+    const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    if (!key) return false;
+    const rootKey = getRootKey(key, namespaceTreeRaw as NamespaceNode[]);
+    return rootKey === 'global' || rootKey === 'personal';
+  }, [selectedNsKey, externalSelectedNsKey]);
+
+  // Personal 配下のノードが選択中かどうか（組織共有ボタンの表示判定用）
+  const isPersonalSelected = useMemo(() => {
+    const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    if (!key) return false;
+    return getRootKey(key, namespaceTreeRaw as NamespaceNode[]) === 'personal';
+  }, [selectedNsKey, externalSelectedNsKey]);
+
+  // ログインユーザーの所属組織Prefixを取得
+  const currentUserOrgPrefix = useMemo(() => {
+    const tree = namespaceTreeRaw as NamespaceNode[];
+    const findPrefix = (key: string, nodes: NamespaceNode[]): string | null => {
+      for (const n of nodes) {
+        if (n.key === key) return (n as any).prefix ?? null;
+        if (n.children) { const r = findPrefix(key, n.children); if (r) return r; }
+      }
+      return null;
+    };
+    return findPrefix(CURRENT_USER_NS_KEY, tree);
+  }, []);
+
+  // 選択中の用語を組織Prefixにコピーして共有する
+  const handleShareToOrg = () => {
+    if (selectedTermIds.length === 0) return;
+    if (!currentUserOrgPrefix) {
+      message.error('所属組織の名前空間が見つかりません');
+      return;
+    }
+    const orgScopePath = getScopeFullPath(currentUserOrgPrefix);
+
+    Modal.confirm({
+      title: `${selectedTermIds.length}件の用語を組織に共有しますか？`,
+      content: `選択した用語を「${orgScopePath}」にコピーします。個人の用語はそのまま残ります。`,
+      okText: '共有する',
+      cancelText: 'キャンセル',
+      okButtonProps: { style: { background: '#52c41a', borderColor: '#52c41a' } },
+      footer: (_: unknown, { OkBtn, CancelBtn }: { OkBtn: React.FC; CancelBtn: React.FC }) => (
+        <><OkBtn /><CancelBtn /></>
+      ),
+      onOk: async () => {
+        const targetTerms = terms.filter((t) => selectedTermIds.includes(t.id));
+        const added: Term[] = [];
+        const failed: string[] = [];
+
+        for (const term of targetTerms) {
+          try {
+            const res = await fetch('/api/v1/namespaces/terms', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                prefix:        currentUserOrgPrefix,
+                localName:     term.localName,
+                displayNameJa: term.displayName,
+                description:   term.description,
+                typeHint:      term.type,
+                unitHint:      term.unitHint,
+              }),
+            });
+            if (!res.ok) {
+              failed.push(term.localName);
+            } else {
+              const created: Term = await res.json();
+              added.push(created);
+            }
+          } catch {
+            failed.push(term.localName);
+          }
+        }
+
+        if (added.length > 0) {
+          setTerms((prev) => [...added, ...prev]);
+        }
+        if (failed.length > 0) {
+          message.warning(`${added.length}件共有完了、${failed.length}件失敗しました`);
+        } else {
+          message.success(`${added.length}件の用語を組織に共有しました`);
+        }
+      },
+    });
+  };
+
+  // ──── ツリーノードのタイトル（件数は terms から動的計算）
   // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
-  const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
-    // ログインユーザーの所属ノードは青背景で強調表示
-    const isCurrentUserNode = node.key === CURRENT_USER_NS_KEY;
+  // showUserHighlight: Global/Personal 選択中でない場合に CURRENT_USER_NS_KEY を薄い青背景で表示
+  const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number, termCount: number, showUserHighlight: boolean, parentLabel = '') => {
+    const isCurrentUserNode = showUserHighlight && node.key === CURRENT_USER_NS_KEY;
     // チームノード（companyDepth === 3）のみ右クリックメニューを有効化
     const isTeam = companyDepth === 3;
 
@@ -456,7 +624,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       ? (e: React.MouseEvent) => {
           e.preventDefault();
           e.stopPropagation();
-          setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, node });
+          setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, node, parentLabel });
         }
       : undefined;
 
@@ -466,27 +634,21 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         style={{
           display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0,
           cursor: isTeam ? 'context-menu' : undefined,
-          ...(isCurrentUserNode ? {
-            background: '#e6f4ff',
-            borderLeft: '3px solid #1677ff',
-            borderRadius: 4,
-            paddingLeft: 6,
-            marginLeft: -6,
-          } : {}),
+          ...(isCurrentUserNode ? { background: '#e6f4ff', borderRadius: 4 } : {}),
         }}
       >
-        <span style={{ flex: 1, fontWeight: isCurrentUserNode ? 700 : 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: isCurrentUserNode ? '#1677ff' : undefined }}>
+        <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {node.label}
         </span>
-        {node.count > 0 && (
-          <span style={{ color: '#8c8c8c', fontSize: 12, flexShrink: 0 }}>{node.count}</span>
+        {termCount > 0 && (
+          <span style={{ color: '#8c8c8c', fontSize: 12, flexShrink: 0 }}>{termCount}</span>
         )}
       </span>
     );
   }, []);
 
-  // ──── ノードの companyDepth を計算してツリーデータを構築
-  const toAntTree = (nodes: NamespaceNode[], companyDepth = 0): object[] =>
+  // ──── ノードの companyDepth を計算してツリーデータを構築（件数を terms から動的計算）
+  const toAntTree = (nodes: NamespaceNode[], companyDepth = 0, showUserHighlight = false, parentLabel = ''): object[] =>
     nodes.map((n) => {
       // 自分自身の depth を決定
       const selfDepth = companyDepth > 0
@@ -494,28 +656,35 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         : n.key === 'company'
           ? 1                    // company ノード自身 = depth 1
           : 0;                   // Global / Personal = カウント外
+      // このノード配下の全 prefix を収集して terms から件数を集計
+      const prefixes = collectAllPrefixesUnder(n);
+      const termCount = countTermsByPrefix(prefixes, terms);
       return {
         key:      n.key,
-        title:    renderTreeTitle(n, selfDepth),
+        title:    renderTreeTitle(n, selfDepth, termCount, showUserHighlight, parentLabel),
         icon:     null,
-        children: n.children ? toAntTree(n.children, selfDepth > 0 ? selfDepth + 1 : 0) : undefined,
+        children: n.children ? toAntTree(n.children, selfDepth > 0 ? selfDepth + 1 : 0, showUserHighlight, n.label) : undefined,
       };
     });
 
   const treeData = useMemo(() => {
     const allNodes = namespaceTreeRaw as NamespaceNode[];
-    const filterNodes = (nodes: NamespaceNode[]): NamespaceNode[] =>
+    // ログインユーザーの所属パスのみに絞り込む
+    const userFilteredNodes = filterTreeForUser(allNodes, CURRENT_USER_NS_KEY);
+    const filterBySearch = (nodes: NamespaceNode[]): NamespaceNode[] =>
       nodes
-        .map((n) => ({ ...n, children: n.children ? filterNodes(n.children) : undefined }))
+        .map((n) => ({ ...n, children: n.children ? filterBySearch(n.children) : undefined }))
         .filter(
           (n) =>
             !nsSearch ||
             n.label.toLowerCase().includes(nsSearch.toLowerCase()) ||
             (n.children && n.children.length > 0),
         );
-    return toAntTree(nsSearch ? filterNodes(allNodes) : allNodes);
+    // Global/Personal が選択されていない時のみ CURRENT_USER_NS_KEY を薄い青背景で強調
+    const showUserHighlight = !isGlobalOrPersonalSelected;
+    return toAntTree(nsSearch ? filterBySearch(userFilteredNodes) : userFilteredNodes, 0, showUserHighlight, '');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nsSearch, renderTreeTitle]);
+  }, [nsSearch, renderTreeTitle, terms, isGlobalOrPersonalSelected]);
 
   // 外部キーが渡された場合はそちらを優先
   const effectiveNsKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
@@ -545,12 +714,20 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const filteredTerms = useMemo(() => {
     let result = terms;
-    // 選択されているノードがある場合は「自分 + 祖先 + グローバル」prefix で絞り込む
-    if (effectiveNsKey) {
+    // globalOnly=true のときはグローバル prefix のみに絞り込む
+    if (globalOnly) {
+      const globalPrefixes = new Set(getGlobalPrefixes(namespaceTreeRaw as NamespaceNode[]));
+      result = result.filter((t) => globalPrefixes.has(t.prefix));
+    } else if (effectiveNsKey) {
+      // 選択されているノードがある場合は「自分 + 祖先 + グローバル」prefix で絞り込む
       const relatedPrefixes = getRelatedPrefixes(effectiveNsKey);
       if (relatedPrefixes.size > 0) {
         result = result.filter((t) => relatedPrefixes.has(t.prefix));
       }
+    }
+    // Prefix フィルター
+    if (filterPrefix) {
+      result = result.filter((t) => t.prefix === filterPrefix);
     }
     // スコープフィルター
     if (filterScope) {
@@ -560,6 +737,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (filterType) {
       result = result.filter((t) => t.type === filterType);
     }
+    // 単位フィルター
+    if (filterUnit) {
+      result = result.filter((t) => (t.unitHint ?? '') === filterUnit);
+    }
     if (!termSearch) return result;
     return result.filter(
       (t) =>
@@ -567,7 +748,28 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         t.displayName.toLowerCase().includes(termSearch.toLowerCase()) ||
         t.description.toLowerCase().includes(termSearch.toLowerCase()),
     );
-  }, [terms, termSearch, effectiveNsKey, filterScope, filterType]);
+  }, [terms, termSearch, effectiveNsKey, filterPrefix, filterScope, filterType, filterUnit]);
+
+  // Prefix フィルターの選択肢（表示中用語の prefix 一覧）
+  const prefixFilterOptions = useMemo(() => {
+    const prefixSet = new Set<string>();
+    let base = terms;
+    if (effectiveNsKey) {
+      const related = getRelatedPrefixes(effectiveNsKey);
+      if (related.size > 0) base = base.filter((t) => related.has(t.prefix));
+    }
+    base.forEach((t) => prefixSet.add(t.prefix));
+    return [
+      { value: '', label: '用語Prefix: すべて' },
+      ...[...prefixSet].sort().map((p) => ({ value: p, label: p })),
+    ];
+  }, [terms, effectiveNsKey]);
+
+  // 単位フィルター選択肢（属性テーブルから取得）
+  const unitFilterOptions = useMemo(() => [
+    { value: '', label: '単位: すべて' },
+    ...unitAttributes.map((u) => ({ value: u, label: u })),
+  ], [unitAttributes]);
 
   // スコープフィルターの選択肢（表示中用語の prefix 一覧）
   const scopeFilterOptions = useMemo(() => {
@@ -661,9 +863,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       message.error('エクスポートする用語を1件以上選択してください');
       return;
     }
-    const header = 'qname,prefix,localName,displayName,displayNameEn,description,type,unitHint';
-    const rows = terms.map((t) =>
-      [t.qname, t.prefix, t.localName, t.displayName, t.displayNameEn ?? '', t.description, t.type, t.unitHint ?? '']
+    const header = 'qname,prefix,localName,displayName,description,type,unitHint';
+    const rows = terms.filter((t) => selectedTermIds.includes(t.id)).map((t) =>
+      [t.qname, t.prefix, t.localName, t.displayName, t.description, t.type, t.unitHint ?? '']
         .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
         .join(',')
     );
@@ -795,21 +997,64 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const columns: TableColumnsType<Term | NewTermRow> = [
     {
-      title: 'QName', dataIndex: 'qname', key: 'qname', width: 220,
+      title: '用語Prefix', dataIndex: 'prefix', key: 'prefix_col', width: 140,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
-        return (a as Term).qname.localeCompare((b as Term).qname);
+        return (a as Term).prefix.localeCompare((b as Term).prefix);
       },
       defaultSortOrder: 'ascend',
       render: (_: unknown, record: Term | NewTermRow) => {
+        const globalPrefixSet = new Set(getGlobalPrefixes(namespaceTreeRaw as NamespaceNode[]));
+        const prefixOptions = nsNodes
+          .filter((n) => (n as any)._rawPrefix !== undefined ? (n as any)._rawPrefix : true)
+          .filter((n) => !globalPrefixSet.has(n.prefix))
+          .map((n) => ({ value: n.prefix, label: n.prefix }))
+          .filter((o, i, arr) => o.value && arr.findIndex((x) => x.value === o.value) === i);
+
         if ('_rowId' in record) {
-          // 入力行：ローカル名入力欄
+          const r = record as NewTermRow;
+          return (
+            <Select
+              size="small"
+              style={{ width: '100%' }}
+              value={r.prefix || undefined}
+              placeholder="Prefixを選択..."
+              allowClear
+              options={prefixOptions}
+              onChange={(val) => updateNewTerm(r._rowId, 'prefix', val ?? '')}
+            />
+          );
+        }
+        const t = record as Term;
+        return t.id === editingTermId
+          ? (
+            <Select
+              size="small"
+              style={{ width: '100%' }}
+              value={editingValues.prefix || undefined}
+              placeholder="Prefixを選択..."
+              allowClear
+              options={prefixOptions}
+              onChange={(val) => setEditingValues((p) => ({ ...p, prefix: val ?? '' }))}
+            />
+          )
+          : <Text strong>{t.prefix}</Text>;
+      },
+    },
+    {
+      title: 'ローカル名', dataIndex: 'localName', key: 'localName', width: 160,
+      sorter: (a, b) => {
+        if ('_rowId' in a || '_rowId' in b) return 0;
+        return (a as Term).localName.localeCompare((b as Term).localName);
+      },
+      render: (_: unknown, record: Term | NewTermRow) => {
+        if ('_rowId' in record) {
           return <Input size="small" placeholder="✎ ローカル名を入力..." value={record.localName} onChange={(e) => updateNewTerm(record._rowId, 'localName', e.target.value)} />;
         }
         const t = record as Term;
         return t.id === editingTermId
           ? <Input size="small" value={editingValues.localName} onChange={(e) => setEditingValues((p) => ({ ...p, localName: e.target.value }))} />
-          : <Text strong>{t.qname}</Text>;
+          : t.localName;
       },
     },
     {
@@ -829,9 +1074,23 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
     },
     {
+      title: '説明', dataIndex: 'description', key: 'description', width: 180, ellipsis: true,
+      sorter: (a, b) => {
+        if ('_rowId' in a || '_rowId' in b) return 0;
+        return (a as Term).description.localeCompare((b as Term).description);
+      },
+      render: (_: unknown, record: Term | NewTermRow) => {
+        if ('_rowId' in record) {
+          return <Input size="small" placeholder="説明..." value={record.description} onChange={(e) => updateNewTerm(record._rowId, 'description', e.target.value)} />;
+        }
+        const t = record as Term;
+        return t.id === editingTermId
+          ? <Input size="small" value={editingValues.description} onChange={(e) => setEditingValues((p) => ({ ...p, description: e.target.value }))} />
+          : t.description;
+      },
+    },
+    {
       title: 'スコープ', key: 'scope', width: 180, align: 'center' as const,
-      onCell: () => ({ style: { background: '#ffffff' } }),
-      onHeaderCell: () => ({ style: { background: '#fafafa' } }),
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         const pathA = getScopeFullPath((a as Term).prefix);
@@ -866,22 +1125,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
     },
     {
-      title: '説明', dataIndex: 'description', key: 'description', width: 180, ellipsis: true,
-      sorter: (a, b) => {
-        if ('_rowId' in a || '_rowId' in b) return 0;
-        return (a as Term).description.localeCompare((b as Term).description);
-      },
-      render: (_: unknown, record: Term | NewTermRow) => {
-        if ('_rowId' in record) {
-          return <Input size="small" placeholder="説明..." value={record.description} onChange={(e) => updateNewTerm(record._rowId, 'description', e.target.value)} />;
-        }
-        const t = record as Term;
-        return t.id === editingTermId
-          ? <Input size="small" value={editingValues.description} onChange={(e) => setEditingValues((p) => ({ ...p, description: e.target.value }))} />
-          : t.description;
-      },
-    },
-    {
       title: '型', dataIndex: 'type', key: 'type', width: 140, align: 'center' as const,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
@@ -908,11 +1151,21 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
-          return <Input size="small" placeholder="単位..." value={record.unitHint} onChange={(e) => updateNewTerm(record._rowId, 'unitHint', e.target.value)} />;
+          return (
+            <Select size="small" style={{ width: '100%' }} allowClear
+              value={record.unitHint || undefined} placeholder="単位を選択..."
+              options={unitAttributes.map((u) => ({ value: u, label: u }))}
+              onChange={(val) => updateNewTerm(record._rowId, 'unitHint', val ?? '')} />
+          );
         }
         const t = record as Term;
         return t.id === editingTermId
-          ? <Input size="small" value={editingValues.unitHint} onChange={(e) => setEditingValues((p) => ({ ...p, unitHint: e.target.value }))} />
+          ? (
+            <Select size="small" style={{ width: '100%' }} allowClear
+              value={editingValues.unitHint || undefined}
+              options={unitAttributes.map((u) => ({ value: u, label: u }))}
+              onChange={(val) => setEditingValues((p) => ({ ...p, unitHint: val ?? '' }))} />
+          )
           : t.unitHint ?? '';
       },
     },
@@ -922,6 +1175,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         '_rowId' in record ? null : actionCell(record as Term),
     },
   ];
+
+  // スコープ列は globalOnly のとき非表示
+  const visibleColumns = globalOnly
+    ? columns.filter((c) => c.key !== 'scope')
+    : columns;
 
   // 入力行を先頭に、既存行を後ろに結合
   const tableData: (Term | NewTermRow)[] = [
@@ -934,8 +1192,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-        {/* ── 左ペイン：名前空間ツリー（hideTree=true のとき非表示） ── */}
-        {!hideTree && (
+        {/* ── 左ペイン：名前空間ツリー（hideTree=true / globalOnly=true のとき非表示） ── */}
+        {!hideTree && !globalOnly && (
           <div style={{
             width: '30%', minWidth: 280, maxWidth: 420,
             background: '#fafafa', borderRight: '1px solid #f0f0f0',
@@ -948,10 +1206,18 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               />
             </div>
             <Tree
+              key={treeData.map((n: any) => n.key).join(',')}
               blockNode defaultExpandAll treeData={treeData}
+              selectedKeys={isGlobalOrPersonalSelected && selectedNsKey ? [selectedNsKey] : []}
               style={{ background: 'transparent' }}
               onSelect={(keys) => {
                 const key = (keys[0] as string) ?? null;
+                // 会社・部門などの祖先ノードは選択不可
+                const ancestorKeys = new Set<string>(
+                  getAncestorKeys(CURRENT_USER_NS_KEY, namespaceTreeRaw as NamespaceNode[]) ?? []
+                );
+                ancestorKeys.add('company');
+                if (key && ancestorKeys.has(key)) return;
                 setSelectedNsKey(key);
                 onNsKeyChange?.(key);
               }}
@@ -980,7 +1246,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                   style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  onClick={() => { handleContextAddTeam(ctxMenu.node!); setCtxMenu((s) => ({ ...s, visible: false })); }}
+                  onClick={() => {
+                    setTeamAddParentLabel('研究開発部');
+                    setTeamAddOpen(true);
+                    setCtxMenu((s) => ({ ...s, visible: false }));
+                  }}
                 >
                   <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
                   チームを追加
@@ -1001,23 +1271,57 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
         {/* ── 右ペイン：用語リスト ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 40px', background: '#fafafa' }}>
+          {/* 上段アクションバー（1件以上チェック時に表示） */}
+          {selectedTermIds.length > 0 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 8,
+              padding: '6px 0',
+            }}>
+              {isPersonalSelected && (
+                <Button
+                  icon={<BankOutlined />}
+                  onClick={handleShareToOrg}
+                  style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
+                >
+                  組織に共有（{selectedTermIds.length}件）
+                </Button>
+              )}
+              <Button danger icon={<DeleteOutlined />} onClick={handleBulkDelete}>
+                選択した用語を削除（{selectedTermIds.length}件）
+              </Button>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, gap: 2 }}>
             <Input
               prefix={<SearchOutlined />} placeholder="用語を検索..." allowClear
               value={termSearch} onChange={(e) => setTermSearch(e.target.value)}
-              style={{ flex: 1, minWidth: 120 }}
+              style={{ flex: 1, minWidth: 80 }}
             />
-            <Select
-              style={{ width: 160, flexShrink: 0 }}
-              value={filterScope ?? ''}
-              options={scopeFilterOptions}
-              onChange={(val) => { setFilterScope(val || null); setCurrentPage(1); }}
-            />
+            {!globalOnly && (
+              <Select
+                style={{ width: 200, flexShrink: 0 }}
+                value={filterPrefix ?? ''}
+                options={prefixFilterOptions}
+                onChange={(val) => { setFilterPrefix(val || null); setCurrentPage(1); }}
+              />
+            )}
+            {!globalOnly && (
+              <Select
+                style={{ width: 160, flexShrink: 0 }}
+                value={filterScope ?? ''}
+                options={scopeFilterOptions}
+                onChange={(val) => { setFilterScope(val || null); setCurrentPage(1); }}
+              />
+            )}
             <Select
               style={{ width: 160, flexShrink: 0 }}
               value={filterType ?? ''}
               options={[
-                { value: '', label: 'データ型: すべて' },
+                { value: '', label: '型: すべて' },
                 { value: 'stringType',   label: 'stringType' },
                 { value: 'integerType',  label: 'integerType' },
                 { value: 'floatType',    label: 'floatType' },
@@ -1027,23 +1331,21 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               ]}
               onChange={(val) => { setFilterType(val || null); setCurrentPage(1); }}
             />
+            <Select
+              style={{ width: 140, flexShrink: 0 }}
+              value={filterUnit ?? ''}
+              options={unitFilterOptions}
+              onChange={(val) => { setFilterUnit(val || null); setCurrentPage(1); }}
+            />
             <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
             <Button onClick={() => csvInputRef.current?.click()}>インポート</Button>
             <Button onClick={handleCsvDownload}>エクスポート</Button>
-            {selectedTermIds.length > 0 && (
-              <Button danger icon={<DeleteOutlined />} onClick={handleBulkDelete}>
-                選択した用語を削除（{selectedTermIds.length}件）
-              </Button>
-            )}
-            {/* 用語を追加：常に活性 */}
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAddRow}>
               用語を追加
             </Button>
-            {/* 保存：入力行が1件以上あれば活性 */}
             <Button type="primary" onClick={handleAddSave} disabled={newTerms.length === 0}>
               保存
             </Button>
-            {/* キャンセル：入力行が1件以上あれば活性 */}
             <Button onClick={() => setNewTerms([])} disabled={newTerms.length === 0}>
               キャンセル
             </Button>
@@ -1053,7 +1355,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             rowKey={(record) => '_rowId' in record ? (record as NewTermRow)._rowId : (record as Term).id}
             size="small"
             loading={termsLoading}
-            columns={columns}
+            columns={visibleColumns}
             dataSource={tableData}
             rowClassName={(record) => '_rowId' in record ? 'row-new-term' : ''}
             locale={{ triggerAsc: '昇順にソート', triggerDesc: '降順にソート', cancelSort: 'ソートをキャンセル' }}
@@ -1085,18 +1387,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             }}
           />
         </div>
-      </div>
-
-      {/* ── ステータスバー ── */}
-      <div style={{
-        height: 28, background: '#f5f5f5', color: '#595959', borderTop: '1px solid #e8e8e8',
-        display: 'flex', alignItems: 'center', padding: '0 16px', fontSize: 12, gap: 16, flexShrink: 0,
-      }}>
-        <span>✅ 準備完了</span>
-        <span>名前空間: 7件</span>
-        <span>用語: {terms.length}件</span>
-        <span>最終保存: 2026-05-29 08:30</span>
-        <span>UTF-8</span>
       </div>
 
       {/* ── 組織追加ダイアログ ── */}
@@ -1131,8 +1421,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         teamLabel={teamEditLabel}
         teamUnitId={teamEditUnitId}
         onClose={() => setTeamEditOpen(false)}
-        onSaved={(members) => {
-          message.success(`「${teamEditLabel}」のメンバーを更新しました（${members.length}名）`);
+        onSaved={(members, newTeamName) => {
+          const name = newTeamName ?? teamEditLabel;
+          message.success(`「${name}」を更新しました（メンバー: ${members.length}名）`);
         }}
       />
 

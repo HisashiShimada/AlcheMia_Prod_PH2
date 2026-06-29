@@ -1,25 +1,43 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, theme, App } from 'antd';
+import { Layout, theme, App, Tabs } from 'antd';
 import {
   TeamOutlined,
   ShopOutlined,
   ExperimentOutlined,
   AuditOutlined,
   EyeOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
 import { User, MenuType } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getPermissionsFromToken } from '@/utils/jwtUtils';
+import dynamic from 'next/dynamic';
 // システム管理コンポーネントのインポート
 import SystemOverview from '../SystemManagement/SystemOverview';
 import UserManagement from '../SystemManagement/UserManagement';
 import SessionManagement from '../SystemManagement/SessionManagement';
 import RoleManagement from '../SystemManagement/RoleManagement';
 import DepartmentManagement from '../SystemManagement/DepartmentManagement';
+
+// 名前管理コンポーネントの動的インポート
+const PrefixManagement = dynamic(
+  () => import('../namespace/PrefixManagement'),
+  { ssr: false }
+);
+
+const NamespaceMain = dynamic(
+  () => import('../namespace/NamespaceMain'),
+  { ssr: false }
+);
+
+const DepartmentTreeManagement = dynamic(
+  () => import('../namespace/DepartmentTreeManagement'),
+  { ssr: false }
+);
 
 const { Content } = Layout;
 
