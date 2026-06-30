@@ -9,15 +9,12 @@ import {
   Tag,
   Typography,
   Tooltip,
-  Popconfirm,
   Space,
-  message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { TableRowSelection } from 'antd/es/table/interface';
 import {
   SearchOutlined,
-  DeleteOutlined,
   EditOutlined,
 } from '@ant-design/icons';
 
@@ -93,11 +90,6 @@ export default function UncertaintyListTable({
       setSelectedRowKeys(keys);
       onSelectionChange(keys as number[]);
     },
-  };
-
-  /** 削除確認ハンドラー */
-  const handleDelete = (template: UncertaintyTemplate) => {
-    message.success(`不確かさ基準「${template.name}」を削除しました（デモ）`);
   };
 
   const columns: ColumnsType<UncertaintyTemplate> = [
@@ -282,7 +274,7 @@ export default function UncertaintyListTable({
     {
       title: '操作',
       key: 'action',
-      width: 140,
+      width: 80,
       align: 'center',
       render: (_, record) => (
         <Space size={4}>
@@ -297,23 +289,6 @@ export default function UncertaintyListTable({
           >
             編集
           </Button>
-          <Popconfirm
-            title={`不確かさ基準「${record.name}」を削除しますか？`}
-            description="この操作は取り消せません。"
-            onConfirm={() => handleDelete(record)}
-            okText="削除"
-            cancelText="キャンセル"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={(e) => e.stopPropagation()}
-            >
-              削除
-            </Button>
-          </Popconfirm>
         </Space>
       ),
     },

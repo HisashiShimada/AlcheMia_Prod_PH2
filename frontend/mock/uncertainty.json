@@ -2,7 +2,7 @@
   {
     "id": 1,
     "name": "標準偏差",
-    "key": "measurement.temperature",
+    "key": "ns1:standard-deviation",
     "scope": "研究開発部 › 計測チーム",
     "eval": "quantitative",
     "type": "doubleType",
@@ -18,7 +18,7 @@
   {
     "id": 2,
     "name": "標準不確かさ",
-    "key": "measurement.tensile",
+    "key": "ns1:uncertainty",
     "scope": "研究開発部 › 材料グループ",
     "eval": "quantitative",
     "type": "doubleType",
@@ -34,7 +34,7 @@
   {
     "id": 3,
     "name": "信頼度スコア",
-    "key": "eval.certainty",
+    "key": "ns1:certainty",
     "scope": "研究開発部",
     "eval": "qualitative",
     "type": "stringType",
@@ -50,7 +50,7 @@
   {
     "id": 4,
     "name": "相対標準偏差",
-    "key": "measurement.hardness.vhv",
+    "key": "ns1:hardness-vhv",
     "scope": "研究開発部 › 材料グループ",
     "eval": "quantitative",
     "type": "decimalType",
@@ -66,7 +66,7 @@
   {
     "id": 5,
     "name": "平均二乗誤差",
-    "key": "measurement.roughness.ra",
+    "key": "ns1:roughness-ra",
     "scope": "生産技術部 › プロセスチーム",
     "eval": "quantitative",
     "type": "doubleType",
@@ -82,7 +82,7 @@
   {
     "id": 6,
     "name": "合否判定レベル",
-    "key": "inspection.visual",
+    "key": "ns1:inspection-visual",
     "scope": "品質保証部",
     "eval": "qualitative",
     "type": "stringType",
@@ -98,7 +98,7 @@
   {
     "id": 7,
     "name": "誤差値",
-    "key": "measurement.mass",
+    "key": "ns1:easurement-err",
     "scope": "生産技術部 › 品質管理",
     "eval": "quantitative",
     "type": "doubleType",
@@ -114,7 +114,7 @@
   {
     "id": 8,
     "name": "拡張不確かさ",
-    "key": "measurement.resistance",
+    "key": "ns1:resistance",
     "scope": "研究開発部 › 計測チーム",
     "eval": "quantitative",
     "type": "doubleType",
@@ -130,7 +130,7 @@
   {
     "id": 9,
     "name": "確度レベル",
-    "key": "eval.crystal.structure",
+    "key": "ns1:crystal-structure",
     "scope": "研究開発部 › 材料グループ",
     "eval": "qualitative",
     "type": "stringType",
@@ -146,7 +146,7 @@
   {
     "id": 10,
     "name": "合成標準不確かさ",
-    "key": "measurement.viscosity.dyn",
+    "key": "ns1:viscosity-dyn",
     "scope": "生産技術部 › プロセスチーム",
     "eval": "quantitative",
     "type": "doubleType",
@@ -162,7 +162,7 @@
   {
     "id": 11,
     "name": "絶対誤差",
-    "key": "measurement.ph",
+    "key": "ns1:measurement-ph",
     "scope": "Personal › 山田 太郎",
     "eval": "quantitative",
     "type": "doubleType",
@@ -178,7 +178,7 @@
   {
     "id": 12,
     "name": "標準不確かさ",
-    "key": "measurement.thermal.cond",
+    "key": "ns1:thermal-cond",
     "scope": "研究開発部 › 計測チーム",
     "eval": "quantitative",
     "type": "decimalType",
