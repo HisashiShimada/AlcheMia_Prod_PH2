@@ -153,10 +153,11 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   const [transitionOrder, setTransitionOrder] = useState<TransitionOrderItem[]>([]);
 
   /**
-   * タブキー → ExperimentPlanTabData のマップ
-   * 全体タブ（'all'）が変更されると、上書きされていない各タスクタブへ自動伝播する
+   * タブキー → トランジションID → ExperimentPlanTabData のマップ（二次元）
+   * 全体タブ（'all'）の特定トランジションが変更されると、
+   * 各タスクタブの同じトランジションIDへ自動伝播する
    */
-  const [tabDataMap, setTabDataMap] = useState<Record<string, ExperimentPlanTabData>>({});
+  const [tabDataMap, setTabDataMap] = useState<Record<string, Record<string, ExperimentPlanTabData>>>({});
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -174,37 +175,53 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   /** 右側パネルが活性化しているか（トランジション選択済み）*/
   const isRightPanelActive = selectedTransitionId !== null;
 
-  /** 現在のタブのデータを取得（なければ初期値を返す）*/
+  /**
+   * 現在のタブ × 選択トランジションのデータを取得（なければ初期値を返す）
+   */
   const currentTabData = useMemo((): ExperimentPlanTabData => {
-    return tabDataMap[activeTab] ?? createInitialTabData();
-  }, [tabDataMap, activeTab]);
+    if (!selectedTransitionId) return createInitialTabData();
+    return tabDataMap[activeTab]?.[selectedTransitionId] ?? createInitialTabData();
+  }, [tabDataMap, activeTab, selectedTransitionId]);
 
   /**
-   * 現在のタブのデータを更新するヘルパー
-   * activeTab が 'all'（一括）の場合、変更を各タスクNタブに無条件で伝播する
+   * 現在のタブ × 選択トランジションのデータを更新するヘルパー
+   * activeTab が 'all'（一括）の場合、同じトランジションIDの各タスクNタブに伝播する
    */
   const updateCurrentTabData = useCallback(
     (
       field: InheritableField,
       updater: (prev: ExperimentPlanTabData) => ExperimentPlanTabData,
     ) => {
-      setTabDataMap((prev) => {
-        const updated = updater(prev[activeTab] ?? createInitialTabData());
-        const next: Record<string, ExperimentPlanTabData> = { ...prev, [activeTab]: updated };
+      if (!selectedTransitionId) return;
 
-        // 一括タブの変更を各タスクNタブに無条件で伝播
+      setTabDataMap((prev) => {
+        const currentData = prev[activeTab]?.[selectedTransitionId] ?? createInitialTabData();
+        const updated = updater(currentData);
+
+        const next: Record<string, Record<string, ExperimentPlanTabData>> = {
+          ...prev,
+          [activeTab]: {
+            ...prev[activeTab],
+            [selectedTransitionId]: updated,
+          },
+        };
+
+        // 一括タブの変更を、同じトランジションIDの各タスクNタブに伝播
         if (activeTab === TAB_KEY_ALL) {
           taskNumbers.forEach((n) => {
             const key = `task-${n}`;
-            const taskData = next[key] ?? createInitialTabData();
-            next[key] = { ...taskData, [field]: (updated as ExperimentPlanTabData)[field] };
+            const taskTransData = next[key]?.[selectedTransitionId] ?? createInitialTabData();
+            next[key] = {
+              ...next[key],
+              [selectedTransitionId]: { ...taskTransData, [field]: updated[field] },
+            };
           });
         }
 
         return next;
       });
     },
-    [activeTab, taskNumbers]
+    [activeTab, selectedTransitionId, taskNumbers]
   );
 
   /** APIから取得したトランジション一覧 */
@@ -212,11 +229,136 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     return dialogData?.transitions ?? [];
   }, [dialogData]);
 
-  /** APIから取得したテンプレート一覧（トランジション選択時に全件表示） */
+  /** APIから取得したテンプレート一覧（トランジション選択時にPlaceで絞り込み） */
   const filteredTemplates = useMemo(() => {
     if (!selectedTransitionId) return [];
-    return dialogData?.templates ?? methodTemplatesProp;
+
+    const allTemplates = dialogData?.templates ?? methodTemplatesProp ?? [];
+
+    // 選択トランジションの inputPlaceIds + outputPlaceIds を取得
+    const selectedTransition = dialogData?.transitions.find(
+      (t) => t.id === selectedTransitionId
+    );
+    const inputPlaceIds = selectedTransition?.inputPlaceIds ?? [];
+    const outputPlaceIds = selectedTransition?.outputPlaceIds ?? [];
+    const allPlaceIds = [...inputPlaceIds, ...outputPlaceIds];
+
+    // placeIds が空の場合は全テンプレートを表示（フォールバック）
+    if (allPlaceIds.length === 0) return allTemplates;
+
+    // 選択トランジションの placeIds（入力+出力）に紐づくテンプレートのみ抽出
+    const placeIdSet = new Set(allPlaceIds);
+    const matched = allTemplates.filter((tmpl) =>
+      tmpl.placeIds?.some((pid) => placeIdSet.has(pid))
+    );
+
+    // 一致するテンプレートがない場合も全件表示（フォールバック）
+    return matched.length > 0 ? matched : allTemplates;
   }, [selectedTransitionId, dialogData, methodTemplatesProp]);
+
+  /**
+   * 参照専用（disabled）テンプレートID Set
+   *
+   * @remarks
+   * Petri Net の inputPlaceIds（Place → Transition）は
+   * 前工程の出力結果として渡されるPlaceを意味するため、
+   * 実験計画UIでは「参照専用（入力不可）」として扱う。
+   * （outputPlaceIds = Transition → Place は今工程で入力する値なので入力可能）
+   */
+  const outputTemplateIds = useMemo((): Set<string> => {
+    if (!selectedTransitionId || !dialogData) return new Set();
+
+    const selectedTransition = dialogData.transitions.find(
+      (t) => t.id === selectedTransitionId
+    );
+    // inputPlaceIds = 前工程からの入力Place → 参照専用（disabled）
+    const precedingPlaceIds = selectedTransition?.inputPlaceIds ?? [];
+    if (precedingPlaceIds.length === 0) return new Set();
+
+    const precedingPlaceIdSet = new Set(precedingPlaceIds);
+    const ids = new Set<string>();
+    for (const tmpl of dialogData.templates) {
+      // result カテゴリ かつ inputPlaceIds に紐づく場合のみ参照専用（disabled）にする
+      // material / condition は前工程からの入力であっても入力可能
+      if (
+        tmpl.category === 'result' &&
+        tmpl.placeIds?.some((pid) => precedingPlaceIdSet.has(pid))
+      ) {
+        ids.add(tmpl.id);
+      }
+    }
+    return ids;
+  }, [selectedTransitionId, dialogData]);
+
+  /**
+   * Place ID → その Place を outputPlaceIds に持つトランジションID のマッピング
+   * 「どのトランジションがそのPlaceに値を出力するか」を解決するために使用する
+   */
+  const placeProducerMap = useMemo((): Map<string, string> => {
+    if (!dialogData) return new Map();
+    const map = new Map<string, string>();
+    for (const trans of dialogData.transitions) {
+      for (const placeId of trans.outputPlaceIds) {
+        map.set(placeId, trans.id);
+      }
+    }
+    return map;
+  }, [dialogData]);
+
+  /**
+   * テンプレートID → そのテンプレートを出力したトランジションID のマッピング
+   * 参照専用テンプレートの値を producer トランジションのタブデータから取得するために使用する
+   */
+  const templateProducerMap = useMemo((): Map<string, string> => {
+    if (!dialogData) return new Map();
+    const map = new Map<string, string>();
+    for (const tmpl of dialogData.templates) {
+      if (!tmpl.placeIds || tmpl.placeIds.length === 0) continue;
+      for (const placeId of tmpl.placeIds) {
+        const producerTransId = placeProducerMap.get(placeId);
+        if (producerTransId) {
+          map.set(tmpl.id, producerTransId);
+          break;
+        }
+      }
+    }
+    return map;
+  }, [dialogData, placeProducerMap]);
+
+  /**
+   * 参照専用（disabled）テンプレートの値を producer トランジションの tabData から取得して
+   * 現在の templateValues に上書きマージした「表示用」テンプレート値
+   *
+   * - disabled でないテンプレートの値はそのまま（currentTabData.templateValues）
+   * - disabled テンプレートの値は、producer トランジション × activeTab（なければ 'all' タブ）から取得
+   */
+  const effectiveTemplateValues = useMemo((): Record<string, string | number | boolean> => {
+    if (outputTemplateIds.size === 0) return currentTabData.templateValues;
+
+    const overrides: Record<string, string | number | boolean> = {};
+
+    for (const tmplId of outputTemplateIds) {
+      const producerTransId = templateProducerMap.get(tmplId);
+      if (!producerTransId) continue;
+
+      // activeTab → fallback to 'all' タブ の順で producer の tabData を取得
+      const producerTabData =
+        tabDataMap[activeTab]?.[producerTransId] ??
+        tabDataMap[TAB_KEY_ALL]?.[producerTransId];
+
+      if (!producerTabData) continue;
+
+      // producer の templateValues から当該テンプレート（tmplId）のキーを抽出して上書き
+      for (const [key, value] of Object.entries(producerTabData.templateValues)) {
+        // キーが `{templateId}_{fieldKey}` 形式なので tmplId プレフィックスで一致判定
+        if (key.startsWith(`${tmplId}_`)) {
+          overrides[key] = value;
+        }
+      }
+    }
+
+    return { ...currentTabData.templateValues, ...overrides };
+  }, [outputTemplateIds, templateProducerMap, tabDataMap, activeTab, currentTabData.templateValues]);
 
   /** タブアイテムの定義 */
   const tabItems = useMemo(() => {
@@ -253,25 +395,29 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
           // 保存済みデータがある場合はそちらを優先
           setTabDataMap(restoredTabDataMap);
         } else {
-          // 初回入力時: デフォルト値で一括タブを初期化
+          // 初回入力時: 全トランジション分のデフォルト値で一括タブを初期化
           const defaultTemplateValues = buildDefaultTemplateValues(data.templates);
           const info = data.defaultBasicInfo;
-          const defaultNotes: NoteItem[] = (info?.notes ?? []).map((n) => ({
-            id: `note_default_${n.type}_${Date.now()}`,
-            type: n.type as NoteTypeValue,
-            content: n.content,
-            properties: [],
-          }));
-          setTabDataMap({
-            [TAB_KEY_ALL]: {
+
+          // 一括タブ: トランジションIDごとにデフォルト値を設定
+          const allTabTransMap: Record<string, ExperimentPlanTabData> = {};
+          for (const trans of data.transitions) {
+            const defaultNotes: NoteItem[] = (info?.notes ?? []).map((n) => ({
+              id: `note_default_${trans.id}_${n.type}_${Date.now()}`,
+              type: n.type as NoteTypeValue,
+              content: n.content,
+              properties: [],
+            }));
+            allTabTransMap[trans.id] = {
               ...createInitialTabData(),
               creatorRefs: info?.creatorRefs ?? [],
               instrumentRefs: info?.instrumentRefs ?? [],
               ownerRefs: info?.ownerRefs ?? [],
               notes: defaultNotes,
               templateValues: defaultTemplateValues,
-            },
-          });
+            };
+          }
+          setTabDataMap({ [TAB_KEY_ALL]: allTabTransMap });
         }
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData error:', err);
@@ -511,14 +657,18 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     try {
       setIsSaving(true);
 
+      const orderEntries = transitionOrder.map((item) => ({
+        id: item.id,
+        order: item.order,
+        prerequisiteTransitionIds: item.prerequisiteTransitionIds,
+      }));
+
+      // 全タスク × 全トランジション分を保存
       const savePromises = taskNumbers.map((taskNo) => {
         const tabKey = `task-${taskNo}`;
-        const data = tabDataMap[tabKey] ?? createInitialTabData();
-        const orderEntries = transitionOrder.map((item) => ({
-          id: item.id,
-          order: item.order,
-        }));
-        return upsertExperimentPlanToApi(projectId, methodId, taskNo, data, orderEntries);
+        // tabDataMap[tabKey] は Record<string, ExperimentPlanTabData>（トランジションIDキー）
+        const transitionDataMap = tabDataMap[tabKey] ?? {};
+        return upsertExperimentPlanToApi(projectId, methodId, taskNo, transitionDataMap, orderEntries);
       });
 
       await Promise.all(savePromises);
@@ -877,7 +1027,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
               </div>
 
               {/* ===== 基本情報 / テンプレート入力 内部タブ ===== */}
-              <div style={{ maxHeight: 540, overflowY: 'auto', overflowX: 'hidden', paddingRight: 4 }}>
+              <div style={{ overflowX: 'hidden', paddingRight: 4 }}>
                 <Tabs
                   activeKey={innerTab}
                   onChange={(k) => setInnerTab(k as 'basic' | 'template')}
@@ -896,11 +1046,12 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                       children: (
                         <TemplateInputPanel
                           methodTemplates={filteredTemplates}
-                          templateValues={currentTabData.templateValues}
+                          templateValues={effectiveTemplateValues}
                           onValueChange={handleTemplateValueChange}
                           customProps={customProps}
                           onCustomPropsChange={handleCustomPropsChange}
                           disabled={disabled}
+                          outputTemplateIds={outputTemplateIds}
                         />
                       ),
                     },

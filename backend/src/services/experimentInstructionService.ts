@@ -271,6 +271,12 @@ function convertTemplate(
   template: Template,
   category: 'material' | 'condition' | 'result'
 ): TemplateDef {
+  // template.placeRefs（MAIMLの placeRef タグ）から PlaceID 一覧を抽出する
+  // PlaceRef extends Reference → ref フィールドが参照先の PlaceID（id は Reference自身のID）
+  const placeIds: string[] = (template.placeRefs ?? [])
+    .map((ref) => ref.ref ?? ref.id)
+    .filter((id): id is string => Boolean(id));
+  // ① properties を fields に変換
   const fields: TemplateField[] = (template.properties ?? []).map((prop) => {
     const fieldType = detectFieldType(prop.xsiType);
 
@@ -302,11 +308,41 @@ function convertTemplate(
     };
   });
 
+  // ② contents を fields に追加（contentStringListType 等の複数行入力フィールド）
+  if (template.contents && Array.isArray(template.contents)) {
+    for (const content of template.contents) {
+      const fieldType = detectFieldType(content.xsiType);
+      fields.push({
+        key: content.key ?? `content_${fields.length}`,
+        label: content.description ?? content.key ?? 'Content',
+        type: fieldType,
+        units: content.units,
+        required: false,
+        ...(content.xsiType !== undefined && content.xsiType !== null
+          ? { xsiType: content.xsiType }
+          : {}),
+      });
+    }
+  }
+
+  // ③ insertion を fields に追加（ファイル挿入が必要なことを示す情報表示フィールド）
+  if (template.insertion) {
+    fields.push({
+      key: 'insertion',
+      label: 'Insertion',
+      type: 'text',
+      units: undefined,
+      required: false,
+      xsiType: 'insertion',
+    });
+  }
+
   return {
     id: template.id,
     label: template.name ?? template.id,
     category,
     fields,
+    placeIds,
   };
 }
 
@@ -438,10 +474,44 @@ export async function getPlanDialogDataFromMaiml(
     return prereqIds;
   }
 
+  /**
+   * 指定トランジションに流入する Place ID を求める（入力Place）。
+   *
+   * Petri Net の流れ:
+   *   Place → Arc（target: transitionId） → Transition
+   *
+   * つまり:
+   *   Arc.target === transitionId の Arc の source（Place）を収集する
+   * このPlaceに紐づくテンプレートがそのトランジションの入力テンプレートとなる（入力可能）
+   */
+  function calcInputPlaceIds(targetTransitionId: string): string[] {
+    return pnmlArcs
+      .filter((arc) => arc.target === targetTransitionId && !pnmlTransitionIds.has(arc.source))
+      .map((arc) => arc.source);
+  }
+
+  /**
+   * 指定トランジションから流出する Place ID を求める（出力Place）。
+   *
+   * Petri Net の流れ:
+   *   Transition → Arc（source: transitionId） → Place
+   *
+   * つまり:
+   *   Arc.source === transitionId の Arc の target（Place）を収集する
+   * このPlaceに紐づくテンプレートが出力テンプレートとなる（表示するがdisabled）
+   */
+  function calcOutputPlaceIds(sourceTransitionId: string): string[] {
+    return pnmlArcs
+      .filter((arc) => arc.source === sourceTransitionId && !pnmlTransitionIds.has(arc.target))
+      .map((arc) => arc.target);
+  }
+
   const transitions = (method.pnml?.transitions ?? []).map((t) => ({
     id: t.id,
     name: t.name ?? t.id,
     prerequisiteTransitionIds: calcPrerequisiteTransitionIds(t.id),
+    inputPlaceIds: calcInputPlaceIds(t.id),
+    outputPlaceIds: calcOutputPlaceIds(t.id),
   }));
 
   // 6. テンプレートを収集（メソッドレベル + program[] 配下の両方）

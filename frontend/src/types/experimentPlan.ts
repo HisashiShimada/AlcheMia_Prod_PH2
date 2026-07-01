@@ -153,6 +153,12 @@ export interface TemplateDef {
   category: 'material' | 'condition' | 'result';
   /** フィールド一覧 */
   fields: TemplateField[];
+  /**
+   * このテンプレートが紐づく Place IDの配列
+   * バックエンドの experimentInstructionService で設定される。
+   * フロントエンドでは inputPlaceIds / outputPlaceIds との照合に使用する。
+   */
+  placeIds?: string[];
 }
 
 /**

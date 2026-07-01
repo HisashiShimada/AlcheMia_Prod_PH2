@@ -46,20 +46,73 @@ export interface TransitionOrderItem {
 /** カスタムプロパティ型（テンプレート入力で追加できるプロパティ） */
 export type CustomPropType =
   | 'stringType'
+  | 'tokenType'
+  | 'stringEnumType'
   | 'intType'
+  | 'longType'
+  | 'shortType'
+  | 'byteType'
+  | 'unsignedIntType'
+  | 'unsignedLongType'
+  | 'unsignedShortType'
+  | 'unsignedByteType'
   | 'floatType'
   | 'doubleType'
+  | 'decimalType'
   | 'booleanType'
   | 'dateType'
-  | 'dateTimeType';
+  | 'dateTimeType'
+  | 'stringListType'
+  | 'intListType'
+  | 'longListType'
+  | 'shortListType'
+  | 'byteListType'
+  | 'unsignedIntListType'
+  | 'floatListType'
+  | 'doubleListType'
+  | 'decimalListType'
+  | 'booleanListType'
+  | 'dateTimeListType'
+  | 'contentStringListType'
+  | 'contentIntListType'
+  | 'contentLongListType'
+  | 'contentShortListType'
+  | 'contentByteListType'
+  | 'contentUnsignedIntListType'
+  | 'contentFloatListType'
+  | 'contentDoubleListType'
+  | 'contentDecimalListType'
+  | 'contentBooleanListType'
+  | 'contentDateTimeListType'
+  | 'insertion';
+
+/**
+ * カスタムプロパティのコンテナタイプ
+ * - property: プロパティコンテナ（key・type・value・units）
+ * - content: コンテンツコンテナ（key・type・複数行値・units）
+ * - insertion: 挿入コンテナ（ファイルアップロード）
+ */
+export type CustomPropContainerType = 'property' | 'content' | 'insertion';
 
 /** カスタムプロパティ値 */
 export interface CustomPropValue {
   id: string;
   key: string;
+  /** コンテナタイプ（DataRecordDialog の ContainerType と対応） */
+  containerType: CustomPropContainerType;
+  /** プロパティの型 */
   type: CustomPropType;
-  value: string;
+  /** 値: property は string | null、content は string[] | null、insertion はファイル名 */
+  value: string | string[] | null;
   units: string;
+  /** insertion 用: 選択されたファイル（新規アップロード時） */
+  file?: File;
+  /** insertion 用: 既存URI（復元時） */
+  uri?: string;
+  /** insertion 用: ファイルハッシュ */
+  hash?: string;
+  /** insertion 用: MIMEタイプ */
+  format?: string;
 }
 
 /** Ref追加エリアコンポーネントのProps（Creator / Instrument / Owner 共通） */
@@ -101,6 +154,12 @@ export interface TemplateInputPanelProps {
   customProps: Record<string, CustomPropValue[]>;
   onCustomPropsChange: (templateId: string, props: CustomPropValue[]) => void;
   disabled?: boolean;
+  /**
+   * 出力Place に紐づくテンプレートID Set
+   * このSetに含まれるテンプレートのフィールドは表示するが disabled にする
+   * （前のトランジションの出力結果として引き継がれる項目を示す）
+   */
+  outputTemplateIds?: Set<string>;
 }
 
 /** SortableTransitionRow コンポーネントのProps */

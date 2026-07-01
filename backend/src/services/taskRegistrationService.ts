@@ -14,6 +14,7 @@ import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
+import * as experimentPlanRepository from '../repositories/experimentPlanRepository';
 import type {
   GetTaskRegistrationResponse,
   TaskRegistrationData,
@@ -371,7 +372,68 @@ async function deleteAndInsertTransitionData(
     methodTransitionMap.set(method.methodId, transitionIds);
   }
 
-  // 3. project_task_detail の各レコード分ループしてINSERT
+  // 3. 各メソッドの experiment_plan から __meta__.transitionOrder を読み取り、
+  //    methodId → (transitionId → { order, prerequisiteTransitionIds }) のマップを構築する。
+  //    実験計画が未保存の場合はマップは空のまま（デフォルト値 work_order=0, prerequisite_transition_ids=[] で登録）。
+  type TransitionOrderInfo = {
+    order: number;
+    prerequisiteTransitionIds: string[];
+  };
+  const methodOrderMap = new Map<string, Map<string, TransitionOrderInfo>>();
+  const processedMethods = new Set<string>();
+
+  for (const task of tasks) {
+    if (processedMethods.has(task.methodId)) continue;
+    processedMethods.add(task.methodId);
+
+    try {
+      const plans = await experimentPlanRepository.findByMethodForTransaction(
+        client,
+        organizationId,
+        projectId,
+        task.methodId
+      );
+      console.log(plans.length);
+
+      // 最初に見つかった plan の __meta__ を使用（全タスク共通の順序情報）
+      for (const plan of plans) {
+        if (!plan.planned_values) continue;
+        // ★追加: __meta__ の中身を確認
+        console.log('[DEBUG] planned_values:', JSON.stringify(plan.planned_values, null, 2));
+        
+        const meta = (plan.planned_values as Record<string, unknown>)['__meta__'];
+        console.log('[DEBUG] meta:', JSON.stringify(meta, null, 2));
+        
+        if (!meta || typeof meta !== 'object') continue;
+        const metaObj = meta as Record<string, unknown>;
+        
+        console.log('[DEBUG] transitionOrder:', metaObj['transitionOrder']);
+        console.log('[DEBUG] isArray:', Array.isArray(metaObj['transitionOrder']));
+        if (!Array.isArray(metaObj['transitionOrder'])) continue;
+
+        const orderMap = new Map<string, TransitionOrderInfo>();
+        for (const item of metaObj['transitionOrder'] as Record<string, unknown>[]) {
+          if (typeof item['id'] !== 'string') continue;
+          orderMap.set(item['id'], {
+            order: typeof item['order'] === 'number' ? item['order'] : 0,
+            prerequisiteTransitionIds: Array.isArray(item['prerequisiteTransitionIds'])
+              ? (item['prerequisiteTransitionIds'] as unknown[]).filter((v): v is string => typeof v === 'string')
+              : [],
+          });
+        }
+        methodOrderMap.set(task.methodId, orderMap);
+        break; // 最初の1件で十分
+      }
+    } catch (err) {
+      // experiment_plan 取得失敗時はデフォルト値（work_order=0）で継続
+      logger.warn('[deleteAndInsertTransitionData] experiment_plan 取得失敗（デフォルト値で継続）:', {
+        methodId: task.methodId,
+        error: String(err),
+      });
+    }
+  }
+
+  // 4. project_task_detail の各レコード分ループしてINSERT
   for (const task of tasks) {
     const transitionIds = methodTransitionMap.get(task.methodId) ?? [];
     if (transitionIds.length === 0) {
@@ -379,8 +441,11 @@ async function deleteAndInsertTransitionData(
       continue;
     }
 
+    const orderMap = methodOrderMap.get(task.methodId);
+
     for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
       for (const transitionId of transitionIds) {
+        const orderInfo = orderMap?.get(transitionId);
         await transitionDataRepository.insert(
           organizationId,
           projectId,
@@ -388,7 +453,9 @@ async function deleteAndInsertTransitionData(
           taskNo,
           transitionId,
           userId,
-          client
+          client,
+          orderInfo?.order ?? 0,
+          orderInfo?.prerequisiteTransitionIds ?? []
         );
       }
     }

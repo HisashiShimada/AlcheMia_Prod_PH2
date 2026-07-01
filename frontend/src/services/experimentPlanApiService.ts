@@ -127,35 +127,27 @@ const NOTE_TYPE_KEYS: NoteTypeValue[] = [
 ];
 
 /**
- * ExperimentPlanValues → ExperimentPlanTabData に変換する
+ * 1トランジション分の TransitionPlanValues → ExperimentPlanTabData に変換する
  * （バックエンドのデータをダイアログ表示用に復元する）
+ *
+ * @param transitionId - トランジションID
+ * @param transValues  - planned_values[transitionId] の値
  */
-function plannedValuesToTabData(plannedValues: ExperimentPlanValues): ExperimentPlanTabData {
-  const transitionIds = Object.keys(plannedValues);
-  if (transitionIds.length === 0) {
-    return {
-      selectedTransitions: [],
-      creatorRefs: [],
-      instrumentRefs: [],
-      ownerRefs: [],
-      notes: [],
-      templateValues: {},
-    };
-  }
-
-  // 全トランジションで共通の値（最初のトランジションから取得）
-  const first = plannedValues[transitionIds[0]];
-  const creatorRefs = (first['mgr-instruction:requiredCreatorUUID'] as string[] | undefined) ?? [];
-  const instrumentRefs = (first['mgr-instruction:requiredInstrumentUUID'] as string[] | undefined) ?? [];
-  const ownerRefs = (first['mgr-instruction:requiredOwnerUUID'] as string[] | undefined) ?? [];
+function transitionValuesToTabData(
+  transitionId: string,
+  transValues: TransitionPlanValues
+): ExperimentPlanTabData {
+  const creatorRefs = (transValues['mgr-instruction:requiredCreatorUUID'] as string[] | undefined) ?? [];
+  const instrumentRefs = (transValues['mgr-instruction:requiredInstrumentUUID'] as string[] | undefined) ?? [];
+  const ownerRefs = (transValues['mgr-instruction:requiredOwnerUUID'] as string[] | undefined) ?? [];
 
   // 注意事項
   const notes: NoteItem[] = [];
   for (const noteType of NOTE_TYPE_KEYS) {
-    const content = first[noteType] as string | undefined;
+    const content = transValues[noteType] as string | undefined;
     if (content) {
       notes.push({
-        id: `${noteType}-restored`,
+        id: `${transitionId}-${noteType}-restored`,
         type: noteType,
         content,
         properties: [],
@@ -163,7 +155,7 @@ function plannedValuesToTabData(plannedValues: ExperimentPlanValues): Experiment
     }
   }
 
-  // テンプレート値（mg-instruction: キー以外をテンプレート値とみなす）
+  // テンプレート値（mgr-instruction: キー以外をテンプレート値とみなす）
   const templateValues: TemplateValues = {};
   const reservedKeys = new Set<string>([
     'mgr-instruction:requiredCreatorUUID',
@@ -171,14 +163,14 @@ function plannedValuesToTabData(plannedValues: ExperimentPlanValues): Experiment
     'mgr-instruction:requiredOwnerUUID',
     ...NOTE_TYPE_KEYS,
   ]);
-  for (const [key, value] of Object.entries(first)) {
+  for (const [key, value] of Object.entries(transValues)) {
     if (!reservedKeys.has(key) && typeof value === 'string') {
       templateValues[key] = value;
     }
   }
 
   return {
-    selectedTransitions: transitionIds,
+    selectedTransitions: [transitionId],
     creatorRefs,
     instrumentRefs,
     ownerRefs,
@@ -187,10 +179,41 @@ function plannedValuesToTabData(plannedValues: ExperimentPlanValues): Experiment
   };
 }
 
+/**
+ * ExperimentPlanTabData（1トランジション分）→ TransitionPlanValues に変換する
+ */
+function tabDataToTransitionValues(tabData: ExperimentPlanTabData): TransitionPlanValues {
+  const values: TransitionPlanValues = {};
+
+  if (tabData.creatorRefs.length > 0) {
+    values['mgr-instruction:requiredCreatorUUID'] = tabData.creatorRefs;
+  }
+  if (tabData.instrumentRefs.length > 0) {
+    values['mgr-instruction:requiredInstrumentUUID'] = tabData.instrumentRefs;
+  }
+  if (tabData.ownerRefs.length > 0) {
+    values['mgr-instruction:requiredOwnerUUID'] = tabData.ownerRefs;
+  }
+  for (const note of tabData.notes) {
+    if (note.content.trim()) {
+      values[note.type] = note.content;
+    }
+  }
+  for (const [key, value] of Object.entries(tabData.templateValues)) {
+    if (value !== undefined && value !== '') {
+      values[key] = String(value);
+    }
+  }
+
+  return values;
+}
+
 /** 実行順序アイテム（ExperimentPlanDialog から渡される） */
 export interface TransitionOrderEntry {
   id: string;
   order: number;
+  /** 前提となるトランジションIDの配列（依存関係） */
+  prerequisiteTransitionIds?: string[];
 }
 
 /**
@@ -262,21 +285,31 @@ export async function getExperimentPlans(
 }
 
 /**
- * バックエンドから取得した実験計画を tabDataMap 形式に変換する
+ * バックエンドから取得した実験計画を tabDataMap 形式（二次元: タスク×トランジション）に変換する
  *
  * @param result - getExperimentPlans の戻り値
- * @returns タブキー → ExperimentPlanTabData のマップ
+ * @returns タブキー → (トランジションID → ExperimentPlanTabData) のマップ
  */
 export function experimentPlansToTabDataMap(
   result: GetExperimentPlansResult | null
-): Record<string, ExperimentPlanTabData> {
+): Record<string, Record<string, ExperimentPlanTabData>> {
   if (!result || result.plans.length === 0) return {};
 
-  const tabDataMap: Record<string, ExperimentPlanTabData> = {};
+  const tabDataMap: Record<string, Record<string, ExperimentPlanTabData>> = {};
   for (const plan of result.plans) {
-    if (plan.plannedValues && Object.keys(plan.plannedValues).length > 0) {
-      const key = `task-${plan.taskNo}`;
-      tabDataMap[key] = plannedValuesToTabData(plan.plannedValues);
+    if (!plan.plannedValues || Object.keys(plan.plannedValues).length === 0) continue;
+
+    const key = `task-${plan.taskNo}`;
+    tabDataMap[key] = {};
+
+    // planned_values のキーはトランジションID
+    for (const [transitionId, transValues] of Object.entries(plan.plannedValues)) {
+      if (transValues && typeof transValues === 'object') {
+        tabDataMap[key][transitionId] = transitionValuesToTabData(
+          transitionId,
+          transValues as TransitionPlanValues
+        );
+      }
     }
   }
   return tabDataMap;
@@ -292,6 +325,10 @@ export interface PlanDialogData {
     name: string;
     /** 直接依存するトランジションIDの配列（空配列 = 依存なし） */
     prerequisiteTransitionIds: string[];
+    /** このトランジションに流入するPlace IDの配列（入力Place: 入力可能テンプレート絞り込み用） */
+    inputPlaceIds: string[];
+    /** このトランジションから流出するPlace IDの配列（出力Place: 表示するがdisabled） */
+    outputPlaceIds: string[];
   }>;
   templates: TemplateDef[];
   creatorRefs: string[];
@@ -324,11 +361,11 @@ export interface PlanDialogData {
 //   TR_B（材料準備B）─┘
 export const MOCK_PLAN_DIALOG_DATA: PlanDialogData = {
   transitions: [
-    { id: 'trans-001', name: '材料準備A', prerequisiteTransitionIds: [] },
-    { id: 'trans-002', name: '材料準備B', prerequisiteTransitionIds: [] },
-    { id: 'trans-003', name: '混合',      prerequisiteTransitionIds: ['trans-001', 'trans-002'] },
-    { id: 'trans-004', name: '加熱',      prerequisiteTransitionIds: ['trans-003'] },
-    { id: 'trans-005', name: '測定',      prerequisiteTransitionIds: ['trans-004'] },
+    { id: 'trans-001', name: '材料準備A', prerequisiteTransitionIds: [], inputPlaceIds: [], outputPlaceIds: [] },
+    { id: 'trans-002', name: '材料準備B', prerequisiteTransitionIds: [], inputPlaceIds: [], outputPlaceIds: [] },
+    { id: 'trans-003', name: '混合',      prerequisiteTransitionIds: ['trans-001', 'trans-002'], inputPlaceIds: [], outputPlaceIds: [] },
+    { id: 'trans-004', name: '加熱',      prerequisiteTransitionIds: ['trans-003'], inputPlaceIds: [], outputPlaceIds: [] },
+    { id: 'trans-005', name: '測定',      prerequisiteTransitionIds: ['trans-004'], inputPlaceIds: [], outputPlaceIds: [] },
   ],
   templates: [],
   creatorRefs: ['creator_001', 'creator_002', 'creator_003'],
@@ -355,25 +392,63 @@ export async function getPlanDialogData(
 }
 
 /**
- * 実験計画をバックエンドに保存（UPSERT）
+ * 実験計画をバックエンドに保存（UPSERT）: 1タスク × 全トランジション版
  * PUT /api/v1/projects/:projectId/experiment-plans/:methodId/:taskNo
  *
- * @param projectId      - プロジェクトID
- * @param methodId       - メソッドID
- * @param taskNo         - タスク番号（1〜N）
- * @param tabData        - タブデータ（ExperimentPlanTabData）
- * @param transitionOrder - トランジション実行順序（order 昇順で plannedValues のキー順に反映）
+ * @param projectId           - プロジェクトID
+ * @param methodId            - メソッドID
+ * @param taskNo              - タスク番号（1〜N）
+ * @param transitionDataMap   - トランジションID → ExperimentPlanTabData のマップ
+ * @param transitionOrder     - トランジション実行順序（order 昇順で plannedValues のキー順に反映）
  */
 export async function upsertExperimentPlanToApi(
   projectId: string,
   methodId: string,
   taskNo: number,
-  tabData: ExperimentPlanTabData,
+  transitionDataMap: Record<string, ExperimentPlanTabData>,
   transitionOrder?: TransitionOrderEntry[]
 ): Promise<void> {
   const apiClient = createApiClient();
   const url = `/projects/${encodeURIComponent(projectId)}/experiment-plans/${encodeURIComponent(methodId)}/${taskNo}`;
-  const plannedValues = tabDataToPlannedValues(tabData, transitionOrder);
+
+  // トランジションIDごとに TransitionPlanValues を構築
+  const plannedValues: ExperimentPlanValues = {};
+
+  // order 昇順で並べる（指定ない場合はキー順）
+  const orderedIds: string[] =
+    transitionOrder && transitionOrder.length > 0
+      ? [...transitionOrder]
+          .sort((a, b) => a.order - b.order)
+          .map((item) => item.id)
+          .filter((id) => id in transitionDataMap)
+      : Object.keys(transitionDataMap);
+
+  // transitionDataMap に含まれているが orderedIds にない ID も末尾に追加
+  for (const id of Object.keys(transitionDataMap)) {
+    if (!orderedIds.includes(id)) {
+      orderedIds.push(id);
+    }
+  }
+
+  for (const transitionId of orderedIds) {
+    const tabData = transitionDataMap[transitionId];
+    if (tabData) {
+      plannedValues[transitionId] = tabDataToTransitionValues(tabData);
+    }
+  }
+
+  // transitionOrder が指定されている場合は __meta__ にトランジション順序情報を埋め込む
+  // タスク登録保存時にこの情報を読み取り、transition_data の work_order / prerequisite_transition_ids を設定する
+  if (transitionOrder && transitionOrder.length > 0) {
+    (plannedValues as Record<string, unknown>)['__meta__'] = {
+      transitionOrder: transitionOrder.map((item) => ({
+        id: item.id,
+        order: item.order,
+        prerequisiteTransitionIds: item.prerequisiteTransitionIds ?? [],
+      })),
+    };
+  }
+
   await apiClient.put(url, { plannedValues });
 }
 

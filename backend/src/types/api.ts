@@ -819,6 +819,12 @@ export interface TemplateDef {
   category: 'material' | 'condition' | 'result';
   /** フィールド一覧 */
   fields: TemplateField[];
+  /**
+   * このテンプレートに紐づく Place ID の一覧
+   * MAIMLの placeRefs[].id から抽出する
+   * トランジション選択時のテンプレート絞り込みに使用
+   */
+  placeIds: string[];
 }
 
 /**
@@ -832,6 +838,18 @@ export interface PlanDialogData {
     name: string;
     /** 直接依存するトランジションIDの配列（Petri Net の Arc から計算）*/
     prerequisiteTransitionIds: string[];
+    /**
+     * このトランジションに流入する Place ID の一覧（入力Place）
+     * Arc.target === transitionId の Arc の source（Place）を収集する
+     * テンプレート絞り込みに使用（入力Place紐づきテンプレートは入力可能）
+     */
+    inputPlaceIds: string[];
+    /**
+     * このトランジションから流出する Place ID の一覧（出力Place）
+     * Arc.source === transitionId の Arc の target（Place）を収集する
+     * テンプレート絞り込みに使用（出力Place紐づきテンプレートは表示するがdisabled）
+     */
+    outputPlaceIds: string[];
   }>;
   /** テンプレート定義一覧 */
   templates: TemplateDef[];

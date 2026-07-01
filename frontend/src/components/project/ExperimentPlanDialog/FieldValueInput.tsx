@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Select, Input, InputNumber, Switch } from 'antd';
+import { Select, Input, InputNumber, Switch, Button, Tag, Space } from 'antd';
 import { DatePicker } from 'antd';
+import { PlusOutlined, DeleteOutlined, FileTextOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
   isIntegerXsiType,
@@ -138,6 +139,69 @@ const FieldValueInput: React.FC<FieldValueInputProps> = ({
         disabled={disabled}
         data-testid={testId}
       />
+    );
+  }
+
+  // ── insertion（表示のみ：ファイル挿入が必要なことを示す情報表示） ──
+  if (xsi === 'insertion') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+        <Tag color="purple" icon={<FileTextOutlined />} style={{ flexShrink: 0, margin: 0 }}>
+          Insertion
+        </Tag>
+        <span style={{ fontStyle: 'italic', color: '#888', fontSize: 12, flex: 1 }}>
+          ※ファイル挿入が必要です（実験実施時に対応）
+        </span>
+      </div>
+    );
+  }
+
+  // ── contentXxxListType（複数行入力・行追加機能付き） ──
+  if (xsi.startsWith('content') && xsi.endsWith('ListType')) {
+    const strVal = typeof value === 'string' ? value : '';
+    const rows: string[] = strVal !== '' ? strVal.split('\n') : [''];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {rows.map((row, idx) => (
+          <div key={idx} style={{ display: 'flex', gap: 4 }}>
+            <Input.TextArea
+              value={row}
+              onChange={(e) => {
+                const newRows = [...rows];
+                newRows[idx] = e.target.value;
+                onChange(newRows.join('\n'));
+              }}
+              placeholder={`行 ${idx + 1}: 値をスペース区切りで入力（例: 1.0 2.5 3.0）`}
+              autoSize={{ minRows: 1, maxRows: 3 }}
+              disabled={disabled}
+              style={{ flex: 1 }}
+              data-testid={testId ? `${testId}-row-${idx}` : undefined}
+            />
+            <Button
+              type="text"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              disabled={disabled || rows.length <= 1}
+              onClick={() => {
+                const newRows = rows.filter((_, i) => i !== idx);
+                onChange(newRows.join('\n'));
+              }}
+            />
+          </div>
+        ))}
+        <Button
+          size="small"
+          icon={<PlusOutlined />}
+          disabled={disabled}
+          onClick={() => {
+            onChange([...rows, ''].join('\n'));
+          }}
+        >
+          行を追加
+        </Button>
+      </div>
     );
   }
 
