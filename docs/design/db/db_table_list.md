@@ -929,7 +929,7 @@ maiml_event_log
   - `uncertainty_key` - 不確かさ基準Key（prefix + : + Key、名前空間.用語）
   - `version` - バージョン（編集されたら+1ずつインクリメント）
   - `evaluation_method` - 評価方式（1:定量 / 2:定性）
-  - `is_deprecated` - 非推奨フラグ（True:非推奨 / False:有効）
+  - `is_Invalid` - 無効フラグ（True:無効 / False:有効）
   - `inheritance_uncertainty_key` - 継承元不確かさ基準Key
   - `xsi_type` - xsi:type（定量評価のみ）
   - `units` - 単位（定量評価のみ）
@@ -943,7 +943,7 @@ maiml_event_log
   - `(organization_id, name_space_id)` → `namespace(organization_id, namespace_id)` (論理参照)
 - **インデックス**:
   - `idx_uncertainty_criteria_org_ns` - organization_id, name_space_id
-  - `idx_uncertainty_criteria_deprecated` - organization_id, is_deprecated
+  - `idx_uncertainty_criteria_Invalid` - organization_id, is_Invalid
 
 ---
 
