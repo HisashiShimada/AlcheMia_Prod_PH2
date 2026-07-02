@@ -464,39 +464,40 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       </Tag>
     </Flex>
 
-    {/* データ表示 / 入力エリア（縦並び: 想定値 → 不確かさ値 → 実績値） */}
-    <Flex vertical gap={6}>
-      {/* 想定値 */}
-      <div>
-        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>想定値</Text>
-        <div style={{ padding: '6px 10px', background: '#e6f7ff', border: '1px solid #bae7ff', borderRadius: 4 }}>
-          {prop.expected !== null ? (
-            <Text style={{ fontSize: 14 }}>
-              {prop.expected}
-              {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
-            </Text>
-          ) : (
-            <Text type="secondary" italic style={{ fontSize: 13 }}>未設定</Text>
-          )}
-        </div>
-      </div>
+      {/* データ表示 / 入力エリア（縦並び: 想定値+不確かさ値 → 不確かさ説明 → 実績値） */}
+      <Flex vertical gap={6}>
+        {/* 想定値（左）+ 不確かさ値（右）: 2分割 */}
+        <Row gutter={8}>
+          <Col span={12}>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>想定値</Text>
+            <div style={{ padding: '6px 10px', background: '#e6f7ff', border: '1px solid #bae7ff', borderRadius: 4 }}>
+              {prop.expected !== null ? (
+                <Text style={{ fontSize: 14 }}>
+                  {prop.expected}
+                  {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
+                </Text>
+              ) : (
+                <Text type="secondary" italic style={{ fontSize: 13 }}>未設定</Text>
+              )}
+            </div>
+          </Col>
+          <Col span={12}>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{prop.uncertaintyName ?? '不確かさ値'}</Text>
+            <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4 }}>
+              {prop.uncertaintyValue !== undefined ? (
+                <Text style={{ fontSize: 14 }}>
+                  {prop.uncertaintyValue}
+                  {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
+                </Text>
+              ) : (
+                <Text type="secondary" italic style={{ fontSize: 13 }}>—</Text>
+              )}
+            </div>
+          </Col>
+        </Row>
 
-      {/* 不確かさ値 + 不確かさ説明（左右2分割） */}
-      <Row gutter={8}>
-        <Col span={12}>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{prop.uncertaintyName ?? '不確かさ値'}</Text>
-          <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4 }}>
-            {prop.uncertaintyValue !== undefined ? (
-              <Text style={{ fontSize: 14 }}>
-                {prop.uncertaintyValue}
-                {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
-              </Text>
-            ) : (
-              <Text type="secondary" italic style={{ fontSize: 13 }}>—</Text>
-            )}
-          </div>
-        </Col>
-        <Col span={12}>
+        {/* 不確かさ説明（全幅） */}
+        <div>
           <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>不確かさ説明</Text>
           <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4, minHeight: 34 }}>
             {prop.uncertaintyDescription !== undefined ? (
@@ -505,8 +506,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               <Text type="secondary" italic style={{ fontSize: 13 }}>—</Text>
             )}
           </div>
-        </Col>
-      </Row>
+        </div>
 
       {/* 実績値 */}
       <div>
@@ -589,28 +589,35 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
           <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>定量評価</Text>
           {/* 追加済み行 */}
           {addedValues.map((av) => (
-            <Flex key={av.id} align="center" gap={4} style={{ marginBottom: 4 }}>
-              <Select
-                style={{ flex: 1, minWidth: 0 }}
-                placeholder="定量評価（不確かさ基準名）"
-                value={av.uncertaintyKey || undefined}
-                options={UNCERTAINTY_OPTIONS}
-                onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
-                allowClear
-              />
-              <Input
-                style={{ width: 80, flexShrink: 0 }}
-                placeholder="値"
-                value={av.value}
-                onChange={(e) => handleValueChange(av.id, e.target.value)}
-              />
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => handleRemoveValue(av.id)}
-              />
-            </Flex>
+            <Row key={av.id} gutter={4} align="middle" style={{ marginBottom: 4 }}>
+              <Col span={12}>
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder="定量評価（不確かさ基準名）"
+                  value={av.uncertaintyKey || undefined}
+                  options={UNCERTAINTY_OPTIONS}
+                  onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
+                  allowClear
+                />
+              </Col>
+              <Col span={11}>
+                <Input
+                  style={{ width: '100%' }}
+                  placeholder="値"
+                  value={av.value}
+                  onChange={(e) => handleValueChange(av.id, e.target.value)}
+                />
+              </Col>
+              <Col span={1} style={{ textAlign: 'center' }}>
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleRemoveValue(av.id)}
+                  style={{ padding: 0 }}
+                />
+              </Col>
+            </Row>
           ))}
 
           {/* ＋ 値の追加ボタン */}
