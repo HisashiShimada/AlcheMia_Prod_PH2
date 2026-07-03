@@ -8,6 +8,7 @@ import {
   Input,
   Select,
   Segmented,
+  Switch,
   Tag,
   Space,
   message,
@@ -70,6 +71,21 @@ const SCOPE_LABEL_TO_KEY: Record<string, string> = {
   'Personal › 山田 太郎': 'personal',
 };
 
+/** Key属性（prefix:用語）の選択肢 */
+const KEY_OPTIONS = [
+  { value: 'ex:elastic_modulus',     label: 'ex:elastic_modulus' },
+  { value: 'ex:temperature',         label: 'ex:temperature' },
+  { value: 'ex:pressure',            label: 'ex:pressure' },
+  { value: 'ex:measurement_value',   label: 'ex:measurement_value' },
+  { value: 'ex:uncertainty_level',   label: 'ex:uncertainty_level' },
+  { value: 'ex:confidence_interval', label: 'ex:confidence_interval' },
+  { value: 'maiml:standard',         label: 'maiml:standard' },
+  { value: 'maiml:uncertainty',      label: 'maiml:uncertainty' },
+  { value: 'rdfs:label',             label: 'rdfs:label' },
+  { value: 'owl:sameAs',             label: 'owl:sameAs' },
+  { value: 'xsd:double',             label: 'xsd:double' },
+];
+
 /** xsi:type の選択肢 */
 const XSI_TYPE_OPTIONS = [
   { value: 'doubleType', label: 'doubleType' },
@@ -79,15 +95,17 @@ const XSI_TYPE_OPTIONS = [
 ];
 
 const DEFAULT_OPTIONS: QualitativeOption[] = [
-  { id: 1, label: '確か', value: 'certain', color: '#22C55E', icon: 'check', isDefault: true },
-  { id: 2, label: '曖昧', value: 'ambiguous', color: '#FACC15', icon: 'info', isDefault: false },
-  { id: 3, label: '不確か', value: 'uncertain', color: '#EF4444', icon: 'warning', isDefault: false },
+  { id: 1, value: '確か',   color: '#22C55E', isDefault: true  },
+  { id: 2, value: '曖昧',   color: '#FACC15', isDefault: false },
+  { id: 3, value: '不確か', color: '#EF4444', isDefault: false },
 ];
 
 /** Props型定義 */
 interface UncertaintyDetailModalProps {
   open: boolean;
   template: UncertaintyTemplate | null;
+  /** 最新バージョンかどうか（trueのみ有効⇔非推奨の切替が可能） */
+  isLatestVersion: boolean;
   onClose: () => void;
 }
 
@@ -98,22 +116,30 @@ interface UncertaintyDetailModalProps {
 export default function UncertaintyDetailModal({
   open,
   template,
+  isLatestVersion,
   onClose,
 }: UncertaintyDetailModalProps) {
   const [evalMode, setEvalMode] = useState<'quantitative' | 'qualitative'>('quantitative');
   const [templateKey, setTemplateKey] = useState('');
   const [selectedScope, setSelectedScope] = useState<string>('');
+  const [selectedKeyAttr, setSelectedKeyAttr] = useState<string | undefined>(undefined);
   const [qualitativeOptions, setQualitativeOptions] = useState<QualitativeOption[]>(DEFAULT_OPTIONS);
   const [diffPreviewOpen, setDiffPreviewOpen] = useState(false);
+  const [statusState, setStatusState] = useState<'active' | 'deprecated'>('active');
   const [form] = Form.useForm();
 
   /** 評価基準データが変わったらフォームを初期化 */
   useEffect(() => {
     if (!template) return;
-    setTemplateKey(template.key);
+    // name を「不確かさ基準名」フィールドに表示
+    setTemplateKey(template.name);
     setEvalMode(template.eval);
     const scopeKey = SCOPE_LABEL_TO_KEY[template.scope] ?? 'company';
     setSelectedScope(scopeKey);
+    // key をそのまま selectedKeyAttr にセット
+    setSelectedKeyAttr(template.key || undefined);
+    // 状態を初期化
+    setStatusState(template.status);
     form.setFieldsValue({
       desc: template.desc,
       xsiType: template.type,
@@ -121,10 +147,6 @@ export default function UncertaintyDetailModal({
       formatString: template.format,
     });
   }, [template, form]);
-
-  /** QNameプレビュー */
-  const qnamePreview = templateKey ? `ex:${templateKey}` : '';
-  const isValidQname = /^[a-zA-Z_][a-zA-Z0-9_.]*$/.test(templateKey);
 
   /** 名前空間URLプレビュー */
   const namespaceUrl = selectedScope ? (SCOPE_URL_MAP[selectedScope] ?? '') : '';
@@ -196,7 +218,7 @@ export default function UncertaintyDetailModal({
           </Form.Item>
 
           <Form.Item
-            label={<span>不確かさ基準名（key属性）<span style={{ color: '#ff4d4f' }}> *</span></span>}
+            label={<span>不確かさ基準名<span style={{ color: '#ff4d4f' }}> *</span></span>}
             style={{ marginBottom: 14 }}
           >
             <Input
@@ -205,29 +227,24 @@ export default function UncertaintyDetailModal({
             />
           </Form.Item>
 
-          <Form.Item label="名前空間プレビュー（QName）" style={{ marginBottom: 14 }}>
-            <div style={{ position: 'relative' }}>
-              <Input
-                readOnly
-                value={qnamePreview}
-                style={{ background: '#fafafa', color: '#555', paddingRight: 150 }}
-              />
-              {templateKey && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    right: 10,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    fontSize: 12,
-                    color: isValidQname ? '#52c41a' : '#ff4d4f',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {isValidQname ? '✅ 有効なQNameです' : '❌ 無効なQNameです'}
-                </span>
-              )}
-            </div>
+          {/* Key属性設定 */}
+          <Form.Item label="Key属性設定" style={{ marginBottom: 14 }}>
+            <Select
+              value={selectedKeyAttr}
+              onChange={(v) => setSelectedKeyAttr(v)}
+              options={
+                selectedKeyAttr && !KEY_OPTIONS.some((o) => o.value === selectedKeyAttr)
+                  ? [{ value: selectedKeyAttr, label: selectedKeyAttr }, ...KEY_OPTIONS]
+                  : KEY_OPTIONS
+              }
+              placeholder="prefix:用語 を選択"
+              allowClear
+              showSearch
+              filterOption={(input, option) =>
+                String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              style={{ width: '100%' }}
+            />
           </Form.Item>
 
           <Form.Item
@@ -249,12 +266,65 @@ export default function UncertaintyDetailModal({
             <TextArea rows={3} />
           </Form.Item>
 
-          <Form.Item label="名前空間 URL プレビュー" style={{ marginBottom: 0 }}>
+          <Form.Item label="名前空間 URL プレビュー" style={{ marginBottom: 14 }}>
             <Input
               readOnly
               value={namespaceUrl}
               style={{ background: '#fafafa', color: '#888' }}
             />
+          </Form.Item>
+
+          {/* 状態切替 */}
+          <Form.Item label="状態" style={{ marginBottom: 0 }}>
+            <Space align="center">
+              {/* 旧バージョン：非推奨固定 */}
+              {!isLatestVersion ? (
+                <>
+                  <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ 非推奨</Tag>
+                  <Switch
+                    checked={false}
+                    checkedChildren="有効"
+                    unCheckedChildren="非推奨"
+                    disabled
+                  />
+                  <span style={{ fontSize: 12, color: '#aaa' }}>
+                    旧バージョンのため変更できません
+                  </span>
+                </>
+              ) : statusState === 'active' ? (
+                /* 最新バージョン・有効 */
+                <>
+                  <Tag color="success" style={{ fontWeight: 600, marginRight: 8 }}>● 有効</Tag>
+                  <Switch
+                    checked={true}
+                    checkedChildren="有効"
+                    unCheckedChildren="非推奨"
+                    onChange={(checked) =>
+                      setStatusState(checked ? 'active' : 'deprecated')
+                    }
+                  />
+                  <span style={{ fontSize: 12, color: '#888' }}>
+                    オフにすると「非推奨」に変更されます
+                  </span>
+                </>
+              ) : (
+                /* 最新バージョン・非推奨 */
+                <>
+                  <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ 非推奨</Tag>
+                  <Switch
+                    checked={false}
+                    checkedChildren="有効"
+                    unCheckedChildren="非推奨"
+                    onChange={(checked) =>
+                      setStatusState(checked ? 'active' : 'deprecated')
+                    }
+                  />
+                  <span style={{ fontSize: 12, color: '#888' }}>
+                    オンにすると「有効」に変更されます
+                  </span>
+                </>
+              )}
+            </Space>
           </Form.Item>
         </div>
 

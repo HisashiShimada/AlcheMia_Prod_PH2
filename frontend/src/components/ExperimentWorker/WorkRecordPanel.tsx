@@ -37,26 +37,63 @@ import {
   Typography,
   theme,
 } from 'antd';
-import { CommentOutlined, FastForwardOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import { CommentOutlined, DeleteOutlined, FastForwardOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
-import UncertaintyCriteriaSelectorModal from '../uncertainty/UncertaintyCriteriaSelectorModal';
-import type { TargetProperty, AssignPayload } from '../uncertainty/UncertaintyCriteriaSelectorModal';
+import uncertaintyMockData from '../../../mock/uncertainty.json';
 
 const { Sider, Content } = Layout;
 
 const { Text } = Typography;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 不確かさ基準（モックデータから定量評価・有効なものを選択肢として生成）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 「値の追加」ボタンで追加された不確かさ評価行の型
+ */
+interface AddedUncertaintyValue {
+  /** 行を一意に識別するID */
+  id: string;
+  /** 選択された不確かさ基準の key（空文字は未選択） */
+  uncertaintyKey: string;
+  /** 入力された値 */
+  value: string;
+}
+
+/**
+ * uncertainty.json から定量評価 (eval === 'quantitative') かつ有効 (status === 'active') な
+ * 不確かさ基準を Select の options 形式に変換
+ */
+const UNCERTAINTY_OPTIONS: { value: string; label: string }[] = (
+  uncertaintyMockData as Array<{ key: string; name: string; eval: string; status: string }>
+)
+  .filter((u) => u.eval === 'quantitative' && u.status === 'active')
+  .map((u) => ({ value: u.key, label: u.name }));
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 型定義
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 type TransitionStatus = 'not_started' | 'in_progress' | 'completed' | 'error';
+type ConfidenceLevel = '確か' | '曖昧' | '不確か';
+
 interface MockProperty {
   key: string;
   label: string;
   xsiType: 'FloatValue' | 'IntegerValue' | 'StringValue';
   unit: string;
   expected: number | string | null;
+  /** 不確かさ基準名（例: '測定不確かさ（k=2）'）。未指定時は「不確かさ値」を表示 */
+  uncertaintyName?: string;
+  /** 不確かさ値（モック）。未指定時は「—」を表示 */
+  uncertaintyValue?: number | string;
+  /** 不確かさ説明（モック）。未指定時は「—」を表示 */
+  uncertaintyDescription?: string;
+  /** 定性評価の初期値（モック）。未指定時は「確か」 */
+  defaultConfidence?: string;
+  /** 定性評価のボタン選択肢（モック）。未指定時は ['確か', '曖昧', '不確か'] */
+  confidenceOptions?: string[];
 }
 
 interface MockTemplate {
@@ -151,9 +188,9 @@ const MOCK_TRANSITIONS: MockTransition[] = [
         name: 'Condition-Mixing',
         category: 'Conditions',
         properties: [
-          { key: 'ns1:Temperature',   label: '温度',     xsiType: 'FloatValue',   unit: '℃',  expected: 25.0  },
-          { key: 'ns1:Pressure',      label: '圧力',     xsiType: 'FloatValue',   unit: 'atm', expected: 1.013 },
-          { key: 'ns1:StirringSpeed', label: '撹拌速度', xsiType: 'IntegerValue', unit: 'rpm', expected: 300   },
+          { key: 'ns1:Temperature',   label: '温度',     xsiType: 'FloatValue',   unit: '℃',  expected: 25.0,  uncertaintyName: '許容誤差値',   uncertaintyValue: 0.5,  uncertaintyDescription: '0.5℃のズレまで許容する', defaultConfidence: '確か'   },
+          { key: 'ns1:Pressure',      label: '圧力',     xsiType: 'FloatValue',   unit: 'atm', expected: 1.013, uncertaintyName: '拡張不確かさ',  uncertaintyValue: 0.001, uncertaintyDescription: '0.001 atmまで許容',      defaultConfidence: 'OK', confidenceOptions: ['OK', 'NG'] },
+          { key: 'ns1:StirringSpeed', label: '撹拌速度', xsiType: 'IntegerValue', unit: 'rpm', expected: 300,   uncertaintyName: '許容範囲速度',  uncertaintyValue: 10,   uncertaintyDescription: '10 rpm の変動を許容',   defaultConfidence: '不確か' },
         ],
       },
       {
@@ -345,12 +382,59 @@ interface PropertyCardProps {
   actual: number | string | null;
   readOnly: boolean;
   onChange: (key: string, value: number | string | null) => void;
-  onOpenUncertainty: (prop: MockProperty) => void;
 }
 
+const CONFIDENCE_STYLE: Record<string, { background: string; borderColor: string; color: string }> = {
+  '確か':  { background: '#d9f7be', borderColor: '#b7eb8f', color: '#389e0d' },
+  '曖昧':  { background: '#fff7e6', borderColor: '#ffd591', color: '#d46b08' },
+  '不確か': { background: '#fff1f0', borderColor: '#ffa39e', color: '#cf1322' },
+  'OK':    { background: '#d9f7be', borderColor: '#b7eb8f', color: '#389e0d' },
+  'NG':    { background: '#fff1f0', borderColor: '#ffa39e', color: '#cf1322' },
+};
+
+/** CONFIDENCE_STYLE に定義がないラベル用のデフォルトスタイル */
+const CONFIDENCE_STYLE_DEFAULT = { background: '#f0f0f0', borderColor: '#d9d9d9', color: '#595959' };
+
+const getConfidenceStyle = (level: string) =>
+  CONFIDENCE_STYLE[level] ?? CONFIDENCE_STYLE_DEFAULT;
+
 const PropertyCard: React.FC<PropertyCardProps> = ({
-  prop, actual, readOnly, onChange, onOpenUncertainty,
-}) => (
+  prop, actual, readOnly, onChange,
+}) => {
+  const DEFAULT_CONFIDENCE_OPTIONS: string[] = ['確か', '曖昧', '不確か'];
+  const confidenceOptions = prop.confidenceOptions ?? DEFAULT_CONFIDENCE_OPTIONS;
+  const [confidence, setConfidence] = useState<string>(prop.defaultConfidence ?? confidenceOptions[0] ?? '確か');
+  /** ＋値の追加ボタンで追加された不確かさ評価行 */
+  const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>([]);
+
+  /** 行を追加する */
+  const handleAddValue = () => {
+    setAddedValues((prev) => [
+      ...prev,
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, uncertaintyKey: '', value: '' },
+    ]);
+  };
+
+  /** 行の不確かさ基準を更新する */
+  const handleUncertaintyKeyChange = (id: string, newKey: string) => {
+    setAddedValues((prev) =>
+      prev.map((av) => (av.id === id ? { ...av, uncertaintyKey: newKey } : av))
+    );
+  };
+
+  /** 行の値を更新する */
+  const handleValueChange = (id: string, newValue: string) => {
+    setAddedValues((prev) =>
+      prev.map((av) => (av.id === id ? { ...av, value: newValue } : av))
+    );
+  };
+
+  /** 行を削除する */
+  const handleRemoveValue = (id: string) => {
+    setAddedValues((prev) => prev.filter((av) => av.id !== id));
+  };
+
+  return (
   <Card
     size="small"
     style={{
@@ -366,27 +450,25 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         {XSI_SHORT[prop.xsiType] ?? prop.xsiType}
       </Tag>
       <Text type="secondary" style={{ fontSize: 11 }}>({prop.key})</Text>
-      {/* 不確かさ選択ボタン（右上） */}
-      {!readOnly && (
-        <Button type="primary" size="small" style={{ marginLeft: 'auto' }} onClick={() => onOpenUncertainty(prop)}>
-          不確かさ選択
-        </Button>
-      )}
+      {/* 選択中の定性評価を表示 */}
+      <Tag
+        style={{
+          ...getConfidenceStyle(confidence),
+          fontSize: 11,
+          margin: 0,
+          lineHeight: '18px',
+          fontWeight: 'bold',
+        }}
+      >
+        {confidence}
+      </Tag>
     </Flex>
 
-    {/* カラムヘッダー */}
-    <Row gutter={8} style={{ marginBottom: 4 }}>
-      <Col span={10}>
-        <Text type="secondary" style={{ fontSize: 11 }}>想定値</Text>
-      </Col>
-      <Col span={14}>
-        <Text type="secondary" style={{ fontSize: 11 }}>実績値</Text>
-      </Col>
-    </Row>
-
-    {/* データ表示 / 入力エリア */}
-    <Row gutter={8}>
-      <Col span={10}>
+    {/* データ表示 / 入力エリア（縦並び: 想定値 → 不確かさ値 → 実績値） */}
+    <Flex vertical gap={6}>
+      {/* 想定値 */}
+      <div>
+        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>想定値</Text>
         <div style={{ padding: '6px 10px', background: '#e6f7ff', border: '1px solid #bae7ff', borderRadius: 4 }}>
           {prop.expected !== null ? (
             <Text style={{ fontSize: 14 }}>
@@ -397,48 +479,157 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             <Text type="secondary" italic style={{ fontSize: 13 }}>未設定</Text>
           )}
         </div>
-      </Col>
-      <Col span={14}>
-        <div style={{ padding: readOnly ? '6px 10px' : '4px 8px', background: readOnly ? '#fafafa' : '#ffffff', border: '1px solid #d9d9d9', borderRadius: 4 }}>
+      </div>
+
+      {/* 不確かさ値 + 不確かさ説明（左右2分割） */}
+      <Row gutter={8}>
+        <Col span={12}>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{prop.uncertaintyName ?? '不確かさ値'}</Text>
+          <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4 }}>
+            {prop.uncertaintyValue !== undefined ? (
+              <Text style={{ fontSize: 14 }}>
+                {prop.uncertaintyValue}
+                {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
+              </Text>
+            ) : (
+              <Text type="secondary" italic style={{ fontSize: 13 }}>—</Text>
+            )}
+          </div>
+        </Col>
+        <Col span={12}>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>不確かさ説明</Text>
+          <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4, minHeight: 34 }}>
+            {prop.uncertaintyDescription !== undefined ? (
+              <Text style={{ fontSize: 13 }}>{prop.uncertaintyDescription}</Text>
+            ) : (
+              <Text type="secondary" italic style={{ fontSize: 13 }}>—</Text>
+            )}
+          </div>
+        </Col>
+      </Row>
+
+      {/* 実績値 */}
+      <div>
+        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>実績値</Text>
+        <div style={{ padding: '0', background: '#ffffff', border: '1px solid #d9d9d9', borderRadius: 4 }}>
           {readOnly ? (
-            actual !== null ? (
-              <Flex align="center" gap={8}>
-                <Text style={{ fontSize: 14 }}>
-                  {actual}
-                  {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
-                </Text>
-                {calcDiff(prop.expected, actual)}
-              </Flex>
-            ) : (
-              <Text type="secondary" italic style={{ fontSize: 13 }}>未記録</Text>
-            )
+            <div style={{ padding: '6px 10px' }}>
+              {actual !== null ? (
+                <Flex align="center" gap={8}>
+                  <Text style={{ fontSize: 14 }}>
+                    {actual}
+                    {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
+                  </Text>
+                  {calcDiff(prop.expected, actual)}
+                </Flex>
+              ) : (
+                <Text type="secondary" italic style={{ fontSize: 13 }}>未記録</Text>
+              )}
+            </div>
           ) : (
-            prop.xsiType === 'StringValue' ? (
-              <Input
-                size="small"
-                style={{ width: '100%' }}
-                value={(actual as string) ?? ''}
-                placeholder="入力"
-                onChange={(e) => onChange(prop.key, e.target.value || null)}
-                suffix={prop.unit ? <Text type="secondary" style={{ fontSize: 11 }}>{prop.unit}</Text> : undefined}
-              />
-            ) : (
-              <InputNumber
-                size="small"
-                style={{ width: '100%' }}
-                value={(actual as number) ?? undefined}
-                placeholder="入力"
-                onChange={(v) => onChange(prop.key, v ?? null)}
-                addonAfter={prop.unit || undefined}
-              />
-            )
+            <Flex align="center" style={{ width: '100%' }}>
+              {prop.xsiType === 'StringValue' ? (
+                <Input
+                  variant="borderless"
+                  style={{ flex: 1 }}
+                  styles={{ input: { paddingLeft: 0 } }}
+                  value={(actual as string) ?? ''}
+                  placeholder="入力"
+                  onChange={(e) => onChange(prop.key, e.target.value || null)}
+                />
+              ) : (
+                <InputNumber
+                  variant="borderless"
+                  style={{ flex: 1 }}
+                  styles={{ input: { paddingLeft: 0 } }}
+                  value={(actual as number) ?? undefined}
+                  placeholder="入力"
+                  onChange={(v) => onChange(prop.key, v ?? null)}
+                />
+              )}
+              {prop.unit && (
+                <Text type="secondary" style={{ fontSize: 12, paddingRight: 6, flexShrink: 0 }}>{prop.unit}</Text>
+              )}
+            </Flex>
           )}
         </div>
-      </Col>
-    </Row>
+      </div>
+
+      {/* 確信度ボタン（実績値の下） */}
+      {!readOnly && (
+        <div>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>定性評価</Text>
+          <Flex gap={4}>
+            {confidenceOptions.map((level) => {
+              const style = getConfidenceStyle(level);
+              return (
+                <Button
+                  key={level}
+                  size="small"
+                  onClick={() => setConfidence(level)}
+                  style={{
+                    ...style,
+                    fontSize: 11,
+                    width: 56,
+                    fontWeight: confidence === level ? 'bold' : 'normal',
+                    outline: confidence === level ? `2px solid ${style.borderColor}` : undefined,
+                  }}
+                >
+                  {level}
+                </Button>
+              );
+            })}
+          </Flex>
+        </div>
+      )}
+
+      {/* ＋ 値の追加ボタン & 追加された不確かさ評価行 */}
+      {!readOnly && (
+        <div>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>定量評価</Text>
+          {/* 追加済み行 */}
+          {addedValues.map((av) => (
+            <Flex key={av.id} align="center" gap={4} style={{ marginBottom: 4 }}>
+              <Select
+                style={{ flex: 1, minWidth: 0 }}
+                placeholder="定量評価（不確かさ基準名）"
+                value={av.uncertaintyKey || undefined}
+                options={UNCERTAINTY_OPTIONS}
+                onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
+                allowClear
+              />
+              <Input
+                style={{ width: 80, flexShrink: 0 }}
+                placeholder="値"
+                value={av.value}
+                onChange={(e) => handleValueChange(av.id, e.target.value)}
+              />
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleRemoveValue(av.id)}
+              />
+            </Flex>
+          ))}
+
+          {/* ＋ 値の追加ボタン */}
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={handleAddValue}
+            style={{ background: '#1d4e63', borderColor: '#1d4e63' }}
+          >
+            追加
+          </Button>
+        </div>
+      )}
+    </Flex>
 
   </Card>
-);
+  );
+};
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // プロパティカード一覧（共通部品）
@@ -477,17 +668,6 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onTemplateIdxChange,
   onCommentClick,
 }) => {
-  // ─── 不確かさ選択モーダル state ───────────────────────────
-  const [uncertaintyTarget, setUncertaintyTarget] = useState<MockProperty | null>(null);
-
-  const handleOpenUncertainty = useCallback((prop: MockProperty) => {
-    setUncertaintyTarget(prop);
-  }, []);
-
-  const handleAssignUncertainty = useCallback((_payload: AssignPayload) => {
-    setUncertaintyTarget(null);
-  }, []);
-
   if (!template) {
     return (
       <Flex justify="center" align="center" style={{ height: 200 }}>
@@ -524,7 +704,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
 
       <Row gutter={[8, 8]}>
         {template.properties.map((prop) => (
-          <Col span={12} key={prop.key}>
+          <Col span={8} key={prop.key}>
             <PropertyCard
               prop={prop}
               actual={taskTransition?.actuals[prop.key] ?? null}
@@ -532,29 +712,10 @@ const PropertyList: React.FC<PropertyListProps> = ({
               onChange={(key, value) => {
                 if (displayKey) onActualChange(displayKey.taskNo, displayKey.transitionId, key, value);
               }}
-              onOpenUncertainty={handleOpenUncertainty}
             />
           </Col>
         ))}
       </Row>
-
-      {/* 不確かさ選択モーダル */}
-      {uncertaintyTarget && (
-        <UncertaintyCriteriaSelectorModal
-          open={true}
-          targetProperty={{
-            name: uncertaintyTarget.label,
-            xpath: uncertaintyTarget.key,
-            tag: 'property',
-            type: uncertaintyTarget.xsiType.replace('Value', ''),
-            value: '',
-            unit: uncertaintyTarget.unit,
-            section: 'condition',
-          }}
-          onClose={() => setUncertaintyTarget(null)}
-          onAssign={handleAssignUncertainty}
-        />
-      )}
 
       {/* 追加ボタン群（DataRecordDialog 準拠） */}
       {!isReadOnly && (
