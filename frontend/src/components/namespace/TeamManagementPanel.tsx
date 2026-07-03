@@ -20,31 +20,9 @@ import {
 import TeamAddDialog from './TeamAddDialog';
 import TeamEditDialog from './TeamEditDialog';
 import teamsMockRaw from '../../../mock/namespace/department-unit-members.json';
+import type { Team, TeamMember } from '@/types/namespace';
 
 const { Text, Title } = Typography;
-
-// ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-
-interface TeamMember {
-  userId: string;
-  userName: string;
-  departmentUnitId: string | null;
-}
-
-interface Team {
-  departmentUnitId: string;
-  unitName: string;
-  /** 所属部署名 */
-  departmentName?: string;
-  /** チームの代表者（作成者） */
-  ownerName: string;
-  nsPrefix?: string;
-  nsUri?: string;
-  nsDisplayName?: string;
-  members: TeamMember[];
-}
 
 // ──────────────────────────────────────────────
 // ダミーデータ（API実装後に差し替え）

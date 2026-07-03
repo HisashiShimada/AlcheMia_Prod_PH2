@@ -6,6 +6,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined
 import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
 import type { TableColumnsType } from 'antd';
 import ShareScopeModal, { type ShareSourceRole, type ShareTarget, type ScopeNode } from './ShareScopeModal';
+import type { PrefixRow, NewPrefixRow, RawNode } from '@/types/namespace';
 
 const { Text } = Typography;
 
@@ -16,34 +17,8 @@ const { Text } = Typography;
 const CURRENT_USER_NS_KEY = 'rd-materials';
 
 // ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-interface PrefixRow {
-  id: string;
-  prefix: string;
-  description: string;
-  /** ノードの階層ラベルパス（スコープ列表示用） */
-  scopePath: string;
-  isActive?: boolean;
-}
-
-interface NewPrefixRow {
-  _rowId: string;
-  prefix: string;
-  description: string;
-}
-
-// ──────────────────────────────────────────────
 // モックデータ: uncertainty-scope.json からフラット化
 // ──────────────────────────────────────────────
-interface RawNode {
-  key: string;
-  label: string;
-  icon?: string;
-  prefix?: string;
-  description?: string;
-  children?: RawNode[];
-}
 
 // ── 指定キーへの祖先キー一覧を返す
 const getAncestorKeys = (targetKey: string, nodes: RawNode[], ancestors: string[] = []): string[] | null => {

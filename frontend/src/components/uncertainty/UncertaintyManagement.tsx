@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Button, Input, Segmented, Space, Tree, message } from 'antd';
+import { Button, Input, Space, Tree, message } from 'antd';
 import { ImportOutlined, ExportOutlined, PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
 import UncertaintyListTable from './UncertaintyListTable';
 import type { UncertaintyTemplate } from './UncertaintyListTable';
@@ -86,8 +86,6 @@ const filterTreeForUser = (nodes: NamespaceNode[], userNsKey: string): Namespace
 export default function UncertaintyManagement() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState<'namespace' | 'prefix' | 'criteria'>('prefix');
-  const [viewMode, setViewMode] = useState<'view' | 'edit'>('view');
-
   // 名前空間ツリー選択（左ペイン）→ NamespaceMain に連携
   const [selectedNsKey,    setSelectedNsKey]    = useState<string | null>(null);
 
@@ -336,18 +334,6 @@ export default function UncertaintyManagement() {
                 {tab.label}
               </div>
             ))}
-            {/* モード切替トグル（右端） */}
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', padding: '0 8px' }}>
-              <Segmented
-                size="small"
-                value={viewMode}
-                onChange={(val) => setViewMode(val as 'view' | 'edit')}
-                options={[
-                  { label: '閲覧モード', value: 'view' },
-                  { label: '編集モード', value: 'edit' },
-                ]}
-              />
-            </div>
           </div>
 
           {/* タブコンテンツ */}
@@ -358,13 +344,12 @@ export default function UncertaintyManagement() {
               <NamespaceMain
                 hideTree
                 externalSelectedNsKey={selectedNsKey}
-                viewOnly={viewMode === 'view'}
               />
             </div>
 
             {/* Prefix管理タブ */}
             <div style={{ display: activeTab === 'prefix' ? 'flex' : 'none', height: '100%', overflow: 'hidden' }}>
-              <PrefixManagement showShareButton={true} viewOnly={viewMode === 'view'} />
+              <PrefixManagement showShareButton={true} />
             </div>
 
             {/* 不確かさ基準管理タブ：一覧のみ */}

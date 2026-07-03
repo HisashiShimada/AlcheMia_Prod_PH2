@@ -21,59 +21,17 @@ import TeamAddDialog from './TeamAddDialog';
 import TeamEditDialog from './TeamEditDialog';
 import TeamManagementPanel from './TeamManagementPanel';
 import ShareScopeModal, { type ShareSourceRole, type ShareTarget } from './ShareScopeModal';
+import type {
+  NamespaceNode,
+  Term,
+  NewTermRow,
+  AttributeMaster,
+  FlatNsNode,
+  ScopeTreeNode,
+  UserNsRole,
+} from '@/types/namespace';
 
 const { Text } = Typography;
-
-// ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-interface NamespaceNode {
-  key: string;
-  label: string;
-  count: number;
-  icon: string;
-  children?: NamespaceNode[];
-}
-
-interface Term {
-  id: string;
-  qname: string;
-  prefix: string;
-  localName: string;
-  displayName: string;
-  description: string;
-  type: string;
-  unitHint?: string;
-  isActive?: boolean;
-}
-
-interface NewTermRow {
-  _rowId: string; // 一時ID（テーブル行のkey用）
-  prefix: string;
-  localName: string;
-  displayName: string;
-  description: string;
-  type: string;
-  unitHint: string;
-}
-
-interface AttributeMaster {
-  attributeName: string;
-  attributeValue: string;
-  isActive: boolean;
-}
-
-interface FlatNsNode {
-  key: string;
-  prefix: string;
-  uri: string;
-  level: 'global' | 'organization' | 'personal';
-  termCount: number;
-  displayName?: string;
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
 
 // ──────────────────────────────────────────────
 // レベル別アイコン
@@ -99,15 +57,6 @@ const flattenTree = (nodes: NamespaceNode[]): FlatNsNode[] =>
 // uncertainty-scope.json のツリーを再帰的にたどる
 // 例: "materials" → "🏢 株式会社サンプルテック › 研究開発部 › 材料グループ"
 // ──────────────────────────────────────────────
-type ScopeTreeNode = {
-  key: string;
-  label: string;
-  icon?: string;
-  prefix?: string;
-  children?: ScopeTreeNode[];
-};
-
-
 // ルートを含めてツリー全体から検索するラッパー
 const getScopeFullPath = (prefix: string): string => {
   const tree = namespaceTreeRaw as ScopeTreeNode[];
@@ -139,12 +88,6 @@ const getScopeFullPath = (prefix: string): string => {
 //   'team_owner'  → 自分のチーム・そのメンバーNSを表示（祖先部署は非表示）
 //   'member'      → 自分への祖先パスのみ表示（従来の動作）
 // ──────────────────────────────────────────────
-type UserNsRole =
-  | { kind: 'sys_admin'  }
-  | { kind: 'dept_owner'; deptKey: string }
-  | { kind: 'team_owner'; teamKey: string }
-  | { kind: 'member';     nsKey: string  };
-
 const CURRENT_USER_ROLE: UserNsRole = { kind: 'dept_owner', deptKey: 'dept-rd' };
 // 他のロールで試す場合はコメントを切り替え:
 // const CURRENT_USER_ROLE: UserNsRole = { kind: 'sys_admin' };

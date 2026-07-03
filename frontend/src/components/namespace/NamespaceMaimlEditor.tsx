@@ -10,6 +10,7 @@ import {
   ShopOutlined, RightOutlined, DownOutlined,
 } from '@ant-design/icons';
 import scopeTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
+import type { SectionKey, NsItem, MaimlScopeNode } from '@/types/namespace';
 
 const { Text } = Typography;
 
@@ -18,38 +19,6 @@ const { Text } = Typography;
 // 本番実装では認証APIから取得する
 // ──────────────────────────────────────────────
 const CURRENT_USER_TEAM_KEY = 'rd-materials'; // 材料グループ（研究開発部 配下）
-
-// ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-type SectionKey = 'global' | 'organization' | 'department' | 'team' | 'personal';
-
-interface NsItem {
-  key: string;
-  prefix: string;
-  uri: string;
-  order: number;
-  auto: boolean;
-  sectionKey: SectionKey;
-  /** 部署名・チーム名・ユーザー名 */
-  groupLabel: string;
-  /** セクションヘッダー行に表示するURI */
-  groupUri: string;
-  deleted: boolean;
-}
-
-interface ScopeNode {
-  key: string;
-  label: string;
-  count: number;
-  icon?: string;
-  prefix?: string;
-  uri?: string;
-  description?: string;
-  /** 組織ノードが持つ複数の名前空間定義 */
-  namespaces?: { key: string; prefix: string; uri: string }[];
-  children?: ScopeNode[];
-}
 
 export interface NamespaceMaimlEditorProps {
   open: boolean;
@@ -63,7 +32,7 @@ export interface NamespaceMaimlEditorProps {
 // ユーザーの所属チームキーを渡すと、所属部署・所属チームのみにフィルタリングする
 // ──────────────────────────────────────────────
 const buildAllNamespaces = (userTeamKey: string): NsItem[] => {
-  const tree = scopeTreeRaw as ScopeNode[];
+  const tree = scopeTreeRaw as MaimlScopeNode[];
   const result: NsItem[] = [];
   let order = 1;
 

@@ -5,14 +5,9 @@ import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message 
 import { UserOutlined } from '@ant-design/icons';
 import membersMockRaw from '../../../mock/namespace/department-unit-members.json';
 import { generateNamespaceUri } from '../../utils/namespaceUriGenerator';
+import type { OrgUser } from '@/types/namespace';
 
 const { Text } = Typography;
-
-interface OrgUser {
-  userId: string;
-  userName: string;
-  departmentUnitId: string | null;
-}
 
 interface TeamAddDialogProps {
   open: boolean;

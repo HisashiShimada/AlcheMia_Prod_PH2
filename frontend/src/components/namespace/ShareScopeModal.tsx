@@ -9,35 +9,12 @@ import {
   UserOutlined,
   GlobalOutlined,
 } from '@ant-design/icons';
+import type { ShareSourceRole, ShareTarget, ScopeNode } from '@/types/namespace';
+
+// re-export（既存の import 側を壊さないため）
+export type { ShareSourceRole, ShareTarget, ScopeNode } from '@/types/namespace';
 
 const { Text } = Typography;
-
-// ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-
-/** 共有元のロール */
-export type ShareSourceRole =
-  | { kind: 'sys_admin' }
-  | { kind: 'dept_owner'; deptKey: string; deptLabel: string }
-  | { kind: 'team_owner'; teamKey: string; teamLabel: string };
-
-/** 共有先として選択されたノード情報 */
-export interface ShareTarget {
-  key: string;
-  label: string;
-  prefix: string;
-}
-
-/** ツリーノード（共有先選択用） */
-export interface ScopeNode {
-  key: string;
-  label: string;
-  prefix?: string;
-  icon?: React.ReactNode;
-  selectable?: boolean;
-  children?: ScopeNode[];
-}
 
 // ──────────────────────────────────────────────
 // Props
