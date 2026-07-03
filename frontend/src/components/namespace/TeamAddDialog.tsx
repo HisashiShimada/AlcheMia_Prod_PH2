@@ -34,7 +34,6 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   onCreated,
 }) => {
   const [teamName, setTeamName]         = useState('');
-  const [nsPrefix, setNsPrefix]         = useState('');
   const [members, setMembers]           = useState<OrgUser[]>([]);
   const [addTarget, setAddTarget]       = useState<string | undefined>(undefined);
   const [loading, setLoading]           = useState(false);
@@ -96,7 +95,6 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
         body: JSON.stringify({
           unitName:     teamName.trim(),
           departmentCd: parentDepartmentCd ?? null,
-          nsPrefix:     nsPrefix.trim() || undefined,
           nsUri:        autoUri,
           layer:        1,
         }),
@@ -135,7 +133,6 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
 
   const handleReset = () => {
     setTeamName('');
-    setNsPrefix('');
     setMembers([]);
     setAddTarget(undefined);
   };
@@ -193,18 +190,6 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
             placeholder="チーム名を入力..."
             value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
-            disabled={loading}
-          />
-        </div>
-
-        {/* 名前空間Prefix */}
-        <div>
-          <Text strong>名前空間Prefix</Text>
-          <Input
-            style={{ marginTop: 4 }}
-            placeholder="例: materials（任意）"
-            value={nsPrefix}
-            onChange={(e) => setNsPrefix(e.target.value)}
             disabled={loading}
           />
         </div>

@@ -4,10 +4,10 @@
 ---
 title: MaiML 名前空間管理ツール メイン画面 UI設計書
 category: UI設計
-version: 1.7.0
-last_updated: 2026-06-29
+version: 2.0.0
+last_updated: 2026-07-02
 author: Development Team
-tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-delete, pagination, context-menu, cancel-button, api-fetch, share-to-org]
+tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-inactive, pagination, context-menu, cancel-button, api-fetch, share-scope-modal, tabs, team-management, filter-bar]
 ---
 
 ## 変更履歴
@@ -21,6 +21,8 @@ tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-delete, pag
 | 1.5.0 | 2026-06-18 | 実装との差異を反映：コンテキストメニューをチームノード専用に修正、型初期値を「未選択」に修正、エクスポート仕様修正（選択中の用語のみ）、7.1から「名前空間を追加」ボタンイベント削除、インライン編集キャンセルボタン記述修正、チーム追加/編集ダイアログセクション追加、API連携セクション追加 |
 | 1.6.0 | 2026-06-23 | 実装との差異を反映：NewTermRow 型に `prefix` フィールドを追加 |
 | 1.7.0 | 2026-06-29 | 「組織に共有」機能を追記：Personal 選択 + チェックあり時の右端ボタン表示仕様・共有先制限・確認モーダル仕様を追加。組織共有バーの背景色削除・右寄せ化を反映。用語Prefix・スコープ・型・単位フィルターセクション追加 |
+| 1.8.0 | 2026-06-30 | サブタブ（用語管理 / チーム管理）追加：画面全体構造にタブを追記、チーム管理タブ（TeamManagementPanel）を新セクション12として追加、TeamAddDialog に名前空間Prefix・URI自動生成フィールドを追記、URI自動生成ユーティリティ（generateNamespaceUri）を追記 |
+| 2.0.0 | 2026-07-02 | 実装との差異を反映：用語テーブルカラムを QName 単一列→Prefix+ローカル名+スコープの3列に分割、操作ボタンを「削除」→「非アクティブ/アクティブ」切替に変更、ツールバー一括操作も「削除」→「非アクティブ」に変更、セクション11「共有する」機能を ShareScopeModal（ツリー選択式）に全面書き換え、フィルターバー仕様追記、isActive フィールドを Term 型に追加 |
 
 ## 関連ドキュメント
 - [名前空間追加ダイアログ](ui_namespace_add_dialog.md)
@@ -76,6 +78,39 @@ MaiML名前空間管理ツールのメイン画面。左ペイン（名前空間
 ```
 
 > **操作ボタン**: 各行に「✏ 編集」「🗑 削除」ボタン（詳細ボタンは廃止）
+
+### 2.2. 実験管理者メニューのタブ構成
+
+> ⚠️ **実装の仕様**: 「チーム管理」は `NamespaceMain` 内のサブタブではなく、`ExperimentAdminMenu` のトップレベルタブ（tab key=`'5'`）として独立している。
+
+実験管理者メニュー（`ExperimentAdminMenu`）の SubHeader には以下のタブが表示される：
+
+| key | ラベル | コンポーネント |
+|-----|-------|-------------|
+| `'1'` | プロジェクト管理 | `<ProjectManagement />` |
+| `'2'` | フォーマット管理 | `<FormatManagement />` |
+| `'3'` | 進捗確認 | `<ProgressMonitoring />` |
+| `'4'` | テンプレート管理 | `<UncertaintyManagement />` |
+| `'5'` | **チーム管理** | **`<TeamManagementPanel />`** |
+| `'6'` | 鍵管理 | `<KeyManagementScreen />` |
+
+**「チーム管理」タブの実装**:
+- `ExperimentAdminMenu.tsx` の `tabItems` 配列に `key: '5'` として定義
+- `currentTab === '5'` のとき `<TeamManagementPanel />` を `display: block` で表示
+- 名前空間管理（`NamespaceMain`）とは別の独立した画面として表示される
+
+```typescript
+// ExperimentAdminMenu.tsx
+const tabItems = [
+  // ...
+  {
+    key: '5',
+    label: 'チーム管理',
+    icon: <TeamOutlined />,
+  },
+  // ...
+];
+```
 
 ---
 
@@ -378,24 +413,31 @@ const namespaceTreeData: NamespaceTreeNode[] = [
 
 **カラム定義**:
 
+> ⚠️ **実装の仕様**: QName（`prefix:localName` 単一列）は廃止。`Prefix`・`ローカル名`・`スコープ` の3列に分割されている。`globalOnly=true` のとき `スコープ` 列は非表示。
+
 | カラム | dataIndex | 幅 | ソート | 説明 |
 |--------|-----------|-----|--------|------|
-| チェックボックス | （rowSelection） | 40px | - | 複数選択用（カスタムヘッダー） |
-| QName | `qname` | 220px | 有効（デフォルト昇順） | `prefix:localName` 形式 |
+| チェックボックス | （rowSelection） | — | - | 複数選択用（カスタムヘッダー）。新規行（`_rowId`）はチェック不可 |
+| Prefix | `prefix` | 140px | 有効（デフォルト昇順） | 名前空間 prefix。新規行は `<Select>` で選択 |
+| ローカル名 | `localName` | 160px | 有効 | 用語のローカル名。新規行は `<Input>` で入力 |
 | 表示名 | `displayName` | 130px | 有効 | 用語の日本語表示名 |
 | 説明 | `description` | 180px | 有効 | 用語の説明文（省略表示） |
-| 型 | `type` | 140px | 有効 | 型ヒント（stringType / floatType 等） |
+| スコープ | （prefix から導出） | 180px | 有効 | prefix が属する名前空間スコープをフルパスの末尾ノード名で `<Tag>` 表示。ホバーで Tooltip にフルパスを表示。`globalOnly=true` のとき非表示 |
+| 型 | `type` | 140px | 有効 | 型ヒント（stringType / floatType 等）。`<Tag>` 表示 |
 | 単位 | `unitHint` | 100px | 有効 | 単位ヒント（任意） |
-| 操作 | （actions） | 130px | - | 編集（✏）・削除（🗑）ボタン |
+| 操作 | （actions） | 130px | - | 編集（✏）・非アクティブ/アクティブ切替ボタン |
 
 **操作ボタン仕様**:
+
+> ⚠️ **実装の仕様**: 「削除」ボタンは廃止。代わりにアクティブ状態を切り替える「非アクティブ」/「アクティブ」ボタンを配置。
 
 | ボタン | アイコン | 動作 |
 |--------|---------|------|
 | 編集 | `<EditOutlined />` | インライン編集行に切り替え |
-| 削除 | `<DeleteOutlined />` | 確認ダイアログ後に削除 |
+| 非アクティブ | なし（`danger` スタイル） | `isActive === true` の用語に表示。クリックでアクティブ→非アクティブに切替 |
+| アクティブ | なし | `isActive === false` の用語に表示。クリックで非アクティブ→アクティブに切替 |
 
-> **注意**: 詳細ボタン（📋）は廃止。操作列には「編集」「削除」のみ。
+> **注意**: 詳細ボタン（📋）は廃止。操作列には「編集」「非アクティブ/アクティブ」のみ。
 
 **ヘッダーチェックボックス仕様**:
 
@@ -458,6 +500,7 @@ interface Term {
   description: string;
   type: string;
   unitHint?: string;      // 単位ヒント（任意）
+  isActive: boolean;      // アクティブ状態（false のとき行をグレーアウト表示）
 }
 
 const termsMockData: Term[] = [
@@ -482,7 +525,7 @@ const termsMockData: Term[] = [
 |--------|--------|---------|---------|------|
 | インポート | `default` | — | 常時 | CSVファイル選択ダイアログを開く → 用語を一括インポート |
 | エクスポート | `default` | — | 常時 | **選択中の用語**をCSVファイルとしてダウンロード（未選択時はエラーメッセージを表示して中断） |
-| 選択した用語を削除（N件） | `danger` | `<DeleteOutlined />` | 1件以上選択時のみ表示 | 確認ダイアログ後に一括削除 |
+| 選択した用語を非アクティブ（N件） | `danger` | `<StopOutlined />` | 1件以上選択時のみ表示（アクションバーに表示） | 確認ダイアログ後に一括非アクティブ化 |
 | ＋ 用語を追加 | `primary` | `<PlusOutlined />` | 常時 | テーブル先頭に空の入力行を追加 |
 | 保存 | `primary` | — | 入力行が1件以上のとき活性 | 全入力行を一括確定（バリデーション後） |
 | キャンセル | `default` | — | 入力行が1件以上のとき活性 | 全入力行を破棄（`newTerms` をクリア） |
@@ -740,8 +783,12 @@ const statusBarMock: StatusBarData = {
 │ チーム名 *                             │
 │ [チーム名を入力...                   ] │
 │                                        │
+│ 名前空間URI（自動生成）                │
+│ [https://ns.example.org/...  （表示のみ）] │
+│                                        │
 │ メンバー（任意）                       │
-│ [名前で検索して選択...         ▼     ] │
+│ [メンバーを選択...              ▼    ] │
+│  ✕山田 太郎   ✕佐藤 花子              │
 │ ※メンバーはあとから「編集」で追加可    │
 ├────────────────────────────────────────┤
 │              [キャンセル] [作成]        │
@@ -753,8 +800,9 @@ const statusBarMock: StatusBarData = {
 | フィールド | コンポーネント | 必須 | 説明 |
 |-----------|--------------|------|------|
 | 追加先 | `<Tag color="blue">` | — | 親ノードのラベルを表示（読み取り専用） |
-| チーム名 | `<Input>` | ✅ | 新規チーム名（空の場合「作成」ボタン非活性） |
-| メンバー | `<Select mode="multiple">` | 任意 | 組織内ユーザーを名前で検索して複数選択 |
+| チーム名 | `<Input>` | ✅ | 新規チーム名（空の場合「作成」ボタン非活性）。入力変更時に URI が自動更新される |
+| 名前空間URI（自動生成） | `<Input disabled>` | — | `generateNamespaceUri(teamName, parentPath)` で生成した URI を読み取り専用表示。チーム名変更のたびにリアルタイム更新 |
+| メンバー | `<Select>（単数選択）+ 追加ボタン + メンバータグ一覧` | 任意 | プルダウンで1名ずつ選択して追加。選択済みメンバーはタグ（`<Tag closable>`）で表示し × で削除可 |
 
 ### 9.5. ボタン仕様
 
@@ -991,7 +1039,173 @@ const shareTargetMock: ShareTarget = {
 
 ---
 
-## 12. 更新履歴
+## 12. チーム管理タブ（TeamManagementPanel）
+
+### 12.1. 概要
+
+`ExperimentAdminMenu` の tab key=`'5'`「チーム管理」タブを選択すると表示される 2ペインレイアウト。  
+ログイン中の実験管理者が作成したチーム一覧を左ペインに表示し、選択したチームの詳細・メンバー管理を右ペインで行う。
+
+**コンポーネントファイル**: `frontend/src/components/namespace/TeamManagementPanel.tsx`
+
+> ⚠️ **実装の仕様**: `NamespaceMain` 内のサブタブとして表示されるのではなく、実験管理メニューのトップレベルタブとして独立表示される。
+
+### 12.2. レイアウト
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ チーム一覧         チームを作成[+] │  チーム詳細（右）                    │
+│ （左 240px）                       │                                      │
+│ ─────────────────────────────────  │  ─────────────────────────────────   │
+│ 🟢 材料解析チーム  2名             │  チーム名:  材料解析チーム           │
+│ 🟢 データ処理班    0名             │  代表者:    山田 太郎（自分）         │
+│                                    │  表示名:    材料科学名前空間          │
+│                                    │  名前空間URI: https://example.org/.. │
+│                                    │  ─────────────────────────────────   │
+│                                    │  メンバー          [編集]            │
+│                                    │   佐藤花子  [削除]                   │
+│                                    │   鈴木一郎  [削除]                   │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 12.3. 左ペイン仕様（チーム一覧）
+
+| 項目 | 仕様 |
+|------|------|
+| コンポーネント | `<List>` (Ant Design) |
+| 幅 | 240px（固定） |
+| データソース | `GET /api/v1/department-units/my-teams`（失敗時はダミーデータを使用） |
+| 選択状態 | クリックで右ペインに詳細を表示。初期選択は先頭チーム |
+| ハイライト | 選択中チームを青背景（`#e6f4ff`）でハイライト |
+
+**左ペインヘッダー**:
+
+| 要素 | 仕様 |
+|------|------|
+| タイトル | 「チーム一覧」（`<Title level={5}>`） |
+| 「チームを作成」ボタン | `<Button type="primary" size="small" icon={<PlusOutlined />}>` をヘッダー行右端に配置。クリックで `TeamAddDialog` を開く |
+
+> ⚠️ **実装の仕様**: 「チームを作成」ボタンはペインのフッターではなく、ヘッダー行（タイトルと同じ行）の右端に `type="primary"` `size="small"` で配置される。
+
+**リスト項目**:
+
+| 要素 | 内容 |
+|------|------|
+| ステータスアイコン | 🟢（常時表示） |
+| チーム名 | `team.unitName` |
+| メンバー数 | `N名`（`team.members.length` 件数を表示） |
+
+> ⚠️ **実装の仕様**: リスト項目に [編集] ボタンは**存在しない**。チーム編集は右ペインの「編集」ボタン経由で行う。
+
+### 12.4. 右ペイン仕様（チーム詳細）
+
+#### 12.4.1. チーム未選択時
+
+```
+（チームを選択してください）
+```
+
+`<Empty description="チームを選択してください" />` を中央表示。
+
+#### 12.4.2. チーム選択時
+
+**チーム情報セクション**:
+
+| フィールド | コンポーネント | データソース |
+|-----------|--------------|------------|
+| チーム名 | `<Title level={5}>` | `selectedTeam.unitName` |
+| 代表者 | `<Text>` + `<UserOutlined />` | `selectedTeam.ownerName` |
+| 表示名 | `<Text>` | `selectedTeam.nsDisplayName`（未設定時は `—`） |
+| 名前空間URI | `<Text>` + `<LinkOutlined />` | `selectedTeam.nsUri`（未設定時は `—`） |
+
+> ⚠️ **実装の仕様**: チーム情報に **Prefix フィールドは表示されない**。「表示名」と「名前空間URI」のみを表示する。
+
+**メンバー一覧セクション**:
+
+| 項目 | 仕様 |
+|------|------|
+| コンポーネント | `<Table>` (Ant Design) |
+| データソース | `selectedTeam.members` |
+| サイズ | `small` |
+
+**メンバーテーブルカラム**:
+
+| カラム | dataIndex | 説明 |
+|--------|-----------|------|
+| ユーザー名 | `userName` | メンバーの表示名 |
+| 削除 | — | 「削除」ボタン（クリックでメンバーを削除）→ 確認なしで即時削除 |
+
+> ⚠️ **実装の仕様**: メンバーテーブルに **ロール（役職）カラムは存在しない**。ユーザー名と削除ボタンのみ。
+
+**メンバーセクションヘッダーの「編集」ボタン**:
+
+| 項目 | 値 |
+|------|-----|
+| コンポーネント | `<Button>` |
+| ラベル | 「編集」 |
+| タイプ | `default` (小) |
+| 配置 | メンバーセクションタイトル（「メンバー」）の右端 |
+| 動作 | チーム編集ダイアログ（`TeamEditDialog`）を開く |
+
+> ⚠️ **実装の仕様**: 「＋ メンバーを追加」ボタンは存在しない。メンバー追加・削除は「編集」ボタン → `TeamEditDialog` 経由で行う。
+
+### 12.5. 型定義
+
+```typescript
+interface TeamMember {
+  userId: string;
+  userName: string;
+  departmentUnitId: string | null;
+}
+
+interface Team {
+  departmentUnitId: string;
+  unitName: string;
+  /** チームの代表者（作成者） */
+  ownerName: string;
+  nsUri?: string;          // 名前空間 URI（任意）
+  nsDisplayName?: string;  // 名前空間 表示名（任意）
+  members: TeamMember[];
+}
+```
+
+> ⚠️ **実装の仕様**: `nsPrefix` フィールドは型定義に存在しない。
+
+### 12.6. API連携
+
+| ステップ | メソッド | エンドポイント | 内容 |
+|---------|---------|--------------|------|
+| チーム一覧取得（初期ロード） | GET | `/api/v1/department-units/my-teams` | ログインユーザーが作成したチーム一覧を取得 |
+
+> **注意**: API 失敗時はダミーデータ（`DUMMY_TEAMS`）を使用する。  
+> メンバーデータは `frontend/mock/namespace/department-unit-members.json` から取得。
+
+### 12.7. ダミーデータ（API実装前）
+
+```typescript
+const DUMMY_TEAMS: Team[] = [
+  {
+    departmentUnitId: 'rd-materials',
+    unitName: '材料解析チーム',
+    ownerName: '山田 太郎（自分）',
+    nsUri: 'https://example.org/ns/materials/',
+    nsDisplayName: '材料科学名前空間',
+    members: [...],  // department-unit-members.json['rd-materials']
+  },
+  {
+    departmentUnitId: 'data-proc',
+    unitName: 'データ処理班',
+    ownerName: '山田 太郎（自分）',
+    nsUri: 'https://example.org/ns/dp/',
+    nsDisplayName: 'データ処理名前空間',
+    members: [],
+  },
+];
+```
+
+---
+
+## 13. 更新履歴
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
@@ -1003,3 +1217,6 @@ const shareTargetMock: ShareTarget = {
 | 2026-06-18 | v1.5.0: コンテキストメニューをチームノード専用に修正、エクスポート仕様修正（選択中の用語のみ）、7.1から「名前空間を追加」ボタンイベント削除、インライン編集（セクション8）・チーム追加ダイアログ（セクション9）・チーム編集ダイアログ（セクション10）を新規追加 | Cline |
 | 2026-06-23 | v1.6.0: 実装との差異を反映：NewTermRow 型に `prefix` フィールドを追加 | Cline |
 | 2026-06-29 | v1.7.0: 「組織に共有」機能（セクション11）を新規追加：Personal 選択 + チェックあり時の右端ボタン表示・共有先チームレベル制限・確認モーダル仕様・共有後の動作・モックデータ型定義 | Cline |
+| 2026-06-30 | v1.8.0: サブタブ（用語管理 / チーム管理）追加：画面全体構造にタブを追記、チーム管理タブ（TeamManagementPanel）を新セクション12として追加、TeamAddDialog に名前空間Prefix・URI自動生成フィールドを追記、URI自動生成ユーティリティ（generateNamespaceUri）を追記 | Cline |
+| 2026-07-01 | v1.9.0: 実装との差異を反映：Section 2.2 を「サブタブ構成」→「ExperimentAdminMenu のトップレベルタブ構成」に修正（チーム管理は NamespaceMain のサブタブではなく独立タブ key='5'）。Section 9（TeamAddDialog）に名前空間URI自動生成フィールド追記・メンバー選択UI を単数選択＋タグ方式に修正。Section 12（TeamManagementPanel）のレイアウト・左ペインヘッダー（「チームを作成」ボタン位置）・リスト項目（メンバー数表示・編集ボタン削除）・右ペイン（Prefix非表示・ロールカラム削除・「＋メンバーを追加」→「編集」ボタンに変更）・型定義（nsPrefix 削除）・ダミーデータを実装に合わせて更新 | Cline |
+| 2026-07-02 | v2.0.0: 用語テーブルカラムを QName 単一列→Prefix+ローカル名+スコープの3列に分割。操作ボタンを「削除」→「非アクティブ/アクティブ」切替に変更。ツールバー一括操作も「削除」→「非アクティブ」に変更（StopOutlined アイコン）。Term 型定義に `isActive` フィールドを追加。Section 11「組織に共有」機能を ShareScopeModal（ツリー選択式・共有先を都度選択）仕様に全面書き換え。 | Cline |

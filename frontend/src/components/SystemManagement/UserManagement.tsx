@@ -24,6 +24,7 @@ import {
   ReloadOutlined,
   UploadOutlined,
   DownloadOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UserRecord, CreateUserRequest, UpdateUserRequest } from '@/types/user';
@@ -41,8 +42,67 @@ import { fetchMasters as fetchRoles } from '@/services/roleApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
+import { generateNamespaceUri } from '@/utils/namespaceUriGenerator';
 
 const { Text } = Typography;
+
+// ── ユーザー追加/編集ダイアログ用: 名前空間フィールド
+interface UserNamespaceFieldsProps {
+  form: ReturnType<typeof Form.useForm>[0];
+  isEditing: boolean;
+}
+function UserNamespaceFields({ form, isEditing }: UserNamespaceFieldsProps) {
+  const watchedDeptCd: string = Form.useWatch('departmentCd', form) ?? '';
+
+  // ログイン中ユーザーの organizationCd を localStorage から取得
+  const organizationCd: string = (() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const raw = localStorage.getItem('userInfo');
+      if (!raw) return '';
+      const info = JSON.parse(raw) as { organizationCd?: string };
+      return info.organizationCd ?? '';
+    } catch {
+      return '';
+    }
+  })();
+
+  // 編集モード: 既存の URI を読み取り専用で表示
+  if (isEditing) {
+    const existingUri: string = Form.useWatch('namespaceUri', form) ?? '';
+    return (
+      <>
+        <Form.Item name="namespaceUri" label="名前空間URI">
+          <Input
+            readOnly
+            style={{ backgroundColor: '#f5f5f5', cursor: 'default', color: existingUri ? '#333' : '#aaa' }}
+            prefix={<LinkOutlined style={{ color: '#aaa' }} />}
+            placeholder="（未設定）"
+          />
+        </Form.Item>
+      </>
+    );
+  }
+
+  // 追加モード: URI は自動生成で読み取り専用
+  const autoUri = generateNamespaceUri(organizationCd, watchedDeptCd || undefined);
+  return (
+    <>
+      <Form.Item label="名前空間URI（自動生成）">
+        <Input
+          value={autoUri || '（部署を選択すると自動生成されます）'}
+          readOnly
+          style={{
+            backgroundColor: '#f5f5f5',
+            color: autoUri ? '#333' : '#aaa',
+            cursor: 'default',
+          }}
+          prefix={<LinkOutlined style={{ color: '#aaa' }} />}
+        />
+      </Form.Item>
+    </>
+  );
+}
 
 export default function UserManagement() {
   const { message, modal } = App.useApp();
@@ -448,6 +508,15 @@ export default function UserManagement() {
         await loadUsers();
         message.success(t('userManagement.messages.saveSuccess'));
       } else {
+        // organizationCd を localStorage から取得
+        const userInfoRaw = typeof window !== 'undefined' ? localStorage.getItem('userInfo') : null;
+        const orgCd: string = userInfoRaw
+          ? (JSON.parse(userInfoRaw) as { organizationCd?: string }).organizationCd ?? ''
+          : '';
+        const computedNsUri = generateNamespaceUri(
+          orgCd,
+          values.departmentCd || undefined,
+        );
         const createData: CreateUserRequest = {
           userId: values.mailAddress,
           userName: values.userName,
@@ -455,6 +524,7 @@ export default function UserManagement() {
           departmentCd: values.departmentCd,
           roleCd: values.roleCd,
           isActive: values.isActive,
+          namespaceUri: computedNsUri || undefined,
         };
         setLoading(true);
         await createUser(createData);
@@ -656,6 +726,7 @@ export default function UserManagement() {
               ]}
             />
           </Form.Item>
+          <UserNamespaceFields form={form} isEditing={!!editingUser} />
         </Form>
       </Modal>
 

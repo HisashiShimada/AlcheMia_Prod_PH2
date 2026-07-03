@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Button, Input, Space, Tree, message } from 'antd';
+import { Button, Input, Segmented, Space, Tree, message } from 'antd';
 import { ImportOutlined, ExportOutlined, PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
 import UncertaintyListTable from './UncertaintyListTable';
 import type { UncertaintyTemplate } from './UncertaintyListTable';
@@ -86,9 +86,9 @@ const filterTreeForUser = (nodes: NamespaceNode[], userNsKey: string): Namespace
 export default function UncertaintyManagement() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState<'namespace' | 'prefix' | 'criteria'>('prefix');
+  const [viewMode, setViewMode] = useState<'view' | 'edit'>('view');
 
   // 名前空間ツリー選択（左ペイン）→ NamespaceMain に連携
-  const [nsSearch,         setNsSearch]         = useState('');
   const [selectedNsKey,    setSelectedNsKey]    = useState<string | null>(null);
 
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -213,25 +213,16 @@ export default function UncertaintyManagement() {
       };
     }), [renderTreeTitle]);
 
-  // ──── 名前空間ツリーデータ（ユーザーフィルタ + 検索フィルタ付き）
+  // ──── 名前空間ツリーデータ（ユーザーフィルタ付き）
   const treeData = useMemo(() => {
     const allNodes = namespaceTreeRaw as NamespaceNode[];
     // ログインユーザーの所属パスのみに絞り込む
     const userFilteredNodes = filterTreeForUser(allNodes, CURRENT_USER_NS_KEY);
-    const filterBySearch = (nodes: NamespaceNode[]): NamespaceNode[] =>
-      nodes
-        .map((n) => ({ ...n, children: n.children ? filterBySearch(n.children) : undefined }))
-        .filter(
-          (n) =>
-            !nsSearch ||
-            n.label.toLowerCase().includes(nsSearch.toLowerCase()) ||
-            (n.children && n.children.length > 0),
-        );
-    return toAntTree(nsSearch ? filterBySearch(userFilteredNodes) : userFilteredNodes);
-  }, [nsSearch, toAntTree]);
+    return toAntTree(userFilteredNodes);
+  }, [toAntTree]);
 
   const TAB_LABELS: { key: 'namespace' | 'prefix' | 'criteria'; label: string }[] = [
-    { key: 'prefix',    label: '用語Prefix管理' },
+    { key: 'prefix',    label: 'Prefix管理' },
     { key: 'namespace', label: '用語管理' },
     { key: 'criteria',  label: '不確かさ基準管理' },
   ];
@@ -246,14 +237,6 @@ export default function UncertaintyManagement() {
           background: '#fafafa', borderRight: '1px solid #e8e8e8',
           display: 'flex', flexDirection: 'column', padding: '12px 12px 8px', overflowY: 'auto',
         }}>
-          <Input
-            prefix={<SearchOutlined />}
-            placeholder="名前空間を検索..."
-            allowClear
-            value={nsSearch}
-            onChange={(e) => setNsSearch(e.target.value)}
-            style={{ marginBottom: 10 }}
-          />
           <Tree
             key={treeData.map((n: any) => n.key).join(',')}
             blockNode
@@ -336,7 +319,7 @@ export default function UncertaintyManagement() {
             padding: '0 16px',
             flexShrink: 0,
           }}>
-            {TAB_LABELS.map((tab) => (
+          {TAB_LABELS.map((tab) => (
               <div
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -353,6 +336,18 @@ export default function UncertaintyManagement() {
                 {tab.label}
               </div>
             ))}
+            {/* モード切替トグル（右端） */}
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', padding: '0 8px' }}>
+              <Segmented
+                size="small"
+                value={viewMode}
+                onChange={(val) => setViewMode(val as 'view' | 'edit')}
+                options={[
+                  { label: '閲覧モード', value: 'view' },
+                  { label: '編集モード', value: 'edit' },
+                ]}
+              />
+            </div>
           </div>
 
           {/* タブコンテンツ */}
@@ -363,12 +358,13 @@ export default function UncertaintyManagement() {
               <NamespaceMain
                 hideTree
                 externalSelectedNsKey={selectedNsKey}
+                viewOnly={viewMode === 'view'}
               />
             </div>
 
             {/* Prefix管理タブ */}
             <div style={{ display: activeTab === 'prefix' ? 'flex' : 'none', height: '100%', overflow: 'hidden' }}>
-              <PrefixManagement showShareButton={true} />
+              <PrefixManagement showShareButton={true} viewOnly={viewMode === 'view'} />
             </div>
 
             {/* 不確かさ基準管理タブ：一覧のみ */}

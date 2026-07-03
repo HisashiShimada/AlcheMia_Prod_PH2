@@ -4,6 +4,7 @@
  */
 
 import * as userRepository from '../repositories/userRepository';
+import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
 import { EmailService } from './emailService';
 import { UserRow } from '../repositories/userRepository';
 import { getMessage } from '../utils/messages';
@@ -77,6 +78,8 @@ export async function createUser(
     departmentCd?: string;
     roleCd: string;
     isActive?: boolean;
+    namespacePrefix?: string;
+    namespaceUri?: string;
   },
   createUserId: string
 ): Promise<UserRow> {
@@ -114,6 +117,23 @@ export async function createUser(
       plainPassword,
       createUserId
     );
+
+    // 名前空間登録（prefix と uri が両方指定された場合のみ）
+    if (data.namespacePrefix && data.namespaceUri) {
+      try {
+        await namespaceTermRepository.createNamespace({
+          organizationId,
+          prefix: data.namespacePrefix,
+          uri: data.namespaceUri,
+          userId: data.userId,
+          departmentCd: data.departmentCd,
+        });
+        console.log(`[userService] 名前空間登録成功: prefix=${data.namespacePrefix}`);
+      } catch (nsError) {
+        // 名前空間登録失敗はログに記録するが、ユーザー作成は成功とする
+        console.warn(`[userService] 名前空間登録失敗（ユーザー作成は成功）: prefix=${data.namespacePrefix}`, nsError);
+      }
+    }
 
     // アカウント作成完了メールを送信
     // 本番環境では常に送信、開発環境では EMAIL_ENABLED=true の場合のみ送信

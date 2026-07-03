@@ -1,93 +1,79 @@
 /**
- * 名前空間URI 自動生成ユーティリティ
+ * 名前空間URI自動生成ユーティリティ
  *
  * URI生成ルール:
- *   組織CD + 部署CD + チームスラッグ → https://{orgCd}/{deptCd}/{unitSlug}/
- *   組織CD + 部署CD のみ            → https://{orgCd}/{deptCd}/
- *   組織CD のみ                     → https://{orgCd}/
+ *   https://{organization_cd}/{department_cd}/{unit_slug}/
+ *   - チームなし: https://{org_cd}/{dept_cd}/
+ *   - 部署なし:   https://{org_cd}/
+ *   - 日本語スラッグは wanakana でローマ字化
  *
- * 日本語ユニット名は wanakana を用いてローマ字スラッグ化する。
+ * @module namespaceUriGenerator
  */
+
 import { toRomaji } from 'wanakana';
 
 /**
- * 文字列をURI用スラッグに変換する。
+ * 文字列をURIスラッグに変換する
+ * - 日本語（ひらがな・カタカナ・漢字）→ wanakana でローマ字化
+ * - 空白・記号をハイフンに変換
+ * - 英数字・ハイフン・アンダースコア以外を除去
+ * - 小文字に統一
  *
- * 変換ルール（優先順位順）:
- *  1. ひらがな・カタカナ → toRomaji() でローマ字化
- *  2. 全角英数字 → 半角に変換
- *  3. スペース（全角含む） → ハイフン `-` に変換
- *  4. アンダースコア `_` はそのまま保持
- *  5. 英数字・ハイフン・アンダースコア以外の文字を除去
- *  6. 小文字に統一
- *  7. 連続するハイフンを1つに圧縮
- *  8. 先頭・末尾のハイフンを除去
+ * @param text - 変換元テキスト
+ * @returns URIスラッグ文字列
  */
-export function toUriSlug(text: string): string {
+function toSlug(text: string): string {
   if (!text) return '';
 
-  // ひらがな・カタカナをローマ字に変換
-  let result = toRomaji(text);
+  // wanakana でローマ字化（日本語対応）
+  const romanized = toRomaji(text, { upcaseKatakana: false });
 
-  // 全角英数字 → 半角
-  result = result.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) =>
-    String.fromCharCode(c.charCodeAt(0) - 0xfee0)
-  );
-
-  // 全角スペース → 半角スペース
-  result = result.replace(/　/g, ' ');
-
-  // スペース → ハイフン
-  result = result.replace(/\s+/g, '-');
-
-  // 英数字・ハイフン・アンダースコア以外の文字を除去
-  result = result.replace(/[^a-zA-Z0-9\-_]/g, '');
-
-  // 小文字に統一
-  result = result.toLowerCase();
-
-  // 連続ハイフンを1つに圧縮
-  result = result.replace(/-{2,}/g, '-');
-
-  // 先頭・末尾のハイフンを除去
-  result = result.replace(/^-+|-+$/g, '');
-
-  return result;
+  return romanized
+    .toLowerCase()
+    .replace(/\s+/g, '-')        // 空白→ハイフン
+    .replace(/[^\w-]/g, '-')     // 英数字・アンダースコア・ハイフン以外→ハイフン
+    .replace(/-+/g, '-')         // 連続ハイフンを1つに
+    .replace(/^-|-$/g, '');      // 先頭・末尾のハイフン除去
 }
 
 /**
- * 名前空間URIを自動生成する。
+ * 名前空間URIを自動生成する
  *
- * @param organizationCd  組織CD（必須）
- * @param departmentCd    部署CD（省略可）
- * @param unitName        チーム/ユニット名（省略可、日本語可）
- * @returns 生成されたURI文字列
+ * @param organizationCd - 組織CD（必須）
+ * @param departmentCd   - 部署CD（任意）
+ * @param unitName       - チーム/ユニット名（任意）。日本語可。
+ * @returns 生成されたURI文字列（末尾スラッシュ付き）
  *
  * @example
- * generateNamespaceUri('ORG001', 'RD', '分析チーム')
- * // → "https://ORG001/RD/bunsekichimu/"
+ * generateNamespaceUri('ORG001', 'RD', '材料解析チーム')
+ * // => 'https://ORG001/RD/zairyoukaisekichiimu/'
  *
  * generateNamespaceUri('ORG001', 'RD')
- * // → "https://ORG001/RD/"
+ * // => 'https://ORG001/RD/'
  *
  * generateNamespaceUri('ORG001')
- * // → "https://ORG001/"
+ * // => 'https://ORG001/'
  */
 export function generateNamespaceUri(
   organizationCd: string,
-  departmentCd?: string | null,
-  unitName?: string | null,
+  departmentCd?: string,
+  unitName?: string,
 ): string {
-  const base = `https://${organizationCd}`;
+  const orgPart = organizationCd.trim();
+  if (!orgPart) return '';
 
-  const deptPart = departmentCd ? departmentCd.trim() : '';
-  const unitSlug = unitName ? toUriSlug(unitName.trim()) : '';
+  const parts: string[] = [orgPart];
 
-  if (deptPart && unitSlug) {
-    return `${base}/${deptPart}/${unitSlug}/`;
+  if (departmentCd?.trim()) {
+    parts.push(departmentCd.trim());
   }
-  if (deptPart) {
-    return `${base}/${deptPart}/`;
+
+  if (unitName?.trim()) {
+    const slug = toSlug(unitName.trim());
+    if (slug) {
+      parts.push(slug);
+    }
   }
-  return `${base}/`;
+
+  return `https://${parts.join('/')}/`;
 }

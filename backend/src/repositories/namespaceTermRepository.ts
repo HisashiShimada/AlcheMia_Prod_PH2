@@ -260,6 +260,68 @@ export async function remove(
 }
 
 /**
+ * namespace テーブルに1件 INSERT（名前空間の新規登録）
+ *
+ * @param data - 登録する名前空間データ
+ * @returns 登録された namespace_id
+ */
+export async function createNamespace(data: {
+  organizationId: string;
+  prefix: string;
+  uri: string;
+  userId: string;
+  departmentCd?: string;
+  displayName?: string;
+  description?: string;
+}): Promise<string> {
+  const pool = getPool();
+
+  // namespace_id を採番: 組織内の最大連番+1 (NS0001 形式)
+  const seqResult = await pool.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(namespace_id FROM 3) AS INTEGER)), 0) + 1 AS next_seq
+     FROM namespace
+     WHERE organization_id = $1`,
+    [data.organizationId]
+  );
+  const seq: number = seqResult.rows[0].next_seq;
+  const namespaceId = `NS${String(seq).padStart(4, '0')}`;
+
+  const insertQuery = `
+    INSERT INTO namespace (
+      organization_id
+      , prefix
+      , namespace_id
+      , department_cd
+      , user_id
+      , uri
+      , global_flg
+      , display_name
+      , description
+      , create_user_id
+      , create_at
+      , update_user_id
+      , update_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, FALSE, $7, $8, $5, CURRENT_TIMESTAMP, $5, CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (organization_id, prefix) DO NOTHING
+  `;
+
+  await pool.query(insertQuery, [
+    data.organizationId,
+    data.prefix,
+    namespaceId,
+    data.departmentCd ?? null,
+    data.userId,
+    data.uri,
+    data.displayName ?? null,
+    data.description ?? null,
+  ]);
+
+  return namespaceId;
+}
+
+/**
  * 全組織の全用語を取得（認証なし用・開発時のみ使用）
  *
  * @returns 用語一覧（フロントエンド用に整形済み）

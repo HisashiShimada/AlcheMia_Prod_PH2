@@ -219,6 +219,41 @@ export function combineValidationResults(
 }
 
 // ---------------------------------------------------------------------------
+// 名前空間ダイアログ用バリデーション
+// ---------------------------------------------------------------------------
+
+/**
+ * MaiMLのXML文字列から実際に使用されているprefixの一覧を抽出する
+ *
+ * XML内で `prefix:localName` の形式で参照されているprefixを検出します。
+ * 例: `maiml:method`, `rd:material` → ['maiml', 'rd']
+ *
+ * @param maimlXml - MaiMLファイルのXML文字列
+ * @returns 使用中のprefixの配列（重複なし）
+ */
+export function extractUsedPrefixes(maimlXml: string): string[] {
+  if (!maimlXml) return [];
+
+  // XML属性・要素名・属性値中の "prefix:localName" パターンを検出
+  // ただし xmlns: 宣言自体は除外する
+  const usedSet = new Set<string>();
+
+  // 要素名・属性名の prefix: パターン（例: <maiml:method, rd:material=）
+  const tagPattern = /(?<![a-zA-Z0-9_\-])([a-zA-Z_][a-zA-Z0-9_\-]*):[a-zA-Z_][a-zA-Z0-9_\-.]*/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = tagPattern.exec(maimlXml)) !== null) {
+    const prefix = match[1];
+    // xmlns 宣言は除外
+    if (prefix !== 'xmlns' && prefix !== 'xml') {
+      usedSet.add(prefix);
+    }
+  }
+
+  return Array.from(usedSet);
+}
+
+// ---------------------------------------------------------------------------
 // 以下は validationUtils.ts より統合（ワークフロー検証）
 // ---------------------------------------------------------------------------
 

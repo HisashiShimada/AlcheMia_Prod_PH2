@@ -79,7 +79,7 @@ export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderM
     },
     {
       key: '3',
-      label: '名前管理（グローバル）',
+      label: '名前空間管理（グローバル）',
       icon: <GlobalOutlined />,
     },
     {
@@ -132,7 +132,7 @@ export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderM
           {/* タブ2: 会社管理 */}
           {currentTab === '2' && <CorporationManagement />}
           
-          {/* タブ3: 名前管理（グローバル） */}
+          {/* タブ3: 名前空間管理（グローバル） */}
           {currentTab === '3' && (
             <div style={{ padding: '0 16px', height: '100%' }}>
               <Tabs
@@ -141,7 +141,7 @@ export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderM
                 items={[
                   {
                     key: 'prefix',
-                    label: '用語Prefix管理',
+                    label: 'Prefix管理',
                     children: <PrefixManagement globalOnly={true} />,
                   },
                   {

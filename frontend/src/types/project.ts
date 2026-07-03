@@ -389,6 +389,8 @@ export interface CreateProjectData {
   owner: string;
   department: string;
   organizationId: string;
+  /** チームID（任意）。選択時はそのチームのメンバーのみアクセス可。未選択時は部署全員がアクセス可。 */
+  teamId?: string;
 }
 
 /**

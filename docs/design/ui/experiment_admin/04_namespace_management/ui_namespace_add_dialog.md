@@ -4,8 +4,8 @@
 ---
 title: MaiML 名前空間管理ツール 名前空間追加ダイアログ UI設計書
 category: UI設計
-version: 1.0.0
-last_updated: 2026-06-05
+version: 1.1.0
+last_updated: 2026-06-30
 author: Development Team
 tags: [namespace, maiml, dialog, add, prefix, uri, orcid]
 ---
@@ -164,16 +164,65 @@ const validatePrefix = (value: string): string | null => {
 
 ### 3.4. URI 入力
 
-| 項目 | 値 |
-|------|-----|
-| コンポーネント | `<Input>` |
-| ラベル | 「URI」 |
-| 必須 | ✅ 必須 |
-| プレースホルダー | 「例: https://www.corpa.co.jp/」 |
-| 最大文字数 | 512文字 |
-| バリデーション | `https://` または `urn:` で始まること |
+> ⚠️ **実装との差異**: `organization` レベル選択時、URI は **自動生成（読み取り専用）** となる。  
+> Prefix の入力に連動して `generateNamespaceUri` ユーティリティが URI を算出し、フィールドに表示する。  
+> `global` / `personal` レベルでは手動入力のまま。
 
-**URIバリデーション**:
+| 項目 | レベル: global / personal | レベル: organization |
+|------|--------------------------|---------------------|
+| コンポーネント | `<Input>` | `<Input disabled>` |
+| ラベル | 「URI」 | 「URI（自動生成）」 |
+| 必須 | ✅ 必須 | — （自動生成のため入力不要） |
+| プレースホルダー | 「例: https://www.corpa.co.jp/」 | — |
+| 最大文字数 | 512文字 | — |
+| バリデーション | `https://` または `urn:` で始まること | 自動生成のためバリデーション不要 |
+
+**URI自動生成ルール（organization レベル）**:
+
+`frontend/src/utils/namespaceUriGenerator.ts` の `generateNamespaceUri()` を使用して生成する。
+
+| 引数 | 値 |
+|------|-----|
+| `organizationCd` | ログインユーザーの組織CD |
+| `departmentCd` | ログインユーザーの部署CD（取得できた場合） |
+| `unitName` | （TeamAddDialog 経由の場合のみ指定） |
+
+**生成パターン**:
+
+```
+generateNamespaceUri('ORG001', 'RD')
+// => 'https://ORG001/RD/'
+
+generateNamespaceUri('ORG001')
+// => 'https://ORG001/'
+```
+
+**`generateNamespaceUri` の仕様**（`frontend/src/utils/namespaceUriGenerator.ts`）:
+
+```typescript
+/**
+ * URI生成ルール:
+ *   https://{organization_cd}/{department_cd}/{unit_slug}/
+ *   - チームなし: https://{org_cd}/{dept_cd}/
+ *   - 部署なし:   https://{org_cd}/
+ *   - 日本語スラッグは wanakana でローマ字化
+ */
+export function generateNamespaceUri(
+  organizationCd: string,
+  departmentCd?: string,
+  unitName?: string,
+): string
+```
+
+**ガイダンスメッセージ（レベル別）**:
+
+| レベル | ガイダンス |
+|-------|-----------|
+| global | ℹ https:// または urn: で始まる有効なURIを入力してください |
+| organization | ℹ URI は組織CD・部署CDをもとに自動生成されます（読み取り専用） |
+| personal | ℹ https://orcid.org/XXXX-XXXX-XXXX-XXXX 形式のORCID URIを推奨します |
+
+**URIバリデーション（global / personal レベル）**:
 
 ```typescript
 const validateUri = (value: string): string | null => {
@@ -185,14 +234,6 @@ const validateUri = (value: string): string | null => {
   return null;
 };
 ```
-
-**ガイダンスメッセージ（レベル別）**:
-
-| レベル | ガイダンス |
-|-------|-----------|
-| global | ℹ https:// または urn: で始まる有効なURIを入力してください |
-| organization | ℹ 組織のDNSドメインをベースにしたURIを推奨します（例: https://www.corpa.co.jp/） |
-| personal | ℹ https://orcid.org/XXXX-XXXX-XXXX-XXXX 形式のORCID URIを推奨します |
 
 ### 3.5. 表示名 入力
 
@@ -488,5 +529,6 @@ const handleNamespaceRegistered = (values: NamespaceFormValues) => {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
-| 2026-06-08 | §1.4 実装ステータス・§8 NamespaceMain.tsx 連携仕様を追記 | Cline |
-| 2026-06-05 | 初版作成 | Cline |
+| 2026-06-30 | v1.1.0: §3.4 URI 入力を更新：organization レベル時は URI が自動生成（読み取り専用）になる仕様を追記。`generateNamespaceUri` ユーティリティの仕様・生成パターンを追記 | Cline |
+| 2026-06-08 | v1.0.1: §1.4 実装ステータス・§8 NamespaceMain.tsx 連携仕様を追記 | Cline |
+| 2026-06-05 | v1.0.0: 初版作成 | Cline |
