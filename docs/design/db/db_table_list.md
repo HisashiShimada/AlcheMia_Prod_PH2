@@ -685,7 +685,7 @@
 
 | カテゴリ | テーブル数 |
 |---------|----------|
-| 認証関連 | 8 |
+| 認証関連 | 9 |
 | プロジェクト管理関連 | 8 |
 | 問題管理関連 | 2 |
 | 共通マスタ | 5 |
@@ -693,7 +693,10 @@
 | ファイル管理関連 | 1 |
 | 公開ジョブ管理（publicスキーマ） | 1 |
 | 公開データ（組織スキーマ） | 12 |
-| **合計（publicスキーマ）** | **26** |
+| 名前空間管理関連 | 2 |
+| 実験指示・不確かさ管理関連 | 3 |
+| 組織・チーム管理関連 | 1 |
+| **合計（publicスキーマ）** | **33** |
 | **合計（組織スキーマ）** | **12** |
 
 ---
@@ -794,37 +797,41 @@ maiml_event_log
 
 ## ✅ DDL配下ファイルとの整合性
 
-**DDL配下のファイル（25個）:**
+**DDL配下のファイル（32個）:**
 1. attribute.sql
 2. code_master.sql
 3. corporation.sql
-4. creator_master.sql
+4. creator.sql
 5. department.sql
-6. file_metadata.sql
-7. instruction_acknowledged_history.sql
-8. instrument_master.sql
-9. issue_comment.sql
-10. issue.sql
-11. login_history.sql
-12. maiml_event_log.sql
-13. organization_user.sql
-14. organization.sql
-15. pin_codes.sql
-16. project_instruction.sql
-17. project_task_detail.sql
-18. project_task.sql
-19. project.sql
-20. role_permission.sql
-21. role.sql
-22. template_data.sql
-23. transition_data.sql
-24. user_authentication.sql
-25. vendor_master.sql
-26. namespace.sql
-27. namespace_term.sql
-28. department_unit.sql
+6. department_unit.sql
+7. experiment_instruction_detail.sql
+8. experiment_plan.sql
+9. file_metadata.sql
+10. instruction_acknowledged_history.sql
+11. instrument.sql
+12. intuition_selector.sql
+13. issue.sql
+14. issue_comment.sql
+15. login_history.sql
+16. maiml_event_log.sql
+17. namespace.sql
+18. namespace_term.sql
+19. organization.sql
+20. organization_user.sql
+21. pin_codes.sql
+22. project.sql
+23. project_instruction.sql
+24. project_task.sql
+25. project_task_detail.sql
+26. role.sql
+27. role_permission.sql
+28. template_data.sql
+29. transition_data.sql
+30. uncertainty_criteria.sql
+31. user_authentication.sql
+32. vendor.sql
 
-**このドキュメントのテーブル数: 28個** ✅
+**このドキュメントのテーブル数: 33個** ✅
 
 すべてのDDLファイルがこのドキュメントに反映されています。
 
@@ -872,9 +879,100 @@ maiml_event_log
 
 ---
 
-### 10. 組織・チーム管理関連テーブル（1テーブル）
+### 10. 実験指示・不確かさ管理関連テーブル（3テーブル）
 
-#### 10.1 department_unit（チーム・ユニット）
+#### 10.1 experiment_instruction_detail（実験指示詳細）
+- **物理名**: `experiment_instruction_detail`
+- **論理名**: 実験指示詳細
+- **DDLファイル**: `docs/design/db/ddl/experiment_instruction_detail.sql`
+- **説明**: 実験指示タブの一覧を一括管理するテーブル。MAIMLパース時に基本情報を登録し、管理者による想定値設定・作業者による実績値記録・不確かさ付与を随時更新する。
+- **主キー**: `organization_id` (UUID), `project_id` (VARCHAR(20)), `method_id` (VARCHAR), `task_no` (NUMERIC(3,0)), `transition_id` (VARCHAR), `template_name` (VARCHAR), `prop_key` (VARCHAR)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `method_id` - メソッドID
+  - `task_no` - タスク連番
+  - `transition_id` - トランジションID
+  - `template_name` - テンプレート名
+  - `prop_key` - MAIMLプロパティキー（例: ns1:Temperature）
+  - `xsi_type` - xsi:type（FloatValue / IntegerValue / StringValue）
+  - `expected_value` - 想定値（管理者設定、未設定時はNULL）
+  - `actual_value` - 実績値（作業者記録、未記録時はNULL）
+  - `name_space_id` - FK→uncertainty_criteria（未付与時はNULL）
+  - `uncertainty_key` - FK→uncertainty_criteria（未付与時はNULL）
+  - `uncertainty_assigned_value` - 不確かさ付与値（定量:±0.02 / 定性:確か 等）
+  - `uncertainty_assigned_by` - FK→organization_user（未付与時はNULL）
+  - `uncertainty_assigned_at` - 不確かさ付与日時
+  - `uncertainty_comment` - 不確かさコメント
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
+- **外部キー**:
+  - `(organization_id, project_id, method_id, task_no, transition_id)` → `transition_data(organization_id, project_id, method_id, task_no, transition_id)`
+  - `(organization_id, name_space_id, uncertainty_key)` → `uncertainty_criteria` (論理参照、未付与時はNULL)
+  - `uncertainty_assigned_by` → `organization_user(user_id)` (論理参照)
+- **インデックス**:
+  - `idx_exp_inst_detail_project` - organization_id, project_id, method_id, task_no
+  - `idx_exp_inst_detail_uncertainty` - organization_id, name_space_id, uncertainty_key WHERE name_space_id IS NOT NULL
+
+---
+
+#### 10.2 uncertainty_criteria（不確かさ基準）
+- **物理名**: `uncertainty_criteria`
+- **論理名**: 不確かさ基準
+- **DDLファイル**: `docs/design/db/ddl/uncertainty_criteria.sql`
+- **主キー**: `organization_id` (UUID), `name_space_id` (VARCHAR(50)), `uncertainty_key` (VARCHAR(50)), `version` (INT)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `name_space_id` - 名前空間ID（FK→namespace）
+  - `uncertainty_key` - 不確かさ基準Key（prefix + : + Key、名前空間.用語）
+  - `version` - バージョン（編集されたら+1ずつインクリメント）
+  - `evaluation_method` - 評価方式（1:定量 / 2:定性）
+  - `is_Invalid` - 無効フラグ（True:無効 / False:有効）
+  - `inheritance_uncertainty_key` - 継承元不確かさ基準Key
+  - `xsi_type` - xsi:type（定量評価のみ）
+  - `units` - 単位（定量評価のみ）
+  - `format_string` - formatString（定量評価のみ）
+  - `description` - 説明文
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
+- **外部キー**:
+  - `(organization_id, name_space_id)` → `namespace(organization_id, namespace_id)` (論理参照)
+- **インデックス**:
+  - `idx_uncertainty_criteria_org_ns` - organization_id, name_space_id
+  - `idx_uncertainty_criteria_Invalid` - organization_id, is_Invalid
+
+---
+
+#### 10.3 intuition_selector（定性評価選択肢）
+- **物理名**: `intuition_selector`
+- **論理名**: 定性評価選択肢
+- **DDLファイル**: `docs/design/db/ddl/intuition_selector.sql`
+- **主キー**: `organization_id` (UUID), `name_space_id` (VARCHAR(50)), `uncertainty_key` (VARCHAR(50)), `version` (INT), `display_order` (INT)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `name_space_id` - 名前空間ID（FK→uncertainty_criteria）
+  - `uncertainty_key` - 不確かさ基準Key（FK→uncertainty_criteria）
+  - `version` - バージョン（FK→uncertainty_criteria）
+  - `display_order` - 順序（選択肢の表示順、1始まり）
+  - `value` - Value（選択肢値）
+  - `display_color` - 表示色（#RRGGBB形式）
+  - `is_default` - デフォルト値フラグ（TRUE:デフォルト選択肢）
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
+- **外部キー**:
+  - `(organization_id, name_space_id, uncertainty_key, version)` → `uncertainty_criteria(organization_id, name_space_id, uncertainty_key, version)`
+
+---
+
+### 11. 組織・チーム管理関連テーブル（1テーブル）
+
+#### 11.1 department_unit（チーム・ユニット）
 - **物理名**: `department_unit`
 - **論理名**: チーム・ユニット
 - **DDLファイル**: `docs/design/db/ddl/department_unit.sql`

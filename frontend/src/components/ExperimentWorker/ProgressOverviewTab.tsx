@@ -334,12 +334,12 @@ export default function ProgressOverviewTab({
   // ── テーブル列定義 ───────────────────────────────────
   const columns: ColumnsType<ProgressRow> = [
     {
-      title: 'タスクNo', dataIndex: 'taskNo', width: 80, align: 'center',
-      render: (v: number) => <Text strong>#{v}</Text>,
-    },
-    {
       title: 'メソッドID', dataIndex: 'methodId', width: 150, ellipsis: { showTitle: false },
       render: (v: string) => <Tooltip title={v}><Text code style={{ fontSize: 11 }}>{v.slice(-8)}</Text></Tooltip>,
+    },
+    {
+      title: 'タスクNo', dataIndex: 'taskNo', width: 80, align: 'center',
+      render: (v: number) => <Text strong>#{v}</Text>,
     },
     {
       title: 'トランジションID', dataIndex: 'transitionId', width: 180, ellipsis: { showTitle: false },

@@ -267,7 +267,7 @@ export default function UncertaintyListTable({
           color={record.status === 'active' ? 'success' : 'default'}
           style={{ fontWeight: 600 }}
         >
-          {record.status === 'active' ? '● 有効' : '○ 非推奨'}
+          {record.status === 'active' ? '● 有効' : '○ 無効'}
         </Tag>
       ),
     },
@@ -333,7 +333,7 @@ export default function UncertaintyListTable({
           allowClear
           options={[
             { value: 'active', label: '有効' },
-            { value: 'deprecated', label: '非推奨' },
+            { value: 'deprecated', label: '無効' },
           ]}
         />
 
