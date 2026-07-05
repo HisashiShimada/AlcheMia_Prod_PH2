@@ -4,22 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import membersMockRaw from '../../../mock/namespace/department-unit-members.json';
+import type { OrgUser, TeamEditDialogProps } from '@/types/namespace';
 
 const { Text } = Typography;
-
-interface OrgUser {
-  userId: string;
-  userName: string;
-  departmentUnitId: string | null;
-}
-
-interface TeamEditDialogProps {
-  open: boolean;
-  teamLabel: string;           // 編集対象チームのラベル（初期値）
-  teamUnitId?: string;         // 編集対象チームの department_unit_id
-  onClose: () => void;
-  onSaved: (members: string[], newTeamName?: string) => void;
-}
 
 const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   open,

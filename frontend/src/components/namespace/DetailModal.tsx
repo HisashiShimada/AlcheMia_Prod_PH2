@@ -9,21 +9,13 @@ import {
 } from '@ant-design/icons';
 import termsRaw from '../../../mock/namespace/terms.json';
 import termDetailRaw from '../../../mock/namespace/termDetail.json';
-import type { DetailTarget, TermSaved, NamespaceSaved, RawTerm, RawDetail } from '@/types/namespace';
+import type { DetailTarget, DetailModalProps, TermSaved, NamespaceSaved, RawTerm, RawDetail } from '@/types/namespace';
 
 // re-export（既存の import 側を壊さないため）
 export type { DetailTarget, TermSaved, NamespaceSaved } from '@/types/namespace';
 
 const { TextArea } = Input;
 const { Text } = Typography;
-
-interface DetailModalProps {
-  open: boolean;
-  target: DetailTarget | null;
-  onClose: () => void;
-  onTermSaved: (updated: TermSaved) => void;
-  onNamespaceSaved: (updated: NamespaceSaved) => void;
-}
 
 // ──────────────────────────────────────────────
 // 型ヒント選択肢

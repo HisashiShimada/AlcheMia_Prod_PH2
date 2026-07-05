@@ -3,31 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Form, Input, Modal, Select, Space, Typography } from 'antd';
 import { generateNamespaceUri } from '../../utils/namespaceUriGenerator';
+import type { DeptTreeNode, DepartmentNodeAddDialogProps } from '@/types/namespace';
+
+// re-export（既存の import 側を壊さないため）
+export type { DeptTreeNode } from '@/types/namespace';
 
 const { Text } = Typography;
-
-// ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-export interface DeptTreeNode {
-  key: string;
-  label: string;
-  prefix?: string;
-  uri?: string;
-  description?: string;
-  parentKey: string | null;
-  children?: DeptTreeNode[];
-}
-
-interface DepartmentNodeAddDialogProps {
-  open: boolean;
-  /** 親ノード候補（会社ノード＋既存部署ノード） */
-  parentOptions: { value: string; label: string; departmentCd?: string }[];
-  /** ログイン組織CD（URI自動生成に使用） */
-  organizationCd?: string;
-  onClose: () => void;
-  onCreated: (node: DeptTreeNode) => void;
-}
 
 // ──────────────────────────────────────────────
 // コンポーネント

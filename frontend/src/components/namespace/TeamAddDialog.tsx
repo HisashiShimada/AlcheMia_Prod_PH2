@@ -5,20 +5,9 @@ import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message 
 import { UserOutlined } from '@ant-design/icons';
 import membersMockRaw from '../../../mock/namespace/department-unit-members.json';
 import { generateNamespaceUri } from '../../utils/namespaceUriGenerator';
-import type { OrgUser } from '@/types/namespace';
+import type { OrgUser, TeamAddDialogProps } from '@/types/namespace';
 
 const { Text } = Typography;
-
-interface TeamAddDialogProps {
-  open: boolean;
-  parentTeamLabel: string; // 親ノードのラベル（追加先表示用）
-  parentDepartmentCd?: string; // 親ノードの部署CD（DB保存用）
-  /** ログイン組織CD（URI自動生成に使用） */
-  organizationCd?: string;
-  organizationId?: string; // 組織ID（authMiddleware 経由で取得できない場合の補完用）
-  onClose: () => void;
-  onCreated: (teamName: string, members: string[], departmentUnitId?: string) => void;
-}
 
 const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   open,

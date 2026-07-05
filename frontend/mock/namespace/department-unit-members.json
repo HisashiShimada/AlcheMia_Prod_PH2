@@ -21,5 +21,10 @@
     { "userId": "user-003", "userName": "鈴木 一郎", "email": "suzuki@example.com", "departmentUnitId": "rd-materials" },
     { "userId": "user-004", "userName": "田中 美咲", "email": "tanaka@example.com", "departmentUnitId": "rd-materials" },
     { "userId": "user-005", "userName": "伊藤 健二", "email": "ito@example.com", "departmentUnitId": "rd-materials" }
+  ],
+  "rd-analysis": [
+    { "userId": "user-010", "userName": "木村 涼子（自分）", "email": "kimura@example.com", "departmentUnitId": "rd-analysis" },
+    { "userId": "user-011", "userName": "高橋 雄一", "email": "takahashi@example.com", "departmentUnitId": "rd-analysis" },
+    { "userId": "user-012", "userName": "松本 由里", "email": "matsumoto@example.com", "departmentUnitId": "rd-analysis" }
   ]
 }

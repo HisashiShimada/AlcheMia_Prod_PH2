@@ -31,11 +31,11 @@
     "count": 12,
     "icon": "🏢",
     "prefix": "CorpA",
-    "uri": "https://www.corpa.co.jp/",
+    "uri": "https://ORG001.Alchemia.co.jp/",
     "namespaces": [
-      { "key": "ns-corp-main", "prefix": "CorpA",     "uri": "https://www.corpa.co.jp/" },
-      { "key": "ns-corp-data", "prefix": "CorpAData", "uri": "https://www.corpa.co.jp/data/" },
-      { "key": "ns-corp-meta", "prefix": "CorpAMeta", "uri": "https://www.corpa.co.jp/meta/" }
+      { "key": "ns-corp-main", "prefix": "CorpA",     "uri": "https://ORG001.Alchemia.co.jp/" },
+      { "key": "ns-corp-data", "prefix": "CorpAData", "uri": "https://ORG001.Alchemia.co.jp/data/" },
+      { "key": "ns-corp-meta", "prefix": "CorpAMeta", "uri": "https://ORG001.Alchemia.co.jp/meta/" }
     ],
     "children": [
       {
@@ -43,7 +43,7 @@
         "label": "研究開発部",
         "count": 8,
         "prefix": "rd",
-        "uri": "https://www.corpa.co.jp/rd/",
+        "uri": "https://ORG001ORG001.Alchemia.co.jp/RD/",
         "description": "研究開発部の用語定義",
         "children": [
           {
@@ -51,7 +51,7 @@
             "label": "材料グループ",
             "count": 3,
             "prefix": "materials",
-            "uri": "https://www.corpa.co.jp/rd/materials/",
+            "uri": "https://ORG001ORG001.Alchemia.co.jp/RD/ChemTeam/",
             "description": "材料特性・組成データの定義"
           },
           {
@@ -61,6 +61,22 @@
             "prefix": "measurement",
             "uri": "https://www.corpa.co.jp/rd/measurement/",
             "description": "計測・測定方法の定義"
+          },
+          {
+            "key": "rd-analysis",
+            "label": "解析チーム",
+            "count": 2,
+            "prefix": "analysis",
+            "uri": "https://www.corpa.co.jp/rd/analysis/",
+            "description": "材料解析データの定義"
+          },
+          {
+            "key": "rd-develop",
+            "label": "開発チーム",
+            "count": 4,
+            "prefix": "develop",
+            "uri": "https://www.corpa.co.jp/rd/develop/",
+            "description": "製品開発・プロトタイプ検証データの定義"
           }
         ]
       },
@@ -126,7 +142,7 @@
             "count": 1,
             "icon": "🙋",
             "prefix": "yamada",
-            "uri": "https://ns.example.org/personal/yamada/",
+            "uri": "https://ORG001ORG001.Alchemia.co.jp/taro.yamada",
             "description": "山田 太郎の個人用語定義"
           }
         ]
@@ -200,6 +216,114 @@
             "prefix": "ito",
             "uri": "https://ns.example.org/personal/ito/",
             "description": "伊藤 健二の個人用語定義"
+          }
+        ]
+      },
+      {
+        "key": "user-010",
+        "label": "木村 涼子（自分）",
+        "count": 1,
+        "deptKey": "dept-rd",
+        "teamKey": "rd-analysis",
+        "children": [
+          {
+            "key": "ns-kimura",
+            "label": "kimura",
+            "count": 1,
+            "icon": "🙋",
+            "prefix": "kimura",
+            "uri": "https://ns.example.org/personal/kimura/",
+            "description": "木村 涼子の個人用語定義"
+          }
+        ]
+      },
+      {
+        "key": "user-011",
+        "label": "高橋 雄一",
+        "count": 0,
+        "deptKey": "dept-rd",
+        "teamKey": "rd-analysis",
+        "children": [
+          {
+            "key": "ns-takahashi",
+            "label": "takahashi",
+            "count": 0,
+            "icon": "🙋",
+            "prefix": "takahashi",
+            "uri": "https://ns.example.org/personal/takahashi/",
+            "description": "高橋 雄一の個人用語定義"
+          }
+        ]
+      },
+      {
+        "key": "user-012",
+        "label": "松本 由里",
+        "count": 0,
+        "deptKey": "dept-rd",
+        "teamKey": "rd-analysis",
+        "children": [
+          {
+            "key": "ns-matsumoto",
+            "label": "matsumoto",
+            "count": 0,
+            "icon": "🙋",
+            "prefix": "matsumoto",
+            "uri": "https://ns.example.org/personal/matsumoto/",
+            "description": "松本 由里の個人用語定義"
+          }
+        ]
+      },
+      {
+        "key": "user-020",
+        "label": "中村 誠（自分）",
+        "count": 2,
+        "deptKey": "dept-rd",
+        "teamKey": "rd-develop",
+        "children": [
+          {
+            "key": "ns-nakamura",
+            "label": "nakamura",
+            "count": 2,
+            "icon": "🙋",
+            "prefix": "nakamura",
+            "uri": "https://ns.example.org/personal/nakamura/",
+            "description": "中村 誠の個人用語定義"
+          }
+        ]
+      },
+      {
+        "key": "user-021",
+        "label": "小林 奈々",
+        "count": 0,
+        "deptKey": "dept-rd",
+        "teamKey": "rd-develop",
+        "children": [
+          {
+            "key": "ns-kobayashi",
+            "label": "kobayashi",
+            "count": 0,
+            "icon": "🙋",
+            "prefix": "kobayashi",
+            "uri": "https://ns.example.org/personal/kobayashi/",
+            "description": "小林 奈々の個人用語定義"
+          }
+        ]
+      },
+      {
+        "key": "user-022",
+        "label": "加藤 龍二",
+        "count": 0,
+        "deptKey": "dept-rd",
+        "teamKey": "rd-develop",
+        "children": [
+          {
+            "key": "ns-kato",
+            "label": "kato",
+            "count": 0,
+            "icon": "🙋",
+            "prefix": "kato",
+            "uri": "https://ns.example.org/personal/kato/",
+            "description": "加藤 龍二の個人用語定義"
           }
         ]
       }

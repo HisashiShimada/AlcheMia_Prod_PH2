@@ -31,7 +31,8 @@ interface NamespaceNode {
 // モック: ログイン中ユーザーの所属ノードキー
 // 本番実装では認証APIから取得する
 // ──────────────────────────────────────────────
-const CURRENT_USER_NS_KEY = 'rd-materials';
+// チーム代表者（解析チーム）としてログインしている想定
+const CURRENT_USER_NS_KEY = 'rd-analysis';
 
 // 指定キーの祖先ノードキー集合を返すユーティリティ
 const getAncestorKeys = (targetKey: string, nodes: NamespaceNode[], ancestors: string[] = []): string[] | null => {
@@ -58,21 +59,34 @@ const getRootKey = (nsKey: string, nodes: NamespaceNode[]): string | null => {
 };
 
 // ログインユーザーの所属パスのみを残してツリーを剪定する
+// - global: 常に表示
+// - company/部門/チーム: 自分のチームと祖先のみ表示
+// - personal: 自分のチーム (CURRENT_USER_NS_KEY) のメンバーのみ表示
 const filterTreeForUser = (nodes: NamespaceNode[], userNsKey: string): NamespaceNode[] => {
   const ancestorKeys = new Set<string>(getAncestorKeys(userNsKey, nodes) ?? []);
 
-  const filterNodes = (ns: NamespaceNode[]): NamespaceNode[] =>
+  const filterNodes = (ns: NamespaceNode[], parentKey?: string): NamespaceNode[] =>
     ns
       .filter((n) => {
-        if (n.key === 'global' || n.key === 'personal') return true;
+        // global は常に表示
+        if (n.key === 'global') return true;
+        // personal ノード自体は表示（中身はフィルタ）
+        if (n.key === 'personal') return true;
+        // company ルートは表示
         if (n.key === 'company') return true;
+        // 自分のチームノードは表示
         if (n.key === userNsKey) return true;
+        // 祖先ノードは表示
         if (ancestorKeys.has(n.key)) return true;
+        // personal の直下ユーザーノードは teamKey が一致する場合のみ表示
+        if (parentKey === 'personal') {
+          return (n as any).teamKey === userNsKey;
+        }
         return false;
       })
       .map((n) => ({
         ...n,
-        children: n.children ? filterNodes(n.children) : undefined,
+        children: n.children ? filterNodes(n.children, n.key) : undefined,
       }));
 
   return filterNodes(nodes);
@@ -180,10 +194,6 @@ export default function UncertaintyManagement() {
         style={{
           display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0,
           cursor: isTeam ? 'context-menu' : undefined,
-          ...(isCurrentUserNode ? {
-            background: '#e6f4ff',
-            borderRadius: 4,
-          } : {}),
         }}
       >
         <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -240,16 +250,10 @@ export default function UncertaintyManagement() {
             blockNode
             defaultExpandAll
             treeData={treeData}
-            selectedKeys={isGlobalOrPersonalSelected && selectedNsKey ? [selectedNsKey] : []}
+            selectedKeys={selectedNsKey ? [selectedNsKey] : []}
             style={{ background: 'transparent' }}
             onSelect={(keys) => {
               const key = (keys[0] as string) ?? null;
-              // 会社・部門などの祖先ノードは選択不可
-              const ancestorKeys = new Set<string>(
-                getAncestorKeys(CURRENT_USER_NS_KEY, namespaceTreeRaw as NamespaceNode[]) ?? []
-              );
-              ancestorKeys.add('company');
-              if (key && ancestorKeys.has(key)) return;
               setSelectedNsKey(key);
             }}
           />
@@ -349,7 +353,7 @@ export default function UncertaintyManagement() {
 
             {/* Prefix管理タブ */}
             <div style={{ display: activeTab === 'prefix' ? 'flex' : 'none', height: '100%', overflow: 'hidden' }}>
-              <PrefixManagement showShareButton={true} />
+              <PrefixManagement showShareButton={true} selectedNsKey={selectedNsKey} />
             </div>
 
             {/* 不確かさ基準管理タブ：一覧のみ */}

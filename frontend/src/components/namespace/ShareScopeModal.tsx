@@ -9,28 +9,12 @@ import {
   UserOutlined,
   GlobalOutlined,
 } from '@ant-design/icons';
-import type { ShareSourceRole, ShareTarget, ScopeNode } from '@/types/namespace';
+import type { ShareSourceRole, ShareScopeModalProps, ShareTarget, ScopeNode } from '@/types/namespace';
 
 // re-export（既存の import 側を壊さないため）
 export type { ShareSourceRole, ShareTarget, ScopeNode } from '@/types/namespace';
 
 const { Text } = Typography;
-
-// ──────────────────────────────────────────────
-// Props
-// ──────────────────────────────────────────────
-interface ShareScopeModalProps {
-  open: boolean;
-  /** 共有する用語の件数 */
-  termCount: number;
-  /** ログインユーザーのロール（共有先の範囲を制限するため） */
-  sourceRole: ShareSourceRole;
-  /** 共有先ツリーデータ（NamespaceMain から渡す） */
-  scopeNodes: ScopeNode[];
-  onClose: () => void;
-  /** 共有先が確定されたときのコールバック */
-  onShare: (target: ShareTarget) => void;
-}
 
 // ──────────────────────────────────────────────
 // ロール別の共有先制限ラベル

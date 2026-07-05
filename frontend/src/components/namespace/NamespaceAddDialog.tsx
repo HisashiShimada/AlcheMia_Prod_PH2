@@ -8,6 +8,7 @@ import {
   CheckOutlined, CloseOutlined, LinkOutlined,
 } from '@ant-design/icons';
 import { generateNamespaceUri } from '@/utils/namespaceUriGenerator';
+import type { Level, NamespaceFormValues, NamespaceAddDialogProps } from '@/types/namespace';
 
 const { Text } = Typography;
 
@@ -17,26 +18,6 @@ const { Text } = Typography;
 // ──────────────────────────────────────────────
 const MOCK_ORG_CD  = 'ORG001';
 const MOCK_DEPT_CD = 'RD';
-
-// ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-type Level = 'global' | 'organization' | 'personal';
-
-interface NamespaceFormValues {
-  level: Level;
-  prefix: string;
-  uri: string;
-  displayName: string;
-  description: string;
-  parentNamespace: string | null;
-}
-
-interface NamespaceAddDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onRegistered: (values: NamespaceFormValues) => void;
-}
 
 // ──────────────────────────────────────────────
 // 親名前空間の選択肢（モック）

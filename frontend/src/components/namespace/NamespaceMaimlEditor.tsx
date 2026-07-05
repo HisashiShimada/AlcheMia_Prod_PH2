@@ -2,15 +2,15 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import {
-  Modal, Tooltip, Typography, Tag, Checkbox,
+  Modal, Tooltip, Typography, Tag, Checkbox, Input,
 } from 'antd';
 import { extractUsedPrefixes } from '@/utils/validationUtils';
 import {
-  LockOutlined, UserOutlined, TeamOutlined, BankOutlined, GlobalOutlined,
-  ShopOutlined, RightOutlined, DownOutlined,
+  UserOutlined, TeamOutlined, BankOutlined,
+  ShopOutlined, RightOutlined, DownOutlined, SearchOutlined,
 } from '@ant-design/icons';
 import scopeTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
-import type { SectionKey, NsItem, MaimlScopeNode } from '@/types/namespace';
+import type { SectionKey, SectionDef, NsItem, MaimlScopeNode, NamespaceMaimlEditorProps } from '@/types/namespace';
 
 const { Text } = Typography;
 
@@ -19,37 +19,17 @@ const { Text } = Typography;
 // 本番実装では認証APIから取得する
 // ──────────────────────────────────────────────
 const CURRENT_USER_TEAM_KEY = 'rd-materials'; // 材料グループ（研究開発部 配下）
-
-export interface NamespaceMaimlEditorProps {
-  open: boolean;
-  onClose: () => void;
-  /** MaiMLファイルのXML文字列。渡された場合、使用中のprefixをOFFにしようとすると確認ダイアログを表示する */
-  maimlXml?: string;
-}
+const CURRENT_USER_KEY      = 'user-001';     // 山田 太郎（ログイン中ユーザー）
 
 // ──────────────────────────────────────────────
 // uncertainty-scope.json から名前空間アイテムを構築
 // ユーザーの所属チームキーを渡すと、所属部署・所属チームのみにフィルタリングする
+// グローバルセクションは含まない
 // ──────────────────────────────────────────────
 const buildAllNamespaces = (userTeamKey: string): NsItem[] => {
   const tree = scopeTreeRaw as MaimlScopeNode[];
   const result: NsItem[] = [];
   let order = 1;
-
-  // グローバル
-  const globalNode = tree.find((n) => n.key === 'global');
-  if (globalNode?.children) {
-    for (const child of globalNode.children) {
-      if (child.prefix && child.uri) {
-        result.push({
-          key: child.key, prefix: child.prefix, uri: child.uri,
-          order: order++, auto: true, sectionKey: 'global',
-          groupLabel: 'グローバル', groupUri: globalNode.uri ?? child.uri,
-          deleted: false,
-        });
-      }
-    }
-  }
 
   // 組織（company ノードの namespaces 配列を個別の NsItem として追加）
   const companyNode = tree.find((n) => n.key === 'company');
@@ -98,10 +78,12 @@ const buildAllNamespaces = (userTeamKey: string): NsItem[] => {
     }
   }
 
-  // 個人
+  // 個人: ログインユーザー自身のノードのみ追加（user.key が CURRENT_USER_KEY と一致するユーザー）
   const personalNode = tree.find((n) => n.key === 'personal');
   if (personalNode?.children) {
     for (const user of personalNode.children) {
+      // ログインユーザーのみ（user.key で厳密に絞り込む）
+      if (user.key !== CURRENT_USER_KEY) continue;
       if (user.children) {
         for (const ns of user.children) {
           if (ns.prefix && ns.uri) {
@@ -126,6 +108,9 @@ const buildAllNamespaces = (userTeamKey: string): NsItem[] => {
 const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClose, maimlXml }) => {
   const [items, setItems] = useState<NsItem[]>(() => buildAllNamespaces(CURRENT_USER_TEAM_KEY));
 
+  // 検索キーワード
+  const [searchText, setSearchText] = useState('');
+
   // MaiMLファイルで実際に使用中のprefixセット（maimlXmlが渡された場合のみ有効）
   const usedPrefixes = useMemo<Set<string>>(
     () => new Set(maimlXml ? extractUsedPrefixes(maimlXml) : []),
@@ -134,7 +119,6 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
 
   // アコーディオン開閉状態（デフォルト全展開）
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
-    'section-global':       true,
     'section-organization': true,
     'section-department':   true,
     'section-team':         true,
@@ -165,18 +149,15 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
   // セクション単位で一括 ON/OFF（OFFにする前に使用中チェック）
   const handleSectionToggle = useCallback((sectionKey: SectionKey, checked: boolean) => {
     if (checked) {
-      // ONにする場合は即座に適用
       setItems((prev) =>
         prev.map((it) => it.sectionKey === sectionKey ? { ...it, deleted: false } : it),
       );
       return;
     }
 
-    // OFFにしようとしている場合
     const usedInSection = getUsedPrefixesInSection(sectionKey);
 
     if (usedInSection.length > 0) {
-      // 使用中のprefixがある場合は確認ダイアログを表示
       const prefixList = usedInSection.map((p) => `「${p}」`).join('、');
       Modal.confirm({
         title: '名前空間をOFFにしてよろしいですか？',
@@ -196,7 +177,6 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
         onOk: () => doSectionOff(sectionKey),
       });
     } else {
-      // 使用中でなければ即座にOFF
       doSectionOff(sectionKey);
     }
   }, [getUsedPrefixesInSection, doSectionOff]);
@@ -210,18 +190,8 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
       someOn: onCount > 0 && onCount < sectionItems.length,
     };
   };
-  // セクションが全ONかどうか（後方互換）
   const isSectionAllOn = (sectionKey: SectionKey) =>
     getSectionCheckState(sectionKey).allOn;
-
-  // disabled 判定・理由（グローバルのみロック）
-  const isSectionDisabled = (sectionKey: SectionKey): boolean => {
-    return sectionKey === 'global';
-  };
-  const disabledReason = (sectionKey: SectionKey): string => {
-    if (sectionKey === 'global') return 'グローバル名前空間は変更できません';
-    return '';
-  };
 
   // アイコン
   const sectionIcon = (sectionKey: SectionKey) => {
@@ -230,36 +200,15 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
       case 'team':         return <TeamOutlined   style={{ color: '#722ed1', marginRight: 6 }} />;
       case 'department':   return <BankOutlined   style={{ color: '#52c41a', marginRight: 6 }} />;
       case 'organization': return <ShopOutlined   style={{ color: '#13c2c2', marginRight: 6 }} />;
-      case 'global':       return <GlobalOutlined style={{ color: '#1677ff', marginRight: 6 }} />;
+      default:             return null;
     }
   };
 
-  // ──── セクション定義: グローバル→組織→部署→チーム→個人
-  type SectionDef = {
-    id: string;
-    sectionKey: SectionKey;
-    label: string;
-    uri: string;
-    /** 中に表示する行の情報 */
-    childRows: { label: string; prefix?: string; uri?: string; itemKey?: string }[];
-  };
-
+  // ──── セクション定義
   const sections = useMemo<SectionDef[]>(() => {
     const result: SectionDef[] = [];
 
-    // 1. グローバル（prefix + uri の行一覧）
-    const globalItems = items.filter((it) => it.sectionKey === 'global');
-    if (globalItems.length > 0) {
-      result.push({
-        id: 'section-global',
-        sectionKey: 'global',
-        label: 'グローバル',
-        uri: globalItems[0]?.groupUri ?? '',
-        childRows: globalItems.map((it) => ({ label: it.prefix, prefix: it.prefix, uri: it.uri, itemKey: it.key })),
-      });
-    }
-
-    // 2. 組織（会社名を表示）
+    // 1. 組織（会社名を表示）
     const orgItems = items.filter((it) => it.sectionKey === 'organization');
     if (orgItems.length > 0) {
       result.push({
@@ -271,7 +220,7 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
       });
     }
 
-    // 3. 部署（階層全体を1セクション、中身は部署名のみ）
+    // 2. 部署
     const deptItems = items.filter((it) => it.sectionKey === 'department');
     if (deptItems.length > 0) {
       const deptUri = deptItems[0]?.groupUri ?? '';
@@ -285,7 +234,7 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
       });
     }
 
-    // 4. チーム（階層全体を1セクション、中身はチーム名のみ）
+    // 3. チーム
     const teamItems = items.filter((it) => it.sectionKey === 'team');
     if (teamItems.length > 0) {
       const teamUri = teamItems[0]?.groupUri ?? '';
@@ -299,7 +248,7 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
       });
     }
 
-    // 5. 個人（prefix + uri の行一覧）
+    // 4. 個人（ログインユーザーのみ）
     const personalItems = items.filter((it) => it.sectionKey === 'personal');
     if (personalItems.length > 0) {
       result.push({
@@ -314,13 +263,32 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
     return result;
   }, [items]);
 
+  // ──── 検索フィルター適用済みセクション一覧
+  const filteredSections = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return sections;
+    return sections
+      .map((section) => {
+        // セクション名・URIがヒット or 子行がヒットする行のみ残す
+        const sectionHit =
+          section.label.toLowerCase().includes(q) ||
+          section.uri.toLowerCase().includes(q);
+        const filteredRows = section.childRows.filter(
+          (row) =>
+            (row.prefix ?? '').toLowerCase().includes(q) ||
+            (row.uri ?? '').toLowerCase().includes(q) ||
+            row.label.toLowerCase().includes(q),
+        );
+        if (!sectionHit && filteredRows.length === 0) return null;
+        return { ...section, childRows: sectionHit ? section.childRows : filteredRows };
+      })
+      .filter(Boolean) as SectionDef[];
+  }, [sections, searchText]);
+
   // ──── セクションヘッダー行
   const renderSectionHeader = (section: SectionDef) => {
-    const isGlobal   = section.sectionKey === 'global';
-    const isDisabled = isSectionDisabled(section.sectionKey);
-    const reason     = disabledReason(section.sectionKey);
-    const sectionOn  = isSectionAllOn(section.sectionKey);
-    const isOpen     = expanded[section.id] ?? true;
+    const sectionOn = isSectionAllOn(section.sectionKey);
+    const isOpen    = expanded[section.id] ?? true;
 
     return (
       <div
@@ -362,26 +330,19 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
           {section.uri}
         </Text>
 
-        {/* ロック or チェックボックス */}
-        {isGlobal ? (
-          <Tooltip title={reason}>
-            <LockOutlined style={{ color: '#bbb', fontSize: 16, flexShrink: 0 }} />
-          </Tooltip>
-        ) : (
-          <Tooltip title={isDisabled ? reason : (sectionOn ? '全てOFFにする' : '全てONにする')}>
-            <Checkbox
-              checked={sectionOn}
-              indeterminate={getSectionCheckState(section.sectionKey).someOn}
-              disabled={isDisabled}
-              style={{ flexShrink: 0 }}
-              onChange={(e) => {
-                e.nativeEvent.stopPropagation();
-                handleSectionToggle(section.sectionKey, e.target.checked);
-              }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </Tooltip>
-        )}
+        {/* チェックボックス */}
+        <Tooltip title={sectionOn ? '全てOFFにする' : '全てONにする'}>
+          <Checkbox
+            checked={sectionOn}
+            indeterminate={getSectionCheckState(section.sectionKey).someOn}
+            style={{ flexShrink: 0 }}
+            onChange={(e) => {
+              e.nativeEvent.stopPropagation();
+              handleSectionToggle(section.sectionKey, e.target.checked);
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </Tooltip>
       </div>
     );
   };
@@ -393,13 +354,12 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
     );
   }, []);
 
-  // ──── セクション内子行（チェックボックスでON/OFF、OFF行はグレーアウト）
-  const renderChildRow = (row: { label: string; prefix?: string; uri?: string; itemKey?: string }, idx: number, sectionKey: SectionKey) => {
+  // ──── セクション内子行
+  const renderChildRow = (row: { label: string; prefix?: string; uri?: string; itemKey?: string }, idx: number) => {
     const itemOn = row.itemKey
       ? items.find((it) => it.key === row.itemKey)?.deleted === false
       : true;
-    const isGlobalRow = sectionKey === 'global';
-    const isOff = !isGlobalRow && !itemOn;
+    const isOff = !itemOn;
 
     return (
       <div
@@ -412,10 +372,10 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
           borderBottom: '1px solid #f5f5f5',
           background: isOff ? '#fafafa' : '#fff',
           opacity: isOff ? 0.5 : 1,
-          cursor: isGlobalRow ? 'default' : 'pointer',
+          cursor: 'pointer',
         }}
         onClick={() => {
-          if (!isGlobalRow && row.itemKey) handleItemToggle(row.itemKey, !itemOn);
+          if (row.itemKey) handleItemToggle(row.itemKey, !itemOn);
         }}
       >
         <Tag
@@ -434,8 +394,7 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
         >
           {row.uri ?? ''}
         </Text>
-        {/* チェックボックス（グローバル行には表示しない・右端に配置） */}
-        {!isGlobalRow && row.itemKey && (
+        {row.itemKey && (
           <Checkbox
             checked={itemOn}
             onChange={(e) => {
@@ -463,27 +422,41 @@ const NamespaceMaimlEditor: React.FC<NamespaceMaimlEditorProps> = ({ open, onClo
       footer={null}
       maskClosable={false}
     >
+      {/* 検索欄 */}
+      <Input
+        prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+        placeholder="Prefix・URI・セクション名で検索"
+        allowClear
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        style={{ marginBottom: 10 }}
+      />
+
       <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>
         スイッチをON/OFFで各名前空間の適用状態を個別に切り替えられます。
       </Text>
 
       {/* 縦並びアコーディオン */}
       <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {sections.map((section) => {
-          const isOpen = expanded[section.id] ?? true;
-          return (
-            <div key={section.id}>
-              {renderSectionHeader(section)}
-              {isOpen && (
-                <div style={{ border: '1px solid #e8e8e8', borderTop: 'none', borderRadius: '0 0 6px 6px', overflow: 'hidden' }}>
-                  {section.childRows.map((row, idx) =>
-                    renderChildRow(row, idx, section.sectionKey)
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {filteredSections.length === 0 ? (
+          <Text type="secondary" style={{ textAlign: 'center', display: 'block', padding: '16px 0' }}>
+            該当する名前空間が見つかりません
+          </Text>
+        ) : (
+          filteredSections.map((section) => {
+            const isOpen = expanded[section.id] ?? true;
+            return (
+              <div key={section.id}>
+                {renderSectionHeader(section)}
+                {isOpen && (
+                  <div style={{ border: '1px solid #e8e8e8', borderTop: 'none', borderRadius: '0 0 6px 6px', overflow: 'hidden' }}>
+                    {section.childRows.map((row, idx) => renderChildRow(row, idx))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
 
       <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 12, textAlign: 'right' }}>

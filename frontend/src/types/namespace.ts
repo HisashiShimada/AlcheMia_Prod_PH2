@@ -167,6 +167,8 @@ export interface PrefixRow {
   /** ノードの階層ラベルパス（スコープ列表示用） */
   scopePath: string;
   isActive?: boolean;
+  /** 選択ノードの祖先スコープの行かどうか（グレーアウト表示用） */
+  _isAncestor?: boolean;
 }
 
 /**
@@ -314,7 +316,7 @@ export interface NamespaceFormValues {
 export type UserNsRole =
   | { kind: 'sys_admin' }
   | { kind: 'dept_owner'; deptKey: string }
-  | { kind: 'team_owner'; teamKey: string }
+  | { kind: 'team_owner'; teamKey: string; teamKeys?: string[] }
   | { kind: 'member'; nsKey: string };
 
 // ──────────────────────────────────────────────
@@ -331,6 +333,137 @@ export interface AttributeMaster {
 }
 
 // ──────────────────────────────────────────────
+// コンポーネント Props
+// ──────────────────────────────────────────────
+
+/**
+ * NamespaceMaimlEditor の Props
+ */
+export interface NamespaceMaimlEditorProps {
+  open: boolean;
+  onClose: () => void;
+  /** MaiMLファイルのXML文字列。渡された場合、使用中のprefixをOFFにしようとすると確認ダイアログを表示する */
+  maimlXml?: string;
+}
+
+/**
+ * NamespaceAddDialog の Props
+ */
+export interface NamespaceAddDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onRegistered: (values: NamespaceFormValues) => void;
+}
+
+/**
+ * PrefixManagement の Props
+ */
+export interface PrefixManagementProps {
+  /** trueのとき Global 配下のPrefixのみ表示・操作可能 */
+  globalOnly?: boolean;
+  /** trueのとき「組織に共有」ボタンを表示する（実験管理者メニューのみ true を渡す） */
+  showShareButton?: boolean;
+  /** trueのとき閲覧モード（検索・フィルター以外のボタンを非活性） */
+  viewOnly?: boolean;
+  /** 外部から渡される選択中の名前空間ノードキー（左ツリー連動用） */
+  selectedNsKey?: string | null;
+}
+
+/**
+ * PrefixManagement のインライン編集値
+ */
+export interface PrefixEditValues {
+  prefix: string;
+  description: string;
+}
+
+/**
+ * PrefixManagement の CSV インポート解析行
+ */
+export interface PrefixCsvParsedRow {
+  prefix: string;
+  description: string;
+}
+
+/**
+ * DetailModal の Props
+ */
+export interface DetailModalProps {
+  open: boolean;
+  target: DetailTarget | null;
+  onClose: () => void;
+  onTermSaved: (updated: TermSaved) => void;
+  onNamespaceSaved: (updated: NamespaceSaved) => void;
+}
+
+/**
+ * ShareScopeModal の Props
+ */
+export interface ShareScopeModalProps {
+  open: boolean;
+  /** 共有する用語の件数 */
+  termCount: number;
+  /** ログインユーザーのロール（共有先の範囲を制限するため） */
+  sourceRole: ShareSourceRole;
+  /** 共有先ツリーデータ（NamespaceMain から渡す） */
+  scopeNodes: ScopeNode[];
+  onClose: () => void;
+  /** 共有先が確定されたときのコールバック */
+  onShare: (target: ShareTarget) => void;
+}
+
+/**
+ * TeamAddDialog の Props
+ */
+export interface TeamAddDialogProps {
+  open: boolean;
+  parentTeamLabel: string;
+  parentDepartmentCd?: string;
+  /** ログイン組織CD（URI自動生成に使用） */
+  organizationCd?: string;
+  organizationId?: string;
+  onClose: () => void;
+  onCreated: (teamName: string, members: string[], departmentUnitId?: string) => void;
+}
+
+/**
+ * TeamEditDialog の Props
+ */
+export interface TeamEditDialogProps {
+  open: boolean;
+  teamLabel: string;
+  teamUnitId?: string;
+  onClose: () => void;
+  onSaved: (members: string[], newTeamName?: string) => void;
+}
+
+/**
+ * DepartmentNodeAddDialog のツリーノード
+ */
+export interface DeptTreeNode {
+  key: string;
+  label: string;
+  prefix?: string;
+  uri?: string;
+  description?: string;
+  parentKey: string | null;
+  children?: DeptTreeNode[];
+}
+
+/**
+ * DepartmentNodeAddDialog の Props
+ */
+export interface DepartmentNodeAddDialogProps {
+  open: boolean;
+  /** 親ノード候補（会社ノード＋既存部署ノード） */
+  parentOptions: { value: string; label: string; departmentCd?: string }[];
+  /** ログイン組織CD（URI自動生成に使用） */
+  organizationCd?: string;
+  onClose: () => void;
+  onCreated: (node: DeptTreeNode) => void;
+}
+
+// ──────────────────────────────────────────────
 // NamespaceMaimlEditor 専用
 // ──────────────────────────────────────────────
 
@@ -338,6 +471,17 @@ export interface AttributeMaster {
  * NamespaceMaimlEditor のセクションキー
  */
 export type SectionKey = 'global' | 'organization' | 'department' | 'team' | 'personal';
+
+/**
+ * NamespaceMaimlEditor のセクション定義
+ */
+export type SectionDef = {
+  id: string;
+  sectionKey: SectionKey;
+  label: string;
+  uri: string;
+  childRows: { label: string; prefix?: string; uri?: string; itemKey?: string }[];
+};
 
 /**
  * NamespaceMaimlEditor の名前空間アイテム行
@@ -371,4 +515,20 @@ export interface MaimlScopeNode {
   /** 組織ノードが持つ複数の名前空間定義 */
   namespaces?: { key: string; prefix: string; uri: string }[];
   children?: MaimlScopeNode[];
+}
+
+// ──────────────────────────────────────────────
+// ExperimentAdminNav
+// ──────────────────────────────────────────────
+
+/**
+ * 実験管理者ナビゲーションのアクティブタブ識別子
+ */
+export type ExperimentAdminNavTab = 'project' | 'format' | 'progress' | 'namespace' | null;
+
+/**
+ * ExperimentAdminNav コンポーネントの Props
+ */
+export interface ExperimentAdminNavProps {
+  activeTab?: ExperimentAdminNavTab;
 }

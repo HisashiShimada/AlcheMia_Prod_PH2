@@ -5,16 +5,19 @@ import { Button, Input, Table, message, Typography, Tooltip, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined, SearchOutlined, BankOutlined } from '@ant-design/icons';
 import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
 import type { TableColumnsType } from 'antd';
-import ShareScopeModal, { type ShareSourceRole, type ShareTarget, type ScopeNode } from './ShareScopeModal';
-import type { PrefixRow, NewPrefixRow, RawNode } from '@/types/namespace';
+import ShareScopeModal from './ShareScopeModal';
+import type { PrefixRow, NewPrefixRow, RawNode, ShareSourceRole, ShareTarget, ScopeNode } from '@/types/namespace';
 
 const { Text } = Typography;
 
 // ──────────────────────────────────────────────
-// モック: ログイン中ユーザーの所属ノードキー
+// モック: ログイン中ユーザーの所属ノードキー（チーム代表者: 解析チーム）
 // 本番実装では認証APIから取得する
 // ──────────────────────────────────────────────
-const CURRENT_USER_NS_KEY = 'rd-materials';
+// チーム代表者（開発チーム + 解析チーム の2チーム所属）としてログインしている想定
+// NamespaceMain.tsx の CURRENT_USER_ROLE と合わせる
+const CURRENT_USER_NS_KEY = 'rd-develop';
+const CURRENT_USER_TEAM_KEYS = ['rd-develop', 'rd-analysis'];
 
 // ──────────────────────────────────────────────
 // モックデータ: uncertainty-scope.json からフラット化
@@ -27,6 +30,18 @@ const getAncestorKeys = (targetKey: string, nodes: RawNode[], ancestors: string[
     if (node.children) {
       const found = getAncestorKeys(targetKey, node.children, [...ancestors, node.key]);
       if (found) return found;
+    }
+  }
+  return null;
+};
+
+// ── 指定キーがどのルートノード（global/personal/company等）配下にあるかを返す
+const getRootKey = (nsKey: string, nodes: RawNode[]): string | null => {
+  for (const root of nodes) {
+    if (root.key === nsKey) return root.key;
+    if (root.children) {
+      const found = getAncestorKeys(nsKey, root.children, []);
+      if (found !== null) return root.key;
     }
   }
   return null;
@@ -68,25 +83,37 @@ const flattenGlobalPrefixes = (nodes: RawNode[]): PrefixRow[] => {
 };
 
 // ── ログインユーザーが閲覧できるPrefixのみに絞り込んでフラット化
-// 表示対象: Global配下の全Prefix ＋ 自分のノード ＋ 自分の祖先ノード
+// 表示対象: 全所属チームのノード ＋ 共通の祖先ノード（複数チーム対応）＋ 同チームメンバーの個人Prefix
 const flattenPrefixes = (nodes: RawNode[]): PrefixRow[] => {
   const result: PrefixRow[] = [];
+  const seen = new Set<string>(); // 重複排除用
 
-  // ログインユーザーの祖先キー集合
-  const ancestorKeys = new Set<string>(getAncestorKeys(CURRENT_USER_NS_KEY, nodes) ?? []);
+  // 全所属チームの祖先キー集合（union）
+  const allAncestorKeys = new Set<string>();
+  for (const teamKey of CURRENT_USER_TEAM_KEYS) {
+    for (const k of (getAncestorKeys(teamKey, nodes) ?? [])) {
+      allAncestorKeys.add(k);
+    }
+  }
+
+  const addRow = (n: RawNode) => {
+    if (!n.prefix || seen.has(n.key)) return;
+    seen.add(n.key);
+    const scopePath = buildScopePath(n.key, nodes) ?? n.label;
+    result.push({
+      id: n.key,
+      prefix: n.prefix,
+      description: n.description ?? n.label ?? '',
+      scopePath,
+    });
+  };
 
   const traverse = (ns: RawNode[], isGlobal: boolean) => {
     for (const n of ns) {
-      if (n.prefix) {
-        // 自分のノード / 自分の祖先ノード のみ追加（Globalは除外）
-        if (!isGlobal && (n.key === CURRENT_USER_NS_KEY || ancestorKeys.has(n.key))) {
-          const scopePath = buildScopePath(n.key, nodes) ?? n.label;
-          result.push({
-            id: n.key,
-            prefix: n.prefix,
-            description: n.description ?? n.label ?? '',
-            scopePath,
-          });
+      if (n.prefix && !isGlobal) {
+        // 所属チームのいずれかのノード、または共通祖先ノードのみ追加
+        if (CURRENT_USER_TEAM_KEYS.includes(n.key) || allAncestorKeys.has(n.key)) {
+          addRow(n);
         }
       }
       if (n.children) traverse(n.children, isGlobal);
@@ -96,6 +123,20 @@ const flattenPrefixes = (nodes: RawNode[]): PrefixRow[] => {
   for (const root of nodes) {
     const isGlobal = root.key === 'global';
     traverse([root], isGlobal);
+  }
+
+  // Personal ノード配下: 全所属チームのメンバーの個人 Prefix（ns子ノード）を追加
+  const personalNode = nodes.find((n) => n.key === 'personal');
+  if (personalNode?.children) {
+    for (const userNode of personalNode.children) {
+      const raw = userNode as RawNode & { teamKey?: string };
+      if (CURRENT_USER_TEAM_KEYS.includes(raw.teamKey ?? '')) {
+        // ユーザーの ns子ノード（ns-kimura 等）を追加
+        for (const nsChild of (userNode.children ?? [])) {
+          addRow(nsChild as RawNode);
+        }
+      }
+    }
   }
 
   return result;
@@ -123,6 +164,31 @@ const flattenAllPrefixes = (nodes: RawNode[]): PrefixRow[] => {
   return result;
 };
 
+// ──────────────────────────────────────────────
+// チーム代表者の「読み取り専用 prefix」集合
+// 祖先スコープ（研究開発部・株式会社サンプルテック）は編集不可
+// ──────────────────────────────────────────────
+const TEAM_OWNER_READONLY_PREFIXES: Set<string> = (() => {
+  const nodes = namespaceTreeRaw as RawNode[];
+  const ancestorKeys = getAncestorKeys(CURRENT_USER_NS_KEY, nodes) ?? [];
+  const result = new Set<string>();
+  const findPrefix = (key: string, ns: RawNode[]): string | null => {
+    for (const n of ns) {
+      if (n.key === key) return n.prefix ?? null;
+      if (n.children) { const r = findPrefix(key, n.children); if (r) return r; }
+    }
+    return null;
+  };
+  for (const key of ancestorKeys) {
+    const p = findPrefix(key, nodes);
+    if (p) result.add(p);
+  }
+  return result;
+})();
+
+const isPrefixReadonly = (prefix: string): boolean =>
+  TEAM_OWNER_READONLY_PREFIXES.has(prefix);
+
 // ── RawNode[] → ScopeNode[]（ShareScopeModal 用ツリー構築）
 // Global / Personal を除いた company配下のみを返す
 const buildScopeNodes = (nodes: RawNode[]): ScopeNode[] =>
@@ -142,6 +208,96 @@ const makeEmptyRow = (): NewPrefixRow => ({
 // ──────────────────────────────────────────────
 // コンポーネント
 // ──────────────────────────────────────────────
+// ── Personal ノード配下の指定ユーザーノードの個人 Prefix をフラット化
+const flattenPersonalPrefixes = (nodes: RawNode[], userKey: string): PrefixRow[] => {
+  const result: PrefixRow[] = [];
+  const personalNode = nodes.find((n) => n.key === 'personal');
+  if (!personalNode?.children) return result;
+  // userKey が 'personal' ルート自体の場合はログインユーザーのキーにフォールバック
+  const targetKey = userKey === 'personal' ? CURRENT_USER_NS_KEY : userKey;
+  const userNode = personalNode.children.find((u) => u.key === targetKey);
+  if (!userNode?.children) return result;
+  for (const nsChild of userNode.children) {
+    const n = nsChild as RawNode;
+    if (n.prefix) {
+      const scopePath = buildScopePath(n.key, nodes) ?? n.label;
+      result.push({ id: n.key, prefix: n.prefix, description: n.description ?? n.label ?? '', scopePath });
+    }
+  }
+  return result;
+};
+
+// ── 指定キーのノードを探してPrefixを返す
+const findNodePrefix = (key: string, nodes: RawNode[]): string | null => {
+  for (const n of nodes) {
+    if (n.key === key) return n.prefix ?? null;
+    if (n.children) {
+      const r = findNodePrefix(key, n.children);
+      if (r !== null) return r;
+    }
+  }
+  return null;
+};
+
+// ── 選択ノード＋祖先ノードのPrefixをフラット化（祖先フラグ付き）
+// _isAncestor=true の行はグレーアウト対象
+const flattenScopedPrefixes = (nsKey: string, nodes: RawNode[]): PrefixRow[] => {
+  const result: PrefixRow[] = [];
+  // 選択ノード自身のprefixを取得
+  const selfPrefix = findNodePrefix(nsKey, nodes);
+  // 祖先ノードのキー一覧を取得
+  const ancestorKeys = getAncestorKeys(nsKey, nodes) ?? [];
+
+  // 祖先ノードのprefixを収集（company/global を除外）
+  const ancestorPrefixEntries: Array<{ key: string; prefix: string }> = [];
+  for (const key of ancestorKeys) {
+    if (key === 'global' || key === 'personal') continue;
+    const p = findNodePrefix(key, nodes);
+    if (p) ancestorPrefixEntries.push({ key, prefix: p });
+  }
+
+  // 祖先キーが2個以上ある（= チームノード選択）場合のみ祖先行をグレーアウト
+  // 例: ancestorKeys=['company','dept-rd'] → depth3(チーム) → _isAncestor=true
+  // 例: ancestorKeys=['company'] → depth2(部門) → _isAncestor=false
+  const isTeamNode = ancestorKeys.length >= 2;
+
+  // 選択ノード自身のprefixを先頭に追加
+  if (selfPrefix) {
+    const scopePath = buildScopePath(nsKey, nodes) ?? nsKey;
+    result.push({ id: nsKey, prefix: selfPrefix, description: '', scopePath, _isAncestor: false });
+  }
+
+  // 祖先ノードのprefixを追加
+  for (const { key, prefix } of ancestorPrefixEntries) {
+    const scopePath = buildScopePath(key, nodes) ?? key;
+    // 既にresultに含まれていない場合のみ追加
+    if (!result.find((r) => r.id === key)) {
+      result.push({ id: key, prefix, description: '', scopePath, _isAncestor: isTeamNode });
+    }
+  }
+
+  return result;
+};
+
+// ── 選択ノードキーに応じてベースデータを計算
+const computeRows = (
+  nsKey: string | null | undefined,
+  globalOnly: boolean,
+  viewOnly: boolean,
+): PrefixRow[] => {
+  const nodes = namespaceTreeRaw as RawNode[];
+  if (globalOnly) return flattenGlobalPrefixes(nodes);
+  if (nsKey) {
+    const rootKey = getRootKey(nsKey, nodes);
+    if (rootKey === 'global') return flattenGlobalPrefixes(nodes);
+    if (rootKey === 'personal') return flattenPersonalPrefixes(nodes, nsKey);
+    // company配下のチーム・部門ノード → 選択ノード＋祖先を表示
+    if (rootKey === 'company') return flattenScopedPrefixes(nsKey, nodes);
+  }
+  if (viewOnly) return flattenAllPrefixes(nodes);
+  return flattenPrefixes(nodes);
+};
+
 interface PrefixManagementProps {
   /** trueのとき Global 配下のPrefixのみ表示・操作可能 */
   globalOnly?: boolean;
@@ -149,30 +305,23 @@ interface PrefixManagementProps {
   showShareButton?: boolean;
   /** trueのとき閲覧モード（検索・フィルター以外のボタンを非活性） */
   viewOnly?: boolean;
+  /** 外部から渡される選択中の名前空間ノードキー（左ツリー連動用） */
+  selectedNsKey?: string | null;
 }
 
-const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false, showShareButton = false, viewOnly = false }) => {
-  // ── viewOnly / globalOnly に応じてベースデータを動的に決定
-  // 閲覧モード(viewOnly=true): Global含む全スコープ表示
-  // 編集モード(viewOnly=false): グローバル以外のみ表示（編集対象外のGlobalを除外）
-  const [rows, setRows] = useState<PrefixRow[]>(() => {
-    if (globalOnly) return flattenGlobalPrefixes(namespaceTreeRaw as RawNode[]);
-    if (viewOnly) return flattenAllPrefixes(namespaceTreeRaw as RawNode[]);
-    return flattenPrefixes(namespaceTreeRaw as RawNode[]);
-  });
+const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false, showShareButton = false, viewOnly = false, selectedNsKey }) => {
+  // ── viewOnly / globalOnly / selectedNsKey に応じてベースデータを動的に決定
+  const [rows, setRows] = useState<PrefixRow[]>(() =>
+    computeRows(selectedNsKey, globalOnly, viewOnly)
+  );
 
-  // viewOnly が変化したらデータを再計算（閲覧モード↔編集モード切替）
+  // viewOnly / selectedNsKey が変化したらデータを再計算
   useEffect(() => {
-    if (globalOnly) return;
-    setRows(
-      viewOnly
-        ? flattenAllPrefixes(namespaceTreeRaw as RawNode[])
-        : flattenPrefixes(namespaceTreeRaw as RawNode[])
-    );
+    setRows(computeRows(selectedNsKey, globalOnly, viewOnly));
     setSelectedPrefixIds([]);
     setNewRows([]);
     setEditingId(null);
-  }, [viewOnly, globalOnly]);
+  }, [viewOnly, globalOnly, selectedNsKey]);
 
   // ── 共有先ツリー: company配下のみ（Global/Personal を除外）
   const shareScopeNodes = useMemo<ScopeNode[]>(() => {
@@ -662,7 +811,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
           onChange: (keys) => setSelectedPrefixIds(keys as string[]),
           getCheckboxProps: (record) => ({ disabled: '_rowId' in record }),
         }}
-        rowClassName={(record) => '_rowId' in record ? 'row-new-prefix' : ''}
+        rowClassName={(record) => {
+          if ('_rowId' in record) return 'row-new-prefix';
+          const r = record as PrefixRow;
+          // チームノード選択時のみ祖先行をグレーアウト
+          if (r._isAncestor) return 'row-readonly-prefix';
+          return '';
+        }}
         locale={{ triggerAsc: '昇順にソート', triggerDesc: '降順にソート', cancelSort: 'ソートをキャンセル' }}
         pagination={{
           current: currentPage,
@@ -679,6 +834,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
 
       <style>{`
           .row-new-prefix td { background: #fffbe6 !important; }
+          .row-readonly-prefix td { background: #f5f5f5 !important; opacity: 0.55; pointer-events: none; }
         `}</style>
       </div>
 

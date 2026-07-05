@@ -18,38 +18,14 @@ import {
 } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
-import DepartmentNodeAddDialog, { type DeptTreeNode } from './DepartmentNodeAddDialog';
+import DepartmentNodeAddDialog from './DepartmentNodeAddDialog';
 import { generateNamespaceUri } from '../../utils/namespaceUriGenerator';
+import type { RawNode, FlatDeptRow, DeptTreeNode } from '@/types/namespace';
 
 /** ログイン組織CD（本番実装では認証APIから取得） */
 const MOCK_ORGANIZATION_CD = 'ORG';
 
 const { Text } = Typography;
-
-// ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-interface RawNode {
-  key: string;
-  label: string;
-  count?: number;
-  icon?: string;
-  prefix?: string;
-  uri?: string;
-  description?: string;
-  children?: RawNode[];
-}
-
-interface FlatDeptRow {
-  key: string;
-  label: string;
-  prefix: string;
-  uri: string;
-  description: string;
-  parentKey: string | null;
-  parentLabel: string;
-  depth: number;
-}
 
 // ──────────────────────────────────────────────
 // ツリーを平坦化（company 配下のみ対象）
