@@ -6,7 +6,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined
 import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
 import type { TableColumnsType } from 'antd';
 import ShareScopeModal from './ShareScopeModal';
-import type { PrefixRow, NewPrefixRow, RawNode, ShareSourceRole, ShareTarget, ScopeNode } from '@/types/namespace';
+import type { PrefixRow, NewPrefixRow, RawNode, ShareSourceRole, ShareTarget, ScopeNode, PrefixManagementProps, PrefixCsvParsedRow } from '@/types/namespace';
 
 const { Text } = Typography;
 
@@ -298,16 +298,6 @@ const computeRows = (
   return flattenPrefixes(nodes);
 };
 
-interface PrefixManagementProps {
-  /** trueのとき Global 配下のPrefixのみ表示・操作可能 */
-  globalOnly?: boolean;
-  /** trueのとき「組織に共有」ボタンを表示する（実験管理者メニューのみ true を渡す） */
-  showShareButton?: boolean;
-  /** trueのとき閲覧モード（検索・フィルター以外のボタンを非活性） */
-  viewOnly?: boolean;
-  /** 外部から渡される選択中の名前空間ノードキー（左ツリー連動用） */
-  selectedNsKey?: string | null;
-}
 
 const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false, showShareButton = false, viewOnly = false, selectedNsKey }) => {
   // ── viewOnly / globalOnly / selectedNsKey に応じてベースデータを動的に決定
@@ -421,8 +411,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         if (lines.length < 2) { message.error('CSVデータが空です'); return; }
 
-        type ParsedRow = { prefix: string; description: string };
-        const parsedRows: ParsedRow[] = [];
+        const parsedRows: PrefixCsvParsedRow[] = [];
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g)?.map((c) =>
             c.startsWith('"') ? c.slice(1, -1).replace(/""/g, '"') : c

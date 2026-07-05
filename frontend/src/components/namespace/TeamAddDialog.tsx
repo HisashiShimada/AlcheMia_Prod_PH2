@@ -5,7 +5,7 @@ import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message 
 import { UserOutlined } from '@ant-design/icons';
 import membersMockRaw from '../../../mock/namespace/department-unit-members.json';
 import { generateNamespaceUri } from '../../utils/namespaceUriGenerator';
-import type { OrgUser, TeamAddDialogProps } from '@/types/namespace';
+import type { OrgUser, TeamAddDialogProps, CreateTeamResponse } from '@/types/namespace';
 
 const { Text } = Typography;
 
@@ -90,7 +90,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
         return;
       }
 
-      const created = await res.json() as { departmentUnitId: string; unitName: string };
+      const created = await res.json() as CreateTeamResponse;
 
       // 2. メンバーを設定（選択がある場合）
       if (members.length > 0) {

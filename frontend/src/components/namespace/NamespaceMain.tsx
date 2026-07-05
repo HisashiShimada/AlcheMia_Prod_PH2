@@ -34,6 +34,10 @@ import type {
   NamespaceSaved,
   ShareSourceRole,
   ShareTarget,
+  NamespaceMainProps,
+  ContextMenuState,
+  TermEditValues,
+  TermCsvParsedRow,
 } from '@/types/namespace';
 
 const { Text } = Typography;
@@ -405,21 +409,6 @@ const makeEmptyRow = (): NewTermRow => ({
   description: '', type: '', unitHint: '',
 });
 
-// ──────────────────────────────────────────────
-// Props定義
-// ──────────────────────────────────────────────
-interface NamespaceMainProps {
-  /** trueのとき左ペイン（名前空間ツリー）を非表示にする */
-  hideTree?: boolean;
-  /** trueのときグローバル名前空間のみ表示・操作対象にする（ProviderMenu用） */
-  globalOnly?: boolean;
-  /** 外部から名前空間選択キーを制御する場合に指定 */
-  externalSelectedNsKey?: string | null;
-  /** 外部から名前空間選択が変わったときのコールバック */
-  onNsKeyChange?: (key: string | null) => void;
-  /** trueのとき閲覧モード（検索・フィルター以外のボタンを非活性） */
-  viewOnly?: boolean;
-}
 
 // ──────────────────────────────────────────────
 // メインコンポーネント
@@ -465,13 +454,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   // ──── コンテキストメニュー状態（方針B: Tree.onRightClick 方式）
-  const [ctxMenu, setCtxMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    node: NamespaceNode | null;
-    parentLabel: string;
-  }>({ visible: false, x: 0, y: 0, node: null, parentLabel: '' });
+  const [ctxMenu, setCtxMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, node: null, parentLabel: '' });
 
   const [filterPrefix,    setFilterPrefix]    = useState<string | null>(null);
   const [filterScope,     setFilterScope]     = useState<string | null>(null);
@@ -484,7 +467,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const [pageSize,    setPageSize]    = useState(20);
 
   const [editingTermId, setEditingTermId] = useState<string | null>(null);
-  const [editingValues, setEditingValues] = useState<{ prefix: string; localName: string; displayName: string; description: string; type: string; unitHint: string }>({ prefix: '', localName: '', displayName: '', description: '', type: '', unitHint: '' });
+  const [editingValues, setEditingValues] = useState<TermEditValues>({ prefix: '', localName: '', displayName: '', description: '', type: '', unitHint: '' });
 
   // ──── ツリーの展開キー（全ノードを常に展開する）
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -1021,11 +1004,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         if (lines.length < 2) { message.error('CSVデータが空です'); return; }
 
         // CSV パース
-        type ParsedRow = {
-          prefix: string; localName: string; displayName: string;
-          displayNameEn: string; description: string; type: string; unitHint: string;
-        };
-        const rows: ParsedRow[] = [];
+        const rows: TermCsvParsedRow[] = [];
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g)?.map((c) =>
             c.startsWith('"') ? c.slice(1, -1).replace(/""/g, '"') : c

@@ -532,3 +532,108 @@ export type ExperimentAdminNavTab = 'project' | 'format' | 'progress' | 'namespa
 export interface ExperimentAdminNavProps {
   activeTab?: ExperimentAdminNavTab;
 }
+
+// ──────────────────────────────────────────────
+// NamespaceMain
+// ──────────────────────────────────────────────
+
+/**
+ * NamespaceMain コンポーネントの Props
+ */
+export interface NamespaceMainProps {
+  /** trueのとき左ペイン（名前空間ツリー）を非表示にする */
+  hideTree?: boolean;
+  /** trueのときグローバル名前空間のみ表示・操作対象にする（ProviderMenu用） */
+  globalOnly?: boolean;
+  /** 外部から名前空間選択キーを制御する場合に指定 */
+  externalSelectedNsKey?: string | null;
+  /** 外部から名前空間選択が変わったときのコールバック */
+  onNsKeyChange?: (key: string | null) => void;
+  /** trueのとき閲覧モード（検索・フィルター以外のボタンを非活性） */
+  viewOnly?: boolean;
+}
+
+// ──────────────────────────────────────────────
+// NamespaceMain 内部状態
+// ──────────────────────────────────────────────
+
+/**
+ * コンテキストメニューの表示状態（NamespaceMain）
+ *
+ * @remarks
+ * NamespaceMain.tsx の名前空間ツリーで右クリック時に表示するメニューの状態を管理する
+ */
+export interface ContextMenuState {
+  /** メニューを表示するかどうか */
+  visible: boolean;
+  /** メニュー表示位置 X 座標（px） */
+  x: number;
+  /** メニュー表示位置 Y 座標（px） */
+  y: number;
+  /** 右クリック対象の名前空間ノード */
+  node: NamespaceNode | null;
+  /** 右クリック対象ノードの親ラベル */
+  parentLabel: string;
+}
+
+/**
+ * 用語テーブルのインライン編集値（NamespaceMain）
+ *
+ * @remarks
+ * NamespaceMain.tsx の用語テーブルで既存行を編集するときの一時的な入力値を保持する
+ */
+export interface TermEditValues {
+  /** 名前空間 Prefix */
+  prefix: string;
+  /** ローカル名 */
+  localName: string;
+  /** 表示名（日本語） */
+  displayName: string;
+  /** 説明 */
+  description: string;
+  /** 型ヒント（stringType / integerType / floatType / booleanType / dateTimeType / uriType） */
+  type: string;
+  /** 単位ヒント */
+  unitHint: string;
+}
+
+/**
+ * 用語 CSV インポートの解析行（NamespaceMain）
+ *
+ * @remarks
+ * NamespaceMain.tsx のCSVインポート処理で各行をパースした結果を表す
+ */
+export interface TermCsvParsedRow {
+  /** 名前空間 Prefix */
+  prefix: string;
+  /** ローカル名 */
+  localName: string;
+  /** 表示名（日本語） */
+  displayName: string;
+  /** 表示名（英語） */
+  displayNameEn: string;
+  /** 説明 */
+  description: string;
+  /** 型ヒント */
+  type: string;
+  /** 単位ヒント */
+  unitHint: string;
+}
+
+// ──────────────────────────────────────────────
+// TeamAddDialog
+// ──────────────────────────────────────────────
+
+/**
+ * チーム作成 API レスポンス（TeamAddDialog）
+ *
+ * @remarks
+ * POST /api/v1/department-units のレスポンスボディの型
+ */
+export interface CreateTeamResponse {
+  /** 作成されたチームの ID */
+  departmentUnitId: string;
+  /** 作成されたチームの名前 */
+  unitName: string;
+}
+
