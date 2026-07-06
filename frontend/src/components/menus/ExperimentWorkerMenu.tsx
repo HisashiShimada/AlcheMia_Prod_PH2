@@ -24,7 +24,9 @@ import ProgressOverviewTab from '../ExperimentWorker/ProgressOverviewTab';
 import type { ProgressRow } from '../ExperimentWorker/ProgressOverviewTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import type { WorkerProject } from '@/types/project';
-import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus } from '@/services/projectApiService';
+import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus, getNgTasks, updateTransitionStatus } from '@/services/projectApiService';
+import type { NgTaskItem } from '@/services/projectApiService';
+import { getIssues } from '@/services/issueApiService';
 import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 import { AxiosError } from 'axios';
@@ -116,6 +118,8 @@ export default function ExperimentWorkerMenu({
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   /** NG理由モーダル */
   const [ngReasonModalOpen, setNgReasonModalOpen] = useState(false);
+  const [ngTasks, setNgTasks] = useState<NgTaskItem[]>([]);
+  const [ngTasksLoading, setNgTasksLoading] = useState(false);
   const [selectedProjectName, setSelectedProjectName] = useState<string>('');
 
   // プロジェクト一覧の状態管理
@@ -294,16 +298,12 @@ export default function ExperimentWorkerMenu({
     }
   };
 
-  // ━━━ スキップ状態の管理 ━━━
-  const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
-
-  const handleTransitionResumed = (transitionId: string) => {
-    setSkippedTransitionIds((prev) => prev.filter((id) => id !== transitionId));
-  };
-
   // ━━━ ProgressOverviewTab 用: 実API接続 ━━━
   const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
   const [progressLoading, setProgressLoading] = useState(false);
+
+  /** transitionId → 問題報告件数 マップ */
+  const [issueCountMap, setIssueCountMap] = useState<Record<string, number>>({});
 
   /**
    * トランジションの数値ステータスを ProgressRow.status に変換
@@ -322,45 +322,83 @@ export default function ExperimentWorkerMenu({
     const fetchProgressRows = async () => {
       if (!selectedProject) {
         setProgressRows([]);
+        setIssueCountMap({});
         return;
       }
 
       setProgressLoading(true);
       try {
-        const result = await getWorkerTasks(selectedProject);
-        if (!result.success || !result.data) {
+        // 進捗データと問題一覧を並列取得
+        const [tasksResult, issues] = await Promise.all([
+          getWorkerTasks(selectedProject),
+          getIssues({ projectId: selectedProject }).catch((err) => {
+            // 問題一覧取得失敗時はログだけ出して空配列で継続
+            console.warn('[ProgressOverviewTab] 問題一覧取得失敗（件数表示なし）:', err);
+            return [];
+          }),
+        ]);
+
+        // `${taskNo}-${transitionId}` → 問題件数 マップを構築（タスク単位で正確に集計）
+        const newIssueCountMap: Record<string, number> = {};
+        for (const issue of issues) {
+          if (issue.transitionId) {
+            const key = `${issue.taskNo ?? ''}-${issue.transitionId}`;
+            newIssueCountMap[key] = (newIssueCountMap[key] ?? 0) + 1;
+          }
+        }
+        setIssueCountMap(newIssueCountMap);
+
+        if (!tasksResult.success || !tasksResult.data) {
           setProgressRows([]);
           return;
         }
 
-        const apiData = result.data;
-        const rows: ProgressRow[] = [];
-
-        // 各メソッド × タスク × トランジション を ProgressRow に展開
+        const apiData = tasksResult.data;
+        // 全メソッド×タスクの組み合わせリストを作成
+        const taskCombinations: Array<{ method: WorkerMethod; task: WorkerTask }> = [];
         for (const method of apiData.methods as WorkerMethod[]) {
           for (const task of method.tasks as WorkerTask[]) {
+            taskCombinations.push({ method, task });
+          }
+        }
+
+        // Promise.all で全トランジション進捗を並列取得（N+1 解消）
+        const transitionResults = await Promise.all(
+          taskCombinations.map(async ({ method, task }) => {
             try {
               const tsRes = await fetchTransitionStatus(selectedProject, method.method_id, task.task_no);
-              const transitions = tsRes.data.transitionStatus;
-
-              transitions.forEach((tr, idx) => {
-                rows.push({
-                  rowKey: `${task.task_no}-${tr.transitionId}`,
-                  taskNo: task.task_no,
-                  methodId: method.method_id,
-                  transitionId: tr.transitionId,
-                  status: toProgressRowStatus(tr.progressStatus),
-                  hasRecord: tr.progressPercentage > 0,
-                  order: idx + 1,
-                  prerequisiteTransitionIds: [],
-                  isSkipped: skippedTransitionIds.includes(tr.transitionId),
-                });
-              });
+              return { method, task, transitions: tsRes.data.transitionStatus };
             } catch {
-              // トランジション取得失敗時は該当タスクをスキップ
               console.warn('[ProgressOverviewTab] トランジション取得失敗 taskNo=', task.task_no);
+              return { method, task, transitions: [] };
             }
-          }
+          })
+        );
+
+        // 取得結果を ProgressRow に展開
+        const rows: ProgressRow[] = [];
+        for (const { method, task, transitions } of transitionResults) {
+          transitions.forEach((tr, idx) => {
+            rows.push({
+              rowKey: `${task.task_no}-${tr.transitionId}`,
+              taskNo: task.task_no,
+              methodId: method.method_id,
+              methodName: method.method_name || method.method_id,
+              transitionId: tr.transitionId,
+              transitionName: tr.transitionName || tr.transitionId,
+              status: toProgressRowStatus(tr.progressStatus),
+              hasRecord: tr.progressPercentage > 0,
+              materialRecorded: tr.materialActualCount ?? 0,
+              materialTotal: tr.materialCount ?? 0,
+              conditionRecorded: tr.conditionActualCount ?? 0,
+              conditionTotal: tr.conditionCount ?? 0,
+              resultRecorded: tr.resultActualCount ?? 0,
+              resultTotal: tr.resultCount ?? 0,
+              issueCount: newIssueCountMap[`${task.task_no}-${tr.transitionId}`] ?? 0,
+              order: idx + 1,
+              prerequisiteTransitionIds: tr.prerequisiteTransitionIds ?? [],
+            });
+          });
         }
 
         setProgressRows(rows);
@@ -373,19 +411,177 @@ export default function ExperimentWorkerMenu({
     };
 
     fetchProgressRows();
-  // skippedTransitionIds は依存から除外（スキップ状態は後から isSkipped を更新）
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject]);
 
-  // スキップ状態が変わったら progressRows の isSkipped フラグを更新
+  // issueCountMap が更新されたら progressRows の issueCount を最新値に反映
   useEffect(() => {
     setProgressRows((prev) =>
       prev.map((row) => ({
         ...row,
-        isSkipped: skippedTransitionIds.includes(row.transitionId),
+        issueCount: issueCountMap[`${row.taskNo}-${row.transitionId}`] ?? 0,
       }))
     );
-  }, [skippedTransitionIds]);
+  }, [issueCountMap]);
+
+  /**
+   * 進捗データを再取得してステートを更新する（開始・切替後に呼ぶ）
+   */
+  const reloadProgressRows = async (projectId: string) => {
+    try {
+      setProgressLoading(true);
+      const [tasksResult, issues] = await Promise.all([
+        getWorkerTasks(projectId),
+        getIssues({ projectId }).catch(() => []),
+      ]);
+
+      const newIssueCountMap: Record<string, number> = {};
+      for (const issue of issues) {
+        if (issue.transitionId) {
+          const key = `${issue.taskNo ?? ''}-${issue.transitionId}`;
+          newIssueCountMap[key] = (newIssueCountMap[key] ?? 0) + 1;
+        }
+      }
+      setIssueCountMap(newIssueCountMap);
+
+      if (!tasksResult.success || !tasksResult.data) {
+        setProgressRows([]);
+        return;
+      }
+
+      const apiData = tasksResult.data;
+      const taskCombinations: Array<{ method: WorkerMethod; task: WorkerTask }> = [];
+      for (const method of apiData.methods as WorkerMethod[]) {
+        for (const task of method.tasks as WorkerTask[]) {
+          taskCombinations.push({ method, task });
+        }
+      }
+
+      const transitionResults = await Promise.all(
+        taskCombinations.map(async ({ method, task }) => {
+          try {
+            const tsRes = await fetchTransitionStatus(projectId, method.method_id, task.task_no);
+            return { method, task, transitions: tsRes.data.transitionStatus };
+          } catch {
+            return { method, task, transitions: [] };
+          }
+        })
+      );
+
+      const rows: ProgressRow[] = [];
+      for (const { method, task, transitions } of transitionResults) {
+        transitions.forEach((tr, idx) => {
+          rows.push({
+            rowKey: `${task.task_no}-${tr.transitionId}`,
+            taskNo: task.task_no,
+            methodId: method.method_id,
+            methodName: method.method_name || method.method_id,
+            transitionId: tr.transitionId,
+            transitionName: tr.transitionName || tr.transitionId,
+            status: toProgressRowStatus(tr.progressStatus),
+            hasRecord: tr.progressPercentage > 0,
+            materialRecorded: tr.materialActualCount ?? 0,
+            materialTotal: tr.materialCount ?? 0,
+            conditionRecorded: tr.conditionActualCount ?? 0,
+            conditionTotal: tr.conditionCount ?? 0,
+            resultRecorded: tr.resultActualCount ?? 0,
+            resultTotal: tr.resultCount ?? 0,
+            issueCount: newIssueCountMap[`${task.task_no}-${tr.transitionId}`] ?? 0,
+            order: idx + 1,
+            prerequisiteTransitionIds: tr.prerequisiteTransitionIds ?? [],
+          });
+        });
+      }
+      setProgressRows(rows);
+    } catch (err) {
+      console.error('[reloadProgressRows] エラー:', err);
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  /**
+   * 「開始」ボタン押下ハンドラー（Phase4完全版: 確認ダイアログ + ステータスAPI切替）
+   *
+   * - 作業中トランジションなし → 対象を running に更新 → 作業記録タブへ遷移
+   * - 作業中トランジションあり → 確認ダイアログ表示
+   *   → 承認時: 現在作業中を initial に戻し、対象を running に更新 → 遷移
+   */
+  const handleStartWork = (taskNo: number, transitionId: string, methodId: string) => {
+    if (!selectedProject) return;
+
+    const inProgressRows = progressRows.filter((r) => r.status === 'in_progress');
+
+    /** 対象トランジションを running (実行中) に更新してタブ遷移 */
+    const doStart = async () => {
+      if (!selectedProject) return;
+      try {
+        await updateTransitionStatus(selectedProject, methodId, transitionId, {
+          taskNo,
+          status: 3, // IN_PROGRESS
+          progressRate: 0,
+        });
+        await reloadProgressRows(selectedProject);
+        handleTabChange('3');
+      } catch (err) {
+        console.error('[handleStartWork] ステータス更新エラー:', err);
+        message.error('作業開始に失敗しました。再度お試しください。');
+      }
+    };
+
+    if (inProgressRows.length === 0) {
+      // 作業中トランジションなし → 直接開始
+      void doStart();
+      return;
+    }
+
+    // 作業中トランジションが存在 → 確認ダイアログを表示
+    const inProgressNames = inProgressRows
+      .map((r) => r.transitionName || r.transitionId)
+      .join('、');
+
+    Modal.confirm({
+      title: '別のトランジションが作業中です',
+      icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
+      content: (
+        <div>
+          <p style={{ marginBottom: 8 }}>
+            現在、以下のトランジションが作業中です：
+          </p>
+          <p style={{ fontWeight: 'bold', marginBottom: 8, color: '#1677ff' }}>
+            {inProgressNames}
+          </p>
+          <p style={{ marginBottom: 4 }}>
+            この作業を中断して別のトランジションを開始しますか？
+          </p>
+          <p style={{ color: '#ff4d4f', fontSize: 12, margin: 0 }}>
+            ※中断した作業のステータスは「未着手」に戻ります。
+          </p>
+        </div>
+      ),
+      okText: '切り替える',
+      cancelText: 'キャンセル',
+      onOk: async () => {
+        if (!selectedProject) return;
+        try {
+          // 現在作業中のトランジションをすべて initial（未着手）に戻す
+          await Promise.all(
+            inProgressRows.map((r) =>
+              updateTransitionStatus(selectedProject, r.methodId, r.transitionId, {
+                taskNo: r.taskNo,
+                status: 0, // INITIAL（未着手）
+                progressRate: 0,
+              })
+            )
+          );
+          // 対象を running に更新
+          await doStart();
+        } catch (err) {
+          console.error('[handleStartWork] 切り替えエラー:', err);
+          message.error('作業切り替えに失敗しました。再度お試しください。');
+        }
+      },
+    });
+  };
 
   // タブアイテムの定義（リデザイン後: 作業記録 / 全体進捗 / 不確かさ記録 の3タブ）
   const tabItems = [
@@ -412,17 +608,14 @@ export default function ExperimentWorkerMenu({
           rows={progressRows}
           onGoToWork={(taskNo, transitionId) => {
             console.info('[ProgressOverviewTab] 作業へ:', taskNo, transitionId);
-            handleTransitionResumed(transitionId);
             handleTabChange('3');
           }}
           onViewDetail={(taskNo, transitionId) => {
             console.info('[ProgressOverviewTab] 詳細確認:', taskNo, transitionId);
             handleTabChange('3');
           }}
-          onStartWork={(taskNo, transitionId) => {
-            console.info('[ProgressOverviewTab] 開始:', taskNo, transitionId);
-            handleTransitionResumed(transitionId);
-            handleTabChange('3');
+          onStartWork={(taskNo, transitionId, methodId) => {
+            handleStartWork(taskNo, transitionId, methodId);
           }}
         />
       ),
@@ -507,7 +700,21 @@ export default function ExperimentWorkerMenu({
             icon={<AlertOutlined />}
             size="large"
             disabled={!selectedProject || selectedProject === ''}
-            onClick={() => setNgReasonModalOpen(true)}
+            loading={ngTasksLoading}
+            onClick={async () => {
+              if (!selectedProject) return;
+              setNgTasksLoading(true);
+              try {
+                const items = await getNgTasks(selectedProject);
+                setNgTasks(items);
+              } catch (err) {
+                console.error('[NG理由] 取得エラー:', err);
+                setNgTasks([]);
+              } finally {
+                setNgTasksLoading(false);
+              }
+              setNgReasonModalOpen(true);
+            }}
           >
             NG理由
           </Button>
@@ -538,14 +745,44 @@ export default function ExperimentWorkerMenu({
         title={
           <span style={{ color: '#ff4d4f' }}>
             <AlertOutlined style={{ marginRight: 8 }} />
-            NG理由
+            NG理由一覧
           </span>
         }
       >
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>
-          {/* フェーズB: 選択中プロジェクトのNG理由をAPIから取得して表示 */}
-          タスク＃1の定性評価結果が正しくありません。
-        </p>
+        {ngTasks.length === 0 ? (
+          <p style={{ margin: 0, color: '#888' }}>NGタスクはありません。</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {ngTasks.map((ng) => (
+              <div
+                key={`${ng.methodId}-${ng.taskNo}`}
+                style={{
+                  border: '1px solid #ffccc7',
+                  borderRadius: 6,
+                  padding: '8px 12px',
+                  background: '#fff2f0',
+                }}
+              >
+                <div style={{ fontWeight: 'bold', marginBottom: 4, fontSize: 13 }}>
+                  タスク #{ng.taskNo}
+                  {ng.methodId && (
+                    <span style={{ fontWeight: 'normal', color: '#888', marginLeft: 8, fontSize: 12 }}>
+                      ({ng.methodId})
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+                  {ng.reviewResult || '（NG理由未記入）'}
+                </div>
+                {ng.reviewedAt && (
+                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
+                    {new Date(ng.reviewedAt).toLocaleString('ja-JP')}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
 
       {/* タブ */}

@@ -30,7 +30,15 @@ import type {
   ProjectFileListResponse,
   ProjectDetailApiResponse,
   PublishStatusResponse,
+  CheckoutResponse,
+  PublishJobResponse,
+  ProjectMaimlResponse,
+  DeleteProjectResponse,
 } from '@/types/project';
+import type {
+  TransitionStatusItem,
+  FetchTransitionStatusResponse,
+} from '@/types/progress';
 import type {
   GetTaskRegistrationResponse,
   SaveTaskRegistrationRequest,
@@ -1378,17 +1386,6 @@ export const sendInstructions = async (
 // ========================================
 
 /**
- * チェックアウトレスポンス型
- */
-export interface CheckoutResponse {
-  projectId: string;
-  projectName: string;
-  isCheckedOut: boolean;
-  checkedOutBy: string | null;
-  checkedOutAt: string | null;
-}
-
-/**
  * プロジェクトをチェックアウト
  * POST /api/v1/projects/:projectId/checkout
  * 
@@ -1547,16 +1544,6 @@ export const publishProject = async (
 };
 
 /**
- * MaiML 公開/非公開ジョブレスポンス型（publish/unpublish 共通）
- * バックエンドの PublishJobResponse に対応（202 Accepted）
- */
-export interface PublishJobResponse {
-  job_id: string | null;
-  status: 'pending' | 'running' | 'done' | 'error' | null;
-  message: string;
-}
-
-/**
  * プロジェクトの MaiML を非公開にする
  * POST /api/v1/projects/:projectId/unpublish
  *
@@ -1649,15 +1636,6 @@ export const getPublishStatus = async (
 // ========================================
 
 /**
- * プロジェクトMAIMLレスポンス型
- */
-export interface ProjectMaimlResponse {
-  maimlContent: string;
-  projectName: string;
-  lastModified?: string;
-}
-
-/**
  * プロジェクトのMAIMLファイルを取得
  * GET /api/v1/projects/:projectId/maiml
  * 
@@ -1703,14 +1681,6 @@ export const getProjectMaiml = async (
 // ========================================
 // プロジェクト削除関連API関数
 // ========================================
-
-/**
- * プロジェクト削除レスポンス型
- */
-export interface DeleteProjectResponse {
-  deletedCount: number;
-  message: string;
-}
 
 /**
  * プロジェクトを削除
@@ -1790,24 +1760,6 @@ function getTransitionStatusLabel(status: number): string {
 }
 
 /**
- * トランジション進捗レスポンス型
- */
-export interface TransitionStatusItem {
-  transitionId: string;
-  transitionName: string;
-  progressStatus: string;
-  latestStatus: string;
-  progressPercentage: number;
-}
-
-export interface FetchTransitionStatusResponse {
-  success: true;
-  data: {
-    transitionStatus: TransitionStatusItem[];
-  };
-}
-
-/**
  * トランジション進捗データを取得
  * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions
  *
@@ -1845,8 +1797,12 @@ export const fetchTransitionStatus = async (
           progress: number;
           last_updated: string | null;
           material_count?: number;
+          material_actual_count?: number;
           condition_count?: number;
+          condition_actual_count?: number;
           result_count?: number;
+          result_actual_count?: number;
+          prerequisite_transition_ids?: string[];
         }>;
       };
     }>(
@@ -1866,6 +1822,13 @@ export const fetchTransitionStatus = async (
       progressStatus: getTransitionStatusLabel(t.status),
       latestStatus: getTransitionStatusLabel(t.status),
       progressPercentage: t.progress ?? 0,
+      materialCount: t.material_count ?? 0,
+      materialActualCount: t.material_actual_count ?? 0,
+      conditionCount: t.condition_count ?? 0,
+      conditionActualCount: t.condition_actual_count ?? 0,
+      resultCount: t.result_count ?? 0,
+      resultActualCount: t.result_actual_count ?? 0,
+      prerequisiteTransitionIds: t.prerequisite_transition_ids ?? [],
     }));
 
     return {
@@ -1880,6 +1843,39 @@ export const fetchTransitionStatus = async (
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,
       errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * NGタスク一覧取得
+ *
+ * GET /api/v1/progress/projects/:projectId/ng-tasks
+ * task_status=6（NG）のタスク一覧を返す。NG理由モーダルで使用する。
+ */
+export interface NgTaskItem {
+  taskNo: number;
+  methodId: string;
+  reviewResult: string;
+  reviewedAt: string | null;
+  reviewUserId: string | null;
+}
+
+export const getNgTasks = async (
+  projectId: string
+): Promise<NgTaskItem[]> => {
+  const client = createApiClient();
+  try {
+    const response = await client.get<{
+      success: boolean;
+      data: { ngTasks: NgTaskItem[] };
+    }>(`/progress/projects/${projectId}/ng-tasks`);
+    return response.data.data.ngTasks;
+  } catch (error) {
+    console.error('[getNgTasks] エラー', {
+      error,
+      projectId,
     });
     throw error;
   }

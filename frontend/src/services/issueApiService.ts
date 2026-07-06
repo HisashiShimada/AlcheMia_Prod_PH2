@@ -159,6 +159,7 @@ function mapToIssue(data: IssueApiData): Issue {
     transitionName: '',
     projectId: data.projectId,
     projectName: data.projectName,
+    taskNo: data.taskNo,
     title: data.title,
     content: data.contents,
     // DBから数値（0/1）で返る場合があるため、文字列IssueStatusに変換する

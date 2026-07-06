@@ -433,3 +433,62 @@ export interface ProjectFilesData {
   subFolderFiles: Record<string, import('./file').ProjectFile[]>;
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// チェックアウト関連型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * チェックアウト / チェックイン レスポンス型
+ * POST /api/v1/projects/:projectId/checkout
+ * POST /api/v1/projects/:projectId/checkin
+ */
+export interface CheckoutResponse {
+  projectId: string;
+  projectName: string;
+  isCheckedOut: boolean;
+  checkedOutBy: string | null;
+  checkedOutAt: string | null;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MaiML 公開/非公開ジョブ関連型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * MaiML 公開/非公開ジョブレスポンス型（publish/unpublish 共通）
+ * POST /api/v1/projects/:projectId/publish
+ * POST /api/v1/projects/:projectId/unpublish
+ */
+export interface PublishJobResponse {
+  job_id: string | null;
+  status: 'pending' | 'running' | 'done' | 'error' | null;
+  message: string;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MAIML関連型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * プロジェクト MAIML ファイルレスポンス型
+ * GET /api/v1/projects/:projectId/maiml
+ */
+export interface ProjectMaimlResponse {
+  maimlContent: string;
+  projectName: string;
+  lastModified?: string;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// プロジェクト削除関連型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * プロジェクト削除レスポンス型
+ * DELETE /api/v1/projects/:projectId
+ */
+export interface DeleteProjectResponse {
+  deletedCount: number;
+  message: string;
+}
+
