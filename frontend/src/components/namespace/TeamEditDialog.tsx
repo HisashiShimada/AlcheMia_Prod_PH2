@@ -12,12 +12,14 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   open,
   teamLabel,
   teamUnitId,
+  teamOwnerUserId,
   onClose,
   onSaved,
 }) => {
   const [teamName, setTeamName]           = useState('');
   const [members, setMembers]             = useState<OrgUser[]>([]);
   const [addTarget, setAddTarget]         = useState<string | undefined>(undefined);
+  const [ownerUserId, setOwnerUserId]     = useState<string | undefined>(undefined);
   const [loading, setLoading]             = useState(false);
   const [allUsers, setAllUsers]           = useState<OrgUser[]>([]);
   const [usersLoading, setUsersLoading]   = useState(false);
@@ -28,6 +30,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
     setTeamName(teamLabel);
     setAddTarget(undefined);
+    setOwnerUserId(teamOwnerUserId);
 
     // 全ユーザー一覧を取得
     setUsersLoading(true);
@@ -64,11 +67,14 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
     } else {
       setMembers([]);
     }
-  }, [open, teamUnitId, teamLabel]);
+  }, [open, teamUnitId, teamLabel, teamOwnerUserId]);
 
-  // メンバーを削除
+  // メンバーを削除（削除されたメンバーが代表者の場合はクリア）
   const handleRemoveMember = (userId: string) => {
     setMembers((prev) => prev.filter((u) => u.userId !== userId));
+    if (ownerUserId === userId) {
+      setOwnerUserId(undefined);
+    }
   };
 
   // メンバーを追加
@@ -92,7 +98,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
     if (!teamUnitId) {
       message.warning('チームIDが未設定のため、DBへの保存をスキップしました');
-      onSaved(members.map((m) => m.userId), teamName.trim());
+      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
       onClose();
       return;
     }
@@ -128,8 +134,23 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
         return;
       }
 
+      // 3. 代表者を更新（変更があった場合のみ）
+      if (ownerUserId !== teamOwnerUserId && ownerUserId) {
+        const ownerRes = await fetch(`/api/v1/department-units/${teamUnitId}/owner`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ownerUserId }),
+        });
+        if (!ownerRes.ok) {
+          const err = await ownerRes.json().catch(() => ({}));
+          message.error(`代表者の更新に失敗しました: ${(err as any).error ?? ownerRes.status}`);
+          return;
+        }
+      }
+
       message.success(`「${teamName.trim()}」を保存しました（メンバー: ${members.length}名）`);
-      onSaved(members.map((m) => m.userId), teamName.trim());
+      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
       onClose();
     } catch {
       message.error('保存中にエラーが発生しました');
@@ -143,6 +164,9 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   const addOptions = allUsers
     .filter((u) => !memberIds.has(u.userId))
     .map((u) => ({ value: u.userId, label: u.userName }));
+
+  // 代表者選択肢（現在のメンバー一覧から生成）
+  const ownerOptions = members.map((m) => ({ value: m.userId, label: m.userName }));
 
   return (
     <Modal
@@ -174,6 +198,32 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
             onChange={(e) => setTeamName(e.target.value)}
             disabled={loading}
           />
+        </div>
+
+        <Divider style={{ margin: '0' }} />
+
+        {/* ── 代表者 ── */}
+        <div>
+          <Text strong>代表者</Text>
+          <Select
+            style={{ width: '100%', marginTop: 4 }}
+            placeholder={
+              members.length === 0
+                ? 'メンバーを追加してから選択してください'
+                : '代表者を選択...'
+            }
+            value={ownerUserId}
+            onChange={(val) => setOwnerUserId(val)}
+            options={ownerOptions}
+            allowClear
+            disabled={loading || members.length === 0}
+            notFoundContent="メンバーがいません"
+          />
+          {members.length === 0 && (
+            <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+              メンバーを追加すると選択できるようになります
+            </Text>
+          )}
         </div>
 
         <Divider style={{ margin: '0' }} />

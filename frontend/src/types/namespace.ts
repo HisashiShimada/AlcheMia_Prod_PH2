@@ -201,8 +201,10 @@ export interface Team {
   unitName: string;
   /** 所属部署名 */
   departmentName?: string;
-  /** チームの代表者（作成者） */
+  /** チームの代表者（作成者）表示名 */
   ownerName: string;
+  /** チームの代表者 userId */
+  ownerUserId?: string;
   nsPrefix?: string;
   nsUri?: string;
   nsDisplayName?: string;
@@ -433,8 +435,10 @@ export interface TeamEditDialogProps {
   open: boolean;
   teamLabel: string;
   teamUnitId?: string;
+  /** チームの現在の代表者 userId（初期値として使用） */
+  teamOwnerUserId?: string;
   onClose: () => void;
-  onSaved: (members: string[], newTeamName?: string) => void;
+  onSaved: (members: string[], newTeamName?: string, newOwnerUserId?: string) => void;
 }
 
 /**

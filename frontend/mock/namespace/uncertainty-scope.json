@@ -34,8 +34,8 @@
     "uri": "https://ORG001.Alchemia.co.jp/",
     "namespaces": [
       { "key": "ns-corp-main", "prefix": "CorpA",     "uri": "https://ORG001.Alchemia.co.jp/" },
-      { "key": "ns-corp-data", "prefix": "CorpAData", "uri": "https://ORG001.Alchemia.co.jp/data/" },
-      { "key": "ns-corp-meta", "prefix": "CorpAMeta", "uri": "https://ORG001.Alchemia.co.jp/meta/" }
+      { "key": "ns-corp-data", "prefix": "CorpAData", "uri": "https://ORG001.Alchemia.co.jp/" },
+      { "key": "ns-corp-meta", "prefix": "CorpAMeta", "uri": "https://ORG001.Alchemia.co.jp/" }
     ],
     "children": [
       {

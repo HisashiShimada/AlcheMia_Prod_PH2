@@ -33,6 +33,7 @@ const DUMMY_TEAMS: Team[] = [
     unitName: '材料解析チーム',
     departmentName: '研究開発部',
     ownerName: '山田 太郎（自分）',
+    ownerUserId: 'user-001',
     nsPrefix: 'materials',
     nsUri: 'https://example.org/ns/materials/',
     nsDisplayName: '材料科学名前空間',
@@ -43,6 +44,7 @@ const DUMMY_TEAMS: Team[] = [
     unitName: 'データ処理班',
     departmentName: '情報システム部',
     ownerName: '山田 太郎（自分）',
+    ownerUserId: 'user-001',
     nsPrefix: 'dp',
     nsUri: 'https://example.org/ns/dp/',
     nsDisplayName: 'データ処理名前空間',
@@ -109,8 +111,9 @@ const TeamManagementPanel: React.FC = () => {
   };
 
   // ──── チーム編集後のコールバック
-  const handleTeamSaved = (memberIds: string[], newTeamName?: string) => {
+  const handleTeamSaved = (memberIds: string[], newTeamName?: string, newOwnerUserId?: string) => {
     if (!editTarget) return;
+
     setTeams((prev) =>
       prev.map((t) => {
         if (t.departmentUnitId !== editTarget.departmentUnitId) return t;
@@ -119,18 +122,30 @@ const TeamManagementPanel: React.FC = () => {
           const existing = t.members.find((m) => m.userId === id);
           return existing ?? { userId: id, userName: id, departmentUnitId: t.departmentUnitId };
         });
-        return { ...t, unitName: updatedName, members: updatedMembers };
+        // 代表者情報を更新
+        const newOwnerMember = updatedMembers.find((m) => m.userId === newOwnerUserId);
+        return {
+          ...t,
+          unitName: updatedName,
+          members: updatedMembers,
+          ownerUserId: newOwnerUserId ?? t.ownerUserId,
+          ownerName: newOwnerMember?.userName ?? t.ownerName,
+        };
       }),
     );
     setSelectedTeam((prev) => {
       if (!prev || prev.departmentUnitId !== editTarget.departmentUnitId) return prev;
+      const updatedMembers: TeamMember[] = memberIds.map((id) => {
+        const existing = prev.members.find((m) => m.userId === id);
+        return existing ?? { userId: id, userName: id, departmentUnitId: prev.departmentUnitId };
+      });
+      const newOwnerMember = updatedMembers.find((m) => m.userId === newOwnerUserId);
       return {
         ...prev,
         unitName: newTeamName ?? prev.unitName,
-        members: memberIds.map((id) => {
-          const existing = prev.members.find((m) => m.userId === id);
-          return existing ?? { userId: id, userName: id, departmentUnitId: prev.departmentUnitId };
-        }),
+        members: updatedMembers,
+        ownerUserId: newOwnerUserId ?? prev.ownerUserId,
+        ownerName: newOwnerMember?.userName ?? prev.ownerName,
       };
     });
     setEditDialogOpen(false);
@@ -340,6 +355,7 @@ const TeamManagementPanel: React.FC = () => {
           open={editDialogOpen}
           teamLabel={editTarget.unitName}
           teamUnitId={editTarget.departmentUnitId}
+          teamOwnerUserId={editTarget.ownerUserId}
           onClose={() => {
             setEditDialogOpen(false);
             setEditTarget(null);
