@@ -25,8 +25,12 @@ const { Text } = Typography;
 /** 定性選択肢の型定義 */
 export interface QualitativeOption {
   id: number;
+  /** 表示ラベル（任意） */
+  label?: string;
   value: string;
   color: string;
+  /** アイコン識別子（任意） */
+  icon?: string;
   isDefault: boolean;
 }
 

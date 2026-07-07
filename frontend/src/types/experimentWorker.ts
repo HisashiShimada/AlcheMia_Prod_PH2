@@ -432,6 +432,8 @@ export interface Issue {
   projectName?: string;    // プロジェクト名（対象がプロジェクトの場合）
   taskId?: string;         // タスクID（対象がタスクの場合）
   taskName?: string;       // タスク名（対象がタスクの場合）
+  /** タスクNo（問題件数を taskNo 単位で集計するために使用） */
+  taskNo?: number;
   title: string;           // タイトル
   content: string;         // 内容
   status: IssueStatus;     // 状態（未解決/解決済）

@@ -31,7 +31,6 @@ import {
   Tabs,
   Select,
   Input,
-  InputNumber,
   Button,
   Card,
   Space,
@@ -45,7 +44,6 @@ import {
   Spin,
   Table,
   Tag,
-  Form,
   Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -55,9 +53,6 @@ import {
   FileTextOutlined,
   ImportOutlined,
   ExportOutlined,
-  DeleteOutlined,
-  HolderOutlined,
-  LinkOutlined,
 } from '@ant-design/icons';
 import {
   DndContext,
@@ -69,13 +64,10 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import {
   NoteType,
   NOTE_TYPE_LABELS,
@@ -85,934 +77,37 @@ import type {
   NoteTypeValue,
   ExperimentPlanTabData,
   ExperimentPlanDialogProps,
-  SaveExperimentPlanRequest,
-  TemplateDef,
 } from '@/types/experimentPlan';
+import type {
+  TransitionRow,
+  TransitionOrderItem,
+  InheritableField,
+  CustomPropValue,
+} from '@/types/experimentPlanDialog';
 import {
-  saveExperimentPlan,
+  TAB_KEY_ALL,
+} from '@/constants/experimentPlanConstants';
+import {
+  createInitialTabData,
+  buildDefaultTemplateValues,
+  calculateSteps,
+  canMoveToOrder,
+  moveTransitionWithSubtree,
+} from '@/utils/experimentPlanHelpers';
+import {
+  getExperimentPlans,
+  experimentPlansToTabDataMap,
+  upsertExperimentPlanToApi,
   getPlanDialogData,
-  MOCK_PLAN_DIALOG_DATA,
 } from '@/services/experimentPlanApiService';
 import type { PlanDialogData } from '@/services/experimentPlanApiService';
-import UncertaintyCriteriaSelectorModal from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
-import type { TargetProperty, AssignPayload } from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
+import RefSection from './ExperimentPlanDialog/RefSection';
+import SortableTransitionRow from './ExperimentPlanDialog/SortableTransitionRow';
+import TemplateInputPanel from './ExperimentPlanDialog/TemplateInputPanel';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 const { useToken } = theme;
-
-/** 全体タブのキー定数 */
-const TAB_KEY_ALL = 'all';
-
-/**
- * 継承の上書きフラグが追跡するフィールド名
- * 全体タブ変更時に、このフィールド単位でタスクNへ伝播するかどうかを判断する
- */
-type InheritableField = 'creatorRefs' | 'instrumentRefs' | 'ownerRefs' | 'notes' | 'templateValues';
-
-/**
- * タブデータの初期値を生成する
- */
-function createInitialTabData(): ExperimentPlanTabData {
-  return {
-    selectedTransitions: [],
-    creatorRefs: [],
-    instrumentRefs: [],
-    ownerRefs: [],
-    notes: [],
-    templateValues: {},
-  };
-}
-
-/** トランジション行の型 */
-interface TransitionRow {
-  id: string;
-  name: string;
-  /** 前提となるトランジションIDの配列（空配列 = 依存なし） */
-  prerequisiteTransitionIds?: string[];
-}
-
-/**
- * 実行順序リストの要素型
- * isFixed を廃止し、prerequisiteTransitionIds による依存関係制約に移行
- */
-interface TransitionOrderItem {
-  id: string;
-  name: string;
-  order: number;
-  /**
-   * ステップ番号（依存の深さ）
-   * - 依存なし → ステップ1
-   * - 全依存先の最大ステップ+1 → 自身のステップ
-   */
-  step: number;
-  /** 前提となるトランジションIDの配列（空配列 = 依存なし） */
-  prerequisiteTransitionIds: string[];
-}
-
-/**
- * トランジションの依存関係からステップ番号を計算する。
- *
- * ステップの定義:
- *   - 依存なし（前提トランジションがない）→ ステップ1
- *   - 全依存先の最大ステップ番号 + 1 → 自身のステップ番号
- *
- * 例）画像の推移図:
- *   A（依存なし）→ ステップ1
- *   C（依存なし）→ ステップ1
- *   B（A に依存）→ ステップ2
- *   D（C に依存）→ ステップ2
- *   E（B, D に依存）→ ステップ3
- *   F（E に依存）→ ステップ4
- *   G（E に依存）→ ステップ4
- *   H（F, G に依存）→ ステップ5
- */
-function calculateSteps(transitions: TransitionOrderItem[]): TransitionOrderItem[] {
-  const stepMap = new Map<string, number>();
-
-  const getStep = (id: string, visited = new Set<string>()): number => {
-    if (stepMap.has(id)) return stepMap.get(id)!;
-    if (visited.has(id)) return 1; // 循環参照の場合はステップ1として扱う
-
-    visited.add(id);
-    const trans = transitions.find((t) => t.id === id);
-
-    // 依存なし → ステップ1
-    if (!trans || trans.prerequisiteTransitionIds.length === 0) {
-      stepMap.set(id, 1);
-      return 1;
-    }
-
-    // 全依存先の最大ステップ番号 + 1
-    const maxPrereqStep = Math.max(
-      ...trans.prerequisiteTransitionIds.map((prereqId) =>
-        getStep(prereqId, new Set(visited))
-      )
-    );
-    const step = maxPrereqStep + 1;
-    stepMap.set(id, step);
-    return step;
-  };
-
-  transitions.forEach((t) => getStep(t.id));
-
-  return transitions.map((t) => ({
-    ...t,
-    step: stepMap.get(t.id) ?? 1,
-  }));
-}
-
-/**
- * 指定トランジションを targetOrder へ移動できるか判定する。
- *
- * チェック項目:
- *   A) 自分の依存先（prerequisiteTransitionIds）が全て targetOrder より小さい order にあるか
- *   B) 自分に直接依存しているトランジションが全て targetOrder より大きい order にあるか
- *      ※ 準備A が混合より後ろに移動するのを防ぐ
- */
-function canMoveToOrder(
-  transitionId: string,
-  targetOrder: number,
-  currentOrderList: TransitionOrderItem[]
-): { canMove: boolean; reason?: string } {
-  const target = currentOrderList.find((t) => t.id === transitionId);
-  if (!target) return { canMove: false, reason: 'トランジションが見つかりません' };
-
-  // A) 依存先チェック（自分の prereqs が全て targetOrder より前にあるか）
-  for (const prereqId of target.prerequisiteTransitionIds) {
-    const prereq = currentOrderList.find((t) => t.id === prereqId);
-    if (prereq && prereq.order >= targetOrder) {
-      return {
-        canMove: false,
-        reason: `依存先「${prereq.name}」（順序: ${prereq.order}）より前には移動できません`,
-      };
-    }
-  }
-
-  // B) 子孫チェック（自分に直接依存しているトランジションが全て targetOrder より後ろにあるか）
-  const dependents = currentOrderList.filter((t) =>
-    t.prerequisiteTransitionIds.includes(transitionId)
-  );
-  for (const dep of dependents) {
-    if (dep.order <= targetOrder) {
-      return {
-        canMove: false,
-        reason: `依存されている「${dep.name}」（順序: ${dep.order}）より後ろには移動できません`,
-      };
-    }
-  }
-
-  return { canMove: true };
-}
-
-/**
- * 指定トランジションとその「強制連動が必要な」子孫を収集する。
- *
- * 連動ルール:
- *   子 C が連動対象になるのは「C の全 prereqs がすでに subtree に含まれている場合のみ」。
- *   例: 混合（prereqs=[A, B]）は、A と B の両方が subtree に含まれている場合だけ連動。
- *       B だけ移動するとき、A は subtree 外なので混合は連動しない。
- *
- * 返却値は currentOrder 順にソートされた TransitionOrderItem[]。
- */
-function collectTransitionSubtree(
-  transitionId: string,
-  allTransitions: TransitionOrderItem[]
-): TransitionOrderItem[] {
-  const subtreeIds = new Set<string>();
-
-  // BFS で「全 prereqs が subtree 内に収まっている子」だけを追加していく
-  const queue: string[] = [transitionId];
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    if (subtreeIds.has(id)) continue;
-    subtreeIds.add(id);
-
-    // このノードを subtree に追加したことで連動対象になる子を探す
-    for (const child of allTransitions) {
-      if (subtreeIds.has(child.id)) continue;
-      // 子の全 prereqs が subtree に含まれている場合のみ連動
-      const allPrereqsInSubtree = child.prerequisiteTransitionIds.every((prereqId) =>
-        subtreeIds.has(prereqId)
-      );
-      if (allPrereqsInSubtree && child.prerequisiteTransitionIds.length > 0) {
-        queue.push(child.id);
-      }
-    }
-  }
-
-  return allTransitions
-    .filter((t) => subtreeIds.has(t.id))
-    .sort((a, b) => a.order - b.order);
-}
-
-/**
- * 指定トランジションとその全子孫を targetOrder に移動する。
- * targetOrder は「移動対象グループの先頭が置かれるべき order 値」。
- *
- * アルゴリズム:
- *   1. 移動対象グループ（transitionId + 全子孫）を収集
- *   2. 残り（グループ以外）を元の order 順で並べる
- *   3. 残りの列の targetOrder-1 の位置にグループを挿入
- *   4. order を 1 から振り直す
- */
-function moveTransitionWithSubtree(
-  transitionId: string,
-  targetOrder: number,
-  currentOrderList: TransitionOrderItem[]
-): TransitionOrderItem[] {
-  const subtree = collectTransitionSubtree(transitionId, currentOrderList);
-  const subtreeIds = new Set(subtree.map((t) => t.id));
-
-  // グループ以外を元の order 順で取得
-  const others = currentOrderList
-    .filter((t) => !subtreeIds.has(t.id))
-    .sort((a, b) => a.order - b.order);
-
-  // targetOrder-1 の位置にグループを挿入
-  const insertAt = Math.max(0, Math.min(targetOrder - 1, others.length));
-  const result = [
-    ...others.slice(0, insertAt),
-    ...subtree,
-    ...others.slice(insertAt),
-  ];
-
-  // order を 1 から振り直す
-  return result.map((item, i) => ({ ...item, order: i + 1 }));
-}
-
-/** カスタムプロパティ型（テンプレート入力で追加できるプロパティ） */
-type CustomPropType =
-  | 'stringType' | 'intType' | 'floatType' | 'doubleType' | 'booleanType'
-  | 'dateType' | 'dateTimeType';
-
-/** カスタムプロパティ値 */
-interface CustomPropValue {
-  id: string;
-  key: string;
-  type: CustomPropType;
-  value: string;
-  units: string;
-}
-
-/**
- * Ref追加エリアコンポーネント（Creator / Instrument / Owner 共通）
- */
-interface RefSectionProps {
-  title: string;
-  options: string[];
-  selectedValues: string[];
-  onAdd: (value: string) => void;
-  onRemove: (value: string) => void;
-  disabled?: boolean;
-  testIdPrefix: string;
-}
-
-const RefSection: React.FC<RefSectionProps> = ({
-  title,
-  options,
-  selectedValues,
-  onAdd,
-  onRemove,
-  disabled = false,
-  testIdPrefix,
-}) => {
-  const { token } = useToken();
-  const [selectValue, setSelectValue] = useState<string | undefined>(undefined);
-
-  // 未選択のオプションのみ表示（既に追加済みのものは除く）
-  const availableOptions = useMemo(
-    () => options.filter((o) => !selectedValues.includes(o)),
-    [options, selectedValues]
-  );
-
-  const handleAdd = () => {
-    if (!selectValue) return;
-    onAdd(selectValue);
-    setSelectValue(undefined);
-  };
-
-  return (
-    <div>
-      <Text strong style={{ fontSize: 13 }}>
-        {title}
-      </Text>
-      <Space style={{ marginTop: 6, width: '100%' }} direction="vertical" size={6}>
-        {/* 追加行 */}
-        <Space>
-          <Select
-            value={selectValue}
-            onChange={setSelectValue}
-            options={availableOptions.map((o) => ({ label: o, value: o }))}
-            style={{ minWidth: 220 }}
-            placeholder={`${title}を選択`}
-            disabled={disabled}
-            data-testid={`${testIdPrefix}-select`}
-          />
-          <Button
-            type="primary"
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            disabled={disabled || !selectValue}
-            data-testid={`${testIdPrefix}-add-button`}
-          >
-            追加
-          </Button>
-        </Space>
-        {/* 追加済みリスト */}
-        {selectedValues.length > 0 && (
-          <div
-            style={{
-              padding: '8px 12px',
-              border: `1px solid ${token.colorBorder}`,
-              borderRadius: token.borderRadius,
-              backgroundColor: token.colorFillAlter,
-              minHeight: 36,
-            }}
-          >
-            <Space size={4} wrap>
-              {selectedValues.map((v) => (
-                <Tag
-                  key={v}
-                  closable={!disabled}
-                  onClose={() => onRemove(v)}
-                  color="blue"
-                  style={{ margin: 2 }}
-                >
-                  {v}
-                </Tag>
-              ))}
-            </Space>
-          </div>
-        )}
-      </Space>
-    </div>
-  );
-};
-
-// ============================================================
-// テンプレート入力コンポーネント（MAIMLテンプレートデータベース）
-// ============================================================
-
-/**
- * テンプレート入力コンポーネント
- *
- * DataRecordDialog のレイアウトに準拠：
- * - 左側: メソッドに紐づくテンプレート一覧（行選択）
- * - 右側: 選択したテンプレートの入力フィールド一覧
- *
- * methodTemplates が空の場合は「テンプレートが未定義」メッセージを表示する
- */
-const CUSTOM_PROP_TYPE_OPTIONS: { value: CustomPropType; label: string }[] = [
-  { value: 'stringType',   label: '文字列 (string)' },
-  { value: 'intType',      label: '整数 (int)' },
-  { value: 'floatType',    label: '実数 (float)' },
-  { value: 'doubleType',   label: '実数 (double)' },
-  { value: 'booleanType',  label: '真偽値 (boolean)' },
-  { value: 'dateType',     label: '日付 (date)' },
-  { value: 'dateTimeType', label: '日時 (dateTime)' },
-];
-
-interface TemplateInputPanelProps {
-  /** MAIMLから生成したテンプレート定義一覧 */
-  methodTemplates: TemplateDef[];
-  /** テンプレートの入力値 `{templateId_fieldKey: value}` 形式 */
-  templateValues: Record<string, string | number | boolean>;
-  onValueChange: (key: string, value: string | number | boolean) => void;
-  /** カスタムプロパティ（templateId → CustomPropValue[]） */
-  customProps: Record<string, CustomPropValue[]>;
-  onCustomPropsChange: (templateId: string, props: CustomPropValue[]) => void;
-  disabled?: boolean;
-}
-
-const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
-  methodTemplates,
-  templateValues,
-  onValueChange,
-  customProps,
-  onCustomPropsChange,
-  disabled = false,
-}) => {
-  const { token } = useToken();
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-  const [pendingKey, setPendingKey] = useState('');
-  const [pendingType, setPendingType] = useState<CustomPropType>('stringType');
-  const [pendingUnits, setPendingUnits] = useState('');
-
-  // 不確かさ基準選択モーダル用 state
-  const [criteriaSelectorOpen, setCriteriaSelectorOpen] = useState(false);
-  const [criteriaSelectorTarget, setCriteriaSelectorTarget] = useState<TargetProperty | null>(null);
-
-  // methodTemplates が変わった（メソッド切り替え等）場合は選択リセット
-  useEffect(() => {
-    setSelectedTemplateId(null);
-  }, [methodTemplates]);
-
-  const selectedTemplate = methodTemplates.find((t) => t.id === selectedTemplateId) ?? null;
-
-  /** 選択中テンプレートのカスタムプロパティを追加 */
-  const handleAddCustomProp = () => {
-    if (!selectedTemplate || !pendingKey.trim()) return;
-    const existing = customProps[selectedTemplate.id] ?? [];
-    const newProp: CustomPropValue = {
-      id: `cp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      key: pendingKey.trim(),
-      type: pendingType,
-      value: '',
-      units: pendingUnits,
-    };
-    onCustomPropsChange(selectedTemplate.id, [...existing, newProp]);
-    setPendingKey('');
-    setPendingUnits('');
-  };
-
-  /** カスタムプロパティを削除 */
-  const handleRemoveCustomProp = (templateId: string, propId: string) => {
-    const existing = customProps[templateId] ?? [];
-    onCustomPropsChange(templateId, existing.filter((p) => p.id !== propId));
-  };
-
-  /** カスタムプロパティの値を更新 */
-  const handleCustomPropValueChange = (templateId: string, propId: string, value: string) => {
-    const existing = customProps[templateId] ?? [];
-    onCustomPropsChange(
-      templateId,
-      existing.map((p) => (p.id === propId ? { ...p, value } : p))
-    );
-  };
-
-  if (methodTemplates.length === 0) {
-    return (
-      <div
-        style={{
-          minHeight: 120,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: `1px dashed ${token.colorBorder}`,
-          borderRadius: token.borderRadius,
-          backgroundColor: token.colorFillAlter,
-        }}
-      >
-        <Empty
-          description="このメソッドにはテンプレートが定義されていません"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
-      </div>
-    );
-  }
-
-  const currentCustomProps = selectedTemplate ? (customProps[selectedTemplate.id] ?? []) : [];
-
-  return (
-    <div>
-      <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
-        テンプレート入力
-      </Text>
-
-      <Row gutter={12}>
-        {/* 左側: テンプレート一覧 */}
-        <Col span={10}>
-          <Card
-            size="small"
-            title={<Text style={{ fontSize: 12 }}>テンプレート一覧</Text>}
-            styles={{ body: { padding: 0 } }}
-          >
-            <Table<TemplateDef>
-              dataSource={methodTemplates}
-              rowKey="id"
-              size="small"
-              pagination={false}
-              showHeader={false}
-              columns={[
-                {
-                  dataIndex: 'label',
-                  key: 'label',
-                  render: (label: string, record: TemplateDef) => (
-                    <Space direction="vertical" size={0}>
-                      <Text style={{ fontSize: 12 }}>{label}</Text>
-                      <Tag
-                        color={
-                          record.category === 'material'
-                            ? 'green'
-                            : record.category === 'condition'
-                            ? 'blue'
-                            : 'orange'
-                        }
-                        style={{ fontSize: 10, margin: 0 }}
-                      >
-                        {record.category}
-                      </Tag>
-                    </Space>
-                  ),
-                },
-              ]}
-              onRow={(record) => ({
-                onClick: () => {
-                  if (disabled) return;
-                  setSelectedTemplateId(
-                    selectedTemplateId === record.id ? null : record.id
-                  );
-                },
-                style: {
-                  cursor: disabled ? 'not-allowed' : 'pointer',
-                  backgroundColor:
-                    selectedTemplateId === record.id
-                      ? token.colorPrimaryBg
-                      : undefined,
-                  transition: 'background-color 0.15s',
-                },
-              })}
-            />
-          </Card>
-        </Col>
-
-        {/* 右側: 選択テンプレートの入力フィールド */}
-        <Col span={14}>
-          {selectedTemplate === null ? (
-            <div
-              style={{
-                height: '100%',
-                minHeight: 120,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: `1px dashed ${token.colorBorder}`,
-                borderRadius: token.borderRadius,
-                backgroundColor: token.colorFillAlter,
-              }}
-            >
-              <Empty
-                description="テンプレートを選択してください"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            </div>
-          ) : (
-            <Card
-              size="small"
-              title={<Text style={{ fontSize: 12 }}>{selectedTemplate.label}</Text>}
-              styles={{ body: { maxHeight: 420, overflowY: 'auto' } }}
-            >
-              {/* ── 定義済みフィールド ── */}
-              {selectedTemplate.fields.length === 0 ? (
-                <Empty
-                  description="フィールドが定義されていません"
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  style={{ marginBottom: 8 }}
-                />
-              ) : (
-                <div>
-                  {selectedTemplate.fields.map((field) => {
-                    const valueKey = `${selectedTemplate.id}_${field.key}`;
-                    return (
-                      <div key={valueKey} style={{ marginBottom: 10 }}>
-                        {/* ラベル行: フィールド名・単位を左、不確かさ選択ボタンを右端 */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: 4,
-                          }}
-                        >
-                          <Space size={4}>
-                            <Text style={{ fontSize: 12 }}>
-                              {field.label || field.key}
-                              {field.required && (
-                                <span style={{ color: token.colorError, marginLeft: 2 }}>*</span>
-                              )}
-                            </Text>
-                            {field.units && (
-                              <Tag color="blue" style={{ fontSize: 10 }}>
-                                {field.units}
-                              </Tag>
-                            )}
-                          </Space>
-                          <Button
-                            type="primary"
-                            size="small"
-                            disabled={disabled}
-                            onClick={() => {
-                              setCriteriaSelectorTarget({
-                                name: field.label || field.key,
-                                xpath: field.key,
-                                tag: 'property',
-                                type: field.type,
-                                value: String(templateValues[valueKey] ?? ''),
-                                unit: field.units ?? '',
-                                section: selectedTemplate.category as 'material' | 'condition' | 'result',
-                              });
-                              setCriteriaSelectorOpen(true);
-                            }}
-                          >
-                            不確かさ選択
-                          </Button>
-                        </div>
-                        {/* 入力欄 */}
-                        {field.type === 'number' ? (
-                          <InputNumber
-                            value={templateValues[valueKey] as number | undefined}
-                            onChange={(value) => {
-                              if (value !== null) onValueChange(valueKey, value);
-                            }}
-                            style={{ width: '100%' }}
-                            placeholder={`${field.label || field.key}を入力`}
-                            disabled={disabled}
-                            data-testid={`template-input-${field.key}`}
-                          />
-                        ) : field.type === 'select' ? (
-                          <Select
-                            value={templateValues[valueKey] as string | undefined}
-                            onChange={(value) => onValueChange(valueKey, value)}
-                            options={(field.options ?? []).map((o) => ({ label: o, value: o }))}
-                            style={{ width: '100%' }}
-                            placeholder={`${field.label || field.key}を選択`}
-                            disabled={disabled}
-                            data-testid={`template-input-${field.key}`}
-                          />
-                        ) : (
-                          <Input
-                            value={templateValues[valueKey] as string | undefined}
-                            onChange={(e) => onValueChange(valueKey, e.target.value)}
-                            placeholder={`${field.label || field.key}を入力`}
-                            disabled={disabled}
-                            data-testid={`template-input-${field.key}`}
-                          />
-                        )}
-                        {field.description && (
-                          <Text type="secondary" style={{ fontSize: 10 }}>
-                            {field.description}
-                          </Text>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <Divider style={{ margin: '8px 0' }} />
-
-              {/* ── カスタムプロパティ追加エリア ── */}
-              <div>
-                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
-                  プロパティを追加
-                </Text>
-                <Space wrap style={{ marginBottom: 6 }}>
-                  <Input
-                    placeholder="Key（プロパティ名）"
-                    value={pendingKey}
-                    onChange={(e) => setPendingKey(e.target.value)}
-                    style={{ width: 160 }}
-                    size="small"
-                    disabled={disabled}
-                  />
-                  <Select
-                    value={pendingType}
-                    onChange={setPendingType}
-                    options={CUSTOM_PROP_TYPE_OPTIONS}
-                    style={{ width: 160 }}
-                    size="small"
-                    disabled={disabled}
-                  />
-                  <Input
-                    placeholder="単位（任意）"
-                    value={pendingUnits}
-                    onChange={(e) => setPendingUnits(e.target.value)}
-                    style={{ width: 100 }}
-                    size="small"
-                    disabled={disabled}
-                  />
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={handleAddCustomProp}
-                    disabled={disabled || !pendingKey.trim()}
-                  >
-                    追加
-                  </Button>
-                </Space>
-
-                {/* 追加済みカスタムプロパティ一覧 */}
-                {currentCustomProps.length > 0 && (
-                  <div style={{ marginTop: 4 }}>
-                    {currentCustomProps.map((cp) => (
-                      <div
-                        key={cp.id}
-                        style={{
-                          display: 'flex',
-                          gap: 6,
-                          alignItems: 'center',
-                          marginBottom: 6,
-                          padding: '4px 8px',
-                          border: `1px solid ${token.colorBorder}`,
-                          borderRadius: token.borderRadius,
-                          backgroundColor: token.colorFillAlter,
-                        }}
-                      >
-                        <Text style={{ fontSize: 11, minWidth: 90, flexShrink: 0 }}>
-                          {cp.key}
-                          {cp.units && (
-                            <Tag color="blue" style={{ fontSize: 9, margin: '0 0 0 4px' }}>
-                              {cp.units}
-                            </Tag>
-                          )}
-                        </Text>
-                        <Tag style={{ fontSize: 10, flexShrink: 0 }}>{cp.type}</Tag>
-                        <Input
-                          value={cp.value}
-                          onChange={(e) =>
-                            handleCustomPropValueChange(selectedTemplate.id, cp.id, e.target.value)
-                          }
-                          placeholder="値を入力"
-                          size="small"
-                          style={{ flex: 1, minWidth: 80 }}
-                          disabled={disabled}
-                        />
-                        <Button
-                          type="primary"
-                          size="small"
-                          disabled={disabled}
-                          onClick={() => {
-                            setCriteriaSelectorTarget({
-                              name: cp.key,
-                              xpath: cp.key,
-                              tag: 'property',
-                              type: cp.type,
-                              value: cp.value,
-                              unit: cp.units,
-                              section: selectedTemplate.category as 'material' | 'condition' | 'result',
-                            });
-                            setCriteriaSelectorOpen(true);
-                          }}
-                        >
-                          不確かさ選択
-                        </Button>
-                        <Tooltip title="削除">
-                          <Button
-                            type="text"
-                            danger
-                            size="small"
-                            icon={<DeleteOutlined />}
-                            onClick={() => handleRemoveCustomProp(selectedTemplate.id, cp.id)}
-                            disabled={disabled}
-                          />
-                        </Tooltip>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
-        </Col>
-      </Row>
-
-      {/* 不確かさ基準選択モーダル */}
-      <UncertaintyCriteriaSelectorModal
-        open={criteriaSelectorOpen}
-        onClose={() => {
-          setCriteriaSelectorOpen(false);
-          setCriteriaSelectorTarget(null);
-        }}
-        targetProperty={criteriaSelectorTarget}
-        onAssign={(_payload: AssignPayload) => {
-          // 付与結果の処理（必要に応じて拡張）
-          setCriteriaSelectorOpen(false);
-          setCriteriaSelectorTarget(null);
-        }}
-      />
-    </div>
-  );
-};
-
-// ============================================================
-// SortableTransitionRow — ドラッグ&ドロップ可能なトランジション行
-// ============================================================
-
-interface SortableTransitionRowProps {
-  id: string;
-  order: number;
-  /** ステップ番号（依存の深さから計算） */
-  step: number;
-  name: string;
-  /** 前提となるトランジションIDの配列（空配列 = 依存なし） */
-  prerequisiteTransitionIds: string[];
-  /** 依存関係のルックアップ用（ツールチップに名前・順序を表示するため全件渡す） */
-  allTransitionOrderItems: TransitionOrderItem[];
-  maxOrder: number;
-  onOrderChange: (id: string, newOrder: number) => void;
-  disabled: boolean;
-  token: ReturnType<typeof useToken>['token'];
-}
-
-const SortableTransitionRow: React.FC<SortableTransitionRowProps> = ({
-  id,
-  order,
-  step,
-  name,
-  prerequisiteTransitionIds,
-  allTransitionOrderItems,
-  maxOrder,
-  onOrderChange,
-  disabled,
-  token,
-}) => {
-  const hasPrereqs = prerequisiteTransitionIds.length > 0;
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id, disabled });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: '3px 6px',
-    border: `1px solid ${hasPrereqs ? token.colorInfoBorder : token.colorBorder}`,
-    borderRadius: token.borderRadius,
-    backgroundColor: hasPrereqs ? token.colorInfoBg : token.colorFillAlter,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      {/* ドラッグハンドル（常に表示） */}
-      <div
-        {...attributes}
-        {...listeners}
-        style={{ cursor: disabled ? 'not-allowed' : 'grab', color: token.colorTextQuaternary, flexShrink: 0, lineHeight: 1 }}
-      >
-        <HolderOutlined style={{ fontSize: 12 }} />
-      </div>
-
-      {/* 順序番号 Select */}
-      <Select
-        size="small"
-        value={order}
-        onChange={(val) => onOrderChange(id, val)}
-        disabled={disabled}
-        style={{ width: 52, flexShrink: 0 }}
-        popupMatchSelectWidth={false}
-        options={Array.from({ length: maxOrder }, (_, i) => {
-          const targetOrder = i + 1;
-          const { canMove } = canMoveToOrder(id, targetOrder, allTransitionOrderItems);
-          return {
-            label: String(targetOrder),
-            value: targetOrder,
-            // 依存先が targetOrder 以降にある場合は選択不可
-            disabled: !canMove,
-          };
-        })}
-      />
-
-      {/* ステップ番号 Tag */}
-      <Tooltip title={`ステップ ${step}（依存の深さ ${step - 1}）`}>
-        <Tag
-          color="purple"
-          style={{ margin: 0, cursor: 'default', fontSize: 10, flexShrink: 0 }}
-        >
-          S{step}
-        </Tag>
-      </Tooltip>
-
-      {/* トランジション名 */}
-      <Text
-        style={{
-          fontSize: 11,
-          flex: 1,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          minWidth: 0,
-          color: token.colorText,
-        }}
-        title={name}
-      >
-        {name}
-      </Text>
-
-      {/* 依存関係アイコン（prerequisiteTransitionIds が空でない場合のみ） */}
-      {hasPrereqs && (
-        <Tooltip
-          title={
-            <div>
-              <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
-                依存関係あり（以下より後に実行）
-              </div>
-              <ul style={{ margin: 0, paddingLeft: 16 }}>
-                {prerequisiteTransitionIds.map((prereqId) => {
-                  const prereq = allTransitionOrderItems.find((t) => t.id === prereqId);
-                  return (
-                    <li key={prereqId}>
-                      {prereq?.name ?? prereqId}（順序: {prereq?.order ?? '?'}）
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          }
-        >
-          <Tag
-            color="blue"
-            icon={<LinkOutlined />}
-            style={{ margin: 0, cursor: 'default', fontSize: 10, flexShrink: 0 }}
-          >
-            依存
-          </Tag>
-        </Tooltip>
-      )}
-    </div>
-  );
-};
 
 /**
  * 実験計画詳細指示ダイアログ
@@ -1058,10 +153,11 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   const [transitionOrder, setTransitionOrder] = useState<TransitionOrderItem[]>([]);
 
   /**
-   * タブキー → ExperimentPlanTabData のマップ
-   * 全体タブ（'all'）が変更されると、上書きされていない各タスクタブへ自動伝播する
+   * タブキー → トランジションID → ExperimentPlanTabData のマップ（二次元）
+   * 全体タブ（'all'）の特定トランジションが変更されると、
+   * 各タスクタブの同じトランジションIDへ自動伝播する
    */
-  const [tabDataMap, setTabDataMap] = useState<Record<string, ExperimentPlanTabData>>({});
+  const [tabDataMap, setTabDataMap] = useState<Record<string, Record<string, ExperimentPlanTabData>>>({});
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -1079,37 +175,53 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   /** 右側パネルが活性化しているか（トランジション選択済み）*/
   const isRightPanelActive = selectedTransitionId !== null;
 
-  /** 現在のタブのデータを取得（なければ初期値を返す）*/
+  /**
+   * 現在のタブ × 選択トランジションのデータを取得（なければ初期値を返す）
+   */
   const currentTabData = useMemo((): ExperimentPlanTabData => {
-    return tabDataMap[activeTab] ?? createInitialTabData();
-  }, [tabDataMap, activeTab]);
+    if (!selectedTransitionId) return createInitialTabData();
+    return tabDataMap[activeTab]?.[selectedTransitionId] ?? createInitialTabData();
+  }, [tabDataMap, activeTab, selectedTransitionId]);
 
   /**
-   * 現在のタブのデータを更新するヘルパー
-   * activeTab が 'all'（一括）の場合、変更を各タスクNタブに無条件で伝播する
+   * 現在のタブ × 選択トランジションのデータを更新するヘルパー
+   * activeTab が 'all'（一括）の場合、同じトランジションIDの各タスクNタブに伝播する
    */
   const updateCurrentTabData = useCallback(
     (
       field: InheritableField,
       updater: (prev: ExperimentPlanTabData) => ExperimentPlanTabData,
     ) => {
-      setTabDataMap((prev) => {
-        const updated = updater(prev[activeTab] ?? createInitialTabData());
-        const next: Record<string, ExperimentPlanTabData> = { ...prev, [activeTab]: updated };
+      if (!selectedTransitionId) return;
 
-        // 一括タブの変更を各タスクNタブに無条件で伝播
+      setTabDataMap((prev) => {
+        const currentData = prev[activeTab]?.[selectedTransitionId] ?? createInitialTabData();
+        const updated = updater(currentData);
+
+        const next: Record<string, Record<string, ExperimentPlanTabData>> = {
+          ...prev,
+          [activeTab]: {
+            ...prev[activeTab],
+            [selectedTransitionId]: updated,
+          },
+        };
+
+        // 一括タブの変更を、同じトランジションIDの各タスクNタブに伝播
         if (activeTab === TAB_KEY_ALL) {
           taskNumbers.forEach((n) => {
             const key = `task-${n}`;
-            const taskData = next[key] ?? createInitialTabData();
-            next[key] = { ...taskData, [field]: (updated as ExperimentPlanTabData)[field] };
+            const taskTransData = next[key]?.[selectedTransitionId] ?? createInitialTabData();
+            next[key] = {
+              ...next[key],
+              [selectedTransitionId]: { ...taskTransData, [field]: updated[field] },
+            };
           });
         }
 
         return next;
       });
     },
-    [activeTab, taskNumbers]
+    [activeTab, selectedTransitionId, taskNumbers]
   );
 
   /** APIから取得したトランジション一覧 */
@@ -1117,11 +229,136 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     return dialogData?.transitions ?? [];
   }, [dialogData]);
 
-  /** APIから取得したテンプレート一覧（トランジション選択時に全件表示） */
-  const filteredTemplates = useMemo((): TemplateDef[] => {
+  /** APIから取得したテンプレート一覧（トランジション選択時にPlaceで絞り込み） */
+  const filteredTemplates = useMemo(() => {
     if (!selectedTransitionId) return [];
-    return dialogData?.templates ?? methodTemplatesProp;
+
+    const allTemplates = dialogData?.templates ?? methodTemplatesProp ?? [];
+
+    // 選択トランジションの inputPlaceIds + outputPlaceIds を取得
+    const selectedTransition = dialogData?.transitions.find(
+      (t) => t.id === selectedTransitionId
+    );
+    const inputPlaceIds = selectedTransition?.inputPlaceIds ?? [];
+    const outputPlaceIds = selectedTransition?.outputPlaceIds ?? [];
+    const allPlaceIds = [...inputPlaceIds, ...outputPlaceIds];
+
+    // placeIds が空の場合は全テンプレートを表示（フォールバック）
+    if (allPlaceIds.length === 0) return allTemplates;
+
+    // 選択トランジションの placeIds（入力+出力）に紐づくテンプレートのみ抽出
+    const placeIdSet = new Set(allPlaceIds);
+    const matched = allTemplates.filter((tmpl) =>
+      tmpl.placeIds?.some((pid) => placeIdSet.has(pid))
+    );
+
+    // 一致するテンプレートがない場合も全件表示（フォールバック）
+    return matched.length > 0 ? matched : allTemplates;
   }, [selectedTransitionId, dialogData, methodTemplatesProp]);
+
+  /**
+   * 参照専用（disabled）テンプレートID Set
+   *
+   * @remarks
+   * Petri Net の inputPlaceIds（Place → Transition）は
+   * 前工程の出力結果として渡されるPlaceを意味するため、
+   * 実験計画UIでは「参照専用（入力不可）」として扱う。
+   * （outputPlaceIds = Transition → Place は今工程で入力する値なので入力可能）
+   */
+  const outputTemplateIds = useMemo((): Set<string> => {
+    if (!selectedTransitionId || !dialogData) return new Set();
+
+    const selectedTransition = dialogData.transitions.find(
+      (t) => t.id === selectedTransitionId
+    );
+    // inputPlaceIds = 前工程からの入力Place → 参照専用（disabled）
+    const precedingPlaceIds = selectedTransition?.inputPlaceIds ?? [];
+    if (precedingPlaceIds.length === 0) return new Set();
+
+    const precedingPlaceIdSet = new Set(precedingPlaceIds);
+    const ids = new Set<string>();
+    for (const tmpl of dialogData.templates) {
+      // result カテゴリ かつ inputPlaceIds に紐づく場合のみ参照専用（disabled）にする
+      // material / condition は前工程からの入力であっても入力可能
+      if (
+        tmpl.category === 'result' &&
+        tmpl.placeIds?.some((pid) => precedingPlaceIdSet.has(pid))
+      ) {
+        ids.add(tmpl.id);
+      }
+    }
+    return ids;
+  }, [selectedTransitionId, dialogData]);
+
+  /**
+   * Place ID → その Place を outputPlaceIds に持つトランジションID のマッピング
+   * 「どのトランジションがそのPlaceに値を出力するか」を解決するために使用する
+   */
+  const placeProducerMap = useMemo((): Map<string, string> => {
+    if (!dialogData) return new Map();
+    const map = new Map<string, string>();
+    for (const trans of dialogData.transitions) {
+      for (const placeId of trans.outputPlaceIds) {
+        map.set(placeId, trans.id);
+      }
+    }
+    return map;
+  }, [dialogData]);
+
+  /**
+   * テンプレートID → そのテンプレートを出力したトランジションID のマッピング
+   * 参照専用テンプレートの値を producer トランジションのタブデータから取得するために使用する
+   */
+  const templateProducerMap = useMemo((): Map<string, string> => {
+    if (!dialogData) return new Map();
+    const map = new Map<string, string>();
+    for (const tmpl of dialogData.templates) {
+      if (!tmpl.placeIds || tmpl.placeIds.length === 0) continue;
+      for (const placeId of tmpl.placeIds) {
+        const producerTransId = placeProducerMap.get(placeId);
+        if (producerTransId) {
+          map.set(tmpl.id, producerTransId);
+          break;
+        }
+      }
+    }
+    return map;
+  }, [dialogData, placeProducerMap]);
+
+  /**
+   * 参照専用（disabled）テンプレートの値を producer トランジションの tabData から取得して
+   * 現在の templateValues に上書きマージした「表示用」テンプレート値
+   *
+   * - disabled でないテンプレートの値はそのまま（currentTabData.templateValues）
+   * - disabled テンプレートの値は、producer トランジション × activeTab（なければ 'all' タブ）から取得
+   */
+  const effectiveTemplateValues = useMemo((): Record<string, string | number | boolean> => {
+    if (outputTemplateIds.size === 0) return currentTabData.templateValues;
+
+    const overrides: Record<string, string | number | boolean> = {};
+
+    for (const tmplId of outputTemplateIds) {
+      const producerTransId = templateProducerMap.get(tmplId);
+      if (!producerTransId) continue;
+
+      // activeTab → fallback to 'all' タブ の順で producer の tabData を取得
+      const producerTabData =
+        tabDataMap[activeTab]?.[producerTransId] ??
+        tabDataMap[TAB_KEY_ALL]?.[producerTransId];
+
+      if (!producerTabData) continue;
+
+      // producer の templateValues から当該テンプレート（tmplId）のキーを抽出して上書き
+      for (const [key, value] of Object.entries(producerTabData.templateValues)) {
+        // キーが `{templateId}_{fieldKey}` 形式なので tmplId プレフィックスで一致判定
+        if (key.startsWith(`${tmplId}_`)) {
+          overrides[key] = value;
+        }
+      }
+    }
+
+    return { ...currentTabData.templateValues, ...overrides };
+  }, [outputTemplateIds, templateProducerMap, tabDataMap, activeTab, currentTabData.templateValues]);
 
   /** タブアイテムの定義 */
   const tabItems = useMemo(() => {
@@ -1147,20 +384,44 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     const fetchDialogData = async () => {
       setDialogDataLoading(true);
       try {
+        // トランジション・テンプレート・Ref選択肢を取得
         const data = await getPlanDialogData(projectId, methodId);
-        // API が prerequisiteTransitionIds を返さない場合はモックデータを使用
-        const hasPrereqs = data.transitions.length > 0 &&
-          data.transitions[0].prerequisiteTransitionIds !== undefined;
-        if (!hasPrereqs) {
-          console.warn('[ExperimentPlanDialog] APIが prerequisiteTransitionIds を返していません。モックデータを使用します。');
-          setDialogData(MOCK_PLAN_DIALOG_DATA);
+        setDialogData(data);
+
+        // 既存の実験計画データを取得して tabDataMap を復元
+        const existingPlans = await getExperimentPlans(projectId, methodId);
+        const restoredTabDataMap = experimentPlansToTabDataMap(existingPlans);
+        if (Object.keys(restoredTabDataMap).length > 0) {
+          // 保存済みデータがある場合はそちらを優先
+          setTabDataMap(restoredTabDataMap);
         } else {
-          setDialogData(data);
+          // 初回入力時: 全トランジション分のデフォルト値で一括タブを初期化
+          const defaultTemplateValues = buildDefaultTemplateValues(data.templates);
+          const info = data.defaultBasicInfo;
+
+          // 一括タブ: トランジションIDごとにデフォルト値を設定
+          const allTabTransMap: Record<string, ExperimentPlanTabData> = {};
+          for (const trans of data.transitions) {
+            const defaultNotes: NoteItem[] = (info?.notes ?? []).map((n) => ({
+              id: `note_default_${trans.id}_${n.type}_${Date.now()}`,
+              type: n.type as NoteTypeValue,
+              content: n.content,
+              properties: [],
+            }));
+            allTabTransMap[trans.id] = {
+              ...createInitialTabData(),
+              creatorRefs: info?.creatorRefs ?? [],
+              instrumentRefs: info?.instrumentRefs ?? [],
+              ownerRefs: info?.ownerRefs ?? [],
+              notes: defaultNotes,
+              templateValues: defaultTemplateValues,
+            };
+          }
+          setTabDataMap({ [TAB_KEY_ALL]: allTabTransMap });
         }
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData error:', err);
         message.error('実験計画データの取得に失敗しました');
-        setDialogData(MOCK_PLAN_DIALOG_DATA);
       } finally {
         setDialogDataLoading(false);
       }
@@ -1178,18 +439,10 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       setSelectedTransitionId(null);
       try {
         const data = await getPlanDialogData(projectId, methodId);
-        // API が prerequisiteTransitionIds を返さない場合はモックデータを使用
-        const hasPrereqs = data.transitions.length > 0 &&
-          data.transitions[0].prerequisiteTransitionIds !== undefined;
-        if (!hasPrereqs) {
-          console.warn('[ExperimentPlanDialog] (methodId change) APIが prerequisiteTransitionIds を返していません。モックデータを使用します。');
-          setDialogData(MOCK_PLAN_DIALOG_DATA);
-        } else {
-          setDialogData(data);
-        }
+        setDialogData(data);
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData (methodId change) error:', err);
-        setDialogData(MOCK_PLAN_DIALOG_DATA);
+        message.error('実験計画データの取得に失敗しました');
       } finally {
         setDialogDataLoading(false);
       }
@@ -1230,7 +483,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       reader.onload = (event) => {
         try {
           const json = JSON.parse(event.target?.result as string);
-          // tabDataMapへの反映
           if (json.tabDataMap) {
             setTabDataMap(json.tabDataMap);
           }
@@ -1371,14 +623,12 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
         const newIndex = prev.findIndex((item) => item.id === over.id);
         const targetOrder = newIndex + 1;
 
-        // 依存先チェック（Aチェックのみ）
         const validation = canMoveToOrder(active.id as string, targetOrder, prev);
         if (!validation.canMove) {
           message.warning(validation.reason ?? '順序を変更できません');
           return prev;
         }
 
-        // 子孫と一緒に移動後、ステップを再計算
         return calculateSteps(moveTransitionWithSubtree(active.id as string, targetOrder, prev));
       });
     },
@@ -1389,54 +639,40 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   const handleOrderSelectChange = useCallback(
     (transitionId: string, newOrder: number) => {
       setTransitionOrder((prev) => {
-        // 依存先チェック（Aチェックのみ）
         const validation = canMoveToOrder(transitionId, newOrder, prev);
         if (!validation.canMove) {
           message.warning(validation.reason ?? '順序を変更できません');
           return prev;
         }
 
-        // 子孫と一緒に移動後、ステップを再計算
         return calculateSteps(moveTransitionWithSubtree(transitionId, newOrder, prev));
       });
     },
     [message]
   );
 
-  // --- 保存処理（全タブ一括保存）---
+  // --- 保存処理（全タスク一括保存: 実API接続）---
 
   const handleSave = useCallback(async () => {
     try {
       setIsSaving(true);
 
-      // 全タブ（全体 + 各タスクN）を一括保存
-      const allTabKeys = [TAB_KEY_ALL, ...taskNumbers.map((n) => `task-${n}`)];
-      const savePromises = allTabKeys.map((tabKey) => {
-        const data = tabDataMap[tabKey] ?? createInitialTabData();
-        const tabNum =
-          tabKey === TAB_KEY_ALL
-            ? undefined
-            : parseInt(tabKey.replace('task-', ''), 10);
+      const orderEntries = transitionOrder.map((item) => ({
+        id: item.id,
+        order: item.order,
+        prerequisiteTransitionIds: item.prerequisiteTransitionIds,
+      }));
 
-        const request: SaveExperimentPlanRequest = {
-          methodId,
-          taskNumber: tabNum,
-          // transitionOrder の順序を保存（全トランジションIDを order 順で渡す）
-          selectedTransitions: transitionOrder
-            .sort((a, b) => a.order - b.order)
-            .map((item) => item.id),
-          creatorRefs: data.creatorRefs,
-          instrumentRefs: data.instrumentRefs,
-          ownerRefs: data.ownerRefs,
-          notes: data.notes,
-          templateValues: data.templateValues,
-        };
-
-        return saveExperimentPlan(projectId, request);
+      // 全タスク × 全トランジション分を保存
+      const savePromises = taskNumbers.map((taskNo) => {
+        const tabKey = `task-${taskNo}`;
+        // tabDataMap[tabKey] は Record<string, ExperimentPlanTabData>（トランジションIDキー）
+        const transitionDataMap = tabDataMap[tabKey] ?? {};
+        return upsertExperimentPlanToApi(projectId, methodId, taskNo, transitionDataMap, orderEntries);
       });
 
       await Promise.all(savePromises);
-      message.success('実験計画を保存しました（モック）');
+      message.success('実験計画を保存しました');
       onSave?.();
       onClose();
     } catch (error) {
@@ -1445,7 +681,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [tabDataMap, taskNumbers, methodId, projectId, transitionOrder, onSave, onClose]);
+  }, [tabDataMap, taskNumbers, methodId, projectId, transitionOrder, onSave, onClose, message]);
 
   // --- 基本情報パネル（共通化） ---
 
@@ -1791,7 +1027,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
               </div>
 
               {/* ===== 基本情報 / テンプレート入力 内部タブ ===== */}
-              <div style={{ maxHeight: 540, overflowY: 'auto', overflowX: 'hidden', paddingRight: 4 }}>
+              <div style={{ overflowX: 'hidden', paddingRight: 4 }}>
                 <Tabs
                   activeKey={innerTab}
                   onChange={(k) => setInnerTab(k as 'basic' | 'template')}
@@ -1810,11 +1046,12 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                       children: (
                         <TemplateInputPanel
                           methodTemplates={filteredTemplates}
-                          templateValues={currentTabData.templateValues}
+                          templateValues={effectiveTemplateValues}
                           onValueChange={handleTemplateValueChange}
                           customProps={customProps}
                           onCustomPropsChange={handleCustomPropsChange}
                           disabled={disabled}
+                          outputTemplateIds={outputTemplateIds}
                         />
                       ),
                     },
