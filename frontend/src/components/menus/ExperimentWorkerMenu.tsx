@@ -599,25 +599,29 @@ export default function ExperimentWorkerMenu({
       key: '4',
       label: t('menu.experiment_worker.tabs.progressCheck'),
       icon: <CheckSquareOutlined />,
-      children: progressLoading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-          <Spin tip="全体進捗を読み込み中..." />
+      children: (
+        <div style={{ padding: '12px 16px 0' }}>
+          {progressLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+              <Spin tip="全体進捗を読み込み中..." />
+            </div>
+          ) : (
+            <ProgressOverviewTab
+              rows={progressRows}
+              onGoToWork={(taskNo, transitionId) => {
+                console.info('[ProgressOverviewTab] 作業へ:', taskNo, transitionId);
+                handleTabChange('3');
+              }}
+              onViewDetail={(taskNo, transitionId) => {
+                console.info('[ProgressOverviewTab] 詳細確認:', taskNo, transitionId);
+                handleTabChange('3');
+              }}
+              onStartWork={(taskNo, transitionId, methodId) => {
+                handleStartWork(taskNo, transitionId, methodId);
+              }}
+            />
+          )}
         </div>
-      ) : (
-        <ProgressOverviewTab
-          rows={progressRows}
-          onGoToWork={(taskNo, transitionId) => {
-            console.info('[ProgressOverviewTab] 作業へ:', taskNo, transitionId);
-            handleTabChange('3');
-          }}
-          onViewDetail={(taskNo, transitionId) => {
-            console.info('[ProgressOverviewTab] 詳細確認:', taskNo, transitionId);
-            handleTabChange('3');
-          }}
-          onStartWork={(taskNo, transitionId, methodId) => {
-            handleStartWork(taskNo, transitionId, methodId);
-          }}
-        />
       ),
     },
   ];

@@ -5,7 +5,7 @@
  *
  * 全タスク × トランジション の行テーブルを表示する。
  * Mat/Cond/Res を独立3列（横1行バー + 数値）+ サマリーカード。
- * タスクNo / ステータス でフィルタリング可能。
+ * タスクNo / ステータス / メソッド名 / トランジション名 でフィルタリング可能。
  * 「作業へ」ボタンで作業記録タブに遷移、「詳細確認」ボタンで作業記録タブを読取専用で表示。
  * 「開始」ボタンで未着手トランジションの作業を開始する（固定順序チェックあり）。
  * 作業中のトランジションが存在する場合は確認ダイアログを経由してステータスを切り替える。
@@ -109,27 +109,27 @@ const SummaryCard: React.FC<{ rows: ProgressRow[] }> = ({ rows }) => {
       <Flex align="center" gap={16} wrap="wrap">
         <div style={{ flex: '0 0 220px' }}>
           <Flex justify="space-between" align="center" style={{ marginBottom: 4 }}>
-            <Text strong style={{ fontSize: 13 }}>全体進捗</Text>
+            <Text strong style={{ fontSize: 14 }}>全体進捗</Text>
             <Text strong style={{ fontSize: 16, color: stats.completedPct === 100 ? '#52c41a' : '#1677ff' }}>
               {stats.completedPct}%
             </Text>
           </Flex>
           <Progress percent={stats.completedPct} showInfo={false} strokeColor={stats.completedPct === 100 ? '#52c41a' : '#1677ff'} size="small" />
-          <Text type="secondary" style={{ fontSize: 11 }}>タスク {stats.completedTasks}/{stats.taskCount} 完了</Text>
+          <Text type="secondary" style={{ fontSize: 14 }}>タスク {stats.completedTasks}/{stats.taskCount} 完了</Text>
         </div>
         <div style={{ width: 1, height: 48, background: '#f0f0f0', flexShrink: 0 }} />
         <Flex gap={16} wrap="wrap">
-          <Statistic title={<Text type="secondary" style={{ fontSize: 11 }}>未着手</Text>}   value={stats.byStatus.not_started} suffix="件" valueStyle={{ fontSize: 18, color: '#595959' }} />
-          <Statistic title={<Text type="secondary" style={{ fontSize: 11 }}>作業中</Text>}   value={stats.byStatus.in_progress} suffix="件" valueStyle={{ fontSize: 18, color: '#1677ff' }} />
-          <Statistic title={<Text type="secondary" style={{ fontSize: 11 }}>完了</Text>}     value={stats.byStatus.completed}   suffix="件" valueStyle={{ fontSize: 18, color: '#52c41a' }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>未着手</Text>}   value={stats.byStatus.not_started} suffix="件" valueStyle={{ fontSize: 18, color: '#595959' }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>作業中</Text>}   value={stats.byStatus.in_progress} suffix="件" valueStyle={{ fontSize: 18, color: '#1677ff' }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>完了</Text>}     value={stats.byStatus.completed}   suffix="件" valueStyle={{ fontSize: 18, color: '#52c41a' }} />
           {stats.byStatus.issue > 0 && (
-            <Statistic title={<Text type="secondary" style={{ fontSize: 11 }}>問題あり</Text>} value={stats.byStatus.issue} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} />
+            <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>問題あり</Text>} value={stats.byStatus.issue} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} />
           )}
         </Flex>
         {stats.issueCount > 0 && (
           <>
             <div style={{ width: 1, height: 48, background: '#f0f0f0', flexShrink: 0 }} />
-            <Statistic title={<Text type="secondary" style={{ fontSize: 11, color: '#ff4d4f' }}>問題報告</Text>} value={stats.issueCount} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} prefix={<ExclamationCircleOutlined />} />
+            <Statistic title={<Text type="secondary" style={{ fontSize: 14, color: '#ff4d4f' }}>問題報告</Text>} value={stats.issueCount} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} prefix={<ExclamationCircleOutlined />} />
           </>
         )}
       </Flex>
@@ -145,16 +145,99 @@ const FilterBar: React.FC<{
   rows: ProgressRow[];
   filterTaskNo: number | null;
   filterStatus: ProgressRow['status'] | null;
+  filterMethodId: string | null;
+  filterTransitionId: string | null;
   filteredCount: number;
   onTaskNoChange: (v: number | null) => void;
   onStatusChange: (v: ProgressRow['status'] | null) => void;
-}> = ({ rows, filterTaskNo, filterStatus, filteredCount, onTaskNoChange, onStatusChange }) => {
+  onMethodIdChange: (v: string | null) => void;
+  onTransitionIdChange: (v: string | null) => void;
+}> = ({
+  rows,
+  filterTaskNo,
+  filterStatus,
+  filterMethodId,
+  filterTransitionId,
+  filteredCount,
+  onTaskNoChange,
+  onStatusChange,
+  onMethodIdChange,
+  onTransitionIdChange,
+}) => {
   const taskNos = useMemo(() => [...new Set(rows.map((r) => r.taskNo))].sort((a, b) => a - b), [rows]);
+
+  /** メソッド選択肢（methodId → methodName の重複排除） */
+  const methodOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) {
+      if (!seen.has(r.methodId)) {
+        seen.set(r.methodId, r.methodName || r.methodId);
+      }
+    }
+    return [...seen.entries()].map(([value, label]) => ({ value, label }));
+  }, [rows]);
+
+  /**
+   * トランジション選択肢
+   * メソッドが選択されている場合はそのメソッドに属するもののみ絞り込む
+   */
+  const transitionOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) {
+      if (filterMethodId !== null && r.methodId !== filterMethodId) continue;
+      if (!seen.has(r.transitionId)) {
+        seen.set(r.transitionId, r.transitionName || r.transitionId);
+      }
+    }
+    return [...seen.entries()].map(([value, label]) => ({ value, label }));
+  }, [rows, filterMethodId]);
+
   return (
     <Flex gap={8} align="center" style={{ padding: '4px 0 10px' }} wrap="wrap">
-      <Text type="secondary" style={{ fontSize: 12 }}>フィルタ:</Text>
-      <Select allowClear size="small" placeholder="タスクNo" style={{ width: 100 }} value={filterTaskNo} onChange={(v) => onTaskNoChange(v ?? null)} options={taskNos.map((n) => ({ label: `#${n}`, value: n }))} />
-      <Select allowClear size="small" placeholder="ステータス" style={{ width: 120 }} value={filterStatus} onChange={(v) => onStatusChange((v as ProgressRow['status']) ?? null)}
+      <Text type="secondary" style={{ fontSize: 14 }}>フィルタ:</Text>
+      {/* テーブル列順: メソッド名 → タスクNo → トランジション名 → ステータス */}
+      <Select
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        size="small"
+        placeholder="メソッド名"
+        style={{ minWidth: 140 }}
+        value={filterMethodId}
+        onChange={(v) => {
+          onMethodIdChange(v ?? null);
+          // メソッドが変わったらトランジション選択もリセット
+          onTransitionIdChange(null);
+        }}
+        options={methodOptions}
+      />
+      <Select
+        allowClear
+        size="small"
+        placeholder="タスクNo"
+        style={{ width: 100 }}
+        value={filterTaskNo}
+        onChange={(v) => onTaskNoChange(v ?? null)}
+        options={taskNos.map((n) => ({ label: `#${n}`, value: n }))}
+      />
+      <Select
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        size="small"
+        placeholder="トランジション名"
+        style={{ minWidth: 160 }}
+        value={filterTransitionId}
+        onChange={(v) => onTransitionIdChange(v ?? null)}
+        options={transitionOptions}
+      />
+      <Select
+        allowClear
+        size="small"
+        placeholder="ステータス"
+        style={{ width: 120 }}
+        value={filterStatus}
+        onChange={(v) => onStatusChange((v as ProgressRow['status']) ?? null)}
         options={[
           { label: '未着手',   value: 'not_started' },
           { label: '作業中',   value: 'in_progress' },
@@ -163,7 +246,7 @@ const FilterBar: React.FC<{
           { label: '問題あり', value: 'issue'       },
         ]}
       />
-      <Text type="secondary" style={{ fontSize: 11 }}>{filteredCount}/{rows.length} 件</Text>
+      <Text type="secondary" style={{ fontSize: 14 }}>{filteredCount}/{rows.length} 件</Text>
     </Flex>
   );
 };
@@ -180,14 +263,18 @@ export default function ProgressOverviewTab({
 }: ProgressOverviewTabProps) {
   const [filterTaskNo, setFilterTaskNo] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<ProgressRow['status'] | null>(null);
+  const [filterMethodId, setFilterMethodId] = useState<string | null>(null);
+  const [filterTransitionId, setFilterTransitionId] = useState<string | null>(null);
 
   const filteredRows = useMemo(
     () => rows.filter((r) => {
-      if (filterTaskNo !== null && r.taskNo !== filterTaskNo) return false;
-      if (filterStatus  !== null && r.status  !== filterStatus)  return false;
+      if (filterTaskNo       !== null && r.taskNo       !== filterTaskNo)       return false;
+      if (filterStatus       !== null && r.status       !== filterStatus)       return false;
+      if (filterMethodId     !== null && r.methodId     !== filterMethodId)     return false;
+      if (filterTransitionId !== null && r.transitionId !== filterTransitionId) return false;
       return true;
     }),
-    [rows, filterTaskNo, filterStatus]
+    [rows, filterTaskNo, filterStatus, filterMethodId, filterTransitionId]
   );
 
   // ── 操作列 ─────────────────────────────────────────
@@ -255,7 +342,7 @@ export default function ProgressOverviewTab({
       title: 'メソッド名', dataIndex: 'methodId', width: 160, ellipsis: { showTitle: false },
       render: (_: string, record: ProgressRow) => {
         const displayName = record.methodName || record.methodId;
-        return <Tooltip title={displayName}><Text style={{ fontSize: 12 }}>{displayName}</Text></Tooltip>;
+        return <Tooltip title={displayName}><Text style={{ fontSize: 14 }}>{displayName}</Text></Tooltip>;
       },
     },
     {
@@ -270,7 +357,7 @@ export default function ProgressOverviewTab({
         return (
           <Flex align="center" gap={4}>
             <Tooltip title={displayName}>
-              <Text style={{ fontSize: 12 }}>{displayName}</Text>
+              <Text style={{ fontSize: 14 }}>{displayName}</Text>
             </Tooltip>
             {hasPrereqs && (
               <Tooltip title={`前提トランジション: ${record.prerequisiteTransitionIds?.join(', ')} が全て完了してから開始できます`}>
@@ -295,7 +382,7 @@ export default function ProgressOverviewTab({
         return tot === 0 ? <Text type="secondary">—</Text> : (
           <Flex align="center" gap={4}>
             <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#1677ff" showInfo={false} style={{ flex: 1, margin: 0 }} />
-            <Text style={{ fontSize: 10, minWidth: 30 }}>{rec}/{tot}</Text>
+            <Text style={{ fontSize: 14, minWidth: 30 }}>{rec}/{tot}</Text>
           </Flex>
         );
       },
@@ -307,7 +394,7 @@ export default function ProgressOverviewTab({
         return tot === 0 ? <Text type="secondary">—</Text> : (
           <Flex align="center" gap={4}>
             <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#52c41a" showInfo={false} style={{ flex: 1, margin: 0 }} />
-            <Text style={{ fontSize: 10, minWidth: 30 }}>{rec}/{tot}</Text>
+            <Text style={{ fontSize: 14, minWidth: 30 }}>{rec}/{tot}</Text>
           </Flex>
         );
       },
@@ -319,7 +406,7 @@ export default function ProgressOverviewTab({
         return tot === 0 ? <Text type="secondary">—</Text> : (
           <Flex align="center" gap={4}>
             <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#fa8c16" showInfo={false} style={{ flex: 1, margin: 0 }} />
-            <Text style={{ fontSize: 10, minWidth: 30 }}>{rec}/{tot}</Text>
+            <Text style={{ fontSize: 14, minWidth: 30 }}>{rec}/{tot}</Text>
           </Flex>
         );
       },
@@ -341,9 +428,13 @@ export default function ProgressOverviewTab({
         rows={rows}
         filterTaskNo={filterTaskNo}
         filterStatus={filterStatus}
+        filterMethodId={filterMethodId}
+        filterTransitionId={filterTransitionId}
         filteredCount={filteredRows.length}
         onTaskNoChange={setFilterTaskNo}
         onStatusChange={setFilterStatus}
+        onMethodIdChange={setFilterMethodId}
+        onTransitionIdChange={setFilterTransitionId}
       />
 
       {/* テーブル本体 */}
