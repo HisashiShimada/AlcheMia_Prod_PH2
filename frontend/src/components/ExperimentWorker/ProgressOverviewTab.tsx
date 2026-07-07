@@ -20,6 +20,7 @@ import {
   Card,
   Checkbox,
   Flex,
+  Grid,
   Progress,
   Select,
   Statistic,
@@ -266,6 +267,10 @@ export default function ProgressOverviewTab({
   const [filterMethodId, setFilterMethodId] = useState<string | null>(null);
   const [filterTransitionId, setFilterTransitionId] = useState<string | null>(null);
 
+  // ── 画面幅検知（xl: 1200px以上で3列独立表示） ───────────
+  const screens = Grid.useBreakpoint();
+  const isWide = !!screens.xl;
+
   const filteredRows = useMemo(
     () => rows.filter((r) => {
       if (filterTaskNo       !== null && r.taskNo       !== filterTaskNo)       return false;
@@ -337,7 +342,9 @@ export default function ProgressOverviewTab({
   };
 
   // ── テーブル列定義 ───────────────────────────────────
-  const columns: ColumnsType<ProgressRow> = [
+
+  /** 共通ベース列（メソッド名 / タスクNo / トランジション名 / ステータス） */
+  const baseColumns: ColumnsType<ProgressRow> = [
     {
       title: 'メソッド名', dataIndex: 'methodId', width: 160, ellipsis: { showTitle: false },
       render: (_: string, record: ProgressRow) => {
@@ -375,6 +382,14 @@ export default function ProgressOverviewTab({
       align: 'center',
       render: renderStatus,
     },
+  ];
+
+  /**
+   * 進捗列（幅広: 1200px以上）
+   * Material / Condition / Result を独立3列で表示（Progressバー + rec/tot 数値）
+   * 合計 390px
+   */
+  const wideProgressColumns: ColumnsType<ProgressRow> = [
     {
       title: 'Material', width: 130, align: 'center',
       render: (_: unknown, r: ProgressRow) => {
@@ -382,7 +397,7 @@ export default function ProgressOverviewTab({
         return tot === 0 ? <Text type="secondary">—</Text> : (
           <Flex align="center" gap={4}>
             <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#1677ff" showInfo={false} style={{ flex: 1, margin: 0 }} />
-            <Text style={{ fontSize: 14, minWidth: 30 }}>{rec}/{tot}</Text>
+            <Text style={{ fontSize: 12, minWidth: 28 }}>{rec}/{tot}</Text>
           </Flex>
         );
       },
@@ -394,7 +409,7 @@ export default function ProgressOverviewTab({
         return tot === 0 ? <Text type="secondary">—</Text> : (
           <Flex align="center" gap={4}>
             <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#52c41a" showInfo={false} style={{ flex: 1, margin: 0 }} />
-            <Text style={{ fontSize: 14, minWidth: 30 }}>{rec}/{tot}</Text>
+            <Text style={{ fontSize: 12, minWidth: 28 }}>{rec}/{tot}</Text>
           </Flex>
         );
       },
@@ -406,16 +421,64 @@ export default function ProgressOverviewTab({
         return tot === 0 ? <Text type="secondary">—</Text> : (
           <Flex align="center" gap={4}>
             <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#fa8c16" showInfo={false} style={{ flex: 1, margin: 0 }} />
-            <Text style={{ fontSize: 14, minWidth: 30 }}>{rec}/{tot}</Text>
+            <Text style={{ fontSize: 12, minWidth: 28 }}>{rec}/{tot}</Text>
           </Flex>
         );
       },
     },
+  ];
+
+  /**
+   * 進捗列（狭幅: 1200px未満）
+   * Material / Condition / Result を1列に統合してテキストのみ表示
+   * 150px
+   */
+  const narrowProgressColumn: ColumnsType<ProgressRow> = [
+    {
+      title: '進捗', width: 150, align: 'center',
+      render: (_: unknown, r: ProgressRow) => {
+        const items: React.ReactNode[] = [];
+        const mTot = r.materialTotal  ?? 0;
+        const cTot = r.conditionTotal ?? 0;
+        const rTot = r.resultTotal    ?? 0;
+        if (mTot > 0) items.push(
+          <Text key="m" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+            <span style={{ color: '#1677ff', fontWeight: 600 }}>M</span>
+            {' '}{r.materialRecorded ?? 0}/{mTot}
+          </Text>
+        );
+        if (cTot > 0) items.push(
+          <Text key="c" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+            <span style={{ color: '#52c41a', fontWeight: 600 }}>C</span>
+            {' '}{r.conditionRecorded ?? 0}/{cTot}
+          </Text>
+        );
+        if (rTot > 0) items.push(
+          <Text key="r" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+            <span style={{ color: '#fa8c16', fontWeight: 600 }}>R</span>
+            {' '}{r.resultRecorded ?? 0}/{rTot}
+          </Text>
+        );
+        if (items.length === 0) return <Text type="secondary">—</Text>;
+        return <Flex align="center" justify="center" gap={8} wrap="wrap">{items}</Flex>;
+      },
+    },
+  ];
+
+  /** 末尾共通列（問題 / 操作） */
+  const tailColumns: ColumnsType<ProgressRow> = [
     {
       title: '問題', dataIndex: 'issueCount', width: 60, align: 'center',
       render: (v: number | undefined) => (v ?? 0) > 0 ? <Badge count={v} size="small" style={{ backgroundColor: '#ff4d4f' }} /> : <Text type="secondary">—</Text>,
     },
     { title: '操作', width: 100, align: 'center', render: renderAction },
+  ];
+
+  /** 画面幅に応じて列を切り替え（isWide: 1200px以上） */
+  const columns: ColumnsType<ProgressRow> = [
+    ...baseColumns,
+    ...(isWide ? wideProgressColumns : narrowProgressColumn),
+    ...tailColumns,
   ];
 
   return (

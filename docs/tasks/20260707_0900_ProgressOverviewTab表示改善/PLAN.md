@@ -48,15 +48,103 @@
 - [ ] テーブルセル `fontSize: 12`（メソッド名・トランジション名）を `fontSize: 13` に変更
 - [ ] テーブルセル `fontSize: 10`（Material/Condition/Result）を `fontSize: 12` に変更
 
-### Phase3: 1024px幅対応（保留）
+### Phase3: 1024px幅対応（実施予定）
 
-> ⚠️ **この Phase はユーザー側で過去実装を確認中のため、実施を保留する**
-> 確認後に方針が決定次第、対応を再開する。
+> 調査結果（`docs/20260707_0931_ExperimentWorkerMenuレスポンシブデザイン調査/REPORT.md`）に基づき方針を確定。
 
-現状の問題点のみ記録：
-- テーブルの列幅合計: メソッド名160 + タスクNo80 + トランジション名180 + ステータス160 + Material130 + Condition130 + Result130 + 問題60 + 操作100 = **1130px**
-- `ExperimentWorkerMenu.tsx` の `ResponsiveContainer` は 992px 幅で `max-width: 992px` を適用するため、そのまま復元するとテーブルが 992px 内に収まらず横スクロールが発生する
-- 対応案: `Table` に `scroll={{ x: 'max-content' }}` を追加、および列幅の見直し（Material/Condition/Result を 110px 程度に縮小）
+#### 問題
+
+テーブル列幅合計 **1130px** が、`ResponsiveContainer` 適用後の `max-width: 992px` に収まらない。
+タブレット操作を考慮し、横スクロールは導入しない。
+
+#### 確定方針: Material / Condition / Result の3列を「進捗」1列に統合
+
+| 列名 | 現在の幅 | 変更後の幅 |
+|------|---------|----------|
+| メソッド名 | 160px | 160px |
+| タスクNo | 80px | 80px |
+| トランジション名 | 180px | 180px |
+| ステータス | 160px | 160px |
+| 進捗（M/C/R 統合） | 130×3=390px | **150px** |
+| 問題 | 60px | 60px |
+| 操作 | 100px | 100px |
+| **合計** | **1130px** | **890px** |
+
+→ 890px は `max-width: 992px` に十分収まり、横スクロール不要。
+
+#### 「進捗」列の表示仕様
+
+- Material / Condition / Result を1セル内にテキストのみで横並び表示
+- 表示例: `M 3/5  C 4/5  R 1/5`
+- M/C/R はそれぞれ色分け（青/緑/オレンジ）したラベル + `rec/tot` 数値
+- `tot === 0` の項目は非表示（例: Resultがないトランジションは `M 3/5  C 4/5` のみ）
+- バー表示なし → 行の高さは現状のまま変化なし
+
+#### 実施順序
+
+```
+Step 1: ProgressOverviewTab.tsx の Material/Condition/Result 3列を「進捗」1列に変更
+        → テーブル合計幅が890pxに縮小されることを確認
+Step 2: ExperimentWorkerMenu.tsx の contentBody ルート <div> を <ResponsiveContainer> に変更
+        → max-width: 992px が適用された状態で表示確認
+```
+
+> ⚠️ Step 1 → Step 2 の順に実施すること。逆順では ResponsiveContainer 適用後にテーブルが収まらなくなる。
+
+#### 実装チェックリスト
+
+- [ ] `ProgressOverviewTab.tsx`: Material/Condition/Result 3列を「進捗」1列（テキスト表示）に置き換え
+- [ ] TypeScript ビルドエラーなし確認
+- [ ] `ExperimentWorkerMenu.tsx`: `contentBody` のルート `<div>` を `<ResponsiveContainer>` に変更
+- [ ] TypeScript ビルドエラーなし確認
+- [ ] ブラウザで 992px / 1024px 幅での表示確認（横スクロールなし・列が収まること）
+
+### Phase4: ResponsiveContainer修正 + 画面幅による列切替（追加実装）
+
+> Phase3実装後の追加確認により、ResponsiveContainerの仕様がユーザー意図とズレていたため追加対応。
+
+#### 問題
+
+`ResponsiveContainer` に `@media (min-width: 992px) { max-width: 992px }` 等の頭打ち設定がある。
+ユーザーの意図は「大きい画面では制限なし（幅100%を使う）、小さい画面のみ適切に縮小する」だった。
+
+#### Phase4-A: ResponsiveContainer修正
+
+`ExperimentWorkerMenu.tsx` の `ResponsiveContainer` から `max-width` 頭打ちをすべて撤廃し、パディング調整のみ残す：
+
+```tsx
+const ResponsiveContainer = styled.div`
+  width: 100%;          // 常に100%幅（制限なし）
+  padding: 0 8px;       // デフォルト（小画面）: パディング小
+
+  @media (min-width: 768px) {
+    padding: 0 16px;    // 768px以上: パディング少し広め
+  }
+`;
+```
+
+#### Phase4-B: 画面幅に応じた列切替（ProgressOverviewTab.tsx）
+
+Ant Design の `Grid.useBreakpoint()` で現在の画面幅を検知し、**1200px（`xl`）を閾値**として列構成を動的に切り替える：
+
+| 画面幅 | 列構成 | 合計幅 |
+|--------|--------|--------|
+| 1200px以上（xl） | Material / Condition / Result 独立3列（Progressバー + rec/tot数値、各130px） | 1130px |
+| 1200px未満 | 「進捗」統合1列（テキストのみ `M 3/5 C 4/5 R 1/5`、150px） | 890px |
+
+**実装方針:**
+- `ProgressOverviewTab` 内で `const screens = Grid.useBreakpoint()` を使用
+- `const isWide = !!screens.xl` で切り替えフラグを生成
+- Material / Condition / Result 独立3列の列定義（バー付き、以前の実装を復元）と統合1列の列定義を両方保持
+- `columns` 配列を `isWide ? [3列] : [統合1列]` で動的切り替え
+
+#### 実装チェックリスト
+
+- [ ] `ExperimentWorkerMenu.tsx`: ResponsiveContainerからmax-width頭打ちを撤廃
+- [ ] TypeScriptビルドエラーなし確認
+- [ ] `ProgressOverviewTab.tsx`: Grid.useBreakpoint()導入・独立3列定義の復元・切替ロジック実装
+- [ ] TypeScriptビルドエラーなし確認
+- [ ] ブラウザで1200px境界での列切替を目視確認
 
 ## 変更ファイル
 

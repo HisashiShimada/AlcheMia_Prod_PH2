@@ -55,26 +55,11 @@ const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + SUBHEADER_HEIGHT; // 合計 112px
  * - xxl (1600px+): 最大1400px
  */
 const ResponsiveContainer = styled.div`
-  max-width: 100%;
   width: 100%;
-  margin: 0 auto;
   padding: 0 8px;
 
   @media (min-width: 768px) {
-    max-width: 768px;
     padding: 0 16px;
-  }
-
-  @media (min-width: 992px) {
-    max-width: 992px;
-  }
-
-  @media (min-width: 1200px) {
-    max-width: 1200px;
-  }
-
-  @media (min-width: 1600px) {
-    max-width: 1400px;
   }
 `;
 
@@ -628,7 +613,7 @@ export default function ExperimentWorkerMenu({
 
   /** コンテンツ部分（プロジェクト選択エリア + タブ） */
   const contentBody = (
-    <div style={{ width: '100%', padding: 0 }}>
+    <ResponsiveContainer>
       {/* プロジェクト選択・選択ボタン */}
       <div style={{
         height: SELECTION_AREA_HEIGHT,
@@ -818,7 +803,7 @@ export default function ExperimentWorkerMenu({
         projects={projects}
         loading={projectsLoading}
       />
-    </div>
+    </ResponsiveContainer>
   );
 
   // overlayMode のとき: Header/SubHeader なしでコンテンツのみ返す
