@@ -162,7 +162,7 @@ const DepartmentNodeAddDialog: React.FC<DepartmentNodeAddDialogProps> = ({
           label={<><Text strong>名前空間Prefix</Text> <Text type="danger">*</Text></>}
           rules={[
             { required: true, message: 'Prefixを入力してください' },
-            { pattern: /^[a-zA-Z][a-zA-Z0-9_-]*$/, message: 'Prefixは英字始まりで英数字・ハイフン・アンダースコアのみ使用可能です' },
+            { pattern: /^[a-zA-Z0-9_]+$/, message: 'Prefixは英数字・アンダースコアのみ使用可能です' },
           ]}
         >
           <Input placeholder="例: analysis" />

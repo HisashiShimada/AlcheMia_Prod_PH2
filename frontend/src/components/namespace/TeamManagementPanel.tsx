@@ -294,7 +294,7 @@ const TeamManagementPanel: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              <Text type="secondary">所属部署</Text>
+              <Text type="secondary">所属先</Text>
               <Text>{selectedTeam.departmentName}</Text>
 
               <Text type="secondary">代表者</Text>

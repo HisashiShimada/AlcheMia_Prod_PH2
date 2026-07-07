@@ -4,10 +4,10 @@
 ---
 title: MaiML 名前空間管理ツール 名前空間追加ダイアログ UI設計書
 category: UI設計
-version: 1.1.0
-last_updated: 2026-06-30
+version: 1.2.0
+last_updated: 2026-07-07
 author: Development Team
-tags: [namespace, maiml, dialog, add, prefix, uri, orcid]
+tags: [namespace, maiml, dialog, add, prefix, uri, orcid, department-node]
 ---
 
 ## 関連ドキュメント
@@ -175,7 +175,7 @@ const validatePrefix = (value: string): string | null => {
 | 必須 | ✅ 必須 | — （自動生成のため入力不要） |
 | プレースホルダー | 「例: https://www.corpa.co.jp/」 | — |
 | 最大文字数 | 512文字 | — |
-| バリデーション | `https://` または `urn:` で始まること | 自動生成のためバリデーション不要 |
+| バリデーション | `https://`・`http://` または `urn:` で始まること | 自動生成のためバリデーション不要 |
 
 **URI自動生成ルール（organization レベル）**:
 
@@ -525,10 +525,222 @@ const handleNamespaceRegistered = (values: NamespaceFormValues) => {
 
 ---
 
+---
+
+## 9. DepartmentNodeAddDialog（部署ノード追加ダイアログ）
+
+### 9.1. 概要
+
+`DepartmentTreeManagement`（部署ノード管理テーブル）の「追加」ボタン押下時に表示されるモーダルダイアログ。  
+名前空間ツリーに新しい部署ノード（department / group ノード）を追加する。
+
+**コンポーネントファイル**: `frontend/src/components/namespace/DepartmentNodeAddDialog.tsx`
+
+### 9.2. 画面レイアウト
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  部署ノードを追加                                              │
+├──────────────────────────────────────────────────────────────┤
+│  追加した部署ノードは名前空間ツリーに表示されます。           │
+│                                                              │
+│  * 親ノード                                                  │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ 追加先のノードを選択...                          ▼   │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                              │
+│  * 表示名                                                    │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ 例: 分析技術部                                       │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                              │
+│  * 名前空間Prefix                                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ 例: analysis                                         │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                              │
+│  名前空間URI （自動生成）                                      │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ https://ORG/dept-cd/表示名スラッグ/               [読取専用]│
+│  └──────────────────────────────────────────────────────┘   │
+│                                                              │
+│  説明                                                        │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ この部署ノードの説明（任意）                          │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                              │
+│                    [キャンセル]  [追加]                       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 9.3. ダイアログ本体仕様
+
+| 項目 | 値 |
+|------|-----|
+| コンポーネント | `<Modal>` (Ant Design) |
+| タイトル | 「部署ノードを追加」 |
+| 幅 | 480px |
+| maskClosable | false（背景クリックで閉じない） |
+
+### 9.4. フォームフィールド仕様
+
+| フィールド | コンポーネント | 必須 | バリデーション |
+|-----------|--------------|------|--------------|
+| 親ノード | `<Select>` | ✅ | 選択必須 |
+| 表示名 | `<Input>` | ✅ | 入力必須 |
+| 名前空間Prefix | `<Input>` | ✅ | 英数字・アンダースコアのみ |
+| 名前空間URI | 読み取り専用表示（`div`） | — | 自動生成のため入力不可 |
+| 説明 | `<Input.TextArea rows={2}>` | ❌ | 任意 |
+
+#### 親ノード（`parentKey`）
+
+| 項目 | 仕様 |
+|------|------|
+| コンポーネント | `<Select showSearch>` |
+| プレースホルダー | 「追加先のノードを選択...」 |
+| 選択肢 | `parentOptions` プロパティとして外部から注入（`DeptTreeNode` の flat リスト） |
+| フィルタ | 入力文字でラベルをインクリメンタルサーチ |
+| エラー | 「親ノードを選択してください」 |
+
+#### 表示名（`label`）
+
+| 項目 | 仕様 |
+|------|------|
+| コンポーネント | `<Input>` |
+| プレースホルダー | 「例: 分析技術部」 |
+| エラー | 「表示名を入力してください」 |
+
+#### 名前空間Prefix（`prefix`）
+
+| 項目 | 仕様 |
+|------|------|
+| コンポーネント | `<Input>` |
+| プレースホルダー | 「例: analysis」 |
+| バリデーションパターン | `/^[a-zA-Z0-9_]+$/`（英数字・アンダースコアのみ） |
+| エラー（必須） | 「Prefixを入力してください」 |
+| エラー（形式） | 「Prefixは英数字・アンダースコアのみ使用可能です」 |
+
+> ⚠️ **注意**: `NamespaceAddDialog` の Prefix バリデーション（xs:NCName規則）と異なり、このダイアログでは `英数字・アンダースコアのみ` の簡易バリデーションを使用する。
+
+#### 名前空間URI（自動生成・読み取り専用）
+
+| 項目 | 仕様 |
+|------|------|
+| 表示形式 | 読み取り専用 `div`（グレー背景 `#f5f5f5`、モノスペースフォント） |
+| 生成タイミング | 親ノード・表示名の入力変化のたびにリアルタイム更新 |
+| 未入力時 | 「（親ノードと表示名を入力すると自動生成されます）」 |
+| 生成関数 | `generateNamespaceUri(organizationCd, deptCd, label)` |
+
+**URI 自動生成ロジック**:
+
+```typescript
+const handleValuesChange = () => {
+  const values = form.getFieldsValue();
+  const parentKey: string | undefined = values.parentKey;
+  const label: string = values.label ?? '';
+
+  // 親ノードの departmentCd を取得
+  const parentOption = parentOptions.find((o) => o.value === parentKey);
+  const deptCd = parentOption?.departmentCd ?? parentKey ?? undefined;
+
+  const uri = generateNamespaceUri(organizationCd, deptCd, label || undefined);
+  setPreviewUri(uri);
+};
+```
+
+#### 説明（`description`）
+
+| 項目 | 仕様 |
+|------|------|
+| コンポーネント | `<Input.TextArea rows={2}>` |
+| プレースホルダー | 「この部署ノードの説明（任意）」 |
+
+### 9.5. フッターボタン
+
+| ボタン | タイプ | 動作 |
+|--------|--------|------|
+| キャンセル | `default` | フォームリセット → ダイアログを閉じる |
+| 追加 | `primary` | バリデーション → API POST → 成功時: onCreated コールバック + フォームリセット + 閉じる |
+
+### 9.6. Props 型定義
+
+```typescript
+interface DepartmentNodeAddDialogProps {
+  /** ダイアログ表示状態 */
+  open: boolean;
+  /** 親ノード候補リスト（DepartmentTreeManagement から注入） */
+  parentOptions: { value: string; label: string; departmentCd?: string }[];
+  /** ログインユーザーの組織CD（URI 自動生成に使用） */
+  organizationCd?: string;
+  /** キャンセル / Escキー押下時のコールバック */
+  onClose: () => void;
+  /** 追加完了時のコールバック（作成されたノードを返す） */
+  onCreated: (node: DeptTreeNode) => void;
+}
+```
+
+### 9.7. 作成ノードの型定義
+
+```typescript
+/** 部署ツリーの1ノード（DepartmentTreeManagement / DepartmentNodeAddDialog で使用） */
+interface DeptTreeNode {
+  key:         string;    // 一意キー（API レスポンス ID または `dept-${Date.now()}`）
+  label:       string;    // 表示名
+  prefix:      string;    // 名前空間 Prefix
+  uri:         string;    // 名前空間 URI（自動生成）
+  description: string;    // 説明（任意）
+  parentKey?:  string;    // 親ノードのキー
+}
+```
+
+### 9.8. API連携
+
+| ステップ | メソッド | エンドポイント | リクエストボディ |
+|---------|---------|--------------|----------------|
+| 部署ノード作成 | POST | `/api/v1/department-nodes` | `{ label, prefix, uri, description, parentKey }` |
+
+> **注意**: API が未実装の場合はモックフォールバック（`DeptTreeNode` オブジェクトをローカル生成）を使用する。
+
+**APIリクエスト例**:
+
+```typescript
+const requestBody = {
+  label:       '分析技術部',
+  prefix:      'analysis',
+  uri:         'https://ORG/dept-cd/分析技術部/',
+  description: '分析技術部の名前空間',
+  parentKey:   'dept-labA',
+};
+```
+
+### 9.9. DepartmentTreeManagement との連携
+
+`DepartmentTreeManagement` コンポーネントから以下のように使用される:
+
+```tsx
+<DepartmentNodeAddDialog
+  open={addDialogOpen}
+  parentOptions={treeNodes.map((n) => ({
+    value: n.key,
+    label: n.label,
+    departmentCd: n.key,
+  }))}
+  organizationCd={organizationCd}
+  onClose={() => setAddDialogOpen(false)}
+  onCreated={(node) => {
+    setTreeNodes((prev) => [...prev, node]);
+    setAddDialogOpen(false);
+  }}
+/>
+```
+
+---
+
 ## 7. 更新履歴
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-07-07 | v1.2.0: §3.4 URI バリデーションを `http://` 許容に修正。§9 DepartmentNodeAddDialog を新規追記 | Cline |
 | 2026-06-30 | v1.1.0: §3.4 URI 入力を更新：organization レベル時は URI が自動生成（読み取り専用）になる仕様を追記。`generateNamespaceUri` ユーティリティの仕様・生成パターンを追記 | Cline |
 | 2026-06-08 | v1.0.1: §1.4 実装ステータス・§8 NamespaceMain.tsx 連携仕様を追記 | Cline |
 | 2026-06-05 | v1.0.0: 初版作成 | Cline |

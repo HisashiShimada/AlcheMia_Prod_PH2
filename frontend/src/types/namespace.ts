@@ -339,16 +339,6 @@ export interface AttributeMaster {
 // ──────────────────────────────────────────────
 
 /**
- * NamespaceMaimlEditor の Props
- */
-export interface NamespaceMaimlEditorProps {
-  open: boolean;
-  onClose: () => void;
-  /** MaiMLファイルのXML文字列。渡された場合、使用中のprefixをOFFにしようとすると確認ダイアログを表示する */
-  maimlXml?: string;
-}
-
-/**
  * NamespaceAddDialog の Props
  */
 export interface NamespaceAddDialogProps {
@@ -465,60 +455,6 @@ export interface DepartmentNodeAddDialogProps {
   organizationCd?: string;
   onClose: () => void;
   onCreated: (node: DeptTreeNode) => void;
-}
-
-// ──────────────────────────────────────────────
-// NamespaceMaimlEditor 専用
-// ──────────────────────────────────────────────
-
-/**
- * NamespaceMaimlEditor のセクションキー
- */
-export type SectionKey = 'global' | 'organization' | 'department' | 'team' | 'personal';
-
-/**
- * NamespaceMaimlEditor のセクション定義
- */
-export type SectionDef = {
-  id: string;
-  sectionKey: SectionKey;
-  label: string;
-  uri: string;
-  childRows: { label: string; prefix?: string; uri?: string; itemKey?: string }[];
-};
-
-/**
- * NamespaceMaimlEditor の名前空間アイテム行
- */
-export interface NsItem {
-  key: string;
-  prefix: string;
-  uri: string;
-  order: number;
-  auto: boolean;
-  sectionKey: SectionKey;
-  /** 部署名・チーム名・ユーザー名 */
-  groupLabel: string;
-  /** セクションヘッダー行に表示するURI */
-  groupUri: string;
-  deleted: boolean;
-}
-
-/**
- * NamespaceMaimlEditor 用スコープノード
- * （uncertainty-scope.json の構造に対応。ScopeNode より多くのフィールドを持つ）
- */
-export interface MaimlScopeNode {
-  key: string;
-  label: string;
-  count: number;
-  icon?: string;
-  prefix?: string;
-  uri?: string;
-  description?: string;
-  /** 組織ノードが持つ複数の名前空間定義 */
-  namespaces?: { key: string; prefix: string; uri: string }[];
-  children?: MaimlScopeNode[];
 }
 
 // ──────────────────────────────────────────────

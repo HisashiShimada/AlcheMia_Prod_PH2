@@ -9,6 +9,13 @@ import type { OrgUser, TeamAddDialogProps, CreateTeamResponse } from '@/types/na
 
 const { Text } = Typography;
 
+/** 追加先の選択肢 */
+const DESTINATION_OPTIONS = [
+  { value: '研究開発部',    label: '研究開発部' },
+  { value: '材料解析チーム', label: '材料解析チーム' },
+  { value: 'データ処理班',  label: 'データ処理班' },
+];
+
 const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   open,
   parentTeamLabel,
@@ -17,12 +24,13 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   onClose,
   onCreated,
 }) => {
-  const [teamName, setTeamName]         = useState('');
-  const [members, setMembers]           = useState<OrgUser[]>([]);
-  const [addTarget, setAddTarget]       = useState<string | undefined>(undefined);
-  const [loading, setLoading]           = useState(false);
-  const [allUsers, setAllUsers]         = useState<OrgUser[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
+  const [teamName, setTeamName]           = useState('');
+  const [members, setMembers]             = useState<OrgUser[]>([]);
+  const [addTarget, setAddTarget]         = useState<string | undefined>(undefined);
+  const [destination, setDestination]     = useState<string | undefined>(undefined);
+  const [loading, setLoading]             = useState(false);
+  const [allUsers, setAllUsers]           = useState<OrgUser[]>([]);
+  const [usersLoading, setUsersLoading]   = useState(false);
 
   // ── ダイアログが開いたときにユーザー一覧を取得
   useEffect(() => {
@@ -119,6 +127,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
     setTeamName('');
     setMembers([]);
     setAddTarget(undefined);
+    setDestination(undefined);
   };
 
   const handleCancel = () => {
@@ -158,10 +167,15 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
 
         {/* 追加先 */}
         <div>
-          <Text type="secondary" style={{ fontSize: 12 }}>追加先</Text>
-          <div style={{ marginTop: 4 }}>
-            <Tag color="blue">研究開発部</Tag>
-          </div>
+          <Text strong>追加先</Text>
+          <Select
+            style={{ width: '100%', marginTop: 4 }}
+            placeholder="追加先を選択..."
+            value={destination}
+            onChange={(val) => setDestination(val)}
+            options={DESTINATION_OPTIONS}
+            disabled={loading}
+          />
         </div>
 
         {/* チーム名 */}
