@@ -128,6 +128,16 @@ export interface TemplateField {
   required?: boolean;
   /** select の選択肢（contentStringEnumType の value から生成） */
   options?: string[];
+  /**
+   * デフォルト値（MAIML の Property/Content の value から取得）
+   * select 型は value が選択肢リストを意味するため設定されない
+   */
+  defaultValue?: string | number;
+  /**
+   * MAIMLの xsi:type 文字列（例: 'doubleType', 'floatType', 'stringEnumType'）
+   * バックエンドで detectFieldType により type('text'/'number'/'select') に変換される前の元の値。
+   */
+  xsiType?: string;
 }
 
 /**
@@ -143,6 +153,12 @@ export interface TemplateDef {
   category: 'material' | 'condition' | 'result';
   /** フィールド一覧 */
   fields: TemplateField[];
+  /**
+   * このテンプレートが紐づく Place IDの配列
+   * バックエンドの experimentInstructionService で設定される。
+   * フロントエンドでは inputPlaceIds / outputPlaceIds との照合に使用する。
+   */
+  placeIds?: string[];
 }
 
 /**

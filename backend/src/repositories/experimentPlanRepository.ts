@@ -10,6 +10,7 @@
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import type { ExperimentPlan, ExperimentPlanValues } from '../types/database';
+import type { PoolClient } from 'pg';
 
 // ──────────────────────────────────────────────
 // 内部型
@@ -91,6 +92,61 @@ export async function upsert(data: ExperimentPlan): Promise<ExperimentPlan> {
   ]);
 
   return rowToModel(result.rows[0]);
+}
+
+/**
+ * 指定プロジェクトの全実験計画を取得（全メソッド・全タスク）
+ * チェックアウト時の MAIML 書き込みに使用
+ *
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @returns ExperimentPlan 配列（method_id 昇順, task_no 昇順）
+ */
+export async function findByProject(
+  organizationId: string,
+  projectId: string
+): Promise<ExperimentPlan[]> {
+  const pool = getPool();
+  const sql = await loadSqlFile('experiment_plans/findByProject.sql');
+
+  const result = await pool.query<ExperimentPlanRow>(sql, [
+    organizationId,
+    projectId,
+  ]);
+
+  return result.rows.map(rowToModel);
+}
+
+/**
+ * 指定メソッドの全タスク分の実験計画を取得（トランザクション内用）
+ *
+ * @remarks
+ * タスク登録保存時に experiment_plan.__meta__.transitionOrder を読み取るために使用。
+ * PoolClient を受け取りトランザクション内で実行する。
+ *
+ * @param client - トランザクション用 PoolClient
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @param methodId - メソッドID
+ * @returns ExperimentPlan 配列（task_no 昇順）
+ */
+export async function findByMethodForTransaction(
+  client: PoolClient,
+  organizationId: string,
+  projectId: string,
+  methodId: string
+): Promise<ExperimentPlan[]> {
+  const sql = await loadSqlFile('experiment_plans/findByMethod.sql');
+
+  const result = await client.query<ExperimentPlanRow>(sql, [
+    organizationId,
+    projectId,
+    methodId,
+  ]);
+
+  // PoolClient.query() は result 自体が配列として返る場合がある
+  const rows = Array.isArray(result) ? result : result.rows;
+  return rows.map(rowToModel);
 }
 
 /**

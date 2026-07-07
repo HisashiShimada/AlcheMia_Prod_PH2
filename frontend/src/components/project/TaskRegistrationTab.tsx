@@ -986,7 +986,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         methodId={selectedMethodIdForPlan}
         taskNumbers={taskDetails
           .filter((t) => t.methodId === selectedMethodIdForPlan)
-          .map((t) => t.id)}
+          .flatMap((t) => Array.from({ length: t.trialCount }, (_, i) => i + 1))}
         creatorRefOptions={creatorRefOptions}
         instrumentRefOptions={instrumentRefOptions}
         ownerRefOptions={ownerRefOptions}

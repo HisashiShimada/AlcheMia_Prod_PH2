@@ -167,7 +167,7 @@ export default function UncertaintyDetailModal({
     template.status === 'active' ? (
       <Tag color="success" style={{ fontWeight: 600 }}>● 有効</Tag>
     ) : (
-      <Tag color="default" style={{ fontWeight: 600 }}>○ 非推奨</Tag>
+      <Tag color="default" style={{ fontWeight: 600 }}>○ 無効</Tag>
     );
 
   return (
@@ -280,11 +280,11 @@ export default function UncertaintyDetailModal({
               {/* 旧バージョン：非推奨固定 */}
               {!isLatestVersion ? (
                 <>
-                  <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ 非推奨</Tag>
+                  <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ 無効</Tag>
                   <Switch
                     checked={false}
                     checkedChildren="有効"
-                    unCheckedChildren="非推奨"
+                    unCheckedChildren="無効"
                     disabled
                   />
                   <span style={{ fontSize: 12, color: '#aaa' }}>
@@ -298,23 +298,23 @@ export default function UncertaintyDetailModal({
                   <Switch
                     checked={true}
                     checkedChildren="有効"
-                    unCheckedChildren="非推奨"
+                    unCheckedChildren="無効"
                     onChange={(checked) =>
                       setStatusState(checked ? 'active' : 'deprecated')
                     }
                   />
                   <span style={{ fontSize: 12, color: '#888' }}>
-                    オフにすると「非推奨」に変更されます
+                    オフにすると「無効」に変更されます
                   </span>
                 </>
               ) : (
                 /* 最新バージョン・非推奨 */
                 <>
-                  <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ 非推奨</Tag>
+                  <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ 無効</Tag>
                   <Switch
                     checked={false}
                     checkedChildren="有効"
-                    unCheckedChildren="非推奨"
+                    unCheckedChildren="無効"
                     onChange={(checked) =>
                       setStatusState(checked ? 'active' : 'deprecated')
                     }

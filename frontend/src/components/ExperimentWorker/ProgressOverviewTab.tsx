@@ -5,10 +5,10 @@
  *
  * 全タスク × トランジション の行テーブルを表示する。
  * Mat/Cond/Res を独立3列（横1行バー + 数値）+ サマリーカード。
- * タスクNo / ステータス でフィルタリング可能。
+ * タスクNo / ステータス / メソッド名 / トランジション名 でフィルタリング可能。
  * 「作業へ」ボタンで作業記録タブに遷移、「詳細確認」ボタンで作業記録タブを読取専用で表示。
- * 「開始」ボタンで未着手トランジションへ直接移動（固定順序チェックあり）。
- * スキップ中のトランジションは「スキップ中」タグで強調表示。
+ * 「開始」ボタンで未着手トランジションの作業を開始する（固定順序チェックあり）。
+ * 作業中のトランジションが存在する場合は確認ダイアログを経由してステータスを切り替える。
  *
  * フェーズA: ExperimentWorkerMenu から渡された progressRows を表示する（APIデータ接続はフェーズBで実施）。
  */
@@ -20,6 +20,7 @@ import {
   Card,
   Checkbox,
   Flex,
+  Grid,
   Progress,
   Select,
   Statistic,
@@ -32,68 +33,15 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  FastForwardOutlined,
   LockOutlined,
   MinusCircleOutlined,
   PauseCircleOutlined,
 } from '@ant-design/icons';
+import type { ProgressRow, ProgressOverviewTabProps } from '@/types/progress';
+
+export type { ProgressRow };
 
 const { Text } = Typography;
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 型定義
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-/** 行レコード */
-export interface ProgressRow {
-  /** テーブルのキー（`${taskNo}-${transitionId}` 等の一意な値） */
-  rowKey: string;
-  taskNo: number;
-  methodId: string;
-  transitionId: string;
-  /** ステータス文字列（バックエンドの数値→文字列変換済み） */
-  status: 'not_started' | 'in_progress' | 'on_hold' | 'completed' | 'issue';
-  /** 記録済みプロパティが1件以上ある場合 true */
-  hasRecord: boolean;
-  /** Material 入力進捗（フェーズB実装前はオプション） */
-  materialRecorded?: number;
-  materialTotal?: number;
-  /** Condition 入力進捗 */
-  conditionRecorded?: number;
-  conditionTotal?: number;
-  /** Result 入力進捗 */
-  resultRecorded?: number;
-  resultTotal?: number;
-  /** 問題報告数 */
-  issueCount?: number;
-  // ★ スキップ機能用フィールド
-  /** 表示順序・推奨実行順序（画面上の並び順）。省略時は 0 として扱う */
-  order?: number;
-  /**
-   * 前提となるトランジションIDの配列。
-   * これらが全て completed になるまでこのトランジションは開始不可。
-   * 空配列または省略時は依存なし（いつでも開始可能）。
-   *
-   * @example [] // 依存なし
-   * @example ['TR_A', 'TR_B'] // TR_A と TR_B 両方完了後のみ開始可能
-   */
-  prerequisiteTransitionIds?: string[];
-  /** 現在スキップ中フラグ（UI 側で管理） */
-  isSkipped?: boolean;
-}
-
-interface ProgressOverviewTabProps {
-  rows: ProgressRow[];
-  /** 「作業へ」ボタン押下時: 作業記録タブに遷移し、指定タスク+トランジションを表示 */
-  onGoToWork: (taskNo: number, transitionId: string) => void;
-  /** 「詳細確認」ボタン押下時: 作業記録タブを読取専用で表示 */
-  onViewDetail: (taskNo: number, transitionId: string) => void;
-  /**
-   * 「開始」ボタン押下時: 未着手トランジションの作業を開始する。
-   * onGoToWork と同様に作業記録タブへ遷移する。省略時は onGoToWork にフォールバック。
-   */
-  onStartWork?: (taskNo: number, transitionId: string) => void;
-}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ビジネスロジック
@@ -154,8 +102,7 @@ const SummaryCard: React.FC<{ rows: ProgressRow[] }> = ({ rows }) => {
       rows.filter((r) => r.taskNo === no).every((r) => r.status === 'completed')
     ).length;
     const issueCount = rows.reduce((sum, r) => sum + (r.issueCount ?? 0), 0);
-    const skippedCount = rows.filter((r) => r.isSkipped).length;
-    return { total, byStatus, completedPct, taskCount: taskNos.length, completedTasks, issueCount, skippedCount };
+    return { total, byStatus, completedPct, taskCount: taskNos.length, completedTasks, issueCount };
   }, [rows]);
 
   return (
@@ -163,36 +110,27 @@ const SummaryCard: React.FC<{ rows: ProgressRow[] }> = ({ rows }) => {
       <Flex align="center" gap={16} wrap="wrap">
         <div style={{ flex: '0 0 220px' }}>
           <Flex justify="space-between" align="center" style={{ marginBottom: 4 }}>
-            <Text strong style={{ fontSize: 13 }}>全体進捗</Text>
+            <Text strong style={{ fontSize: 14 }}>全体進捗</Text>
             <Text strong style={{ fontSize: 16, color: stats.completedPct === 100 ? '#52c41a' : '#1677ff' }}>
               {stats.completedPct}%
             </Text>
           </Flex>
           <Progress percent={stats.completedPct} showInfo={false} strokeColor={stats.completedPct === 100 ? '#52c41a' : '#1677ff'} size="small" />
-          <Text type="secondary" style={{ fontSize: 11 }}>タスク {stats.completedTasks}/{stats.taskCount} 完了</Text>
+          <Text type="secondary" style={{ fontSize: 14 }}>タスク {stats.completedTasks}/{stats.taskCount} 完了</Text>
         </div>
         <div style={{ width: 1, height: 48, background: '#f0f0f0', flexShrink: 0 }} />
         <Flex gap={16} wrap="wrap">
-          <Statistic title={<Text type="secondary" style={{ fontSize: 11 }}>未着手</Text>}   value={stats.byStatus.not_started} suffix="件" valueStyle={{ fontSize: 18, color: '#595959' }} />
-          <Statistic title={<Text type="secondary" style={{ fontSize: 11 }}>作業中</Text>}   value={stats.byStatus.in_progress} suffix="件" valueStyle={{ fontSize: 18, color: '#1677ff' }} />
-          <Statistic title={<Text type="secondary" style={{ fontSize: 11 }}>完了</Text>}     value={stats.byStatus.completed}   suffix="件" valueStyle={{ fontSize: 18, color: '#52c41a' }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>未着手</Text>}   value={stats.byStatus.not_started} suffix="件" valueStyle={{ fontSize: 18, color: '#595959' }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>作業中</Text>}   value={stats.byStatus.in_progress} suffix="件" valueStyle={{ fontSize: 18, color: '#1677ff' }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>完了</Text>}     value={stats.byStatus.completed}   suffix="件" valueStyle={{ fontSize: 18, color: '#52c41a' }} />
           {stats.byStatus.issue > 0 && (
-            <Statistic title={<Text type="secondary" style={{ fontSize: 11 }}>問題あり</Text>} value={stats.byStatus.issue} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} />
-          )}
-          {stats.skippedCount > 0 && (
-            <Statistic
-              title={<Text type="secondary" style={{ fontSize: 11, color: '#fa8c16' }}>スキップ中</Text>}
-              value={stats.skippedCount}
-              suffix="件"
-              valueStyle={{ fontSize: 18, color: '#fa8c16' }}
-              prefix={<FastForwardOutlined />}
-            />
+            <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>問題あり</Text>} value={stats.byStatus.issue} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} />
           )}
         </Flex>
         {stats.issueCount > 0 && (
           <>
             <div style={{ width: 1, height: 48, background: '#f0f0f0', flexShrink: 0 }} />
-            <Statistic title={<Text type="secondary" style={{ fontSize: 11, color: '#ff4d4f' }}>問題報告</Text>} value={stats.issueCount} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} prefix={<ExclamationCircleOutlined />} />
+            <Statistic title={<Text type="secondary" style={{ fontSize: 14, color: '#ff4d4f' }}>問題報告</Text>} value={stats.issueCount} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} prefix={<ExclamationCircleOutlined />} />
           </>
         )}
       </Flex>
@@ -208,18 +146,99 @@ const FilterBar: React.FC<{
   rows: ProgressRow[];
   filterTaskNo: number | null;
   filterStatus: ProgressRow['status'] | null;
-  filterSkippedOnly: boolean;
+  filterMethodId: string | null;
+  filterTransitionId: string | null;
   filteredCount: number;
   onTaskNoChange: (v: number | null) => void;
   onStatusChange: (v: ProgressRow['status'] | null) => void;
-  onSkippedOnlyChange: (v: boolean) => void;
-}> = ({ rows, filterTaskNo, filterStatus, filterSkippedOnly, filteredCount, onTaskNoChange, onStatusChange, onSkippedOnlyChange }) => {
+  onMethodIdChange: (v: string | null) => void;
+  onTransitionIdChange: (v: string | null) => void;
+}> = ({
+  rows,
+  filterTaskNo,
+  filterStatus,
+  filterMethodId,
+  filterTransitionId,
+  filteredCount,
+  onTaskNoChange,
+  onStatusChange,
+  onMethodIdChange,
+  onTransitionIdChange,
+}) => {
   const taskNos = useMemo(() => [...new Set(rows.map((r) => r.taskNo))].sort((a, b) => a - b), [rows]);
+
+  /** メソッド選択肢（methodId → methodName の重複排除） */
+  const methodOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) {
+      if (!seen.has(r.methodId)) {
+        seen.set(r.methodId, r.methodName || r.methodId);
+      }
+    }
+    return [...seen.entries()].map(([value, label]) => ({ value, label }));
+  }, [rows]);
+
+  /**
+   * トランジション選択肢
+   * メソッドが選択されている場合はそのメソッドに属するもののみ絞り込む
+   */
+  const transitionOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) {
+      if (filterMethodId !== null && r.methodId !== filterMethodId) continue;
+      if (!seen.has(r.transitionId)) {
+        seen.set(r.transitionId, r.transitionName || r.transitionId);
+      }
+    }
+    return [...seen.entries()].map(([value, label]) => ({ value, label }));
+  }, [rows, filterMethodId]);
+
   return (
     <Flex gap={8} align="center" style={{ padding: '4px 0 10px' }} wrap="wrap">
-      <Text type="secondary" style={{ fontSize: 12 }}>フィルタ:</Text>
-      <Select allowClear size="small" placeholder="タスクNo" style={{ width: 100 }} value={filterTaskNo} onChange={(v) => onTaskNoChange(v ?? null)} options={taskNos.map((n) => ({ label: `#${n}`, value: n }))} />
-      <Select allowClear size="small" placeholder="ステータス" style={{ width: 120 }} value={filterStatus} onChange={(v) => onStatusChange((v as ProgressRow['status']) ?? null)}
+      <Text type="secondary" style={{ fontSize: 14 }}>フィルタ:</Text>
+      {/* テーブル列順: メソッド名 → タスクNo → トランジション名 → ステータス */}
+      <Select
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        size="small"
+        placeholder="メソッド名"
+        style={{ minWidth: 140 }}
+        value={filterMethodId}
+        onChange={(v) => {
+          onMethodIdChange(v ?? null);
+          // メソッドが変わったらトランジション選択もリセット
+          onTransitionIdChange(null);
+        }}
+        options={methodOptions}
+      />
+      <Select
+        allowClear
+        size="small"
+        placeholder="タスクNo"
+        style={{ width: 100 }}
+        value={filterTaskNo}
+        onChange={(v) => onTaskNoChange(v ?? null)}
+        options={taskNos.map((n) => ({ label: `#${n}`, value: n }))}
+      />
+      <Select
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        size="small"
+        placeholder="トランジション名"
+        style={{ minWidth: 160 }}
+        value={filterTransitionId}
+        onChange={(v) => onTransitionIdChange(v ?? null)}
+        options={transitionOptions}
+      />
+      <Select
+        allowClear
+        size="small"
+        placeholder="ステータス"
+        style={{ width: 120 }}
+        value={filterStatus}
+        onChange={(v) => onStatusChange((v as ProgressRow['status']) ?? null)}
         options={[
           { label: '未着手',   value: 'not_started' },
           { label: '作業中',   value: 'in_progress' },
@@ -228,13 +247,7 @@ const FilterBar: React.FC<{
           { label: '問題あり', value: 'issue'       },
         ]}
       />
-      <Checkbox
-        checked={filterSkippedOnly}
-        onChange={(e) => onSkippedOnlyChange(e.target.checked)}
-      >
-        <Text style={{ fontSize: 12, color: '#fa8c16' }}>スキップ中のみ</Text>
-      </Checkbox>
-      <Text type="secondary" style={{ fontSize: 11 }}>{filteredCount}/{rows.length} 件</Text>
+      <Text type="secondary" style={{ fontSize: 14 }}>{filteredCount}/{rows.length} 件</Text>
     </Flex>
   );
 };
@@ -251,16 +264,22 @@ export default function ProgressOverviewTab({
 }: ProgressOverviewTabProps) {
   const [filterTaskNo, setFilterTaskNo] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<ProgressRow['status'] | null>(null);
-  const [filterSkippedOnly, setFilterSkippedOnly] = useState(false);
+  const [filterMethodId, setFilterMethodId] = useState<string | null>(null);
+  const [filterTransitionId, setFilterTransitionId] = useState<string | null>(null);
+
+  // ── 画面幅検知（xl: 1200px以上で3列独立表示） ───────────
+  const screens = Grid.useBreakpoint();
+  const isWide = !!screens.xl;
 
   const filteredRows = useMemo(
     () => rows.filter((r) => {
-      if (filterTaskNo !== null && r.taskNo !== filterTaskNo) return false;
-      if (filterStatus  !== null && r.status  !== filterStatus)  return false;
-      if (filterSkippedOnly && !r.isSkipped) return false;
+      if (filterTaskNo       !== null && r.taskNo       !== filterTaskNo)       return false;
+      if (filterStatus       !== null && r.status       !== filterStatus)       return false;
+      if (filterMethodId     !== null && r.methodId     !== filterMethodId)     return false;
+      if (filterTransitionId !== null && r.transitionId !== filterTransitionId) return false;
       return true;
     }),
-    [rows, filterTaskNo, filterStatus, filterSkippedOnly]
+    [rows, filterTaskNo, filterStatus, filterMethodId, filterTransitionId]
   );
 
   // ── 操作列 ─────────────────────────────────────────
@@ -298,7 +317,7 @@ export default function ProgressOverviewTab({
           size="small"
           onClick={() => {
             if (onStartWork) {
-              onStartWork(r.taskNo, r.transitionId);
+              onStartWork(r.taskNo, r.transitionId, r.methodId);
             } else {
               onGoToWork(r.taskNo, r.transitionId);
             }
@@ -312,43 +331,40 @@ export default function ProgressOverviewTab({
   };
 
   // ── ステータスタグ ───────────────────────────────────
-  const renderStatus = (v: ProgressRow['status'], record: ProgressRow) => {
+  const renderStatus = (v: ProgressRow['status']) => {
     const cfg = STATUS_CONFIG[v] ?? { label: v, color: 'default', icon: null };
     return (
       <Flex align="center" gap={4} justify="center" wrap="wrap">
         {cfg.icon}
         <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag>
-        {record.isSkipped && (
-          <Tag
-            color="warning"
-            icon={<FastForwardOutlined />}
-            style={{ margin: 0, fontSize: 11 }}
-          >
-            スキップ中
-          </Tag>
-        )}
       </Flex>
     );
   };
 
   // ── テーブル列定義 ───────────────────────────────────
-  const columns: ColumnsType<ProgressRow> = [
+
+  /** 共通ベース列（メソッド名 / タスクNo / トランジション名 / ステータス） */
+  const baseColumns: ColumnsType<ProgressRow> = [
+    {
+      title: 'メソッド名', dataIndex: 'methodId', width: 160, ellipsis: { showTitle: false },
+      render: (_: string, record: ProgressRow) => {
+        const displayName = record.methodName || record.methodId;
+        return <Tooltip title={displayName}><Text style={{ fontSize: 14 }}>{displayName}</Text></Tooltip>;
+      },
+    },
     {
       title: 'タスクNo', dataIndex: 'taskNo', width: 80, align: 'center',
       render: (v: number) => <Text strong>#{v}</Text>,
     },
     {
-      title: 'メソッドID', dataIndex: 'methodId', width: 150, ellipsis: { showTitle: false },
-      render: (v: string) => <Tooltip title={v}><Text code style={{ fontSize: 11 }}>{v.slice(-8)}</Text></Tooltip>,
-    },
-    {
-      title: 'トランジションID', dataIndex: 'transitionId', width: 180, ellipsis: { showTitle: false },
-      render: (v: string, record: ProgressRow) => {
+      title: 'トランジション名', dataIndex: 'transitionId', width: 180, ellipsis: { showTitle: false },
+      render: (_: string, record: ProgressRow) => {
+        const displayName = record.transitionName || record.transitionId;
         const hasPrereqs = (record.prerequisiteTransitionIds?.length ?? 0) > 0;
         return (
           <Flex align="center" gap={4}>
-            <Tooltip title={v}>
-              <Text code style={{ fontSize: 11 }}>{v.slice(-16)}</Text>
+            <Tooltip title={displayName}>
+              <Text style={{ fontSize: 14 }}>{displayName}</Text>
             </Tooltip>
             {hasPrereqs && (
               <Tooltip title={`前提トランジション: ${record.prerequisiteTransitionIds?.join(', ')} が全て完了してから開始できます`}>
@@ -366,6 +382,14 @@ export default function ProgressOverviewTab({
       align: 'center',
       render: renderStatus,
     },
+  ];
+
+  /**
+   * 進捗列（幅広: 1200px以上）
+   * Material / Condition / Result を独立3列で表示（Progressバー + rec/tot 数値）
+   * 合計 390px
+   */
+  const wideProgressColumns: ColumnsType<ProgressRow> = [
     {
       title: 'Material', width: 130, align: 'center',
       render: (_: unknown, r: ProgressRow) => {
@@ -373,7 +397,7 @@ export default function ProgressOverviewTab({
         return tot === 0 ? <Text type="secondary">—</Text> : (
           <Flex align="center" gap={4}>
             <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#1677ff" showInfo={false} style={{ flex: 1, margin: 0 }} />
-            <Text style={{ fontSize: 10, minWidth: 30 }}>{rec}/{tot}</Text>
+            <Text style={{ fontSize: 12, minWidth: 28 }}>{rec}/{tot}</Text>
           </Flex>
         );
       },
@@ -385,7 +409,7 @@ export default function ProgressOverviewTab({
         return tot === 0 ? <Text type="secondary">—</Text> : (
           <Flex align="center" gap={4}>
             <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#52c41a" showInfo={false} style={{ flex: 1, margin: 0 }} />
-            <Text style={{ fontSize: 10, minWidth: 30 }}>{rec}/{tot}</Text>
+            <Text style={{ fontSize: 12, minWidth: 28 }}>{rec}/{tot}</Text>
           </Flex>
         );
       },
@@ -397,16 +421,64 @@ export default function ProgressOverviewTab({
         return tot === 0 ? <Text type="secondary">—</Text> : (
           <Flex align="center" gap={4}>
             <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#fa8c16" showInfo={false} style={{ flex: 1, margin: 0 }} />
-            <Text style={{ fontSize: 10, minWidth: 30 }}>{rec}/{tot}</Text>
+            <Text style={{ fontSize: 12, minWidth: 28 }}>{rec}/{tot}</Text>
           </Flex>
         );
       },
     },
+  ];
+
+  /**
+   * 進捗列（狭幅: 1200px未満）
+   * Material / Condition / Result を1列に統合してテキストのみ表示
+   * 150px
+   */
+  const narrowProgressColumn: ColumnsType<ProgressRow> = [
+    {
+      title: '進捗', width: 150, align: 'center',
+      render: (_: unknown, r: ProgressRow) => {
+        const items: React.ReactNode[] = [];
+        const mTot = r.materialTotal  ?? 0;
+        const cTot = r.conditionTotal ?? 0;
+        const rTot = r.resultTotal    ?? 0;
+        if (mTot > 0) items.push(
+          <Text key="m" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+            <span style={{ color: '#1677ff', fontWeight: 600 }}>M</span>
+            {' '}{r.materialRecorded ?? 0}/{mTot}
+          </Text>
+        );
+        if (cTot > 0) items.push(
+          <Text key="c" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+            <span style={{ color: '#52c41a', fontWeight: 600 }}>C</span>
+            {' '}{r.conditionRecorded ?? 0}/{cTot}
+          </Text>
+        );
+        if (rTot > 0) items.push(
+          <Text key="r" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+            <span style={{ color: '#fa8c16', fontWeight: 600 }}>R</span>
+            {' '}{r.resultRecorded ?? 0}/{rTot}
+          </Text>
+        );
+        if (items.length === 0) return <Text type="secondary">—</Text>;
+        return <Flex align="center" justify="center" gap={8} wrap="wrap">{items}</Flex>;
+      },
+    },
+  ];
+
+  /** 末尾共通列（問題 / 操作） */
+  const tailColumns: ColumnsType<ProgressRow> = [
     {
       title: '問題', dataIndex: 'issueCount', width: 60, align: 'center',
       render: (v: number | undefined) => (v ?? 0) > 0 ? <Badge count={v} size="small" style={{ backgroundColor: '#ff4d4f' }} /> : <Text type="secondary">—</Text>,
     },
     { title: '操作', width: 100, align: 'center', render: renderAction },
+  ];
+
+  /** 画面幅に応じて列を切り替え（isWide: 1200px以上） */
+  const columns: ColumnsType<ProgressRow> = [
+    ...baseColumns,
+    ...(isWide ? wideProgressColumns : narrowProgressColumn),
+    ...tailColumns,
   ];
 
   return (
@@ -419,11 +491,13 @@ export default function ProgressOverviewTab({
         rows={rows}
         filterTaskNo={filterTaskNo}
         filterStatus={filterStatus}
-        filterSkippedOnly={filterSkippedOnly}
+        filterMethodId={filterMethodId}
+        filterTransitionId={filterTransitionId}
         filteredCount={filteredRows.length}
         onTaskNoChange={setFilterTaskNo}
         onStatusChange={setFilterStatus}
-        onSkippedOnlyChange={setFilterSkippedOnly}
+        onMethodIdChange={setFilterMethodId}
+        onTransitionIdChange={setFilterTransitionId}
       />
 
       {/* テーブル本体 */}
@@ -436,7 +510,6 @@ export default function ProgressOverviewTab({
         bordered
         scroll={{ y: 'calc(100vh - 480px)' }}
         locale={{ emptyText: 'データがありません' }}
-        rowClassName={(record) => record.isSkipped ? 'ant-table-row-skip' : ''}
       />
     </Flex>
   );
