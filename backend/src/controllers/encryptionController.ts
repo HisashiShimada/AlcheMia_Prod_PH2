@@ -23,56 +23,223 @@ import { Request, Response } from 'express';
 // スタブデータ定義
 // ---------------------------------------------------------------------------
 
-/** MAIMLツリー構造スタブ */
+/**
+ * MAIMLツリー構造スタブ
+ *
+ * MAIML正規スキーマ（maiml-unified.ts / MaimlRoot型）に準拠した階層構造:
+ *
+ *   maiml                         (ルート)
+ *   ├── document                  (暗号化不可: メタデータ)
+ *   │   ├── creator               (暗号化不可)
+ *   │   ├── vendor                (暗号化不可)
+ *   │   └── owner                 (暗号化不可)
+ *   ├── protocol                  (暗号化不可)
+ *   │   ├── materialTemplate[]    (暗号化可: プロトコル直下テンプレート)
+ *   │   ├── conditionTemplate[]   (暗号化可)
+ *   │   ├── resultTemplate[]      (暗号化可)
+ *   │   └── method[]              (暗号化不可)
+ *   │       ├── pnml              (暗号化不可: Petri Net構造)
+ *   │       │   ├── place[]       (暗号化不可: 構造ノード)
+ *   │       │   ├── transition[]  (暗号化不可)
+ *   │       │   └── arc[]         (暗号化不可)
+ *   │       ├── program[]         (暗号化不可)
+ *   │       │   ├── instruction[] (暗号化可)
+ *   │       │   ├── materialTemplate[] (暗号化可)
+ *   │       │   ├── conditionTemplate[](暗号化可)
+ *   │       │   └── resultTemplate[]   (暗号化可)
+ *   │       ├── materialTemplate[] (暗号化可: メソッド直下テンプレート)
+ *   │       │   ├── property[]    (暗号化可)
+ *   │       │   └── content[]     (暗号化可)
+ *   │       ├── conditionTemplate[](暗号化可)
+ *   │       └── resultTemplate[]   (暗号化可)
+ *   ├── data                      (オプション)
+ *   │   └── results[]             (暗号化不可: コンテナ)
+ *   │       ├── material[]        (暗号化可: インスタンスデータ)
+ *   │       │   ├── property[]    (暗号化可)
+ *   │       │   └── content[]     (暗号化可)
+ *   │       ├── condition[]       (暗号化可)
+ *   │       └── result[]          (暗号化可)
+ *   └── eventLog                  (オプション、暗号化不可: プロセスログ)
+ *       └── log[] > trace[] > event[] (暗号化不可)
+ */
 const STUB_MAIML_STRUCTURE = [
   {
-    path: '/maiml/document',
-    tagName: 'document',
-    id: 'doc-001',
-    label: 'document',
+    path: '/maiml',
+    tagName: 'maiml',
+    id: 'maiml-root',
+    label: 'maiml',
     isEncrypted: false,
-    isEncryptable: false, // ルート要素・メタデータ要素は暗号化不可
+    isEncryptable: false, // ルート要素は暗号化不可
     children: [
+      // ── document ────────────────────────────────────────────
       {
-        path: '/maiml/pnml',
-        tagName: 'pnml',
-        id: 'pnml-001',
-        label: 'pnml',
+        path: '/maiml/document',
+        tagName: 'document',
+        id: 'doc-001',
+        label: 'document（メタデータ）',
         isEncrypted: false,
-        isEncryptable: false, // Petri Net構造要素は暗号化不可
+        isEncryptable: false, // メタデータ要素は暗号化不可
         children: [
           {
-            path: "/maiml/pnml/method[@id='method-001']",
+            path: '/maiml/document/creator[@id="Creator"]',
+            tagName: 'creator',
+            id: 'Creator',
+            label: 'creator: XRF Analyzer',
+            isEncrypted: false,
+            isEncryptable: false,
+          },
+          {
+            path: '/maiml/document/vendor[@id="Vendor"]',
+            tagName: 'vendor',
+            id: 'Vendor',
+            label: 'vendor: ベンダー情報',
+            isEncrypted: false,
+            isEncryptable: false,
+          },
+          {
+            path: '/maiml/document/owner[@id="Owner"]',
+            tagName: 'owner',
+            id: 'Owner',
+            label: 'owner: 組織情報',
+            isEncrypted: false,
+            isEncryptable: false,
+          },
+        ],
+      },
+      // ── protocol ────────────────────────────────────────────
+      {
+        path: '/maiml/protocol',
+        tagName: 'protocol',
+        id: 'protocol-001',
+        label: 'protocol（実験手順定義）',
+        isEncrypted: false,
+        isEncryptable: false, // protocol要素自体は暗号化不可
+        children: [
+          // ── method ──────────────────────────────────────────
+          {
+            path: "/maiml/protocol/method[@id='method-001']",
             tagName: 'method',
             id: 'method-001',
-            label: '実験手順A',
+            label: 'method: 合成実験手順',
             isEncrypted: false,
-            isEncryptable: false, // method要素自体は暗号化不可
+            isEncryptable: false, // method要素は暗号化不可
             children: [
+              // pnml（Petri Net構造 — place/transition/arc はすべて暗号化不可）
               {
-                path: "/maiml/pnml/method[@id='method-001']/place[@id='place-mat-001']",
-                tagName: 'place',
-                id: 'place-mat-001',
-                placeType: 'Material',
-                label: '試料A（硫酸銅水溶液）',
+                path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']",
+                tagName: 'pnml',
+                id: 'pnml-001',
+                label: 'pnml（Petri Net構造）',
                 isEncrypted: false,
-                isEncryptable: true, // Material placeは暗号化可能
+                isEncryptable: false, // Petri Net構造全体は暗号化不可
                 children: [
                   {
-                    path: "/maiml/pnml/method[@id='method-001']/place[@id='place-mat-001']/property[@key='maiml:concentration']",
-                    tagName: 'property',
-                    key: 'maiml:concentration',
-                    label: '濃度',
+                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/place[@id='place-mat-001']",
+                    tagName: 'place',
+                    id: 'place-mat-001',
+                    label: 'place: 試料投入口（構造ノード）',
                     isEncrypted: false,
-                    isEncryptable: true, // propertyは暗号化可能
+                    isEncryptable: false, // place は構造要素→暗号化不可
                   },
                   {
-                    path: "/maiml/pnml/method[@id='method-001']/place[@id='place-mat-001']/property[@key='myns:secretFormula']",
+                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/place[@id='place-cond-001']",
+                    tagName: 'place',
+                    id: 'place-cond-001',
+                    label: 'place: 条件入力口（構造ノード）',
+                    isEncrypted: false,
+                    isEncryptable: false,
+                  },
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/place[@id='place-res-001']",
+                    tagName: 'place',
+                    id: 'place-res-001',
+                    label: 'place: 結果出力口（構造ノード）',
+                    isEncrypted: false,
+                    isEncryptable: false,
+                  },
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/transition[@id='trans-001']",
+                    tagName: 'transition',
+                    id: 'trans-001',
+                    label: 'transition: 混合・反応処理',
+                    isEncrypted: false,
+                    isEncryptable: false, // transition は暗号化不可
+                  },
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/arc[@id='arc-001']",
+                    tagName: 'arc',
+                    id: 'arc-001',
+                    label: 'arc: place-mat-001 → trans-001',
+                    isEncrypted: false,
+                    isEncryptable: false, // arc は暗号化不可
+                  },
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/arc[@id='arc-002']",
+                    tagName: 'arc',
+                    id: 'arc-002',
+                    label: 'arc: trans-001 → place-res-001',
+                    isEncrypted: false,
+                    isEncryptable: false,
+                  },
+                ],
+              },
+              // program（命令シーケンス — instruction は暗号化可）
+              {
+                path: "/maiml/protocol/method[@id='method-001']/program[@id='prog-001']",
+                tagName: 'program',
+                id: 'prog-001',
+                label: 'program（命令シーケンス）',
+                isEncrypted: false,
+                isEncryptable: false, // program自体は暗号化不可
+                children: [
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/program[@id='prog-001']/instruction[@id='inst-001']",
+                    tagName: 'instruction',
+                    id: 'inst-001',
+                    label: 'instruction: 手順1（試薬調製） ※秘匿済み',
+                    isEncrypted: true, // 暗号化済みサンプル
+                    isEncryptable: true, // instruction は本来暗号化可能な種別（既に暗号化済みの状態）
+                    encryptionInfo: {
+                      algorithmUri: 'http://www.w3.org/2001/04/xmlenc#aes256-cbc',
+                      keyName: 'maiml-experiment-key-2026',
+                      encryptionId: 'enc-inst-001',
+                      encryptedAt: '2026-06-10T10:00:00Z',
+                    },
+                  },
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/program[@id='prog-001']/instruction[@id='inst-002']",
+                    tagName: 'instruction',
+                    id: 'inst-002',
+                    label: 'instruction: 手順2（反応実施）',
+                    isEncrypted: false,
+                    isEncryptable: true, // instruction は暗号化可
+                  },
+                ],
+              },
+              // materialTemplate（試料テンプレート — property/content は暗号化可）
+              {
+                path: "/maiml/protocol/method[@id='method-001']/materialTemplate[@id='mt-001']",
+                tagName: 'materialTemplate',
+                id: 'mt-001',
+                label: 'materialTemplate: 試料A（硫酸銅水溶液）',
+                isEncrypted: false,
+                isEncryptable: true, // テンプレート全体の暗号化も可
+                children: [
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/materialTemplate[@id='mt-001']/property[@key='maiml:concentration']",
+                    tagName: 'property',
+                    key: 'maiml:concentration',
+                    label: 'property: 濃度',
+                    isEncrypted: false,
+                    isEncryptable: true,
+                  },
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/materialTemplate[@id='mt-001']/property[@key='myns:secretFormula']",
                     tagName: 'property',
                     key: 'myns:secretFormula',
-                    label: '秘密の製造方法',
-                    isEncrypted: true,  // 既に暗号化済み → isEncryptable: false
-                    isEncryptable: false,
+                    label: 'property: 秘密の製造方法 ※秘匿済み',
+                    isEncrypted: true,
+                    isEncryptable: true, // property は本来暗号化可能な種別（既に暗号化済みの状態）
                     encryptionInfo: {
                       algorithmUri: 'http://www.w3.org/2001/04/xmlenc#aes256-cbc',
                       keyName: 'maiml-experiment-key-2026',
@@ -80,73 +247,238 @@ const STUB_MAIML_STRUCTURE = [
                       encryptedAt: '2026-06-10T10:00:00Z',
                     },
                   },
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/materialTemplate[@id='mt-001']/content[@key='maiml:sampleData']",
+                    tagName: 'content',
+                    key: 'maiml:sampleData',
+                    label: 'content: 試料データ本体',
+                    isEncrypted: false,
+                    isEncryptable: true,
+                  },
                 ],
               },
+              // conditionTemplate（条件テンプレート — 暗号化可）
               {
-                path: "/maiml/pnml/method[@id='method-001']/transition[@id='trans-001']",
-                tagName: 'transition',
-                id: 'trans-001',
-                label: '混合・反応',
+                path: "/maiml/protocol/method[@id='method-001']/conditionTemplate[@id='ct-001']",
+                tagName: 'conditionTemplate',
+                id: 'ct-001',
+                label: 'conditionTemplate: 反応条件',
                 isEncrypted: false,
-                isEncryptable: false, // transition（Petri Net構造要素）は暗号化不可
-              },
-              {
-                path: "/maiml/pnml/method[@id='method-001']/place[@id='place-cond-001']",
-                tagName: 'place',
-                id: 'place-cond-001',
-                placeType: 'Condition',
-                label: '温度・時間条件',
-                isEncrypted: false,
-                isEncryptable: true, // Condition placeは暗号化可能
+                isEncryptable: true,
                 children: [
                   {
-                    path: "/maiml/pnml/method[@id='method-001']/place[@id='place-cond-001']/property[@key='maiml:temperature']",
+                    path: "/maiml/protocol/method[@id='method-001']/conditionTemplate[@id='ct-001']/property[@key='maiml:temperature']",
                     tagName: 'property',
                     key: 'maiml:temperature',
-                    label: '反応温度 (℃)',
+                    label: 'property: 反応温度 (℃)',
                     isEncrypted: false,
-                    isEncryptable: true, // propertyは暗号化可能
+                    isEncryptable: true,
                   },
                   {
-                    path: "/maiml/pnml/method[@id='method-001']/place[@id='place-cond-001']/property[@key='maiml:reactionTime']",
+                    path: "/maiml/protocol/method[@id='method-001']/conditionTemplate[@id='ct-001']/property[@key='maiml:reactionTime']",
                     tagName: 'property',
                     key: 'maiml:reactionTime',
-                    label: '反応時間 (min)',
+                    label: 'property: 反応時間 (min)',
                     isEncrypted: false,
-                    isEncryptable: true, // propertyは暗号化可能
+                    isEncryptable: true,
+                  },
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/conditionTemplate[@id='ct-001']/content[@key='maiml:conditionData']",
+                    tagName: 'content',
+                    key: 'maiml:conditionData',
+                    label: 'content: 条件データ本体',
+                    isEncrypted: false,
+                    isEncryptable: true,
                   },
                 ],
               },
+              // resultTemplate（結果テンプレート — 暗号化可）
               {
-                path: "/maiml/pnml/method[@id='method-001']/place[@id='place-res-001']",
-                tagName: 'place',
-                id: 'place-res-001',
-                placeType: 'Result',
-                label: '生成物',
+                path: "/maiml/protocol/method[@id='method-001']/resultTemplate[@id='rt-001']",
+                tagName: 'resultTemplate',
+                id: 'rt-001',
+                label: 'resultTemplate: 実験結果',
                 isEncrypted: false,
-                isEncryptable: true, // Result placeは暗号化可能
+                isEncryptable: true,
                 children: [
                   {
-                    path: "/maiml/pnml/method[@id='method-001']/place[@id='place-res-001']/property[@key='maiml:yield']",
+                    path: "/maiml/protocol/method[@id='method-001']/resultTemplate[@id='rt-001']/property[@key='maiml:yield']",
                     tagName: 'property',
                     key: 'maiml:yield',
-                    label: '収率 (%)',
+                    label: 'property: 収率 (%)',
                     isEncrypted: false,
-                    isEncryptable: true, // propertyは暗号化可能
+                    isEncryptable: true,
                   },
                   {
-                    path: "/maiml/pnml/method[@id='method-001']/place[@id='place-res-001']/property[@key='myns:secretResult']",
+                    path: "/maiml/protocol/method[@id='method-001']/resultTemplate[@id='rt-001']/property[@key='myns:secretResult']",
                     tagName: 'property',
                     key: 'myns:secretResult',
-                    label: '機密実験結果',
-                    isEncrypted: true,  // 既に暗号化済み → isEncryptable: false
-                    isEncryptable: false,
+                    label: 'property: 機密実験結果 ※秘匿済み',
+                    isEncrypted: true,
+                    isEncryptable: true, // property は本来暗号化可能な種別（既に暗号化済みの状態）
                     encryptionInfo: {
                       algorithmUri: 'http://www.w3.org/2001/04/xmlenc#aes256-cbc',
                       keyName: 'results-encryption-key',
                       encryptionId: 'enc-results-001',
                       encryptedAt: '2026-06-16T09:00:00Z',
                     },
+                  },
+                  {
+                    path: "/maiml/protocol/method[@id='method-001']/resultTemplate[@id='rt-001']/content[@key='maiml:resultData']",
+                    tagName: 'content',
+                    key: 'maiml:resultData',
+                    label: 'content: 結果データ本体',
+                    isEncrypted: false,
+                    isEncryptable: true,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      // ── data ────────────────────────────────────────────────
+      {
+        path: '/maiml/data',
+        tagName: 'data',
+        id: 'data-001',
+        label: 'data（実験インスタンスデータ）',
+        isEncrypted: false,
+        isEncryptable: false, // dataコンテナ自体は暗号化不可
+        children: [
+          {
+            path: "/maiml/data/results[@id='results-001']",
+            tagName: 'results',
+            id: 'results-001',
+            label: 'results: 実験1回目の記録',
+            isEncrypted: false,
+            isEncryptable: false, // resultsコンテナは暗号化不可
+            children: [
+              // material（試料インスタンス — property/content は暗号化可）
+              {
+                path: "/maiml/data/results[@id='results-001']/material[@id='mat-inst-001']",
+                tagName: 'material',
+                id: 'mat-inst-001',
+                label: 'material: 試料A実測値（硫酸銅水溶液）',
+                isEncrypted: false,
+                isEncryptable: true,
+                children: [
+                  {
+                    path: "/maiml/data/results[@id='results-001']/material[@id='mat-inst-001']/property[@key='maiml:concentration']",
+                    tagName: 'property',
+                    key: 'maiml:concentration',
+                    label: 'property: 実測濃度',
+                    isEncrypted: false,
+                    isEncryptable: true,
+                  },
+                  {
+                    path: "/maiml/data/results[@id='results-001']/material[@id='mat-inst-001']/content[@key='maiml:rawSpectrum']",
+                    tagName: 'content',
+                    key: 'maiml:rawSpectrum',
+                    label: 'content: 生スペクトルデータ',
+                    isEncrypted: false,
+                    isEncryptable: true,
+                  },
+                ],
+              },
+              // condition（条件インスタンス — 暗号化可）
+              {
+                path: "/maiml/data/results[@id='results-001']/condition[@id='cond-inst-001']",
+                tagName: 'condition',
+                id: 'cond-inst-001',
+                label: 'condition: 反応条件実測値',
+                isEncrypted: false,
+                isEncryptable: true,
+                children: [
+                  {
+                    path: "/maiml/data/results[@id='results-001']/condition[@id='cond-inst-001']/property[@key='maiml:temperature']",
+                    tagName: 'property',
+                    key: 'maiml:temperature',
+                    label: 'property: 実測反応温度 (℃)',
+                    isEncrypted: false,
+                    isEncryptable: true,
+                  },
+                  {
+                    path: "/maiml/data/results[@id='results-001']/condition[@id='cond-inst-001']/property[@key='maiml:reactionTime']",
+                    tagName: 'property',
+                    key: 'maiml:reactionTime',
+                    label: 'property: 実測反応時間 (min)',
+                    isEncrypted: false,
+                    isEncryptable: true,
+                  },
+                ],
+              },
+              // result（結果インスタンス — insertion を含む場合あり）
+              {
+                path: "/maiml/data/results[@id='results-001']/result[@id='res-inst-001']",
+                tagName: 'result',
+                id: 'res-inst-001',
+                label: 'result: 実験結果インスタンス',
+                isEncrypted: false,
+                isEncryptable: true,
+                children: [
+                  {
+                    path: "/maiml/data/results[@id='results-001']/result[@id='res-inst-001']/property[@key='maiml:yield']",
+                    tagName: 'property',
+                    key: 'maiml:yield',
+                    label: 'property: 収率 (%)',
+                    isEncrypted: false,
+                    isEncryptable: true,
+                  },
+                  {
+                    path: "/maiml/data/results[@id='results-001']/result[@id='res-inst-001']/content[@key='maiml:analysisData']",
+                    tagName: 'content',
+                    key: 'maiml:analysisData',
+                    label: 'content: 解析データ（CSVバイナリ）',
+                    isEncrypted: false,
+                    isEncryptable: true,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      // ── eventLog ────────────────────────────────────────────
+      {
+        path: '/maiml/eventLog',
+        tagName: 'eventLog',
+        id: 'eventLog-001',
+        label: 'eventLog（プロセスログ）',
+        isEncrypted: false,
+        isEncryptable: false, // イベントログは暗号化不可（改ざん防止が目的）
+        children: [
+          {
+            path: "/maiml/eventLog/log[@id='log-001']",
+            tagName: 'log',
+            id: 'log-001',
+            label: 'log: 実験記録ログ',
+            isEncrypted: false,
+            isEncryptable: false,
+            children: [
+              {
+                path: "/maiml/eventLog/log[@id='log-001']/trace[@id='trace-001']",
+                tagName: 'trace',
+                id: 'trace-001',
+                label: 'trace: 実験セッション1',
+                isEncrypted: false,
+                isEncryptable: false,
+                children: [
+                  {
+                    path: "/maiml/eventLog/log[@id='log-001']/trace[@id='trace-001']/event[@id='event-001']",
+                    tagName: 'event',
+                    id: 'event-001',
+                    label: 'event: 開始イベント',
+                    isEncrypted: false,
+                    isEncryptable: false, // イベント要素は暗号化不可
+                  },
+                  {
+                    path: "/maiml/eventLog/log[@id='log-001']/trace[@id='trace-001']/event[@id='event-002']",
+                    tagName: 'event',
+                    id: 'event-002',
+                    label: 'event: 完了イベント',
+                    isEncrypted: false,
+                    isEncryptable: false,
                   },
                 ],
               },
@@ -895,21 +1227,20 @@ export const checkInsertion = async (req: Request, res: Response): Promise<void>
 // ---------------------------------------------------------------------------
 
 /**
- * GET /api/v1/encryption/projects/:projectName/encrypted-children?nodePath=xxx
- * 選択ノード配下の暗号化済み要素一覧を返す
+ * GET /api/v1/encryption/projects/:projectName/encrypted-children
+ * 対象MAIMLファイルに含まれる全ての暗号化済み要素（EncryptedData）一覧を返す
  *
  * @remarks
- * nodePath は URL エンコードして渡すこと
- * 【本実装への移行】MAIMLファイルをパースして配下の EncryptedData 要素を収集する
+ * nodePath クエリパラメータは現在使用しない（ファイル全体を対象とする）
+ * 【本実装への移行】MAIMLファイルをパースして全 EncryptedData 要素を収集する
  */
 export const getEncryptedChildren = async (req: Request, res: Response): Promise<void> => {
   const { projectName } = req.params;
-  const nodePath = req.query.nodePath ? decodeURIComponent(req.query.nodePath as string) : '';
 
-  console.log(`[encryption] getEncryptedChildren: projectName=${projectName}, nodePath=${nodePath}`);
+  console.log(`[encryption] getEncryptedChildren: projectName=${projectName} (全件取得)`);
 
   // TODO: 本実装では projectName のMAIMLファイルをパースし、
-  // nodePath 配下の全 EncryptedData 要素を収集して返す
+  // ファイル全体に含まれる全 EncryptedData 要素を収集して返す
   await new Promise((r) => setTimeout(r, 100));
 
   // スタブ: ツリーの暗号化済みノードを元にサンプルデータを返す

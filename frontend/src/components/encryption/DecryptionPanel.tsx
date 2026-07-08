@@ -5,6 +5,7 @@
  *
  * @description
  * 暗号化済み要素を選択した時に表示される復号化設定パネル。
+ * 複数要素を一括復号化できる。
  * 使用する鍵を選択し、復号化プレビューまたは実行ができる。
  */
 
@@ -28,8 +29,8 @@ const { Password } = Input;
 interface DecryptionPanelProps {
   /** プロジェクト名 */
   projectName: string;
-  /** 選択中のノード（暗号化済み要素） */
-  selectedNode: MaimlTreeNode | null;
+  /** 復号化対象ノード一覧（暗号化済み要素） */
+  targets: MaimlTreeNode[];
   /** 利用可能な鍵一覧 */
   keys: EncryptionKey[];
   /** プレビュー実行中か */
@@ -63,8 +64,8 @@ function formatAlgorithmLabel(algorithmUri?: string): string {
 // ---------------------------------------------------------------------------
 
 const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
-  projectName,
-  selectedNode,
+  projectName: _projectName,
+  targets,
   keys,
   previewLoading,
   executing,
@@ -74,7 +75,9 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
   const [selectedKeyId, setSelectedKeyId] = useState<string | undefined>(undefined);
   const [password, setPassword] = useState<string>('');
 
-  const encryptionInfo = selectedNode?.encryptionInfo;
+  /** 代表ノード（アルゴリズム情報表示に使用） */
+  const representativeNode = targets[0] ?? null;
+  const encryptionInfo = representativeNode?.encryptionInfo;
   const needsPassword = isPbkdf2Algorithm(encryptionInfo?.algorithmUri);
 
   // 実行ボタン用確認ダイアログ
@@ -86,11 +89,16 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
       content: (
         <div>
           <p>以下の要素を復号化します。この操作はMAIMLファイルを書き換えます。</p>
-          <p>
-            <Text strong>対象要素：</Text>
-            <Text code style={{ fontSize: 11 }}>{selectedNode?.label ?? selectedNode?.path}</Text>
-          </p>
-          <p style={{ color: '#fa8c16' }}>
+          <ul style={{ paddingLeft: 16, margin: '4px 0' }}>
+            {targets.map((n) => (
+              <li key={n.path} style={{ fontSize: 12 }}>
+                <Text code style={{ fontSize: 11 }}>
+                  {n.label ?? n.path}
+                </Text>
+              </li>
+            ))}
+          </ul>
+          <p style={{ color: '#fa8c16', marginTop: 8 }}>
             復号化前のデータはバックアップに保存されます。
           </p>
         </div>
@@ -103,21 +111,10 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
   };
 
   // 未選択時
-  if (!selectedNode) {
+  if (targets.length === 0) {
     return (
       <Card size="small" style={{ margin: '8px 0' }}>
         <Text type="secondary">ツリーから暗号化済み要素を選択してください。</Text>
-      </Card>
-    );
-  }
-
-  // 暗号化済みでない要素が選択された場合
-  if (!selectedNode.isEncrypted) {
-    return (
-      <Card size="small" style={{ margin: '8px 0' }}>
-        <Text type="secondary">
-          選択した要素は暗号化されていません。
-        </Text>
       </Card>
     );
   }
@@ -133,13 +130,37 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
           <Text strong style={{ fontSize: 13 }}>
             <UnlockOutlined style={{ marginRight: 6, color: '#fa8c16' }} />
             復号化設定
-          </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            対象：
-            <Text code style={{ fontSize: 11 }}>
-              {selectedNode.label ?? selectedNode.id ?? selectedNode.key ?? selectedNode.path}
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal', marginLeft: 8 }}>
+              （対象: {targets.length}件）
             </Text>
           </Text>
+
+          {/* 対象要素リスト */}
+          <div
+            style={{
+              maxHeight: 120,
+              overflowY: 'auto',
+              background: '#fffbe6',
+              border: '1px solid #ffe58f',
+              borderRadius: 4,
+              padding: '4px 8px',
+            }}
+          >
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              {targets.map((n) => (
+                <li key={n.path} style={{ fontSize: 11 }}>
+                  <Text strong style={{ fontSize: 12 }}>
+                    {n.label ?? n.key ?? n.tagName}
+                  </Text>
+                  <Text type="secondary" style={{ marginLeft: 6, fontSize: 11 }}>
+                    {n.path}
+                  </Text>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* 代表ノードのアルゴリズム情報 */}
           {encryptionInfo && (
             <Text type="secondary" style={{ fontSize: 11 }}>
               アルゴリズム：{formatAlgorithmLabel(encryptionInfo.algorithmUri)}
@@ -147,6 +168,11 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
                 <span style={{ marginLeft: 8 }}>
                   鍵名：<Text code style={{ fontSize: 11 }}>{encryptionInfo.keyName}</Text>
                 </span>
+              )}
+              {targets.length > 1 && (
+                <Text type="secondary" style={{ marginLeft: 8 }}>
+                  ※ 代表ノードの情報を表示
+                </Text>
               )}
             </Text>
           )}
@@ -233,7 +259,7 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
           disabled={!selectedKeyId || (needsPassword && !password)}
           onClick={handleDecryptExecuteClick}
         >
-          復号化実行
+          {targets.length > 1 ? `復号化実行（${targets.length}件）` : '復号化実行'}
         </Button>
       </Space>
     </div>

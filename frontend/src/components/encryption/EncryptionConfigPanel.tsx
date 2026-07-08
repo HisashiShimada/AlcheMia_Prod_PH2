@@ -40,7 +40,8 @@ const { Text } = Typography;
 
 interface EncryptionConfigPanelProps {
   projectName: string;
-  selectedNode: MaimlTreeNode | null;
+  /** 暗号化対象ノード一覧（EncryptionManagement から collectTargets で収集済み） */
+  targets: MaimlTreeNode[];
   config: EncryptionConfig;
   keys: EncryptionKey[];
   onConfigChange: (config: EncryptionConfig) => void;
@@ -95,7 +96,7 @@ function shouldShowUpa(config: EncryptionConfig, node: MaimlTreeNode | null): bo
 
 const EncryptionConfigPanel: React.FC<EncryptionConfigPanelProps> = ({
   projectName,
-  selectedNode,
+  targets,
   config,
   keys,
   onConfigChange,
@@ -106,13 +107,14 @@ const EncryptionConfigPanel: React.FC<EncryptionConfigPanelProps> = ({
   executing,
   hasUpaViolation = false,
 }) => {
-  const isEncrypted = selectedNode?.isEncrypted ?? false;
-  const hasSelection = selectedNode !== null;
+  /** 代表ノード（UPAチェック・秘匿レベル自動判定・insertion警告に使用） */
+  const representativeNode = targets[0] ?? null;
+  const hasSelection = targets.length > 0;
 
   const [generatingKey, setGeneratingKey] = React.useState(false);
   const [uploadingKey, setUploadingKey] = React.useState(false);
   const [upaResult, setUpaResult] = React.useState<UpaCheckResult | null>(
-    selectedNode?.upaCheckResult ?? null,
+    representativeNode?.upaCheckResult ?? null,
   );
   const [upaLoading, setUpaLoading] = React.useState(false);
 
@@ -187,24 +189,24 @@ const EncryptionConfigPanel: React.FC<EncryptionConfigPanelProps> = ({
   // ---------------------------------------------------------------------------
 
   const handleUpaCheck = useCallback(async () => {
-    if (!selectedNode || !projectName) return;
+    if (!representativeNode || !projectName) return;
     setUpaLoading(true);
     try {
-      const level = resolveLevel(config, selectedNode);
-      const result = await apiCheckUpa(projectName, selectedNode.path, level);
+      const level = resolveLevel(config, representativeNode);
+      const result = await apiCheckUpa(projectName, representativeNode.path, level);
       setUpaResult(result);
     } catch {
       setUpaResult({ isValid: false, violations: [{ elementPath: '', message: 'チェックに失敗しました' }] });
     } finally {
       setUpaLoading(false);
     }
-  }, [selectedNode, projectName, config]);
+  }, [representativeNode, projectName, config]);
 
   // ---------------------------------------------------------------------------
   // レンダリング
   // ---------------------------------------------------------------------------
 
-  const autoLevelLabel = getAutoLevel(selectedNode) === EncryptionLevel.L1 ? 'L1' : 'L2';
+  const autoLevelLabel = getAutoLevel(representativeNode) === EncryptionLevel.L1 ? 'L1' : 'L2';
 
   return (
     <Card
@@ -213,6 +215,11 @@ const EncryptionConfigPanel: React.FC<EncryptionConfigPanelProps> = ({
         <Space>
           <LockOutlined />
           暗号化設定
+          {hasSelection && (
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal' }}>
+              （対象: {targets.length}件）
+            </Text>
+          )}
         </Space>
       }
       bodyStyle={{ overflowY: 'auto', maxHeight: 'calc(100vh - 180px)', paddingBottom: 16 }}
@@ -227,26 +234,24 @@ const EncryptionConfigPanel: React.FC<EncryptionConfigPanelProps> = ({
         />
       )}
 
-      {/* 暗号化済みノード */}
-      {hasSelection && isEncrypted && (
-        <Alert
-          icon={<WarningOutlined />}
-          message={`このノードは既に暗号化されています（${selectedNode.encryptionInfo?.algorithmUri ?? '不明'}）`}
-          type="warning"
-          showIcon
-          style={{ marginBottom: 12 }}
-        />
-      )}
-
-      {/* 選択ノード情報 */}
+      {/* 対象ノード一覧 */}
       {hasSelection && (
         <div style={{ marginBottom: 12, padding: '8px 12px', background: '#f5f5f5', borderRadius: 4 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>選択中：</Text>
-          <Text strong style={{ fontSize: 13, marginLeft: 4 }}>
-            {selectedNode.label ?? selectedNode.key ?? selectedNode.tagName}
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            暗号化対象（{targets.length}件）:
           </Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 11 }}>{selectedNode.path}</Text>
+          <ul style={{ margin: '4px 0 0 0', paddingLeft: 16 }}>
+            {targets.map((n) => (
+              <li key={n.path} style={{ fontSize: 11 }}>
+                <Text strong style={{ fontSize: 12 }}>
+                  {n.label ?? n.key ?? n.tagName}
+                </Text>
+                <Text type="secondary" style={{ marginLeft: 6, fontSize: 11 }}>
+                  {n.path}
+                </Text>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -384,7 +389,7 @@ const EncryptionConfigPanel: React.FC<EncryptionConfigPanelProps> = ({
         <Divider style={{ margin: '8px 0' }} />
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━ UPA制約チェック結果 ━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {shouldShowUpa(config, selectedNode) && (
+        {shouldShowUpa(config, representativeNode) && (
           <Form.Item label="UPA制約チェック" style={{ marginBottom: 8 }}>
             {upaResult === null ? (
               <Button size="small" loading={upaLoading} onClick={handleUpaCheck}>
@@ -414,7 +419,7 @@ const EncryptionConfigPanel: React.FC<EncryptionConfigPanelProps> = ({
         )}
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━ insertion 警告 ━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {selectedNode?.hasInsertion && (
+        {targets.some((n) => n.hasInsertion) && (
           <Alert
             type="warning"
             showIcon

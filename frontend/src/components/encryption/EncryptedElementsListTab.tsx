@@ -4,7 +4,8 @@
  * 暗号化済み要素一覧タブ
  *
  * @description
- * ツリーで選択した要素の配下にある暗号化済み要素を一覧表示するタブコンポーネント。
+ * 対象MAIMLファイルに含まれる全ての暗号化済み要素（EncryptedData）を一覧表示するタブコンポーネント。
+ * ツリーのノード選択状態に依存せず、常にファイル全体を対象に表示する。
  * 行をクリックするとツリーでその要素が選択される。
  */
 
@@ -12,7 +13,7 @@ import React from 'react';
 import { Table, Typography, Empty, Spin, Tag } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { EncryptedChildElement, MaimlTreeNode } from '@/types/encryption';
+import type { EncryptedChildElement } from '@/types/encryption';
 
 const { Text } = Typography;
 
@@ -21,9 +22,7 @@ const { Text } = Typography;
 // ---------------------------------------------------------------------------
 
 interface EncryptedElementsListTabProps {
-  /** 選択中のノード */
-  selectedNode: MaimlTreeNode | null;
-  /** 暗号化済み子要素一覧 */
+  /** 暗号化済み要素一覧（ファイル全体） */
   encryptedChildren: EncryptedChildElement[];
   /** ローディング状態 */
   loading: boolean;
@@ -105,24 +104,11 @@ function buildColumns(
 // ---------------------------------------------------------------------------
 
 const EncryptedElementsListTab: React.FC<EncryptedElementsListTabProps> = ({
-  selectedNode,
   encryptedChildren,
   loading,
   onSelectElement,
 }) => {
   const columns = buildColumns(onSelectElement);
-
-  // 未選択時
-  if (!selectedNode) {
-    return (
-      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="ツリーから要素を選択してください"
-        />
-      </div>
-    );
-  }
 
   // ローディング中
   if (loading) {
@@ -142,7 +128,7 @@ const EncryptedElementsListTab: React.FC<EncryptedElementsListTabProps> = ({
           description={
             <span>
               <LockOutlined style={{ marginRight: 4 }} />
-              選択要素の配下に暗号化済み要素はありません
+              対象ファイルに暗号化済み要素はありません
             </span>
           }
         />
