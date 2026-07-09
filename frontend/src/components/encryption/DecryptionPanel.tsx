@@ -9,13 +9,13 @@
  * 使用する鍵を選択し、復号化プレビューまたは実行ができる。
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card, Form, Select, Input, Button, Space, Typography,
   Alert, Divider, Modal,
 } from 'antd';
 import {
-  UnlockOutlined, EyeOutlined, ExclamationCircleOutlined,
+  UnlockOutlined, SyncOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import type { MaimlTreeNode, EncryptionKey } from '@/types/encryption';
 
@@ -79,6 +79,30 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
   const representativeNode = targets[0] ?? null;
   const encryptionInfo = representativeNode?.encryptionInfo;
   const needsPassword = isPbkdf2Algorithm(encryptionInfo?.algorithmUri);
+
+  /** デバウンスタイマー参照 */
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // デバウンス自動プレビュー更新（暗号化側と統一）
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    // 鍵が未選択、またはPBKDF2でパスワード未入力の場合はスキップ
+    if (!selectedKeyId) return;
+    if (needsPassword && !password) return;
+
+    // 300ms デバウンスでプレビューを自動更新
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      onDecryptPreview(selectedKeyId, password || undefined);
+    }, 300);
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  // selectedKeyId / password / targets が変わるたびにトリガー
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKeyId, password, targets]);
 
   // 実行ボタン用確認ダイアログ
   const handleDecryptExecuteClick = () => {
@@ -244,12 +268,12 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
       {/* ボタン */}
       <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
         <Button
-          icon={<EyeOutlined />}
+          icon={<SyncOutlined />}
           loading={previewLoading}
           disabled={!selectedKeyId || (needsPassword && !password)}
           onClick={() => selectedKeyId && onDecryptPreview(selectedKeyId, password || undefined)}
         >
-          復号化プレビュー
+          プレビューを更新
         </Button>
         <Button
           type="primary"

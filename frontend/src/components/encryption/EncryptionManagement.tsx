@@ -348,7 +348,6 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
         algorithmUri: '',
       };
       setDecryptPreview(asPreview);
-      setRightTab('preview');
     } catch {
       message.error('復号化プレビューの生成に失敗しました。');
     } finally {
