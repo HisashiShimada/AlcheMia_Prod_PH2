@@ -110,6 +110,8 @@ export interface NewTermRow {
   description: string;
   type: string;
   unitHint: string;
+  /** true のとき同一 prefix:localName が既に登録されている（重複エラー表示用） */
+  _isDuplicate?: boolean;
 }
 
 /**

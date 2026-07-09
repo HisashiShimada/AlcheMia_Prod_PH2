@@ -322,6 +322,30 @@ export async function createNamespace(data: {
 }
 
 /**
+ * 組織に紐づく名前空間（prefix / uri）の一覧を取得
+ *
+ * MaiMLファイルへの名前空間宣言書き込みに使用する。
+ *
+ * @param organizationId - 組織ID
+ * @returns prefix と uri の配列（prefix 昇順）
+ */
+export async function findNamespacesByOrganization(
+  organizationId: string
+): Promise<Array<{ prefix: string; uri: string }>> {
+  const pool = getPool();
+
+  const query = `
+    SELECT prefix, uri
+    FROM namespace
+    WHERE organization_id = $1
+    ORDER BY prefix ASC
+  `;
+
+  const result = await pool.query<{ prefix: string; uri: string }>(query, [organizationId]);
+  return result.rows;
+}
+
+/**
  * 全組織の全用語を取得（認証なし用・開発時のみ使用）
  *
  * @returns 用語一覧（フロントエンド用に整形済み）

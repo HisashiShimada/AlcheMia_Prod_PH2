@@ -10,6 +10,7 @@ import {
   GlobalOutlined,
   BankOutlined,
   UserOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
@@ -21,6 +22,8 @@ import TeamAddDialog from './TeamAddDialog';
 import TeamEditDialog from './TeamEditDialog';
 import TeamManagementPanel from './TeamManagementPanel';
 import ShareScopeModal from './ShareScopeModal';
+import DuplicateSuggestModal from './DuplicateSuggestModal';
+import type { DuplicateTermEntry } from './DuplicateSuggestModal';
 import type {
   NamespaceNode,
   Term,
@@ -446,6 +449,57 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // 共有先選択モーダル
   const [shareScopeOpen, setShareScopeOpen] = useState(false);
 
+  // ── 重複サジェストモーダル（UIプレビュー用）
+  const [duplicateSuggestOpen, setDuplicateSuggestOpen] = useState(false);
+
+  // ── プレビュー用モックデータ: 研究開発部を選択したときに表示する重複候補
+  const DUPLICATE_MOCK_ENTRIES: DuplicateTermEntry[] = [
+    {
+      localName: 'Temperature',
+      candidates: [
+        {
+          scopeLabel: '研究開発部',
+          prefix: 'rd',
+          localName: 'Temperature',
+          displayName: '実験温度',
+          type: 'floatType',
+          unitHint: '℃',
+          description: '熱処理時の温度',
+        },
+        {
+          scopeLabel: '材料グループ',
+          prefix: 'materials',
+          localName: 'Temperature',
+          displayName: '材料測定温度',
+          type: 'floatType',
+          unitHint: '℃',
+          description: '材料試験での温度',
+        },
+      ],
+    },
+    {
+      localName: 'SampleID',
+      candidates: [
+        {
+          scopeLabel: '研究開発部',
+          prefix: 'rd',
+          localName: 'SampleID',
+          displayName: '試験体番号',
+          type: 'stringType',
+          description: '研究開発部共通のサンプル識別子',
+        },
+        {
+          scopeLabel: '解析チーム',
+          prefix: 'analysis',
+          localName: 'SampleID',
+          displayName: 'サンプルID',
+          type: 'stringType',
+          description: '解析チームで使用するサンプル識別子',
+        },
+      ],
+    },
+  ];
+
   // チーム編集ダイアログ（メンバー追加）
   const [teamEditOpen,    setTeamEditOpen]    = useState(false);
   const [teamEditLabel,   setTeamEditLabel]   = useState('');
@@ -511,9 +565,21 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setNewTerms((prev) => [...prev, makeEmptyRow()]);
   };
 
-  // ──── 入力行の値更新
+  // ──── 入力行の値更新（dept-rd 選択時は prefix:localName の重複チェックを実施）
   const updateNewTerm = (rowId: string, field: keyof Omit<NewTermRow, '_rowId'>, value: string) => {
-    setNewTerms((prev) => prev.map((r) => r._rowId === rowId ? { ...r, [field]: value } : r));
+    const isDeptRd = effectiveNsKey === 'dept-rd';
+    setNewTerms((prev) => prev.map((r) => {
+      if (r._rowId !== rowId) return r;
+      const updated = { ...r, [field]: value };
+      if (isDeptRd) {
+        const p = field === 'prefix'    ? value : updated.prefix;
+        const l = field === 'localName' ? value : updated.localName;
+        updated._isDuplicate = !!(p && l && terms.some((t) => t.prefix === p && t.localName === l));
+      } else {
+        updated._isDuplicate = false;
+      }
+      return updated;
+    }));
   };
 
   // ──── 入力行を1件削除
@@ -1080,8 +1146,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── 既存行の操作セル
   const actionCell = (record: Term) => {
-    // グレーアウト対象（祖先スコープ）は操作不可
-    const readonly = isReadonlyPrefix(record.prefix) || viewOnly;
+    // グレーアウト対象（rowClassName と同条件）のみ操作不可
+    const readonly =
+      (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
+      (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
+      viewOnly;
     if (record.id === editingTermId) {
       return (
         <span style={{ display: 'flex', gap: 4 }}>
@@ -1169,7 +1238,24 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
-          return <Input size="small" placeholder="✎ ローカル名を入力..." value={record.localName} onChange={(e) => updateNewTerm(record._rowId, 'localName', e.target.value)} />;
+          const r = record as NewTermRow;
+          return (
+            <div>
+              <Input
+                size="small"
+                placeholder="✎ ローカル名を入力..."
+                value={r.localName}
+                status={r._isDuplicate ? 'error' : undefined}
+                onChange={(e) => updateNewTerm(r._rowId, 'localName', e.target.value)}
+              />
+              {r._isDuplicate && (
+                <div style={{ color: '#ff4d4f', fontSize: 11, marginTop: 2, lineHeight: 1.4 }}>
+                  <ExclamationCircleOutlined style={{ marginRight: 4 }} />
+                  {r.prefix}:{r.localName} は既に登録されています
+                </div>
+              )}
+            </div>
+          );
         }
         const t = record as Term;
         return t.id === editingTermId
@@ -1400,7 +1486,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             }}>
               <Button
                 icon={<BankOutlined />}
-                onClick={() => setShareScopeOpen(true)}
+                onClick={() => {
+                  // 研究開発部（dept-rd）選択中なら直接重複サジェストを表示
+                  if (effectiveNsKey === 'dept-rd') {
+                    setDuplicateSuggestOpen(true);
+                  } else {
+                    setShareScopeOpen(true);
+                  }
+                }}
                 style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
               >
                 共有する（{selectedTermIds.length}件）
@@ -1458,9 +1551,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             <Button type="primary" icon={<PlusOutlined />} disabled={viewOnly} onClick={handleAddRow}>
               用語を追加
             </Button>
-            <Button type="primary" onClick={handleAddSave} disabled={viewOnly || newTerms.length === 0}>
-              保存
-            </Button>
+            <Tooltip title={newTerms.some((r) => r._isDuplicate) ? '重複する用語があります。修正してから保存してください。' : ''}>
+              <Button type="primary" onClick={handleAddSave} disabled={viewOnly || newTerms.length === 0 || newTerms.some((r) => r._isDuplicate)}>
+                保存
+              </Button>
+            </Tooltip>
             <Button onClick={() => setNewTerms([])} disabled={viewOnly || newTerms.length === 0}>
               キャンセル
             </Button>
@@ -1557,7 +1652,28 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         sourceRole={shareSourceRole}
         scopeNodes={shareScopeNodes}
         onClose={() => setShareScopeOpen(false)}
-        onShare={handleShareToTarget}
+        onShare={(target) => {
+          setShareScopeOpen(false);
+          // 共有先が確定したら必ず重複サジェストモーダルを表示する
+          void target; // target は将来の本番実装で使用
+          setDuplicateSuggestOpen(true);
+        }}
+      />
+
+      {/* ── 重複サジェストモーダル ── */}
+      <DuplicateSuggestModal
+        open={duplicateSuggestOpen}
+        entries={DUPLICATE_MOCK_ENTRIES}
+        onClose={() => setDuplicateSuggestOpen(false)}
+        onConfirm={(selections) => {
+          setDuplicateSuggestOpen(false);
+          const skipCount = Object.values(selections).filter((v) => v === 'skip').length;
+          const useCount = Object.values(selections).length - skipCount;
+          message.success(
+            `共有が完了しました（採用: ${useCount}件 / スキップ: ${skipCount}件）`,
+          );
+          setSelectedTermIds([]);
+        }}
       />
 
       {/* ── 統合詳細モーダル ── */}
