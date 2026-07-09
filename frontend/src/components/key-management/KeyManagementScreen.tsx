@@ -51,7 +51,9 @@ const KeyManagementScreen: React.FC = () => {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 64 }}>
-        <Spin size="large" tip="読み込み中..." />
+        <Spin size="large" tip="読み込み中...">
+          <div style={{ minHeight: 64 }} />
+        </Spin>
       </div>
     );
   }

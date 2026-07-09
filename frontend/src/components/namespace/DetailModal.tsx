@@ -9,42 +9,13 @@ import {
 } from '@ant-design/icons';
 import termsRaw from '../../../mock/namespace/terms.json';
 import termDetailRaw from '../../../mock/namespace/termDetail.json';
+import type { DetailTarget, DetailModalProps, TermSaved, NamespaceSaved, RawTerm, RawDetail } from '@/types/namespace';
+
+// re-export（既存の import 側を壊さないため）
+export type { DetailTarget, TermSaved, NamespaceSaved } from '@/types/namespace';
 
 const { TextArea } = Input;
 const { Text } = Typography;
-
-// ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-
-/** 表示対象の判別型 */
-export type DetailTarget =
-  | { kind: 'term';      termId: string }
-  | { kind: 'namespace'; nsKey: string; prefix: string; uri: string; level: 'global' | 'organization' | 'personal'; termCount: number; displayName?: string; description?: string; createdAt?: string; updatedAt?: string };
-
-export interface TermSaved {
-  id: string;
-  displayName: string;
-  description: string;
-  type: string;
-}
-
-export interface NamespaceSaved {
-  key: string;
-  prefix: string;
-  uri: string;
-  displayName: string;
-  description: string;
-  updatedAt: string;
-}
-
-interface DetailModalProps {
-  open: boolean;
-  target: DetailTarget | null;
-  onClose: () => void;
-  onTermSaved: (updated: TermSaved) => void;
-  onNamespaceSaved: (updated: NamespaceSaved) => void;
-}
 
 // ──────────────────────────────────────────────
 // 型ヒント選択肢
@@ -70,9 +41,6 @@ const levelDisplay = (level: string) => {
 // ──────────────────────────────────────────────
 // 用語データ取得（termId から構築）
 // ──────────────────────────────────────────────
-interface RawTerm { id: string; qname: string; prefix: string; localName: string; displayName: string; description: string; type: string; }
-interface RawDetail { qname: string; localName: string; namespacePrefix: string; namespaceUri: string; level: string; displayNameJa: string; displayNameEn: string; description: string; typeHint: string; unitHint: string | null; createdAt: string; updatedAt: string; }
-
 const buildTermDetail = (termId: string) => {
   const terms = termsRaw as RawTerm[];
   const found = terms.find((t) => t.id === termId);

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Button, Input, Space, Tree } from 'antd';
-import { ImportOutlined, ExportOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { Button, Input, Space, Tree, message } from 'antd';
+import { ImportOutlined, ExportOutlined, PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
 import UncertaintyListTable from './UncertaintyListTable';
 import type { UncertaintyTemplate } from './UncertaintyListTable';
 import UncertaintyDetailModal from './UncertaintyDetailModal';
@@ -11,7 +11,10 @@ import UncertaintyImportModal from './UncertaintyImportModal';
 import UncertaintyExportModal from './UncertaintyExportModal';
 import mockData from '../../../mock/uncertainty.json';
 import NamespaceMain from '../namespace/NamespaceMain';
+import PrefixManagement from '../namespace/PrefixManagement';
 import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
+import TeamAddDialog from '../namespace/TeamAddDialog';
+import TeamEditDialog from '../namespace/TeamEditDialog';
 
 // ──────────────────────────────────────────────
 // 型定義
@@ -24,21 +27,71 @@ interface NamespaceNode {
   children?: NamespaceNode[];
 }
 
-const toAntTree = (nodes: NamespaceNode[]): object[] =>
-  nodes.map((n) => ({
-    key:      n.key,
-    title:    (
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {n.label}
-        </span>
-        {n.count > 0 && (
-          <span style={{ color: '#8c8c8c', fontSize: 12, flexShrink: 0 }}>{n.count}</span>
-        )}
-      </span>
-    ),
-    children: n.children ? toAntTree(n.children) : undefined,
-  }));
+// ──────────────────────────────────────────────
+// モック: ログイン中ユーザーの所属ノードキー
+// 本番実装では認証APIから取得する
+// ──────────────────────────────────────────────
+// チーム代表者（解析チーム）としてログインしている想定
+const CURRENT_USER_NS_KEY = 'rd-analysis';
+
+// 指定キーの祖先ノードキー集合を返すユーティリティ
+const getAncestorKeys = (targetKey: string, nodes: NamespaceNode[], ancestors: string[] = []): string[] | null => {
+  for (const node of nodes) {
+    if (node.key === targetKey) return ancestors;
+    if (node.children) {
+      const found = getAncestorKeys(targetKey, node.children, [...ancestors, node.key]);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
+// 指定キーがどのルートノード（global/personal/company等）配下にあるかを返す
+const getRootKey = (nsKey: string, nodes: NamespaceNode[]): string | null => {
+  for (const root of nodes) {
+    if (root.key === nsKey) return root.key;
+    if (root.children) {
+      const found = getAncestorKeys(nsKey, root.children, []);
+      if (found !== null) return root.key;
+    }
+  }
+  return null;
+};
+
+// ログインユーザーの所属パスのみを残してツリーを剪定する
+// - global: 常に表示
+// - company/部門/チーム: 自分のチームと祖先のみ表示
+// - personal: 自分のチーム (CURRENT_USER_NS_KEY) のメンバーのみ表示
+const filterTreeForUser = (nodes: NamespaceNode[], userNsKey: string): NamespaceNode[] => {
+  const ancestorKeys = new Set<string>(getAncestorKeys(userNsKey, nodes) ?? []);
+
+  const filterNodes = (ns: NamespaceNode[], parentKey?: string): NamespaceNode[] =>
+    ns
+      .filter((n) => {
+        // global は常に表示
+        if (n.key === 'global') return true;
+        // personal ノード自体は表示（中身はフィルタ）
+        if (n.key === 'personal') return true;
+        // company ルートは表示
+        if (n.key === 'company') return true;
+        // 自分のチームノードは表示
+        if (n.key === userNsKey) return true;
+        // 祖先ノードは表示
+        if (ancestorKeys.has(n.key)) return true;
+        // personal の直下ユーザーノードは teamKey が一致する場合のみ表示
+        if (parentKey === 'personal') {
+          return (n as any).teamKey === userNsKey;
+        }
+        return false;
+      })
+      .map((n) => ({
+        ...n,
+        children: n.children ? filterNodes(n.children, n.key) : undefined,
+      }));
+
+  return filterNodes(nodes);
+};
+
 
 /**
  * 不確かさ基準管理メイン画面コンポーネント
@@ -46,10 +99,8 @@ const toAntTree = (nodes: NamespaceNode[]): object[] =>
  */
 export default function UncertaintyManagement() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [activeTab, setActiveTab] = useState<'namespace' | 'criteria'>('namespace');
-
+  const [activeTab, setActiveTab] = useState<'namespace' | 'prefix' | 'criteria'>('prefix');
   // 名前空間ツリー選択（左ペイン）→ NamespaceMain に連携
-  const [nsSearch,         setNsSearch]         = useState('');
   const [selectedNsKey,    setSelectedNsKey]    = useState<string | null>(null);
 
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -58,6 +109,31 @@ export default function UncertaintyManagement() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<UncertaintyTemplate | null>(null);
   const [isLatestVersion, setIsLatestVersion] = useState(true);
+
+  // ── コンテキストメニュー状態
+  const [ctxMenu, setCtxMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    node: NamespaceNode | null;
+  }>({ visible: false, x: 0, y: 0, node: null });
+
+  // ── チーム追加ダイアログ
+  const [teamAddOpen,        setTeamAddOpen]        = useState(false);
+  const [teamAddParentLabel, setTeamAddParentLabel] = useState('');
+
+  // ── チーム編集ダイアログ
+  const [teamEditOpen,    setTeamEditOpen]    = useState(false);
+  const [teamEditLabel,   setTeamEditLabel]   = useState('');
+  const [teamEditUnitId,  setTeamEditUnitId]  = useState<string | undefined>(undefined);
+  const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
+
+  // ── mousedown でコンテキストメニューを閉じる
+  useEffect(() => {
+    const close = () => setCtxMenu((s) => ({ ...s, visible: false }));
+    window.addEventListener('mousedown', close);
+    return () => window.removeEventListener('mousedown', close);
+  }, []);
 
   const templates = mockData as UncertaintyTemplate[];
 
@@ -91,22 +167,70 @@ export default function UncertaintyManagement() {
     setDetailModalOpen(true);
   };
 
-  // ──── 名前空間ツリーデータ（検索フィルタ付き）
+  // Global または Personal 配下のノードが選択中かどうか
+  const isGlobalOrPersonalSelected = useMemo(() => {
+    if (!selectedNsKey) return false;
+    const rootKey = getRootKey(selectedNsKey, namespaceTreeRaw as NamespaceNode[]);
+    return rootKey === 'global' || rootKey === 'personal';
+  }, [selectedNsKey]);
+
+  // ── チームノードのタイトル（companyDepth === 3 のみ右クリックメニューを有効化）
+  const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
+    // Global/Personal が選択されていない時のみ CURRENT_USER_NS_KEY を薄い青背景で強調
+    const isCurrentUserNode = !isGlobalOrPersonalSelected && node.key === CURRENT_USER_NS_KEY;
+    const isTeam = companyDepth === 3;
+
+    const handleContextMenu = isTeam
+      ? (e: React.MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, node });
+        }
+      : undefined;
+
+    return (
+      <span
+        onContextMenu={handleContextMenu}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0,
+          cursor: isTeam ? 'context-menu' : undefined,
+        }}
+      >
+        <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {node.label}
+        </span>
+        {node.count > 0 && (
+          <span style={{ color: '#8c8c8c', fontSize: 12, flexShrink: 0 }}>{node.count}</span>
+        )}
+      </span>
+    );
+  }, [isGlobalOrPersonalSelected]);
+
+  // ── companyDepth を計算してツリーデータを構築
+  const toAntTree = useCallback((nodes: NamespaceNode[], companyDepth = 0): object[] =>
+    nodes.map((n) => {
+      const selfDepth = companyDepth > 0
+        ? companyDepth
+        : n.key === 'company'
+          ? 1
+          : 0;
+      return {
+        key:      n.key,
+        title:    renderTreeTitle(n, selfDepth),
+        children: n.children ? toAntTree(n.children, selfDepth > 0 ? selfDepth + 1 : 0) : undefined,
+      };
+    }), [renderTreeTitle]);
+
+  // ──── 名前空間ツリーデータ（ユーザーフィルタ付き）
   const treeData = useMemo(() => {
     const allNodes = namespaceTreeRaw as NamespaceNode[];
-    const filterNodes = (nodes: NamespaceNode[]): NamespaceNode[] =>
-      nodes
-        .map((n) => ({ ...n, children: n.children ? filterNodes(n.children) : undefined }))
-        .filter(
-          (n) =>
-            !nsSearch ||
-            n.label.toLowerCase().includes(nsSearch.toLowerCase()) ||
-            (n.children && n.children.length > 0),
-        );
-    return toAntTree(nsSearch ? filterNodes(allNodes) : allNodes);
-  }, [nsSearch]);
+    // ログインユーザーの所属パスのみに絞り込む
+    const userFilteredNodes = filterTreeForUser(allNodes, CURRENT_USER_NS_KEY);
+    return toAntTree(userFilteredNodes);
+  }, [toAntTree]);
 
-  const TAB_LABELS: { key: 'namespace' | 'criteria'; label: string }[] = [
+  const TAB_LABELS: { key: 'namespace' | 'prefix' | 'criteria'; label: string }[] = [
+    { key: 'prefix',    label: 'Prefix管理' },
     { key: 'namespace', label: '用語管理' },
     { key: 'criteria',  label: '不確かさ基準管理' },
   ];
@@ -121,21 +245,69 @@ export default function UncertaintyManagement() {
           background: '#fafafa', borderRight: '1px solid #e8e8e8',
           display: 'flex', flexDirection: 'column', padding: '12px 12px 8px', overflowY: 'auto',
         }}>
-          <Input
-            prefix={<SearchOutlined />}
-            placeholder="名前空間を検索..."
-            allowClear
-            value={nsSearch}
-            onChange={(e) => setNsSearch(e.target.value)}
-            style={{ marginBottom: 10 }}
-          />
           <Tree
+            key={treeData.map((n: any) => n.key).join(',')}
             blockNode
             defaultExpandAll
             treeData={treeData}
+            selectedKeys={selectedNsKey ? [selectedNsKey] : []}
             style={{ background: 'transparent' }}
-            onSelect={(keys) => setSelectedNsKey((keys[0] as string) ?? null)}
+            onSelect={(keys) => {
+              const key = (keys[0] as string) ?? null;
+              setSelectedNsKey(key);
+            }}
           />
+
+          {/* コンテキストメニュー（右クリックメニュー） */}
+          {ctxMenu.visible && ctxMenu.node && (
+            <ul
+              style={{
+                position: 'fixed',
+                left: ctxMenu.x,
+                top: ctxMenu.y,
+                background: '#fff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                borderRadius: 6,
+                listStyle: 'none',
+                margin: 0,
+                padding: '4px 0',
+                zIndex: 1050,
+                minWidth: 140,
+                border: '1px solid #f0f0f0',
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <li
+                style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => {
+                  setTeamAddParentLabel(ctxMenu.node!.label);
+                  setTeamAddOpen(true);
+                  setCtxMenu((s) => ({ ...s, visible: false }));
+                }}
+              >
+                <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
+                チームを追加
+              </li>
+              <li
+                style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => {
+                  setTeamEditLabel(ctxMenu.node!.label);
+                  setTeamEditUnitId((ctxMenu.node as any).departmentUnitId ?? ctxMenu.node!.key ?? undefined);
+                  setTeamEditMembers([]);
+                  setTeamEditOpen(true);
+                  setCtxMenu((s) => ({ ...s, visible: false }));
+                }}
+              >
+                <EditOutlined style={{ fontSize: 12, color: '#1677ff' }} />
+                編集
+              </li>
+            </ul>
+          )}
         </div>
 
         {/* ── 右ペイン ── */}
@@ -149,7 +321,7 @@ export default function UncertaintyManagement() {
             padding: '0 16px',
             flexShrink: 0,
           }}>
-            {TAB_LABELS.map((tab) => (
+          {TAB_LABELS.map((tab) => (
               <div
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -179,12 +351,18 @@ export default function UncertaintyManagement() {
               />
             </div>
 
-            {/* 不確かさ基準管理タブ：ツールバー＋一覧を1枚の Card に統合 */}
-            <div style={{ display: activeTab === 'criteria' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#fff' }}>
-              {/* ── 1段目: ボタン群（右寄せ） ── */}
+            {/* Prefix管理タブ */}
+            <div style={{ display: activeTab === 'prefix' ? 'flex' : 'none', height: '100%', overflow: 'hidden' }}>
+              <PrefixManagement showShareButton={true} selectedNsKey={selectedNsKey} />
+            </div>
+
+            {/* 不確かさ基準管理タブ：一覧のみ */}
+            <div style={{ display: activeTab === 'criteria' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+              {/* ツールバー */}
               <div style={{
                 padding: '10px 16px',
-                borderBottom: '1px solid #f0f0f0',
+                borderBottom: '1px solid #e8e8e8',
+                background: '#fff',
                 display: 'flex',
                 justifyContent: 'flex-end',
                 flexShrink: 0,
@@ -209,7 +387,7 @@ export default function UncertaintyManagement() {
                   </Button>
                 </Space>
               </div>
-              {/* ── 一覧テーブル（直接配置、Card 不使用） ── */}
+              {/* 一覧テーブル */}
               <div style={{ flex: 1, overflow: 'hidden' }}>
                 <UncertaintyListTable
                   templates={templates}
@@ -223,6 +401,29 @@ export default function UncertaintyManagement() {
           </div>
         </div>
       </div>
+
+      {/* チーム追加ダイアログ */}
+      <TeamAddDialog
+        open={teamAddOpen}
+        parentTeamLabel={teamAddParentLabel}
+        onClose={() => setTeamAddOpen(false)}
+        onCreated={(teamName, members) => {
+          message.success(`チーム「${teamName}」を作成しました（メンバー: ${members.length}名）`);
+          setTeamAddOpen(false);
+        }}
+      />
+
+      {/* チーム編集ダイアログ */}
+      <TeamEditDialog
+        open={teamEditOpen}
+        teamLabel={teamEditLabel}
+        teamUnitId={teamEditUnitId}
+        onClose={() => setTeamEditOpen(false)}
+        onSaved={(members) => {
+          message.success(`「${teamEditLabel}」のメンバーを更新しました（${members.length}名）`);
+          setTeamEditMembers(members);
+        }}
+      />
 
       {/* モーダル群 */}
       <UncertaintyDetailModal

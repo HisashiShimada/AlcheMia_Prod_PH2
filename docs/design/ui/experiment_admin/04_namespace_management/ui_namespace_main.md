@@ -4,10 +4,10 @@
 ---
 title: MaiML 名前空間管理ツール メイン画面 UI設計書
 category: UI設計
-version: 1.5.0
-last_updated: 2026-06-18
+version: 2.2.0
+last_updated: 2026-07-07
 author: Development Team
-tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-delete, pagination, context-menu, cancel-button, api-fetch]
+tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-inactive, pagination, context-menu, cancel-button, api-fetch, share-scope-modal, tabs, team-management, filter-bar, department-tree-management]
 ---
 
 ## 変更履歴
@@ -19,6 +19,11 @@ tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-delete, pag
 | 1.3.0 | 2026-06-12 | 実装との差異を反映：インポート/エクスポート/一括削除ボタン追加、単位カラム追加、詳細ボタン削除、型選択肢修正、ヘッダーチェックボックス仕様追記、ページネーション追記、複数インライン行対応、ツリーコンテキストメニュー追記、Term型定義更新 |
 | 1.4.0 | 2026-06-12 | 実装との差異を反映：左ペイン「名前空間を追加」ボタン削除、ツールバー「キャンセル」ボタン追加、インライン編集キャンセルボタン修正（✕→キャンセル）、削除確認モーダルボタン順追記、コンテキストメニュー表示条件修正、型定義更新（NamespaceNode/FlatNsNode/NewTermRow）、API連携セクション追加、保存バリデーション追記、CSVエクスポート仕様修正、モックデータソース修正 |
 | 1.5.0 | 2026-06-18 | 実装との差異を反映：コンテキストメニューをチームノード専用に修正、型初期値を「未選択」に修正、エクスポート仕様修正（選択中の用語のみ）、7.1から「名前空間を追加」ボタンイベント削除、インライン編集キャンセルボタン記述修正、チーム追加/編集ダイアログセクション追加、API連携セクション追加 |
+| 1.6.0 | 2026-06-23 | 実装との差異を反映：NewTermRow 型に `prefix` フィールドを追加 |
+| 1.7.0 | 2026-06-29 | 「組織に共有」機能を追記：Personal 選択 + チェックあり時の右端ボタン表示仕様・共有先制限・確認モーダル仕様を追加。組織共有バーの背景色削除・右寄せ化を反映。用語Prefix・スコープ・型・単位フィルターセクション追加 |
+| 1.8.0 | 2026-06-30 | サブタブ（用語管理 / チーム管理）追加：画面全体構造にタブを追記、チーム管理タブ（TeamManagementPanel）を新セクション12として追加、TeamAddDialog に名前空間Prefix・URI自動生成フィールドを追記、URI自動生成ユーティリティ（generateNamespaceUri）を追記 |
+| 2.0.0 | 2026-07-02 | 実装との差異を反映：用語テーブルカラムを QName 単一列→Prefix+ローカル名+スコープの3列に分割、操作ボタンを「削除」→「非アクティブ/アクティブ」切替に変更、ツールバー一括操作も「削除」→「非アクティブ」に変更、セクション11「共有する」機能を ShareScopeModal（ツリー選択式）に全面書き換え、フィルターバー仕様追記、isActive フィールドを Term 型に追加 |
+| 2.1.0 | 2026-07-07 | 実装との差異を反映：Section 11「共有する」ボタン表示条件を Personal 限定→チェック1件以上で常時表示に変更。Section 9（TeamAddDialog）追加先フィールドを Tag 読み取り専用→Select プルダウン選択に変更。Section 10（TeamEditDialog）タイトルを「編集」→「チームを編集」に変更、チーム名を編集可能な Input に変更、代表者フィールドを追加。Section 12（TeamManagementPanel）右ペインの編集ボタン位置をメンバーセクション右端→チーム名右隣に変更、所属先フィールドを追加、表示名フィールドを削除、メンバーテーブルの削除ボタン列を削除 |
 
 ## 関連ドキュメント
 - [名前空間追加ダイアログ](ui_namespace_add_dialog.md)
@@ -74,6 +79,39 @@ MaiML名前空間管理ツールのメイン画面。左ペイン（名前空間
 ```
 
 > **操作ボタン**: 各行に「✏ 編集」「🗑 削除」ボタン（詳細ボタンは廃止）
+
+### 2.2. 実験管理者メニューのタブ構成
+
+> ⚠️ **実装の仕様**: 「チーム管理」は `NamespaceMain` 内のサブタブではなく、`ExperimentAdminMenu` のトップレベルタブ（tab key=`'5'`）として独立している。
+
+実験管理者メニュー（`ExperimentAdminMenu`）の SubHeader には以下のタブが表示される：
+
+| key | ラベル | コンポーネント |
+|-----|-------|-------------|
+| `'1'` | プロジェクト管理 | `<ProjectManagement />` |
+| `'2'` | フォーマット管理 | `<FormatManagement />` |
+| `'3'` | 進捗確認 | `<ProgressMonitoring />` |
+| `'4'` | テンプレート管理 | `<UncertaintyManagement />` |
+| `'5'` | **チーム管理** | **`<TeamManagementPanel />`** |
+| `'6'` | 鍵管理 | `<KeyManagementScreen />` |
+
+**「チーム管理」タブの実装**:
+- `ExperimentAdminMenu.tsx` の `tabItems` 配列に `key: '5'` として定義
+- `currentTab === '5'` のとき `<TeamManagementPanel />` を `display: block` で表示
+- 名前空間管理（`NamespaceMain`）とは別の独立した画面として表示される
+
+```typescript
+// ExperimentAdminMenu.tsx
+const tabItems = [
+  // ...
+  {
+    key: '5',
+    label: 'チーム管理',
+    icon: <TeamOutlined />,
+  },
+  // ...
+];
+```
 
 ---
 
@@ -190,6 +228,7 @@ interface FlatNsNode {
 // インライン新規追加行の型
 interface NewTermRow {
   _rowId: string;       // 一時ID（テーブル行キー用）
+  prefix: string;       // 現在選択中の名前空間 prefix（QName生成に使用）
   localName: string;
   displayName: string;
   displayNameEn: string;
@@ -375,24 +414,31 @@ const namespaceTreeData: NamespaceTreeNode[] = [
 
 **カラム定義**:
 
+> ⚠️ **実装の仕様**: QName（`prefix:localName` 単一列）は廃止。`Prefix`・`ローカル名`・`スコープ` の3列に分割されている。`globalOnly=true` のとき `スコープ` 列は非表示。
+
 | カラム | dataIndex | 幅 | ソート | 説明 |
 |--------|-----------|-----|--------|------|
-| チェックボックス | （rowSelection） | 40px | - | 複数選択用（カスタムヘッダー） |
-| QName | `qname` | 220px | 有効（デフォルト昇順） | `prefix:localName` 形式 |
+| チェックボックス | （rowSelection） | — | - | 複数選択用（カスタムヘッダー）。新規行（`_rowId`）はチェック不可 |
+| Prefix | `prefix` | 140px | 有効（デフォルト昇順） | 名前空間 prefix。新規行は `<Select>` で選択 |
+| ローカル名 | `localName` | 160px | 有効 | 用語のローカル名。新規行は `<Input>` で入力 |
 | 表示名 | `displayName` | 130px | 有効 | 用語の日本語表示名 |
 | 説明 | `description` | 180px | 有効 | 用語の説明文（省略表示） |
-| 型 | `type` | 140px | 有効 | 型ヒント（stringType / floatType 等） |
+| スコープ | （prefix から導出） | 180px | 有効 | prefix が属する名前空間スコープをフルパスの末尾ノード名で `<Tag>` 表示。ホバーで Tooltip にフルパスを表示。`globalOnly=true` のとき非表示 |
+| 型 | `type` | 140px | 有効 | 型ヒント（stringType / floatType 等）。`<Tag>` 表示 |
 | 単位 | `unitHint` | 100px | 有効 | 単位ヒント（任意） |
-| 操作 | （actions） | 130px | - | 編集（✏）・削除（🗑）ボタン |
+| 操作 | （actions） | 130px | - | 編集（✏）・非アクティブ/アクティブ切替ボタン |
 
 **操作ボタン仕様**:
+
+> ⚠️ **実装の仕様**: 「削除」ボタンは廃止。代わりにアクティブ状態を切り替える「非アクティブ」/「アクティブ」ボタンを配置。
 
 | ボタン | アイコン | 動作 |
 |--------|---------|------|
 | 編集 | `<EditOutlined />` | インライン編集行に切り替え |
-| 削除 | `<DeleteOutlined />` | 確認ダイアログ後に削除 |
+| 非アクティブ | なし（`danger` スタイル） | `isActive === true` の用語に表示。クリックでアクティブ→非アクティブに切替 |
+| アクティブ | なし | `isActive === false` の用語に表示。クリックで非アクティブ→アクティブに切替 |
 
-> **注意**: 詳細ボタン（📋）は廃止。操作列には「編集」「削除」のみ。
+> **注意**: 詳細ボタン（📋）は廃止。操作列には「編集」「非アクティブ/アクティブ」のみ。
 
 **ヘッダーチェックボックス仕様**:
 
@@ -455,6 +501,7 @@ interface Term {
   description: string;
   type: string;
   unitHint?: string;      // 単位ヒント（任意）
+  isActive: boolean;      // アクティブ状態（false のとき行をグレーアウト表示）
 }
 
 const termsMockData: Term[] = [
@@ -479,7 +526,7 @@ const termsMockData: Term[] = [
 |--------|--------|---------|---------|------|
 | インポート | `default` | — | 常時 | CSVファイル選択ダイアログを開く → 用語を一括インポート |
 | エクスポート | `default` | — | 常時 | **選択中の用語**をCSVファイルとしてダウンロード（未選択時はエラーメッセージを表示して中断） |
-| 選択した用語を削除（N件） | `danger` | `<DeleteOutlined />` | 1件以上選択時のみ表示 | 確認ダイアログ後に一括削除 |
+| 選択した用語を非アクティブ（N件） | `danger` | `<StopOutlined />` | 1件以上選択時のみ表示（アクションバーに表示） | 確認ダイアログ後に一括非アクティブ化 |
 | ＋ 用語を追加 | `primary` | `<PlusOutlined />` | 常時 | テーブル先頭に空の入力行を追加 |
 | 保存 | `primary` | — | 入力行が1件以上のとき活性 | 全入力行を一括確定（バリデーション後） |
 | キャンセル | `default` | — | 入力行が1件以上のとき活性 | 全入力行を破棄（`newTerms` をクリア） |
@@ -737,8 +784,12 @@ const statusBarMock: StatusBarData = {
 │ チーム名 *                             │
 │ [チーム名を入力...                   ] │
 │                                        │
+│ 名前空間URI（自動生成）                │
+│ [https://ns.example.org/...  （表示のみ）] │
+│                                        │
 │ メンバー（任意）                       │
-│ [名前で検索して選択...         ▼     ] │
+│ [メンバーを選択...              ▼    ] │
+│  ✕山田 太郎   ✕佐藤 花子              │
 │ ※メンバーはあとから「編集」で追加可    │
 ├────────────────────────────────────────┤
 │              [キャンセル] [作成]        │
@@ -749,9 +800,10 @@ const statusBarMock: StatusBarData = {
 
 | フィールド | コンポーネント | 必須 | 説明 |
 |-----------|--------------|------|------|
-| 追加先 | `<Tag color="blue">` | — | 親ノードのラベルを表示（読み取り専用） |
-| チーム名 | `<Input>` | ✅ | 新規チーム名（空の場合「作成」ボタン非活性） |
-| メンバー | `<Select mode="multiple">` | 任意 | 組織内ユーザーを名前で検索して複数選択 |
+| 追加先 | `<Select>` | ✅ | 親ノードのラベルをプルダウンで選択。選択肢はツリーの組織ノード一覧。初期値は右クリックしたノード |
+| チーム名 | `<Input>` | ✅ | 新規チーム名（空の場合「作成」ボタン非活性）。入力変更時に URI が自動更新される |
+| 名前空間URI（自動生成） | `<Input disabled>` | — | `generateNamespaceUri(teamName, parentPath)` で生成した URI を読み取り専用表示。チーム名変更のたびにリアルタイム更新 |
+| メンバー | `<Select>（単数選択）+ 追加ボタン + メンバータグ一覧` | 任意 | プルダウンで1名ずつ選択して追加。選択済みメンバーはタグ（`<Tag closable>`）で表示し × で削除可 |
 
 ### 9.5. ボタン仕様
 
@@ -782,19 +834,24 @@ const statusBarMock: StatusBarData = {
 | 項目 | 値 |
 |------|-----|
 | コンポーネント | `<Modal>` |
-| タイトル | 「編集」 |
+| タイトル | 「チームを編集」 |
 | 幅 | 480px |
 | maskClosable | false |
 | コンポーネントファイル | `frontend/src/components/namespace/TeamEditDialog.tsx` |
+
+> ⚠️ **実装の仕様**: タイトルは「編集」ではなく「チームを編集」。チーム名は読み取り専用の Tag ではなく編集可能な `<Input>` として表示される。代表者（Owner）フィールドが追加されている。
 
 ### 10.3. レイアウト
 
 ```
 ┌────────────────────────────────────────┐
-│ 編集                               [✕] │
+│ チームを編集                       [✕] │
 ├────────────────────────────────────────┤
-│ チーム                                 │
-│  [TeamX]（青タグ）                     │
+│ チーム名 *                             │
+│ [TeamX                              ] │
+│                                        │
+│ 代表者                                 │
+│  山田 太郎（自分）                     │
 │ ─────────────────────────────────────  │
 │ メンバー                               │
 │ [名前で検索して選択...         ▼     ] │
@@ -809,7 +866,8 @@ const statusBarMock: StatusBarData = {
 
 | フィールド | コンポーネント | 備考 |
 |-----------|--------------|------|
-| チーム | `<Tag color="blue">` | 編集対象チーム名（読み取り専用） |
+| チーム名 | `<Input>` | 編集可能（必須）。空の場合「保存」ボタン非活性 |
+| 代表者 | `<Text>` | `team.ownerName` を読み取り専用で表示（編集不可） |
 | メンバー | `<Select mode="multiple" showSearch allowClear>` | ダイアログ open 時に既存メンバーを初期値として表示 |
 
 ### 10.5. ボタン仕様
@@ -831,13 +889,500 @@ const statusBarMock: StatusBarData = {
 
 ---
 
-## 11. 更新履歴
+## 11. 組織に共有（Share to Organization）機能
+
+### 11.1. 概要
+
+Personal（個人）名前空間の用語を、自分の所属チームが管理する組織名前空間にコピーする機能。  
+個人が登録した独自用語を組織の共有語彙として昇格させることを目的とする。
+
+### 11.2. 表示条件
+
+以下の**両方**を満たした場合のみ「組織に共有」ボタンが表示される：
+
+| 条件 | 詳細 |
+|------|------|
+| ① Personal 名前空間が選択中 | 左ペインで `level === 'personal'` のノードを選択している |
+| ② チェック済み用語が1件以上 | 右ペインのテーブルで1件以上の行がチェックされている |
+
+### 11.3. レイアウト
+
+Personal 名前空間選択中 + チェックあり時のレイアウト：
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              🏢 組織に共有（2件）  🗑 選択した用語を削除（2件）  ← 右端 │
+│ 🔍 用語を検索...  [インポート] [エクスポート] [+用語追加] [保存] [キャンセル]           │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ ☑  │ MyWord:MeasTemp   │ 測定温度  │ ...  │ floatType │ ℃  │ ✏編集 🗑削除 │
+│ ☑  │ MyWord:SampleID   │ サンプルID│ ...  │stringType │     │ ✏編集 🗑削除 │
+│ ☐  │ MyWord:Pressure   │ 圧力      │ ...  │ floatType │     │ ✏編集 🗑削除 │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+Personal 以外（Organization/Global）+ チェックあり時のレイアウト：
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                          🗑 選択した用語を削除（2件）  ← 右端のみ表示  │
+│ 🔍 用語を検索...  [インポート] [エクスポート] [+用語追加] [保存] [キャンセル]           │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+> ℹ️ 上段アクションバーはチェック1件以上のとき表示される（0件のとき非表示）。  
+> ℹ️ 「🗑 選択した用語を削除」は**常にアクションバーに表示**（ツールバー行には表示しない）。  
+> ℹ️ 「🏢 組織に共有」は Personal ノード選択中のみ、削除ボタンの**左隣**に表示される。  
+> ℹ️ 背景色・ボーダーなし（透明な行）。
+
+### 11.4. 「組織に共有」ボタン仕様
+
+| 項目 | 値 |
+|------|-----|
+| コンポーネント | `<Button>` |
+| ラベル | `🏢 組織に共有（N件）`（N = チェック件数） |
+| タイプ | `primary` |
+| 背景色 | `#52c41a`（緑系） |
+| 表示条件 | Personal ノード選択中 + チェック1件以上 |
+| 配置 | ツールバー行の上、右端 |
+| 動作 | 確認モーダルを開く（セクション 11.5 参照） |
+
+### 11.5. 確認モーダル仕様
+
+#### 11.5.1. モーダル概要
+
+| 項目 | 値 |
+|------|-----|
+| コンポーネント | `<Modal>` |
+| タイトル | 「組織に共有」 |
+| 幅 | 480px |
+| maskClosable | false |
+| キーボード（Escキー） | false（誤操作防止） |
+
+#### 11.5.2. レイアウト
+
+```
+┌────────────────────────────────────────────────────────┐
+│ 🏢 組織に共有                                      [✕] │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│  以下の 2 件の用語を組織名前空間にコピーします。        │
+│                                                        │
+│  共有先: rd-materials（LabA / ChemTeam）               │
+│                                                        │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ MyWord:MeasTemp  測定温度                        │  │
+│  │ MyWord:SampleID  サンプルID                      │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                        │
+│  ※ QName の Prefix は共有先の prefix（rd-materials）  │
+│     に自動変換されます。                               │
+│  ※ 既存の同名 QName がある場合は上書きされます。       │
+│                                                        │
+├────────────────────────────────────────────────────────┤
+│                        [キャンセル] [共有する]          │
+└────────────────────────────────────────────────────────┘
+```
+
+#### 11.5.3. モーダルフィールド仕様
+
+| フィールド | 内容 | 備考 |
+|-----------|------|------|
+| 件数メッセージ | `以下の N 件の用語を組織名前空間にコピーします。` | N = チェック件数 |
+| 共有先 | `prefix（部門 / チーム）` | ログインユーザーの所属チーム名前空間を自動設定（読み取り専用） |
+| 用語リスト | チェックされた用語の `QName` と `displayName` を一覧表示 | `<List>` コンポーネント使用 |
+| 注意書き① | Prefix 自動変換の説明 | 固定テキスト |
+| 注意書き② | 既存 QName 上書きの注意 | 固定テキスト |
+
+#### 11.5.4. ボタン仕様
+
+| ボタン | タイプ | 動作 |
+|--------|--------|------|
+| キャンセル | `default` | モーダルを閉じる（共有しない） |
+| 共有する | `primary` | 用語を共有先名前空間にコピー → 成功メッセージ表示 → モーダルを閉じる |
+
+### 11.6. 共有先制限の仕様
+
+> ⚠️ **重要**: 共有先は**ログインユーザーの所属チームのみ**に制限される。部門・グループ・他チームへの共有は不可。
+
+| 項目 | 仕様 |
+|------|------|
+| 共有先の候補 | ログインユーザーが所属するチームノード（depth 3）の名前空間のみ |
+| 複数所属 | 複数チームに所属する場合はドロップダウンで選択（通常は1件） |
+| 所属チームなし | 「組織に共有」ボタンは表示されない（または非活性） |
+
+**depth 定義（再掲）**:
+```
+company（depth 1）
+  └── 部門（depth 2）
+        └── グループ（depth 3）← 共有先候補（チームノード）
+```
+
+### 11.7. 共有後の動作
+
+| 手順 | 内容 |
+|------|------|
+| ① コピー処理 | チェックされた用語を共有先チームの名前空間に追加（Prefix を共有先の prefix に置換） |
+| ② 成功通知 | `<message.success>` で「N件の用語を [共有先prefix] に共有しました。」を表示 |
+| ③ 用語リスト更新 | 共有先名前空間の用語数バッジ（`[N]`）をインクリメント |
+| ④ 選択解除 | チェック状態をクリア |
+
+### 11.8. モックデータ（共有先）
+
+```typescript
+// 共有先チーム名前空間の型
+interface ShareTarget {
+  prefix: string;       // 共有先の名前空間 prefix
+  departmentName: string;  // 部門名
+  teamName: string;     // チーム名（グループ名）
+}
+
+// ログインユーザーの所属チーム（モック）
+const shareTargetMock: ShareTarget = {
+  prefix: 'rd-materials',
+  departmentName: 'LabA',
+  teamName: 'ChemTeam',
+};
+```
+
+---
+
+## 12. チーム管理タブ（TeamManagementPanel）
+
+### 12.1. 概要
+
+`ExperimentAdminMenu` の tab key=`'5'`「チーム管理」タブを選択すると表示される 2ペインレイアウト。  
+ログイン中の実験管理者が作成したチーム一覧を左ペインに表示し、選択したチームの詳細・メンバー管理を右ペインで行う。
+
+**コンポーネントファイル**: `frontend/src/components/namespace/TeamManagementPanel.tsx`
+
+> ⚠️ **実装の仕様**: `NamespaceMain` 内のサブタブとして表示されるのではなく、実験管理メニューのトップレベルタブとして独立表示される。
+
+### 12.2. レイアウト
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ チーム一覧         チームを作成[+] │  チーム詳細（右）                    │
+│ （左 240px）                       │                                      │
+│ ─────────────────────────────────  │  ─────────────────────────────────   │
+│ 🟢 材料解析チーム  2名             │  材料解析チーム  [編集]              │
+│ 🟢 データ処理班    0名             │  代表者:    山田 太郎（自分）         │
+│                                    │  所属先:    LabA > ChemTeam          │
+│                                    │  名前空間URI: https://example.org/.. │
+│                                    │  ─────────────────────────────────   │
+│                                    │  メンバー                            │
+│                                    │   佐藤花子                           │
+│                                    │   鈴木一郎                           │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+> ⚠️ **実装の仕様（v2.1.0更新）**:
+> - 「編集」ボタンはメンバーセクションではなく**チーム名の右隣**に配置される
+> - 「表示名」フィールドは右ペインに表示されない（チーム情報に含まれない）
+> - 「所属先」フィールドが追加されている（ツリー上の部門・グループのパスを表示）
+> - メンバーテーブルに「削除」ボタン列は存在しない
+
+### 12.3. 左ペイン仕様（チーム一覧）
+
+| 項目 | 仕様 |
+|------|------|
+| コンポーネント | `<List>` (Ant Design) |
+| 幅 | 240px（固定） |
+| データソース | `GET /api/v1/department-units/my-teams`（失敗時はダミーデータを使用） |
+| 選択状態 | クリックで右ペインに詳細を表示。初期選択は先頭チーム |
+| ハイライト | 選択中チームを青背景（`#e6f4ff`）でハイライト |
+
+**左ペインヘッダー**:
+
+| 要素 | 仕様 |
+|------|------|
+| タイトル | 「チーム一覧」（`<Title level={5}>`） |
+| 「チームを作成」ボタン | `<Button type="primary" size="small" icon={<PlusOutlined />}>` をヘッダー行右端に配置。クリックで `TeamAddDialog` を開く |
+
+> ⚠️ **実装の仕様**: 「チームを作成」ボタンはペインのフッターではなく、ヘッダー行（タイトルと同じ行）の右端に `type="primary"` `size="small"` で配置される。
+
+**リスト項目**:
+
+| 要素 | 内容 |
+|------|------|
+| ステータスアイコン | 🟢（常時表示） |
+| チーム名 | `team.unitName` |
+| メンバー数 | `N名`（`team.members.length` 件数を表示） |
+
+> ⚠️ **実装の仕様**: リスト項目に [編集] ボタンは**存在しない**。チーム編集は右ペインの「編集」ボタン経由で行う。
+
+### 12.4. 右ペイン仕様（チーム詳細）
+
+#### 12.4.1. チーム未選択時
+
+```
+（チームを選択してください）
+```
+
+`<Empty description="チームを選択してください" />` を中央表示。
+
+#### 12.4.2. チーム選択時
+
+**チーム情報セクション**:
+
+| フィールド | コンポーネント | データソース |
+|-----------|--------------|------------|
+| チーム名（＋編集ボタン） | `<Title level={5}>` + `<Button>` | `selectedTeam.unitName`。右隣に「編集」ボタンを配置 |
+| 代表者 | `<Text>` + `<UserOutlined />` | `selectedTeam.ownerName` |
+| 所属先 | `<Text>` | ツリー上の部門・グループのパスを `>` 区切りで表示（例: `LabA > ChemTeam`） |
+| 名前空間URI | `<Text>` + `<LinkOutlined />` | `selectedTeam.nsUri`（未設定時は `—`） |
+
+> ⚠️ **実装の仕様（v2.1.0更新）**: チーム情報に **Prefix フィールドは表示されない**。「表示名」フィールドも**表示されない**。「所属先」フィールドが追加された。
+
+**メンバー一覧セクション**:
+
+| 項目 | 仕様 |
+|------|------|
+| コンポーネント | `<Table>` (Ant Design) |
+| データソース | `selectedTeam.members` |
+| サイズ | `small` |
+
+**メンバーテーブルカラム**:
+
+| カラム | dataIndex | 説明 |
+|--------|-----------|------|
+| ユーザー名 | `userName` | メンバーの表示名 |
+
+> ⚠️ **実装の仕様（v2.1.0更新）**: メンバーテーブルに **ロール（役職）カラムは存在しない**。また**「削除」ボタン列も存在しない**。ユーザー名列のみ。メンバーの追加・削除は「編集」ボタン → `TeamEditDialog` 経由で行う。
+
+**メンバーセクションヘッダーの「編集」ボタン**:
+
+> ⚠️ **実装の仕様（v2.1.0更新）**: 「編集」ボタンはメンバーセクションのヘッダー右端ではなく、**チーム名（Section 12.4.2 チーム情報セクション）の右隣**に配置される。
+
+| 項目 | 値 |
+|------|-----|
+| コンポーネント | `<Button>` |
+| ラベル | 「編集」 |
+| タイプ | `default` (小) |
+| 配置 | チーム名の右隣 |
+| 動作 | チーム編集ダイアログ（`TeamEditDialog`）を開く |
+
+> ⚠️ **実装の仕様**: 「＋ メンバーを追加」ボタンは存在しない。メンバー追加・削除は「編集」ボタン → `TeamEditDialog` 経由で行う。
+
+### 12.5. 型定義
+
+```typescript
+interface TeamMember {
+  userId: string;
+  userName: string;
+  departmentUnitId: string | null;
+}
+
+interface Team {
+  departmentUnitId: string;
+  unitName: string;
+  /** チームの代表者（作成者） */
+  ownerName: string;
+  nsUri?: string;          // 名前空間 URI（任意）
+  nsDisplayName?: string;  // 名前空間 表示名（任意）
+  members: TeamMember[];
+}
+```
+
+> ⚠️ **実装の仕様**: `nsPrefix` フィールドは型定義に存在しない。
+
+### 12.6. API連携
+
+| ステップ | メソッド | エンドポイント | 内容 |
+|---------|---------|--------------|------|
+| チーム一覧取得（初期ロード） | GET | `/api/v1/department-units/my-teams` | ログインユーザーが作成したチーム一覧を取得 |
+
+> **注意**: API 失敗時はダミーデータ（`DUMMY_TEAMS`）を使用する。  
+> メンバーデータは `frontend/mock/namespace/department-unit-members.json` から取得。
+
+### 12.7. ダミーデータ（API実装前）
+
+```typescript
+const DUMMY_TEAMS: Team[] = [
+  {
+    departmentUnitId: 'rd-materials',
+    unitName: '材料解析チーム',
+    ownerName: '山田 太郎（自分）',
+    nsUri: 'https://example.org/ns/materials/',
+    nsDisplayName: '材料科学名前空間',
+    members: [...],  // department-unit-members.json['rd-materials']
+  },
+  {
+    departmentUnitId: 'data-proc',
+    unitName: 'データ処理班',
+    ownerName: '山田 太郎（自分）',
+    nsUri: 'https://example.org/ns/dp/',
+    nsDisplayName: 'データ処理名前空間',
+    members: [],
+  },
+];
+```
+
+---
+
+## 13. 部署ノード管理テーブル（DepartmentTreeManagement）
+
+### 13.1. 概要
+
+`ExperimentAdminMenu` の tab key=`'4'`「テンプレート管理」タブに `UncertaintyManagement` と並行して表示される可能性があるが、現在は独立した画面として部署ツリーを平坦化したテーブルを管理する。  
+会社ツリー（`company` ルートノード配下）の全ノードを1行1レコードのテーブルとして表示し、Prefix・名前空間URI・説明を編集できる。
+
+**コンポーネントファイル**: `frontend/src/components/namespace/DepartmentTreeManagement.tsx`
+
+### 13.2. レイアウト
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│ [🔍 表示名・Prefix・URI・説明を検索...]                    [＋ 部署ノードを追加]      │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│ 表示名        │ Prefix       │ 名前空間URI               │ 説明     │ 親ノード │ 操作  │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│ CorpA         │ [corpa]      │ https://ORG/              │ ...      │ （ルート）│ —     │
+│   LabA        │ [laba]       │ https://ORG/labA/         │ ...      │ CorpA    │ 編集 削除 │
+│     ChemTeam  │ [chemteam]   │ https://ORG/labA/chem../  │ ...      │ LabA     │ 編集 削除 │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+> **インデント**: 表示名列は `depth × 16px` の左パディングを付けて階層を視覚化する。  
+> **ルートノード（depth=0）**: 操作列は `—`（編集・削除ボタン非表示）。
+
+### 13.3. ツールバー仕様
+
+| 要素 | コンポーネント | 仕様 |
+|------|--------------|------|
+| 検索ボックス | `<Input prefix={<SearchOutlined />} allowClear>` | 表示名・Prefix・URI・説明を対象に部分一致フィルタ。変更のたびにページを1に戻す |
+| 「＋ 部署ノードを追加」ボタン | `<Button type="primary" icon={<PlusOutlined />}>` | クリックで `DepartmentNodeAddDialog` を開く |
+
+### 13.4. テーブルカラム仕様
+
+| カラム | dataIndex | 幅 | ソート | 表示形式 |
+|--------|-----------|-----|--------|---------|
+| 表示名 | `label` | 200px | ✅（ラベル昇順） | テキスト（`<Text strong>`）+ `depth × 16px` の左パディング |
+| Prefix | `prefix` | 140px | ✅ | 通常時: `<Tag color="blue">`。未設定時: `—`。編集中: `<Input size="small">` |
+| 名前空間URI | `uri` | — (ellipsis) | ✅ | 通常時: `<Text type="secondary" fontSize={12}>`。未設定時: `—`。編集中: 自動生成URIを読み取り専用 `div`（グレー背景）で表示 |
+| 説明 | `description` | — (ellipsis) | ✅ | 通常時: テキスト。未設定時: `—`。編集中: `<Input size="small">` |
+| 親ノード | `parentLabel` | 140px | — | `<Text type="secondary" fontSize={12}>`。ルートノードは「（ルート）」 |
+| 操作 | — | 160px | — | 通常時: [編集] [削除]。編集中: [✔ 保存] [キャンセル]。depth=0（ルート）は `—` |
+
+### 13.5. インライン編集仕様
+
+| フィールド | 編集可否 | コンポーネント |
+|-----------|---------|--------------|
+| 表示名（label） | ❌ 読み取り専用 | 変更不可 |
+| Prefix | ✅ 編集可 | `<Input size="small">` |
+| 名前空間URI | ❌ 自動生成 | 読み取り専用 `div`（グレー背景） |
+| 説明 | ✅ 編集可 | `<Input size="small">` |
+
+**URI 自動生成ロジック（編集中）**:
+
+```typescript
+// 編集行の親ノード key から departmentCd を解決して URI を生成
+const editAutoUri = useMemo(() => {
+  if (!editingRow) return '';
+  const parentRow = rows.find((r) => r.key === editingRow.parentKey);
+  const deptCd = parentRow?.key ?? editingRow.parentKey ?? undefined;
+  return generateNamespaceUri(MOCK_ORGANIZATION_CD, deptCd ?? undefined, editingRow.label);
+}, [editingRow, rows]);
+```
+
+**保存時バリデーション**:
+- Prefix が空の場合 → `message.error('Prefixは必須です')` を表示して保存中断
+
+**保存 API 呼び出し**:
+
+```typescript
+await fetch(`/api/v1/department-nodes/${editingRow.key}`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ prefix: editValues.prefix, description: editValues.description, uri: editAutoUri }),
+});
+// API 未実装時はローカル state を直接更新してフォールバック
+```
+
+### 13.6. 削除仕様
+
+| 項目 | 仕様 |
+|------|------|
+| トリガー | 操作列「削除」ボタン（depth ≥ 1 のノードのみ） |
+| 確認ダイアログ | `Modal.confirm`。タイトル「`${label}` を削除しますか？」、content「配下のノードも参照できなくなる可能性があります。」 |
+| 確認ボタン | 「削除」（danger）/ 「キャンセル」 |
+| API | `DELETE /api/v1/department-nodes/:key`（失敗時はローカル削除でフォールバック） |
+| 成功通知 | `message.success('「${label}」を削除しました')` |
+
+### 13.7. ページネーション仕様
+
+| 項目 | 値 |
+|------|-----|
+| デフォルト件数 | 20件/ページ |
+| 選択肢 | 20 / 50 / 100 |
+| 全件数表示 | `全 N 件` |
+| ページ変更時 | `currentPage`・`pageSize` を state で管理 |
+
+### 13.8. データ型定義
+
+```typescript
+/** テーブル行の型（ツリーを平坦化した1行分） */
+interface FlatDeptRow {
+  key:         string;      // ノード一意キー
+  label:       string;      // 表示名
+  prefix:      string;      // 名前空間 Prefix
+  uri:         string;      // 名前空間 URI（自動生成）
+  description: string;      // 説明
+  parentKey:   string | null;  // 親ノードのキー（ルートは null）
+  parentLabel: string;      // 親ノードの表示名（ルートは「（ルート）」）
+  depth:       number;      // 階層深さ（0 = ルート）
+}
+```
+
+### 13.9. ツリー平坦化ロジック
+
+```typescript
+/** モックツリー（uncertainty-scope.json）の company ルート配下を平坦化 */
+const flattenCompanyNodes = (nodes: RawNode[]): FlatDeptRow[] => {
+  const result: FlatDeptRow[] = [];
+  const companyNode = nodes.find((n) => n.key === 'company');
+  if (!companyNode) return result;
+
+  // company ノード自身を depth=0 として追加
+  result.push({ key: companyNode.key, label: companyNode.label, prefix: '', uri: '', description: '', parentKey: null, parentLabel: '（ルート）', depth: 0 });
+
+  const traverse = (ns: RawNode[], parentKey: string, parentLabel: string, depth: number) => {
+    for (const n of ns) {
+      result.push({ key: n.key, label: n.label, prefix: n.prefix ?? '', uri: n.uri ?? '', description: n.description ?? '', parentKey, parentLabel, depth });
+      if (n.children) traverse(n.children, n.key, n.label, depth + 1);
+    }
+  };
+  if (companyNode.children) traverse(companyNode.children, companyNode.key, companyNode.label, 1);
+  return result;
+};
+```
+
+**モックデータソース**: `frontend/mock/namespace/uncertainty-scope.json`（`company` ルートノードを含む JSON）
+
+### 13.10. API連携
+
+| 操作 | メソッド | エンドポイント | リクエストボディ |
+|------|---------|--------------|----------------|
+| ノード追加 | POST | `/api/v1/department-nodes` | `{ label, prefix, uri, description, parentKey }` |
+| ノード更新（Prefix・説明・URI） | PUT | `/api/v1/department-nodes/:key` | `{ prefix, description, uri }` |
+| ノード削除 | DELETE | `/api/v1/department-nodes/:key` | — |
+
+> **注意**: すべての API が未実装の場合はローカル state の更新でフォールバックする。
+
+---
+
+## 14. 更新履歴
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-07-07 | v2.2.0: §2.2 タブ構成を修正（key='4' は `<UncertaintyManagement />` であることを明記）。§13 `DepartmentTreeManagement`（部署ノード管理テーブル）を新規追加 | Cline |
 | 2026-06-05 | v1.0.0: 初版作成（3ペイン構成） | Cline |
 | 2026-06-05 | v1.1.0: 2ペイン構成に変更。詳細表示/XMLプレビューをモーダルダイアログ方式に変更 | Cline |
 | 2026-06-05 | v1.2.0: 左ペイン幅30%に拡大。詳細モーダルXMLプレビュータブ廃止。ボタン絵文字削除 | Cline |
 | 2026-06-12 | v1.3.0: 実装との差異を反映：インポート/エクスポート/一括削除ボタン追加、単位カラム追加、詳細ボタン削除、型選択肢修正、ヘッダーチェックボックス仕様追記、ページネーション追記、複数インライン行対応、ツリーコンテキストメニュー追記、Term型定義更新 | Cline |
 | 2026-06-12 | v1.4.0: 実装との差異を反映：左ペイン「名前空間を追加」ボタン削除、ツールバー「キャンセル」ボタン追加、インライン編集キャンセルボタン修正（✕→キャンセル）、削除確認モーダルボタン順追記、コンテキストメニュー表示条件修正、型定義更新（NamespaceNode/FlatNsNode/NewTermRow）、API連携セクション追加、保存バリデーション追記、CSVエクスポート仕様修正、モックデータソース修正 | Cline |
 | 2026-06-18 | v1.5.0: コンテキストメニューをチームノード専用に修正、エクスポート仕様修正（選択中の用語のみ）、7.1から「名前空間を追加」ボタンイベント削除、インライン編集（セクション8）・チーム追加ダイアログ（セクション9）・チーム編集ダイアログ（セクション10）を新規追加 | Cline |
+| 2026-06-23 | v1.6.0: 実装との差異を反映：NewTermRow 型に `prefix` フィールドを追加 | Cline |
+| 2026-06-29 | v1.7.0: 「組織に共有」機能（セクション11）を新規追加：Personal 選択 + チェックあり時の右端ボタン表示・共有先チームレベル制限・確認モーダル仕様・共有後の動作・モックデータ型定義 | Cline |
+| 2026-06-30 | v1.8.0: サブタブ（用語管理 / チーム管理）追加：画面全体構造にタブを追記、チーム管理タブ（TeamManagementPanel）を新セクション12として追加、TeamAddDialog に名前空間Prefix・URI自動生成フィールドを追記、URI自動生成ユーティリティ（generateNamespaceUri）を追記 | Cline |
+| 2026-07-01 | v1.9.0: 実装との差異を反映：Section 2.2 を「サブタブ構成」→「ExperimentAdminMenu のトップレベルタブ構成」に修正（チーム管理は NamespaceMain のサブタブではなく独立タブ key='5'）。Section 9（TeamAddDialog）に名前空間URI自動生成フィールド追記・メンバー選択UI を単数選択＋タグ方式に修正。Section 12（TeamManagementPanel）のレイアウト・左ペインヘッダー（「チームを作成」ボタン位置）・リスト項目（メンバー数表示・編集ボタン削除）・右ペイン（Prefix非表示・ロールカラム削除・「＋メンバーを追加」→「編集」ボタンに変更）・型定義（nsPrefix 削除）・ダミーデータを実装に合わせて更新 | Cline |
+| 2026-07-02 | v2.0.0: 用語テーブルカラムを QName 単一列→Prefix+ローカル名+スコープの3列に分割。操作ボタンを「削除」→「非アクティブ/アクティブ」切替に変更。ツールバー一括操作も「削除」→「非アクティブ」に変更（StopOutlined アイコン）。Term 型定義に `isActive` フィールドを追加。Section 11「組織に共有」機能を ShareScopeModal（ツリー選択式・共有先を都度選択）仕様に全面書き換え。 | Cline |

@@ -7,6 +7,7 @@ import {
   FileTextOutlined,
   FolderAddOutlined,
   ExperimentOutlined,
+  TeamOutlined,
   KeyOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
@@ -17,6 +18,7 @@ import WorkerScreenOverlay from '../project/WorkerScreenOverlay';
 import FormatManagement from '../format/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
 import UncertaintyManagement from '../uncertainty/UncertaintyManagement';
+import TeamManagementPanel from '../namespace/TeamManagementPanel';
 import KeyManagementScreen from '../key-management/KeyManagementScreen';
 import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';
@@ -92,11 +94,16 @@ export default function ExperimentAdminMenu({
     },
     {
       key: '4',
-      label: t('menu.experiment_admin.tabs.templateManagement') || 'テンプレート管理',
+      label: t('menu.experiment_admin.tabs.namespaceManagement') || '名前空間管理',
       icon: <ExperimentOutlined />,
     },
     {
       key: '5',
+      label: 'チーム管理',
+      icon: <TeamOutlined />,
+    },
+    {
+      key: '6',
       label: t('menu.experiment_admin.tabs.keyManagement') || '鍵管理',
       icon: <KeyOutlined />,
     },
@@ -182,13 +189,18 @@ export default function ExperimentAdminMenu({
           <ProgressMonitoring />
         </div>
 
-        {/* タブ4: テンプレート管理 - display:none でマウント維持し state を保持 */}
+        {/* タブ4: 名前空間管理 - display:none でマウント維持し state を保持 */}
         <div style={{ display: currentTab === '4' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
           <UncertaintyManagement />
         </div>
 
-        {/* タブ5: 鍵管理 - display:none でマウント維持し state を保持 */}
-        <div style={{ display: currentTab === '5' ? 'block' : 'none', height: '100%', overflow: 'auto' }}>
+        {/* タブ5: チーム管理 */}
+        <div style={{ display: currentTab === '5' ? 'block' : 'none', height: '100%', overflow: 'hidden', background: '#fff' }}>
+          <TeamManagementPanel />
+        </div>
+
+        {/* タブ6: 鍵管理 - display:none でマウント維持し state を保持 */}
+        <div style={{ display: currentTab === '6' ? 'block' : 'none', height: '100%', overflow: 'auto' }}>
           <KeyManagementScreen />
         </div>
       </Content>

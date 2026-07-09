@@ -12,11 +12,10 @@ import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
 import type { User } from '@/types/auth';
 
-export type ExperimentAdminNavTab = 'project' | 'format' | 'progress' | 'namespace' | null;
+import type { ExperimentAdminNavTab, ExperimentAdminNavProps } from '@/types/namespace';
 
-interface ExperimentAdminNavProps {
-  activeTab?: ExperimentAdminNavTab;
-}
+// re-export（既存の import 側を壊さないため）
+export type { ExperimentAdminNavTab } from '@/types/namespace';
 
 /** モックユーザー（名前空間画面はスタンドアロンのためダミーを使用） */
 const MOCK_USER: User = {

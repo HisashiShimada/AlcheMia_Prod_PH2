@@ -1,41 +1,36 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
+import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
+import { UserOutlined } from '@ant-design/icons';
+import membersMockRaw from '../../../mock/namespace/department-unit-members.json';
+import type { OrgUser, TeamEditDialogProps } from '@/types/namespace';
 
 const { Text } = Typography;
-
-interface OrgUser {
-  userId: string;
-  userName: string;
-  departmentUnitId: string | null;
-}
-
-interface TeamEditDialogProps {
-  open: boolean;
-  teamLabel: string;           // 編集対象チームのラベル
-  teamUnitId?: string;         // 編集対象チームの department_unit_id
-  /** 初期メンバーリスト（teamUnitId が未指定の場合に使用） */
-  initialMembers?: string[];
-  onClose: () => void;
-  onSaved: (members: string[]) => void;
-}
 
 const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   open,
   teamLabel,
   teamUnitId,
+  teamOwnerUserId,
   onClose,
   onSaved,
 }) => {
-  const [members, setMembers]         = useState<string[]>([]);
-  const [loading, setLoading]         = useState(false);
-  const [userOptions, setUserOptions] = useState<{ value: string; label: string }[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
+  const [teamName, setTeamName]           = useState('');
+  const [members, setMembers]             = useState<OrgUser[]>([]);
+  const [addTarget, setAddTarget]         = useState<string | undefined>(undefined);
+  const [ownerUserId, setOwnerUserId]     = useState<string | undefined>(undefined);
+  const [loading, setLoading]             = useState(false);
+  const [allUsers, setAllUsers]           = useState<OrgUser[]>([]);
+  const [usersLoading, setUsersLoading]   = useState(false);
 
   // ── ダイアログが開いたとき: ユーザー一覧 + 既存メンバーを取得
   useEffect(() => {
     if (!open) return;
+
+    setTeamName(teamLabel);
+    setAddTarget(undefined);
+    setOwnerUserId(teamOwnerUserId);
 
     // 全ユーザー一覧を取得
     setUsersLoading(true);
@@ -44,10 +39,8 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json() as Promise<OrgUser[]>;
       })
-      .then((data) => {
-        setUserOptions(data.map((u) => ({ value: u.userId, label: u.userName })));
-      })
-      .catch(() => setUserOptions([]))
+      .then((data) => setAllUsers(data))
+      .catch(() => setAllUsers([]))
       .finally(() => setUsersLoading(false));
 
     // 既存メンバーを取得（teamUnitId がある場合のみ）
@@ -57,53 +50,128 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json() as Promise<OrgUser[]>;
         })
-        .then((data) => {
-          setMembers(data.map((u) => u.userId));
-        })
-        .catch(() => setMembers([]));
+        .then((data) => setMembers(data))
+        .catch(() => {
+          // APIが失敗した場合はモックデータをフォールバックとして使用
+          const mockMembers = (membersMockRaw as Record<string, OrgUser[]>)[teamUnitId] ?? [];
+          setMembers(mockMembers);
+          // モックメンバーを allUsers に補完
+          if (mockMembers.length > 0) {
+            setAllUsers((prev) => {
+              const existing = new Set(prev.map((u) => u.userId));
+              const additions = mockMembers.filter((u) => !existing.has(u.userId));
+              return additions.length > 0 ? [...prev, ...additions] : prev;
+            });
+          }
+        });
     } else {
       setMembers([]);
     }
-  }, [open, teamUnitId]);
+  }, [open, teamUnitId, teamLabel, teamOwnerUserId]);
+
+  // メンバーを削除（削除されたメンバーが代表者の場合はクリア）
+  const handleRemoveMember = (userId: string) => {
+    setMembers((prev) => prev.filter((u) => u.userId !== userId));
+    if (ownerUserId === userId) {
+      setOwnerUserId(undefined);
+    }
+  };
+
+  // メンバーを追加
+  const handleAddMember = (userId: string) => {
+    if (!userId) return;
+    const user = allUsers.find((u) => u.userId === userId);
+    if (!user) return;
+    if (members.some((m) => m.userId === userId)) {
+      message.warning('このメンバーは既に追加されています');
+      return;
+    }
+    setMembers((prev) => [...prev, user]);
+    setAddTarget(undefined);
+  };
 
   const handleSave = async () => {
+    if (!teamName.trim()) {
+      message.error('チーム名を入力してください');
+      return;
+    }
+
     if (!teamUnitId) {
-      // unitId が未設定の場合はフロントエンドのみ更新（モック動作）
       message.warning('チームIDが未設定のため、DBへの保存をスキップしました');
-      onSaved(members);
+      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
       onClose();
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/department-units/${teamUnitId}/members`, {
+      // 1. チーム名を更新
+      if (teamName.trim() !== teamLabel) {
+        const nameRes = await fetch(`/api/v1/department-units/${teamUnitId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ unitName: teamName.trim() }),
+        });
+        if (!nameRes.ok) {
+          const err = await nameRes.json().catch(() => ({}));
+          message.error(`チーム名の更新に失敗しました: ${(err as any).error ?? nameRes.status}`);
+          return;
+        }
+      }
+
+      // 2. メンバーを更新
+      const memRes = await fetch(`/api/v1/department-units/${teamUnitId}/members`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ userIds: members }),
+        body: JSON.stringify({ userIds: members.map((m) => m.userId) }),
       });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        message.error(`メンバーの更新に失敗しました: ${(err as any).error ?? res.status}`);
+      if (!memRes.ok) {
+        const err = await memRes.json().catch(() => ({}));
+        message.error(`メンバーの更新に失敗しました: ${(err as any).error ?? memRes.status}`);
         return;
       }
 
-      message.success(`「${teamLabel}」のメンバーをDBに保存しました（${members.length}名）`);
-      onSaved(members);
+      // 3. 代表者を更新（変更があった場合のみ）
+      if (ownerUserId !== teamOwnerUserId && ownerUserId) {
+        const ownerRes = await fetch(`/api/v1/department-units/${teamUnitId}/owner`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ownerUserId }),
+        });
+        if (!ownerRes.ok) {
+          const err = await ownerRes.json().catch(() => ({}));
+          message.error(`代表者の更新に失敗しました: ${(err as any).error ?? ownerRes.status}`);
+          return;
+        }
+      }
+
+      message.success(`「${teamName.trim()}」を保存しました（メンバー: ${members.length}名）`);
+      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
       onClose();
     } catch {
-      message.error('メンバーの更新中にエラーが発生しました');
+      message.error('保存中にエラーが発生しました');
     } finally {
       setLoading(false);
     }
   };
 
+  // 追加候補（既に登録済みのメンバーは除外）
+  const memberIds = new Set(members.map((m) => m.userId));
+  const addOptions = allUsers
+    .filter((u) => !memberIds.has(u.userId))
+    .map((u) => ({ value: u.userId, label: u.userName }));
+
+  // 代表者選択肢（現在のメンバー一覧から生成）
+  const ownerOptions = members.map((m) => ({ value: m.userId, label: m.userName }));
+
   return (
     <Modal
       open={open}
-      title="編集"
+      title="チームを編集"
       onCancel={onClose}
       footer={[
         <Button key="cancel" onClick={onClose} disabled={loading}>
@@ -117,41 +185,120 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
       maskClosable={false}
     >
       <Space direction="vertical" style={{ width: '100%' }} size={16}>
-        {/* チーム名（読み取り専用） */}
+
+        {/* ── チーム名（編集可能） ── */}
         <div>
-          <Text type="secondary" style={{ fontSize: 12 }}>チーム</Text>
-          <div style={{ marginTop: 4 }}>
-            <Tag color="blue" style={{ fontSize: 13, padding: '2px 10px' }}>
-              {teamLabel}
-            </Tag>
-          </div>
+          <Text strong>
+            チーム名 <Text type="danger">*</Text>
+          </Text>
+          <Input
+            style={{ marginTop: 4 }}
+            placeholder="チーム名を入力..."
+            value={teamName}
+            onChange={(e) => setTeamName(e.target.value)}
+            disabled={loading}
+          />
         </div>
 
         <Divider style={{ margin: '0' }} />
 
-        {/* メンバー（検索付きプルダウン） */}
+        {/* ── 代表者 ── */}
         <div>
-          <Text strong>メンバー</Text>
+          <Text strong>代表者</Text>
           <Select
-            mode="multiple"
-            showSearch
-            allowClear
-            loading={usersLoading}
-            placeholder={usersLoading ? '読み込み中...' : '名前で検索して選択...'}
-            value={members}
-            onChange={(vals) => setMembers(vals)}
-            options={userOptions}
-            filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
             style={{ width: '100%', marginTop: 4 }}
-            notFoundContent="候補が見つかりません"
-            disabled={loading}
+            placeholder={
+              members.length === 0
+                ? 'メンバーを追加してから選択してください'
+                : '代表者を選択...'
+            }
+            value={ownerUserId}
+            onChange={(val) => setOwnerUserId(val)}
+            options={ownerOptions}
+            allowClear
+            disabled={loading || members.length === 0}
+            notFoundContent="メンバーがいません"
           />
+          {members.length === 0 && (
+            <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+              メンバーを追加すると選択できるようになります
+            </Text>
+          )}
+        </div>
+
+        <Divider style={{ margin: '0' }} />
+
+        {/* ── 現在のメンバー ── */}
+        <div>
+          <Text strong>現在のメンバー</Text>
+          <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+            （{members.length}名）
+          </Text>
+          <div
+            style={{
+              marginTop: 8,
+              minHeight: 40,
+              padding: '8px 10px',
+              background: '#fafafa',
+              border: '1px solid #f0f0f0',
+              borderRadius: 6,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 6,
+            }}
+          >
+            {members.length === 0 ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>メンバーがいません</Text>
+            ) : (
+              members.map((m) => (
+                <Tag
+                  key={m.userId}
+                  icon={<UserOutlined />}
+                  closable
+                  onClose={() => handleRemoveMember(m.userId)}
+                  style={{ fontSize: 13, padding: '2px 8px', margin: 0 }}
+                >
+                  {m.userName}
+                </Tag>
+              ))
+            )}
+          </div>
           <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-            プルダウンで追加・× で削除できます
+            × でメンバーを削除できます
           </Text>
         </div>
+
+        <Divider style={{ margin: '0' }} />
+
+        {/* ── メンバーを追加 ── */}
+        <div>
+          <Text strong>メンバーを追加</Text>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <Select
+              showSearch
+              allowClear
+              loading={usersLoading}
+              placeholder={usersLoading ? '読み込み中...' : '名前で検索して選択...'}
+              value={addTarget}
+              onChange={(val) => setAddTarget(val)}
+              options={addOptions}
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              style={{ flex: 1 }}
+              notFoundContent={usersLoading ? '読み込み中...' : '候補が見つかりません'}
+              disabled={loading}
+            />
+            <Button
+              type="primary"
+              disabled={!addTarget || loading}
+              onClick={() => addTarget && handleAddMember(addTarget)}
+            >
+              追加
+            </Button>
+          </div>
+        </div>
+
       </Space>
     </Modal>
   );

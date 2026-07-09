@@ -70,7 +70,7 @@ export default function SystemAdminMenu({ user, onLogout, onMenuChange }: System
       key: '5',
       label: t('menu.system_admin.tabs.roleManagement'),
       icon: <AuditOutlined />,
-    }
+    },
   ];
 
   const handleTabChange = (key: string) => {
@@ -132,6 +132,7 @@ export default function SystemAdminMenu({ user, onLogout, onMenuChange }: System
               <RoleManagement />
             </div>
           )}
+
         </Content>
       </Layout>
     </App>
