@@ -6,21 +6,21 @@
  * @description
  * 暗号化済み要素を選択した時に表示される復号化設定パネル。
  * 複数要素を一括復号化できる。
- * 使用する鍵を選択し、復号化プレビューまたは実行ができる。
+ * 鍵選択は「鍵設定」タブ（DecryptionKeyPanel）で行い、
+ * このパネルでは渡された keyId / password を使って実行・プレビューのみを担当する。
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
-  Card, Form, Select, Input, Button, Space, Typography,
+  Card, Button, Space, Typography,
   Alert, Divider, Modal,
 } from 'antd';
 import {
   UnlockOutlined, SyncOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import type { MaimlTreeNode, EncryptionKey } from '@/types/encryption';
+import type { MaimlTreeNode } from '@/types/encryption';
 
 const { Text } = Typography;
-const { Password } = Input;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -31,8 +31,10 @@ interface DecryptionPanelProps {
   projectName: string;
   /** 復号化対象ノード一覧（暗号化済み要素） */
   targets: MaimlTreeNode[];
-  /** 利用可能な鍵一覧 */
-  keys: EncryptionKey[];
+  /** 復号化に使用する鍵ID（鍵設定タブから渡される） */
+  keyId: string | undefined;
+  /** 復号化用パスワード（PBKDF2の場合、鍵設定タブから渡される） */
+  password?: string;
   /** プレビュー実行中か */
   previewLoading: boolean;
   /** 復号化実行中か */
@@ -46,11 +48,6 @@ interface DecryptionPanelProps {
 // ---------------------------------------------------------------------------
 // ヘルパー
 // ---------------------------------------------------------------------------
-
-/** PBKDF2（パスワード導出）アルゴリズムかどうかを判定 */
-function isPbkdf2Algorithm(algorithmUri?: string): boolean {
-  return algorithmUri?.includes('pbkdf2') ?? false;
-}
 
 /** アルゴリズムURIから表示名を生成 */
 function formatAlgorithmLabel(algorithmUri?: string): string {
@@ -66,47 +63,41 @@ function formatAlgorithmLabel(algorithmUri?: string): string {
 const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
   projectName: _projectName,
   targets,
-  keys,
+  keyId,
+  password,
   previewLoading,
   executing,
   onDecryptPreview,
   onDecryptExecute,
 }) => {
-  const [selectedKeyId, setSelectedKeyId] = useState<string | undefined>(undefined);
-  const [password, setPassword] = useState<string>('');
-
   /** 代表ノード（アルゴリズム情報表示に使用） */
   const representativeNode = targets[0] ?? null;
   const encryptionInfo = representativeNode?.encryptionInfo;
-  const needsPassword = isPbkdf2Algorithm(encryptionInfo?.algorithmUri);
 
   /** デバウンスタイマー参照 */
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ---------------------------------------------------------------------------
-  // デバウンス自動プレビュー更新（暗号化側と統一）
+  // デバウンス自動プレビュー更新
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    // 鍵が未選択、またはPBKDF2でパスワード未入力の場合はスキップ
-    if (!selectedKeyId) return;
-    if (needsPassword && !password) return;
+    if (!keyId) return;
 
-    // 300ms デバウンスでプレビューを自動更新
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
-      onDecryptPreview(selectedKeyId, password || undefined);
+      onDecryptPreview(keyId, password || undefined);
     }, 300);
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  // selectedKeyId / password / targets が変わるたびにトリガー
+  // keyId / password / targets が変わるたびにトリガー
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedKeyId, password, targets]);
+  }, [keyId, password, targets]);
 
   // 実行ボタン用確認ダイアログ
   const handleDecryptExecuteClick = () => {
-    if (!selectedKeyId) return;
+    if (!keyId) return;
     Modal.confirm({
       title: '復号化の実行',
       icon: <ExclamationCircleOutlined />,
@@ -130,7 +121,7 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
       okText: '復号化する',
       okType: 'danger',
       cancelText: 'キャンセル',
-      onOk: () => onDecryptExecute(selectedKeyId, password || undefined),
+      onOk: () => onDecryptExecute(keyId, password || undefined),
     });
   };
 
@@ -203,75 +194,26 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
         </Space>
       </Card>
 
-      {/* 復号化設定フォーム */}
-      <Form layout="vertical" size="small">
-        {/* 使用する鍵 */}
-        <Form.Item
-          label="使用する鍵"
-          required
-          help={
-            !selectedKeyId ? (
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                復号化に使用する鍵を選択してください
-              </Text>
-            ) : null
-          }
-        >
-          <Select
-            placeholder="鍵を選択..."
-            value={selectedKeyId}
-            onChange={setSelectedKeyId}
-            style={{ width: '100%' }}
-            optionFilterProp="label"
-            showSearch
-            options={keys
-              .filter((k) => k.isActive)
-              .map((k) => ({
-                value: k.keyId,
-                label: k.keyName,
-                disabled: false,
-              }))}
-            notFoundContent={
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                利用可能な鍵がありません
-              </Text>
-            }
-          />
-        </Form.Item>
-
-        {/* パスワード（PBKDF2の場合のみ表示） */}
-        {needsPassword && (
-          <Form.Item label="パスワード" required>
-            <Password
-              placeholder="復号化用パスワードを入力"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-            />
-          </Form.Item>
-        )}
-      </Form>
-
-      <Divider style={{ margin: '12px 0' }} />
-
-      {/* 鍵未選択の警告 */}
-      {!selectedKeyId && (
+      {/* 鍵未設定の案内 */}
+      {!keyId && (
         <Alert
           type="warning"
-          message="鍵を選択してください"
-          description="復号化を行うには使用する鍵を選択する必要があります。"
+          message="復号化用の鍵が選択されていません"
+          description="「鍵設定」タブの「復号化用の鍵」セクションで鍵を選択してください。"
           showIcon
           style={{ marginBottom: 12, fontSize: 12 }}
         />
       )}
+
+      <Divider style={{ margin: '12px 0' }} />
 
       {/* ボタン */}
       <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
         <Button
           icon={<SyncOutlined />}
           loading={previewLoading}
-          disabled={!selectedKeyId || (needsPassword && !password)}
-          onClick={() => selectedKeyId && onDecryptPreview(selectedKeyId, password || undefined)}
+          disabled={!keyId}
+          onClick={() => keyId && onDecryptPreview(keyId, password || undefined)}
         >
           プレビューを更新
         </Button>
@@ -280,7 +222,7 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
           danger
           icon={<UnlockOutlined />}
           loading={executing}
-          disabled={!selectedKeyId || (needsPassword && !password)}
+          disabled={!keyId}
           onClick={handleDecryptExecuteClick}
         >
           {targets.length > 1 ? `復号化実行（${targets.length}件）` : '復号化実行'}

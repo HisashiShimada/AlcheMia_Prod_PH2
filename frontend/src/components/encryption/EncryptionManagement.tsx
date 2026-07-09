@@ -6,16 +6,25 @@
  * @description
  * MAIMLファイルの暗号化・復号化・鍵管理を行うメイン画面。
  *
- * 左ペイン: MAIMLツリー（クリックでノードを選択）
- * 右ペイン:
- *   選択ノード配下から暗号化対象を自動収集し、収集結果に応じて表示を切り替える：
+ * ■ 大枠タブ（mainTab）
+ *   - 'encrypt-target': 暗号化対象選択タブ
+ *   - 'key-settings'  : 鍵設定タブ（1MAIMLに共通の鍵設定）
+ *
+ * ■ 暗号化対象選択タブの構成
+ *   左ペイン: MAIMLツリー（クリックでノードを選択）
+ *   右ペイン（rightTab で切り替え）:
+ *     - 'config'  : 暗号化設定 or 復号化設定（targetModeで自動切替）
+ *     - 'preview' : XMLプレビュー
+ *
+ * ■ targetMode
  *   - 'encrypt': 未暗号化要素のみ → 暗号化設定パネル
  *   - 'decrypt': 暗号化済み要素のみ → 復号化パネル
- *   - 'mixed' : 混在 → エラーAlert（個別に復号化してから再実行を促す）
+ *   - 'mixed' : 混在 → エラーAlert
  *   - 'none'  : 対象なし → 空状態表示
  *
- * 選択方式: チェックボックスなし。ツリーノードをクリック選択し、
- *           配下の対象要素をまとめて一括処理する。
+ * ■ 鍵の設計方針
+ *   1MAIMLに対して暗号化鍵・復号化鍵はそれぞれ1つ。
+ *   鍵設定タブで一元管理し、各設定パネルはpropsで受け取る。
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -25,7 +34,7 @@ import {
 import {
   LockOutlined, UnlockOutlined, SyncOutlined, ScissorOutlined,
   CloseOutlined, ExclamationCircleOutlined, SettingOutlined, CodeOutlined,
-  WarningOutlined,
+  WarningOutlined, KeyOutlined,
 } from '@ant-design/icons';
 
 import EncryptionTargetTree from './EncryptionTargetTree';
@@ -33,6 +42,8 @@ import EncryptionConfigPanel from './EncryptionConfigPanel';
 import EncryptionPreviewPanel from './EncryptionPreviewPanel';
 import DecryptionPanel from './DecryptionPanel';
 import SplitWizardModal from './SplitWizardModal';
+import KeySettingsTab from './KeySettingsTab';
+import type { DecryptionKeyState } from './DecryptionKeyPanel';
 
 import * as encryptionService from '@/services/encryptionService';
 import type {
@@ -64,13 +75,6 @@ interface CollectResult {
 
 /**
  * 指定ノード自身 + 配下を再帰的に走査し、暗号化/復号化対象要素を収集する。
- *
- * - isEncryptable && !isEncrypted → encryptCandidates
- * - isEncrypted                   → decryptCandidates
- * - 両方存在 → mode: 'mixed'
- * - encryptCandidatesのみ → mode: 'encrypt'
- * - decryptCandidatesのみ → mode: 'decrypt'
- * - どちらもなし → mode: 'none'
  */
 function collectTargets(node: MaimlTreeNode): CollectResult {
   const encryptCandidates: MaimlTreeNode[] = [];
@@ -133,8 +137,17 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
   /** 暗号化鍵一覧 */
   const [keys, setKeys] = useState<EncryptionKey[]>([]);
 
-  /** 暗号化設定 */
+  /** 暗号化設定（鍵設定タブの EncryptionKeyPanel が loadedKey を管理） */
   const [config, setConfig] = useState<EncryptionConfig>(DEFAULT_ENCRYPTION_CONFIG);
+
+  /**
+   * 復号化用の鍵設定（鍵設定タブの DecryptionKeyPanel から引き上げ）
+   * 1MAIMLに共通する復号化鍵として使用される。
+   */
+  const [decryptKeyState, setDecryptKeyState] = useState<DecryptionKeyState>({
+    keyId: undefined,
+    password: '',
+  });
 
   /** 暗号化プレビュー（未暗号化ノード選択時） */
   const [preview, setPreview] = useState<EncryptionPreviewResponse | null>(null);
@@ -151,9 +164,16 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
   const [decryptExecuting, setDecryptExecuting] = useState(false);
 
   /**
-   * 右ペインのアクティブタブ
+   * 大枠タブ（モーダル上部）
+   * 'encrypt-target': 暗号化対象選択タブ
+   * 'key-settings'  : 鍵設定タブ
+   */
+  const [mainTab, setMainTab] = useState<'encrypt-target' | 'key-settings'>('encrypt-target');
+
+  /**
+   * 右ペインのアクティブタブ（暗号化対象選択タブ内）
    * 'config'  : 設定タブ（暗号化設定 or 復号化設定を自動切替）
-   * 'preview' : XMLプレビュータブ（暗号化プレビュー or 復号化プレビューを自動切替）
+   * 'preview' : XMLプレビュータブ
    */
   const [rightTab, setRightTab] = useState<'config' | 'preview'>('config');
 
@@ -169,10 +189,6 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
   // 派生状態
   // ---------------------------------------------------------------------------
 
-  /**
-   * 選択ノード配下の収集結果
-   * - selectedNode が null の場合は 'none'
-   */
   const collectResult = useMemo<CollectResult>(() => {
     if (!selectedNode) {
       return { mode: 'none', encryptCandidates: [], decryptCandidates: [] };
@@ -182,14 +198,11 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
 
   const { mode: targetMode, encryptCandidates, decryptCandidates } = collectResult;
 
-  /** 暗号化実行可否（encryptモードかつ鍵がロード済み） */
-  const canEncrypt = targetMode === 'encrypt' && !!config.loadedKey;
 
   // ---------------------------------------------------------------------------
   // データ取得
   // ---------------------------------------------------------------------------
 
-  /** MAIMLツリーを取得 */
   const loadTree = useCallback(async () => {
     setTreeLoading(true);
     setTreeError(null);
@@ -203,7 +216,6 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     }
   }, [projectName]);
 
-  /** 鍵一覧を取得 */
   const loadKeys = useCallback(async () => {
     try {
       const keyList = await encryptionService.listKeys();
@@ -222,9 +234,8 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
   // イベントハンドラ
   // ---------------------------------------------------------------------------
 
-  /** 暗号化プレビュー生成（path と config を直接受け取るコア実装） */
   const runPreview = useCallback(async (
-    path: string,
+    _path: string,
     previewConfig: EncryptionConfig,
   ) => {
     setPreviewLoading(true);
@@ -238,13 +249,6 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     }
   }, [projectName]);
 
-  /**
-   * ノード選択
-   * - collectTargets でモードを判定
-   * - encryptモード: デフォルト設定でプレビューを即時実行
-   * - decryptモード: decryptPreview をクリア
-   * - mixedモード / noneモード: プレビューをクリア
-   */
   const handleSelectNode = useCallback((node: MaimlTreeNode) => {
     setSelectedPath(node.path);
     setSelectedNode(node);
@@ -254,20 +258,15 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
 
     const result = collectTargets(node);
     if (result.mode === 'encrypt') {
-      // 未暗号化ノード: デフォルト設定でプレビューを即時実行
       runPreview(node.path, DEFAULT_ENCRYPTION_CONFIG);
     }
   }, [runPreview]);
 
-  /**
-   * 暗号化プレビュー更新（手動 / デバウンス自動更新から呼ばれる）
-   */
   const handlePreview = useCallback(async () => {
     if (!selectedPath) return;
     await runPreview(selectedPath, config);
   }, [selectedPath, config, runPreview]);
 
-  /** 暗号化実行（複数対象を一括） */
   const handleEncrypt = useCallback(async () => {
     if (encryptCandidates.length === 0) return;
     setExecuting(true);
@@ -286,9 +285,9 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     }
   }, [projectName, encryptCandidates, config, loadTree]);
 
-  /** キャンセル：鍵を消去してモーダルを閉じる */
   const handleCancel = useCallback(() => {
     setConfig((prev) => ({ ...prev, loadedKey: undefined }));
+    setDecryptKeyState({ keyId: undefined, password: '' });
     setSelectedPath(null);
     setSelectedNode(null);
     setPreview(null);
@@ -298,10 +297,15 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     onClose?.();
   }, [onClose]);
 
-  /** 暗号化確認ダイアログを開く */
   const handleEncryptWithConfirm = useCallback(() => {
+    if (!config.loadedKey) {
+      // 鍵未設定の場合は鍵設定タブへ誘導
+      setMainTab('key-settings');
+      message.warning('暗号化用の鍵を設定してください。');
+      return;
+    }
     setConfirmModalOpen(true);
-  }, []);
+  }, [config.loadedKey]);
 
   const handleConfirmOk = useCallback(() => {
     setConfirmModalOpen(false);
@@ -312,29 +316,24 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     setConfirmModalOpen(false);
   }, []);
 
-  /** 分割ウィザードを開く */
   const handleOpenSplitWizard = useCallback(() => {
     setSplitWizardOpen(true);
   }, []);
 
-  /** 分割ウィザードを閉じる */
   const handleCloseSplitWizard = useCallback(() => {
     setSplitWizardOpen(false);
   }, []);
 
-  /** 分割完了後：UPA違反をクリアしてツリーを再取得 */
   const handleSplitComplete = useCallback(async () => {
     setSplitWizardOpen(false);
     setUpaViolations([]);
     await loadTree();
   }, [loadTree]);
 
-  /** 復号化プレビュー */
   const handleDecryptPreview = useCallback(async (keyId: string, password?: string) => {
     if (decryptCandidates.length === 0) return;
     setDecryptPreviewLoading(true);
     try {
-      // 代表ノード（先頭）でプレビュー
       const representativeNode = decryptCandidates[0];
       const result = await encryptionService.getDecryptPreview(projectName, {
         projectName,
@@ -355,7 +354,6 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     }
   }, [projectName, decryptCandidates]);
 
-  /** 復号化実行（複数対象を一括） */
   const handleDecryptExecute = useCallback(async (keyId: string, password?: string) => {
     if (decryptCandidates.length === 0) return;
     setDecryptExecuting(true);
@@ -384,9 +382,6 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
   // レンダリング
   // ---------------------------------------------------------------------------
 
-  /**
-   * 設定タブのラベル：targetModeに応じてアイコン・テキストを変える
-   */
   const configTabLabel = (
     <Space size={4}>
       <SettingOutlined />
@@ -402,9 +397,6 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     </Space>
   );
 
-  /**
-   * XMLプレビュータブのラベル
-   */
   const previewTabLabel = (
     <Space size={4}>
       <CodeOutlined />
@@ -412,9 +404,6 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     </Space>
   );
 
-  /**
-   * 右ペインの設定エリア: targetModeに応じて表示を切り替え
-   */
   const renderConfigArea = () => {
     switch (targetMode) {
       case 'none':
@@ -491,7 +480,8 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
           <DecryptionPanel
             projectName={projectName}
             targets={decryptCandidates}
-            keys={keys}
+            keyId={decryptKeyState.keyId}
+            password={decryptKeyState.password || undefined}
             previewLoading={decryptPreviewLoading}
             executing={decryptExecuting}
             onDecryptPreview={handleDecryptPreview}
@@ -529,138 +519,188 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
         </Title>
       </div>
 
-      {/* コンテンツエリア */}
-      <Layout style={{ flex: 1, padding: '16px', background: 'transparent' }}>
-        {/* 左ペイン: MAIMLツリー */}
-        <Sider
-          width={480}
-          style={{
-            background: '#fff',
-            border: '1px solid #f0f0f0',
-            borderRadius: 8,
-            marginRight: 16,
-            overflow: 'auto',
-          }}
-        >
-          <div style={{ padding: 16 }}>
-            <Typography.Text strong style={{ fontSize: 14 }}>
-              暗号化対象の選択
-            </Typography.Text>
-            <br />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              ノードをクリックすると配下要素をまとめて処理できます
-            </Typography.Text>
-          </div>
-          {treeLoading ? (
-            <div style={{ textAlign: 'center', padding: 32 }}>
-              <Spin tip="読み込み中..." />
-            </div>
-          ) : treeError ? (
-            <Alert type="error" message={treeError} style={{ margin: 16 }} />
-          ) : (
-            <EncryptionTargetTree
-              treeData={treeData}
-              selectedPath={selectedPath}
-              onSelect={handleSelectNode}
-            />
-          )}
-        </Sider>
-
-        {/* 右ペイン: 設定 / XMLプレビュー（2タブ） */}
-        <Content style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-          <Tabs
-            activeKey={rightTab}
-            onChange={(key) => setRightTab(key as 'config' | 'preview')}
-            style={{ flex: 1, minHeight: 0 }}
-            items={[
-              {
-                key: 'config',
-                label: configTabLabel,
-                children: renderConfigArea(),
-              },
-              {
-                key: 'preview',
-                label: previewTabLabel,
-                children: (
-                  <EncryptionPreviewPanel
-                    preview={targetMode === 'decrypt' ? decryptPreview : preview}
-                    loading={targetMode === 'decrypt' ? decryptPreviewLoading : previewLoading}
-                    mode={targetMode === 'decrypt' ? 'decrypt' : 'encrypt'}
-                  />
-                ),
-              },
-            ]}
-          />
-
-          {/* ━━━ フッター: ボタン行 ━━━ */}
-          <div style={{
-            padding: '10px 16px',
-            borderTop: '1px solid #f0f0f0',
-            background: '#fafafa',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 8,
-            flexShrink: 0,
-          }}>
-            {targetMode === 'decrypt' ? (
-              /* 復号化モード */
-              <Tooltip title={decryptCandidates.length === 0 ? '復号化対象がありません' : '設定タブで鍵を選択して復号化してください'}>
-                <Button
-                  icon={<UnlockOutlined />}
-                  onClick={() => setRightTab('config')}
-                  disabled={decryptCandidates.length === 0}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━ 大枠タブ ━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <Tabs
+        activeKey={mainTab}
+        onChange={(key) => setMainTab(key as 'encrypt-target' | 'key-settings')}
+        style={{ flex: 1, minHeight: 0 }}
+        tabBarStyle={{ padding: '0 24px', marginBottom: 0 }}
+        items={[
+          {
+            key: 'encrypt-target',
+            label: (
+              <Space size={4}>
+                <LockOutlined />
+                暗号化対象選択
+              </Space>
+            ),
+            children: (
+              <Layout style={{ padding: '16px', background: 'transparent', height: '100%', overflow: 'hidden' }}>
+                {/* 左ペイン: MAIMLツリー */}
+                <Sider
+                  width={480}
+                  style={{
+                    background: '#fff',
+                    border: '1px solid #f0f0f0',
+                    borderRadius: 8,
+                    marginRight: 16,
+                    overflow: 'auto',
+                  }}
                 >
-                  復号化設定へ（{decryptCandidates.length}件）
-                </Button>
-              </Tooltip>
-            ) : targetMode === 'encrypt' ? (
-              /* 暗号化モード */
-              <>
-                <Tooltip title={!config.loadedKey ? '鍵をロードしてください' : `${encryptCandidates.length}件の要素を暗号化します`}>
-                  <Button
-                    type="primary"
-                    icon={<LockOutlined />}
-                    onClick={handleEncryptWithConfirm}
-                    loading={executing}
-                    disabled={!canEncrypt}
-                  >
-                    暗号化を実行（{encryptCandidates.length}件）
-                  </Button>
-                </Tooltip>
+                  <div style={{ padding: 16 }}>
+                    <Typography.Text strong style={{ fontSize: 14 }}>
+                      暗号化対象の選択
+                    </Typography.Text>
+                    <br />
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      ノードをクリックすると配下要素をまとめて処理できます
+                    </Typography.Text>
+                  </div>
+                  {treeLoading ? (
+                    <div style={{ textAlign: 'center', padding: 32 }}>
+                      <Spin tip="読み込み中..." />
+                    </div>
+                  ) : treeError ? (
+                    <Alert type="error" message={treeError} style={{ margin: 16 }} />
+                  ) : (
+                    <EncryptionTargetTree
+                      treeData={treeData}
+                      selectedPath={selectedPath}
+                      onSelect={handleSelectNode}
+                    />
+                  )}
+                </Sider>
 
-                <Tooltip title="設定内容でXMLプレビューを更新します（自動更新: 300ms）">
-                  <Button
-                    icon={<SyncOutlined />}
-                    onClick={handlePreview}
-                    loading={previewLoading}
-                    disabled={encryptCandidates.length === 0}
-                  >
-                    プレビューを更新
-                  </Button>
-                </Tooltip>
+                {/* 右ペイン: 設定 / XMLプレビュー（2タブ） */}
+                <Content style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+                  <Tabs
+                    activeKey={rightTab}
+                    onChange={(key) => setRightTab(key as 'config' | 'preview')}
+                    style={{ flex: 1, minHeight: 0 }}
+                    items={[
+                      {
+                        key: 'config',
+                        label: configTabLabel,
+                        children: renderConfigArea(),
+                      },
+                      {
+                        key: 'preview',
+                        label: previewTabLabel,
+                        children: (
+                          <EncryptionPreviewPanel
+                            preview={targetMode === 'decrypt' ? decryptPreview : preview}
+                            loading={targetMode === 'decrypt' ? decryptPreviewLoading : previewLoading}
+                            mode={targetMode === 'decrypt' ? 'decrypt' : 'encrypt'}
+                          />
+                        ),
+                      },
+                    ]}
+                  />
 
-                <Tooltip title={!hasUpaViolation ? 'UPA制約違反が検出された場合に有効化されます' : '要素を分割してUPA制約を解消してから秘匿化します'}>
-                  <Button
-                    icon={<ScissorOutlined />}
-                    onClick={handleOpenSplitWizard}
-                    disabled={!hasUpaViolation}
-                  >
-                    要素を分割して部分を秘匿化
-                  </Button>
-                </Tooltip>
-              </>
-            ) : null /* noneモード / mixedモードはボタンなし */ }
+                  {/* ━━━ フッター: ボタン行 ━━━ */}
+                  <div style={{
+                    padding: '10px 16px',
+                    borderTop: '1px solid #f0f0f0',
+                    background: '#fafafa',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 8,
+                    flexShrink: 0,
+                  }}>
+                    {targetMode === 'decrypt' ? (
+                      <Tooltip title={
+                        !decryptKeyState.keyId
+                          ? '「鍵設定」タブで復号化用の鍵を設定してください'
+                          : `${decryptCandidates.length}件の要素を復号化します`
+                      }>
+                        <Button
+                          icon={<UnlockOutlined />}
+                          onClick={() => setRightTab('config')}
+                          disabled={decryptCandidates.length === 0}
+                        >
+                          復号化設定へ（{decryptCandidates.length}件）
+                        </Button>
+                      </Tooltip>
+                    ) : targetMode === 'encrypt' ? (
+                      <>
+                        <Tooltip title={
+                          !config.loadedKey
+                            ? '「鍵設定」タブで暗号化用の鍵を設定してください'
+                            : `${encryptCandidates.length}件の要素を暗号化します`
+                        }>
+                          <Button
+                            type="primary"
+                            icon={<LockOutlined />}
+                            onClick={handleEncryptWithConfirm}
+                            loading={executing}
+                            disabled={encryptCandidates.length === 0}
+                          >
+                            暗号化を実行（{encryptCandidates.length}件）
+                          </Button>
+                        </Tooltip>
 
-            <Button
-              icon={<CloseOutlined />}
-              onClick={handleCancel}
-              disabled={executing || decryptExecuting}
-            >
-              キャンセル
-            </Button>
-          </div>
-        </Content>
-      </Layout>
+                        <Tooltip title="設定内容でXMLプレビューを更新します（自動更新: 300ms）">
+                          <Button
+                            icon={<SyncOutlined />}
+                            onClick={handlePreview}
+                            loading={previewLoading}
+                            disabled={encryptCandidates.length === 0}
+                          >
+                            プレビューを更新
+                          </Button>
+                        </Tooltip>
+
+                        <Tooltip title={!hasUpaViolation ? 'UPA制約違反が検出された場合に有効化されます' : '要素を分割してUPA制約を解消してから秘匿化します'}>
+                          <Button
+                            icon={<ScissorOutlined />}
+                            onClick={handleOpenSplitWizard}
+                            disabled={!hasUpaViolation}
+                          >
+                            要素を分割して部分を秘匿化
+                          </Button>
+                        </Tooltip>
+                      </>
+                    ) : null}
+
+                    <Button
+                      icon={<CloseOutlined />}
+                      onClick={handleCancel}
+                      disabled={executing || decryptExecuting}
+                    >
+                      キャンセル
+                    </Button>
+                  </div>
+                </Content>
+              </Layout>
+            ),
+          },
+          {
+            key: 'key-settings',
+            label: (
+              <Space size={4}>
+                <KeyOutlined />
+                鍵設定
+                {!config.loadedKey && (
+                  <Tag color="warning" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>
+                    未設定
+                  </Tag>
+                )}
+              </Space>
+            ),
+            children: (
+              <div style={{ overflow: 'auto' }}>
+                <KeySettingsTab
+                  keys={keys}
+                  encryptionConfig={config}
+                  onEncryptionConfigChange={setConfig}
+                  decryptionKeyState={decryptKeyState}
+                  onDecryptionKeyChange={setDecryptKeyState}
+                />
+              </div>
+            ),
+          },
+        ]}
+      />
 
       {/* 分割ウィザード */}
       <SplitWizardModal
