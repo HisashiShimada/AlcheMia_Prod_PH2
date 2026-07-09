@@ -59,6 +59,7 @@ export interface DepartmentUIRecord {
   displayName: string;
   updatedAt?: string;
   isActive: boolean;
+  representativeName?: string;
 }
 
 /**
@@ -75,6 +76,7 @@ export interface CreateDepartmentRequest {
   departmentCd: string;
   departmentName: string;
   isActive?: boolean;
+  representativeName?: string;
 }
 
 /**

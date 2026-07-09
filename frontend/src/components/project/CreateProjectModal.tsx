@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   Form,
   Input,
+  Select,
   Space,
   Typography,
   Alert,
@@ -15,6 +16,14 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import type { CreateProjectData } from '@/types/project';
 
 const { Text } = Typography;
+
+/**
+ * チーム情報の型定義（/api/v1/department-units/my-teams レスポンス）
+ */
+interface TeamOption {
+  departmentUnitId: string;
+  unitName: string;
+}
 
 /**
  * CreateProjectModalのProps型定義
@@ -49,6 +58,28 @@ export default function CreateProjectModal({
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+
+  // モーダルが開いた際にチーム一覧を取得
+  useEffect(() => {
+    if (!open) return;
+    setTeamsLoading(true);
+    fetch('/api/v1/department-units/my-teams', { credentials: 'include' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<TeamOption[]>;
+      })
+      .then((data) => setTeams(data))
+      .catch(() => {
+        // API未実装時はダミーデータを使用
+        setTeams([
+          { departmentUnitId: 'rd-materials', unitName: '材料解析チーム' },
+          { departmentUnitId: 'data-proc',    unitName: 'データ処理班' },
+        ]);
+      })
+      .finally(() => setTeamsLoading(false));
+  }, [open]);
 
   // フォーム送信ハンドラ
   const handleSubmit = async () => {
@@ -73,6 +104,7 @@ export default function CreateProjectModal({
         owner: currentUser.name,
         department: currentUser.department,
         organizationId: currentUser.organizationId,
+        teamId: values.teamId || undefined,
       };
       
       // 親コンポーネントの送信ハンドラを呼び出し
@@ -184,6 +216,29 @@ export default function CreateProjectModal({
               data-testid="create-project-description-input"
             />
           </Form.Item>
+
+          {/* チーム選択 */}
+          <Form.Item
+            name="teamId"
+            label="チーム"
+          >
+            <Select
+              placeholder="選択なし（制限なし）"
+              allowClear
+              loading={teamsLoading}
+              data-testid="create-project-team-select"
+              options={teams.map((team) => ({
+                value: team.departmentUnitId,
+                label: team.unitName,
+              }))}
+            />
+          </Form.Item>
+          <Text
+            type="secondary"
+            style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 8 }}
+          >
+            チームを選択するとそのメンバーのみ閲覧できます。未選択の場合は部署全員が閲覧できます。
+          </Text>
         </Form>
       </Space>
     </Modal>

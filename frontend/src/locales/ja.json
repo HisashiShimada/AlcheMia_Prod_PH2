@@ -106,7 +106,7 @@
         "projectManagement": "プロジェクト管理",
         "formatManagement": "フォーマット管理",
         "progressMonitoring": "進捗確認",
-        "templateManagement": "名前空間管理",
+        "namespaceManagement": "名前空間管理",
         "keyManagement": "鍵管理"
       }
     },
@@ -984,7 +984,13 @@
       "chiefUserEmail": "代表者メールアドレス",
       "chiefUserEmailRequired": "代表者メールアドレスを入力してください",
       "organizationInfo": "組織情報",
-      "chiefInfo": "代表者情報"
+      "chiefInfo": "代表者情報",
+      "namespaceInfo": "名前空間情報",
+      "namespacePrefix": "名前空間Prefix",
+      "namespacePrefixPlaceholder": "例: MyCompany",
+      "namespaceUri": "名前空間URI",
+      "namespaceUriPlaceholder": "例: https://www.example.com/",
+      "namespaceUriRequired": "名前空間Prefixを入力した場合、URIも入力してください"
     },
     "messages": {
       "fetchError": "組織データの取得に失敗しました",
@@ -1105,7 +1111,13 @@
       "roleRequired": "ロールを選択してください",
       "rolePlaceholder": "ロールを選択",
       "isActive": "アクティブ判定",
-      "isActiveRequired": "アクティブ判定を選択してください"
+      "isActiveRequired": "アクティブ判定を選択してください",
+      "namespacePrefix": "名前空間Prefix",
+      "namespacePrefixPlaceholder": "例: MyCompany",
+      "namespacePrefixHelp": "ユーザー固有の名前空間Prefixを登録します（任意）",
+      "namespaceUri": "名前空間URI",
+      "namespaceUriPlaceholder": "例: https://www.example.com/",
+      "namespaceUriRequired": "名前空間Prefixを入力した場合、URIも入力してください"
     },
     "messages": {
       "fetchError": "ユーザー一覧の取得に失敗しました",

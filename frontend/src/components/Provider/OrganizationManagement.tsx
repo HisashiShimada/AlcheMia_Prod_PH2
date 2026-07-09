@@ -26,9 +26,11 @@ import {
   ReloadOutlined,
   UploadOutlined,
   DownloadOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { createApiClient } from '@/utils/authUtils';
+import { generateNamespaceUri } from '@/utils/namespaceUriGenerator';
 import { formatDateTime } from '@/utils/formatUtils';
 import { getSystemConfig } from '@/services/systemConfigApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
@@ -39,6 +41,31 @@ import type { OptionType } from '@/types/common';
 
 const { Text } = Typography;
 const { useToken } = theme;
+
+// ── 新規追加ダイアログ用: 名前空間フィールド（Prefix + URI自動生成）
+interface AddFormNamespaceFieldsProps {
+  form: ReturnType<typeof Form.useForm>[0];
+}
+function AddFormNamespaceFields({ form }: AddFormNamespaceFieldsProps) {
+  const watchedOrgCd: string = Form.useWatch('organizationCd', form) ?? '';
+  const autoUri = generateNamespaceUri(watchedOrgCd, undefined);
+  return (
+    <>
+      <Form.Item label="名前空間URI（自動生成）">
+        <Input
+          value={autoUri || '（組織CDを入力すると自動生成されます）'}
+          readOnly
+          style={{
+            backgroundColor: '#f5f5f5',
+            color: autoUri ? '#333' : '#aaa',
+            cursor: 'default',
+          }}
+          prefix={<LinkOutlined style={{ color: '#aaa' }} />}
+        />
+      </Form.Item>
+    </>
+  );
+}
 
 export default function OrganizationManagement() {
   const { modal, message: messageApi } = App.useApp();
@@ -979,6 +1006,8 @@ export default function OrganizationManagement() {
               >
                 <Input autoComplete="off" />
               </Form.Item>
+              <Divider>{t('organizationManagement.form.namespaceInfo')}</Divider>
+              <AddFormNamespaceFields form={form} />
             </>
           )}
         </Form>

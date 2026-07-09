@@ -1,0 +1,30 @@
+{
+  "dept-rd": [
+    { "userId": "user-001", "userName": "山田 太郎", "email": "yamada@example.com", "departmentUnitId": "dept-rd" },
+    { "userId": "user-002", "userName": "佐藤 花子", "email": "sato@example.com", "departmentUnitId": "dept-rd" },
+    { "userId": "user-003", "userName": "鈴木 一郎", "email": "suzuki@example.com", "departmentUnitId": "dept-rd" },
+    { "userId": "user-004", "userName": "田中 美咲", "email": "tanaka@example.com", "departmentUnitId": "dept-rd" },
+    { "userId": "user-005", "userName": "伊藤 健二", "email": "ito@example.com", "departmentUnitId": "dept-rd" }
+  ],
+  "dept-mfg": [
+    { "userId": "user-006", "userName": "渡辺 雅人", "email": "watanabe@example.com", "departmentUnitId": "dept-mfg" },
+    { "userId": "user-007", "userName": "中村 沙織", "email": "nakamura@example.com", "departmentUnitId": "dept-mfg" },
+    { "userId": "user-008", "userName": "小林 拓也", "email": "kobayashi@example.com", "departmentUnitId": "dept-mfg" }
+  ],
+  "dept-qa": [
+    { "userId": "user-009", "userName": "加藤 由美", "email": "kato@example.com", "departmentUnitId": "dept-qa" },
+    { "userId": "user-010", "userName": "吉田 誠", "email": "yoshida@example.com", "departmentUnitId": "dept-qa" }
+  ],
+  "rd-materials": [
+    { "userId": "user-001", "userName": "山田 太郎", "email": "yamada@example.com", "departmentUnitId": "rd-materials" },
+    { "userId": "user-002", "userName": "佐藤 花子", "email": "sato@example.com", "departmentUnitId": "rd-materials" },
+    { "userId": "user-003", "userName": "鈴木 一郎", "email": "suzuki@example.com", "departmentUnitId": "rd-materials" },
+    { "userId": "user-004", "userName": "田中 美咲", "email": "tanaka@example.com", "departmentUnitId": "rd-materials" },
+    { "userId": "user-005", "userName": "伊藤 健二", "email": "ito@example.com", "departmentUnitId": "rd-materials" }
+  ],
+  "rd-analysis": [
+    { "userId": "user-010", "userName": "木村 涼子（自分）", "email": "kimura@example.com", "departmentUnitId": "rd-analysis" },
+    { "userId": "user-011", "userName": "高橋 雄一", "email": "takahashi@example.com", "departmentUnitId": "rd-analysis" },
+    { "userId": "user-012", "userName": "松本 由里", "email": "matsumoto@example.com", "departmentUnitId": "rd-analysis" }
+  ]
+}

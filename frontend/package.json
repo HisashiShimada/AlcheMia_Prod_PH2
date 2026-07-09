@@ -38,6 +38,7 @@
     "react-rnd": "^10.5.2",
     "reactflow": "^11.11.4",
     "uuid": "^13.0.0",
+    "wanakana": "^5.3.1",
     "xml-js": "^1.6.11"
   },
   "devDependencies": {

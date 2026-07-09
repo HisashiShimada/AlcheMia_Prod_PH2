@@ -44,7 +44,6 @@ import useDraftManager from '../../hooks/useDraftManager';
 import DraftManager from './DraftManager';
 import SaveConfirmDialog from './SaveConfirmDialog';
 import ValidationPanel from './ValidationPanel';
-import NamespaceMaimlEditor from '../namespace/NamespaceMaimlEditor';
 import XMLViewerWrapper from './XMLViewerWrapper';
 import { convertReactFlowToMaiML } from '../../utils/reactFlowToMaiml';
 import { convertMultipleMethodsToMaiML } from '../../utils/multiMethodConverter';
@@ -3592,8 +3591,6 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
     };
   }, [addTemplate, deleteTemplate, updateTemplate, allTemplates]);
   
-  const [nsEditorOpen, setNsEditorOpen] = useState(false);
-
   const { token } = theme.useToken();
   
   return (
@@ -3649,13 +3646,6 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           lastAutoSaveTime={lastAutoSaveTime !== null ? new Date(lastAutoSaveTime) : null}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
-          onOpenNamespaceEditor={() => setNsEditorOpen(true)}
-        />
-
-        {/* 名前空間エディター（モーダル） */}
-        <NamespaceMaimlEditor
-          open={nsEditorOpen}
-          onClose={() => setNsEditorOpen(false)}
         />
         
         {/* Method管理タブUI - 共通テンプレート表示時は非表示 */}

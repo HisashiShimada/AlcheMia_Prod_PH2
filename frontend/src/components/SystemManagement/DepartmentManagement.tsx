@@ -23,9 +23,11 @@ import {
   UploadOutlined,
   DownloadOutlined,
   EditOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { formatDateTime } from '@/utils/formatUtils';
+import { generateNamespaceUri } from '@/utils/namespaceUriGenerator';
 import { getDepartmentConfig } from '@/types/departmentTypes';
 import type { DepartmentUIRecord, MasterRecord, CreateDepartmentRequest } from '@/types/departmentTypes';
 import { getMenuPermission } from '@/utils/menuPermissions';
@@ -42,6 +44,56 @@ import {
 } from '@/services/departmentApiService';
 
 const { Text } = Typography;
+
+// ── 部署追加/編集ダイアログ用: 名前空間フィールド（Prefix + URI自動生成）
+interface DeptFormNamespaceFieldsProps {
+  form: ReturnType<typeof Form.useForm>[0];
+  isEditing: boolean;        // 編集モードか追加モードか
+  editingDeptId?: string;    // 編集時の部署CD（確定済み）
+}
+function DeptFormNamespaceFields({ form, isEditing, editingDeptId }: DeptFormNamespaceFieldsProps) {
+  const watchedDeptId: string = Form.useWatch('departmentId', form) ?? '';
+
+  // ログイン中ユーザーの organizationCd を localStorage から取得
+  const organizationCd: string = (() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const raw = localStorage.getItem('userInfo');
+      if (!raw) return '';
+      const info = JSON.parse(raw) as { organizationCd?: string };
+      return info.organizationCd ?? '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const deptId = editingDeptId ?? watchedDeptId;
+  // URI にはPrefixを含めない（組織CD / 部署CD のみ）
+  const autoUri = generateNamespaceUri(organizationCd, deptId || undefined);
+
+  // 編集モード: 名前空間フィールドは表示しない
+  if (isEditing) {
+    return null;
+  }
+
+  // 追加モード: URI は自動生成で読み取り専用
+  return (
+    <>
+      <Form.Item label="名前空間URI（自動生成）">
+        <Input
+          value={autoUri || '（部署CDを入力すると自動生成されます）'}
+          readOnly
+          style={{
+            backgroundColor: '#f5f5f5',
+            color: autoUri ? '#333' : '#aaa',
+            cursor: 'default',
+          }}
+          prefix={<LinkOutlined style={{ color: '#aaa' }} />}
+        />
+      </Form.Item>
+    </>
+  );
+}
 
 /**
  * 部署管理画面のコンポーネント
@@ -67,12 +119,53 @@ export default function DepartmentManagement() {
   // 設定情報を取得
   const config = getDepartmentConfig();
 
+  // ダミー代表者名リスト（テーブル行への付与用）
+  const DUMMY_REPRESENTATIVES = [
+    '山田 太郎',
+    '鈴木 花子',
+    '佐藤 一郎',
+    '田中 美咲',
+    '伊藤 健二',
+  ];
+
+  /**
+   * 部署CDに応じたダミーメンバーリストを返す
+   * TODO: 将来的にはAPIで「その部署に所属するメンバー」を取得する
+   */
+  const getDummyMembersForDepartment = (departmentId: string) => {
+    // 部署CDごとに異なるダミーメンバーを返す（実装イメージを見せるため）
+    const allMembers = [
+      { value: '山田 太郎', label: '山田 太郎' },
+      { value: '鈴木 花子', label: '鈴木 花子' },
+      { value: '佐藤 一郎', label: '佐藤 一郎' },
+      { value: '田中 美咲', label: '田中 美咲' },
+      { value: '伊藤 健二', label: '伊藤 健二' },
+      { value: '中村 優子', label: '中村 優子' },
+      { value: '小林 正樹', label: '小林 正樹' },
+    ];
+    // 部署CDのハッシュ値でメンバーを絞り込む（ダミー実装）
+    const hash = departmentId.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const startIdx = hash % allMembers.length;
+    const count = 3 + (hash % 3); // 3〜5名
+    const members: typeof allMembers = [];
+    for (let i = 0; i < count; i++) {
+      members.push(allMembers[(startIdx + i) % allMembers.length]);
+    }
+    return members;
+  };
+
   // 部署一覧を取得
   const fetchDepartments = async () => {
     try {
       setLoading(true);
-      const data = await fetchMasters();
-      setDepartments(data as unknown as DepartmentUIRecord[]);
+      const rawData = await fetchMasters();
+      // ダミーの代表者名を付与（APIにフィールドがない場合の仮実装）
+      const data = (rawData as unknown as DepartmentUIRecord[]).map((dept, idx) => ({
+        ...dept,
+        representativeName:
+          dept.representativeName ?? DUMMY_REPRESENTATIVES[idx % DUMMY_REPRESENTATIVES.length],
+      }));
+      setDepartments(data);
       console.log('Loaded departments from API:', data.length, 'records');
     } catch (error) {
       console.error('Fetch error:', error);
@@ -145,6 +238,14 @@ export default function DepartmentManagement() {
         ),
       },
       {
+        title: <div style={{ textAlign: 'center' }}>代表者</div>,
+        dataIndex: 'representativeName',
+        key: 'representativeName',
+        width: 200,
+        align: 'left',
+        render: (text: string) => text || '-',
+      },
+      {
         title: <div style={{ textAlign: 'center' }}>{t('departmentManagement.columns.updatedAt')}</div>,
         dataIndex: 'updatedAt',
         key: 'updatedAt',
@@ -197,6 +298,7 @@ export default function DepartmentManagement() {
     form.resetFields();
     form.setFieldsValue({
       isActive: true,
+      representativeName: '山田 太郎', // TODO: 将来的にはログインユーザー名を取得して設定する
     });
     setIsModalVisible(true);
   };
@@ -351,6 +453,7 @@ export default function DepartmentManagement() {
         await updateMaster(editingRecord.departmentId, {
           departmentName: values.displayName,
           isActive: values.isActive,
+          representativeName: values.representativeName ?? null,
         } as unknown as MasterRecord);
         await fetchDepartments();
         message.success(t('departmentManagement.messages.saveSuccess'));
@@ -360,6 +463,7 @@ export default function DepartmentManagement() {
           departmentCd: values.departmentId,
           departmentName: values.displayName,
           isActive: values.isActive !== undefined ? values.isActive : true,
+          representativeName: values.representativeName ?? undefined,
         };
         await createMaster(createRequest as unknown as MasterRecord);
         await fetchDepartments();
@@ -522,6 +626,26 @@ export default function DepartmentManagement() {
             rules={[{ required: true, message: t('departmentManagement.form.departmentNameRequired') }]}
           >
             <Input placeholder={t('departmentManagement.form.departmentNamePlaceholder')} />
+          </Form.Item>
+
+          <DeptFormNamespaceFields
+            form={form}
+            isEditing={!!editingDepartment}
+            editingDeptId={editingDepartment?.departmentId}
+          />
+
+          <Form.Item name="representativeName" label="代表者">
+            {editingDepartment ? (
+              // 編集モード: その部署に所属するメンバーをプルダウンで選択
+              <Select
+                placeholder="代表者を選択（任意）"
+                allowClear
+                options={getDummyMembersForDepartment(editingDepartment.departmentId)}
+              />
+            ) : (
+              // 追加モード: テキスト入力（所属メンバーがまだいないため）
+              <Input placeholder="代表者名を入力（任意）" maxLength={128} allowClear />
+            )}
           </Form.Item>
 
           <Form.Item name="isActive" label={t('departmentManagement.form.status')}>

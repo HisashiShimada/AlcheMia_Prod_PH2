@@ -36,6 +36,8 @@ export interface CreateUserRequest {
   roleCd: string;
   isActive?: boolean;
   password?: string; // パスワード（オプション）
+  namespacePrefix?: string; // 名前空間Prefix（オプション）
+  namespaceUri?: string; // 名前空間URI（オプション）
 }
 
 /**

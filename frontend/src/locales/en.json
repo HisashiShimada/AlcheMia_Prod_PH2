@@ -106,7 +106,7 @@
         "projectManagement": "Project Management",
         "formatManagement": "Format Management",
         "progressMonitoring": "Progress Monitoring",
-        "templateManagement": "Evaluation Criteria Management",
+        "namespaceManagement": "Namespace Management",
         "keyManagement": "Key Management"
       }
     },
@@ -987,7 +987,12 @@
       "chiefUserEmail": "Chief User Email",
       "chiefUserEmailRequired": "Please enter chief user email",
       "organizationInfo": "Organization Information",
-      "chiefInfo": "Chief User Information"
+      "chiefInfo": "Chief User Information",
+      "namespacePrefix": "Namespace Prefix",
+      "namespacePrefixPlaceholder": "e.g. MyCompany",
+      "namespaceUri": "Namespace URI",
+      "namespaceUriPlaceholder": "e.g. https://www.example.com/",
+      "namespaceUriRequired": "If you enter a Namespace Prefix, you must also enter a URI"
     },
     "messages": {
       "fetchError": "Failed to fetch organization data",
@@ -1108,7 +1113,13 @@
       "roleRequired": "Please select a role",
       "rolePlaceholder": "Select role",
       "isActive": "Active Status",
-      "isActiveRequired": "Please select active status"
+      "isActiveRequired": "Please select active status",
+      "namespacePrefix": "Namespace Prefix",
+      "namespacePrefixPlaceholder": "e.g. MyCompany",
+      "namespacePrefixHelp": "Register a user-specific namespace prefix (optional)",
+      "namespaceUri": "Namespace URI",
+      "namespaceUriPlaceholder": "e.g. https://www.example.com/",
+      "namespaceUriRequired": "If you enter a Namespace Prefix, you must also enter a URI"
     },
     "messages": {
       "fetchError": "Failed to fetch user list",
