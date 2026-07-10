@@ -61,6 +61,35 @@ export interface Project {
 }
 
 /**
+ * organization_groupテーブルの型定義
+ *
+ * @remarks
+ * DDL: docs/design/db/ddl/organization_group.sql
+ * 主キー: (organization_id, organization_group_cd)
+ */
+export interface OrganizationGroup {
+  /** 組織ID（主キー、UUID） */
+  organization_id: string;
+  /** 組織階層グループCD（主キー） */
+  organization_group_cd: string;
+  /** 組織階層グループ名 */
+  organization_group_name: string;
+  /** 代表者ユーザID */
+  chief_user_id: string;
+  /** 親階層グループCD */
+  parent_group_cd: string | null;
+  /** レイヤー */
+  layer: string | null;
+  /** 作成者ユーザID */
+  create_user_id: string | null;
+  /** 作成日時 */
+  create_at: Date | null;
+  /** 更新者ユーザID */
+  update_user_id: string | null;
+  /** 更新日時 */
+  update_at: Date | null;
+}
+/**
  * project_task_detailテーブルの型定義
  * 
  * @remarks

@@ -41,6 +41,7 @@ import systemConfigRoutes from './routes/systemConfigRoutes';
 import encryptionRoutes from './routes/encryptionRoutes';
 import namespaceRoutes from './routes/namespaceRoutes';
 import departmentUnitRoutes from './routes/departmentUnitRoutes';
+import organizationGroupRoutes from './routes/organizationGroupRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -154,6 +155,9 @@ async function startServer() {
 
     // Mount department unit routes
     app.use('/api/v1/department-units', departmentUnitRoutes);
+
+    // Mount organization group routes
+    app.use('/api/v1/organization-groups', organizationGroupRoutes);
 
     // エラーハンドリングミドルウェア（全ルートの後に登録する必要がある）
     app.use(errorHandler);
