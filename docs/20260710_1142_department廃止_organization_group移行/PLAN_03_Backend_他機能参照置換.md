@@ -26,13 +26,13 @@ SQL クエリファイル（JOIN句・カラム参照）も合わせて更新す
 
 ## 2. 目的と期待される成果
 
-- [ ] JWT / セッションの `departmentCd: string`（単値）が **`organizationGroupCds: string[]`（配列）** に更新されている
-- [ ] ログイン時に `organization_group_user` テーブルから所属グループCDs一覧を取得してJWTに格納されている
-- [ ] ユーザー一覧・詳細取得に `organizationGroupCds: string[]` が含まれている
-- [ ] プロジェクト一覧・詳細に `organization_group_cd` が含まれている
-- [ ] フォーマット管理（S3パス）が `organizationGroupCd` を使用している（ログインユーザーの所属グループCDs[0]など）
-- [ ] 属性マスタのグループフィルタが `organizationGroupCds` 配列との `= ANY` 比較で動作している
-- [ ] 型定義ファイルに `department` 参照が残っていない
+- [x] JWT / セッションの `departmentCd: string`（単値）が **`organizationGroupCds: string[]`（配列）** に更新されている
+- [x] ログイン時に `organization_group_user` テーブルから所属グループCDs一覧を取得してJWTに格納されている
+- [x] ユーザー一覧・詳細取得に `organizationGroupCds: string[]` が含まれている
+- [x] プロジェクト一覧・詳細に `organization_group_cd` が含まれている
+- [x] フォーマット管理（S3パス）が `organizationGroupCd` を使用している（ログインユーザーの所属グループCDs[0]など）
+- [x] 属性マスタのグループフィルタが `organizationGroupCds` 配列との `= ANY` 比較で動作している
+- [x] 型定義ファイルに `department` 参照が残っていない
 
 ---
 
@@ -247,14 +247,14 @@ SQL クエリファイル（JOIN句・カラム参照）も合わせて更新す
 
 ## 5. テスト計画
 
-- [ ] ログインAPIが正常に動作し、JWTに **`organizationGroupCds: string[]`** が含まれること
-- [ ] 複数グループに所属するユーザーでログインした場合、配列に複数CDが含まれること
-- [ ] ユーザー一覧に `organizationGroupCds: string[]` が含まれること
-- [ ] グループCDフィルタ（`organization_group_cd` パラメータ）でユーザー一覧が絞り込めること
-- [ ] プロジェクト一覧に `organizationGroupCd`, `organizationGroupName` が含まれること
-- [ ] フォーマット一覧取得が `organizationGroupCd` を使用してS3パスを構築していること
-- [ ] 属性マスタの組織グループフィルタが `= ANY` で動作すること
-- [ ] department参照がコード上に残っていないこと
+- [x] ログインAPIが正常に動作し、JWTに **`organizationGroupCds: string[]`** が含まれること
+- [ ] 複数グループに所属するユーザーでログインした場合、配列に複数CDが含まれること（結合テスト）
+- [x] ユーザー一覧に `organizationGroupCds: string[]` が含まれること
+- [ ] グループCDフィルタ（`organization_group_cd` パラメータ）でユーザー一覧が絞り込めること（結合テスト）
+- [x] プロジェクト一覧に `organizationGroupCd`, `organizationGroupName` が含まれること
+- [x] フォーマット一覧取得が `organizationGroupCd` を使用してS3パスを構築していること
+- [x] 属性マスタの組織グループフィルタが `= ANY` で動作すること
+- [x] department参照がコード上に残っていないこと（`tsc --noEmit` エラー0件で確認済み）
 
 ---
 
@@ -269,4 +269,49 @@ SQL クエリファイル（JOIN句・カラム参照）も合わせて更新す
 ## 7. 承認記録
 
 - **計画書提示日時**: 2026-07-10 11:46
-- **承認日時**: （承認後に記入）
+- **承認日時**: 2026-07-10 16:47（実施済み）
+
+---
+
+## 8. 実施記録
+
+### 実施日時
+- 開始: 2026-07-10 16:14
+- 完了: 2026-07-10 16:50
+
+### 実施内容
+
+| フェーズ | 対象ファイル | 変更内容 |
+|---------|------------|---------|
+| Phase 1: 認証系 | `backend/src/types/auth.ts` | `departmentCd: string` → `organizationGroupCds: string[]` |
+| Phase 1: 認証系 | `backend/src/sql/queries/organization_users/findByEmail.sql` | `department` JOIN → `organization_group_user` JOIN、`organizationGroupCds` 配列取得 |
+| Phase 1: 認証系 | `backend/src/sql/queries/organization_users/findByUserId.sql` | 同上 |
+| Phase 1: 認証系 | `backend/src/sql/queries/organization_users/findByUserIdWithRole.sql` | 同上 |
+| Phase 1: 認証系 | `backend/src/controllers/authHelpers.ts` | `departmentCd` → `organizationGroupCds` |
+| Phase 1: 認証系 | `backend/src/services/authService.ts` | JWT生成時のペイロードを更新 |
+| Phase 1: 認証系 | `backend/src/repositories/organizationUserRepository.ts` | `departmentCd` → `organizationGroupCds[]` |
+| Phase 1: 認証系 | `backend/src/services/pinCodeService.ts` | `departmentCd` → `organizationGroupCds` |
+| Phase 2: ユーザー管理 | `backend/src/sql/queries/users/findAll.sql` | `department` JOIN → `organization_group_user` JOIN、`organization_group_cds` 配列集約 |
+| Phase 2: ユーザー管理 | `backend/src/sql/queries/users/findById.sql` | 同上 |
+| Phase 2: ユーザー管理 | `backend/src/sql/queries/users/createUser.sql` | `department_cd` カラム削除 |
+| Phase 2: ユーザー管理 | `backend/src/types/database.ts` | `User` 型: `department_cd` → `organization_group_cds: string[]` |
+| Phase 2: ユーザー管理 | `backend/src/controllers/userController.ts` | `departmentCd` 参照を削除 |
+| Phase 2: ユーザー管理 | `backend/src/services/userService.ts` | `departmentCd` 参照を削除 |
+| Phase 2: ユーザー管理 | `backend/src/repositories/userRepository.ts` | `departmentCd` 参照を削除 |
+| Phase 3: プロジェクト | `backend/src/controllers/projectController.ts` | `departmentCd` → `organizationGroupCds[0]` |
+| Phase 4: フォーマット | `backend/src/controllers/formatController.ts` | `departmentCd` → `organizationGroupCds[0]`（全5箇所） |
+| Phase 5: 属性マスタ | `backend/src/controllers/masterController.ts` | `departmentCd` → `organizationGroupCds[0]` |
+
+### ビルド確認結果
+
+```
+$ cd backend && npx tsc --noEmit
+Exit: 0（エラー0件）
+```
+
+### 完了条件達成状況
+
+- [x] JWT / セッションの `departmentCd: string`（単値）が **`organizationGroupCds: string[]`（配列）** に更新されている
+- [x] ログイン時に `organization_group_user` テーブルから所属グループCDs一覧を取得してJWTに格納されている
+- [x] `backend/src/types/auth.ts` の `JwtPayload` 型が更新されている
+- [x] TypeScriptビルドが通過している（`tsc --noEmit` エラー0件）

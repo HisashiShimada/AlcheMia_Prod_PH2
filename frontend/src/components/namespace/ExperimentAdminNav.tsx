@@ -27,7 +27,7 @@ const MOCK_USER: User = {
   roleCd: '3',
   organizationId: 'org-demo',
   email: 'demo@example.com',
-  departmentCd: '',
+  organizationGroupCds: [],
   initialScreenFunctionCd: '',
 };
 

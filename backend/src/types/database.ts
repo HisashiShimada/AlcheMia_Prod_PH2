@@ -349,18 +349,11 @@ export interface User {
   /** メールアドレス */
   mail_address: string;
   
-  /** 部署CD（外部キー） */
-  department_cd: string | null;
-  
-  /** 部署名（JOIN結果） */
-  department_name: string | null;
-  
   /** ロールCD（外部キー） */
   role_cd: string;
   
   /** ロール名（JOIN結果） */
   role_name: string | null;
-  
   
   /** アクティブ状態 */
   is_active: boolean;
@@ -373,6 +366,9 @@ export interface User {
   
   /** 更新日時 */
   update_at: Date;
+
+  /** 所属組織グループCD一覧（多対多） */
+  organization_group_cds: string[];
 }
 
 /**

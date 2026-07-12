@@ -1087,12 +1087,12 @@ export async function getAttributes(req: Request, res: Response, next: NextFunct
     if (search) filters.search = String(search);
     if (is_active !== undefined) filters.isActive = is_active === 'true' || is_active === '1';
 
-    // apply_department_filter=true の場合のみ部署フィルタを適用
-    // ログインユーザーの部署コードでフィルタリング（マスタ管理画面では使用しない）
+    // apply_department_filter=true の場合のみ組織グループフィルタを適用
+    // ログインユーザーの組織グループコードでフィルタリング（マスタ管理画面では使用しない）
     if (apply_department_filter === 'true') {
-      const departmentCd = req.user?.departmentCd;
-      if (departmentCd) {
-        filters.departmentCd = departmentCd;
+      const organizationGroupCd = req.user?.organizationGroupCds?.[0];
+      if (organizationGroupCd) {
+        filters.departmentCd = organizationGroupCd;
       }
     }
 

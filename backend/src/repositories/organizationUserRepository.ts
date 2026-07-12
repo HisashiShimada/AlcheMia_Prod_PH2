@@ -14,7 +14,8 @@ export interface OrganizationUser {
   role_cd: string;
   organization_id: string;
   is_active: boolean;
-  department_cd: string | null;
+  /** 所属組織グループCD一覧（多対多） */
+  organization_group_cds: string[];
   corporation_id: string | null;
 }
 

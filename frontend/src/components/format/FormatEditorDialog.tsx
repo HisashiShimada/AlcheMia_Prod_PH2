@@ -888,8 +888,8 @@ const FormatEditorDialog: React.FC<FormatEditorDialogProps> = ({
       const response = await fetchTemplateFiles();
       // カテゴリに一致するフォルダのファイルを抽出
       const allFiles: FormatTemplateFile[] = [];
-      response.departments.forEach(dept => {
-        dept.folders
+      response.organizationGroups.forEach(group => {
+        group.folders
           .filter(folder => folder.folderName === category)
           .forEach(folder => {
             allFiles.push(...folder.files);

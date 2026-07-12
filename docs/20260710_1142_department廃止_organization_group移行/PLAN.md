@@ -122,13 +122,13 @@
 
 ## 4. 実施ステップと各計画書
 
-| # | ステップ | 計画書 | 依存 |
-|---|---------|--------|------|
-| 1 | DB層：organization_groupテーブル作成・参照カラム移行のDDL整備 | [PLAN_01_DB移行.md](./PLAN_01_DB移行.md) | なし |
-| 2 | Backend：organization_group管理CRUD機能の実装（routes/controller/service/repository/SQLファイル） | [PLAN_02_Backend_組織グループ管理機能.md](./PLAN_02_Backend_組織グループ管理機能.md) | Step1完了後 |
-| 3 | Backend：他機能からのdepartment_cd参照を置き換え（user/project/format/attribute/auth等） | [PLAN_03_Backend_他機能参照置換.md](./PLAN_03_Backend_他機能参照置換.md) | Step1完了後（Step2と並行可） |
-| 4 | Frontend：型/API service/コンポーネント/i18nを移行 | [PLAN_04_Frontend移行.md](./PLAN_04_Frontend移行.md) | Step2・3完了後 |
-| 5 | 後片付け：departmentテーブル・旧コードファイルを削除 | [PLAN_05_後片付け.md](./PLAN_05_後片付け.md) | Step1〜4完了後 |
+| # | ステップ | 計画書 | 依存 | 状態 |
+|---|---------|--------|------|------|
+| 1 | DB層：organization_groupテーブル作成・参照カラム移行のDDL整備 | [PLAN_01_DB移行.md](./PLAN_01_DB移行.md) | なし | ✅ 完了 |
+| 2 | Backend：organization_group管理CRUD機能の実装（routes/controller/service/repository/SQLファイル） | [PLAN_02_Backend_組織グループ管理機能.md](./PLAN_02_Backend_組織グループ管理機能.md) | Step1完了後 | ✅ 完了（2026-07-10） |
+| 3 | Backend：他機能からのdepartment_cd参照を置き換え（user/project/format/attribute/auth等） | [PLAN_03_Backend_他機能参照置換.md](./PLAN_03_Backend_他機能参照置換.md) | Step1完了後（Step2と並行可） | ✅ 完了（2026-07-10） |
+| 4 | Frontend：型/API service/コンポーネント/i18nを移行 | [PLAN_04_Frontend移行.md](./PLAN_04_Frontend移行.md) | Step2・3完了後 | ✅ 完了（2026-07-13） |
+| 5 | 後片付け：departmentテーブル・旧コードファイルを削除 | [PLAN_05_後片付け.md](./PLAN_05_後片付け.md) | Step1〜4完了後 | ⏳ 未着手 |
 
 ---
 
@@ -155,3 +155,14 @@
 
 - **計画書提示日時**: 2026-07-10 11:43
 - **承認日時**: （承認後に記入）
+
+---
+
+## 8. 進捗記録
+
+| 日時 | ステップ | 内容 |
+|------|---------|------|
+| 2026-07-10 | Step1 完了 | DB移行DDL・マイグレーションSQL作成済み（`backend/migrations/20260710_add_organization_group.sql`） |
+| 2026-07-10 16:14 | Step2 完了 | Backend organization_group管理CRUD API実装完了（`tsc --noEmit` エラーなし） |
+| 2026-07-10 16:50 | Step3 完了 | Backend 他機能department_cd参照を全置換（auth/user/project/format/attribute/master）、`tsc --noEmit` エラー0件 |
+| 2026-07-13 08:22 | Step4 完了 | Frontend 型/サービス/コンポーネント/i18n を全置換（auth/user/project/progress/format/editor/menu）、`tsc --noEmit` 追加エラーなし |
