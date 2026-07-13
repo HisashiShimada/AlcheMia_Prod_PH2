@@ -161,6 +161,30 @@ export async function update(data: {
 }
 
 /**
+ * organization_group 子孫CD一覧取得（再帰）
+ *
+ * 指定されたルートグループCD群とその全配下グループのCDを返す。
+ * WITH RECURSIVE を使用して組織階層ツリーを再帰的に辿る。
+ *
+ * @param organizationId - 組織ID
+ * @param rootCds - ルートグループCDの配列（空の場合は空配列を返す）
+ * @returns ルート群とその全配下のグループCDの配列（重複なし）
+ */
+export async function findDescendantCds(
+  organizationId: string,
+  rootCds: string[]
+): Promise<string[]> {
+  // ルートCDが空の場合は0件を返す（グループ未所属ユーザー対策）
+  if (rootCds.length === 0) {
+    return [];
+  }
+  const pool = getPool();
+  const sql = await loadSqlFile('organization_groups/findDescendantCds.sql');
+  const result = await pool.query<{ organization_group_cd: string }>(sql, [organizationId, rootCds]);
+  return result.rows.map((row) => row.organization_group_cd);
+}
+
+/**
  * organization_group 削除
  *
  * @param organizationId - 組織ID

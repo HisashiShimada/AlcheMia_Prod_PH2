@@ -876,12 +876,16 @@ export async function list(req: Request, res: Response): Promise<void> {
     const includeCompleted = req.query.include_completed === 'true';
     const sortBy = (req.query.sort_by as string) || 'create_at';
     const order = (req.query.order as string) || 'desc';
+    const roleCd = (req.user as any).roleCd as string | undefined;
+    const organizationGroupCdsList = req.user!.organizationGroupCds ?? [];
 
     // Service層の呼び出し
     const result = await projectService.list(organizationId, {
       includeCompleted,
       sortBy,
       order: order as 'asc' | 'desc',
+      roleCd,
+      organizationGroupCds: organizationGroupCdsList,
     });
     console.log('Service層呼び出し' + result.success);
 

@@ -11,7 +11,6 @@ import {
   Tag,
   Tabs,
   Typography,
-  Flex,
   theme,
   Modal,
 } from 'antd';
@@ -135,13 +134,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     }
     return 'all';
   }); // all, planning, pending, in_progress, completed
-  const [departmentFilter, setDepartmentFilter] = useState<string>(() => {
-    // ペトリネット編集画面から戻った際に部門フィルタを復元
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('projectManagement_departmentFilter') ?? 'all';
-    }
-    return 'all';
-  }); // 初期値: 全部門
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
     // 編集画面から戻った際に直前の選択状態を復元
     if (typeof window !== 'undefined') {
@@ -293,27 +285,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     }
   }, [projectsData, projectsError]);
 
-  // ユニークな部署リストを取得（CD→名前のマッピング付き）
-  const departments = useMemo(() => {
-    if (!projects || projects.length === 0) {
-      return [];
-    }
-    
-    // 組織グループCDと組織グループ名のマッピングを作成
-    const groupMap = new Map<string, string>();
-    projects.forEach(p => {
-      if (p.organizationGroup && !groupMap.has(p.organizationGroup)) {
-        // 組織グループ名がある場合は名前、ない場合はCDをそのまま使用
-        groupMap.set(p.organizationGroup, p.organizationGroupName || p.organizationGroup);
-      }
-    });
-    
-    // ソート済みの組織グループリストを返す（名前順）
-    return Array.from(groupMap.entries())
-      .sort((a, b) => a[1].localeCompare(b[1], 'ja'))
-      .map(([code, name]) => ({ code, name }));
-  }, [projects]);
-
   // フィルタリングされたプロジェクト一覧
   const filteredProjects = useMemo(() => {
     if (!projects || projects.length === 0) {
@@ -364,15 +335,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         }
       }
 
-      // 組織グループでフィルタリング
-      let matchesDepartment = true;
-      if (departmentFilter !== 'all') {
-        matchesDepartment = project.organizationGroup === departmentFilter;
-      }
-
-      return matchesSearch && matchesCheckout && matchesProjectStatus && matchesDepartment;
+      return matchesSearch && matchesCheckout && matchesProjectStatus;
     });
-  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, departmentFilter, t]);
+  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, t]);
 
   // ソート済みプロジェクト一覧
   const sortedProjects = useMemo(() => {
@@ -986,11 +951,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     if (typeof window === 'undefined') return;
     sessionStorage.setItem('projectManagement_projectStatusFilter', projectStatusFilter);
   }, [projectStatusFilter]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    sessionStorage.setItem('projectManagement_departmentFilter', departmentFilter);
-  }, [departmentFilter]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1856,25 +1816,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             />
           </Space>
 
-          {/* 部門絞込 */}
-          <Space size={4} orientation="horizontal">
-            <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
-              {t('projectManagement.filter_labels.department')}
-            </Text>
-            <Select
-              style={{ width: 150 }}
-              value={departmentFilter}
-              onChange={setDepartmentFilter}
-              options={[
-                { value: 'all', label: t('projectManagement.all') },
-                ...departments.map(dept => ({
-                  value: dept.code,
-                  label: dept.name,
-                })),
-              ]}
-            />
-          </Space>
-
           {/* プロジェクトステータス絞込 */}
           <Space size={4} orientation="horizontal">
             <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
@@ -2090,8 +2031,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<UploadOutlined />}
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenUploadDialog}
-                    disabled={!selectedProject || selectedProject.status === 4}
-                    title={selectedProject?.status === 4 ? t('projectManagement.uploadDisabledTitle') : undefined}
+                    disabled={!selectedProject || selectedProject.status === 4 || selectedProject.isEditable === false}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : selectedProject?.status === 4 ? t('projectManagement.uploadDisabledTitle') : undefined}
                   >
                     {t('projectManagement.upload')}
                   </Button>
@@ -2099,8 +2040,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     type="primary"
                     icon={<EditOutlined />}
                     onClick={handleEditButtonClick}
-                    disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4}
-                    title={selectedProject?.status === 4 ? t('projectManagement.editDisabledTitle') : isProjectCheckedOut ? t('projectManagement.editCheckedOutTitle') : undefined}
+                    disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.isEditable === false}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : selectedProject?.status === 4 ? t('projectManagement.editDisabledTitle') : isProjectCheckedOut ? t('projectManagement.editCheckedOutTitle') : undefined}
                   >
                     {t('projectManagement.edit')}
                   </Button>
@@ -2108,8 +2049,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     danger
                     icon={<DeleteOutlined />}
                     onClick={handleProjectDelete}
-                    disabled={!selectedProject || selectedProject.status === 4}
-                    title={selectedProject?.status === 4 ? t('projectManagement.deleteDisabledTitle') : undefined}
+                    disabled={!selectedProject || selectedProject.status === 4 || selectedProject.isEditable === false}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : selectedProject?.status === 4 ? t('projectManagement.deleteDisabledTitle') : undefined}
                   >
                     {t('projectManagement.deleteButton')}
                   </Button>
@@ -2117,8 +2058,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     type="primary"
                     icon={<FileTextOutlined />}
                     onClick={handleToggleCheckout}
-                    disabled={selectedProject?.status === ProjectStatus.COMPLETED}
-                    title={selectedProject?.status === ProjectStatus.COMPLETED ? t('projectManagement.checkinDisabledTitle') : undefined}
+                    disabled={selectedProject?.status === ProjectStatus.COMPLETED || selectedProject?.isEditable === false}
+                    title={selectedProject?.status === ProjectStatus.COMPLETED ? t('projectManagement.checkinDisabledTitle') : selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                     style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     data-testid="checkout-checkin-button"
                   >
@@ -2139,7 +2080,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       data-testid="maiml-toolbar-unpublish-button"
                       onClick={handleUnpublish}
                       loading={publishStatusLoading || isPolling}
-                      disabled={!selectedProject || publishStatusLoading || isPolling}
+                      disabled={!selectedProject || publishStatusLoading || isPolling || selectedProject?.isEditable === false}
                     >
                       {isPolling ? t('projectManagement.processing') : t('projectManagement.unpublish')}
                     </Button>
@@ -2150,7 +2091,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
                       onClick={handlePublish}
                       loading={publishStatusLoading || isPolling}
-                      disabled={!selectedProject || !(selectedProject?.status === ProjectStatus.REVIEW_WAITING || selectedProject?.status === ProjectStatus.COMPLETED) || publishStatusLoading || isPolling}
+                      disabled={!selectedProject || !(selectedProject?.status === ProjectStatus.REVIEW_WAITING || selectedProject?.status === ProjectStatus.COMPLETED) || publishStatusLoading || isPolling || selectedProject?.isEditable === false}
                     >
                       {isPolling ? t('projectManagement.processing') : t('projectManagement.publish')}
                     </Button>
@@ -2158,7 +2099,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   <Button
                     icon={<EditOutlined />}
                     onClick={() => setRenameModalOpen(true)}
-                    disabled={!selectedProject}
+                    disabled={!selectedProject || selectedProject?.isEditable === false}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                   >
                     {t('projectManagement.renameProject')}
                   </Button>
@@ -2172,14 +2114,16 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   <Button
                     icon={<LockOutlined />}
                     onClick={() => setEncryptionModalOpen(true)}
-                    disabled={!selectedProject}
+                    disabled={!selectedProject || selectedProject?.isEditable === false}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                   >
                     暗号化管理
                   </Button>
                   <Button
                     icon={<SafetyCertificateOutlined />}
                     onClick={() => setSignatureModalOpen(true)}
-                    disabled={!selectedProject}
+                    disabled={!selectedProject || selectedProject?.isEditable === false}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                   >
                     電子署名
                   </Button>

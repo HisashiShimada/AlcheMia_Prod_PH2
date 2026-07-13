@@ -20,6 +20,12 @@ export interface Project {
   ownerEmail?: string;
   organizationGroup: string;
   organizationGroupName?: string;
+  /**
+   * 編集可能かどうか
+   * - SystemAdmin: 常に true
+   * - それ以外: 自分が直接所属するグループのプロジェクトのみ true
+   */
+  isEditable?: boolean;
   isCheckedOut: boolean;
   checkedOutBy: string | null;
   checkedOutAt: string | null;

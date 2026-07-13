@@ -1,7 +1,10 @@
 -- プロジェクト一覧取得（ユーザー名・組織グループ名・タスク数・ファイル数含む）
 -- 使用箇所:
 --   - projectRepository.ts - findAllWithDetails()
--- パラメータ: $1=organizationId, $2=includeCompleted(boolean)
+-- パラメータ: $1=organizationId, $2=includeCompleted(boolean),
+--             $3=visibleGroupCds(text[]|NULL), $4=editableGroupCds(text[]|NULL)
+-- $3 が NULL の場合は全件返す（SystemAdmin用）
+-- $4 が NULL の場合は全プロジェクトを編集可とする（SystemAdmin用）
 -- ORDER BY はRepository層で動的付加（SQLインジェクション対策のためSQLファイルには含めない）
 
 SELECT
@@ -47,7 +50,8 @@ SELECT
       AND fm2.file_key NOT LIKE '%/archive/%'
     ORDER BY fm2.created_at DESC
     LIMIT 1
-  ) AS maiml_file_key
+  ) AS maiml_file_key,
+  ($4::text[] IS NULL OR p.organization_group_cd = ANY($4::text[])) AS is_editable
 FROM project p
 LEFT JOIN project_task_detail ptd
   ON ptd.project_id = p.project_id
@@ -69,6 +73,7 @@ LEFT JOIN organization_user checkout_user
 WHERE p.organization_id = $1
   AND ($2::boolean IS NULL OR
        ($2 = true OR p.project_status != 4))
+  AND ($3::text[] IS NULL OR p.organization_group_cd = ANY($3::text[]))
 GROUP BY
   p.organization_id,
   p.project_id,

@@ -11,6 +11,7 @@ import { escapeHtml } from '../utils/sanitize';
 import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
+import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
@@ -32,6 +33,10 @@ interface ListOptions {
   includeCompleted: boolean;
   sortBy?: string;
   order?: 'asc' | 'desc';
+  /** ユーザーが直接所属する組織グループCDの配列 */
+  organizationGroupCds?: string[];
+  /** ユーザーのロールCD（'ROLE002' = SystemAdmin） */
+  roleCd?: string;
 }
 
 interface ServiceResult<T> {
@@ -183,7 +188,7 @@ export class ProjectService {
         owner: insertResult.owner_user_id ?? '',
         ownerName: undefined,
         ownerEmail: undefined,
-        department: (insertResult as any).organization_group_cd || '',
+        organizationGroup: (insertResult as any).organization_group_cd || '',
         isCheckedOut: insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy:
           insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? insertResult.owner_user_id ?? null : null,
@@ -341,22 +346,78 @@ export class ProjectService {
 
   /**
    * プロジェクト一覧を取得
-   * 
+   *
    * @param organizationId - 組織ID
    * @param options - 取得オプション
    * @returns プロジェクト一覧とページネーション情報
+   *
+   * @remarks
+   * - SystemAdmin（roleCd === 'ROLE002'）は全プロジェクトを閲覧・編集可能
+   * - それ以外のユーザーは、自分が直接所属するグループとその配下グループのプロジェクトのみ閲覧可能
+   * - 直接所属グループのプロジェクトのみ編集可能（is_editable = true）
+   * - 将来的にSystemAdminの判定基準を変更する場合は roleCd === 'ROLE002' の条件を見直すこと
    */
   async list(
     organizationId: string,
     options: ListOptions
   ): Promise<ServiceResult<ProjectListResponse>> {
     try {
-      const { includeCompleted, sortBy = 'create_at', order = 'desc' } = options;
+      const {
+        includeCompleted,
+        sortBy = 'create_at',
+        order = 'desc',
+        organizationGroupCds = [],
+        roleCd,
+      } = options;
+
+      // SystemAdmin（ROLE002）は全件・全編集可能（フィルタなし）
+      const isSystemAdmin = roleCd === 'ROLE002';
+
+      let visibleGroupCds: string[] | null = null;
+      let editableGroupCds: string[] | null = null;
+
+      if (!isSystemAdmin) {
+        // 直接所属グループが空の場合は0件を返す（グループ未所属ユーザー）
+        if (organizationGroupCds.length === 0) {
+          return {
+            success: true,
+            data: {
+              projects: [],
+              pagination: { page: 1, limit: 0, totalItems: 0, totalPages: 1, hasNext: false, hasPrev: false },
+            },
+          };
+        }
+
+        // 直接所属グループのうち最上位ルート群を算出（他の所属グループの子孫を除外）
+        // 例: [A, A-1] が所属グループの場合、A-1 は A の子孫なので A のみをルートとする
+        const allGroups = await organizationGroupRepository.findAll(organizationId);
+        const allGroupMap = new Map(allGroups.map((g) => [g.organization_group_cd, g]));
+
+        // あるグループCDが、他の所属グループの子孫かどうかを判定する関数
+        const isDescendantOfAny = (cd: string, candidates: string[]): boolean => {
+          let current = allGroupMap.get(cd);
+          while (current?.parent_group_cd) {
+            if (candidates.includes(current.parent_group_cd)) return true;
+            current = allGroupMap.get(current.parent_group_cd);
+          }
+          return false;
+        };
+
+        const rootCds = organizationGroupCds.filter(
+          (cd) => !isDescendantOfAny(cd, organizationGroupCds)
+        );
+
+        // ルート群の配下（自身含む）を再帰取得 → 閲覧可能グループ
+        visibleGroupCds = await organizationGroupRepository.findDescendantCds(organizationId, rootCds);
+
+        // 直接所属グループ = 編集可能グループ
+        editableGroupCds = organizationGroupCds;
+      }
 
       // Repository層経由でプロジェクト一覧・総件数を並列取得
       const [projects, totalItems] = await Promise.all([
-        projectRepository.findAllWithDetails(organizationId, includeCompleted, sortBy, order),
-        projectRepository.countAll(organizationId, includeCompleted),
+        projectRepository.findAllWithDetails(organizationId, includeCompleted, sortBy, order, visibleGroupCds, editableGroupCds),
+        projectRepository.countAll(organizationId, includeCompleted, visibleGroupCds),
       ]);
 
       // データを変換（フロントエンドの型に合わせる）
@@ -371,17 +432,18 @@ export class ProjectService {
         owner: row.owner_user_id,
         ownerName: row.owner_user_name || undefined,
         ownerEmail: row.owner_email || undefined,
-        department: row.organization_group_cd || '',
-        departmentName: row.organization_group_name || undefined,
+        organizationGroup: row.organization_group_cd || '',
+        organizationGroupName: row.organization_group_name || undefined,
         isCheckedOut: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? row.checkout_user_id : null,
         checkedOutAt: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
         createdAt: row.create_at ? row.create_at.toISOString() : '',
-        updatedAt: row.update_at ? row.update_at.toISOString() : '', // 後で実装予定
+        updatedAt: row.update_at ? row.update_at.toISOString() : '',
         totalTasks: parseInt(row.task_count, 10),
         completedTasks: parseInt(row.completed_task_count, 10),
         maimlFileKey: row.maiml_file_key || null,
         project_uuid: row.project_uuid || null,
+        isEditable: isSystemAdmin ? true : (row.is_editable === true),
       }));
 
       // ページネーション情報を構築（後方互換のため残す）
