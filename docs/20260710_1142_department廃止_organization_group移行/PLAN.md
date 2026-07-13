@@ -128,7 +128,8 @@
 | 2 | Backend：organization_group管理CRUD機能の実装（routes/controller/service/repository/SQLファイル） | [PLAN_02_Backend_組織グループ管理機能.md](./PLAN_02_Backend_組織グループ管理機能.md) | Step1完了後 | ✅ 完了（2026-07-10） |
 | 3 | Backend：他機能からのdepartment_cd参照を置き換え（user/project/format/attribute/auth等） | [PLAN_03_Backend_他機能参照置換.md](./PLAN_03_Backend_他機能参照置換.md) | Step1完了後（Step2と並行可） | ✅ 完了（2026-07-10） |
 | 4 | Frontend：型/API service/コンポーネント/i18nを移行 | [PLAN_04_Frontend移行.md](./PLAN_04_Frontend移行.md) | Step2・3完了後 | ✅ 完了（2026-07-13） |
-| 5 | 後片付け：departmentテーブル・旧コードファイルを削除 | [PLAN_05_後片付け.md](./PLAN_05_後片付け.md) | Step1〜4完了後 | ⏳ 未着手 |
+| 5 | 後片付け：departmentテーブル・旧コードファイルを削除 | [PLAN_05_後片付け.md](./PLAN_05_後片付け.md) | Step6完了後 | ⏳ 未着手 |
+| 6 | SQL残存department参照修正：`project`/`attribute`参照SQLとTS側を修正、createOrganizationUser対応 | [PLAN_06_SQL残存department参照修正.md](./PLAN_06_SQL残存department参照修正.md) | Step1〜4完了後（Step5実施前） | ⏳ 未着手 |
 
 ---
 
