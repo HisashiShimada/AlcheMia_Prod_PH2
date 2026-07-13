@@ -299,17 +299,17 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       return [];
     }
     
-    // 部署CDと部署名のマッピングを作成
-    const departmentMap = new Map<string, string>();
+    // 組織グループCDと組織グループ名のマッピングを作成
+    const groupMap = new Map<string, string>();
     projects.forEach(p => {
-      if (p.department && !departmentMap.has(p.department)) {
-        // 部署名がある場合は名前、ない場合はCDをそのまま使用
-        departmentMap.set(p.department, p.departmentName || p.department);
+      if (p.organizationGroup && !groupMap.has(p.organizationGroup)) {
+        // 組織グループ名がある場合は名前、ない場合はCDをそのまま使用
+        groupMap.set(p.organizationGroup, p.organizationGroupName || p.organizationGroup);
       }
     });
     
-    // ソート済みの部署リストを返す（名前順）
-    return Array.from(departmentMap.entries())
+    // ソート済みの組織グループリストを返す（名前順）
+    return Array.from(groupMap.entries())
       .sort((a, b) => a[1].localeCompare(b[1], 'ja'))
       .map(([code, name]) => ({ code, name }));
   }, [projects]);
@@ -364,10 +364,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         }
       }
 
-      // 部門でフィルタリング
+      // 組織グループでフィルタリング
       let matchesDepartment = true;
       if (departmentFilter !== 'all') {
-        matchesDepartment = project.department === departmentFilter;
+        matchesDepartment = project.organizationGroup === departmentFilter;
       }
 
       return matchesSearch && matchesCheckout && matchesProjectStatus && matchesDepartment;

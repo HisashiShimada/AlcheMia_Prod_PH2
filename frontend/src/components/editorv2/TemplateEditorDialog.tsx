@@ -144,7 +144,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // ✅ Phase 2-2: 名前空間取り込み用State（Reference版に統一）
   const [showNamespaceDialog, setShowNamespaceDialog] = useState(false);
-  const [formatsResponse, setFormatsResponse] = useState<ListFormatsResponse>({ departments: [] });
+  const [formatsResponse, setFormatsResponse] = useState<ListFormatsResponse>({ organizationGroups: [] });
   const [selectedNamespaceFile, setSelectedNamespaceFile] = useState<string>('');
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [importedNamespaces, setImportedNamespaces] = useState<string[]>([]);
@@ -873,7 +873,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     } catch (error) {
       console.error('テンプレートファイル一覧取得エラー:', error);
       message.error(t('formatManagement.messages.file_list_load_failed'));
-      setFormatsResponse({ departments: [] });
+      setFormatsResponse({ organizationGroups: [] });
     } finally {
       setIsLoadingTemplates(false);
     }
@@ -1764,10 +1764,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               style={{ width: '100%' }}
               showSearch
               treeDefaultExpandAll={true}
-              treeData={formatsResponse.departments.flatMap(dept =>
-                dept.folders.map(folder => ({
-                  title: `${dept.departmentCd} / ${folder.folderName}`,
-                  value: `${dept.departmentCd}/${folder.folderName}`,
+              treeData={formatsResponse.organizationGroups.flatMap((group: import('@/types/format').FormatOrganizationGroup) =>
+                group.folders.map(folder => ({
+                  title: `${group.organizationGroupCd} / ${folder.folderName}`,
+                  value: `${group.organizationGroupCd}/${folder.folderName}`,
                   selectable: false,
                   children: folder.files.map(file => ({
                     title: file.fileName,
@@ -1828,7 +1828,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           )}
 
           {/* ファイルなし警告 */}
-          {!isLoadingTemplates && formatsResponse.departments.length === 0 && (
+          {!isLoadingTemplates && formatsResponse.organizationGroups.length === 0 && (
             <Alert
               message={t('template.nsNoFilesFound')}
               description={t('template.nsNoFilesDesc')}

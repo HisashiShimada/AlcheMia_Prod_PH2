@@ -142,7 +142,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         fileTypeLabel.toLowerCase().includes(q) ||
         (format.category ?? '').toLowerCase().includes(q) ||
         getCategoryLabel(format.category ?? '').toLowerCase().includes(q) ||
-        (format.department ?? '').toLowerCase().includes(q) ||
+        (format.organizationGroup ?? '').toLowerCase().includes(q) ||
         (format.createdAt ?? '').toLowerCase().includes(q) ||
         (format.updatedAt ?? '').toLowerCase().includes(q) ||
         (format.tags ?? []).some((tag: string) => tag.toLowerCase().includes(q));
@@ -1141,7 +1141,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           id: selectedFormat.id,
           name: selectedFormat.name,
           folderName: selectedFormat.folderName,
-          departmentCd: user.departmentCd || 'default',
+          departmentCd: (user.organizationGroupCds?.[0]) || 'default',
         } : null}
         onUploadComplete={async (result) => {
           console.log('✅ [FormatManagement] アップロード完了:', result);
@@ -1205,7 +1205,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         open={createFormatModalOpen}
         onCancel={() => setCreateFormatModalOpen(false)}
         onSubmit={handleCreateFormat}
-        departmentName={user.departmentCd}
+        departmentName={user.organizationGroupCds?.[0] || ''}
       />
 
       {/* ファイル詳細表示モーダル */}

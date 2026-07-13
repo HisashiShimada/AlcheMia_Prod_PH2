@@ -281,7 +281,7 @@ export async function createOrganization(
             userName: data.chiefUserName,          // user_name = 代表システム管理者名
             roleCd: 'ROLE002',                     // システム管理者
             mailAddress: data.chiefUserEmail,      // mail_address = 代表者メールアドレス
-            departmentCd: null,                    // Null
+            organizationGroupCds: null,            // Null
             isActive: true,                        // True
           },
           userId,

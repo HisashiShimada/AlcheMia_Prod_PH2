@@ -73,31 +73,59 @@ COMMENT ON COLUMN organization.create_at IS '作成日時';
 COMMENT ON COLUMN organization.update_at IS '更新日時';
 
 -- ============================================================
--- 3. department (部署)
+-- 3. organization_group (組織階層グループ)
+--    ※ department テーブルは廃止し organization_group に置き換え
 -- ============================================================
-DROP TABLE IF EXISTS department CASCADE;
+DROP TABLE IF EXISTS organization_group_user CASCADE;
+DROP TABLE IF EXISTS organization_group CASCADE;
 
-CREATE TABLE department (
-    organization_id UUID NOT NULL,
-    department_cd VARCHAR(50) NOT NULL,
-    department_name VARCHAR(50) NOT NULL,
-    is_active BOOLEAN NOT NULL,
-    create_user_id VARCHAR(50),
-    update_user_id VARCHAR(50),
-    create_at TIMESTAMP,
-    update_at TIMESTAMP,
-    CONSTRAINT department_pkey PRIMARY KEY (organization_id, department_cd)
+CREATE TABLE organization_group (
+    organization_id       UUID          NOT NULL,
+    organization_group_cd VARCHAR(50)   NOT NULL,
+    organization_group_name VARCHAR(255) NOT NULL,
+    chief_user_id         VARCHAR(50)   NOT NULL,
+    parent_group_cd       VARCHAR(50),
+    layer                 VARCHAR(20),
+    create_user_id        VARCHAR(50),
+    create_at             TIMESTAMP,
+    update_user_id        VARCHAR(50),
+    update_at             TIMESTAMP,
+    CONSTRAINT organization_group_PKC PRIMARY KEY (organization_id, organization_group_cd)
 );
 
-COMMENT ON TABLE department IS '部署';
-COMMENT ON COLUMN department.organization_id IS '組織ID';
-COMMENT ON COLUMN department.department_cd IS '部署CD';
-COMMENT ON COLUMN department.department_name IS '部署名';
-COMMENT ON COLUMN department.is_active IS 'アクティブ判定';
-COMMENT ON COLUMN department.create_user_id IS '作成者ユーザID';
-COMMENT ON COLUMN department.update_user_id IS '更新者ユーザID';
-COMMENT ON COLUMN department.create_at IS '作成日時';
-COMMENT ON COLUMN department.update_at IS '更新日時';
+COMMENT ON TABLE  organization_group IS '組織階層グループ';
+COMMENT ON COLUMN organization_group.organization_id        IS '組織ID';
+COMMENT ON COLUMN organization_group.organization_group_cd  IS '組織階層グループCD';
+COMMENT ON COLUMN organization_group.organization_group_name IS '組織階層グループ名';
+COMMENT ON COLUMN organization_group.chief_user_id          IS '代表者ユーザID';
+COMMENT ON COLUMN organization_group.parent_group_cd        IS '親階層グループCD';
+COMMENT ON COLUMN organization_group.layer                  IS 'レイヤー';
+COMMENT ON COLUMN organization_group.create_user_id         IS '作成者ユーザID';
+COMMENT ON COLUMN organization_group.create_at              IS '作成日時';
+COMMENT ON COLUMN organization_group.update_user_id         IS '更新者ユーザID';
+COMMENT ON COLUMN organization_group.update_at              IS '更新日時';
+
+-- ============================================================
+-- 3b. organization_group_user (組織グループユーザー・多対多中間テーブル)
+-- ============================================================
+CREATE TABLE organization_group_user (
+    organization_id       UUID        NOT NULL,
+    organization_group_cd VARCHAR(50) NOT NULL,
+    user_id               VARCHAR(50) NOT NULL,
+    create_at             TIMESTAMP,
+    CONSTRAINT organization_group_user_PKC
+        PRIMARY KEY (organization_id, organization_group_cd, user_id),
+    CONSTRAINT fk_org_group_user_group
+        FOREIGN KEY (organization_id, organization_group_cd)
+        REFERENCES organization_group (organization_id, organization_group_cd)
+        ON DELETE CASCADE
+);
+
+COMMENT ON TABLE  organization_group_user IS '組織グループユーザー（多対多）';
+COMMENT ON COLUMN organization_group_user.organization_id       IS '組織ID';
+COMMENT ON COLUMN organization_group_user.organization_group_cd IS '組織階層グループCD';
+COMMENT ON COLUMN organization_group_user.user_id               IS 'ユーザID';
+COMMENT ON COLUMN organization_group_user.create_at             IS '作成日時';
 
 -- ============================================================
 -- 4. role (ロール)
@@ -465,7 +493,7 @@ CREATE TABLE project (
     project_id CHARACTER VARYING(20) NOT NULL,
     project_name CHARACTER VARYING,
     description TEXT,
-    department_cd CHARACTER VARYING(50),
+    organization_group_cd CHARACTER VARYING(50),
     owner_user_id VARCHAR(50),
     project_status NUMERIC(2,0),
     project_maiml_flg BOOLEAN,
@@ -486,7 +514,7 @@ COMMENT ON COLUMN project.organization_id IS '組織ID';
 COMMENT ON COLUMN project.project_id IS 'プロジェクトID';
 COMMENT ON COLUMN project.project_name IS 'プロジェクト名';
 COMMENT ON COLUMN project.description IS '概要';
-COMMENT ON COLUMN project.department_cd IS '部署CD';
+COMMENT ON COLUMN project.organization_group_cd IS '組織グループCD';
 COMMENT ON COLUMN project.owner_user_id IS '所有者ユーザID';
 COMMENT ON COLUMN project.project_status IS 'プロジェクトステータス';
 COMMENT ON COLUMN project.project_maiml_flg IS 'プロジェクトMaiml有無';

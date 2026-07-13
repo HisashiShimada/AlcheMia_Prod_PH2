@@ -11,8 +11,8 @@ export interface UserRecord {
   userId: string; // メールアドレス（主キー）
   userName: string;
   mailAddress: string;
-  departmentCd?: string;
-  departmentName?: string; // JOINで取得
+  organizationGroupCds?: string[];
+  organizationGroupNames?: string[]; // JOINで取得
   roleCd: string;
   roleName?: string; // JOINで取得
   isActive: boolean;
@@ -32,7 +32,7 @@ export interface CreateUserRequest {
   userId: string; // メールアドレス
   userName: string;
   mailAddress: string;
-  departmentCd?: string;
+  organizationGroupCds?: string[];
   roleCd: string;
   isActive?: boolean;
   password?: string; // パスワード（オプション）
@@ -45,7 +45,7 @@ export interface CreateUserRequest {
  */
 export interface UpdateUserRequest {
   userName?: string;
-  departmentCd?: string;
+  organizationGroupCds?: string[];
   roleCd?: string;
   isActive?: boolean;
 }
@@ -56,7 +56,7 @@ export interface UpdateUserRequest {
 export interface UserFilters {
   search?: string;
   is_active?: boolean;
-  department_cd?: string;
+  organization_group_cd?: string;
   role_cd?: string;
   sort_by?: 'user_id' | 'user_name' | 'update_at';
   sort_order?: 'asc' | 'desc';

@@ -180,7 +180,7 @@ export class AuthService {
         // 共通ヘルパーでトークン発行
         const userDataForToken = {
           ...user,
-          department_cd: user.department_cd ?? '',
+          organization_group_cds: user.organization_group_cds ?? [],
           corporation_id: user.corporation_id ?? undefined,
         };
         await issueSessionTokens(this.pool, userDataForToken, req, res, requestId, true);
@@ -524,7 +524,7 @@ export class AuthService {
         userInfo.organizationId
       );
 
-      // 5. トークンペア生成（departmentCd と corporationId を JWT に含める）
+      // 5. トークンペア生成（organizationGroupCds と corporationId を JWT に含める）
       const newTokenId = uuidv4();
       const tokenPairResult = await this.jwtService.generateTokenPair({
         userId: userInfo.id,
@@ -533,7 +533,7 @@ export class AuthService {
         sessionId: newTokenId,  // 後方互換性のため
         tokenId: newTokenId,     // アクセストークンとリフレッシュトークンで共通
         permissions,
-        departmentCd: userInfo.departmentCd || undefined,
+        organizationGroupCds: userInfo.organizationGroupCds || [],
       });
 
       if (!tokenPairResult.success) {
@@ -602,7 +602,7 @@ export class AuthService {
             organizationId: userInfo.organizationId,
             organizationName: userInfo.organizationName,
             displayName: userInfo.displayName,
-            departmentCd: userInfo.departmentCd,
+            organizationGroupCds: userInfo.organizationGroupCds,
             initialScreenFunctionCd: userInfo.initialScreenFunctionCd
           },
           session: {
@@ -720,7 +720,7 @@ export class AuthService {
         sessionId: newTokenId,  // 後方互換性のため
         tokenId: newTokenId,     // アクセストークンとリフレッシュトークンで共通
         permissions,
-        departmentCd: user.department_cd || undefined,
+        organizationGroupCds: user.organization_group_cds || [],
       });
 
       if (!tokenPairResult.success) {
@@ -767,7 +767,7 @@ export class AuthService {
             organizationId: user.organization_id,
             organizationName: user.organization_display_name?.trim() || user.organization_id,
             displayName: user.user_name,
-            departmentCd: user.department_cd || '',
+            organizationGroupCds: user.organization_group_cds || [],
             initialScreenFunctionCd: initialScreenFunctionCd,
           },
         },

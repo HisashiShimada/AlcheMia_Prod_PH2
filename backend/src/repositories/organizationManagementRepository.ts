@@ -397,7 +397,7 @@ export async function createOrganizationUser(
     userName: string;
     roleCd: string;
     mailAddress: string;
-    departmentCd?: string | null;
+    organizationGroupCds?: string[] | null;
     isActive: boolean;
   },
   userId: string,
@@ -411,13 +411,20 @@ export async function createOrganizationUser(
     data.userName,
     data.roleCd,
     data.mailAddress,
-    data.departmentCd || null,
     data.isActive,
     userId,
     userId,
   ];
 
   await t.none(query, values);
+
+  // 組織グループへの割当
+  if (data.organizationGroupCds && data.organizationGroupCds.length > 0) {
+    const groupQuery = await loadSqlFile('organizations/createOrganizationGroupUser.sql');
+    for (const groupCd of data.organizationGroupCds) {
+      await t.none(groupQuery, [data.organizationId, groupCd, data.userId]);
+    }
+  }
 }
 
 /**

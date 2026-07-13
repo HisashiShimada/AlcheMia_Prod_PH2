@@ -105,7 +105,7 @@ export default function ProgressMonitoring() {
         projectId: item.id,
         projectName: item.name,
         projectStatus: getStatusStringFromNumber(Number(item.status)),
-        department: item.department || '',
+        department: item.organizationGroup || '',
         isCheckedOut: item.isCheckedOut || false,
         ownerEmail: item.ownerEmail || '',
         ownerName: item.ownerName || item.owner || '',
