@@ -78,17 +78,6 @@ ORDER BY`
     paramIndex++;
   }
 
-  // 部署フィルター
-  if (filters.departmentCd) {
-    sqlQuery = sqlQuery.replace(
-      'ORDER BY',
-      `AND ou.department_cd = $${paramIndex}
-ORDER BY`
-    );
-    params.push(filters.departmentCd);
-    paramIndex++;
-  }
-
   // ロールフィルター
   if (filters.roleCd) {
     sqlQuery = sqlQuery.replace(
@@ -167,7 +156,6 @@ export async function create(
     userId: string;
     userName: string;
     mailAddress: string;
-    departmentCd?: string | null;
     roleCd: string;
     isActive?: boolean;
   },
@@ -189,7 +177,6 @@ export async function create(
         organizationId,
         data.userName,
         data.mailAddress,
-        data.departmentCd || null,
         data.roleCd,
         data.isActive !== undefined ? data.isActive : true,
         createUserId,
@@ -260,9 +247,7 @@ export async function create(
         throw new Error('ユーザーIDが既に存在します');
       } else if ((error as any).code === '23503') {  // foreign_key_violation
         const constraint = (error as any).constraint || '';
-        if (constraint.includes('department')) {
-          throw new Error(`指定された部署CD「${data.departmentCd}」が存在しません`);
-        } else if (constraint.includes('role')) {
+        if (constraint.includes('role')) {
           throw new Error(`指定されたロールCD「${data.roleCd}」が存在しません`);
         }
         throw new Error('参照先のデータが存在しません');
@@ -289,7 +274,6 @@ export async function update(
   userId: string,
   data: {
     userName?: string;
-    departmentCd?: string | null;
     roleCd?: string;
     isActive?: boolean;
   },
@@ -304,12 +288,6 @@ export async function update(
   if (data.userName !== undefined) {
     updates.push(`user_name = $${paramIndex}`);
     values.push(data.userName);
-    paramIndex++;
-  }
-  
-  if (data.departmentCd !== undefined) {
-    updates.push(`department_cd = $${paramIndex}`);
-    values.push(data.departmentCd);
     paramIndex++;
   }
   

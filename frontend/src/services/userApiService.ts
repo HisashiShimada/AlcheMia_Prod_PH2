@@ -250,8 +250,8 @@ export async function downloadCsv(
   if (filters?.is_active !== undefined) {
     params.is_active = String(filters.is_active);
   }
-  if (filters?.department_cd) {
-    params.department_cd = filters.department_cd;
+  if (filters?.organization_group_cd) {
+    params.organization_group_cd = filters.organization_group_cd;
   }
   if (filters?.role_cd) {
     params.role_cd = filters.role_cd;

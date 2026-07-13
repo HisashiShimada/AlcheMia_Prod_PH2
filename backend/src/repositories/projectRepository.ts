@@ -734,8 +734,8 @@ export async function findWithOwnerAndDept(
   project_id: string;
   project_name: string;
   description: string | null;
-  department_cd: string | null;
-  department_name: string | null;
+  organization_group_cd: string | null;
+  organization_group_name: string | null;
   owner_user_id: string | null;
   owner_name: string | null;
   project_status: number;

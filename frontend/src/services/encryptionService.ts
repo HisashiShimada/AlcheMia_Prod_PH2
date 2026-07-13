@@ -68,7 +68,7 @@ export async function previewEncryption(
 }
 
 /**
- * 指定要素の暗号化を実行
+ * 指定要素の暗号化を実行（単一要素）
  */
 export async function encryptElement(
   projectName: string,
@@ -77,13 +77,28 @@ export async function encryptElement(
 ): Promise<EncryptResponse> {
   const res = await axios.post<{ success: boolean; data: EncryptResponse }>(
     `${BASE_URL}/projects/${encodeURIComponent(projectName)}/encrypt`,
-    { targetPath, config },
+    { targetPaths: [targetPath], config },
   );
   return res.data.data;
 }
 
 /**
- * 指定要素の復号化を実行
+ * 複数要素を一括暗号化
+ */
+export async function encryptElements(
+  projectName: string,
+  targetPaths: string[],
+  config: EncryptionConfig,
+): Promise<EncryptResponse> {
+  const res = await axios.post<{ success: boolean; data: EncryptResponse }>(
+    `${BASE_URL}/projects/${encodeURIComponent(projectName)}/encrypt`,
+    { targetPaths, config },
+  );
+  return res.data.data;
+}
+
+/**
+ * 指定要素の復号化を実行（単一要素）
  */
 export async function decryptElement(
   projectName: string,
@@ -92,7 +107,7 @@ export async function decryptElement(
 ): Promise<DecryptResponse> {
   const res = await axios.post<{ success: boolean; data: DecryptResponse }>(
     `${BASE_URL}/projects/${encodeURIComponent(projectName)}/decrypt`,
-    { targetPath, decryptionKey },
+    { targetPaths: [targetPath], decryptionKey },
   );
   return res.data.data;
 }
@@ -331,26 +346,27 @@ export async function checkInsertion(
 }
 
 // ---------------------------------------------------------------------------
-// 暗号化済み子要素一覧
+// 暗号化済み要素一覧（ファイル全体）
 // ---------------------------------------------------------------------------
 
 /**
- * 選択ノード配下の暗号化済み要素一覧を取得
+ * 対象MAIMLファイルに含まれる暗号化済み要素（EncryptedData）を全件取得
  *
  * @param projectName プロジェクト名
- * @param nodePath 選択要素のXPathパス
- * @returns 暗号化済み子要素の一覧
+ * @returns 暗号化済み要素の一覧
+ *
+ * @remarks
+ * nodePath を渡さないことで、バックエンドはファイル全体を対象に返す。
+ * バックエンドが本実装に切り替わっても、このインターフェースは変更不要。
  */
 export async function getEncryptedChildren(
   projectName: string,
-  nodePath: string,
 ): Promise<import('@/types/encryption').EncryptedChildElement[]> {
   const res = await axios.get<{
     success: boolean;
     data: { elements: import('@/types/encryption').EncryptedChildElement[] };
   }>(
     `${BASE_URL}/projects/${encodeURIComponent(projectName)}/encrypted-children`,
-    { params: { nodePath } },
   );
   return res.data.data.elements;
 }
@@ -381,7 +397,7 @@ export async function getDecryptPreview(
 }
 
 /**
- * 復号化を実行してMAIMLファイルを更新
+ * 復号化を実行してMAIMLファイルを更新（単一要素）
  *
  * @param projectName プロジェクト名
  * @param request 復号化実行リクエスト
@@ -390,6 +406,32 @@ export async function getDecryptPreview(
 export async function executeDecrypt(
   projectName: string,
   request: import('@/types/encryption').DecryptExecuteRequest,
+): Promise<import('@/types/encryption').DecryptExecuteResponse> {
+  const res = await axios.post<{
+    success: boolean;
+    data: import('@/types/encryption').DecryptExecuteResponse;
+  }>(
+    `${BASE_URL}/projects/${encodeURIComponent(projectName)}/decrypt-execute`,
+    request,
+  );
+  return res.data.data;
+}
+
+/**
+ * 複数要素を一括復号化してMAIMLファイルを更新
+ *
+ * @param projectName プロジェクト名
+ * @param request 復号化実行リクエスト（targetPaths: string[]）
+ * @returns 復号化実行結果
+ */
+export async function executeDecryptElements(
+  projectName: string,
+  request: {
+    projectName: string;
+    targetPaths: string[];
+    keyId: string;
+    password?: string;
+  },
 ): Promise<import('@/types/encryption').DecryptExecuteResponse> {
   const res = await axios.post<{
     success: boolean;

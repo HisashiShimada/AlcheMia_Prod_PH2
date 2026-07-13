@@ -4,7 +4,6 @@ INSERT INTO organization_user (
   organization_id,
   user_name,
   mail_address,
-  department_cd,
   role_cd,
   is_active,
   create_user_id,
@@ -12,6 +11,6 @@ INSERT INTO organization_user (
   create_at,
   update_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+  $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
 )
 RETURNING *

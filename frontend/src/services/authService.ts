@@ -248,7 +248,7 @@ export const authService = {
           organizationId: string;
           organizationName: string;
           displayName: string;
-          departmentCd: string;
+          organizationGroupCds: string[];
           initialScreenFunctionCd: string;
         };
       }>>(
@@ -273,7 +273,7 @@ export const authService = {
             organizationId: user.organizationId,
             organizationName: user.organizationName,
             displayName: user.displayName,
-            departmentCd: user.departmentCd,
+            organizationGroupCds: user.organizationGroupCds,
             initialScreenFunctionCd: user.initialScreenFunctionCd,
           },
           session: {

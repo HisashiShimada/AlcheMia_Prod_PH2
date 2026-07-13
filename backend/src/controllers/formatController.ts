@@ -22,13 +22,13 @@ export async function getFormats(req: Request, res: Response): Promise<void> {
   try {
     // 1. ユーザー情報から組織IDを取得（authMiddlewareで検証済み）
     const organizationId = req.user!.organizationId!;
-    // 2. JWTから部門CDを取得
-    const departmentCd = req.user!.departmentCd! || 'default';
+    // 2. JWTから組織グループCDを取得（最初の要素を使用）
+    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
 
     // 3. S3からフォーマットフォルダ一覧を取得
     const folders = await formatService.getFormatFolders(
       organizationId,
-      departmentCd
+      organizationGroupCd
     );
 
     // 5. レスポンス返却
@@ -76,12 +76,12 @@ async function getFormatFiles(
     const { folderName } = req.params;
     const { path: subPath } = req.query;
     const organizationId = req.user!.organizationId!;
-    const departmentCd = req.user!.departmentCd! || 'default';
+    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
 
     // サービスを呼び出してファイル一覧を取得
     const files = await formatService.getFormatFiles(
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       folderName,
       typeof subPath === 'string' ? subPath : undefined
     );
@@ -110,12 +110,12 @@ async function createFormatFolder(
   try {
     const { folderName } = req.body;
     const organizationId = req.user!.organizationId!;
-    const departmentCd = req.user!.departmentCd! || 'default';
+    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
 
     // サービスを呼び出してフォルダを作成
     const result = await formatService.createFormatFolder(
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       folderName
     );
 
@@ -158,12 +158,12 @@ async function createFormatSubfolder(
   try {
     const { formatName, subfolderName, parentPath } = req.body;
     const organizationId = req.user!.organizationId!;
-    const departmentCd = req.user!.departmentCd! || 'default';
+    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
 
     // サービスを呼び出してサブフォルダを作成
     const result = await formatService.createFormatSubfolder(
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       formatName,
       subfolderName,
       parentPath
@@ -211,11 +211,11 @@ async function createFormatFile(
     
     // 型アサーション（ミドルウェアで検証済みと想定）
     const organizationId = req.user!.organizationId;
-    const departmentCd = req.user!.departmentCd! || 'default';
+    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
 
     console.log('[formatController] createFormatFile called:', {
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       folderName,
       fileName,
       currentPath,
@@ -225,7 +225,7 @@ async function createFormatFile(
     // サービスを呼び出してファイルを作成（userId を渡して file_metadata を自動登録）
     const result = await formatService.createFormatFile(
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       folderName,
       fileName,
       currentPath,

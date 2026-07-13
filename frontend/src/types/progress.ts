@@ -50,7 +50,7 @@ export interface Project {
   fileCount: number;
   totalSize: number;
   owner: string;
-  department: string;
+  organizationGroup: string;
   members: string[];
   tags: string[];
   isCheckedOut: boolean;
