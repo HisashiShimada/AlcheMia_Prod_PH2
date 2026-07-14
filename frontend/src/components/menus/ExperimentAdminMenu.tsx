@@ -176,6 +176,8 @@ export default function ExperimentAdminMenu({
           <ProjectManagement
             onEdit={handleEditProject}
             onOpenWorkerScreen={handleOpenWorkerScreen}
+            user={user}
+            onNavigateToTeamManagement={() => setCurrentTab('5')}
           />
         </div>
 

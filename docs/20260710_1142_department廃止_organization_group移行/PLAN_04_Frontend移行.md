@@ -92,7 +92,7 @@ Frontend の型定義・API サービス・コンポーネント・i18nを `depa
 - [ ] `department_cd` パラメータを `organization_group_cd` に変更
 
 #### `frontend/src/services/formatApiService.ts`
-- [ ] `department_cd` 参照を `organization_group_cd` に変更
+- [x] `department_cd` 参照を `organization_group_cd` に変更（organizationGroupCd パラメータ追加・OrganizationGroupSelector新規作成）
 
 #### `frontend/src/services/authService.ts`
 - [ ] `departmentCd` 参照を `organizationGroupCd` に変更（セッション情報のマッピング）
@@ -139,16 +139,16 @@ Frontend の型定義・API サービス・コンポーネント・i18nを `depa
 ### Phase 7: フォーマット管理コンポーネントの更新
 
 #### `frontend/src/components/format/CreateFormatModal.tsx`
-- [ ] `departmentName?: string` → `organizationGroupName?: string` に変更
-- [ ] `t('createFormatModal.departmentNote')` → `organizationGroupNote` に変更
+- [x] `departmentName?: string` → `organizationGroupName?: string` に変更
+- [x] `t('createFormatModal.departmentNote')` → `organizationGroupNote` に変更
 
 #### `frontend/src/components/format/FormatUploadDialog.tsx`
 - [ ] `departmentCd?: string` → `organizationGroupCd?: string` に変更
 - [ ] `formats/${baseFolder.departmentCd}/` → `formats/${baseFolder.organizationGroupCd}/` に変更
 
 #### `frontend/src/components/format/FormatManagement.tsx`
-- [ ] `format.department` → `format.organizationGroup` に変更
-- [ ] `user.departmentCd` → `user.organizationGroupCd` に変更
+- [x] `format.department` → `format.organizationGroup` に変更（OrganizationGroupSelector 組込み・selectedOrganizationGroupCd state 追加）
+- [x] `user.departmentCd` → `user.organizationGroupCd` に変更
 
 #### `frontend/src/components/editorv2/TemplateEditorDialog.tsx`
 - [ ] `{ departments: [] }` → `{ organizationGroups: [] }` に変更
@@ -179,7 +179,7 @@ Frontend の型定義・API サービス・コンポーネント・i18nを `depa
 - [ ] `userManagement.messages.departmentFetchError` → `organizationGroupFetchError`
 - [ ] `projectManagement.filter_labels.department` → `organizationGroup`（「組織グループ」）
 - [ ] `progress.filter.department` → `organizationGroup`
-- [ ] `createFormatModal.departmentNote` → `organizationGroupNote`（ノート文言更新）
+- [x] `createFormatModal.departmentNote` → `organizationGroupNote`（ノート文言更新）
 - [ ] `department` 単体キー群を `organizationGroup` に更新
 
 #### `frontend/src/locales/en.json`

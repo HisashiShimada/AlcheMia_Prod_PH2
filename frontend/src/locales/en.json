@@ -330,11 +330,13 @@
       "success": "File created successfully",
       "successDescription": "A new file has been created and added to the list"
     },
-    "filter_labels": {
-      "category": "Category:",
-      "file_type": "File Type:",
-      "search": "Search:"
-    },
+      "filter_labels": {
+        "organization_group": "Organization Group:",
+        "category": "Category:",
+        "file_type": "File Type:",
+        "search": "Search:"
+      },
+      "organization_group_placeholder": "Select Group",
     "category_filter": "Category Filter",
     "protocol": "Protocol",
     "material": "Material",
@@ -508,6 +510,9 @@
     "unpublish": "Unpublish",
     "select_project": "Please select a project",
     "select_project_description": "Select a project from the folder tree on the left to display the file list",
+    "no_team_assigned_title": "You are not a member of any team",
+    "no_team_assigned_description": "To view projects, you need to join a team first. Please go to the Team Management tab to join a team.",
+    "go_to_team_management": "Go to Team Management",
     "folder_tree": {
       "title": "Project List",
       "projects": "Projects",
@@ -2738,6 +2743,7 @@
     "cancel": "Cancel",
     "allowedChars": "Allowed characters: alphanumeric (a-z, A-Z, 0-9) and underscore (_)",
     "departmentNote": "* This folder will be created under your department ({{departmentName}})",
+    "organizationGroupNote": "* This folder will be created under the selected organization group ({{organizationGroupName}})",
     "rules": {
       "required": "Please enter a folder name",
       "pattern": "Only alphanumeric characters and underscores are allowed",

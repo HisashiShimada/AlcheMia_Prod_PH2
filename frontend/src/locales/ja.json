@@ -330,11 +330,13 @@
       "success": "ファイルが正常に作成されました",
       "successDescription": "新しいファイルが作成され、一覧に追加されました"
     },
-    "filter_labels": {
-      "category": "カテゴリ:",
-      "file_type": "ファイルタイプ:",
-      "search": "検索:"
-    },
+      "filter_labels": {
+        "organization_group": "組織グループ:",
+        "category": "カテゴリ:",
+        "file_type": "ファイルタイプ:",
+        "search": "検索:"
+      },
+      "organization_group_placeholder": "グループを選択",
     "category_filter": "カテゴリ絞込",
     "protocol": "プロトコル",
     "material": "材料",
@@ -508,6 +510,9 @@
     "unpublish": "非公開",
     "select_project": "プロジェクトを選択してください",
     "select_project_description": "左側のフォルダツリーからプロジェクトを選択すると、ファイル一覧が表示されます",
+    "no_team_assigned_title": "チームに所属していません",
+    "no_team_assigned_description": "プロジェクトを閲覧するには、まずチームに所属する必要があります。チーム管理タブからチームに参加してください。",
+    "go_to_team_management": "チーム管理へ移動",
     "folder_tree": {
       "title": "プロジェクト一覧",
       "projects": "プロジェクト",
@@ -2677,6 +2682,7 @@
     "cancel": "キャンセル",
     "allowedChars": "使用可能な文字: 英数字 (a-z, A-Z, 0-9) とアンダースコア (_)",
     "departmentNote": "※ あなたの所属部門（{{departmentName}}）配下にフォルダが作成されます",
+    "organizationGroupNote": "※ 選択中の組織グループ（{{organizationGroupName}}）配下にフォルダが作成されます",
     "rules": {
       "required": "フォルダ名を入力してください",
       "pattern": "英数字とアンダースコアのみ使用できます",

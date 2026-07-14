@@ -78,6 +78,8 @@ import type { Project, Task, ProjectFilesData } from '@/types/project';
 import type { MaimlEditorParams } from '@/types/maimlEditor';
 import type { Draft } from '@/types/editor';
 import { getUserInfo } from '@/utils/sessionStorageHelper';
+import type { User } from '@/types/auth';
+import { TeamOutlined } from '@ant-design/icons';
 import type { ProjectFile } from '@/types/file';
 import type { InstructionData } from '@/types/instructionRegistration';
 import {
@@ -96,9 +98,13 @@ interface ProjectManagementInnerProps {
   onEdit?: (params: MaimlEditorParams) => void;
   /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
   onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
+  /** ログイン中ユーザー情報（チーム未所属判定に使用） */
+  user?: User;
+  /** チーム管理タブへ遷移するコールバック */
+  onNavigateToTeamManagement?: () => void;
 }
 
-const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit, onOpenWorkerScreen }) => {
+const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit, onOpenWorkerScreen, user, onNavigateToTeamManagement }) => {
   const { message } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -243,6 +249,15 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
   // 電子署名管理モーダルステート
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+
+  // チーム未所属フラグ（organizationGroupCds が空の場合に true）
+  // SystemAdmin はグループ未所属でも全件表示可能なため除外
+  const isUnassignedToTeam = useMemo(() => {
+    if (!user) return false;
+    // SystemAdmin（role_cd === 'ROLE002' 相当）は除外
+    if (user.roleCd === 'ROLE002') return false;
+    return Array.isArray(user.organizationGroupCds) && user.organizationGroupCds.length === 0;
+  }, [user]);
 
   // プロジェクト一覧をAPI経由で取得
   const {
@@ -1908,14 +1923,28 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* 左側: プロジェクト一覧（画面の約1/3） */}
         <div style={{ width: '20%', minWidth: 280, maxWidth: 380, flexShrink: 0 }}>
-          <ProjectFolderTree
-            projects={sortedProjects}
-            selectedProjectId={selectedProjectId}
-            onProjectSelect={handleProjectSelect}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSortChange={handleSortChange}
-          />
+          {isUnassignedToTeam ? (
+            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+              <TeamOutlined style={{ fontSize: 40, color: token.colorTextTertiary }} />
+              <Typography.Text type="secondary" style={{ textAlign: 'center' }}>
+                {t('projectManagement.no_team_assigned_title')}
+              </Typography.Text>
+              {onNavigateToTeamManagement && (
+                <Button type="primary" icon={<TeamOutlined />} onClick={onNavigateToTeamManagement}>
+                  {t('projectManagement.go_to_team_management')}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <ProjectFolderTree
+              projects={sortedProjects}
+              selectedProjectId={selectedProjectId}
+              onProjectSelect={handleProjectSelect}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
+            />
+          )}
         </div>
 
         {/* 右側: 詳細ビュー */}
@@ -2439,6 +2468,10 @@ interface ProjectManagementProps {
   onEdit?: (params: MaimlEditorParams) => void;
   /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
   onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
+  /** ログイン中ユーザー情報（チーム未所属判定に使用） */
+  user?: User;
+  /** チーム管理タブへ遷移するコールバック */
+  onNavigateToTeamManagement?: () => void;
 }
 
 const ProjectManagement: React.FC<ProjectManagementProps> = (props) => {
