@@ -133,7 +133,7 @@ export class ProjectService {
         project_id: projectId,
         project_name: data.projectName,
         description: data.description || undefined,
-        department_cd: departmentId ?? undefined,
+        organization_group_cd: departmentId ?? undefined,
         owner_user_id: userId,
         project_status: 0, // プロジェクト計画中
         checkout_status: 0, // チェックイン中
@@ -205,6 +205,12 @@ export class ProjectService {
       if (client) {
         await client.query('ROLLBACK');
       }
+      // ログ出力（今後の調査を容易にする）
+      logError('Project create error', error as Error, {
+        action: 'project_create',
+        organizationId,
+        projectName: data.projectName,
+      });
       return {
         success: false,
         error: {

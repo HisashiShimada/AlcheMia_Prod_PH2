@@ -1,24 +1,41 @@
 /**
  * WorkflowSelectorDialog - ワークフロー選択ダイアログ
- * 
- * S3に保存されたMaiMLファイルを選択してワークフローとして追加
- * フォルダ階層表示・展開機能対応
- * 
- * @version 1.1.0 (TypeScript移植版)
- * @date 2026-01-29
+ *
+ * プロジェクトテーブルベースで自分が編集可能なプロジェクトを検索・選択し、
+ * 選択したプロジェクトの最新MAIMLをワークフローとして追加する。
+ *
+ * @version 2.0.0 プロジェクトベース化
+ * @date 2026-07-14
  */
 
+'use client';
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, Input, Button, Tree, Alert, Typography, Tag, Space, Flex } from 'antd';
+import {
+  Modal,
+  Input,
+  Button,
+  Alert,
+  Typography,
+  Space,
+  Table,
+  Select,
+  Row,
+  Col,
+  Spin,
+  message,
+} from 'antd';
 import {
   FileOutlined,
   SearchOutlined,
   FolderOutlined,
-  FolderOpenOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
-import type { DataNode } from 'antd/es/tree';
-import type { FileInfo } from '@/types/editor';
-import type { FolderNode } from '@/types/storage';
+import type { ColumnsType } from 'antd/es/table';
+import { getProjects, getProjectMaiml } from '@/services/projectApiService';
+import type { Project } from '@/types/project';
+import type { WorkflowProjectSelection } from '@/types/project';
+import { useCodeMaster } from '@/hooks/useCodeMaster';
 
 const { Text } = Typography;
 
@@ -28,117 +45,184 @@ const { Text } = Typography;
 interface WorkflowSelectorDialogProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (file: FileInfo) => Promise<void>;
-  availableFiles?: FileInfo[];
+  onSelect: (selection: WorkflowProjectSelection) => void;
+}
+
+/**
+ * テーブル行データ型
+ */
+interface ProjectRowData {
+  key: string;
+  projectId: string;
+  projectName: string;
+  status: number;
+  statusName?: string;
+  organizationGroupName?: string;
 }
 
 /**
  * ワークフロー選択ダイアログコンポーネント
+ *
+ * 編集可能かつMAIML登録済みのプロジェクト一覧をテーブル形式で表示し、
+ * 選択後にそのプロジェクトのMAIML本文を取得してワークフローとして追加する。
  */
 const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
   open,
   onClose,
   onSelect,
-  availableFiles = [],
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>(['/']);
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
+  const [selectedProjectName, setSelectedProjectName] = useState<string | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  // フォルダ階層構造を構築
-  const folderTree = useMemo(() => {
-    return buildFolderTree(availableFiles);
-  }, [availableFiles]);
+  const { options: projectStatusOptions } = useCodeMaster('project_status');
 
-  // 検索クエリまたは選択フォルダによるファイルフィルタリング
-  const filteredFiles = useMemo(() => {
-    let files = availableFiles;
-
-    // フォルダ選択によるフィルタリング
-    if (selectedFolder) {
-      files = files.filter(file => {
-        const folderPath = file.key.substring(0, file.key.lastIndexOf('/'));
-        return folderPath === selectedFolder;
-      });
-    }
-
-    // 検索クエリによるフィルタリング
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      files = files.filter(file => {
-        const fileName = file.name?.toLowerCase() || '';
-        const fileKey = file.key?.toLowerCase() || '';
-        return fileName.includes(query) || fileKey.includes(query);
-      });
-    }
-
-    return files;
-  }, [availableFiles, searchQuery, selectedFolder]);
-
-  // Ant Design Tree用のDataNode変換
-  const treeData = useMemo(() => {
-    return convertToTreeData(folderTree);
-  }, [folderTree]);
-
-  // ダイアログを開いた時の初期化
+  // ダイアログが開かれた時にプロジェクト一覧を取得
   useEffect(() => {
-    if (open) {
-      setSearchQuery('');
-      setSelectedFile(null);
-      setSelectedFolder(null);
-      setError(null);
-      // ルートフォルダは自動展開
-      setExpandedKeys(['/']);
-    }
+    if (!open) return;
+
+    setSelectedProjectId(null);
+    setSearchText('');
+    setSelectedProjectName(undefined);
+    setCurrentPage(1);
+
+    const fetchProjects = async () => {
+      setIsLoadingProjects(true);
+      try {
+        const response = await getProjects();
+        if (response.success && response.data) {
+          // 編集可能かつMAIML登録済みのプロジェクトのみ抽出
+          const editableWithMaiml = response.data.projects.filter(
+            (p) => p.isEditable === true && !!p.maimlFileKey
+          );
+          setProjects(editableWithMaiml);
+        } else {
+          message.error('プロジェクト一覧の取得に失敗しました');
+        }
+      } catch (err) {
+        console.error('[WorkflowSelectorDialog] プロジェクト取得エラー:', err);
+        message.error('プロジェクト一覧の取得に失敗しました');
+      } finally {
+        setIsLoadingProjects(false);
+      }
+    };
+
+    fetchProjects();
   }, [open]);
 
-  // フォルダ選択（フォルダ内ファイルをフィルタ表示）
-  const handleSelectFolder = (selectedKeys: React.Key[]) => {
-    const folderPath = selectedKeys[0] as string;
-    setSelectedFolder(folderPath === selectedFolder ? null : folderPath);
-    setSearchQuery(''); // フォルダ選択時は検索クエリをクリア
+  // テーブル用データに変換
+  const allTableData: ProjectRowData[] = useMemo(() => {
+    return projects.map((p) => ({
+      key: p.id,
+      projectId: p.id,
+      projectName: p.name,
+      status: p.status,
+      statusName: p.statusName,
+      organizationGroupName: p.organizationGroupName,
+    }));
+  }, [projects]);
+
+  // プロジェクト名フィルタの選択肢
+  const projectNameOptions = useMemo(() => {
+    const uniqueNames = Array.from(new Set(allTableData.map((item) => item.projectName)));
+    return uniqueNames.sort().map((name) => ({ label: name, value: name }));
+  }, [allTableData]);
+
+  // フィルタリング済みデータ
+  const filteredData = useMemo(() => {
+    return allTableData.filter((item) => {
+      const matchesSearch =
+        !searchText || item.projectName.toLowerCase().includes(searchText.toLowerCase());
+      const matchesProjectName =
+        !selectedProjectName || item.projectName === selectedProjectName;
+      return matchesSearch && matchesProjectName;
+    });
+  }, [allTableData, searchText, selectedProjectName]);
+
+  // テーブルカラム定義
+  const columns: ColumnsType<ProjectRowData> = [
+    {
+      title: 'プロジェクト名',
+      dataIndex: 'projectName',
+      key: 'projectName',
+      render: (text: string) => (
+        <Space>
+          <FolderOutlined style={{ color: '#1677ff' }} />
+          <Text strong>{text}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'ステータス',
+      dataIndex: 'status',
+      key: 'status',
+      width: 140,
+      align: 'center' as const,
+      render: (status: number, record: ProjectRowData) => {
+        const label =
+          record.statusName ||
+          projectStatusOptions.find((opt) => opt.value === status)?.label ||
+          String(status);
+        return <Text>{label}</Text>;
+      },
+    },
+    {
+      title: 'グループ',
+      dataIndex: 'organizationGroupName',
+      key: 'organizationGroupName',
+      width: 160,
+      render: (text?: string) => <Text>{text || '-'}</Text>,
+    },
+  ];
+
+  // 行選択設定
+  const rowSelection = {
+    type: 'radio' as const,
+    selectedRowKeys: selectedProjectId ? [selectedProjectId] : [],
+    onChange: (selectedRowKeys: React.Key[]) => {
+      setSelectedProjectId(selectedRowKeys[0] as string || null);
+    },
   };
 
-  // フォルダ展開/縮小
-  const handleExpand = (expandedKeys: React.Key[]) => {
-    setExpandedKeys(expandedKeys);
-  };
-
-  // ファイル選択ハンドラー
-  const handleFileSelect = (file: FileInfo) => {
-    setSelectedFile(file);
-  };
-
-  // 確定ハンドラー
+  // 確定ボタン押下：MAIMLを取得してonSelectに渡す
   const handleConfirm = async () => {
-    if (!selectedFile) {
-      setError('ファイルを選択してください');
+    if (!selectedProjectId) {
+      message.warning('プロジェクトを選択してください');
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    const selectedProject = projects.find((p) => p.id === selectedProjectId);
+    if (!selectedProject) return;
 
+    setIsConfirming(true);
     try {
-      await onSelect(selectedFile);
+      const maimlResponse = await getProjectMaiml(selectedProjectId);
+      if (!maimlResponse.success || !maimlResponse.data) {
+        throw new Error(maimlResponse.error?.message || 'MAIMLファイルの取得に失敗しました');
+      }
+
+      const maimlContent = maimlResponse.data.maimlContent;
+      if (!maimlContent) {
+        throw new Error('MAIMLファイルの内容が空です');
+      }
+
+      onSelect({
+        projectId: selectedProjectId,
+        projectName: selectedProject.name,
+        maimlContent,
+      });
       onClose();
     } catch (err) {
-      console.error('ワークフロー選択エラー:', err);
-      setError((err as Error).message || 'ワークフロー追加に失敗しました');
+      console.error('[WorkflowSelectorDialog] MAIML取得エラー:', err);
+      message.error((err as Error).message || 'MAIMLファイルの取得に失敗しました');
     } finally {
-      setIsLoading(false);
+      setIsConfirming(false);
     }
-  };
-
-  // ファイルサイズのフォーマット
-  const formatFileSize = (bytes?: number): string => {
-    if (!bytes) return '-';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -146,7 +230,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
       title={
         <Space>
           <FileOutlined />
-          <span>ワークフロー選択</span>
+          <span>ワークフロー選択（プロジェクトから追加）</span>
         </Space>
       }
       open={open}
@@ -154,234 +238,110 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
       width={900}
       style={{ top: 40 }}
       footer={[
-        <Button key="cancel" onClick={onClose} disabled={isLoading}>
+        <Button key="cancel" onClick={onClose} disabled={isConfirming}>
           キャンセル
         </Button>,
         <Button
           key="submit"
           type="primary"
+          icon={<CheckOutlined />}
           onClick={handleConfirm}
-          disabled={!selectedFile || isLoading}
-          loading={isLoading}
+          disabled={!selectedProjectId || isConfirming || isLoadingProjects}
+          loading={isConfirming}
         >
-          {isLoading ? '追加中...' : 'ワークフロー追加'}
+          {isConfirming ? '取得中...' : 'ワークフロー追加'}
         </Button>,
       ]}
     >
-      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-        <Text type="secondary">追加するMaiMLファイルを選択してください</Text>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Text type="secondary">
+          編集可能なプロジェクトを選択してください（MAIML登録済みのプロジェクトのみ表示）
+        </Text>
 
-        {/* 検索バー */}
-        <Input
-          placeholder="ファイル名で検索..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setSelectedFolder(null); // 検索時はフォルダ選択をクリア
+        {/* フィルタコントロール */}
+        <Row gutter={16}>
+          <Col flex="400px">
+            <Input
+              placeholder="プロジェクト名で検索"
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+              disabled={isLoadingProjects}
+            />
+          </Col>
+          <Col flex="220px">
+            <Select
+              placeholder="プロジェクト名でフィルタ"
+              value={selectedProjectName}
+              onChange={setSelectedProjectName}
+              allowClear
+              style={{ width: '100%' }}
+              options={projectNameOptions}
+              disabled={isLoadingProjects}
+            />
+          </Col>
+        </Row>
+
+        {/* プロジェクト一覧テーブル */}
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          rowSelection={rowSelection}
+          loading={isLoadingProjects}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            showSizeChanger: true,
+            showTotal: (total) => `全${total}件`,
+            pageSizeOptions: ['20', '50', '100'],
+            showQuickJumper: true,
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size);
+            },
+            onShowSizeChange: (_, newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            },
           }}
-          prefix={<SearchOutlined />}
-          allowClear
+          scroll={{ y: 350 }}
+          size="middle"
+          locale={{
+            emptyText: isLoadingProjects ? (
+              <Spin />
+            ) : (
+              '編集可能なMAIML登録済みプロジェクトがありません'
+            ),
+          }}
+          onRow={(record) => ({
+            onClick: () => setSelectedProjectId(record.projectId),
+            style: { cursor: 'pointer' },
+          })}
         />
 
-        {/* エラー表示 */}
-        {error && <Alert title={error} type="error" showIcon />}
-
-        {/* フォルダツリーとファイル一覧 */}
-        <Flex gap="middle" style={{ height: 400 }}>
-          {/* 左側: フォルダツリー */}
-          <div
-            style={{
-              width: '40%',
-              borderRight: '1px solid #f0f0f0',
-              paddingRight: 12,
-              overflowY: 'auto',
-            }}
-          >
-            <Text type="secondary" strong style={{ display: 'block', marginBottom: 8 }}>
-              フォルダ
-            </Text>
-            <Tree
-              showLine
-              showIcon
-              treeData={treeData}
-              expandedKeys={expandedKeys}
-              onExpand={handleExpand}
-              onSelect={handleSelectFolder}
-              icon={(props) => {
-                if (props.expanded) {
-                  return <FolderOpenOutlined style={{ color: '#1890ff' }} />;
-                }
-                return <FolderOutlined />;
-              }}
-            />
-          </div>
-
-          {/* 右側: ファイル一覧 */}
-          <div style={{ width: '60%', overflowY: 'auto' }}>
-            <Text type="secondary" strong style={{ display: 'block', marginBottom: 8 }}>
-              ファイル {selectedFolder && `(${selectedFolder})`}
-            </Text>
-            {filteredFiles.length === 0 ? (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '40px 0',
-                }}
-              >
-                <FolderOutlined style={{ fontSize: 64, color: '#d9d9d9', marginBottom: 16 }} />
-                <Text type="secondary">
-                  {searchQuery || selectedFolder ? 'ファイルが見つかりません' : 'フォルダを選択してください'}
-                </Text>
-              </div>
-            ) : (
-              <div style={{ border: '1px solid #d9d9d9', borderRadius: 6 }}>
-                {filteredFiles.map((file) => (
-                  <div
-                    key={file.key}
-                    onClick={() => handleFileSelect(file)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '8px 12px',
-                      cursor: 'pointer',
-                      backgroundColor: selectedFile?.key === file.key ? '#e6f7ff' : undefined,
-                      border: selectedFile?.key === file.key ? '2px solid #1890ff' : undefined,
-                      borderBottom: '1px solid #f0f0f0',
-                    }}
-                  >
-                    <FileOutlined
-                      style={{
-                        fontSize: 20,
-                        marginRight: 12,
-                        color: selectedFile?.key === file.key ? '#1890ff' : undefined,
-                      }}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Space>
-                        {file.name || file.key}
-                        {file.size && (
-                          <Tag color="blue">{formatFileSize(file.size)}</Tag>
-                        )}
-                      </Space>
-                      <Text type="secondary" ellipsis style={{ fontSize: 12, display: 'block' }}>
-                        {file.key}
-                      </Text>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </Flex>
-
-        {/* 選択ファイル情報 */}
-        {selectedFile && (
-          <Alert
-            title="選択中のファイル"
-            description={
-              <Space orientation="vertical" size="small">
+        {/* 選択中プロジェクト情報 */}
+        {selectedProjectId && (() => {
+          const proj = projects.find((p) => p.id === selectedProjectId);
+          return proj ? (
+            <Alert
+              message="選択中のプロジェクト"
+              description={
                 <Text>
-                  <strong>名前:</strong> {selectedFile.name || selectedFile.key}
+                  <strong>{proj.name}</strong>
+                  {proj.organizationGroupName && (
+                    <Text type="secondary"> （{proj.organizationGroupName}）</Text>
+                  )}
                 </Text>
-                <Text ellipsis>
-                  <strong>パス:</strong> {selectedFile.key}
-                </Text>
-                {selectedFile.size && (
-                  <Text>
-                    <strong>サイズ:</strong> {formatFileSize(selectedFile.size)}
-                  </Text>
-                )}
-              </Space>
-            }
-            type="info"
-            showIcon
-          />
-        )}
+              }
+              type="info"
+              showIcon
+            />
+          ) : null;
+        })()}
       </Space>
     </Modal>
   );
-};
-
-/**
- * ファイル一覧からフォルダツリーを構築
- */
-const buildFolderTree = (files: FileInfo[]): FolderNode[] => {
-  const tree: FolderNode[] = [];
-  const folderMap = new Map<string, FolderNode>();
-
-  // ルートノードを追加
-  const rootNode: FolderNode = {
-    name: 'ルート',
-    path: '/',
-    children: [],
-    fileCount: 0,
-  };
-  folderMap.set('/', rootNode);
-  tree.push(rootNode);
-
-  // 各ファイルからフォルダパスを抽出してツリーに追加
-  files.forEach((file) => {
-    const parts = file.key.split('/');
-    parts.pop(); // ファイル名を除外
-
-    let currentPath = '';
-    let parentNode = rootNode;
-
-    parts.forEach((part) => {
-      currentPath += (currentPath ? '/' : '') + part;
-
-      if (!folderMap.has(currentPath)) {
-        const newNode: FolderNode = {
-          name: part,
-          path: currentPath,
-          children: [],
-          fileCount: 0,
-        };
-
-        folderMap.set(currentPath, newNode);
-        parentNode.children.push(newNode);
-      }
-
-      parentNode = folderMap.get(currentPath)!;
-    });
-
-    // ファイルカウントを増やす
-    if (parentNode) {
-      parentNode.fileCount = (parentNode.fileCount || 0) + 1;
-    }
-  });
-
-  // 子フォルダがない空フォルダを削除し、名前順で並び替え
-  const cleanTree = (nodes: FolderNode[]): FolderNode[] => {
-    return nodes
-      .filter((node) => node.children.length > 0 || node.fileCount > 0)
-      .map((node) => ({
-        ...node,
-        children: cleanTree(node.children).sort((a, b) => a.name.localeCompare(b.name)),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  };
-
-  return cleanTree(tree);
-};
-
-/**
- * FolderNodeをAnt Design Tree用のDataNodeに変換
- */
-const convertToTreeData = (nodes: FolderNode[]): DataNode[] => {
-  return nodes.map((node) => ({
-    title: (
-      <Space>
-        {node.name}
-        {node.fileCount > 0 && <Tag color="blue">{node.fileCount}件</Tag>}
-      </Space>
-    ),
-    key: node.path,
-    children: node.children.length > 0 ? convertToTreeData(node.children) : undefined,
-  }));
 };
 
 export default WorkflowSelectorDialog;

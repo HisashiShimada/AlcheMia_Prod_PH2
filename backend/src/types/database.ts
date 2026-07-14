@@ -29,8 +29,8 @@ export interface Project {
   /** 概要 */
   description?: string;
   
-  /** 部署CD */
-  department_cd?: string;
+  /** 組織グループCD（旧: department_cd → 20260710マイグレーションでリネーム） */
+  organization_group_cd?: string;
   
   /** 所有者ユーザID */
   owner_user_id?: string;

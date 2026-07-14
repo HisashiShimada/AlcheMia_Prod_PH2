@@ -406,6 +406,16 @@ export interface CreateProjectData {
 export type UploadMode = 'single' | 'bulk' | 'folder';
 
 /**
+ * ワークフロー選択ダイアログの選択結果型
+ * WorkflowSelectorDialog でプロジェクトを選択した際に返す型
+ */
+export interface WorkflowProjectSelection {
+  projectId: string;
+  projectName: string;
+  maimlContent: string;
+}
+
+/**
  * MaiML 公開ステータスレスポンス型
  * バックエンドの PublishStatusResponse に対応
  */
