@@ -37,7 +37,6 @@ import {
   uploadCsv,
   downloadCsv,
 } from '@/services/userApiService';
-import { fetchMasters as fetchDepartments } from '@/services/departmentApiService';
 import { fetchMasters as fetchRoles } from '@/services/roleApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -52,8 +51,6 @@ interface UserNamespaceFieldsProps {
   isEditing: boolean;
 }
 function UserNamespaceFields({ form, isEditing }: UserNamespaceFieldsProps) {
-  const watchedDeptCd: string = Form.useWatch('departmentCd', form) ?? '';
-
   // ログイン中ユーザーの organizationCd を localStorage から取得
   const organizationCd: string = (() => {
     if (typeof window === 'undefined') return '';
@@ -85,12 +82,12 @@ function UserNamespaceFields({ form, isEditing }: UserNamespaceFieldsProps) {
   }
 
   // 追加モード: URI は自動生成で読み取り専用
-  const autoUri = generateNamespaceUri(organizationCd, watchedDeptCd || undefined);
+  const autoUri = generateNamespaceUri(organizationCd);
   return (
     <>
       <Form.Item label="名前空間URI（自動生成）">
         <Input
-          value={autoUri || '（部署を選択すると自動生成されます）'}
+          value={autoUri || '（自動生成されます）'}
           readOnly
           style={{
             backgroundColor: '#f5f5f5',
@@ -116,9 +113,7 @@ export default function UserManagement() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<string>('');
-  const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
   const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -126,7 +121,6 @@ export default function UserManagement() {
 
   useEffect(() => {
     loadUsers();
-    loadDepartments();
     loadRoles();
   }, []);
 
@@ -140,22 +134,6 @@ export default function UserManagement() {
       message.error(extractErrorMessage(error, t('userManagement.messages.fetchError')));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadDepartments = async () => {
-    try {
-      const data = await fetchDepartments();
-      const options = data
-        .filter((d) => (d as unknown as { isActive: boolean }).isActive !== false) // アクティブな部署のみ表示
-        .map((d) => ({
-          value: String(d.departmentId),
-          label: String(d.displayName),
-        }));
-      setDepartments(options);
-    } catch (error) {
-      console.error('部署一覧の取得に失敗:', error);
-      message.error(extractErrorMessage(error, t('userManagement.messages.departmentFetchError')));
     }
   };
 
@@ -183,11 +161,10 @@ export default function UserManagement() {
         (user.userId && String(user.userId).toLowerCase().includes(searchLower)) ||
         (user.mailAddress && String(user.mailAddress).toLowerCase().includes(searchLower))
       );
-      const matchesDepartment = !selectedDepartment || user.departmentCd === selectedDepartment;
       const matchesRole = !selectedRole || user.roleCd === selectedRole;
-      return matchesSearch && matchesDepartment && matchesRole;
+      return matchesSearch && matchesRole;
     });
-  }, [users, searchText, selectedDepartment, selectedRole]);
+  }, [users, searchText, selectedRole]);
 
   // フィルタ変化時に1ページ目にリセット
   useEffect(() => {
@@ -246,21 +223,6 @@ export default function UserManagement() {
           color: record.isActive !== false ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)',
         }}>
           {text}
-        </Text>
-      ),
-    },
-    {
-      title: <div style={{ textAlign: 'center' }}>{t('userManagement.columns.departmentName')}</div>,
-      dataIndex: 'departmentName',
-      key: 'departmentName',
-      width: 150,
-      align: 'left',
-      sorter: (a, b) => (String(a.departmentName) || '').localeCompare(String(b.departmentName) || ''),
-      render: (text: string, record) => (
-        <Text style={{
-          color: record.isActive !== false ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)',
-        }}>
-          {text || '-'}
         </Text>
       ),
     },
@@ -354,7 +316,6 @@ export default function UserManagement() {
     form.setFieldsValue({
       userName: user.userName,
       mailAddress: user.mailAddress,
-      departmentCd: user.departmentCd,
       roleCd: user.roleCd,
       isActive: user.isActive,
     });
@@ -446,7 +407,6 @@ export default function UserManagement() {
   const handleReload = () => {
     loadUsers();
     setSearchText('');
-    setSelectedDepartment('');
     setSelectedRole('');
     setSelectedRowKeys([]);
     message.success(t('userManagement.messages.reloadSuccess'));
@@ -481,7 +441,6 @@ export default function UserManagement() {
       setLoading(true);
       await downloadCsv({
         search: searchText,
-        organization_group_cd: selectedDepartment,
         role_cd: selectedRole,
       });
       message.success(t('userManagement.messages.csvDownloadSuccess'));
@@ -513,10 +472,7 @@ export default function UserManagement() {
         const orgCd: string = userInfoRaw
           ? (JSON.parse(userInfoRaw) as { organizationCd?: string }).organizationCd ?? ''
           : '';
-        const computedNsUri = generateNamespaceUri(
-          orgCd,
-          values.departmentCd || undefined,
-        );
+        const computedNsUri = generateNamespaceUri(orgCd);
         const createData: CreateUserRequest = {
           userId: values.mailAddress,
           userName: values.userName,
@@ -623,17 +579,6 @@ export default function UserManagement() {
           </Col>
           <Col style={{ width: 150 }}>
             <Select
-              placeholder={t('userManagement.filters.department')}
-              value={selectedDepartment || undefined}
-              onChange={(value) => setSelectedDepartment(value || '')}
-              allowClear
-              style={{ width: '100%' }}
-              options={departments}
-              disabled={loading}
-            />
-          </Col>
-          <Col style={{ width: 150 }}>
-            <Select
               placeholder={t('userManagement.filters.role')}
               value={selectedRole || undefined}
               onChange={(value) => setSelectedRole(value || '')}
@@ -699,13 +644,6 @@ export default function UserManagement() {
             ]}
           >
             <Input placeholder="example@company.com" disabled={!!editingUser} />
-          </Form.Item>
-          <Form.Item
-            name="departmentCd"
-            label={t('userManagement.form.department')}
-            rules={[]}
-          >
-            <Select placeholder={t('userManagement.form.departmentPlaceholder')} options={departments} />
           </Form.Item>
           <Form.Item
             name="roleCd"

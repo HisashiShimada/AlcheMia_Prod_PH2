@@ -1190,7 +1190,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           id: selectedFormat.id,
           name: selectedFormat.name,
           folderName: selectedFormat.folderName,
-          departmentCd: (user.organizationGroupCds?.[0]) || 'default',
+          organizationGroupCd: (user.organizationGroupCds?.[0]) || 'default',
         } : null}
         onUploadComplete={async (result) => {
           console.log('✅ [FormatManagement] アップロード完了:', result);

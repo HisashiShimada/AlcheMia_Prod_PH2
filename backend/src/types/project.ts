@@ -20,10 +20,6 @@ export interface Project {
   organizationGroup: string;
   /** 組織階層グループ名 */
   organizationGroupName?: string;
-  /** @deprecated 旧フィールド名（後方互換）。organizationGroup を使用すること */
-  department?: string;
-  /** @deprecated 旧フィールド名（後方互換）。organizationGroupName を使用すること */
-  departmentName?: string;
   isCheckedOut: boolean;
   checkedOutBy: string | null;
   checkedOutAt: string | null;

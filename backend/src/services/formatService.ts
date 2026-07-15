@@ -95,7 +95,7 @@ export async function getFormatFolders(
           fileCount,
           fileType,
           category,
-          department: '',
+          organizationGroup: '',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           tags: [category, folderName],

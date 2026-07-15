@@ -18,7 +18,7 @@ import type { CreateProjectData } from '@/types/project';
 const { Text } = Typography;
 
 /**
- * チーム情報の型定義（/api/v1/department-units/my-teams レスポンス）
+ * チーム情報の型定義（/api/v1/organization-group-units/my-teams レスポンス）
  */
 interface TeamOption {
   departmentUnitId: string;
@@ -34,7 +34,7 @@ interface CreateProjectModalProps {
   onSubmit: (data: CreateProjectData) => Promise<void>;
   currentUser?: {
     name: string;
-    department: string;
+    organizationGroup: string;
     organizationId: string;
   };
 }
@@ -49,7 +49,7 @@ export default function CreateProjectModal({
   onSubmit,
   currentUser = {
     name: '田中 太郎',
-    department: '材料開発部',
+    organizationGroup: '材料開発部',
     organizationId: 'org_maiml_lab_001',
   },
 }: CreateProjectModalProps) {
@@ -102,7 +102,7 @@ export default function CreateProjectModal({
         description: values.description || '',
         folderName: folderName,
         owner: currentUser.name,
-        department: currentUser.department,
+        organizationGroup: currentUser.organizationGroup,
         organizationId: currentUser.organizationId,
         teamId: values.teamId || undefined,
       };
@@ -237,7 +237,7 @@ export default function CreateProjectModal({
             type="secondary"
             style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 8 }}
           >
-            チームを選択するとそのメンバーのみ閲覧できます。未選択の場合は部署全員が閲覧できます。
+            チームを選択するとそのメンバーのみ閲覧できます。未選択の場合は組織グループ全員が閲覧できます。
           </Text>
         </Form>
       </Space>

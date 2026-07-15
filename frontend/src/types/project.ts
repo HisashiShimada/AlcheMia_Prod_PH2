@@ -115,7 +115,7 @@ export interface ProjectFilterParams {
   ownerFilter?: 'my_only' | 'all';
   checkoutFilter?: 'all' | 'checked_in' | 'checked_out';
   projectStatusFilter?: 'all' | number;
-  departmentFilter?: string;
+  organizationGroupFilter?: string;
   showMaimlOnly?: boolean;
   sortBy?: 'name' | 'status' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
@@ -127,7 +127,7 @@ export interface ProjectFilterParams {
 export interface ProjectStats {
   total: number;
   byStatus: Record<number, number>;
-  byDepartment: Record<string, number>;
+  byOrganizationGroup: Record<string, number>;
   checkedOut: number;
   checkedIn: number;
 }
@@ -200,7 +200,7 @@ export interface CreateProjectResponse {
   description: string;
   status: string;
   organizationId: string;
-  departmentId: string;
+  organizationGroupId: string;
   createdBy: string;
   createdAt: string;
 }
@@ -344,7 +344,7 @@ export interface ProgressRecord {
   projectId: string;
   projectName: string;
   projectStatus: string;
-  department: string;
+  organizationGroup: string;
   isCheckedOut: boolean;
   ownerEmail: string;
   ownerName: string;
@@ -393,9 +393,9 @@ export interface CreateProjectData {
   description: string;
   folderName: string;
   owner: string;
-  department: string;
+  organizationGroup: string;
   organizationId: string;
-  /** チームID（任意）。選択時はそのチームのメンバーのみアクセス可。未選択時は部署全員がアクセス可。 */
+  /** チームID（任意）。選択時はそのチームのメンバーのみアクセス可。未選択時は組織グループ全員がアクセス可。 */
   teamId?: string;
 }
 

@@ -7,7 +7,7 @@
 
 import { PoolClient } from 'pg';
 import { getPool } from '../database/db';
-import { Project } from '../types/database';
+import { Project, ProjectWithOwnerAndOrgGroup } from '../types/database';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 
@@ -724,7 +724,7 @@ export async function findCheckedOutUserName(
 }
 
 /**
- * プロジェクト詳細情報をオーナー名・部門名付きで取得
+ * プロジェクト詳細情報をオーナー名・組織グループ名付きで取得
  *
  * progressService の getWorkDetails() から移行。
  *
@@ -732,23 +732,10 @@ export async function findCheckedOutUserName(
  * @param organizationId 組織ID
  * @returns プロジェクト行（見つからない場合は null）
  */
-export async function findWithOwnerAndDept(
+export async function findWithOwnerAndOrgGroup(
   projectId: string,
   organizationId: string
-): Promise<{
-  organization_id: string;
-  project_id: string;
-  project_name: string;
-  description: string | null;
-  organization_group_cd: string | null;
-  organization_group_name: string | null;
-  owner_user_id: string | null;
-  owner_name: string | null;
-  project_status: number;
-  checkout_status: number | null;
-  create_at: Date;
-  update_at: Date;
-} | null> {
+): Promise<ProjectWithOwnerAndOrgGroup | null> {
   const pgp = getPgp();
   const sql = await loadSqlFile('projects/findWithOwnerAndDept.sql');
   return pgp.oneOrNone(sql, [projectId, organizationId]);

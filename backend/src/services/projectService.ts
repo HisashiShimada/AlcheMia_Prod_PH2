@@ -84,14 +84,14 @@ export class ProjectService {
    * Task 3.1-3.7: Service層実装
    * @param organizationId - 組織ID
    * @param userId - ユーザーID
-   * @param departmentId - 部門ID
+   * @param organizationGroupId - 組織グループID
    * @param data - プロジェクトデータ
    * @returns 作成されたプロジェクト情報
    */
   async create(
     organizationId: string,
     userId: string,
-    departmentId: string | null,
+    organizationGroupId: string | null,
     data: { projectName: string; description?: string }
   ): Promise<ServiceResult<Project>> {
     const pool = getPool();
@@ -133,7 +133,7 @@ export class ProjectService {
         project_id: projectId,
         project_name: data.projectName,
         description: data.description || undefined,
-        organization_group_cd: departmentId ?? undefined,
+        organization_group_cd: organizationGroupId ?? undefined,
         owner_user_id: userId,
         project_status: 0, // プロジェクト計画中
         checkout_status: 0, // チェックイン中

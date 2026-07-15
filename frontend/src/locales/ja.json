@@ -90,7 +90,7 @@
         "organizationStatistics": "組織統計情報",
         "userManagement": "ユーザー管理",
         "sessionManagement": "セッション管理",
-        "departmentManagement": "部署管理",
+        "organizationGroupManagement": "組織グループ管理",
         "roleManagement": "ロール管理"
       }
     },
@@ -300,7 +300,7 @@
     "owner": "所有者",
     "my_only": "自分所有のみ",
     "all_formats": "全体",
-    "department": "部署",
+    "organizationGroup": "組織グループ",
     "all": "全て",
     "create": {
       "titleXml": "新規XMLファイル作成",
@@ -419,7 +419,7 @@
     "owner": "所有者",
     "my_only": "自分所有のみ",
     "all_projects": "全体",
-    "department": "部門",
+    "organizationGroup": "組織グループ",
     "all": "全て",
     "fileManagement": {
       "table": {
@@ -461,7 +461,7 @@
       "error": "作成エラー",
       "userInfo": "作成者情報",
       "owner": "所有者",
-      "department": "部署",
+      "organizationGroup": "組織グループ",
       "projectName": "プロジェクト名",
       "projectNameRequired": "プロジェクト名を入力してください",
       "projectNameMinLength": "プロジェクト名は3文字以上で入力してください",
@@ -482,7 +482,7 @@
     },
     "filter_labels": {
       "owner": "所有者:",
-      "department": "部署:",
+      "organizationGroup": "組織グループ:",
       "project_status": "プロジェクトステータス:",
       "checkout_status": "チェックアウトステータス:",
       "search": "検索:"
@@ -610,7 +610,7 @@
     "filter_placeholder": "入力値でフィルタリング",
     "filter_labels": {
       "owner": "所有者:",
-      "department": "部門:",
+      "organizationGroup": "組織グループ:",
       "project_status": "プロジェクトステータス:",
       "checkout_status": "チェックアウトステータス:",
       "search": "検索:"
@@ -628,12 +628,12 @@
     },
     "filter": {
       "all": "全て",
-      "allDepartments": "全部署",
+      "allOrganizationGroups": "全組織グループ",
       "allStatus": "全ステータス",
       "owner": "所有者",
       "myOnly": "自分所有のみ",
       "allProjects": "全体",
-      "department": "部署",
+      "organizationGroup": "組織グループ",
       "projectStatus": "プロジェクトステータス",
       "progressStatusLabel": "進捗ステータス",
       "checkout": "チェックアウト",
@@ -689,7 +689,7 @@
       "projectId": "プロジェクトID",
       "description": "説明",
       "owner": "オーナー",
-      "department": "部門",
+      "organizationGroup": "組織グループ",
       "updatedAt": "更新日時",
       "method": "メソッド",
       "allMethods": "すべてのメソッド",
@@ -1076,7 +1076,7 @@
     "columns": {
       "userName": "ユーザー名",
       "mailAddress": "メールアドレス",
-      "departmentName": "所属部署",
+      "organizationGroupName": "所属組織グループ",
       "roleName": "ロール",
       "lastLoginAt": "最終ログイン"
     },
@@ -1096,7 +1096,7 @@
       "inactive": "非アクティブ"
     },
     "filters": {
-      "department": "所属部署",
+      "organizationGroup": "所属組織グループ",
       "role": "ロール"
     },
     "modal": {
@@ -1109,9 +1109,9 @@
       "mailAddress": "メールアドレス",
       "mailAddressRequired": "メールアドレスを入力してください",
       "mailAddressInvalid": "正しいメールアドレスを入力してください",
-      "department": "所属部署",
-      "departmentRequired": "所属部署を選択してください",
-      "departmentPlaceholder": "所属部署を選択",
+      "organizationGroup": "所属組織グループ",
+      "organizationGroupRequired": "所属組織グループを選択してください",
+      "organizationGroupPlaceholder": "所属組織グループを選択",
       "role": "ロール",
       "roleRequired": "ロールを選択してください",
       "rolePlaceholder": "ロールを選択",
@@ -1126,7 +1126,7 @@
     },
     "messages": {
       "fetchError": "ユーザー一覧の取得に失敗しました",
-      "departmentFetchError": "部署一覧の取得に失敗しました",
+      "organizationGroupFetchError": "組織グループ一覧の取得に失敗しました",
       "roleFetchError": "ロール一覧の取得に失敗しました",
       "activateSelectRequired": "アクティブにするユーザーを選択してください",
       "deactivateSelectRequired": "非アクティブにするユーザーを選択してください",
@@ -1156,11 +1156,11 @@
       "showTotal": "全 {total} 件"
     }
   },
-  "departmentManagement": {
-    "searchPlaceholder": "部署CD、部署名で検索",
+  "organizationGroupManagement": {
+    "searchPlaceholder": "組織グループCD、組織グループ名で検索",
     "columns": {
-      "departmentCd": "部署CD",
-      "departmentName": "部署名",
+      "organizationGroupCd": "組織グループCD",
+      "organizationGroupName": "組織グループ名",
       "updatedAt": "更新日時"
     },
     "buttons": {
@@ -1179,32 +1179,32 @@
       "inactive": "非アクティブ"
     },
     "modal": {
-      "addTitle": "部署追加",
-      "editTitle": "部署編集"
+      "addTitle": "組織グループ追加",
+      "editTitle": "組織グループ編集"
     },
     "form": {
-      "departmentCd": "部署CD",
-      "departmentCdRequired": "部署CDを入力してください",
-      "departmentCdPlaceholder": "部署CDを入力してください",
-      "departmentName": "部署名",
-      "departmentNameRequired": "部署名を入力してください",
-      "departmentNamePlaceholder": "部署名を入力してください",
+      "organizationGroupCd": "組織グループCD",
+      "organizationGroupCdRequired": "組織グループCDを入力してください",
+      "organizationGroupCdPlaceholder": "組織グループCDを入力してください",
+      "organizationGroupName": "組織グループ名",
+      "organizationGroupNameRequired": "組織グループ名を入力してください",
+      "organizationGroupNamePlaceholder": "組織グループ名を入力してください",
       "status": "状態"
     },
     "messages": {
-      "fetchError": "部署の取得に失敗しました",
-      "activateSelectRequired": "アクティブにする部署を選択してください",
-      "deactivateSelectRequired": "非アクティブにする部署を選択してください",
-      "activateConfirmTitle": "選択した部署をアクティブにしますか？",
-      "activateConfirmContent": "{count}件の部署がアクティブになります。",
-      "activateSuccess": "{count}件の部署をアクティブにしました",
+      "fetchError": "組織グループの取得に失敗しました",
+      "activateSelectRequired": "アクティブにする組織グループを選択してください",
+      "deactivateSelectRequired": "非アクティブにする組織グループを選択してください",
+      "activateConfirmTitle": "選択した組織グループをアクティブにしますか？",
+      "activateConfirmContent": "{count}件の組織グループがアクティブになります。",
+      "activateSuccess": "{count}件の組織グループをアクティブにしました",
       "activateError": "アクティブ化に失敗しました",
-      "deactivateConfirmTitle": "選択した部署を非アクティブにしますか？",
-      "deactivateConfirmContent": "{count}件の部署が非アクティブになります。",
-      "deactivateSuccess": "{count}件の部署を非アクティブにしました",
+      "deactivateConfirmTitle": "選択した組織グループを非アクティブにしますか？",
+      "deactivateConfirmContent": "{count}件の組織グループが非アクティブになります。",
+      "deactivateSuccess": "{count}件の組織グループを非アクティブにしました",
       "deactivateError": "非アクティブ化に失敗しました",
       "toggleConfirmTitle": "{name}を{action}にしますか？",
-      "toggleConfirmContent": "この部署を{action}状態に変更します。",
+      "toggleConfirmContent": "この組織グループを{action}状態に変更します。",
       "toggleSuccess": "{name}を{action}にしました",
       "toggleError": "ステータスの変更に失敗しました",
       "reloadSuccess": "データをリロードしました",
@@ -1212,8 +1212,8 @@
       "csvUploadError": "CSVアップロードに失敗しました",
       "csvDownloadSuccess": "CSVファイルをダウンロードしました",
       "csvDownloadError": "CSVダウンロードに失敗しました",
-      "saveSuccess": "部署情報を更新しました",
-      "addSuccess": "部署を追加しました",
+      "saveSuccess": "組織グループ情報を更新しました",
+      "addSuccess": "組織グループを追加しました",
       "saveError": "保存に失敗しました",
       "duplicateIdError": "入力されたIDは既に存在しています"
     },
@@ -2681,7 +2681,6 @@
     "create": "作成",
     "cancel": "キャンセル",
     "allowedChars": "使用可能な文字: 英数字 (a-z, A-Z, 0-9) とアンダースコア (_)",
-    "departmentNote": "※ あなたの所属部門（{{departmentName}}）配下にフォルダが作成されます",
     "organizationGroupNote": "※ 選択中の組織グループ（{{organizationGroupName}}）配下にフォルダが作成されます",
     "rules": {
       "required": "フォルダ名を入力してください",

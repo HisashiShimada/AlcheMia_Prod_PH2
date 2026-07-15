@@ -90,7 +90,7 @@
         "organizationStatistics": "Organization Statistics",
         "userManagement": "User Management",
         "sessionManagement": "Session Management",
-        "departmentManagement": "Department Management",
+        "organizationGroupManagement": "Organization Group Management",
         "roleManagement": "Role Management"
       }
     },
@@ -300,7 +300,7 @@
     "owner": "Owner",
     "my_only": "My Only",
     "all_formats": "All",
-    "department": "Department",
+    "organizationGroup": "Organization Group",
     "all": "All",
     "create": {
       "titleXml": "Create New XML File",
@@ -419,7 +419,7 @@
     "owner": "Owner",
     "my_only": "My Only",
     "all_projects": "All",
-    "department": "Department",
+    "organizationGroup": "Organization Group",
     "all": "All",
     "fileManagement": {
       "table": {
@@ -461,7 +461,7 @@
       "error": "Creation Error",
       "userInfo": "Creator Information",
       "owner": "Owner",
-      "department": "Department",
+      "organizationGroup": "Organization Group",
       "projectName": "Project Name",
       "projectNameRequired": "Please enter a project name",
       "projectNameMinLength": "Project name must be at least 3 characters",
@@ -482,7 +482,7 @@
     },
     "filter_labels": {
       "owner": "Owner:",
-      "department": "Department:",
+      "organizationGroup": "Organization Group:",
       "project_status": "Project Status:",
       "checkout_status": "Checkout Status:",
       "search": "Search:"
@@ -613,7 +613,7 @@
     "filter_placeholder": "Filter by input value",
     "filter_labels": {
       "owner": "Owner:",
-      "department": "Department:",
+      "organizationGroup": "Organization Group:",
       "project_status": "Project Status:",
       "checkout_status": "Checkout Status:",
       "search": "Search:"
@@ -632,11 +632,13 @@
     "filter": {
       "all": "All",
       "allDepartments": "All Departments",
+      "allOrganizationGroups": "All Organization Groups",
       "allStatus": "All Status",
       "owner": "Owner",
       "myOnly": "My Own Only",
       "allProjects": "All Projects",
       "department": "Department",
+      "organizationGroup": "Organization Group",
       "projectStatus": "Project Status",
       "progressStatusLabel": "Progress Status",
       "checkout": "Checkout",
@@ -692,7 +694,7 @@
       "projectId": "Project ID",
       "description": "Description",
       "owner": "Owner",
-      "department": "Department",
+      "organizationGroup": "Organization Group",
       "updatedAt": "Updated At",
       "method": "Method",
       "allMethods": "All Methods",
@@ -993,6 +995,7 @@
       "chiefUserEmailRequired": "Please enter chief user email",
       "organizationInfo": "Organization Information",
       "chiefInfo": "Chief User Information",
+      "namespaceInfo": "Namespace Information",
       "namespacePrefix": "Namespace Prefix",
       "namespacePrefixPlaceholder": "e.g. MyCompany",
       "namespaceUri": "Namespace URI",
@@ -1078,7 +1081,7 @@
     "columns": {
       "userName": "User Name",
       "mailAddress": "Email",
-      "departmentName": "Department",
+      "organizationGroupName": "Organization Group",
       "roleName": "Role",
       "lastLoginAt": "Last Login"
     },
@@ -1098,7 +1101,7 @@
       "inactive": "Inactive"
     },
     "filters": {
-      "department": "Department",
+      "organizationGroup": "Organization Group",
       "role": "Role"
     },
     "modal": {
@@ -1111,14 +1114,15 @@
       "mailAddress": "Email",
       "mailAddressRequired": "Please enter an email",
       "mailAddressInvalid": "Please enter a valid email",
-      "department": "Department",
-      "departmentRequired": "Please select a department",
-      "departmentPlaceholder": "Select department",
+      "organizationGroup": "Organization Group",
+      "organizationGroupRequired": "Please select an organization group",
+      "organizationGroupPlaceholder": "Select organization group",
       "role": "Role",
       "roleRequired": "Please select a role",
       "rolePlaceholder": "Select role",
       "isActive": "Active Status",
       "isActiveRequired": "Please select active status",
+      "namespaceInfo": "Namespace Information",
       "namespacePrefix": "Namespace Prefix",
       "namespacePrefixPlaceholder": "e.g. MyCompany",
       "namespacePrefixHelp": "Register a user-specific namespace prefix (optional)",
@@ -1128,7 +1132,7 @@
     },
     "messages": {
       "fetchError": "Failed to fetch user list",
-      "departmentFetchError": "Failed to fetch department list",
+      "organizationGroupFetchError": "Failed to fetch organization group list",
       "roleFetchError": "Failed to fetch role list",
       "activateSelectRequired": "Please select users to activate",
       "deactivateSelectRequired": "Please select users to deactivate",
@@ -1158,11 +1162,11 @@
       "showTotal": "Total {total} items"
     }
   },
-  "departmentManagement": {
-    "searchPlaceholder": "Search by department CD or name",
+  "organizationGroupManagement": {
+    "searchPlaceholder": "Search by organization group CD or name",
     "columns": {
-      "departmentCd": "Department CD",
-      "departmentName": "Department Name",
+      "organizationGroupCd": "Organization Group CD",
+      "organizationGroupName": "Organization Group Name",
       "updatedAt": "Updated At"
     },
     "buttons": {
@@ -1181,36 +1185,36 @@
       "inactive": "Inactive"
     },
     "modal": {
-      "addTitle": "Add Department",
-      "editTitle": "Edit Department"
+      "addTitle": "Add Organization Group",
+      "editTitle": "Edit Organization Group"
     },
     "form": {
-      "departmentCd": "Department CD",
-      "departmentCdRequired": "Please enter a department CD",
-      "departmentCdPlaceholder": "Enter department CD",
-      "departmentName": "Department Name",
-      "departmentNameRequired": "Please enter a department name",
-      "departmentNamePlaceholder": "Enter department name",
+      "organizationGroupCd": "Organization Group CD",
+      "organizationGroupCdRequired": "Please enter an organization group CD",
+      "organizationGroupCdPlaceholder": "Enter organization group CD",
+      "organizationGroupName": "Organization Group Name",
+      "organizationGroupNameRequired": "Please enter an organization group name",
+      "organizationGroupNamePlaceholder": "Enter organization group name",
       "status": "Status"
     },
     "messages": {
-      "fetchError": "Failed to fetch departments",
-      "activateSelectRequired": "Please select departments to activate",
-      "deactivateSelectRequired": "Please select departments to deactivate",
-      "activateConfirmTitle": "Activate selected departments?",
-      "activateConfirmContent": "{count} department(s) will be activated.",
-      "activateSuccess": "{count} department(s) activated",
-      "deactivateConfirmTitle": "Deactivate selected departments?",
-      "deactivateConfirmContent": "{count} department(s) will be deactivated.",
-      "deactivateSuccess": "{count} department(s) deactivated",
+      "fetchError": "Failed to fetch organization groups",
+      "activateSelectRequired": "Please select organization groups to activate",
+      "deactivateSelectRequired": "Please select organization groups to deactivate",
+      "activateConfirmTitle": "Activate selected organization groups?",
+      "activateConfirmContent": "{count} organization group(s) will be activated.",
+      "activateSuccess": "{count} organization group(s) activated",
+      "deactivateConfirmTitle": "Deactivate selected organization groups?",
+      "deactivateConfirmContent": "{count} organization group(s) will be deactivated.",
+      "deactivateSuccess": "{count} organization group(s) deactivated",
       "toggleConfirmTitle": "Set {name} to {action}?",
-      "toggleConfirmContent": "This department will be changed to {action} status.",
+      "toggleConfirmContent": "This organization group will be changed to {action} status.",
       "toggleSuccess": "{name} has been set to {action}",
       "reloadSuccess": "Data reloaded",
       "csvUploadSuccess": "CSV file uploaded",
       "csvDownloadSuccess": "CSV file downloaded",
-      "saveSuccess": "Department updated",
-      "addSuccess": "Department added",
+      "saveSuccess": "Organization group updated",
+      "addSuccess": "Organization group added",
       "activateError": "Failed to activate",
       "deactivateError": "Failed to deactivate",
       "toggleError": "Failed to change status",
@@ -2742,7 +2746,6 @@
     "create": "Create",
     "cancel": "Cancel",
     "allowedChars": "Allowed characters: alphanumeric (a-z, A-Z, 0-9) and underscore (_)",
-    "departmentNote": "* This folder will be created under your department ({{departmentName}})",
     "organizationGroupNote": "* This folder will be created under the selected organization group ({{organizationGroupName}})",
     "rules": {
       "required": "Please enter a folder name",

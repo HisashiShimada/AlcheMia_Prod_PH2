@@ -13,8 +13,6 @@ export interface CreateFormatModalProps {
   open: boolean;
   onCancel: () => void;
   onSubmit: (folderName: string) => Promise<void>;
-  /** @deprecated departmentName は organizationGroupName を使用してください */
-  departmentName?: string;
   /** 選択中の組織グループ名または組織グループCD（モーダル内の補足説明として表示） */
   organizationGroupName?: string;
 }
@@ -28,7 +26,6 @@ const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
   open,
   onCancel,
   onSubmit,
-  departmentName,
   organizationGroupName,
 }) => {
   const { t } = useLanguage();
@@ -125,11 +122,11 @@ const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
             {t('createFormatModal.allowedChars')}
           </Text>
-          {(organizationGroupName || departmentName) && (
+          {organizationGroupName && (
             <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
               {t('createFormatModal.organizationGroupNote').replace(
                 '{{organizationGroupName}}',
-                organizationGroupName || departmentName || ''
+                organizationGroupName
               )}
             </Text>
           )}
