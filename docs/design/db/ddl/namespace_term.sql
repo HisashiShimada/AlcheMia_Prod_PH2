@@ -18,16 +18,6 @@ CREATE TABLE namespace_term (
   , CONSTRAINT namespace_term_PKC PRIMARY KEY (organization_id, namespace_id, prefix, localname)
 ) ;
 
--- namespaceテーブルへのFK
-ALTER TABLE namespace_term ADD CONSTRAINT fk_namespace_term_namespace
-  FOREIGN KEY (organization_id, namespace_id)
-  REFERENCES namespace(organization_id, namespace_id) ;
-
--- prefixテーブルへのFK
-ALTER TABLE namespace_term ADD CONSTRAINT fk_namespace_term_prefix
-  FOREIGN KEY (organization_id, namespace_id, prefix)
-  REFERENCES prefix(organization_id, namespace_id, prefix) ;
-
 COMMENT ON TABLE namespace_term IS '名前空間用語';
 COMMENT ON COLUMN namespace_term.organization_id IS '組織ID';
 COMMENT ON COLUMN namespace_term.namespace_id IS '名前空間ID:FK → namespace.namespace_id';

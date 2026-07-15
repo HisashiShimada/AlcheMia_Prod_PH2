@@ -14,11 +14,6 @@ CREATE TABLE prefix (
   , CONSTRAINT prefix_PKC PRIMARY KEY (organization_id, namespace_id, prefix)
 ) ;
 
--- 名前空間テーブルへのFK
-ALTER TABLE prefix ADD CONSTRAINT fk_prefix_namespace
-  FOREIGN KEY (organization_id, namespace_id)
-  REFERENCES namespace(organization_id, namespace_id) ;
-
 COMMENT ON TABLE prefix IS 'プレフィックス';
 COMMENT ON COLUMN prefix.organization_id IS '組織ID';
 COMMENT ON COLUMN prefix.namespace_id IS '名前空間ID:FK → namespace.namespace_id';
