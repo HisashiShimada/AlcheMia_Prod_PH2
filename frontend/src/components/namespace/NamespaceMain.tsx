@@ -15,15 +15,13 @@ import {
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
-import termsMockRaw from '../../../mock/namespace/terms.json';
+import { getTerms, createNamespace } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import TeamAddDialog from './TeamAddDialog';
 import TeamEditDialog from './TeamEditDialog';
 import TeamManagementPanel from './TeamManagementPanel';
 import ShareScopeModal from './ShareScopeModal';
-import DuplicateSuggestModal from './DuplicateSuggestModal';
-import type { DuplicateTermEntry } from './DuplicateSuggestModal';
 import type {
   NamespaceNode,
   Term,
@@ -449,57 +447,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // 共有先選択モーダル
   const [shareScopeOpen, setShareScopeOpen] = useState(false);
 
-  // ── 重複サジェストモーダル（UIプレビュー用）
-  const [duplicateSuggestOpen, setDuplicateSuggestOpen] = useState(false);
-
-  // ── プレビュー用モックデータ: 研究開発部を選択したときに表示する重複候補
-  const DUPLICATE_MOCK_ENTRIES: DuplicateTermEntry[] = [
-    {
-      localName: 'Temperature',
-      candidates: [
-        {
-          scopeLabel: '研究開発部',
-          prefix: 'rd',
-          localName: 'Temperature',
-          displayName: '実験温度',
-          type: 'floatType',
-          unitHint: '℃',
-          description: '熱処理時の温度',
-        },
-        {
-          scopeLabel: '材料グループ',
-          prefix: 'materials',
-          localName: 'Temperature',
-          displayName: '材料測定温度',
-          type: 'floatType',
-          unitHint: '℃',
-          description: '材料試験での温度',
-        },
-      ],
-    },
-    {
-      localName: 'SampleID',
-      candidates: [
-        {
-          scopeLabel: '研究開発部',
-          prefix: 'rd',
-          localName: 'SampleID',
-          displayName: '試験体番号',
-          type: 'stringType',
-          description: '研究開発部共通のサンプル識別子',
-        },
-        {
-          scopeLabel: '解析チーム',
-          prefix: 'analysis',
-          localName: 'SampleID',
-          displayName: 'サンプルID',
-          type: 'stringType',
-          description: '解析チームで使用するサンプル識別子',
-        },
-      ],
-    },
-  ];
-
   // チーム編集ダイアログ（メンバー追加）
   const [teamEditOpen,    setTeamEditOpen]    = useState(false);
   const [teamEditLabel,   setTeamEditLabel]   = useState('');
@@ -544,18 +491,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       });
   }, []);
 
-  // ──── 初回マウント時に API から用語一覧を取得（失敗時はモックにフォールバック）
+  // ──── 初回マウント時に API から用語一覧を取得（失敗時は空配列にフォールバック）
   useEffect(() => {
     setTermsLoading(true);
-    fetch('/api/v1/namespaces/terms', { credentials: 'include', cache: 'no-store' })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: Term[]) => setTerms(data))
+    getTerms()
+      .then((data) => setTerms(data as Term[]))
       .catch(() => {
-        // 未ログイン(401)等でAPIが失敗した場合はモックデータを表示
-        setTerms(termsMockRaw as Term[]);
+        // 未ログイン(401)等でAPIが失敗した場合は空配列を設定
+        setTerms([]);
       })
       .finally(() => setTermsLoading(false));
   }, []);
@@ -590,12 +533,28 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // ──── 「保存」ボタン：全入力行を API POST でDBに保存
   const handleAddSave = async () => {
     if (newTerms.length === 0) return;
-    if (!selectedPrefix) {
-      message.error('名前空間を選択してから用語を追加してください');
+    for (const row of newTerms) {
+      if (!row.prefix)    { message.error('すべての行でPrefixを選択してください'); return; }
+      if (!row.localName) { message.error('すべての行でローカル名を入力してください'); return; }
+    }
+
+    // 研究開発部（dept-rd）選択時は必ずエラーダイアログを表示して保存をブロック
+    if (effectiveNsKey === 'dept-rd') {
+      Modal.error({
+        title: '登録エラー',
+        content: '入力されたPrefix:用語名は既に登録されています。',
+      });
       return;
     }
-    for (const row of newTerms) {
-      if (!row.localName) { message.error('すべての行でローカル名を入力してください'); return; }
+
+    // 木村涼子（user-010）選択時は同用語名・別Prefix重複の警告を表示（保存は続行）
+    if (effectiveNsKey === 'user-010') {
+      Modal.confirm({
+        title: '警告',
+        content: '同じ用語が解析チームで既に登録されています。',
+        okText: '登録する',
+        cancelText: 'キャンセル',
+      });
     }
 
     const added: Term[] = [];
@@ -1019,18 +978,47 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const handleToggleTermActive = (termId: string, currentActive: boolean) => {
     const nextActive = !currentActive;
-    setTerms((prev) =>
-      prev.map((t) => t.id === termId ? { ...t, isActive: nextActive } : t)
-    );
-    message.success(`用語を${nextActive ? 'アクティブ' : '非アクティブ'}にしました`);
+    // 非アクティブにする場合のみ確認ダイアログを表示
+    if (currentActive) {
+      const term = terms.find((t) => t.id === termId);
+      const label = term ? `${term.prefix}:${term.localName}` : '用語';
+      Modal.confirm({
+        title: `「${label}」を非アクティブにしますか？`,
+        content: 'この用語を非アクティブ状態に変更します。',
+        okText: '非アクティブ',
+        cancelText: 'キャンセル',
+        okButtonProps: { danger: true },
+        onOk: () => {
+          setTerms((prev) =>
+            prev.map((t) => t.id === termId ? { ...t, isActive: false } : t)
+          );
+          message.success('用語を非アクティブにしました');
+        },
+      });
+    } else {
+      setTerms((prev) =>
+        prev.map((t) => t.id === termId ? { ...t, isActive: nextActive } : t)
+      );
+      message.success('用語をアクティブにしました');
+    }
   };
 
   const handleBulkToggleActive = (targetIds: string[]) => {
-    setTerms((prev) =>
-      prev.map((t) => targetIds.includes(t.id) ? { ...t, isActive: false } : t)
-    );
-    setSelectedTermIds([]);
-    message.success(`${targetIds.length}件の用語を非アクティブにしました`);
+    const count = targetIds.length;
+    Modal.confirm({
+      title: '選択した用語を非アクティブにしますか？',
+      content: `${count}件の用語が非アクティブになります。`,
+      okText: '非アクティブ',
+      cancelText: 'キャンセル',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        setTerms((prev) =>
+          prev.map((t) => targetIds.includes(t.id) ? { ...t, isActive: false } : t)
+        );
+        setSelectedTermIds([]);
+        message.success(`${count}件の用語を非アクティブにしました`);
+      },
+    });
   };
 
   const handleTermSaved = (updated: TermSaved) => {
@@ -1297,7 +1285,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     },
     {
       title: 'スコープ', key: 'scope', width: 180, align: 'center' as const,
-      onCell: () => ({ style: { background: '#fff' } }),
       onHeaderCell: () => ({ style: { background: '#fff' } }),
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
@@ -1486,14 +1473,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             }}>
               <Button
                 icon={<BankOutlined />}
-                onClick={() => {
-                  // 研究開発部（dept-rd）選択中なら直接重複サジェストを表示
-                  if (effectiveNsKey === 'dept-rd') {
-                    setDuplicateSuggestOpen(true);
-                  } else {
-                    setShareScopeOpen(true);
-                  }
-                }}
+                onClick={() => setShareScopeOpen(true)}
                 style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
               >
                 共有する（{selectedTermIds.length}件）
@@ -1611,14 +1591,32 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       <NamespaceAddDialog
         open={addDialogOpen}
         onClose={() => { setAddDialogOpen(false); setAddChildParentKey(null); }}
-        onRegistered={(values) => {
-          const newNode: FlatNsNode = {
-            key: `ns-${Date.now()}`, prefix: values.prefix, uri: values.uri, level: values.level,
-            termCount: 0, displayName: values.displayName || undefined, description: values.description || undefined,
-          };
-          setNsNodes((prev) => [...prev, newNode]);
-          setAddDialogOpen(false);
-          setAddChildParentKey(null);
+        onRegistered={async (values) => {
+          try {
+            const result = await createNamespace({
+              prefix:      values.prefix,
+              uri:         values.uri,
+              displayName: values.displayName || undefined,
+              description: values.description || undefined,
+            });
+            const newNode: FlatNsNode = {
+              key: result.namespaceId,
+              prefix: result.prefix,
+              uri: result.uri,
+              level: values.level,
+              termCount: 0,
+              displayName: values.displayName || undefined,
+              description: values.description || undefined,
+            };
+            setNsNodes((prev) => [...prev, newNode]);
+            message.success(`名前空間「${result.prefix}」を登録しました`);
+          } catch (err: any) {
+            const msg = err?.response?.data?.error?.message ?? err?.message ?? '登録に失敗しました';
+            message.error(msg);
+          } finally {
+            setAddDialogOpen(false);
+            setAddChildParentKey(null);
+          }
         }}
       />
 
@@ -1653,26 +1651,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         scopeNodes={shareScopeNodes}
         onClose={() => setShareScopeOpen(false)}
         onShare={(target) => {
-          setShareScopeOpen(false);
-          // 共有先が確定したら必ず重複サジェストモーダルを表示する
-          void target; // target は将来の本番実装で使用
-          setDuplicateSuggestOpen(true);
-        }}
-      />
-
-      {/* ── 重複サジェストモーダル ── */}
-      <DuplicateSuggestModal
-        open={duplicateSuggestOpen}
-        entries={DUPLICATE_MOCK_ENTRIES}
-        onClose={() => setDuplicateSuggestOpen(false)}
-        onConfirm={(selections) => {
-          setDuplicateSuggestOpen(false);
-          const skipCount = Object.values(selections).filter((v) => v === 'skip').length;
-          const useCount = Object.values(selections).length - skipCount;
-          message.success(
-            `共有が完了しました（採用: ${useCount}件 / スキップ: ${skipCount}件）`,
-          );
-          setSelectedTermIds([]);
+          handleShareToTarget(target);
         }}
       />
 

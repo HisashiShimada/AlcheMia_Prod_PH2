@@ -77,6 +77,7 @@ export interface EditorToolbarProps {
 
   // 名前空間エディターを開く（省略可能：渡された場合のみボタン表示）
   onOpenNamespaceEditor?: () => void;
+
 }
 
 /**
@@ -288,8 +289,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
               名前空間
             </Button>
           </Tooltip>
-          <Divider orientation="vertical" style={{ height: 24 }} />
         </>
+      )}
+
+      {onOpenNamespaceEditor && (
+        <Divider orientation="vertical" style={{ height: 24 }} />
       )}
 
       {/* バリデーションボタン */}

@@ -42,6 +42,7 @@ import { useWorkflow } from '../../hooks/useWorkflow';
 import { useSessionHeartbeat } from '@/hooks/useSessionHeartbeat';
 import useDraftManager from '../../hooks/useDraftManager';
 import DraftManager from './DraftManager';
+import MaimlStructureTreePanel from './components/MaimlStructureTreePanel';
 import SaveConfirmDialog from './SaveConfirmDialog';
 import ValidationPanel from './ValidationPanel';
 import XMLViewerWrapper from './XMLViewerWrapper';
@@ -356,6 +357,15 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const [lastAddedNodeId, setLastAddedNodeId] = useState<string | null>(null); // 最後に追加したノードID（ミニマップ強調用）
   const [draftManagerOpen, setDraftManagerOpen] = useState<boolean>(false); // Draft管理ダイアログ
   const [draftModeHandled, setDraftModeHandled] = useState<boolean>(false); // ✅ UX改善2: draftモード処理済みフラグ
+  // Insertion管理パネルの開閉
+  const [insertionPanelOpen, setInsertionPanelOpen] = useState<boolean>(false);
+  const handleOpenInsertionPanel = useCallback(() => setInsertionPanelOpen(true), []);
+  const handleCloseInsertionPanel = useCallback(() => setInsertionPanelOpen(false), []);
+
+  // MaiML構造ツリーパネルの開閉
+  const [structureTreePanelOpen, setStructureTreePanelOpen] = useState<boolean>(false);
+  const handleOpenStructureTree = useCallback(() => setStructureTreePanelOpen(true), []);
+  const handleCloseStructureTree = useCallback(() => setStructureTreePanelOpen(false), []);
   
   // テンプレート一覧表示機能State（methodsより先に定義）
   const [viewMode, setViewMode] = useState<'petriNet' | 'templates' | 'xml'>('petriNet');
@@ -3354,6 +3364,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         sourceS3Key={props.sourceS3Key}
         projectId={initialDocumentId}
         lastAddedNodeId={lastAddedNodeId}
+        insertionPanelOpen={insertionPanelOpen}
+        onOpenInsertionPanel={handleOpenInsertionPanel}
+        onCloseInsertionPanel={handleCloseInsertionPanel}
+        structureTreePanelOpen={structureTreePanelOpen}
+        onOpenStructureTree={handleOpenStructureTree}
+        onCloseStructureTree={handleCloseStructureTree}
       />
     </TemplateProvider>
     </AttributeDisplayProvider>
@@ -3483,6 +3499,18 @@ interface PetriNetEditorInnerUIProps {
   maimlData?: string | null;
   /** 最後に追加したノードID（ミニマップ強調表示用） */
   lastAddedNodeId: string | null;
+  /** Insertionパネルの開閉状態 */
+  insertionPanelOpen: boolean;
+  /** Insertionパネルを開くハンドラ */
+  onOpenInsertionPanel: () => void;
+  /** Insertionパネルを閉じるハンドラ */
+  onCloseInsertionPanel: () => void;
+  /** MaiML構造ツリーパネルの開閉状態 */
+  structureTreePanelOpen: boolean;
+  /** MaiML構造ツリーパネルを開くハンドラ */
+  onOpenStructureTree: () => void;
+  /** MaiML構造ツリーパネルを閉じるハンドラ */
+  onCloseStructureTree: () => void;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
@@ -3569,6 +3597,12 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   sourceS3Key,
   projectId,
   lastAddedNodeId,
+  insertionPanelOpen,
+  onOpenInsertionPanel,
+  onCloseInsertionPanel,
+  structureTreePanelOpen,
+  onOpenStructureTree,
+  onCloseStructureTree,
 }) => {
   // TemplateContextからtemplateErrors、addTemplate、deleteTemplate、updateTemplate、allTemplatesを取得
   const { templateErrors, addTemplate, deleteTemplate, updateTemplate, allTemplates } = useTemplates();
@@ -3594,7 +3628,21 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   const { token } = theme.useToken();
   
   return (
-    <Flex vertical style={{ height: '100%' }}>
+    <Flex style={{ height: '100%', overflow: 'hidden' }}>
+      {/* 案A: 左固定サイドパネル（MaiML構造ツリー） */}
+      <MaimlStructureTreePanel
+        open={structureTreePanelOpen}
+        onClose={onCloseStructureTree}
+        documentData={documentData as unknown as Parameters<typeof MaimlStructureTreePanel>[0]['documentData']}
+        methods={methods}
+        activeMethodIndex={activeMethodIndex}
+        onEditDocument={handleOpenDocumentEditor}
+        onMethodChange={handleMethodChange}
+        onViewTemplates={() => handleViewModeChange('templates')}
+      />
+
+      {/* メインエリア（ツールバー＋キャンバス） */}
+      <Flex vertical style={{ flex: 1, minWidth: 0, height: '100%' }}>
         {/* Phase 3: 非致命的エラー警告バナー */}
         {nonCriticalErrors.length > 0 && (
           <Alert 
@@ -3647,7 +3695,6 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
         />
-        
         {/* Method管理タブUI - 共通テンプレート表示時は非表示 */}
         {methods.length > 0 && !showCommonTemplates && (
           <MethodTabPanel
@@ -3862,6 +3909,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           projectId={projectId}
         />
       </Flex>
+    </Flex>
   );
 };
 
