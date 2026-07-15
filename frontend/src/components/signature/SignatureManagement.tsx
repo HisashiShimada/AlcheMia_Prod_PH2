@@ -132,7 +132,7 @@ const SignatureManagement: React.FC<SignatureManagementProps> = ({ projectName }
   // ---------------------------------------------------------------------------
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%', padding: '16px 0' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%', padding: '16px 0' }}>
 
       {/* 署名状態カード */}
       <Card
@@ -156,7 +156,7 @@ const SignatureManagement: React.FC<SignatureManagementProps> = ({ projectName }
         {statusLoading ? (
           <Spin />
         ) : (
-          <Space direction="vertical" size="small">
+          <Space orientation="vertical" size="small">
             <Space>
               <Text type="secondary">現在の状態:</Text>
               {signStatus.status === 'signed' ? (

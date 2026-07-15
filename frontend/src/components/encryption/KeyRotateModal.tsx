@@ -77,7 +77,7 @@ const KeyRotateModal: React.FC<KeyRotateModalProps> = ({
       okText="ローテーションを実行"
       cancelText="キャンセル"
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
     >
       {targetKey && (
         <>

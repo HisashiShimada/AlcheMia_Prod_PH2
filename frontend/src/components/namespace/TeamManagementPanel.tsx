@@ -5,9 +5,8 @@ import {
   Button,
   Divider,
   Empty,
-  List,
+  Spin,
   Table,
-  Tag,
   Typography,
   message,
 } from 'antd';
@@ -204,14 +203,19 @@ const TeamManagementPanel: React.FC = () => {
 
         {/* チームリスト */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <List
-            loading={loading}
-            dataSource={teams}
-            locale={{ emptyText: 'チームがありません' }}
-            renderItem={(team) => {
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
+              <Spin size="small" />
+            </div>
+          ) : teams.length === 0 ? (
+            <div style={{ padding: '24px 16px', color: '#8c8c8c', fontSize: 13, textAlign: 'center' }}>
+              チームがありません
+            </div>
+          ) : (
+            teams.map((team) => {
               const isSelected = selectedTeam?.departmentUnitId === team.departmentUnitId;
               return (
-                <List.Item
+                <div
                   key={team.departmentUnitId}
                   style={{
                     padding: '10px 16px',
@@ -250,10 +254,10 @@ const TeamManagementPanel: React.FC = () => {
                       {team.members.length}名
                     </Text>
                   </div>
-                </List.Item>
+                </div>
               );
-            }}
-          />
+            })
+          )}
         </div>
       </div>
 

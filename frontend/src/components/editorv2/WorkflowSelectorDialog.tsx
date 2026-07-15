@@ -36,6 +36,7 @@ import { getProjects, getProjectMaiml } from '@/services/projectApiService';
 import type { Project } from '@/types/project';
 import type { WorkflowProjectSelection } from '@/types/project';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -81,6 +82,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
   const [pageSize, setPageSize] = useState(20);
 
   const { options: projectStatusOptions } = useCodeMaster('project_status');
+  const { t } = useLanguage();
 
   // ダイアログが開かれた時にプロジェクト一覧を取得
   useEffect(() => {
@@ -161,13 +163,15 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
       title: 'ステータス',
       dataIndex: 'status',
       key: 'status',
-      width: 140,
+      width: 190,
       align: 'center' as const,
       render: (status: number, record: ProjectRowData) => {
-        const label =
-          record.statusName ||
-          projectStatusOptions.find((opt) => opt.value === status)?.label ||
-          String(status);
+        // statusName は code_master の code_name（例: "planning", "taskInProgress"）
+        // t() で完全パスに変換して翻訳する
+        const label = record.statusName
+          ? t(`codeMaster.project_status.${record.statusName}`)
+          : projectStatusOptions.find((opt) => opt.value === status)?.label ||
+            String(status);
         return <Text>{label}</Text>;
       },
     },
@@ -235,7 +239,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
       }
       open={open}
       onCancel={onClose}
-      width={900}
+      width={1000}
       style={{ top: 40 }}
       footer={[
         <Button key="cancel" onClick={onClose} disabled={isConfirming}>
@@ -253,7 +257,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
         </Button>,
       ]}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Text type="secondary">
           編集可能なプロジェクトを選択してください（MAIML登録済みのプロジェクトのみ表示）
         </Text>
@@ -325,7 +329,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
           const proj = projects.find((p) => p.id === selectedProjectId);
           return proj ? (
             <Alert
-              message="選択中のプロジェクト"
+              title="選択中のプロジェクト"
               description={
                 <Text>
                   <strong>{proj.name}</strong>

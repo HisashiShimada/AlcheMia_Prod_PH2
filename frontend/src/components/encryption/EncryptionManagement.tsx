@@ -534,7 +534,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
         okButtonProps={{ type: 'primary', icon: <LockOutlined />, loading: executing }}
         width={460}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        <Space orientation="vertical" style={{ width: '100%' }} size={12}>
           <Alert
             type="warning"
             showIcon

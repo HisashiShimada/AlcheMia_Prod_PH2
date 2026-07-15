@@ -972,7 +972,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                       userGroupCds={userGroupCds}
                     />
                   </Space>
-                  <Divider type="vertical" style={{ height: 24, margin: `0 ${token.marginLG}px` }} />
+                  <Divider orientation="vertical" style={{ height: 24, margin: `0 ${token.marginLG}px` }} />
                 </>
               )}
 
