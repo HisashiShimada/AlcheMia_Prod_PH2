@@ -782,7 +782,7 @@ export class ProgressService {
         projectName: proj.project_name,
         projectDescription: proj.description ?? undefined,
         owner: proj.owner_name ?? proj.owner_user_id ?? '',
-        department: proj.department_name ?? proj.department_cd ?? undefined,
+        department: proj.organization_group_name ?? proj.organization_group_cd ?? undefined,
         status: statusStr,
         methods: methodIds,
         createdAt: proj.create_at ? proj.create_at.toISOString() : '',

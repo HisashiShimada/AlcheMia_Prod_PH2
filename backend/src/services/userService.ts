@@ -75,7 +75,6 @@ export async function createUser(
     userId: string;
     userName: string;
     mailAddress: string;
-    departmentCd?: string;
     roleCd: string;
     isActive?: boolean;
     namespacePrefix?: string;
@@ -110,7 +109,6 @@ export async function createUser(
         userId: data.userId,
         userName: data.userName,
         mailAddress: data.mailAddress,
-        departmentCd: data.departmentCd || null,
         roleCd: data.roleCd,
         isActive: data.isActive !== undefined ? data.isActive : true,
       },
@@ -126,7 +124,6 @@ export async function createUser(
           prefix: data.namespacePrefix,
           uri: data.namespaceUri,
           userId: data.userId,
-          departmentCd: data.departmentCd,
         });
         console.log(`[userService] 名前空間登録成功: prefix=${data.namespacePrefix}`);
       } catch (nsError) {
@@ -169,7 +166,6 @@ export async function createUser(
     console.error('作成しようとしたデータ:', {
       userId: data.userId,
       userName: data.userName,
-      departmentCd: data.departmentCd,
       roleCd: data.roleCd,
       organizationId,
     });
@@ -190,7 +186,6 @@ export async function updateUser(
   userId: string,
   data: {
     userName?: string;
-    departmentCd?: string;
     roleCd?: string;
     isActive?: boolean;
   },
@@ -262,7 +257,7 @@ export function generateCSV(users: UserRow[]): string {
   const headers = [
     'ユーザー名',
     'メールアドレス',
-    '所属部署',
+    '所属組織グループ',
     'ロール',
     '最終ログイン',
     'アクティブ判定',
@@ -271,7 +266,7 @@ export function generateCSV(users: UserRow[]): string {
   const rows = users.map((user) => [
     user.user_name,
     user.mail_address,
-    user.department_cd || '',
+    (user.organization_group_cds || []).join(','),
     user.role_cd,
     user.last_login_at ? new Date(user.last_login_at).toLocaleString('ja-JP') : '',
     user.is_active ? 'true' : 'false',
@@ -433,7 +428,6 @@ export async function uploadUsersFromCSV(
       // バリデーション済みなのでtrim()のみ実施
       const userName = row['ユーザー名'].trim();
       const mailAddress = row['メールアドレス'].trim();
-      const departmentCd = row['所属部署']?.trim() || null;
       const roleCd = row['ロール'].trim();
       
       // アクティブ判定の変換（boolean型対応）
@@ -450,7 +444,6 @@ export async function uploadUsersFromCSV(
           userId: mailAddress,  // メールアドレスをユーザーIDとして使用
           userName,
           mailAddress,
-          departmentCd,
           roleCd,
           isActive,
         },

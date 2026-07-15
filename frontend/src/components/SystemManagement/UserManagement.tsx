@@ -481,7 +481,7 @@ export default function UserManagement() {
       setLoading(true);
       await downloadCsv({
         search: searchText,
-        department_cd: selectedDepartment,
+        organization_group_cd: selectedDepartment,
         role_cd: selectedRole,
       });
       message.success(t('userManagement.messages.csvDownloadSuccess'));
@@ -499,7 +499,7 @@ export default function UserManagement() {
       if (editingUser) {
         const updateData: UpdateUserRequest = {
           userName: values.userName,
-          departmentCd: values.departmentCd,
+          organizationGroupCds: values.organizationGroupCds,
           roleCd: values.roleCd,
           isActive: values.isActive,
         };
@@ -521,7 +521,7 @@ export default function UserManagement() {
           userId: values.mailAddress,
           userName: values.userName,
           mailAddress: values.mailAddress,
-          departmentCd: values.departmentCd,
+          organizationGroupCds: values.organizationGroupCds,
           roleCd: values.roleCd,
           isActive: values.isActive,
           namespaceUri: computedNsUri || undefined,

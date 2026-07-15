@@ -104,7 +104,7 @@ export interface Format {
   fileCount: number;
   fileType: FormatFileType;
   category: FormatCategory;
-  department: string;
+  organizationGroup: string;
   createdAt: string;
   updatedAt: string;
   tags: string[];
@@ -201,7 +201,7 @@ export interface CreateFormatData {
   description: string;
   fileType: FormatFileType;
   category: FormatCategory;
-  department: string;
+  organizationGroup: string;
 }
 
 /**
@@ -353,10 +353,10 @@ export interface FormatFolder {
 }
 
 /**
- * フォーマット部門情報
+ * フォーマット組織グループ情報
  */
-export interface FormatDepartment {
-  departmentCd: string;
+export interface FormatOrganizationGroup {
+  organizationGroupCd: string;
   folders: FormatFolder[];
 }
 
@@ -364,7 +364,7 @@ export interface FormatDepartment {
  * フォーマット一覧レスポンス
  */
 export interface ListFormatsResponse {
-  departments: FormatDepartment[];
+  organizationGroups: FormatOrganizationGroup[];
 }
 
 // ============================================================================

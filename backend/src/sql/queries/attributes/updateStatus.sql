@@ -11,7 +11,7 @@ RETURNING
   attribute_name,
   attribute_value,
   attribute_remark,
-  department_cd,
-  NULL AS department_name,
+  organization_group_cd,
+  NULL AS organization_group_name,
   is_active,
   update_at

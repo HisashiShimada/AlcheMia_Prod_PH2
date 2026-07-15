@@ -18,8 +18,8 @@ export interface Project {
   owner: string;
   ownerName?: string;
   ownerEmail?: string;
-  department: string;
-  departmentName?: string;
+  organizationGroup: string;
+  organizationGroupName?: string;
   isCheckedOut: boolean;
   checkedOutBy: string | null;
   checkedOutAt: string | null;

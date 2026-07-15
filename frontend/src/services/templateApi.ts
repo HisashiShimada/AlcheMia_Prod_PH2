@@ -15,7 +15,7 @@ import { createApiClient } from '@/utils/authUtils';
 import type {
   FormatTemplateFile,
   FormatFolder,
-  FormatDepartment,
+  FormatOrganizationGroup,
   ListFormatsResponse,
 } from '@/types/format';
 
@@ -37,7 +37,7 @@ export const fetchTemplateFiles = async (): Promise<ListFormatsResponse> => {
       '/maiml/formats'
     );
 
-    return response.data.data || { departments: [] };
+    return response.data.data || { organizationGroups: [] };
   } catch (error) {
     console.error('Failed to fetch template files:', error);
     throw new Error('テンプレートファイル一覧の取得に失敗しました');

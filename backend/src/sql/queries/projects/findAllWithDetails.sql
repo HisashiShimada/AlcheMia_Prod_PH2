@@ -1,4 +1,4 @@
--- プロジェクト一覧取得（ユーザー名・部署名・タスク数・ファイル数含む）
+-- プロジェクト一覧取得（ユーザー名・組織グループ名・タスク数・ファイル数含む）
 -- 使用箇所:
 --   - projectRepository.ts - findAllWithDetails()
 -- パラメータ: $1=organizationId, $2=includeCompleted(boolean)
@@ -9,8 +9,8 @@ SELECT
   p.project_id,
   p.project_name,
   p.description,
-  p.department_cd,
-  d.department_name,
+  p.organization_group_cd,
+  d.organization_group_name,
   p.owner_user_id,
   ou.user_name AS owner_user_name,
   ou.mail_address AS owner_email,
@@ -55,8 +55,8 @@ LEFT JOIN project_task_detail ptd
 LEFT JOIN organization_user ou
   ON ou.user_id = p.owner_user_id
   AND ou.organization_id = p.organization_id
-LEFT JOIN department d
-  ON d.department_cd = p.department_cd
+LEFT JOIN organization_group d
+  ON d.organization_group_cd = p.organization_group_cd
   AND d.organization_id = p.organization_id
 LEFT JOIN code_master ps
   ON ps.code_division = 'project_status'
@@ -74,8 +74,8 @@ GROUP BY
   p.project_id,
   p.project_name,
   p.description,
-  p.department_cd,
-  d.department_name,
+  p.organization_group_cd,
+  d.organization_group_name,
   p.owner_user_id,
   ou.user_name,
   ou.mail_address,
