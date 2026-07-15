@@ -4,10 +4,11 @@
  * 暗号化対象ツリーコンポーネント
  *
  * @description
- * MAIMLファイルの要素をツリー表示し、暗号化対象ノードをチェックボックスで選択する。
+ * MAIMLファイルの要素をツリー表示し、クリックで暗号化処理対象ノードを選択する。
+ * 選択されたノードの配下から暗号化対象要素が自動的に収集される（collectTargets）。
  *
- * - 暗号化可能な要素: チェックボックスで選択可能
- * - 暗号化不可な要素（uuid, name, place, arc 等）: チェックボックスが disabled（グレーアウト）
+ * - 暗号化可能な要素: クリックで選択可能（チェックボックスなし）
+ * - 暗号化不可な要素（uuid, name, place, arc 等）: グレーアウト表示（クリック選択は可能）
  * - 暗号化済みノード: 🔒アイコンを表示
  */
 
@@ -26,14 +27,10 @@ import type { MaimlTreeNode } from '@/types/encryption';
 
 interface EncryptionTargetTreeProps {
   treeData: MaimlTreeNode[];
-  /** 選択中ノードのパス（単一選択・クリック用） */
+  /** 選択中ノードのパス（クリック選択） */
   selectedPath: string | null;
-  /** チェック済みパスの Set（チェックボックス用） */
-  checkedPaths: Set<string>;
   /** クリック選択コールバック */
   onSelect: (node: MaimlTreeNode) => void;
-  /** チェックボックス変更コールバック */
-  onCheck: (checkedPaths: Set<string>) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +96,12 @@ function convertToAntdTree(
   return nodes.map((node) => {
     nodeMap.set(node.path, node);
 
-    const isGrayedOut = !node.isEncryptable;
+    /**
+     * グレーアウト条件:
+     * - 暗号化不可かつ暗号化済みでない要素（メタデータ / Petri Net構造要素）
+     * - 暗号化済み要素は通常の色で表示
+     */
+    const isStructuralNode = !node.isEncryptable && !node.isEncrypted;
 
     const label = (
       <span
@@ -107,7 +109,7 @@ function convertToAntdTree(
           display: 'inline-flex',
           alignItems: 'center',
           gap: 4,
-          color: isGrayedOut ? '#bfbfbf' : undefined,
+          color: isStructuralNode ? '#bfbfbf' : undefined,
         }}
       >
         {/* ラベルテキスト */}
@@ -115,7 +117,7 @@ function convertToAntdTree(
 
         {/* タグ名ヒント（コンパクト表示） */}
         {node.tagName !== (node.label ?? node.key ?? node.id) && (
-          <span style={{ fontSize: 10, color: isGrayedOut ? '#d9d9d9' : '#8c8c8c' }}>
+          <span style={{ fontSize: 10, color: isStructuralNode ? '#d9d9d9' : '#8c8c8c' }}>
             [{node.tagName}]
           </span>
         )}
@@ -125,15 +127,15 @@ function convertToAntdTree(
 
         {/* 暗号化済みバッジ */}
         {node.isEncrypted && (
-          <Tooltip title={`暗号化済み: ${node.encryptionInfo?.algorithmUri ?? '不明'}`}>
-            <Tag color="warning" style={{ fontSize: 10, marginLeft: 2 }}>
-              🔒 暗号化済
+          <Tooltip title={`クリックして復号化設定を開く（使用アルゴリズム: ${node.encryptionInfo?.algorithmUri ?? '不明'}）`}>
+            <Tag color="warning" style={{ fontSize: 10, marginLeft: 2, cursor: 'pointer' }}>
+              🔒 秘匿済み
             </Tag>
           </Tooltip>
         )}
 
-        {/* 暗号化不可ヒント */}
-        {!node.isEncryptable && (
+        {/* 暗号化不可ヒント（構造要素のみ） */}
+        {isStructuralNode && (
           <Tooltip title="この要素は暗号化できません（メタデータ / Petri Net構造要素）">
             <Tag
               style={{
@@ -155,13 +157,8 @@ function convertToAntdTree(
       key: node.path,
       title: label,
       icon: getNodeIcon(node),
-      /**
-       * checkable=false にするとチェックボックス自体が非表示になる。
-       * disabled にするとチェックボックスはグレーで表示され選択不可になる。
-       * 仕様: チェックボックスを disabled（灰色表示）にする
-       */
-      disableCheckbox: !node.isEncryptable,
-      disabled: false, // ノード全体の選択は可能（クリックで詳細確認できる）
+      // チェックボックスなし・クリック選択のみ
+      disabled: false,
       children: node.children ? convertToAntdTree(node.children, nodeMap) : undefined,
       isLeaf: !node.children || node.children.length === 0,
     };
@@ -175,9 +172,7 @@ function convertToAntdTree(
 const EncryptionTargetTree: React.FC<EncryptionTargetTreeProps> = ({
   treeData,
   selectedPath,
-  checkedPaths,
   onSelect,
-  onCheck,
 }) => {
   /** ノードマップ（pathをキーにノードを取得） */
   const nodeMap = useMemo(() => new Map<string, MaimlTreeNode>(), []);
@@ -196,25 +191,14 @@ const EncryptionTargetTree: React.FC<EncryptionTargetTreeProps> = ({
     if (node) onSelect(node);
   };
 
-  /** チェックボックス変更 */
-  const handleCheck = (
-    checked: React.Key[] | { checked: React.Key[]; halfChecked: React.Key[] },
-  ) => {
-    const keys = Array.isArray(checked) ? checked : checked.checked;
-    onCheck(new Set(keys as string[]));
-  };
-
   return (
     <Tree
-      checkable
       showIcon
       blockNode
       defaultExpandAll
-      checkedKeys={Array.from(checkedPaths)}
       selectedKeys={selectedPath ? [selectedPath] : []}
       treeData={antdTreeData}
       onSelect={handleSelect}
-      onCheck={handleCheck}
       style={{ padding: '0 8px 8px' }}
     />
   );
