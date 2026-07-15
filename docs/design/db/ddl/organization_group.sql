@@ -15,16 +15,6 @@ CREATE TABLE organization_group (
   , CONSTRAINT organization_group_PKC PRIMARY KEY (organization_id, organization_group_cd)
 ) ;
 
--- 自己参照FK（親階層）
-ALTER TABLE organization_group ADD CONSTRAINT fk_organization_group_parent
-  FOREIGN KEY (organization_id, parent_id)
-  REFERENCES organization_group(organization_id, organization_group_cd) ;
-
--- 組織テーブルへのFK
-ALTER TABLE organization_group ADD CONSTRAINT fk_organization_group_organization
-  FOREIGN KEY (organization_id)
-  REFERENCES organization(organization_id) ;
-
 COMMENT ON TABLE organization_group IS '組織階層グループ';
 COMMENT ON COLUMN organization_group.organization_id IS '組織ID';
 COMMENT ON COLUMN organization_group.organization_group_cd IS '組織階層グループCD';
