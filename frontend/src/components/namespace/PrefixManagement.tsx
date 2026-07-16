@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Button, Input, Table, message, Typography, Tooltip, Tag } from 'antd';
+import { Button, Input, Table, message, Modal, Typography, Tooltip, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined, SearchOutlined, BankOutlined } from '@ant-design/icons';
 import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
 import type { TableColumnsType } from 'antd';
@@ -40,7 +40,7 @@ const getRootKey = (nsKey: string, nodes: RawNode[]): string | null => {
   for (const root of nodes) {
     if (root.key === nsKey) return root.key;
     if (root.children) {
-      const found = getAncestorKeys(nsKey, root.children, []);
+      const found = getAncestorKeys(nsKey, root.children, [])
       if (found !== null) return root.key;
     }
   }
@@ -486,6 +486,16 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
       if (!row.prefix) { message.error('すべての行でPrefixを入力してください'); return; }
     }
 
+    // 木村涼子（user-010）選択時は同Prefix重複の警告を表示（保存は続行）
+    if (selectedNsKey === 'user-010') {
+      Modal.confirm({
+        title: '警告',
+        content: '同じPrefixが既に登録されています。',
+        okText: '登録する',
+        cancelText: 'キャンセル',
+      });
+    }
+
     const added: PrefixRow[] = [];
     for (const row of newRows) {
       try {
@@ -550,10 +560,27 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
   // ── アクティブ/非アクティブ切り替え
   const handleToggleActive = (id: string, prefix: string, currentActive: boolean) => {
     const nextActive = !currentActive;
-    setRows((prev) =>
-      prev.map((r) => r.id === id ? { ...r, isActive: nextActive } : r)
-    );
-    message.success(`Prefix「${prefix}」を${nextActive ? 'アクティブ' : '非アクティブ'}にしました`);
+    // 非アクティブにする場合のみ確認ダイアログを表示
+    if (currentActive) {
+      Modal.confirm({
+        title: `「${prefix}」を非アクティブにしますか？`,
+        content: 'このPrefixを非アクティブ状態に変更します。',
+        okText: '非アクティブ',
+        cancelText: 'キャンセル',
+        okButtonProps: { danger: true },
+        onOk: () => {
+          setRows((prev) =>
+            prev.map((r) => r.id === id ? { ...r, isActive: false } : r)
+          );
+          message.success(`Prefix「${prefix}」を非アクティブにしました`);
+        },
+      });
+    } else {
+      setRows((prev) =>
+        prev.map((r) => r.id === id ? { ...r, isActive: nextActive } : r)
+      );
+      message.success(`Prefix「${prefix}」をアクティブにしました`);
+    }
   };
 
   // ── 列定義
@@ -718,9 +745,21 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
             danger
             icon={<DeleteOutlined />}
             onClick={() => {
-              const targets = rows.filter((r) => selectedPrefixIds.includes(r.id));
-              targets.forEach((r) => handleToggleActive(r.id, r.prefix, r.isActive !== false));
-              setSelectedPrefixIds([]);
+              const count = selectedPrefixIds.length;
+              Modal.confirm({
+                title: '選択したPrefixを非アクティブにしますか？',
+                content: `${count}件のPrefixが非アクティブになります。`,
+                okText: '非アクティブ',
+                cancelText: 'キャンセル',
+                okButtonProps: { danger: true },
+                onOk: () => {
+                  setRows((prev) =>
+                    prev.map((r) => selectedPrefixIds.includes(r.id) ? { ...r, isActive: false } : r)
+                  );
+                  setSelectedPrefixIds([]);
+                  message.success(`${count}件のPrefixを非アクティブにしました`);
+                },
+              });
             }}
           >
             選択したPrefixを非アクティブ（{selectedPrefixIds.length}件）

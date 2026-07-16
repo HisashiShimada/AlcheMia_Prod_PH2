@@ -78,6 +78,31 @@ export async function findAllByOrganization(
 }
 
 /**
+ * 組織に紐づく名前空間宣言一覧（prefix + uri）を取得
+ *
+ * XML 書き込み時の xmlns 注入用。namespace テーブルから取得する。
+ *
+ * @param organizationId - 組織ID
+ * @returns 名前空間宣言一覧（{prefix, uri}[]）
+ */
+export async function findDeclarationsByOrganization(
+  organizationId: string
+): Promise<Array<{ prefix: string; uri: string }>> {
+  const pool = getPool();
+
+  const query = `
+    SELECT prefix, uri
+    FROM namespace
+    WHERE organization_id = $1
+      AND is_active = true
+    ORDER BY prefix ASC
+  `;
+
+  const result = await pool.query(query, [organizationId]);
+  return result.rows;
+}
+
+/**
  * prefix に対応する namespace が存在するか確認
  *
  * @param organizationId - 組織ID
@@ -319,6 +344,52 @@ export async function createNamespace(data: {
   ]);
 
   return namespaceId;
+}
+
+/**
+ * 組織に紐づく名前空間（prefix / uri）の一覧を取得
+ *
+ * MaiMLファイルへの名前空間宣言書き込みに使用する。
+ *
+ * @param organizationId - 組織ID
+ * @returns prefix と uri の配列（prefix 昇順）
+ */
+export async function findNamespacesByOrganization(
+  organizationId: string
+): Promise<Array<{ prefix: string; uri: string }>> {
+  const pool = getPool();
+
+  const query = `
+    SELECT prefix, uri
+    FROM namespace
+    WHERE organization_id = $1
+    ORDER BY prefix ASC
+  `;
+
+  const result = await pool.query<{ prefix: string; uri: string }>(query, [organizationId]);
+  return result.rows;
+}
+
+/**
+ * namespace テーブルから1件 DELETE（名前空間の削除）
+ *
+ * @param organizationId - 組織ID
+ * @param prefix - 名前空間の接頭辞
+ * @returns 削除件数（0 = 対象なし）
+ */
+export async function removeNamespace(
+  organizationId: string,
+  prefix: string
+): Promise<number> {
+  const pool = getPool();
+
+  const query = `
+    DELETE FROM namespace
+    WHERE organization_id = $1
+      AND prefix = $2
+  `;
+  const result = await pool.query(query, [organizationId, prefix]);
+  return result.rowCount ?? 0;
 }
 
 /**
