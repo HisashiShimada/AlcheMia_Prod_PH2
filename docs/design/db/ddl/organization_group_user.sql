@@ -1,5 +1,5 @@
 -- Project Name : noname
--- Date/Time    : 2026/07/10 10:44:04 (typo修正: 2026/07/10)
+-- Date/Time    : 2026/07/10 10:45:26
 -- Author       : mi_ito
 -- RDBMS Type   : PostgreSQL
 -- Application  : A5:SQL Mk-2
@@ -12,33 +12,24 @@
   この機能は A5:SQL Mk-2でのみ有効であることに注意してください。
 */
  
--- 組織階層グループ
+-- 組織階層利用者
 -- * BackupToTempTable
-DROP TABLE if exists organization_group CASCADE;
+DROP TABLE if exists organization_group_user CASCADE;
  
 -- * RestoreFromTempTable
-CREATE TABLE organization_group (
-  organization_id UUID NOT NULL
+CREATE TABLE organization_group_user (
+  organization_id uuid NOT NULL
   , organization_group_cd VARCHAR(50) NOT NULL
-  , organization_group_name VARCHAR(255) NOT NULL
-  , chief_user_id character varying(50) NOT NULL
-  , parent_group_cd VARCHAR(50)
-  , layer VARCHAR(20)
+  , user_id  VARCHAR(50) NOT NULL
   , create_user_id VARCHAR(50)
-  , create_at TIMESTAMP
-  , update_user_id VARCHAR(50)
-  , update_at TIMESTAMP
-  , CONSTRAINT organization_group_PKC PRIMARY KEY (organization_id, organization_group_cd)
+  , "create_at "  TIMESTAMP
+  , CONSTRAINT organization_group_user_PKC PRIMARY KEY (organization_id,organization_group_cd,user_id)
 ) ;
  
-COMMENT ON TABLE organization_group IS '組織階層グループ';
-COMMENT ON COLUMN organization_group.organization_id IS '組織ID';
-COMMENT ON COLUMN organization_group.organization_group_cd IS '組織階層グループCD';
-COMMENT ON COLUMN organization_group.organization_group_name IS '組織階層グループ名';
-COMMENT ON COLUMN organization_group.chief_user_id IS '代表者ユーザID';
-COMMENT ON COLUMN organization_group.parent_group_cd IS '親階層グループCD';
-COMMENT ON COLUMN organization_group.layer IS 'レイヤー';
-COMMENT ON COLUMN organization_group.create_user_id IS '作成者ユーザID';
-COMMENT ON COLUMN organization_group.create_at IS '作成日時';
-COMMENT ON COLUMN organization_group.update_user_id IS '更新者ユーザID';
-COMMENT ON COLUMN organization_group.update_at IS '更新日時';
+COMMENT ON TABLE organization_group_user IS '組織階層利用者';
+COMMENT ON COLUMN organization_group_user.organization_id IS '組織ID';
+COMMENT ON COLUMN organization_group_user.organization_group_cd IS '組織階層グループCD';
+COMMENT ON COLUMN organization_group_user.user_id IS 'ユーザID';
+COMMENT ON COLUMN organization_group_user.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN organization_group_user."create_at " IS '作成日時';
+ 
