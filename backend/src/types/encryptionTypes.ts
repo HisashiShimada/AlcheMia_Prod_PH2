@@ -144,3 +144,112 @@ export interface InsertionCheckResponse {
   hasInsertion: boolean;
   insertionCount: number;
 }
+
+// ---------------------------------------------------------------------------
+// EncryptionPolicy（プロバイダ切り替え用ポリシー）
+// ---------------------------------------------------------------------------
+
+/**
+ * 秘匿化機能のポリシー設定
+ *
+ * @remarks
+ * keyProvider / auditTarget が未確定のため、現在は `local-dummy` のみ実装済み。
+ * 本実装フェーズで `aws-kms`, `ecdh`, `cloudtrail` 等への切り替えを行う。
+ */
+export interface EncryptionPolicy {
+  /**
+   * 鍵管理プロバイダ
+   * - `local-file`: test-keys/ ディレクトリのファイルから鍵を読み込む（テスト用）
+   * - `local-dummy`: ローカルでランダム生成（非推奨 / deprecated）
+   * - `aws-kms`: AWS Key Management Service（未実装）
+   * - `ecdh`: ECDH 鍵導出（未実装）
+   */
+  keyProvider: 'local-file' | 'local-dummy' | 'aws-kms' | 'ecdh';
+  /**
+   * 暗号化アルゴリズム
+   * - W3C XML Encryption Core 1.1 準拠の URI に変換される
+   */
+  algorithm: 'aes-256-cbc' | 'aes-128-cbc' | 'aes-256-gcm';
+  /**
+   * 鍵情報スキーマ
+   * 現状は W3C XML Encryption Core 1.1 のみ対応
+   */
+  keyInfoSchema: 'w3c-xmlenc-core1';
+  /**
+   * 監査ログの出力先
+   * - `local-log`: サーバー上のログファイルに出力（仮実装）
+   * - `cloudtrail`: AWS CloudTrail に出力（未実装）
+   */
+  auditTarget: 'local-log' | 'cloudtrail';
+}
+
+/** アルゴリズム URI マップ（W3C xmlenc-core1 準拠） */
+export const ALGORITHM_URI_MAP: Record<EncryptionPolicy['algorithm'], string> = {
+  'aes-256-cbc': 'http://www.w3.org/2001/04/xmlenc#aes256-cbc',
+  'aes-128-cbc': 'http://www.w3.org/2001/04/xmlenc#aes128-cbc',
+  'aes-256-gcm': 'http://www.w3.org/2009/xmlenc11#aes256-gcm',
+} as const;
+
+/** デフォルトの EncryptionPolicy（テスト用: local-file を使用） */
+export const DEFAULT_ENCRYPTION_POLICY: EncryptionPolicy = {
+  keyProvider: 'local-file',
+  algorithm: 'aes-256-cbc',
+  keyInfoSchema: 'w3c-xmlenc-core1',
+  auditTarget: 'local-log',
+} as const;
+
+// ---------------------------------------------------------------------------
+// maimlEncryptionService 固有の型定義
+// ---------------------------------------------------------------------------
+
+/**
+ * 鍵エントリ（簡易鍵ストア用）
+ */
+export interface KeyEntry {
+  /** 鍵の一意ID */
+  keyId: string;
+  /** 鍵素材（AES バイト列） */
+  keyBuffer: Buffer;
+  /** 使用アルゴリズム */
+  algorithm: EncryptionPolicy['algorithm'];
+  /** 生成日時（ISO 8601） */
+  createdAt: string;
+}
+
+/**
+ * 暗号化結果
+ */
+export interface CipherResult {
+  /** 暗号化 ID（XML の Id 属性に使用） */
+  encryptionId: string;
+  /** 暗号化に使用した鍵 ID */
+  keyId: string;
+  /** Base64 エンコードされた暗号文 */
+  cipherValueBase64: string;
+  /** 使用アルゴリズムの URI（W3C xmlenc-core1 準拠） */
+  algorithmUri: string;
+  /** 暗号化日時（ISO 8601） */
+  encryptedAt: string;
+}
+
+/**
+ * Insertion 要素の参照情報
+ */
+export interface InsertionRefs {
+  /** 子要素の URI */
+  uri: string;
+  /** 子要素のハッシュ */
+  hash: string;
+  /** 子要素の UUID */
+  uuid: string;
+}
+
+/**
+ * ValidateEncryptionScope の結果
+ */
+export interface EncryptionScopeValidationResult {
+  /** スコープが有効かどうか */
+  isValid: boolean;
+  /** 違反している場合のメッセージ */
+  message?: string;
+}
