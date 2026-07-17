@@ -7,7 +7,7 @@
 
 import { PoolClient } from 'pg';
 import { getPool } from '../database/db';
-import { Project } from '../types/database';
+import { Project, ProjectWithOwnerAndOrgGroup } from '../types/database';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 
@@ -577,13 +577,17 @@ export async function existsByName(
  * @param includeCompleted 完了済みを含むか
  * @param sortBy ソートカラム
  * @param order ソート順
+ * @param visibleGroupCds 閲覧可能な組織グループCDの配列（null の場合は全件返す）
+ * @param editableGroupCds 編集可能な組織グループCDの配列（null の場合は全件を編集可とする）
  * @returns プロジェクト一覧
  */
 export async function findAllWithDetails(
   organizationId: string,
   includeCompleted: boolean,
   sortBy: string = 'create_at',
-  order: 'asc' | 'desc' = 'desc'
+  order: 'asc' | 'desc' = 'desc',
+  visibleGroupCds: string[] | null = null,
+  editableGroupCds: string[] | null = null
 ): Promise<any[]> {
   const pgp = getPgp();
   // ソートカラムはホワイトリストで検証（SQLインジェクション対策）
@@ -595,7 +599,7 @@ export async function findAllWithDetails(
   // ORDER BY はホワイトリスト検証済みの値を文字列結合で付加（SQLインジェクション対策済み）
   const sqlWithOrder = `${sqlQuery.trimEnd()}\nORDER BY ${safeSortBy} ${safeSortOrder}`;
 
-  return await pgp.any(sqlWithOrder, [organizationId, includeCompleted]);
+  return await pgp.any(sqlWithOrder, [organizationId, includeCompleted, visibleGroupCds, editableGroupCds]);
 }
 
 /**
@@ -603,15 +607,17 @@ export async function findAllWithDetails(
  *
  * @param organizationId 組織ID
  * @param includeCompleted 完了済みを含むか
+ * @param visibleGroupCds 閲覧可能な組織グループCDの配列（null の場合は全件カウント）
  * @returns 総件数
  */
 export async function countAll(
   organizationId: string,
-  includeCompleted: boolean
+  includeCompleted: boolean,
+  visibleGroupCds: string[] | null = null
 ): Promise<number> {
   const pgp = getPgp();
   const sqlQuery = await loadSqlFile('projects/countAll.sql');
-  const result = await pgp.one<{ total: string }>(sqlQuery, [organizationId, includeCompleted]);
+  const result = await pgp.one<{ total: string }>(sqlQuery, [organizationId, includeCompleted, visibleGroupCds]);
   return parseInt(result.total, 10);
 }
 
@@ -718,7 +724,7 @@ export async function findCheckedOutUserName(
 }
 
 /**
- * プロジェクト詳細情報をオーナー名・部門名付きで取得
+ * プロジェクト詳細情報をオーナー名・組織グループ名付きで取得
  *
  * progressService の getWorkDetails() から移行。
  *
@@ -726,23 +732,10 @@ export async function findCheckedOutUserName(
  * @param organizationId 組織ID
  * @returns プロジェクト行（見つからない場合は null）
  */
-export async function findWithOwnerAndDept(
+export async function findWithOwnerAndOrgGroup(
   projectId: string,
   organizationId: string
-): Promise<{
-  organization_id: string;
-  project_id: string;
-  project_name: string;
-  description: string | null;
-  organization_group_cd: string | null;
-  organization_group_name: string | null;
-  owner_user_id: string | null;
-  owner_name: string | null;
-  project_status: number;
-  checkout_status: number | null;
-  create_at: Date;
-  update_at: Date;
-} | null> {
+): Promise<ProjectWithOwnerAndOrgGroup | null> {
   const pgp = getPgp();
   const sql = await loadSqlFile('projects/findWithOwnerAndDept.sql');
   return pgp.oneOrNone(sql, [projectId, organizationId]);

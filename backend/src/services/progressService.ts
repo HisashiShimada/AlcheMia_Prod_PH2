@@ -742,7 +742,7 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 1: プロジェクト基本情報を DB から取得
       // ─────────────────────────────────────────────
-      const proj = await projectRepository.findWithOwnerAndDept(projectId, organizationId);
+      const proj = await projectRepository.findWithOwnerAndOrgGroup(projectId, organizationId);
 
       if (!proj) {
         logger.warn('[ProgressService.getWorkDetails] プロジェクトが見つかりません', { projectId, organizationId });
@@ -782,7 +782,7 @@ export class ProgressService {
         projectName: proj.project_name,
         projectDescription: proj.description ?? undefined,
         owner: proj.owner_name ?? proj.owner_user_id ?? '',
-        department: proj.organization_group_name ?? proj.organization_group_cd ?? undefined,
+        organizationGroup: proj.organization_group_name ?? proj.organization_group_cd ?? undefined,
         status: statusStr,
         methods: methodIds,
         createdAt: proj.create_at ? proj.create_at.toISOString() : '',

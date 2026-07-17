@@ -26,7 +26,6 @@ import maimlRoutes from './routes/maimlRoutes';
 import masterRoutes from './routes/masterRoutes';
 import experimentRoutes from './routes/experimentRoutes';
 import issueRoutes from './routes/issueRoutes';
-import departmentRoutes from './routes/departmentRoutes';
 import corporationRoutes from './routes/corporationRoutes';
 import roleRoutes from './routes/roleRoutes';
 import userRoutes from './routes/userRoutes';
@@ -116,7 +115,6 @@ async function startServer() {
     app.use('/api/v1/experiments', experimentRoutes);
 
     // Mount systemManagement routes
-    app.use('/api/v1/systemManagement', departmentRoutes);
     app.use('/api/v1/systemManagement', roleRoutes);
     app.use('/api/v1/systemManagement', userRoutes);
     

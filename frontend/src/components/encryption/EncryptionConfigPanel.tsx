@@ -223,7 +223,7 @@ const EncryptionConfigPanel: React.FC<EncryptionConfigPanelProps> = ({
             disabled={!hasSelection}
             style={{ width: '100%' }}
           >
-            <Space direction="horizontal" size={16} wrap>
+            <Space orientation="horizontal" size={16} wrap>
               <Radio value={EncryptionLevel.AUTO}>
                 自動選択（推奨）
                 {config.encryptionLevel === EncryptionLevel.AUTO && (
@@ -257,7 +257,7 @@ const EncryptionConfigPanel: React.FC<EncryptionConfigPanelProps> = ({
                 message="UPA制約違反が検出されました"
                 description={upaResult.violations.map((v) => v.message).join(' / ')}
                 action={
-                  <Space direction="vertical" size={4}>
+                  <Space orientation="vertical" size={4}>
                     <Button size="small" onClick={onOpenSplitWizard}>
                       分割ウィザードを開く
                     </Button>

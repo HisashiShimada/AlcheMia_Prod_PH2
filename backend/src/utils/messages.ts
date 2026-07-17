@@ -36,7 +36,7 @@ type Messages = {
       contractProjectsNotNumber: string;
     };
   };
-  department: {
+  organizationGroup: {
     duplicateCd: string;
     csv: {
       cdRequired: string;
@@ -123,14 +123,14 @@ const ja: Messages = {
       contractProjectsNotNumber: '{row}行目: contract_projectsは数値で入力してください',
     },
   },
-  department: {
+  organizationGroup: {
     duplicateCd: '入力されたIDは既に存在しています',
     csv: {
-      cdRequired: '{row}行目: department_cdは必須です',
-      nameRequired: '{row}行目: department_nameは必須です',
+      cdRequired: '{row}行目: organization_group_cdは必須です',
+      nameRequired: '{row}行目: organization_group_nameは必須です',
       isActiveInvalid: '{row}行目: is_activeは true/false/1/0 のいずれかである必要があります',
-      cdDuplicateInCsv: '{row}行目: department_cd「{cd}」はCSV内で重複しています',
-      cdAlreadyExists: '{row}行目: department_cd「{cd}」は既に存在します',
+      cdDuplicateInCsv: '{row}行目: organization_group_cd「{cd}」はCSV内で重複しています',
+      cdAlreadyExists: '{row}行目: organization_group_cd「{cd}」は既に存在します',
     },
   },
   role: {
@@ -210,14 +210,14 @@ const en: Messages = {
       contractProjectsNotNumber: 'Row {row}: contract_projects must be a number',
     },
   },
-  department: {
+  organizationGroup: {
     duplicateCd: 'The entered ID already exists',
     csv: {
-      cdRequired: 'Row {row}: department_cd is required',
-      nameRequired: 'Row {row}: department_name is required',
+      cdRequired: 'Row {row}: organization_group_cd is required',
+      nameRequired: 'Row {row}: organization_group_name is required',
       isActiveInvalid: 'Row {row}: is_active must be one of true/false/1/0',
-      cdDuplicateInCsv: 'Row {row}: department_cd "{cd}" is duplicated within the CSV',
-      cdAlreadyExists: 'Row {row}: department_cd "{cd}" already exists',
+      cdDuplicateInCsv: 'Row {row}: organization_group_cd "{cd}" is duplicated within the CSV',
+      cdAlreadyExists: 'Row {row}: organization_group_cd "{cd}" already exists',
     },
   },
   role: {

@@ -984,10 +984,10 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         okText="承認"
         cancelText="キャンセル"
         okButtonProps={{ loading: actionLoading }}
-        destroyOnClose
+        destroyOnHidden
       >
         {approveTarget && (
-          <Space direction="vertical" size={4}>
+          <Space orientation="vertical" size={4}>
             <Text>以下のタスクを「完了」に更新します。</Text>
             <Text strong>タスク #{approveTarget.taskNumber}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1006,10 +1006,10 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         okText="NG記録"
         cancelText="キャンセル"
         okButtonProps={{ danger: true, loading: actionLoading }}
-        destroyOnClose
+        destroyOnHidden
       >
         {ngTarget && (
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             <Text>以下のタスクを「NG」に更新します。</Text>
             <Text strong>タスク #{ngTarget.taskNumber}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1038,9 +1038,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         cancelText="キャンセル"
         okButtonProps={{ loading: actionLoading, disabled: !bulkSelectedTaskKey }}
         width={480}
-        destroyOnClose
+        destroyOnHidden
       >
-        <Space direction="vertical" size={16} style={{ width: '100%', paddingTop: 8 }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%', paddingTop: 8 }}>
           {/* ── タスク番号 + 操作 ── */}
           <Flex gap={12} align="center" wrap="wrap">
             <Text style={{ whiteSpace: 'nowrap' }}>タスク番号:</Text>
