@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { formatService } from '../services/formatService';
-import { AppError } from '../enums/errorCodes';
+import { AppError, E5015 } from '../enums/errorCodes';
 
 /** AppError のエラーコードから HTTP ステータスコードを導出する */
 function statusFromCode(code: string): number {
@@ -15,6 +15,38 @@ function statusFromCode(code: string): number {
 }
 
 /**
+ * ユーザーが指定した組織グループに所属しているか検証する
+ * 所属していない場合は E5015 をスローする
+ */
+function assertBelongsToOrganizationGroup(
+  req: Request,
+  organizationGroupCd: string
+): void {
+  const userGroupCds = req.user!.organizationGroupCds ?? [];
+  if (!userGroupCds.includes(organizationGroupCd)) {
+    throw new AppError(E5015, '指定された組織グループへのアクセス権限がありません');
+  }
+}
+
+/**
+ * リクエストから organizationGroupCd を解決する
+ * クエリパラメータ or ボディに指定があればそれを使用し、
+ * 未指定の場合はユーザーの所属グループ先頭要素にフォールバックする
+ */
+function resolveOrganizationGroupCd(req: Request, source: 'query' | 'body' = 'query'): string {
+  const raw = source === 'query'
+    ? req.query.organizationGroupCd
+    : req.body.organizationGroupCd;
+  const fromRequest = typeof raw === 'string' && raw.length > 0 ? raw : undefined;
+  const cd = fromRequest ?? req.user!.organizationGroupCds?.[0] ?? 'default';
+  // 指定があった場合のみ所属チェック（フォールバック値はユーザー自身のものなのでチェック不要）
+  if (fromRequest) {
+    assertBelongsToOrganizationGroup(req, cd);
+  }
+  return cd;
+}
+
+/**
  * フォーマット一覧取得
  * GET /api/v1/formats
  */
@@ -22,8 +54,8 @@ export async function getFormats(req: Request, res: Response): Promise<void> {
   try {
     // 1. ユーザー情報から組織IDを取得（authMiddlewareで検証済み）
     const organizationId = req.user!.organizationId!;
-    // 2. JWTから組織グループCDを取得（最初の要素を使用）
-    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
+    // 2. クエリパラメータ or フォールバックで組織グループCDを解決
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'query');
 
     // 3. S3からフォーマットフォルダ一覧を取得
     const folders = await formatService.getFormatFolders(
@@ -76,7 +108,7 @@ async function getFormatFiles(
     const { folderName } = req.params;
     const { path: subPath } = req.query;
     const organizationId = req.user!.organizationId!;
-    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'query');
 
     // サービスを呼び出してファイル一覧を取得
     const files = await formatService.getFormatFiles(
@@ -110,7 +142,7 @@ async function createFormatFolder(
   try {
     const { folderName } = req.body;
     const organizationId = req.user!.organizationId!;
-    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'body');
 
     // サービスを呼び出してフォルダを作成
     const result = await formatService.createFormatFolder(
@@ -158,7 +190,7 @@ async function createFormatSubfolder(
   try {
     const { formatName, subfolderName, parentPath } = req.body;
     const organizationId = req.user!.organizationId!;
-    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'body');
 
     // サービスを呼び出してサブフォルダを作成
     const result = await formatService.createFormatSubfolder(
@@ -211,7 +243,7 @@ async function createFormatFile(
     
     // 型アサーション（ミドルウェアで検証済みと想定）
     const organizationId = req.user!.organizationId;
-    const organizationGroupCd = req.user!.organizationGroupCds?.[0] || 'default';
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'body');
 
     console.log('[formatController] createFormatFile called:', {
       organizationId,

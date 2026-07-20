@@ -62,7 +62,7 @@ const KeyCreateModal: React.FC<KeyCreateModalProps> = ({ open, onClose, onCreate
       okText="作成"
       cancelText="キャンセル"
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical" size="middle">
         <Form.Item

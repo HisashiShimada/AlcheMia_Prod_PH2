@@ -1,5 +1,5 @@
 -- Attributeマスタ フィルタ付き一覧取得
--- WHERE 1=1 および ORDER BY はリポジトリ側で動的に置換される
+-- ※フィルタ条件はリポジトリ側（attributeRepository.ts）で動的に追加されます
 SELECT
   a.attribute_name,
   a.attribute_value,

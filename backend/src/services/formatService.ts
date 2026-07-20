@@ -7,32 +7,32 @@ import { AppError, E1006, E1007, E1008, E1009, E4006, E6002, E6004, E6005, E6006
  */
 export async function getFormatFolders(
   organizationId: string,
-  departmentCd: string | null | undefined
+  organizationGroupCd: string | null | undefined
 ): Promise<FormatFolder[]> {
   const storageService = getStorageService();
 
-  // departmentCd が未設定（null / '' / undefined）の場合は 'default' フォルダを参照
-  const effectiveDepartmentCd = departmentCd || 'default';
+  // organizationGroupCd が未設定（null / '' / undefined）の場合は 'default' フォルダを参照
+  const effectiveOrganizationGroupCd = organizationGroupCd || 'default';
 
   try {
-    // 1. S3の formats/{department_cd}/ 直下のすべてのファイル/フォルダを取得
-    const basePath = `formats/${effectiveDepartmentCd}`;
+    // 1. S3の formats/{organization_group_cd}/ 直下のすべてのファイル/フォルダを取得
+    const basePath = `formats/${effectiveOrganizationGroupCd}`;
     
     const allItems = await storageService.listFiles(organizationId, basePath);
 
     // 2. フォルダのみを抽出（重複排除）
     const folderSet = new Set<string>();
     allItems.forEach((item) => {
-      // {organizationId}/formats/{dept_cd}/xxx/... から xxx 部分（フォルダ名）を抽出
+      // {organizationId}/formats/{organization_group_cd}/xxx/... から xxx 部分（フォルダ名）を抽出
       const pathParts = item.key.split('/');
       // pathParts[0] = organizationId
       // pathParts[1] = 'formats'
-      // pathParts[2] = departmentCd
+      // pathParts[2] = organizationGroupCd
       // pathParts[3] = folderName
       if (
         pathParts.length >= 4 &&
         pathParts[1] === 'formats' &&
-        pathParts[2] === effectiveDepartmentCd &&
+        pathParts[2] === effectiveOrganizationGroupCd &&
         pathParts[3] !== '' // 空文字列を除外（フォルダ自体のパスを除外）
       ) {
         folderSet.add(pathParts[3]);
@@ -53,7 +53,7 @@ export async function getFormatFolders(
         try {
           const files = await storageService.listFiles(
             organizationId,
-            `formats/${effectiveDepartmentCd}/${folderName}`
+            `formats/${effectiveOrganizationGroupCd}/${folderName}`
           );
           // ディレクトリマーカー（末尾が'/'で終わるもの）を除外してカウント
           // 実際のファイルのみをカウント
@@ -95,7 +95,7 @@ export async function getFormatFolders(
           fileCount,
           fileType,
           category,
-          department: '',
+          organizationGroup: '',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           tags: [category, folderName],
@@ -136,7 +136,7 @@ export async function getFormatFolders(
  */
 export async function getFormatFiles(
   organizationId: string,
-  departmentCd: string,
+  organizationGroupCd: string,
   folderName: string,
   subPath?: string
 ): Promise<FormatFile[]> {
@@ -145,8 +145,8 @@ export async function getFormatFiles(
   try {
     // パスを構築（subPathが指定されている場合はそれを含める）
     const basePath = subPath
-      ? `formats/${departmentCd}/${folderName}/${subPath}`
-      : `formats/${departmentCd}/${folderName}`;
+      ? `formats/${organizationGroupCd}/${folderName}/${subPath}`
+      : `formats/${organizationGroupCd}/${folderName}`;
 
     // S3からファイル一覧を取得
     const allItems = await storageService.listFiles(organizationId, basePath);
@@ -185,7 +185,7 @@ export async function getFormatFiles(
           const subFolderPath = subPath
             ? `${subPath}/${subFolderName}`
             : subFolderName;
-          const subFolderFullPath = `formats/${departmentCd}/${folderName}/${subFolderPath}`;
+          const subFolderFullPath = `formats/${organizationGroupCd}/${folderName}/${subFolderPath}`;
           const subFolderPrefix = `${organizationId}/${subFolderFullPath}/`;
           
           const fileCount = allItems.filter(f => {
@@ -217,7 +217,7 @@ export async function getFormatFiles(
           const subFolderPath = subPath
             ? `${subPath}/${subFolderName}`
             : subFolderName;
-          const subFolderFullPath = `formats/${departmentCd}/${folderName}/${subFolderPath}`;
+          const subFolderFullPath = `formats/${organizationGroupCd}/${folderName}/${subFolderPath}`;
           const subFolderPrefix = `${organizationId}/${subFolderFullPath}/`;
           
           const fileCount = allItems.filter(f => {
@@ -278,18 +278,18 @@ export async function getFormatFiles(
  * 新規フォーマットフォルダ作成
  * 
  * @param organizationId 組織ID
- * @param departmentCd 部門コード
+ * @param organizationGroupCd 組織グループCD
  * @param folderName フォルダ名
  * @returns 作成されたフォルダ情報
  */
 export async function createFormatFolder(
   organizationId: string,
-  departmentCd: string,
+  organizationGroupCd: string,
   folderName: string
 ): Promise<{
   folder_name: string;
   folder_path: string;
-  department_cd: string;
+  organization_group_cd: string;
   created_at: string;
 }> {
   const storageService = getStorageService();
@@ -306,14 +306,14 @@ export async function createFormatFolder(
     }
 
     // 2. 重複チェック
-    const basePath = `formats/${departmentCd}`;
+    const basePath = `formats/${organizationGroupCd}`;
     const existingFolders = await storageService.listFiles(organizationId, basePath);
     
     const folderExists = existingFolders.some(file => {
       const pathParts = file.key.split('/');
       // pathParts[0] = organizationId
       // pathParts[1] = 'formats'
-      // pathParts[2] = departmentCd
+      // pathParts[2] = organizationGroupCd
       // pathParts[3] = folderName (重複チェック対象)
       return pathParts.length >= 4 && pathParts[3] === folderName;
     });
@@ -323,7 +323,7 @@ export async function createFormatFolder(
     }
 
     // 3. フォルダパスを生成
-    const folderPath = `formats/${departmentCd}/${folderName}`;
+    const folderPath = `formats/${organizationGroupCd}/${folderName}`;
     const fullPath = `${organizationId}/${folderPath}`;
 
     // 4. Swiftに空のフォルダを作成（ディレクトリマーカー）
@@ -346,7 +346,7 @@ export async function createFormatFolder(
     return {
       folder_name: folderName,
       folder_path: fullPath,
-      department_cd: departmentCd,
+      organization_group_cd: organizationGroupCd,
       created_at: new Date().toISOString(),
     };
   } catch (error) {
@@ -359,7 +359,7 @@ export async function createFormatFolder(
  * フォーマット内にサブフォルダを作成
  * 
  * @param organizationId 組織ID
- * @param departmentCd 部門コード
+ * @param organizationGroupCd 組織グループCD
  * @param formatName フォーマット名（chemistry, materials等）
  * @param subfolderName サブフォルダ名
  * @param parentPath 親フォルダのパス（オプション）
@@ -367,7 +367,7 @@ export async function createFormatFolder(
  */
 export async function createFormatSubfolder(
   organizationId: string,
-  departmentCd: string,
+  organizationGroupCd: string,
   formatName: string,
   subfolderName: string,
   parentPath?: string
@@ -400,19 +400,19 @@ export async function createFormatSubfolder(
       ? `${parentPath}/${subfolderName}`
       : `${subfolderName}`;
     
-    const fullFormatPath = `formats/${departmentCd}/${formatName}/${folderPath}`;
+    const fullFormatPath = `formats/${organizationGroupCd}/${formatName}/${folderPath}`;
 
     // 4. 重複チェック（同じパスに既にフォルダが存在するか）
     const existingFiles = await storageService.listFiles(
       organizationId, 
-      `formats/${departmentCd}/${formatName}`
+      `formats/${organizationGroupCd}/${formatName}`
     );
     
     const folderExists = existingFiles.some(file => {
       const pathParts = file.key.split('/');
       // pathParts[0] = organizationId
       // pathParts[1] = 'formats'
-      // pathParts[2] = departmentCd
+      // pathParts[2] = organizationGroupCd
       // pathParts[3] = formatName
       // pathParts[4以降] = サブフォルダパス
       
@@ -475,7 +475,7 @@ export async function createFormatSubfolder(
  * フォーマットファイルを作成
  * 
  * @param organizationId 組織ID
- * @param departmentCd 部門コード
+ * @param organizationGroupCd 組織グループCD
  * @param folderName フォーマットフォルダ名
  * @param fileName ファイル名（拡張子を含む。例: "test.xml", "workflow.maiml"）
  * @param subPath サブフォルダパス（オプション）
@@ -483,7 +483,7 @@ export async function createFormatSubfolder(
  */
 export async function createFormatFile(
   organizationId: string,
-  departmentCd: string,
+  organizationGroupCd: string,
   folderName: string,
   fileName: string,
   subPath?: string,
@@ -512,8 +512,8 @@ export async function createFormatFile(
 
     // 3. ファイルパスの構築（folderName配下に配置）
     const filePath = subPath
-      ? `formats/${departmentCd}/${folderName}/${subPath}/${fullFileName}`
-      : `formats/${departmentCd}/${folderName}/${fullFileName}`;
+      ? `formats/${organizationGroupCd}/${folderName}/${subPath}/${fullFileName}`
+      : `formats/${organizationGroupCd}/${folderName}/${fullFileName}`;
 
     // 4. ファイルの重複チェック
     const exists = await storageService.fileExists(organizationId, filePath);
@@ -558,9 +558,6 @@ export async function createFormatFile(
 /**
  * ファイル名をサニタイズ
  * 不正な文字を_に変換
- * 
- * @param fileName サニタイズするファイル名
- * @returns サニタイズされたファイル名
  */
 function sanitizeFileName(fileName: string): string {
   return fileName
@@ -572,7 +569,7 @@ function sanitizeFileName(fileName: string): string {
  * フォーマットファイルの内容を更新
  * 
  * @param organizationId 組織ID
- * @param filePath ファイルパス（formats/{dept}/{folder}/{file}形式）
+ * @param filePath ファイルパス（formats/{organization_group_cd}/{folder}/{file}形式）
  * @param content 更新するXMLコンテンツ
  * @returns 更新されたファイル情報
  */

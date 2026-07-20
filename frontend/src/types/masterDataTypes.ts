@@ -92,8 +92,8 @@ export interface AttributeRecord extends BaseMasterRecord {
   attributeName: string;
   attributeValue: string;
   attributeRemark?: string;
-  departmentCd: string;
-  departmentName: string;
+  organizationGroupCd: string;
+  organizationGroupName: string;
 }
 
 /**
@@ -202,8 +202,8 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
         align: 'left',
       },
       {
-        dbField: 'departmentName',
-        displayName: '部署名',
+        dbField: 'organizationGroupName',
+        displayName: '組織グループ名',
         searchFixed: true,
         isDisplay: true,
         addable: true,

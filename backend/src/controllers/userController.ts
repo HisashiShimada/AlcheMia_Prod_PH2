@@ -308,7 +308,6 @@ export async function updateUserStatus(req: Request, res: Response, next: NextFu
  * クエリパラメータ:
  * - search: 検索テキスト
  * - is_active: アクティブ状態フィルタ
- * - department_cd: 部署CDフィルタ
  * - role_cd: ロールCDフィルタ
  */
 export async function downloadUsersCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -316,7 +315,7 @@ export async function downloadUsersCsv(req: Request, res: Response, next: NextFu
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
-    const { search, is_active, department_cd, role_cd } = req.query;
+    const { search, is_active, role_cd } = req.query;
 
     // フィルター構築
     const filters: any = {};
@@ -325,9 +324,6 @@ export async function downloadUsersCsv(req: Request, res: Response, next: NextFu
     }
     if (is_active !== undefined) {
       filters.isActive = is_active === 'true' || is_active === '1';
-    }
-    if (department_cd) {
-      filters.departmentCd = String(department_cd);
     }
     if (role_cd) {
       filters.roleCd = String(role_cd);

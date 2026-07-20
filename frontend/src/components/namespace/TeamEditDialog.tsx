@@ -184,7 +184,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
       width={480}
       maskClosable={false}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size={16}>
+      <Space orientation="vertical" style={{ width: '100%' }} size={16}>
 
         {/* ── チーム名（編集可能） ── */}
         <div>

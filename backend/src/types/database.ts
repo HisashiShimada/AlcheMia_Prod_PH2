@@ -29,8 +29,8 @@ export interface Project {
   /** 概要 */
   description?: string;
   
-  /** 部署CD */
-  department_cd?: string;
+  /** 組織グループCD */
+  organization_group_cd?: string;
   
   /** 所有者ユーザID */
   owner_user_id?: string;
@@ -334,7 +334,7 @@ export interface TemplateData {
  * organization_userテーブルの型定義（JOINデータ含む）
  * 
  * @remarks
- * この型は organization_user テーブルと関連テーブル（department, role）を
+ * この型は organization_user テーブルと関連テーブル（role）を
  * JOINした結果に対応しています。
  * DDL: docs/design/db/ddl/organization_user.sql
  * 主キー: (organization_id, user_id)
@@ -410,19 +410,19 @@ export interface MaimlEventLog {
 // ============================================================
 
 /**
- * findWithOwnerAndDept クエリの戻り値型
+ * findWithOwnerAndOrgGroup クエリの戻り値型
  *
  * @remarks
  * SQL: projects/findWithOwnerAndDept.sql
- * Repository: projectRepository.findWithOwnerAndDept()
+ * Repository: projectRepository.findWithOwnerAndOrgGroup()
  */
-export interface ProjectWithOwnerAndDept {
+export interface ProjectWithOwnerAndOrgGroup {
   organization_id: string;
   project_id: string;
   project_name: string;
   description: string | null;
-  department_cd: string | null;
-  department_name: string | null;
+  organization_group_cd: string | null;
+  organization_group_name: string | null;
   owner_user_id: string | null;
   owner_name: string | null;
   project_status: number;
@@ -551,9 +551,6 @@ export interface UserSearchFilters {
   
   /** アクティブ状態フィルター */
   isActive?: boolean;
-  
-  /** 部署CDフィルター */
-  departmentCd?: string;
   
   /** ロールCDフィルター */
   roleCd?: string;

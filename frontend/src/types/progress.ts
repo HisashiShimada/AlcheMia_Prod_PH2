@@ -76,7 +76,7 @@ export interface ProjectProgress {
   projectId: string;
   projectName: string;
   projectStatus: ProjectStatus;
-  department: string;
+  organizationGroup: string;
   ownerId: string;
   ownerEmail: string;
   ownerName: string;
@@ -94,7 +94,7 @@ export interface ProjectInfo {
   projectName: string;
   projectDescription?: string;
   owner: string;
-  department?: string;
+  organizationGroup?: string;
   status: ProjectStatus;
   methods: string[];
   createdAt: string;

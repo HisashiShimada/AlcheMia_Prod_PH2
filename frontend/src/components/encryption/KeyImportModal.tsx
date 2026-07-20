@@ -129,7 +129,7 @@ const KeyImportModal: React.FC<KeyImportModalProps> = ({ open, onClose, onImport
       okText="インポート"
       cancelText="キャンセル"
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
     >
       <Alert
         type="info"

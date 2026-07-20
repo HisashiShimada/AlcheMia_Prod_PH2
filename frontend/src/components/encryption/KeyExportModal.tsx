@@ -93,7 +93,7 @@ const KeyExportModal: React.FC<KeyExportModalProps> = ({ open, targetKey, onClos
       okText="エクスポート"
       cancelText="キャンセル"
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
     >
       {/* エクスポート対象の鍵情報 */}
       <Descriptions

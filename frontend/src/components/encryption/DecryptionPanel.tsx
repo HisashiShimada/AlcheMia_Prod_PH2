@@ -141,7 +141,7 @@ const DecryptionPanel: React.FC<DecryptionPanelProps> = ({
         size="small"
         style={{ marginBottom: 12, background: '#fff7e6', borderColor: '#ffd591' }}
       >
-        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={4} style={{ width: '100%' }}>
           <Text strong style={{ fontSize: 13 }}>
             <UnlockOutlined style={{ marginRight: 6, color: '#fa8c16' }} />
             復号化設定
