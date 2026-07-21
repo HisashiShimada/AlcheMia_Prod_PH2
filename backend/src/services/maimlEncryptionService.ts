@@ -208,15 +208,18 @@ export function disposeKey(keyId: string): void {
  * @param targetElement 検証対象の XML 要素文字列または XPath
  * @returns スコープ検証結果
  */
-export function validateEncryptionScope(
+export async function validateEncryptionScope(
   targetElement: string,
-): EncryptionScopeValidationResult {
-  // TODO: 本実装 — XPath を解析し UPA 制約への適合を確認する
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  void targetElement;
-  return {
-    isValid: true,
-  };
+): Promise<EncryptionScopeValidationResult> {
+  const { isUpaViolation } = await import('../utils/maimlSchemaHelper');
+  const result = await isUpaViolation(targetElement);
+  if (result.isViolation) {
+    return {
+      isValid: false,
+      message: result.message ?? 'UPA 制約に違反しています',
+    };
+  }
+  return { isValid: true };
 }
 
 /**

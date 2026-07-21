@@ -14,8 +14,6 @@ import type {
   EncryptionConfig,
   EncryptionPreviewResponse,
   EncryptResponse,
-  DecryptResponse,
-  KeyMethodType,
   LoadedKeyInfo,
   UpaCheckResult,
   EncryptionLevelType,
@@ -93,21 +91,6 @@ export async function encryptElements(
   const res = await axios.post<{ success: boolean; data: EncryptResponse }>(
     `${BASE_URL}/projects/${encodeURIComponent(projectName)}/encrypt`,
     { targetPaths, config },
-  );
-  return res.data.data;
-}
-
-/**
- * 指定要素の復号化を実行（単一要素）
- */
-export async function decryptElement(
-  projectName: string,
-  targetPath: string,
-  decryptionKey: { method: KeyMethodType; keyName?: string; password?: string },
-): Promise<DecryptResponse> {
-  const res = await axios.post<{ success: boolean; data: DecryptResponse }>(
-    `${BASE_URL}/projects/${encodeURIComponent(projectName)}/decrypt`,
-    { targetPaths: [targetPath], decryptionKey },
   );
   return res.data.data;
 }

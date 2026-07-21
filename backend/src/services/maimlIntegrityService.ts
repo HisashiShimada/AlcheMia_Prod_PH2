@@ -19,11 +19,11 @@
  * 3. signHash(privateKey, hash, signatureId) → SignatureResult
  * 4. getSigningPublicKey(policy)          → DummyPublicKey
  * 5. verifySignature(publicKey, hash, signatureValue) → SignatureVerifyResult
- * 6. buildTimestampRequest(signatureValue) → TimestampRequest
- * 7. requestTimestamp(request, policy)   → TimestampToken
- * 8. parseTimestampResponse(tsaResponse) → TimestampToken
+ * 6. buildTimestampRequest(signatureValue) → TimeStampReq
+ * 7. requestTimestamp(request, policy)   → Rfc3161TimestampToken
+ * 8. parseTimestampResponse(tsaResponse) → Rfc3161TimestampToken
  * 9. embedTimestampToken(signatureId, token) → void（インメモリ格納）
- * 10. extractTimestampToken(maimlFile, signatureId) → TimestampToken | null
+ * 10. extractTimestampToken(maimlFile, signatureId) → Rfc3161TimestampToken | null
  * 11. verifyTimestampToken(token)         → TimestampVerifyResult
  * 12. checkTimeConsistency(timestamp, creationDate) → TimeConsistencyResult
  * 13. validateSignerCertificate(cert)     → CertificateValidationResult
@@ -37,6 +37,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DOMParser } from '@xmldom/xmldom';
 import * as forge from 'node-forge';
 import type { Pool } from 'pg';
+import { loadSigningKeySync, loadVerificationKeySync } from '../utils/testKeyLoader';
 import type {
   IntegrityPolicy,
   CanonicalHashResult,
@@ -45,17 +46,21 @@ import type {
   DummyPublicKey,
   SignatureResult,
   SignatureVerifyResult,
-  TimestampRequest,
-  TimestampToken,
   TimestampVerifyResult,
   TimeConsistencyResult,
   CertificateValidationResult,
   TimestampRequestRecord,
   VerificationResultRecord,
+  TimeStampReq,
+  TimeStampResp,
+  TSTInfo,
+  Rfc3161TimestampToken,
 } from '../types/integrityTypes';
 import {
   DEFAULT_INTEGRITY_POLICY,
   HASH_ALGORITHM_URI_MAP,
+  PKIStatus,
+  OID,
 } from '../types/integrityTypes';
 import * as integrityAuditLogRepository from '../repositories/integrityAuditLogRepository';
 
@@ -72,13 +77,13 @@ import * as integrityAuditLogRepository from '../repositories/integrityAuditLogR
 const signingKeyStore = new Map<string, { privateKey: DummyPrivateKey; publicKey: DummyPublicKey }>();
 
 /**
- * タイムスタンプトークンストア（signatureId → TimestampToken）
+ * タイムスタンプトークンストア（signatureId → Rfc3161TimestampToken）
  *
  * @remarks
  * `embedTimestampToken` で格納し `extractTimestampToken` で取得する。
  * 本実装では XML ドキュメントへの書き込みに置き換える。
  */
-const timestampTokenStore = new Map<string, TimestampToken>();
+const timestampTokenStore = new Map<string, Rfc3161TimestampToken>();
 
 /**
  * 監査ログバッファ（プロセス内インメモリ）
@@ -299,7 +304,6 @@ export function getSigningPrivateKey(
 ): DummyPrivateKey {
   switch (policy.signatureProvider) {
     case 'local-file': {
-      const { loadSigningKeySync } = require('../utils/testKeyLoader') as typeof import('../utils/testKeyLoader');
       const pem = loadSigningKeySync();
       if (!pem) {
         // test-keys が存在しない場合は local-dummy へフォールバック
@@ -339,7 +343,6 @@ export function getSigningPublicKey(
 ): DummyPublicKey {
   switch (policy.signatureProvider) {
     case 'local-file': {
-      const { loadVerificationKeySync } = require('../utils/testKeyLoader') as typeof import('../utils/testKeyLoader');
       const pem = loadVerificationKeySync();
       if (!pem) {
         // test-keys が存在しない場合は local-dummy へフォールバック
@@ -434,66 +437,105 @@ export function verifySignature(
  * TSA へのリクエスト（TSQ）を組み立てる。
  *
  * @remarks
- * 【仮実装時の挙動】署名値を SHA-256 でハッシュしてリクエストを構築し、ハッシュ値をログ出力する。
+ * 【仮実装時の挙動】署名値を SHA-256 でハッシュし、RFC 3161 TimeStampReq 構造を組み立てる。
+ * 内部で RFC 3161 準拠の `TimeStampReq` 型を生成したうえで、
+ * 既存の呼び出し元との互換性を保つため簡易型 `TimestampRequest` も返す。
  *
  * @param signatureValue 署名値（Base64）
- * @returns TSA リクエスト
+ * @returns TSA リクエスト（簡易型 `TimestampRequest`）
  */
-export function buildTimestampRequest(signatureValue: string): TimestampRequest {
+export function buildTimestampRequest(signatureValue: string): TimeStampReq {
   const hashedMessage = crypto
     .createHash('sha256')
     .update(signatureValue, 'utf8')
     .digest('base64');
   const nonce = uuidv4().replace(/-/g, '');
 
-  // 【仮実装時の挙動】ハッシュ値をログ出力
-  console.log(`[maimlIntegrityService] buildTimestampRequest: hashedMessage=${hashedMessage}`);
-
-  return {
-    hashedMessage,
-    hashAlgorithm: 'http://www.w3.org/2001/04/xmlenc#sha256',
+  // RFC 3161 準拠の TimeStampReq 構造を組み立てる（仮実装: DER エンコードなし）
+  const tsq: TimeStampReq = {
+    version: 1,
+    messageImprint: {
+      hashAlgorithm: {
+        algorithm: OID.sha256, // '2.16.840.1.101.3.4.2.1'
+      },
+      hashedMessage,
+    },
     nonce,
+    certReq: false,
+    // reqPolicy: 外部 TSA 選定後に設定
   };
+
+  // 【仮実装時の挙動】ハッシュ値をログ出力
+  console.log(
+    `[maimlIntegrityService] buildTimestampRequest: hashedMessage=${tsq.messageImprint.hashedMessage}`,
+    `policy=${tsq.messageImprint.hashAlgorithm.algorithm}`,
+    `nonce=${tsq.nonce}`,
+  );
+
+  return tsq;
 }
 
 /**
  * TSA と通信してタイムスタンプトークン（TST）を取得する。
  *
  * @remarks
- * 【仮実装時の挙動】ローカル時刻を返すだけ（本番運用不可）。
- * 【本実装】`policy.tsaProvider` に応じて外部 TSA サーバーと RFC 3161 通信を行う。
+ * 【仮実装時の挙動】ローカル時刻を使い RFC 3161 準拠の TimeStampResp / TSTInfo 構造を組み立て、
+ * 既存の呼び出し元との互換性を保つため簡易型 `TimestampToken` に変換して返す（本番運用不可）。
+ * 【本実装】`policy.tsaProvider='external-tsa'` で外部 TSA サーバーと RFC 3161 通信を行い、
+ * DER エンコードされた `TimeStampResp` を受信・デコードして返す。
  *
  * @param request TSA リクエスト（buildTimestampRequest の戻り値）
  * @param signatureId 対応する署名 ID
  * @param policy 改竄防止ポリシー（省略時: DEFAULT_INTEGRITY_POLICY）
- * @returns タイムスタンプトークン
+ * @returns タイムスタンプトークン（簡易型 `TimestampToken`）
  */
 export function requestTimestamp(
-  request: TimestampRequest,
+  request: TimeStampReq,
   signatureId: string,
   policy: IntegrityPolicy = DEFAULT_INTEGRITY_POLICY,
-): TimestampToken {
+): Rfc3161TimestampToken {
   switch (policy.tsaProvider) {
     case 'local-mock': {
-      // 【仮実装時の挙動】ローカル時刻を返すだけ（本番運用不可）
+      // 【仮実装】RFC 3161 準拠の TSTInfo 構造を組み立てる（DER エンコードなし）
       const now = new Date().toISOString();
-      const mockToken = Buffer.from(
-        JSON.stringify({
-          version: 'mock-1.0',
-          hashedMessage: request.hashedMessage,
-          timestamp: now,
-          nonce: request.nonce,
-        }),
-      ).toString('base64');
-      return {
-        token: mockToken,
-        timestamp: now,
-        tsaIdentifier: 'local-mock-tsa',
-        signatureId,
+      const serialNumber = uuidv4().replace(/-/g, '');
+
+      const tstInfo: TSTInfo = {
+        version: 1,
+        policy: '1.3.6.1.4.1.99999.1.1', // 仮の TSA ポリシー OID
+        messageImprint: {
+          hashAlgorithm: {
+            algorithm: OID.sha256,
+          },
+          hashedMessage: request.messageImprint.hashedMessage,
+        },
+        serialNumber,
+        genTime: now,
+        accuracy: { seconds: 1 }, // 仮: ±1秒の精度
+        ordering: false,
+        nonce: request.nonce,
+        tsa: {
+          directoryName: 'CN=Local Mock TSA, O=LocalTest',
+        },
       };
+
+      // RFC 3161 TimeStampToken（仮実装: TSTInfo を JSON→Base64 した疑似 rawToken）
+      const rfc3161Token: Rfc3161TimestampToken = {
+        contentType: OID.signedData,
+        tstInfo,
+        rawToken: Buffer.from(JSON.stringify(tstInfo)).toString('base64'),
+      };
+
+      // RFC 3161 TimeStampResp（仮実装: granted ステータス）
+      const tsResp: TimeStampResp = {
+        status: { status: PKIStatus.granted },
+        timeStampToken: rfc3161Token,
+      };
+
+      return tsResp.timeStampToken!;
     }
     case 'external-tsa':
-      // TODO: 本実装 — RFC 3161 で外部 TSA と通信する
+      // TODO: 本実装 — RFC 3161 で外部 TSA と HTTP 通信し DER エンコードされた TimeStampResp を受信する
       throw new Error('未実装: tsaProvider=external-tsa は本実装フェーズで対応します');
     default: {
       const _exhaustive: never = policy.tsaProvider;
@@ -506,17 +548,26 @@ export function requestTimestamp(
  * TSA からの応答を解析してタイムスタンプトークンを取得する。
  *
  * @remarks
- * 【仮実装時の挙動】仮の固定応答を通す（requestTimestamp の戻り値をそのまま返す）。
- * 【本実装】RFC 3161 の TSA 応答（DER エンコード）を解析する。
+ * 【仮実装時の挙動】`requestTimestamp` が返す簡易型 `TimestampToken` をそのまま返す
+ *   アダプター関数として機能する。
+ * 【本実装】RFC 3161 の TSA 応答（DER エンコードされた `TimeStampResp`）を受け取り、
+ *   `TimeStampResp.timeStampToken.tstInfo.genTime` を timestamp として抽出する。
+ *   DER デコードには本実装フェーズで ASN.1 ライブラリ（例: `@peculiar/asn1-schema`）を使用する。
  *
  * @param tsaResponse TSA 応答（requestTimestamp の戻り値）
- * @returns 解析済みタイムスタンプトークン
+ * @returns 解析済みタイムスタンプトークン（簡易型 `TimestampToken`）
  */
 export function parseTimestampResponse(
-  tsaResponse: TimestampToken,
-): TimestampToken {
-  // TODO: 本実装 — DER エンコードされた RFC 3161 応答を解析する
-  // 仮実装: そのまま返す
+  tsaResponse: Rfc3161TimestampToken,
+): Rfc3161TimestampToken {
+  // TODO: 本実装 — DER エンコードされた RFC 3161 TimeStampResp を受け取り以下を実施する:
+  //   1. DER デコードして TimeStampResp を取得
+  //   2. status.status が granted / grantedWithMods であることを確認
+  //   3. timeStampToken.tstInfo.genTime を timestamp に変換
+  //   4. timeStampToken.rawToken（DER全体のBase64）を token に設定
+  //   5. tsa.directoryName を tsaIdentifier に設定
+
+  // 仮実装: requestTimestamp が返す簡易 TimestampToken をそのまま返すアダプター
   return tsaResponse;
 }
 
@@ -535,20 +586,21 @@ export function parseTimestampResponse(
  * @returns 検証結果
  */
 export function verifyTimestampToken(
-  token: TimestampToken,
+  token: Rfc3161TimestampToken,
 ): TimestampVerifyResult {
   // TODO: 本実装 — TSA 証明書を検証し、トークン署名を確認する
-  if (token.tsaIdentifier === 'local-mock-tsa') {
+  const tsaId = token.tstInfo.tsa?.directoryName ?? '';
+  if (tsaId === 'CN=Local Mock TSA, O=LocalTest' || token.contentType === OID.signedData) {
     // 仮実装: local-mock トークンは常に有効
     return {
       isValid: true,
-      timestamp: token.timestamp,
+      timestamp: token.tstInfo.genTime,
     };
   }
   // 未知の TSA は一旦有効とする（本実装で要変更）
   return {
     isValid: true,
-    timestamp: token.timestamp,
+    timestamp: token.tstInfo.genTime,
   };
 }
 
@@ -605,9 +657,9 @@ export function checkTimeConsistency(
  */
 export function embedTimestampToken(
   signatureId: string,
-  token: TimestampToken,
+  token: Rfc3161TimestampToken,
 ): void {
-  timestampTokenStore.set(signatureId, { ...token, signatureId });
+  timestampTokenStore.set(signatureId, token);
 }
 
 /**
@@ -624,16 +676,21 @@ export function embedTimestampToken(
 export function extractTimestampToken(
   maimlFile: string,
   signatureId: string,
-): TimestampToken | null {
+): Rfc3161TimestampToken | null {
   // まず MAIML XML から抽出を試みる
   const extracted = extractSignatureFromXml(maimlFile, signatureId);
   if (extracted?.timestampToken) {
-    return {
-      token: extracted.timestampToken,
-      timestamp: new Date().toISOString(), // TST から本来は取得するが仮実装として現在時刻
-      tsaIdentifier: 'local-mock-tsa',
-      signatureId,
-    };
+    // rawToken（Base64）から TSTInfo を復元する（仮実装: JSON.parse）
+    try {
+      const tstInfo = JSON.parse(Buffer.from(extracted.timestampToken, 'base64').toString('utf-8'));
+      return {
+        contentType: OID.signedData,
+        tstInfo,
+        rawToken: extracted.timestampToken,
+      };
+    } catch {
+      // パース失敗時はインメモリストアにフォールバック
+    }
   }
   // MAIML に埋め込みがない場合はインメモリストアにフォールバック
   return timestampTokenStore.get(signatureId) ?? null;

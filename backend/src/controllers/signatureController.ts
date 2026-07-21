@@ -210,8 +210,8 @@ export const signMaiml = async (req: Request, res: Response): Promise<void> => {
     const userId: string | null = (req.user as { userId?: string } | undefined)?.userId ?? null;
     await maimlIntegrityService.recordTimestampRequest(
       hashResult.digestValue,
-      tsToken.tsaIdentifier,
-      tsToken.timestamp,
+      tsToken.tstInfo.tsa?.directoryName ?? 'local-mock-tsa',
+      tsToken.tstInfo.genTime,
       policy,
       pool,
       organizationId,
@@ -225,7 +225,7 @@ export const signMaiml = async (req: Request, res: Response): Promise<void> => {
       hashResult.algorithmUri,
       signResult.signatureValue,
       signResult.signatureAlgorithmUri,
-      parsedToken.token,
+      parsedToken.rawToken,
     );
 
     const updatedXml = embedSignatureInXml(xmlContent, signatureXml, signatureId);
@@ -239,9 +239,9 @@ export const signMaiml = async (req: Request, res: Response): Promise<void> => {
       signatureValue: signResult.signatureValue,
       signatureAlgorithmUri: signResult.signatureAlgorithmUri,
       signedAt: signResult.signedAt,
-      timestampToken: parsedToken.token,
-      timestamp: parsedToken.timestamp,
-      tsaIdentifier: parsedToken.tsaIdentifier,
+      timestampToken: parsedToken.rawToken,
+      timestamp: parsedToken.tstInfo.genTime,
+      tsaIdentifier: parsedToken.tstInfo.tsa?.directoryName ?? 'unknown',
       updatedFilePath,
     });
   } catch (err) {
@@ -258,15 +258,17 @@ export const signMaiml = async (req: Request, res: Response): Promise<void> => {
  * MAIMLファイルの署名・TST・証明書を一括検証
  *
  * リクエストボディ:
- *   - signatureId: string       検証対象の署名 ID
- *   - signatureValue: string    Base64 署名値
- *   - storedHash: string        保存済みダイジェスト値（Base64）
+ *   - signatureId: string       検証対象の署名 ID（必須）
  *   - signerCert?: string       署名者証明書（PEM or 仮識別子）
  *   - tsaCert?: string          TSA 証明書（PEM or 仮識別子）
  *
+ * @remarks
+ * signatureValue / storedHash はMAIMLファイル内の <ds:Signature> から自動取得する。
+ * リクエストボディに不要なため廃止済み。先に /sign を実行してMAIMLに署名を埋め込むこと。
+ *
  * レスポンス:
  *   - overallValid: boolean     全体の検証結果
- *   - hashMatch: boolean        ハッシュ一致
+ *   - hashMatch: boolean        ハッシュ一致（MAIMLのdigestValueと現在のMAIMLハッシュを比較）
  *   - signatureValid: boolean   署名有効
  *   - timestampValid: boolean   TST 有効
  *   - timeConsistent: boolean   時刻整合性 OK
@@ -277,14 +279,10 @@ export const verifyMaiml = async (req: Request, res: Response): Promise<void> =>
   const { projectName } = req.params;
   const {
     signatureId,
-    signatureValue,
-    storedHash,
     signerCert,
     tsaCert,
   } = req.body as {
     signatureId: string;
-    signatureValue: string;
-    storedHash: string;
     signerCert?: string;
     tsaCert?: string;
   };
@@ -295,8 +293,8 @@ export const verifyMaiml = async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  if (!signatureId || !signatureValue || !storedHash) {
-    badRequest(res, 'E1003', 'signatureId, signatureValue, storedHash は必須です');
+  if (!signatureId) {
+    badRequest(res, 'E1003', 'signatureId は必須です');
     return;
   }
 
@@ -308,17 +306,31 @@ export const verifyMaiml = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    // MAIMLファイルから署名情報を自動取得
+    const extracted = maimlIntegrityService.extractSignatureFromXml(xmlContent, signatureId);
+    if (!extracted || !extracted.digestValue || !extracted.signatureValue) {
+      badRequest(
+        res,
+        'E6002',
+        `MAIML ファイルに署名 ID "${signatureId}" が見つかりません。先に POST /sign を実行してMAIMLに署名を埋め込んでください`,
+      );
+      return;
+    }
+
+    const storedHash = extracted.digestValue;
+    const signatureValue = extracted.signatureValue;
+
     const policy = DEFAULT_INTEGRITY_POLICY;
     const pool = getPool();
     const userId: string | null = (req.user as { userId?: string } | undefined)?.userId ?? null;
 
-    // 1. ハッシュ再計算・比較
+    // 1. 現在のMAIMLからハッシュを再計算し、MAIMLに保存されているdigestValueと比較
     const hashCompare = maimlIntegrityService.recomputeAndCompare(xmlContent, storedHash, policy);
 
     // 2. 公開鍵取得
     const publicKey = maimlIntegrityService.getSigningPublicKey(policy);
 
-    // 3. 署名検証
+    // 3. 保存済みsignatureValueとstoredHashを使って署名検証
     const sigVerify = maimlIntegrityService.verifySignature(publicKey, storedHash, signatureValue);
 
     // 4. TST 取得（インメモリストアから）
@@ -332,7 +344,7 @@ export const verifyMaiml = async (req: Request, res: Response): Promise<void> =>
 
       // 6. 時刻整合性チェック
       timeConsistent = maimlIntegrityService.checkTimeConsistency(
-        tsToken.timestamp,
+        tsToken.tstInfo.genTime,
         hashCompare.recomputedDigest ? new Date().toISOString() : new Date().toISOString(),
       );
     }

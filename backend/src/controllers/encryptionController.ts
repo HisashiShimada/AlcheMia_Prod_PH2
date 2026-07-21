@@ -311,22 +311,35 @@ export const previewEncryption = async (req: Request, res: Response): Promise<vo
     }
 
     const keyId = config?.keyName ?? `file:fixed:${algorithm}`;
+
+    // beforeXml から要素名を取得してプレビュー afterXml を組み立てる
+    // 実際の暗号化は行わず、EncryptedData のタグ構成（構造プレビュー）のみを返す
+    const encPreviewId = `enc-preview-${Date.now()}`;
+    let elementTag = 'Element';
+    if (beforeXml && beforeXml.trim().startsWith('<')) {
+      const tagMatch = beforeXml.trim().match(/^<([^\s/>]+)/);
+      if (tagMatch) {
+        elementTag = tagMatch[1];
+      }
+    }
+
     const afterXml = [
       `<xenc:EncryptedData xmlns:xenc="http://www.w3.org/2001/04/xmlenc#"`,
       `                    xmlns:ds="http://www.w3.org/2000/09/xmldsig#"`,
-      `                    Id="enc-preview"`,
+      `                    Id="${encPreviewId}"`,
       `                    Type="http://www.w3.org/2001/04/xmlenc#Element">`,
+      `  <!-- 暗号化対象要素: <${elementTag}> -->`,
       `  <xenc:EncryptionMethod Algorithm="${algorithmUri}"/>`,
       `  <ds:KeyInfo>`,
       `    <ds:KeyName>${keyId}</ds:KeyName>`,
       `  </ds:KeyInfo>`,
       `  <xenc:CipherData>`,
-      `    <xenc:CipherValue>(暗号化後の Base64 データがここに入ります)</xenc:CipherValue>`,
+      `    <xenc:CipherValue>(暗号化後の Base64 データ)</xenc:CipherValue>`,
       `  </xenc:CipherData>`,
       `</xenc:EncryptedData>`,
     ].join('\n');
 
-    ok(res, { beforeXml, afterXml, algorithmUri });
+    ok(res, { beforeXml, afterXml, algorithmUri, elementTag });
   } catch (err) {
     serverError(res, err);
   }
@@ -404,26 +417,41 @@ export const encryptElement = async (req: Request, res: Response): Promise<void>
     }
 
     // 各 targetPath に対して暗号化処理し、XML を逐次書き換え
+    // validateEncryptionScope が非同期のため、直列で処理する（updatedXml を逐次更新するため Promise.all は使わない）
     let updatedXml = xmlContent;
-    const encryptedResults = paths.map((targetPath) => {
-      // UPA 制約チェック
-      const scopeResult = maimlEncryptionService.validateEncryptionScope(targetPath);
+    const encryptedResults: Array<{
+      targetPath: string;
+      success: boolean;
+      error?: string;
+      warning?: string;
+      encryptionId?: string;
+      algorithmUri?: string;
+      encryptedAt?: string;
+      hasInsertionRefs?: boolean;
+      insertionRefCount?: number;
+    }> = [];
+
+    for (const targetPath of paths) {
+      // UPA 制約チェック（非同期）
+      const scopeResult = await maimlEncryptionService.validateEncryptionScope(targetPath);
       if (!scopeResult.isValid) {
-        return {
+        encryptedResults.push({
           targetPath,
           success: false,
           error: `UPA 制約違反: ${scopeResult.message ?? '暗号化スコープが無効です'}`,
-        };
+        });
+        continue;
       }
 
       // targetPath の要素 XML を取得（実際の要素コンテンツを暗号化対象にする）
       const elementXml = getElementXmlByTargetPath(updatedXml, targetPath);
       if (!elementXml) {
-        return {
+        encryptedResults.push({
           targetPath,
           success: false,
           error: `対象要素が見つかりません: ${targetPath}`,
-        };
+        });
+        continue;
       }
 
       // insertion 確認（実際の要素XMLを渡す）
@@ -442,7 +470,7 @@ export const encryptElement = async (req: Request, res: Response): Promise<void>
       const { updated, replaced } = replaceElementInXml(updatedXml, targetPath, encryptedDataXml);
       updatedXml = updated;
 
-      return {
+      encryptedResults.push({
         targetPath,
         success: replaced,
         encryptionId: cipherResult.encryptionId,
@@ -451,8 +479,8 @@ export const encryptElement = async (req: Request, res: Response): Promise<void>
         hasInsertionRefs: insertionRefs.length > 0,
         insertionRefCount: insertionRefs.length,
         ...(replaced ? {} : { warning: '要素の置換に失敗しました（targetPath の形式を確認してください）' }),
-      };
-    });
+      });
+    }
 
     // 更新後の XML を MAIML ファイルとして保存
     const { updatedFilePath, backupFilePath } = await saveMaimlContent(
@@ -999,7 +1027,7 @@ export const checkUpaConstraints = async (req: Request, res: Response): Promise<
   }
 
   try {
-    const result = maimlEncryptionService.validateEncryptionScope(targetPath);
+    const result = await maimlEncryptionService.validateEncryptionScope(targetPath);
 
     const response: UpaCheckResponse = {
       isValid: result.isValid,

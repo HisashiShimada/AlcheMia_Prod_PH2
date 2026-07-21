@@ -1,7 +1,7 @@
 # フロントエンド〜バックエンド 接続状況
 
 > 作成日: 2026-07-17  
-> 最終更新: 2026-07-17（暗号化XML埋め込み・復号MAIML反映・ツリー構造動的生成 実装完了）  
+> 最終更新: 2026-07-21（decrypt-preview実装完了・checkInsertion修正完了・signMaiml埋め込み保存完了・getAuditLog動作実態修正・verifyMaiml自動抽出完了・previewEncryption afterXml実装完了・/decrypt廃止・upa-check本実装完了）  
 > 対象: 秘匿化（暗号化）機能 / 改竄防止（署名）機能  
 > 凡例: ✅ 接続済み（API呼び出しが通る）/ ⚠️ 部分実装（APIは動くが処理がスタブ）/ ❌ 未接続
 
@@ -39,10 +39,10 @@
 
 | # | メソッド | エンドポイント | FEサービス関数 | 状態 | 備考 |
 |---|---------|--------------|--------------|------|------|
-| 2 | POST | `/projects/:name/preview` | `previewEncryption()` | ⚠️ | algorithmUri は `normalizeFrontAlgorithm()` で正しく変換。before/afterXML はスタブ。**TODO: 実際の要素XMLを取得** |
+| 2 | POST | `/projects/:name/preview` | `previewEncryption()` | ✅ | algorithmUri は `normalizeFrontAlgorithm()` で正しく変換。`targetPath` 指定時は `getElementXmlByTargetPath()` で beforeXml を実XML取得。afterXml は `<xenc:EncryptedData>` 構造プレビュー（elementTag コメント付き・CipherValueはプレースホルダー）を返す。実際の暗号化は行わない |
 | 3 | POST | `/projects/:name/encrypt` | `encryptElement()` / `encryptElements()` | ✅ | `getElementXmlByTargetPath()` で実XMLを取得→`encryptElement(elementXml)`→`buildEncryptedDataXml()`→`replaceElementInXml()`→`saveMaiml()`。`encryptedCount` をレスポンスに含む。 |
-| 4 | POST | `/projects/:name/decrypt` | `decryptElement()` | ⚠️ | 後方互換エンドポイント。`retrieveKeyForDecryption()` による鍵取得まで動作。実際の復号・XML置換は `/decrypt-execute` で行う。 |
-| 5 | POST | `/projects/:name/decrypt-preview` | `getDecryptPreview()` | ⚠️ | `algorithm` → `normalizeFrontAlgorithm()` → `retrieveKeyForDecryption()` 正しく通る。before/afterXML はスタブ。**TODO: `<EncryptedData>` を実際に復号してプレビューXMLを返す** |
+| 4 | ~~POST~~ | ~~`/projects/:name/decrypt`~~ | ~~`decryptElement()`~~ | ❌ **廃止** | バックエンドルート削除・フロントサービス関数削除（2026-07-21）。復号化は `/decrypt-execute` に統一 |
+| 5 | POST | `/projects/:name/decrypt-preview` | `getDecryptPreview()` | ✅ | `algorithm` → `normalizeFrontAlgorithm()` → `retrieveKeyForDecryption()` → `getElementXmlByTargetPath()` で beforeXml 取得 → `extractCipherResultFromXml()` → `decryptElement()` で afterXml 生成。ファイル保存なし（プレビューのみ） |
 | 6 | POST | `/projects/:name/decrypt-execute` | `executeDecrypt()` / `executeDecryptElements()` | ✅ | `extractCipherResultFromXml()`→`maimlEncryptionService.decryptElement()`→`replaceElementInXml()`→`saveMaiml()`。`finally`ブロックで`disposeKey()`保証。`decryptedCount` をレスポンスに含む。 |
 | 7 | GET | `/projects/:name/encrypted-children` | `getEncryptedChildren()` | ✅ | `findEncryptedDataElements()` で全 `<EncryptedData>` 要素を収集して返す（`maimlEncryptionXmlHelper.ts` 実装済み） |
 
@@ -64,8 +64,8 @@
 
 | # | メソッド | エンドポイント | FEサービス関数 | 状態 | 備考 |
 |---|---------|--------------|--------------|------|------|
-| 17 | POST | `/upa-check` | `checkUpaConstraints()` | ⚠️ | `validateEncryptionScope()` の結果を返す（常に `isValid: true`のスタブ） |
-| 18 | GET | `/check-insertion/:project/:path` | `checkInsertion()` | ⚠️ | MAIML全体に対して `extractInsertionRefs()` を呼ぶ（本来はnodePath配下のみ対象にすべき） |
+| 17 | POST | `/upa-check` | `checkUpaConstraints()` | ✅ | `validateEncryptionScope()` が MAIML XSD を解析して UPA 制約（`xs:choice` + `encryptionGroup` の存在確認）を実際に判定（`maimlSchemaHelper.ts` 実装済み・XSD解析結果はキャッシュ） |
+| 18 | GET | `/check-insertion/:project/:path` | `checkInsertion()` | ✅ | nodePath 指定時は `getElementXmlByTargetPath()` で部分XMLを取得してから `extractInsertionRefs()` を呼ぶ。nodePath が空の場合のみMAIML全体を対象とする |
 
 ---
 
@@ -92,11 +92,11 @@
 
 | # | メソッド | エンドポイント | FEサービス関数 | 状態 | 備考 |
 |---|---------|--------------|--------------|------|------|
-| 1 | POST | `/projects/:name/sign` | `signMaiml()` / `applySignature()` | ⚠️ | MAIMLファイル取得→SHA-256ハッシュ計算→RSA署名（テスト鍵使用）→タイムスタンプ（local-mock: ランダムhex）→監査ログ記録まで動作。**TODO: MAIMLファイルに `<Signature>` 要素を埋め込み保存** |
-| 2 | POST | `/projects/:name/verify` | `verifyMaiml()` | ⚠️ | ハッシュ比較・署名検証ロジックは実装済み。storedHash/signatureValue がリクエストに含まれる必要あり。**TODO: MAIMLから `<Signature>` を自動取得して検証** |
+| 1 | POST | `/projects/:name/sign` | `signMaiml()` / `applySignature()` | ✅ | MAIMLファイル取得→SHA-256ハッシュ計算→RSA署名（テスト鍵使用）→タイムスタンプ（local-mock）→`buildSignatureXml()` で `<ds:Signature>` XML構築→`embedSignatureInXml()` でMAIML末尾に埋め込み→`saveMaimlContent()` で保存→監査ログ記録まで完了 |
+| 2 | POST | `/projects/:name/verify` | `verifyMaiml()` | ✅ | MAIMLファイルから `extractSignatureFromXml(xmlContent, signatureId)` で `digestValue`（storedHash）と `signatureValue` を自動取得。リクエストボディは `signatureId` のみ必須（`signatureValue`/`storedHash` は廃止）。ハッシュ比較・署名検証・TST検証・証明書検証・監査ログ記録まで完了 |
 | 3 | GET | `/projects/:name/hash` | `getMaimlHash()` / `getSignatureStatus()` | ✅ | MAIMLファイルのSHA-256ハッシュ値を正しく返す |
 | 4 | POST | `/certificates/validate` | `validateCertificate()` | ⚠️ | PEM形式の証明書の有効期限・発行者を返す。チェーン検証は簡易実装 |
-| 5 | GET | `/audit-log` | `getAuditLog()` | ✅ | DB（`integrity_audit_log`テーブル）から監査ログを返す |
+| 5 | GET | `/audit-log` | `getAuditLog()` | ⚠️ | `DEFAULT_INTEGRITY_POLICY.auditTarget` が `'local-log'` 固定のため、実際はインメモリバッファ（`auditLog` 配列）から返している。`db-log` モードの DB 取得処理は未実装（insert 側のみ実装済み）。**TODO: auditTarget を `db-log` に切り替え、DB から取得する実装を追加** |
 
 ---
 
@@ -154,18 +154,19 @@ npx ts-node backend/scripts/generate-test-keys.ts
 | ~~🔴 高~~ | ~~**MAIMLファイル内の `<EncryptedData>` を復号して元の要素に戻す（復号実行）**~~ | ~~`encryptController.executeDecrypt` + `maimlEncryptionService.decryptElement()`~~ | ✅ **完了**（2026-07-17） |
 | ~~🔴 高~~ | ~~**`getMaimlStructure`: XMLパースして暗号化対象ツリーを動的生成**~~ | ~~`encryptController.getMaimlStructure` + MAIMLパーサー連携~~ | ✅ **完了**（2026-07-17） |
 | ~~🟡 中~~ | ~~`getEncryptedChildren`: XMLパースして全 `<EncryptedData>` を収集~~ | ~~`encryptController.getEncryptedChildren`~~ | ✅ **完了**（2026-07-17） |
-| 🟡 中 | `previewEncryption`: 実際の要素XMLを取得してプレビュー生成 | `encryptController.previewEncryption` | ⚠️ スタブ |
-| 🟡 中 | `checkInsertion`: nodePath 配下のみ対象に絞る | `encryptController.checkInsertion` | ⚠️ 未対応 |
+| ~~🟡 中~~ | ~~`previewEncryption`: afterXml の生成（beforeXml は実XML取得済み）~~ | ~~`encryptController.previewEncryption`~~ | ✅ **完了**（2026-07-21）`<xenc:EncryptedData>` 構造プレビューを返す（要素名コメント・algorithmUri・keyId 含む） |
+| ~~🟡 中~~ | ~~`checkInsertion`: nodePath 配下のみ対象に絞る~~ | ~~`encryptController.checkInsertion`~~ | ✅ **完了**（2026-07-21） |
 | 🟡 中 | `exportKey`: パスワードによる鍵素材の暗号化 | `encryptController.exportKey` | ⚠️ スタブ |
 | 🟢 低 | `rotateKey`: バックグラウンドジョブで再暗号化 | `encryptController.rotateKey` | ❌ 未実装 |
-| 🟢 低 | `validateEncryptionScope`（UPA制約）の実際のチェック実装 | `maimlEncryptionService.validateEncryptionScope` | ⚠️ スタブ |
+| ~~🟢 低~~ | ~~`validateEncryptionScope`（UPA制約）の実際のチェック実装~~ | ~~`maimlEncryptionService.validateEncryptionScope`~~ | ✅ **完了**（2026-07-21）`maimlSchemaHelper.ts` が MAIML XSD を解析して `encryptionGroup` を `xs:choice` に持たない型を違反と判定。遅延初期化キャッシュ対応 |
 
 ### 6-2. 改竄防止機能
 
 | 優先度 | 内容 | 対象ファイル・関数 |
 |--------|------|-----------------|
-| 🔴 高 | **`signMaiml`: MAIMLファイルに `<Signature>` 要素を埋め込み保存** | `signatureController.signMaiml` + XMLパーサー実装 |
-| 🔴 高 | **`verifyMaiml`: MAIMLから `<Signature>` を自動取得して検証** | `signatureController.verifyMaiml` + XMLパーサー実装 |
+| ~~🔴 高~~ | ~~**`signMaiml`: MAIMLファイルに `<Signature>` 要素を埋め込み保存**~~ | ~~`signatureController.signMaiml` + XMLパーサー実装~~ | ✅ **完了**（2026-07-21） |
+| ~~🔴 高~~ | ~~**`verifyMaiml`: MAIMLから `<Signature>` / `storedHash` / `signatureValue` を自動取得して検証**~~ | ~~`signatureController.verifyMaiml` + `extractSignatureFromXml()` 連携~~ | ✅ **完了**（2026-07-21） |
+| 🟡 中 | **`getAuditLog`: `auditTarget` を `db-log` に切り替えて `integrity_audit_log` テーブルから取得** | `maimlIntegrityService.ts` + `signatureController.getAuditLog` |
 | 🟡 中 | タイムスタンプ: local-mock（ランダムhex）→ 外部TSAサービスへの切り替え | `maimlIntegrityService.ts` |
 | 🟢 低 | 証明書チェーン検証の完全実装 | `signatureController.validateCertificate` |
 
@@ -210,4 +211,8 @@ Service層のアルゴリズム分岐は**3種とも正しく実装済み**。
   - `extractCipherResultFromXml()` — `<EncryptedData>` から CipherResult 抽出
   - `replaceElementInXml()` — XML内の対象要素を置換
   - `findEncryptedDataElements()` / `parseMaimlToEncryptionTree()` — パース系
-- 残存スタブ: `previewEncryption`, `decryptPreview`, `checkInsertion`, `exportKey`（パスワード暗号化部分）, `rotateKey`
+- **2026-07-21 更新①**: `decryptPreview`（decrypt-preview）実装完了。`checkInsertion` の nodePath 絞り込み完了。`signMaiml` の `<ds:Signature>` 埋め込み保存完了。
+- **2026-07-21 更新②**: `verifyMaiml` — `extractSignatureFromXml()` による storedHash / signatureValue の自動抽出を実装。リクエストボディから `signatureValue`/`storedHash` の受け渡しを廃止。
+- **2026-07-21 更新③**: `previewEncryption` — afterXml を `<xenc:EncryptedData>` 構造プレビュー（要素名コメント・algorithmUri・keyId 含む）として返すよう実装。
+- **2026-07-21 更新④**: POST `/projects/:name/decrypt`（`decryptElement`）をバックエンド・フロントエンドともに廃止。復号化は `/decrypt-execute` に統一。
+- 残存スタブ: `exportKey`（パスワード暗号化部分）, `rotateKey`, `getAuditLog`（db-log モード切り替え）
