@@ -167,12 +167,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const [criteriaTargetProperty, setCriteriaTargetProperty] = useState<TargetProperty | null>(null);
   /** 編集モード時の初期ペイロード（不確かさ編集ボタン押下時にセット） */
   const [criteriaEditPayload, setCriteriaEditPayload] = useState<AssignPayload | null>(null);
+  /**
+   * 編集中の uncertainty インデックス
+   * null = 新規追加モード、number = 既存uncertaintyの上書き編集
+   */
+  const [criteriaEditUncertaintyIndex, setCriteriaEditUncertaintyIndex] = useState<number | null>(null);
 
   /**
    * 不確かさ「編集」ボタン押下ハンドラー
    * 既存の uncertainty ノードの内容を initialPayload に変換してモーダルを開く
+   * @param index - 編集対象 uncertainty のインデックス（children 内での位置）
    */
-  const handleEditUncertainty = (propertyKey: string, uncertaintyNode: PropertyData) => {
+  const handleEditUncertainty = (propertyKey: string, uncertaintyNode: PropertyData, index: number) => {
     const section = (node.data.placeType as 'material' | 'condition' | 'result') ?? 'material';
     const tag: 'property' | 'content' = 'property';
     const xsiType = uncertaintyNode.attributes?.['xsi:type'] ?? '';
@@ -198,7 +204,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         id: 0,
         key: criteriaKey,
         name: '',
-        evalType: 'qualitative',
+        evalType: value !== '' && !isNaN(Number(value)) ? 'quantitative' : 'qualitative',
         scopeType: 'organization',
         scopeLabel: '',
         scopeOrder: 3,
@@ -218,6 +224,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
     setCriteriaTargetProperty(target);
     setCriteriaEditPayload(editPayload);
+    setCriteriaEditUncertaintyIndex(index);
     setCriteriaSelectorOpen(true);
   };
 
@@ -247,15 +254,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
     setCriteriaTargetProperty(target);
     setCriteriaEditPayload(null);
+    // 新規追加モードなので index は null にリセット
+    setCriteriaEditUncertaintyIndex(null);
     setCriteriaSelectorOpen(true);
   };
 
   /**
-   * 評価基準付与コールバック
-   * 対象プロパティの children に uncertainty 子ノードを追加（既存があれば上書き）
+   * 評価基準付与コールバック（複数付与対応版）
+   * - criteriaEditUncertaintyIndex が null の場合 → 末尾に追加
+   * - criteriaEditUncertaintyIndex が number の場合 → そのインデックスを上書き
    */
   const handleCriteriaAssign = (payload: AssignPayload) => {
-    console.log('[TemplateEditorDialog] 評価基準付与:', payload);
+    console.log('[TemplateEditorDialog] 評価基準付与:', payload, 'editIndex:', criteriaEditUncertaintyIndex);
 
     if (!criteriaTargetProperty) return;
     const targetKey = criteriaTargetProperty.name;
@@ -273,7 +283,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     const parentXsiType = parentPropData?.attributes?.['xsi:type'] ?? '';
     const parentUnits = parentPropData?.attributes?.['units'] ?? '';
 
-    // uncertainty 子ノード
+    // 新しい uncertainty 子ノード
     const uncertaintyNode: PropertyData = {
       key: payload.criteria.key,
       tagName: 'uncertainty',
@@ -288,8 +298,15 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       children: [],
     };
 
-    // properties state を深いコピーして対象ノードを再帰検索し、children を更新
-    const addUncertaintyToNode = (
+    // 編集インデックスをクロージャに捕捉（state更新後も正しい値を参照するため）
+    const editIndex = criteriaEditUncertaintyIndex;
+
+    /**
+     * 対象ノードを再帰検索し、uncertainty を追加 or 上書きする
+     * editIndex=null  → 末尾に追加
+     * editIndex=number → そのインデックスを上書き
+     */
+    const applyUncertaintyToNode = (
       obj: Record<string, PropertyData>,
       targetKey: string
     ): boolean => {
@@ -298,11 +315,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         if (!obj[targetKey].children) {
           obj[targetKey].children = [];
         }
-        // 既存の uncertainty を除去（上書き）
-        obj[targetKey].children = obj[targetKey].children.filter(
-          (c) => c.key !== 'uncertainty'
-        );
-        obj[targetKey].children.push(uncertaintyNode);
+        const ucChildren = obj[targetKey].children.filter((c) => c.tagName === 'uncertainty');
+        const otherChildren = obj[targetKey].children.filter((c) => c.tagName !== 'uncertainty');
+
+        if (editIndex !== null && editIndex < ucChildren.length) {
+          // 既存の uncertainty[editIndex] を上書き
+          ucChildren[editIndex] = uncertaintyNode;
+        } else {
+          // 末尾に追加
+          ucChildren.push(uncertaintyNode);
+        }
+        // uncertainty ノードを先頭、それ以外を後ろに並べ直す
+        obj[targetKey].children = [...ucChildren, ...otherChildren];
         return true;
       }
       // 再帰的に子要素を探索
@@ -313,13 +337,19 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             const child = currentNode.children[i];
             if (child.key === targetKey) {
               if (!child.children) child.children = [];
-              child.children = child.children.filter((c) => c.key !== 'uncertainty');
-              child.children.push(uncertaintyNode);
+              const ucChildren = child.children.filter((c) => c.tagName === 'uncertainty');
+              const otherChildren = child.children.filter((c) => c.tagName !== 'uncertainty');
+              if (editIndex !== null && editIndex < ucChildren.length) {
+                ucChildren[editIndex] = uncertaintyNode;
+              } else {
+                ucChildren.push(uncertaintyNode);
+              }
+              child.children = [...ucChildren, ...otherChildren];
               return true;
             }
             if (child.children && child.children.length > 0) {
               const tempObj: Record<string, PropertyData> = { [child.key]: child };
-              if (addUncertaintyToNode(tempObj, targetKey)) return true;
+              if (applyUncertaintyToNode(tempObj, targetKey)) return true;
             }
           }
         }
@@ -329,7 +359,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
     setProperties((prevProperties) => {
       const updated: Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
-      const found = addUncertaintyToNode(updated, targetKey);
+      const found = applyUncertaintyToNode(updated, targetKey);
       if (!found) {
         console.warn('[handleCriteriaAssign] 対象プロパティが見つかりませんでした:', targetKey);
       }
@@ -339,7 +369,58 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     setForceRenderKey(Date.now());
     setHasChanges(true);
     setCriteriaSelectorOpen(false);
-    message.success(`「${targetKey}」に不確かさを付与しました`);
+    setCriteriaEditUncertaintyIndex(null);
+    const modeLabel = editIndex !== null ? '更新' : '追加';
+    message.success(`「${targetKey}」に不確かさを${modeLabel}しました`);
+  };
+
+  /**
+   * 不確かさ削除ハンドラー（インデックス指定で1件削除）
+   */
+  const handleDeleteUncertainty = (propertyKey: string, uncertaintyIndex: number) => {
+    const removeUncertaintyFromNode = (
+      obj: Record<string, PropertyData>,
+      targetKey: string
+    ): boolean => {
+      if (obj[targetKey]) {
+        if (!obj[targetKey].children) return false;
+        const ucChildren = obj[targetKey].children.filter((c) => c.tagName === 'uncertainty');
+        const otherChildren = obj[targetKey].children.filter((c) => c.tagName !== 'uncertainty');
+        ucChildren.splice(uncertaintyIndex, 1);
+        obj[targetKey].children = [...ucChildren, ...otherChildren];
+        return true;
+      }
+      for (const key in obj) {
+        const currentNode = obj[key];
+        if (currentNode?.children && Array.isArray(currentNode.children)) {
+          for (let i = 0; i < currentNode.children.length; i++) {
+            const child = currentNode.children[i];
+            if (child.key === targetKey) {
+              if (!child.children) return false;
+              const ucChildren = child.children.filter((c) => c.tagName === 'uncertainty');
+              const otherChildren = child.children.filter((c) => c.tagName !== 'uncertainty');
+              ucChildren.splice(uncertaintyIndex, 1);
+              child.children = [...ucChildren, ...otherChildren];
+              return true;
+            }
+            if (child.children && child.children.length > 0) {
+              const tempObj: Record<string, PropertyData> = { [child.key]: child };
+              if (removeUncertaintyFromNode(tempObj, targetKey)) return true;
+            }
+          }
+        }
+      }
+      return false;
+    };
+
+    setProperties((prevProperties) => {
+      const updated: Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
+      removeUncertaintyFromNode(updated, propertyKey);
+      return updated;
+    });
+    setForceRenderKey(Date.now());
+    setHasChanges(true);
+    message.success(`「${propertyKey}」の不確かさを削除しました`);
   };
 
   // useNamespaceOperations フック
@@ -1723,6 +1804,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 attributeRecords={attributeRecords}
                 onOpenCriteriaSelector={handleOpenCriteriaSelector}
                 onEditUncertainty={handleEditUncertainty}
+                onDeleteUncertainty={handleDeleteUncertainty}
               />
             ))
           )}

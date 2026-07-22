@@ -96,7 +96,9 @@ export interface NestedPropertyEditorProps {
   /** 不確かさ基準ボタン押下時のコールバック（省略時はボタン非表示） */
   onOpenCriteriaSelector?: (propertyKey: string, propertyData: PropertyData) => void;
   /** 不確かさ「編集」ボタン押下時のコールバック（省略時はボタン非表示） */
-  onEditUncertainty?: (propertyKey: string, uncertaintyNode: PropertyData) => void;
+  onEditUncertainty?: (propertyKey: string, uncertaintyNode: PropertyData, index: number) => void;
+  /** 不確かさ1件削除コールバック（インデックス指定） */
+  onDeleteUncertainty?: (propertyKey: string, uncertaintyIndex: number) => void;
 }
 
 // ===== 固定属性名（Attributeマスタ選択肢から除外） =====
@@ -213,6 +215,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   attributeRecords = [],
   onOpenCriteriaSelector,
   onEditUncertainty,
+  onDeleteUncertainty,
 }) => {
   const { modal } = App.useApp();
   const { t } = useLanguage();
@@ -417,103 +420,108 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           </div>
         )}
 
-        {/* 不確かさセクション（uncertainty 子ノードがある場合に専用表示） */}
+        {/* 不確かさセクション（uncertainty 子ノードを複数表示） */}
         {(() => {
-          const uncertaintyChild = propertyData.children?.find(
+          const uncertaintyChildren = propertyData.children?.filter(
             (c) => c.tagName === 'uncertainty'
-          );
-          if (!uncertaintyChild) return null;
-          const ucValue = uncertaintyChild.elements?.['value'] ?? '';
-          const ucDesc = uncertaintyChild.elements?.['description'] ?? '';
+          ) ?? [];
+          if (uncertaintyChildren.length === 0) return null;
           return (
             <div style={{ marginBottom: 8 }}>
-              {/* ヘッダー行：ラベル左・編集ボタン・×ボタン右 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Text strong style={{ fontSize: 12, flex: 1, color: '#722ed1' }}>
-                  <ExperimentOutlined style={{ marginRight: 4 }} />
-                  不確かさ
-                </Text>
-                {onEditUncertainty && (
-                  <Button
-                    size="small"
-                    type="default"
-                    style={{ color: '#722ed1', borderColor: '#722ed1' }}
-                    onClick={() => onEditUncertainty(propertyKey, uncertaintyChild)}
+              <Text strong style={{ fontSize: 12, color: '#722ed1', display: 'block', marginBottom: 4 }}>
+                <ExperimentOutlined style={{ marginRight: 4 }} />
+                不確かさ
+              </Text>
+              {uncertaintyChildren.map((uncertaintyChild, ucIdx) => {
+                const ucValue = uncertaintyChild.elements?.['value'] ?? '';
+                const ucDesc = uncertaintyChild.elements?.['description'] ?? '';
+                return (
+                  <div
+                    key={`uc_${ucIdx}`}
+                    style={{
+                      border: '1px solid #d3adf7',
+                      borderRadius: 6,
+                      padding: '6px 8px',
+                      marginBottom: 6,
+                      backgroundColor: '#f9f0ff',
+                    }}
                   >
-                    不確かさ編集
-                  </Button>
-                )}
-                <Button
-                  size="small"
-                  type="text"
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={() => onDeleteProperty('uncertainty')}
-                />
-              </div>
-              {/* key 行（uncertainty タグ自体の key 属性） */}
-              {uncertaintyChild.key && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Text style={{ minWidth: 100, fontSize: 12 }}>key:</Text>
-                  <Input
-                    size="small"
-                    value={uncertaintyChild.key}
-                    readOnly
-                    style={{ flex: 1 }}
-                  />
-                  <span style={{ width: 24 }} />
-                </div>
-              )}
-              {/* xsi:type 行 */}
-              {uncertaintyChild.attributes?.['xsi:type'] && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Text style={{ minWidth: 100, fontSize: 12 }}>xsi:type:</Text>
-                  <Input
-                    size="small"
-                    value={uncertaintyChild.attributes['xsi:type']}
-                    readOnly
-                    style={{ flex: 1 }}
-                  />
-                  <span style={{ width: 24 }} />
-                </div>
-              )}
-              {/* units 行 */}
-              {uncertaintyChild.attributes?.['units'] && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Text style={{ minWidth: 100, fontSize: 12 }}>units:</Text>
-                  <Input
-                    size="small"
-                    value={uncertaintyChild.attributes['units']}
-                    readOnly
-                    style={{ flex: 1 }}
-                  />
-                  <span style={{ width: 24 }} />
-                </div>
-              )}
-              {/* value 行 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Text style={{ minWidth: 100, fontSize: 12 }}>value:</Text>
-                <Input
-                  size="small"
-                  value={ucValue}
-                  onChange={(e) => onUpdateNestedElement('uncertainty', 'value', e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <span style={{ width: 24 }} />
-              </div>
-              {/* description 行（コメントがある場合のみ表示） */}
-              {ucDesc !== '' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Text style={{ minWidth: 100, fontSize: 12 }}>description:</Text>
-                  <Input
-                    size="small"
-                    value={ucDesc}
-                    onChange={(e) => onUpdateNestedElement('uncertainty', 'description', e.target.value)}
-                    style={{ flex: 1 }}
-                  />
-                  <span style={{ width: 24 }} />
-                </div>
-              )}
+                    {/* 各不確かさ行ヘッダー：編集・×ボタン */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12, flex: 1, color: '#722ed1' }}>
+                        不確かさ {ucIdx + 1}
+                      </Text>
+                      {onEditUncertainty && (
+                        <Button
+                          size="small"
+                          type="default"
+                          style={{ color: '#722ed1', borderColor: '#722ed1' }}
+                          onClick={() => onEditUncertainty(propertyKey, uncertaintyChild, ucIdx)}
+                        >
+                          不確かさ編集
+                        </Button>
+                      )}
+                      {onDeleteUncertainty && (
+                        <Button
+                          size="small"
+                          type="text"
+                          danger
+                          icon={<CloseOutlined />}
+                          onClick={() => onDeleteUncertainty(propertyKey, ucIdx)}
+                        />
+                      )}
+                    </div>
+                    {/* key 行 */}
+                    {uncertaintyChild.key && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Text style={{ minWidth: 100, fontSize: 12 }}>key:</Text>
+                        <Input size="small" value={uncertaintyChild.key} readOnly style={{ flex: 1 }} />
+                        <span style={{ width: 24 }} />
+                      </div>
+                    )}
+                    {/* xsi:type 行 */}
+                    {uncertaintyChild.attributes?.['xsi:type'] && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Text style={{ minWidth: 100, fontSize: 12 }}>xsi:type:</Text>
+                        <Input size="small" value={uncertaintyChild.attributes['xsi:type']} readOnly style={{ flex: 1 }} />
+                        <span style={{ width: 24 }} />
+                      </div>
+                    )}
+                    {/* units 行 */}
+                    {uncertaintyChild.attributes?.['units'] && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Text style={{ minWidth: 100, fontSize: 12 }}>units:</Text>
+                        <Input size="small" value={uncertaintyChild.attributes['units']} readOnly style={{ flex: 1 }} />
+                        <span style={{ width: 24 }} />
+                      </div>
+                    )}
+                    {/* value 行 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Text style={{ minWidth: 100, fontSize: 12 }}>value:</Text>
+                      <Input
+                        size="small"
+                        value={ucValue}
+                        onChange={(e) => onUpdateNestedElement(uncertaintyChild.key, 'value', e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                      <span style={{ width: 24 }} />
+                    </div>
+                    {/* description 行（値がある場合のみ） */}
+                    {ucDesc !== '' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Text style={{ minWidth: 100, fontSize: 12 }}>description:</Text>
+                        <Input
+                          size="small"
+                          value={ucDesc}
+                          onChange={(e) => onUpdateNestedElement(uncertaintyChild.key, 'description', e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                        <span style={{ width: 24 }} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })()}

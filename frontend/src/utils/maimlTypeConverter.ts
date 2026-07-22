@@ -1191,7 +1191,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // Boolean型の場合
@@ -1206,7 +1206,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // DateTime型の場合
@@ -1218,7 +1218,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // 文字列系特殊型の場合（tokenType, idType, idRefType, qualifiedNameType, uriType, uuidType, languageType）
@@ -1230,7 +1230,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // バイナリ型の場合（base64BinaryType, hexBinaryType）
@@ -1241,7 +1241,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // リスト型の場合（*ListType）
@@ -1255,7 +1255,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // stringEnumType（列挙型）の場合
@@ -1266,7 +1266,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // stringType 明示の場合
@@ -1277,7 +1277,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // xsi:type 未指定の場合（xsiType === ''）:
@@ -1299,8 +1299,19 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (Object.keys(allAttrs).length > 0) result.attributes = allAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
+}
+
+/**
+ * Property に uncertainty を付与する共通ヘルパー
+ * convertXmlJsProperty の全ブランチで呼び出す
+ */
+function finalizeProperty(result: Property, xmlProp: any): Property {
+  if (xmlProp.uncertainty) {
+    result.uncertainty = convertArray(xmlProp.uncertainty, convertContent);
+  }
+  return result;
 }
 
 /**

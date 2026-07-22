@@ -403,6 +403,13 @@ export interface Property {
   properties: Property[];
 
   contents : Content[];
+
+  /**
+   * 不確かさ配列（uncertainty子要素）
+   * 
+   * property要素の直接の子として付与された uncertainty 要素
+   */
+  uncertainty?: Content[];
   
   // ============================================================================
   // 🆕 カスタム要素（任意のタグ名を持つ子要素）

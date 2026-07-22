@@ -308,6 +308,7 @@ export default function UncertaintyCriteriaSelectorModal({
   }, [open, criteriaList]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ----- フィルタ後の評価基準リスト -----
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredCriteria = useMemo<UncertaintyCriteria[]>(() => {
     const allCriteria = criteriaList;
     const nodeType = (targetProperty?.type ?? '').toLowerCase();
@@ -343,6 +344,8 @@ export default function UncertaintyCriteriaSelectorModal({
   // ----- フィルタ変更後に選択中が非表示になった場合は先頭を選択 -----
   useEffect(() => {
     if (!open) return;
+    // 復元中（initialPayload から値をセット中）は selectedCriteria の上書きをスキップ
+    if (isRestoringRef.current) return;
     if (filteredCriteria.length === 0) {
       setSelectedCriteria(null);
       return;
