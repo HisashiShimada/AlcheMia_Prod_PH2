@@ -288,6 +288,50 @@ export async function isUpaViolation(targetPath: string): Promise<{
 }
 
 /**
+ * XSD 解析結果に基づいて「encryptionGroup を xs:choice に持つ complexType」に対応する
+ * **要素名の集合**を返す。
+ *
+ * @remarks
+ * `maimlEncryptionXmlHelper.ts` や `parseMaimlToEncryptionTree` など、
+ * 要素ごとに `isEncryptable` を判定する箇所から利用することで、
+ * ハードコードされたタグ名リストとの矛盾を防ぐ。
+ *
+ * 返却されるのは `elementTypeMap` に登録されている要素名のうち、
+ * 対応型が `encryptionSupportedTypes` に含まれるものの集合。
+ * トップレベル要素として XSD に宣言されていない `property` / `content` については
+ * 別途 KNOWN_PROPERTY_CONTENT_TAGS で補完する。
+ *
+ * @returns 暗号化可能な要素名の Set（例: `{'data', 'material', 'property', ...}`）
+ */
+export async function getEncryptableElementNames(): Promise<Set<string>> {
+  const cache = await getSchemaCache();
+
+  const encryptable = new Set<string>();
+
+  for (const [elemName, typeName] of cache.elementTypeMap) {
+    if (cache.encryptionSupportedTypes.has(typeName)) {
+      encryptable.add(elemName);
+    }
+  }
+
+  // property / content は XSD 上 xs:group 参照で宣言されるため elementTypeMap に
+  // 登録されないケースがある。MAIMLガイドラインに従い明示的に追加する。
+  // 根拠: docs/design/maiml/encrypted_data_summary.md セクション11-B
+  KNOWN_GENERIC_DATA_CONTAINER_TAGS.forEach((tag) => encryptable.add(tag));
+
+  return encryptable;
+}
+
+/**
+ * MAIMLガイドラインで「汎用データコンテナ（genericDataContainerGroup）」として
+ * 秘匿化を許可されているタグ名（XSD上の `propertyBaseType` / `contentBaseType` 派生型）。
+ * これらは xs:group 参照で宣言されるため elementTypeMap から自動抽出できないため明示定義する。
+ *
+ * 根拠: maiml-property.xsd の encryptionGroup 参照, docs/design/maiml/encrypted_data_summary.md
+ */
+const KNOWN_GENERIC_DATA_CONTAINER_TAGS = new Set(['property', 'content']);
+
+/**
  * キャッシュを明示的にクリアする（テスト用）
  */
 export function clearSchemaCache(): void {

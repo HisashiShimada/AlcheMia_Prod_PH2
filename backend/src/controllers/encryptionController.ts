@@ -251,8 +251,8 @@ export const getMaimlStructure = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    // MAIMLをパースして暗号化対象ツリーを動的生成
-    const structure = parseMaimlToEncryptionTree(xmlContent);
+    // MAIMLをパースして暗号化対象ツリーを動的生成（XSD解析による isEncryptable 判定）
+    const structure = await parseMaimlToEncryptionTree(xmlContent);
     ok(res, { structure });
   } catch (err) {
     serverError(res, err);

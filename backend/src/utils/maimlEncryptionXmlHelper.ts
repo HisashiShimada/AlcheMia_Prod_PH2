@@ -10,6 +10,7 @@
 
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import type { CipherResult, InsertionRefs } from '../types/encryptionTypes';
+import { getEncryptableElementNames } from './maimlSchemaHelper';
 
 // ---------------------------------------------------------------------------
 // 内部定数
@@ -364,35 +365,43 @@ function getSimpleElementPath(el: Element): string {
  *
  * @remarks
  * 暗号化可能な要素（`isEncryptable: true`）の判定基準:
- *   - タグ名が `transition`, `place`, `data`, `material`, `condition`, `result` のいずれか
+ *   - `maimlSchemaHelper.ts` の `getEncryptableElementNames()` が返す XSD 解析結果に基づく
+ *   - XSD 上で `xs:choice` に `encryptionGroup` を持つ型に対応する要素のみ `true`
+ *   - Petri Net 構造要素（`place`, `transition`, `arc`）は XSD 上 encryptionGroup を持たないため `false`
  *   - ルート要素（`maiml`）は対象外
  *
  * @param xmlContent MAIML XML 文字列
  * @returns ツリーノードの配列（ルートレベル）
  */
-export function parseMaimlToEncryptionTree(
+export async function parseMaimlToEncryptionTree(
   xmlContent: string,
-): MaimlTreeNode[] {
+): Promise<MaimlTreeNode[]> {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlContent, 'text/xml');
 
   const parseErrors = doc.getElementsByTagName('parseerror');
   if (parseErrors.length > 0) return [];
 
-  return buildTreeNodes(doc.documentElement, '');
-}
+  // XSD 解析結果から暗号化可能要素名の集合を取得
+  // （getEncryptableElementNames が XSD を動的解析しキャッシュするため、
+  //   2回目以降はキャッシュから即時返却される）
+  const encryptableTags = await getEncryptableElementNames();
 
-/** 暗号化可能タグ名セット */
-const ENCRYPTABLE_TAGS = new Set([
-  'transition', 'place', 'data',
-  'material', 'condition', 'result',
-  'property', 'parameter',
-]);
+  return buildTreeNodes(doc.documentElement, '', encryptableTags);
+}
 
 /**
  * DOM ノードから再帰的にツリーを構築する（内部ヘルパー）
+ *
+ * @param element 現在の DOM 要素
+ * @param parentPath 親要素のパス文字列
+ * @param encryptableTags XSD 解析結果から取得した暗号化可能要素名の Set
  */
-function buildTreeNodes(element: Element, parentPath: string): MaimlTreeNode[] {
+function buildTreeNodes(
+  element: Element,
+  parentPath: string,
+  encryptableTags: Set<string>,
+): MaimlTreeNode[] {
   const nodes: MaimlTreeNode[] = [];
 
   const children = element.childNodes;
@@ -416,9 +425,10 @@ function buildTreeNodes(element: Element, parentPath: string): MaimlTreeNode[] {
       tagName,
       path,
       label: el.getAttribute('name') ?? el.getAttribute('id') ?? tagName,
-      isEncryptable: ENCRYPTABLE_TAGS.has(tagName.toLowerCase()),
+      // XSD 解析結果に基づいて isEncryptable を判定（ハードコードを廃止）
+      isEncryptable: encryptableTags.has(tagName),
       isEncrypted,
-      children: buildTreeNodes(el, path),
+      children: buildTreeNodes(el, path, encryptableTags),
     };
 
     nodes.push(node);
