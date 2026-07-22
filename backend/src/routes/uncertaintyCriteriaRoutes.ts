@@ -9,9 +9,11 @@
  */
 
 import { Router } from 'express';
+import { body, param, query } from 'express-validator';
 import * as uncertaintyCriteriaController from '../controllers/uncertaintyCriteriaController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
 
@@ -27,6 +29,7 @@ router.get(
   '/',
   authMiddleware,
   tenantIsolation,
+  handleValidationErrors,
   uncertaintyCriteriaController.getList
 );
 
@@ -42,6 +45,7 @@ router.get(
   '/for-selector',
   authMiddleware,
   tenantIsolation,
+  handleValidationErrors,
   uncertaintyCriteriaController.getForSelector
 );
 
@@ -58,6 +62,32 @@ router.post(
   '/',
   authMiddleware,
   tenantIsolation,
+  [
+    body('nameSpaceId')
+      .notEmpty()
+      .withMessage('nameSpaceIdは必須です'),
+    body('uncertaintyKey')
+      .notEmpty()
+      .withMessage('uncertaintyKeyは必須です'),
+    body('evaluationMethod')
+      .notEmpty()
+      .withMessage('evaluationMethodは必須です')
+      .isInt({ min: 1, max: 2 })
+      .withMessage('evaluationMethodは1（定量）または2（定性）である必要があります'),
+    body('uncertaintyName')
+      .optional()
+      .isString()
+      .withMessage('uncertaintyNameは文字列である必要があります'),
+    body('isInvalid')
+      .optional()
+      .isBoolean()
+      .withMessage('isInvalidはboolean型である必要があります'),
+    body('qualitativeOptions')
+      .optional()
+      .isArray()
+      .withMessage('qualitativeOptionsは配列である必要があります'),
+  ],
+  handleValidationErrors,
   uncertaintyCriteriaController.createNewVersion
 );
 
@@ -72,6 +102,17 @@ router.get(
   '/:uncertaintyKey',
   authMiddleware,
   tenantIsolation,
+  [
+    param('uncertaintyKey')
+      .notEmpty()
+      .withMessage('uncertaintyKeyは必須です'),
+    query('version')
+      .notEmpty()
+      .withMessage('version（整数）は必須です')
+      .isInt({ min: 1 })
+      .withMessage('versionは1以上の整数である必要があります'),
+  ],
+  handleValidationErrors,
   uncertaintyCriteriaController.getDetail
 );
 
