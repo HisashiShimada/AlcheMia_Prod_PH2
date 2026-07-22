@@ -52,6 +52,32 @@ export interface NoteItem {
 export type TemplateValues = Record<string, string | number | boolean>;
 
 /**
+ * 不確かさ付与情報（実験計画ダイアログ保存用）
+ * planned_values JSONB の __uncertainty__ キーに格納する1件分の不確かさ情報
+ *
+ * @remarks
+ * TemplateInputPanel で使用する AssignPayload と同一構造のため、
+ * UncertaintyAssignment は AssignPayload の別名として定義する。
+ * DB保存時は AssignPayload をそのまま JSONB に格納し、復元時も型キャストで戻す。
+ */
+export interface UncertaintyAssignment {
+  /** 不確かさ基準キー */
+  criteriaKey: string;
+  /** 不確かさ基準名 */
+  criteriaName: string;
+  /** 評価種別: 定量 / 定性 */
+  evalType: 'quantitative' | 'qualitative';
+  /** 定量評価値（定量の場合） */
+  ucValue?: number;
+  /** 定性評価値（定性の場合） */
+  qualitativeValue?: string;
+  /** コメント */
+  comment?: string;
+  /** 単位 */
+  unit?: string;
+}
+
+/**
  * 実験計画データ（タブごとの保存単位）
  */
 export interface ExperimentPlanTabData {
@@ -67,6 +93,12 @@ export interface ExperimentPlanTabData {
   notes: NoteItem[];
   /** テンプレート入力値 */
   templateValues: TemplateValues;
+  /**
+   * 不確かさ付与情報（TemplateInputPanel の AssignPayload[] と同一構造で保存）
+   * key: valueKey（`${templateId}_${fieldKey}` または `custom_${cpId}`）
+   * value: 付与した不確かさの配列（複数付与対応）
+   */
+  assignedUncertainty: Record<string, import('@/components/uncertainty/UncertaintyCriteriaSelectorModal').AssignPayload[]>;
 }
 
 /**

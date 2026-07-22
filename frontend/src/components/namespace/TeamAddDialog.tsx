@@ -71,7 +71,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
 
   // チーム名・部署CDからURIをリアルタイムに自動生成
   const autoUri = useMemo(
-    () => generateNamespaceUri(organizationCd, parentDepartmentCd, teamName || undefined),
+    () => generateNamespaceUri(organizationCd, parentDepartmentCd, teamName ? [teamName] : undefined),
     [organizationCd, parentDepartmentCd, teamName],
   );
 

@@ -126,7 +126,7 @@ const DepartmentTreeManagement: React.FC = () => {
     // 編集行の親ノードの departmentCd を parentKey から解決
     const parentRow = rows.find((r) => r.key === editingRow.parentKey);
     const deptCd = parentRow?.key ?? editingRow.parentKey ?? undefined;
-    return generateNamespaceUri(MOCK_ORGANIZATION_CD, deptCd ?? undefined, editingRow.label);
+    return generateNamespaceUri(MOCK_ORGANIZATION_CD, deptCd ?? undefined, editingRow.label ? [editingRow.label] : undefined);
   }, [editingRow, rows]);
 
   // ──── 編集開始

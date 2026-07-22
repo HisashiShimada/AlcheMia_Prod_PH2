@@ -98,6 +98,14 @@ function transitionValuesToTabData(
     }
   }
 
+  // 不確かさ付与情報を復元（__uncertainty__ キー）
+  // TransitionPlanValues のインデックスシグネチャとの型不整合を unknown 経由で回避
+  const rawUncertainty = transValues['__uncertainty__'];
+  const assignedUncertainty: ExperimentPlanTabData['assignedUncertainty'] =
+    rawUncertainty && typeof rawUncertainty === 'object' && !Array.isArray(rawUncertainty)
+      ? (rawUncertainty as unknown as ExperimentPlanTabData['assignedUncertainty'])
+      : {};
+
   return {
     selectedTransitions: [transitionId],
     creatorRefs,
@@ -105,6 +113,7 @@ function transitionValuesToTabData(
     ownerRefs,
     notes,
     templateValues,
+    assignedUncertainty,
   };
 }
 
@@ -132,6 +141,12 @@ function tabDataToTransitionValues(tabData: ExperimentPlanTabData): TransitionPl
     if (value !== undefined && value !== '') {
       values[key] = String(value);
     }
+  }
+
+  // 不確かさ付与情報を __uncertainty__ キーに保存
+  if (tabData.assignedUncertainty && Object.keys(tabData.assignedUncertainty).length > 0) {
+    // TransitionPlanValues のインデックスシグネチャとの型不整合を unknown 経由で回避
+    (values as unknown as Record<string, unknown>)['__uncertainty__'] = tabData.assignedUncertainty;
   }
 
   return values;

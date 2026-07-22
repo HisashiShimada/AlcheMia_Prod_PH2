@@ -2280,9 +2280,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         <ExperimentInstructionTab
                           projectId={selectedProject.id}
                           projectName={selectedProject.name}
-                          onAllTasksCompletedChange={setAllTasksCompleted}
-                          completionDialogOpen={completionDialogOpen}
-                          onCompletionDialogClose={() => setCompletionDialogOpen(false)}
                         />
                       </div>
                     ),

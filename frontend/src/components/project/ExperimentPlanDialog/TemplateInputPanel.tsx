@@ -90,6 +90,8 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   onCustomPropsChange,
   disabled = false,
   outputTemplateIds,
+  assignedUncertainty,
+  onAssignedUncertaintyChange,
 }) => {
   const { token } = useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -97,13 +99,6 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   // 不確かさ基準選択モーダル用 state
   const [criteriaSelectorOpen, setCriteriaSelectorOpen] = useState(false);
   const [criteriaSelectorTarget, setCriteriaSelectorTarget] = useState<TargetProperty | null>(null);
-
-  /**
-   * 付与済み不確かさ情報を valueKey ごとに保持（複数付与対応）
-   * - key: `${templateId}_${fieldKey}`
-   * - value: AssignPayload の配列
-   */
-  const [assignedUncertainty, setAssignedUncertainty] = useState<Record<string, AssignPayload[]>>({});
 
   /**
    * 「不確かさ編集」クリック時に上書きする配列インデックス
@@ -522,15 +517,14 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                       icon={<CloseOutlined />}
                       style={{ flexShrink: 0 }}
                       onClick={() => {
-                        setAssignedUncertainty((prev) => {
-                          const arr = prev[cpValueKey] ?? [];
-                          const next = arr.filter((_, i) => i !== ucIdx);
-                          if (next.length === 0) {
-                            const { [cpValueKey]: _removed, ...rest } = prev;
-                            return rest;
-                          }
-                          return { ...prev, [cpValueKey]: next };
-                        });
+                        const arr = assignedUncertainty[cpValueKey] ?? [];
+                        const next = arr.filter((_, i) => i !== ucIdx);
+                        if (next.length === 0) {
+                          const { [cpValueKey]: _removed, ...rest } = assignedUncertainty;
+                          onAssignedUncertaintyChange(rest);
+                        } else {
+                          onAssignedUncertaintyChange({ ...assignedUncertainty, [cpValueKey]: next });
+                        }
                       }}
                     />
                   </div>
@@ -744,15 +738,14 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                     icon={<CloseOutlined />}
                     style={{ flexShrink: 0 }}
                     onClick={() => {
-                      setAssignedUncertainty((prev) => {
-                        const arr = prev[propValueKey] ?? [];
-                        const next = arr.filter((_, i) => i !== ucIdx);
-                        if (next.length === 0) {
-                          const { [propValueKey]: _removed, ...rest } = prev;
-                          return rest;
-                        }
-                        return { ...prev, [propValueKey]: next };
-                      });
+                      const arr = assignedUncertainty[propValueKey] ?? [];
+                      const next = arr.filter((_, i) => i !== ucIdx);
+                      if (next.length === 0) {
+                        const { [propValueKey]: _removed, ...rest } = assignedUncertainty;
+                        onAssignedUncertaintyChange(rest);
+                      } else {
+                        onAssignedUncertaintyChange({ ...assignedUncertainty, [propValueKey]: next });
+                      }
                     }}
                   />
                 </div>
@@ -1062,15 +1055,14 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                                   icon={<CloseOutlined />}
                                   style={{ flexShrink: 0 }}
                                   onClick={() => {
-                                    setAssignedUncertainty((prev) => {
-                                      const arr = prev[valueKey] ?? [];
-                                      const next = arr.filter((_, i) => i !== ucIdx);
-                                      if (next.length === 0) {
-                                        const { [valueKey]: _removed, ...rest } = prev;
-                                        return rest;
-                                      }
-                                      return { ...prev, [valueKey]: next };
-                                    });
+                                    const arr = assignedUncertainty[valueKey] ?? [];
+                                    const next = arr.filter((_, i) => i !== ucIdx);
+                                    if (next.length === 0) {
+                                      const { [valueKey]: _removed, ...rest } = assignedUncertainty;
+                                      onAssignedUncertaintyChange(rest);
+                                    } else {
+                                      onAssignedUncertaintyChange({ ...assignedUncertainty, [valueKey]: next });
+                                    }
                                   }}
                                 />
                               </div>
@@ -1162,18 +1154,16 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
         initialPayload={criteriaEditPayload ?? undefined}
         onAssign={(payload: AssignPayload) => {
           if (criteriaTargetValueKey) {
-            setAssignedUncertainty((prev) => {
-              const existing: AssignPayload[] = prev[criteriaTargetValueKey] ?? [];
-              let next: AssignPayload[];
-              if (criteriaEditIndex !== null) {
-                // 「不確かさ編集」から開いた場合 → 該当インデックスを上書き
-                next = existing.map((item, i) => (i === criteriaEditIndex ? payload : item));
-              } else {
-                // 「不確かさ選択」から開いた場合 → 末尾に追加
-                next = [...existing, payload];
-              }
-              return { ...prev, [criteriaTargetValueKey]: next };
-            });
+            const existing: AssignPayload[] = assignedUncertainty[criteriaTargetValueKey] ?? [];
+            let next: AssignPayload[];
+            if (criteriaEditIndex !== null) {
+              // 「不確かさ編集」から開いた場合 → 該当インデックスを上書き
+              next = existing.map((item, i) => (i === criteriaEditIndex ? payload : item));
+            } else {
+              // 「不確かさ選択」から開いた場合 → 末尾に追加
+              next = [...existing, payload];
+            }
+            onAssignedUncertaintyChange({ ...assignedUncertainty, [criteriaTargetValueKey]: next });
           }
           setCriteriaSelectorOpen(false);
           setCriteriaSelectorTarget(null);

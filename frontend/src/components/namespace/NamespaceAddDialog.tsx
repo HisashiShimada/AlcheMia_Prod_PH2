@@ -75,7 +75,7 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
   // organization レベル時に Prefix の入力に連動してURIプレビューを生成
   const watchedPrefix: string = Form.useWatch('prefix', form) ?? '';
   const autoUri = level === 'organization'
-    ? generateNamespaceUri(MOCK_ORG_CD, MOCK_DEPT_CD, watchedPrefix || undefined)
+    ? generateNamespaceUri(MOCK_ORG_CD, MOCK_DEPT_CD, watchedPrefix ? [watchedPrefix] : undefined)
     : '';
 
   const handleLevelChange = (val: Level) => {

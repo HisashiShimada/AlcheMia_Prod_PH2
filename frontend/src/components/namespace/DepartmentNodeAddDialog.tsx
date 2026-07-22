@@ -34,7 +34,7 @@ const DepartmentNodeAddDialog: React.FC<DepartmentNodeAddDialogProps> = ({
     const parentOption = parentOptions.find((o) => o.value === parentKey);
     const deptCd = parentOption?.departmentCd ?? parentKey ?? undefined;
 
-    const uri = generateNamespaceUri(organizationCd, deptCd, label || undefined);
+    const uri = generateNamespaceUri(organizationCd, deptCd, label ? [label] : undefined);
     setPreviewUri(uri);
   };
 
@@ -52,7 +52,7 @@ const DepartmentNodeAddDialog: React.FC<DepartmentNodeAddDialogProps> = ({
       // 親ノードの departmentCd を取得してURIを確定生成
       const parentOption = parentOptions.find((o) => o.value === values.parentKey);
       const deptCd = parentOption?.departmentCd ?? values.parentKey ?? undefined;
-      const autoUri = generateNamespaceUri(organizationCd, deptCd, values.label);
+      const autoUri = generateNamespaceUri(organizationCd, deptCd, values.label ? [values.label] : undefined);
 
       // API呼び出し（未実装時はモックで追加）
       try {
