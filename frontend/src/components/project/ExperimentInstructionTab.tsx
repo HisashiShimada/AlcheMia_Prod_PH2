@@ -397,6 +397,8 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
 
   // ── 承認処理ダイアログ ──
   const [bulkApproveOpen, setBulkApproveOpen]         = useState(false);
+  /** 選択中のメソッドID（表示用） */
+  const [bulkSelectedMethodId, setBulkSelectedMethodId] = useState<string | null>(null);
   /** 選択中のタスクキー（`methodId__taskNumber` 形式） */
   const [bulkSelectedTaskKey, setBulkSelectedTaskKey] = useState<string | null>(null);
   /** 操作選択（デフォルト: 'approve'） */
@@ -489,6 +491,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
 
   const handleOpenBulkApproveDialog = useCallback(() => {
     // ダイアログを開くときに選択状態をリセット
+    setBulkSelectedMethodId(null);
     setBulkSelectedTaskKey(null);
     setBulkSelectedAction('approve');
     setBulkSelectedNgReason('');
@@ -987,7 +990,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         destroyOnHidden
       >
         {approveTarget && (
-          <Space orientation="vertical" size={4}>
+          <Space direction="vertical" size={4}>
             <Text>以下のタスクを「完了」に更新します。</Text>
             <Text strong>タスク #{approveTarget.taskNumber}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1009,7 +1012,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         destroyOnHidden
       >
         {ngTarget && (
-          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
             <Text>以下のタスクを「NG」に更新します。</Text>
             <Text strong>タスク #{ngTarget.taskNumber}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1040,21 +1043,49 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         width={480}
         destroyOnHidden
       >
-        <Space orientation="vertical" size={16} style={{ width: '100%', paddingTop: 8 }}>
-          {/* ── タスク番号 + 操作 ── */}
-          <Flex gap={12} align="center" wrap="wrap">
-            <Text style={{ whiteSpace: 'nowrap' }}>タスク番号:</Text>
+        <Space direction="vertical" size={12} style={{ width: '100%', paddingTop: 8 }}>
+          {/* ── 1行目: メソッド名 + タスク番号 ── */}
+          <Flex gap={8} align="center">
+            <Text style={{ whiteSpace: 'nowrap' }}>メソッド名:</Text>
             <Select
-              placeholder="タスク番号を選択"
-              style={{ width: 160 }}
-              value={bulkSelectedTaskKey}
-              onChange={(v) => setBulkSelectedTaskKey(v ?? null)}
-              options={reviewWaitingTasks.map((t) => ({
-                label: `#${t.taskNumber}`,
-                value: `${t.methodId}__${t.taskNumber}`,
-              }))}
+              placeholder="メソッドを選択"
+              style={{ width: 180 }}
+              value={bulkSelectedMethodId}
+              onChange={(v) => {
+                setBulkSelectedMethodId(v ?? null);
+                setBulkSelectedTaskKey(null);
+              }}
+              options={
+                [...new Map(
+                  reviewWaitingTasks.map((t) => [t.methodId, t])
+                ).values()].map((t) => ({
+                  label: t.methodId,
+                  value: t.methodId,
+                }))
+              }
               popupMatchSelectWidth={false}
             />
+            <Text style={{ whiteSpace: 'nowrap' }}>タスク番号:</Text>
+            <Select
+              placeholder="番号を選択"
+              style={{ width: 90 }}
+              value={bulkSelectedTaskKey}
+              onChange={(v) => setBulkSelectedTaskKey(v ?? null)}
+              disabled={!bulkSelectedMethodId}
+              options={
+                reviewWaitingTasks
+                  .filter((t) => t.methodId === bulkSelectedMethodId)
+                  .map((t) => ({
+                    label: `#${t.taskNumber}`,
+                    value: `${t.methodId}__${t.taskNumber}`,
+                  }))
+              }
+              popupMatchSelectWidth={false}
+            />
+          </Flex>
+          {/* ── 2行目: 操作を選択 ── */}
+          <Flex gap={8} align="center">
+            <Text style={{ whiteSpace: 'nowrap' }}>操作を選択:</Text>
             <Radio.Group
               value={bulkSelectedAction}
               onChange={(e) => {
@@ -1062,8 +1093,8 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
                 if (e.target.value === 'approve') setBulkSelectedNgReason('');
               }}
             >
-              <Radio value="approve">承認</Radio>
-              <Radio value="ng">NG</Radio>
+              <Radio value="approve"><span style={{ color: '#52c41a' }}>✓ 承認する</span></Radio>
+              <Radio value="ng"><span style={{ color: '#ff4d4f' }}>✗ NGにする</span></Radio>
             </Radio.Group>
           </Flex>
           {/* ── NG理由（NG選択時のみ表示） ── */}

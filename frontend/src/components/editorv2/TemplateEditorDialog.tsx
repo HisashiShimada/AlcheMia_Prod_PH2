@@ -165,6 +165,61 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   // ===== 不確かさ基準セレクターモーダル用State =====
   const [criteriaSelectorOpen, setCriteriaSelectorOpen] = useState(false);
   const [criteriaTargetProperty, setCriteriaTargetProperty] = useState<TargetProperty | null>(null);
+  /** 編集モード時の初期ペイロード（不確かさ編集ボタン押下時にセット） */
+  const [criteriaEditPayload, setCriteriaEditPayload] = useState<AssignPayload | null>(null);
+
+  /**
+   * 不確かさ「編集」ボタン押下ハンドラー
+   * 既存の uncertainty ノードの内容を initialPayload に変換してモーダルを開く
+   */
+  const handleEditUncertainty = (propertyKey: string, uncertaintyNode: PropertyData) => {
+    const section = (node.data.placeType as 'material' | 'condition' | 'result') ?? 'material';
+    const tag: 'property' | 'content' = 'property';
+    const xsiType = uncertaintyNode.attributes?.['xsi:type'] ?? '';
+    const value = uncertaintyNode.elements?.['value'] ?? '';
+    const unit = uncertaintyNode.attributes?.['units'] ?? '';
+    const desc = uncertaintyNode.elements?.['description'] ?? '';
+
+    const target: TargetProperty = {
+      name: propertyKey,
+      xpath: `${section}/${tag}[@key="${propertyKey}"]`,
+      tag,
+      type: xsiType,
+      value,
+      unit,
+      section,
+      desc,
+    };
+
+    // 既存不確かさの key を使って initialPayload を構築
+    const criteriaKey = uncertaintyNode.key ?? '';
+    const editPayload: AssignPayload = {
+      criteria: {
+        id: 0,
+        key: criteriaKey,
+        name: '',
+        evalType: 'qualitative',
+        scopeType: 'organization',
+        scopeLabel: '',
+        scopeOrder: 3,
+        desc,
+        unit,
+        format: xsiType,
+        targetSections: [section as 'material' | 'condition' | 'result'],
+        targetTag: 'property',
+        typeMatches: [],
+        unitMatches: [],
+        qualitativeOptions: [],
+      },
+      ucValue: value !== '' && !isNaN(Number(value)) ? Number(value) : undefined,
+      qualitativeValue: value,
+      comment: desc,
+    };
+
+    setCriteriaTargetProperty(target);
+    setCriteriaEditPayload(editPayload);
+    setCriteriaSelectorOpen(true);
+  };
 
   /**
    * 評価基準ボタン押下ハンドラー
@@ -191,15 +246,100 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     };
 
     setCriteriaTargetProperty(target);
+    setCriteriaEditPayload(null);
     setCriteriaSelectorOpen(true);
   };
 
   /**
-   * 評価基準付与コールバック（現時点はログ出力のみ）
+   * 評価基準付与コールバック
+   * 対象プロパティの children に uncertainty 子ノードを追加（既存があれば上書き）
    */
   const handleCriteriaAssign = (payload: AssignPayload) => {
     console.log('[TemplateEditorDialog] 評価基準付与:', payload);
-    // TODO: 将来的にプロパティへの不確かさ情報の書き込みを実装
+
+    if (!criteriaTargetProperty) return;
+    const targetKey = criteriaTargetProperty.name;
+
+    // 付与する値: 定量評価は ucValue、定性評価は qualitativeValue
+    const ucValueStr =
+      payload.ucValue !== undefined
+        ? String(payload.ucValue)
+        : payload.qualitativeValue ?? '';
+
+    // 親プロパティの xsi:type / units を取得して uncertainty タグに付与
+    const parentPropData = criteriaTargetProperty
+      ? (properties[criteriaTargetProperty.name] ?? null)
+      : null;
+    const parentXsiType = parentPropData?.attributes?.['xsi:type'] ?? '';
+    const parentUnits = parentPropData?.attributes?.['units'] ?? '';
+
+    // uncertainty 子ノード
+    const uncertaintyNode: PropertyData = {
+      key: payload.criteria.key,
+      tagName: 'uncertainty',
+      attributes: {
+        ...(parentXsiType ? { 'xsi:type': parentXsiType } : {}),
+        ...(parentUnits ? { units: parentUnits } : {}),
+      },
+      elements: {
+        ...(ucValueStr ? { value: ucValueStr } : {}),
+        ...(payload.comment ? { description: payload.comment } : {}),
+      },
+      children: [],
+    };
+
+    // properties state を深いコピーして対象ノードを再帰検索し、children を更新
+    const addUncertaintyToNode = (
+      obj: Record<string, PropertyData>,
+      targetKey: string
+    ): boolean => {
+      // トップレベルで発見
+      if (obj[targetKey]) {
+        if (!obj[targetKey].children) {
+          obj[targetKey].children = [];
+        }
+        // 既存の uncertainty を除去（上書き）
+        obj[targetKey].children = obj[targetKey].children.filter(
+          (c) => c.key !== 'uncertainty'
+        );
+        obj[targetKey].children.push(uncertaintyNode);
+        return true;
+      }
+      // 再帰的に子要素を探索
+      for (const key in obj) {
+        const currentNode = obj[key];
+        if (currentNode?.children && Array.isArray(currentNode.children)) {
+          for (let i = 0; i < currentNode.children.length; i++) {
+            const child = currentNode.children[i];
+            if (child.key === targetKey) {
+              if (!child.children) child.children = [];
+              child.children = child.children.filter((c) => c.key !== 'uncertainty');
+              child.children.push(uncertaintyNode);
+              return true;
+            }
+            if (child.children && child.children.length > 0) {
+              const tempObj: Record<string, PropertyData> = { [child.key]: child };
+              if (addUncertaintyToNode(tempObj, targetKey)) return true;
+            }
+          }
+        }
+      }
+      return false;
+    };
+
+    setProperties((prevProperties) => {
+      const updated: Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
+      const found = addUncertaintyToNode(updated, targetKey);
+      if (!found) {
+        console.warn('[handleCriteriaAssign] 対象プロパティが見つかりませんでした:', targetKey);
+      }
+      return updated;
+    });
+
+    setForceRenderKey(Date.now());
+    setHasChanges(true);
+    setCriteriaSelectorOpen(false);
+    message.success(`「${targetKey}」に不確かさを付与しました`);
   };
 
   // useNamespaceOperations フック
@@ -1582,6 +1722,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 forceRenderKey={forceRenderKey}
                 attributeRecords={attributeRecords}
                 onOpenCriteriaSelector={handleOpenCriteriaSelector}
+                onEditUncertainty={handleEditUncertainty}
               />
             ))
           )}
@@ -2035,9 +2176,13 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       {/* ===== 不確かさ基準セレクターモーダル ===== */}
       <UncertaintyCriteriaSelectorModal
         open={criteriaSelectorOpen}
-        onClose={() => setCriteriaSelectorOpen(false)}
+        onClose={() => {
+          setCriteriaSelectorOpen(false);
+          setCriteriaEditPayload(null);
+        }}
         targetProperty={criteriaTargetProperty}
         onAssign={handleCriteriaAssign}
+        initialPayload={criteriaEditPayload ?? undefined}
       />
     </Modal>
   );

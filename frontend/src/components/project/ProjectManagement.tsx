@@ -39,6 +39,8 @@ import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
 import ExperimentInstructionTab from './ExperimentInstructionTab';
+import EvaluationRegistrationTab from './EvaluationRegistrationTab';
+import ProjectCompletionDialog from './ProjectCompletionDialog';
 import CreateProjectModal from './CreateProjectModal';
 import type { CreateProjectData } from '@/types/project';
 import RenameProjectModal from './RenameProjectModal';
@@ -180,7 +182,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const [hasBackendDraft, setHasBackendDraft] = useState(false);
   /** 復元対象のDraftオブジェクト（projectId特定用） */
   const [draftToRestore, setDraftToRestore] = useState<Draft | null>(null);
-  const [currentTab, setCurrentTab] = useState<'file_management' | 'task_registration' | 'project_instruction' | 'experiment_instruction'>('file_management');
+  const [currentTab, setCurrentTab] = useState<'file_management' | 'task_registration' | 'project_instruction' | 'experiment_instruction' | 'evaluation_registration'>('file_management');
   const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
   const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
   const [isLoadingTabData, setIsLoadingTabData] = useState(false);
@@ -231,6 +233,11 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
   // 公開/非公開ダイアログ状態
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+
+  // プロジェクト完了処理ダイアログ状態（実験指示タブから制御）
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  // 実験指示タブの全タスク完了状態
+  const [allTasksCompleted, setAllTasksCompleted] = useState(false);
   const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false);
 
   // ポーリング中フラグ（ボタンにスピナー表示用）
@@ -2125,6 +2132,22 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       {isPolling ? t('projectManagement.processing') : t('projectManagement.publish')}
                     </Button>
                   )}
+                  <Tooltip
+                    title={!allTasksCompleted ? '全タスクが「完了」になると押下できます' : undefined}
+                  >
+                    <Button
+                      type="primary"
+                      disabled={!allTasksCompleted}
+                      style={
+                        allTasksCompleted
+                          ? { backgroundColor: '#52c41a', borderColor: '#52c41a' }
+                          : undefined
+                      }
+                      onClick={() => setCompletionDialogOpen(true)}
+                    >
+                      プロジェクト完了処理
+                    </Button>
+                  </Tooltip>
                   <Button
                     icon={<EditOutlined />}
                     onClick={() => setRenameModalOpen(true)}
@@ -2163,7 +2186,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
               <Tabs
                 activeKey={currentTab}
                 onChange={async (key) => {
-                  const newTab = key as 'file_management' | 'task_registration' | 'project_instruction' | 'experiment_instruction';
+                  const newTab = key as 'file_management' | 'task_registration' | 'project_instruction' | 'experiment_instruction' | 'evaluation_registration';
                   setCurrentTab(newTab);
                   
                   // タブ切り替え時に最新データを取得（ファイル管理タブのみ）
@@ -2257,6 +2280,20 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         <ExperimentInstructionTab
                           projectId={selectedProject.id}
                           projectName={selectedProject.name}
+                          onAllTasksCompletedChange={setAllTasksCompleted}
+                          completionDialogOpen={completionDialogOpen}
+                          onCompletionDialogClose={() => setCompletionDialogOpen(false)}
+                        />
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'evaluation_registration',
+                    label: '評価登録確認',
+                    children: (
+                      <div style={{ height: '100%', padding: '8px 0', overflowY: 'auto' }}>
+                        <EvaluationRegistrationTab
+                          projectId={selectedProject.id}
                         />
                       </div>
                     ),

@@ -12,10 +12,11 @@ import {
   Tooltip,
   Typography,
   Popconfirm,
+  Spin,
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import criteriaMock from '../../../mock/uncertainty-criteria.json';
+import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
 import UncertaintyCreateModal from './UncertaintyCreateModal';
 import type { UncertaintyCriteria, TargetProperty, AssignPayload } from './UncertaintyCriteriaSelectorModal';
 
@@ -109,6 +110,10 @@ export default function UncertaintyCriteriaSelectorPanel({
   // ----- 不確かさ基準作成モーダル -----
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
+  // ----- DBから取得した不確かさ基準一覧 -----
+  const [criteriaList, setCriteriaList] = useState<UncertaintyCriteria[]>([]);
+  const [criteriaLoading, setCriteriaLoading] = useState(false);
+
   // ----- フィルタ状態 -----
   const [filter, setFilter] = useState(INITIAL_FILTER);
 
@@ -118,9 +123,40 @@ export default function UncertaintyCriteriaSelectorPanel({
   // ----- 値入力状態 -----
   const [ucValue, setUcValue] = useState<string>('');
   const [kFactor, setKFactor] = useState<string>('2');
-  const [qualValue, setQualValue] = useState<'certain' | 'ambiguous' | 'uncertain' | null>(null);
+  const [qualValue, setQualValue] = useState<string | null>(null);
   const [comment, setComment] = useState<string>('');
   const [ucValueError, setUcValueError] = useState<string>('');
+
+  // ----- コンポーネントマウント時にDBから一覧取得 -----
+  useEffect(() => {
+    setCriteriaLoading(true);
+    fetchUncertaintyCriteriaForSelector()
+      .then((data) => {
+        const converted: UncertaintyCriteria[] = data.map((row) => ({
+          id:                 row.id,
+          name:               row.name,
+          key:                row.key,
+          evalType:           row.evalType,
+          scopeType:          row.scopeType,
+          scopeLabel:         row.scopeLabel,
+          scopeOrder:         row.scopeOrder,
+          desc:               row.desc,
+          unit:               row.unit,
+          format:             row.format,
+          targetSections:     row.targetSections,
+          targetTag:          row.targetTag,
+          typeMatches:        row.typeMatches,
+          unitMatches:        row.unitMatches,
+          qualitativeOptions: row.qualitativeOptions,
+        }));
+        setCriteriaList(converted);
+      })
+      .catch(() => {
+        message.error('不確かさ基準の取得に失敗しました');
+        setCriteriaList([]);
+      })
+      .finally(() => setCriteriaLoading(false));
+  }, []);
 
   // ----- targetProperty が変わるたびに初期化 -----
   useEffect(() => {
@@ -156,7 +192,7 @@ export default function UncertaintyCriteriaSelectorPanel({
 
   // ----- フィルタ後の評価基準リスト -----
   const filteredCriteria = useMemo<UncertaintyCriteria[]>(() => {
-    const allCriteria = criteriaMock as UncertaintyCriteria[];
+    const allCriteria = criteriaList;
     const nodeType = (targetProperty?.type ?? '').toLowerCase();
     const nodeUnit = (targetProperty?.unit ?? '').toLowerCase().trim();
     const ns = filter.namespace.trim().toLowerCase();
@@ -191,6 +227,20 @@ export default function UncertaintyCriteriaSelectorPanel({
       setSelectedCriteria(filteredCriteria[0]);
     }
   }, [filteredCriteria]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ----- 選択中の基準が切り替わったら値入力をリセット＋定性評価のデフォルト設定 -----
+  useEffect(() => {
+    setUcValue('');
+    setKFactor('2');
+    setUcValueError('');
+    if (selectedCriteria?.evalType === 'qualitative') {
+      // DBの is_default=true の選択肢をデフォルト値に設定
+      const defaultOpt = selectedCriteria.qualitativeOptions.find((o) => o.isDefault);
+      setQualValue(defaultOpt?.selectorValue ?? selectedCriteria.qualitativeOptions[0]?.selectorValue ?? null);
+    } else {
+      setQualValue(null);
+    }
+  }, [selectedCriteria?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ----- 型マッチ判定（ハイライト用） -----
   const isTypeMatch = (c: UncertaintyCriteria): boolean => {
@@ -456,7 +506,7 @@ export default function UncertaintyCriteriaSelectorPanel({
               size="small"
               style={{ minWidth: 130 }}
               value={filter.evalType}
-              onChange={(v) => setFilter((prev) => ({ ...prev, evalType: v, typeMatch: 'all', unitMatch: 'all' }))}
+              onChange={(v) => setFilter((prev) => ({ ...prev, evalType: v, typeMatch: 'all', unitMatch: 'all', ...(v === 'qualitative' ? { tag: 'all' } : {}) }))}
               options={[
                 { value: 'all', label: 'すべて' },
                 { value: 'quantitative', label: '定量' },
@@ -533,14 +583,15 @@ export default function UncertaintyCriteriaSelectorPanel({
           <span style={{ fontSize: 12, fontWeight: 700, color: '#444', borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>
             適用可能な不確かさ基準候補
           </span>
-          {filteredCriteria.length < (criteriaMock as UncertaintyCriteria[]).length && (
+          {filteredCriteria.length < criteriaList.length && (
             <span style={{ fontSize: 11, color: '#aaa' }}>
-              （{filteredCriteria.length} / {(criteriaMock as UncertaintyCriteria[]).length} 件表示中）
+              （{filteredCriteria.length} / {criteriaList.length} 件表示中）
             </span>
           )}
         </div>
 
         {/* 評価基準テーブル */}
+        <Spin spinning={criteriaLoading}>
         <Table<UncertaintyCriteria>
           rowKey="id"
           size="small"
@@ -571,6 +622,7 @@ export default function UncertaintyCriteriaSelectorPanel({
             ),
           }}
         />
+        </Spin>
 
         {/* 新規評価基準作成リンク */}
         <Button
@@ -667,39 +719,43 @@ export default function UncertaintyCriteriaSelectorPanel({
                   style={{ marginBottom: 4 }}
                 >
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {QUALITATIVE_LEVELS.map((level) => {
-                      const isSelected = qualValue === level.value;
-                      return (
-                        <button
-                          key={level.value}
-                          type="button"
-                          onClick={() => setQualValue(level.value)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            padding: '8px 20px',
-                            borderRadius: 20,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            border: `2px solid ${isSelected ? level.selectedColor : level.borderColor}`,
-                            background: isSelected ? level.selectedColor : level.bgColor,
-                            color: isSelected ? '#fff' : level.color,
-                            boxShadow: isSelected ? `0 2px 8px ${level.selectedColor}55` : 'none',
-                            transition: 'all 0.18s',
-                          }}
-                        >
-                          {level.label}
-                        </button>
-                      );
-                    })}
+                    {selectedCriteria.qualitativeOptions
+                      .slice()
+                      .sort((a, b) => a.displayOrder - b.displayOrder)
+                      .map((opt) => {
+                        const isSelected = qualValue === opt.selectorValue;
+                        const baseColor = opt.displayColor || '#1677ff';
+                        return (
+                          <button
+                            key={opt.selectorValue}
+                            type="button"
+                            onClick={() => setQualValue(opt.selectorValue)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '8px 20px',
+                              borderRadius: 20,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              border: `2px solid ${baseColor}`,
+                              background: isSelected ? baseColor : '#fff',
+                              color: isSelected ? '#fff' : baseColor,
+                              boxShadow: isSelected ? `0 2px 8px ${baseColor}55` : 'none',
+                              transition: 'all 0.18s',
+                            }}
+                          >
+                            {opt.selectorValue}
+                          </button>
+                        );
+                      })}
                   </div>
                   {qualValue && (
                     <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
                       選択中：
-                      <strong style={{ color: QUALITATIVE_LEVELS.find((l) => l.value === qualValue)!.color }}>
-                        {QUALITATIVE_LEVELS.find((l) => l.value === qualValue)!.label}
+                      <strong style={{ color: selectedCriteria.qualitativeOptions.find((o) => o.selectorValue === qualValue)?.displayColor ?? '#333' }}>
+                        {qualValue}
                       </strong>
                     </div>
                   )}
@@ -769,6 +825,7 @@ export default function UncertaintyCriteriaSelectorPanel({
       {/* 評価基準作成モーダル */}
       <UncertaintyCreateModal
         open={createModalOpen}
+        allCriteria={[]}
         onClose={() => setCreateModalOpen(false)}
       />
     </div>

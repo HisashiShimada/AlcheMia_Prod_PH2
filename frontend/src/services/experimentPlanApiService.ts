@@ -1,89 +1,18 @@
 /**
  * experimentPlanApiService.ts
- * 実験計画APIサービス（仮実装 - モック）
- * TODO: 本実装時に実際のAPIエンドポイントに接続する
+ * 実験計画APIサービス
+ *
+ * @remarks
+ * バックエンド API:
+ *   GET  /api/v1/projects/:projectId/methods/:methodId/plan-dialog-data
+ *   GET  /api/v1/projects/:projectId/experiment-plans?methodId=xxx
+ *   PUT  /api/v1/projects/:projectId/experiment-plans/:methodId/:taskNo
  */
 
 import type {
   SaveExperimentPlanRequest,
   SaveExperimentPlanResponse,
 } from '@/types/experimentPlan';
-
-/**
- * 実験計画を保存（仮実装）
- * TODO: POST /api/v1/projects/:projectId/experiment-plans
- */
-export async function saveExperimentPlan(
-  projectId: string,
-  data: SaveExperimentPlanRequest
-): Promise<SaveExperimentPlanResponse> {
-  // TODO: 本実装時に実際のAPIエンドポイントに接続
-  console.log('[MOCK] saveExperimentPlan called:', { projectId, data });
-
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        message: '実験計画を保存しました（モック）',
-      });
-    }, 500);
-  });
-}
-
-/**
- * MAIMLからCreatorRef一覧を取得（仮実装）
- * TODO: MAIMLパース結果から取得するAPIに接続
- */
-export async function getCreatorRefs(
-  projectId: string,
-  methodId: string
-): Promise<string[]> {
-  console.log('[MOCK] getCreatorRefs called:', { projectId, methodId });
-
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(['creator_001', 'creator_002', 'creator_003']);
-    }, 300);
-  });
-}
-
-/**
- * MAIMLからInstrumentRef一覧を取得（仮実装）
- * TODO: MAIMLパース結果から取得するAPIに接続
- */
-export async function getInstrumentRefs(
-  projectId: string,
-  methodId: string
-): Promise<string[]> {
-  console.log('[MOCK] getInstrumentRefs called:', { projectId, methodId });
-
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(['instrument_001', 'instrument_002']);
-    }, 300);
-  });
-}
-
-/**
- * MAIMLからOwnerRef一覧を取得（仮実装）
- * TODO: MAIMLパース結果から取得するAPIに接続
- */
-export async function getOwnerRefs(
-  projectId: string,
-  methodId: string
-): Promise<string[]> {
-  console.log('[MOCK] getOwnerRefs called:', { projectId, methodId });
-
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(['owner_001', 'owner_002']);
-    }, 300);
-  });
-}
-
-// ──────────────────────────────────────────────────────────────
-// バックエンドAPI接続
-// ──────────────────────────────────────────────────────────────
 
 import { createApiClient } from '@/utils/authUtils';
 import type { TemplateDef, NoteTypeValue, TemplateValues, NoteItem } from '@/types/experimentPlan';
@@ -217,55 +146,6 @@ export interface TransitionOrderEntry {
 }
 
 /**
- * ExperimentPlanTabData + 実行順序リスト → ExperimentPlanValues に変換する
- * （ダイアログの入力値をバックエンドに送る形式に変換する）
- *
- * transitionOrder が指定された場合は、その order 昇順でトランジションを並べて
- * plannedValues のキー順序に反映する。
- */
-function tabDataToPlannedValues(
-  tabData: ExperimentPlanTabData,
-  transitionOrder?: TransitionOrderEntry[]
-): ExperimentPlanValues {
-  const plannedValues: ExperimentPlanValues = {};
-
-  // 共通の値（全トランジションに適用）
-  const transitionValues: TransitionPlanValues = {};
-
-  if (tabData.creatorRefs.length > 0) {
-    transitionValues['mgr-instruction:requiredCreatorUUID'] = tabData.creatorRefs;
-  }
-  if (tabData.instrumentRefs.length > 0) {
-    transitionValues['mgr-instruction:requiredInstrumentUUID'] = tabData.instrumentRefs;
-  }
-  if (tabData.ownerRefs.length > 0) {
-    transitionValues['mgr-instruction:requiredOwnerUUID'] = tabData.ownerRefs;
-  }
-  for (const note of tabData.notes) {
-    if (note.content.trim()) {
-      transitionValues[note.type] = note.content;
-    }
-  }
-  for (const [key, value] of Object.entries(tabData.templateValues)) {
-    if (value !== undefined && value !== '') {
-      transitionValues[key] = String(value);
-    }
-  }
-
-  // transitionOrder が渡された場合は order 昇順で並べる
-  // 渡されない場合は selectedTransitions をそのまま使用
-  const orderedIds: string[] = transitionOrder && transitionOrder.length > 0
-    ? [...transitionOrder].sort((a, b) => a.order - b.order).map((item) => item.id)
-    : tabData.selectedTransitions;
-
-  for (const transitionId of orderedIds) {
-    plannedValues[transitionId] = { ...transitionValues };
-  }
-
-  return plannedValues;
-}
-
-/**
  * 指定メソッドの全タスク分の実験計画を取得
  * GET /api/v1/projects/:projectId/experiment-plans?methodId=xxx
  */
@@ -353,42 +233,14 @@ export interface PlanDialogData {
   };
 }
 
-// ─── フォールバック用モックデータ ───────────────────────────────
-// バックエンドが未接続 / APIが prerequisiteTransitionIds を返さない場合に使用する
-// 依存グラフ:
-//   TR_A（材料準備A）─┐
-//                      ├─→ TR_C（混合）─→ TR_D（加熱）─→ TR_E（測定）
-//   TR_B（材料準備B）─┘
-export const MOCK_PLAN_DIALOG_DATA: PlanDialogData = {
-  transitions: [
-    { id: 'trans-001', name: '材料準備A', prerequisiteTransitionIds: [], inputPlaceIds: [], outputPlaceIds: [] },
-    { id: 'trans-002', name: '材料準備B', prerequisiteTransitionIds: [], inputPlaceIds: [], outputPlaceIds: [] },
-    { id: 'trans-003', name: '混合',      prerequisiteTransitionIds: ['trans-001', 'trans-002'], inputPlaceIds: [], outputPlaceIds: [] },
-    { id: 'trans-004', name: '加熱',      prerequisiteTransitionIds: ['trans-003'], inputPlaceIds: [], outputPlaceIds: [] },
-    { id: 'trans-005', name: '測定',      prerequisiteTransitionIds: ['trans-004'], inputPlaceIds: [], outputPlaceIds: [] },
-  ],
-  templates: [],
-  creatorRefs: ['creator_001', 'creator_002', 'creator_003'],
-  instrumentRefs: ['instrument_001', 'instrument_002'],
-  ownerRefs: ['owner_001', 'owner_002'],
-};
-
 export async function getPlanDialogData(
   projectId: string,
   methodId: string
 ): Promise<PlanDialogData> {
-  try {
-    const apiClient = createApiClient();
-    const url = `/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/plan-dialog-data`;
-    const response = await apiClient.get<{ success: boolean; data: PlanDialogData }>(url);
-    return response.data.data;
-  } catch (error) {
-    // API 未実装 / バックエンド未接続の場合はモックデータを返す
-    console.warn('[getPlanDialogData] API 接続失敗。モックデータを使用します:', error);
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(MOCK_PLAN_DIALOG_DATA), 300);
-    });
-  }
+  const apiClient = createApiClient();
+  const url = `/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/plan-dialog-data`;
+  const response = await apiClient.get<{ success: boolean; data: PlanDialogData }>(url);
+  return response.data.data;
 }
 
 /**

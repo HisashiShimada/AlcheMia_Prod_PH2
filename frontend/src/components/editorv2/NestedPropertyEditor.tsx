@@ -31,6 +31,7 @@ import {
   DeleteOutlined,
   CopyOutlined,
   InfoCircleOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -94,6 +95,8 @@ export interface NestedPropertyEditorProps {
   attributeRecords?: AttributeRecord[];
   /** 不確かさ基準ボタン押下時のコールバック（省略時はボタン非表示） */
   onOpenCriteriaSelector?: (propertyKey: string, propertyData: PropertyData) => void;
+  /** 不確かさ「編集」ボタン押下時のコールバック（省略時はボタン非表示） */
+  onEditUncertainty?: (propertyKey: string, uncertaintyNode: PropertyData) => void;
 }
 
 // ===== 固定属性名（Attributeマスタ選択肢から除外） =====
@@ -209,6 +212,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   forceRenderKey,
   attributeRecords = [],
   onOpenCriteriaSelector,
+  onEditUncertainty,
 }) => {
   const { modal } = App.useApp();
   const { t } = useLanguage();
@@ -413,34 +417,138 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           </div>
         )}
 
-        {/* 子要素セクション */}
+        {/* 不確かさセクション（uncertainty 子ノードがある場合に専用表示） */}
+        {(() => {
+          const uncertaintyChild = propertyData.children?.find(
+            (c) => c.tagName === 'uncertainty'
+          );
+          if (!uncertaintyChild) return null;
+          const ucValue = uncertaintyChild.elements?.['value'] ?? '';
+          const ucDesc = uncertaintyChild.elements?.['description'] ?? '';
+          return (
+            <div style={{ marginBottom: 8 }}>
+              {/* ヘッダー行：ラベル左・編集ボタン・×ボタン右 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Text strong style={{ fontSize: 12, flex: 1, color: '#722ed1' }}>
+                  <ExperimentOutlined style={{ marginRight: 4 }} />
+                  不確かさ
+                </Text>
+                {onEditUncertainty && (
+                  <Button
+                    size="small"
+                    type="default"
+                    style={{ color: '#722ed1', borderColor: '#722ed1' }}
+                    onClick={() => onEditUncertainty(propertyKey, uncertaintyChild)}
+                  >
+                    不確かさ編集
+                  </Button>
+                )}
+                <Button
+                  size="small"
+                  type="text"
+                  danger
+                  icon={<CloseOutlined />}
+                  onClick={() => onDeleteProperty('uncertainty')}
+                />
+              </div>
+              {/* key 行（uncertainty タグ自体の key 属性） */}
+              {uncertaintyChild.key && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Text style={{ minWidth: 100, fontSize: 12 }}>key:</Text>
+                  <Input
+                    size="small"
+                    value={uncertaintyChild.key}
+                    readOnly
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ width: 24 }} />
+                </div>
+              )}
+              {/* xsi:type 行 */}
+              {uncertaintyChild.attributes?.['xsi:type'] && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Text style={{ minWidth: 100, fontSize: 12 }}>xsi:type:</Text>
+                  <Input
+                    size="small"
+                    value={uncertaintyChild.attributes['xsi:type']}
+                    readOnly
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ width: 24 }} />
+                </div>
+              )}
+              {/* units 行 */}
+              {uncertaintyChild.attributes?.['units'] && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Text style={{ minWidth: 100, fontSize: 12 }}>units:</Text>
+                  <Input
+                    size="small"
+                    value={uncertaintyChild.attributes['units']}
+                    readOnly
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ width: 24 }} />
+                </div>
+              )}
+              {/* value 行 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Text style={{ minWidth: 100, fontSize: 12 }}>value:</Text>
+                <Input
+                  size="small"
+                  value={ucValue}
+                  onChange={(e) => onUpdateNestedElement('uncertainty', 'value', e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ width: 24 }} />
+              </div>
+              {/* description 行（コメントがある場合のみ表示） */}
+              {ucDesc !== '' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Text style={{ minWidth: 100, fontSize: 12 }}>description:</Text>
+                  <Input
+                    size="small"
+                    value={ucDesc}
+                    onChange={(e) => onUpdateNestedElement('uncertainty', 'description', e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ width: 24 }} />
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* 子要素セクション（uncertainty 以外） */}
         {hasChildren && isExpanded && (
           <div style={{ marginTop: 8 }}>
             <Text style={{ fontSize: 12, color: '#722ed1', fontWeight: 'bold' }}>
               {t('nestedPropertyEditor.childrenSection', { count: String(propertyData.children?.length || 0) })}
             </Text>
-            {propertyData.children.map((child, index) => {
-              const childKey = child.key || `${child.tagName || 'child'}_${index}`;
-              return (
-                <NestedPropertyEditor
-                  key={`${childKey}_${index}_${forceRenderKey}`}
-                  propertyData={child}
-                  propertyKey={childKey}
-                  level={level + 1}
-                  expandedNodes={expandedNodes}
-                  onToggleExpanded={onToggleExpanded}
-                  onAddNestedChild={onAddNestedChild}
-                  onAddSameLevelCopy={onAddSameLevelCopy}
-                  onUpdateNestedAttribute={onUpdateNestedAttribute}
-                  onUpdateNestedElement={onUpdateNestedElement}
-                  onDeleteNestedAttribute={onDeleteNestedAttribute}
-                  onDeleteNestedElement={onDeleteNestedElement}
-                  onDeleteProperty={onDeleteProperty}
-                  forceRenderKey={forceRenderKey}
-                  onOpenCriteriaSelector={onOpenCriteriaSelector}
-                />
-              );
-            })}
+            {propertyData.children
+              .filter((c) => c.tagName !== 'uncertainty' && c.key !== 'uncertainty')
+              .map((child, index) => {
+                const childKey = child.key || `${child.tagName || 'child'}_${index}`;
+                return (
+                  <NestedPropertyEditor
+                    key={`${childKey}_${index}_${forceRenderKey}`}
+                    propertyData={child}
+                    propertyKey={childKey}
+                    level={level + 1}
+                    expandedNodes={expandedNodes}
+                    onToggleExpanded={onToggleExpanded}
+                    onAddNestedChild={onAddNestedChild}
+                    onAddSameLevelCopy={onAddSameLevelCopy}
+                    onUpdateNestedAttribute={onUpdateNestedAttribute}
+                    onUpdateNestedElement={onUpdateNestedElement}
+                    onDeleteNestedAttribute={onDeleteNestedAttribute}
+                    onDeleteNestedElement={onDeleteNestedElement}
+                    onDeleteProperty={onDeleteProperty}
+                    forceRenderKey={forceRenderKey}
+                    onOpenCriteriaSelector={onOpenCriteriaSelector}
+                    onEditUncertainty={onEditUncertainty}
+                  />
+                );
+              })}
           </div>
         )}
       </div>

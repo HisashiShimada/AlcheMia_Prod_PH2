@@ -19,7 +19,7 @@ import {
   Tooltip,
   Upload,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, UploadOutlined, CloseOutlined, ExperimentOutlined, CommentOutlined } from '@ant-design/icons';
 import type {
   TemplateInputPanelProps,
   CustomPropValue,
@@ -97,6 +97,31 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   // 不確かさ基準選択モーダル用 state
   const [criteriaSelectorOpen, setCriteriaSelectorOpen] = useState(false);
   const [criteriaSelectorTarget, setCriteriaSelectorTarget] = useState<TargetProperty | null>(null);
+
+  /**
+   * 付与済み不確かさ情報を valueKey ごとに保持（複数付与対応）
+   * - key: `${templateId}_${fieldKey}`
+   * - value: AssignPayload の配列
+   */
+  const [assignedUncertainty, setAssignedUncertainty] = useState<Record<string, AssignPayload[]>>({});
+
+  /**
+   * 「不確かさ編集」クリック時に上書きする配列インデックス
+   * null = 新規追加モード（「不確かさ選択」ボタンから開いた場合）
+   */
+  const [criteriaEditIndex, setCriteriaEditIndex] = useState<number | null>(null);
+
+  /**
+   * 「不確かさ編集」クリック時に渡す既存ペイロード
+   * モーダルの初期値として使用する
+   */
+  const [criteriaEditPayload, setCriteriaEditPayload] = useState<AssignPayload | null>(null);
+
+  /**
+   * 現在モーダルを開いているフィールドの valueKey
+   * onAssign 時に保存先を特定するために使用
+   */
+  const [criteriaTargetValueKey, setCriteriaTargetValueKey] = useState<string | null>(null);
 
   // methodTemplates が変わった（メソッド切り替え等）場合は選択リセット
   useEffect(() => {
@@ -337,11 +362,40 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
           ? [cp.value as string]
           : [''];
 
+        const cpValueKey = `custom_${cp.id}`;
+        const cpAssigned: AssignPayload[] = assignedUncertainty[cpValueKey] ?? [];
+
         return (
           <div
             key={cp.id}
             style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}
           >
+            {/* 上部: 不確かさ選択ボタン */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <Button
+                type="primary"
+                size="small"
+                disabled={effectiveDisabled}
+                onClick={() => {
+                  setCriteriaSelectorTarget({
+                    name: cp.key || 'content',
+                    xpath: cp.key,
+                    tag: 'property',
+                    type: cp.type,
+                    value: '',
+                    unit: cp.units ?? '',
+                    section: (selectedTemplate.category as 'material' | 'condition' | 'result'),
+                  });
+                  setCriteriaTargetValueKey(cpValueKey);
+                  setCriteriaEditIndex(null);
+                  setCriteriaEditPayload(null);
+                  setCriteriaSelectorOpen(true);
+                }}
+              >
+                不確かさ選択
+              </Button>
+            </div>
+            {/* 入力コントロール行 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Tag color="cyan" style={{ flexShrink: 0 }}>content</Tag>
               {keyInput}
@@ -406,6 +460,89 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                 行を追加
               </Button>
             </div>
+            {/* 付与済み不確かさバー */}
+            {cpAssigned.map((payload, ucIdx) => {
+              const isQuant = payload.criteria.evalType === 'quantitative';
+              const qualColor = payload.qualitativeValue
+                ? (payload.criteria.qualitativeOptions?.find(
+                    (o) => o.selectorValue === payload.qualitativeValue
+                  )?.displayColor ?? '#722ed1')
+                : '#722ed1';
+              return (
+                <div
+                  key={ucIdx}
+                  style={{
+                    marginTop: 6,
+                    padding: '6px 10px',
+                    background: '#f9f0ff',
+                    borderLeft: '3px solid #722ed1',
+                    borderRadius: '0 6px 6px 0',
+                    border: '1px solid #d3adf7',
+                    borderLeftWidth: 3,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <ExperimentOutlined style={{ color: '#722ed1', fontSize: 13, flexShrink: 0 }} />
+                    <Text style={{ fontSize: 12, fontWeight: 600, color: '#531dab' }}>{payload.criteria.name}</Text>
+                    <Tag color={isQuant ? 'blue' : 'purple'} style={{ fontSize: 10, margin: 0 }}>{isQuant ? '定量' : '定性'}</Tag>
+                    {isQuant ? (
+                      <Text style={{ fontSize: 12, fontFamily: 'Consolas, Monaco, monospace', color: '#d4380d', fontWeight: 700 }}>
+                        {payload.ucValue} {payload.criteria.unit || ''}
+                      </Text>
+                    ) : payload.qualitativeValue ? (
+                      <Text style={{ fontSize: 12, fontWeight: 700, color: qualColor }}>{payload.qualitativeValue}</Text>
+                    ) : null}
+                    <Button
+                      type="default"
+                      size="small"
+                      style={{ marginLeft: 'auto', flexShrink: 0, color: '#722ed1', borderColor: '#722ed1' }}
+                      disabled={effectiveDisabled}
+                      onClick={() => {
+                        setCriteriaSelectorTarget({
+                          name: cp.key || 'content',
+                          xpath: cp.key,
+                          tag: 'property',
+                          type: cp.type,
+                          value: '',
+                          unit: cp.units ?? '',
+                          section: (selectedTemplate.category as 'material' | 'condition' | 'result'),
+                        });
+                        setCriteriaTargetValueKey(cpValueKey);
+                        setCriteriaEditIndex(ucIdx);
+                        setCriteriaEditPayload(payload);
+                        setCriteriaSelectorOpen(true);
+                      }}
+                    >
+                      不確かさ編集
+                    </Button>
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<CloseOutlined />}
+                      style={{ flexShrink: 0 }}
+                      onClick={() => {
+                        setAssignedUncertainty((prev) => {
+                          const arr = prev[cpValueKey] ?? [];
+                          const next = arr.filter((_, i) => i !== ucIdx);
+                          if (next.length === 0) {
+                            const { [cpValueKey]: _removed, ...rest } = prev;
+                            return rest;
+                          }
+                          return { ...prev, [cpValueKey]: next };
+                        });
+                      }}
+                    />
+                  </div>
+                  {payload.comment && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 4 }}>
+                      <CommentOutlined style={{ color: '#888', fontSize: 12, flexShrink: 0, marginTop: 1 }} />
+                      <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5, wordBreak: 'break-all' }}>{payload.comment}</Text>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       }
@@ -493,27 +630,141 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
           );
       }
 
+      const propValueKey = `custom_${cp.id}`;
+      const propAssigned: AssignPayload[] = assignedUncertainty[propValueKey] ?? [];
+
       return (
-        <div key={cp.id} style={rowStyle}>
-          <Tag color="geekblue" style={{ flexShrink: 0, alignSelf: 'center' }}>property</Tag>
-          {keyInput}
-          <Select
-            value={cp.type}
-            onChange={(v) =>
-              handleUpdateCustomProp(selectedTemplate.id, cp.id, {
-                type: v as CustomPropType,
-                value: null,
-              })
-            }
-            options={PROPERTY_TYPE_OPTIONS}
-            style={{ width: 140 }}
-            popupMatchSelectWidth={false}
-            size="small"
-            disabled={disabled}
-          />
-          {valueInput}
-          {unitsInput}
-          {deleteBtn}
+        <div key={cp.id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+          {/* 上部: 不確かさ選択ボタン */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <Button
+              type="primary"
+              size="small"
+              disabled={effectiveDisabled}
+              onClick={() => {
+                setCriteriaSelectorTarget({
+                  name: cp.key || 'property',
+                  xpath: cp.key,
+                  tag: 'property',
+                  type: cp.type,
+                  value: typeof cp.value === 'string' ? cp.value : '',
+                  unit: cp.units ?? '',
+                  section: (selectedTemplate.category as 'material' | 'condition' | 'result'),
+                });
+                setCriteriaTargetValueKey(propValueKey);
+                setCriteriaEditIndex(null);
+                setCriteriaEditPayload(null);
+                setCriteriaSelectorOpen(true);
+              }}
+            >
+              不確かさ選択
+            </Button>
+          </div>
+          {/* 入力コントロール行 */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+            <Tag color="geekblue" style={{ flexShrink: 0, alignSelf: 'center' }}>property</Tag>
+            {keyInput}
+            <Select
+              value={cp.type}
+              onChange={(v) =>
+                handleUpdateCustomProp(selectedTemplate.id, cp.id, {
+                  type: v as CustomPropType,
+                  value: null,
+                })
+              }
+              options={PROPERTY_TYPE_OPTIONS}
+              style={{ width: 140 }}
+              popupMatchSelectWidth={false}
+              size="small"
+              disabled={disabled}
+            />
+            {valueInput}
+            {unitsInput}
+            {deleteBtn}
+          </div>
+          {/* 付与済み不確かさバー */}
+          {propAssigned.map((payload, ucIdx) => {
+            const isQuant = payload.criteria.evalType === 'quantitative';
+            const qualColor = payload.qualitativeValue
+              ? (payload.criteria.qualitativeOptions?.find(
+                  (o) => o.selectorValue === payload.qualitativeValue
+                )?.displayColor ?? '#722ed1')
+              : '#722ed1';
+            return (
+              <div
+                key={ucIdx}
+                style={{
+                  marginTop: 6,
+                  padding: '6px 10px',
+                  background: '#f9f0ff',
+                  borderLeft: '3px solid #722ed1',
+                  borderRadius: '0 6px 6px 0',
+                  border: '1px solid #d3adf7',
+                  borderLeftWidth: 3,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <ExperimentOutlined style={{ color: '#722ed1', fontSize: 13, flexShrink: 0 }} />
+                  <Text style={{ fontSize: 12, fontWeight: 600, color: '#531dab' }}>{payload.criteria.name}</Text>
+                  <Tag color={isQuant ? 'blue' : 'purple'} style={{ fontSize: 10, margin: 0 }}>{isQuant ? '定量' : '定性'}</Tag>
+                  {isQuant ? (
+                    <Text style={{ fontSize: 12, fontFamily: 'Consolas, Monaco, monospace', color: '#d4380d', fontWeight: 700 }}>
+                      {payload.ucValue} {payload.criteria.unit || ''}
+                    </Text>
+                  ) : payload.qualitativeValue ? (
+                    <Text style={{ fontSize: 12, fontWeight: 700, color: qualColor }}>{payload.qualitativeValue}</Text>
+                  ) : null}
+                  <Button
+                    type="default"
+                    size="small"
+                    style={{ marginLeft: 'auto', flexShrink: 0, color: '#722ed1', borderColor: '#722ed1' }}
+                    disabled={effectiveDisabled}
+                    onClick={() => {
+                      setCriteriaSelectorTarget({
+                        name: cp.key || 'property',
+                        xpath: cp.key,
+                        tag: 'property',
+                        type: cp.type,
+                        value: typeof cp.value === 'string' ? cp.value : '',
+                        unit: cp.units ?? '',
+                        section: (selectedTemplate.category as 'material' | 'condition' | 'result'),
+                      });
+                      setCriteriaTargetValueKey(propValueKey);
+                      setCriteriaEditIndex(ucIdx);
+                      setCriteriaEditPayload(payload);
+                      setCriteriaSelectorOpen(true);
+                    }}
+                  >
+                    不確かさ編集
+                  </Button>
+                  <Button
+                    type="text"
+                    danger
+                    size="small"
+                    icon={<CloseOutlined />}
+                    style={{ flexShrink: 0 }}
+                    onClick={() => {
+                      setAssignedUncertainty((prev) => {
+                        const arr = prev[propValueKey] ?? [];
+                        const next = arr.filter((_, i) => i !== ucIdx);
+                        if (next.length === 0) {
+                          const { [propValueKey]: _removed, ...rest } = prev;
+                          return rest;
+                        }
+                        return { ...prev, [propValueKey]: next };
+                      });
+                    }}
+                  />
+                </div>
+                {payload.comment && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 4 }}>
+                    <CommentOutlined style={{ color: '#888', fontSize: 12, flexShrink: 0, marginTop: 1 }} />
+                    <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5, wordBreak: 'break-all' }}>{payload.comment}</Text>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       );
     });
@@ -684,6 +935,7 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                             )}
                           </Space>
                           {/* insertion フィールドには不確かさ選択不要、出力テンプレートは操作不可 */}
+                          {/* 付与済みの場合も「不確かさ選択」は常時表示（複数付与に対応） */}
                           {field.xsiType !== 'insertion' && !isOutputTemplate && (
                             <Button
                               type="primary"
@@ -694,11 +946,12 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                                   name: field.label || field.key,
                                   xpath: field.key,
                                   tag: 'property',
-                                  type: field.type,
+                                  type: field.xsiType ?? field.type,
                                   value: String(templateValues[valueKey] ?? ''),
                                   unit: field.units ?? '',
                                   section: selectedTemplate.category as 'material' | 'condition' | 'result',
                                 });
+                                setCriteriaTargetValueKey(valueKey);
                                 setCriteriaSelectorOpen(true);
                               }}
                             >
@@ -726,6 +979,113 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                             {field.description}
                           </Text>
                         )}
+                        {/* ── 付与済み不確かさ表示バー（複数対応） ── */}
+                        {(assignedUncertainty[valueKey] ?? []).map((payload, ucIdx) => {
+                          const isQuant = payload.criteria.evalType === 'quantitative';
+                          const qualColor = payload.qualitativeValue
+                            ? (assignedUncertainty[valueKey][ucIdx].criteria.qualitativeOptions?.find(
+                                (o) => o.selectorValue === payload.qualitativeValue
+                              )?.displayColor ?? '#722ed1')
+                            : '#722ed1';
+
+                          return (
+                            <div
+                              key={ucIdx}
+                              style={{
+                                marginTop: 6,
+                                padding: '6px 10px',
+                                background: '#f9f0ff',
+                                borderLeft: '3px solid #722ed1',
+                                borderRadius: '0 6px 6px 0',
+                                border: '1px solid #d3adf7',
+                                borderLeftWidth: 3,
+                              }}
+                            >
+                              {/* 1行目：基準名・評価方式・付与値・編集・×削除 */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <ExperimentOutlined style={{ color: '#722ed1', fontSize: 13, flexShrink: 0 }} />
+                                <Text style={{ fontSize: 12, fontWeight: 600, color: '#531dab' }}>
+                                  {payload.criteria.name}
+                                </Text>
+                                <Tag
+                                  color={isQuant ? 'blue' : 'purple'}
+                                  style={{ fontSize: 10, margin: 0 }}
+                                >
+                                  {isQuant ? '定量' : '定性'}
+                                </Tag>
+                                {isQuant ? (
+                                  <Text
+                                    style={{
+                                      fontSize: 12,
+                                      fontFamily: 'Consolas, Monaco, monospace',
+                                      color: '#d4380d',
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {payload.ucValue} {payload.criteria.unit || ''}
+                                  </Text>
+                                ) : payload.qualitativeValue ? (
+                                  <Text style={{ fontSize: 12, fontWeight: 700, color: qualColor }}>
+                                    {payload.qualitativeValue}
+                                  </Text>
+                                ) : null}
+                                {/* 不確かさ編集ボタン（×の左隣） — このインデックスを上書き */}
+                                <Button
+                                  type="default"
+                                  size="small"
+                                  style={{ marginLeft: 'auto', flexShrink: 0, color: '#722ed1', borderColor: '#722ed1' }}
+                                  disabled={effectiveDisabled}
+                                  onClick={() => {
+                                    setCriteriaSelectorTarget({
+                                      name: field.label || field.key,
+                                      xpath: field.key,
+                                      tag: 'property',
+                                      type: field.xsiType ?? field.type,
+                                      value: String(templateValues[valueKey] ?? ''),
+                                      unit: field.units ?? '',
+                                      section: selectedTemplate.category as 'material' | 'condition' | 'result',
+                                    });
+                                    setCriteriaTargetValueKey(valueKey);
+                                    setCriteriaEditIndex(ucIdx);
+                                    // 既存のペイロードを初期値として渡す
+                                    setCriteriaEditPayload(payload);
+                                    setCriteriaSelectorOpen(true);
+                                  }}
+                                >
+                                  不確かさ編集
+                                </Button>
+                                {/* ×ボタン — この1件だけ削除 */}
+                                <Button
+                                  type="text"
+                                  danger
+                                  size="small"
+                                  icon={<CloseOutlined />}
+                                  style={{ flexShrink: 0 }}
+                                  onClick={() => {
+                                    setAssignedUncertainty((prev) => {
+                                      const arr = prev[valueKey] ?? [];
+                                      const next = arr.filter((_, i) => i !== ucIdx);
+                                      if (next.length === 0) {
+                                        const { [valueKey]: _removed, ...rest } = prev;
+                                        return rest;
+                                      }
+                                      return { ...prev, [valueKey]: next };
+                                    });
+                                  }}
+                                />
+                              </div>
+                              {/* 2行目：コメント（ある場合のみ） */}
+                              {payload.comment && (
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 4 }}>
+                                  <CommentOutlined style={{ color: '#888', fontSize: 12, flexShrink: 0, marginTop: 1 }} />
+                                  <Text style={{ fontSize: 11, color: '#555', lineHeight: 1.5, wordBreak: 'break-all' }}>
+                                    {payload.comment}
+                                  </Text>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}
@@ -794,12 +1154,32 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
         onClose={() => {
           setCriteriaSelectorOpen(false);
           setCriteriaSelectorTarget(null);
+          setCriteriaEditIndex(null);
+          setCriteriaEditPayload(null);
+          setCriteriaTargetValueKey(null);
         }}
         targetProperty={criteriaSelectorTarget}
-        onAssign={(_payload: AssignPayload) => {
-          // 付与結果の処理（必要に応じて拡張）
+        initialPayload={criteriaEditPayload ?? undefined}
+        onAssign={(payload: AssignPayload) => {
+          if (criteriaTargetValueKey) {
+            setAssignedUncertainty((prev) => {
+              const existing: AssignPayload[] = prev[criteriaTargetValueKey] ?? [];
+              let next: AssignPayload[];
+              if (criteriaEditIndex !== null) {
+                // 「不確かさ編集」から開いた場合 → 該当インデックスを上書き
+                next = existing.map((item, i) => (i === criteriaEditIndex ? payload : item));
+              } else {
+                // 「不確かさ選択」から開いた場合 → 末尾に追加
+                next = [...existing, payload];
+              }
+              return { ...prev, [criteriaTargetValueKey]: next };
+            });
+          }
           setCriteriaSelectorOpen(false);
           setCriteriaSelectorTarget(null);
+          setCriteriaTargetValueKey(null);
+          setCriteriaEditIndex(null);
+          setCriteriaEditPayload(null);
         }}
       />
     </div>

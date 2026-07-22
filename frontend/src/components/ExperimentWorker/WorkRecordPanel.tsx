@@ -403,7 +403,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 }) => {
   const DEFAULT_CONFIDENCE_OPTIONS: string[] = ['確か', '曖昧', '不確か'];
   const confidenceOptions = prop.confidenceOptions ?? DEFAULT_CONFIDENCE_OPTIONS;
-  const [confidence, setConfidence] = useState<string>(prop.defaultConfidence ?? confidenceOptions[0] ?? '確か');
+  const [confidence, setConfidence] = useState<string | null>(null);
   /** ＋値の追加ボタンで追加された不確かさ評価行 */
   const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>([]);
 
@@ -450,18 +450,20 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         {XSI_SHORT[prop.xsiType] ?? prop.xsiType}
       </Tag>
       <Text type="secondary" style={{ fontSize: 11 }}>({prop.key})</Text>
-      {/* 選択中の定性評価を表示 */}
-      <Tag
-        style={{
-          ...getConfidenceStyle(confidence),
-          fontSize: 11,
-          margin: 0,
-          lineHeight: '18px',
-          fontWeight: 'bold',
-        }}
-      >
-        {confidence}
-      </Tag>
+      {/* 選択中の定性評価を表示（未選択時は非表示） */}
+      {confidence !== null && (
+        <Tag
+          style={{
+            ...getConfidenceStyle(confidence),
+            fontSize: 11,
+            margin: 0,
+            lineHeight: '18px',
+            fontWeight: 'bold',
+          }}
+        >
+          {confidence}
+        </Tag>
+      )}
     </Flex>
 
       {/* データ表示 / 入力エリア（縦並び: 想定値+不確かさ値 → 不確かさ説明 → 実績値） */}
@@ -566,7 +568,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                 <Button
                   key={level}
                   size="small"
-                  onClick={() => setConfidence(level)}
+                  onClick={() => setConfidence(confidence === level ? null : level)}
                   style={{
                     ...style,
                     fontSize: 11,

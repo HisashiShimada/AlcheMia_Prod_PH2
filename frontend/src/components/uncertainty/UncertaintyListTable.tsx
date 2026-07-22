@@ -3,8 +3,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   Table,
-  Input,
-  Select,
   Button,
   Tag,
   Typography,
@@ -14,7 +12,6 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { TableRowSelection } from 'antd/es/table/interface';
 import {
-  SearchOutlined,
   EditOutlined,
 } from '@ant-design/icons';
 
@@ -52,6 +49,12 @@ interface UncertaintyListTableProps {
   onOpenDetail: (template: UncertaintyTemplate) => void;
   /** エクスポートボタン活性状態変更コールバック */
   onSelectionChange: (selectedIds: number[]) => void;
+  /** 検索テキスト（外部から制御） */
+  searchText: string;
+  /** 評価方式フィルタ（外部から制御） */
+  evalFilter: string;
+  /** 状態フィルタ（外部から制御） */
+  statusFilter: string;
 }
 
 /**
@@ -63,10 +66,10 @@ export default function UncertaintyListTable({
   currentScopeLabel,
   onOpenDetail,
   onSelectionChange,
+  searchText,
+  evalFilter,
+  statusFilter,
 }: UncertaintyListTableProps) {
-  const [searchText, setSearchText] = useState('');
-  const [evalFilter, setEvalFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   /** フィルタ済みデータ */
@@ -102,7 +105,11 @@ export default function UncertaintyListTable({
       render: (_, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div>
-            <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{record.name}</div>
+            {record.name ? (
+              <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{record.name}</div>
+            ) : (
+              <span style={{ color: '#bbb' }}>—</span>
+            )}
             <div
               style={{
                 fontSize: 11,
@@ -158,31 +165,30 @@ export default function UncertaintyListTable({
     {
       title: '継承元',
       key: 'extends',
-      width: 160,
+      width: 180,
       sorter: (a, b) => a.extends.localeCompare(b.extends),
       render: (_, record) => {
         if (!record.extends) return <span style={{ color: '#bbb' }}>—</span>;
-        const parts = record.extends.split(' › ');
-        const label = parts[0].trim();
+        // 同一 templates 内から継承元 Key に対応する名前を取得
+        const parentName = templates.find((t) => t.key === record.extends)?.name ?? '';
         return (
-          <Tooltip title={record.extends}>
-            <Tag
+          <div>
+            {parentName ? (
+              <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{parentName}</div>
+            ) : (
+              <span style={{ color: '#bbb' }}>—</span>
+            )}
+            <div
               style={{
-                fontFamily: 'Consolas, Monaco, monospace',
                 fontSize: 11,
-                color: '#5a3e8a',
-                background: '#f5f0ff',
-                borderColor: '#d3b8f5',
-                maxWidth: 140,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                display: 'inline-block',
+                color: '#888',
+                fontFamily: 'Consolas, Monaco, monospace',
+                marginTop: 1,
               }}
             >
-              {label}
-            </Tag>
-          </Tooltip>
+              {record.extends}
+            </div>
+          </div>
         );
       },
     },
@@ -192,6 +198,7 @@ export default function UncertaintyListTable({
       minWidth: 150,
       sorter: (a, b) => a.scope.localeCompare(b.scope),
       render: (_, record) => {
+        if (!record.scope) return <span style={{ color: '#bbb' }}>—</span>;
         const parts = record.scope.split(' › ');
         const label = parts[parts.length - 1].trim();
         return (
@@ -226,7 +233,7 @@ export default function UncertaintyListTable({
             style={{
               fontSize: 12,
               color: '#666',
-              maxWidth: 240,
+              width: '100%',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -296,64 +303,6 @@ export default function UncertaintyListTable({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* ツールバー */}
-      <div
-        style={{
-          background: '#fff',
-          padding: '10px 16px 8px',
-          borderBottom: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          flexShrink: 0,
-          flexWrap: 'wrap',
-        }}
-      >
-        {/* 評価方式フィルタ */}
-        <Select
-          size="small"
-          style={{ width: 150 }}
-          placeholder="評価方式：すべて"
-          value={evalFilter || undefined}
-          onChange={(v) => setEvalFilter(v ?? '')}
-          allowClear
-          options={[
-            { value: 'quantitative', label: '定量（数値）' },
-            { value: 'qualitative', label: '定性（選択肢）' },
-          ]}
-        />
-
-        {/* 状態フィルタ */}
-        <Select
-          size="small"
-          style={{ width: 130 }}
-          placeholder="状態：すべて"
-          value={statusFilter || undefined}
-          onChange={(v) => setStatusFilter(v ?? '')}
-          allowClear
-          options={[
-            { value: 'active', label: '有効' },
-            { value: 'deprecated', label: '無効' },
-          ]}
-        />
-
-        {/* 検索 */}
-        <Input
-          size="small"
-          prefix={<SearchOutlined />}
-          placeholder="不確かさ基準名・キーで検索…"
-          style={{ width: 220 }}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          allowClear
-        />
-
-        {/* 件数 */}
-        <Text style={{ fontSize: 12, color: '#999', whiteSpace: 'nowrap' }}>
-          {filteredData.length} 件
-        </Text>
-      </div>
-
       {/* テーブルエリア */}
       <div style={{ flex: 1, overflow: 'auto', padding: '0 16px 0' }}>
         <Table<UncertaintyTemplate>

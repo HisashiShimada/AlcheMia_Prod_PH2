@@ -16,6 +16,9 @@ CREATE TABLE uncertainty_criteria (
     uncertainty_key         CHARACTER VARYING(50)   NOT NULL,  -- prefix + : + Key(名前空間.用語)
     version                 INTEGER                 NOT NULL,  -- 編集されたら+1ずつインクリメント
 
+    -- 不確かさ基準名
+    uncertainty_name        CHARACTER VARYING(50)   NOT NULL DEFAULT '',
+
     -- 評価方式
     evaluation_method       INTEGER                 NOT NULL,  -- 1:定量 / 2:定性
 
@@ -69,6 +72,7 @@ COMMENT ON COLUMN uncertainty_criteria.organization_id IS '組織ID（主キー1
 COMMENT ON COLUMN uncertainty_criteria.name_space_id IS '名前空間ID（主キー2）';
 COMMENT ON COLUMN uncertainty_criteria.uncertainty_key IS '不確かさ基準Key（主キー3）:prefix + : + Key(名前空間.用語)';
 COMMENT ON COLUMN uncertainty_criteria.version IS 'バージョン（主キー4）:編集されたら+1ずつインクリメントする';
+COMMENT ON COLUMN uncertainty_criteria.uncertainty_name IS '不確かさ基準名';
 COMMENT ON COLUMN uncertainty_criteria.evaluation_method IS '評価方式:1:定量 / 2:定性';
 COMMENT ON COLUMN uncertainty_criteria.is_Invalid IS '無効フラグ:無効:TRUE / その他:FALSE';
 COMMENT ON COLUMN uncertainty_criteria.inheritance_uncertainty_key IS '継承元不確かさ基準Key';
