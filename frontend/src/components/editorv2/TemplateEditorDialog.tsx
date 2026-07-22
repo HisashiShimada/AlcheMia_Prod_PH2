@@ -283,14 +283,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     const parentXsiType = parentPropData?.attributes?.['xsi:type'] ?? '';
     const parentUnits = parentPropData?.attributes?.['units'] ?? '';
 
+    // 定性評価は xsi:type / units 不要
+    const isQualitative = payload.criteria.evalType === 'qualitative';
     // 新しい uncertainty 子ノード
     const uncertaintyNode: PropertyData = {
       key: payload.criteria.key,
       tagName: 'uncertainty',
-      attributes: {
-        ...(parentXsiType ? { 'xsi:type': parentXsiType } : {}),
-        ...(parentUnits ? { units: parentUnits } : {}),
-      },
+      attributes: isQualitative
+        ? {}
+        : {
+            ...(parentXsiType ? { 'xsi:type': parentXsiType } : {}),
+            ...(parentUnits ? { units: parentUnits } : {}),
+          },
       elements: {
         ...(ucValueStr ? { value: ucValueStr } : {}),
         ...(payload.comment ? { description: payload.comment } : {}),
