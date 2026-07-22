@@ -57,21 +57,28 @@ async function saveMaimlContent(
 }
 
 /**
- * MAIML XML に `<ds:Signature>` を追記する。
+ * MAIML XML に `<Signature>` を追記する（XAdES対応）。
  *
  * @remarks
  * ルート要素の閉じタグ直前に挿入する。
- * 既に同じ signatureId の `<ds:Signature>` が存在する場合は上書きする。
+ * 既に同じ signatureId の `<Signature>` が存在する場合は上書きする。
+ * デフォルト名前空間（prefixなし）と `ds:` prefix 付きの両方のパターンを除去する。
  */
 function embedSignatureInXml(maimlXml: string, signatureXml: string, signatureId: string): string {
-  // 既存の同 ID の <ds:Signature> を削除（上書き）
-  // <ds:Signature Id="signatureId" ...> ... </ds:Signature> を正規表現で除去
+  // 既存の同 ID の <Signature> / <ds:Signature> を削除（上書き）
   const escapedId = signatureId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // prefixなし版
   const existingPattern = new RegExp(
+    `\\s*<Signature[^>]*Id="${escapedId}"[^>]*>[\\s\\S]*?</Signature>`,
+    'g',
+  );
+  // ds: prefix 版（旧構造との後方互換）
+  const existingDsPattern = new RegExp(
     `\\s*<ds:Signature[^>]*Id="${escapedId}"[^>]*>[\\s\\S]*?</ds:Signature>`,
     'g',
   );
-  const xmlWithoutOld = maimlXml.replace(existingPattern, '');
+  let xmlWithoutOld = maimlXml.replace(existingPattern, '');
+  xmlWithoutOld = xmlWithoutOld.replace(existingDsPattern, '');
 
   // ルート要素の閉じタグ直前に挿入
   const rootCloseMatch = xmlWithoutOld.match(/<\/[^>]+>\s*$/);
@@ -193,14 +200,36 @@ export const signMaiml = async (req: Request, res: Response): Promise<void> => {
     // 3. 署名生成
     const signResult = maimlIntegrityService.signHash(privateKey, hashResult.digestValue, signatureId);
 
-    // 4. TSA リクエスト生成
-    const tsRequest = maimlIntegrityService.buildTimestampRequest(signResult.signatureValue);
+    // 4. <SignatureValue> 要素を C14N 正規化してハッシュ計算し TSA リクエスト生成
+    //    仕様書 ステップ4: <SignatureValue> 要素全体を exc-c14n 正規化してからハッシュする
+    const DS_NS = 'http://www.w3.org/2000/09/xmldsig#';
+    const signatureValueXml = `<SignatureValue xmlns="${DS_NS}">${signResult.signatureValue}</SignatureValue>`;
+    const signatureValueHash = maimlIntegrityService.computeCanonicalHashOfFragment(signatureValueXml, policy);
+    const tsRequest = maimlIntegrityService.buildTimestampRequest(signatureValueHash, policy.hashAlgorithm);
 
-    // 5. TST 取得
-    const tsToken = maimlIntegrityService.requestTimestamp(tsRequest, signatureId, policy);
+    // 5. TST 取得（tsaEndpoint を渡す）
+    const tsaEndpoint = 'http://localhost/tsa-mock'; // TODO: 本実装で外部 TSA URL に変更
+    const tsResp = maimlIntegrityService.requestTimestamp(tsRequest, tsaEndpoint, policy);
 
-    // 6. TST 解析（仮実装: そのまま返す）
-    const parsedToken = maimlIntegrityService.parseTimestampResponse(tsToken);
+    // 5a. 送信した nonce をインメモリストアに保存（verifyMaiml で利用）
+    if (tsRequest.nonce) {
+      maimlIntegrityService.storeSentNonce(signatureId, tsRequest.nonce);
+    }
+
+    // 6. TST 解析（granted 確認 + timeStampToken 取得）
+    const parsedToken = maimlIntegrityService.parseTimestampResponse(tsResp);
+
+    // 6b. 仕様書 ステップ5b: 受信したTSTのmessageImprint/nonceを検証（リプレイ攻撃対策）
+    const messageImprintCheck = maimlIntegrityService.verifyMessageImprintAndNonce(
+      parsedToken,
+      signatureValueHash,
+      tsRequest.nonce ?? '',
+    );
+    if (!messageImprintCheck.isValid) {
+      throw new Error(
+        `TSAから受信したTSTのmessageImprint/nonce検証に失敗しました: ${messageImprintCheck.reason ?? ''}`,
+      );
+    }
 
     // 7. TST をインメモリに格納
     maimlIntegrityService.embedTimestampToken(signatureId, parsedToken);
@@ -210,8 +239,8 @@ export const signMaiml = async (req: Request, res: Response): Promise<void> => {
     const userId: string | null = (req.user as { userId?: string } | undefined)?.userId ?? null;
     await maimlIntegrityService.recordTimestampRequest(
       hashResult.digestValue,
-      tsToken.tstInfo.tsa?.directoryName ?? 'local-mock-tsa',
-      tsToken.tstInfo.genTime,
+      tsaEndpoint,
+      parsedToken.tstInfo.genTime,
       policy,
       pool,
       organizationId,
@@ -333,19 +362,45 @@ export const verifyMaiml = async (req: Request, res: Response): Promise<void> =>
     // 3. 保存済みsignatureValueとstoredHashを使って署名検証
     const sigVerify = maimlIntegrityService.verifySignature(publicKey, storedHash, signatureValue);
 
-    // 4. TST 取得（インメモリストアから）
+    // 4. TST 取得（MAIML XML から、なければインメモリストアから）
     const tsToken = maimlIntegrityService.extractTimestampToken(xmlContent, signatureId);
     let tsVerify: { isValid: boolean; timestamp?: string; reason?: string } = { isValid: false };
     let timeConsistent: { isConsistent: boolean; timestamp: string; creationDate: string; reason?: string } = { isConsistent: false, timestamp: '', creationDate: '' };
+    let messageImprintResult: { isValid: boolean; hashMatch: boolean; algorithmMatch: boolean; nonceMatch: boolean; reason?: string } = {
+      isValid: false, hashMatch: false, algorithmMatch: false, nonceMatch: false,
+    };
 
     if (tsToken) {
       // 5. TST 検証
       tsVerify = maimlIntegrityService.verifyTimestampToken(tsToken);
 
-      // 6. 時刻整合性チェック
+      // 6. 時刻整合性チェック（FIX-5: MAIML <date> 要素の値を使用する）
+      const maimlDate = maimlIntegrityService.extractMaimlDate(xmlContent);
+      if (!maimlDate) {
+        // D-2: <date> 要素が存在しない場合はエラー
+        throw new Error(
+          'MAIML ファイルに <date> 要素が存在しないため、時刻整合性チェックを実行できません。MAIML に <date> 要素を追加してください。',
+        );
+      }
       timeConsistent = maimlIntegrityService.checkTimeConsistency(
         tsToken.tstInfo.genTime,
-        hashCompare.recomputedDigest ? new Date().toISOString() : new Date().toISOString(),
+        maimlDate,
+      );
+
+      // 6a. messageImprint & nonce 検証
+      //     signMaiml で保存した nonce と、<SignatureValue> のC14N正規化ハッシュを再計算して検証
+      //     仕様書 ステップ4と同じ手順（FIX-3: exc-c14n 正規化）
+      const sentNonce = maimlIntegrityService.getSentNonce(signatureId);
+      const DS_NS = 'http://www.w3.org/2000/09/xmldsig#';
+      const signatureValueXmlForVerify = `<SignatureValue xmlns="${DS_NS}">${signatureValue}</SignatureValue>`;
+      const signatureValueHashForVerify = maimlIntegrityService.computeCanonicalHashOfFragment(
+        signatureValueXmlForVerify,
+        policy,
+      );
+      messageImprintResult = maimlIntegrityService.verifyMessageImprintAndNonce(
+        tsToken,
+        signatureValueHashForVerify,
+        sentNonce ?? '',
       );
     }
 
@@ -357,12 +412,13 @@ export const verifyMaiml = async (req: Request, res: Response): Promise<void> =>
       tsaCert ?? 'local-mock-tsa',
     );
 
-    // 8. 総合判定
+    // 8. 総合判定（messageImprint 検証を追加）
     const overallValid =
       hashCompare.isMatch &&
       sigVerify.isValid &&
       tsVerify.isValid &&
       timeConsistent.isConsistent &&
+      messageImprintResult.isValid &&
       signerCertResult.isValid &&
       tsaCertResult.isValid;
 
@@ -372,6 +428,7 @@ export const verifyMaiml = async (req: Request, res: Response): Promise<void> =>
     if (!sigVerify.isValid) errorParts.push(`署名無効: ${sigVerify.reason ?? ''}`);
     if (!tsVerify.isValid) errorParts.push('TST 無効');
     if (!timeConsistent.isConsistent) errorParts.push(`時刻不整合: ${timeConsistent.reason ?? ''}`);
+    if (!messageImprintResult.isValid) errorParts.push(`メッセージインプリント検証失敗: ${messageImprintResult.reason ?? ''}`);
     if (!signerCertResult.isValid) errorParts.push(`署名者証明書無効: ${signerCertResult.reason ?? ''}`);
     if (!tsaCertResult.isValid) errorParts.push(`TSA 証明書無効: ${tsaCertResult.reason ?? ''}`);
 
@@ -401,6 +458,11 @@ export const verifyMaiml = async (req: Request, res: Response): Promise<void> =>
       timestampValue: tsVerify.timestamp,
       timeConsistent: timeConsistent.isConsistent,
       timeConsistencyReason: timeConsistent.reason,
+      messageImprintValid: messageImprintResult.isValid,
+      messageImprintHashMatch: messageImprintResult.hashMatch,
+      messageImprintAlgorithmMatch: messageImprintResult.algorithmMatch,
+      messageImprintNonceMatch: messageImprintResult.nonceMatch,
+      messageImprintReason: messageImprintResult.reason,
       signerCertValid: signerCertResult.isValid,
       signerCertReason: signerCertResult.reason,
       signerCertExpiresAt: signerCertResult.expiresAt,

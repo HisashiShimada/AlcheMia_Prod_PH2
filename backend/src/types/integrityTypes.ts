@@ -149,12 +149,38 @@ export interface SignatureVerifyResult {
 
 /**
  * タイムスタンプトークン検証結果
+ *
+ * @remarks
+ * 【精査ポイント（本実装時対応）】
+ * - TSA 証明書の Extended Key Usage が `id-kp-timeStamping`（OID: 1.3.6.1.5.5.7.3.8）のみを含み、
+ *   他の KeyPurposeId を含まないこと。
+ * - 上記 EKU 拡張が `critical` 指定されていること（RFC 3161 Section 2.3 要件）。
  */
 export interface TimestampVerifyResult {
   /** トークンが有効か */
   isValid: boolean;
   /** タイムスタンプ値（ISO 8601） */
   timestamp?: string;
+  /** 検証失敗の理由（失敗時のみ） */
+  reason?: string;
+}
+
+/**
+ * メッセージインプリント・Nonce 検証結果
+ *
+ * @remarks
+ * RFC 3161 Section 2.4.2 TSTInfo の messageImprint および nonce の検証結果。
+ * `verifyMessageImprintAndNonce` の戻り値として使用する。
+ */
+export interface MessageImprintVerifyResult {
+  /** 検証が全て通過したか */
+  isValid: boolean;
+  /** hashedMessage が送信したハッシュ値と一致するか */
+  hashMatch: boolean;
+  /** hashAlgorithm OID が送信時と一致するか */
+  algorithmMatch: boolean;
+  /** nonce が送信した nonce と一致するか */
+  nonceMatch: boolean;
   /** 検証失敗の理由（失敗時のみ） */
   reason?: string;
 }

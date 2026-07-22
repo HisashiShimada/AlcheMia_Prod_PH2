@@ -45,7 +45,7 @@ interface SchemaCache {
 // 定数
 // ---------------------------------------------------------------------------
 
-const SCHEMAS_DIR = path.resolve(__dirname, '../../reference/schemas');
+const SCHEMAS_DIR = path.resolve(__dirname, '../schemas');
 const ENCRYPTION_GROUP_REF = 'encryptionGroup';
 
 // ---------------------------------------------------------------------------
