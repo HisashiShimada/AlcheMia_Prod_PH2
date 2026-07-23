@@ -65,8 +65,9 @@ export interface EvaluationRegistrationTabProps {
 // 定数
 // ─────────────────────────────────────────────────────────────
 
+// TODO:[MOCK] バックエンド実装時に削除 — MAIML パース統合後はAPIからトランジション名を取得する
 /**
- * [MOCK] トランジション名の一覧
+ * トランジション名の一覧（モック）
  * MAIML パース統合後は実データ（API）へ置換予定
  */
 const MOCK_TRANSITION_NAMES: string[] = [

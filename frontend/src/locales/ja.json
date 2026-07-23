@@ -2870,5 +2870,183 @@
       "completed": "完了",
       "failed": "異常終了"
     }
+  },
+  "uncertainty": {
+    "management": {
+      "title": "不確かさ基準管理",
+      "tabCriteria": "不確かさ基準一覧",
+      "tabNamespace": "名前空間",
+      "tabPrefix": "プレフィックス",
+      "buttonImport": "インポート",
+      "buttonExport": "エクスポート",
+      "buttonCreate": "新規基準作成",
+      "btnImport": "インポート",
+      "btnExport": "エクスポート",
+      "btnCreateNew": "新規不確かさ基準",
+      "searchPlaceholder": "基準名またはキーで検索...",
+      "filterScope": "スコープ",
+      "filterScopeAll": "すべて",
+      "filterEvalMethod": "評価方法",
+      "filterEvalMethodAll": "すべて",
+      "filterStatus": "ステータス",
+      "filterStatusAll": "すべて",
+      "mockUserNsKeyNote": "ログインユーザーの名前空間キー（モック - 本番は認証APIから取得）",
+      "fetchError": "不確かさ基準一覧の取得に失敗しました"
+    },
+    "listTable": {
+      "columnKey": "キー",
+      "columnName": "基準名",
+      "columnVersion": "バージョン",
+      "columnEvalMethod": "評価方法",
+      "columnScope": "スコープ",
+      "columnStatus": "ステータス",
+      "columnActions": "操作",
+      "evalQuantitative": "定量",
+      "evalQualitative": "定性",
+      "statusActive": "有効",
+      "statusDeprecated": "非推奨",
+      "actionDetail": "詳細・編集",
+      "actionHistory": "バージョン履歴",
+      "latestBadge": "最新",
+      "inheritedBadge": "継承",
+      "scopeGlobal": "グローバル",
+      "scopeCompany": "組織",
+      "scopeTeam": "チーム",
+      "scopePersonal": "個人"
+    },
+    "modal": {
+      "detail": {
+        "title": "詳細・編集",
+        "section": {
+          "basicInfo": "1. 基本情報",
+          "evalMethod": "2. 評価方法設定"
+        },
+        "field": {
+          "uncertaintyName": "基準名",
+          "uncertaintyKey": "キー属性",
+          "description": "説明",
+          "status": "ステータス",
+          "evaluationMethod": "評価方法"
+        },
+        "status": {
+          "active": "● 有効",
+          "deprecated": "○ 非推奨"
+        },
+        "statusHint": {
+          "oldVersion": "旧バージョンのため変更不可",
+          "disableHint": "OFFにすると「非推奨」になります",
+          "enableHint": "ONにすると「有効」になります"
+        },
+        "evalMode": {
+          "quantitative": "定量（数値入力）",
+          "qualitative": "定性（選択式）"
+        },
+        "button": {
+          "close": "閉じる",
+          "diffPreview": "🔍 差分プレビュー",
+          "save": "保存"
+        },
+        "message": {
+          "fetchError": "詳細データの取得に失敗しました",
+          "noChange": "変更が検出されませんでした。内容を編集してから保存してください。",
+          "saveSuccess": "V{{version}}として保存しました",
+          "saveError": "保存に失敗しました。もう一度お試しください。"
+        },
+        "diffLabel": {
+          "uncertaintyName": "基準名",
+          "uncertaintyKey": "キー属性",
+          "description": "説明",
+          "status": "ステータス",
+          "evaluationMethod": "評価方法",
+          "qualitativeOptions": "定性オプション",
+          "statusActive": "有効",
+          "statusDeprecated": "非推奨",
+          "savedAtDb": "（DB保存済み）",
+          "sectionBasic": "基本情報",
+          "sectionEval": "評価方法設定"
+        }
+      },
+      "create": {
+        "title": "不確かさ基準の作成",
+        "section": {
+          "basicInfo": "1. 基本情報",
+          "evalMethod": "2. 評価方法設定"
+        },
+        "field": {
+          "inheritanceKey": "継承元基準",
+          "uncertaintyName": "基準名",
+          "uncertaintyKey": "キー属性",
+          "description": "説明",
+          "evaluationMethod": "評価方法"
+        },
+        "placeholder": {
+          "select": "選択してください...",
+          "uncertaintyName": "例：弾性率の不確かさ",
+          "description": "この基準の説明を入力してください。"
+        },
+        "button": {
+          "cancel": "キャンセル",
+          "save": "保存"
+        },
+        "validation": {
+          "keyRequired": "キー属性（uncertainty_key）を選択してください"
+        },
+        "evalMode": {
+          "quantitative": "定量（数値入力）",
+          "qualitative": "定性（選択式）"
+        },
+        "message": {
+          "fetchParentError": "継承元基準の詳細取得に失敗しました",
+          "saveSuccess": "V{{version}}として保存しました",
+          "saveError": "保存に失敗しました。もう一度お試しください。"
+        }
+      },
+      "diffPreview": {
+        "title": "差分プレビュー",
+        "subtitle": "保存済み{{version}}と現在の入力内容を比較中",
+        "columnSaved": "（保存済み）",
+        "columnRegistered": "登録済み",
+        "columnEditing": "編集中（現在の入力）",
+        "unsaved": "● 未保存",
+        "notSet": "— 未設定 —",
+        "notSetShort": "未設定",
+        "notSetParens": "（未設定）",
+        "marker": {
+          "before": "〜 変更前",
+          "after": "✓ 変更後",
+          "added": "＋ 追加"
+        },
+        "summary": {
+          "changed": "変更",
+          "added": "追加",
+          "same": "変更なし"
+        },
+        "legend": {
+          "changed": "変更",
+          "added": "追加",
+          "same": "変更なし"
+        },
+        "footer": "{{count}}件の変更があります。保存すると新しいバージョンが作成されます。",
+        "button": {
+          "close": "閉じる",
+          "save": "この内容で保存"
+        }
+      },
+      "management": {
+        "tabPrefix": "Prefix管理",
+        "tabNamespace": "用語管理",
+        "tabCriteria": "不確かさ基準管理",
+        "filterEvalMethodAll": "評価方式：すべて",
+        "filterStatusAll": "状態：すべて",
+        "searchPlaceholder": "不確かさ基準名・キーで検索…",
+        "btnImport": "インポート",
+        "btnExport": "エクスポート",
+        "btnCreateNew": "新規不確かさ基準",
+        "ctxMenuAddTeam": "チームを追加",
+        "scopeAll": "すべて",
+        "toastTeamCreated": "チーム「{name}」を作成しました（メンバー: {count}名）",
+        "toastTeamUpdated": "「{name}」のメンバーを更新しました（{count}名）"
+      }
+    }
   }
 }

@@ -73,8 +73,9 @@ export interface EvaluationDialogProps {
 // 定数
 // ─────────────────────────────────────────────────────────────
 
+// TODO:[MOCK] バックエンド実装時に削除 — MAIML パース統合後はAPIからトランジション名を取得する
 /**
- * [MOCK] トランジション名の一覧
+ * トランジション名の一覧（モック）
  * MAIML パース統合後は実データ（API）へ置換予定
  */
 const MOCK_TRANSITION_NAMES: string[] = [
@@ -89,8 +90,7 @@ const MOCK_TRANSITION_NAMES: string[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────
-// [MOCK] 評価結果確認タブ用モックデータ
-// API 実装完了後は削除予定
+// TODO:[MOCK] バックエンド実装時に削除 — 評価結果はAPIから取得する
 // ─────────────────────────────────────────────────────────────
 const MOCK_EVALUATION_RECORDS: EvaluationRecord[] = [
   {

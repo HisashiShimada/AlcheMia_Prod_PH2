@@ -2873,5 +2873,183 @@
       "completed": "Completed",
       "failed": "Failed"
     }
+  },
+  "uncertainty": {
+    "management": {
+      "title": "Uncertainty Criteria Management",
+      "tabCriteria": "Uncertainty Criteria List",
+      "tabNamespace": "Namespace",
+      "tabPrefix": "Prefix",
+      "buttonImport": "Import",
+      "buttonExport": "Export",
+      "buttonCreate": "New Criteria",
+      "btnImport": "Import",
+      "btnExport": "Export",
+      "btnCreateNew": "New Uncertainty Criteria",
+      "searchPlaceholder": "Search criteria name or key...",
+      "filterScope": "Scope",
+      "filterScopeAll": "All",
+      "filterEvalMethod": "Evaluation Method",
+      "filterEvalMethodAll": "All",
+      "filterStatus": "Status",
+      "filterStatusAll": "All",
+      "mockUserNsKeyNote": "Current user namespace key (mock - replace with auth API in production)",
+      "fetchError": "Failed to fetch uncertainty criteria list"
+    },
+    "listTable": {
+      "columnKey": "Key",
+      "columnName": "Criteria Name",
+      "columnVersion": "Version",
+      "columnEvalMethod": "Evaluation Method",
+      "columnScope": "Scope",
+      "columnStatus": "Status",
+      "columnActions": "Actions",
+      "evalQuantitative": "Quantitative",
+      "evalQualitative": "Qualitative",
+      "statusActive": "Active",
+      "statusDeprecated": "Deprecated",
+      "actionDetail": "Detail / Edit",
+      "actionHistory": "Version History",
+      "latestBadge": "Latest",
+      "inheritedBadge": "Inherited",
+      "scopeGlobal": "Global",
+      "scopeCompany": "Company",
+      "scopeTeam": "Team",
+      "scopePersonal": "Personal"
+    },
+    "modal": {
+      "detail": {
+        "title": "Detail / Edit",
+        "section": {
+          "basicInfo": "1. Basic Information",
+          "evalMethod": "2. Evaluation Method Settings"
+        },
+        "field": {
+          "uncertaintyName": "Criteria Name",
+          "uncertaintyKey": "Key Attribute",
+          "description": "Description",
+          "status": "Status",
+          "evaluationMethod": "Evaluation Method"
+        },
+        "status": {
+          "active": "● Active",
+          "deprecated": "○ Deprecated"
+        },
+        "statusHint": {
+          "oldVersion": "Cannot change — this is an old version",
+          "disableHint": "Turn off to set as \"Deprecated\"",
+          "enableHint": "Turn on to set as \"Active\""
+        },
+        "evalMode": {
+          "quantitative": "Quantitative (Numeric)",
+          "qualitative": "Qualitative (Selection)"
+        },
+        "button": {
+          "close": "Close",
+          "diffPreview": "🔍 Diff Preview",
+          "save": "Save"
+        },
+        "message": {
+          "fetchError": "Failed to fetch detail data",
+          "noChange": "No changes detected. Please edit the content before saving.",
+          "saveSuccess": "Saved as V{{version}}",
+          "saveError": "Failed to save. Please try again."
+        },
+        "diffLabel": {
+          "uncertaintyName": "Criteria Name",
+          "uncertaintyKey": "Key Attribute",
+          "description": "Description",
+          "status": "Status",
+          "evaluationMethod": "Evaluation Method",
+          "qualitativeOptions": "Qualitative Options",
+          "statusActive": "Active",
+          "statusDeprecated": "Deprecated",
+          "savedAtDb": "(Saved in DB)",
+          "sectionBasic": "Basic Information",
+          "sectionEval": "Evaluation Method Settings"
+        }
+      },
+      "create": {
+        "title": "Create Uncertainty Criteria",
+        "section": {
+          "basicInfo": "1. Basic Information",
+          "evalMethod": "2. Evaluation Method Settings"
+        },
+        "field": {
+          "inheritanceKey": "Parent Criteria (Inheritance)",
+          "uncertaintyName": "Criteria Name",
+          "uncertaintyKey": "Key Attribute",
+          "description": "Description",
+          "evaluationMethod": "Evaluation Method"
+        },
+        "placeholder": {
+          "select": "Select...",
+          "uncertaintyName": "e.g. Elastic modulus uncertainty",
+          "description": "Enter a description for this criteria."
+        },
+        "button": {
+          "cancel": "Cancel",
+          "save": "Save"
+        },
+        "validation": {
+          "keyRequired": "Please select a Key attribute (uncertainty_key)"
+        },
+        "evalMode": {
+          "quantitative": "Quantitative (Numeric)",
+          "qualitative": "Qualitative (Selection)"
+        },
+        "message": {
+          "fetchParentError": "Failed to fetch parent criteria details",
+          "saveSuccess": "Saved as V{{version}}",
+          "saveError": "Failed to save. Please try again."
+        }
+      },
+      "diffPreview": {
+        "title": "Diff Preview",
+        "subtitle": "Comparing saved {{version}} with current input",
+        "columnSaved": "(Saved)",
+        "columnRegistered": "registered",
+        "columnEditing": "Editing (Current Input)",
+        "unsaved": "● Unsaved",
+        "notSet": "— Not Set —",
+        "notSetShort": "Not Set",
+        "notSetParens": "(Not Set)",
+        "marker": {
+          "before": "〜 Before",
+          "after": "✓ After",
+          "added": "＋ Added"
+        },
+        "summary": {
+          "changed": "Changed",
+          "added": "Added",
+          "same": "Unchanged"
+        },
+        "legend": {
+          "changed": "Changed",
+          "added": "Added",
+          "same": "Unchanged"
+        },
+        "footer": "{{count}} field(s) changed. Saving will create a new version.",
+        "button": {
+          "close": "Close",
+          "save": "Save with This Content"
+        }
+      },
+      "management": {
+        "tabPrefix": "Prefix Management",
+        "tabNamespace": "Terminology Management",
+        "tabCriteria": "Uncertainty Criteria Management",
+        "filterEvalMethodAll": "Eval Method: All",
+        "filterStatusAll": "Status: All",
+        "searchPlaceholder": "Search by name or key…",
+        "btnImport": "Import",
+        "btnExport": "Export",
+        "btnCreateNew": "New Uncertainty Criteria",
+        "ctxMenuAddTeam": "Add Team",
+        "scopeAll": "All",
+        "toastTeamCreated": "Team \"{name}\" created ({count} members)",
+        "toastTeamUpdated": "Members of \"{name}\" updated ({count} members)"
+      }
+    }
   }
 }

@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button, Input, Select, Space, Tree, Typography, message } from 'antd';
 import { ImportOutlined, ExportOutlined, PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
+import { useLanguage } from '@/contexts/LanguageContext';
 import UncertaintyListTable from './UncertaintyListTable';
 import type { UncertaintyTemplate } from './UncertaintyListTable';
 import UncertaintyDetailModal from './UncertaintyDetailModal';
@@ -27,11 +28,11 @@ interface NamespaceNode {
 }
 
 // ──────────────────────────────────────────────
-// モック: ログイン中ユーザーの所属ノードキー
-// 本番実装では認証APIから取得する
+// TODO:[MOCK] ログイン中ユーザーの所属ノードキー
+// バックエンド実装時に削除し、認証APIから取得した値に置き換えること
 // ──────────────────────────────────────────────
 // チーム代表者（解析チーム）としてログインしている想定
-const CURRENT_USER_NS_KEY = 'rd-analysis';
+const CURRENT_USER_NS_KEY = 'rd-analysis'; // TODO:[MOCK] 認証APIから取得する実装に置き換える
 
 // 指定キーの祖先ノードキー集合を返すユーティリティ
 const getAncestorKeys = (targetKey: string, nodes: NamespaceNode[], ancestors: string[] = []): string[] | null => {
@@ -238,10 +239,12 @@ export default function UncertaintyManagement() {
     return toAntTree(userFilteredNodes);
   }, [toAntTree]);
 
+  const { t } = useLanguage();
+
   const TAB_LABELS: { key: 'namespace' | 'prefix' | 'criteria'; label: string }[] = [
-    { key: 'prefix',    label: 'Prefix管理' },
-    { key: 'namespace', label: '用語管理' },
-    { key: 'criteria',  label: '不確かさ基準管理' },
+    { key: 'prefix',    label: t('uncertainty.management.tabPrefix') },
+    { key: 'namespace', label: t('uncertainty.management.tabNamespace') },
+    { key: 'criteria',  label: t('uncertainty.management.tabCriteria') },
   ];
 
   return (
@@ -298,7 +301,7 @@ export default function UncertaintyManagement() {
                 }}
               >
                 <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
-                チームを追加
+                {t('uncertainty.management.ctxMenuAddTeam')}
               </li>
               <li
                 style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
@@ -313,7 +316,7 @@ export default function UncertaintyManagement() {
                 }}
               >
                 <EditOutlined style={{ fontSize: 12, color: '#1677ff' }} />
-                編集
+                {t('common.edit')}
               </li>
             </ul>
           )}
@@ -383,31 +386,31 @@ export default function UncertaintyManagement() {
                   <Select
                     size="small"
                     style={{ width: 150 }}
-                    placeholder="評価方式：すべて"
+                    placeholder={t('uncertainty.management.filterEvalMethodAll')}
                     value={evalFilter || undefined}
                     onChange={(v) => setEvalFilter(v ?? '')}
                     allowClear
                     options={[
-                      { value: 'quantitative', label: '定量（数値）' },
-                      { value: 'qualitative', label: '定性（選択肢）' },
+                      { value: 'quantitative', label: t('uncertainty.listTable.evalQuantitative') },
+                      { value: 'qualitative', label: t('uncertainty.listTable.evalQualitative') },
                     ]}
                   />
                   <Select
                     size="small"
                     style={{ width: 130 }}
-                    placeholder="状態：すべて"
+                    placeholder={t('uncertainty.management.filterStatusAll')}
                     value={statusFilter || undefined}
                     onChange={(v) => setStatusFilter(v ?? '')}
                     allowClear
                     options={[
-                      { value: 'active', label: '有効' },
-                      { value: 'deprecated', label: '無効' },
+                      { value: 'active', label: t('uncertainty.listTable.statusActive') },
+                      { value: 'deprecated', label: t('uncertainty.listTable.statusDeprecated') },
                     ]}
                   />
                   <Input
                     size="small"
                     prefix={<SearchOutlined />}
-                    placeholder="不確かさ基準名・キーで検索…"
+                    placeholder={t('uncertainty.management.searchPlaceholder')}
                     style={{ width: 220 }}
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
@@ -417,21 +420,21 @@ export default function UncertaintyManagement() {
                 {/* 右側：操作ボタン */}
                 <Space>
                   <Button icon={<ImportOutlined />} onClick={() => setImportModalOpen(true)}>
-                    インポート
+                    {t('uncertainty.management.btnImport')}
                   </Button>
                   <Button
                     icon={<ExportOutlined />}
                     disabled={selectedIds.length === 0}
                     onClick={() => setExportModalOpen(true)}
                   >
-                    エクスポート
+                    {t('uncertainty.management.btnExport')}
                   </Button>
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={() => setCreateModalOpen(true)}
                   >
-                    新規不確かさ基準
+                    {t('uncertainty.management.btnCreateNew')}
                   </Button>
                 </Space>
               </div>
@@ -439,7 +442,7 @@ export default function UncertaintyManagement() {
               <div style={{ flex: 1, overflow: 'hidden' }}>
                 <UncertaintyListTable
                   templates={templates}
-                  currentScopeLabel="すべて"
+                  currentScopeLabel={t('uncertainty.management.scopeAll')}
                   onOpenDetail={handleOpenDetail}
                   onSelectionChange={setSelectedIds}
                   searchText={searchText}
@@ -459,7 +462,7 @@ export default function UncertaintyManagement() {
         parentTeamLabel={teamAddParentLabel}
         onClose={() => setTeamAddOpen(false)}
         onCreated={(teamName, members) => {
-          message.success(`チーム「${teamName}」を作成しました（メンバー: ${members.length}名）`);
+          message.success(t('uncertainty.management.toastTeamCreated', { name: teamName, count: String(members.length) }));
           setTeamAddOpen(false);
         }}
       />
@@ -471,7 +474,7 @@ export default function UncertaintyManagement() {
         teamUnitId={teamEditUnitId}
         onClose={() => setTeamEditOpen(false)}
         onSaved={(members) => {
-          message.success(`「${teamEditLabel}」のメンバーを更新しました（${members.length}名）`);
+          message.success(t('uncertainty.management.toastTeamUpdated', { name: teamEditLabel, count: String(members.length) }));
           setTeamEditMembers(members);
         }}
       />

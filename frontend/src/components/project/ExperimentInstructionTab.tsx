@@ -199,6 +199,7 @@ function toTaskStatusStr(status: number | null | undefined): string {
   return String(status).padStart(2, '0');
 }
 
+// TODO:[MOCK] バックエンド実装時に削除 — 不確かさ情報はAPIから取得する
 /** モック用の不確かさデータ（画像と同様） */
 const MOCK_UNCERTAINTY_DATA: {
 

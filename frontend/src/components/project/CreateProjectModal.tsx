@@ -72,7 +72,7 @@ export default function CreateProjectModal({
       })
       .then((data) => setTeams(data))
       .catch(() => {
-        // API未実装時はダミーデータを使用
+        // TODO:[MOCK] バックエンド実装時に削除 — APIが実装されたらダミーデータを削除する
         setTeams([
           { departmentUnitId: 'rd-materials', unitName: '材料解析チーム' },
           { departmentUnitId: 'data-proc',    unitName: 'データ処理班' },
