@@ -5,6 +5,7 @@
  *
  * @remarks
  * リクエストの受け取りとレスポンスの返却のみを担当する。
+ * ビジネスロジックは uncertaintyCriteriaService に委譲する。
  * Repository の主キーは (organization_id, name_space_id, uncertainty_key, version) の複合キー。
  *
  * @module uncertaintyCriteriaController
@@ -12,8 +13,8 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import * as uncertaintyCriteriaRepository from '../repositories/uncertaintyCriteriaRepository';
-import type { InsertNewVersionRequest } from '../repositories/uncertaintyCriteriaRepository';
+import * as uncertaintyCriteriaService from '../services/uncertaintyCriteriaService';
+import type { InsertNewVersionRequest } from '../services/uncertaintyCriteriaService';
 
 /**
  * 不確かさ基準一覧取得
@@ -27,7 +28,7 @@ export async function getList(
   try {
     const organizationId = (req as any).organizationId as string;
 
-    const rows = await uncertaintyCriteriaRepository.findAllByOrganization(organizationId);
+    const rows = await uncertaintyCriteriaService.getList(organizationId);
     res.json(rows);
   } catch (error) {
     next(error);
@@ -51,7 +52,7 @@ export async function getForSelector(
   try {
     const organizationId = (req as any).organizationId as string;
 
-    const rows = await uncertaintyCriteriaRepository.findForSelector(organizationId);
+    const rows = await uncertaintyCriteriaService.getForSelector(organizationId);
     res.json(rows);
   } catch (error) {
     next(error);
@@ -75,7 +76,7 @@ export async function getDetail(
     const { uncertaintyKey } = req.params;
     const version = parseInt(req.query.version as string, 10);
 
-    const detail = await uncertaintyCriteriaRepository.findByKey(organizationId, uncertaintyKey, version);
+    const detail = await uncertaintyCriteriaService.getDetail(organizationId, uncertaintyKey, version);
 
     if (!detail) {
       res.status(404).json({ error: { code: 'E6001', message: '不確かさ基準が見つかりません' } });
@@ -135,7 +136,7 @@ export async function createNewVersion(
       createUserId:              userId ?? 'system',
     };
 
-    const result = await uncertaintyCriteriaRepository.insertNewVersion(organizationId, insertRequest);
+    const result = await uncertaintyCriteriaService.createNewVersion(organizationId, insertRequest);
 
     res.status(201).json({ version: result.version });
   } catch (error) {
