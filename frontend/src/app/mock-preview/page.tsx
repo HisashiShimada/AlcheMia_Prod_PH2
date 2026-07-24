@@ -12,6 +12,7 @@ import { Typography, Card, Divider, Alert, ConfigProvider, Tabs } from 'antd';
 import InstructionManagementTabMock from '@/components/project/mock/ExperimentInstructionMock';
 import ExperimentWorkerScreenMock from '@/components/ExperimentWorker/mock/ExperimentWorkerScreenMock';
 import ProgressOverviewPatternsMock from '@/components/ExperimentWorker/mock/ProgressOverviewPatternsMock';
+import DataRecordDialogMock from '@/components/ExperimentWorker/mock/DataRecordDialogMock';
 
 const { Title, Text } = Typography;
 
@@ -82,6 +83,34 @@ export default function MockPreviewPage() {
                   </Card>
                   <Card style={{ marginBottom: 24, minHeight: 600 }}>
                     <ProgressOverviewPatternsMock />
+                  </Card>
+                </>
+              ),
+            },
+            {
+              key: 'data_record_dialog',
+              label: '📋 DataRecordDialog（Insertion確認）',
+              children: (
+                <>
+                  <Card size="small" title="確認シナリオ" style={{ marginBottom: 16 }}>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      <li>
+                        <Text strong>シナリオ1</Text>: MAIMLテンプレートに{' '}
+                        <Text code>&lt;insertion&gt;</Text> 指示が含まれる場合
+                        （Results テンプレートを選択すると挿入フィールドが表示）
+                      </li>
+                      <li>
+                        <Text strong>シナリオ2</Text>: ダイアログ内の「Insertion 追加」ボタンで
+                        カスタムプロパティとして Insertion を追加する場合
+                      </li>
+                    </ul>
+                    <Divider style={{ margin: '8px 0' }} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      ※ projectId / methodId / taskNo を渡していないため API 呼び出しは発生しません。
+                    </Text>
+                  </Card>
+                  <Card style={{ marginBottom: 24 }}>
+                    <DataRecordDialogMock />
                   </Card>
                 </>
               ),
