@@ -1203,7 +1203,7 @@ export async function getAttributeMastersWithFilters(
   filters: {
     search?: string;
     isActive?: boolean;
-    organizationGroupCd?: string;
+    organizationGroupCds?: string[];
   } = {}
 ): Promise<AttributeMasterResponse[]> {
   console.log('=== masterService.getAttributeMastersWithFilters called ===');
@@ -1281,7 +1281,7 @@ export async function createAttributeMaster(
   }
 
   const attr = await attributeRepository.create(organizationId, data, userId);
-  // 作成後に再取得してdepartment_name も含める
+  // 作成後に再取得してorganization_group_name も含める
   const created = await attributeRepository.findByPk(organizationId, attr.attribute_name, attr.attribute_value || '');
 
   if (!created) {
@@ -1325,7 +1325,7 @@ export async function updateAttributeMaster(
     return null;
   }
 
-  // 更新後に再取得してdepartment_name も含める
+  // 更新後に再取得してorganization_group_name も含める
   const updated = await attributeRepository.findByPk(organizationId, attr.attribute_name, attr.attribute_value || '');
 
   if (!updated) {
@@ -1473,7 +1473,7 @@ export async function uploadAttributesCsv(
       attributeName,
       attributeValue: row['attribute_value']?.trim() || '',
       attributeRemark: row['attribute_remark']?.trim() || '',
-      organizationGroupCd: row['department_cd']?.trim() || '',
+      organizationGroupCd: row['organization_group_cd']?.trim() || '',
       isActive,
     });
   }

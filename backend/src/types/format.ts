@@ -9,7 +9,7 @@ export interface FormatFolder {
   fileCount: number;
   fileType: 'xml' | 'maiml';
   category: 'template' | 'workflow';
-  department: string;
+  organizationGroup: string;
   createdAt: string;
   updatedAt: string;
   tags: string[];
@@ -46,8 +46,8 @@ export interface CreateFormatFolderRequest {
  */
 export interface CreateFormatFolderResponse {
   folder_name: string;
-  folder_path: string; // {organization_id}/formats/{department_cd}/{folder_name}
-  department_cd: string;
+  folder_path: string; // {organization_id}/formats/{organization_group_cd}/{folder_name}
+  organization_group_cd: string;
   created_at: string;
 }
 
@@ -66,6 +66,6 @@ export interface CreateFormatSubfolderRequest {
 export interface CreateFormatSubfolderResponse {
   folder_name: string;
   folder_path: string; // formatName/subfolderName または formatName/parentPath/subfolderName
-  full_swift_path: string; // {organization_id}/formats/{department_cd}/formatName/subfolderName
+  full_swift_path: string; // {organization_id}/formats/{organization_group_cd}/formatName/subfolderName
   created_at: string;
 }

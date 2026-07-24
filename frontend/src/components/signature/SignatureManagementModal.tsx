@@ -37,7 +37,7 @@ const SignatureManagementModal: React.FC<SignatureManagementModalProps> = ({
         title={`電子署名管理: ${projectName}`}
         width={600}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <SignatureManagement projectName={projectName} />
       </Modal>

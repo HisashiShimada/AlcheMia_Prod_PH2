@@ -301,13 +301,13 @@ export async function downloadCsv(
  *
  * @returns AttributeRecord[] - アクティブなAttributeマスタ一覧
  */
-export async function fetchAttributeMasters(applyDepartmentFilter?: boolean): Promise<AttributeRecord[]> {
+export async function fetchAttributeMasters(applyOrganizationGroupFilter?: boolean): Promise<AttributeRecord[]> {
   try {
     const config = getMasterDataConfig('attribute');
     const client = createApiClient();
     const params: Record<string, string> = { is_active: 'true' };
-    if (applyDepartmentFilter) {
-      params.apply_department_filter = 'true';
+    if (applyOrganizationGroupFilter) {
+      params.apply_organization_group_filter = 'true';
     }
     const response = await client.get<ServiceApiResponse<AttributeRecord[]>>(config.apiEndpoint, { params });
     if (response.data.success && Array.isArray(response.data.data)) {

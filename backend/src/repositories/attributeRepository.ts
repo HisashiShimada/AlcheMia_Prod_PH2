@@ -68,7 +68,7 @@ export const findAllWithFilters = async (
   filters: {
     search?: string;
     isActive?: boolean;
-    organizationGroupCd?: string;
+    organizationGroupCds?: string[];
   } = {}
 ): Promise<AttributeMaster[]> => {
   const pgp = getPgp();
@@ -113,15 +113,16 @@ ORDER BY`
     paramIndex++;
   }
 
-  // 組織グループコードフィルタ（ログインユーザーの組織グループ OR 組織グループ指定なし）
+  // 組織グループコードフィルタ（ログインユーザーの組織グループのいずれか OR 組織グループ指定なし）
   // apply_organization_group_filter=true 時のみ適用（マスタ管理画面では使用しない）
-  if (filters.organizationGroupCd) {
+  // 複数グループ所属ユーザー対応: ANY($n) で配列比較
+  if (filters.organizationGroupCds && filters.organizationGroupCds.length > 0) {
     sqlQuery = sqlQuery.replace(
       'ORDER BY',
-      `AND (a.organization_group_cd = $${paramIndex} OR a.organization_group_cd IS NULL OR a.organization_group_cd = '')
+      `AND (a.organization_group_cd = ANY($${paramIndex}) OR a.organization_group_cd IS NULL OR a.organization_group_cd = '')
 ORDER BY`
     );
-    values.push(filters.organizationGroupCd);
+    values.push(filters.organizationGroupCds);
     paramIndex++;
   }
 

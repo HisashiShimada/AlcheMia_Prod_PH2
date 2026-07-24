@@ -119,7 +119,7 @@ const DepartmentNodeAddDialog: React.FC<DepartmentNodeAddDialogProps> = ({
       width={480}
       maskClosable={false}
     >
-      <Space direction="vertical" style={{ width: '100%', marginTop: 8 }} size={4}>
+      <Space orientation="vertical" style={{ width: '100%', marginTop: 8 }} size={4}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           追加した部署ノードは名前空間ツリーに表示されます。
         </Text>

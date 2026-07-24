@@ -17,7 +17,7 @@ export interface MaimlEditorParams {
   /**
    * S3上のファイルキー（正しいパス）
    * 形式: {organizationId}/projects/{projectName}/{projectName}.maiml
-   *   または {organizationId}/formats/{departmentCd}/{folderName}/{fileName}.maiml
+   *   または {organizationId}/formats/{organizationGroupCd}/{folderName}/{fileName}.maiml
    */
   sourceS3Key: string;
   /** ヘッダー表示用タイトル（プロジェクト名 or フォーマット名） */

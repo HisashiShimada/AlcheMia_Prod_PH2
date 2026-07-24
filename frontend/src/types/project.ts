@@ -20,6 +20,12 @@ export interface Project {
   ownerEmail?: string;
   organizationGroup: string;
   organizationGroupName?: string;
+  /**
+   * 編集可能かどうか
+   * - SystemAdmin: 常に true
+   * - それ以外: 自分が直接所属するグループのプロジェクトのみ true
+   */
+  isEditable?: boolean;
   isCheckedOut: boolean;
   checkedOutBy: string | null;
   checkedOutAt: string | null;
@@ -109,7 +115,7 @@ export interface ProjectFilterParams {
   ownerFilter?: 'my_only' | 'all';
   checkoutFilter?: 'all' | 'checked_in' | 'checked_out';
   projectStatusFilter?: 'all' | number;
-  departmentFilter?: string;
+  organizationGroupFilter?: string;
   showMaimlOnly?: boolean;
   sortBy?: 'name' | 'status' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
@@ -121,7 +127,7 @@ export interface ProjectFilterParams {
 export interface ProjectStats {
   total: number;
   byStatus: Record<number, number>;
-  byDepartment: Record<string, number>;
+  byOrganizationGroup: Record<string, number>;
   checkedOut: number;
   checkedIn: number;
 }
@@ -194,7 +200,7 @@ export interface CreateProjectResponse {
   description: string;
   status: string;
   organizationId: string;
-  departmentId: string;
+  organizationGroupId: string;
   createdBy: string;
   createdAt: string;
 }
@@ -338,7 +344,7 @@ export interface ProgressRecord {
   projectId: string;
   projectName: string;
   projectStatus: string;
-  department: string;
+  organizationGroup: string;
   isCheckedOut: boolean;
   ownerEmail: string;
   ownerName: string;
@@ -387,9 +393,9 @@ export interface CreateProjectData {
   description: string;
   folderName: string;
   owner: string;
-  department: string;
+  organizationGroup: string;
   organizationId: string;
-  /** チームID（任意）。選択時はそのチームのメンバーのみアクセス可。未選択時は部署全員がアクセス可。 */
+  /** チームID（任意）。選択時はそのチームのメンバーのみアクセス可。未選択時は組織グループ全員がアクセス可。 */
   teamId?: string;
 }
 
@@ -398,6 +404,16 @@ export interface CreateProjectData {
  * 移動元: components/project/BulkUploadDialog.tsx
  */
 export type UploadMode = 'single' | 'bulk' | 'folder';
+
+/**
+ * ワークフロー選択ダイアログの選択結果型
+ * WorkflowSelectorDialog でプロジェクトを選択した際に返す型
+ */
+export interface WorkflowProjectSelection {
+  projectId: string;
+  projectName: string;
+  maimlContent: string;
+}
 
 /**
  * MaiML 公開ステータスレスポンス型

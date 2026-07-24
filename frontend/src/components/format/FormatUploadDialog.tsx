@@ -57,7 +57,7 @@ interface FormatUploadDialogProps {
     id: string;
     name: string;
     folderName: string;
-    departmentCd?: string;
+    organizationGroupCd?: string;
   } | null;
 }
 
@@ -183,9 +183,9 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       return '';
     }
     
-    // formats/{departmentCd}/{formatFolderName} または formats/{formatFolderName}
-    const basePath = baseFolder.departmentCd 
-      ? `formats/${baseFolder.departmentCd}/${baseFolder.folderName}`
+    // formats/{organizationGroupCd}/{formatFolderName} または formats/{formatFolderName}
+    const basePath = baseFolder.organizationGroupCd
+      ? `formats/${baseFolder.organizationGroupCd}/${baseFolder.folderName}`
       : `formats/${baseFolder.folderName}`;
     
     // サブフォルダパスから先頭・末尾のスラッシュを削除
@@ -690,8 +690,8 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
               </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('upload.pathLabel', { path: getTargetPath() || 
-                  (baseFolder.departmentCd 
-                    ? `formats/${baseFolder.departmentCd}/${baseFolder.folderName}`
+                  (baseFolder.organizationGroupCd
+                    ? `formats/${baseFolder.organizationGroupCd}/${baseFolder.folderName}`
                     : `formats/${baseFolder.folderName}`) })}
               </Text>
             </Space>

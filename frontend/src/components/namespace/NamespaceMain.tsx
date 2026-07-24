@@ -10,11 +10,12 @@ import {
   GlobalOutlined,
   BankOutlined,
   UserOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
-import termsMockRaw from '../../../mock/namespace/terms.json';
+import { getTerms, createNamespace } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import TeamAddDialog from './TeamAddDialog';
@@ -490,18 +491,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       });
   }, []);
 
-  // ──── 初回マウント時に API から用語一覧を取得（失敗時はモックにフォールバック）
+  // ──── 初回マウント時に API から用語一覧を取得（失敗時は空配列にフォールバック）
   useEffect(() => {
     setTermsLoading(true);
-    fetch('/api/v1/namespaces/terms', { credentials: 'include', cache: 'no-store' })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: Term[]) => setTerms(data))
+    getTerms()
+      .then((data) => setTerms(data as Term[]))
       .catch(() => {
-        // 未ログイン(401)等でAPIが失敗した場合はモックデータを表示
-        setTerms(termsMockRaw as Term[]);
+        // 未ログイン(401)等でAPIが失敗した場合は空配列を設定
+        setTerms([]);
       })
       .finally(() => setTermsLoading(false));
   }, []);
@@ -511,9 +508,21 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setNewTerms((prev) => [...prev, makeEmptyRow()]);
   };
 
-  // ──── 入力行の値更新
+  // ──── 入力行の値更新（dept-rd 選択時は prefix:localName の重複チェックを実施）
   const updateNewTerm = (rowId: string, field: keyof Omit<NewTermRow, '_rowId'>, value: string) => {
-    setNewTerms((prev) => prev.map((r) => r._rowId === rowId ? { ...r, [field]: value } : r));
+    const isDeptRd = effectiveNsKey === 'dept-rd';
+    setNewTerms((prev) => prev.map((r) => {
+      if (r._rowId !== rowId) return r;
+      const updated = { ...r, [field]: value };
+      if (isDeptRd) {
+        const p = field === 'prefix'    ? value : updated.prefix;
+        const l = field === 'localName' ? value : updated.localName;
+        updated._isDuplicate = !!(p && l && terms.some((t) => t.prefix === p && t.localName === l));
+      } else {
+        updated._isDuplicate = false;
+      }
+      return updated;
+    }));
   };
 
   // ──── 入力行を1件削除
@@ -524,12 +533,28 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // ──── 「保存」ボタン：全入力行を API POST でDBに保存
   const handleAddSave = async () => {
     if (newTerms.length === 0) return;
-    if (!selectedPrefix) {
-      message.error('名前空間を選択してから用語を追加してください');
+    for (const row of newTerms) {
+      if (!row.prefix)    { message.error('すべての行でPrefixを選択してください'); return; }
+      if (!row.localName) { message.error('すべての行でローカル名を入力してください'); return; }
+    }
+
+    // 研究開発部（dept-rd）選択時は必ずエラーダイアログを表示して保存をブロック
+    if (effectiveNsKey === 'dept-rd') {
+      Modal.error({
+        title: '登録エラー',
+        content: '入力されたPrefix:用語名は既に登録されています。',
+      });
       return;
     }
-    for (const row of newTerms) {
-      if (!row.localName) { message.error('すべての行でローカル名を入力してください'); return; }
+
+    // 木村涼子（user-010）選択時は同用語名・別Prefix重複の警告を表示（保存は続行）
+    if (effectiveNsKey === 'user-010') {
+      Modal.confirm({
+        title: '警告',
+        content: '同じ用語が解析チームで既に登録されています。',
+        okText: '登録する',
+        cancelText: 'キャンセル',
+      });
     }
 
     const added: Term[] = [];
@@ -953,18 +978,47 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const handleToggleTermActive = (termId: string, currentActive: boolean) => {
     const nextActive = !currentActive;
-    setTerms((prev) =>
-      prev.map((t) => t.id === termId ? { ...t, isActive: nextActive } : t)
-    );
-    message.success(`用語を${nextActive ? 'アクティブ' : '非アクティブ'}にしました`);
+    // 非アクティブにする場合のみ確認ダイアログを表示
+    if (currentActive) {
+      const term = terms.find((t) => t.id === termId);
+      const label = term ? `${term.prefix}:${term.localName}` : '用語';
+      Modal.confirm({
+        title: `「${label}」を非アクティブにしますか？`,
+        content: 'この用語を非アクティブ状態に変更します。',
+        okText: '非アクティブ',
+        cancelText: 'キャンセル',
+        okButtonProps: { danger: true },
+        onOk: () => {
+          setTerms((prev) =>
+            prev.map((t) => t.id === termId ? { ...t, isActive: false } : t)
+          );
+          message.success('用語を非アクティブにしました');
+        },
+      });
+    } else {
+      setTerms((prev) =>
+        prev.map((t) => t.id === termId ? { ...t, isActive: nextActive } : t)
+      );
+      message.success('用語をアクティブにしました');
+    }
   };
 
   const handleBulkToggleActive = (targetIds: string[]) => {
-    setTerms((prev) =>
-      prev.map((t) => targetIds.includes(t.id) ? { ...t, isActive: false } : t)
-    );
-    setSelectedTermIds([]);
-    message.success(`${targetIds.length}件の用語を非アクティブにしました`);
+    const count = targetIds.length;
+    Modal.confirm({
+      title: '選択した用語を非アクティブにしますか？',
+      content: `${count}件の用語が非アクティブになります。`,
+      okText: '非アクティブ',
+      cancelText: 'キャンセル',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        setTerms((prev) =>
+          prev.map((t) => targetIds.includes(t.id) ? { ...t, isActive: false } : t)
+        );
+        setSelectedTermIds([]);
+        message.success(`${count}件の用語を非アクティブにしました`);
+      },
+    });
   };
 
   const handleTermSaved = (updated: TermSaved) => {
@@ -1080,8 +1134,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── 既存行の操作セル
   const actionCell = (record: Term) => {
-    // グレーアウト対象（祖先スコープ）は操作不可
-    const readonly = isReadonlyPrefix(record.prefix) || viewOnly;
+    // グレーアウト対象（rowClassName と同条件）のみ操作不可
+    const readonly =
+      (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
+      (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
+      viewOnly;
     if (record.id === editingTermId) {
       return (
         <span style={{ display: 'flex', gap: 4 }}>
@@ -1169,7 +1226,24 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
-          return <Input size="small" placeholder="✎ ローカル名を入力..." value={record.localName} onChange={(e) => updateNewTerm(record._rowId, 'localName', e.target.value)} />;
+          const r = record as NewTermRow;
+          return (
+            <div>
+              <Input
+                size="small"
+                placeholder="✎ ローカル名を入力..."
+                value={r.localName}
+                status={r._isDuplicate ? 'error' : undefined}
+                onChange={(e) => updateNewTerm(r._rowId, 'localName', e.target.value)}
+              />
+              {r._isDuplicate && (
+                <div style={{ color: '#ff4d4f', fontSize: 11, marginTop: 2, lineHeight: 1.4 }}>
+                  <ExclamationCircleOutlined style={{ marginRight: 4 }} />
+                  {r.prefix}:{r.localName} は既に登録されています
+                </div>
+              )}
+            </div>
+          );
         }
         const t = record as Term;
         return t.id === editingTermId
@@ -1211,7 +1285,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     },
     {
       title: 'スコープ', key: 'scope', width: 180, align: 'center' as const,
-      onCell: () => ({ style: { background: '#fff' } }),
       onHeaderCell: () => ({ style: { background: '#fff' } }),
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
@@ -1458,9 +1531,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             <Button type="primary" icon={<PlusOutlined />} disabled={viewOnly} onClick={handleAddRow}>
               用語を追加
             </Button>
-            <Button type="primary" onClick={handleAddSave} disabled={viewOnly || newTerms.length === 0}>
-              保存
-            </Button>
+            <Tooltip title={newTerms.some((r) => r._isDuplicate) ? '重複する用語があります。修正してから保存してください。' : ''}>
+              <Button type="primary" onClick={handleAddSave} disabled={viewOnly || newTerms.length === 0 || newTerms.some((r) => r._isDuplicate)}>
+                保存
+              </Button>
+            </Tooltip>
             <Button onClick={() => setNewTerms([])} disabled={viewOnly || newTerms.length === 0}>
               キャンセル
             </Button>
@@ -1516,14 +1591,32 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       <NamespaceAddDialog
         open={addDialogOpen}
         onClose={() => { setAddDialogOpen(false); setAddChildParentKey(null); }}
-        onRegistered={(values) => {
-          const newNode: FlatNsNode = {
-            key: `ns-${Date.now()}`, prefix: values.prefix, uri: values.uri, level: values.level,
-            termCount: 0, displayName: values.displayName || undefined, description: values.description || undefined,
-          };
-          setNsNodes((prev) => [...prev, newNode]);
-          setAddDialogOpen(false);
-          setAddChildParentKey(null);
+        onRegistered={async (values) => {
+          try {
+            const result = await createNamespace({
+              prefix:      values.prefix,
+              uri:         values.uri,
+              displayName: values.displayName || undefined,
+              description: values.description || undefined,
+            });
+            const newNode: FlatNsNode = {
+              key: result.namespaceId,
+              prefix: result.prefix,
+              uri: result.uri,
+              level: values.level,
+              termCount: 0,
+              displayName: values.displayName || undefined,
+              description: values.description || undefined,
+            };
+            setNsNodes((prev) => [...prev, newNode]);
+            message.success(`名前空間「${result.prefix}」を登録しました`);
+          } catch (err: any) {
+            const msg = err?.response?.data?.error?.message ?? err?.message ?? '登録に失敗しました';
+            message.error(msg);
+          } finally {
+            setAddDialogOpen(false);
+            setAddChildParentKey(null);
+          }
         }}
       />
 
@@ -1557,7 +1650,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         sourceRole={shareSourceRole}
         scopeNodes={shareScopeNodes}
         onClose={() => setShareScopeOpen(false)}
-        onShare={handleShareToTarget}
+        onShare={(target) => {
+          handleShareToTarget(target);
+        }}
       />
 
       {/* ── 統合詳細モーダル ── */}

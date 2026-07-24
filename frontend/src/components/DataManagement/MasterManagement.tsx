@@ -1118,7 +1118,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                 attributeName: resolvedAttributeName,
                 attributeValue: values.attributeValue,
                 attributeRemark: values.attributeRemark,
-                departmentCd: values.departmentCd,
+                organizationGroupCd: values.organizationGroupCd,
                 isActive: values.isActive,
               }),
             }
@@ -1143,7 +1143,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               attributeName: resolvedAttributeName,
               attributeValue: values.attributeValue,
               attributeRemark: values.attributeRemark,
-              departmentCd: values.departmentCd,
+              organizationGroupCd: values.organizationGroupCd,
               isActive: values.isActive !== undefined ? values.isActive : true,
             }),
           });
@@ -1243,8 +1243,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const [vendorOptions, setVendorOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [instrumentOptions, setInstrumentOptions] = useState<Array<{ value: string; label: string }>>([]);
 
-  // Department選択肢（Attributeマスタ用）
-  const [departmentOptions, setDepartmentOptions] = useState<Array<{ value: string; label: string }>>([]);
+  // OrganizationGroup選択肢（Attributeマスタ用）
+  const [organizationGroupOptions, setOrganizationGroupOptions] = useState<Array<{ value: string; label: string }>>([]);
   // 属性名選択肢（Attributeマスタ用）：既存の属性名一覧 + 「新規入力」オプション
   const [attributeNameOptions, setAttributeNameOptions] = useState<Array<{ value: string; label: string }>>([]);
   // 属性名選択で「新規入力」が選ばれているかどうか
@@ -1264,42 +1264,39 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     ]);
   }, [masters, selectedMasterInfo]);
 
-  // Attributeマスタ選択時にDepartment選択肢を取得
+  // Attributeマスタ選択時にOrganizationGroup選択肢を取得
   useEffect(() => {
     if (selectedMasterInfo?.masterId !== '4') return;
 
-    const fetchDepartmentOptions = async () => {
+    const fetchOrganizationGroupOptions = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         const sessionToken = localStorage.getItem('sessionToken');
         if (!sessionToken) return;
 
-        const response = await fetch(`${apiUrl}/systemManagement/department`, {
-          headers: { 'Authorization': `Bearer ${sessionToken}` },
+        const response = await fetch('/api/v1/organization-groups', {
           credentials: 'include',
         });
 
         if (!response.ok) return;
 
         const result = await response.json();
-        // APIレスポンスのフィールド名: departmentId（= department_cd）、displayName（= department_name）
-        const departments: Array<{ departmentId: string; displayName: string; isActive?: boolean }> =
+        const groups: Array<{ organization_group_cd: string; organization_group_name: string; is_active?: boolean }> =
           result.data ?? result ?? [];
 
-        setDepartmentOptions(
-          departments
-            .filter(d => d.isActive !== false)
-            .map(d => ({
-              value: d.departmentId,
-              label: `${d.departmentId} - ${d.displayName}`,
+        setOrganizationGroupOptions(
+          groups
+            .filter(g => g.is_active !== false)
+            .map(g => ({
+              value: g.organization_group_cd,
+              label: `${g.organization_group_cd} - ${g.organization_group_name}`,
             }))
         );
       } catch (error) {
-        console.error('部署選択肢取得エラー:', error);
+        console.error('組織グループ選択肢取得エラー:', error);
       }
     };
 
-    fetchDepartmentOptions();
+    fetchOrganizationGroupOptions();
   }, [selectedMasterInfo]);
 
   // Creatorマスタ選択時にVendor/Instrument選択肢を取得
@@ -1651,17 +1648,17 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                 );
               }
 
-              // departmentName: Selectを使用（選択のみ）
-              if (key === 'departmentName') {
+              // organizationGroupName: Selectを使用（選択のみ）
+              if (key === 'organizationGroupName') {
                 return (
                   <Form.Item
                     key={key}
-                    name="departmentCd"
+                    name="organizationGroupCd"
                     label={category.headerName}
                     rules={isRequired ? [{ required: true, message: `${category.headerName}を選択してください` }] : []}
                   >
                     <Select
-                      options={departmentOptions}
+                      options={organizationGroupOptions}
                       placeholder={`${category.headerName}を選択してください`}
                       disabled={isDisabled}
                       showSearch

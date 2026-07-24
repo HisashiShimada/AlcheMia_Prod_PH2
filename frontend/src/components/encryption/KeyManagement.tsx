@@ -123,7 +123,7 @@ const KeyManagement: React.FC<KeyManagementProps> = ({ keys, onKeysChange }) => 
       render: (keyIdentifier: string | undefined, record) => {
         const display = keyIdentifier ?? record.keyId.substring(0, 16);
         return (
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text code style={{ fontSize: 12 }}>{display}</Text>
             {record.description && (
               <Text type="secondary" style={{ fontSize: 11 }}>{record.description}</Text>

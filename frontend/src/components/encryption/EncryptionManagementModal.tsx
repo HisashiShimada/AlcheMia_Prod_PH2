@@ -34,7 +34,7 @@ const EncryptionManagementModal: React.FC<EncryptionManagementModalProps> = ({
       width="90vw"
       style={{ top: 20 }}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { height: '82vh', padding: 0, overflow: 'hidden' } }}
     >
       <EncryptionManagement projectName={projectName} onClose={onClose} />

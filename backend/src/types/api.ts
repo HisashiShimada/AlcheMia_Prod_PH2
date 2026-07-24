@@ -270,8 +270,8 @@ export interface ProjectInfoDetail {
   /** オーナー名 */
   owner: string;
 
-  /** 部門名 */
-  department?: string;
+  /** 組織グループ名 */
+  organizationGroup?: string;
 
   /** プロジェクトステータス（文字列） */
   status: 'planning' | 'pending' | 'in_progress' | 'review_waiting' | 'completed' | 'error';

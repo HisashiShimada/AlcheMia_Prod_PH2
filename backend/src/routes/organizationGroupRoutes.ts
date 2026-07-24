@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { tenantIsolation } from '../middleware/tenantIsolation';
 import * as organizationGroupController from '../controllers/organizationGroupController';
 
 const router = Router();
@@ -23,6 +24,7 @@ const router = Router();
 router.get(
   '/',
   authMiddleware,
+  tenantIsolation,
   organizationGroupController.getOrganizationGroups
 );
 
@@ -33,6 +35,7 @@ router.get(
 router.post(
   '/',
   authMiddleware,
+  tenantIsolation,
   organizationGroupController.createOrganizationGroup
 );
 
@@ -43,6 +46,7 @@ router.post(
 router.get(
   '/:groupCd',
   authMiddleware,
+  tenantIsolation,
   organizationGroupController.getOrganizationGroupById
 );
 
@@ -53,6 +57,7 @@ router.get(
 router.put(
   '/:groupCd',
   authMiddleware,
+  tenantIsolation,
   organizationGroupController.updateOrganizationGroup
 );
 
@@ -63,6 +68,7 @@ router.put(
 router.delete(
   '/:groupCd',
   authMiddleware,
+  tenantIsolation,
   organizationGroupController.deleteOrganizationGroup
 );
 

@@ -4,10 +4,10 @@
 ---
 title: MaiML 名前空間管理ツール メイン画面 UI設計書
 category: UI設計
-version: 2.2.0
-last_updated: 2026-07-07
+version: 2.4.0
+last_updated: 2026-07-15
 author: Development Team
-tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-inactive, pagination, context-menu, cancel-button, api-fetch, share-scope-modal, tabs, team-management, filter-bar, department-tree-management]
+tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-inactive, pagination, context-menu, cancel-button, api-fetch, share-scope-modal, tabs, team-management, filter-bar, department-tree-management, duplicate-suggest-modal]
 ---
 
 ## 変更履歴
@@ -23,6 +23,9 @@ tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-inactive, p
 | 1.7.0 | 2026-06-29 | 「組織に共有」機能を追記：Personal 選択 + チェックあり時の右端ボタン表示仕様・共有先制限・確認モーダル仕様を追加。組織共有バーの背景色削除・右寄せ化を反映。用語Prefix・スコープ・型・単位フィルターセクション追加 |
 | 1.8.0 | 2026-06-30 | サブタブ（用語管理 / チーム管理）追加：画面全体構造にタブを追記、チーム管理タブ（TeamManagementPanel）を新セクション12として追加、TeamAddDialog に名前空間Prefix・URI自動生成フィールドを追記、URI自動生成ユーティリティ（generateNamespaceUri）を追記 |
 | 2.0.0 | 2026-07-02 | 実装との差異を反映：用語テーブルカラムを QName 単一列→Prefix+ローカル名+スコープの3列に分割、操作ボタンを「削除」→「非アクティブ/アクティブ」切替に変更、ツールバー一括操作も「削除」→「非アクティブ」に変更、セクション11「共有する」機能を ShareScopeModal（ツリー選択式）に全面書き換え、フィルターバー仕様追記、isActive フィールドを Term 型に追加 |
+| 2.4.0 | 2026-07-15 | §3.2.2 `NewTermRow` 型に `_isDuplicate` フィールドを追加。§14.4 `PrefixRow` 型に `_isAncestor` フィールドを追加。§15 `DuplicateSuggestModal` コンポーネント仕様を新規追加。§16 非アクティブ確認ダイアログ仕様を新規追加。旧§15 更新履歴を§17に繰り下げ |
+| 2.3.0 | 2026-07-15 | §2.2 タブ key='4' ラベル修正。§12.5 Team 型に departmentName 等追加。§14 PrefixManagement 仕様新規追加 |
+| 2.2.0 | 2026-07-07 | §2.2 タブ構成修正。§13 DepartmentTreeManagement 新規追加 |
 | 2.1.0 | 2026-07-07 | 実装との差異を反映：Section 11「共有する」ボタン表示条件を Personal 限定→チェック1件以上で常時表示に変更。Section 9（TeamAddDialog）追加先フィールドを Tag 読み取り専用→Select プルダウン選択に変更。Section 10（TeamEditDialog）タイトルを「編集」→「チームを編集」に変更、チーム名を編集可能な Input に変更、代表者フィールドを追加。Section 12（TeamManagementPanel）右ペインの編集ボタン位置をメンバーセクション右端→チーム名右隣に変更、所属先フィールドを追加、表示名フィールドを削除、メンバーテーブルの削除ボタン列を削除 |
 
 ## 関連ドキュメント
@@ -91,7 +94,7 @@ MaiML名前空間管理ツールのメイン画面。左ペイン（名前空間
 | `'1'` | プロジェクト管理 | `<ProjectManagement />` |
 | `'2'` | フォーマット管理 | `<FormatManagement />` |
 | `'3'` | 進捗確認 | `<ProgressMonitoring />` |
-| `'4'` | テンプレート管理 | `<UncertaintyManagement />` |
+| `'4'` | 名前空間管理 | `<UncertaintyManagement />` |
 | `'5'` | **チーム管理** | **`<TeamManagementPanel />`** |
 | `'6'` | 鍵管理 | `<KeyManagementScreen />` |
 
@@ -235,6 +238,8 @@ interface NewTermRow {
   description: string;
   type: string;
   unitHint: string;
+  /** true のとき同一 prefix:localName が既に登録されている（重複エラー表示用） */
+  _isDuplicate?: boolean;
 }
 ```
 
@@ -1175,15 +1180,18 @@ interface TeamMember {
 interface Team {
   departmentUnitId: string;
   unitName: string;
-  /** チームの代表者（作成者） */
+  /** 所属部署名 */
+  departmentName?: string;
+  /** チームの代表者（作成者）表示名 */
   ownerName: string;
+  /** チームの代表者 userId */
+  ownerUserId?: string;
+  nsPrefix?: string;       // 名前空間 Prefix（任意）
   nsUri?: string;          // 名前空間 URI（任意）
   nsDisplayName?: string;  // 名前空間 表示名（任意）
   members: TeamMember[];
 }
 ```
-
-> ⚠️ **実装の仕様**: `nsPrefix` フィールドは型定義に存在しない。
 
 ### 12.6. API連携
 
@@ -1201,7 +1209,10 @@ const DUMMY_TEAMS: Team[] = [
   {
     departmentUnitId: 'rd-materials',
     unitName: '材料解析チーム',
+    departmentName: 'LabA',
     ownerName: '山田 太郎（自分）',
+    ownerUserId: 'user-001',
+    nsPrefix: 'rd-materials',
     nsUri: 'https://example.org/ns/materials/',
     nsDisplayName: '材料科学名前空間',
     members: [...],  // department-unit-members.json['rd-materials']
@@ -1209,7 +1220,10 @@ const DUMMY_TEAMS: Team[] = [
   {
     departmentUnitId: 'data-proc',
     unitName: 'データ処理班',
+    departmentName: 'LabA',
     ownerName: '山田 太郎（自分）',
+    ownerUserId: 'user-001',
+    nsPrefix: 'data-proc',
     nsUri: 'https://example.org/ns/dp/',
     nsDisplayName: 'データ処理名前空間',
     members: [],
@@ -1223,7 +1237,7 @@ const DUMMY_TEAMS: Team[] = [
 
 ### 13.1. 概要
 
-`ExperimentAdminMenu` の tab key=`'4'`「テンプレート管理」タブに `UncertaintyManagement` と並行して表示される可能性があるが、現在は独立した画面として部署ツリーを平坦化したテーブルを管理する。  
+`ExperimentAdminMenu` の tab key=`'4'`「名前空間管理」タブに `UncertaintyManagement` と並行して表示される可能性があるが、現在は独立した画面として部署ツリーを平坦化したテーブルを管理する。
 会社ツリー（`company` ルートノード配下）の全ノードを1行1レコードのテーブルとして表示し、Prefix・名前空間URI・説明を編集できる。
 
 **コンポーネントファイル**: `frontend/src/components/namespace/DepartmentTreeManagement.tsx`
@@ -1370,10 +1384,231 @@ const flattenCompanyNodes = (nodes: RawNode[]): FlatDeptRow[] => {
 
 ---
 
-## 14. 更新履歴
+## 14. Prefix 管理タブ（PrefixManagement）
+
+### 14.1. 概要
+
+名前空間ノードを選択した際に右ペインに表示される Prefix 管理コンポーネント。  
+選択した名前空間スコープに紐づく Prefix 一覧の閲覧・追加・編集・削除・CSV インポート/エクスポート・組織共有を行う。
+
+**コンポーネントファイル**: `frontend/src/components/namespace/PrefixManagement.tsx`
+
+**Props**:
+
+| Prop | 型 | デフォルト | 説明 |
+|------|----|-----------|------|
+| `globalOnly` | `boolean` | `false` | `true` のとき Global スコープの Prefix のみを表示。スコープ列を非表示にする |
+| `showShareButton` | `boolean` | `false` | `true` のとき「組織に共有」ボタンを表示する（Personal ノード選択時） |
+| `viewOnly` | `boolean` | `false` | `true` のとき追加・編集・削除操作を非表示にする（読み取り専用モード） |
+| `selectedNsKey` | `string \| undefined` | `undefined` | 選択中の名前空間ノードキー。変更時にデータを再計算する |
+
+### 14.2. レイアウト
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [🔍 Prefixを検索...]  [インポート] [エクスポート]  [＋ 行を追加] [保存] [キャンセル] │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ □  Prefix ▲  │ 説明              │ スコープ         │ 操作              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ ☑  maiml     │ MaiML 標準        │ Global           │ 編集 非アクティブ  │
+│ ☐  xsi       │ XML Schema Inst.  │ Global           │ 編集 非アクティブ  │
+│ ☐  CorpA     │ Corp A 組織       │ LabA > ChemTeam  │ 編集 非アクティブ  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│  全 N 件  < 1 >  20件/ページ ▼                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+チェック1件以上のとき、ツールバー上段にアクションバーが表示される：
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│               🏢 組織に共有（2件）  🗑 選択した Prefix を非アクティブ（2件） │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 14.3. テーブルカラム仕様
+
+| カラム | dataIndex | 幅 | ソート | 説明 |
+|--------|-----------|-----|--------|------|
+| チェックボックス | （rowSelection） | — | - | 複数選択用。新規行（`_rowId`）はチェック不可 |
+| Prefix | `prefix` | 140px | ✅（デフォルト昇順） | Prefix 文字列。編集中は `<Input size="small">` |
+| 説明 | `description` | — (flex) | ✅ | Prefix の説明。編集中は `<Input size="small">` |
+| スコープ | `scopePath` | 180px | ✅ | Prefix が属するスコープパス。`globalOnly=true` のとき非表示 |
+| 操作 | — | 180px | - | 通常時: [編集] [非アクティブ/アクティブ]。編集中: [✔ 保存] [キャンセル]。`viewOnly=true` のとき操作列非表示 |
+
+### 14.4. 型定義
+
+```typescript
+/** Prefix 管理テーブルの行データ型 */
+interface PrefixRow {
+  id: string;
+  prefix: string;
+  description: string;
+  scopePath: string;   // スコープのフルパス（表示用）
+  isActive?: boolean;  // アクティブ状態（false のとき行をグレーアウト）
+  /** true のとき選択中ノードの祖先スコープの行（グレーアウト表示用） */
+  _isAncestor?: boolean;
+}
+
+/** 新規追加行の型（保存前の一時データ） */
+interface NewPrefixRow {
+  _rowId: string;      // 一時ID（テーブル行キー用）
+  prefix: string;
+  description: string;
+}
+
+/** CSV インポート時のパース済み行データ */
+interface PrefixCsvParsedRow {
+  prefix: string;
+  description: string;
+}
+
+/** 組織共有先の型 */
+interface ShareTarget {
+  key: string;   // 共有先名前空間ノードキー
+  label: string; // 共有先の表示ラベル
+}
+```
+
+### 14.5. ツールバー仕様
+
+| ボタン | タイプ | 活性条件 | 動作 |
+|--------|--------|---------|------|
+| インポート | `default` | 常時（`viewOnly=false`） | CSVファイル選択 → 行を一括追加。BOM付きUTF-8対応 |
+| エクスポート | `default` | 常時 | 選択行を `prefixes.csv` としてダウンロード。未選択時はエラー表示 |
+| ＋ 行を追加 | `primary` | 常時（`viewOnly=false`） | テーブル先頭に新規入力行を追加 |
+| 保存 | `primary` | 新規行が1件以上 | 全新規行を一括 POST 保存 |
+| キャンセル | `default` | 新規行が1件以上 | 全新規行を破棄 |
+
+**アクションバー（チェック1件以上のとき表示）**:
+
+| ボタン | 表示条件 | 動作 |
+|--------|---------|------|
+| 🏢 組織に共有（N件） | `showShareButton=true` かつチェック1件以上 | `ShareScopeModal` を開く |
+| 🗑 選択した Prefix を非アクティブ（N件） | チェック1件以上 | 確認ダイアログ後に一括非アクティブ化 |
+
+### 14.6. インライン編集仕様
+
+| 項目 | 仕様 |
+|------|------|
+| トリガー | 操作列「編集」ボタン押下 |
+| 編集可能フィールド | `prefix`（`<Input>`）・`description`（`<Input>`） |
+| 保存 | `PATCH /api/v1/namespaces/prefixes/:id` を呼び出して確定 |
+| キャンセル | 変更を破棄して通常行に戻す |
+| 同時編集 | 1行のみ（`editingId` state で管理） |
+
+### 14.7. API連携
+
+| 操作 | メソッド | エンドポイント | リクエストボディ |
+|------|---------|--------------|----------------|
+| Prefix 新規追加 | POST | `/api/v1/namespaces/prefixes` | `{ prefix, description, nsKey? }` |
+| Prefix 編集保存 | PATCH | `/api/v1/namespaces/prefixes/:id` | `{ prefix, description }` |
+| Prefix 組織共有 | POST | `/api/v1/namespaces/prefixes` | `{ prefix, description, nsKey: target.key }` |
+
+> **注意**: API 失敗時は `message.warning` / `message.error` でユーザーに通知する。  
+> 重複 Prefix 登録時（`selectedNsKey === 'user-010'` のモックケース）は `Modal.confirm` で警告を表示し、登録は続行する。
+
+### 14.8. CSV インポート/エクスポート仕様
+
+**エクスポート**:
+- ヘッダー行: `prefix,description`
+- 対象: `selectedPrefixIds` でチェックされた行のみ
+- ファイル名: `prefixes.csv`
+- 文字コード: UTF-8 BOM 付き（`\uFEFF`）
+
+**インポート**:
+- 対応形式: CSV（ヘッダー行あり、`prefix` 列必須、`description` 列任意）
+- ダブルクォート内のカンマ・改行に対応
+- 1行ずつ `POST /api/v1/namespaces/prefixes` で保存
+- 成功・失敗件数を `message.success` / `message.warning` で通知
+
+### 14.9. 組織共有（ShareScopeModal）連携
+
+| 項目 | 仕様 |
+|------|------|
+| トリガー | アクションバー「🏢 組織に共有」ボタン（`showShareButton=true` かつチェック1件以上） |
+| モーダル | `<ShareScopeModal>` を開き、共有先名前空間ノードをツリーで選択 |
+| 確定時 | 選択中 Prefix を共有先 `nsKey` に向けて `POST /api/v1/namespaces/prefixes` でコピー |
+| 結果通知 | 成功: `message.success`。部分失敗: `message.warning`（成功/失敗件数を表示） |
+
+---
+
+## 15. 重複警告モーダル（DuplicateSuggestModal）
+
+### 15.1. 概要
+
+用語追加の保存時に同一 `prefix:localName` が既に登録されている場合に表示される確認モーダル。
+
+**コンポーネントファイル**: `frontend/src/components/namespace/DuplicateSuggestModal.tsx`
+
+### 15.2. 表示トリガー
+
+`NamespaceMain` の保存処理（`handleSaveNewTerms`）において、`NewTermRow._isDuplicate === true` の行が1件以上存在する場合にモーダルを開く。
+
+### 15.3. ダイアログ仕様
+
+| 項目 | 値 |
+|------|-----|
+| コンポーネント | `<Modal>` |
+| タイトル | 「重複する用語があります」 |
+| 幅 | 480px |
+| maskClosable | false |
+| キーボード（Escキー） | false（誤操作防止） |
+
+### 15.4. Props
+
+| Prop | 型 | 説明 |
+|------|----|------|
+| `open` | `boolean` | モーダルの表示状態 |
+| `duplicateTerms` | `NewTermRow[]` | `_isDuplicate === true` の行一覧 |
+| `onConfirm` | `() => void` | 「上書き保存」ボタン押下時のコールバック |
+| `onCancel` | `() => void` | 「キャンセル」ボタン押下時のコールバック |
+
+### 15.5. ボタン仕様
+
+| ボタン | タイプ | 動作 |
+|--------|--------|------|
+| キャンセル | `default` | モーダルを閉じ、保存を中断する（インライン行は残す） |
+| 上書き保存 | `primary` (`danger`) | 重複を含めて全行を保存する |
+
+### 15.6. 重複チェックの仕組み
+
+重複行は用語テーブル内で赤背景（`#fff1f0`）でハイライト表示される。保存前に `_isDuplicate` フラグが付与された行が存在する場合にこのモーダルが起動する。
+
+---
+
+## 16. 非アクティブ確認ダイアログ仕様
+
+### 16.1. 概要
+
+用語テーブルの操作列「非アクティブ」ボタン押下時に表示される確認ダイアログ。誤操作防止のため、非アクティブ化のみ確認を求める。
+
+### 16.2. 表示トリガー・条件
+
+| 操作 | 確認ダイアログ |
+|------|--------------|
+| 単行「非アクティブ」ボタン押下（`isActive === true`） | ✅ 表示する |
+| 単行「アクティブ」ボタン押下（`isActive === false`） | ❌ 表示しない（即実行） |
+| ツールバー一括「非アクティブ」ボタン押下 | ✅ 表示する |
+
+### 16.3. ダイアログ仕様（`Modal.confirm`）
+
+| 項目 | 値 |
+|------|-----|
+| タイトル | 「用語を非アクティブにしますか？」 |
+| 本文 | 「`{localName}` を非アクティブにすると、MAIMLファイルでの参照が無効になります。」 |
+| OK ボタン | 「非アクティブにする」（`danger` スタイル） |
+| キャンセルボタン | 「キャンセル」 |
+| 実装 | `Modal.confirm`（Ant Design） |
+
+---
+
+## 17. 更新履歴
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-07-15 | v2.4.0: §3.2.2 `NewTermRow` 型に `_isDuplicate` フィールドを追加。§14.4 `PrefixRow` 型に `_isAncestor` フィールドを追加。§15 `DuplicateSuggestModal` コンポーネント仕様（表示トリガー・ダイアログ仕様・Props・ボタン仕様・重複チェックの仕組み）を新規追加。§16 非アクティブ確認ダイアログ仕様（表示トリガー・条件・`Modal.confirm` 仕様）を新規追加。旧§15 更新履歴を§17に繰り下げ | Cline |
+| 2026-07-15 | v2.3.0: §2.2 タブ構成の key='4' ラベルを「テンプレート管理」→「名前空間管理」に修正。§12.5 `Team` 型定義に `departmentName`・`ownerUserId`・`nsPrefix` フィールドを追加。§12.7 `DUMMY_TEAMS` ダミーデータに `departmentName`・`ownerUserId`・`nsPrefix` を追記。§14 `PrefixManagement` コンポーネント仕様（Props・レイアウト・テーブルカラム・型定義・ツールバー・インライン編集・API連携・CSV仕様・共有連携）を新規追加。旧§14「更新履歴」を§15に繰り下げ | Cline |
 | 2026-07-07 | v2.2.0: §2.2 タブ構成を修正（key='4' は `<UncertaintyManagement />` であることを明記）。§13 `DepartmentTreeManagement`（部署ノード管理テーブル）を新規追加 | Cline |
 | 2026-06-05 | v1.0.0: 初版作成（3ペイン構成） | Cline |
 | 2026-06-05 | v1.1.0: 2ペイン構成に変更。詳細表示/XMLプレビューをモーダルダイアログ方式に変更 | Cline |

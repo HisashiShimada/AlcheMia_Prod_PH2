@@ -3,7 +3,7 @@
 -- Author       : mi_ito
 -- RDBMS Type   : PostgreSQL
 -- Application  : A5:SQL Mk-2
-
+ 
 /*
   << 注意！！ >>
   BackupToTempTable, RestoreFromTempTable疑似命令が付加されています。
@@ -11,11 +11,11 @@
   この機能は一時的に $$TableName のような一時テーブルを作成します。
   この機能は A5:SQL Mk-2でのみ有効であることに注意してください。
 */
-
+ 
 -- 組織階層グループ
 -- * BackupToTempTable
 DROP TABLE if exists organization_group CASCADE;
-
+ 
 -- * RestoreFromTempTable
 CREATE TABLE organization_group (
   organization_id UUID NOT NULL
@@ -30,7 +30,7 @@ CREATE TABLE organization_group (
   , update_at TIMESTAMP
   , CONSTRAINT organization_group_PKC PRIMARY KEY (organization_id, organization_group_cd)
 ) ;
-
+ 
 COMMENT ON TABLE organization_group IS '組織階層グループ';
 COMMENT ON COLUMN organization_group.organization_id IS '組織ID';
 COMMENT ON COLUMN organization_group.organization_group_cd IS '組織階層グループCD';

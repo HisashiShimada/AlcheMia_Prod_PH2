@@ -1082,17 +1082,17 @@ export async function getAttributes(req: Request, res: Response, next: NextFunct
   try {
     const organizationId = req.user?.organizationId;
 
-    const { search, is_active, apply_department_filter } = req.query;
+    const { search, is_active, apply_organization_group_filter } = req.query;
     const filters: any = {};
     if (search) filters.search = String(search);
     if (is_active !== undefined) filters.isActive = is_active === 'true' || is_active === '1';
 
-    // apply_department_filter=true の場合のみ組織グループフィルタを適用
-    // ログインユーザーの組織グループコードでフィルタリング（マスタ管理画面では使用しない）
-    if (apply_department_filter === 'true') {
-      const organizationGroupCd = req.user?.organizationGroupCds?.[0];
-      if (organizationGroupCd) {
-        filters.departmentCd = organizationGroupCd;
+    // apply_organization_group_filter=true の場合のみ組織グループフィルタを適用
+    // ログインユーザーの組織グループコード（複数対応）でフィルタリング（マスタ管理画面では使用しない）
+    if (apply_organization_group_filter === 'true') {
+      const organizationGroupCds = req.user?.organizationGroupCds;
+      if (organizationGroupCds && organizationGroupCds.length > 0) {
+        filters.organizationGroupCds = organizationGroupCds;
       }
     }
 

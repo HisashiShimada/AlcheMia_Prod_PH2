@@ -580,7 +580,7 @@ export async function listFormats(req: Request, res: Response): Promise<void> {
     const allFiles = await maimlService.listFormatsFiles(organizationId);
 
     console.log('✅ [maimlController] フォーマット一覧取得完了:', {
-      departmentCount: allFiles.departments.length,
+      organizationGroupCount: allFiles.organizationGroups.length,
     });
 
     res.json({
