@@ -737,13 +737,6 @@
     "all": "すべて",
     "searchPlaceholder": "タイトル、内容で検索...",
     "statusFilterPlaceholder": "ステータスで絞り込み",
-    "columns": {
-      "title": "タイトル",
-      "status": "状態",
-      "targetType": "対象",
-      "reportedBy": "報告者",
-      "reportedAt": "報告時刻"
-    },
     "status": {
       "unresolved": "未解決",
       "resolved": "解決済"
@@ -3048,5 +3041,100 @@
         "toastTeamUpdated": "「{name}」のメンバーを更新しました（{count}名）"
       }
     }
+  },
+  "evaluation": {
+    "unit": {
+      "method": "メソッド",
+      "task": "タスク",
+      "transitionMethod": "トランジション（メソッド別）",
+      "transitionTask": "トランジション（タスク別）"
+    },
+    "unitLabel": {
+      "project": "プロジェクト全体",
+      "method": "メソッド別",
+      "task": "タスク別",
+      "transitionMethod": "トランジション（メソッド別）",
+      "transitionTask": "トランジション（タスク別）"
+    },
+    "unitFilter": {
+      "all": "すべて",
+      "method": "メソッド",
+      "task": "タスク",
+      "transitionMethod": "トランジション（メソッド別）",
+      "transitionTask": "トランジション（タスク別）"
+    },
+    "columns": {
+      "target": "対象",
+      "qualEvaluation": "定性評価",
+      "comment": "コメント",
+      "criteriaName": "不確かさ基準名",
+      "evaluationValue": "評価値",
+      "evaluatedAt": "評価日時",
+      "evalUnit": "評価単位",
+      "projectName": "プロジェクト名",
+      "methodName": "メソッド名",
+      "taskLabel": "タスク",
+      "transitionLabel": "トランジション"
+    },
+    "labels": {
+      "evalUnit": "評価単位:",
+      "selectMethod": "メソッドを選択:",
+      "selectTaskNo": "タスクNoを選択:",
+      "criteria": "不確かさ基準:",
+      "taskNo": "タスクNo:"
+    },
+    "placeholders": {
+      "notEvaluated": "未評価",
+      "comment": "コメント（任意）",
+      "selectMethod": "メソッドを選択",
+      "selectTaskNo": "タスクNoを選択",
+      "selectCriteria": "基準を選択（定性評価のみ）",
+      "showAll": "すべて表示"
+    },
+    "buttons": {
+      "inputEvaluation": "評価を入力",
+      "saveEvaluation": "評価を保存"
+    },
+    "inputModal": {
+      "title": "✏️ 評価を入力",
+      "footerNote": "※ 評価値が入力された行のみ保存されます。"
+    },
+    "messages": {
+      "selectCriteriaFirst": "不確かさ基準を選択してください",
+      "noEvalValue": "評価値が入力されていません",
+      "saveSuccess": "{{count}}件の評価を保存しました",
+      "saveFailed": "評価の保存に失敗しました"
+    },
+    "empty": {
+      "noTarget": "評価対象がありません",
+      "noResult": "評価結果がまだありません",
+      "noFiltered": "該当する評価結果がありません"
+    },
+    "loading": "評価結果を読み込み中...",
+    "tagQualitative": "定性"
+  },
+  "projectCompletion": {
+    "title": "プロジェクト完了処理",
+    "completeButton": "プロジェクトを完了する",
+    "description": "プロジェクト全体に対する定性評価を入力してから完了処理を実行できます。評価は任意です（未入力でも完了処理を実行できます）。",
+    "footerNote": "※ 不確かさ基準と評価値が両方入力された場合のみ評価が保存されます。",
+    "projectWholeLabel": "プロジェクト全体",
+    "criteriaLabel": "不確かさ基準:",
+    "selectCriteriaPlaceholder": "基準を選択（任意）",
+    "columns": {
+      "target": "対象",
+      "qualEvaluation": "定性評価",
+      "comment": "コメント"
+    },
+    "placeholders": {
+      "notEvaluated": "未評価",
+      "comment": "コメント（任意）"
+    },
+    "messages": {
+      "exportSuccess": "評価データ {{count}} 件を MAiML ファイルに書き込みました",
+      "exportFailed": "評価データの MAiML 書き込みに失敗しました（完了処理は続行します）",
+      "completeFailed": "プロジェクト完了処理に失敗しました"
+    },
+    "tagQualitative": "定性"
   }
 }

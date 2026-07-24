@@ -742,13 +742,6 @@
     "all": "All",
     "searchPlaceholder": "Search by title, content...",
     "statusFilterPlaceholder": "Filter by status",
-    "columns": {
-      "title": "Title",
-      "status": "Status",
-      "targetType": "Target",
-      "reportedBy": "Reported By",
-      "reportedAt": "Reported At"
-    },
     "status": {
       "unresolved": "Unresolved",
       "resolved": "Resolved"
@@ -3051,5 +3044,100 @@
         "toastTeamUpdated": "Members of \"{name}\" updated ({count} members)"
       }
     }
+  },
+  "evaluation": {
+    "unit": {
+      "method": "Method",
+      "task": "Task",
+      "transitionMethod": "Transition (by Method)",
+      "transitionTask": "Transition (by Task)"
+    },
+    "unitLabel": {
+      "project": "Entire Project",
+      "method": "By Method",
+      "task": "By Task",
+      "transitionMethod": "Transition (by Method)",
+      "transitionTask": "Transition (by Task)"
+    },
+    "unitFilter": {
+      "all": "All",
+      "method": "Method",
+      "task": "Task",
+      "transitionMethod": "Transition (by Method)",
+      "transitionTask": "Transition (by Task)"
+    },
+    "columns": {
+      "target": "Target",
+      "qualEvaluation": "Qualitative Evaluation",
+      "comment": "Comment",
+      "criteriaName": "Uncertainty Criteria Name",
+      "evaluationValue": "Evaluation Value",
+      "evaluatedAt": "Evaluated At",
+      "evalUnit": "Evaluation Unit",
+      "projectName": "Project Name",
+      "methodName": "Method Name",
+      "taskLabel": "Task",
+      "transitionLabel": "Transition"
+    },
+    "labels": {
+      "evalUnit": "Evaluation Unit:",
+      "selectMethod": "Select Method:",
+      "selectTaskNo": "Select Task No:",
+      "criteria": "Uncertainty Criteria:",
+      "taskNo": "Task No:"
+    },
+    "placeholders": {
+      "notEvaluated": "Not evaluated",
+      "comment": "Comment (optional)",
+      "selectMethod": "Select method",
+      "selectTaskNo": "Select task no",
+      "selectCriteria": "Select criteria (qualitative only)",
+      "showAll": "Show all"
+    },
+    "buttons": {
+      "inputEvaluation": "Input Evaluation",
+      "saveEvaluation": "Save Evaluation"
+    },
+    "inputModal": {
+      "title": "✏️ Input Evaluation",
+      "footerNote": "* Only rows with evaluation values entered will be saved."
+    },
+    "messages": {
+      "selectCriteriaFirst": "Please select an uncertainty criteria",
+      "noEvalValue": "No evaluation value entered",
+      "saveSuccess": "{{count}} evaluation(s) saved",
+      "saveFailed": "Failed to save evaluations"
+    },
+    "empty": {
+      "noTarget": "No evaluation targets",
+      "noResult": "No evaluation results yet",
+      "noFiltered": "No matching evaluation results"
+    },
+    "loading": "Loading evaluation results...",
+    "tagQualitative": "Qualitative"
+  },
+  "projectCompletion": {
+    "title": "Project Completion",
+    "completeButton": "Complete Project",
+    "description": "You can enter qualitative evaluations for the entire project before completing it. Evaluations are optional (you can complete without entering any).",
+    "footerNote": "* Evaluation is only saved when both uncertainty criteria and evaluation value are entered.",
+    "projectWholeLabel": "Entire Project",
+    "criteriaLabel": "Uncertainty Criteria:",
+    "selectCriteriaPlaceholder": "Select criteria (optional)",
+    "columns": {
+      "target": "Target",
+      "qualEvaluation": "Qualitative Evaluation",
+      "comment": "Comment"
+    },
+    "placeholders": {
+      "notEvaluated": "Not evaluated",
+      "comment": "Comment (optional)"
+    },
+    "messages": {
+      "exportSuccess": "{{count}} evaluation record(s) written to MAiML file",
+      "exportFailed": "Failed to write evaluation data to MAiML file (completion process continues)",
+      "completeFailed": "Project completion process failed"
+    },
+    "tagQualitative": "Qualitative"
   }
 }

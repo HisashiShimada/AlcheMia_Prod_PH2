@@ -28,6 +28,7 @@ import {
 } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   getEvaluationsByProject,
   saveEvaluations,
@@ -214,20 +215,12 @@ const MOCK_EVALUATION_RECORDS: EvaluationRecord[] = [
   },
 ];
 
-const EVALUATION_UNIT_OPTIONS: Array<{ label: string; value: EvaluationUnit }> = [
-  { label: 'メソッド',                    value: 'method'           },
-  { label: 'タスク',                      value: 'task'             },
-  { label: 'トランジション（メソッド別）', value: 'transition_method' },
-  { label: 'トランジション（タスク別）',   value: 'transition_task'  },
+const EVALUATION_UNIT_INPUT_VALUES: EvaluationUnit[] = [
+  'method',
+  'task',
+  'transition_method',
+  'transition_task',
 ];
-
-const UNIT_LABEL: Record<EvaluationUnit, string> = {
-  project:          'プロジェクト全体',
-  method:           'メソッド別',
-  task:             'タスク別',
-  transition_method: 'トランジション（メソッド別）',
-  transition_task:   'トランジション（タスク別）',
-};
 
 // ─────────────────────────────────────────────────────────────
 // ヘルパー
@@ -242,7 +235,7 @@ function buildEvalRows(
 ): EvalRow[] {
   switch (unit) {
     case 'project':
-      return [{ rowKey: 'project', label: 'プロジェクト全体', evaluationValue: undefined, comment: '' }];
+      return [{ rowKey: 'project', label: '__project__', evaluationValue: undefined, comment: '' }];
 
     case 'method':
       return allMethods.map((m) => ({
@@ -308,12 +301,14 @@ function buildEvalRows(
 function EvalValueTag({
   value,
   criteria,
+  notEvaluatedLabel,
 }: {
   value: string | null | undefined;
   criteria: UncertaintyCriteriaForSelector | null;
+  notEvaluatedLabel: string;
 }) {
   if (!value) {
-    return <Text type="secondary" italic style={{ fontSize: 12 }}>─ 未評価</Text>;
+    return <Text type="secondary" italic style={{ fontSize: 12 }}>─ {notEvaluatedLabel}</Text>;
   }
   const opt = criteria?.intuitionOptions.find((o) => o.value === value);
   const color = opt?.displayColor ?? undefined;
@@ -355,6 +350,7 @@ const InputModal: React.FC<InputModalProps> = ({
   onClose,
 }) => {
   const { message } = App.useApp();
+  const { t } = useLanguage();
 
   const [evalUnit, setEvalUnit]               = useState<EvaluationUnit>('method');
   const [selectedCriteriaKey, setSelectedCriteriaKey] = useState<string | null>(null);
@@ -418,7 +414,7 @@ const InputModal: React.FC<InputModalProps> = ({
 
   const handleSave = async () => {
     if (!selectedCriteria) {
-      message.warning('不確かさ基準を選択してください');
+      message.warning(t('evaluation.messages.selectCriteriaFirst'));
       return;
     }
     const evaluations: EvaluationInput[] = evalRows
@@ -436,19 +432,19 @@ const InputModal: React.FC<InputModalProps> = ({
       }));
 
     if (evaluations.length === 0) {
-      message.warning('評価値が入力されていません');
+      message.warning(t('evaluation.messages.noEvalValue'));
       return;
     }
 
     setSubmitting(true);
     try {
       await saveEvaluations({ projectId, evaluations });
-      message.success(`${evaluations.length}件の評価を保存しました`);
+      message.success(t('evaluation.messages.saveSuccess', { count: String(evaluations.length) }));
       handleClose();
       onSaved();
     } catch (err) {
       console.error('[InputModal] save error:', err);
-      message.error('評価の保存に失敗しました');
+      message.error(t('evaluation.messages.saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -457,10 +453,10 @@ const InputModal: React.FC<InputModalProps> = ({
   /** テーブルカラム定義 */
   const evalColumns: ColumnsType<EvalRow> = useMemo(() => {
     const labelTitle =
-      evalUnit === 'project' ? 'プロジェクト名'
-      : evalUnit === 'method' ? 'メソッド名'
-      : evalUnit === 'task' ? 'タスク'
-      : 'トランジション';
+      evalUnit === 'project' ? t('evaluation.columns.projectName')
+      : evalUnit === 'method' ? t('evaluation.columns.methodName')
+      : evalUnit === 'task' ? t('evaluation.columns.taskLabel')
+      : t('evaluation.columns.transitionLabel');
 
     return [
       {
@@ -470,12 +466,12 @@ const InputModal: React.FC<InputModalProps> = ({
         render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
       },
       {
-        title: '定性評価',
+        title: t('evaluation.columns.qualEvaluation'),
         width: 180,
         render: (_: unknown, row: EvalRow) => (
           <Select
             allowClear
-            placeholder="未評価"
+            placeholder={t('evaluation.placeholders.notEvaluated')}
             style={{ width: 160 }}
             size="small"
             value={row.evaluationValue}
@@ -507,11 +503,11 @@ const InputModal: React.FC<InputModalProps> = ({
         ),
       },
       {
-        title: 'コメント',
+        title: t('evaluation.columns.comment'),
         render: (_: unknown, row: EvalRow) => (
           <Input
             size="small"
-            placeholder="コメント（任意）"
+            placeholder={t('evaluation.placeholders.comment')}
             value={row.comment}
             onChange={(e) => updateEvalRow(row.rowKey, 'comment', e.target.value)}
             maxLength={200}
@@ -519,11 +515,11 @@ const InputModal: React.FC<InputModalProps> = ({
         ),
       },
     ];
-  }, [evalUnit, selectedCriteria]);
+  }, [evalUnit, selectedCriteria, t]);
 
   return (
     <Modal
-      title="✏️ 評価を入力"
+      title={t('evaluation.inputModal.title')}
       open={open}
       onCancel={handleClose}
       width={760}
@@ -531,17 +527,17 @@ const InputModal: React.FC<InputModalProps> = ({
       footer={
         <Flex justify="space-between" align="center">
           <Text type="secondary" style={{ fontSize: 11 }}>
-            ※ 評価値が入力された行のみ保存されます。
+            {t('evaluation.inputModal.footerNote')}
           </Text>
           <Space>
-            <Button onClick={handleClose}>キャンセル</Button>
+            <Button onClick={handleClose}>{t('common.cancel')}</Button>
             <Button
               type="primary"
               loading={submitting}
               disabled={!selectedCriteria}
               onClick={handleSave}
             >
-              評価を保存
+              {t('evaluation.buttons.saveEvaluation')}
             </Button>
           </Space>
         </Flex>
@@ -550,14 +546,16 @@ const InputModal: React.FC<InputModalProps> = ({
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         {/* 評価単位 */}
         <Flex align="center" gap={8} wrap="wrap">
-          <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>評価単位:</Text>
+          <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>{t('evaluation.labels.evalUnit')}</Text>
           <Radio.Group
             value={evalUnit}
             onChange={(e) => handleEvalUnitChange(e.target.value as EvaluationUnit)}
             size="small"
           >
-            {EVALUATION_UNIT_OPTIONS.map((opt) => (
-              <Radio key={opt.value} value={opt.value}>{opt.label}</Radio>
+            {EVALUATION_UNIT_INPUT_VALUES.map((val) => (
+              <Radio key={val} value={val}>
+                {t(`evaluation.unit.${val === 'transition_method' ? 'transitionMethod' : val === 'transition_task' ? 'transitionTask' : val}`)}
+              </Radio>
             ))}
           </Radio.Group>
         </Flex>
@@ -565,22 +563,22 @@ const InputModal: React.FC<InputModalProps> = ({
         {/* トランジション系のメソッド選択（＋タスク別の場合はタスクNoを右隣に表示） */}
         {(evalUnit === 'transition_method' || evalUnit === 'transition_task') && (
           <Flex align="center" gap={8} wrap="wrap">
-            <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>メソッドを選択:</Text>
+            <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{t('evaluation.labels.selectMethod')}</Text>
             <Select
               style={{ width: 200 }}
               size="small"
-              placeholder="メソッドを選択"
+              placeholder={t('evaluation.placeholders.selectMethod')}
               value={selectedMethodForTr}
               onChange={(v) => handleMethodChange(v ?? null)}
               options={allMethods.map((m) => ({ label: m.name || m.id, value: m.id }))}
             />
             {evalUnit === 'transition_task' && (
               <>
-                <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>タスクNoを選択:</Text>
+                <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{t('evaluation.labels.selectTaskNo')}</Text>
                 <Select
                   style={{ width: 140 }}
                   size="small"
-                  placeholder="タスクNoを選択"
+                  placeholder={t('evaluation.placeholders.selectTaskNo')}
                   value={selectedTaskNoForTr}
                   onChange={(v) => setSelectedTaskNoForTr(v ?? null)}
                   options={taskNoOptions}
@@ -593,12 +591,12 @@ const InputModal: React.FC<InputModalProps> = ({
 
         {/* 不確かさ基準 */}
         <Flex align="center" gap={8}>
-          <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>不確かさ基準:</Text>
+          <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>{t('evaluation.labels.criteria')}</Text>
           <Select
             style={{ width: 260 }}
             size="small"
             allowClear
-            placeholder="基準を選択（定性評価のみ）"
+            placeholder={t('evaluation.placeholders.selectCriteria')}
             value={selectedCriteriaKey}
             onChange={(v) => setSelectedCriteriaKey(v ?? null)}
             options={criteriaList
@@ -608,7 +606,7 @@ const InputModal: React.FC<InputModalProps> = ({
                 value: c.uncertaintyKey,
               }))}
           />
-          {selectedCriteria && <Tag color="green" style={{ fontSize: 11 }}>定性</Tag>}
+          {selectedCriteria && <Tag color="green" style={{ fontSize: 11 }}>{t('evaluation.tagQualitative')}</Tag>}
         </Flex>
 
         {/* 評価テーブル */}
@@ -620,7 +618,7 @@ const InputModal: React.FC<InputModalProps> = ({
           pagination={false}
           bordered
           scroll={{ y: 220 }}
-          locale={{ emptyText: '評価対象がありません' }}
+          locale={{ emptyText: t('evaluation.empty.noTarget') }}
         />
       </Space>
     </Modal>
@@ -652,14 +650,6 @@ const MOCK_CRITERIA_LABEL_MAP: Record<string, string> = {
 
 /** 評価単位フィルタ（結果確認タブ用、「すべて」付き） */
 type ResultUnitFilter = 'all' | EvaluationUnit;
-
-const RESULT_UNIT_OPTIONS: Array<{ label: string; value: ResultUnitFilter }> = [
-  { label: 'すべて',                      value: 'all'              },
-  { label: 'メソッド',                    value: 'method'           },
-  { label: 'タスク',                      value: 'task'             },
-  { label: 'トランジション（メソッド別）', value: 'transition_method' },
-  { label: 'トランジション（タスク別）',   value: 'transition_task'  },
-];
 
 const ResultPanel: React.FC<ResultPanelProps> = ({
   projectId,
@@ -770,10 +760,12 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
     [criteriaList]
   );
 
+  const { t } = useLanguage();
+
   if (loading) {
     return (
       <Flex justify="center" style={{ padding: 40 }}>
-        <Spin tip="評価結果を読み込み中..." />
+        <Spin tip={t('evaluation.loading')} />
       </Flex>
     );
   }
@@ -789,20 +781,24 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
             size="small"
             onClick={() => setInputModalOpen(true)}
           >
-            評価を入力
+            {t('evaluation.buttons.inputEvaluation')}
           </Button>
         </Flex>
 
         {/* 評価単位ラジオ */}
         <Flex align="center" gap={8} wrap="wrap">
-          <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>評価単位:</Text>
+          <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>{t('evaluation.labels.evalUnit')}</Text>
           <Radio.Group
             value={unitFilter}
             onChange={(e) => handleUnitFilterChange(e.target.value as ResultUnitFilter)}
             size="small"
           >
-            {RESULT_UNIT_OPTIONS.map((opt) => (
-              <Radio key={opt.value} value={opt.value}>{opt.label}</Radio>
+            {(['all', 'method', 'task', 'transition_method', 'transition_task'] as ResultUnitFilter[]).map((val) => (
+              <Radio key={val} value={val}>
+                {val === 'all'
+                  ? t('evaluation.unitFilter.all')
+                  : t(`evaluation.unitFilter.${val === 'transition_method' ? 'transitionMethod' : val === 'transition_task' ? 'transitionTask' : val}`)}
+              </Radio>
             ))}
           </Radio.Group>
         </Flex>
@@ -810,11 +806,11 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
         {/* トランジション系: メソッド選択（＋タスク別の場合はタスクNoも表示） */}
         {(unitFilter === 'transition_method' || unitFilter === 'transition_task') && (
           <Flex align="center" gap={8} wrap="wrap">
-            <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>メソッドを選択:</Text>
+            <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{t('evaluation.labels.selectMethod')}</Text>
             <Select
               allowClear
               size="small"
-              placeholder="すべて表示"
+              placeholder={t('evaluation.placeholders.showAll')}
               style={{ width: 200 }}
               value={filterMethodId}
               onChange={(v) => handleFilterMethodChange(v ?? null)}
@@ -822,11 +818,11 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
             />
             {unitFilter === 'transition_task' && (
               <>
-                <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>タスクNoを選択:</Text>
+                <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{t('evaluation.labels.selectTaskNo')}</Text>
                 <Select
                   allowClear
                   size="small"
-                  placeholder="すべて表示"
+                  placeholder={t('evaluation.placeholders.showAll')}
                   style={{ width: 140 }}
                   value={filterTaskNo}
                   onChange={(v) => setFilterTaskNo(v ?? null)}
@@ -840,11 +836,11 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
 
         {/* 不確かさ基準 絞り込み */}
         <Flex align="center" gap={8}>
-          <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>不確かさ基準:</Text>
+          <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{t('evaluation.labels.criteria')}</Text>
           <Select
             allowClear
             size="small"
-            placeholder="すべて表示"
+            placeholder={t('evaluation.placeholders.showAll')}
             style={{ width: 240 }}
             value={filterKey}
             onChange={(v) => setFilterKey(v ?? null)}
@@ -857,7 +853,7 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
 
         {/* 評価結果なし */}
         {records.length === 0 && (
-          <Empty description="評価結果がまだありません" style={{ marginTop: 24 }} />
+          <Empty description={t('evaluation.empty.noResult')} style={{ marginTop: 24 }} />
         )}
 
         {/* 評価単位ごとに Collapse 表示 */}
@@ -872,7 +868,7 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
                 key: unit,
                 label: (
                   <Text strong style={{ fontSize: 12 }}>
-                    {UNIT_LABEL[unit]}（{rows.length}件）
+                    {t(`evaluation.unitLabel.${unit === 'transition_method' ? 'transitionMethod' : unit === 'transition_task' ? 'transitionTask' : unit}`)}（{rows.length}{t('common.countUnit')}）
                   </Text>
                 ),
                 children: (
@@ -884,10 +880,10 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
                     bordered={false}
                     columns={[
                       {
-                        title: '対象',
+                        title: t('evaluation.columns.target'),
                         width: 200,
                         render: (_: unknown, r: EvaluationRecord) => {
-                          if (unit === 'project') return <Text style={{ fontSize: 12 }}>プロジェクト全体</Text>;
+                          if (unit === 'project') return <Text style={{ fontSize: 12 }}>{t('projectCompletion.projectWholeLabel')}</Text>;
                           if (unit === 'method')  return <Text style={{ fontSize: 12 }}>{r.method_id ?? '—'}</Text>;
                           if (unit === 'task')    return <Text style={{ fontSize: 12 }}>{r.method_id ? `#${r.task_no} (${r.method_id})` : `#${r.task_no}`}</Text>;
                           if (unit === 'transition_method') {
@@ -914,7 +910,7 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
                         },
                       },
                       {
-                        title: '不確かさ基準名',
+                        title: t('evaluation.columns.criteriaName'),
                         width: 180,
                         render: (_: unknown, r: EvaluationRecord) => {
                           const c = getCriteria(r.uncertainty_key);
@@ -922,21 +918,25 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
                         },
                       },
                       {
-                        title: '評価値',
+                        title: t('evaluation.columns.evaluationValue'),
                         width: 120,
                         render: (_: unknown, r: EvaluationRecord) => (
-                          <EvalValueTag value={r.evaluation_value} criteria={getCriteria(r.uncertainty_key)} />
+                          <EvalValueTag
+                            value={r.evaluation_value}
+                            criteria={getCriteria(r.uncertainty_key)}
+                            notEvaluatedLabel={t('evaluation.placeholders.notEvaluated')}
+                          />
                         ),
                       },
                       {
-                        title: 'コメント',
+                        title: t('evaluation.columns.comment'),
                         render: (_: unknown, r: EvaluationRecord) =>
                           r.comment
                             ? <Text style={{ fontSize: 12 }}>{r.comment}</Text>
                             : <Text type="secondary">—</Text>,
                       },
                       {
-                        title: '評価日時',
+                        title: t('evaluation.columns.evaluatedAt'),
                         width: 140,
                         render: (_: unknown, r: EvaluationRecord) => {
                           if (!r.evaluated_at) return <Text type="secondary">—</Text>;
@@ -986,6 +986,7 @@ const EvaluationDialog: React.FC<EvaluationDialogProps> = ({
   criteriaList,
   onCancel,
 }) => {
+  const { t } = useLanguage();
   // 保存後に ResultPanel をリフレッシュするためのキー
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -998,14 +999,14 @@ const EvaluationDialog: React.FC<EvaluationDialogProps> = ({
 
   return (
     <Modal
-      title="定性評価"
+      title={t('evaluation.title')}
       open={open}
       onCancel={onCancel}
       width={900}
       destroyOnClose
       footer={
         <Flex justify="flex-end">
-          <Button onClick={onCancel}>閉じる</Button>
+          <Button onClick={onCancel}>{t('common.close')}</Button>
         </Flex>
       }
     >
@@ -1013,7 +1014,7 @@ const EvaluationDialog: React.FC<EvaluationDialogProps> = ({
         items={[
           {
             key: 'result',
-            label: '📋 評価登録確認',
+            label: t('evaluation.tabLabel'),
             children: (
               <ResultPanel
                 key={refreshKey}
