@@ -30,6 +30,7 @@ import {
   Spin,
   Empty,
 } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import {
@@ -71,14 +72,14 @@ export interface ExperimentInstructionTabProps {
 // 定数
 // ─────────────────────────────────────────────────────────────
 
-/** タスクステータスコード → 表示設定 */
-const TASK_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  '01': { label: '実行待ち',     color: 'default'    },
-  '02': { label: '作業中',       color: 'processing' },
-  '03': { label: '実行中',       color: 'processing' },
-  '04': { label: 'レビュー待ち', color: 'warning'    },
-  '05': { label: '完了',         color: 'success'    },
-  '06': { label: 'NG',           color: 'error'      },
+/** タスクステータスコード → 表示設定（ラベルは useLanguage で上書きすること） */
+const TASK_STATUS_CONFIG: Record<string, { labelKey: string; color: string }> = {
+  '01': { labelKey: 'experimentInstruction.status.waiting',       color: 'default'    },
+  '02': { labelKey: 'experimentInstruction.status.inProgress',    color: 'processing' },
+  '03': { labelKey: 'experimentInstruction.status.running',       color: 'processing' },
+  '04': { labelKey: 'experimentInstruction.status.reviewWaiting', color: 'warning'    },
+  '05': { labelKey: 'experimentInstruction.status.completed',     color: 'success'    },
+  '06': { labelKey: 'experimentInstruction.status.ng',            color: 'error'      },
 };
 
 /** xsi:type → Tag カラー */
@@ -381,6 +382,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   projectName,
 }) => {
   const { message } = App.useApp();
+  const { t } = useLanguage();
 
   // ── データ ──
   const [instructions, setInstructions] = useState<InstructionMethodResponse[]>([]);
@@ -438,7 +440,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       setMethods(methodData);
     } catch (err) {
       console.error('[ExperimentInstructionTab] fetchData error:', err);
-      message.error('実験指示データの取得に失敗しました');
+      message.error(t('experimentInstruction.fetchError'));
     } finally {
       setLoading(false);
     }
@@ -505,11 +507,11 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
 
   const handleBulkExecute = useCallback(async () => {
     if (!bulkSelectedTaskKey) {
-      message.warning('タスク番号を選択してください');
+      message.warning(t('experimentInstruction.warningSelectTask'));
       return;
     }
     if (bulkSelectedAction === 'ng' && !bulkSelectedNgReason.trim()) {
-      message.warning('NG理由を入力してください');
+      message.warning(t('experimentInstruction.ngReasonRequired'));
       return;
     }
 
@@ -520,16 +522,16 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     try {
       if (bulkSelectedAction === 'ng') {
         await recordNg(projectId, methodId, taskNumber, { ngReason: bulkSelectedNgReason });
-        message.warning(`タスク #${taskNumber} に NG を記録しました`);
+        message.warning(t('experimentInstruction.ngRecorded').replace('#{no}', String(taskNumber)));
       } else {
         await approveTask(projectId, methodId, taskNumber);
-        message.success(`タスク #${taskNumber} を承認しました`);
+        message.success(t('experimentInstruction.approveSuccess').replace('#{no}', String(taskNumber)));
       }
       setBulkApproveOpen(false);
       await fetchData();
     } catch (err) {
       console.error('[ExperimentInstructionTab] bulkExecute error:', err);
-      message.error('承認処理に失敗しました');
+      message.error(t('experimentInstruction.approveError'));
     } finally {
       setActionLoading(false);
     }
@@ -544,12 +546,12 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     setActionLoading(true);
     try {
       await approveTask(projectId, approveTarget.methodId, approveTarget.taskNumber);
-      message.success(`タスク #${approveTarget.taskNumber} を承認しました`);
+      message.success(t('experimentInstruction.approveSuccess').replace('#{no}', String(approveTarget.taskNumber)));
       setApproveTarget(null);
       await fetchData();
     } catch (err) {
       console.error('[ExperimentInstructionTab] approveTask error:', err);
-      message.error('承認処理に失敗しました');
+      message.error(t('experimentInstruction.approveError'));
     } finally {
       setActionLoading(false);
     }
@@ -567,14 +569,14 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       await recordNg(projectId, ngTarget.methodId, ngTarget.taskNumber, {
         ngReason: values.ngReason,
       });
-      message.warning(`タスク #${ngTarget.taskNumber} に NG を記録しました`);
+      message.warning(t('experimentInstruction.ngRecorded').replace('#{no}', String(ngTarget.taskNumber)));
       ngForm.resetFields();
       setNgTarget(null);
       await fetchData();
     } catch (err) {
       if (err && typeof err === 'object' && 'errorFields' in err) return; // バリデーションエラーは無視
       console.error('[ExperimentInstructionTab] recordNg error:', err);
-      message.error('NG記録処理に失敗しました');
+      message.error(t('experimentInstruction.ngError'));
     } finally {
       setActionLoading(false);
     }
@@ -661,8 +663,8 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       width: 110,
       align: 'center' as const,
       render: (v: string) => {
-        const cfg = TASK_STATUS_CONFIG[v] ?? { label: v, color: 'default' };
-        return <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag>;
+        const cfg = TASK_STATUS_CONFIG[v] ?? { labelKey: '', color: 'default' };
+        return <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.labelKey ? t(cfg.labelKey) : v}</Tag>;
       },
     },
     {

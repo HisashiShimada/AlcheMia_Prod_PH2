@@ -1,4 +1,5 @@
-/**
+0000
+.toExponential...000000000000000000000000000000000000000000000000000000000000000000000000000/**
  * experimentEvaluation Service
  *
  * 実験評価に関するビジネスロジック
@@ -127,13 +128,13 @@ export async function exportToMaiml(
   // 1. 評価データを全件取得
   const evaluations = await experimentEvaluationRepository.findByProject(organizationId, projectId);
   if (evaluations.length === 0) {
-    return { written: 0, message: '評価データがないため書き込みをスキップしました' };
+    return { written: 0, message: 'No evaluation data found, skipping write.' };
   }
 
   // 2. projectId → project_uuid を取得
   const nameAndUuid = await projectRepository.findNameAndUuidById(organizationId, projectId);
   if (!nameAndUuid) {
-    const err = new Error('プロジェクトが見つかりません') as Error & { code: string };
+    const err = new Error('Project not found') as Error & { code: string };
     err.code = 'E6001';
     throw err;
   }
@@ -143,24 +144,24 @@ export async function exportToMaiml(
   let maimlFileKey: string;
 
   if (nameAndUuid.project_uuid) {
-    // project_uuid が設定されている場合はそれで検索（正規ルート）
+    // Search by project_uuid (primary route)
     const maimlFile = await fileMetadataRepo.findMaimlByProjectUuid(
       nameAndUuid.project_uuid
     );
     if (!maimlFile) {
-      const err = new Error('MAiMLファイルが見つかりません') as Error & { code: string };
+      const err = new Error('MAiML file not found') as Error & { code: string };
       err.code = 'E6002';
       throw err;
     }
     maimlFileKey = maimlFile.file_key;
   } else {
-    // project_uuid が未設定の場合はプロジェクト名でフォールバック検索
+    // Fallback: search by project name when project_uuid is not set
     const maimlFile = await fileMetadataRepo.findMaimlByProjectName(
       organizationId,
       nameAndUuid.project_name
     );
     if (!maimlFile) {
-      const err = new Error('MAiMLファイルが見つかりません') as Error & { code: string };
+      const err = new Error('MAiML file not found') as Error & { code: string };
       err.code = 'E6002';
       throw err;
     }
@@ -173,7 +174,7 @@ export async function exportToMaiml(
   try {
     maimlBuffer = await storageService.downloadFile(organizationId, maimlFileKey);
   } catch {
-    const err = new Error('MAiMLファイルが見つかりません') as Error & { code: string };
+    const err = new Error('MAiML file not found') as Error & { code: string };
     err.code = 'E6002';
     throw err;
   }
@@ -206,7 +207,7 @@ export async function exportToMaiml(
   if (uncertaintyTags.length > 0) {
     const uncertaintiesBlock = [
       '  <Uncertainties>',
-      '    <!-- 評価処理によって書き込まれた定性評価データ -->',
+      '    <!-- Qualitative evaluation data written by evaluation process -->',
       ...uncertaintyTags,
       '  </Uncertainties>',
     ].join('\n');
@@ -232,7 +233,7 @@ export async function exportToMaiml(
 
   return {
     written: uncertaintyTags.length,
-    message: `${uncertaintyTags.length}件の評価データを MAiML ファイルに書き込みました`,
+    message: `${uncertaintyTags.length} evaluation record(s) written to MAiML file`,
   };
 }
 

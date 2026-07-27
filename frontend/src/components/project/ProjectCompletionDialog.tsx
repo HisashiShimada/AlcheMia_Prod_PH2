@@ -27,6 +27,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { saveEvaluations, exportEvaluationsToMaiml } from '@/services/experimentEvaluationApiService';
 import type { EvaluationInput } from '@/services/experimentEvaluationApiService';
 import type { UncertaintyCriteriaForSelector } from './ApprovalWizardDialog';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -65,10 +66,11 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
   onComplete,
 }) => {
   const { message } = App.useApp();
+  const { t } = useLanguage();
 
   const [selectedCriteriaKey, setSelectedCriteriaKey] = useState<string | null>(null);
   const [evalRows, setEvalRows] = useState<EvalRow[]>([
-    { rowKey: 'project', label: projectName ?? 'プロジェクト全体', evaluationValue: undefined, comment: '' },
+    { rowKey: 'project', label: projectName ?? t('projectCompletion.entireProject'), evaluationValue: undefined, comment: '' },
   ]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -108,18 +110,18 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
       try {
         const result = await exportEvaluationsToMaiml(projectId);
         if (result.written > 0) {
-          message.success(`評価データ ${result.written} 件を MAiML ファイルに書き込みました`);
+          message.success(t('projectCompletion.maimlWriteSuccess', { count: String(result.written) }));
         }
       } catch (exportErr) {
         // MAiML 書き込み失敗はワーニング扱い（完了処理自体は続行）
         console.warn('[ProjectCompletionDialog] exportToMaiml error:', exportErr);
-        message.warning('評価データの MAiML 書き込みに失敗しました（完了処理は続行します）');
+        message.warning(t('projectCompletion.maimlWriteWarning'));
       }
       // 完了処理
       await onComplete();
     } catch (err) {
       console.error('[ProjectCompletionDialog] error:', err);
-      message.error('プロジェクト完了処理に失敗しました');
+      message.error(t('projectCompletion.completeFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -128,18 +130,18 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
   /** テーブルカラム定義 */
   const evalColumns: ColumnsType<EvalRow> = useMemo(() => [
     {
-      title: '対象',
+      title: t('projectCompletion.colTarget'),
       dataIndex: 'label',
       width: 180,
       render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
     },
     {
-      title: '定性評価',
+      title: t('projectCompletion.colQualitative'),
       width: 200,
       render: (_: unknown, row: EvalRow) => (
         <Select
           allowClear
-          placeholder="未評価"
+          placeholder={t('projectCompletion.unevaluated')}
           style={{ width: 180 }}
           size="small"
           value={row.evaluationValue}
@@ -171,11 +173,11 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
       ),
     },
     {
-      title: 'コメント',
+      title: t('projectCompletion.colComment'),
       render: (_: unknown, row: EvalRow) => (
         <Input
           size="small"
-          placeholder="コメント（任意）"
+          placeholder={t('projectCompletion.commentPlaceholder')}
           value={row.comment}
           onChange={(e) => updateRow('comment', e.target.value)}
           maxLength={200}
@@ -186,7 +188,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
 
   return (
     <Modal
-      title="プロジェクト完了処理"
+      title={t('projectCompletion.title')}
       open={open}
       onCancel={onCancel}
       width={680}
@@ -194,14 +196,14 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
       footer={
         <Flex justify="flex-end">
           <Space>
-            <Button onClick={onCancel}>キャンセル</Button>
+            <Button onClick={onCancel}>{t('common.cancel')}</Button>
             <Button
               type="primary"
               loading={submitting}
               style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
               onClick={handleComplete}
             >
-              プロジェクトを完了する
+              {t('projectCompletion.completeButton')}
             </Button>
           </Space>
         </Flex>
@@ -210,20 +212,19 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         {/* 説明文 */}
         <Text type="secondary" style={{ fontSize: 12 }}>
-          プロジェクト全体に対する定性評価を入力してから完了処理を実行できます。
-          評価は任意です（未入力でも完了処理を実行できます）。
+          {t('projectCompletion.description')}
         </Text>
 
         <Divider style={{ margin: '4px 0' }} />
 
         {/* 不確かさ基準選択 */}
         <Flex align="center" gap={8}>
-          <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>不確かさ基準:</Text>
+          <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>{t('projectCompletion.criteriaLabel')}</Text>
           <Select
             style={{ width: 280 }}
             size="small"
             allowClear
-            placeholder="基準を選択（任意）"
+            placeholder={t('projectCompletion.criteriaPlaceholder')}
             value={selectedCriteriaKey}
             onChange={(v) => {
               setSelectedCriteriaKey(v ?? null);
@@ -239,7 +240,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
                 value: c.uncertaintyKey,
               }))}
           />
-          {selectedCriteria && <Tag color="green" style={{ fontSize: 11 }}>定性</Tag>}
+          {selectedCriteria && <Tag color="green" style={{ fontSize: 11 }}>{t('common.qualitative')}</Tag>}
         </Flex>
 
         {/* 評価テーブル */}
@@ -250,11 +251,11 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
           size="small"
           pagination={false}
           bordered
-          locale={{ emptyText: '評価対象がありません' }}
+          locale={{ emptyText: t('projectCompletion.noEvalTarget') }}
         />
 
         <Text type="secondary" style={{ fontSize: 11 }}>
-          ※ 不確かさ基準と評価値が両方入力された場合のみ評価が保存されます。
+          {t('projectCompletion.saveNote')}
         </Text>
       </Space>
     </Modal>
