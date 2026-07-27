@@ -3,661 +3,94 @@
  *
  * @description
  * MAIMLファイルの暗号化・復号化・鍵管理APIのリクエストハンドラ。
+ * maimlEncryptionService + testKeyLoader を使用した実装（DBレス）。
  *
  * @remarks
- * 【現在の状態】開発用スタブ実装
- * インメモリのサンプルデータを返す。実際の暗号化処理は未実装。
+ * 【テストモード設計（DB不使用）】
+ *   - 鍵管理: DB（encryption_keys）は使用しない
+ *     → test-keys/encryption/ の固定ファイルのみを参照
+ *   - 鍵一覧（GET /keys）: test-keys/encryption/*.key をスキャンして仮想鍵情報を返す
+ *   - 鍵生成・アップロード（POST /keys/generate, /keys/upload）: 固定鍵情報を返す（実際には何も生成しない）
+ *   - 鍵削除（DELETE /keys/:keyId）: 固定鍵は削除不可（409）
+ *   - 暗号化・復号化: フロントのアルゴリズム指定を正しくPolicyに変換して処理
  *
- * 【本実装への移行手順】
- * 1. このファイル（encryptionController.ts）のみを差し替える
- * 2. encryptionRoutes.ts / server.ts / フロントエンドは変更不要
- * 3. 実装するサービス: encryptionService.ts（新規作成）
- *    - MAIMLパース・XPath解析
- *    - W3C XML Encryption によるデータ暗号化/復号化
- *    - 鍵管理（DB保存）
+ * 【TODO: 本実装が必要な範囲】
+ *   - getMaimlStructure: MAIMLファイルをパースして暗号化対象ツリーを返す
+ *   - previewEncryption: 対象ノードの実XMLを取得してプレビュー生成
+ *   - getEncryptedChildren: MAIMLをパースして全 EncryptedData 要素を収集
+ *   - rotateKey: バックグラウンドジョブで再暗号化
  */
 
 import { Request, Response } from 'express';
+import { getStorageService } from '../services/storageService';
+import * as maimlEncryptionService from '../services/maimlEncryptionService';
+import * as testKeyLoader from '../utils/testKeyLoader';
+import {
+  buildEncryptedDataXml,
+  extractCipherResultFromXml,
+  replaceElementInXml,
+  getElementXmlByTargetPath,
+  findEncryptedDataElements,
+  parseMaimlToEncryptionTree,
+  buildChildRefsXml,
+} from '../utils/maimlEncryptionXmlHelper';
+import type {
+  EncryptionPolicy,
+  EncryptionKeyResponse,
+  KeyOperationResponse,
+  InsertionCheckResponse,
+  UpaCheckResponse,
+} from '../types/encryptionTypes';
+import {
+  DEFAULT_ENCRYPTION_POLICY,
+  ALGORITHM_URI_MAP,
+} from '../types/encryptionTypes';
 
 // ---------------------------------------------------------------------------
-// スタブデータ定義
+// アルゴリズム正規化ヘルパー
 // ---------------------------------------------------------------------------
 
 /**
- * MAIMLツリー構造スタブ
+ * フロントエンドが送る algorithm 文字列（例: 'aes256-gcm'）を
+ * EncryptionPolicy['algorithm'] 形式（例: 'aes-256-gcm'）に変換する。
  *
- * MAIML正規スキーマ（maiml-unified.ts / MaimlRoot型）に準拠した階層構造:
+ * フロントエンドの EncryptionAlgorithmType は ハイフン区切り2つ形式（'aes256-cbc'）
+ * バックエンドの EncryptionPolicy は ハイフン区切り3つ形式（'aes-256-cbc'）
  *
- *   maiml                         (ルート)
- *   ├── document                  (暗号化不可: メタデータ)
- *   │   ├── creator               (暗号化不可)
- *   │   ├── vendor                (暗号化不可)
- *   │   └── owner                 (暗号化不可)
- *   ├── protocol                  (暗号化不可)
- *   │   ├── materialTemplate[]    (暗号化可: プロトコル直下テンプレート)
- *   │   ├── conditionTemplate[]   (暗号化可)
- *   │   ├── resultTemplate[]      (暗号化可)
- *   │   └── method[]              (暗号化不可)
- *   │       ├── pnml              (暗号化不可: Petri Net構造)
- *   │       │   ├── place[]       (暗号化不可: 構造ノード)
- *   │       │   ├── transition[]  (暗号化不可)
- *   │       │   └── arc[]         (暗号化不可)
- *   │       ├── program[]         (暗号化不可)
- *   │       │   ├── instruction[] (暗号化可)
- *   │       │   ├── materialTemplate[] (暗号化可)
- *   │       │   ├── conditionTemplate[](暗号化可)
- *   │       │   └── resultTemplate[]   (暗号化可)
- *   │       ├── materialTemplate[] (暗号化可: メソッド直下テンプレート)
- *   │       │   ├── property[]    (暗号化可)
- *   │       │   └── content[]     (暗号化可)
- *   │       ├── conditionTemplate[](暗号化可)
- *   │       └── resultTemplate[]   (暗号化可)
- *   ├── data                      (オプション)
- *   │   └── results[]             (暗号化不可: コンテナ)
- *   │       ├── material[]        (暗号化可: インスタンスデータ)
- *   │       │   ├── property[]    (暗号化可)
- *   │       │   └── content[]     (暗号化可)
- *   │       ├── condition[]       (暗号化可)
- *   │       └── result[]          (暗号化可)
- *   └── eventLog                  (オプション、暗号化不可: プロセスログ)
- *       └── log[] > trace[] > event[] (暗号化不可)
+ * @param raw フロントエンドから受け取った algorithm 文字列
+ * @returns 正規化されたアルゴリズム識別子（デフォルト: 'aes-256-cbc'）
  */
-const STUB_MAIML_STRUCTURE = [
-  {
-    path: '/maiml',
-    tagName: 'maiml',
-    id: 'maiml-root',
-    label: 'maiml',
-    isEncrypted: false,
-    isEncryptable: false, // ルート要素は暗号化不可
-    children: [
-      // ── document ────────────────────────────────────────────
-      {
-        path: '/maiml/document',
-        tagName: 'document',
-        id: 'doc-001',
-        label: 'document（メタデータ）',
-        isEncrypted: false,
-        isEncryptable: false, // メタデータ要素は暗号化不可
-        children: [
-          {
-            path: '/maiml/document/creator[@id="Creator"]',
-            tagName: 'creator',
-            id: 'Creator',
-            label: 'creator: XRF Analyzer',
-            isEncrypted: false,
-            isEncryptable: false,
-          },
-          {
-            path: '/maiml/document/vendor[@id="Vendor"]',
-            tagName: 'vendor',
-            id: 'Vendor',
-            label: 'vendor: ベンダー情報',
-            isEncrypted: false,
-            isEncryptable: false,
-          },
-          {
-            path: '/maiml/document/owner[@id="Owner"]',
-            tagName: 'owner',
-            id: 'Owner',
-            label: 'owner: 組織情報',
-            isEncrypted: false,
-            isEncryptable: false,
-          },
-        ],
-      },
-      // ── protocol ────────────────────────────────────────────
-      {
-        path: '/maiml/protocol',
-        tagName: 'protocol',
-        id: 'protocol-001',
-        label: 'protocol（実験手順定義）',
-        isEncrypted: false,
-        isEncryptable: false, // protocol要素自体は暗号化不可
-        children: [
-          // ── method ──────────────────────────────────────────
-          {
-            path: "/maiml/protocol/method[@id='method-001']",
-            tagName: 'method',
-            id: 'method-001',
-            label: 'method: 合成実験手順',
-            isEncrypted: false,
-            isEncryptable: false, // method要素は暗号化不可
-            children: [
-              // pnml（Petri Net構造 — place/transition/arc はすべて暗号化不可）
-              {
-                path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']",
-                tagName: 'pnml',
-                id: 'pnml-001',
-                label: 'pnml（Petri Net構造）',
-                isEncrypted: false,
-                isEncryptable: false, // Petri Net構造全体は暗号化不可
-                children: [
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/place[@id='place-mat-001']",
-                    tagName: 'place',
-                    id: 'place-mat-001',
-                    label: 'place: 試料投入口（構造ノード）',
-                    isEncrypted: false,
-                    isEncryptable: false, // place は構造要素→暗号化不可
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/place[@id='place-cond-001']",
-                    tagName: 'place',
-                    id: 'place-cond-001',
-                    label: 'place: 条件入力口（構造ノード）',
-                    isEncrypted: false,
-                    isEncryptable: false,
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/place[@id='place-res-001']",
-                    tagName: 'place',
-                    id: 'place-res-001',
-                    label: 'place: 結果出力口（構造ノード）',
-                    isEncrypted: false,
-                    isEncryptable: false,
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/transition[@id='trans-001']",
-                    tagName: 'transition',
-                    id: 'trans-001',
-                    label: 'transition: 混合・反応処理',
-                    isEncrypted: false,
-                    isEncryptable: false, // transition は暗号化不可
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/arc[@id='arc-001']",
-                    tagName: 'arc',
-                    id: 'arc-001',
-                    label: 'arc: place-mat-001 → trans-001',
-                    isEncrypted: false,
-                    isEncryptable: false, // arc は暗号化不可
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/pnml[@id='pnml-001']/arc[@id='arc-002']",
-                    tagName: 'arc',
-                    id: 'arc-002',
-                    label: 'arc: trans-001 → place-res-001',
-                    isEncrypted: false,
-                    isEncryptable: false,
-                  },
-                ],
-              },
-              // program（命令シーケンス — instruction は暗号化可）
-              {
-                path: "/maiml/protocol/method[@id='method-001']/program[@id='prog-001']",
-                tagName: 'program',
-                id: 'prog-001',
-                label: 'program（命令シーケンス）',
-                isEncrypted: false,
-                isEncryptable: false, // program自体は暗号化不可
-                children: [
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/program[@id='prog-001']/instruction[@id='inst-001']",
-                    tagName: 'instruction',
-                    id: 'inst-001',
-                    label: 'instruction: 手順1（試薬調製） ※秘匿済み',
-                    isEncrypted: true, // 暗号化済みサンプル
-                    isEncryptable: true, // instruction は本来暗号化可能な種別（既に暗号化済みの状態）
-                    encryptionInfo: {
-                      algorithmUri: 'http://www.w3.org/2001/04/xmlenc#aes256-cbc',
-                      keyName: 'maiml-experiment-key-2026',
-                      encryptionId: 'enc-inst-001',
-                      encryptedAt: '2026-06-10T10:00:00Z',
-                    },
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/program[@id='prog-001']/instruction[@id='inst-002']",
-                    tagName: 'instruction',
-                    id: 'inst-002',
-                    label: 'instruction: 手順2（反応実施）',
-                    isEncrypted: false,
-                    isEncryptable: true, // instruction は暗号化可
-                  },
-                ],
-              },
-              // materialTemplate（試料テンプレート — property/content は暗号化可）
-              {
-                path: "/maiml/protocol/method[@id='method-001']/materialTemplate[@id='mt-001']",
-                tagName: 'materialTemplate',
-                id: 'mt-001',
-                label: 'materialTemplate: 試料A（硫酸銅水溶液）',
-                isEncrypted: false,
-                isEncryptable: true, // テンプレート全体の暗号化も可
-                children: [
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/materialTemplate[@id='mt-001']/property[@key='maiml:concentration']",
-                    tagName: 'property',
-                    key: 'maiml:concentration',
-                    label: 'property: 濃度',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/materialTemplate[@id='mt-001']/property[@key='myns:secretFormula']",
-                    tagName: 'property',
-                    key: 'myns:secretFormula',
-                    label: 'property: 秘密の製造方法 ※秘匿済み',
-                    isEncrypted: true,
-                    isEncryptable: true, // property は本来暗号化可能な種別（既に暗号化済みの状態）
-                    encryptionInfo: {
-                      algorithmUri: 'http://www.w3.org/2001/04/xmlenc#aes256-cbc',
-                      keyName: 'maiml-experiment-key-2026',
-                      encryptionId: 'enc-001',
-                      encryptedAt: '2026-06-10T10:00:00Z',
-                    },
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/materialTemplate[@id='mt-001']/content[@key='maiml:sampleData']",
-                    tagName: 'content',
-                    key: 'maiml:sampleData',
-                    label: 'content: 試料データ本体',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                ],
-              },
-              // conditionTemplate（条件テンプレート — 暗号化可）
-              {
-                path: "/maiml/protocol/method[@id='method-001']/conditionTemplate[@id='ct-001']",
-                tagName: 'conditionTemplate',
-                id: 'ct-001',
-                label: 'conditionTemplate: 反応条件',
-                isEncrypted: false,
-                isEncryptable: true,
-                children: [
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/conditionTemplate[@id='ct-001']/property[@key='maiml:temperature']",
-                    tagName: 'property',
-                    key: 'maiml:temperature',
-                    label: 'property: 反応温度 (℃)',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/conditionTemplate[@id='ct-001']/property[@key='maiml:reactionTime']",
-                    tagName: 'property',
-                    key: 'maiml:reactionTime',
-                    label: 'property: 反応時間 (min)',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/conditionTemplate[@id='ct-001']/content[@key='maiml:conditionData']",
-                    tagName: 'content',
-                    key: 'maiml:conditionData',
-                    label: 'content: 条件データ本体',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                ],
-              },
-              // resultTemplate（結果テンプレート — 暗号化可）
-              {
-                path: "/maiml/protocol/method[@id='method-001']/resultTemplate[@id='rt-001']",
-                tagName: 'resultTemplate',
-                id: 'rt-001',
-                label: 'resultTemplate: 実験結果',
-                isEncrypted: false,
-                isEncryptable: true,
-                children: [
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/resultTemplate[@id='rt-001']/property[@key='maiml:yield']",
-                    tagName: 'property',
-                    key: 'maiml:yield',
-                    label: 'property: 収率 (%)',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/resultTemplate[@id='rt-001']/property[@key='myns:secretResult']",
-                    tagName: 'property',
-                    key: 'myns:secretResult',
-                    label: 'property: 機密実験結果 ※秘匿済み',
-                    isEncrypted: true,
-                    isEncryptable: true, // property は本来暗号化可能な種別（既に暗号化済みの状態）
-                    encryptionInfo: {
-                      algorithmUri: 'http://www.w3.org/2001/04/xmlenc#aes256-cbc',
-                      keyName: 'results-encryption-key',
-                      encryptionId: 'enc-results-001',
-                      encryptedAt: '2026-06-16T09:00:00Z',
-                    },
-                  },
-                  {
-                    path: "/maiml/protocol/method[@id='method-001']/resultTemplate[@id='rt-001']/content[@key='maiml:resultData']",
-                    tagName: 'content',
-                    key: 'maiml:resultData',
-                    label: 'content: 結果データ本体',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      // ── data ────────────────────────────────────────────────
-      {
-        path: '/maiml/data',
-        tagName: 'data',
-        id: 'data-001',
-        label: 'data（実験インスタンスデータ）',
-        isEncrypted: false,
-        isEncryptable: false, // dataコンテナ自体は暗号化不可
-        children: [
-          {
-            path: "/maiml/data/results[@id='results-001']",
-            tagName: 'results',
-            id: 'results-001',
-            label: 'results: 実験1回目の記録',
-            isEncrypted: false,
-            isEncryptable: false, // resultsコンテナは暗号化不可
-            children: [
-              // material（試料インスタンス — property/content は暗号化可）
-              {
-                path: "/maiml/data/results[@id='results-001']/material[@id='mat-inst-001']",
-                tagName: 'material',
-                id: 'mat-inst-001',
-                label: 'material: 試料A実測値（硫酸銅水溶液）',
-                isEncrypted: false,
-                isEncryptable: true,
-                children: [
-                  {
-                    path: "/maiml/data/results[@id='results-001']/material[@id='mat-inst-001']/property[@key='maiml:concentration']",
-                    tagName: 'property',
-                    key: 'maiml:concentration',
-                    label: 'property: 実測濃度',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                  {
-                    path: "/maiml/data/results[@id='results-001']/material[@id='mat-inst-001']/content[@key='maiml:rawSpectrum']",
-                    tagName: 'content',
-                    key: 'maiml:rawSpectrum',
-                    label: 'content: 生スペクトルデータ',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                ],
-              },
-              // condition（条件インスタンス — 暗号化可）
-              {
-                path: "/maiml/data/results[@id='results-001']/condition[@id='cond-inst-001']",
-                tagName: 'condition',
-                id: 'cond-inst-001',
-                label: 'condition: 反応条件実測値',
-                isEncrypted: false,
-                isEncryptable: true,
-                children: [
-                  {
-                    path: "/maiml/data/results[@id='results-001']/condition[@id='cond-inst-001']/property[@key='maiml:temperature']",
-                    tagName: 'property',
-                    key: 'maiml:temperature',
-                    label: 'property: 実測反応温度 (℃)',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                  {
-                    path: "/maiml/data/results[@id='results-001']/condition[@id='cond-inst-001']/property[@key='maiml:reactionTime']",
-                    tagName: 'property',
-                    key: 'maiml:reactionTime',
-                    label: 'property: 実測反応時間 (min)',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                ],
-              },
-              // result（結果インスタンス — insertion を含む場合あり）
-              {
-                path: "/maiml/data/results[@id='results-001']/result[@id='res-inst-001']",
-                tagName: 'result',
-                id: 'res-inst-001',
-                label: 'result: 実験結果インスタンス',
-                isEncrypted: false,
-                isEncryptable: true,
-                children: [
-                  {
-                    path: "/maiml/data/results[@id='results-001']/result[@id='res-inst-001']/property[@key='maiml:yield']",
-                    tagName: 'property',
-                    key: 'maiml:yield',
-                    label: 'property: 収率 (%)',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                  {
-                    path: "/maiml/data/results[@id='results-001']/result[@id='res-inst-001']/content[@key='maiml:analysisData']",
-                    tagName: 'content',
-                    key: 'maiml:analysisData',
-                    label: 'content: 解析データ（CSVバイナリ）',
-                    isEncrypted: false,
-                    isEncryptable: true,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      // ── eventLog ────────────────────────────────────────────
-      {
-        path: '/maiml/eventLog',
-        tagName: 'eventLog',
-        id: 'eventLog-001',
-        label: 'eventLog（プロセスログ）',
-        isEncrypted: false,
-        isEncryptable: false, // イベントログは暗号化不可（改ざん防止が目的）
-        children: [
-          {
-            path: "/maiml/eventLog/log[@id='log-001']",
-            tagName: 'log',
-            id: 'log-001',
-            label: 'log: 実験記録ログ',
-            isEncrypted: false,
-            isEncryptable: false,
-            children: [
-              {
-                path: "/maiml/eventLog/log[@id='log-001']/trace[@id='trace-001']",
-                tagName: 'trace',
-                id: 'trace-001',
-                label: 'trace: 実験セッション1',
-                isEncrypted: false,
-                isEncryptable: false,
-                children: [
-                  {
-                    path: "/maiml/eventLog/log[@id='log-001']/trace[@id='trace-001']/event[@id='event-001']",
-                    tagName: 'event',
-                    id: 'event-001',
-                    label: 'event: 開始イベント',
-                    isEncrypted: false,
-                    isEncryptable: false, // イベント要素は暗号化不可
-                  },
-                  {
-                    path: "/maiml/eventLog/log[@id='log-001']/trace[@id='trace-001']/event[@id='event-002']",
-                    tagName: 'event',
-                    id: 'event-002',
-                    label: 'event: 完了イベント',
-                    isEncrypted: false,
-                    isEncryptable: false,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
-
-/** 鍵の型 */
-interface EncryptionKeyRecord {
-  keyId: string;
-  keyName: string;
-  algorithm: string;
-  keySize: number;
-  keyIdentifier?: string;
-  createdAt: string;
-  expiresAt: string | null;
-  createdBy: string;
-  usageCount: number;
-  lastUsedAt: string | null;
-  description: string;
-  isActive: boolean;
+function normalizeFrontAlgorithm(
+  raw: string | undefined,
+): 'aes-256-cbc' | 'aes-128-cbc' | 'aes-256-gcm' {
+  // フロント値（aes256-xxx 形式）を Policy値（aes-256-xxx 形式）に変換
+  if (raw === 'aes256-gcm') return 'aes-256-gcm';
+  if (raw === 'aes128-cbc') return 'aes-128-cbc';
+  if (raw === 'aes256-cbc') return 'aes-256-cbc';
+  // 既にPolicy形式で来た場合もそのまま受け取る（後方互換）
+  if (raw === 'aes-256-gcm') return 'aes-256-gcm';
+  if (raw === 'aes-128-cbc') return 'aes-128-cbc';
+  if (raw === 'aes-256-cbc') return 'aes-256-cbc';
+  // デフォルト
+  return 'aes-256-cbc';
 }
 
-/** 暗号化鍵スタブデータ（サーバー再起動までインメモリ保持） */
-let stubKeys: EncryptionKeyRecord[] = [
-  {
-    keyId: 'key-001',
-    keyName: 'maiml-experiment-key-2026',
-    algorithm: 'aes256-cbc',
-    keySize: 256,
-    createdAt: '2026-01-15T10:30:00Z',
-    expiresAt: '2027-01-15T10:30:00Z',
-    createdBy: 'admin@example.com',
-    usageCount: 127,
-    lastUsedAt: '2026-06-10T10:00:00Z',
-    description: '実験データ汎用暗号化鍵（2026年版）',
-    isActive: true,
-  },
-  {
-    keyId: 'key-002',
-    keyName: 'results-encryption-key',
-    algorithm: 'aes256-cbc',
-    keySize: 256,
-    createdAt: '2026-02-01T09:00:00Z',
-    expiresAt: '2027-02-01T09:00:00Z',
-    createdBy: 'manager@example.com',
-    usageCount: 45,
-    lastUsedAt: '2026-06-16T09:00:00Z',
-    description: '実験結果データ専用鍵',
-    isActive: true,
-  },
-  {
-    keyId: 'key-003',
-    keyName: 'material-key-dept01',
-    algorithm: 'aes128-cbc',
-    keySize: 128,
-    createdAt: '2026-03-10T14:00:00Z',
-    expiresAt: '2026-09-10T14:00:00Z',
-    createdBy: 'admin@example.com',
-    usageCount: 12,
-    lastUsedAt: '2026-05-20T11:30:00Z',
-    description: '部門01の材料データ専用鍵（短期）',
-    isActive: true,
-  },
-  {
-    keyId: 'key-004',
-    keyName: 'legacy-key-2025',
-    algorithm: 'aes128-cbc',
-    keySize: 128,
-    createdAt: '2025-06-01T08:00:00Z',
-    expiresAt: '2026-06-01T08:00:00Z',
-    createdBy: 'admin@example.com',
-    usageCount: 203,
-    lastUsedAt: '2026-05-31T23:59:00Z',
-    description: '旧年度データ用（有効期限切れ）',
-    isActive: false,
-  },
-];
-
-// ---------------------------------------------------------------------------
-// XMLプレビュー生成ヘルパー（スタブ）
-// ---------------------------------------------------------------------------
-
-const KEY_SIZE_MAP: Record<string, number> = {
-  'aes256-cbc': 256,
-  'aes192-cbc': 192,
-  'aes128-cbc': 128,
-  'aes256-gcm': 256,
-  'aes128-gcm': 128,
-  'tripledes-cbc': 168,
-  'rsa-oaep-mgf1p': 2048,
-};
-
-function buildPreviewXmlWithKey(keyName: string, algorithm: string, recordTimestamp: boolean): string {
-  const algorithmUri = `http://www.w3.org/2001/04/xmlenc#${algorithm}`;
-  const keySize = KEY_SIZE_MAP[algorithm] ?? 256;
-  const timestamp = new Date().toISOString();
-
-  const propertiesBlock = recordTimestamp
-    ? `
-    <xenc:EncryptionProperties>
-      <xenc:EncryptionProperty
-        Target="#enc-preview"
-        xmlns:maiml="http://www.maiml.org/schemas">
-        <maiml:encryptedAt>${timestamp}</maiml:encryptedAt>
-      </xenc:EncryptionProperty>
-    </xenc:EncryptionProperties>`
-    : '';
-
-  return `<property key="targetElement"
-          xmlns:xenc="http://www.w3.org/2001/04/xmlenc#"
-          xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-
-  <xenc:EncryptedData
-    Id="enc-preview"
-    Type="http://www.w3.org/2001/04/xmlenc#Element">
-
-    <xenc:EncryptionMethod
-      Algorithm="${algorithmUri}">
-      <xenc:KeySize>${keySize}</xenc:KeySize>
-    </xenc:EncryptionMethod>
-
-    <ds:KeyInfo>
-      <ds:KeyName>${keyName}</ds:KeyName>
-    </ds:KeyInfo>
-
-    <xenc:CipherData>
-      <xenc:CipherValue>
-        YWVzMjU2Y2JjZW5jcnlwdGVkZGF0YWV4YW1wbGU=
-      </xenc:CipherValue>
-    </xenc:CipherData>${propertiesBlock}
-
-  </xenc:EncryptedData>
-
-</property>`;
+/**
+ * EncryptionPolicy['algorithm'] からフロントエンドの EncryptionAlgorithmType 形式に変換する
+ */
+function toFrontAlgorithm(
+  algorithm: 'aes-256-cbc' | 'aes-128-cbc' | 'aes-256-gcm',
+): 'aes256-cbc' | 'aes128-cbc' | 'aes256-gcm' {
+  if (algorithm === 'aes-256-gcm') return 'aes256-gcm';
+  if (algorithm === 'aes-128-cbc') return 'aes128-cbc';
+  return 'aes256-cbc';
 }
 
-function buildPreviewXmlPbkdf2(algorithm: string, iterationCount: number): string {
-  const algorithmUri = `http://www.w3.org/2001/04/xmlenc#${algorithm}`;
-
-  return `<property key="targetElement"
-          xmlns:xenc="http://www.w3.org/2001/04/xmlenc#"
-          xmlns:xenc11="http://www.w3.org/2009/xmlenc11#"
-          xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-
-  <xenc:EncryptedData Type="http://www.w3.org/2001/04/xmlenc#Element">
-
-    <xenc:EncryptionMethod
-      Algorithm="${algorithmUri}"/>
-
-    <ds:KeyInfo>
-      <xenc11:DerivedKey>
-        <xenc11:KeyDerivationMethod
-          Algorithm="http://www.w3.org/2009/xmlenc11#pbkdf2">
-          <xenc11:PBKDF2-params>
-            <xenc11:Salt>
-              <xenc11:Specified>c2FsdHZhbHVlZXhhbXBsZQ==</xenc11:Specified>
-            </xenc11:Salt>
-            <xenc11:IterationCount>${iterationCount}</xenc11:IterationCount>
-            <xenc11:KeyLength>32</xenc11:KeyLength>
-            <xenc11:PRF Algorithm="http://www.w3.org/2001/04/xmldsig-more#hmac-sha256"/>
-          </xenc11:PBKDF2-params>
-        </xenc11:KeyDerivationMethod>
-      </xenc11:DerivedKey>
-    </ds:KeyInfo>
-
-    <xenc:CipherData>
-      <xenc:CipherValue>
-        cGJrZGYyZW5jcnlwdGVkZGF0YWV4YW1wbGU=
-      </xenc:CipherValue>
-    </xenc:CipherData>
-
-  </xenc:EncryptedData>
-
-</property>`;
+/**
+ * アルゴリズムに対応する鍵長（bytes）を返す
+ */
+function getKeySize(algorithm: 'aes-256-cbc' | 'aes-128-cbc' | 'aes-256-gcm'): number {
+  return algorithm === 'aes-128-cbc' ? 16 : 32;
 }
 
 // ---------------------------------------------------------------------------
@@ -672,6 +105,14 @@ function ok(res: Response, data: unknown): void {
   });
 }
 
+function badRequest(res: Response, code: string, message: string): void {
+  res.status(400).json({
+    success: false,
+    error: { code, message },
+    meta: { timestamp: new Date().toISOString() },
+  });
+}
+
 function notFound(res: Response, message: string): void {
   res.status(404).json({
     success: false,
@@ -680,458 +121,847 @@ function notFound(res: Response, message: string): void {
   });
 }
 
+function serverError(res: Response, err: unknown): void {
+  const message = err instanceof Error ? err.message : 'サーバーエラーが発生しました';
+  res.status(500).json({
+    success: false,
+    error: { code: 'E4001', message },
+    meta: { timestamp: new Date().toISOString() },
+  });
+}
+
 // ---------------------------------------------------------------------------
-// エンドポイントハンドラ
+// 固定鍵情報の生成ヘルパー（DBの代わりに test-keys/ から生成）
+// ---------------------------------------------------------------------------
+
+/**
+ * ファイル名（拡張子なし）から仮想の EncryptionKeyResponse を生成する
+ *
+ * @remarks
+ * test-keys/encryption/ の各 .key ファイルに対応する仮想鍵情報を生成する。
+ * DB の encryption_keys テーブルは使用しない。
+ *
+ * ファイル名とアルゴリズムの対応:
+ *   - test-encryption-key-aes128  → aes128-cbc
+ *   - test-encryption-key-aes256  → aes256-cbc（GCMも同じファイルを使用）
+ *   - test-encryption-key         → aes256-cbc（旧互換）
+ *   - その他                      → aes256-cbc
+ */
+function buildKeyResponseFromFile(
+  keyName: string,
+  createdAt: string = new Date().toISOString(),
+): EncryptionKeyResponse {
+  // アルゴリズムをファイル名から推測
+  let algorithm: 'aes256-cbc' | 'aes128-cbc' | 'aes256-gcm' = 'aes256-cbc';
+  if (keyName.includes('aes128')) {
+    algorithm = 'aes128-cbc';
+  } else if (keyName.includes('aes256')) {
+    algorithm = 'aes256-cbc';
+  }
+
+  return {
+    keyId: keyName,
+    keyName: keyName,
+    keyIdentifier: keyName.substring(0, 16),
+    algorithm,
+    keySource: 'load_file',
+    fileName: `${keyName}.key`,
+    isActive: true,
+    createdAt,
+    expiresAt: null,
+    lastUsedAt: null,
+    usageCount: 0,
+    description: `テスト用固定鍵ファイル: backend/test-keys/encryption/${keyName}.key`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// MAIMLファイル取得ヘルパー
+// ---------------------------------------------------------------------------
+
+/**
+ * プロジェクト名から MAIML ファイルの内容を取得する
+ */
+async function getMaimlContent(
+  organizationId: string,
+  projectName: string,
+): Promise<string | null> {
+  try {
+    const storageService = getStorageService();
+    const filePath = `projects/${projectName}/${projectName}.maiml`;
+    const buffer = await storageService.downloadFile(organizationId, filePath);
+    return buffer.toString('utf-8');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * MAIML ファイルを保存する（アーカイブバックアップ付き）
+ */
+async function saveMaimlContent(
+  organizationId: string,
+  projectName: string,
+  content: string,
+): Promise<{ updatedFilePath: string; backupFilePath: string }> {
+  const storageService = getStorageService();
+  const filePath = `projects/${projectName}/${projectName}.maiml`;
+  const backupPath = `projects/${projectName}/archive/${projectName}_backup_${Date.now()}.maiml`;
+
+  // バックアップを先に保存
+  try {
+    const current = await storageService.downloadFile(organizationId, filePath);
+    await storageService.uploadFile(organizationId, backupPath, current, { contentType: 'application/xml' });
+  } catch {
+    // 既存ファイルが存在しない場合はバックアップをスキップ
+  }
+
+  // 更新後のファイルを保存
+  await storageService.uploadFile(organizationId, filePath, Buffer.from(content, 'utf-8'), { contentType: 'application/xml' });
+
+  return { updatedFilePath: filePath, backupFilePath: backupPath };
+}
+
+// ---------------------------------------------------------------------------
+// MAIMLツリー構造取得
 // ---------------------------------------------------------------------------
 
 /**
  * GET /api/v1/encryption/projects/:projectName/structure
  * MAIMLファイルの暗号化対象ツリー構造を取得
+ *
+ * @remarks
+ * 【TODO: 本実装】MAIMLファイルをXMLパーサーで解析し、
+ *   各要素の isEncryptable / isEncrypted 状態を動的に生成する。
+ *   現在はファイルの取得のみ行い、構造はスタブを返す。
  */
 export const getMaimlStructure = async (req: Request, res: Response): Promise<void> => {
   const { projectName } = req.params;
-  console.log(`[encryption] getMaimlStructure: projectName=${projectName}`);
+  const organizationId = req.organizationId;
 
-  // TODO: 本実装では projectName からMAIMLファイルを取得してパース処理を行う
-  await new Promise((r) => setTimeout(r, 50));
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
 
-  ok(res, { structure: STUB_MAIML_STRUCTURE });
+  try {
+    const xmlContent = await getMaimlContent(organizationId, projectName);
+    if (!xmlContent) {
+      notFound(res, `プロジェクト "${projectName}" のMAIMLファイルが見つかりません`);
+      return;
+    }
+
+    // MAIMLをパースして暗号化対象ツリーを動的生成（XSD解析による isEncryptable 判定）
+    const structure = await parseMaimlToEncryptionTree(xmlContent);
+    ok(res, { structure });
+  } catch (err) {
+    serverError(res, err);
+  }
 };
+
+// ---------------------------------------------------------------------------
+// 暗号化プレビュー
+// ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/projects/:projectName/preview
  * 暗号化プレビューXMLを返す
+ *
+ * リクエストボディ:
+ *   - config: { algorithm: string, keyName?: string, ... }
+ *
+ * @remarks
+ * 【TODO: 本実装】指定ノードの実際のXMLを取得してプレビューを生成する。
  */
 export const previewEncryption = async (req: Request, res: Response): Promise<void> => {
   const { projectName } = req.params;
   const { config } = req.body as {
     config: {
-      algorithm: string;
-      keyMethod: string;
+      algorithm?: string;
+      keyMethod?: string;
       keyName?: string;
-      pbkdf2Config?: { iterationCount: number };
       encryptionProperties?: { recordTimestamp: boolean };
     };
   };
 
-  console.log(`[encryption] previewEncryption: projectName=${projectName}`);
-
-  // TODO: 本実装では指定ノードの実際のXMLを取得してプレビューを生成する
-  await new Promise((r) => setTimeout(r, 100));
-
-  const beforeXml = `<property key="targetElement"
-          xmlns:xenc="http://www.w3.org/2001/04/xmlenc#">
-  <value>機密データ（暗号化対象）</value>
-</property>`;
-
-  let afterXml: string;
-
-  if (config?.keyMethod === 'pbkdf2') {
-    afterXml = buildPreviewXmlPbkdf2(
-      config.algorithm ?? 'aes256-cbc',
-      config.pbkdf2Config?.iterationCount ?? 10000,
-    );
-  } else {
-    afterXml = buildPreviewXmlWithKey(
-      config?.keyName ?? '(未指定)',
-      config?.algorithm ?? 'aes256-cbc',
-      config?.encryptionProperties?.recordTimestamp ?? true,
-    );
+  if (!projectName) {
+    badRequest(res, 'E1003', 'projectName は必須です');
+    return;
   }
 
-  const algorithmUri = `http://www.w3.org/2001/04/xmlenc#${config?.algorithm ?? 'aes256-cbc'}`;
+  try {
+    const algorithm = normalizeFrontAlgorithm(config?.algorithm);
+    const policy: EncryptionPolicy = {
+      ...DEFAULT_ENCRYPTION_POLICY,
+      algorithm,
+    };
+    const algorithmUri = maimlEncryptionService.getAlgorithmIdentifier(policy);
 
-  ok(res, { beforeXml, afterXml, algorithmUri });
+    // MAIMLファイルを取得
+    const xmlContent = await getMaimlContent(req.organizationId ?? '', projectName);
+    const targetPath = (req.body as { targetPath?: string }).targetPath;
+
+    // 対象ノードの実XMLを取得してプレビューを生成する
+    let beforeXml: string;
+    if (xmlContent && targetPath) {
+      const elementXml = getElementXmlByTargetPath(xmlContent, targetPath);
+      beforeXml = elementXml ?? `<!-- 対象要素が見つかりません (targetPath=${targetPath}) -->`;
+    } else {
+      beforeXml = `<!-- MAIMLファイルまたは targetPath が指定されていません -->`;
+    }
+
+    const keyId = config?.keyName ?? `file:fixed:${algorithm}`;
+
+    // beforeXml から要素名を取得してプレビュー afterXml を組み立てる
+    // 実際の暗号化は行わず、EncryptedData のタグ構成（構造プレビュー）のみを返す
+    const encPreviewId = `enc-preview-${Date.now()}`;
+    let elementTag = 'Element';
+    if (beforeXml && beforeXml.trim().startsWith('<')) {
+      const tagMatch = beforeXml.trim().match(/^<([^\s/>]+)/);
+      if (tagMatch) {
+        elementTag = tagMatch[1];
+      }
+    }
+
+    const afterXml = [
+      `<xenc:EncryptedData xmlns:xenc="http://www.w3.org/2001/04/xmlenc#"`,
+      `                    xmlns:ds="http://www.w3.org/2000/09/xmldsig#"`,
+      `                    Id="${encPreviewId}"`,
+      `                    Type="http://www.w3.org/2001/04/xmlenc#Element">`,
+      `  <!-- 暗号化対象要素: <${elementTag}> -->`,
+      `  <xenc:EncryptionMethod Algorithm="${algorithmUri}"/>`,
+      `  <ds:KeyInfo>`,
+      `    <ds:KeyName>${keyId}</ds:KeyName>`,
+      `  </ds:KeyInfo>`,
+      `  <xenc:CipherData>`,
+      `    <xenc:CipherValue>(暗号化後の Base64 データ)</xenc:CipherValue>`,
+      `  </xenc:CipherData>`,
+      `</xenc:EncryptedData>`,
+    ].join('\n');
+
+    ok(res, { beforeXml, afterXml, algorithmUri, elementTag });
+  } catch (err) {
+    serverError(res, err);
+  }
 };
+
+// ---------------------------------------------------------------------------
+// 要素の暗号化
+// ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/projects/:projectName/encrypt
  * 指定要素の暗号化を実行
+ *
+ * リクエストボディ（フロントエンドから送信）:
+ *   - targetPaths: string[]          暗号化対象のXPathリスト
+ *   - config: EncryptionConfig       暗号化設定（algorithm, loadedKey 等を含む）
+ *
+ * @remarks
+ * フロントエンドの algorithm は 'aes256-cbc' 形式。
+ * normalizeFrontAlgorithm() で EncryptionPolicy の 'aes-256-cbc' 形式に変換してから処理する。
  */
 export const encryptElement = async (req: Request, res: Response): Promise<void> => {
   const { projectName } = req.params;
-  const { targetPath, config } = req.body;
+  const {
+    targetPaths,
+    config,
+  } = req.body as {
+    targetPaths?: string[];
+    config?: {
+      algorithm?: string;
+      loadedKey?: { serverKeyId?: string };
+      encryptionLevel?: string;
+    };
+    // 後方互換: 旧形式（targetPath 単数, keyId）もサポート
+    targetPath?: string;
+    keyId?: string;
+  };
+  const organizationId = req.organizationId;
 
-  console.log(`[encryption] encryptElement: projectName=${projectName}, targetPath=${targetPath}`);
-
-  // TODO: 本実装では W3C XML Encryption を使用して実際の暗号化を行う
-  await new Promise((r) => setTimeout(r, 300));
-
-  // 使用回数をインクリメント（スタブ）
-  if (config?.keyName) {
-    const key = stubKeys.find((k) => k.keyName === config.keyName);
-    if (key) {
-      key.usageCount += 1;
-      key.lastUsedAt = new Date().toISOString();
-    }
-  }
-
-  ok(res, {
-    success: true,
-    updatedFilePath: `projects/${projectName}/${projectName}.maiml`,
-    backupFilePath: `projects/${projectName}/archive/${projectName}_backup_${Date.now()}.maiml`,
-  });
-};
-
-/**
- * POST /api/v1/encryption/projects/:projectName/decrypt
- * 指定要素の復号化を実行
- */
-export const decryptElement = async (req: Request, res: Response): Promise<void> => {
-  const { projectName } = req.params;
-  const { targetPath, decryptionKey } = req.body;
-
-  console.log(`[encryption] decryptElement: projectName=${projectName}, targetPath=${targetPath}`);
-
-  // TODO: 本実装では W3C XML Encryption を使用して実際の復号化を行う
-  await new Promise((r) => setTimeout(r, 300));
-
-  // スタブ: "wrongpassword" はエラーとして返す（テスト用）
-  if (decryptionKey?.password === 'wrongpassword') {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E4001', message: '復号化に失敗しました。鍵またはパスワードが正しくありません。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
     return;
   }
 
-  ok(res, {
-    success: true,
-    decryptedXml: `<property key="targetElement">
-  <value>復号化されたデータ</value>
-</property>`,
-  });
+  // targetPaths（新形式）または targetPath（旧形式）を取得
+  const paths: string[] = targetPaths ?? (req.body.targetPath ? [req.body.targetPath] : []);
+  if (paths.length === 0) {
+    badRequest(res, 'E1003', 'targetPaths は必須です（1件以上指定してください）');
+    return;
+  }
+
+  try {
+    // フロントの algorithm 値 → EncryptionPolicy の algorithm 値に変換
+    const algorithm = normalizeFrontAlgorithm(config?.algorithm);
+    const policy: EncryptionPolicy = {
+      ...DEFAULT_ENCRYPTION_POLICY,
+      algorithm,
+    };
+
+    // MAIMLファイルを取得
+    const xmlContent = await getMaimlContent(organizationId, projectName);
+    if (!xmlContent) {
+      notFound(res, `プロジェクト "${projectName}" のMAIMLファイルが見つかりません`);
+      return;
+    }
+
+    // test-keys/encryption/ から algorithm に対応する固定鍵を読み込む
+    const keyEntry = await maimlEncryptionService.generateKey(policy);
+    if (!keyEntry) {
+      ok(res, {
+        skipped: true,
+        message: '本番モードのため鍵が取得できず、暗号化処理をスキップしました',
+      });
+      return;
+    }
+
+    // 各 targetPath に対して暗号化処理し、XML を逐次書き換え
+    // validateEncryptionScope が非同期のため、直列で処理する（updatedXml を逐次更新するため Promise.all は使わない）
+    let updatedXml = xmlContent;
+    const encryptedResults: Array<{
+      targetPath: string;
+      success: boolean;
+      error?: string;
+      warning?: string;
+      encryptionId?: string;
+      algorithmUri?: string;
+      encryptedAt?: string;
+      hasInsertionRefs?: boolean;
+      insertionRefCount?: number;
+    }> = [];
+
+    for (const targetPath of paths) {
+      // UPA 制約チェック（非同期）
+      const scopeResult = await maimlEncryptionService.validateEncryptionScope(targetPath);
+      if (!scopeResult.isValid) {
+        encryptedResults.push({
+          targetPath,
+          success: false,
+          error: `UPA 制約違反: ${scopeResult.message ?? '暗号化スコープが無効です'}`,
+        });
+        continue;
+      }
+
+      // targetPath の要素 XML を取得（実際の要素コンテンツを暗号化対象にする）
+      const elementXml = getElementXmlByTargetPath(updatedXml, targetPath);
+      if (!elementXml) {
+        encryptedResults.push({
+          targetPath,
+          success: false,
+          error: `対象要素が見つかりません: ${targetPath}`,
+        });
+        continue;
+      }
+
+      // insertion 確認（実際の要素XMLを渡す）
+      const insertionRefs = maimlEncryptionService.extractInsertionRefs(elementXml);
+
+      // 暗号化実行（実際の要素XMLを渡す）
+      const cipherResult = maimlEncryptionService.encryptElement(keyEntry, elementXml, policy);
+
+      // childRefs XML フラグメントを生成
+      const childRefsXml = buildChildRefsXml(insertionRefs);
+
+      // <EncryptedData> XML を生成
+      const encryptedDataXml = buildEncryptedDataXml(cipherResult, childRefsXml || undefined);
+
+      // XML 内の対象要素を <EncryptedData> に置換
+      const { updated, replaced } = replaceElementInXml(updatedXml, targetPath, encryptedDataXml);
+      updatedXml = updated;
+
+      encryptedResults.push({
+        targetPath,
+        success: replaced,
+        encryptionId: cipherResult.encryptionId,
+        algorithmUri: cipherResult.algorithmUri,
+        encryptedAt: cipherResult.encryptedAt,
+        hasInsertionRefs: insertionRefs.length > 0,
+        insertionRefCount: insertionRefs.length,
+        ...(replaced ? {} : { warning: '要素の置換に失敗しました（targetPath の形式を確認してください）' }),
+      });
+    }
+
+    // 更新後の XML を MAIML ファイルとして保存
+    const { updatedFilePath, backupFilePath } = await saveMaimlContent(
+      organizationId,
+      projectName,
+      updatedXml,
+    );
+
+    // 使用後に鍵を廃棄（固定鍵はインメモリキャッシュからクリア）
+    maimlEncryptionService.disposeKey(keyEntry.keyId);
+
+    ok(res, {
+      success: true,
+      encryptedCount: encryptedResults.filter((r) => r.success).length,
+      results: encryptedResults,
+      algorithm: toFrontAlgorithm(algorithm),
+      algorithmUri: ALGORITHM_URI_MAP[algorithm],
+      updatedFilePath,
+      backupFilePath,
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
 };
+
+// ---------------------------------------------------------------------------
+// 要素の復号化（後方互換 POST /decrypt）
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /api/v1/encryption/projects/:projectName/decrypt
+ * 指定要素の復号化を実行（後方互換エンドポイント）
+ *
+ * リクエストボディ（フロントエンドから送信）:
+ *   - targetPaths: string[]          復号化対象のXPathリスト
+ *   - decryptionKey: { method, keyName?, password? }
+ *
+ * @remarks
+ * 旧来 targetPath / keyId でリクエストしていた形式も後方互換で受け付ける。
+ * algorithmUri は test-keys/ 固定鍵のデフォルト（aes-256-cbc）を使用。
+ */
+export const decryptElement = async (req: Request, res: Response): Promise<void> => {
+  const { projectName } = req.params;
+  const {
+    targetPaths,
+    decryptionKey,
+  } = req.body as {
+    targetPaths?: string[];
+    decryptionKey?: {
+      method?: string;
+      keyName?: string;
+      password?: string;
+    };
+    // 後方互換: 旧形式（targetPath 単数, keyId）もサポート
+    targetPath?: string;
+    keyId?: string;
+  };
+  const organizationId = req.organizationId;
+
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
+
+  // targetPaths（新形式）または targetPath（旧形式）を取得
+  const paths: string[] = targetPaths ?? (req.body.targetPath ? [req.body.targetPath] : []);
+  if (paths.length === 0) {
+    badRequest(res, 'E1003', 'targetPaths は必須です（1件以上指定してください）');
+    return;
+  }
+
+  try {
+    // test-keys/ から固定鍵を取得（デフォルト: aes-256-cbc）
+    const keyEntry = await maimlEncryptionService.retrieveKeyForDecryption(
+      decryptionKey?.keyName ?? 'test-key',
+      DEFAULT_ENCRYPTION_POLICY,
+    );
+    if (!keyEntry) {
+      notFound(res, '鍵が見つかりません。test-keys/encryption/ に鍵ファイルが存在するか確認してください。');
+      return;
+    }
+
+    ok(res, {
+      success: true,
+      decryptedXml: `<!-- TODO: 本実装後に実際の復号結果を返す (targetPaths=${JSON.stringify(paths)}) -->`,
+      _keyEntryId: keyEntry.keyId,
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// 鍵一覧取得（test-keys/ フォルダスキャン、DB不使用）
+// ---------------------------------------------------------------------------
 
 /**
  * GET /api/v1/encryption/keys
- * 暗号化鍵一覧を取得
+ * 暗号化鍵一覧を取得（test-keys/encryption/ をスキャン）
+ *
+ * @remarks
+ * DB（encryption_keys テーブル）は使用しない。
+ * `backend/test-keys/encryption/` に存在する .key ファイルを一覧して、
+ * 各ファイルに対応する仮想の EncryptionKeyResponse を生成して返す。
  */
-export const listKeys = async (_req: Request, res: Response): Promise<void> => {
-  // TODO: 本実装では DB から鍵一覧を取得する
-  await new Promise((r) => setTimeout(r, 50));
-  ok(res, { keys: stubKeys });
+export const listKeys = async (req: Request, res: Response): Promise<void> => {
+  const organizationId = req.organizationId;
+
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
+
+  try {
+    const keyNames = await testKeyLoader.listEncryptionKeyNames();
+    const keys: EncryptionKeyResponse[] = keyNames.map((name) => buildKeyResponseFromFile(name));
+    ok(res, { keys });
+  } catch (err) {
+    serverError(res, err);
+  }
 };
 
 /**
  * GET /api/v1/encryption/keys/:keyId
- * 暗号化鍵の詳細を取得
+ * 暗号化鍵の詳細を取得（test-keys/ から検索）
+ *
+ * @remarks
+ * keyId は test-keys/encryption/ のファイル名（拡張子なし）と一致する。
  */
 export const getKey = async (req: Request, res: Response): Promise<void> => {
   const { keyId } = req.params;
-  // TODO: 本実装では DB から鍵情報を取得する
-  await new Promise((r) => setTimeout(r, 50));
+  const organizationId = req.organizationId;
 
-  const key = stubKeys.find((k) => k.keyId === keyId);
-  if (!key) {
-    notFound(res, `鍵が見つかりません: ${keyId}`);
-    return;
-  }
-  ok(res, { key });
-};
-
-/**
- * POST /api/v1/encryption/keys
- * 暗号化鍵を新規作成
- */
-export const createKey = async (req: Request, res: Response): Promise<void> => {
-  const { keyName, algorithm, expiresAt, description } = req.body as {
-    keyName: string;
-    algorithm: string;
-    expiresAt?: string;
-    description?: string;
-  };
-
-  console.log(`[encryption] createKey: keyName=${keyName}, algorithm=${algorithm}`);
-
-  // TODO: 本実装では暗号ライブラリで鍵を生成し DB に保存する
-  await new Promise((r) => setTimeout(r, 200));
-
-  if (stubKeys.some((k) => k.keyName === keyName)) {
-    res.status(409).json({
-      success: false,
-      error: { code: 'E7001', message: `鍵名 "${keyName}" はすでに存在します。` },
-      meta: { timestamp: new Date().toISOString() },
-    });
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
     return;
   }
 
-  const newKey: EncryptionKeyRecord = {
-    keyId: `key-${Date.now()}`,
-    keyName,
-    algorithm,
-    keySize: KEY_SIZE_MAP[algorithm] ?? 256,
-    createdAt: new Date().toISOString(),
-    expiresAt: expiresAt ?? null,
-    createdBy: 'current-user@example.com',
-    usageCount: 0,
-    lastUsedAt: null,
-    description: description ?? '',
-    isActive: true,
-  };
-
-  stubKeys.push(newKey);
-
-  res.status(201).json({
-    success: true,
-    data: { key: newKey },
-    meta: { timestamp: new Date().toISOString() },
-  });
+  try {
+    const keyNames = await testKeyLoader.listEncryptionKeyNames();
+    const found = keyNames.find((name) => name === keyId);
+    if (!found) {
+      notFound(res, `鍵が見つかりません: ${keyId}`);
+      return;
+    }
+    ok(res, { key: buildKeyResponseFromFile(found) });
+  } catch (err) {
+    serverError(res, err);
+  }
 };
 
 // ---------------------------------------------------------------------------
-// 鍵エクスポート / インポート / ローテーション
+// 鍵作成（後方互換 POST /keys — DB不使用）
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /api/v1/encryption/keys
+ * 鍵作成リクエスト（テストモードでは固定鍵情報を返す）
+ *
+ * @remarks
+ * テストモードではDBへの書き込みを行わない。
+ * リクエストされたアルゴリズムに対応する固定鍵情報を返す。
+ */
+export const createKey = async (req: Request, res: Response): Promise<void> => {
+  const { keyName, algorithm } = req.body as {
+    keyName: string;
+    algorithm: string;
+  };
+  const organizationId = req.organizationId;
+
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
+
+  if (!keyName || !algorithm) {
+    badRequest(res, 'E1003', '鍵名とアルゴリズムは必須です');
+    return;
+  }
+
+  try {
+    const normalizedAlg = normalizeFrontAlgorithm(algorithm);
+
+    // アルゴリズムに対応する固定鍵ファイル名を返す
+    const fixedKeyName = normalizedAlg === 'aes-128-cbc'
+      ? 'test-encryption-key-aes128'
+      : 'test-encryption-key-aes256';
+
+    const key: EncryptionKeyResponse = {
+      ...buildKeyResponseFromFile(fixedKeyName),
+      // リクエストの keyName と algorithm を反映して返す
+      keyName,
+      algorithm: toFrontAlgorithm(normalizedAlg),
+    };
+
+    res.status(201).json({
+      success: true,
+      data: { key },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// 鍵削除（固定鍵は削除不可）
+// ---------------------------------------------------------------------------
+
+/**
+ * DELETE /api/v1/encryption/keys/:keyId
+ * 暗号化鍵削除（テストモードでは固定鍵のため削除不可）
+ *
+ * @remarks
+ * テストモードでは test-keys/ の固定ファイルを参照するため、削除操作は行えない。
+ * 409 を返して削除不可であることを伝える。
+ */
+export const deleteKey = async (req: Request, res: Response): Promise<void> => {
+  const { keyId } = req.params;
+  const organizationId = req.organizationId;
+
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
+
+  try {
+    const keyNames = await testKeyLoader.listEncryptionKeyNames();
+    const found = keyNames.find((name) => name === keyId);
+    if (!found) {
+      notFound(res, `鍵が見つかりません: ${keyId}`);
+      return;
+    }
+
+    // テストモードでは固定鍵ファイルのため削除不可
+    res.status(409).json({
+      success: false,
+      error: {
+        code: 'E7002',
+        message: 'テストモードでは固定鍵ファイルのため削除できません（backend/test-keys/encryption/ を直接操作してください）',
+      },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// 鍵エクスポート
 // ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/keys/:keyId/export
- * 指定した1つの鍵を .key 形式でパスワード保護してエクスポート
+ * 指定した鍵を .key 形式でエクスポート
  *
  * @remarks
- * 【本実装への移行】
- * - URL パラメータ keyId の鍵ファイルを S3/Swift から取得
- * - AES-256-CBC でパスワード暗号化してBase64エンコード
- * - .key ファイルとして返す（1鍵 = 1ファイル）
+ * テストモードでは test-keys/encryption/ から鍵バイト列を読み込み、
+ * Base64 エンコードして返す（パスワード保護はスタブ実装）。
  */
 export const exportKey = async (req: Request, res: Response): Promise<void> => {
   const { keyId } = req.params as { keyId: string };
   const { password } = req.body as { password: string };
+  const organizationId = req.organizationId;
+
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
 
   if (!password) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E1003', message: 'パスワードは必須です。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
+    badRequest(res, 'E1003', 'パスワードは必須です');
     return;
   }
 
-  // 指定した鍵が存在するか確認
-  const foundKey = stubKeys.find((k) => k.keyId === keyId);
-  if (!foundKey) {
-    notFound(res, '指定した鍵が見つかりません。');
-    return;
+  try {
+    // keyId に対応するアルゴリズムを判定
+    const algorithm = keyId.includes('aes128') ? 'aes-128-cbc' as const : 'aes-256-cbc' as const;
+
+    // test-keys/ から鍵バイト列を読み込む
+    const keyBuffer = await testKeyLoader.loadEncryptionKeyByAlgorithm(algorithm);
+    if (!keyBuffer) {
+      notFound(res, `鍵ファイルが見つかりません: ${keyId}（npx ts-node backend/scripts/generate-test-keys.ts を実行してください）`);
+      return;
+    }
+
+    // TODO: 本実装 — AES-256-CBC でパスワード暗号化して返す
+    // 現状はBase64エンコードのみ（パスワード保護はスタブ）
+    const fileContent = Buffer.from(
+      JSON.stringify({
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        algorithm: toFrontAlgorithm(algorithm),
+        keyId,
+        encryptedKeyMaterial: keyBuffer.toString('base64'),
+        _note: 'テストモード: パスワード保護は実装中',
+      }),
+    ).toString('base64');
+
+    const fileName = `${keyId}.key`;
+    ok(res, { fileContent, fileName });
+  } catch (err) {
+    serverError(res, err);
   }
-
-  // TODO: 本実装では S3/Swift から鍵ファイルを取得し、AES-256-CBC でパスワード暗号化して返す
-  await new Promise((r) => setTimeout(r, 300));
-
-  // スタブ: ダミーのBase64エンコードデータを返す（単一鍵形式）
-  const stubFileContent = Buffer.from(
-    JSON.stringify({
-      version: '1.0',
-      exportedAt: new Date().toISOString(),
-      encryptionMethod: 'AES-256-CBC',
-      key: {
-        keyId: foundKey.keyId,
-        keyName: foundKey.keyName,
-        algorithm: foundKey.algorithm,
-        keyIdentifier: foundKey.keyIdentifier ?? `stub-${foundKey.keyId}`,
-        // TODO: 本実装では実際の鍵素材を AES-256 で暗号化してここに格納
-        encryptedKeyMaterial: 'STUB_ENCRYPTED_KEY_MATERIAL_BASE64==',
-        metadata: {
-          createdAt: foundKey.createdAt,
-          description: foundKey.description ?? '',
-        },
-      },
-    }),
-  ).toString('base64');
-
-  const fileName = `${foundKey.keyName}_${foundKey.keyIdentifier ?? foundKey.keyId.substring(0, 8)}.key`;
-
-  ok(res, { fileContent: stubFileContent, fileName });
 };
+
+// ---------------------------------------------------------------------------
+// 鍵インポート（テストモードでは固定鍵情報を返す）
+// ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/keys/import
- * .key / .pem / .pfx 形式の外部ファイルを取り込んでシステムに保存
+ * .key / .pem / .pfx 形式の外部ファイルを取り込む（テストモードではスタブ）
  *
  * @remarks
- * 【本実装への移行】
- * - ファイル形式（.key/.pem/.pfx）を判定してパース
- * - .key: exportKeys で生成した独自形式を復号化して読み込み
- * - .pem: Node.js crypto でパース
- * - .pfx: Node.js crypto でパース（パスワード必要）
- * - 鍵素材を S3/Swift に保存し、encryption_keys テーブルに登録
+ * テストモードではアップロードされたファイルは実際には使用しない。
+ * test-keys/ の固定鍵情報を返す。
  */
 export const importKey = async (req: Request, res: Response): Promise<void> => {
-  const { fileName, fileContent, password } = req.body as {
+  const { fileName, fileContent } = req.body as {
     fileName: string;
     fileContent: string;
-    password?: string;
+    description?: string;
   };
+  const organizationId = req.organizationId;
+
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
 
   if (!fileName || !fileContent) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E1003', message: 'ファイル名とファイル内容は必須です。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
+    badRequest(res, 'E1003', 'ファイル名とファイル内容は必須です');
     return;
   }
 
-  // ファイル形式の確認
   const ext = fileName.toLowerCase().split('.').pop();
   if (!['key', 'pem', 'pfx'].includes(ext ?? '')) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E1002', message: '.key, .pem, .pfx 形式のファイルのみインポート可能です。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
+    badRequest(res, 'E1002', '.key, .pem, .pfx 形式のファイルのみインポート可能です');
     return;
   }
 
-  // TODO: 本実装では以下を実施
-  // 1. fileContent（Base64）をデコードしてファイル形式をパース
-  // 2. .pfx/.key（パスワード保護）の場合は password で復号化
-  // 3. 鍵素材を S3/Swift に保存
-  // 4. encryption_keys テーブルに登録
-  await new Promise((r) => setTimeout(r, 300));
+  try {
+    // テストモードでは常に固定鍵情報を返す
+    const key: EncryptionKeyResponse = {
+      ...buildKeyResponseFromFile('test-encryption-key-aes256'),
+      keyName: fileName.replace(/\.(key|pem|pfx)$/i, ''),
+      description: `${fileName} からインポート（テストモード: test-keys/encryption/test-encryption-key-aes256.key を使用）`,
+    };
 
-  // スタブ: インポートされた鍵として新しいレコードを追加
-  const baseName = fileName.replace(/\.(key|pem|pfx)$/i, '');
-  const newKeyName = `imported-${baseName}-${Date.now()}`;
-  const newKey: EncryptionKeyRecord = {
-    keyId: `key-import-${Date.now()}`,
-    keyName: newKeyName,
-    algorithm: 'aes256-cbc', // TODO: 本実装では実際のアルゴリズムを判定
-    keySize: 256,
-    createdAt: new Date().toISOString(),
-    expiresAt: null,
-    createdBy: 'current-user@example.com',
-    usageCount: 0,
-    lastUsedAt: null,
-    description: `${fileName} からインポート`,
-    isActive: true,
-  };
-
-  stubKeys.push(newKey);
-
-  res.status(201).json({
-    success: true,
-    data: { key: newKey },
-    meta: { timestamp: new Date().toISOString() },
-  });
+    res.status(201).json({
+      success: true,
+      data: { key },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
 };
+
+// ---------------------------------------------------------------------------
+// 鍵ローテーション（スタブ）
+// ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/keys/:keyId/rotate
  * 選択した鍵で暗号化された EncryptedData を全て新しい鍵で再暗号化
  *
  * @remarks
- * 【本実装への移行】
- * - 旧鍵IDに紐づく全 EncryptedData を maiml_element テーブルから検索
- * - バックグラウンドジョブ（キュー）に再暗号化タスクを投入
- * - ジョブIDを返す（フロントエンドはジョブIDで進捗確認）
- *
- * 【未実装理由】
- * MAIMLファイル内の全 EncryptedData を検索・再暗号化するには
- * maiml_publish スキーマの maiml_element テーブルへのアクセスと
- * バックグラウンドジョブ基盤の整備が必要なため、別タスクで実装予定。
+ * 【TODO: 本実装】バックグラウンドジョブで再暗号化を実行する。
+ * テストモードでは not_implemented を返す。
  */
 export const rotateKey = async (req: Request, res: Response): Promise<void> => {
   const { keyId } = req.params;
+  const organizationId = req.organizationId;
 
-  const key = stubKeys.find((k) => k.keyId === keyId);
-  if (!key) {
-    notFound(res, `鍵が見つかりません: ${keyId}`);
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
     return;
   }
 
-  // TODO: 本実装では以下を実施
-  // 1. keyId に紐づく全 EncryptedData を検索（maiml_element テーブル）
-  // 2. 新しい鍵を生成
-  // 3. バックグラウンドジョブで再暗号化を実行
-  // 4. ジョブIDを返す
-  await new Promise((r) => setTimeout(r, 200));
+  try {
+    const keyNames = await testKeyLoader.listEncryptionKeyNames();
+    const found = keyNames.find((name) => name === keyId);
+    if (!found) {
+      notFound(res, `鍵が見つかりません: ${keyId}`);
+      return;
+    }
 
-  ok(res, {
-    jobId: undefined,
-    targetCount: key.usageCount, // スタブ: usageCount を対象件数として返す
-    status: 'not_implemented',
-    message:
-      '鍵ローテーション機能は現在実装中です。本機能は近日中に提供予定です。',
-  });
-};
-
-/**
- * DELETE /api/v1/encryption/keys/:keyId
- * 暗号化鍵を削除
- */
-export const deleteKey = async (req: Request, res: Response): Promise<void> => {
-  const { keyId } = req.params;
-
-  // TODO: 本実装では DB から鍵情報を取得して論理削除または物理削除を行う
-  await new Promise((r) => setTimeout(r, 150));
-
-  const idx = stubKeys.findIndex((k) => k.keyId === keyId);
-  if (idx === -1) {
-    notFound(res, `鍵が見つかりません: ${keyId}`);
-    return;
-  }
-
-  if (stubKeys[idx].usageCount > 0) {
-    res.status(409).json({
-      success: false,
-      error: { code: 'E7002', message: 'この鍵はMAIMLデータの暗号化に使用されているため削除できません。' },
-      meta: { timestamp: new Date().toISOString() },
+    ok(res, {
+      jobId: undefined,
+      targetCount: 0,
+      status: 'not_implemented',
+      message: '鍵ローテーション機能は現在実装中です。本機能は近日中に提供予定です。',
     });
-    return;
+  } catch (err) {
+    serverError(res, err);
   }
-
-  stubKeys.splice(idx, 1);
-  ok(res, { deleted: true, keyId });
 };
 
 // ---------------------------------------------------------------------------
-// 鍵生成 / アップロード
+// 鍵生成（POST /keys/generate — テストモードでは固定鍵情報を返す）
 // ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/keys/generate
- * AES-256 鍵をランダム生成してファイルサーバに保存
+ * AES 鍵生成リクエスト（テストモードでは固定鍵情報を返す）
  *
  * @remarks
- * 【本実装への移行】encryptionKeyService.generateKey() を呼び出す
+ * テストモードではDBへの書き込みを行わない。
+ * リクエストされたアルゴリズムに対応する固定鍵ファイル情報を返す。
  */
 export const generateKey = async (req: Request, res: Response): Promise<void> => {
-  const { keyName, algorithm, description } = req.body as {
+  const { keyName, algorithm, description, expiresAt } = req.body as {
     keyName: string;
     algorithm: string;
     description?: string;
+    expiresAt?: string;
   };
+  const organizationId = req.organizationId;
 
-  // TODO: バリデーション（E1003）
-  if (!keyName || !algorithm) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E1003', message: '鍵名とアルゴリズムは必須です。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
     return;
   }
 
-  // TODO: 本実装
-  // const result = await encryptionKeyService.generateKey(organizationId, userId, { keyName, algorithm, description });
-  await new Promise((r) => setTimeout(r, 300));
+  if (!keyName || !algorithm) {
+    badRequest(res, 'E1003', '鍵名とアルゴリズムは必須です');
+    return;
+  }
 
-  ok(res, {
-    keyId: `key-gen-${Date.now()}`,
-    keyIdentifier: 'b8e3a7f1d2c94560',
-    fileName: `${keyName}.key`,
-    algorithm,
-    keySource: 'new_key',
-    createdAt: new Date().toISOString(),
-  });
+  try {
+    const normalizedAlg = normalizeFrontAlgorithm(algorithm);
+
+    // テストモード: 対応する固定鍵ファイルが存在するか確認
+    const fixedKeyName = normalizedAlg === 'aes-128-cbc'
+      ? 'test-encryption-key-aes128'
+      : 'test-encryption-key-aes256';
+
+    const keyBuffer = await testKeyLoader.loadEncryptionKeyByAlgorithm(normalizedAlg);
+    if (!keyBuffer) {
+      serverError(
+        res,
+        new Error(
+          `テスト鍵ファイルが見つかりません: backend/test-keys/encryption/${fixedKeyName}.key\n` +
+          'npx ts-node backend/scripts/generate-test-keys.ts を実行してください',
+        ),
+      );
+      return;
+    }
+
+    const response: KeyOperationResponse = {
+      keyId: fixedKeyName,
+      keyIdentifier: fixedKeyName.substring(0, 16),
+      fileName: `${fixedKeyName}.key`,
+      algorithm: toFrontAlgorithm(normalizedAlg),
+      keySource: 'load_file',
+      createdAt: new Date().toISOString(),
+    };
+
+    res.status(201).json({
+      success: true,
+      data: response,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
 };
+
+// ---------------------------------------------------------------------------
+// 鍵ファイルアップロード（テストモードでは固定鍵情報を返す）
+// ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/keys/upload
- * 既存の鍵ファイル（.key/.pem/.pfx）または公開鍵（.pem/.cer）をアップロード
+ * 鍵ファイルアップロードリクエスト（テストモードでは固定鍵情報を返す）
  *
  * @remarks
- * 【本実装への移行】multer でファイルを受け取り、encryptionKeyService.uploadKeyFile() を呼び出す
+ * テストモードではアップロードされたファイルは実際には使用しない。
+ * リクエストされたアルゴリズムに対応する固定鍵情報を返す。
  */
 export const uploadKeyFile = async (req: Request, res: Response): Promise<void> => {
   const { keyName, algorithm, keySource } = req.body as {
@@ -1139,35 +969,50 @@ export const uploadKeyFile = async (req: Request, res: Response): Promise<void> 
     algorithm: string;
     keySource: 'load_file' | 'public_key';
   };
+  const organizationId = req.organizationId;
 
-  // TODO: multer によるファイル受け取り
-  // const file = req.file;
-  // if (!file) { return badRequest(res, 'キーファイルが必要です。'); }
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
 
-  // TODO: 本実装
-  // const result = await encryptionKeyService.uploadKeyFile(organizationId, userId, file.buffer, file.originalname, { keyName, algorithm, keySource });
-  await new Promise((r) => setTimeout(r, 300));
+  if (!keyName || !algorithm) {
+    badRequest(res, 'E1003', '鍵名とアルゴリズムは必須です');
+    return;
+  }
 
-  ok(res, {
-    keyId: `key-upload-${Date.now()}`,
-    keyIdentifier: 'a3f5d9c2e4b81f7a',
-    fileName: 'uploaded.key', // TODO: 本実装では file.originalname
-    algorithm,
-    keySource,
-    createdAt: new Date().toISOString(),
-  });
+  try {
+    const normalizedAlg = normalizeFrontAlgorithm(algorithm);
+    const fixedKeyName = normalizedAlg === 'aes-128-cbc'
+      ? 'test-encryption-key-aes128'
+      : 'test-encryption-key-aes256';
+
+    const response: KeyOperationResponse = {
+      keyId: fixedKeyName,
+      keyIdentifier: fixedKeyName.substring(0, 16),
+      fileName: `${fixedKeyName}.key`,
+      algorithm: toFrontAlgorithm(normalizedAlg),
+      keySource: keySource ?? 'load_file',
+      createdAt: new Date().toISOString(),
+    };
+
+    res.status(201).json({
+      success: true,
+      data: response,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
 };
 
 // ---------------------------------------------------------------------------
-// UPA制約チェック
+// UPA 制約チェック
 // ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/upa-check
  * UPA（Unique Particle Attribution）制約チェックを実行
- *
- * @remarks
- * 【本実装への移行】encryptionKeyService.checkUpaConstraints() を呼び出す
  */
 export const checkUpaConstraints = async (req: Request, res: Response): Promise<void> => {
   const { projectName, targetPath, encryptionLevel } = req.body as {
@@ -1176,24 +1021,28 @@ export const checkUpaConstraints = async (req: Request, res: Response): Promise<
     encryptionLevel: string;
   };
 
-  // TODO: バリデーション
   if (!projectName || !targetPath || !encryptionLevel) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E1003', message: 'projectName, targetPath, encryptionLevel は必須です。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
+    badRequest(res, 'E1003', 'projectName, targetPath, encryptionLevel は必須です');
     return;
   }
 
-  // TODO: 本実装
-  // const result = await encryptionKeyService.checkUpaConstraints(organizationId, projectName, targetPath, encryptionLevel);
-  await new Promise((r) => setTimeout(r, 150));
+  try {
+    const result = await maimlEncryptionService.validateEncryptionScope(targetPath);
 
-  ok(res, {
-    isValid: true,
-    violations: [],
-  });
+    const response: UpaCheckResponse = {
+      isValid: result.isValid,
+      violations: result.isValid ? [] : [
+        {
+          elementPath: targetPath,
+          message: result.message ?? 'UPA 制約に違反しています',
+        },
+      ],
+    };
+
+    ok(res, response);
+  } catch (err) {
+    serverError(res, err);
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -1203,192 +1052,294 @@ export const checkUpaConstraints = async (req: Request, res: Response): Promise<
 /**
  * GET /api/v1/encryption/check-insertion/:projectName/:nodePath
  * 選択ノードの子要素に <insertion> が含まれるか確認
- *
- * @remarks
- * nodePath は URL エンコードして渡すこと
- * 【本実装への移行】encryptionKeyService.checkInsertion() を呼び出す
  */
 export const checkInsertion = async (req: Request, res: Response): Promise<void> => {
   const { projectName } = req.params;
   const nodePath = decodeURIComponent(req.params.nodePath ?? '');
+  const organizationId = req.organizationId;
 
-  // TODO: 本実装
-  // const result = await encryptionKeyService.checkInsertion(organizationId, projectName, nodePath);
-  await new Promise((r) => setTimeout(r, 150));
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
 
-  ok(res, {
-    hasInsertion: false,
-    insertionCount: 0,
-  });
+  try {
+    const xmlContent = await getMaimlContent(organizationId, projectName);
+    if (!xmlContent) {
+      notFound(res, `プロジェクト "${projectName}" のMAIMLファイルが見つかりません`);
+      return;
+    }
+
+    // nodePath で指定した要素の XML を抽出してから extractInsertionRefs を呼ぶ
+    // nodePath が指定されていれば部分XML、なければ全体に対して検索する
+    let targetXml = xmlContent;
+    if (nodePath) {
+      const elementXml = getElementXmlByTargetPath(xmlContent, nodePath);
+      if (elementXml) {
+        targetXml = elementXml;
+      }
+    }
+    const refs = maimlEncryptionService.extractInsertionRefs(targetXml);
+
+    const response: InsertionCheckResponse = {
+      hasInsertion: refs.length > 0,
+      insertionCount: refs.length,
+    };
+
+    ok(res, response);
+  } catch (err) {
+    serverError(res, err);
+  }
 };
 
 // ---------------------------------------------------------------------------
-// 暗号化済み子要素一覧 / 復号化プレビュー / 復号化実行（スタブ）
+// 暗号化済み子要素一覧
 // ---------------------------------------------------------------------------
 
 /**
  * GET /api/v1/encryption/projects/:projectName/encrypted-children
- * 対象MAIMLファイルに含まれる全ての暗号化済み要素（EncryptedData）一覧を返す
+ * 対象MAIMLファイルに含まれる全ての暗号化済み要素一覧を返す
  *
  * @remarks
- * nodePath クエリパラメータは現在使用しない（ファイル全体を対象とする）
- * 【本実装への移行】MAIMLファイルをパースして全 EncryptedData 要素を収集する
+ * 【TODO: 本実装】MAIMLファイルをパースして全 EncryptedData 要素を収集する。
  */
 export const getEncryptedChildren = async (req: Request, res: Response): Promise<void> => {
   const { projectName } = req.params;
+  const organizationId = req.organizationId;
 
-  console.log(`[encryption] getEncryptedChildren: projectName=${projectName} (全件取得)`);
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
 
-  // TODO: 本実装では projectName のMAIMLファイルをパースし、
-  // ファイル全体に含まれる全 EncryptedData 要素を収集して返す
-  await new Promise((r) => setTimeout(r, 100));
+  try {
+    const xmlContent = await getMaimlContent(organizationId, projectName);
+    if (!xmlContent) {
+      notFound(res, `プロジェクト "${projectName}" のMAIMLファイルが見つかりません`);
+      return;
+    }
 
-  // スタブ: ツリーの暗号化済みノードを元にサンプルデータを返す
-  // 実際には nodePath 配下のみフィルタリングする
-  const stubEncryptedElements = [
-    {
-      path: "/maiml/pnml/method[@id='method-001']/place[@id='place-mat-001']/property[@key='myns:secretFormula']",
-      parentId: 'place-mat-001',
-      elementType: 'property',
-      encryptionLevel: 'L2',
-      algorithm: 'AES-256-CBC',
-      encryptedAt: '2026-06-10T10:00:00Z',
-    },
-    {
-      path: "/maiml/pnml/method[@id='method-001']/place[@id='place-res-001']/property[@key='myns:secretResult']",
-      parentId: 'place-res-001',
-      elementType: 'property',
-      encryptionLevel: 'L2',
-      algorithm: 'AES-256-CBC',
-      encryptedAt: '2026-06-16T09:00:00Z',
-    },
-  ];
-
-  ok(res, { elements: stubEncryptedElements });
+    // MAIMLをパースして全 EncryptedData 要素を収集
+    const elements = findEncryptedDataElements(xmlContent);
+    ok(res, { elements });
+  } catch (err) {
+    serverError(res, err);
+  }
 };
+
+// ---------------------------------------------------------------------------
+// 復号化プレビュー
+// ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/projects/:projectName/decrypt-preview
- * 復号化プレビューXMLを返す
+ * 復号化プレビューXMLを返す（ファイルは保存しない）
  *
- * @remarks
- * 【本実装への移行】
- * - keyId から対応する鍵ファイルを S3/Swift から取得
- * - W3C XML Encryption で復号化処理を実行（実際には保存しない）
- * - 復号化前後のXMLを返す
+ * リクエストボディ:
+ *   - targetPath: string    復号化対象のXPathパス
+ *   - keyId: string         使用する鍵ID（test-keys/ のファイル名）
+ *   - algorithm?: string    暗号化に使用したアルゴリズム（省略時: aes256-cbc）
  */
 export const decryptPreview = async (req: Request, res: Response): Promise<void> => {
   const { projectName } = req.params;
-  const { targetPath, keyId, password } = req.body as {
+  const { targetPath, keyId, algorithm } = req.body as {
     targetPath: string;
     keyId: string;
+    algorithm?: string;
     password?: string;
   };
+  const organizationId = req.organizationId;
 
-  console.log(`[encryption] decryptPreview: projectName=${projectName}, targetPath=${targetPath}, keyId=${keyId}`);
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
+    return;
+  }
 
   if (!targetPath || !keyId) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E1003', message: 'targetPath と keyId は必須です。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
+    badRequest(res, 'E1003', 'targetPath と keyId は必須です');
     return;
   }
 
-  // スタブ: "wrongpassword" はエラーとして返す（テスト用）
-  if (password === 'wrongpassword') {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E4001', message: '復号化に失敗しました。鍵またはパスワードが正しくありません。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
-    return;
+  try {
+    // algorithm から EncryptionPolicy を構築
+    const normalizedAlg = normalizeFrontAlgorithm(algorithm);
+    const policy: EncryptionPolicy = {
+      ...DEFAULT_ENCRYPTION_POLICY,
+      algorithm: normalizedAlg,
+    };
+
+    // test-keys/ から algorithm に対応する固定鍵を取得
+    const keyEntry = await maimlEncryptionService.retrieveKeyForDecryption(keyId, policy);
+    if (!keyEntry) {
+      notFound(res, `鍵が見つかりません（keyId=${keyId}, algorithm=${normalizedAlg}）。test-keys/encryption/ に鍵ファイルが存在するか確認してください。`);
+      return;
+    }
+
+    const xmlContent = await getMaimlContent(organizationId, projectName);
+    if (!xmlContent) {
+      notFound(res, `プロジェクト "${projectName}" のMAIMLファイルが見つかりません`);
+      return;
+    }
+
+    // targetPath の <EncryptedData> 要素の XML を取得 → before
+    const encDataXml = getElementXmlByTargetPath(xmlContent, targetPath);
+    if (!encDataXml) {
+      notFound(res, `対象要素が見つかりません: ${targetPath}`);
+      return;
+    }
+
+    // before = 現在の <EncryptedData> XML
+    const beforeXml = encDataXml;
+
+    // <EncryptedData> から CipherResult を抽出して実際に復号化
+    const cipherResult = extractCipherResultFromXml(encDataXml);
+    let afterXml: string;
+    if (!cipherResult) {
+      afterXml = `<!-- EncryptedData の解析に失敗しました。有効な xenc:EncryptedData 要素か確認してください -->`;
+    } else {
+      try {
+        afterXml = maimlEncryptionService.decryptElement(keyEntry, cipherResult);
+      } catch (decErr) {
+        const msg = decErr instanceof Error ? decErr.message : '復号化に失敗しました';
+        afterXml = `<!-- 復号化エラー: ${msg} -->`;
+      }
+    }
+
+    // プレビューなのでファイルは保存しない
+    ok(res, { beforeXml, afterXml });
+  } catch (err) {
+    serverError(res, err);
   }
-
-  // TODO: 本実装では W3C XML Encryption を使用して実際の復号化プレビューを行う
-  await new Promise((r) => setTimeout(r, 200));
-
-  const beforeXml = `<property key="myns:secretFormula"
-        xmlns:xenc="http://www.w3.org/2001/04/xmlenc#"
-        xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-
-  <xenc:EncryptedData
-    Id="enc-001"
-    Type="http://www.w3.org/2001/04/xmlenc#Element">
-
-    <xenc:EncryptionMethod
-      Algorithm="http://www.w3.org/2001/04/xmlenc#aes256-cbc">
-      <xenc:KeySize>256</xenc:KeySize>
-    </xenc:EncryptionMethod>
-
-    <ds:KeyInfo>
-      <ds:KeyName>maiml-experiment-key-2026</ds:KeyName>
-    </ds:KeyInfo>
-
-    <xenc:CipherData>
-      <xenc:CipherValue>
-        YWVzMjU2Y2JjZW5jcnlwdGVkZGF0YWV4YW1wbGU=
-      </xenc:CipherValue>
-    </xenc:CipherData>
-
-  </xenc:EncryptedData>
-
-</property>`;
-
-  const afterXml = `<property key="myns:secretFormula">
-  <value>復号化されたデータ（スタブ）</value>
-  <unit>mg/L</unit>
-</property>`;
-
-  ok(res, { beforeXml, afterXml });
 };
+
+// ---------------------------------------------------------------------------
+// 復号化実行
+// ---------------------------------------------------------------------------
 
 /**
  * POST /api/v1/encryption/projects/:projectName/decrypt-execute
  * 復号化を実行してMAIMLファイルを更新する
  *
- * @remarks
- * 【本実装への移行】
- * - keyId から対応する鍵ファイルを S3/Swift から取得
- * - W3C XML Encryption で復号化処理を実行
- * - MAIMLファイルを更新して保存
- * - バックアップファイルを作成
+ * リクエストボディ:
+ *   - targetPath: string    復号化対象のXPathパス（単数）
+ *   - targetPaths?: string[] 復号化対象のXPathリスト（複数）
+ *   - keyId: string         使用する鍵ID（test-keys/ のファイル名）
+ *   - algorithm?: string    暗号化に使用したアルゴリズム（省略時: aes256-cbc）
  */
 export const executeDecrypt = async (req: Request, res: Response): Promise<void> => {
   const { projectName } = req.params;
-  const { targetPath, keyId, password } = req.body as {
-    targetPath: string;
+  const { targetPath, targetPaths, keyId, algorithm } = req.body as {
+    targetPath?: string;
+    targetPaths?: string[];
     keyId: string;
+    algorithm?: string;
     password?: string;
   };
+  const organizationId = req.organizationId;
 
-  console.log(`[encryption] executeDecrypt: projectName=${projectName}, targetPath=${targetPath}, keyId=${keyId}`);
-
-  if (!targetPath || !keyId) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E1003', message: 'targetPath と keyId は必須です。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
+  if (!organizationId) {
+    badRequest(res, 'E5012', '組織IDが取得できません');
     return;
   }
 
-  // スタブ: "wrongpassword" はエラーとして返す（テスト用）
-  if (password === 'wrongpassword') {
-    res.status(400).json({
-      success: false,
-      error: { code: 'E4001', message: '復号化に失敗しました。鍵またはパスワードが正しくありません。' },
-      meta: { timestamp: new Date().toISOString() },
-    });
+  // targetPaths（複数）または targetPath（単数）を取得
+  const paths: string[] = targetPaths ?? (targetPath ? [targetPath] : []);
+  if (paths.length === 0) {
+    badRequest(res, 'E1003', 'targetPath または targetPaths は必須です');
     return;
   }
 
-  // TODO: 本実装では W3C XML Encryption を使用して実際の復号化を行い、MAIMLファイルを更新する
-  await new Promise((r) => setTimeout(r, 400));
+  if (!keyId) {
+    badRequest(res, 'E1003', 'keyId は必須です');
+    return;
+  }
 
-  ok(res, {
-    success: true,
-    updatedFilePath: `projects/${projectName}/${projectName}.maiml`,
-  });
+  try {
+    // algorithm から EncryptionPolicy を構築
+    const normalizedAlg = normalizeFrontAlgorithm(algorithm);
+    const policy: EncryptionPolicy = {
+      ...DEFAULT_ENCRYPTION_POLICY,
+      algorithm: normalizedAlg,
+    };
+
+    // test-keys/ から algorithm に対応する固定鍵を取得
+    const keyEntry = await maimlEncryptionService.retrieveKeyForDecryption(keyId, policy);
+    if (!keyEntry) {
+      notFound(res, `鍵が見つかりません（keyId=${keyId}, algorithm=${normalizedAlg}）。test-keys/encryption/ に鍵ファイルが存在するか確認してください。`);
+      return;
+    }
+
+    const xmlContent = await getMaimlContent(organizationId, projectName);
+    if (!xmlContent) {
+      notFound(res, `プロジェクト "${projectName}" のMAIMLファイルが見つかりません`);
+      return;
+    }
+
+    // 各 targetPath に対して復号処理し、XML を逐次書き換え
+    let updatedXml = xmlContent;
+    const decryptedResults: Array<{
+      targetPath: string;
+      success: boolean;
+      error?: string;
+      warning?: string;
+    }> = [];
+
+    try {
+      for (const tp of paths) {
+        // targetPath の <EncryptedData> 要素の XML を取得
+        const encDataXml = getElementXmlByTargetPath(updatedXml, tp);
+        if (!encDataXml) {
+          decryptedResults.push({
+            targetPath: tp,
+            success: false,
+            error: `対象要素が見つかりません: ${tp}`,
+          });
+          continue;
+        }
+
+        // <EncryptedData> から CipherResult を抽出
+        const cipherResult = extractCipherResultFromXml(encDataXml);
+        if (!cipherResult) {
+          decryptedResults.push({
+            targetPath: tp,
+            success: false,
+            error: `EncryptedData の解析に失敗しました: ${tp}（有効な xenc:EncryptedData 要素か確認してください）`,
+          });
+          continue;
+        }
+
+        // 復号実行
+        const decryptedXml = maimlEncryptionService.decryptElement(keyEntry, cipherResult);
+
+        // XML 内の <EncryptedData> を復号した要素で置換
+        const { updated, replaced } = replaceElementInXml(updatedXml, tp, decryptedXml);
+        updatedXml = updated;
+
+        decryptedResults.push({
+          targetPath: tp,
+          success: replaced,
+          ...(replaced ? {} : { warning: '要素の置換に失敗しました（targetPath の形式を確認してください）' }),
+        });
+      }
+    } finally {
+      // 復号後に必ず鍵を廃棄（問題6: disposeKey が復号側で呼ばれていなかった）
+      maimlEncryptionService.disposeKey(keyEntry.keyId);
+    }
+
+    // 更新後の XML を MAIML ファイルとして保存
+    const { updatedFilePath } = await saveMaimlContent(
+      organizationId,
+      projectName,
+      updatedXml,
+    );
+
+    ok(res, {
+      success: true,
+      decryptedCount: decryptedResults.filter((r) => r.success).length,
+      results: decryptedResults,
+      updatedFilePath,
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
 };

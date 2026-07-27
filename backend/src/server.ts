@@ -38,6 +38,7 @@ import semanticSearchRoutes from './routes/semanticSearchRoutes';
 import systemOverviewRoutes from './routes/systemOverviewRoutes';
 import systemConfigRoutes from './routes/systemConfigRoutes';
 import encryptionRoutes from './routes/encryptionRoutes';
+import signatureRoutes from './routes/signatureRoutes';
 import namespaceRoutes from './routes/namespaceRoutes';
 import departmentUnitRoutes from './routes/departmentUnitRoutes';
 import organizationGroupRoutes from './routes/organizationGroupRoutes';
@@ -150,6 +151,8 @@ async function startServer() {
 
     // Mount encryption routes（暗号化管理API）
     app.use('/api/v1/encryption', encryptionRoutes);
+    // Mount signature routes（改竄防止API）
+    app.use('/api/v1/signature', signatureRoutes);
     // Mount namespace routes
     app.use('/api/v1/namespaces', namespaceRoutes);
 
