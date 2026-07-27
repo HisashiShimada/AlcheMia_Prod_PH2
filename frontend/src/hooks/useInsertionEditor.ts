@@ -15,6 +15,17 @@ export interface UseInsertionEditorOptions {
   onChange: (v: Insertion) => void;
   /** S3アップロード先パス（例: 'projects/sample_project/attachments'）。未指定時はアップロード確認ダイアログを出さない */
   uploadTargetPath?: string;
+  /**
+   * ファイルサイズ上限（バイト単位）。超過時はエラーメッセージを表示してキャンセル。
+   * 未指定時は制限なし。
+   */
+  maxFileSize?: number;
+  /**
+   * 許可するファイル形式（MIME タイプまたは拡張子）。
+   * 例: ['image/*', '.xml', 'application/json']
+   * 未指定時は制限なし。
+   */
+  acceptedFormats?: string[];
 }
 
 export interface UseInsertionEditorReturn {
@@ -30,8 +41,20 @@ export interface UseInsertionEditorReturn {
   handleHashValueChange: (value: string) => void;
   /** テキスト手動編集: format フィールド */
   handleFormatChange: (format: string) => void;
+  /** URI・hash・format をすべてクリアする */
+  handleClear: () => void;
   /** アップロード中フラグ */
   isUploading: boolean;
+  /** ドラッグ中フラグ（DnD視覚フィードバック用） */
+  isDragOver: boolean;
+  /** onDragOver ハンドラ（コンポーネントに渡す） */
+  handleDragOver: (e: React.DragEvent) => void;
+  /** onDragLeave ハンドラ（コンポーネントに渡す） */
+  handleDragLeave: (e: React.DragEvent) => void;
+  /** onDrop ハンドラ（コンポーネントに渡す） */
+  handleDrop: (e: React.DragEvent) => void;
+  /** accept 属性文字列（input[type=file] に渡す） */
+  acceptAttr: string | undefined;
 }
 
 /** デフォルトのハッシュメソッド（環境変数 or SHA-256） */
@@ -48,16 +71,56 @@ async function calcFileHash(file: File, algorithm: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * ファイルサイズをヒューマンリーダブルな文字列に変換
+ */
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
 export function useInsertionEditor({
   value,
   onChange,
   uploadTargetPath,
+  maxFileSize,
+  acceptedFormats,
 }: UseInsertionEditorOptions): UseInsertionEditorReturn {
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  /** accept 属性文字列を生成 */
+  const acceptAttr =
+    acceptedFormats && acceptedFormats.length > 0
+      ? acceptedFormats.join(',')
+      : undefined;
+
+  /**
+   * ファイルのバリデーション（サイズ・形式チェック）
+   * @returns true: OK / false: NG（エラーメッセージ表示済み）
+   */
+  const validateFile = useCallback(
+    (file: File): boolean => {
+      // ファイルサイズチェック
+      if (maxFileSize !== undefined && file.size > maxFileSize) {
+        message.error(
+          `ファイルサイズが上限（${formatFileSize(maxFileSize)}）を超えています（${formatFileSize(file.size)}）`
+        );
+        return false;
+      }
+      return true;
+    },
+    [maxFileSize]
+  );
 
   /** ファイル選択時の処理 */
   const handleFileSelect = useCallback(
     async (file: File) => {
+      // バリデーション
+      if (!validateFile(file)) return;
+
       // ハッシュ計算
       const hashMethod = DEFAULT_HASH_METHOD;
       let hashValue = '';
@@ -114,8 +177,13 @@ export function useInsertionEditor({
         // キャンセル時: 何もしない（URIはfile.nameのまま確定）
       });
     },
-    [onChange, uploadTargetPath]
+    [onChange, uploadTargetPath, validateFile]
   );
+
+  /** URI・hash・format をすべてクリアする */
+  const handleClear = useCallback(() => {
+    onChange({ uri: '', hash: { method: DEFAULT_HASH_METHOD, value: '' }, format: '' });
+  }, [onChange]);
 
   /** URI 手動編集 */
   const handleUriChange = useCallback(
@@ -149,6 +217,33 @@ export function useInsertionEditor({
     [onChange, value]
   );
 
+  // ── DnD ハンドラ ──────────────────────────────────────────────────────────
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+      const file = e.dataTransfer.files?.[0];
+      if (file) {
+        handleFileSelect(file);
+      }
+    },
+    [handleFileSelect]
+  );
+
   return {
     insertion: value,
     handleFileSelect,
@@ -156,6 +251,12 @@ export function useInsertionEditor({
     handleHashMethodChange,
     handleHashValueChange,
     handleFormatChange,
+    handleClear,
     isUploading,
+    isDragOver,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    acceptAttr,
   };
 }

@@ -39,7 +39,7 @@ TemplateEditorDialog の Insertion 入力UI（テキスト4項目）と、WorkRe
 
 #### Phase 1-1: `useInsertionEditor` カスタムフック
 
-- [ ] `frontend/src/hooks/useInsertionEditor.ts` を新規作成
+- [x] `frontend/src/hooks/useInsertionEditor.ts` を新規作成
   - **役割**: ファイル選択 → ハッシュ計算 → 入力値セット → アップロード確認 → S3アップロード → URI更新 の一連のロジックを担う
   - **戻り値**:
     - `insertion`: 現在のInsertion値
@@ -66,7 +66,7 @@ TemplateEditorDialog の Insertion 入力UI（テキスト4項目）と、WorkRe
 
 #### Phase 1-2: `InsertionEditorForm.tsx`（TemplateEditorDialog用）
 
-- [ ] `frontend/src/components/common/InsertionEditorForm.tsx` を新規作成
+- [x] `frontend/src/components/common/InsertionEditorForm.tsx` を新規作成
   - **レイアウト**: 現行TemplateEditorDialogと同等の `Form.Item` レイアウト（ラベル付き・標準フォントサイズ）
   - **UI仕様**:
     ```
@@ -90,7 +90,7 @@ TemplateEditorDialog の Insertion 入力UI（テキスト4項目）と、WorkRe
 
 #### Phase 1-3: `InsertionEditorCompact.tsx`（WorkRecordPanel用）
 
-- [ ] `frontend/src/components/common/InsertionEditorCompact.tsx` を新規作成
+- [x] `frontend/src/components/common/InsertionEditorCompact.tsx` を新規作成
   - **レイアウト**: `PropertyCard` と同じ小型・グリッド馴染みの見た目
     - フォントサイズ: 11〜13px（PropertyCardに準拠）
     - ラベルを上部に小さく表示し、Input欄を下に配置（縦並び）
@@ -112,7 +112,7 @@ TemplateEditorDialog の Insertion 入力UI（テキスト4項目）と、WorkRe
 
 ### Phase 2: TemplateEditorDialog の修正
 
-- [ ] `TemplateEditorDialog.tsx` の Insertion セクション（Form.Item × 4）を `InsertionEditorForm` に置き換え
+- [x] `TemplateEditorDialog.tsx` の Insertion セクション（Form.Item × 4）を `InsertionEditorForm` に置き換え
   - `value={insertion}`
   - `onChange={(v) => { setInsertion(v); setHasChanges(true); }}`
   - `readOnly={false}`
@@ -121,7 +121,7 @@ TemplateEditorDialog の Insertion 入力UI（テキスト4項目）と、WorkRe
 
 ### Phase 3: WorkRecordPanel の Insertion 実装
 
-- [ ] `WorkRecordPanel.tsx` の PropertyList コンポーネントにInsertionセクションを追加
+- [x] `WorkRecordPanel.tsx` の PropertyList コンポーネントにInsertionセクションを追加
   - `MockTemplate` 型に `insertions?: { id: string; label?: string }[]` を追加（型拡張）
   - テンプレートに `insertions` フィールドがある場合、各insertionに対して `InsertionEditorCompact` を表示
   - InsertionEditorの`value`は`TaskTransitionState.actuals`に `insertion_{id}` キーとして管理
@@ -222,13 +222,13 @@ const uploadTargetPath = projectName ? `projects/${projectName}/attachments` : u
 ## 7. テスト計画
 
 ### 手動テスト
-- [ ] InsertionEditor: テキスト直接入力でvalue/onChangeが正常に動作すること
-- [ ] InsertionEditor: 「ファイルを選択」でファイル選択 → URI/Hash Method/Hash Value/Format が自動入力されること
-- [ ] InsertionEditor: アップロード確認ダイアログで「アップロード」→ S3アップロード成功 → URIがs3Keyに更新されること
-- [ ] InsertionEditor: アップロード確認ダイアログで「キャンセル」→ URIはfile.nameのまま維持されること
-- [ ] TemplateEditorDialog: 既存のInsertion入力がInsertionEditorに置き換え後も同等に動作すること（保存 → XML出力も同じ）
-- [ ] WorkRecordPanel: InsertionEditorが表示されること（mockデータにinsertions追加時）
-- [ ] エラー時（アップロード失敗など）にエラーメッセージが表示されること
+- [x] InsertionEditor: テキスト直接入力でvalue/onChangeが正常に動作すること
+- [x] InsertionEditor: 「ファイルを選択」でファイル選択 → URI/Hash Method/Hash Value/Format が自動入力されること
+- [x] InsertionEditor: アップロード確認ダイアログで「アップロード」→ S3アップロード成功 → URIがs3Keyに更新されること
+- [x] InsertionEditor: アップロード確認ダイアログで「キャンセル」→ URIはfile.nameのまま維持されること
+- [x] TemplateEditorDialog: 既存のInsertion入力がInsertionEditorに置き換え後も同等に動作すること（保存 → XML出力も同じ）
+- [x] WorkRecordPanel: InsertionEditorが表示されること（mockデータにinsertions追加時）
+- [ ] エラー時（アップロード失敗など）にエラーメッセージが表示されること（未テスト）
 
 ## 8. 承認記録
 
@@ -236,3 +236,25 @@ const uploadTargetPath = projectName ? `projects/${projectName}/attachments` : u
 - **計画書更新日時**: 2026-07-24 16:26
 - **承認日時**: 2026-07-24 16:26（ユーザーによりActモード切り替えで承認確認）
 - **承認者コメント**: FileExplorerModalは不要、テキスト+ファイル選択ボタン+アップロード確認の方針で確定
+
+## 9. 実施記録
+
+### 実施日時
+- 開始: 2026-07-24 16:26
+- 完了: 2026-07-27 15:45
+
+### 実施内容
+- `frontend/src/hooks/useInsertionEditor.ts` を新規作成（ハッシュ計算・アップロード確認・S3アップロードロジックを共通化）
+- `frontend/src/components/common/InsertionEditorForm.tsx` を新規作成（TemplateEditorDialog用 Form.Item レイアウト）
+- `frontend/src/components/common/InsertionEditorCompact.tsx` を新規作成（WorkRecordPanel用コンパクトレイアウト）
+- `frontend/src/components/editorv2/TemplateEditorDialog.tsx` の Insertion セクションを `InsertionEditorForm` に置き換え
+- `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx` に `InsertionEditorCompact` を組み込み（actuals連携・複数Insertion対応）
+
+### 動作確認時の不具合と修正（2026-07-27）
+- **不具合**: WorkRecordPanel のエクスプローラーファイル選択 / DnD でアップロード確認ダイアログが表示されない
+- **原因**: WorkRecordPanel に `uploadTargetPath` が渡されておらず `undefined` のままダイアログが抑制されていた
+- **修正**: `WorkRecordPanel` に `projectName` prop を追加し `projects/${projectName}/attachments` を `uploadTargetPath` として構築。`ExperimentWorkerMenu` から `selectedProjectName` を `projectName` として渡すよう修正（`frontend/src/components/menus/ExperimentWorkerMenu.tsx`）
+- **確認**: `tsc --noEmit` exit:0（TypeScriptエラーなし）
+
+### 計画からの変更点
+- WorkRecordPanel への `uploadTargetPath` 連携は「実API接続時に有効化」予定だったが、動作確認で不具合が確認されたため本タスク内で修正済み

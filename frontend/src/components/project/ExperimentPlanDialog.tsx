@@ -1052,6 +1052,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                           onCustomPropsChange={handleCustomPropsChange}
                           disabled={disabled}
                           outputTemplateIds={outputTemplateIds}
+                          projectId={projectId}
                         />
                       ),
                     },

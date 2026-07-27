@@ -160,6 +160,12 @@ export interface TemplateInputPanelProps {
    * （前のトランジションの出力結果として引き継がれる項目を示す）
    */
   outputTemplateIds?: Set<string>;
+  /**
+   * プロジェクトID（insertion ファイルのアップロード先パス構築に使用）
+   * 指定時: `projects/{projectId}/attachments` へのアップロード確認ダイアログを表示
+   * 未指定時: アップロードなし（ファイル名・ハッシュのみセット）
+   */
+  projectId?: string;
 }
 
 /** SortableTransitionRow コンポーネントのProps */

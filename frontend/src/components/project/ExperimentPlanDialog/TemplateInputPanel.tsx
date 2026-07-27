@@ -17,9 +17,8 @@ import {
   Table,
   Tag,
   Tooltip,
-  Upload,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import type {
   TemplateInputPanelProps,
   CustomPropValue,
@@ -30,6 +29,8 @@ import type { TemplateDef } from '@/types/experimentPlan';
 import FieldValueInput from './FieldValueInput';
 import UncertaintyCriteriaSelectorModal from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
 import type { TargetProperty, AssignPayload } from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
+import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
+import { toInsertion, fromInsertion } from '@/utils/insertionAdapter';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -90,6 +91,7 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   onCustomPropsChange,
   disabled = false,
   outputTemplateIds,
+  projectId,
 }) => {
   const { token } = useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -200,28 +202,6 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
     [customProps, onCustomPropsChange]
   );
 
-  /** insertion のファイル選択ハンドラ（SHA-256ハッシュ生成・MIMEタイプ検出） */
-  const handleInsertionFileSelect = useCallback(
-    async (templateId: string, id: string, file: File) => {
-      try {
-        const format = file.type || 'application/octet-stream';
-        const arrayBuffer = await file.arrayBuffer();
-        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-        handleUpdateCustomProp(templateId, id, {
-          file,
-          hash,
-          format,
-          value: file.name,
-        });
-      } catch (err) {
-        console.error('handleInsertionFileSelect error:', err);
-      }
-    },
-    [handleUpdateCustomProp]
-  );
-
   // ── カスタムプロパティ行レンダリング ────────────────────────────────────
 
   const renderCustomPropertyRows = () => {
@@ -299,32 +279,26 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
       ) : null;
 
       // ── insertion コンテナ ──
+      // InsertionEditorCompact（useInsertionEditor フックベース）に統一
       if (cp.containerType === 'insertion') {
+        // uploadTargetPath: projectId が渡されている場合のみアップロード先を設定
+        const uploadTargetPath = projectId
+          ? `projects/${projectId}/attachments`
+          : undefined;
         return (
-          <div key={cp.id} style={rowStyle}>
-            <Tag color="purple" style={{ flexShrink: 0, alignSelf: 'center' }}>insertion</Tag>
-            <Upload
-              maxCount={1}
-              showUploadList={false}
-              beforeUpload={(file) => {
-                handleInsertionFileSelect(selectedTemplate.id, cp.id, file);
-                return false;
-              }}
-            >
-              <Button icon={<UploadOutlined />} size="small" disabled={disabled}>
-                {cp.value ? String(cp.value) : 'ファイルを選択'}
-              </Button>
-            </Upload>
-            {cp.value && (
-              <Text
-                type="secondary"
-                style={{ fontSize: 11, alignSelf: 'center', flex: 1 }}
-                ellipsis
-              >
-                {String(cp.value)}
-              </Text>
-            )}
-            {deleteBtn}
+          <div key={cp.id} style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Tag color="purple" style={{ flexShrink: 0 }}>insertion</Tag>
+              {deleteBtn}
+            </div>
+            <InsertionEditorCompact
+              value={toInsertion(cp)}
+              onChange={(v) =>
+                handleUpdateCustomProp(selectedTemplate.id, cp.id, fromInsertion(v))
+              }
+              readOnly={effectiveDisabled}
+              uploadTargetPath={uploadTargetPath}
+            />
           </div>
         );
       }

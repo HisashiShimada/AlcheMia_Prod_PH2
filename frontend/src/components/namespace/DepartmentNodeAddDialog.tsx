@@ -34,7 +34,7 @@ const DepartmentNodeAddDialog: React.FC<DepartmentNodeAddDialogProps> = ({
     const parentOption = parentOptions.find((o) => o.value === parentKey);
     const deptCd = parentOption?.departmentCd ?? parentKey ?? undefined;
 
-    const uri = generateNamespaceUri(organizationCd, deptCd, label || undefined);
+    const uri = generateNamespaceUri(organizationCd, deptCd, label ? [label] : undefined);
     setPreviewUri(uri);
   };
 

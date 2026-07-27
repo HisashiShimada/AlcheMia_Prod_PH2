@@ -1,21 +1,23 @@
 import React, { useRef } from 'react';
-import { Input, Button, Typography, Space } from 'antd';
-import { UploadOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Input, Button, Typography, Space, Tooltip } from 'antd';
+import { UploadOutlined, LoadingOutlined, ClearOutlined } from '@ant-design/icons';
 import { useInsertionEditor } from '@/hooks/useInsertionEditor';
 import type { Insertion } from '@/types/maiml-unified';
 
 const { Text } = Typography;
 
 /**
- * InsertionEditorCompact - WorkRecordPanel 用 Insertion 入力コンポーネント
+ * InsertionEditorCompact - WorkRecordPanel / TemplateInputPanel 用 Insertion 入力コンポーネント
  *
  * PropertyCard と同じ小型・グリッド馴染みの見た目（フォント11〜13px）で4フィールドを表示する。
  * ロジック（ハッシュ計算・アップロード確認・S3アップロード）は useInsertionEditor フックに委譲。
+ * Phase 2: DnD・クリアボタン・ファイルサイズ制限・acceptedFormats を追加。
  *
  * @example
  * <InsertionEditorCompact
  *   value={insertion}
  *   onChange={(v) => handleInsertionChange(id, v)}
+ *   maxFileSize={100 * 1024 * 1024}
  * />
  */
 
@@ -23,8 +25,12 @@ export interface InsertionEditorCompactProps {
   value: Insertion;
   onChange: (v: Insertion) => void;
   readOnly?: boolean;
-  /** S3アップロード先パス（例: 'projects/sample_project/attachments'）。未指定時はアップロードボタン非表示 */
+  /** S3アップロード先パス（例: 'projects/sample_project/attachments'）。未指定時はアップロード確認なし */
   uploadTargetPath?: string;
+  /** ファイルサイズ上限（バイト）。未指定時は制限なし */
+  maxFileSize?: number;
+  /** 許可するファイル形式（MIME or 拡張子）。未指定時は制限なし */
+  acceptedFormats?: string[];
 }
 
 /** ラベルスタイル（PropertyCardの「想定値」ラベルと同等） */
@@ -43,6 +49,8 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
   onChange,
   readOnly = false,
   uploadTargetPath,
+  maxFileSize,
+  acceptedFormats,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,47 +61,99 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
     handleHashMethodChange,
     handleHashValueChange,
     handleFormatChange,
+    handleClear,
     isUploading,
-  } = useInsertionEditor({ value, onChange, uploadTargetPath });
+    isDragOver,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    acceptAttr,
+  } = useInsertionEditor({ value, onChange, uploadTargetPath, maxFileSize, acceptedFormats });
 
-  /** 隠し input[type=file] をクリックして OS のファイル選択ダイアログを開く */
   const handleSelectButtonClick = () => {
     fileInputRef.current?.click();
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
-    // 同じファイルを再選択できるようリセット
+    if (file) handleFileSelect(file);
     e.target.value = '';
   };
 
+  const hasClearable = !!(insertion.uri || insertion.hash?.value);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div
+      onDragOver={readOnly ? undefined : handleDragOver}
+      onDragLeave={readOnly ? undefined : handleDragLeave}
+      onDrop={readOnly ? undefined : handleDrop}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        padding: 6,
+        border: isDragOver ? '1px dashed #1677ff' : '1px dashed transparent',
+        borderRadius: 4,
+        backgroundColor: isDragOver ? 'rgba(22,119,255,0.06)' : undefined,
+        transition: 'border-color 0.15s, background-color 0.15s',
+      }}
+    >
       {/* 隠し file input */}
       <input
         ref={fileInputRef}
         type="file"
         style={{ display: 'none' }}
+        accept={acceptAttr}
         onChange={handleFileInputChange}
       />
 
-      {/* URI + ファイル選択ボタン */}
+      {/* DnD ヒント（ドラッグ中のみ表示） */}
+      {isDragOver && (
+        <div
+          style={{
+            textAlign: 'center',
+            color: '#1677ff',
+            fontSize: 11,
+            fontWeight: 500,
+          }}
+        >
+          ここにドロップ
+        </div>
+      )}
+
+      {/* URI + ファイル選択ボタン + クリアボタン */}
       <div>
         <Space style={{ marginBottom: 2 }}>
           <Text style={labelStyle}>URI</Text>
-          {/* ファイル選択ボタンは常時表示。uploadTargetPath 未指定時はアップロード確認なし（ファイル名のみセット） */}
-          <Button
-            type="text"
-            size="small"
-            icon={isUploading ? <LoadingOutlined style={{ fontSize: 11 }} /> : <UploadOutlined style={{ fontSize: 11 }} />}
-            onClick={handleSelectButtonClick}
-            disabled={readOnly || isUploading}
-            title={uploadTargetPath ? 'ファイルを選択してS3にアップロード' : 'ファイルを選択して自動入力（アップロードなし）'}
-            style={{ padding: '0 4px', height: 18, fontSize: 11, color: 'rgba(0,0,0,0.45)' }}
-          />
+          {/* ファイル選択ボタン */}
+          <Tooltip title={uploadTargetPath ? 'ファイルを選択してS3にアップロード' : 'ファイルを選択して自動入力（アップロードなし）'}>
+            <Button
+              type="text"
+              size="small"
+              icon={
+                isUploading
+                  ? <LoadingOutlined style={{ fontSize: 11 }} />
+                  : <UploadOutlined style={{ fontSize: 11 }} />
+              }
+              onClick={handleSelectButtonClick}
+              disabled={readOnly || isUploading}
+              style={{ padding: '0 4px', height: 18, fontSize: 11, color: 'rgba(0,0,0,0.45)' }}
+            />
+          </Tooltip>
+          {/* クリアボタン */}
+          {hasClearable && !readOnly && (
+            <Tooltip title="URI・ハッシュ・フォーマットをクリア">
+              <Button
+                type="text"
+                size="small"
+                icon={<ClearOutlined style={{ fontSize: 11 }} />}
+                onClick={handleClear}
+                disabled={isUploading}
+                danger
+                style={{ padding: '0 4px', height: 18, fontSize: 11 }}
+              />
+            </Tooltip>
+          )}
         </Space>
         <Input
           size={inputSize}

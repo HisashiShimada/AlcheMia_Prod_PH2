@@ -40,6 +40,7 @@ import {
 import { CommentOutlined, DeleteOutlined, FastForwardOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
+import ContentGridEditor from '@/components/common/ContentGridEditor';
 import type { Insertion } from '@/types/maiml-unified';
 import uncertaintyMockData from '../../../mock/uncertainty.json';
 
@@ -134,8 +135,8 @@ interface MockMethod {
   order: number;
 }
 
-/** actuals に格納できる値の型（通常プロパティ値 or Insertionオブジェクト） */
-type ActualValue = number | string | null | Insertion;
+/** actuals に格納できる値の型（通常プロパティ値 or Insertionオブジェクト or DataGrid） */
+type ActualValue = number | string | null | Insertion | number[][];
 
 interface TaskTransitionState {
   transitionId: string;
@@ -143,6 +144,8 @@ interface TaskTransitionState {
   actuals: Record<string, ActualValue>;
   /** ユーザーが「+ Insertion追加」で追加したカスタムInsertionのID一覧 */
   customInsertionIds: string[];
+  /** ユーザーが「+ Content追加」で追加したカスタムContentのID一覧 */
+  customContentIds: string[];
 }
 
 export interface MockTask {
@@ -310,24 +313,28 @@ export const INITIAL_TASKS: MockTask[] = [
           'ns1:ReagentName': 'NaCl', 'ns1:Amount': 5.1,
         },
         customInsertionIds: [],
+        customContentIds: [],
       },
       {
         transitionId: TR_B_ID,
         status: 'completed',
         actuals: { 'ns1:Temperature': 79.5, 'ns1:HeatingTime': 31 },
         customInsertionIds: [],
+        customContentIds: [],
       },
       {
         transitionId: TR_C_ID,
         status: 'completed',
         actuals: { 'ns1:RotationSpeed': 3000, 'ns1:Duration': 10, 'ns1:SolventName': 'EtOH' },
         customInsertionIds: [],
+        customContentIds: [],
       },
       {
         transitionId: TR_D_ID,
         status: 'completed',
         actuals: { 'ns1:Yield': 88.5, 'ns1:Purity': 99.1 },
         customInsertionIds: [],
+        customContentIds: [],
       },
     ],
   },
@@ -342,25 +349,27 @@ export const INITIAL_TASKS: MockTask[] = [
         status: 'in_progress',
         actuals: { 'ns1:Temperature': 25.3, 'ns1:Pressure': null, 'ns1:StirringSpeed': null, 'ns1:ReagentName': null, 'ns1:Amount': null },
         customInsertionIds: [],
+        customContentIds: [],
       },
       {
         transitionId: TR_B_ID,
         status: 'completed',
         actuals: { 'ns1:Temperature': 80.2, 'ns1:HeatingTime': 30 },
         customInsertionIds: [],
+        customContentIds: [],
       },
-      { transitionId: TR_C_ID, status: 'not_started', actuals: {}, customInsertionIds: [] },
-      { transitionId: TR_D_ID, status: 'not_started', actuals: {}, customInsertionIds: [] },
+      { transitionId: TR_C_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+      { transitionId: TR_D_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
     ],
   },
   // ─── タスク3: 未着手 ────────────────────────────────────────
   {
     taskNo: 3,
     transitions: [
-      { transitionId: TR_A_ID, status: 'not_started', actuals: {}, customInsertionIds: [] },
-      { transitionId: TR_B_ID, status: 'not_started', actuals: {}, customInsertionIds: [] },
-      { transitionId: TR_C_ID, status: 'not_started', actuals: {}, customInsertionIds: [] },
-      { transitionId: TR_D_ID, status: 'not_started', actuals: {}, customInsertionIds: [] },
+      { transitionId: TR_A_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+      { transitionId: TR_B_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+      { transitionId: TR_C_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+      { transitionId: TR_D_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
     ],
   },
 ];
@@ -690,6 +699,10 @@ interface PropertyListProps {
   onInsertionAdd?: (taskNo: number, transitionId: string) => void;
   /** カスタムInsertionスロット削除ボタン押下時 */
   onInsertionRemove?: (taskNo: number, transitionId: string, insertionId: string) => void;
+  /** カスタムContent追加ボタン押下時 */
+  onContentAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムContentスロット削除ボタン押下時 */
+  onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
 }
 
 /** Insertion のデフォルト値 */
@@ -712,6 +725,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
   uploadTargetPath,
   onInsertionAdd,
   onInsertionRemove,
+  onContentAdd,
+  onContentRemove,
 }) => {
   if (!template) {
     return (
@@ -772,7 +787,13 @@ const PropertyList: React.FC<PropertyListProps> = ({
           <Button size="small" icon={<PlusOutlined />} onClick={() => {}}>
             Property 追加
           </Button>
-          <Button size="small" icon={<PlusOutlined />} onClick={() => {}}>
+          <Button
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              if (displayKey) onContentAdd?.(displayKey.taskNo, displayKey.transitionId);
+            }}
+          >
             Content 追加
           </Button>
           {/* カスタムInsertion追加ボタン */}
@@ -874,6 +895,55 @@ const PropertyList: React.FC<PropertyListProps> = ({
                   }}
                   readOnly={isReadOnly}
                   uploadTargetPath={uploadTargetPath}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── カスタムContentスロット（ユーザーが追加したもの） ── */}
+      {taskTransition?.customContentIds && taskTransition.customContentIds.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          {taskTransition.customContentIds.map((cid) => {
+            const gridValue = taskTransition.actuals[`content_custom_${cid}`];
+            const dataValue: number[][] =
+              Array.isArray(gridValue) ? (gridValue as number[][]) : [[]];
+            return (
+              <div
+                key={cid}
+                style={{
+                  marginBottom: 8,
+                  padding: 8,
+                  border: '1px dashed #b37feb',
+                  borderRadius: 4,
+                  background: '#f9f0ff',
+                  position: 'relative',
+                }}
+              >
+                <Flex justify="space-between" align="center" style={{ marginBottom: 4 }}>
+                  <Text style={{ fontSize: 12, color: '#722ed1' }}>カスタム Content</Text>
+                  {!isReadOnly && (
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      onClick={() => {
+                        if (displayKey) onContentRemove?.(displayKey.taskNo, displayKey.transitionId, cid);
+                      }}
+                      style={{ padding: '0 4px', height: 20 }}
+                    />
+                  )}
+                </Flex>
+                <ContentGridEditor
+                  value={dataValue}
+                  onChange={(v) => {
+                    if (displayKey) {
+                      onActualChange(displayKey.taskNo, displayKey.transitionId, `content_custom_${cid}`, v);
+                    }
+                  }}
+                  readOnly={isReadOnly}
                 />
               </div>
             );
@@ -1126,6 +1196,12 @@ interface PlanProps {
   onInsertionAdd?: (taskNo: number, transitionId: string) => void;
   /** カスタムInsertion削除 */
   onInsertionRemove?: (taskNo: number, transitionId: string, insertionId: string) => void;
+  /** カスタムContent追加 */
+  onContentAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムContent削除 */
+  onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
+  /** ファイルアップロード先パス（指定時にファイル選択・DnDでアップロード確認ダイアログを表示） */
+  uploadTargetPath?: string;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1212,7 +1288,7 @@ const PlanA: React.FC<PlanProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove,
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath,
 }) => {
   const { token } = theme.useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -1384,6 +1460,9 @@ const PlanB: React.FC<PlanProps> = ({
             onCommentClick={onCommentClick}
             onInsertionAdd={onInsertionAdd}
             onInsertionRemove={onInsertionRemove}
+            onContentAdd={onContentAdd}
+            onContentRemove={onContentRemove}
+            uploadTargetPath={uploadTargetPath}
           />
         </Content>
       </Layout>
@@ -1397,7 +1476,12 @@ const PlanB: React.FC<PlanProps> = ({
 
 const ASSIGNED_TASK_NO = 2; // フェーズA: 固定、フェーズBで props 化
 
-export default function WorkRecordPanel() {
+interface WorkRecordPanelProps {
+  /** 選択中のプロジェクト名（S3アップロードパスの組み立てに使用） */
+  projectName?: string;
+}
+
+export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = {}) {
   const [tasks, setTasks] = useState<MockTask[]>(INITIAL_TASKS);
   const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(null);
 
@@ -1542,6 +1626,50 @@ export default function WorkRecordPanel() {
     []
   );
 
+  // ─── カスタムContent追加/削除 ────────────────────────────
+  const handleContentAdd = useCallback(
+    (taskNo: number, transitionId: string) => {
+      const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              return { ...tt, customContentIds: [...tt.customContentIds, newId] };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handleContentRemove = useCallback(
+    (taskNo: number, transitionId: string, contentId: string) => {
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              const nextActuals = { ...tt.actuals };
+              delete nextActuals[`content_custom_${contentId}`];
+              return {
+                ...tt,
+                customContentIds: tt.customContentIds.filter((id) => id !== contentId),
+                actuals: nextActuals,
+              };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
   // ─── コメントダイアログ用 state ───────────────────────────
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
 
@@ -1565,6 +1693,9 @@ export default function WorkRecordPanel() {
     onCommentClick: () => setCommentDialogOpen(true),
     onInsertionAdd: handleInsertionAdd,
     onInsertionRemove: handleInsertionRemove,
+    onContentAdd: handleContentAdd,
+    onContentRemove: handleContentRemove,
+    uploadTargetPath: projectName ? `projects/${projectName}/attachments` : undefined,
   };
 
   // コメントダイアログに渡す displayKey（現在表示中のキー）
