@@ -612,7 +612,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               <Col span={11}>
                 <Input
                   style={{ width: '100%' }}
-                  placeholder="値"
+                  placeholder={t('workRecord.valuePlaceholder')}
                   value={av.value}
                   onChange={(e) => handleValueChange(av.id, e.target.value)}
                 />
@@ -739,13 +739,13 @@ const PropertyList: React.FC<PropertyListProps> = ({
       {!isReadOnly && (
         <Flex gap={8} style={{ marginTop: 8, flexWrap: 'wrap' }}>
           <Button size="small" icon={<PlusOutlined />} onClick={() => {}}>
-            Property 追加
+            {t('workRecord.addProperty')}
           </Button>
           <Button size="small" icon={<PlusOutlined />} onClick={() => {}}>
-            Content 追加
+            {t('workRecord.addContent')}
           </Button>
           <Button size="small" icon={<PlusOutlined />} onClick={() => {}}>
-            Insertion 追加
+            {t('workRecord.addInsertion')}
           </Button>
         </Flex>
       )}
@@ -843,12 +843,12 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
         </Flex>
         <Divider type="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
-          <Text type="secondary" style={{ fontSize: 12 }}>タスクNo</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.taskNo')}</Text>
           <Text strong style={{ fontSize: 13 }}>#{displayKey.taskNo}</Text>
         </Flex>
         <Divider type="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
-          <Text type="secondary" style={{ fontSize: 12 }}>メソッド</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.method')}</Text>
           <Tooltip title={method?.id ?? ''}>
             <Text code style={{ fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>
               {method?.id ?? '—'}
@@ -857,7 +857,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
         </Flex>
         <Divider type="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
-          <Text type="secondary" style={{ fontSize: 12 }}>トランジション</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.transition')}</Text>
           <Tooltip title={transition.id}>
             <Text code style={{ fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>
               {transition.id}
@@ -886,6 +886,7 @@ interface InstructionCollapseProps {
 }
 
 const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions }) => {
+  const { t } = useLanguage();
   if (instructions.length === 0) return null;
   return (
     <Collapse
@@ -897,7 +898,7 @@ const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions 
           label: (
             <Flex align="center" gap={8}>
               <WarningOutlined style={{ color: '#faad14' }} />
-              <Text strong style={{ fontSize: 13 }}>プロジェクト指示</Text>
+              <Text strong style={{ fontSize: 13 }}>{t('workRecord.projectInstructions')}</Text>
               <Badge count={instructions.length} size="small" color="#faad14" />
             </Flex>
           ),
@@ -1086,6 +1087,7 @@ const PlanA: React.FC<PlanProps> = ({
 const PlanB: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick,
 }) => {
+  const { t } = useLanguage();
   const { token } = theme.useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templateSearchText, setTemplateSearchText] = useState('');
@@ -1151,22 +1153,22 @@ const PlanB: React.FC<PlanProps> = ({
           {/* タイトル + 件数 */}
           <div style={{ marginBottom: token.marginSM }}>
             <Space>
-              <Text strong>テンプレート</Text>
-              <Tag color="blue">{filteredTemplates.length}件</Tag>
+              <Text strong>{t('workRecord.templateLabel')}</Text>
+              <Tag color="blue">{filteredTemplates.length}{t('workRecord.templateCountSuffix')}</Tag>
             </Space>
           </div>
 
           {/* 検索・カテゴリフィルタ */}
           <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
             <Input
-              placeholder="テンプレート名で検索"
+              placeholder={t('workRecord.templateSearchPlaceholder')}
               prefix={<SearchOutlined />}
               value={templateSearchText}
               onChange={(e) => setTemplateSearchText(e.target.value)}
               allowClear
             />
             <Select
-              placeholder="テンプレート種別"
+              placeholder={t('workRecord.templateKind')}
               value={selectedTemplateCategory}
               onChange={setSelectedTemplateCategory}
               allowClear
@@ -1210,7 +1212,7 @@ const PlanB: React.FC<PlanProps> = ({
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Text strong style={{ fontSize: 13 }}>{name}</Text>
-                            <Text type="secondary" style={{ fontSize: 12 }}>({propertyCount}項目)</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>({propertyCount}{t('workRecord.itemsSuffix')})</Text>
                           </div>
                           <div style={{ marginTop: 4 }}>
                             <Space size="small">

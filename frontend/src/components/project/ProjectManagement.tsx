@@ -2133,7 +2133,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     </Button>
                   )}
                   <Tooltip
-                    title={!allTasksCompleted ? '全タスクが「完了」になると押下できます' : undefined}
+                    title={!allTasksCompleted ? t('projectManagement.completionDisabledTooltip') : undefined}
                   >
                     <Button
                       type="primary"
@@ -2145,7 +2145,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       }
                       onClick={() => setCompletionDialogOpen(true)}
                     >
-                      プロジェクト完了処理
+                      {t('projectManagement.completionButton')}
                     </Button>
                   </Tooltip>
                   <Button
@@ -2169,7 +2169,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     disabled={!selectedProject || selectedProject?.isEditable === false}
                     title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                   >
-                    暗号化管理
+                    {t('projectManagement.encryptionButton')}
                   </Button>
                   <Button
                     icon={<SafetyCertificateOutlined />}
@@ -2177,7 +2177,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     disabled={!selectedProject || selectedProject?.isEditable === false}
                     title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                   >
-                    電子署名
+                    {t('projectManagement.signatureButton')}
                   </Button>
                 </Space>
               </Card>
@@ -2261,7 +2261,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   },
                   {
                     key: 'project_instruction',
-                    label: 'プロジェクト指示',
+                    label: t('projectManagement.tabProjectInstruction'),
                     children: (
                       <InstructionRegistrationTab
                         projectId={selectedProject.id}
@@ -2286,7 +2286,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   },
                   {
                     key: 'evaluation_registration',
-                    label: '評価登録確認',
+                    label: t('projectManagement.tabEvaluationRegistration'),
                     children: (
                       <div style={{ height: '100%', padding: '8px 0', overflowY: 'auto' }}>
                         <EvaluationRegistrationTab

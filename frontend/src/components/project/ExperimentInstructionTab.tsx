@@ -162,26 +162,26 @@ const INITIAL_FILTER: FilterState = {
 const FIXED_COLUMN_KEYS = ['taskNumber', 'propKey'] as const;
 
 /** 切替可能な列の定義（width は各列の固定幅と一致させること） */
-const TOGGLEABLE_COLUMN_DEFS: { key: string; label: string; width: number }[] = [
-  { key: 'taskStatus',                  label: 'タスクステータス',                width: 110 },
-  { key: 'methodName',                  label: 'メソッド名',                    width: 190 },
-  { key: 'transitionName',              label: 'トランジション名',               width: 180 },
-  { key: 'templateName',                label: 'テンプレート名',                 width: 180 },
-  { key: 'xsiType',                     label: 'xsi:type',                      width:  75 },
-  { key: 'expected',                    label: '想定値',                         width: 100 },
-  { key: 'expectedAverage',             label: '想定値（平均）',                  width: 120 },
-  { key: 'actual',                      label: '実績値',                         width: 100 },
-  { key: 'actualAverage',               label: '実績値（平均）',                  width: 120 },
-  { key: 'diff',                        label: '差分',                           width:  85 },
-  { key: 'uncertaintyCriteriaName',     label: '不確かさ基準名',                  width: 200 },
-  { key: 'uncertaintyAssignedValue',    label: '不確かさ値',                      width: 140 },
-  { key: 'uncertaintyAssignedBy',       label: '実験記録者',                      width: 140 },
-  { key: 'uncertaintyAssignedAt',       label: '不確かさ付与日時',                width: 160 },
-  { key: 'uncertaintyComment',          label: '不確かさについてのコメント',       width: 220 },
+const TOGGLEABLE_COLUMN_KEYS_AND_WIDTHS: { key: string; labelKey: string; width: number }[] = [
+  { key: 'taskStatus',                  labelKey: 'experimentInstructionTab.col.taskStatus',               width: 110 },
+  { key: 'methodName',                  labelKey: 'experimentInstructionTab.col.methodName',               width: 190 },
+  { key: 'transitionName',              labelKey: 'experimentInstructionTab.col.transitionName',           width: 180 },
+  { key: 'templateName',                labelKey: 'experimentInstructionTab.col.templateName',             width: 180 },
+  { key: 'xsiType',                     labelKey: 'experimentInstructionTab.col.xsiType',                  width:  75 },
+  { key: 'expected',                    labelKey: 'experimentInstructionTab.col.expected',                 width: 100 },
+  { key: 'expectedAverage',             labelKey: 'experimentInstructionTab.col.expectedAverage',          width: 120 },
+  { key: 'actual',                      labelKey: 'experimentInstructionTab.col.actual',                   width: 100 },
+  { key: 'actualAverage',               labelKey: 'experimentInstructionTab.col.actualAverage',            width: 120 },
+  { key: 'diff',                        labelKey: 'experimentInstructionTab.col.diff',                     width:  85 },
+  { key: 'uncertaintyCriteriaName',     labelKey: 'experimentInstructionTab.col.uncertaintyCriteriaName', width: 200 },
+  { key: 'uncertaintyAssignedValue',    labelKey: 'experimentInstructionTab.col.uncertaintyAssignedValue', width: 140 },
+  { key: 'uncertaintyAssignedBy',       labelKey: 'experimentInstructionTab.col.uncertaintyAssignedBy',   width: 140 },
+  { key: 'uncertaintyAssignedAt',       labelKey: 'experimentInstructionTab.col.uncertaintyAssignedAt',   width: 160 },
+  { key: 'uncertaintyComment',          labelKey: 'experimentInstructionTab.col.uncertaintyComment',      width: 220 },
 ];
 
 /** デフォルトで表示するすべての列キー */
-const ALL_COLUMN_KEYS = TOGGLEABLE_COLUMN_DEFS.map((d) => d.key);
+const ALL_COLUMN_KEYS = TOGGLEABLE_COLUMN_KEYS_AND_WIDTHS.map((d) => d.key);
 
 // ─────────────────────────────────────────────────────────────
 // ユーティリティ
@@ -322,8 +322,8 @@ const DiffCell: React.FC<{ expected: number | string | null; actual: number | st
   return <Text style={{ color: '#096dd9' }}>{s}</Text>;
 };
 
-const ActualCell: React.FC<{ actual: number | string | null; unit: string }> = ({ actual, unit }) => {
-  if (actual === null) return <Text type="secondary" italic>未記録</Text>;
+const ActualCell: React.FC<{ actual: number | string | null; unit: string; t: (key: string) => string }> = ({ actual, unit, t }) => {
+  if (actual === null) return <Text type="secondary" italic>{t('experimentInstructionTab.cell.noRecord')}</Text>;
   return <Text>{actual}{unit ? ` ${unit}` : ''}</Text>;
 };
 
@@ -337,9 +337,10 @@ interface FilterBarProps {
   total: number;
   filtered: number;
   onChange: (partial: Partial<FilterState>) => void;
+  t: (key: string) => string;
 }
 
-const FilterBar: React.FC<FilterBarProps> = ({ filters, rows, total, filtered, onChange }) => {
+const FilterBar: React.FC<FilterBarProps> = ({ filters, rows, total, filtered, onChange, t }) => {
   const sel = (
     width: number,
     placeholder: string,
@@ -361,10 +362,10 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, rows, total, filtered, o
   return (
     <Flex gap={6} align="center" wrap="wrap" style={{ padding: '4px 0' }}>
       <FilterOutlined style={{ color: '#888', fontSize: 12 }} />
-      {sel(70,  'タスクNo',       'taskNumber',   uniq(rows.map((r) => r.taskNumber)).sort((a, b) => a - b))}
-      {sel(200, 'メソッドID',     'methodId',     uniq(rows.map((r) => r.methodId)))}
-      {sel(160, 'トランジション', 'transitionId', uniq(rows.map((r) => r.transitionId)))}
-      {sel(190, 'テンプレート名', 'templateName', uniq(rows.map((r) => r.templateName)))}
+      {sel(70,  t('experimentInstructionTab.filter.taskNumber'),    'taskNumber',   uniq(rows.map((r) => r.taskNumber)).sort((a, b) => a - b))}
+      {sel(200, t('experimentInstructionTab.filter.methodId'),      'methodId',     uniq(rows.map((r) => r.methodId)))}
+      {sel(160, t('experimentInstructionTab.filter.transitionId'),  'transitionId', uniq(rows.map((r) => r.transitionId)))}
+      {sel(190, t('experimentInstructionTab.filter.templateName'),  'templateName', uniq(rows.map((r) => r.templateName)))}
       {sel(160, 'Key',            'propKey',      uniq(rows.map((r) => r.propKey)))}
       <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
         {filtered}/{total}行
@@ -632,7 +633,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     // ──── 切替可能列 ────
     {
       key: 'methodName',
-      title: 'メソッド名',
+      title: t('experimentInstructionTab.col.methodName'),
       dataIndex: 'methodName',
       width: 190,
       ellipsis: { showTitle: false },
@@ -648,7 +649,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     // ──── 固定列（常に表示） ────
     {
       key: 'taskNumber',
-      title: 'タスクNo',
+      title: t('experimentInstructionTab.col.taskNo'),
       dataIndex: 'taskNumber',
       width: 80,
       align: 'center' as const,
@@ -658,7 +659,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     // ──── 切替可能列（続き） ────
     {
       key: 'taskStatus',
-      title: <span style={{ whiteSpace: 'normal', wordBreak: 'keep-all', textAlign: 'center', display: 'block' }}>タスク<br />ステータス</span>,
+      title: <span style={{ whiteSpace: 'normal', wordBreak: 'keep-all', textAlign: 'center', display: 'block' }}>{t('experimentInstructionTab.col.taskStatusLine1')}<br />{t('experimentInstructionTab.col.taskStatusLine2')}</span>,
       dataIndex: 'taskStatus',
       width: 110,
       align: 'center' as const,
@@ -669,7 +670,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       key: 'transitionName',
-      title: 'トランジション名',
+      title: t('experimentInstructionTab.col.transitionName'),
       dataIndex: 'transitionName',
       width: 180,
       ellipsis: { showTitle: false },
@@ -684,7 +685,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       key: 'templateName',
-      title: 'テンプレート名',
+      title: t('experimentInstructionTab.col.templateName'),
       dataIndex: 'templateName',
       width: 180,
       ellipsis: { showTitle: false },
@@ -723,7 +724,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       key: 'expected',
-      title: '想定値',
+      title: t('experimentInstructionTab.col.expected'),
       dataIndex: 'expected',
       width: 100,
       align: 'right' as const,
@@ -733,7 +734,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       key: 'expectedAverage',
-      title: <span style={{ whiteSpace: 'nowrap' }}>想定値（平均）</span>,
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.expectedAverage')}</span>,
       dataIndex: 'expectedAverage',
       width: 120,
       align: 'right' as const,
@@ -744,41 +745,41 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       key: 'actual',
-      title: '実績値',
+      title: t('experimentInstructionTab.col.actual'),
       width: 100,
       align: 'right' as const,
-      render: (_: unknown, r: FlatRow) => <ActualCell actual={r.actual} unit={r.unit} />,
+      render: (_: unknown, r: FlatRow) => <ActualCell actual={r.actual} unit={r.unit} t={t} />,
     },
     {
       key: 'actualAverage',
-      title: <span style={{ whiteSpace: 'nowrap' }}>実績値（平均）</span>,
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.actualAverage')}</span>,
       dataIndex: 'actualAverage',
       width: 120,
       align: 'right' as const,
       render: (v: number | null, r: FlatRow) =>
         v !== null
           ? <Text type="secondary">{v}{r.unit ? ` ${r.unit}` : ''}</Text>
-          : <Text type="secondary" italic>未記録</Text>,
+          : <Text type="secondary" italic>{t('experimentInstructionTab.cell.noRecord')}</Text>,
     },
     {
       key: 'diff',
-      title: '差分',
+      title: t('experimentInstructionTab.col.diff'),
       width: 85,
       align: 'right' as const,
       render: (_: unknown, r: FlatRow) => <DiffCell expected={r.expected} actual={r.actual} />,
     },
     {
       key: 'uncertaintyCriteriaName',
-      title: '不確かさ基準名',
+      title: t('experimentInstructionTab.col.uncertaintyCriteriaName'),
       dataIndex: 'uncertaintyCriteriaName',
       width: 200,
       ellipsis: { showTitle: false },
       render: (v: string | null, r: FlatRow) => {
         if (!v) return <Text type="secondary">—</Text>;
         const typeTag = r.uncertaintyCriteriaType === 'qualitative'
-          ? <Tag color="green"  style={{ margin: '0 4px 0 0', fontSize: 10 }}>定性</Tag>
+          ? <Tag color="green"  style={{ margin: '0 4px 0 0', fontSize: 10 }}>{t('experimentInstructionTab.criteriaType.qualitative')}</Tag>
           : r.uncertaintyCriteriaType === 'quantitative'
-          ? <Tag color="blue"   style={{ margin: '0 4px 0 0', fontSize: 10 }}>定量</Tag>
+          ? <Tag color="blue"   style={{ margin: '0 4px 0 0', fontSize: 10 }}>{t('experimentInstructionTab.criteriaType.quantitative')}</Tag>
           : null;
         return (
           <Tooltip title={v} placement="topLeft">
@@ -792,7 +793,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       key: 'uncertaintyAssignedValue',
-      title: <span style={{ whiteSpace: 'nowrap' }}>不確かさ値</span>,
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyAssignedValue')}</span>,
       dataIndex: 'uncertaintyAssignedValue',
       width: 140,
       render: (v: string | null) =>
@@ -800,7 +801,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       key: 'uncertaintyAssignedBy',
-      title: <span style={{ whiteSpace: 'nowrap' }}>実験記録者</span>,
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyAssignedBy')}</span>,
       dataIndex: 'uncertaintyAssignedBy',
       width: 140,
       render: (v: string | null) =>
@@ -808,7 +809,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       key: 'uncertaintyAssignedAt',
-      title: <span style={{ whiteSpace: 'nowrap' }}>不確かさ付与日時</span>,
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyAssignedAt')}</span>,
       dataIndex: 'uncertaintyAssignedAt',
       width: 160,
       render: (v: string | null) => {
@@ -824,7 +825,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     },
     {
       key: 'uncertaintyComment',
-      title: <span style={{ whiteSpace: 'nowrap' }}>不確かさについてのコメント</span>,
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyComment')}</span>,
       dataIndex: 'uncertaintyComment',
       width: 220,
       ellipsis: { showTitle: false },
@@ -859,7 +860,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   const scrollX = useMemo(() => {
     // 固定列の幅: taskNumber(80) + propKey(160)
     const FIXED_WIDTH = 80 + 160;
-    const toggleableWidth = TOGGLEABLE_COLUMN_DEFS
+    const toggleableWidth = TOGGLEABLE_COLUMN_KEYS_AND_WIDTHS
       .filter(({ key }) => visibleColumnKeys.includes(key))
       .reduce((sum, { width }) => sum + width, 0);
     return FIXED_WIDTH + toggleableWidth;
@@ -867,7 +868,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
 
   /** 列カスタマイズ Dropdown のメニューアイテム */
   const columnMenuItems: MenuProps['items'] = useMemo(() => [
-    ...TOGGLEABLE_COLUMN_DEFS.map(({ key, label }) => ({
+    ...TOGGLEABLE_COLUMN_KEYS_AND_WIDTHS.map(({ key, labelKey }) => ({
       key,
       label: (
         <span
@@ -880,7 +881,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           }}
         >
           <input type="checkbox" readOnly checked={visibleColumnKeys.includes(key)} style={{ cursor: 'pointer' }} />
-          {label}
+          {t(labelKey)}
         </span>
       ),
     })),
@@ -889,7 +890,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       key: '__reset__',
       label: (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          デフォルトに戻す
+          {t('experimentInstructionTab.toolbar.resetColumns')}
         </Text>
       ),
       onClick: () => setVisibleColumnKeys([...ALL_COLUMN_KEYS]),
@@ -909,7 +910,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           icon={<EditOutlined />}
           onClick={() => handleOpenPlanDialog(filters.methodId ?? undefined)}
         >
-          実験指示を編集
+          {t('experimentInstructionTab.toolbar.edit')}
         </Button>
         <Button
           size="small"
@@ -917,7 +918,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           onClick={handleOpenPetriNetViewer}
           disabled={!projectName}
         >
-          ペトリネットを表示
+          {t('experimentInstructionTab.toolbar.petriNet')}
         </Button>
         <Dropdown
           menu={{ items: columnMenuItems }}
@@ -927,7 +928,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           placement="bottomRight"
         >
           <Button size="small" icon={<SettingOutlined />}>
-            列を選択 ▾
+            {t('experimentInstructionTab.toolbar.selectColumns')}
           </Button>
         </Dropdown>
         <Button
@@ -937,7 +938,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           disabled={reviewWaitingTasks.length === 0}
           onClick={handleOpenBulkApproveDialog}
         >
-          承認処理
+          {t('experimentInstructionTab.toolbar.approval')}
         </Button>
       </Flex>
 
@@ -948,6 +949,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         total={allRows.length}
         filtered={filteredRows.length}
         onChange={(partial) => setFilters((prev) => ({ ...prev, ...partial }))}
+        t={t}
       />
 
       {/* ── テーブル ── */}
@@ -959,11 +961,11 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       <div className="experiment-instruction-table" style={{ flex: 1, overflow: 'hidden' }}>
         {loading ? (
           <Flex justify="center" align="center" style={{ height: 200 }}>
-            <Spin tip="読み込み中..." />
+            <Spin tip={t('experimentInstructionTab.loading')} />
           </Flex>
         ) : allRows.length === 0 ? (
           <Empty
-            description="実験指示データがありません"
+            description={t('experimentInstructionTab.empty')}
             style={{ marginTop: 60 }}
           />
         ) : (
@@ -983,21 +985,21 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
 
       {/* ── 承認確認モーダル ── */}
       <Modal
-        title="タスクを承認しますか？"
+        title={t('experimentInstructionTab.approveModal.title')}
         open={approveTarget !== null}
         onOk={handleApprove}
         onCancel={() => setApproveTarget(null)}
-        okText="承認"
-        cancelText="キャンセル"
+        okText={t('experimentInstructionTab.approveModal.ok')}
+        cancelText={t('experimentInstructionTab.approveModal.cancel')}
         okButtonProps={{ loading: actionLoading }}
         destroyOnHidden
       >
         {approveTarget && (
           <Space direction="vertical" size={4}>
-            <Text>以下のタスクを「完了」に更新します。</Text>
-            <Text strong>タスク #{approveTarget.taskNumber}</Text>
+            <Text>{t('experimentInstructionTab.approveModal.body')}</Text>
+            <Text strong>{t('experimentInstructionTab.approveModal.taskLabel').replace('#{no}', String(approveTarget.taskNumber))}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              メソッド: {approveTarget.methodName} ({approveTarget.methodId})
+              {t('experimentInstructionTab.approveModal.methodLabel')}: {approveTarget.methodName} ({approveTarget.methodId})
             </Text>
           </Space>
         )}
@@ -1005,29 +1007,29 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
 
       {/* ── NG記録モーダル ── */}
       <Modal
-        title="NG を記録しますか？"
+        title={t('experimentInstructionTab.ngModal.title')}
         open={ngTarget !== null}
         onOk={handleNg}
         onCancel={() => { setNgTarget(null); ngForm.resetFields(); }}
-        okText="NG記録"
-        cancelText="キャンセル"
+        okText={t('experimentInstructionTab.ngModal.ok')}
+        cancelText={t('experimentInstructionTab.ngModal.cancel')}
         okButtonProps={{ danger: true, loading: actionLoading }}
         destroyOnHidden
       >
         {ngTarget && (
           <Space direction="vertical" size={8} style={{ width: '100%' }}>
-            <Text>以下のタスクを「NG」に更新します。</Text>
-            <Text strong>タスク #{ngTarget.taskNumber}</Text>
+            <Text>{t('experimentInstructionTab.ngModal.body')}</Text>
+            <Text strong>{t('experimentInstructionTab.ngModal.taskLabel').replace('#{no}', String(ngTarget.taskNumber))}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              メソッド: {ngTarget.methodName} ({ngTarget.methodId})
+              {t('experimentInstructionTab.ngModal.methodLabel')}: {ngTarget.methodName} ({ngTarget.methodId})
             </Text>
             <Form form={ngForm} layout="vertical">
               <Form.Item
                 name="ngReason"
-                label="NG理由"
-                rules={[{ required: true, message: 'NG理由を入力してください' }]}
+                label={t('experimentInstructionTab.ngModal.reasonLabel')}
+                rules={[{ required: true, message: t('experimentInstructionTab.ngModal.reasonRequired') }]}
               >
-                <TextArea rows={3} placeholder="NG理由を入力してください" maxLength={500} showCount />
+                <TextArea rows={3} placeholder={t('experimentInstructionTab.ngModal.reasonPlaceholder')} maxLength={500} showCount />
               </Form.Item>
             </Form>
           </Space>
@@ -1036,12 +1038,12 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
 
       {/* ── 承認処理ダイアログ ── */}
       <Modal
-        title="承認処理"
+        title={t('experimentInstructionTab.bulkModal.title')}
         open={bulkApproveOpen}
         onOk={handleBulkExecute}
         onCancel={() => setBulkApproveOpen(false)}
-        okText="実行"
-        cancelText="キャンセル"
+        okText={t('experimentInstructionTab.bulkModal.ok')}
+        cancelText={t('experimentInstructionTab.bulkModal.cancel')}
         okButtonProps={{ loading: actionLoading, disabled: !bulkSelectedTaskKey }}
         width={480}
         destroyOnHidden
@@ -1049,9 +1051,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         <Space direction="vertical" size={12} style={{ width: '100%', paddingTop: 8 }}>
           {/* ── 1行目: メソッド名 + タスク番号 ── */}
           <Flex gap={8} align="center">
-            <Text style={{ whiteSpace: 'nowrap' }}>メソッド名:</Text>
+            <Text style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.bulkMethodLabel')}</Text>
             <Select
-              placeholder="メソッドを選択"
+              placeholder={t('experimentInstructionTab.bulkMethodPlaceholder')}
               style={{ width: 180 }}
               value={bulkSelectedMethodId}
               onChange={(v) => {
@@ -1068,9 +1070,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
               }
               popupMatchSelectWidth={false}
             />
-            <Text style={{ whiteSpace: 'nowrap' }}>タスク番号:</Text>
+            <Text style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.bulkTaskNoLabel')}</Text>
             <Select
-              placeholder="番号を選択"
+              placeholder={t('experimentInstructionTab.bulkTaskNoPlaceholder')}
               style={{ width: 90 }}
               value={bulkSelectedTaskKey}
               onChange={(v) => setBulkSelectedTaskKey(v ?? null)}
@@ -1088,7 +1090,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           </Flex>
           {/* ── 2行目: 操作を選択 ── */}
           <Flex gap={8} align="center">
-            <Text style={{ whiteSpace: 'nowrap' }}>操作を選択:</Text>
+            <Text style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.bulkActionLabel')}</Text>
             <Radio.Group
               value={bulkSelectedAction}
               onChange={(e) => {
@@ -1096,21 +1098,21 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
                 if (e.target.value === 'approve') setBulkSelectedNgReason('');
               }}
             >
-              <Radio value="approve"><span style={{ color: '#52c41a' }}>✓ 承認する</span></Radio>
-              <Radio value="ng"><span style={{ color: '#ff4d4f' }}>✗ NGにする</span></Radio>
+              <Radio value="approve"><span style={{ color: '#52c41a' }}>{t('experimentInstructionTab.bulkActionApprove')}</span></Radio>
+              <Radio value="ng"><span style={{ color: '#ff4d4f' }}>{t('experimentInstructionTab.bulkActionNg')}</span></Radio>
             </Radio.Group>
           </Flex>
           {/* ── NG理由（NG選択時のみ表示） ── */}
           {bulkSelectedAction === 'ng' && (
             <Form layout="vertical" style={{ marginBottom: 0 }}>
               <Form.Item
-                label="NG理由"
+                label={t('experimentInstructionTab.ngModal.reasonLabel')}
                 required
                 style={{ marginBottom: 0 }}
               >
                 <Input.TextArea
                   rows={3}
-                  placeholder="NG理由を入力してください（必須）"
+                  placeholder={t('experimentInstructionTab.ngModal.reasonRequiredPlaceholder')}
                   maxLength={500}
                   showCount
                   value={bulkSelectedNgReason}
