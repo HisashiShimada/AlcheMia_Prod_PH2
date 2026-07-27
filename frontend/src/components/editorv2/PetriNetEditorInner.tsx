@@ -3460,6 +3460,8 @@ interface PetriNetEditorInnerUIProps {
   onOpenStructureTree: () => void;
   /** MaiML構造ツリーパネルを閉じるハンドラ */
   onCloseStructureTree: () => void;
+  /** 編集中のファイル名（TemplateEditorDialog に渡す） */
+  editingFileName?: string;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
@@ -3544,6 +3546,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   currentUserId,
   sourceS3Key,
   projectId,
+  editingFileName,
   lastAddedNodeId,
   insertionPanelOpen,
   onOpenInsertionPanel,
@@ -3813,6 +3816,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
             return nodes;
           })()}
           templateErrors={templateErrors}
+          editingFileName={editingFileName}
         />
 
         {/* Document編集ダイアログ */}

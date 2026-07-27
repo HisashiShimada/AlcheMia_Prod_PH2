@@ -45,6 +45,7 @@ import type {
   TemplateError,
 } from '../../types/editor';
 import { Template, Insertion, PlaceRef} from '@/types/maiml-unified';
+import InsertionEditorForm from '@/components/common/InsertionEditorForm';
 import NestedPropertyEditor from './NestedPropertyEditor';
 import type { PropertyData } from '@/types/editor';
 import UncertaintyCriteriaSelectorModal from '../uncertainty/UncertaintyCriteriaSelectorModal';
@@ -90,6 +91,8 @@ interface TemplateEditorDialogProps {
   ) => void;
   allNodes?: Array<{ id: string; data: NodeData }>;
   templateErrors?: Record<string, TemplateError[]>;
+  /** 編集中のファイル名（例: "sample_project.maiml"）。アップロード先パスの生成に使用 */
+  editingFileName?: string;
 }
 
 /**
@@ -102,6 +105,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   onSave,
   allNodes = [],
   templateErrors = {},
+  editingFileName,
 }) => {
   const { t } = useLanguage();
   const [hasChanges, setHasChanges] = useState(false);
@@ -1495,55 +1499,17 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 {t('template.sectionInsertion')}
               </Title>
               
-              <Form.Item label="URI">
-                <Input
-                  value={insertion.uri}
-                  onChange={(e) => {
-                    setInsertion({ ...insertion, uri: e.target.value });
-                    setHasChanges(true);
-                  }}
-                  placeholder="例: s3://bucket/path/to/file"
-                />
-              </Form.Item>
-
-              <Form.Item label="Hash Method">
-                <Input
-                  value={insertion.hash?.method || ''}
-                  onChange={(e) => {
-                    setInsertion({ 
-                      ...insertion, 
-                      hash: { ...insertion.hash, method: e.target.value } 
-                    });
-                    setHasChanges(true);
-                  }}
-                  placeholder="例: sha256"
-                />
-              </Form.Item>
-
-              <Form.Item label="Hash Value">
-                <Input
-                  value={insertion.hash?.value || ''}
-                  onChange={(e) => {
-                    setInsertion({ 
-                      ...insertion, 
-                      hash: { ...insertion.hash, value: e.target.value } 
-                    });
-                    setHasChanges(true);
-                  }}
-                  placeholder="例: abc123..."
-                />
-              </Form.Item>
-
-              <Form.Item label="Format">
-                <Input
-                  value={insertion.format}
-                  onChange={(e) => {
-                    setInsertion({ ...insertion, format: e.target.value });
-                    setHasChanges(true);
-                  }}
-                  placeholder="例: application/xml"
-                />
-              </Form.Item>
+              <InsertionEditorForm
+                value={insertion}
+                onChange={(v) => {
+                  setInsertion(v);
+                  setHasChanges(true);
+                }}
+                uploadTargetPath={(() => {
+                  const projectName = editingFileName?.replace(/\.maiml$/, '') ?? '';
+                  return projectName ? `projects/${projectName}/attachments` : undefined;
+                })()}
+              />
             </>
           )}
         </div>
