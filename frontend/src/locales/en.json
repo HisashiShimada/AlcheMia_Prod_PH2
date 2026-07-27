@@ -4105,5 +4105,15 @@
     "fetchFailed": "Failed to fetch detail data",
     "savedAs": "Saved as V{{version}}",
     "saveFailed": "Save failed. Please try again."
+  },
+  "uncertaintyCriteriaSelector": {
+    "fetchFailed": "Failed to fetch uncertainty criteria",
+    "warningSelectCriteria": "Please select an uncertainty criterion",
+    "warningSelectTrustLevel": "Please select a confidence level",
+    "successAssign": "Uncertainty assigned with \"{{name}}\"",
+    "successAssignWithMode": "Uncertainty {{mode}} for \"{{key}}\"",
+    "successDelete": "Uncertainty deleted for \"{{key}}\"",
+    "validationPositiveNumber": "Please enter a positive number",
+    "defaultConfidenceOptions": ["Certain", "Ambiguous", "Uncertain"]
   }
 }

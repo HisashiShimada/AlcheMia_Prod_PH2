@@ -79,7 +79,7 @@ export async function getDetail(
     const detail = await uncertaintyCriteriaService.getDetail(organizationId, uncertaintyKey, version);
 
     if (!detail) {
-      res.status(404).json({ error: { code: 'E6001', message: '不確かさ基準が見つかりません' } });
+      res.status(404).json({ error: { code: 'E6001', message: 'Uncertainty criterion not found' } });
       return;
     }
 

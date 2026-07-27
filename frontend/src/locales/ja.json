@@ -3990,6 +3990,13 @@
   },
   "uncertaintyCriteriaSelectorModal": {
     "fetchFailed": "不確かさ基準の取得に失敗しました",
+    "selectCriteriaWarning": "不確かさ基準を選択してください",
+    "selectConfidenceWarning": "信頼レベルを選択してください",
+    "assignSuccess": "「{{name}}」で不確かさを付与しました",
+    "uncertaintyAssigned": "「{{key}}」に不確かさを{{mode}}しました",
+    "uncertaintyDeleted": "「{{key}}」の不確かさを削除しました",
+    "modeAdd": "追加",
+    "modeUpdate": "更新",
     "selectCriteria": "不確かさ基準を選択してください",
     "selectQualLevel": "信頼レベルを選択してください",
     "assignSuccess": "「{{name}}」で不確かさを付与しました",
@@ -5244,9 +5251,9 @@
     "completionButtonInToolbar": "プロジェクト完了処理"
   },
   "templateEditor": {
-    "uncertaintyUpdated": "「{key}」に不確かさを更新しました",
-    "uncertaintyAdded": "「{key}」に不確かさを追加しました",
-    "uncertaintyDeleted": "「{key}」の不確かさを削除しました"
+    "uncertaintyUpdated": "「{{key}}」に不確かさを更新しました",
+    "uncertaintyAdded": "「{{key}}」に不確かさを追加しました",
+    "uncertaintyDeleted": "「{{key}}」の不確かさを削除しました"
   },
   "uncertaintyCriteriaSelector": {
     "title": "不確かさ基準選択",
@@ -5293,7 +5300,12 @@
     "confirmAssignValue": "付与値",
     "confirmComment": "コメント",
     "confirmQuantitative": "定量評価",
-    "confirmQualitative": "定性評価"
+    "confirmQualitative": "定性評価",
+    "fetchFailed": "不確かさ基準の取得に失敗しました",
+    "warningSelectCriteria": "不確かさ基準を選択してください",
+    "warningSelectTrustLevel": "信頼レベルを選択してください",
+    "successAssign": "「{{name}}」で不確かさを付与しました",
+    "validationPositiveNumber": "正の数値を入力してください"
   }
 }
 

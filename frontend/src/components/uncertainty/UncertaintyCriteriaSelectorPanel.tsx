@@ -19,6 +19,8 @@ import type { ColumnsType } from 'antd/es/table';
 import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
 import UncertaintyCreateModal from './UncertaintyCreateModal';
 import type { UncertaintyCriteria, TargetProperty, AssignPayload } from './UncertaintyCriteriaSelectorModal';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 const { TextArea } = Input;
