@@ -14,6 +14,7 @@ import {
   message,
   Spin,
 } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 import QualitativeOptionEditor, { type QualitativeOption } from './QualitativeOptionEditor';
 import type { UncertaintyTemplate } from './UncertaintyListTable';
 import TemplateDiffPreviewModal, { type DiffData, type DiffField } from './TemplateDiffPreviewModal';
@@ -245,6 +246,7 @@ export default function UncertaintyDetailModal({
   onClose,
   onSaved,
 }: UncertaintyDetailModalProps) {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<UncertaintyCriteriaDetailApiRow | null>(null);
 
@@ -294,7 +296,7 @@ export default function UncertaintyDetailModal({
         });
       })
       .catch(() => {
-        message.error('詳細データの取得に失敗しました');
+        message.error(t('uncertaintyDetail.fetchFailed'));
       })
       .finally(() => setLoading(false));
   }, [open, template, form]);
@@ -357,7 +359,7 @@ export default function UncertaintyDetailModal({
     );
     const hasChange = diff.summary.changed > 0 || diff.summary.added > 0;
     if (!hasChange) {
-      message.warning('変更がありません。内容を編集してから保存してください。');
+      message.warning(t('uncertaintyDetail.noChanges'));
       return;
     }
 
@@ -384,11 +386,11 @@ export default function UncertaintyDetailModal({
           : [],
       });
 
-      message.success(`V${result.version} として保存しました`);
+      message.success(t('uncertaintyDetail.savedAs', { version: String(result.version) }));
       onSaved?.();
       onClose();
     } catch {
-      message.error('保存に失敗しました。再度お試しください。');
+      message.error(t('uncertaintyDetail.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -398,9 +400,9 @@ export default function UncertaintyDetailModal({
 
   const statusTag =
     statusState === 'active' ? (
-      <Tag color="success" style={{ fontWeight: 600 }}>● 有効</Tag>
+      <Tag color="success" style={{ fontWeight: 600 }}>● {t('uncertaintyDetail.statusActive')}</Tag>
     ) : (
-      <Tag color="default" style={{ fontWeight: 600 }}>○ 無効</Tag>
+      <Tag color="default" style={{ fontWeight: 600 }}>○ {t('uncertaintyDetail.statusDeprecated')}</Tag>
     );
 
   return (
@@ -411,23 +413,23 @@ export default function UncertaintyDetailModal({
       title={
         <Space>
           <span style={{ fontSize: 16, fontWeight: 700 }}>
-            📋 {template.key} — 詳細・編集
+            📋 {template.key} — {t('uncertaintyDetail.titleSuffix')}
           </span>
           {statusTag}
         </Space>
       }
       footer={
         <Space>
-          <Button onClick={onClose}>閉じる</Button>
+          <Button onClick={onClose}>{t('common.close')}</Button>
           <Button
             style={{ color: '#722ed1', borderColor: '#d3adf7' }}
             onClick={handleOpenDiffPreview}
             disabled={loading || !detail}
           >
-            🔍 差分プレビュー
+            🔍 {t('uncertaintyDetail.diffPreview')}
           </Button>
           <Button type="primary" onClick={handleSave} disabled={loading}>
-            保存
+            {t('common.save')}
           </Button>
         </Space>
       }
@@ -438,75 +440,75 @@ export default function UncertaintyDetailModal({
 
           {/* ===== 1. 基本情報 ===== */}
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>1 .基本情報</div>
+            <div style={sectionTitleStyle}>1. {t('uncertaintyDetail.section1Title')}</div>
 
             {/* 不確かさ基準名 → uncertainty_criteria.uncertainty_name */}
             <Form.Item
               name="uncertaintyName"
-              label="不確かさ基準名"
+              label={t('uncertaintyDetail.nameLabel')}
               style={{ marginBottom: 14 }}
             >
-              <Input placeholder="不確かさ基準名を入力してください" />
+              <Input placeholder={t('uncertaintyDetail.namePlaceholder')} />
             </Form.Item>
 
             {/* Key属性設定 → uncertainty_criteria.uncertainty_key（読み取り専用） */}
             <Form.Item
               name="uncertaintyKey"
-              label="Key属性設定"
+              label={t('uncertaintyDetail.keyLabel')}
               style={{ marginBottom: 14 }}
             >
               <Input disabled />
             </Form.Item>
 
             {/* 説明文 → uncertainty_criteria.description */}
-            <Form.Item name="desc" label="説明文" style={{ marginBottom: 14 }}>
+            <Form.Item name="desc" label={t('uncertaintyDetail.descLabel')} style={{ marginBottom: 14 }}>
               <TextArea rows={3} />
             </Form.Item>
 
             {/* 状態 → uncertainty_criteria.is_Invalid */}
-            <Form.Item label="状態" style={{ marginBottom: 0 }}>
+            <Form.Item label={t('uncertaintyDetail.statusLabel')} style={{ marginBottom: 0 }}>
               <Space align="center">
                 {!isLatestVersion ? (
                   <>
-                    <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ 無効</Tag>
+                    <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ {t('uncertaintyDetail.statusDeprecated')}</Tag>
                     <Switch
                       checked={false}
-                      checkedChildren="有効"
-                      unCheckedChildren="無効"
+                      checkedChildren={t('uncertaintyDetail.statusActive')}
+                      unCheckedChildren={t('uncertaintyDetail.statusDeprecated')}
                       disabled
                     />
                     <span style={{ fontSize: 12, color: '#aaa' }}>
-                      旧バージョンのため変更できません
+                      {t('uncertaintyDetail.oldVersionNote')}
                     </span>
                   </>
                 ) : statusState === 'active' ? (
                   <>
-                    <Tag color="success" style={{ fontWeight: 600, marginRight: 8 }}>● 有効</Tag>
+                    <Tag color="success" style={{ fontWeight: 600, marginRight: 8 }}>● {t('uncertaintyDetail.statusActive')}</Tag>
                     <Switch
                       checked={true}
-                      checkedChildren="有効"
-                      unCheckedChildren="無効"
+                      checkedChildren={t('uncertaintyDetail.statusActive')}
+                      unCheckedChildren={t('uncertaintyDetail.statusDeprecated')}
                       onChange={(checked) =>
                         setStatusState(checked ? 'active' : 'deprecated')
                       }
                     />
                     <span style={{ fontSize: 12, color: '#888' }}>
-                      オフにすると「無効」に変更されます
+                      {t('uncertaintyDetail.turnOffNote')}
                     </span>
                   </>
                 ) : (
                   <>
-                    <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ 無効</Tag>
+                    <Tag color="default" style={{ fontWeight: 600, marginRight: 8 }}>○ {t('uncertaintyDetail.statusDeprecated')}</Tag>
                     <Switch
                       checked={false}
-                      checkedChildren="有効"
-                      unCheckedChildren="無効"
+                      checkedChildren={t('uncertaintyDetail.statusActive')}
+                      unCheckedChildren={t('uncertaintyDetail.statusDeprecated')}
                       onChange={(checked) =>
                         setStatusState(checked ? 'active' : 'deprecated')
                       }
                     />
                     <span style={{ fontSize: 12, color: '#888' }}>
-                      オンにすると「有効」に変更されます
+                      {t('uncertaintyDetail.turnOnNote')}
                     </span>
                   </>
                 )}
@@ -516,16 +518,16 @@ export default function UncertaintyDetailModal({
 
           {/* ===== 2. 評価方式設定 ===== */}
           <div style={sectionStyle}>
-            <div style={sectionTitleStyle}>2 .評価方式設定</div>
+            <div style={sectionTitleStyle}>2. {t('uncertaintyDetail.section2Title')}</div>
 
             {/* 評価方式 → uncertainty_criteria.evaluation_method */}
-            <Form.Item label="評価方式" style={{ marginBottom: 16 }}>
+            <Form.Item label={t('uncertaintyDetail.evalMethodLabel')} style={{ marginBottom: 16 }}>
               <Segmented
                 value={evalMode}
                 onChange={(v) => setEvalMode(v as 'quantitative' | 'qualitative')}
                 options={[
-                  { value: 'quantitative', label: '定量（数値）' },
-                  { value: 'qualitative', label: '定性（選択肢）' },
+                  { value: 'quantitative', label: t('uncertaintyCreate.evalQuantitative') },
+                  { value: 'qualitative', label: t('uncertaintyCreate.evalQualitative') },
                 ]}
               />
             </Form.Item>

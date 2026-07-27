@@ -65,27 +65,27 @@ router.post(
   [
     body('nameSpaceId')
       .notEmpty()
-      .withMessage('nameSpaceIdは必須です'),
+      .withMessage('nameSpaceId is required'),
     body('uncertaintyKey')
       .notEmpty()
-      .withMessage('uncertaintyKeyは必須です'),
+      .withMessage('uncertaintyKey is required'),
     body('evaluationMethod')
       .notEmpty()
-      .withMessage('evaluationMethodは必須です')
+      .withMessage('evaluationMethod is required')
       .isInt({ min: 1, max: 2 })
-      .withMessage('evaluationMethodは1（定量）または2（定性）である必要があります'),
+      .withMessage('evaluationMethod must be 1 (quantitative) or 2 (qualitative)'),
     body('uncertaintyName')
       .optional()
       .isString()
-      .withMessage('uncertaintyNameは文字列である必要があります'),
+      .withMessage('uncertaintyName must be a string'),
     body('isInvalid')
       .optional()
       .isBoolean()
-      .withMessage('isInvalidはboolean型である必要があります'),
+      .withMessage('isInvalid must be a boolean'),
     body('qualitativeOptions')
       .optional()
       .isArray()
-      .withMessage('qualitativeOptionsは配列である必要があります'),
+      .withMessage('qualitativeOptions must be an array'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.createNewVersion
@@ -105,12 +105,12 @@ router.get(
   [
     param('uncertaintyKey')
       .notEmpty()
-      .withMessage('uncertaintyKeyは必須です'),
+      .withMessage('uncertaintyKey is required'),
     query('version')
       .notEmpty()
-      .withMessage('version（整数）は必須です')
+      .withMessage('version (integer) is required')
       .isInt({ min: 1 })
-      .withMessage('versionは1以上の整数である必要があります'),
+      .withMessage('version must be an integer of 1 or more'),
   ],
   handleValidationErrors,
   uncertaintyCriteriaController.getDetail

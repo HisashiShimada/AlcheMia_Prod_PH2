@@ -19,6 +19,7 @@ import {
   Flex,
   Button,
 } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -124,9 +125,11 @@ const ApprovalWizardDialog: React.FC<ApprovalWizardDialogProps> = ({
     }
   };
 
+  const { t } = useLanguage();
+
   return (
     <Modal
-      title="承認処理"
+      title={t('approvalWizard.title')}
       open={open}
       onCancel={onCancel}
       width={560}
@@ -134,14 +137,14 @@ const ApprovalWizardDialog: React.FC<ApprovalWizardDialogProps> = ({
       footer={
         <Flex justify="flex-end">
           <Space>
-            <Button onClick={onCancel}>キャンセル</Button>
+            <Button onClick={onCancel}>{t('common.cancel')}</Button>
             <Button
               type="primary"
               disabled={!canExecute}
               loading={submitting || loading}
               onClick={handleExecute}
             >
-              実行
+              {t('approvalWizard.execute')}
             </Button>
           </Space>
         </Flex>
@@ -150,10 +153,10 @@ const ApprovalWizardDialog: React.FC<ApprovalWizardDialogProps> = ({
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         {/* メソッド + タスク選択 */}
         <Flex gap={12} align="center" wrap="wrap">
-          <Text style={{ whiteSpace: 'nowrap' }}>メソッド名:</Text>
+          <Text style={{ whiteSpace: 'nowrap' }}>{t('approvalWizard.methodName')}</Text>
           <Select
             allowClear
-            placeholder="メソッド名を選択"
+            placeholder={t('approvalWizard.methodNamePlaceholder')}
             style={{ width: 200 }}
             size="small"
             value={selectedMethodId}
@@ -169,9 +172,9 @@ const ApprovalWizardDialog: React.FC<ApprovalWizardDialogProps> = ({
             }
             popupMatchSelectWidth={false}
           />
-          <Text style={{ whiteSpace: 'nowrap' }}>タスク番号:</Text>
+          <Text style={{ whiteSpace: 'nowrap' }}>{t('approvalWizard.taskNumber')}</Text>
           <Select
-            placeholder="タスク番号を選択"
+            placeholder={t('approvalWizard.taskNumberPlaceholder')}
             style={{ width: 120 }}
             size="small"
             value={selectedTaskKey}
@@ -183,7 +186,7 @@ const ApprovalWizardDialog: React.FC<ApprovalWizardDialogProps> = ({
 
         {/* 承認 / NG ラジオ */}
         <Flex align="center" gap={12}>
-          <Text style={{ fontWeight: 500 }}>操作を選択:</Text>
+          <Text style={{ fontWeight: 500 }}>{t('approvalWizard.selectAction')}</Text>
           <Radio.Group
             value={action}
             onChange={(e) => {
@@ -192,10 +195,10 @@ const ApprovalWizardDialog: React.FC<ApprovalWizardDialogProps> = ({
             }}
           >
             <Radio value="approve">
-              <Text style={{ color: '#52c41a', fontWeight: 500 }}>✓ 承認する</Text>
+              <Text style={{ color: '#52c41a', fontWeight: 500 }}>{t('approvalWizard.approve')}</Text>
             </Radio>
             <Radio value="ng">
-              <Text style={{ color: '#ff4d4f', fontWeight: 500 }}>✗ NG にする</Text>
+              <Text style={{ color: '#ff4d4f', fontWeight: 500 }}>{t('approvalWizard.ng')}</Text>
             </Radio>
           </Radio.Group>
         </Flex>
@@ -204,7 +207,7 @@ const ApprovalWizardDialog: React.FC<ApprovalWizardDialogProps> = ({
         {action === 'ng' && (
           <Input.TextArea
             rows={3}
-            placeholder="NG理由を入力してください（必須）"
+            placeholder={t('approvalWizard.ngReasonPlaceholder')}
             maxLength={500}
             showCount
             value={ngReason}

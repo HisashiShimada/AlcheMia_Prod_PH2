@@ -11,6 +11,7 @@ import {
   Space,
   message,
 } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 import QualitativeOptionEditor, { type QualitativeOption } from './QualitativeOptionEditor';
 import type { UncertaintyTemplate } from './UncertaintyListTable';
 import {
@@ -52,6 +53,7 @@ export default function UncertaintyCreateModal({
   onClose,
   onSaved,
 }: UncertaintyCreateModalProps) {
+  const { t } = useLanguage();
   const [evalMode, setEvalMode] = useState<'quantitative' | 'qualitative'>('quantitative');
   const [qualitativeOptions, setQualitativeOptions] = useState<QualitativeOption[]>(DEFAULT_OPTIONS);
   const [saving, setSaving] = useState(false);
@@ -126,7 +128,7 @@ export default function UncertaintyCreateModal({
         setQualitativeOptions(DEFAULT_OPTIONS);
       }
     } catch {
-      message.error('継承元の詳細データ取得に失敗しました');
+      message.error(t('uncertaintyCreate.inheritanceFetchFailed'));
     }
   };
 
@@ -184,11 +186,11 @@ export default function UncertaintyCreateModal({
           : [],
       });
 
-      message.success(`V${result.version} として保存しました`);
+      message.success(t('uncertaintyCreate.savedAs', { version: String(result.version) }));
       onSaved?.();
       handleClose();
     } catch {
-      message.error('保存に失敗しました。再度お試しください。');
+      message.error(t('uncertaintyCreate.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -199,11 +201,11 @@ export default function UncertaintyCreateModal({
       open={open}
       onCancel={handleClose}
       width={900}
-      title={<span style={{ fontSize: 16, fontWeight: 700 }}>不確かさ基準作成</span>}
+      title={<span style={{ fontSize: 16, fontWeight: 700 }}>{t('uncertaintyCreate.title')}</span>}
       footer={
         <Space>
-          <Button onClick={handleClose} disabled={saving}>キャンセル</Button>
-          <Button type="primary" onClick={handleSave} loading={saving}>保存</Button>
+          <Button onClick={handleClose} disabled={saving}>{t('uncertaintyCreate.cancel')}</Button>
+          <Button type="primary" onClick={handleSave} loading={saving}>{t('uncertaintyCreate.save')}</Button>
         </Space>
       }
       styles={{ body: { padding: '16px 24px', maxHeight: '75vh', overflowY: 'auto' } }}
@@ -212,16 +214,16 @@ export default function UncertaintyCreateModal({
 
         {/* ===== 1. 基本情報 ===== */}
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>1 .基本情報</div>
+          <div style={sectionTitleStyle}>{t('uncertaintyCreate.section1Title')}</div>
 
           {/* 継承元不確かさ基準 → uncertainty_criteria.inheritance_uncertainty_key */}
           <Form.Item
             name="inheritanceUncertaintyKey"
-            label="継承元不確かさ基準"
+            label={t('uncertaintyCreate.inheritanceLabel')}
             style={{ marginBottom: 14 }}
           >
             <Select
-              placeholder="選択してください"
+              placeholder={t('uncertaintyCreate.inheritancePlaceholder')}
               allowClear
               options={parentOptions}
               showSearch
@@ -258,21 +260,21 @@ export default function UncertaintyCreateModal({
           {/* 不確かさ基準名 → uncertainty_criteria.uncertainty_name */}
           <Form.Item
             name="uncertaintyName"
-            label="不確かさ基準名"
+            label={t('uncertaintyCreate.nameLabel')}
             style={{ marginBottom: 14 }}
           >
-            <Input placeholder="例: 弾性率の不確かさ" />
+            <Input placeholder={t('uncertaintyCreate.namePlaceholder')} />
           </Form.Item>
 
           {/* Key属性設定 → uncertainty_criteria.uncertainty_key（プルダウン選択） */}
           <Form.Item
             name="uncertaintyKey"
-            label={<span>Key属性設定<span style={{ color: '#ff4d4f' }}> *</span></span>}
-            rules={[{ required: true, message: 'Key属性（uncertainty_key）を選択してください' }]}
+            label={<span>{t('uncertaintyCreate.keyLabel')}<span style={{ color: '#ff4d4f' }}> *</span></span>}
+            rules={[{ required: true, message: t('uncertaintyCreate.keyRequired') }]}
             style={{ marginBottom: 14 }}
           >
             <Select
-              placeholder="選択してください"
+              placeholder={t('uncertaintyCreate.keyPlaceholder')}
               allowClear
               options={keyOptions}
               showSearch
@@ -285,25 +287,25 @@ export default function UncertaintyCreateModal({
           {/* 説明文 → uncertainty_criteria.description */}
           <Form.Item
             name="description"
-            label="説明文"
+            label={t('uncertaintyCreate.descLabel')}
             style={{ marginBottom: 14 }}
           >
-            <TextArea rows={3} placeholder="不確かさ基準の説明を入力してください。" />
+            <TextArea rows={3} placeholder={t('uncertaintyCreate.descPlaceholder')} />
           </Form.Item>
         </div>
 
         {/* ===== 2. 評価方式設定 ===== */}
         <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>2 .評価方式設定</div>
+          <div style={sectionTitleStyle}>{t('uncertaintyCreate.section2Title')}</div>
 
           {/* 評価方式 → uncertainty_criteria.evaluation_method */}
-          <Form.Item label="評価方式" style={{ marginBottom: 16 }}>
+          <Form.Item label={t('uncertaintyCreate.evalMethodLabel')} style={{ marginBottom: 16 }}>
             <Segmented
               value={evalMode}
               onChange={(v) => setEvalMode(v as 'quantitative' | 'qualitative')}
               options={[
-                { value: 'quantitative', label: '定量（数値）' },
-                { value: 'qualitative', label: '定性（選択肢）' },
+                { value: 'quantitative', label: t('uncertaintyCreate.evalQuantitative') },
+                { value: 'qualitative', label: t('uncertaintyCreate.evalQualitative') },
               ]}
             />
           </Form.Item>

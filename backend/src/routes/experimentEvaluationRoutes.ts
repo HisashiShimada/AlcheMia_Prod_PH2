@@ -29,9 +29,9 @@ router.get(
   [
     param('projectId')
       .notEmpty()
-      .withMessage('projectIdは必須です')
+      .withMessage('projectId is required')
       .isString()
-      .withMessage('projectIdは文字列である必要があります'),
+      .withMessage('projectId must be a string'),
   ],
   handleValidationErrors,
   experimentEvaluationController.getByProject
@@ -48,24 +48,24 @@ router.post(
   [
     body('projectId')
       .notEmpty()
-      .withMessage('projectIdは必須です')
+      .withMessage('projectId is required')
       .isString()
-      .withMessage('projectIdは文字列である必要があります'),
+      .withMessage('projectId must be a string'),
     body('evaluations')
       .isArray({ min: 1 })
-      .withMessage('evaluationsは1件以上の配列である必要があります'),
+      .withMessage('evaluations must be an array with at least 1 item'),
     body('evaluations.*.evaluationUnit')
       .notEmpty()
-      .withMessage('evaluationUnitは必須です'),
+      .withMessage('evaluationUnit is required'),
     body('evaluations.*.nameSpaceId')
       .notEmpty()
-      .withMessage('nameSpaceIdは必須です'),
+      .withMessage('nameSpaceId is required'),
     body('evaluations.*.uncertaintyKey')
       .notEmpty()
-      .withMessage('uncertaintyKeyは必須です'),
+      .withMessage('uncertaintyKey is required'),
     body('evaluations.*.ucVersion')
       .isInt({ min: 1 })
-      .withMessage('ucVersionは1以上の整数である必要があります'),
+      .withMessage('ucVersion must be an integer of 1 or more'),
   ],
   handleValidationErrors,
   experimentEvaluationController.saveEvaluations
@@ -82,9 +82,9 @@ router.post(
   [
     param('projectId')
       .notEmpty()
-      .withMessage('projectIdは必須です')
+      .withMessage('projectId is required')
       .isString()
-      .withMessage('projectIdは文字列である必要があります'),
+      .withMessage('projectId must be a string'),
   ],
   handleValidationErrors,
   experimentEvaluationController.exportToMaiml

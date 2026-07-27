@@ -14,6 +14,7 @@ import type { TableRowSelection } from 'antd/es/table/interface';
 import {
   EditOutlined,
 } from '@ant-design/icons';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -70,6 +71,7 @@ export default function UncertaintyListTable({
   evalFilter,
   statusFilter,
 }: UncertaintyListTableProps) {
+  const { t } = useLanguage();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   /** フィルタ済みデータ */
@@ -97,7 +99,7 @@ export default function UncertaintyListTable({
 
   const columns: ColumnsType<UncertaintyTemplate> = [
     {
-      title: '不確かさ基準名',
+      title: t('uncertaintyListTable.colName'),
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name),
       defaultSortOrder: 'ascend',
@@ -125,7 +127,7 @@ export default function UncertaintyListTable({
       ),
     },
     {
-      title: '評価方式',
+      title: t('uncertaintyListTable.colEval'),
       key: 'eval',
       width: 120,
       sorter: (a, b) => a.eval.localeCompare(b.eval),
@@ -134,12 +136,14 @@ export default function UncertaintyListTable({
           color={record.eval === 'quantitative' ? 'blue' : 'purple'}
           style={{ fontWeight: 600 }}
         >
-          {record.eval === 'quantitative' ? '定量' : '定性'}
+          {record.eval === 'quantitative'
+            ? t('uncertaintyListTable.evalQuantitative')
+            : t('uncertaintyListTable.evalQualitative')}
         </Tag>
       ),
     },
     {
-      title: '型',
+      title: t('uncertaintyListTable.colType'),
       key: 'type',
       width: 130,
       align: 'center',
@@ -163,7 +167,7 @@ export default function UncertaintyListTable({
         ),
     },
     {
-      title: '継承元',
+      title: t('uncertaintyListTable.colExtends'),
       key: 'extends',
       width: 180,
       sorter: (a, b) => a.extends.localeCompare(b.extends),
@@ -193,7 +197,7 @@ export default function UncertaintyListTable({
       },
     },
     {
-      title: 'スコープ',
+      title: t('uncertaintyListTable.colScope'),
       key: 'scope',
       minWidth: 150,
       sorter: (a, b) => a.scope.localeCompare(b.scope),
@@ -223,7 +227,7 @@ export default function UncertaintyListTable({
       },
     },
     {
-      title: '説明',
+      title: t('uncertaintyListTable.colDesc'),
       key: 'desc',
       minWidth: 160,
       sorter: (a, b) => a.desc.localeCompare(b.desc),
@@ -246,7 +250,7 @@ export default function UncertaintyListTable({
       ),
     },
     {
-      title: 'バージョン',
+      title: t('uncertaintyListTable.colVersion'),
       key: 'version',
       width: 120,
       sorter: (a, b) => a.version.localeCompare(b.version),
@@ -265,7 +269,7 @@ export default function UncertaintyListTable({
       ),
     },
     {
-      title: '状態',
+      title: t('uncertaintyListTable.colStatus'),
       key: 'status',
       width: 90,
       sorter: (a, b) => a.status.localeCompare(b.status),
@@ -274,12 +278,14 @@ export default function UncertaintyListTable({
           color={record.status === 'active' ? 'success' : 'default'}
           style={{ fontWeight: 600 }}
         >
-          {record.status === 'active' ? '● 有効' : '○ 無効'}
+          {record.status === 'active'
+            ? t('uncertaintyListTable.statusActive')
+            : t('uncertaintyListTable.statusDeprecated')}
         </Tag>
       ),
     },
     {
-      title: '操作',
+      title: t('uncertaintyListTable.colAction'),
       key: 'action',
       width: 80,
       align: 'center',
@@ -294,7 +300,7 @@ export default function UncertaintyListTable({
               onOpenDetail(record);
             }}
           >
-            編集
+            {t('uncertaintyListTable.editButton')}
           </Button>
         </Space>
       ),
@@ -315,13 +321,18 @@ export default function UncertaintyListTable({
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
-            showTotal: (total, range) => `${range[0]}〜${range[1]} 件 / 全 ${total} 件`,
+            showTotal: (total, range) =>
+              t('uncertaintyListTable.paginationTotal', {
+                start: String(range[0]),
+                end: String(range[1]),
+                total: String(total),
+              }),
             pageSizeOptions: ['20', '50', '100'],
           }}
           locale={{
             emptyText: (
               <div style={{ padding: '40px 0', color: '#bbb', textAlign: 'center' }}>
-                <div>該当する不確かさ基準が見つかりません</div>
+                <div>{t('uncertaintyListTable.emptyText')}</div>
               </div>
             ),
           }}
