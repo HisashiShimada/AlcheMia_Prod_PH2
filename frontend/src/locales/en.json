@@ -4114,6 +4114,16 @@
     "successAssignWithMode": "Uncertainty {{mode}} for \"{{key}}\"",
     "successDelete": "Uncertainty deleted for \"{{key}}\"",
     "validationPositiveNumber": "Please enter a positive number",
-    "defaultConfidenceOptions": ["Certain", "Ambiguous", "Uncertain"]
+    "defaultConfidenceOptions": ["Certain", "Ambiguous", "Uncertain"],
+    "confidenceCertain": "Certain",
+    "confidenceAmbiguous": "Ambiguous",
+    "confidenceUncertain": "Uncertain"
+  },
+  "templateEditorHardcoded": {
+    "attributesLabel": "📋 Attributes",
+    "elementsLabel": "📄 Elements",
+    "previewPropsLabel": "📊 Properties: {props} / Contents: {contents}",
+    "importElementsCount": "Elements to import: {count}",
+    "overwriteLabel": "(Overwrite)"
   }
 }

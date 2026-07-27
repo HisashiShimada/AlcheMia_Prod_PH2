@@ -14,6 +14,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Alert,
   Badge,
@@ -343,11 +344,12 @@ export const INITIAL_TASKS: MockTask[] = [
 // ユーティリティ
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const STATUS_CONFIG: Record<TransitionStatus, { label: string; color: string }> = {
-  not_started: { label: '未着手',   color: 'default'    },
-  in_progress: { label: '作業中',   color: 'processing' },
-  completed:   { label: '完了',     color: 'success'    },
-  error:       { label: '異常終了', color: 'error'      },
+// STATUS_CONFIG はコンポーネント内で t() を使うため削除し、useMemo で再生成する
+const STATUS_COLORS: Record<TransitionStatus, string> = {
+  not_started: 'default',
+  in_progress: 'processing',
+  completed:   'success',
+  error:       'error',
 };
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -401,7 +403,12 @@ const getConfidenceStyle = (level: string) =>
 const PropertyCard: React.FC<PropertyCardProps> = ({
   prop, actual, readOnly, onChange,
 }) => {
-  const DEFAULT_CONFIDENCE_OPTIONS: string[] = ['確か', '曖昧', '不確か'];
+  const { t } = useLanguage();
+  const DEFAULT_CONFIDENCE_OPTIONS: string[] = [
+    t('workRecord.confidenceCertain'),
+    t('workRecord.confidenceAmbiguous'),
+    t('workRecord.confidenceUncertain'),
+  ];
   const confidenceOptions = prop.confidenceOptions ?? DEFAULT_CONFIDENCE_OPTIONS;
   const [confidence, setConfidence] = useState<string | null>(null);
   /** ＋値の追加ボタンで追加された不確かさ評価行 */
@@ -471,7 +478,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         {/* 想定値（左）+ 不確かさ値（右）: 2分割 */}
         <Row gutter={8}>
           <Col span={12}>
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>想定値</Text>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.expectedValue')}</Text>
             <div style={{ padding: '6px 10px', background: '#e6f7ff', border: '1px solid #bae7ff', borderRadius: 4 }}>
               {prop.expected !== null ? (
                 <Text style={{ fontSize: 14 }}>
@@ -479,12 +486,12 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
                 </Text>
               ) : (
-                <Text type="secondary" italic style={{ fontSize: 13 }}>未設定</Text>
+                <Text type="secondary" italic style={{ fontSize: 13 }}>{t('workRecord.notSet')}</Text>
               )}
             </div>
           </Col>
           <Col span={12}>
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{prop.uncertaintyName ?? '不確かさ値'}</Text>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{prop.uncertaintyName ?? t('workRecord.uncertaintyValue')}</Text>
             <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4 }}>
               {prop.uncertaintyValue !== undefined ? (
                 <Text style={{ fontSize: 14 }}>
@@ -500,7 +507,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
         {/* 不確かさ説明（全幅） */}
         <div>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>不確かさ説明</Text>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.uncertaintyDesc')}</Text>
           <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4, minHeight: 34 }}>
             {prop.uncertaintyDescription !== undefined ? (
               <Text style={{ fontSize: 13 }}>{prop.uncertaintyDescription}</Text>
@@ -512,7 +519,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
       {/* 実績値 */}
       <div>
-        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>実績値</Text>
+        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.actualValue')}</Text>
         <div style={{ padding: '0', background: '#ffffff', border: '1px solid #d9d9d9', borderRadius: 4 }}>
           {readOnly ? (
             <div style={{ padding: '6px 10px' }}>
@@ -525,7 +532,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   {calcDiff(prop.expected, actual)}
                 </Flex>
               ) : (
-                <Text type="secondary" italic style={{ fontSize: 13 }}>未記録</Text>
+                <Text type="secondary" italic style={{ fontSize: 13 }}>{t('workRecord.notRecorded')}</Text>
               )}
             </div>
           ) : (
@@ -536,7 +543,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   style={{ flex: 1 }}
                   styles={{ input: { paddingLeft: 0 } }}
                   value={(actual as string) ?? ''}
-                  placeholder="入力"
+                  placeholder={t('workRecord.inputPlaceholder')}
                   onChange={(e) => onChange(prop.key, e.target.value || null)}
                 />
               ) : (
@@ -545,7 +552,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                   style={{ flex: 1 }}
                   styles={{ input: { paddingLeft: 0 } }}
                   value={(actual as number) ?? undefined}
-                  placeholder="入力"
+                  placeholder={t('workRecord.inputPlaceholder')}
                   onChange={(v) => onChange(prop.key, v ?? null)}
                 />
               )}
@@ -560,7 +567,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* 確信度ボタン（実績値の下） */}
       {!readOnly && (
         <div>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>定性評価</Text>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.qualitativeEval')}</Text>
           <Flex gap={4}>
             {confidenceOptions.map((level) => {
               const style = getConfidenceStyle(level);
@@ -588,14 +595,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* ＋ 値の追加ボタン & 追加された不確かさ評価行 */}
       {!readOnly && (
         <div>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>定量評価</Text>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.quantitativeEval')}</Text>
           {/* 追加済み行 */}
           {addedValues.map((av) => (
             <Row key={av.id} gutter={4} align="middle" style={{ marginBottom: 4 }}>
               <Col span={12}>
                 <Select
                   style={{ width: '100%' }}
-                  placeholder="定量評価（不確かさ基準名）"
+                  placeholder={t('workRecord.quantitativeEvalPlaceholder')}
                   value={av.uncertaintyKey || undefined}
                   options={UNCERTAINTY_OPTIONS}
                   onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
@@ -630,7 +637,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             onClick={handleAddValue}
             style={{ background: '#1d4e63', borderColor: '#1d4e63' }}
           >
-            追加
+            {t('workRecord.addValue')}
           </Button>
         </div>
       )}
@@ -677,10 +684,12 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onTemplateIdxChange,
   onCommentClick,
 }) => {
+  const { t } = useLanguage();
+
   if (!template) {
     return (
       <Flex justify="center" align="center" style={{ height: 200 }}>
-        <Text type="secondary">作業中のトランジションがありません</Text>
+        <Text type="secondary">{t('workRecord.noActiveTransition')}</Text>
       </Flex>
     );
   }
@@ -698,8 +707,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
 
   const isLastTemplate = templateIdx === templateCount - 1;
   const nextLabel = isLastTemplate
-    ? 'トランジション完了して次へ'
-    : `次のテンプレートへ (${templateIdx + 2}/${templateCount})`;
+    ? t('workRecord.transitionCompleteNext')
+    : t('workRecord.nextTemplate', { current: String(templateIdx + 2), total: String(templateCount) });
 
   return (
     <>
@@ -749,19 +758,19 @@ const PropertyList: React.FC<PropertyListProps> = ({
             icon={<CommentOutlined />}
             onClick={onCommentClick}
           >
-            コメント
+            {t('workRecord.commentButton')}
           </Button>
           <Button onClick={() => onSave(displayKey.taskNo, displayKey.transitionId)}>
-            保存
+            {t('workRecord.saveButton')}
           </Button>
           {/* スキップボタン: 他に実行可能なトランジションがある場合のみ有効 */}
-          <Tooltip title={canSkip ? 'このトランジションを後回しにして次へ進みます' : 'スキップできる別のトランジションがありません'}>
+          <Tooltip title={canSkip ? t('workRecord.skipTooltipAvailable') : t('workRecord.skipTooltipUnavailable')}>
             <Button
               icon={<FastForwardOutlined />}
               disabled={!canSkip}
               onClick={() => onSkip(displayKey.taskNo, displayKey.transitionId)}
             >
-              スキップ
+              {t('workRecord.skipButton')}
             </Button>
           </Tooltip>
           <Button
@@ -800,10 +809,19 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
   activeEntry,
   onClearViewing,
 }) => {
+  const { t } = useLanguage();
+
+  const STATUS_CONFIG: Record<TransitionStatus, { label: string; color: string }> = {
+    not_started: { label: t('workRecord.statusNotStarted'), color: STATUS_COLORS.not_started },
+    in_progress: { label: t('workRecord.statusInProgress'), color: STATUS_COLORS.in_progress },
+    completed:   { label: t('workRecord.statusCompleted'),  color: STATUS_COLORS.completed   },
+    error:       { label: t('workRecord.statusError'),      color: STATUS_COLORS.error       },
+  };
+
   if (!displayKey || !taskTransition || !transition) {
     if (activeEntry === null) {
       return (
-        <Alert type="success" showIcon message="担当タスクの全トランジションが完了しています。" style={{ marginBottom: 8 }} />
+        <Alert type="success" showIcon message={t('workRecord.allTransitionsCompleted')} style={{ marginBottom: 8 }} />
       );
     }
     return null;
@@ -850,9 +868,9 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
       {isReadOnly && (
         <Alert
           type="info" showIcon
-          message="完了済みトランジションの記録を確認しています（編集不可）。"
+          message={t('workRecord.completedTransitionReadonly')}
           style={{ marginTop: 8, fontSize: 12 }}
-          action={<Button size="small" onClick={onClearViewing}>作業中に戻る</Button>}
+          action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
         />
       )}
     </Card>
@@ -1271,9 +1289,11 @@ export default function WorkRecordPanel() {
     []
   );
 
+  const { t } = useLanguage();
+
   const handleSave = useCallback((_taskNo: number, _transitionId: string) => {
-    Modal.success({ title: '保存しました', content: 'データを一時保存しました。' });
-  }, []);
+    Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+  }, [t]);
 
   const handleSaveAndNext = useCallback(
     (taskNo: number, transitionId: string) => {
@@ -1299,11 +1319,11 @@ export default function WorkRecordPanel() {
 
       if (nextTt) {
         Modal.success({
-          title: 'トランジション完了',
-          content: <span>次の作業: <Text code style={{ fontSize: 11 }}>{nextId}</Text></span>,
+          title: t('workRecord.transitionComplete'),
+          content: <span>{t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{nextId}</Text></span>,
         });
       } else {
-        Modal.success({ title: 'タスク完了', content: 'すべてのトランジションが完了しました！' });
+        Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
       }
     },
     [tasks]
@@ -1331,10 +1351,10 @@ export default function WorkRecordPanel() {
         // 次のトランジションが見つかったら viewingKey をリセット（activeEntry で自動選択）
         setViewingKey(null);
         Modal.info({
-          title: 'スキップしました',
+          title: t('workRecord.skipDone'),
           content: (
             <span>
-              次の作業: <Text code style={{ fontSize: 11 }}>{next.transitionId}</Text>
+              {t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{next.transitionId}</Text>
             </span>
           ),
         });
@@ -1342,8 +1362,8 @@ export default function WorkRecordPanel() {
         // スキップできる次のトランジションなし → 進捗確認タブへの誘導メッセージ
         setViewingKey(null);
         Modal.warning({
-          title: 'スキップ先がありません',
-          content: '現在スキップできる別のトランジションがありません。進捗確認タブでスキップ中の作業を確認してください。',
+          title: t('workRecord.skipNoTarget'),
+          content: t('workRecord.skipNoTargetContent'),
         });
       }
     },
@@ -1356,7 +1376,7 @@ export default function WorkRecordPanel() {
   // コメント保存ハンドラ（モック: 現フェーズはUIのみ、バックエンド保存は別フェーズ）
   const handleSaveComment = useCallback((comment: string) => {
     console.info('[WorkRecordPanel] コメント保存（モック）:', comment);
-    Modal.success({ title: 'コメントを保存しました', content: comment });
+    Modal.success({ title: t('workRecord.commentSaved'), content: comment });
   }, []);
 
   const planProps: PlanProps = {

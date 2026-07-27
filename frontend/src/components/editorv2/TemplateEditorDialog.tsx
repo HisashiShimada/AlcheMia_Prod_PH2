@@ -374,8 +374,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     setHasChanges(true);
     setCriteriaSelectorOpen(false);
     setCriteriaEditUncertaintyIndex(null);
-    const modeLabel = editIndex !== null ? '更新' : '追加';
-    message.success(`「${targetKey}」に不確かさを${modeLabel}しました`);
+    const modeLabel = editIndex !== null ? t('common.update') : t('common.add');
+    message.success(t('template.uncertaintyApplied', { key: targetKey, mode: modeLabel }));
   };
 
   /**
@@ -424,7 +424,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     });
     setForceRenderKey(Date.now());
     setHasChanges(true);
-    message.success(`「${propertyKey}」の不確かさを削除しました`);
+    message.success(t('template.uncertaintyDeleted', { key: propertyKey }));
   };
 
   // useNamespaceOperations フック
@@ -1320,14 +1320,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       const validationResult = validateTemplateXML(xmlContent);
       if (!validationResult.isValid) {
         message.error(
-          `XMLにエラーがあるため保存できません: ${validationResult.errors.map(e => e.message).join(', ')}`
+          t('editor.template.xmlSaveError', { errors: validationResult.errors.map(e => e.message).join(', ') })
         );
         return;
       }
       const parseResult = parseXMLToTemplate(xmlContent);
       if (!parseResult.success || !parseResult.data) {
         message.error(
-          `XMLのパースに失敗しました: ${parseResult.errors.map(e => e.message).join(', ')}`
+          t('editor.template.xmlParseError', { errors: parseResult.errors.map(e => e.message).join(', ') })
         );
         return;
       }
@@ -1862,7 +1862,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                             {data.attributes && Object.keys(data.attributes).length > 0 && (
                               <div style={{ marginTop: 8 }}>
                                 <Text type="secondary" strong style={{ fontSize: 12 }}>
-                                  📋 属性
+                                  {t('templateEditorHardcoded.attributesLabel')}
                                 </Text>
                                 {Object.entries(data.attributes).map(([attrName, attrValue]) => (
                                   <div key={attrName} style={{ marginLeft: 16 }}>
@@ -1878,7 +1878,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                             {data.elements && Object.keys(data.elements).length > 0 && (
                               <div style={{ marginTop: 8 }}>
                                 <Text type="secondary" strong style={{ fontSize: 12 }}>
-                                  📄 要素
+                                  {t('templateEditorHardcoded.elementsLabel')}
                                 </Text>
                                 {Object.entries(data.elements).map(([elemName, elemValue]) => (
                                   <div key={elemName} style={{ marginLeft: 16 }}>
@@ -2026,8 +2026,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                   message={
                     <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                       <Text strong>
-                        📊 プロパティ: {Object.keys(namespacePreview.parsedData.properties).length}件 ／
-                        コンテンツ: {Object.keys(namespacePreview.parsedData.contents).length}件
+                        {t('templateEditorHardcoded.previewPropsLabel', {
+                          props: String(Object.keys(namespacePreview.parsedData.properties).length),
+                          contents: String(Object.keys(namespacePreview.parsedData.contents).length),
+                        })}
                       </Text>
                       <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                         {Object.entries(
@@ -2138,7 +2140,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               : namespacePreview.parsedData.contents;
             return (
               <div>
-                <Text strong>取り込む要素: {Object.keys(sourceData).length}件</Text>
+                <Text strong>{t('templateEditorHardcoded.importElementsCount', { count: String(Object.keys(sourceData).length) })}</Text>
                 <div style={{
                   maxHeight: 300,
                   overflowY: 'auto',
@@ -2154,7 +2156,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       </Tag>
                       {duplicateKeys.includes(key) && (
                         <Text type="warning" style={{ marginLeft: 8, fontSize: 12 }}>
-                          (上書き)
+                          {t('templateEditorHardcoded.overwriteLabel')}
                         </Text>
                       )}
                     </div>

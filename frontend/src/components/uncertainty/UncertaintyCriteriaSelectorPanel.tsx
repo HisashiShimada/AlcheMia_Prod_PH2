@@ -20,7 +20,6 @@ import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCrite
 import UncertaintyCreateModal from './UncertaintyCreateModal';
 import type { UncertaintyCriteria, TargetProperty, AssignPayload } from './UncertaintyCriteriaSelectorModal';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 const { TextArea } = Input;
