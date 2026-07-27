@@ -769,11 +769,96 @@
   "projectManagement": {
     "completionButton": "プロジェクト完了処理",
     "completionDisabledTooltip": "全タスクが「完了」になると押下できます",
+    "filter_labels": {
+      "owner": "担当者",
+      "project_status": "プロジェクトステータス",
+      "checkout_status": "チェックアウト状態",
+      "search": "検索"
+    },
+    "filter_placeholder": "プロジェクト名・説明・担当者で検索",
+    "my_only": "自分のプロジェクトのみ",
+    "all_projects": "すべてのプロジェクト",
+    "all": "すべて",
+    "status_planning": "計画中",
+    "status_pending": "タスク待ち",
+    "status_in_progress": "進行中",
+    "status_review_waiting": "レビュー待ち",
+    "status_completed": "完了",
+    "status_error": "エラー",
+    "checked_in": "チェックイン済み",
+    "checked_out": "チェックアウト済み",
+    "checking_out": "チェックアウト中",
+    "new_project": "新規プロジェクト",
+    "transitionSearch": "遷移検索",
+    "project_download": "ダウンロード",
+    "project_downloading": "ダウンロード中",
+    "upload": "アップロード",
+    "edit": "編集",
+    "deleteButton": "削除",
+    "checkout_action": "チェックアウト",
+    "checkin": "チェックイン",
+    "issueCheck": "問題確認",
+    "publish": "公開",
+    "unpublish": "非公開",
+    "processing": "処理中",
+    "renameProject": "プロジェクト名変更",
+    "validationConfirmButton": "バリデーション確認",
     "encryptionButton": "暗号化管理",
     "signatureButton": "電子署名",
+    "tabs": {
+      "file_management": "ファイル管理",
+      "task_registration": "タスク登録",
+      "task_results": "実験指示"
+    },
     "tabProjectInstruction": "プロジェクト指示",
     "tabEvaluationRegistration": "評価登録確認",
-    "editNoPermission": "編集権限がありません"
+    "select_project": "プロジェクトを選択してください",
+    "select_project_description": "左側のリストからプロジェクトを選択してください",
+    "deleteProjectTitle": "「{{name}}」を削除しますか？",
+    "deleteProjectContent": "このプロジェクトを削除します。",
+    "deleteProjectCannotUndo": "この操作は取り消せません。",
+    "deleteProjectMaimlNote": "関連するMAIMLファイルも削除されます。",
+    "deleteSuccess": "「{{name}}」を削除しました（{{count}}件）",
+    "listReloadSuccess": "プロジェクト一覧を更新しました",
+    "reloadSuccess": "プロジェクト情報を更新しました",
+    "reloadFailed": "プロジェクト情報の更新に失敗しました",
+    "backButton": "← 戻る",
+    "create": {
+      "success": "プロジェクトを作成しました",
+      "error": "プロジェクトの作成に失敗しました"
+    },
+    "no_team_assigned_title": "チームに所属していません。チーム管理からチームに参加してください。",
+    "go_to_team_management": "チーム管理へ",
+    "editDisabledTitle": "編集権限がありません",
+    "uploadDisabledTitle": "完了済みプロジェクトはアップロードできません",
+    "editCheckedOutTitle": "チェックアウト中は編集できません",
+    "deleteDisabledTitle": "完了済みプロジェクトは削除できません",
+    "checkinDisabledTitle": "完了済みプロジェクトはチェックイン/チェックアウトできません",
+    "editNoPermission": "編集権限がありません",
+    "folder_tree": {
+      "title": "プロジェクト一覧",
+      "projects": "件",
+      "files": "件",
+      "owner": "担当者",
+      "sort": {
+        "name": "プロジェクト名",
+        "status": "ステータス",
+        "created_at": "作成日"
+      }
+    },
+    "fileManagement": {
+      "table": {
+        "type": "種別",
+        "fileName": "ファイル名",
+        "size": "サイズ",
+        "lastModified": "最終更新日",
+        "actions": "操作"
+      },
+      "buttons": {
+        "download": "ダウンロード",
+        "viewer": "ビューワー"
+      }
+    }
   },
   "progress": {
     "title": "進捗管理",

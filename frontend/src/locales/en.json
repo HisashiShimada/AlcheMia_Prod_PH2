@@ -413,14 +413,13 @@
     }
   },
   "projectManagement": {
-    "search_by_project_name": "Search by project name",
-    "filter_placeholder": "Filter by input value",
+    "completionButton": "Project Completion",
+    "completionDisabledTooltip": "Available when all tasks are 'Completed'",
+    "encryptionButton": "Encryption",
+    "signatureButton": "Digital Signature",
     "advanced_search": "Advanced Search",
     "owner": "Owner",
-    "my_only": "My Only",
-    "all_projects": "All",
     "organizationGroup": "Organization Group",
-    "all": "All",
     "fileManagement": {
       "table": {
         "type": "Type",
