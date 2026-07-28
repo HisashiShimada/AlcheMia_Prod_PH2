@@ -131,3 +131,66 @@ useInsertionEditor({ uploadTargetPath: undefined })
 |---------|---------|
 | `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx` | `WorkRecordPanel` に `projectName` prop追加、`PlanProps`/`planProps`/`PlanB` に `uploadTargetPath` を通す |
 | `frontend/src/components/menus/ExperimentWorkerMenu.tsx` | `WorkRecordPanel` に `projectName` を渡す |
+
+---
+
+## 追加調査（2026-07-28）: PetriNetEditorInner の editingFileName 渡し忘れ
+
+### 報告された不具合（再確認）
+
+- **エクスプローラーからのファイル選択時にアップロード確認ダイアログが表示されない**
+- **ドラッグ&ドロップでも確認ダイアログが表示されない**
+
+### 根本原因
+
+`frontend/src/components/editorv2/PetriNetEditorInner.tsx` において、`PetriNetEditorContent` から `<PetriNetEditorInnerUI>` を呼び出す箇所（旧 L3232〜L3323）で `editingFileName` プロパティを**渡し忘れていた**。
+
+```tsx
+// ❌ 修正前（editingFileName が渡されていなかった）
+<PetriNetEditorInnerUI
+  ...
+  onOpenStructureTree={handleOpenStructureTree}
+  onCloseStructureTree={handleCloseStructureTree}
+  // editingFileName={editingFileName}  ← この行が存在しなかった
+/>
+
+// ✅ 修正後
+<PetriNetEditorInnerUI
+  ...
+  onOpenStructureTree={handleOpenStructureTree}
+  onCloseStructureTree={handleCloseStructureTree}
+  editingFileName={editingFileName}
+/>
+```
+
+### 影響チェーン
+
+```
+PetriNetEditorContent
+  editingFileName（受け取り） ← props から正しく受け取っている
+    ↓
+<PetriNetEditorInnerUI editingFileName={???}>
+  ← 渡し忘れのため常に undefined
+    ↓
+<TemplateEditorDialog editingFileName={undefined}>
+    ↓
+uploadTargetPath = editingFileName?.replace(/\.maiml$/, '')
+  = undefined?.replace(...)
+  = undefined  ← 常に undefined
+    ↓
+useInsertionEditor({ uploadTargetPath: undefined })
+  → Modal.confirm が呼ばれない（仕様通りの動作）
+```
+
+### ドラッグ&ドロップについて
+
+`useInsertionEditor.ts` の `handleDrop` は内部で `handleFileSelect` を呼んでおり、エクスプローラー選択と全く同じロジック（`uploadTargetPath` があれば `Modal.confirm` を表示）を通る実装になっている。  
+今回の `editingFileName` 渡し忘れが修正されたことで、DnD でも確認ダイアログが表示されるようになる。
+
+### 修正内容
+
+- `frontend/src/components/editorv2/PetriNetEditorInner.tsx` の `<PetriNetEditorInnerUI>` 呼び出しに `editingFileName={editingFileName}` を追加（2026-07-28 実施済み）
+
+### 型定義への影響
+
+なし。`PetriNetEditorInnerUIProps` には `editingFileName?: string` が既に定義されており、型エラーは発生しない。

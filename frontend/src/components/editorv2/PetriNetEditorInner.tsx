@@ -78,6 +78,7 @@ import type {
   DirtyFlags,
   ExtractedUuids,
 } from '../../types/editor';
+import {WorkflowProjectSelection} from '@/types/project'
 import type { NodeTypes } from 'reactflow';
 
 // ===== Phase 8: 分離したモジュールをインポート =====
@@ -2635,7 +2636,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, []);
 
   // ワークフロープロジェクト選択ハンドラー（プロジェクトベース）
-  const handleWorkflowProjectSelect = useCallback(async (selection: import('@/types/project').WorkflowProjectSelection) => {
+  const handleWorkflowProjectSelect = useCallback(async (selection: WorkflowProjectSelection) => {
     console.log('📂 [PetriNetEditorInner] ワークフロープロジェクト選択:', selection.projectId, selection.projectName);
 
     try {
@@ -2680,7 +2681,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
 
           const registerTemplates = (
             category: 'material' | 'condition' | 'result',
-            templateList: import('../../types/maiml-unified').Template[]
+            templateList: Template[]
           ) => {
             templateList.forEach(t => {
               // methodId が未設定の場合はアクティブメソッドの ID を補完
@@ -3320,6 +3321,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         structureTreePanelOpen={structureTreePanelOpen}
         onOpenStructureTree={handleOpenStructureTree}
         onCloseStructureTree={handleCloseStructureTree}
+        editingFileName={editingFileName}
       />
     </TemplateProvider>
     </AttributeDisplayProvider>
@@ -3433,7 +3435,7 @@ interface PetriNetEditorInnerUIProps {
   
   workflowDialogOpen: boolean;
   handleCloseWorkflowDialog: () => void;
-  handleWorkflowProjectSelect: (selection: import('@/types/project').WorkflowProjectSelection) => void;
+  handleWorkflowProjectSelect: (selection: WorkflowProjectSelection) => void;
   
   draftManagerOpen: boolean;
   handleCloseDraftManager: () => void;
@@ -3817,6 +3819,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           })()}
           templateErrors={templateErrors}
           editingFileName={editingFileName}
+          sourceS3Key={sourceS3Key}
         />
 
         {/* Document編集ダイアログ */}

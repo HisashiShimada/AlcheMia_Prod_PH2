@@ -91,8 +91,10 @@ interface TemplateEditorDialogProps {
   ) => void;
   allNodes?: Array<{ id: string; data: NodeData }>;
   templateErrors?: Record<string, TemplateError[]>;
-  /** 編集中のファイル名（例: "sample_project.maiml"）。アップロード先パスの生成に使用 */
+  /** 編集中のファイル名（例: "sample_project.maiml"）。アップロード先パスの生成に使用（sourceS3Keyが存在しない場合のフォールバック） */
   editingFileName?: string;
+  /** S3キー（例: '{orgId}/projects/{projectName}/{fileName}.maiml'）。uploadTargetPathの生成に優先使用 */
+  sourceS3Key?: string;
 }
 
 /**
@@ -106,6 +108,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   allNodes = [],
   templateErrors = {},
   editingFileName,
+  sourceS3Key,
 }) => {
   const { t } = useLanguage();
   const [hasChanges, setHasChanges] = useState(false);
@@ -1506,7 +1509,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                   setHasChanges(true);
                 }}
                 uploadTargetPath={(() => {
-                  const projectName = editingFileName?.replace(/\.maiml$/, '') ?? '';
+                  // sourceS3Key（例: "{orgId}/projects/{projectName}/{fileName}.maiml"）から projectName を抽出
+                  const match = sourceS3Key?.match(/\/projects\/([^/]+)\//);
+                  const projectName = match?.[1] ?? editingFileName?.replace(/\.maiml$/, '') ?? '';
                   return projectName ? `projects/${projectName}/attachments` : undefined;
                 })()}
               />
