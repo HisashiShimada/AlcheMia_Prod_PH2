@@ -530,11 +530,11 @@
       "checkButton": "確認"
     },
     "projectStatus": {
-      "planning": "計画中",
+      "planning": "プロジェクト計画中",
       "waiting_task": "タスク実行待ち",
       "executing_task": "タスク実行中",
-      "waiting_approval": "承認待ち",
-      "completed": "完了"
+      "waiting_approval": "タスク結果レビュー待ち",
+      "completed": "プロジェクト完了"
     },
     "methodTaskSelection": {
       "searchPlaceholder": "検索...",
@@ -779,12 +779,12 @@
     "my_only": "自分のプロジェクトのみ",
     "all_projects": "すべてのプロジェクト",
     "all": "すべて",
-    "status_planning": "計画中",
-    "status_pending": "タスク待ち",
-    "status_in_progress": "進行中",
-    "status_review_waiting": "レビュー待ち",
-    "status_completed": "完了",
-    "status_error": "エラー",
+    "status_planning": "プロジェクト計画中",
+    "status_pending": "タスク実行待ち",
+    "status_in_progress": "タスク実行中",
+    "status_review_waiting": "タスク結果レビュー待ち",
+    "status_completed": "プロジェクト完了",
+    "status_error": "タスク異常終了",
     "checked_in": "チェックイン済み",
     "checked_out": "チェックアウト済み",
     "checking_out": "チェックアウト中",
@@ -977,10 +977,10 @@
       "noWorkAssigned": "作業IDが割り当てられていません",
       "noWorkAssignedDesc": "このファイルには作業IDが割り当てられていません。",
       "projectStatus": {
-        "completed": "完了",
-        "in_progress": "進行中",
-        "pending": "保留中",
-        "planning": "計画中"
+        "completed": "プロジェクト完了",
+        "in_progress": "タスク実行中",
+        "pending": "タスク実行待ち",
+        "planning": "プロジェクト計画中"
       }
     },
     "actions": {
