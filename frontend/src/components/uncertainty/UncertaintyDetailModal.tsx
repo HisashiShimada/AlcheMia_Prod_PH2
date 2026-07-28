@@ -76,6 +76,22 @@ function changeType(
   return o === n ? 'same' : 'changed';
 }
 
+/** buildDiffData に渡す翻訳済みラベル群 */
+interface DiffLabels {
+  fieldName: string;
+  fieldKey: string;
+  fieldDesc: string;
+  fieldStatus: string;
+  statusActive: string;
+  statusDeprecated: string;
+  fieldEvalMethod: string;
+  fieldQualOptions: string;
+  defaultMark: string;
+  savedAt: string;
+  section1: string;
+  section2: string;
+}
+
 /**
  * DB取得値とフォーム現在値から DiffData を生成する
  */
@@ -90,7 +106,8 @@ function buildDiffData(
   },
   currentEvalMode: 'quantitative' | 'qualitative',
   currentStatus: 'active' | 'deprecated',
-  qualitativeOptions: QualitativeOption[]
+  qualitativeOptions: QualitativeOption[],
+  labels: DiffLabels
 ): DiffData {
   // ── 基本情報フィールド ──
   const oldStatus = detail.isInvalid ? 'deprecated' : 'active';
@@ -99,7 +116,7 @@ function buildDiffData(
   const basicFields: DiffField[] = [
     {
       fieldKey:   'uncertaintyName',
-      label:      '不確かさ基準名',
+      label:      labels.fieldName,
       required:   false,
       changeType: changeType(detail.uncertaintyName, formValues.uncertaintyName),
       type:       'text',
@@ -108,7 +125,7 @@ function buildDiffData(
     },
     {
       fieldKey:   'uncertaintyKey',
-      label:      'Key属性設定',
+      label:      labels.fieldKey,
       required:   true,
       changeType: 'same',
       type:       'text',
@@ -117,7 +134,7 @@ function buildDiffData(
     },
     {
       fieldKey:   'desc',
-      label:      '説明文',
+      label:      labels.fieldDesc,
       required:   false,
       changeType: changeType(detail.description, formValues.desc),
       type:       'textarea',
@@ -126,12 +143,12 @@ function buildDiffData(
     },
     {
       fieldKey:   'status',
-      label:      '状態',
+      label:      labels.fieldStatus,
       required:   false,
       changeType: oldStatus === currentStatus ? 'same' : 'changed',
       type:       'text',
-      oldValue:   oldStatus === 'active' ? '有効' : '無効',
-      newValue:   currentStatus === 'active' ? '有効' : '無効',
+      oldValue:   oldStatus === 'active' ? labels.statusActive : labels.statusDeprecated,
+      newValue:   currentStatus === 'active' ? labels.statusActive : labels.statusDeprecated,
     },
   ];
 
@@ -139,7 +156,7 @@ function buildDiffData(
   const evalFields: DiffField[] = [
     {
       fieldKey:   'evaluationMethod',
-      label:      '評価方式',
+      label:      labels.fieldEvalMethod,
       required:   true,
       changeType: oldEvalMode === currentEvalMode ? 'same' : 'changed',
       type:       'evalBadge',
@@ -186,20 +203,20 @@ function buildDiffData(
     const oldOptionsStr = detail.qualitativeOptions
       .map((o, i) => {
         const order = o.displayOrder ?? (i + 1);
-        const def = o.isDefault ? '[デフォルト]' : '';
+        const def = o.isDefault ? labels.defaultMark : '';
         return `${order}:${o.selectorValue}(${o.displayColor})${def}`;
       })
       .join(', ') || null;
     const newOptionsStr = qualitativeOptions
       .map((o, i) => {
-        const def = o.isDefault ? '[デフォルト]' : '';
+        const def = o.isDefault ? labels.defaultMark : '';
         return `${i + 1}:${o.value}(${o.color})${def}`;
       })
       .join(', ') || null;
 
     evalFields.push({
       fieldKey:   'qualitativeOptions',
-      label:      '定性評価選択肢',
+      label:      labels.fieldQualOptions,
       required:   false,
       changeType: changeType(oldOptionsStr, newOptionsStr),
       type:       'text',
@@ -218,15 +235,15 @@ function buildDiffData(
     templateKey:    detail.uncertaintyKey,
     templateName:   detail.uncertaintyKey,
     savedVersion:   `V${detail.version}`,
-    savedAt:        '（DB登録済み）',
+    savedAt:        labels.savedAt,
     summary: {
       changed: changedCount,
       added:   addedCount,
       same:    sameCount,
     },
     sections: [
-      { num: '1', label: '基本情報',    fields: basicFields },
-      { num: '2', label: '評価方式設定', fields: evalFields  },
+      { num: '1', label: labels.section1, fields: basicFields },
+      { num: '2', label: labels.section2, fields: evalFields  },
     ],
   };
 }
@@ -257,7 +274,21 @@ export default function UncertaintyDetailModal({
   const [statusState, setStatusState] = useState<'active' | 'deprecated'>('active');
   const [form] = Form.useForm();
 
-
+  /** buildDiffData に渡す翻訳ラベルを生成 */
+  const buildDiffLabels = (): DiffLabels => ({
+    fieldName:       t('uncertaintyDetail.diffFieldName'),
+    fieldKey:        t('uncertaintyDetail.diffFieldKey'),
+    fieldDesc:       t('uncertaintyDetail.diffFieldDesc'),
+    fieldStatus:     t('uncertaintyDetail.diffFieldStatus'),
+    statusActive:    t('uncertaintyDetail.diffStatusActive'),
+    statusDeprecated: t('uncertaintyDetail.diffStatusDeprecated'),
+    fieldEvalMethod: t('uncertaintyDetail.diffFieldEvalMethod'),
+    fieldQualOptions: t('uncertaintyDetail.diffFieldQualOptions'),
+    defaultMark:     t('uncertaintyDetail.diffDefaultMark'),
+    savedAt:         t('uncertaintyDetail.diffSavedAt'),
+    section1:        t('uncertaintyDetail.section1Title'),
+    section2:        t('uncertaintyDetail.section2Title'),
+  });
 
   /** モーダルが開いたら詳細データを API から取得してフォームに反映 */
   useEffect(() => {
@@ -324,7 +355,8 @@ export default function UncertaintyDetailModal({
       },
       evalMode,
       statusState,
-      qualitativeOptions
+      qualitativeOptions,
+      buildDiffLabels()
     );
 
     setDiffData(computed);
@@ -355,7 +387,8 @@ export default function UncertaintyDetailModal({
       },
       evalMode,
       statusState,
-      qualitativeOptions
+      qualitativeOptions,
+      buildDiffLabels()
     );
     const hasChange = diff.summary.changed > 0 || diff.summary.added > 0;
     if (!hasChange) {

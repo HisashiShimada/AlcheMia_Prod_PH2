@@ -341,7 +341,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 style={{ backgroundColor: '#1677ff' }}
                 onClick={() => onOpenCriteriaSelector(propertyKey, propertyData)}
               >
-                ＋ 不確かさ選択
+                {t('nestedPropertyEditor.openCriteriaSelector')}
               </Button>
             )}
             <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setShowAttributeAddModal(true)}>
@@ -430,7 +430,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
             <div style={{ marginBottom: 8 }}>
               <Text strong style={{ fontSize: 12, color: '#722ed1', display: 'block', marginBottom: 4 }}>
                 <ExperimentOutlined style={{ marginRight: 4 }} />
-                不確かさ
+                {t('nestedPropertyEditor.uncertaintySection')}
               </Text>
               {uncertaintyChildren.map((uncertaintyChild, ucIdx) => {
                 const ucValue = uncertaintyChild.elements?.['value'] ?? '';
@@ -449,7 +449,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                     {/* 各不確かさ行ヘッダー：編集・×ボタン */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <Text style={{ fontSize: 12, flex: 1, color: '#722ed1' }}>
-                        不確かさ {ucIdx + 1}
+                        {t('nestedPropertyEditor.uncertaintyItem', { index: String(ucIdx + 1) })}
                       </Text>
                       {onEditUncertainty && (
                         <Button
@@ -458,7 +458,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                           style={{ color: '#722ed1', borderColor: '#722ed1' }}
                           onClick={() => onEditUncertainty(propertyKey, uncertaintyChild, ucIdx)}
                         >
-                          不確かさ編集
+                          {t('nestedPropertyEditor.editUncertainty')}
                         </Button>
                       )}
                       {onDeleteUncertainty && (
