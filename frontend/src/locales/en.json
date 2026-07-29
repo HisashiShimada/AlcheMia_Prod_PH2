@@ -4062,9 +4062,54 @@
   },
   "evaluationRegistration": {
     "title": "Evaluation Registration",
+    "evalUnit": "Evaluation Unit:",
+    "selectMethod": "Select Method:",
+    "selectMethodPlaceholder": "Select Method",
+    "selectTaskNo": "Select Task No:",
+    "selectTaskNoPlaceholder": "Select Task No",
+    "criteriaSectionTitle": "Uncertainty Criteria:",
+    "criteriaPlaceholder": "Select criteria (qualitative only)",
+    "qualitativeTag": "Qualitative",
+    "noEvalTarget": "No evaluation targets",
+    "evalValueInput": "Qualitative Evaluation",
+    "unevaluated": "─ Not Evaluated",
+    "commentInput": "Comment",
+    "commentPlaceholder": "Comment (optional)",
+    "noteText": "* Only rows with evaluation values entered will be saved.",
+    "cancelButton": "Cancel",
+    "saveButton": "Save Evaluation",
+    "noCriteriaWarning": "Please select an uncertainty criteria",
+    "noValueWarning": "No evaluation value entered",
+    "saveSuccess": "Saved",
+    "saveError": "Failed to save evaluation",
+    "loadingText": "Loading evaluation results...",
+    "inputButton": "Enter Evaluation",
+    "unitFilter": "Evaluation Unit:",
+    "criteriaFilter": "Uncertainty Criteria:",
+    "allCriteria": "Show All",
+    "noRecords": "No evaluation results yet",
+    "noFilteredRecords": "No matching evaluation results",
+    "unitLabel": {
+      "project": "Entire Project",
+      "method": "Method",
+      "task": "Task",
+      "transition_method": "Transition (by Method)",
+      "transition_task": "Transition (by Task)"
+    },
+    "unitOptions": {
+      "all": "All",
+      "method": "Method",
+      "task": "Task",
+      "transition_method": "Transition (by Method)",
+      "transition_task": "Transition (by Task)"
+    },
+    "projectTarget": "Entire Project",
+    "methodColLabel": "Method Name",
+    "taskColLabel": "Task",
+    "transitionColLabel": "Transition",
+    "projectColLabel": "Project Name",
     "noData": "No evaluation data",
     "loading": "Loading...",
-    "saveSuccess": "Saved",
     "saveFailed": "Save failed",
     "columns": {
       "taskNo": "Task No",
@@ -4076,8 +4121,62 @@
       "actualValue": "Actual Value",
       "uncertainty": "Uncertainty",
       "evaluation": "Evaluation",
-      "actions": "Actions"
-    }
+      "actions": "Actions",
+      "evalUnit": "Evaluation Unit",
+      "target": "Target",
+      "criteriaName": "Uncertainty Criteria Name",
+      "evalValue": "Evaluation Value",
+      "comment": "Comment",
+      "evaluatedAt": "Evaluated At",
+      "qualEvaluation": "Qualitative Evaluation",
+      "projectName": "Project Name",
+      "methodName": "Method Name",
+      "taskLabel": "Task",
+      "transitionLabel": "Transition"
+    },
+    "unitLabel": {
+      "all": "All",
+      "project": "Entire Project",
+      "method": "Method",
+      "task": "Task",
+      "transitionMethod": "Transition (by Method)",
+      "transitionTask": "Transition (by Task)"
+    },
+    "messages": {
+      "selectCriteriaFirst": "Please select an uncertainty criteria",
+      "noEvalValue": "No evaluation value entered",
+      "saveSuccess": "{count} evaluation(s) saved",
+      "saveFailed": "Failed to save evaluations"
+    },
+    "labels": {
+      "evalUnit": "Evaluation Unit:",
+      "selectMethod": "Select Method:",
+      "selectTaskNo": "Select Task No:",
+      "criteria": "Uncertainty Criteria:",
+      "taskNo": "Task No:"
+    },
+    "placeholders": {
+      "notEvaluated": "Not Evaluated",
+      "comment": "Comment (optional)",
+      "selectMethod": "Select Method",
+      "selectTaskNo": "Select Task No",
+      "selectCriteria": "Select criteria (qualitative only)",
+      "showAll": "Show All"
+    },
+    "empty": {
+      "noTarget": "No evaluation targets",
+      "noResults": "No evaluation results yet",
+      "noMatchingResults": "No matching evaluation results"
+    },
+    "buttons": {
+      "inputEvaluation": "Enter Evaluation",
+      "saveEvaluation": "Save Evaluation"
+    },
+    "inputModal": {
+      "title": "✏️ Enter Evaluation",
+      "footerNote": "* Only rows with evaluation values entered will be saved."
+    },
+    "loading": "Loading evaluation results..."
   },
   "projectCompletion": {
     "title": "Project Completion",
@@ -4551,6 +4650,20 @@
     "elementValueLabel": "Actual value (value)",
     "elementUnitLabel": "Unit (units)",
     "elementDescLabel": "Description"
+  },
+  "experimentEvaluationService": {
+    "noEvaluationData": "No evaluation data found. Write skipped.",
+    "projectNotFound": "Project not found",
+    "maimlNotFound": "MAiML file not found",
+    "writtenCount": "{{count}} evaluation record(s) written to MAiML file"
+  },
+  "projectManagementExtra": {
+    "completionButtonTooltip": "Available when all tasks are marked as \"Completed\"",
+    "completionButton": "Project Completion",
+    "encryptionButton": "Encryption Management",
+    "signatureButton": "Digital Signature",
+    "projectInstructionTab": "Project Instructions",
+    "evaluationRegistrationTab": "Evaluation Registration Confirmation"
   },
   "templateEditorHardcoded": {
     "attributesLabel": "📋 Attributes",
