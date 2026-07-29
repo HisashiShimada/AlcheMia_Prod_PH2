@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Modal, message } from 'antd';
 import { uploadFiles } from '@/services/fileAccessService';
 import type { Insertion } from '@/types/maiml-unified';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * useInsertionEditor - Insertion編集の共通ロジックフック
@@ -88,6 +89,7 @@ export function useInsertionEditor({
   maxFileSize,
   acceptedFormats,
 }: UseInsertionEditorOptions): UseInsertionEditorReturn {
+  const { t } = useLanguage();
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -106,7 +108,10 @@ export function useInsertionEditor({
       // ファイルサイズチェック
       if (maxFileSize !== undefined && file.size > maxFileSize) {
         message.error(
-          `ファイルサイズが上限（${formatFileSize(maxFileSize)}）を超えています（${formatFileSize(file.size)}）`
+          t('insertionEditor.fileSizeExceeded', {
+            maxSize: formatFileSize(maxFileSize),
+            fileSize: formatFileSize(file.size),
+          })
         );
         return false;
       }
@@ -128,7 +133,7 @@ export function useInsertionEditor({
         hashValue = await calcFileHash(file, hashMethod);
       } catch (err) {
         console.error('[useInsertionEditor] ハッシュ計算失敗:', err);
-        message.error('ハッシュ値の計算に失敗しました');
+        message.error(t('insertionEditor.hashCalcFailed'));
         return;
       }
 
@@ -147,10 +152,10 @@ export function useInsertionEditor({
 
       // アップロード確認ダイアログ
       Modal.confirm({
-        title: 'ファイルをサーバーにアップロードしますか？',
+        title: t('insertionEditor.uploadConfirmTitle'),
         content: file.name,
-        okText: 'アップロード',
-        cancelText: 'キャンセル',
+        okText: t('insertionEditor.uploadConfirmOk'),
+        cancelText: t('insertionEditor.uploadConfirmCancel'),
         onOk: async () => {
           setIsUploading(true);
           try {
@@ -165,11 +170,11 @@ export function useInsertionEditor({
             if (uploaded?.s3Key) {
               onChange({ ...nextInsertion, uri: uploaded.s3Key });
             } else {
-              message.warning('アップロードは成功しましたが、S3キーを取得できませんでした');
+              message.warning(t('insertionEditor.uploadSuccessNoKey'));
             }
           } catch (err) {
             console.error('[useInsertionEditor] アップロード失敗:', err);
-            message.error('ファイルのアップロードに失敗しました');
+            message.error(t('insertionEditor.uploadFailed'));
           } finally {
             setIsUploading(false);
           }

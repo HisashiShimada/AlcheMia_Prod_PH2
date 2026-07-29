@@ -2870,5 +2870,35 @@
       "completed": "完了",
       "failed": "異常終了"
     }
+  },
+  "insertionEditor": {
+    "fileSizeExceeded": "ファイルサイズが上限（{maxSize}）を超えています（{fileSize}）",
+    "hashCalcFailed": "ハッシュ値の計算に失敗しました",
+    "uploadConfirmTitle": "ファイルをサーバーにアップロードしますか？",
+    "uploadConfirmOk": "アップロードする",
+    "uploadConfirmCancel": "アップロードしない",
+    "uploadSuccessNoKey": "アップロードは成功しましたが、S3キーを取得できませんでした",
+    "uploadFailed": "ファイルのアップロードに失敗しました",
+    "dropHintForm": "ここにドロップしてファイルを選択",
+    "dropHintCompact": "ここにドロップ",
+    "labelUri": "URI",
+    "labelHashMethod": "Hash Method",
+    "labelHashValue": "Hash Value",
+    "labelFormat": "Format",
+    "labelPreview": "プレビュー",
+    "placeholderUri": "例: s3://bucket/path/to/file",
+    "placeholderUriCompact": "URI",
+    "placeholderHashMethod": "例: SHA-256",
+    "placeholderHashMethodCompact": "SHA-256",
+    "placeholderHashValue": "例: abc123...",
+    "placeholderHashValueCompact": "ハッシュ値",
+    "placeholderFormat": "例: application/xml",
+    "placeholderFormatCompact": "例: application/xml",
+    "selectFileButton": "ファイルを選択",
+    "tooltipUploadWithS3": "ファイルを選択してS3にアップロード",
+    "tooltipSelectOnly": "ファイルを選択して自動入力（アップロードなし）",
+    "tooltipClear": "URI・ハッシュ・フォーマットをクリア",
+    "addButton": "Insertion 追加",
+    "customLabel": "カスタム Insertion"
   }
 }

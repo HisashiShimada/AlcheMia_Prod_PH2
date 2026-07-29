@@ -43,6 +43,7 @@ import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
 import ContentGridEditor from '@/components/common/ContentGridEditor';
 import type { Insertion } from '@/types/maiml-unified';
 import uncertaintyMockData from '../../../mock/uncertainty.json';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Sider, Content } = Layout;
 
@@ -728,6 +729,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onContentAdd,
   onContentRemove,
 }) => {
+  const { t } = useLanguage();
+
   if (!template) {
     return (
       <Flex justify="center" align="center" style={{ height: 200 }}>
@@ -804,7 +807,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
               if (displayKey) onInsertionAdd?.(displayKey.taskNo, displayKey.transitionId);
             }}
           >
-            Insertion 追加
+            {t('insertionEditor.addButton')}
           </Button>
         </Flex>
       )}
@@ -872,7 +875,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
                 }}
               >
                 <Flex justify="space-between" align="center" style={{ marginBottom: 4 }}>
-                  <Text style={{ fontSize: 12, color: '#1677ff' }}>カスタム Insertion</Text>
+                  <Text style={{ fontSize: 12, color: '#1677ff' }}>{t('insertionEditor.customLabel')}</Text>
                   {!isReadOnly && (
                     <Button
                       type="text"

@@ -3,6 +3,7 @@ import { Input, Button, Typography, Space, Tooltip } from 'antd';
 import { UploadOutlined, LoadingOutlined, ClearOutlined } from '@ant-design/icons';
 import { useInsertionEditor } from '@/hooks/useInsertionEditor';
 import type { Insertion } from '@/types/maiml-unified';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -52,6 +53,7 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
   maxFileSize,
   acceptedFormats,
 }) => {
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -117,16 +119,16 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
             fontWeight: 500,
           }}
         >
-          ここにドロップ
+          {t('insertionEditor.dropHintCompact')}
         </div>
       )}
 
       {/* URI + ファイル選択ボタン + クリアボタン */}
       <div>
         <Space style={{ marginBottom: 2 }}>
-          <Text style={labelStyle}>URI</Text>
+          <Text style={labelStyle}>{t('insertionEditor.labelUri')}</Text>
           {/* ファイル選択ボタン */}
-          <Tooltip title={uploadTargetPath ? 'ファイルを選択してS3にアップロード' : 'ファイルを選択して自動入力（アップロードなし）'}>
+          <Tooltip title={uploadTargetPath ? t('insertionEditor.tooltipUploadWithS3') : t('insertionEditor.tooltipSelectOnly')}>
             <Button
               type="text"
               size="small"
@@ -142,7 +144,7 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
           </Tooltip>
           {/* クリアボタン */}
           {hasClearable && !readOnly && (
-            <Tooltip title="URI・ハッシュ・フォーマットをクリア">
+            <Tooltip title={t('insertionEditor.tooltipClear')}>
               <Button
                 type="text"
                 size="small"
@@ -159,7 +161,7 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
           size={inputSize}
           value={insertion.uri}
           onChange={(e) => handleUriChange(e.target.value)}
-          placeholder="URI"
+          placeholder={t('insertionEditor.placeholderUriCompact')}
           disabled={readOnly || isUploading}
           style={{ fontSize: 12 }}
         />
@@ -167,12 +169,12 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
 
       {/* Hash Method */}
       <div>
-        <Text style={labelStyle}>Hash Method</Text>
+        <Text style={labelStyle}>{t('insertionEditor.labelHashMethod')}</Text>
         <Input
           size={inputSize}
           value={insertion.hash?.method || ''}
           onChange={(e) => handleHashMethodChange(e.target.value)}
-          placeholder="SHA-256"
+          placeholder={t('insertionEditor.placeholderHashMethodCompact')}
           disabled={readOnly || isUploading}
           style={{ fontSize: 12 }}
         />
@@ -180,12 +182,12 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
 
       {/* Hash Value */}
       <div>
-        <Text style={labelStyle}>Hash Value</Text>
+        <Text style={labelStyle}>{t('insertionEditor.labelHashValue')}</Text>
         <Input
           size={inputSize}
           value={insertion.hash?.value || ''}
           onChange={(e) => handleHashValueChange(e.target.value)}
-          placeholder="ハッシュ値"
+          placeholder={t('insertionEditor.placeholderHashValueCompact')}
           disabled={readOnly || isUploading}
           style={{ fontSize: 12 }}
         />
@@ -193,12 +195,12 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
 
       {/* Format */}
       <div>
-        <Text style={labelStyle}>Format</Text>
+        <Text style={labelStyle}>{t('insertionEditor.labelFormat')}</Text>
         <Input
           size={inputSize}
           value={insertion.format || ''}
           onChange={(e) => handleFormatChange(e.target.value)}
-          placeholder="例: application/xml"
+          placeholder={t('insertionEditor.placeholderFormatCompact')}
           disabled={readOnly || isUploading}
           style={{ fontSize: 12 }}
         />

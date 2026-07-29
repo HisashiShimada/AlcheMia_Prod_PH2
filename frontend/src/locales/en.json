@@ -2873,5 +2873,35 @@
       "completed": "Completed",
       "failed": "Failed"
     }
+  },
+  "insertionEditor": {
+    "fileSizeExceeded": "File size exceeds the limit ({maxSize}) (current: {fileSize})",
+    "hashCalcFailed": "Failed to calculate hash value",
+    "uploadConfirmTitle": "Upload the file to the server?",
+    "uploadConfirmOk": "Upload",
+    "uploadConfirmCancel": "Skip upload",
+    "uploadSuccessNoKey": "Upload succeeded but S3 key could not be retrieved",
+    "uploadFailed": "Failed to upload the file",
+    "dropHintForm": "Drop here to select a file",
+    "dropHintCompact": "Drop here",
+    "labelUri": "URI",
+    "labelHashMethod": "Hash Method",
+    "labelHashValue": "Hash Value",
+    "labelFormat": "Format",
+    "labelPreview": "Preview",
+    "placeholderUri": "e.g. s3://bucket/path/to/file",
+    "placeholderUriCompact": "URI",
+    "placeholderHashMethod": "e.g. SHA-256",
+    "placeholderHashMethodCompact": "SHA-256",
+    "placeholderHashValue": "e.g. abc123...",
+    "placeholderHashValueCompact": "Hash value",
+    "placeholderFormat": "e.g. application/xml",
+    "placeholderFormatCompact": "e.g. application/xml",
+    "selectFileButton": "Select File",
+    "tooltipUploadWithS3": "Select a file and upload to S3",
+    "tooltipSelectOnly": "Select a file for auto-fill (no upload)",
+    "tooltipClear": "Clear URI, hash, and format",
+    "addButton": "Add Insertion",
+    "customLabel": "Custom Insertion"
   }
 }

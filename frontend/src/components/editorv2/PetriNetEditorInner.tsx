@@ -1849,6 +1849,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         placeRefs: convertedTemplateRef.placeRefs || [],
         templateRef: convertedTemplateRef.templateRef,
         methodId: correctMethodId,
+        insertion: convertedTemplateRef.insertion,  // ✅ 修正: insertion保存漏れを修正
       };
 
       if (window.clineAddTemplate) {
@@ -2023,6 +2024,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             placeRefs: convertedTemplateRef.placeRefs || [],
             templateRef: convertedTemplateRef.templateRef,
             methodId: finalMethodId,
+            insertion: convertedTemplateRef.insertion,  // ✅ 修正: insertion保存漏れを修正
         });
         console.log('✅ [PetriNetEditorInner] TemplateContext更新完了:', {
           oldTemplateId,
@@ -2241,7 +2243,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             const tempNode: Node<NodeData> = {
               id: template.id,
               position: { x: 0, y: 0 }, // ✅ 追加: position必須
-              data: {
+                data: {
                 id: template.id,
                 name: template.name || '',
                 description: template.description || '',
@@ -2259,6 +2261,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   templateRef: template.templateRef,
                   properties: template.properties || [],
                   contents: template.contents || [],
+                  insertion: template.insertion,  // ✅ 修正: insertion引き継ぎ漏れを修正
                 },
                 templateRef: {
                   id: template.id,
@@ -2270,6 +2273,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   templateRef: template.templateRef,
                   properties: template.properties || [],
                   contents: template.contents || [],
+                  insertion: template.insertion,  // ✅ 修正: insertion引き継ぎ漏れを修正
                 },
               },
             };

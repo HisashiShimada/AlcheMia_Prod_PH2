@@ -3,6 +3,7 @@ import { Form, Input, Button, Space, Tooltip } from 'antd';
 import { UploadOutlined, LoadingOutlined, ClearOutlined } from '@ant-design/icons';
 import { useInsertionEditor } from '@/hooks/useInsertionEditor';
 import type { Insertion } from '@/types/maiml-unified';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * InsertionEditorForm - TemplateEditorDialog 用 Insertion 入力コンポーネント
@@ -40,6 +41,7 @@ const InsertionEditorForm: React.FC<InsertionEditorFormProps> = ({
   maxFileSize,
   acceptedFormats,
 }) => {
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -106,30 +108,30 @@ const InsertionEditorForm: React.FC<InsertionEditorFormProps> = ({
             marginBottom: 8,
           }}
         >
-          ここにドロップしてファイルを選択
+          {t('insertionEditor.dropHintForm')}
         </div>
       )}
 
-      <Form.Item label="URI">
+      <Form.Item label={t('insertionEditor.labelUri')}>
         <Space.Compact style={{ width: '100%' }}>
           <Input
             value={insertion.uri}
             onChange={(e) => handleUriChange(e.target.value)}
-            placeholder="例: s3://bucket/path/to/file"
+            placeholder={t('insertionEditor.placeholderUri')}
             disabled={readOnly || isUploading}
           />
-          <Tooltip title={uploadTargetPath ? 'ファイルを選択してS3にアップロード' : 'ファイルを選択して自動入力（アップロードなし）'}>
+          <Tooltip title={uploadTargetPath ? t('insertionEditor.tooltipUploadWithS3') : t('insertionEditor.tooltipSelectOnly')}>
             <Button
               icon={isUploading ? <LoadingOutlined /> : <UploadOutlined />}
               onClick={handleSelectButtonClick}
               disabled={readOnly || isUploading}
             >
-              ファイルを選択
+              {t('insertionEditor.selectFileButton')}
             </Button>
           </Tooltip>
           {/* クリアボタン: URI または hash.value がある場合のみ表示 */}
           {(insertion.uri || insertion.hash?.value) && !readOnly && (
-            <Tooltip title="URI・ハッシュ・フォーマットをクリア">
+            <Tooltip title={t('insertionEditor.tooltipClear')}>
               <Button
                 icon={<ClearOutlined />}
                 onClick={handleClear}
@@ -141,40 +143,40 @@ const InsertionEditorForm: React.FC<InsertionEditorFormProps> = ({
         </Space.Compact>
       </Form.Item>
 
-      <Form.Item label="Hash Method">
+      <Form.Item label={t('insertionEditor.labelHashMethod')}>
         <Input
           value={insertion.hash?.method || ''}
           onChange={(e) => handleHashMethodChange(e.target.value)}
-          placeholder="例: SHA-256"
+          placeholder={t('insertionEditor.placeholderHashMethod')}
           disabled={readOnly || isUploading}
         />
       </Form.Item>
 
-      <Form.Item label="Hash Value">
+      <Form.Item label={t('insertionEditor.labelHashValue')}>
         <Input
           value={insertion.hash?.value || ''}
           onChange={(e) => handleHashValueChange(e.target.value)}
-          placeholder="例: abc123..."
+          placeholder={t('insertionEditor.placeholderHashValue')}
           disabled={readOnly || isUploading}
         />
       </Form.Item>
 
-      <Form.Item label="Format">
+      <Form.Item label={t('insertionEditor.labelFormat')}>
         <Input
           value={insertion.format || ''}
           onChange={(e) => handleFormatChange(e.target.value)}
-          placeholder="例: application/xml"
+          placeholder={t('insertionEditor.placeholderFormat')}
           disabled={readOnly || isUploading}
         />
       </Form.Item>
 
       {/* 画像プレビュー（image/* の場合のみ） */}
       {isImageUri && (
-        <Form.Item label="プレビュー">
+        <Form.Item label={t('insertionEditor.labelPreview')}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={insertion.uri}
-            alt="プレビュー"
+            alt={t('insertionEditor.labelPreview')}
             style={{
               maxWidth: '100%',
               maxHeight: 200,

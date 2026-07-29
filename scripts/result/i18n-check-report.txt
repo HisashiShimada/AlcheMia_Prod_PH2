@@ -1,12 +1,12 @@
 ============================================================
 i18n キー整合性 & ハードコードメッセージ チェック結果
 ============================================================
-実行日時: 2026/05/26 08:53:28
+実行日時: 2026/07/29 09:40:22
 対象: frontend/src/
 
-収集済みコンポーネントキー数: 1660
-ja.json 定義キー数: 2252
-en.json 定義キー数: 2252
+収集済みコンポーネントキー数: 1677
+ja.json 定義キー数: 2375
+en.json 定義キー数: 2378
 
 ============================================================
 【1】コンポーネントで使用 & ja.json にも en.json にも未定義: 0 件
@@ -29,18 +29,203 @@ en.json 定義キー数: 2252
   （なし）
 
 ============================================================
-【5】en.json にあって ja.json に未定義: 0 件
+【5】en.json にあって ja.json に未定義: 3 件
 ============================================================
-  （なし）
+  EN_ONLY: progress.filter.allDepartments
+  EN_ONLY: progress.filter.department
+  EN_ONLY: userManagement.form.namespaceInfo
 
 ============================================================
-【6】message部品のハードコード（i18n化推奨）: 0 件
+【6】message部品のハードコード（i18n化推奨）: 128 件
 ============================================================
 
   ※ message.error/success/warning/info/loading に文字列リテラルが直接渡されている箇所です。
   ※ t("key") や extractErrorMessage() などを使って i18n化することを推奨します。
 
-  （なし）
+📁 frontend/src/components/editorv2/WorkflowSelectorDialog.tsx
+    行 107: message.error('プロジェクト一覧の取得に失敗しました');
+    行 111: message.error('プロジェクト一覧の取得に失敗しました');
+    行 199: message.warning('プロジェクトを選択してください');
+
+📁 frontend/src/components/encryption/EncryptionManagement.tsx
+    行 246: message.error('プレビューの生成に失敗しました。');
+    行 276: message.success(`暗号化が完了しました（${targetPaths.length}件）。`);
+    行 282: message.error('暗号化に失敗しました。');
+    行 304: message.warning('暗号化用の鍵を設定してください。');
+    行 351: message.error('復号化プレビューの生成に失敗しました。');
+    行 368: message.success(`復号化が完了しました（${targetPaths.length}件）。`);
+    行 375: message.error('復号化に失敗しました。');
+
+📁 frontend/src/components/encryption/KeyCreateModal.tsx
+    行 39: message.success(`鍵「${newKey.keyName}」を作成しました。`);
+    行 45: message.error('鍵の作成に失敗しました。');
+
+📁 frontend/src/components/encryption/KeyExportModal.tsx
+    行 60: message.success(`鍵ファイルをエクスポートしました: ${fileName}`);
+    行 65: message.error('エクスポートに失敗しました。');
+
+📁 frontend/src/components/encryption/KeyImportModal.tsx
+    行 42: message.error('.key, .pem, .pfx 形式のファイルのみインポートできます。');
+    行 55: message.warning('インポートするファイルを選択してください。');
+    行 69: message.error('ファイルの読み込みに失敗しました。');
+    行 89: message.success(`鍵をインポートしました: ${imported.keyName}`);
+    行 95: message.error('インポートに失敗しました。ファイル形式またはパスワードを確認してください。');
+
+📁 frontend/src/components/encryption/KeyManagement.tsx
+    行 96: message.success(`鍵「${keyName}」を削除しました。`);
+    行 99: message.error('鍵の削除に失敗しました。使用中の鍵は削除できません。');
+
+📁 frontend/src/components/encryption/KeyRotateModal.tsx
+    行 56: message.error('鍵ローテーションに失敗しました。');
+
+📁 frontend/src/components/menus/ExperimentWorkerMenu.tsx
+    行 512: message.error('作業開始に失敗しました。再度お試しください。');
+    行 565: message.error('作業切り替えに失敗しました。再度お試しください。');
+
+📁 frontend/src/components/namespace/DepartmentTreeManagement.tsx
+    行 120: message.success(`部署ノード「${node.label}」を追加しました`);
+    行 141: if (!editValues.prefix) { message.error('Prefixは必須です'); return; }
+    行 160: message.success('部署ノードを更新しました');
+    行 179: message.success(`「${row.label}」を削除しました`);
+
+📁 frontend/src/components/namespace/DetailModal.tsx
+    行 106: message.success('用語を保存しました');
+    行 108: if (!editPrefix.trim()) { message.error('接頭辞は必須です'); return; }
+    行 109: if (!editUri.trim())    { message.error('URIは必須です'); return; }
+    行 115: message.success('名前空間を保存しました');
+
+📁 frontend/src/components/namespace/NamespaceAddDialog.tsx
+    行 94: message.success('ORCIDからURIを自動入力しました');
+    行 107: message.success(`名前空間「${values.prefix}」を登録しました`);
+
+📁 frontend/src/components/namespace/NamespaceMain.tsx
+    行 537: if (!row.prefix)    { message.error('すべての行でPrefixを選択してください'); return; }
+    行 538: if (!row.localName) { message.error('すべての行でローカル名を入力してください'); return; }
+    行 577: message.error(`「${row.localName}」の保存に失敗しました: ${(err as any).error ?? res.status}`);
+    行 583: message.error(`「${row.localName}」の保存中にエラーが発生しました`);
+    行 589: message.success(`${added.length}件の用語をDBに保存しました`);
+    行 601: if (!editingValues.localName) { message.error('ローカル名は必須です'); return; }
+    行 618: message.error(`更新に失敗しました: ${(err as any).error ?? res.status}`);
+    行 625: message.success('用語を更新しました');
+    行 627: message.error('用語の更新中にエラーが発生しました');
+    行 743: message.warning(`${added.length}件共有完了、${failed.length}件失敗しました`);
+    行 745: message.success(`${added.length}件の用語を「${target.label}」に共有しました`);
+    行 995: message.success('用語を非アクティブにしました');
+    行 1002: message.success('用語をアクティブにしました');
+    行 1019: message.success(`${count}件の用語を非アクティブにしました`);
+    行 1031: message.error('エクスポートする用語を1件以上選択してください');
+    行 1058: if (lines.length < 2) { message.error('CSVデータが空です'); return; }
+    行 1080: if (rows.length === 0) { message.error('取込可能なデータがありませんでした'); return; }
+    行 1117: message.warning(`${added.length}件保存、${failed.length}件失敗しました（失敗: ${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}）`);
+    行 1119: message.success(`${added.length} 件の用語をDBに保存しました`);
+    行 1122: message.error('CSVの解析に失敗しました');
+    行 1612: message.success(`名前空間「${result.prefix}」を登録しました`);
+    行 1629: message.success(`チーム「${teamName}」を作成しました（メンバー: ${members.length}名）`);
+    行 1642: message.success(`「${name}」を更新しました（メンバー: ${members.length}名）`);
+
+📁 frontend/src/components/namespace/PrefixManagement.tsx
+    行 372: message.warning(`${added.length}件共有完了、${failed.length}件失敗しました`);
+    行 374: message.success(`${added.length}件のPrefixを「${target.label}」に共有しました`);
+    行 382: message.error('エクスポートするPrefixを1件以上選択してください');
+    行 412: if (lines.length < 2) { message.error('CSVデータが空です'); return; }
+    行 425: if (parsedRows.length === 0) { message.error('取込可能なデータがありませんでした'); return; }
+    行 452: message.warning(`${added.length}件保存、${failed.length}件失敗しました（失敗: ${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}）`);
+    行 454: message.success(`${added.length}件のPrefixをDBに保存しました`);
+    行 457: message.error('CSVの解析に失敗しました');
+    行 486: if (!row.prefix) { message.error('すべての行でPrefixを入力してください'); return; }
+    行 523: message.success(`${added.length}件のPrefixを登録しました`);
+    行 537: if (!editingValues.prefix) { message.error('Prefixは必須です'); return; }
+    行 555: message.success('Prefixを更新しました');
+    行 575: message.success(`Prefix「${prefix}」を非アクティブにしました`);
+    行 582: message.success(`Prefix「${prefix}」をアクティブにしました`);
+    行 760: message.success(`${count}件のPrefixを非アクティブにしました`);
+
+📁 frontend/src/components/namespace/TeamAddDialog.tsx
+    行 60: message.warning('このメンバーは既に追加されています');
+    行 97: message.error(`チームの作成に失敗しました: ${(err as any).error ?? res.status}`);
+    行 112: message.warning('チームは作成しましたが、メンバーの設定に失敗しました');
+    行 116: message.success(`チーム「${created.unitName}」をDBに保存しました`);
+    行 120: message.error('チームの作成中にエラーが発生しました');
+
+📁 frontend/src/components/namespace/TeamEditDialog.tsx
+    行 86: message.warning('このメンバーは既に追加されています');
+    行 95: message.error('チーム名を入力してください');
+    行 100: message.warning('チームIDが未設定のため、DBへの保存をスキップしました');
+    行 118: message.error(`チーム名の更新に失敗しました: ${(err as any).error ?? nameRes.status}`);
+    行 133: message.error(`メンバーの更新に失敗しました: ${(err as any).error ?? memRes.status}`);
+    行 147: message.error(`代表者の更新に失敗しました: ${(err as any).error ?? ownerRes.status}`);
+    行 152: message.success(`「${teamName.trim()}」を保存しました（メンバー: ${members.length}名）`);
+    行 156: message.error('保存中にエラーが発生しました');
+
+📁 frontend/src/components/namespace/TeamManagementPanel.tsx
+    行 109: message.success(`チーム「${teamName}」を作成しました`);
+
+📁 frontend/src/components/project/ExperimentInstructionTab.tsx
+    行 438: message.error('実験指示データの取得に失敗しました');
+    行 504: message.warning('タスク番号を選択してください');
+    行 508: message.warning('NG理由を入力してください');
+    行 519: message.warning(`タスク #${taskNumber} に NG を記録しました`);
+    行 522: message.success(`タスク #${taskNumber} を承認しました`);
+    行 528: message.error('承認処理に失敗しました');
+    行 543: message.success(`タスク #${approveTarget.taskNumber} を承認しました`);
+    行 548: message.error('承認処理に失敗しました');
+    行 566: message.warning(`タスク #${ngTarget.taskNumber} に NG を記録しました`);
+    行 573: message.error('NG記録処理に失敗しました');
+
+📁 frontend/src/components/project/ExperimentPlanDialog.tsx
+    行 424: message.error('実験計画データの取得に失敗しました');
+    行 445: message.error('実験計画データの取得に失敗しました');
+    行 489: message.success('インポートしました');
+    行 491: message.error('JSONの解析に失敗しました');
+    行 518: message.success('エクスポートしました');
+    行 675: message.success('実験計画を保存しました');
+    行 680: message.error('保存に失敗しました');
+
+📁 frontend/src/components/project/TaskRegistrationTab.tsx
+    行 999: message.success('実験計画を保存しました（モック）');
+
+📁 frontend/src/components/signature/SignatureManagement.tsx
+    行 67: message.error('署名状態の取得に失敗しました');
+    行 90: message.success('署名を実行しました');
+    行 92: message.error('署名の実行に失敗しました');
+    行 104: message.success('署名を削除しました');
+    行 106: message.error('署名の削除に失敗しました');
+
+📁 frontend/src/components/uncertainty/UncertaintyCreateModal.tsx
+    行 117: message.error('不確かさ基準名（key属性）を入力してください');
+    行 121: message.error('スコープを選択してください');
+    行 124: message.success('不確かさ基準を保存しました（デモ）');
+
+📁 frontend/src/components/uncertainty/UncertaintyCriteriaSelectorModal.tsx
+    行 281: message.warning('不確かさ基準を選択してください');
+    行 288: message.warning('信頼レベルを選択してください');
+    行 299: message.success(`「${selectedCriteria.name}」で不確かさを付与しました`);
+
+📁 frontend/src/components/uncertainty/UncertaintyCriteriaSelectorPanel.tsx
+    行 222: message.warning('不確かさ基準を選択してください');
+    行 229: message.warning('信頼レベルを選択してください');
+    行 240: message.success(`「${selectedCriteria.name}」で不確かさを付与しました`);
+
+📁 frontend/src/components/uncertainty/UncertaintyDetailModal.tsx
+    行 157: message.error('不確かさ基準名（key属性）を入力してください');
+    行 160: message.success('不確かさ基準を保存しました（デモ）');
+
+📁 frontend/src/components/uncertainty/UncertaintyExportModal.tsx
+    行 33: message.success('エクスポートファイルのダウンロードを開始します（デモ）');
+
+📁 frontend/src/components/uncertainty/UncertaintyImportModal.tsx
+    行 31: message.success('インポート処理を開始します（デモ）');
+
+📁 frontend/src/components/uncertainty/UncertaintyManagement.tsx
+    行 411: message.success(`チーム「${teamName}」を作成しました（メンバー: ${members.length}名）`);
+    行 423: message.success(`「${teamEditLabel}」のメンバーを更新しました（${members.length}名）`);
+
+📁 frontend/src/hooks/useContentGridEditor.ts
+    行 125: message.error('CSVまたはXMLファイルを選択してください（.csv / .xml）');
+    行 130: message.warning('インポートできるデータが見つかりませんでした');
+    行 135: message.success(`インポート完了: ${result.data.length}行 × ${Math.max(...result.data.map((r) => r.length))}列`);
+    行 143: message.warning(`他 ${result.warnings.length - 3} 件の警告があります`);
+
 ============================================================
 チェック完了
 ============================================================
