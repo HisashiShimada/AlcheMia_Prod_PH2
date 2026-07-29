@@ -3136,8 +3136,8 @@
     "management": {
       "title": "不確かさ基準管理",
       "tabCriteria": "不確かさ基準一覧",
-      "tabNamespace": "名前空間",
-      "tabPrefix": "プレフィックス",
+      "tabNamespace": "用語管理",
+      "tabPrefix": "Prefix管理",
       "buttonImport": "インポート",
       "buttonExport": "エクスポート",
       "buttonCreate": "新規基準作成",
