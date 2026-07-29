@@ -16,6 +16,7 @@ import type { UpsertEvaluationInput, ExperimentEvaluation, ExperimentEvaluationR
 import * as projectRepository from '../repositories/projectRepository';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { getStorageService } from './storageService';
+import { escapeXml } from '../utils/maimlDataWriter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 型定義
@@ -236,16 +237,3 @@ export async function exportToMaiml(
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ヘルパー
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** XML特殊文字エスケープ */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
