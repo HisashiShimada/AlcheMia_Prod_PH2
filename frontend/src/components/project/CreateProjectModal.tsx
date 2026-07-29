@@ -65,23 +65,6 @@ export default function CreateProjectModal({
   // モーダルが開いた際にチーム一覧を取得
   useEffect(() => {
     if (!open) return;
-<<<<<<< Updated upstream
-    setTeamsLoading(true);
-    fetch('/api/v1/department-units/my-teams', { credentials: 'include' })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<TeamOption[]>;
-      })
-      .then((data) => setTeams(data))
-      .catch(() => {
-        // TODO:[MOCK] バックエンド実装時に削除 — APIが実装されたらダミーデータを削除する
-        setTeams([
-          { departmentUnitId: 'rd-materials', unitName: '材料解析チーム' },
-          { departmentUnitId: 'data-proc',    unitName: 'データ処理班' },
-        ]);
-      })
-      .finally(() => setTeamsLoading(false));
-=======
 
     const fetchTeams = async () => {
       setTeamsLoading(true);
@@ -106,7 +89,6 @@ export default function CreateProjectModal({
     };
 
     fetchTeams();
->>>>>>> Stashed changes
   }, [open]);
 
   // フォーム送信ハンドラ
@@ -247,14 +229,6 @@ export default function CreateProjectModal({
 
           {/* チーム選択 */}
           <Form.Item
-<<<<<<< Updated upstream
-            name="teamId"
-            label={t('createProject.teamLabel')}
-          >
-            <Select
-              placeholder={t('createProject.teamPlaceholder')}
-              allowClear
-=======
             name="organizationGroupCd"
             label="チーム"
             rules={[
@@ -266,7 +240,6 @@ export default function CreateProjectModal({
           >
             <Select
               placeholder="チームを選択してください"
->>>>>>> Stashed changes
               loading={teamsLoading}
               data-testid="create-project-org-group-select"
               options={teams.map((team) => ({
@@ -279,11 +252,7 @@ export default function CreateProjectModal({
             type="secondary"
             style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 8 }}
           >
-<<<<<<< Updated upstream
             {t('createProject.teamNote')}
-=======
-            選択したチームのメンバーのみ閲覧できます。
->>>>>>> Stashed changes
           </Text>
         </Form>
       </Space>
