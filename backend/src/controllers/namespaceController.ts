@@ -4,21 +4,20 @@
  * 名前空間・用語管理のAPIエンドポイント処理
  *
  * @remarks
- * Repository の主キーは (organization_id, prefix, local_name) の複合キー。
- * URL パラメータは prefix と localName を使用する。
+ * - Controller は Service 層のみを呼び出す。Repository への直接参照は禁止。
+ * - リクエストパラメータの検証は namespaceValidation.ts のミドルウェアで実施済み。
+ *   Controller 内にバリデーションロジックを記述しない。
  *
  * @module namespaceController
- * @version 2.0.0
+ * @version 4.0.0
  */
 
 import { Request, Response, NextFunction } from 'express';
-import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
+import * as namespaceService from '../services/namespaceService';
 
 /**
  * 名前空間（Prefix）新規登録
  * POST /api/v1/namespaces
- *
- * @body { prefix, uri, displayName?, description?, departmentCd? }
  */
 export async function createNamespace(
   req: Request,
@@ -26,30 +25,17 @@ export async function createNamespace(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, uri, displayName, description, departmentCd, scopeKey, isGlobal } = req.body as {
+    const { prefix, uri, scopeKey, description } = req.body as {
       prefix: string;
       uri: string;
-      displayName?: string;
-      description?: string;
-      departmentCd?: string;
       scopeKey?: string;
-      isGlobal?: boolean;
+      description?: string;
     };
 
-    const organizationId =
-      ((req as any).organizationId as string | undefined) ||
-      (req.body.organizationId as string | undefined);
-    const userId =
-      ((req as any).userId as string | undefined) ||
-      (req.body.userId as string | undefined) ||
-      'system';
+    const organizationId = (req as any).organizationId as string;
+    const userId = ((req as any).userId as string | undefined) ?? 'system';
 
-    if (!organizationId || !prefix || !uri) {
-      res.status(400).json({ error: 'organizationId・prefix・uri は必須です' });
-      return;
-    }
-
-    const namespaceId = await namespaceTermRepository.createNamespace({
+    const result = await namespaceService.createNamespace({
       organizationId,
       prefix,
       uri,
@@ -58,7 +44,7 @@ export async function createNamespace(
       description,
     });
 
-    res.status(201).json({ namespaceId, prefix, uri });
+    res.status(201).json(result);
   } catch (error) {
     next(error);
   }
@@ -74,28 +60,16 @@ export async function getNamespaces(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId =
-      ((req as any).organizationId as string | undefined) ||
-      (req.query.organizationId as string | undefined);
-
-    if (!organizationId) {
-      res.status(400).json({ error: 'organizationId は必須です' });
-      return;
-    }
-
+    const organizationId = (req as any).organizationId as string;
     const scopeKey = req.query.scopeKey as string | undefined;
 
     if (scopeKey) {
-      // scopeKey 指定時はユーザー個人の名前空間を返す
-      const namespaces = await namespaceTermRepository.findNamespacesByScopeKey(
-        organizationId,
-        scopeKey
-      );
+      const namespaces = await namespaceService.getNamespacesByScopeKey(organizationId, scopeKey);
       res.json({ namespaces });
       return;
     }
 
-    const namespaces = await namespaceTermRepository.findNamespacesByOrganization(organizationId);
+    const namespaces = await namespaceService.getNamespaces(organizationId);
     res.json({ namespaces });
   } catch (error) {
     next(error);
@@ -113,16 +87,9 @@ export async function deleteNamespace(
 ): Promise<void> {
   try {
     const { prefix } = req.params;
-    const organizationId =
-      ((req as any).organizationId as string | undefined) ||
-      (req.query.organizationId as string | undefined);
+    const organizationId = (req as any).organizationId as string;
 
-    if (!organizationId) {
-      res.status(400).json({ error: 'organizationId は必須です' });
-      return;
-    }
-
-    const count = await namespaceTermRepository.removeNamespace(organizationId, prefix);
+    const count = await namespaceService.deleteNamespace(organizationId, prefix);
     if (count === 0) {
       res.status(404).json({ error: `prefix "${prefix}" の名前空間が見つかりません` });
       return;
@@ -137,8 +104,6 @@ export async function deleteNamespace(
 /**
  * 用語新規登録
  * POST /api/v1/namespaces/terms
- *
- * @body { organizationId, prefix, localName, displayName?, description?, typeHint?, unitHint? }
  */
 export async function createTerm(
   req: Request,
@@ -146,14 +111,7 @@ export async function createTerm(
   next: NextFunction
 ): Promise<void> {
   try {
-    const {
-      prefix,
-      localName,
-      displayName,
-      description,
-      typeHint,
-      unitHint,
-    } = req.body as {
+    const { prefix, localName, displayName, description, typeHint, unitHint } = req.body as {
       prefix: string;
       localName: string;
       displayName?: string;
@@ -162,24 +120,9 @@ export async function createTerm(
       unitHint?: string;
     };
 
-    // organizationId はミドルウェアまたはリクエストボディから取得
-    const organizationId =
-      ((req as any).organizationId as string | undefined) ||
-      (req.body.organizationId as string | undefined);
+    const organizationId = (req as any).organizationId as string;
 
-    if (!organizationId || !prefix || !localName) {
-      res.status(400).json({ error: 'organizationId・prefix・localName は必須です' });
-      return;
-    }
-
-    // prefix に対応する namespace が存在するか確認
-    const exists = await namespaceTermRepository.existsNamespace(organizationId, prefix);
-    if (!exists) {
-      res.status(404).json({ error: `prefix "${prefix}" に対応する名前空間が見つかりません` });
-      return;
-    }
-
-    const created = await namespaceTermRepository.create({
+    const created = await namespaceService.createTerm({
       organizationId,
       prefix,
       localName,
@@ -188,6 +131,11 @@ export async function createTerm(
       typeHint,
       unitHint,
     });
+
+    if (!created) {
+      res.status(404).json({ error: `prefix "${prefix}" に対応する名前空間が見つかりません` });
+      return;
+    }
 
     res.status(201).json(created);
   } catch (error) {
@@ -206,35 +154,21 @@ export async function updateTerm(
 ): Promise<void> {
   try {
     const { prefix, localName } = req.params;
+    const organizationId = (req as any).organizationId as string;
 
-    // organizationId はミドルウェアまたはクエリから取得
-    const organizationId =
-      ((req as any).organizationId as string | undefined) ||
-      (req.query.organizationId as string | undefined);
-
-    if (!organizationId) {
-      res.status(400).json({ error: 'organizationId は必須です' });
-      return;
-    }
-
-    const {
-      displayName,
-      description,
-      typeHint,
-      unitHint,
-    } = req.body as {
+    const { displayName, description, typeHint, unitHint } = req.body as {
       displayName?: string;
       description?: string;
       typeHint?: string;
       unitHint?: string;
     };
 
-    const updated = await namespaceTermRepository.update(
-      organizationId,
-      prefix,
-      localName,
-      { displayName, description, typeHint, unitHint }
-    );
+    const updated = await namespaceService.updateTerm(organizationId, prefix, localName, {
+      displayName,
+      description,
+      typeHint,
+      unitHint,
+    });
 
     if (!updated) {
       res.status(404).json({ error: `"${prefix}:${localName}" の用語が見つかりません` });
@@ -258,18 +192,9 @@ export async function deleteTerm(
 ): Promise<void> {
   try {
     const { prefix, localName } = req.params;
+    const organizationId = (req as any).organizationId as string;
 
-    // organizationId はミドルウェアまたはクエリから取得
-    const organizationId =
-      ((req as any).organizationId as string | undefined) ||
-      (req.query.organizationId as string | undefined);
-
-    if (!organizationId) {
-      res.status(400).json({ error: 'organizationId は必須です' });
-      return;
-    }
-
-    const count = await namespaceTermRepository.remove(organizationId, prefix, localName);
+    const count = await namespaceService.deleteTerm(organizationId, prefix, localName);
     if (count === 0) {
       res.status(404).json({ error: `"${prefix}:${localName}" の用語が見つかりません` });
       return;
@@ -285,9 +210,7 @@ export async function deleteTerm(
  * 名前空間宣言一覧取得（prefix + uri）
  * GET /api/v1/namespaces/declarations
  *
- * @remarks
- * MAIML XMLビュー表示・保存前の xmlns 注入に使用する。
- * namespace テーブルから is_active = true のレコードを返す。
+ * @remarks MAIML XMLビュー表示・保存前の xmlns 注入に使用する。
  */
 export async function getDeclarations(
   req: Request,
@@ -295,17 +218,8 @@ export async function getDeclarations(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId =
-      ((req as any).organizationId as string | undefined) ||
-      (req.query.organizationId as string | undefined);
-
-    if (!organizationId) {
-      res.status(400).json({ error: 'organizationId は必須です' });
-      return;
-    }
-
-    const uri = await namespaceTermRepository.findDeclarationsByOrganization(organizationId);
-
+    const organizationId = (req as any).organizationId as string;
+    const uri = await namespaceService.getDeclarations(organizationId);
     res.json({ uri: uri ?? null });
   } catch (error) {
     next(error);
@@ -314,12 +228,7 @@ export async function getDeclarations(
 
 /**
  * プロジェクトスコープで絞り込んだ名前空間宣言一覧取得
- * GET /api/v1/namespaces/declarations?projectId=xxx
- *
- * @description
- *   projectId から project.organization_group_cd を取得し、
- *   global_flg=TRUE の名前空間 + scope_key が一致する名前空間を返す。
- *   organization_group_cd が NULL の場合は全件返す（制限なし）。
+ * GET /api/v1/namespaces/project-declarations?projectId=xxx
  */
 export async function getDeclarationsByProject(
   req: Request,
@@ -327,38 +236,20 @@ export async function getDeclarationsByProject(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId =
-      ((req as any).organizationId as string | undefined) ||
-      (req.query.organizationId as string | undefined);
+    const organizationId = (req as any).organizationId as string;
+    const projectId = req.query.projectId as string;
 
-    if (!organizationId) {
-      res.status(401).json({ success: false, error: { code: 'E5013', message: '認証が必要です' } });
-      return;
-    }
-
-    const projectId = req.query.projectId as string | undefined;
-    if (!projectId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'projectId は必須です' } });
-      return;
-    }
-
-    // projectId から organization_group_cd を取得
-    const pool = (await import('../database/db')).getPool();
-    const projectRow = await pool.query(
-      'SELECT organization_group_cd FROM project WHERE project_id = $1 AND organization_id = $2',
-      [projectId, organizationId]
-    );
-    if (projectRow.rows.length === 0) {
-      res.status(404).json({ success: false, error: { code: 'E6001', message: 'プロジェクトが見つかりません' } });
-      return;
-    }
-
-    const orgGroupCd: string | null = projectRow.rows[0].organization_group_cd ?? null;
-
-    const declarations = await namespaceTermRepository.findDeclarationsByProjectScope(
+    const declarations = await namespaceService.getDeclarationsByProject(
       organizationId,
-      orgGroupCd
+      projectId
     );
+
+    if (!declarations) {
+      res
+        .status(404)
+        .json({ success: false, error: { code: 'E6001', message: 'プロジェクトが見つかりません' } });
+      return;
+    }
 
     res.json(declarations);
   } catch (error) {
@@ -376,16 +267,43 @@ export async function getTerms(
   next: NextFunction
 ): Promise<void> {
   try {
-    // 認証ミドルウェアがある場合は organizationId で絞り込み、なければ全件取得
-    const organizationId =
-      ((req as any).organizationId as string | undefined) ||
-      (req.query.organizationId as string | undefined);
-
-    const terms = organizationId
-      ? await namespaceTermRepository.findAllByOrganization(organizationId)
-      : await namespaceTermRepository.findAll();
-
+    const organizationId = (req as any).organizationId as string | undefined;
+    const terms = await namespaceService.getTerms(organizationId);
     res.json(terms);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * 用語のアクティブ/非アクティブ切替
+ * PATCH /api/v1/namespaces/terms/:prefix/:localName/active
+ *
+ * @body { isActive: boolean }
+ */
+export async function toggleTermActive(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { prefix, localName } = req.params as { prefix: string; localName: string };
+    const { isActive } = req.body as { isActive: boolean };
+    const organizationId = (req as any).organizationId as string;
+
+    const updated = await namespaceService.toggleTermActive(
+      organizationId,
+      prefix,
+      localName,
+      isActive
+    );
+
+    if (!updated) {
+      res.status(404).json({ error: '対象の用語が見つかりません' });
+      return;
+    }
+
+    res.json(updated);
   } catch (error) {
     next(error);
   }

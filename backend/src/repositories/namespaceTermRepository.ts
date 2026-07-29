@@ -20,7 +20,8 @@
  * @version 3.0.0
  */
 
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * namespace_term テーブルの型定義
@@ -56,6 +57,7 @@ export interface NamespaceTermRow {
   description: string;
   type: string;
   unitHint: string;
+  isActive: boolean;
 }
 
 /**
@@ -67,25 +69,9 @@ export interface NamespaceTermRow {
 export async function findAllByOrganization(
   organizationId: string
 ): Promise<NamespaceTermRow[]> {
-  const pool = getPool();
-
-  const query = `
-    SELECT
-      t.prefix || ':' || t.localname  AS qname
-      , t.prefix                       AS prefix
-      , t.localname                    AS "localName"
-      , COALESCE(t.display_name, '')   AS "displayName"
-      , COALESCE(t.description, '')    AS description
-      , COALESCE(t.xsi_type, 'stringType') AS type
-      , COALESCE(t.units, '')          AS "unitHint"
-    FROM namespace_term t
-    WHERE t.organization_id = $1
-      AND t.is_active = TRUE
-    ORDER BY t.prefix ASC, t.localname ASC
-  `;
-
-  const result = await pool.query(query, [organizationId]);
-  return result.rows;
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findAllByOrganization.sql');
+  return pgp.any<NamespaceTermRow>(query, [organizationId]);
 }
 
 /**
@@ -99,17 +85,10 @@ export async function findAllByOrganization(
 export async function findDeclarationsByOrganization(
   organizationId: string
 ): Promise<string | null> {
-  const pool = getPool();
-
-  const query = `
-    SELECT uri
-    FROM namespace
-    WHERE organization_id = $1
-    LIMIT 1
-  `;
-
-  const result = await pool.query<{ uri: string }>(query, [organizationId]);
-  return result.rows[0]?.uri ?? null;
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findDeclarationsByOrganization.sql');
+  const row = await pgp.oneOrNone<{ uri: string }>(query, [organizationId]);
+  return row?.uri ?? null;
 }
 
 /**
@@ -123,16 +102,10 @@ export async function existsNamespace(
   organizationId: string,
   prefix: string
 ): Promise<boolean> {
-  const pool = getPool();
-
-  const query = `
-    SELECT 1 FROM prefix
-    WHERE organization_id = $1 AND prefix = $2
-    LIMIT 1
-  `;
-
-  const result = await pool.query(query, [organizationId, prefix]);
-  return result.rowCount !== null && result.rowCount > 0;
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/existsNamespace.sql');
+  const row = await pgp.oneOrNone(query, [organizationId, prefix]);
+  return row !== null;
 }
 
 /**
@@ -150,38 +123,21 @@ export async function create(data: {
   typeHint?: string;
   unitHint?: string;
 }): Promise<NamespaceTermRow> {
-  const pool = getPool();
+  const pgp = getPgp();
 
   // prefix に対応する namespace_id を取得
-  const prefixRow = await pool.query<{ namespace_id: string }>(
-    `SELECT namespace_id FROM prefix WHERE organization_id = $1 AND prefix = $2 LIMIT 1`,
+  const findPrefixQuery = await loadSqlFile('namespace_terms/findPrefixNamespaceId.sql');
+  const prefixRow = await pgp.oneOrNone<{ namespace_id: string }>(
+    findPrefixQuery,
     [data.organizationId, data.prefix]
   );
-  if (prefixRow.rows.length === 0) {
+  if (!prefixRow) {
     throw new Error(`prefix "${data.prefix}" に対応する namespace_id が見つかりません`);
   }
-  const namespaceId = prefixRow.rows[0].namespace_id;
+  const namespaceId = prefixRow.namespace_id;
 
-  const insertQuery = `
-    INSERT INTO namespace_term (
-      organization_id
-      , namespace_id
-      , prefix
-      , localname
-      , display_name
-      , description
-      , xsi_type
-      , units
-      , is_active
-      , create_at
-      , update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, TRUE
-      , CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-    )
-  `;
-
-  await pool.query(insertQuery, [
+  const insertQuery = await loadSqlFile('namespace_terms/createTerm.sql');
+  await pgp.none(insertQuery, [
     data.organizationId,
     namespaceId,
     data.prefix,
@@ -193,27 +149,12 @@ export async function create(data: {
   ]);
 
   // 登録後、フロントエンド用フォーマットで返す
-  const selectQuery = `
-    SELECT
-      t.prefix || ':' || t.localname  AS qname
-      , t.prefix                       AS prefix
-      , t.localname                    AS "localName"
-      , COALESCE(t.display_name, '')   AS "displayName"
-      , COALESCE(t.description, '')    AS description
-      , COALESCE(t.xsi_type, 'stringType') AS type
-      , COALESCE(t.units, '')          AS "unitHint"
-    FROM namespace_term t
-    WHERE t.organization_id = $1
-      AND t.prefix = $2
-      AND t.localname = $3
-  `;
-
-  const result = await pool.query(selectQuery, [
+  const selectQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  return pgp.one<NamespaceTermRow>(selectQuery, [
     data.organizationId,
     data.prefix,
     data.localName,
   ]);
-  return result.rows[0];
 }
 
 /**
@@ -236,21 +177,10 @@ export async function update(
     unitHint?: string;
   }
 ): Promise<NamespaceTermRow | null> {
-  const pool = getPool();
+  const pgp = getPgp();
 
-  const updateQuery = `
-    UPDATE namespace_term SET
-      display_name  = $4
-      , description = $5
-      , xsi_type    = $6
-      , units       = $7
-      , update_at   = CURRENT_TIMESTAMP
-    WHERE organization_id = $1
-      AND prefix = $2
-      AND localname = $3
-  `;
-
-  const result = await pool.query(updateQuery, [
+  const updateQuery = await loadSqlFile('namespace_terms/updateTerm.sql');
+  const result = await pgp.result(updateQuery, [
     organizationId,
     prefix,
     localName,
@@ -263,23 +193,8 @@ export async function update(
   if (result.rowCount === 0) return null;
 
   // 更新後、フロントエンド用フォーマットで返す
-  const selectQuery = `
-    SELECT
-      t.prefix || ':' || t.localname  AS qname
-      , t.prefix                       AS prefix
-      , t.localname                    AS "localName"
-      , COALESCE(t.display_name, '')   AS "displayName"
-      , COALESCE(t.description, '')    AS description
-      , COALESCE(t.xsi_type, 'stringType') AS type
-      , COALESCE(t.units, '')          AS "unitHint"
-    FROM namespace_term t
-    WHERE t.organization_id = $1
-      AND t.prefix = $2
-      AND t.localname = $3
-  `;
-
-  const updated = await pool.query(selectQuery, [organizationId, prefix, localName]);
-  return updated.rows[0] ?? null;
+  const selectQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  return pgp.oneOrNone<NamespaceTermRow>(selectQuery, [organizationId, prefix, localName]);
 }
 
 /**
@@ -295,15 +210,9 @@ export async function remove(
   prefix: string,
   localName: string
 ): Promise<number> {
-  const pool = getPool();
-
-  const query = `
-    DELETE FROM namespace_term
-    WHERE organization_id = $1
-      AND prefix = $2
-      AND localname = $3
-  `;
-  const result = await pool.query(query, [organizationId, prefix, localName]);
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/removeTerm.sql');
+  const result = await pgp.result(query, [organizationId, prefix, localName]);
   return result.rowCount ?? 0;
 }
 
@@ -321,37 +230,16 @@ export async function createNamespaceUri(data: {
   uri: string;
   userId: string;
 }): Promise<string> {
-  const pool = getPool();
+  const pgp = getPgp();
 
   // namespace_id を採番: 組織内の最大連番+1 (NS0001 形式)
-  const seqResult = await pool.query(
-    `SELECT COALESCE(MAX(CAST(SUBSTRING(namespace_id FROM 3) AS INTEGER)), 0) + 1 AS next_seq
-     FROM namespace
-     WHERE organization_id = $1`,
-    [data.organizationId]
-  );
-  const seq: number = seqResult.rows[0].next_seq;
-  const namespaceId = `NS${String(seq).padStart(4, '0')}`;
+  const seqQuery = await loadSqlFile('namespace_terms/findNextNamespaceSeq.sql');
+  const seqRow = await pgp.one<{ next_seq: number }>(seqQuery, [data.organizationId]);
+  const namespaceId = `NS${String(seqRow.next_seq).padStart(4, '0')}`;
 
   // namespace テーブルに INSERT（URI のみ）
-  const insertNamespaceQuery = `
-    INSERT INTO namespace (
-      organization_id
-      , namespace_id
-      , uri
-      , global_flg
-      , scope_key
-      , create_user_id
-      , create_at
-      , update_user_id
-      , update_at
-    ) VALUES (
-      $1, $2, $3, FALSE, NULL, $4, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP
-    )
-    ON CONFLICT (organization_id, namespace_id) DO NOTHING
-  `;
-
-  await pool.query(insertNamespaceQuery, [
+  const insertQuery = await loadSqlFile('namespace_terms/createNamespaceUri.sql');
+  await pgp.none(insertQuery, [
     data.organizationId,
     namespaceId,
     data.uri,
@@ -370,13 +258,10 @@ export async function createNamespaceUri(data: {
 export async function findUrisByOrganization(
   organizationId: string
 ): Promise<string[]> {
-  const pool = getPool();
-
-  const result = await pool.query<{ uri: string }>(
-    `SELECT uri FROM namespace WHERE organization_id = $1`,
-    [organizationId]
-  );
-  return result.rows.map(r => r.uri);
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findUrisByOrganization.sql');
+  const rows = await pgp.any<{ uri: string }>(query, [organizationId]);
+  return rows.map(r => r.uri);
 }
 
 /**
@@ -398,37 +283,16 @@ export async function createNamespace(data: {
   scopeKey?: string;
   description?: string;
 }): Promise<string> {
-  const pool = getPool();
+  const pgp = getPgp();
 
   // namespace_id を採番: 組織内の最大連番+1 (NS0001 形式)
-  const seqResult = await pool.query(
-    `SELECT COALESCE(MAX(CAST(SUBSTRING(namespace_id FROM 3) AS INTEGER)), 0) + 1 AS next_seq
-     FROM namespace
-     WHERE organization_id = $1`,
-    [data.organizationId]
-  );
-  const seq: number = seqResult.rows[0].next_seq;
-  const namespaceId = `NS${String(seq).padStart(4, '0')}`;
+  const seqQuery = await loadSqlFile('namespace_terms/findNextNamespaceSeq.sql');
+  const seqRow = await pgp.one<{ next_seq: number }>(seqQuery, [data.organizationId]);
+  const namespaceId = `NS${String(seqRow.next_seq).padStart(4, '0')}`;
 
   // 1. namespace テーブルに INSERT
-  const insertNamespaceQuery = `
-    INSERT INTO namespace (
-      organization_id
-      , namespace_id
-      , uri
-      , global_flg
-      , scope_key
-      , create_user_id
-      , create_at
-      , update_user_id
-      , update_at
-    ) VALUES (
-      $1, $2, $3, FALSE, $4, $5, CURRENT_TIMESTAMP, $5, CURRENT_TIMESTAMP
-    )
-    ON CONFLICT (organization_id, namespace_id) DO NOTHING
-  `;
-
-  await pool.query(insertNamespaceQuery, [
+  const insertNamespaceQuery = await loadSqlFile('namespace_terms/createNamespace.sql');
+  await pgp.none(insertNamespaceQuery, [
     data.organizationId,
     namespaceId,
     data.uri,
@@ -437,24 +301,8 @@ export async function createNamespace(data: {
   ]);
 
   // 2. prefix テーブルに INSERT
-  const insertPrefixQuery = `
-    INSERT INTO prefix (
-      organization_id
-      , namespace_id
-      , prefix
-      , description
-      , is_active
-      , create_user_id
-      , create_at
-      , update_user_id
-      , update_at
-    ) VALUES (
-      $1, $2, $3, $4, TRUE, $5, CURRENT_TIMESTAMP, $5, CURRENT_TIMESTAMP
-    )
-    ON CONFLICT (organization_id, namespace_id, prefix) DO NOTHING
-  `;
-
-  await pool.query(insertPrefixQuery, [
+  const insertPrefixQuery = await loadSqlFile('namespace_terms/createPrefix.sql');
+  await pgp.none(insertPrefixQuery, [
     data.organizationId,
     namespaceId,
     data.prefix,
@@ -477,23 +325,9 @@ export async function createNamespace(data: {
 export async function findNamespacesByOrganization(
   organizationId: string
 ): Promise<Array<{ prefix: string; uri: string }>> {
-  const pool = getPool();
-
-  const query = `
-    SELECT
-      p.prefix
-      , n.uri
-    FROM prefix p
-    INNER JOIN namespace n
-      ON p.organization_id = n.organization_id
-      AND p.namespace_id = n.namespace_id
-    WHERE p.organization_id = $1
-      AND p.is_active = TRUE
-    ORDER BY p.prefix ASC
-  `;
-
-  const result = await pool.query<{ prefix: string; uri: string }>(query, [organizationId]);
-  return result.rows;
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findNamespacesByOrganization.sql');
+  return pgp.any<{ prefix: string; uri: string }>(query, [organizationId]);
 }
 
 /**
@@ -510,14 +344,9 @@ export async function removeNamespace(
   organizationId: string,
   prefix: string
 ): Promise<number> {
-  const pool = getPool();
-
-  const query = `
-    DELETE FROM prefix
-    WHERE organization_id = $1
-      AND prefix = $2
-  `;
-  const result = await pool.query(query, [organizationId, prefix]);
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/removeNamespace.sql');
+  const result = await pgp.result(query, [organizationId, prefix]);
   return result.rowCount ?? 0;
 }
 
@@ -536,29 +365,12 @@ export async function findDeclarationsByProjectScope(
   organizationId: string,
   orgGroupCd: string | null
 ): Promise<Array<{ prefix: string; uri: string; globalFlg: boolean }>> {
-  const pool = getPool();
-
-  const query = `
-    SELECT
-      p.prefix
-      , n.uri
-      , COALESCE(n.global_flg, FALSE) AS "globalFlg"
-    FROM prefix p
-    INNER JOIN namespace n
-      ON p.organization_id = n.organization_id
-      AND p.namespace_id = n.namespace_id
-    WHERE p.organization_id = $1
-      AND p.is_active = TRUE
-      AND (
-            n.global_flg = TRUE
-            OR ($2::VARCHAR IS NULL)
-            OR n.scope_key = $2
-          )
-    ORDER BY p.prefix ASC
-  `;
-
-  const result = await pool.query(query, [organizationId, orgGroupCd]);
-  return result.rows;
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findDeclarationsByProjectScope.sql');
+  return pgp.any<{ prefix: string; uri: string; globalFlg: boolean }>(
+    query,
+    [organizationId, orgGroupCd]
+  );
 }
 
 /**
@@ -574,26 +386,12 @@ export async function findNamespacesByScopeKey(
   organizationId: string,
   scopeKey: string
 ): Promise<Array<{ namespace_id: string; uri: string; scope_key: string; global_flg: boolean; user_name: string | null }>> {
-  const pool = getPool();
-
-  const query = `
-    SELECT
-      n.namespace_id
-      , n.uri
-      , n.scope_key
-      , COALESCE(n.global_flg, FALSE) AS global_flg
-      , ou.user_name
-    FROM namespace n
-    LEFT JOIN organization_user ou
-      ON n.organization_id = ou.organization_id
-      AND n.scope_key = ou.user_id
-    WHERE n.organization_id = $1
-      AND n.scope_key = $2
-    ORDER BY n.namespace_id ASC
-  `;
-
-  const result = await pool.query(query, [organizationId, scopeKey]);
-  return result.rows;
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findNamespacesByScopeKey.sql');
+  return pgp.any<{ namespace_id: string; uri: string; scope_key: string; global_flg: boolean; user_name: string | null }>(
+    query,
+    [organizationId, scopeKey]
+  );
 }
 
 /**
@@ -602,22 +400,32 @@ export async function findNamespacesByScopeKey(
  * @returns 用語一覧（フロントエンド用に整形済み）
  */
 export async function findAll(): Promise<NamespaceTermRow[]> {
-  const pool = getPool();
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findAll.sql');
+  return pgp.any<NamespaceTermRow>(query);
+}
 
-  const query = `
-    SELECT
-      t.prefix || ':' || t.localname  AS qname
-      , t.prefix                       AS prefix
-      , t.localname                    AS "localName"
-      , COALESCE(t.display_name, '')   AS "displayName"
-      , COALESCE(t.description, '')    AS description
-      , COALESCE(t.xsi_type, 'stringType') AS type
-      , COALESCE(t.units, '')          AS "unitHint"
-    FROM namespace_term t
-    WHERE t.is_active = TRUE
-    ORDER BY t.prefix ASC, t.localname ASC
-  `;
+/**
+ * 用語のアクティブ/非アクティブを切り替える
+ *
+ * @param organizationId - 組織ID
+ * @param prefix - 名前空間の接頭辞
+ * @param localName - ローカル名
+ * @param isActive - 設定するアクティブ状態
+ * @returns 更新後の用語（対象なしの場合は null）
+ */
+export async function toggleActive(
+  organizationId: string,
+  prefix: string,
+  localName: string,
+  isActive: boolean
+): Promise<NamespaceTermRow | null> {
+  const pgp = getPgp();
 
-  const result = await pool.query(query);
-  return result.rows;
+  const updateQuery = await loadSqlFile('namespace_terms/toggleActiveTerm.sql');
+  const result = await pgp.result(updateQuery, [organizationId, prefix, localName, isActive]);
+  if (result.rowCount === 0) return null;
+
+  const selectQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  return pgp.oneOrNone<NamespaceTermRow>(selectQuery, [organizationId, prefix, localName]);
 }
