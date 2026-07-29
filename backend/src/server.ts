@@ -38,9 +38,12 @@ import semanticSearchRoutes from './routes/semanticSearchRoutes';
 import systemOverviewRoutes from './routes/systemOverviewRoutes';
 import systemConfigRoutes from './routes/systemConfigRoutes';
 import encryptionRoutes from './routes/encryptionRoutes';
+import signatureRoutes from './routes/signatureRoutes';
 import namespaceRoutes from './routes/namespaceRoutes';
 import departmentUnitRoutes from './routes/departmentUnitRoutes';
 import organizationGroupRoutes from './routes/organizationGroupRoutes';
+import uncertaintyCriteriaRoutes from './routes/uncertaintyCriteriaRoutes';
+import experimentEvaluationRoutes from './routes/experimentEvaluationRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -148,6 +151,8 @@ async function startServer() {
 
     // Mount encryption routes（暗号化管理API）
     app.use('/api/v1/encryption', encryptionRoutes);
+    // Mount signature routes（改竄防止API）
+    app.use('/api/v1/signature', signatureRoutes);
     // Mount namespace routes
     app.use('/api/v1/namespaces', namespaceRoutes);
 
@@ -156,6 +161,12 @@ async function startServer() {
 
     // Mount organization group routes
     app.use('/api/v1/organization-groups', organizationGroupRoutes);
+
+    // Mount uncertainty criteria routes
+    app.use('/api/v1/uncertainty-criteria', uncertaintyCriteriaRoutes);
+
+    // Mount experiment evaluation routes（承認処理ダイアログの定性評価）
+    app.use('/api/v1/experiment-evaluations', experimentEvaluationRoutes);
 
     // エラーハンドリングミドルウェア（全ルートの後に登録する必要がある）
     app.use(errorHandler);

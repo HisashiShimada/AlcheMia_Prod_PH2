@@ -42,7 +42,7 @@ export type EventLogJsonRecord = Record<string, unknown>;
  * XML特殊文字をエスケープ
  * reference JS版 escapeXml() の移植
  */
-function escapeXml(text: unknown): string {
+export function escapeXml(text: unknown): string {
   if (text === null || text === undefined) return '';
   return String(text)
     .replace(/&/g, '&amp;')

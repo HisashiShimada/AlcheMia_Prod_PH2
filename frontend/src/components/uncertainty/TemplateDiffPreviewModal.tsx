@@ -3,7 +3,6 @@
 import React from 'react';
 import { Modal, Button, Space, Tag } from 'antd';
 import type { UncertaintyTemplate } from './UncertaintyListTable';
-import mockDiffData from '../../../mock/uncertainty-diff.json';
 
 // ===== 型定義 =====
 
@@ -49,9 +48,14 @@ interface DiffData {
   sections: DiffSection[];
 }
 
+/** 外部に公開する型（UncertaintyDetailModal から利用） */
+export type { DiffData, DiffField, DiffSection, ChangeType, FieldType };
+
 interface TemplateDiffPreviewModalProps {
   open: boolean;
   template: UncertaintyTemplate | null;
+  /** 親コンポーネントで計算済みの差分データ */
+  diffData: DiffData | null;
   onClose: () => void;
   onSave: () => void;
 }
@@ -127,7 +131,6 @@ function TextValue({
           borderRadius: 3,
           borderBottom: '2px solid #ff4d4f',
           color: COLOR.delText,
-          textDecoration: 'line-through',
           fontSize: 12,
         }}
       >
@@ -216,7 +219,7 @@ function ScopeValue({
           ...deptStyle,
         }}
       >
-        {highlight === 'del' ? <s>{value.dept}</s> : value.dept}
+        {value.dept}
       </span>
     </div>
   );
@@ -278,7 +281,7 @@ function SpecTagValue({
     >
       <span style={{ color: '#888', marginRight: 2 }}>{specKey}:</span>
       {highlight === 'del' ? (
-        <span style={{ textDecoration: 'line-through', color: COLOR.delText }}>{value}</span>
+        <span style={{ color: COLOR.delText }}>{value}</span>
       ) : highlight === 'add' ? (
         <span style={{ fontWeight: 600, color: COLOR.addText }}>{value}</span>
       ) : (
@@ -574,13 +577,12 @@ function DiffSectionHeader({ label, num }: { label: string; num: string }) {
 export default function TemplateDiffPreviewModal({
   open,
   template,
+  diffData,
   onClose,
   onSave,
 }: TemplateDiffPreviewModalProps) {
-  if (!template) return null;
+  if (!template || !diffData) return null;
 
-  // デモ用: モックデータを使用（実際はAPIから取得）
-  const diffData = mockDiffData as DiffData;
   const totalChanged = diffData.summary.changed + diffData.summary.added;
 
   return (

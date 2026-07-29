@@ -72,20 +72,49 @@ import { MaimlParserTyped } from '@/utils/maimlParserTyped';
 // ---------------------------------------------------------------------------
 
 /**
- * 暗号化可能な要素タグ名のセット（globalObjectContentGroup を持つ型）
+ * 暗号化可能な要素タグ名のセット
+ *
+ * @remarks
+ * MAIMLガイドラインに基づき「グローバル要素」と「汎用データコンテナ」のみ秘匿化可能。
+ * 根拠: docs/design/maiml/encrypted_data_summary.md（セクション11）
+ *       backend/src/schemas/*.xsd（encryptionGroup を xs:choice に持つ型の一覧）
+ *
+ * ■ A. グローバル要素（globalObjectContentGroup を持つ型）
+ *   maiml-core.xsd の `globalObjectContentGroup` で xs:choice に `encryptionGroup` を持つ型：
+ *   documentType / creatorType / vendorType / ownerType / instrumentType
+ *   protocolType / methodType / pnmlType / programType / instructionType
+ *   materialTemplateType / conditionTemplateType / resultTemplateType
+ *   dataType / resultsType / materialType / conditionType / resultType
+ *   eventLogType / logType / traceType / eventType
+ *
+ * ■ B. 汎用データコンテナ（genericDataContainerGroup の要素）
+ *   maiml-property.xsd の `propertyBaseType` / `contentBaseType` 派生型：
+ *   property（stringType / decimalType / propertyListType 等）
+ *   content（contentStringListType 等）
+ *
+ * ■ 秘匿化禁止要素（XSD上 encryptionGroup を持たないため UPA 制約違反になる）
+ *   place / transition / arc ← Petri Net 構造要素（pnmlType の子要素）
+ *   これらは下記 buildPnmlNode で明示的に isEncryptable: false として除外する。
+ *
+ * 【同期ルール】
+ *   このリストは backend/src/utils/maimlSchemaHelper.ts の XSD 動的解析結果と
+ *   一致するよう維持すること。フロントエンドは XSD ファイルを直接参照できないため
+ *   ハードコードしているが、XSD 変更時は必ず両方を更新すること。
+ *   バックエンド側の正の情報源: `getEncryptableElementNames()` 関数の返却値
  */
 const ENCRYPTABLE_TAGS = new Set([
-  // document セクション
+  // ■ A-1. document セクション（documentType, creatorType, vendorType, ownerType, instrumentType）
   'document', 'creator', 'vendor', 'owner', 'instrument',
-  // protocol セクション
+  // ■ A-2. protocol セクション（protocolType, methodType, pnmlType, programType, instructionType）
   'protocol', 'method', 'pnml',
   'program', 'instruction',
+  // ■ A-3. テンプレート型（materialTemplateType, conditionTemplateType, resultTemplateType）
   'materialTemplate', 'conditionTemplate', 'resultTemplate',
-  // data セクション
+  // ■ A-4. data セクション（dataType, resultsType, materialType, conditionType, resultType）
   'data', 'results', 'material', 'condition', 'result',
-  // eventLog セクション
+  // ■ A-5. eventLog セクション（eventLogType, logType, traceType, eventType）
   'eventLog', 'log', 'trace', 'event',
-  // genericDataContainerGroup
+  // ■ B. 汎用データコンテナ（propertyBaseType / contentBaseType 派生型）
   'property', 'content',
 ]);
 

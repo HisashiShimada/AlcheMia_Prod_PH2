@@ -19,6 +19,7 @@ export function createInitialTabData(): ExperimentPlanTabData {
     ownerRefs: [],
     notes: [],
     templateValues: {},
+    assignedUncertainty: {},
   };
 }
 

@@ -470,6 +470,17 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     setCustomProps((prev) => ({ ...prev, [templateId]: props }));
   }, []);
 
+  // --- 不確かさ付与情報変更ハンドラ ---
+  const handleAssignedUncertaintyChange = useCallback(
+    (next: ExperimentPlanTabData['assignedUncertainty']) => {
+      updateCurrentTabData('assignedUncertainty', (prev) => ({
+        ...prev,
+        assignedUncertainty: next,
+      }));
+    },
+    [updateCurrentTabData]
+  );
+
   // --- インポートハンドラ ---
   const handleImport = useCallback(() => {
     importInputRef.current?.click();
@@ -1053,6 +1064,8 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                           disabled={disabled}
                           outputTemplateIds={outputTemplateIds}
                           projectId={projectId}
+                          assignedUncertainty={currentTabData.assignedUncertainty}
+                          onAssignedUncertaintyChange={handleAssignedUncertaintyChange}
                         />
                       ),
                     },

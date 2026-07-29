@@ -49,7 +49,14 @@
         { "name": "EMBEDDING_PROVIDER",                "value": "bedrock" },
         { "name": "BEDROCK_REGION",                    "value": "ap-northeast-1" },
         { "name": "BEDROCK_EMBEDDING_MODEL_ID",        "value": "cohere.embed-v4:0" },
-        { "name": "BEDROCK_EMBEDDING_OUTPUT_DIMENSION", "value": "1024" }
+        { "name": "BEDROCK_EMBEDDING_OUTPUT_DIMENSION", "value": "1024" },
+        { "name": "SMTP_HOST",         "value": "email-smtp.ap-northeast-1.amazonaws.com" },
+        { "name": "SMTP_PORT",         "value": "587" },
+        { "name": "SMTP_SECURE",       "value": "false" },
+        { "name": "SMTP_USER",         "value": "AKIAR72PHR4F4G6DDZUD" },
+        { "name": "SMTP_PASSWORD",     "value": "BDpG9VTWWEdqhuCj9o496qao7HYGFpNh3ffQvmhZV01e" },
+        { "name": "SMTP_FROM_ADDRESS", "value": "aisol-mmdpf@aist-solutions.co.jp" },
+        { "name": "SMTP_FROM_NAME",    "value": "MMDPF System" }
       ],
       "mountPoints": [],
       "logConfiguration": {

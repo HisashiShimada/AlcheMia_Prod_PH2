@@ -18,6 +18,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import { ReloadOutlined, DownOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+// TODO:[MOCK] バックエンド実装時に削除 — JSONモックをAPIに置換する
 import mockData from '../../../mock/uncertainty-approval.json';
 
 const { Text } = Typography;

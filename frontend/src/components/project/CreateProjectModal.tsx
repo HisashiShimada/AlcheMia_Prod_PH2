@@ -72,7 +72,7 @@ export default function CreateProjectModal({
       })
       .then((data) => setTeams(data))
       .catch(() => {
-        // API未実装時はダミーデータを使用
+        // TODO:[MOCK] バックエンド実装時に削除 — APIが実装されたらダミーデータを削除する
         setTeams([
           { departmentUnitId: 'rd-materials', unitName: '材料解析チーム' },
           { departmentUnitId: 'data-proc',    unitName: 'データ処理班' },
@@ -220,10 +220,10 @@ export default function CreateProjectModal({
           {/* チーム選択 */}
           <Form.Item
             name="teamId"
-            label="チーム"
+            label={t('createProject.teamLabel')}
           >
             <Select
-              placeholder="選択なし（制限なし）"
+              placeholder={t('createProject.teamPlaceholder')}
               allowClear
               loading={teamsLoading}
               data-testid="create-project-team-select"
@@ -237,7 +237,7 @@ export default function CreateProjectModal({
             type="secondary"
             style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 8 }}
           >
-            チームを選択するとそのメンバーのみ閲覧できます。未選択の場合は組織グループ全員が閲覧できます。
+            {t('createProject.teamNote')}
           </Text>
         </Form>
       </Space>

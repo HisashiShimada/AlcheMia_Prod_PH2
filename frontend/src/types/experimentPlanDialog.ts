@@ -8,6 +8,7 @@
 
 import type { theme } from 'antd';
 import type { ExperimentPlanTabData, TemplateDef } from './experimentPlan';
+import type { AssignPayload } from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
 
 /** 継承の上書きフラグが追跡するフィールド名 */
 export type InheritableField =
@@ -15,7 +16,8 @@ export type InheritableField =
   | 'instrumentRefs'
   | 'ownerRefs'
   | 'notes'
-  | 'templateValues';
+  | 'templateValues'
+  | 'assignedUncertainty';
 
 /** トランジション行の型 */
 export interface TransitionRow {
@@ -166,6 +168,16 @@ export interface TemplateInputPanelProps {
    * 未指定時: アップロードなし（ファイル名・ハッシュのみセット）
    */
   projectId?: string;
+  /**
+   * 付与済み不確かさ情報（親管理: Lift State Up）
+   * key: valueKey（`${templateId}_${fieldKey}` または `custom_${cpId}`）
+   * value: AssignPayload の配列（複数付与対応）
+   */
+  assignedUncertainty: Record<string, AssignPayload[]>;
+  /**
+   * 不確かさ変更コールバック（親管理: Lift State Up）
+   */
+  onAssignedUncertaintyChange: (next: Record<string, AssignPayload[]>) => void;
 }
 
 /** SortableTransitionRow コンポーネントのProps */

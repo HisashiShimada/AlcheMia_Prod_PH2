@@ -9,11 +9,11 @@
  * このルートファイルおよび server.ts の変更は不要。
  *
  * エンドポイント一覧:
- *   GET    /api/v1/encryption/projects/:projectName/structure  - MAIMLツリー取得
- *   POST   /api/v1/encryption/projects/:projectName/preview    - 暗号化プレビュー
- *   POST   /api/v1/encryption/projects/:projectName/encrypt    - 暗号化実行
- *   POST   /api/v1/encryption/projects/:projectName/decrypt    - 復号化実行
- *   GET    /api/v1/encryption/keys                             - 鍵一覧取得
+ *   GET    /api/v1/encryption/projects/:projectName/structure    - MAIMLツリー取得
+ *   POST   /api/v1/encryption/projects/:projectName/preview      - 暗号化プレビュー
+ *   POST   /api/v1/encryption/projects/:projectName/encrypt      - 暗号化実行
+ *   POST   /api/v1/encryption/projects/:projectName/decrypt-execute - 復号化実行（こちらを使用）
+ *   GET    /api/v1/encryption/keys                               - 鍵一覧取得
  *   GET    /api/v1/encryption/keys/:keyId                      - 鍵詳細取得
  *   POST   /api/v1/encryption/keys                             - 鍵作成
  *   DELETE /api/v1/encryption/keys/:keyId                      - 鍵削除
@@ -24,7 +24,6 @@ import {
   getMaimlStructure,
   previewEncryption,
   encryptElement,
-  decryptElement,
   listKeys,
   getKey,
   createKey,
@@ -55,9 +54,6 @@ router.post('/projects/:projectName/preview', previewEncryption);
 
 /** 要素の暗号化を実行 */
 router.post('/projects/:projectName/encrypt', encryptElement);
-
-/** 要素の復号化を実行 */
-router.post('/projects/:projectName/decrypt', decryptElement);
 
 // ---------------------------------------------------------------------------
 // 暗号化鍵管理

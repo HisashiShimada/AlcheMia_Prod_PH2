@@ -31,6 +31,7 @@ import {
   DeleteOutlined,
   CopyOutlined,
   InfoCircleOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -94,6 +95,10 @@ export interface NestedPropertyEditorProps {
   attributeRecords?: AttributeRecord[];
   /** 不確かさ基準ボタン押下時のコールバック（省略時はボタン非表示） */
   onOpenCriteriaSelector?: (propertyKey: string, propertyData: PropertyData) => void;
+  /** 不確かさ「編集」ボタン押下時のコールバック（省略時はボタン非表示） */
+  onEditUncertainty?: (propertyKey: string, uncertaintyNode: PropertyData, index: number) => void;
+  /** 不確かさ1件削除コールバック（インデックス指定） */
+  onDeleteUncertainty?: (propertyKey: string, uncertaintyIndex: number) => void;
 }
 
 // ===== 固定属性名（Attributeマスタ選択肢から除外） =====
@@ -209,6 +214,8 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   forceRenderKey,
   attributeRecords = [],
   onOpenCriteriaSelector,
+  onEditUncertainty,
+  onDeleteUncertainty,
 }) => {
   const { modal } = App.useApp();
   const { t } = useLanguage();
@@ -334,7 +341,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 style={{ backgroundColor: '#1677ff' }}
                 onClick={() => onOpenCriteriaSelector(propertyKey, propertyData)}
               >
-                ＋ 不確かさ選択
+                {t('nestedPropertyEditor.openCriteriaSelector')}
               </Button>
             )}
             <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setShowAttributeAddModal(true)}>
@@ -413,34 +420,143 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           </div>
         )}
 
-        {/* 子要素セクション */}
+        {/* 不確かさセクション（uncertainty 子ノードを複数表示） */}
+        {(() => {
+          const uncertaintyChildren = propertyData.children?.filter(
+            (c) => c.tagName === 'uncertainty'
+          ) ?? [];
+          if (uncertaintyChildren.length === 0) return null;
+          return (
+            <div style={{ marginBottom: 8 }}>
+              <Text strong style={{ fontSize: 12, color: '#722ed1', display: 'block', marginBottom: 4 }}>
+                <ExperimentOutlined style={{ marginRight: 4 }} />
+                {t('nestedPropertyEditor.uncertaintySection')}
+              </Text>
+              {uncertaintyChildren.map((uncertaintyChild, ucIdx) => {
+                const ucValue = uncertaintyChild.elements?.['value'] ?? '';
+                const ucDesc = uncertaintyChild.elements?.['description'] ?? '';
+                return (
+                  <div
+                    key={`uc_${ucIdx}`}
+                    style={{
+                      border: '1px solid #d3adf7',
+                      borderRadius: 6,
+                      padding: '6px 8px',
+                      marginBottom: 6,
+                      backgroundColor: '#f9f0ff',
+                    }}
+                  >
+                    {/* 各不確かさ行ヘッダー：編集・×ボタン */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12, flex: 1, color: '#722ed1' }}>
+                        {t('nestedPropertyEditor.uncertaintyItem', { index: String(ucIdx + 1) })}
+                      </Text>
+                      {onEditUncertainty && (
+                        <Button
+                          size="small"
+                          type="default"
+                          style={{ color: '#722ed1', borderColor: '#722ed1' }}
+                          onClick={() => onEditUncertainty(propertyKey, uncertaintyChild, ucIdx)}
+                        >
+                          {t('nestedPropertyEditor.editUncertainty')}
+                        </Button>
+                      )}
+                      {onDeleteUncertainty && (
+                        <Button
+                          size="small"
+                          type="text"
+                          danger
+                          icon={<CloseOutlined />}
+                          onClick={() => onDeleteUncertainty(propertyKey, ucIdx)}
+                        />
+                      )}
+                    </div>
+                    {/* key 行 */}
+                    {uncertaintyChild.key && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Text style={{ minWidth: 100, fontSize: 12 }}>key:</Text>
+                        <Input size="small" value={uncertaintyChild.key} readOnly style={{ flex: 1 }} />
+                        <span style={{ width: 24 }} />
+                      </div>
+                    )}
+                    {/* xsi:type 行 */}
+                    {uncertaintyChild.attributes?.['xsi:type'] && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Text style={{ minWidth: 100, fontSize: 12 }}>xsi:type:</Text>
+                        <Input size="small" value={uncertaintyChild.attributes['xsi:type']} readOnly style={{ flex: 1 }} />
+                        <span style={{ width: 24 }} />
+                      </div>
+                    )}
+                    {/* units 行 */}
+                    {uncertaintyChild.attributes?.['units'] && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Text style={{ minWidth: 100, fontSize: 12 }}>units:</Text>
+                        <Input size="small" value={uncertaintyChild.attributes['units']} readOnly style={{ flex: 1 }} />
+                        <span style={{ width: 24 }} />
+                      </div>
+                    )}
+                    {/* value 行 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Text style={{ minWidth: 100, fontSize: 12 }}>value:</Text>
+                      <Input
+                        size="small"
+                        value={ucValue}
+                        onChange={(e) => onUpdateNestedElement(uncertaintyChild.key, 'value', e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                      <span style={{ width: 24 }} />
+                    </div>
+                    {/* description 行（値がある場合のみ） */}
+                    {ucDesc !== '' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Text style={{ minWidth: 100, fontSize: 12 }}>description:</Text>
+                        <Input
+                          size="small"
+                          value={ucDesc}
+                          onChange={(e) => onUpdateNestedElement(uncertaintyChild.key, 'description', e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                        <span style={{ width: 24 }} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
+        {/* 子要素セクション（uncertainty 以外） */}
         {hasChildren && isExpanded && (
           <div style={{ marginTop: 8 }}>
             <Text style={{ fontSize: 12, color: '#722ed1', fontWeight: 'bold' }}>
               {t('nestedPropertyEditor.childrenSection', { count: String(propertyData.children?.length || 0) })}
             </Text>
-            {propertyData.children.map((child, index) => {
-              const childKey = child.key || `${child.tagName || 'child'}_${index}`;
-              return (
-                <NestedPropertyEditor
-                  key={`${childKey}_${index}_${forceRenderKey}`}
-                  propertyData={child}
-                  propertyKey={childKey}
-                  level={level + 1}
-                  expandedNodes={expandedNodes}
-                  onToggleExpanded={onToggleExpanded}
-                  onAddNestedChild={onAddNestedChild}
-                  onAddSameLevelCopy={onAddSameLevelCopy}
-                  onUpdateNestedAttribute={onUpdateNestedAttribute}
-                  onUpdateNestedElement={onUpdateNestedElement}
-                  onDeleteNestedAttribute={onDeleteNestedAttribute}
-                  onDeleteNestedElement={onDeleteNestedElement}
-                  onDeleteProperty={onDeleteProperty}
-                  forceRenderKey={forceRenderKey}
-                  onOpenCriteriaSelector={onOpenCriteriaSelector}
-                />
-              );
-            })}
+            {propertyData.children
+              .filter((c) => c.tagName !== 'uncertainty' && c.key !== 'uncertainty')
+              .map((child, index) => {
+                const childKey = child.key || `${child.tagName || 'child'}_${index}`;
+                return (
+                  <NestedPropertyEditor
+                    key={`${childKey}_${index}_${forceRenderKey}`}
+                    propertyData={child}
+                    propertyKey={childKey}
+                    level={level + 1}
+                    expandedNodes={expandedNodes}
+                    onToggleExpanded={onToggleExpanded}
+                    onAddNestedChild={onAddNestedChild}
+                    onAddSameLevelCopy={onAddSameLevelCopy}
+                    onUpdateNestedAttribute={onUpdateNestedAttribute}
+                    onUpdateNestedElement={onUpdateNestedElement}
+                    onDeleteNestedAttribute={onDeleteNestedAttribute}
+                    onDeleteNestedElement={onDeleteNestedElement}
+                    onDeleteProperty={onDeleteProperty}
+                    forceRenderKey={forceRenderKey}
+                    onOpenCriteriaSelector={onOpenCriteriaSelector}
+                    onEditUncertainty={onEditUncertainty}
+                  />
+                );
+              })}
           </div>
         )}
       </div>
