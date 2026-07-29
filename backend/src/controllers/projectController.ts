@@ -32,7 +32,25 @@ export async function create(req: Request, res: Response): Promise<void> {
     
     // 型定義を適用
     const requestBody = req.body as CreateProjectRequest;
-    const { projectName, description } = requestBody;
+    const { projectName, description, organizationGroupCd: requestedOrgGroupCd } = requestBody;
+
+    // 公開範囲の決定:
+    //   チーム選択は必須。未指定の場合は 400 エラーを返す。
+    if (!requestedOrgGroupCd) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'E1004',
+          message: 'チームを選択してください',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+    const resolvedOrgGroupCd = requestedOrgGroupCd;
 
     // 権限チェック（Workerは403）
     if ((req.user as any).role === 'experiment_worker') {
@@ -50,8 +68,8 @@ export async function create(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Task 2.3: Service層呼び出し
-    const result = await projectService.create(organizationId, userId, organizationGroupCds[0] ?? null, {
+    // Task 2.3: Service層呼び出し（resolvedOrgGroupCd を organization_gourp_cd として保存）
+    const result = await projectService.create(organizationId, userId, resolvedOrgGroupCd, {
       projectName,
       description,
     });
@@ -778,25 +796,14 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
   const projectService = new ProjectService();
 
   try {
-    console.log('[DEBUG] getProjectFiles - Start', { requestId, params: req.params, query: req.query });
-    
     const { organizationId } = req.user!;
     const { projectId } = req.params;
-    
-    console.log('[DEBUG] getProjectFiles - Auth OK', { organizationId, projectId, userId: req.user!.userId });
 
     // Service層呼び出し（archiveファイルは常に取得）
-    console.log('[DEBUG] getProjectFiles - Calling service...');
     const result = await projectService.getProjectFiles(
       organizationId,
       projectId
     );
-    
-    console.log('[DEBUG] getProjectFiles - Service result', { 
-      success: result.success, 
-      hasData: !!result.data,
-      errorCode: result.error?.code 
-    });
 
     // エラーハンドリング
     if (!result.success) {
@@ -824,10 +831,6 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
     }
 
     // 成功レスポンス
-    console.log('[DEBUG] getProjectFiles - Success response', { 
-      filesCount: result.data?.files?.length || 0,
-    });
-    
     res.status(200).json({
       success: true,
       data: result.data,
@@ -837,7 +840,6 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
       },
     });
   } catch (error) {
-    console.error('[DEBUG] getProjectFiles - Exception caught', error);
     logError('Project getProjectFiles error', error as Error, {
       action: 'project_getProjectFiles',
       organizationId: req.user?.organizationId,

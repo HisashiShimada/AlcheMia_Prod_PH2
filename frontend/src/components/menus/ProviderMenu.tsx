@@ -32,8 +32,8 @@ const InformationDownload = dynamic(
   { ssr: false }
 );
 
-const NamespaceMain = dynamic(
-  () => import('../namespace/NamespaceMain'),
+const TermManagement = dynamic(
+  () => import('../namespace/TermManagement'),
   { ssr: false }
 );
 
@@ -147,7 +147,7 @@ export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderM
                   {
                     key: 'terms',
                     label: '用語管理',
-                    children: <NamespaceMain globalOnly={true} />,
+                    children: <TermManagement globalOnly={true} />,
                   },
                 ]}
               />

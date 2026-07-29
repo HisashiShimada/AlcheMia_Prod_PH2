@@ -1764,6 +1764,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       const requestData: CreateProjectRequest = {
         projectName: data.projectName,
         description: data.description || undefined,
+        organizationGroupCd: data.organizationGroupCd,
       };
       
       // プロジェクト作成APIを呼び出し

@@ -18,6 +18,14 @@ export interface CreateProjectRequest {
   
   /** プロジェクト説明（オプション） */
   description?: string;
+
+  /**
+   * 公開範囲を限定する組織グループCD（オプション）。
+   * 指定時: そのグループに所属するユーザーのみ閲覧可能。
+   * 未指定時: バックエンドで JWT 内の organizationGroupCds[0] にフォールバック。
+   * project.organization_gourp_cd に保存される。
+   */
+  organizationGroupCd?: string;
 }
 
 /**

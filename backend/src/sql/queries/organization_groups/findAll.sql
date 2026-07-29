@@ -1,6 +1,6 @@
 -- organization_group 一覧取得クエリ
--- 組織IDでフィルタリングし、検索条件（search）に対応
--- $1: organization_id
+-- 組織IDでフィルタリングし、組織階層グループ情報を取得
+-- DDL: docs/design/db/ddl/organization_group.sql
 SELECT
   organization_id
   , organization_group_cd
@@ -14,4 +14,4 @@ SELECT
   , update_at
 FROM organization_group
 WHERE organization_id = $1
-ORDER BY layer ASC NULLS LAST, organization_group_cd ASC
+ORDER BY organization_group_cd ASC

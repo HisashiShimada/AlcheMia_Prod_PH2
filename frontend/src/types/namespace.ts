@@ -16,7 +16,7 @@ export interface NamespaceNode {
   key: string;
   label: string;
   count: number;
-  icon: string;
+  icon?: string;
   children?: NamespaceNode[];
 }
 
@@ -71,9 +71,6 @@ export interface FlatNsNode {
 export interface FlatDeptRow {
   key: string;
   label: string;
-  prefix: string;
-  uri: string;
-  description: string;
   parentKey: string | null;
   parentLabel: string;
   depth: number;
@@ -361,6 +358,12 @@ export interface PrefixManagementProps {
   viewOnly?: boolean;
   /** 外部から渡される選択中の名前空間ノードキー（左ツリー連動用） */
   selectedNsKey?: string | null;
+  /**
+   * 新規 Prefix を登録する際の公開スコープキー
+   * DB の namespace.scope_key カラムに保存される
+   * null/undefined のとき scope_key は NULL（全体公開）
+   */
+  scopeKey?: string | null;
 }
 
 /**
@@ -439,9 +442,6 @@ export interface TeamEditDialogProps {
 export interface DeptTreeNode {
   key: string;
   label: string;
-  prefix?: string;
-  uri?: string;
-  description?: string;
   parentKey: string | null;
   children?: DeptTreeNode[];
 }
@@ -577,5 +577,61 @@ export interface CreateTeamResponse {
   departmentUnitId: string;
   /** 作成されたチームの名前 */
   unitName: string;
+}
+
+// ──────────────────────────────────────────────
+// organization_group（部署管理タブ）
+// ──────────────────────────────────────────────
+
+/**
+ * organization_group テーブルの行型
+ *
+ * @remarks
+ * DDL: docs/design/db/ddl/organization_group.sql
+ * 主キー: (organization_id, organization_group_cd)
+ */
+export interface OrganizationGroupRow {
+  /** 組織ID（UUID） */
+  organization_id: string;
+  /** 組織階層グループCD */
+  organization_group_cd: string;
+  /** 組織階層グループ名 */
+  organization_group_name: string;
+  /** 代表者ユーザID */
+  chief_user_id: string;
+  /** 親階層グループCD（ルートの場合は null） */
+  parent_group_cd: string | null;
+  /** レイヤー */
+  layer: string | null;
+  /** 作成日時 */
+  create_at?: string;
+  /** 更新日時 */
+  update_at?: string;
+}
+
+/**
+ * organization_group 新規作成リクエスト
+ */
+export interface CreateOrganizationGroupRequest {
+  /** 組織階層グループCD */
+  organization_group_cd: string;
+  /** 組織階層グループ名 */
+  organization_group_name: string;
+  /** 親階層グループCD */
+  parent_group_cd?: string | null;
+  /** レイヤー */
+  layer?: string | null;
+}
+
+/**
+ * organization_group 更新リクエスト
+ */
+export interface UpdateOrganizationGroupRequest {
+  /** 組織階層グループ名 */
+  organization_group_name?: string;
+  /** 親階層グループCD */
+  parent_group_cd?: string | null;
+  /** レイヤー */
+  layer?: string | null;
 }
 

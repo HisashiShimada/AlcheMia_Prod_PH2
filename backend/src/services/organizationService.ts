@@ -16,6 +16,8 @@ import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
 import { getMessage } from '../utils/messages';
 import { createSchemaIfNotExists, createSchemaTables, getSchemaStorageSizeBytes } from '../repositories/maimlAssetRepository';
+import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
+import { generateNamespaceUri } from '../utils/namespaceUriGenerator';
 
 /**
  * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
@@ -389,6 +391,25 @@ export async function createOrganization(
     ];
     await storageService.createFolders(data.organizationId, organizationFolders);
     logger.info(`[organizationService] 基本フォルダ構造作成完了: organizationId=${data.organizationId}`);
+
+    // ④ 組織URIを namespace テーブルに自動登録
+    // URI形式: https://{organizationCd}.Alchemia.co.jp
+    try {
+      const orgUri = generateNamespaceUri(data.organizationCd);
+      const existingUris = await namespaceTermRepository.findUrisByOrganization(data.organizationId);
+      const uniqueUri = existingUris.includes(orgUri) ? `${orgUri}1` : orgUri;
+      await namespaceTermRepository.createNamespaceUri({
+        organizationId: data.organizationId,
+        uri: uniqueUri,
+        userId,
+      });
+      logger.info(`[organizationService] 組織URI自動登録完了: organizationId=${data.organizationId}, uri=${uniqueUri}`);
+    } catch (nsError) {
+      // URI登録失敗は組織作成のエラーとしない（ログのみ）
+      logger.warn(`[organizationService] 組織URI自動登録失敗（組織作成は成功）: organizationId=${data.organizationId}`, {
+        error: nsError instanceof Error ? nsError.message : String(nsError),
+      });
+    }
 
   } catch (error) {
     logger.error(

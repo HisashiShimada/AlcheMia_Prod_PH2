@@ -71,9 +71,12 @@ export async function getOrganizationGroupById(
  *
  * @body organization_group_cd - グループCD（必須）
  * @body organization_group_name - グループ名（必須）
- * @body chief_user_id - 代表者ユーザーID（必須）
  * @body parent_group_cd - 親グループCD（任意）
  * @body layer - レイヤー（任意）
+ *
+ * @remarks
+ * chief_user_id はリクエストユーザー（req.userId）から自動セットされる。
+ * フロントエンドからの送信は不要。
  */
 export async function createOrganizationGroup(
   req: Request,
@@ -88,16 +91,19 @@ export async function createOrganizationGroup(
     }
 
     const userId = (req as any).userId as string | undefined;
+    if (!userId) {
+      res.status(401).json({ success: false, error: { code: 'E5013', message: '認証情報が取得できません' } });
+      return;
+    }
+
     const {
       organization_group_cd,
       organization_group_name,
-      chief_user_id,
       parent_group_cd,
       layer,
     } = req.body as {
       organization_group_cd?: string;
       organization_group_name?: string;
-      chief_user_id?: string;
       parent_group_cd?: string | null;
       layer?: string | null;
     };
@@ -111,21 +117,17 @@ export async function createOrganizationGroup(
       res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_name は必須です' } });
       return;
     }
-    if (!chief_user_id?.trim()) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'chief_user_id は必須です' } });
-      return;
-    }
 
     const created = await organizationGroupService.createOrganizationGroup(
       organizationId,
       {
         organization_group_cd: organization_group_cd.trim(),
         organization_group_name: organization_group_name.trim(),
-        chief_user_id: chief_user_id.trim(),
+        chief_user_id: userId,  // ログインユーザーを代表者として自動セット
         parent_group_cd: parent_group_cd ?? null,
         layer: layer ?? null,
       },
-      userId ?? null
+      userId
     );
 
     res.status(201).json({ success: true, data: created });
@@ -138,10 +140,13 @@ export async function createOrganizationGroup(
  * 組織グループ更新
  * PUT /api/v1/organization-groups/:groupCd
  *
- * @body organization_group_name - グループ名（必須）
- * @body chief_user_id - 代表者ユーザーID（必須）
+ * @body organization_group_name - グループ名（任意）
  * @body parent_group_cd - 親グループCD（任意）
  * @body layer - レイヤー（任意）
+ *
+ * @remarks
+ * chief_user_id はフロントエンドから送信しない。
+ * 既存の chief_user_id を維持する（サービス層で処理）。
  */
 export async function updateOrganizationGroup(
   req: Request,
@@ -159,35 +164,34 @@ export async function updateOrganizationGroup(
     const { groupCd } = req.params;
     const {
       organization_group_name,
-      chief_user_id,
       parent_group_cd,
       layer,
     } = req.body as {
       organization_group_name?: string;
-      chief_user_id?: string;
       parent_group_cd?: string | null;
       layer?: string | null;
     };
 
-    // 必須チェック
-    if (!organization_group_name?.trim()) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_name は必須です' } });
-      return;
+    const updateData: {
+      organization_group_name?: string;
+      parent_group_cd?: string | null;
+      layer?: string | null;
+    } = {};
+
+    if (organization_group_name !== undefined) {
+      if (!organization_group_name.trim()) {
+        res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_name は空にできません' } });
+        return;
+      }
+      updateData.organization_group_name = organization_group_name.trim();
     }
-    if (!chief_user_id?.trim()) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'chief_user_id は必須です' } });
-      return;
-    }
+    if (parent_group_cd !== undefined) updateData.parent_group_cd = parent_group_cd;
+    if (layer !== undefined) updateData.layer = layer;
 
     const updated = await organizationGroupService.updateOrganizationGroup(
       organizationId,
       groupCd,
-      {
-        organization_group_name: organization_group_name.trim(),
-        chief_user_id: chief_user_id.trim(),
-        parent_group_cd: parent_group_cd ?? null,
-        layer: layer ?? null,
-      },
+      updateData,
       userId ?? null
     );
 

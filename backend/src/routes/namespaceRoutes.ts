@@ -10,9 +10,55 @@
  */
 
 import { Router } from 'express';
+import { authMiddleware } from '../middleware/authMiddleware';
+import { tenantIsolation } from '../middleware/tenantIsolation';
 import * as namespaceController from '../controllers/namespaceController';
 
 const router = Router();
+
+// 全エンドポイントに認証・テナント分離ミドルウェアを適用
+router.use(authMiddleware, tenantIsolation);
+
+/**
+ * 名前空間（Prefix）一覧取得
+ * GET /api/v1/namespaces
+ */
+router.get(
+  '/',
+  namespaceController.getNamespaces
+);
+
+/**
+ * 名前空間（Prefix）新規登録
+ * POST /api/v1/namespaces
+ *
+ * @body { organizationId, prefix, uri, displayName?, description?, departmentCd? }
+ */
+router.post(
+  '/',
+  namespaceController.createNamespace
+);
+
+/**
+ * 名前空間（Prefix）削除
+ * DELETE /api/v1/namespaces/:prefix
+ */
+router.delete(
+  '/:prefix',
+  namespaceController.deleteNamespace
+);
+
+/**
+ * 名前空間宣言一覧取得（prefix + uri）
+ * GET /api/v1/namespaces/declarations
+ *
+ * @remarks MAIML XML ビュー表示・保存前の xmlns 注入に使用する。
+ *          organizationId クエリパラメータまたは認証ミドルウェアから取得。
+ */
+router.get(
+  '/declarations',
+  namespaceController.getDeclarations
+);
 
 /**
  * 用語一覧取得
@@ -56,6 +102,15 @@ router.put(
 router.delete(
   '/terms/:prefix/:localName',
   namespaceController.deleteTerm
+);
+
+/**
+ * プロジェクトスコープ絞り込み名前空間宣言一覧
+ * GET /api/v1/namespaces/project-declarations?projectId=xxx
+ */
+router.get(
+  '/project-declarations',
+  namespaceController.getDeclarationsByProject
 );
 
 export default router;

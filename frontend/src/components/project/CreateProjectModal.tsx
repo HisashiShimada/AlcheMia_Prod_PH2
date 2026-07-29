@@ -14,15 +14,16 @@ import {
 import { FolderAddOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { CreateProjectData } from '@/types/project';
+import { createApiClient } from '@/utils/authUtils';
 
 const { Text } = Typography;
 
 /**
- * チーム情報の型定義（/api/v1/organization-group-units/my-teams レスポンス）
+ * チーム情報の型定義（/api/v1/organization-groups レスポンス）
  */
 interface TeamOption {
-  departmentUnitId: string;
-  unitName: string;
+  organizationGroupCd: string;
+  organizationGroupName: string;
 }
 
 /**
@@ -64,6 +65,7 @@ export default function CreateProjectModal({
   // モーダルが開いた際にチーム一覧を取得
   useEffect(() => {
     if (!open) return;
+<<<<<<< Updated upstream
     setTeamsLoading(true);
     fetch('/api/v1/department-units/my-teams', { credentials: 'include' })
       .then((res) => {
@@ -79,6 +81,32 @@ export default function CreateProjectModal({
         ]);
       })
       .finally(() => setTeamsLoading(false));
+=======
+
+    const fetchTeams = async () => {
+      setTeamsLoading(true);
+      try {
+        const client = createApiClient();
+        const response = await client.get<{
+          success: boolean;
+          data: Array<{ organization_group_cd: string; organization_group_name: string }>;
+        }>('/organization-groups');
+        setTeams(
+          (response.data?.data ?? []).map((g) => ({
+            organizationGroupCd: g.organization_group_cd,
+            organizationGroupName: g.organization_group_name,
+          }))
+        );
+      } catch {
+        // API取得失敗時はチーム選択を空にして続行
+        setTeams([]);
+      } finally {
+        setTeamsLoading(false);
+      }
+    };
+
+    fetchTeams();
+>>>>>>> Stashed changes
   }, [open]);
 
   // フォーム送信ハンドラ
@@ -104,7 +132,7 @@ export default function CreateProjectModal({
         owner: currentUser.name,
         organizationGroup: currentUser.organizationGroup,
         organizationId: currentUser.organizationId,
-        teamId: values.teamId || undefined,
+        organizationGroupCd: values.organizationGroupCd || undefined,
       };
       
       // 親コンポーネントの送信ハンドラを呼び出し
@@ -219,17 +247,31 @@ export default function CreateProjectModal({
 
           {/* チーム選択 */}
           <Form.Item
+<<<<<<< Updated upstream
             name="teamId"
             label={t('createProject.teamLabel')}
           >
             <Select
               placeholder={t('createProject.teamPlaceholder')}
               allowClear
+=======
+            name="organizationGroupCd"
+            label="チーム"
+            rules={[
+              {
+                required: true,
+                message: 'チームを選択してください',
+              },
+            ]}
+          >
+            <Select
+              placeholder="チームを選択してください"
+>>>>>>> Stashed changes
               loading={teamsLoading}
-              data-testid="create-project-team-select"
+              data-testid="create-project-org-group-select"
               options={teams.map((team) => ({
-                value: team.departmentUnitId,
-                label: team.unitName,
+                value: team.organizationGroupCd,
+                label: team.organizationGroupName,
               }))}
             />
           </Form.Item>
@@ -237,7 +279,11 @@ export default function CreateProjectModal({
             type="secondary"
             style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 8 }}
           >
+<<<<<<< Updated upstream
             {t('createProject.teamNote')}
+=======
+            選択したチームのメンバーのみ閲覧できます。
+>>>>>>> Stashed changes
           </Text>
         </Form>
       </Space>

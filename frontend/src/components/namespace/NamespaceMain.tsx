@@ -14,8 +14,7 @@ import {
 } from '@ant-design/icons';
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
-import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
-import { getTerms, createNamespace } from '@/services/namespaceApiService';
+import { getTerms, createNamespace, getOrganizationGroups } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import TeamAddDialog from './TeamAddDialog';
@@ -39,9 +38,111 @@ import type {
   ContextMenuState,
   TermEditValues,
   TermCsvParsedRow,
+  OrganizationGroupRow,
 } from '@/types/namespace';
 
 const { Text } = Typography;
+
+// ──────────────────────────────────────────────
+// ツリーの静的骨格（DB接続前の初期値）
+// Global ノードのみ定義し、company/personal は DB から取得して動的に構築する
+// ──────────────────────────────────────────────
+const NAMESPACE_TREE_RAW: NamespaceNode[] = [
+  {
+    key: 'global',
+    label: 'Global',
+    count: 0,
+    icon: '🌐',
+    children: [
+      {
+        key: 'ns-maiml',
+        label: 'maiml',
+        count: 0,
+        icon: '📜',
+        prefix: 'maiml',
+        uri: 'http://www.maiml.org/schemas',
+        description: 'MaiML標準スキーマ定義',
+      } as any,
+      {
+        key: 'ns-xsi',
+        label: 'xsi',
+        count: 0,
+        icon: '📜',
+        prefix: 'xsi',
+        uri: 'http://www.w3.org/2001/XMLSchema-instance',
+        description: 'XMLスキーマインスタンス属性',
+      } as any,
+    ],
+  },
+  {
+    key: 'company',
+    label: '組織',
+    count: 0,
+    icon: '🏢',
+    children: [],
+  },
+  {
+    key: 'personal',
+    label: 'Personal',
+    count: 0,
+    icon: '👤',
+    children: [],
+  },
+];
+
+// ──────────────────────────────────────────────
+// organization_group フラットリスト → NamespaceNode ツリー変換
+// ──────────────────────────────────────────────
+const buildOrgTree = (groups: OrganizationGroupRow[]): NamespaceNode[] => {
+  const map = new Map<string, NamespaceNode>();
+  const roots: NamespaceNode[] = [];
+
+  for (const g of groups) {
+    map.set(g.organization_group_cd, {
+      key:   g.organization_group_cd,
+      label: g.organization_group_name,
+      count: 0,
+      children: [],
+    });
+  }
+
+  for (const g of groups) {
+    const node = map.get(g.organization_group_cd)!;
+    if (g.parent_group_cd && map.has(g.parent_group_cd)) {
+      map.get(g.parent_group_cd)!.children!.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  // children が空配列のノードはリーフ扱い（Ant Design Tree の仕様）
+  const stripEmpty = (nodes: NamespaceNode[]): NamespaceNode[] =>
+    nodes.map((n) => ({
+      ...n,
+      children: n.children && n.children.length > 0 ? stripEmpty(n.children) : undefined,
+    }));
+
+  return stripEmpty(roots);
+};
+
+// ──────────────────────────────────────────────
+// localStorage のログインユーザー情報から Personal ノード children を構築
+// Personal ノードにはログインユーザー自身のみ表示する
+// ──────────────────────────────────────────────
+const buildPersonalTreeFromStorage = (): NamespaceNode[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('userInfo');
+    if (!raw) return [];
+    const info = JSON.parse(raw) as { id?: string; username?: string };
+    const userId   = info.id;
+    const userName = info.username;
+    if (!userId) return [];
+    return [{ key: userId, label: userName ?? userId, count: 0 }];
+  } catch {
+    return [];
+  }
+};
 
 // ──────────────────────────────────────────────
 // レベル別アイコン
@@ -68,8 +169,7 @@ const flattenTree = (nodes: NamespaceNode[]): FlatNsNode[] =>
 // 例: "materials" → "🏢 株式会社サンプルテック › 研究開発部 › 材料グループ"
 // ──────────────────────────────────────────────
 // ルートを含めてツリー全体から検索するラッパー
-const getScopeFullPath = (prefix: string): string => {
-  const tree = namespaceTreeRaw as ScopeTreeNode[];
+const getScopeFullPath = (prefix: string, tree: ScopeTreeNode[] = NAMESPACE_TREE_RAW as ScopeTreeNode[]): string => {
   // ルートノードのアイコンを付与したパスを構築
   const searchWithIcon = (nodes: ScopeTreeNode[], ancestors: string[]): string | null => {
     for (const node of nodes) {
@@ -90,35 +190,49 @@ const getScopeFullPath = (prefix: string): string => {
 };
 
 // ──────────────────────────────────────────────
-// モック: ログイン中ユーザーのロールと所属ユニット
-// 本番実装では認証APIから取得する
-//
-// kind の切り替えで表示範囲が変わることを確認できる：
-//   'dept_owner'  → 自分の部署・配下の全チーム・各メンバーNSを表示
-//   'team_owner'  → 自分のチーム・そのメンバーNSを表示（祖先部署は非表示）
-//   'member'      → 自分への祖先パスのみ表示（従来の動作）
+// ログインユーザー情報を localStorage から導出するユーティリティ
 // ──────────────────────────────────────────────
-// チーム代表者（開発チーム + 解析チーム の2チーム所属）としてログインしている想定
-const CURRENT_USER_ROLE: UserNsRole = { kind: 'team_owner', teamKey: 'rd-analysis', teamKeys: ['rd-analysis'] };
-// 他のロールで試す場合はコメントを切り替え:
-// const CURRENT_USER_ROLE: UserNsRole = { kind: 'sys_admin' };
-// const CURRENT_USER_ROLE: UserNsRole = { kind: 'dept_owner', deptKey: 'dept-rd' };
-// const CURRENT_USER_ROLE: UserNsRole = { kind: 'team_owner', teamKey: 'rd-analysis', teamKeys: ['rd-analysis', 'rd-materials'] };
-// const CURRENT_USER_ROLE: UserNsRole = { kind: 'team_owner', teamKey: 'rd-materials' };
-// const CURRENT_USER_ROLE: UserNsRole = { kind: 'member',     nsKey:  'rd-materials' };
 
-// ロールから「自分のノードキー」を導出（初期選択用）
-const CURRENT_USER_NS_KEY: string = (() => {
-  const role = CURRENT_USER_ROLE as UserNsRole;
+/**
+ * localStorage の userInfo から UserNsRole を導出する。
+ *
+ * - roleCd === 'sys_admin'        → { kind: 'sys_admin' }
+ * - organizationGroupCds に値あり → 先頭を deptKey として { kind: 'dept_owner' }
+ * - それ以外                      → { kind: 'member', nsKey: userId }
+ * フォールバック: sys_admin
+ */
+const deriveUserNsRoleFromStorage = (): UserNsRole => {
+  if (typeof window === 'undefined') return { kind: 'sys_admin' };
+  try {
+    const raw = localStorage.getItem('userInfo');
+    if (!raw) return { kind: 'sys_admin' };
+    const info = JSON.parse(raw) as { roleCd?: string; id?: string; organizationGroupCds?: string[] };
+    const roleCd = info.roleCd ?? '';
+    const groupCds = info.organizationGroupCds ?? [];
+    if (roleCd === 'sys_admin' || roleCd === 'system_admin') {
+      return { kind: 'sys_admin' };
+    }
+    if (groupCds.length > 0) {
+      // 最初のグループCDを deptKey として使用（dept_owner 扱い）
+      return { kind: 'dept_owner', deptKey: groupCds[0] };
+    }
+    // グループ未所属はメンバー扱い
+    const nsKey = info.id ?? 'unknown';
+    return { kind: 'member', nsKey };
+  } catch {
+    return { kind: 'sys_admin' };
+  }
+};
+
+/**
+ * UserNsRole から初期選択キーを導出する。
+ */
+const deriveNsKeyFromRole = (role: UserNsRole): string => {
   if (role.kind === 'sys_admin')   return 'company';
   if (role.kind === 'dept_owner')  return role.deptKey;
   if (role.kind === 'team_owner')  return role.teamKey;
   return role.nsKey;
-})();
-
-// モック: ログイン中ユーザーの Personal ノードキー
-// 本番実装では認証APIから取得する
-const CURRENT_USER_PERSONAL_KEY = 'user-me';
+};
 
 // ──────────────────────────────────────────────
 // 指定キーの祖先ノードキー集合を返すユーティリティ
@@ -204,8 +318,7 @@ const findNode = (key: string, nodes: NamespaceNode[]): NamespaceNode | null => 
   return null;
 };
 
-const filterTreeForUser = (nodes: NamespaceNode[], _userNsKey: string): NamespaceNode[] => {
-  const role = CURRENT_USER_ROLE as UserNsRole;
+const filterTreeForUser = (nodes: NamespaceNode[], _userNsKey: string, role: UserNsRole): NamespaceNode[] => {
 
   // ── Personal ルートのフィルタリングヘルパー
   // UIプロトタイプ: ロールに関わらず全メンバーを表示
@@ -268,7 +381,7 @@ const filterTreeForUser = (nodes: NamespaceNode[], _userNsKey: string): Namespac
       const usersFiltered = (personalNode.children ?? [])
         .filter((userNode) => {
           const raw = userNode as NamespaceNode & { teamKey?: string };
-          return userNode.key === CURRENT_USER_PERSONAL_KEY || keys.includes(raw.teamKey ?? '');
+          return userNode.key === _userNsKey || keys.includes(raw.teamKey ?? '');
         })
         .map((userNode) => {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -343,26 +456,21 @@ const getAncestorPrefixes = (targetKey: string, nodes: NamespaceNode[]): string[
   return result;
 };
 
-// チーム代表者ロールの場合に編集不可とすべき prefix セット
-// （祖先スコープ = 研究開発部・株式会社サンプルテック 等）
-const TEAM_OWNER_READONLY_PREFIXES: Set<string> = (() => {
-  const role = CURRENT_USER_ROLE as UserNsRole;
+/**
+ * チーム代表者ロールの場合に編集不可とすべき prefix セットを計算する（コンポーネント内で使用）
+ */
+const computeTeamOwnerReadonlyPrefixes = (role: UserNsRole, tree: NamespaceNode[]): Set<string> => {
   if (role.kind !== 'team_owner') return new Set<string>();
-  const tree = namespaceTreeRaw as NamespaceNode[];
   const ancestors = getAncestorPrefixes(role.teamKey, tree);
   return new Set<string>(ancestors);
-})();
-
-// 指定の prefix がチーム代表者にとって読み取り専用（グレーアウト対象）かどうか
-const isReadonlyPrefix = (prefix: string): boolean =>
-  TEAM_OWNER_READONLY_PREFIXES.has(prefix);
+};
 
 // 選択ノード種別に応じた prefix 集合を返す
 // - Global ノード選択 → Global 配下の prefix のみ
 // - Personal ノード選択 → Personal（ログインユーザー）配下の prefix のみ
 // - 組織ノード選択 → そのノード配下の全 prefix（自分 + 子孫）+ 祖先 prefix（team_owner 時）
-const getRelatedPrefixes = (nsKey: string): Set<string> => {
-  const tree = namespaceTreeRaw as NamespaceNode[];
+const getRelatedPrefixes = (nsKey: string, currentPersonalKey = ''): Set<string> => {
+  const tree = NAMESPACE_TREE_RAW as NamespaceNode[];
   const result = new Set<string>();
 
   const rootKey = getRootKey(nsKey, tree);
@@ -375,7 +483,7 @@ const getRelatedPrefixes = (nsKey: string): Set<string> => {
   if (rootKey === 'personal') {
     // Personal ノード選択 → 選択したユーザーノード配下の個人 prefix のみ
     // nsKey が 'personal' ルート自体の場合はログインユーザーの prefix を返す
-    const targetKey = nsKey === 'personal' ? CURRENT_USER_PERSONAL_KEY : nsKey;
+    const targetKey = nsKey === 'personal' ? currentPersonalKey : nsKey;
     for (const pp of collectPrefixesUnder(targetKey, tree)) result.add(pp);
     return result;
   }
@@ -421,9 +529,44 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   onNsKeyChange,
   viewOnly = false,
 }) => {
+  // ── ログインユーザー情報を localStorage から導出
+  const currentUserRole: UserNsRole = deriveUserNsRoleFromStorage();
+  const currentUserNsKey: string = deriveNsKeyFromRole(currentUserRole);
+  // Personal ノードキーは userId を使用（未取得時は空文字）
+  const currentUserPersonalKey: string = (() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const raw = localStorage.getItem('userInfo');
+      if (!raw) return '';
+      const info = JSON.parse(raw) as { id?: string };
+      return info.id ?? '';
+    } catch { return ''; }
+  })();
+  // チーム代表者ロール時の編集不可 prefix セット
+  const teamOwnerReadonlyPrefixes: Set<string> = computeTeamOwnerReadonlyPrefixes(currentUserRole, NAMESPACE_TREE_RAW as NamespaceNode[]);
+  // 指定の prefix がチーム代表者にとって読み取り専用かどうか
+  const isReadonlyPrefix = (prefix: string): boolean => teamOwnerReadonlyPrefixes.has(prefix);
+
+  // ── organization_group 取得ステート
+  const [orgGroups, setOrgGroups] = useState<OrganizationGroupRow[]>([]);
+
+  // ── Personal ノードの children（クライアント mount 後に localStorage から取得）
+  // SSR では localStorage にアクセスできないため useState + useEffect で分離する
+  const [personalChildren, setPersonalChildren] = useState<NamespaceNode[]>([]);
+
+  // ── 動的ツリー（NAMESPACE_TREE_RAW の company/personal.children を API データで差し替え）
+  // Personal ノードはログインユーザー自身のみ表示（localStorage から取得）
+  const namespaceTree = useMemo((): NamespaceNode[] =>
+    NAMESPACE_TREE_RAW.map((n) => {
+      if (n.key === 'company')  return { ...n, children: buildOrgTree(orgGroups) };
+      if (n.key === 'personal') return { ...n, children: personalChildren.length > 0 ? personalChildren : undefined };
+      return n;
+    })
+  , [orgGroups, personalChildren]);
+
   const [termSearch,    setTermSearch]    = useState('');
   const [selectedNsKey, setSelectedNsKey] = useState<string | null>(
-    globalOnly ? 'global' : CURRENT_USER_NS_KEY
+    globalOnly ? 'global' : currentUserNsKey
   );
   const [terms,         setTerms]         = useState<Term[]>([]);
   const [termsLoading,  setTermsLoading]  = useState(true);
@@ -435,7 +578,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const [modalTarget,     setModalTarget]     = useState<DetailTarget | null>(null);
   const [selectedTermIds, setSelectedTermIds] = useState<string[]>([]);
 
-  const [nsNodes, setNsNodes] = useState<FlatNsNode[]>(() => flattenTree(namespaceTreeRaw as NamespaceNode[]));
+  const [nsNodes, setNsNodes] = useState<FlatNsNode[]>(() => flattenTree(NAMESPACE_TREE_RAW as NamespaceNode[]));
   const [contextNode, setContextNode] = useState<NamespaceNode | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addChildParentKey, setAddChildParentKey] = useState<string | null>(null);
@@ -470,8 +613,30 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const [editingTermId, setEditingTermId] = useState<string | null>(null);
   const [editingValues, setEditingValues] = useState<TermEditValues>({ prefix: '', localName: '', displayName: '', description: '', type: '', unitHint: '' });
 
-  // ──── ツリーの展開キー（全ノードを常に展開する）
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  // ──── ツリーの展開キー（ルートノードを初期から展開しておく）
+  const [expandedKeys, setExpandedKeys] = useState<string[]>(['global', 'company', 'personal']);
+
+  // ──── 初回マウント時に localStorage からログインユーザー自身のノードを Personal children として設定
+  // APIコール不要: localStorage.userInfo から { id, username } を直接取得する
+  
+  useEffect(() => {
+    const nodes = buildPersonalTreeFromStorage();
+    setPersonalChildren(nodes);
+    if (nodes.length > 0) {
+      setExpandedKeys((prev) =>
+        prev.includes('personal') ? prev : [...prev, 'personal']
+      );
+    }
+  }, []);
+
+  // ──── 初回マウント時に organization_group 一覧を取得してツリーを構築
+  useEffect(() => {
+    getOrganizationGroups()
+      .then((groups) => setOrgGroups(groups))
+      .catch(() => {
+        // 取得失敗時は空ツリーのまま表示を継続
+      });
+  }, []);
 
   // ──── 初回マウント時に属性テーブルから単位一覧を取得（失敗時はダミーデータにフォールバック）
   useEffect(() => {
@@ -491,8 +656,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       });
   }, []);
 
-  // ──── 初回マウント時に API から用語一覧を取得（失敗時は空配列にフォールバック）
-  useEffect(() => {
+  // ──── 初回マウント時 & タブ切り替え後に API から用語一覧を取得
+  const fetchTerms = useCallback(() => {
     setTermsLoading(true);
     getTerms()
       .then((data) => setTerms(data as Term[]))
@@ -502,6 +667,24 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       })
       .finally(() => setTermsLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchTerms();
+  }, [fetchTerms]);
+
+  // ──── タブがアクティブになったときに再フェッチ（他タブで変更があった場合に反映）
+  // personal ノードも再読み込みする（localStorage の userInfo を再取得）
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchTerms();
+        const nodes = buildPersonalTreeFromStorage();
+        setPersonalChildren(nodes);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchTerms]);
 
   // ──── 「用語を追加」ボタン：常に活性、押すたびに空行を追加
   const handleAddRow = () => {
@@ -656,43 +839,41 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const isGlobalOrPersonalSelected = useMemo(() => {
     const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
     if (!key) return false;
-    const rootKey = getRootKey(key, namespaceTreeRaw as NamespaceNode[]);
+    const rootKey = getRootKey(key, namespaceTree);
     return rootKey === 'global' || rootKey === 'personal';
-  }, [selectedNsKey, externalSelectedNsKey]);
+  }, [selectedNsKey, externalSelectedNsKey, namespaceTree]);
 
   // 選択ノードが company 配下のノードかどうか
   const isCompanyNodeSelected = useMemo(() => {
     const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
     if (!key) return false;
-    return getRootKey(key, namespaceTreeRaw as NamespaceNode[]) === 'company';
-  }, [selectedNsKey, externalSelectedNsKey]);
+    return getRootKey(key, namespaceTree) === 'company';
+  }, [selectedNsKey, externalSelectedNsKey, namespaceTree]);
 
   // 選択ノードの祖先ノードの prefix セット（company配下選択時のグレーアウト判定用）
   const ancestorPrefixesForSelected = useMemo((): Set<string> => {
     const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
     if (!key || !isCompanyNodeSelected) return new Set<string>();
-    const tree = namespaceTreeRaw as NamespaceNode[];
-    const ancestorKeys = getAncestorKeys(key, tree) ?? [];
+    const ancestorKeys = getAncestorKeys(key, namespaceTree) ?? [];
     const result = new Set<string>();
     for (const aKey of ancestorKeys) {
       // company ルートも含めて祖先ノードの prefix をすべてグレーアウト対象にする
-      const node = findNode(aKey, tree);
+      const node = findNode(aKey, namespaceTree);
       const p = (node as any)?.prefix as string | undefined;
       if (p) result.add(p);
     }
     return result;
-  }, [selectedNsKey, externalSelectedNsKey, isCompanyNodeSelected]);
+  }, [selectedNsKey, externalSelectedNsKey, isCompanyNodeSelected, namespaceTree]);
 
   // Personal 配下のノードが選択中かどうか（組織共有ボタンの表示判定用）
   const isPersonalSelected = useMemo(() => {
     const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
     if (!key) return false;
-    return getRootKey(key, namespaceTreeRaw as NamespaceNode[]) === 'personal';
-  }, [selectedNsKey, externalSelectedNsKey]);
+    return getRootKey(key, namespaceTree) === 'personal';
+  }, [selectedNsKey, externalSelectedNsKey, namespaceTree]);
 
   // ログインユーザーの所属組織Prefixを取得
   const currentUserOrgPrefix = useMemo(() => {
-    const tree = namespaceTreeRaw as NamespaceNode[];
     const findPrefix = (key: string, nodes: NamespaceNode[]): string | null => {
       for (const n of nodes) {
         if (n.key === key) return (n as any).prefix ?? null;
@@ -700,8 +881,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       }
       return null;
     };
-    return findPrefix(CURRENT_USER_NS_KEY, tree);
-  }, []);
+    return findPrefix(currentUserNsKey, namespaceTree);
+  }, [currentUserNsKey, namespaceTree]);
 
   // 共有先が確定されたときに用語をコピーする
   const handleShareToTarget = async (target: ShareTarget) => {
@@ -749,26 +930,25 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ログインユーザーのロールを ShareScopeModal 用に変換
   const shareSourceRole = useMemo((): ShareSourceRole => {
-    const role = CURRENT_USER_ROLE as UserNsRole;
+    const role = currentUserRole;
     if (role.kind === 'sys_admin') return { kind: 'sys_admin' };
     if (role.kind === 'dept_owner') {
-      // 部署ノードのラベルをツリーから取得
-      const deptNode = findNode(role.deptKey, namespaceTreeRaw as NamespaceNode[]);
+      // 部署ノードのラベルをツリーから取得（動的ツリーを参照）
+      const deptNode = findNode(role.deptKey, namespaceTree);
       return { kind: 'dept_owner', deptKey: role.deptKey, deptLabel: deptNode?.label ?? role.deptKey };
     }
     if (role.kind === 'team_owner') {
-      const teamNode = findNode(role.teamKey, namespaceTreeRaw as NamespaceNode[]);
+      const teamNode = findNode(role.teamKey, namespaceTree);
       return { kind: 'team_owner', teamKey: role.teamKey, teamLabel: teamNode?.label ?? role.teamKey };
     }
     // member は チーム代表者と同等の共有範囲（自分のチームまで）
     return { kind: 'team_owner', teamKey: role.nsKey, teamLabel: role.nsKey };
-  }, []);
+  }, [namespaceTree]);
 
   // ShareScopeModal に渡す共有先ツリーデータを構築
   const shareScopeNodes = useMemo(() => {
-    const tree = namespaceTreeRaw as NamespaceNode[];
     // filterTreeForUser で絞り込んだツリーを使用（ロール別表示範囲と揃える）
-    const filtered = filterTreeForUser(tree, CURRENT_USER_NS_KEY);
+    const filtered = filterTreeForUser(namespaceTree, currentUserNsKey, currentUserRole);
     // company ノードを丸ごと渡す（PrefixManagement と構造を統一）
     // これにより depth=0=会社(sys_adminのみ選択可) / depth=1=部署(dept_ownerから選択可) / depth=2=チームとなる
     const companyNode = filtered.find((n) => n.key === 'company');
@@ -780,13 +960,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       children: n.children ? n.children.map(toScopeNode) : undefined,
     });
     return [toScopeNode(companyNode)];
-  }, []);
+  }, [namespaceTree]);
 
   // ──── ツリーノードのタイトル（件数は terms から動的計算）
   // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
   // showUserHighlight: Global/Personal 選択中でない場合に CURRENT_USER_NS_KEY を薄い青背景で表示
   const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number, termCount: number, showUserHighlight: boolean, parentLabel = '') => {
-    const isCurrentUserNode = showUserHighlight && node.key === CURRENT_USER_NS_KEY;
+    const isCurrentUserNode = showUserHighlight && node.key === currentUserNsKey;
     // チームノード（companyDepth === 3）のみ右クリックメニューを有効化
     const isTeam = companyDepth === 3;
 
@@ -842,14 +1022,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     });
 
   const treeData = useMemo(() => {
-    const allNodes = namespaceTreeRaw as NamespaceNode[];
-    // ログインユーザーの所属パスのみに絞り込む
-    const userFilteredNodes = filterTreeForUser(allNodes, CURRENT_USER_NS_KEY);
-    // Global/Personal が選択されていない時のみ CURRENT_USER_NS_KEY を薄い青背景で強調
+    // namespaceTree は company.children が API データで動的に構築される
+    // ロールによるフィルタリングは行わず、全ノードをそのまま表示する
+    // Global/Personal が選択されていない時のみ currentUserNsKey を薄い青背景で強調
     const showUserHighlight = !isGlobalOrPersonalSelected;
-    return toAntTree(userFilteredNodes, 0, showUserHighlight, '');
+    return toAntTree(namespaceTree, 0, showUserHighlight, '');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renderTreeTitle, terms, isGlobalOrPersonalSelected]);
+  }, [renderTreeTitle, terms, isGlobalOrPersonalSelected, namespaceTree]);
 
   // treeData の全ノードキーを収集して常に全展開する
   const allTreeKeys = useMemo(() => {
@@ -881,20 +1060,20 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       }
       return null;
     };
-    return findInTree(namespaceTreeRaw as NamespaceNode[]);
+    return findInTree(NAMESPACE_TREE_RAW as NamespaceNode[]);
   }, [selectedNsKey, nsNodes]);
 
   const filteredTerms = useMemo(() => {
     let result = terms;
     // globalOnly=true のときはグローバル prefix のみに絞り込む
     if (globalOnly) {
-      const globalPrefixes = new Set(getGlobalPrefixes(namespaceTreeRaw as NamespaceNode[]));
+      const globalPrefixes = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
       result = result.filter((t) => globalPrefixes.has(t.prefix));
     } else if (effectiveNsKey) {
-      const rootKey = getRootKey(effectiveNsKey, namespaceTreeRaw as NamespaceNode[]);
+      const rootKey = getRootKey(effectiveNsKey, NAMESPACE_TREE_RAW as NamespaceNode[]);
       if (rootKey === 'global') {
         // Global ノード（またはその配下）が選択されている場合: グローバル prefix のみ表示
-        const globalPrefixes = new Set(getGlobalPrefixes(namespaceTreeRaw as NamespaceNode[]));
+        const globalPrefixes = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
         result = result.filter((t) => globalPrefixes.has(t.prefix));
       } else {
         // 組織ノード（company/部門/チーム）が選択されている場合:
@@ -906,7 +1085,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       }
     } else {
       // ノード未選択時: グローバルデータを除外（自チームのデータのみ表示）
-      const globalPrefixes = new Set(getGlobalPrefixes(namespaceTreeRaw as NamespaceNode[]));
+      const globalPrefixes = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
       result = result.filter((t) => !globalPrefixes.has(t.prefix));
     }
     // Prefix フィルター
@@ -1181,7 +1360,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
       defaultSortOrder: 'ascend',
       render: (_: unknown, record: Term | NewTermRow) => {
-        const globalPrefixSet = new Set(getGlobalPrefixes(namespaceTreeRaw as NamespaceNode[]));
+        const globalPrefixSet = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
         const prefixOptions = nsNodes
           .filter((n) => (n as any)._rawPrefix !== undefined ? (n as any)._rawPrefix : true)
           .filter((n) => !globalPrefixSet.has(n.prefix))
@@ -1295,7 +1474,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) return <span style={{ color: '#bbb' }}>—</span>;
         const t = record as Term;
-        const globalPrefixSet = new Set(getGlobalPrefixes(namespaceTreeRaw as NamespaceNode[]));
+        const globalPrefixSet = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
         const isGlobal = globalPrefixSet.has(t.prefix);
         const fullPath = getScopeFullPath(t.prefix);
         const parts = fullPath.split(' › ');
