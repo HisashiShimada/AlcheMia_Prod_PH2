@@ -20,6 +20,7 @@
  * @version 3.0.0
  */
 
+import { ITask } from 'pg-promise';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 
@@ -223,23 +224,27 @@ export async function remove(
  * Prefix は実験管理者が Prefix 管理画面から手動登録する。
  *
  * @param data - 登録する名前空間データ
+ * @param t - pg-promise トランザクションオブジェクト（省略時はプール接続を使用）
  * @returns 登録された namespace_id
  */
-export async function createNamespaceUri(data: {
-  organizationId: string;
-  uri: string;
-  userId: string;
-}): Promise<string> {
-  const pgp = getPgp();
+export async function createNamespaceUri(
+  data: {
+    organizationId: string;
+    uri: string;
+    userId: string;
+  },
+  t?: ITask<unknown>
+): Promise<string> {
+  const conn = t ?? getPgp();
 
   // namespace_id を採番: 組織内の最大連番+1 (NS0001 形式)
   const seqQuery = await loadSqlFile('namespace_terms/findNextNamespaceSeq.sql');
-  const seqRow = await pgp.one<{ next_seq: number }>(seqQuery, [data.organizationId]);
+  const seqRow = await conn.one<{ next_seq: number }>(seqQuery, [data.organizationId]);
   const namespaceId = `NS${String(seqRow.next_seq).padStart(4, '0')}`;
 
   // namespace テーブルに INSERT（URI のみ）
   const insertQuery = await loadSqlFile('namespace_terms/createNamespaceUri.sql');
-  await pgp.none(insertQuery, [
+  await conn.none(insertQuery, [
     data.organizationId,
     namespaceId,
     data.uri,
@@ -253,14 +258,16 @@ export async function createNamespaceUri(data: {
  * 組織に紐づく namespace の URI 一覧を取得（URI重複チェック用）
  *
  * @param organizationId - 組織ID
+ * @param t - pg-promise トランザクションオブジェクト（省略時はプール接続を使用）
  * @returns URI の配列
  */
 export async function findUrisByOrganization(
-  organizationId: string
+  organizationId: string,
+  t?: ITask<unknown>
 ): Promise<string[]> {
-  const pgp = getPgp();
+  const conn = t ?? getPgp();
   const query = await loadSqlFile('namespace_terms/findUrisByOrganization.sql');
-  const rows = await pgp.any<{ uri: string }>(query, [organizationId]);
+  const rows = await conn.any<{ uri: string }>(query, [organizationId]);
   return rows.map(r => r.uri);
 }
 
