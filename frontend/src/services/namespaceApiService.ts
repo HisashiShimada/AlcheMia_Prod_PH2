@@ -64,6 +64,7 @@ export interface NamespaceTermRow {
   description: string;
   type: string;
   unitHint: string;
+  isActive: boolean;
 }
 
 /**
@@ -296,6 +297,34 @@ export const deleteTerm = async (prefix: string, localName: string): Promise<voi
   await client.delete(
     `/namespaces/terms/${encodeURIComponent(prefix)}/${encodeURIComponent(localName)}`
   );
+};
+
+/**
+ * 用語のアクティブ/非アクティブを切り替える
+ *
+ * @remarks
+ * バックエンドの PATCH /api/v1/namespaces/terms/:prefix/:localName/active を呼び出す。
+ *
+ * @param prefix - 名前空間の接頭辞
+ * @param localName - ローカル名
+ * @param isActive - 設定するアクティブ状態
+ * @returns 更新された用語
+ */
+export const toggleTermActive = async (
+  prefix: string,
+  localName: string,
+  isActive: boolean
+): Promise<NamespaceTermRow> => {
+  const client = createApiClient();
+
+  console.log('🔖 [namespaceApiService] 用語アクティブ切替:', `${prefix}:${localName}`, isActive);
+
+  const response = await client.patch<NamespaceTermRow>(
+    `/namespaces/terms/${encodeURIComponent(prefix)}/${encodeURIComponent(localName)}/active`,
+    { isActive }
+  );
+
+  return response.data;
 };
 
 // ============================================================================
