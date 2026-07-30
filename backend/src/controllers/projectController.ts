@@ -41,7 +41,7 @@ export async function create(req: Request, res: Response): Promise<void> {
         success: false,
         error: {
           code: 'E1004',
-          message: 'チームを選択してください',
+          message: 'Please select a team',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -58,7 +58,7 @@ export async function create(req: Request, res: Response): Promise<void> {
         success: false,
         error: {
           code: 'E5015',
-          message: '権限が不足しています',
+          message: 'Insufficient permissions',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -89,7 +89,7 @@ export async function create(req: Request, res: Response): Promise<void> {
         success: false,
         error: {
           code: errorCode,
-          message: result.error?.message || 'エラーが発生しました',
+          message: result.error?.message || 'An error occurred',
         },
         meta: {
           timestamp: new Date().toISOString(),

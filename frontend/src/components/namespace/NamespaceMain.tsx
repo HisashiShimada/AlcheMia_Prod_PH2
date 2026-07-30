@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography } from 'antd';
 import {
   SearchOutlined,
@@ -76,7 +77,7 @@ const NAMESPACE_TREE_RAW: NamespaceNode[] = [
   },
   {
     key: 'company',
-    label: '組織',
+    label: 'company',
     count: 0,
     icon: '🏢',
     children: [],
@@ -529,6 +530,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   onNsKeyChange,
   viewOnly = false,
 }) => {
+  const { t } = useLanguage();
+
   // ── ログインユーザー情報を localStorage から導出
   const currentUserRole: UserNsRole = deriveUserNsRoleFromStorage();
   const currentUserNsKey: string = deriveNsKeyFromRole(currentUserRole);
@@ -717,15 +720,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const handleAddSave = async () => {
     if (newTerms.length === 0) return;
     for (const row of newTerms) {
-      if (!row.prefix)    { message.error('すべての行でPrefixを選択してください'); return; }
-      if (!row.localName) { message.error('すべての行でローカル名を入力してください'); return; }
+      if (!row.prefix)    { message.error(t('namespaceMain.prefixRequired')); return; }
+      if (!row.localName) { message.error(t('namespaceMain.localNameRequired')); return; }
     }
 
     // 研究開発部（dept-rd）選択時は必ずエラーダイアログを表示して保存をブロック
     if (effectiveNsKey === 'dept-rd') {
       Modal.error({
-        title: '登録エラー',
-        content: '入力されたPrefix:用語名は既に登録されています。',
+        title: t('namespaceMain.duplicateErrorTitle'),
+        content: t('namespaceMain.duplicateErrorContent'),
       });
       return;
     }
@@ -733,10 +736,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     // 木村涼子（user-010）選択時は同用語名・別Prefix重複の警告を表示（保存は続行）
     if (effectiveNsKey === 'user-010') {
       Modal.confirm({
-        title: '警告',
-        content: '同じ用語が解析チームで既に登録されています。',
-        okText: '登録する',
-        cancelText: 'キャンセル',
+        title: t('namespaceMain.warnDuplicateTitle'),
+        content: t('namespaceMain.warnDuplicateContent'),
+        okText: t('namespaceMain.warnRegister'),
+        cancelText: t('namespaceMain.warnCancel'),
       });
     }
 
@@ -757,19 +760,19 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          message.error(`「${row.localName}」の保存に失敗しました: ${(err as any).error ?? res.status}`);
+        message.error(t('namespaceMain.saveTermError', { localName: row.localName, detail: String((err as any).error ?? res.status) }));
           continue;
         }
         const created: Term = await res.json();
         added.push(created);
       } catch {
-        message.error(`「${row.localName}」の保存中にエラーが発生しました`);
+        message.error(t('namespaceMain.saveTermException', { localName: row.localName }));
       }
     }
 
     if (added.length > 0) {
       setTerms((prev) => [...added, ...prev]);
-      message.success(`${added.length}件の用語をDBに保存しました`);
+      message.success(t('namespaceMain.saveTermSuccess', { count: String(added.length) }));
     }
     setNewTerms([]);
   };
@@ -781,7 +784,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const saveEditTerm = async () => {
     if (!editingTermId) return;
-    if (!editingValues.localName) { message.error('ローカル名は必須です'); return; }
+    if (!editingValues.localName) { message.error(t('namespaceMain.localNameRequired2')); return; }
 
     try {
       const res = await fetch(`/api/v1/namespaces/terms/${editingTermId}`, {
@@ -798,16 +801,16 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        message.error(`更新に失敗しました: ${(err as any).error ?? res.status}`);
+        message.error(t('namespaceMain.updateError', { detail: String((err as any).error ?? res.status) }));
         return;
       }
 
       const updated: Term = await res.json();
       setTerms((prev) => prev.map((t) => t.id === editingTermId ? updated : t));
       setEditingTermId(null);
-      message.success('用語を更新しました');
+      message.success(t('namespaceMain.updateSuccess'));
     } catch {
-      message.error('用語の更新中にエラーが発生しました');
+      message.error(t('namespaceMain.updateException'));
     }
   };
 
@@ -921,9 +924,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       setTerms((prev) => [...added, ...prev]);
     }
     if (failed.length > 0) {
-      message.warning(`${added.length}件共有完了、${failed.length}件失敗しました`);
+      message.warning(t('namespaceMain.sharePartialFailure', { saved: String(added.length), failCount: String(failed.length) }));
     } else {
-      message.success(`${added.length}件の用語を「${target.label}」に共有しました`);
+      message.success(t('namespaceMain.shareSuccess', { count: String(added.length), target: target.label }));
     }
     setSelectedTermIds([]);
   };
@@ -978,6 +981,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }
       : undefined;
 
+    // 'company' キーは翻訳キーとして扱う
+    const displayLabel = node.key === 'company' ? t('namespaceTree.company') : node.label;
+
     return (
       <span
         onContextMenu={handleContextMenu}
@@ -988,7 +994,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }}
       >
         <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {node.label}
+          {displayLabel}
         </span>
         {termCount > 0 && (
           <span style={{ color: '#8c8c8c', fontSize: 12, flexShrink: 0 }}>{termCount}</span>
@@ -1123,14 +1129,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     }
     base.forEach((t) => prefixSet.add(t.prefix));
     return [
-      { value: '', label: 'Prefix: すべて' },
+      { value: '', label: t('namespaceMain.prefixFilterAll') },
       ...[...prefixSet].sort().map((p) => ({ value: p, label: p })),
     ];
   }, [terms, effectiveNsKey]);
 
   // 単位フィルター選択肢（属性テーブルから取得）
   const unitFilterOptions = useMemo(() => [
-    { value: '', label: '単位: すべて' },
+    { value: '', label: t('namespaceMain.unitFilterAll') },
     ...unitAttributes.map((u) => ({ value: u, label: u })),
   ], [unitAttributes]);
 
@@ -1145,7 +1151,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     }
     base.forEach((t) => prefixSet.add(t.prefix));
     return [
-      { value: '', label: 'スコープ: すべて' },
+      { value: '', label: t('namespaceMain.scopeFilterAll') },
       ...[...prefixSet].sort().map((p) => {
         const fullPath = getScopeFullPath(p);
         const parts = fullPath.split(' › ');
@@ -1160,42 +1166,42 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     // 非アクティブにする場合のみ確認ダイアログを表示
     if (currentActive) {
       const term = terms.find((t) => t.id === termId);
-      const label = term ? `${term.prefix}:${term.localName}` : '用語';
+      const label = term ? `${term.prefix}:${term.localName}` : t('namespaceMain.term');
       Modal.confirm({
-        title: `「${label}」を非アクティブにしますか？`,
-        content: 'この用語を非アクティブ状態に変更します。',
-        okText: '非アクティブ',
-        cancelText: 'キャンセル',
+        title: t('namespaceMain.deactivateConfirmTitle', { label }),
+        content: t('namespaceMain.deactivateConfirmContent'),
+        okText: t('namespaceMain.deactivate'),
+        cancelText: t('namespaceMain.cancel'),
         okButtonProps: { danger: true },
         onOk: () => {
           setTerms((prev) =>
-            prev.map((t) => t.id === termId ? { ...t, isActive: false } : t)
+            prev.map((tt) => tt.id === termId ? { ...tt, isActive: false } : tt)
           );
-          message.success('用語を非アクティブにしました');
+          message.success(t('namespaceMain.deactivateSuccess'));
         },
       });
     } else {
       setTerms((prev) =>
-        prev.map((t) => t.id === termId ? { ...t, isActive: nextActive } : t)
+        prev.map((tt) => tt.id === termId ? { ...tt, isActive: nextActive } : tt)
       );
-      message.success('用語をアクティブにしました');
+      message.success(t('namespaceMain.activateSuccess'));
     }
   };
 
   const handleBulkToggleActive = (targetIds: string[]) => {
     const count = targetIds.length;
     Modal.confirm({
-      title: '選択した用語を非アクティブにしますか？',
-      content: `${count}件の用語が非アクティブになります。`,
-      okText: '非アクティブ',
-      cancelText: 'キャンセル',
+      title: t('namespaceMain.bulkDeactivateTitle'),
+      content: t('namespaceMain.bulkDeactivateContent', { count: String(count) }),
+      okText: t('namespaceMain.deactivate'),
+      cancelText: t('namespaceMain.cancel'),
       okButtonProps: { danger: true },
       onOk: () => {
         setTerms((prev) =>
-          prev.map((t) => targetIds.includes(t.id) ? { ...t, isActive: false } : t)
+          prev.map((tt) => targetIds.includes(tt.id) ? { ...tt, isActive: false } : tt)
         );
         setSelectedTermIds([]);
-        message.success(`${count}件の用語を非アクティブにしました`);
+        message.success(t('namespaceMain.bulkDeactivateSuccess', { count: String(count) }));
       },
     });
   };
@@ -1207,7 +1213,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const handleCsvDownload = () => {
     if (selectedTermIds.length === 0) {
-      message.error('エクスポートする用語を1件以上選択してください');
+      message.error(t('termManagement.csv.exportSelectAtLeastOne'));
       return;
     }
     const header = 'qname,prefix,localName,displayName,description,type,unitHint';

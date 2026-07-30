@@ -91,7 +91,7 @@ export async function deleteNamespace(
 
     const count = await namespaceService.deleteNamespace(organizationId, prefix);
     if (count === 0) {
-      res.status(404).json({ error: `prefix "${prefix}" の名前空間が見つかりません` });
+      res.status(404).json({ error: `Namespace with prefix "${prefix}" not found` });
       return;
     }
 
@@ -133,7 +133,7 @@ export async function createTerm(
     });
 
     if (!created) {
-      res.status(404).json({ error: `prefix "${prefix}" に対応する名前空間が見つかりません` });
+      res.status(404).json({ error: `Namespace with prefix "${prefix}" not found` });
       return;
     }
 
@@ -171,7 +171,7 @@ export async function updateTerm(
     });
 
     if (!updated) {
-      res.status(404).json({ error: `"${prefix}:${localName}" の用語が見つかりません` });
+      res.status(404).json({ error: `Term "${prefix}:${localName}" not found` });
       return;
     }
 
@@ -196,7 +196,7 @@ export async function deleteTerm(
 
     const count = await namespaceService.deleteTerm(organizationId, prefix, localName);
     if (count === 0) {
-      res.status(404).json({ error: `"${prefix}:${localName}" の用語が見つかりません` });
+      res.status(404).json({ error: `Term "${prefix}:${localName}" not found` });
       return;
     }
 
@@ -247,7 +247,7 @@ export async function getDeclarationsByProject(
     if (!declarations) {
       res
         .status(404)
-        .json({ success: false, error: { code: 'E6001', message: 'プロジェクトが見つかりません' } });
+        .json({ success: false, error: { code: 'E6001', message: 'Project not found' } });
       return;
     }
 
@@ -299,7 +299,7 @@ export async function toggleTermActive(
     );
 
     if (!updated) {
-      res.status(404).json({ error: '対象の用語が見つかりません' });
+      res.status(404).json({ error: 'Term not found' });
       return;
     }
 

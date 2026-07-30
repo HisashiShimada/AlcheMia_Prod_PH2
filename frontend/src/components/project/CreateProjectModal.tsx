@@ -230,16 +230,16 @@ export default function CreateProjectModal({
           {/* チーム選択 */}
           <Form.Item
             name="organizationGroupCd"
-            label="チーム"
+            label={t('createProject.teamLabel')}
             rules={[
               {
                 required: true,
-                message: 'チームを選択してください',
+                message: t('createProject.teamRequired'),
               },
             ]}
           >
             <Select
-              placeholder="チームを選択してください"
+              placeholder={t('createProject.teamPlaceholder')}
               loading={teamsLoading}
               data-testid="create-project-org-group-select"
               options={teams.map((team) => ({

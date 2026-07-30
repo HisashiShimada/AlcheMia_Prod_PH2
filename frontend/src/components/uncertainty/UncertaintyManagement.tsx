@@ -30,10 +30,6 @@ interface NamespaceNode {
 }
 
 // ──────────────────────────────────────────────
-<<<<<<< Updated upstream
-// TODO:[MOCK] ログイン中ユーザーの所属ノードキー
-// バックエンド実装時に削除し、認証APIから取得した値に置き換えること
-=======
 // ツリーの静的骨格（Global / company / Personal）
 // company.children は API データで動的に差し替える
 // ──────────────────────────────────────────────
@@ -99,7 +95,6 @@ const buildOrgTree = (groups: OrganizationGroupRow[]): NamespaceNode[] => {
 // ──────────────────────────────────────────────
 // モック: ログイン中ユーザーの所属ノードキー
 // 本番実装では認証APIから取得する
->>>>>>> Stashed changes
 // ──────────────────────────────────────────────
 // チーム代表者（解析チーム）としてログインしている想定
 const CURRENT_USER_NS_KEY = 'rd-analysis'; // TODO:[MOCK] 認証APIから取得する実装に置き換える

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Button,
   Input,
@@ -25,6 +26,7 @@ import {
   getTerms,
   createTerm,
   updateTerm,
+  toggleTermActive,
 } from '@/services/namespaceApiService';
 import type { NamespaceTermRow } from '@/services/namespaceApiService';
 
@@ -94,6 +96,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
   viewOnly = false,
   globalOnly = false,
 }) => {
+  const { t } = useLanguage();
   const [terms, setTerms] = useState<NamespaceTermRow[]>([]);
   const [prefixOptions, setPrefixOptions] = useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -127,7 +130,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
       );
       setTerms(termList);
     } catch {
-      message.error('データの取得に失敗しました');
+      message.error(t('termManagement.fetchError'));
     } finally {
       setLoading(false);
     }
@@ -162,11 +165,11 @@ const TermManagement: React.FC<TermManagementProps> = ({
     if (newRows.length === 0) return;
     for (const row of newRows) {
       if (!row.prefix) {
-        message.error('すべての行でPrefixを選択してください');
+        message.error(t('termManagement.prefixRequired'));
         return;
       }
       if (!row.localName) {
-        message.error('すべての行でローカル名を入力してください');
+        message.error(t('termManagement.localNameRequired'));
         return;
       }
     }
@@ -192,11 +195,11 @@ const TermManagement: React.FC<TermManagementProps> = ({
 
     if (added.length > 0) {
       setTerms((prev) => [...added, ...prev]);
-      message.success(`${added.length}件の用語を登録しました`);
+      message.success(t('termManagement.registerSuccess', { count: String(added.length) }));
     }
     if (failed.length > 0) {
       message.warning(
-        `${failed.length}件の登録に失敗しました（${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}）`
+        t('termManagement.registerFailure', { count: String(failed.length), names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : '') })
       );
     }
     setNewRows([]);
@@ -226,9 +229,9 @@ const TermManagement: React.FC<TermManagementProps> = ({
           t.prefix === record.prefix && t.localName === record.localName ? updated : t
         )
       );
-      message.success('用語を更新しました');
+      message.success(t('termManagement.updateSuccess'));
     } catch {
-      message.error('用語の更新に失敗しました');
+      message.error(t('termManagement.updateError'));
     } finally {
       setEditingKey(null);
     }
@@ -236,25 +239,28 @@ const TermManagement: React.FC<TermManagementProps> = ({
 
   const cancelEdit = () => setEditingKey(null);
 
-  // ── アクティブ/非アクティブ切替（ローカルのみ、APIは未対応のためトグル表示のみ）
+  // ── アクティブ/非アクティブ切替（API連携）
   const handleToggleActive = (record: NamespaceTermRow) => {
-    const isActive = (record as NamespaceTermRow & { isActive?: boolean }).isActive !== false;
+    const isActive = record.isActive !== false;
     Modal.confirm({
       title: isActive
-        ? `「${record.prefix}:${record.localName}」を非アクティブにしますか？`
-        : `「${record.prefix}:${record.localName}」をアクティブにしますか？`,
-      okText: isActive ? '非アクティブ' : 'アクティブ',
-      cancelText: 'キャンセル',
+        ? t('termManagement.deactivateConfirm', { term: `${record.prefix}:${record.localName}` })
+        : t('termManagement.activateConfirm', { term: `${record.prefix}:${record.localName}` }),
+      okText: isActive ? t('termManagement.deactivate') : t('termManagement.activate'),
+      cancelText: t('common.cancel'),
       okButtonProps: { danger: isActive },
-      onOk: () => {
-        setTerms((prev) =>
-          prev.map((t) =>
-            t.prefix === record.prefix && t.localName === record.localName
-              ? { ...t, isActive: !isActive } as NamespaceTermRow & { isActive: boolean }
-              : t
-          )
-        );
-        message.success(isActive ? '非アクティブにしました' : 'アクティブにしました');
+      onOk: async () => {
+        try {
+          const updated = await toggleTermActive(record.prefix, record.localName, !isActive);
+          setTerms((prev) =>
+            prev.map((t) =>
+              t.prefix === record.prefix && t.localName === record.localName ? updated : t
+            )
+          );
+          message.success(isActive ? t('termManagement.deactivateSuccess') : t('termManagement.activateSuccess'));
+        } catch {
+          message.error(t('termManagement.toggleActiveError'));
+        }
       },
     });
   };
@@ -263,7 +269,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
   const handleCsvDownload = () => {
     const target = filteredTerms;
     if (target.length === 0) {
-      message.error('エクスポートするデータがありません');
+      message.error(t('termManagement.exportEmptyError'));
       return;
     }
     const header = 'prefix,localName,displayName,description,type,unitHint';
@@ -292,7 +298,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
         const text = (ev.target?.result as string).replace(/^\uFEFF/, '');
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         if (lines.length < 2) {
-          message.error('CSVデータが空です');
+          message.error(t('termManagement.csvEmpty'));
           return;
         }
         const parsedRows: Array<{
@@ -316,7 +322,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
           });
         }
         if (parsedRows.length === 0) {
-          message.error('取込可能なデータがありませんでした');
+          message.error(t('termManagement.csvEmpty'));
           return;
         }
         const added: NamespaceTermRow[] = [];
@@ -341,13 +347,13 @@ const TermManagement: React.FC<TermManagementProps> = ({
         }
         if (failed.length > 0) {
           message.warning(
-            `${added.length}件保存、${failed.length}件失敗（${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}）`
+            t('termManagement.registerFailure', { count: String(failed.length), names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : '') })
           );
         } else {
-          message.success(`${added.length}件の用語をDBに保存しました`);
+          message.success(t('termManagement.registerSuccess', { count: String(added.length) }));
         }
       } catch {
-        message.error('CSVの解析に失敗しました');
+        message.error(t('termManagement.fetchError'));
       } finally {
         if (csvInputRef.current) csvInputRef.current.value = '';
       }
@@ -390,7 +396,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
               size="small"
               style={{ width: '100%' }}
               value={r.prefix || undefined}
-              placeholder="選択..."
+              placeholder={t('termManagement.selectPlaceholder')}
               options={prefixOptions}
               onChange={(v) => updateNewRow(r._rowId, 'prefix', v ?? '')}
             />
@@ -400,7 +406,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
       },
     },
     {
-      title: 'ローカル名',
+      title: t('termManagement.colLocalName'),
       dataIndex: 'localName',
       key: 'localName',
       width: 180,
@@ -414,7 +420,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
           return (
             <Input
               size="small"
-              placeholder="例: SampleTemperature"
+              placeholder={t('termManagement.localNamePlaceholder')}
               value={r.localName}
               onChange={(e) => updateNewRow(r._rowId, 'localName', e.target.value)}
             />
@@ -424,7 +430,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
       },
     },
     {
-      title: '表示名',
+      title: t('termManagement.colDisplayName'),
       dataIndex: 'displayName',
       key: 'displayName',
       width: 160,
@@ -434,7 +440,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
           return (
             <Input
               size="small"
-              placeholder="例: サンプル温度"
+              placeholder={t('termManagement.displayNamePlaceholder')}
               value={r.displayName}
               onChange={(e) => updateNewRow(r._rowId, 'displayName', e.target.value)}
             />
@@ -455,7 +461,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
       },
     },
     {
-      title: '説明',
+      title: t('termManagement.colDescription'),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
@@ -465,7 +471,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
           return (
             <Input
               size="small"
-              placeholder="任意"
+              placeholder={t('termManagement.descriptionPlaceholder')}
               value={r.description}
               onChange={(e) => updateNewRow(r._rowId, 'description', e.target.value)}
             />
@@ -486,7 +492,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
       },
     },
     {
-      title: '型',
+      title: t('termManagement.colType'),
       dataIndex: 'type',
       key: 'type',
       width: 130,
@@ -524,7 +530,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
       },
     },
     {
-      title: '単位',
+      title: t('termManagement.colUnit'),
       dataIndex: 'unitHint',
       key: 'unitHint',
       width: 100,
@@ -534,7 +540,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
           return (
             <Input
               size="small"
-              placeholder="例: celsius"
+              placeholder={t('termManagement.unitHintPlaceholder')}
               value={r.unitHint}
               onChange={(e) => updateNewRow(r._rowId, 'unitHint', e.target.value)}
             />
@@ -555,7 +561,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
       },
     },
     {
-      title: '操作',
+      title: t('termManagement.colActions'),
       key: 'actions',
       width: 200,
       render: (_: unknown, record: NamespaceTermRow | NewTermRow) => {
@@ -567,7 +573,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
               icon={<CloseOutlined />}
               onClick={() => removeNewRow(r._rowId)}
             >
-              削除
+              {t('termManagement.btnDelete')}
             </Button>
           );
         }
@@ -578,8 +584,8 @@ const TermManagement: React.FC<TermManagementProps> = ({
         if (key === editingKey) {
           return (
             <span style={{ display: 'flex', gap: 4 }}>
-              <Button type="primary" size="small" icon={<SaveOutlined />} onClick={() => saveEdit(r)}>保存</Button>
-              <Button size="small" onClick={cancelEdit}>キャンセル</Button>
+              <Button type="primary" size="small" icon={<SaveOutlined />} onClick={() => saveEdit(r)}>{t('termManagement.btnSave')}</Button>
+              <Button size="small" onClick={cancelEdit}>{t('termManagement.btnCancel')}</Button>
             </span>
           );
         }
@@ -591,7 +597,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
               disabled={viewOnly}
               onClick={() => !viewOnly && startEdit(r)}
             >
-              編集
+              {t('termManagement.btnEdit')}
             </Button>
             <Button
               size="small"
@@ -600,7 +606,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
               onClick={() => !viewOnly && handleToggleActive(r)}
               style={{ minWidth: 88 }}
             >
-              {isActive ? '非アクティブ' : 'アクティブ'}
+              {isActive ? t('termManagement.deactivate') : t('termManagement.activate')}
             </Button>
           </span>
         );
@@ -636,7 +642,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
         {/* 左：検索・フィルター */}
         <Input
           prefix={<SearchOutlined />}
-          placeholder="Prefix・ローカル名・表示名・説明を検索..."
+      placeholder={t('termManagement.searchPlaceholder')}
           allowClear
           value={searchText}
           onChange={(e) => { setSearchText(e.target.value); setCurrentPage(1); }}
@@ -644,7 +650,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
         />
         <Select
           allowClear
-          placeholder="Prefixで絞り込み"
+          placeholder={t('termManagement.filterPrefixPlaceholder')}
           style={{ width: 160 }}
           value={filterPrefix}
           options={prefixOptions}
@@ -652,7 +658,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
         />
         <Select
           allowClear
-          placeholder="型で絞り込み"
+          placeholder={t('termManagement.filterTypePlaceholder')}
           style={{ width: 140 }}
           value={filterType}
           options={TYPE_OPTIONS}
@@ -669,16 +675,16 @@ const TermManagement: React.FC<TermManagementProps> = ({
             onChange={handleCsvUpload}
           />
           <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>
-            インポート
+            {t('termManagement.btnImport')}
           </Button>
-          <Button onClick={handleCsvDownload}>エクスポート</Button>
+          <Button onClick={handleCsvDownload}>{t('termManagement.btnExport')}</Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             disabled={viewOnly}
             onClick={handleAddRow}
           >
-            用語を追加
+            {t('termManagement.btnAddTerm')}
           </Button>
           <Button
             type="primary"
@@ -686,20 +692,20 @@ const TermManagement: React.FC<TermManagementProps> = ({
             onClick={handleSave}
             disabled={viewOnly || newRows.length === 0}
           >
-            保存
+            {t('termManagement.btnSave')}
           </Button>
           <Button
             onClick={() => setNewRows([])}
             disabled={viewOnly || newRows.length === 0}
           >
-            キャンセル
+            {t('termManagement.btnCancel')}
           </Button>
         </div>
       </div>
 
       {/* ── テーブルエリア ── */}
       <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
-        <Spin spinning={loading} tip="読み込み中...">
+        <Spin spinning={loading} tip={t('termManagement.loadingTip')}>
           <Table<NamespaceTermRow | NewTermRow>
             rowKey={(record) =>
               '_rowId' in record
@@ -711,15 +717,15 @@ const TermManagement: React.FC<TermManagementProps> = ({
             dataSource={tableData}
             rowClassName={(record) => ('_rowId' in record ? 'row-new-term' : '')}
             locale={{
-              triggerAsc: '昇順にソート',
-              triggerDesc: '降順にソート',
-              cancelSort: 'ソートをキャンセル',
-              emptyText: loading ? '読み込み中...' : 'データがありません',
+            triggerAsc: t('termManagement.sortAsc'),
+            triggerDesc: t('termManagement.sortDesc'),
+            cancelSort: t('termManagement.cancelSort'),
+            emptyText: loading ? t('termManagement.loadingTip') : t('termManagement.emptyText'),
             }}
             pagination={{
               current: currentPage,
               pageSize,
-              showTotal: (total) => `全 ${total} 件`,
+            showTotal: (total) => t('termManagement.showTotal', { total: String(total) }),
               showSizeChanger: true,
               pageSizeOptions: ['20', '50', '100'],
               onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },

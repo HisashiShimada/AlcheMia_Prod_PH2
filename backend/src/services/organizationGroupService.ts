@@ -39,7 +39,7 @@ export async function getOrganizationGroupById(
 ): Promise<OrganizationGroupRow> {
   const group = await organizationGroupRepository.findById(organizationId, groupCd);
   if (!group) {
-    const error = new Error('組織グループが見つかりません') as Error & { code: string; statusCode: number };
+    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -73,7 +73,7 @@ export async function createOrganizationGroup(
     data.organization_group_cd
   );
   if (alreadyExists) {
-    const error = new Error('指定されたグループCDは既に使用されています') as Error & { code: string; statusCode: number };
+    const error = new Error('The specified group CD is already in use') as Error & { code: string; statusCode: number };
     error.code = E7001;
     error.statusCode = 409;
     throw error;
@@ -117,7 +117,7 @@ export async function updateOrganizationGroup(
   // 既存レコード取得（chief_user_id の維持＋存在確認を兼ねる）
   const existing = await organizationGroupRepository.findById(organizationId, groupCd);
   if (!existing) {
-    const error = new Error('組織グループが見つかりません') as Error & { code: string; statusCode: number };
+    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -134,7 +134,7 @@ export async function updateOrganizationGroup(
   });
 
   if (!updated) {
-    const error = new Error('組織グループが見つかりません') as Error & { code: string; statusCode: number };
+    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -157,7 +157,7 @@ export async function deleteOrganizationGroup(
   // 存在確認
   const exists = await organizationGroupRepository.existsById(organizationId, groupCd);
   if (!exists) {
-    const error = new Error('組織グループが見つかりません') as Error & { code: string; statusCode: number };
+    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;

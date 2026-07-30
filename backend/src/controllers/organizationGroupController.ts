@@ -24,7 +24,7 @@ export async function getOrganizationGroups(
   try {
     const organizationId = (req as any).organizationId as string | undefined;
     if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId が取得できません' } });
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
       return;
     }
 
@@ -52,7 +52,7 @@ export async function getOrganizationGroupById(
   try {
     const organizationId = (req as any).organizationId as string | undefined;
     if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId が取得できません' } });
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
       return;
     }
 
@@ -86,13 +86,13 @@ export async function createOrganizationGroup(
   try {
     const organizationId = (req as any).organizationId as string | undefined;
     if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId が取得できません' } });
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
       return;
     }
 
     const userId = (req as any).userId as string | undefined;
     if (!userId) {
-      res.status(401).json({ success: false, error: { code: 'E5013', message: '認証情報が取得できません' } });
+      res.status(401).json({ success: false, error: { code: 'E5013', message: 'Authentication information could not be retrieved' } });
       return;
     }
 
@@ -110,11 +110,11 @@ export async function createOrganizationGroup(
 
     // 必須チェック
     if (!organization_group_cd?.trim()) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_cd は必須です' } });
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_cd is required' } });
       return;
     }
     if (!organization_group_name?.trim()) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_name は必須です' } });
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_name is required' } });
       return;
     }
 
@@ -156,7 +156,7 @@ export async function updateOrganizationGroup(
   try {
     const organizationId = (req as any).organizationId as string | undefined;
     if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId が取得できません' } });
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
       return;
     }
 
@@ -180,7 +180,7 @@ export async function updateOrganizationGroup(
 
     if (organization_group_name !== undefined) {
       if (!organization_group_name.trim()) {
-        res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_name は空にできません' } });
+        res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_name cannot be empty' } });
         return;
       }
       updateData.organization_group_name = organization_group_name.trim();
@@ -213,7 +213,7 @@ export async function deleteOrganizationGroup(
   try {
     const organizationId = (req as any).organizationId as string | undefined;
     if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId が取得できません' } });
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
       return;
     }
 
