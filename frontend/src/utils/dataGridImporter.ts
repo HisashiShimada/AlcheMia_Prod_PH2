@@ -19,9 +19,65 @@ export const DEFAULT_MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 // ── 型定義 ──────────────────────────────────────────────────────────────────
 
+/**
+ * インポート処理で使用するメッセージテンプレート。
+ * UI非依存のユーティリティに多言語メッセージを注入するためのインターフェース。
+ * 呼び出し元（useContentGridEditor 等）が t() で生成した文字列を渡す。
+ */
+export interface ImportMessages {
+  /**
+   * セルが数値に変換できない場合の警告メッセージ生成関数。
+   * @param row 1始まりの行番号
+   * @param col 1始まりの列番号
+   * @param value 変換できなかった値（文字列）
+   */
+  cellNotNumber: (row: number, col: number, value: unknown) => string;
+  /**
+   * ファイルサイズ超過時のエラーメッセージ生成関数。
+   * @param maxMb 上限（MB）
+   * @param fileMb 実際のファイルサイズ（MB）
+   */
+  fileSizeExceeded: (maxMb: string, fileMb: string) => string;
+  /**
+   * XML パース失敗時のエラーメッセージ生成関数。
+   * @param message エラーの詳細
+   */
+  xmlParseFailed: (message: string) => string;
+  /**
+   * XML から数値データが見つからない場合の警告メッセージ。
+   */
+  xmlNoData: string;
+  /**
+   * CSV パースエラー時の警告メッセージ生成関数。
+   * @param row エラーが発生した行（不明な場合は '?'）
+   * @param message エラーの詳細
+   */
+  csvParseError: (row: string, message: string) => string;
+}
+
+/**
+ * デフォルトの ImportMessages（日本語）。
+ * 呼び出し元が messages を省略した場合のフォールバック。
+ */
+export const DEFAULT_IMPORT_MESSAGES: ImportMessages = {
+  cellNotNumber: (row, col, value) =>
+    `行 ${row} 列 ${col}: "${value}" は数値に変換できません。0 として扱います。`,
+  fileSizeExceeded: (maxMb, fileMb) =>
+    `ファイルサイズが上限（${maxMb} MB）を超えています（${fileMb} MB）`,
+  xmlParseFailed: (message) => `XMLのパースに失敗しました: ${message}`,
+  xmlNoData: '数値データが見つかりませんでした。XMLの構造を確認してください。',
+  csvParseError: (row, message) => `CSV パースエラー（行 ${row}）: ${message}`,
+};
+
 export interface ImportOptions {
   /** ファイルサイズ上限（バイト）。未指定時は DEFAULT_MAX_FILE_SIZE を使用 */
   maxFileSize?: number;
+  /**
+   * インポート処理で使用するメッセージ群。
+   * 多言語対応が必要な場合は呼び出し元から t() を使って生成した関数を渡す。
+   * 未指定時は DEFAULT_IMPORT_MESSAGES（日本語）を使用。
+   */
+  messages?: ImportMessages;
 }
 
 export interface ImportResult {
@@ -36,10 +92,16 @@ export interface ImportResult {
 /**
  * セル値を数値に変換する。変換できない場合は 0 を返し、warningに記録する。
  */
-function cellToNumber(cell: unknown, row: number, col: number, warnings: string[]): number {
+function cellToNumber(
+  cell: unknown,
+  row: number,
+  col: number,
+  warnings: string[],
+  messages: ImportMessages
+): number {
   const n = Number(cell);
   if (isNaN(n)) {
-    warnings.push(`行 ${row + 1} 列 ${col + 1}: "${cell}" は数値に変換できません。0 として扱います。`);
+    warnings.push(messages.cellNotNumber(row + 1, col + 1, cell));
     return 0;
   }
   return n;
@@ -48,11 +110,11 @@ function cellToNumber(cell: unknown, row: number, col: number, warnings: string[
 /**
  * ファイルサイズのバリデーション。上限超過時は Error を throw する。
  */
-function validateFileSize(file: File, maxFileSize: number): void {
+function validateFileSize(file: File, maxFileSize: number, messages: ImportMessages): void {
   if (file.size > maxFileSize) {
-    const mb = (maxFileSize / (1024 * 1024)).toFixed(0);
+    const maxMb = (maxFileSize / (1024 * 1024)).toFixed(0);
     const fileMb = (file.size / (1024 * 1024)).toFixed(1);
-    throw new Error(`ファイルサイズが上限（${mb} MB）を超えています（${fileMb} MB）`);
+    throw new Error(messages.fileSizeExceeded(maxMb, fileMb));
   }
 }
 
@@ -65,7 +127,10 @@ function validateFileSize(file: File, maxFileSize: number): void {
  * - 空行・空列はスキップする
  * - 非数値セルは 0 に変換し、警告を記録する
  */
-export function parseCsvToGrid(text: string): ImportResult {
+export function parseCsvToGrid(
+  text: string,
+  messages: ImportMessages = DEFAULT_IMPORT_MESSAGES
+): ImportResult {
   const warnings: string[] = [];
 
   const result = Papa.parse<string[]>(text, {
@@ -78,14 +143,14 @@ export function parseCsvToGrid(text: string): ImportResult {
 
   if (result.errors && result.errors.length > 0) {
     result.errors.forEach((e) => {
-      warnings.push(`CSV パースエラー（行 ${e.row ?? '?'}）: ${e.message}`);
+      warnings.push(messages.csvParseError(e.row != null ? String(e.row) : '?', e.message));
     });
   }
 
   const data: number[][] = [];
   result.data.forEach((rowArr: string[], rowIdx: number) => {
     const numRow: number[] = rowArr.map((cell, colIdx) =>
-      cellToNumber(cell.trim(), rowIdx, colIdx, warnings)
+      cellToNumber(cell.trim(), rowIdx, colIdx, warnings, messages)
     );
     if (numRow.length > 0) {
       data.push(numRow);
@@ -103,10 +168,11 @@ export async function parseCsvFileToGrid(
   options: ImportOptions = {}
 ): Promise<ImportResult> {
   const maxFileSize = options.maxFileSize ?? DEFAULT_MAX_FILE_SIZE;
-  validateFileSize(file, maxFileSize);
+  const messages = options.messages ?? DEFAULT_IMPORT_MESSAGES;
+  validateFileSize(file, maxFileSize, messages);
 
   const text = await file.text();
-  return parseCsvToGrid(text);
+  return parseCsvToGrid(text, messages);
 }
 
 // ── XML パーサー ─────────────────────────────────────────────────────────────
@@ -146,7 +212,10 @@ function getTextContent(node: XmlElement): string {
  *   4. <matrix><r>1 2 3</r><r>4 5 6</r></matrix>  — r タグ
  *   5. <values>1.0 2.5 3.0 4.0 5.5 6.0</values> — 全体テキスト（列数不明時は1列）
  */
-export function parseXmlToGrid(xmlText: string): ImportResult {
+export function parseXmlToGrid(
+  xmlText: string,
+  messages: ImportMessages = DEFAULT_IMPORT_MESSAGES
+): ImportResult {
   const warnings: string[] = [];
   const data: number[][] = [];
 
@@ -154,7 +223,7 @@ export function parseXmlToGrid(xmlText: string): ImportResult {
   try {
     root = xml2js(xmlText, { compact: false }) as XmlElement;
   } catch (e) {
-    throw new Error(`XMLのパースに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(messages.xmlParseFailed(e instanceof Error ? e.message : String(e)));
   }
 
   /**
@@ -178,7 +247,7 @@ export function parseXmlToGrid(xmlText: string): ImportResult {
         valueChildren.forEach((vc, colIdx) => {
           const text = getTextContent(vc).trim();
           if (text) {
-            row.push(cellToNumber(text, data.length, colIdx, warnings));
+            row.push(cellToNumber(text, data.length, colIdx, warnings, messages));
           }
         });
         if (row.length > 0) data.push(row);
@@ -190,7 +259,7 @@ export function parseXmlToGrid(xmlText: string): ImportResult {
       if (text) {
         const tokens = text.split(/\s+/).filter((t) => t !== '');
         const row: number[] = tokens.map((token, colIdx) =>
-          cellToNumber(token, data.length, colIdx, warnings)
+          cellToNumber(token, data.length, colIdx, warnings, messages)
         );
         if (row.length > 0) data.push(row);
         return;
@@ -206,7 +275,7 @@ export function parseXmlToGrid(xmlText: string): ImportResult {
   collectRows(root);
 
   if (data.length === 0) {
-    warnings.push('数値データが見つかりませんでした。XMLの構造を確認してください。');
+    warnings.push(messages.xmlNoData);
   }
 
   return { data, warnings };
@@ -220,8 +289,9 @@ export async function parseXmlFileToGrid(
   options: ImportOptions = {}
 ): Promise<ImportResult> {
   const maxFileSize = options.maxFileSize ?? DEFAULT_MAX_FILE_SIZE;
-  validateFileSize(file, maxFileSize);
+  const messages = options.messages ?? DEFAULT_IMPORT_MESSAGES;
+  validateFileSize(file, maxFileSize, messages);
 
   const text = await file.text();
-  return parseXmlToGrid(text);
+  return parseXmlToGrid(text, messages);
 }

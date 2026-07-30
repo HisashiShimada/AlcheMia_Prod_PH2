@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { message } from 'antd';
 import { parseCsvFileToGrid, parseXmlFileToGrid } from '@/utils/dataGridImporter';
-import type { ImportOptions } from '@/utils/dataGridImporter';
+import type { ImportMessages, ImportOptions } from '@/utils/dataGridImporter';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * useContentGridEditor - 2次元数値DataGrid編集の共通ロジックフック
@@ -58,8 +59,26 @@ export function useContentGridEditor({
   onChange,
   maxFileSize,
 }: UseContentGridEditorOptions): UseContentGridEditorReturn {
+  const { t } = useLanguage();
   const [isImporting, setIsImporting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  /** t() を使って ImportMessages を組み立てる（言語切り替え時に再生成される） */
+  const importMessages: ImportMessages = {
+    cellNotNumber: (row, col, value) =>
+      t('contentGridEditor.cellNotNumber', {
+        row: String(row),
+        col: String(col),
+        value: String(value),
+      }),
+    fileSizeExceeded: (maxMb, fileMb) =>
+      t('contentGridEditor.fileSizeExceeded', { maxMb, fileMb }),
+    xmlParseFailed: (message) =>
+      t('contentGridEditor.xmlParseFailed', { message }),
+    xmlNoData: t('contentGridEditor.xmlNoData'),
+    csvParseError: (row, message) =>
+      t('contentGridEditor.csvParseError', { row, message }),
+  };
 
   const grid = value.length > 0 ? value : EMPTY_GRID;
   const rowCount = grid.length;
@@ -114,7 +133,7 @@ export function useContentGridEditor({
     async (file: File) => {
       setIsImporting(true);
       try {
-        const opts: ImportOptions = { maxFileSize };
+        const opts: ImportOptions = { maxFileSize, messages: importMessages };
         const ext = file.name.toLowerCase();
         let result;
         if (ext.endsWith('.csv')) {
@@ -122,17 +141,22 @@ export function useContentGridEditor({
         } else if (ext.endsWith('.xml')) {
           result = await parseXmlFileToGrid(file, opts);
         } else {
-          message.error('CSVまたはXMLファイルを選択してください（.csv / .xml）');
+          message.error(t('contentGridEditor.importInvalidType'));
           return;
         }
 
         if (result.data.length === 0) {
-          message.warning('インポートできるデータが見つかりませんでした');
+          message.warning(t('contentGridEditor.importNoData'));
           return;
         }
 
         onChange(result.data);
-        message.success(`インポート完了: ${result.data.length}行 × ${Math.max(...result.data.map((r) => r.length))}列`);
+        message.success(
+          t('contentGridEditor.importSuccess', {
+            rows: String(result.data.length),
+            cols: String(Math.max(...result.data.map((r) => r.length))),
+          })
+        );
 
         // 警告がある場合は表示
         if (result.warnings.length > 0) {
@@ -140,16 +164,17 @@ export function useContentGridEditor({
           const shown = result.warnings.slice(0, 3);
           shown.forEach((w) => message.warning(w, 5));
           if (result.warnings.length > 3) {
-            message.warning(`他 ${result.warnings.length - 3} 件の警告があります`);
+            message.warning(t('contentGridEditor.importMoreWarnings', { n: String(result.warnings.length - 3) }));
           }
         }
       } catch (err) {
-        message.error(err instanceof Error ? err.message : 'インポートに失敗しました');
+        message.error(err instanceof Error ? err.message : t('contentGridEditor.importFailed'));
       } finally {
         setIsImporting(false);
       }
     },
-    [onChange, maxFileSize]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onChange, maxFileSize, importMessages.xmlNoData]
   );
 
   // ── DnD ハンドラ ──────────────────────────────────────────────────────────

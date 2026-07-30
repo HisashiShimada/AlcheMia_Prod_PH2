@@ -3162,6 +3162,25 @@
     "addButton": "Insertion 追加",
     "customLabel": "カスタム Insertion"
   },
+  "contentGridEditor": {
+    "label": "Content Grid ({rows}行 × {cols}列)",
+    "importTooltip": "CSV/XMLファイルをインポート（ドラッグ&ドロップも可）",
+    "clearTooltip": "グリッドをクリア",
+    "addColTooltip": "列を追加",
+    "dropHint": "CSVまたはXMLをドロップ",
+    "colHeader": "Col {n}",
+    "addRowButton": "行を追加",
+    "importInvalidType": "CSVまたはXMLファイルを選択してください（.csv / .xml）",
+    "importNoData": "インポートできるデータが見つかりませんでした",
+    "importSuccess": "インポート完了: {rows}行 × {cols}列",
+    "importMoreWarnings": "他 {n} 件の警告があります",
+    "importFailed": "インポートに失敗しました",
+    "cellNotNumber": "行 {row} 列 {col}: \"{value}\" は数値に変換できません。0 として扱います。",
+    "fileSizeExceeded": "ファイルサイズが上限（{maxMb} MB）を超えています（{fileMb} MB）",
+    "xmlParseFailed": "XMLのパースに失敗しました: {message}",
+    "xmlNoData": "数値データが見つかりませんでした。XMLの構造を確認してください。",
+    "csvParseError": "CSV パースエラー（行 {row}）: {message}"
+  },
   "uncertainty": {
     "management": {
       "title": "不確かさ基準管理",

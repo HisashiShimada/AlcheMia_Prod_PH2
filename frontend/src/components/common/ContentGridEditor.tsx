@@ -10,6 +10,7 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import { useContentGridEditor } from '@/hooks/useContentGridEditor';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -51,6 +52,7 @@ const ContentGridEditor: React.FC<ContentGridEditorProps> = ({
   readOnly = false,
   maxFileSize,
 }) => {
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -105,12 +107,12 @@ const ContentGridEditor: React.FC<ContentGridEditorProps> = ({
       {/* ヘッダー行: ラベル + ツールバー */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
         <Text style={labelStyle}>
-          Content Grid ({rowCount}行 × {colCount}列)
+          {t('contentGridEditor.label', { rows: String(rowCount), cols: String(colCount) })}
         </Text>
         {!readOnly && (
           <Space size={2}>
             {/* CSV/XML インポートボタン */}
-            <Tooltip title="CSV/XMLファイルをインポート（ドラッグ&ドロップも可）">
+            <Tooltip title={t('contentGridEditor.importTooltip')}>
               <Button
                 type="text"
                 size="small"
@@ -121,7 +123,7 @@ const ContentGridEditor: React.FC<ContentGridEditorProps> = ({
               />
             </Tooltip>
             {/* クリアボタン */}
-            <Tooltip title="グリッドをクリア">
+            <Tooltip title={t('contentGridEditor.clearTooltip')}>
               <Button
                 type="text"
                 size="small"
@@ -139,7 +141,7 @@ const ContentGridEditor: React.FC<ContentGridEditorProps> = ({
       {/* DnD ヒント（ドラッグ中のみ） */}
       {isDragOver && (
         <div style={{ textAlign: 'center', color: '#1677ff', fontSize: 11, fontWeight: 500 }}>
-          CSVまたはXMLをドロップ
+          {t('contentGridEditor.dropHint')}
         </div>
       )}
 
@@ -155,7 +157,7 @@ const ContentGridEditor: React.FC<ContentGridEditorProps> = ({
                 {Array.from({ length: colCount }, (_, ci) => (
                   <th key={ci} style={{ padding: 2, minWidth: 60, textAlign: 'center' }}>
                     <Space size={1} direction="vertical">
-                      <Text style={{ ...labelStyle, display: 'block' }}>Col {ci + 1}</Text>
+                      <Text style={{ ...labelStyle, display: 'block' }}>{t('contentGridEditor.colHeader', { n: String(ci + 1) })}</Text>
                       {!readOnly && (
                         <Button
                           type="text"
@@ -173,7 +175,7 @@ const ContentGridEditor: React.FC<ContentGridEditorProps> = ({
                 {/* 列追加ボタン用ヘッダー */}
                 {!readOnly && (
                   <th style={{ padding: 2, width: 28 }}>
-                    <Tooltip title="列を追加">
+                    <Tooltip title={t('contentGridEditor.addColTooltip')}>
                       <Button
                         type="text"
                         size="small"
@@ -239,7 +241,7 @@ const ContentGridEditor: React.FC<ContentGridEditorProps> = ({
           disabled={isImporting}
           style={{ alignSelf: 'flex-start', fontSize: 11 }}
         >
-          行を追加
+          {t('contentGridEditor.addRowButton')}
         </Button>
       )}
     </div>
