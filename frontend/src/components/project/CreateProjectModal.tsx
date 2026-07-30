@@ -146,7 +146,7 @@ export default function CreateProjectModal({
       title={
         <Space>
           <FolderAddOutlined style={{ color: token.colorPrimary }} />
-          <Text strong>{t('projectManagement.create.title') || '新規プロジェクト作成'}</Text>
+          <Text strong>{t('projectManagement.create.title')}</Text>
         </Space>
       }
       open={open}
@@ -164,7 +164,7 @@ export default function CreateProjectModal({
         {/* エラーメッセージ表示 */}
         {error && (
           <Alert
-            title={t('projectManagement.create.error') || '作成エラー'}
+            title={t('projectManagement.create.error')}
             description={error}
             type="error"
             showIcon
@@ -182,24 +182,24 @@ export default function CreateProjectModal({
           {/* プロジェクト名 */}
           <Form.Item
             name="projectName"
-            label={t('projectManagement.create.projectName') || 'プロジェクト名'}
+            label={t('projectManagement.create.projectName')}
             rules={[
               {
                 required: true,
-                message: t('projectManagement.create.projectNameRequired') || 'プロジェクト名を入力してください',
+                message: t('projectManagement.create.projectNameRequired'),
               },
               {
                 min: 3,
-                message: t('projectManagement.create.projectNameMinLength') || 'プロジェクト名は3文字以上で入力してください',
+                message: t('projectManagement.create.projectNameMinLength'),
               },
               {
                 max: 100,
-                message: t('projectManagement.create.projectNameMaxLength') || 'プロジェクト名は100文字以内で入力してください',
+                message: t('projectManagement.create.projectNameMaxLength'),
               },
             ]}
           >
             <Input
-              placeholder={t('projectManagement.create.projectNamePlaceholder') || 'プロジェクト名を入力'}
+              placeholder={t('projectManagement.create.projectNamePlaceholder')}
               maxLength={100}
               showCount
               autoFocus
@@ -210,16 +210,16 @@ export default function CreateProjectModal({
           {/* 概要 */}
           <Form.Item
             name="description"
-            label={t('projectManagement.create.description') || '概要'}
+            label={t('projectManagement.create.description')}
             rules={[
               {
                 max: 500,
-                message: t('projectManagement.create.descriptionMaxLength') || '概要は500文字以内で入力してください',
+                message: t('projectManagement.create.descriptionMaxLength'),
               },
             ]}
           >
             <Input.TextArea
-              placeholder={t('projectManagement.create.descriptionPlaceholder') || 'プロジェクトの概要を入力（任意）'}
+              placeholder={t('projectManagement.create.descriptionPlaceholder')}
               maxLength={500}
               showCount
               rows={4}

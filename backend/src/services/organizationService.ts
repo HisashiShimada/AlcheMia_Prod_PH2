@@ -395,11 +395,12 @@ export async function createOrganization(
       const orgUri = generateNamespaceUri(data.organizationCd);
       const existingUris = await namespaceTermRepository.findUrisByOrganization(data.organizationId);
       const uniqueUri = existingUris.includes(orgUri) ? `${orgUri}1` : orgUri;
-      await namespaceTermRepository.createNamespaceUri({
+      const namespaceUriData: Parameters<typeof namespaceTermRepository.createNamespaceUri>[0] = {
         organizationId: data.organizationId,
         uri: uniqueUri,
         userId,
-      });
+      };
+      await namespaceTermRepository.createNamespaceUri(namespaceUriData);
       logger.info(`[organizationService] 組織URI自動登録完了: organizationId=${data.organizationId}, uri=${uniqueUri}`);
     } catch (nsError) {
       // URI登録失敗は組織作成のエラーとしない（ログのみ）
@@ -953,7 +954,7 @@ export async function uploadOrganizationsCsv(
 
       // createOrganization関数を使用（組織追加ダイアログと同じ処理）
       // パスワードはcreateOrganization内でランダム自動生成される
-      await createOrganization({
+      const newOrgData: Parameters<typeof createOrganization>[0] = {
         organizationId: uuidv4(),
         organizationCd,
         organizationDisplayName,
@@ -967,7 +968,8 @@ export async function uploadOrganizationsCsv(
         contractCapacity,
         contractedUsers,
         contractedProjects,
-      }, userId, lang);
+      };
+      await createOrganization(newOrgData, userId, lang);
       
       successCount++;
     }

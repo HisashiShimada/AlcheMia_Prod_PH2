@@ -10,7 +10,6 @@
  * @module namespaceService
  */
 
-import { getPgp } from '../database/db';
 import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
 import type { NamespaceTermRow } from '../repositories/namespaceTermRepository';
 
@@ -257,13 +256,8 @@ export async function getDeclarationsByProject(
   organizationId: string,
   projectId: string
 ): Promise<ProjectScopeDeclaration[] | null> {
-  const pgp = getPgp();
-
-  // project テーブルから organization_group_cd を取得（単純な1行SELECT）
-  const projectRow = await pgp.oneOrNone<{ organization_group_cd: string | null }>(
-    'SELECT organization_group_cd FROM project WHERE project_id = $1 AND organization_id = $2',
-    [projectId, organizationId]
-  );
+  // project テーブルから organization_group_cd を取得
+  const projectRow = await namespaceTermRepository.findProjectGroupCd(organizationId, projectId);
 
   if (!projectRow) return null;
 

@@ -395,6 +395,22 @@ export async function findNamespacesByScopeKey(
 }
 
 /**
+ * project テーブルから organization_group_cd を取得する
+ *
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @returns { organization_group_cd } のオブジェクト、または null（プロジェクトが見つからない場合）
+ */
+export async function findProjectGroupCd(
+  organizationId: string,
+  projectId: string
+): Promise<{ organization_group_cd: string | null } | null> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findProjectGroupCd.sql');
+  return pgp.oneOrNone<{ organization_group_cd: string | null }>(query, [projectId, organizationId]);
+}
+
+/**
  * 全組織の全用語を取得（認証なし用・開発時のみ使用）
  *
  * @returns 用語一覧（フロントエンド用に整形済み）
