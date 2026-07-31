@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
   getOrgUsersForGroups,
@@ -11,6 +11,7 @@ import {
   updateGroupMembers,
 } from '@/services/organizationGroupApiService';
 import type { OrgUser, TeamAddDialogProps } from '@/types/team';
+import { getUserInfo } from '@/utils/sessionStorageHelper';
 
 const { Text } = Typography;
 
@@ -21,6 +22,10 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
 }) => {
   const { t } = useLanguage();
 
+  // ── ログインユーザー（代表者として固定表示）
+  const userInfo     = getUserInfo();
+  const chiefUserId  = userInfo?.id ?? '';
+
   const [groupCd, setGroupCd]             = useState('');
   const [groupName, setGroupName]         = useState('');
   const [parentGroupCd, setParentGroupCd] = useState<string | undefined>(undefined);
@@ -30,6 +35,8 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   const [allUsers, setAllUsers]           = useState<OrgUser[]>([]);
   const [usersLoading, setUsersLoading]   = useState(false);
   const [parentGroups, setParentGroups]   = useState<{ value: string; label: string }[]>([]);
+  // ログインユーザーの表示名（代表者タグ用）
+  const [chiefUserName, setChiefUserName] = useState<string>('');
 
   // ── ダイアログが開いたときにユーザー一覧・既存グループ一覧を取得
   useEffect(() => {
@@ -38,8 +45,16 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
     // ユーザー一覧取得
     setUsersLoading(true);
     getOrgUsersForGroups()
-      .then((users) => setAllUsers(users))
-      .catch(() => setAllUsers([]))
+      .then((users) => {
+        setAllUsers(users);
+        // 代表者の表示名を設定
+        const chief = users.find((u) => u.userId === chiefUserId);
+        setChiefUserName(chief?.userName ?? userInfo?.displayName ?? chiefUserId);
+      })
+      .catch(() => {
+        setAllUsers([]);
+        setChiefUserName(userInfo?.displayName ?? chiefUserId);
+      })
       .finally(() => setUsersLoading(false));
 
     // 既存グループ一覧（親グループ選択用）
@@ -53,7 +68,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
         )
       )
       .catch(() => setParentGroups([]));
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // メンバーを追加
   const handleAddMember = (userId: string) => {
@@ -84,7 +99,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
     }
     setLoading(true);
     try {
-      // 1. グループを DB に作成
+      // 1. グループを DB に作成（バックエンド側で代表者を自動メンバー登録する）
       const created = await createOrganizationGroup({
         organization_group_cd:   groupCd.trim(),
         organization_group_name: groupName.trim(),
@@ -94,10 +109,13 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
       const createdCd   = created.organization_group_cd;
       const createdName = created.organization_group_name;
 
-      // 2. メンバーを設定（選択がある場合）
+      // 2. 追加メンバーを設定（代表者は除いた追加分のみ）
+      // ※ バックエンドで代表者が自動登録されるため、代表者を含めて送ってもバックエンド側で保護される
       if (members.length > 0) {
         try {
-          await updateGroupMembers(createdCd, members.map((m) => m.userId));
+          // 代表者 chiefUserId をマージして送信（重複は Service 層で吸収される）
+          const memberIds = [...new Set([...members.map((m) => m.userId), chiefUserId])].filter(Boolean);
+          await updateGroupMembers(createdCd, memberIds);
         } catch {
           message.warning(t('teamAddDialog.memberSetFailed'));
         }
@@ -132,10 +150,10 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
     onClose();
   };
 
-  // 追加候補（既に登録済みのメンバーは除外）
+  // 追加候補（既に登録済みのメンバー・代表者は除外）
   const memberIds  = new Set(members.map((m) => m.userId));
   const addOptions = allUsers
-    .filter((u) => !memberIds.has(u.userId))
+    .filter((u) => !memberIds.has(u.userId) && u.userId !== chiefUserId)
     .map((u) => ({ value: u.userId, label: u.userName }));
 
   return (
@@ -213,11 +231,12 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
 
         <Divider style={{ margin: '0' }} />
 
-        {/* 現在のメンバー（追加済み） */}
+        {/* 現在のメンバー（代表者固定 + 追加済み） */}
         <div>
           <Text strong>{t('teamAddDialog.membersLabel')}</Text>
+          {/* 代表者 + 追加メンバー数を表示 */}
           <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-            {t('teamAddDialog.membersCount', { count: String(members.length) })}
+            {t('teamAddDialog.membersCount', { count: String(members.length + 1) })}
           </Text>
           <div
             style={{
@@ -232,23 +251,26 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
               gap: 6,
             }}
           >
-            {members.length === 0 ? (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {t('teamAddDialog.noMembers')}
-              </Text>
-            ) : (
-              members.map((m) => (
-                <Tag
-                  key={m.userId}
-                  icon={<UserOutlined />}
-                  closable
-                  onClose={() => handleRemoveMember(m.userId)}
-                  style={{ fontSize: 13, padding: '2px 8px', margin: 0 }}
-                >
-                  {m.userName}
-                </Tag>
-              ))
-            )}
+            {/* 代表者タグ（削除不可・固定表示） */}
+            <Tag
+              icon={<LockOutlined />}
+              color="blue"
+              style={{ fontSize: 13, padding: '2px 8px', margin: 0 }}
+            >
+              {chiefUserName || chiefUserId}
+            </Tag>
+            {/* 追加メンバータグ */}
+            {members.map((m) => (
+              <Tag
+                key={m.userId}
+                icon={<UserOutlined />}
+                closable
+                onClose={() => handleRemoveMember(m.userId)}
+                style={{ fontSize: 13, padding: '2px 8px', margin: 0 }}
+              >
+                {m.userName}
+              </Tag>
+            ))}
           </div>
           <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
             {t('teamAddDialog.memberRemoveHint')}

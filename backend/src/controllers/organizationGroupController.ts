@@ -227,6 +227,37 @@ export async function deleteOrganizationGroup(
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// 組織ユーザー一覧取得（グループメンバー選択用）
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * 組織内のアクティブなユーザー一覧を取得
+ * GET /api/v1/organization-groups/users
+ *
+ * @remarks
+ * TeamAddDialog / TeamEditDialog のメンバー追加プルダウン用。
+ * /:groupCd より前に定義すること（ルーティング競合回避）。
+ */
+export async function getOrgUsers(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = (req as any).organizationId as string | undefined;
+    if (!organizationId) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
+      return;
+    }
+
+    const users = await organizationGroupService.getOrgUsersForGroups(organizationId);
+    res.json({ success: true, data: users });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // メンバー管理
 // ──────────────────────────────────────────────────────────────────────────
 

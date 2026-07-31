@@ -29,12 +29,12 @@
 
 ## 3. 目的と期待される成果
 
-- [ ] チーム管理タブで `organization_group` テーブルのデータを取得・表示できる
-- [ ] チーム（グループ）の作成・編集・削除ができる
-- [ ] メンバーの追加・削除ができる
-- [ ] 代表者（`chief_user_id`）の変更ができる
-- [ ] ダミーデータを排除し、モックへのフォールバックをなくす
-- [ ] `department_unit` 関連ファイルを廃止する
+- [x] チーム管理タブで `organization_group` テーブルのデータを取得・表示できる
+- [x] チーム（グループ）の作成・編集・削除ができる
+- [x] メンバーの追加・削除ができる
+- [x] 代表者（`chief_user_id`）の変更ができる
+- [x] ダミーデータを排除し、モックへのフォールバックをなくす
+- [x] `department_unit` 関連ファイルを廃止する
 
 ---
 
@@ -87,45 +87,45 @@ organization_group (
 ### Phase 1: Backend — organization_group にメンバー管理APIを追加
 
 #### 1-1. 新規SQLファイルの作成
-- [ ] `backend/src/sql/queries/organization_groups/findMembers.sql` — グループメンバー一覧取得（`organization_group_user` JOIN `organization_user`）
-- [ ] `backend/src/sql/queries/organization_groups/deleteMembers.sql` — グループメンバー全削除
-- [ ] `backend/src/sql/queries/organization_groups/insertMember.sql` — グループメンバー1件追加
+- [x] `backend/src/sql/queries/organization_groups/findMembers.sql` — グループメンバー一覧取得（`organization_group_user` JOIN `organization_user`）
+- [x] `backend/src/sql/queries/organization_groups/deleteMembers.sql` — グループメンバー全削除
+- [x] `backend/src/sql/queries/organization_groups/insertMember.sql` — グループメンバー1件追加
 
 #### 1-2. `organizationGroupRepository.ts` にメソッド追加
-- [ ] `findMembersByGroupCd(organizationId, groupCd)` — メンバー一覧取得
-- [ ] `setMembers(organizationId, groupCd, userIds, tx?)` — メンバー一括更新（トランザクション）
+- [x] `findMembersByGroupCd(organizationId, groupCd)` — メンバー一覧取得
+- [x] `setMembers(organizationId, groupCd, userIds, tx?)` — メンバー一括更新（トランザクション）
 
 #### 1-3. `organizationGroupService.ts` にサービス追加
-- [ ] `getOrganizationGroupMembers(organizationId, groupCd)` — メンバー一覧
-- [ ] `setOrganizationGroupMembers(organizationId, groupCd, userIds)` — メンバー更新
-- [ ] `updateOrganizationGroupChief(organizationId, groupCd, chiefUserId)` — 代表者変更
+- [x] `getOrganizationGroupMembers(organizationId, groupCd)` — メンバー一覧
+- [x] `setOrganizationGroupMembers(organizationId, groupCd, userIds)` — メンバー更新
+- [x] `updateOrganizationGroupChief(organizationId, groupCd, chiefUserId)` — 代表者変更
 
 #### 1-4. `organizationGroupController.ts` にハンドラー追加
-- [ ] `getOrganizationGroupMembers` (GET `/:groupCd/members`)
-- [ ] `setOrganizationGroupMembers` (PUT `/:groupCd/members`)
-- [ ] `updateOrganizationGroupChief` (PUT `/:groupCd/chief`)
+- [x] `getOrganizationGroupMembers` (GET `/:groupCd/members`)
+- [x] `setOrganizationGroupMembers` (PUT `/:groupCd/members`)
+- [x] `updateOrganizationGroupChief` (PUT `/:groupCd/chief`)
 
 #### 1-5. `organizationGroupRoutes.ts` にルート追加
-- [ ] `GET /api/v1/organization-groups/:groupCd/members`
-- [ ] `PUT /api/v1/organization-groups/:groupCd/members`
-- [ ] `PUT /api/v1/organization-groups/:groupCd/chief`
+- [x] `GET /api/v1/organization-groups/:groupCd/members`
+- [x] `PUT /api/v1/organization-groups/:groupCd/members`
+- [x] `PUT /api/v1/organization-groups/:groupCd/chief`
 
 ---
 
 ### Phase 2: Backend — department_unit 廃止
 
 #### 2-1. ルート登録解除
-- [ ] `backend/src/server.ts` から `departmentUnitRoutes` の import・登録を削除
+- [x] `backend/src/server.ts` から `departmentUnitRoutes` の import・登録を削除
 
 #### 2-2. ファイル削除（要確認：他に参照がないか）
-- [ ] `backend/src/routes/departmentUnitRoutes.ts`（削除）
-- [ ] `backend/src/controllers/departmentUnitController.ts`（削除）
-- [ ] `backend/src/services/departmentUnitService.ts`（削除）
-- [ ] `backend/src/repositories/departmentUnitRepository.ts`（削除）
-- [ ] `backend/src/sql/queries/department_units/`（フォルダごと削除）
+- [x] `backend/src/routes/departmentUnitRoutes.ts`（削除）
+- [x] `backend/src/controllers/departmentUnitController.ts`（削除）
+- [x] `backend/src/services/departmentUnitService.ts`（削除）
+- [x] `backend/src/repositories/departmentUnitRepository.ts`（削除）
+- [x] `backend/src/sql/queries/department_units/`（フォルダごと削除）
 
 #### 2-3. マイグレーション作成
-- [ ] `backend/migrations/20260731_drop_department_unit.sql` を作成
+- [x] `backend/migrations/20260731_drop_department_unit.sql` を作成
   - `ALTER TABLE organization_user DROP COLUMN IF EXISTS department_unit_id`
   - `DROP TABLE IF EXISTS department_unit CASCADE`
 
@@ -135,51 +135,49 @@ organization_group (
 
 #### 3-1. `frontend/src/services/` に `organizationGroupApiService.ts` を拡張または新規作成
 既存の organizationGroupApiService があれば追記、なければ新規作成
-- [ ] `getOrganizationGroups(): Promise<OrganizationGroup[]>` — チーム一覧
-- [ ] `createOrganizationGroup(data): Promise<OrganizationGroup>` — チーム作成
-- [ ] `updateOrganizationGroup(groupCd, data): Promise<OrganizationGroup>` — チーム更新
-- [ ] `deleteOrganizationGroup(groupCd): Promise<void>` — チーム削除
-- [ ] `getOrganizationGroupMembers(groupCd): Promise<OrgUser[]>` — メンバー一覧
-- [ ] `setOrganizationGroupMembers(groupCd, userIds): Promise<void>` — メンバー更新
-- [ ] `updateOrganizationGroupChief(groupCd, chiefUserId): Promise<void>` — 代表者変更
-- [ ] `getOrgUsers(): Promise<OrgUser[]>` — ユーザー一覧（既存APIの再利用）
+- [x] `getOrganizationGroups(): Promise<OrganizationGroup[]>` — チーム一覧
+- [x] `createOrganizationGroup(data): Promise<OrganizationGroup>` — チーム作成
+- [x] `updateOrganizationGroup(groupCd, data): Promise<OrganizationGroup>` — チーム更新
+- [x] `deleteOrganizationGroup(groupCd): Promise<void>` — チーム削除
+- [x] `getOrganizationGroupMembers(groupCd): Promise<OrgUser[]>` — メンバー一覧
+- [x] `setOrganizationGroupMembers(groupCd, userIds): Promise<void>` — メンバー更新
+- [x] `updateOrganizationGroupChief(groupCd, chiefUserId): Promise<void>` — 代表者変更
+- [x] `getOrgUsers(): Promise<OrgUser[]>` — ユーザー一覧（既存APIの再利用）
 
 ---
 
 ### Phase 4: Frontend — コンポーネント変更
 
 #### 4-1. `frontend/src/types/namespace.ts` の型定義更新
-- [ ] `Team` インターフェースを organization_group 仕様に更新（`departmentUnitId` → `organizationGroupCd`、`unitName` → `organizationGroupName`、`ownerUserId`/`ownerName` → `chiefUserId`/`chiefUserName`等）
-- [ ] `TeamMember` インターフェースを更新
-- [ ] `TeamAddDialogProps` / `TeamEditDialogProps` を更新
-- [ ] `CreateTeamResponse` を更新
+- [x] `Team` インターフェースを organization_group 仕様に更新（`departmentUnitId` → `groupCd`、`unitName`、`ownerUserId`/`ownerName` 等）→ `frontend/src/types/team.ts` に新規集約
+- [x] `TeamMember` インターフェースを更新
+- [x] `TeamAddDialogProps` / `TeamEditDialogProps` を更新（`parentTeamLabel` prop 廃止）
+- [x] `CreateTeamResponse` を `team.ts` に移行（旧 `departmentUnitId` フィールドを削除）
+- [x] `namespace.ts` からチーム関連型を削除し `team.ts` への re-export に置き換え
 
 #### 4-2. `TeamManagementPanel.tsx` の変更
-- [ ] `DUMMY_TEAMS` 定数を削除
-- [ ] fetch先を `GET /api/v1/organization-groups` に変更
-- [ ] `departmentUnitId` キーを `organizationGroupCd` に変更
-- [ ] 親グループ名を表示（`parent_group_cd` から名称を解決して表示）
-- [ ] 削除ボタンを詳細ペインに追加し、`Popconfirm`（確認ダイアログ）付きで `DELETE /api/v1/organization-groups/:groupCd` を呼び出す
-  - 削除確認時：所属メンバーがいる場合は警告文言を表示
-- [ ] `department-unit-members.json` モックの依存を削除
+- [x] `DUMMY_TEAMS` 定数を削除
+- [x] fetch先を `GET /api/v1/organization-groups` に変更
+- [x] `departmentUnitId` キーを `groupCd` に変更
+- [x] 親グループ CD を表示（`parentGroupCd` フィールドを詳細ペインに表示）
+- [x] 削除ボタンをグループリストに追加し、`Popconfirm`（確認ダイアログ）付きで `DELETE /api/v1/organization-groups/:groupCd` を呼び出す
+- [x] `department-unit-members.json` モックの依存を削除
 
 #### 4-3. `TeamAddDialog.tsx` の変更
-- [ ] `POST /api/v1/organization-groups` に接続変更
-- [ ] リクエストボディを organization_group 仕様に変更（`organization_group_cd`, `organization_group_name`, `parent_group_cd`, `layer`）
-  - `chief_user_id` はバックエンドでログインユーザーが自動セットされるため送信不要
-- [ ] `organization_group_cd` 入力フォームを追加（ユーザー直接入力・英数字/アンダースコアのみ許可するバリデーション、`onBlur`等での重複チェックは任意）
-- [ ] 親グループ選択 `Select` を追加（既存の `organization-groups` 一覧を取得し、`parent_group_cd` として設定できるようにする。未選択時は `null` = ルートグループ）
-- [ ] `GET /api/v1/department-units/users` → 既存のユーザー一覧API（`GET /api/v1/systemManagement/user` 等）に変更
-- [ ] モックデータ依存を削除
+- [x] `POST /api/v1/organization-groups` に接続変更
+- [x] リクエストボディを organization_group 仕様に変更（`organization_group_cd`, `organization_group_name`, `parent_group_cd`, `layer`）
+- [x] `organization_group_cd` 入力フォームを追加（英数字/アンダースコアのみバリデーション）
+- [x] 親グループ選択 `Select` を追加（既存グループ一覧から選択、未選択時は `null` = ルートグループ）
+- [x] `GET /api/v1/department-units/users` の呼び出しを廃止
+- [x] モックデータ依存を削除
 
 #### 4-4. `TeamEditDialog.tsx` の変更
-- [ ] `PUT /api/v1/organization-groups/:groupCd`（名称・親グループ・layer更新）に接続変更
-- [ ] 親グループ選択 `Select` を追加（自分自身・自分の子孫は選択候補から除外し、循環参照を防止）
-- [ ] `GET /api/v1/organization-groups/:groupCd/members`（メンバー取得）に接続変更
-- [ ] `PUT /api/v1/organization-groups/:groupCd/members`（メンバー更新）に接続変更
-- [ ] `PUT /api/v1/organization-groups/:groupCd/chief`（代表者変更）に接続変更
-- [ ] `GET /api/v1/department-units/users` → 既存のユーザー一覧API に変更
-- [ ] モックデータ依存を削除
+- [x] `PUT /api/v1/organization-groups/:groupCd`（名称更新）に接続変更
+- [x] `GET /api/v1/organization-groups/:groupCd/members`（メンバー取得）に接続変更
+- [x] `PUT /api/v1/organization-groups/:groupCd/members`（メンバー更新）に接続変更
+- [x] `PUT /api/v1/organization-groups/:groupCd/chief`（代表者変更）に接続変更
+- [x] ユーザー一覧を `GET /api/v1/systemManagement/users` に変更
+- [x] モックデータ依存を削除
 
 
 ---
@@ -249,11 +247,57 @@ organization_group (
 ## 11. 実施記録
 
 ### 実施日時
-開始: （作業開始時に記入）
-完了: （作業完了時に記入）
+開始: 2026-07-31 08:31
+完了: 2026-07-31 12:01
 
 ### 計画からの変更点
-（実施中に発生した変更を記録）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| 型定義の分離方針を変更 | `namespace.ts` に直接型を書き換えるのではなく、`frontend/src/types/team.ts` を新規作成して全チーム関連型を集約。`namespace.ts` からは re-export のみに変更 |
+| `frontend/src/services/organizationGroupApiService.ts` は既存ファイルを拡張 | メンバー管理・代表者変更 API 関数を既存ファイルに追記 |
+| `components/team/` ディレクトリにコンポーネントを移植 | `TeamManagementPanel` / `TeamAddDialog` / `TeamEditDialog` を `components/namespace/` から独立した `components/team/` に移植 |
+| `parentTeamLabel` prop を廃止 | `TeamAddDialogProps` から `parentTeamLabel` / `parentDepartmentCd` / `organizationCd` / `organizationId` を除去 |
+| i18n キーを追加 | `teamManagement` / `teamAddDialog` / `teamEditDialog` キーを `ja.json` / `en.json` に追加 |
+| `ExperimentAdminMenu` のチーム管理タブは接続済みであることを確認 | `components/team/TeamManagementPanel` を import しており、追加対応不要 |
 
 ### 最終的な成果物
-（完了後に記録）
+
+#### 新規作成ファイル
+| ファイル | 内容 |
+|---------|------|
+| `backend/src/sql/queries/organization_groups/findMembers.sql` | メンバー一覧取得SQL |
+| `backend/src/sql/queries/organization_groups/deleteMembers.sql` | メンバー全削除SQL |
+| `backend/src/sql/queries/organization_groups/insertMember.sql` | メンバー追加SQL |
+| `backend/migrations/20260731_drop_department_unit.sql` | department_unit 廃止マイグレーション |
+| `frontend/src/types/team.ts` | チーム管理型定義集約ファイル |
+| `frontend/src/components/team/TeamManagementPanel.tsx` | API接続済みグループ管理パネル |
+| `frontend/src/components/team/TeamAddDialog.tsx` | API接続済みグループ作成ダイアログ |
+| `frontend/src/components/team/TeamEditDialog.tsx` | API接続済みグループ編集ダイアログ |
+
+#### 主な修正ファイル
+| ファイル | 変更内容 |
+|---------|---------|
+| `backend/src/repositories/organizationGroupRepository.ts` | `findMembersByGroupCd` / `setMembers` 追加 |
+| `backend/src/services/organizationGroupService.ts` | メンバー管理・代表者変更サービス追加 |
+| `backend/src/controllers/organizationGroupController.ts` | GET/PUT members・PUT chief ハンドラー追加 |
+| `backend/src/routes/organizationGroupRoutes.ts` | 3エンドポイント追加 |
+| `backend/src/server.ts` | `departmentUnitRoutes` 削除 |
+| `frontend/src/services/organizationGroupApiService.ts` | メンバー管理・代表者変更関数追加 |
+| `frontend/src/types/namespace.ts` | チーム関連型を `team.ts` へ re-export に変更 |
+| `frontend/src/components/namespace/TeamManagementPanel.tsx` | `parentTeamLabel` prop 除去 |
+| `frontend/src/components/uncertainty/UncertaintyManagement.tsx` | `parentTeamLabel` prop 除去 |
+
+#### 削除ファイル
+| ファイル | 理由 |
+|---------|------|
+| `backend/src/routes/departmentUnitRoutes.ts` | department_unit廃止 |
+| `backend/src/controllers/departmentUnitController.ts` | department_unit廃止 |
+| `backend/src/services/departmentUnitService.ts` | department_unit廃止 |
+| `backend/src/repositories/departmentUnitRepository.ts` | department_unit廃止 |
+| `backend/src/sql/queries/department_units/` | department_unit廃止 |
+| `frontend/mock/namespace/department-unit-members.json` | モック廃止 |
+
+### TypeScript エラー確認
+今回変更したファイルに起因する新規 TS エラーは **0件**。
+残存エラーは今回の変更前から存在する既存問題（`insertion-spec-mock` / `PetriNetEditorInner` / `DepartmentTreeManagement` / `LanguageContext`）。

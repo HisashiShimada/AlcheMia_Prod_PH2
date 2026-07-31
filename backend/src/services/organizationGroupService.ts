@@ -8,9 +8,13 @@
  */
 
 import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
-import type { OrganizationGroupRow, OrganizationGroupFilters, OrganizationGroupMemberRow } from '../repositories/organizationGroupRepository';
+import type { OrganizationGroupRow, OrganizationGroupFilters, OrganizationGroupMemberRow, OrgUserRow } from '../repositories/organizationGroupRepository';
+import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
+import * as organizationManagementRepository from '../repositories/organizationManagementRepository';
 import { E6001, E7001 } from '../enums/errorCodes';
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
+import { generateNamespaceUri, resolveUriConflict } from '../utils/namespaceUriGenerator';
+import type { ITask } from 'pg-promise';
 
 
 /**
@@ -49,8 +53,69 @@ export async function getOrganizationGroupById(
   return group;
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// namespace 自動登録（内部ユーティリティ）
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * グループスコープの namespace URI を登録する（共通処理）
+ *
+ * トランザクション内でもスクリプト単独でも呼び出せるよう分離。
+ * 既に同じ scope_key の namespace が存在する場合はスキップする（冪等）。
+ *
+ * @param t - pg-promise トランザクションオブジェクト
+ * @param params - 登録パラメータ
+ */
+export async function ensureGroupNamespace(
+  t: ITask<unknown>,
+  params: {
+    organizationId: string;
+    organizationCd: string;
+    groupCd: string;
+    parentGroupCd: string | null;
+    userId: string;
+  }
+): Promise<void> {
+  // 既存チェック（冪等: 既に登録済みならスキップ）
+  const alreadyRegistered = await namespaceTermRepository.existsByScopeKey(
+    params.organizationId,
+    params.groupCd,
+    t
+  );
+  if (alreadyRegistered) return;
+
+  // 祖先チェーン取得（トランザクション外でよいが、ここでは t を流用せず直接 Repository を呼ぶ）
+  // ※ findAncestorChain は読み取りのみかつ pg-promise を使用するため問題なし
+  const ancestorCds = await organizationGroupRepository.findAncestorChain(
+    params.organizationId,
+    params.parentGroupCd
+  );
+
+  // URI 組み立て
+  const basePart = generateNamespaceUri(params.organizationCd);
+  const groupPath = [...ancestorCds, params.groupCd].join('/');
+  const candidateUri = `${basePart}/${groupPath}`;
+
+  // 既存 URI 一覧取得（重複解消用）
+  const existingUris = await namespaceTermRepository.findUrisByOrganization(params.organizationId, t);
+  const uri = resolveUriConflict(candidateUri, existingUris);
+
+  // namespace テーブルに INSERT（scope_key = organization_group_cd）
+  await namespaceTermRepository.createNamespaceUri(
+    {
+      organizationId: params.organizationId,
+      uri,
+      userId: params.userId,
+      scopeKey: params.groupCd,
+    },
+    t
+  );
+}
+
 /**
  * 組織グループ新規作成
+ *
+ * グループ本体の INSERT と namespace URI の自動登録を同一トランザクションで実行する。
  *
  * @param organizationId - 組織ID
  * @param data - 作成データ
@@ -69,7 +134,7 @@ export async function createOrganizationGroup(
   },
   userId?: string | null
 ): Promise<OrganizationGroupRow> {
-  // 重複チェック
+  // 重複チェック（トランザクション外で実施）
   const alreadyExists = await organizationGroupRepository.existsById(
     organizationId,
     data.organization_group_cd
@@ -81,14 +146,46 @@ export async function createOrganizationGroup(
     throw error;
   }
 
-  return organizationGroupRepository.create({
-    organization_id: organizationId,
-    organization_group_cd: data.organization_group_cd,
-    organization_group_name: data.organization_group_name,
-    chief_user_id: data.chief_user_id,
-    parent_group_cd: data.parent_group_cd ?? null,
-    layer: data.layer ?? null,
-    create_user_id: userId ?? null,
+  // 組織 CD 取得（namespace URI 生成に必要）
+  const orgRow = await organizationManagementRepository.findById(organizationId);
+  const organizationCd = orgRow?.organization_cd ?? organizationId;
+
+  const pgp = getPgp();
+
+  return pgp.tx(async (t) => {
+    // 1. グループ本体 INSERT
+    const created = await organizationGroupRepository.create(
+      {
+        organization_id: organizationId,
+        organization_group_cd: data.organization_group_cd,
+        organization_group_name: data.organization_group_name,
+        chief_user_id: data.chief_user_id,
+        parent_group_cd: data.parent_group_cd ?? null,
+        layer: data.layer ?? null,
+        create_user_id: userId ?? null,
+      },
+      t
+    );
+
+    // 2. 代表者（chief_user_id）をメンバーとして自動登録
+    // グループ作成者は必ずメンバーとして登録する（ON CONFLICT DO NOTHING のため冪等）
+    await organizationGroupRepository.insertMemberInTransaction(
+      organizationId,
+      data.organization_group_cd,
+      data.chief_user_id,
+      t
+    );
+
+    // 3. namespace URI 自動登録
+    await ensureGroupNamespace(t, {
+      organizationId,
+      organizationCd,
+      groupCd: data.organization_group_cd,
+      parentGroupCd: data.parent_group_cd ?? null,
+      userId: userId ?? organizationId,
+    });
+
+    return created;
   });
 }
 
@@ -169,6 +266,22 @@ export async function deleteOrganizationGroup(
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// 組織ユーザー一覧取得（グループメンバー選択用）
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * 組織内のアクティブなユーザー一覧を取得（グループメンバー追加・編集ダイアログ用）
+ *
+ * @param organizationId - 組織ID
+ * @returns ユーザー一覧（user_id, user_name, email）
+ */
+export async function getOrgUsersForGroups(
+  organizationId: string
+): Promise<OrgUserRow[]> {
+  return organizationGroupRepository.findAllOrgUsers(organizationId);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // メンバー管理
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -201,25 +314,36 @@ export async function getOrganizationGroupMembers(
  * @param groupCd - 組織グループCD
  * @param userIds - 設定するユーザーIDの配列
  * @throws 存在しない場合は E6001（リソース不存在）エラー
+ *
+ * @remarks
+ * 代表者（chief_user_id）は常にメンバーとして保持する。
+ * userIds に代表者が含まれていない場合も、代表者を自動的に追加して保存する。
  */
 export async function setOrganizationGroupMembers(
   organizationId: string,
   groupCd: string,
   userIds: string[]
 ): Promise<void> {
-  const exists = await organizationGroupRepository.existsById(organizationId, groupCd);
-  if (!exists) {
+  // グループ存在確認 + 代表者ID取得
+  const group = await organizationGroupRepository.findById(organizationId, groupCd);
+  if (!group) {
     const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
   }
 
+  // 代表者（chief_user_id）がメンバー一覧に含まれることを保証
+  const chiefUserId = group.chief_user_id;
+  const effectiveUserIds = chiefUserId && !userIds.includes(chiefUserId)
+    ? [...userIds, chiefUserId]
+    : userIds;
+
   const pool = getPool();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await organizationGroupRepository.setMembers(organizationId, groupCd, userIds, client);
+    await organizationGroupRepository.setMembers(organizationId, groupCd, effectiveUserIds, client);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

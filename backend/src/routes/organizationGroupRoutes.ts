@@ -77,6 +77,19 @@ router.put(
 );
 
 /**
+ * 組織内ユーザー一覧取得（グループメンバー選択用）
+ * GET /api/v1/organization-groups/users
+ *
+ * @remarks /:groupCd より前に定義する必要がある（ルーティング競合回避）
+ */
+router.get(
+  '/users',
+  authMiddleware,
+  tenantIsolation,
+  organizationGroupController.getOrgUsers
+);
+
+/**
  * 組織グループ単件取得
  * GET /api/v1/organization-groups/:groupCd
  */

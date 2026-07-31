@@ -13,8 +13,8 @@ import { fetchUncertaintyCriteriaList } from '@/services/uncertaintyCriteriaApiS
 import NamespaceMain from '../namespace/NamespaceMain';
 import PrefixManagement from '../namespace/PrefixManagement';
 import { getOrganizationGroups } from '@/services/namespaceApiService';
-import TeamAddDialog from '../namespace/TeamAddDialog';
-import TeamEditDialog from '../namespace/TeamEditDialog';
+import TeamAddDialog from '../team/TeamAddDialog';
+import TeamEditDialog from '../team/TeamEditDialog';
 import type { OrganizationGroupRow } from '@/types/namespace';
 import type { User } from '@/types/auth';
 

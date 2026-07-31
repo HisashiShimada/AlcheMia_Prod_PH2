@@ -218,7 +218,7 @@ export async function remove(
 }
 
 /**
- * namespace テーブルに URI のみ INSERT する（組織・ユーザー作成時の自動登録用）
+ * namespace テーブルに URI のみ INSERT する（組織・ユーザー・チーム作成時の自動登録用）
  *
  * prefix テーブルへの登録は行わない。
  * Prefix は実験管理者が Prefix 管理画面から手動登録する。
@@ -226,12 +226,17 @@ export async function remove(
  * @param data - 登録する名前空間データ
  * @param t - pg-promise トランザクションオブジェクト（省略時はプール接続を使用）
  * @returns 登録された namespace_id
+ *
+ * @remarks
+ * scopeKey を指定するとチームスコープの namespace として登録される（scope_key = organization_group_cd）。
+ * 省略時は scope_key = NULL（組織/ユーザーレベル）で登録される。
  */
 export async function createNamespaceUri(
   data: {
     organizationId: string;
     uri: string;
     userId: string;
+    scopeKey?: string;
   },
   t?: ITask<unknown>
 ): Promise<string> {
@@ -243,15 +248,38 @@ export async function createNamespaceUri(
   const namespaceId = `NS${String(seqRow.next_seq).padStart(4, '0')}`;
 
   // namespace テーブルに INSERT（URI のみ）
+  // $5: scope_key（未指定の場合は NULL）
   const insertQuery = await loadSqlFile('namespace_terms/createNamespaceUri.sql');
   await conn.none(insertQuery, [
     data.organizationId,
     namespaceId,
     data.uri,
     data.userId,
+    data.scopeKey ?? null,
   ]);
 
   return namespaceId;
+}
+
+/**
+ * 指定した scope_key を持つ namespace レコードが存在するか確認する
+ *
+ * backfill スクリプトの冪等性チェックや、チーム作成時の二重登録防止に使用する。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKey - namespace.scope_key の値（organization_group_cd など）
+ * @param t - pg-promise トランザクションオブジェクト（省略時はプール接続を使用）
+ * @returns 存在する場合 true
+ */
+export async function existsByScopeKey(
+  organizationId: string,
+  scopeKey: string,
+  t?: ITask<unknown>
+): Promise<boolean> {
+  const conn = t ?? getPgp();
+  const query = await loadSqlFile('namespace_terms/existsByScopeKey.sql');
+  const row = await conn.oneOrNone<{ exists: boolean }>(query, [organizationId, scopeKey]);
+  return row?.exists ?? false;
 }
 
 /**
