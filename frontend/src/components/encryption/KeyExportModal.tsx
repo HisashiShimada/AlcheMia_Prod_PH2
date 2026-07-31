@@ -14,6 +14,7 @@ import { DownloadOutlined } from '@ant-design/icons';
 import type { EncryptionKey } from '@/types/encryption';
 import * as encryptionService from '@/services/encryptionService';
 import dayjs from 'dayjs';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -25,6 +26,7 @@ interface KeyExportModalProps {
 }
 
 const KeyExportModal: React.FC<KeyExportModalProps> = ({ open, targetKey, onClose }) => {
+  const { t } = useLanguage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
@@ -57,12 +59,12 @@ const KeyExportModal: React.FC<KeyExportModalProps> = ({ open, targetKey, onClos
       a.click();
       URL.revokeObjectURL(url);
 
-      message.success(`鍵ファイルをエクスポートしました: ${fileName}`);
+      message.success(t('encryption.keyExport.success', { fileName }));
       form.resetFields();
       onClose();
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('エクスポートに失敗しました。');
+      message.error(t('encryption.keyExport.failed'));
     } finally {
       setLoading(false);
     }

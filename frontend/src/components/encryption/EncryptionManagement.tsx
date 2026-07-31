@@ -36,6 +36,7 @@ import {
   CloseOutlined, ExclamationCircleOutlined, SettingOutlined, CodeOutlined,
   WarningOutlined, KeyOutlined,
 } from '@ant-design/icons';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 import EncryptionTargetTree from './EncryptionTargetTree';
 import EncryptionConfigPanel from './EncryptionConfigPanel';
@@ -126,6 +127,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
   // ---------------------------------------------------------------------------
 
   /** MAIMLツリー */
+  const { t } = useLanguage();
   const [treeData, setTreeData] = useState<MaimlTreeNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState<string | null>(null);
@@ -243,7 +245,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
       const result = await encryptionService.previewEncryption(projectName, previewConfig);
       setPreview(result);
     } catch {
-      message.error('プレビューの生成に失敗しました。');
+      message.error(t('encryption.previewFailed'));
     } finally {
       setPreviewLoading(false);
     }
@@ -273,13 +275,13 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     try {
       const targetPaths = encryptCandidates.map((n) => n.path);
       await encryptionService.encryptElements(projectName, targetPaths, config);
-      message.success(`暗号化が完了しました（${targetPaths.length}件）。`);
+      message.success(t('encryption.encryptSuccess', { count: targetPaths.length }));
       await loadTree();
       setSelectedPath(null);
       setSelectedNode(null);
       setPreview(null);
     } catch {
-      message.error('暗号化に失敗しました。');
+      message.error(t('encryption.encryptFailed'));
     } finally {
       setExecuting(false);
     }
@@ -301,7 +303,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
     if (!config.loadedKey) {
       // 鍵未設定の場合は鍵設定タブへ誘導
       setMainTab('key-settings');
-      message.warning('暗号化用の鍵を設定してください。');
+      message.warning(t('encryption.keyRequired'));
       return;
     }
     setConfirmModalOpen(true);
@@ -348,7 +350,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
       };
       setDecryptPreview(asPreview);
     } catch {
-      message.error('復号化プレビューの生成に失敗しました。');
+      message.error(t('encryption.decryptPreviewFailed'));
     } finally {
       setDecryptPreviewLoading(false);
     }
@@ -365,14 +367,14 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
         keyId,
         password,
       });
-      message.success(`復号化が完了しました（${targetPaths.length}件）。`);
+      message.success(t('encryption.decryptSuccess', { count: targetPaths.length }));
       await loadTree();
       setSelectedPath(null);
       setSelectedNode(null);
       setDecryptPreview(null);
       setRightTab('config');
     } catch {
-      message.error('復号化に失敗しました。');
+      message.error(t('encryption.decryptFailed'));
     } finally {
       setDecryptExecuting(false);
     }

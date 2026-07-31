@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Modal, Button, Space, Select, Upload, Alert, Typography, message } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Dragger } = Upload;
 const { Text } = Typography;
@@ -24,11 +25,12 @@ export default function UncertaintyImportModal({
   open,
   onClose,
 }: UncertaintyImportModalProps) {
+  const { t } = useLanguage();
   const [importFormat, setImportFormat] = useState<ImportFormat>('CSV');
   const [targetScope, setTargetScope] = useState<string>('研究開発部 › 計測チーム');
 
   const handleImport = () => {
-    message.success('インポート処理を開始します（デモ）');
+    message.success(t('uncertaintyImport.startDemo'));
     onClose();
   };
 

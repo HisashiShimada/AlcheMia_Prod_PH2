@@ -20,6 +20,7 @@ import {
 import TeamAddDialog from './TeamAddDialog';
 import TeamEditDialog from './TeamEditDialog';
 import type { Team, TeamMember } from '@/types/namespace';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text, Title } = Typography;
 
@@ -69,6 +70,7 @@ function apiRowToTeam(row: OrgGroupApiRow): Team {
 // ──────────────────────────────────────────────
 
 const TeamManagementPanel: React.FC = () => {
+  const { t } = useLanguage();
   const [teams, setTeams]               = useState<Team[]>([]);
   const [loading, setLoading]           = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
@@ -98,7 +100,7 @@ const TeamManagementPanel: React.FC = () => {
       })
       .catch(() => {
         setTeams([]);
-        message.error('グループ一覧の取得に失敗しました');
+        message.error(t('teamManagementPanel.loadFailed'));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -136,7 +138,7 @@ const TeamManagementPanel: React.FC = () => {
       })
       .catch(() => {
         // メンバー取得失敗は警告のみ（一覧表示は維持）
-        message.warning('メンバー情報の取得に失敗しました');
+        message.warning(t('teamManagementPanel.memberLoadFailed'));
       })
       .finally(() => setMembersLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,7 +155,7 @@ const TeamManagementPanel: React.FC = () => {
     setTeams((prev) => [...prev, newTeam]);
     setSelectedTeam(newTeam);
     setAddDialogOpen(false);
-    message.success(`グループ「${groupName}」を作成しました`);
+    message.success(t('teamManagementPanel.groupCreated', { groupName }));
   }, []);
 
   // ──── チーム編集後のコールバック
@@ -210,14 +212,14 @@ const TeamManagementPanel: React.FC = () => {
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        message.error(`削除に失敗しました: ${(err as any).error?.message ?? res.status}`);
+        message.error(t('teamManagementPanel.deleteFailed', { message: (err as any).error?.message ?? res.status }));
         return;
       }
       setTeams((prev) => prev.filter((t) => t.groupCd !== team.groupCd));
       setSelectedTeam((prev) => (prev?.groupCd === team.groupCd ? null : prev));
-      message.success(`グループ「${team.unitName}」を削除しました`);
+      message.success(t('teamManagementPanel.deleteSuccess', { name: team.unitName }));
     } catch {
-      message.error('削除中にエラーが発生しました');
+      message.error(t('teamManagementPanel.deleteError'));
     }
   }, []);
 

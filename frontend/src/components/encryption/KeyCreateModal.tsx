@@ -10,6 +10,7 @@ import type { EncryptionKey } from '@/types/encryption';
 import { EncryptionAlgorithmLabel } from '@/types/encryption';
 import * as encryptionService from '@/services/encryptionService';
 import dayjs from 'dayjs';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface KeyCreateModalProps {
   open: boolean;
@@ -23,6 +24,7 @@ const ALGORITHM_OPTIONS = Object.entries(EncryptionAlgorithmLabel).map(([value, 
 }));
 
 const KeyCreateModal: React.FC<KeyCreateModalProps> = ({ open, onClose, onCreated }) => {
+  const { t } = useLanguage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
@@ -36,13 +38,13 @@ const KeyCreateModal: React.FC<KeyCreateModalProps> = ({ open, onClose, onCreate
         expiresAt: values.expiresAt ? dayjs(values.expiresAt).toISOString() : undefined,
         description: values.description,
       });
-      message.success(`鍵「${newKey.keyName}」を作成しました。`);
+      message.success(t('encryption.keyCreate.success', { keyName: newKey.keyName }));
       form.resetFields();
       onCreated(newKey);
     } catch (err: unknown) {
       // Form validation error は無視
       if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('鍵の作成に失敗しました。');
+      message.error(t('encryption.keyCreate.failed'));
     } finally {
       setLoading(false);
     }

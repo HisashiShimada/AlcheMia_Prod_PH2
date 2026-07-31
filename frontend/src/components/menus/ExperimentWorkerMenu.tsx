@@ -509,7 +509,7 @@ export default function ExperimentWorkerMenu({
         handleTabChange('3');
       } catch (err) {
         console.error('[handleStartWork] ステータス更新エラー:', err);
-        message.error('作業開始に失敗しました。再度お試しください。');
+        message.error(t('experimentWorker.startFailed'));
       }
     };
 
@@ -562,7 +562,7 @@ export default function ExperimentWorkerMenu({
           await doStart();
         } catch (err) {
           console.error('[handleStartWork] 切り替えエラー:', err);
-          message.error('作業切り替えに失敗しました。再度お試しください。');
+          message.error(t('experimentWorker.switchFailed'));
         }
       },
     });

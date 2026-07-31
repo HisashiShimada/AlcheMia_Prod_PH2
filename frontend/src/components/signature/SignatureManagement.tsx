@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons';
 import * as signatureService from '@/services/signatureService';
 import type { SignatureStatus } from '@/types/signature';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -48,6 +49,7 @@ const SignatureManagement: React.FC<SignatureManagementProps> = ({ projectName }
   // ---------------------------------------------------------------------------
   // 状態管理
   // ---------------------------------------------------------------------------
+  const { t } = useLanguage();
   const [statusLoading, setStatusLoading] = useState(true);
   const [signStatus, setSignStatus] = useState<SignatureStatus>({ status: 'none' });
   const [applying, setApplying] = useState(false);
@@ -64,7 +66,7 @@ const SignatureManagement: React.FC<SignatureManagementProps> = ({ projectName }
       const result = await signatureService.getSignatureStatus(projectName);
       setSignStatus(result);
     } catch {
-      message.error('署名状態の取得に失敗しました');
+      message.error(t('signature.loadFailed'));
     } finally {
       setStatusLoading(false);
     }
@@ -87,9 +89,9 @@ const SignatureManagement: React.FC<SignatureManagementProps> = ({ projectName }
         status: 'signed',
         signedAt: new Date().toISOString(),
       });
-      message.success('署名を実行しました');
+      message.success(t('signature.signSuccess'));
     } catch {
-      message.error('署名の実行に失敗しました');
+      message.error(t('signature.signFailed'));
     } finally {
       setApplying(false);
     }
@@ -101,9 +103,9 @@ const SignatureManagement: React.FC<SignatureManagementProps> = ({ projectName }
     try {
       await signatureService.removeSignature(projectName);
       setSignStatus({ status: 'none' });
-      message.success('署名を削除しました');
+      message.success(t('signature.deleteSuccess'));
     } catch {
-      message.error('署名の削除に失敗しました');
+      message.error(t('signature.deleteFailed'));
     } finally {
       setRemoving(false);
     }

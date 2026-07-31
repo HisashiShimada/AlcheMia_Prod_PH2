@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import type { OrgUser, TeamAddDialogProps } from '@/types/namespace';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -28,6 +29,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   onClose,
   onCreated,
 }) => {
+  const { t } = useLanguage();
   const [groupCd, setGroupCd]           = useState('');
   const [groupName, setGroupName]       = useState('');
   const [parentGroupCd, setParentGroupCd] = useState<string | undefined>(undefined);
@@ -78,7 +80,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
     const user = allUsers.find((u) => u.userId === userId);
     if (!user) return;
     if (members.some((m) => m.userId === userId)) {
-      message.warning('このメンバーは既に追加されています');
+      message.warning(t('teamAdd.memberDuplicate'));
       return;
     }
     setMembers((prev) => [...prev, user]);
@@ -92,11 +94,11 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
 
   const handleCreate = async () => {
     if (!groupCd.trim()) {
-      message.error('グループCDを入力してください');
+      message.error(t('teamAdd.groupCdRequired'));
       return;
     }
     if (!groupName.trim()) {
-      message.error('グループ名を入力してください');
+      message.error(t('teamAdd.groupNameRequired'));
       return;
     }
     setLoading(true);
@@ -115,7 +117,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        message.error(`グループの作成に失敗しました: ${(err as any).error?.message ?? res.status}`);
+        message.error(t('teamAdd.groupCreateFailed', { message: (err as any).error?.message ?? res.status }));
         return;
       }
 
@@ -135,15 +137,15 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
           }
         );
         if (!memRes.ok) {
-          message.warning('グループは作成しましたが、メンバーの設定に失敗しました');
+          message.warning(t('teamAdd.memberSetFailed'));
         }
       }
 
-      message.success(`グループ「${createdName}」を作成しました`);
+      message.success(t('teamAdd.createSuccess', { name: createdName }));
       onCreated(createdCd, createdName);
       handleReset();
     } catch {
-      message.error('グループの作成中にエラーが発生しました');
+      message.error(t('teamAdd.createError'));
     } finally {
       setLoading(false);
     }

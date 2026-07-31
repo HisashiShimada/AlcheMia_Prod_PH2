@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import type { OrgUser, TeamEditDialogProps } from '@/types/namespace';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -30,6 +31,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   onClose,
   onSaved,
 }) => {
+  const { t } = useLanguage();
   const [teamName, setTeamName]           = useState('');
   const [members, setMembers]             = useState<OrgUser[]>([]);
   const [addTarget, setAddTarget]         = useState<string | undefined>(undefined);
@@ -93,7 +95,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
     const user = allUsers.find((u) => u.userId === userId);
     if (!user) return;
     if (members.some((m) => m.userId === userId)) {
-      message.warning('このメンバーは既に追加されています');
+      message.warning(t('teamEdit.memberDuplicate'));
       return;
     }
     setMembers((prev) => [...prev, user]);
@@ -102,12 +104,12 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
   const handleSave = async () => {
     if (!teamName.trim()) {
-      message.error('グループ名を入力してください');
+      message.error(t('teamEdit.groupNameRequired'));
       return;
     }
 
     if (!teamGroupCd) {
-      message.warning('グループCDが未設定のため、DBへの保存をスキップしました');
+      message.warning(t('teamEdit.groupCdMissing'));
       onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
       onClose();
       return;
@@ -128,7 +130,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
         );
         if (!nameRes.ok) {
           const err = await nameRes.json().catch(() => ({}));
-          message.error(`グループ名の更新に失敗しました: ${(err as any).error?.message ?? nameRes.status}`);
+          message.error(t('teamEdit.nameUpdateFailed', { message: (err as any).error?.message ?? nameRes.status }));
           return;
         }
       }
@@ -145,7 +147,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
       );
       if (!memRes.ok) {
         const err = await memRes.json().catch(() => ({}));
-        message.error(`メンバーの更新に失敗しました: ${(err as any).error?.message ?? memRes.status}`);
+        message.error(t('teamEdit.memberUpdateFailed', { message: (err as any).error?.message ?? memRes.status }));
         return;
       }
 
@@ -162,17 +164,17 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
         );
         if (!chiefRes.ok) {
           const err = await chiefRes.json().catch(() => ({}));
-          message.error(`代表者の更新に失敗しました: ${(err as any).error?.message ?? chiefRes.status}`);
+          message.error(t('teamEdit.chiefUpdateFailed', { message: (err as any).error?.message ?? chiefRes.status }));
           return;
         }
       }
 
 
-      message.success(`「${teamName.trim()}」を保存しました（メンバー: ${members.length}名）`);
+      message.success(t('teamEdit.saveSuccess', { name: teamName.trim(), count: members.length }));
       onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
       onClose();
     } catch {
-      message.error('保存中にエラーが発生しました');
+      message.error(t('teamEdit.saveError'));
     } finally {
       setLoading(false);
     }

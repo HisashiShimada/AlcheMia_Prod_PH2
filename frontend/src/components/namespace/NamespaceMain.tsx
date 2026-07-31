@@ -1244,7 +1244,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       try {
         const text  = (ev.target?.result as string).replace(/^\uFEFF/, '');
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
-        if (lines.length < 2) { message.error('CSVデータが空です'); return; }
+        if (lines.length < 2) { message.error(t('namespaceMain.csvEmpty2')); return; }
 
         // CSV パース
         const rows: TermCsvParsedRow[] = [];
@@ -1266,7 +1266,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           });
         }
 
-        if (rows.length === 0) { message.error('取込可能なデータがありませんでした'); return; }
+        if (rows.length === 0) { message.error(t('namespaceMain.csvNoData2')); return; }
 
         // 各行を API で DB に保存
         const added: Term[] = [];
@@ -1303,12 +1303,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           setTerms((prev) => [...prev, ...added]);
         }
         if (failed.length > 0) {
-          message.warning(`${added.length}件保存、${failed.length}件失敗しました（失敗: ${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}）`);
+          message.warning(t('namespaceMain.csvImportPartial2', { saved: added.length, failCount: failed.length, names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : '') }));
         } else {
-          message.success(`${added.length} 件の用語をDBに保存しました`);
+          message.success(t('namespaceMain.csvImportSuccess2', { count: added.length }));
         }
       } catch {
-        message.error('CSVの解析に失敗しました');
+        message.error(t('namespaceMain.csvParseError2'));
       } finally {
         if (csvInputRef.current) csvInputRef.current.value = '';
       }
@@ -1798,7 +1798,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               description: values.description || undefined,
             };
             setNsNodes((prev) => [...prev, newNode]);
-            message.success(`名前空間「${result.prefix}」を登録しました`);
+            message.success(t('namespaceMain.nsRegisterSuccess', { prefix: result.prefix }));
           } catch (err: any) {
             const msg = err?.response?.data?.error?.message ?? err?.message ?? '登録に失敗しました';
             message.error(msg);
@@ -1814,7 +1814,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         open={teamAddOpen}
         onClose={() => setTeamAddOpen(false)}
         onCreated={(_groupCd, groupName) => {
-          message.success(`グループ「${groupName}」を作成しました`);
+          message.success(t('namespaceMain.groupCreated', { groupName }));
           setTeamAddOpen(false);
         }}
       />
@@ -1828,7 +1828,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         onClose={() => setTeamEditOpen(false)}
         onSaved={(members, newTeamName) => {
           const name = newTeamName ?? teamEditLabel;
-          message.success(`「${name}」を更新しました（メンバー: ${members.length}名）`);
+          message.success(t('namespaceMain.memberUpdated', { name, count: members.length }));
         }}
       />
 

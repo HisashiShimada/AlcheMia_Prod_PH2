@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Modal, Button, Space, Checkbox, Typography, Alert, message } from 'antd';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -24,13 +25,14 @@ export default function UncertaintyExportModal({
   selectedCount,
   onClose,
 }: UncertaintyExportModalProps) {
+  const { t } = useLanguage();
   const [exportFormat, setExportFormat] = useState<ExportFormat>('XML');
   const [includeDesc, setIncludeDesc] = useState(true);
   const [includeExtends, setIncludeExtends] = useState(true);
   const [includeHistory, setIncludeHistory] = useState(false);
 
   const handleExport = () => {
-    message.success('エクスポートファイルのダウンロードを開始します（デモ）');
+    message.success(t('uncertaintyExport.startDemo'));
     onClose();
   };
 

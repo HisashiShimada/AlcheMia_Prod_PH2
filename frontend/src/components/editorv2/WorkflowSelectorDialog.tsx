@@ -104,11 +104,11 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
           );
           setProjects(editableWithMaiml);
         } else {
-          message.error('プロジェクト一覧の取得に失敗しました');
+          message.error(t('workflowSelectorDialog.loadFailed'));
         }
       } catch (err) {
         console.error('[WorkflowSelectorDialog] プロジェクト取得エラー:', err);
-        message.error('プロジェクト一覧の取得に失敗しました');
+        message.error(t('workflowSelectorDialog.loadFailed'));
       } finally {
         setIsLoadingProjects(false);
       }
@@ -196,7 +196,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
   // 確定ボタン押下：MAIMLを取得してonSelectに渡す
   const handleConfirm = async () => {
     if (!selectedProjectId) {
-      message.warning('プロジェクトを選択してください');
+      message.warning(t('workflowSelectorDialog.selectRequired'));
       return;
     }
 

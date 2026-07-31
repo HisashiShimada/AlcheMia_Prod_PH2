@@ -10,6 +10,7 @@ import {
 import termsRaw from '../../../mock/namespace/terms.json';
 import termDetailRaw from '../../../mock/namespace/termDetail.json';
 import type { DetailTarget, DetailModalProps, TermSaved, NamespaceSaved, RawTerm, RawDetail } from '@/types/namespace';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // re-export（既存の import 側を壊さないため）
 export type { DetailTarget, TermSaved, NamespaceSaved } from '@/types/namespace';
@@ -65,6 +66,7 @@ const buildTermDetail = (termId: string) => {
 const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTermSaved, onNamespaceSaved }) => {
 
   // ── 用語用ステート
+  const { t } = useLanguage();
   const [termDetail,    setTermDetail]    = useState(() => target?.kind === 'term' ? buildTermDetail(target.termId) : buildTermDetail(''));
   const [editDisplayJa, setDisplayJa]    = useState('');
   const [editDisplayEn, setDisplayEn]    = useState('');
@@ -103,16 +105,16 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTerm
   const handleSave = () => {
     if (target.kind === 'term') {
       onTermSaved({ id: target.termId, displayName: editDisplayJa, description: editDesc, type: editType });
-      message.success('用語を保存しました');
+      message.success(t('namespaceDetail.saveTermSuccess'));
     } else {
-      if (!editPrefix.trim()) { message.error('接頭辞は必須です'); return; }
-      if (!editUri.trim())    { message.error('URIは必須です'); return; }
+      if (!editPrefix.trim()) { message.error(t('namespaceDetail.prefixRequired')); return; }
+      if (!editUri.trim())    { message.error(t('namespaceDetail.uriRequired')); return; }
       onNamespaceSaved({
         key: target.nsKey, prefix: editPrefix.trim(), uri: editUri.trim(),
         displayName: editNsName, description: editNsDesc,
         updatedAt: new Date().toLocaleString('ja-JP', { hour12: false }),
       });
-      message.success('名前空間を保存しました');
+      message.success(t('namespaceDetail.saveNsSuccess'));
     }
   };
 
