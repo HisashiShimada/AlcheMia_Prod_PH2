@@ -16,6 +16,8 @@ import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
 import { getMessage } from '../utils/messages';
 import { createSchemaIfNotExists, createSchemaTables, getSchemaStorageSizeBytes } from '../repositories/maimlAssetRepository';
+import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
+import { generateNamespaceUri } from '../utils/namespaceUriGenerator';
 
 /**
  * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
@@ -59,6 +61,33 @@ export interface OrganizationResponse {
   contractedProjects: number | null;
   defaultRetentionDays: number;
   updatedAt: string;
+}
+
+/**
+ * OrganizationRow を OrganizationResponse に変換するヘルパー関数
+ *
+ * @param org OrganizationRow（DBからの取得結果）
+ * @returns OrganizationResponse（APIレスポンス用）
+ */
+function toOrganizationResponse(org: organizationRepository.OrganizationRow): OrganizationResponse {
+  const response: OrganizationResponse = {
+    organizationId: org.organization_id,
+    organizationCd: org.organization_cd || '',
+    organizationDisplayName: org.organization_display_name || '',
+    organizationEmail: org.organization_email || '',
+    chiefUserId: org.chief_user_id || '',
+    chiefUserName: org.chief_user_name || '',
+    corporationName: org.corporation_name || '',
+    isEntry: org.is_entry,
+    useDeemedProgress: org.use_deemed_progress,
+    isActive: org.is_active,
+    contractCapacity: org.contract_capacity ?? null,
+    contractedUsers: org.contract_users ?? null,
+    contractedProjects: org.contract_projects ?? null,
+    defaultRetentionDays: org.default_retention_days,
+    updatedAt: formatDateTime(org.update_at),
+  };
+  return response;
 }
 
 /**
@@ -111,23 +140,7 @@ export async function getOrganizations(
   const organizations = await organizationRepository.findAll(filters);
   console.log('Repository returned:', organizations.length, 'records');
   
-  return organizations.map(org => ({
-    organizationId: org.organization_id,
-    organizationCd: org.organization_cd || '',
-    organizationDisplayName: org.organization_display_name || '',
-    organizationEmail: org.organization_email || '',
-    chiefUserId: org.chief_user_id || '',
-    chiefUserName: org.chief_user_name || '',
-    corporationName: org.corporation_name || '',
-    isEntry: org.is_entry,
-    useDeemedProgress: org.use_deemed_progress,
-    isActive: org.is_active,
-    contractCapacity: org.contract_capacity ?? null,
-    contractedUsers: org.contract_users ?? null,
-    contractedProjects: org.contract_projects ?? null,
-    defaultRetentionDays: org.default_retention_days,
-    updatedAt: formatDateTime(org.update_at),
-  }));
+  return organizations.map(org => toOrganizationResponse(org));
 }
 
 /**
@@ -145,23 +158,7 @@ export async function getOrganizationById(
     return null;
   }
   
-  return {
-    organizationId: organization.organization_id,
-    organizationCd: organization.organization_cd || '',
-    organizationDisplayName: organization.organization_display_name || '',
-    organizationEmail: organization.organization_email || '',
-    chiefUserId: organization.chief_user_id || '',
-    chiefUserName: organization.chief_user_name || '',
-    corporationName: organization.corporation_name || '',
-    isEntry: organization.is_entry,
-    useDeemedProgress: organization.use_deemed_progress,
-    isActive: organization.is_active,
-    contractCapacity: organization.contract_capacity ?? null,
-    contractedUsers: organization.contract_users ?? null,
-    contractedProjects: organization.contract_projects ?? null,
-    defaultRetentionDays: organization.default_retention_days,
-    updatedAt: formatDateTime(organization.update_at),
-  };
+  return toOrganizationResponse(organization);
 }
 
 /**
@@ -274,59 +271,61 @@ export async function createOrganization(
 
       // 2. organization_userテーブルに挿入（代表システム管理者）
       if (data.chiefUserEmail && data.chiefUserName) {
+        const orgUserData: Parameters<typeof organizationRepository.createOrganizationUser>[0] = {
+          userId: data.chiefUserEmail,           // user_id = 代表者メールアドレス
+          organizationId: data.organizationId,
+          userName: data.chiefUserName,          // user_name = 代表システム管理者名
+          roleCd: 'ROLE002',                     // システム管理者
+          mailAddress: data.chiefUserEmail,      // mail_address = 代表者メールアドレス
+          organizationGroupCds: null,            // Null
+          isActive: true,                        // True
+        };
         await organizationRepository.createOrganizationUser(
-          {
-            userId: data.chiefUserEmail,           // user_id = 代表者メールアドレス
-            organizationId: data.organizationId,
-            userName: data.chiefUserName,          // user_name = 代表システム管理者名
-            roleCd: 'ROLE002',                     // システム管理者
-            mailAddress: data.chiefUserEmail,      // mail_address = 代表者メールアドレス
-            organizationGroupCds: null,            // Null
-            isActive: true,                        // True
-          },
+          orgUserData,
           userId,
-          t                                        // pg-promiseトランザクションオブジェクト
+          t                                      // pg-promiseトランザクションオブジェクト
         );
       }
 
       // 3. roleテーブルに挿入（ROLE002: システム管理者）
+      const roleData: Parameters<typeof organizationRepository.createRole>[0] = {
+        organizationId: data.organizationId,
+        roleCd: 'ROLE002',
+        roleName: 'システム管理者',
+        initialScreenFunctionCd: '020000',       // システム管理メニュー
+        isActive: true,
+      };
       await organizationRepository.createRole(
-        {
-          organizationId: data.organizationId,
-          roleCd: 'ROLE002',
-          roleName: 'システム管理者',
-          initialScreenFunctionCd: '020000',     // システム管理メニュー
-          isActive: true,
-        },
+        roleData,
         userId,
-        t                                          // pg-promiseトランザクションオブジェクト
+        t                                        // pg-promiseトランザクションオブジェクト
       );
 
       // 4. role_permissionテーブルに挿入（4つの機能権限）
-      const permissions = [
+      const permissions: Parameters<typeof organizationRepository.createRolePermissions>[0] = [
         {
           organizationId: data.organizationId,
           roleCd: 'ROLE002',
           functionCd: '020000',                  // システム管理者メニュー
-          permission: 1,                          // 書込可
+          permission: 1,                         // 書込可
         },
         {
           organizationId: data.organizationId,
           roleCd: 'ROLE002',
           functionCd: '030000',                  // データ管理者メニュー
-          permission: 1,                          // 書込可
+          permission: 1,                         // 書込可
         },
         {
           organizationId: data.organizationId,
           roleCd: 'ROLE002',
           functionCd: '040000',                  // 実験管理者メニュー
-          permission: 1,                          // 書込可
+          permission: 1,                         // 書込可
         },
         {
           organizationId: data.organizationId,
           roleCd: 'ROLE002',
           functionCd: '050000',                  // 実験作業者メニュー
-          permission: 1,                          // 書込可
+          permission: 1,                         // 書込可
         },
       ];
 
@@ -390,6 +389,26 @@ export async function createOrganization(
     await storageService.createFolders(data.organizationId, organizationFolders);
     logger.info(`[organizationService] 基本フォルダ構造作成完了: organizationId=${data.organizationId}`);
 
+    // ④ 組織URIを namespace テーブルに自動登録
+    // URI形式: https://{organizationCd}.Alchemia.co.jp
+    try {
+      const orgUri = generateNamespaceUri(data.organizationCd);
+      const existingUris = await namespaceTermRepository.findUrisByOrganization(data.organizationId);
+      const uniqueUri = existingUris.includes(orgUri) ? `${orgUri}1` : orgUri;
+      const namespaceUriData: Parameters<typeof namespaceTermRepository.createNamespaceUri>[0] = {
+        organizationId: data.organizationId,
+        uri: uniqueUri,
+        userId,
+      };
+      await namespaceTermRepository.createNamespaceUri(namespaceUriData);
+      logger.info(`[organizationService] 組織URI自動登録完了: organizationId=${data.organizationId}, uri=${uniqueUri}`);
+    } catch (nsError) {
+      // URI登録失敗は組織作成のエラーとしない（ログのみ）
+      logger.warn(`[organizationService] 組織URI自動登録失敗（組織作成は成功）: organizationId=${data.organizationId}`, {
+        error: nsError instanceof Error ? nsError.message : String(nsError),
+      });
+    }
+
   } catch (error) {
     logger.error(
       `[organizationService] 組織作成処理でエラー発生: organizationId=${data.organizationId}`,
@@ -432,23 +451,7 @@ export async function createOrganization(
     });
   }
 
-  return {
-    organizationId: fullOrganization!.organization_id,
-    organizationCd: fullOrganization!.organization_cd || '',
-    organizationDisplayName: fullOrganization!.organization_display_name || '',
-    organizationEmail: fullOrganization!.organization_email || '',
-    chiefUserId: fullOrganization!.chief_user_id || '',
-    chiefUserName: fullOrganization!.chief_user_name || '',
-    corporationName: fullOrganization!.corporation_name || '',
-    isEntry: fullOrganization!.is_entry,
-    useDeemedProgress: fullOrganization!.use_deemed_progress,
-    isActive: fullOrganization!.is_active,
-    contractCapacity: fullOrganization!.contract_capacity ?? null,
-    contractedUsers: fullOrganization!.contract_users ?? null,
-    contractedProjects: fullOrganization!.contract_projects ?? null,
-    defaultRetentionDays: fullOrganization!.default_retention_days,
-    updatedAt: formatDateTime(fullOrganization!.update_at),
-  };
+  return toOrganizationResponse(fullOrganization!);
 }
 
 /**
@@ -483,23 +486,7 @@ export async function updateOrganization(
     return null;
   }
   
-  return {
-    organizationId: organization.organization_id,
-    organizationCd: organization.organization_cd || '',
-    organizationDisplayName: organization.organization_display_name || '',
-    organizationEmail: organization.organization_email || '',
-    chiefUserId: organization.chief_user_id || '',
-    chiefUserName: organization.chief_user_name || '',
-    corporationName: organization.corporation_name || '',
-    isEntry: organization.is_entry,
-    useDeemedProgress: organization.use_deemed_progress,
-    isActive: organization.is_active,
-    contractCapacity: organization.contract_capacity ?? null,
-    contractedUsers: organization.contract_users ?? null,
-    contractedProjects: organization.contract_projects ?? null,
-    defaultRetentionDays: organization.default_retention_days,
-    updatedAt: formatDateTime(organization.update_at),
-  };
+  return toOrganizationResponse(organization);
 }
 
 /**
@@ -521,23 +508,7 @@ export async function updateOrganizationStatus(
     return null;
   }
   
-  return {
-    organizationId: organization.organization_id,
-    organizationCd: organization.organization_cd || '',
-    organizationDisplayName: organization.organization_display_name || '',
-    organizationEmail: organization.organization_email || '',
-    chiefUserId: organization.chief_user_id || '',
-    chiefUserName: organization.chief_user_name || '',
-    corporationName: organization.corporation_name || '',
-    isEntry: organization.is_entry,
-    useDeemedProgress: organization.use_deemed_progress,
-    isActive: organization.is_active,
-    contractCapacity: organization.contract_capacity ?? null,
-    contractedUsers: organization.contract_users ?? null,
-    contractedProjects: organization.contract_projects ?? null,
-    defaultRetentionDays: organization.default_retention_days,
-    updatedAt: formatDateTime(organization.update_at),
-  };
+  return toOrganizationResponse(organization);
 }
 /**
  * システム管理者のレスポンス型定義
@@ -558,10 +529,13 @@ export async function getSystemAdminsByOrganizationId(
 ): Promise<SystemAdminResponse[]> {
   const systemAdmins = await organizationRepository.findSystemAdminsByOrganizationId(organizationId);
   
-  return systemAdmins.map(admin => ({
-    userId: admin.user_id,
-    userName: admin.user_name,
-  }));
+  return systemAdmins.map(admin => {
+    const response: SystemAdminResponse = {
+      userId: admin.user_id,
+      userName: admin.user_name,
+    };
+    return response;
+  });
 }
 
 /**
@@ -980,7 +954,7 @@ export async function uploadOrganizationsCsv(
 
       // createOrganization関数を使用（組織追加ダイアログと同じ処理）
       // パスワードはcreateOrganization内でランダム自動生成される
-      await createOrganization({
+      const newOrgData: Parameters<typeof createOrganization>[0] = {
         organizationId: uuidv4(),
         organizationCd,
         organizationDisplayName,
@@ -994,7 +968,8 @@ export async function uploadOrganizationsCsv(
         contractCapacity,
         contractedUsers,
         contractedProjects,
-      }, userId, lang);
+      };
+      await createOrganization(newOrgData, userId, lang);
       
       successCount++;
     }

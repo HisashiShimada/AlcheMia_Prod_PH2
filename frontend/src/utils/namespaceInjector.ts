@@ -69,16 +69,20 @@ export function injectNamespacesToMaiml(
 
   const originalTag = maimlTagMatch[0];
 
-  // xmlns:prefix="uri" 形式の属性を除去（プレフィックスなしの xmlns="..." は保持）
-  // 保護プレフィックス（xsi / xenc / xs / xsd / xlink）は保持し、カスタム prefix のみ除去する
-  const tagWithoutNs = originalTag.replace(
-    /\s+xmlns:([a-zA-Z0-9_.-]+)="[^"]*"/g,
-    (match: string, prefix: string) => (PROTECTED_PREFIXES.has(prefix) ? match : '')
-  );
+  // xmlns:prefix="uri" 形式の属性を除去（保護プレフィックスは保持）
+  // xmlns="..." (プレフィックスなし) も除去して DB の内容で上書きする
+  const tagWithoutNs = originalTag
+    .replace(
+      /\s+xmlns:([a-zA-Z0-9_.-]+)="[^"]*"/g,
+      (match: string, prefix: string) => (PROTECTED_PREFIXES.has(prefix) ? match : '')
+    )
+    .replace(/\s+xmlns="[^"]*"/g, '');
 
-  // DB の名前空間を xmlns:prefix="uri" 形式に変換
+  // DB の名前空間を xmlns 属性に変換
+  // prefix が空の場合は xmlns="uri"、ある場合は xmlns:prefix="uri"
   const nsAttrs = namespaces
-    .map(({ prefix, uri }) => `xmlns:${prefix}="${escapeXml(uri)}"`)
+    .map(({ prefix, uri }) =>
+      prefix ? `xmlns:${prefix}="${escapeXml(uri)}"` : `xmlns="${escapeXml(uri)}"`)
     .join('\n  ');
 
   // <maiml> の閉じ角括弧直前に名前空間属性を追加

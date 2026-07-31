@@ -5,6 +5,7 @@
 
 import * as userRepository from '../repositories/userRepository';
 import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
+import { generateNamespaceUri } from '../utils/namespaceUriGenerator';
 import { EmailService } from './emailService';
 import { UserRow } from '../repositories/userRepository';
 import { getMessage } from '../utils/messages';
@@ -116,20 +117,31 @@ export async function createUser(
       createUserId
     );
 
-    // 名前空間登録（prefix と uri が両方指定された場合のみ）
-    if (data.namespacePrefix && data.namespaceUri) {
-      try {
-        await namespaceTermRepository.createNamespace({
+    // 個人URI を namespace テーブルに自動登録
+    // URI形式: https://{organizationCd}.Alchemia.co.jp/{loginName}
+    // loginName = メールアドレスの @ より前の部分
+    try {
+      const pool = (await import('../database/db')).getPool();
+      const orgRow = await pool.query<{ organization_cd: string }>(
+        `SELECT organization_cd FROM organization WHERE organization_id = $1 LIMIT 1`,
+        [organizationId]
+      );
+      const organizationCd = orgRow.rows[0]?.organization_cd;
+      if (organizationCd) {
+        const loginName = data.userId.split('@')[0];
+        const candidateUri = generateNamespaceUri(organizationCd, loginName);
+        const existingUris = await namespaceTermRepository.findUrisByOrganization(organizationId);
+        const uniqueUri = existingUris.includes(candidateUri) ? `${candidateUri}1` : candidateUri;
+        await namespaceTermRepository.createNamespaceUri({
           organizationId,
-          prefix: data.namespacePrefix,
-          uri: data.namespaceUri,
+          uri: uniqueUri,
           userId: data.userId,
         });
-        console.log(`[userService] 名前空間登録成功: prefix=${data.namespacePrefix}`);
-      } catch (nsError) {
-        // 名前空間登録失敗はログに記録するが、ユーザー作成は成功とする
-        console.warn(`[userService] 名前空間登録失敗（ユーザー作成は成功）: prefix=${data.namespacePrefix}`, nsError);
+        console.log(`[userService] 個人URI自動登録成功: userId=${data.userId}, uri=${uniqueUri}`);
       }
+    } catch (nsError) {
+      // URI登録失敗はログに記録するが、ユーザー作成は成功とする
+      console.warn(`[userService] 個人URI自動登録失敗（ユーザー作成は成功）: userId=${data.userId}`, nsError);
     }
 
     // アカウント作成完了メールを送信

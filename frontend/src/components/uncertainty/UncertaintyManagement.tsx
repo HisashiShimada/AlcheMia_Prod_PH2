@@ -12,9 +12,11 @@ import UncertaintyExportModal from './UncertaintyExportModal';
 import { fetchUncertaintyCriteriaList } from '@/services/uncertaintyCriteriaApiService';
 import NamespaceMain from '../namespace/NamespaceMain';
 import PrefixManagement from '../namespace/PrefixManagement';
-import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
+import { getOrganizationGroups } from '@/services/namespaceApiService';
 import TeamAddDialog from '../namespace/TeamAddDialog';
 import TeamEditDialog from '../namespace/TeamEditDialog';
+import type { OrganizationGroupRow } from '@/types/namespace';
+import type { User } from '@/types/auth';
 
 // ──────────────────────────────────────────────
 // 型定義
@@ -23,13 +25,76 @@ interface NamespaceNode {
   key: string;
   label: string;
   count: number;
-  icon: string;
+  icon?: string;
   children?: NamespaceNode[];
 }
 
 // ──────────────────────────────────────────────
-// TODO:[MOCK] ログイン中ユーザーの所属ノードキー
-// バックエンド実装時に削除し、認証APIから取得した値に置き換えること
+// ツリーの静的骨格（Global / company / Personal）
+// company.children は API データで動的に差し替える
+// ──────────────────────────────────────────────
+const NS_TREE_SKELETON: NamespaceNode[] = [
+  {
+    key: 'global',
+    label: 'Global',
+    count: 0,
+    icon: '🌐',
+    children: [],
+  },
+  {
+    key: 'company',
+    label: '組織',
+    count: 0,
+    icon: '🏢',
+    children: [],
+  },
+  {
+    key: 'personal',
+    label: 'Personal',
+    count: 0,
+    icon: '👤',
+    children: [],
+  },
+];
+
+// ──────────────────────────────────────────────
+// organization_group フラットリスト → NamespaceNode ツリー変換
+// ──────────────────────────────────────────────
+const buildOrgTree = (groups: OrganizationGroupRow[]): NamespaceNode[] => {
+  const map = new Map<string, NamespaceNode>();
+  const roots: NamespaceNode[] = [];
+
+  for (const g of groups) {
+    map.set(g.organization_group_cd, {
+      key: g.organization_group_cd,
+      label: g.organization_group_name,
+      count: 0,
+      children: [],
+    });
+  }
+
+  for (const g of groups) {
+    const node = map.get(g.organization_group_cd)!;
+    if (g.parent_group_cd && map.has(g.parent_group_cd)) {
+      map.get(g.parent_group_cd)!.children!.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  // children が空配列のノードはリーフ扱い
+  const stripEmpty = (nodes: NamespaceNode[]): NamespaceNode[] =>
+    nodes.map((n) => ({
+      ...n,
+      children: n.children && n.children.length > 0 ? stripEmpty(n.children) : undefined,
+    }));
+
+  return stripEmpty(roots);
+};
+
+// ──────────────────────────────────────────────
+// モック: ログイン中ユーザーの所属ノードキー
+// 本番実装では認証APIから取得する
 // ──────────────────────────────────────────────
 // チーム代表者（解析チーム）としてログインしている想定
 const CURRENT_USER_NS_KEY = 'rd-analysis'; // TODO:[MOCK] 認証APIから取得する実装に置き換える
@@ -58,46 +123,17 @@ const getRootKey = (nsKey: string, nodes: NamespaceNode[]): string | null => {
   return null;
 };
 
-// ログインユーザーの所属パスのみを残してツリーを剪定する
-// - global: 常に表示
-// - company/部門/チーム: 自分のチームと祖先のみ表示
-// - personal: 自分のチーム (CURRENT_USER_NS_KEY) のメンバーのみ表示
-const filterTreeForUser = (nodes: NamespaceNode[], userNsKey: string): NamespaceNode[] => {
-  const ancestorKeys = new Set<string>(getAncestorKeys(userNsKey, nodes) ?? []);
 
-  const filterNodes = (ns: NamespaceNode[], parentKey?: string): NamespaceNode[] =>
-    ns
-      .filter((n) => {
-        // global は常に表示
-        if (n.key === 'global') return true;
-        // personal ノード自体は表示（中身はフィルタ）
-        if (n.key === 'personal') return true;
-        // company ルートは表示
-        if (n.key === 'company') return true;
-        // 自分のチームノードは表示
-        if (n.key === userNsKey) return true;
-        // 祖先ノードは表示
-        if (ancestorKeys.has(n.key)) return true;
-        // personal の直下ユーザーノードは teamKey が一致する場合のみ表示
-        if (parentKey === 'personal') {
-          return (n as any).teamKey === userNsKey;
-        }
-        return false;
-      })
-      .map((n) => ({
-        ...n,
-        children: n.children ? filterNodes(n.children, n.key) : undefined,
-      }));
 
-  return filterNodes(nodes);
-};
-
+interface UncertaintyManagementProps {
+  user?: User;
+}
 
 /**
  * 不確かさ基準管理メイン画面コンポーネント
  * 左ペイン（名前空間ツリー固定）＋右ペイン（タブ：用語管理 / 不確かさ基準管理）
  */
-export default function UncertaintyManagement() {
+export default function UncertaintyManagement({ user }: UncertaintyManagementProps = {}) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchText, setSearchText] = useState('');
   const [evalFilter, setEvalFilter] = useState<string>('');
@@ -130,6 +166,37 @@ export default function UncertaintyManagement() {
   const [teamEditLabel,   setTeamEditLabel]   = useState('');
   const [teamEditUnitId,  setTeamEditUnitId]  = useState<string | undefined>(undefined);
   const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
+
+  // ── organization_group 取得ステート
+  const [orgGroups, setOrgGroups] = useState<OrganizationGroupRow[]>([]);
+
+  // ── 動的ツリー（NS_TREE_SKELETON の company / personal children を API データで差し替え）
+  const namespaceTree = useMemo((): NamespaceNode[] => {
+    // Personal 配下には常にログインユーザーのユーザー名ノードを1件表示する。
+    // DB の namespace レコード（scope_key = user.id）の有無に関わらず表示するため、
+    // user Props から直接生成する。
+    const userNode: NamespaceNode = {
+      key: `personal-${user?.id ?? 'me'}`,
+      label: user?.username ?? 'Personal',
+      count: 0,
+    };
+
+    return NS_TREE_SKELETON.map((n) => {
+      if (n.key === 'company') return { ...n, children: buildOrgTree(orgGroups) };
+      if (n.key === 'personal') return { ...n, children: [userNode] };
+      return n;
+    });
+  }, [orgGroups, user?.id, user?.username]);
+
+  // ── 初回マウント時に organization_group 一覧 & 個人名前空間を取得してツリーを構築
+  useEffect(() => {
+    getOrganizationGroups()
+      .then((groups) => setOrgGroups(groups))
+      .catch(() => {
+        // 取得失敗時は空ツリーのまま表示を継続
+      });
+
+  }, [user?.id]);
 
   // ── mousedown でコンテキストメニューを閉じる
   useEffect(() => {
@@ -180,9 +247,9 @@ export default function UncertaintyManagement() {
   // Global または Personal 配下のノードが選択中かどうか
   const isGlobalOrPersonalSelected = useMemo(() => {
     if (!selectedNsKey) return false;
-    const rootKey = getRootKey(selectedNsKey, namespaceTreeRaw as NamespaceNode[]);
+    const rootKey = getRootKey(selectedNsKey, namespaceTree);
     return rootKey === 'global' || rootKey === 'personal';
-  }, [selectedNsKey]);
+  }, [selectedNsKey, namespaceTree]);
 
   // ── チームノードのタイトル（companyDepth === 3 のみ右クリックメニューを有効化）
   const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
@@ -231,13 +298,10 @@ export default function UncertaintyManagement() {
       };
     }), [renderTreeTitle]);
 
-  // ──── 名前空間ツリーデータ（ユーザーフィルタ付き）
+  // ──── 名前空間ツリーデータ（APIから取得した全ノードをそのまま表示）
   const treeData = useMemo(() => {
-    const allNodes = namespaceTreeRaw as NamespaceNode[];
-    // ログインユーザーの所属パスのみに絞り込む
-    const userFilteredNodes = filterTreeForUser(allNodes, CURRENT_USER_NS_KEY);
-    return toAntTree(userFilteredNodes);
-  }, [toAntTree]);
+    return toAntTree(namespaceTree);
+  }, [toAntTree, namespaceTree]);
 
   const { t } = useLanguage();
 

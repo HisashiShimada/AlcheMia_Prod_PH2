@@ -193,7 +193,7 @@ export default function ExperimentAdminMenu({
 
         {/* タブ4: 名前空間管理 - display:none でマウント維持し state を保持 */}
         <div style={{ display: currentTab === '4' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
-          <UncertaintyManagement />
+          <UncertaintyManagement user={user} />
         </div>
 
         {/* タブ5: チーム管理 */}

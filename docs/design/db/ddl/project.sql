@@ -22,7 +22,7 @@ CREATE TABLE project (
   , project_id varchar(20) NOT NULL
   , project_name character varying
   , description text
-  , organization_gourp_cd character varying(50)
+  , organization_group_cd character varying(50)
   , owner_user_id character varying(50)
   , project_status numeric(2,0)
   , project_maiml_flg BOOLEAN
@@ -43,7 +43,7 @@ COMMENT ON COLUMN project.organization_id IS '組織ID';
 COMMENT ON COLUMN project.project_id IS 'プロジェクトID';
 COMMENT ON COLUMN project.project_name IS 'プロジェクト名:プロジェクト名かつフォルダ名';
 COMMENT ON COLUMN project.description IS '概要';
-COMMENT ON COLUMN project.organization_gourp_cd IS '組織階層グループCD';
+COMMENT ON COLUMN project.organization_group_cd IS '組織階層グループCD';
 COMMENT ON COLUMN project.owner_user_id IS '所有者ユーザID';
 COMMENT ON COLUMN project.project_status IS 'プロジェクトステータス';
 COMMENT ON COLUMN project.project_maiml_flg IS 'プロジェクトMaiml有無:false:ファイルなし、true:ファイルあり';
