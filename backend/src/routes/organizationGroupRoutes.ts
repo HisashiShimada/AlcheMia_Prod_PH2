@@ -40,6 +40,43 @@ router.post(
 );
 
 /**
+ * グループメンバー一覧取得
+ * GET /api/v1/organization-groups/:groupCd/members
+ */
+router.get(
+  '/:groupCd/members',
+  authMiddleware,
+  tenantIsolation,
+  organizationGroupController.getOrganizationGroupMembers
+);
+
+/**
+ * グループメンバー一括更新
+ * PUT /api/v1/organization-groups/:groupCd/members
+ *
+ * @body userIds - 設定するユーザーIDの配列
+ */
+router.put(
+  '/:groupCd/members',
+  authMiddleware,
+  tenantIsolation,
+  organizationGroupController.setOrganizationGroupMembers
+);
+
+/**
+ * グループ代表者変更
+ * PUT /api/v1/organization-groups/:groupCd/chief
+ *
+ * @body chiefUserId - 新しい代表者ユーザーID
+ */
+router.put(
+  '/:groupCd/chief',
+  authMiddleware,
+  tenantIsolation,
+  organizationGroupController.updateOrganizationGroupChief
+);
+
+/**
  * 組織グループ単件取得
  * GET /api/v1/organization-groups/:groupCd
  */
@@ -73,3 +110,4 @@ router.delete(
 );
 
 export default router;
+

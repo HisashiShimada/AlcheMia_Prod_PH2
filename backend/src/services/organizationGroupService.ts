@@ -8,8 +8,10 @@
  */
 
 import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
-import type { OrganizationGroupRow, OrganizationGroupFilters } from '../repositories/organizationGroupRepository';
+import type { OrganizationGroupRow, OrganizationGroupFilters, OrganizationGroupMemberRow } from '../repositories/organizationGroupRepository';
 import { E6001, E7001 } from '../enums/errorCodes';
+import { getPool } from '../database/db';
+
 
 /**
  * 組織グループ一覧取得
@@ -165,3 +167,109 @@ export async function deleteOrganizationGroup(
 
   await organizationGroupRepository.deleteById(organizationId, groupCd);
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// メンバー管理
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * グループメンバー一覧取得
+ *
+ * @param organizationId - 組織ID
+ * @param groupCd - 組織グループCD
+ * @returns メンバー一覧
+ * @throws 存在しない場合は E6001（リソース不存在）エラー
+ */
+export async function getOrganizationGroupMembers(
+  organizationId: string,
+  groupCd: string
+): Promise<OrganizationGroupMemberRow[]> {
+  const exists = await organizationGroupRepository.existsById(organizationId, groupCd);
+  if (!exists) {
+    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    error.code = E6001;
+    error.statusCode = 404;
+    throw error;
+  }
+  return organizationGroupRepository.findMembersByGroupCd(organizationId, groupCd);
+}
+
+/**
+ * グループメンバー一括更新（トランザクション）
+ *
+ * @param organizationId - 組織ID
+ * @param groupCd - 組織グループCD
+ * @param userIds - 設定するユーザーIDの配列
+ * @throws 存在しない場合は E6001（リソース不存在）エラー
+ */
+export async function setOrganizationGroupMembers(
+  organizationId: string,
+  groupCd: string,
+  userIds: string[]
+): Promise<void> {
+  const exists = await organizationGroupRepository.existsById(organizationId, groupCd);
+  if (!exists) {
+    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    error.code = E6001;
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await organizationGroupRepository.setMembers(organizationId, groupCd, userIds, client);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * グループ代表者変更
+ *
+ * @param organizationId - 組織ID
+ * @param groupCd - 組織グループCD
+ * @param chiefUserId - 新しい代表者ユーザーID
+ * @param updaterId - 更新者ユーザーID
+ * @returns 更新された組織グループ
+ * @throws 存在しない場合は E6001（リソース不存在）エラー
+ */
+export async function updateOrganizationGroupChief(
+  organizationId: string,
+  groupCd: string,
+  chiefUserId: string,
+  updaterId?: string | null
+): Promise<OrganizationGroupRow> {
+  const existing = await organizationGroupRepository.findById(organizationId, groupCd);
+  if (!existing) {
+    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    error.code = E6001;
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const updated = await organizationGroupRepository.update({
+    organization_id: organizationId,
+    organization_group_cd: groupCd,
+    organization_group_name: existing.organization_group_name,
+    chief_user_id: chiefUserId,
+    parent_group_cd: existing.parent_group_cd,
+    layer: existing.layer,
+    update_user_id: updaterId ?? null,
+  });
+
+  if (!updated) {
+    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    error.code = E6001;
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return updated;
+}
+

@@ -9,6 +9,8 @@
 
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
+import type { PoolClient } from 'pg';
+
 
 /**
  * organization_group テーブルの型定義
@@ -200,3 +202,65 @@ export async function deleteById(
   const result = await pool.query(sql, [organizationId, groupCd]);
   return result.rowCount ?? 0;
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// organization_group_user メンバー管理
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * organization_group_user 型定義
+ *
+ * @remarks
+ * DDL: docs/design/db/ddl/organization_group_user.sql
+ */
+export interface OrganizationGroupMemberRow {
+  user_id: string;
+  user_name: string;
+  email: string;
+}
+
+/**
+ * グループメンバー一覧取得
+ *
+ * @param organizationId - 組織ID
+ * @param groupCd - 組織グループCD
+ * @returns メンバー一覧
+ */
+export async function findMembersByGroupCd(
+  organizationId: string,
+  groupCd: string
+): Promise<OrganizationGroupMemberRow[]> {
+  const pool = getPool();
+  const sql = await loadSqlFile('organization_groups/findMembers.sql');
+  const result = await pool.query<OrganizationGroupMemberRow>(sql, [organizationId, groupCd]);
+  return result.rows;
+}
+
+/**
+ * グループメンバー一括更新（既存メンバーをすべて削除し新規メンバーを挿入）
+ *
+ * @param organizationId - 組織ID
+ * @param groupCd - 組織グループCD
+ * @param userIds - 設定するユーザーIDの配列（空配列の場合はメンバーを全削除）
+ * @param client - トランザクション用クライアント（省略時は新規接続）
+ */
+export async function setMembers(
+  organizationId: string,
+  groupCd: string,
+  userIds: string[],
+  client?: PoolClient
+): Promise<void> {
+  const pool = getPool();
+  const executor = client ?? pool;
+
+  const deleteSql = await loadSqlFile('organization_groups/deleteMembers.sql');
+  await executor.query(deleteSql, [organizationId, groupCd]);
+
+  if (userIds.length === 0) return;
+
+  const insertSql = await loadSqlFile('organization_groups/insertMember.sql');
+  for (const userId of userIds) {
+    await executor.query(insertSql, [organizationId, groupCd, userId]);
+  }
+}
+

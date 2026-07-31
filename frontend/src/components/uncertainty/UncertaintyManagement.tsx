@@ -164,7 +164,8 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   // ── チーム編集ダイアログ
   const [teamEditOpen,    setTeamEditOpen]    = useState(false);
   const [teamEditLabel,   setTeamEditLabel]   = useState('');
-  const [teamEditUnitId,  setTeamEditUnitId]  = useState<string | undefined>(undefined);
+  const [teamEditGroupCd,  setTeamEditGroupCd]  = useState<string | undefined>(undefined);
+
   const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
 
   // ── organization_group 取得ステート
@@ -373,7 +374,9 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 onClick={() => {
                   setTeamEditLabel(ctxMenu.node!.label);
-                  setTeamEditUnitId((ctxMenu.node as any).departmentUnitId ?? ctxMenu.node!.key ?? undefined);
+                  setTeamEditGroupCd(ctxMenu.node!.key ?? undefined);
+
+
                   setTeamEditMembers([]);
                   setTeamEditOpen(true);
                   setCtxMenu((s) => ({ ...s, visible: false }));
@@ -523,25 +526,26 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
       {/* チーム追加ダイアログ */}
       <TeamAddDialog
         open={teamAddOpen}
-        parentTeamLabel={teamAddParentLabel}
         onClose={() => setTeamAddOpen(false)}
-        onCreated={(teamName, members) => {
-          message.success(t('uncertainty.management.toastTeamCreated', { name: teamName, count: String(members.length) }));
+        onCreated={(_groupCd, groupName) => {
+          message.success(t('uncertainty.management.toastTeamCreated', { name: groupName, count: '0' }));
           setTeamAddOpen(false);
         }}
       />
+
 
       {/* チーム編集ダイアログ */}
       <TeamEditDialog
         open={teamEditOpen}
         teamLabel={teamEditLabel}
-        teamUnitId={teamEditUnitId}
+        teamGroupCd={teamEditGroupCd}
         onClose={() => setTeamEditOpen(false)}
         onSaved={(members) => {
           message.success(t('uncertainty.management.toastTeamUpdated', { name: teamEditLabel, count: String(members.length) }));
           setTeamEditMembers(members);
         }}
       />
+
 
       {/* モーダル群 */}
       <UncertaintyDetailModal

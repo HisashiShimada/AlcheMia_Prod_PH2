@@ -3,16 +3,30 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
-import membersMockRaw from '../../../mock/namespace/department-unit-members.json';
 import type { OrgUser, TeamEditDialogProps } from '@/types/namespace';
 
 const { Text } = Typography;
 
+/** ユーザー一覧 API レスポンス行 */
+interface OrgUserApiRow {
+  user_id: string;
+  user_name: string;
+  email?: string;
+}
+
+/** メンバー一覧 API レスポンス行 */
+interface MemberApiRow {
+  user_id: string;
+  user_name: string;
+  email?: string;
+}
+
 const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   open,
   teamLabel,
-  teamUnitId,
+  teamGroupCd,
   teamOwnerUserId,
+
   onClose,
   onSaved,
 }) => {
@@ -34,40 +48,36 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
     // 全ユーザー一覧を取得
     setUsersLoading(true);
-    fetch('/api/v1/department-units/users', { credentials: 'include' })
+    fetch('/api/v1/organization-groups/users', { credentials: 'include' })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<OrgUser[]>;
+        return res.json() as Promise<{ success: boolean; data: OrgUserApiRow[] }>;
       })
-      .then((data) => setAllUsers(data))
+      .then(({ data }) =>
+        setAllUsers(data.map((u) => ({ userId: u.user_id, userName: u.user_name, email: u.email })))
+      )
       .catch(() => setAllUsers([]))
       .finally(() => setUsersLoading(false));
 
-    // 既存メンバーを取得（teamUnitId がある場合のみ）
-    if (teamUnitId) {
-      fetch(`/api/v1/department-units/${teamUnitId}/members`, { credentials: 'include' })
+    // 既存メンバーを取得（teamGroupCd がある場合のみ）
+    if (teamGroupCd) {
+      fetch(
+        `/api/v1/organization-groups/${encodeURIComponent(teamGroupCd)}/members`,
+        { credentials: 'include' }
+      )
         .then((res) => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json() as Promise<OrgUser[]>;
+          return res.json() as Promise<{ success: boolean; data: MemberApiRow[] }>;
         })
-        .then((data) => setMembers(data))
-        .catch(() => {
-          // APIが失敗した場合はモックデータをフォールバックとして使用
-          const mockMembers = (membersMockRaw as Record<string, OrgUser[]>)[teamUnitId] ?? [];
-          setMembers(mockMembers);
-          // モックメンバーを allUsers に補完
-          if (mockMembers.length > 0) {
-            setAllUsers((prev) => {
-              const existing = new Set(prev.map((u) => u.userId));
-              const additions = mockMembers.filter((u) => !existing.has(u.userId));
-              return additions.length > 0 ? [...prev, ...additions] : prev;
-            });
-          }
-        });
+        .then(({ data }) =>
+          setMembers(data.map((m) => ({ userId: m.user_id, userName: m.user_name, email: m.email })))
+        )
+        .catch(() => setMembers([]));
     } else {
       setMembers([]);
     }
-  }, [open, teamUnitId, teamLabel, teamOwnerUserId]);
+  }, [open, teamGroupCd, teamLabel, teamOwnerUserId]);
+
 
   // メンバーを削除（削除されたメンバーが代表者の場合はクリア）
   const handleRemoveMember = (userId: string) => {
@@ -92,12 +102,12 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
   const handleSave = async () => {
     if (!teamName.trim()) {
-      message.error('チーム名を入力してください');
+      message.error('グループ名を入力してください');
       return;
     }
 
-    if (!teamUnitId) {
-      message.warning('チームIDが未設定のため、DBへの保存をスキップしました');
+    if (!teamGroupCd) {
+      message.warning('グループCDが未設定のため、DBへの保存をスキップしました');
       onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
       onClose();
       return;
@@ -105,49 +115,58 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
     setLoading(true);
     try {
-      // 1. チーム名を更新
+      // 1. グループ名を更新（変更があった場合のみ）
       if (teamName.trim() !== teamLabel) {
-        const nameRes = await fetch(`/api/v1/department-units/${teamUnitId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ unitName: teamName.trim() }),
-        });
+        const nameRes = await fetch(
+          `/api/v1/organization-groups/${encodeURIComponent(teamGroupCd)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ organization_group_name: teamName.trim() }),
+          }
+        );
         if (!nameRes.ok) {
           const err = await nameRes.json().catch(() => ({}));
-          message.error(`チーム名の更新に失敗しました: ${(err as any).error ?? nameRes.status}`);
+          message.error(`グループ名の更新に失敗しました: ${(err as any).error?.message ?? nameRes.status}`);
           return;
         }
       }
 
       // 2. メンバーを更新
-      const memRes = await fetch(`/api/v1/department-units/${teamUnitId}/members`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ userIds: members.map((m) => m.userId) }),
-      });
-
+      const memRes = await fetch(
+        `/api/v1/organization-groups/${encodeURIComponent(teamGroupCd)}/members`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ userIds: members.map((m) => m.userId) }),
+        }
+      );
       if (!memRes.ok) {
         const err = await memRes.json().catch(() => ({}));
-        message.error(`メンバーの更新に失敗しました: ${(err as any).error ?? memRes.status}`);
+        message.error(`メンバーの更新に失敗しました: ${(err as any).error?.message ?? memRes.status}`);
         return;
       }
 
       // 3. 代表者を更新（変更があった場合のみ）
-      if (ownerUserId !== teamOwnerUserId && ownerUserId) {
-        const ownerRes = await fetch(`/api/v1/department-units/${teamUnitId}/owner`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ ownerUserId }),
-        });
-        if (!ownerRes.ok) {
-          const err = await ownerRes.json().catch(() => ({}));
-          message.error(`代表者の更新に失敗しました: ${(err as any).error ?? ownerRes.status}`);
+      if (ownerUserId && ownerUserId !== teamOwnerUserId) {
+        const chiefRes = await fetch(
+          `/api/v1/organization-groups/${encodeURIComponent(teamGroupCd)}/chief`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ chiefUserId: ownerUserId }),
+          }
+        );
+        if (!chiefRes.ok) {
+          const err = await chiefRes.json().catch(() => ({}));
+          message.error(`代表者の更新に失敗しました: ${(err as any).error?.message ?? chiefRes.status}`);
           return;
         }
       }
+
 
       message.success(`「${teamName.trim()}」を保存しました（メンバー: ${members.length}名）`);
       onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
@@ -171,7 +190,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   return (
     <Modal
       open={open}
-      title="チームを編集"
+      title="グループを編集"
       onCancel={onClose}
       footer={[
         <Button key="cancel" onClick={onClose} disabled={loading}>
@@ -186,14 +205,14 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
     >
       <Space orientation="vertical" style={{ width: '100%' }} size={16}>
 
-        {/* ── チーム名（編集可能） ── */}
+        {/* ── グループ名（編集可能） ── */}
         <div>
           <Text strong>
-            チーム名 <Text type="danger">*</Text>
+            グループ名 <Text type="danger">*</Text>
           </Text>
           <Input
             style={{ marginTop: 4 }}
-            placeholder="チーム名を入力..."
+            placeholder="グループ名を入力..."
             value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
             disabled={loading}

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Button,
   Divider,
   Empty,
+  Popconfirm,
   Spin,
   Table,
   Typography,
@@ -13,43 +14,55 @@ import {
 import {
   PlusOutlined,
   EditOutlined,
+  DeleteOutlined,
   UserOutlined,
-  LinkOutlined,
 } from '@ant-design/icons';
 import TeamAddDialog from './TeamAddDialog';
 import TeamEditDialog from './TeamEditDialog';
-import teamsMockRaw from '../../../mock/namespace/department-unit-members.json';
 import type { Team, TeamMember } from '@/types/namespace';
 
 const { Text, Title } = Typography;
 
 // ──────────────────────────────────────────────
-// ダミーデータ（API実装後に差し替え）
+// API レスポンス型
 // ──────────────────────────────────────────────
-const DUMMY_TEAMS: Team[] = [
-  {
-    departmentUnitId: 'rd-materials',
-    unitName: '材料解析チーム',
-    departmentName: '研究開発部',
-    ownerName: '山田 太郎（自分）',
-    ownerUserId: 'user-001',
-    nsPrefix: 'materials',
-    nsUri: 'https://example.org/ns/materials/',
-    nsDisplayName: '材料科学名前空間',
-    members: (teamsMockRaw as Record<string, TeamMember[]>)['rd-materials'] ?? [],
-  },
-  {
-    departmentUnitId: 'data-proc',
-    unitName: 'データ処理班',
-    departmentName: '情報システム部',
-    ownerName: '山田 太郎（自分）',
-    ownerUserId: 'user-001',
-    nsPrefix: 'dp',
-    nsUri: 'https://example.org/ns/dp/',
-    nsDisplayName: 'データ処理名前空間',
-    members: [],
-  },
-];
+
+/**
+ * GET /api/v1/organization-groups レスポンス行
+ */
+interface OrgGroupApiRow {
+  organization_group_cd: string;
+  organization_group_name: string;
+  chief_user_id: string;
+  parent_group_cd: string | null;
+  layer: string | null;
+}
+
+/**
+ * GET /api/v1/organization-groups/:groupCd/members レスポンス行
+ */
+interface OrgGroupMemberApiRow {
+  user_id: string;
+  user_name: string;
+  email?: string;
+}
+
+// ──────────────────────────────────────────────
+// ヘルパー関数
+// ──────────────────────────────────────────────
+
+/** API行 → Team 型に変換 */
+function apiRowToTeam(row: OrgGroupApiRow): Team {
+  return {
+    groupCd:      row.organization_group_cd,
+    unitName:     row.organization_group_name,
+    parentGroupCd: row.parent_group_cd,
+    layer:        row.layer,
+    ownerUserId:  row.chief_user_id,
+    ownerName:    '',   // 詳細取得時に補完
+    members:      [],
+  };
+}
 
 // ──────────────────────────────────────────────
 // コンポーネント
@@ -59,97 +72,154 @@ const TeamManagementPanel: React.FC = () => {
   const [teams, setTeams]               = useState<Team[]>([]);
   const [loading, setLoading]           = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [membersLoading, setMembersLoading] = useState(false);
 
   // チーム追加ダイアログ
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   // チーム編集ダイアログ
-  const [editDialogOpen,  setEditDialogOpen]  = useState(false);
-  const [editTarget,      setEditTarget]      = useState<Team | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editTarget,     setEditTarget]     = useState<Team | null>(null);
 
-  // ──── チーム一覧を取得（API未実装時はダミーデータ）
-  const loadTeams = () => {
+  // ──── チーム一覧を取得
+  const loadTeams = useCallback(() => {
     setLoading(true);
-    fetch('/api/v1/department-units/my-teams', { credentials: 'include' })
+    fetch('/api/v1/organization-groups', { credentials: 'include' })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<Team[]>;
+        return res.json() as Promise<{ success: boolean; data: OrgGroupApiRow[] }>;
       })
-      .then((data) => {
-        setTeams(data);
-        if (data.length > 0 && !selectedTeam) {
-          setSelectedTeam(data[0]);
+      .then(({ data }) => {
+        const converted = data.map(apiRowToTeam);
+        setTeams(converted);
+        if (converted.length > 0) {
+          setSelectedTeam((prev) => prev ?? converted[0]);
         }
       })
       .catch(() => {
-        setTeams(DUMMY_TEAMS);
-        if (DUMMY_TEAMS.length > 0) {
-          setSelectedTeam((prev) => prev ?? DUMMY_TEAMS[0]);
-        }
+        setTeams([]);
+        message.error('グループ一覧の取得に失敗しました');
       })
       .finally(() => setLoading(false));
-  };
+  }, []);
 
   useEffect(() => {
     loadTeams();
+  }, [loadTeams]);
+
+  // ──── 選択チームのメンバーを取得
+  useEffect(() => {
+    if (!selectedTeam) return;
+    setMembersLoading(true);
+    fetch(`/api/v1/organization-groups/${encodeURIComponent(selectedTeam.groupCd)}/members`, {
+      credentials: 'include',
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<{ success: boolean; data: OrgGroupMemberApiRow[] }>;
+      })
+      .then(({ data }) => {
+        const members: TeamMember[] = data.map((m) => ({
+          userId:   m.user_id,
+          userName: m.user_name,
+        }));
+        setSelectedTeam((prev) =>
+          prev && prev.groupCd === selectedTeam.groupCd
+            ? { ...prev, members }
+            : prev
+        );
+        setTeams((prev) =>
+          prev.map((t) =>
+            t.groupCd === selectedTeam.groupCd ? { ...t, members } : t
+          )
+        );
+      })
+      .catch(() => {
+        // メンバー取得失敗は警告のみ（一覧表示は維持）
+        message.warning('メンバー情報の取得に失敗しました');
+      })
+      .finally(() => setMembersLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedTeam?.groupCd]);
 
   // ──── チーム作成後のコールバック
-  const handleTeamCreated = (teamName: string, memberIds: string[], unitId?: string) => {
+  const handleTeamCreated = useCallback((groupCd: string, groupName: string) => {
     const newTeam: Team = {
-      departmentUnitId: unitId ?? `new-${Date.now()}`,
-      unitName: teamName,
+      groupCd,
+      unitName:  groupName,
       ownerName: '自分（代表者）',
-      members: [],
+      members:   [],
     };
     setTeams((prev) => [...prev, newTeam]);
     setSelectedTeam(newTeam);
     setAddDialogOpen(false);
-    message.success(`チーム「${teamName}」を作成しました`);
-  };
+    message.success(`グループ「${groupName}」を作成しました`);
+  }, []);
 
   // ──── チーム編集後のコールバック
-  const handleTeamSaved = (memberIds: string[], newTeamName?: string, newOwnerUserId?: string) => {
+  const handleTeamSaved = useCallback((
+    memberIds: string[],
+    newTeamName?: string,
+    newOwnerUserId?: string,
+  ) => {
     if (!editTarget) return;
 
     setTeams((prev) =>
       prev.map((t) => {
-        if (t.departmentUnitId !== editTarget.departmentUnitId) return t;
+        if (t.groupCd !== editTarget.groupCd) return t;
         const updatedName = newTeamName ?? t.unitName;
         const updatedMembers: TeamMember[] = memberIds.map((id) => {
           const existing = t.members.find((m) => m.userId === id);
-          return existing ?? { userId: id, userName: id, departmentUnitId: t.departmentUnitId };
+          return existing ?? { userId: id, userName: id };
         });
-        // 代表者情報を更新
         const newOwnerMember = updatedMembers.find((m) => m.userId === newOwnerUserId);
         return {
           ...t,
-          unitName: updatedName,
-          members: updatedMembers,
+          unitName:    updatedName,
+          members:     updatedMembers,
           ownerUserId: newOwnerUserId ?? t.ownerUserId,
-          ownerName: newOwnerMember?.userName ?? t.ownerName,
+          ownerName:   newOwnerMember?.userName ?? t.ownerName,
         };
       }),
     );
     setSelectedTeam((prev) => {
-      if (!prev || prev.departmentUnitId !== editTarget.departmentUnitId) return prev;
+      if (!prev || prev.groupCd !== editTarget.groupCd) return prev;
       const updatedMembers: TeamMember[] = memberIds.map((id) => {
         const existing = prev.members.find((m) => m.userId === id);
-        return existing ?? { userId: id, userName: id, departmentUnitId: prev.departmentUnitId };
+        return existing ?? { userId: id, userName: id };
       });
       const newOwnerMember = updatedMembers.find((m) => m.userId === newOwnerUserId);
       return {
         ...prev,
-        unitName: newTeamName ?? prev.unitName,
-        members: updatedMembers,
+        unitName:    newTeamName ?? prev.unitName,
+        members:     updatedMembers,
         ownerUserId: newOwnerUserId ?? prev.ownerUserId,
-        ownerName: newOwnerMember?.userName ?? prev.ownerName,
+        ownerName:   newOwnerMember?.userName ?? prev.ownerName,
       };
     });
     setEditDialogOpen(false);
     setEditTarget(null);
-  };
+  }, [editTarget]);
+
+  // ──── チーム削除
+  const handleTeamDelete = useCallback(async (team: Team) => {
+    try {
+      const res = await fetch(
+        `/api/v1/organization-groups/${encodeURIComponent(team.groupCd)}`,
+        { method: 'DELETE', credentials: 'include' }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        message.error(`削除に失敗しました: ${(err as any).error?.message ?? res.status}`);
+        return;
+      }
+      setTeams((prev) => prev.filter((t) => t.groupCd !== team.groupCd));
+      setSelectedTeam((prev) => (prev?.groupCd === team.groupCd ? null : prev));
+      message.success(`グループ「${team.unitName}」を削除しました`);
+    } catch {
+      message.error('削除中にエラーが発生しました');
+    }
+  }, []);
 
   // メンバーテーブルの列定義
   const memberColumns = [
@@ -169,7 +239,7 @@ const TeamManagementPanel: React.FC = () => {
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden', width: '100%' }}>
 
-      {/* ── 左ペイン: チーム一覧 ── */}
+      {/* ── 左ペイン: グループ一覧 ── */}
       <div
         style={{
           width: 260,
@@ -180,7 +250,7 @@ const TeamManagementPanel: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        {/* 見出し＋チーム作成ボタン */}
+        {/* 見出し＋グループ作成ボタン */}
         <div
           style={{
             padding: '12px 16px',
@@ -190,18 +260,18 @@ const TeamManagementPanel: React.FC = () => {
             justifyContent: 'space-between',
           }}
         >
-          <Text strong style={{ fontSize: 14 }}>チーム一覧</Text>
+          <Text strong style={{ fontSize: 14 }}>グループ一覧</Text>
           <Button
             size="small"
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setAddDialogOpen(true)}
           >
-            チームを作成
+            グループを作成
           </Button>
         </div>
 
-        {/* チームリスト */}
+        {/* グループリスト */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
@@ -209,24 +279,28 @@ const TeamManagementPanel: React.FC = () => {
             </div>
           ) : teams.length === 0 ? (
             <div style={{ padding: '24px 16px', color: '#8c8c8c', fontSize: 13, textAlign: 'center' }}>
-              チームがありません
+              グループがありません
             </div>
           ) : (
             teams.map((team) => {
-              const isSelected = selectedTeam?.departmentUnitId === team.departmentUnitId;
+              const isSelected = selectedTeam?.groupCd === team.groupCd;
               return (
                 <div
-                  key={team.departmentUnitId}
+                  key={team.groupCd}
                   style={{
                     padding: '10px 16px',
                     cursor: 'pointer',
                     backgroundColor: isSelected ? '#e6f4ff' : 'transparent',
                     borderLeft: isSelected ? '3px solid #1677ff' : '3px solid transparent',
                     transition: 'background 0.15s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 4,
                   }}
                   onClick={() => setSelectedTeam(team)}
                 >
-                  <div style={{ width: '100%' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span
                         style={{
@@ -254,6 +328,29 @@ const TeamManagementPanel: React.FC = () => {
                       {team.members.length}名
                     </Text>
                   </div>
+
+                  {/* 削除ボタン */}
+                  <Popconfirm
+                    title={`「${team.unitName}」を削除しますか？`}
+                    description="削除すると元に戻せません"
+                    okText="削除"
+                    cancelText="キャンセル"
+                    okButtonProps={{ danger: true }}
+                    onConfirm={(e) => {
+                      e?.stopPropagation();
+                      handleTeamDelete(team);
+                    }}
+                    onCancel={(e) => e?.stopPropagation()}
+                  >
+                    <Button
+                      size="small"
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ flexShrink: 0 }}
+                    />
+                  </Popconfirm>
                 </div>
               );
             })
@@ -261,11 +358,11 @@ const TeamManagementPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 右ペイン: チーム詳細 ── */}
+      {/* ── 右ペイン: グループ詳細 ── */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {selectedTeam ? (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', padding: '20px 24px', width: '100%' }}>
-            {/* チーム名＋編集ボタン */}
+            {/* グループ名＋編集ボタン */}
             <div
               style={{
                 display: 'flex',
@@ -289,7 +386,7 @@ const TeamManagementPanel: React.FC = () => {
               </Button>
             </div>
 
-            {/* チーム情報 */}
+            {/* グループ情報 */}
             <div
               style={{
                 display: 'grid',
@@ -298,23 +395,18 @@ const TeamManagementPanel: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              <Text type="secondary">所属先</Text>
-              <Text>{selectedTeam.departmentName}</Text>
+              <Text type="secondary">グループCD</Text>
+              <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{selectedTeam.groupCd}</Text>
 
               <Text type="secondary">代表者</Text>
-              <Text>{selectedTeam.ownerName}</Text>
+              <Text>{selectedTeam.ownerName || selectedTeam.ownerUserId || '未設定'}</Text>
 
-              <Text type="secondary">名前空間URI</Text>
-              <div>
-                {selectedTeam.nsUri ? (
-                  <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    <LinkOutlined style={{ marginRight: 4, color: '#aaa' }} />
-                    {selectedTeam.nsUri}
-                  </Text>
-                ) : (
-                  <Text type="secondary">未設定</Text>
-                )}
-              </div>
+              {selectedTeam.parentGroupCd && (
+                <>
+                  <Text type="secondary">親グループ</Text>
+                  <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{selectedTeam.parentGroupCd}</Text>
+                </>
+              )}
             </div>
 
             <Divider style={{ margin: '12px 0' }} />
@@ -330,35 +422,41 @@ const TeamManagementPanel: React.FC = () => {
             </div>
 
             <div style={{ flex: 1, overflow: 'auto' }}>
-              <Table<TeamMember>
-                size="small"
-                dataSource={selectedTeam.members}
-                columns={memberColumns}
-                rowKey="userId"
-                pagination={false}
-                locale={{ emptyText: 'メンバーがいません' }}
-              />
+              {membersLoading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
+                  <Spin size="small" />
+                </div>
+              ) : (
+                <Table<TeamMember>
+                  size="small"
+                  dataSource={selectedTeam.members}
+                  columns={memberColumns}
+                  rowKey="userId"
+                  pagination={false}
+                  locale={{ emptyText: 'メンバーがいません' }}
+                />
+              )}
             </div>
           </div>
         ) : (
-          <Empty description="チームを選択してください" style={{ marginTop: 80 }} />
+          <Empty description="グループを選択してください" style={{ marginTop: 80 }} />
         )}
       </div>
 
-      {/* ── チーム作成ダイアログ ── */}
+      {/* ── グループ作成ダイアログ ── */}
       <TeamAddDialog
         open={addDialogOpen}
-        parentTeamLabel="自分の部署"
         onClose={() => setAddDialogOpen(false)}
         onCreated={handleTeamCreated}
       />
 
-      {/* ── チーム編集ダイアログ ── */}
+      {/* ── グループ編集ダイアログ ── */}
       {editTarget && (
         <TeamEditDialog
           open={editDialogOpen}
           teamLabel={editTarget.unitName}
-          teamUnitId={editTarget.departmentUnitId}
+          teamGroupCd={editTarget.groupCd}
+
           teamOwnerUserId={editTarget.ownerUserId}
           onClose={() => {
             setEditDialogOpen(false);

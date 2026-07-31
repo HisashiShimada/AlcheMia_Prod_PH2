@@ -225,3 +225,107 @@ export async function deleteOrganizationGroup(
     next(error);
   }
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// メンバー管理
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * グループメンバー一覧取得
+ * GET /api/v1/organization-groups/:groupCd/members
+ */
+export async function getOrganizationGroupMembers(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = (req as any).organizationId as string | undefined;
+    if (!organizationId) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
+      return;
+    }
+
+    const { groupCd } = req.params;
+    const members = await organizationGroupService.getOrganizationGroupMembers(organizationId, groupCd);
+
+    res.json({ success: true, data: members });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * グループメンバー一括更新
+ * PUT /api/v1/organization-groups/:groupCd/members
+ *
+ * @body userIds - 設定するユーザーIDの配列
+ */
+export async function setOrganizationGroupMembers(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = (req as any).organizationId as string | undefined;
+    if (!organizationId) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
+      return;
+    }
+
+    const { groupCd } = req.params;
+    const { userIds } = req.body as { userIds?: string[] };
+
+    if (!Array.isArray(userIds)) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'userIds must be an array' } });
+      return;
+    }
+
+    await organizationGroupService.setOrganizationGroupMembers(organizationId, groupCd, userIds);
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * グループ代表者変更
+ * PUT /api/v1/organization-groups/:groupCd/chief
+ *
+ * @body chiefUserId - 新しい代表者ユーザーID
+ */
+export async function updateOrganizationGroupChief(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = (req as any).organizationId as string | undefined;
+    if (!organizationId) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
+      return;
+    }
+
+    const userId = (req as any).userId as string | undefined;
+    const { groupCd } = req.params;
+    const { chiefUserId } = req.body as { chiefUserId?: string };
+
+    if (!chiefUserId?.trim()) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'chiefUserId is required' } });
+      return;
+    }
+
+    const updated = await organizationGroupService.updateOrganizationGroupChief(
+      organizationId,
+      groupCd,
+      chiefUserId.trim(),
+      userId ?? null
+    );
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+}
+

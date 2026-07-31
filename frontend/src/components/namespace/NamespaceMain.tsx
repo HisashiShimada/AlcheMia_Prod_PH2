@@ -18,9 +18,9 @@ import type { TableColumnsType } from 'antd';
 import { getTerms, createNamespace, getOrganizationGroups } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
-import TeamAddDialog from './TeamAddDialog';
-import TeamEditDialog from './TeamEditDialog';
-import TeamManagementPanel from './TeamManagementPanel';
+import TeamManagementPanel from '../team/TeamManagementPanel';
+import TeamAddDialog from '../team/TeamAddDialog';
+import TeamEditDialog from '../team/TeamEditDialog';
 import ShareScopeModal from './ShareScopeModal';
 import type {
   NamespaceNode,
@@ -596,7 +596,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // チーム編集ダイアログ（メンバー追加）
   const [teamEditOpen,    setTeamEditOpen]    = useState(false);
   const [teamEditLabel,   setTeamEditLabel]   = useState('');
-  const [teamEditUnitId,  setTeamEditUnitId]  = useState<string | undefined>(undefined);
+  const [teamEditGroupCd,  setTeamEditGroupCd]  = useState<string | undefined>(undefined);
+
   const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
@@ -825,8 +826,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // ──── チームノード右クリック：編集（メンバー追加）
   const handleContextEditTeam = (node: NamespaceNode) => {
     setTeamEditLabel(node.label);
-    // node.key を departmentUnitId として使用（DBから取得したツリーであればUUIDが入る）
-    setTeamEditUnitId((node as any).departmentUnitId ?? node.key ?? undefined);
+    // node.key を organization_group_cd として使用（DBから取得したツリーであればCDが入る）
+
+    setTeamEditGroupCd(node.key ?? undefined);
+
+
     setTeamEditMembers([]);
     setTeamEditOpen(true);
   };
@@ -1808,25 +1812,26 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       {/* ── チーム追加ダイアログ ── */}
       <TeamAddDialog
         open={teamAddOpen}
-        parentTeamLabel={teamAddParentLabel}
         onClose={() => setTeamAddOpen(false)}
-        onCreated={(teamName, members) => {
-          message.success(`チーム「${teamName}」を作成しました（メンバー: ${members.length}名）`);
+        onCreated={(_groupCd, groupName) => {
+          message.success(`グループ「${groupName}」を作成しました`);
           setTeamAddOpen(false);
         }}
       />
+
 
       {/* ── チーム編集ダイアログ（メンバー追加）── */}
       <TeamEditDialog
         open={teamEditOpen}
         teamLabel={teamEditLabel}
-        teamUnitId={teamEditUnitId}
+        teamGroupCd={teamEditGroupCd}
         onClose={() => setTeamEditOpen(false)}
         onSaved={(members, newTeamName) => {
           const name = newTeamName ?? teamEditLabel;
           message.success(`「${name}」を更新しました（メンバー: ${members.length}名）`);
         }}
       />
+
 
       {/* ── 共有先選択モーダル ── */}
       <ShareScopeModal

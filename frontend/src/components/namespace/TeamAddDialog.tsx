@@ -1,54 +1,75 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
-import membersMockRaw from '../../../mock/namespace/department-unit-members.json';
-import { generateNamespaceUri } from '../../utils/namespaceUriGenerator';
-import type { OrgUser, TeamAddDialogProps, CreateTeamResponse } from '@/types/namespace';
+import type { OrgUser, TeamAddDialogProps } from '@/types/namespace';
 
 const { Text } = Typography;
 
-/** 追加先の選択肢 */
-const DESTINATION_OPTIONS = [
-  { value: '研究開発部',    label: '研究開発部' },
-  { value: '材料解析チーム', label: '材料解析チーム' },
-  { value: 'データ処理班',  label: 'データ処理班' },
-];
+/** ユーザー一覧 API レスポンス行 */
+interface OrgUserApiRow {
+  user_id: string;
+  user_name: string;
+  email?: string;
+}
+
+/** グループ作成 API レスポンス */
+interface CreateGroupApiResponse {
+  success: boolean;
+  data: {
+    organization_group_cd: string;
+    organization_group_name: string;
+  };
+}
 
 const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   open,
-  parentTeamLabel,
-  parentDepartmentCd,
-  organizationCd = 'ORG',
   onClose,
   onCreated,
 }) => {
-  const [teamName, setTeamName]           = useState('');
-  const [members, setMembers]             = useState<OrgUser[]>([]);
-  const [addTarget, setAddTarget]         = useState<string | undefined>(undefined);
-  const [destination, setDestination]     = useState<string | undefined>(undefined);
-  const [loading, setLoading]             = useState(false);
-  const [allUsers, setAllUsers]           = useState<OrgUser[]>([]);
-  const [usersLoading, setUsersLoading]   = useState(false);
+  const [groupCd, setGroupCd]           = useState('');
+  const [groupName, setGroupName]       = useState('');
+  const [parentGroupCd, setParentGroupCd] = useState<string | undefined>(undefined);
+  const [members, setMembers]           = useState<OrgUser[]>([]);
+  const [addTarget, setAddTarget]       = useState<string | undefined>(undefined);
+  const [loading, setLoading]           = useState(false);
+  const [allUsers, setAllUsers]         = useState<OrgUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [parentGroups, setParentGroups] = useState<{ value: string; label: string }[]>([]);
 
-  // ── ダイアログが開いたときにユーザー一覧を取得
+  // ── ダイアログが開いたときにユーザー一覧・既存グループ一覧を取得
   useEffect(() => {
     if (!open) return;
-    setAddTarget(undefined);
+
+    // ユーザー一覧取得
     setUsersLoading(true);
-    fetch('/api/v1/department-units/users', { credentials: 'include' })
+    fetch('/api/v1/organization-groups/users', { credentials: 'include' })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<OrgUser[]>;
+        return res.json() as Promise<{ success: boolean; data: OrgUserApiRow[] }>;
       })
-      .then((data) => setAllUsers(data))
-      .catch(() => {
-        // APIが失敗した場合はモックデータをフォールバックとして使用
-        const mockMembers = (membersMockRaw as Record<string, OrgUser[]>)['rd-materials'] ?? [];
-        setAllUsers(mockMembers);
-      })
+      .then(({ data }) =>
+        setAllUsers(data.map((u) => ({ userId: u.user_id, userName: u.user_name, email: u.email })))
+      )
+      .catch(() => setAllUsers([]))
       .finally(() => setUsersLoading(false));
+
+    // 既存グループ一覧（親グループ選択用）
+    fetch('/api/v1/organization-groups', { credentials: 'include' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<{ success: boolean; data: { organization_group_cd: string; organization_group_name: string }[] }>;
+      })
+      .then(({ data }) =>
+        setParentGroups(
+          data.map((g) => ({
+            value: g.organization_group_cd,
+            label: `${g.organization_group_name} (${g.organization_group_cd})`,
+          }))
+        )
+      )
+      .catch(() => setParentGroups([]));
   }, [open]);
 
   // メンバーを追加
@@ -69,65 +90,71 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
     setMembers((prev) => prev.filter((u) => u.userId !== userId));
   };
 
-  // チーム名・部署CDからURIをリアルタイムに自動生成
-  const autoUri = useMemo(
-    () => generateNamespaceUri(organizationCd, parentDepartmentCd, teamName ? [teamName] : undefined),
-    [organizationCd, parentDepartmentCd, teamName],
-  );
-
   const handleCreate = async () => {
-    if (!teamName.trim()) return;
+    if (!groupCd.trim()) {
+      message.error('グループCDを入力してください');
+      return;
+    }
+    if (!groupName.trim()) {
+      message.error('グループ名を入力してください');
+      return;
+    }
     setLoading(true);
     try {
-      // 1. チームを DB に作成
-      const res = await fetch('/api/v1/department-units', {
+      // 1. グループを DB に作成
+      const res = await fetch('/api/v1/organization-groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          unitName:     teamName.trim(),
-          departmentCd: parentDepartmentCd ?? null,
-          nsUri:        autoUri,
-          layer:        1,
+          organization_group_cd:   groupCd.trim(),
+          organization_group_name: groupName.trim(),
+          parent_group_cd: parentGroupCd ?? null,
         }),
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        message.error(`チームの作成に失敗しました: ${(err as any).error ?? res.status}`);
+        message.error(`グループの作成に失敗しました: ${(err as any).error?.message ?? res.status}`);
         return;
       }
 
-      const created = await res.json() as CreateTeamResponse;
+      const result = await res.json() as CreateGroupApiResponse;
+      const createdCd   = result.data.organization_group_cd;
+      const createdName = result.data.organization_group_name;
 
       // 2. メンバーを設定（選択がある場合）
       if (members.length > 0) {
-        const memRes = await fetch(`/api/v1/department-units/${created.departmentUnitId}/members`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ userIds: members.map((m) => m.userId) }),
-        });
+        const memRes = await fetch(
+          `/api/v1/organization-groups/${encodeURIComponent(createdCd)}/members`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ userIds: members.map((m) => m.userId) }),
+          }
+        );
         if (!memRes.ok) {
-          message.warning('チームは作成しましたが、メンバーの設定に失敗しました');
+          message.warning('グループは作成しましたが、メンバーの設定に失敗しました');
         }
       }
 
-      message.success(`チーム「${created.unitName}」をDBに保存しました`);
-      onCreated(created.unitName, members.map((m) => m.userId), created.departmentUnitId);
+      message.success(`グループ「${createdName}」を作成しました`);
+      onCreated(createdCd, createdName);
       handleReset();
     } catch {
-      message.error('チームの作成中にエラーが発生しました');
+      message.error('グループの作成中にエラーが発生しました');
     } finally {
       setLoading(false);
     }
   };
 
   const handleReset = () => {
-    setTeamName('');
+    setGroupCd('');
+    setGroupName('');
+    setParentGroupCd(undefined);
     setMembers([]);
     setAddTarget(undefined);
-    setDestination(undefined);
   };
 
   const handleCancel = () => {
@@ -144,7 +171,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   return (
     <Modal
       open={open}
-      title="チームを追加"
+      title="グループを作成"
       onCancel={handleCancel}
       footer={[
         <Button key="cancel" onClick={handleCancel} disabled={loading}>
@@ -154,7 +181,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
           key="create"
           type="primary"
           loading={loading}
-          disabled={!teamName.trim()}
+          disabled={!groupCd.trim() || !groupName.trim()}
           onClick={handleCreate}
         >
           作成
@@ -165,54 +192,51 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
     >
       <Space orientation="vertical" style={{ width: '100%' }} size={16}>
 
-        {/* 追加先 */}
-        <div>
-          <Text strong>追加先</Text>
-          <Select
-            style={{ width: '100%', marginTop: 4 }}
-            placeholder="追加先を選択..."
-            value={destination}
-            onChange={(val) => setDestination(val)}
-            options={DESTINATION_OPTIONS}
-            disabled={loading}
-          />
-        </div>
-
-        {/* チーム名 */}
+        {/* グループCD */}
         <div>
           <Text strong>
-            チーム名 <Text type="danger">*</Text>
+            グループCD <Text type="danger">*</Text>
           </Text>
           <Input
             style={{ marginTop: 4 }}
-            placeholder="チーム名を入力..."
-            value={teamName}
-            onChange={(e) => setTeamName(e.target.value)}
+            placeholder="グループCDを入力（例: grp_001）"
+            value={groupCd}
+            onChange={(e) => setGroupCd(e.target.value)}
             disabled={loading}
           />
         </div>
 
-        {/* 名前空間URI（自動生成・読み取り専用） */}
+        {/* グループ名 */}
         <div>
-          <span>
-            <Text strong>名前空間URI</Text>
-            <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>（自動生成）</Text>
-          </span>
-          <div
-            style={{
-              marginTop: 4,
-              padding: '6px 11px',
-              background: '#f5f5f5',
-              border: '1px solid #d9d9d9',
-              borderRadius: 6,
-              fontFamily: 'monospace',
-              fontSize: 12,
-              color: autoUri ? '#333' : '#bbb',
-              wordBreak: 'break-all',
-            }}
-          >
-            {autoUri || '（チーム名を入力すると自動生成されます）'}
-          </div>
+          <Text strong>
+            グループ名 <Text type="danger">*</Text>
+          </Text>
+          <Input
+            style={{ marginTop: 4 }}
+            placeholder="グループ名を入力..."
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+
+        {/* 親グループ（任意） */}
+        <div>
+          <Text strong>親グループ</Text>
+          <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>（任意）</Text>
+          <Select
+            style={{ width: '100%', marginTop: 4 }}
+            placeholder="親グループを選択（省略可）"
+            value={parentGroupCd}
+            onChange={(val) => setParentGroupCd(val)}
+            options={parentGroups}
+            allowClear
+            showSearch
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            disabled={loading}
+          />
         </div>
 
         <Divider style={{ margin: '0' }} />
