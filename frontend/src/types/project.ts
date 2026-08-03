@@ -188,6 +188,8 @@ export interface CheckoutProjectResponse {
 export interface CreateProjectRequest {
   projectName: string;
   description?: string;
+  /** 組織グループCD。チーム選択時にPOSTボディへ含める必須フィールド。 */
+  organizationGroupCd?: string;
 }
 
 /**
@@ -395,8 +397,12 @@ export interface CreateProjectData {
   owner: string;
   organizationGroup: string;
   organizationId: string;
-  /** チームID（任意）。選択時はそのチームのメンバーのみアクセス可。未選択時は組織グループ全員がアクセス可。 */
-  teamId?: string;
+  /**
+   * 組織グループCD（任意）。
+   * 選択時はそのグループのメンバーのみ閲覧可。
+   * 未選択時は作成者の所属組織グループCDが自動的に使用される（NULL にはならない）。
+   */
+  organizationGroupCd?: string;
 }
 
 /**

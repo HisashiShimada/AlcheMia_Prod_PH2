@@ -3766,6 +3766,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
               multiMethodMode={false}
               methods={methods}
               activeMethodIndex={activeMethodIndex}
+              projectId={projectId}
             />
           ) : null}
 

@@ -32,8 +32,8 @@ const InformationDownload = dynamic(
   { ssr: false }
 );
 
-const NamespaceMain = dynamic(
-  () => import('../namespace/NamespaceMain'),
+const TermManagement = dynamic(
+  () => import('../namespace/TermManagement'),
   { ssr: false }
 );
 
@@ -79,7 +79,7 @@ export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderM
     },
     {
       key: '3',
-      label: '名前空間管理（グローバル）',
+      label: t('menu.provider.tabs.namespaceManagement'),
       icon: <GlobalOutlined />,
     },
     {
@@ -141,13 +141,13 @@ export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderM
                 items={[
                   {
                     key: 'prefix',
-                    label: 'Prefix管理',
+                    label: t('namespace.tabs.prefix'),
                     children: <PrefixManagement globalOnly={true} />,
                   },
                   {
                     key: 'terms',
-                    label: '用語管理',
-                    children: <NamespaceMain globalOnly={true} />,
+                    label: t('namespace.tabs.terms'),
+                    children: <TermManagement globalOnly={true} />,
                   },
                 ]}
               />
