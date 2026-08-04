@@ -28,6 +28,8 @@ export interface OrganizationGroupRow {
   organization_group_name: string;
   /** 代表者ユーザID */
   chief_user_id: string;
+  /** 代表者ユーザー名（findAll / findById 取得時に JOIN で付与） */
+  chief_user_name?: string | null;
   /** 親階層グループCD（ルートの場合は null） */
   parent_group_cd: string | null;
   /** レイヤー */
@@ -110,7 +112,7 @@ export interface Team {
   /** organization_group_cd（主キー） */
   groupCd: string;
   /** グループ名（= organization_group_name） */
-  unitName: string;
+  groupName: string;
   /** 親グループCD */
   parentGroupCd?: string | null;
   /** レイヤー */
@@ -138,8 +140,10 @@ export interface TeamAddDialogProps {
    * グループ作成完了コールバック
    * @param groupCd - 作成されたグループCD
    * @param groupName - 作成されたグループ名
+   * @param ownerUserId - 代表者ユーザーID（chief_user_id）
+   * @param ownerName - 代表者表示名
    */
-  onCreated: (groupCd: string, groupName: string) => void;
+  onCreated: (groupCd: string, groupName: string, ownerUserId: string, ownerName: string) => void;
 }
 
 /**

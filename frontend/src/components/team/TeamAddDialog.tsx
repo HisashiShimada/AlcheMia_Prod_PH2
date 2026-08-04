@@ -11,7 +11,7 @@ import {
   updateGroupMembers,
 } from '@/services/organizationGroupApiService';
 import type { OrgUser, TeamAddDialogProps } from '@/types/team';
-import { getUserInfo } from '@/utils/sessionStorageHelper';
+import type { User } from '@/types/auth';
 
 const { Text } = Typography;
 
@@ -23,7 +23,16 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   const { t } = useLanguage();
 
   // ── ログインユーザー（代表者として固定表示）
-  const userInfo     = getUserInfo();
+  // localStorage の 'userInfo' キーに User 型オブジェクトが保存されている
+  const userInfo: User | null = (() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('userInfo');
+      return raw ? (JSON.parse(raw) as User) : null;
+    } catch {
+      return null;
+    }
+  })();
   const chiefUserId  = userInfo?.id ?? '';
 
   const [groupCd, setGroupCd]             = useState('');
@@ -122,7 +131,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
       }
 
       message.success(t('teamAddDialog.createSuccess', { name: createdName }));
-      onCreated(createdCd, createdName);
+      onCreated(createdCd, createdName, chiefUserId, chiefUserName);
       handleReset();
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { error?: { message?: string } } } })

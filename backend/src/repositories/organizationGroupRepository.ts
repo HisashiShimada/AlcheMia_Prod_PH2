@@ -25,6 +25,8 @@ export interface OrganizationGroupRow {
   organization_group_cd: string;
   organization_group_name: string;
   chief_user_id: string;
+  /** 代表者ユーザー名（findAll / findById 取得時に JOIN で付与） */
+  chief_user_name: string | null;
   parent_group_cd: string | null;
   layer: string | null;
   create_user_id: string | null;

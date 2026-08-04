@@ -5,7 +5,7 @@ import {
   Button,
   Divider,
   Empty,
-  Popconfirm,
+  Modal,
   Spin,
   Table,
   Typography,
@@ -44,6 +44,10 @@ const TeamManagementPanel: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTarget,     setEditTarget]     = useState<Team | null>(null);
 
+  // チーム削除確認モーダル
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteTarget,    setDeleteTarget]    = useState<Team | null>(null);
+
   // ──── チーム一覧を取得
   const loadTeams = useCallback(() => {
     setLoading(true);
@@ -51,11 +55,11 @@ const TeamManagementPanel: React.FC = () => {
       .then((rows) => {
         const converted: Team[] = rows.map((row) => ({
           groupCd:       row.organization_group_cd,
-          unitName:      row.organization_group_name,
+          groupName:      row.organization_group_name,
           parentGroupCd: row.parent_group_cd,
           layer:         row.layer,
           ownerUserId:   row.chief_user_id,
-          ownerName:     '',
+          ownerName:     row.chief_user_name ?? '',
           members:       [],
           memberCount:   row.member_count ?? 0,
         }));
@@ -101,11 +105,17 @@ const TeamManagementPanel: React.FC = () => {
   }, [selectedTeam?.groupCd]);
 
   // ──── チーム作成後のコールバック
-  const handleTeamCreated = useCallback((groupCd: string, groupName: string) => {
+  const handleTeamCreated = useCallback((
+    groupCd: string,
+    groupName: string,
+    ownerUserId: string,
+    ownerName: string,
+  ) => {
     const newTeam: Team = {
       groupCd,
-      unitName:    groupName,
-      ownerName:   '',
+      groupName,
+      ownerUserId,
+      ownerName,
       members:     [],
       memberCount: 1, // 作成時は代表者が自動登録されるため 1
     };
@@ -125,7 +135,7 @@ const TeamManagementPanel: React.FC = () => {
     setTeams((prev) =>
       prev.map((t) => {
         if (t.groupCd !== editTarget.groupCd) return t;
-        const updatedName = newTeamName ?? t.unitName;
+        const updatedName = newTeamName ?? t.groupName;
         const updatedMembers: TeamMember[] = memberIds.map((id) => {
           const existing = t.members.find((m) => m.userId === id);
           return existing ?? { userId: id, userName: id };
@@ -133,7 +143,7 @@ const TeamManagementPanel: React.FC = () => {
         const newOwnerMember = updatedMembers.find((m) => m.userId === newOwnerUserId);
         return {
           ...t,
-          unitName:    updatedName,
+          groupName:    updatedName,
           members:     updatedMembers,
           memberCount: updatedMembers.length,
           ownerUserId: newOwnerUserId ?? t.ownerUserId,
@@ -150,7 +160,7 @@ const TeamManagementPanel: React.FC = () => {
       const newOwnerMember = updatedMembers.find((m) => m.userId === newOwnerUserId);
       return {
         ...prev,
-        unitName:    newTeamName ?? prev.unitName,
+        groupName:    newTeamName ?? prev.groupName,
         members:     updatedMembers,
         memberCount: updatedMembers.length,
         ownerUserId: newOwnerUserId ?? prev.ownerUserId,
@@ -167,7 +177,7 @@ const TeamManagementPanel: React.FC = () => {
       await deleteOrganizationGroup(team.groupCd);
       setTeams((prev) => prev.filter((t) => t.groupCd !== team.groupCd));
       setSelectedTeam((prev) => (prev?.groupCd === team.groupCd ? null : prev));
-      message.success(t('teamManagement.deleteSuccess', { name: team.unitName }));
+      message.success(t('teamManagement.deleteSuccess', { name: team.groupName }));
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { error?: { message?: string } } } })
         ?.response?.data?.error?.message;
@@ -281,7 +291,7 @@ const TeamManagementPanel: React.FC = () => {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {team.unitName}
+                        {team.groupName}
                       </Text>
                     </div>
                     <Text type="secondary" style={{ fontSize: 11, marginLeft: 14 }}>
@@ -290,27 +300,18 @@ const TeamManagementPanel: React.FC = () => {
                   </div>
 
                   {/* 削除ボタン */}
-                  <Popconfirm
-                    title={t('teamManagement.deleteConfirmTitle', { name: team.unitName })}
-                    description={t('teamManagement.deleteConfirmDesc')}
-                    okText={t('teamManagement.deleteOk')}
-                    cancelText={t('teamManagement.deleteCancel')}
-                    okButtonProps={{ danger: true }}
-                    onConfirm={(e) => {
-                      e?.stopPropagation();
-                      handleTeamDelete(team);
+                  <Button
+                    size="small"
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(team);
+                      setDeleteModalOpen(true);
                     }}
-                    onCancel={(e) => e?.stopPropagation()}
-                  >
-                    <Button
-                      size="small"
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ flexShrink: 0 }}
-                    />
-                  </Popconfirm>
+                    style={{ flexShrink: 0 }}
+                  />
                 </div>
               );
             })
@@ -341,7 +342,7 @@ const TeamManagementPanel: React.FC = () => {
               }}
             >
               <Title level={5} style={{ margin: 0 }}>
-                {selectedTeam.unitName}
+                {selectedTeam.groupName}
               </Title>
               <Button
                 size="small"
@@ -432,7 +433,7 @@ const TeamManagementPanel: React.FC = () => {
       {editTarget && (
         <TeamEditDialog
           open={editDialogOpen}
-          teamLabel={editTarget.unitName}
+          teamLabel={editTarget.groupName}
           teamGroupCd={editTarget.groupCd}
           teamOwnerUserId={editTarget.ownerUserId}
           onClose={() => {
@@ -442,6 +443,28 @@ const TeamManagementPanel: React.FC = () => {
           onSaved={handleTeamSaved}
         />
       )}
+
+      {/* ── グループ削除確認モーダル ── */}
+      <Modal
+        open={deleteModalOpen}
+        title={t('teamManagement.deleteConfirmTitle', { name: deleteTarget?.groupName ?? '' })}
+        okText={t('teamManagement.deleteOk')}
+        cancelText={t('teamManagement.deleteCancel')}
+        okButtonProps={{ danger: true }}
+        onOk={async () => {
+          if (deleteTarget) {
+            await handleTeamDelete(deleteTarget);
+          }
+          setDeleteModalOpen(false);
+          setDeleteTarget(null);
+        }}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setDeleteTarget(null);
+        }}
+      >
+        <p>{t('teamManagement.deleteConfirmDesc')}</p>
+      </Modal>
     </div>
   );
 };

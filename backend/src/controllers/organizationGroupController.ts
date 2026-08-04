@@ -3,8 +3,15 @@
  *
  * 組織階層グループ管理のAPIエンドポイント処理
  *
+ * @remarks
+ * - Controller は Service 層のみを呼び出す。Repository への直接参照は禁止。
+ * - リクエストパラメータの検証は organizationGroupValidation.ts のミドルウェアで実施済み。
+ *   Controller 内にバリデーションロジックを記述しない。
+ * - organizationId / userId は authMiddleware・tenantIsolation で設定された
+ *   req.user / req.organizationId から取得する。
+ *
  * @module organizationGroupController
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -22,13 +29,9 @@ export async function getOrganizationGroups(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
-      return;
-    }
-
+    const organizationId = req.organizationId!;
     const search = req.query.search as string | undefined;
+
     const groups = await organizationGroupService.getOrganizationGroups(
       organizationId,
       { search }
@@ -50,13 +53,9 @@ export async function getOrganizationGroupById(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
-      return;
-    }
-
+    const organizationId = req.organizationId!;
     const { groupCd } = req.params;
+
     const group = await organizationGroupService.getOrganizationGroupById(organizationId, groupCd);
 
     res.json({ success: true, data: group });
@@ -75,8 +74,9 @@ export async function getOrganizationGroupById(
  * @body layer - レイヤー（任意）
  *
  * @remarks
- * chief_user_id はリクエストユーザー（req.userId）から自動セットされる。
+ * chief_user_id はリクエストユーザー（req.user.userId）から自動セットされる。
  * フロントエンドからの送信は不要。
+ * バリデーションは validateCreateOrganizationGroup ミドルウェアで実施済み。
  */
 export async function createOrganizationGroup(
   req: Request,
@@ -84,17 +84,8 @@ export async function createOrganizationGroup(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
-      return;
-    }
-
-    const userId = (req as any).userId as string | undefined;
-    if (!userId) {
-      res.status(401).json({ success: false, error: { code: 'E5013', message: 'Authentication information could not be retrieved' } });
-      return;
-    }
+    const organizationId = req.organizationId!;
+    const userId = req.user!.userId;
 
     const {
       organization_group_cd,
@@ -102,21 +93,11 @@ export async function createOrganizationGroup(
       parent_group_cd,
       layer,
     } = req.body as {
-      organization_group_cd?: string;
-      organization_group_name?: string;
+      organization_group_cd: string;
+      organization_group_name: string;
       parent_group_cd?: string | null;
       layer?: string | null;
     };
-
-    // 必須チェック
-    if (!organization_group_cd?.trim()) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_cd is required' } });
-      return;
-    }
-    if (!organization_group_name?.trim()) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_name is required' } });
-      return;
-    }
 
     const created = await organizationGroupService.createOrganizationGroup(
       organizationId,
@@ -147,6 +128,7 @@ export async function createOrganizationGroup(
  * @remarks
  * chief_user_id はフロントエンドから送信しない。
  * 既存の chief_user_id を維持する（サービス層で処理）。
+ * バリデーションは validateUpdateOrganizationGroup ミドルウェアで実施済み。
  */
 export async function updateOrganizationGroup(
   req: Request,
@@ -154,14 +136,10 @@ export async function updateOrganizationGroup(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
-      return;
-    }
-
-    const userId = (req as any).userId as string | undefined;
+    const organizationId = req.organizationId!;
+    const userId = req.user!.userId;
     const { groupCd } = req.params;
+
     const {
       organization_group_name,
       parent_group_cd,
@@ -179,10 +157,6 @@ export async function updateOrganizationGroup(
     } = {};
 
     if (organization_group_name !== undefined) {
-      if (!organization_group_name.trim()) {
-        res.status(400).json({ success: false, error: { code: 'E1003', message: 'organization_group_name cannot be empty' } });
-        return;
-      }
       updateData.organization_group_name = organization_group_name.trim();
     }
     if (parent_group_cd !== undefined) updateData.parent_group_cd = parent_group_cd;
@@ -192,7 +166,7 @@ export async function updateOrganizationGroup(
       organizationId,
       groupCd,
       updateData,
-      userId ?? null
+      userId
     );
 
     res.json({ success: true, data: updated });
@@ -211,13 +185,9 @@ export async function deleteOrganizationGroup(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
-      return;
-    }
-
+    const organizationId = req.organizationId!;
     const { groupCd } = req.params;
+
     await organizationGroupService.deleteOrganizationGroup(organizationId, groupCd);
 
     res.json({ success: true });
@@ -244,11 +214,7 @@ export async function getOrgUsers(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
-      return;
-    }
+    const organizationId = req.organizationId!;
 
     const users = await organizationGroupService.getOrgUsersForGroups(organizationId);
     res.json({ success: true, data: users });
@@ -271,13 +237,9 @@ export async function getOrganizationGroupMembers(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
-      return;
-    }
-
+    const organizationId = req.organizationId!;
     const { groupCd } = req.params;
+
     const members = await organizationGroupService.getOrganizationGroupMembers(organizationId, groupCd);
 
     res.json({ success: true, data: members });
@@ -291,6 +253,7 @@ export async function getOrganizationGroupMembers(
  * PUT /api/v1/organization-groups/:groupCd/members
  *
  * @body userIds - 設定するユーザーIDの配列
+ * @remarks バリデーションは validateSetOrganizationGroupMembers ミドルウェアで実施済み。
  */
 export async function setOrganizationGroupMembers(
   req: Request,
@@ -298,19 +261,9 @@ export async function setOrganizationGroupMembers(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
-      return;
-    }
-
+    const organizationId = req.organizationId!;
     const { groupCd } = req.params;
-    const { userIds } = req.body as { userIds?: string[] };
-
-    if (!Array.isArray(userIds)) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'userIds must be an array' } });
-      return;
-    }
+    const { userIds } = req.body as { userIds: string[] };
 
     await organizationGroupService.setOrganizationGroupMembers(organizationId, groupCd, userIds);
 
@@ -325,6 +278,7 @@ export async function setOrganizationGroupMembers(
  * PUT /api/v1/organization-groups/:groupCd/chief
  *
  * @body chiefUserId - 新しい代表者ユーザーID
+ * @remarks バリデーションは validateUpdateOrganizationGroupChief ミドルウェアで実施済み。
  */
 export async function updateOrganizationGroupChief(
   req: Request,
@@ -332,26 +286,16 @@ export async function updateOrganizationGroupChief(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
-      return;
-    }
-
-    const userId = (req as any).userId as string | undefined;
+    const organizationId = req.organizationId!;
+    const userId = req.user!.userId;
     const { groupCd } = req.params;
-    const { chiefUserId } = req.body as { chiefUserId?: string };
-
-    if (!chiefUserId?.trim()) {
-      res.status(400).json({ success: false, error: { code: 'E1003', message: 'chiefUserId is required' } });
-      return;
-    }
+    const { chiefUserId } = req.body as { chiefUserId: string };
 
     const updated = await organizationGroupService.updateOrganizationGroupChief(
       organizationId,
       groupCd,
       chiefUserId.trim(),
-      userId ?? null
+      userId
     );
 
     res.json({ success: true, data: updated });
@@ -359,4 +303,3 @@ export async function updateOrganizationGroupChief(
     next(error);
   }
 }
-
