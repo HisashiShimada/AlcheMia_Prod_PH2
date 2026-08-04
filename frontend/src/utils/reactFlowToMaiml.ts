@@ -800,8 +800,9 @@ function buildCommonTemplateXML(
     xml += `      <insertion>\n`;
     // uri は必須（undefinedでも空文字で出力）
     xml += `        <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-    // hash は必須（undefinedでも空文字で出力）
-    xml += `        <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+    // hash は必須（undefinedでも空文字で出力）、method属性が存在する場合は出力
+    const hashMethodAttr1 = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+    xml += `        <hash${hashMethodAttr1}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
     if (template.insertion.format) {
       xml += `        <format>${escapeXml(template.insertion.format)}</format>\n`;
     }
@@ -1343,7 +1344,8 @@ export async function convertReactFlowToMaiML(
     if (template.insertion) {
       maiml += `          <insertion>\n`;
       maiml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-      maiml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+      const hashMethodAttrM = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+      maiml += `            <hash${hashMethodAttrM}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
       if (template.insertion.format) {
         maiml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
       }
@@ -1419,7 +1421,8 @@ export async function convertReactFlowToMaiML(
     if (template.insertion) {
       maiml += `          <insertion>\n`;
       maiml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-      maiml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+      const hashMethodAttrC = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+      maiml += `            <hash${hashMethodAttrC}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
       if (template.insertion.format) {
         maiml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
       }
@@ -1495,7 +1498,8 @@ export async function convertReactFlowToMaiML(
     if (template.insertion) {
       maiml += `          <insertion>\n`;
       maiml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-      maiml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+      const hashMethodAttrR = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+      maiml += `            <hash${hashMethodAttrR}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
       if (template.insertion.format) {
         maiml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
       }
