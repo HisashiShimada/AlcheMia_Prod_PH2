@@ -93,7 +93,7 @@ async function registerUserNamespace(
   const existingUris = await namespaceTermRepository.findUrisByOrganization(organizationId, t);
   const uniqueUri = existingUris.includes(candidateUri) ? `${candidateUri}1` : candidateUri;
   await namespaceTermRepository.createNamespaceUri(
-    { organizationId, uri: uniqueUri, userId },
+    { organizationId, uri: uniqueUri, userId, scopeKey: userId },
     t
   );
   console.log(`[userService] 個人URI登録成功: userId=${userId}, uri=${uniqueUri}`);

@@ -57,6 +57,7 @@ const TeamManagementPanel: React.FC = () => {
           ownerUserId:   row.chief_user_id,
           ownerName:     '',
           members:       [],
+          memberCount:   row.member_count ?? 0,
         }));
         setTeams(converted);
         if (converted.length > 0) {
@@ -86,10 +87,10 @@ const TeamManagementPanel: React.FC = () => {
           userName: m.userName,
         }));
         setSelectedTeam((prev) =>
-          prev && prev.groupCd === groupCd ? { ...prev, members } : prev
+          prev && prev.groupCd === groupCd ? { ...prev, members, memberCount: members.length } : prev
         );
         setTeams((prev) =>
-          prev.map((t) => (t.groupCd === groupCd ? { ...t, members } : t))
+          prev.map((t) => (t.groupCd === groupCd ? { ...t, members, memberCount: members.length } : t))
         );
       })
       .catch(() => {
@@ -103,9 +104,10 @@ const TeamManagementPanel: React.FC = () => {
   const handleTeamCreated = useCallback((groupCd: string, groupName: string) => {
     const newTeam: Team = {
       groupCd,
-      unitName:  groupName,
-      ownerName: '',
-      members:   [],
+      unitName:    groupName,
+      ownerName:   '',
+      members:     [],
+      memberCount: 1, // 作成時は代表者が自動登録されるため 1
     };
     setTeams((prev) => [...prev, newTeam]);
     setSelectedTeam(newTeam);
@@ -133,6 +135,7 @@ const TeamManagementPanel: React.FC = () => {
           ...t,
           unitName:    updatedName,
           members:     updatedMembers,
+          memberCount: updatedMembers.length,
           ownerUserId: newOwnerUserId ?? t.ownerUserId,
           ownerName:   newOwnerMember?.userName ?? t.ownerName,
         };
@@ -149,6 +152,7 @@ const TeamManagementPanel: React.FC = () => {
         ...prev,
         unitName:    newTeamName ?? prev.unitName,
         members:     updatedMembers,
+        memberCount: updatedMembers.length,
         ownerUserId: newOwnerUserId ?? prev.ownerUserId,
         ownerName:   newOwnerMember?.userName ?? prev.ownerName,
       };
@@ -281,7 +285,7 @@ const TeamManagementPanel: React.FC = () => {
                       </Text>
                     </div>
                     <Text type="secondary" style={{ fontSize: 11, marginLeft: 14 }}>
-                      {t('teamManagement.memberCount', { count: String(team.members.length) })}
+                      {t('teamManagement.memberCount', { count: String(team.memberCount) })}
                     </Text>
                   </div>
 

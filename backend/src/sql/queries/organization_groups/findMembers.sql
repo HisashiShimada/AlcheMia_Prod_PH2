@@ -4,7 +4,7 @@
 SELECT
   ogu.user_id
   , ou.user_name
-  , ou.email
+  , ou.mail_address
 FROM organization_group_user ogu
 INNER JOIN organization_user ou
   ON ogu.organization_id = ou.organization_id

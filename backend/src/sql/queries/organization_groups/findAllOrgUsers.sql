@@ -4,7 +4,7 @@
 SELECT
   user_id
   , user_name
-  , mail_address AS email
+  , mail_address
 FROM organization_user
 WHERE organization_id = $1
   AND is_active = TRUE

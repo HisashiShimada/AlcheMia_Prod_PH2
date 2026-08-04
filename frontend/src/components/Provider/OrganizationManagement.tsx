@@ -26,7 +26,6 @@ import {
   ReloadOutlined,
   UploadOutlined,
   DownloadOutlined,
-  LinkOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { createApiClient } from '@/utils/authUtils';
@@ -52,16 +51,9 @@ function AddFormNamespaceFields({ form }: AddFormNamespaceFieldsProps) {
   return (
     <>
       <Form.Item label="名前空間URI（自動生成）">
-        <Input
-          value={autoUri || '（組織CDを入力すると自動生成されます）'}
-          readOnly
-          style={{
-            backgroundColor: '#f5f5f5',
-            color: autoUri ? '#333' : '#aaa',
-            cursor: 'default',
-          }}
-          prefix={<LinkOutlined style={{ color: '#aaa' }} />}
-        />
+        <Text type={autoUri ? undefined : 'secondary'}>
+          {autoUri || '（組織CDを入力すると自動生成されます）'}
+        </Text>
       </Form.Item>
     </>
   );

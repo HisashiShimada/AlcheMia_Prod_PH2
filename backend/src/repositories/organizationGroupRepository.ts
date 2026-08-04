@@ -31,6 +31,8 @@ export interface OrganizationGroupRow {
   create_at: Date | null;
   update_user_id: string | null;
   update_at: Date | null;
+  /** findAll 取得時のみ付与されるメンバー数（一覧表示用） */
+  member_count?: number;
 }
 
 /**
@@ -255,7 +257,7 @@ export async function deleteById(
 export interface OrganizationGroupMemberRow {
   user_id: string;
   user_name: string;
-  email: string;
+  mail_address: string;
 }
 
 /**
@@ -332,12 +334,12 @@ export async function setMembers(
  * 組織内のアクティブなユーザー一覧を取得（グループメンバー選択用）
  *
  * @param organizationId - 組織ID
- * @returns ユーザー一覧（user_id, user_name, email）
+ * @returns ユーザー一覧（user_id, user_name, mail_address）
  */
 export interface OrgUserRow {
   user_id: string;
   user_name: string;
-  email: string;
+  mail_address: string;
 }
 
 export async function findAllOrgUsers(

@@ -138,13 +138,13 @@ export const getOrgUsersForGroups = async (): Promise<OrgUser[]> => {
 
     const response = await client.get<{
       success: boolean;
-      data: Array<{ user_id: string; user_name: string; email?: string }>;
+      data: Array<{ user_id: string; user_name: string; mail_address?: string }>;
     }>('/organization-groups/users');
 
     return (response.data?.data ?? []).map((u) => ({
       userId: u.user_id,
       userName: u.user_name,
-      email: u.email,
+      mailAddress: u.mail_address,
     }));
   } catch (error) {
     console.warn('⚠️ [organizationGroupApiService] グループメンバー用ユーザー一覧の取得に失敗しました:', error);
@@ -169,13 +169,13 @@ export const getGroupMembers = async (groupCd: string): Promise<OrgUser[]> => {
 
     const response = await client.get<{
       success: boolean;
-      data: Array<{ user_id: string; user_name: string; email?: string }>;
+      data: Array<{ user_id: string; user_name: string; mail_address?: string }>;
     }>(`/organization-groups/${encodeURIComponent(groupCd)}/members`);
 
     return (response.data?.data ?? []).map((u) => ({
       userId: u.user_id,
       userName: u.user_name,
-      email: u.email,
+      mailAddress: u.mail_address,
     }));
   } catch (error) {
     console.warn('⚠️ [organizationGroupApiService] グループメンバー一覧の取得に失敗しました:', error);

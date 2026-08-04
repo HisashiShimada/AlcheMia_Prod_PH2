@@ -36,6 +36,8 @@ export interface OrganizationGroupRow {
   create_at?: string;
   /** 更新日時 */
   update_at?: string;
+  /** メンバー数（findAll 取得時のみ付与） */
+  member_count?: number;
 }
 
 // ──────────────────────────────────────────────
@@ -74,7 +76,7 @@ export interface UpdateOrganizationGroupRequest {
 export interface OrgGroupUserApiRow {
   user_id: string;
   user_name: string;
-  email?: string;
+  mail_address?: string;
 }
 
 // ──────────────────────────────────────────────
@@ -95,7 +97,7 @@ export interface TeamMember {
 export interface OrgUser {
   userId: string;
   userName: string;
-  email?: string;
+  mailAddress?: string;
 }
 
 /**
@@ -118,6 +120,8 @@ export interface Team {
   /** チームの代表者 userId（= chief_user_id） */
   ownerUserId?: string;
   members: TeamMember[];
+  /** 一覧表示用メンバー数（API から取得した確定値） */
+  memberCount: number;
 }
 
 // ──────────────────────────────────────────────
