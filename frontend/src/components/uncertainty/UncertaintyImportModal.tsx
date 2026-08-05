@@ -27,7 +27,7 @@ export default function UncertaintyImportModal({
 }: UncertaintyImportModalProps) {
   const { t } = useLanguage();
   const [importFormat, setImportFormat] = useState<ImportFormat>('CSV');
-  const [targetScope, setTargetScope] = useState<string>('研究開発部 › 計測チーム');
+  const [targetScope, setTargetScope] = useState<string>('rd-measurement');
 
   const handleImport = () => {
     message.success(t('uncertaintyImport.startDemo'));
@@ -39,25 +39,25 @@ export default function UncertaintyImportModal({
       open={open}
       onCancel={onClose}
       width={520}
-      title="不確かさ基準のインポート"
+      title={t('uncertaintyImport.title')}
       footer={
         <Space>
-          <Button onClick={onClose}>キャンセル</Button>
+          <Button onClick={onClose}>{t('uncertaintyImport.btnCancel')}</Button>
           <Button type="primary" onClick={handleImport}>
-            インポート実行
+            {t('uncertaintyImport.btnExecute')}
           </Button>
         </Space>
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Text style={{ fontSize: 13, color: '#555' }}>
-          JIS K 0200 附属書B の標準不確かさ基準、または既存のエクスポートファイルをインポートします。
+          {t('uncertaintyImport.description')}
         </Text>
 
         {/* インポート形式 */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>
-            インポート形式
+            {t('uncertaintyImport.formatLabel')}
           </div>
           <Space>
             {(['CSV', 'JSON', 'XML'] as ImportFormat[]).map((fmt) => (
@@ -80,34 +80,34 @@ export default function UncertaintyImportModal({
           style={{ background: '#fafafa' }}
         >
           <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
-            クリックしてファイルを選択、またはここにドラッグ＆ドロップ
+            {t('uncertaintyImport.dropText')}
           </p>
           <p style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
-            対応形式：CSV / JSON / XML（最大 10 MB）
+            {t('uncertaintyImport.dropHint')}
           </p>
         </Dragger>
 
         <Alert
           type="warning"
           showIcon
-          message="注意"
-          description="インポート時に既存不確かさ基準と key が重複する場合は上書き確認ダイアログが表示されます。"
+          message={t('uncertaintyImport.alertTitle')}
+          description={t('uncertaintyImport.alertDesc')}
         />
 
         {/* 取り込み先スコープ */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 6 }}>
-            取り込み先スコープ
+            {t('uncertaintyImport.scopeLabel')}
           </div>
           <Select
             style={{ width: '100%' }}
             value={targetScope}
             onChange={setTargetScope}
             options={[
-              { value: '研究開発部 › 計測チーム', label: '研究開発部 › 計測チーム' },
-              { value: '研究開発部 › 材料グループ', label: '研究開発部 › 材料グループ' },
-              { value: '株式会社サンプルテック', label: '株式会社サンプルテック' },
-              { value: 'Personal › 山田 太郎', label: 'Personal › 山田 太郎' },
+              { value: 'rd-measurement', label: t('uncertaintyImport.scopeOptionMeasurement') },
+              { value: 'rd-material', label: t('uncertaintyImport.scopeOptionMaterial') },
+              { value: 'company', label: t('uncertaintyImport.scopeOptionCompany') },
+              { value: 'personal', label: t('uncertaintyImport.scopeOptionPersonal') },
             ]}
           />
         </div>

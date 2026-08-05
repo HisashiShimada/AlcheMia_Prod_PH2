@@ -1077,7 +1077,12 @@
       "namespacePrefixHelp": "Register a user-specific namespace prefix (optional)",
       "namespaceUri": "Namespace URI",
       "namespaceUriPlaceholder": "e.g. https://www.example.com/",
-      "namespaceUriRequired": "If you enter a Namespace Prefix, you must also enter a URI"
+      "namespaceUriRequired": "If you enter a Namespace Prefix, you must also enter a URI",
+      "namespaceUriLabel": "Namespace URI",
+      "namespaceUriNotSet": "(Not set)",
+      "namespaceUriAutoGenLabel": "Namespace URI (Auto-generated)",
+      "namespaceUriAutoGenPlaceholder": "(Enter email address to auto-generate)",
+      "userNamePlaceholder": "John Doe"
     },
     "messages": {
       "fetchError": "Failed to fetch user list",
@@ -4625,9 +4630,32 @@
     "deleteFailed": "Failed to delete signature"
   },
   "uncertaintyExport": {
-    "startDemo": "Starting export file download (demo)"
+    "startDemo": "Starting export file download (demo)",
+    "title": "Export Uncertainty Criteria",
+    "btnCancel": "Cancel",
+    "btnDownload": "Download",
+    "alertMessage": "Exporting {count} uncertainty criteria.",
+    "formatLabel": "Export Format",
+    "optionsLabel": "Options",
+    "optionIncludeDesc": "Include descriptions",
+    "optionIncludeExtends": "Include parent criteria references",
+    "optionIncludeHistory": "Include version history"
   },
   "uncertaintyImport": {
-    "startDemo": "Starting import process (demo)"
+    "startDemo": "Starting import process (demo)",
+    "title": "Import Uncertainty Criteria",
+    "btnCancel": "Cancel",
+    "btnExecute": "Execute Import",
+    "description": "Import JIS K 0200 Annex B standard uncertainty criteria or an existing export file.",
+    "formatLabel": "Import Format",
+    "dropText": "Click to select a file or drag & drop here",
+    "dropHint": "Supported formats: CSV / JSON / XML (max 10 MB)",
+    "alertTitle": "Note",
+    "alertDesc": "If a key conflicts with an existing uncertainty criterion during import, an overwrite confirmation dialog will appear.",
+    "scopeLabel": "Target Scope",
+    "scopeOptionMeasurement": "R&D Dept › Measurement Team",
+    "scopeOptionMaterial": "R&D Dept › Materials Group",
+    "scopeOptionCompany": "Sample Tech Co., Ltd.",
+    "scopeOptionPersonal": "Personal › Taro Yamada"
   }
 }
