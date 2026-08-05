@@ -1,15 +1,22 @@
--- scope_key（ユーザーID）に紐づく名前空間一覧を取得
--- Personal ノード表示用。organization_user テーブルと JOIN して user_name を返す
+-- scope_key（ユーザーID または organization_group_cd）に紐づく名前空間一覧を取得
+-- INNER JOIN により prefix が登録済みの行のみ返す（prefix=NULL の空白行を防ぐ）
 SELECT
-  n.namespace_id
+  p.prefix
   , n.uri
-  , n.scope_key
-  , COALESCE(n.global_flg, FALSE) AS global_flg
-  , ou.user_name
+  , n.scope_key                                                     AS "scopeKey"
+  , COALESCE(og.organization_group_name, ou.user_name, '')          AS "scopeName"
+  , COALESCE(n.global_flg, FALSE)                                   AS "isGlobal"
 FROM namespace n
+INNER JOIN prefix p
+  ON p.organization_id = n.organization_id
+  AND p.namespace_id = n.namespace_id
+  AND p.is_active = TRUE
+LEFT JOIN organization_group og
+  ON og.organization_id = n.organization_id
+  AND og.organization_group_cd = n.scope_key
 LEFT JOIN organization_user ou
-  ON n.organization_id = ou.organization_id
-  AND n.scope_key = ou.user_id
+  ON ou.organization_id = n.organization_id
+  AND ou.user_id = n.scope_key
 WHERE n.organization_id = $1
   AND n.scope_key = $2
-ORDER BY n.namespace_id ASC
+ORDER BY p.prefix ASC

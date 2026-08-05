@@ -9,6 +9,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as organizationGroupService from '../services/organizationGroupService';
+import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
 
 /**
  * 組織グループ一覧取得
@@ -29,9 +30,11 @@ export async function getOrganizationGroups(
     }
 
     const search = req.query.search as string | undefined;
+    const userId = req.userId;
     const groups = await organizationGroupService.getOrganizationGroups(
       organizationId,
-      { search }
+      { search },
+      userId
     );
 
     res.json({ success: true, data: groups });
@@ -90,7 +93,7 @@ export async function createOrganizationGroup(
       return;
     }
 
-    const userId = (req as any).userId as string | undefined;
+    const userId = req.userId;
     if (!userId) {
       res.status(401).json({ success: false, error: { code: 'E5013', message: 'Authentication information could not be retrieved' } });
       return;
@@ -160,7 +163,7 @@ export async function updateOrganizationGroup(
       return;
     }
 
-    const userId = (req as any).userId as string | undefined;
+    const userId = req.userId;
     const { groupCd } = req.params;
     const {
       organization_group_name,
@@ -221,6 +224,43 @@ export async function deleteOrganizationGroup(
     await organizationGroupService.deleteOrganizationGroup(organizationId, groupCd);
 
     res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * ログインユーザーの所属グループ＋全祖先グループの CD 一覧を返す
+ * GET /api/v1/organization-groups/ancestors
+ *
+ * @remarks
+ * 用語重複チェックで「上位層グループの名前空間」を特定するために使用する。
+ * findByUser の WITH RECURSIVE クエリで自分の直接所属グループと
+ * parent_group_cd を再帰的に辿った全祖先グループを取得する。
+ */
+export async function getAncestorGroupCds(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = (req as any).organizationId as string | undefined;
+    if (!organizationId) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'organizationId could not be retrieved' } });
+      return;
+    }
+
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: { code: 'E5013', message: 'Authentication information could not be retrieved' } });
+      return;
+    }
+
+    // WITH RECURSIVE クエリで所属グループ + 全祖先グループを取得
+    const groups = await organizationGroupRepository.findByUser(organizationId, userId);
+    const groupCds = groups.map((g) => g.organization_group_cd);
+
+    res.json({ success: true, data: groupCds });
   } catch (error) {
     next(error);
   }

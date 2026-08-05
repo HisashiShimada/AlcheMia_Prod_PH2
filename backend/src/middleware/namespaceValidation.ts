@@ -12,6 +12,17 @@ import { body, query, param } from 'express-validator';
 // ─── 名前空間（Prefix）操作 ───────────────────────────────────────────────────
 
 /**
+ * GET /api/v1/namespaces
+ * query: scopeKey は任意・文字列
+ */
+export const validateGetNamespaces = [
+  query('scopeKey')
+    .optional()
+    .isString()
+    .withMessage('scopeKey は文字列で指定してください'),
+];
+
+/**
  * POST /api/v1/namespaces
  * body: prefix, uri は必須
  */
@@ -26,6 +37,32 @@ export const validateCreateNamespace = [
     .withMessage('uri は必須です')
     .isString()
     .withMessage('uri は文字列で指定してください'),
+];
+
+/**
+ * PATCH /api/v1/namespaces/:prefix
+ * params: prefix は必須
+ * body: uri は必須・文字列
+ */
+export const validateUpdateNamespace = [
+  param('prefix')
+    .notEmpty()
+    .withMessage('prefix は必須です'),
+  body('uri')
+    .notEmpty()
+    .withMessage('uri は必須です')
+    .isString()
+    .withMessage('uri は文字列で指定してください'),
+];
+
+/**
+ * DELETE /api/v1/namespaces/:prefix
+ * params: prefix は必須
+ */
+export const validateDeleteNamespace = [
+  param('prefix')
+    .notEmpty()
+    .withMessage('prefix は必須です'),
 ];
 
 // ─── 用語操作 ─────────────────────────────────────────────────────────────────
@@ -90,6 +127,24 @@ export const validateToggleTermActive = [
     .withMessage('isActive は必須です')
     .isBoolean()
     .withMessage('isActive は boolean 型で指定してください'),
+];
+
+// ─── 用語一覧取得 ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/namespaces/terms
+ * query: scopeKey は任意・文字列
+ * query: globalFlg は任意・'true' または 'false'
+ */
+export const validateGetTerms = [
+  query('scopeKey')
+    .optional()
+    .isString()
+    .withMessage('scopeKey は文字列で指定してください'),
+  query('globalFlg')
+    .optional()
+    .isIn(['true', 'false'])
+    .withMessage('globalFlg は "true" または "false" で指定してください'),
 ];
 
 // ─── 名前空間宣言 ─────────────────────────────────────────────────────────────

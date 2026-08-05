@@ -4,7 +4,8 @@
  */
 
 import * as userRepository from '../repositories/userRepository';
-import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
+import * as namespaceService from './namespaceService';
+import * as organizationService from './organizationService';
 import { generateNamespaceUri } from '../utils/namespaceUriGenerator';
 import { EmailService } from './emailService';
 import { UserRow } from '../repositories/userRepository';
@@ -121,23 +122,18 @@ export async function createUser(
     // URI形式: https://{organizationCd}.Alchemia.co.jp/{loginName}
     // loginName = メールアドレスの @ より前の部分
     try {
-      const pool = (await import('../database/db')).getPool();
-      const orgRow = await pool.query<{ organization_cd: string }>(
-        `SELECT organization_cd FROM organization WHERE organization_id = $1 LIMIT 1`,
-        [organizationId]
-      );
-      const organizationCd = orgRow.rows[0]?.organization_cd;
+      const org = await organizationService.getOrganizationById(organizationId);
+      const organizationCd = org?.organizationCd;
       if (organizationCd) {
         const loginName = data.userId.split('@')[0];
         const candidateUri = generateNamespaceUri(organizationCd, loginName);
-        const existingUris = await namespaceTermRepository.findUrisByOrganization(organizationId);
-        const uniqueUri = existingUris.includes(candidateUri) ? `${candidateUri}1` : candidateUri;
-        await namespaceTermRepository.createNamespaceUri({
+        const registerInput: namespaceService.RegisterNamespaceUriInput = {
           organizationId,
-          uri: uniqueUri,
+          candidateUri,
           userId: data.userId,
-        });
-        console.log(`[userService] 個人URI自動登録成功: userId=${data.userId}, uri=${uniqueUri}`);
+        };
+        const result = await namespaceService.registerPersonalNamespaceUri(registerInput);
+        console.log(`[userService] 個人URI自動登録成功: userId=${data.userId}, uri=${result.uri}`);
       }
     } catch (nsError) {
       // URI登録失敗はログに記録するが、ユーザー作成は成功とする

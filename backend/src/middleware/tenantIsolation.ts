@@ -16,6 +16,7 @@ declare global {
   namespace Express {
     interface Request {
       organizationId?: string;
+      userId?: string;
     }
   }
 }
@@ -50,6 +51,9 @@ export function tenantIsolation(
 
     // req.organizationIdに格納
     req.organizationId = req.user.organizationId;
+
+    // req.userIdに格納（コントローラーでのログインユーザー識別に使用）
+    req.userId = req.user.userId;
 
     // 次のミドルウェアへ
     next();

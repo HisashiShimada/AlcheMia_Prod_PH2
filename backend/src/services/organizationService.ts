@@ -16,7 +16,7 @@ import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
 import { getMessage } from '../utils/messages';
 import { createSchemaIfNotExists, createSchemaTables, getSchemaStorageSizeBytes } from '../repositories/maimlAssetRepository';
-import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
+import * as namespaceService from './namespaceService';
 import { generateNamespaceUri } from '../utils/namespaceUriGenerator';
 
 /**
@@ -392,16 +392,14 @@ export async function createOrganization(
     // ④ 組織URIを namespace テーブルに自動登録
     // URI形式: https://{organizationCd}.Alchemia.co.jp
     try {
-      const orgUri = generateNamespaceUri(data.organizationCd);
-      const existingUris = await namespaceTermRepository.findUrisByOrganization(data.organizationId);
-      const uniqueUri = existingUris.includes(orgUri) ? `${orgUri}1` : orgUri;
-      const namespaceUriData: Parameters<typeof namespaceTermRepository.createNamespaceUri>[0] = {
+      const candidateUri = generateNamespaceUri(data.organizationCd);
+      const registerInput: namespaceService.RegisterNamespaceUriInput = {
         organizationId: data.organizationId,
-        uri: uniqueUri,
+        candidateUri,
         userId,
       };
-      await namespaceTermRepository.createNamespaceUri(namespaceUriData);
-      logger.info(`[organizationService] 組織URI自動登録完了: organizationId=${data.organizationId}, uri=${uniqueUri}`);
+      const nsResult = await namespaceService.registerPersonalNamespaceUri(registerInput);
+      logger.info(`[organizationService] 組織URI自動登録完了: organizationId=${data.organizationId}, uri=${nsResult.uri}`);
     } catch (nsError) {
       // URI登録失敗は組織作成のエラーとしない（ログのみ）
       logger.warn(`[organizationService] 組織URI自動登録失敗（組織作成は成功）: organizationId=${data.organizationId}`, {

@@ -20,7 +20,7 @@ import type { TableColumnsType } from 'antd';
 import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
 import DepartmentNodeAddDialog from './DepartmentNodeAddDialog';
 import { generateNamespaceUri } from '../../utils/namespaceUriGenerator';
-import type { RawNode, FlatDeptRow, DeptTreeNode } from '@/types/namespace';
+import type { RawNode, FlatDeptRow, DeptTreeNode, DepartmentTreeManagementProps } from '@/types/namespace';
 
 /** ログイン組織CD（本番実装では認証APIから取得） */
 const MOCK_ORGANIZATION_CD = 'ORG';
@@ -74,7 +74,10 @@ const flattenCompanyNodes = (nodes: RawNode[]): FlatDeptRow[] => {
 // ──────────────────────────────────────────────
 // コンポーネント
 // ──────────────────────────────────────────────
-const DepartmentTreeManagement: React.FC = () => {
+
+const DepartmentTreeManagement: React.FC<DepartmentTreeManagementProps> = ({
+  onNodeSelect,
+}) => {
   const [rows, setRows] = useState<FlatDeptRow[]>(() =>
     flattenCompanyNodes(namespaceTreeRaw as RawNode[])
   );
@@ -343,6 +346,10 @@ const DepartmentTreeManagement: React.FC = () => {
             triggerDesc: '降順にソート',
             cancelSort: 'ソートをキャンセル',
           }}
+          onRow={(record) => ({
+            onClick: () => onNodeSelect?.(record.key),
+            style: { cursor: 'pointer' },
+          })}
           pagination={{
             current: currentPage,
             pageSize,

@@ -14,14 +14,22 @@ import { E6001, E7001 } from '../enums/errorCodes';
 /**
  * 組織グループ一覧取得
  *
+ * userId が指定された場合は、そのユーザーが所属するグループ＋祖先グループのみを返す。
+ * userId が未指定の場合は組織全体のグループ一覧を返す。
+ *
  * @param organizationId - 組織ID
  * @param filters - 検索フィルタ
+ * @param userId - ログインユーザーID（指定時はユーザー所属グループでフィルタ）
  * @returns 組織グループ一覧
  */
 export async function getOrganizationGroups(
   organizationId: string,
-  filters?: OrganizationGroupFilters
+  filters?: OrganizationGroupFilters,
+  userId?: string
 ): Promise<OrganizationGroupRow[]> {
+  if (userId) {
+    return organizationGroupRepository.findByUser(organizationId, userId);
+  }
   return organizationGroupRepository.findAll(organizationId, filters);
 }
 

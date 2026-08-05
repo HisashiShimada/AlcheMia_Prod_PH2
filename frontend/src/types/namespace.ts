@@ -71,6 +71,9 @@ export interface FlatNsNode {
 export interface FlatDeptRow {
   key: string;
   label: string;
+  prefix: string;
+  uri: string;
+  description: string;
   parentKey: string | null;
   parentLabel: string;
   depth: number;
@@ -93,6 +96,8 @@ export interface Term {
   type: string;
   unitHint?: string;
   isActive?: boolean;
+  /** prefix に対応するスコープ名（organization_group_name または user_name） */
+  scopeName?: string;
 }
 
 /**
@@ -144,7 +149,7 @@ export interface RawDetail {
   namespaceUri: string;
   level: string;
   displayNameJa: string;
-  displayNameEn: string;
+  displayNameEn?: string;
   description: string;
   typeHint: string;
   unitHint: string | null;
@@ -375,6 +380,46 @@ export interface PrefixEditValues {
 }
 
 /**
+ * PrefixManagement のインライン編集値（URI付き）
+ *
+ * @remarks
+ * PrefixManagement.tsx の既存行編集時に使用する一時的な入力値を保持する
+ */
+export interface PrefixEditValuesWithUri {
+  prefix: string;
+  uri: string;
+  description: string;
+}
+
+/**
+ * PrefixManagement コンポーネント内部のテーブル行
+ *
+ * @remarks
+ * namespace.ts の PrefixRow（scopePath/isActive 等を持つ）とは別に、
+ * PrefixManagement.tsx の内部テーブル表示用に uri フィールドを持つ行型
+ */
+export interface PrefixRowLocal {
+  /** prefix を id として使用 */
+  id: string;
+  prefix: string;
+  uri: string;
+  description?: string;
+}
+
+/**
+ * PrefixManagement の新規入力行（テーブルインライン入力用・URI付き）
+ *
+ * @remarks
+ * PrefixManagement.tsx の新規行追加時に使用する入力行型（uri フィールドあり）
+ */
+export interface NewPrefixRowLocal {
+  _rowId: string;
+  prefix: string;
+  uri: string;
+  description: string;
+}
+
+/**
  * PrefixManagement の CSV インポート解析行
  */
 export interface PrefixCsvParsedRow {
@@ -442,6 +487,9 @@ export interface TeamEditDialogProps {
 export interface DeptTreeNode {
   key: string;
   label: string;
+  prefix?: string;
+  uri?: string;
+  description?: string;
   parentKey: string | null;
   children?: DeptTreeNode[];
 }
@@ -577,6 +625,68 @@ export interface CreateTeamResponse {
   departmentUnitId: string;
   /** 作成されたチームの名前 */
   unitName: string;
+}
+
+// ──────────────────────────────────────────────
+// TermManagement
+// ──────────────────────────────────────────────
+
+/**
+ * TermManagement コンポーネントの Props
+ */
+export interface TermManagementProps {
+  /** true の場合、追加・編集ボタンを非活性にする */
+  viewOnly?: boolean;
+  /** true の場合、グローバルPrefix紐づき用語のみ対象（将来拡張用） */
+  globalOnly?: boolean;
+  /**
+   * 選択中の名前空間スコープキー（userId または organization_group_cd）。
+   * 渡された場合、そのスコープに紐づく Prefix のみを取得して表示する。
+   * 未指定時は全件取得（従来動作）。
+   */
+  selectedNsKey?: string;
+}
+
+/**
+ * TermManagement の新規入力行（テーブルインライン入力用）
+ *
+ * @remarks
+ * TermManagement.tsx の新規行追加時に使用する入力行型。
+ * NamespaceMain の NewTermRow とは typeHint/type フィールド名が異なる点に注意。
+ */
+export interface NewTermRowLocal {
+  _rowId: string;
+  prefix: string;
+  localName: string;
+  displayName: string;
+  description: string;
+  typeHint: string;
+  unitHint: string;
+}
+
+/**
+ * TermManagement の既存行インライン編集値
+ *
+ * @remarks
+ * TermManagement.tsx の既存行編集時に使用する一時的な入力値を保持する
+ */
+export interface TermEditValuesLocal {
+  displayName: string;
+  description: string;
+  typeHint: string;
+  unitHint: string;
+}
+
+// ──────────────────────────────────────────────
+// DepartmentTreeManagement
+// ──────────────────────────────────────────────
+
+/**
+ * DepartmentTreeManagement コンポーネントの Props
+ */
+export interface DepartmentTreeManagementProps {
+  /** 行クリック時に選択された organization_group_cd を通知するコールバック */
+  onNodeSelect?: (scopeKey: string | null) => void;
 }
 
 // ──────────────────────────────────────────────

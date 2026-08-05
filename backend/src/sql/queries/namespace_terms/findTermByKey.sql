@@ -2,6 +2,7 @@
 -- create() / update() / toggleActive() 後の SELECT に共通使用
 SELECT
   t.prefix || ':' || t.localname  AS qname
+  , t.namespace_id                 AS "namespaceId"
   , t.prefix                       AS prefix
   , t.localname                    AS "localName"
   , COALESCE(t.display_name, '')   AS "displayName"

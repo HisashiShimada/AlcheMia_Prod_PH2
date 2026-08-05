@@ -75,6 +75,38 @@ export async function findAllByOrganization(
 }
 
 /**
+ * scopeKey（organization_group_cd または user_id）に紐づく用語を取得
+ * global_flg=TRUE の名前空間に属する用語も含む
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKey - namespace.scope_key の値
+ * @returns 用語一覧（フロントエンド用に整形済み）
+ */
+export async function findAllByScopeKey(
+  organizationId: string,
+  scopeKey: string
+): Promise<NamespaceTermRow[]> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findAllByScopeKey.sql');
+  return pgp.any<NamespaceTermRow>(query, [organizationId, scopeKey]);
+}
+
+/**
+ * global_flg=TRUE の名前空間に属する用語を取得
+ * グローバルノード選択時に使用する
+ *
+ * @param organizationId - 組織ID
+ * @returns 用語一覧（フロントエンド用に整形済み）
+ */
+export async function findAllGlobal(
+  organizationId: string
+): Promise<NamespaceTermRow[]> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findAllGlobal.sql');
+  return pgp.any<NamespaceTermRow>(query, [organizationId]);
+}
+
+/**
  * 組織の名前空間宣言（uri）を取得
  *
  * XML ビューの xmlns 注入用。namespace テーブルから1件取得する。
@@ -135,6 +167,31 @@ export async function create(data: {
     throw new Error(`prefix "${data.prefix}" に対応する namespace_id が見つかりません`);
   }
   const namespaceId = prefixRow.namespace_id;
+
+  // 重複チェック: 同じ prefix:localName が既に存在する場合は 409 エラー
+  const checkQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  const existing = await pgp.oneOrNone<NamespaceTermRow>(checkQuery, [
+    data.organizationId,
+    data.prefix,
+    data.localName,
+  ]);
+  if (existing) {
+    // スコープ名（チーム名など）を取得してエラー詳細に付与
+    const scopeNameQuery = await loadSqlFile('namespace_terms/findScopeNameByPrefix.sql');
+    const scopeRow = await pgp.oneOrNone<{ scope_name: string }>(scopeNameQuery, [
+      data.organizationId,
+      data.prefix,
+    ]);
+    const scopeName = scopeRow?.scope_name ?? data.prefix;
+
+    const err: Error & { statusCode?: number; code?: string; details?: { scopeName: string } } = new Error(
+      `Term "${data.prefix}:${data.localName}" already exists`
+    );
+    err.statusCode = 409;
+    err.code = 'E6005';
+    err.details = { scopeName };
+    throw err;
+  }
 
   const insertQuery = await loadSqlFile('namespace_terms/createTerm.sql');
   await pgp.none(insertQuery, [
@@ -217,6 +274,36 @@ export async function remove(
 }
 
 /**
+ * namespace テーブルの URI を更新する
+ *
+ * @param data - 更新データ（uri, organizationId, prefix）
+ * @returns 更新後のレコード（見つからない場合は null）
+ */
+export async function updateNamespace(data: {
+  organizationId: string;
+  prefix: string;
+  uri: string;
+}): Promise<{ namespaceId: string; prefix: string; uri: string; scopeKey: string | null; globalFlg: boolean } | null> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/updateNamespace.sql');
+  const row = await pgp.oneOrNone<{
+    namespace_id: string;
+    prefix: string;
+    uri: string;
+    scope_key: string | null;
+    global_flg: boolean;
+  }>(query, [data.uri, data.organizationId, data.prefix]);
+  if (!row) return null;
+  return {
+    namespaceId: row.namespace_id,
+    prefix: row.prefix,
+    uri: row.uri,
+    scopeKey: row.scope_key,
+    globalFlg: row.global_flg,
+  };
+}
+
+/**
  * namespace テーブルに URI のみ INSERT する（組織・ユーザー作成時の自動登録用）
  *
  * prefix テーブルへの登録は行わない。
@@ -237,13 +324,14 @@ export async function createNamespaceUri(data: {
   const seqRow = await pgp.one<{ next_seq: number }>(seqQuery, [data.organizationId]);
   const namespaceId = `NS${String(seqRow.next_seq).padStart(4, '0')}`;
 
-  // namespace テーブルに INSERT（URI のみ）
+  // namespace テーブルに INSERT（URI のみ、scope_key = userId で個人名前空間として登録）
   const insertQuery = await loadSqlFile('namespace_terms/createNamespaceUri.sql');
   await pgp.none(insertQuery, [
     data.organizationId,
     namespaceId,
     data.uri,
     data.userId,
+    data.userId, // $5: scope_key = userId（個人ノード選択時の検索用）
   ]);
 
   return namespaceId;
@@ -262,6 +350,31 @@ export async function findUrisByOrganization(
   const query = await loadSqlFile('namespace_terms/findUrisByOrganization.sql');
   const rows = await pgp.any<{ uri: string }>(query, [organizationId]);
   return rows.map(r => r.uri);
+}
+
+/**
+ * ユーザーの所属 organization_group_cd（scopeKey）を取得する
+ *
+ * @remarks
+ * organization_group_user テーブルから userId に紐づく organization_group_cd を返す。
+ * 複数所属がある場合は create_at が最も古い1件を返す。
+ * 未所属（sys_admin 等）の場合は null を返す。
+ *
+ * @param organizationId - 組織ID
+ * @param userId - ユーザーID
+ * @returns organization_group_cd または null
+ */
+export async function findUserOrgGroupCd(
+  organizationId: string,
+  userId: string
+): Promise<string | null> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findUserOrgGroupCd.sql');
+  const row = await pgp.oneOrNone<{ organization_group_cd: string }>(
+    query,
+    [organizationId, userId]
+  );
+  return row?.organization_group_cd ?? null;
 }
 
 /**
@@ -320,14 +433,14 @@ export async function createNamespace(data: {
  * prefix テーブルと namespace テーブルを JOIN して取得する。
  *
  * @param organizationId - 組織ID
- * @returns prefix と uri の配列（prefix 昇順）
+ * @returns prefix / uri / scopeKey / scopeName の配列（prefix 昇順）
  */
 export async function findNamespacesByOrganization(
   organizationId: string
-): Promise<Array<{ prefix: string; uri: string }>> {
+): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>> {
   const pgp = getPgp();
   const query = await loadSqlFile('namespace_terms/findNamespacesByOrganization.sql');
-  return pgp.any<{ prefix: string; uri: string }>(query, [organizationId]);
+  return pgp.any<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>(query, [organizationId]);
 }
 
 /**
@@ -374,21 +487,22 @@ export async function findDeclarationsByProjectScope(
 }
 
 /**
- * scope_key（ユーザーID）に紐づく名前空間一覧を取得
+ * scope_key（ユーザーID または organization_group_cd）に紐づく名前空間一覧を取得
  *
- * Personal ノード表示用。organization_user テーブルと JOIN して user_name を返す。
+ * PrefixManagement / TermManagement 画面で使用する形式で返す。
+ * SQL（findNamespacesByScopeKey.sql）は prefix / uri / scopeKey / scopeName / isGlobal を返す。
  *
  * @param organizationId - 組織ID
- * @param scopeKey - namespace.scope_key（= user_id）
- * @returns namespace_id / uri / scope_key / global_flg / user_name の配列
+ * @param scopeKey - namespace.scope_key（userId または organization_group_cd）
+ * @returns prefix / uri / scopeKey / scopeName / isGlobal の配列
  */
 export async function findNamespacesByScopeKey(
   organizationId: string,
   scopeKey: string
-): Promise<Array<{ namespace_id: string; uri: string; scope_key: string; global_flg: boolean; user_name: string | null }>> {
+): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string; isGlobal?: boolean }>> {
   const pgp = getPgp();
   const query = await loadSqlFile('namespace_terms/findNamespacesByScopeKey.sql');
-  return pgp.any<{ namespace_id: string; uri: string; scope_key: string; global_flg: boolean; user_name: string | null }>(
+  return pgp.any<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string; isGlobal?: boolean }>(
     query,
     [organizationId, scopeKey]
   );
