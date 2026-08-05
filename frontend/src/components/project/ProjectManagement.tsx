@@ -62,6 +62,7 @@ import {
   deleteFolderByPath,
 } from '@/services/fileAccessService';
 import { getProjects, getProjectMaiml } from '@/services/projectApiService';
+import { getVisibleOrganizationGroups } from '@/services/organizationGroupApiService';
 import {
   getProjectFiles, 
   getProjectTasks,
@@ -128,6 +129,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     }
     return 'my_only';
   }); // my_only, all
+  // 組織グループフィルタ
+  const [groupFilter, setGroupFilter] = useState<string>('all');
+  const [visibleGroups, setVisibleGroups] = useState<Array<{ cd: string; name: string; isActive: boolean }>>([]);
   const [checkoutFilter, setCheckoutFilter] = useState<string>(() => {
     // ペトリネット編集画面から戻った際にチェックアウトフィルタを復元
     if (typeof window !== 'undefined') {
@@ -257,6 +261,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   // 電子署名管理モーダルステート
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
 
+  // 閲覧可能グループ一覧を初期取得
+  useEffect(() => {
+    getVisibleOrganizationGroups()
+      .then(setVisibleGroups)
+      .catch((err) => console.warn('[ProjectManagement] 閲覧可能グループ取得失敗:', err));
+  }, []);
+
   // チーム未所属フラグ（organizationGroupCds が空の場合に true）
   // SystemAdmin はグループ未所属でも全件表示可能なため除外
   const isUnassignedToTeam = useMemo(() => {
@@ -357,9 +368,15 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         }
       }
 
-      return matchesSearch && matchesCheckout && matchesProjectStatus;
+      // 組織グループでフィルタリング
+      let matchesGroup = true;
+      if (groupFilter !== 'all') {
+        matchesGroup = (project as any).organizationGroupCd === groupFilter;
+      }
+
+      return matchesSearch && matchesCheckout && matchesProjectStatus && matchesGroup;
     });
-  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, t]);
+  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, groupFilter, t]);
 
   // ソート済みプロジェクト一覧
   const sortedProjects = useMemo(() => {
@@ -1838,6 +1855,28 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
               ]}
             />
           </Space>
+
+          {/* 組織グループ絞込 */}
+          {visibleGroups.length > 0 && (
+            <Space size={4} orientation="horizontal">
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                {t('projectManagement.filter_labels.organization_group')}
+              </Text>
+              <Select
+                style={{ width: 180 }}
+                value={groupFilter}
+                onChange={setGroupFilter}
+                data-testid="group-filter"
+                options={[
+                  { value: 'all', label: t('projectManagement.all') },
+                  ...visibleGroups.map((g) => ({
+                    value: g.cd,
+                    label: g.isActive ? g.name : `${g.name}（非アクティブ）`,
+                  })),
+                ]}
+              />
+            </Space>
+          )}
 
           {/* プロジェクトステータス絞込 */}
           <Space size={4} orientation="horizontal">

@@ -22,9 +22,11 @@ import * as organizationGroupService from '../services/organizationGroupService'
  * GET /api/v1/organization-groups
  *
  * @query search - グループCDまたはグループ名による部分一致検索（任意）
+ * @query visibleOnly - true の場合、ログインユーザーが閲覧可能なグループのみを返す
  *
  * @remarks
- * ログインユーザーが代表者（chief_user_id）のチームのみを返す。
+ * visibleOnly=true 以外の場合は、ログインユーザーが代表者（chief_user_id）のチームのみを返す。
+ * visibleOnly=true の場合は、非アクティブチームの権限ルールを反映した閲覧可能グループ一覧を返す。
  */
 export async function getOrganizationGroups(
   req: Request,
@@ -33,6 +35,18 @@ export async function getOrganizationGroups(
 ): Promise<void> {
   try {
     const organizationId = req.organizationId!;
+    const visibleOnly = req.query.visibleOnly === 'true';
+
+    if (visibleOnly) {
+      const userGroupCds = req.user!.organizationGroupCds ?? [];
+      const groups = await organizationGroupService.getVisibleOrganizationGroups(
+        organizationId,
+        userGroupCds
+      );
+      res.json({ success: true, data: { groups } });
+      return;
+    }
+
     const search = req.query.search as string | undefined;
     const chiefUserId = req.user!.userId;
 

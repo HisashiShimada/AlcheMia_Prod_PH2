@@ -872,7 +872,7 @@ export async function list(req: Request, res: Response): Promise<void> {
   try {
     console.log('一覧取得－開始');
     
-    const { organizationId } = req.user!;
+    const { organizationId, userId } = req.user!;
 
     // クエリパラメータの取得
     const includeCompleted = req.query.include_completed === 'true';
@@ -888,6 +888,7 @@ export async function list(req: Request, res: Response): Promise<void> {
       order: order as 'asc' | 'desc',
       roleCd,
       organizationGroupCds: organizationGroupCdsList,
+      userId,
     });
     console.log('Service層呼び出し' + result.success);
 

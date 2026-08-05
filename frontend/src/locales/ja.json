@@ -766,6 +766,7 @@
     "completionDisabledTooltip": "全タスクが「完了」になると押下できます",
     "filter_labels": {
       "owner": "担当者",
+      "organization_group": "チーム:",
       "project_status": "プロジェクトステータス",
       "checkout_status": "チェックアウト状態",
       "search": "検索"

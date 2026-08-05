@@ -53,6 +53,35 @@ export const getOrganizationGroups = async (
 };
 
 /**
+ * ログインユーザーが閲覧可能な組織グループ一覧を取得する
+ *
+ * @remarks
+ * バックエンドの GET /api/v1/organization-groups?visibleOnly=true を呼び出す。
+ * 非アクティブチームの権限ルールを反映した閲覧可能グループ一覧を返す。
+ *
+ * @returns 閲覧可能な組織グループ一覧（cd, name, isActive）
+ */
+export const getVisibleOrganizationGroups = async (): Promise<
+  Array<{ cd: string; name: string; isActive: boolean }>
+> => {
+  const client = createApiClient();
+
+  try {
+    console.log('🏢 [organizationGroupApiService] 閲覧可能グループ一覧取得');
+
+    const response = await client.get<{
+      success: boolean;
+      data: { groups: Array<{ cd: string; name: string; isActive: boolean }> };
+    }>('/organization-groups', { params: { visibleOnly: 'true' } });
+
+    return response.data?.data?.groups ?? [];
+  } catch (error) {
+    console.warn('⚠️ [organizationGroupApiService] 閲覧可能グループ一覧の取得に失敗しました:', error);
+    return [];
+  }
+};
+
+/**
  * 組織階層グループを新規作成する
  *
  * @remarks

@@ -37,6 +37,8 @@ interface ListOptions {
   organizationGroupCds?: string[];
   /** ユーザーのロールCD（'ROLE002' = SystemAdmin） */
   roleCd?: string;
+  /** ログインユーザーID（非アクティブチームへの権限判定に使用） */
+  userId?: string;
 }
 
 interface ServiceResult<T> {
@@ -374,6 +376,7 @@ export class ProjectService {
         order = 'desc',
         organizationGroupCds = [],
         roleCd,
+        userId,
       } = options;
 
       // SystemAdmin（ROLE002）は全件・全編集可能（フィルタなし）
@@ -383,21 +386,12 @@ export class ProjectService {
       let editableGroupCds: string[] | null = null;
 
       if (!isSystemAdmin) {
-        // 直接所属グループが空の場合は0件を返す（グループ未所属ユーザー）
-        if (organizationGroupCds.length === 0) {
-          return {
-            success: true,
-            data: {
-              projects: [],
-              pagination: { page: 1, limit: 0, totalItems: 0, totalPages: 1, hasNext: false, hasPrev: false },
-            },
-          };
-        }
-
-        // 直接所属グループのうち最上位ルート群を算出（他の所属グループの子孫を除外）
-        // 例: [A, A-1] が所属グループの場合、A-1 は A の子孫なので A のみをルートとする
+        // 全グループ情報を取得してメモリ内で解決（findDescendantCds の前提）
         const allGroups = await organizationGroupRepository.findAll(organizationId);
         const allGroupMap = new Map(allGroups.map((g) => [g.organization_group_cd, g]));
+
+        // 非アクティブグループ一覧
+        const inactiveGroups = allGroups.filter((g) => !g.is_active);
 
         // あるグループCDが、他の所属グループの子孫かどうかを判定する関数
         const isDescendantOfAny = (cd: string, candidates: string[]): boolean => {
@@ -409,15 +403,95 @@ export class ProjectService {
           return false;
         };
 
-        const rootCds = organizationGroupCds.filter(
-          (cd) => !isDescendantOfAny(cd, organizationGroupCds)
-        );
+        /**
+         * 非アクティブグループの祖先チェーンを辿り、有効（is_active=true）な祖先グループCDを
+         * ルートまで全て返す（祖先が非アクティブの場合もさらに遡る）。
+         * ルートが非アクティブ（parent_group_cd=null かつ is_active=false）の場合は空配列を返す。
+         */
+        const findActiveAncestorCds = (groupCd: string): string[] => {
+          const activeCds: string[] = [];
+          let current = allGroupMap.get(groupCd);
+          // 最大深さを制限（循環参照防止）
+          let depth = 0;
+          const maxDepth = 50;
+          while (current?.parent_group_cd && depth < maxDepth) {
+            const parent = allGroupMap.get(current.parent_group_cd);
+            if (!parent) break;
+            if (parent.is_active) {
+              activeCds.push(parent.organization_group_cd);
+            }
+            current = parent;
+            depth++;
+          }
+          return activeCds;
+        };
 
-        // ルート群の配下（自身含む）を再帰取得 → 閲覧可能グループ
-        visibleGroupCds = await organizationGroupRepository.findDescendantCds(organizationId, rootCds);
+        // 直接所属グループが空の場合でも、非アクティブグループ経由で閲覧可能になる可能性があるため
+        // 先に非アクティブグループの可視性・編集可能性を評価する
 
-        // 直接所属グループ = 編集可能グループ
-        editableGroupCds = organizationGroupCds;
+        // ─────────────────────────────────────────────────
+        // 非アクティブグループへの閲覧権限・編集権限の追加判定
+        // ─────────────────────────────────────────────────
+        const inactiveVisibleCds: string[] = [];
+        const inactiveEditableCds: string[] = [];
+
+        for (const inactiveGroup of inactiveGroups) {
+          // ルートチーム（parent_group_cd=null）が非アクティブ → SystemAdmin のみアクセス可能（スキップ）
+          if (!inactiveGroup.parent_group_cd) {
+            continue;
+          }
+
+          // 有効な祖先グループCD一覧を取得
+          const activeAncestorCds = findActiveAncestorCds(inactiveGroup.organization_group_cd);
+
+          // 閲覧権限: ログインユーザーが有効な祖先グループのいずれかに所属している場合
+          const isVisible = activeAncestorCds.some((cd) => organizationGroupCds.includes(cd));
+          if (isVisible) {
+            inactiveVisibleCds.push(inactiveGroup.organization_group_cd);
+          }
+
+          // 編集権限: ログインユーザーが有効な祖先グループのいずれかの代表者（chief_user_id）である場合
+          if (userId) {
+            const isChiefOfAncestor = activeAncestorCds.some((cd) => {
+              const ancestorGroup = allGroupMap.get(cd);
+              return ancestorGroup?.chief_user_id === userId;
+            });
+            if (isChiefOfAncestor) {
+              inactiveEditableCds.push(inactiveGroup.organization_group_cd);
+            }
+          }
+        }
+
+        // 直接所属グループが空の場合: 非アクティブグループ経由の閲覧のみ（アクティブグループ配下は0件）
+        if (organizationGroupCds.length === 0) {
+          if (inactiveVisibleCds.length === 0) {
+            // 閲覧可能グループなし → 0件を返す
+            return {
+              success: true,
+              data: {
+                projects: [],
+                pagination: { page: 1, limit: 0, totalItems: 0, totalPages: 1, hasNext: false, hasPrev: false },
+              },
+            };
+          }
+          visibleGroupCds = inactiveVisibleCds;
+          editableGroupCds = inactiveEditableCds;
+        } else {
+          // 直接所属グループのうち最上位ルート群を算出（他の所属グループの子孫を除外）
+          // 例: [A, A-1] が所属グループの場合、A-1 は A の子孫なので A のみをルートとする
+          const rootCds = organizationGroupCds.filter(
+            (cd) => !isDescendantOfAny(cd, organizationGroupCds)
+          );
+
+          // ルート群の配下（自身含む・is_active 無関係）を再帰取得 → 閲覧可能グループ（アクティブ分）
+          const activeDescendantCds = await organizationGroupRepository.findDescendantCds(organizationId, rootCds);
+
+          // 非アクティブグループも含めて閲覧可能グループを構築（重複除去）
+          visibleGroupCds = Array.from(new Set([...activeDescendantCds, ...inactiveVisibleCds]));
+
+          // 直接所属グループ ＋ 非アクティブグループ（代表者として）= 編集可能グループ
+          editableGroupCds = Array.from(new Set([...organizationGroupCds, ...inactiveEditableCds]));
+        }
       }
 
       // Repository層経由でプロジェクト一覧・総件数を並列取得

@@ -464,6 +464,7 @@
     "filter_labels": {
       "owner": "Owner:",
       "project_status": "Project Status:",
+      "organization_group": "Team:",
       "checkout_status": "Checkout Status:",
       "search": "Search:"
     },

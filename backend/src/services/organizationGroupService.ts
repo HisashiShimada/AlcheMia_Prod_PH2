@@ -32,6 +32,99 @@ export async function getOrganizationGroups(
 }
 
 /**
+ * ログインユーザーが閲覧可能な組織グループ一覧を返す
+ *
+ * 以下のグループを返す（非アクティブチームの権限ルールを反映）：
+ * - ユーザーが直接所属するチーム（active）
+ * - ユーザーが直接所属するチームの子孫チーム（active・inactive 両方）
+ * - ユーザーの上位チームが active で、そこから辿れる非アクティブチーム
+ * - ルート（parent_group_cd = null）の非アクティブチームは除外
+ *
+ * @param organizationId - 組織ID
+ * @param userGroupCds - ログインユーザーが直接所属する組織グループCDの配列
+ * @returns 閲覧可能な組織グループ一覧（cd, name, isActive）
+ */
+export async function getVisibleOrganizationGroups(
+  organizationId: string,
+  userGroupCds: string[]
+): Promise<Array<{ cd: string; name: string; isActive: boolean }>> {
+  // 全グループを取得してメモリ内で解決
+  const allGroups = await organizationGroupRepository.findAll(organizationId);
+  const allGroupMap = new Map(allGroups.map((g) => [g.organization_group_cd, g]));
+
+  // ─── ヘルパー: 指定グループCDの有効な祖先CD一覧を返す ───
+  const findActiveAncestorCds = (groupCd: string): string[] => {
+    const activeCds: string[] = [];
+    let current = allGroupMap.get(groupCd);
+    let depth = 0;
+    const maxDepth = 20;
+    while (current?.parent_group_cd && depth < maxDepth) {
+      const parent = allGroupMap.get(current.parent_group_cd);
+      if (!parent) break;
+      if (parent.is_active) activeCds.push(parent.organization_group_cd);
+      current = parent;
+      depth++;
+    }
+    return activeCds;
+  };
+
+  // ─── ヘルパー: 指定CDが candidates のいずれかの子孫か判定 ───
+  const isDescendantOfAny = (cd: string, candidates: string[]): boolean => {
+    let current = allGroupMap.get(cd);
+    while (current?.parent_group_cd) {
+      if (candidates.includes(current.parent_group_cd)) return true;
+      current = allGroupMap.get(current.parent_group_cd);
+    }
+    return false;
+  };
+
+  // 直接所属グループが空なら空配列を返す（非アクティブグループ経由の閲覧のみ確認）
+  const inactiveGroups = allGroups.filter((g) => !g.is_active);
+  const inactiveVisibleCds: string[] = [];
+
+  for (const inactiveGroup of inactiveGroups) {
+    // ルート非アクティブグループ（上位チームなし）は除外
+    if (!inactiveGroup.parent_group_cd) continue;
+
+    const activeAncestorCds = findActiveAncestorCds(inactiveGroup.organization_group_cd);
+    const isVisible = activeAncestorCds.some((cd) => userGroupCds.includes(cd));
+    if (isVisible) {
+      inactiveVisibleCds.push(inactiveGroup.organization_group_cd);
+    }
+  }
+
+  if (userGroupCds.length === 0) {
+    // 直接所属グループなし: 非アクティブグループ経由の閲覧のみ
+    return inactiveVisibleCds.map((cd) => {
+      const g = allGroupMap.get(cd)!;
+      return { cd: g.organization_group_cd, name: g.organization_group_name, isActive: g.is_active };
+    });
+  }
+
+  // ルート群（他の所属グループの子孫でないもの）を算出
+  const rootCds = userGroupCds.filter((cd) => !isDescendantOfAny(cd, userGroupCds));
+
+  // ルート群の子孫（自身含む・is_active 無関係）を再帰取得
+  const descendantCds = await organizationGroupRepository.findDescendantCds(organizationId, rootCds);
+
+  // 閲覧可能なCDの集合（重複除去）
+  const visibleCdSet = new Set([...descendantCds, ...inactiveVisibleCds]);
+
+  // 結果を OrganizationGroupRow から必要なフィールドのみ抽出して返す
+  const result: Array<{ cd: string; name: string; isActive: boolean }> = [];
+  for (const cd of visibleCdSet) {
+    const g = allGroupMap.get(cd);
+    if (g) {
+      result.push({ cd: g.organization_group_cd, name: g.organization_group_name, isActive: g.is_active });
+    }
+  }
+
+  // グループCD昇順でソート
+  result.sort((a, b) => a.cd.localeCompare(b.cd));
+  return result;
+}
+
+/**
  * 組織グループ単件取得
  *
  * @param organizationId - 組織ID
