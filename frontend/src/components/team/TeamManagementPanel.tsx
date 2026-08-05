@@ -8,24 +8,24 @@ import {
   Modal,
   Spin,
   Table,
+  Tag,
   Typography,
   message,
 } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
   getOrganizationGroups,
   getGroupMembers,
-  deleteOrganizationGroup,
+  updateOrganizationGroupStatus,
 } from '@/services/organizationGroupApiService';
 import TeamAddDialog from './TeamAddDialog';
 import TeamEditDialog from './TeamEditDialog';
-import type { Team, TeamMember } from '@/types/team';
+import type { OrganizationGroupRow, Team, TeamMember } from '@/types/team';
 
 const { Text, Title } = Typography;
 
@@ -44,25 +44,33 @@ const TeamManagementPanel: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTarget,     setEditTarget]     = useState<Team | null>(null);
 
-  // チーム削除確認モーダル
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteTarget,    setDeleteTarget]    = useState<Team | null>(null);
+  // アクティブ状態変更確認モーダル
+  const [statusModalOpen,       setStatusModalOpen]       = useState(false);
+  const [statusModalTarget,     setStatusModalTarget]     = useState<Team | null>(null);
+  /** true: 有効化（アクティブ）、false: 無効化（非アクティブ） */
+  const [statusModalNextActive, setStatusModalNextActive] = useState(false);
+  const [statusChanging,        setStatusChanging]        = useState(false);
+
+  // ──── OrganizationGroupRow → Team 変換ヘルパー
+  const rowToTeam = useCallback((row: OrganizationGroupRow): Team => ({
+    groupCd:       row.organization_group_cd,
+    groupName:     row.organization_group_name,
+    parentGroupCd: row.parent_group_cd,
+    layer:         row.layer,
+    ownerUserId:   row.chief_user_id,
+    ownerName:     row.chief_user_name ?? '',
+    members:       [],
+    memberCount:   row.member_count ?? 0,
+    isActive:      row.is_active,
+    namespaceUri:  row.namespace_uri ?? null,
+  }), []);
 
   // ──── チーム一覧を取得
   const loadTeams = useCallback(() => {
     setLoading(true);
     getOrganizationGroups()
       .then((rows) => {
-        const converted: Team[] = rows.map((row) => ({
-          groupCd:       row.organization_group_cd,
-          groupName:      row.organization_group_name,
-          parentGroupCd: row.parent_group_cd,
-          layer:         row.layer,
-          ownerUserId:   row.chief_user_id,
-          ownerName:     row.chief_user_name ?? '',
-          members:       [],
-          memberCount:   row.member_count ?? 0,
-        }));
+        const converted: Team[] = rows.map(rowToTeam);
         setTeams(converted);
         if (converted.length > 0) {
           setSelectedTeam((prev) => prev ?? converted[0]);
@@ -73,7 +81,7 @@ const TeamManagementPanel: React.FC = () => {
         message.error(t('teamManagement.fetchFailed'));
       })
       .finally(() => setLoading(false));
-  }, [t]);
+  }, [rowToTeam, t]);
 
   useEffect(() => {
     loadTeams();
@@ -104,90 +112,106 @@ const TeamManagementPanel: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeam?.groupCd]);
 
+  // ──── 操作後の共通リフレッシュ: 一覧＋指定チームのメンバーを再取得して選択状態を更新
+  const refreshTeamDetail = useCallback(async (groupCd: string) => {
+    setLoading(true);
+    setMembersLoading(true);
+    try {
+      // 1. グループ一覧を再取得（layer, namespaceUri, isActive, parentGroupCd 等を含む最新値）
+      const rows = await getOrganizationGroups();
+      const converted: Team[] = rows.map(rowToTeam);
+      setTeams(converted);
+
+      const target = converted.find((tm) => tm.groupCd === groupCd) ?? null;
+      if (!target) {
+        setSelectedTeam(null);
+        return;
+      }
+
+      // 2. 対象チームのメンバー一覧を再取得
+      const memberData = await getGroupMembers(groupCd);
+      const members: TeamMember[] = memberData.map((m) => ({
+        userId:   m.userId,
+        userName: m.userName,
+      }));
+      const detail: Team = { ...target, members, memberCount: members.length };
+
+      setTeams((prev) => prev.map((tm) => (tm.groupCd === groupCd ? detail : tm)));
+      setSelectedTeam(detail);
+    } catch {
+      message.error(t('teamManagement.fetchFailed'));
+    } finally {
+      setLoading(false);
+      setMembersLoading(false);
+    }
+  }, [rowToTeam, t]);
+
   // ──── チーム作成後のコールバック
   const handleTeamCreated = useCallback((
     groupCd: string,
-    groupName: string,
-    ownerUserId: string,
-    ownerName: string,
+    _groupName: string,
+    _ownerUserId: string,
+    _ownerName: string,
+    _isActive: boolean,
+    _parentGroupCd?: string | null,
   ) => {
-    const newTeam: Team = {
-      groupCd,
-      groupName,
-      ownerUserId,
-      ownerName,
-      members:     [],
-      memberCount: 1, // 作成時は代表者が自動登録されるため 1
-    };
-    setTeams((prev) => [...prev, newTeam]);
-    setSelectedTeam(newTeam);
     setAddDialogOpen(false);
-  }, []);
+    refreshTeamDetail(groupCd);
+  }, [refreshTeamDetail]);
 
   // ──── チーム編集後のコールバック
   const handleTeamSaved = useCallback((
-    memberIds: string[],
-    newTeamName?: string,
-    newOwnerUserId?: string,
+    _memberIds: string[],
+    _newTeamName?: string,
+    _newOwnerUserId?: string,
+    _newIsActive?: boolean,
   ) => {
     if (!editTarget) return;
-
-    setTeams((prev) =>
-      prev.map((t) => {
-        if (t.groupCd !== editTarget.groupCd) return t;
-        const updatedName = newTeamName ?? t.groupName;
-        const updatedMembers: TeamMember[] = memberIds.map((id) => {
-          const existing = t.members.find((m) => m.userId === id);
-          return existing ?? { userId: id, userName: id };
-        });
-        const newOwnerMember = updatedMembers.find((m) => m.userId === newOwnerUserId);
-        return {
-          ...t,
-          groupName:    updatedName,
-          members:     updatedMembers,
-          memberCount: updatedMembers.length,
-          ownerUserId: newOwnerUserId ?? t.ownerUserId,
-          ownerName:   newOwnerMember?.userName ?? t.ownerName,
-        };
-      }),
-    );
-    setSelectedTeam((prev) => {
-      if (!prev || prev.groupCd !== editTarget.groupCd) return prev;
-      const updatedMembers: TeamMember[] = memberIds.map((id) => {
-        const existing = prev.members.find((m) => m.userId === id);
-        return existing ?? { userId: id, userName: id };
-      });
-      const newOwnerMember = updatedMembers.find((m) => m.userId === newOwnerUserId);
-      return {
-        ...prev,
-        groupName:    newTeamName ?? prev.groupName,
-        members:     updatedMembers,
-        memberCount: updatedMembers.length,
-        ownerUserId: newOwnerUserId ?? prev.ownerUserId,
-        ownerName:   newOwnerMember?.userName ?? prev.ownerName,
-      };
-    });
+    const groupCd = editTarget.groupCd;
     setEditDialogOpen(false);
     setEditTarget(null);
-  }, [editTarget]);
+    refreshTeamDetail(groupCd);
+  }, [editTarget, refreshTeamDetail]);
 
-  // ──── チーム削除
-  const handleTeamDelete = useCallback(async (team: Team) => {
+  // ──── アクティブ状態変更確認モーダルを開く
+  const openStatusModal = useCallback((team: Team, nextActive: boolean) => {
+    setStatusModalTarget(team);
+    setStatusModalNextActive(nextActive);
+    setStatusModalOpen(true);
+  }, []);
+
+  // ──── チームアクティブ状態変更（論理削除 / 有効化）
+  const handleStatusChange = useCallback(async () => {
+    if (!statusModalTarget) return;
+    setStatusChanging(true);
+    const groupCd   = statusModalTarget.groupCd;
+    const groupName = statusModalTarget.groupName;
+    const nextActive = statusModalNextActive;
     try {
-      await deleteOrganizationGroup(team.groupCd);
-      setTeams((prev) => prev.filter((t) => t.groupCd !== team.groupCd));
-      setSelectedTeam((prev) => (prev?.groupCd === team.groupCd ? null : prev));
-      message.success(t('teamManagement.deleteSuccess', { name: team.groupName }));
+      await updateOrganizationGroupStatus(groupCd, nextActive);
+
+      if (nextActive) {
+        message.success(t('teamManagement.activateSuccess', { name: groupName }));
+      } else {
+        message.success(t('teamManagement.deactivateSuccess', { name: groupName }));
+      }
+      setStatusModalOpen(false);
+      setStatusModalTarget(null);
+
+      // 最新データをサーバーから再取得して一覧・詳細を更新
+      await refreshTeamDetail(groupCd);
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { error?: { message?: string } } } })
         ?.response?.data?.error?.message;
       if (detail) {
-        message.error(t('teamManagement.deleteFailed', { detail }));
+        message.error(t('teamManagement.statusChangeFailed', { detail }));
       } else {
-        message.error(t('teamManagement.deleteError'));
+        message.error(t('teamManagement.statusChangeError'));
       }
+    } finally {
+      setStatusChanging(false);
     }
-  }, [t]);
+  }, [statusModalTarget, statusModalNextActive, refreshTeamDetail, t]);
 
   // メンバーテーブルの列定義
   const memberColumns = [
@@ -210,7 +234,9 @@ const TeamManagementPanel: React.FC = () => {
       {/* ── 左ペイン: グループ一覧 ── */}
       <div
         style={{
-          width: 260,
+          width: '30%',
+          minWidth: 280,
+          maxWidth: 420,
           flexShrink: 0,
           borderRight: '1px solid #f0f0f0',
           display: 'flex',
@@ -254,64 +280,47 @@ const TeamManagementPanel: React.FC = () => {
           ) : (
             teams.map((team) => {
               const isSelected = selectedTeam?.groupCd === team.groupCd;
+              const isActive   = team.isActive !== false;
               return (
                 <div
                   key={team.groupCd}
                   style={{
-                    padding: '10px 16px',
+                    padding: '8px 12px',
                     cursor: 'pointer',
                     backgroundColor: isSelected ? '#e6f4ff' : 'transparent',
                     borderLeft: isSelected ? '3px solid #1677ff' : '3px solid transparent',
                     transition: 'background 0.15s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 4,
+                    opacity: isActive ? 1 : 0.55,
                   }}
                   onClick={() => setSelectedTeam(team)}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          backgroundColor: '#52c41a',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <Text
-                        strong={isSelected}
-                        style={{
-                          fontSize: 13,
-                          flex: 1,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {team.groupName}
-                      </Text>
-                    </div>
-                    <Text type="secondary" style={{ fontSize: 11, marginLeft: 14 }}>
-                      {t('teamManagement.memberCount', { count: String(team.memberCount) })}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {/* ステータスドット */}
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: isActive ? '#52c41a' : '#d9d9d9',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Text
+                      strong={isSelected}
+                      style={{
+                        fontSize: 13,
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {team.groupName}
                     </Text>
                   </div>
-
-                  {/* 削除ボタン */}
-                  <Button
-                    size="small"
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(team);
-                      setDeleteModalOpen(true);
-                    }}
-                    style={{ flexShrink: 0 }}
-                  />
+                  <Text type="secondary" style={{ fontSize: 11, marginLeft: 14 }}>
+                    {t('teamManagement.memberCount', { count: String(team.memberCount) })}
+                  </Text>
                 </div>
               );
             })
@@ -332,18 +341,28 @@ const TeamManagementPanel: React.FC = () => {
               width: '100%',
             }}
           >
-            {/* グループ名＋編集ボタン */}
+            {/* グループ名 ＋ ステータスバッジ ＋ 編集ボタン ＋ アクティブ/非アクティブ切替ボタン */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
                 marginBottom: 16,
+                flexWrap: 'wrap',
               }}
             >
               <Title level={5} style={{ margin: 0 }}>
                 {selectedTeam.groupName}
               </Title>
+
+              {/* 非アクティブバッジ */}
+              {selectedTeam.isActive === false && (
+                <Tag color="default">
+                  {t('teamManagement.inactiveLabel')}
+                </Tag>
+              )}
+
+              {/* 編集ボタン */}
               <Button
                 size="small"
                 icon={<EditOutlined />}
@@ -354,6 +373,25 @@ const TeamManagementPanel: React.FC = () => {
               >
                 {t('teamManagement.editBtn')}
               </Button>
+
+              {/* アクティブ/非アクティブ切り替えボタン（右ペインに配置） */}
+              {selectedTeam.isActive !== false ? (
+                <Button
+                  size="small"
+                  danger
+                  onClick={() => openStatusModal(selectedTeam, false)}
+                >
+                  {t('teamManagement.deactivateBtn')}
+                </Button>
+              ) : (
+                <Button
+                  size="small"
+                  style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                  onClick={() => openStatusModal(selectedTeam, true)}
+                >
+                  {t('teamManagement.activateBtn')}
+                </Button>
+              )}
             </div>
 
             {/* グループ情報 */}
@@ -380,6 +418,15 @@ const TeamManagementPanel: React.FC = () => {
                   <Text type="secondary">{t('teamManagement.parentGroupLabel')}</Text>
                   <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>
                     {selectedTeam.parentGroupCd}
+                  </Text>
+                </>
+              )}
+
+              {selectedTeam.namespaceUri && (
+                <>
+                  <Text type="secondary">{t('teamManagement.namespaceUriLabel')}</Text>
+                  <Text style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
+                    {selectedTeam.namespaceUri}
                   </Text>
                 </>
               )}
@@ -436,6 +483,7 @@ const TeamManagementPanel: React.FC = () => {
           teamLabel={editTarget.groupName}
           teamGroupCd={editTarget.groupCd}
           teamOwnerUserId={editTarget.ownerUserId}
+          teamIsActive={editTarget.isActive !== false}
           onClose={() => {
             setEditDialogOpen(false);
             setEditTarget(null);
@@ -444,26 +492,30 @@ const TeamManagementPanel: React.FC = () => {
         />
       )}
 
-      {/* ── グループ削除確認モーダル ── */}
+      {/* ── アクティブ状態変更確認モーダル ── */}
       <Modal
-        open={deleteModalOpen}
-        title={t('teamManagement.deleteConfirmTitle', { name: deleteTarget?.groupName ?? '' })}
-        okText={t('teamManagement.deleteOk')}
-        cancelText={t('teamManagement.deleteCancel')}
-        okButtonProps={{ danger: true }}
-        onOk={async () => {
-          if (deleteTarget) {
-            await handleTeamDelete(deleteTarget);
-          }
-          setDeleteModalOpen(false);
-          setDeleteTarget(null);
-        }}
+        open={statusModalOpen}
+        title={
+          statusModalNextActive
+            ? t('teamManagement.activateConfirmTitle', { name: statusModalTarget?.groupName ?? '' })
+            : t('teamManagement.deactivateConfirmTitle', { name: statusModalTarget?.groupName ?? '' })
+        }
+        okText={statusModalNextActive ? t('teamManagement.activateOk') : t('teamManagement.deactivateOk')}
+        cancelText={t('teamManagement.statusChangeCancel')}
+        okButtonProps={{ danger: !statusModalNextActive, loading: statusChanging }}
+        onOk={handleStatusChange}
         onCancel={() => {
-          setDeleteModalOpen(false);
-          setDeleteTarget(null);
+          if (statusChanging) return;
+          setStatusModalOpen(false);
+          setStatusModalTarget(null);
         }}
+        maskClosable={!statusChanging}
       >
-        <p>{t('teamManagement.deleteConfirmDesc')}</p>
+        <p>
+          {statusModalNextActive
+            ? t('teamManagement.activateConfirmDesc')
+            : t('teamManagement.deactivateConfirmDesc')}
+        </p>
       </Modal>
     </div>
   );

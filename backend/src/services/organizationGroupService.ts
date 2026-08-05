@@ -130,7 +130,6 @@ export async function createOrganizationGroup(
     organization_group_name: string;
     chief_user_id: string;
     parent_group_cd?: string | null;
-    layer?: string | null;
   },
   userId?: string | null
 ): Promise<OrganizationGroupRow> {
@@ -144,6 +143,20 @@ export async function createOrganizationGroup(
     error.code = E7001;
     error.statusCode = 409;
     throw error;
+  }
+
+  // layer を親子関係から自動算出
+  // - parent_group_cd が null → ルートグループ → layer = '1'
+  // - parent_group_cd が指定あり → findAncestorChain の結果件数 + 1
+  let layer: string;
+  if (!data.parent_group_cd) {
+    layer = '1';
+  } else {
+    const ancestorCds = await organizationGroupRepository.findAncestorChain(
+      organizationId,
+      data.parent_group_cd
+    );
+    layer = String(ancestorCds.length + 1);
   }
 
   // 組織 CD 取得（namespace URI 生成に必要）
@@ -161,7 +174,7 @@ export async function createOrganizationGroup(
         organization_group_name: data.organization_group_name,
         chief_user_id: data.chief_user_id,
         parent_group_cd: data.parent_group_cd ?? null,
-        layer: data.layer ?? null,
+        layer,
         create_user_id: userId ?? null,
       },
       t
@@ -243,26 +256,67 @@ export async function updateOrganizationGroup(
 }
 
 /**
- * 組織グループ削除
+ * 組織グループ アクティブ状態更新（論理削除 / 有効化 共用）
  *
  * @param organizationId - 組織ID
  * @param groupCd - 組織グループCD
+ * @param isActive - 設定するアクティブ状態（false で無効化＝論理削除、true で有効化）
+ * @param updaterId - 更新者ユーザーID
+ * @returns 更新された組織グループ
  * @throws 存在しない場合は E6001（リソース不存在）エラー
+ *
+ * @remarks
+ * isActive = false（無効化）の場合、organization_group_user のメンバーを物理削除する。
+ * isActive = true（有効化）の場合、代表者（chief_user_id）を organization_group_user に再登録する。
+ * 代表者が既にメンバーとして存在する場合はスキップされる（ON CONFLICT DO NOTHING）。
  */
-export async function deleteOrganizationGroup(
+export async function updateOrganizationGroupActiveStatus(
   organizationId: string,
-  groupCd: string
-): Promise<void> {
-  // 存在確認
-  const exists = await organizationGroupRepository.existsById(organizationId, groupCd);
-  if (!exists) {
+  groupCd: string,
+  isActive: boolean,
+  updaterId?: string | null
+): Promise<OrganizationGroupRow> {
+  // 存在確認 + chief_user_id 取得（有効化時の代表者再登録に使用）
+  const existing = await organizationGroupRepository.findById(organizationId, groupCd);
+  if (!existing) {
     const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
   }
 
-  await organizationGroupRepository.deleteById(organizationId, groupCd);
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    if (!isActive) {
+      // 無効化時: メンバーを物理削除してから is_active を false に更新
+      await organizationGroupRepository.setMembers(organizationId, groupCd, [], client);
+      await organizationGroupRepository.updateActiveStatus(organizationId, groupCd, false, updaterId);
+    } else {
+      // 有効化時: is_active を true に更新してから代表者（chief_user_id）を再登録
+      await organizationGroupRepository.updateActiveStatus(organizationId, groupCd, true, updaterId);
+      await organizationGroupRepository.insertMember(organizationId, groupCd, existing.chief_user_id, client);
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  // 更新後のレコードを返す
+  const updated = await organizationGroupRepository.findById(organizationId, groupCd);
+  if (!updated) {
+    const error = new Error('Organization group not found after update') as Error & { code: string; statusCode: number };
+    error.code = E6001;
+    error.statusCode = 404;
+    throw error;
+  }
+  return updated;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

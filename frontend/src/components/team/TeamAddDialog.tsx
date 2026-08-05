@@ -37,6 +37,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
 
   const [groupCd, setGroupCd]             = useState('');
   const [groupName, setGroupName]         = useState('');
+  const [isActive, setIsActive]           = useState<boolean>(true);
   const [parentGroupCd, setParentGroupCd] = useState<string | undefined>(undefined);
   const [members, setMembers]             = useState<OrgUser[]>([]);
   const [addTarget, setAddTarget]         = useState<string | undefined>(undefined);
@@ -66,14 +67,16 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
       })
       .finally(() => setUsersLoading(false));
 
-    // 既存グループ一覧（親グループ選択用）
+    // 既存グループ一覧（親グループ選択用）— 非アクティブグループは除外
     getOrganizationGroups()
       .then((groups) =>
         setParentGroups(
-          groups.map((g) => ({
-            value: g.organization_group_cd,
-            label: `${g.organization_group_name} (${g.organization_group_cd})`,
-          }))
+          groups
+            .filter((g) => g.is_active !== false)
+            .map((g) => ({
+              value: g.organization_group_cd,
+              label: `${g.organization_group_name} (${g.organization_group_cd})`,
+            }))
         )
       )
       .catch(() => setParentGroups([]));
@@ -131,7 +134,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
       }
 
       message.success(t('teamAddDialog.createSuccess', { name: createdName }));
-      onCreated(createdCd, createdName, chiefUserId, chiefUserName);
+      onCreated(createdCd, createdName, chiefUserId, chiefUserName, isActive, parentGroupCd ?? null);
       handleReset();
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { error?: { message?: string } } } })
@@ -149,6 +152,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
   const handleReset = () => {
     setGroupCd('');
     setGroupName('');
+    setIsActive(true);
     setParentGroupCd(undefined);
     setMembers([]);
     setAddTarget(undefined);
@@ -234,6 +238,21 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
             filterOption={(input, option) =>
               (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
             }
+            disabled={loading}
+          />
+        </div>
+
+        {/* アクティブ判定 */}
+        <div>
+          <Text strong>{t('teamAddDialog.isActiveLabel')}</Text>
+          <Select
+            style={{ width: '100%', marginTop: 4 }}
+            value={isActive}
+            onChange={(val: boolean) => setIsActive(val)}
+            options={[
+              { value: true,  label: t('teamAddDialog.isActiveOptionActive') },
+              { value: false, label: t('teamAddDialog.isActiveOptionInactive') },
+            ]}
             disabled={loading}
           />
         </div>

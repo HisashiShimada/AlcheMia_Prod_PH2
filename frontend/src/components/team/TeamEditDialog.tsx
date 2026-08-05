@@ -10,6 +10,7 @@ import {
   updateOrganizationGroup,
   updateGroupMembers,
   updateGroupChief,
+  updateOrganizationGroupStatus,
 } from '@/services/organizationGroupApiService';
 import type { OrgUser, TeamEditDialogProps } from '@/types/team';
 
@@ -20,12 +21,14 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   teamLabel,
   teamGroupCd,
   teamOwnerUserId,
+  teamIsActive = true,
   onClose,
   onSaved,
 }) => {
   const { t } = useLanguage();
 
   const [teamName, setTeamName]           = useState('');
+  const [isActive, setIsActive]           = useState<boolean>(true);
   const [members, setMembers]             = useState<OrgUser[]>([]);
   const [addTarget, setAddTarget]         = useState<string | undefined>(undefined);
   const [ownerUserId, setOwnerUserId]     = useState<string | undefined>(undefined);
@@ -38,6 +41,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
     if (!open) return;
 
     setTeamName(teamLabel);
+    setIsActive(teamIsActive);
     setAddTarget(undefined);
     setOwnerUserId(teamOwnerUserId);
 
@@ -56,7 +60,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
     } else {
       setMembers([]);
     }
-  }, [open, teamGroupCd, teamLabel, teamOwnerUserId]);
+  }, [open, teamGroupCd, teamLabel, teamOwnerUserId, teamIsActive]);
 
   // メンバーを削除（削除されたメンバーが代表者の場合はクリア）
   const handleRemoveMember = (userId: string) => {
@@ -87,7 +91,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
     if (!teamGroupCd) {
       message.warning(t('teamEditDialog.noGroupCd'));
-      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
+      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId, isActive);
       onClose();
       return;
     }
@@ -109,13 +113,18 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
         await updateGroupChief(teamGroupCd, ownerUserId);
       }
 
+      // 4. アクティブ状態を更新（変更があった場合のみ）
+      if (isActive !== teamIsActive) {
+        await updateOrganizationGroupStatus(teamGroupCd, isActive);
+      }
+
       message.success(
         t('teamEditDialog.saveSuccess', {
           name: teamName.trim(),
           count: String(members.length),
         })
       );
-      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
+      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId, isActive);
       onClose();
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { error?: { message?: string } } } })
@@ -167,6 +176,21 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
             placeholder={t('teamEditDialog.groupNamePlaceholder')}
             value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
+            disabled={loading}
+          />
+        </div>
+
+        {/* アクティブ判定 */}
+        <div>
+          <Text strong>{t('teamEditDialog.isActiveLabel')}</Text>
+          <Select
+            style={{ width: '100%', marginTop: 4 }}
+            value={isActive}
+            onChange={(val: boolean) => setIsActive(val)}
+            options={[
+              { value: true,  label: t('teamEditDialog.isActiveOptionActive') },
+              { value: false, label: t('teamEditDialog.isActiveOptionInactive') },
+            ]}
             disabled={loading}
           />
         </div>

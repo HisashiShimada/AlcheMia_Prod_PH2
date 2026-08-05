@@ -23,6 +23,7 @@ RETURNING
   , chief_user_id
   , parent_group_cd
   , layer
+  , is_active
   , create_user_id
   , create_at
   , update_user_id

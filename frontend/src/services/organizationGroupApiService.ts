@@ -103,19 +103,31 @@ export const updateOrganizationGroup = async (
 };
 
 /**
- * 組織階層グループを削除する
+ * 組織階層グループのアクティブ状態を更新する（論理削除 / 有効化 共用）
  *
  * @remarks
- * バックエンドの DELETE /api/v1/organization-groups/:groupCd を呼び出す。
+ * バックエンドの PATCH /api/v1/organization-groups/:groupCd/status を呼び出す。
+ * isActive = false: 無効化（論理削除）。メンバーを物理削除する。
+ * isActive = true:  有効化。
  *
- * @param groupCd - 削除対象の組織階層グループCD
+ * @param groupCd - 対象の組織階層グループCD
+ * @param isActive - true: 有効化 / false: 無効化（論理削除）
+ * @returns 更新後の組織階層グループ行
  */
-export const deleteOrganizationGroup = async (groupCd: string): Promise<void> => {
+export const updateOrganizationGroupStatus = async (
+  groupCd: string,
+  isActive: boolean
+): Promise<OrganizationGroupRow> => {
   const client = createApiClient();
 
-  console.log('🏢 [organizationGroupApiService] 組織階層グループ削除:', groupCd);
+  console.log('🏢 [organizationGroupApiService] 組織階層グループ状態更新:', groupCd, isActive ? '有効化' : '無効化（論理削除）');
 
-  await client.delete(`/organization-groups/${encodeURIComponent(groupCd)}`);
+  const response = await client.patch<{ success: boolean; data: OrganizationGroupRow }>(
+    `/organization-groups/${encodeURIComponent(groupCd)}/status`,
+    { isActive }
+  );
+
+  return response.data.data;
 };
 
 // ============================================================================

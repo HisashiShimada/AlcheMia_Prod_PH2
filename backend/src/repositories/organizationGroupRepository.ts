@@ -29,12 +29,16 @@ export interface OrganizationGroupRow {
   chief_user_name: string | null;
   parent_group_cd: string | null;
   layer: string | null;
+  /** アクティブ判定（論理削除フラグ） */
+  is_active: boolean;
   create_user_id: string | null;
   create_at: Date | null;
   update_user_id: string | null;
   update_at: Date | null;
   /** findAll 取得時のみ付与されるメンバー数（一覧表示用） */
   member_count?: number;
+  /** namespace テーブルから scope_key = organization_group_cd で JOIN して取得した URI */
+  namespace_uri?: string | null;
 }
 
 /**
@@ -42,6 +46,8 @@ export interface OrganizationGroupRow {
  */
 export interface OrganizationGroupFilters {
   search?: string;
+  /** 代表者ユーザーIDで絞り込む（指定した場合は chief_user_id が一致するグループのみ返す） */
+  chiefUserId?: string;
 }
 
 /**
@@ -60,7 +66,18 @@ export async function findAll(
   let sql = await loadSqlFile('organization_groups/findAll.sql');
   const params: unknown[] = [organizationId];
 
-  // 動的検索フィルタを付加
+  // 代表者フィルタを付加（chiefUserId 指定時は自分が代表者のグループのみ返す）
+  if (filters?.chiefUserId) {
+    const paramIndex = params.length + 1;
+    sql = sql.replace(
+      'ORDER BY',
+      `AND og.chief_user_id = $${paramIndex}
+ORDER BY`
+    );
+    params.push(filters.chiefUserId);
+  }
+
+  // キーワード検索フィルタを付加
   if (filters?.search) {
     const paramIndex = params.length + 1;
     sql = sql.replace(
@@ -230,20 +247,29 @@ export async function findDescendantCds(
 }
 
 /**
- * organization_group 削除
+ * organization_group アクティブ状態更新（論理削除 / 有効化 共用）
  *
  * @param organizationId - 組織ID
  * @param groupCd - 組織グループCD
- * @returns 削除された行数
+ * @param isActive - 設定するアクティブ状態
+ * @param updateUserId - 更新者ユーザーID
+ * @returns 更新された組織グループ（存在しない場合は null）
  */
-export async function deleteById(
+export async function updateActiveStatus(
   organizationId: string,
-  groupCd: string
-): Promise<number> {
+  groupCd: string,
+  isActive: boolean,
+  updateUserId?: string | null
+): Promise<OrganizationGroupRow | null> {
   const pool = getPool();
-  const sql = await loadSqlFile('organization_groups/deleteById.sql');
-  const result = await pool.query(sql, [organizationId, groupCd]);
-  return result.rowCount ?? 0;
+  const sql = await loadSqlFile('organization_groups/updateActiveStatus.sql');
+  const result = await pool.query<OrganizationGroupRow>(sql, [
+    isActive,
+    updateUserId ?? null,
+    organizationId,
+    groupCd,
+  ]);
+  return result.rows[0] ?? null;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -298,6 +324,29 @@ export async function insertMemberInTransaction(
 ): Promise<void> {
   const sql = await loadSqlFile('organization_groups/insertMember.sql');
   await t.none(sql, [organizationId, groupCd, userId]);
+}
+
+/**
+ * グループメンバー1件挿入（PoolClient 対応版）
+ *
+ * `updateOrganizationGroupActiveStatus` などのトランザクション内から代表者を再登録するために使用。
+ * 重複の場合は何もしない（ON CONFLICT DO NOTHING）。
+ *
+ * @param organizationId - 組織ID
+ * @param groupCd - 組織グループCD
+ * @param userId - 挿入するユーザーID
+ * @param client - トランザクション用クライアント（省略時はプール接続を使用）
+ */
+export async function insertMember(
+  organizationId: string,
+  groupCd: string,
+  userId: string,
+  client?: PoolClient
+): Promise<void> {
+  const pool = getPool();
+  const executor = client ?? pool;
+  const sql = await loadSqlFile('organization_groups/insertMember.sql');
+  await executor.query(sql, [organizationId, groupCd, userId]);
 }
 
 /**
