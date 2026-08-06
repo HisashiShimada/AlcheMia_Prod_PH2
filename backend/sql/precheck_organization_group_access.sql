@@ -72,6 +72,7 @@ WHERE project_name IN (
     'P_EXTERNAL',
     'P_STATUS_PLANNING_NO_MAIML',
     'P_STATUS_PLANNING_WITH_MAIML',
+    'P_STATUS_TASK_PENDING',
     'P_STATUS_IN_PROGRESS_CO',
     'P_STATUS_REVIEW_WAITING',
     'P_STATUS_COMPLETED'
@@ -94,6 +95,7 @@ WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
     'proj_grp_ext',
     'proj_st_plan_nm',
     'proj_st_plan_wm',
+    'proj_st_task_pend',
     'proj_st_inprog',
     'proj_st_review',
     'proj_st_done'

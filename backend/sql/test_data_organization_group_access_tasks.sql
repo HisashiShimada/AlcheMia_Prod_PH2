@@ -6,10 +6,11 @@
 --   test_data_organization_group_access_file_metadata.sql が担当
 --
 -- ■ 対象プロジェクト（全て organization_id: a0718dc5-21f3-44e6-87e9-cc2ae83f3385）:
---   B-2: P_STATUS_PLANNING_WITH_MAIML  → status=0(PLANNING) / MAIML登録済み
---   B-3: P_STATUS_IN_PROGRESS_CO       → status=2(IN_PROGRESS) / チェックアウト中
---   B-4: P_STATUS_REVIEW_WAITING       → status=3(REVIEW_WAITING)
---   B-5: P_STATUS_COMPLETED            → status=4(COMPLETED)
+--   B-2:   P_STATUS_PLANNING_WITH_MAIML  → status=0(PLANNING) / MAIML登録済み
+--   B-2.5: P_STATUS_TASK_PENDING         → status=1(TASK_PENDING) / チェックアウト中・タスク着手前
+--   B-3:   P_STATUS_IN_PROGRESS_CO       → status=2(IN_PROGRESS) / チェックアウト中
+--   B-4:   P_STATUS_REVIEW_WAITING       → status=3(REVIEW_WAITING)
+--   B-5:   P_STATUS_COMPLETED            → status=4(COMPLETED)
 --
 -- ■ 実行順序:
 --   1. test_data_insert.sql
@@ -93,6 +94,28 @@ CROSS JOIN (VALUES
 ) AS vals(experiment_order)
 WHERE p.organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
   AND p.project_name = 'P_STATUS_PLANNING_WITH_MAIML'
+ON CONFLICT (organization_id, project_id, method_id, experiment_order) DO NOTHING;
+
+-- ────────────────────────────────────────────────────────────
+-- B-2.5: P_STATUS_TASK_PENDING（チェックアウト中・タスク登録済み・着手前）
+--        → project_task: 3件登録済み / task_detail: 未登録（PENDING状態）
+-- ────────────────────────────────────────────────────────────
+INSERT INTO project_task (
+    organization_id, project_id, method_id,
+    experiment_order, experiment_condition, attempts_count, worker_linked_flg,
+    create_user_id, create_at, update_user_id, update_at
+)
+SELECT
+    'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid,
+    p.project_id,
+    'method_test_ito_d4076d3d',
+    vals.experiment_order,
+    1, 1, false,
+    'dev_user@example.com', CURRENT_TIMESTAMP, 'dev_user@example.com', CURRENT_TIMESTAMP
+FROM project p
+CROSS JOIN (VALUES (1), (2), (3)) AS vals(experiment_order)
+WHERE p.organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
+  AND p.project_name = 'P_STATUS_TASK_PENDING'
 ON CONFLICT (organization_id, project_id, method_id, experiment_order) DO NOTHING;
 
 -- ────────────────────────────────────────────────────────────
@@ -332,6 +355,7 @@ LEFT JOIN project_task_detail ptd
 WHERE p.organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
   AND p.project_name IN (
     'P_STATUS_PLANNING_WITH_MAIML',
+    'P_STATUS_TASK_PENDING',
     'P_STATUS_IN_PROGRESS_CO',
     'P_STATUS_REVIEW_WAITING',
     'P_STATUS_COMPLETED'
@@ -381,8 +405,8 @@ WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
     SELECT project_id FROM project
     WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
       AND project_name IN (
-        'P_STATUS_PLANNING_WITH_MAIML', 'P_STATUS_IN_PROGRESS_CO',
-        'P_STATUS_REVIEW_WAITING', 'P_STATUS_COMPLETED'
+        'P_STATUS_PLANNING_WITH_MAIML', 'P_STATUS_TASK_PENDING',
+        'P_STATUS_IN_PROGRESS_CO', 'P_STATUS_REVIEW_WAITING', 'P_STATUS_COMPLETED'
       )
   );
 
@@ -393,8 +417,8 @@ WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
     SELECT project_id FROM project
     WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
       AND project_name IN (
-        'P_STATUS_PLANNING_WITH_MAIML', 'P_STATUS_IN_PROGRESS_CO',
-        'P_STATUS_REVIEW_WAITING', 'P_STATUS_COMPLETED'
+        'P_STATUS_PLANNING_WITH_MAIML', 'P_STATUS_TASK_PENDING',
+        'P_STATUS_IN_PROGRESS_CO', 'P_STATUS_REVIEW_WAITING', 'P_STATUS_COMPLETED'
       )
   );
 

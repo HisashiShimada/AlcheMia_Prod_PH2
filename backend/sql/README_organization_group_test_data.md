@@ -39,7 +39,10 @@ EXTERNAL（外部パートナー）is_active=true  ← chief: exp.admin@example.
 | `exp.admin@example.com` | EXTERNAL | （既存ユーザー） | 既存テストデータのユーザー |
 | `system.admin@example.com` | — | system_admin | 既存テストデータの管理者 |
 
-**パスワード（全ユーザー共通）**: `test123`
+**パスワード（全ユーザー共通）**: `test1234`
+
+> ⚠️ 当初 `test123`（7文字）で登録していたためログインエラーが発生。
+> `fix_organization_group_user_passwords.sql` を実行してパスワードを `test1234`（8文字）に更新済み。
 
 ---
 
@@ -53,7 +56,7 @@ EXTERNAL（外部パートナー）is_active=true  ← chief: exp.admin@example.
 |---|---|:---:|---|---|
 | `P_HQ` | HQ | ✅ | hq_user, multi_user | hq_user, multi_user |
 | `P_HQ_DEV` | HQ-DEV | ✅ | hq_user（祖先）, dev_user, multi_user | dev_user, multi_user |
-| `P_HQ_DEV_A` | HQ-DEV-A | ❌ | hq_user, dev_user, multi_user（有効祖先経由） | dev_a_user（chief特例のみ） |
+| `P_HQ_DEV_A` | HQ-DEV-A | ❌ | hq_user, dev_user, multi_user（有効祖先経由） | hq_user, dev_user（有効祖先chiefのみ） |
 | `P_HQ_SALES` | HQ-SALES | ✅ | hq_user（祖先）, sales_user, multi_user（HQ所属） | sales_user |
 | `P_EXTERNAL` | EXTERNAL | ✅ | exp.admin（chiefのみ） | exp.admin |
 
@@ -71,7 +74,9 @@ EXTERNAL（外部パートナー）is_active=true  ← chief: exp.admin@example.
 | A-3 無関係グループは閲覧不可 | `dev_user` | `P_HQ_SALES` | 閲覧できない（0件） |
 | A-4 is_active=false グループでも有効祖先所属なら閲覧可 | `dev_user`（HQ-DEV所属） | `P_HQ_DEV_A` | 閲覧できる（HQ-DEVはHQ-DEV-Aの有効祖先） |
 | A-4 is_active=false グループ直接所属者は閲覧不可 | `dev_a_user`（HQ-DEV-A所属） | `P_HQ_DEV_A` | 閲覧できない（非アクティブグループ直接所属） |
-| A-5 非アクティブグループの chief は編集可 | `dev_a_user` | `P_HQ_DEV_A` | 閲覧・編集できる（chief特例） |
+| A-5 有効祖先グループの chief は非アクティブグループのプロジェクトを編集可 | `hq_user` | `P_HQ_DEV_A` | 閲覧・編集できる（HQがHQ-DEV-Aの有効祖先grpのため） |
+| A-5 有効祖先グループの chief は非アクティブグループのプロジェクトを編集可 | `dev_user` | `P_HQ_DEV_A` | 閲覧・編集できる（HQ-DEVがHQ-DEV-Aの有効祖先grpのため） |
+| A-5 非アクティブグループ直接所属者は編集不可 | `dev_a_user` | `P_HQ_DEV_A` | 閲覧できない・編集できない（非アクティブグループ直接所属のみ） |
 | A-6 SystemAdmin は全件操作可 | `system.admin` | 全プロジェクト | 全て閲覧・編集できる |
 | A-グループ未所属 | `no_group_user` | 全プロジェクト | 全て閲覧・編集できない（0件） |
 | A-複数グループ | `multi_user`（HQ+HQ-DEV） | `P_HQ`, `P_HQ_DEV` | どちらも閲覧・編集できる |
@@ -94,6 +99,7 @@ EXTERNAL（外部パートナー）is_active=true  ← chief: exp.admin@example.
 |---|:---:|:---:|:---:|---|
 | `P_STATUS_PLANNING_NO_MAIML` | 0: PLANNING | ❌ | CHECKED_IN | なし |
 | `P_STATUS_PLANNING_WITH_MAIML` | 0: PLANNING | ✅ | CHECKED_IN | project_task 3件のみ（詳細未登録） |
+| `P_STATUS_TASK_PENDING` | 1: TASK_PENDING | ✅ | CHECKED_OUT | project_task 3件登録済み・task_detail未登録（タスク着手前） |
 | `P_STATUS_IN_PROGRESS_CO` | 2: IN_PROGRESS | ✅ | CHECKED_OUT | task1:COMPLETED, task2:IN_PROGRESS, task3:PENDING |
 | `P_STATUS_REVIEW_WAITING` | 3: REVIEW_WAITING | ✅ | CHECKED_IN | task1,2,3: REVIEW_WAITING（レビュー未完了） |
 | `P_STATUS_COMPLETED` | 4: COMPLETED | ✅ | CHECKED_IN | task1,2,3: COMPLETED（レビュー済み） |
@@ -103,6 +109,7 @@ EXTERNAL（外部パートナー）is_active=true  ← chief: exp.admin@example.
 | プロジェクト名 | project_uuid |
 |---|---|
 | `P_STATUS_PLANNING_WITH_MAIML` | `b1000002-0000-4000-8000-000000000002` |
+| `P_STATUS_TASK_PENDING` | `b1000006-0000-4000-8000-000000000006` |
 | `P_STATUS_IN_PROGRESS_CO` | `b1000003-0000-4000-8000-000000000003` |
 | `P_STATUS_REVIEW_WAITING` | `b1000004-0000-4000-8000-000000000004` |
 | `P_STATUS_COMPLETED` | `b1000005-0000-4000-8000-000000000005` |
@@ -129,10 +136,11 @@ EXTERNAL（外部パートナー）is_active=true  ← chief: exp.admin@example.
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 | P_HQ | 閲・編 | 閲 | × | 閲 | 閲・編 | × |
 | P_HQ_DEV | 閲 | 閲・編 | × | × | 閲・編 | × |
-| P_HQ_DEV_A | 閲 | 閲 | 閲・編※ | × | 閲 | × |
+| P_HQ_DEV_A | 閲・編※ | 閲・編※ | × | × | 閲 | × |
 | P_HQ_SALES | 閲 | × | × | 閲・編 | 閲 | × |
 | P_EXTERNAL | × | × | × | × | × | × |
 | P_STATUS_* (HQ-DEV) | 閲 | 閲・編 | × | × | 閲・編 | × |
 
-※ `dev_a_user`: 非アクティブグループ HQ-DEV-A の chief のため編集可（特例）  
+※ `hq_user`（HQ chief）, `dev_user`（HQ-DEV chief）: 有効祖先グループの代表者のため、非アクティブグループ HQ-DEV-A のプロジェクトを編集可  
+`dev_a_user`: 非アクティブグループ HQ-DEV-A に直接所属するのみ（有効祖先グループの代表者ではない）→ 閲覧・編集不可  
 `system.admin@example.com`: 全プロジェクトを閲覧・編集可（SystemAdmin権限）

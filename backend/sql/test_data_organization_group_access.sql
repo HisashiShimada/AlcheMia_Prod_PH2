@@ -257,6 +257,7 @@ ON CONFLICT (organization_id, organization_group_cd, user_id) DO NOTHING;
 --
 --   P_STATUS_PLANNING_NO_MAIML  → 計画中 / MAIMLなし / チェックイン
 --   P_STATUS_PLANNING_WITH_MAIML→ 計画中 / MAIMLあり / チェックイン
+--   P_STATUS_TASK_PENDING       → タスク実行待ち / MAIMLあり / チェックアウト中（owner: dev_user）
 --   P_STATUS_IN_PROGRESS_CO     → タスク実行中 / チェックアウト中（owner: dev_user）
 --   P_STATUS_REVIEW_WAITING     → タスクレビュー待ち / チェックイン
 --   P_STATUS_COMPLETED          → 完了 / チェックイン
@@ -291,7 +292,7 @@ INSERT INTO project (
     'proj_grp_hq',
     'P_HQ',
     '[グループA-1] HQグループ直下のプロジェクト',
-    'HQ', 1, false, 0,
+    'HQ', 0, false, 0,     -- PLANNING / MAIMLなし / CHECKED_IN
     'hq_user@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
     'hq_user@example.com', 'hq_user@example.com'
 ),
@@ -305,22 +306,23 @@ INSERT INTO project (
     'proj_grp_dev',
     'P_HQ_DEV',
     '[グループA-2] HQ-DEVグループのプロジェクト',
-    'HQ-DEV', 1, false, 0,
+    'HQ-DEV', 0, false, 0,     -- PLANNING / MAIMLなし / CHECKED_IN
     'dev_user@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
     'dev_user@example.com', 'dev_user@example.com'
 ),
 
 -- A-3: HQ-DEV-A グループのプロジェクト（非アクティブグループ）
 --      閲覧可: 有効祖先 HQ/HQ-DEV 所属者（hq_user, dev_user, multi_user）
---              dev_a_user は非アクティブグループ所属のため閲覧不可
---      編集可: HQ-DEV-A の chief（dev_a_user）← 非アクティブグループ代表者特例
---      閲覧不可: sales_user, no_group_user
+--              dev_a_user は非アクティブグループ直接所属のため閲覧不可
+--      編集可: HQ の chief（hq_user）、HQ-DEV の chief（dev_user）← 有効祖先グループ代表者特例
+--              ※ dev_a_user は非アクティブグループ HQ-DEV-A に直接所属するのみ → 編集不可
+--      閲覧不可: dev_a_user, sales_user, no_group_user
 (
     'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid,
     'proj_grp_deva',
     'P_HQ_DEV_A',
     '[グループA-3] HQ-DEV-Aグループのプロジェクト（非アクティブグループ）',
-    'HQ-DEV-A', 1, false, 0,
+    'HQ-DEV-A', 0, false, 0,     -- PLANNING / MAIMLなし / CHECKED_IN
     'dev_a_user@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
     'dev_a_user@example.com', 'dev_a_user@example.com'
 ),
@@ -334,7 +336,7 @@ INSERT INTO project (
     'proj_grp_sales',
     'P_HQ_SALES',
     '[グループA-4] HQ-SALESグループのプロジェクト',
-    'HQ-SALES', 1, false, 0,
+    'HQ-SALES', 0, false, 0,     -- PLANNING / MAIMLなし / CHECKED_IN
     'sales_user@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
     'sales_user@example.com', 'sales_user@example.com'
 ),
@@ -347,7 +349,7 @@ INSERT INTO project (
     'proj_grp_ext',
     'P_EXTERNAL',
     '[グループA-5] EXTERNALグループのプロジェクト（HQ系ユーザーは閲覧不可）',
-    'EXTERNAL', 1, false, 0,
+    'EXTERNAL', 0, false, 0,     -- PLANNING / MAIMLなし / CHECKED_IN
     'exp.admin@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
     'exp.admin@example.com', 'exp.admin@example.com'
 ),
@@ -385,6 +387,23 @@ INSERT INTO project (
     0,     -- PLANNING
     true,  -- MAIMLあり
     0,     -- CHECKED_IN
+    'dev_user@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+    'dev_user@example.com', 'dev_user@example.com'
+),
+
+-- B-2.5: タスク実行待ち / MAIMLあり / チェックアウト中（owner=dev_user）
+--        → MAIMLあり・タスク登録済み・チェックアウト状態（作業開始前）
+--          project_status=1（TASK_PENDING）は checkout_status=1（CHECKED_OUT）と
+--          同時にセットされる。チェックアウト直後・タスク着手前の状態。
+(
+    'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid,
+    'proj_st_task_pend',
+    'P_STATUS_TASK_PENDING',
+    '[状態B-2.5] タスク実行待ち / MAIMLあり / チェックアウト中（dev_userがチェックアウト）',
+    'HQ-DEV',
+    1,     -- TASK_PENDING
+    true,  -- MAIMLあり
+    1,     -- CHECKED_OUT
     'dev_user@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
     'dev_user@example.com', 'dev_user@example.com'
 ),
@@ -500,6 +519,7 @@ WHERE p.organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'
   AND p.project_name IN (
     'P_HQ', 'P_HQ_DEV', 'P_HQ_DEV_A', 'P_HQ_SALES', 'P_EXTERNAL',
     'P_STATUS_PLANNING_NO_MAIML', 'P_STATUS_PLANNING_WITH_MAIML',
+    'P_STATUS_TASK_PENDING',
     'P_STATUS_IN_PROGRESS_CO', 'P_STATUS_REVIEW_WAITING', 'P_STATUS_COMPLETED'
   )
 ORDER BY p.project_name;
@@ -531,6 +551,7 @@ ORDER BY p.project_name;
 -- ├──────────────────────────────┼──────────────────┼──────────┼─────────────┤
 -- │ P_STATUS_PLANNING_NO_MAIML   │ 0: PLANNING      │ false    │ CHECKED_IN  │
 -- │ P_STATUS_PLANNING_WITH_MAIML │ 0: PLANNING      │ true     │ CHECKED_IN  │
+-- │ P_STATUS_TASK_PENDING        │ 1: TASK_PENDING  │ true     │ CHECKED_OUT │
 -- │ P_STATUS_IN_PROGRESS_CO      │ 2: IN_PROGRESS   │ true     │ CHECKED_OUT │
 -- │ P_STATUS_REVIEW_WAITING      │ 3: REVIEW_WAITING│ true     │ CHECKED_IN  │
 -- │ P_STATUS_COMPLETED           │ 4: COMPLETED     │ true     │ CHECKED_IN  │
@@ -545,6 +566,7 @@ WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'
   AND project_name IN (
     'P_HQ', 'P_HQ_DEV', 'P_HQ_DEV_A', 'P_HQ_SALES', 'P_EXTERNAL',
     'P_STATUS_PLANNING_NO_MAIML', 'P_STATUS_PLANNING_WITH_MAIML',
+    'P_STATUS_TASK_PENDING',
     'P_STATUS_IN_PROGRESS_CO', 'P_STATUS_REVIEW_WAITING', 'P_STATUS_COMPLETED'
   );
 

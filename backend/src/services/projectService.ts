@@ -489,8 +489,12 @@ export class ProjectService {
           // 非アクティブグループも含めて閲覧可能グループを構築（重複除去）
           visibleGroupCds = Array.from(new Set([...activeDescendantCds, ...inactiveVisibleCds]));
 
-          // 直接所属グループ ＋ 非アクティブグループ（代表者として）= 編集可能グループ
-          editableGroupCds = Array.from(new Set([...organizationGroupCds, ...inactiveEditableCds]));
+          // 直接所属グループのうち is_active=true のもの ＋ 非アクティブグループ（祖先代表者として）= 編集可能グループ
+          // ※ 非アクティブグループに直接所属しているだけでは編集権限は付与されない
+          const activeOrganizationGroupCds = organizationGroupCds.filter(
+            (cd) => allGroupMap.get(cd)?.is_active === true
+          );
+          editableGroupCds = Array.from(new Set([...activeOrganizationGroupCds, ...inactiveEditableCds]));
         }
       }
 

@@ -6,6 +6,7 @@
 --   - test_data_organization_group_access.sql 投入済み
 --   - Swiftに以下のMAIMLファイルをアップロード済み:
 --       {org_id}/projects/P_STATUS_PLANNING_WITH_MAIML/P_STATUS_PLANNING_WITH_MAIML.maiml
+--       {org_id}/projects/P_STATUS_TASK_PENDING/P_STATUS_TASK_PENDING.maiml
 --       {org_id}/projects/P_STATUS_IN_PROGRESS_CO/P_STATUS_IN_PROGRESS_CO.maiml
 --       {org_id}/projects/P_STATUS_REVIEW_WAITING/P_STATUS_REVIEW_WAITING.maiml
 --       {org_id}/projects/P_STATUS_COMPLETED/P_STATUS_COMPLETED.maiml
@@ -15,6 +16,7 @@
 --
 -- 各MAIMLのdocument.uuid（=project_uuid）:
 --   P_STATUS_PLANNING_WITH_MAIML  → b1000002-0000-4000-8000-000000000002
+--   P_STATUS_TASK_PENDING         → b1000006-0000-4000-8000-000000000006
 --   P_STATUS_IN_PROGRESS_CO       → b1000003-0000-4000-8000-000000000003
 --   P_STATUS_REVIEW_WAITING       → b1000004-0000-4000-8000-000000000004
 --   P_STATUS_COMPLETED            → b1000005-0000-4000-8000-000000000005
@@ -67,6 +69,29 @@ INSERT INTO file_metadata (
     'web_upload',
     'single',
     'b1000002-0000-4000-8000-000000000002'::uuid
+),
+
+-- B-2.5: タスク実行待ち / MAIMLあり / チェックアウト中
+(
+    'a0718dc5-21f3-44e6-87e9-cc2ae83f3385/projects/P_STATUS_TASK_PENDING/P_STATUS_TASK_PENDING.maiml',
+    'mmdpf-files',
+    'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid,
+    'P_STATUS_TASK_PENDING.maiml',
+    1420,
+    'application/xml',
+    'maiml',
+    true,
+    'completed',
+    '1.0',
+    1,
+    1,
+    'dev_user@example.com',
+    'dev_user@example.com',
+    'dev_user@example.com',
+    'a0718dc5-21f3-44e6-87e9-cc2ae83f3385/projects/P_STATUS_TASK_PENDING',
+    'web_upload',
+    'single',
+    'b1000006-0000-4000-8000-000000000006'::uuid
 ),
 
 -- B-3: タスク実行中 / MAIMLあり / チェックアウト中
@@ -153,6 +178,12 @@ WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
   AND project_name = 'P_STATUS_PLANNING_WITH_MAIML';
 
 UPDATE project
+SET project_uuid = 'b1000006-0000-4000-8000-000000000006'::uuid,
+    update_at = CURRENT_TIMESTAMP
+WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
+  AND project_name = 'P_STATUS_TASK_PENDING';
+
+UPDATE project
 SET project_uuid = 'b1000003-0000-4000-8000-000000000003'::uuid,
     update_at = CURRENT_TIMESTAMP
 WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
@@ -188,6 +219,7 @@ LEFT JOIN file_metadata fm ON fm.project_uuid = p.project_uuid
 WHERE p.organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
   AND p.project_name IN (
     'P_STATUS_PLANNING_WITH_MAIML',
+    'P_STATUS_TASK_PENDING',
     'P_STATUS_IN_PROGRESS_CO',
     'P_STATUS_REVIEW_WAITING',
     'P_STATUS_COMPLETED'
@@ -207,6 +239,7 @@ SET project_uuid = NULL, update_at = CURRENT_TIMESTAMP
 WHERE organization_id = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385'::uuid
   AND project_name IN (
     'P_STATUS_PLANNING_WITH_MAIML',
+    'P_STATUS_TASK_PENDING',
     'P_STATUS_IN_PROGRESS_CO',
     'P_STATUS_REVIEW_WAITING',
     'P_STATUS_COMPLETED'

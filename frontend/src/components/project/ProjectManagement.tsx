@@ -2173,13 +2173,19 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     </Button>
                   )}
                   <Tooltip
-                    title={!allTasksCompleted ? t('projectManagement.completionDisabledTooltip') : undefined}
+                    title={
+                      !allTasksCompleted
+                        ? t('projectManagement.completionDisabledTooltip')
+                        : selectedProject?.isEditable === false
+                        ? t('projectManagement.editDisabledTitle') || '編集権限がありません'
+                        : undefined
+                    }
                   >
                     <Button
                       type="primary"
-                      disabled={!allTasksCompleted}
+                      disabled={!allTasksCompleted || selectedProject?.isEditable === false}
                       style={
-                        allTasksCompleted
+                        allTasksCompleted && selectedProject?.isEditable !== false
                           ? { backgroundColor: '#52c41a', borderColor: '#52c41a' }
                           : undefined
                       }
@@ -2281,6 +2287,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                               }
                             }));
                           }}
+                          isEditable={selectedProject?.isEditable !== false}
+                          isProjectCompleted={selectedProject?.status === 4}
                         />
                       </div>
                     ),
@@ -2320,6 +2328,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         <ExperimentInstructionTab
                           projectId={selectedProject.id}
                           projectName={selectedProject.name}
+                          isEditable={selectedProject?.isEditable !== false}
+                          isProjectCompleted={selectedProject?.status === 4}
                         />
                       </div>
                     ),
@@ -2331,6 +2341,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       <div style={{ height: '100%', padding: '8px 0', overflowY: 'auto' }}>
                         <EvaluationRegistrationTab
                           projectId={selectedProject.id}
+                          isEditable={selectedProject?.isEditable !== false}
+                          isProjectCompleted={selectedProject?.status === 4}
                         />
                       </div>
                     ),

@@ -139,8 +139,8 @@ SQL 実装: `backend/src/sql/queries/projects/findAllWithDetails.sql` の `WHERE
 | ユーザー種別 | editableGroupCds |
 |---|---|
 | SystemAdmin | `null`（SQL で `$4::text[] IS NULL` = true → 全件 is_editable=true） |
-| 一般ユーザー（所属グループあり） | `[...organizationGroupCds, ...inactiveEditableCds]`（直接所属グループ + 非アクティブグループ代表者分） |
-| 一般ユーザー（所属グループなし） | `inactiveEditableCds`（非アクティブグループ代表者分のみ） |
+| 一般ユーザー（所属グループあり） | `[...activeOrganizationGroupCds, ...inactiveEditableCds]`（直接所属グループのうち **is_active=true のみ** + 非アクティブグループの有効祖先chief分） |
+| 一般ユーザー（所属グループなし） | `inactiveEditableCds`（非アクティブグループの有効祖先chief分のみ） |
 
 ### 5.2 非アクティブグループの編集権限特例
 
