@@ -41,12 +41,12 @@ export default function UncertaintyExportModal({
       open={open}
       onCancel={onClose}
       width={460}
-      title="不確かさ基準のエクスポート"
+      title={t('uncertaintyExport.title')}
       footer={
         <Space>
-          <Button onClick={onClose}>キャンセル</Button>
+          <Button onClick={onClose}>{t('uncertaintyExport.btnCancel')}</Button>
           <Button type="primary" onClick={handleExport}>
-            ダウンロード
+            {t('uncertaintyExport.btnDownload')}
           </Button>
         </Space>
       }
@@ -57,7 +57,7 @@ export default function UncertaintyExportModal({
           showIcon={false}
           message={
             <Text>
-              <Text strong>{selectedCount}</Text> 件の不確かさ基準をエクスポートします。
+              <Text strong>{selectedCount}</Text> {t('uncertaintyExport.alertMessage', { count: String(selectedCount) })}
             </Text>
           }
           style={{ background: '#e6f0ff', borderColor: '#91caff', color: '#2c5282' }}
@@ -66,7 +66,7 @@ export default function UncertaintyExportModal({
         {/* エクスポート形式 */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>
-            エクスポート形式
+            {t('uncertaintyExport.formatLabel')}
           </div>
           <Space>
             {(['XML', 'JSON'] as ExportFormat[]).map((fmt) => (
@@ -85,26 +85,26 @@ export default function UncertaintyExportModal({
         {/* オプション */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>
-            オプション
+            {t('uncertaintyExport.optionsLabel')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Checkbox
               checked={includeDesc}
               onChange={(e) => setIncludeDesc(e.target.checked)}
             >
-              説明文を含める
+              {t('uncertaintyExport.optionIncludeDesc')}
             </Checkbox>
             <Checkbox
               checked={includeExtends}
               onChange={(e) => setIncludeExtends(e.target.checked)}
             >
-              継承元不確かさ基準参照を含める
+              {t('uncertaintyExport.optionIncludeExtends')}
             </Checkbox>
             <Checkbox
               checked={includeHistory}
               onChange={(e) => setIncludeHistory(e.target.checked)}
             >
-              バージョン履歴を含める
+              {t('uncertaintyExport.optionIncludeHistory')}
             </Checkbox>
           </div>
         </div>

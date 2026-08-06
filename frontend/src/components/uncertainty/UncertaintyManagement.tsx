@@ -32,8 +32,9 @@ interface NamespaceNode {
 // ──────────────────────────────────────────────
 // ツリーの静的骨格（Global / company / Personal）
 // company.children は API データで動的に差し替える
+// company の label は useLanguage() で動的生成するため関数化
 // ──────────────────────────────────────────────
-const NS_TREE_SKELETON: NamespaceNode[] = [
+const buildNsTreeSkeleton = (companyLabel: string): NamespaceNode[] => [
   {
     key: 'global',
     label: 'Global',
@@ -43,7 +44,7 @@ const NS_TREE_SKELETON: NamespaceNode[] = [
   },
   {
     key: 'company',
-    label: '組織',
+    label: companyLabel,
     count: 0,
     icon: '🏢',
     children: [],
@@ -134,6 +135,7 @@ interface UncertaintyManagementProps {
  * 左ペイン（名前空間ツリー固定）＋右ペイン（タブ：用語管理 / 不確かさ基準管理）
  */
 export default function UncertaintyManagement({ user }: UncertaintyManagementProps = {}) {
+  const { t } = useLanguage();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchText, setSearchText] = useState('');
   const [evalFilter, setEvalFilter] = useState<string>('');
@@ -171,7 +173,7 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   // ── organization_group 取得ステート
   const [orgGroups, setOrgGroups] = useState<OrganizationGroupRow[]>([]);
 
-  // ── 動的ツリー（NS_TREE_SKELETON の company / personal children を API データで差し替え）
+  // ── 動的ツリー（buildNsTreeSkeleton の company / personal children を API データで差し替え）
   const namespaceTree = useMemo((): NamespaceNode[] => {
     // Personal 配下には常にログインユーザーのユーザー名ノードを1件表示する。
     // DB の namespace レコード（scope_key = user.id）の有無に関わらず表示するため、
@@ -182,12 +184,13 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
       count: 0,
     };
 
-    return NS_TREE_SKELETON.map((n) => {
+    const skeleton = buildNsTreeSkeleton(t('namespaceTree.company'));
+    return skeleton.map((n) => {
       if (n.key === 'company') return { ...n, children: buildOrgTree(orgGroups) };
       if (n.key === 'personal') return { ...n, children: [userNode] };
       return n;
     });
-  }, [orgGroups, user?.id, user?.username]);
+  }, [orgGroups, user?.id, user?.username, t]);
 
   // ── 初回マウント時に organization_group 一覧 & 個人名前空間を取得してツリーを構築
   useEffect(() => {
@@ -303,8 +306,6 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   const treeData = useMemo(() => {
     return toAntTree(namespaceTree);
   }, [toAntTree, namespaceTree]);
-
-  const { t } = useLanguage();
 
   const TAB_LABELS: { key: 'namespace' | 'prefix' | 'criteria'; label: string }[] = [
     { key: 'prefix',    label: t('uncertainty.management.tabPrefix') },

@@ -46,13 +46,14 @@ interface AddFormNamespaceFieldsProps {
   form: ReturnType<typeof Form.useForm>[0];
 }
 function AddFormNamespaceFields({ form }: AddFormNamespaceFieldsProps) {
+  const { t } = useLanguage();
   const watchedOrgCd: string = Form.useWatch('organizationCd', form) ?? '';
   const autoUri = generateNamespaceUri(watchedOrgCd, undefined);
   return (
     <>
-      <Form.Item label="名前空間URI（自動生成）">
+      <Form.Item label={t('organizationManagement.form.namespaceUriAutoGenLabel')}>
         <Text type={autoUri ? undefined : 'secondary'}>
-          {autoUri || '（組織CDを入力すると自動生成されます）'}
+          {autoUri || t('organizationManagement.form.namespaceUriAutoGenPlaceholder')}
         </Text>
       </Form.Item>
     </>

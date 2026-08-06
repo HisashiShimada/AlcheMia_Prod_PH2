@@ -12,6 +12,7 @@ import type { OrganizationGroupRow, OrganizationGroupFilters, OrganizationGroupM
 import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
 import * as organizationManagementRepository from '../repositories/organizationManagementRepository';
 import { E6001, E7001 } from '../enums/errorCodes';
+import { getMessage } from '../utils/messages';
 import { getPool, getPgp } from '../database/db';
 import { generateNamespaceUri, resolveUriConflict } from '../utils/namespaceUriGenerator';
 import type { ITask } from 'pg-promise';
@@ -134,11 +135,12 @@ export async function getVisibleOrganizationGroups(
  */
 export async function getOrganizationGroupById(
   organizationId: string,
-  groupCd: string
+  groupCd: string,
+  lang: string = 'ja'
 ): Promise<OrganizationGroupRow> {
   const group = await organizationGroupRepository.findById(organizationId, groupCd);
   if (!group) {
-    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    const error = new Error(getMessage(lang, 'organizationGroup.notFound')) as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -224,7 +226,8 @@ export async function createOrganizationGroup(
     chief_user_id: string;
     parent_group_cd?: string | null;
   },
-  userId?: string | null
+  userId?: string | null,
+  lang: string = 'ja'
 ): Promise<OrganizationGroupRow> {
   // 重複チェック（トランザクション外で実施）
   const alreadyExists = await organizationGroupRepository.existsById(
@@ -232,7 +235,7 @@ export async function createOrganizationGroup(
     data.organization_group_cd
   );
   if (alreadyExists) {
-    const error = new Error('The specified group CD is already in use') as Error & { code: string; statusCode: number };
+    const error = new Error(getMessage(lang, 'organizationGroup.duplicateCd')) as Error & { code: string; statusCode: number };
     error.code = E7001;
     error.statusCode = 409;
     throw error;
@@ -317,12 +320,13 @@ export async function updateOrganizationGroup(
     parent_group_cd?: string | null;
     layer?: string | null;
   },
-  userId?: string | null
+  userId?: string | null,
+  lang: string = 'ja'
 ): Promise<OrganizationGroupRow> {
   // 既存レコード取得（chief_user_id の維持＋存在確認を兼ねる）
   const existing = await organizationGroupRepository.findById(organizationId, groupCd);
   if (!existing) {
-    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    const error = new Error(getMessage(lang, 'organizationGroup.notFound')) as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -339,7 +343,7 @@ export async function updateOrganizationGroup(
   });
 
   if (!updated) {
-    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    const error = new Error(getMessage(lang, 'organizationGroup.notFound')) as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -367,12 +371,13 @@ export async function updateOrganizationGroupActiveStatus(
   organizationId: string,
   groupCd: string,
   isActive: boolean,
-  updaterId?: string | null
+  updaterId?: string | null,
+  lang: string = 'ja'
 ): Promise<OrganizationGroupRow> {
   // 存在確認 + chief_user_id 取得（有効化時の代表者再登録に使用）
   const existing = await organizationGroupRepository.findById(organizationId, groupCd);
   if (!existing) {
-    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    const error = new Error(getMessage(lang, 'organizationGroup.notFound')) as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -442,11 +447,12 @@ export async function getOrgUsersForGroups(
  */
 export async function getOrganizationGroupMembers(
   organizationId: string,
-  groupCd: string
+  groupCd: string,
+  lang: string = 'ja'
 ): Promise<OrganizationGroupMemberRow[]> {
   const exists = await organizationGroupRepository.existsById(organizationId, groupCd);
   if (!exists) {
-    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    const error = new Error(getMessage(lang, 'organizationGroup.notFound')) as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -469,12 +475,13 @@ export async function getOrganizationGroupMembers(
 export async function setOrganizationGroupMembers(
   organizationId: string,
   groupCd: string,
-  userIds: string[]
+  userIds: string[],
+  lang: string = 'ja'
 ): Promise<void> {
   // グループ存在確認 + 代表者ID取得
   const group = await organizationGroupRepository.findById(organizationId, groupCd);
   if (!group) {
-    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    const error = new Error(getMessage(lang, 'organizationGroup.notFound')) as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -514,11 +521,12 @@ export async function updateOrganizationGroupChief(
   organizationId: string,
   groupCd: string,
   chiefUserId: string,
-  updaterId?: string | null
+  updaterId?: string | null,
+  lang: string = 'ja'
 ): Promise<OrganizationGroupRow> {
   const existing = await organizationGroupRepository.findById(organizationId, groupCd);
   if (!existing) {
-    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    const error = new Error(getMessage(lang, 'organizationGroup.notFound')) as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
@@ -535,7 +543,7 @@ export async function updateOrganizationGroupChief(
   });
 
   if (!updated) {
-    const error = new Error('Organization group not found') as Error & { code: string; statusCode: number };
+    const error = new Error(getMessage(lang, 'organizationGroup.notFound')) as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;

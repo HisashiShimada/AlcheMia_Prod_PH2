@@ -1294,7 +1294,9 @@
       "namespacePrefixPlaceholder": "例: MyCompany",
       "namespaceUri": "名前空間URI",
       "namespaceUriPlaceholder": "例: https://www.example.com/",
-      "namespaceUriRequired": "名前空間Prefixを入力した場合、URIも入力してください"
+      "namespaceUriRequired": "名前空間Prefixを入力した場合、URIも入力してください",
+      "namespaceUriAutoGenLabel": "名前空間URI（自動生成）",
+      "namespaceUriAutoGenPlaceholder": "（組織CDを入力すると自動生成されます）"
     },
     "messages": {
       "fetchError": "組織データの取得に失敗しました",
@@ -1421,7 +1423,12 @@
       "namespacePrefixHelp": "ユーザー固有の名前空間Prefixを登録します（任意）",
       "namespaceUri": "名前空間URI",
       "namespaceUriPlaceholder": "例: https://www.example.com/",
-      "namespaceUriRequired": "名前空間Prefixを入力した場合、URIも入力してください"
+      "namespaceUriRequired": "名前空間Prefixを入力した場合、URIも入力してください",
+      "namespaceUriLabel": "名前空間URI",
+      "namespaceUriNotSet": "（未設定）",
+      "namespaceUriAutoGenLabel": "名前空間URI（自動生成）",
+      "namespaceUriAutoGenPlaceholder": "（メールアドレスを入力すると自動生成されます）",
+      "userNamePlaceholder": "山田 太郎"
     },
     "messages": {
       "fetchError": "ユーザー一覧の取得に失敗しました",
@@ -4626,9 +4633,32 @@
     "deleteFailed": "署名の削除に失敗しました"
   },
   "uncertaintyExport": {
-    "startDemo": "エクスポートファイルのダウンロードを開始します（デモ）"
+    "startDemo": "エクスポートファイルのダウンロードを開始します（デモ）",
+    "title": "不確かさ基準のエクスポート",
+    "btnCancel": "キャンセル",
+    "btnDownload": "ダウンロード",
+    "alertMessage": "{count} 件の不確かさ基準をエクスポートします。",
+    "formatLabel": "エクスポート形式",
+    "optionsLabel": "オプション",
+    "optionIncludeDesc": "説明文を含める",
+    "optionIncludeExtends": "継承元不確かさ基準参照を含める",
+    "optionIncludeHistory": "バージョン履歴を含める"
   },
   "uncertaintyImport": {
-    "startDemo": "インポート処理を開始します（デモ）"
+    "startDemo": "インポート処理を開始します（デモ）",
+    "title": "不確かさ基準のインポート",
+    "btnCancel": "キャンセル",
+    "btnExecute": "インポート実行",
+    "description": "JIS K 0200 附属書B の標準不確かさ基準、または既存のエクスポートファイルをインポートします。",
+    "formatLabel": "インポート形式",
+    "dropText": "クリックしてファイルを選択、またはここにドラッグ＆ドロップ",
+    "dropHint": "対応形式：CSV / JSON / XML（最大 10 MB）",
+    "alertTitle": "注意",
+    "alertDesc": "インポート時に既存不確かさ基準と key が重複する場合は上書き確認ダイアログが表示されます。",
+    "scopeLabel": "取り込み先スコープ",
+    "scopeOptionMeasurement": "研究開発部 › 計測チーム",
+    "scopeOptionMaterial": "研究開発部 › 材料グループ",
+    "scopeOptionCompany": "株式会社サンプルテック",
+    "scopeOptionPersonal": "Personal › 山田 太郎"
   }
 }

@@ -53,13 +53,16 @@ interface UserNamespaceFieldsProps {
 }
 function UserNamespaceFields({ form, isEditing, organizationCd }: UserNamespaceFieldsProps) {
   // 編集モード: 既存の URI をラベルで表示
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { t } = useLanguage();
+
   if (isEditing) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const existingUri: string = Form.useWatch('namespaceUri', form) ?? '';
     return (
-      <Form.Item label="名前空間URI">
+      <Form.Item label={t('userManagement.form.namespaceUriLabel')}>
         <Text type={existingUri ? undefined : 'secondary'}>
-          {existingUri || '（未設定）'}
+          {existingUri || t('userManagement.form.namespaceUriNotSet')}
         </Text>
       </Form.Item>
     );
@@ -75,9 +78,9 @@ function UserNamespaceFields({ form, isEditing, organizationCd }: UserNamespaceF
     : '';
 
   return (
-    <Form.Item label="名前空間URI（自動生成）">
+    <Form.Item label={t('userManagement.form.namespaceUriAutoGenLabel')}>
       <Text type={autoUri ? undefined : 'secondary'}>
-        {autoUri || '（メールアドレスを入力すると自動生成されます）'}
+        {autoUri || t('userManagement.form.namespaceUriAutoGenPlaceholder')}
       </Text>
     </Form.Item>
   );
@@ -631,7 +634,7 @@ export default function UserManagement() {
             label={t('userManagement.form.userName')}
             rules={[{ required: true, message: t('userManagement.form.userNameRequired') }]}
           >
-            <Input placeholder="山田 太郎" />
+            <Input placeholder={t('userManagement.form.userNamePlaceholder')} />
           </Form.Item>
           <Form.Item
             name="mailAddress"
