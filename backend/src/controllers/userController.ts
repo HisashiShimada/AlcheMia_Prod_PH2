@@ -147,7 +147,8 @@ export async function createUser(req: Request, res: Response, next: NextFunction
     const organizationId = req.user?.organizationId;
     const currentUserId = req.user?.userId;
 
-    const user = await userService.createUser(String(organizationId), req.body, String(currentUserId));
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
+    const user = await userService.createUser(String(organizationId), req.body, String(currentUserId), lang);
 
     // レスポンスデータをcamelCaseに変換
     const responseData = {

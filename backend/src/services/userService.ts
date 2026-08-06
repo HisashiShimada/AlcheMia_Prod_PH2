@@ -116,7 +116,8 @@ export async function createUser(
     namespacePrefix?: string;
     namespaceUri?: string;
   },
-  createUserId: string
+  createUserId: string,
+  lang: string = 'ja'
 ): Promise<UserRow> {
   // バリデーション
   if (!data.userId || !data.userName || !data.mailAddress || !data.roleCd) {
@@ -132,7 +133,7 @@ export async function createUser(
   // 重複チェック
   const exists = await userRepository.existsById(organizationId, data.userId);
   if (exists) {
-    throw new AppError('USER_ALREADY_EXISTS', getMessage('ja', 'user.duplicateUserId'));
+    throw new AppError('USER_ALREADY_EXISTS', getMessage(lang, 'user.duplicateUserId'));
   }
 
   // 組織CDを取得（namespace URI 生成に必要）

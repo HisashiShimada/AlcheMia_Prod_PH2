@@ -55,8 +55,9 @@ export async function getOrganizationGroupById(
   try {
     const organizationId = req.organizationId!;
     const { groupCd } = req.params;
+    const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
 
-    const group = await organizationGroupService.getOrganizationGroupById(organizationId, groupCd);
+    const group = await organizationGroupService.getOrganizationGroupById(organizationId, groupCd, lang);
 
     res.json({ success: true, data: group });
   } catch (error) {
@@ -99,6 +100,8 @@ export async function createOrganizationGroup(
       layer?: string | null;
     };
 
+    const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
+
     const created = await organizationGroupService.createOrganizationGroup(
       organizationId,
       {
@@ -108,7 +111,8 @@ export async function createOrganizationGroup(
         parent_group_cd: parent_group_cd ?? null,
         layer: layer ?? null,
       },
-      userId
+      userId,
+      lang
     );
 
     res.status(201).json({ success: true, data: created });
@@ -162,11 +166,14 @@ export async function updateOrganizationGroup(
     if (parent_group_cd !== undefined) updateData.parent_group_cd = parent_group_cd;
     if (layer !== undefined) updateData.layer = layer;
 
+    const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
+
     const updated = await organizationGroupService.updateOrganizationGroup(
       organizationId,
       groupCd,
       updateData,
-      userId
+      userId,
+      lang
     );
 
     res.json({ success: true, data: updated });
@@ -187,8 +194,9 @@ export async function deleteOrganizationGroup(
   try {
     const organizationId = req.organizationId!;
     const { groupCd } = req.params;
+    const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
 
-    await organizationGroupService.deleteOrganizationGroup(organizationId, groupCd);
+    await organizationGroupService.deleteOrganizationGroup(organizationId, groupCd, lang);
 
     res.json({ success: true });
   } catch (error) {
@@ -239,8 +247,9 @@ export async function getOrganizationGroupMembers(
   try {
     const organizationId = req.organizationId!;
     const { groupCd } = req.params;
+    const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
 
-    const members = await organizationGroupService.getOrganizationGroupMembers(organizationId, groupCd);
+    const members = await organizationGroupService.getOrganizationGroupMembers(organizationId, groupCd, lang);
 
     res.json({ success: true, data: members });
   } catch (error) {
@@ -265,7 +274,9 @@ export async function setOrganizationGroupMembers(
     const { groupCd } = req.params;
     const { userIds } = req.body as { userIds: string[] };
 
-    await organizationGroupService.setOrganizationGroupMembers(organizationId, groupCd, userIds);
+    const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
+
+    await organizationGroupService.setOrganizationGroupMembers(organizationId, groupCd, userIds, lang);
 
     res.json({ success: true });
   } catch (error) {
@@ -291,11 +302,14 @@ export async function updateOrganizationGroupChief(
     const { groupCd } = req.params;
     const { chiefUserId } = req.body as { chiefUserId: string };
 
+    const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
+
     const updated = await organizationGroupService.updateOrganizationGroupChief(
       organizationId,
       groupCd,
       chiefUserId.trim(),
-      userId
+      userId,
+      lang
     );
 
     res.json({ success: true, data: updated });
