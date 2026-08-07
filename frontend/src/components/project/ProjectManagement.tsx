@@ -1871,7 +1871,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   { value: 'all', label: t('projectManagement.all') },
                   ...visibleGroups.map((g) => ({
                     value: g.cd,
-                    label: g.isActive ? g.name : `${g.name}（非アクティブ）`,
+                    label: g.isActive ? g.name : `${g.name}${t('projectManagement.inactiveGroupSuffix')}`,
                   })),
                 ]}
               />
@@ -2108,7 +2108,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenUploadDialog}
                     disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}
-                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : selectedProject?.status === 4 ? t('projectManagement.uploadDisabledTitle') : undefined}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : selectedProject?.status === 4 ? t('projectManagement.uploadDisabledTitle') : undefined}
                   >
                     {t('projectManagement.upload')}
                   </Button>
@@ -2117,7 +2117,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<EditOutlined />}
                     onClick={handleEditButtonClick}
                     disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}
-                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : selectedProject?.status === 4 ? t('projectManagement.editDisabledTitle') : isProjectCheckedOut ? t('projectManagement.editCheckedOutTitle') : undefined}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : selectedProject?.status === 4 ? t('projectManagement.editDisabledTitle') : isProjectCheckedOut ? t('projectManagement.editCheckedOutTitle') : undefined}
                   >
                     {t('projectManagement.edit')}
                   </Button>
@@ -2126,7 +2126,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<DeleteOutlined />}
                     onClick={handleProjectDelete}
                     disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}
-                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : selectedProject?.status === 4 ? t('projectManagement.deleteDisabledTitle') : undefined}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : selectedProject?.status === 4 ? t('projectManagement.deleteDisabledTitle') : undefined}
                   >
                     {t('projectManagement.deleteButton')}
                   </Button>
@@ -2135,7 +2135,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<FileTextOutlined />}
                     onClick={handleToggleCheckout}
                     disabled={selectedProject?.status === ProjectStatus.COMPLETED || selectedProject?.status === ProjectStatus.ERROR || selectedProject?.isEditable === false}
-                    title={selectedProject?.status === ProjectStatus.COMPLETED ? t('projectManagement.checkinDisabledTitle') : selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
+                    title={selectedProject?.status === ProjectStatus.COMPLETED ? t('projectManagement.checkinDisabledTitle') : selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : undefined}
                     style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     data-testid="checkout-checkin-button"
                   >
@@ -2177,7 +2177,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       !allTasksCompleted
                         ? t('projectManagement.completionDisabledTooltip')
                         : selectedProject?.isEditable === false
-                        ? t('projectManagement.editDisabledTitle') || '編集権限がありません'
+                        ? t('projectManagement.editDisabledTitle')
                         : undefined
                     }
                   >
@@ -2198,7 +2198,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<EditOutlined />}
                     onClick={() => setRenameModalOpen(true)}
                     disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}
-                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : undefined}
                   >
                     {t('projectManagement.renameProject')}
                   </Button>
@@ -2213,7 +2213,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<LockOutlined />}
                     onClick={() => setEncryptionModalOpen(true)}
                     disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}
-                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : undefined}
                   >
                     {t('projectManagement.encryptionButton')}
                   </Button>
@@ -2221,7 +2221,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<SafetyCertificateOutlined />}
                     onClick={() => setSignatureModalOpen(true)}
                     disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}
-                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
+                    title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : undefined}
                   >
                     {t('projectManagement.signatureButton')}
                   </Button>

@@ -534,6 +534,7 @@
     "project_downloading": "Downloading ZIP...",
     "uploadDisabledTitle": "Cannot upload after project completion",
     "editDisabledTitle": "Cannot edit after project completion",
+  "inactiveGroupSuffix": " (Inactive)",
     "editCheckedOutTitle": "Only editable when checked in",
     "deleteDisabledTitle": "Cannot delete after project completion",
     "checkinDisabledTitle": "Cannot check in after project completion",

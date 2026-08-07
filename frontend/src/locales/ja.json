@@ -844,6 +844,7 @@
     "no_team_assigned_title": "チームに所属していません。チーム管理からチームに参加してください。",
     "go_to_team_management": "チーム管理へ",
     "editDisabledTitle": "編集権限がありません",
+    "inactiveGroupSuffix": "（非アクティブ）",
     "uploadDisabledTitle": "完了済みプロジェクトはアップロードできません",
     "editCheckedOutTitle": "チェックアウト中は編集できません",
     "deleteDisabledTitle": "完了済みプロジェクトは削除できません",
