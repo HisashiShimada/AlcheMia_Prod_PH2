@@ -55,6 +55,8 @@ files: ProjectFile[];
   isEditable?: boolean;
   /** プロジェクト完了フラグ。true の場合は変更系ボタンを非活性にする */
   isProjectCompleted?: boolean;
+  /** チェックアウト中フラグ。true の場合は変更系ボタンを非活性にする */
+  isCheckoutLocked?: boolean;
 }
 
 /**
@@ -71,6 +73,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
   maimlValidationRow,
   isEditable = true,
   isProjectCompleted = false,
+  isCheckoutLocked = false,
 }) => {
   const { token } = theme.useToken();
   const { t } = useLanguage();
@@ -306,7 +309,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 data-testid="folder-delete-button"
-                disabled={!isEditable || isProjectCompleted}
+                disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteFolder(record);
@@ -319,7 +322,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
         }
 
         // ドロップダウンメニューの項目
-        const isDeleteDisabled = !isEditable || isProjectCompleted;
+        const isDeleteDisabled = !isEditable || isProjectCompleted || isCheckoutLocked;
         const menuItems: MenuProps['items'] = [
           {
             key: 'rename',

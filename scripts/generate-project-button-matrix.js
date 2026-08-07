@@ -18,12 +18,12 @@ const fs = require('fs');
 // ============================================================
 
 const STATUS_LIST = [
-  { code: 0, name: 'PLANNING\n（プロジェクト計画中）',      color: 'FFD9D9D9' },
-  { code: 1, name: 'TASK_PENDING\n（タスク登録済・未着手）', color: 'FFD6E4FF' },
-  { code: 2, name: 'TASK_IN_PROGRESS\n（タスク実行中）',    color: 'FFD1F0FF' },
-  { code: 3, name: 'REVIEW_WAITING\n（レビュー待ち）',      color: 'FFE9D6FF' },
-  { code: 4, name: 'COMPLETED\n（完了）',                   color: 'FFD6FFD9' },
-  { code: 5, name: 'ERROR\n（エラー）',                     color: 'FFFFCCCC' },
+  { code: 0, name: 'PLANNING\n（プロジェクト計画中）',                         color: 'FFD9D9D9', isCheckedOut: false },
+  { code: 1, name: 'TASK_PENDING\n（タスク登録済・未着手）\n🔒 CHECKED_OUT中', color: 'FFD6E4FF', isCheckedOut: true  },
+  { code: 2, name: 'TASK_IN_PROGRESS\n（タスク実行中）\n🔒 CHECKED_OUT中',    color: 'FFD1F0FF', isCheckedOut: true  },
+  { code: 3, name: 'REVIEW_WAITING\n（レビュー待ち）',                         color: 'FFE9D6FF', isCheckedOut: false },
+  { code: 4, name: 'COMPLETED\n（完了）',                                       color: 'FFD6FFD9', isCheckedOut: false },
+  { code: 5, name: 'ERROR\n（エラー）',                                         color: 'FFFFCCCC', isCheckedOut: false },
 ];
 
 /** ○ / △ / ✕ の色 */
@@ -44,40 +44,9 @@ const WHITE  = 'FFFFFFFF';
  * note: 補足事項
  */
 const BUTTONS = [
-  // ── ヘッダー操作ボタン（常にプロジェクト未選択でも表示） ──
-  {
-    no: 1,
-    category: 'ヘッダー',
-    name: '新規プロジェクト作成',
-    icon: '＋',
-    editableRequire: false,
-    alwaysEnabled: true,   // プロジェクト選択不要
-    note: '直接所属グループがある場合のみグループ選択可能',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
-  },
-  {
-    no: 2,
-    category: 'ヘッダー',
-    name: 'リロード',
-    icon: '↻',
-    editableRequire: false,
-    alwaysEnabled: true,
-    note: 'リロード処理中は一時的に非活性',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
-  },
-  {
-    no: 3,
-    category: 'ヘッダー',
-    name: 'トランジション検索',
-    icon: '🔍',
-    editableRequire: false,
-    alwaysEnabled: true,
-    note: 'MAIMLのトランジションをセマンティック検索するダイアログを開く',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
-  },
   // ── ファイル操作ツールバー（プロジェクト選択後に有効） ──
   {
-    no: 4,
+    no: 1,
     category: 'ファイル操作',
     name: 'ダウンロード\n（プロジェクトファイル一括）',
     icon: '↓',
@@ -87,44 +56,47 @@ const BUTTONS = [
     activeRuleNote: '△=ファイルが存在する場合のみ押せる',
   },
   {
-    no: 5,
+    no: 2,
     category: 'ファイル操作',
     name: 'アップロード',
     icon: '↑',
     editableRequire: true,
-    note: 'status=COMPLETED(4) または 編集権限なし → 非活性',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'✕', 5:'○' },
+    note: 'チェックアウト中・status=COMPLETED(4)・ERROR(5)・編集権限なし → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。',
   },
   {
-    no: 6,
+    no: 3,
     category: 'ファイル操作',
     name: 'MAIMLエディタ で編集',
     icon: '✎',
     editableRequire: true,
-    note: 'status=COMPLETED(4)・チェックアウト中・編集権限なし → 非活性',
-    activeRule: { 0:'○', 1:'△', 2:'✕', 3:'○', 4:'✕', 5:'○' },
-    activeRuleNote: '△=チェックアウト中は非活性（status=1はCO状態）, status=2はCO状態のため✕',
+    note: 'チェックアウト中・status=COMPLETED(4)・ERROR(5)・編集権限なし → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。',
   },
   {
-    no: 7,
+    no: 4,
     category: 'ファイル操作',
     name: 'プロジェクト削除',
     icon: '🗑',
     editableRequire: true,
-    note: 'status=COMPLETED(4) または 編集権限なし → 非活性',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'✕', 5:'○' },
+    note: 'チェックアウト中・status=COMPLETED(4)・ERROR(5)・編集権限なし → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。',
   },
   {
-    no: 8,
+    no: 5,
     category: 'ファイル操作',
     name: 'チェックアウト / チェックイン\n（ボタンラベルが切り替わる）',
     icon: '📋',
     editableRequire: true,
-    note: 'status=COMPLETED(4) または 編集権限なし → 非活性。status=1はCHECKED_OUTのため「チェックイン」表示。',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'✕', 5:'○' },
+    note: 'status=COMPLETED(4)・ERROR(5)・編集権限なし → 非活性。CO中は「チェックイン」表示。',
+    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=4,5で非活性。CO中（1,2）はチェックインボタンとして有効。',
   },
   {
-    no: 9,
+    no: 6,
     category: 'ファイル操作',
     name: '問題確認\n（Issueモーダルを開く）',
     icon: '⚠',
@@ -133,26 +105,26 @@ const BUTTONS = [
     activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
   },
   {
-    no: 10,
+    no: 7,
     category: '公開管理',
     name: '公開\n（MAIMLを公開する）',
     icon: '📤',
     editableRequire: true,
-    note: 'status が REVIEW_WAITING(3) か COMPLETED(4) の場合のみ有効。編集権限なし → 非活性。',
+    note: 'status が REVIEW_WAITING(3) か COMPLETED(4) の場合のみ有効。編集権限なし・ERROR(5) → 非活性。',
     activeRule: { 0:'✕', 1:'✕', 2:'✕', 3:'○', 4:'○', 5:'✕' },
   },
   {
-    no: 11,
+    no: 8,
     category: '公開管理',
     name: '非公開\n（公開済みの場合に表示）',
     icon: '📥',
     editableRequire: true,
-    note: '公開済み状態のときのみ表示される。編集権限なし → 非活性。ポーリング中は非活性。',
+    note: '公開済み状態のときのみ表示される。編集権限なし・ERROR(5) → 非活性。ポーリング中は非活性。',
     activeRule: { 0:'✕', 1:'✕', 2:'✕', 3:'△', 4:'△', 5:'✕' },
     activeRuleNote: '△=公開済み状態の場合のみ「非公開」ボタンが表示・有効',
   },
   {
-    no: 12,
+    no: 9,
     category: '完了処理',
     name: '完了処理\n（全タスク完了時のみ有効）',
     icon: '✅',
@@ -162,47 +134,50 @@ const BUTTONS = [
     activeRuleNote: '△=全タスク完了時のみ有効（実験指示タブの状態に依存）。編集権限なし → 非活性',
   },
   {
-    no: 13,
+    no: 10,
     category: 'プロジェクト管理',
     name: 'プロジェクト名変更',
-    icon: '✎',
+    icon: '✏',
     editableRequire: true,
-    note: '編集権限なし → 非活性',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
+    note: 'チェックアウト中・status=COMPLETED(4)・ERROR(5)・編集権限なし → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。',
   },
   {
-    no: 14,
+    no: 11,
     category: 'プロジェクト管理',
-    name: 'バリデーション確認\n（MAIMLバリデーション結果モーダル）',
+    name: 'バリデーション確認',
     icon: '🛡',
     editableRequire: false,
-    note: '権限・ステータスに関係なく常に有効（プロジェクト選択時）',
+    note: 'プロジェクト選択時に常に有効（閲覧系のため権限不問）',
     activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
   },
   {
-    no: 15,
+    no: 12,
     category: 'セキュリティ',
     name: '暗号化管理',
-    icon: '🔒',
+    icon: '🔐',
     editableRequire: true,
-    note: '編集権限なし → 非活性',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
+    note: 'チェックアウト中・status=COMPLETED(4)・ERROR(5)・編集権限なし → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。',
   },
   {
-    no: 16,
+    no: 13,
     category: 'セキュリティ',
-    name: '電子署名管理',
-    icon: '🔏',
+    name: '電子署名',
+    icon: '📝',
     editableRequire: true,
-    note: '編集権限なし → 非活性',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
+    note: 'チェックアウト中・status=COMPLETED(4)・ERROR(5)・編集権限なし → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。',
   },
 
   // ══════════════════════════════════════════════
   // ファイル管理タブ（①ファイル管理タブ内のボタン）
   // ══════════════════════════════════════════════
   {
-    no: 17,
+    no: 14,
     category: 'ファイル管理タブ',
     name: 'ファイルダウンロード\n（行ごと）',
     icon: '↓',
@@ -211,16 +186,7 @@ const BUTTONS = [
     activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
   },
   {
-    no: 18,
-    category: 'ファイル管理タブ',
-    name: 'ファイル削除\n（行ごと）',
-    icon: '🗑',
-    editableRequire: true,
-    note: '編集権限なし または プロジェクト完了（status=4）→ 非活性',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'✕', 5:'○' },
-  },
-  {
-    no: 19,
+    no: 15,
     category: 'ファイル管理タブ',
     name: 'ビューアーで表示\n（行ごと）',
     icon: '👁',
@@ -228,71 +194,106 @@ const BUTTONS = [
     note: '権限・ステータス問わず常に有効',
     activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
   },
+  {
+    no: 16,
+    category: 'ファイル管理タブ',
+    name: 'ファイル名変更\n（行ごと）',
+    icon: '✏',
+    editableRequire: true,
+    note: '編集権限なし・チェックアウト中・プロジェクト完了（status=4）・ERROR(5) → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性（isCheckoutLocked=true）。status=4,5も非活性。',
+  },
+  {
+    no: 17,
+    category: 'ファイル管理タブ',
+    name: 'フォルダ削除\n（フォルダ行ごと）',
+    icon: '🗑',
+    editableRequire: true,
+    note: '編集権限なし・チェックアウト中・プロジェクト完了（status=4）・ERROR(5) → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性（isCheckoutLocked=true）。status=4,5も非活性。',
+  },
+  {
+    no: 18,
+    category: 'ファイル管理タブ',
+    name: 'ファイル削除\n（行ごと）',
+    icon: '🗑',
+    editableRequire: true,
+    note: '編集権限なし・チェックアウト中・プロジェクト完了（status=4）・ERROR(5) → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性（isCheckoutLocked=true）。status=4,5も非活性。',
+  },
 
   // ══════════════════════════════════════════════
   // タスク登録タブ（②タスク登録タブ内のボタン）
   // ══════════════════════════════════════════════
   {
-    no: 20,
+    no: 19,
     category: 'タスク登録タブ',
-    name: '指示追加\n（タスク行ごと）',
-    icon: '＋',
+    name: 'タスク行の各フィールド\n（試行回数・実験条件・順序変更）',
+    icon: '✎',
     editableRequire: true,
     note: 'チェックアウト中・MAIMLエラーあり・プロジェクト完了・ワーカー連携済み行・編集権限なし → 非活性',
-    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'○' },
-    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。編集権限なし → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。編集権限なし → 非活性',
+  },
+  {
+    no: 20,
+    category: 'タスク登録タブ',
+    name: 'プロジェクト指示\n（指示追加ボタン）',
+    icon: '＋',
+    editableRequire: true,
+    note: 'チェックアウト中・MAIMLエラーあり・プロジェクト完了・編集権限なし → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。',
   },
   {
     no: 21,
     category: 'タスク登録タブ',
-    name: 'プロジェクト指示\n（タスク一覧上部）',
-    icon: '📋',
-    editableRequire: true,
-    note: 'チェックアウト中・MAIMLエラーあり・プロジェクト完了・編集権限なし → 非活性',
-    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'○' },
-  },
-  {
-    no: 22,
-    category: 'タスク登録タブ',
-    name: 'タスク保存\n（タスク一覧下部）',
+    name: 'タスク保存',
     icon: '💾',
-    editableRequire: false,
-    note: 'チェックアウト中・MAIMLエラーあり・プロジェクト完了（status=4）→ 非活性\n※ isEditable制御なし',
-    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'○' },
+    editableRequire: true,
+    note: 'チェックアウト中・MAIMLエラーあり・プロジェクト完了（status=4）・ERROR(5) → 非活性\n※ isEditable制御なし',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。',
   },
 
   // ══════════════════════════════════════════════
   // 指示登録タブ（③指示登録タブ内のボタン）
   // ══════════════════════════════════════════════
   {
-    no: 23,
+    no: 22,
     category: '指示登録タブ',
     name: '指示送信\n（一括送信ボタン）',
     icon: '📤',
     editableRequire: true,
-    note: 'チェックアウト中・指示が0件・送信処理中・編集権限なし・プロジェクト完了 → 非活性',
-    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'○' },
+    note: 'チェックアウト中・指示が0件・送信処理中・編集権限なし・プロジェクト完了・ERROR(5) → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性。status=4,5も非活性。',
   },
   {
-    no: 24,
+    no: 23,
     category: '指示登録タブ',
     name: '指示編集\n（行ごと・未送信のみ表示）',
     icon: '✎',
     editableRequire: true,
-    note: '編集権限なし・プロジェクト完了 → 非活性。未送信指示の行に表示。送信済みは「詳細」ボタンに切り替わる。',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'✕', 5:'○' },
+    note: '編集権限なし・チェックアウト中・プロジェクト完了・ERROR(5) → 非活性。未送信指示の行に表示。送信済みは「詳細」ボタンに切り替わる。',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性（isCheckoutLocked=true）。status=4,5も非活性。',
   },
   {
-    no: 25,
+    no: 24,
     category: '指示登録タブ',
     name: '指示削除\n（行ごと・未送信のみ表示）',
     icon: '🗑',
     editableRequire: true,
-    note: '編集権限なし・プロジェクト完了 → 非活性。未送信指示の行に表示される。',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'✕', 5:'○' },
+    note: '編集権限なし・チェックアウト中・プロジェクト完了・ERROR(5) → 非活性。未送信指示の行に表示される。',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性（isCheckoutLocked=true）。status=4,5も非活性。',
   },
   {
-    no: 26,
+    no: 25,
     category: '指示登録タブ',
     name: '指示詳細\n（行ごと・送信済みのみ表示）',
     icon: '🔍',
@@ -305,16 +306,17 @@ const BUTTONS = [
   // タスク結果タブ（④タスク結果タブ内のボタン）
   // ══════════════════════════════════════════════
   {
-    no: 27,
+    no: 26,
     category: 'タスク結果タブ',
     name: '実験指示を編集\n（行ごと）',
     icon: '✎',
     editableRequire: true,
-    note: '編集権限なし または プロジェクト完了（status=4）→ 非活性',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'✕', 5:'○' },
+    note: '編集権限なし・チェックアウト中・プロジェクト完了（status=4）・ERROR(5) → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性（isCheckoutLocked=true）。status=4,5も非活性。',
   },
   {
-    no: 28,
+    no: 27,
     category: 'タスク結果タブ',
     name: 'ペトリネット表示',
     icon: '🕸',
@@ -323,27 +325,28 @@ const BUTTONS = [
     activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'○', 5:'○' },
   },
   {
-    no: 29,
+    no: 28,
     category: 'タスク結果タブ',
     name: '一括承認\n（REVIEW_WAITING行をまとめて承認）',
     icon: '✅',
     editableRequire: true,
-    note: '編集権限なし → 非活性。レビュー待ちタスクが0件の場合も非活性。',
+    note: '編集権限なし・チェックアウト中・プロジェクト完了・ERROR(5) → 非活性。レビュー待ちタスクが0件の場合も非活性。',
     activeRule: { 0:'✕', 1:'✕', 2:'✕', 3:'△', 4:'✕', 5:'✕' },
-    activeRuleNote: '△=REVIEW_WAITING状態のタスクが存在する場合のみ有効。編集権限なし → 非活性',
+    activeRuleNote: '△=REVIEW_WAITING状態のタスクが存在する場合のみ有効。編集権限なし・CO中・ERROR → 非活性',
   },
 
   // ══════════════════════════════════════════════
   // 評価登録タブ（⑤評価登録タブ内のボタン）
   // ══════════════════════════════════════════════
   {
-    no: 30,
+    no: 29,
     category: '評価登録タブ',
     name: '評価入力\n（評価登録ボタン）',
     icon: '📝',
     editableRequire: true,
-    note: '編集権限なし または プロジェクト完了（status=4）→ 非活性',
-    activeRule: { 0:'○', 1:'○', 2:'○', 3:'○', 4:'✕', 5:'○' },
+    note: '編集権限なし・チェックアウト中・プロジェクト完了（status=4）・ERROR(5) → 非活性',
+    activeRule: { 0:'○', 1:'✕', 2:'✕', 3:'○', 4:'✕', 5:'✕' },
+    activeRuleNote: 'status=1,2はCHECKED_OUT状態のため非活性（isCheckoutLocked=true）。status=4,5も非活性。',
   },
 ];
 
@@ -411,12 +414,16 @@ function buildSheet1(wb) {
 
   // カテゴリ別背景色
   const catColors = {
-    'ヘッダー':         'FFF0F9FF',
     'ファイル操作':     'FFF6FFED',
     '公開管理':         'FFFFF7E6',
     '完了処理':         'FFFE8C00',
     'プロジェクト管理': 'FFFFF0F6',
     'セキュリティ':     'FFF9F0FF',
+    'ファイル管理タブ': 'FFF0F9FF',
+    'タスク登録タブ':   'FFFFE8F0',
+    '指示登録タブ':     'FFF0FFF0',
+    'タスク結果タブ':   'FFFFFFF0',
+    '評価登録タブ':     'FFFFFAF0',
   };
 
   BUTTONS.forEach((btn, idx) => {
@@ -426,30 +433,26 @@ function buildSheet1(wb) {
 
     // disabled条件を平易な文に変換
     let disabledCond = '';
-    if (btn.alwaysEnabled) {
-      disabledCond = '常に有効（プロジェクト選択不要）';
-    } else if (btn.no === 4) {
+    if (btn.no === 1) {
       disabledCond = '① プロジェクトを選択していない\n② プロジェクトにファイルが1件もない\n（上記いずれかで非活性）';
+    } else if (btn.no === 2 || btn.no === 3 || btn.no === 4) {
+      disabledCond = '① プロジェクトを選択していない\n② 編集権限がない（isEditable=false）\n③ チェックアウト中（isProjectCheckedOut=true）\n④ ステータスが「完了（4）」または「エラー（5）」\n（上記いずれかで非活性）';
     } else if (btn.no === 5) {
-      disabledCond = '① プロジェクトを選択していない\n② 編集権限がない（isEditable=false）\n③ ステータスが「完了（4）」\n（上記いずれかで非活性）';
+      disabledCond = '① 編集権限がない（isEditable=false）\n② ステータスが「完了（4）」または「エラー（5）」\n（上記いずれかで非活性）\n※ ラベルはCO中→「チェックイン」、CI中→「チェックアウト」';
     } else if (btn.no === 6) {
-      disabledCond = '① プロジェクトを選択していない\n② 編集権限がない（isEditable=false）\n③ ステータスが「完了（4）」\n④ プロジェクトがチェックアウト中\n（上記いずれかで非活性）';
-    } else if (btn.no === 7) {
-      disabledCond = '① プロジェクトを選択していない\n② 編集権限がない（isEditable=false）\n③ ステータスが「完了（4）」\n（上記いずれかで非活性）';
-    } else if (btn.no === 8) {
-      disabledCond = '① 編集権限がない（isEditable=false）\n② ステータスが「完了（4）」\n（上記いずれかで非活性）\n※ ラベルはCO中→「チェックイン」、CI中→「チェックアウト」';
-    } else if (btn.no === 9) {
       disabledCond = '常に有効（プロジェクト選択後）\n（権限・ステータス問わず押せる）';
-    } else if (btn.no === 10) {
+    } else if (btn.no === 7) {
       disabledCond = '① プロジェクトを選択していない\n② 編集権限がない（isEditable=false）\n③ ステータスが「レビュー待ち（3）」「完了（4）」以外\n④ 公開処理中（ポーリング中）\n（上記いずれかで非活性）';
-    } else if (btn.no === 11) {
+    } else if (btn.no === 8) {
       disabledCond = '① 公開済みでない（「公開」ボタンが代わりに表示される）\n② 編集権限がない（isEditable=false）\n③ プロジェクトを選択していない\n④ 非公開処理中（ポーリング中）\n（上記いずれかで非活性または非表示）';
-    } else if (btn.no === 12) {
+    } else if (btn.no === 9) {
       disabledCond = '全タスクが完了状態になるまで非活性\n（権限・ステータスに依存しない独立したロジック）';
-    } else if (btn.editableRequire) {
-      disabledCond = '① プロジェクトを選択していない\n② 編集権限がない（isEditable=false）\n（上記いずれかで非活性）';
+    } else if (btn.no === 11) {
+      disabledCond = 'プロジェクトを選択していない場合のみ非活性\n（閲覧系のため権限・ステータス不問）';
+    } else if (!btn.editableRequire) {
+      disabledCond = 'プロジェクトを選択していない場合に非活性\n（閲覧系のため権限・ステータス不問）';
     } else {
-      disabledCond = 'プロジェクトを選択していない場合に非活性';
+      disabledCond = '① プロジェクトを選択していない\n② 編集権限がない（isEditable=false）\n③ チェックアウト中（isCheckoutLocked=true）\n④ ステータスが「完了（4）」または「エラー（5）」\n（上記いずれかで非活性）';
     }
 
     const values = [
@@ -460,15 +463,29 @@ function buildSheet1(wb) {
       btn.editableRequire ? '必要' : '不要',
       disabledCond,
       btn.note,
-      btn.no === 4  ? 'disabled={!selectedProject || isDownloading || !hasProjectFiles}' :
-      btn.no === 5  ? 'disabled={!selectedProject || selectedProject.status === 4 || selectedProject.isEditable === false}' :
-      btn.no === 6  ? 'disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.isEditable === false}' :
-      btn.no === 7  ? 'disabled={!selectedProject || selectedProject.status === 4 || selectedProject.isEditable === false}' :
-      btn.no === 8  ? 'disabled={status === COMPLETED || isEditable === false}' :
-      btn.no === 9  ? '（disabled なし）' :
-      btn.no === 10 ? 'disabled={!selectedProject || !(status===3||status===4) || isPolling || isEditable===false}' :
-      btn.no === 11 ? 'disabled={!selectedProject || isPolling || isEditable===false}' :
-      btn.no === 12 ? 'disabled={!allTasksCompleted}' :
+      btn.no === 1  ? 'disabled={!selectedProject || isDownloading || !hasProjectFiles}' :
+      btn.no === 2  ? 'disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}' :
+      btn.no === 3  ? 'disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}' :
+      btn.no === 4  ? 'disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}' :
+      btn.no === 5  ? 'disabled={selectedProject?.status === ProjectStatus.COMPLETED || selectedProject?.status === ProjectStatus.ERROR || selectedProject?.isEditable === false}' :
+      btn.no === 6  ? '（disabled なし）' :
+      btn.no === 7  ? 'disabled={!selectedProject || !(status===3||status===4) || isPolling || isEditable===false}' :
+      btn.no === 8  ? 'disabled={!selectedProject || isPolling || isEditable===false}' :
+      btn.no === 9  ? 'disabled={!allTasksCompleted || selectedProject?.isEditable === false}' :
+      btn.no === 10 ? 'disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}' :
+      btn.no === 11 ? 'disabled={!selectedProject}' :
+      btn.no === 12 ? 'disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}' :
+      btn.no === 13 ? 'disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}' :
+      btn.no === 18 ? 'disabled={!isEditable || isProjectCompleted || isCheckoutLocked}  // isProjectCompleted = status===4||5' :
+      btn.no === 19 ? 'disabled={isFieldDisabled(record)}  // isCheckoutLocked || !isEditable || isProjectCompleted || workerLinked' :
+      btn.no === 20 ? 'disabled={loadingMethods || isCheckoutLocked || maimlHasErrors || !!isProjectCompleted || !isEditable}' :
+      btn.no === 21 ? 'disabled={loadingMethods || isCheckoutLocked || maimlHasErrors || !!isProjectCompleted || !isEditable}' :
+      btn.no === 22 ? 'disabled={instructions.length === 0 || isSending || isCheckoutLocked || !isEditable || isProjectCompleted}' :
+      btn.no === 23 ? 'disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}' :
+      btn.no === 24 ? 'disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}' :
+      btn.no === 26 ? 'disabled={!isEditable || isProjectCompleted || isCheckoutLocked}  // isProjectCompleted = status===4||5' :
+      btn.no === 28 ? 'disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}' :
+      btn.no === 29 ? 'disabled={!isEditable || isProjectCompleted || isCheckoutLocked}  // isProjectCompleted = status===4||5' :
       btn.editableRequire ? 'disabled={!selectedProject || selectedProject.isEditable === false}' :
       'disabled={!selectedProject}',
     ];
@@ -653,9 +670,11 @@ function buildSheet3(wb) {
   STATUS_LIST.forEach((s, i) => {
     const cell = ws.getCell(2, i + 4);
     cell.value = s.name;
-    setHeaderStyle(cell, { bgColor: s.color.replace('FF', ''), fontColor: 'FF000000' });
+    // CHECKED_OUT 状態の列はオレンジ背景で強調
+    const bgColor = s.isCheckedOut ? 'FFFFB347' : s.color.replace('FF', '');
+    setHeaderStyle(cell, { bgColor, fontColor: 'FF000000' });
   });
-  ws.getRow(2).height = 48;
+  ws.getRow(2).height = 60;
 
   // データ行
   BUTTONS.forEach((btn, idx) => {
@@ -672,12 +691,18 @@ function buildSheet3(wb) {
     STATUS_LIST.forEach((s, si) => {
       const cell = ws.getCell(idx + 3, si + 4);
       const val = btn.activeRule[s.code];
-      cell.value = val;
+      cell.value = val + (s.isCheckedOut && val === '✕' && btn.activeRuleNote ? '\n(CO中)' : '');
       const fgColor = val === '○' ? 'FFD9F7BE' : val === '△' ? 'FFFFF7CC' : 'FFFFD6D6';
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fgColor } };
+      // CHECKED_OUT 列は薄オレンジを重ねてグレーアウト感を演出
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: s.isCheckedOut ? 'FFFFF3E0' : fgColor } };
       cell.font = { bold: true, size: 12, color: { argb: activeColor(val) } };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      cell.border = { top:{style:'thin'}, bottom:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'} };
+      cell.border = {
+        top:    { style: 'thin' },
+        bottom: { style: 'thin' },
+        left:   { style: s.isCheckedOut ? 'medium' : 'thin', color: { argb: s.isCheckedOut ? 'FFFF8C00' : 'FFD9D9D9' } },
+        right:  { style: 'thin' },
+      };
     });
   });
 
@@ -695,7 +720,7 @@ function buildSheet3(wb) {
   ws.getRow(lr2).height = 18;
   ws.mergeCells(lr2, 1, lr2, 3 + STATUS_LIST.length);
   const lc2 = ws.getCell(lr2, 1);
-  lc2.value = '【チェックアウト補足】 TASK_PENDING(1)・TASK_IN_PROGRESS(2) はCHECKED_OUT状態のため、MAIMLエディタ編集ボタンが非活性。チェックインボタンは有効。';
+  lc2.value = '【チェックアウト補足】 TASK_PENDING(1)・TASK_IN_PROGRESS(2) はCHECKED_OUT状態のため、以下のボタンが非活性：MAIMLエディタ編集(No.6)・ファイル削除(No.18)・タスク登録タブ全ボタン(No.20-22)・指示送信/編集/削除(No.23-25)・実験指示編集(No.27)・一括承認(No.29)・評価入力(No.30)。チェックインボタン(No.8)は有効。';
   lc2.font = { italic: true, size: 9, color: { argb: 'FF595959' } };
   lc2.alignment = { horizontal: 'left', vertical: 'middle' };
 }

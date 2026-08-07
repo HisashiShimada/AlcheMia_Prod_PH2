@@ -484,7 +484,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => handleOpenEditDialog(record)}
-                disabled={isSending}
+                disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}
                 data-testid={`instruction-edit-button-${record.id}`}
               >
                 {t('instructionRegistration.editButton')}
@@ -494,7 +494,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 onClick={() => handleDeleteInstruction(record.id)}
-                disabled={isSending}
+                disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}
                 data-testid={`instruction-delete-button-${record.id}`}
               >
                 {t('instructionRegistration.deleteButton')}

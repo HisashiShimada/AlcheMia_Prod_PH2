@@ -2107,7 +2107,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<UploadOutlined />}
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenUploadDialog}
-                    disabled={!selectedProject || selectedProject.status === 4 || selectedProject.isEditable === false}
+                    disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}
                     title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : selectedProject?.status === 4 ? t('projectManagement.uploadDisabledTitle') : undefined}
                   >
                     {t('projectManagement.upload')}
@@ -2116,7 +2116,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     type="primary"
                     icon={<EditOutlined />}
                     onClick={handleEditButtonClick}
-                    disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.isEditable === false}
+                    disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}
                     title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : selectedProject?.status === 4 ? t('projectManagement.editDisabledTitle') : isProjectCheckedOut ? t('projectManagement.editCheckedOutTitle') : undefined}
                   >
                     {t('projectManagement.edit')}
@@ -2125,7 +2125,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     danger
                     icon={<DeleteOutlined />}
                     onClick={handleProjectDelete}
-                    disabled={!selectedProject || selectedProject.status === 4 || selectedProject.isEditable === false}
+                    disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}
                     title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : selectedProject?.status === 4 ? t('projectManagement.deleteDisabledTitle') : undefined}
                   >
                     {t('projectManagement.deleteButton')}
@@ -2134,7 +2134,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     type="primary"
                     icon={<FileTextOutlined />}
                     onClick={handleToggleCheckout}
-                    disabled={selectedProject?.status === ProjectStatus.COMPLETED || selectedProject?.isEditable === false}
+                    disabled={selectedProject?.status === ProjectStatus.COMPLETED || selectedProject?.status === ProjectStatus.ERROR || selectedProject?.isEditable === false}
                     title={selectedProject?.status === ProjectStatus.COMPLETED ? t('projectManagement.checkinDisabledTitle') : selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                     style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     data-testid="checkout-checkin-button"
@@ -2197,7 +2197,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   <Button
                     icon={<EditOutlined />}
                     onClick={() => setRenameModalOpen(true)}
-                    disabled={!selectedProject || selectedProject?.isEditable === false}
+                    disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}
                     title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                   >
                     {t('projectManagement.renameProject')}
@@ -2212,7 +2212,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   <Button
                     icon={<LockOutlined />}
                     onClick={() => setEncryptionModalOpen(true)}
-                    disabled={!selectedProject || selectedProject?.isEditable === false}
+                    disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}
                     title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                   >
                     {t('projectManagement.encryptionButton')}
@@ -2220,7 +2220,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   <Button
                     icon={<SafetyCertificateOutlined />}
                     onClick={() => setSignatureModalOpen(true)}
-                    disabled={!selectedProject || selectedProject?.isEditable === false}
+                    disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}
                     title={selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') || '編集権限がありません' : undefined}
                   >
                     {t('projectManagement.signatureButton')}
@@ -2288,7 +2288,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                             }));
                           }}
                           isEditable={selectedProject?.isEditable !== false}
-                          isProjectCompleted={selectedProject?.status === 4}
+                          isProjectCompleted={selectedProject?.status === 4 || selectedProject?.status === 5}
+                          isCheckoutLocked={isProjectCheckedOut}
                         />
                       </div>
                     ),
@@ -2303,7 +2304,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         isActive={currentTab === 'task_registration'}
                         isCheckoutLocked={isProjectCheckedOut}
                         maimlHasErrors={maimlHasErrors}
-                        isProjectCompleted={selectedProject?.status === 4}
+                        isProjectCompleted={selectedProject?.status === 4 || selectedProject?.status === 5}
+                        isEditable={selectedProject?.isEditable !== false}
                       />
                     ),
                   },
@@ -2316,6 +2318,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         projectName={selectedProject.name}
                         isActive={currentTab === 'project_instruction'}
                         isCheckoutLocked={isProjectCheckedOut}
+                        isEditable={selectedProject?.isEditable !== false}
+                        isProjectCompleted={selectedProject?.status === 4 || selectedProject?.status === 5}
                         onInstructionsSubmit={handleInstructionsSubmit}
                       />
                     ),
@@ -2329,7 +2333,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           projectId={selectedProject.id}
                           projectName={selectedProject.name}
                           isEditable={selectedProject?.isEditable !== false}
-                          isProjectCompleted={selectedProject?.status === 4}
+                          isProjectCompleted={selectedProject?.status === 4 || selectedProject?.status === 5}
+                          isCheckoutLocked={isProjectCheckedOut}
                         />
                       </div>
                     ),
@@ -2342,7 +2347,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                         <EvaluationRegistrationTab
                           projectId={selectedProject.id}
                           isEditable={selectedProject?.isEditable !== false}
-                          isProjectCompleted={selectedProject?.status === 4}
+                          isProjectCompleted={selectedProject?.status === 4 || selectedProject?.status === 5}
+                          isCheckoutLocked={isProjectCheckedOut}
                         />
                       </div>
                     ),
