@@ -1891,8 +1891,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               onChange={(val) => { setFilterUnit(val || null); setCurrentPage(1); }}
             />
             <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
-            <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>インポート</Button>
-            <Button disabled={viewOnly} onClick={handleCsvDownload}>エクスポート</Button>
+            <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>{t('namespaceMain.btnImport')}</Button>
+            <Button disabled={viewOnly} onClick={handleCsvDownload}>{t('namespaceMain.btnExport')}</Button>
             <Tooltip title={!viewOnly && availablePrefixOptions.length === 0 ? 'Prefixが未登録のため用語を追加できません。先にPrefixを登録してください。' : ''}>
               <Button
                 type="primary"
@@ -1900,15 +1900,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                 disabled={viewOnly || availablePrefixOptions.length === 0}
                 onClick={handleAddRow}
               >
-                用語を追加
+                {t('namespaceMain.btnAddTerm')}
               </Button>
-            </Tooltip>
-            <Tooltip title={newTerms.some((r) => r._isDuplicate) ? '重複する用語があります。修正してから保存してください。' : ''}>
-            <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>{t('namespaceMain.btnImport')}</Button>
-            <Button disabled={viewOnly} onClick={handleCsvDownload}>{t('namespaceMain.btnExport')}</Button>
-            <Button type="primary" icon={<PlusOutlined />} disabled={viewOnly} onClick={handleAddRow}>
-              {t('namespaceMain.btnAddTerm')}
-            </Button>
             </Tooltip>
             <Tooltip title={newTerms.some((r) => r._isDuplicate) ? t('namespaceMain.duplicateTooltip') : ''}>
               <Button type="primary" onClick={handleAddSave} disabled={viewOnly || newTerms.length === 0 || newTerms.some((r) => r._isDuplicate)}>
