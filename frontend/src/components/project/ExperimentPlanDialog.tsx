@@ -104,6 +104,7 @@ import type { PlanDialogData } from '@/services/experimentPlanApiService';
 import RefSection from './ExperimentPlanDialog/RefSection';
 import SortableTransitionRow from './ExperimentPlanDialog/SortableTransitionRow';
 import TemplateInputPanel from './ExperimentPlanDialog/TemplateInputPanel';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -135,6 +136,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   const importInputRef = useRef<HTMLInputElement>(null);
 
   // --- APIデータ State ---
+  const { t } = useLanguage();
   const [dialogData, setDialogData] = useState<PlanDialogData | null>(null);
   const [dialogDataLoading, setDialogDataLoading] = useState(false);
 
@@ -421,7 +423,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
         }
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData error:', err);
-        message.error('実験計画データの取得に失敗しました');
+        message.error(t('experimentPlan.loadFailed'));
       } finally {
         setDialogDataLoading(false);
       }
@@ -442,7 +444,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
         setDialogData(data);
       } catch (err) {
         console.error('[ExperimentPlanDialog] getPlanDialogData (methodId change) error:', err);
-        message.error('実験計画データの取得に失敗しました');
+        message.error(t('experimentPlan.loadFailed'));
       } finally {
         setDialogDataLoading(false);
       }
@@ -497,9 +499,9 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
           if (json.tabDataMap) {
             setTabDataMap(json.tabDataMap);
           }
-          message.success('インポートしました');
+          message.success(t('experimentPlan.importSuccess'));
         } catch {
-          message.error('JSONの解析に失敗しました');
+          message.error(t('experimentPlan.jsonParseFailed'));
         }
       };
       reader.readAsText(file);
@@ -526,7 +528,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     a.download = `experiment-plan_${methodId}_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    message.success('エクスポートしました');
+    message.success(t('experimentPlan.exportSuccess'));
   }, [methodId, projectId, selectedTransitionId, tabDataMap, customProps, message]);
 
   // --- Ref操作ハンドラ ---
@@ -683,12 +685,12 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       });
 
       await Promise.all(savePromises);
-      message.success('実験計画を保存しました');
+      message.success(t('experimentPlan.saveSuccess'));
       onSave?.();
       onClose();
     } catch (error) {
       console.error('[ExperimentPlanDialog] 保存エラー:', error);
-      message.error('保存に失敗しました');
+      message.error(t('experimentPlan.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -1063,6 +1065,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                           onCustomPropsChange={handleCustomPropsChange}
                           disabled={disabled}
                           outputTemplateIds={outputTemplateIds}
+                          projectId={projectId}
                           assignedUncertainty={currentTabData.assignedUncertainty}
                           onAssignedUncertaintyChange={handleAssignedUncertaintyChange}
                         />

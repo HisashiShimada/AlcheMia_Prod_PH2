@@ -7,6 +7,7 @@ import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
 import type { TableColumnsType } from 'antd';
 import ShareScopeModal from './ShareScopeModal';
 import type { PrefixRow, NewPrefixRow, RawNode, ShareSourceRole, ShareTarget, ScopeNode, PrefixManagementProps, PrefixCsvParsedRow } from '@/types/namespace';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -301,6 +302,7 @@ const computeRows = (
 
 const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false, showShareButton = false, viewOnly = false, selectedNsKey }) => {
   // ── viewOnly / globalOnly / selectedNsKey に応じてベースデータを動的に決定
+  const { t } = useLanguage();
   const [rows, setRows] = useState<PrefixRow[]>(() =>
     computeRows(selectedNsKey, globalOnly, viewOnly)
   );
@@ -369,9 +371,9 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
       setRows((prev) => [...added, ...prev]);
     }
     if (failed.length > 0) {
-      message.warning(`${added.length}件共有完了、${failed.length}件失敗しました`);
+      message.warning(t('prefixManagement.sharePartial', { saved: added.length, failCount: failed.length }));
     } else {
-      message.success(`${added.length}件のPrefixを「${target.label}」に共有しました`);
+      message.success(t('prefixManagement.shareSuccess', { count: added.length, target: target.label }));
     }
     setSelectedPrefixIds([]);
   };
@@ -379,7 +381,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
   // ── エクスポート（選択行のみCSV出力）
   const handleCsvDownload = () => {
     if (selectedPrefixIds.length === 0) {
-      message.error('エクスポートするPrefixを1件以上選択してください');
+      message.error(t('prefixManagement.exportRequired'));
       return;
     }
     const header = 'prefix,description';
@@ -409,7 +411,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
       try {
         const text = (ev.target?.result as string).replace(/^\uFEFF/, '');
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
-        if (lines.length < 2) { message.error('CSVデータが空です'); return; }
+        if (lines.length < 2) { message.error(t('prefixManagement.csvEmpty')); return; }
 
         const parsedRows: PrefixCsvParsedRow[] = [];
         for (let i = 1; i < lines.length; i++) {
@@ -422,7 +424,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
           parsedRows.push({ prefix: prefix ?? '', description: description ?? '' });
         }
 
-        if (parsedRows.length === 0) { message.error('取込可能なデータがありませんでした'); return; }
+        if (parsedRows.length === 0) { message.error(t('prefixManagement.csvNoData')); return; }
 
         const added: PrefixRow[] = [];
         const failed: string[] = [];
@@ -449,12 +451,12 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
           setRows((prev) => [...prev, ...added]);
         }
         if (failed.length > 0) {
-          message.warning(`${added.length}件保存、${failed.length}件失敗しました（失敗: ${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}）`);
+          message.warning(t('prefixManagement.csvImportPartial', { saved: added.length, failCount: failed.length, names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : '') }));
         } else {
-          message.success(`${added.length}件のPrefixをDBに保存しました`);
+          message.success(t('prefixManagement.csvImportSuccess', { count: added.length }));
         }
       } catch {
-        message.error('CSVの解析に失敗しました');
+        message.error(t('prefixManagement.csvParseError'));
       } finally {
         if (csvInputRef.current) csvInputRef.current.value = '';
       }
@@ -483,7 +485,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
   const handleSave = async () => {
     if (newRows.length === 0) return;
     for (const row of newRows) {
-      if (!row.prefix) { message.error('すべての行でPrefixを入力してください'); return; }
+      if (!row.prefix) { message.error(t('prefixManagement.prefixRequired2')); return; }
     }
 
     // 木村涼子（user-010）選択時は同Prefix重複の警告を表示（保存は続行）
@@ -520,7 +522,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
 
     if (added.length > 0) {
       setRows((prev) => [...added, ...prev]);
-      message.success(`${added.length}件のPrefixを登録しました`);
+      message.success(t('prefixManagement.registerSuccess', { count: added.length }));
     }
     setNewRows([]);
   };
@@ -534,7 +536,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
   // ── 既存行の編集保存
   const saveEdit = async () => {
     if (!editingId) return;
-    if (!editingValues.prefix) { message.error('Prefixは必須です'); return; }
+    if (!editingValues.prefix) { message.error(t('prefixManagement.prefixFieldRequired')); return; }
 
     try {
       const res = await fetch(`/api/v1/namespaces/prefixes/${editingId}`, {
@@ -552,7 +554,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
       prev.map((r) => r.id === editingId ? { ...r, ...editingValues } : r)
     );
     setEditingId(null);
-    message.success('Prefixを更新しました');
+    message.success(t('prefixManagement.updateSuccess'));
   };
 
   const cancelEdit = () => setEditingId(null);
@@ -572,14 +574,14 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
           setRows((prev) =>
             prev.map((r) => r.id === id ? { ...r, isActive: false } : r)
           );
-          message.success(`Prefix「${prefix}」を非アクティブにしました`);
+          message.success(t('prefixManagement.deactivateSuccess', { prefix }));
         },
       });
     } else {
       setRows((prev) =>
         prev.map((r) => r.id === id ? { ...r, isActive: nextActive } : r)
       );
-      message.success(`Prefix「${prefix}」をアクティブにしました`);
+      message.success(t('prefixManagement.activateSuccess', { prefix }));
     }
   };
 
@@ -757,7 +759,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
                     prev.map((r) => selectedPrefixIds.includes(r.id) ? { ...r, isActive: false } : r)
                   );
                   setSelectedPrefixIds([]);
-                  message.success(`${count}件のPrefixを非アクティブにしました`);
+                  message.success(t('prefixManagement.bulkDeactivateSuccess', { count }));
                 },
               });
             }}

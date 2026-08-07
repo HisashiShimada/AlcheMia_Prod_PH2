@@ -357,6 +357,19 @@ export async function createOrganization(
       await createSchemaIfNotExists(data.organizationId, data.organizationCd);
       await createSchemaTables(data.organizationId);
       logger.info(`[organizationService] 組織スキーマ作成完了: organizationId=${data.organizationId}`);
+
+      // 8. namespace テーブルへ組織URIを自動登録
+      // URI形式: https://{organizationCd}.Alchemia.co.jp
+      // 失敗時はトランザクション全体をロールバックする（組織作成と原子性を保証）
+      logger.info(`[organizationService] 組織URI自動登録を開始: organizationId=${data.organizationId}`);
+      const orgUri = generateNamespaceUri(data.organizationCd);
+      const existingUris = await namespaceTermRepository.findUrisByOrganization(data.organizationId, t);
+      const uniqueUri = existingUris.includes(orgUri) ? `${orgUri}1` : orgUri;
+      await namespaceTermRepository.createNamespaceUri(
+        { organizationId: data.organizationId, uri: uniqueUri, userId },
+        t
+      );
+      logger.info(`[organizationService] 組織URI自動登録完了: organizationId=${data.organizationId}, uri=${uniqueUri}`);
     });
 
     // JOINでchief_user_nameとcorporation_nameを取得
@@ -388,26 +401,6 @@ export async function createOrganization(
     ];
     await storageService.createFolders(data.organizationId, organizationFolders);
     logger.info(`[organizationService] 基本フォルダ構造作成完了: organizationId=${data.organizationId}`);
-
-    // ④ 組織URIを namespace テーブルに自動登録
-    // URI形式: https://{organizationCd}.Alchemia.co.jp
-    try {
-      const orgUri = generateNamespaceUri(data.organizationCd);
-      const existingUris = await namespaceTermRepository.findUrisByOrganization(data.organizationId);
-      const uniqueUri = existingUris.includes(orgUri) ? `${orgUri}1` : orgUri;
-      const namespaceUriData: Parameters<typeof namespaceTermRepository.createNamespaceUri>[0] = {
-        organizationId: data.organizationId,
-        uri: uniqueUri,
-        userId,
-      };
-      await namespaceTermRepository.createNamespaceUri(namespaceUriData);
-      logger.info(`[organizationService] 組織URI自動登録完了: organizationId=${data.organizationId}, uri=${uniqueUri}`);
-    } catch (nsError) {
-      // URI登録失敗は組織作成のエラーとしない（ログのみ）
-      logger.warn(`[organizationService] 組織URI自動登録失敗（組織作成は成功）: organizationId=${data.organizationId}`, {
-        error: nsError instanceof Error ? nsError.message : String(nsError),
-      });
-    }
 
   } catch (error) {
     logger.error(

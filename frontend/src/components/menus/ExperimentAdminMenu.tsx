@@ -18,7 +18,7 @@ import WorkerScreenOverlay from '../project/WorkerScreenOverlay';
 import FormatManagement from '../format/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
 import UncertaintyManagement from '../uncertainty/UncertaintyManagement';
-import TeamManagementPanel from '../namespace/TeamManagementPanel';
+import TeamManagementPanel from '../team/TeamManagementPanel';
 import KeyManagementScreen from '../key-management/KeyManagementScreen';
 import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';

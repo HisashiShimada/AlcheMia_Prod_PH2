@@ -13,8 +13,8 @@ import { fetchUncertaintyCriteriaList } from '@/services/uncertaintyCriteriaApiS
 import NamespaceMain from '../namespace/NamespaceMain';
 import PrefixManagement from '../namespace/PrefixManagement';
 import { getOrganizationGroups } from '@/services/namespaceApiService';
-import TeamAddDialog from '../namespace/TeamAddDialog';
-import TeamEditDialog from '../namespace/TeamEditDialog';
+import TeamAddDialog from '../team/TeamAddDialog';
+import TeamEditDialog from '../team/TeamEditDialog';
 import type { OrganizationGroupRow } from '@/types/namespace';
 import type { User } from '@/types/auth';
 
@@ -32,8 +32,9 @@ interface NamespaceNode {
 // ──────────────────────────────────────────────
 // ツリーの静的骨格（Global / company / Personal）
 // company.children は API データで動的に差し替える
+// company の label は useLanguage() で動的生成するため関数化
 // ──────────────────────────────────────────────
-const NS_TREE_SKELETON: NamespaceNode[] = [
+const buildNsTreeSkeleton = (companyLabel: string): NamespaceNode[] => [
   {
     key: 'global',
     label: 'Global',
@@ -43,7 +44,7 @@ const NS_TREE_SKELETON: NamespaceNode[] = [
   },
   {
     key: 'company',
-    label: '組織',
+    label: companyLabel,
     count: 0,
     icon: '🏢',
     children: [],
@@ -134,6 +135,7 @@ interface UncertaintyManagementProps {
  * 左ペイン（名前空間ツリー固定）＋右ペイン（タブ：用語管理 / 不確かさ基準管理）
  */
 export default function UncertaintyManagement({ user }: UncertaintyManagementProps = {}) {
+  const { t } = useLanguage();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchText, setSearchText] = useState('');
   const [evalFilter, setEvalFilter] = useState<string>('');
@@ -164,13 +166,14 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   // ── チーム編集ダイアログ
   const [teamEditOpen,    setTeamEditOpen]    = useState(false);
   const [teamEditLabel,   setTeamEditLabel]   = useState('');
-  const [teamEditUnitId,  setTeamEditUnitId]  = useState<string | undefined>(undefined);
+  const [teamEditGroupCd,  setTeamEditGroupCd]  = useState<string | undefined>(undefined);
+
   const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
 
   // ── organization_group 取得ステート
   const [orgGroups, setOrgGroups] = useState<OrganizationGroupRow[]>([]);
 
-  // ── 動的ツリー（NS_TREE_SKELETON の company / personal children を API データで差し替え）
+  // ── 動的ツリー（buildNsTreeSkeleton の company / personal children を API データで差し替え）
   const namespaceTree = useMemo((): NamespaceNode[] => {
     // Personal 配下には常にログインユーザーのユーザー名ノードを1件表示する。
     // DB の namespace レコード（scope_key = user.id）の有無に関わらず表示するため、
@@ -181,12 +184,13 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
       count: 0,
     };
 
-    return NS_TREE_SKELETON.map((n) => {
+    const skeleton = buildNsTreeSkeleton(t('namespaceTree.company'));
+    return skeleton.map((n) => {
       if (n.key === 'company') return { ...n, children: buildOrgTree(orgGroups) };
       if (n.key === 'personal') return { ...n, children: [userNode] };
       return n;
     });
-  }, [orgGroups, user?.id, user?.username]);
+  }, [orgGroups, user?.id, user?.username, t]);
 
   // ── 初回マウント時に organization_group 一覧 & 個人名前空間を取得してツリーを構築
   useEffect(() => {
@@ -303,8 +307,6 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     return toAntTree(namespaceTree);
   }, [toAntTree, namespaceTree]);
 
-  const { t } = useLanguage();
-
   const TAB_LABELS: { key: 'namespace' | 'prefix' | 'criteria'; label: string }[] = [
     { key: 'prefix',    label: t('uncertainty.management.tabPrefix') },
     { key: 'namespace', label: t('uncertainty.management.tabNamespace') },
@@ -373,7 +375,9 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 onClick={() => {
                   setTeamEditLabel(ctxMenu.node!.label);
-                  setTeamEditUnitId((ctxMenu.node as any).departmentUnitId ?? ctxMenu.node!.key ?? undefined);
+                  setTeamEditGroupCd(ctxMenu.node!.key ?? undefined);
+
+
                   setTeamEditMembers([]);
                   setTeamEditOpen(true);
                   setCtxMenu((s) => ({ ...s, visible: false }));
@@ -523,25 +527,26 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
       {/* チーム追加ダイアログ */}
       <TeamAddDialog
         open={teamAddOpen}
-        parentTeamLabel={teamAddParentLabel}
         onClose={() => setTeamAddOpen(false)}
-        onCreated={(teamName, members) => {
-          message.success(t('uncertainty.management.toastTeamCreated', { name: teamName, count: String(members.length) }));
+        onCreated={(_groupCd, groupName) => {
+          message.success(t('uncertainty.management.toastTeamCreated', { name: groupName, count: '0' }));
           setTeamAddOpen(false);
         }}
       />
+
 
       {/* チーム編集ダイアログ */}
       <TeamEditDialog
         open={teamEditOpen}
         teamLabel={teamEditLabel}
-        teamUnitId={teamEditUnitId}
+        teamGroupCd={teamEditGroupCd}
         onClose={() => setTeamEditOpen(false)}
         onSaved={(members) => {
           message.success(t('uncertainty.management.toastTeamUpdated', { name: teamEditLabel, count: String(members.length) }));
           setTeamEditMembers(members);
         }}
       />
+
 
       {/* モーダル群 */}
       <UncertaintyDetailModal

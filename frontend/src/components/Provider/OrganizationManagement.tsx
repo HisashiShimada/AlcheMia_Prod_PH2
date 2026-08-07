@@ -26,7 +26,6 @@ import {
   ReloadOutlined,
   UploadOutlined,
   DownloadOutlined,
-  LinkOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { createApiClient } from '@/utils/authUtils';
@@ -47,21 +46,15 @@ interface AddFormNamespaceFieldsProps {
   form: ReturnType<typeof Form.useForm>[0];
 }
 function AddFormNamespaceFields({ form }: AddFormNamespaceFieldsProps) {
+  const { t } = useLanguage();
   const watchedOrgCd: string = Form.useWatch('organizationCd', form) ?? '';
   const autoUri = generateNamespaceUri(watchedOrgCd, undefined);
   return (
     <>
-      <Form.Item label="名前空間URI（自動生成）">
-        <Input
-          value={autoUri || '（組織CDを入力すると自動生成されます）'}
-          readOnly
-          style={{
-            backgroundColor: '#f5f5f5',
-            color: autoUri ? '#333' : '#aaa',
-            cursor: 'default',
-          }}
-          prefix={<LinkOutlined style={{ color: '#aaa' }} />}
-        />
+      <Form.Item label={t('organizationManagement.form.namespaceUriAutoGenLabel')}>
+        <Text type={autoUri ? undefined : 'secondary'}>
+          {autoUri || t('organizationManagement.form.namespaceUriAutoGenPlaceholder')}
+        </Text>
       </Form.Item>
     </>
   );

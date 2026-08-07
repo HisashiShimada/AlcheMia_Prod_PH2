@@ -24,7 +24,6 @@ import {
   ReloadOutlined,
   UploadOutlined,
   DownloadOutlined,
-  LinkOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UserRecord, CreateUserRequest, UpdateUserRequest } from '@/types/user';
@@ -36,6 +35,7 @@ import {
   batchUpdateUserStatus,
   uploadCsv,
   downloadCsv,
+  fetchOrganizationCdByOrganizationId,
 } from '@/services/userApiService';
 import { fetchMasters as fetchRoles } from '@/services/roleApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
@@ -49,55 +49,40 @@ const { Text } = Typography;
 interface UserNamespaceFieldsProps {
   form: ReturnType<typeof Form.useForm>[0];
   isEditing: boolean;
+  organizationCd: string;
 }
-function UserNamespaceFields({ form, isEditing }: UserNamespaceFieldsProps) {
-  // ログイン中ユーザーの organizationCd を localStorage から取得
-  const organizationCd: string = (() => {
-    if (typeof window === 'undefined') return '';
-    try {
-      const raw = localStorage.getItem('userInfo');
-      if (!raw) return '';
-      const info = JSON.parse(raw) as { organizationCd?: string };
-      return info.organizationCd ?? '';
-    } catch {
-      return '';
-    }
-  })();
+function UserNamespaceFields({ form, isEditing, organizationCd }: UserNamespaceFieldsProps) {
+  // 編集モード: 既存の URI をラベルで表示
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { t } = useLanguage();
 
-  // 編集モード: 既存の URI を読み取り専用で表示
   if (isEditing) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const existingUri: string = Form.useWatch('namespaceUri', form) ?? '';
     return (
-      <>
-        <Form.Item name="namespaceUri" label="名前空間URI">
-          <Input
-            readOnly
-            style={{ backgroundColor: '#f5f5f5', cursor: 'default', color: existingUri ? '#333' : '#aaa' }}
-            prefix={<LinkOutlined style={{ color: '#aaa' }} />}
-            placeholder="（未設定）"
-          />
-        </Form.Item>
-      </>
+      <Form.Item label={t('userManagement.form.namespaceUriLabel')}>
+        <Text type={existingUri ? undefined : 'secondary'}>
+          {existingUri || t('userManagement.form.namespaceUriNotSet')}
+        </Text>
+      </Form.Item>
     );
   }
 
-  // 追加モード: URI は自動生成で読み取り専用
-  const autoUri = generateNamespaceUri(organizationCd);
+  // 追加モード: メールアドレス入力に連動してURIをリアルタイム生成
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const mailAddress: string = Form.useWatch('mailAddress', form) ?? '';
+  const loginName = mailAddress.includes('@') ? mailAddress.split('@')[0] : '';
+  // loginName が確定していない場合はプレースホルダーを表示する（URI未生成）
+  const autoUri = organizationCd && loginName
+    ? generateNamespaceUri(organizationCd, undefined, undefined, loginName)
+    : '';
+
   return (
-    <>
-      <Form.Item label="名前空間URI（自動生成）">
-        <Input
-          value={autoUri || '（自動生成されます）'}
-          readOnly
-          style={{
-            backgroundColor: '#f5f5f5',
-            color: autoUri ? '#333' : '#aaa',
-            cursor: 'default',
-          }}
-          prefix={<LinkOutlined style={{ color: '#aaa' }} />}
-        />
-      </Form.Item>
-    </>
+    <Form.Item label={t('userManagement.form.namespaceUriAutoGenLabel')}>
+      <Text type={autoUri ? undefined : 'secondary'}>
+        {autoUri || t('userManagement.form.namespaceUriAutoGenPlaceholder')}
+      </Text>
+    </Form.Item>
   );
 }
 
@@ -117,12 +102,28 @@ export default function UserManagement() {
   const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [organizationCd, setOrganizationCd] = useState<string>('');
   const [form] = Form.useForm();
 
   useEffect(() => {
     loadUsers();
     loadRoles();
+    loadOrganizationCd();
   }, []);
+
+  const loadOrganizationCd = async () => {
+    try {
+      if (typeof window === 'undefined') return;
+      const raw = localStorage.getItem('userInfo');
+      if (!raw) return;
+      const info = JSON.parse(raw) as { organizationId?: string };
+      if (!info.organizationId) return;
+      const cd = await fetchOrganizationCdByOrganizationId(info.organizationId);
+      setOrganizationCd(cd);
+    } catch {
+      // 取得失敗時は空のまま（URI表示なし）
+    }
+  };
 
   const loadUsers = async () => {
     try {
@@ -467,12 +468,12 @@ export default function UserManagement() {
         await loadUsers();
         message.success(t('userManagement.messages.saveSuccess'));
       } else {
-        // organizationCd を localStorage から取得
-        const userInfoRaw = typeof window !== 'undefined' ? localStorage.getItem('userInfo') : null;
-        const orgCd: string = userInfoRaw
-          ? (JSON.parse(userInfoRaw) as { organizationCd?: string }).organizationCd ?? ''
+        // organizationCd state（mount時にAPIで取得済み）とメールアドレスからURIを生成
+        const mailAddr: string = values.mailAddress ?? '';
+        const loginName = mailAddr.includes('@') ? mailAddr.split('@')[0] : '';
+        const computedNsUri = organizationCd
+          ? generateNamespaceUri(organizationCd, undefined, undefined, loginName || undefined)
           : '';
-        const computedNsUri = generateNamespaceUri(orgCd);
         const createData: CreateUserRequest = {
           userId: values.mailAddress,
           userName: values.userName,
@@ -633,7 +634,7 @@ export default function UserManagement() {
             label={t('userManagement.form.userName')}
             rules={[{ required: true, message: t('userManagement.form.userNameRequired') }]}
           >
-            <Input placeholder="山田 太郎" />
+            <Input placeholder={t('userManagement.form.userNamePlaceholder')} />
           </Form.Item>
           <Form.Item
             name="mailAddress"
@@ -664,7 +665,7 @@ export default function UserManagement() {
               ]}
             />
           </Form.Item>
-          <UserNamespaceFields form={form} isEditing={!!editingUser} />
+          <UserNamespaceFields form={form} isEditing={!!editingUser} organizationCd={organizationCd} />
         </Form>
       </Modal>
 

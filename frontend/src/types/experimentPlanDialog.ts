@@ -163,6 +163,12 @@ export interface TemplateInputPanelProps {
    */
   outputTemplateIds?: Set<string>;
   /**
+   * プロジェクトID（insertion ファイルのアップロード先パス構築に使用）
+   * 指定時: `projects/{projectId}/attachments` へのアップロード確認ダイアログを表示
+   * 未指定時: アップロードなし（ファイル名・ハッシュのみセット）
+   */
+  projectId?: string;
+  /**
    * 付与済み不確かさ情報（親管理: Lift State Up）
    * key: valueKey（`${templateId}_${fieldKey}` または `custom_${cpId}`）
    * value: AssignPayload の配列（複数付与対応）

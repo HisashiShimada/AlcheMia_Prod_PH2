@@ -14,6 +14,33 @@ import type { UserRecord, CreateUserRequest, UpdateUserRequest, UserFilters } fr
 const API_ENDPOINT = '/systemManagement/user';
 
 /**
+ * ログイン中ユーザーの組織CDを取得する
+ * URI自動生成（ユーザー追加ダイアログ）のためだけに使用。
+ * JWT拡張を避けるため、organizationIdをキーに既存の組織取得APIを呼び出す。
+ *
+ * @param organizationId - localStorage の userInfo.organizationId
+ * @returns 組織CD（取得失敗時は空文字）
+ */
+export async function fetchOrganizationCdByOrganizationId(
+  organizationId: string
+): Promise<string> {
+  const client = createApiClient();
+  const endpoint = `/provider/organization/${encodeURIComponent(organizationId)}`;
+
+  try {
+    const response = await client.get<ApiResponse<{ organizationCd: string }>>(endpoint);
+
+    if (response.data.success && response.data.data) {
+      return (response.data.data as { organizationCd?: string }).organizationCd ?? '';
+    }
+    return '';
+  } catch (error) {
+    console.error('API Error (fetchOrganizationCdByOrganizationId):', error);
+    return '';
+  }
+}
+
+/**
  * ユーザー一覧を取得
  */
 export async function fetchUsers(

@@ -179,45 +179,10 @@ export interface NewPrefixRow {
   description: string;
 }
 
-// ──────────────────────────────────────────────
-// チーム・メンバー
-// ──────────────────────────────────────────────
+// チーム・メンバー関連の型は team.ts に移行済み
+// 後方互換性のため re-export する
+export type { TeamMember, Team, OrgUser } from '@/types/team';
 
-/**
- * チームメンバー
- */
-export interface TeamMember {
-  userId: string;
-  userName: string;
-  departmentUnitId: string | null;
-}
-
-/**
- * チーム
- */
-export interface Team {
-  departmentUnitId: string;
-  unitName: string;
-  /** 所属部署名 */
-  departmentName?: string;
-  /** チームの代表者（作成者）表示名 */
-  ownerName: string;
-  /** チームの代表者 userId */
-  ownerUserId?: string;
-  nsPrefix?: string;
-  nsUri?: string;
-  nsDisplayName?: string;
-  members: TeamMember[];
-}
-
-/**
- * 組織ユーザー（チーム追加ダイアログ用）
- */
-export interface OrgUser {
-  userId: string;
-  userName: string;
-  departmentUnitId: string | null;
-}
 
 // ──────────────────────────────────────────────
 // 共有機能
@@ -409,32 +374,9 @@ export interface ShareScopeModalProps {
   onShare: (target: ShareTarget) => void;
 }
 
-/**
- * TeamAddDialog の Props
- */
-export interface TeamAddDialogProps {
-  open: boolean;
-  parentTeamLabel: string;
-  parentDepartmentCd?: string;
-  /** ログイン組織CD（URI自動生成に使用） */
-  organizationCd?: string;
-  organizationId?: string;
-  onClose: () => void;
-  onCreated: (teamName: string, members: string[], departmentUnitId?: string) => void;
-}
+// TeamAddDialogProps / TeamEditDialogProps は team.ts に移行済み
+export type { TeamAddDialogProps, TeamEditDialogProps } from '@/types/team';
 
-/**
- * TeamEditDialog の Props
- */
-export interface TeamEditDialogProps {
-  open: boolean;
-  teamLabel: string;
-  teamUnitId?: string;
-  /** チームの現在の代表者 userId（初期値として使用） */
-  teamOwnerUserId?: string;
-  onClose: () => void;
-  onSaved: (members: string[], newTeamName?: string, newOwnerUserId?: string) => void;
-}
 
 /**
  * DepartmentNodeAddDialog のツリーノード
@@ -562,76 +504,10 @@ export interface TermCsvParsedRow {
   unitHint: string;
 }
 
-// ──────────────────────────────────────────────
-// TeamAddDialog
-// ──────────────────────────────────────────────
-
-/**
- * チーム作成 API レスポンス（TeamAddDialog）
- *
- * @remarks
- * POST /api/v1/department-units のレスポンスボディの型
- */
-export interface CreateTeamResponse {
-  /** 作成されたチームの ID */
-  departmentUnitId: string;
-  /** 作成されたチームの名前 */
-  unitName: string;
-}
-
-// ──────────────────────────────────────────────
-// organization_group（部署管理タブ）
-// ──────────────────────────────────────────────
-
-/**
- * organization_group テーブルの行型
- *
- * @remarks
- * DDL: docs/design/db/ddl/organization_group.sql
- * 主キー: (organization_id, organization_group_cd)
- */
-export interface OrganizationGroupRow {
-  /** 組織ID（UUID） */
-  organization_id: string;
-  /** 組織階層グループCD */
-  organization_group_cd: string;
-  /** 組織階層グループ名 */
-  organization_group_name: string;
-  /** 代表者ユーザID */
-  chief_user_id: string;
-  /** 親階層グループCD（ルートの場合は null） */
-  parent_group_cd: string | null;
-  /** レイヤー */
-  layer: string | null;
-  /** 作成日時 */
-  create_at?: string;
-  /** 更新日時 */
-  update_at?: string;
-}
-
-/**
- * organization_group 新規作成リクエスト
- */
-export interface CreateOrganizationGroupRequest {
-  /** 組織階層グループCD */
-  organization_group_cd: string;
-  /** 組織階層グループ名 */
-  organization_group_name: string;
-  /** 親階層グループCD */
-  parent_group_cd?: string | null;
-  /** レイヤー */
-  layer?: string | null;
-}
-
-/**
- * organization_group 更新リクエスト
- */
-export interface UpdateOrganizationGroupRequest {
-  /** 組織階層グループ名 */
-  organization_group_name?: string;
-  /** 親階層グループCD */
-  parent_group_cd?: string | null;
-  /** レイヤー */
-  layer?: string | null;
-}
+// OrganizationGroupRow / CreateOrganizationGroupRequest / UpdateOrganizationGroupRequest は team.ts に移行済み
+export type {
+  OrganizationGroupRow,
+  CreateOrganizationGroupRequest,
+  UpdateOrganizationGroupRequest,
+} from '@/types/team';
 

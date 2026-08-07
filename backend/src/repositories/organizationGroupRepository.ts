@@ -7,8 +7,11 @@
  * @version 1.0.0
  */
 
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
+import type { PoolClient } from 'pg';
+import type { ITask } from 'pg-promise';
+
 
 /**
  * organization_group テーブルの型定義
@@ -22,12 +25,16 @@ export interface OrganizationGroupRow {
   organization_group_cd: string;
   organization_group_name: string;
   chief_user_id: string;
+  /** 代表者ユーザー名（findAll / findById 取得時に JOIN で付与） */
+  chief_user_name: string | null;
   parent_group_cd: string | null;
   layer: string | null;
   create_user_id: string | null;
   create_at: Date | null;
   update_user_id: string | null;
   update_at: Date | null;
+  /** findAll 取得時のみ付与されるメンバー数（一覧表示用） */
+  member_count?: number;
 }
 
 /**
@@ -106,6 +113,7 @@ export async function existsById(
  * organization_group 新規作成
  *
  * @param data - 登録するグループデータ
+ * @param t - pg-promise トランザクションオブジェクト（省略時はプール接続を使用）
  * @returns 登録された組織グループ
  */
 export async function create(data: {
@@ -116,10 +124,9 @@ export async function create(data: {
   parent_group_cd?: string | null;
   layer?: string | null;
   create_user_id?: string | null;
-}): Promise<OrganizationGroupRow> {
-  const pool = getPool();
+}, t?: ITask<unknown>): Promise<OrganizationGroupRow> {
   const sql = await loadSqlFile('organization_groups/create.sql');
-  const result = await pool.query<OrganizationGroupRow>(sql, [
+  const params = [
     data.organization_id,
     data.organization_group_cd,
     data.organization_group_name,
@@ -127,8 +134,46 @@ export async function create(data: {
     data.parent_group_cd ?? null,
     data.layer ?? null,
     data.create_user_id ?? null,
-  ]);
-  return result.rows[0];
+  ];
+
+  if (t) {
+    // pg-promise トランザクション経由
+    return t.one<OrganizationGroupRow>(sql, params);
+  } else {
+    // 通常の pg プール経由（後方互換）
+    const pool = getPool();
+    const result = await pool.query<OrganizationGroupRow>(sql, params);
+    return result.rows[0];
+  }
+}
+
+/**
+ * organization_group の祖先チェーンを取得（URI 構築用）
+ *
+ * 指定した parentGroupCd を起点として、再帰的に parent_group_cd を遡り
+ * ルート → 直近親 の順に CD 配列を返す。
+ *
+ * @param organizationId - 組織ID
+ * @param parentGroupCd - 起点となる親グループのCD（null の場合は空配列を返す）
+ * @returns 祖先グループの organization_group_cd 配列（ルート → 直近親の順）
+ *
+ * @example
+ * // RD-ANALYSIS の parent が RD、RD の parent が null の場合
+ * await findAncestorChain('org1', 'RD-ANALYSIS')
+ * // => ['RD', 'RD-ANALYSIS'] は呼ばない点に注意。parentGroupCd を渡すこと
+ * await findAncestorChain('org1', 'RD')
+ * // => ['RD']
+ */
+export async function findAncestorChain(
+  organizationId: string,
+  parentGroupCd: string | null
+): Promise<string[]> {
+  if (!parentGroupCd) return [];
+
+  const pgp = getPgp();
+  const sql = await loadSqlFile('organization_groups/findAncestorChain.sql');
+  const rows = await pgp.any<{ organization_group_cd: string }>(sql, [organizationId, parentGroupCd]);
+  return rows.map((r) => r.organization_group_cd);
 }
 
 /**
@@ -200,3 +245,111 @@ export async function deleteById(
   const result = await pool.query(sql, [organizationId, groupCd]);
   return result.rowCount ?? 0;
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// organization_group_user メンバー管理
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * organization_group_user 型定義
+ *
+ * @remarks
+ * DDL: docs/design/db/ddl/organization_group_user.sql
+ */
+export interface OrganizationGroupMemberRow {
+  user_id: string;
+  user_name: string;
+  mail_address: string;
+}
+
+/**
+ * グループメンバー一覧取得
+ *
+ * @param organizationId - 組織ID
+ * @param groupCd - 組織グループCD
+ * @returns メンバー一覧
+ */
+export async function findMembersByGroupCd(
+  organizationId: string,
+  groupCd: string
+): Promise<OrganizationGroupMemberRow[]> {
+  const pool = getPool();
+  const sql = await loadSqlFile('organization_groups/findMembers.sql');
+  const result = await pool.query<OrganizationGroupMemberRow>(sql, [organizationId, groupCd]);
+  return result.rows;
+}
+
+/**
+ * グループメンバー1件挿入（pg-promise ITask 対応版）
+ *
+ * `createOrganizationGroup` などのトランザクション内から代表者を直接メンバー登録するために使用。
+ * 重複の場合は何もしない（ON CONFLICT DO NOTHING）。
+ *
+ * @param organizationId - 組織ID
+ * @param groupCd - 組織グループCD
+ * @param userId - 挿入するユーザーID
+ * @param t - pg-promise トランザクションオブジェクト
+ */
+export async function insertMemberInTransaction(
+  organizationId: string,
+  groupCd: string,
+  userId: string,
+  t: ITask<unknown>
+): Promise<void> {
+  const sql = await loadSqlFile('organization_groups/insertMember.sql');
+  await t.none(sql, [organizationId, groupCd, userId]);
+}
+
+/**
+ * グループメンバー一括更新（既存メンバーをすべて削除し新規メンバーを挿入）
+ *
+ * @param organizationId - 組織ID
+ * @param groupCd - 組織グループCD
+ * @param userIds - 設定するユーザーIDの配列（空配列の場合はメンバーを全削除）
+ * @param client - トランザクション用クライアント（省略時は新規接続）
+ */
+export async function setMembers(
+  organizationId: string,
+  groupCd: string,
+  userIds: string[],
+  client?: PoolClient
+): Promise<void> {
+  const pool = getPool();
+  const executor = client ?? pool;
+
+  const deleteSql = await loadSqlFile('organization_groups/deleteMembers.sql');
+  await executor.query(deleteSql, [organizationId, groupCd]);
+
+  if (userIds.length === 0) return;
+
+  const insertSql = await loadSqlFile('organization_groups/insertMember.sql');
+  for (const userId of userIds) {
+    await executor.query(insertSql, [organizationId, groupCd, userId]);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// organization_user ユーザー一覧取得（グループメンバー選択用）
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * 組織内のアクティブなユーザー一覧を取得（グループメンバー選択用）
+ *
+ * @param organizationId - 組織ID
+ * @returns ユーザー一覧（user_id, user_name, mail_address）
+ */
+export interface OrgUserRow {
+  user_id: string;
+  user_name: string;
+  mail_address: string;
+}
+
+export async function findAllOrgUsers(
+  organizationId: string
+): Promise<OrgUserRow[]> {
+  const pool = getPool();
+  const sql = await loadSqlFile('organization_groups/findAllOrgUsers.sql');
+  const result = await pool.query<OrgUserRow>(sql, [organizationId]);
+  return result.rows;
+}
+

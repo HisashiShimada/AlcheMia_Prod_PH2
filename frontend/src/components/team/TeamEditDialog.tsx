@@ -3,19 +3,28 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Modal, Select, Tag, Typography, Space, Divider, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
-import membersMockRaw from '../../../mock/namespace/department-unit-members.json';
-import type { OrgUser, TeamEditDialogProps } from '@/types/namespace';
+import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  getOrgUsersForGroups,
+  getGroupMembers,
+  updateOrganizationGroup,
+  updateGroupMembers,
+  updateGroupChief,
+} from '@/services/organizationGroupApiService';
+import type { OrgUser, TeamEditDialogProps } from '@/types/team';
 
 const { Text } = Typography;
 
 const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   open,
   teamLabel,
-  teamUnitId,
+  teamGroupCd,
   teamOwnerUserId,
   onClose,
   onSaved,
 }) => {
+  const { t } = useLanguage();
+
   const [teamName, setTeamName]           = useState('');
   const [members, setMembers]             = useState<OrgUser[]>([]);
   const [addTarget, setAddTarget]         = useState<string | undefined>(undefined);
@@ -34,40 +43,20 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
     // 全ユーザー一覧を取得
     setUsersLoading(true);
-    fetch('/api/v1/department-units/users', { credentials: 'include' })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<OrgUser[]>;
-      })
-      .then((data) => setAllUsers(data))
+    getOrgUsersForGroups()
+      .then((users) => setAllUsers(users))
       .catch(() => setAllUsers([]))
       .finally(() => setUsersLoading(false));
 
-    // 既存メンバーを取得（teamUnitId がある場合のみ）
-    if (teamUnitId) {
-      fetch(`/api/v1/department-units/${teamUnitId}/members`, { credentials: 'include' })
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json() as Promise<OrgUser[]>;
-        })
+    // 既存メンバーを取得（teamGroupCd がある場合のみ）
+    if (teamGroupCd) {
+      getGroupMembers(teamGroupCd)
         .then((data) => setMembers(data))
-        .catch(() => {
-          // APIが失敗した場合はモックデータをフォールバックとして使用
-          const mockMembers = (membersMockRaw as Record<string, OrgUser[]>)[teamUnitId] ?? [];
-          setMembers(mockMembers);
-          // モックメンバーを allUsers に補完
-          if (mockMembers.length > 0) {
-            setAllUsers((prev) => {
-              const existing = new Set(prev.map((u) => u.userId));
-              const additions = mockMembers.filter((u) => !existing.has(u.userId));
-              return additions.length > 0 ? [...prev, ...additions] : prev;
-            });
-          }
-        });
+        .catch(() => setMembers([]));
     } else {
       setMembers([]);
     }
-  }, [open, teamUnitId, teamLabel, teamOwnerUserId]);
+  }, [open, teamGroupCd, teamLabel, teamOwnerUserId]);
 
   // メンバーを削除（削除されたメンバーが代表者の場合はクリア）
   const handleRemoveMember = (userId: string) => {
@@ -83,7 +72,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
     const user = allUsers.find((u) => u.userId === userId);
     if (!user) return;
     if (members.some((m) => m.userId === userId)) {
-      message.warning('このメンバーは既に追加されています');
+      message.warning(t('teamEditDialog.addMemberDuplicate'));
       return;
     }
     setMembers((prev) => [...prev, user]);
@@ -92,12 +81,12 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
   const handleSave = async () => {
     if (!teamName.trim()) {
-      message.error('チーム名を入力してください');
+      message.error(t('teamEditDialog.groupNameRequired'));
       return;
     }
 
-    if (!teamUnitId) {
-      message.warning('チームIDが未設定のため、DBへの保存をスキップしました');
+    if (!teamGroupCd) {
+      message.warning(t('teamEditDialog.noGroupCd'));
       onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
       onClose();
       return;
@@ -105,62 +94,44 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
     setLoading(true);
     try {
-      // 1. チーム名を更新
+      // 1. グループ名を更新（変更があった場合のみ）
       if (teamName.trim() !== teamLabel) {
-        const nameRes = await fetch(`/api/v1/department-units/${teamUnitId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ unitName: teamName.trim() }),
+        await updateOrganizationGroup(teamGroupCd, {
+          organization_group_name: teamName.trim(),
         });
-        if (!nameRes.ok) {
-          const err = await nameRes.json().catch(() => ({}));
-          message.error(`チーム名の更新に失敗しました: ${(err as any).error ?? nameRes.status}`);
-          return;
-        }
       }
 
       // 2. メンバーを更新
-      const memRes = await fetch(`/api/v1/department-units/${teamUnitId}/members`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ userIds: members.map((m) => m.userId) }),
-      });
-
-      if (!memRes.ok) {
-        const err = await memRes.json().catch(() => ({}));
-        message.error(`メンバーの更新に失敗しました: ${(err as any).error ?? memRes.status}`);
-        return;
-      }
+      await updateGroupMembers(teamGroupCd, members.map((m) => m.userId));
 
       // 3. 代表者を更新（変更があった場合のみ）
-      if (ownerUserId !== teamOwnerUserId && ownerUserId) {
-        const ownerRes = await fetch(`/api/v1/department-units/${teamUnitId}/owner`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ ownerUserId }),
-        });
-        if (!ownerRes.ok) {
-          const err = await ownerRes.json().catch(() => ({}));
-          message.error(`代表者の更新に失敗しました: ${(err as any).error ?? ownerRes.status}`);
-          return;
-        }
+      if (ownerUserId && ownerUserId !== teamOwnerUserId) {
+        await updateGroupChief(teamGroupCd, ownerUserId);
       }
 
-      message.success(`「${teamName.trim()}」を保存しました（メンバー: ${members.length}名）`);
+      message.success(
+        t('teamEditDialog.saveSuccess', {
+          name: teamName.trim(),
+          count: String(members.length),
+        })
+      );
       onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId);
       onClose();
-    } catch {
-      message.error('保存中にエラーが発生しました');
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
+      if (detail) {
+        message.error(t('teamEditDialog.saveFailed', { detail }));
+      } else {
+        message.error(t('teamEditDialog.saveError'));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   // 追加候補（既に登録済みのメンバーは除外）
-  const memberIds = new Set(members.map((m) => m.userId));
+  const memberIds  = new Set(members.map((m) => m.userId));
   const addOptions = allUsers
     .filter((u) => !memberIds.has(u.userId))
     .map((u) => ({ value: u.userId, label: u.userName }));
@@ -171,29 +142,29 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   return (
     <Modal
       open={open}
-      title="チームを編集"
+      title={t('teamEditDialog.title')}
       onCancel={onClose}
       footer={[
         <Button key="cancel" onClick={onClose} disabled={loading}>
-          キャンセル
+          {t('teamEditDialog.cancelBtn')}
         </Button>,
         <Button key="save" type="primary" loading={loading} onClick={handleSave}>
-          保存
+          {t('teamEditDialog.saveBtn')}
         </Button>,
       ]}
       width={480}
       maskClosable={false}
     >
-      <Space orientation="vertical" style={{ width: '100%' }} size={16}>
+      <Space direction="vertical" style={{ width: '100%' }} size={16}>
 
-        {/* ── チーム名（編集可能） ── */}
+        {/* グループ名（編集可能） */}
         <div>
           <Text strong>
-            チーム名 <Text type="danger">*</Text>
+            {t('teamEditDialog.groupNameLabel')} <Text type="danger">*</Text>
           </Text>
           <Input
             style={{ marginTop: 4 }}
-            placeholder="チーム名を入力..."
+            placeholder={t('teamEditDialog.groupNamePlaceholder')}
             value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
             disabled={loading}
@@ -202,37 +173,37 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
 
         <Divider style={{ margin: '0' }} />
 
-        {/* ── 代表者 ── */}
+        {/* 代表者 */}
         <div>
-          <Text strong>代表者</Text>
+          <Text strong>{t('teamEditDialog.chiefLabel')}</Text>
           <Select
             style={{ width: '100%', marginTop: 4 }}
             placeholder={
               members.length === 0
-                ? 'メンバーを追加してから選択してください'
-                : '代表者を選択...'
+                ? t('teamEditDialog.chiefPlaceholderNoMember')
+                : t('teamEditDialog.chiefPlaceholder')
             }
             value={ownerUserId}
             onChange={(val) => setOwnerUserId(val)}
             options={ownerOptions}
             allowClear
             disabled={loading || members.length === 0}
-            notFoundContent="メンバーがいません"
+            notFoundContent={t('teamEditDialog.chiefNoMembers')}
           />
           {members.length === 0 && (
             <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-              メンバーを追加すると選択できるようになります
+              {t('teamEditDialog.chiefHint')}
             </Text>
           )}
         </div>
 
         <Divider style={{ margin: '0' }} />
 
-        {/* ── 現在のメンバー ── */}
+        {/* 現在のメンバー */}
         <div>
-          <Text strong>現在のメンバー</Text>
+          <Text strong>{t('teamEditDialog.currentMembersLabel')}</Text>
           <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-            （{members.length}名）
+            {t('teamEditDialog.membersCount', { count: String(members.length) })}
           </Text>
           <div
             style={{
@@ -248,7 +219,9 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
             }}
           >
             {members.length === 0 ? (
-              <Text type="secondary" style={{ fontSize: 12 }}>メンバーがいません</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {t('teamEditDialog.noMembers')}
+              </Text>
             ) : (
               members.map((m) => (
                 <Tag
@@ -264,21 +237,25 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
             )}
           </div>
           <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-            × でメンバーを削除できます
+            {t('teamEditDialog.memberRemoveHint')}
           </Text>
         </div>
 
         <Divider style={{ margin: '0' }} />
 
-        {/* ── メンバーを追加 ── */}
+        {/* メンバーを追加 */}
         <div>
-          <Text strong>メンバーを追加</Text>
+          <Text strong>{t('teamEditDialog.addMemberLabel')}</Text>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <Select
               showSearch
               allowClear
               loading={usersLoading}
-              placeholder={usersLoading ? '読み込み中...' : '名前で検索して選択...'}
+              placeholder={
+                usersLoading
+                  ? t('teamEditDialog.addMemberLoading')
+                  : t('teamEditDialog.addMemberPlaceholder')
+              }
               value={addTarget}
               onChange={(val) => setAddTarget(val)}
               options={addOptions}
@@ -286,7 +263,11 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
               }
               style={{ flex: 1 }}
-              notFoundContent={usersLoading ? '読み込み中...' : '候補が見つかりません'}
+              notFoundContent={
+                usersLoading
+                  ? t('teamEditDialog.addMemberLoading')
+                  : t('teamEditDialog.addMemberNotFound')
+              }
               disabled={loading}
             />
             <Button
@@ -294,7 +275,7 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
               disabled={!addTarget || loading}
               onClick={() => addTarget && handleAddMember(addTarget)}
             >
-              追加
+              {t('teamEditDialog.addBtn')}
             </Button>
           </div>
         </div>

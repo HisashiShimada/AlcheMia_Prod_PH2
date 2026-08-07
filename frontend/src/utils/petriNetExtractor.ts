@@ -59,6 +59,7 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
         uuid: t.uuid,
         placeRefs: t.placeRefs,
         templateRef: t.templateRef,
+        insertion: t.insertion,  // ✅ Fix: insertionコピー漏れを修正
       };
 
       // ✅ 全placeRefsをキーとしてマッピング（共通テンプレートの複数place対応）
@@ -92,6 +93,7 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
         uuid: t.uuid,
         placeRefs: t.placeRefs,
         templateRef: t.templateRef,
+        insertion: t.insertion,  // ✅ Fix: insertionコピー漏れを修正
       };
 
       // ✅ 全placeRefsをキーとしてマッピング（共通テンプレートの複数place対応）
@@ -124,6 +126,7 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
         uuid: t.uuid,
         placeRefs: t.placeRefs,
         templateRef: t.templateRef,
+        insertion: t.insertion,  // ✅ Fix: insertionコピー漏れを修正
       };
 
       // ✅ 全placeRefsをキーとしてマッピング（共通テンプレートの複数place対応）
@@ -143,8 +146,8 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
       }
     });
     
-    // const insertionCount = Object.values(templateMap).filter((t: TemplateMapEntry) => t.insertion).length;
-    const insertionCount = 0;
+    // ✅ Fix: insertionCountを実際に集計する（以前ハードコードで無効化されていた）
+    const insertionCount = Object.values(templateMap).filter((t: Template) => t.insertion).length;
     
     console.log('✅ [petriNetExtractor] テンプレートマップ構築完了:', {
       totalTemplates: Object.keys(templateMap).length,

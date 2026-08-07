@@ -78,6 +78,7 @@ import type {
   DirtyFlags,
   ExtractedUuids,
 } from '../../types/editor';
+import {WorkflowProjectSelection} from '@/types/project'
 import type { NodeTypes } from 'reactflow';
 
 // ===== Phase 8: 分離したモジュールをインポート =====
@@ -1848,6 +1849,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         placeRefs: convertedTemplateRef.placeRefs || [],
         templateRef: convertedTemplateRef.templateRef,
         methodId: correctMethodId,
+        insertion: convertedTemplateRef.insertion,  // ✅ 修正: insertion保存漏れを修正
       };
 
       if (window.clineAddTemplate) {
@@ -2022,6 +2024,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             placeRefs: convertedTemplateRef.placeRefs || [],
             templateRef: convertedTemplateRef.templateRef,
             methodId: finalMethodId,
+            insertion: convertedTemplateRef.insertion,  // ✅ 修正: insertion保存漏れを修正
         });
         console.log('✅ [PetriNetEditorInner] TemplateContext更新完了:', {
           oldTemplateId,
@@ -2240,7 +2243,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             const tempNode: Node<NodeData> = {
               id: template.id,
               position: { x: 0, y: 0 }, // ✅ 追加: position必須
-              data: {
+                data: {
                 id: template.id,
                 name: template.name || '',
                 description: template.description || '',
@@ -2258,6 +2261,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   templateRef: template.templateRef,
                   properties: template.properties || [],
                   contents: template.contents || [],
+                  insertion: template.insertion,  // ✅ 修正: insertion引き継ぎ漏れを修正
                 },
                 templateRef: {
                   id: template.id,
@@ -2269,6 +2273,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   templateRef: template.templateRef,
                   properties: template.properties || [],
                   contents: template.contents || [],
+                  insertion: template.insertion,  // ✅ 修正: insertion引き継ぎ漏れを修正
                 },
               },
             };
@@ -2635,7 +2640,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, []);
 
   // ワークフロープロジェクト選択ハンドラー（プロジェクトベース）
-  const handleWorkflowProjectSelect = useCallback(async (selection: import('@/types/project').WorkflowProjectSelection) => {
+  const handleWorkflowProjectSelect = useCallback(async (selection: WorkflowProjectSelection) => {
     console.log('📂 [PetriNetEditorInner] ワークフロープロジェクト選択:', selection.projectId, selection.projectName);
 
     try {
@@ -2680,7 +2685,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
 
           const registerTemplates = (
             category: 'material' | 'condition' | 'result',
-            templateList: import('../../types/maiml-unified').Template[]
+            templateList: Template[]
           ) => {
             templateList.forEach(t => {
               // methodId が未設定の場合はアクティブメソッドの ID を補完
@@ -3320,6 +3325,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         structureTreePanelOpen={structureTreePanelOpen}
         onOpenStructureTree={handleOpenStructureTree}
         onCloseStructureTree={handleCloseStructureTree}
+        editingFileName={editingFileName}
       />
     </TemplateProvider>
     </AttributeDisplayProvider>
@@ -3433,7 +3439,7 @@ interface PetriNetEditorInnerUIProps {
   
   workflowDialogOpen: boolean;
   handleCloseWorkflowDialog: () => void;
-  handleWorkflowProjectSelect: (selection: import('@/types/project').WorkflowProjectSelection) => void;
+  handleWorkflowProjectSelect: (selection: WorkflowProjectSelection) => void;
   
   draftManagerOpen: boolean;
   handleCloseDraftManager: () => void;
@@ -3460,6 +3466,8 @@ interface PetriNetEditorInnerUIProps {
   onOpenStructureTree: () => void;
   /** MaiML構造ツリーパネルを閉じるハンドラ */
   onCloseStructureTree: () => void;
+  /** 編集中のファイル名（TemplateEditorDialog に渡す） */
+  editingFileName?: string;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
@@ -3544,6 +3552,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   currentUserId,
   sourceS3Key,
   projectId,
+  editingFileName,
   lastAddedNodeId,
   insertionPanelOpen,
   onOpenInsertionPanel,
@@ -3757,7 +3766,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
               multiMethodMode={false}
               methods={methods}
               activeMethodIndex={activeMethodIndex}
-              projectId={projectId}
+              projectId={projectId ?? ''}
             />
           ) : null}
 
@@ -3814,6 +3823,8 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
             return nodes;
           })()}
           templateErrors={templateErrors}
+          editingFileName={editingFileName}
+          sourceS3Key={sourceS3Key}
         />
 
         {/* Document編集ダイアログ */}

@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { generateNamespaceUri } from '@/utils/namespaceUriGenerator';
 import type { Level, NamespaceFormValues, NamespaceAddDialogProps } from '@/types/namespace';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -69,6 +70,7 @@ const validateUri = (_: unknown, value: string) => {
 // コンポーネント
 // ──────────────────────────────────────────────
 const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, onRegistered }) => {
+  const { t } = useLanguage();
   const [form]  = Form.useForm<NamespaceFormValues>();
   const [level, setLevel] = useState<Level>('organization');
 
@@ -91,7 +93,7 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
     // モック: 実際は OAuth2 ポップアップで取得
     const orcidId = '0000-0002-2494-9603';
     form.setFieldValue('uri', `https://orcid.org/${orcidId}`);
-    message.success('ORCIDからURIを自動入力しました');
+    message.success(t('namespaceAdd.orcidAutoFilled'));
   };
 
   const handleSubmit = async () => {
@@ -104,7 +106,7 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
       onRegistered(values);
       form.resetFields();
       setLevel('organization');
-      message.success(`名前空間「${values.prefix}」を登録しました`);
+      message.success(t('namespaceAdd.registerSuccess', { prefix: values.prefix }));
     } catch {
       // バリデーションエラーは Form が表示
     }

@@ -127,7 +127,11 @@ function buildPropertyRows(tasks: MockTask[]): PropertyRow[] {
             xsiType: prop.xsiType,
             unit: prop.unit,
             section,
-            actual: taskTransition.actuals[prop.key] ?? null,
+            actual: (() => {
+              const v = taskTransition.actuals[prop.key] ?? null;
+              // Insertion / DataGrid はプロパティ値として使わない
+              return (v !== null && typeof v === 'object') ? null : (v as string | number | null);
+            })(),
           });
         });
       });
