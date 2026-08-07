@@ -84,6 +84,19 @@ export interface FlatDeptRow {
 // ──────────────────────────────────────────────
 
 /**
+ * CSVインポート時の1行パース結果
+ */
+export interface TermCsvParsedRow {
+  prefix: string;
+  localName: string;
+  displayName: string;
+  displayNameEn: string;
+  description: string;
+  type: string;
+  unitHint: string;
+}
+
+/**
  * 名前空間用語
  */
 export interface Term {
@@ -529,29 +542,6 @@ export interface TermEditValues {
   unitHint: string;
 }
 
-/**
- * 用語 CSV インポートの解析行（NamespaceMain）
- *
- * @remarks
- * NamespaceMain.tsx のCSVインポート処理で各行をパースした結果を表す
- */
-export interface TermCsvParsedRow {
-  /** 名前空間 Prefix */
-  prefix: string;
-  /** ローカル名 */
-  localName: string;
-  /** 表示名（日本語） */
-  displayName: string;
-  /** 表示名（英語） */
-  displayNameEn: string;
-  /** 説明 */
-  description: string;
-  /** 型ヒント */
-  type: string;
-  /** 単位ヒント */
-  unitHint: string;
-}
-
 // ──────────────────────────────────────────────
 // TeamAddDialog
 // ──────────────────────────────────────────────
@@ -635,58 +625,7 @@ export interface DepartmentTreeManagementProps {
 // organization_group（部署管理タブ）
 // ──────────────────────────────────────────────
 
-/**
- * organization_group テーブルの行型
- *
- * @remarks
- * DDL: docs/design/db/ddl/organization_group.sql
- * 主キー: (organization_id, organization_group_cd)
- */
-export interface OrganizationGroupRow {
-  /** 組織ID（UUID） */
-  organization_id: string;
-  /** 組織階層グループCD */
-  organization_group_cd: string;
-  /** 組織階層グループ名 */
-  organization_group_name: string;
-  /** 代表者ユーザID */
-  chief_user_id: string;
-  /** 親階層グループCD（ルートの場合は null） */
-  parent_group_cd: string | null;
-  /** レイヤー */
-  layer: string | null;
-  /** 作成日時 */
-  create_at?: string;
-  /** 更新日時 */
-  update_at?: string;
-}
-
-/**
- * organization_group 新規作成リクエスト
- */
-export interface CreateOrganizationGroupRequest {
-  /** 組織階層グループCD */
-  organization_group_cd: string;
-  /** 組織階層グループ名 */
-  organization_group_name: string;
-  /** 親階層グループCD */
-  parent_group_cd?: string | null;
-  /** レイヤー */
-  layer?: string | null;
-}
-
-/**
- * organization_group 更新リクエスト
- */
-export interface UpdateOrganizationGroupRequest {
-  /** 組織階層グループ名 */
-  organization_group_name?: string;
-  /** 親階層グループCD */
-  parent_group_cd?: string | null;
-  /** レイヤー */
-  layer?: string | null;
-}
-// OrganizationGroupRow / CreateOrganizationGroupRequest / UpdateOrganizationGroupRequest は team.ts に移行済み
+// OrganizationGroupRow / CreateOrganizationGroupRequest / UpdateOrganizationGroupRequest は team.ts に定義済み
 export type {
   OrganizationGroupRow,
   CreateOrganizationGroupRequest,

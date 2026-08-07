@@ -1229,7 +1229,8 @@
       "cannotChangeOrder": "チェックアウト済みのメソッドは順序変更できません",
       "fetchFailed": "タスク登録情報の取得に失敗しました",
       "saveFailed": "タスク情報の保存に失敗しました"
-    }
+    },
+    "saveMockSuccess": "タスク登録を保存しました（モック）"
   },
   "corporationManagement": {
     "title": "会社管理",
@@ -1379,7 +1380,9 @@
       "namespacePrefixPlaceholder": "例: MyCompany",
       "namespaceUri": "名前空間URI",
       "namespaceUriPlaceholder": "例: https://www.example.com/",
-      "namespaceUriRequired": "名前空間Prefixを入力した場合、URIも入力してください"
+      "namespaceUriRequired": "名前空間Prefixを入力した場合、URIも入力してください",
+      "namespaceUriAutoGenLabel": "名前空間URI（自動生成）",
+      "namespaceUriAutoGenPlaceholder": "組織CDを入力すると自動生成されます"
     },
     "messages": {
       "fetchError": "組織データの取得に失敗しました",
@@ -1507,7 +1510,12 @@
       "namespaceUri": "名前空間URI",
       "namespaceUriPlaceholder": "例: https://www.example.com/",
       "namespaceUriRequired": "名前空間Prefixを入力した場合、URIも入力してください",
-      "namespaceInfo": "Namespace Information"
+      "namespaceInfo": "Namespace Information",
+      "namespaceUriAutoGenLabel": "名前空間URI（自動生成）",
+      "namespaceUriAutoGenPlaceholder": "ORCIDを入力すると自動生成されます",
+      "namespaceUriLabel": "名前空間URI",
+      "namespaceUriNotSet": "未設定",
+      "userNamePlaceholder": "ユーザー名を入力"
     },
     "messages": {
       "fetchError": "ユーザー一覧の取得に失敗しました",
@@ -2359,7 +2367,9 @@
       "childKeyDuplicate": "キー「{key}」は既に存在します",
       "importFailed": "取り込みに失敗しました: {error}",
       "nsPropsImported": "{count}件のプロパティを取り込みました",
-      "nsContentsImported": "{count}件のコンテンツを取り込みました"
+      "nsContentsImported": "{count}件のコンテンツを取り込みました",
+      "xmlParseError": "XMLの解析に失敗しました",
+      "xmlSaveError": "XMLの保存に失敗しました"
     },
     "templateXml": {
       "parseError": "XML形式が不正です",
@@ -2868,7 +2878,9 @@
     "noName": "(名前なし)",
     "propKeyPlaceholder": "プロパティキー（例: compound, concentration）",
     "tagNamePlaceholder": "タグ名を選択",
-    "nsDuplicateCount": "⚠️ 重複するプロパティキーが {count} 件あります"
+    "nsDuplicateCount": "⚠️ 重複するプロパティキーが {count} 件あります",
+    "uncertaintyApplied": "不確かさを付与しました",
+    "uncertaintyDeleted": "不確かさを削除しました"
   },
   "formatSearch": {
     "title": "フォーマットファイル詳細検索",
@@ -3393,7 +3405,11 @@
       "filterStatus": "ステータス",
       "filterStatusAll": "すべて",
       "mockUserNsKeyNote": "ログインユーザーの名前空間キー（モック - 本番は認証APIから取得）",
-      "fetchError": "不確かさ基準一覧の取得に失敗しました"
+      "fetchError": "不確かさ基準一覧の取得に失敗しました",
+      "ctxMenuAddTeam": "チームを追加",
+      "scopeAll": "すべて",
+      "toastTeamCreated": "チームを作成しました",
+      "toastTeamUpdated": "チームを更新しました"
     },
     "listTable": {
       "columnKey": "キー",
@@ -3563,7 +3579,8 @@
       "method": "メソッド別",
       "task": "タスク別",
       "transitionMethod": "トランジション（メソッド別）",
-      "transitionTask": "トランジション（タスク別）"
+      "transitionTask": "トランジション（タスク別）",
+      "all": "すべて"
     },
     "unitFilter": {
       "all": "すべて",
@@ -3583,7 +3600,8 @@
       "projectName": "プロジェクト名",
       "methodName": "メソッド名",
       "taskLabel": "タスク",
-      "transitionLabel": "トランジション"
+      "transitionLabel": "トランジション",
+      "evalValue": "評価値"
     },
     "labels": {
       "evalUnit": "評価単位:",
@@ -3622,7 +3640,9 @@
       "noMatchingResults": "条件に一致する評価結果がありません"
     },
     "loading": "評価結果を読み込み中...",
-    "tagQualitative": "定性"
+    "tagQualitative": "定性",
+    "tabLabel": "評価",
+    "title": "評価登録"
   },
   "projectCompletion": {
     "modalTitle": "プロジェクト完了処理",
@@ -3649,7 +3669,16 @@
     "execute": "Complete",
     "success": "Project completed successfully",
     "failed": "Failed to complete project",
-    "loading": "Processing..."
+    "loading": "Processing...",
+    "colComment": "コメント",
+    "colQualitative": "定性評価",
+    "colTarget": "対象",
+    "description": "全トランジションの評価を登録してプロジェクトを完了します。",
+    "entireProject": "プロジェクト全体",
+    "noEvalTarget": "評価対象がありません",
+    "projectWholeLabel": "プロジェクト全体",
+    "saveNote": "※ 評価値が入力された行のみ保存されます。",
+    "unevaluated": "─ 未評価"
   },
   "approvalWizard": {
     "title": "承認",
@@ -3663,7 +3692,15 @@
     "comment": "コメント",
     "commentPlaceholder": "コメントを入力してください（任意）",
     "confirmApprove": "承認してもよいですか？",
-    "confirmReject": "却下してもよいですか？"
+    "confirmReject": "却下してもよいですか？",
+    "execute": "実行",
+    "methodName": "メソッド名",
+    "methodNamePlaceholder": "メソッドを選択",
+    "ng": "NG",
+    "ngReasonPlaceholder": "NG理由を入力してください（必須）",
+    "selectAction": "操作を選択:",
+    "taskNumber": "タスク番号",
+    "taskNumberPlaceholder": "番号を選択"
   },
   "createProject": {
     "title": "プロジェクト作成",
@@ -4482,7 +4519,23 @@
     "showTotal": "全 {total} 件",
     "nsRegistered": "名前空間「{prefix}」を登録しました",
     "teamCreated": "チーム「{teamName}」を作成しました（メンバー: {count}名）",
-    "teamUpdated": "「{name}」を更新しました（メンバー: {count}名）"
+    "teamUpdated": "「{name}」を更新しました（メンバー: {count}名）",
+    "activateSuccess": "有効化しました",
+    "bulkDeactivateContent": "選択した名前空間を無効化します。よろしいですか？",
+    "bulkDeactivateSuccess": "一括無効化しました",
+    "bulkDeactivateTitle": "一括無効化の確認",
+    "cancel": "キャンセル",
+    "csvEmpty2": "CSVファイルが空です",
+    "csvImportPartial2": "一部のデータをインポートしました（{{success}}件成功、{{error}}件失敗）",
+    "csvImportSuccess2": "CSVをインポートしました（{{count}}件）",
+    "csvNoData2": "インポート可能なデータがありません",
+    "csvParseError2": "CSVの解析に失敗しました",
+    "deactivate": "無効化",
+    "deactivateSuccess": "無効化しました",
+    "groupCreated": "グループを作成しました",
+    "memberUpdated": "メンバーを更新しました",
+    "nsRegisterSuccess": "名前空間を登録しました",
+    "term": "用語"
   },
   "prefixManagement": {
     "fetchError": "名前空間一覧の取得に失敗しました",
@@ -4708,5 +4761,183 @@
     "addOption": "Add Option",
     "removeOption": "Remove",
     "optionPlaceholder": "Enter option"
+  },
+  "departmentTree": {
+    "nodeAdded": "部署ノード「{{label}}」を追加しました",
+    "nodeDeleted": "「{{label}}」を削除しました",
+    "nodeUpdated": "部署ノードを更新しました",
+    "prefixRequired": "Prefixは必須です"
+  },
+  "encryption": {
+    "decryptFailed": "復号化に失敗しました",
+    "decryptPreviewFailed": "復号プレビューに失敗しました",
+    "decryptSuccess": "復号化しました",
+    "encryptFailed": "暗号化に失敗しました",
+    "encryptSuccess": "暗号化しました",
+    "keyCreate": {
+      "failed": "鍵の作成に失敗しました",
+      "success": "鍵を作成しました"
+    },
+    "keyExport": {
+      "failed": "鍵のエクスポートに失敗しました",
+      "success": "鍵をエクスポートしました"
+    },
+    "keyImport": {
+      "failed": "鍵のインポートに失敗しました",
+      "fileRequired": "ファイルを選択してください",
+      "invalidFormat": "鍵ファイルの形式が無効です",
+      "readFailed": "ファイルの読み込みに失敗しました",
+      "success": "鍵をインポートしました"
+    },
+    "keyManage": {
+      "deleteFailed": "鍵の削除に失敗しました",
+      "deleteSuccess": "鍵を削除しました"
+    },
+    "keyRequired": "鍵を選択してください",
+    "keyRotate": {
+      "failed": "鍵のローテーションに失敗しました"
+    },
+    "previewFailed": "プレビューの取得に失敗しました"
+  },
+  "experimentPlan": {
+    "exportSuccess": "エクスポートしました",
+    "importSuccess": "インポートしました",
+    "jsonParseFailed": "JSONの解析に失敗しました",
+    "loadFailed": "読み込みに失敗しました",
+    "saveFailed": "保存に失敗しました",
+    "saveSuccess": "保存しました"
+  },
+  "experimentWorker": {
+    "startFailed": "開始に失敗しました",
+    "switchFailed": "切り替えに失敗しました"
+  },
+  "namespaceAdd": {
+    "orcidAutoFilled": "ORCIDから情報を自動入力しました",
+    "registerSuccess": "名前空間を登録しました"
+  },
+  "namespaceDetail": {
+    "prefixRequired": "Prefixは必須です",
+    "saveNsSuccess": "名前空間を保存しました",
+    "saveTermSuccess": "用語を保存しました",
+    "uriRequired": "URIは必須です"
+  },
+  "signature": {
+    "deleteFailed": "署名の削除に失敗しました",
+    "deleteSuccess": "署名を削除しました",
+    "loadFailed": "署名情報の読み込みに失敗しました",
+    "signFailed": "署名に失敗しました",
+    "signSuccess": "署名しました"
+  },
+  "teamAddDialog": {
+    "addBtn": "メンバーを追加",
+    "addMemberDuplicate": "このユーザーは既にメンバーです",
+    "addMemberLabel": "メンバーを追加",
+    "addMemberLoading": "検索中...",
+    "addMemberNotFound": "ユーザーが見つかりません",
+    "addMemberPlaceholder": "ユーザー名またはメールで検索",
+    "cancelBtn": "キャンセル",
+    "createBtn": "作成",
+    "createError": "チームの作成に失敗しました",
+    "createFailed": "チームの作成に失敗しました",
+    "createSuccess": "チームを作成しました",
+    "groupCdLabel": "グループCD",
+    "groupCdPlaceholder": "グループCDを入力",
+    "groupCdRequired": "グループCDを入力してください",
+    "groupNameLabel": "グループ名",
+    "groupNamePlaceholder": "グループ名を入力",
+    "groupNameRequired": "グループ名を入力してください",
+    "memberRemoveHint": "クリックしてメンバーを削除",
+    "memberSetFailed": "メンバーの設定に失敗しました",
+    "membersCount": "{{count}}名",
+    "membersLabel": "メンバー",
+    "parentGroupLabel": "親グループ",
+    "parentGroupOptional": "（任意）",
+    "parentGroupPlaceholder": "親グループを選択（任意）",
+    "title": "チームを追加"
+  },
+  "teamEditDialog": {
+    "addBtn": "メンバーを追加",
+    "addMemberDuplicate": "このユーザーは既にメンバーです",
+    "addMemberLabel": "メンバーを追加",
+    "addMemberLoading": "検索中...",
+    "addMemberNotFound": "ユーザーが見つかりません",
+    "addMemberPlaceholder": "ユーザー名またはメールで検索",
+    "cancelBtn": "キャンセル",
+    "chiefHint": "チームの代表者を設定します",
+    "chiefLabel": "代表者",
+    "chiefNoMembers": "メンバーがいません",
+    "chiefPlaceholder": "代表者を選択",
+    "chiefPlaceholderNoMember": "先にメンバーを追加してください",
+    "currentMembersLabel": "現在のメンバー",
+    "groupNameLabel": "グループ名",
+    "groupNamePlaceholder": "グループ名を入力",
+    "groupNameRequired": "グループ名を入力してください",
+    "memberRemoveHint": "クリックしてメンバーを削除",
+    "membersCount": "{{count}}名",
+    "noGroupCd": "グループCDが設定されていません",
+    "noMembers": "メンバーがいません",
+    "saveBtn": "保存",
+    "saveError": "保存に失敗しました",
+    "saveFailed": "チームの保存に失敗しました",
+    "saveSuccess": "チームを更新しました",
+    "title": "チームを編集"
+  },
+  "teamManagement": {
+    "chiefLabel": "代表者",
+    "chiefNotSet": "未設定",
+    "colUserName": "ユーザー名",
+    "createGroupBtn": "グループを追加",
+    "deleteCancel": "キャンセル",
+    "deleteConfirmDesc": "このグループを削除します。この操作は取り消せません。",
+    "deleteConfirmTitle": "「{{name}}」を削除しますか？",
+    "deleteError": "グループの削除に失敗しました",
+    "deleteFailed": "グループの削除に失敗しました",
+    "deleteOk": "削除",
+    "deleteSuccess": "グループを削除しました",
+    "editBtn": "編集",
+    "fetchFailed": "グループ情報の取得に失敗しました",
+    "groupCdLabel": "グループCD",
+    "groupListTitle": "グループ一覧",
+    "memberCount": "{{count}}名",
+    "memberFetchFailed": "メンバー情報の取得に失敗しました",
+    "membersCount": "{{count}}名",
+    "membersLabel": "メンバー",
+    "noGroups": "グループがありません",
+    "noMembers": "メンバーがいません",
+    "parentGroupLabel": "親グループ",
+    "selectPrompt": "グループを選択してください"
+  },
+  "uncertaintyExport": {
+    "alertMessage": "エクスポート設定を選択してください",
+    "btnCancel": "キャンセル",
+    "btnDownload": "ダウンロード",
+    "formatLabel": "フォーマット",
+    "optionIncludeDesc": "説明を含める",
+    "optionIncludeExtends": "継承情報を含める",
+    "optionIncludeHistory": "履歴を含める",
+    "optionsLabel": "オプション",
+    "startDemo": "デモを開始",
+    "title": "不確かさ基準エクスポート"
+  },
+  "uncertaintyImport": {
+    "alertDesc": "インポートするファイルを選択してください",
+    "alertTitle": "インポートの準備",
+    "btnCancel": "キャンセル",
+    "btnExecute": "インポート実行",
+    "description": "不確かさ基準データをインポートします",
+    "dropHint": "または、ここにファイルをドロップ",
+    "dropText": "ファイルを選択またはドラッグ＆ドロップ",
+    "formatLabel": "ファイル形式",
+    "scopeLabel": "スコープ",
+    "scopeOptionCompany": "会社",
+    "scopeOptionMaterial": "材料",
+    "scopeOptionMeasurement": "測定",
+    "scopeOptionPersonal": "個人",
+    "startDemo": "デモを開始",
+    "title": "不確かさ基準インポート"
+  },
+  "workflowSelectorDialog": {
+    "loadFailed": "ワークフローの読み込みに失敗しました",
+    "selectRequired": "ワークフローを選択してください"
   }
 }

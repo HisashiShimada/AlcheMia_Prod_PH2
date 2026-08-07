@@ -15,8 +15,7 @@ import {
 } from '@ant-design/icons';
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
-import { getTerms, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName } from '@/services/namespaceApiService';
-import { createApiClient } from '@/utils/authUtils';
+import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import TeamManagementPanel from '../team/TeamManagementPanel';
@@ -737,10 +736,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── 初回マウント時に属性テーブルから単位一覧を取得（失敗時はダミーデータにフォールバック）
   useEffect(() => {
-    fetch('/api/v1/master/attribute', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((json: { success: boolean; data: AttributeMaster[] }) => {
-        const units = json.data
+    getAttributeMaster()
+      .then((items) => {
+        const units = items
           .filter((a) => a.isActive)
           .map((a) => a.attributeValue);
         // データが0件の場合はフォールバックデータを使用
@@ -938,11 +936,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       });
     }
 
-    const apiClient = createApiClient();
     const added: Term[] = [];
     for (const row of newTerms) {
       try {
-        const response = await apiClient.post<Term>('/namespaces/terms', {
+        const saved = await createTerm({
           prefix:        row.prefix,
           localName:     row.localName,
           displayNameJa: row.displayName,
@@ -950,7 +947,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           typeHint:      row.type || 'stringType',
           unitHint:      row.unitHint,
         });
-        added.push(response.data);
+        added.push(saved as Term);
       } catch (err: unknown) {
         const status = (err as any)?.response?.status;
         const errData = (err as any)?.response?.data?.error;
@@ -991,18 +988,18 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (!editingValues.localName) { message.error(t('namespaceMain.localNameRequired2')); return; }
 
     try {
-      const apiClient = createApiClient();
-      const response = await apiClient.put<Term>(
-        `/namespaces/terms/${encodeURIComponent(editingValues.prefix)}/${encodeURIComponent(editingValues.localName)}`,
+      const updated = await updateTerm(
+        editingValues.prefix,
+        editingValues.localName,
         {
-        localName:     editingValues.localName,
-        displayNameJa: editingValues.displayName,
-        description:   editingValues.description,
-        typeHint:      editingValues.type,
-        unitHint:      editingValues.unitHint,
-      });
-      const updated: Term = response.data;
-      setTerms((prev) => prev.map((t) => t.id === editingTermId ? updated : t));
+          localName:     editingValues.localName,
+          displayNameJa: editingValues.displayName,
+          description:   editingValues.description,
+          typeHint:      editingValues.type,
+          unitHint:      editingValues.unitHint,
+        }
+      );
+      setTerms((prev) => prev.map((t) => t.id === editingTermId ? (updated as Term) : t));
       setEditingTermId(null);
       message.success(t('namespaceMain.updateSuccess'));
     } catch (err: unknown) {
@@ -1097,10 +1094,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const added: Term[] = [];
     const failed: string[] = [];
 
-    const apiClient = createApiClient();
     for (const term of targetTerms) {
       try {
-        const response = await apiClient.post<Term>('/namespaces/terms', {
+        const saved = await createTerm({
           prefix:        target.prefix,
           localName:     term.localName,
           displayNameJa: term.displayName,
@@ -1108,7 +1104,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           typeHint:      term.type,
           unitHint:      term.unitHint,
         });
-        added.push(response.data);
+        added.push(saved as Term);
       } catch {
         failed.push(term.localName);
       }
@@ -1457,6 +1453,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             prefix:        prefix        ?? '',
             localName:     localName     ?? '',
             displayName:   displayName   ?? '',
+            displayNameEn: '',
             description:   description   ?? '',
             type:          type          ?? 'stringType',
             unitHint:      unitHint      ?? '',
@@ -1468,11 +1465,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         // 各行を API で DB に保存
         const added: Term[] = [];
         const failed: string[] = [];
-        const apiClient = createApiClient();
 
         for (const row of rows) {
           try {
-            const response = await apiClient.post<Term>('/namespaces/terms', {
+            const saved = await createTerm({
               prefix:        row.prefix,
               localName:     row.localName,
               displayNameJa: row.displayName,
@@ -1480,7 +1476,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               typeHint:      row.type || 'stringType',
               unitHint:      row.unitHint,
             });
-            added.push(response.data);
+            added.push(saved as Term);
           } catch {
             failed.push(row.localName);
           }

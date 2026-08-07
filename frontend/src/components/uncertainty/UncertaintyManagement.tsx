@@ -33,14 +33,14 @@ interface NamespaceNode {
 // localStorage の userInfo から organizationName を取得する
 // ──────────────────────────────────────────────
 const getOrganizationNameFromStorage = (): string => {
-  if (typeof window === 'undefined') return '組織';
+  if (typeof window === 'undefined') return 'Organization';
   try {
     const raw = localStorage.getItem('userInfo');
-    if (!raw) return '組織';
+    if (!raw) return 'Organization';
     const info = JSON.parse(raw) as { organizationName?: string };
-    return info.organizationName ?? '組織';
+    return info.organizationName ?? 'Organization';
   } catch {
-    return '組織';
+    return 'Organization';
   }
 };
 

@@ -96,6 +96,8 @@ export interface NamespaceTermRow {
 export interface TermUpsertRequest {
   prefix: string;
   localName: string;
+  /** 日本語表示名（バックエンドが受け付けるフィールド名） */
+  displayNameJa?: string;
   displayName?: string;
   description?: string;
   typeHint?: string;
@@ -543,6 +545,44 @@ export const deleteOrganizationGroup = async (groupCd: string): Promise<void> =>
   console.log('🏢 [namespaceApiService] 組織階層グループ削除:', groupCd);
 
   await client.delete(`/organization-groups/${encodeURIComponent(groupCd)}`);
+};
+
+// ============================================================================
+// API 関数 — 属性マスター
+// ============================================================================
+
+/**
+ * 属性マスター行の型定義
+ */
+export interface AttributeMaster {
+  attributeValue: string;
+  isActive: boolean;
+}
+
+/**
+ * 属性マスター一覧を取得する（単位フィルター用）
+ *
+ * @remarks
+ * バックエンドの GET /api/v1/master/attribute を呼び出す。
+ * 用語管理画面の単位フィルタープルダウンに使用する。
+ *
+ * @returns アクティブな属性マスター一覧
+ */
+export const getAttributeMaster = async (): Promise<AttributeMaster[]> => {
+  const client = createApiClient();
+
+  try {
+    console.log('🔖 [namespaceApiService] 属性マスター一覧取得');
+
+    const response = await client.get<{ success: boolean; data: AttributeMaster[] }>(
+      '/master/attribute'
+    );
+
+    return response.data?.data ?? [];
+  } catch (error) {
+    console.warn('⚠️ [namespaceApiService] 属性マスター一覧の取得に失敗しました:', error);
+    return [];
+  }
 };
 
 /**

@@ -873,7 +873,8 @@
       "cannotChangeOrder": "Cannot change order of checked-out methods",
       "fetchFailed": "Failed to fetch task registration information",
       "saveFailed": "Failed to save task information"
-    }
+    },
+    "saveMockSuccess": "Task registration saved (mock)"
   },
   "corporationManagement": {
     "title": "Corporation Management",
@@ -1023,7 +1024,9 @@
       "namespacePrefixPlaceholder": "e.g. MyCompany",
       "namespaceUri": "Namespace URI",
       "namespaceUriPlaceholder": "e.g. https://www.example.com/",
-      "namespaceUriRequired": "If you enter a Namespace Prefix, you must also enter a URI"
+      "namespaceUriRequired": "If you enter a Namespace Prefix, you must also enter a URI",
+      "namespaceUriAutoGenLabel": "Namespace URI (Auto-generated)",
+      "namespaceUriAutoGenPlaceholder": "Auto-generated when organization CD is entered"
     },
     "messages": {
       "fetchError": "Failed to fetch organization data",
@@ -1151,7 +1154,12 @@
       "namespacePrefixHelp": "Register a user-specific namespace prefix (optional)",
       "namespaceUri": "Namespace URI",
       "namespaceUriPlaceholder": "e.g. https://www.example.com/",
-      "namespaceUriRequired": "If you enter a Namespace Prefix, you must also enter a URI"
+      "namespaceUriRequired": "If you enter a Namespace Prefix, you must also enter a URI",
+      "namespaceUriAutoGenLabel": "Namespace URI (Auto-generated)",
+      "namespaceUriAutoGenPlaceholder": "Auto-generated when ORCID is entered",
+      "namespaceUriLabel": "Namespace URI",
+      "namespaceUriNotSet": "Not Set",
+      "userNamePlaceholder": "Enter username"
     },
     "messages": {
       "fetchError": "Failed to fetch user list",
@@ -2000,7 +2008,9 @@
       "childKeyDuplicate": "Key \"{key}\" already exists",
       "importFailed": "Import failed: {error}",
       "nsPropsImported": "Imported {count} properties",
-      "nsContentsImported": "Imported {count} contents"
+      "nsContentsImported": "Imported {count} contents",
+      "xmlParseError": "Failed to parse XML",
+      "xmlSaveError": "Failed to save XML"
     },
     "templateXml": {
       "parseError": "Invalid XML format",
@@ -2518,7 +2528,9 @@
     "noName": "(no name)",
     "propKeyPlaceholder": "Property key (e.g. compound, concentration)",
     "tagNamePlaceholder": "Select tag name",
-    "nsDuplicateCount": "⚠️ {count} duplicate property key(s) found"
+    "nsDuplicateCount": "⚠️ {count} duplicate property key(s) found",
+    "uncertaintyApplied": "Uncertainty applied",
+    "uncertaintyDeleted": "Uncertainty deleted"
   },
   "nestedPropertyEditor": {
     "addAttribute": "Attribute",
@@ -2969,7 +2981,11 @@
       "filterStatus": "Status",
       "filterStatusAll": "All",
       "mockUserNsKeyNote": "Current user namespace key (mock - replace with auth API in production)",
-      "fetchError": "Failed to fetch uncertainty criteria list"
+      "fetchError": "Failed to fetch uncertainty criteria list",
+      "ctxMenuAddTeam": "Add Team",
+      "scopeAll": "All",
+      "toastTeamCreated": "Team created",
+      "toastTeamUpdated": "Team updated"
     },
     "listTable": {
       "columnKey": "Key",
@@ -3133,7 +3149,8 @@
       "method": "By Method",
       "task": "By Task",
       "transitionMethod": "Transition (by Method)",
-      "transitionTask": "Transition (by Task)"
+      "transitionTask": "Transition (by Task)",
+      "all": "All"
     },
     "labels": {
       "evalUnit": "Evaluation Unit:",
@@ -3161,7 +3178,8 @@
       "projectName": "Project Name",
       "methodName": "Method Name",
       "taskLabel": "Task",
-      "transitionLabel": "Transition"
+      "transitionLabel": "Transition",
+      "evalValue": "Evaluation Value"
     },
     "messages": {
       "selectCriteriaFirst": "Please select an uncertainty criteria",
@@ -3198,7 +3216,9 @@
       "transitionMethod": "Transition (by Method)",
       "transitionTask": "Transition (by Task)"
     },
-    "tagQualitative": "Qualitative"
+    "tagQualitative": "Qualitative",
+    "tabLabel": "Evaluation",
+    "title": "Evaluation Registration"
   },
   "projectCompletion": {
     "title": "Project Completion",
@@ -3225,7 +3245,16 @@
     "maimlWriteWarning": "評価データの MAiML 書き込みに失敗しました（完了処理は続行します）",
     "completeFailed": "プロジェクト完了処理に失敗しました",
     "cancelButton": "キャンセル",
-    "completeButton": "プロジェクトを完了する"
+    "completeButton": "プロジェクトを完了する",
+    "colComment": "Comment",
+    "colQualitative": "Qualitative Evaluation",
+    "colTarget": "Target",
+    "description": "Register evaluations for all transitions to complete the project.",
+    "entireProject": "Entire Project",
+    "noEvalTarget": "No evaluation targets",
+    "projectWholeLabel": "Entire Project",
+    "saveNote": "* Only rows with evaluation values will be saved.",
+    "unevaluated": "─ Not Evaluated"
   },
   "approvalWizard": {
     "title": "Approval",
@@ -3239,7 +3268,15 @@
     "comment": "Comment",
     "commentPlaceholder": "Enter comment (optional)",
     "confirmApprove": "Approve this?",
-    "confirmReject": "Reject this?"
+    "confirmReject": "Reject this?",
+    "execute": "Execute",
+    "methodName": "Method Name",
+    "methodNamePlaceholder": "Select Method",
+    "ng": "NG",
+    "ngReasonPlaceholder": "Enter NG reason (required)",
+    "selectAction": "Select Action:",
+    "taskNumber": "Task Number",
+    "taskNumberPlaceholder": "Select Number"
   },
   "termManagement": {
     "csv": {
@@ -4655,7 +4692,23 @@
     "showTotal": "Total {total} items",
     "nsRegistered": "Namespace \"{prefix}\" registered",
     "teamCreated": "Team \"{teamName}\" created ({count} members)",
-    "teamUpdated": "\"{name}\" updated ({count} members)"
+    "teamUpdated": "\"{name}\" updated ({count} members)",
+    "activateSuccess": "Activated successfully",
+    "bulkDeactivateContent": "Are you sure you want to deactivate the selected namespaces?",
+    "bulkDeactivateSuccess": "Bulk deactivation completed",
+    "bulkDeactivateTitle": "Confirm Bulk Deactivation",
+    "cancel": "Cancel",
+    "csvEmpty2": "CSV file is empty",
+    "csvImportPartial2": "Partial import completed ({{success}} succeeded, {{error}} failed)",
+    "csvImportSuccess2": "CSV imported successfully ({{count}} items)",
+    "csvNoData2": "No importable data found",
+    "csvParseError2": "Failed to parse CSV",
+    "deactivate": "Deactivate",
+    "deactivateSuccess": "Deactivated successfully",
+    "groupCreated": "Group created successfully",
+    "memberUpdated": "Members updated successfully",
+    "nsRegisterSuccess": "Namespace registered successfully",
+    "term": "Term"
   },
   "namespaceTree": {
     "company": "Organization"
@@ -4708,5 +4761,183 @@
     "emptyText": "No data",
     "showTotal": "Total {total} items",
     "updateError": "Failed to update"
+  },
+  "departmentTree": {
+    "nodeAdded": "Department node \"{{label}}\" has been added",
+    "nodeDeleted": "\"{{label}}\" has been deleted",
+    "nodeUpdated": "Department node updated",
+    "prefixRequired": "Prefix is required"
+  },
+  "encryption": {
+    "decryptFailed": "Decryption failed",
+    "decryptPreviewFailed": "Decryption preview failed",
+    "decryptSuccess": "Decrypted successfully",
+    "encryptFailed": "Encryption failed",
+    "encryptSuccess": "Encrypted successfully",
+    "keyCreate": {
+      "failed": "Failed to create key",
+      "success": "Key created successfully"
+    },
+    "keyExport": {
+      "failed": "Failed to export key",
+      "success": "Key exported successfully"
+    },
+    "keyImport": {
+      "failed": "Failed to import key",
+      "fileRequired": "Please select a file",
+      "invalidFormat": "Invalid key file format",
+      "readFailed": "Failed to read file",
+      "success": "Key imported successfully"
+    },
+    "keyManage": {
+      "deleteFailed": "Failed to delete key",
+      "deleteSuccess": "Key deleted successfully"
+    },
+    "keyRequired": "Please select a key",
+    "keyRotate": {
+      "failed": "Failed to rotate key"
+    },
+    "previewFailed": "Failed to get preview"
+  },
+  "experimentPlan": {
+    "exportSuccess": "Exported successfully",
+    "importSuccess": "Imported successfully",
+    "jsonParseFailed": "Failed to parse JSON",
+    "loadFailed": "Failed to load",
+    "saveFailed": "Failed to save",
+    "saveSuccess": "Saved successfully"
+  },
+  "experimentWorker": {
+    "startFailed": "Failed to start",
+    "switchFailed": "Failed to switch"
+  },
+  "namespaceAdd": {
+    "orcidAutoFilled": "Auto-filled from ORCID",
+    "registerSuccess": "Namespace registered successfully"
+  },
+  "namespaceDetail": {
+    "prefixRequired": "Prefix is required",
+    "saveNsSuccess": "Namespace saved successfully",
+    "saveTermSuccess": "Term saved successfully",
+    "uriRequired": "URI is required"
+  },
+  "signature": {
+    "deleteFailed": "Failed to delete signature",
+    "deleteSuccess": "Signature deleted successfully",
+    "loadFailed": "Failed to load signature information",
+    "signFailed": "Signing failed",
+    "signSuccess": "Signed successfully"
+  },
+  "teamAddDialog": {
+    "addBtn": "Add Member",
+    "addMemberDuplicate": "This user is already a member",
+    "addMemberLabel": "Add Member",
+    "addMemberLoading": "Searching...",
+    "addMemberNotFound": "User not found",
+    "addMemberPlaceholder": "Search by username or email",
+    "cancelBtn": "Cancel",
+    "createBtn": "Create",
+    "createError": "Failed to create team",
+    "createFailed": "Failed to create team",
+    "createSuccess": "Team created successfully",
+    "groupCdLabel": "Group CD",
+    "groupCdPlaceholder": "Enter group CD",
+    "groupCdRequired": "Please enter a group CD",
+    "groupNameLabel": "Group Name",
+    "groupNamePlaceholder": "Enter group name",
+    "groupNameRequired": "Please enter a group name",
+    "memberRemoveHint": "Click to remove member",
+    "memberSetFailed": "Failed to set members",
+    "membersCount": "{{count}} members",
+    "membersLabel": "Members",
+    "parentGroupLabel": "Parent Group",
+    "parentGroupOptional": "(Optional)",
+    "parentGroupPlaceholder": "Select parent group (optional)",
+    "title": "Add Team"
+  },
+  "teamEditDialog": {
+    "addBtn": "Add Member",
+    "addMemberDuplicate": "This user is already a member",
+    "addMemberLabel": "Add Member",
+    "addMemberLoading": "Searching...",
+    "addMemberNotFound": "User not found",
+    "addMemberPlaceholder": "Search by username or email",
+    "cancelBtn": "Cancel",
+    "chiefHint": "Set the team representative",
+    "chiefLabel": "Representative",
+    "chiefNoMembers": "No members",
+    "chiefPlaceholder": "Select representative",
+    "chiefPlaceholderNoMember": "Please add members first",
+    "currentMembersLabel": "Current Members",
+    "groupNameLabel": "Group Name",
+    "groupNamePlaceholder": "Enter group name",
+    "groupNameRequired": "Please enter a group name",
+    "memberRemoveHint": "Click to remove member",
+    "membersCount": "{{count}} members",
+    "noGroupCd": "Group CD is not set",
+    "noMembers": "No members",
+    "saveBtn": "Save",
+    "saveError": "Failed to save",
+    "saveFailed": "Failed to save team",
+    "saveSuccess": "Team updated successfully",
+    "title": "Edit Team"
+  },
+  "teamManagement": {
+    "chiefLabel": "Representative",
+    "chiefNotSet": "Not Set",
+    "colUserName": "Username",
+    "createGroupBtn": "Add Group",
+    "deleteCancel": "Cancel",
+    "deleteConfirmDesc": "This group will be deleted. This action cannot be undone.",
+    "deleteConfirmTitle": "Delete \"{{name}}\"?",
+    "deleteError": "Failed to delete group",
+    "deleteFailed": "Failed to delete group",
+    "deleteOk": "Delete",
+    "deleteSuccess": "Group deleted successfully",
+    "editBtn": "Edit",
+    "fetchFailed": "Failed to fetch group information",
+    "groupCdLabel": "Group CD",
+    "groupListTitle": "Group List",
+    "memberCount": "{{count}} members",
+    "memberFetchFailed": "Failed to fetch member information",
+    "membersCount": "{{count}} members",
+    "membersLabel": "Members",
+    "noGroups": "No groups",
+    "noMembers": "No members",
+    "parentGroupLabel": "Parent Group",
+    "selectPrompt": "Please select a group"
+  },
+  "uncertaintyExport": {
+    "alertMessage": "Please select export options",
+    "btnCancel": "Cancel",
+    "btnDownload": "Download",
+    "formatLabel": "Format",
+    "optionIncludeDesc": "Include description",
+    "optionIncludeExtends": "Include inheritance info",
+    "optionIncludeHistory": "Include history",
+    "optionsLabel": "Options",
+    "startDemo": "Start Demo",
+    "title": "Uncertainty Criteria Export"
+  },
+  "uncertaintyImport": {
+    "alertDesc": "Please select a file to import",
+    "alertTitle": "Import Ready",
+    "btnCancel": "Cancel",
+    "btnExecute": "Execute Import",
+    "description": "Import uncertainty criteria data",
+    "dropHint": "Or drop file here",
+    "dropText": "Select file or drag & drop",
+    "formatLabel": "File Format",
+    "scopeLabel": "Scope",
+    "scopeOptionCompany": "Company",
+    "scopeOptionMaterial": "Material",
+    "scopeOptionMeasurement": "Measurement",
+    "scopeOptionPersonal": "Personal",
+    "startDemo": "Start Demo",
+    "title": "Uncertainty Criteria Import"
+  },
+  "workflowSelectorDialog": {
+    "loadFailed": "Failed to load workflow",
+    "selectRequired": "Please select a workflow"
   }
 }

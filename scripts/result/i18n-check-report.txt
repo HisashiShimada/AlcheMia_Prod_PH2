@@ -1,14 +1,14 @@
 ============================================================
 i18n キー整合性 & ハードコードメッセージ チェック結果
 ============================================================
-実行日時: 2026/08/07 13:56:05
+実行日時: 2026/08/07 14:01:15
 対象: frontend/src/
 
 収集済みコンポーネントキー数: 2443
-ja.json 定義キー数: 3974
-en.json 定義キー数: 3974
+ja.json 定義キー数: 4169
+en.json 定義キー数: 4169
 
-【1】MISSING_BOTH (ja & en 未定義):   195 件
+【1】MISSING_BOTH (ja & en 未定義):   0 件
 【2】MISSING_JA   (ja のみ未定義):    0 件
 【3】MISSING_EN   (en のみ未定義):    0 件
 【4】JA_ONLY      (ja にあって en 無): 0 件
@@ -16,203 +16,9 @@ en.json 定義キー数: 3974
 【6】ハードコード  (message 直書き):   0 件
 
 ============================================================
-【1】MISSING_BOTH: 195 件
+【1】MISSING_BOTH: 0 件
 ============================================================
-  approvalWizard.execute
-  approvalWizard.methodName
-  approvalWizard.methodNamePlaceholder
-  approvalWizard.ng
-  approvalWizard.ngReasonPlaceholder
-  approvalWizard.selectAction
-  approvalWizard.taskNumber
-  approvalWizard.taskNumberPlaceholder
-  departmentTree.nodeAdded
-  departmentTree.nodeDeleted
-  departmentTree.nodeUpdated
-  departmentTree.prefixRequired
-  editor.template.xmlParseError
-  editor.template.xmlSaveError
-  encryption.decryptFailed
-  encryption.decryptPreviewFailed
-  encryption.decryptSuccess
-  encryption.encryptFailed
-  encryption.encryptSuccess
-  encryption.keyCreate.failed
-  encryption.keyCreate.success
-  encryption.keyExport.failed
-  encryption.keyExport.success
-  encryption.keyImport.failed
-  encryption.keyImport.fileRequired
-  encryption.keyImport.invalidFormat
-  encryption.keyImport.readFailed
-  encryption.keyImport.success
-  encryption.keyManage.deleteFailed
-  encryption.keyManage.deleteSuccess
-  encryption.keyRequired
-  encryption.keyRotate.failed
-  encryption.previewFailed
-  evaluation.columns.evalValue
-  evaluation.tabLabel
-  evaluation.title
-  evaluation.unitLabel.all
-  experimentPlan.exportSuccess
-  experimentPlan.importSuccess
-  experimentPlan.jsonParseFailed
-  experimentPlan.loadFailed
-  experimentPlan.saveFailed
-  experimentPlan.saveSuccess
-  experimentWorker.startFailed
-  experimentWorker.switchFailed
-  namespaceAdd.orcidAutoFilled
-  namespaceAdd.registerSuccess
-  namespaceDetail.prefixRequired
-  namespaceDetail.saveNsSuccess
-  namespaceDetail.saveTermSuccess
-  namespaceDetail.uriRequired
-  namespaceMain.activateSuccess
-  namespaceMain.bulkDeactivateContent
-  namespaceMain.bulkDeactivateSuccess
-  namespaceMain.bulkDeactivateTitle
-  namespaceMain.cancel
-  namespaceMain.csvEmpty2
-  namespaceMain.csvImportPartial2
-  namespaceMain.csvImportSuccess2
-  namespaceMain.csvNoData2
-  namespaceMain.csvParseError2
-  namespaceMain.deactivate
-  namespaceMain.deactivateSuccess
-  namespaceMain.groupCreated
-  namespaceMain.memberUpdated
-  namespaceMain.nsRegisterSuccess
-  namespaceMain.term
-  organizationManagement.form.namespaceUriAutoGenLabel
-  organizationManagement.form.namespaceUriAutoGenPlaceholder
-  projectCompletion.colComment
-  projectCompletion.colQualitative
-  projectCompletion.colTarget
-  projectCompletion.description
-  projectCompletion.entireProject
-  projectCompletion.noEvalTarget
-  projectCompletion.projectWholeLabel
-  projectCompletion.saveNote
-  projectCompletion.unevaluated
-  signature.deleteFailed
-  signature.deleteSuccess
-  signature.loadFailed
-  signature.signFailed
-  signature.signSuccess
-  taskRegistration.saveMockSuccess
-  teamAddDialog.addBtn
-  teamAddDialog.addMemberDuplicate
-  teamAddDialog.addMemberLabel
-  teamAddDialog.addMemberLoading
-  teamAddDialog.addMemberNotFound
-  teamAddDialog.addMemberPlaceholder
-  teamAddDialog.cancelBtn
-  teamAddDialog.createBtn
-  teamAddDialog.createError
-  teamAddDialog.createFailed
-  teamAddDialog.createSuccess
-  teamAddDialog.groupCdLabel
-  teamAddDialog.groupCdPlaceholder
-  teamAddDialog.groupCdRequired
-  teamAddDialog.groupNameLabel
-  teamAddDialog.groupNamePlaceholder
-  teamAddDialog.groupNameRequired
-  teamAddDialog.memberRemoveHint
-  teamAddDialog.memberSetFailed
-  teamAddDialog.membersCount
-  teamAddDialog.membersLabel
-  teamAddDialog.parentGroupLabel
-  teamAddDialog.parentGroupOptional
-  teamAddDialog.parentGroupPlaceholder
-  teamAddDialog.title
-  teamEditDialog.addBtn
-  teamEditDialog.addMemberDuplicate
-  teamEditDialog.addMemberLabel
-  teamEditDialog.addMemberLoading
-  teamEditDialog.addMemberNotFound
-  teamEditDialog.addMemberPlaceholder
-  teamEditDialog.cancelBtn
-  teamEditDialog.chiefHint
-  teamEditDialog.chiefLabel
-  teamEditDialog.chiefNoMembers
-  teamEditDialog.chiefPlaceholder
-  teamEditDialog.chiefPlaceholderNoMember
-  teamEditDialog.currentMembersLabel
-  teamEditDialog.groupNameLabel
-  teamEditDialog.groupNamePlaceholder
-  teamEditDialog.groupNameRequired
-  teamEditDialog.memberRemoveHint
-  teamEditDialog.membersCount
-  teamEditDialog.noGroupCd
-  teamEditDialog.noMembers
-  teamEditDialog.saveBtn
-  teamEditDialog.saveError
-  teamEditDialog.saveFailed
-  teamEditDialog.saveSuccess
-  teamEditDialog.title
-  teamManagement.chiefLabel
-  teamManagement.chiefNotSet
-  teamManagement.colUserName
-  teamManagement.createGroupBtn
-  teamManagement.deleteCancel
-  teamManagement.deleteConfirmDesc
-  teamManagement.deleteConfirmTitle
-  teamManagement.deleteError
-  teamManagement.deleteFailed
-  teamManagement.deleteOk
-  teamManagement.deleteSuccess
-  teamManagement.editBtn
-  teamManagement.fetchFailed
-  teamManagement.groupCdLabel
-  teamManagement.groupListTitle
-  teamManagement.memberCount
-  teamManagement.memberFetchFailed
-  teamManagement.membersCount
-  teamManagement.membersLabel
-  teamManagement.noGroups
-  teamManagement.noMembers
-  teamManagement.parentGroupLabel
-  teamManagement.selectPrompt
-  template.uncertaintyApplied
-  template.uncertaintyDeleted
-  uncertainty.management.ctxMenuAddTeam
-  uncertainty.management.scopeAll
-  uncertainty.management.toastTeamCreated
-  uncertainty.management.toastTeamUpdated
-  uncertaintyExport.alertMessage
-  uncertaintyExport.btnCancel
-  uncertaintyExport.btnDownload
-  uncertaintyExport.formatLabel
-  uncertaintyExport.optionIncludeDesc
-  uncertaintyExport.optionIncludeExtends
-  uncertaintyExport.optionIncludeHistory
-  uncertaintyExport.optionsLabel
-  uncertaintyExport.startDemo
-  uncertaintyExport.title
-  uncertaintyImport.alertDesc
-  uncertaintyImport.alertTitle
-  uncertaintyImport.btnCancel
-  uncertaintyImport.btnExecute
-  uncertaintyImport.description
-  uncertaintyImport.dropHint
-  uncertaintyImport.dropText
-  uncertaintyImport.formatLabel
-  uncertaintyImport.scopeLabel
-  uncertaintyImport.scopeOptionCompany
-  uncertaintyImport.scopeOptionMaterial
-  uncertaintyImport.scopeOptionMeasurement
-  uncertaintyImport.scopeOptionPersonal
-  uncertaintyImport.startDemo
-  uncertaintyImport.title
-  userManagement.form.namespaceUriAutoGenLabel
-  userManagement.form.namespaceUriAutoGenPlaceholder
-  userManagement.form.namespaceUriLabel
-  userManagement.form.namespaceUriNotSet
-  userManagement.form.userNamePlaceholder
-  workflowSelectorDialog.loadFailed
-  workflowSelectorDialog.selectRequired
+  （なし）
 
 ============================================================
 【2】MISSING_JA: 0 件
