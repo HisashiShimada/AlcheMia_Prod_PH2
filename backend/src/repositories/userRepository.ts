@@ -6,6 +6,7 @@
  * こちらはユーザー管理画面専用のリポジトリ
  */
 
+import { ITask } from 'pg-promise';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import bcrypt from 'bcrypt';
@@ -143,11 +144,15 @@ export async function existsById(
 
 /**
  * Userを新規作成（トランザクション内で実行）
+ *
+ * 外部トランザクション（t）が渡された場合はそのトランザクション内で実行する。
+ * 渡されない場合は内部でトランザクションを生成する（下位互換）。
  * 
  * @param organizationId 組織ID
  * @param data User情報
  * @param password 初期パスワード（平文）
  * @param createUserId 作成者ユーザーID
+ * @param t 外部トランザクションオブジェクト（省略可）
  * @returns 作成されたUser
  */
 export async function create(
@@ -160,14 +165,18 @@ export async function create(
     isActive?: boolean;
   },
   passwordOrUserId: string,
-  createUserIdOrUndefined?: string
+  createUserIdOrUndefined?: string,
+  externalTx?: ITask<unknown>
 ): Promise<UserRow> {
   // 引数の解釈: password が省略された場合（旧インターフェース互換）
   const password = createUserIdOrUndefined !== undefined ? passwordOrUserId : generateRandomPassword();
   const createUserId = createUserIdOrUndefined !== undefined ? createUserIdOrUndefined : passwordOrUserId;
   const pgp = getPgp();
-  
-  return await pgp.tx(async (t) => {
+
+  /**
+   * トランザクション内での実際の挿入処理
+   */
+  const executeInTx = async (t: ITask<unknown>): Promise<UserRow> => {
     try {
       // 1. organization_userテーブルにINSERT
       const userQuery = await loadSqlFile('users/createUser.sql');
@@ -257,7 +266,14 @@ export async function create(
       
       throw error;  // その他のエラーはそのまま
     }
-  });
+  };
+
+  // 外部トランザクションが渡された場合はそのまま使用（サブトランザクションを作成）
+  // 渡されなかった場合は新しいトランザクションを開始
+  if (externalTx) {
+    return externalTx.tx(executeInTx);
+  }
+  return pgp.tx(executeInTx);
 }
 
 /**

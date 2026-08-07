@@ -29,6 +29,7 @@ export interface XMLViewerWrapperProps {
   multiMethodMode: boolean;
   methods: MethodData[];
   activeMethodIndex: number;
+  projectId: string;
 }
 
 /**
@@ -41,6 +42,7 @@ const XMLViewerWrapper: React.FC<XMLViewerWrapperProps> = ({
   multiMethodMode,
   methods,
   activeMethodIndex,
+  projectId
 }) => {
   const { t } = useLanguage();
   const [xmlContent, setXmlContent] = useState<string>('');

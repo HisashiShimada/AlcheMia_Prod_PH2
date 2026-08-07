@@ -184,45 +184,10 @@ export interface NewPrefixRow {
   description: string;
 }
 
-// ──────────────────────────────────────────────
-// チーム・メンバー
-// ──────────────────────────────────────────────
+// チーム・メンバー関連の型は team.ts に移行済み
+// 後方互換性のため re-export する
+export type { TeamMember, Team, OrgUser } from '@/types/team';
 
-/**
- * チームメンバー
- */
-export interface TeamMember {
-  userId: string;
-  userName: string;
-  departmentUnitId: string | null;
-}
-
-/**
- * チーム
- */
-export interface Team {
-  departmentUnitId: string;
-  unitName: string;
-  /** 所属部署名 */
-  departmentName?: string;
-  /** チームの代表者（作成者）表示名 */
-  ownerName: string;
-  /** チームの代表者 userId */
-  ownerUserId?: string;
-  nsPrefix?: string;
-  nsUri?: string;
-  nsDisplayName?: string;
-  members: TeamMember[];
-}
-
-/**
- * 組織ユーザー（チーム追加ダイアログ用）
- */
-export interface OrgUser {
-  userId: string;
-  userName: string;
-  departmentUnitId: string | null;
-}
 
 // ──────────────────────────────────────────────
 // 共有機能
@@ -454,32 +419,9 @@ export interface ShareScopeModalProps {
   onShare: (target: ShareTarget) => void;
 }
 
-/**
- * TeamAddDialog の Props
- */
-export interface TeamAddDialogProps {
-  open: boolean;
-  parentTeamLabel: string;
-  parentDepartmentCd?: string;
-  /** ログイン組織CD（URI自動生成に使用） */
-  organizationCd?: string;
-  organizationId?: string;
-  onClose: () => void;
-  onCreated: (teamName: string, members: string[], departmentUnitId?: string) => void;
-}
+// TeamAddDialogProps / TeamEditDialogProps は team.ts に移行済み
+export type { TeamAddDialogProps, TeamEditDialogProps } from '@/types/team';
 
-/**
- * TeamEditDialog の Props
- */
-export interface TeamEditDialogProps {
-  open: boolean;
-  teamLabel: string;
-  teamUnitId?: string;
-  /** チームの現在の代表者 userId（初期値として使用） */
-  teamOwnerUserId?: string;
-  onClose: () => void;
-  onSaved: (members: string[], newTeamName?: string, newOwnerUserId?: string) => void;
-}
 
 /**
  * DepartmentNodeAddDialog のツリーノード
@@ -744,4 +686,10 @@ export interface UpdateOrganizationGroupRequest {
   /** レイヤー */
   layer?: string | null;
 }
+// OrganizationGroupRow / CreateOrganizationGroupRequest / UpdateOrganizationGroupRequest は team.ts に移行済み
+export type {
+  OrganizationGroupRow,
+  CreateOrganizationGroupRequest,
+  UpdateOrganizationGroupRequest,
+} from '@/types/team';
 

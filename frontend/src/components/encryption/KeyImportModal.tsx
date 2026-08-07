@@ -13,6 +13,7 @@ import { UploadOutlined, InboxOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import type { EncryptionKey } from '@/types/encryption';
 import * as encryptionService from '@/services/encryptionService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 const { Dragger } = Upload;
@@ -27,6 +28,7 @@ interface KeyImportModalProps {
 const ACCEPT_EXTENSIONS = '.key,.pem,.pfx';
 
 const KeyImportModal: React.FC<KeyImportModalProps> = ({ open, onClose, onImported }) => {
+  const { t } = useLanguage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
@@ -39,7 +41,7 @@ const KeyImportModal: React.FC<KeyImportModalProps> = ({ open, onClose, onImport
     const name = (file.name ?? '').toLowerCase();
     const valid = ['.key', '.pem', '.pfx'].some((ext) => name.endsWith(ext));
     if (!valid) {
-      message.error('.key, .pem, .pfx 形式のファイルのみインポートできます。');
+      message.error(t('encryption.keyImport.invalidFormat'));
       return Upload.LIST_IGNORE;
     }
     setFileList([file]);
@@ -52,7 +54,7 @@ const KeyImportModal: React.FC<KeyImportModalProps> = ({ open, onClose, onImport
 
   const handleOk = async () => {
     if (fileList.length === 0) {
-      message.warning('インポートするファイルを選択してください。');
+      message.warning(t('encryption.keyImport.fileRequired'));
       return;
     }
 
@@ -66,7 +68,7 @@ const KeyImportModal: React.FC<KeyImportModalProps> = ({ open, onClose, onImport
     const uploadFile = fileList[0];
     const rawFile = uploadFile.originFileObj as File | undefined;
     if (!rawFile) {
-      message.error('ファイルの読み込みに失敗しました。');
+      message.error(t('encryption.keyImport.readFailed'));
       return;
     }
 
@@ -86,13 +88,13 @@ const KeyImportModal: React.FC<KeyImportModalProps> = ({ open, onClose, onImport
       });
 
       const imported = await encryptionService.importKey(rawFile.name, fileContent, values.password);
-      message.success(`鍵をインポートしました: ${imported.keyName}`);
+      message.success(t('encryption.keyImport.success', { keyName: imported.keyName }));
       form.resetFields();
       setFileList([]);
       onImported(imported);
       onClose();
     } catch {
-      message.error('インポートに失敗しました。ファイル形式またはパスワードを確認してください。');
+      message.error(t('encryption.keyImport.failed'));
     } finally {
       setLoading(false);
     }

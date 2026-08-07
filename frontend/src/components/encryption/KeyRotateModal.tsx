@@ -13,6 +13,7 @@ import { Modal, Typography, Alert, Descriptions, message } from 'antd';
 import { SyncOutlined } from '@ant-design/icons';
 import type { EncryptionKey } from '@/types/encryption';
 import * as encryptionService from '@/services/encryptionService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -31,6 +32,7 @@ const KeyRotateModal: React.FC<KeyRotateModalProps> = ({
   onClose,
   onRotated,
 }) => {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
 
   // ---------------------------------------------------------------------------
@@ -53,7 +55,7 @@ const KeyRotateModal: React.FC<KeyRotateModalProps> = ({
       onRotated?.();
       onClose();
     } catch {
-      message.error('鍵ローテーションに失敗しました。');
+      message.error(t('encryption.keyRotate.failed'));
     } finally {
       setLoading(false);
     }

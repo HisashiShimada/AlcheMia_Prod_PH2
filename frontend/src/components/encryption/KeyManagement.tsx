@@ -33,6 +33,7 @@ import KeyExportModal from './KeyExportModal';
 import KeyImportModal from './KeyImportModal';
 import KeyRotateModal from './KeyRotateModal';
 import dayjs from 'dayjs';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -62,6 +63,7 @@ interface KeyManagementProps {
 
 const KeyManagement: React.FC<KeyManagementProps> = ({ keys, onKeysChange }) => {
   // モーダル開閉
+  const { t } = useLanguage();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -93,10 +95,10 @@ const KeyManagement: React.FC<KeyManagementProps> = ({ keys, onKeysChange }) => 
     setDeletingId(keyId);
     try {
       await encryptionService.deleteKey(keyId);
-      message.success(`鍵「${keyName}」を削除しました。`);
+      message.success(t('encryption.keyManage.deleteSuccess', { keyName }));
       onKeysChange();
     } catch {
-      message.error('鍵の削除に失敗しました。使用中の鍵は削除できません。');
+      message.error(t('encryption.keyManage.deleteFailed'));
     } finally {
       setDeletingId(null);
     }

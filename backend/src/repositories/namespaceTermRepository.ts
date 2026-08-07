@@ -20,6 +20,7 @@
  * @version 3.0.0
  */
 
+import { ITask } from 'pg-promise';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 
@@ -310,45 +311,79 @@ export async function updateNamespace(data: {
  * Prefix は実験管理者が Prefix 管理画面から手動登録する。
  *
  * @param data - 登録する名前空間データ
+ * @param t - pg-promise トランザクションオブジェクト（省略時はプール接続を使用）
  * @returns 登録された namespace_id
+ *
+ * @remarks
+ * scopeKey を指定するとチームスコープの namespace として登録される（scope_key = organization_group_cd）。
+ * 省略時は scope_key = NULL（組織/ユーザーレベル）で登録される。
  */
-export async function createNamespaceUri(data: {
-  organizationId: string;
-  uri: string;
-  userId: string;
-}): Promise<string> {
-  const pgp = getPgp();
+export async function createNamespaceUri(
+  data: {
+    organizationId: string;
+    uri: string;
+    userId: string;
+    scopeKey?: string;
+  },
+  t?: ITask<unknown>
+): Promise<string> {
+  const conn = t ?? getPgp();
 
   // namespace_id を採番: 組織内の最大連番+1 (NS0001 形式)
   const seqQuery = await loadSqlFile('namespace_terms/findNextNamespaceSeq.sql');
-  const seqRow = await pgp.one<{ next_seq: number }>(seqQuery, [data.organizationId]);
+  const seqRow = await conn.one<{ next_seq: number }>(seqQuery, [data.organizationId]);
   const namespaceId = `NS${String(seqRow.next_seq).padStart(4, '0')}`;
 
-  // namespace テーブルに INSERT（URI のみ、scope_key = userId で個人名前空間として登録）
+  // namespace テーブルに INSERT（URI のみ）
+  // $5: scope_key（未指定の場合は NULL）
   const insertQuery = await loadSqlFile('namespace_terms/createNamespaceUri.sql');
-  await pgp.none(insertQuery, [
+  await conn.none(insertQuery, [
     data.organizationId,
     namespaceId,
     data.uri,
     data.userId,
     data.userId, // $5: scope_key = userId（個人ノード選択時の検索用）
+    data.scopeKey ?? null,
   ]);
 
   return namespaceId;
 }
 
 /**
+ * 指定した scope_key を持つ namespace レコードが存在するか確認する
+ *
+ * backfill スクリプトの冪等性チェックや、チーム作成時の二重登録防止に使用する。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKey - namespace.scope_key の値（organization_group_cd など）
+ * @param t - pg-promise トランザクションオブジェクト（省略時はプール接続を使用）
+ * @returns 存在する場合 true
+ */
+export async function existsByScopeKey(
+  organizationId: string,
+  scopeKey: string,
+  t?: ITask<unknown>
+): Promise<boolean> {
+  const conn = t ?? getPgp();
+  const query = await loadSqlFile('namespace_terms/existsByScopeKey.sql');
+  const row = await conn.oneOrNone<{ exists: boolean }>(query, [organizationId, scopeKey]);
+  return row?.exists ?? false;
+}
+
+/**
  * 組織に紐づく namespace の URI 一覧を取得（URI重複チェック用）
  *
  * @param organizationId - 組織ID
+ * @param t - pg-promise トランザクションオブジェクト（省略時はプール接続を使用）
  * @returns URI の配列
  */
 export async function findUrisByOrganization(
-  organizationId: string
+  organizationId: string,
+  t?: ITask<unknown>
 ): Promise<string[]> {
-  const pgp = getPgp();
+  const conn = t ?? getPgp();
   const query = await loadSqlFile('namespace_terms/findUrisByOrganization.sql');
-  const rows = await pgp.any<{ uri: string }>(query, [organizationId]);
+  const rows = await conn.any<{ uri: string }>(query, [organizationId]);
   return rows.map(r => r.uri);
 }
 

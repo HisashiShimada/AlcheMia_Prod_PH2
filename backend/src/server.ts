@@ -40,8 +40,8 @@ import systemConfigRoutes from './routes/systemConfigRoutes';
 import encryptionRoutes from './routes/encryptionRoutes';
 import signatureRoutes from './routes/signatureRoutes';
 import namespaceRoutes from './routes/namespaceRoutes';
-import departmentUnitRoutes from './routes/departmentUnitRoutes';
 import organizationGroupRoutes from './routes/organizationGroupRoutes';
+
 import uncertaintyCriteriaRoutes from './routes/uncertaintyCriteriaRoutes';
 import experimentEvaluationRoutes from './routes/experimentEvaluationRoutes';
 
@@ -156,10 +156,8 @@ async function startServer() {
     // Mount namespace routes
     app.use('/api/v1/namespaces', namespaceRoutes);
 
-    // Mount department unit routes
-    app.use('/api/v1/department-units', departmentUnitRoutes);
-
     // Mount organization group routes
+
     app.use('/api/v1/organization-groups', organizationGroupRoutes);
 
     // Mount uncertainty criteria routes

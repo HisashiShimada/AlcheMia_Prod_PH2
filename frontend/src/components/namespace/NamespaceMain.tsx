@@ -19,9 +19,9 @@ import { getTerms, createNamespace, getOrganizationGroups, getNamespaceList, get
 import { createApiClient } from '@/utils/authUtils';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
-import TeamAddDialog from './TeamAddDialog';
-import TeamEditDialog from './TeamEditDialog';
-import TeamManagementPanel from './TeamManagementPanel';
+import TeamManagementPanel from '../team/TeamManagementPanel';
+import TeamAddDialog from '../team/TeamAddDialog';
+import TeamEditDialog from '../team/TeamEditDialog';
 import ShareScopeModal from './ShareScopeModal';
 import type {
   NamespaceNode,
@@ -647,7 +647,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // チーム編集ダイアログ（メンバー追加）
   const [teamEditOpen,    setTeamEditOpen]    = useState(false);
   const [teamEditLabel,   setTeamEditLabel]   = useState('');
-  const [teamEditUnitId,  setTeamEditUnitId]  = useState<string | undefined>(undefined);
+  const [teamEditGroupCd,  setTeamEditGroupCd]  = useState<string | undefined>(undefined);
+
   const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
@@ -1024,8 +1025,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // ──── チームノード右クリック：編集（メンバー追加）
   const handleContextEditTeam = (node: NamespaceNode) => {
     setTeamEditLabel(node.label);
-    // node.key を departmentUnitId として使用（DBから取得したツリーであればUUIDが入る）
-    setTeamEditUnitId((node as any).departmentUnitId ?? node.key ?? undefined);
+    // node.key を organization_group_cd として使用（DBから取得したツリーであればCDが入る）
+
+    setTeamEditGroupCd(node.key ?? undefined);
+
+
     setTeamEditMembers([]);
     setTeamEditOpen(true);
   };
@@ -1438,7 +1442,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       try {
         const text  = (ev.target?.result as string).replace(/^\uFEFF/, '');
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
-        if (lines.length < 2) { message.error('CSVデータが空です'); return; }
+        if (lines.length < 2) { message.error(t('namespaceMain.csvEmpty2')); return; }
 
         // CSV パース
         const rows: TermCsvParsedRow[] = [];
@@ -1459,7 +1463,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           });
         }
 
-        if (rows.length === 0) { message.error('取込可能なデータがありませんでした'); return; }
+        if (rows.length === 0) { message.error(t('namespaceMain.csvNoData2')); return; }
 
         // 各行を API で DB に保存
         const added: Term[] = [];
@@ -1486,12 +1490,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           setTerms((prev) => [...prev, ...added]);
         }
         if (failed.length > 0) {
-          message.warning(`${added.length}件保存、${failed.length}件失敗しました（失敗: ${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}）`);
+          message.warning(t('namespaceMain.csvImportPartial2', { saved: added.length.toString(), failCount: failed.length.toString(), names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : '') }));
         } else {
-          message.success(`${added.length} 件の用語をDBに保存しました`);
+          message.success(t('namespaceMain.csvImportSuccess2', { count: added.length.toString() }));
         }
       } catch {
-        message.error('CSVの解析に失敗しました');
+        message.error(t('namespaceMain.csvParseError2'));
       } finally {
         if (csvInputRef.current) csvInputRef.current.value = '';
       }
@@ -1514,14 +1518,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (record.id === editingTermId) {
       return (
         <span style={{ display: 'flex', gap: 4 }}>
-          <Button type="primary" size="small" onClick={saveEditTerm}>✔ 保存</Button>
-          <Button size="small" onClick={cancelEditTerm}>キャンセル</Button>
+          <Button type="primary" size="small" onClick={saveEditTerm}>✔ {t('namespaceMain.actionSave')}</Button>
+          <Button size="small" onClick={cancelEditTerm}>{t('namespaceMain.actionCancel')}</Button>
         </span>
       );
     }
     return (
       <span style={{ display: 'flex', gap: 4 }}>
-        <Button size="small" icon={<EditOutlined />} disabled={readonly} onClick={() => !readonly && startEditTerm(record)}>編集</Button>
+        <Button size="small" icon={<EditOutlined />} disabled={readonly} onClick={() => !readonly && startEditTerm(record)}>{t('namespaceMain.actionEdit')}</Button>
         <Button
           size="small"
           danger={!readonly && record.isActive !== false}
@@ -1529,7 +1533,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           onClick={() => !readonly && handleToggleTermActive(record.id, record.isActive !== false)}
           style={{ minWidth: '90px' }}
         >
-          {record.isActive !== false ? '非アクティブ' : 'アクティブ'}
+          {record.isActive !== false ? t('namespaceMain.actionDeactivate') : t('namespaceMain.actionActivate')}
         </Button>
       </span>
     );
@@ -1560,31 +1564,31 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               size="small"
               style={{ width: '100%' }}
               value={r.prefix || undefined}
-              placeholder="Prefixを選択..."
+              placeholder={t('namespaceMain.prefixSelectPlaceholder')}
               allowClear
               options={availablePrefixOptions}
               onChange={(val) => updateNewTerm(r._rowId, 'prefix', val ?? '')}
             />
           );
         }
-        const t = record as Term;
-        return t.id === editingTermId
+        const term = record as Term;
+        return term.id === editingTermId
           ? (
             <Select
               size="small"
               style={{ width: '100%' }}
               value={editingValues.prefix || undefined}
-              placeholder="Prefixを選択..."
+              placeholder={t('namespaceMain.prefixSelectPlaceholder')}
               allowClear
               options={availablePrefixOptions}
               onChange={(val) => setEditingValues((p) => ({ ...p, prefix: val ?? '' }))}
             />
           )
-          : <Text strong>{t.prefix}</Text>;
+          : <Text strong>{term.prefix}</Text>;
       },
     },
     {
-      title: 'ローカル名', dataIndex: 'localName', key: 'localName', width: 160,
+      title: t('namespaceMain.colLocalName'), dataIndex: 'localName', key: 'localName', width: 160,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         return (a as Term).localName.localeCompare((b as Term).localName);
@@ -1596,7 +1600,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             <div>
               <Input
                 size="small"
-                placeholder="✎ ローカル名を入力..."
+                placeholder={t('namespaceMain.localNamePlaceholder')}
                 value={r.localName}
                 status={r._isDuplicate ? 'error' : undefined}
                 onChange={(e) => updateNewTerm(r._rowId, 'localName', e.target.value)}
@@ -1604,52 +1608,53 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               {r._isDuplicate && (
                 <div style={{ color: '#ff4d4f', fontSize: 11, marginTop: 2, lineHeight: 1.4 }}>
                   <ExclamationCircleOutlined style={{ marginRight: 4 }} />
-                  {r.prefix}:{r.localName} は既に登録されています
+                  {t('namespaceMain.duplicateRegistered', { prefix: r.prefix, localName: r.localName })}
                 </div>
               )}
             </div>
           );
         }
-        const t = record as Term;
-        return t.id === editingTermId
+        const term = record as Term;
+        return term.id === editingTermId
           ? <Input size="small" value={editingValues.localName} onChange={(e) => setEditingValues((p) => ({ ...p, localName: e.target.value }))} />
-          : t.localName;
+          : term.localName;
       },
     },
     {
-      title: '表示名', dataIndex: 'displayName', key: 'displayName', width: 130,
+      title: t('namespaceMain.colDisplayName'), dataIndex: 'displayName', key: 'displayName', width: 130,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         return (a as Term).displayName.localeCompare((b as Term).displayName);
       },
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
-          return <Input size="small" placeholder="表示名..." value={record.displayName} onChange={(e) => updateNewTerm(record._rowId, 'displayName', e.target.value)} />;
+          return <Input size="small" placeholder={t('namespaceMain.displayNamePlaceholder')} value={record.displayName} onChange={(e) => updateNewTerm(record._rowId, 'displayName', e.target.value)} />;
         }
-        const t = record as Term;
-        return t.id === editingTermId
+        const term = record as Term;
+        return term.id === editingTermId
           ? <Input size="small" value={editingValues.displayName} onChange={(e) => setEditingValues((p) => ({ ...p, displayName: e.target.value }))} />
-          : t.displayName;
+          : term.displayName;
       },
     },
     {
-      title: '説明', dataIndex: 'description', key: 'description', width: 180, ellipsis: true,
+      title: t('namespaceMain.colDescription'), dataIndex: 'description', key: 'description', width: 180, ellipsis: true,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         return (a as Term).description.localeCompare((b as Term).description);
       },
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
-          return <Input size="small" placeholder="説明..." value={record.description} onChange={(e) => updateNewTerm(record._rowId, 'description', e.target.value)} />;
+          return <Input size="small" placeholder={t('namespaceMain.descriptionPlaceholder')} value={record.description} onChange={(e) => updateNewTerm(record._rowId, 'description', e.target.value)} />;
         }
-        const t = record as Term;
-        return t.id === editingTermId
+        const term = record as Term;
+        return term.id === editingTermId
           ? <Input size="small" value={editingValues.description} onChange={(e) => setEditingValues((p) => ({ ...p, description: e.target.value }))} />
-          : t.description;
+          : term.description;
       },
     },
     {
-      title: 'スコープ', key: 'scope', width: 180, align: 'center' as const,
+      title: t('namespaceMain.colScope'), key: 'scope', width: 180, align: 'center' as const,
+      onHeaderCell: () => ({ style: { background: '#fff' } }),
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         const sA = prefixScopeNameMap.get((a as Term).prefix) ?? '';
@@ -1658,11 +1663,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) return <span style={{ color: '#bbb' }}>—</span>;
-        const t = record as Term;
+        const term = record as Term;
         const globalPrefixSet = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
-        const isGlobal = globalPrefixSet.has(t.prefix);
-        // DB由来のスコープ名を使用（グローバルPrefixは"Global"固定）
-        const label = isGlobal ? 'Global' : (prefixScopeNameMap.get(t.prefix) ?? '—');
+        const isGlobal = globalPrefixSet.has(term.prefix);
+        const fullPath = getScopeFullPath(term.prefix);
+        const parts = fullPath.split(' › ');
+        // 絵文字・アイコン文字を除去してラベルを取得
+        const rawLabel = isGlobal ? 'Global' : parts[parts.length - 1].trim();
+        const label = rawLabel.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27FF}]|[\u{1F300}-\u{1F9FF}]|\uFE0F/gu, '').trim();
         return (
           <Tooltip title={label}>
             <Tag
@@ -1685,7 +1693,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
     },
     {
-      title: '型', dataIndex: 'type', key: 'type', width: 140, align: 'center' as const,
+      title: t('namespaceMain.colType'), dataIndex: 'type', key: 'type', width: 140, align: 'center' as const,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         return (a as Term).type.localeCompare((b as Term).type);
@@ -1693,19 +1701,18 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) {
           return (
-            <Select size="small" style={{ width: '100%' }} value={record.type || undefined} placeholder="型を選択..."
+            <Select size="small" style={{ width: '100%' }} value={record.type || undefined} placeholder={t('namespaceMain.typeSelectPlaceholder')}
               onChange={(val) => updateNewTerm(record._rowId, 'type', val)} options={typeOptions} />
           );
         }
-        const t = record as Term;
-        return t.id === editingTermId
+        const term = record as Term;
+        return term.id === editingTermId
           ? <Select size="small" style={{ width: '100%' }} value={editingValues.type || undefined} onChange={(val) => setEditingValues((p) => ({ ...p, type: val }))} options={typeOptions} />
-          : <Tag style={{ fontSize: 11, color: '#555', background: '#f5f5f5', borderColor: '#e8e8e8' }}>{t.type}</Tag>;
+          : <Tag style={{ fontSize: 11, color: '#555', background: '#f5f5f5', borderColor: '#e8e8e8' }}>{term.type}</Tag>;
       },
     },
     {
-      title: '単位', dataIndex: 'unitHint', key: 'unitHint', width: 100,
-      onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+      title: t('namespaceMain.colUnit'), dataIndex: 'unitHint', key: 'unitHint', width: 100,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         return ((a as Term).unitHint ?? '').localeCompare(((b as Term).unitHint ?? ''));
@@ -1714,24 +1721,24 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         if ('_rowId' in record) {
           return (
             <Select size="small" style={{ width: '100%' }} allowClear
-              value={record.unitHint || undefined} placeholder="単位を選択..."
+              value={record.unitHint || undefined} placeholder={t('namespaceMain.unitSelectPlaceholder')}
               options={unitAttributes.map((u) => ({ value: u, label: u }))}
               onChange={(val) => updateNewTerm(record._rowId, 'unitHint', val ?? '')} />
           );
         }
-        const t = record as Term;
-        return t.id === editingTermId
+        const term = record as Term;
+        return term.id === editingTermId
           ? (
             <Select size="small" style={{ width: '100%' }} allowClear
               value={editingValues.unitHint || undefined}
               options={unitAttributes.map((u) => ({ value: u, label: u }))}
               onChange={(val) => setEditingValues((p) => ({ ...p, unitHint: val ?? '' }))} />
           )
-          : t.unitHint ?? '';
+          : term.unitHint ?? '';
       },
     },
     {
-      title: '操作', key: 'actions', width: 130,
+      title: t('namespaceMain.colActions'), key: 'actions', width: 130,
       render: (_: unknown, record: Term | NewTermRow) =>
         '_rowId' in record ? null : actionCell(record as Term),
     },
@@ -1805,7 +1812,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                   }}
                 >
                   <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
-                  チームを追加
+                  {t('namespaceMain.ctxMenuAddTeam')}
                 </li>
                 <li
                   style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
@@ -1814,7 +1821,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                   onClick={() => { handleContextEditTeam(ctxMenu.node!); setCtxMenu((s) => ({ ...s, visible: false })); }}
                 >
                   <EditOutlined style={{ fontSize: 12, color: '#1677ff' }} />
-                  編集
+                  {t('namespaceMain.ctxMenuEdit')}
                 </li>
               </ul>
             )}
@@ -1838,16 +1845,16 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                 onClick={() => setShareScopeOpen(true)}
                 style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
               >
-                共有する（{selectedTermIds.length}件）
+                {t('namespaceMain.shareBtnLabel', { count: String(selectedTermIds.length) })}
               </Button>
               <Button danger icon={<DeleteOutlined />} onClick={() => handleBulkToggleActive(selectedTermIds)}>
-                選択した用語を非アクティブ（{selectedTermIds.length}件）
+                {t('namespaceMain.bulkDeactivateBtnLabel', { count: String(selectedTermIds.length) })}
               </Button>
             </div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, gap: 2 }}>
             <Input
-              prefix={<SearchOutlined />} placeholder="用語を検索..." allowClear
+              prefix={<SearchOutlined />} placeholder={t('namespaceMain.searchPlaceholder')} allowClear
               value={termSearch} onChange={(e) => setTermSearch(e.target.value)}
               style={{ flex: 1, minWidth: 80 }}
             />
@@ -1871,7 +1878,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               style={{ width: 160, flexShrink: 0 }}
               value={filterType ?? ''}
               options={[
-                { value: '', label: '型: すべて' },
+                { value: '', label: t('namespaceMain.typeFilterAll') },
                 { value: 'stringType',   label: 'stringType' },
                 { value: 'integerType',  label: 'integerType' },
                 { value: 'floatType',    label: 'floatType' },
@@ -1901,12 +1908,19 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               </Button>
             </Tooltip>
             <Tooltip title={newTerms.some((r) => r._isDuplicate) ? '重複する用語があります。修正してから保存してください。' : ''}>
+            <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>{t('namespaceMain.btnImport')}</Button>
+            <Button disabled={viewOnly} onClick={handleCsvDownload}>{t('namespaceMain.btnExport')}</Button>
+            <Button type="primary" icon={<PlusOutlined />} disabled={viewOnly} onClick={handleAddRow}>
+              {t('namespaceMain.btnAddTerm')}
+            </Button>
+            </Tooltip>
+            <Tooltip title={newTerms.some((r) => r._isDuplicate) ? t('namespaceMain.duplicateTooltip') : ''}>
               <Button type="primary" onClick={handleAddSave} disabled={viewOnly || newTerms.length === 0 || newTerms.some((r) => r._isDuplicate)}>
-                保存
+                {t('namespaceMain.btnSave')}
               </Button>
             </Tooltip>
             <Button onClick={() => setNewTerms([])} disabled={viewOnly || newTerms.length === 0}>
-              キャンセル
+              {t('namespaceMain.btnCancel')}
             </Button>
           </div>
 
@@ -1918,18 +1932,18 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             dataSource={tableData}
             rowClassName={(record) => {
               if ('_rowId' in record) return 'row-new-term';
-              const t = record as Term;
+              const term = record as Term;
               // company配下ノード選択時: 選択ノードの祖先prefixはグレーアウト
-              if (isCompanyNodeSelected && ancestorPrefixesForSelected.has(t.prefix)) return 'row-readonly-scope';
+              if (isCompanyNodeSelected && ancestorPrefixesForSelected.has(term.prefix)) return 'row-readonly-scope';
               // company配下ノード以外が選択されている場合のみ isReadonlyPrefix を適用
-              if (!isCompanyNodeSelected && isReadonlyPrefix(t.prefix)) return 'row-readonly-scope';
+              if (!isCompanyNodeSelected && isReadonlyPrefix(term.prefix)) return 'row-readonly-scope';
               return '';
             }}
-            locale={{ triggerAsc: '昇順にソート', triggerDesc: '降順にソート', cancelSort: 'ソートをキャンセル' }}
+            locale={{ triggerAsc: t('namespaceMain.sortAsc'), triggerDesc: t('namespaceMain.sortDesc'), cancelSort: t('namespaceMain.cancelSort') }}
             pagination={{
               current: currentPage, pageSize, showSizeChanger: true,
               pageSizeOptions: ['20', '50', '100'],
-              showTotal: (total) => `全 ${total} 件`,
+              showTotal: (total) => t('namespaceMain.showTotal', { total: String(total) }),
               onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
               onShowSizeChange: (_, size) => { setCurrentPage(1); setPageSize(size); },
             }}
@@ -1980,9 +1994,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               description: values.description || undefined,
             };
             setNsNodes((prev) => [...prev, newNode]);
-            message.success(`名前空間「${result.prefix}」を登録しました`);
+            message.success(t('namespaceMain.nsRegisterSuccess', { prefix: result.prefix }));
           } catch (err: any) {
-            const msg = err?.response?.data?.error?.message ?? err?.message ?? '登録に失敗しました';
+            const msg = err?.response?.data?.error?.message ?? err?.message ?? t('namespaceMain.nsRegisterSuccess');
             message.error(msg);
           } finally {
             setAddDialogOpen(false);
@@ -1994,25 +2008,26 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       {/* ── チーム追加ダイアログ ── */}
       <TeamAddDialog
         open={teamAddOpen}
-        parentTeamLabel={teamAddParentLabel}
         onClose={() => setTeamAddOpen(false)}
-        onCreated={(teamName, members) => {
-          message.success(`チーム「${teamName}」を作成しました（メンバー: ${members.length}名）`);
+        onCreated={(_groupCd, groupName) => {
+          message.success(t('namespaceMain.groupCreated', { groupName }));
           setTeamAddOpen(false);
         }}
       />
+
 
       {/* ── チーム編集ダイアログ（メンバー追加）── */}
       <TeamEditDialog
         open={teamEditOpen}
         teamLabel={teamEditLabel}
-        teamUnitId={teamEditUnitId}
+        teamGroupCd={teamEditGroupCd}
         onClose={() => setTeamEditOpen(false)}
         onSaved={(members, newTeamName) => {
           const name = newTeamName ?? teamEditLabel;
-          message.success(`「${name}」を更新しました（メンバー: ${members.length}名）`);
+          message.success(t('namespaceMain.memberUpdated', { name, count: members.length.toString() }));
         }}
       />
+
 
       {/* ── 共有先選択モーダル ── */}
       <ShareScopeModal

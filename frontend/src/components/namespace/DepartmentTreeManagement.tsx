@@ -21,6 +21,7 @@ import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
 import DepartmentNodeAddDialog from './DepartmentNodeAddDialog';
 import { generateNamespaceUri } from '../../utils/namespaceUriGenerator';
 import type { RawNode, FlatDeptRow, DeptTreeNode, DepartmentTreeManagementProps } from '@/types/namespace';
+import { useTranslation } from 'react-i18next';
 
 /** ログイン組織CD（本番実装では認証APIから取得） */
 const MOCK_ORGANIZATION_CD = 'ORG';
@@ -78,6 +79,7 @@ const flattenCompanyNodes = (nodes: RawNode[]): FlatDeptRow[] => {
 const DepartmentTreeManagement: React.FC<DepartmentTreeManagementProps> = ({
   onNodeSelect,
 }) => {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<FlatDeptRow[]>(() =>
     flattenCompanyNodes(namespaceTreeRaw as RawNode[])
   );
@@ -120,7 +122,7 @@ const DepartmentTreeManagement: React.FC<DepartmentTreeManagementProps> = ({
       depth:       parentRow ? parentRow.depth + 1 : 0,
     };
     setRows((prev) => [...prev, newRow]);
-    message.success(`部署ノード「${node.label}」を追加しました`);
+    message.success(t('departmentTree.nodeAdded', { label: node.label }));
   };
 
   // ──── 編集中のURI自動生成（編集行の部署CD＋ラベルから生成）
@@ -141,7 +143,7 @@ const DepartmentTreeManagement: React.FC<DepartmentTreeManagementProps> = ({
   // ──── 編集保存
   const handleEditSave = async () => {
     if (!editingRow) return;
-    if (!editValues.prefix) { message.error('Prefixは必須です'); return; }
+    if (!editValues.prefix) { message.error(t('departmentTree.prefixRequired')); return; }
 
     const savePayload = { ...editValues, uri: editAutoUri };
 
@@ -160,7 +162,7 @@ const DepartmentTreeManagement: React.FC<DepartmentTreeManagementProps> = ({
       )
     );
     setEditingRow(null);
-    message.success('部署ノードを更新しました');
+    message.success(t('departmentTree.nodeUpdated'));
   };
 
   // ──── 削除
@@ -179,7 +181,7 @@ const DepartmentTreeManagement: React.FC<DepartmentTreeManagementProps> = ({
           });
         } catch { /* APIが未実装でもローカル削除 */ }
         setRows((prev) => prev.filter((r) => r.key !== row.key));
-        message.success(`「${row.label}」を削除しました`);
+        message.success(t('departmentTree.nodeDeleted', { label: row.label }));
       },
     });
   };

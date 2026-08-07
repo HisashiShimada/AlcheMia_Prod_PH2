@@ -996,7 +996,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           setSelectedMethodIdForPlan('');
         }}
         onSave={() => {
-          message.success('実験計画を保存しました（モック）');
+          message.success(t('taskRegistration.saveMockSuccess'));
         }}
         disabled={isCheckoutLocked || !!maimlHasErrors || !!isProjectCompleted}
       />

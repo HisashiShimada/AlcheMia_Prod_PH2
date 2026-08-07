@@ -1,0 +1,4 @@
+ユーザー名,メールアドレス,ロール,アクティブ判定
+テストユーザー1,test.user1@example.com,experiment_worker,true
+テストユーザー2,test.user2@example.com,experiment_worker,true
+テスト管理者,test.admin@example.com,experiment_admin,true

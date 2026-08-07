@@ -37,7 +37,9 @@ type Messages = {
     };
   };
   organizationGroup: {
+    notFound: string;
     duplicateCd: string;
+    accessDenied: string;
     csv: {
       cdRequired: string;
       nameRequired: string;
@@ -124,7 +126,9 @@ const ja: Messages = {
     },
   },
   organizationGroup: {
-    duplicateCd: '入力されたIDは既に存在しています',
+    notFound: '組織グループが見つかりません',
+    duplicateCd: '入力されたグループCDは既に存在しています',
+    accessDenied: '指定された組織グループへのアクセス権限がありません',
     csv: {
       cdRequired: '{row}行目: organization_group_cdは必須です',
       nameRequired: '{row}行目: organization_group_nameは必須です',
@@ -211,7 +215,9 @@ const en: Messages = {
     },
   },
   organizationGroup: {
-    duplicateCd: 'The entered ID already exists',
+    notFound: 'Organization group not found',
+    duplicateCd: 'The entered group CD is already in use',
+    accessDenied: 'You do not have permission to access the specified organization group',
     csv: {
       cdRequired: 'Row {row}: organization_group_cd is required',
       nameRequired: 'Row {row}: organization_group_name is required',
