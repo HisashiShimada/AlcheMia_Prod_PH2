@@ -11,7 +11,7 @@ import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { AxiosError } from 'axios';
 import type { Task, Method, ProjectStatus } from '@/types/experimentWorker';
-import { TaskStatus } from '@/constants/codeMaster';
+import { TaskStatus, TASK_STATUS_STRING_TO_NUMBER } from '@/constants/codeMaster';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { HTTP_STATUS } from '@/constants/httpStatus';
 
@@ -125,7 +125,7 @@ export default function ProgressCheckTab({
                 taskName: task.task_no.toString(), // task_nameフィールドは除外されているのでtask_noを代用
                 methodId: method.method_id,
                 methodName: method.method_name, // メソッド名を追加
-                status: task.task_status as unknown as Task['status'],
+                status: TASK_STATUS_STRING_TO_NUMBER[task.task_status] ?? TaskStatus.PENDING,
                 assignedUserId: task.experiment_user_id,
                 assignedUserName: task.experiment_user_name,
                 createdAt: task.created_at,
@@ -332,7 +332,7 @@ export default function ProgressCheckTab({
                     taskName: apiTask.task_no.toString(),
                     methodId: method.method_id,
                     methodName: method.method_name,
-                    status: apiTask.task_status as unknown as Task['status'],
+                    status: TASK_STATUS_STRING_TO_NUMBER[apiTask.task_status] ?? TaskStatus.PENDING,
                     assignedUserId: apiTask.experiment_user_id,
                     assignedUserName: apiTask.experiment_user_name,
                     createdAt: apiTask.created_at,
@@ -401,7 +401,7 @@ export default function ProgressCheckTab({
                       taskName: apiTask.task_no.toString(),
                       methodId: method.method_id,
                       methodName: method.method_name,
-                      status: apiTask.task_status as unknown as Task['status'],
+                      status: TASK_STATUS_STRING_TO_NUMBER[apiTask.task_status] ?? TaskStatus.PENDING,
                     assignedUserId: apiTask.experiment_user_id,
                     assignedUserName: apiTask.experiment_user_name,
                     createdAt: apiTask.created_at,
@@ -537,7 +537,7 @@ export default function ProgressCheckTab({
                     taskName: apiTask.task_no.toString(),
                     methodId: method.method_id,
                     methodName: method.method_name,
-                    status: apiTask.task_status as unknown as Task['status'],
+                    status: TASK_STATUS_STRING_TO_NUMBER[apiTask.task_status] ?? TaskStatus.PENDING,
                     assignedUserId: apiTask.experiment_user_id,
                     assignedUserName: apiTask.experiment_user_name,
                     createdAt: apiTask.created_at,
@@ -606,7 +606,7 @@ export default function ProgressCheckTab({
                       taskName: apiTask.task_no.toString(),
                       methodId: method.method_id,
                       methodName: method.method_name,
-                      status: apiTask.task_status as unknown as Task['status'],
+                      status: TASK_STATUS_STRING_TO_NUMBER[apiTask.task_status] ?? TaskStatus.PENDING,
                       assignedUserId: apiTask.experiment_user_id,
                       assignedUserName: apiTask.experiment_user_name,
                       createdAt: apiTask.created_at,

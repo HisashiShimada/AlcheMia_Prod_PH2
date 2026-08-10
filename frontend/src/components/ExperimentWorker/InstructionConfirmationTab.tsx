@@ -11,7 +11,7 @@ import InstructionFlowDialog from './InstructionFlowDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
 import type { FileData, SubnetData } from '@/types/editor';
 import { Stats, Instruction, ProjectStatus, isEditableStatus, Method, Task } from '@/types/experimentWorker';
-import { ProjectStatus as ProjectStatusCode } from '@/constants/codeMaster';
+import { ProjectStatus as ProjectStatusCode, TaskStatus, TASK_STATUS_STRING_TO_NUMBER } from '@/constants/codeMaster';
 import { getWorkerTasks, confirmInstruction, getProjectMaiml } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -150,7 +150,7 @@ export default function InstructionConfirmationTab({
               taskName: task.task_no.toString(), // task_nameカラム削除のためtask_noを代用
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.task_status as unknown as Task['status'],
+              status: TASK_STATUS_STRING_TO_NUMBER[task.task_status] ?? TaskStatus.PENDING,
               assignedUserId: task.experiment_user_id || undefined,
               assignedUserName: task.experiment_user_name || undefined,
               createdAt: task.created_at,
@@ -174,7 +174,7 @@ export default function InstructionConfirmationTab({
               taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.task_status as unknown as Task['status'],
+              status: TASK_STATUS_STRING_TO_NUMBER[task.task_status] ?? TaskStatus.PENDING,
               assignedUserId: task.experiment_user_id,
               assignedUserName: task.experiment_user_name,
               createdAt: task.created_at,

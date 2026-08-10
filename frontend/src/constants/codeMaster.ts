@@ -78,6 +78,22 @@ export const TaskStatus = {
 
 export type TaskStatusType = typeof TaskStatus[keyof typeof TaskStatus];
 
+/**
+ * APIレスポンスのタスクステータス文字列 → フロントエンド数値 変換マップ
+ *
+ * バックエンドは task_status を文字列で返す（例: 'not_started'）。
+ * フロントエンド内部のロジックは数値（TaskStatusType）を前提としているため、
+ * API受信後に本マップで変換すること。
+ */
+export const TASK_STATUS_STRING_TO_NUMBER: Record<string, TaskStatusType> = {
+  'not_started':      TaskStatus.PENDING,           // 0: 実行待ち
+  'started':          TaskStatus.PENDING,            // 0: started は pending 扱い（WorkerTask 型に存在）
+  'in_progress':      TaskStatus.IN_PROGRESS,        // 1: 実行中
+  'review_waiting':   TaskStatus.REVIEW_WAITING,     // 2: レビュー待ち
+  'completed':        TaskStatus.COMPLETED,          // 3: 完了
+  'forced_terminated': TaskStatus.FORCED_TERMINATED, // 4: 異常終了
+};
+
 // ============================================================
 // instruction_status: 指示送信ステータス
 // ============================================================

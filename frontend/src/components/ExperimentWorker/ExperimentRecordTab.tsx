@@ -22,6 +22,7 @@ import { getWorkerTasks } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { createApiClient } from '@/utils/authUtils';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import { TaskStatus, TASK_STATUS_STRING_TO_NUMBER } from '@/constants/codeMaster';
 
 const { Title, Text } = Typography;
 
@@ -157,7 +158,7 @@ export default function ExperimentRecordTab({
               taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.task_status as unknown as Task['status'],
+              status: TASK_STATUS_STRING_TO_NUMBER[task.task_status] ?? TaskStatus.PENDING,
               assignedUserId: task.experiment_user_id || undefined,
               assignedUserName: task.experiment_user_name || undefined,
               createdAt: task.created_at,
@@ -179,7 +180,7 @@ export default function ExperimentRecordTab({
               taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.task_status as unknown as Task['status'],
+              status: TASK_STATUS_STRING_TO_NUMBER[task.task_status] ?? TaskStatus.PENDING,
               assignedUserId: task.experiment_user_id || undefined,
               assignedUserName: task.experiment_user_name || undefined,
               createdAt: task.created_at,
