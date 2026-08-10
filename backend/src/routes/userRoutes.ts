@@ -145,7 +145,7 @@ router.post(
       .isEmail()
       .withMessage('mailAddress must be a valid email address'),
     body('departmentCd')
-      .optional()
+      .optional({ nullable: true })
       .isString()
       .withMessage('departmentCd must be a string'),
     body('roleCd')
@@ -190,7 +190,7 @@ router.put(
       .isLength({ max: 30 })
       .withMessage('userName must be at most 30 characters'),
     body('departmentCd')
-      .optional()
+      .optional({ nullable: true })
       .isString()
       .withMessage('departmentCd must be a string'),
     body('roleCd')

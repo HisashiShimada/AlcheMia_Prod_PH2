@@ -294,7 +294,7 @@ export default function UserManagement() {
     form.setFieldsValue({
       userName: user.userName,
       mailAddress: user.mailAddress,
-      departmentCd: user.departmentCd,
+      departmentCd: user.departmentCd ?? undefined,
       roleCd: user.roleCd,
       isActive: user.isActive,
     });
@@ -439,7 +439,7 @@ export default function UserManagement() {
       if (editingUser) {
         const updateData: UpdateUserRequest = {
           userName: values.userName,
-          departmentCd: values.departmentCd,
+          departmentCd: values.departmentCd ?? undefined,
           roleCd: values.roleCd,
           isActive: values.isActive,
         };
@@ -452,7 +452,7 @@ export default function UserManagement() {
           userId: values.mailAddress,
           userName: values.userName,
           mailAddress: values.mailAddress,
-          departmentCd: values.departmentCd,
+          departmentCd: values.departmentCd ?? undefined,
           roleCd: values.roleCd,
           isActive: values.isActive,
         };
