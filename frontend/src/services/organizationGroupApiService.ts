@@ -53,6 +53,35 @@ export const getOrganizationGroups = async (
 };
 
 /**
+ * ログインユーザーが閲覧可能な組織グループ一覧を取得する
+ *
+ * @remarks
+ * バックエンドの GET /api/v1/organization-groups?visibleOnly=true を呼び出す。
+ * 非アクティブチームの権限ルールを反映した閲覧可能グループ一覧を返す。
+ *
+ * @returns 閲覧可能な組織グループ一覧（cd, name, isActive）
+ */
+export const getVisibleOrganizationGroups = async (): Promise<
+  Array<{ cd: string; name: string; isActive: boolean }>
+> => {
+  const client = createApiClient();
+
+  try {
+    console.log('🏢 [organizationGroupApiService] 閲覧可能グループ一覧取得');
+
+    const response = await client.get<{
+      success: boolean;
+      data: { groups: Array<{ cd: string; name: string; isActive: boolean }> };
+    }>('/organization-groups', { params: { visibleOnly: 'true' } });
+
+    return response.data?.data?.groups ?? [];
+  } catch (error) {
+    console.warn('⚠️ [organizationGroupApiService] 閲覧可能グループ一覧の取得に失敗しました:', error);
+    return [];
+  }
+};
+
+/**
  * 組織階層グループを新規作成する
  *
  * @remarks
@@ -103,19 +132,31 @@ export const updateOrganizationGroup = async (
 };
 
 /**
- * 組織階層グループを削除する
+ * 組織階層グループのアクティブ状態を更新する（論理削除 / 有効化 共用）
  *
  * @remarks
- * バックエンドの DELETE /api/v1/organization-groups/:groupCd を呼び出す。
+ * バックエンドの PATCH /api/v1/organization-groups/:groupCd/status を呼び出す。
+ * isActive = false: 無効化（論理削除）。メンバーを物理削除する。
+ * isActive = true:  有効化。
  *
- * @param groupCd - 削除対象の組織階層グループCD
+ * @param groupCd - 対象の組織階層グループCD
+ * @param isActive - true: 有効化 / false: 無効化（論理削除）
+ * @returns 更新後の組織階層グループ行
  */
-export const deleteOrganizationGroup = async (groupCd: string): Promise<void> => {
+export const updateOrganizationGroupStatus = async (
+  groupCd: string,
+  isActive: boolean
+): Promise<OrganizationGroupRow> => {
   const client = createApiClient();
 
-  console.log('🏢 [organizationGroupApiService] 組織階層グループ削除:', groupCd);
+  console.log('🏢 [organizationGroupApiService] 組織階層グループ状態更新:', groupCd, isActive ? '有効化' : '無効化（論理削除）');
 
-  await client.delete(`/organization-groups/${encodeURIComponent(groupCd)}`);
+  const response = await client.patch<{ success: boolean; data: OrganizationGroupRow }>(
+    `/organization-groups/${encodeURIComponent(groupCd)}/status`,
+    { isActive }
+  );
+
+  return response.data.data;
 };
 
 // ============================================================================

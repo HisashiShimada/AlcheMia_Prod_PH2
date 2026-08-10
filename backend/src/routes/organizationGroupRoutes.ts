@@ -38,7 +38,9 @@ router.get('/', organizationGroupController.getOrganizationGroups);
  * @body organization_group_cd - グループCD（必須）
  * @body organization_group_name - グループ名（必須）
  * @body parent_group_cd - 親グループCD（任意）
- * @body layer - レイヤー（任意）
+ *
+ * @remarks
+ * layer は parent_group_cd から自動算出されるため送信不要。
  */
 router.post(
   '/',
@@ -173,16 +175,25 @@ router.put(
 );
 
 /**
- * 組織グループ削除
- * DELETE /api/v1/organization-groups/:groupCd
+ * 組織グループ アクティブ状態更新（論理削除 / 有効化 共用）
+ * PATCH /api/v1/organization-groups/:groupCd/status
+ *
+ * @body isActive - 設定するアクティブ状態（boolean, 必須）
+ *
+ * @remarks
+ * isActive = false: 無効化（論理削除）。メンバーを物理削除する。
+ * isActive = true: 有効化。
  */
-router.delete(
-  '/:groupCd',
+router.patch(
+  '/:groupCd/status',
   [
     param('groupCd').notEmpty().withMessage('groupCd は必須です'),
+    body('isActive')
+      .isBoolean()
+      .withMessage('isActive は boolean で指定してください'),
   ],
   handleValidationErrors,
-  organizationGroupController.deleteOrganizationGroup
+  organizationGroupController.updateOrganizationGroupStatus
 );
 
 export default router;

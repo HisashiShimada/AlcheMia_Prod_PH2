@@ -23,6 +23,11 @@ import * as organizationGroupRepository from '../repositories/organizationGroupR
  * GET /api/v1/organization-groups
  *
  * @query search - グループCDまたはグループ名による部分一致検索（任意）
+ * @query visibleOnly - true の場合、ログインユーザーが閲覧可能なグループのみを返す
+ *
+ * @remarks
+ * visibleOnly=true 以外の場合は、ログインユーザーが代表者（chief_user_id）のチームのみを返す。
+ * visibleOnly=true の場合は、非アクティブチームの権限ルールを反映した閲覧可能グループ一覧を返す。
  */
 export async function getOrganizationGroups(
   req: Request,
@@ -31,13 +36,24 @@ export async function getOrganizationGroups(
 ): Promise<void> {
   try {
     const organizationId = req.organizationId!;
+    const visibleOnly = req.query.visibleOnly === 'true';
+
+    if (visibleOnly) {
+      const userGroupCds = req.user!.organizationGroupCds ?? [];
+      const groups = await organizationGroupService.getVisibleOrganizationGroups(
+        organizationId,
+        userGroupCds
+      );
+      res.json({ success: true, data: { groups } });
+      return;
+    }
+
     const search = req.query.search as string | undefined;
-    const userId = req.userId;
+    const chiefUserId = req.user!.userId;
 
     const groups = await organizationGroupService.getOrganizationGroups(
       organizationId,
-      { search },
-      userId
+      { search, chiefUserId }
     );
 
     res.json({ success: true, data: groups });
@@ -75,11 +91,10 @@ export async function getOrganizationGroupById(
  * @body organization_group_cd - グループCD（必須）
  * @body organization_group_name - グループ名（必須）
  * @body parent_group_cd - 親グループCD（任意）
- * @body layer - レイヤー（任意）
  *
  * @remarks
  * chief_user_id はリクエストユーザー（req.user.userId）から自動セットされる。
- * フロントエンドからの送信は不要。
+ * layer は parent_group_cd から自動算出されるためフロントエンドからの送信は不要。
  * バリデーションは validateCreateOrganizationGroup ミドルウェアで実施済み。
  */
 export async function createOrganizationGroup(
@@ -95,12 +110,10 @@ export async function createOrganizationGroup(
       organization_group_cd,
       organization_group_name,
       parent_group_cd,
-      layer,
     } = req.body as {
       organization_group_cd: string;
       organization_group_name: string;
       parent_group_cd?: string | null;
-      layer?: string | null;
     };
 
     const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
@@ -112,7 +125,6 @@ export async function createOrganizationGroup(
         organization_group_name: organization_group_name.trim(),
         chief_user_id: userId,  // ログインユーザーを代表者として自動セット
         parent_group_cd: parent_group_cd ?? null,
-        layer: layer ?? null,
       },
       userId,
       lang
@@ -186,22 +198,38 @@ export async function updateOrganizationGroup(
 }
 
 /**
- * 組織グループ削除
- * DELETE /api/v1/organization-groups/:groupCd
+ * 組織グループ アクティブ状態更新（論理削除 / 有効化 共用）
+ * PATCH /api/v1/organization-groups/:groupCd/status
+ *
+ * @body isActive - 設定するアクティブ状態（boolean）
+ *
+ * @remarks
+ * isActive = false: 無効化（論理削除）。メンバーを物理削除する。
+ * isActive = true: 有効化。メンバーは空のまま（再追加が必要）。
+ * バリデーションは routes 側で実施済み。
  */
-export async function deleteOrganizationGroup(
+export async function updateOrganizationGroupStatus(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
     const organizationId = req.organizationId!;
+    const userId = req.user!.userId;
     const { groupCd } = req.params;
+    const { isActive } = req.body as { isActive: boolean };
+    
     const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
 
-    await organizationGroupService.deleteOrganizationGroup(organizationId, groupCd, lang);
+    const updated = await organizationGroupService.updateOrganizationGroupActiveStatus(
+      organizationId,
+      groupCd,
+      isActive,
+      userId,
+      lang
+    );
 
-    res.json({ success: true });
+    res.json({ success: true, data: updated });
   } catch (error) {
     next(error);
   }
