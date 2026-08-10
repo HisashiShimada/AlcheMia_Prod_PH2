@@ -62,10 +62,16 @@ const { TextArea } = Input;
 // ─────────────────────────────────────────────────────────────
 
 export interface ExperimentInstructionTabProps {
-  /** 対象プロジェクトID */
+/** 対象プロジェクトID */
   projectId: string;
   /** 対象プロジェクト名 */
   projectName?: string;
+  /** 編集権限フラグ。false の場合は変更系ボタンを非活性にする */
+  isEditable?: boolean;
+  /** プロジェクト完了フラグ。true の場合は変更系ボタンを非活性にする */
+  isProjectCompleted?: boolean;
+  /** チェックアウト中フラグ。true の場合は変更系ボタンを非活性にする */
+  isCheckoutLocked?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -381,6 +387,9 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, rows, total, filtered, o
 const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   projectId,
   projectName,
+  isEditable = true,
+  isProjectCompleted = false,
+  isCheckoutLocked = false,
 }) => {
   const { message } = App.useApp();
   const { t } = useLanguage();
@@ -908,6 +917,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         <Button
           size="small"
           icon={<EditOutlined />}
+          disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
           onClick={() => handleOpenPlanDialog(filters.methodId ?? undefined)}
         >
           {t('experimentInstructionTab.toolbar.edit')}
@@ -935,7 +945,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           size="small"
           type="primary"
           icon={<CheckCircleOutlined />}
-          disabled={reviewWaitingTasks.length === 0}
+          disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}
           onClick={handleOpenBulkApproveDialog}
         >
           {t('experimentInstructionTab.toolbar.approval')}

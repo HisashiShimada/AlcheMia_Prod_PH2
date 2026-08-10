@@ -766,6 +766,7 @@
     "completionDisabledTooltip": "全タスクが「完了」になると押下できます",
     "filter_labels": {
       "owner": "担当者",
+      "organization_group": "チーム:",
       "project_status": "プロジェクトステータス",
       "checkout_status": "チェックアウト状態",
       "search": "検索"
@@ -843,6 +844,7 @@
     "no_team_assigned_title": "チームに所属していません。チーム管理からチームに参加してください。",
     "go_to_team_management": "チーム管理へ",
     "editDisabledTitle": "編集権限がありません",
+    "inactiveGroupSuffix": "（非アクティブ）",
     "uploadDisabledTitle": "完了済みプロジェクトはアップロードできません",
     "editCheckedOutTitle": "チェックアウト中は編集できません",
     "deleteDisabledTitle": "完了済みプロジェクトは削除できません",
@@ -4398,17 +4400,25 @@
     "membersCount": "（{count}名）",
     "noMembers": "メンバーがいません",
     "editBtn": "編集",
-    "deleteConfirmTitle": "「{name}」を削除しますか？",
-    "deleteConfirmDesc": "削除すると元に戻せません",
-    "deleteOk": "削除",
-    "deleteCancel": "キャンセル",
-    "deleteSuccess": "グループ「{name}」を削除しました",
-    "deleteFailed": "削除に失敗しました: {detail}",
-    "deleteError": "削除中にエラーが発生しました",
+    "inactiveLabel": "非アクティブ",
+    "deactivateBtn": "非アクティブ化",
+    "activateBtn": "アクティブ化",
+    "deactivateConfirmTitle": "「{name}」を非アクティブ化しますか？",
+    "deactivateConfirmDesc": "非アクティブ化するとメンバーが削除されます。再度アクティブ化することができます。",
+    "deactivateOk": "非アクティブ化",
+    "activateConfirmTitle": "「{name}」をアクティブ化しますか？",
+    "activateConfirmDesc": "アクティブ化するとグループが再び利用可能になります。",
+    "activateOk": "アクティブ化",
+    "statusChangeCancel": "キャンセル",
+    "deactivateSuccess": "グループ「{name}」を非アクティブ化しました",
+    "activateSuccess": "グループ「{name}」をアクティブ化しました",
+    "statusChangeFailed": "状態変更に失敗しました: {detail}",
+    "statusChangeError": "状態変更中にエラーが発生しました",
     "fetchFailed": "グループ一覧の取得に失敗しました",
     "memberFetchFailed": "メンバー情報の取得に失敗しました",
     "colUserName": "ユーザー名",
-    "selectPrompt": "グループを選択してください"
+    "selectPrompt": "グループを選択してください",
+    "namespaceUriLabel": "名前空間URI"
   },
   "teamAddDialog": {
     "title": "グループを作成",
@@ -4436,7 +4446,10 @@
     "createSuccess": "グループ「{name}」を作成しました",
     "createFailed": "グループの作成に失敗しました: {detail}",
     "createError": "グループの作成中にエラーが発生しました",
-    "memberSetFailed": "グループは作成しましたが、メンバーの設定に失敗しました"
+    "memberSetFailed": "グループは作成しましたが、メンバーの設定に失敗しました",
+    "isActiveLabel": "アクティブ判定",
+    "isActiveOptionActive": "アクティブ",
+    "isActiveOptionInactive": "非アクティブ"
   },
   "teamEditDialog": {
     "title": "グループを編集",
@@ -4468,7 +4481,10 @@
     "chiefUpdateFailed": "代表者の更新に失敗しました: {detail}",
     "saveFailed": "保存に失敗しました: {detail}",
     "saveError": "保存中にエラーが発生しました",
-    "membersCount": "（{count}名）"
+    "membersCount": "（{count}名）",
+    "isActiveLabel": "アクティブ判定",
+    "isActiveOptionActive": "アクティブ",
+    "isActiveOptionInactive": "非アクティブ"
   },
   "prefixManagement": {
     "fetchError": "名前空間一覧の取得に失敗しました",

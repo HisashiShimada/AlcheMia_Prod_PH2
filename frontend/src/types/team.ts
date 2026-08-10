@@ -34,12 +34,16 @@ export interface OrganizationGroupRow {
   parent_group_cd: string | null;
   /** レイヤー */
   layer: string | null;
+  /** アクティブ判定（論理削除フラグ） */
+  is_active: boolean;
   /** 作成日時 */
   create_at?: string;
   /** 更新日時 */
   update_at?: string;
   /** メンバー数（findAll 取得時のみ付与） */
   member_count?: number;
+  /** namespace テーブルから scope_key = organization_group_cd で JOIN して取得した URI */
+  namespace_uri?: string | null;
 }
 
 // ──────────────────────────────────────────────
@@ -48,6 +52,9 @@ export interface OrganizationGroupRow {
 
 /**
  * organization_group 新規作成リクエスト
+ *
+ * @remarks
+ * layer はバックエンドで parent_group_cd から自動算出されるため送信不要。
  */
 export interface CreateOrganizationGroupRequest {
   /** 組織階層グループCD */
@@ -56,8 +63,6 @@ export interface CreateOrganizationGroupRequest {
   organization_group_name: string;
   /** 親階層グループCD */
   parent_group_cd?: string | null;
-  /** レイヤー */
-  layer?: string | null;
 }
 
 /**
@@ -124,6 +129,10 @@ export interface Team {
   members: TeamMember[];
   /** 一覧表示用メンバー数（API から取得した確定値） */
   memberCount: number;
+  /** アクティブ判定（論理削除フラグ）。未取得時は true 扱い */
+  isActive?: boolean;
+  /** namespace テーブルから取得した URI（チーム固有の名前空間 URI） */
+  namespaceUri?: string | null;
 }
 
 // ──────────────────────────────────────────────
@@ -142,8 +151,17 @@ export interface TeamAddDialogProps {
    * @param groupName - 作成されたグループ名
    * @param ownerUserId - 代表者ユーザーID（chief_user_id）
    * @param ownerName - 代表者表示名
+   * @param isActive - アクティブ状態
+   * @param parentGroupCd - 親グループCD（ルートの場合は undefined）
    */
-  onCreated: (groupCd: string, groupName: string, ownerUserId: string, ownerName: string) => void;
+  onCreated: (
+    groupCd: string,
+    groupName: string,
+    ownerUserId: string,
+    ownerName: string,
+    isActive: boolean,
+    parentGroupCd?: string | null,
+  ) => void;
 }
 
 /**
@@ -157,6 +175,13 @@ export interface TeamEditDialogProps {
   teamGroupCd?: string;
   /** チームの現在の代表者 userId（初期値として使用） */
   teamOwnerUserId?: string;
+  /** チームのアクティブ状態（省略時 true 扱い） */
+  teamIsActive?: boolean;
   onClose: () => void;
-  onSaved: (members: string[], newTeamName?: string, newOwnerUserId?: string) => void;
+  onSaved: (
+    members: string[],
+    newTeamName?: string,
+    newOwnerUserId?: string,
+    newIsActive?: boolean,
+  ) => void;
 }

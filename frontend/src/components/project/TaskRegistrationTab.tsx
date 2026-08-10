@@ -68,7 +68,7 @@ const { useToken } = theme;
  * タスク登録タブのプロパティ
  */
 interface TaskRegistrationTabProps {
-  projectId: string;
+projectId: string;
   projectName: string;
   isActive: boolean;
   isCheckoutLocked?: boolean;
@@ -76,6 +76,8 @@ interface TaskRegistrationTabProps {
   maimlHasErrors?: boolean;
   /** プロジェクト完了状態（status === 4）の場合 true */
   isProjectCompleted?: boolean;
+  /** 編集権限フラグ。false の場合は変更系ボタンを非活性にする */
+  isEditable?: boolean;
   onTasksChange?: (tasks: TaskDetail[]) => void;
 }
 
@@ -96,6 +98,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   isCheckoutLocked: isCheckoutLockedProp,
   maimlHasErrors,
   isProjectCompleted,
+  isEditable = true,
   onTasksChange,
 }) => {
   const { token } = useToken();
@@ -657,8 +660,8 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
    * 順序変更が非活性かどうかを判定する関数（順序変更Selectのみ）
    */
   const isOrderChangeDisabled = useCallback((record: TaskDetail) => {
-    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg;
-  }, [isSaving, loadingMethods, isCheckoutLocked]);
+    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg || !isEditable;
+  }, [isSaving, loadingMethods, isCheckoutLocked, isEditable]);
 
   /**
    * チェックボックスが非活性かどうかを判定する関数
@@ -672,8 +675,8 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
    * チェックアウト中・ワーカー連携済み・MAIMLエラーあり は変更不可
    */
   const isFieldDisabled = useCallback((record: TaskDetail) => {
-    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg || !!maimlHasErrors || !!isProjectCompleted;
-  }, [isSaving, loadingMethods, isCheckoutLocked, maimlHasErrors]);
+    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg || !!maimlHasErrors || !!isProjectCompleted || !isEditable;
+  }, [isSaving, loadingMethods, isCheckoutLocked, maimlHasErrors, isProjectCompleted, isEditable]);
 
   /**
    * ドラッグ可能な行コンポーネント
@@ -905,7 +908,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           <Button
             type="primary"
             onClick={handleProjectInstructionClick}
-            disabled={loadingMethods || isCheckoutLocked || maimlHasErrors || !!isProjectCompleted}
+            disabled={loadingMethods || isCheckoutLocked || maimlHasErrors || !!isProjectCompleted || !isEditable}
             data-testid="project-instruction-button"
           >
             {t('taskRegistration.buttons.projectInstruction')}
@@ -915,7 +918,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             icon={<SaveOutlined />}
             onClick={handleSave}
             loading={isSaving}
-            disabled={loadingMethods || isCheckoutLocked || maimlHasErrors}
+            disabled={loadingMethods || isCheckoutLocked || maimlHasErrors || !!isProjectCompleted || !isEditable}
             data-testid="task-registration-save-button"
           >
             {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}

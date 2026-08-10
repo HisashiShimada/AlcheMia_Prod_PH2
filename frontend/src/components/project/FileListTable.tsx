@@ -38,7 +38,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import type { MaimlAnalysisResultRow } from '@/types/maimlEditor';
 
 interface FileListTableProps {
-  files: ProjectFile[];
+files: ProjectFile[];
   /** 現在表示中のフォルダパス（'root' またはパス文字列） */
   currentFolder?: string;
   onFileClick?: (file: ProjectFile) => void;
@@ -51,6 +51,12 @@ interface FileListTableProps {
   onRenameFile?: () => void;
   /** MAIMLバリデーション結果（DB保存済み）。MAIMLファイル行に警告アイコンを表示するために使用 */
   maimlValidationRow?: MaimlAnalysisResultRow | null;
+  /** 編集権限フラグ。false の場合は変更系ボタンを非活性にする */
+  isEditable?: boolean;
+  /** プロジェクト完了フラグ。true の場合は変更系ボタンを非活性にする */
+  isProjectCompleted?: boolean;
+  /** チェックアウト中フラグ。true の場合は変更系ボタンを非活性にする */
+  isCheckoutLocked?: boolean;
 }
 
 /**
@@ -65,6 +71,9 @@ const FileListTable: React.FC<FileListTableProps> = ({
   onDeleteFolder,
   onRenameFile,
   maimlValidationRow,
+  isEditable = true,
+  isProjectCompleted = false,
+  isCheckoutLocked = false,
 }) => {
   const { token } = theme.useToken();
   const { t } = useLanguage();
@@ -300,6 +309,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 data-testid="folder-delete-button"
+                disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteFolder(record);
@@ -312,11 +322,13 @@ const FileListTable: React.FC<FileListTableProps> = ({
         }
 
         // ドロップダウンメニューの項目
+        const isDeleteDisabled = !isEditable || isProjectCompleted || isCheckoutLocked;
         const menuItems: MenuProps['items'] = [
           {
             key: 'rename',
             label: <span data-testid="file-menu-rename">{t('file.renameMenuLabel')}</span>,
             icon: <EditOutlined />,
+            disabled: isDeleteDisabled,
             onClick: (info) => {
               info.domEvent.stopPropagation();
               handleOpenRenameModal(record);
@@ -330,6 +342,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
             label: <span data-testid="file-menu-delete">{t('common.delete')}</span>,
             icon: <DeleteOutlined />,
             danger: true,
+            disabled: isDeleteDisabled,
             onClick: () => {
               console.log('ファイル削除ボタンがクリックされました:', record.name);
               onDeleteFile?.(record);

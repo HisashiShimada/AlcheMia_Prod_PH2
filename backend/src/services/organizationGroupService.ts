@@ -33,6 +33,99 @@ export async function getOrganizationGroups(
 }
 
 /**
+ * ログインユーザーが閲覧可能な組織グループ一覧を返す
+ *
+ * 以下のグループを返す（非アクティブチームの権限ルールを反映）：
+ * - ユーザーが直接所属するチーム（active）
+ * - ユーザーが直接所属するチームの子孫チーム（active・inactive 両方）
+ * - ユーザーの上位チームが active で、そこから辿れる非アクティブチーム
+ * - ルート（parent_group_cd = null）の非アクティブチームは除外
+ *
+ * @param organizationId - 組織ID
+ * @param userGroupCds - ログインユーザーが直接所属する組織グループCDの配列
+ * @returns 閲覧可能な組織グループ一覧（cd, name, isActive）
+ */
+export async function getVisibleOrganizationGroups(
+  organizationId: string,
+  userGroupCds: string[]
+): Promise<Array<{ cd: string; name: string; isActive: boolean }>> {
+  // 全グループを取得してメモリ内で解決
+  const allGroups = await organizationGroupRepository.findAll(organizationId);
+  const allGroupMap = new Map(allGroups.map((g) => [g.organization_group_cd, g]));
+
+  // ─── ヘルパー: 指定グループCDの有効な祖先CD一覧を返す ───
+  const findActiveAncestorCds = (groupCd: string): string[] => {
+    const activeCds: string[] = [];
+    let current = allGroupMap.get(groupCd);
+    let depth = 0;
+    const maxDepth = 20;
+    while (current?.parent_group_cd && depth < maxDepth) {
+      const parent = allGroupMap.get(current.parent_group_cd);
+      if (!parent) break;
+      if (parent.is_active) activeCds.push(parent.organization_group_cd);
+      current = parent;
+      depth++;
+    }
+    return activeCds;
+  };
+
+  // ─── ヘルパー: 指定CDが candidates のいずれかの子孫か判定 ───
+  const isDescendantOfAny = (cd: string, candidates: string[]): boolean => {
+    let current = allGroupMap.get(cd);
+    while (current?.parent_group_cd) {
+      if (candidates.includes(current.parent_group_cd)) return true;
+      current = allGroupMap.get(current.parent_group_cd);
+    }
+    return false;
+  };
+
+  // 直接所属グループが空なら空配列を返す（非アクティブグループ経由の閲覧のみ確認）
+  const inactiveGroups = allGroups.filter((g) => !g.is_active);
+  const inactiveVisibleCds: string[] = [];
+
+  for (const inactiveGroup of inactiveGroups) {
+    // ルート非アクティブグループ（上位チームなし）は除外
+    if (!inactiveGroup.parent_group_cd) continue;
+
+    const activeAncestorCds = findActiveAncestorCds(inactiveGroup.organization_group_cd);
+    const isVisible = activeAncestorCds.some((cd) => userGroupCds.includes(cd));
+    if (isVisible) {
+      inactiveVisibleCds.push(inactiveGroup.organization_group_cd);
+    }
+  }
+
+  if (userGroupCds.length === 0) {
+    // 直接所属グループなし: 非アクティブグループ経由の閲覧のみ
+    return inactiveVisibleCds.map((cd) => {
+      const g = allGroupMap.get(cd)!;
+      return { cd: g.organization_group_cd, name: g.organization_group_name, isActive: g.is_active };
+    });
+  }
+
+  // ルート群（他の所属グループの子孫でないもの）を算出
+  const rootCds = userGroupCds.filter((cd) => !isDescendantOfAny(cd, userGroupCds));
+
+  // ルート群の子孫（自身含む・is_active 無関係）を再帰取得
+  const descendantCds = await organizationGroupRepository.findDescendantCds(organizationId, rootCds);
+
+  // 閲覧可能なCDの集合（重複除去）
+  const visibleCdSet = new Set([...descendantCds, ...inactiveVisibleCds]);
+
+  // 結果を OrganizationGroupRow から必要なフィールドのみ抽出して返す
+  const result: Array<{ cd: string; name: string; isActive: boolean }> = [];
+  for (const cd of visibleCdSet) {
+    const g = allGroupMap.get(cd);
+    if (g) {
+      result.push({ cd: g.organization_group_cd, name: g.organization_group_name, isActive: g.is_active });
+    }
+  }
+
+  // グループCD昇順でソート
+  result.sort((a, b) => a.cd.localeCompare(b.cd));
+  return result;
+}
+
+/**
  * 組織グループ単件取得
  *
  * @param organizationId - 組織ID
@@ -132,7 +225,6 @@ export async function createOrganizationGroup(
     organization_group_name: string;
     chief_user_id: string;
     parent_group_cd?: string | null;
-    layer?: string | null;
   },
   userId?: string | null,
   lang: string = 'ja'
@@ -147,6 +239,20 @@ export async function createOrganizationGroup(
     error.code = E7001;
     error.statusCode = 409;
     throw error;
+  }
+
+  // layer を親子関係から自動算出
+  // - parent_group_cd が null → ルートグループ → layer = '1'
+  // - parent_group_cd が指定あり → findAncestorChain の結果件数 + 1
+  let layer: string;
+  if (!data.parent_group_cd) {
+    layer = '1';
+  } else {
+    const ancestorCds = await organizationGroupRepository.findAncestorChain(
+      organizationId,
+      data.parent_group_cd
+    );
+    layer = String(ancestorCds.length + 1);
   }
 
   // 組織 CD 取得（namespace URI 生成に必要）
@@ -164,7 +270,7 @@ export async function createOrganizationGroup(
         organization_group_name: data.organization_group_name,
         chief_user_id: data.chief_user_id,
         parent_group_cd: data.parent_group_cd ?? null,
-        layer: data.layer ?? null,
+        layer,
         create_user_id: userId ?? null,
       },
       t
@@ -247,27 +353,68 @@ export async function updateOrganizationGroup(
 }
 
 /**
- * 組織グループ削除
+ * 組織グループ アクティブ状態更新（論理削除 / 有効化 共用）
  *
  * @param organizationId - 組織ID
  * @param groupCd - 組織グループCD
+ * @param isActive - 設定するアクティブ状態（false で無効化＝論理削除、true で有効化）
+ * @param updaterId - 更新者ユーザーID
+ * @returns 更新された組織グループ
  * @throws 存在しない場合は E6001（リソース不存在）エラー
+ *
+ * @remarks
+ * isActive = false（無効化）の場合、organization_group_user のメンバーを物理削除する。
+ * isActive = true（有効化）の場合、代表者（chief_user_id）を organization_group_user に再登録する。
+ * 代表者が既にメンバーとして存在する場合はスキップされる（ON CONFLICT DO NOTHING）。
  */
-export async function deleteOrganizationGroup(
+export async function updateOrganizationGroupActiveStatus(
   organizationId: string,
   groupCd: string,
+  isActive: boolean,
+  updaterId?: string | null,
   lang: string = 'ja'
-): Promise<void> {
-  // 存在確認
-  const exists = await organizationGroupRepository.existsById(organizationId, groupCd);
-  if (!exists) {
+): Promise<OrganizationGroupRow> {
+  // 存在確認 + chief_user_id 取得（有効化時の代表者再登録に使用）
+  const existing = await organizationGroupRepository.findById(organizationId, groupCd);
+  if (!existing) {
     const error = new Error(getMessage(lang, 'organizationGroup.notFound')) as Error & { code: string; statusCode: number };
     error.code = E6001;
     error.statusCode = 404;
     throw error;
   }
 
-  await organizationGroupRepository.deleteById(organizationId, groupCd);
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    if (!isActive) {
+      // 無効化時: メンバーを物理削除してから is_active を false に更新
+      await organizationGroupRepository.setMembers(organizationId, groupCd, [], client);
+      await organizationGroupRepository.updateActiveStatus(organizationId, groupCd, false, updaterId);
+    } else {
+      // 有効化時: is_active を true に更新してから代表者（chief_user_id）を再登録
+      await organizationGroupRepository.updateActiveStatus(organizationId, groupCd, true, updaterId);
+      await organizationGroupRepository.insertMember(organizationId, groupCd, existing.chief_user_id, client);
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  // 更新後のレコードを返す
+  const updated = await organizationGroupRepository.findById(organizationId, groupCd);
+  if (!updated) {
+    const error = new Error('Organization group not found after update') as Error & { code: string; statusCode: number };
+    error.code = E6001;
+    error.statusCode = 404;
+    throw error;
+  }
+  return updated;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
