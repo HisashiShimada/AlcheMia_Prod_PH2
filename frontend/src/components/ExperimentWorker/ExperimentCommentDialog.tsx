@@ -76,7 +76,7 @@ export default function ExperimentCommentDialog({
       width={560}
       destroyOnHidden
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         {/* 対象情報 */}
         <div
           style={{

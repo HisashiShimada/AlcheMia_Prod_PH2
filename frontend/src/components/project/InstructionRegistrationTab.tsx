@@ -11,7 +11,6 @@ import {
   Button,
   Table,
   Space,
-  Tag,
   Typography,
   message,
   theme,
@@ -322,38 +321,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   }, [instructions, projectName, onInstructionsSubmit, t]);
 
   /**
-   * 優先度のタグカラー（code_valueベース）
-   */
-  const getPriorityColor = (priority: number): string => {
-    switch (priority) {
-      case 3: // 高
-        return 'red';
-      case 2: // 中
-        return 'orange';
-      case 1: // 通常
-        return 'blue';
-      case 0: // 低
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
-
-  /**
-   * 優先度のラベル（code_value → code_name）
-   */
-  const getPriorityLabel = useCallback((priority: number): string => {
-    return t(`instructionRegistration.priority.${priority}`) || String(priority);
-  }, [t]);
-
-  /**
-   * タイプのラベル（code_value → code_name）
-   */
-  const getTypeLabel = useCallback((type: number): string => {
-    return t(`instructionRegistration.type.${type}`) || String(type);
-  }, [t]);
-
-  /**
    * 指示対象のラベル
    */
   const getTargetLabel = useCallback((instruction: InstructionData): string => {
@@ -424,22 +391,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
           </Tooltip>
         );
       },
-    },
-    {
-      title: t('instructionRegistration.columns.priority'),
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 75,
-      render: (priority: number) => (
-        <Tag color={getPriorityColor(priority)}>{getPriorityLabel(priority)}</Tag>
-      ),
-    },
-    {
-      title: t('instructionRegistration.columns.type'),
-      dataIndex: 'type',
-      key: 'type',
-      width: 90,
-      render: (type: number) => <Text>{getTypeLabel(type)}</Text>,
     },
     {
       title: t('instructionRegistration.columns.content'),

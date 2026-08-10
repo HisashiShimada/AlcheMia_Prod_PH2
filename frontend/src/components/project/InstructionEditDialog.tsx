@@ -250,7 +250,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
       }
     >
       <Form form={form} layout="vertical" style={{ marginTop: token.marginSM }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
 
           {/* ① 指示種別（必須） */}
           <Form.Item
@@ -278,7 +278,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
                 （未選択の場合は全体指示）
               </Text>
             </Text>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Select
                 placeholder="指示対象を選択（任意）"
                 options={granularityOptions}

@@ -150,7 +150,7 @@ const ApprovalWizardDialog: React.FC<ApprovalWizardDialogProps> = ({
         </Flex>
       }
     >
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={16} style={{ width: '100%' }}>
         {/* メソッド + タスク選択 */}
         <Flex gap={12} align="center" wrap="wrap">
           <Text style={{ whiteSpace: 'nowrap' }}>{t('approvalWizard.methodName')}</Text>

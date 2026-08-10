@@ -654,7 +654,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   // --- 基本情報パネル（共通化） ---
 
   const renderBasicInfoPanel = () => (
-    <Space direction="vertical" style={{ width: '100%' }} size={12}>
+    <Space orientation="vertical" style={{ width: '100%' }} size={12}>
       <RefSection
         title="CreatorRef"
         options={creatorRefOptions}
@@ -852,7 +852,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                   items={transitionOrder.map((item) => item.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                     {transitionOrder.map((item) => {
                       const trans = transitions.find((t) => t.id === item.id);
                       const name = trans?.name ?? item.id;
