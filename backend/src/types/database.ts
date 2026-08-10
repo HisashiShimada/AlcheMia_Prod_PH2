@@ -167,12 +167,6 @@ export interface ProjectInstruction {
   /** メソッドID */
   method_id?: string | null;
   
-  /** 優先度 */
-  priority?: number | null;
-  
-  /** タイプ */
-  type?: number | null;
-  
   /** タスク連番 */
   task_no?: number | null;
   
@@ -190,6 +184,9 @@ export interface ProjectInstruction {
   
   /** 指示送信日 */
   instruction_date?: Date | null;
+  
+  /** MAIMLのpropertyタグキー（mgr-instruction:caution 等。デフォルトは SupervisorDirectiveContent） */
+  instruction_key: string;
   
   /** 作成者ユーザID */
   create_user_id?: string;

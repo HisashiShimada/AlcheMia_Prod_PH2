@@ -49,7 +49,7 @@ const { useToken } = theme;
  * 指示登録タブのプロパティ
  */
 interface InstructionRegistrationTabProps {
-projectId: string;
+  projectId: string;
   projectName: string;
   isActive: boolean;
   isCheckoutLocked?: boolean;
@@ -91,8 +91,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     const fetchTaskRegistration = async () => {
       if (!projectName || !isActive) return;
 
-      console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching tasks');
-      
       try {
         const data = await getTaskRegistration(projectId);
 
@@ -108,10 +106,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             workerLinkedFlg: task.workerLinkedFlg || false,
           }));
 
-          console.log('[DEBUG] InstructionRegistrationTab - Tasks loaded from DB:', uiTasks);
           setRegisteredTasks(uiTasks);
         } else {
-          console.log('[DEBUG] InstructionRegistrationTab - No tasks found in DB');
           setRegisteredTasks([]);
         }
       } catch (error) {
@@ -130,8 +126,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   useEffect(() => {
     const fetchInstructions = async () => {
       if (!projectName || !isActive) return;
-
-      console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching instructions');
 
       try {
         const instructionList = await getInstructions(projectId);
@@ -220,12 +214,11 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       if (editMode === 'create') {
         // 新規作成：API呼び出し
         const result = await saveInstruction(projectId, {
-          methodId: instruction.methodId,
+          methodId: instruction.methodId || null,
           transitionId: instruction.transitionId || null,
           taskNumber: instruction.taskNumber,
-          priority: instruction.priority,
-          type: instruction.type,
           content: instruction.content,
+          instructionKey: instruction.instructionKey ?? '',
         });
         
         // APIから返されたIDで新しい指示を追加
@@ -243,9 +236,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
           methodId: instruction.methodId,
           transitionId: instruction.transitionId || null,
           taskNumber: instruction.taskNumber,
-          priority: instruction.priority,
-          type: instruction.type,
           content: instruction.content,
+          instructionKey: instruction.instructionKey,
         });
         
         // ローカル状態を更新

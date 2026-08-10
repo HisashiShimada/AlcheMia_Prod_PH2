@@ -1,5 +1,5 @@
 -- Project Name : noname
--- Date/Time    : 2026/02/24 17:57:16
+-- Date/Time    : 2026/08/10 8:53:41
 -- Author       : mi_ito
 -- RDBMS Type   : PostgreSQL
 -- Application  : A5:SQL Mk-2
@@ -19,12 +19,10 @@ DROP TABLE if exists project_instruction CASCADE;
 -- * RestoreFromTempTable
 CREATE TABLE project_instruction (
   organization_id uuid NOT NULL
-  , project_id character varying(20) NOT NULL
+  , project_id varchar(20) NOT NULL
   , experiment_instruction_id character varying NOT NULL
   , method_id character varying
-  , instruction_target numeric(2,0)
-  , priority numeric(2,0)
-  , type numeric(2,0)
+  , instruction_key character varying NOT NULL
   , task_no numeric(3,0)
   , transition_id character varying
   , instruction_status numeric(2,0)
@@ -43,9 +41,7 @@ COMMENT ON COLUMN project_instruction.organization_id IS '組織ID';
 COMMENT ON COLUMN project_instruction.project_id IS 'プロジェクトID';
 COMMENT ON COLUMN project_instruction.experiment_instruction_id IS '実験指示ID';
 COMMENT ON COLUMN project_instruction.method_id IS 'メソッドID';
-COMMENT ON COLUMN project_instruction.instruction_target IS '指示対象:1:ファイル全体、2:タスク、3:トランジション';
-COMMENT ON COLUMN project_instruction.priority IS '優先度';
-COMMENT ON COLUMN project_instruction.type IS 'タイプ';
+COMMENT ON COLUMN project_instruction.instruction_key IS '指示キー';
 COMMENT ON COLUMN project_instruction.task_no IS 'タスク連番';
 COMMENT ON COLUMN project_instruction.transition_id IS 'トランジションID';
 COMMENT ON COLUMN project_instruction.instruction_status IS '指示送信ステータス:0:未送信、1:送信済み';

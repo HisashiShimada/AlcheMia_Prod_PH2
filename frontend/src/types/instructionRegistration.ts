@@ -4,39 +4,29 @@
  */
 
 import { TaskDetail } from './taskRegistration';
+import {
+  InstructionTypeCode,
+  InstructionPriority,
+  InstructionTarget,
+} from '@/constants/codeMaster';
 
 /**
  * 指示タイプの定数（code_master.instruction_type）
- * code_value: 0=一般, 1=セットアップ, 2=測定, 3=安全, 4=清掃
+ * @deprecated codeMaster.ts の InstructionTypeCode を使用してください
  */
-export const INSTRUCTION_TYPES = {
-  GENERAL: 0,
-  SETUP: 1,
-  MEASUREMENT: 2,
-  SAFETY: 3,
-  CLEANUP: 4,
-} as const;
+export const INSTRUCTION_TYPES = InstructionTypeCode;
 
 /**
  * 優先度の定数（code_master.instruction_priority）
- * code_value: 0=低, 1=通常, 2=中, 3=高
+ * @deprecated codeMaster.ts の InstructionPriority を使用してください
  */
-export const INSTRUCTION_PRIORITIES = {
-  LOW: 0,
-  NORMAL: 1,
-  MEDIUM: 2,
-  HIGH: 3,
-} as const;
+export const INSTRUCTION_PRIORITIES = InstructionPriority;
 
 /**
  * 対象タイプの定数（code_master.instruction_target）
- * code_value: 0=ファイル全体, 1=特定タスク, 2=特定トランジション
+ * @deprecated codeMaster.ts の InstructionTarget を使用してください
  */
-export const TARGET_TYPES = {
-  FILE: 0,
-  TASK: 1,
-  TRANSITION: 2,
-} as const;
+export const TARGET_TYPES = InstructionTarget;
 
 /**
  * トランジション情報の型
@@ -50,13 +40,57 @@ export interface TransitionInfo {
 }
 
 /**
+ * 指示対象（UI制御用）
+ * 未選択の場合は全体指示として扱う
+ */
+export const INSTRUCTION_GRANULARITY = {
+  OVERALL:    'overall',
+  METHOD:     'method',
+  TRANSITION: 'transition',
+  TASK:       'task',
+} as const;
+
+export type InstructionGranularityValue =
+  typeof INSTRUCTION_GRANULARITY[keyof typeof INSTRUCTION_GRANULARITY];
+
+export const INSTRUCTION_GRANULARITY_LABELS: Record<InstructionGranularityValue, string> = {
+  overall:    '全体',
+  method:     'メソッド',
+  transition: 'トランジション',
+  task:       'タスク',
+};
+
+/**
+ * 指示種別定数（MAIMLのpropertyタグキー）
+ * プロジェクト指示ダイアログのドロップダウンで使用する
+ * ※ experimentPlan.ts の NoteType と同一値だが、「注意事項」概念から独立して定義
+ */
+export const INSTRUCTION_KEY = {
+  GENERAL:           'SupervisorDirectiveContent',
+  CAUTION:           'mgr-instruction:caution',
+  OPERATION_NOTE:    'mgr-instruction:operationNote',
+  CHECK_ITEM:        'mgr-instruction:checkItem',
+  PROHIBITED_ACTION: 'mgr-instruction:prohibitedAction',
+  OTHER_NOTES:       'mgr-instruction:OtherNotes',
+} as const;
+
+export type InstructionKeyValue = typeof INSTRUCTION_KEY[keyof typeof INSTRUCTION_KEY];
+
+export const INSTRUCTION_KEY_LABELS: Record<InstructionKeyValue, string> = {
+  'SupervisorDirectiveContent':       '通常指示',
+  'mgr-instruction:caution':          '安全上の注意事項',
+  'mgr-instruction:operationNote':    '操作手順上の注記',
+  'mgr-instruction:checkItem':        '実施前後の確認事項',
+  'mgr-instruction:prohibitedAction': '禁止事項',
+  'mgr-instruction:OtherNotes':       'その他注意事項',
+};
+
+/**
  * 指示データ
  */
 export interface InstructionData {
   id: string | number;
   content: string;
-  priority: number; // code_master.instruction_priority の code_value
-  type: number; // code_master.instruction_type の code_value
   targetType: number; // code_master.instruction_target の code_value
   methodId: string;
   transitionId: string;
@@ -64,6 +98,10 @@ export interface InstructionData {
   instruction_status?: number; // 0: 未送信, 1: 送信済
   isSent?: boolean; // 送信済フラグ（後方互換性のため保持）
   isNewlyAdded?: boolean; // 新規追加フラグ（DBから取得した指示と区別するため）
+  /** MAIMLのpropertyタグキー（指示種別）。必須 */
+  instructionKey: string;
+  /** 指示対象（UI制御用）。未設定時は全体指示 */
+  granularity?: InstructionGranularityValue;
 }
 
 /**

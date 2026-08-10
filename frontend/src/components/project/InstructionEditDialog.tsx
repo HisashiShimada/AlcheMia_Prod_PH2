@@ -1,44 +1,49 @@
 /**
  * InstructionEditDialog.tsx
  * プロジェクト指示の編集/追加ダイアログコンポーネント
- * プロジェクト指示専用：「対象」と「指示内容」のみ表示
+ *
+ * 操作フロー:
+ *   ① 指示種別を選択（MAIMLのpropertyタグキー、必須）
+ *   ② 指示対象を選択（任意、未選択時は全体指示）
+ *   ③ 指示内容を入力
  */
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Modal,
   Form,
   Input,
+  Select,
   Space,
   Typography,
-  Card,
   theme,
   Button,
 } from 'antd';
 import {
-  FileTextOutlined,
-  AimOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type {
   InstructionData,
   TransitionInfo,
+  InstructionGranularityValue,
 } from '@/types/instructionRegistration';
-import { TARGET_TYPES } from '@/types/instructionRegistration';
+import {
+  INSTRUCTION_KEY_LABELS,
+  INSTRUCTION_KEY,
+  INSTRUCTION_GRANULARITY,
+  INSTRUCTION_GRANULARITY_LABELS,
+} from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import {
-  InstructionTypeCode,
-  InstructionPriority,
+  InstructionTarget,
 } from '@/constants/codeMaster';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 const { useToken } = theme;
-
-
 
 /**
  * 指示編集ダイアログのプロパティ
@@ -53,11 +58,6 @@ interface InstructionEditDialogProps {
   onClose: () => void;
   onSave: (instruction: InstructionData, keepDialogOpen?: boolean) => void;
   /**
-   * 固定するメソッドID（指定時はメソッド選択を無効化）
-   * タスク登録タブから指示追加する際に使用
-   */
-  fixedMethodId?: string;
-  /**
    * 保存モード
    * - 'immediate': 即時DB保存（指示登録タブのデフォルト動作）
    * - 'local': ローカルstateに保存（タスク登録タブで使用）
@@ -67,124 +67,142 @@ interface InstructionEditDialogProps {
 
 /**
  * プロジェクト指示の編集/追加ダイアログコンポーネント
- * 「対象」と「指示内容」のみ表示
+ * 指示種別（必須）→ 指示対象（任意）→ 指示内容 の順で入力する
  */
 const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   open,
   mode,
   instruction,
+  tasks,
   availableMethods,
+  availableTransitions,
   onClose,
   onSave,
-  fixedMethodId,
 }) => {
   const { token } = useToken();
   const { t } = useLanguage();
   const [form] = Form.useForm();
 
-  // 表示用のメソッドID（対象表示に使用）
+  const [selectedInstructionKey, setSelectedInstructionKey] = useState<string | null>(null);
+  const [selectedGranularity, setSelectedGranularity] = useState<InstructionGranularityValue | null>(null);
   const [selectedMethodId, setSelectedMethodId] = useState<string>('');
+  const [selectedTransitionId, setSelectedTransitionId] = useState<string>('');
+  const [selectedTaskNo, setSelectedTaskNo] = useState<number | undefined>(undefined);
 
-  /**
-   * ダイアログが開かれたときの初期化
-   */
   useEffect(() => {
     if (!open) return;
-
     if (mode === 'edit' && instruction) {
-      // 編集モード：既存データをフォームに設定
+      setSelectedInstructionKey(instruction.instructionKey ?? null);
+      setSelectedGranularity(instruction.granularity ?? null);
+      setSelectedMethodId(instruction.methodId || '');
+      setSelectedTransitionId(instruction.transitionId || '');
+      setSelectedTaskNo(instruction.taskNumber);
       form.setFieldsValue({
-        methodId: instruction.methodId,
+        instructionKey: instruction.instructionKey ?? undefined,
         content: instruction.content,
       });
-      setSelectedMethodId(instruction.methodId);
     } else {
-      // 新規作成モード：初期値を設定
-      const initialMethodId = fixedMethodId || '';
-      form.setFieldsValue({
-        methodId: initialMethodId,
-        content: '',
-      });
-      setSelectedMethodId(initialMethodId);
+      setSelectedInstructionKey(null);
+      setSelectedGranularity(null);
+      setSelectedMethodId('');
+      setSelectedTransitionId('');
+      setSelectedTaskNo(undefined);
+      form.resetFields();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, fixedMethodId]);
+  }, [open]);
 
-  /**
-   * 選択されたメソッド情報を取得
-   */
-  const selectedMethod = availableMethods?.find(m => m.id === selectedMethodId);
+  const handleGranularityChange = useCallback((value: InstructionGranularityValue | null) => {
+    setSelectedGranularity(value ?? null);
+    setSelectedMethodId('');
+    setSelectedTransitionId('');
+    setSelectedTaskNo(undefined);
+  }, []);
 
-  /**
-   * 保存ハンドラ（共通処理）
-   */
-  const saveInstruction = useCallback(async (keepDialogOpen: boolean) => {
+  const handleMethodChange = useCallback((value: string) => {
+    setSelectedMethodId(value);
+    setSelectedTransitionId('');
+    setSelectedTaskNo(undefined);
+  }, []);
+
+  const taskNoOptions = useMemo(() => {
+    const matched = tasks.filter(tk => tk.methodId === selectedMethodId);
+    const nos = new Set<number>();
+    matched.forEach(tk => {
+      Array.from({ length: tk.trialCount }, (_, i) => i + 1).forEach(n => nos.add(n));
+    });
+    return Array.from(nos).map(n => ({ label: `タスク ${n}`, value: n }));
+  }, [tasks, selectedMethodId]);
+
+  const instructionKeyOptions = useMemo(() =>
+    Object.entries(INSTRUCTION_KEY_LABELS).map(([value, label]) => ({ value, label }))
+  , []);
+
+  const granularityOptions = useMemo(() => [
+    { value: INSTRUCTION_GRANULARITY.METHOD,     label: INSTRUCTION_GRANULARITY_LABELS.method },
+    { value: INSTRUCTION_GRANULARITY.TRANSITION, label: INSTRUCTION_GRANULARITY_LABELS.transition },
+    { value: INSTRUCTION_GRANULARITY.TASK,       label: INSTRUCTION_GRANULARITY_LABELS.task },
+  ], []);
+
+  const methodOptions = useMemo(() =>
+    (availableMethods ?? []).map(m => ({ value: m.id, label: m.displayName || m.id }))
+  , [availableMethods]);
+
+  const transitionOptions = useMemo(() =>
+    availableTransitions.map(tr => ({ value: tr.id, label: tr.displayName }))
+  , [availableTransitions]);
+
+  const calcTargetType = useCallback((granularity: InstructionGranularityValue | null): number => {
+    if (granularity === INSTRUCTION_GRANULARITY.TASK)       return InstructionTarget.TASK;
+    if (granularity === INSTRUCTION_GRANULARITY.TRANSITION) return InstructionTarget.TRANSITION;
+    return InstructionTarget.FILE;
+  }, []);
+
+  const doSave = useCallback(async (keepDialogOpen: boolean) => {
     try {
       const values = await form.validateFields();
-
-      // バリデーション
-      if (!values.content || values.content.trim() === '') {
-        form.setFields([
-          {
-            name: 'content',
-            errors: [t('instruction.contentRequired')],
-          },
-        ]);
-        return;
-      }
-
-      // 指示データを構築（プロジェクト指示固定）
       const instructionData: InstructionData = {
         id: instruction?.id || Date.now(),
         content: values.content.trim(),
-        priority: InstructionPriority.NORMAL,
-        type: InstructionTypeCode.GENERAL,
-        targetType: TARGET_TYPES.FILE,
+        targetType: calcTargetType(selectedGranularity),
         methodId: selectedMethodId || '',
-        transitionId: '',
-        taskNumber: undefined,
+        transitionId: selectedTransitionId || '',
+        taskNumber: selectedTaskNo,
+        instructionKey: selectedInstructionKey ?? INSTRUCTION_KEY.GENERAL,
+        granularity: selectedGranularity ?? INSTRUCTION_GRANULARITY.OVERALL,
       };
-
-      // 保存コールバック
       onSave(instructionData, keepDialogOpen);
-
-      // ダイアログを開いたままにする場合のみフォームをリセット
       if (keepDialogOpen) {
         form.resetFields();
-        form.setFieldsValue({
-          methodId: selectedMethodId,
-          content: '',
-        });
+        setSelectedInstructionKey(null);
+        setSelectedGranularity(null);
+        setSelectedMethodId('');
+        setSelectedTransitionId('');
+        setSelectedTaskNo(undefined);
       }
     } catch (error) {
       console.error('Validation failed:', error);
     }
-  }, [form, instruction, onSave, selectedMethodId, t]);
+  }, [
+    form, instruction, onSave,
+    selectedInstructionKey, selectedGranularity,
+    selectedMethodId, selectedTransitionId, selectedTaskNo,
+    calcTargetType,
+  ]);
 
-  /**
-   * 保存ハンドラ
-   */
-  const handleSave = useCallback(async () => {
-    await saveInstruction(false);
-  }, [saveInstruction]);
+  const handleSave            = useCallback(() => doSave(false), [doSave]);
+  const handleSaveAndContinue = useCallback(() => doSave(true),  [doSave]);
 
-  /**
-   * 保存して連続指示ハンドラ
-   */
-  const handleSaveAndContinue = useCallback(async () => {
-    await saveInstruction(true);
-  }, [saveInstruction]);
-
-  /**
-   * キャンセルハンドラ
-   */
   const handleCancel = useCallback(() => {
     form.resetFields();
+    setSelectedInstructionKey(null);
+    setSelectedGranularity(null);
     setSelectedMethodId('');
+    setSelectedTransitionId('');
+    setSelectedTaskNo(undefined);
     onClose();
   }, [form, onClose]);
 
-  // 送信済フラグの確認
   const isSentInstruction = instruction?.isSent === true;
 
   return (
@@ -202,12 +220,10 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
       width={700}
       footer={
         isSentInstruction ? [
-          // 送信済：閉じるボタンのみ
           <Button key="close" type="default" onClick={handleCancel}>
             {t('common.close')}
           </Button>,
         ] : [
-          // 未送信：通常のフッター
           <Button key="cancel" onClick={handleCancel}>
             {t('common.cancel')}
           </Button>,
@@ -233,45 +249,83 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
         ]
       }
     >
-      <Form
-        form={form}
-        layout="vertical"
-        style={{ marginTop: token.marginSM }}
-      >
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          {/* methodIdをhiddenフィールドとして保持 */}
-          <Form.Item name="methodId" hidden>
-            <Input />
+      <Form form={form} layout="vertical" style={{ marginTop: token.marginSM }}>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+
+          {/* ① 指示種別（必須） */}
+          <Form.Item
+            name="instructionKey"
+            label={
+              <>指示種別{' '}{!isSentInstruction && <Text type="danger">*</Text>}</>
+            }
+            rules={[{ required: true, message: '指示種別を選択してください' }]}
+          >
+            <Select
+              placeholder="指示種別を選択"
+              options={instructionKeyOptions}
+              onChange={(v) => setSelectedInstructionKey(v ?? null)}
+              disabled={isSentInstruction}
+              allowClear
+              data-testid="instruction-key-select"
+            />
           </Form.Item>
 
-          {/* 指示対象（表示のみ） */}
+          {/* ② 指示対象（任意：未選択=全体指示） */}
           <div>
             <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-              {t('instructionEditDialog.targetLabel')}
+              指示対象
+              <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                （未選択の場合は全体指示）
+              </Text>
             </Text>
-            <Card size="small" style={{ backgroundColor: token.colorPrimaryBg }}>
-              <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                {selectedMethodId ? (
-                  <>
-                    <Text strong style={{ fontSize: '16px' }}>
-                      <AimOutlined /> {selectedMethod?.displayName || selectedMethodId}
-                    </Text>
-                    {selectedMethod?.description && (
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        {selectedMethod.description}
-                      </Text>
-                    )}
-                  </>
-                ) : (
-                  <Text>
-                    <FileTextOutlined /> {t('instructionEditDialog.wholeProject')}
-                  </Text>
-                )}
-              </Space>
-            </Card>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Select
+                placeholder="指示対象を選択（任意）"
+                options={granularityOptions}
+                value={selectedGranularity ?? undefined}
+                onChange={(v) => handleGranularityChange(v ?? null)}
+                disabled={isSentInstruction}
+                allowClear
+                style={{ width: '100%' }}
+                data-testid="instruction-granularity-select"
+              />
+              {selectedGranularity && selectedGranularity !== INSTRUCTION_GRANULARITY.OVERALL && (
+                <Select
+                  placeholder="メソッドを選択"
+                  options={methodOptions}
+                  value={selectedMethodId || undefined}
+                  onChange={handleMethodChange}
+                  disabled={isSentInstruction}
+                  style={{ width: '100%' }}
+                  data-testid="instruction-method-select"
+                />
+              )}
+              {selectedGranularity === INSTRUCTION_GRANULARITY.TRANSITION && selectedMethodId && (
+                <Select
+                  placeholder="トランジションを選択"
+                  options={transitionOptions}
+                  value={selectedTransitionId || undefined}
+                  onChange={setSelectedTransitionId}
+                  disabled={isSentInstruction}
+                  style={{ width: '100%' }}
+                  data-testid="instruction-transition-select"
+                />
+              )}
+              {selectedGranularity === INSTRUCTION_GRANULARITY.TASK && selectedMethodId && (
+                <Select
+                  placeholder="タスクNoを選択"
+                  options={taskNoOptions}
+                  value={selectedTaskNo ?? undefined}
+                  onChange={(v) => setSelectedTaskNo(v)}
+                  disabled={isSentInstruction}
+                  style={{ width: '100%' }}
+                  data-testid="instruction-taskno-select"
+                />
+              )}
+            </Space>
           </div>
 
-          {/* 指示内容 */}
+          {/* ③ 指示内容（必須） */}
           <Form.Item
             name="content"
             label={
@@ -294,6 +348,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               data-testid="instruction-edit-dialog-content"
             />
           </Form.Item>
+
         </Space>
       </Form>
     </Modal>
@@ -301,3 +356,5 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
 };
 
 export default InstructionEditDialog;
+
+

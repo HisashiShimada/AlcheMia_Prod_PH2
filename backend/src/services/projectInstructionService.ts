@@ -23,6 +23,7 @@ import {
 } from '../types/api';
 import { logger, logError } from '../utils/logger';
 import { EventLogRepository } from '../repositories/eventLogRepository';
+import type { ProjectInstructionSentLogParams } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
 import { XMLParser } from 'fast-xml-parser';
 import { InstructionStatusEnum } from '../enums/codeMaster.enum';
@@ -55,8 +56,6 @@ export async function getInstructions(
   const instructionData: InstructionData[] = instructions.map(inst => ({
     id: inst.experiment_instruction_id || '',
     content: inst.instructions || '',
-    priority: inst.priority ?? 1,
-    type: inst.type ?? 0,
     methodId: inst.method_id || '',
     transitionId: inst.transition_id || '',
     taskNumber: inst.task_no ?? undefined,
@@ -143,12 +142,11 @@ export async function saveInstruction(
     organization_id: organizationId,
     project_id: projectId,
     experiment_instruction_id: instructionId,
-    method_id: request.methodId,
+    method_id: request.methodId ?? null,
     transition_id: request.transitionId ?? null,
     task_no: request.taskNumber ?? null,
-    priority: request.priority,
-    type: request.type,
     instructions: request.content,
+    instruction_key: request.instructionKey,
     instruction_status: InstructionStatusEnum.UNSENT,
     instruction_user_id: userId,
     create_user_id: userId,
@@ -169,7 +167,7 @@ export async function saveInstruction(
   
   return {
     instructionId: savedInstruction.experiment_instruction_id || '',
-    instruction_status: savedInstruction.instruction_status ?? 0
+    instruction_status: savedInstruction.instruction_status ?? InstructionStatusEnum.UNSENT
   };
 }
 
@@ -198,9 +196,8 @@ export async function updateInstruction(
     method_id: request.methodId,
     transition_id: request.transitionId ?? null,
     task_no: request.taskNumber ?? null,
-    priority: request.priority,
-    type: request.type,
     instructions: request.content,
+    instruction_key: request.instructionKey,
     update_user_id: userId
   };
   
@@ -336,10 +333,10 @@ export async function sendInstructions(
     for (const instruction of unsentInstructions) {
       const methodId = instruction.method_id ?? null;
       const programId = methodId ? (programIdMap[methodId] ?? null) : null;
-      await eventLogRepo.insertInstructionSentLog(
-        organizationId,
-        projectId,
-        {
+
+      if (instruction.instruction_key) {
+        // プロジェクト指示ダイアログから登録された指示（指示種別あり）: 新構造で記録
+        const projectInstructionParams: ProjectInstructionSentLogParams = {
           methodId,
           transitionId: instruction.transition_id ?? null,
           programId,
@@ -347,13 +344,34 @@ export async function sendInstructions(
           experimentInstructionId: instruction.experiment_instruction_id!,
           userId,
           sentAt,
-          // ★ 追加: 指示の詳細情報
           instructions: instruction.instructions ?? null,
-          priority: instruction.priority ?? null,
-          type: instruction.type ?? null,
-        },
-        client
-      );
+          instructionKey: instruction.instruction_key,
+        };
+        await eventLogRepo.insertProjectInstructionSentLog(
+          organizationId,
+          projectId,
+          projectInstructionParams,
+          client
+        );
+      } else {
+        // 既存の指示（指示種別なし）: 従来の構造で記録
+        await eventLogRepo.insertInstructionSentLog(
+          organizationId,
+          projectId,
+          {
+            methodId,
+            transitionId: instruction.transition_id ?? null,
+            programId,
+            taskNo: instruction.task_no ?? null,
+            experimentInstructionId: instruction.experiment_instruction_id!,
+            userId,
+            sentAt,
+            // ★ 追加: 指示の詳細情報
+            instructions: instruction.instructions ?? null,
+          },
+          client
+        );
+      }
     }
 
     logger.info('指示送信ログを記録しました', {
