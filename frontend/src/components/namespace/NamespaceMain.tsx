@@ -980,7 +980,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const startEditTerm = (record: Term) => {
     setEditingTermId(record.id);
-  setEditingValues({ prefix: record.prefix ?? '', localName: record.localName, displayName: record.displayName, description: record.description, type: record.type, unitHint: record.unitHint ?? '' });
+    const initialEditingValues: TermEditValues = {
+      prefix:      record.prefix ?? '',
+      localName:   record.localName,
+      displayName: record.displayName,
+      description: record.description,
+      type:        record.type,
+      unitHint:    record.unitHint ?? '',
+    };
+    setEditingValues(initialEditingValues);
   };
 
   const saveEditTerm = async () => {
@@ -1167,7 +1175,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       ? (e: React.MouseEvent) => {
           e.preventDefault();
           e.stopPropagation();
-          setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, node, parentLabel });
+          const newCtxMenuState: ContextMenuState = { visible: true, x: e.clientX, y: e.clientY, node, parentLabel };
+          setCtxMenu(newCtxMenuState);
         }
       : undefined;
 
@@ -1333,6 +1342,17 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       .map((p) => ({ value: p, label: p }))
       .filter((o, i, arr) => arr.findIndex((x) => x.value === o.value) === i);
   }, [dbPrefixes]);
+
+  // データ型フィルター選択肢
+  const typeFilterOptions = useMemo(() => [
+    { value: '', label: t('namespaceMain.typeFilterAll') },
+    { value: 'stringType',   label: 'stringType' },
+    { value: 'integerType',  label: 'integerType' },
+    { value: 'floatType',    label: 'floatType' },
+    { value: 'booleanType',  label: 'booleanType' },
+    { value: 'dateTimeType', label: 'dateTimeType' },
+    { value: 'uriType',      label: 'uriType' },
+  ], [t]);
 
   // 単位フィルター選択肢（属性テーブルから取得）
   const unitFilterOptions = useMemo(() => [
@@ -1873,15 +1893,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             <Select
               style={{ width: 160, flexShrink: 0 }}
               value={filterType ?? ''}
-              options={[
-                { value: '', label: t('namespaceMain.typeFilterAll') },
-                { value: 'stringType',   label: 'stringType' },
-                { value: 'integerType',  label: 'integerType' },
-                { value: 'floatType',    label: 'floatType' },
-                { value: 'booleanType',  label: 'booleanType' },
-                { value: 'dateTimeType', label: 'dateTimeType' },
-                { value: 'uriType',      label: 'uriType' },
-              ]}
+              options={typeFilterOptions}
               onChange={(val) => { setFilterType(val || null); setCurrentPage(1); }}
             />
             <Select
@@ -1913,31 +1925,16 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             </Button>
           </div>
 
-          <Table<Term | NewTermRow>
-            rowKey={(record) => '_rowId' in record ? (record as NewTermRow)._rowId : (record as Term).id}
-            size="small"
-            loading={termsLoading}
-            columns={visibleColumns}
-            dataSource={tableData}
-            rowClassName={(record) => {
-              if ('_rowId' in record) return 'row-new-term';
-              const term = record as Term;
-              // company配下ノード選択時: 選択ノードの祖先prefixはグレーアウト
-              if (isCompanyNodeSelected && ancestorPrefixesForSelected.has(term.prefix)) return 'row-readonly-scope';
-              // company配下ノード以外が選択されている場合のみ isReadonlyPrefix を適用
-              if (!isCompanyNodeSelected && isReadonlyPrefix(term.prefix)) return 'row-readonly-scope';
-              return '';
-            }}
-            locale={{ triggerAsc: t('namespaceMain.sortAsc'), triggerDesc: t('namespaceMain.sortDesc'), cancelSort: t('namespaceMain.cancelSort') }}
-            pagination={{
+          {(() => {
+            const tablePagination = {
               current: currentPage, pageSize, showSizeChanger: true,
               pageSizeOptions: ['20', '50', '100'],
-              showTotal: (total) => t('namespaceMain.showTotal', { total: String(total) }),
-              onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
-              onShowSizeChange: (_, size) => { setCurrentPage(1); setPageSize(size); },
-            }}
-            rowSelection={{
-              type: 'checkbox', selectedRowKeys: selectedTermIds,
+              showTotal: (total: number) => t('namespaceMain.showTotal', { total: String(total) }),
+              onChange: (page: number, size: number) => { setCurrentPage(page); setPageSize(size); },
+              onShowSizeChange: (_: number, size: number) => { setCurrentPage(1); setPageSize(size); },
+            };
+            const tableRowSelection = {
+              type: 'checkbox' as const, selectedRowKeys: selectedTermIds,
               columnTitle: (
                 <input
                   type="checkbox"
@@ -1952,10 +1949,31 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                   }}
                 />
               ),
-              onChange: (keys) => setSelectedTermIds(keys as string[]),
-              getCheckboxProps: (record) => ({ disabled: '_rowId' in record }),
-            }}
-          />
+              onChange: (keys: React.Key[]) => setSelectedTermIds(keys as string[]),
+              getCheckboxProps: (record: Term | NewTermRow) => ({ disabled: '_rowId' in record }),
+            };
+            return (
+              <Table<Term | NewTermRow>
+                rowKey={(record) => '_rowId' in record ? (record as NewTermRow)._rowId : (record as Term).id}
+                size="small"
+                loading={termsLoading}
+                columns={visibleColumns}
+                dataSource={tableData}
+                rowClassName={(record) => {
+                  if ('_rowId' in record) return 'row-new-term';
+                  const term = record as Term;
+                  // company配下ノード選択時: 選択ノードの祖先prefixはグレーアウト
+                  if (isCompanyNodeSelected && ancestorPrefixesForSelected.has(term.prefix)) return 'row-readonly-scope';
+                  // company配下ノード以外が選択されている場合のみ isReadonlyPrefix を適用
+                  if (!isCompanyNodeSelected && isReadonlyPrefix(term.prefix)) return 'row-readonly-scope';
+                  return '';
+                }}
+                locale={{ triggerAsc: t('namespaceMain.sortAsc'), triggerDesc: t('namespaceMain.sortDesc'), cancelSort: t('namespaceMain.cancelSort') }}
+                pagination={tablePagination}
+                rowSelection={tableRowSelection}
+              />
+            );
+          })()}
         </div>
       </div>
 
