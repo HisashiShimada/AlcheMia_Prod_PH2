@@ -858,10 +858,7 @@ export interface PlanDialogData {
   /**
    * Conditionテンプレートから抽出した基本情報の初期値
    * 以下のキーを持つプロパティが存在する場合に設定される:
-   *   - mgr-instruction:requiredCreatorUUID
-   *   - mgr-instruction:requiredInstrumentUUID
-   *   - mgr-instruction:requiredOwnerUUID
-   *   - mgr-instruction:caution / operationNote / checkItem / prohibitedAction / OtherNotes
+   *   - Alchemia:SupervisorDirectiveCaution / OperationNote / CheckItem / ProhibitedAction / OtherNotes
    */
   defaultBasicInfo?: {
     creatorRefs?: string[];
@@ -869,11 +866,11 @@ export interface PlanDialogData {
     ownerRefs?: string[];
     /**
      * 注意事項の初期値
-     * Conditionテンプレートに注意事項キー（mgr-instruction:caution 等）が
+     * Conditionテンプレートに注意事項キー（Alchemia:SupervisorDirectiveCaution 等）が
      * 設定されている場合に生成される
      */
     notes?: Array<{
-      /** NoteType の値（例: 'mgr-instruction:caution'） */
+      /** NoteType の値（例: 'Alchemia:SupervisorDirectiveCaution'） */
       type: string;
       /** デフォルト内容（MAIMLの prop.value） */
       content: string;

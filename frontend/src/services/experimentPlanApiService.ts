@@ -20,9 +20,6 @@ import type { ExperimentPlanTabData } from '@/types/experimentPlan';
 
 /** TransitionPlanValues（バックエンドの planned_values の各transitionId配下） */
 interface TransitionPlanValues {
-  'mgr-instruction:requiredCreatorUUID'?: string[];
-  'mgr-instruction:requiredInstrumentUUID'?: string[];
-  'mgr-instruction:requiredOwnerUUID'?: string[];
   'Alchemia:SupervisorDirectiveCaution'?: string;
   'Alchemia:SupervisorDirectiveOperationNote'?: string;
   'Alchemia:SupervisorDirectiveCheckItem'?: string;
@@ -66,9 +63,9 @@ function transitionValuesToTabData(
   transitionId: string,
   transValues: TransitionPlanValues
 ): ExperimentPlanTabData {
-  const creatorRefs = (transValues['mgr-instruction:requiredCreatorUUID'] as string[] | undefined) ?? [];
-  const instrumentRefs = (transValues['mgr-instruction:requiredInstrumentUUID'] as string[] | undefined) ?? [];
-  const ownerRefs = (transValues['mgr-instruction:requiredOwnerUUID'] as string[] | undefined) ?? [];
+  const creatorRefs: string[] = [];
+  const instrumentRefs: string[] = [];
+  const ownerRefs: string[] = [];
 
   // 注意事項
   const notes: NoteItem[] = [];
@@ -87,9 +84,6 @@ function transitionValuesToTabData(
   // テンプレート値（予約キー以外をテンプレート値とみなす）
   const templateValues: TemplateValues = {};
   const reservedKeys = new Set<string>([
-    'mgr-instruction:requiredCreatorUUID',
-    'mgr-instruction:requiredInstrumentUUID',
-    'mgr-instruction:requiredOwnerUUID',
     ...NOTE_TYPE_KEYS,
   ]);
   for (const [key, value] of Object.entries(transValues)) {
@@ -123,15 +117,6 @@ function transitionValuesToTabData(
 function tabDataToTransitionValues(tabData: ExperimentPlanTabData): TransitionPlanValues {
   const values: TransitionPlanValues = {};
 
-  if (tabData.creatorRefs.length > 0) {
-    values['mgr-instruction:requiredCreatorUUID'] = tabData.creatorRefs;
-  }
-  if (tabData.instrumentRefs.length > 0) {
-    values['mgr-instruction:requiredInstrumentUUID'] = tabData.instrumentRefs;
-  }
-  if (tabData.ownerRefs.length > 0) {
-    values['mgr-instruction:requiredOwnerUUID'] = tabData.ownerRefs;
-  }
   for (const note of tabData.notes) {
     if (note.content.trim()) {
       values[note.type] = note.content;
@@ -232,10 +217,7 @@ export interface PlanDialogData {
   /**
    * Conditionテンプレートから抽出した基本情報の初期値
    * 以下のキーを持つプロパティが存在する場合に設定される:
-   *   - mgr-instruction:requiredCreatorUUID
-   *   - mgr-instruction:requiredInstrumentUUID
-   *   - mgr-instruction:requiredOwnerUUID
-   *   - mgr-instruction:caution / operationNote / checkItem / prohibitedAction / OtherNotes
+   *   - Alchemia:SupervisorDirectiveCaution / OperationNote / CheckItem / ProhibitedAction / OtherNotes
    */
   defaultBasicInfo?: {
     creatorRefs?: string[];

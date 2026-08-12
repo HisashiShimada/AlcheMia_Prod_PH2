@@ -536,20 +536,13 @@ export async function getPlanDialogDataFromMaiml(
   const ownerRefs = (document.owners ?? []).map((o) => o.id).filter(Boolean);
 
   // 8. Conditionテンプレートから基本情報の初期値を抽出
-  // mgr-instruction:requiredCreatorUUID / requiredInstrumentUUID / requiredOwnerUUID
-  // および注意事項キー（Alchemia:SupervisorDirectiveXxx 等）が存在する場合に設定する
+  // 注意事項キー（Alchemia:SupervisorDirectiveXxx）が存在する場合に設定する
   const NOTE_KEYS = new Set([
     'Alchemia:SupervisorDirectiveCaution',
     'Alchemia:SupervisorDirectiveOperationNote',
     'Alchemia:SupervisorDirectiveCheckItem',
     'Alchemia:SupervisorDirectiveProhibitedAction',
     'Alchemia:SupervisorDirectiveOtherNotes',
-    // 旧キーも後方互換のため認識する（読み取りのみ）
-    'mgr-instruction:caution',
-    'mgr-instruction:operationNote',
-    'mgr-instruction:checkItem',
-    'mgr-instruction:prohibitedAction',
-    'mgr-instruction:OtherNotes',
   ]);
 
   const defaultBasicInfo: PlanDialogData['defaultBasicInfo'] = {};
@@ -562,13 +555,7 @@ export async function getPlanDialogDataFromMaiml(
       const val = String(field.defaultValue).trim();
       if (!val) continue;
 
-      if (field.key === 'mgr-instruction:requiredCreatorUUID' && !defaultBasicInfo.creatorRefs) {
-        defaultBasicInfo.creatorRefs = val.split(/[\s,]+/).filter(Boolean);
-      } else if (field.key === 'mgr-instruction:requiredInstrumentUUID' && !defaultBasicInfo.instrumentRefs) {
-        defaultBasicInfo.instrumentRefs = val.split(/[\s,]+/).filter(Boolean);
-      } else if (field.key === 'mgr-instruction:requiredOwnerUUID' && !defaultBasicInfo.ownerRefs) {
-        defaultBasicInfo.ownerRefs = val.split(/[\s,]+/).filter(Boolean);
-      } else if (NOTE_KEYS.has(field.key)) {
+      if (NOTE_KEYS.has(field.key)) {
         defaultNotes.push({ type: field.key, content: val });
       }
     }

@@ -568,27 +568,20 @@ export interface UserSearchFilters {
  *
  * @remarks
  * planned_values の各 transitionId キー配下の型。
- * - `mgr-instruction:requiredCreatorUUID` 等の配列値
- * - `mgr-instruction:caution` 等の文字列値
+ * - `Alchemia:SupervisorDirectiveXxx` 等の注意事項文字列値
  * - `[templateId]` キーのテンプレート想定値（fieldKey → value）
  */
 export interface TransitionPlanValues {
-  /** CreatorRef UUID 配列 */
-  'mgr-instruction:requiredCreatorUUID'?: string[];
-  /** InstrumentRef UUID 配列 */
-  'mgr-instruction:requiredInstrumentUUID'?: string[];
-  /** OwnerRef UUID 配列 */
-  'mgr-instruction:requiredOwnerUUID'?: string[];
   /** 安全上の注意事項 */
-  'mgr-instruction:caution'?: string;
+  'Alchemia:SupervisorDirectiveCaution'?: string;
   /** 操作手順上の注記 */
-  'mgr-instruction:operationNote'?: string;
+  'Alchemia:SupervisorDirectiveOperationNote'?: string;
   /** 実施前後の確認事項 */
-  'mgr-instruction:checkItem'?: string;
+  'Alchemia:SupervisorDirectiveCheckItem'?: string;
   /** 禁止事項 */
-  'mgr-instruction:prohibitedAction'?: string;
+  'Alchemia:SupervisorDirectiveProhibitedAction'?: string;
   /** その他注意事項 */
-  'mgr-instruction:OtherNotes'?: string;
+  'Alchemia:SupervisorDirectiveOtherNotes'?: string;
   /** テンプレート想定値（templateId → { fieldKey: value }） */
   [templateId: string]: string[] | string | Record<string, string> | undefined;
 }

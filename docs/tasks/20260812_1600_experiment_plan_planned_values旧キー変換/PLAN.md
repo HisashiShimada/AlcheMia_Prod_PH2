@@ -220,9 +220,19 @@ UUID情報はバックエンドが MAIML 文書から直接取得（`experimentI
 
 ## 11. 実施記録
 
-開始: ―　完了: ―
+開始: 2026-08-13　完了: 2026-08-13
 
-### 計画からの変更点  ―
+### 計画からの変更点
+- `transitionValuesToTabData()` の注意事項読み取りロジックについて、計画書では単純なフォールバック追加としていたが、`noteKeyFallbacks` テーブルを使ったループ処理として実装し、5キー分を DRY に記述した。
+- `tabDataToTransitionValues()` は UUID系キー書き込みを削除するのみで、注意事項は既存の `note.type` キーで書き込む実装をそのまま維持した（新キーは NoteType 定数から来るため問題なし）。
 
-### 最終的な成果物  ―
+### 最終的な成果物
+
+| # | ファイル | 変更内容 |
+|---|---------|---------|
+| 1 | `backend/migrations/20260812_1600_migrate_planned_values_keys.sql` | 新規作成。注意事項系5キー変換 + UUID系3キー削除 + コメント更新 |
+| 2 | `backend/src/services/experimentInstructionService.ts` | UUID系キー読み取り分岐（L565-570）を削除。`NOTE_KEYS` から旧キーを除去 |
+| 3 | `backend/src/types/database.ts` | `TransitionPlanValues` から UUID系3フィールドおよび旧注意事項キー5フィールドを削除し、新キー5フィールドに置換 |
+| 4 | `backend/src/types/api.ts` | `defaultBasicInfo` コメントから `mgr-instruction:requiredXxxUUID` の言及を削除 |
+| 5 | `frontend/src/services/experimentPlanApiService.ts` | UUID系3フィールド削除、UUID系キー読み書き削除、注意事項系旧キーフォールバック追加 |
 
