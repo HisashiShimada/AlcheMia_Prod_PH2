@@ -4402,7 +4402,9 @@
     "csvParseError2": "CSVの解析に失敗しました",
     "nsRegisterSuccess": "名前空間「{prefix}」を登録しました",
     "groupCreated": "グループ「{groupName}」を作成しました",
-    "memberUpdated": "「{name}」を更新しました（メンバー: {count}名）"
+    "memberUpdated": "「{name}」を更新しました（メンバー: {count}名）",
+    "systemNamespaceBadge": "システム",
+    "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
   },
   "teamManagement": {
     "groupListTitle": "グループ一覧",
@@ -4558,7 +4560,10 @@
     "prefixFieldRequired": "Prefixは必須です",
     "deactivateSuccess": "Prefix「{prefix}」を非アクティブにしました",
     "activateSuccess": "Prefix「{prefix}」をアクティブにしました",
-    "bulkDeactivateSuccess": "{count}件のPrefixを非アクティブにしました"
+    "bulkDeactivateSuccess": "{count}件のPrefixを非アクティブにしました",
+    "systemNamespaceBadge": "システム",
+    "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません",
+    "systemNamespaceDeleteError": "システム名前空間（Alchemia）は削除できません"
   },
   "workflowSelectorDialog": {
     "loadFailed": "プロジェクト一覧の取得に失敗しました",

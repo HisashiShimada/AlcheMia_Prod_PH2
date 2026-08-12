@@ -61,7 +61,7 @@ export async function getInstructions(
     taskNumber: inst.task_no ?? undefined,
     isSent: inst.instruction_status === InstructionStatusEnum.SENT,
     instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT,
-    instructionKey: inst.instruction_key || 'SupervisorDirectiveContent',
+    instructionKey: inst.instruction_key || 'Alchemia:SupervisorDirectiveContent',
   }));
   
   logger.info('指示一覧を取得しました', {

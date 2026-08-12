@@ -23,11 +23,11 @@ interface TransitionPlanValues {
   'mgr-instruction:requiredCreatorUUID'?: string[];
   'mgr-instruction:requiredInstrumentUUID'?: string[];
   'mgr-instruction:requiredOwnerUUID'?: string[];
-  'mgr-instruction:caution'?: string;
-  'mgr-instruction:operationNote'?: string;
-  'mgr-instruction:checkItem'?: string;
-  'mgr-instruction:prohibitedAction'?: string;
-  'mgr-instruction:OtherNotes'?: string;
+  'Alchemia:SupervisorDirectiveCaution'?: string;
+  'Alchemia:SupervisorDirectiveOperationNote'?: string;
+  'Alchemia:SupervisorDirectiveCheckItem'?: string;
+  'Alchemia:SupervisorDirectiveProhibitedAction'?: string;
+  'Alchemia:SupervisorDirectiveOtherNotes'?: string;
   [templateId: string]: string[] | string | Record<string, string> | undefined;
 }
 
@@ -46,13 +46,13 @@ interface GetExperimentPlansResult {
   plans: ExperimentPlanDto[];
 }
 
-// ── ノートタイプ定数（types/experimentPlan.ts と同値） ─────────
+// ── ノートタイプ定数（types/experimentPlan.ts の NoteType と同値） ─────────
 const NOTE_TYPE_KEYS: NoteTypeValue[] = [
-  'mgr-instruction:caution',
-  'mgr-instruction:operationNote',
-  'mgr-instruction:checkItem',
-  'mgr-instruction:prohibitedAction',
-  'mgr-instruction:OtherNotes',
+  'Alchemia:SupervisorDirectiveCaution',
+  'Alchemia:SupervisorDirectiveOperationNote',
+  'Alchemia:SupervisorDirectiveCheckItem',
+  'Alchemia:SupervisorDirectiveProhibitedAction',
+  'Alchemia:SupervisorDirectiveOtherNotes',
 ];
 
 /**
@@ -84,7 +84,7 @@ function transitionValuesToTabData(
     }
   }
 
-  // テンプレート値（mgr-instruction: キー以外をテンプレート値とみなす）
+  // テンプレート値（予約キー以外をテンプレート値とみなす）
   const templateValues: TemplateValues = {};
   const reservedKeys = new Set<string>([
     'mgr-instruction:requiredCreatorUUID',

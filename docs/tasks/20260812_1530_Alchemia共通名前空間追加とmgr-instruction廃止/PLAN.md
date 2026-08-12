@@ -197,8 +197,36 @@
 
 ## 10. 実施記録
 
-開始: ―　完了: ―
+開始: 2026-08-13　完了: 2026-08-13
 
-### 計画からの変更点  ―
+### 計画からの変更点
+- Phase 5 のエラー実装を `(err as any).status` → `err.statusCode` に修正（errorHandlerMiddleware が `statusCode` を参照するため）
+- `namespaceService.ts` の各関数に `lang: string = 'ja'` 引数を追加し、`getMessage()` で多言語化
+- `namespaceController.ts` でも `Accept-Language` ヘッダーから `lang` を取り出して Service に渡す方式を採用
+- `messages.ts` に `namespace.systemProtected` キーを ja/en 両方に追加
+- `messages.ts` の `master.duplicateAttributeName` も同時に追加（型定義との整合）
+- フロントエンド locales（ja.json / en.json）に `namespaceMain.systemNamespaceBadge` / `systemNamespaceTooltip` および `prefixManagement.systemNamespaceBadge` / `systemNamespaceTooltip` / `systemNamespaceDeleteError` を追加
+- `PrefixManagement.tsx` でも `SYSTEM_NAMESPACE_PREFIX` によるシステム行保護を実装
 
-### 最終的な成果物  ―
+### 最終的な成果物
+- [x] `backend/migrations/20260812_1530_add_alchemia_system_namespace.sql` 作成
+- [x] `backend/src/constants/systemNamespace.ts` 作成
+- [x] `backend/src/utils/messages.ts` — `namespace.systemProtected` キー追加（ja/en）
+- [x] `backend/src/sql/queries/namespace_terms/findDeclarationsByProjectScope.sql` — UNION ALL で Alchemia を常に含める
+- [x] `backend/src/sql/queries/namespace_terms/findNamespacesByOrganization.sql` — UNION ALL で Alchemia を常に含める
+- [x] `backend/src/sql/queries/namespace_terms/findAllByOrganization.sql` — UNION ALL で Alchemia を常に含める
+- [x] `backend/src/services/namespaceService.ts` — 5 関数に 403 保護 + `getMessage()` 多言語化
+- [x] `backend/src/controllers/namespaceController.ts` — `lang` を各 Service 呼び出しに渡す
+- [x] `backend/src/services/projectInstructionService.ts` — デフォルトキーを `Alchemia:SupervisorDirectiveContent` に変更
+- [x] `backend/src/services/experimentInstructionService.ts` — `NOTE_KEYS` を新形式に変更（旧キー後方互換あり）
+- [x] `backend/src/services/maimlWriterService.ts` — property key から `mgr-instruction:` プレフィックス除去、クリーニング正規表現に Alchemia パターン追加
+- [x] `frontend/src/constants/systemNamespace.ts` 作成
+- [x] `frontend/src/types/experimentPlan.ts` — `NoteType` 値を新形式に変更
+- [x] `frontend/src/types/instructionRegistration.ts` — `INSTRUCTION_KEY` 値を新形式に変更
+- [x] `frontend/src/services/experimentPlanApiService.ts` — `TransitionPlanValues` / `NOTE_TYPE_KEYS` / `reservedKeys` を新形式に変更
+- [x] `frontend/src/components/namespace/NamespaceMain.tsx` — `actionCell` にシステム名前空間保護（🔒 バッジ表示）を追加
+- [x] `frontend/src/components/namespace/PrefixManagement.tsx` — 操作列にシステム名前空間保護を追加
+- [x] `frontend/src/locales/ja.json` — システム名前空間関連キー追加
+- [x] `frontend/src/locales/en.json` — システム名前空間関連キー追加
+- [x] バックエンド TypeScript ビルド: エラーなし
+- [x] フロントエンド TypeScript ビルド: 今回追加ファイルに関するエラーなし（既存エラーのみ）

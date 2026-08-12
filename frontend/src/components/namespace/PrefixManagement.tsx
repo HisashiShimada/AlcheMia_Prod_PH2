@@ -8,6 +8,7 @@ import type { TableColumnsType } from 'antd';
 import ShareScopeModal from './ShareScopeModal';
 import type { PrefixRow, NewPrefixRow, RawNode, ShareSourceRole, ShareTarget, ScopeNode, PrefixManagementProps, PrefixCsvParsedRow } from '@/types/namespace';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 
 const { Text } = Typography;
 
@@ -694,6 +695,14 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
               <Button type="primary" size="small" icon={<SaveOutlined />} onClick={saveEdit}>保存</Button>
               <Button size="small" onClick={cancelEdit}>キャンセル</Button>
             </span>
+          );
+        }
+        // システム名前空間（Alchemia）の行は操作不可
+        if (r.prefix === SYSTEM_NAMESPACE_PREFIX) {
+          return (
+            <Tooltip title={t('prefixManagement.systemNamespaceTooltip')}>
+              <Tag color="default">{t('prefixManagement.systemNamespaceBadge')}</Tag>
+            </Tooltip>
           );
         }
         return (

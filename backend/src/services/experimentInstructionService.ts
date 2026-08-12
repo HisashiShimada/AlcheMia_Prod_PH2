@@ -537,8 +537,14 @@ export async function getPlanDialogDataFromMaiml(
 
   // 8. Conditionテンプレートから基本情報の初期値を抽出
   // mgr-instruction:requiredCreatorUUID / requiredInstrumentUUID / requiredOwnerUUID
-  // および注意事項キー（mgr-instruction:caution 等）が存在する場合に設定する
+  // および注意事項キー（Alchemia:SupervisorDirectiveXxx 等）が存在する場合に設定する
   const NOTE_KEYS = new Set([
+    'Alchemia:SupervisorDirectiveCaution',
+    'Alchemia:SupervisorDirectiveOperationNote',
+    'Alchemia:SupervisorDirectiveCheckItem',
+    'Alchemia:SupervisorDirectiveProhibitedAction',
+    'Alchemia:SupervisorDirectiveOtherNotes',
+    // 旧キーも後方互換のため認識する（読み取りのみ）
     'mgr-instruction:caution',
     'mgr-instruction:operationNote',
     'mgr-instruction:checkItem',

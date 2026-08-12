@@ -4397,7 +4397,9 @@
     "csvParseError2": "Failed to parse CSV",
     "nsRegisterSuccess": "Namespace \"{prefix}\" registered",
     "groupCreated": "Group \"{groupName}\" created",
-    "memberUpdated": "\"{name}\" updated ({count} members)"
+    "memberUpdated": "\"{name}\" updated ({count} members)",
+    "systemNamespaceBadge": "System",
+    "systemNamespaceTooltip": "The Alchemia system namespace cannot be modified or deleted"
   },
   "namespaceTree": {
     "company": "Organization"
@@ -4456,7 +4458,10 @@
     "prefixFieldRequired": "Prefix is required",
     "deactivateSuccess": "Prefix \"{prefix}\" deactivated",
     "activateSuccess": "Prefix \"{prefix}\" activated",
-    "bulkDeactivateSuccess": "{count} prefixes deactivated"
+    "bulkDeactivateSuccess": "{count} prefixes deactivated",
+    "systemNamespaceBadge": "System",
+    "systemNamespaceTooltip": "The Alchemia system namespace cannot be modified or deleted",
+    "systemNamespaceDeleteError": "The system namespace (Alchemia) cannot be deleted"
   },
   "teamManagement": {
     "groupListTitle": "Group List",

@@ -88,8 +88,9 @@ export async function deleteNamespace(
   try {
     const { prefix } = req.params;
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const count = await namespaceService.deleteNamespace(organizationId, prefix);
+    const count = await namespaceService.deleteNamespace(organizationId, prefix, lang);
     if (count === 0) {
       res.status(404).json({ error: `Namespace with prefix "${prefix}" not found` });
       return;
@@ -121,6 +122,7 @@ export async function createTerm(
     };
 
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
     const created = await namespaceService.createTerm({
       organizationId,
@@ -130,7 +132,7 @@ export async function createTerm(
       description,
       typeHint,
       unitHint,
-    });
+    }, lang);
 
     if (!created) {
       res.status(404).json({ error: `Namespace with prefix "${prefix}" not found` });
@@ -155,6 +157,7 @@ export async function updateTerm(
   try {
     const { prefix, localName } = req.params;
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
     const { displayName, description, typeHint, unitHint } = req.body as {
       displayName?: string;
@@ -168,7 +171,7 @@ export async function updateTerm(
       description,
       typeHint,
       unitHint,
-    });
+    }, lang);
 
     if (!updated) {
       res.status(404).json({ error: `Term "${prefix}:${localName}" not found` });
@@ -193,8 +196,9 @@ export async function deleteTerm(
   try {
     const { prefix, localName } = req.params;
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const count = await namespaceService.deleteTerm(organizationId, prefix, localName);
+    const count = await namespaceService.deleteTerm(organizationId, prefix, localName, lang);
     if (count === 0) {
       res.status(404).json({ error: `Term "${prefix}:${localName}" not found` });
       return;
@@ -290,12 +294,14 @@ export async function toggleTermActive(
     const { prefix, localName } = req.params as { prefix: string; localName: string };
     const { isActive } = req.body as { isActive: boolean };
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
     const updated = await namespaceService.toggleTermActive(
       organizationId,
       prefix,
       localName,
-      isActive
+      isActive,
+      lang
     );
 
     if (!updated) {

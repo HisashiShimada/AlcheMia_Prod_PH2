@@ -2,6 +2,7 @@
 -- - global_flg = TRUE の namespace に紐づく prefix は常に含める
 -- - orgGroupCd が指定された場合は scope_key = orgGroupCd の namespace も含める
 -- - orgGroupCd が NULL の場合は organization_id 配下の全件を返す
+-- - UNION ALL で固定UUID (00000000-...) の Alchemia システム名前空間を常に含める
 SELECT
   p.prefix
   , n.uri
@@ -17,4 +18,15 @@ WHERE p.organization_id = $1
         OR ($2::VARCHAR IS NULL)
         OR n.scope_key = $2
       )
-ORDER BY p.prefix ASC
+UNION ALL
+SELECT
+  p.prefix
+  , n.uri
+  , FALSE AS "globalFlg"
+FROM prefix p
+INNER JOIN namespace n
+  ON p.organization_id = n.organization_id
+  AND p.namespace_id = n.namespace_id
+WHERE p.organization_id = '00000000-0000-0000-0000-000000000000'
+  AND p.is_active = TRUE
+ORDER BY prefix ASC

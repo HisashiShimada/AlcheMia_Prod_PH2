@@ -77,6 +77,7 @@ type Messages = {
     duplicateCreatorId: string;
     duplicateInstrumentId: string;
     duplicateVendorId: string;
+    duplicateAttributeName: string;
     csv: {
       creatorIdRequired: string;
       creatorNameRequired: string;
@@ -91,6 +92,9 @@ type Messages = {
       vendorIsActiveInvalid: string;
       vendorAlreadyExists: string;
     };
+  };
+  namespace: {
+    systemProtected: string;
   };
 };
 
@@ -166,6 +170,7 @@ const ja: Messages = {
     duplicateCreatorId: '入力されたIDは既に存在しています',
     duplicateInstrumentId: '入力されたIDは既に存在しています',
     duplicateVendorId: '入力されたIDは既に存在しています',
+    duplicateAttributeName: 'このAttribute名・属性値の組み合わせは既に使用されています',
     csv: {
       creatorIdRequired: 'creator_idは必須です',
       creatorNameRequired: 'creator_nameは必須です',
@@ -180,6 +185,9 @@ const ja: Messages = {
       vendorIsActiveInvalid: 'is_activeの値が不正です。true、false、1、0のいずれかを指定してください（実際の値: {value}）',
       vendorAlreadyExists: 'vendor_id: {id} は既に存在します。既存レコードの編集は一覧から行ってください。',
     },
+  },
+  namespace: {
+    systemProtected: 'システム名前空間（Alchemia）は変更・削除できません',
   },
 };
 
@@ -255,6 +263,7 @@ const en: Messages = {
     duplicateCreatorId: 'The entered ID already exists',
     duplicateInstrumentId: 'The entered ID already exists',
     duplicateVendorId: 'The entered ID already exists',
+    duplicateAttributeName: 'This combination of Attribute name and value is already in use',
     csv: {
       creatorIdRequired: 'creator_id is required',
       creatorNameRequired: 'creator_name is required',
@@ -269,6 +278,9 @@ const en: Messages = {
       vendorIsActiveInvalid: 'Invalid value for is_active. Specify one of true, false, 1, or 0 (actual value: {value})',
       vendorAlreadyExists: 'vendor_id: {id} already exists. Please edit existing records from the list.',
     },
+  },
+  namespace: {
+    systemProtected: 'The system namespace (Alchemia) cannot be modified or deleted',
   },
 };
 

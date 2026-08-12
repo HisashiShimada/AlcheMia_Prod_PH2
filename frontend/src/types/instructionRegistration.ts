@@ -68,23 +68,23 @@ export const INSTRUCTION_GRANULARITY_LABELS: Record<InstructionGranularityValue,
  * ※ experimentPlan.ts の NoteType と同一値だが、「注意事項」概念から独立して定義
  */
 export const INSTRUCTION_KEY = {
-  GENERAL:           'SupervisorDirectiveContent',
-  CAUTION:           'mgr-instruction:caution',
-  OPERATION_NOTE:    'mgr-instruction:operationNote',
-  CHECK_ITEM:        'mgr-instruction:checkItem',
-  PROHIBITED_ACTION: 'mgr-instruction:prohibitedAction',
-  OTHER_NOTES:       'mgr-instruction:OtherNotes',
+  GENERAL:           'Alchemia:SupervisorDirectiveContent',
+  CAUTION:           'Alchemia:SupervisorDirectiveCaution',
+  OPERATION_NOTE:    'Alchemia:SupervisorDirectiveOperationNote',
+  CHECK_ITEM:        'Alchemia:SupervisorDirectiveCheckItem',
+  PROHIBITED_ACTION: 'Alchemia:SupervisorDirectiveProhibitedAction',
+  OTHER_NOTES:       'Alchemia:SupervisorDirectiveOtherNotes',
 } as const;
 
 export type InstructionKeyValue = typeof INSTRUCTION_KEY[keyof typeof INSTRUCTION_KEY];
 
 export const INSTRUCTION_KEY_LABELS: Record<InstructionKeyValue, string> = {
-  'SupervisorDirectiveContent':       '通常指示',
-  'mgr-instruction:caution':          '安全上の注意事項',
-  'mgr-instruction:operationNote':    '操作手順上の注記',
-  'mgr-instruction:checkItem':        '実施前後の確認事項',
-  'mgr-instruction:prohibitedAction': '禁止事項',
-  'mgr-instruction:OtherNotes':       'その他注意事項',
+  'Alchemia:SupervisorDirectiveContent':          '通常指示',
+  'Alchemia:SupervisorDirectiveCaution':          '安全上の注意事項',
+  'Alchemia:SupervisorDirectiveOperationNote':    '操作手順上の注記',
+  'Alchemia:SupervisorDirectiveCheckItem':        '実施前後の確認事項',
+  'Alchemia:SupervisorDirectiveProhibitedAction': '禁止事項',
+  'Alchemia:SupervisorDirectiveOtherNotes':       'その他注意事項',
 };
 
 /**
