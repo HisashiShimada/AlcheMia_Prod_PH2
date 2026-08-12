@@ -36,6 +36,10 @@ export interface UncertaintyTemplate {
   validFrom: string;
   validTo: string;
   extends: string;
+  /** namespace_term.display_name（uncertainty_key に紐づく） */
+  termDisplayName?: string | null;
+  /** namespace_term.description（uncertainty_key に紐づく） */
+  termDescription?: string | null;
 }
 
 /**

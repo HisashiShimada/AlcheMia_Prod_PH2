@@ -23,6 +23,8 @@ import {
   Layout,
   Slider,
   Spin,
+  Card,
+  Divider,
 } from 'antd';
 import {
   PlusOutlined,
@@ -36,6 +38,12 @@ import {
   SearchOutlined,
   AppstoreOutlined,
   InfoCircleOutlined,
+  EditOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  FastForwardOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -73,13 +81,16 @@ const ALLOWED_TRANSITIONS: Record<number, number[]> = {
 };
 
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
+import { fetchUncertaintyCriteriaForSelector, type QualitativeOptionApiRow } from '@/services/uncertaintyCriteriaApiService';
 import { uploadFiles } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { validateByXsiType } from '@/utils/xsiTypeValidator';
-import { updateTransitionStatus } from '@/services/projectApiService';
+import { updateTransitionStatus, getWorkerInstructions, confirmInstruction } from '@/services/projectApiService';
 import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
+import type { WorkerInstruction } from '@/types/project';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
+import ExperimentCommentDialog from './ExperimentCommentDialog';
 
 // ===== TemplateDataItem → Template 変換ヘルパー =====
 
@@ -166,6 +177,14 @@ function convertRawPropertyToProperty(
     description: (p.description as string | undefined) ?? undefined,
     formatString: (p.formatString as string | undefined) ?? undefined,
     scaleFactor: (p.scaleFactor as string | undefined) ?? undefined,
+    // 不確かさ関連フィールドをマッピング
+    plannedValue: (p.plannedValue as string | number | null | undefined) != null
+      ? String(p.plannedValue)
+      : undefined,
+    toleranceValue: (p.toleranceValue as string | null | undefined) ?? undefined,
+    uncertaintyNote: (p.uncertaintyNote as string | null | undefined) ?? undefined,
+    uncertaintyKey: (p.uncertaintyKey as string | null | undefined) ?? undefined,
+    uncertaintyName: (p.uncertaintyName as string | null | undefined) ?? undefined,
   };
 
   if (xsiType === 'propertyListType' && depth < MAX_DEPTH) {
@@ -384,6 +403,8 @@ interface DataRecordDialogProps {
   taskNo?: number;
   /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
   useDeemedProgress?: boolean;
+  /** インライン表示モード: true の場合 Modal ではなく div でレンダリング（実験記録タブ等のページ内表示用） */
+  inlineMode?: boolean;
 }
 
 /**
@@ -401,6 +422,7 @@ export default function DataRecordDialog({
   methodId,
   taskNo,
   useDeemedProgress: useDeemedProgressProp = true,
+  inlineMode = false,
 }: DataRecordDialogProps) {
   const { token } = theme.useToken();
   const { t } = useLanguage();
@@ -414,6 +436,37 @@ export default function DataRecordDialog({
   
   // 作業指示モーダルの状態
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
+
+  // 実験コメントダイアログの状態
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+
+  // 状態時刻修正モーダルの状態
+  const [stateTimeEditModalOpen, setStateTimeEditModalOpen] = useState(false);
+
+  /**
+   * 状態記録モーダル内の「休止状態 + 動作状態」動的ペア
+   * ボタン押下ごとに追加される
+   */
+  const [pauseEntries, setPauseEntries] = useState<
+    Array<{ id: string; pauseTime: import('dayjs').Dayjs | null; resumeTime: import('dayjs').Dayjs | null }>
+  >([]);
+
+  /**
+   * 状態時刻修正モーダル用の時刻データ
+   * キー: TransitionStatusCode 値（0〜6）
+   * 値: { startTime: dayjs.Dayjs | null; endTime: dayjs.Dayjs | null }
+   */
+  const [stateTimesData, setStateTimesData] = useState<
+    Record<number, { startTime: import('dayjs').Dayjs | null; endTime: import('dayjs').Dayjs | null }>
+  >({
+    0: { startTime: null, endTime: null },
+    1: { startTime: null, endTime: null },
+    2: { startTime: null, endTime: null },
+    3: { startTime: null, endTime: null },
+    4: { startTime: null, endTime: null },
+    5: { startTime: null, endTime: null },
+    6: { startTime: null, endTime: null },
+  });
 
   // APIから取得したテンプレート一覧（TemplateDataItem → Template に変換済み）
   const [fetchedTemplates, setFetchedTemplates] = useState<Template[]>([]);
@@ -435,6 +488,8 @@ export default function DataRecordDialog({
   // ステータス更新セクションの折りたたみ状態
   // プロジェクトの状態が編集可能でない場合は折りたたむ
   const [statusUpdateExpanded, setStatusUpdateExpanded] = useState(true);
+  // ステータス更新確認モーダルの開閉状態
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   
   // プロジェクトの状態が編集可能かどうか
   const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
@@ -478,6 +533,9 @@ export default function DataRecordDialog({
    */
   const isTerminalStatus = currentStatus === TransitionStatusCode.COMPLETED || currentStatus === TransitionStatusCode.ERROR;
 
+  // 作業中バーのステータス選択状態（デフォルト: 0 = 初期状態）
+  const [selectedWorkStatus, setSelectedWorkStatus] = useState<number>(0);
+
   // ステータスとコメント用の状態
   // 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
   const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>(0);
@@ -496,6 +554,27 @@ export default function DataRecordDialog({
   const [insertionUris, setInsertionUris] = useState<Record<string, Record<number, string>>>({});
 
   const [customProperties, setCustomProperties] = useState<Record<string, CustomPropertyValue[]>>({});
+
+  // ===== 不確かさ基準リスト（定性評価選択肢取得用） =====
+  const [criteriaList, setCriteriaList] = useState<import('@/services/uncertaintyCriteriaApiService').UncertaintyCriteriaForSelector[]>([]);
+
+  // ===== DB取得した初期ロード値（想定値欄に表示用） =====
+  /** フォームに初期セットした値のスナップショット（templateId_propertyKey → 値） */
+  const [loadedValues, setLoadedValues] = useState<Record<string, unknown>>({});
+
+  // ===== 定性評価・定量評価 State =====
+  /**
+   * 定性評価の選択値（templateId → propertyKey → 選択値文字列）
+   * 例: { "template_123": { "temperature": "certain" } }
+   */
+  const [propertyQualitativeEvals, setPropertyQualitativeEvals] =
+    useState<Record<string, Record<string, string>>>({});
+  /**
+   * 定量評価の行リスト（templateId → propertyKey → QuantitativeEval[]）
+   * 例: { "template_123": { "temperature": [{ id: "uuid", method: "誤差値", threshold: "5" }] } }
+   */
+  const [propertyQuantitativeEvals, setPropertyQuantitativeEvals] =
+    useState<Record<string, Record<string, import('@/types/experimentWorker').QuantitativeEval[]>>>({});
 
   /**
    * 全ステータス選択肢（t() を使って多言語化）
@@ -525,6 +604,44 @@ export default function DataRecordDialog({
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // 不確かさ基準リストを取得（ダイアログが開いたときに一度だけ取得）
+  useEffect(() => {
+    if (!open) return;
+    fetchUncertaintyCriteriaForSelector()
+      .then((list) => setCriteriaList(list))
+      .catch((err) => {
+        console.warn('[DataRecordDialog] 不確かさ基準リスト取得失敗（無視します）:', err);
+      });
+  }, [open]);
+
+  /**
+   * プロパティに対応する定性評価の選択肢を取得するヘルパー
+   * - prop.uncertaintyKey がある場合: criteriaList から一致する基準の qualitativeOptions を使用
+   * - ない場合または見つからない場合:
+   *   1. evalType === 'qualitative' かつ isDefault: true の選択肢を持つ基準を優先
+   *   2. それも見つからない場合は evalType === 'qualitative' の最初の基準を使用
+   * - いずれも見つからない場合: 空配列（ボタン表示なし）
+   */
+  const getQualOptions = (
+    prop: Property
+  ): QualitativeOptionApiRow[] => {
+    if (prop.uncertaintyKey) {
+      // key が一致すればその基準の定性評価選択肢を使用する
+      const matched = criteriaList.find((c) => c.key === prop.uncertaintyKey);
+      if (matched && matched.qualitativeOptions.length > 0) {
+        return matched.qualitativeOptions;
+      }
+    }
+    // 定性評価基準の中からデフォルト選択肢（isDefault: true）を持つものを優先して使用
+    const qualitativeCriteriaList = criteriaList.filter(
+      (c) => c.evalType === 'qualitative' && c.qualitativeOptions.length > 0
+    );
+    const defaultCriteria =
+      qualitativeCriteriaList.find((c) => c.qualitativeOptions.some((o) => o.isDefault))
+      ?? qualitativeCriteriaList[0];
+    return defaultCriteria?.qualitativeOptions ?? [];
+  };
 
   // テンプレート一覧のフィルタリング
   // fetchedTemplates（APIから取得・変換済み）を優先し、なければ transition.templates を使用する
@@ -622,6 +739,7 @@ export default function DataRecordDialog({
       setCustomProperties({});     // カスタムプロパティをリセット
       setInsertionFiles({});       // 非カスタム insertion ファイルをリセット
       setInsertionUris({});        // 非カスタム insertion URI をリセット
+      setLoadedValues({});         // DB取得値スナップショットをリセット
 
       // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
       setStatusUpdateExpanded(isProjectEditable);
@@ -754,7 +872,9 @@ export default function DataRecordDialog({
                     }
                   }
               if (Object.keys(initialValues).length > 0) {
-                form.setFieldsValue(initialValues);
+                // DB取得値はスナップショットとして保存し想定値欄に表示する。
+                // 実績値フォームには初期値をセットしない（作業者が新たに入力するため）。
+                setLoadedValues(initialValues);
               }
 
               // ③ 最初のテンプレートをサイドバーで選択状態にする
@@ -2230,48 +2350,134 @@ export default function DataRecordDialog({
     });
   };
 
-  return (
-    <Modal
-      data-testid="data-record-dialog"
-      title={
-        <Space>
-          <Text strong style={{ fontSize: 18 }}>
-            実験データ記録
-          </Text>
-          {transition && (
-            <Text type="secondary" style={{ fontSize: 14 }}>
-              - {transition.transitionName}
-            </Text>
-          )}
-        </Space>
-      }
-      open={open}
-      onCancel={onClose}
-      width={1400}
-      style={{ top: 20 }}
-      footer={[
-        <Button
-          key="cancel"
-          data-testid="data-record-cancel-button"
-          onClick={onClose}
-        >
-          キャンセル
-        </Button>,
-        <Button
-          key="save"
-          data-testid="data-record-save-button"
-          type="primary"
-          icon={<SaveOutlined />}
-          onClick={handleSaveTemplate}
-          loading={loading}
-          disabled={!isProjectEditable}
-        >
-          保存
-        </Button>,
-      ]}
+  /** インラインモード時のフッター（コメント・保存・スキップ・次のテンプレートへ）*/
+  const currentTemplateIndex = filteredTemplates.findIndex((t) => t.templateId === selectedTemplateId);
+  const totalTemplates = filteredTemplates.length;
+
+  const handleSkipTemplate = () => {
+    const nextIndex = currentTemplateIndex + 1;
+    if (nextIndex < filteredTemplates.length) {
+      setSelectedTemplateId(filteredTemplates[nextIndex].templateId);
+    }
+  };
+
+  const handleNextTemplate = async () => {
+    await handleSaveTemplate();
+    const nextIndex = currentTemplateIndex + 1;
+    if (nextIndex < filteredTemplates.length) {
+      setSelectedTemplateId(filteredTemplates[nextIndex].templateId);
+    }
+  };
+
+  /** 一時停止/再開のトグル状態 */
+  const [isPaused, setIsPaused] = useState(false);
+
+  const inlineFooter = (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        gap: 8,
+      }}
     >
-      <div>
-      {/* みなし進捗更新チェックボックスと作業指示ボタン */}
+      <Button
+        data-testid="data-record-state-time-edit-button"
+        icon={<EditOutlined />}
+        style={{ borderColor: '#434343', color: '#434343', background: '#fff' }}
+        onClick={() => setStateTimeEditModalOpen(true)}
+      >
+        状態記録
+      </Button>
+      <Button
+        data-testid="data-record-start-button"
+        icon={<PlayCircleOutlined />}
+        style={{ borderColor: '#1677ff', color: '#1677ff', background: '#fff' }}
+        onClick={() => {
+          // TODO: 開始処理を実装予定
+        }}
+      >
+        開始
+      </Button>
+      <Button
+        data-testid="data-record-pause-resume-button"
+        icon={isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
+        style={
+          isPaused
+            ? { borderColor: '#1677ff', color: '#1677ff', background: '#fff' }
+            : { borderColor: '#faad14', color: '#faad14', background: '#fff' }
+        }
+        onClick={() => {
+          setIsPaused((prev) => !prev);
+          // TODO: 一時停止/再開処理を実装予定
+        }}
+      >
+        {isPaused ? '再開' : '一時停止'}
+      </Button>
+      <Button
+        data-testid="data-record-end-button"
+        icon={<CheckCircleOutlined />}
+        style={{ borderColor: '#52c41a', color: '#52c41a', background: '#fff' }}
+        onClick={() => {
+          // TODO: 終了処理を実装予定
+        }}
+      >
+        終了
+      </Button>
+      <Button
+        data-testid="data-record-error-end-button"
+        danger
+        icon={<CloseCircleOutlined />}
+        onClick={() => {
+          // TODO: 異常終了処理を実装予定
+        }}
+      >
+        異常終了
+      </Button>
+      <Button
+        data-testid="data-record-comment-button"
+        icon={<InfoCircleOutlined />}
+        style={{ borderColor: '#434343', color: '#434343', background: '#fff' }}
+        onClick={() => setCommentDialogOpen(true)}
+      >
+        コメント
+      </Button>
+      <Button
+        data-testid="data-record-save-button"
+        icon={<SaveOutlined />}
+        style={{ borderColor: '#52c41a', color: '#52c41a', background: '#fff' }}
+        onClick={handleSaveTemplate}
+        loading={loading}
+        disabled={!isProjectEditable}
+      >
+        保存
+      </Button>
+      <Button
+        data-testid="data-record-skip-button"
+        icon={<FastForwardOutlined />}
+        style={{ borderColor: '#434343', color: '#434343', background: '#fff' }}
+        onClick={handleSkipTemplate}
+        disabled={currentTemplateIndex < 0 || currentTemplateIndex >= filteredTemplates.length - 1}
+      >
+        スキップ
+      </Button>
+      <Button
+        data-testid="data-record-next-template-button"
+        type="primary"
+        onClick={handleNextTemplate}
+        loading={loading}
+        disabled={!isProjectEditable || currentTemplateIndex < 0}
+      >
+        次へ
+      </Button>
+    </div>
+  );
+
+  /** 共通コンテンツ（Modal / インライン共通） */
+  const dialogContent = (
+    <div>
+      {/* みなし進捗更新チェックボックスと作業指示ボタン（inlineMode では非表示） */}
+      {!inlineMode && (
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {/* useDeemedProgressProp が false の場合はチェックボックスを非表示（組織設定で無効化） */}
           {useDeemedProgressProp ? (
@@ -2293,6 +2499,7 @@ export default function DataRecordDialog({
             作業指示
           </Button>
         </div>
+      )}
 
         {/* ステータス更新セクション
             - useDeemedProgressProp が false の場合: 常時表示（組織設定でみなし進捗無効）
@@ -2419,7 +2626,7 @@ export default function DataRecordDialog({
                       icon={<SaveOutlined />}
                       loading={loading}
                       disabled={!isProjectEditable}
-                      onClick={async () => {
+                      onClick={() => {
                         // パスパラメータのガードチェック
                         if (!projectId || !methodId || !transition?.transitionId || taskNo === undefined) {
                           message.error(t('format.dataRecordDialog.missingProjectInfoForUpdate'));
@@ -2431,10 +2638,33 @@ export default function DataRecordDialog({
                           });
                           return;
                         }
-                          try {
+                        setConfirmModalOpen(true);
+                      }}
+                    >
+                      保存
+                    </Button>
+                  </Col>
+                </Row>
+
+                {/* ステータス更新確認モーダル */}
+                <Modal
+                  title="ステータスを変更しますか？"
+                  open={confirmModalOpen}
+                  width={380}
+                  onCancel={() => setConfirmModalOpen(false)}
+                  footer={[
+                    <Button key="cancel" onClick={() => setConfirmModalOpen(false)}>
+                      キャンセル
+                    </Button>,
+                    <Button
+                      key="save"
+                      type="primary"
+                      loading={loading}
+                      onClick={async () => {
+                        try {
                           setLoading(true);
-                          await updateTransitionStatus(projectId, methodId, transition.transitionId, {
-                            taskNo,
+                          await updateTransitionStatus(projectId!, methodId!, transition!.transitionId, {
+                            taskNo: taskNo!,
                             status: selectedStatus,
                             progressRate: progress,
                             comment: comment || undefined,
@@ -2442,8 +2672,8 @@ export default function DataRecordDialog({
                           message.success(
                             t('format.dataRecordDialog.statusUpdated', { status: statusOptions.find(opt => opt.value === selectedStatus)?.label ?? '', progress: String(progress) })
                           );
+                          setConfirmModalOpen(false);
                           // onSave を呼び出してダイアログを閉じ、親のトランジション一覧を最新状態に更新する
-                          // TransitionList の handleDataSave は _data を参照しないため空配列を渡して問題なし
                           onSave([]);
                         } catch (error: unknown) {
                           console.error('Status update error:', error);
@@ -2462,9 +2692,14 @@ export default function DataRecordDialog({
                       }}
                     >
                       保存
-                    </Button>
-                  </Col>
-                </Row>
+                    </Button>,
+                  ]}
+                >
+                  <p>
+                    ステータスを「{statusOptions.find(opt => opt.value === selectedStatus)?.label ?? ''}」に変更します。
+                    よろしいですか？
+                  </p>
+                </Modal>
               </>
             )}
           </div>
@@ -2627,15 +2862,250 @@ export default function DataRecordDialog({
               {selectedTemplate ? (
                 <>
                   <div>
-                    <Row gutter={16}>
-                      {selectedTemplate.properties.map((prop) => (
-                        <Col
-                          key={prop.key}
-                          span={prop.type === 'propertyListType' ? 24 : 12}
-                        >
-                          {renderPropertyInput(prop, selectedTemplate.templateId)}
-                        </Col>
-                      ))}
+                    <Row gutter={[16, 16]}>
+                      {selectedTemplate.properties.map((prop) => {
+                        const tplId = selectedTemplate.templateId;
+                        const propKey = prop.key;
+                        // ── 定性評価 ──
+                        // DB から取得した不確かさ基準の定性評価選択肢を使用する
+                        // prop.uncertaintyKey が指定されていればその基準を使用、なければ「デフォルト値」基準を使用
+                        const qualOptions = getQualOptions(prop);
+                        const currentQual = propertyQualitativeEvals[tplId]?.[propKey] ?? null;
+                        // 現在選択中の選択肢の displayColor を取得（バッジ色に使用）
+                        const currentQualOption = qualOptions.find((o) => o.selectorValue === currentQual);
+                        const qualBadgeColor = currentQual
+                          ? (currentQualOption?.displayColor ?? '#1677ff')
+                          : undefined;
+                        // DB から取得した選択肢ラベルマップ（selectorValue をそのままラベルとして使用）
+                        const qualLabelMap: Record<string, string> = {};
+                        // ── 定量評価 ──
+                        const quantEvals = propertyQuantitativeEvals[tplId]?.[propKey] ?? [];
+                        // モック評価方法選択肢
+                        const EVAL_METHOD_OPTIONS = [
+                          { label: '誤差値', value: '誤差値' },
+                          { label: '標準偏差', value: '標準偏差' },
+                          { label: '相対誤差', value: '相対誤差' },
+                          { label: '測定不確かさ', value: '測定不確かさ' },
+                        ];
+
+                        if (prop.type === 'propertyListType') {
+                          return (
+                            <Col key={propKey} span={24}>
+                              {renderPropertyInput(prop, tplId)}
+                            </Col>
+                          );
+                        }
+
+                        return (
+                          <Col key={propKey} span={8}>
+                            <Card
+                              size="small"
+                              style={{ height: '100%' }}
+                              title={
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  <Text strong style={{ fontSize: 13 }}>{prop.label}</Text>
+                                  {prop.units && <Tag color="blue" style={{ fontSize: 11, margin: 0 }}>{prop.units}</Tag>}
+                                  {currentQual && qualBadgeColor && (
+                                    <Tag color={qualBadgeColor} style={{ fontSize: 11, margin: 0 }}>
+                                      {qualLabelMap[currentQual] ?? currentQual}
+                                    </Tag>
+                                  )}
+                                </div>
+                              }
+                            >
+                              {/* 指定値・許容誤差値 */}
+                              <Row gutter={8} style={{ marginBottom: 8 }}>
+                                <Col span={12}>
+                                  <Text type="secondary" style={{ fontSize: 11 }}>{t('dataRecordDialog.plannedValue')}</Text>
+                                  <div style={{
+                                    border: '1px solid #d9d9d9',
+                                    borderRadius: 4,
+                                    padding: '4px 11px',
+                                    background: '#fff',
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                    minHeight: 32,
+                                    lineHeight: '22px',
+                                  }}>
+                                    {(() => {
+                                      // DB取得値（loadedValues）を優先表示し、なければ plannedValue を使用
+                                      const formKey = `${tplId}_${propKey}`;
+                                      const dbVal = loadedValues[formKey];
+                                      if (dbVal != null && dbVal !== '') {
+                                        return `${dbVal}${prop.units ? ' ' + prop.units : ''}`;
+                                      }
+                                      return prop.plannedValue != null
+                                        ? `${prop.plannedValue}${prop.units ? ' ' + prop.units : ''}`
+                                        : '—';
+                                    })()}
+                                  </div>
+                                </Col>
+                                <Col span={12}>
+                                  {/* ② ヘッダ名: uncertaintyName があればその値、なければ「不確かさ名」 */}
+                                  <Text type="secondary" style={{ fontSize: 11 }}>
+                                    {prop.uncertaintyName ?? t('dataRecordDialog.uncertaintyName')}
+                                  </Text>
+                                  <div style={{
+                                    border: '1px solid #d9d9d9',
+                                    borderRadius: 4,
+                                    padding: '4px 11px',
+                                    background: '#fff',
+                                    fontSize: 13,
+                                    minHeight: 32,
+                                    lineHeight: '22px',
+                                  }}>
+                                    {prop.toleranceValue
+                                      ? `${prop.toleranceValue}${prop.units ? ' ' + prop.units : ''}`
+                                      : '—'}
+                                  </div>
+                                </Col>
+                              </Row>
+                              {/* ① 不確かさ説明: 常時表示（説明なしの場合は「—」） */}
+                              <div style={{ marginBottom: 8 }}>
+                                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('dataRecordDialog.uncertaintyNote')}</Text>
+                                <div style={{
+                                  border: '1px solid #d9d9d9',
+                                  borderRadius: 4,
+                                  padding: '4px 11px',
+                                  background: '#fff',
+                                  fontSize: 12,
+                                  color: '#595959',
+                                  minHeight: 32,
+                                  lineHeight: '22px',
+                                }}>
+                                  {prop.uncertaintyNote ?? '—'}
+                                </div>
+                              </div>
+                              <Divider style={{ margin: '8px 0' }} />
+                              {/* 実績値 */}
+                              <div style={{ marginBottom: 8 }}>
+                                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('dataRecordDialog.measuredValue')}</Text>
+                                {/*
+                                  label='' を渡しても Ant Design の vertical レイアウトでは
+                                  ラベル領域（約22px）が確保されるため、負のマージンで相殺する。
+                                  marginTop: -26  … ラベルエリア分を詰める
+                                  marginBottom: -16 … Form.Item デフォルト marginBottom(24px) - 8px
+                                */}
+                                <div style={{ marginTop: -26, marginBottom: -16 }}>
+                                  {renderPropertyInput({ ...prop, label: '' }, tplId)}
+                                </div>
+                              </div>
+                              <Divider style={{ margin: '8px 0' }} />
+                              {/* 定性評価 */}
+                              <div style={{ marginBottom: 8 }}>
+                                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>{t('dataRecordDialog.qualitativeEval')}</Text>
+                                <Space size={4} wrap>
+                                  {qualOptions.map((opt) => {
+                                    const isSelected = currentQual === opt.selectorValue;
+                                    const optColor = opt.displayColor || '#1677ff';
+                                    const buttonStyle: React.CSSProperties = isSelected
+                                      ? { backgroundColor: optColor, borderColor: optColor, color: '#fff' }
+                                      : { borderColor: optColor, color: optColor };
+                                    return (
+                                      <Button
+                                        key={opt.selectorValue}
+                                        size="small"
+                                        type={isSelected ? 'primary' : 'default'}
+                                        style={buttonStyle}
+                                        onClick={() => {
+                                          setPropertyQualitativeEvals((prev) => ({
+                                            ...prev,
+                                            [tplId]: {
+                                              ...(prev[tplId] ?? {}),
+                                              [propKey]: currentQual === opt.selectorValue ? '' : opt.selectorValue,
+                                            },
+                                          }));
+                                        }}
+                                        disabled={!isProjectEditable}
+                                      >
+                                        {opt.selectorValue}
+                                      </Button>
+                                    );
+                                  })}
+                                </Space>
+                              </div>
+                              {/* 定量評価 */}
+                              <div>
+                                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>{t('dataRecordDialog.quantitativeEval')}</Text>
+                                {quantEvals.map((qe) => (
+                                  <div key={qe.id} style={{ display: 'flex', gap: 4, marginBottom: 4, alignItems: 'center' }}>
+                                    <Select
+                                      size="small"
+                                      value={qe.method || undefined}
+                                      placeholder={t('dataRecordDialog.evalMethod')}
+                                      options={EVAL_METHOD_OPTIONS}
+                                      style={{ flex: 1 }}
+                                      onChange={(v) => {
+                                        setPropertyQuantitativeEvals((prev) => ({
+                                          ...prev,
+                                          [tplId]: {
+                                            ...(prev[tplId] ?? {}),
+                                            [propKey]: (prev[tplId]?.[propKey] ?? []).map((e) =>
+                                              e.id === qe.id ? { ...e, method: v } : e
+                                            ),
+                                          },
+                                        }));
+                                      }}
+                                      disabled={!isProjectEditable}
+                                    />
+                                    <Input
+                                      size="small"
+                                      value={qe.threshold}
+                                      placeholder={t('dataRecordDialog.threshold')}
+                                      style={{ width: 70 }}
+                                      onChange={(e) => {
+                                        setPropertyQuantitativeEvals((prev) => ({
+                                          ...prev,
+                                          [tplId]: {
+                                            ...(prev[tplId] ?? {}),
+                                            [propKey]: (prev[tplId]?.[propKey] ?? []).map((ev) =>
+                                              ev.id === qe.id ? { ...ev, threshold: e.target.value } : ev
+                                            ),
+                                          },
+                                        }));
+                                      }}
+                                      disabled={!isProjectEditable}
+                                    />
+                                    <Button
+                                      type="text"
+                                      danger
+                                      size="small"
+                                      icon={<DeleteOutlined />}
+                                      onClick={() => {
+                                        setPropertyQuantitativeEvals((prev) => ({
+                                          ...prev,
+                                          [tplId]: {
+                                            ...(prev[tplId] ?? {}),
+                                            [propKey]: (prev[tplId]?.[propKey] ?? []).filter((ev) => ev.id !== qe.id),
+                                          },
+                                        }));
+                                      }}
+                                      disabled={!isProjectEditable}
+                                    />
+                                  </div>
+                                ))}
+                                <Button
+                                  size="small"
+                                  icon={<PlusOutlined />}
+                                  onClick={() => {
+                                    const newEval = { id: `qe_${Date.now()}_${Math.random().toString(36).slice(2,5)}`, method: '', threshold: '' };
+                                    setPropertyQuantitativeEvals((prev) => ({
+                                      ...prev,
+                                      [tplId]: {
+                                        ...(prev[tplId] ?? {}),
+                                        [propKey]: [...(prev[tplId]?.[propKey] ?? []), newEval],
+                                      },
+                                    }));
+                                  }}
+                                  disabled={!isProjectEditable}
+                                >
+                                  {t('dataRecordDialog.addEval')}
+                                </Button>
+                              </div>
+                            </Card>
+                          </Col>
+                        );
+                      })}
                     </Row>
 
                     {/* トップレベル Contents セクション（Property と別枠で表示） */}
@@ -2794,8 +3264,6 @@ export default function DataRecordDialog({
           </Content>
         </Layout>
 
-      </div>
-
       {/* 作業指示モーダル */}
       <InstructionConfirmationModal
         open={instructionModalOpen}
@@ -2805,6 +3273,566 @@ export default function DataRecordDialog({
         projectStatus={projectStatus}
         onCancel={() => setInstructionModalOpen(false)}
       />
+    </div>
+  );
+
+  // ===== inlineMode 用: プロジェクト指示取得 =====
+  /** プロジェクト指示（inlineMode 時のみ取得） */
+  const [workerInstructions, setWorkerInstructions] = useState<WorkerInstruction[]>([]);
+  /** プロジェクト指示セクションの折りたたみ状態 */
+  const [instructionPanelExpanded, setInstructionPanelExpanded] = useState(false);
+  /** 確認済みにした指示IDのセット */
+  const [confirmedInstructionIds, setConfirmedInstructionIds] = useState<Set<string>>(new Set());
+  /** 確認処理中の指示IDセット（ローディング制御用） */
+  const [confirmingInstructionIds, setConfirmingInstructionIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!inlineMode || !projectId || !open) return;
+    (async () => {
+      try {
+        const result = await getWorkerInstructions(projectId);
+        setWorkerInstructions(result.data ?? []);
+      } catch (e) {
+        console.warn('[DataRecordDialog] プロジェクト指示の取得に失敗しました:', e);
+        setWorkerInstructions([]);
+      }
+    })();
+  }, [inlineMode, projectId, open]);
+
+  // inlineMode: div ラッパー、Modal なし
+  if (inlineMode) {
+    // ── プロジェクト指示セクション（折りたたみ可能・黄背景） ──
+    const instructionSection = (
+      <div
+        style={{
+          marginBottom: 8,
+          border: `1px solid #facc4a`,
+          borderRadius: token.borderRadiusSM,
+          background: '#fffbe6',
+          overflow: 'hidden',
+        }}
+      >
+        {/* ヘッダー（クリックで折りたたみ） */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 12px',
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+          onClick={() => setInstructionPanelExpanded((v) => !v)}
+        >
+          {instructionPanelExpanded ? (
+            <DownOutlined style={{ fontSize: 11, color: '#d48806' }} />
+          ) : (
+            <RightOutlined style={{ fontSize: 11, color: '#d48806' }} />
+          )}
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#d48806' }}>
+            ⚠️ プロジェクト指示
+          </span>
+          <Tag color="warning" style={{ fontSize: 11, marginLeft: 4 }}>
+            {workerInstructions.length}件
+          </Tag>
+        </div>
+        {/* 本文（展開時のみ表示） */}
+        {instructionPanelExpanded && (
+          <div
+            style={{
+              padding: '8px 16px 12px',
+              borderTop: '1px solid #facc4a',
+            }}
+          >
+                {workerInstructions.length === 0 ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>指示はありません</Text>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 16 }}>
+                {workerInstructions.map((ins) => {
+                  const isConfirmed = confirmedInstructionIds.has(ins.id);
+                  const isConfirming = confirmingInstructionIds.has(ins.id);
+                  return (
+                    <li key={ins.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13 }}>{ins.instruction_content}</Text>
+                        {ins.created_by_name && (
+                          <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>
+                            （{ins.created_by_name}）
+                          </Text>
+                        )}
+                      </div>
+                      {isConfirmed ? (
+                        <Tag color="success" icon={<CheckCircleOutlined />} style={{ flexShrink: 0 }}>
+                          確認済み
+                        </Tag>
+                      ) : (
+                        <Button
+                          size="small"
+                          type="primary"
+                          loading={isConfirming}
+                          onClick={async () => {
+                            if (!projectId) return;
+                            setConfirmingInstructionIds((prev) => new Set(prev).add(ins.id));
+                            try {
+                              await confirmInstruction(projectId, ins.id);
+                              setConfirmedInstructionIds((prev) => new Set(prev).add(ins.id));
+                            } catch (e) {
+                              message.error('指示確認の送信に失敗しました');
+                              console.error('[DataRecordDialog] confirmInstruction error:', e);
+                            } finally {
+                              setConfirmingInstructionIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(ins.id);
+                                return next;
+                              });
+                            }
+                          }}
+                          style={{ flexShrink: 0 }}
+                        >
+                          指示確認済み
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+    );
+
+    // ── 作業ステータス選択肢 ──
+    const WORK_STATUS_OPTIONS = [
+      { code: 0, label: '初期状態' },
+      { code: 1, label: '準備状態' },
+      { code: 2, label: '準備完了状態' },
+      { code: 3, label: '動作状態' },
+      { code: 5, label: '終状態' },
+      { code: 6, label: '異常終了状態' },
+    ] as const;
+
+    /** 選択ステータスに応じた背景・ボーダー色を返す */
+    const getWorkStatusBarStyle = (code: number): React.CSSProperties => {
+      if (code === 5) {
+        // 終状態 → グレーアウト
+        return {
+          background: '#f5f5f5',
+          border: `1px solid #d9d9d9`,
+        };
+      }
+      if (code === 6) {
+        // 異常終了状態 → 赤
+        return {
+          background: '#fff1f0',
+          border: `1px solid #ffa39e`,
+        };
+      }
+      // その他 → 緑（デフォルト）
+      return {
+        background: '#f6ffed',
+        border: `1px solid #b7eb8f`,
+      };
+    };
+
+    // ── 作業中情報バー（ステータス選択プルダウン付き） ──
+    const workStatusBar = (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '5px 12px',
+          borderRadius: token.borderRadiusSM,
+          flexWrap: 'wrap',
+          flex: 1,
+          ...getWorkStatusBarStyle(selectedWorkStatus),
+        }}
+      >
+        <Text strong style={{ fontSize: 12, flexShrink: 0 }}>状態</Text>
+        <Select
+          value={selectedWorkStatus}
+          onChange={(val: number) => setSelectedWorkStatus(val)}
+          style={{ width: 140, fontWeight: 600, fontSize: 12 }}
+          size="small"
+          options={WORK_STATUS_OPTIONS.map((s) => ({ value: s.code, label: s.label }))}
+        />
+        {taskNo !== undefined && (
+          <>
+            <Text style={{ fontSize: 12 }}>タスクNo</Text>
+            <Tag color="blue" style={{ fontSize: 12 }}>#{taskNo}</Tag>
+          </>
+        )}
+        {methodId && (
+          <>
+            <Text style={{ fontSize: 12 }}>メソッド</Text>
+            <Tag
+              color="geekblue"
+              style={{ fontSize: 12, maxWidth: 220 }}
+              title={methodId}
+            >
+              {methodId.length > 30 ? `${methodId.slice(0, 30)}…` : methodId}
+            </Tag>
+          </>
+        )}
+        {transition?.transitionName && (
+          <>
+            <Text style={{ fontSize: 12 }}>トランジション</Text>
+            <Tag
+              color="purple"
+              style={{ fontSize: 12, maxWidth: 240 }}
+              title={transition.transitionName}
+            >
+              {transition.transitionName.length > 36
+                ? `${transition.transitionName.slice(0, 36)}…`
+                : transition.transitionName}
+            </Tag>
+          </>
+        )}
+      </div>
+    );
+
+    return (
+      <div data-testid="data-record-inline">
+        {instructionSection}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          {workStatusBar}
+          <div style={{ flexShrink: 0 }}>{inlineFooter}</div>
+        </div>
+        {dialogContent}
+        <ExperimentCommentDialog
+          open={commentDialogOpen}
+          taskNo={taskNo ?? 0}
+          transitionId={transition?.transitionId ?? ''}
+          onClose={() => setCommentDialogOpen(false)}
+          onSave={(_comment) => {
+            console.info('[DataRecordDialog] experiment comment saved:', _comment);
+            setCommentDialogOpen(false);
+          }}
+        />
+
+        {/* 状態記録モーダル */}
+        <Modal
+          title={
+            <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>
+              状態記録
+            </div>
+          }
+          open={stateTimeEditModalOpen}
+          onCancel={() => setStateTimeEditModalOpen(false)}
+          width={620}
+          footer={[
+            <Button
+              key="cancel"
+              onClick={() => setStateTimeEditModalOpen(false)}
+            >
+              キャンセル
+            </Button>,
+            <Button
+              key="save"
+              type="primary"
+              onClick={() => {
+                console.info('[DataRecordDialog] stateTimesData saved:', stateTimesData);
+                setStateTimeEditModalOpen(false);
+              }}
+            >
+              保存
+            </Button>,
+          ]}
+        >
+          {/* 固定エントリ: 準備状態・準備完了状態 */}
+          {(
+            [
+              { code: 1, label: '準備状態',     color: 'processing' },
+              { code: 2, label: '準備完了状態', color: 'cyan'       },
+            ] as { code: number; label: string; color: string }[]
+          ).map(({ code, label, color }) => (
+            <Row
+              key={code}
+              gutter={12}
+              style={{
+                marginBottom: 8,
+                alignItems: 'flex-start',
+                border: '1px solid #e8e8e8',
+                borderRadius: 8,
+                padding: '8px 4px',
+                background: '#fafafa',
+              }}
+            >
+              <Col span={6}>
+                <div style={{ paddingTop: 20 }}>
+                  <Tag color={color} style={{ fontSize: 13, padding: '3px 10px', borderRadius: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {label}
+                  </Tag>
+                </div>
+              </Col>
+              <Col span={18}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                  状態遷移時刻
+                </Text>
+                <DatePicker
+                  showTime
+                  format="YYYY-MM-DD HH:mm:ss"
+                  value={stateTimesData[code]?.startTime ?? null}
+                  onChange={(val) =>
+                    setStateTimesData((prev) => ({ ...prev, [code]: { ...prev[code], startTime: val } }))
+                  }
+                  style={{ width: '100%' }}
+                  placeholder="状態遷移時刻"
+                />
+              </Col>
+            </Row>
+          ))}
+
+          {/* 固定エントリ: 動作状態（+ 休止状態記録追加ボタン付き） */}
+          <Row
+            gutter={12}
+            style={{
+              marginBottom: 8,
+              alignItems: 'flex-start',
+              border: '1px solid #e8e8e8',
+              borderRadius: 8,
+              padding: '8px 4px',
+              background: '#fafafa',
+            }}
+          >
+            <Col span={6}>
+              <div style={{ paddingTop: 20 }}>
+                <Tag color="blue" style={{ fontSize: 13, padding: '3px 10px', borderRadius: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  動作状態
+                </Tag>
+              </div>
+            </Col>
+            <Col span={18}>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                状態遷移時刻
+              </Text>
+              <DatePicker
+                showTime
+                format="YYYY-MM-DD HH:mm:ss"
+                value={stateTimesData[3]?.startTime ?? null}
+                onChange={(val) =>
+                  setStateTimesData((prev) => ({ ...prev, 3: { ...prev[3], startTime: val } }))
+                }
+                style={{ width: '100%' }}
+                placeholder="状態遷移時刻"
+              />
+              {/* + 休止状態記録追加ボタン */}
+              <Button
+                size="small"
+                style={{ marginTop: 8 }}
+                onClick={() => {
+                  setPauseEntries((prev) => [
+                    ...prev,
+                    { id: `pause_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, pauseTime: null, resumeTime: null },
+                  ]);
+                }}
+              >
+                + 休止状態記録追加
+              </Button>
+            </Col>
+          </Row>
+
+          {/* 動的エントリ: 休止状態 + 動作状態のペア */}
+          {pauseEntries.map((entry, entryIdx) => (
+            <div
+              key={entry.id}
+              style={{
+                margin: '0 -14px 8px',
+                border: '2px solid rgb(145, 202, 255)',
+                borderRadius: 10,
+                padding: '6px 14px',
+              }}
+            >
+              {/* 休止状態 */}
+              <Row
+                gutter={12}
+                style={{
+                  marginBottom: 4,
+                  alignItems: 'flex-start',
+                  border: '1px solid #e8e8e8',
+                  borderRadius: 8,
+                  padding: '8px 4px',
+                  background: '#fafafa',
+                }}
+              >
+                <Col span={6}>
+                  <div style={{ paddingTop: 20 }}>
+                    <Tag color="warning" style={{ fontSize: 13, padding: '3px 10px', borderRadius: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      休止状態
+                    </Tag>
+                  </div>
+                </Col>
+                <Col span={18}>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                    状態遷移時刻
+                  </Text>
+                  <DatePicker
+                    showTime
+                    format="YYYY-MM-DD HH:mm:ss"
+                    value={entry.pauseTime}
+                    onChange={(val) =>
+                      setPauseEntries((prev) =>
+                        prev.map((e, i) => i === entryIdx ? { ...e, pauseTime: val } : e)
+                      )
+                    }
+                    style={{ width: '100%' }}
+                    placeholder="状態遷移時刻"
+                  />
+                </Col>
+              </Row>
+              {/* 動作状態（再開） */}
+              <Row
+                gutter={12}
+                style={{
+                  alignItems: 'flex-start',
+                  border: '1px solid #e8e8e8',
+                  borderRadius: 8,
+                  padding: '8px 4px',
+                  background: '#fafafa',
+                }}
+              >
+                <Col span={6}>
+                  <div style={{ paddingTop: 20 }}>
+                    <Tag color="blue" style={{ fontSize: 13, padding: '3px 10px', borderRadius: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      動作状態
+                    </Tag>
+                  </div>
+                </Col>
+                <Col span={18}>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                    状態遷移時刻
+                  </Text>
+                  <DatePicker
+                    showTime
+                    format="YYYY-MM-DD HH:mm:ss"
+                    value={entry.resumeTime}
+                    onChange={(val) =>
+                      setPauseEntries((prev) =>
+                        prev.map((e, i) => i === entryIdx ? { ...e, resumeTime: val } : e)
+                      )
+                    }
+                    style={{ width: '100%' }}
+                    placeholder="状態遷移時刻"
+                  />
+                  {/* 最後のペアにのみ「+ 休止状態記録追加」ボタンを表示、全ペアに「- 休止状態記録削除」ボタンを表示 */}
+                  <Space style={{ marginTop: 8 }}>
+                    {entryIdx === pauseEntries.length - 1 && (
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setPauseEntries((prev) => [
+                            ...prev,
+                            { id: `pause_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, pauseTime: null, resumeTime: null },
+                          ]);
+                        }}
+                      >
+                        + 休止状態記録追加
+                      </Button>
+                    )}
+                    <Button
+                      size="small"
+                      danger
+                      onClick={() => setPauseEntries((prev) => prev.filter((_, i) => i !== entryIdx))}
+                    >
+                      - 休止状態記録削除
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+            </div>
+          ))}
+
+          {/* 固定エントリ: 終状態・異常終了状態 */}
+          {(
+            [
+              { code: 5, label: '終状態',       color: 'success' },
+              { code: 6, label: '異常終了状態', color: 'error'   },
+            ] as { code: number; label: string; color: string }[]
+          ).map(({ code, label, color }) => (
+            <Row
+              key={code}
+              gutter={12}
+              style={{
+                marginBottom: 8,
+                alignItems: 'flex-start',
+                border: '1px solid #e8e8e8',
+                borderRadius: 8,
+                padding: '8px 4px',
+                background: '#fafafa',
+              }}
+            >
+              <Col span={6}>
+                <div style={{ paddingTop: 20 }}>
+                  <Tag color={color} style={{ fontSize: 13, padding: '3px 10px', borderRadius: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {label}
+                  </Tag>
+                </div>
+              </Col>
+              <Col span={18}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                  状態遷移時刻
+                </Text>
+                <DatePicker
+                  showTime
+                  format="YYYY-MM-DD HH:mm:ss"
+                  value={stateTimesData[code]?.startTime ?? null}
+                  onChange={(val) =>
+                    setStateTimesData((prev) => ({ ...prev, [code]: { ...prev[code], startTime: val } }))
+                  }
+                  style={{ width: '100%' }}
+                  placeholder="状態遷移時刻"
+                />
+              </Col>
+            </Row>
+          ))}
+        </Modal>
+      </div>
+    );
+  }
+
+  // 通常モード: Modal ラッパー
+  return (
+    <Modal
+      data-testid="data-record-dialog"
+      title={
+        <Space>
+          <Text strong style={{ fontSize: 18 }}>
+            実験データ記録
+          </Text>
+          {transition && (
+            <Text type="secondary" style={{ fontSize: 14 }}>
+              - {transition.transitionName}
+            </Text>
+          )}
+        </Space>
+      }
+      open={open}
+      onCancel={onClose}
+      width={1400}
+      style={{ top: 20 }}
+      footer={[
+        <Button
+          key="cancel"
+          data-testid="data-record-cancel-button"
+          onClick={onClose}
+        >
+          キャンセル
+        </Button>,
+        <Button
+          key="save"
+          data-testid="data-record-save-button"
+          type="primary"
+          icon={<SaveOutlined />}
+          onClick={handleSaveTemplate}
+          loading={loading}
+          disabled={!isProjectEditable}
+        >
+          保存
+        </Button>,
+      ]}
+    >
+      {dialogContent}
     </Modal>
   );
 }

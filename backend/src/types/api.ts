@@ -813,6 +813,27 @@ export interface TemplateField {
    * 入力タイプの判定に使われた元の値。フロントエンドでの表示用に保持する。
    */
   xsiType?: string;
+  /**
+   * MAIMLテンプレートに設定されたデフォルト不確かさ一覧。
+   * MAIML の property.uncertainty[] から変換。
+   * DBに保存済みの値がある場合はそちらを優先し、このフィールドは初期値として使用する。
+   */
+  defaultUncertainties?: Array<{
+    /** 不確かさ基準キー（uncertainty.key） */
+    criteriaKey: string;
+    /** 不確かさ基準名（DB の uncertainty_name、なければ key） */
+    criteriaName: string;
+    /** 評価タイプ */
+    evalType: 'quantitative' | 'qualitative';
+    /** 説明文（MAIML の uncertainty.description / commentの初期値として使用） */
+    description?: string;
+    /** 定量評価値 */
+    ucValue?: number;
+    /** 定性評価値 */
+    qualitativeValue?: string;
+    /** 単位 */
+    unit?: string;
+  }>;
 }
 
 /**
@@ -867,6 +888,28 @@ export interface PlanDialogData {
   instrumentRefs: string[];
   /** Owner 選択肢（document.owners の id） */
   ownerRefs: string[];
+  /**
+   * MAIMLのdata層から抽出したインスタンス一覧。
+   * data.results[].materials / conditions / results の各インスタンスを変換したもの。
+   * 各インスタンスの ref フィールドがテンプレートIDに対応する。
+   * data層がない場合は空配列またはundefined。
+   */
+  dataInstances?: Array<{
+    /** MAIMLインスタンスのid */
+    instanceId: string;
+    /** テンプレートへの参照（templateIdに対応） */
+    templateRef: string;
+    /** カテゴリ */
+    category: 'material' | 'condition' | 'result';
+    /** インスタンス名（任意） */
+    name?: string;
+    /** プロパティ一覧 */
+    properties: Array<{
+      key: string;
+      value: string | number | boolean | null;
+      units?: string;
+    }>;
+  }>;
   /**
    * Conditionテンプレートから抽出した基本情報の初期値
    * 以下のキーを持つプロパティが存在する場合に設定される:

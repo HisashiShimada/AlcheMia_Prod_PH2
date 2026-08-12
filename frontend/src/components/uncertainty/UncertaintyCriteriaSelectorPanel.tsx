@@ -11,7 +11,7 @@ import {
   Space,
   Tooltip,
   Typography,
-  Popconfirm,
+  Modal,
   Spin,
   message,
 } from 'antd';
@@ -112,6 +112,9 @@ export default function UncertaintyCriteriaSelectorPanel({
 
   // ----- 不確かさ基準作成モーダル -----
   const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  // ----- 付与確認モーダル -----
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
   // ----- DBから取得した不確かさ基準一覧 -----
   const [criteriaList, setCriteriaList] = useState<UncertaintyCriteria[]>([]);
@@ -804,25 +807,32 @@ export default function UncertaintyCriteriaSelectorPanel({
         }}
       >
         <Button onClick={handleReset}>{t('uncertaintyCriteria.resetButton')}</Button>
-        <Popconfirm
-          title={t('uncertaintyCriteria.confirmTitle')}
-          description={confirmContent}
-          onConfirm={handleAssign}
-          okText={t('uncertaintyCriteria.confirmOk')}
-          cancelText={t('uncertaintyCriteria.confirmCancel')}
-          okButtonProps={{ type: 'primary' }}
-          placement="topRight"
-          overlayStyle={{ maxWidth: 420 }}
+        <Button
+          type="primary"
+          size="large"
+          disabled={!selectedCriteria}
+          onClick={() => setConfirmModalOpen(true)}
         >
-          <Button
-            type="primary"
-            size="large"
-            disabled={!selectedCriteria}
-          >
-            {t('uncertaintyCriteria.assignButton')}
-          </Button>
-        </Popconfirm>
+          {t('uncertaintyCriteria.assignButton')}
+        </Button>
       </div>
+
+      {/* 付与確認モーダル */}
+      <Modal
+        open={confirmModalOpen}
+        title="ステータスを変更しますか？"
+        width={380}
+        onCancel={() => setConfirmModalOpen(false)}
+        onOk={() => {
+          handleAssign();
+          setConfirmModalOpen(false);
+        }}
+        okText="保存"
+        cancelText="キャンセル"
+        okButtonProps={{ type: 'primary' }}
+      >
+        {confirmContent}
+      </Modal>
 
       {/* 評価基準作成モーダル */}
       <UncertaintyCreateModal

@@ -756,4 +756,28 @@ router.post(
   projectController.unpublish
 );
 
+/**
+ * プロジェクト強制終了
+ * POST /api/v1/projects/:projectId/force-terminate
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description プロジェクトステータスを強制終了（ERROR=5）に更新する
+ * @roles experiment_admin（書込可）
+ */
+router.post(
+  '/:projectId/force-terminate',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectId')
+      .notEmpty()
+      .withMessage('projectIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectIdは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.forceTerminate
+);
+
 export default router;

@@ -24,10 +24,10 @@ import {
   App,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { saveEvaluations, exportEvaluationsToMaiml } from '@/services/experimentEvaluationApiService';
 import type { EvaluationInput } from '@/services/experimentEvaluationApiService';
 import type { UncertaintyCriteriaForSelector } from './ApprovalWizardDialog';
-import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -70,7 +70,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
 
   const [selectedCriteriaKey, setSelectedCriteriaKey] = useState<string | null>(null);
   const [evalRows, setEvalRows] = useState<EvalRow[]>([
-    { rowKey: 'project', label: projectName ?? t('projectCompletion.entireProject'), evaluationValue: undefined, comment: '' },
+    { rowKey: 'project', label: projectName ?? t('projectCompletion.projectWholeLabel'), evaluationValue: undefined, comment: '' },
   ]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -110,18 +110,18 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
       try {
         const result = await exportEvaluationsToMaiml(projectId);
         if (result.written > 0) {
-          message.success(t('projectCompletion.maimlWriteSuccess', { count: String(result.written) }));
+          message.success(t('projectCompletion.messages.exportSuccess', { count: String(result.written) }));
         }
       } catch (exportErr) {
         // MAiML 書き込み失敗はワーニング扱い（完了処理自体は続行）
         console.warn('[ProjectCompletionDialog] exportToMaiml error:', exportErr);
-        message.warning(t('projectCompletion.maimlWriteWarning'));
+        message.warning(t('projectCompletion.messages.exportFailed'));
       }
       // 完了処理
       await onComplete();
     } catch (err) {
       console.error('[ProjectCompletionDialog] error:', err);
-      message.error(t('projectCompletion.completeFailed'));
+      message.error(t('projectCompletion.messages.completeFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -130,18 +130,18 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
   /** テーブルカラム定義 */
   const evalColumns: ColumnsType<EvalRow> = useMemo(() => [
     {
-      title: t('projectCompletion.colTarget'),
+      title: t('projectCompletion.columns.target'),
       dataIndex: 'label',
       width: 180,
       render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
     },
     {
-      title: t('projectCompletion.colQualitative'),
+      title: t('projectCompletion.columns.qualEvaluation'),
       width: 200,
       render: (_: unknown, row: EvalRow) => (
         <Select
           allowClear
-          placeholder={t('projectCompletion.unevaluated')}
+          placeholder={t('projectCompletion.placeholders.notEvaluated')}
           style={{ width: 180 }}
           size="small"
           value={row.evaluationValue}
@@ -173,11 +173,11 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
       ),
     },
     {
-      title: t('projectCompletion.colComment'),
+      title: t('projectCompletion.columns.comment'),
       render: (_: unknown, row: EvalRow) => (
         <Input
           size="small"
-          placeholder={t('projectCompletion.commentPlaceholder')}
+          placeholder={t('projectCompletion.placeholders.comment')}
           value={row.comment}
           onChange={(e) => updateRow('comment', e.target.value)}
           maxLength={200}
@@ -224,7 +224,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
             style={{ width: 280 }}
             size="small"
             allowClear
-            placeholder={t('projectCompletion.criteriaPlaceholder')}
+            placeholder={t('projectCompletion.selectCriteriaPlaceholder')}
             value={selectedCriteriaKey}
             onChange={(v) => {
               setSelectedCriteriaKey(v ?? null);
@@ -240,7 +240,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
                 value: c.uncertaintyKey,
               }))}
           />
-          {selectedCriteria && <Tag color="green" style={{ fontSize: 11 }}>{t('common.qualitative')}</Tag>}
+          {selectedCriteria && <Tag color="green" style={{ fontSize: 11 }}>{t('projectCompletion.tagQualitative')}</Tag>}
         </Flex>
 
         {/* 評価テーブル */}
@@ -251,11 +251,11 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
           size="small"
           pagination={false}
           bordered
-          locale={{ emptyText: t('projectCompletion.noEvalTarget') }}
+          locale={{ emptyText: t('evaluation.empty.noTarget') }}
         />
 
         <Text type="secondary" style={{ fontSize: 11 }}>
-          {t('projectCompletion.saveNote')}
+          {t('projectCompletion.footerNote')}
         </Text>
       </Space>
     </Modal>

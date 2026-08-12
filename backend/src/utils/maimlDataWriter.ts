@@ -146,8 +146,12 @@ export function buildDataXML(
       categoryRows.forEach((row, index) => {
         const ps = row.property_set!;
 
-        // インスタンスID: place_id をそのまま使用（なければ自動採番）
-        const instanceId = row.place_id || `${category}_instance_${index}`;
+        // インスタンスID: place_id に "data-" プレフィックスを付与して pnml <place> ID との重複を回避
+        // <protocol>/<pnml> 内の <place id="material-xxx"> と同一 ID になると
+        // Duplicate ID バリデーションエラーが発生するため、data セクションは常に "data-" を付ける。
+        const instanceId = row.place_id
+          ? `data-${row.place_id}`
+          : `data-${category}_instance_${index}`;
         // ref: templateId をテンプレート参照として使用
         const templateRef = ps.templateId || '';
 
@@ -190,8 +194,8 @@ export function buildDataXML(
           }
         }
 
-        // operatorId は data 層から出力しない（案C: 削除）
-        // 作成者情報は eventLog 層（trace/event）で管理する
+  // operatorId は data 層から出力しない（案C: 削除）
+  // 作成者情報は eventLog 層（trace/event）で管理する
 
         dataXml += `      </${category}>\n`;
       });
@@ -432,10 +436,13 @@ function buildEventXML(
   xml += buildPropertiesXML(properties, 5);
 
   // resultsRef 要素の出力（存在する場合のみ）
+  // data セクションの <result> ID は "data-" プレフィックス付きで生成されるため、
+  // DB に保存された ref 値（place_id そのもの）にも同じプレフィックスを付与して参照を一致させる。
   for (const rr of resultsRefList) {
     const rrRef = rr['@ref'] as string | undefined;
     if (rrRef !== undefined) {
-      xml += `          <resultsRef ref="${escapeXml(rrRef)}"/>\n`;
+      const normalizedRef = rrRef.startsWith('data-') ? rrRef : `data-${rrRef}`;
+      xml += `          <resultsRef ref="${escapeXml(normalizedRef)}"/>\n`;
     }
   }
 
@@ -634,6 +641,33 @@ function buildPropertyXML(
     const propValue = prop['value'];
     if (propValue !== null && propValue !== undefined && propValue !== '') {
       xml += `${childIndent}<value>${escapeXml(String(propValue))}</value>\n`;
+    }
+
+    // uncertainties: planned_values から注入された不確かさ基準を <uncertainty> タグとして出力
+    // 構造: [{ key, xsiType, units, value, description }, ...]
+    if (prop['uncertainties'] && Array.isArray(prop['uncertainties'])) {
+      for (const uc of prop['uncertainties'] as Record<string, unknown>[]) {
+        if (!uc || typeof uc !== 'object') continue;
+        const ucKey = uc['key'] as string | undefined;
+        if (!ucKey) continue;
+
+        let ucAttrs = ` key="${escapeXml(ucKey)}"`;
+        if (uc['xsiType']) ucAttrs += ` xsi:type="${escapeXml(String(uc['xsiType']))}"`;
+        if (uc['units']) ucAttrs += ` units="${escapeXml(String(uc['units']))}"`;
+
+        xml += `${childIndent}<uncertainty${ucAttrs}>\n`;
+        // value
+        const ucValue = uc['value'];
+        if (ucValue !== null && ucValue !== undefined && ucValue !== '') {
+          xml += `${childIndent}  <value>${escapeXml(String(ucValue))}</value>\n`;
+        }
+        // description
+        const ucDesc = uc['description'];
+        if (ucDesc !== null && ucDesc !== undefined && ucDesc !== '') {
+          xml += `${childIndent}  <description>${escapeXml(String(ucDesc))}</description>\n`;
+        }
+        xml += `${childIndent}</uncertainty>\n`;
+      }
     }
 
     // customElements（任意の追加要素）

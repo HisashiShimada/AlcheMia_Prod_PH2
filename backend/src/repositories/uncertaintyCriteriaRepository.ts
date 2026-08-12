@@ -61,10 +61,16 @@ export interface UncertaintyCriteriaRow {
   xsiType: string | null;
   /** 単位（定量のみ） */
   units: string | null;
+  /** スケールファクター（定量のみ） */
+  scaleFactor: string | null;
   /** フォーマット文字列（定量のみ） */
   formatString: string | null;
   /** 説明 */
   description: string | null;
+  /** namespace_term の表示名（uncertainty_key に紐づく） */
+  termDisplayName: string | null;
+  /** namespace_term の説明（uncertainty_key に紐づく） */
+  termDescription: string | null;
 }
 
 /**
@@ -139,6 +145,8 @@ export interface InsertNewVersionRequest {
   xsiType: string | null;
   /** 単位（定量のみ / NULL許容） */
   units: string | null;
+  /** スケールファクター（定量のみ / NULL許容） */
+  scaleFactor: string | null;
   /** フォーマット文字列（定量のみ / NULL許容） */
   formatString: string | null;
   /** 説明（NULL許容） */
@@ -224,8 +232,11 @@ export async function findByKey(
     inheritanceUncertaintyKey: first.inheritanceUncertaintyKey,
     xsiType:                   first.xsiType,
     units:                     first.units,
+    scaleFactor:               first.scaleFactor,
     formatString:              first.formatString,
     description:               first.description,
+    termDisplayName:           first.termDisplayName ?? null,
+    termDescription:           first.termDescription ?? null,
     // intuition_selector の行を QualitativeOptionRow[] に変換
     qualitativeOptions: rows
       .filter((r) => r.displayOrder !== null)
@@ -341,9 +352,10 @@ export async function insertNewVersion(
       data.inheritanceUncertaintyKey,       // $7  inheritance_uncertainty_key
       data.xsiType,                         // $8  xsi_type
       data.units,                           // $9  units
-      data.formatString,                    // $10 format_string
-      data.description,                     // $11 description
-      data.createUserId,                    // $12 create_user_id
+      data.scaleFactor,                     // $10 scale_factor
+      data.formatString,                    // $11 format_string
+      data.description,                     // $12 description
+      data.createUserId,                    // $13 create_user_id
     ]);
 
     const newVersion = criteriaRow.version;
@@ -376,4 +388,44 @@ export async function insertNewVersion(
 
     return { version: newVersion };
   });
+}
+
+// ============================================================================
+// 複数キー一括取得（experimentInstructionService 用）
+// ============================================================================
+
+/**
+ * 複数の uncertainty_key に対応する最新有効レコードを一括取得する
+ *
+ * @remarks
+ * - is_Invalid = FALSE かつ最大 version のレコードを返す
+ * - 組織 ID でフィルタリングし、マルチテナント分離を維持する
+ * - uncertainty_key が DB に存在しない場合は単に結果に含まれない（エラーにならない）
+ *
+ * @param organizationId - 組織ID
+ * @param keys           - 検索する uncertainty_key の配列
+ * @returns `{ key: string; uncertainty_name: string }[]`
+ */
+export async function findByKeys(
+  organizationId: string,
+  keys: string[]
+): Promise<Array<{ key: string; uncertainty_name: string }>> {
+  if (keys.length === 0) return [];
+
+  const pgp = getPgp();
+
+  // pg-promise の $1:csv でパラメータをカンマ区切りに展開する
+  const rows = await pgp.manyOrNone<{ key: string; uncertainty_name: string }>(
+    `SELECT DISTINCT ON (uncertainty_key)
+       uncertainty_key AS key,
+       uncertainty_name
+     FROM uncertainty_criteria
+     WHERE organization_id = $1
+       AND uncertainty_key = ANY($2::text[])
+       AND is_Invalid = FALSE
+     ORDER BY uncertainty_key, version DESC`,
+    [organizationId, keys]
+  );
+
+  return rows;
 }

@@ -93,8 +93,13 @@ function transitionValuesToTabData(
     ...NOTE_TYPE_KEYS,
   ]);
   for (const [key, value] of Object.entries(transValues)) {
-    if (!reservedKeys.has(key) && typeof value === 'string') {
-      templateValues[key] = value;
+    // DBのJSONBカラムから返る値は string のほか number / boolean の場合もあるため
+    // 全プリミティブ型を許容する（null / undefined / object / array はスキップ）
+    if (
+      !reservedKeys.has(key) &&
+      (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+    ) {
+      templateValues[key] = value as string | number | boolean;
     }
   }
 
@@ -138,7 +143,9 @@ function tabDataToTransitionValues(tabData: ExperimentPlanTabData): TransitionPl
     }
   }
   for (const [key, value] of Object.entries(tabData.templateValues)) {
-    if (value !== undefined && value !== '') {
+    // null / undefined / 空文字はスキップ（InputNumber クリア時に null が渡る場合を考慮）
+    // boolean false や 数値 0 は有効値なので通過させる
+    if (value !== null && value !== undefined && value !== '') {
       values[key] = String(value);
     }
   }
@@ -184,6 +191,11 @@ export async function getExperimentPlans(
  *
  * @param result - getExperimentPlans の戻り値
  * @returns タブキー → (トランジションID → ExperimentPlanTabData) のマップ
+ *
+ * @remarks
+ * "all"（一括）タブには、全タスクで共通（同一）の値のみを復元する。
+ * タスク間で値が異なるフィールドは空のまま（ユーザーが一括上書き可能な状態にする）。
+ * これにより `updateCurrentTabData` の「一括タブ変更を全タスクに伝播」ロジックと整合する。
  */
 export function experimentPlansToTabDataMap(
   result: GetExperimentPlansResult | null
@@ -191,6 +203,8 @@ export function experimentPlansToTabDataMap(
   if (!result || result.plans.length === 0) return {};
 
   const tabDataMap: Record<string, Record<string, ExperimentPlanTabData>> = {};
+
+  // ── Step1: タスク個別タブ（task-N）を復元 ──────────────────────
   for (const plan of result.plans) {
     if (!plan.plannedValues || Object.keys(plan.plannedValues).length === 0) continue;
 
@@ -207,6 +221,97 @@ export function experimentPlansToTabDataMap(
       }
     }
   }
+
+  // ── Step2: 一括（all）タブを全タスク共通値で復元 ───────────────
+  // 有効なタスクタブキーの一覧を取得
+  const taskKeys = Object.keys(tabDataMap);
+  if (taskKeys.length === 0) return tabDataMap;
+
+  // 全タスクに共通するトランジションIDを列挙
+  const allTransitionIds = new Set<string>();
+  for (const key of taskKeys) {
+    for (const transId of Object.keys(tabDataMap[key])) {
+      allTransitionIds.add(transId);
+    }
+  }
+
+  const allTabTransMap: Record<string, ExperimentPlanTabData> = {};
+
+  for (const transId of allTransitionIds) {
+    // 全タスクでこのトランジションのデータを持つものだけ収集
+    const taskDatas = taskKeys
+      .map((k) => tabDataMap[k][transId])
+      .filter((d): d is ExperimentPlanTabData => d != null);
+
+    if (taskDatas.length === 0) continue;
+
+    // 1タスクしかない場合はそのまま使用
+    if (taskDatas.length === 1) {
+      allTabTransMap[transId] = { ...taskDatas[0] };
+      continue;
+    }
+
+    // 複数タスクの場合：フィールドごとに全タスクで同一の値のみ採用
+    const first = taskDatas[0];
+
+    // creatorRefs: 全タスクで同一配列なら採用、異なれば空
+    const creatorRefs = taskDatas.every(
+      (d) => JSON.stringify(d.creatorRefs) === JSON.stringify(first.creatorRefs)
+    )
+      ? first.creatorRefs
+      : [];
+
+    // instrumentRefs: 全タスクで同一なら採用
+    const instrumentRefs = taskDatas.every(
+      (d) => JSON.stringify(d.instrumentRefs) === JSON.stringify(first.instrumentRefs)
+    )
+      ? first.instrumentRefs
+      : [];
+
+    // ownerRefs: 全タスクで同一なら採用
+    const ownerRefs = taskDatas.every(
+      (d) => JSON.stringify(d.ownerRefs) === JSON.stringify(first.ownerRefs)
+    )
+      ? first.ownerRefs
+      : [];
+
+    // notes: 全タスクで同一内容（type+content）なら採用、異なれば空
+    const notes = taskDatas.every(
+      (d) =>
+        d.notes.length === first.notes.length &&
+        d.notes.every((n, i) => n.type === first.notes[i]?.type && n.content === first.notes[i]?.content)
+    )
+      ? first.notes
+      : [];
+
+    // templateValues: キーごとに全タスクで同一値のみ採用
+    const allTemplateKeys = new Set<string>(
+      taskDatas.flatMap((d) => Object.keys(d.templateValues))
+    );
+    const templateValues: Record<string, string | number | boolean> = {};
+    for (const tvKey of allTemplateKeys) {
+      const vals = taskDatas.map((d) => d.templateValues[tvKey]);
+      const firstVal = vals[0];
+      if (vals.every((v) => v === firstVal) && firstVal !== undefined) {
+        templateValues[tvKey] = firstVal;
+      }
+    }
+
+    allTabTransMap[transId] = {
+      selectedTransitions: [transId],
+      creatorRefs,
+      instrumentRefs,
+      ownerRefs,
+      notes,
+      templateValues,
+      assignedUncertainty: first.assignedUncertainty ?? {},
+    };
+  }
+
+  if (Object.keys(allTabTransMap).length > 0) {
+    tabDataMap['all'] = allTabTransMap;
+  }
+
   return tabDataMap;
 }
 
@@ -229,6 +334,28 @@ export interface PlanDialogData {
   creatorRefs: string[];
   instrumentRefs: string[];
   ownerRefs: string[];
+  /**
+   * MAIMLのdata層から抽出したインスタンス一覧。
+   * data.results[].materials / conditions / results の各インスタンスを変換したもの。
+   * 各インスタンスの templateRef がテンプレートIDに対応する。
+   * data層がない場合は空配列またはundefined。
+   */
+  dataInstances?: Array<{
+    /** MAIMLインスタンスのid */
+    instanceId: string;
+    /** テンプレートへの参照（templateIdに対応） */
+    templateRef: string;
+    /** カテゴリ */
+    category: 'material' | 'condition' | 'result';
+    /** インスタンス名（任意） */
+    name?: string;
+    /** プロパティ一覧 */
+    properties: Array<{
+      key: string;
+      value: string | number | boolean | null;
+      units?: string;
+    }>;
+  }>;
   /**
    * Conditionテンプレートから抽出した基本情報の初期値
    * 以下のキーを持つプロパティが存在する場合に設定される:

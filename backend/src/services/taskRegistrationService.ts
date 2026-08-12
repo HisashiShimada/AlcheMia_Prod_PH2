@@ -318,7 +318,22 @@ export async function saveTaskRegistration(
       parser
     );
     
-    // 6-5. 指示データの保存（instructions配列が指定されている場合のみ）
+    // 6-5. experiment_planテーブルへの初期レコードINSERT
+    //      （既存データは ON CONFLICT DO NOTHING で保護）
+    for (const task of requestData.tasks) {
+      for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
+        await experimentPlanRepository.initInsertForTransaction(
+          t as any,
+          organizationId,
+          project.project_id,
+          task.methodId,
+          taskNo,
+          userId
+        );
+      }
+    }
+
+    // 6-6. 指示データの保存（instructions配列が指定されている場合のみ）
     if (requestData.instructions && requestData.instructions.length > 0) {
       await instructionRepository.batchInsert(
         t as any, // instructionRepository.batchInsertがany型を期待
@@ -505,14 +520,47 @@ async function deleteAndInsertTemplateData(
 
     const entries: PlacePropertyEntry[] = [];
 
+    // program 配下のテンプレートをフラットに集約するヘルパー
+    // MAIMLではテンプレートは method.program[].materialTemplates に格納されることが多いため、
+    // method 直下と program 配下の両方を収集する
+    const programs = (method.program && method.program.length > 0) ? method.program : [];
+
+    const collectTemplates = <T extends { placeRefs?: { ref?: string }[]; properties?: unknown[]; id?: string }>(
+      methodLevel: T[] | T | undefined,
+      programLevel: (T[] | T | undefined)[]
+    ): T[] => {
+      const result: T[] = [];
+      // method 直下
+      if (methodLevel) {
+        const arr = Array.isArray(methodLevel) ? methodLevel : [methodLevel];
+        result.push(...arr);
+      }
+      // program 配下
+      for (const progTemplates of programLevel) {
+        if (!progTemplates) continue;
+        const arr = Array.isArray(progTemplates) ? progTemplates : [progTemplates];
+        result.push(...arr);
+      }
+      return result;
+    };
+
     // material / condition / result の3カテゴリを処理
     const templateCategories: Array<{
-      templates: typeof method.materialTemplates;
+      templates: ReturnType<typeof collectTemplates>;
       templateType: 'material' | 'condition' | 'result';
     }> = [
-      { templates: method.materialTemplates, templateType: 'material' },
-      { templates: method.conditionTemplates, templateType: 'condition' },
-      { templates: method.resultTemplates, templateType: 'result' },
+      {
+        templates: collectTemplates(method.materialTemplates, programs.map(p => p.materialTemplates)),
+        templateType: 'material',
+      },
+      {
+        templates: collectTemplates(method.conditionTemplates, programs.map(p => p.conditionTemplates)),
+        templateType: 'condition',
+      },
+      {
+        templates: collectTemplates(method.resultTemplates, programs.map(p => p.resultTemplates)),
+        templateType: 'result',
+      },
     ];
 
     for (const { templates, templateType } of templateCategories) {
@@ -528,7 +576,7 @@ async function deleteAndInsertTemplateData(
         // { ...p, value: null } でMAIMLの全フィールド（description・attributes等）を保持しつつ
         // value のみを null（未記録）で初期化する
         const properties = (template.properties || []).map(p => ({
-          ...p,
+          ...(p as Record<string, unknown>),
           value: null,
         }));
 
