@@ -53,6 +53,7 @@ import type {
   InstructionData,
   TransitionInfo,
 } from '@/types/instructionRegistration';
+import { INSTRUCTION_KEY } from '@/types/instructionRegistration';
 import InstructionEditDialog from './InstructionEditDialog';
 import ExperimentPlanDialog from './ExperimentPlanDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -120,7 +121,30 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   const [instructions, setInstructions] = useState<InstructionData[]>([]);
   const [isInstructionDialogOpen, setIsInstructionDialogOpen] = useState<boolean>(false);
   const [selectedMethodIdForInstruction, setSelectedMethodIdForInstruction] = useState<string>('');
-  const [availableTransitions, setAvailableTransitions] = useState<TransitionInfo[]>([]);
+
+  /**
+   * MAIMLコンテキストから全トランジション一覧を取得
+   * 各トランジションに所属メソッドIDを付与してフィルタリングに対応
+   */
+  const availableTransitions = useMemo((): TransitionInfo[] => {
+    if (!maimlRoot?.protocol?.methods) return [];
+    const allTransitions: TransitionInfo[] = [];
+    maimlRoot.protocol.methods.forEach((method) => {
+      if (method.pnml?.transitions) {
+        method.pnml.transitions.forEach((transition) => {
+          allTransitions.push({
+            id: transition.id,
+            displayName: transition.name || transition.id,
+            category: 'other',
+            description: transition.description,
+            isExperimentRelevant: true,
+            methodId: method.id,
+          });
+        });
+      }
+    });
+    return allTransitions;
+  }, [maimlRoot]);
   
   // プロジェクト指示用のダイアログ状態
   const [isProjectInstructionDialogOpen, setIsProjectInstructionDialogOpen] = useState<boolean>(false);
@@ -428,7 +452,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         targetType: inst.targetType,
         transitionId: inst.transitionId || null,
         taskNumber: inst.taskNumber || null,
-        instructionKey: inst.instructionKey ?? '',
+        instructionKey: inst.instructionKey || INSTRUCTION_KEY.GENERAL,
       }));
 
       // workerLinkedFlg=trueの既存タスクの最大experiment_orderを取得

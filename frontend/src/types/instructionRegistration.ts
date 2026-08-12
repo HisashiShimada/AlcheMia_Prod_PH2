@@ -37,6 +37,8 @@ export interface TransitionInfo {
   category: string;
   description?: string;
   isExperimentRelevant: boolean;
+  /** 所属メソッドID（トランジション選択肢のフィルタリングに使用） */
+  methodId?: string;
 }
 
 /**

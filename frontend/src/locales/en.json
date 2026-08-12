@@ -1418,6 +1418,7 @@
       "transitionId": "Transition ID",
       "priority": "Priority",
       "type": "Type",
+      "instructionKey": "Instruction Type",
       "content": "Instruction Content",
       "action": "Action"
     },
@@ -1662,7 +1663,24 @@
     "contentLabel": "Instruction Content",
     "contentRequired": "Please enter instruction content",
     "contentMaxLength": "Must be 1000 characters or less",
-    "contentPlaceholder": "Enter specific instructions for the worker..."
+    "contentPlaceholder": "Enter specific instructions for the worker...",
+    "instructionKeyLabel": "Instruction Type",
+    "instructionKeyRequired": "Please select an instruction type",
+    "instructionKeyPlaceholder": "Select instruction type",
+    "instructionTargetLabel": "Instruction Target",
+    "instructionTargetHint": "(If left blank, this will be treated as a project-wide instruction)",
+    "methodPlaceholder": "Select method",
+    "transitionSelectPlaceholder": "Select transition",
+    "taskNoPlaceholder": "Select task No.",
+    "taskOptionLabel": "Task {n}",
+    "instructionKeyOptions": {
+      "SupervisorDirectiveContent": "General Instruction",
+      "mgr-instruction:caution": "Safety Precautions",
+      "mgr-instruction:operationNote": "Operation Notes",
+      "mgr-instruction:checkItem": "Pre/Post Check Items",
+      "mgr-instruction:prohibitedAction": "Prohibited Actions",
+      "mgr-instruction:OtherNotes": "Other Notes"
+    }
   },
   "saveConfirmDialog": {
     "titleError": "Validation Errors Detected",

@@ -60,7 +60,8 @@ export async function getInstructions(
     transitionId: inst.transition_id || '',
     taskNumber: inst.task_no ?? undefined,
     isSent: inst.instruction_status === InstructionStatusEnum.SENT,
-    instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT
+    instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT,
+    instructionKey: inst.instruction_key || 'SupervisorDirectiveContent',
   }));
   
   logger.info('指示一覧を取得しました', {
@@ -334,44 +335,23 @@ export async function sendInstructions(
       const methodId = instruction.method_id ?? null;
       const programId = methodId ? (programIdMap[methodId] ?? null) : null;
 
-      if (instruction.instruction_key) {
-        // プロジェクト指示ダイアログから登録された指示（指示種別あり）: 新構造で記録
-        const projectInstructionParams: ProjectInstructionSentLogParams = {
-          methodId,
-          transitionId: instruction.transition_id ?? null,
-          programId,
-          taskNo: instruction.task_no ?? null,
-          experimentInstructionId: instruction.experiment_instruction_id!,
-          userId,
-          sentAt,
-          instructions: instruction.instructions ?? null,
-          instructionKey: instruction.instruction_key,
-        };
-        await eventLogRepo.insertProjectInstructionSentLog(
-          organizationId,
-          projectId,
-          projectInstructionParams,
-          client
-        );
-      } else {
-        // 既存の指示（指示種別なし）: 従来の構造で記録
-        await eventLogRepo.insertInstructionSentLog(
-          organizationId,
-          projectId,
-          {
-            methodId,
-            transitionId: instruction.transition_id ?? null,
-            programId,
-            taskNo: instruction.task_no ?? null,
-            experimentInstructionId: instruction.experiment_instruction_id!,
-            userId,
-            sentAt,
-            // ★ 追加: 指示の詳細情報
-            instructions: instruction.instructions ?? null,
-          },
-          client
-        );
-      }
+      const projectInstructionParams: ProjectInstructionSentLogParams = {
+        methodId,
+        transitionId: instruction.transition_id ?? null,
+        programId,
+        taskNo: instruction.task_no ?? null,
+        experimentInstructionId: instruction.experiment_instruction_id!,
+        userId,
+        sentAt,
+        instructions: instruction.instructions ?? null,
+        instructionKey: instruction.instruction_key,
+      };
+      await eventLogRepo.insertProjectInstructionSentLog(
+        organizationId,
+        projectId,
+        projectInstructionParams,
+        client
+      );
     }
 
     logger.info('指示送信ログを記録しました', {

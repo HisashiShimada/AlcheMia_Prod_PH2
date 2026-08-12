@@ -29,6 +29,7 @@ import type {
   InstructionData,
   TransitionInfo,
 } from '@/types/instructionRegistration';
+import { INSTRUCTION_KEY, INSTRUCTION_KEY_LABELS } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
@@ -155,12 +156,12 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
 
   /**
    * MAIMLコンテキストから全トランジション一覧を取得（表示用）
-   * 注: InstructionEditDialogではメソッド選択時に動的にフィルタリングされます
+   * 各トランジションに所属メソッドIDを付与してフィルタリングに対応
    */
   const availableTransitions = useMemo((): TransitionInfo[] => {
     if (!maimlRoot?.protocol?.methods) return [];
     
-    // 全メソッドのトランジションを集約
+    // 全メソッドのトランジションを集約（methodIdを付与）
     const allTransitions: TransitionInfo[] = [];
     maimlRoot.protocol.methods.forEach((method) => {
       if (method.pnml?.transitions) {
@@ -171,6 +172,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             category: 'other',
             description: transition.description,
             isExperimentRelevant: true,
+            methodId: method.id,
           });
         });
       }
@@ -217,7 +219,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
           transitionId: instruction.transitionId || null,
           taskNumber: instruction.taskNumber,
           content: instruction.content,
-          instructionKey: instruction.instructionKey ?? '',
+          instructionKey: instruction.instructionKey || INSTRUCTION_KEY.GENERAL,
         });
         
         // APIから返されたIDで新しい指示を追加
@@ -387,6 +389,21 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
         const label = transition?.displayName || transitionId;
         return (
           <Tooltip title={transitionId}>
+            <Text ellipsis>{label}</Text>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: t('instructionRegistration.columns.instructionKey'),
+      dataIndex: 'instructionKey',
+      key: 'instructionKey',
+      width: 180,
+      ellipsis: true,
+      render: (instructionKey: string) => {
+        const label = INSTRUCTION_KEY_LABELS[instructionKey as keyof typeof INSTRUCTION_KEY_LABELS] || instructionKey;
+        return (
+          <Tooltip title={label}>
             <Text ellipsis>{label}</Text>
           </Tooltip>
         );
