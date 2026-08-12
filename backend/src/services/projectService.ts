@@ -2158,4 +2158,52 @@ export class ProjectService {
       };
     }
   }
+
+  /**
+   * プロジェクト強制終了
+   *
+   * @param organizationId - 組織ID
+   * @param projectId - プロジェクトID
+   * @returns ServiceResult
+   */
+  async forceTerminate(
+    organizationId: string,
+    projectId: string
+  ): Promise<ServiceResult<{ projectId: string }>> {
+    const pool = getPool();
+    try {
+      const result = await pool.query(
+        `UPDATE project
+            SET project_status = $1,
+                update_at = CURRENT_TIMESTAMP
+          WHERE organization_id = $2
+            AND project_id = $3
+         RETURNING project_id`,
+        [ProjectStatusEnum.ERROR, organizationId, projectId]
+      );
+
+      if (result.rowCount === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'E6001',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+
+      return {
+        success: true,
+        data: { projectId },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'E4002',
+          message: 'データベースエラーが発生しました',
+        },
+      };
+    }
+  }
 }

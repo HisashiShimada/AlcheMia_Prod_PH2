@@ -1,4 +1,4 @@
-'use client';
+  'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Space, Button, Tabs, theme, Select, App, Spin, Modal } from 'antd';
@@ -98,6 +98,8 @@ export default function ExperimentWorkerMenu({
   const [currentTab, setCurrentTab] = useState('4');
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
+  /** 実験記録タブで選択中の作業中トランジション rowKey */
+  const [selectedWorkRowKey, setSelectedWorkRowKey] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   /** 問題報告モーダル（フェーズB: IssueManagementModal を接続） */
   const [issueModalOpen, setIssueModalOpen] = useState(false);
@@ -576,7 +578,12 @@ export default function ExperimentWorkerMenu({
       icon: <FormOutlined />,
       children: (
         <div style={{ padding: 12, height: 'calc(100vh - 280px)', overflowY: 'auto' }}>
-          <WorkRecordPanel projectName={selectedProjectName || undefined} />
+          <WorkRecordPanel
+            projectId={selectedProject || undefined}
+            progressRows={progressRows}
+            useDeemedProgress={selectedProjectUseDeemedProgress}
+            projectStatus={selectedProjectStatus}
+          />
         </div>
       ),
     },

@@ -1609,6 +1609,51 @@ export async function getPublishStatus(req: Request, res: Response): Promise<voi
  * 指示確認エンドポイント
  * POST /api/v1/instructions/:instructionId/confirm
  */
+/**
+ * プロジェクト強制終了
+ * POST /api/v1/projects/:projectId/force-terminate
+ *
+ * @description プロジェクトステータスを強制終了（ERROR=5）に更新する
+ */
+export async function forceTerminate(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectId } = req.params;
+
+    const result = await projectService.forceTerminate(organizationId, projectId);
+
+    if (!result.success) {
+      const errorCode = result.error?.code || 'E4001';
+      const statusCode = errorCode === 'E6001' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: result.data,
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('forceTerminate error', error as Error, { requestId });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
 export async function confirmInstruction(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   const projectService = new ProjectService();
