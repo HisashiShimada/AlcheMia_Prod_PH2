@@ -1023,7 +1023,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── チームノード右クリック：チームを追加（親ノードのラベルを追加先として表示）
   const handleContextAddTeam = (_node: NamespaceNode) => {
-    setTeamAddParentLabel('研究開発部');
+    setTeamAddParentLabel(t('namespaceMain.teamAddParentLabelDefault'));
     setTeamAddOpen(true);
   };
 
@@ -1822,9 +1822,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   onClick={() => {
-                    setTeamAddParentLabel('研究開発部');
-                    setTeamAddOpen(true);
-                    setCtxMenu((s) => ({ ...s, visible: false }));
+    setTeamAddParentLabel(t('namespaceMain.teamAddParentLabelDefault'));
+    setTeamAddOpen(true);
+    setCtxMenu((s) => ({ ...s, visible: false }));
                   }}
                 >
                   <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
@@ -1905,7 +1905,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
             <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>{t('namespaceMain.btnImport')}</Button>
             <Button disabled={viewOnly} onClick={handleCsvDownload}>{t('namespaceMain.btnExport')}</Button>
-            <Tooltip title={!viewOnly && availablePrefixOptions.length === 0 ? 'Prefixが未登録のため用語を追加できません。先にPrefixを登録してください。' : ''}>
+            <Tooltip title={!viewOnly && availablePrefixOptions.length === 0 ? t('namespaceMain.noPrefixTooltip') : ''}>
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
