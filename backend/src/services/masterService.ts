@@ -1185,8 +1185,8 @@ export interface AttributeMasterResponse {
   attributeName: string;
   attributeValue: string;
   attributeRemark: string;
-  departmentCd: string;
-  departmentName: string;
+  organizationGroupCd: string;
+  organizationGroupName: string;
   isActive: boolean;
   updatedAt: string;
 }
@@ -1203,7 +1203,7 @@ export async function getAttributeMastersWithFilters(
   filters: {
     search?: string;
     isActive?: boolean;
-    departmentCd?: string;
+    organizationGroupCds?: string[];
   } = {}
 ): Promise<AttributeMasterResponse[]> {
   console.log('=== masterService.getAttributeMastersWithFilters called ===');
@@ -1218,8 +1218,8 @@ export async function getAttributeMastersWithFilters(
     attributeName: attr.attribute_name,
     attributeValue: attr.attribute_value || '',
     attributeRemark: attr.attribute_remark || '',
-    departmentCd: attr.department_cd || '',
-    departmentName: attr.department_name || '',
+    organizationGroupCd: attr.organization_group_cd || '',
+    organizationGroupName: attr.organization_group_name || '',
     isActive: attr.is_active,
     updatedAt: formatDateTime(attr.update_at),
   }));
@@ -1248,8 +1248,8 @@ export async function getAttributeById(
     attributeName: attr.attribute_name,
     attributeValue: attr.attribute_value || '',
     attributeRemark: attr.attribute_remark || '',
-    departmentCd: attr.department_cd || '',
-    departmentName: attr.department_name || '',
+    organizationGroupCd: attr.organization_group_cd || '',
+    organizationGroupName: attr.organization_group_name || '',
     isActive: attr.is_active,
     updatedAt: formatDateTime(attr.update_at),
   };
@@ -1265,7 +1265,7 @@ export async function createAttributeMaster(
     attributeName: string;
     attributeValue?: string;
     attributeRemark?: string;
-    departmentCd?: string;
+    organizationGroupCd?: string;
     isActive?: boolean;
   },
   userId: string,
@@ -1281,7 +1281,7 @@ export async function createAttributeMaster(
   }
 
   const attr = await attributeRepository.create(organizationId, data, userId);
-  // 作成後に再取得してdepartment_name も含める
+  // 作成後に再取得してorganization_group_name も含める
   const created = await attributeRepository.findByPk(organizationId, attr.attribute_name, attr.attribute_value || '');
 
   if (!created) {
@@ -1292,8 +1292,8 @@ export async function createAttributeMaster(
     attributeName: created.attribute_name,
     attributeValue: created.attribute_value || '',
     attributeRemark: created.attribute_remark || '',
-    departmentCd: created.department_cd || '',
-    departmentName: created.department_name || '',
+    organizationGroupCd: created.organization_group_cd || '',
+    organizationGroupName: created.organization_group_name || '',
     isActive: created.is_active,
     updatedAt: formatDateTime(created.update_at),
   };
@@ -1309,7 +1309,7 @@ export async function updateAttributeMaster(
   data: {
     attributeValue?: string;
     attributeRemark?: string;
-    departmentCd?: string;
+    organizationGroupCd?: string;
     isActive?: boolean;
   },
   userId: string
@@ -1317,7 +1317,7 @@ export async function updateAttributeMaster(
   const attributeValue = data.attributeValue || '';
   const attr = await attributeRepository.update(organizationId, attributeName, attributeValue, {
     attributeRemark: data.attributeRemark,
-    departmentCd: data.departmentCd,
+    organizationGroupCd: data.organizationGroupCd,
     isActive: data.isActive,
   }, userId);
 
@@ -1325,7 +1325,7 @@ export async function updateAttributeMaster(
     return null;
   }
 
-  // 更新後に再取得してdepartment_name も含める
+  // 更新後に再取得してorganization_group_name も含める
   const updated = await attributeRepository.findByPk(organizationId, attr.attribute_name, attr.attribute_value || '');
 
   if (!updated) {
@@ -1336,8 +1336,8 @@ export async function updateAttributeMaster(
     attributeName: updated.attribute_name,
     attributeValue: updated.attribute_value || '',
     attributeRemark: updated.attribute_remark || '',
-    departmentCd: updated.department_cd || '',
-    departmentName: updated.department_name || '',
+    organizationGroupCd: updated.organization_group_cd || '',
+    organizationGroupName: updated.organization_group_name || '',
     isActive: updated.is_active,
     updatedAt: formatDateTime(updated.update_at),
   };
@@ -1369,8 +1369,8 @@ export async function updateAttributeStatus(
     attributeName: attr.attribute_name,
     attributeValue: attr.attribute_value || '',
     attributeRemark: attr.attribute_remark || '',
-    departmentCd: attr.department_cd || '',
-    departmentName: attr.department_name || '',
+    organizationGroupCd: attr.organization_group_cd || '',
+    organizationGroupName: attr.organization_group_name || '',
     isActive: attr.is_active,
     updatedAt: formatDateTime(attr.update_at),
   };
@@ -1402,7 +1402,7 @@ export async function uploadAttributesCsv(
     attributeName: string;
     attributeValue: string;
     attributeRemark: string;
-    departmentCd: string;
+    organizationGroupCd: string;
     isActive: boolean;
   }> = [];
 
@@ -1473,7 +1473,7 @@ export async function uploadAttributesCsv(
       attributeName,
       attributeValue: row['attribute_value']?.trim() || '',
       attributeRemark: row['attribute_remark']?.trim() || '',
-      departmentCd: row['department_cd']?.trim() || '',
+      organizationGroupCd: row['organization_group_cd']?.trim() || '',
       isActive,
     });
   }

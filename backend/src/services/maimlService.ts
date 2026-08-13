@@ -987,10 +987,10 @@ export interface FormatFolder {
 }
 
 /**
- * 部門ごとのフォーマット情報型
+ * 組織グループごとのフォーマット情報型
  */
-export interface FormatDepartment {
-  departmentCd: string;
+export interface FormatOrganizationGroup {
+  organizationGroupCd: string;
   folders: FormatFolder[];
 }
 
@@ -998,7 +998,7 @@ export interface FormatDepartment {
  * listFormatsFiles レスポンス型
  */
 export interface ListFormatsResponse {
-  departments: FormatDepartment[];
+  organizationGroups: FormatOrganizationGroup[];
 }
 
 /**
@@ -1020,8 +1020,8 @@ export async function listFormatsFiles(organizationId: string): Promise<ListForm
     // テンプレートフォルダ名（固定）
     const TEMPLATE_FOLDERS = ['material', 'condition', 'result'] as const;
 
-    // 部門ごとに整理するためのMap
-    const departmentMap = new Map<string, Map<string, FormatTemplateFile[]>>();
+    // 組織グループごとに整理するためのMap
+    const organizationGroupMap = new Map<string, Map<string, FormatTemplateFile[]>>();
 
     for (const file of allFiles) {
       const key: string = file.key || '';
@@ -1036,13 +1036,13 @@ export async function listFormatsFiles(organizationId: string): Promise<ListForm
       const orgPrefix = `${organizationId}/`;
       const relativePath = key.startsWith(orgPrefix) ? key.slice(orgPrefix.length) : key;
 
-      // パスを分解: formats/{departmentCd}/{folderName}/{...}/{fileName}
+      // パスを分解: formats/{organizationGroupCd}/{folderName}/{...}/{fileName}
       const parts = relativePath.split('/');
-      // parts[0] = 'formats', parts[1] = departmentCd, parts[2] = folderName, parts[3+] = サブパス or fileName
+      // parts[0] = 'formats', parts[1] = organizationGroupCd, parts[2] = folderName, parts[3+] = サブパス or fileName
       if (parts.length < 4) continue;
       if (parts[0] !== 'formats') continue;
 
-      const departmentCd = parts[1];
+      const organizationGroupCd = parts[1];
       const folderName = parts[2];
 
       // material / condition / result のみ対象
@@ -1050,11 +1050,11 @@ export async function listFormatsFiles(organizationId: string): Promise<ListForm
 
       const fileName = parts[parts.length - 1];
 
-      // 部門Mapに登録
-      if (!departmentMap.has(departmentCd)) {
-        departmentMap.set(departmentCd, new Map());
+      // 組織グループMapに登録
+      if (!organizationGroupMap.has(organizationGroupCd)) {
+        organizationGroupMap.set(organizationGroupCd, new Map());
       }
-      const folderMap = departmentMap.get(departmentCd)!;
+      const folderMap = organizationGroupMap.get(organizationGroupCd)!;
       if (!folderMap.has(folderName)) {
         folderMap.set(folderName, []);
       }
@@ -1066,8 +1066,8 @@ export async function listFormatsFiles(organizationId: string): Promise<ListForm
     }
 
     // Map → レスポンス形式に変換
-    const departments: FormatDepartment[] = [];
-    for (const [departmentCd, folderMap] of departmentMap) {
+    const organizationGroups: FormatOrganizationGroup[] = [];
+    for (const [organizationGroupCd, folderMap] of organizationGroupMap) {
       const folders: FormatFolder[] = [];
       for (const [folderName, files] of folderMap) {
         folders.push({
@@ -1077,20 +1077,20 @@ export async function listFormatsFiles(organizationId: string): Promise<ListForm
       }
       // フォルダ名でソート
       folders.sort((a, b) => a.folderName.localeCompare(b.folderName));
-      departments.push({ departmentCd, folders });
+      organizationGroups.push({ organizationGroupCd, folders });
     }
-    // 部門CDでソート
-    departments.sort((a, b) => a.departmentCd.localeCompare(b.departmentCd));
+    // 組織グループCDでソート
+    organizationGroups.sort((a, b) => a.organizationGroupCd.localeCompare(b.organizationGroupCd));
 
     console.log('✅ [maimlService] フォーマット一覧取得完了:', {
-      departmentCount: departments.length,
-      totalFiles: departments.reduce(
-        (sum, d) => sum + d.folders.reduce((s, f) => s + f.files.length, 0),
+      organizationGroupCount: organizationGroups.length,
+      totalFiles: organizationGroups.reduce(
+        (sum, g) => sum + g.folders.reduce((s: number, f: FormatFolder) => s + f.files.length, 0),
         0
       ),
     });
 
-    return { departments };
+    return { organizationGroups };
   } catch (error) {
     console.error('❌ [maimlService] フォーマット一覧取得エラー:', error);
     throw error;

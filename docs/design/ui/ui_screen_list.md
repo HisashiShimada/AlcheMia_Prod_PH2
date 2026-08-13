@@ -143,6 +143,9 @@
 | InstructionEditDialog.tsx | 指示編集ダイアログ | frontend/src/components/project/InstructionEditDialog.tsx | [ui_instruction_edit_dialog.md](experiment_admin/01_project_management/ui_instruction_edit_dialog.md) | 単一指示の追加・編集ダイアログ（連続指示機能付き） |
 | InstructionDialog.tsx | 作業指示送信ダイアログ | frontend/src/components/project/InstructionDialog.tsx | [ui_instruction_registration_tab.md](experiment_admin/01_project_management/ui_instruction_registration_tab.md) | タスク詳細設定と複数指示入力の統合ダイアログ |
 | TaskResultsTable.tsx | タスク結果一覧テーブル | frontend/src/components/project/TaskResultsTable.tsx | [ui_task_results_table.md](experiment_admin/01_project_management/ui_task_results_table.md) | タスク実行結果の一覧表示 |
+| ExperimentPlanDialog.tsx | 実験計画ダイアログ | frontend/src/components/project/ExperimentPlanDialog.tsx | [ui_experiment_plan_dialog.md](experiment_admin/01_project_management/ui_experiment_plan_dialog.md) | 実験計画指示設定ダイアログ（Manager用・タスク別想定値・注意事項入力） |
+| ExperimentInstructionTab.tsx | 実験指示タブ | frontend/src/components/project/ExperimentInstructionTab.tsx | [ui_experiment_instruction_tab.md](experiment_admin/01_project_management/ui_experiment_instruction_tab.md) | 実験指示タブ（指示管理タブ内サブタブ・メソッド選択・実験計画指示ボタン） |
+| ExperimentInstructionTable.tsx | 実験指示テーブル | frontend/src/components/project/ExperimentInstructionTable.tsx | [ui_experiment_instruction_table.md](experiment_admin/01_project_management/ui_experiment_instruction_table.md) | 実験指示テーブル（想定値 vs 実績値対比・承認/NG操作） |
 
 **フォーマット管理:**
 
@@ -191,6 +194,19 @@
 | MultiObjectEditor.tsx | 複数オブジェクトエディタ | frontend/src/components/editorv2/components/MultiObjectEditor.tsx | [ui_multi_object_editor.md](experiment_admin/04_maiml_editor/document/ui_multi_object_editor.md) | 複数オブジェクト一括編集エディタ |
 | DraftManager.tsx | ドラフト管理 | frontend/src/components/editorv2/components/DraftManager.tsx | [ui_draft_manager.md](experiment_admin/04_maiml_editor/document/ui_draft_manager.md) | 編集内容の一時保存・復元機能 |
 
+**暗号化管理:**
+
+| 物理名 | 論理名 | ファイルパス | 用途・説明 |
+|--------|--------|--------------|-----------|
+| KeyManagementScreen.tsx | 鍵管理画面 | frontend/src/components/key-management/KeyManagementScreen.tsx | 暗号化鍵の一覧・作成・削除を管理する画面（実験管理者メニュー タブ5） |
+| EncryptionManagement.tsx | 暗号化管理 | frontend/src/components/encryption/EncryptionManagement.tsx | MAIMLファイルの暗号化・復号化操作画面（プロジェクト管理画面のモーダル内） |
+| EncryptionManagementModal.tsx | 暗号化管理モーダル | frontend/src/components/encryption/EncryptionManagementModal.tsx | プロジェクト管理画面から呼び出される暗号化管理モーダル |
+| EncryptionTargetTree.tsx | 暗号化対象ツリー | frontend/src/components/encryption/EncryptionTargetTree.tsx | MAIMLタグ構造のツリー表示・暗号化対象選択コンポーネント |
+| EncryptionConfigPanel.tsx | 暗号化設定パネル | frontend/src/components/encryption/EncryptionConfigPanel.tsx | 暗号化アルゴリズム・鍵選択などの設定パネル |
+| EncryptionPreviewPanel.tsx | 暗号化プレビューパネル | frontend/src/components/encryption/EncryptionPreviewPanel.tsx | 暗号化前後のXMLプレビュー表示パネル |
+| KeyManagement.tsx | 鍵管理テーブル | frontend/src/components/encryption/KeyManagement.tsx | 暗号化鍵の一覧表示・削除テーブルコンポーネント |
+| KeyCreateModal.tsx | 鍵作成モーダル | frontend/src/components/encryption/KeyCreateModal.tsx | 新規暗号化鍵作成モーダル |
+
 **進捗管理:**
 
 | 物理名 | 論理名 | ファイルパス | 用途・説明 |
@@ -207,7 +223,19 @@
 
 ---
 
-### 7. 実験作業者用画面（Experiment Worker）
+### 7. 名前空間管理ツール画面（Namespace Management）
+
+**機能画面:**
+
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| NamespaceMain.tsx | 名前空間管理メイン | frontend/src/components/namespace/NamespaceMain.tsx | [ui_namespace_main.md](namespace_management/ui_namespace_main.md) | 3ペイン構成のメイン画面（名前空間ツリー / 用語リスト / 詳細表示・XMLプレビュー） |
+| NamespaceAddDialog.tsx | 名前空間追加ダイアログ | frontend/src/components/namespace/NamespaceAddDialog.tsx | [ui_namespace_add_dialog.md](namespace_management/ui_namespace_add_dialog.md) | 名前空間追加モーダルダイアログ（グローバル / 組織 / 個人レベル対応） |
+| NamespaceMaimlEditor.tsx | MaiMLファイルエディター | frontend/src/components/namespace/NamespaceMaimlEditor.tsx | [ui_namespace_maiml_editor.md](namespace_management/ui_namespace_maiml_editor.md) | MaiMLファイルのxmlns宣言を管理するエディター（ドラッグ＆ドロップ対応） |
+
+---
+
+### 8. 実験作業者用画面（Experiment Worker）
 
 **メニュー:**
 
@@ -225,9 +253,11 @@
 
 **実験記録関連:**
 
-| 物理名 | 論理名 | ファイルパス | 用途・説明 |
-|--------|--------|--------------|-----------|
-| DataRecordDialog.tsx | データ記録ダイアログ | frontend/src/components/ExperimentWorker/DataRecordDialog.tsx | 実験データ記録ダイアログ |
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| WorkRecordPanel.tsx | 作業記録パネル | frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx | [ui_work_record_panel.md](experiment_worker/ui_work_record_panel.md) | 実験データ記録インラインパネル（想定値対比・ステータス更新・コメント入力） |
+| ProgressOverviewTab.tsx | 全体進捗タブ | frontend/src/components/ExperimentWorker/ProgressOverviewTab.tsx | [ui_progress_overview_tab.md](experiment_worker/ui_progress_overview_tab.md) | 全タスク進捗一覧・前提依存関係表示・作業記録タブへの遷移 |
+| DataRecordDialog.tsx | データ記録ダイアログ（参照用） | frontend/src/components/ExperimentWorker/DataRecordDialog.tsx | [ui_data_record_dialog.md](experiment_worker/ui_data_record_dialog.md) | 実験データ記録ダイアログ（WorkRecordPanel に置き換え済み・参照用として残す） |
 | TransitionList.tsx | トランジション一覧 | frontend/src/components/ExperimentWorker/TransitionList.tsx | トランジション一覧表示 |
 | InstructionFlowDialog.tsx | 指示フロー図ダイアログ | frontend/src/components/ExperimentWorker/InstructionFlowDialog.tsx | 指示フロー図表示ダイアログ |
 | TransitionFlowDiagram.tsx | トランジションフロー図 | frontend/src/components/ExperimentWorker/TransitionFlowDiagram.tsx | トランジションフロー図表示コンポーネント |
@@ -374,6 +404,7 @@
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-06-22 | 実験計画・指示・作業機能統合に伴う画面追加 - ExperimentPlanDialog / ExperimentInstructionTab / ExperimentInstructionTable（Manager用3件）、WorkRecordPanel / ProgressOverviewTab（Worker用2件）を追加 | Cline |
 | 2026-05-07 | フォーマット管理コンポーネント9ファイルのファイルパスを `project/` → `format/` に変更（ファイル移動に伴うドキュメント更新） | Cline |
 | 2026-04-07 | プロバイダ用画面のタブ順序を変更（会社管理→組織管理 の順 → 組織管理→会社管理 の順）、機能画面一覧をモックから実装済みコンポーネントに更新し、UI仕様書リンクを追加 | Cline |
 | 2026-03-06 | UI仕様書追加 - project/（WorkerScreenOverlay, FormatManagement系9ファイル）とTransitionSetSearch/（4ファイル）のUI仕様書を新規作成し、ui_screen_list.mdにリンクを追記 | Cline |

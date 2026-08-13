@@ -80,7 +80,7 @@ const verifyPINResponse: VerifyPINResponse = {
     organizationId: 'org_001',
     organizationName: 'Test Organization',
     displayName: 'Test User',
-    departmentCd: 'dept_001',
+    organizationGroupCds: [],
     initialScreenFunctionCd: '040000',
   },
   session: {

@@ -20,6 +20,8 @@ import type {
   SaveMaimlResult,
   MaimlFileInfo,
 } from '@/types/maimlEditor';
+import { injectNamespacesToMaiml } from '@/utils/namespaceInjector';
+import { getOrganizationNamespaces } from '@/services/namespaceApiService';
 
 /**
  * MAIMLバリデーション
@@ -245,10 +247,22 @@ export const saveMaiml = async (
   
   try {
     console.log(`💾 [maimlApiService] MAIMLファイル保存 (${fileKey}, archive: ${archive})`);
-    
+
+    // 保存前に名前空間宣言を XMLに注入する（失敗しても保存は継続）
+    let contentToSave = content;
+    try {
+      const namespaces = await getOrganizationNamespaces();
+      if (namespaces.length > 0) {
+        contentToSave = injectNamespacesToMaiml(content, namespaces);
+        console.log(`🔧 [maimlApiService] 名前空間 ${namespaces.length} 件を注入しました`);
+      }
+    } catch (nsError) {
+      console.warn('⚠️ [maimlApiService] 名前空間注入をスキップします:', nsError);
+    }
+
     const response = await client.post<ServiceApiResponse<SaveMaimlResult>>(
       '/maiml/save',
-      { fileKey, content, archive }
+      { fileKey, content: contentToSave, archive }
     );
     
     return response.data;

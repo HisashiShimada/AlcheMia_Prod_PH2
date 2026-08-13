@@ -572,11 +572,74 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
         }
       });
     }
+
+    // ✅ uncertainty 子要素を出力
+    if (prop.uncertainty && Array.isArray(prop.uncertainty) && prop.uncertainty.length > 0) {
+      prop.uncertainty.forEach((uc) => {
+        propertyXml += buildUncertaintyXML(uc, indentLevel + 1);
+      });
+    }
   }
   
   propertyXml += `${indent}</property>\n`;
   
   return propertyXml;
+}
+
+/**
+ * uncertainty 子要素を XML として出力するヘルパー
+ * @param uc - uncertainty (Content型)
+ * @param indentLevel - インデントレベル
+ * @returns uncertainty 要素の XML 文字列
+ */
+function buildUncertaintyXML(uc: Content, indentLevel: number): string {
+  const indent = '  '.repeat(indentLevel);
+  let xml = `${indent}<uncertainty`;
+
+  if (uc.key) xml += ` key="${escapeXml(uc.key)}"`;
+  if (uc.xsiType) xml += ` xsi:type="${escapeXml(uc.xsiType)}"`;
+  if (uc.units) xml += ` units="${escapeXml(uc.units)}"`;
+
+  // 追加属性 (attributes フィールド)
+  if (uc.attributes) {
+    const skipped = new Set(['key', 'xsi:type', 'units']);
+    Object.entries(uc.attributes).forEach(([k, v]) => {
+      if (!skipped.has(k) && v) xml += ` ${k}="${escapeXml(v)}"`;
+    });
+  }
+
+  const hasChildren =
+    (uc.description !== undefined && uc.description !== '') ||
+    (uc.value !== undefined && uc.value !== '') ||
+    (uc.properties && uc.properties.length > 0) ||
+    (uc.contents && uc.contents.length > 0);
+
+  if (!hasChildren) {
+    xml += `/>\n`;
+    return xml;
+  }
+
+  xml += `>\n`;
+
+  if (uc.description !== undefined && uc.description !== '') {
+    xml += `${indent}  <description>${escapeXml(uc.description)}</description>\n`;
+  }
+  if (uc.value !== undefined && uc.value !== '') {
+    xml += `${indent}  <value>${escapeXml(String(uc.value))}</value>\n`;
+  }
+  if (uc.properties && uc.properties.length > 0) {
+    uc.properties.forEach((p) => {
+      xml += buildPropertyXML(p, indentLevel + 1);
+    });
+  }
+  if (uc.contents && uc.contents.length > 0) {
+    uc.contents.forEach((c) => {
+      xml += buildContentXML(c, indentLevel + 1);
+    });
+  }
+
+  xml += `${indent}</uncertainty>\n`;
+  return xml;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -692,6 +755,13 @@ export function buildContentXML(content: Content, indentLevel = 6): string {
     });
   }
 
+  // ✅ 不確かさ（uncertainty）を出力
+  if (content.uncertainty && content.uncertainty.length > 0) {
+    content.uncertainty.forEach((uc: Content) => {
+      contentXml += buildUncertaintyXML(uc, indentLevel + 1);
+    });
+  }
+
   contentXml += `${indent}</content>\n`;
   
   return contentXml;
@@ -730,8 +800,9 @@ function buildCommonTemplateXML(
     xml += `      <insertion>\n`;
     // uri は必須（undefinedでも空文字で出力）
     xml += `        <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-    // hash は必須（undefinedでも空文字で出力）
-    xml += `        <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+    // hash は必須（undefinedでも空文字で出力）、method属性が存在する場合は出力
+    const hashMethodAttr1 = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+    xml += `        <hash${hashMethodAttr1}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
     if (template.insertion.format) {
       xml += `        <format>${escapeXml(template.insertion.format)}</format>\n`;
     }
@@ -1273,7 +1344,8 @@ export async function convertReactFlowToMaiML(
     if (template.insertion) {
       maiml += `          <insertion>\n`;
       maiml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-      maiml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+      const hashMethodAttrM = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+      maiml += `            <hash${hashMethodAttrM}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
       if (template.insertion.format) {
         maiml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
       }
@@ -1349,7 +1421,8 @@ export async function convertReactFlowToMaiML(
     if (template.insertion) {
       maiml += `          <insertion>\n`;
       maiml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-      maiml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+      const hashMethodAttrC = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+      maiml += `            <hash${hashMethodAttrC}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
       if (template.insertion.format) {
         maiml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
       }
@@ -1425,7 +1498,8 @@ export async function convertReactFlowToMaiML(
     if (template.insertion) {
       maiml += `          <insertion>\n`;
       maiml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-      maiml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+      const hashMethodAttrR = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+      maiml += `            <hash${hashMethodAttrR}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
       if (template.insertion.format) {
         maiml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
       }

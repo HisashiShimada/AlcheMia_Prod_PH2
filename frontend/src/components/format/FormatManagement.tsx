@@ -8,6 +8,7 @@ import {
   Select,
   Space,
   Typography,
+  Divider,
   theme,
   Spin,
 } from 'antd';
@@ -25,6 +26,7 @@ import CreateFormatFileModal from './CreateFormatFileModal';
 import CreateFormatFolderModal from './CreateFormatFolderModal';
 import CreateFormatModal from './CreateFormatModal';
 import FormatFileDetailModal from './FormatFileDetailModal';
+import OrganizationGroupSelector from './OrganizationGroupSelector';
 import type { FormatFileData, FormatFileDetailData, CreateFormatFileData, CreateFormatFolderData } from '@/types/format';
 import PetriNetEditorScreen from '@/components/editorv2/PetriNetEditorScreen';
 import FormatEditorDialog from '@/components/format/FormatEditorDialog';
@@ -47,6 +49,9 @@ import type { PropertyData } from '@/types/editor';
 
 const { Title, Text } = Typography;
 
+/** localStorage のキー */
+const LS_KEY_ORG_GROUP = 'format_selected_org_group_cd';
+
 /**
  * FormatManagementのProps型定義
  */
@@ -67,6 +72,32 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [fileTypeFilter, setFileTypeFilter] = useState<'all' | 'xml' | 'maiml'>('all');
   const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
+
+  // 選択中の組織グループCD（localStorageから復元、または先頭グループ）
+  const userGroupCds = user.organizationGroupCds ?? [];
+  const resolveInitialGroupCd = (): string => {
+    const saved = typeof window !== 'undefined'
+      ? localStorage.getItem(LS_KEY_ORG_GROUP)
+      : null;
+    if (saved && userGroupCds.includes(saved)) {
+      return saved;
+    }
+    return userGroupCds[0] ?? '';
+  };
+  const [selectedOrganizationGroupCd, setSelectedOrganizationGroupCd] = useState<string>(
+    resolveInitialGroupCd
+  );
+
+  // 組織グループ変更ハンドラ
+  const handleOrganizationGroupChange = useCallback((cd: string) => {
+    setSelectedOrganizationGroupCd(cd);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LS_KEY_ORG_GROUP, cd);
+    }
+    // グループ変更時はフォーマット選択・フォルダパスをリセット
+    setSelectedFormatId(null);
+    setCurrentFolderPath([]);
+  }, []);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createFileModalOpen, setCreateFileModalOpen] = useState(false);
   const [createFolderModalOpen, setCreateFolderModalOpen] = useState(false);
@@ -88,13 +119,17 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [editingXmlFile, setEditingXmlFile] = useState<FormatFileDetailData | null>(null);
 
-  // フォーマット一覧をAPI経由で取得
+  // フォーマット一覧をAPI経由で取得（選択中グループが変わるたびに再取得）
+  const fetchFormatsForGroup = useCallback(
+    () => fetchFormats(selectedOrganizationGroupCd || undefined),
+    [selectedOrganizationGroupCd]
+  );
   const { 
     data: formatsData, 
     refetch: refetchFormats 
   } = useApi<ApiResponse<FormatListResponse>>(
-    fetchFormats,
-    []
+    fetchFormatsForGroup,
+    [selectedOrganizationGroupCd]
   );
 
   // フォーマットデータが取得できたらstateを更新
@@ -142,7 +177,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         fileTypeLabel.toLowerCase().includes(q) ||
         (format.category ?? '').toLowerCase().includes(q) ||
         getCategoryLabel(format.category ?? '').toLowerCase().includes(q) ||
-        (format.department ?? '').toLowerCase().includes(q) ||
+        (format.organizationGroup ?? '').toLowerCase().includes(q) ||
         (format.createdAt ?? '').toLowerCase().includes(q) ||
         (format.updatedAt ?? '').toLowerCase().includes(q) ||
         (format.tags ?? []).some((tag: string) => tag.toLowerCase().includes(q));
@@ -806,13 +841,13 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     }
   }, [t, handleCloseCreateFolderModal, selectedFormatId, selectedFormat]);
 
-  // 新規フォーマットフォルダ作成ハンドラ（部門直下）
+  // 新規フォーマットフォルダ作成ハンドラ（組織グループ直下）
   const handleCreateFormat = useCallback(async (folderName: string) => {
     try {
-      console.log('📁 [FormatManagement] 新規フォーマットフォルダ作成（部門直下）:', folderName);
+      console.log('📁 [FormatManagement] 新規フォーマットフォルダ作成（組織グループ直下）:', folderName, 'group:', selectedOrganizationGroupCd);
       
-      // API呼び出し（共通化されたcreateFormatFolderを使用）
-      const response = await createFormatFolder(folderName);
+      // API呼び出し（選択中の組織グループCDを渡す）
+      const response = await createFormatFolder(folderName, selectedOrganizationGroupCd || undefined);
       
       // 型ガード: success === true の場合のみ data にアクセス
       if (response.success) {
@@ -924,9 +959,23 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         styles={{ body: { padding: `${token.margin}px ${token.paddingLG}px` } }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* 上段: 検索・フィルタ */}
+          {/* フィルタ行: 組織グループ選択 + 検索・フィルタ */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <Space orientation="horizontal" size="small" wrap>
+              {/* 組織グループ選択 */}
+              {userGroupCds.length > 0 && (
+                <>
+                  <Space size={4} orientation="horizontal">
+                    <OrganizationGroupSelector
+                      value={selectedOrganizationGroupCd}
+                      onChange={handleOrganizationGroupChange}
+                      userGroupCds={userGroupCds}
+                    />
+                  </Space>
+                  <Divider orientation="vertical" style={{ height: 24, margin: `0 ${token.marginLG}px` }} />
+                </>
+              )}
+
               {/* カテゴリ絞込 */}
               <Space size={4} orientation="horizontal">
                 <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
@@ -1141,7 +1190,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           id: selectedFormat.id,
           name: selectedFormat.name,
           folderName: selectedFormat.folderName,
-          departmentCd: user.departmentCd || 'default',
+          organizationGroupCd: (user.organizationGroupCds?.[0]) || 'default',
         } : null}
         onUploadComplete={async (result) => {
           console.log('✅ [FormatManagement] アップロード完了:', result);
@@ -1200,12 +1249,12 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         currentPath={currentFolderPath}
       />
 
-      {/* 新規フォーマットフォルダ作成モーダル（部門直下） */}
+      {/* 新規フォーマットフォルダ作成モーダル（組織グループ直下） */}
       <CreateFormatModal
         open={createFormatModalOpen}
         onCancel={() => setCreateFormatModalOpen(false)}
         onSubmit={handleCreateFormat}
-        departmentName={user.departmentCd}
+        organizationGroupName={selectedOrganizationGroupCd}
       />
 
       {/* ファイル詳細表示モーダル */}

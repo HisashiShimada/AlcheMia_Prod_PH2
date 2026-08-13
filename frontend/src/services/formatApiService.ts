@@ -20,13 +20,18 @@ import { createApiClient } from '@/utils/authUtils';
 /**
  * フォーマット一覧を取得
  * GET /api/v1/formats
+ *
+ * @param organizationGroupCd - 組織グループCD（省略時はバックエンドがユーザー所属の先頭グループを使用）
  */
-export async function getFormats(): Promise<ApiResponse<FormatListResponse>> {
+export async function getFormats(organizationGroupCd?: string): Promise<ApiResponse<FormatListResponse>> {
   const client = createApiClient();
 
   try {
+    const queryParams = organizationGroupCd
+      ? `?organizationGroupCd=${encodeURIComponent(organizationGroupCd)}`
+      : '';
     const response = await client.get<ApiResponse<FormatListResponse>>(
-      '/formats'
+      `/formats${queryParams}`
     );
 
     if (!response.data.success) {
@@ -81,11 +86,13 @@ export async function getFormatFiles(
  * @param formatName - フォーマット名（例: chemistry, materials）
  * @param subfolderName - サブフォルダ名（1-255文字、英数字・アンダースコア・ハイフン）
  * @param parentPath - 親フォルダのパス（オプション、空文字列=ルート直下）
+ * @param organizationGroupCd - 組織グループCD（省略時はバックエンドがユーザー所属の先頭グループを使用）
  */
 export async function createFormatSubfolder(
   formatName: string,
   subfolderName: string,
-  parentPath?: string
+  parentPath?: string,
+  organizationGroupCd?: string
 ): Promise<ApiResponse<{
   folder_name: string;
   folder_path: string;
@@ -106,6 +113,7 @@ export async function createFormatSubfolder(
         formatName,
         subfolderName,
         parentPath: parentPath || '',
+        ...(organizationGroupCd ? { organizationGroupCd } : {}),
       }
     );
 
@@ -128,17 +136,19 @@ export async function createFormatSubfolder(
  * 
  * @param folderName - フォーマットフォルダ名（例: chemistry）
  * @param data - ファイル作成データ
+ * @param organizationGroupCd - 組織グループCD（省略時はバックエンドがユーザー所属の先頭グループを使用）
  */
 export async function createFormatFile(
   folderName: string,
-  data: CreateFormatFileRequest
+  data: CreateFormatFileRequest,
+  organizationGroupCd?: string
 ): Promise<ApiResponse<CreateFormatFileResponse>> {
   const client = createApiClient();
 
   try {
     const response = await client.post<ApiResponse<CreateFormatFileResponse>>(
       `/formats/${folderName}/files`,
-      data
+      { ...data, ...(organizationGroupCd ? { organizationGroupCd } : {}) }
     );
 
     if (!response.data.success) {
@@ -155,17 +165,19 @@ export async function createFormatFile(
 }
 
 /**
- * フォーマットフォルダを作成（部門直下）
+ * フォーマットフォルダを作成（組織グループ直下）
  * POST /api/v1/formats/folders
  * 
  * @param folderName - フォルダ名
+ * @param organizationGroupCd - 組織グループCD（省略時はバックエンドがユーザー所属の先頭グループを使用）
  */
 export async function createFormatFolder(
-  folderName: string
+  folderName: string,
+  organizationGroupCd?: string
 ): Promise<ApiResponse<{
   folder_name: string;
   folder_path: string;
-  department_cd: string;
+  organization_group_cd: string;
   created_at: string;
 }>> {
   const client = createApiClient();
@@ -174,11 +186,11 @@ export async function createFormatFolder(
     const response = await client.post<ApiResponse<{
       folder_name: string;
       folder_path: string;
-      department_cd: string;
+      organization_group_cd: string;
       created_at: string;
     }>>(
       '/formats/folders',
-      { folderName }
+      { folderName, ...(organizationGroupCd ? { organizationGroupCd } : {}) }
     );
 
     if (!response.data.success) {

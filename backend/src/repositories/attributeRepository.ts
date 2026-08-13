@@ -17,8 +17,8 @@ export interface AttributeMaster {
   attribute_name: string;
   attribute_value: string | null;
   attribute_remark: string | null;
-  department_cd: string | null;
-  department_name: string | null;
+  organization_group_cd: string | null;
+  organization_group_name: string | null;
   is_active: boolean;
   update_at: Date | null;
 }
@@ -68,7 +68,7 @@ export const findAllWithFilters = async (
   filters: {
     search?: string;
     isActive?: boolean;
-    departmentCd?: string;
+    organizationGroupCds?: string[];
   } = {}
 ): Promise<AttributeMaster[]> => {
   const pgp = getPgp();
@@ -113,15 +113,16 @@ ORDER BY`
     paramIndex++;
   }
 
-  // 部署コードフィルタ（ログインユーザーの部署 OR 部署指定なし）
-  // apply_department_filter=true 時のみ適用（マスタ管理画面では使用しない）
-  if (filters.departmentCd) {
+  // 組織グループコードフィルタ（ログインユーザーの組織グループのいずれか OR 組織グループ指定なし）
+  // apply_organization_group_filter=true 時のみ適用（マスタ管理画面では使用しない）
+  // 複数グループ所属ユーザー対応: ANY($n) で配列比較
+  if (filters.organizationGroupCds && filters.organizationGroupCds.length > 0) {
     sqlQuery = sqlQuery.replace(
       'ORDER BY',
-      `AND (a.department_cd = $${paramIndex} OR a.department_cd IS NULL OR a.department_cd = '')
+      `AND (a.organization_group_cd = ANY($${paramIndex}) OR a.organization_group_cd IS NULL OR a.organization_group_cd = '')
 ORDER BY`
     );
-    values.push(filters.departmentCd);
+    values.push(filters.organizationGroupCds);
     paramIndex++;
   }
 
@@ -142,7 +143,7 @@ export const create = async (
     attributeName: string;
     attributeValue?: string;
     attributeRemark?: string;
-    departmentCd?: string;
+    organizationGroupCd?: string;
     isActive?: boolean;
   },
   userId: string
@@ -154,7 +155,7 @@ export const create = async (
     data.attributeName,
     data.attributeValue || null,
     data.attributeRemark || null,
-    data.departmentCd || null,
+    data.organizationGroupCd || null,
     data.isActive !== undefined ? data.isActive : true,
     userId,
   ];
@@ -177,7 +178,7 @@ export const update = async (
   attributeValue: string,
   data: {
     attributeRemark?: string;
-    departmentCd?: string;
+    organizationGroupCd?: string;
     isActive?: boolean;
   },
   userId: string
@@ -189,7 +190,7 @@ export const update = async (
     attributeName,
     attributeValue,
     data.attributeRemark ?? null,
-    data.departmentCd ?? null,
+    data.organizationGroupCd ?? null,
     data.isActive,
     userId,
   ];

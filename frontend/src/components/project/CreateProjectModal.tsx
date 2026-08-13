@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   Form,
   Input,
+  Select,
   Space,
   Typography,
   Alert,
@@ -13,8 +14,17 @@ import {
 import { FolderAddOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { CreateProjectData } from '@/types/project';
+import { createApiClient } from '@/utils/authUtils';
 
 const { Text } = Typography;
+
+/**
+ * チーム情報の型定義（/api/v1/organization-groups レスポンス）
+ */
+interface TeamOption {
+  organizationGroupCd: string;
+  organizationGroupName: string;
+}
 
 /**
  * CreateProjectModalのProps型定義
@@ -25,7 +35,7 @@ interface CreateProjectModalProps {
   onSubmit: (data: CreateProjectData) => Promise<void>;
   currentUser?: {
     name: string;
-    department: string;
+    organizationGroup: string;
     organizationId: string;
   };
 }
@@ -40,7 +50,7 @@ export default function CreateProjectModal({
   onSubmit,
   currentUser = {
     name: '田中 太郎',
-    department: '材料開発部',
+    organizationGroup: '材料開発部',
     organizationId: 'org_maiml_lab_001',
   },
 }: CreateProjectModalProps) {
@@ -49,6 +59,37 @@ export default function CreateProjectModal({
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+
+  // モーダルが開いた際にチーム一覧を取得
+  useEffect(() => {
+    if (!open) return;
+
+    const fetchTeams = async () => {
+      setTeamsLoading(true);
+      try {
+        const client = createApiClient();
+        const response = await client.get<{
+          success: boolean;
+          data: Array<{ organization_group_cd: string; organization_group_name: string }>;
+        }>('/organization-groups');
+        setTeams(
+          (response.data?.data ?? []).map((g) => ({
+            organizationGroupCd: g.organization_group_cd,
+            organizationGroupName: g.organization_group_name,
+          }))
+        );
+      } catch {
+        // API取得失敗時はチーム選択を空にして続行
+        setTeams([]);
+      } finally {
+        setTeamsLoading(false);
+      }
+    };
+
+    fetchTeams();
+  }, [open]);
 
   // フォーム送信ハンドラ
   const handleSubmit = async () => {
@@ -71,8 +112,9 @@ export default function CreateProjectModal({
         description: values.description || '',
         folderName: folderName,
         owner: currentUser.name,
-        department: currentUser.department,
+        organizationGroup: currentUser.organizationGroup,
         organizationId: currentUser.organizationId,
+        organizationGroupCd: values.organizationGroupCd || undefined,
       };
       
       // 親コンポーネントの送信ハンドラを呼び出し
@@ -104,7 +146,7 @@ export default function CreateProjectModal({
       title={
         <Space>
           <FolderAddOutlined style={{ color: token.colorPrimary }} />
-          <Text strong>{t('projectManagement.create.title') || '新規プロジェクト作成'}</Text>
+          <Text strong>{t('projectManagement.create.title')}</Text>
         </Space>
       }
       open={open}
@@ -122,7 +164,7 @@ export default function CreateProjectModal({
         {/* エラーメッセージ表示 */}
         {error && (
           <Alert
-            title={t('projectManagement.create.error') || '作成エラー'}
+            title={t('projectManagement.create.error')}
             description={error}
             type="error"
             showIcon
@@ -140,24 +182,24 @@ export default function CreateProjectModal({
           {/* プロジェクト名 */}
           <Form.Item
             name="projectName"
-            label={t('projectManagement.create.projectName') || 'プロジェクト名'}
+            label={t('projectManagement.create.projectName')}
             rules={[
               {
                 required: true,
-                message: t('projectManagement.create.projectNameRequired') || 'プロジェクト名を入力してください',
+                message: t('projectManagement.create.projectNameRequired'),
               },
               {
                 min: 3,
-                message: t('projectManagement.create.projectNameMinLength') || 'プロジェクト名は3文字以上で入力してください',
+                message: t('projectManagement.create.projectNameMinLength'),
               },
               {
                 max: 100,
-                message: t('projectManagement.create.projectNameMaxLength') || 'プロジェクト名は100文字以内で入力してください',
+                message: t('projectManagement.create.projectNameMaxLength'),
               },
             ]}
           >
             <Input
-              placeholder={t('projectManagement.create.projectNamePlaceholder') || 'プロジェクト名を入力'}
+              placeholder={t('projectManagement.create.projectNamePlaceholder')}
               maxLength={100}
               showCount
               autoFocus
@@ -168,22 +210,50 @@ export default function CreateProjectModal({
           {/* 概要 */}
           <Form.Item
             name="description"
-            label={t('projectManagement.create.description') || '概要'}
+            label={t('projectManagement.create.description')}
             rules={[
               {
                 max: 500,
-                message: t('projectManagement.create.descriptionMaxLength') || '概要は500文字以内で入力してください',
+                message: t('projectManagement.create.descriptionMaxLength'),
               },
             ]}
           >
             <Input.TextArea
-              placeholder={t('projectManagement.create.descriptionPlaceholder') || 'プロジェクトの概要を入力（任意）'}
+              placeholder={t('projectManagement.create.descriptionPlaceholder')}
               maxLength={500}
               showCount
               rows={4}
               data-testid="create-project-description-input"
             />
           </Form.Item>
+
+          {/* チーム選択 */}
+          <Form.Item
+            name="organizationGroupCd"
+            label={t('createProject.teamLabel')}
+            rules={[
+              {
+                required: true,
+                message: t('createProject.teamRequired'),
+              },
+            ]}
+          >
+            <Select
+              placeholder={t('createProject.teamPlaceholder')}
+              loading={teamsLoading}
+              data-testid="create-project-org-group-select"
+              options={teams.map((team) => ({
+                value: team.organizationGroupCd,
+                label: team.organizationGroupName,
+              }))}
+            />
+          </Form.Item>
+          <Text
+            type="secondary"
+            style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 8 }}
+          >
+            {t('createProject.teamNote')}
+          </Text>
         </Form>
       </Space>
     </Modal>

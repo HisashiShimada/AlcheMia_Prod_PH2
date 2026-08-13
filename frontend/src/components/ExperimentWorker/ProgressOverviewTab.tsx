@@ -1,0 +1,516 @@
+'use client';
+
+/**
+ * 全体進捗タブ（パターンA固定）
+ *
+ * 全タスク × トランジション の行テーブルを表示する。
+ * Mat/Cond/Res を独立3列（横1行バー + 数値）+ サマリーカード。
+ * タスクNo / ステータス / メソッド名 / トランジション名 でフィルタリング可能。
+ * 「作業へ」ボタンで作業記録タブに遷移、「詳細確認」ボタンで作業記録タブを読取専用で表示。
+ * 「開始」ボタンで未着手トランジションの作業を開始する（固定順序チェックあり）。
+ * 作業中のトランジションが存在する場合は確認ダイアログを経由してステータスを切り替える。
+ *
+ * フェーズA: ExperimentWorkerMenu から渡された progressRows を表示する（APIデータ接続はフェーズBで実施）。
+ */
+
+import React, { useMemo, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Flex,
+  Grid,
+  Progress,
+  Select,
+  Statistic,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  LockOutlined,
+  MinusCircleOutlined,
+  PauseCircleOutlined,
+} from '@ant-design/icons';
+import type { ProgressRow, ProgressOverviewTabProps } from '@/types/progress';
+
+export type { ProgressRow };
+
+const { Text } = Typography;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ビジネスロジック
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 対象トランジションにアクセス可能かどうかを判定する。
+ *
+ * prerequisiteTransitionIds が空または未設定のトランジションは常にアクセス可能。
+ * prerequisiteTransitionIds が設定されている場合、同一タスク内の
+ * 全ての前提トランジションが completed の場合のみアクセス可能。
+ *
+ * @example
+ *   // TR_D の prerequisiteTransitionIds = ['TR_A', 'TR_B', 'TR_C']
+ *   // → TR_A, TR_B, TR_C が全て completed のときのみ TR_D にアクセス可能
+ */
+function canAccessTransition(target: ProgressRow, allRows: ProgressRow[]): boolean {
+  const prereqs = target.prerequisiteTransitionIds;
+
+  // 前提なし → いつでもアクセス可能
+  if (!prereqs || prereqs.length === 0) return true;
+
+  // 同一タスク内の全ての前提トランジションが completed であるか確認
+  return prereqs.every((prereqId) => {
+    const prereqRow = allRows.find(
+      (r) => r.taskNo === target.taskNo && r.transitionId === prereqId
+    );
+    return prereqRow?.status === 'completed';
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ステータス設定
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const STATUS_CONFIG: Record<ProgressRow['status'], { label: string; color: string; icon: React.ReactNode }> = {
+  not_started: { label: '未着手',   color: 'default',    icon: <MinusCircleOutlined       style={{ color: '#bfbfbf' }} /> },
+  in_progress: { label: '作業中',   color: 'processing', icon: null },
+  on_hold:     { label: '一時停止', color: 'warning',    icon: <PauseCircleOutlined       style={{ color: '#faad14' }} /> },
+  completed:   { label: '完了',     color: 'success',    icon: <CheckCircleOutlined       style={{ color: '#52c41a' }} /> },
+  issue:       { label: '問題あり', color: 'error',      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} /> },
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// サマリーカード
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const SummaryCard: React.FC<{ rows: ProgressRow[] }> = ({ rows }) => {
+  const stats = useMemo(() => {
+    const total = rows.length;
+    const byStatus = rows.reduce<Record<ProgressRow['status'], number>>((acc, r) => {
+      acc[r.status] = (acc[r.status] ?? 0) + 1;
+      return acc;
+    }, { not_started: 0, in_progress: 0, on_hold: 0, completed: 0, issue: 0 });
+    const completedPct = total === 0 ? 0 : Math.round((byStatus.completed / total) * 100);
+    const taskNos = [...new Set(rows.map((r) => r.taskNo))];
+    const completedTasks = taskNos.filter((no) =>
+      rows.filter((r) => r.taskNo === no).every((r) => r.status === 'completed')
+    ).length;
+    const issueCount = rows.reduce((sum, r) => sum + (r.issueCount ?? 0), 0);
+    return { total, byStatus, completedPct, taskCount: taskNos.length, completedTasks, issueCount };
+  }, [rows]);
+
+  return (
+    <Card size="small" style={{ marginBottom: 12 }} bodyStyle={{ padding: '12px 16px' }}>
+      <Flex align="center" gap={16} wrap="wrap">
+        <div style={{ flex: '0 0 220px' }}>
+          <Flex justify="space-between" align="center" style={{ marginBottom: 4 }}>
+            <Text strong style={{ fontSize: 14 }}>全体進捗</Text>
+            <Text strong style={{ fontSize: 16, color: stats.completedPct === 100 ? '#52c41a' : '#1677ff' }}>
+              {stats.completedPct}%
+            </Text>
+          </Flex>
+          <Progress percent={stats.completedPct} showInfo={false} strokeColor={stats.completedPct === 100 ? '#52c41a' : '#1677ff'} size="small" />
+          <Text type="secondary" style={{ fontSize: 14 }}>タスク {stats.completedTasks}/{stats.taskCount} 完了</Text>
+        </div>
+        <div style={{ width: 1, height: 48, background: '#f0f0f0', flexShrink: 0 }} />
+        <Flex gap={16} wrap="wrap">
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>未着手</Text>}   value={stats.byStatus.not_started} suffix="件" valueStyle={{ fontSize: 18, color: '#595959' }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>作業中</Text>}   value={stats.byStatus.in_progress} suffix="件" valueStyle={{ fontSize: 18, color: '#1677ff' }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>完了</Text>}     value={stats.byStatus.completed}   suffix="件" valueStyle={{ fontSize: 18, color: '#52c41a' }} />
+          {stats.byStatus.issue > 0 && (
+            <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>問題あり</Text>} value={stats.byStatus.issue} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} />
+          )}
+        </Flex>
+        {stats.issueCount > 0 && (
+          <>
+            <div style={{ width: 1, height: 48, background: '#f0f0f0', flexShrink: 0 }} />
+            <Statistic title={<Text type="secondary" style={{ fontSize: 14, color: '#ff4d4f' }}>問題報告</Text>} value={stats.issueCount} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} prefix={<ExclamationCircleOutlined />} />
+          </>
+        )}
+      </Flex>
+    </Card>
+  );
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// フィルタバー
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const FilterBar: React.FC<{
+  rows: ProgressRow[];
+  filterTaskNo: number | null;
+  filterStatus: ProgressRow['status'] | null;
+  filterMethodId: string | null;
+  filterTransitionId: string | null;
+  filteredCount: number;
+  onTaskNoChange: (v: number | null) => void;
+  onStatusChange: (v: ProgressRow['status'] | null) => void;
+  onMethodIdChange: (v: string | null) => void;
+  onTransitionIdChange: (v: string | null) => void;
+}> = ({
+  rows,
+  filterTaskNo,
+  filterStatus,
+  filterMethodId,
+  filterTransitionId,
+  filteredCount,
+  onTaskNoChange,
+  onStatusChange,
+  onMethodIdChange,
+  onTransitionIdChange,
+}) => {
+  const taskNos = useMemo(() => [...new Set(rows.map((r) => r.taskNo))].sort((a, b) => a - b), [rows]);
+
+  /** メソッド選択肢（methodId → methodName の重複排除） */
+  const methodOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) {
+      if (!seen.has(r.methodId)) {
+        seen.set(r.methodId, r.methodName || r.methodId);
+      }
+    }
+    return [...seen.entries()].map(([value, label]) => ({ value, label }));
+  }, [rows]);
+
+  /**
+   * トランジション選択肢
+   * メソッドが選択されている場合はそのメソッドに属するもののみ絞り込む
+   */
+  const transitionOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) {
+      if (filterMethodId !== null && r.methodId !== filterMethodId) continue;
+      if (!seen.has(r.transitionId)) {
+        seen.set(r.transitionId, r.transitionName || r.transitionId);
+      }
+    }
+    return [...seen.entries()].map(([value, label]) => ({ value, label }));
+  }, [rows, filterMethodId]);
+
+  return (
+    <Flex gap={8} align="center" style={{ padding: '4px 0 10px' }} wrap="wrap">
+      <Text type="secondary" style={{ fontSize: 14 }}>フィルタ:</Text>
+      {/* テーブル列順: メソッド名 → タスクNo → トランジション名 → ステータス */}
+      <Select
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        size="small"
+        placeholder="メソッド名"
+        style={{ minWidth: 140 }}
+        value={filterMethodId}
+        onChange={(v) => {
+          onMethodIdChange(v ?? null);
+          // メソッドが変わったらトランジション選択もリセット
+          onTransitionIdChange(null);
+        }}
+        options={methodOptions}
+      />
+      <Select
+        allowClear
+        size="small"
+        placeholder="タスクNo"
+        style={{ width: 100 }}
+        value={filterTaskNo}
+        onChange={(v) => onTaskNoChange(v ?? null)}
+        options={taskNos.map((n) => ({ label: `#${n}`, value: n }))}
+      />
+      <Select
+        allowClear
+        showSearch
+        optionFilterProp="label"
+        size="small"
+        placeholder="トランジション名"
+        style={{ minWidth: 160 }}
+        value={filterTransitionId}
+        onChange={(v) => onTransitionIdChange(v ?? null)}
+        options={transitionOptions}
+      />
+      <Select
+        allowClear
+        size="small"
+        placeholder="ステータス"
+        style={{ width: 120 }}
+        value={filterStatus}
+        onChange={(v) => onStatusChange((v as ProgressRow['status']) ?? null)}
+        options={[
+          { label: '未着手',   value: 'not_started' },
+          { label: '作業中',   value: 'in_progress' },
+          { label: '一時停止', value: 'on_hold'     },
+          { label: '完了',     value: 'completed'   },
+          { label: '問題あり', value: 'issue'       },
+        ]}
+      />
+      <Text type="secondary" style={{ fontSize: 14 }}>{filteredCount}/{rows.length} 件</Text>
+    </Flex>
+  );
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// メインコンポーネント
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export default function ProgressOverviewTab({
+  rows,
+  onGoToWork,
+  onViewDetail,
+  onStartWork,
+}: ProgressOverviewTabProps) {
+  const [filterTaskNo, setFilterTaskNo] = useState<number | null>(null);
+  const [filterStatus, setFilterStatus] = useState<ProgressRow['status'] | null>(null);
+  const [filterMethodId, setFilterMethodId] = useState<string | null>(null);
+  const [filterTransitionId, setFilterTransitionId] = useState<string | null>(null);
+
+  // ── 画面幅検知（xl: 1200px以上で3列独立表示） ───────────
+  const screens = Grid.useBreakpoint();
+  const isWide = !!screens.xl;
+
+  const filteredRows = useMemo(
+    () => rows.filter((r) => {
+      if (filterTaskNo       !== null && r.taskNo       !== filterTaskNo)       return false;
+      if (filterStatus       !== null && r.status       !== filterStatus)       return false;
+      if (filterMethodId     !== null && r.methodId     !== filterMethodId)     return false;
+      if (filterTransitionId !== null && r.transitionId !== filterTransitionId) return false;
+      return true;
+    }),
+    [rows, filterTaskNo, filterStatus, filterMethodId, filterTransitionId]
+  );
+
+  // ── 操作列 ─────────────────────────────────────────
+  const renderAction = (_: unknown, r: ProgressRow) => {
+    if (r.status === 'completed' || r.status === 'issue') {
+      return <Button size="small" onClick={() => onViewDetail(r.taskNo, r.transitionId)}>詳細確認</Button>;
+    }
+    if (r.status === 'in_progress') {
+      return (
+        <Button type="primary" size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
+          作業へ
+        </Button>
+      );
+    }
+    if (r.status === 'on_hold') {
+      return (
+        <Button size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
+          再開
+        </Button>
+      );
+    }
+    if (r.status === 'not_started') {
+      const accessible = canAccessTransition(r, rows);
+      if (!accessible) {
+        return (
+          <Tooltip title="前の順序のトランジションを先に完了してください">
+            <Button size="small" disabled>
+              開始
+            </Button>
+          </Tooltip>
+        );
+      }
+      return (
+        <Button
+          size="small"
+          onClick={() => {
+            if (onStartWork) {
+              onStartWork(r.taskNo, r.transitionId, r.methodId);
+            } else {
+              onGoToWork(r.taskNo, r.transitionId);
+            }
+          }}
+        >
+          開始
+        </Button>
+      );
+    }
+    return <Text type="secondary">—</Text>;
+  };
+
+  // ── ステータスタグ ───────────────────────────────────
+  const renderStatus = (v: ProgressRow['status']) => {
+    const cfg = STATUS_CONFIG[v] ?? { label: v, color: 'default', icon: null };
+    return (
+      <Flex align="center" gap={4} justify="center" wrap="wrap">
+        {cfg.icon}
+        <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag>
+      </Flex>
+    );
+  };
+
+  // ── テーブル列定義 ───────────────────────────────────
+
+  /** 共通ベース列（メソッド名 / タスクNo / トランジション名 / ステータス） */
+  const baseColumns: ColumnsType<ProgressRow> = [
+    {
+      title: 'メソッド名', dataIndex: 'methodId', width: 160, ellipsis: { showTitle: false },
+      render: (_: string, record: ProgressRow) => {
+        const displayName = record.methodName || record.methodId;
+        return <Tooltip title={displayName}><Text style={{ fontSize: 14 }}>{displayName}</Text></Tooltip>;
+      },
+    },
+    {
+      title: 'タスクNo', dataIndex: 'taskNo', width: 80, align: 'center',
+      render: (v: number) => <Text strong>#{v}</Text>,
+    },
+    {
+      title: 'トランジション名', dataIndex: 'transitionId', width: 180, ellipsis: { showTitle: false },
+      render: (_: string, record: ProgressRow) => {
+        const displayName = record.transitionName || record.transitionId;
+        const hasPrereqs = (record.prerequisiteTransitionIds?.length ?? 0) > 0;
+        return (
+          <Flex align="center" gap={4}>
+            <Tooltip title={displayName}>
+              <Text style={{ fontSize: 14 }}>{displayName}</Text>
+            </Tooltip>
+            {hasPrereqs && (
+              <Tooltip title={`前提トランジション: ${record.prerequisiteTransitionIds?.join(', ')} が全て完了してから開始できます`}>
+                <LockOutlined style={{ color: '#faad14', fontSize: 12 }} />
+              </Tooltip>
+            )}
+          </Flex>
+        );
+      },
+    },
+    {
+      title: 'ステータス',
+      dataIndex: 'status',
+      width: 160,
+      align: 'center',
+      render: renderStatus,
+    },
+  ];
+
+  /**
+   * 進捗列（幅広: 1200px以上）
+   * Material / Condition / Result を独立3列で表示（Progressバー + rec/tot 数値）
+   * 合計 390px
+   */
+  const wideProgressColumns: ColumnsType<ProgressRow> = [
+    {
+      title: 'Material', width: 130, align: 'center',
+      render: (_: unknown, r: ProgressRow) => {
+        const rec = r.materialRecorded ?? 0, tot = r.materialTotal ?? 0;
+        return tot === 0 ? <Text type="secondary">—</Text> : (
+          <Flex align="center" gap={4}>
+            <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#1677ff" showInfo={false} style={{ flex: 1, margin: 0 }} />
+            <Text style={{ fontSize: 12, minWidth: 28 }}>{rec}/{tot}</Text>
+          </Flex>
+        );
+      },
+    },
+    {
+      title: 'Condition', width: 130, align: 'center',
+      render: (_: unknown, r: ProgressRow) => {
+        const rec = r.conditionRecorded ?? 0, tot = r.conditionTotal ?? 0;
+        return tot === 0 ? <Text type="secondary">—</Text> : (
+          <Flex align="center" gap={4}>
+            <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#52c41a" showInfo={false} style={{ flex: 1, margin: 0 }} />
+            <Text style={{ fontSize: 12, minWidth: 28 }}>{rec}/{tot}</Text>
+          </Flex>
+        );
+      },
+    },
+    {
+      title: 'Result', width: 130, align: 'center',
+      render: (_: unknown, r: ProgressRow) => {
+        const rec = r.resultRecorded ?? 0, tot = r.resultTotal ?? 0;
+        return tot === 0 ? <Text type="secondary">—</Text> : (
+          <Flex align="center" gap={4}>
+            <Progress percent={Math.round((rec / tot) * 100)} size="small" strokeColor="#fa8c16" showInfo={false} style={{ flex: 1, margin: 0 }} />
+            <Text style={{ fontSize: 12, minWidth: 28 }}>{rec}/{tot}</Text>
+          </Flex>
+        );
+      },
+    },
+  ];
+
+  /**
+   * 進捗列（狭幅: 1200px未満）
+   * Material / Condition / Result を1列に統合してテキストのみ表示
+   * 150px
+   */
+  const narrowProgressColumn: ColumnsType<ProgressRow> = [
+    {
+      title: '進捗', width: 150, align: 'center',
+      render: (_: unknown, r: ProgressRow) => {
+        const items: React.ReactNode[] = [];
+        const mTot = r.materialTotal  ?? 0;
+        const cTot = r.conditionTotal ?? 0;
+        const rTot = r.resultTotal    ?? 0;
+        if (mTot > 0) items.push(
+          <Text key="m" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+            <span style={{ color: '#1677ff', fontWeight: 600 }}>M</span>
+            {' '}{r.materialRecorded ?? 0}/{mTot}
+          </Text>
+        );
+        if (cTot > 0) items.push(
+          <Text key="c" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+            <span style={{ color: '#52c41a', fontWeight: 600 }}>C</span>
+            {' '}{r.conditionRecorded ?? 0}/{cTot}
+          </Text>
+        );
+        if (rTot > 0) items.push(
+          <Text key="r" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+            <span style={{ color: '#fa8c16', fontWeight: 600 }}>R</span>
+            {' '}{r.resultRecorded ?? 0}/{rTot}
+          </Text>
+        );
+        if (items.length === 0) return <Text type="secondary">—</Text>;
+        return <Flex align="center" justify="center" gap={8} wrap="wrap">{items}</Flex>;
+      },
+    },
+  ];
+
+  /** 末尾共通列（問題 / 操作） */
+  const tailColumns: ColumnsType<ProgressRow> = [
+    {
+      title: '問題', dataIndex: 'issueCount', width: 60, align: 'center',
+      render: (v: number | undefined) => (v ?? 0) > 0 ? <Badge count={v} size="small" style={{ backgroundColor: '#ff4d4f' }} /> : <Text type="secondary">—</Text>,
+    },
+    { title: '操作', width: 100, align: 'center', render: renderAction },
+  ];
+
+  /** 画面幅に応じて列を切り替え（isWide: 1200px以上） */
+  const columns: ColumnsType<ProgressRow> = [
+    ...baseColumns,
+    ...(isWide ? wideProgressColumns : narrowProgressColumn),
+    ...tailColumns,
+  ];
+
+  return (
+    <Flex vertical style={{ height: '100%' }}>
+      {/* サマリーカード */}
+      <SummaryCard rows={rows} />
+
+      {/* フィルタバー */}
+      <FilterBar
+        rows={rows}
+        filterTaskNo={filterTaskNo}
+        filterStatus={filterStatus}
+        filterMethodId={filterMethodId}
+        filterTransitionId={filterTransitionId}
+        filteredCount={filteredRows.length}
+        onTaskNoChange={setFilterTaskNo}
+        onStatusChange={setFilterStatus}
+        onMethodIdChange={setFilterMethodId}
+        onTransitionIdChange={setFilterTransitionId}
+      />
+
+      {/* テーブル本体 */}
+      <Table<ProgressRow>
+        dataSource={filteredRows}
+        columns={columns}
+        rowKey="rowKey"
+        size="small"
+        pagination={false}
+        bordered
+        scroll={{ y: 'calc(100vh - 480px)' }}
+        locale={{ emptyText: 'データがありません' }}
+      />
+    </Flex>
+  );
+}

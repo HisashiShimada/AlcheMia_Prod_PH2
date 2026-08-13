@@ -42,6 +42,7 @@ import { useWorkflow } from '../../hooks/useWorkflow';
 import { useSessionHeartbeat } from '@/hooks/useSessionHeartbeat';
 import useDraftManager from '../../hooks/useDraftManager';
 import DraftManager from './DraftManager';
+import MaimlStructureTreePanel from './components/MaimlStructureTreePanel';
 import SaveConfirmDialog from './SaveConfirmDialog';
 import ValidationPanel from './ValidationPanel';
 import XMLViewerWrapper from './XMLViewerWrapper';
@@ -77,6 +78,7 @@ import type {
   DirtyFlags,
   ExtractedUuids,
 } from '../../types/editor';
+import {WorkflowProjectSelection} from '@/types/project'
 import type { NodeTypes } from 'reactflow';
 
 // ===== Phase 8: 分離したモジュールをインポート =====
@@ -350,12 +352,19 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const [documentDialogOpen, setDocumentDialogOpen] = useState<boolean>(false); // Document編集ダイアログ
   const [documentData, setDocumentData] = useState<DocumentData | null>(null); // Document情報
   const [workflowDialogOpen, setWorkflowDialogOpen] = useState<boolean>(false); // ワークフロー選択ダイアログ
-  const [availableFiles, setAvailableFiles] = useState<Array<{ key: string; name: string; lastModified?: string; size?: number }>>([]); // 利用可能なファイル一覧
-  const [isLoadingFiles, setIsLoadingFiles] = useState<boolean>(false); // ファイル読み込み中
   const [pendingClickPosition, setPendingClickPosition] = useState<{ x: number; y: number } | null>(null); // クリック位置保持（将来用）
   const [lastAddedNodeId, setLastAddedNodeId] = useState<string | null>(null); // 最後に追加したノードID（ミニマップ強調用）
   const [draftManagerOpen, setDraftManagerOpen] = useState<boolean>(false); // Draft管理ダイアログ
   const [draftModeHandled, setDraftModeHandled] = useState<boolean>(false); // ✅ UX改善2: draftモード処理済みフラグ
+  // Insertion管理パネルの開閉
+  const [insertionPanelOpen, setInsertionPanelOpen] = useState<boolean>(false);
+  const handleOpenInsertionPanel = useCallback(() => setInsertionPanelOpen(true), []);
+  const handleCloseInsertionPanel = useCallback(() => setInsertionPanelOpen(false), []);
+
+  // MaiML構造ツリーパネルの開閉
+  const [structureTreePanelOpen, setStructureTreePanelOpen] = useState<boolean>(false);
+  const handleOpenStructureTree = useCallback(() => setStructureTreePanelOpen(true), []);
+  const handleCloseStructureTree = useCallback(() => setStructureTreePanelOpen(false), []);
   
   // テンプレート一覧表示機能State（methodsより先に定義）
   const [viewMode, setViewMode] = useState<'petriNet' | 'templates' | 'xml'>('petriNet');
@@ -1394,51 +1403,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, []);
 
   // ワークフロー追加ダイアログを開く（内部関数） - handlePaneClickより先に定義
-  const openWorkflowDialogInternal = useCallback(async () => {
+  // プロジェクト一覧の取得はダイアログ内で自己完結するため、ここではダイアログを開くだけ
+  const openWorkflowDialogInternal = useCallback(() => {
     console.log('🔄 [PetriNetEditorInner] ワークフロー選択ダイアログを開く');
     setWorkflowDialogOpen(true);
-    setIsLoadingFiles(true);
-    
-    try {
-      // ストレージファイル一覧取得（新APIエンドポイント使用）
-      const userInfoStr2 = localStorage.getItem('userInfo');
-      const userInfo2 = userInfoStr2 ? JSON.parse(userInfoStr2) : null;
-      const currentOrgId = userInfo2?.organizationId || null;
-      
-      if (!currentOrgId) {
-        throw new Error('組織IDが取得できません');
-      }
-      
-      // ✅ 修正: maimlServiceのlistStorageFilesを使用
-      const response = await maimlService.listStorageFiles(currentOrgId);
-      
-      if (!response.success || !response.data) {
-        throw new Error(response.error?.message || 'ファイル一覧取得に失敗しました');
-      }
-      
-      // .maimlファイルのみフィルタリング
-      const maimlFiles = response.data.files
-        .filter((file: StorageFile) => file.key && file.key.endsWith('.maiml'))
-        .map((file: StorageFile) => ({
-          key: file.key as string,
-          name: file.name || (file.key ? file.key.split('/').pop() : '') || '',
-          lastModified: file.lastModified,
-          size: file.size,
-        }));
-      
-      setAvailableFiles(maimlFiles);
-      console.log('✅ [PetriNetEditorInner] ファイル一覧取得完了:', maimlFiles.length);
-      
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error('❌ [PetriNetEditorInner] ファイル一覧取得エラー:', error);
-      alert(t('editor.alert.file_list_failed') + `: ${error.message}`);
-      setWorkflowDialogOpen(false);
-      setSelectedTool('select');
-      setPendingClickPosition(null);
-    } finally {
-      setIsLoadingFiles(false);
-    }
   }, []);
 
   // Phase 3C-3: キャンバスクリックでノード追加（キー押下中のみ）+ ワークフロー追加モード
@@ -1881,6 +1849,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         placeRefs: convertedTemplateRef.placeRefs || [],
         templateRef: convertedTemplateRef.templateRef,
         methodId: correctMethodId,
+        insertion: convertedTemplateRef.insertion,  // ✅ 修正: insertion保存漏れを修正
       };
 
       if (window.clineAddTemplate) {
@@ -2055,6 +2024,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             placeRefs: convertedTemplateRef.placeRefs || [],
             templateRef: convertedTemplateRef.templateRef,
             methodId: finalMethodId,
+            insertion: convertedTemplateRef.insertion,  // ✅ 修正: insertion保存漏れを修正
         });
         console.log('✅ [PetriNetEditorInner] TemplateContext更新完了:', {
           oldTemplateId,
@@ -2273,7 +2243,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             const tempNode: Node<NodeData> = {
               id: template.id,
               position: { x: 0, y: 0 }, // ✅ 追加: position必須
-              data: {
+                data: {
                 id: template.id,
                 name: template.name || '',
                 description: template.description || '',
@@ -2291,6 +2261,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   templateRef: template.templateRef,
                   properties: template.properties || [],
                   contents: template.contents || [],
+                  insertion: template.insertion,  // ✅ 修正: insertion引き継ぎ漏れを修正
                 },
                 templateRef: {
                   id: template.id,
@@ -2302,6 +2273,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   templateRef: template.templateRef,
                   properties: template.properties || [],
                   contents: template.contents || [],
+                  insertion: template.insertion,  // ✅ 修正: insertion引き継ぎ漏れを修正
                 },
               },
             };
@@ -2662,29 +2634,23 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // ワークフロー追加ダイアログを閉じる
   const handleCloseWorkflowDialog = useCallback(() => {
     setWorkflowDialogOpen(false);
-    setAvailableFiles([]);
+    // ワークフローモード解除
+    setSelectedTool('select');
+    setPendingClickPosition(null);
   }, []);
 
-  // ワークフローファイル選択ハンドラー
-  const handleWorkflowFileSelect = useCallback(async (file: FileInfo) => {
-    console.log('📂 [PetriNetEditorInner] ワークフローファイル選択:', file);
-    
+  // ワークフロープロジェクト選択ハンドラー（プロジェクトベース）
+  const handleWorkflowProjectSelect = useCallback(async (selection: WorkflowProjectSelection) => {
+    console.log('📂 [PetriNetEditorInner] ワークフロープロジェクト選択:', selection.projectId, selection.projectName);
+
     try {
-      // ✅ 修正: maimlServiceのgetStorageFileContentを使用
-      const response = await maimlService.getStorageFileContent(file.key);
-      
-      if (!response.success || !response.data) {
-        throw new Error(response.error?.message || 'ファイル内容取得に失敗しました');
-      }
-      
-      // ✅ 修正: FileContentResponseはdataプロパティにネストされている
-      const maimlContent = response.data.data?.content ?? response.data.content ?? '';
-      
-      console.log('✅ [PetriNetEditorInner] MaiMLファイル取得完了:', {
-        fileKey: file.key,
-        contentLength: maimlContent.length
+      const maimlContent = selection.maimlContent;
+
+      console.log('✅ [PetriNetEditorInner] MaiMLコンテンツ取得完了:', {
+        projectId: selection.projectId,
+        contentLength: maimlContent.length,
       });
-      
+
       // クリック位置を使用（保存されている場合）、なければキャンバス中央
       const targetPosition = pendingClickPosition || {
         x: 400,
@@ -2694,7 +2660,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       console.log('🎯 [PetriNetEditorInner] ワークフロー追加位置:', targetPosition);
       
       // ワークフロー追加実行
-      const result2 = await addWorkflow(targetPosition, maimlContent, file.name);
+      const result2 = await addWorkflow(targetPosition, maimlContent, selection.projectName);
       
       if (result2.success) {
         // ✅ 修正: ReactFlowのstateに追加分をマージ（置き換えではなく追加）
@@ -2719,7 +2685,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
 
           const registerTemplates = (
             category: 'material' | 'condition' | 'result',
-            templateList: import('../../types/maiml-unified').Template[]
+            templateList: Template[]
           ) => {
             templateList.forEach(t => {
               // methodId が未設定の場合はアクティブメソッドの ID を補完
@@ -3343,8 +3309,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         handleRevalidate={handleRevalidate}
         workflowDialogOpen={workflowDialogOpen}
         handleCloseWorkflowDialog={handleCloseWorkflowDialog}
-        handleWorkflowFileSelect={handleWorkflowFileSelect}
-        availableFiles={availableFiles}
+        handleWorkflowProjectSelect={handleWorkflowProjectSelect}
         draftManagerOpen={draftManagerOpen}
         handleCloseDraftManager={handleCloseDraftManager}
         handleLoadDraft={handleLoadDraft}
@@ -3354,6 +3319,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         sourceS3Key={props.sourceS3Key}
         projectId={initialDocumentId}
         lastAddedNodeId={lastAddedNodeId}
+        insertionPanelOpen={insertionPanelOpen}
+        onOpenInsertionPanel={handleOpenInsertionPanel}
+        onCloseInsertionPanel={handleCloseInsertionPanel}
+        structureTreePanelOpen={structureTreePanelOpen}
+        onOpenStructureTree={handleOpenStructureTree}
+        onCloseStructureTree={handleCloseStructureTree}
+        editingFileName={editingFileName}
       />
     </TemplateProvider>
     </AttributeDisplayProvider>
@@ -3467,8 +3439,7 @@ interface PetriNetEditorInnerUIProps {
   
   workflowDialogOpen: boolean;
   handleCloseWorkflowDialog: () => void;
-  handleWorkflowFileSelect: (file: FileInfo) => void;
-  availableFiles: Array<{ key: string; name: string; lastModified?: string; size?: number }>;
+  handleWorkflowProjectSelect: (selection: WorkflowProjectSelection) => void;
   
   draftManagerOpen: boolean;
   handleCloseDraftManager: () => void;
@@ -3483,6 +3454,20 @@ interface PetriNetEditorInnerUIProps {
   maimlData?: string | null;
   /** 最後に追加したノードID（ミニマップ強調表示用） */
   lastAddedNodeId: string | null;
+  /** Insertionパネルの開閉状態 */
+  insertionPanelOpen: boolean;
+  /** Insertionパネルを開くハンドラ */
+  onOpenInsertionPanel: () => void;
+  /** Insertionパネルを閉じるハンドラ */
+  onCloseInsertionPanel: () => void;
+  /** MaiML構造ツリーパネルの開閉状態 */
+  structureTreePanelOpen: boolean;
+  /** MaiML構造ツリーパネルを開くハンドラ */
+  onOpenStructureTree: () => void;
+  /** MaiML構造ツリーパネルを閉じるハンドラ */
+  onCloseStructureTree: () => void;
+  /** 編集中のファイル名（TemplateEditorDialog に渡す） */
+  editingFileName?: string;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
@@ -3558,8 +3543,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   handleRevalidate,
   workflowDialogOpen,
   handleCloseWorkflowDialog,
-  handleWorkflowFileSelect,
-  availableFiles,
+  handleWorkflowProjectSelect,
   draftManagerOpen,
   handleCloseDraftManager,
   handleLoadDraft,
@@ -3568,7 +3552,14 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   currentUserId,
   sourceS3Key,
   projectId,
+  editingFileName,
   lastAddedNodeId,
+  insertionPanelOpen,
+  onOpenInsertionPanel,
+  onCloseInsertionPanel,
+  structureTreePanelOpen,
+  onOpenStructureTree,
+  onCloseStructureTree,
 }) => {
   // TemplateContextからtemplateErrors、addTemplate、deleteTemplate、updateTemplate、allTemplatesを取得
   const { templateErrors, addTemplate, deleteTemplate, updateTemplate, allTemplates } = useTemplates();
@@ -3594,7 +3585,21 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   const { token } = theme.useToken();
   
   return (
-    <Flex vertical style={{ height: '100%' }}>
+    <Flex style={{ height: '100%', overflow: 'hidden' }}>
+      {/* 案A: 左固定サイドパネル（MaiML構造ツリー） */}
+      <MaimlStructureTreePanel
+        open={structureTreePanelOpen}
+        onClose={onCloseStructureTree}
+        documentData={documentData as unknown as Parameters<typeof MaimlStructureTreePanel>[0]['documentData']}
+        methods={methods}
+        activeMethodIndex={activeMethodIndex}
+        onEditDocument={handleOpenDocumentEditor}
+        onMethodChange={handleMethodChange}
+        onViewTemplates={() => handleViewModeChange('templates')}
+      />
+
+      {/* メインエリア（ツールバー＋キャンバス） */}
+      <Flex vertical style={{ flex: 1, minWidth: 0, height: '100%' }}>
         {/* Phase 3: 非致命的エラー警告バナー */}
         {nonCriticalErrors.length > 0 && (
           <Alert 
@@ -3647,7 +3652,6 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
         />
-        
         {/* Method管理タブUI - 共通テンプレート表示時は非表示 */}
         {methods.length > 0 && !showCommonTemplates && (
           <MethodTabPanel
@@ -3762,6 +3766,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
               multiMethodMode={false}
               methods={methods}
               activeMethodIndex={activeMethodIndex}
+              projectId={projectId ?? ''}
             />
           ) : null}
 
@@ -3818,6 +3823,8 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
             return nodes;
           })()}
           templateErrors={templateErrors}
+          editingFileName={editingFileName}
+          sourceS3Key={sourceS3Key}
         />
 
         {/* Document編集ダイアログ */}
@@ -3841,10 +3848,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
         <WorkflowSelectorDialog
           open={workflowDialogOpen}
           onClose={handleCloseWorkflowDialog}
-          onSelect={async (file: FileInfo) => {
-            await handleWorkflowFileSelect(file);
-          }}
-          availableFiles={availableFiles}
+          onSelect={handleWorkflowProjectSelect}
         />
 
         {/* Draft管理ダイアログ */}
@@ -3862,6 +3866,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           projectId={projectId}
         />
       </Flex>
+    </Flex>
   );
 };
 

@@ -6,6 +6,7 @@ import {
   ShopOutlined,
   AuditOutlined,
   DatabaseOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
@@ -13,6 +14,7 @@ import { User, MenuType } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import dynamic from 'next/dynamic';
+import { Tabs } from 'antd';
 
 // Providerコンポーネントの動的インポート
 const OrganizationManagement = dynamic(
@@ -27,6 +29,16 @@ const CorporationManagement = dynamic(
 
 const InformationDownload = dynamic(
   () => import('../Provider/InformationDownload'),
+  { ssr: false }
+);
+
+const TermManagement = dynamic(
+  () => import('../namespace/TermManagement'),
+  { ssr: false }
+);
+
+const PrefixManagement = dynamic(
+  () => import('../namespace/PrefixManagement'),
   { ssr: false }
 );
 
@@ -67,6 +79,11 @@ export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderM
     },
     {
       key: '3',
+      label: t('menu.provider.tabs.namespaceManagement'),
+      icon: <GlobalOutlined />,
+    },
+    {
+      key: '4',
       label: t('menu.provider.tabs.informationDownload'),
       icon: <DatabaseOutlined />,
     },
@@ -115,8 +132,30 @@ export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderM
           {/* タブ2: 会社管理 */}
           {currentTab === '2' && <CorporationManagement />}
           
-          {/* タブ3: 情報ダウンロード */}
-          {currentTab === '3' && <InformationDownload />}
+          {/* タブ3: 名前空間管理（グローバル） */}
+          {currentTab === '3' && (
+            <div style={{ padding: '0 16px', height: '100%' }}>
+              <Tabs
+                defaultActiveKey="prefix"
+                style={{ height: '100%' }}
+                items={[
+                  {
+                    key: 'prefix',
+                    label: t('namespace.tabs.prefix'),
+                    children: <PrefixManagement globalOnly={true} />,
+                  },
+                  {
+                    key: 'terms',
+                    label: t('namespace.tabs.terms'),
+                    children: <TermManagement globalOnly={true} />,
+                  },
+                ]}
+              />
+            </div>
+          )}
+
+          {/* タブ4: 情報ダウンロード */}
+          {currentTab === '4' && <InformationDownload />}
         </div>
       </Content>
     </Layout>

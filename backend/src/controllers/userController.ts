@@ -24,7 +24,7 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
     console.log('Extracted organizationId:', organizationId);
 
     // クエリパラメータを取得
-    const { search, is_active, department_cd, role_cd, sort_by, sort_order } = req.query;
+    const { search, is_active, role_cd, sort_by, sort_order } = req.query;
 
     // フィルター構築
     const filters: any = {};
@@ -33,9 +33,6 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
     }
     if (is_active !== undefined) {
       filters.isActive = is_active === 'true' || is_active === '1';
-    }
-    if (department_cd) {
-      filters.departmentCd = String(department_cd);
     }
     if (role_cd) {
       filters.roleCd = String(role_cd);
@@ -56,8 +53,7 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
       userId: user.user_id,
       userName: user.user_name,
       mailAddress: user.mail_address,
-      departmentCd: user.department_cd,
-      departmentName: user.department_name,
+      organizationGroupCds: user.organization_group_cds,
       roleCd: user.role_cd,
       roleName: user.role_name,
       isActive: user.is_active,
@@ -114,8 +110,7 @@ export async function getUserById(req: Request, res: Response, next: NextFunctio
       userId: user.user_id,
       userName: user.user_name,
       mailAddress: user.mail_address,
-      departmentCd: user.department_cd,
-      departmentName: user.department_name,
+      organizationGroupCds: user.organization_group_cds,
       roleCd: user.role_cd,
       roleName: user.role_name,
       isActive: user.is_active,
@@ -152,15 +147,15 @@ export async function createUser(req: Request, res: Response, next: NextFunction
     const organizationId = req.user?.organizationId;
     const currentUserId = req.user?.userId;
 
-    const user = await userService.createUser(String(organizationId), req.body, String(currentUserId));
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
+    const user = await userService.createUser(String(organizationId), req.body, String(currentUserId), lang);
 
     // レスポンスデータをcamelCaseに変換
     const responseData = {
       userId: user.user_id,
       userName: user.user_name,
       mailAddress: user.mail_address,
-      departmentCd: user.department_cd,
-      departmentName: user.department_name,
+      organizationGroupCds: user.organization_group_cds,
       roleCd: user.role_cd,
       roleName: user.role_name,
       isActive: user.is_active,
@@ -219,8 +214,7 @@ export async function updateUser(req: Request, res: Response, next: NextFunction
       userId: user.user_id,
       userName: user.user_name,
       mailAddress: user.mail_address,
-      departmentCd: user.department_cd,
-      departmentName: user.department_name,
+      organizationGroupCds: user.organization_group_cds,
       roleCd: user.role_cd,
       roleName: user.role_name,
       isActive: user.is_active,
@@ -315,7 +309,6 @@ export async function updateUserStatus(req: Request, res: Response, next: NextFu
  * クエリパラメータ:
  * - search: 検索テキスト
  * - is_active: アクティブ状態フィルタ
- * - department_cd: 部署CDフィルタ
  * - role_cd: ロールCDフィルタ
  */
 export async function downloadUsersCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -323,7 +316,7 @@ export async function downloadUsersCsv(req: Request, res: Response, next: NextFu
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
-    const { search, is_active, department_cd, role_cd } = req.query;
+    const { search, is_active, role_cd } = req.query;
 
     // フィルター構築
     const filters: any = {};
@@ -332,9 +325,6 @@ export async function downloadUsersCsv(req: Request, res: Response, next: NextFu
     }
     if (is_active !== undefined) {
       filters.isActive = is_active === 'true' || is_active === '1';
-    }
-    if (department_cd) {
-      filters.departmentCd = String(department_cd);
     }
     if (role_cd) {
       filters.roleCd = String(role_cd);

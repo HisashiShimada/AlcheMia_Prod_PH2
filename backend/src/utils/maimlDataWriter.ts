@@ -42,7 +42,7 @@ export type EventLogJsonRecord = Record<string, unknown>;
  * XML特殊文字をエスケープ
  * reference JS版 escapeXml() の移植
  */
-function escapeXml(text: unknown): string {
+export function escapeXml(text: unknown): string {
   if (text === null || text === undefined) return '';
   return String(text)
     .replace(/&/g, '&amp;')
@@ -804,4 +804,62 @@ export function replaceEventLogInMaiml(
 ): string {
   // <eventLog ...>...</eventLog> を丸ごと置換（複数行対応）
   return maimlContent.replace(/<eventLog[^>]*>[\s\S]*?<\/eventLog>/g, eventLogXml.trimEnd());
+}
+
+// ============================================================
+// injectNamespaceDeclarations
+// ============================================================
+
+/**
+ * MAIML XML の <maiml> 開きタグに xmlns:prefix="uri" 宣言を注入する
+ *
+ * - 既存の xmlns:xxx="..." 属性をすべて除去した上で、DB から取得した名前空間で上書きする（完全置換方式）。
+ * - namespaces が空配列の場合は何も変更せずそのまま返す（ノーオペレーション）。
+ * - xmlns="..." (プレフィックスなし) は除去対象外とし保持する。
+ * - <maiml> タグが存在しない場合はそのまま返す。
+ *
+ * @param maimlContent - 更新前の MAIML XML 文字列
+ * @param namespaces   - DBから取得した名前空間一覧（{prefix, uri}[]）
+ * @returns 更新後の MAIML XML 文字列
+ */
+export function injectNamespaceDeclarations(
+  maimlContent: string,
+  namespaces: Array<{ prefix: string; uri: string }>
+): string {
+  // 名前空間が空の場合はノーオペレーション
+  if (namespaces.length === 0) {
+    return maimlContent;
+  }
+
+  // <maiml ...> 開きタグ全体をキャプチャ（複数行にまたがる場合も考慮）
+  const maimlTagMatch = maimlContent.match(/<maiml[\s\S]*?>/);
+  if (!maimlTagMatch) {
+    return maimlContent;
+  }
+
+  const originalTag = maimlTagMatch[0];
+
+  // xmlns:prefix="uri" 形式の属性を除去（プレフィックスなしの xmlns="..." は保持）
+  // 付録B準拠: xsi / xenc 等の標準 prefix は保持し、カスタム prefix のみ除去する
+  const PROTECTED_PREFIXES = ['xsi', 'xenc', 'xs', 'xsd', 'xlink'];
+  const tagWithoutNs = originalTag.replace(
+    /\s+xmlns:([a-zA-Z0-9_.-]+)="[^"]*"/g,
+    (match, prefix) => (PROTECTED_PREFIXES.includes(prefix) ? match : '')
+  );
+
+  // DB の名前空間を xmlns:prefix="uri" 形式に変換
+  const nsAttrs = namespaces
+    .map(({ prefix, uri }) => `xmlns:${prefix}="${escapeXml(uri)}"`)
+    .join('\n  ');
+
+  // <maiml> の閉じ角括弧直前に名前空間属性を追加
+  // 末尾が "/>" (自己閉じタグ) か ">" かで分岐
+  let newTag: string;
+  if (tagWithoutNs.endsWith('/>')) {
+    newTag = tagWithoutNs.slice(0, -2).trimEnd() + '\n  ' + nsAttrs + '\n/>';
+  } else {
+    newTag = tagWithoutNs.slice(0, -1).trimEnd() + '\n  ' + nsAttrs + '\n>';
+  }
+
+  return maimlContent.replace(originalTag, newTag);
 }

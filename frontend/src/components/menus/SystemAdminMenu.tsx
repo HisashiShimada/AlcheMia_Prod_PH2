@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { Layout, theme, App } from 'antd';
 import {
   TeamOutlined,
-  ShopOutlined,
   ExperimentOutlined,
   AuditOutlined,
   EyeOutlined,
@@ -19,8 +18,6 @@ import SystemOverview from '../SystemManagement/SystemOverview';
 import UserManagement from '../SystemManagement/UserManagement';
 import SessionManagement from '../SystemManagement/SessionManagement';
 import RoleManagement from '../SystemManagement/RoleManagement';
-import DepartmentManagement from '../SystemManagement/DepartmentManagement';
-
 const { Content } = Layout;
 
 /**
@@ -62,15 +59,10 @@ export default function SystemAdminMenu({ user, onLogout, onMenuChange }: System
       icon: <ExperimentOutlined />,
     },
     {
-      key: '4',
-      label: t('menu.system_admin.tabs.departmentManagement'),
-      icon: <ShopOutlined />,
-    },
-    {
       key: '5',
       label: t('menu.system_admin.tabs.roleManagement'),
       icon: <AuditOutlined />,
-    }
+    },
   ];
 
   const handleTabChange = (key: string) => {
@@ -119,19 +111,13 @@ export default function SystemAdminMenu({ user, onLogout, onMenuChange }: System
           {/* タブ3: セッション管理 */}
           {currentTab === '3' && <SessionManagement />}
 
-          {/* タブ4: 部署管理 */}
-          {currentTab === '4' && (
-            <div style={{ padding: token.paddingContentVertical }}>
-              <DepartmentManagement />
-            </div>
-          )}
-
           {/* タブ5: ロール管理 */}
           {currentTab === '5' && (
             <div style={{ padding: token.paddingContentVertical }}>
               <RoleManagement />
             </div>
           )}
+
         </Content>
       </Layout>
     </App>

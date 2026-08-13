@@ -68,7 +68,7 @@ export interface User {
   organizationId: string;
   organizationName: string;
   displayName: string;
-  departmentCd: string;
+  organizationGroupCds: string[];
   initialScreenFunctionCd: string;
   permissions?: Permission[];  // ユーザーの権限情報（メニューアクセス制御用）
 }
@@ -139,7 +139,7 @@ export interface VerifyPINResponse {
     organizationId: string;
     organizationName: string;
     displayName: string;
-    departmentCd: string;
+    organizationGroupCds: string[];
     initialScreenFunctionCd: string;
     permissions?: Permission[];  // ユーザーの権限情報
   };

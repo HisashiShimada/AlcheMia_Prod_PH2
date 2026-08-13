@@ -61,9 +61,15 @@ export const errorHandler = (
     },
   };
 
-  // detailsが存在する場合のみ追加
-  if (err.details && Array.isArray(err.details) && err.details.length > 0) {
-    errorResponse.error.details = err.details;
+  // detailsが存在する場合のみ追加（配列またはオブジェクト）
+  if (err.details != null) {
+    if (Array.isArray(err.details)) {
+      if (err.details.length > 0) {
+        errorResponse.error.details = err.details;
+      }
+    } else if (typeof err.details === 'object') {
+      errorResponse.error.details = err.details;
+    }
   }
 
   // レスポンス送信

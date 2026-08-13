@@ -46,7 +46,7 @@ export default function ProgressMonitoring() {
   const [pageSize, setPageSize] = useState(20);
   const [checkoutFilter, setCheckoutFilter] = useState('all');
   const [projectStatusFilter, setProjectStatusFilter] = useState('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [organizationGroupFilter, setOrganizationGroupFilter] = useState('all');
   // モーダル関連のState
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [fileData, setFileData] = useState<FileData | null>(null);
@@ -105,7 +105,7 @@ export default function ProgressMonitoring() {
         projectId: item.id,
         projectName: item.name,
         projectStatus: getStatusStringFromNumber(Number(item.status)),
-        department: item.department || '',
+        organizationGroup: item.organizationGroup || '',
         isCheckedOut: item.isCheckedOut || false,
         ownerEmail: item.ownerEmail || '',
         ownerName: item.ownerName || item.owner || '',
@@ -117,10 +117,10 @@ export default function ProgressMonitoring() {
     );
   }, [projectsData]);
 
-  // ユニークな部門リストを取得
-  const departments = useMemo(() => {
-    const uniqueDepartments = Array.from(new Set(allData.map((p) => p.department)));
-    return uniqueDepartments.sort();
+  // ユニークな組織グループリストを取得
+  const organizationGroups = useMemo(() => {
+    const uniqueGroups = Array.from(new Set(allData.map((p) => p.organizationGroup)));
+    return uniqueGroups.sort();
   }, [allData]);
 
   // フィルタリング処理
@@ -155,7 +155,7 @@ export default function ProgressMonitoring() {
         (item.projectStatus ?? '').toLowerCase().includes(st) ||
         projectStatusLabel.toLowerCase().includes(st) ||
         checkoutStatusLabel.toLowerCase().includes(st) ||
-        (item.department ?? '').toLowerCase().includes(st) ||
+        (item.organizationGroup ?? '').toLowerCase().includes(st) ||
         (item.ownerEmail ?? '').toLowerCase().includes(st) ||
         (item.ownerName ?? '').toLowerCase().includes(st) ||
         item.completedTasks.toString().includes(searchText) ||
@@ -170,8 +170,8 @@ export default function ProgressMonitoring() {
       let matchesProjectStatus = true;
       if (projectStatusFilter !== 'all') matchesProjectStatus = item.projectStatus === projectStatusFilter;
 
-      let matchesDepartment = true;
-      if (departmentFilter !== 'all') matchesDepartment = item.department === departmentFilter;
+      let matchesOrganizationGroup = true;
+      if (organizationGroupFilter !== 'all') matchesOrganizationGroup = item.organizationGroup === organizationGroupFilter;
 
       const userInfo = getUserInfo();
       let matchesOwner = true;
@@ -180,9 +180,9 @@ export default function ProgressMonitoring() {
         else if (item.ownerName && userInfo.displayName) matchesOwner = item.ownerName === userInfo.displayName;
       }
 
-      return matchesSearch && matchesOwner && matchesCheckout && matchesProjectStatus && matchesDepartment;
+      return matchesSearch && matchesOwner && matchesCheckout && matchesProjectStatus && matchesOrganizationGroup;
     });
-  }, [allData, searchText, ownerFilter, checkoutFilter, projectStatusFilter, departmentFilter, t]);
+  }, [allData, searchText, ownerFilter, checkoutFilter, projectStatusFilter, organizationGroupFilter, t]);
 
   const totalProjects = filteredData.length;
 
@@ -260,11 +260,11 @@ export default function ProgressMonitoring() {
       ),
     },
     {
-      title: t('progress.filter.department') || '部門',
-      dataIndex: 'department',
-      key: 'department',
+      title: t('progress.filter.organizationGroup') || '組織グループ',
+      dataIndex: 'organizationGroup',
+      key: 'organizationGroup',
       width: 120,
-      sorter: (a, b) => a.department.localeCompare(b.department, 'ja'),
+      sorter: (a, b) => a.organizationGroup.localeCompare(b.organizationGroup, 'ja'),
     },
     {
       title: t('progress.table.projectStatus') || 'プロジェクトステータス',
@@ -392,15 +392,15 @@ export default function ProgressMonitoring() {
 
             <Space size={4} orientation="horizontal">
               <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
-                {t('progress.filter_labels.department')}
+                {t('progress.filter_labels.organizationGroup')}
               </Text>
               <Select
                 style={{ width: 150 }}
-                value={departmentFilter}
-                onChange={setDepartmentFilter}
+                value={organizationGroupFilter}
+                onChange={setOrganizationGroupFilter}
                 options={[
-                  { value: 'all', label: t('progress.filter.allDepartments') || '全部門' },
-                  ...departments.map(dept => ({ value: dept, label: dept })),
+                  { value: 'all', label: t('progress.filter.allOrganizationGroups') || '全組織グループ' },
+                  ...organizationGroups.map((group: string) => ({ value: group, label: group })),
                 ]}
               />
             </Space>

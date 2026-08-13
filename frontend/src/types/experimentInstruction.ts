@@ -1,0 +1,147 @@
+/**
+ * experimentInstruction.ts
+ * 実験指示タブ（指示一覧 > 実験指示）の型定義
+ *
+ * @remarks
+ * バックエンド experimentInstructionService.ts のネスト形式レスポンスに対応する。
+ *
+ * レスポンス構造:
+ *   { methods: InstructionMethodResponse[] }
+ *
+ *   InstructionMethodResponse
+ *     └── tasks: InstructionTaskResponse[]
+ *           └── templates: InstructionTemplateResponse[]
+ *                 └── fields: InstructionFieldResponse[]
+ */
+
+// ─────────────────────────────────────────────────────────────
+// API レスポンス型（ネスト形式）
+// ─────────────────────────────────────────────────────────────
+
+/** 1 フィールドの実験指示情報 */
+export interface InstructionFieldResponse {
+  /** MAIMLプロパティキー（例: "ns1:Temperature"） */
+  key: string;
+  /** 表示ラベル */
+  label: string;
+  /** xsiType 文字列（例: "FloatValue", "StringValue"）*/
+  xsiType: string | null;
+  /** 実験計画（想定値）。未設定の場合は null */
+  plannedValue: string | null;
+  /** 実際の記録値。未記録の場合は null */
+  actualValue: string | null;
+  /** 単位 */
+  unit: string | null;
+}
+
+/** 1 テンプレートの実験指示情報 */
+export interface InstructionTemplateResponse {
+  templateId: string;
+  templateName: string | null;
+  templateType: 'material' | 'condition' | 'result';
+  fields: InstructionFieldResponse[];
+}
+
+/** 1 タスクの実験指示情報 */
+export interface InstructionTaskResponse {
+  taskNo: number;
+  /** task_status の数値（0〜6）。null = 未設定 */
+  taskStatus: number | null;
+  reviewedAt: string | null;
+  reviewUserId: string | null;
+  reviewResult: string | null;
+  templates: InstructionTemplateResponse[];
+}
+
+/** 1 メソッドの実験指示情報 */
+export interface InstructionMethodResponse {
+  methodId: string;
+  tasks: InstructionTaskResponse[];
+}
+
+/** GET /api/v1/projects/:projectId/experiment-instructions のレスポンス全体 */
+export interface GetExperimentInstructionsResponse {
+  success: boolean;
+  data: {
+    methods: InstructionMethodResponse[];
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// その他 API レスポンス型
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * メソッド情報
+ */
+export interface ProjectMethod {
+  /** メソッドID */
+  id: string;
+  /** メソッド名（現時点では id と同値） */
+  name?: string;
+}
+
+export interface GetProjectMethodsResponse {
+  success: boolean;
+  data: ProjectMethod[];
+}
+
+/** タスク承認レスポンス */
+export interface ApproveTaskResponse {
+  success: boolean;
+  data?: {
+    taskStatus: number | null;
+    reviewedAt: string | null;
+    reviewUserId: string | null;
+    reviewResult: string | null;
+  };
+}
+
+/** NG記録レスポンス */
+export interface RecordNgResponse {
+  success: boolean;
+  data?: {
+    taskStatus: number | null;
+    reviewedAt: string | null;
+    reviewUserId: string | null;
+    reviewResult: string | null;
+  };
+}
+
+/**
+ * NG記録リクエスト
+ */
+export interface RecordNgRequest {
+  ngReason: string;
+}
+
+// ─────────────────────────────────────────────────────────────
+// フロントエンドUI用の集約型
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * タスクグループ（ExperimentPlanDialog 等に渡す用）
+ */
+export interface TaskGroup {
+  /** グループキー（"methodId__taskNo" 形式） */
+  key: string;
+  methodId: string;
+  taskNo: number;
+  taskStatus: number | null;
+  /** 2桁ゼロ埋め文字列（表示・比較用） */
+  taskStatusStr: string;
+}
+
+// ─────────────────────────────────────────────────────────────
+// フィルタ・ソート条件
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 実験指示タブのフィルタ条件
+ */
+export interface ExperimentInstructionFilter {
+  /** フィルタするメソッドID（undefined = すべて） */
+  methodId?: string;
+  /** フィルタするタスクステータス（undefined = すべて） */
+  taskStatus?: string;
+}

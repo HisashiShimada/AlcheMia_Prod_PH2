@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- パターン①: <content> 直接テキスト形式
+     スペース区切りの数値を1行として収集。
+     期待結果: 3行 × 3列
+-->
+<measurement>
+  <sampleId>SMPL-001</sampleId>
+  <description>ラマンスペクトル計測データ（直接テキスト形式）</description>
+  <dataset>
+    <content>1.0 2.5 3.0</content>
+    <content>4.0 5.5 6.0</content>
+    <content>7.0 8.5 9.0</content>
+  </dataset>
+</measurement>

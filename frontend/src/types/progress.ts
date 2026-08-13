@@ -50,7 +50,7 @@ export interface Project {
   fileCount: number;
   totalSize: number;
   owner: string;
-  department: string;
+  organizationGroup: string;
   members: string[];
   tags: string[];
   isCheckedOut: boolean;
@@ -76,7 +76,7 @@ export interface ProjectProgress {
   projectId: string;
   projectName: string;
   projectStatus: ProjectStatus;
-  department: string;
+  organizationGroup: string;
   ownerId: string;
   ownerEmail: string;
   ownerName: string;
@@ -94,7 +94,7 @@ export interface ProjectInfo {
   projectName: string;
   projectDescription?: string;
   owner: string;
-  department?: string;
+  organizationGroup?: string;
   status: ProjectStatus;
   methods: string[];
   createdAt: string;
@@ -232,4 +232,104 @@ export interface ExperimentRecordsData {
   materials?: ExperimentRecord[];
   conditions?: ExperimentRecord[];
   results?: ExperimentRecord[];
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 全体進捗タブ（ProgressOverviewTab）用型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/** 全体進捗テーブルの行レコード */
+export interface ProgressRow {
+  /** テーブルのキー（`${taskNo}-${transitionId}` 等の一意な値） */
+  rowKey: string;
+  taskNo: number;
+  methodId: string;
+  /** メソッド名（未設定時は methodId をフォールバック表示） */
+  methodName?: string;
+  transitionId: string;
+  /** トランジション名（未設定時は transitionId をフォールバック表示） */
+  transitionName?: string;
+  /** ステータス文字列（バックエンドの数値→文字列変換済み） */
+  status: 'not_started' | 'in_progress' | 'on_hold' | 'completed' | 'issue';
+  /** 記録済みプロパティが1件以上ある場合 true */
+  hasRecord: boolean;
+  /** Material 入力進捗 */
+  materialRecorded?: number;
+  materialTotal?: number;
+  /** Condition 入力進捗 */
+  conditionRecorded?: number;
+  conditionTotal?: number;
+  /** Result 入力進捗 */
+  resultRecorded?: number;
+  resultTotal?: number;
+  /** 問題報告数 */
+  issueCount?: number;
+  /** 表示順序・推奨実行順序（省略時は 0 として扱う） */
+  order?: number;
+  /**
+   * 前提となるトランジションIDの配列。
+   * これらが全て completed になるまでこのトランジションは開始不可。
+   * 空配列または省略時は依存なし（いつでも開始可能）。
+   *
+   * @example [] // 依存なし
+   * @example ['TR_A', 'TR_B'] // TR_A と TR_B 両方完了後のみ開始可能
+   */
+  prerequisiteTransitionIds?: string[];
+}
+
+/** ProgressOverviewTab コンポーネントの Props */
+export interface ProgressOverviewTabProps {
+  rows: ProgressRow[];
+  /** 「作業へ」ボタン押下時: 作業記録タブに遷移し、指定タスク+トランジションを表示 */
+  onGoToWork: (taskNo: number, transitionId: string) => void;
+  /** 「詳細確認」ボタン押下時: 作業記録タブを読取専用で表示 */
+  onViewDetail: (taskNo: number, transitionId: string) => void;
+  /**
+   * 「開始」ボタン押下時: 未着手トランジションの作業を開始する。
+   * 作業中のトランジションが存在する場合は確認ダイアログを経由してステータスを切り替える。
+   * methodId を含めることでバックエンドAPIへの正確なルーティングを可能にする。
+   * 省略時は onGoToWork にフォールバック。
+   */
+  onStartWork?: (taskNo: number, transitionId: string, methodId: string) => void;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// トランジション進捗API（fetchTransitionStatus）用型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * トランジション進捗レスポンス項目
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions
+ */
+export interface TransitionStatusItem {
+  transitionId: string;
+  transitionName: string;
+  progressStatus: string;
+  latestStatus: string;
+  progressPercentage: number;
+  /** MAIMLから取得した Material 定義数 */
+  materialCount?: number;
+  /** DBから取得した Material 実績数 */
+  materialActualCount?: number;
+  /** MAIMLから取得した Condition 定義数 */
+  conditionCount?: number;
+  /** DBから取得した Condition 実績数 */
+  conditionActualCount?: number;
+  /** MAIMLから取得した Result 定義数 */
+  resultCount?: number;
+  /** DBから取得した Result 実績数 */
+  resultActualCount?: number;
+  /**
+   * このトランジションの前提となるトランジションIDの配列
+   * PetriNet のアーク構造から算出。空配列の場合は前提なし（即時開始可能）
+   */
+  prerequisiteTransitionIds?: string[];
+}
+
+/** fetchTransitionStatus のレスポンス型 */
+export interface FetchTransitionStatusResponse {
+  success: true;
+  data: {
+    transitionStatus: TransitionStatusItem[];
+  };
 }

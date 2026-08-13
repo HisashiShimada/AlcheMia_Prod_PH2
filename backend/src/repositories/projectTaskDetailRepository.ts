@@ -414,6 +414,76 @@ export async function findByMethodId(
   return pgp.any<ProjectTaskDetailByMethod>(sql, [organizationId, projectId, methodId]);
 }
 
+/**
+ * タスクを承認する（task_status=05、reviewed_at・review_user_id 更新）
+ *
+ * @remarks
+ * 前提条件: task_status=4（レビュー待ち）のタスクのみ更新する。
+ * 対象が存在しない・ステータスが違う場合は null を返す（エラーにしない）。
+ *
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param methodId メソッドID
+ * @param taskNo タスク連番
+ * @param reviewUserId レビュアーユーザID
+ * @returns 更新後のレコード、対象なしの場合は null
+ */
+export async function approveTask(
+  organizationId: string,
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  reviewUserId: string
+): Promise<ProjectTaskDetail | null> {
+  const pool = getPool();
+  const sqlQuery = await loadSqlFile('project_task_detail/approveTask.sql');
+  const result = await pool.query<ProjectTaskDetail>(sqlQuery, [
+    organizationId,
+    projectId,
+    methodId,
+    taskNo,
+    reviewUserId,
+  ]);
+  return result.rows[0] ?? null;
+}
+
+/**
+ * タスクを NG 記録する（task_status=06、review_result・reviewed_at・review_user_id 更新）
+ *
+ * @remarks
+ * 前提条件: task_status=4（レビュー待ち）のタスクのみ更新する。
+ * 対象が存在しない・ステータスが違う場合は null を返す（エラーにしない）。
+ * review_result カラムは 20260618_005 マイグレーション追加済みが前提。
+ *
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param methodId メソッドID
+ * @param taskNo タスク連番
+ * @param reviewUserId レビュアーユーザID
+ * @param ngReason NG理由・指摘内容
+ * @returns 更新後のレコード、対象なしの場合は null
+ */
+export async function recordNg(
+  organizationId: string,
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  reviewUserId: string,
+  ngReason: string
+): Promise<ProjectTaskDetail | null> {
+  const pool = getPool();
+  const sqlQuery = await loadSqlFile('project_task_detail/recordNg.sql');
+  const result = await pool.query<ProjectTaskDetail>(sqlQuery, [
+    organizationId,
+    projectId,
+    methodId,
+    taskNo,
+    reviewUserId,
+    ngReason,
+  ]);
+  return result.rows[0] ?? null;
+}
+
 export async function batchInsert(
   t: ITask<unknown>,
   organizationId: string,

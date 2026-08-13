@@ -108,6 +108,14 @@ export type ContentType =
 export interface Content {
   /** 不確実性キー（uncertaintyBaseTypeから継承、必須） */
   key: string;
+
+  /**
+   * 暗号化コンテナ（XSD: encryptionGroup）
+   *
+   * 設定されている場合、この要素は暗号化済みであることを示す。
+   * 設定されている場合、properties / contents / value 等の平文フィールドは空になる。
+   */
+  encryption?: EncryptionContainer;
   
   /** Content型（必須） */
   xsiType: string;
@@ -362,7 +370,15 @@ export interface PropertyCustomElement {
 export interface Property {
   /** プロパティキー（必須） */
   key: string;
-  
+
+  /**
+   * 暗号化コンテナ（XSD: encryptionGroup）
+   *
+   * 設定されている場合、この要素は暗号化済みであることを示す。
+   * 設定されている場合、value / properties / contents 等の平文フィールドは空になる。
+   */
+  encryption?: EncryptionContainer;
+
   /** プロパティ型（xsi:type が設定されていない場合は空文字） */
   xsiType: string;
   
@@ -387,6 +403,13 @@ export interface Property {
   properties: Property[];
 
   contents : Content[];
+
+  /**
+   * 不確かさ配列（uncertainty子要素）
+   * 
+   * property要素の直接の子として付与された uncertainty 要素
+   */
+  uncertainty?: Content[];
   
   // ============================================================================
   // 🆕 カスタム要素（任意のタグ名を持つ子要素）
@@ -1231,6 +1254,105 @@ export interface EventLog {
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
   logs: Log[];
+}
+
+// ============================================================================
+// Encryption Types（暗号化型定義）
+// XSD: encryptionGroup / xenc:EncryptedData（W3C XML Encryption）
+// ============================================================================
+
+/**
+ * CipherData（暗号データ本体）
+ *
+ * xenc:CipherData 要素に対応。
+ * - cipherValue: インライン暗号文（Base64）
+ * - cipherReferenceUri: 外部URI参照
+ */
+export interface CipherData {
+  /** Base64エンコードされた暗号文 */
+  cipherValue?: string;
+  /** 外部URI参照（CipherReference使用時） */
+  cipherReferenceUri?: string;
+}
+
+/**
+ * EncryptionMethod（暗号化アルゴリズム指定）
+ *
+ * xenc:EncryptionMethod 要素に対応。
+ */
+export interface EncryptionMethod {
+  /** アルゴリズムURI（例: http://www.w3.org/2001/04/xmlenc#aes256-cbc） */
+  algorithm: string;
+  /** 鍵長（ビット） */
+  keySize?: number;
+}
+
+/**
+ * EncryptionProperty（暗号化プロパティ1件）
+ *
+ * xenc:EncryptionProperty 要素に対応。
+ * maiml:encryptedAt 等の任意名前空間要素を格納する。
+ */
+export interface EncryptionProperty {
+  /** target属性 */
+  target?: string;
+  /** id属性 */
+  id?: string;
+  /** 任意のカスタム要素（タグ名→値） */
+  customElements?: Record<string, PropertyCustomElement>;
+}
+
+/**
+ * EncryptedData（暗号化済みデータ）
+ *
+ * xenc:EncryptedData 要素に対応。
+ * XSD encryptionGroup の主要要素。
+ *
+ * @see docs/design/maiml/maiml-property.xsd — encryptionGroup
+ */
+export interface EncryptedData {
+  /** 暗号化ID属性 */
+  id?: string;
+  /**
+   * 暗号化種別
+   * - http://www.w3.org/2001/04/xmlenc#Element  → 要素全体の暗号化（L1）
+   * - http://www.w3.org/2001/04/xmlenc#Content  → 内容のみ暗号化（L2）
+   */
+  type?: string;
+  /** MIMEタイプ */
+  mimeType?: string;
+  /** エンコーディング */
+  encoding?: string;
+  /** 暗号化アルゴリズム */
+  encryptionMethod?: EncryptionMethod;
+  /** 鍵名（ds:KeyInfo/ds:KeyName に対応） */
+  keyName?: string;
+  /** 暗号化データ本体（必須） */
+  cipherData: CipherData;
+  /** 暗号化プロパティ（maiml:encryptedAt 等） */
+  encryptionProperties?: EncryptionProperty[];
+}
+
+/**
+ * EncryptionContainer（encryptionGroup に対応するコンテナ型）
+ *
+ * XSD の encryptionGroup は以下のシーケンス:
+ *   childUri* / childHash* / childUuid* / xenc:EncryptedData
+ *
+ * globalObjectContentGroup / genericDataContainerGroup を持つ要素すべてに
+ * オプションフィールドとして付与する。
+ *
+ * @see docs/design/maiml/maiml-property.xsd — encryptionGroup
+ */
+export interface EncryptionContainer {
+  /** 子要素のURI一覧（childUri*） */
+  childUri?: string[];
+  /** 子要素のハッシュ値一覧（Base64）（childHash*） */
+  childHash?: string[];
+  /** 子要素のUUID一覧（childUuid*） */
+  childUuid?: string[];
+  /** 暗号化済みデータ（xenc:EncryptedData、必須） */
+  encryptedData: EncryptedData;
 }
 
 // ============================================================================

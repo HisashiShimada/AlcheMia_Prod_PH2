@@ -65,7 +65,7 @@ export function useAttributeMasters(): UseAttributeMastersResult {
     setLoading(true);
     setError(null);
     try {
-      // apply_department_filter=true でログインユーザーの部署 or 部署指定なしのデータのみ取得
+      // apply_organization_group_filter=true でログインユーザーの組織階層グループ or グループ指定なしのデータのみ取得
       const records = await fetchAttributeMasters(true);
       setAttributeRecords(records);
     } catch (err) {

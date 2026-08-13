@@ -3,6 +3,16 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // /api/v1/* をバックエンド（ポート3001）にプロキシ
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: 'http://localhost:3001/api/v1/:path*',
+      },
+    ];
+  },
+
   // Turbopack 設定（Next.js 16 以降はデフォルトで Turbopack が有効）
   // webpack 設定が存在する場合、turbopack 設定も必須（空でも可）
   turbopack: {},

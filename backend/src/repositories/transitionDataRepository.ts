@@ -253,6 +253,8 @@ export class TransitionDataRepository {
    * @param transitionId - トランジションID
    * @param userId - 作成・更新ユーザーID
    * @param client - トランザクション用PoolClient
+   * @param workOrder - 実行順序（実験計画の __meta__.transitionOrder.order から設定。デフォルト: 0）
+   * @param prerequisiteTransitionIds - 前提トランジションID配列（デフォルト: 空配列）
    * @throws {DatabaseError} データベースエラーが発生した場合
    */
   async insert(
@@ -262,7 +264,9 @@ export class TransitionDataRepository {
     taskNo: number,
     transitionId: string,
     userId: string,
-    client: PoolClient
+    client: PoolClient,
+    workOrder: number = 0,
+    prerequisiteTransitionIds: string[] = []
   ): Promise<void> {
     try {
       const query = await loadSqlFile('transition_data/insert.sql');
@@ -272,10 +276,12 @@ export class TransitionDataRepository {
         methodId,
         taskNo,
         transitionId,
-        0, // status: 初期値0
-        0, // progress_rate: 初期値0
-        userId, // create_user_id
-        userId  // update_user_id
+        0,                          // status: 初期値0
+        0,                          // progress_rate: 初期値0
+        workOrder,                  // work_order: 実行順序
+        prerequisiteTransitionIds,  // prerequisite_transition_ids: 前提トランジションID配列
+        userId,                     // create_user_id
+        userId,                     // update_user_id
       ];
       await client.query(query, params);
     } catch (error) {

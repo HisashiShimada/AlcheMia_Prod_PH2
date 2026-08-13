@@ -1,0 +1,13 @@
+[
+  { "key": "ns-maiml",       "prefix": "maiml",       "uri": "http://www.maiml.org/schemas",                  "order": 1,  "auto": true, "category": "global",       "scopeName": "グローバル" },
+  { "key": "ns-xsi",         "prefix": "xsi",         "uri": "http://www.w3.org/2001/XMLSchema-instance",     "order": 2,  "auto": true, "category": "global",       "scopeName": "グローバル" },
+  { "key": "ns-corpa",       "prefix": "CorpA",       "uri": "https://www.corpa.co.jp/",                      "order": 3,  "auto": true, "category": "organization", "scopeName": "株式会社CorpA" },
+  { "key": "ns-rd",          "prefix": "rd",          "uri": "https://www.corpa.co.jp/rd/",                   "order": 4,  "auto": true, "category": "organization", "scopeName": "研究開発部" },
+  { "key": "ns-materials",   "prefix": "materials",   "uri": "https://www.corpa.co.jp/rd/materials/",         "order": 5,  "auto": true, "category": "organization", "scopeName": "材料グループ" },
+  { "key": "ns-measurement", "prefix": "measurement", "uri": "https://www.corpa.co.jp/rd/measurement/",       "order": 6,  "auto": true, "category": "organization", "scopeName": "計測グループ" },
+  { "key": "ns-mfg",         "prefix": "mfg",         "uri": "https://www.corpa.co.jp/mfg/",                  "order": 7,  "auto": true, "category": "organization", "scopeName": "製造部" },
+  { "key": "ns-process",     "prefix": "process",     "uri": "https://www.corpa.co.jp/mfg/process/",          "order": 8,  "auto": true, "category": "organization", "scopeName": "プロセス技術部" },
+  { "key": "ns-qa",          "prefix": "qa",          "uri": "https://www.corpa.co.jp/qa/",                   "order": 9,  "auto": true, "category": "organization", "scopeName": "品質保証部" },
+  { "key": "ns-qad",         "prefix": "qad",         "uri": "https://www.corpa.co.jp/qa/audit/",             "order": 10, "auto": true, "category": "organization", "scopeName": "品質監査チーム" },
+  { "key": "ns-myword",      "prefix": "MyWord",      "uri": "https://orcid.org/0000-0002-2494-9603",         "order": 11, "auto": true, "category": "personal",     "scopeName": "個人" }
+]

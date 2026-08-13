@@ -36,8 +36,10 @@ type Messages = {
       contractProjectsNotNumber: string;
     };
   };
-  department: {
+  organizationGroup: {
+    notFound: string;
     duplicateCd: string;
+    accessDenied: string;
     csv: {
       cdRequired: string;
       nameRequired: string;
@@ -123,14 +125,16 @@ const ja: Messages = {
       contractProjectsNotNumber: '{row}行目: contract_projectsは数値で入力してください',
     },
   },
-  department: {
-    duplicateCd: '入力されたIDは既に存在しています',
+  organizationGroup: {
+    notFound: '組織グループが見つかりません',
+    duplicateCd: '入力されたグループCDは既に存在しています',
+    accessDenied: '指定された組織グループへのアクセス権限がありません',
     csv: {
-      cdRequired: '{row}行目: department_cdは必須です',
-      nameRequired: '{row}行目: department_nameは必須です',
+      cdRequired: '{row}行目: organization_group_cdは必須です',
+      nameRequired: '{row}行目: organization_group_nameは必須です',
       isActiveInvalid: '{row}行目: is_activeは true/false/1/0 のいずれかである必要があります',
-      cdDuplicateInCsv: '{row}行目: department_cd「{cd}」はCSV内で重複しています',
-      cdAlreadyExists: '{row}行目: department_cd「{cd}」は既に存在します',
+      cdDuplicateInCsv: '{row}行目: organization_group_cd「{cd}」はCSV内で重複しています',
+      cdAlreadyExists: '{row}行目: organization_group_cd「{cd}」は既に存在します',
     },
   },
   role: {
@@ -210,14 +214,16 @@ const en: Messages = {
       contractProjectsNotNumber: 'Row {row}: contract_projects must be a number',
     },
   },
-  department: {
-    duplicateCd: 'The entered ID already exists',
+  organizationGroup: {
+    notFound: 'Organization group not found',
+    duplicateCd: 'The entered group CD is already in use',
+    accessDenied: 'You do not have permission to access the specified organization group',
     csv: {
-      cdRequired: 'Row {row}: department_cd is required',
-      nameRequired: 'Row {row}: department_name is required',
+      cdRequired: 'Row {row}: organization_group_cd is required',
+      nameRequired: 'Row {row}: organization_group_name is required',
       isActiveInvalid: 'Row {row}: is_active must be one of true/false/1/0',
-      cdDuplicateInCsv: 'Row {row}: department_cd "{cd}" is duplicated within the CSV',
-      cdAlreadyExists: 'Row {row}: department_cd "{cd}" already exists',
+      cdDuplicateInCsv: 'Row {row}: organization_group_cd "{cd}" is duplicated within the CSV',
+      cdAlreadyExists: 'Row {row}: organization_group_cd "{cd}" already exists',
     },
   },
   role: {

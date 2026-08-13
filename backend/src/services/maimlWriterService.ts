@@ -17,6 +17,7 @@
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { getStorageService } from './storageService';
+import type { ExperimentPlan } from '../types/database';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
 import type { EventLogJsonRecord } from '../utils/maimlDataWriter';
 import {
@@ -25,9 +26,11 @@ import {
   replaceDataAndEventLogInMaiml,
   replaceEventLogInMaiml,
   updateDocumentUuidAndParent,
+  injectNamespaceDeclarations,
 } from '../utils/maimlDataWriter';
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
+import { findNamespacesByOrganization } from '../repositories/namespaceTermRepository';
 
 /**
  * maiml_event_log テーブルの1行
@@ -134,6 +137,10 @@ export class MaimlWriterService {
 
     // --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
     let updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
+
+    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入（DBの内容で完全上書き）
+    const namespaces = await findNamespacesByOrganization(organizationId);
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, namespaces);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
@@ -270,6 +277,10 @@ export class MaimlWriterService {
     // --- 7. 既存 MAIML の <eventLog> タグのみを置き換え（<data> は変更しない）---
     let updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
 
+    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入（DBの内容で完全上書き）
+    const namespaces = await findNamespacesByOrganization(organizationId);
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, namespaces);
+
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
 
@@ -334,5 +345,217 @@ export class MaimlWriterService {
         `organizationId=${organizationId}, projectId=${projectId}, ` +
         `eventLog=${logJsonArray.length}件`
     );
+  }
+
+  /**
+   * チェックアウト時に実験計画データを MAIML の <properties> 要素として書き込む
+   *
+   * experiment_plan テーブルの planned_values を
+   * `mgr-instruction:` プレフィックス付きの <property> 要素として
+   * 各タスクの <transition> ブロック内に挿入する。
+   *
+   * MAIMLファイルが存在しない場合はスキップ（non-fatal）。
+   *
+   * @param organizationId  - 組織ID
+   * @param projectId       - プロジェクトID
+   * @param projectName     - プロジェクト名
+   * @param experimentPlans - DB から取得した実験計画レコード一覧
+   */
+  async writeExperimentPlanProperties(
+    organizationId: string,
+    projectId: string,
+    projectName: string,
+    experimentPlans: ExperimentPlan[]
+  ): Promise<void> {
+    const storageService = getStorageService();
+
+    // --- 1. MAIMLファイルの存在確認 ---
+    const filePath = await resolveMaimlFilePath(organizationId, projectId, projectName);
+    const fileExists = await storageService.fileExists(organizationId, filePath);
+
+    if (!fileExists) {
+      console.warn(
+        `[MaimlWriterService.writeExperimentPlanProperties] MAIMLファイルが存在しないためスキップします: ${filePath}`
+      );
+      return;
+    }
+
+    // --- 2. MAIMLファイルをダウンロード ---
+    const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+    let maimlContent = fileBuffer.toString('utf-8');
+
+    // --- 3. 各実験計画レコードを MAIML に書き込み ---
+    // planned_values が null の場合はスキップ
+    let updatedCount = 0;
+    for (const plan of experimentPlans) {
+      if (!plan.planned_values) continue;
+
+      // <transition id="{method_id}_{task_no:0埋め3桁}"> を検索してプロパティを挿入
+      // task_no を3桁ゼロ埋めした形式（例: task_no=1 → "001"）
+      const taskNoStr = String(plan.task_no).padStart(3, '0');
+      // transition id パターン: "{methodId}_{taskNoStr}" もしくは任意の形式
+      // MAIMLの <transition> 要素を task_no で特定するため、
+      // <properties> 要素内に mgr-instruction: プレフィックスのプロパティを挿入する
+      maimlContent = this._injectExperimentPlanProps(
+        maimlContent,
+        plan.method_id,
+        taskNoStr,
+        plan.planned_values as Record<string, unknown>
+      );
+      updatedCount++;
+    }
+
+    if (updatedCount === 0) {
+      console.log(
+        '[MaimlWriterService.writeExperimentPlanProperties] 書き込み対象の計画値なし、スキップ'
+      );
+      return;
+    }
+
+    // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
+    maimlContent = updateDocumentUuidAndParent(maimlContent);
+
+    // --- 4. アーカイブ処理 ---
+    try {
+      const pathParts = filePath.split('/');
+      const fileName = pathParts[pathParts.length - 1];
+      const dirPath = pathParts.slice(0, -1).join('/');
+      const baseName = fileName.replace(/\.maiml$/i, '');
+      const archivePath = `${dirPath}/archive`;
+
+      let maxVersion = 0;
+      try {
+        const archiveFiles = await storageService.listFiles(organizationId, archivePath);
+        const pattern = new RegExp(
+          `^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_v(\\d+)\\.maiml$`
+        );
+        archiveFiles.forEach((file: any) => {
+          const name: string = (file.key || '').split('/').pop() ?? '';
+          const match = name.match(pattern);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxVersion) maxVersion = num;
+          }
+        });
+      } catch (_listErr) {
+        // archiveフォルダが存在しない場合は v1 から開始
+      }
+
+      const newVersion = maxVersion + 1;
+      const backupPath = `${archivePath}/${baseName}_v${newVersion}.maiml`;
+
+      await storageService.uploadFile(
+        organizationId,
+        backupPath,
+        fileBuffer,
+        { contentType: 'application/xml', uploadedBy: 'system' }
+      );
+
+      console.log(
+        `[MaimlWriterService.writeExperimentPlanProperties] アーカイブ作成: ${backupPath}`
+      );
+    } catch (archiveError) {
+      console.warn(
+        '[MaimlWriterService.writeExperimentPlanProperties] アーカイブ作成失敗（処理継続）:',
+        archiveError
+      );
+    }
+
+    // --- 5. 上書き保存 ---
+    await storageService.uploadFile(
+      organizationId,
+      filePath,
+      maimlContent,
+      { contentType: 'application/xml', uploadedBy: 'system' }
+    );
+
+    console.log(
+      `[MaimlWriterService.writeExperimentPlanProperties] MAIMLファイル更新完了: ` +
+        `organizationId=${organizationId}, projectId=${projectId}, ` +
+        `updatedTasks=${updatedCount}件`
+    );
+  }
+
+  /**
+   * MAIML XML 文字列内の指定メソッド・タスク番号に対応する <transition> ブロック内の
+   * <properties> 要素に mgr-instruction: プレフィックス付き <property> を注入する（内部メソッド）
+   *
+   * @param maimlContent - 元の MAIML XML 文字列
+   * @param methodId     - メソッドID（<method id="..."> の id 属性値）
+   * @param taskNoStr    - タスク番号（3桁ゼロ埋め文字列）
+   * @param values       - planned_values オブジェクト（キー → 値）
+   * @returns 更新後の MAIML XML 文字列
+   */
+  private _injectExperimentPlanProps(
+    maimlContent: string,
+    methodId: string,
+    taskNoStr: string,
+    values: Record<string, unknown>
+  ): string {
+    // <properties> 内の既存 mgr-instruction: プロパティをすべて除去してから再挿入する
+    // （冪等性を保つため）
+
+    // planned_values のキー・値ペアを <property> XML に変換
+    const propLines = Object.entries(values)
+      .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')
+      .map(([key, value]) => {
+        const escapedKey = key.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const escapedVal = String(value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+        return `        <property key="mgr-instruction:${escapedKey}" value="${escapedVal}"/>`;
+      });
+
+    if (propLines.length === 0) return maimlContent;
+
+    const propsXml = propLines.join('\n');
+
+    // task_no に対応する <task> の taskNo 属性で特定し、その中の <properties> に挿入
+    // MAIML 構造: <method id="..."> → <program> → <task taskNo="001"> → <properties>
+    // taskNo 属性の値を検索（ゼロ埋め3桁形式）
+    const taskNoPattern = new RegExp(
+      `(<task[^>]+taskNo="${taskNoStr}"[^>]*>(?:[\\s\\S]*?))(<\\/task>)`,
+      'i'
+    );
+
+    const taskMatch = maimlContent.match(taskNoPattern);
+    if (!taskMatch) {
+      // task 要素が見つからない場合はスキップ（MAIML 構造が異なる可能性）
+      console.warn(
+        `[MaimlWriterService._injectExperimentPlanProps] taskNo="${taskNoStr}" の <task> 要素が見つかりません（methodId=${methodId}）`
+      );
+      return maimlContent;
+    }
+
+    // <properties> タグが存在する場合は既存 mgr-instruction: を除去後に挿入
+    // 存在しない場合は </task> 直前に <properties>...</properties> を追加
+    const propertiesPattern = /(<properties[^>]*>)([\s\S]*?)(<\/properties>)/i;
+
+    maimlContent = maimlContent.replace(taskNoPattern, (fullMatch, taskBody, closeTag) => {
+      const propertiesMatch = taskBody.match(propertiesPattern);
+
+      if (propertiesMatch) {
+        // 既存 <properties> 内の mgr-instruction: プロパティを除去
+        const cleanedBody = taskBody.replace(
+          /[ \t]*<property[^>]+key="mgr-instruction:[^"]*"[^>]*\/>[ \t]*\n?/gi,
+          ''
+        );
+        // </properties> 直前に挿入
+        const updatedBody = cleanedBody.replace(
+          propertiesPattern,
+          (_pm: string, openTag: string, innerContent: string, closePropsTag: string) =>
+            `${openTag}${innerContent}\n${propsXml}\n      ${closePropsTag}`
+        );
+        return `${updatedBody}${closeTag}`;
+      } else {
+        // <properties> が存在しない → </task> 直前に新規追加
+        const newProps = `\n      <properties>\n${propsXml}\n      </properties>\n    `;
+        return `${taskBody}${newProps}${closeTag}`;
+      }
+    });
+
+    return maimlContent;
   }
 }

@@ -52,7 +52,7 @@ export const ALLOWED_TRANSITIONS: Record<TransitionStatusNumber, TransitionStatu
   [TransitionStatusEnum.INITIAL]: [TransitionStatusEnum.INITIAL, TransitionStatusEnum.PREPARING, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.PREPARING]: [TransitionStatusEnum.PREPARING, TransitionStatusEnum.READY, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.READY]: [TransitionStatusEnum.READY, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
-  [TransitionStatusEnum.IN_PROGRESS]: [TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.PAUSED, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.IN_PROGRESS]: [TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.PAUSED, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR, TransitionStatusEnum.INITIAL],
   [TransitionStatusEnum.PAUSED]: [TransitionStatusEnum.PAUSED, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.COMPLETED]: [TransitionStatusEnum.COMPLETED],
   [TransitionStatusEnum.ERROR]: [TransitionStatusEnum.ERROR]
@@ -494,7 +494,24 @@ export class ProgressService {
     methodId: string,
     taskNo: number
   ): Promise<TransitionProgress> {
-    // トランジションに接続するプレースIDを取得（アーク経由）
+    // ── 入力プレースID（このトランジションに流れ込むプレース）を取得
+    // アーク: source=place → target=transition の場合が入力側
+    const inputPlaceIds: string[] = arcs
+      .filter((a: any) => a.target === transition.id)
+      .map((a: any) => a.source)
+      .filter((id: string) => places.some((p: any) => p.id === id));
+
+    // ── 前提トランジションID: 入力プレースに出力しているトランジションのID
+    // アーク: source=otherTransition → target=inputPlace の場合が前提トランジション
+    const prerequisiteTransitionIds: string[] = arcs
+      .filter((a: any) => inputPlaceIds.includes(a.target) && a.source !== transition.id)
+      .map((a: any) => a.source)
+      // プレースIDは除外し、他のトランジションIDのみ残す
+      .filter((id: string) => !places.some((p: any) => p.id === id))
+      // 重複排除
+      .filter((id: string, idx: number, arr: string[]) => arr.indexOf(id) === idx);
+
+    // ── トランジションに接続するプレースIDを取得（アーク経由・双方向）
     const connectedPlaceIds: string[] = places
       .filter((p: any) => arcs.some((a: any) =>
         (a.source === transition.id && a.target === p.id) ||
@@ -567,7 +584,8 @@ export class ProgressService {
           condition_count: conditionCount,
           condition_actual_count: conditionActualCount,
           result_count: resultCount,
-          result_actual_count: resultActualCount
+          result_actual_count: resultActualCount,
+          prerequisite_transition_ids: prerequisiteTransitionIds
         };
       }
 
@@ -585,7 +603,8 @@ export class ProgressService {
         condition_count: conditionCount,
         condition_actual_count: conditionActualCount,
         result_count: resultCount,
-        result_actual_count: resultActualCount
+        result_actual_count: resultActualCount,
+        prerequisite_transition_ids: prerequisiteTransitionIds
       };
 
     } catch (error) {
@@ -603,7 +622,8 @@ export class ProgressService {
         condition_count: conditionCount,
         condition_actual_count: conditionActualCount,
         result_count: resultCount,
-        result_actual_count: resultActualCount
+        result_actual_count: resultActualCount,
+        prerequisite_transition_ids: prerequisiteTransitionIds
       };
     }
   }
@@ -722,7 +742,7 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 1: プロジェクト基本情報を DB から取得
       // ─────────────────────────────────────────────
-      const proj = await projectRepository.findWithOwnerAndDept(projectId, organizationId);
+      const proj = await projectRepository.findWithOwnerAndOrgGroup(projectId, organizationId);
 
       if (!proj) {
         logger.warn('[ProgressService.getWorkDetails] プロジェクトが見つかりません', { projectId, organizationId });
@@ -762,7 +782,7 @@ export class ProgressService {
         projectName: proj.project_name,
         projectDescription: proj.description ?? undefined,
         owner: proj.owner_name ?? proj.owner_user_id ?? '',
-        department: proj.department_name ?? proj.department_cd ?? undefined,
+        organizationGroup: proj.organization_group_name ?? proj.organization_group_cd ?? undefined,
         status: statusStr,
         methods: methodIds,
         createdAt: proj.create_at ? proj.create_at.toISOString() : '',

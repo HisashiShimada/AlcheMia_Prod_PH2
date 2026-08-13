@@ -19,7 +19,6 @@ import {
   Alert,
   Space,
   Typography,
-  Checkbox,
   DatePicker,
   Tag,
 } from 'antd';
@@ -27,7 +26,6 @@ import {
   ThunderboltOutlined,
   ClockCircleOutlined,
   SaveOutlined,
-  SecurityScanOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import MultiObjectEditor from './MultiObjectEditor';
@@ -72,7 +70,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
-    signature: false,
     creators: false,
     vendors: false,
     owners: false,
@@ -397,28 +394,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                            {t('document.currentTimeButton')}
                         </Button>
                       </Space.Compact>
-                    </Space>
-                  ),
-                },
-                {
-                  key: 'signature',
-                  label: (
-                    <Space>
-                      <SecurityScanOutlined />
-                       <Text strong>{t('document.sectionSignature')}</Text>
-                    </Space>
-                  ),
-                  children: (
-                    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-                      <Alert
-                         title={t('document.signatureTitle')}
-                         description={t('document.signatureDescription')}
-                        type="info"
-                      />
-
-                      <Form.Item name="signatureEnabled" valuePropName="checked">
-                        <Checkbox>{t('document.signatureCheckbox')}</Checkbox>
-                      </Form.Item>
                     </Space>
                   ),
                 },

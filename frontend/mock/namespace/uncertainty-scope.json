@@ -1,0 +1,133 @@
+[
+  {
+    "key": "global",
+    "label": "Global",
+    "count": 2,
+    "icon": "🌐",
+    "children": [
+      {
+        "key": "ns-maiml",
+        "label": "maiml",
+        "count": 0,
+        "icon": "📜",
+        "prefix": "maiml",
+        "uri": "http://www.maiml.org/schemas",
+        "description": "MaiML標準スキーマ定義"
+      },
+      {
+        "key": "ns-xsi",
+        "label": "xsi",
+        "count": 0,
+        "icon": "📜",
+        "prefix": "xsi",
+        "uri": "http://www.w3.org/2001/XMLSchema-instance",
+        "description": "XMLスキーマインスタンス属性"
+      }
+    ]
+  },
+  {
+    "key": "company",
+    "label": "株式会社",
+    "count": 12,
+    "icon": "🏢",
+    "prefix": "CorpA",
+    "uri": "https://ORG001.Alchemia.co.jp/",
+    "namespaces": [
+      { "key": "ns-corp-main", "prefix": "CorpA",     "uri": "https://ORG001.Alchemia.co.jp/" },
+      { "key": "ns-corp-data", "prefix": "CorpAData", "uri": "https://ORG001.Alchemia.co.jp/" },
+      { "key": "ns-corp-meta", "prefix": "CorpAMeta", "uri": "https://ORG001.Alchemia.co.jp/" }
+    ],
+    "children": [
+      {
+        "key": "dept-rd",
+        "label": "研究開発部",
+        "count": 8,
+        "prefix": "rd",
+        "uri": "https://ORG001ORG001.Alchemia.co.jp/RD/",
+        "description": "研究開発部の用語定義",
+        "children": [
+          {
+            "key": "rd-materials",
+            "label": "材料グループ",
+            "count": 3,
+            "prefix": "materials",
+            "uri": "https://ORG001ORG001.Alchemia.co.jp/RD/ChemTeam/",
+            "description": "材料特性・組成データの定義"
+          },
+          {
+            "key": "rd-measurement",
+            "label": "計測チーム",
+            "count": 5,
+            "prefix": "measurement",
+            "uri": "https://www.corpa.co.jp/rd/measurement/",
+            "description": "計測・測定方法の定義"
+          },
+          {
+            "key": "rd-analysis",
+            "label": "解析チーム",
+            "count": 2,
+            "prefix": "analysis",
+            "uri": "https://www.corpa.co.jp/rd/analysis/",
+            "description": "材料解析データの定義"
+          },
+          {
+            "key": "rd-develop",
+            "label": "開発チーム",
+            "count": 4,
+            "prefix": "develop",
+            "uri": "https://www.corpa.co.jp/rd/develop/",
+            "description": "製品開発・プロトタイプ検証データの定義"
+          }
+        ]
+      },
+      {
+        "key": "dept-mfg",
+        "label": "生産技術部",
+        "count": 3,
+        "prefix": "mfg",
+        "uri": "https://www.corpa.co.jp/mfg/",
+        "description": "生産技術部の用語定義",
+        "children": [
+          {
+            "key": "mfg-process",
+            "label": "プロセスチーム",
+            "count": 2,
+            "prefix": "process",
+            "uri": "https://www.corpa.co.jp/mfg/process/",
+            "description": "製造プロセスパラメータの定義"
+          },
+          {
+            "key": "mfg-qa",
+            "label": "品質管理",
+            "count": 1,
+            "prefix": "qa",
+            "uri": "https://www.corpa.co.jp/mfg/qa/",
+            "description": "品質検査・管理指標の定義"
+          }
+        ]
+      },
+      {
+        "key": "dept-qa",
+        "label": "品質保証部",
+        "count": 1,
+        "children": [
+          {
+            "key": "dept-qa-qad",
+            "label": "qad",
+            "count": 1,
+            "prefix": "qad",
+            "uri": "https://www.corpa.co.jp/qad/",
+            "description": "品質保証プロセスと基準の定義"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "personal",
+    "label": "Personal",
+    "count": 0,
+    "icon": "👤",
+    "children": []
+  }
+]
