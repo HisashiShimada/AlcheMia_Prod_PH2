@@ -8,8 +8,9 @@
 
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
+import * as experimentPlanRepository from '../repositories/experimentPlanRepository';
 import { getPool } from '../database/db';
-import { ProjectInstruction } from '../types/database';
+import { ProjectInstruction, ExperimentPlan } from '../types/database';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import {
   TaskRegistrationStatusResponse,
@@ -331,20 +332,58 @@ export async function sendInstructions(
     // 2. 各指示に対して maiml_event_log に送信ログを記録
     const sentAt = new Date().toISOString();
     const eventLogRepo = new EventLogRepository();
+
+    // トランジション+タスクNo 両方ある指示について experiment_plan から
+    // creatorRefs / instrumentRefs を取得するキャッシュ（methodId → plans）
+    const experimentPlanCache = new Map<string, ExperimentPlan[]>();
+
     for (const instruction of unsentInstructions) {
       const methodId = instruction.method_id ?? null;
       const programId = methodId ? (programIdMap[methodId] ?? null) : null;
+      const transitionId = instruction.transition_id ?? null;
+      const taskNo = instruction.task_no ?? null;
+
+      // トランジション+タスクNo 両方指定の場合のみ experiment_plan を参照
+      let creatorRefs: string[] | null = null;
+      let instrumentRefs: string[] | null = null;
+      if (methodId && transitionId && taskNo != null) {
+        // 同一 methodId の計画は初回のみ取得してキャッシュ
+        if (!experimentPlanCache.has(methodId)) {
+          const plans = await experimentPlanRepository.findByMethod(
+            organizationId,
+            projectId,
+            methodId
+          );
+          experimentPlanCache.set(methodId, plans);
+        }
+        const plans = experimentPlanCache.get(methodId) ?? [];
+        const plan = plans.find((p) => p.task_no === taskNo);
+        const taskMeta = (plan?.planned_values as Record<string, unknown> | undefined)?.['__task__'];
+        if (taskMeta && typeof taskMeta === 'object' && !Array.isArray(taskMeta)) {
+          const meta = taskMeta as Record<string, unknown>;
+          creatorRefs = Array.isArray(meta.creatorRefs) ? (meta.creatorRefs as string[]) : null;
+          instrumentRefs = Array.isArray(meta.instrumentRefs) ? (meta.instrumentRefs as string[]) : null;
+        }
+        logger.info('[sendInstructions] experiment_plan からcreatorRefs/instrumentRefs を取得', {
+          methodId,
+          taskNo,
+          creatorRefs,
+          instrumentRefs,
+        });
+      }
 
       const projectInstructionParams: ProjectInstructionSentLogParams = {
         methodId,
-        transitionId: instruction.transition_id ?? null,
+        transitionId,
         programId,
-        taskNo: instruction.task_no ?? null,
+        taskNo,
         experimentInstructionId: instruction.experiment_instruction_id!,
         userId,
         sentAt,
         instructions: instruction.instructions ?? null,
         instructionKey: instruction.instruction_key,
+        creatorRefs,
+        instrumentRefs,
       };
       await eventLogRepo.insertProjectInstructionSentLog(
         organizationId,

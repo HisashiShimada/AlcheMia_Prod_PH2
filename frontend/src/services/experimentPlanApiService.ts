@@ -15,16 +15,11 @@ import type {
 } from '@/types/experimentPlan';
 
 import { createApiClient } from '@/utils/authUtils';
-import type { TemplateDef, NoteTypeValue, TemplateValues, NoteItem } from '@/types/experimentPlan';
+import type { TemplateDef, TemplateValues } from '@/types/experimentPlan';
 import type { ExperimentPlanTabData } from '@/types/experimentPlan';
 
 /** TransitionPlanValues（バックエンドの planned_values の各transitionId配下） */
 interface TransitionPlanValues {
-  'Alchemia:SupervisorDirectiveCaution'?: string;
-  'Alchemia:SupervisorDirectiveOperationNote'?: string;
-  'Alchemia:SupervisorDirectiveCheckItem'?: string;
-  'Alchemia:SupervisorDirectiveProhibitedAction'?: string;
-  'Alchemia:SupervisorDirectiveOtherNotes'?: string;
   [templateId: string]: string[] | string | Record<string, string> | undefined;
 }
 
@@ -43,15 +38,6 @@ interface GetExperimentPlansResult {
   plans: ExperimentPlanDto[];
 }
 
-// ── ノートタイプ定数（types/experimentPlan.ts の NoteType と同値） ─────────
-const NOTE_TYPE_KEYS: NoteTypeValue[] = [
-  'Alchemia:SupervisorDirectiveCaution',
-  'Alchemia:SupervisorDirectiveOperationNote',
-  'Alchemia:SupervisorDirectiveCheckItem',
-  'Alchemia:SupervisorDirectiveProhibitedAction',
-  'Alchemia:SupervisorDirectiveOtherNotes',
-];
-
 /**
  * 1トランジション分の TransitionPlanValues → ExperimentPlanTabData に変換する
  * （バックエンドのデータをダイアログ表示用に復元する）
@@ -67,24 +53,12 @@ function transitionValuesToTabData(
   const instrumentRefs: string[] = [];
   const ownerRefs: string[] = [];
 
-  // 注意事項
-  const notes: NoteItem[] = [];
-  for (const noteType of NOTE_TYPE_KEYS) {
-    const content = transValues[noteType] as string | undefined;
-    if (content) {
-      notes.push({
-        id: `${transitionId}-${noteType}-restored`,
-        type: noteType,
-        content,
-        properties: [],
-      });
-    }
-  }
-
   // テンプレート値（予約キー以外をテンプレート値とみなす）
   const templateValues: TemplateValues = {};
   const reservedKeys = new Set<string>([
-    ...NOTE_TYPE_KEYS,
+    '__uncertainty__',
+    '__task__',
+    '__meta__',
   ]);
   for (const [key, value] of Object.entries(transValues)) {
     if (!reservedKeys.has(key) && typeof value === 'string') {
@@ -100,12 +74,27 @@ function transitionValuesToTabData(
       ? (rawUncertainty as unknown as ExperimentPlanTabData['assignedUncertainty'])
       : {};
 
+  // タスク共通データを復元（__task__ キー: creatorRefs / instrumentRefs / ownerRefs）
+  const rawTask = transValues['__task__'];
+  if (rawTask && typeof rawTask === 'object' && !Array.isArray(rawTask)) {
+    const taskMeta = rawTask as Record<string, unknown>;
+    if (Array.isArray(taskMeta.creatorRefs)) {
+      creatorRefs.push(...(taskMeta.creatorRefs as string[]));
+    }
+    if (Array.isArray(taskMeta.instrumentRefs)) {
+      instrumentRefs.push(...(taskMeta.instrumentRefs as string[]));
+    }
+    if (Array.isArray(taskMeta.ownerRefs)) {
+      ownerRefs.push(...(taskMeta.ownerRefs as string[]));
+    }
+  }
+
   return {
     selectedTransitions: [transitionId],
     creatorRefs,
     instrumentRefs,
     ownerRefs,
-    notes,
+    notes: [],
     templateValues,
     assignedUncertainty,
   };
@@ -117,11 +106,6 @@ function transitionValuesToTabData(
 function tabDataToTransitionValues(tabData: ExperimentPlanTabData): TransitionPlanValues {
   const values: TransitionPlanValues = {};
 
-  for (const note of tabData.notes) {
-    if (note.content.trim()) {
-      values[note.type] = note.content;
-    }
-  }
   for (const [key, value] of Object.entries(tabData.templateValues)) {
     if (value !== undefined && value !== '') {
       values[key] = String(value);
@@ -132,6 +116,22 @@ function tabDataToTransitionValues(tabData: ExperimentPlanTabData): TransitionPl
   if (tabData.assignedUncertainty && Object.keys(tabData.assignedUncertainty).length > 0) {
     // TransitionPlanValues のインデックスシグネチャとの型不整合を unknown 経由で回避
     (values as unknown as Record<string, unknown>)['__uncertainty__'] = tabData.assignedUncertainty;
+  }
+
+  // タスク共通データ（creatorRefs / instrumentRefs / ownerRefs）を __task__ キーに保存
+  // これらはトランジション単位ではなくタスク全体に紐づくため予約キーで管理する
+  const taskMeta: Record<string, unknown> = {};
+  if (tabData.creatorRefs && tabData.creatorRefs.length > 0) {
+    taskMeta.creatorRefs = tabData.creatorRefs;
+  }
+  if (tabData.instrumentRefs && tabData.instrumentRefs.length > 0) {
+    taskMeta.instrumentRefs = tabData.instrumentRefs;
+  }
+  if (tabData.ownerRefs && tabData.ownerRefs.length > 0) {
+    taskMeta.ownerRefs = tabData.ownerRefs;
+  }
+  if (Object.keys(taskMeta).length > 0) {
+    (values as unknown as Record<string, unknown>)['__task__'] = taskMeta;
   }
 
   return values;

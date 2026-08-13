@@ -568,20 +568,14 @@ export interface UserSearchFilters {
  *
  * @remarks
  * planned_values の各 transitionId キー配下の型。
- * - `Alchemia:SupervisorDirectiveXxx` 等の注意事項文字列値
  * - `[templateId]` キーのテンプレート想定値（fieldKey → value）
+ *
+ * 予約キー（トランジションIDとして使用しないキー）:
+ * - `__task__`       : タスク共通データ（creatorRefs / instrumentRefs / ownerRefs）
+ * - `__uncertainty__`: 不確かさ付与情報（TemplateInputPanel の AssignPayload[]）
+ * - `__meta__`       : トランジション実行順序情報（transitionOrder）
  */
 export interface TransitionPlanValues {
-  /** 安全上の注意事項 */
-  'Alchemia:SupervisorDirectiveCaution'?: string;
-  /** 操作手順上の注記 */
-  'Alchemia:SupervisorDirectiveOperationNote'?: string;
-  /** 実施前後の確認事項 */
-  'Alchemia:SupervisorDirectiveCheckItem'?: string;
-  /** 禁止事項 */
-  'Alchemia:SupervisorDirectiveProhibitedAction'?: string;
-  /** その他注意事項 */
-  'Alchemia:SupervisorDirectiveOtherNotes'?: string;
   /** テンプレート想定値（templateId → { fieldKey: value }） */
   [templateId: string]: string[] | string | Record<string, string> | undefined;
 }

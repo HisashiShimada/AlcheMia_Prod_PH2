@@ -82,6 +82,16 @@ export interface ProjectInstructionSentLogParams {
   instructions: string | null;
   /** MAIMLのpropertyタグキー（必須） */
   instructionKey: string;
+  /**
+   * トランジション+タスク単位の場合に experiment_plan から取得した Creator 一覧
+   * 0件または未指定の場合は creatorRef タグを省略する
+   */
+  creatorRefs?: string[] | null;
+  /**
+   * トランジション+タスク単位の場合に experiment_plan から取得した Instrument 一覧
+   * 0件または未指定の場合は instrumentRef タグを省略する
+   */
+  instrumentRefs?: string[] | null;
 }
 
 export type EventType = 'transition_status_update' | 'template_data_saved';
@@ -820,6 +830,21 @@ export class EventLogRepository {
    *   - property[@key='SupervisorDirectiveTimestamp'] — 送信日時
    *   - property[@key=instructionKey] — 指示種別キーと指示内容
    *   - ownerRef[@ref=userId(@→_)] — 指示出しユーザーID（@を_に置換）
+   *
+   * 粒度別の構造:
+   *   - 全体指示（methodId=null）:
+   *       eventLog > property × 2 + ownerRef
+   *   - メソッド単位（methodId のみ）:
+   *       eventLog > log[@ref=methodId] > property × 2 + ownerRef
+   *   - トランジション単位（methodId + transitionId）:
+   *       eventLog > log > trace[@ref=programId] > event[@ref=instructionId] > property × 2 + ownerRef
+   *   - タスク単位（methodId + taskNo、transitionId なし）:
+   *       eventLog > log > trace[@ref=programId, @taskno] > property × 3 + ownerRef
+   *       ※ property の3件目は Alchemia:SupervisorDirectiveTaskNo（intType）
+   *       ※ event タグは使用しない
+   *   - トランジション+タスク単位（methodId + transitionId + taskNo、最優先）:
+   *       eventLog > log > trace[@ref=programId] > event[@ref=instructionId]
+   *                          > property × 3 + ownerRef + creatorRef[] + instrumentRef[]
    */
   private buildProjectInstructionSentLogJson(
     params: ProjectInstructionSentLogParams,
@@ -835,13 +860,15 @@ export class EventLogRepository {
       sentAt,
       instructions,
       instructionKey,
+      creatorRefs,
+      instrumentRefs,
     } = params;
 
     // ownerRef の @ref 値: userId の "@" を "_" に置換
     const ownerRefObj = { '@ref': userId.replace('@', '_') };
 
     // 共通 property 配列（送信日時 + 指示種別キー）
-    const properties: Record<string, unknown>[] = [
+    const baseProperties: Record<string, unknown>[] = [
       {
         '@key': 'SupervisorDirectiveTimestamp',
         '@xsi:type': 'dateTimeType',
@@ -859,13 +886,72 @@ export class EventLogRepository {
       return {
         eventLog: {
           '@id': `eventLog_${sequenceNo}`,
-          property: properties,
+          property: baseProperties,
           ownerRef: ownerRefObj,
         },
       };
+    } else if (transitionId && taskNo != null) {
+      // トランジション+タスク単位（最優先）:
+      //   log > trace[@ref=programId] > event[@ref=instructionId]
+      //     > property × 3 + ownerRef + creatorRef[] + instrumentRef[]
+      const propertiesWithTaskNo = [
+        ...baseProperties,
+        {
+          '@key': 'Alchemia:SupervisorDirectiveTaskNo',
+          '@xsi:type': 'intType',
+          '#text': taskNo,
+        },
+      ];
+
+      const eventObj: Record<string, unknown> = {
+        '@id': `event_${sequenceNo}`,
+        '@ref': experimentInstructionId,
+        property: propertiesWithTaskNo,
+        ownerRef: ownerRefObj,
+      };
+
+      // creatorRef タグ（0件の場合は省略）
+      const creatorRefList = (creatorRefs ?? []).filter(Boolean);
+      if (creatorRefList.length === 1) {
+        eventObj.creatorRef = { '@ref': creatorRefList[0] };
+      } else if (creatorRefList.length > 1) {
+        eventObj.creatorRef = creatorRefList.map((ref) => ({ '@ref': ref }));
+      }
+
+      // instrumentRef タグ（0件の場合は省略）
+      const instrumentRefList = (instrumentRefs ?? []).filter(Boolean);
+      if (instrumentRefList.length === 1) {
+        eventObj.instrumentRef = { '@ref': instrumentRefList[0] };
+      } else if (instrumentRefList.length > 1) {
+        eventObj.instrumentRef = instrumentRefList.map((ref) => ({ '@ref': ref }));
+      }
+
+      return {
+        eventLog: {
+          '@id': `eventLog_${sequenceNo}`,
+          log: {
+            '@id': `log_${sequenceNo}`,
+            '@ref': methodId,
+            trace: {
+              '@id': `trace_${sequenceNo}`,
+              '@ref': programId ?? `trace_${sequenceNo}`,
+              event: eventObj,
+            },
+          },
+        },
+      };
     } else if (taskNo != null) {
-      // タスク単位: log > trace[@ref=programId, @taskno] > event > resultsRef + property + ownerRef
-      const resultsId = `results_${sequenceNo}`;
+      // タスク単位（transitionId なし）:
+      //   log > trace[@ref=programId, @taskno] > property × 3 + ownerRef
+      //   ※ event タグは使用しない
+      const propertiesWithTaskNo = [
+        ...baseProperties,
+        {
+          '@key': 'Alchemia:SupervisorDirectiveTaskNo',
+          '@xsi:type': 'intType',
+          '#text': taskNo,
+        },
+      ];
       return {
         eventLog: {
           '@id': `eventLog_${sequenceNo}`,
@@ -876,13 +962,8 @@ export class EventLogRepository {
               '@id': `trace_${sequenceNo}`,
               '@ref': programId ?? `trace_${sequenceNo}`,
               '@taskno': String(taskNo),
-              event: {
-                '@id': `event_${sequenceNo}`,
-                '@ref': experimentInstructionId,
-                resultsRef: { '@ref': resultsId },
-                property: properties,
-                ownerRef: ownerRefObj,
-              },
+              property: propertiesWithTaskNo,
+              ownerRef: ownerRefObj,
             },
           },
         },
@@ -901,7 +982,7 @@ export class EventLogRepository {
               event: {
                 '@id': `event_${sequenceNo}`,
                 '@ref': experimentInstructionId,
-                property: properties,
+                property: baseProperties,
                 ownerRef: ownerRefObj,
               },
             },
@@ -916,7 +997,7 @@ export class EventLogRepository {
           log: {
             '@id': `log_${sequenceNo}`,
             '@ref': methodId,
-            property: properties,
+            property: baseProperties,
             ownerRef: ownerRefObj,
           },
         },
