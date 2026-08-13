@@ -1751,12 +1751,12 @@
     "taskNoPlaceholder": "Select task No.",
     "taskOptionLabel": "Task {n}",
     "instructionKeyOptions": {
-      "SupervisorDirectiveContent": "General Instruction",
-      "mgr-instruction:caution": "Safety Precautions",
-      "mgr-instruction:operationNote": "Operation Notes",
-      "mgr-instruction:checkItem": "Pre/Post Check Items",
-      "mgr-instruction:prohibitedAction": "Prohibited Actions",
-      "mgr-instruction:OtherNotes": "Other Notes"
+      "Alchemia:SupervisorDirectiveContent": "General Instruction",
+      "Alchemia:SupervisorDirectiveCaution": "Safety Precautions",
+      "Alchemia:SupervisorDirectiveOperationNote": "Operation Notes",
+      "Alchemia:SupervisorDirectiveCheckItem": "Pre/Post Check Items",
+      "Alchemia:SupervisorDirectiveProhibitedAction": "Prohibited Actions",
+      "Alchemia:SupervisorDirectiveOtherNotes": "Other Notes"
     }
   },
   "saveConfirmDialog": {

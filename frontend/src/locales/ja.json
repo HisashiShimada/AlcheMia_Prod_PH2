@@ -2110,12 +2110,12 @@
     "taskNoPlaceholder": "タスクNoを選択",
     "taskOptionLabel": "タスク {n}",
     "instructionKeyOptions": {
-      "SupervisorDirectiveContent": "通常指示",
-      "mgr-instruction:caution": "安全上の注意事項",
-      "mgr-instruction:operationNote": "操作手順上の注記",
-      "mgr-instruction:checkItem": "実施前後の確認事項",
-      "mgr-instruction:prohibitedAction": "禁止事項",
-      "mgr-instruction:OtherNotes": "その他注意事項"
+      "Alchemia:SupervisorDirectiveContent": "通常指示",
+      "Alchemia:SupervisorDirectiveCaution": "安全上の注意事項",
+      "Alchemia:SupervisorDirectiveOperationNote": "操作手順上の注記",
+      "Alchemia:SupervisorDirectiveCheckItem": "実施前後の確認事項",
+      "Alchemia:SupervisorDirectiveProhibitedAction": "禁止事項",
+      "Alchemia:SupervisorDirectiveOtherNotes": "その他注意事項"
     }
   },
   "saveConfirmDialog": {
