@@ -5,13 +5,12 @@ INSERT INTO namespace (
   organization_id
   , namespace_id
   , uri
-  , global_flg
   , scope_key
   , create_user_id
   , create_at
   , update_user_id
   , update_at
 ) VALUES (
-  $1, $2, $3, FALSE, $5, $4, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP
+  $1, $2, $3, $5, $4, CURRENT_TIMESTAMP, $4, CURRENT_TIMESTAMP
 )
 ON CONFLICT (organization_id, namespace_id) DO NOTHING

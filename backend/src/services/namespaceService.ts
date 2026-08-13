@@ -12,6 +12,7 @@
 
 import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
 import type { NamespaceTermRow } from '../repositories/namespaceTermRepository';
+import { readGlobalDeclarations } from './globalNamespaceFileService';
 
 // ─── 型定義 ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +47,6 @@ export interface UpdateNamespaceResult {
   prefix: string;
   uri: string;
   scopeKey: string | null;
-  globalFlg: boolean;
 }
 
 /** createTerm の入力型 */
@@ -72,7 +72,6 @@ export interface UpdateTermInput {
 export interface ProjectScopeDeclaration {
   prefix: string;
   uri: string;
-  globalFlg: boolean;
 }
 
 // ─── 名前空間（Prefix）操作 ───────────────────────────────────────────────────
@@ -116,25 +115,13 @@ export async function getNamespaces(
  *
  * @param organizationId - 組織ID
  * @param scopeKey - namespace.scope_key（userId または organization_group_cd）
- * @returns prefix / uri / scopeKey / scopeName / isGlobal の配列
+ * @returns prefix / uri / scopeKey / scopeName の配列
  */
 export async function getNamespacesByScopeKey(
   organizationId: string,
   scopeKey: string
-): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string; isGlobal?: boolean }>> {
+): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>> {
   return namespaceTermRepository.findNamespacesByScopeKey(organizationId, scopeKey);
-}
-
-/**
- * global_flg=TRUE の名前空間に属する用語一覧を取得する
- *
- * @param organizationId - 組織ID
- * @returns 用語一覧
- */
-export async function getTermsGlobal(
-  organizationId: string
-): Promise<Array<{ qname: string; prefix: string; localName: string; displayName: string; description: string; type: string; unitHint: string; isActive: boolean }>> {
-  return namespaceTermRepository.findAllGlobal(organizationId);
 }
 
 /**
@@ -351,13 +338,13 @@ export async function getDeclarations(
  *
  * @remarks
  * - project テーブルから organization_group_cd を取得
- * - global_flg = TRUE の名前空間は常に含める
  * - organization_group_cd が指定されている場合は scope_key が一致する名前空間も含める
  * - organization_group_cd が NULL の場合は全件返す
+ * - グローバル名前空間（ファイルサーバ）の宣言をマージして返す
  *
  * @param organizationId - 組織ID
  * @param projectId - プロジェクトID
- * @returns prefix / uri / globalFlg の配列、または null（プロジェクトが見つからない場合）
+ * @returns prefix / uri の配列、または null（プロジェクトが見つからない場合）
  */
 export async function getDeclarationsByProject(
   organizationId: string,
@@ -370,5 +357,12 @@ export async function getDeclarationsByProject(
 
   const orgGroupCd: string | null = projectRow.organization_group_cd ?? null;
 
-  return namespaceTermRepository.findDeclarationsByProjectScope(organizationId, orgGroupCd);
+  // DB（組織固有）とファイルサーバ（グローバル）を並列取得してマージ
+  const [orgDeclarations, globalDeclarations] = await Promise.all([
+    namespaceTermRepository.findDeclarationsByProjectScope(organizationId, orgGroupCd),
+    readGlobalDeclarations(),
+  ]);
+
+  // グローバル宣言を先に並べ、組織固有宣言を後に追加（重複 prefix は後勝ち）
+  return [...globalDeclarations, ...orgDeclarations];
 }

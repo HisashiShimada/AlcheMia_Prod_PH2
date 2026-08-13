@@ -31,6 +31,7 @@ import {
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { findNamespacesByOrganization } from '../repositories/namespaceTermRepository';
+import { readGlobalDeclarations } from './globalNamespaceFileService';
 
 /**
  * maiml_event_log テーブルの1行
@@ -138,9 +139,14 @@ export class MaimlWriterService {
     // --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
     let updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
 
-    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入（DBの内容で完全上書き）
-    const namespaces = await findNamespacesByOrganization(organizationId);
-    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, namespaces);
+    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
+    // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
+    const [orgNamespaces1, globalDeclarations1] = await Promise.all([
+      findNamespacesByOrganization(organizationId),
+      readGlobalDeclarations(),
+    ]);
+    const allNamespaces1 = [...globalDeclarations1, ...orgNamespaces1];
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces1);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
@@ -277,9 +283,14 @@ export class MaimlWriterService {
     // --- 7. 既存 MAIML の <eventLog> タグのみを置き換え（<data> は変更しない）---
     let updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
 
-    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入（DBの内容で完全上書き）
-    const namespaces = await findNamespacesByOrganization(organizationId);
-    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, namespaces);
+    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
+    // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
+    const [orgNamespaces2, globalDeclarations2] = await Promise.all([
+      findNamespacesByOrganization(organizationId),
+      readGlobalDeclarations(),
+    ]);
+    const allNamespaces2 = [...globalDeclarations2, ...orgNamespaces2];
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces2);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);

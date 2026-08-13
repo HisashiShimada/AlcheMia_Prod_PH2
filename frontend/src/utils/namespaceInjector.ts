@@ -24,8 +24,6 @@ export interface NamespaceEntry {
   scopeKey?: string;
   /** スコープ名（organization_group.organization_group_name） */
   scopeName?: string;
-  /** グローバル名前空間フラグ（namespace.global_flg）。全スコープからアクセス可能 */
-  isGlobal?: boolean;
 }
 
 /**

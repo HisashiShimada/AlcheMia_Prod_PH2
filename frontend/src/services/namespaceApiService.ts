@@ -13,6 +13,7 @@ import type {
   OrganizationGroupRow,
   CreateOrganizationGroupRequest,
   UpdateOrganizationGroupRequest,
+  GlobalNamespaceEntry,
 } from '@/types/namespace';
 
 // ============================================================================
@@ -43,7 +44,6 @@ export interface CreateNamespaceRequest {
   description?: string;
   departmentCd?: string;
   scopeKey?: string;
-  isGlobal?: boolean;
 }
 
 /**
@@ -70,7 +70,6 @@ export interface UpdateNamespaceResponse {
   prefix: string;
   uri: string;
   scopeKey: string | null;
-  globalFlg: boolean;
 }
 
 /**
@@ -143,12 +142,10 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
  * 名前空間管理画面のPrefix一覧表示に使用する。
  *
  * @param options.scopeKeys - フィルタリングする scopeKey 配列（省略時は全件取得）
- * @param options.globalFlg - true の場合は global_flg=TRUE のデータのみ取得
  * @returns 名前空間エントリ一覧（{prefix, uri, scopeKey?}[]）
  */
 export const getNamespaceList = async (options?: {
   scopeKeys?: string[];
-  globalFlg?: boolean;
 }): Promise<NamespaceEntry[]> => {
   const client = createApiClient();
 
@@ -158,9 +155,6 @@ export const getNamespaceList = async (options?: {
     const params: Record<string, string> = {};
     if (options?.scopeKeys && options.scopeKeys.length > 0) {
       params.scopeKey = options.scopeKeys[0];
-    }
-    if (options?.globalFlg === true) {
-      params.globalFlg = 'true';
     }
 
     const response = await client.get<NamespaceListResponse>('/namespaces', { params });
@@ -180,11 +174,11 @@ export const getNamespaceList = async (options?: {
  * レスポンスに user_name が含まれる。
  *
  * @param userId - ログインユーザーのユーザーID（namespace.scope_key と一致する値）
- * @returns 個人名前空間一覧（{namespace_id, uri, scope_key, global_flg, user_name}[]）
+ * @returns 個人名前空間一覧（{namespace_id, uri, scope_key, user_name}[]）
  */
 export const getPersonalNamespaces = async (
   userId: string
-): Promise<Array<{ namespace_id: string; uri: string; scope_key: string; global_flg: boolean; user_name: string | null }>> => {
+): Promise<Array<{ namespace_id: string; uri: string; scope_key: string; user_name: string | null }>> => {
   const client = createApiClient();
 
   try {
@@ -195,7 +189,6 @@ export const getPersonalNamespaces = async (
         namespace_id: string;
         uri: string;
         scope_key: string;
-        global_flg: boolean;
         user_name: string | null;
       }>;
     }>('/namespaces', { params: { scopeKey: userId } });
@@ -280,15 +273,13 @@ export const deleteNamespace = async (prefix: string): Promise<void> => {
  * @remarks
  * バックエンドの GET /api/v1/namespaces/terms を呼び出す。
  *
- * @param options.scopeKey  - フィルタリングする scopeKey（単数）。指定時はそのスコープ + global の用語を返す
+ * @param options.scopeKey  - フィルタリングする scopeKey（単数）。指定時はそのスコープの用語を返す
  * @param options.scopeKeys - フィルタリングする scopeKey 配列（後方互換用・省略時は全件取得）
- * @param options.globalFlg - true の場合は global_flg=TRUE の名前空間に属する用語のみ取得
  * @returns 用語一覧
  */
 export const getTerms = async (options?: {
   scopeKey?: string;
   scopeKeys?: string[];
-  globalFlg?: boolean;
 }): Promise<NamespaceTermRow[]> => {
   const client = createApiClient();
 
@@ -301,9 +292,6 @@ export const getTerms = async (options?: {
       params.scopeKey = options.scopeKey;
     } else if (options?.scopeKeys && options.scopeKeys.length > 0) {
       params.scopeKeys = options.scopeKeys.join(',');
-    }
-    if (options?.globalFlg === true) {
-      params.globalFlg = 'true';
     }
 
     const response = await client.get<NamespaceTermRow[]>('/namespaces/terms', { params });
@@ -627,5 +615,79 @@ export const getOrganizationDisplayName = async (organizationId: string): Promis
   );
 
   return response.data.organizationDisplayName ?? '';
+};
+
+// ─── グローバル名前空間宣言（ファイルサーバ管理）────────────────────────────────
+
+/**
+ * グローバル名前空間宣言一覧を取得する
+ *
+ * @remarks
+ * GET /api/v1/namespaces/global-declarations を呼び出す。
+ * ファイルサーバ（system/namespaces/global-declarations.csv）から読み込まれる。
+ *
+ * @returns グローバル名前空間宣言エントリ一覧
+ */
+export const getGlobalDeclarations = async (): Promise<GlobalNamespaceEntry[]> => {
+  const client = createApiClient();
+
+  try {
+    console.log('🌐 [namespaceApiService] グローバル名前空間宣言一覧取得');
+    const response = await client.get<{ declarations: GlobalNamespaceEntry[] }>(
+      '/namespaces/global-declarations'
+    );
+    return response.data?.declarations ?? [];
+  } catch (error) {
+    console.warn('⚠️ [namespaceApiService] グローバル名前空間宣言の取得に失敗しました:', error);
+    return [];
+  }
+};
+
+/**
+ * グローバル名前空間宣言 CSV をインポートする（ファイルサーバへ上書き）
+ *
+ * @remarks
+ * POST /api/v1/namespaces/global-declarations/import を呼び出す。
+ * multipart/form-data で CSV ファイルを送信する。
+ *
+ * @param file - アップロードする CSV ファイル
+ */
+export const importGlobalDeclarations = async (file: File): Promise<void> => {
+  const client = createApiClient();
+
+  console.log('🌐 [namespaceApiService] グローバル名前空間宣言インポート:', file.name);
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  await client.post('/namespaces/global-declarations/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+/**
+ * グローバル名前空間宣言 CSV をエクスポートする（ブラウザでダウンロード）
+ *
+ * @remarks
+ * GET /api/v1/namespaces/global-declarations/export を呼び出し、
+ * レスポンスを CSV ファイルとしてブラウザでダウンロードする。
+ */
+export const exportGlobalDeclarations = async (): Promise<void> => {
+  const client = createApiClient();
+
+  console.log('🌐 [namespaceApiService] グローバル名前空間宣言エクスポート');
+
+  const response = await client.get('/namespaces/global-declarations/export', {
+    responseType: 'blob',
+  });
+
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'global-declarations.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 };
 

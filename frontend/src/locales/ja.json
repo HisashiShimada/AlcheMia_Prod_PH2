@@ -5041,5 +5041,21 @@
   "workflowSelectorDialog": {
     "loadFailed": "ワークフローの読み込みに失敗しました",
     "selectRequired": "ワークフローを選択してください"
+  },
+  "globalNamespace": {
+    "title": "グローバル名前空間宣言",
+    "description": "システム共通のグローバル名前空間（ファイルサーバ管理）",
+    "count": "{{count}} 件",
+    "empty": "グローバル名前空間宣言が登録されていません",
+    "fetchError": "グローバル名前空間宣言の取得に失敗しました",
+    "importButton": "インポート",
+    "exportButton": "エクスポート",
+    "importConfirmTitle": "グローバル名前空間宣言を上書きインポート",
+    "importConfirmContent": "現在のファイルサーバ上のデータが上書きされます。続行しますか？",
+    "importConfirmOk": "上書きインポート",
+    "importSuccess": "グローバル名前空間宣言をインポートしました",
+    "importError": "インポートに失敗しました",
+    "exportSuccess": "エクスポートが完了しました",
+    "exportError": "エクスポートに失敗しました"
   }
 }

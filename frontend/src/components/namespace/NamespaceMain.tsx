@@ -815,7 +815,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms({ globalFlg: true });
+      fetchTerms(); // グローバルノード選択時は全件取得
       fetchPrefixes(); // グローバルノード選択時は全 Prefix を取得
     } else if (COMPANY_KEYS.has(nsKey)) {
       fetchTerms(); // 全件
@@ -853,7 +853,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms({ globalFlg: true });
+      fetchTerms(); // グローバルノード選択時は全件取得
     } else if (COMPANY_KEYS.has(nsKey)) {
       fetchTerms(); // 全件
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
@@ -1680,12 +1680,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) return <span style={{ color: '#bbb' }}>—</span>;
         const term = record as Term;
-        const globalPrefixSet = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
-        const isGlobal = globalPrefixSet.has(term.prefix);
         const fullPath = getScopeFullPath(term.prefix);
         const parts = fullPath.split(' › ');
         // 絵文字・アイコン文字を除去してラベルを取得
-        const rawLabel = isGlobal ? 'Global' : parts[parts.length - 1].trim();
+        const rawLabel = parts[parts.length - 1].trim();
         const label = rawLabel.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27FF}]|[\u{1F300}-\u{1F9FF}]|\uFE0F/gu, '').trim();
         return (
           <Tooltip title={label}>

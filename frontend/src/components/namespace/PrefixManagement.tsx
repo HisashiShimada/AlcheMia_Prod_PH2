@@ -123,7 +123,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           prefix: row.prefix,
           uri: row.uri,
           description: row.description || undefined,
-          isGlobal: globalOnly,
           scopeKey: scopeKey ?? selectedNsKey ?? undefined,
         });
         added.push({
@@ -306,7 +305,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
               prefix: row.prefix,
               uri: row.uri,
               description: row.description || undefined,
-              isGlobal: globalOnly,
             });
             added.push({
               id: created.prefix,

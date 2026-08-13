@@ -23,4 +23,3 @@ RETURNING
   ) AS prefix
   , uri
   , scope_key
-  , global_flg

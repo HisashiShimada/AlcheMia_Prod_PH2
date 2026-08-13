@@ -5006,5 +5006,21 @@
   "workflowSelectorDialog": {
     "loadFailed": "Failed to load workflow",
     "selectRequired": "Please select a workflow"
+  },
+  "globalNamespace": {
+    "title": "Global Namespace Declarations",
+    "description": "System-wide global namespaces (managed in file server)",
+    "count": "{{count}} items",
+    "empty": "No global namespace declarations registered",
+    "fetchError": "Failed to fetch global namespace declarations",
+    "importButton": "Import",
+    "exportButton": "Export",
+    "importConfirmTitle": "Overwrite Import Global Namespace Declarations",
+    "importConfirmContent": "The current data on the file server will be overwritten. Do you want to continue?",
+    "importConfirmOk": "Overwrite Import",
+    "importSuccess": "Global namespace declarations imported successfully",
+    "importError": "Failed to import",
+    "exportSuccess": "Export completed",
+    "exportError": "Failed to export"
   }
 }

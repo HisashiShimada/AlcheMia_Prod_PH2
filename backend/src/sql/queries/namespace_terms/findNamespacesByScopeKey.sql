@@ -1,11 +1,11 @@
 -- scope_key（ユーザーID または organization_group_cd）に紐づく名前空間一覧を取得
 -- INNER JOIN により prefix が登録済みの行のみ返す（prefix=NULL の空白行を防ぐ）
+-- （グローバル名前空間はファイルサーバ管理に移行したため isGlobal カラムを削除）
 SELECT
   p.prefix
   , n.uri
   , n.scope_key                                                     AS "scopeKey"
   , COALESCE(og.organization_group_name, ou.user_name, '')          AS "scopeName"
-  , COALESCE(n.global_flg, FALSE)                                   AS "isGlobal"
 FROM namespace n
 INNER JOIN prefix p
   ON p.organization_id = n.organization_id
