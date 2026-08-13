@@ -24,6 +24,7 @@ export interface CreateNamespaceInput {
   prefix: string;
   uri: string;
   userId: string;
+  /** JWT の organizationGroupCds[0] をコントローラーから渡す */
   scopeKey?: string;
   description?: string;
 }
@@ -33,6 +34,22 @@ export interface CreateNamespaceResult {
   namespaceId: string;
   prefix: string;
   uri: string;
+}
+
+/** updateNamespace の入力型 */
+export interface UpdateNamespaceInput {
+  organizationId: string;
+  prefix: string;
+  uri: string;
+}
+
+/** updateNamespace の戻り値型 */
+export interface UpdateNamespaceResult {
+  namespaceId: string;
+  prefix: string;
+  uri: string;
+  scopeKey: string | null;
+  globalFlg: boolean;
 }
 
 /** createTerm の入力型 */
@@ -72,6 +89,7 @@ export interface ProjectScopeDeclaration {
 export async function createNamespace(
   input: CreateNamespaceInput
 ): Promise<CreateNamespaceResult> {
+  // scopeKey はコントローラーで JWT の organizationGroupCds[0] から取得済み
   const namespaceId = await namespaceTermRepository.createNamespace({
     organizationId: input.organizationId,
     prefix: input.prefix,
@@ -88,26 +106,68 @@ export async function createNamespace(
  * 名前空間（prefix + uri）の一覧を取得する
  *
  * @param organizationId - 組織ID
- * @returns prefix と uri の配列
+ * @returns prefix / uri / scopeKey / scopeName の配列
  */
 export async function getNamespaces(
   organizationId: string
-): Promise<Array<{ prefix: string; uri: string }>> {
+): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>> {
   return namespaceTermRepository.findNamespacesByOrganization(organizationId);
 }
 
 /**
- * scope_key（ユーザーID）に紐づく名前空間一覧を取得する
+ * scope_key（ユーザーID または organization_group_cd）に紐づく名前空間一覧を取得する
  *
  * @param organizationId - 組織ID
- * @param scopeKey - namespace.scope_key（= user_id）
- * @returns namespace の配列
+ * @param scopeKey - namespace.scope_key（userId または organization_group_cd）
+ * @returns prefix / uri / scopeKey / scopeName / isGlobal の配列
  */
 export async function getNamespacesByScopeKey(
   organizationId: string,
   scopeKey: string
-): Promise<Array<{ namespace_id: string; uri: string; scope_key: string; global_flg: boolean; user_name: string | null }>> {
+): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string; isGlobal?: boolean }>> {
   return namespaceTermRepository.findNamespacesByScopeKey(organizationId, scopeKey);
+}
+
+/**
+ * global_flg=TRUE の名前空間に属する用語一覧を取得する
+ *
+ * @param organizationId - 組織ID
+ * @returns 用語一覧
+ */
+export async function getTermsGlobal(
+  organizationId: string
+): Promise<Array<{ qname: string; prefix: string; localName: string; displayName: string; description: string; type: string; unitHint: string; isActive: boolean }>> {
+  return namespaceTermRepository.findAllGlobal(organizationId);
+}
+
+/**
+ * scopeKey（organization_group_cd または user_id）に紐づく用語一覧を取得する
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKey - namespace.scope_key の値
+ * @returns 用語一覧
+ */
+export async function getTermsByScopeKey(
+  organizationId: string,
+  scopeKey: string
+): Promise<Array<{ qname: string; prefix: string; localName: string; displayName: string; description: string; type: string; unitHint: string; isActive: boolean }>> {
+  return namespaceTermRepository.findAllByScopeKey(organizationId, scopeKey);
+}
+
+/**
+ * 名前空間（Prefix の URI）を更新する
+ *
+ * @param input - 更新データ
+ * @returns 更新後のレコード、または null（対象なし）
+ */
+export async function updateNamespace(
+  input: UpdateNamespaceInput
+): Promise<UpdateNamespaceResult | null> {
+  return namespaceTermRepository.updateNamespace({
+    organizationId: input.organizationId,
+    prefix: input.prefix,
+    uri: input.uri,
+  });
 }
 
 /**
@@ -275,6 +335,53 @@ export async function toggleTermActive(
     throw err;
   }
   return namespaceTermRepository.toggleActive(organizationId, prefix, localName, isActive);
+}
+
+// ─── 個人・組織 URI 自動登録 ─────────────────────────────────────────────────
+
+/** registerPersonalNamespaceUri の入力型 */
+export interface RegisterNamespaceUriInput {
+  organizationId: string;
+  /** URI 候補（重複時は末尾に "1" を付与） */
+  candidateUri: string;
+  /** 登録者ユーザーID（scope_key にも使用） */
+  userId: string;
+}
+
+/** registerPersonalNamespaceUri の戻り値型 */
+export interface RegisterNamespaceUriResult {
+  /** 実際に登録された URI */
+  uri: string;
+  /** 登録された namespace_id */
+  namespaceId: string;
+}
+
+/**
+ * 個人・組織 URI を namespace テーブルに自動登録する
+ *
+ * @remarks
+ * - 既存 URI 一覧を取得して重複チェックを行う
+ * - 重複する場合は candidateUri の末尾に "1" を付与した URI を使用する
+ * - userService / organizationService から呼び出す（Repository を直接参照させない）
+ *
+ * @param input - 登録データ
+ * @returns 登録された uri と namespace_id
+ */
+export async function registerPersonalNamespaceUri(
+  input: RegisterNamespaceUriInput
+): Promise<RegisterNamespaceUriResult> {
+  const existingUris = await namespaceTermRepository.findUrisByOrganization(input.organizationId);
+  const uniqueUri = existingUris.includes(input.candidateUri)
+    ? `${input.candidateUri}1`
+    : input.candidateUri;
+
+  const namespaceId = await namespaceTermRepository.createNamespaceUri({
+    organizationId: input.organizationId,
+    uri: uniqueUri,
+    userId: input.userId,
+  });
+
+  return { uri: uniqueUri, namespaceId };
 }
 
 // ─── 名前空間宣言 ─────────────────────────────────────────────────────────────

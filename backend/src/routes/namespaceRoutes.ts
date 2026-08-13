@@ -17,11 +17,15 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import {
+  validateGetNamespaces,
   validateCreateNamespace,
+  validateUpdateNamespace,
+  validateDeleteNamespace,
   validateCreateTerm,
   validateUpdateTerm,
   validateDeleteTerm,
   validateToggleTermActive,
+  validateGetTerms,
   validateGetDeclarationsByProject,
 } from '../middleware/namespaceValidation';
 import * as namespaceController from '../controllers/namespaceController';
@@ -35,7 +39,12 @@ router.use(authMiddleware, tenantIsolation);
  * 名前空間（Prefix）一覧取得
  * GET /api/v1/namespaces
  */
-router.get('/', namespaceController.getNamespaces);
+router.get(
+  '/',
+  validateGetNamespaces,
+  handleValidationErrors,
+  namespaceController.getNamespaces
+);
 
 /**
  * 名前空間（Prefix）新規登録
@@ -51,10 +60,28 @@ router.post(
 );
 
 /**
+ * 名前空間（Prefix の URI）更新
+ * PATCH /api/v1/namespaces/:prefix
+ *
+ * @body { uri: string }
+ */
+router.patch(
+  '/:prefix',
+  validateUpdateNamespace,
+  handleValidationErrors,
+  namespaceController.updateNamespace
+);
+
+/**
  * 名前空間（Prefix）削除
  * DELETE /api/v1/namespaces/:prefix
  */
-router.delete('/:prefix', namespaceController.deleteNamespace);
+router.delete(
+  '/:prefix',
+  validateDeleteNamespace,
+  handleValidationErrors,
+  namespaceController.deleteNamespace
+);
 
 /**
  * 名前空間宣言一覧取得（prefix + uri）
@@ -70,7 +97,12 @@ router.get('/declarations', namespaceController.getDeclarations);
  *
  * @remarks organizationId クエリパラメータで絞り込み可。
  */
-router.get('/terms', namespaceController.getTerms);
+router.get(
+  '/terms',
+  validateGetTerms,
+  handleValidationErrors,
+  namespaceController.getTerms
+);
 
 /**
  * 用語新規登録

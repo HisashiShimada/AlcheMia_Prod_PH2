@@ -63,6 +63,21 @@ router.post(
 );
 
 /**
+ * ログインユーザーの所属グループ＋全祖先グループの CD 一覧取得
+ * GET /api/v1/organization-groups/ancestors
+ *
+ * @remarks
+ * /:groupCd より前に定義しないとルートが競合するため注意。
+ * 用語重複チェックで上位層グループの名前空間を特定するために使用。
+ */
+router.get(
+  '/ancestors',
+  authMiddleware,
+  tenantIsolation,
+  organizationGroupController.getAncestorGroupCds
+);
+
+/**
  * 組織内ユーザー一覧取得（グループメンバー選択用）
  * GET /api/v1/organization-groups/users
  *

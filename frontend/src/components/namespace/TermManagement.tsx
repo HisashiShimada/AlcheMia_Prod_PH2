@@ -27,38 +27,18 @@ import {
   createTerm,
   updateTerm,
   toggleTermActive,
+  getAncestorGroupCds,
 } from '@/services/namespaceApiService';
 import type { NamespaceTermRow } from '@/services/namespaceApiService';
+import DuplicateSuggestModal from '@/components/namespace/DuplicateSuggestModal';
+import type { DuplicateTermEntry } from '@/components/namespace/DuplicateSuggestModal';
+import type {
+  TermManagementProps,
+  NewTermRowLocal as NewTermRow,
+  TermEditValuesLocal as EditValues,
+} from '@/types/namespace';
 
 const { Text } = Typography;
-
-// ──────────────────────────────────────────────
-// 型定義
-// ──────────────────────────────────────────────
-
-interface TermManagementProps {
-  /** true の場合、追加・編集ボタンを非活性にする */
-  viewOnly?: boolean;
-  /** true の場合、グローバルPrefix紐づき用語のみ対象（将来拡張用） */
-  globalOnly?: boolean;
-}
-
-interface NewTermRow {
-  _rowId: string;
-  prefix: string;
-  localName: string;
-  displayName: string;
-  description: string;
-  typeHint: string;
-  unitHint: string;
-}
-
-interface EditValues {
-  displayName: string;
-  description: string;
-  typeHint: string;
-  unitHint: string;
-}
 
 const TYPE_OPTIONS = [
   { value: 'stringType',   label: 'stringType' },
@@ -95,10 +75,19 @@ const makeEmptyRow = (): NewTermRow => ({
 const TermManagement: React.FC<TermManagementProps> = ({
   viewOnly = false,
   globalOnly = false,
+  selectedNsKey,
 }) => {
   const { t } = useLanguage();
   const [terms, setTerms] = useState<NamespaceTermRow[]>([]);
   const [prefixOptions, setPrefixOptions] = useState<{ value: string; label: string }[]>([]);
+  /** prefix → 組織名（scopeName）マップ */
+  const [prefixScopeMap, setPrefixScopeMap] = useState<Map<string, string>>(new Map());
+  /**
+   * 重複チェック対象の prefix セット。
+   * グローバル名前空間（isGlobal=true）と、ログインユーザーの所属チーム（organizationGroupCds）
+   * に紐づく名前空間の prefix のみを含む。
+   */
+  const [accessiblePrefixes, setAccessiblePrefixes] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [newRows, setNewRows] = useState<NewTermRow[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -113,21 +102,134 @@ const TermManagement: React.FC<TermManagementProps> = ({
   const [filterType, setFilterType] = useState<string | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  // ── DuplicateSuggestModal 用ステート
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicateEntries, setDuplicateEntries] = useState<DuplicateTermEntry[]>([]);
+  /**
+   * 重複確認モーダルで「登録」押下時の処理。
+   * selections: { localName -> 選択された prefix } のマップ。
+   * 現在の newRows を対象に、選択された prefix で再登録を試みる。
+   */
+  const handleDuplicateConfirm = async (selections: Record<string, string>) => {
+    setDuplicateModalOpen(false);
+    const added: NamespaceTermRow[] = [];
+    const failed: string[] = [];
+
+    for (const [localName, selectedPrefix] of Object.entries(selections)) {
+      const row = newRows.find((r) => r.localName === localName);
+      if (!row) continue;
+      try {
+        const created = await createTerm({
+          prefix: selectedPrefix,
+          localName: row.localName,
+          displayName: row.displayName || undefined,
+          description: row.description || undefined,
+          typeHint: row.typeHint || undefined,
+          unitHint: row.unitHint || undefined,
+        });
+        added.push(created);
+      } catch {
+        failed.push(`${selectedPrefix}:${localName}`);
+      }
+    }
+
+    if (added.length > 0) {
+      setTerms((prev) => [...added, ...prev]);
+      setNewRows((prev) => prev.filter((r) => !added.some((a) => a.localName === r.localName)));
+      message.success(t('termManagement.registerSuccess', { count: String(added.length) }));
+    }
+    if (failed.length > 0) {
+      message.warning(
+        t('termManagement.registerFailure', { count: String(failed.length), names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : '') })
+      );
+    }
+  };
 
   // ── 初回ロード
   const fetchAll = async () => {
     setLoading(true);
     try {
+      // selectedNsKey が渡された場合はそのスコープに絞って Prefix を取得する。
+      // （個人 namespace の scopeKey は userId(UUID) であり allGroupCds に含まれないため
+      //   従来ロジックでは prefixOptions が空になる問題を回避する）
+      const nsOptions = selectedNsKey
+        ? { scopeKeys: [selectedNsKey] }
+        : undefined;
+
       const [namespaces, termList] = await Promise.all([
-        getNamespaceList(),
-        getTerms(),
+        getNamespaceList(nsOptions),
+        // selectedNsKey が指定されている場合はそのスコープ（+ global）の用語のみ取得する。
+        // 個人名前空間（scopeKey = userId）や特定チームのノードを選択した際に
+        // 全件取得ではなくスコープ別取得に切り替えることで prefixOptions と一致させる。
+        selectedNsKey ? getTerms({ scopeKey: selectedNsKey }) : getTerms(),
       ]);
       setPrefixOptions(
         namespaces
           .map((n) => ({ value: n.prefix, label: n.prefix }))
           .filter((o, i, arr) => o.value && arr.findIndex((x) => x.value === o.value) === i)
       );
+      // prefix → 組織名マップを構築
+      const scopeMap = new Map<string, string>();
+      namespaces.forEach((n) => {
+        if (n.prefix && n.scopeName) scopeMap.set(n.prefix, n.scopeName);
+      });
+      setPrefixScopeMap(scopeMap);
+
+      // ── アクセス可能 prefix セットを構築
+      // selectedNsKey が渡された場合は取得済みの namespaces の全 prefix を対象にする
+      // （scopeKey が userId(UUID) の場合に allGroupCds とのマッチが失敗するため）
+      if (selectedNsKey) {
+        const prefixSet = new Set<string>();
+        namespaces.forEach((n) => { if (n.prefix) prefixSet.add(n.prefix); });
+        setAccessiblePrefixes(prefixSet);
+      } else {
+        // 「自分自身のスコープ（selfGroupCds）」と「上位層（ancestorGroupCds）」の
+        // 両方を対象にして重複チェックを行う。
+
+        // まず localStorage から自分自身の所属グループ CD を取得
+        let selfGroupCds: string[] = [];
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem('userInfo');
+            if (raw) {
+              const parsed = JSON.parse(raw) as { organizationGroupCds?: string[] };
+              selfGroupCds = parsed.organizationGroupCds ?? [];
+            }
+          } catch {
+            // JSON パース失敗は無視
+          }
+        }
+
+        // GET /api/v1/organization-groups/ancestors で祖先グループの CD 一覧を取得
+        let ancestorGroupCds: string[] = [];
+        try {
+          ancestorGroupCds = await getAncestorGroupCds();
+        } catch {
+          // API 失敗時は selfGroupCds のみで代替
+        }
+
+        // 自スコープ + 祖先グループを合わせた全グループ CD セット
+        const allGroupCds = [...new Set([...selfGroupCds, ...ancestorGroupCds])];
+
+        // allGroupCds に含まれる scopeKey を持つ名前空間の prefix を対象とする
+        const prefixSet = new Set<string>();
+        namespaces.forEach((n) => {
+          if (!n.prefix) return;
+          if (n.scopeKey && allGroupCds.includes(n.scopeKey)) {
+            prefixSet.add(n.prefix);
+          }
+        });
+        // accessiblePrefixes が空（＝グループ未所属 or 取得失敗）の場合は全 prefix を対象にして
+        // 重複チェックが無意味に抜けないようフォールバックする
+        if (prefixSet.size === 0) {
+          namespaces.forEach((n) => { if (n.prefix) prefixSet.add(n.prefix); });
+        }
+        setAccessiblePrefixes(prefixSet);
+      }
+
       setTerms(termList);
     } catch {
       message.error(t('termManagement.fetchError'));
@@ -137,9 +239,12 @@ const TermManagement: React.FC<TermManagementProps> = ({
   };
 
   useEffect(() => {
+    // スコープ変更時に未保存のインライン入力行をクリアする
+    setNewRows([]);
     fetchAll();
+    // selectedNsKey が変わったら Prefix 一覧を再取得する
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalOnly]);
+  }, [globalOnly, selectedNsKey]);
 
   // ── 新規行追加
   const handleAddRow = () => {
@@ -174,8 +279,129 @@ const TermManagement: React.FC<TermManagementProps> = ({
       }
     }
 
+    // ── クライアントサイド重複チェック ──────────────────────
+    // チェック対象を「上位層（グローバル）＋自分自身のチーム」の prefix に絞る
+    const scopedTerms = terms.filter((term) => accessiblePrefixes.has(term.prefix));
+
+    // 1) 完全一致（同 prefix:localName）→ エラー（登録不可）
+    //    対象: 上位層/自分自身の名前空間
+    const exactDuplicates: Array<{ qname: string; scopeName: string }> = [];
+    for (const row of newRows) {
+      const existing = scopedTerms.find(
+        (t) => t.prefix === row.prefix && t.localName === row.localName
+      );
+      if (existing) {
+        const scopeName = prefixScopeMap.get(row.prefix) ?? row.prefix;
+        exactDuplicates.push({ qname: `${row.prefix}:${row.localName}`, scopeName });
+      }
+    }
+    if (exactDuplicates.length > 0) {
+      Modal.error({
+        title: t('termManagement.duplicateErrorTitle'),
+        content: (
+          <ul style={{ paddingLeft: 16, margin: 0 }}>
+            {exactDuplicates.map((d) => (
+              <li key={d.qname}>
+                {t('termManagement.duplicateError', { qname: d.qname, scopeName: d.scopeName })}
+              </li>
+            ))}
+          </ul>
+        ),
+      });
+      return;
+    }
+
+    // 2) prefix 違い・同 localName（警告）→ 1件ずつ確認後続行
+    //    対象: 上位層/自分自身の名前空間（prefix が異なる用語）
+    //    添付画像の形式: 「{既存のPrefix:localName}」は{スコープ名}で既に登録されています。登録しますか？
+    const warnEntries: Array<{ newRow: NewTermRow; existingQname: string; scopeName: string }> = [];
+    for (const row of newRows) {
+      const existingWithSameName = scopedTerms.filter(
+        (term) => term.localName === row.localName && term.prefix !== row.prefix
+      );
+      for (const existing of existingWithSameName) {
+        warnEntries.push({
+          newRow: row,
+          existingQname: `${existing.prefix}:${existing.localName}`,
+          scopeName: prefixScopeMap.get(existing.prefix) ?? existing.prefix,
+        });
+      }
+    }
+    // 重複する newRow をスキップするかどうかを記録するセット
+    const skippedRowIds = new Set<string>();
+    for (const entry of warnEntries) {
+      // 既にスキップ確定している行は再確認不要
+      if (skippedRowIds.has(entry.newRow._rowId)) continue;
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Modal.confirm({
+          title: t('termManagement.duplicateWarningTitle'),
+          content: t('termManagement.duplicateWarningMessage', {
+            qname: entry.existingQname,
+            scopeName: entry.scopeName,
+          }),
+          okText: t('common.yes'),
+          cancelText: t('common.no'),
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      });
+      if (!confirmed) {
+        skippedRowIds.add(entry.newRow._rowId);
+      }
+    }
+    // スキップされた行を newRows から除外して登録対象を絞り込む
+    if (skippedRowIds.size > 0) {
+      const remainingRows = newRows.filter((r) => !skippedRowIds.has(r._rowId));
+      if (remainingRows.length === 0) return;
+      // スキップ行はそのまま newRows に残す
+      setNewRows((prev) => prev.filter((r) => skippedRowIds.has(r._rowId)));
+      // 以降の登録処理は remainingRows のみを対象にする
+      // （newRows を直接書き換えると非同期で問題が起きるため、ローカル変数で管理）
+      const added2: NamespaceTermRow[] = [];
+      const failed2: string[] = [];
+      for (const row of remainingRows) {
+        try {
+          const created = await createTerm({
+            prefix: row.prefix,
+            localName: row.localName,
+            displayName: row.displayName || undefined,
+            description: row.description || undefined,
+            typeHint: row.typeHint || undefined,
+            unitHint: row.unitHint || undefined,
+          });
+          added2.push(created);
+        } catch (err: unknown) {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          const details = (err as { response?: { data?: { error?: { details?: { scopeName?: string } } } } })?.response?.data?.error?.details;
+          if (status === 409) {
+            const sn = details?.scopeName;
+            Modal.error({
+              title: t('termManagement.duplicateErrorTitle'),
+              content: sn
+                ? t('termManagement.duplicateErrorWithScope', { qname: `${row.prefix}:${row.localName}`, scopeName: sn })
+                : t('termManagement.duplicateError', { qname: `${row.prefix}:${row.localName}`, scopeName: row.prefix }),
+            });
+          } else {
+            failed2.push(`${row.prefix}:${row.localName}`);
+          }
+        }
+      }
+      if (added2.length > 0) {
+        setTerms((prev) => [...added2, ...prev]);
+        message.success(t('termManagement.registerSuccess', { count: String(added2.length) }));
+      }
+      if (failed2.length > 0) {
+        message.warning(
+          t('termManagement.registerFailure', { count: String(failed2.length), names: failed2.slice(0, 3).join(', ') + (failed2.length > 3 ? '...' : '') })
+        );
+      }
+      return;
+    }
+    // ── クライアントサイド重複チェック ここまで ──────────────
+
     const added: NamespaceTermRow[] = [];
     const failed: string[] = [];
+    const duplicates: DuplicateTermEntry[] = [];
 
     for (const row of newRows) {
       try {
@@ -188,13 +414,37 @@ const TermManagement: React.FC<TermManagementProps> = ({
           unitHint: row.unitHint || undefined,
         });
         added.push(created);
-      } catch {
-        failed.push(`${row.prefix}:${row.localName}`);
+      } catch (err: unknown) {
+        // 409 Conflict の場合は登録エラーモーダルを表示
+        const status =
+          (err as { response?: { status?: number } })?.response?.status;
+        const details =
+          (err as { response?: { data?: { error?: { details?: { scopeName?: string } } } } })
+            ?.response?.data?.error?.details;
+
+        if (status === 409) {
+          const scopeName = details?.scopeName;
+          Modal.error({
+            title: t('termManagement.duplicateErrorTitle'),
+            content: scopeName
+              ? t('termManagement.duplicateErrorWithScope', {
+                  qname: `${row.prefix}:${row.localName}`,
+                  scopeName,
+                })
+              : t('termManagement.duplicateError', {
+                  qname: `${row.prefix}:${row.localName}`,
+                  scopeName: row.prefix,
+                }),
+          });
+        } else {
+          failed.push(`${row.prefix}:${row.localName}`);
+        }
       }
     }
 
     if (added.length > 0) {
       setTerms((prev) => [...added, ...prev]);
+      setNewRows((prev) => prev.filter((r) => !added.some((a) => a.localName === r.localName)));
       message.success(t('termManagement.registerSuccess', { count: String(added.length) }));
     }
     if (failed.length > 0) {
@@ -202,7 +452,15 @@ const TermManagement: React.FC<TermManagementProps> = ({
         t('termManagement.registerFailure', { count: String(failed.length), names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : '') })
       );
     }
-    setNewRows([]);
+    if (duplicates.length > 0) {
+      // 成功分・失敗分を除いた重複行だけ newRows に残してモーダルを開く
+      const dupLocalNames = new Set(duplicates.map((d) => d.localName));
+      setNewRows((prev) => prev.filter((r) => dupLocalNames.has(r.localName)));
+      setDuplicateEntries(duplicates);
+      setDuplicateModalOpen(true);
+    } else if (added.length > 0) {
+      setNewRows([]);
+    }
   };
 
   // ── 既存行の編集
@@ -217,8 +475,18 @@ const TermManagement: React.FC<TermManagementProps> = ({
   };
 
   const saveEdit = async (record: NamespaceTermRow) => {
+    // localName が空の場合は qname から分割してフォールバック
+    const prefix = record.prefix;
+    const localName = record.localName
+      || (record.qname?.includes(':') ? record.qname.split(':').slice(1).join(':') : '');
+
+    if (!prefix || !localName) {
+      message.error(t('termManagement.updateError'));
+      return;
+    }
+
     try {
-      const updated = await updateTerm(record.prefix, record.localName, {
+      const updated = await updateTerm(prefix, localName, {
         displayName: editingValues.displayName || undefined,
         description: editingValues.description || undefined,
         typeHint: editingValues.typeHint || undefined,
@@ -561,6 +829,21 @@ const TermManagement: React.FC<TermManagementProps> = ({
       },
     },
     {
+      title: t('termManagement.colScope'),
+      key: 'scope',
+      width: 140,
+      render: (_: unknown, record: NamespaceTermRow | NewTermRow) => {
+        if ('_rowId' in record) return null;
+        const r = record as NamespaceTermRow;
+        const name = prefixScopeMap.get(r.prefix);
+        return name ? (
+          <Tag color="geekblue" style={{ fontSize: 11 }}>
+            {name}
+          </Tag>
+        ) : null;
+      },
+    },
+    {
       title: t('termManagement.colActions'),
       key: 'actions',
       width: 200,
@@ -579,7 +862,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
         }
         const r = record as NamespaceTermRow;
         const key = `${r.prefix}:${r.localName}`;
-        const isActive = (r as NamespaceTermRow & { isActive?: boolean }).isActive !== false;
+        const isActive = r.isActive !== false;
 
         if (key === editingKey) {
           return (
@@ -710,12 +993,23 @@ const TermManagement: React.FC<TermManagementProps> = ({
             rowKey={(record) =>
               '_rowId' in record
                 ? (record as NewTermRow)._rowId
-                : `${(record as NamespaceTermRow).prefix}:${(record as NamespaceTermRow).localName}`
+                : `${(record as NamespaceTermRow).namespaceId}:${(record as NamespaceTermRow).prefix}:${(record as NamespaceTermRow).localName}`
             }
             size="small"
             columns={columns}
             dataSource={tableData}
-            rowClassName={(record) => ('_rowId' in record ? 'row-new-term' : '')}
+            rowSelection={{
+              selectedRowKeys,
+              onChange: (keys) => setSelectedRowKeys(keys),
+              getCheckboxProps: (record) => ({
+                disabled: '_rowId' in record,
+              }),
+            }}
+            rowClassName={(record) => {
+              if ('_rowId' in record) return 'row-new-term';
+              const r = record as NamespaceTermRow;
+              return r.isActive === false ? 'row-inactive-term' : '';
+            }}
             locale={{
             triggerAsc: t('termManagement.sortAsc'),
             triggerDesc: t('termManagement.sortDesc'),
@@ -735,8 +1029,18 @@ const TermManagement: React.FC<TermManagementProps> = ({
 
         <style>{`
           .row-new-term td { background: #fffbe6 !important; }
+          .row-inactive-term td { color: #bbb !important; background: #f5f5f5 !important; }
+          .row-inactive-term td .ant-tag { opacity: 0.5; }
         `}</style>
       </div>
+
+      {/* ── 重複提案モーダル ── */}
+      <DuplicateSuggestModal
+        open={duplicateModalOpen}
+        entries={duplicateEntries}
+        onConfirm={handleDuplicateConfirm}
+        onClose={() => setDuplicateModalOpen(false)}
+      />
     </div>
   );
 };

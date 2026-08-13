@@ -16,6 +16,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as organizationGroupService from '../services/organizationGroupService';
+import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
 
 /**
  * 組織グループ一覧取得
@@ -229,6 +230,34 @@ export async function updateOrganizationGroupStatus(
     );
 
     res.json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * ログインユーザーの所属グループ＋全祖先グループの CD 一覧を返す
+ * GET /api/v1/organization-groups/ancestors
+ *
+ * @remarks
+ * 用語重複チェックで「上位層グループの名前空間」を特定するために使用する。
+ * findByUser の WITH RECURSIVE クエリで自分の直接所属グループと
+ * parent_group_cd を再帰的に辿った全祖先グループを取得する。
+ */
+export async function getAncestorGroupCds(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.organizationId!;
+    const userId = req.userId!;
+
+    // WITH RECURSIVE クエリで所属グループ + 全祖先グループを取得
+    const groups = await organizationGroupRepository.findByUser(organizationId, userId);
+    const groupCds = groups.map((g) => g.organization_group_cd);
+
+    res.json({ success: true, data: groupCds });
   } catch (error) {
     next(error);
   }

@@ -30,6 +30,21 @@ interface NamespaceNode {
 }
 
 // ──────────────────────────────────────────────
+// localStorage の userInfo から organizationName を取得する
+// ──────────────────────────────────────────────
+const getOrganizationNameFromStorage = (): string => {
+  if (typeof window === 'undefined') return 'Organization';
+  try {
+    const raw = localStorage.getItem('userInfo');
+    if (!raw) return 'Organization';
+    const info = JSON.parse(raw) as { organizationName?: string };
+    return info.organizationName ?? 'Organization';
+  } catch {
+    return 'Organization';
+  }
+};
+
+// ──────────────────────────────────────────────
 // ツリーの静的骨格（Global / company / Personal）
 // company.children は API データで動的に差し替える
 // company の label は useLanguage() で動的生成するため関数化
@@ -99,6 +114,26 @@ const buildOrgTree = (groups: OrganizationGroupRow[]): NamespaceNode[] => {
 // ──────────────────────────────────────────────
 // チーム代表者（解析チーム）としてログインしている想定
 const CURRENT_USER_NS_KEY = 'rd-analysis'; // TODO:[MOCK] 認証APIから取得する実装に置き換える
+
+// ツリーの最下層リーフキーを返すユーティリティ（最も深い depth のリーフを優先）
+const findDeepestLeafKey = (nodes: NamespaceNode[]): string | null => {
+  let bestKey: string | null = null;
+  let bestDepth = -1;
+  const traverse = (ns: NamespaceNode[], depth: number) => {
+    for (const node of ns) {
+      if (!node.children || node.children.length === 0) {
+        if (depth > bestDepth) {
+          bestDepth = depth;
+          bestKey = node.key;
+        }
+      } else {
+        traverse(node.children, depth + 1);
+      }
+    }
+  };
+  traverse(nodes, 0);
+  return bestKey;
+};
 
 // 指定キーの祖先ノードキー集合を返すユーティリティ
 const getAncestorKeys = (targetKey: string, nodes: NamespaceNode[], ancestors: string[] = []): string[] | null => {
@@ -195,7 +230,15 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   // ── 初回マウント時に organization_group 一覧 & 個人名前空間を取得してツリーを構築
   useEffect(() => {
     getOrganizationGroups()
-      .then((groups) => setOrgGroups(groups))
+      .then((groups) => {
+        setOrgGroups(groups);
+        // 組織ノードの最下層リーフを初期選択状態にする
+        const orgNodes = buildOrgTree(groups);
+        const leafKey = findDeepestLeafKey(orgNodes);
+        if (leafKey) {
+          setSelectedNsKey(leafKey);
+        }
+      })
       .catch(() => {
         // 取得失敗時は空ツリーのまま表示を継続
       });
@@ -247,6 +290,16 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     setIsLatestVersion(checkIsLatestVersion(template));
     setDetailModalOpen(true);
   };
+
+  // selectedNsKey から API に渡す実際の scopeKey を算出
+  // 個人ノードは "personal-{userId}" 形式 → DB の scope_key はユーザーID部分のみ
+  const effectiveNsKey = useMemo(() => {
+    if (!selectedNsKey) return null;
+    if (selectedNsKey.startsWith('personal-')) {
+      return selectedNsKey.replace(/^personal-/, '');
+    }
+    return selectedNsKey;
+  }, [selectedNsKey]);
 
   // Global または Personal 配下のノードが選択中かどうか
   const isGlobalOrPersonalSelected = useMemo(() => {
@@ -324,7 +377,7 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
           display: 'flex', flexDirection: 'column', padding: '12px 12px 8px', overflowY: 'auto',
         }}>
           <Tree
-            key={treeData.map((n: any) => n.key).join(',')}
+            key={orgGroups.map((g) => g.organization_group_cd).join(',') || 'empty'}
             blockNode
             defaultExpandAll
             treeData={treeData}
@@ -433,7 +486,7 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
 
             {/* Prefix管理タブ */}
             <div style={{ display: activeTab === 'prefix' ? 'flex' : 'none', height: '100%', overflow: 'hidden' }}>
-              <PrefixManagement showShareButton={true} selectedNsKey={selectedNsKey} />
+              <PrefixManagement showShareButton={true} selectedNsKey={effectiveNsKey} />
             </div>
 
               {/* 不確かさ基準管理タブ：一覧のみ */}

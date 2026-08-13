@@ -2,7 +2,9 @@
 -- フロントエンド用に整形済みの形式で返す
 -- UNION ALL で固定UUID (00000000-...) の Alchemia システム用語も常に含める
 SELECT
-  t.prefix || ':' || t.localname  AS qname
+  t.prefix || ':' || t.localname   AS "id"
+  , t.namespace_id                 AS "namespaceId"
+  , t.prefix || ':' || t.localname AS qname
   , t.prefix                       AS prefix
   , t.localname                    AS "localName"
   , COALESCE(t.display_name, '')   AS "displayName"

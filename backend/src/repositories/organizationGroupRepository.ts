@@ -223,6 +223,26 @@ export async function update(data: {
 }
 
 /**
+ * organization_group ユーザー所属グループ取得
+ *
+ * ログインユーザーが所属するグループと、その全祖先グループを返す（ツリー表示用）。
+ * 未所属の場合は空配列を返す。
+ *
+ * @param organizationId - 組織ID
+ * @param userId - ユーザーID
+ * @returns 所属グループ＋祖先グループ一覧
+ */
+export async function findByUser(
+  organizationId: string,
+  userId: string
+): Promise<OrganizationGroupRow[]> {
+  const pool = getPool();
+  const sql = await loadSqlFile('organization_groups/findByUser.sql');
+  const result = await pool.query<OrganizationGroupRow>(sql, [organizationId, userId]);
+  return result.rows;
+}
+
+/**
  * organization_group 子孫CD一覧取得（再帰）
  *
  * 指定されたルートグループCD群とその全配下グループのCDを返す。
