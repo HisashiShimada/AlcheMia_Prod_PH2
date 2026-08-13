@@ -13,20 +13,20 @@ import { usePublishStatusPoller } from '@/hooks/usePublishStatusPoller';
 import { ProjectStatus } from '@/constants/codeMaster';
 import { getProjectFiles, getPublishStatus } from '@/services/projectApiService';
 
-import { useProjectList } from './hooks/useProjectList';
-import { useProjectSelection } from './hooks/useProjectSelection';
-import { useProjectFiles } from './hooks/useProjectFiles';
-import { useProjectActions } from './hooks/useProjectActions';
-import { useProjectMaimlEditor } from './hooks/useProjectMaimlEditor';
-import { useProjectDialogs } from './hooks/useProjectDialogs';
+import { useProjectList } from '@/hooks/project/useProjectList';
+import { useProjectSelection } from '@/hooks/project/useProjectSelection';
+import { useProjectFiles } from '@/hooks/project/useProjectFiles';
+import { useProjectActions } from '@/hooks/project/useProjectActions';
+import { useProjectMaimlEditor } from '@/hooks/project/useProjectMaimlEditor';
+import { useProjectDialogs } from '@/hooks/project/useProjectDialogs';
 
-import ProjectToolbar from './components/ProjectToolbar';
-import ProjectModals from './components/ProjectModals';
-import FileManagementTabContent from './components/tabs/FileManagementTabContent';
-import TaskRegistrationTabContent from './components/tabs/TaskRegistrationTabContent';
-import ProjectInstructionTabContent from './components/tabs/ProjectInstructionTabContent';
-import ExperimentInstructionTabContent from './components/tabs/ExperimentInstructionTabContent';
-import EvaluationRegistrationTabContent from './components/tabs/EvaluationRegistrationTabContent';
+import ProjectToolbar from './subcomponents/ProjectToolbar';
+import ProjectModals from './subcomponents/ProjectModals';
+import FileManagementTabContent from './subcomponents/tabs/FileManagementTabContent';
+import TaskRegistrationTabContent from './subcomponents/tabs/TaskRegistrationTabContent';
+import ProjectInstructionTabContent from './subcomponents/tabs/ProjectInstructionTabContent';
+import ExperimentInstructionTabContent from './subcomponents/tabs/ExperimentInstructionTabContent';
+import EvaluationRegistrationTabContent from './subcomponents/tabs/EvaluationRegistrationTabContent';
 import ProjectFolderTree from './ProjectFolderTree';
 
 import type { User } from '@/types/auth';

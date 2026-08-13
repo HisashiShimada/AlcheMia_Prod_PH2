@@ -97,9 +97,9 @@ import {
   getPlanDialogData,
 } from '@/services/experimentPlanApiService';
 import type { PlanDialogData } from '@/services/experimentPlanApiService';
-import RefSection from './ExperimentPlanDialog/RefSection';
-import SortableTransitionRow from './ExperimentPlanDialog/SortableTransitionRow';
-import TemplateInputPanel from './ExperimentPlanDialog/TemplateInputPanel';
+import RefSection from './subcomponents/RefSection';
+import SortableTransitionRow from './subcomponents/SortableTransitionRow';
+import TemplateInputPanel from './subcomponents/TemplateInputPanel';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
