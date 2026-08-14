@@ -30,8 +30,8 @@ import {
   LockOutlined,
 } from '@ant-design/icons';
 import MaimlValidationModal from './MaimlValidationModal';
-import EncryptionManagementModal from '@/components/encryption/EncryptionManagementModal';
-import SignatureManagementModal from '@/components/signature/SignatureManagementModal';
+// TODO: 暗号化・署名機能は本実装まで無効化 -- import EncryptionManagementModal from '@/components/encryption/EncryptionManagementModal';
+// TODO: 暗号化・署名機能は本実装まで無効化 -- import SignatureManagementModal from '@/components/signature/SignatureManagementModal';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
 import TaskResultsTable from './TaskResultsTable';
@@ -255,11 +255,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const [savedValidationRow, setSavedValidationRow] = useState<MaimlAnalysisResultRow | null>(null);
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
 
-  // 暗号化管理モーダルステート
-  const [encryptionModalOpen, setEncryptionModalOpen] = useState(false);
+  // TODO: 暗号化・署名機能は本実装まで無効化
+  // // 暗号化管理モーダルステート
+  // const [encryptionModalOpen, setEncryptionModalOpen] = useState(false);
 
-  // 電子署名管理モーダルステート
-  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+  // TODO: 暗号化・署名機能は本実装まで無効化
+  // // 電子署名管理モーダルステート
+  // const [signatureModalOpen, setSignatureModalOpen] = useState(false);
 
   // 閲覧可能グループ一覧を初期取得
   useEffect(() => {
@@ -2209,6 +2211,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   >
                     {t('projectManagement.validationConfirmButton')}
                   </Button>
+                  {/* TODO: 暗号化・署名機能は本実装まで無効化
                   <Button
                     icon={<LockOutlined />}
                     onClick={() => setEncryptionModalOpen(true)}
@@ -2225,6 +2228,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   >
                     {t('projectManagement.signatureButton')}
                   </Button>
+                  */}
                 </Space>
               </Card>
 
@@ -2532,23 +2536,25 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         }}
       />
 
+      {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
       {/* 暗号化管理モーダル */}
-      {selectedProject && (
+      {/* {selectedProject && (
         <EncryptionManagementModal
           open={encryptionModalOpen}
           projectName={selectedProject.name}
           onClose={() => setEncryptionModalOpen(false)}
         />
-      )}
+      )} */}
 
+      {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
       {/* 電子署名管理モーダル */}
-      {selectedProject && (
+      {/* {selectedProject && (
         <SignatureManagementModal
           open={signatureModalOpen}
           projectName={selectedProject.name}
           onClose={() => setSignatureModalOpen(false)}
         />
-      )}
+      )} */}
     </div>
   );
 };

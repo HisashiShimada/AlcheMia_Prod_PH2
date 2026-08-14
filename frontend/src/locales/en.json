@@ -1923,7 +1923,10 @@
       "deleteTitle": "Delete Method",
       "deleteConfirm1": "Delete Method",
       "deleteConfirm2": "?",
-      "editTitle": "Edit Method ID"
+      "editTitle": "Edit Method",
+      "nameLabel": "Method Name",
+      "namePlaceholder": "Enter method name",
+      "nameHint": "The display name for this method in MAIML"
     },
     "validation": {
       "noNodes": "No nodes exist",

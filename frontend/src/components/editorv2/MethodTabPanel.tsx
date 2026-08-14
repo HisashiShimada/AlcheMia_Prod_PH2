@@ -8,7 +8,7 @@
  */
 
 import React, { useState } from 'react';
-import { Tabs, Tag, Button, Tooltip, Modal, Input, Space, message } from 'antd';
+import { Tabs, Tag, Button, Tooltip, Modal, Input, Space, Flex, message } from 'antd';
 import { PlusOutlined, EditOutlined, CloseOutlined } from '@ant-design/icons';
 import type { Node } from 'reactflow';
 import type { MethodData } from '../../types/editor';
@@ -33,8 +33,8 @@ export interface MethodTabPanelProps {
   // Method追加時のコールバック
   onAddMethod?: () => void;
   
-  // MethodID編集時のコールバック
-  onEditMethodId?: (index: number, newMethodId: string) => void;
+  // MethodID・name編集時のコールバック
+  onEditMethodId?: (index: number, newMethodId: string, newName: string) => void;
   
   // Method削除時のコールバック
   onDeleteMethod?: (index: number) => void;
@@ -56,6 +56,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMethodIndex, setEditingMethodIndex] = useState<number | null>(null);
   const [newMethodId, setNewMethodId] = useState('');
+  const [newMethodName, setNewMethodName] = useState('');
   const [idError, setIdError] = useState('');
 
   /**
@@ -84,6 +85,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
     event.stopPropagation(); // タブ切り替えを防止
     setEditingMethodIndex(index);
     setNewMethodId(methods[index].methodId);
+    setNewMethodName(methods[index].name || '');
     setIdError('');
     setEditDialogOpen(true);
   };
@@ -95,6 +97,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
     setEditDialogOpen(false);
     setEditingMethodIndex(null);
     setNewMethodId('');
+    setNewMethodName('');
     setIdError('');
   };
 
@@ -120,7 +123,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
 
     // 保存
     if (onEditMethodId && editingMethodIndex !== null) {
-      onEditMethodId(editingMethodIndex, newMethodId);
+      onEditMethodId(editingMethodIndex, newMethodId, newMethodName);
     }
 
     handleCloseEditDialog();
@@ -257,7 +260,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
         </div>
       </div>
 
-      {/* Method ID編集モーダル */}
+      {/* Method 編集モーダル */}
       <Modal
         title={t('editor.method.editTitle')}
         open={editDialogOpen}
@@ -266,26 +269,49 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
         okText={t('common.save')}
         cancelText={t('common.cancel')}
       >
-        <Input
-          autoFocus
-          placeholder="Method ID"
-          value={newMethodId}
-          onChange={(e) => {
-            setNewMethodId(e.target.value);
-            setIdError('');
-          }}
-          status={idError ? 'error' : ''}
-        />
-        {idError && (
-          <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>
-            {idError}
+        <Flex vertical gap="middle">
+          {/* Method ID */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              Method ID
+            </div>
+            <Input
+              autoFocus
+              placeholder="Method ID"
+              value={newMethodId}
+              onChange={(e) => {
+                setNewMethodId(e.target.value);
+                setIdError('');
+              }}
+              status={idError ? 'error' : ''}
+            />
+            {idError && (
+              <div style={{ color: '#ff4d4f', fontSize: 12, marginTop: 4 }}>
+                {idError}
+              </div>
+            )}
+            {!idError && (
+              <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>
+                {t('editor.method.idHint')}
+              </div>
+            )}
           </div>
-        )}
-        {!idError && (
-          <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>
-            {t('editor.method.idHint')}
+
+          {/* Method Name */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              {t('editor.method.nameLabel')}
+            </div>
+            <Input
+              placeholder={t('editor.method.namePlaceholder')}
+              value={newMethodName}
+              onChange={(e) => setNewMethodName(e.target.value)}
+            />
+            <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>
+              {t('editor.method.nameHint')}
+            </div>
           </div>
-        )}
+        </Flex>
       </Modal>
     </>
   );

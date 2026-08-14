@@ -2282,7 +2282,10 @@
       "deleteTitle": "Method削除",
       "deleteConfirm1": "Method",
       "deleteConfirm2": "を削除しますか？",
-      "editTitle": "Method ID編集"
+      "editTitle": "Method編集",
+      "nameLabel": "Method名",
+      "namePlaceholder": "メソッド名を入力",
+      "nameHint": "MAIML上で表示されるメソッド名です"
     },
     "validation": {
       "noNodes": "ノードが1つも存在しません",

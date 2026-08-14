@@ -221,22 +221,6 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
             >
               記録
             </Button>
-
-            {/* 報告ボタン */}
-            <Button
-              size="small"
-              onClick={handleIssueClick}
-              style={{
-                flex: 1,
-                fontSize: 12,
-                height: 28,
-                color: token.colorPrimary,
-                borderColor: token.colorPrimary,
-              }}
-              data-testid={`transition-node-issue-button-${transition.transitionId}`}
-            >
-              報告
-            </Button>
           </div>
         </Space>
       </Card>

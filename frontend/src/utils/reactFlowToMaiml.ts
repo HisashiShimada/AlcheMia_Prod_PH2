@@ -1058,6 +1058,11 @@ export async function convertReactFlowToMaiML(
   // 共通テンプレートは method の後に出力する
   maiml += `    <method id="${escapeXml(methodId)}">\n`;
   maiml += `      <uuid>${escapeXml(methodUuid)}</uuid>\n`;
+  // method nameがあれば<name>タグを出力
+  const singleMethodName = allMethods?.[0]?.name;
+  if (singleMethodName) {
+    maiml += `      <name>${escapeXml(singleMethodName)}</name>\n`;
+  }
   maiml += `      <pnml id="${escapeXml(pnmlId)}">\n`;
   maiml += `        <uuid>${escapeXml(pnmlUuid)}</uuid>\n`;
   

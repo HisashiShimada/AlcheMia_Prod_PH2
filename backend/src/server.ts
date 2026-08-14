@@ -37,8 +37,8 @@ import codeMasterRoutes from './routes/codeMasterRoutes';
 import semanticSearchRoutes from './routes/semanticSearchRoutes';
 import systemOverviewRoutes from './routes/systemOverviewRoutes';
 import systemConfigRoutes from './routes/systemConfigRoutes';
-import encryptionRoutes from './routes/encryptionRoutes';
-import signatureRoutes from './routes/signatureRoutes';
+// TODO: 暗号化・署名機能は本実装まで無効化 -- import encryptionRoutes from './routes/encryptionRoutes';
+// TODO: 暗号化・署名機能は本実装まで無効化 -- import signatureRoutes from './routes/signatureRoutes';
 import namespaceRoutes from './routes/namespaceRoutes';
 import organizationGroupRoutes from './routes/organizationGroupRoutes';
 
@@ -149,10 +149,11 @@ async function startServer() {
     // Mount system overview routes
     app.use('/api/v1/systemManagement', systemOverviewRoutes);
 
-    // Mount encryption routes（暗号化管理API）
-    app.use('/api/v1/encryption', encryptionRoutes);
-    // Mount signature routes（改竄防止API）
-    app.use('/api/v1/signature', signatureRoutes);
+    // TODO: 暗号化・署名機能は本実装まで無効化
+    // // Mount encryption routes（暗号化管理API）
+    // app.use('/api/v1/encryption', encryptionRoutes);
+    // // Mount signature routes（改竄防止API）
+    // app.use('/api/v1/signature', signatureRoutes);
     // Mount namespace routes
     app.use('/api/v1/namespaces', namespaceRoutes);
 

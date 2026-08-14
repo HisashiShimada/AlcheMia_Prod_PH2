@@ -907,7 +907,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             return {
               methodId: method.id,
               methodIndex: index,
-              name: `Method ${index + 1}`,
+              name: method.name || `Method ${index + 1}`,
               nodes: nodesWithCommonFlag,
               edges: styledEdges,
               viewport: { x: 0, y: 0, zoom: 1 }
@@ -2550,9 +2550,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     console.log('✅ [PetriNetEditorInner] Method削除完了');
   }, [methods, activeMethodIndex, setNodes, setEdges]);
 
-  // Method ID編集ハンドラー
-  const handleEditMethodId = useCallback((index: number, newMethodId: string) => {
-    console.log('✏️ [PetriNetEditorInner] Method ID編集:', { index, newMethodId });
+  // Method ID・name編集ハンドラー
+  const handleEditMethodId = useCallback((index: number, newMethodId: string, newName: string) => {
+    console.log('✏️ [PetriNetEditorInner] Method編集:', { index, newMethodId, newName });
 
     // 旧methodIdを取得（dirtyFlagsのキーは旧methodId）
     const oldMethodId = methods[index]?.methodId;
@@ -2561,7 +2561,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const updated = [...prev];
       updated[index] = {
         ...updated[index],
-        methodId: newMethodId
+        methodId: newMethodId,
+        name: newName,
       };
       return updated;
     });
@@ -2614,7 +2615,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     }
 
     onContentChange?.();
-    console.log('✅ [PetriNetEditorInner] Method ID編集完了');
+    console.log('✅ [PetriNetEditorInner] Method ID・name編集完了');
   }, [methods, onContentChange]);
 
   // ワークフロー追加モード切り替え
@@ -3364,7 +3365,7 @@ interface PetriNetEditorInnerUIProps {
   activeMethodIndex: number;
   handleMethodChange: (index: number) => void;
   handleAddMethod: () => void;
-  handleEditMethodId: (index: number, newMethodId: string) => void;
+  handleEditMethodId: (index: number, newMethodId: string, newName: string) => void;
   handleDeleteMethod: (index: number) => void;
   
   // バリデーション
