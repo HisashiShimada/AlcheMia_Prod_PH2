@@ -1,11 +1,12 @@
 # 進捗確認API仕様書
 
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-03-12 18:28  
-**バージョン**: 2.0.0  
+**最終更新**: 2026-08-14  
+**バージョン**: 2.1.0  
+**最終更新コミット**: `651973aae` (feature/phase2_mock)  
 **対象画面**: 実験管理者 - 進捗確認画面、実験作業者 - 実験記録画面  
-**総API数**: 6個  
-**実装状況**: 6個実装済み、0個未実装
+**総API数**: 8個  
+**実装状況**: 8個実装済み、0個未実装
 
 ---
 
@@ -24,12 +25,13 @@
 
 | # | API名 | メソッド | エンドポイント | 状態 | 優先度 |
 |---|------|---------|---------------|------|--------|
-| 1 | タスク詳細取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` | 🟢 実装済み | ⭐⭐⭐ 高 |
-| 2 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | 🟢 実装済み | ⭐⭐⭐ 高 |
-| 3 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🟢 実装済み | ⭐⭐⭐ 高 |
-| 4 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
-| 5 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
-| 6 | 作業詳細一括取得 | GET | `/api/v1/progress/projects/:projectName/work-details` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 1 | タスク詳細取得 | GET | `/api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/details` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 2 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 3 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectId/worker-tasks` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 4 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 5 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 6 | 作業詳細一括取得 | GET | `/api/v1/progress/projects/:projectId/work-details` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 7 | NGタスク一覧取得 | GET | `/api/v1/progress/projects/:projectId/ng-tasks` | 🟢 実装済み | ⭐⭐⭐ 高 |
 
 ---
 
@@ -119,7 +121,7 @@ router.METHOD('/path',
 
 ### 1. タスク詳細取得 🟢
 
-**エンドポイント**: `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details`
+**エンドポイント**: `GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/details`
 
 **説明**: プロジェクト名・メソッドID・タスク連番でタスクを特定し、タスク基本情報・トランジション進捗一覧・統計情報を取得する
 
@@ -134,7 +136,7 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectName` | string | ○ | プロジェクト名 |
+| `projectId` | string | ○ | プロジェクト名 |
 | `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
 | `taskNo` | integer | ○ | タスク連番（1以上の整数） |
 
@@ -147,7 +149,7 @@ router.METHOD('/path',
   "data": {
     "taskId": "550e8400-e29b-41d4-a716-446655440000__method1__3",
     "projectId": "550e8400-e29b-41d4-a716-446655440000",
-    "projectName": "Sample Project",
+    "projectId": "Sample Project",
     "methodId": "method1",
     "experimentOrder": 1,
     "taskNo": 3,
@@ -201,7 +203,7 @@ router.METHOD('/path',
 |-----------|---|------|
 | `taskId` | string | タスクID文字列（`{projectId}__{methodId}__{taskNo}` 形式） |
 | `projectId` | string (UUID) | プロジェクトID |
-| `projectName` | string | プロジェクト名 |
+| `projectId` | string | プロジェクト名 |
 | `methodId` | string | メソッドID |
 | `experimentOrder` | number | 実験順序（`project_task.experiment_order`） |
 | `taskNo` | number | タスク連番（`project_task_detail.task_no`） |
@@ -247,11 +249,11 @@ router.METHOD('/path',
 **ミドルウェアチェーン**:
 ```typescript
 router.get(
-  '/projects/:projectName/methods/:methodId/tasks/:taskNo/details',
+  '/projects/:projectId/methods/:methodId/tasks/:taskNo/details',
   authMiddleware,                    // 1. JWT認証
   checkPermission('040000', 0),      // 2. 権限チェック（実験管理者メニュー、読取専用）
   [
-    validateParamString('projectName', 1, 255),
+    validateParamString('projectId', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamInt('taskNo', 1),
   ],
@@ -262,10 +264,10 @@ router.get(
 
 **コントローラー処理フロー**:
 ```typescript
-// 1. projectName → projectId 解決
+// 1. projectId → projectId 解決
 const projectResult = await pool.query(
   'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2',
-  [organizationId, projectName]
+  [organizationId, projectId]
 );
 // → 404 if not found
 
@@ -418,7 +420,7 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 
 ### 3. 進捗データ取得API 🟢
 
-**エンドポイント**: `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions`
+**エンドポイント**: `GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions`
 
 **説明**: 指定タスクに紐づくトランジションの進捗データを取得
 
@@ -439,7 +441,7 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectName` | string | ○ | プロジェクト名 |
+| `projectId` | string | ○ | プロジェクト名 |
 | `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
 | `taskNo` | Integer | ○ | タスク連番 |
 
@@ -568,8 +570,8 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 
 **コントローラー処理フロー**:
 ```typescript
-// 1. projectName → projectId 解決（projects/findByName.sql）
-const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
+// 1. projectId → projectId 解決（projects/findByName.sql）
+const project = await pgp.oneOrNone(projectQuery, [projectId, organizationId]);
 // → 404 RESOURCE_NOT_FOUND if not found
 
 // 2. ProgressService 呼び出し
@@ -578,7 +580,7 @@ const result = await progressService.getProgressData(projectId, methodId, taskNo
 
 **ProgressService 処理フロー**:
 1. **タスク基本情報取得**: `projectTaskRepository.getTaskByProjectMethodTaskNo(projectId, methodId, taskNo, organizationId)` → タスクなし時 `TASK_NOT_FOUND`
-2. **MAIMLダウンロード＆パース**: `storageService.downloadFile(organizationId, 'projects/{projectName}/{projectName}.maiml')` → `parsePetriNetStructure(xmlContent)` → 失敗時 `MAIML_DOWNLOAD_FAILED` / `MAIML_PARSE_FAILED`
+2. **MAIMLダウンロード＆パース**: `storageService.downloadFile(organizationId, 'projects/{projectId}/{projectId}.maiml')` → `parsePetriNetStructure(xmlContent)` → 失敗時 `MAIML_DOWNLOAD_FAILED` / `MAIML_PARSE_FAILED`
 3. **メソッド検索**: `methods.find(m => m.methodId === methodId)` → なし時 `METHOD_NOT_FOUND`
 4. **トランジション進捗取得（Promise.all 並列）**: 各トランジションについて下記を実行
    - MAIMLのプレース・アーク情報から `material_count`, `condition_count`, `result_count` を算出（stereotype別カウント）
@@ -595,11 +597,11 @@ const result = await progressService.getProgressData(projectId, methodId, taskNo
 **ミドルウェアチェーン**:
 ```typescript
 router.get(
-  '/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions',
+  '/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions',
   authMiddleware,                    // 1. JWT認証
   checkPermission('050000', 0),      // 2. 権限チェック（実験作業者メニュー、読取専用）
   [
-    validateParamString('projectName', 1, 255),
+    validateParamString('projectId', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamInt('taskNo', 1),
   ],
@@ -619,7 +621,7 @@ router.get(
 
 ### 4. タスク一覧取得（実験作業者用）API 🟢
 
-**エンドポイント**: `GET /api/v1/progress/projects/:projectName/worker-tasks`
+**エンドポイント**: `GET /api/v1/progress/projects/:projectId/worker-tasks`
 
 **説明**: プロジェクト内の全タスクをメソッド単位でグループ化して取得する
 
@@ -641,7 +643,7 @@ router.get(
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectName` | string | ○ | プロジェクト名 |
+| `projectId` | string | ○ | プロジェクト名 |
 
 **クエリパラメータ（オプション）**:
 | パラメータ | 型 | デフォルト | 説明 |
@@ -740,8 +742,8 @@ router.get(
 
 **コントローラー処理フロー**:
 ```typescript
-// 1. projectName → projectId 解決（projects/findByName.sql）
-const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
+// 1. projectId → projectId 解決（projects/findByName.sql）
+const project = await pgp.oneOrNone(projectQuery, [projectId, organizationId]);
 // → 404 RESOURCE_NOT_FOUND if not found
 
 // 2. クエリパラメータをTaskFiltersに変換
@@ -766,10 +768,10 @@ const methodGroups = await taskService.getTasksGroupedByMethod(projectId, organi
 **ミドルウェアチェーン**:
 ```typescript
 router.get(
-  '/projects/:projectName/worker-tasks',
+  '/projects/:projectId/worker-tasks',
   authMiddleware,                    // 1. JWT認証
   checkPermission('050000', 0),      // 2. 権限チェック（実験作業者メニュー、読取専用）
-  [validateParamString('projectName', 1, 255)],
+  [validateParamString('projectId', 1, 255)],
   handleValidationErrors,            // 3. バリデーションエラーハンドリング
   progressController.getWorkerTasks  // 4. コントローラー
 );
@@ -793,7 +795,7 @@ router.get(
 
 ### 5. タスクステータス更新API 🟢
 
-**エンドポイント**: `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status`
+**エンドポイント**: `PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status`
 
 **説明**: プロジェクト名、メソッドID、タスク連番でタスクを特定してステータスを更新
 
@@ -815,7 +817,7 @@ router.get(
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectName` | string | ○ | プロジェクト名 |
+| `projectId` | string | ○ | プロジェクト名 |
 | `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
 | `taskNo` | Integer | ○ | タスク連番（1以上の整数） |
 
@@ -913,8 +915,8 @@ const VALID_TRANSITIONS: Record<number, number[]> = {
 
 **コントローラー処理フロー**:
 ```typescript
-// 1. projectName → projectId 解決（projects/findByName.sql）
-const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
+// 1. projectId → projectId 解決（projects/findByName.sql）
+const project = await pgp.oneOrNone(projectQuery, [projectId, organizationId]);
 // → 404 RESOURCE_NOT_FOUND if not found
 
 // 2. プロジェクト編集可能チェック（DB値 1 または 2 のみ編集可能）
@@ -941,11 +943,11 @@ const result = await updateTaskStatusService(
 **ミドルウェアチェーン**:
 ```typescript
 router.patch(
-  '/projects/:projectName/methods/:methodId/tasks/:taskNo/status',
+  '/projects/:projectId/methods/:methodId/tasks/:taskNo/status',
   authMiddleware,                    // 1. JWT認証
   checkPermission('050000', 1),      // 2. 権限チェック（実験作業者メニュー、書込可）
   [
-    validateParamString('projectName', 1, 255),
+    validateParamString('projectId', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamInt('taskNo', 1),
     body('status').notEmpty(),
@@ -974,7 +976,7 @@ router.patch(
 
 ### 6. トランジションステータス更新API 🟢
 
-**エンドポイント**: `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status`
+**エンドポイント**: `PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status`
 
 **説明**: トランジションのステータスを手動で更新します。進捗確認の一環としてトランジション単位の進捗を記録します。
 
@@ -989,7 +991,7 @@ router.patch(
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectName` | string | ○ | プロジェクト名 |
+| `projectId` | string | ○ | プロジェクト名 |
 | `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
 | `transitionId` | string | ○ | トランジションID |
 
@@ -1022,7 +1024,7 @@ router.patch(
     "transitionId": "transition_001",
     "taskNo": 1,
     "methodId": "method_001",
-    "projectName": "Sample Project",
+    "projectId": "Sample Project",
     "status": "running",
     "progressRate": 50,
     "comment": "実験を開始しました。現在50%完了。",
@@ -1113,7 +1115,7 @@ router.patch(
 
 #### バリデーション
 
-- [ ] projectName は文字列（パスパラメータ）
+- [ ] projectId は文字列（パスパラメータ）
 - [ ] methodId は文字列（パスパラメータ）
 - [ ] transitionId は文字列（パスパラメータ）
 - [ ] taskNo は1以上の整数（リクエストボディ）
@@ -1279,7 +1281,7 @@ $10: transition_id (string) - パスパラメータ
 **ミドルウェアチェーン**:
 ```typescript
 router.patch(
-  '/projects/:projectName/methods/:methodId/transitions/:transitionId/status',
+  '/projects/:projectId/methods/:methodId/transitions/:transitionId/status',
   authMiddleware,                    // 1. JWT認証
   checkPermission('050000', 1),      // 2. 権限チェック（実装済み）
   [/* バリデーション */],             // 3. バリデーション
@@ -1292,7 +1294,7 @@ router.patch(
 
 ### 参考: タスクステータス更新API（旧エンドポイント） 🔴
 
-**⚠️ 注意**: このエンドポイントは参考用です。新規実装では **API #5** の `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` を使用してください。
+**⚠️ 注意**: このエンドポイントは参考用です。新規実装では **API #5** の `PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status` を使用してください。
 
 **エンドポイント**: `PUT /api/v1/tasks/:taskId/status`
 
@@ -1486,7 +1488,7 @@ const validateStatusUpdate = (body: any) => {
 
 ### 7. 作業詳細一括取得API 🟢
 
-**エンドポイント**: `GET /api/v1/progress/projects/:projectName/work-details`
+**エンドポイント**: `GET /api/v1/progress/projects/:projectId/work-details`
 
 **説明**: WorkProgressDetailDialog が必要とする projectInfo / fileInfo / workDetails（transitionProgress 含む）を一括返却する
 
@@ -1505,7 +1507,7 @@ const validateStatusUpdate = (body: any) => {
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectName` | string | ○ | プロジェクト名 |
+| `projectId` | string | ○ | プロジェクト名 |
 
 #### レスポンス
 
@@ -1516,7 +1518,7 @@ const validateStatusUpdate = (body: any) => {
   "data": {
     "projectInfo": {
       "projectId": "550e8400-e29b-41d4-a716-446655440000",
-      "projectName": "Sample Project",
+      "projectId": "Sample Project",
       "projectDescription": "プロジェクトの説明",
       "owner": "Owner Name",
       "department": "研究部門",
@@ -1582,7 +1584,7 @@ const validateStatusUpdate = (body: any) => {
 | フィールド | 型 | 説明 |
 |-----------|---|------|
 | `projectId` | string (UUID) | プロジェクトID |
-| `projectName` | string | プロジェクト名 |
+| `projectId` | string | プロジェクト名 |
 | `projectDescription` | string \| undefined | プロジェクト説明 |
 | `owner` | string | オーナー名（ユーザー名またはユーザーID） |
 | `department` | string \| undefined | 部門名（または部門CD） |
@@ -1622,7 +1624,7 @@ const validateStatusUpdate = (body: any) => {
    - `projects/findWithOwnerAndDept.sql` を使用し、プロジェクト名と組織IDでプロジェクト情報・オーナー名・部門名を取得
 
 2. **MAIML ダウンロード & パース**
-   - S3/Swift から `{organizationId}/projects/{projectName}/{projectName}.maiml` をダウンロード
+   - S3/Swift から `{organizationId}/projects/{projectId}/{projectId}.maiml` をダウンロード
    - `parsePetriNetStructure()` でメソッド一覧とトランジション一覧を抽出
 
 3. **タスク一覧取得**
@@ -1643,7 +1645,7 @@ const validateStatusUpdate = (body: any) => {
 
 ```typescript
 router.get(
-  '/projects/:projectName/work-details',
+  '/projects/:projectId/work-details',
   authMiddleware,                    // 1. JWT認証
   checkPermission('040000', 0),      // 2. 権限チェック（実験管理者メニュー、読取専用以上）
   getWorkDetails                     // 3. コントローラー
@@ -1666,6 +1668,74 @@ router.get(
 - **methodName フィールド**: 現時点では `method_id` の値をそのまま返却（MAIML のメソッド名表示名は未対応）
 - MAIMLに存在するがDBに未登録のトランジションは `progressStatus: '未開始'` として含める
 - プロジェクト内の全タスクを対象とする（担当者フィルタなし）
+
+---
+
+### 8. NGタスク一覧取得API 🟢
+
+**エンドポイント**: `GET /api/v1/progress/projects/:projectId/ng-tasks`
+
+**説明**: task_status=6（NG）のタスク一覧を取得してNG理由モーダルに表示する
+
+**認証**: 必須
+
+**権限**: `experiment_worker`（機能CD: `050000`、読取専用）
+
+**優先度**: ⭐⭐⭐ 高
+
+**実装状況**: ✅ 実装済み
+- コントローラー: `backend/src/controllers/progressController.ts` - `getNgTasks()`
+- ルート定義: `backend/src/routes/progressRoutes.ts` - `checkPermission('050000', 0)`
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | string | ○ | プロジェクトID |
+
+#### レスポンス
+
+**成功時（200 OK）**:
+
+> ⚠️ **確認事項**: レスポンスの詳細な構造（フィールド一覧・型）はコントローラー実装（`progressController.getNgTasks()`）を参照してください。設計書作成時点では未確認です。
+
+一般的な想定レスポンス形式:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "task_no": 3,
+      "method_id": "method1",
+      "task_status": 6,
+      "ng_reason": "...",
+      "updated_at": "2026-08-01T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+**エラー時**:
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない
+- 500: システムエラー
+
+#### ミドルウェアチェーン
+
+```typescript
+router.get(
+  '/projects/:projectId/ng-tasks',
+  authMiddleware,                    // 1. JWT認証
+  checkPermission('050000', 0),      // 2. 権限チェック（実験作業者メニュー、読取専用）
+  [
+    validateParamString('projectId', 1, 255),
+  ],
+  handleValidationErrors,            // 3. バリデーションエラーハンドリング
+  progressController.getNgTasks      // 4. コントローラー
+);
+```
 
 ---
 
@@ -1692,6 +1762,13 @@ router.get(
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.1.0 | 2026-08-14 | projectName→projectId パラメータ名修正、NGタスク一覧取得API（API #8）新規追加 | Cline |
+| | | - 全エンドポイントのパスパラメータを `:projectName` → `:projectId` に修正（実装に合わせて統一） | |
+| | | - API #8: GET /api/v1/progress/projects/:projectId/ng-tasks 新規追加（実装済み） | |
+| | | - 権限: experiment_worker（機能CD: 050000、読取専用） | |
+| | | - コントローラー: progressController.ts `getNgTasks()` | |
+| | | - 総API数: 7→8（+1）、バージョン: 2.0.0→2.1.0 | |
+| | | - 最終更新コミット: 651973aae (feature/phase2_mock) | |
 | 2.0.0 | 2026-03-12 | トランジションステータス更新API（API #6）仕様書修正（ソースコード実装に合わせて更新） | Cline |
 | | | - API #6 見出しを 🔴（未実装）→ 🟢（実装済み）に変更 | |
 | | | - ビジネスロジック #1 プロジェクト編集可能ステータスを実装に合わせて修正（`project_status = 1 or 2` の数値チェック） | |
@@ -1723,23 +1800,23 @@ router.get(
 | | | - API #5 previous_status: 現在の実装では常にnullと明記 | |
 | 1.7.0 | 2026-03-11 | タスク詳細取得API 仕様書修正（実装に合わせて更新） | Cline |
 | | | - API #1: エンドポイント・パラメータ・レスポンス・権限を実際の実装に合わせて修正 | |
-| | | - パラメータ: projectName / methodId / taskNo（パスパラメータ3種に変更） | |
+| | | - パラメータ: projectId / methodId / taskNo（パスパラメータ3種に変更） | |
 | | | - クエリパラメータ（include_records, include_issues）削除 | |
 | | | - レスポンス: TaskDetailResponse 型に合わせて更新（transitionProgress[] + stats{}） | |
 | | | - 権限: checkPermission('040000', 0) = experiment_admin 読取専用 | |
 | | | - 実装要件: SQLファイルベース（findDetailByTaskId.sql / findTransitionsByTaskId.sql）に差し替え | |
 | | | - 実装状況セクション追加（progressRoutes.ts / projectController.ts / projectTaskDetailRepository.ts） | |
 | 1.6.0 | 2026-03-11 | 作業詳細一括取得API追加（7エンドポイント） | Cline |
-| | | - API #7: GET /api/v1/progress/projects/:projectName/work-details 新規追加（実装済み） | |
+| | | - API #7: GET /api/v1/progress/projects/:projectId/work-details 新規追加（実装済み） | |
 | | | - WorkProgressDetailDialog 向けの projectInfo / fileInfo / workDetails 一括返却 | |
 | | | - 権限: experiment_admin（機能CD: 040000、読取専用以上） | |
 | | | - 実装済み: progressController.ts `getWorkDetails()`、progressService.ts `ProgressService.getWorkDetails()` | |
 | | | - 総API数: 6→7（+1）、実装済み: 2→3（+1） | |
 | | | - 完了率: 33.3%→42.9% | |
 | 1.5.0 | 2026-03-09 | タスク詳細取得API エンドポイント変更・実装済みに更新 | Cline |
-| | | - API #2: エンドポイントを `GET /api/v1/tasks/:taskId` → `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` に変更 | |
+| | | - API #2: エンドポイントを `GET /api/v1/tasks/:taskId` → `GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/details` に変更 | |
 | | | - 実装済み（`backend/src/controllers/projectController.ts` `getTaskDetail()`、`backend/src/routes/progressRoutes.ts`） | |
-| | | - パラメータ: taskId(UUID) → projectName/methodId/taskNo の組み合わせに変更 | |
+| | | - パラメータ: taskId(UUID) → projectId/methodId/taskNo の組み合わせに変更 | |
 | | | - `server.ts` から旧 `tasksRoutes` の登録を削除 | |
 | | | - 実装状況サマリー: 1→2実装済み、5→4未実装 | |
 | | | - 完了率: 16.7%→33.3% | |
@@ -1754,24 +1831,24 @@ router.get(
 | | | - 実装要件にMAIMLパーサーによる定義数取得処理を追記 | |
 | | | - 実装要件にexperiment_record_detailテーブルからの実績カウントクエリを追記 | |
 | 1.4.0 | 2026-02-18 | トランジションステータス更新API追加（6エンドポイント） | Cline |
-| | | - API #6: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | |
+| | | - API #6: PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status | |
 | | | - 実験データ記録APIから進捗確認APIに移動 | |
 | | | - taskNoをリクエストボディパラメータ化 | |
 | | | - 権限: experiment_worker（書込可） | |
 | | | - トランジション単位の進捗更新 | |
 | | | - イベントログ記録とタスク進捗率再計算 | |
 | 1.3.0 | 2026-02-18 | タスク一覧取得（実験作業者用）API仕様変更（5エンドポイント） | Cline |
-| | | - API #4: GET /api/v1/progress/projects/:projectName/worker-tasks（エンドポイント変更） | |
+| | | - API #4: GET /api/v1/progress/projects/:projectId/worker-tasks（エンドポイント変更） | |
 | | | - タスク一覧取得（プロジェクト単位）からタスク一覧取得（実験作業者用）に変更 | |
 | | | - プロジェクト名のみで特定（methodIdパラメータ削除） | |
 | | | - メソッドごとにグループ化したレスポンス | |
 | | | - 総API数: 6→5（-1: 重複削除） | |
 | 1.2.0 | 2026-02-18 | タスク一覧取得（実験作業者用）API追加（6エンドポイント） | Cline |
-| | | - API #6: GET /api/v1/progress/projects/:projectName/methods/:methodId/worker-tasks | |
+| | | - API #6: GET /api/v1/progress/projects/:projectId/methods/:methodId/worker-tasks | |
 | | | - 実験作業者が自分に割り当てられたタスクの一覧を取得 | |
 | | | - 権限: experiment_worker（読取専用） | |
 | 1.1.0 | 2026-02-18 | タスクステータス更新API追加（5エンドポイント） | Cline |
-| | | - API #5: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | |
+| | | - API #5: PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status | |
 | | | - プロジェクト名+メソッドID+タスク連番でタスク特定 | |
 | | | - 楽観的ロック（currentUpdatedAt）実装（オプション） | |
 | | | - 旧エンドポイント（PUT /api/v1/tasks/:taskId/status）はAPI #6として参考情報化 | |
