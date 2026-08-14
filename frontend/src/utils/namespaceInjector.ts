@@ -29,8 +29,9 @@ export interface NamespaceEntry {
 /**
  * 保護する標準プレフィックス
  * バックエンドの PROTECTED_PREFIXES と同一セット
+ * namespaceApiService.ts など他モジュールからも参照可能なよう export する
  */
-const PROTECTED_PREFIXES = new Set(['xsi', 'xenc', 'xs', 'xsd', 'xlink']);
+export const PROTECTED_PREFIXES = new Set(['xsi', 'xenc', 'xs', 'xsd', 'xlink']);
 
 /**
  * XML 特殊文字をエスケープする

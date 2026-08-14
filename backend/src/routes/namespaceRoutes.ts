@@ -65,7 +65,7 @@ router.get(
  * 名前空間（Prefix）新規登録
  * POST /api/v1/namespaces
  *
- * @body { prefix, uri, displayName?, description?, departmentCd?, scopeKey?, isGlobal? }
+ * @body { prefix, uri, displayName?, description?, departmentCd?, scopeKey? }
  */
 router.post(
   '/',

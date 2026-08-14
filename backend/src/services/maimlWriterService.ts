@@ -34,6 +34,22 @@ import { findNamespacesByOrganization } from '../repositories/namespaceTermRepos
 import { readGlobalDeclarations } from './globalNamespaceFileService';
 
 /**
+ * 組織固有名前空間（DB）とグローバル名前空間（ファイルサーバ）をマージして返す
+ *
+ * @param organizationId - 組織ID
+ * @returns マージされた名前空間エントリ配列（グローバル優先、組織固有が後勝ち）
+ */
+async function buildMergedNamespaces(
+  organizationId: string
+): Promise<Array<{ prefix: string; uri: string }>> {
+  const [orgNamespaces, globalDeclarations] = await Promise.all([
+    findNamespacesByOrganization(organizationId),
+    readGlobalDeclarations(),
+  ]);
+  return [...globalDeclarations, ...orgNamespaces];
+}
+
+/**
  * maiml_event_log テーブルの1行
  * (log カラムのみ使用するため最小限の型定義)
  */
@@ -141,12 +157,8 @@ export class MaimlWriterService {
 
     // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
     // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
-    const [orgNamespaces1, globalDeclarations1] = await Promise.all([
-      findNamespacesByOrganization(organizationId),
-      readGlobalDeclarations(),
-    ]);
-    const allNamespaces1 = [...globalDeclarations1, ...orgNamespaces1];
-    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces1);
+    const allNamespaces = await buildMergedNamespaces(organizationId);
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
@@ -285,12 +297,8 @@ export class MaimlWriterService {
 
     // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
     // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
-    const [orgNamespaces2, globalDeclarations2] = await Promise.all([
-      findNamespacesByOrganization(organizationId),
-      readGlobalDeclarations(),
-    ]);
-    const allNamespaces2 = [...globalDeclarations2, ...orgNamespaces2];
-    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces2);
+    const allNamespaces = await buildMergedNamespaces(organizationId);
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);

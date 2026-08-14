@@ -12,7 +12,12 @@
 
 import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
 import type { NamespaceTermRow } from '../repositories/namespaceTermRepository';
-import { readGlobalDeclarations } from './globalNamespaceFileService';
+import {
+  readGlobalDeclarations,
+  writeGlobalDeclarations,
+  parseGlobalDeclarationsCsv,
+} from './globalNamespaceFileService';
+import type { GlobalDeclarationEntry } from '../types/service';
 
 // ─── 型定義 ──────────────────────────────────────────────────────────────────
 
@@ -331,6 +336,48 @@ export async function getDeclarations(
   organizationId: string
 ): Promise<string | null> {
   return namespaceTermRepository.findDeclarationsByOrganization(organizationId);
+}
+
+/**
+ * グローバル名前空間宣言一覧をファイルサーバから取得する
+ *
+ * @remarks ファイルが存在しない場合は空配列を返す。
+ * @returns グローバル名前空間宣言エントリ配列
+ */
+export async function getGlobalDeclarationEntries(): Promise<GlobalDeclarationEntry[]> {
+  return readGlobalDeclarations();
+}
+
+/**
+ * グローバル名前空間宣言 CSV をパースしてファイルサーバへ書き込む
+ *
+ * @param csvContent - CSV 文字列（ヘッダー行 "prefix,uri" 付き）
+ * @returns パースされた宣言エントリ数
+ * @throws パース結果が0件の場合はエラー
+ */
+export async function importGlobalDeclarationsCsv(
+  csvContent: string
+): Promise<{ count: number }> {
+  const declarations = parseGlobalDeclarationsCsv(csvContent);
+  if (declarations.length === 0) {
+    throw new Error('CSVファイルに有効なデータが含まれていません');
+  }
+  await writeGlobalDeclarations(declarations);
+  return { count: declarations.length };
+}
+
+/**
+ * グローバル名前空間宣言一覧をファイルサーバから取得し CSV 文字列として返す
+ *
+ * @returns CSV 文字列（ヘッダー行付き）
+ */
+export async function exportGlobalDeclarationsCsv(): Promise<string> {
+  const declarations = await readGlobalDeclarations();
+  const lines = ['prefix,uri'];
+  for (const { prefix, uri } of declarations) {
+    lines.push(`${prefix},${uri}`);
+  }
+  return lines.join('\n');
 }
 
 /**

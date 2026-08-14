@@ -19,6 +19,10 @@
  */
 
 import { getStorageService } from './storageService';
+import type { GlobalDeclarationEntry } from '../types/service';
+
+// re-export for convenience（他モジュールが同じ型を使う場合の利便性のため）
+export type { GlobalDeclarationEntry } from '../types/service';
 
 // ─── 定数 ─────────────────────────────────────────────────────────────────────
 
@@ -27,18 +31,6 @@ export const GLOBAL_DECLARATIONS_PATH = 'system/namespaces/global-declarations.c
 
 /** CSV のヘッダー行 */
 const CSV_HEADER = 'prefix,uri';
-
-// ─── 型定義 ──────────────────────────────────────────────────────────────────
-
-/**
- * グローバル名前空間宣言の1エントリ
- */
-export interface GlobalDeclarationEntry {
-  /** XML prefix（例: "maiml", "xsi"） */
-  prefix: string;
-  /** 名前空間 URI（例: "http://www.maiml.org/schemas"） */
-  uri: string;
-}
 
 // ─── CSV パース / シリアライズ ────────────────────────────────────────────────
 

@@ -651,6 +651,10 @@ export interface GlobalNamespaceEntry {
  * GlobalNamespaceView コンポーネントの Props
  */
 export interface GlobalNamespaceViewProps {
-  // 将来の拡張用
+  /**
+   * true のとき、インポート・エクスポートボタンを disabled にして参照のみにする。
+   * NamespaceMain でグローバルノード選択時に使用する。
+   */
+  viewOnly?: boolean;
 }
 

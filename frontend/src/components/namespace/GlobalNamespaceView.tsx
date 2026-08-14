@@ -20,7 +20,7 @@ const { Text, Title } = Typography;
  * ファイルサーバ（system/namespaces/global-declarations.csv）に保存された
  * グローバル名前空間（prefix + URI）の一覧表示・インポート・エクスポートを提供する。
  */
-const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = () => {
+const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = ({ viewOnly = false }) => {
   const { t } = useLanguage();
   const [declarations, setDeclarations] = useState<GlobalNamespaceEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -141,6 +141,7 @@ const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = () => {
             icon={<DownloadOutlined />}
             onClick={handleExport}
             loading={exporting}
+            disabled={viewOnly}
           >
             {t('globalNamespace.exportButton')}
           </Button>
@@ -148,7 +149,8 @@ const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = () => {
             type="primary"
             icon={<UploadOutlined />}
             loading={importing}
-            onClick={() => csvInputRef.current?.click()}
+            disabled={viewOnly}
+            onClick={() => !viewOnly && csvInputRef.current?.click()}
           >
             {t('globalNamespace.importButton')}
           </Button>

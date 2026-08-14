@@ -14,11 +14,6 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as namespaceService from '../services/namespaceService';
-import {
-  readGlobalDeclarations,
-  writeGlobalDeclarations,
-  parseGlobalDeclarationsCsv,
-} from '../services/globalNamespaceFileService';
 
 /**
  * 名前空間（Prefix）新規登録
@@ -368,7 +363,7 @@ export async function getGlobalDeclarations(
   next: NextFunction
 ): Promise<void> {
   try {
-    const declarations = await readGlobalDeclarations();
+    const declarations = await namespaceService.getGlobalDeclarationEntries();
     res.json({ declarations });
   } catch (error) {
     next(error);
@@ -395,16 +390,13 @@ export async function importGlobalDeclarations(
     }
 
     const csvContent = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
-    const declarations = parseGlobalDeclarationsCsv(csvContent);
 
-    if (declarations.length === 0) {
-      res.status(400).json({ success: false, error: { code: 'E1004', message: 'CSVファイルに有効なデータが含まれていません' } });
-      return;
+    try {
+      const result = await namespaceService.importGlobalDeclarationsCsv(csvContent);
+      res.json({ success: true, count: result.count });
+    } catch (serviceError: any) {
+      res.status(400).json({ success: false, error: { code: 'E1004', message: serviceError.message } });
     }
-
-    await writeGlobalDeclarations(declarations);
-
-    res.json({ success: true, count: declarations.length });
   } catch (error) {
     next(error);
   }
@@ -422,14 +414,7 @@ export async function exportGlobalDeclarations(
   next: NextFunction
 ): Promise<void> {
   try {
-    const declarations = await readGlobalDeclarations();
-
-    const lines = ['prefix,uri'];
-    for (const { prefix, uri } of declarations) {
-      lines.push(`${prefix},${uri}`);
-    }
-    const csvContent = lines.join('\n');
-
+    const csvContent = await namespaceService.exportGlobalDeclarationsCsv();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="global-declarations.csv"');
     res.send(csvContent);

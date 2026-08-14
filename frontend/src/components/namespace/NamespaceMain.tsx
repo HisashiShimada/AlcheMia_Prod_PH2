@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography } from 'antd';
 import {
@@ -41,6 +42,9 @@ import type {
   TermCsvParsedRow,
   OrganizationGroupRow,
 } from '@/types/namespace';
+
+// GlobalNamespaceView: グローバルノード選択時に右ペインへ表示（SSR無効）
+const GlobalNamespaceView = dynamic(() => import('./GlobalNamespaceView'), { ssr: false });
 
 const { Text } = Typography;
 
@@ -1054,6 +1058,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     return rootKey === 'global' || rootKey === 'personal';
   }, [selectedNsKey, externalSelectedNsKey, namespaceTree]);
 
+  // グローバルノード自体（'global' / 'ns-maiml' / 'ns-xsi'）が選択中かどうか
+  const isGlobalNodeSelected = useMemo(() => {
+    const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    return key === 'global' || key === 'ns-maiml' || key === 'ns-xsi';
+  }, [selectedNsKey, externalSelectedNsKey]);
+
   // 選択ノードが company 配下のノードかどうか
   const isCompanyNodeSelected = useMemo(() => {
     const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
@@ -1842,8 +1852,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           </div>
         )}
 
-        {/* ── 右ペイン：用語リスト ── */}
+        {/* ── 右ペイン：用語リスト / グローバルノード選択時は GlobalNamespaceView ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 40px', background: '#fafafa' }}>
+          {isGlobalNodeSelected ? (
+            <GlobalNamespaceView viewOnly={true} />
+          ) : (
+          <>
           {/* 上段アクションバー（1件以上チェック時に表示） */}
           {selectedTermIds.length > 0 && (
             <div style={{
@@ -1972,6 +1986,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               />
             );
           })()}
+          </>
+          )}
         </div>
       </div>
 
