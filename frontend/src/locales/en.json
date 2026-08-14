@@ -5010,7 +5010,7 @@
   "globalNamespace": {
     "title": "Global Namespace Declarations",
     "description": "System-wide global namespaces (managed in file server)",
-    "count": "{{count}} items",
+    "count": "{count} items",
     "empty": "No global namespace declarations registered",
     "fetchError": "Failed to fetch global namespace declarations",
     "importButton": "Import",

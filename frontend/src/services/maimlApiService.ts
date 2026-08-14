@@ -249,11 +249,15 @@ export const saveMaiml = async (
     console.log(`💾 [maimlApiService] MAIMLファイル保存 (${fileKey}, archive: ${archive})`);
 
     // 保存前に名前空間宣言を XMLに注入する（失敗しても保存は継続）
+    // content は Base64エンコード済み文字列のため、一度デコードしてから注入し再エンコードする
     let contentToSave = content;
     try {
       const namespaces = await getOrganizationNamespaces();
       if (namespaces.length > 0) {
-        contentToSave = injectNamespacesToMaiml(content, namespaces);
+        // Base64デコード → xmlns注入 → Base64再エンコード
+        const decodedXml = decodeURIComponent(escape(atob(content)));
+        const injectedXml = injectNamespacesToMaiml(decodedXml, namespaces);
+        contentToSave = btoa(unescape(encodeURIComponent(injectedXml)));
         console.log(`🔧 [maimlApiService] 名前空間 ${namespaces.length} 件を注入しました`);
       }
     } catch (nsError) {
