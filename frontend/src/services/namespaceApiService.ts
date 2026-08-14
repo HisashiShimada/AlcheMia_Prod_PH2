@@ -8,7 +8,6 @@
 
 import { createApiClient } from '@/utils/authUtils';
 import type { NamespaceEntry } from '@/utils/namespaceInjector';
-import { PROTECTED_PREFIXES } from '@/utils/namespaceInjector';
 import type { ServiceApiResponse } from '@/types/api';
 import type {
   OrganizationGroupRow,
@@ -114,12 +113,11 @@ export interface TermUpsertRequest {
  * @remarks
  * バックエンドの GET /api/v1/namespaces/declarations を呼び出し、組織固有の URI を取得する。
  * 並列でファイルサーバのグローバル名前空間宣言（getGlobalDeclarations）も取得し、
- * 衝突回避ルールを適用してマージした結果を返す。
+ * 以下の変換を適用してマージした結果を返す。
  *
- * 衝突回避ルール:
- * - PROTECTED_PREFIXES (xsi/xenc/xs/xsd/xlink) に該当する prefix のグローバル宣言は除外
+ * 変換ルール:
  * - prefix が 'maiml' かつ uri が 'http://www.maiml.org/schemas' の場合は prefix を '' に変換
- *   → xmlns="http://www.maiml.org/schemas" としてハードコードと同じ形式で注入される
+ *   → xmlns="http://www.maiml.org/schemas" としてデフォルト名前空間として注入される
  *
  * 返却順序: グローバル宣言 → 組織 URI（後勝ちで組織固有が優先される）
  *
@@ -137,9 +135,8 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
       getGlobalDeclarations(),
     ]);
 
-    // グローバル宣言に衝突回避フィルタ/変換を適用
-    const filteredGlobals: NamespaceEntry[] = globalDeclarations
-      .filter((entry) => !PROTECTED_PREFIXES.has(entry.prefix))
+    // グローバル宣言に変換ルールを適用
+    const convertedGlobals: NamespaceEntry[] = globalDeclarations
       .map((entry) => {
         // maiml prefix + 正規 URI → デフォルト名前空間（prefix 空文字）に変換
         if (entry.prefix === 'maiml' && entry.uri === 'http://www.maiml.org/schemas') {
@@ -152,7 +149,7 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
     const orgUri = orgResponse.data?.uri;
     const orgEntries: NamespaceEntry[] = orgUri ? [{ prefix: '', uri: orgUri }] : [];
 
-    return [...filteredGlobals, ...orgEntries];
+    return [...convertedGlobals, ...orgEntries];
   } catch (error) {
     // 名前空間取得失敗はエディタの操作を止めない（空配列を返して継続）
     console.warn('⚠️ [namespaceApiService] 名前空間宣言の取得に失敗しました:', error);

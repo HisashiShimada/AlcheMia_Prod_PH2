@@ -5,11 +5,11 @@
  * と同等のロジックをフロントエンドで実装する。
  *
  * 処理概要:
- *   - <maiml> 開きタグに xmlns:prefix="uri" 宣言を注入する
- *   - 既存のカスタム xmlns:xxx を除去して DB の内容で完全置換する
- *   - 標準プレフィックス（xsi / xenc / xs / xsd / xlink）は除去対象外として保持する
+ *   - <maiml> 開きタグの xmlns:prefix="uri" / xmlns="uri" 宣言をすべて除去して完全置換する
  *   - namespaces が空配列の場合はノーオペレーション（変更なし）
  *   - <maiml> タグが存在しない場合はそのまま返す
+ *   - prefix が空文字（''）のエントリは xmlns="uri"（デフォルト名前空間）として出力する
+ *   - xsi:schemaLocation 等の名前空間宣言でない属性は除去しない
  *
  * @module namespaceInjector
  */
@@ -27,13 +27,6 @@ export interface NamespaceEntry {
 }
 
 /**
- * 保護する標準プレフィックス
- * バックエンドの PROTECTED_PREFIXES と同一セット
- * namespaceApiService.ts など他モジュールからも参照可能なよう export する
- */
-export const PROTECTED_PREFIXES = new Set(['xsi', 'xenc', 'xs', 'xsd', 'xlink']);
-
-/**
  * XML 特殊文字をエスケープする
  */
 function escapeXml(text: string): string {
@@ -48,13 +41,14 @@ function escapeXml(text: string): string {
 /**
  * MAIML XML 文字列の <maiml> 開きタグに xmlns:prefix="uri" 宣言を注入する
  *
- * - 既存の xmlns:xxx="..." 属性をすべて除去した上で、DB から取得した名前空間で上書きする（完全置換方式）
+ * - 既存の xmlns:xxx="..." 属性と xmlns="..." をすべて除去した上で、
+ *   ファイルサーバから取得した名前空間で上書きする（完全置換方式）
  * - namespaces が空配列の場合は何も変更せずそのまま返す（ノーオペレーション）
- * - xmlns="..." (プレフィックスなし) は除去対象外とし保持する
  * - <maiml> タグが存在しない場合はそのまま返す
+ * - prefix が '' のエントリは xmlns="uri"（デフォルト名前空間）として出力する
  *
  * @param maimlContent - 更新前の MAIML XML 文字列
- * @param namespaces   - DB から取得した名前空間一覧（{prefix, uri}[]）
+ * @param namespaces   - ファイルサーバから取得した名前空間一覧（{prefix, uri}[]）
  * @returns 更新後の MAIML XML 文字列
  */
 export function injectNamespacesToMaiml(
@@ -74,16 +68,12 @@ export function injectNamespacesToMaiml(
 
   const originalTag = maimlTagMatch[0];
 
-  // xmlns:prefix="uri" 形式の属性を除去（保護プレフィックスは保持）
-  // xmlns="..." (プレフィックスなし) も除去して DB の内容で上書きする
+  // xmlns:prefix="uri" 形式の属性をすべて除去（プレフィックスなし xmlns="..." も除去）
   const tagWithoutNs = originalTag
-    .replace(
-      /\s+xmlns:([a-zA-Z0-9_.-]+)="[^"]*"/g,
-      (match: string, prefix: string) => (PROTECTED_PREFIXES.has(prefix) ? match : '')
-    )
+    .replace(/\s+xmlns:[a-zA-Z0-9_.-]+="[^"]*"/g, '')
     .replace(/\s+xmlns="[^"]*"/g, '');
 
-  // DB の名前空間を xmlns 属性に変換
+  // 名前空間を xmlns 属性に変換
   // prefix が空の場合は xmlns="uri"、ある場合は xmlns:prefix="uri"
   const nsAttrs = namespaces
     .map(({ prefix, uri }) =>

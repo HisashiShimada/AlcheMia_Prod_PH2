@@ -813,13 +813,15 @@ export function replaceEventLogInMaiml(
 /**
  * MAIML XML の <maiml> 開きタグに xmlns:prefix="uri" 宣言を注入する
  *
- * - 既存の xmlns:xxx="..." 属性をすべて除去した上で、DB から取得した名前空間で上書きする（完全置換方式）。
+ * - 既存の xmlns:xxx="..." 属性と xmlns="..." をすべて除去した上で、
+ *   ファイルサーバから取得した名前空間で上書きする（完全置換方式）。
  * - namespaces が空配列の場合は何も変更せずそのまま返す（ノーオペレーション）。
- * - xmlns="..." (プレフィックスなし) は除去対象外とし保持する。
+ * - prefix が '' のエントリは xmlns="uri"（デフォルト名前空間）として出力する。
+ * - xsi:schemaLocation 等の名前空間宣言でない属性は除去しない。
  * - <maiml> タグが存在しない場合はそのまま返す。
  *
  * @param maimlContent - 更新前の MAIML XML 文字列
- * @param namespaces   - DBから取得した名前空間一覧（{prefix, uri}[]）
+ * @param namespaces   - ファイルサーバから取得した名前空間一覧（{prefix, uri}[]）
  * @returns 更新後の MAIML XML 文字列
  */
 export function injectNamespaceDeclarations(
@@ -839,17 +841,16 @@ export function injectNamespaceDeclarations(
 
   const originalTag = maimlTagMatch[0];
 
-  // xmlns:prefix="uri" 形式の属性を除去（プレフィックスなしの xmlns="..." は保持）
-  // 付録B準拠: xsi / xenc 等の標準 prefix は保持し、カスタム prefix のみ除去する
-  const PROTECTED_PREFIXES = ['xsi', 'xenc', 'xs', 'xsd', 'xlink'];
-  const tagWithoutNs = originalTag.replace(
-    /\s+xmlns:([a-zA-Z0-9_.-]+)="[^"]*"/g,
-    (match, prefix) => (PROTECTED_PREFIXES.includes(prefix) ? match : '')
-  );
+  // xmlns:prefix="uri" 形式の属性をすべて除去（プレフィックスなしの xmlns="..." も除去）
+  const tagWithoutNs = originalTag
+    .replace(/\s+xmlns:[a-zA-Z0-9_.-]+="[^"]*"/g, '')
+    .replace(/\s+xmlns="[^"]*"/g, '');
 
-  // DB の名前空間を xmlns:prefix="uri" 形式に変換
+  // 名前空間を xmlns 属性に変換
+  // prefix が '' の場合は xmlns="uri"（デフォルト名前空間）、それ以外は xmlns:prefix="uri"
   const nsAttrs = namespaces
-    .map(({ prefix, uri }) => `xmlns:${prefix}="${escapeXml(uri)}"`)
+    .map(({ prefix, uri }) =>
+      prefix ? `xmlns:${prefix}="${escapeXml(uri)}"` : `xmlns="${escapeXml(uri)}"`)
     .join('\n  ');
 
   // <maiml> の閉じ角括弧直前に名前空間属性を追加
