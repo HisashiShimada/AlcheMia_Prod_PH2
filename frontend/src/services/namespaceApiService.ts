@@ -20,6 +20,40 @@ import type {
 // ============================================================================
 
 /**
+ * GET /api/v1/namespaces?scopeKey={userId} の各名前空間行
+ */
+export interface PersonalNamespaceRow {
+  namespace_id: string;
+  uri: string;
+  scope_key: string;
+  global_flg: boolean;
+  user_name: string | null;
+}
+
+/**
+ * GET /api/v1/namespaces?scopeKey={userId} のレスポンスボディ型
+ */
+export interface PersonalNamespaceListResponse {
+  namespaces: PersonalNamespaceRow[];
+}
+
+/**
+ * GET /api/v1/systemManagement/user の各ユーザー行
+ */
+export interface OrgUserRow {
+  userId: string;
+  userName: string;
+}
+
+/**
+ * GET /api/v1/systemManagement/user のレスポンスボディ型
+ */
+export interface OrgUserListResponse {
+  success: boolean;
+  data: OrgUserRow[];
+}
+
+/**
  * GET /api/v1/namespaces/declarations のレスポンスボディ型
  */
 export interface NamespaceDeclarationsResponse {
@@ -184,21 +218,16 @@ export const getNamespaceList = async (options?: {
  */
 export const getPersonalNamespaces = async (
   userId: string
-): Promise<Array<{ namespace_id: string; uri: string; scope_key: string; global_flg: boolean; user_name: string | null }>> => {
+): Promise<PersonalNamespaceRow[]> => {
   const client = createApiClient();
 
   try {
     console.log('👤 [namespaceApiService] 個人名前空間一覧取得:', userId);
 
-    const response = await client.get<{
-      namespaces: Array<{
-        namespace_id: string;
-        uri: string;
-        scope_key: string;
-        global_flg: boolean;
-        user_name: string | null;
-      }>;
-    }>('/namespaces', { params: { scopeKey: userId } });
+    const response = await client.get<PersonalNamespaceListResponse>(
+      '/namespaces',
+      { params: { scopeKey: userId } }
+    );
 
     return response.data?.namespaces ?? [];
   } catch (error) {
@@ -313,6 +342,27 @@ export const getTerms = async (options?: {
     console.warn('⚠️ [namespaceApiService] 用語一覧の取得に失敗しました:', error);
     return [];
   }
+};
+
+/**
+ * 全用語を取得して qname → NamespaceTermRow の Map に変換する
+ *
+ * @remarks
+ * 既存の getTerms() をラップし、Map<qname, NamespaceTermRow> 形式で返す。
+ * TemplateEditorDialog のダイアログ open 時に全件キャッシュし、
+ * キー入力時の補完・プレビューに使用する。
+ * バックエンドへの追加実装は不要。
+ *
+ * @returns Map<qname, NamespaceTermRow>（例: "chem:SampleTemperature" → TermRow）
+ */
+export const getAllTermsAsMap = async (): Promise<Map<string, NamespaceTermRow>> => {
+  const terms = await getTerms();
+  const map = new Map<string, NamespaceTermRow>();
+  for (const term of terms) {
+    const qname = `${term.prefix}:${term.localName}`;
+    map.set(qname, term);
+  }
+  return map;
 };
 
 /**
@@ -433,10 +483,7 @@ export const getOrganizationUsers = async (): Promise<OrgUserSimple[]> => {
   try {
     console.log('👤 [namespaceApiService] 組織ユーザー一覧取得（Personal ノード用）');
 
-    const response = await client.get<{
-      success: boolean;
-      data: Array<{ userId: string; userName: string }>;
-    }>('/systemManagement/user');
+    const response = await client.get<OrgUserListResponse>('/systemManagement/user');
 
     return (response.data?.data ?? []).map((u) => ({
       userId: u.userId,
@@ -628,4 +675,5 @@ export const getOrganizationDisplayName = async (organizationId: string): Promis
 
   return response.data.organizationDisplayName ?? '';
 };
+
 
