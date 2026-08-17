@@ -44,6 +44,8 @@ import organizationGroupRoutes from './routes/organizationGroupRoutes';
 
 import uncertaintyCriteriaRoutes from './routes/uncertaintyCriteriaRoutes';
 import experimentEvaluationRoutes from './routes/experimentEvaluationRoutes';
+import aggregationRuleRoutes from './routes/aggregationRuleRoutes';
+import projectOverallEvaluationRoutes from './routes/projectOverallEvaluationRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -166,6 +168,12 @@ async function startServer() {
 
     // Mount experiment evaluation routes（承認処理ダイアログの定性評価）
     app.use('/api/v1/experiment-evaluations', experimentEvaluationRoutes);
+
+    // Mount aggregation rule routes（集約ルール管理）
+    app.use('/api/v1/aggregation-rules', aggregationRuleRoutes);
+
+    // Mount project overall evaluation routes（プロジェクト全体評価）
+    app.use('/api/v1/project-overall-evaluations', projectOverallEvaluationRoutes);
 
     // エラーハンドリングミドルウェア（全ルートの後に登録する必要がある）
     app.use(errorHandler);
