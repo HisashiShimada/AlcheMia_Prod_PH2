@@ -40,7 +40,6 @@ import {
   InfoCircleOutlined,
   EditOutlined,
   PlayCircleOutlined,
-  PauseCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   FastForwardOutlined,
@@ -2369,9 +2368,6 @@ export default function DataRecordDialog({
     }
   };
 
-  /** 一時停止/再開のトグル状態 */
-  const [isPaused, setIsPaused] = useState(false);
-
   const inlineFooter = (
     <div
       style={{
@@ -2379,6 +2375,7 @@ export default function DataRecordDialog({
         justifyContent: 'flex-end',
         alignItems: 'center',
         gap: 8,
+        flexWrap: 'wrap',
       }}
     >
       <Button
@@ -2398,21 +2395,6 @@ export default function DataRecordDialog({
         }}
       >
         開始
-      </Button>
-      <Button
-        data-testid="data-record-pause-resume-button"
-        icon={isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
-        style={
-          isPaused
-            ? { borderColor: '#1677ff', color: '#1677ff', background: '#fff' }
-            : { borderColor: '#faad14', color: '#faad14', background: '#fff' }
-        }
-        onClick={() => {
-          setIsPaused((prev) => !prev);
-          // TODO: 一時停止/再開処理を実装予定
-        }}
-      >
-        {isPaused ? '再開' : '一時停止'}
       </Button>
       <Button
         data-testid="data-record-end-button"
@@ -2831,12 +2813,19 @@ export default function DataRecordDialog({
             style={{
               background: token.colorBgLayout,
               padding: token.paddingMD,
-              overflow: 'auto',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
-            <div style={{ height: '100%' }}>
-              {/* タイトル */}
-              <div style={{ marginBottom: token.marginMD }}>
+            {/* ボタン群（固定） */}
+            {inlineMode && (
+              <div style={{ marginBottom: token.marginSM, flexShrink: 0 }}>
+                {inlineFooter}
+              </div>
+            )}
+            {/* タイトル（固定） */}
+            <div style={{ marginBottom: token.marginMD, flexShrink: 0 }}>
                 <Space>
                   <FileTextOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
                   <Text strong style={{ fontSize: 16 }}>
@@ -2853,7 +2842,8 @@ export default function DataRecordDialog({
                 </Space>
               </div>
 
-              {/* フォームまたは選択促進メッセージ */}
+              {/* フォームまたは選択促進メッセージ（スクロール可能エリア） */}
+              <div style={{ flex: 1, overflow: 'auto' }}>
               <Form
                 form={form}
                 layout="vertical"
@@ -3260,7 +3250,7 @@ export default function DataRecordDialog({
                 />
               )}
               </Form>
-            </div>
+              </div>
           </Content>
         </Layout>
 
@@ -3497,7 +3487,6 @@ export default function DataRecordDialog({
         {instructionSection}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           {workStatusBar}
-          <div style={{ flexShrink: 0 }}>{inlineFooter}</div>
         </div>
         {dialogContent}
         <ExperimentCommentDialog
