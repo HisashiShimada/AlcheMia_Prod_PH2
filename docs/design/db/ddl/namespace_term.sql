@@ -36,7 +36,7 @@ COMMENT ON COLUMN namespace_term.xsi_type IS 'xsiタイプ:推奨xsi:type。例:
 COMMENT ON COLUMN namespace_term.is_active IS 'アクティブ判定:TRUE=有効 FALSE=無効';
 COMMENT ON COLUMN namespace_term.display_name IS '表示名';
 COMMENT ON COLUMN namespace_term.description IS '説明';
-COMMENT ON COLUMN namespace_term.create_at IS '作成日時';s
+COMMENT ON COLUMN namespace_term.create_at IS '作成日時';
 COMMENT ON COLUMN namespace_term.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN namespace_term.update_at IS '更新日時';
 COMMENT ON COLUMN namespace_term.update_user_id IS '更新者ユーザID';
