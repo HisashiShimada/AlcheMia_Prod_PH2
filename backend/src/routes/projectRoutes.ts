@@ -163,12 +163,12 @@ router.patch(
       .withMessage('projectIdは1〜255文字である必要があります'),
     body('newProjectName')
       .notEmpty()
-      .withMessage('newProjectName は必須です')
+      .withMessage('newProjectNameは必須です')
       .trim()
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('プロジェクト名に使用できるのは英数字、アンダースコア、ハイフンのみです')
+      .withMessage('newProjectNameは英数字、アンダースコア、ハイフンのみ使用できます')
       .isLength({ min: 1, max: 255 })
-      .withMessage('プロジェクト名は255文字以内である必要があります'),
+      .withMessage('newProjectNameは255文字以内である必要があります'),
   ],
   handleValidationErrors,
   projectController.renameProjectHandler

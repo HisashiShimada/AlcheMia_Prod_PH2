@@ -2133,15 +2133,8 @@ export class ProjectService {
   ): Promise<ServiceResult<{ projectId: string }>> {
     const pool = getPool();
     try {
-      const result = await pool.query(
-        `UPDATE project
-            SET project_status = $1,
-                update_at = CURRENT_TIMESTAMP
-          WHERE organization_id = $2
-            AND project_id = $3
-         RETURNING project_id`,
-        [ProjectStatusEnum.ERROR, organizationId, projectId]
-      );
+      const sql = await loadSqlFile('project/forceTerminate.sql');
+      const result = await pool.query(sql, [ProjectStatusEnum.ERROR, organizationId, projectId]);
 
       if (result.rowCount === 0) {
         return {
