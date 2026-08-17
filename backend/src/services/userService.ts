@@ -325,11 +325,11 @@ interface CsvUploadResult {
 
 /**
  * UserCSVアップロード処理
- * 
+ *
  * 事前バリデーション方式（部署管理画面と同じパターン）：
  * 1. 全行をバリデーション（最初のエラーで停止）
  * 2. エラーがなければ全件をDB登録（トランザクション）
- * 
+ *
  * @param organizationId 組織ID
  * @param csvContent CSV文字列
  * @param userId ログインユーザーID
@@ -346,20 +346,20 @@ export async function uploadUsersFromCSV(
     header: true,
     skipEmptyLines: true,
   });
-  
+
   // Phase 1: 事前バリデーション（DBアクセスあり - 既存チェック含む）
   const validationErrors: CsvValidationError[] = [];
   const mailAddressSet = new Set<string>(); // CSV内重複チェック用
-  
+
   for (let i = 0; i < parseResult.data.length; i++) {
     const row = parseResult.data[i];
     const rowNumber = i + 2; // ヘッダー行を考慮
-    
+
     // 必須項目チェック
     const userName = row['ユーザー名']?.trim();
     const mailAddress = row['メールアドレス']?.trim();
     const roleCd = row['ロール']?.trim();
-    
+
     if (!userName) {
       validationErrors.push({
         row: rowNumber,
@@ -368,7 +368,7 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     if (!mailAddress) {
       validationErrors.push({
         row: rowNumber,
@@ -377,7 +377,7 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     if (!roleCd) {
       validationErrors.push({
         row: rowNumber,
@@ -386,7 +386,7 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     // メールアドレス形式チェック
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(mailAddress)) {
@@ -397,10 +397,10 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     // アクティブ判定の型チェック
     const isActiveStr = row['アクティブ判定']?.trim();
-    if (isActiveStr && 
+    if (isActiveStr &&
         !['true', 'TRUE', '1', 'false', 'FALSE', '0', ''].includes(isActiveStr)) {
       validationErrors.push({
         row: rowNumber,
@@ -409,7 +409,7 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     // CSV内重複チェック
     if (mailAddressSet.has(mailAddress)) {
       validationErrors.push({
@@ -420,7 +420,7 @@ export async function uploadUsersFromCSV(
       break; // 最初のエラーで停止
     }
     mailAddressSet.add(mailAddress);
-    
+
     // 既存データチェック（主キー重複チェック）
     const exists = await userRepository.existsById(organizationId, mailAddress);
     if (exists) {
@@ -432,7 +432,7 @@ export async function uploadUsersFromCSV(
       break; // 最初のエラーで停止
     }
   }
-  
+
   // エラーがあれば即座に終了（DB登録は行わない）
   if (validationErrors.length > 0) {
     return {
@@ -441,7 +441,7 @@ export async function uploadUsersFromCSV(
       errors: validationErrors,
     };
   }
-  
+
   // Phase 2: DB登録（バリデーション通過後のみ）
 
   // 組織CDを取得（namespace URI 生成に必要）
@@ -463,19 +463,19 @@ export async function uploadUsersFromCSV(
     // 全行を新規作成（バリデーションで既存チェック済み）
     for (let i = 0; i < parseResult.data.length; i++) {
       const row = parseResult.data[i];
-      
+
       // バリデーション済みなのでtrim()のみ実施
       const userName = row['ユーザー名'].trim();
       const mailAddress = row['メールアドレス'].trim();
       const roleCd = row['ロール'].trim();
-      
+
       // アクティブ判定の変換（boolean型対応）
       const isActiveStr = row['アクティブ判定']?.trim();
       const isActive = isActiveStr === 'true' || isActiveStr === 'TRUE' || isActiveStr === '1';
-      
+
       // ランダムパスワードを自動生成
       const plainPassword = generateRandomPassword();
-      
+
       // 1. ユーザー作成（外部トランザクションを渡す）
       await userRepository.create(
         organizationId,
@@ -523,7 +523,7 @@ export async function uploadUsersFromCSV(
       console.warn(`[userService CSV] アカウント作成完了メール送信で例外発生（処理は継続）`, emailError);
     }
   }
-  
+
   return {
     successCount,
     failureCount: 0,

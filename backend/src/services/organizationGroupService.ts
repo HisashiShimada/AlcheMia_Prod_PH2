@@ -21,15 +21,30 @@ import type { ITask } from 'pg-promise';
 /**
  * 組織グループ一覧取得
  *
+ * userId が指定された場合は、そのユーザーが所属するグループ＋祖先グループのみを返す。
+ * userId が未指定の場合は組織全体のグループ一覧を返す。
+ *
  * @param organizationId - 組織ID
  * @param filters - 検索フィルタ
+ * @param userId - ログインユーザーID（指定時はユーザー所属グループでフィルタ）
  * @returns 組織グループ一覧
  */
 export async function getOrganizationGroups(
   organizationId: string,
-  filters?: OrganizationGroupFilters
+  filters?: OrganizationGroupFilters,
+  userId?: string
 ): Promise<OrganizationGroupRow[]> {
+  if (userId) {
+    return organizationGroupRepository.findByUser(organizationId, userId);
+  }
   return organizationGroupRepository.findAll(organizationId, filters);
+}
+
+/** getVisibleOrganizationGroups の各要素型 */
+export interface VisibleGroupItem {
+  cd: string;
+  name: string;
+  isActive: boolean;
 }
 
 /**
@@ -48,7 +63,7 @@ export async function getOrganizationGroups(
 export async function getVisibleOrganizationGroups(
   organizationId: string,
   userGroupCds: string[]
-): Promise<Array<{ cd: string; name: string; isActive: boolean }>> {
+): Promise<VisibleGroupItem[]> {
   // 全グループを取得してメモリ内で解決
   const allGroups = await organizationGroupRepository.findAll(organizationId);
   const allGroupMap = new Map(allGroups.map((g) => [g.organization_group_cd, g]));
@@ -112,7 +127,7 @@ export async function getVisibleOrganizationGroups(
   const visibleCdSet = new Set([...descendantCds, ...inactiveVisibleCds]);
 
   // 結果を OrganizationGroupRow から必要なフィールドのみ抽出して返す
-  const result: Array<{ cd: string; name: string; isActive: boolean }> = [];
+  const result: VisibleGroupItem[] = [];
   for (const cd of visibleCdSet) {
     const g = allGroupMap.get(cd);
     if (g) {
@@ -505,6 +520,26 @@ export async function setOrganizationGroupMembers(
   } finally {
     client.release();
   }
+}
+
+/**
+ * ユーザーの所属グループ＋全祖先グループの CD 一覧を返す
+ *
+ * @remarks
+ * WITH RECURSIVE クエリで直接所属グループと parent_group_cd を再帰的に辿った
+ * 全祖先グループを取得する。Controller から Repository を直接呼ばせないための
+ * ラッパー関数。
+ *
+ * @param organizationId - 組織ID
+ * @param userId - ユーザーID
+ * @returns organization_group_cd の配列
+ */
+export async function getAncestorGroupCds(
+  organizationId: string,
+  userId: string
+): Promise<string[]> {
+  const groups = await organizationGroupRepository.findByUser(organizationId, userId);
+  return groups.map((g) => g.organization_group_cd);
 }
 
 /**

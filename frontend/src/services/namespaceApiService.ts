@@ -20,6 +20,40 @@ import type {
 // ============================================================================
 
 /**
+ * GET /api/v1/namespaces?scopeKey={userId} の各名前空間行
+ */
+export interface PersonalNamespaceRow {
+  namespace_id: string;
+  uri: string;
+  scope_key: string;
+  global_flg: boolean;
+  user_name: string | null;
+}
+
+/**
+ * GET /api/v1/namespaces?scopeKey={userId} のレスポンスボディ型
+ */
+export interface PersonalNamespaceListResponse {
+  namespaces: PersonalNamespaceRow[];
+}
+
+/**
+ * GET /api/v1/systemManagement/user の各ユーザー行
+ */
+export interface OrgUserRow {
+  userId: string;
+  userName: string;
+}
+
+/**
+ * GET /api/v1/systemManagement/user のレスポンスボディ型
+ */
+export interface OrgUserListResponse {
+  success: boolean;
+  data: OrgUserRow[];
+}
+
+/**
  * GET /api/v1/namespaces/declarations のレスポンスボディ型
  */
 export interface NamespaceDeclarationsResponse {
@@ -42,6 +76,8 @@ export interface CreateNamespaceRequest {
   displayName?: string;
   description?: string;
   departmentCd?: string;
+  scopeKey?: string;
+  isGlobal?: boolean;
 }
 
 /**
@@ -54,9 +90,30 @@ export interface CreateNamespaceResponse {
 }
 
 /**
+ * PATCH /api/v1/namespaces/:prefix のリクエストボディ型
+ */
+export interface UpdateNamespaceRequest {
+  uri: string;
+}
+
+/**
+ * PATCH /api/v1/namespaces/:prefix のレスポンスボディ型
+ */
+export interface UpdateNamespaceResponse {
+  namespaceId: string;
+  prefix: string;
+  uri: string;
+  scopeKey: string | null;
+  globalFlg: boolean;
+}
+
+/**
  * GET /api/v1/namespaces/terms の用語行型
  */
 export interface NamespaceTermRow {
+  /** 名前空間ID（rowKey の一部として使用） */
+  namespaceId: string;
+  id?: string;
   qname: string;
   prefix: string;
   localName: string;
@@ -73,6 +130,8 @@ export interface NamespaceTermRow {
 export interface TermUpsertRequest {
   prefix: string;
   localName: string;
+  /** 日本語表示名（バックエンドが受け付けるフィールド名） */
+  displayNameJa?: string;
   displayName?: string;
   description?: string;
   typeHint?: string;
@@ -117,15 +176,28 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
  * バックエンドの GET /api/v1/namespaces を呼び出す。
  * 名前空間管理画面のPrefix一覧表示に使用する。
  *
- * @returns 名前空間エントリ一覧（{prefix, uri}[]）
+ * @param options.scopeKeys - フィルタリングする scopeKey 配列（省略時は全件取得）
+ * @param options.globalFlg - true の場合は global_flg=TRUE のデータのみ取得
+ * @returns 名前空間エントリ一覧（{prefix, uri, scopeKey?}[]）
  */
-export const getNamespaceList = async (): Promise<NamespaceEntry[]> => {
+export const getNamespaceList = async (options?: {
+  scopeKeys?: string[];
+  globalFlg?: boolean;
+}): Promise<NamespaceEntry[]> => {
   const client = createApiClient();
 
   try {
-    console.log('🔖 [namespaceApiService] Prefix一覧取得');
+    console.log('🔖 [namespaceApiService] Prefix一覧取得', options);
 
-    const response = await client.get<NamespaceListResponse>('/namespaces');
+    const params: Record<string, string> = {};
+    if (options?.scopeKeys && options.scopeKeys.length > 0) {
+      params.scopeKey = options.scopeKeys[0];
+    }
+    if (options?.globalFlg === true) {
+      params.globalFlg = 'true';
+    }
+
+    const response = await client.get<NamespaceListResponse>('/namespaces', { params });
 
     return response.data?.namespaces ?? [];
   } catch (error) {
@@ -146,21 +218,16 @@ export const getNamespaceList = async (): Promise<NamespaceEntry[]> => {
  */
 export const getPersonalNamespaces = async (
   userId: string
-): Promise<Array<{ namespace_id: string; uri: string; scope_key: string; global_flg: boolean; user_name: string | null }>> => {
+): Promise<PersonalNamespaceRow[]> => {
   const client = createApiClient();
 
   try {
     console.log('👤 [namespaceApiService] 個人名前空間一覧取得:', userId);
 
-    const response = await client.get<{
-      namespaces: Array<{
-        namespace_id: string;
-        uri: string;
-        scope_key: string;
-        global_flg: boolean;
-        user_name: string | null;
-      }>;
-    }>('/namespaces', { params: { scopeKey: userId } });
+    const response = await client.get<PersonalNamespaceListResponse>(
+      '/namespaces',
+      { params: { scopeKey: userId } }
+    );
 
     return response.data?.namespaces ?? [];
   } catch (error) {
@@ -191,6 +258,32 @@ export const createNamespace = async (
 };
 
 /**
+ * 名前空間（Prefix の URI）を更新する
+ *
+ * @remarks
+ * バックエンドの PATCH /api/v1/namespaces/:prefix を呼び出す。
+ *
+ * @param prefix - 更新対象の Prefix
+ * @param data - 更新データ
+ * @returns 更新後の名前空間レコード
+ */
+export const updateNamespace = async (
+  prefix: string,
+  data: UpdateNamespaceRequest
+): Promise<UpdateNamespaceResponse> => {
+  const client = createApiClient();
+
+  console.log('🔖 [namespaceApiService] Prefix URI更新:', prefix);
+
+  const response = await client.patch<UpdateNamespaceResponse>(
+    `/namespaces/${encodeURIComponent(prefix)}`,
+    data
+  );
+
+  return response.data;
+};
+
+/**
  * 名前空間（Prefix）を削除する
  *
  * @remarks
@@ -216,21 +309,60 @@ export const deleteNamespace = async (prefix: string): Promise<void> => {
  * @remarks
  * バックエンドの GET /api/v1/namespaces/terms を呼び出す。
  *
+ * @param options.scopeKey  - フィルタリングする scopeKey（単数）。指定時はそのスコープ + global の用語を返す
+ * @param options.scopeKeys - フィルタリングする scopeKey 配列（後方互換用・省略時は全件取得）
+ * @param options.globalFlg - true の場合は global_flg=TRUE の名前空間に属する用語のみ取得
  * @returns 用語一覧
  */
-export const getTerms = async (): Promise<NamespaceTermRow[]> => {
+export const getTerms = async (options?: {
+  scopeKey?: string;
+  scopeKeys?: string[];
+  globalFlg?: boolean;
+}): Promise<NamespaceTermRow[]> => {
   const client = createApiClient();
 
   try {
-    console.log('🔖 [namespaceApiService] 用語一覧取得');
+    console.log('🔖 [namespaceApiService] 用語一覧取得', options);
 
-    const response = await client.get<NamespaceTermRow[]>('/namespaces/terms');
+    const params: Record<string, string> = {};
+    // scopeKey（単数）が指定されている場合はそちらを優先
+    if (options?.scopeKey) {
+      params.scopeKey = options.scopeKey;
+    } else if (options?.scopeKeys && options.scopeKeys.length > 0) {
+      params.scopeKeys = options.scopeKeys.join(',');
+    }
+    if (options?.globalFlg === true) {
+      params.globalFlg = 'true';
+    }
+
+    const response = await client.get<NamespaceTermRow[]>('/namespaces/terms', { params });
 
     return response.data ?? [];
   } catch (error) {
     console.warn('⚠️ [namespaceApiService] 用語一覧の取得に失敗しました:', error);
     return [];
   }
+};
+
+/**
+ * 全用語を取得して qname → NamespaceTermRow の Map に変換する
+ *
+ * @remarks
+ * 既存の getTerms() をラップし、Map<qname, NamespaceTermRow> 形式で返す。
+ * TemplateEditorDialog のダイアログ open 時に全件キャッシュし、
+ * キー入力時の補完・プレビューに使用する。
+ * バックエンドへの追加実装は不要。
+ *
+ * @returns Map<qname, NamespaceTermRow>（例: "chem:SampleTemperature" → TermRow）
+ */
+export const getAllTermsAsMap = async (): Promise<Map<string, NamespaceTermRow>> => {
+  const terms = await getTerms();
+  const map = new Map<string, NamespaceTermRow>();
+  for (const term of terms) {
+    const qname = `${term.prefix}:${term.localName}`;
+    map.set(qname, term);
+  }
+  return map;
 };
 
 /**
@@ -351,10 +483,7 @@ export const getOrganizationUsers = async (): Promise<OrgUserSimple[]> => {
   try {
     console.log('👤 [namespaceApiService] 組織ユーザー一覧取得（Personal ノード用）');
 
-    const response = await client.get<{
-      success: boolean;
-      data: Array<{ userId: string; userName: string }>;
-    }>('/systemManagement/user');
+    const response = await client.get<OrgUserListResponse>('/systemManagement/user');
 
     return (response.data?.data ?? []).map((u) => ({
       userId: u.userId,
@@ -464,4 +593,87 @@ export const deleteOrganizationGroup = async (groupCd: string): Promise<void> =>
 
   await client.delete(`/organization-groups/${encodeURIComponent(groupCd)}`);
 };
+
+// ============================================================================
+// API 関数 — 属性マスター
+// ============================================================================
+
+/**
+ * 属性マスター行の型定義
+ */
+export interface AttributeMaster {
+  attributeValue: string;
+  isActive: boolean;
+}
+
+/**
+ * 属性マスター一覧を取得する（単位フィルター用）
+ *
+ * @remarks
+ * バックエンドの GET /api/v1/master/attribute を呼び出す。
+ * 用語管理画面の単位フィルタープルダウンに使用する。
+ *
+ * @returns アクティブな属性マスター一覧
+ */
+export const getAttributeMaster = async (): Promise<AttributeMaster[]> => {
+  const client = createApiClient();
+
+  try {
+    console.log('🔖 [namespaceApiService] 属性マスター一覧取得');
+
+    const response = await client.get<{ success: boolean; data: AttributeMaster[] }>(
+      '/master/attribute'
+    );
+
+    return response.data?.data ?? [];
+  } catch (error) {
+    console.warn('⚠️ [namespaceApiService] 属性マスター一覧の取得に失敗しました:', error);
+    return [];
+  }
+};
+
+/**
+ * ログインユーザーの所属グループ＋全祖先グループの CD 一覧を取得する
+ *
+ * @remarks
+ * バックエンドの GET /api/v1/organization-groups/ancestors を呼び出す。
+ * WITH RECURSIVE クエリで直接所属グループから parent_group_cd を辿り、
+ * 全祖先グループの CD を返す。
+ * 用語重複チェックで「上位層グループに登録された同一 prefix の名前空間」を
+ * 警告対象として特定するために使用する。
+ *
+ * @returns 所属グループ + 全祖先グループの organization_group_cd 配列
+ */
+export const getAncestorGroupCds = async (): Promise<string[]> => {
+  const client = createApiClient();
+
+  console.log('🏢 [namespaceApiService] 所属グループ＋祖先グループ CD 一覧取得');
+
+  const response = await client.get<{ success: boolean; data: string[] }>(
+    '/organization-groups/ancestors'
+  );
+
+  return response.data.data;
+};
+
+/**
+ * 組織の表示名を取得する
+ *
+ * @remarks
+ * GET /api/v1/provider/organization/:organizationId を呼び出し、
+ * organizationDisplayName を返す。名前空間ツリーの company ノードラベルに使用。
+ *
+ * @param organizationId - 取得対象の組織 ID（UUID）
+ * @returns 組織表示名。取得できない場合は空文字列
+ */
+export const getOrganizationDisplayName = async (organizationId: string): Promise<string> => {
+  const client = createApiClient();
+
+  const response = await client.get<{ organizationDisplayName: string }>(
+    `/provider/organization/${organizationId}`
+  );
+
+  return response.data.organizationDisplayName ?? '';
+};
+
 

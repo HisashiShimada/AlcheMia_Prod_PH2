@@ -1,367 +1,137 @@
 'use client';
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Button, Input, Table, message, Modal, Typography, Tooltip, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined, SearchOutlined, BankOutlined } from '@ant-design/icons';
-import namespaceTreeRaw from '../../../mock/namespace/uncertainty-scope.json';
-import type { TableColumnsType } from 'antd';
-import ShareScopeModal from './ShareScopeModal';
-import type { PrefixRow, NewPrefixRow, RawNode, ShareSourceRole, ShareTarget, ScopeNode, PrefixManagementProps, PrefixCsvParsedRow } from '@/types/namespace';
+import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Button, Input, Table, message, Modal, Typography, Tooltip, Spin } from 'antd';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SaveOutlined,
+  SearchOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+import type { TableColumnsType } from 'antd';
+import {
+  getNamespaceList,
+  createNamespace,
+  updateNamespace,
+  deleteNamespace,
+} from '@/services/namespaceApiService';
+import type {
+  PrefixManagementProps,
+  PrefixRowLocal as PrefixRow,
+  NewPrefixRowLocal as NewPrefixRow,
+  PrefixEditValuesWithUri,
+} from '@/types/namespace';
 
 const { Text } = Typography;
 
 // ──────────────────────────────────────────────
-// モック: ログイン中ユーザーの所属ノードキー（チーム代表者: 解析チーム）
-// 本番実装では認証APIから取得する
+// コンポーネント補助
 // ──────────────────────────────────────────────
-// チーム代表者（開発チーム + 解析チーム の2チーム所属）としてログインしている想定
-// NamespaceMain.tsx の CURRENT_USER_ROLE と合わせる
-const CURRENT_USER_NS_KEY = 'rd-develop';
-const CURRENT_USER_TEAM_KEYS = ['rd-develop', 'rd-analysis'];
-
-// ──────────────────────────────────────────────
-// モックデータ: uncertainty-scope.json からフラット化
-// ──────────────────────────────────────────────
-
-// ── 指定キーへの祖先キー一覧を返す
-const getAncestorKeys = (targetKey: string, nodes: RawNode[], ancestors: string[] = []): string[] | null => {
-  for (const node of nodes) {
-    if (node.key === targetKey) return ancestors;
-    if (node.children) {
-      const found = getAncestorKeys(targetKey, node.children, [...ancestors, node.key]);
-      if (found) return found;
-    }
-  }
-  return null;
-};
-
-// ── 指定キーがどのルートノード（global/personal/company等）配下にあるかを返す
-const getRootKey = (nsKey: string, nodes: RawNode[]): string | null => {
-  for (const root of nodes) {
-    if (root.key === nsKey) return root.key;
-    if (root.children) {
-      const found = getAncestorKeys(nsKey, root.children, [])
-      if (found !== null) return root.key;
-    }
-  }
-  return null;
-};
-
-// ── ノードキー → 階層ラベルパス（例: "🌐 Global" / "🏢 株式会社サンプルテック › 研究開発部"）
-const buildScopePath = (targetKey: string, nodes: RawNode[], ancestors: { label: string; icon?: string }[] = []): string | null => {
-  for (const node of nodes) {
-    const selfLabel = node.label;
-    const currentPath = [...ancestors, { label: selfLabel, icon: node.icon }];
-    if (node.key === targetKey) {
-      return currentPath.map((p) => p.label).join(' › ');
-    }
-    if (node.children) {
-      const found = buildScopePath(targetKey, node.children, currentPath);
-      if (found) return found;
-    }
-  }
-  return null;
-};
-
-// ── Globalのみをフラット化（GlobalPrefix管理タブ用）
-const flattenGlobalPrefixes = (nodes: RawNode[]): PrefixRow[] => {
-  const result: PrefixRow[] = [];
-  const globalNode = nodes.find((n) => n.key === 'global');
-  if (!globalNode?.children) return result;
-
-  const traverse = (ns: RawNode[]) => {
-    for (const n of ns) {
-      if (n.prefix) {
-        const scopePath = buildScopePath(n.key, nodes) ?? n.label;
-        result.push({ id: n.key, prefix: n.prefix, description: n.description ?? n.label ?? '', scopePath });
-      }
-      if (n.children) traverse(n.children);
-    }
-  };
-  traverse(globalNode.children);
-  return result;
-};
-
-// ── ログインユーザーが閲覧できるPrefixのみに絞り込んでフラット化
-// 表示対象: 全所属チームのノード ＋ 共通の祖先ノード（複数チーム対応）＋ 同チームメンバーの個人Prefix
-const flattenPrefixes = (nodes: RawNode[]): PrefixRow[] => {
-  const result: PrefixRow[] = [];
-  const seen = new Set<string>(); // 重複排除用
-
-  // 全所属チームの祖先キー集合（union）
-  const allAncestorKeys = new Set<string>();
-  for (const teamKey of CURRENT_USER_TEAM_KEYS) {
-    for (const k of (getAncestorKeys(teamKey, nodes) ?? [])) {
-      allAncestorKeys.add(k);
-    }
-  }
-
-  const addRow = (n: RawNode) => {
-    if (!n.prefix || seen.has(n.key)) return;
-    seen.add(n.key);
-    const scopePath = buildScopePath(n.key, nodes) ?? n.label;
-    result.push({
-      id: n.key,
-      prefix: n.prefix,
-      description: n.description ?? n.label ?? '',
-      scopePath,
-    });
-  };
-
-  const traverse = (ns: RawNode[], isGlobal: boolean) => {
-    for (const n of ns) {
-      if (n.prefix && !isGlobal) {
-        // 所属チームのいずれかのノード、または共通祖先ノードのみ追加
-        if (CURRENT_USER_TEAM_KEYS.includes(n.key) || allAncestorKeys.has(n.key)) {
-          addRow(n);
-        }
-      }
-      if (n.children) traverse(n.children, isGlobal);
-    }
-  };
-
-  for (const root of nodes) {
-    const isGlobal = root.key === 'global';
-    traverse([root], isGlobal);
-  }
-
-  // Personal ノード配下: 全所属チームのメンバーの個人 Prefix（ns子ノード）を追加
-  const personalNode = nodes.find((n) => n.key === 'personal');
-  if (personalNode?.children) {
-    for (const userNode of personalNode.children) {
-      const raw = userNode as RawNode & { teamKey?: string };
-      if (CURRENT_USER_TEAM_KEYS.includes(raw.teamKey ?? '')) {
-        // ユーザーの ns子ノード（ns-kimura 等）を追加
-        for (const nsChild of (userNode.children ?? [])) {
-          addRow(nsChild as RawNode);
-        }
-      }
-    }
-  }
-
-  return result;
-};
-
-// ── 全スコープのPrefixをフラット化（閲覧モード用: Global含む全ノード）
-const flattenAllPrefixes = (nodes: RawNode[]): PrefixRow[] => {
-  const result: PrefixRow[] = [];
-
-  const traverse = (ns: RawNode[]) => {
-    for (const n of ns) {
-      if (n.prefix) {
-        const scopePath = buildScopePath(n.key, nodes) ?? n.label;
-        result.push({
-          id: n.key,
-          prefix: n.prefix,
-          description: n.description ?? n.label ?? '',
-          scopePath,
-        });
-      }
-      if (n.children) traverse(n.children);
-    }
-  };
-  traverse(nodes);
-  return result;
-};
-
-// ──────────────────────────────────────────────
-// チーム代表者の「読み取り専用 prefix」集合
-// 祖先スコープ（研究開発部・株式会社サンプルテック）は編集不可
-// ──────────────────────────────────────────────
-const TEAM_OWNER_READONLY_PREFIXES: Set<string> = (() => {
-  const nodes = namespaceTreeRaw as RawNode[];
-  const ancestorKeys = getAncestorKeys(CURRENT_USER_NS_KEY, nodes) ?? [];
-  const result = new Set<string>();
-  const findPrefix = (key: string, ns: RawNode[]): string | null => {
-    for (const n of ns) {
-      if (n.key === key) return n.prefix ?? null;
-      if (n.children) { const r = findPrefix(key, n.children); if (r) return r; }
-    }
-    return null;
-  };
-  for (const key of ancestorKeys) {
-    const p = findPrefix(key, nodes);
-    if (p) result.add(p);
-  }
-  return result;
-})();
-
-const isPrefixReadonly = (prefix: string): boolean =>
-  TEAM_OWNER_READONLY_PREFIXES.has(prefix);
-
-// ── RawNode[] → ScopeNode[]（ShareScopeModal 用ツリー構築）
-// Global / Personal を除いた company配下のみを返す
-const buildScopeNodes = (nodes: RawNode[]): ScopeNode[] =>
-  nodes.map((n) => ({
-    key: n.key,
-    label: n.label,
-    prefix: n.prefix,
-    children: n.children ? buildScopeNodes(n.children) : undefined,
-  }));
 
 const makeEmptyRow = (): NewPrefixRow => ({
   _rowId: `__new__${Date.now()}_${Math.random()}`,
   prefix: '',
+  uri: '',
   description: '',
 });
 
 // ──────────────────────────────────────────────
 // コンポーネント
 // ──────────────────────────────────────────────
-// ── Personal ノード配下の指定ユーザーノードの個人 Prefix をフラット化
-const flattenPersonalPrefixes = (nodes: RawNode[], userKey: string): PrefixRow[] => {
-  const result: PrefixRow[] = [];
-  const personalNode = nodes.find((n) => n.key === 'personal');
-  if (!personalNode?.children) return result;
-  // userKey が 'personal' ルート自体の場合はログインユーザーのキーにフォールバック
-  const targetKey = userKey === 'personal' ? CURRENT_USER_NS_KEY : userKey;
-  const userNode = personalNode.children.find((u) => u.key === targetKey);
-  if (!userNode?.children) return result;
-  for (const nsChild of userNode.children) {
-    const n = nsChild as RawNode;
-    if (n.prefix) {
-      const scopePath = buildScopePath(n.key, nodes) ?? n.label;
-      result.push({ id: n.key, prefix: n.prefix, description: n.description ?? n.label ?? '', scopePath });
-    }
-  }
-  return result;
-};
 
-// ── 指定キーのノードを探してPrefixを返す
-const findNodePrefix = (key: string, nodes: RawNode[]): string | null => {
-  for (const n of nodes) {
-    if (n.key === key) return n.prefix ?? null;
-    if (n.children) {
-      const r = findNodePrefix(key, n.children);
-      if (r !== null) return r;
-    }
-  }
-  return null;
-};
-
-// ── 選択ノード＋祖先ノードのPrefixをフラット化（祖先フラグ付き）
-// _isAncestor=true の行はグレーアウト対象
-const flattenScopedPrefixes = (nsKey: string, nodes: RawNode[]): PrefixRow[] => {
-  const result: PrefixRow[] = [];
-  // 選択ノード自身のprefixを取得
-  const selfPrefix = findNodePrefix(nsKey, nodes);
-  // 祖先ノードのキー一覧を取得
-  const ancestorKeys = getAncestorKeys(nsKey, nodes) ?? [];
-
-  // 祖先ノードのprefixを収集（company/global を除外）
-  const ancestorPrefixEntries: Array<{ key: string; prefix: string }> = [];
-  for (const key of ancestorKeys) {
-    if (key === 'global' || key === 'personal') continue;
-    const p = findNodePrefix(key, nodes);
-    if (p) ancestorPrefixEntries.push({ key, prefix: p });
-  }
-
-  // 祖先キーが2個以上ある（= チームノード選択）場合のみ祖先行をグレーアウト
-  // 例: ancestorKeys=['company','dept-rd'] → depth3(チーム) → _isAncestor=true
-  // 例: ancestorKeys=['company'] → depth2(部門) → _isAncestor=false
-  const isTeamNode = ancestorKeys.length >= 2;
-
-  // 選択ノード自身のprefixを先頭に追加
-  if (selfPrefix) {
-    const scopePath = buildScopePath(nsKey, nodes) ?? nsKey;
-    result.push({ id: nsKey, prefix: selfPrefix, description: '', scopePath, _isAncestor: false });
-  }
-
-  // 祖先ノードのprefixを追加
-  for (const { key, prefix } of ancestorPrefixEntries) {
-    const scopePath = buildScopePath(key, nodes) ?? key;
-    // 既にresultに含まれていない場合のみ追加
-    if (!result.find((r) => r.id === key)) {
-      result.push({ id: key, prefix, description: '', scopePath, _isAncestor: isTeamNode });
-    }
-  }
-
-  return result;
-};
-
-// ── 選択ノードキーに応じてベースデータを計算
-const computeRows = (
-  nsKey: string | null | undefined,
-  globalOnly: boolean,
-  viewOnly: boolean,
-): PrefixRow[] => {
-  const nodes = namespaceTreeRaw as RawNode[];
-  if (globalOnly) return flattenGlobalPrefixes(nodes);
-  if (nsKey) {
-    const rootKey = getRootKey(nsKey, nodes);
-    if (rootKey === 'global') return flattenGlobalPrefixes(nodes);
-    if (rootKey === 'personal') return flattenPersonalPrefixes(nodes, nsKey);
-    // company配下のチーム・部門ノード → 選択ノード＋祖先を表示
-    if (rootKey === 'company') return flattenScopedPrefixes(nsKey, nodes);
-  }
-  if (viewOnly) return flattenAllPrefixes(nodes);
-  return flattenPrefixes(nodes);
-};
-
-
-const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false, showShareButton = false, viewOnly = false, selectedNsKey }) => {
-  // ── viewOnly / globalOnly / selectedNsKey に応じてベースデータを動的に決定
+const PrefixManagement: React.FC<PrefixManagementProps> = ({
+  viewOnly = false,
+  globalOnly = false,
+  selectedNsKey,
+  scopeKey,
+}) => {
   const { t } = useLanguage();
-  const [rows, setRows] = useState<PrefixRow[]>(() =>
-    computeRows(selectedNsKey, globalOnly, viewOnly)
-  );
-
-  // viewOnly / selectedNsKey が変化したらデータを再計算
-  useEffect(() => {
-    setRows(computeRows(selectedNsKey, globalOnly, viewOnly));
-    setSelectedPrefixIds([]);
-    setNewRows([]);
-    setEditingId(null);
-  }, [viewOnly, globalOnly, selectedNsKey]);
-
-  // ── 共有先ツリー: company配下のみ（Global/Personal を除外）
-  const shareScopeNodes = useMemo<ScopeNode[]>(() => {
-    const nodes = namespaceTreeRaw as RawNode[];
-    const companyNode = nodes.find((n) => n.key === 'company');
-    if (!companyNode) return [];
-    return buildScopeNodes([companyNode]);
-  }, []);
+  const [rows, setRows] = useState<PrefixRow[]>([]);
+  const [loading, setLoading] = useState(false);
   const [newRows, setNewRows] = useState<NewPrefixRow[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingValues, setEditingValues] = useState<{ prefix: string; description: string }>({
-    prefix: '', description: '',
+  const [editingValues, setEditingValues] = useState<PrefixEditValuesWithUri>({
+    prefix: '',
+    uri: '',
+    description: '',
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [selectedPrefixIds, setSelectedPrefixIds] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
-  // 共有先選択モーダル
-  const [shareScopeOpen, setShareScopeOpen] = useState(false);
+  // ── Prefix一覧取得: selectedNsKey が変化するたびに再フェッチ
+  const fetchNamespaces = async (scopeKey?: string) => {
+    setLoading(true);
+    try {
+      const options = scopeKey ? { scopeKeys: [scopeKey] } : undefined;
+      const list = await getNamespaceList(options);
+      setRows(
+        list.map((ns) => ({
+          id: ns.prefix,
+          prefix: ns.prefix,
+          uri: ns.uri,
+          description: '',
+          /** DB由来のスコープ名（organization_group_name または user_name） */
+          scopePath: (ns as any).scopeName ?? '',
+        }))
+      );
+    } catch {
+      message.error(t('prefixManagement.fetchError'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // ── 1件以上選択されているか（組織共有ボタン表示判定）
-  const hasPersonalSelected = useMemo(() => {
-    return selectedPrefixIds.length > 0;
-  }, [selectedPrefixIds]);
+  useEffect(() => {
+    // スコープ変更時に未保存のインライン入力行・編集中状態をクリアする
+    setNewRows([]);
+    setEditingId(null);
+    fetchNamespaces(selectedNsKey ?? undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNsKey]);
 
-  // ── ShareScopeModal: 共有先が確定されたときに選択中Prefixをコピー
-  const handleShareToTarget = async (target: ShareTarget) => {
-    setShareScopeOpen(false);
-    const targetRows = rows.filter((r) => selectedPrefixIds.includes(r.id));
+  // ── 新規行を追加
+  const handleAddRow = () => {
+    setNewRows((prev) => [...prev, makeEmptyRow()]);
+  };
+
+  // ── 新規行の値更新
+  const updateNewRow = (rowId: string, field: 'prefix' | 'uri' | 'description', value: string) => {
+    setNewRows((prev) =>
+      prev.map((r) => (r._rowId === rowId ? { ...r, [field]: value } : r))
+    );
+  };
+
+  // ── 新規行を削除
+  const removeNewRow = (rowId: string) => {
+    setNewRows((prev) => prev.filter((r) => r._rowId !== rowId));
+  };
+
+  // ── 新規行を保存（実処理）
+  const executeSave = async () => {
     const added: PrefixRow[] = [];
     const failed: string[] = [];
 
-    for (const row of targetRows) {
+    for (const row of newRows) {
       try {
-        const res = await fetch('/api/v1/namespaces/prefixes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ prefix: row.prefix, description: row.description, nsKey: target.key }),
+        const created = await createNamespace({
+          prefix: row.prefix,
+          uri: row.uri,
+          description: row.description || undefined,
+          isGlobal: globalOnly,
+          scopeKey: scopeKey ?? selectedNsKey ?? undefined,
         });
-        if (!res.ok) {
-          failed.push(row.prefix);
-        } else {
-          const created: PrefixRow = await res.json();
-          added.push({ ...created, scopePath: created.scopePath ?? '' });
-        }
+        added.push({
+          id: created.prefix,
+          prefix: created.prefix,
+          uri: created.uri,
+          description: row.description,
+        });
       } catch {
         failed.push(row.prefix);
       }
@@ -369,29 +139,124 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
 
     if (added.length > 0) {
       setRows((prev) => [...added, ...prev]);
+      message.success(t('prefixManagement.saveSuccess', { count: String(added.length) }));
     }
     if (failed.length > 0) {
-      message.warning(t('prefixManagement.sharePartial', { saved: added.length, failCount: failed.length }));
-    } else {
-      message.success(t('prefixManagement.shareSuccess', { count: added.length, target: target.label }));
+      message.warning(
+        t('prefixManagement.savePartialFailure', { failCount: String(failed.length), names: `${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}` })
+      );
     }
-    setSelectedPrefixIds([]);
+    setNewRows([]);
   };
 
-  // ── エクスポート（選択行のみCSV出力）
-  const handleCsvDownload = () => {
-    if (selectedPrefixIds.length === 0) {
-      message.error(t('prefixManagement.exportRequired'));
+  // ── 新規行を保存
+  const handleSave = async () => {
+    if (newRows.length === 0) return;
+    for (const row of newRows) {
+      if (!row.prefix) {
+        message.error(t('prefixManagement.prefixRequired'));
+        return;
+      }
+      if (!row.uri) {
+        message.error(t('prefixManagement.uriRequired'));
+        return;
+      }
+    }
+
+    // 並列チームに同名 prefix が存在するか確認
+    // rows（既存prefix一覧）から重複を検索し、最初に見つかった1件を代表として警告表示する
+    const firstDuplicate = newRows
+      .map((newRow) => {
+        const existing = rows.find(
+          (r) => r.prefix.toLowerCase() === newRow.prefix.toLowerCase()
+        ) as (PrefixRow & { scopePath?: string }) | undefined;
+        return existing ? { prefix: newRow.prefix, scopeName: existing.scopePath ?? existing.prefix } : null;
+      })
+      .find((d) => d !== null);
+
+    if (firstDuplicate) {
+      Modal.confirm({
+        title: t('prefixManagement.warnTitle'),
+        icon: <WarningOutlined style={{ color: '#faad14' }} />,
+        content: t('prefixManagement.warnAlreadyRegistered', {
+          prefix: firstDuplicate.prefix,
+          scopeName: firstDuplicate.scopeName,
+        }),
+        okText: t('prefixManagement.warnOk'),
+        cancelText: t('prefixManagement.warnCancel'),
+        onOk: () => executeSave(),
+      });
       return;
     }
-    const header = 'prefix,description';
-    const csvRows = rows
-      .filter((r) => selectedPrefixIds.includes(r.id))
-      .map((r) =>
-        [r.prefix, r.description]
-          .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
-          .join(',')
-      );
+
+    await executeSave();
+  };
+
+  // ── 既存行の編集開始
+  const startEdit = (record: PrefixRow) => {
+    setEditingId(record.id);
+    setEditingValues({
+      prefix: record.prefix,
+      uri: record.uri,
+      description: record.description ?? '',
+    });
+  };
+
+  // ── 既存行の編集保存（PATCH /api/v1/namespaces/:prefix でDB更新）
+  const saveEdit = async () => {
+    if (!editingId) return;
+    if (!editingValues.prefix) {
+      message.error(t('prefixManagement.prefixRequiredEdit'));
+      return;
+    }
+    if (!editingValues.uri) {
+      message.error(t('prefixManagement.uriRequired'));
+      return;
+    }
+    try {
+      await updateNamespace(editingId, { uri: editingValues.uri });
+      setEditingId(null);
+      message.success(t('prefixManagement.updateSuccess'));
+      await fetchNamespaces(selectedNsKey ?? undefined);
+    } catch {
+      message.error(t('prefixManagement.updateError'));
+    }
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  // ── 削除（DBから削除）
+  const handleDelete = (record: PrefixRow) => {
+    Modal.confirm({
+      title: t('prefixManagement.deleteConfirm', { prefix: record.prefix }),
+      content: t('prefixManagement.deleteContent'),
+      okText: t('prefixManagement.deleteOk'),
+      cancelText: t('prefixManagement.deleteCancelBtn'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteNamespace(record.prefix);
+          setRows((prev) => prev.filter((r) => r.id !== record.id));
+          message.success(t('prefixManagement.deleteSuccess', { prefix: record.prefix }));
+        } catch {
+          message.error(t('prefixManagement.deleteError', { prefix: record.prefix }));
+        }
+      },
+    });
+  };
+
+  // ── エクスポート（CSV）
+  const handleCsvDownload = () => {
+    if (rows.length === 0) {
+      message.error(t('prefixManagement.exportEmptyError'));
+      return;
+    }
+    const header = 'prefix,uri,description';
+    const csvRows = rows.map((r) =>
+      [r.prefix, r.uri, r.description ?? '']
+        .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
+        .join(',')
+    );
     const csv = [header, ...csvRows].join('\r\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -411,37 +276,44 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
       try {
         const text = (ev.target?.result as string).replace(/^\uFEFF/, '');
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
-        if (lines.length < 2) { message.error(t('prefixManagement.csvEmpty')); return; }
-
-        const parsedRows: PrefixCsvParsedRow[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g)?.map((c) =>
-            c.startsWith('"') ? c.slice(1, -1).replace(/""/g, '"') : c
-          ) ?? [];
-          if (cols.length < 1) continue;
-          const [prefix, description] = cols;
-          if (!prefix) continue;
-          parsedRows.push({ prefix: prefix ?? '', description: description ?? '' });
+        if (lines.length < 2) {
+          message.error(t('prefixManagement.csvEmpty'));
+          return;
         }
 
-        if (parsedRows.length === 0) { message.error(t('prefixManagement.csvNoData')); return; }
+        const parsedRows: Array<{ prefix: string; uri: string; description: string }> = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols =
+            lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g)?.map((c) =>
+              c.startsWith('"') ? c.slice(1, -1).replace(/""/g, '"') : c
+            ) ?? [];
+          if (cols.length < 2) continue;
+          const [prefix, uri, description] = cols;
+          if (!prefix || !uri) continue;
+          parsedRows.push({ prefix, uri, description: description ?? '' });
+        }
+
+        if (parsedRows.length === 0) {
+          message.error(t('prefixManagement.csvNoData'));
+          return;
+        }
 
         const added: PrefixRow[] = [];
         const failed: string[] = [];
         for (const row of parsedRows) {
           try {
-            const res = await fetch('/api/v1/namespaces/prefixes', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ prefix: row.prefix, description: row.description }),
+            const created = await createNamespace({
+              prefix: row.prefix,
+              uri: row.uri,
+              description: row.description || undefined,
+              isGlobal: globalOnly,
             });
-            if (!res.ok) {
-              failed.push(row.prefix);
-            } else {
-              const created: PrefixRow = await res.json();
-              added.push(created);
-            }
+            added.push({
+              id: created.prefix,
+              prefix: created.prefix,
+              uri: created.uri,
+              description: row.description,
+            });
           } catch {
             failed.push(row.prefix);
           }
@@ -451,9 +323,11 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
           setRows((prev) => [...prev, ...added]);
         }
         if (failed.length > 0) {
-          message.warning(t('prefixManagement.csvImportPartial', { saved: added.length, failCount: failed.length, names: failed.slice(0, 3).join(', ') + (failed.length > 3 ? '...' : '') }));
+          message.warning(
+            t('prefixManagement.csvImportPartial', { saved: String(added.length), failCount: String(failed.length), names: `${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}` })
+          );
         } else {
-          message.success(t('prefixManagement.csvImportSuccess', { count: added.length }));
+          message.success(t('prefixManagement.csvImportSuccess', { count: String(added.length) }));
         }
       } catch {
         message.error(t('prefixManagement.csvParseError'));
@@ -464,134 +338,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
     reader.readAsText(file, 'utf-8');
   };
 
-  // ── 新規行を追加
-  const handleAddRow = () => {
-    setNewRows((prev) => [...prev, makeEmptyRow()]);
-  };
-
-  // ── 新規行の値更新
-  const updateNewRow = (rowId: string, field: 'prefix' | 'description', value: string) => {
-    setNewRows((prev) =>
-      prev.map((r) => r._rowId === rowId ? { ...r, [field]: value } : r)
-    );
-  };
-
-  // ── 新規行を削除
-  const removeNewRow = (rowId: string) => {
-    setNewRows((prev) => prev.filter((r) => r._rowId !== rowId));
-  };
-
-  // ── 新規行を保存
-  const handleSave = async () => {
-    if (newRows.length === 0) return;
-    for (const row of newRows) {
-      if (!row.prefix) { message.error(t('prefixManagement.prefixRequired2')); return; }
-    }
-
-    // 木村涼子（user-010）選択時は同Prefix重複の警告を表示（保存は続行）
-    if (selectedNsKey === 'user-010') {
-      Modal.confirm({
-        title: '警告',
-        content: '同じPrefixが既に登録されています。',
-        okText: '登録する',
-        cancelText: 'キャンセル',
-      });
-    }
-
-    const added: PrefixRow[] = [];
-    for (const row of newRows) {
-      try {
-        const res = await fetch('/api/v1/namespaces/prefixes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ prefix: row.prefix, description: row.description }),
-        });
-        if (!res.ok) {
-          // APIが未実装の場合はモックで追加
-          added.push({ id: `mock-${Date.now()}-${row.prefix}`, prefix: row.prefix, description: row.description, scopePath: '' });
-          continue;
-        }
-        const created: PrefixRow = await res.json();
-        added.push({ ...created, scopePath: created.scopePath ?? '' });
-      } catch {
-        // APIが未実装の場合はモックで追加
-        added.push({ id: `mock-${Date.now()}-${row.prefix}`, prefix: row.prefix, description: row.description, scopePath: '' });
-      }
-    }
-
-    if (added.length > 0) {
-      setRows((prev) => [...added, ...prev]);
-      message.success(t('prefixManagement.registerSuccess', { count: added.length }));
-    }
-    setNewRows([]);
-  };
-
-  // ── 既存行の編集開始
-  const startEdit = (record: PrefixRow) => {
-    setEditingId(record.id);
-    setEditingValues({ prefix: record.prefix, description: record.description });
-  };
-
-  // ── 既存行の編集保存
-  const saveEdit = async () => {
-    if (!editingId) return;
-    if (!editingValues.prefix) { message.error(t('prefixManagement.prefixFieldRequired')); return; }
-
-    try {
-      const res = await fetch(`/api/v1/namespaces/prefixes/${editingId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ prefix: editingValues.prefix, description: editingValues.description }),
-      });
-      if (!res.ok) {
-        // APIが未実装の場合はローカルで更新
-      }
-    } catch { /* APIが未実装の場合はローカルで更新 */ }
-
-    setRows((prev) =>
-      prev.map((r) => r.id === editingId ? { ...r, ...editingValues } : r)
-    );
-    setEditingId(null);
-    message.success(t('prefixManagement.updateSuccess'));
-  };
-
-  const cancelEdit = () => setEditingId(null);
-
-  // ── アクティブ/非アクティブ切り替え
-  const handleToggleActive = (id: string, prefix: string, currentActive: boolean) => {
-    const nextActive = !currentActive;
-    // 非アクティブにする場合のみ確認ダイアログを表示
-    if (currentActive) {
-      Modal.confirm({
-        title: `「${prefix}」を非アクティブにしますか？`,
-        content: 'このPrefixを非アクティブ状態に変更します。',
-        okText: '非アクティブ',
-        cancelText: 'キャンセル',
-        okButtonProps: { danger: true },
-        onOk: () => {
-          setRows((prev) =>
-            prev.map((r) => r.id === id ? { ...r, isActive: false } : r)
-          );
-          message.success(t('prefixManagement.deactivateSuccess', { prefix }));
-        },
-      });
-    } else {
-      setRows((prev) =>
-        prev.map((r) => r.id === id ? { ...r, isActive: nextActive } : r)
-      );
-      message.success(t('prefixManagement.activateSuccess', { prefix }));
-    }
-  };
-
   // ── 列定義
   const columns: TableColumnsType<PrefixRow | NewPrefixRow> = [
     {
       title: 'Prefix',
       dataIndex: 'prefix',
       key: 'prefix',
-      width: 200,
+      width: 160,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         return (a as PrefixRow).prefix.localeCompare((b as PrefixRow).prefix);
@@ -599,113 +352,179 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
       render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
         if ('_rowId' in record) {
           return (
-            <Input
-              size="small"
-              placeholder="例: materials"
-              value={(record as NewPrefixRow).prefix}
-              onChange={(e) => updateNewRow((record as NewPrefixRow)._rowId, 'prefix', e.target.value)}
+              <Input
+                size="small"
+                placeholder={t('prefixManagement.placeholderPrefix')}
+                value={(record as NewPrefixRow).prefix}
+              onChange={(e) =>
+                updateNewRow((record as NewPrefixRow)._rowId, 'prefix', e.target.value)
+              }
             />
           );
         }
         const r = record as PrefixRow;
-        return r.id === editingId
-          ? <Input size="small" value={editingValues.prefix} onChange={(e) => setEditingValues((p) => ({ ...p, prefix: e.target.value }))} />
-          : <Text strong>{r.prefix}</Text>;
+        return r.id === editingId ? (
+          <Input
+            size="small"
+            value={editingValues.prefix}
+            onChange={(e) =>
+              setEditingValues((p) => ({ ...p, prefix: e.target.value }))
+            }
+          />
+        ) : (
+          <Text strong>{r.prefix}</Text>
+        );
       },
     },
     {
-      title: '説明',
-      dataIndex: 'description',
-      key: 'description',
+      title: 'URI',
+      dataIndex: 'uri',
+      key: 'uri',
       ellipsis: true,
-      sorter: (a, b) => {
-        if ('_rowId' in a || '_rowId' in b) return 0;
-        return (a as PrefixRow).description.localeCompare((b as PrefixRow).description);
-      },
       render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
         if ('_rowId' in record) {
           return (
             <Input
               size="small"
-              placeholder="Prefixの説明..."
-              value={(record as NewPrefixRow).description}
-              onChange={(e) => updateNewRow((record as NewPrefixRow)._rowId, 'description', e.target.value)}
+              placeholder={t('prefixManagement.placeholderUri')}
+              value={(record as NewPrefixRow).uri}
+              onChange={(e) =>
+                updateNewRow((record as NewPrefixRow)._rowId, 'uri', e.target.value)
+              }
             />
           );
         }
         const r = record as PrefixRow;
-        return r.id === editingId
-          ? <Input size="small" value={editingValues.description} onChange={(e) => setEditingValues((p) => ({ ...p, description: e.target.value }))} />
-          : r.description;
+        return r.id === editingId ? (
+          <Input
+            size="small"
+            value={editingValues.uri}
+            onChange={(e) =>
+              setEditingValues((p) => ({ ...p, uri: e.target.value }))
+            }
+          />
+        ) : (
+          <Tooltip title={r.uri}>
+            <Text style={{ fontSize: 12, color: '#1677ff' }}>{r.uri}</Text>
+          </Tooltip>
+        );
       },
     },
-    ...(globalOnly ? [] : [{
-      title: 'スコープ',
-      key: 'scope',
+    {
+      title: t('prefixManagement.colDescription'),
+      dataIndex: 'description',
+      key: 'description',
       width: 200,
-      align: 'center' as const,
-      sorter: (a: PrefixRow | NewPrefixRow, b: PrefixRow | NewPrefixRow) => {
+      ellipsis: true,
+      render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
+        if ('_rowId' in record) {
+          return (
+            <Input
+              size="small"
+              placeholder={t('prefixManagement.placeholderDescription')}
+              value={(record as NewPrefixRow).description}
+              onChange={(e) =>
+                updateNewRow((record as NewPrefixRow)._rowId, 'description', e.target.value)
+              }
+            />
+          );
+        }
+        const r = record as PrefixRow;
+        return r.id === editingId ? (
+          <Input
+            size="small"
+            value={editingValues.description}
+            onChange={(e) =>
+              setEditingValues((p) => ({ ...p, description: e.target.value }))
+            }
+          />
+        ) : (
+          r.description ?? ''
+        );
+      },
+    },
+    {
+      title: t('prefixManagement.colScope'),
+      key: 'scopePath',
+      dataIndex: 'scopePath',
+      width: 160,
+      sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
-        return (a as PrefixRow).scopePath.localeCompare((b as PrefixRow).scopePath);
+        const sA = (a as PrefixRow & { scopePath?: string }).scopePath ?? '';
+        const sB = (b as PrefixRow & { scopePath?: string }).scopePath ?? '';
+        return sA.localeCompare(sB);
       },
       render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
         if ('_rowId' in record) return <span style={{ color: '#bbb' }}>—</span>;
-        const r = record as PrefixRow;
-        const parts = (r.scopePath ?? '').split(' › ');
-        const label = parts[parts.length - 1].trim();
+        const r = record as PrefixRow & { scopePath?: string };
+        const label = r.scopePath || '—';
         return (
-          <Tooltip title={r.scopePath}>
-            <Tag
+          <Tooltip title={label}>
+            <span
               style={{
                 fontSize: 11,
                 color: '#555',
                 background: '#f5f5f5',
-                borderColor: '#e8e8e8',
-                maxWidth: 180,
+                border: '1px solid #e8e8e8',
+                borderRadius: 4,
+                padding: '1px 6px',
+                display: 'inline-block',
+                maxWidth: 140,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-                display: 'inline-block',
               }}
             >
               {label}
-            </Tag>
+            </span>
           </Tooltip>
         );
       },
-    }]),
+    },
     {
-      title: '操作',
+      title: t('prefixManagement.colActions'),
       key: 'actions',
-      width: 160,
+      width: 180,
       render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
         if ('_rowId' in record) {
-          const r = record as NewPrefixRow;
-          return (
-            <Tooltip title="この行を削除">
-              <Button size="small" icon={<CloseOutlined />} onClick={() => removeNewRow(r._rowId)} />
-            </Tooltip>
-          );
+          return null;
         }
         const r = record as PrefixRow;
         if (r.id === editingId) {
           return (
             <span style={{ display: 'flex', gap: 4 }}>
-              <Button type="primary" size="small" icon={<SaveOutlined />} onClick={saveEdit}>保存</Button>
-              <Button size="small" onClick={cancelEdit}>キャンセル</Button>
+              <Button
+                type="primary"
+                size="small"
+                icon={<SaveOutlined />}
+                onClick={saveEdit}
+              >
+                {t('prefixManagement.btnSaveEdit')}
+              </Button>
+              <Button size="small" onClick={cancelEdit}>
+                {t('prefixManagement.btnCancelEdit')}
+              </Button>
             </span>
           );
         }
         return (
           <span style={{ display: 'flex', gap: 4 }}>
-            <Button size="small" icon={<EditOutlined />} onClick={() => startEdit(r)}>編集</Button>
             <Button
               size="small"
-              danger={r.isActive !== false}
-              onClick={() => handleToggleActive(r.id, r.prefix, r.isActive !== false)}
-              style={{ minWidth: '90px' }}
+              icon={<EditOutlined />}
+              disabled={viewOnly}
+              onClick={() => startEdit(r)}
             >
-              {r.isActive !== false ? '非アクティブ' : 'アクティブ'}
+              {t('prefixManagement.btnEdit')}
+            </Button>
+            <Button
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              disabled={viewOnly}
+              onClick={() => handleDelete(r)}
+            >
+              {t('prefixManagement.btnDelete')}
             </Button>
           </span>
         );
@@ -713,88 +532,73 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
     },
   ];
 
-  // ── 検索フィルター適用
+  // ── 検索フィルター
   const filteredRows = searchText
     ? rows.filter(
         (r) =>
           r.prefix.toLowerCase().includes(searchText.toLowerCase()) ||
-          r.description.toLowerCase().includes(searchText.toLowerCase())
+          r.uri.toLowerCase().includes(searchText.toLowerCase()) ||
+          (r.description ?? '').toLowerCase().includes(searchText.toLowerCase())
       )
     : rows;
 
   const tableData: (PrefixRow | NewPrefixRow)[] = [...newRows, ...filteredRows];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#fafafa' }}>
-      {/* 組織共有バー（showShareButton=true かつ 1件以上選択中のみ表示） */}
-      {showShareButton && hasPersonalSelected && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: 8,
-          padding: '6px 16px',
-          borderBottom: '1px solid #e8e8e8',
-          flexShrink: 0,
-        }}>
-          <Button
-            icon={<BankOutlined />}
-            onClick={() => setShareScopeOpen(true)}
-            style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
-          >
-            共有する（{selectedPrefixIds.length}件）
-          </Button>
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => {
-              const count = selectedPrefixIds.length;
-              Modal.confirm({
-                title: '選択したPrefixを非アクティブにしますか？',
-                content: `${count}件のPrefixが非アクティブになります。`,
-                okText: '非アクティブ',
-                cancelText: 'キャンセル',
-                okButtonProps: { danger: true },
-                onOk: () => {
-                  setRows((prev) =>
-                    prev.map((r) => selectedPrefixIds.includes(r.id) ? { ...r, isActive: false } : r)
-                  );
-                  setSelectedPrefixIds([]);
-                  message.success(t('prefixManagement.bulkDeactivateSuccess', { count }));
-                },
-              });
-            }}
-          >
-            選択したPrefixを非アクティブ（{selectedPrefixIds.length}件）
-          </Button>
-        </div>
-      )}
-      {/* ツールバー（左：検索欄、右：ボタン群） */}
-      <div style={{
+    <div
+      style={{
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 16px',
-        borderBottom: '1px solid #e8e8e8',
-        background: '#fff',
-        flexShrink: 0,
-      }}>
+        flexDirection: 'column',
+        height: '100%',
+        overflow: 'hidden',
+        background: '#fafafa',
+      }}
+    >
+      {/* ── ツールバー ── */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 8,
+          padding: '8px 16px',
+          borderBottom: '1px solid #e8e8e8',
+          background: '#fff',
+          flexShrink: 0,
+        }}
+      >
         {/* 左：検索欄 */}
         <Input
           prefix={<SearchOutlined />}
-          placeholder="Prefix・説明を検索..."
+          placeholder={t('prefixManagement.searchPlaceholder')}
           allowClear
           value={searchText}
-          onChange={(e) => { setSearchText(e.target.value); setCurrentPage(1); }}
+          onChange={(e) => {
+            setSearchText(e.target.value);
+            setCurrentPage(1);
+          }}
           style={{ flex: 1, minWidth: 80 }}
         />
         {/* 右：ボタン群 */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-          <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
-          <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>インポート</Button>
-          <Button disabled={viewOnly} onClick={handleCsvDownload}>エクスポート</Button>
-          <Button type="primary" icon={<PlusOutlined />} disabled={viewOnly} onClick={handleAddRow}>
-            Prefixを追加
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv"
+            style={{ display: 'none' }}
+            onChange={handleCsvUpload}
+          />
+          <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>
+            {t('prefixManagement.btnImport')}
+          </Button>
+          <Button onClick={handleCsvDownload}>{t('prefixManagement.btnExport')}</Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={viewOnly}
+            onClick={handleAddRow}
+          >
+            {t('prefixManagement.btnAddPrefix')}
           </Button>
           <Button
             type="primary"
@@ -802,81 +606,77 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({ globalOnly = false,
             onClick={handleSave}
             disabled={viewOnly || newRows.length === 0}
           >
-            保存
+            {t('prefixManagement.btnSave')}
           </Button>
           <Button
             onClick={() => setNewRows([])}
             disabled={viewOnly || newRows.length === 0}
           >
-            キャンセル
+            {t('prefixManagement.btnCancel')}
           </Button>
         </div>
       </div>
 
-      {/* テーブルエリア */}
+      {/* ── テーブルエリア ── */}
       <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
-        {/* テーブル */}
-        <Table<PrefixRow | NewPrefixRow>
-        rowKey={(record) => '_rowId' in record ? (record as NewPrefixRow)._rowId : (record as PrefixRow).id}
-        size="small"
-        columns={columns}
-        dataSource={tableData}
-        rowSelection={{
-          type: 'checkbox',
-          selectedRowKeys: selectedPrefixIds,
-          columnTitle: (
-            <input
-              type="checkbox"
-              checked={rows.length > 0 && selectedPrefixIds.length === rows.length}
-              style={{ cursor: 'pointer' }}
-              onChange={() => {
-                if (selectedPrefixIds.length === rows.length) {
-                  setSelectedPrefixIds([]);
-                } else {
-                  setSelectedPrefixIds(rows.map((r) => r.id));
-                }
-              }}
-            />
-          ),
-          onChange: (keys) => setSelectedPrefixIds(keys as string[]),
-          getCheckboxProps: (record) => ({ disabled: '_rowId' in record }),
-        }}
-        rowClassName={(record) => {
-          if ('_rowId' in record) return 'row-new-prefix';
-          const r = record as PrefixRow;
-          // チームノード選択時のみ祖先行をグレーアウト
-          if (r._isAncestor) return 'row-readonly-prefix';
-          return '';
-        }}
-        locale={{ triggerAsc: '昇順にソート', triggerDesc: '降順にソート', cancelSort: 'ソートをキャンセル' }}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          showTotal: (total) => `全 ${total} 件`,
-          showSizeChanger: true,
-          pageSizeOptions: ['20', '50', '100'],
-          onChange: (page, size) => {
-            setCurrentPage(page);
-            setPageSize(size);
-          },
-        }}
-      />
+        <Spin spinning={loading} tip={t('prefixManagement.loading')}>
+          <Table<PrefixRow | NewPrefixRow>
+            rowKey={(record) =>
+              '_rowId' in record
+                ? (record as NewPrefixRow)._rowId
+                : (record as PrefixRow).id
+            }
+            size="small"
+            columns={columns}
+            dataSource={tableData}
+            rowSelection={{
+              selectedRowKeys,
+              columnTitle: (
+                <input
+                  type="checkbox"
+                  checked={filteredRows.length > 0 && selectedRowKeys.length === filteredRows.length}
+                  style={{ cursor: 'pointer' }}
+                  onChange={() => {
+                    if (selectedRowKeys.length === filteredRows.length) {
+                      setSelectedRowKeys([]);
+                    } else {
+                      setSelectedRowKeys(filteredRows.map((r) => r.id));
+                    }
+                  }}
+                />
+              ),
+              onChange: (keys) => setSelectedRowKeys(keys),
+              getCheckboxProps: (record) => ({
+                disabled: '_rowId' in record,
+              }),
+            }}
+            rowClassName={(record) =>
+              '_rowId' in record ? 'row-new-prefix' : ''
+            }
+            locale={{
+              triggerAsc: t('prefixManagement.sortAsc'),
+              triggerDesc: t('prefixManagement.sortDesc'),
+              cancelSort: t('prefixManagement.sortCancel'),
+              emptyText: loading ? t('prefixManagement.loading') : t('prefixManagement.emptyText'),
+            }}
+            pagination={{
+              current: currentPage,
+              pageSize: pageSize,
+              showTotal: (total) => t('prefixManagement.showTotal', { total: String(total) }),
+              showSizeChanger: true,
+              pageSizeOptions: ['20', '50', '100'],
+              onChange: (page, size) => {
+                setCurrentPage(page);
+                setPageSize(size);
+              },
+            }}
+          />
+        </Spin>
 
-      <style>{`
+        <style>{`
           .row-new-prefix td { background: #fffbe6 !important; }
-          .row-readonly-prefix td { background: #f5f5f5 !important; opacity: 0.55; pointer-events: none; }
         `}</style>
       </div>
-
-      {/* ── 共有先選択モーダル ── */}
-      <ShareScopeModal
-        open={shareScopeOpen}
-        termCount={selectedPrefixIds.length}
-        sourceRole={{ kind: 'dept_owner', deptKey: 'dept-rd', deptLabel: '研究開発部' } as ShareSourceRole}
-        scopeNodes={shareScopeNodes}
-        onClose={() => setShareScopeOpen(false)}
-        onShare={handleShareToTarget}
-      />
     </div>
   );
 };

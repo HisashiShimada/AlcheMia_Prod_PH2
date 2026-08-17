@@ -16,6 +16,13 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as organizationGroupService from '../services/organizationGroupService';
+import type {
+  CreateOrganizationGroupBody,
+  UpdateOrganizationGroupBody,
+  UpdateOrganizationGroupStatusBody,
+  SetGroupMembersBody,
+  UpdateGroupChiefBody,
+} from '../types/api';
 
 /**
  * 組織グループ一覧取得
@@ -109,11 +116,7 @@ export async function createOrganizationGroup(
       organization_group_cd,
       organization_group_name,
       parent_group_cd,
-    } = req.body as {
-      organization_group_cd: string;
-      organization_group_name: string;
-      parent_group_cd?: string | null;
-    };
+    } = req.body as CreateOrganizationGroupBody;
 
     const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
 
@@ -162,17 +165,9 @@ export async function updateOrganizationGroup(
       organization_group_name,
       parent_group_cd,
       layer,
-    } = req.body as {
-      organization_group_name?: string;
-      parent_group_cd?: string | null;
-      layer?: string | null;
-    };
+    } = req.body as UpdateOrganizationGroupBody;
 
-    const updateData: {
-      organization_group_name?: string;
-      parent_group_cd?: string | null;
-      layer?: string | null;
-    } = {};
+    const updateData: UpdateOrganizationGroupBody = {};
 
     if (organization_group_name !== undefined) {
       updateData.organization_group_name = organization_group_name.trim();
@@ -216,7 +211,7 @@ export async function updateOrganizationGroupStatus(
     const organizationId = req.organizationId!;
     const userId = req.user!.userId;
     const { groupCd } = req.params;
-    const { isActive } = req.body as { isActive: boolean };
+    const { isActive } = req.body as UpdateOrganizationGroupStatusBody;
     
     const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
 
@@ -229,6 +224,33 @@ export async function updateOrganizationGroupStatus(
     );
 
     res.json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * ログインユーザーの所属グループ＋全祖先グループの CD 一覧を返す
+ * GET /api/v1/organization-groups/ancestors
+ *
+ * @remarks
+ * 用語重複チェックで「上位層グループの名前空間」を特定するために使用する。
+ * findByUser の WITH RECURSIVE クエリで自分の直接所属グループと
+ * parent_group_cd を再帰的に辿った全祖先グループを取得する。
+ */
+export async function getAncestorGroupCds(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.organizationId!;
+    const userId = req.userId!;
+
+    // Service 経由で所属グループ + 全祖先グループの CD 一覧を取得
+    const groupCds = await organizationGroupService.getAncestorGroupCds(organizationId, userId);
+
+    res.json({ success: true, data: groupCds });
   } catch (error) {
     next(error);
   }
@@ -302,7 +324,7 @@ export async function setOrganizationGroupMembers(
   try {
     const organizationId = req.organizationId!;
     const { groupCd } = req.params;
-    const { userIds } = req.body as { userIds: string[] };
+    const { userIds } = req.body as SetGroupMembersBody;
 
     const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
 
@@ -330,7 +352,7 @@ export async function updateOrganizationGroupChief(
     const organizationId = req.organizationId!;
     const userId = req.user!.userId;
     const { groupCd } = req.params;
-    const { chiefUserId } = req.body as { chiefUserId: string };
+    const { chiefUserId } = req.body as UpdateGroupChiefBody;
 
     const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
 

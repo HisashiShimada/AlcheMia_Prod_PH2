@@ -14,6 +14,14 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as namespaceService from '../services/namespaceService';
+import type {
+  CreateNamespaceBody,
+  UpdateNamespaceBody,
+  CreateTermBody,
+  UpdateTermBody,
+  ToggleTermActiveBody,
+  TermActiveParams,
+} from '../types/api';
 
 /**
  * 名前空間（Prefix）新規登録
@@ -25,15 +33,15 @@ export async function createNamespace(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, uri, scopeKey, description } = req.body as {
-      prefix: string;
-      uri: string;
-      scopeKey?: string;
-      description?: string;
-    };
+    const { prefix, uri, description, scopeKey: bodyScopeKey } = req.body as CreateNamespaceBody;
 
-    const organizationId = (req as any).organizationId as string;
-    const userId = ((req as any).userId as string | undefined) ?? 'system';
+    const organizationId = req.user!.organizationId;
+    const userId = req.user!.userId;
+    // scopeKey の優先順位:
+    //   1. リクエストボディの scopeKey（NamespaceMain から選択中ノードキーとして渡される）
+    //   2. JWT に含まれる organizationGroupCds の先頭（フォールバック）
+    const organizationGroupCds = req.user!.organizationGroupCds ?? [];
+    const scopeKey = bodyScopeKey ?? organizationGroupCds[0] ?? undefined;
 
     const result = await namespaceService.createNamespace({
       organizationId,
@@ -45,6 +53,31 @@ export async function createNamespace(
     });
 
     res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * 名前空間（Prefix の URI）更新
+ * PATCH /api/v1/namespaces/:prefix
+ */
+export async function updateNamespace(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.user!.organizationId;
+    const prefix = decodeURIComponent(req.params.prefix);
+    const { uri } = req.body as UpdateNamespaceBody;
+
+    const result = await namespaceService.updateNamespace({ organizationId, prefix, uri });
+    if (!result) {
+      res.status(404).json({ success: false, error: { code: 'E6001', message: 'Namespace not found' } });
+      return;
+    }
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -111,14 +144,7 @@ export async function createTerm(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, localName, displayName, description, typeHint, unitHint } = req.body as {
-      prefix: string;
-      localName: string;
-      displayName?: string;
-      description?: string;
-      typeHint?: string;
-      unitHint?: string;
-    };
+    const { prefix, localName, displayName, description, typeHint, unitHint } = req.body as CreateTermBody;
 
     const organizationId = (req as any).organizationId as string;
 
@@ -156,12 +182,7 @@ export async function updateTerm(
     const { prefix, localName } = req.params;
     const organizationId = (req as any).organizationId as string;
 
-    const { displayName, description, typeHint, unitHint } = req.body as {
-      displayName?: string;
-      description?: string;
-      typeHint?: string;
-      unitHint?: string;
-    };
+    const { displayName, description, typeHint, unitHint } = req.body as UpdateTermBody;
 
     const updated = await namespaceService.updateTerm(organizationId, prefix, localName, {
       displayName,
@@ -260,6 +281,8 @@ export async function getDeclarationsByProject(
 /**
  * 用語一覧取得
  * GET /api/v1/namespaces/terms
+ *
+ * @query scopeKey - 指定した場合、そのスコープ + global_flg=TRUE の用語のみ返す
  */
 export async function getTerms(
   req: Request,
@@ -268,6 +291,22 @@ export async function getTerms(
 ): Promise<void> {
   try {
     const organizationId = (req as any).organizationId as string | undefined;
+    const scopeKey = req.query.scopeKey as string | undefined;
+
+    const globalFlg = req.query.globalFlg === 'true';
+
+    if (organizationId && globalFlg) {
+      const terms = await namespaceService.getTermsGlobal(organizationId);
+      res.json(terms);
+      return;
+    }
+
+    if (organizationId && scopeKey) {
+      const terms = await namespaceService.getTermsByScopeKey(organizationId, scopeKey);
+      res.json(terms);
+      return;
+    }
+
     const terms = await namespaceService.getTerms(organizationId);
     res.json(terms);
   } catch (error) {
@@ -287,8 +326,8 @@ export async function toggleTermActive(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, localName } = req.params as { prefix: string; localName: string };
-    const { isActive } = req.body as { isActive: boolean };
+    const { prefix, localName } = req.params as unknown as TermActiveParams;
+    const { isActive } = req.body as ToggleTermActiveBody;
     const organizationId = (req as any).organizationId as string;
 
     const updated = await namespaceService.toggleTermActive(

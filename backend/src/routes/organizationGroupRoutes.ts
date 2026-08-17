@@ -4,18 +4,27 @@
  * 組織階層グループ管理のAPIエンドポイント
  *
  * @remarks
- * バリデーションは express-validator のルール + handleValidationErrors で実施する。
+ * バリデーションは organizationGroupValidation.ts のルール + handleValidationErrors で実施する。
  * Controller 内にはバリデーションロジックを記述しない。
  *
  * @module organizationGroupRoutes
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { Router } from 'express';
-import { body, param } from 'express-validator';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
+import {
+  validateGetOrganizationGroups,
+  validateCreateOrganizationGroup,
+  validateGetOrganizationGroupById,
+  validateUpdateOrganizationGroup,
+  validateUpdateOrganizationGroupStatus,
+  validateGetOrganizationGroupMembers,
+  validateSetOrganizationGroupMembers,
+  validateUpdateOrganizationGroupChief,
+} from '../middleware/organizationGroupValidation';
 import * as organizationGroupController from '../controllers/organizationGroupController';
 
 const router = Router();
@@ -28,8 +37,14 @@ router.use(authMiddleware, tenantIsolation);
  * GET /api/v1/organization-groups
  *
  * @query search - グループCDまたはグループ名による部分一致検索（任意）
+ * @query visibleOnly - true の場合、ログインユーザーが閲覧可能なグループのみを返す
  */
-router.get('/', organizationGroupController.getOrganizationGroups);
+router.get(
+  '/',
+  validateGetOrganizationGroups,
+  handleValidationErrors,
+  organizationGroupController.getOrganizationGroups
+);
 
 /**
  * 組織グループ新規作成
@@ -44,23 +59,20 @@ router.get('/', organizationGroupController.getOrganizationGroups);
  */
 router.post(
   '/',
-  [
-    body('organization_group_cd')
-      .notEmpty()
-      .withMessage('organization_group_cd は必須です')
-      .isString()
-      .withMessage('organization_group_cd は文字列で指定してください')
-      .trim(),
-    body('organization_group_name')
-      .notEmpty()
-      .withMessage('organization_group_name は必須です')
-      .isString()
-      .withMessage('organization_group_name は文字列で指定してください')
-      .trim(),
-  ],
+  validateCreateOrganizationGroup,
   handleValidationErrors,
   organizationGroupController.createOrganizationGroup
 );
+
+/**
+ * ログインユーザーの所属グループ＋全祖先グループの CD 一覧取得
+ * GET /api/v1/organization-groups/ancestors
+ *
+ * @remarks
+ * /:groupCd より前に定義しないとルートが競合するため注意。
+ * 用語重複チェックで上位層グループの名前空間を特定するために使用。
+ */
+router.get('/ancestors', organizationGroupController.getAncestorGroupCds);
 
 /**
  * 組織内ユーザー一覧取得（グループメンバー選択用）
@@ -76,9 +88,7 @@ router.get('/users', organizationGroupController.getOrgUsers);
  */
 router.get(
   '/:groupCd/members',
-  [
-    param('groupCd').notEmpty().withMessage('groupCd は必須です'),
-  ],
+  validateGetOrganizationGroupMembers,
   handleValidationErrors,
   organizationGroupController.getOrganizationGroupMembers
 );
@@ -91,12 +101,7 @@ router.get(
  */
 router.put(
   '/:groupCd/members',
-  [
-    param('groupCd').notEmpty().withMessage('groupCd は必須です'),
-    body('userIds')
-      .isArray()
-      .withMessage('userIds は配列で指定してください'),
-  ],
+  validateSetOrganizationGroupMembers,
   handleValidationErrors,
   organizationGroupController.setOrganizationGroupMembers
 );
@@ -109,15 +114,7 @@ router.put(
  */
 router.put(
   '/:groupCd/chief',
-  [
-    param('groupCd').notEmpty().withMessage('groupCd は必須です'),
-    body('chiefUserId')
-      .notEmpty()
-      .withMessage('chiefUserId は必須です')
-      .isString()
-      .withMessage('chiefUserId は文字列で指定してください')
-      .trim(),
-  ],
+  validateUpdateOrganizationGroupChief,
   handleValidationErrors,
   organizationGroupController.updateOrganizationGroupChief
 );
@@ -128,9 +125,7 @@ router.put(
  */
 router.get(
   '/:groupCd',
-  [
-    param('groupCd').notEmpty().withMessage('groupCd は必須です'),
-  ],
+  validateGetOrganizationGroupById,
   handleValidationErrors,
   organizationGroupController.getOrganizationGroupById
 );
@@ -145,16 +140,7 @@ router.get(
  */
 router.put(
   '/:groupCd',
-  [
-    param('groupCd').notEmpty().withMessage('groupCd は必須です'),
-    body('organization_group_name')
-      .optional()
-      .notEmpty()
-      .withMessage('organization_group_name を指定する場合は空文字列にできません')
-      .isString()
-      .withMessage('organization_group_name は文字列で指定してください')
-      .trim(),
-  ],
+  validateUpdateOrganizationGroup,
   handleValidationErrors,
   organizationGroupController.updateOrganizationGroup
 );
@@ -171,12 +157,7 @@ router.put(
  */
 router.patch(
   '/:groupCd/status',
-  [
-    param('groupCd').notEmpty().withMessage('groupCd は必須です'),
-    body('isActive')
-      .isBoolean()
-      .withMessage('isActive は boolean で指定してください'),
-  ],
+  validateUpdateOrganizationGroupStatus,
   handleValidationErrors,
   organizationGroupController.updateOrganizationGroupStatus
 );

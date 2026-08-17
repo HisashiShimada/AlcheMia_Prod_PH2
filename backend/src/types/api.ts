@@ -936,3 +936,135 @@ export interface PlanDialogData {
   };
 }
 
+// ============================================================
+// 名前空間 (namespace) 関連リクエストボディ型
+// ============================================================
+
+/**
+ * POST /api/v1/namespaces リクエストボディ
+ *
+ * @remarks namespaceController.createNamespace で使用
+ */
+export interface CreateNamespaceBody {
+  prefix: string;
+  uri: string;
+  description?: string;
+  scopeKey?: string;
+}
+
+/**
+ * PATCH /api/v1/namespaces/:prefix リクエストボディ
+ *
+ * @remarks namespaceController.updateNamespace で使用
+ */
+export interface UpdateNamespaceBody {
+  uri: string;
+}
+
+/**
+ * POST /api/v1/namespaces/terms リクエストボディ
+ *
+ * @remarks namespaceController.createTerm で使用
+ */
+export interface CreateTermBody {
+  prefix: string;
+  localName: string;
+  displayName?: string;
+  description?: string;
+  typeHint?: string;
+  unitHint?: string;
+}
+
+/**
+ * PUT /api/v1/namespaces/terms/:prefix/:localName リクエストボディ
+ *
+ * @remarks namespaceController.updateTerm で使用
+ */
+export interface UpdateTermBody {
+  displayName?: string;
+  description?: string;
+  typeHint?: string;
+  unitHint?: string;
+}
+
+/**
+ * PATCH /api/v1/namespaces/terms/:prefix/:localName/active リクエストボディ
+ *
+ * @remarks namespaceController.toggleTermActive で使用
+ */
+export interface ToggleTermActiveBody {
+  isActive: boolean;
+}
+
+/**
+ * PATCH /api/v1/namespaces/terms/:prefix/:localName/active パスパラメータ
+ *
+ * @remarks namespaceController.toggleTermActive で使用
+ */
+export interface TermActiveParams {
+  prefix: string;
+  localName: string;
+}
+
+// ============================================================
+// 組織グループ (organization-group) 関連リクエストボディ型
+// ============================================================
+
+/**
+ * POST /api/v1/organization-groups リクエストボディ
+ *
+ * @remarks organizationGroupController.createOrganizationGroup で使用
+ */
+export interface CreateOrganizationGroupBody {
+  organization_group_cd: string;
+  organization_group_name: string;
+  parent_group_cd?: string | null;
+}
+
+/**
+ * PUT /api/v1/organization-groups/:groupCd リクエストボディ
+ *
+ * @remarks organizationGroupController.updateOrganizationGroup で使用
+ */
+export interface UpdateOrganizationGroupBody {
+  organization_group_name?: string;
+  parent_group_cd?: string | null;
+  layer?: string | null;
+}
+
+/**
+ * PATCH /api/v1/organization-groups/:groupCd/status リクエストボディ
+ *
+ * @remarks organizationGroupController.updateOrganizationGroupStatus で使用
+ */
+export interface UpdateGroupStatusBody {
+  isActive: boolean;
+}
+
+/**
+ * PATCH /api/v1/organization-groups/:groupCd/status リクエストボディ
+ *
+ * @remarks organizationGroupController.updateOrganizationGroupStatus で使用
+ */
+export interface UpdateOrganizationGroupStatusBody {
+  isActive: boolean;
+}
+
+/**
+ * PUT /api/v1/organization-groups/:groupCd/members リクエストボディ
+ *
+ * @remarks organizationGroupController.setOrganizationGroupMembers で使用
+ */
+export interface SetGroupMembersBody {
+  userIds: string[];
+}
+
+/**
+ * PUT /api/v1/organization-groups/:groupCd/chief リクエストボディ
+ *
+ * @remarks organizationGroupController.updateOrganizationGroupChief で使用
+ */
+export interface UpdateGroupChiefBody {
+  chiefUserId: string;
+}
+
