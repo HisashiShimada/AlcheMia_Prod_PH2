@@ -9,6 +9,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as projectOverallEvaluationService from '../services/projectOverallEvaluationService';
+import * as qualityEvaluationMaimlService from '../services/qualityEvaluationMaimlService';
 import type { CreateProjectOverallEvaluationInput } from '../types/projectOverallEvaluation';
 
 /**
@@ -83,6 +84,34 @@ export async function createOverallEvaluation(
     const err = error as Error & { code?: string };
     if (err.code === 'E8001') {
       res.status(404).json({ error: { code: 'E8001', message: err.message } });
+      return;
+    }
+    next(error);
+  }
+}
+
+/**
+ * 品質評価データを MAiML ファイルの <eventLog> に書き込む
+ * POST /api/v1/project-overall-evaluations/:projectId/export-to-maiml
+ */
+export async function exportToMaiml(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = (req as any).organizationId as string;
+    const { projectId } = req.params;
+
+    const result = await qualityEvaluationMaimlService.exportQualityEvaluationToMaiml(
+      organizationId,
+      projectId
+    );
+    res.json({ success: true, data: result });
+  } catch (error) {
+    const err = error as Error & { code?: string };
+    if (err.code === 'E6001') {
+      res.status(404).json({ error: { code: 'E6001', message: err.message } });
       return;
     }
     next(error);

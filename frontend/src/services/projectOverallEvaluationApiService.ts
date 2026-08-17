@@ -14,6 +14,7 @@ import type {
   ProjectOverallEvaluation,
   CreateProjectOverallEvaluationInput,
   SummaryResponse,
+  ExportToMaimlResult,
 } from '@/types/projectOverallEvaluation';
 
 const BASE_URL = '/api/v1/project-overall-evaluations';
@@ -50,6 +51,17 @@ export async function createOverallEvaluation(
   const res = await api.post<{ success: boolean; data: ProjectOverallEvaluation }>(
     BASE_URL,
     input
+  );
+  return res.data.data;
+}
+
+/**
+ * 品質評価データを MAiML ファイルの <eventLog> に書き込む
+ */
+export async function exportToMaiml(projectId: string): Promise<ExportToMaimlResult> {
+  const api = createApiClient();
+  const res = await api.post<{ success: boolean; data: ExportToMaimlResult }>(
+    `${BASE_URL}/${encodeURIComponent(projectId)}/export-to-maiml`
   );
   return res.data.data;
 }

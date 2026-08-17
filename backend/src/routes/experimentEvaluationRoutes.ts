@@ -71,23 +71,5 @@ router.post(
   experimentEvaluationController.saveEvaluations
 );
 
-/**
- * DBの評価データを MAiML ファイルへ一括書き込み（プロジェクト完了処理）
- * POST /api/v1/experiment-evaluations/:projectId/export-to-maiml
- */
-router.post(
-  '/:projectId/export-to-maiml',
-  authMiddleware,
-  tenantIsolation,
-  [
-    param('projectId')
-      .notEmpty()
-      .withMessage('projectId is required')
-      .isString()
-      .withMessage('projectId must be a string'),
-  ],
-  handleValidationErrors,
-  experimentEvaluationController.exportToMaiml
-);
-
 export default router;
+

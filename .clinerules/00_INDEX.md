@@ -75,6 +75,8 @@ Clineの動作を制御するスキル定義ファイルを格納
 ### [development/config.md](development/config.md)
 - コーディング規約統合ドキュメント
 - DRY、SOLID原則
+- **インラインオブジェクト引数禁止**（引数には必ず変数に代入してから渡す）
+- **画面コンポーネントからの直接API呼び出し禁止**（services/ 経由必須）
 - ファイル命名規則
 - インポート順序、コメント規約
 
@@ -150,6 +152,7 @@ Clineの動作を制御するスキル定義ファイルを格納
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-08-17 | backend.md更新（多言語対応規約（i18n）セクション追加：lang取得統一パターン・messages.ts管理ルール・デフォルトメッセージフォールバック・禁止事項）、config.md更新（インラインオブジェクト引数禁止・直接fetch禁止ルール追加）、backend.md更新（Controller→Repository直接呼出し禁止ルール追加）、frontend.md更新（直接fetch禁止・多言語対応ルール追加）、workflow.md更新（チェックポイント拡充） | Cline |
 | 2026-03-25 | error_codes.md追加（エラーコード一覧資料） | Cline |
 | 2026-02-18 | database.md追加（Repository層のDB操作統一化規約） | Cline |
 | 2026-02-18 | typescript.md追加（TypeScript型定義管理規約） | Cline |

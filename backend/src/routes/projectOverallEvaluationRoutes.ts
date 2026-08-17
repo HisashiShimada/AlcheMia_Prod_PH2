@@ -64,4 +64,19 @@ router.post(
   projectOverallEvaluationController.createOverallEvaluation
 );
 
+/**
+ * 品質評価データを MAiML ファイルの <eventLog> に書き込む
+ * POST /api/v1/project-overall-evaluations/:projectId/export-to-maiml
+ */
+router.post(
+  '/:projectId/export-to-maiml',
+  authMiddleware,
+  tenantIsolation,
+  [
+    param('projectId').notEmpty().withMessage('projectId is required').isString(),
+  ],
+  handleValidationErrors,
+  projectOverallEvaluationController.exportToMaiml
+);
+
 export default router;

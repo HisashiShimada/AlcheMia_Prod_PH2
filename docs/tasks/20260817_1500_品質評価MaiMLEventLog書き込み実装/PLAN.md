@@ -185,14 +185,31 @@
 
 ### 実施日時
 
-開始: —  
-完了: —
+開始: 2026-08-17 15:00  
+完了: 2026-08-17 （実施完了）
 
 ### 計画からの変更点
 
-—
+- `resolveInstructionToResultsMap()` の実装: instruction_id と results_id の直接マッピングは MAiML 構造上困難なため、`<results id="...">` を列挙して results_id → results_id の自己マッピングとし、instToResultsMap に渡す形に変更。
+- `_createArchive()` 関数をサービスの内部ヘルパーとして実装（`maimlArchiveHelper.ts` の既存実装と同等ロジックをインライン化）。
+- `frontend/src/components/project/ProjectCompletionDialog.tsx` の `handleComplete` に ②`createOverallEvaluation()`（凍結保存）と ④`exportOverallEvaluationToMaiml()`（品質評価 EventLog 書き込み）を追加。i18n キー `projectCompletion.maimlQualityWriteSuccess` / `projectCompletion.maimlQualityWriteWarning` を参照（未定義の場合はキー名がそのまま表示される）。
 
 ### 発生した問題と解決方法
 
-—
+- ファイル書き込みツールの文字数制限（6000文字）により、大きなファイルを分割して作成。
+- `tsc --noEmit` の実行結果には既存の `organizationService.ts` のエラーが含まれていたが、今回実装ファイルに起因するエラーはなし。
+
+### 最終的な成果物
+
+- [x] `backend/src/utils/maimlQualityWriter.ts` — 新規作成（4関数、315行）
+- [x] `backend/src/services/qualityEvaluationMaimlService.ts` — 新規作成（195行）
+- [x] `backend/tests/utils/maimlQualityWriter.test.ts` — 新規作成（14テスト全 PASS）
+- [x] `backend/src/types/projectOverallEvaluation.ts` — `ExportToMaimlResult` 型追加
+- [x] `backend/src/services/experimentEvaluationService.ts` — `<Uncertainties>` ラッパー廃止
+- [x] `backend/src/controllers/projectOverallEvaluationController.ts` — `exportToMaiml` 関数追加
+- [x] `backend/src/routes/projectOverallEvaluationRoutes.ts` — `POST /:projectId/export-to-maiml` ルート追加
+- [x] `frontend/src/types/projectOverallEvaluation.ts` — `ExportToMaimlResult` 型追加
+- [x] `frontend/src/services/projectOverallEvaluationApiService.ts` — `exportToMaiml()` 追加
+- [x] `frontend/src/components/project/ProjectCompletionDialog.tsx` — `handleComplete` 修正（4ステップ化）
+
 

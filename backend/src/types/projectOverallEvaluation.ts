@@ -61,3 +61,16 @@ export interface SummaryResponse {
   levels: LevelSummary[];
   attentionItems: AttentionItem[];
 }
+
+/**
+ * POST /api/v1/project-overall-evaluations/:projectId/export-to-maiml レスポンス
+ * 品質評価データを MAiML ファイルの <eventLog> に書き込んだ結果
+ */
+export interface ExportToMaimlResult {
+  /** <eventLog> に書き込まれた品質評価エントリ数（全体評価 + 階層別）*/
+  written: number;
+  /** 処理結果の説明メッセージ */
+  message: string;
+  /** スキップされた場合は true（MAiML ファイル未存在等） */
+  skipped?: boolean;
+}

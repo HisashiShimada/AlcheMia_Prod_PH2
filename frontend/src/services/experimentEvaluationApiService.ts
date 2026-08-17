@@ -99,24 +99,3 @@ export async function saveEvaluations(
   return response.data.data;
 }
 
-/** exportToMaiml レスポンス */
-export interface ExportToMaimlResult {
-  written: number;
-  message: string;
-}
-
-/**
- * DBの評価データを MAiML ファイルへ一括書き込み（プロジェクト完了処理）
- *
- * @param projectId - プロジェクトID
- * @returns 書き込み件数とメッセージ
- */
-export async function exportEvaluationsToMaiml(
-  projectId: string
-): Promise<ExportToMaimlResult> {
-  const api = createApiClient();
-  const response = await api.post<{ success: boolean; data: ExportToMaimlResult }>(
-    `/experiment-evaluations/${encodeURIComponent(projectId)}/export-to-maiml`
-  );
-  return response.data.data;
-}

@@ -71,37 +71,3 @@ export async function saveEvaluations(
   }
 }
 
-/**
- * DBの評価データを MAiML ファイルへ一括書き込み（プロジェクト完了処理）
- * POST /api/v1/experiment-evaluations/:projectId/export-to-maiml
- */
-export async function exportToMaiml(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const organizationId = (req as any).organizationId as string;
-    const { projectId } = req.params;
-
-    const result = await experimentEvaluationService.exportToMaiml(organizationId, projectId);
-
-    if (result.written === 0) {
-      res.json({ success: true, data: result });
-      return;
-    }
-
-    res.json({ success: true, data: result });
-  } catch (error) {
-    const err = error as Error & { code?: string };
-    if (err.code === 'E6001') {
-      res.status(404).json({ error: { code: 'E6001', message: err.message } });
-      return;
-    }
-    if (err.code === 'E6002') {
-      res.status(404).json({ error: { code: 'E6002', message: err.message } });
-      return;
-    }
-    next(error);
-  }
-}

@@ -24,8 +24,9 @@ import {
   App,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { saveEvaluations, exportEvaluationsToMaiml } from '@/services/experimentEvaluationApiService';
+import { saveEvaluations } from '@/services/experimentEvaluationApiService';
 import type { EvaluationInput } from '@/services/experimentEvaluationApiService';
+import { createOverallEvaluation, exportToMaiml as exportOverallEvaluationToMaiml } from '@/services/projectOverallEvaluationApiService';
 import type { UncertaintyCriteriaForSelector } from './ApprovalWizardDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -88,7 +89,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
   const handleComplete = async () => {
     setSubmitting(true);
     try {
-      // 評価値が入力されている場合は保存
+      // ① 評価値が入力されている場合は experiment_evaluation に保存
       const row = evalRows[0];
       if (selectedCriteria && row.evaluationValue) {
         const evaluations: EvaluationInput[] = [
@@ -106,17 +107,29 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
         ];
         await saveEvaluations({ projectId, evaluations });
       }
-      // DBの評価データを MAiML ファイルへ書き込み
+
+      // ② 全体評価を DB に凍結保存（project_overall_evaluations）
       try {
-        const result = await exportEvaluationsToMaiml(projectId);
-        if (result.written > 0) {
-          message.success(t('projectCompletion.maimlWriteSuccess', { count: String(result.written) }));
-        }
-      } catch (exportErr) {
-        // MAiML 書き込み失敗はワーニング扱い（完了処理自体は続行）
-        console.warn('[ProjectCompletionDialog] exportToMaiml error:', exportErr);
-        message.warning(t('projectCompletion.maimlWriteWarning'));
+        await createOverallEvaluation({ projectId });
+      } catch (overallEvalErr) {
+        // 全体評価登録失敗はワーニング扱い（完了処理自体は続行）
+        console.warn('[ProjectCompletionDialog] createOverallEvaluation error:', overallEvalErr);
       }
+
+      // ③ 品質評価（全体評価・階層別）を MAiML <eventLog> へ書き込み
+      try {
+        const qualityResult = await exportOverallEvaluationToMaiml(projectId);
+        if (!qualityResult.skipped && qualityResult.written > 0) {
+          message.success(
+            t('projectCompletion.maimlQualityWriteSuccess', { count: String(qualityResult.written) })
+          );
+        }
+      } catch (qualityExportErr) {
+        // 品質評価 MAiML 書き込み失敗はワーニング扱い（完了処理自体は続行）
+        console.warn('[ProjectCompletionDialog] exportOverallEvaluationToMaiml error:', qualityExportErr);
+        message.warning(t('projectCompletion.maimlQualityWriteWarning'));
+      }
+
       // 完了処理
       await onComplete();
     } catch (err) {
