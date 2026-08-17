@@ -6460,9 +6460,31 @@
     "startDemo": "Start Demo",
     "title": "Uncertainty Criteria Import"
   },
+  "projectRoutes": {
+    "validation": {
+      "pageInt": "Page number must be an integer of 1 or more",
+      "limitInt": "limit must be an integer between 1 and 100",
+      "statusIn": "status must be one of '1', '2', '3'",
+      "tasksArray": "tasks must be an array with at least one element",
+      "methodIdRequired": "methodId is required"
+    }
+  },
   "workflowSelectorDialog": {
     "loadFailed": "Failed to load workflow",
     "selectRequired": "Please select a workflow"
+  },
+  "projectRoutes": {
+    "validation": {
+      "pageInt": "Page number must be an integer of 1 or greater",
+      "limitInt": "limit must be an integer between 1 and 100",
+      "statusIn": "status must be one of '1', '2', or '3'",
+      "sortByIn": "sort_by must be one of 'create_at', 'project_name', or 'update_at'",
+      "orderIn": "order must be 'asc' or 'desc'",
+      "projectIdRequired": "projectId is required",
+      "projectIdLength": "projectId must be between 1 and 255 characters",
+      "tasksArray": "tasks must be an array with at least 1 element",
+      "methodIdRequired": "methodId is required"
+    }
   },
   "dataRecordDialog": {
     "projectInstructionTitle": "⚠️ Project Instructions",

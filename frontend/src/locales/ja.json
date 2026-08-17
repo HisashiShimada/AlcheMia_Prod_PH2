@@ -1146,7 +1146,14 @@
       "allDepartments": "All Departments",
       "department": "Department"
     },
-    "progressStatus": {
+  "validation": {
+    "pageNumberMinOne": "ページ番号は1以上の整数である必要があります",
+    "limitRange": "limitは1〜100の範囲内の整数である必要があります",
+    "statusInvalid": "statusは'1', '2', '3'のいずれかを指定してください",
+    "projectIdRequired": "projectIdは必須です",
+    "projectIdLength": "projectIdは1〜255文字である必要があります"
+  },
+  "progressStatus": {
       "completed": "完了",
       "inProgress": "作業中",
       "notStarted": "未着手"
@@ -4897,6 +4904,19 @@
       "failed": "鍵のローテーションに失敗しました"
     },
     "previewFailed": "プレビューの取得に失敗しました"
+  },
+  "projectRoutes": {
+    "validation": {
+      "pageInt": "ページ番号は1以上の整数である必要があります",
+      "limitInt": "limitは1〜100の範囲内の整数である必要があります",
+      "statusIn": "statusは'1', '2', '3'のいずれかを指定してください",
+      "sortByIn": "sort_byは'create_at', 'project_name', 'update_at'のいずれかを指定してください",
+      "orderIn": "orderは'asc'または'desc'を指定してください",
+      "projectIdRequired": "projectIdは必須です",
+      "projectIdLength": "projectIdは1〜255文字である必要があります",
+      "tasksArray": "tasksは1要素以上の配列である必要があります",
+      "methodIdRequired": "methodIdは必須です"
+    }
   },
   "experimentPlan": {
     "exportSuccess": "エクスポートしました",

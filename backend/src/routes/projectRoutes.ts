@@ -15,6 +15,7 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import { checkPermission } from '../middleware/permissionCheckMiddleware';
+import { t } from '../utils/i18n';
 
 const router = Router();
 
@@ -38,15 +39,15 @@ router.get(
     query('page')
       .optional()
       .isInt({ min: 1 })
-      .withMessage('ページ番号は1以上の整数である必要があります'),
+      .withMessage(t('projectRoutes.validation.pageInt')),
     query('limit')
       .optional()
       .isInt({ min: 1, max: 100 })
-      .withMessage('limitは1〜100の範囲内の整数である必要があります'),
+      .withMessage(t('projectRoutes.validation.limitInt')),
     query('status')
       .optional()
       .isIn(['1', '2', '3'])
-      .withMessage("statusは'1', '2', '3'のいずれかを指定してください"),
+      .withMessage(t('projectRoutes.validation.statusIn')),
     query('sort_by')
       .optional()
       .isIn(['create_at', 'project_name', 'update_at'])
@@ -474,10 +475,10 @@ router.post(
       .withMessage('projectIdは1〜255文字である必要があります'),
     body('tasks')
       .isArray({ min: 1 })
-      .withMessage('tasksは1要素以上の配列である必要があります'),
+      .withMessage(t('projectRoutes.validation.tasksArray')),
     body('tasks.*.methodId')
       .notEmpty()
-      .withMessage('methodIdは必須です'),
+      .withMessage(t('projectRoutes.validation.methodIdRequired')),
     body('tasks.*.experimentCondition')
       .isInt({ min: 0 })
       .withMessage('experimentConditionは0以上の整数である必要があります'),
