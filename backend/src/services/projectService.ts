@@ -327,7 +327,7 @@ export class ProjectService {
         success: true,
         data: {
           deletedCount: deletedFileCount,
-          message: `プロジェクト「${deletedProjectName}」を削除しました`,
+          message: `Project "${deletedProjectName}" has been deleted`,
         },
       };
     } catch (error) {
@@ -1256,22 +1256,22 @@ export class ProjectService {
 
       // プロジェクトステータス検証: task_in_progress (2) のみ許可
       if (project.project_status !== ProjectStatusEnum.TASK_IN_PROGRESS) {
-        // ステータス名のマッピング
+      // ステータス名のマッピング
         const statusNames: { [key: number]: string } = {
-          0: 'プロジェクト計画中',
-          1: 'タスク実行待ち',
-          2: 'タスク実行中',
-          3: 'タスク結果レビュー待ち',
-          4: 'プロジェクト完了',
-          5: 'タスク異常終了',
+          0: 'Planning',
+          1: 'Task Pending',
+          2: 'Task In Progress',
+          3: 'Task Review Waiting',
+          4: 'Project Completed',
+          5: 'Task Error',
         };
-        const currentStatusName = statusNames[project.project_status] || '不明';
+        const currentStatusName = statusNames[project.project_status] || 'Unknown';
 
         // waiting_approval (3) の場合は特別なメッセージ
         const message =
           project.project_status === ProjectStatusEnum.REVIEW_WAITING
-            ? '既に承認依頼が送信されています'
-            : `プロジェクトステータスがタスク実行中ではありません。現在のステータス: ${currentStatusName}`;
+            ? 'Approval request has already been sent'
+            : `Project status is not in progress. Current status: ${currentStatusName}`;
 
         return {
           success: false,
@@ -2145,7 +2145,7 @@ export class ProjectService {
         success: true,
         data: {
           updatedCount,
-          message: `レビュー待ちタスク ${updatedCount} 件を完了に更新しました`,
+          message: `${updatedCount} review-waiting tasks have been completed`,
         },
       };
     } catch (error) {
@@ -2187,7 +2187,7 @@ export class ProjectService {
           success: false,
           error: {
             code: 'E6001',
-            message: 'プロジェクトが見つかりません',
+            message: 'Project not found',
           },
         };
       }
@@ -2201,7 +2201,7 @@ export class ProjectService {
         success: false,
         error: {
           code: 'E4002',
-          message: 'データベースエラーが発生しました',
+          message: 'Database error occurred',
         },
       };
     }

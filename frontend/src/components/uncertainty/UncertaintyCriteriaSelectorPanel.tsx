@@ -820,15 +820,15 @@ export default function UncertaintyCriteriaSelectorPanel({
       {/* 付与確認モーダル */}
       <Modal
         open={confirmModalOpen}
-        title="ステータスを変更しますか？"
+        title={t('uncertaintyCriteria.confirmModalTitle')}
         width={380}
         onCancel={() => setConfirmModalOpen(false)}
         onOk={() => {
           handleAssign();
           setConfirmModalOpen(false);
         }}
-        okText="保存"
-        cancelText="キャンセル"
+        okText={t('uncertaintyCriteria.confirmModalOk')}
+        cancelText={t('uncertaintyCriteria.confirmModalCancel')}
         okButtonProps={{ type: 'primary' }}
       >
         {confirmContent}

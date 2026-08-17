@@ -387,7 +387,10 @@
     "elementTypeLabel": "xsi:type",
     "elementValueLabel": "実績値 (value)",
     "elementUnitLabel": "単位 (units)",
-    "elementDescLabel": "説明"
+    "elementDescLabel": "説明",
+    "confirmModalTitle": "不確かさを付与しますか？",
+    "confirmModalOk": "付与する",
+    "confirmModalCancel": "キャンセル"
   },
   "common": {
     "yes": "はい",

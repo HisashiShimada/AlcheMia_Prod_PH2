@@ -120,7 +120,7 @@ export async function create(req: Request, res: Response): Promise<void> {
       success: false,
       error: {
         code: 'E4001',
-        message: 'システムエラーが発生しました',
+        message: 'An internal server error occurred',
       },
       meta: {
         timestamp: new Date().toISOString(),
@@ -1632,7 +1632,7 @@ export async function forceTerminate(req: Request, res: Response): Promise<void>
         success: false,
         error: {
           code: errorCode,
-          message: result.error?.message || 'エラーが発生しました',
+          message: result.error?.message || 'An error occurred',
         },
         meta: { timestamp: new Date().toISOString(), requestId },
       });
@@ -1648,7 +1648,7 @@ export async function forceTerminate(req: Request, res: Response): Promise<void>
     logError('forceTerminate error', error as Error, { requestId });
     res.status(500).json({
       success: false,
-      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      error: { code: 'E4001', message: 'System error occurred' },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
@@ -1694,7 +1694,7 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
         success: false,
         error: {
           code: errorCode,
-          message: result.error?.message || 'エラーが発生しました',
+      message: result.error?.message || 'An error occurred',
           details: result.error?.details,
         },
         meta: {
@@ -1727,7 +1727,7 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
       success: false,
       error: {
         code: 'E4001',
-        message: 'システムエラーが発生しました',
+        message: 'An internal server error occurred',
       },
       meta: {
         timestamp: new Date().toISOString(),
