@@ -345,13 +345,14 @@ function ContentRowListInput({
   onChange?: (v: string[]) => void;
   disabled?: boolean;
 }) {
+  const { t } = useLanguage();
   const rows: string[] = Array.isArray(value) && value.length > 0 ? value : [''];
   return (
     <div>
       {rows.map((rowVal, rowIdx) => (
         <div key={rowIdx} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
           <TextArea
-            placeholder={`行 ${rowIdx + 1}: 値をスペース区切りで入力（例: 1.0 2.5 3.0）`}
+          placeholder={t('dataRecordDialog.contentRowPlaceholder', { row: String(rowIdx + 1) })}
             value={rowVal}
             onChange={(e) => {
               const newRows = [...rows];
@@ -384,7 +385,7 @@ function ContentRowListInput({
           onChange?.([...rows, '']);
         }}
       >
-        行を追加
+        {t('dataRecordDialog.addRow')}
       </Button>
     </div>
   );
@@ -1512,7 +1513,7 @@ export default function DataRecordDialog({
     const rules: import('antd').FormRule[] = [
       {
         required: property.required,
-        message: `${property.label}は必須項目です`,
+            message: t('dataRecordDialog.requiredField', { label: property.label }),
       },
     ];
 
@@ -1914,7 +1915,7 @@ export default function DataRecordDialog({
         rules={[
           {
             required: property.required,
-            message: `${property.label}は必須項目です`,
+        message: t('dataRecordDialog.requiredField', { label: property.label }),
           },
         ]}
       >
@@ -2217,7 +2218,7 @@ export default function DataRecordDialog({
               {rows.map((rowVal, rowIdx) => (
                 <div key={rowIdx} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
                   <TextArea
-                    placeholder={`行 ${rowIdx + 1}: 値をスペース区切りで入力（例: 1.0 2.5 3.0）`}
+            placeholder={t('dataRecordDialog.rowInputPlaceholder', { row: String(rowIdx + 1) })}
                     value={rowVal}
                     onChange={(e) => {
                       const newRows = [...rows];
@@ -3320,10 +3321,10 @@ export default function DataRecordDialog({
             <RightOutlined style={{ fontSize: 11, color: '#d48806' }} />
           )}
           <span style={{ fontSize: 13, fontWeight: 600, color: '#d48806' }}>
-            ⚠️ プロジェクト指示
+            {t('dataRecordDialog.projectInstructionTitle')}
           </span>
           <Tag color="warning" style={{ fontSize: 11, marginLeft: 4 }}>
-            {workerInstructions.length}件
+            {t('dataRecordDialog.instructionCount', { count: String(workerInstructions.length) })}
           </Tag>
         </div>
         {/* 本文（展開時のみ表示） */}

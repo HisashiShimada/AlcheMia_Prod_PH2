@@ -166,9 +166,9 @@ router.patch(
       .withMessage('newProjectName は必須です')
       .trim()
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('Project name can only contain alphanumeric characters, underscores, and hyphens')
+      .withMessage('プロジェクト名に使用できるのは英数字、アンダースコア、ハイフンのみです')
       .isLength({ min: 1, max: 255 })
-      .withMessage('Project name must be 255 characters or less'),
+      .withMessage('プロジェクト名は255文字以内である必要があります'),
   ],
   handleValidationErrors,
   projectController.renameProjectHandler

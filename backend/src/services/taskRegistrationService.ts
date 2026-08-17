@@ -9,6 +9,7 @@
  */
 
 import * as projectRepository from '../repositories/projectRepository';
+import { Project } from '../types/database';
 import * as instructionRepository from '../repositories/instructionRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
@@ -70,7 +71,7 @@ export async function getTaskRegistration(
         dbFlag: isMaimlRegistered,
         storageExists: maimlExists,
       });
-      const updatedProject: import('../types/database').Project = {
+      const updatedProject: Project = {
         ...project,
         project_maiml_flg: true,
       };
@@ -83,7 +84,7 @@ export async function getTaskRegistration(
           projectId,
           organizationId,
         });
-        const updatedProject: import('../types/database').Project = {
+        const updatedProject: Project = {
           ...project,
           project_maiml_flg: false,
         };
@@ -213,7 +214,7 @@ export async function saveTaskRegistration(
         projectId,
         organizationId,
       });
-      const updatedProject: import('../types/database').Project = {
+      const updatedProject: Project = {
         ...project,
         project_maiml_flg: true,
       };

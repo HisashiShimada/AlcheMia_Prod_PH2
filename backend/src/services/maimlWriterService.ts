@@ -17,7 +17,7 @@
 import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { getStorageService } from './storageService';
-import type { ExperimentPlan } from '../types/database';
+import type { ExperimentPlan, MaimlEventLog } from '../types/database';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
 import type { EventLogJsonRecord } from '../utils/maimlDataWriter';
@@ -33,14 +33,8 @@ import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { findNamespacesByOrganization } from '../repositories/namespaceTermRepository';
 
-/**
- * maiml_event_log テーブルの1行
- * (log カラムのみ使用するため最小限の型定義)
- */
-interface EventLogRow {
-  sequence_no: number;
-  log: EventLogJsonRecord;
-}
+/** maiml_event_log テーブルの1行（database.ts の MaimlEventLog を再利用） */
+type EventLogRow = MaimlEventLog;
 
 /**
  * MaimlWriterService
@@ -116,8 +110,10 @@ export class MaimlWriterService {
     );
     const eventLogRows: EventLogRow[] = eventLogResult.rows;
 
-    // log カラムの JSONB オブジェクトのみを抽出
-    const logJsonArray: EventLogJsonRecord[] = eventLogRows.map((row) => row.log);
+    // log カラムの JSONB オブジェクトのみを抽出（null/undefinedを除外）
+    const logJsonArray: EventLogJsonRecord[] = eventLogRows
+      .map((row) => row.log)
+      .filter((log): log is EventLogJsonRecord => log != null);
 
     // --- 5. <data> ID と <eventLog> ID を既存 XML から抽出 ---
     const dataIdMatch = maimlContent.match(/<data[^>]*\sid="([^"]+)"/);
@@ -262,8 +258,10 @@ export class MaimlWriterService {
     );
     const eventLogRows: EventLogRow[] = eventLogResult.rows;
 
-    // log カラムの JSONB オブジェクトのみを抽出
-    const logJsonArray: EventLogJsonRecord[] = eventLogRows.map((row) => row.log);
+    // log カラムの JSONB オブジェクトのみを抽出（null/undefinedを除外）
+    const logJsonArray: EventLogJsonRecord[] = eventLogRows
+      .map((row) => row.log)
+      .filter((log): log is EventLogJsonRecord => log != null);
 
     // --- 4. <eventLog> ID を既存 XML から抽出 ---
     const eventLogIdMatch = maimlContent.match(/<eventLog[^>]*\sid="([^"]+)"/);

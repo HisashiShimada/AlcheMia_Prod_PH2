@@ -24,57 +24,18 @@ import { MaimlWriterService } from './maimlWriterService';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
 import { XMLParser } from 'fast-xml-parser';
-import type { Project, Pagination, ProjectListResponse } from '../types/project';
+import type {
+  Project,
+  Pagination,
+  ProjectListResponse,
+  ListOptions,
+  ServiceResult,
+  ProjectCheckoutInfo,
+  InstructionConfirmationData,
+} from '../types/project';
 import type { ProjectFileResponse, GetProjectFilesData, StorageFileEntry } from '../types/file';
 import { nanoid } from 'nanoid';
 import { v4 as uuidv4 } from 'uuid';
-
-interface ListOptions {
-  includeCompleted: boolean;
-  sortBy?: string;
-  order?: 'asc' | 'desc';
-  /** ユーザーが直接所属する組織グループCDの配列 */
-  organizationGroupCds?: string[];
-  /** ユーザーのロールCD（'ROLE002' = SystemAdmin） */
-  roleCd?: string;
-  /** ログインユーザーID（非アクティブチームへの権限判定に使用） */
-  userId?: string;
-}
-
-interface ServiceResult<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-    originalError?: Error;
-  };
-}
-
-/**
- * チェックアウト状態情報
- * Task 3.1, 3.2, 3.3: チェックアウト/チェックイン機能で使用
- */
-interface ProjectCheckoutInfo {
-  projectId: string;
-  projectName: string;
-  isCheckedOut: boolean;
-  checkedOutBy: string | null;
-  checkedOutAt: string | null;
-}
-
-/**
- * 指示確認レスポンスデータ
- * Task: 2.1, 2.2 型定義（instructionConfirmation.tsから移植）
- */
-interface InstructionConfirmationData {
-  instruction_id: string;
-  is_acknowledged: boolean;
-  acknowledged_at: string;
-  acknowledged_user_id: string;
-  acknowledged_user_name: string;
-}
 
 /**
  * ProjectServiceクラス

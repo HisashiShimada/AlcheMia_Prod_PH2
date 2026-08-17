@@ -41,6 +41,7 @@ import { logger } from '../utils/logger';
 import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { CheckoutStatusEnum } from '../enums/codeMaster.enum';
+import { PROJECT_STATUS_STRING_MAP } from '../types/project';
 
 /**
  * ステータス遷移マトリクス（数値型）
@@ -760,14 +761,7 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 3: プロジェクトステータス → 文字列変換
       // ─────────────────────────────────────────────
-      const PROJECT_STATUS_MAP: Record<number, ProjectInfoDetail['status']> = {
-        0: 'planning',
-        1: 'pending',
-        2: 'in_progress',
-        3: 'review_waiting',
-        4: 'completed',
-        5: 'error'
-      };
+      const PROJECT_STATUS_MAP: Record<number, ProjectInfoDetail['status']> = PROJECT_STATUS_STRING_MAP as Record<number, ProjectInfoDetail['status']>;
       const statusStr: ProjectInfoDetail['status'] = PROJECT_STATUS_MAP[proj.project_status] ?? 'planning';
 
       // ─────────────────────────────────────────────
