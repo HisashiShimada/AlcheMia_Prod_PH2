@@ -414,16 +414,10 @@ export async function findByKeys(
 
   const pgp = getPgp();
 
-  // pg-promise の $1:csv でパラメータをカンマ区切りに展開する
+  // 外部SQLファイルからクエリを読み込み実行する
+  const sqlQuery = await loadSqlFile('uncertainty_criteria/findByKeys.sql');
   const rows = await pgp.manyOrNone<{ key: string; uncertainty_name: string }>(
-    `SELECT DISTINCT ON (uncertainty_key)
-       uncertainty_key AS key,
-       uncertainty_name
-     FROM uncertainty_criteria
-     WHERE organization_id = $1
-       AND uncertainty_key = ANY($2::text[])
-       AND is_Invalid = FALSE
-     ORDER BY uncertainty_key, version DESC`,
+    sqlQuery,
     [organizationId, keys]
   );
 

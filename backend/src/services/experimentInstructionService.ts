@@ -11,6 +11,7 @@
  */
 
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import { logger } from '../utils/logger';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
@@ -186,14 +187,8 @@ export async function getProjectMethods(
   });
 
   const pool = getPool();
-  const result = await pool.query<{ method_id: string }>(
-    `SELECT DISTINCT method_id
-     FROM project_task
-     WHERE organization_id = $1
-       AND project_id      = $2
-     ORDER BY method_id`,
-    [organizationId, projectId]
-  );
+  const sqlQuery = await loadSqlFile('project_tasks/findDistinctMethodIds.sql');
+  const result = await pool.query<{ method_id: string }>(sqlQuery, [organizationId, projectId]);
 
   return result.rows.map((r) => ({ id: r.method_id }));
 }
