@@ -79,6 +79,61 @@
     "commentSaveMock": "コメント保存（モック）",
     "addProperty": "プロパティを追加"
   },
+  "stateRecordDialog": {
+    "title": "状態記録",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "preparingState": "準備状態",
+    "readyState": "準備完了状態",
+    "operatingState": "動作状態",
+    "pauseState": "休止状態",
+    "completedState": "終状態",
+    "errorState": "異常終了状態",
+    "stateTransitionTime": "状態遷移時刻",
+    "stateTransitionTimePlaceholder": "状態遷移時刻",
+    "addPauseRecord": "+ 休止状態記録追加",
+    "deletePauseRecord": "- 休止状態記録削除"
+  },
+  "statusUpdateSection": {
+    "title": "ステータス更新",
+    "statusLabel": "ステータス",
+    "progressLabel": "進捗",
+    "commentLabel": "コメント",
+    "commentPlaceholder": "コメントを入力",
+    "saveButton": "保存",
+    "confirmModalTitle": "ステータスを変更しますか？",
+    "confirmModalBody": "ステータスを「{label}」に変更します。\nよろしいですか？",
+    "statusSelectPlaceholder": "ステータスを選択"
+  },
+  "dataRecordDialog": {
+    "plannedValue": "想定値",
+    "uncertaintyName": "不確かさ名",
+    "uncertaintyNote": "不確かさ説明",
+    "measuredValue": "実績値",
+    "qualitativeEval": "定性評価",
+    "quantitativeEval": "定量評価",
+    "evalMethod": "評価方法",
+    "threshold": "閾値",
+    "addEval": "+ 追加",
+    "updateError": "更新に失敗しました: {message}",
+    "attachmentUploadError": "添付ファイル{number}のアップロードに失敗しました",
+    "fileUploadError": "ファイルアップロードに失敗しました (key={key})"
+  },
+  "experimentPlan": {
+    "exportSuccess": "エクスポートしました",
+    "importSuccess": "インポートしました",
+    "jsonParseFailed": "JSONのパースに失敗しました",
+    "loadFailed": "読み込みに失敗しました",
+    "saveFailed": "保存に失敗しました",
+    "saveSuccess": "保存しました"
+  },
+  "experimentPlanDialog": {
+    "all": "一括",
+    "task": "タスク{{n}}",
+    "saveSuccess": "実験計画を保存しました",
+    "saveFailed": "保存に失敗しました",
+    "cannotChangeOrder": "順序を変更できません"
+  },
   "evaluationRegistration": {
     "title": "評価登録",
     "evalUnit": "評価単位:",

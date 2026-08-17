@@ -774,7 +774,7 @@ router.post(
       .notEmpty()
       .withMessage('projectIdは必須です')
       .isLength({ min: 1, max: 255 })
-      .withMessage('projectId must be between 1 and 255 characters'),
+      .withMessage('projectIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.forceTerminate

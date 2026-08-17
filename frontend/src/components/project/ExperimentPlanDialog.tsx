@@ -374,8 +374,8 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   /** タブアイテムの定義 */
   const tabItems = useMemo(() => {
     return [
-      { key: TAB_KEY_ALL, label: '一括' },
-      ...taskNumbers.map((n) => ({ key: `task-${n}`, label: `タスク${n}` })),
+    { key: TAB_KEY_ALL, label: t('experimentPlanDialog.all') },
+      ...taskNumbers.map((n) => ({ key: `task-${n}`, label: t('experimentPlanDialog.task', { n: String(n) }) })),
     ];
   }, [taskNumbers]);
 
@@ -683,14 +683,14 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
         const validation = canMoveToOrder(active.id as string, targetOrder, prev);
         if (!validation.canMove) {
-          message.warning(validation.reason ?? '順序を変更できません');
+          message.warning(validation.reason ?? t('experimentPlanDialog.cannotChangeOrder'));
           return prev;
         }
 
         return calculateSteps(moveTransitionWithSubtree(active.id as string, targetOrder, prev));
       });
     },
-    [message]
+    [message, t]
   );
 
   /** Select手入力による順序変更ハンドラ（子孫と一緒に自動連動移動） */
@@ -699,7 +699,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       setTransitionOrder((prev) => {
         const validation = canMoveToOrder(transitionId, newOrder, prev);
         if (!validation.canMove) {
-          message.warning(validation.reason ?? '順序を変更できません');
+          message.warning(validation.reason ?? t('experimentPlan.orderChangeNotAllowed'));
           return prev;
         }
 
@@ -781,12 +781,12 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       });
 
       await Promise.all(savePromises);
-      message.success('実験計画を保存しました');
+      message.success(t('experimentPlan.saveSuccess'));
       onSave?.();
       onClose();
     } catch (error) {
       console.error('[ExperimentPlanDialog] 保存エラー:', error);
-      message.error('保存に失敗しました');
+      message.error(t('experimentPlan.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -990,7 +990,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                * dialogDataLoading がUIに接続されていなかったため、データ取得中に「トランジションがありません」
                * が表示されていた問題を修正。 */
               <div style={{ padding: 24, textAlign: 'center' }}>
-                <Spin tip="読み込み中..." />
+                <Spin tip={t('common.loading')} />
               </div>
             ) : transitions.length === 0 ? (
               <div style={{ padding: 16 }}>

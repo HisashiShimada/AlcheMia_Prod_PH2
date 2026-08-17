@@ -6201,6 +6201,13 @@
     "saveFailed": "Failed to save",
     "saveSuccess": "Saved successfully"
   },
+  "experimentPlanDialog": {
+    "all": "Batch",
+    "task": "Task{{n}}",
+    "saveSuccess": "Experiment plan saved",
+    "saveFailed": "Failed to save",
+    "cannotChangeOrder": "Cannot change order"
+  },
   "experimentWorker": {
     "startFailed": "Failed to start",
     "switchFailed": "Failed to switch"

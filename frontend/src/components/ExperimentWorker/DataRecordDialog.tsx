@@ -3367,7 +3367,7 @@ export default function DataRecordDialog({
                               await confirmInstruction(projectId, ins.id);
                               setConfirmedInstructionIds((prev) => new Set(prev).add(ins.id));
                             } catch (e) {
-                              message.error('指示確認の送信に失敗しました');
+                              message.error(t('dataRecordDialog.instructionConfirmFailed'));
                               console.error('[DataRecordDialog] confirmInstruction error:', e);
                             } finally {
                               setConfirmingInstructionIds((prev) => {
