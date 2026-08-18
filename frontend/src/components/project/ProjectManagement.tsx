@@ -40,6 +40,7 @@ import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
 import ExperimentInstructionTab from './ExperimentInstructionTab';
 import EvaluationRegistrationTab from './EvaluationRegistrationTab';
+import OverallEvaluationTab from './OverallEvaluationTab';
 import ProjectCompletionDialog from './ProjectCompletionDialog';
 import CreateProjectModal from './CreateProjectModal';
 import type { CreateProjectData } from '@/types/project';
@@ -2350,6 +2351,21 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                       <div style={{ height: '100%', padding: '8px 0', overflowY: 'auto' }}>
                         <EvaluationRegistrationTab
                           projectId={selectedProject.id}
+                          isEditable={selectedProject?.isEditable !== false}
+                          isProjectCompleted={selectedProject?.status === 4 || selectedProject?.status === 5}
+                          isCheckoutLocked={isProjectCheckedOut}
+                        />
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'overall_evaluation',
+                    label: t('projectManagement.tabOverallEvaluation'),
+                    children: (
+                      <div style={{ height: '100%', padding: '8px 16px', overflowY: 'auto' }}>
+                        <OverallEvaluationTab
+                          projectId={selectedProject.id}
+                          projectName={selectedProject.name}
                           isEditable={selectedProject?.isEditable !== false}
                           isProjectCompleted={selectedProject?.status === 4 || selectedProject?.status === 5}
                           isCheckoutLocked={isProjectCheckedOut}

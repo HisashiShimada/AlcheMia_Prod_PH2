@@ -111,3 +111,24 @@ export interface SubEvaluationInput {
 export interface SaveSubEvaluationsRequest {
   evaluations: SubEvaluationInput[];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// コンポーネント Props 型
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * OverallEvaluationTab コンポーネントの Props 型
+ * 使用箇所: components/project/OverallEvaluationTab.tsx
+ */
+export interface OverallEvaluationTabProps {
+  /** 対象プロジェクトID */
+  projectId: string;
+  /** 表示用プロジェクト名 */
+  projectName: string;
+  /** 編集権限フラグ。false の場合は変更系ボタンを非活性にする */
+  isEditable?: boolean;
+  /** プロジェクト完了フラグ。true の場合は変更系ボタンを非活性にする */
+  isProjectCompleted?: boolean;
+  /** チェックアウト中フラグ。true の場合は変更系ボタンを非活性にする */
+  isCheckoutLocked?: boolean;
+}

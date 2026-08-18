@@ -837,6 +837,7 @@
     },
     "tabProjectInstruction": "プロジェクト指示",
     "tabEvaluationRegistration": "評価登録確認",
+    "tabOverallEvaluation": "全体評価",
     "select_project": "プロジェクトを選択してください",
     "select_project_description": "左側のリストからプロジェクトを選択してください",
     "deleteProjectTitle": "「{{name}}」を削除しますか？",
@@ -3514,6 +3515,34 @@
         "toastTeamUpdated": "「{name}」のメンバーを更新しました（{count}名）"
       }
     }
+  },
+  "overallEvaluation": {
+    "titleSuffix": "プロジェクト全体評価",
+    "subTextRegistered": "登録済み評価 {count}件",
+    "subTextAttention": "うち要対応 {count}件",
+    "statusLabel": "全体評価",
+    "statusUndecided": "全体評価 未決定",
+    "sectionSummary": "階層別サマリー（下位評価の集計）",
+    "sectionAttention": "要注意項目（判断材料）",
+    "sectionAttentionSub": "良好以外の評価を、コメント付きで抽出",
+    "sectionDecision": "プロジェクト全体評価の決定",
+    "sectionDecisionSub": "上記の階層別サマリーと要注意項目を踏まえて、MaiML全体の評価を決定する",
+    "labelDigital": "デジタル評価 ー 評価値",
+    "labelScore": "デジタル評価 ー 数値スコア（任意）",
+    "labelAnalog": "アナログ評価 ー 感情評価（文章）",
+    "analogPlaceholder": "全体所感を文章で記入（例：タスク#2の不良は測定系の要調査事項として残るが、プロジェクト全体の主要目標は達成。#2の再調査を条件に要確認評価とし、次バッチへ改善事項を引き継ぐ）",
+    "btnRefetch": "再取得",
+    "btnRegister": "全体評価を登録",
+    "warningSelectDigital": "デジタル評価値（良好 / 要確認 / 不良）を選択してください",
+    "successRegistered": "全体評価を登録しました",
+    "errorRegistered": "全体評価の登録に失敗しました",
+    "columnEvalUnit": "評価単位",
+    "columnTarget": "対象",
+    "columnEvalValue": "評価値",
+    "columnComment": "コメント",
+    "digitalGood": "良好",
+    "digitalCaution": "要確認",
+    "digitalBad": "不良"
   },
   "evaluation": {
     "unit": {

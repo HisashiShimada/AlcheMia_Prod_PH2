@@ -25,7 +25,6 @@ import {
   Modal,
   App,
   Card,
-  Divider,
 } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -41,9 +40,10 @@ import type {
 import type { UncertaintyCriteriaForSelector } from './ApprovalWizardDialog';
 import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
 import { getProjectMethods, getExperimentInstructions } from '@/services/experimentInstructionApiService';
-import EvaluationSummaryBar from './subcomponents/EvaluationSummaryBar';
-import AttentionItemList from './subcomponents/AttentionItemList';
-import { useOverallEvaluation } from '@/hooks/project/useOverallEvaluation';
+// TODO: 全体評価タブに移動済み（コメントアウト中）
+// import EvaluationSummaryBar from './subcomponents/EvaluationSummaryBar';
+// import AttentionItemList from './subcomponents/AttentionItemList';
+// import { useOverallEvaluation } from '@/hooks/project/useOverallEvaluation';
 
 const { Text } = Typography;
 
@@ -504,8 +504,9 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
 }) => {
   const { t } = useLanguage();
 
+  // TODO: 全体評価タブに移動済み（コメントアウト中）
   // 階層別サマリー・要注意項目（動的算出）
-  const { summary, isLoading: summaryLoading, refetch: refetchSummary } = useOverallEvaluation(projectId);
+  // const { summary, isLoading: summaryLoading, refetch: refetchSummary } = useOverallEvaluation(projectId);
 
   const UNIT_LABEL: Record<string, string> = {
     project:           t('evaluation.unitLabel.project'),
@@ -731,8 +732,8 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
     <>
       <Space direction="vertical" size={8} style={{ width: '100%' }}>
 
-        {/* ── 階層別サマリーセクション（新規追加） ── */}
-        <Card
+        {/* ── 階層別サマリーセクション（全体評価タブに移動済み・コメントアウト中） ── */}
+        {/* <Card
           size="small"
           title={<Text style={{ fontSize: 13, fontWeight: 600 }}>📊 階層別サマリー</Text>}
           extra={
@@ -743,10 +744,10 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
           style={{ marginBottom: 4 }}
         >
           <EvaluationSummaryBar summaries={summary?.levels ?? []} />
-        </Card>
+        </Card> */}
 
-        {/* ── 要注意項目セクション（新規追加） ── */}
-        {summary && summary.attentionItems.length > 0 && (
+        {/* ── 要注意項目セクション（全体評価タブに移動済み・コメントアウト中） ── */}
+        {/* {summary && summary.attentionItems.length > 0 && (
           <Card
             size="small"
             title={<Text style={{ fontSize: 13, fontWeight: 600 }}>⚠️ 要注意項目</Text>}
@@ -754,9 +755,9 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
           >
             <AttentionItemList items={summary.attentionItems} />
           </Card>
-        )}
+        )} */}
 
-        <Divider style={{ margin: '4px 0' }} />
+        {/* <Divider style={{ margin: '4px 0' }} /> */}
 
         {/* ① 「評価を入力」ボタン（左端） */}
         <Flex justify="flex-start">
@@ -860,7 +861,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
         allMethods={allMethods}
         reviewWaitingTasks={reviewWaitingTasks}
         criteriaList={criteriaList}
-        onSaved={() => { setInputModalOpen(false); fetchRecords(); refetchSummary(); }}
+        onSaved={() => { setInputModalOpen(false); fetchRecords(); /* refetchSummary(); // TODO: 全体評価タブに移動済み */ }}
         onClose={() => setInputModalOpen(false)}
       />
     </>
