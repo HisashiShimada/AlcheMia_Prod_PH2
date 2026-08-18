@@ -15,7 +15,6 @@ CREATE TABLE organization_user (
     user_name CHARACTER VARYING(30) NOT NULL,
     role_cd CHARACTER VARYING(30) NOT NULL,
     mail_address CHARACTER VARYING(50) NOT NULL,
-    department_cd CHARACTER VARYING(50),
     
     -- ステータス
     is_active BOOLEAN,
@@ -39,7 +38,6 @@ COMMENT ON COLUMN organization_user.organization_id IS '組織ID';
 COMMENT ON COLUMN organization_user.user_name IS 'ユーザ名';
 COMMENT ON COLUMN organization_user.role_cd IS 'ロールCD';
 COMMENT ON COLUMN organization_user.mail_address IS 'メールアドレス';
-COMMENT ON COLUMN organization_user.department_cd IS '所属部署CD';
 COMMENT ON COLUMN organization_user.is_active IS 'アクティブ判定';
 COMMENT ON COLUMN organization_user.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN organization_user.update_user_id IS '更新者ユーザID';

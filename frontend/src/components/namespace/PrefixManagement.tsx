@@ -353,10 +353,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
         if ('_rowId' in record) {
           return (
-            <Input
-              size="small"
-              placeholder="例: chem"
-              value={(record as NewPrefixRow).prefix}
+              <Input
+                size="small"
+                placeholder={t('prefixManagement.placeholderPrefix')}
+                value={(record as NewPrefixRow).prefix}
               onChange={(e) =>
                 updateNewRow((record as NewPrefixRow)._rowId, 'prefix', e.target.value)
               }
@@ -387,7 +387,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           return (
             <Input
               size="small"
-              placeholder="例: https://ORG001.Alchemia.co.jp/RD"
+              placeholder={t('prefixManagement.placeholderUri')}
               value={(record as NewPrefixRow).uri}
               onChange={(e) =>
                 updateNewRow((record as NewPrefixRow)._rowId, 'uri', e.target.value)
@@ -445,7 +445,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       },
     },
     {
-      title: 'スコープ',
+      title: t('prefixManagement.colScope'),
       key: 'scopePath',
       dataIndex: 'scopePath',
       width: 160,

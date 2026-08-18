@@ -36,6 +36,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   FileSearchOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { fetchTemplateFiles } from '@/services/templateApi';
 import type { ListFormatsResponse } from '@/types/format';
@@ -51,6 +52,8 @@ import type { PropertyData } from '@/types/editor';
 import UncertaintyCriteriaSelectorModal from '../uncertainty/UncertaintyCriteriaSelectorModal';
 import type { TargetProperty, AssignPayload } from '../uncertainty/UncertaintyCriteriaSelectorModal';
 import useNamespaceOperations from '../../hooks/useNamespaceOperations';
+import { getAllTermsAsMap } from '@/services/namespaceApiService';
+import type { NamespaceTermRow } from '@/services/namespaceApiService';
 import type { NamespaceData } from '@/types/format';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {
@@ -140,6 +143,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   // Bug Fix: V1のforceRenderKeyパターンを適用（Contents用）
   const [forceContentRenderKey, setForceContentRenderKey] = useState(0);
 
+  // 用語マップ（open 時に全件取得してキャッシュ）
+  const [termMap, setTermMap] = useState<Map<string, NamespaceTermRow>>(new Map());
   // ✅ XMLビュー用State
   const [activeTabKey, setActiveTabKey] = useState<string>('ui');
   const [xmlContent, setXmlContent] = useState('');
@@ -441,6 +446,35 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const { attributeRecords } = useAttributeMasters();
 
   /**
+   * 用語プレビューマップ（qname → displayName）
+   * NestedPropertyEditor のヘッダー表示名に使用する
+   */
+  const termDisplayMap = useMemo<Map<string, string>>(() => {
+    const map = new Map<string, string>();
+    termMap.forEach((term, qname) => {
+      if (term.displayName) map.set(qname, term.displayName);
+    });
+    return map;
+  }, [termMap]);
+
+  /**
+   * 用語の型・単位マップ（qname → { type?, unitHint? }）
+   * 属性追加ダイアログで xsi:type / units 選択時のデフォルト値に使用する
+   */
+  const termTypeUnitMap = useMemo<Map<string, { type?: string; unitHint?: string }>>(() => {
+    const map = new Map<string, { type?: string; unitHint?: string }>();
+    termMap.forEach((term, qname) => {
+      const entry: { type?: string; unitHint?: string } = {};
+      if (term.type) entry.type = term.type;
+      if (term.unitHint) entry.unitHint = term.unitHint;
+      if (entry.type !== undefined || entry.unitHint !== undefined) {
+        map.set(qname, entry);
+      }
+    });
+    return map;
+  }, [termMap]);
+
+  /**
    * テンプレートタイプ判定
    */
   const nodeCategory = useMemo(() => {
@@ -581,6 +615,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setXmlErrors([]);
       setHasUnsyncedXmlChanges(false);
       setActiveTabKey('ui');
+
+      // 用語マップをリセットし、open 時に全件取得
+      setTermMap(new Map());
+      getAllTermsAsMap()
+        .then((map) => setTermMap(map))
+        .catch((err) => console.warn('⚠️ [TemplateEditorDialog] 用語マップ取得失敗:', err));
     }
   }, [open, node, mergedTemplate]);
 
@@ -610,13 +650,21 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       return;
     }
 
+    // 用語マップから一致する用語を取得して初期値を補完
+    const matchedTerm = termMap.get(newPropertyKey.trim());
+
     setProperties({
       ...properties,
       [newPropertyKey.trim()]: {
         key: newPropertyKey.trim(),
         tagName: newPropertyTagName,
-        attributes: {},
-        elements: {},
+        attributes: {
+          ...(matchedTerm?.type ? { 'xsi:type': matchedTerm.type } : {}),
+          ...(matchedTerm?.unitHint ? { units: matchedTerm.unitHint } : {}),
+        },
+        elements: {
+          ...(matchedTerm?.description ? { description: matchedTerm.description } : {}),
+        },
         children: []
       }
     });
@@ -1780,6 +1828,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 onOpenCriteriaSelector={handleOpenCriteriaSelector}
                 onEditUncertainty={handleEditUncertainty}
                 onDeleteUncertainty={handleDeleteUncertainty}
+                termDisplayMap={termDisplayMap}
+                termTypeUnitMap={termTypeUnitMap}
               />
             ))
           )}
@@ -1912,6 +1962,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     onDeleteProperty={handleDeleteContent}
                     forceRenderKey={forceContentRenderKey}
                     attributeRecords={attributeRecords}
+                    termTypeUnitMap={termTypeUnitMap}
                   />
                 ))
               )}
@@ -2042,15 +2093,51 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       <Modal
         title={t('template.addPropTitle')}
         open={showAddModal}
-        onCancel={() => setShowAddModal(false)}
+        onCancel={() => {
+          setShowAddModal(false);
+          setNewPropertyKey('');
+        }}
         onOk={handleAddProperty}
+        okButtonProps={{ disabled: !newPropertyKey }}
       >
-        <Space orientation="vertical" style={{ width: '100%' }}>
-          <Input
+        <Space direction="vertical" style={{ width: '100%' }}>
+          {/* 用語選択（showSearch付きSelect） */}
+          <Select
+            showSearch
+            style={{ width: '100%' }}
             placeholder={t('template.propKeyPlaceholder')}
-            value={newPropertyKey}
-            onChange={(e) => setNewPropertyKey(e.target.value)}
-          />
+            value={newPropertyKey || undefined}
+            suffixIcon={<SearchOutlined />}
+            optionLabelProp="value"
+            filterOption={(input, option) => {
+              if (!option) return false;
+              const qname = String(option.value ?? '').toLowerCase();
+              const displayName = String(option['data-display'] ?? '').toLowerCase();
+              const q = input.toLowerCase();
+              return qname.includes(q) || displayName.includes(q);
+            }}
+            onChange={(val: string) => {
+              setNewPropertyKey(val);
+            }}
+            onClear={() => {
+              setNewPropertyKey('');
+            }}
+            allowClear
+            notFoundContent={termMap.size === 0 ? t('template.termMapLoading') : t('template.termNotFound')}
+          >
+            {Array.from(termMap.entries())
+              .filter(([, term]) => term.displayName && term.displayName.trim() !== '')
+              .map(([qname, term]) => (
+                <Option key={qname} value={qname} data-display={term.displayName ?? ''}>
+                  <div style={{ lineHeight: 1.4 }}>
+                    <div style={{ fontWeight: 600 }}>{term.displayName}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>{qname}</div>
+                  </div>
+                </Option>
+              ))}
+          </Select>
+
+          {/* タグ名選択 */}
           <Select
             style={{ width: '100%' }}
             placeholder={t('template.tagNamePlaceholder')}
@@ -2061,6 +2148,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             <Option value="content">content</Option>
             <Option value="parameter">parameter</Option>
           </Select>
+
         </Space>
       </Modal>
 

@@ -14,6 +14,14 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as namespaceService from '../services/namespaceService';
+import type {
+  CreateNamespaceBody,
+  UpdateNamespaceBody,
+  CreateTermBody,
+  UpdateTermBody,
+  ToggleTermActiveBody,
+  TermActiveParams,
+} from '../types/api';
 
 /**
  * 名前空間（Prefix）新規登録
@@ -25,12 +33,7 @@ export async function createNamespace(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, uri, description, scopeKey: bodyScopeKey } = req.body as {
-      prefix: string;
-      uri: string;
-      description?: string;
-      scopeKey?: string;
-    };
+    const { prefix, uri, description, scopeKey: bodyScopeKey } = req.body as CreateNamespaceBody;
 
     const organizationId = req.user!.organizationId;
     const userId = req.user!.userId;
@@ -67,7 +70,7 @@ export async function updateNamespace(
   try {
     const organizationId = req.user!.organizationId;
     const prefix = decodeURIComponent(req.params.prefix);
-    const { uri } = req.body as { uri: string };
+    const { uri } = req.body as UpdateNamespaceBody;
 
     const result = await namespaceService.updateNamespace({ organizationId, prefix, uri });
     if (!result) {
@@ -142,14 +145,7 @@ export async function createTerm(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, localName, displayName, description, typeHint, unitHint } = req.body as {
-      prefix: string;
-      localName: string;
-      displayName?: string;
-      description?: string;
-      typeHint?: string;
-      unitHint?: string;
-    };
+    const { prefix, localName, displayName, description, typeHint, unitHint } = req.body as CreateTermBody;
 
     const organizationId = (req as any).organizationId as string;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
@@ -189,12 +185,7 @@ export async function updateTerm(
     const organizationId = (req as any).organizationId as string;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const { displayName, description, typeHint, unitHint } = req.body as {
-      displayName?: string;
-      description?: string;
-      typeHint?: string;
-      unitHint?: string;
-    };
+    const { displayName, description, typeHint, unitHint } = req.body as UpdateTermBody;
 
     const updated = await namespaceService.updateTerm(organizationId, prefix, localName, {
       displayName,
@@ -339,8 +330,8 @@ export async function toggleTermActive(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, localName } = req.params as { prefix: string; localName: string };
-    const { isActive } = req.body as { isActive: boolean };
+    const { prefix, localName } = req.params as unknown as TermActiveParams;
+    const { isActive } = req.body as ToggleTermActiveBody;
     const organizationId = (req as any).organizationId as string;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 

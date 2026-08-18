@@ -26,6 +26,7 @@ import {
   validateDeleteTerm,
   validateToggleTermActive,
   validateGetTerms,
+  validateGetDeclarations,
   validateGetDeclarationsByProject,
 } from '../middleware/namespaceValidation';
 import * as namespaceController from '../controllers/namespaceController';
@@ -89,7 +90,12 @@ router.delete(
  *
  * @remarks MAIML XML ビュー表示・保存前の xmlns 注入に使用する。
  */
-router.get('/declarations', namespaceController.getDeclarations);
+router.get(
+  '/declarations',
+  validateGetDeclarations,
+  handleValidationErrors,
+  namespaceController.getDeclarations
+);
 
 /**
  * 用語一覧取得
