@@ -8,8 +8,9 @@
 
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
+import * as experimentPlanRepository from '../repositories/experimentPlanRepository';
 import { getPool } from '../database/db';
-import { ProjectInstruction } from '../types/database';
+import { ProjectInstruction, ExperimentPlan } from '../types/database';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import {
   TaskRegistrationStatusResponse,
@@ -23,6 +24,7 @@ import {
 } from '../types/api';
 import { logger, logError } from '../utils/logger';
 import { EventLogRepository } from '../repositories/eventLogRepository';
+import type { ProjectInstructionSentLogParams } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
 import { XMLParser } from 'fast-xml-parser';
 import { InstructionStatusEnum } from '../enums/codeMaster.enum';
@@ -55,13 +57,12 @@ export async function getInstructions(
   const instructionData: InstructionData[] = instructions.map(inst => ({
     id: inst.experiment_instruction_id || '',
     content: inst.instructions || '',
-    priority: inst.priority ?? 1,
-    type: inst.type ?? 0,
     methodId: inst.method_id || '',
     transitionId: inst.transition_id || '',
     taskNumber: inst.task_no ?? undefined,
     isSent: inst.instruction_status === InstructionStatusEnum.SENT,
-    instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT
+    instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT,
+    instructionKey: inst.instruction_key || 'Alchemia:SupervisorDirectiveContent',
   }));
   
   logger.info('指示一覧を取得しました', {
@@ -143,12 +144,11 @@ export async function saveInstruction(
     organization_id: organizationId,
     project_id: projectId,
     experiment_instruction_id: instructionId,
-    method_id: request.methodId,
+    method_id: request.methodId ?? null,
     transition_id: request.transitionId ?? null,
     task_no: request.taskNumber ?? null,
-    priority: request.priority,
-    type: request.type,
     instructions: request.content,
+    instruction_key: request.instructionKey,
     instruction_status: InstructionStatusEnum.UNSENT,
     instruction_user_id: userId,
     create_user_id: userId,
@@ -169,7 +169,7 @@ export async function saveInstruction(
   
   return {
     instructionId: savedInstruction.experiment_instruction_id || '',
-    instruction_status: savedInstruction.instruction_status ?? 0
+    instruction_status: savedInstruction.instruction_status ?? InstructionStatusEnum.UNSENT
   };
 }
 
@@ -198,9 +198,8 @@ export async function updateInstruction(
     method_id: request.methodId,
     transition_id: request.transitionId ?? null,
     task_no: request.taskNumber ?? null,
-    priority: request.priority,
-    type: request.type,
     instructions: request.content,
+    instruction_key: request.instructionKey,
     update_user_id: userId
   };
   
@@ -333,25 +332,63 @@ export async function sendInstructions(
     // 2. 各指示に対して maiml_event_log に送信ログを記録
     const sentAt = new Date().toISOString();
     const eventLogRepo = new EventLogRepository();
+
+    // トランジション+タスクNo 両方ある指示について experiment_plan から
+    // creatorRefs / instrumentRefs を取得するキャッシュ（methodId → plans）
+    const experimentPlanCache = new Map<string, ExperimentPlan[]>();
+
     for (const instruction of unsentInstructions) {
       const methodId = instruction.method_id ?? null;
       const programId = methodId ? (programIdMap[methodId] ?? null) : null;
-      await eventLogRepo.insertInstructionSentLog(
+      const transitionId = instruction.transition_id ?? null;
+      const taskNo = instruction.task_no ?? null;
+
+      // トランジション+タスクNo 両方指定の場合のみ experiment_plan を参照
+      let creatorRefs: string[] | null = null;
+      let instrumentRefs: string[] | null = null;
+      if (methodId && transitionId && taskNo != null) {
+        // 同一 methodId の計画は初回のみ取得してキャッシュ
+        if (!experimentPlanCache.has(methodId)) {
+          const plans = await experimentPlanRepository.findByMethod(
+            organizationId,
+            projectId,
+            methodId
+          );
+          experimentPlanCache.set(methodId, plans);
+        }
+        const plans = experimentPlanCache.get(methodId) ?? [];
+        const plan = plans.find((p) => p.task_no === taskNo);
+        const taskMeta = (plan?.planned_values as Record<string, unknown> | undefined)?.['__task__'];
+        if (taskMeta && typeof taskMeta === 'object' && !Array.isArray(taskMeta)) {
+          const meta = taskMeta as Record<string, unknown>;
+          creatorRefs = Array.isArray(meta.creatorRefs) ? (meta.creatorRefs as string[]) : null;
+          instrumentRefs = Array.isArray(meta.instrumentRefs) ? (meta.instrumentRefs as string[]) : null;
+        }
+        logger.info('[sendInstructions] experiment_plan からcreatorRefs/instrumentRefs を取得', {
+          methodId,
+          taskNo,
+          creatorRefs,
+          instrumentRefs,
+        });
+      }
+
+      const projectInstructionParams: ProjectInstructionSentLogParams = {
+        methodId,
+        transitionId,
+        programId,
+        taskNo,
+        experimentInstructionId: instruction.experiment_instruction_id!,
+        userId,
+        sentAt,
+        instructions: instruction.instructions ?? null,
+        instructionKey: instruction.instruction_key,
+        creatorRefs,
+        instrumentRefs,
+      };
+      await eventLogRepo.insertProjectInstructionSentLog(
         organizationId,
         projectId,
-        {
-          methodId,
-          transitionId: instruction.transition_id ?? null,
-          programId,
-          taskNo: instruction.task_no ?? null,
-          experimentInstructionId: instruction.experiment_instruction_id!,
-          userId,
-          sentAt,
-          // ★ 追加: 指示の詳細情報
-          instructions: instruction.instructions ?? null,
-          priority: instruction.priority ?? null,
-          type: instruction.type ?? null,
-        },
+        projectInstructionParams,
         client
       );
     }

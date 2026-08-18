@@ -15,4 +15,15 @@ WHERE p.organization_id = $1
         ($2::VARCHAR IS NULL)
         OR n.scope_key = $2
       )
-ORDER BY p.prefix ASC
+UNION ALL
+SELECT
+  p.prefix
+  , n.uri
+  , FALSE AS "globalFlg"
+FROM prefix p
+INNER JOIN namespace n
+  ON p.organization_id = n.organization_id
+  AND p.namespace_id = n.namespace_id
+WHERE p.organization_id = '00000000-0000-0000-0000-000000000000'
+  AND p.is_active = TRUE
+ORDER BY prefix ASC

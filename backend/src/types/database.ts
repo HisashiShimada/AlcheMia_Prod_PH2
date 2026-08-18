@@ -167,12 +167,6 @@ export interface ProjectInstruction {
   /** メソッドID */
   method_id?: string | null;
   
-  /** 優先度 */
-  priority?: number | null;
-  
-  /** タイプ */
-  type?: number | null;
-  
   /** タスク連番 */
   task_no?: number | null;
   
@@ -190,6 +184,9 @@ export interface ProjectInstruction {
   
   /** 指示送信日 */
   instruction_date?: Date | null;
+  
+  /** MAIMLのpropertyタグキー（mgr-instruction:caution 等。デフォルトは SupervisorDirectiveContent） */
+  instruction_key: string;
   
   /** 作成者ユーザID */
   create_user_id?: string;
@@ -571,27 +568,14 @@ export interface UserSearchFilters {
  *
  * @remarks
  * planned_values の各 transitionId キー配下の型。
- * - `mgr-instruction:requiredCreatorUUID` 等の配列値
- * - `mgr-instruction:caution` 等の文字列値
  * - `[templateId]` キーのテンプレート想定値（fieldKey → value）
+ *
+ * 予約キー（トランジションIDとして使用しないキー）:
+ * - `__task__`       : タスク共通データ（creatorRefs / instrumentRefs / ownerRefs）
+ * - `__uncertainty__`: 不確かさ付与情報（TemplateInputPanel の AssignPayload[]）
+ * - `__meta__`       : トランジション実行順序情報（transitionOrder）
  */
 export interface TransitionPlanValues {
-  /** CreatorRef UUID 配列 */
-  'mgr-instruction:requiredCreatorUUID'?: string[];
-  /** InstrumentRef UUID 配列 */
-  'mgr-instruction:requiredInstrumentUUID'?: string[];
-  /** OwnerRef UUID 配列 */
-  'mgr-instruction:requiredOwnerUUID'?: string[];
-  /** 安全上の注意事項 */
-  'mgr-instruction:caution'?: string;
-  /** 操作手順上の注記 */
-  'mgr-instruction:operationNote'?: string;
-  /** 実施前後の確認事項 */
-  'mgr-instruction:checkItem'?: string;
-  /** 禁止事項 */
-  'mgr-instruction:prohibitedAction'?: string;
-  /** その他注意事項 */
-  'mgr-instruction:OtherNotes'?: string;
   /** テンプレート想定値（templateId → { fieldKey: value }） */
   [templateId: string]: string[] | string | Record<string, string> | undefined;
 }

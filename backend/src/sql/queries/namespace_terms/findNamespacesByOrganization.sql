@@ -17,4 +17,14 @@ LEFT JOIN organization_user ou
   AND ou.user_id = n.scope_key
 WHERE p.organization_id = $1
   AND p.is_active = TRUE
-ORDER BY p.prefix ASC
+UNION ALL
+SELECT
+  p.prefix
+  , n.uri
+FROM prefix p
+INNER JOIN namespace n
+  ON p.organization_id = n.organization_id
+  AND p.namespace_id = n.namespace_id
+WHERE p.organization_id = '00000000-0000-0000-0000-000000000000'
+  AND p.is_active = TRUE
+ORDER BY prefix ASC

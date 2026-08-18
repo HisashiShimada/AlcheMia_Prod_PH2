@@ -524,7 +524,7 @@ export class MaimlWriterService {
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;');
-        return `        <property key="mgr-instruction:${escapedKey}" value="${escapedVal}"/>`;
+        return `        <property key="${escapedKey}" value="${escapedVal}"/>`;
       });
 
     if (propLines.length === 0) return maimlContent;
@@ -556,9 +556,9 @@ export class MaimlWriterService {
       const propertiesMatch = taskBody.match(propertiesPattern);
 
       if (propertiesMatch) {
-        // 既存 <properties> 内の mgr-instruction: プロパティを除去
+        // 既存 <properties> 内の mgr-instruction: / Alchemia:SupervisorDirective プロパティを除去
         const cleanedBody = taskBody.replace(
-          /[ \t]*<property[^>]+key="mgr-instruction:[^"]*"[^>]*\/>[ \t]*\n?/gi,
+          /[ \t]*<property[^>]+key="(?:mgr-instruction:|Alchemia:SupervisorDirective)[^"]*"[^>]*\/>[ \t]*\n?/gi,
           ''
         );
         // </properties> 直前に挿入

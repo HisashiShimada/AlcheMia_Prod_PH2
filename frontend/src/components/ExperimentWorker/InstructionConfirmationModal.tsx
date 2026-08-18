@@ -15,7 +15,7 @@ import {
   DownOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import type { Instruction, InstructionType, Priority, ProjectStatus, Transition } from '@/types/experimentWorker';
+import type { Instruction, ProjectStatus, Transition } from '@/types/experimentWorker';
 import type { WorkerInstruction } from '@/types/project';
 import { getWorkerInstructions } from '@/services/projectApiService';
 
@@ -24,13 +24,6 @@ import { getWorkerInstructions } from '@/services/projectApiService';
  * method_id / task_no / transition_id の有無からグループを判定する。
  */
 function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
-  const priorityMap: Record<string, Priority> = {
-    '0': 'low', '1': 'normal', '2': 'medium', '3': 'high',
-  };
-  const instructionTypeMap: Record<string, InstructionType> = {
-    '0': 'general', '1': 'setup', '2': 'measurement', '3': 'safety', '4': 'cleanup',
-  };
-
   return {
     instructionId: apiData.id,
     transitionId: apiData.transition_id || undefined,
@@ -40,8 +33,6 @@ function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
     taskId: apiData.task_no ? `${apiData.project_id}-${apiData.method_id}-${apiData.task_no}` : undefined,
     taskName: apiData.task_no ? `Task ${apiData.task_no}` : undefined,
     content: apiData.instruction_content,
-    priority: priorityMap[apiData.priority] || 'normal',
-    instructionType: instructionTypeMap[apiData.type] || 'general',
     createdAt: apiData.create_at,
     updatedAt: null,
     createdBy: {

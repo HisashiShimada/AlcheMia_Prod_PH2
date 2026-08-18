@@ -191,7 +191,7 @@ const TeamAddDialog: React.FC<TeamAddDialogProps> = ({
       width={480}
       maskClosable={false}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size={16}>
+      <Space orientation="vertical" style={{ width: '100%' }} size={16}>
 
         {/* グループCD */}
         <div>

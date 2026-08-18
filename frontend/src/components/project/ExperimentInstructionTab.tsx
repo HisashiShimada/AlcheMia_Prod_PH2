@@ -970,8 +970,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       `}</style>
       <div className="experiment-instruction-table" style={{ flex: 1, overflow: 'hidden' }}>
         {loading ? (
-          <Flex justify="center" align="center" style={{ height: 200 }}>
-            <Spin tip={t('experimentInstructionTab.loading')} />
+          <Flex vertical justify="center" align="center" style={{ height: 200, gap: 8 }}>
+            <Spin />
+            <span>{t('experimentInstructionTab.loading')}</span>
           </Flex>
         ) : allRows.length === 0 ? (
           <Empty
@@ -1005,7 +1006,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         destroyOnHidden
       >
         {approveTarget && (
-          <Space direction="vertical" size={4}>
+          <Space orientation="vertical" size={4}>
             <Text>{t('experimentInstructionTab.approveModal.body')}</Text>
             <Text strong>{t('experimentInstructionTab.approveModal.taskLabel').replace('#{no}', String(approveTarget.taskNumber))}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1027,7 +1028,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         destroyOnHidden
       >
         {ngTarget && (
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             <Text>{t('experimentInstructionTab.ngModal.body')}</Text>
             <Text strong>{t('experimentInstructionTab.ngModal.taskLabel').replace('#{no}', String(ngTarget.taskNumber))}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1058,7 +1059,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         width={480}
         destroyOnHidden
       >
-        <Space direction="vertical" size={12} style={{ width: '100%', paddingTop: 8 }}>
+        <Space orientation="vertical" size={12} style={{ width: '100%', paddingTop: 8 }}>
           {/* ── 1行目: メソッド名 + タスク番号 ── */}
           <Flex gap={8} align="center">
             <Text style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.bulkMethodLabel')}</Text>

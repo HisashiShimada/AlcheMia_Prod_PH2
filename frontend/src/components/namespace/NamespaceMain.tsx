@@ -16,6 +16,7 @@ import {
 } from '@ant-design/icons';
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
+import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
@@ -1536,8 +1537,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── 既存行の操作セル
   const actionCell = (record: Term) => {
+    // システム名前空間（Alchemia）の行は操作不可
+    const isSystemNs = record.prefix === SYSTEM_NAMESPACE_PREFIX;
     // グレーアウト対象（rowClassName と同条件）のみ操作不可
     const readonly =
+      isSystemNs ||
       (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
       viewOnly;
@@ -1547,6 +1551,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           <Button type="primary" size="small" onClick={saveEditTerm}>✔ {t('namespaceMain.actionSave')}</Button>
           <Button size="small" onClick={cancelEditTerm}>{t('namespaceMain.actionCancel')}</Button>
         </span>
+      );
+    }
+    if (isSystemNs) {
+      return (
+        <Tooltip title={t('namespaceMain.systemNamespaceTooltip')}>
+          <Tag color="default">{t('namespaceMain.systemNamespaceBadge')}</Tag>
+        </Tooltip>
       );
     }
     return (

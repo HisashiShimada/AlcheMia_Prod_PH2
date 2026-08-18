@@ -40,7 +40,7 @@ const RefSection: React.FC<RefSectionProps> = ({
       <Text strong style={{ fontSize: 13 }}>
         {title}
       </Text>
-      <Space style={{ marginTop: 6, width: '100%' }} direction="vertical" size={6}>
+      <Space style={{ marginTop: 6, width: '100%' }} orientation="vertical" size={6}>
         {/* 追加行 */}
         <Space>
           <Select

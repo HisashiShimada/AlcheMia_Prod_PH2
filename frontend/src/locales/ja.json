@@ -1869,6 +1869,7 @@
       "transitionId": "トランジションID",
       "priority": "優先度",
       "type": "タイプ",
+      "instructionKey": "指示種別",
       "content": "指示内容",
       "action": "操作"
     },
@@ -2098,7 +2099,24 @@
     "contentLabel": "指示内容",
     "contentRequired": "指示内容を入力してください",
     "contentMaxLength": "1000文字以内で入力してください",
-    "contentPlaceholder": "作業者への具体的な指示を入力してください..."
+    "contentPlaceholder": "作業者への具体的な指示を入力してください...",
+    "instructionKeyLabel": "指示種別",
+    "instructionKeyRequired": "指示種別を選択してください",
+    "instructionKeyPlaceholder": "指示種別を選択",
+    "instructionTargetLabel": "指示対象",
+    "instructionTargetHint": "（未入力の場合は全体指示として扱われます）",
+    "methodPlaceholder": "メソッドを選択",
+    "transitionSelectPlaceholder": "トランジションを選択",
+    "taskNoPlaceholder": "タスクNoを選択",
+    "taskOptionLabel": "タスク {n}",
+    "instructionKeyOptions": {
+      "Alchemia:SupervisorDirectiveContent": "通常指示",
+      "Alchemia:SupervisorDirectiveCaution": "安全上の注意事項",
+      "Alchemia:SupervisorDirectiveOperationNote": "操作手順上の注記",
+      "Alchemia:SupervisorDirectiveCheckItem": "実施前後の確認事項",
+      "Alchemia:SupervisorDirectiveProhibitedAction": "禁止事項",
+      "Alchemia:SupervisorDirectiveOtherNotes": "その他注意事項"
+    }
   },
   "saveConfirmDialog": {
     "titleError": "バリデーションエラー検出",

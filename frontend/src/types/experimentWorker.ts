@@ -6,12 +6,6 @@ import {
   IssueTypeType,
 } from '@/constants/codeMaster';
 
-// 優先度の型
-export type Priority = 'high' | 'medium' | 'normal' | 'low';
-
-// 指示タイプ
-export type InstructionType = 'safety' | 'setup' | 'measurement' | 'cleanup' | 'general';
-
 /**
  * Property タグ用の型（<property xsi:type="...">）
  * MAIML の propertyType 系 xsiType に対応
@@ -111,8 +105,6 @@ export interface Instruction {
   taskId?: string;
   taskName?: string;
   content: string;
-  priority: Priority;
-  instructionType: InstructionType;
   createdAt: string;
   updatedAt: string | null;
   createdBy: User;

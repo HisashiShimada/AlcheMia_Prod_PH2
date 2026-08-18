@@ -18,6 +18,9 @@ import {
   parseGlobalDeclarationsCsv,
 } from './globalNamespaceFileService';
 import type { GlobalDeclarationEntry } from '../types/service';
+import { SYSTEM_NAMESPACE_PREFIX } from '../constants/systemNamespace';
+import { HTTP_STATUS } from '../constants/httpStatus';
+import { getMessage } from '../utils/messages';
 
 // ─── 型定義 ──────────────────────────────────────────────────────────────────
 
@@ -205,12 +208,22 @@ export async function updateNamespace(
  *
  * @param organizationId - 組織ID
  * @param prefix - 削除対象の prefix
+ * @param lang - 言語コード（'ja' | 'en'、デフォルト: 'ja'）
  * @returns 削除件数（0 = 対象なし）
+ * @throws 403 エラー（システム名前空間 Alchemia は削除不可）
  */
 export async function deleteNamespace(
   organizationId: string,
-  prefix: string
+  prefix: string,
+  lang: string = 'ja'
 ): Promise<number> {
+  // システム名前空間（Alchemia）は削除不可
+  if (prefix === SYSTEM_NAMESPACE_PREFIX) {
+    const err: any = new Error(getMessage(lang, 'namespace.systemProtected'));
+    err.statusCode = HTTP_STATUS.FORBIDDEN;
+    err.code = 'E5015';
+    throw err;
+  }
   return namespaceTermRepository.removeNamespace(organizationId, prefix);
 }
 
@@ -222,11 +235,22 @@ export async function deleteNamespace(
  * prefix に対応する名前空間が存在しない場合は null を返す。
  *
  * @param input - 登録する用語データ
+ * @param lang - 言語コード（'ja' | 'en'、デフォルト: 'ja'）
  * @returns 登録された用語、または null（名前空間が存在しない場合）
+ * @throws 403 エラー（システム名前空間 Alchemia への用語追加は不可）
  */
 export async function createTerm(
-  input: CreateTermInput
+  input: CreateTermInput,
+  lang: string = 'ja'
 ): Promise<NamespaceTermRow | null> {
+  // システム名前空間（Alchemia）への用語追加は不可
+  if (input.prefix === SYSTEM_NAMESPACE_PREFIX) {
+    const err: any = new Error(getMessage(lang, 'namespace.systemProtected'));
+    err.statusCode = HTTP_STATUS.FORBIDDEN;
+    err.code = 'E5015';
+    throw err;
+  }
+
   const exists = await namespaceTermRepository.existsNamespace(
     input.organizationId,
     input.prefix
@@ -251,14 +275,24 @@ export async function createTerm(
  * @param prefix - 名前空間の接頭辞
  * @param localName - ローカル名
  * @param input - 更新するフィールド
+ * @param lang - 言語コード（'ja' | 'en'、デフォルト: 'ja'）
  * @returns 更新後の用語、または null（対象なし）
+ * @throws 403 エラー（システム名前空間 Alchemia の用語更新は不可）
  */
 export async function updateTerm(
   organizationId: string,
   prefix: string,
   localName: string,
-  input: UpdateTermInput
+  input: UpdateTermInput,
+  lang: string = 'ja'
 ): Promise<NamespaceTermRow | null> {
+  // システム名前空間（Alchemia）の用語更新は不可
+  if (prefix === SYSTEM_NAMESPACE_PREFIX) {
+    const err: any = new Error(getMessage(lang, 'namespace.systemProtected'));
+    err.statusCode = HTTP_STATUS.FORBIDDEN;
+    err.code = 'E5015';
+    throw err;
+  }
   return namespaceTermRepository.update(organizationId, prefix, localName, {
     displayName: input.displayName,
     description: input.description,
@@ -273,13 +307,23 @@ export async function updateTerm(
  * @param organizationId - 組織ID
  * @param prefix - 名前空間の接頭辞
  * @param localName - ローカル名
+ * @param lang - 言語コード（'ja' | 'en'、デフォルト: 'ja'）
  * @returns 削除件数（0 = 対象なし）
+ * @throws 403 エラー（システム名前空間 Alchemia の用語削除は不可）
  */
 export async function deleteTerm(
   organizationId: string,
   prefix: string,
-  localName: string
+  localName: string,
+  lang: string = 'ja'
 ): Promise<number> {
+  // システム名前空間（Alchemia）の用語削除は不可
+  if (prefix === SYSTEM_NAMESPACE_PREFIX) {
+    const err: any = new Error(getMessage(lang, 'namespace.systemProtected'));
+    err.statusCode = HTTP_STATUS.FORBIDDEN;
+    err.code = 'E5015';
+    throw err;
+  }
   return namespaceTermRepository.remove(organizationId, prefix, localName);
 }
 
@@ -305,14 +349,24 @@ export async function getTerms(
  * @param prefix - 名前空間の接頭辞
  * @param localName - ローカル名
  * @param isActive - 設定するアクティブ状態
+ * @param lang - 言語コード（'ja' | 'en'、デフォルト: 'ja'）
  * @returns 更新後の用語、または null（対象なし）
+ * @throws 403 エラー（システム名前空間 Alchemia の用語アクティブ切替は不可）
  */
 export async function toggleTermActive(
   organizationId: string,
   prefix: string,
   localName: string,
-  isActive: boolean
+  isActive: boolean,
+  lang: string = 'ja'
 ): Promise<NamespaceTermRow | null> {
+  // システム名前空間（Alchemia）の用語アクティブ切替は不可
+  if (prefix === SYSTEM_NAMESPACE_PREFIX) {
+    const err: any = new Error(getMessage(lang, 'namespace.systemProtected'));
+    err.statusCode = HTTP_STATUS.FORBIDDEN;
+    err.code = 'E5015';
+    throw err;
+  }
   return namespaceTermRepository.toggleActive(organizationId, prefix, localName, isActive);
 }
 

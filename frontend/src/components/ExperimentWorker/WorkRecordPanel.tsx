@@ -1383,7 +1383,7 @@ const PlanB: React.FC<PlanProps> = ({
           </div>
 
           {/* 検索・カテゴリフィルタ */}
-          <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
+          <Space orientation="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
             <Input
               placeholder={t('workRecord.templateSearchPlaceholder')}
               prefix={<SearchOutlined />}
