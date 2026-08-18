@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2025-12-26
-- **バージョン**: 1.0.0
-- **最終更新**: 2025-12-26
+- **バージョン**: 2.0.0
+- **最終更新**: 2026-08-14
 - **担当**: Backend Development Team
 - **カテゴリ**: 認証・セッション管理
 
@@ -44,6 +44,18 @@
 ```http
 Content-Type: application/json
 ```
+
+#### 組織ID（X-Organization-Id）の取得方式
+
+認証APIでは、以下の**優先順位**で組織IDを取得します。いずれか1つが含まれていればOKです。
+
+| 優先順位 | ヘッダー / パラメータ | 説明 |
+|---------|-------------------|------|
+| 1 | `x-amzn-mtls-clientcert-subject` | ALB mTLS が自動付与（新ALB構成） |
+| 2 | `x-organization-id` | nginx が付与（既存nginx構成） |
+| 3 | `orgId`（クエリパラメータ） | ローカル開発・後方互換用 |
+
+いずれも含まれない場合は `400 VALIDATION_ERROR` を返します。
 
 #### レスポンスヘッダー
 
@@ -129,15 +141,17 @@ X-Organization-Id: org_maiml_lab_001
 **ボディ**:
 ```json
 {
-  "username": "user001",
+  "userId": "user001",
   "password": "SecurePassword123!"
 }
 ```
 
+> ⚠️ **仕様変更（2026-08-14）**: フィールド名 `username` → `userId` に変更
+
 **フィールド定義**:
 | フィールド | 型 | 必須 | 説明 |
 |-----------|-----|------|------|
-| username | string | ○ | ユーザー名（1-100文字） |
+| userId | string | ○ | ユーザーID（1-100文字） |
 | password | string | ○ | パスワード（8-255文字） |
 
 #### レスポンス
@@ -196,7 +210,7 @@ X-Organization-Id: org_maiml_lab_001
 #### 実装詳細
 
 **バリデーション**:
-- username: 必須、1-100文字、英数字・アンダースコア・ハイフン
+- userId: 必須、1-100文字
 - password: 必須、8-255文字
 
 **セキュリティ**:
@@ -406,9 +420,11 @@ X-Organization-Id: org_maiml_lab_001
 **ボディ**:
 ```json
 {
-  "username": "user001"
+  "email": "user001@example.com"
 }
 ```
+
+> ⚠️ **仕様変更（2026-08-14）**: リクエストフィールド `username` → `email` に変更
 
 #### レスポンス
 
@@ -812,9 +828,168 @@ X-Organization-Id: org_maiml_lab_001
 
 ---
 
+---
+
+## 3.7. POST /api/v1/auth/refresh
+
+### 概要
+
+リフレッシュトークン（httpOnly Cookie）を使用してアクセストークンを更新します。
+
+**認証**: 不要（リフレッシュトークン自体が認証情報）
+
+**HTTPメソッド**: `POST`
+
+**URL**: `/api/v1/auth/refresh`
+
+**ヘッダー**: 不要（リフレッシュトークンは httpOnly Cookie で自動送信）
+
+**ボディ**: なし
+
+### レスポンス
+
+**成功時（200 OK）**:
+```json
+{
+  "success": true,
+  "data": {
+    "session": {
+      "token": "maiml_session-new123_1755185000",
+      "expiresAt": "2026-08-15T10:00:00.000Z"
+    }
+  }
+}
+```
+
+**エラー時**:
+
+| HTTPステータス | エラーコード | 説明 |
+|---------------|-------------|------|
+| 401 | `AUTH_TOKEN_INVALID` | リフレッシュトークンが不正または存在しない |
+| 401 | `AUTH_TOKEN_EXPIRED` | リフレッシュトークンの有効期限切れ |
+| 429 | `AUTH_RATE_LIMIT_EXCEEDED` | レート制限超過（15分に5回） |
+
+### 実装詳細
+
+- リフレッシュトークンは httpOnly Cookie（`maiml_refresh`）から取得
+- Redis に保存されたリフレッシュトークンと照合
+- 成功時は新しいアクセストークンを発行し、Set-Cookie ヘッダーで返却
+
+---
+
+## 3.8. POST /api/v1/auth/heartbeat
+
+### 概要
+
+認証済みセッションのハートビート送信。セッションの有効期限を延長します。
+
+**認証**: 必須（authMiddleware）
+
+**HTTPメソッド**: `POST`
+
+**URL**: `/api/v1/auth/heartbeat`
+
+**ヘッダー**:
+```http
+Authorization: Bearer maiml_session-abc123_1735185000
+```
+
+**ボディ**: なし
+
+### レスポンス
+
+**成功時（200 OK）**:
+```json
+{
+  "success": true,
+  "data": {
+    "message": "heartbeat received"
+  }
+}
+```
+
+**エラー時**:
+
+| HTTPステータス | エラーコード | 説明 |
+|---------------|-------------|------|
+| 401 | `AUTH_TOKEN_INVALID` | セッショントークンが不正 |
+
+### 実装詳細
+
+- フロントエンドがバックグラウンドで定期的に呼び出し、セッション切れを防止する
+- Redis のセッション有効期限を更新する
+
+---
+
+## 3.9. POST /api/v1/auth/change-password
+
+### 概要
+
+認証済みユーザーが自身のパスワードを変更します。
+
+**認証**: 必須（authMiddleware）
+
+**HTTPメソッド**: `POST`
+
+**URL**: `/api/v1/auth/change-password`
+
+**ヘッダー**:
+```http
+Content-Type: application/json
+Authorization: Bearer maiml_session-abc123_1735185000
+```
+
+**ボディ**:
+```json
+{
+  "currentPassword": "OldPassword123!",
+  "newPassword": "NewPassword456!"
+}
+```
+
+**フィールド定義**:
+| フィールド | 型 | 必須 | 制約 |
+|-----------|-----|------|------|
+| `currentPassword` | string | ✅ | 現在のパスワード |
+| `newPassword` | string | ✅ | 新しいパスワード（8〜255文字） |
+
+### レスポンス
+
+**成功時（200 OK）**:
+```json
+{
+  "success": true,
+  "data": {
+    "message": "パスワードを変更しました"
+  }
+}
+```
+
+**エラー時**:
+
+| HTTPステータス | エラーコード | 説明 |
+|---------------|-------------|------|
+| 400 | `VALIDATION_ERROR` | 入力値が不正（newPasswordが8文字未満など） |
+| 401 | `AUTH_TOKEN_INVALID` | セッショントークンが不正 |
+| 401 | `AUTH_INVALID_CREDENTIALS` | 現在のパスワードが不正 |
+
+### 実装ファイル
+
+- **ルート**: `backend/src/routes/authRoutes.ts`
+- **コントローラー**: `backend/src/controllers/authController.ts` (`changePassword`)
+
+---
+
 ## 8. 変更履歴
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.0.0 | 2026-08-14 | feature/phase2_mock に合わせて更新 | Cline |
+| | | - 3.7: POST /auth/refresh 追加 | |
+| | | - 3.8: POST /auth/heartbeat 追加 | |
+| | | - 3.9: POST /auth/change-password 追加 | |
+| | | - 3.1 login: フィールド username → userId に変更 | |
+| | | - 3.4 reset-password-request: フィールド username → email に変更 | |
+| | | - 2.2: 組織ID取得方式（mTLS/header/query）を追記 | |
 | 1.1.0 | 2026-02-17 | セッション管理API追加（6.1, 6.2） | Cline |
 | 1.0.0 | 2025-12-26 | 初版作成 | Backend Development Team |

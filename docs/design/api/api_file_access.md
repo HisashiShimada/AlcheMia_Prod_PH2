@@ -1,11 +1,12 @@
 # ファイルアクセスAPI仕様書
 
 **作成日**: 2026-02-19 17:05  
-**最終更新**: 2026-04-20  
-**バージョン**: 1.4.0  
+**最終更新**: 2026-08-14  
+**バージョン**: 2.0.0  
+**最終更新コミット**: `651973aae` (feature/phase2_mock)  
 **対象画面**: 全画面共通  
-**総API数**: 13個  
-**実装状況**: 13個実装済み、0個未実装
+**総API数**: 17個  
+**実装状況**: 17個実装済み、0個未実装
 
 ---
 
@@ -16,11 +17,14 @@
 | ファイルアップロード | 1 | 0 | 1 |
 | ファイルダウンロード | 4 | 0 | 4 |
 | バッチ管理 | 3 | 0 | 3 |
+| チャンクアップロード | 4 | 0 | 4 |
 | レガシー | 1 | 0 | 1 |
 | ファイルリネーム | 1 | 0 | 1 |
-| **合計** | **11** | **0** | **11** |
+| ファイル・フォルダ削除 | 2 | 0 | 2 |
+| テキスト取得 | 1 | 0 | 1 |
+| **合計** | **17** | **0** | **17** |
 
-**完了率**: 100% (12/12)
+**完了率**: 100% (17/17)
 
 ---
 
@@ -41,6 +45,10 @@
 | 11 | ファイルリネーム | PATCH | `/api/v1/files/rename` | ✅ 実装済み | - |
 | 12 | バッチ先行作成 | POST | `/api/v1/files/batches/init` | ✅ 実装済み | - |
 | 13 | フォルダ削除 | DELETE | `/api/v1/files/delete-folder` | ✅ 実装済み | - |
+| 14 | チャンクアップロードセッション開始 | POST | `/api/v1/files/chunks/init` | ✅ 実装済み | - |
+| 15 | チャンク受信 | POST | `/api/v1/files/chunks/:uploadId` | ✅ 実装済み | - |
+| 16 | チャンクアップロード中断 | DELETE | `/api/v1/files/chunks/:uploadId` | ✅ 実装済み | - |
+| 17 | チャンク結合・アップロード完了 | POST | `/api/v1/files/chunks/:uploadId/complete` | ✅ 実装済み | - |
 
 ---
 
@@ -852,41 +860,33 @@ if (!allowedMimeTypes.includes(file.mimetype)) {
 | | | - Phase1-3: 空フォルダプレースホルダー機能追加 | |
 | | | - Phase2-1: バッチ管理機能追加 | |
 
----
+### 8. ファイルテキスト内容取得 ✅
 
----
+**エンドポイント**: `POST /api/v1/files/content-as-text`
 
-## API #7: ファイルテキスト内容取得
+**説明**: 指定したファイルのテキスト内容をS3/Swiftから取得して文字列として返却する
 
-### 概要
+**認証**: 必須
 
-| 項目 | 内容 |
-|------|------|
-| **HTTPメソッド** | POST |
-| **エンドポイント** | `/api/v1/files/content-as-text` |
-| **説明** | 指定したファイルのテキスト内容をS3/Swiftから取得して文字列として返却する |
-| **実装状態** | ✅ 実装済み |
-| **権限** | すべてのロール（マルチテナント分離で保護） |
-| **呼び出し元** | fileAccessService.ts (`getFileContentAsText`) |
+**権限**: すべてのロール
 
-### リクエスト
+#### リクエスト
 
-**リクエストボディ（JSON）**
-
+**ボディ（JSON）**:
 ```json
 {
-  "filePath": "projects/sample_project/sample_project.maiml"
+  "fileKey": "projects/sample_project/sample_project.maiml"
 }
 ```
 
-| フィールド | 型 | 必須 | 説明 |
-|-----------|-----|------|------|
-| filePath | string | ✅ | organization_id省略の相対ファイルパス |
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `fileKey` | string | ○ | 1-1024文字（organization_id省略の相対ファイルパス） |
 
-### レスポンス
+#### レスポンス
 
-**成功時（200 OK）**
-
+**成功時 (200 OK)**:
 ```json
 {
   "success": true,
@@ -895,152 +895,140 @@ if (!allowedMimeTypes.includes(file.mimetype)) {
     "filePath": "projects/sample_project/sample_project.maiml",
     "contentType": "application/xml",
     "size": 12345
+  },
+  "meta": {
+    "timestamp": "2026-02-19T17:05:00Z",
+    "requestId": "req_abc123"
   }
 }
 ```
 
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| content | string | ファイルのテキスト内容 |
-| filePath | string | リクエストで指定したファイルパス |
-| contentType | string | ファイルのContent-Type |
-| size | number | ファイルサイズ（バイト） |
-
-**エラー時**
-
+**エラー時**:
 | ステータス | エラーコード | 説明 |
 |-----------|-------------|------|
-| 400 | VALIDATION_ERROR | filePathが未指定 |
+| 400 | VALIDATION_ERROR | fileKeyが未指定 |
 | 401 | AUTH_TOKEN_INVALID | 認証エラー |
 | 404 | FILE_NOT_FOUND | ファイルが存在しない |
 | 500 | SYSTEM_ERROR | S3/Swiftアクセスエラー |
 
-### 実装要件
+#### 実装ファイル
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`getFileContentAsText`)
 
-- `storageService.downloadFile(organizationId, filePath)` を使用
-- organization_idはJWTセッションから自動取得（リクエストに含める必要なし）
-- バイナリファイルは文字列変換されるが文字化けする場合あり（テキスト系ファイル向け）
+#### 実装要件
+
+- `storageService.downloadFile(organizationId, fileKey)` を使用
+- organization_idはJWTセッションから自動取得
+- バイナリファイルは文字化けする場合あり（テキスト系ファイル向け）
 
 ---
 
-## API #8: ファイル削除
+### 9. ファイル削除 ✅
 
-### 概要
+**エンドポイント**: `DELETE /api/v1/files/delete`
 
-| 項目 | 内容 |
-|------|------|
-| **HTTPメソッド** | DELETE |
-| **エンドポイント** | `/api/v1/files/delete` |
-| **説明** | 指定したファイルをS3/Swiftから削除する |
-| **実装状態** | ✅ 実装済み |
-| **権限** | すべてのロール（マルチテナント分離で保護） |
-| **呼び出し元** | fileAccessService.ts (`deleteFile`) |
+**説明**: 指定したファイルをS3/Swiftから削除する
 
-### リクエスト
+**認証**: 必須
 
-**リクエストボディ（JSON）**
+**権限**: すべてのロール
 
+#### リクエスト
+
+**ボディ（JSON）**:
 ```json
 {
-  "filePath": "projects/sample_project/archive/sample_project_v1.maiml"
+  "fileKey": "projects/sample_project/archive/sample_project_v1.maiml"
 }
 ```
 
-| フィールド | 型 | 必須 | 説明 |
-|-----------|-----|------|------|
-| filePath | string | ✅ | organization_id省略の相対ファイルパス |
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `fileKey` | string | ○ | 1-1024文字（organization_id省略の相対ファイルパス） |
+| `checkProjectStatus` | boolean | × | `true` の場合、maimlファイル削除前に `project_status = 0`（編集中）であることを確認する |
 
-### レスポンス
+**`checkProjectStatus` の補足**:
+- 省略または `false` の場合は従来と同じ挙動（ステータスチェックなし）
+- プロジェクト管理画面でのmaimlファイル削除時、公開済み（`project_status ≠ 0`）の場合に削除を防止する用途
 
-**成功時（200 OK）**
+#### レスポンス
 
+**成功時 (200 OK)**:
 ```json
 {
   "success": true,
-  "message": "ファイルを削除しました",
   "data": {
-    "filePath": "projects/sample_project/archive/sample_project_v1.maiml"
+    "fileKey": "projects/sample_project/archive/sample_project_v1.maiml"
+  },
+  "meta": {
+    "timestamp": "2026-02-19T17:05:00Z",
+    "requestId": "req_abc123"
   }
 }
 ```
 
-**エラー時**
-
+**エラー時**:
 | ステータス | エラーコード | 説明 |
 |-----------|-------------|------|
-| 400 | VALIDATION_ERROR | filePathが未指定 |
+| 400 | VALIDATION_ERROR | fileKeyが未指定 |
 | 401 | AUTH_TOKEN_INVALID | 認証エラー |
 | 403 | FORBIDDEN | 他組織ファイルへのアクセス |
 | 404 | FILE_NOT_FOUND | ファイルが存在しない |
 | 500 | SYSTEM_ERROR | S3/Swiftアクセスエラー |
 
-### 実装要件
+#### 実装ファイル
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`deleteFile`)
 
-- `storageService.deleteFile(organizationId, filePath)` を使用
+#### 実装要件
+
+- `storageService.deleteFile(organizationId, fileKey)` を使用
 - organization_idはJWTセッションから自動取得
 - マルチテナント分離：organization_idがパスに自動付与されるため他組織ファイルへのアクセス不可
-- file_metadataテーブルが存在する場合は連動して削除
 
 ---
 
-## 📝 変更履歴（追記分）
+### 10. バッチキャンセル ✅
 
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.1.0 | 2026-03-06 | ProjectManagement画面調査によりfileAccessService.tsから呼び出されるAPI追記 | Cline |
-| | | - API #7: ファイルテキスト内容取得 POST /api/v1/files/content-as-text | |
-| | | - API #8: ファイル削除 DELETE /api/v1/files/delete | |
+**エンドポイント**: `POST /api/v1/files/batches/:batchId/cancel`
 
----
+**説明**: アップロード中のバッチをキャンセルし、既にアップロードされたファイルを削除する
 
-## API #10: バッチキャンセル ✅
+**認証**: 必須
 
-### 概要
+**権限**: すべてのロール
 
-| 項目 | 内容 |
-|------|------|
-| **HTTPメソッド** | POST |
-| **エンドポイント** | `/api/v1/files/batches/:batchId/cancel` |
-| **説明** | アップロード中のバッチをキャンセルし、既にアップロードされたファイルを削除する |
-| **実装状態** | ✅ 実装済み |
-| **実装日** | 2026-03-30 |
-| **権限** | すべてのロール（マルチテナント分離で保護） |
-| **呼び出し元** | BulkUploadDialog.tsx, FormatUploadDialog.tsx |
+**追加日**: 2026-03-30
 
-### リクエスト
+#### リクエストパラメータ
 
-**パスパラメータ**
-
+**パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| batchId | string | ✅ | キャンセルするバッチのID |
+| `batchId` | string | ○ | キャンセルするバッチのID |
 
-**リクエストボディ**: なし
+**ボディ**: なし
 
-### レスポンス
+#### レスポンス
 
-**成功時（200 OK）**
-
+**成功時 (200 OK)**:
 ```json
 {
   "success": true,
-  "message": "バッチをキャンセルしました",
   "data": {
     "batchId": "batch-550e8400-e29b-41d4-a716-446655440000-1711785300000",
     "status": "cancelled",
     "deletedFilesCount": 5
+  },
+  "meta": {
+    "timestamp": "2026-03-30T10:00:00Z",
+    "requestId": "req_abc123"
   }
 }
 ```
 
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| batchId | string | キャンセルしたバッチID |
-| status | string | 更新後のステータス（'cancelled'） |
-| deletedFilesCount | number | 削除されたファイル数 |
-
-**エラー時**
-
+**エラー時**:
 | ステータス | エラーコード | 説明 |
 |-----------|-------------|------|
 | 400 | VALIDATION_ERROR | batchIdが未指定または不正 |
@@ -1048,72 +1036,31 @@ if (!allowedMimeTypes.includes(file.mimetype)) {
 | 404 | BATCH_NOT_FOUND | バッチが存在しない |
 | 500 | SYSTEM_ERROR | システムエラー |
 
-### 処理フロー
-
-1. **バッチの検証**
-   - バッチIDでupload_batchテーブルを検索
-   - organization_idでマルチテナント分離を確認
-
-2. **ファイル削除**
-   - file_metadataテーブルからバッチIDに紐付けられたファイル一覧を取得
-   - 各ファイルをストレージ（S3/Swift）から削除
-   - file_metadataテーブルから該当レコードを削除
-
-3. **バッチステータス更新**
-   - upload_batchテーブルのstatusを'cancelled'に更新
-
-### 実装ファイル
-
+#### 実装ファイル
 - **ルート**: `backend/src/routes/fileAccessRoutes.ts`
 - **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`cancelBatch`)
 - **サービス**: `backend/src/services/fileAccessService.ts` (`cancelBatch`)
 - **リポジトリ**: `backend/src/repositories/fileMetadataRepository.ts` (`findByBatchId`)
 
-### 実装要件
+#### 実装要件
 
-**コントローラー実装**:
-```typescript
-export async function cancelBatch(req: Request, res: Response): Promise<void> {
-  const { batchId } = req.params;
-  
-  try {
-    const result = await fileAccessService.cancelBatch(
-      batchId,
-      req.organizationId
-    );
-    
-    res.json({
-      success: true,
-      message: 'バッチをキャンセルしました',
-      data: result,
-    });
-  } catch (error) {
-    handleError(error, res);
-  }
-}
-```
+**処理フロー**:
+1. バッチIDで `upload_batch` テーブルを検索（organization_idでテナント確認）
+2. `file_metadata` テーブルからバッチIDに紐付けられたファイル一覧を取得
+3. 各ファイルをストレージ（S3/Swift）から削除
+4. `file_metadata` テーブルから該当レコードを削除
+5. `upload_batch` テーブルのstatusを `cancelled` に更新
 
-**サービス実装**:
 ```typescript
 export async function cancelBatch(
   batchId: string,
   organizationId: string
 ): Promise<{ batchId: string; status: string; deletedFilesCount: number }> {
-  // 1. バッチの存在確認
   const batch = await uploadBatchRepository.getById(batchId);
-  
-  if (!batch) {
-    throw new NotFoundError('バッチが見つかりません');
-  }
-  
-  if (batch.organization_id !== organizationId) {
-    throw new ForbiddenError('このバッチへのアクセス権限がありません');
-  }
-  
-  // 2. ファイル一覧取得
+  if (!batch) throw new NotFoundError('バッチが見つかりません');
+  if (batch.organization_id !== organizationId) throw new ForbiddenError('アクセス権限がありません');
+
   const files = await fileMetadataRepository.findByBatchId(batchId);
-  
-  // 3. ストレージからファイル削除
   let deletedCount = 0;
   for (const file of files) {
     try {
@@ -1123,104 +1070,30 @@ export async function cancelBatch(
       console.warn(`ファイル削除失敗: ${file.file_key}`, error);
     }
   }
-  
-  // 4. file_metadataテーブルから削除
-  const fileKeys = files.map(f => f.file_key);
-  if (fileKeys.length > 0) {
-    await fileMetadataRepository.softDeleteBatch(organizationId, fileKeys);
-  }
-  
-  // 5. バッチステータス更新
+  await fileMetadataRepository.softDeleteBatch(organizationId, files.map(f => f.file_key));
   await uploadBatchRepository.updateStatus(batchId, 'cancelled');
-  
-  return {
-    batchId,
-    status: 'cancelled',
-    deletedFilesCount: deletedCount,
-  };
+
+  return { batchId, status: 'cancelled', deletedFilesCount: deletedCount };
 }
 ```
 
-### フロントエンド使用例
-
-**BulkUploadDialog.tsx**:
-```typescript
-// アップロード中のキャンセル
-const handleCancelUpload = useCallback(async () => {
-  if (!abortController) return;
-  
-  // アップロードを即座に中断
-  abortController.abort();
-}, [abortController]);
-
-// CanceledErrorをcatch
-try {
-  await uploadFiles({
-    uploadMode,
-    targetPath,
-    files,
-    signal: controller.signal,
-    onProgress: (progress) => { ... }
-  });
-} catch (error) {
-  if ((error as any).name === 'CanceledError') {
-    // バックエンドに通知してファイル削除
-    if (batchId) {
-      await cancelBatch(batchId);
-    }
-    message.info('アップロードがキャンセルされました');
-  }
-}
-```
-
-### セキュリティ考慮事項
-
-- **マルチテナント分離**: organization_idで厳密に権限チェック
-- **個別ファイル削除失敗の対応**: 削除失敗時も処理続行（警告ログのみ）
-- **バッチステータス整合性**: 削除処理後に必ずステータスを'cancelled'に更新
-
 ---
 
-## 📝 変更履歴（更新）
+### 11. ファイルリネーム ✅
 
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.2.0 | 2026-03-30 | アップロードキャンセル機能追加 | Cline |
-| | | - API #10: バッチキャンセル POST /api/v1/files/batches/:batchId/cancel | |
-| | | - フロントエンドでAbortController対応 | |
-| | | - 既にアップロードされたファイルの削除機能 | |
-| 1.1.0 | 2026-03-06 | ProjectManagement画面調査によりfileAccessService.tsから呼び出されるAPI追記 | Cline |
-| | | - API #7: ファイルテキスト内容取得 POST /api/v1/files/content-as-text | |
-| | | - API #8: ファイル削除 DELETE /api/v1/files/delete | |
-| 1.0.0 | 2026-02-19 17:05 | 初版作成 | Cline |
-| | | - fileAccessRoutes.tsの全エンドポイントを反映 | |
-| | | - 実装済み: 7個（100%完了） | |
-| | | - Phase1-2: ファイルサイズ上限500MBに引き上げ | |
-| | | - Phase1-3: 空フォルダプレースホルダー機能追加 | |
-| | | - Phase2-1: バッチ管理機能追加 | |
+**エンドポイント**: `PATCH /api/v1/files/rename`
 
----
+**説明**: S3/Swift上の指定ファイルをリネームする（コピー＋元ファイル削除）
 
----
+**認証**: 必須
 
-## API #11: ファイルリネーム ✅
+**権限**: すべてのロール
 
-### 概要
+**追加日**: 2026-04-02
 
-| 項目 | 内容 |
-|------|------|
-| **HTTPメソッド** | PATCH |
-| **エンドポイント** | `/api/v1/files/rename` |
-| **説明** | S3/Swift上の指定ファイルをリネームする（コピー＋元ファイル削除） |
-| **実装状態** | ✅ 実装済み |
-| **実装日** | 2026-04-02 |
-| **権限** | すべてのロール（マルチテナント分離で保護） |
-| **呼び出し元** | FileTree.tsx（プロジェクト管理画面） |
+#### リクエスト
 
-### リクエスト
-
-**リクエストボディ（JSON）**
-
+**ボディ（JSON）**:
 ```json
 {
   "fileKey": "projects/sample_project/data/result.csv",
@@ -1228,40 +1101,31 @@ try {
 }
 ```
 
-| フィールド | 型 | 必須 | 説明 |
-|-----------|-----|------|------|
-| `fileKey` | string | ✅ | リネーム対象ファイルの相対パス（organization_id省略） |
-| `newFileName` | string | ✅ | 新しいファイル名（パスではなく名前のみ） |
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `fileKey` | string | ○ | 必須・文字列 |
+| `newFileName` | string | ○ | trim後1〜255文字、パス区切り文字（`/`, `\`）禁止 |
+| MAIMLファイル | - | - | `.maiml` 拡張子はリネーム禁止（400エラー） |
 
-**バリデーション**
+#### レスポンス
 
-| フィールド | 制約 |
-|----------|------|
-| `fileKey` | 必須・文字列 |
-| `newFileName` | 必須・文字列・trim後1〜255文字・パス区切り文字（`/`, `\`）禁止 |
-| MAIMLファイル | `.maiml` 拡張子はリネーム禁止（400エラー） |
-
-### レスポンス
-
-**成功時（200 OK）**
-
+**成功時 (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
     "oldFileKey": "projects/sample_project/data/result.csv",
     "newFileKey": "projects/sample_project/data/result_final.csv"
+  },
+  "meta": {
+    "timestamp": "2026-04-02T10:00:00Z",
+    "requestId": "req_abc123"
   }
 }
 ```
 
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| `oldFileKey` | string | リネーム前のファイルキー |
-| `newFileKey` | string | リネーム後のファイルキー |
-
-**エラー時**
-
+**エラー時**:
 | ステータス | エラーコード | 説明 |
 |-----------|-------------|------|
 | 400 | E1003 | `fileKey` または `newFileName` が未指定・空文字 |
@@ -1273,12 +1137,15 @@ try {
 | 409 | E6005 | リネーム先ファイルが既に存在する |
 | 500 | E4006 | S3/Swiftアクセスエラー |
 
-### 処理フロー
+#### 実装ファイル
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`renameFileHandler`)
+- **サービス**: `backend/src/services/fileAccessService.ts` (`renameFile`)
 
-1. バリデーション（ミドルウェア）
-   - `fileKey`・`newFileName` の必須チェック
-   - `newFileName` の文字数・パス区切り文字チェック
-   - MAIMLファイルリネーム禁止チェック
+#### 実装要件
+
+**処理フロー**:
+1. バリデーション（`fileKey`・`newFileName` の必須チェック、文字数・パス区切り文字・MAIML禁止チェック）
 2. 新ファイルキー（ディレクトリ部分 + 新ファイル名）を生成
 3. 元ファイルの存在確認
 4. リネーム先ファイルの重複確認
@@ -1286,144 +1153,110 @@ try {
 6. 元ファイルを削除（`storageService.deleteFile`）
 7. `file_metadata` テーブルが存在する場合は連動更新
 
-### 実装ファイル
-
-- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
-- **バリデーションミドルウェア**: `backend/src/middleware/validation/fileAccessValidation.ts`
-- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`renameFileHandler`)
-- **サービス**: `backend/src/services/fileAccessService.ts` (`renameFile`)
-
-### セキュリティ考慮事項
-
-- **マルチテナント分離**: organization_id はセッションから自動取得。リクエストに含めない
+**セキュリティ**:
+- **マルチテナント分離**: organization_id はセッションから自動取得
 - **MAIMLリネーム禁止**: プロジェクト管理上の整合性を保つため `.maiml` ファイルは対象外
 - **パス区切り文字禁止**: ディレクトリトラバーサル防止のため `/`, `\` を禁止
 
 ---
 
-## 📝 変更履歴（更新）
+### 12. バッチ先行作成 ✅
 
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.3.0 | 2026-04-08 | ファイルリネーム機能追加 | Cline |
-| | | - API #11: ファイルリネーム PATCH /api/v1/files/rename | |
-| | | - ヘッダー・サマリー・一覧表を更新（総API数 9→10） | |
-| 1.2.0 | 2026-03-30 | アップロードキャンセル機能追加 | Cline |
-| | | - API #10: バッチキャンセル POST /api/v1/files/batches/:batchId/cancel | |
-| | | - フロントエンドでAbortController対応 | |
-| | | - 既にアップロードされたファイルの削除機能 | |
-| 1.1.0 | 2026-03-06 | ProjectManagement画面調査によりfileAccessService.tsから呼び出されるAPI追記 | Cline |
-| | | - API #7: ファイルテキスト内容取得 POST /api/v1/files/content-as-text | |
-| | | - API #8: ファイル削除 DELETE /api/v1/files/delete | |
-| 1.0.0 | 2026-02-19 17:05 | 初版作成 | Cline |
-| | | - fileAccessRoutes.tsの全エンドポイントを反映 | |
-| | | - 実装済み: 7個（100%完了） | |
-| | | - Phase1-2: ファイルサイズ上限500MBに引き上げ | |
-| | | - Phase1-3: 空フォルダプレースホルダー機能追加 | |
-| | | - Phase2-1: バッチ管理機能追加 | |
+**エンドポイント**: `POST /api/v1/files/batches/init`
 
----
+**説明**: アップロード開始前にバッチを `in_progress` 状態で先行作成し、batchId を返す。フロントエンドはこの batchId を使ってアップロード途中でもキャンセルを実行できる
 
----
+**認証**: 必須
 
-## API #12: バッチ先行作成 ✅
+**権限**: すべてのロール
 
-### 概要
+#### リクエスト
 
-| 項目 | 内容 |
-|------|------|
-| **HTTPメソッド** | POST |
-| **エンドポイント** | `/api/v1/files/batches/init` |
-| **説明** | アップロード開始前にバッチIDを先行発行する |
-| **実装状態** | ✅ 実装済み |
-| **権限** | すべてのロール（マルチテナント分離で保護） |
-| **呼び出し元** | BulkUploadDialog.tsx, FormatUploadDialog.tsx |
-
-### リクエスト
-
-**リクエストボディ（JSON）**
-
+**ボディ（JSON）**:
 ```json
 {
-  "uploadMode": "bulk",
-  "targetPath": "projects/sample_project/data",
-  "totalFiles": 10,
-  "totalSize": 123456
+  "uploadType": "bulk",
+  "batchName": "2026-08-14_bulk_upload"
 }
 ```
 
-| フィールド | 型 | 必須 | 説明 |
-|-----------|-----|------|------|
-| `uploadMode` | string | ✅ | `single`, `bulk`, `folder` のいずれか |
-| `targetPath` | string | ✅ | アップロード先パス（organization_id省略） |
-| `totalFiles` | number | ✅ | アップロード予定ファイル数 |
-| `totalSize` | number | ✅ | 合計ファイルサイズ（バイト） |
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `uploadType` | string | ○ | `single`, `bulk`, `folder` のいずれか |
+| `batchName` | string | × | 255文字以内 |
 
-### レスポンス
+#### レスポンス
 
-**成功時（200 OK）**
-
+**成功時 (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
     "batchId": "batch-550e8400-e29b-41d4-a716-446655440000-1711785300000"
+  },
+  "meta": {
+    "timestamp": "2026-02-19T17:05:00Z",
+    "requestId": "req_abc123"
   }
 }
 ```
 
+**エラー時**:
+- 400: バリデーションエラー
+- 401: 認証エラー
+- 500: システムエラー
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`initBatch`)
+
 ---
 
-## API #13: フォルダ削除 ✅
+### 13. フォルダ削除 ✅
 
-### 概要
+**エンドポイント**: `DELETE /api/v1/files/delete-folder`
 
-| 項目 | 内容 |
-|------|------|
-| **HTTPメソッド** | DELETE |
-| **エンドポイント** | `/api/v1/files/delete-folder` |
-| **説明** | 指定フォルダ配下のファイルをすべて再帰的に削除する |
-| **実装状態** | ✅ 実装済み |
-| **実装日** | 2026-04-20 |
-| **権限** | すべてのロール（マルチテナント分離で保護） |
-| **呼び出し元** | ProjectManagement.tsx, FormatManagement.tsx |
+**説明**: 指定フォルダ配下のファイルをすべて再帰的に削除する
 
-### リクエスト
+**認証**: 必須
 
-**リクエストボディ（JSON）**
+**権限**: すべてのロール
 
+**追加日**: 2026-04-20
+
+#### リクエスト
+
+**ボディ（JSON）**:
 ```json
 {
   "folderPath": "projects/sample_project/rawdata"
 }
 ```
 
+**バリデーション**:
 | フィールド | 型 | 必須 | 制約 |
-|-----------|-----|------|------|
-| `folderPath` | string | ✅ | 1〜1024文字（organization_id省略の相対パス） |
+|----------|---|------|------|
+| `folderPath` | string | ○ | 1-1024文字（organization_id省略の相対パス） |
 
-### レスポンス
+#### レスポンス
 
-**成功時（200 OK）**
-
+**成功時 (200 OK)**:
 ```json
 {
   "success": true,
-  "message": "フォルダを削除しました",
   "data": {
     "folderPath": "projects/sample_project/rawdata",
     "deletedCount": 5
+  },
+  "meta": {
+    "timestamp": "2026-04-20T10:00:00Z",
+    "requestId": "req_abc123"
   }
 }
 ```
 
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| `folderPath` | string | 削除したフォルダパス |
-| `deletedCount` | number | 削除されたファイル数 |
-
-**エラー時**
-
+**エラー時**:
 | ステータス | エラーコード | 説明 |
 |-----------|-------------|------|
 | 400 | E1003 | `folderPath` が未指定・空文字・1024文字超 |
@@ -1431,64 +1264,336 @@ try {
 | 403 | E5015 | 権限不足 |
 | 500 | E4001 | サーバーエラー（S3/Swiftアクセスエラー含む） |
 
-### 処理フロー
-
-1. バリデーション（`folderPath` 必須・文字列・1〜1024文字）
-2. `fileAccessService.deleteFolderRecursive(organizationId, folderPath)` を呼び出し
-3. `storageService.deleteFolderRecursive()` がフォルダ配下のファイルを再帰的に列挙・削除
-4. 削除件数を含むレスポンスを返却
-
-### 実装ファイル
-
+#### 実装ファイル
 - **ルート**: `backend/src/routes/fileAccessRoutes.ts`
 - **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`deleteFolder`)
 - **サービス**: `backend/src/services/fileAccessService.ts` (`deleteFolderRecursive`)
 - **ストレージ**: `backend/src/services/storageService.ts` (`deleteFolderRecursive`)
 
-### フロントエンド使用箇所
+#### 実装要件
 
-| コンポーネント | 用途 |
-|-------------|------|
-| `ProjectManagement.tsx` | プロジェクトファイル管理画面でフォルダ削除 |
-| `FormatManagement.tsx` | フォーマット管理画面でフォルダ削除 |
+**処理フロー**:
+1. バリデーション（`folderPath` 必須・文字列・1〜1024文字）
+2. `fileAccessService.deleteFolderRecursive(organizationId, folderPath)` を呼び出し
+3. `storageService.deleteFolderRecursive()` がフォルダ配下のファイルを再帰的に列挙・削除
+4. 削除件数を含むレスポンスを返却
 
-**フロントエンドサービス呼び出し例**:
-```typescript
-// frontend/src/services/fileAccessService.ts
-export async function deleteFolderByPath(folderPath: string): Promise<void> {
-  await apiClient.delete('/files/delete-folder', {
-    data: { folderPath },
-  });
-}
-```
-
-### セキュリティ考慮事項
-
-- **マルチテナント分離**: `organization_id` はセッションから自動取得。フォルダパスに自動付与されるため他組織フォルダへのアクセス不可
-- **再帰削除**: フォルダ配下のすべてのファイル（サブフォルダ含む）を削除するため、確認ダイアログを表示してから呼び出すこと
-- **権限チェック**: `authMiddleware` により認証済みユーザーのみ実行可能
+**セキュリティ**:
+- マルチテナント分離：organization_id はセッションから自動取得。フォルダパスに自動付与されるため他組織フォルダへのアクセス不可
+- 再帰削除のため、フロントエンドは確認ダイアログを表示してから呼び出すこと
 
 ---
 
-## 📝 変更履歴（更新）
+### 14. チャンクアップロードセッション開始 ✅
+
+**エンドポイント**: `POST /api/v1/files/chunks/init`
+
+**説明**: チャンク分割アップロードのセッションを開始し、uploadIdを発行する。10MB超のファイルアップロード時に使用する
+
+**認証**: 必須
+
+**権限**: すべてのロール
+
+#### リクエスト
+
+**ボディ（JSON）**:
+```json
+{
+  "fileName": "large_data.csv",
+  "totalChunks": 20,
+  "filePath": "projects/sample_project/data/large_data.csv"
+}
+```
+
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `fileName` | string | ○ | 1-255文字 |
+| `totalChunks` | integer | ○ | 1-10000 |
+| `filePath` | string | ○ | 1-1024文字（organization_id省略の相対パス） |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "uploadId": "550e8400-e29b-41d4-a716-446655440000"
+  },
+  "meta": {
+    "timestamp": "2026-02-19T17:05:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー（必須パラメータ不足または制約違反）
+- 401: 認証エラー
+- 500: システムエラー
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`initChunkUpload`)
+
+---
+
+### 15. チャンク受信 ✅
+
+**エンドポイント**: `POST /api/v1/files/chunks/:uploadId`
+
+**説明**: チャンクデータを受け取り、サーバー一時ディレクトリに保存する
+
+**認証**: 必須
+
+**権限**: すべてのロール
+
+#### リクエスト
+
+**Content-Type**: `multipart/form-data`
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `uploadId` | UUID | ○ | セッション開始時に取得したID |
+
+**フォームフィールド**:
+| フィールド | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `chunk` | File | ○ | チャンクファイルデータ |
+| `chunkIndex` | integer | ○ | チャンク番号（0始まり） |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "uploadId": "550e8400-e29b-41d4-a716-446655440000",
+    "chunkIndex": 3,
+    "received": true
+  },
+  "meta": {
+    "timestamp": "2026-02-19T17:05:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | VALIDATION_ERROR | uploadIdがUUID形式でない / chunkIndexが不正 |
+| 401 | AUTH_TOKEN_INVALID | 認証エラー |
+| 404 | NOT_FOUND | uploadIdが存在しない |
+| 500 | SYSTEM_ERROR | サーバーエラー |
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`（`upload.single('chunk')` ミドルウェア使用）
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`uploadChunk`)
+
+---
+
+### 16. チャンクアップロード中断 ✅
+
+**エンドポイント**: `DELETE /api/v1/files/chunks/:uploadId`
+
+**説明**: アップロードを中断し、サーバー上の一時ファイルを削除する。ダイアログを閉じた場合など、`complete` を呼ばずに終了するときに使用する
+
+**認証**: 必須
+
+**権限**: すべてのロール
+
+#### リクエスト
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `uploadId` | UUID | ○ | 中断するセッションのID |
+
+**ボディ**: なし
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "uploadId": "550e8400-e29b-41d4-a716-446655440000",
+    "aborted": true
+  },
+  "meta": {
+    "timestamp": "2026-02-19T17:05:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | VALIDATION_ERROR | uploadIdがUUID形式でない |
+| 401 | AUTH_TOKEN_INVALID | 認証エラー |
+| 500 | SYSTEM_ERROR | サーバーエラー |
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`abortChunkUpload`)
+
+---
+
+### 17. チャンク結合・アップロード完了 ✅
+
+**エンドポイント**: `POST /api/v1/files/chunks/:uploadId/complete`
+
+**説明**: 全チャンクを結合してストレージに保存し、一時ファイルを削除する
+
+**認証**: 必須
+
+**権限**: すべてのロール
+
+#### リクエスト
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `uploadId` | UUID | ○ | 完了するセッションのID |
+
+**ボディ（JSON）**:
+```json
+{
+  "totalChunks": 20,
+  "contentType": "text/csv"
+}
+```
+
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `totalChunks` | integer | ○ | 1以上 |
+| `contentType` | string | × | ファイルのMIMEタイプ（省略時は自動判定） |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "uploadId": "550e8400-e29b-41d4-a716-446655440000",
+    "filePath": "projects/sample_project/data/large_data.csv",
+    "size": 52428800,
+    "completed": true
+  },
+  "meta": {
+    "timestamp": "2026-02-19T17:05:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | VALIDATION_ERROR | uploadIdがUUID形式でない / totalChunksが不正 |
+| 401 | AUTH_TOKEN_INVALID | 認証エラー |
+| 404 | NOT_FOUND | uploadIdが存在しない |
+| 409 | CONFLICT | 受信済みチャンク数とtotalChunksが一致しない |
+| 500 | SYSTEM_ERROR | 結合処理エラー |
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`completeChunkUpload`)
+
+#### 実装要件
+
+**処理フロー**:
+1. uploadIdでセッション情報を取得
+2. 受信済みチャンク数と `totalChunks` が一致することを確認
+3. チャンクファイルをインデックス順に結合
+4. 結合ファイルをストレージ（S3/Swift）にアップロード
+5. サーバー上の一時ファイルをすべて削除
+6. セッション情報を削除
+
+**チャンクアップロード全体フロー**:
+```
+1. POST /files/chunks/init              → uploadId 取得
+2. POST /files/chunks/:uploadId         → チャンク送信（totalChunks回繰り返し）
+3. POST /files/chunks/:uploadId/complete → 結合・ストレージ保存
+   （中断する場合）
+   DELETE /files/chunks/:uploadId       → 一時ファイル削除
+```
+
+---
+
+## 🔒 セキュリティ考慮事項
+
+### マルチテナント分離の徹底
+
+**S3パスの必須チェック**:
+```typescript
+// ✅ 良い例
+await storageService.uploadFile(
+  organizationPrefix,  // organization_prefix必須
+  fileKey,
+  fileBuffer
+);
+
+// ❌ 悪い例
+await storageService.uploadFile(
+  '',  // organization_prefixなし
+  fileKey,
+  fileBuffer
+);
+```
+
+### ファイルサイズ制限
+
+- **単一ファイル**: 500MB
+- **バッチ合計**: 制限なし（バッチ管理で制御）
+- **超過時**: 413 Payload Too Large
+
+### 署名付きURLの有効期限
+
+- **デフォルト有効期限**: 1時間（3600秒）
+- **最大有効期限**: 7日間（604800秒）
+
+---
+
+## 📚 関連ドキュメント
+
+- [バックエンド規約](../../.clinerules/development/backend.md)
+- [セキュリティ規約](../../.clinerules/development/security.md)
+- [S3構造](../../.clinerules/references/s3_structure.md)
+
+---
+
+## 📝 変更履歴
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 1.4.0 | 2026-04-20 | フォルダ削除機能追加 | Cline |
-| | | - API #13: フォルダ削除 DELETE /api/v1/files/delete-folder | |
-| | | - API #12: バッチ先行作成 POST /api/v1/files/batches/init | |
-| | | - 総API数を12→13に更新 | |
-| 1.3.0 | 2026-04-08 | ファイルリネーム機能追加 | Cline |
-| | | - API #11: ファイルリネーム PATCH /api/v1/files/rename | |
-| 1.2.0 | 2026-03-30 | アップロードキャンセル機能追加 | Cline |
-| | | - API #10: バッチキャンセル POST /api/v1/files/batches/:batchId/cancel | |
-| 1.1.0 | 2026-03-06 | ProjectManagement画面調査によりfileAccessService.tsから呼び出されるAPI追記 | Cline |
-| | | - API #7: ファイルテキスト内容取得 POST /api/v1/files/content-as-text | |
-| | | - API #8: ファイル削除 DELETE /api/v1/files/delete | |
-| 1.0.0 | 2026-02-19 17:05 | 初版作成 | Cline |
+| 2.0.0 | 2026-08-14 | 全体フォーマット統一・内容修正 | Cline |
+| | | - EP8〜17を前半EP1〜7と同一フォーマットに統一 | |
+| | | - 変更履歴を1箇所に統合 | |
+| | | - EP9（ファイル削除）: リクエストフィールド名 `filePath` → `fileKey` に修正 | |
+| | | - EP12（バッチ先行作成）: リクエストフィールドを実装通り `uploadType`/`batchName` に修正 | |
+| | | - EP14〜17: チャンクアップロード4件を追加 | |
+| | | - API #9（DELETE /files/delete）: `checkProjectStatus` オプションパラメータ追加 | |
+| | | - 総API数: 13→17に更新 | |
+| 1.4.0 | 2026-04-20 | フォルダ削除・バッチ先行作成を追加（EP12, 13） | Cline |
+| 1.3.0 | 2026-04-08 | ファイルリネーム機能追加（EP11） | Cline |
+| 1.2.0 | 2026-03-30 | バッチキャンセル機能追加（EP10） | Cline |
+| 1.1.0 | 2026-03-06 | ファイルテキスト取得・ファイル削除を追加（EP8, 9） | Cline |
+| 1.0.0 | 2026-02-19 | 初版作成（EP1〜7） | Cline |
+| | | - Phase1-2: ファイルサイズ上限500MBに引き上げ | |
+| | | - Phase1-3: 空フォルダプレースホルダー機能追加 | |
+| | | - Phase2-1: バッチ管理機能追加 | |
 
 ---
 
 **作成者**: Cline
 **作成日**: 2026-02-19 17:05
-**最終更新**: 2026-04-20
+**最終更新**: 2026-08-14
