@@ -11,9 +11,11 @@ import { escapeHtml } from '../utils/sanitize';
 import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
+import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
+import * as experimentPlanRepository from '../repositories/experimentPlanRepository';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
@@ -22,51 +24,18 @@ import { MaimlWriterService } from './maimlWriterService';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
 import { XMLParser } from 'fast-xml-parser';
-import type { Project, Pagination, ProjectListResponse } from '../types/project';
+import type {
+  Project,
+  Pagination,
+  ProjectListResponse,
+  ListOptions,
+  ServiceResult,
+  ProjectCheckoutInfo,
+  InstructionConfirmationData,
+} from '../types/project';
 import type { ProjectFileResponse, GetProjectFilesData, StorageFileEntry } from '../types/file';
 import { nanoid } from 'nanoid';
 import { v4 as uuidv4 } from 'uuid';
-
-interface ListOptions {
-  includeCompleted: boolean;
-  sortBy?: string;
-  order?: 'asc' | 'desc';
-}
-
-interface ServiceResult<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-    originalError?: Error;
-  };
-}
-
-/**
- * チェックアウト状態情報
- * Task 3.1, 3.2, 3.3: チェックアウト/チェックイン機能で使用
- */
-interface ProjectCheckoutInfo {
-  projectId: string;
-  projectName: string;
-  isCheckedOut: boolean;
-  checkedOutBy: string | null;
-  checkedOutAt: string | null;
-}
-
-/**
- * 指示確認レスポンスデータ
- * Task: 2.1, 2.2 型定義（instructionConfirmation.tsから移植）
- */
-interface InstructionConfirmationData {
-  instruction_id: string;
-  is_acknowledged: boolean;
-  acknowledged_at: string;
-  acknowledged_user_id: string;
-  acknowledged_user_name: string;
-}
 
 /**
  * ProjectServiceクラス
@@ -78,14 +47,14 @@ export class ProjectService {
    * Task 3.1-3.7: Service層実装
    * @param organizationId - 組織ID
    * @param userId - ユーザーID
-   * @param departmentId - 部門ID
+   * @param organizationGroupId - 組織グループID
    * @param data - プロジェクトデータ
    * @returns 作成されたプロジェクト情報
    */
   async create(
     organizationId: string,
     userId: string,
-    departmentId: string | null,
+    organizationGroupId: string | null,
     data: { projectName: string; description?: string }
   ): Promise<ServiceResult<Project>> {
     const pool = getPool();
@@ -127,7 +96,7 @@ export class ProjectService {
         project_id: projectId,
         project_name: data.projectName,
         description: data.description || undefined,
-        department_cd: departmentId ?? undefined,
+        organization_group_cd: organizationGroupId ?? undefined,
         owner_user_id: userId,
         project_status: 0, // プロジェクト計画中
         checkout_status: 0, // チェックイン中
@@ -182,7 +151,7 @@ export class ProjectService {
         owner: insertResult.owner_user_id ?? '',
         ownerName: undefined,
         ownerEmail: undefined,
-        department: insertResult.department_cd || '',
+        organizationGroup: (insertResult as any).organization_group_cd || '',
         isCheckedOut: insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy:
           insertResult.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? insertResult.owner_user_id ?? null : null,
@@ -199,6 +168,12 @@ export class ProjectService {
       if (client) {
         await client.query('ROLLBACK');
       }
+      // ログ出力（今後の調査を容易にする）
+      logError('Project create error', error as Error, {
+        action: 'project_create',
+        organizationId,
+        projectName: data.projectName,
+      });
       return {
         success: false,
         error: {
@@ -313,7 +288,7 @@ export class ProjectService {
         success: true,
         data: {
           deletedCount: deletedFileCount,
-          message: `プロジェクト「${deletedProjectName}」を削除しました`,
+          message: `Project "${deletedProjectName}" has been deleted`,
         },
       };
     } catch (error) {
@@ -340,22 +315,154 @@ export class ProjectService {
 
   /**
    * プロジェクト一覧を取得
-   * 
+   *
    * @param organizationId - 組織ID
    * @param options - 取得オプション
    * @returns プロジェクト一覧とページネーション情報
+   *
+   * @remarks
+   * - SystemAdmin（roleCd === 'ROLE002'）は全プロジェクトを閲覧・編集可能
+   * - それ以外のユーザーは、自分が直接所属するグループとその配下グループのプロジェクトのみ閲覧可能
+   * - 直接所属グループのプロジェクトのみ編集可能（is_editable = true）
+   * - 将来的にSystemAdminの判定基準を変更する場合は roleCd === 'ROLE002' の条件を見直すこと
    */
   async list(
     organizationId: string,
     options: ListOptions
   ): Promise<ServiceResult<ProjectListResponse>> {
     try {
-      const { includeCompleted, sortBy = 'create_at', order = 'desc' } = options;
+      const {
+        includeCompleted,
+        sortBy = 'create_at',
+        order = 'desc',
+        organizationGroupCds = [],
+        roleCd,
+        userId,
+      } = options;
+
+      // SystemAdmin（ROLE002）は全件・全編集可能（フィルタなし）
+      const isSystemAdmin = roleCd === 'ROLE002';
+
+      let visibleGroupCds: string[] | null = null;
+      let editableGroupCds: string[] | null = null;
+
+      if (!isSystemAdmin) {
+        // 全グループ情報を取得してメモリ内で解決（findDescendantCds の前提）
+        const allGroups = await organizationGroupRepository.findAll(organizationId);
+        const allGroupMap = new Map(allGroups.map((g) => [g.organization_group_cd, g]));
+
+        // 非アクティブグループ一覧
+        const inactiveGroups = allGroups.filter((g) => !g.is_active);
+
+        // あるグループCDが、他の所属グループの子孫かどうかを判定する関数
+        const isDescendantOfAny = (cd: string, candidates: string[]): boolean => {
+          let current = allGroupMap.get(cd);
+          while (current?.parent_group_cd) {
+            if (candidates.includes(current.parent_group_cd)) return true;
+            current = allGroupMap.get(current.parent_group_cd);
+          }
+          return false;
+        };
+
+        /**
+         * 非アクティブグループの祖先チェーンを辿り、有効（is_active=true）な祖先グループCDを
+         * ルートまで全て返す（祖先が非アクティブの場合もさらに遡る）。
+         * ルートが非アクティブ（parent_group_cd=null かつ is_active=false）の場合は空配列を返す。
+         */
+        const findActiveAncestorCds = (groupCd: string): string[] => {
+          const activeCds: string[] = [];
+          let current = allGroupMap.get(groupCd);
+          // 最大深さを制限（循環参照防止）
+          let depth = 0;
+          const maxDepth = 50;
+          while (current?.parent_group_cd && depth < maxDepth) {
+            const parent = allGroupMap.get(current.parent_group_cd);
+            if (!parent) break;
+            if (parent.is_active) {
+              activeCds.push(parent.organization_group_cd);
+            }
+            current = parent;
+            depth++;
+          }
+          return activeCds;
+        };
+
+        // 直接所属グループが空の場合でも、非アクティブグループ経由で閲覧可能になる可能性があるため
+        // 先に非アクティブグループの可視性・編集可能性を評価する
+
+        // ─────────────────────────────────────────────────
+        // 非アクティブグループへの閲覧権限・編集権限の追加判定
+        // ─────────────────────────────────────────────────
+        const inactiveVisibleCds: string[] = [];
+        const inactiveEditableCds: string[] = [];
+
+        for (const inactiveGroup of inactiveGroups) {
+          // ルートチーム（parent_group_cd=null）が非アクティブ → SystemAdmin のみアクセス可能（スキップ）
+          if (!inactiveGroup.parent_group_cd) {
+            continue;
+          }
+
+          // 有効な祖先グループCD一覧を取得
+          const activeAncestorCds = findActiveAncestorCds(inactiveGroup.organization_group_cd);
+
+          // 閲覧権限: ログインユーザーが有効な祖先グループのいずれかに所属している場合
+          const isVisible = activeAncestorCds.some((cd) => organizationGroupCds.includes(cd));
+          if (isVisible) {
+            inactiveVisibleCds.push(inactiveGroup.organization_group_cd);
+          }
+
+          // 編集権限: ログインユーザーが有効な祖先グループのいずれかの代表者（chief_user_id）である場合
+          if (userId) {
+            const isChiefOfAncestor = activeAncestorCds.some((cd) => {
+              const ancestorGroup = allGroupMap.get(cd);
+              return ancestorGroup?.chief_user_id === userId;
+            });
+            if (isChiefOfAncestor) {
+              inactiveEditableCds.push(inactiveGroup.organization_group_cd);
+            }
+          }
+        }
+
+        // 直接所属グループが空の場合: 非アクティブグループ経由の閲覧のみ（アクティブグループ配下は0件）
+        if (organizationGroupCds.length === 0) {
+          if (inactiveVisibleCds.length === 0) {
+            // 閲覧可能グループなし → 0件を返す
+            return {
+              success: true,
+              data: {
+                projects: [],
+                pagination: { page: 1, limit: 0, totalItems: 0, totalPages: 1, hasNext: false, hasPrev: false },
+              },
+            };
+          }
+          visibleGroupCds = inactiveVisibleCds;
+          editableGroupCds = inactiveEditableCds;
+        } else {
+          // 直接所属グループのうち最上位ルート群を算出（他の所属グループの子孫を除外）
+          // 例: [A, A-1] が所属グループの場合、A-1 は A の子孫なので A のみをルートとする
+          const rootCds = organizationGroupCds.filter(
+            (cd) => !isDescendantOfAny(cd, organizationGroupCds)
+          );
+
+          // ルート群の配下（自身含む・is_active 無関係）を再帰取得 → 閲覧可能グループ（アクティブ分）
+          const activeDescendantCds = await organizationGroupRepository.findDescendantCds(organizationId, rootCds);
+
+          // 非アクティブグループも含めて閲覧可能グループを構築（重複除去）
+          visibleGroupCds = Array.from(new Set([...activeDescendantCds, ...inactiveVisibleCds]));
+
+          // 直接所属グループのうち is_active=true のもの ＋ 非アクティブグループ（祖先代表者として）= 編集可能グループ
+          // ※ 非アクティブグループに直接所属しているだけでは編集権限は付与されない
+          const activeOrganizationGroupCds = organizationGroupCds.filter(
+            (cd) => allGroupMap.get(cd)?.is_active === true
+          );
+          editableGroupCds = Array.from(new Set([...activeOrganizationGroupCds, ...inactiveEditableCds]));
+        }
+      }
 
       // Repository層経由でプロジェクト一覧・総件数を並列取得
       const [projects, totalItems] = await Promise.all([
-        projectRepository.findAllWithDetails(organizationId, includeCompleted, sortBy, order),
-        projectRepository.countAll(organizationId, includeCompleted),
+        projectRepository.findAllWithDetails(organizationId, includeCompleted, sortBy, order, visibleGroupCds, editableGroupCds),
+        projectRepository.countAll(organizationId, includeCompleted, visibleGroupCds),
       ]);
 
       // データを変換（フロントエンドの型に合わせる）
@@ -370,17 +477,18 @@ export class ProjectService {
         owner: row.owner_user_id,
         ownerName: row.owner_user_name || undefined,
         ownerEmail: row.owner_email || undefined,
-        department: row.department_cd || '',
-        departmentName: row.department_name || undefined,
+        organizationGroup: row.organization_group_cd || '',
+        organizationGroupName: row.organization_group_name || undefined,
         isCheckedOut: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT,
         checkedOutBy: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? row.checkout_user_id : null,
         checkedOutAt: row.checkout_status === CheckoutStatusEnum.CHECKED_OUT ? new Date().toISOString() : null,
         createdAt: row.create_at ? row.create_at.toISOString() : '',
-        updatedAt: row.update_at ? row.update_at.toISOString() : '', // 後で実装予定
+        updatedAt: row.update_at ? row.update_at.toISOString() : '',
         totalTasks: parseInt(row.task_count, 10),
         completedTasks: parseInt(row.completed_task_count, 10),
         maimlFileKey: row.maiml_file_key || null,
         project_uuid: row.project_uuid || null,
+        isEditable: isSystemAdmin ? true : (row.is_editable === true),
       }));
 
       // ページネーション情報を構築（後方互換のため残す）
@@ -615,6 +723,35 @@ export class ProjectService {
       } catch (writeError) {
         // MAIML write failure does not block checkout success (warning log only)
         console.warn('[checkout] MAIML eventLog write failed (checkout succeeded):', writeError);
+      }
+
+      // ★ 実験計画データを MAIML の mgr-instruction: プロパティとして書き込み（non-fatal）
+      try {
+        const experimentPlans = await experimentPlanRepository.findByProject(
+          organizationId,
+          projectId
+        );
+
+        if (experimentPlans.length > 0) {
+          const maimlWriterService = new MaimlWriterService();
+          await maimlWriterService.writeExperimentPlanProperties(
+            organizationId,
+            projectId,
+            project.project_name,
+            experimentPlans
+          );
+          console.log(
+            `[checkout] Experiment plan MAIML write completed: ${experimentPlans.length} records`
+          );
+        } else {
+          console.log('[checkout] No experiment plans found, skipping MAIML write');
+        }
+      } catch (planWriteError) {
+        // 実験計画書き込みエラーはチェックアウト処理をブロックしない
+        console.warn(
+          '[checkout] Experiment plan MAIML write failed (checkout succeeded):',
+          planWriteError
+        );
       }
 
       return {
@@ -1080,22 +1217,22 @@ export class ProjectService {
 
       // プロジェクトステータス検証: task_in_progress (2) のみ許可
       if (project.project_status !== ProjectStatusEnum.TASK_IN_PROGRESS) {
-        // ステータス名のマッピング
+      // ステータス名のマッピング
         const statusNames: { [key: number]: string } = {
-          0: 'プロジェクト計画中',
-          1: 'タスク実行待ち',
-          2: 'タスク実行中',
-          3: 'タスク結果レビュー待ち',
-          4: 'プロジェクト完了',
-          5: 'タスク異常終了',
+          0: 'Planning',
+          1: 'Task Pending',
+          2: 'Task In Progress',
+          3: 'Task Review Waiting',
+          4: 'Project Completed',
+          5: 'Task Error',
         };
-        const currentStatusName = statusNames[project.project_status] || '不明';
+        const currentStatusName = statusNames[project.project_status] || 'Unknown';
 
         // waiting_approval (3) の場合は特別なメッセージ
         const message =
           project.project_status === ProjectStatusEnum.REVIEW_WAITING
-            ? '既に承認依頼が送信されています'
-            : `プロジェクトステータスがタスク実行中ではありません。現在のステータス: ${currentStatusName}`;
+            ? 'Approval request has already been sent'
+            : `Project status is not in progress. Current status: ${currentStatusName}`;
 
         return {
           success: false,
@@ -1969,7 +2106,7 @@ export class ProjectService {
         success: true,
         data: {
           updatedCount,
-          message: `レビュー待ちタスク ${updatedCount} 件を完了に更新しました`,
+          message: `${updatedCount} review-waiting tasks have been completed`,
         },
       };
     } catch (error) {
@@ -1978,6 +2115,47 @@ export class ProjectService {
         error: {
           code: 'SYSTEM_DATABASE_ERROR',
           message: 'データベースエラーが発生しました',
+        },
+      };
+    }
+  }
+
+  /**
+   * プロジェクト強制終了
+   *
+   * @param organizationId - 組織ID
+   * @param projectId - プロジェクトID
+   * @returns ServiceResult
+   */
+  async forceTerminate(
+    organizationId: string,
+    projectId: string
+  ): Promise<ServiceResult<{ projectId: string }>> {
+    const pool = getPool();
+    try {
+      const sql = await loadSqlFile('project/forceTerminate.sql');
+      const result = await pool.query(sql, [ProjectStatusEnum.ERROR, organizationId, projectId]);
+
+      if (result.rowCount === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'E6001',
+            message: 'Project not found',
+          },
+        };
+      }
+
+      return {
+        success: true,
+        data: { projectId },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'E4002',
+          message: 'Database error occurred',
         },
       };
     }

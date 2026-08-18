@@ -66,8 +66,9 @@ function buildCommonTemplateXMLFromTemplate(
     xml += `      <insertion>\n`;
     // uri は必須（undefinedでも空文字で出力）
     xml += `        <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-    // hash は必須（undefinedでも空文字で出力）
-    xml += `        <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+    // hash は必須（undefinedでも空文字で出力）、method属性が存在する場合は出力
+    const hashMethodAttrCommon = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+    xml += `        <hash${hashMethodAttrCommon}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
     if (template.insertion.format) {
       xml += `        <format>${escapeXml(template.insertion.format)}</format>\n`;
     }
@@ -635,8 +636,9 @@ function buildTemplateXML(
     templateXml += `          <insertion>\n`;
     // uri は必須（undefinedでも空文字で出力）
     templateXml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
-    // hash は必須（undefinedでも空文字で出力）
-    templateXml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
+    // hash は必須（undefinedでも空文字で出力）、method属性が存在する場合は出力
+    const hashMethodAttrMethod = template.insertion.hash?.method ? ` method="${escapeXml(template.insertion.hash.method)}"` : '';
+    templateXml += `            <hash${hashMethodAttrMethod}>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
     if (template.insertion.format) {
       templateXml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
     }

@@ -352,7 +352,13 @@ export interface Property {
    */
   properties: Property[];
 
-  contents : Content[];
+  contents: Content[];
+
+  /**
+   * 不確かさ定義（property に紐づく uncertainty[] タグ）
+   * MAIMLの <uncertainty> 要素を Content 型として格納する
+   */
+  uncertainty?: Content[];
   
   // ============================================================================
   // 🆕 カスタム要素（任意のタグ名を持つ子要素）

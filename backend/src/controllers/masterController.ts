@@ -1082,17 +1082,17 @@ export async function getAttributes(req: Request, res: Response, next: NextFunct
   try {
     const organizationId = req.user?.organizationId;
 
-    const { search, is_active, apply_department_filter } = req.query;
+    const { search, is_active, apply_organization_group_filter } = req.query;
     const filters: any = {};
     if (search) filters.search = String(search);
     if (is_active !== undefined) filters.isActive = is_active === 'true' || is_active === '1';
 
-    // apply_department_filter=true の場合のみ部署フィルタを適用
-    // ログインユーザーの部署コードでフィルタリング（マスタ管理画面では使用しない）
-    if (apply_department_filter === 'true') {
-      const departmentCd = req.user?.departmentCd;
-      if (departmentCd) {
-        filters.departmentCd = departmentCd;
+    // apply_organization_group_filter=true の場合のみ組織グループフィルタを適用
+    // ログインユーザーの組織グループコード（複数対応）でフィルタリング（マスタ管理画面では使用しない）
+    if (apply_organization_group_filter === 'true') {
+      const organizationGroupCds = req.user?.organizationGroupCds;
+      if (organizationGroupCds && organizationGroupCds.length > 0) {
+        filters.organizationGroupCds = organizationGroupCds;
       }
     }
 
@@ -1153,7 +1153,7 @@ export async function createAttribute(req: Request, res: Response, next: NextFun
     const userId = req.user?.userId;
     const lang = req.headers['accept-language']?.startsWith('en') ? 'en' : 'ja';
 
-    const { attributeName, attributeValue, attributeRemark, departmentCd, isActive } = req.body;
+    const { attributeName, attributeValue, attributeRemark, organizationGroupCd, isActive } = req.body;
 
     if (!attributeName) {
       res.status(400).json({ success: false, error: { code: 'E1003', message: 'attribute_name は必須です' } });
@@ -1162,7 +1162,7 @@ export async function createAttribute(req: Request, res: Response, next: NextFun
 
     const attribute = await masterService.createAttributeMaster(
       String(organizationId),
-      { attributeName, attributeValue, attributeRemark, departmentCd, isActive },
+      { attributeName, attributeValue, attributeRemark, organizationGroupCd, isActive },
       String(userId),
       lang
     );
@@ -1196,12 +1196,12 @@ export async function updateAttribute(req: Request, res: Response, next: NextFun
     const { attributeId } = req.params;
     // attributeId はURLエンコードされた attributeName
     const attributeName = decodeURIComponent(attributeId);
-    const { attributeValue, attributeRemark, departmentCd, isActive } = req.body;
+    const { attributeValue, attributeRemark, organizationGroupCd, isActive } = req.body;
 
     const attribute = await masterService.updateAttributeMaster(
       String(organizationId),
       attributeName,
-      { attributeValue, attributeRemark, departmentCd, isActive },
+      { attributeValue, attributeRemark, organizationGroupCd, isActive },
       String(userId)
     );
 
@@ -1276,7 +1276,7 @@ export async function downloadAttributesCsv(req: Request, res: Response, next: N
       'attribute_name': a.attributeName,
       'attribute_value': a.attributeValue,
       'attribute_remark': a.attributeRemark,
-      'department_cd': a.departmentCd,
+      'organization_group_cd': a.organizationGroupCd,
       'is_active': a.isActive,
     }));
 

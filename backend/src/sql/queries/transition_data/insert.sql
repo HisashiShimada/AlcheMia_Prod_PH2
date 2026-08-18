@@ -9,8 +9,10 @@
 --   $5: transition_id (VARCHAR)
 --   $6: status (NUMERIC) - 初期値: 0
 --   $7: progress_rate (NUMERIC) - 初期値: 0
---   $8: create_user_id (VARCHAR)
---   $9: update_user_id (VARCHAR)
+--   $8: work_order (NUMERIC) - 実行順序（実験計画の __meta__.transitionOrder.order から設定）
+--   $9: prerequisite_transition_ids (VARCHAR[]) - 前提トランジションID配列
+--   $10: create_user_id (VARCHAR)
+--   $11: update_user_id (VARCHAR)
 
 INSERT INTO transition_data (
   organization_id,
@@ -20,11 +22,13 @@ INSERT INTO transition_data (
   transition_id,
   status,
   progress_rate,
+  work_order,
+  prerequisite_transition_ids,
   create_user_id,
   create_at,
   update_user_id,
   update_at
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, $9, CURRENT_TIMESTAMP
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, $11, CURRENT_TIMESTAMP
 )

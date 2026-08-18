@@ -76,6 +76,8 @@ export const TaskStatusEnum = {
   COMPLETED: 3,
   /** 異常終了 */
   FORCED_TERMINATED: 4,
+  /** NG（再作業）- Manager がレビューで否認 */
+  REVIEW_NG: 5,
 } as const;
 
 export type TaskStatusEnumType = typeof TaskStatusEnum[keyof typeof TaskStatusEnum];

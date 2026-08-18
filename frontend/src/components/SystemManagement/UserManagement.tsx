@@ -35,14 +35,56 @@ import {
   batchUpdateUserStatus,
   uploadCsv,
   downloadCsv,
+  fetchOrganizationCdByOrganizationId,
 } from '@/services/userApiService';
-import { fetchMasters as fetchDepartments } from '@/services/departmentApiService';
 import { fetchMasters as fetchRoles } from '@/services/roleApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { extractErrorMessage, extractErrorCode } from '@/utils/errorUtils';
+import { generateNamespaceUri } from '@/utils/namespaceUriGenerator';
 
 const { Text } = Typography;
+
+// ── ユーザー追加/編集ダイアログ用: 名前空間フィールド
+interface UserNamespaceFieldsProps {
+  form: ReturnType<typeof Form.useForm>[0];
+  isEditing: boolean;
+  organizationCd: string;
+}
+function UserNamespaceFields({ form, isEditing, organizationCd }: UserNamespaceFieldsProps) {
+  // 編集モード: 既存の URI をラベルで表示
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { t } = useLanguage();
+
+  if (isEditing) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const existingUri: string = Form.useWatch('namespaceUri', form) ?? '';
+    return (
+      <Form.Item label={t('userManagement.form.namespaceUriLabel')}>
+        <Text type={existingUri ? undefined : 'secondary'}>
+          {existingUri || t('userManagement.form.namespaceUriNotSet')}
+        </Text>
+      </Form.Item>
+    );
+  }
+
+  // 追加モード: メールアドレス入力に連動してURIをリアルタイム生成
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const mailAddress: string = Form.useWatch('mailAddress', form) ?? '';
+  const loginName = mailAddress.includes('@') ? mailAddress.split('@')[0] : '';
+  // loginName が確定していない場合はプレースホルダーを表示する（URI未生成）
+  const autoUri = organizationCd && loginName
+    ? generateNamespaceUri(organizationCd, undefined, undefined, loginName)
+    : '';
+
+  return (
+    <Form.Item label={t('userManagement.form.namespaceUriAutoGenLabel')}>
+      <Text type={autoUri ? undefined : 'secondary'}>
+        {autoUri || t('userManagement.form.namespaceUriAutoGenPlaceholder')}
+      </Text>
+    </Form.Item>
+  );
+}
 
 export default function UserManagement() {
   const { message, modal } = App.useApp();
@@ -56,19 +98,32 @@ export default function UserManagement() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<string>('');
-  const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
   const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [organizationCd, setOrganizationCd] = useState<string>('');
   const [form] = Form.useForm();
 
   useEffect(() => {
     loadUsers();
-    loadDepartments();
     loadRoles();
+    loadOrganizationCd();
   }, []);
+
+  const loadOrganizationCd = async () => {
+    try {
+      if (typeof window === 'undefined') return;
+      const raw = localStorage.getItem('userInfo');
+      if (!raw) return;
+      const info = JSON.parse(raw) as { organizationId?: string };
+      if (!info.organizationId) return;
+      const cd = await fetchOrganizationCdByOrganizationId(info.organizationId);
+      setOrganizationCd(cd);
+    } catch {
+      // 取得失敗時は空のまま（URI表示なし）
+    }
+  };
 
   const loadUsers = async () => {
     try {
@@ -80,22 +135,6 @@ export default function UserManagement() {
       message.error(extractErrorMessage(error, t('userManagement.messages.fetchError')));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadDepartments = async () => {
-    try {
-      const data = await fetchDepartments();
-      const options = data
-        .filter((d) => (d as unknown as { isActive: boolean }).isActive !== false) // アクティブな部署のみ表示
-        .map((d) => ({
-          value: String(d.departmentId),
-          label: String(d.displayName),
-        }));
-      setDepartments(options);
-    } catch (error) {
-      console.error('部署一覧の取得に失敗:', error);
-      message.error(extractErrorMessage(error, t('userManagement.messages.departmentFetchError')));
     }
   };
 
@@ -123,11 +162,10 @@ export default function UserManagement() {
         (user.userId && String(user.userId).toLowerCase().includes(searchLower)) ||
         (user.mailAddress && String(user.mailAddress).toLowerCase().includes(searchLower))
       );
-      const matchesDepartment = !selectedDepartment || user.departmentCd === selectedDepartment;
       const matchesRole = !selectedRole || user.roleCd === selectedRole;
-      return matchesSearch && matchesDepartment && matchesRole;
+      return matchesSearch && matchesRole;
     });
-  }, [users, searchText, selectedDepartment, selectedRole]);
+  }, [users, searchText, selectedRole]);
 
   // フィルタ変化時に1ページ目にリセット
   useEffect(() => {
@@ -186,21 +224,6 @@ export default function UserManagement() {
           color: record.isActive !== false ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)',
         }}>
           {text}
-        </Text>
-      ),
-    },
-    {
-      title: <div style={{ textAlign: 'center' }}>{t('userManagement.columns.departmentName')}</div>,
-      dataIndex: 'departmentName',
-      key: 'departmentName',
-      width: 150,
-      align: 'left',
-      sorter: (a, b) => (String(a.departmentName) || '').localeCompare(String(b.departmentName) || ''),
-      render: (text: string, record) => (
-        <Text style={{
-          color: record.isActive !== false ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)',
-        }}>
-          {text || '-'}
         </Text>
       ),
     },
@@ -294,7 +317,6 @@ export default function UserManagement() {
     form.setFieldsValue({
       userName: user.userName,
       mailAddress: user.mailAddress,
-      departmentCd: user.departmentCd,
       roleCd: user.roleCd,
       isActive: user.isActive,
     });
@@ -386,7 +408,6 @@ export default function UserManagement() {
   const handleReload = () => {
     loadUsers();
     setSearchText('');
-    setSelectedDepartment('');
     setSelectedRole('');
     setSelectedRowKeys([]);
     message.success(t('userManagement.messages.reloadSuccess'));
@@ -421,7 +442,6 @@ export default function UserManagement() {
       setLoading(true);
       await downloadCsv({
         search: searchText,
-        department_cd: selectedDepartment,
         role_cd: selectedRole,
       });
       message.success(t('userManagement.messages.csvDownloadSuccess'));
@@ -439,7 +459,7 @@ export default function UserManagement() {
       if (editingUser) {
         const updateData: UpdateUserRequest = {
           userName: values.userName,
-          departmentCd: values.departmentCd,
+          organizationGroupCds: values.organizationGroupCds,
           roleCd: values.roleCd,
           isActive: values.isActive,
         };
@@ -448,13 +468,20 @@ export default function UserManagement() {
         await loadUsers();
         message.success(t('userManagement.messages.saveSuccess'));
       } else {
+        // organizationCd state（mount時にAPIで取得済み）とメールアドレスからURIを生成
+        const mailAddr: string = values.mailAddress ?? '';
+        const loginName = mailAddr.includes('@') ? mailAddr.split('@')[0] : '';
+        const computedNsUri = organizationCd
+          ? generateNamespaceUri(organizationCd, undefined, undefined, loginName || undefined)
+          : '';
         const createData: CreateUserRequest = {
           userId: values.mailAddress,
           userName: values.userName,
           mailAddress: values.mailAddress,
-          departmentCd: values.departmentCd,
+          organizationGroupCds: values.organizationGroupCds,
           roleCd: values.roleCd,
           isActive: values.isActive,
+          namespaceUri: computedNsUri || undefined,
         };
         setLoading(true);
         await createUser(createData);
@@ -553,17 +580,6 @@ export default function UserManagement() {
           </Col>
           <Col style={{ width: 150 }}>
             <Select
-              placeholder={t('userManagement.filters.department')}
-              value={selectedDepartment || undefined}
-              onChange={(value) => setSelectedDepartment(value || '')}
-              allowClear
-              style={{ width: '100%' }}
-              options={departments}
-              disabled={loading}
-            />
-          </Col>
-          <Col style={{ width: 150 }}>
-            <Select
               placeholder={t('userManagement.filters.role')}
               value={selectedRole || undefined}
               onChange={(value) => setSelectedRole(value || '')}
@@ -618,7 +634,7 @@ export default function UserManagement() {
             label={t('userManagement.form.userName')}
             rules={[{ required: true, message: t('userManagement.form.userNameRequired') }]}
           >
-            <Input placeholder="山田 太郎" />
+            <Input placeholder={t('userManagement.form.userNamePlaceholder')} />
           </Form.Item>
           <Form.Item
             name="mailAddress"
@@ -629,13 +645,6 @@ export default function UserManagement() {
             ]}
           >
             <Input placeholder="example@company.com" disabled={!!editingUser} />
-          </Form.Item>
-          <Form.Item
-            name="departmentCd"
-            label={t('userManagement.form.department')}
-            rules={[]}
-          >
-            <Select placeholder={t('userManagement.form.departmentPlaceholder')} options={departments} />
           </Form.Item>
           <Form.Item
             name="roleCd"
@@ -656,6 +665,7 @@ export default function UserManagement() {
               ]}
             />
           </Form.Item>
+          <UserNamespaceFields form={form} isEditing={!!editingUser} organizationCd={organizationCd} />
         </Form>
       </Modal>
 

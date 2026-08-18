@@ -22,7 +22,8 @@ interface UserData {
   mail_address: string;
   role_cd: string;
   organization_id: string;
-  department_cd: string;
+  /** 所属組織階層グループCD一覧（多対多） */
+  organization_group_cds: string[];
   corporation_id?: string;              // 会社ID（オプション）
   organization_display_name?: string;   // 組織表示名（オプション）
 }
@@ -60,7 +61,6 @@ export async function issueSessionTokens(
       ou.mail_address,
       ou.role_cd,
       ou.organization_id,
-      ou.department_cd,
       o.organization_display_name,
       o.corporation_id
     FROM organization_user ou
@@ -121,7 +121,7 @@ export async function issueSessionTokens(
     user.organization_id
   );
 
-  // 5. トークンペア生成（departmentCd と corporationId を JWT に含める）
+  // 5. トークンペア生成（organizationGroupCds と corporationId を JWT に含める）
   const newTokenId = uuidv4();
   const tokenPairResult = await jwtService.generateTokenPair({
     userId: user.user_id,
@@ -130,7 +130,7 @@ export async function issueSessionTokens(
     sessionId: newTokenId,
     tokenId: newTokenId,
     permissions,
-    departmentCd: user.department_cd || undefined,
+    organizationGroupCds: user.organization_group_cds,
   });
 
   if (!tokenPairResult.success) {
@@ -188,7 +188,7 @@ export async function issueSessionTokens(
         organizationId: user.organization_id,
         organizationName: organizationName,
         displayName: user.user_name,
-        departmentCd: user.department_cd,
+        organizationGroupCds: user.organization_group_cds,
         initialScreenFunctionCd: initialScreenFunctionCd,
         permissions: permissions,  // 権限情報を追加（メニューアクセス制御用）
       },

@@ -18,8 +18,14 @@ export interface Project {
   owner: string;
   ownerName?: string;
   ownerEmail?: string;
-  department: string;
-  departmentName?: string;
+  organizationGroup: string;
+  organizationGroupName?: string;
+  /**
+   * 編集可能かどうか
+   * - SystemAdmin: 常に true
+   * - それ以外: 自分が直接所属するグループのプロジェクトのみ true
+   */
+  isEditable?: boolean;
   isCheckedOut: boolean;
   checkedOutBy: string | null;
   checkedOutAt: string | null;
@@ -109,7 +115,7 @@ export interface ProjectFilterParams {
   ownerFilter?: 'my_only' | 'all';
   checkoutFilter?: 'all' | 'checked_in' | 'checked_out';
   projectStatusFilter?: 'all' | number;
-  departmentFilter?: string;
+  organizationGroupFilter?: string;
   showMaimlOnly?: boolean;
   sortBy?: 'name' | 'status' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
@@ -121,7 +127,7 @@ export interface ProjectFilterParams {
 export interface ProjectStats {
   total: number;
   byStatus: Record<number, number>;
-  byDepartment: Record<string, number>;
+  byOrganizationGroup: Record<string, number>;
   checkedOut: number;
   checkedIn: number;
 }
@@ -182,6 +188,8 @@ export interface CheckoutProjectResponse {
 export interface CreateProjectRequest {
   projectName: string;
   description?: string;
+  /** 組織グループCD。チーム選択時にPOSTボディへ含める必須フィールド。 */
+  organizationGroupCd?: string;
 }
 
 /**
@@ -194,7 +202,7 @@ export interface CreateProjectResponse {
   description: string;
   status: string;
   organizationId: string;
-  departmentId: string;
+  organizationGroupId: string;
   createdBy: string;
   createdAt: string;
 }
@@ -338,7 +346,7 @@ export interface ProgressRecord {
   projectId: string;
   projectName: string;
   projectStatus: string;
-  department: string;
+  organizationGroup: string;
   isCheckedOut: boolean;
   ownerEmail: string;
   ownerName: string;
@@ -387,8 +395,14 @@ export interface CreateProjectData {
   description: string;
   folderName: string;
   owner: string;
-  department: string;
+  organizationGroup: string;
   organizationId: string;
+  /**
+   * 組織グループCD（任意）。
+   * 選択時はそのグループのメンバーのみ閲覧可。
+   * 未選択時は作成者の所属組織グループCDが自動的に使用される（NULL にはならない）。
+   */
+  organizationGroupCd?: string;
 }
 
 /**
@@ -396,6 +410,16 @@ export interface CreateProjectData {
  * 移動元: components/project/BulkUploadDialog.tsx
  */
 export type UploadMode = 'single' | 'bulk' | 'folder';
+
+/**
+ * ワークフロー選択ダイアログの選択結果型
+ * WorkflowSelectorDialog でプロジェクトを選択した際に返す型
+ */
+export interface WorkflowProjectSelection {
+  projectId: string;
+  projectName: string;
+  maimlContent: string;
+}
 
 /**
  * MaiML 公開ステータスレスポンス型
@@ -431,5 +455,64 @@ export interface UploadState {
 export interface ProjectFilesData {
   root: import('./file').ProjectFile[];
   subFolderFiles: Record<string, import('./file').ProjectFile[]>;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// チェックアウト関連型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * チェックアウト / チェックイン レスポンス型
+ * POST /api/v1/projects/:projectId/checkout
+ * POST /api/v1/projects/:projectId/checkin
+ */
+export interface CheckoutResponse {
+  projectId: string;
+  projectName: string;
+  isCheckedOut: boolean;
+  checkedOutBy: string | null;
+  checkedOutAt: string | null;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MaiML 公開/非公開ジョブ関連型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * MaiML 公開/非公開ジョブレスポンス型（publish/unpublish 共通）
+ * POST /api/v1/projects/:projectId/publish
+ * POST /api/v1/projects/:projectId/unpublish
+ */
+export interface PublishJobResponse {
+  job_id: string | null;
+  status: 'pending' | 'running' | 'done' | 'error' | null;
+  message: string;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MAIML関連型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * プロジェクト MAIML ファイルレスポンス型
+ * GET /api/v1/projects/:projectId/maiml
+ */
+export interface ProjectMaimlResponse {
+  maimlContent: string;
+  projectName: string;
+  lastModified?: string;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// プロジェクト削除関連型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * プロジェクト削除レスポンス型
+ * DELETE /api/v1/projects/:projectId
+ */
+export interface DeleteProjectResponse {
+  deletedCount: number;
+  message: string;
 }
 

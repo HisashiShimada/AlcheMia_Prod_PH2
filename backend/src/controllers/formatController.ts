@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { formatService } from '../services/formatService';
-import { AppError } from '../enums/errorCodes';
+import { AppError, E1005, E1008, E5015 } from '../enums/errorCodes';
+import { getMessage } from '../utils/messages';
 
 /** AppError のエラーコードから HTTP ステータスコードを導出する */
 function statusFromCode(code: string): number {
@@ -15,23 +16,66 @@ function statusFromCode(code: string): number {
 }
 
 /**
+ * AppError に statusCode を付与して next に渡すヘルパー
+ * errorHandlerMiddleware は err.statusCode を参照するため必要
+ */
+function nextWithStatus(error: unknown, next: NextFunction): void {
+  if (error instanceof AppError) {
+    (error as any).statusCode = statusFromCode(error.code);
+  }
+  next(error);
+}
+
+/**
+ * ユーザーが指定した組織グループに所属しているか検証する
+ * 所属していない場合は E5015 をスローする
+ */
+function assertBelongsToOrganizationGroup(
+  req: Request,
+  organizationGroupCd: string
+): void {
+  const userGroupCds = req.user!.organizationGroupCds ?? [];
+  if (!userGroupCds.includes(organizationGroupCd)) {
+    const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
+    throw new AppError(E5015, getMessage(lang, 'organizationGroup.accessDenied'));
+  }
+}
+
+/**
+ * リクエストから organizationGroupCd を解決する
+ * クエリパラメータ or ボディに指定があればそれを使用し、
+ * 未指定の場合はユーザーの所属グループ先頭要素にフォールバックする
+ */
+function resolveOrganizationGroupCd(req: Request, source: 'query' | 'body' = 'query'): string {
+  const raw = source === 'query'
+    ? req.query.organizationGroupCd
+    : req.body.organizationGroupCd;
+  const fromRequest = typeof raw === 'string' && raw.length > 0 ? raw : undefined;
+  const cd = fromRequest ?? req.user!.organizationGroupCds?.[0] ?? 'default';
+  // 指定があった場合のみ所属チェック（フォールバック値はユーザー自身のものなのでチェック不要）
+  if (fromRequest) {
+    assertBelongsToOrganizationGroup(req, cd);
+  }
+  return cd;
+}
+
+/**
  * フォーマット一覧取得
  * GET /api/v1/formats
  */
-export async function getFormats(req: Request, res: Response): Promise<void> {
+export async function getFormats(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     // 1. ユーザー情報から組織IDを取得（authMiddlewareで検証済み）
     const organizationId = req.user!.organizationId!;
-    // 2. JWTから部門CDを取得
-    const departmentCd = req.user!.departmentCd! || 'default';
+    // 2. クエリパラメータ or フォールバックで組織グループCDを解決
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'query');
 
     // 3. S3からフォーマットフォルダ一覧を取得
     const folders = await formatService.getFormatFolders(
       organizationId,
-      departmentCd
+      organizationGroupCd
     );
 
-    // 5. レスポンス返却
     res.json({
       success: true,
       data: {
@@ -43,24 +87,8 @@ export async function getFormats(req: Request, res: Response): Promise<void> {
       },
     });
   } catch (error) {
-    console.error('Error in getFormats:', error);
-
-    // エラーハンドリング
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'E4001',
-        message: 'フォーマット一覧の取得に失敗しました',
-        details:
-          process.env.NODE_ENV === 'development'
-            ? (error as Error).message
-            : undefined,
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: req.headers['x-request-id'] as string || 'unknown',
-      },
-    });
+    console.error('[formatController] getFormats error:', error);
+    nextWithStatus(error, next);
   }
 }
 
@@ -76,12 +104,11 @@ async function getFormatFiles(
     const { folderName } = req.params;
     const { path: subPath } = req.query;
     const organizationId = req.user!.organizationId!;
-    const departmentCd = req.user!.departmentCd! || 'default';
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'query');
 
-    // サービスを呼び出してファイル一覧を取得
     const files = await formatService.getFormatFiles(
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       folderName,
       typeof subPath === 'string' ? subPath : undefined
     );
@@ -94,7 +121,7 @@ async function getFormatFiles(
     });
   } catch (error) {
     console.error('[formatController] getFormatFiles error:', error);
-    next(error);
+    nextWithStatus(error, next);
   }
 }
 
@@ -105,17 +132,16 @@ async function getFormatFiles(
 async function createFormatFolder(
   req: Request,
   res: Response,
-  _next: NextFunction
+  next: NextFunction
 ): Promise<void> {
   try {
     const { folderName } = req.body;
     const organizationId = req.user!.organizationId!;
-    const departmentCd = req.user!.departmentCd! || 'default';
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'body');
 
-    // サービスを呼び出してフォルダを作成
     const result = await formatService.createFormatFolder(
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       folderName
     );
 
@@ -129,20 +155,7 @@ async function createFormatFolder(
     });
   } catch (error) {
     console.error('[formatController] createFormatFolder error:', error);
-
-    const appError = error instanceof AppError ? error : null;
-    const errorCode = appError ? appError.code : 'E4001';
-    const statusCode = appError ? statusFromCode(appError.code) : 500;
-    const errorMessage = (error as Error).message;
-
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: req.headers['x-request-id'] as string || 'unknown',
-      },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -153,17 +166,16 @@ async function createFormatFolder(
 async function createFormatSubfolder(
   req: Request,
   res: Response,
-  _next: NextFunction
+  next: NextFunction
 ): Promise<void> {
   try {
     const { formatName, subfolderName, parentPath } = req.body;
     const organizationId = req.user!.organizationId!;
-    const departmentCd = req.user!.departmentCd! || 'default';
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'body');
 
-    // サービスを呼び出してサブフォルダを作成
     const result = await formatService.createFormatSubfolder(
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       formatName,
       subfolderName,
       parentPath
@@ -179,20 +191,7 @@ async function createFormatSubfolder(
     });
   } catch (error) {
     console.error('[formatController] createFormatSubfolder error:', error);
-
-    const appError = error instanceof AppError ? error : null;
-    const errorCode = appError ? appError.code : 'E4001';
-    const statusCode = appError ? statusFromCode(appError.code) : 500;
-    const errorMessage = (error as Error).message;
-
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: req.headers['x-request-id'] as string || 'unknown',
-      },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -203,29 +202,26 @@ async function createFormatSubfolder(
 async function createFormatFile(
   req: Request,
   res: Response,
-  _next: NextFunction
+  next: NextFunction
 ): Promise<void> {
   try {
     const { folderName } = req.params;
     const { fileName, currentPath } = req.body;
-    
-    // 型アサーション（ミドルウェアで検証済みと想定）
     const organizationId = req.user!.organizationId;
-    const departmentCd = req.user!.departmentCd! || 'default';
+    const organizationGroupCd = resolveOrganizationGroupCd(req, 'body');
 
     console.log('[formatController] createFormatFile called:', {
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       folderName,
       fileName,
       currentPath,
       sessionExists: !!req.session,
     });
 
-    // サービスを呼び出してファイルを作成（userId を渡して file_metadata を自動登録）
     const result = await formatService.createFormatFile(
       organizationId,
-      departmentCd,
+      organizationGroupCd,
       folderName,
       fileName,
       currentPath,
@@ -242,20 +238,7 @@ async function createFormatFile(
     });
   } catch (error) {
     console.error('[formatController] createFormatFile error:', error);
-
-    const appError = error instanceof AppError ? error : null;
-    const errorCode = appError ? appError.code : 'E4001';
-    const statusCode = appError ? statusFromCode(appError.code) : 500;
-    const errorMessage = (error as Error).message;
-
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: req.headers['x-request-id'] as string || 'unknown',
-      },
-    });
+    nextWithStatus(error, next);
   }
 }
 
@@ -266,7 +249,7 @@ async function createFormatFile(
 async function updateFormatFile(
   req: Request,
   res: Response,
-  _next: NextFunction
+  next: NextFunction
 ): Promise<void> {
   try {
     const { filePath, content } = req.body;
@@ -278,30 +261,15 @@ async function updateFormatFile(
       contentLength: content?.length,
     });
 
-    // バリデーション
+    // バリデーション（AppError で throw → nextWithStatus → errorHandlerMiddleware）
     if (!filePath || typeof filePath !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'E1005',
-          message: 'ファイルパスが不正です',
-        },
-      });
-      return;
+      throw new AppError(E1005, 'ファイルパスが不正です');
     }
 
     if (!content || typeof content !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'E1008',
-          message: 'ファイル内容が不正です',
-        },
-      });
-      return;
+      throw new AppError(E1008, 'ファイル内容が不正です');
     }
 
-    // サービスを呼び出してファイルを更新（userId を渡して file_metadata を自動登録）
     const result = await formatService.updateFormatFile(
       organizationId,
       filePath,
@@ -319,20 +287,7 @@ async function updateFormatFile(
     });
   } catch (error) {
     console.error('[formatController] updateFormatFile error:', error);
-
-    const appError = error instanceof AppError ? error : null;
-    const errorCode = appError ? appError.code : 'E4001';
-    const statusCode = appError ? statusFromCode(appError.code) : 500;
-    const errorMessage = (error as Error).message;
-
-    res.status(statusCode).json({
-      success: false,
-      error: { code: errorCode, message: errorMessage },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: req.headers['x-request-id'] as string || 'unknown',
-      },
-    });
+    nextWithStatus(error, next);
   }
 }
 

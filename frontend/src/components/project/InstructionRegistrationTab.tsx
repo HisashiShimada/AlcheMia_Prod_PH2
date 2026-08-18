@@ -49,10 +49,14 @@ const { useToken } = theme;
  * 指示登録タブのプロパティ
  */
 interface InstructionRegistrationTabProps {
-  projectId: string;
+projectId: string;
   projectName: string;
   isActive: boolean;
   isCheckoutLocked?: boolean;
+  /** 編集権限フラグ。false の場合は変更系ボタンを非活性にする */
+  isEditable?: boolean;
+  /** プロジェクト完了フラグ。true の場合は変更系ボタンを非活性にする */
+  isProjectCompleted?: boolean;
   onInstructionsSubmit?: (instructions: InstructionData[]) => void;
 }
 
@@ -64,6 +68,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   projectName,
   isActive,
   isCheckoutLocked,
+  isEditable = true,
+  isProjectCompleted = false,
   onInstructionsSubmit,
 }) => {
   const { token } = useToken();
@@ -478,7 +484,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => handleOpenEditDialog(record)}
-                disabled={isSending}
+                disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}
                 data-testid={`instruction-edit-button-${record.id}`}
               >
                 {t('instructionRegistration.editButton')}
@@ -488,7 +494,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 onClick={() => handleDeleteInstruction(record.id)}
-                disabled={isSending}
+                disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}
                 data-testid={`instruction-delete-button-${record.id}`}
               >
                 {t('instructionRegistration.deleteButton')}
@@ -515,7 +521,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             type="primary"
             icon={<SendOutlined />}
             onClick={handleSubmitInstructions}
-            disabled={instructions.length === 0 || isSending || isCheckoutLocked}
+            disabled={instructions.length === 0 || isSending || isCheckoutLocked || !isEditable || isProjectCompleted}
             loading={isSending}
             data-testid="instruction-bulk-send-button"
             style={{

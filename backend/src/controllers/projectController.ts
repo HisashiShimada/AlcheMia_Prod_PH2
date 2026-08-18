@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse } from '../types/api';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
+import * as projectRepository from '../repositories/projectRepository';
 import { enqueuePublish, enqueueUnpublish, getPublishStatus as fetchPublishStatus } from '../services/maimlPublishService';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
@@ -28,11 +29,29 @@ export async function create(req: Request, res: Response): Promise<void> {
 
   try {
     const { organizationId, userId } = req.user!;
-    const departmentCd = req.user!.departmentCd ?? null;
+    const organizationGroupCds = req.user!.organizationGroupCds ?? [];
     
     // 型定義を適用
     const requestBody = req.body as CreateProjectRequest;
-    const { projectName, description } = requestBody;
+    const { projectName, description, organizationGroupCd: requestedOrgGroupCd } = requestBody;
+
+    // 公開範囲の決定:
+    //   チーム選択は必須。未指定の場合は 400 エラーを返す。
+    if (!requestedOrgGroupCd) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'E1004',
+          message: 'Please select a team',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+    const resolvedOrgGroupCd = requestedOrgGroupCd;
 
     // 権限チェック（Workerは403）
     if ((req.user as any).role === 'experiment_worker') {
@@ -40,7 +59,7 @@ export async function create(req: Request, res: Response): Promise<void> {
         success: false,
         error: {
           code: 'E5015',
-          message: '権限が不足しています',
+          message: 'Insufficient permissions',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -50,8 +69,8 @@ export async function create(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Task 2.3: Service層呼び出し
-    const result = await projectService.create(organizationId, userId, departmentCd, {
+    // Task 2.3: Service層呼び出し（resolvedOrgGroupCd を organization_gourp_cd として保存）
+    const result = await projectService.create(organizationId, userId, resolvedOrgGroupCd, {
       projectName,
       description,
     });
@@ -71,7 +90,7 @@ export async function create(req: Request, res: Response): Promise<void> {
         success: false,
         error: {
           code: errorCode,
-          message: result.error?.message || 'エラーが発生しました',
+          message: result.error?.message || 'An error occurred',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -102,7 +121,7 @@ export async function create(req: Request, res: Response): Promise<void> {
       success: false,
       error: {
         code: 'E4001',
-        message: 'システムエラーが発生しました',
+        message: 'An internal server error occurred',
       },
       meta: {
         timestamp: new Date().toISOString(),
@@ -131,13 +150,9 @@ export async function renameProjectHandler(req: Request, res: Response): Promise
     // バリデーションはミドルウェア（projectRoutes.ts）で実施済み
     const { newProjectName } = req.body as { newProjectName: string };
 
-    // projectIdからプロジェクト名を取得
-    const pool = getPool();
-    const pjRow = await pool.query(
-      'SELECT project_name FROM project WHERE project_id = $1 AND organization_id = $2',
-      [projectId, organizationId]
-    );
-    if (pjRow.rows.length === 0) {
+    // projectIdからプロジェクト名を取得（Repository経由）
+    const pjRecord = await projectRepository.findByIdFull(organizationId, projectId);
+    if (!pjRecord) {
       res.status(404).json({
         success: false,
         error: { code: 'E6001', message: 'プロジェクトが見つかりません' },
@@ -148,7 +163,7 @@ export async function renameProjectHandler(req: Request, res: Response): Promise
 
     const result = await renameProject({
       organizationId,
-      oldProjectName: pjRow.rows[0].project_name,
+      oldProjectName: pjRecord.project_name ?? '',
       newProjectName,
       userId,
     });
@@ -313,14 +328,9 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // ── projectId でプロジェクト存在確認 ──────────────────────────
-    const pool = getPool();
-    const projectResult = await pool.query(
-      'SELECT project_id FROM project WHERE organization_id = $1 AND project_id = $2',
-      [organizationId, projectId]
-    );
-
-    if (projectResult.rows.length === 0) {
+    // ── projectId でプロジェクト存在確認（Repository経由） ──────────
+    const pjExists = await projectRepository.findByIdFull(organizationId, projectId);
+    if (!pjExists) {
       res.status(404).json({
         success: false,
         error: {
@@ -778,25 +788,14 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
   const projectService = new ProjectService();
 
   try {
-    console.log('[DEBUG] getProjectFiles - Start', { requestId, params: req.params, query: req.query });
-    
     const { organizationId } = req.user!;
     const { projectId } = req.params;
-    
-    console.log('[DEBUG] getProjectFiles - Auth OK', { organizationId, projectId, userId: req.user!.userId });
 
     // Service層呼び出し（archiveファイルは常に取得）
-    console.log('[DEBUG] getProjectFiles - Calling service...');
     const result = await projectService.getProjectFiles(
       organizationId,
       projectId
     );
-    
-    console.log('[DEBUG] getProjectFiles - Service result', { 
-      success: result.success, 
-      hasData: !!result.data,
-      errorCode: result.error?.code 
-    });
 
     // エラーハンドリング
     if (!result.success) {
@@ -824,10 +823,6 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
     }
 
     // 成功レスポンス
-    console.log('[DEBUG] getProjectFiles - Success response', { 
-      filesCount: result.data?.files?.length || 0,
-    });
-    
     res.status(200).json({
       success: true,
       data: result.data,
@@ -837,7 +832,6 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
       },
     });
   } catch (error) {
-    console.error('[DEBUG] getProjectFiles - Exception caught', error);
     logError('Project getProjectFiles error', error as Error, {
       action: 'project_getProjectFiles',
       organizationId: req.user?.organizationId,
@@ -870,18 +864,23 @@ export async function list(req: Request, res: Response): Promise<void> {
   try {
     console.log('一覧取得－開始');
     
-    const { organizationId } = req.user!;
+    const { organizationId, userId } = req.user!;
 
     // クエリパラメータの取得
     const includeCompleted = req.query.include_completed === 'true';
     const sortBy = (req.query.sort_by as string) || 'create_at';
     const order = (req.query.order as string) || 'desc';
+    const roleCd = (req.user as any).roleCd as string | undefined;
+    const organizationGroupCdsList = req.user!.organizationGroupCds ?? [];
 
     // Service層の呼び出し
     const result = await projectService.list(organizationId, {
       includeCompleted,
       sortBy,
       order: order as 'asc' | 'desc',
+      roleCd,
+      organizationGroupCds: organizationGroupCdsList,
+      userId,
     });
     console.log('Service層呼び出し' + result.success);
 
@@ -1602,6 +1601,51 @@ export async function getPublishStatus(req: Request, res: Response): Promise<voi
  * 指示確認エンドポイント
  * POST /api/v1/instructions/:instructionId/confirm
  */
+/**
+ * プロジェクト強制終了
+ * POST /api/v1/projects/:projectId/force-terminate
+ *
+ * @description プロジェクトステータスを強制終了（ERROR=5）に更新する
+ */
+export async function forceTerminate(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectId } = req.params;
+
+    const result = await projectService.forceTerminate(organizationId, projectId);
+
+    if (!result.success) {
+      const errorCode = result.error?.code || 'E4001';
+      const statusCode = errorCode === 'E6001' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'An error occurred',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: result.data,
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('forceTerminate error', error as Error, { requestId });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'System error occurred' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
 export async function confirmInstruction(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   const projectService = new ProjectService();
@@ -1642,7 +1686,7 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
         success: false,
         error: {
           code: errorCode,
-          message: result.error?.message || 'エラーが発生しました',
+      message: result.error?.message || 'An error occurred',
           details: result.error?.details,
         },
         meta: {
@@ -1675,7 +1719,7 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
       success: false,
       error: {
         code: 'E4001',
-        message: 'システムエラーが発生しました',
+        message: 'An internal server error occurred',
       },
       meta: {
         timestamp: new Date().toISOString(),

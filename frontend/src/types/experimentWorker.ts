@@ -178,6 +178,19 @@ export interface Method {
   tasks?: Task[]; // Phase 2: タスク一覧（実験作業タブ用）
 }
 
+/**
+ * 定量評価の1行分のデータ
+ * DataRecordDialog の定量評価行リストで使用
+ */
+export interface QuantitativeEval {
+  /** フロント管理用一意ID */
+  id: string;
+  /** 評価方法（不確かさ基準の definition_name） */
+  method: string;
+  /** 閾値（文字列として保持） */
+  threshold: string;
+}
+
 // プロパティ定義
 export interface Property {
   key: string;
@@ -194,6 +207,16 @@ export interface Property {
   description?: string;                // プロパティの説明文（MAIMLの <description> 要素）
   formatString?: string;               // 数値フォーマット文字列（例: "%.3f"）
   scaleFactor?: string;                // 単位変換係数
+  // ── カード表示用フィールド（experiment_plan.planned_values から取得、なければ null）──
+  plannedValue?: string | number | null;       // 想定値
+  toleranceValue?: string | null;              // 不確かさ値（定量評価の許容値）
+  uncertaintyNote?: string | null;             // 不確かさ説明
+  uncertaintyKey?: string | null;              // 不確かさ基準Key（定性評価の選択肢解決に使用）
+  uncertaintyName?: string | null;             // 不確かさ基準名（許容誤差列のラベルとして使用）
+  // ── 評価値（template_data.property_set に保存）──
+  qualitativeOptions?: string[];               // 定性評価の選択肢（指定なければデフォルト使用）
+  qualitativeEval?: string | null;             // 定性評価の選択値
+  quantitativeEvals?: QuantitativeEval[];      // 定量評価の行リスト
 }
 
 
@@ -432,6 +455,8 @@ export interface Issue {
   projectName?: string;    // プロジェクト名（対象がプロジェクトの場合）
   taskId?: string;         // タスクID（対象がタスクの場合）
   taskName?: string;       // タスク名（対象がタスクの場合）
+  /** タスクNo（問題件数を taskNo 単位で集計するために使用） */
+  taskNo?: number;
   title: string;           // タイトル
   content: string;         // 内容
   status: IssueStatus;     // 状態（未解決/解決済）

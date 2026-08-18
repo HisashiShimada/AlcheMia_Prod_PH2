@@ -36,6 +36,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   FileSearchOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { fetchTemplateFiles } from '@/services/templateApi';
 import type { ListFormatsResponse } from '@/types/format';
@@ -45,9 +46,14 @@ import type {
   TemplateError,
 } from '../../types/editor';
 import { Template, Insertion, PlaceRef} from '@/types/maiml-unified';
+import InsertionEditorForm from '@/components/common/InsertionEditorForm';
 import NestedPropertyEditor from './NestedPropertyEditor';
 import type { PropertyData } from '@/types/editor';
+import UncertaintyCriteriaSelectorModal from '../uncertainty/UncertaintyCriteriaSelectorModal';
+import type { TargetProperty, AssignPayload } from '../uncertainty/UncertaintyCriteriaSelectorModal';
 import useNamespaceOperations from '../../hooks/useNamespaceOperations';
+import { getAllTermsAsMap } from '@/services/namespaceApiService';
+import type { NamespaceTermRow } from '@/services/namespaceApiService';
 import type { NamespaceData } from '@/types/format';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
 import {
@@ -88,6 +94,10 @@ interface TemplateEditorDialogProps {
   ) => void;
   allNodes?: Array<{ id: string; data: NodeData }>;
   templateErrors?: Record<string, TemplateError[]>;
+  /** 編集中のファイル名（例: "sample_project.maiml"）。アップロード先パスの生成に使用（sourceS3Keyが存在しない場合のフォールバック） */
+  editingFileName?: string;
+  /** S3キー（例: '{orgId}/projects/{projectName}/{fileName}.maiml'）。uploadTargetPathの生成に優先使用 */
+  sourceS3Key?: string;
 }
 
 /**
@@ -100,6 +110,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   onSave,
   allNodes = [],
   templateErrors = {},
+  editingFileName,
+  sourceS3Key,
 }) => {
   const { t } = useLanguage();
   const [hasChanges, setHasChanges] = useState(false);
@@ -131,6 +143,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   // Bug Fix: V1のforceRenderKeyパターンを適用（Contents用）
   const [forceContentRenderKey, setForceContentRenderKey] = useState(0);
 
+  // 用語マップ（open 時に全件取得してキャッシュ）
+  const [termMap, setTermMap] = useState<Map<string, NamespaceTermRow>>(new Map());
   // ✅ XMLビュー用State
   const [activeTabKey, setActiveTabKey] = useState<string>('ui');
   const [xmlContent, setXmlContent] = useState('');
@@ -142,7 +156,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // ✅ Phase 2-2: 名前空間取り込み用State（Reference版に統一）
   const [showNamespaceDialog, setShowNamespaceDialog] = useState(false);
-  const [formatsResponse, setFormatsResponse] = useState<ListFormatsResponse>({ departments: [] });
+  const [formatsResponse, setFormatsResponse] = useState<ListFormatsResponse>({ organizationGroups: [] });
   const [selectedNamespaceFile, setSelectedNamespaceFile] = useState<string>('');
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [importedNamespaces, setImportedNamespaces] = useState<string[]>([]);
@@ -160,11 +174,305 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   // ✅ Phase 4: バリデーション用State
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
+  // ===== 不確かさ基準セレクターモーダル用State =====
+  const [criteriaSelectorOpen, setCriteriaSelectorOpen] = useState(false);
+  const [criteriaTargetProperty, setCriteriaTargetProperty] = useState<TargetProperty | null>(null);
+  /** 編集モード時の初期ペイロード（不確かさ編集ボタン押下時にセット） */
+  const [criteriaEditPayload, setCriteriaEditPayload] = useState<AssignPayload | null>(null);
+  /**
+   * 編集中の uncertainty インデックス
+   * null = 新規追加モード、number = 既存uncertaintyの上書き編集
+   */
+  const [criteriaEditUncertaintyIndex, setCriteriaEditUncertaintyIndex] = useState<number | null>(null);
+
+  /**
+   * 不確かさ「編集」ボタン押下ハンドラー
+   * 既存の uncertainty ノードの内容を initialPayload に変換してモーダルを開く
+   * @param index - 編集対象 uncertainty のインデックス（children 内での位置）
+   */
+  const handleEditUncertainty = (propertyKey: string, uncertaintyNode: PropertyData, index: number) => {
+    const section = (node.data.placeType as 'material' | 'condition' | 'result') ?? 'material';
+    const tag: 'property' | 'content' = 'property';
+    const xsiType = uncertaintyNode.attributes?.['xsi:type'] ?? '';
+    const value = uncertaintyNode.elements?.['value'] ?? '';
+    const unit = uncertaintyNode.attributes?.['units'] ?? '';
+    const desc = uncertaintyNode.elements?.['description'] ?? '';
+
+    const target: TargetProperty = {
+      name: propertyKey,
+      xpath: `${section}/${tag}[@key="${propertyKey}"]`,
+      tag,
+      type: xsiType,
+      value,
+      unit,
+      section,
+      desc,
+    };
+
+    // 既存不確かさの key を使って initialPayload を構築
+    const criteriaKey = uncertaintyNode.key ?? '';
+    const editPayload: AssignPayload = {
+      criteria: {
+        id: 0,
+        key: criteriaKey,
+        name: '',
+        evalType: value !== '' && !isNaN(Number(value)) ? 'quantitative' : 'qualitative',
+        scopeType: 'organization',
+        scopeLabel: '',
+        scopeOrder: 3,
+        desc,
+        unit,
+        format: xsiType,
+        targetSections: [section as 'material' | 'condition' | 'result'],
+        targetTag: 'property',
+        typeMatches: [],
+        unitMatches: [],
+        qualitativeOptions: [],
+      },
+      ucValue: value !== '' && !isNaN(Number(value)) ? Number(value) : undefined,
+      qualitativeValue: value,
+      comment: desc,
+    };
+
+    setCriteriaTargetProperty(target);
+    setCriteriaEditPayload(editPayload);
+    setCriteriaEditUncertaintyIndex(index);
+    setCriteriaSelectorOpen(true);
+  };
+
+  /**
+   * 評価基準ボタン押下ハンドラー
+   * PropertyData → TargetProperty に変換してモーダルを開く
+   */
+  const handleOpenCriteriaSelector = (propertyKey: string, propertyData: PropertyData) => {
+    const section = (node.data.placeType as 'material' | 'condition' | 'result') ?? 'material';
+    const tagName = propertyData.tagName ?? 'property';
+    const tag: 'property' | 'content' = tagName === 'content' ? 'content' : 'property';
+    const xsiType = propertyData.attributes?.['xsi:type'] ?? '';
+    const value = propertyData.elements?.['value'] ?? '';
+    const unit = propertyData.attributes?.['units'] ?? '';
+    const desc = propertyData.elements?.['description'] ?? '';
+
+    const target: TargetProperty = {
+      name: propertyKey,
+      xpath: `${section}/${tag}[@key="${propertyKey}"]`,
+      tag,
+      type: xsiType,
+      value,
+      unit,
+      section,
+      desc,
+    };
+
+    setCriteriaTargetProperty(target);
+    setCriteriaEditPayload(null);
+    // 新規追加モードなので index は null にリセット
+    setCriteriaEditUncertaintyIndex(null);
+    setCriteriaSelectorOpen(true);
+  };
+
+  /**
+   * 評価基準付与コールバック（複数付与対応版）
+   * - criteriaEditUncertaintyIndex が null の場合 → 末尾に追加
+   * - criteriaEditUncertaintyIndex が number の場合 → そのインデックスを上書き
+   */
+  const handleCriteriaAssign = (payload: AssignPayload) => {
+    console.log('[TemplateEditorDialog] 評価基準付与:', payload, 'editIndex:', criteriaEditUncertaintyIndex);
+
+    if (!criteriaTargetProperty) return;
+    const targetKey = criteriaTargetProperty.name;
+
+    // 付与する値: 定量評価は ucValue、定性評価は qualitativeValue
+    const ucValueStr =
+      payload.ucValue !== undefined
+        ? String(payload.ucValue)
+        : payload.qualitativeValue ?? '';
+
+    // 親プロパティの xsi:type / units を取得して uncertainty タグに付与
+    const parentPropData = criteriaTargetProperty
+      ? (properties[criteriaTargetProperty.name] ?? null)
+      : null;
+    const parentXsiType = parentPropData?.attributes?.['xsi:type'] ?? '';
+    const parentUnits = parentPropData?.attributes?.['units'] ?? '';
+
+    // 定性評価は xsi:type / units 不要
+    const isQualitative = payload.criteria.evalType === 'qualitative';
+    // 新しい uncertainty 子ノード
+    const uncertaintyNode: PropertyData = {
+      key: payload.criteria.key,
+      tagName: 'uncertainty',
+      attributes: isQualitative
+        ? {}
+        : {
+            ...(parentXsiType ? { 'xsi:type': parentXsiType } : {}),
+            ...(parentUnits ? { units: parentUnits } : {}),
+          },
+      elements: {
+        ...(ucValueStr ? { value: ucValueStr } : {}),
+        ...(payload.comment ? { description: payload.comment } : {}),
+      },
+      children: [],
+    };
+
+    // 編集インデックスをクロージャに捕捉（state更新後も正しい値を参照するため）
+    const editIndex = criteriaEditUncertaintyIndex;
+
+    /**
+     * 対象ノードを再帰検索し、uncertainty を追加 or 上書きする
+     * editIndex=null  → 末尾に追加
+     * editIndex=number → そのインデックスを上書き
+     */
+    const applyUncertaintyToNode = (
+      obj: Record<string, PropertyData>,
+      targetKey: string
+    ): boolean => {
+      // トップレベルで発見
+      if (obj[targetKey]) {
+        if (!obj[targetKey].children) {
+          obj[targetKey].children = [];
+        }
+        const ucChildren = obj[targetKey].children.filter((c) => c.tagName === 'uncertainty');
+        const otherChildren = obj[targetKey].children.filter((c) => c.tagName !== 'uncertainty');
+
+        if (editIndex !== null && editIndex < ucChildren.length) {
+          // 既存の uncertainty[editIndex] を上書き
+          ucChildren[editIndex] = uncertaintyNode;
+        } else {
+          // 末尾に追加
+          ucChildren.push(uncertaintyNode);
+        }
+        // uncertainty ノードを先頭、それ以外を後ろに並べ直す
+        obj[targetKey].children = [...ucChildren, ...otherChildren];
+        return true;
+      }
+      // 再帰的に子要素を探索
+      for (const key in obj) {
+        const currentNode = obj[key];
+        if (currentNode?.children && Array.isArray(currentNode.children)) {
+          for (let i = 0; i < currentNode.children.length; i++) {
+            const child = currentNode.children[i];
+            if (child.key === targetKey) {
+              if (!child.children) child.children = [];
+              const ucChildren = child.children.filter((c) => c.tagName === 'uncertainty');
+              const otherChildren = child.children.filter((c) => c.tagName !== 'uncertainty');
+              if (editIndex !== null && editIndex < ucChildren.length) {
+                ucChildren[editIndex] = uncertaintyNode;
+              } else {
+                ucChildren.push(uncertaintyNode);
+              }
+              child.children = [...ucChildren, ...otherChildren];
+              return true;
+            }
+            if (child.children && child.children.length > 0) {
+              const tempObj: Record<string, PropertyData> = { [child.key]: child };
+              if (applyUncertaintyToNode(tempObj, targetKey)) return true;
+            }
+          }
+        }
+      }
+      return false;
+    };
+
+    setProperties((prevProperties) => {
+      const updated: Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
+      const found = applyUncertaintyToNode(updated, targetKey);
+      if (!found) {
+        console.warn('[handleCriteriaAssign] 対象プロパティが見つかりませんでした:', targetKey);
+      }
+      return updated;
+    });
+
+    setForceRenderKey(Date.now());
+    setHasChanges(true);
+    setCriteriaSelectorOpen(false);
+    setCriteriaEditUncertaintyIndex(null);
+    const modeLabel = editIndex !== null ? t('common.update') : t('common.add');
+    message.success(t('template.uncertaintyApplied', { key: targetKey, mode: modeLabel }));
+  };
+
+  /**
+   * 不確かさ削除ハンドラー（インデックス指定で1件削除）
+   */
+  const handleDeleteUncertainty = (propertyKey: string, uncertaintyIndex: number) => {
+    const removeUncertaintyFromNode = (
+      obj: Record<string, PropertyData>,
+      targetKey: string
+    ): boolean => {
+      if (obj[targetKey]) {
+        if (!obj[targetKey].children) return false;
+        const ucChildren = obj[targetKey].children.filter((c) => c.tagName === 'uncertainty');
+        const otherChildren = obj[targetKey].children.filter((c) => c.tagName !== 'uncertainty');
+        ucChildren.splice(uncertaintyIndex, 1);
+        obj[targetKey].children = [...ucChildren, ...otherChildren];
+        return true;
+      }
+      for (const key in obj) {
+        const currentNode = obj[key];
+        if (currentNode?.children && Array.isArray(currentNode.children)) {
+          for (let i = 0; i < currentNode.children.length; i++) {
+            const child = currentNode.children[i];
+            if (child.key === targetKey) {
+              if (!child.children) return false;
+              const ucChildren = child.children.filter((c) => c.tagName === 'uncertainty');
+              const otherChildren = child.children.filter((c) => c.tagName !== 'uncertainty');
+              ucChildren.splice(uncertaintyIndex, 1);
+              child.children = [...ucChildren, ...otherChildren];
+              return true;
+            }
+            if (child.children && child.children.length > 0) {
+              const tempObj: Record<string, PropertyData> = { [child.key]: child };
+              if (removeUncertaintyFromNode(tempObj, targetKey)) return true;
+            }
+          }
+        }
+      }
+      return false;
+    };
+
+    setProperties((prevProperties) => {
+      const updated: Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
+      removeUncertaintyFromNode(updated, propertyKey);
+      return updated;
+    });
+    setForceRenderKey(Date.now());
+    setHasChanges(true);
+    message.success(t('template.uncertaintyDeleted', { key: propertyKey }));
+  };
+
   // useNamespaceOperations フック
   const { analyzeNamespaceFile, replaceTemplateWithNamespace } = useNamespaceOperations();
 
   // Attributeマスタ取得（属性追加ダイアログの選択肢用）
   const { attributeRecords } = useAttributeMasters();
+
+  /**
+   * 用語プレビューマップ（qname → displayName）
+   * NestedPropertyEditor のヘッダー表示名に使用する
+   */
+  const termDisplayMap = useMemo<Map<string, string>>(() => {
+    const map = new Map<string, string>();
+    termMap.forEach((term, qname) => {
+      if (term.displayName) map.set(qname, term.displayName);
+    });
+    return map;
+  }, [termMap]);
+
+  /**
+   * 用語の型・単位マップ（qname → { type?, unitHint? }）
+   * 属性追加ダイアログで xsi:type / units 選択時のデフォルト値に使用する
+   */
+  const termTypeUnitMap = useMemo<Map<string, { type?: string; unitHint?: string }>>(() => {
+    const map = new Map<string, { type?: string; unitHint?: string }>();
+    termMap.forEach((term, qname) => {
+      const entry: { type?: string; unitHint?: string } = {};
+      if (term.type) entry.type = term.type;
+      if (term.unitHint) entry.unitHint = term.unitHint;
+      if (entry.type !== undefined || entry.unitHint !== undefined) {
+        map.set(qname, entry);
+      }
+    });
+    return map;
+  }, [termMap]);
 
   /**
    * テンプレートタイプ判定
@@ -307,6 +615,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setXmlErrors([]);
       setHasUnsyncedXmlChanges(false);
       setActiveTabKey('ui');
+
+      // 用語マップをリセットし、open 時に全件取得
+      setTermMap(new Map());
+      getAllTermsAsMap()
+        .then((map) => setTermMap(map))
+        .catch((err) => console.warn('⚠️ [TemplateEditorDialog] 用語マップ取得失敗:', err));
     }
   }, [open, node, mergedTemplate]);
 
@@ -336,13 +650,21 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       return;
     }
 
+    // 用語マップから一致する用語を取得して初期値を補完
+    const matchedTerm = termMap.get(newPropertyKey.trim());
+
     setProperties({
       ...properties,
       [newPropertyKey.trim()]: {
         key: newPropertyKey.trim(),
         tagName: newPropertyTagName,
-        attributes: {},
-        elements: {},
+        attributes: {
+          ...(matchedTerm?.type ? { 'xsi:type': matchedTerm.type } : {}),
+          ...(matchedTerm?.unitHint ? { units: matchedTerm.unitHint } : {}),
+        },
+        elements: {
+          ...(matchedTerm?.description ? { description: matchedTerm.description } : {}),
+        },
         children: []
       }
     });
@@ -831,7 +1153,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     } catch (error) {
       console.error('テンプレートファイル一覧取得エラー:', error);
       message.error(t('formatManagement.messages.file_list_load_failed'));
-      setFormatsResponse({ departments: [] });
+      setFormatsResponse({ organizationGroups: [] });
     } finally {
       setIsLoadingTemplates(false);
     }
@@ -1053,14 +1375,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       const validationResult = validateTemplateXML(xmlContent);
       if (!validationResult.isValid) {
         message.error(
-          `XMLにエラーがあるため保存できません: ${validationResult.errors.map(e => e.message).join(', ')}`
+          t('editor.template.xmlSaveError', { errors: validationResult.errors.map(e => e.message).join(', ') })
         );
         return;
       }
       const parseResult = parseXMLToTemplate(xmlContent);
       if (!parseResult.success || !parseResult.data) {
         message.error(
-          `XMLのパースに失敗しました: ${parseResult.errors.map(e => e.message).join(', ')}`
+          t('editor.template.xmlParseError', { errors: parseResult.errors.map(e => e.message).join(', ') })
         );
         return;
       }
@@ -1453,55 +1775,19 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 {t('template.sectionInsertion')}
               </Title>
               
-              <Form.Item label="URI">
-                <Input
-                  value={insertion.uri}
-                  onChange={(e) => {
-                    setInsertion({ ...insertion, uri: e.target.value });
-                    setHasChanges(true);
-                  }}
-                  placeholder="例: s3://bucket/path/to/file"
-                />
-              </Form.Item>
-
-              <Form.Item label="Hash Method">
-                <Input
-                  value={insertion.hash?.method || ''}
-                  onChange={(e) => {
-                    setInsertion({ 
-                      ...insertion, 
-                      hash: { ...insertion.hash, method: e.target.value } 
-                    });
-                    setHasChanges(true);
-                  }}
-                  placeholder="例: sha256"
-                />
-              </Form.Item>
-
-              <Form.Item label="Hash Value">
-                <Input
-                  value={insertion.hash?.value || ''}
-                  onChange={(e) => {
-                    setInsertion({ 
-                      ...insertion, 
-                      hash: { ...insertion.hash, value: e.target.value } 
-                    });
-                    setHasChanges(true);
-                  }}
-                  placeholder="例: abc123..."
-                />
-              </Form.Item>
-
-              <Form.Item label="Format">
-                <Input
-                  value={insertion.format}
-                  onChange={(e) => {
-                    setInsertion({ ...insertion, format: e.target.value });
-                    setHasChanges(true);
-                  }}
-                  placeholder="例: application/xml"
-                />
-              </Form.Item>
+              <InsertionEditorForm
+                value={insertion}
+                onChange={(v) => {
+                  setInsertion(v);
+                  setHasChanges(true);
+                }}
+                uploadTargetPath={(() => {
+                  // sourceS3Key（例: "{orgId}/projects/{projectName}/{fileName}.maiml"）から projectName を抽出
+                  const match = sourceS3Key?.match(/\/projects\/([^/]+)\//);
+                  const projectName = match?.[1] ?? editingFileName?.replace(/\.maiml$/, '') ?? '';
+                  return projectName ? `projects/${projectName}/attachments` : undefined;
+                })()}
+              />
             </>
           )}
         </div>
@@ -1539,6 +1825,11 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 onDeleteProperty={handleDeleteProperty}
                 forceRenderKey={forceRenderKey}
                 attributeRecords={attributeRecords}
+                onOpenCriteriaSelector={handleOpenCriteriaSelector}
+                onEditUncertainty={handleEditUncertainty}
+                onDeleteUncertainty={handleDeleteUncertainty}
+                termDisplayMap={termDisplayMap}
+                termTypeUnitMap={termTypeUnitMap}
               />
             ))
           )}
@@ -1592,7 +1883,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                             {data.attributes && Object.keys(data.attributes).length > 0 && (
                               <div style={{ marginTop: 8 }}>
                                 <Text type="secondary" strong style={{ fontSize: 12 }}>
-                                  📋 属性
+                                  {t('templateEditorHardcoded.attributesLabel')}
                                 </Text>
                                 {Object.entries(data.attributes).map(([attrName, attrValue]) => (
                                   <div key={attrName} style={{ marginLeft: 16 }}>
@@ -1608,7 +1899,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                             {data.elements && Object.keys(data.elements).length > 0 && (
                               <div style={{ marginTop: 8 }}>
                                 <Text type="secondary" strong style={{ fontSize: 12 }}>
-                                  📄 要素
+                                  {t('templateEditorHardcoded.elementsLabel')}
                                 </Text>
                                 {Object.entries(data.elements).map(([elemName, elemValue]) => (
                                   <div key={elemName} style={{ marginLeft: 16 }}>
@@ -1671,6 +1962,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     onDeleteProperty={handleDeleteContent}
                     forceRenderKey={forceContentRenderKey}
                     attributeRecords={attributeRecords}
+                    termTypeUnitMap={termTypeUnitMap}
                   />
                 ))
               )}
@@ -1721,10 +2013,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               style={{ width: '100%' }}
               showSearch
               treeDefaultExpandAll={true}
-              treeData={formatsResponse.departments.flatMap(dept =>
-                dept.folders.map(folder => ({
-                  title: `${dept.departmentCd} / ${folder.folderName}`,
-                  value: `${dept.departmentCd}/${folder.folderName}`,
+              treeData={formatsResponse.organizationGroups.flatMap((group: import('@/types/format').FormatOrganizationGroup) =>
+                group.folders.map(folder => ({
+                  title: `${group.organizationGroupCd} / ${folder.folderName}`,
+                  value: `${group.organizationGroupCd}/${folder.folderName}`,
                   selectable: false,
                   children: folder.files.map(file => ({
                     title: file.fileName,
@@ -1756,8 +2048,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                   message={
                     <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                       <Text strong>
-                        📊 プロパティ: {Object.keys(namespacePreview.parsedData.properties).length}件 ／
-                        コンテンツ: {Object.keys(namespacePreview.parsedData.contents).length}件
+                        {t('templateEditorHardcoded.previewPropsLabel', {
+                          props: String(Object.keys(namespacePreview.parsedData.properties).length),
+                          contents: String(Object.keys(namespacePreview.parsedData.contents).length),
+                        })}
                       </Text>
                       <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                         {Object.entries(
@@ -1785,7 +2079,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           )}
 
           {/* ファイルなし警告 */}
-          {!isLoadingTemplates && formatsResponse.departments.length === 0 && (
+          {!isLoadingTemplates && formatsResponse.organizationGroups.length === 0 && (
             <Alert
               message={t('template.nsNoFilesFound')}
               description={t('template.nsNoFilesDesc')}
@@ -1799,15 +2093,51 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       <Modal
         title={t('template.addPropTitle')}
         open={showAddModal}
-        onCancel={() => setShowAddModal(false)}
+        onCancel={() => {
+          setShowAddModal(false);
+          setNewPropertyKey('');
+        }}
         onOk={handleAddProperty}
+        okButtonProps={{ disabled: !newPropertyKey }}
       >
-        <Space orientation="vertical" style={{ width: '100%' }}>
-          <Input
+        <Space direction="vertical" style={{ width: '100%' }}>
+          {/* 用語選択（showSearch付きSelect） */}
+          <Select
+            showSearch
+            style={{ width: '100%' }}
             placeholder={t('template.propKeyPlaceholder')}
-            value={newPropertyKey}
-            onChange={(e) => setNewPropertyKey(e.target.value)}
-          />
+            value={newPropertyKey || undefined}
+            suffixIcon={<SearchOutlined />}
+            optionLabelProp="value"
+            filterOption={(input, option) => {
+              if (!option) return false;
+              const qname = String(option.value ?? '').toLowerCase();
+              const displayName = String(option['data-display'] ?? '').toLowerCase();
+              const q = input.toLowerCase();
+              return qname.includes(q) || displayName.includes(q);
+            }}
+            onChange={(val: string) => {
+              setNewPropertyKey(val);
+            }}
+            onClear={() => {
+              setNewPropertyKey('');
+            }}
+            allowClear
+            notFoundContent={termMap.size === 0 ? t('template.termMapLoading') : t('template.termNotFound')}
+          >
+            {Array.from(termMap.entries())
+              .filter(([, term]) => term.displayName && term.displayName.trim() !== '')
+              .map(([qname, term]) => (
+                <Option key={qname} value={qname} data-display={term.displayName ?? ''}>
+                  <div style={{ lineHeight: 1.4 }}>
+                    <div style={{ fontWeight: 600 }}>{term.displayName}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>{qname}</div>
+                  </div>
+                </Option>
+              ))}
+          </Select>
+
+          {/* タグ名選択 */}
           <Select
             style={{ width: '100%' }}
             placeholder={t('template.tagNamePlaceholder')}
@@ -1818,6 +2148,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             <Option value="content">content</Option>
             <Option value="parameter">parameter</Option>
           </Select>
+
         </Space>
       </Modal>
 
@@ -1868,7 +2199,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               : namespacePreview.parsedData.contents;
             return (
               <div>
-                <Text strong>取り込む要素: {Object.keys(sourceData).length}件</Text>
+                <Text strong>{t('templateEditorHardcoded.importElementsCount', { count: String(Object.keys(sourceData).length) })}</Text>
                 <div style={{
                   maxHeight: 300,
                   overflowY: 'auto',
@@ -1884,7 +2215,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       </Tag>
                       {duplicateKeys.includes(key) && (
                         <Text type="warning" style={{ marginLeft: 8, fontSize: 12 }}>
-                          (上書き)
+                          {t('templateEditorHardcoded.overwriteLabel')}
                         </Text>
                       )}
                     </div>
@@ -1988,6 +2319,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       </Modal>
       </div>
       )}
+
+      {/* ===== 不確かさ基準セレクターモーダル ===== */}
+      <UncertaintyCriteriaSelectorModal
+        open={criteriaSelectorOpen}
+        onClose={() => {
+          setCriteriaSelectorOpen(false);
+          setCriteriaEditPayload(null);
+        }}
+        targetProperty={criteriaTargetProperty}
+        onAssign={handleCriteriaAssign}
+        initialPayload={criteriaEditPayload ?? undefined}
+      />
     </Modal>
   );
 };

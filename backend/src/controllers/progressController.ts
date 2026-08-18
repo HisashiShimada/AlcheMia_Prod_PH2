@@ -24,6 +24,7 @@ import { TaskFilters } from '../types/task';
 import { logger } from '../utils/logger';
 import { TransitionDataUpdate } from '../types/transitionData';
 import * as projectRepository from '../repositories/projectRepository';
+import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { ProjectStatusEnum } from '../enums/codeMaster.enum';
 import { HTTP_STATUS } from '../constants/httpStatus';
 
@@ -151,6 +152,57 @@ export async function getProgressData(req: Request, res: Response): Promise<void
         requestId
       }
     });
+  }
+}
+
+/**
+ * NGタスク一覧取得API（実験作業者用）
+ *
+ * GET /api/v1/progress/projects/:projectId/ng-tasks
+ *
+ * @description task_status=6（NG）のタスク一覧を返す。NG理由モーダルに表示する。
+ * @roles experiment_worker（050000 読取専用）
+ */
+export async function getNgTasks(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const requestId = uuidv4();
+  const timestamp = new Date().toISOString();
+
+  try {
+    const { projectId } = req.params;
+    const { organizationId } = req.user!;
+
+    logger.info('getNgTasks request received', { projectId, organizationId, requestId });
+
+    // プロジェクト全タスクを取得してNG（task_status=6）を絞り込む
+    const allTasks = await projectTaskDetailRepository.findByProject(organizationId, projectId);
+    const ngTasks = allTasks.filter((t) => t.task_status === 6);
+
+    const ngTaskItems = ngTasks.map((t) => ({
+      taskNo: t.task_no,
+      methodId: t.method_id,
+      reviewResult: t.review_result ?? '',
+      reviewedAt: t.reviewed_at ? (t.reviewed_at as Date).toISOString() : null,
+      reviewUserId: t.review_user_id ?? null,
+    }));
+
+    logger.info('getNgTasks succeeded', { projectId, ngCount: ngTaskItems.length, requestId });
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: { ngTasks: ngTaskItems },
+      meta: { timestamp, requestId },
+    });
+  } catch (error) {
+    logger.error('Unexpected error in getNgTasks', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      requestId,
+    });
+    next(error);
   }
 }
 

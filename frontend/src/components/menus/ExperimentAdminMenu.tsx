@@ -6,6 +6,9 @@ import {
   LineChartOutlined,
   FileTextOutlined,
   FolderAddOutlined,
+  ExperimentOutlined,
+  TeamOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
@@ -14,6 +17,9 @@ import ProjectManagement from '../project/ProjectManagement';
 import WorkerScreenOverlay from '../project/WorkerScreenOverlay';
 import FormatManagement from '../format/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
+import UncertaintyManagement from '../uncertainty/UncertaintyManagement';
+import TeamManagementPanel from '../team/TeamManagementPanel';
+import KeyManagementScreen from '../key-management/KeyManagementScreen';
 import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -86,6 +92,21 @@ export default function ExperimentAdminMenu({
       label: t('menu.experiment_admin.tabs.progressMonitoring') || '進捗確認',
       icon: <LineChartOutlined />,
     },
+    {
+      key: '4',
+      label: t('menu.experiment_admin.tabs.namespaceManagement') || '名前空間管理',
+      icon: <ExperimentOutlined />,
+    },
+    {
+      key: '5',
+      label: 'チーム管理',
+      icon: <TeamOutlined />,
+    },
+    {
+      key: '6',
+      label: t('menu.experiment_admin.tabs.keyManagement') || '鍵管理',
+      icon: <KeyOutlined />,
+    },
   ];
 
   const handleTabChange = (key: string) => {
@@ -155,6 +176,8 @@ export default function ExperimentAdminMenu({
           <ProjectManagement
             onEdit={handleEditProject}
             onOpenWorkerScreen={handleOpenWorkerScreen}
+            user={user}
+            onNavigateToTeamManagement={() => setCurrentTab('5')}
           />
         </div>
 
@@ -166,6 +189,21 @@ export default function ExperimentAdminMenu({
         {/* タブ3: 進捗確認 - display:none でマウント維持し state を保持 */}
         <div style={{ display: currentTab === '3' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
           <ProgressMonitoring />
+        </div>
+
+        {/* タブ4: 名前空間管理 - display:none でマウント維持し state を保持 */}
+        <div style={{ display: currentTab === '4' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
+          <UncertaintyManagement user={user} />
+        </div>
+
+        {/* タブ5: チーム管理 */}
+        <div style={{ display: currentTab === '5' ? 'block' : 'none', height: '100%', overflow: 'hidden', background: '#fff' }}>
+          <TeamManagementPanel />
+        </div>
+
+        {/* タブ6: 鍵管理 - display:none でマウント維持し state を保持 */}
+        <div style={{ display: currentTab === '6' ? 'block' : 'none', height: '100%', overflow: 'auto' }}>
+          <KeyManagementScreen />
         </div>
       </Content>
       {/* 作業者画面オーバーレイ */}

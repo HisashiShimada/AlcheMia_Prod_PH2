@@ -60,7 +60,12 @@ import type {
   Classifier,
   PropertyCustomElement,
   Parent,
-  Chain
+  Chain,
+  EncryptionContainer,
+  EncryptedData,
+  EncryptionMethod,
+  CipherData,
+  EncryptionProperty
 } from '@/types/maiml-unified';
 
 /**
@@ -209,6 +214,129 @@ export function normalizeTagCase(obj: any): any {
   }
   return result;
 }
+
+// ============================================================================
+// 暗号化変換ヘルパー
+// ============================================================================
+
+/**
+ * xml-js要素から xenc:EncryptedData（encryptionGroup）を抽出する
+ *
+ * normalizeTagCase + stripNamespacePrefixes 適用後のオブジェクトを前提とする。
+ * - xenc:EncryptedData → stripNamespacePrefixes で EncryptedData → normalizeTagCase で encrypteddata
+ * - xenc:CipherData    → cipherdata
+ * - xenc:CipherValue   → ciphervalue
+ * - xenc:EncryptionMethod → encryptionmethod
+ * - xenc:EncryptionProperties / xenc:EncryptionProperty → encryptionproperties / encryptionproperty
+ * - ds:KeyInfo/ds:KeyName → keyinfo/keyname
+ *
+ * @param xmlEl - normalizeTagCase + stripNamespacePrefixes 適用済みのxml-js要素
+ * @returns EncryptionContainer、または undefined（暗号化されていない場合）
+ */
+export function extractEncryptionContainer(xmlEl: any): EncryptionContainer | undefined {
+  if (!xmlEl || typeof xmlEl !== 'object') return undefined;
+
+  // normalizeTagCase により 'encrypteddata' キーになっている
+  const encDataEl = xmlEl.encrypteddata;
+  if (!encDataEl) return undefined;
+
+  try {
+    // ---- CipherData ----
+    const cipherDataEl = encDataEl.cipherdata;
+    const cipherData: CipherData = {};
+    if (cipherDataEl) {
+      const cipherValueEl = cipherDataEl.ciphervalue;
+      if (cipherValueEl) {
+        cipherData.cipherValue = cipherValueEl._text !== undefined
+          ? String(cipherValueEl._text)
+          : undefined;
+      }
+      const cipherRefEl = cipherDataEl.cipherreference;
+      if (cipherRefEl?._attributes?.uri) {
+        cipherData.cipherReferenceUri = cipherRefEl._attributes.uri;
+      }
+    }
+
+    // ---- EncryptionMethod ----
+    let encMethod: EncryptionMethod | undefined;
+    const encMethodEl = encDataEl.encryptionmethod;
+    if (encMethodEl) {
+      encMethod = {
+        algorithm: encMethodEl._attributes?.algorithm || '',
+        keySize: encMethodEl.keysize?._text !== undefined
+          ? parseInt(encMethodEl.keysize._text)
+          : undefined
+      };
+    }
+
+    // ---- KeyName (ds:KeyInfo/ds:KeyName → keyinfo/keyname) ----
+    let keyName: string | undefined;
+    const keyInfoEl = encDataEl.keyinfo;
+    if (keyInfoEl) {
+      const keyNameEl = keyInfoEl.keyname;
+      if (keyNameEl?._text !== undefined) {
+        keyName = String(keyNameEl._text);
+      }
+    }
+
+    // ---- EncryptionProperties ----
+    const encPropsEl = encDataEl.encryptionproperties;
+    let encryptionProperties: EncryptionProperty[] | undefined;
+    if (encPropsEl) {
+      const propArray = Array.isArray(encPropsEl.encryptionproperty)
+        ? encPropsEl.encryptionproperty
+        : encPropsEl.encryptionproperty
+          ? [encPropsEl.encryptionproperty]
+          : [];
+      if (propArray.length > 0) {
+        encryptionProperties = propArray.map((ep: any): EncryptionProperty => {
+          const customEls: Record<string, PropertyCustomElement> = {};
+          for (const [k, v] of Object.entries(ep)) {
+            if (k === '_attributes' || k.startsWith('_')) continue;
+            customEls[k] = { value: (v as any)?._text !== undefined ? String((v as any)._text) : undefined };
+          }
+          return {
+            target: ep._attributes?.target,
+            id: ep._attributes?.id,
+            ...(Object.keys(customEls).length > 0 ? { customElements: customEls } : {})
+          };
+        });
+      }
+    }
+
+    // ---- childUri / childHash / childUuid ----
+    const toStringArray = (el: any): string[] => {
+      if (!el) return [];
+      const arr = Array.isArray(el) ? el : [el];
+      return arr.map((e: any) => (e._text !== undefined ? String(e._text) : '')).filter(Boolean);
+    };
+
+    const encryptedData: EncryptedData = {
+      id: encDataEl._attributes?.Id || encDataEl._attributes?.id,
+      type: encDataEl._attributes?.Type || encDataEl._attributes?.type,
+      mimeType: encDataEl._attributes?.MimeType || encDataEl._attributes?.mimeType,
+      encoding: encDataEl._attributes?.Encoding || encDataEl._attributes?.encoding,
+      ...(encMethod ? { encryptionMethod: encMethod } : {}),
+      ...(keyName !== undefined ? { keyName } : {}),
+      cipherData,
+      ...(encryptionProperties ? { encryptionProperties } : {})
+    };
+
+    const container: EncryptionContainer = {
+      encryptedData,
+      ...(xmlEl.childuri ? { childUri: toStringArray(xmlEl.childuri) } : {}),
+      ...(xmlEl.childhash ? { childHash: toStringArray(xmlEl.childhash) } : {}),
+      ...(xmlEl.childuuid ? { childUuid: toStringArray(xmlEl.childuuid) } : {})
+    };
+
+    return container;
+  } catch (err) {
+    console.warn('⚠️ [extractEncryptionContainer] Failed to extract EncryptionContainer:', err);
+    return undefined;
+  }
+}
+
+// ============================================================================
 
 /**
  * xml-jsからMaimlRootへの変換（エントリーポイント・エラーハンドリング付き）
@@ -1063,7 +1191,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // Boolean型の場合
@@ -1078,7 +1206,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // DateTime型の場合
@@ -1090,7 +1218,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // 文字列系特殊型の場合（tokenType, idType, idRefType, qualifiedNameType, uriType, uuidType, languageType）
@@ -1102,7 +1230,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // バイナリ型の場合（base64BinaryType, hexBinaryType）
@@ -1113,7 +1241,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // リスト型の場合（*ListType）
@@ -1127,7 +1255,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // stringEnumType（列挙型）の場合
@@ -1138,7 +1266,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // stringType 明示の場合
@@ -1149,7 +1277,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (hasCustomAttrs) result.attributes = customAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // xsi:type 未指定の場合（xsiType === ''）:
@@ -1171,8 +1299,19 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties: [], contents: []
     };
     if (Object.keys(allAttrs).length > 0) result.attributes = allAttrs;
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
+}
+
+/**
+ * Property に uncertainty を付与する共通ヘルパー
+ * convertXmlJsProperty の全ブランチで呼び出す
+ */
+function finalizeProperty(result: Property, xmlProp: any): Property {
+  if (xmlProp.uncertainty) {
+    result.uncertainty = convertArray(xmlProp.uncertainty, convertContent);
+  }
+  return result;
 }
 
 /**

@@ -53,10 +53,6 @@ router.get(
       .optional()
       .isBoolean()
       .withMessage('is_active must be a boolean'),
-    query('department_cd')
-      .optional()
-      .isString()
-      .withMessage('department_cd must be a string'),
     query('role_cd')
       .optional()
       .isString()
@@ -144,10 +140,6 @@ router.post(
       .withMessage('mailAddress is required')
       .isEmail()
       .withMessage('mailAddress must be a valid email address'),
-    body('departmentCd')
-      .optional()
-      .isString()
-      .withMessage('departmentCd must be a string'),
     body('roleCd')
       .notEmpty()
       .withMessage('roleCd is required')
@@ -189,10 +181,6 @@ router.put(
       .withMessage('userName must be a string')
       .isLength({ max: 30 })
       .withMessage('userName must be at most 30 characters'),
-    body('departmentCd')
-      .optional()
-      .isString()
-      .withMessage('departmentCd must be a string'),
     body('roleCd')
       .optional()
       .isString()

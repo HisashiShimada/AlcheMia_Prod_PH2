@@ -172,7 +172,7 @@ export interface ProgressFilterParams {
   ownerFilter?: 'my_only' | 'all';
   checkoutFilter?: 'all' | 'checkedOut' | 'checkedIn';
   projectStatusFilter?: 'all' | ExperimentStatus;
-  departmentFilter?: string;
+  organizationGroupFilter?: string;
 }
 
 /**
@@ -183,7 +183,7 @@ export interface ProgressRecord {
   projectId: string;
   projectName: string;
   projectStatus: string;
-  department: string;
+  organizationGroup: string;
   isCheckedOut: boolean;
   ownerEmail: string;
   ownerName: string;

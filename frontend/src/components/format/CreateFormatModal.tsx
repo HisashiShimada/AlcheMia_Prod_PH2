@@ -13,19 +13,20 @@ export interface CreateFormatModalProps {
   open: boolean;
   onCancel: () => void;
   onSubmit: (folderName: string) => Promise<void>;
-  departmentName?: string;
+  /** 選択中の組織グループ名または組織グループCD（モーダル内の補足説明として表示） */
+  organizationGroupName?: string;
 }
 
 /**
  * 新規フォーマットフォルダ作成モーダル
  *
- * 部門直下に新規フォーマットフォルダを作成する
+ * 選択中の組織グループ直下に新規フォーマットフォルダを作成する
  */
 const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
   open,
   onCancel,
   onSubmit,
-  departmentName,
+  organizationGroupName,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -121,9 +122,12 @@ const CreateFormatModal: React.FC<CreateFormatModalProps> = ({
           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
             {t('createFormatModal.allowedChars')}
           </Text>
-          {departmentName && (
+          {organizationGroupName && (
             <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-              {t('createFormatModal.departmentNote').replace('{{departmentName}}', departmentName)}
+              {t('createFormatModal.organizationGroupNote').replace(
+                '{{organizationGroupName}}',
+                organizationGroupName
+              )}
             </Text>
           )}
         </Space>

@@ -29,8 +29,8 @@ export interface Project {
   /** 概要 */
   description?: string;
   
-  /** 部署CD */
-  department_cd?: string;
+  /** 組織グループCD */
+  organization_group_cd?: string;
   
   /** 所有者ユーザID */
   owner_user_id?: string;
@@ -60,6 +60,35 @@ export interface Project {
   update_at?: Date;
 }
 
+/**
+ * organization_groupテーブルの型定義
+ *
+ * @remarks
+ * DDL: docs/design/db/ddl/organization_group.sql
+ * 主キー: (organization_id, organization_group_cd)
+ */
+export interface OrganizationGroup {
+  /** 組織ID（主キー、UUID） */
+  organization_id: string;
+  /** 組織階層グループCD（主キー） */
+  organization_group_cd: string;
+  /** 組織階層グループ名 */
+  organization_group_name: string;
+  /** 代表者ユーザID */
+  chief_user_id: string;
+  /** 親階層グループCD */
+  parent_group_cd: string | null;
+  /** レイヤー */
+  layer: string | null;
+  /** 作成者ユーザID */
+  create_user_id: string | null;
+  /** 作成日時 */
+  create_at: Date | null;
+  /** 更新者ユーザID */
+  update_user_id: string | null;
+  /** 更新日時 */
+  update_at: Date | null;
+}
 /**
  * project_task_detailテーブルの型定義
  * 
@@ -98,6 +127,9 @@ export interface ProjectTaskDetail {
   
   /** レビュアーID */
   review_user_id?: string | null;
+
+  /** NG時のレビュー結果（NG理由・指摘内容）。承認時はNULL。DDL追加: 20260618_005 */
+  review_result?: string | null;
   
   /** 作成者ユーザID */
   create_user_id?: string;
@@ -302,7 +334,7 @@ export interface TemplateData {
  * organization_userテーブルの型定義（JOINデータ含む）
  * 
  * @remarks
- * この型は organization_user テーブルと関連テーブル（department, role）を
+ * この型は organization_user テーブルと関連テーブル（role）を
  * JOINした結果に対応しています。
  * DDL: docs/design/db/ddl/organization_user.sql
  * 主キー: (organization_id, user_id)
@@ -317,18 +349,11 @@ export interface User {
   /** メールアドレス */
   mail_address: string;
   
-  /** 部署CD（外部キー） */
-  department_cd: string | null;
-  
-  /** 部署名（JOIN結果） */
-  department_name: string | null;
-  
   /** ロールCD（外部キー） */
   role_cd: string;
   
   /** ロール名（JOIN結果） */
   role_name: string | null;
-  
   
   /** アクティブ状態 */
   is_active: boolean;
@@ -341,6 +366,9 @@ export interface User {
   
   /** 更新日時 */
   update_at: Date;
+
+  /** 所属組織グループCD一覧（多対多） */
+  organization_group_cds: string[];
 }
 
 /**
@@ -382,19 +410,19 @@ export interface MaimlEventLog {
 // ============================================================
 
 /**
- * findWithOwnerAndDept クエリの戻り値型
+ * findWithOwnerAndOrgGroup クエリの戻り値型
  *
  * @remarks
  * SQL: projects/findWithOwnerAndDept.sql
- * Repository: projectRepository.findWithOwnerAndDept()
+ * Repository: projectRepository.findWithOwnerAndOrgGroup()
  */
-export interface ProjectWithOwnerAndDept {
+export interface ProjectWithOwnerAndOrgGroup {
   organization_id: string;
   project_id: string;
   project_name: string;
   description: string | null;
-  department_cd: string | null;
-  department_name: string | null;
+  organization_group_cd: string | null;
+  organization_group_name: string | null;
   owner_user_id: string | null;
   owner_name: string | null;
   project_status: number;
@@ -524,9 +552,6 @@ export interface UserSearchFilters {
   /** アクティブ状態フィルター */
   isActive?: boolean;
   
-  /** 部署CDフィルター */
-  departmentCd?: string;
-  
   /** ロールCDフィルター */
   roleCd?: string;
   
@@ -536,3 +561,75 @@ export interface UserSearchFilters {
   /** ソート順 */
   sortOrder?: 'asc' | 'desc';
 }
+
+// ─────────────────────────────────────────────────────────
+// experiment_plan テーブル
+// ─────────────────────────────────────────────────────────
+
+/**
+ * Transition単位の実験計画値
+ *
+ * @remarks
+ * planned_values の各 transitionId キー配下の型。
+ * - `mgr-instruction:requiredCreatorUUID` 等の配列値
+ * - `mgr-instruction:caution` 等の文字列値
+ * - `[templateId]` キーのテンプレート想定値（fieldKey → value）
+ */
+export interface TransitionPlanValues {
+  /** CreatorRef UUID 配列 */
+  'mgr-instruction:requiredCreatorUUID'?: string[];
+  /** InstrumentRef UUID 配列 */
+  'mgr-instruction:requiredInstrumentUUID'?: string[];
+  /** OwnerRef UUID 配列 */
+  'mgr-instruction:requiredOwnerUUID'?: string[];
+  /** 安全上の注意事項 */
+  'mgr-instruction:caution'?: string;
+  /** 操作手順上の注記 */
+  'mgr-instruction:operationNote'?: string;
+  /** 実施前後の確認事項 */
+  'mgr-instruction:checkItem'?: string;
+  /** 禁止事項 */
+  'mgr-instruction:prohibitedAction'?: string;
+  /** その他注意事項 */
+  'mgr-instruction:OtherNotes'?: string;
+  /** テンプレート想定値（templateId → { fieldKey: value }） */
+  [templateId: string]: string[] | string | Record<string, string> | undefined;
+}
+
+/**
+ * experiment_plan テーブルの planned_values JSONB 型
+ *
+ * @remarks
+ * { [transitionId]: TransitionPlanValues } 形式
+ */
+export type ExperimentPlanValues = Record<string, TransitionPlanValues>;
+
+/**
+ * experiment_plan テーブルの型定義
+ *
+ * @remarks
+ * DDL: backend/migrations/20260618_004_add_experiment_plan.sql
+ * 主キー: (organization_id, project_id, method_id, task_no)
+ * task_no は 1〜N（project_task_detail.task_no と対応）
+ */
+export interface ExperimentPlan {
+  /** 組織ID（主キー） */
+  organization_id: string;
+  /** プロジェクトID（主キー） */
+  project_id: string;
+  /** MAIMLのMethodID（主キー） */
+  method_id: string;
+  /** タスク連番（主キー、1〜N） */
+  task_no: number;
+  /** 実験計画データ（Transition単位） */
+  planned_values?: ExperimentPlanValues;
+  /** 作成者ユーザID */
+  create_user_id?: string;
+  /** 作成日時 */
+  create_at?: Date;
+  /** 更新者ユーザID */
+  update_user_id?: string;
+  /** 更新日時 */
+  update_at?: Date;
+}
+

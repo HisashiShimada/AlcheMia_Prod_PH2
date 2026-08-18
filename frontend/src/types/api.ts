@@ -107,7 +107,7 @@ export interface LoginResponseData {
     organizationId: string;
     organizationName: string;
     displayName: string;
-    departmentCd: string;
+    organizationGroupCds: string[];
     initialScreenFunctionCd: string;
   };
   passwordChangeRequired?: boolean;  // 一時パスワードでログインした場合はtrue
@@ -139,7 +139,7 @@ export interface VerifyPinResponseData {
     organizationId: string;
     organizationName: string;
     displayName: string;
-    departmentCd: string;
+    organizationGroupCds: string[];
     initialScreenFunctionCd: string;
   };
   session: {
@@ -382,7 +382,7 @@ export interface CreateFormatFolderRequestData {
 export interface CreateFormatFolderResponseData {
   folder_name: string;
   folder_path: string;
-  department_cd: string;
+  organization_group_cd: string;
   created_at: string;
 }
 

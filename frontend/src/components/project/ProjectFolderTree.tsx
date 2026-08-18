@@ -175,7 +175,7 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
                 {t('projectManagement.folder_tree.owner')}: {project.ownerName || project.owner}
               </Text>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                {project.departmentName || project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
+                {project.organizationGroupName || project.organizationGroup} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
               </Text>
             </div>
           </div>

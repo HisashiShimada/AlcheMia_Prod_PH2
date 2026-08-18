@@ -458,13 +458,13 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                   <Text>{fileDetails.projectInfo.owner}</Text>
                 </Space>
               </Col>
-              {fileDetails.projectInfo.department && (
+              {fileDetails.projectInfo.organizationGroup && (
                 <Col xs={24} sm={8}>
                   <Space orientation="vertical" size={0}>
                     <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                      {t('progress.detail.department')}
+                      {t('progress.detail.organizationGroup')}
                     </Text>
-                    <Text>{fileDetails.projectInfo.department}</Text>
+                    <Text>{fileDetails.projectInfo.organizationGroup}</Text>
                   </Space>
                 </Col>
               )}

@@ -42,7 +42,7 @@ export type EventLogJsonRecord = Record<string, unknown>;
  * XML特殊文字をエスケープ
  * reference JS版 escapeXml() の移植
  */
-function escapeXml(text: unknown): string {
+export function escapeXml(text: unknown): string {
   if (text === null || text === undefined) return '';
   return String(text)
     .replace(/&/g, '&amp;')
@@ -146,8 +146,12 @@ export function buildDataXML(
       categoryRows.forEach((row, index) => {
         const ps = row.property_set!;
 
-        // インスタンスID: place_id をそのまま使用（なければ自動採番）
-        const instanceId = row.place_id || `${category}_instance_${index}`;
+        // インスタンスID: place_id に "data-" プレフィックスを付与して pnml <place> ID との重複を回避
+        // <protocol>/<pnml> 内の <place id="material-xxx"> と同一 ID になると
+        // Duplicate ID バリデーションエラーが発生するため、data セクションは常に "data-" を付ける。
+        const instanceId = row.place_id
+          ? `data-${row.place_id}`
+          : `data-${category}_instance_${index}`;
         // ref: templateId をテンプレート参照として使用
         const templateRef = ps.templateId || '';
 
@@ -190,8 +194,8 @@ export function buildDataXML(
           }
         }
 
-        // operatorId は data 層から出力しない（案C: 削除）
-        // 作成者情報は eventLog 層（trace/event）で管理する
+  // operatorId は data 層から出力しない（案C: 削除）
+  // 作成者情報は eventLog 層（trace/event）で管理する
 
         dataXml += `      </${category}>\n`;
       });
@@ -432,10 +436,13 @@ function buildEventXML(
   xml += buildPropertiesXML(properties, 5);
 
   // resultsRef 要素の出力（存在する場合のみ）
+  // data セクションの <result> ID は "data-" プレフィックス付きで生成されるため、
+  // DB に保存された ref 値（place_id そのもの）にも同じプレフィックスを付与して参照を一致させる。
   for (const rr of resultsRefList) {
     const rrRef = rr['@ref'] as string | undefined;
     if (rrRef !== undefined) {
-      xml += `          <resultsRef ref="${escapeXml(rrRef)}"/>\n`;
+      const normalizedRef = rrRef.startsWith('data-') ? rrRef : `data-${rrRef}`;
+      xml += `          <resultsRef ref="${escapeXml(normalizedRef)}"/>\n`;
     }
   }
 
@@ -636,6 +643,33 @@ function buildPropertyXML(
       xml += `${childIndent}<value>${escapeXml(String(propValue))}</value>\n`;
     }
 
+    // uncertainties: planned_values から注入された不確かさ基準を <uncertainty> タグとして出力
+    // 構造: [{ key, xsiType, units, value, description }, ...]
+    if (prop['uncertainties'] && Array.isArray(prop['uncertainties'])) {
+      for (const uc of prop['uncertainties'] as Record<string, unknown>[]) {
+        if (!uc || typeof uc !== 'object') continue;
+        const ucKey = uc['key'] as string | undefined;
+        if (!ucKey) continue;
+
+        let ucAttrs = ` key="${escapeXml(ucKey)}"`;
+        if (uc['xsiType']) ucAttrs += ` xsi:type="${escapeXml(String(uc['xsiType']))}"`;
+        if (uc['units']) ucAttrs += ` units="${escapeXml(String(uc['units']))}"`;
+
+        xml += `${childIndent}<uncertainty${ucAttrs}>\n`;
+        // value
+        const ucValue = uc['value'];
+        if (ucValue !== null && ucValue !== undefined && ucValue !== '') {
+          xml += `${childIndent}  <value>${escapeXml(String(ucValue))}</value>\n`;
+        }
+        // description
+        const ucDesc = uc['description'];
+        if (ucDesc !== null && ucDesc !== undefined && ucDesc !== '') {
+          xml += `${childIndent}  <description>${escapeXml(String(ucDesc))}</description>\n`;
+        }
+        xml += `${childIndent}</uncertainty>\n`;
+      }
+    }
+
     // customElements（任意の追加要素）
     if (prop['customElements'] && typeof prop['customElements'] === 'object') {
       for (const [elemName, customElem] of Object.entries(prop['customElements'] as Record<string, unknown>)) {
@@ -804,4 +838,62 @@ export function replaceEventLogInMaiml(
 ): string {
   // <eventLog ...>...</eventLog> を丸ごと置換（複数行対応）
   return maimlContent.replace(/<eventLog[^>]*>[\s\S]*?<\/eventLog>/g, eventLogXml.trimEnd());
+}
+
+// ============================================================
+// injectNamespaceDeclarations
+// ============================================================
+
+/**
+ * MAIML XML の <maiml> 開きタグに xmlns:prefix="uri" 宣言を注入する
+ *
+ * - 既存の xmlns:xxx="..." 属性をすべて除去した上で、DB から取得した名前空間で上書きする（完全置換方式）。
+ * - namespaces が空配列の場合は何も変更せずそのまま返す（ノーオペレーション）。
+ * - xmlns="..." (プレフィックスなし) は除去対象外とし保持する。
+ * - <maiml> タグが存在しない場合はそのまま返す。
+ *
+ * @param maimlContent - 更新前の MAIML XML 文字列
+ * @param namespaces   - DBから取得した名前空間一覧（{prefix, uri}[]）
+ * @returns 更新後の MAIML XML 文字列
+ */
+export function injectNamespaceDeclarations(
+  maimlContent: string,
+  namespaces: Array<{ prefix: string; uri: string }>
+): string {
+  // 名前空間が空の場合はノーオペレーション
+  if (namespaces.length === 0) {
+    return maimlContent;
+  }
+
+  // <maiml ...> 開きタグ全体をキャプチャ（複数行にまたがる場合も考慮）
+  const maimlTagMatch = maimlContent.match(/<maiml[\s\S]*?>/);
+  if (!maimlTagMatch) {
+    return maimlContent;
+  }
+
+  const originalTag = maimlTagMatch[0];
+
+  // xmlns:prefix="uri" 形式の属性を除去（プレフィックスなしの xmlns="..." は保持）
+  // 付録B準拠: xsi / xenc 等の標準 prefix は保持し、カスタム prefix のみ除去する
+  const PROTECTED_PREFIXES = ['xsi', 'xenc', 'xs', 'xsd', 'xlink'];
+  const tagWithoutNs = originalTag.replace(
+    /\s+xmlns:([a-zA-Z0-9_.-]+)="[^"]*"/g,
+    (match, prefix) => (PROTECTED_PREFIXES.includes(prefix) ? match : '')
+  );
+
+  // DB の名前空間を xmlns:prefix="uri" 形式に変換
+  const nsAttrs = namespaces
+    .map(({ prefix, uri }) => `xmlns:${prefix}="${escapeXml(uri)}"`)
+    .join('\n  ');
+
+  // <maiml> の閉じ角括弧直前に名前空間属性を追加
+  // 末尾が "/>" (自己閉じタグ) か ">" かで分岐
+  let newTag: string;
+  if (tagWithoutNs.endsWith('/>')) {
+    newTag = tagWithoutNs.slice(0, -2).trimEnd() + '\n  ' + nsAttrs + '\n/>';
+  } else {
+    newTag = tagWithoutNs.slice(0, -1).trimEnd() + '\n  ' + nsAttrs + '\n>';
+  }
+
+  return maimlContent.replace(originalTag, newTag);
 }

@@ -97,6 +97,29 @@ export function convertPropertiesArrayToNestedFormat(propertiesArray: Property[]
     if (prop.contents && Array.isArray(prop.contents) && prop.contents.length > 0) {
       childrenData.push(...convertContentsArrayToNestedFormatRecursive(prop.contents));
     }
+
+    // 不確かさ（uncertainty）の変換: Content[] → PropertyData（tagName: 'uncertainty'）
+    if (prop.uncertainty && Array.isArray(prop.uncertainty) && prop.uncertainty.length > 0) {
+      prop.uncertainty.forEach((uc) => {
+        const ucAttrs: Record<string, string> = {};
+        if (uc.xsiType) ucAttrs['xsi:type'] = uc.xsiType as string;
+        if (uc.units) ucAttrs.units = uc.units as string;
+        const ucChild: PropertyData = {
+          key: (uc.key as string) || `uncertainty_${Date.now()}`,
+          tagName: 'uncertainty',
+          attributes: ucAttrs,
+          elements: {},
+          children: [],
+        };
+        if (uc.value !== undefined && uc.value !== null && uc.value !== '') {
+          ucChild.elements.value = String(uc.value);
+        }
+        if (uc.description !== undefined && uc.description !== null && uc.description !== '') {
+          ucChild.elements.description = String(uc.description);
+        }
+        childrenData.push(ucChild);
+      });
+    }
     
     // 子要素がある場合は設定
     if (childrenData.length > 0) {
@@ -182,6 +205,29 @@ export function convertPropertiesArrayToNestedFormatRecursive(propertiesArray: P
     // 子コンテンツの再帰的変換
     if (prop.contents && Array.isArray(prop.contents) && prop.contents.length > 0) {
       childrenData.push(...convertContentsArrayToNestedFormatRecursive(prop.contents));
+    }
+
+    // 不確かさ（uncertainty）の変換: Content[] → PropertyData（tagName: 'uncertainty'）
+    if (prop.uncertainty && Array.isArray(prop.uncertainty) && prop.uncertainty.length > 0) {
+      prop.uncertainty.forEach((uc) => {
+        const ucAttrs: Record<string, string> = {};
+        if (uc.xsiType) ucAttrs['xsi:type'] = uc.xsiType as string;
+        if (uc.units) ucAttrs.units = uc.units as string;
+        const ucChild: PropertyData = {
+          key: (uc.key as string) || `uncertainty_${Date.now()}`,
+          tagName: 'uncertainty',
+          attributes: ucAttrs,
+          elements: {},
+          children: [],
+        };
+        if (uc.value !== undefined && uc.value !== null && uc.value !== '') {
+          ucChild.elements.value = String(uc.value);
+        }
+        if (uc.description !== undefined && uc.description !== null && uc.description !== '') {
+          ucChild.elements.description = String(uc.description);
+        }
+        childrenData.push(ucChild);
+      });
     }
     
     // 子要素がある場合は設定
@@ -276,9 +322,31 @@ export function convertPropertyDataToPropertiesArray(propertyDataRecord: Record<
     
     // 子要素の再帰的変換
     if (propData.children && Array.isArray(propData.children) && propData.children.length > 0) {
-      const { properties, contents } = convertPropertyDataChildrenToArrays(propData.children);
-      property.properties = properties;
-      property.contents = contents;
+      const nonUncertaintyChildren = propData.children.filter((c) => c.tagName !== 'uncertainty');
+      const uncertaintyChildren = propData.children.filter((c) => c.tagName === 'uncertainty');
+
+      if (nonUncertaintyChildren.length > 0) {
+        const { properties, contents } = convertPropertyDataChildrenToArrays(nonUncertaintyChildren);
+        property.properties = properties;
+        property.contents = contents;
+      }
+
+      // uncertainty 子ノードを Content 型に変換して property.uncertainty に格納
+      if (uncertaintyChildren.length > 0) {
+        property.uncertainty = uncertaintyChildren.map((uc) => {
+          const ucContent: Content = {
+            key: uc.key || '',
+            xsiType: uc.attributes?.['xsi:type'] || '',
+            properties: [],
+            contents: [],
+            uncertainty: [],
+          };
+          if (uc.attributes?.units) ucContent.units = uc.attributes.units;
+          if (uc.elements?.value) ucContent.value = uc.elements.value;
+          if (uc.elements?.description) ucContent.description = uc.elements.description;
+          return ucContent;
+        });
+      }
     }
     
     result.push(property);
@@ -346,11 +414,37 @@ export function convertPropertyDataChildrenToArrays(
         }
       }
       
-      // 子要素の再帰的変換
+      // 子要素の再帰的変換（uncertainty 以外）
       if (child.children && child.children.length > 0) {
-        const childArrays = convertPropertyDataChildrenToArrays(child.children);
-        property.properties = childArrays.properties;
-        property.contents = childArrays.contents;
+        const nonUncertaintyChildren = child.children.filter(
+          (c) => c.tagName !== 'uncertainty'
+        );
+        const uncertaintyChildren = child.children.filter(
+          (c) => c.tagName === 'uncertainty'
+        );
+
+        if (nonUncertaintyChildren.length > 0) {
+          const childArrays = convertPropertyDataChildrenToArrays(nonUncertaintyChildren);
+          property.properties = childArrays.properties;
+          property.contents = childArrays.contents;
+        }
+
+        // uncertainty 子ノードを Content 型に変換して property.uncertainty に格納
+        if (uncertaintyChildren.length > 0) {
+          property.uncertainty = uncertaintyChildren.map((uc) => {
+            const ucContent: Content = {
+              key: uc.key || '',
+              xsiType: uc.attributes?.['xsi:type'] || '',
+              properties: [],
+              contents: [],
+              uncertainty: [],
+            };
+            if (uc.attributes?.units) ucContent.units = uc.attributes.units;
+            if (uc.elements?.value) ucContent.value = uc.elements.value;
+            if (uc.elements?.description) ucContent.description = uc.elements.description;
+            return ucContent;
+          });
+        }
       }
       
       properties.push(property);
@@ -626,10 +720,31 @@ export function convertPropertyDataToContentsArray(propertyDataRecord: Record<st
     
     // 子要素の再帰的変換
     if (propData.children && Array.isArray(propData.children) && propData.children.length > 0) {
-      const { properties, contents } = convertPropertyDataChildrenToArrays(propData.children);
-      content.properties = properties;
-      content.contents = contents;
-      // uncertainty は contents と同じ型なので、同様に処理可能
+      const nonUncertaintyChildren = propData.children.filter((c) => c.tagName !== 'uncertainty');
+      const uncertaintyChildren = propData.children.filter((c) => c.tagName === 'uncertainty');
+
+      if (nonUncertaintyChildren.length > 0) {
+        const { properties, contents } = convertPropertyDataChildrenToArrays(nonUncertaintyChildren);
+        content.properties = properties;
+        content.contents = contents;
+      }
+
+      // uncertainty 子ノードを Content 型に変換して content.uncertainty に格納
+      if (uncertaintyChildren.length > 0) {
+        content.uncertainty = uncertaintyChildren.map((uc) => {
+          const ucContent: Content = {
+            key: uc.key || '',
+            xsiType: uc.attributes?.['xsi:type'] || '',
+            properties: [],
+            contents: [],
+            uncertainty: [],
+          };
+          if (uc.attributes?.units) ucContent.units = uc.attributes.units;
+          if (uc.elements?.value) ucContent.value = uc.elements.value;
+          if (uc.elements?.description) ucContent.description = uc.elements.description;
+          return ucContent;
+        });
+      }
     }
     
     result.push(content);

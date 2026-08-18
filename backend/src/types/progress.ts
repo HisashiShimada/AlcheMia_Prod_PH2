@@ -49,6 +49,12 @@ export interface TransitionProgress {
   
   /** DBから取得したトランジションに紐づく結果の実績数 */
   result_actual_count: number;
+
+  /**
+   * このトランジションの前提となるトランジションIDの配列
+   * PetriNet のアーク構造から算出: 入力プレースに出力している他トランジションのID
+   */
+  prerequisite_transition_ids: string[];
 }
 
 /**

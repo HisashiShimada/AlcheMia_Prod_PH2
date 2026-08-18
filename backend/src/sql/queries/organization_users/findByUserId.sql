@@ -7,8 +7,14 @@ SELECT
   ou.role_cd,
   ou.organization_id,
   ou.is_active,
-  ou.department_cd,
-  o.corporation_id
+  o.corporation_id,
+  ARRAY(
+    SELECT ogu.organization_group_cd
+    FROM organization_group_user ogu
+    WHERE ogu.organization_id = ou.organization_id
+      AND ogu.user_id = ou.user_id
+    ORDER BY ogu.organization_group_cd
+  ) AS organization_group_cds
 FROM organization_user ou
 LEFT JOIN organization o ON ou.organization_id = o.organization_id
 WHERE ou.user_id = $1

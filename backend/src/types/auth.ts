@@ -36,7 +36,8 @@ export interface UserInfo {
   organizationId: string;
   organizationName: string;
   displayName: string;
-  departmentCd: string;
+  /** 所属組織階層グループCD一覧（多対多） */
+  organizationGroupCds: string[];
   corporationId?: string;
   initialScreenFunctionCd: string;
 }
@@ -51,8 +52,8 @@ export interface JwtPayload {
   sessionId: string;  // 後方互換性のため残す（tokenIdと同じ値）
   tokenId: string;     // アクセストークンとリフレッシュトークンで共通のID
   permissions: Permission[];
-  /** 部門CD */
-  departmentCd?: string;
+  /** 所属組織階層グループCD一覧（多対多） */
+  organizationGroupCds?: string[];
   iat: number;
   exp: number;
 }

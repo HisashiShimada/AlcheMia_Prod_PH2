@@ -3,7 +3,10 @@
  * ビジネスロジック層
  */
 
+import { ITask } from 'pg-promise';
 import * as userRepository from '../repositories/userRepository';
+import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
+import { generateNamespaceUri } from '../utils/namespaceUriGenerator';
 import { EmailService } from './emailService';
 import { UserRow } from '../repositories/userRepository';
 import { getMessage } from '../utils/messages';
@@ -66,7 +69,41 @@ export async function getUserById(
 }
 
 /**
+ * ユーザーの個人URIを namespace テーブルに登録する共通ヘルパー
+ *
+ * URI形式: https://{organizationCd}.Alchemia.co.jp/{loginName}
+ * loginName = メールアドレスの @ より前の部分
+ *
+ * 登録失敗時は例外をそのままthrowし、呼び出し元のトランザクションがロールバックされる。
+ *
+ * @param t トランザクションオブジェクト
+ * @param organizationId 組織ID
+ * @param organizationCd 組織CD（URI生成に使用）
+ * @param userId ユーザーID（メールアドレス形式）
+ */
+async function registerUserNamespace(
+  t: ITask<unknown>,
+  organizationId: string,
+  organizationCd: string,
+  userId: string
+): Promise<void> {
+  const loginName = userId.split('@')[0];
+  const candidateUri = generateNamespaceUri(organizationCd, loginName);
+  // トランザクション内で URI 一覧を取得して重複チェック
+  const existingUris = await namespaceTermRepository.findUrisByOrganization(organizationId, t);
+  const uniqueUri = existingUris.includes(candidateUri) ? `${candidateUri}1` : candidateUri;
+  await namespaceTermRepository.createNamespaceUri(
+    { organizationId, uri: uniqueUri, userId, scopeKey: userId },
+    t
+  );
+  console.log(`[userService] 個人URI登録成功: userId=${userId}, uri=${uniqueUri}`);
+}
+
+/**
  * ユーザー新規作成
+ *
+ * ユーザー作成と namespace 登録を同一トランザクション内で実行する。
+ * namespace 登録が失敗した場合はユーザー作成もロールバックされる。
  */
 export async function createUser(
   organizationId: string,
@@ -74,11 +111,13 @@ export async function createUser(
     userId: string;
     userName: string;
     mailAddress: string;
-    departmentCd?: string;
     roleCd: string;
     isActive?: boolean;
+    namespacePrefix?: string;
+    namespaceUri?: string;
   },
-  createUserId: string
+  createUserId: string,
+  lang: string = 'ja'
 ): Promise<UserRow> {
   // バリデーション
   if (!data.userId || !data.userName || !data.mailAddress || !data.roleCd) {
@@ -94,72 +133,75 @@ export async function createUser(
   // 重複チェック
   const exists = await userRepository.existsById(organizationId, data.userId);
   if (exists) {
-    throw new AppError('USER_ALREADY_EXISTS', getMessage('ja', 'user.duplicateUserId'));
+    throw new AppError('USER_ALREADY_EXISTS', getMessage(lang, 'user.duplicateUserId'));
   }
+
+  // 組織CDを取得（namespace URI 生成に必要）
+  const pool = getPgp();
+  const orgRow = await pool.oneOrNone<{ organization_cd: string }>(
+    `SELECT organization_cd FROM organization WHERE organization_id = $1 LIMIT 1`,
+    [organizationId]
+  );
+  if (!orgRow) {
+    throw new Error(`組織情報が見つかりません: organizationId=${organizationId}`);
+  }
+  const organizationCd = orgRow.organization_cd;
 
   // ランダムパスワードを自動生成
   const plainPassword = generateRandomPassword();
 
-  try {
-    const user = await userRepository.create(
+  // ユーザー作成と namespace 登録を同一トランザクションで実行
+  const user = await getPgp().tx(async (t) => {
+    // 1. ユーザー作成（サブトランザクションとして実行）
+    const createdUser = await userRepository.create(
       organizationId,
       {
         userId: data.userId,
         userName: data.userName,
         mailAddress: data.mailAddress,
-        departmentCd: data.departmentCd || null,
         roleCd: data.roleCd,
         isActive: data.isActive !== undefined ? data.isActive : true,
       },
       plainPassword,
-      createUserId
+      createUserId,
+      t  // 外部トランザクションを渡す
     );
 
-    // アカウント作成完了メールを送信
-    // 本番環境では常に送信、開発環境では EMAIL_ENABLED=true の場合のみ送信
-    // 失敗してもユーザー作成自体は成功とする
-    try {
-      const shouldSendEmail =
-        process.env.NODE_ENV === 'production' ||
-        process.env.EMAIL_ENABLED === 'true';
+    // 2. 個人URIを namespace テーブルに登録
+    //    失敗時は例外がthrowされ、トランザクション全体がロールバックされる
+    await registerUserNamespace(t, organizationId, organizationCd, data.userId);
 
-      if (shouldSendEmail) {
-        const emailService = new EmailService();
-        const result = await emailService.sendUserCreated(
-          data.mailAddress,
-          data.mailAddress,
-          plainPassword
-        );
-        if (result.success) {
-          console.log(`[userService] アカウント作成完了メール送信成功: userId=${data.mailAddress}`);
-        } else {
-          console.warn(`[userService] アカウント作成完了メール送信失敗（ユーザー作成は成功）: userId=${data.mailAddress}`, result.error);
-        }
+    return createdUser;
+  });
+
+  // アカウント作成完了メールを送信
+  // 本番環境では常に送信、開発環境では EMAIL_ENABLED=true の場合のみ送信
+  // 失敗してもユーザー作成自体は成功とする（トランザクション外）
+  try {
+    const shouldSendEmail =
+      process.env.NODE_ENV === 'production' ||
+      process.env.EMAIL_ENABLED === 'true';
+
+    if (shouldSendEmail) {
+      const emailService = new EmailService();
+      const result = await emailService.sendUserCreated(
+        data.mailAddress,
+        data.mailAddress,
+        plainPassword
+      );
+      if (result.success) {
+        console.log(`[userService] アカウント作成完了メール送信成功: userId=${data.mailAddress}`);
       } else {
-        console.log(`[userService] アカウント作成完了メール（EMAIL_ENABLED=false スキップ）: userId=${data.mailAddress}, password=${plainPassword}`);
+        console.warn(`[userService] アカウント作成完了メール送信失敗（ユーザー作成は成功）: userId=${data.mailAddress}`, result.error);
       }
-    } catch (emailError) {
-      console.warn(`[userService] アカウント作成完了メール送信で例外発生（ユーザー作成は成功）`, emailError);
+    } else {
+      console.log(`[userService] アカウント作成完了メール（EMAIL_ENABLED=false スキップ）: userId=${data.mailAddress}, password=${plainPassword}`);
     }
-
-    return user;
-  } catch (error) {
-    console.error('ユーザー作成エラー（詳細）:', error);
-    console.error('エラースタック:', error instanceof Error ? error.stack : 'スタック情報なし');
-    console.error('作成しようとしたデータ:', {
-      userId: data.userId,
-      userName: data.userName,
-      departmentCd: data.departmentCd,
-      roleCd: data.roleCd,
-      organizationId,
-    });
-    
-    // 元のエラーメッセージも含める
-    if (error instanceof Error) {
-      throw new Error(`ユーザーの作成に失敗しました: ${error.message}`);
-    }
-    throw error;
+  } catch (emailError) {
+    console.warn(`[userService] アカウント作成完了メール送信で例外発生（ユーザー作成は成功）`, emailError);
   }
+
+  return user;
 }
 
 /**
@@ -170,7 +212,6 @@ export async function updateUser(
   userId: string,
   data: {
     userName?: string;
-    departmentCd?: string;
     roleCd?: string;
     isActive?: boolean;
   },
@@ -242,7 +283,7 @@ export function generateCSV(users: UserRow[]): string {
   const headers = [
     'ユーザー名',
     'メールアドレス',
-    '所属部署',
+    '所属組織グループ',
     'ロール',
     '最終ログイン',
     'アクティブ判定',
@@ -251,7 +292,7 @@ export function generateCSV(users: UserRow[]): string {
   const rows = users.map((user) => [
     user.user_name,
     user.mail_address,
-    user.department_cd || '',
+    (user.organization_group_cds || []).join(','),
     user.role_cd,
     user.last_login_at ? new Date(user.last_login_at).toLocaleString('ja-JP') : '',
     user.is_active ? 'true' : 'false',
@@ -284,11 +325,11 @@ interface CsvUploadResult {
 
 /**
  * UserCSVアップロード処理
- * 
+ *
  * 事前バリデーション方式（部署管理画面と同じパターン）：
  * 1. 全行をバリデーション（最初のエラーで停止）
  * 2. エラーがなければ全件をDB登録（トランザクション）
- * 
+ *
  * @param organizationId 組織ID
  * @param csvContent CSV文字列
  * @param userId ログインユーザーID
@@ -305,20 +346,20 @@ export async function uploadUsersFromCSV(
     header: true,
     skipEmptyLines: true,
   });
-  
+
   // Phase 1: 事前バリデーション（DBアクセスあり - 既存チェック含む）
   const validationErrors: CsvValidationError[] = [];
   const mailAddressSet = new Set<string>(); // CSV内重複チェック用
-  
+
   for (let i = 0; i < parseResult.data.length; i++) {
     const row = parseResult.data[i];
     const rowNumber = i + 2; // ヘッダー行を考慮
-    
+
     // 必須項目チェック
     const userName = row['ユーザー名']?.trim();
     const mailAddress = row['メールアドレス']?.trim();
     const roleCd = row['ロール']?.trim();
-    
+
     if (!userName) {
       validationErrors.push({
         row: rowNumber,
@@ -327,7 +368,7 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     if (!mailAddress) {
       validationErrors.push({
         row: rowNumber,
@@ -336,7 +377,7 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     if (!roleCd) {
       validationErrors.push({
         row: rowNumber,
@@ -345,7 +386,7 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     // メールアドレス形式チェック
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(mailAddress)) {
@@ -356,10 +397,10 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     // アクティブ判定の型チェック
     const isActiveStr = row['アクティブ判定']?.trim();
-    if (isActiveStr && 
+    if (isActiveStr &&
         !['true', 'TRUE', '1', 'false', 'FALSE', '0', ''].includes(isActiveStr)) {
       validationErrors.push({
         row: rowNumber,
@@ -368,7 +409,7 @@ export async function uploadUsersFromCSV(
       });
       break; // 最初のエラーで停止
     }
-    
+
     // CSV内重複チェック
     if (mailAddressSet.has(mailAddress)) {
       validationErrors.push({
@@ -379,7 +420,7 @@ export async function uploadUsersFromCSV(
       break; // 最初のエラーで停止
     }
     mailAddressSet.add(mailAddress);
-    
+
     // 既存データチェック（主キー重複チェック）
     const exists = await userRepository.existsById(organizationId, mailAddress);
     if (exists) {
@@ -391,7 +432,7 @@ export async function uploadUsersFromCSV(
       break; // 最初のエラーで停止
     }
   }
-  
+
   // エラーがあれば即座に終了（DB登録は行わない）
   if (validationErrors.length > 0) {
     return {
@@ -400,71 +441,89 @@ export async function uploadUsersFromCSV(
       errors: validationErrors,
     };
   }
-  
+
   // Phase 2: DB登録（バリデーション通過後のみ）
+
+  // 組織CDを取得（namespace URI 生成に必要）
   const pgp = getPgp();
+  const orgRow = await pgp.oneOrNone<{ organization_cd: string }>(
+    `SELECT organization_cd FROM organization WHERE organization_id = $1 LIMIT 1`,
+    [organizationId]
+  );
+  if (!orgRow) {
+    throw new Error(`組織情報が見つかりません: organizationId=${organizationId}`);
+  }
+  const organizationCd = orgRow.organization_cd;
+
   let successCount = 0;
-  
-  await pgp.tx(async (_t) => {
+  // メール送信用に平文パスワードを保持するリスト（トランザクション外で送信）
+  const createdUsers: Array<{ mailAddress: string; plainPassword: string }> = [];
+
+  await pgp.tx(async (t) => {
     // 全行を新規作成（バリデーションで既存チェック済み）
     for (let i = 0; i < parseResult.data.length; i++) {
       const row = parseResult.data[i];
-      
+
       // バリデーション済みなのでtrim()のみ実施
       const userName = row['ユーザー名'].trim();
       const mailAddress = row['メールアドレス'].trim();
-      const departmentCd = row['所属部署']?.trim() || null;
       const roleCd = row['ロール'].trim();
-      
+
       // アクティブ判定の変換（boolean型対応）
       const isActiveStr = row['アクティブ判定']?.trim();
       const isActive = isActiveStr === 'true' || isActiveStr === 'TRUE' || isActiveStr === '1';
-      
+
       // ランダムパスワードを自動生成
       const plainPassword = generateRandomPassword();
-      
-      // 新規作成（ユーザーIDはメールアドレスと同じ）
+
+      // 1. ユーザー作成（外部トランザクションを渡す）
       await userRepository.create(
         organizationId,
         {
           userId: mailAddress,  // メールアドレスをユーザーIDとして使用
           userName,
           mailAddress,
-          departmentCd,
           roleCd,
           isActive,
         },
-        plainPassword,  // 自動生成したランダムパスワードを使用
-        userId
+        plainPassword,
+        userId,
+        t  // 外部トランザクションを渡す
       );
 
-      // アカウント作成完了メールを送信
-      // 本番環境では常に送信、開発環境では EMAIL_ENABLED=true の場合のみ送信
-      // 失敗しても処理は継続する
-      try {
-        const shouldSendEmail =
-          process.env.NODE_ENV === 'production' ||
-          process.env.EMAIL_ENABLED === 'true';
+      // 2. 個人URIを namespace テーブルに登録
+      //    失敗時は例外がthrowされ、トランザクション全体がロールバックされる
+      await registerUserNamespace(t, organizationId, organizationCd, mailAddress);
 
-        if (shouldSendEmail) {
-          const emailService = new EmailService();
-          const result = await emailService.sendUserCreated(mailAddress, mailAddress, plainPassword);
-          if (result.success) {
-            console.log(`[userService CSV] アカウント作成完了メール送信成功: userId=${mailAddress}`);
-          } else {
-            console.warn(`[userService CSV] アカウント作成完了メール送信失敗: userId=${mailAddress}`, result.error);
-          }
-        } else {
-          console.log(`[userService CSV] アカウント作成完了メール（EMAIL_ENABLED=false スキップ）: userId=${mailAddress}, password=${plainPassword}`);
-        }
-      } catch (emailError) {
-        console.warn(`[userService CSV] アカウント作成完了メール送信で例外発生（処理は継続）`, emailError);
-      }
-
+      createdUsers.push({ mailAddress, plainPassword });
       successCount++;
     }
   });
-  
+
+  // アカウント作成完了メールを送信（トランザクション外）
+  // 失敗しても処理は継続する
+  for (const { mailAddress, plainPassword } of createdUsers) {
+    try {
+      const shouldSendEmail =
+        process.env.NODE_ENV === 'production' ||
+        process.env.EMAIL_ENABLED === 'true';
+
+      if (shouldSendEmail) {
+        const emailService = new EmailService();
+        const result = await emailService.sendUserCreated(mailAddress, mailAddress, plainPassword);
+        if (result.success) {
+          console.log(`[userService CSV] アカウント作成完了メール送信成功: userId=${mailAddress}`);
+        } else {
+          console.warn(`[userService CSV] アカウント作成完了メール送信失敗: userId=${mailAddress}`, result.error);
+        }
+      } else {
+        console.log(`[userService CSV] アカウント作成完了メール（EMAIL_ENABLED=false スキップ）: userId=${mailAddress}, password=${plainPassword}`);
+      }
+    } catch (emailError) {
+      console.warn(`[userService CSV] アカウント作成完了メール送信で例外発生（処理は継続）`, emailError);
+    }
+  }
+
   return {
     successCount,
     failureCount: 0,

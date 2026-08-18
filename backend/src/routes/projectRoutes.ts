@@ -15,6 +15,7 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import { checkPermission } from '../middleware/permissionCheckMiddleware';
+import { t } from '../utils/i18n';
 
 const router = Router();
 
@@ -38,15 +39,15 @@ router.get(
     query('page')
       .optional()
       .isInt({ min: 1 })
-      .withMessage('ページ番号は1以上の整数である必要があります'),
+      .withMessage(t('projectRoutes.validation.pageInt')),
     query('limit')
       .optional()
       .isInt({ min: 1, max: 100 })
-      .withMessage('limitは1〜100の範囲内の整数である必要があります'),
+      .withMessage(t('projectRoutes.validation.limitInt')),
     query('status')
       .optional()
       .isIn(['1', '2', '3'])
-      .withMessage("statusは'1', '2', '3'のいずれかを指定してください"),
+      .withMessage(t('projectRoutes.validation.statusIn')),
     query('sort_by')
       .optional()
       .isIn(['create_at', 'project_name', 'update_at'])
@@ -163,12 +164,12 @@ router.patch(
       .withMessage('projectIdは1〜255文字である必要があります'),
     body('newProjectName')
       .notEmpty()
-      .withMessage('newProjectName は必須です')
+      .withMessage('newProjectNameは必須です')
       .trim()
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('プロジェクト名は英数字・アンダースコア・ハイフンのみ使用できます')
+      .withMessage('newProjectNameは英数字、アンダースコア、ハイフンのみ使用できます')
       .isLength({ min: 1, max: 255 })
-      .withMessage('プロジェクト名は255文字以内で入力してください'),
+      .withMessage('newProjectNameは255文字以内である必要があります'),
   ],
   handleValidationErrors,
   projectController.renameProjectHandler
@@ -474,10 +475,10 @@ router.post(
       .withMessage('projectIdは1〜255文字である必要があります'),
     body('tasks')
       .isArray({ min: 1 })
-      .withMessage('tasksは1要素以上の配列である必要があります'),
+      .withMessage(t('projectRoutes.validation.tasksArray')),
     body('tasks.*.methodId')
       .notEmpty()
-      .withMessage('methodIdは必須です'),
+      .withMessage(t('projectRoutes.validation.methodIdRequired')),
     body('tasks.*.experimentCondition')
       .isInt({ min: 0 })
       .withMessage('experimentConditionは0以上の整数である必要があります'),
@@ -754,6 +755,30 @@ router.post(
   ],
   handleValidationErrors,
   projectController.unpublish
+);
+
+/**
+ * プロジェクト強制終了
+ * POST /api/v1/projects/:projectId/force-terminate
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description プロジェクトステータスを強制終了（ERROR=5）に更新する
+ * @roles experiment_admin（書込可）
+ */
+router.post(
+  '/:projectId/force-terminate',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectId')
+      .notEmpty()
+      .withMessage('projectIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectIdは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.forceTerminate
 );
 
 export default router;

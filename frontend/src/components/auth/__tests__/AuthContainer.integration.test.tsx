@@ -104,12 +104,12 @@ describe('AuthContainer 統合テスト', () => {
           roleCd: 'experiment_admin',
           organizationId: 'org_maiml_lab_001',
           organizationName: 'MAIML研究室',
-          displayName: '山田 太郎',
-          departmentCd: 'dept_001',
-          initialScreenFunctionCd: '040000',
-        },
-        session: {
-          token: 'maiml_session-abc123_1735185000',
+            displayName: '山田 太郎',
+            organizationGroupCds: [],
+            initialScreenFunctionCd: '040000',
+          },
+          session: {
+            token: 'maiml_session-abc123_1735185000',
           expiresAt: '2025-12-27T10:30:00.000Z',
         },
         passwordChangeRequired: false,
@@ -228,7 +228,7 @@ describe('AuthContainer 統合テスト', () => {
             organizationId: 'org_001',
             organizationName: 'Test Org',
             displayName: 'Test User',
-            departmentCd: 'dept_001',
+            organizationGroupCds: [],
             initialScreenFunctionCd: '040000',
           },
           session: {

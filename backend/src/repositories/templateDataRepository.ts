@@ -12,7 +12,7 @@
  */
 
 import { PoolClient } from 'pg';
-import { getPgp } from '../database/db';
+import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import type { Property, Content, Insertion } from '../types/maiml-unified';
 import type { TemplateActualCount } from '../types/database';
@@ -302,6 +302,170 @@ export class TemplateDataRepository {
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while deleting template data by project',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * planned_values のテンプレート想定値を property_set に反映して一括 UPDATE
+   *
+   * - `planValues`: { [fieldKey]: value } のフラットマップ
+   * - `method_id` / `task_no` に一致する全 template_data を取得し、
+   *   各行の properties[] を走査して fieldKey が一致するものの value を上書きする
+   * - templateId によるフィルタは行わず、全行を対象に key 照合する
+   * - 更新対象が 0 件でも エラーにしない（no-op）
+   *
+   * @param organizationId - 組織ID
+   * @param projectId      - プロジェクトID
+   * @param methodId       - メソッドID
+   * @param taskNo         - タスク番号
+   * @param planValues     - { [fieldKey]: value } 形式のフラットな想定値マップ
+   * @param userId         - 更新ユーザーID
+   * @param client         - トランザクション用 PoolClient
+   */
+  async updatePropertySetByPlan(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    planValues: Record<string, string>,
+    userId: string,
+    client: PoolClient
+  ): Promise<void> {
+    // 1. 対象の template_data を取得
+    const rows = await this.findByTaskNo(organizationId, projectId, methodId, taskNo, client);
+
+    for (const row of rows) {
+      if (!row.property_set) continue;
+
+      // 2. properties[] の value を更新（planValues に fieldKey が存在するもののみ）
+      // planned_values の templateValues キーは以下2形式を許容する:
+      //   1. 単純形式: prop.key そのまま（例: "condition1"）
+      //   2. 複合形式: "{templateId}_{prop.key}"（例: "conditionTemplate_xxx_condition1"）
+      // フロントエンドは {templateId}_{fieldKey} 形式で保存するため、両形式でフォールバック検索する
+      const templateId = row.property_set.templateId as string | undefined;
+      const updatedProperties = row.property_set.properties.map((prop) => {
+        const simpleKey = prop.key;
+        const compositeKey = templateId ? `${templateId}_${prop.key}` : undefined;
+        const newValue =
+          planValues[simpleKey] ??
+          (compositeKey !== undefined ? planValues[compositeKey] : undefined) ??
+          // フォールバック: templateId が取得できない場合に "_${prop.key}" で終わるキーを全スキャン
+          Object.entries(planValues).find(([k]) => k === simpleKey || k.endsWith(`_${simpleKey}`))?.[1];
+        if (newValue !== undefined) {
+          return { ...prop, value: newValue };
+        }
+        return prop;
+      });
+
+      const updatedPropertySet: PropertySet = {
+        ...row.property_set,
+        properties: updatedProperties,
+      };
+
+      const record: TemplateDataRecord = {
+        placeId: row.place_id,
+        propertySet: updatedPropertySet,
+        updateUserId: userId,
+      };
+
+      // 3. UPSERT で保存
+      await this.upsert(organizationId, projectId, methodId, taskNo, record, client);
+    }
+  }
+
+  /**
+   * planned_values の不確かさ情報を property_set.properties[].uncertainties に反映して一括 UPDATE
+   *
+   * - `planUncertainties`: { [propertyKey]: uncertaintyArray } のマップ
+   *   （`planned_values.__uncertainty__` の値をそのまま渡す）
+   * - `method_id` / `task_no` に一致する全 template_data を取得し、
+   *   各行の properties[] を走査して propertyKey が一致するものの uncertainties を上書きする
+   * - 更新対象が 0 件でも エラーにしない（no-op）
+   *
+   * @param organizationId    - 組織ID
+   * @param projectId         - プロジェクトID
+   * @param methodId          - メソッドID
+   * @param taskNo            - タスク番号
+   * @param planUncertainties - { [propertyKey]: uncertaintyArray } 形式のマップ
+   * @param userId            - 更新ユーザーID
+   * @param client            - トランザクション用 PoolClient
+   */
+  async updatePropertySetByPlanWithUncertainty(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    planUncertainties: Record<string, unknown[]>,
+    userId: string,
+    client: PoolClient
+  ): Promise<void> {
+    // 1. 対象の template_data を取得
+    const rows = await this.findByTaskNo(organizationId, projectId, methodId, taskNo, client);
+
+    for (const row of rows) {
+      if (!row.property_set) continue;
+
+      let changed = false;
+
+      // 2. properties[] の uncertainties を更新（planUncertainties に propertyKey が存在するもののみ）
+      // planned_values の __uncertainty__ キーは以下2形式を許容する:
+      //   1. 単純形式: prop.key そのまま（例: "condition1"）
+      //   2. 複合形式: "{templateId}_{prop.key}"（例: "conditionTemplate_xxx_condition1"）
+      // どちらの形式でも照合できるようにフォールバック検索する
+      const templateId = row.property_set.templateId as string | undefined;
+      const updatedProperties = row.property_set.properties.map((prop) => {
+        const simpleKey = prop.key;
+        const compositeKey = templateId ? `${templateId}_${prop.key}` : undefined;
+        const newUncertainties =
+          planUncertainties[simpleKey] ??
+          (compositeKey !== undefined ? planUncertainties[compositeKey] : undefined);
+        if (newUncertainties !== undefined && Array.isArray(newUncertainties)) {
+          changed = true;
+          return { ...prop, uncertainties: newUncertainties };
+        }
+        return prop;
+      });
+
+      if (!changed) continue;
+
+      const updatedPropertySet: PropertySet = {
+        ...row.property_set,
+        properties: updatedProperties,
+      };
+
+      const record: TemplateDataRecord = {
+        placeId: row.place_id,
+        propertySet: updatedPropertySet,
+        updateUserId: userId,
+      };
+
+      // 3. UPSERT で保存
+      await this.upsert(organizationId, projectId, methodId, taskNo, record, client);
+    }
+  }
+
+  /**
+   * プロジェクト全件のテンプレートデータを取得（実験指示一覧表示用）
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @returns テンプレートデータ行の配列（method_id / task_no / place_id 順）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findByProject(
+    organizationId: string,
+    projectId: string
+  ): Promise<TemplateDataRow[]> {
+    try {
+      const pool = getPool();
+      const query = await loadSqlFile('template_data/findByProject.sql');
+      const result = await pool.query<TemplateDataRow>(query, [organizationId, projectId]);
+      return result.rows;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding template data by project',
         error as Error
       );
     }

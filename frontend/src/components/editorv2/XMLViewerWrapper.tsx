@@ -13,6 +13,8 @@ import { Spin } from 'antd';
 import XMLViewer from './XMLViewer';
 import { convertReactFlowToMaiML } from '../../utils/reactFlowToMaiml';
 import { convertMultipleMethodsToMaiML } from '../../utils/multiMethodConverter';
+import { injectNamespacesToMaiml } from '../../utils/namespaceInjector';
+import { getOrganizationNamespaces } from '../../services/namespaceApiService';
 import type { Node, Edge } from 'reactflow';
 import type { NodeData, EdgeData, DocumentData, MethodData } from '../../types/editor';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -27,6 +29,7 @@ export interface XMLViewerWrapperProps {
   multiMethodMode: boolean;
   methods: MethodData[];
   activeMethodIndex: number;
+  projectId: string;
 }
 
 /**
@@ -39,6 +42,7 @@ const XMLViewerWrapper: React.FC<XMLViewerWrapperProps> = ({
   multiMethodMode,
   methods,
   activeMethodIndex,
+  projectId
 }) => {
   const { t } = useLanguage();
   const [xmlContent, setXmlContent] = useState<string>('');
@@ -85,6 +89,16 @@ const XMLViewerWrapper: React.FC<XMLViewerWrapperProps> = ({
             null,
             allTemplatesFromContext
           );
+        }
+
+        // 名前空間宣言を取得して XMLに注入する（失敗しても表示は継続）
+        try {
+          const namespaces = await getOrganizationNamespaces();
+          if (namespaces.length > 0) {
+            xmlString = injectNamespacesToMaiml(xmlString, namespaces);
+          }
+        } catch (nsError) {
+          console.warn('⚠️ [XMLViewerWrapper] 名前空間注入をスキップします:', nsError);
         }
 
         if (isMounted) {

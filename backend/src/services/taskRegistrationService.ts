@@ -9,11 +9,13 @@
  */
 
 import * as projectRepository from '../repositories/projectRepository';
+import { Project } from '../types/database';
 import * as instructionRepository from '../repositories/instructionRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
+import * as experimentPlanRepository from '../repositories/experimentPlanRepository';
 import type {
   GetTaskRegistrationResponse,
   TaskRegistrationData,
@@ -69,7 +71,7 @@ export async function getTaskRegistration(
         dbFlag: isMaimlRegistered,
         storageExists: maimlExists,
       });
-      const updatedProject: import('../types/database').Project = {
+      const updatedProject: Project = {
         ...project,
         project_maiml_flg: true,
       };
@@ -82,7 +84,7 @@ export async function getTaskRegistration(
           projectId,
           organizationId,
         });
-        const updatedProject: import('../types/database').Project = {
+        const updatedProject: Project = {
           ...project,
           project_maiml_flg: false,
         };
@@ -212,7 +214,7 @@ export async function saveTaskRegistration(
         projectId,
         organizationId,
       });
-      const updatedProject: import('../types/database').Project = {
+      const updatedProject: Project = {
         ...project,
         project_maiml_flg: true,
       };
@@ -317,7 +319,22 @@ export async function saveTaskRegistration(
       parser
     );
     
-    // 6-5. 指示データの保存（instructions配列が指定されている場合のみ）
+    // 6-5. experiment_planテーブルへの初期レコードINSERT
+    //      （既存データは ON CONFLICT DO NOTHING で保護）
+    for (const task of requestData.tasks) {
+      for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
+        await experimentPlanRepository.initInsertForTransaction(
+          t as any,
+          organizationId,
+          project.project_id,
+          task.methodId,
+          taskNo,
+          userId
+        );
+      }
+    }
+
+    // 6-6. 指示データの保存（instructions配列が指定されている場合のみ）
     if (requestData.instructions && requestData.instructions.length > 0) {
       await instructionRepository.batchInsert(
         t as any, // instructionRepository.batchInsertがany型を期待
@@ -371,7 +388,68 @@ async function deleteAndInsertTransitionData(
     methodTransitionMap.set(method.methodId, transitionIds);
   }
 
-  // 3. project_task_detail の各レコード分ループしてINSERT
+  // 3. 各メソッドの experiment_plan から __meta__.transitionOrder を読み取り、
+  //    methodId → (transitionId → { order, prerequisiteTransitionIds }) のマップを構築する。
+  //    実験計画が未保存の場合はマップは空のまま（デフォルト値 work_order=0, prerequisite_transition_ids=[] で登録）。
+  type TransitionOrderInfo = {
+    order: number;
+    prerequisiteTransitionIds: string[];
+  };
+  const methodOrderMap = new Map<string, Map<string, TransitionOrderInfo>>();
+  const processedMethods = new Set<string>();
+
+  for (const task of tasks) {
+    if (processedMethods.has(task.methodId)) continue;
+    processedMethods.add(task.methodId);
+
+    try {
+      const plans = await experimentPlanRepository.findByMethodForTransaction(
+        client,
+        organizationId,
+        projectId,
+        task.methodId
+      );
+      console.log(plans.length);
+
+      // 最初に見つかった plan の __meta__ を使用（全タスク共通の順序情報）
+      for (const plan of plans) {
+        if (!plan.planned_values) continue;
+        // ★追加: __meta__ の中身を確認
+        console.log('[DEBUG] planned_values:', JSON.stringify(plan.planned_values, null, 2));
+        
+        const meta = (plan.planned_values as Record<string, unknown>)['__meta__'];
+        console.log('[DEBUG] meta:', JSON.stringify(meta, null, 2));
+        
+        if (!meta || typeof meta !== 'object') continue;
+        const metaObj = meta as Record<string, unknown>;
+        
+        console.log('[DEBUG] transitionOrder:', metaObj['transitionOrder']);
+        console.log('[DEBUG] isArray:', Array.isArray(metaObj['transitionOrder']));
+        if (!Array.isArray(metaObj['transitionOrder'])) continue;
+
+        const orderMap = new Map<string, TransitionOrderInfo>();
+        for (const item of metaObj['transitionOrder'] as Record<string, unknown>[]) {
+          if (typeof item['id'] !== 'string') continue;
+          orderMap.set(item['id'], {
+            order: typeof item['order'] === 'number' ? item['order'] : 0,
+            prerequisiteTransitionIds: Array.isArray(item['prerequisiteTransitionIds'])
+              ? (item['prerequisiteTransitionIds'] as unknown[]).filter((v): v is string => typeof v === 'string')
+              : [],
+          });
+        }
+        methodOrderMap.set(task.methodId, orderMap);
+        break; // 最初の1件で十分
+      }
+    } catch (err) {
+      // experiment_plan 取得失敗時はデフォルト値（work_order=0）で継続
+      logger.warn('[deleteAndInsertTransitionData] experiment_plan 取得失敗（デフォルト値で継続）:', {
+        methodId: task.methodId,
+        error: String(err),
+      });
+    }
+  }
+
+  // 4. project_task_detail の各レコード分ループしてINSERT
   for (const task of tasks) {
     const transitionIds = methodTransitionMap.get(task.methodId) ?? [];
     if (transitionIds.length === 0) {
@@ -379,8 +457,11 @@ async function deleteAndInsertTransitionData(
       continue;
     }
 
+    const orderMap = methodOrderMap.get(task.methodId);
+
     for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
       for (const transitionId of transitionIds) {
+        const orderInfo = orderMap?.get(transitionId);
         await transitionDataRepository.insert(
           organizationId,
           projectId,
@@ -388,7 +469,9 @@ async function deleteAndInsertTransitionData(
           taskNo,
           transitionId,
           userId,
-          client
+          client,
+          orderInfo?.order ?? 0,
+          orderInfo?.prerequisiteTransitionIds ?? []
         );
       }
     }
@@ -438,14 +521,47 @@ async function deleteAndInsertTemplateData(
 
     const entries: PlacePropertyEntry[] = [];
 
+    // program 配下のテンプレートをフラットに集約するヘルパー
+    // MAIMLではテンプレートは method.program[].materialTemplates に格納されることが多いため、
+    // method 直下と program 配下の両方を収集する
+    const programs = (method.program && method.program.length > 0) ? method.program : [];
+
+    const collectTemplates = <T extends { placeRefs?: { ref?: string }[]; properties?: unknown[]; id?: string }>(
+      methodLevel: T[] | T | undefined,
+      programLevel: (T[] | T | undefined)[]
+    ): T[] => {
+      const result: T[] = [];
+      // method 直下
+      if (methodLevel) {
+        const arr = Array.isArray(methodLevel) ? methodLevel : [methodLevel];
+        result.push(...arr);
+      }
+      // program 配下
+      for (const progTemplates of programLevel) {
+        if (!progTemplates) continue;
+        const arr = Array.isArray(progTemplates) ? progTemplates : [progTemplates];
+        result.push(...arr);
+      }
+      return result;
+    };
+
     // material / condition / result の3カテゴリを処理
     const templateCategories: Array<{
-      templates: typeof method.materialTemplates;
+      templates: ReturnType<typeof collectTemplates>;
       templateType: 'material' | 'condition' | 'result';
     }> = [
-      { templates: method.materialTemplates, templateType: 'material' },
-      { templates: method.conditionTemplates, templateType: 'condition' },
-      { templates: method.resultTemplates, templateType: 'result' },
+      {
+        templates: collectTemplates(method.materialTemplates, programs.map(p => p.materialTemplates)),
+        templateType: 'material',
+      },
+      {
+        templates: collectTemplates(method.conditionTemplates, programs.map(p => p.conditionTemplates)),
+        templateType: 'condition',
+      },
+      {
+        templates: collectTemplates(method.resultTemplates, programs.map(p => p.resultTemplates)),
+        templateType: 'result',
+      },
     ];
 
     for (const { templates, templateType } of templateCategories) {
@@ -461,7 +577,7 @@ async function deleteAndInsertTemplateData(
         // { ...p, value: null } でMAIMLの全フィールド（description・attributes等）を保持しつつ
         // value のみを null（未記録）で初期化する
         const properties = (template.properties || []).map(p => ({
-          ...p,
+          ...(p as Record<string, unknown>),
           value: null,
         }));
 

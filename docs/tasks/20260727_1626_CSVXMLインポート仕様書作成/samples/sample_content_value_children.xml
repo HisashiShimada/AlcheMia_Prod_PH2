@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- パターン②: <content> + <value> 子タグ形式
+     <value> 子タグの値を横に並べて1行を構成。
+     期待結果: 2行 × 4列
+-->
+<experiment>
+  <sampleId>SMPL-002</sampleId>
+  <description>XRD回折データ（valueタグ形式）</description>
+  <results>
+    <content>
+      <value>10.0</value>
+      <value>20.0</value>
+      <value>30.0</value>
+      <value>40.0</value>
+    </content>
+    <content>
+      <value>50.0</value>
+      <value>60.0</value>
+      <value>70.0</value>
+      <value>80.0</value>
+    </content>
+  </results>
+</experiment>

@@ -21,11 +21,11 @@ import { getStorageService } from './services/storageService';
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
 import fileAccessRoutes from './routes/fileAccessRoutes';
+import experimentInstructionRoutes from './routes/experimentInstructionRoutes';
 import maimlRoutes from './routes/maimlRoutes';
 import masterRoutes from './routes/masterRoutes';
 import experimentRoutes from './routes/experimentRoutes';
 import issueRoutes from './routes/issueRoutes';
-import departmentRoutes from './routes/departmentRoutes';
 import corporationRoutes from './routes/corporationRoutes';
 import roleRoutes from './routes/roleRoutes';
 import userRoutes from './routes/userRoutes';
@@ -37,6 +37,13 @@ import codeMasterRoutes from './routes/codeMasterRoutes';
 import semanticSearchRoutes from './routes/semanticSearchRoutes';
 import systemOverviewRoutes from './routes/systemOverviewRoutes';
 import systemConfigRoutes from './routes/systemConfigRoutes';
+import encryptionRoutes from './routes/encryptionRoutes';
+import signatureRoutes from './routes/signatureRoutes';
+import namespaceRoutes from './routes/namespaceRoutes';
+import organizationGroupRoutes from './routes/organizationGroupRoutes';
+
+import uncertaintyCriteriaRoutes from './routes/uncertaintyCriteriaRoutes';
+import experimentEvaluationRoutes from './routes/experimentEvaluationRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -103,6 +110,7 @@ async function startServer() {
     // Mount routes after session middleware
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/projects', projectRoutes);
+    app.use('/api/v1/projects', experimentInstructionRoutes); // 実験指示API・実験計画API
     app.use('/api/v1/files', fileAccessRoutes); // 汎用ファイルアクセスAPI（共通化後）
     app.use('/api/v1/maiml', maimlRoutes);
     
@@ -110,7 +118,6 @@ async function startServer() {
     app.use('/api/v1/experiments', experimentRoutes);
 
     // Mount systemManagement routes
-    app.use('/api/v1/systemManagement', departmentRoutes);
     app.use('/api/v1/systemManagement', roleRoutes);
     app.use('/api/v1/systemManagement', userRoutes);
     
@@ -141,6 +148,23 @@ async function startServer() {
     app.use('/api/v1/semantic-search', semanticSearchRoutes);
     // Mount system overview routes
     app.use('/api/v1/systemManagement', systemOverviewRoutes);
+
+    // Mount encryption routes（暗号化管理API）
+    app.use('/api/v1/encryption', encryptionRoutes);
+    // Mount signature routes（改竄防止API）
+    app.use('/api/v1/signature', signatureRoutes);
+    // Mount namespace routes
+    app.use('/api/v1/namespaces', namespaceRoutes);
+
+    // Mount organization group routes
+
+    app.use('/api/v1/organization-groups', organizationGroupRoutes);
+
+    // Mount uncertainty criteria routes
+    app.use('/api/v1/uncertainty-criteria', uncertaintyCriteriaRoutes);
+
+    // Mount experiment evaluation routes（承認処理ダイアログの定性評価）
+    app.use('/api/v1/experiment-evaluations', experimentEvaluationRoutes);
 
     // エラーハンドリングミドルウェア（全ルートの後に登録する必要がある）
     app.use(errorHandler);
