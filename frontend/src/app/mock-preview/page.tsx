@@ -12,7 +12,6 @@ import { Typography, Card, Divider, Alert, ConfigProvider, Tabs } from 'antd';
 import InstructionManagementTabMock from '@/components/project/mock/ExperimentInstructionMock';
 import ExperimentWorkerScreenMock from '@/components/ExperimentWorker/mock/ExperimentWorkerScreenMock';
 import ProgressOverviewPatternsMock from '@/components/ExperimentWorker/mock/ProgressOverviewPatternsMock';
-import DataRecordDialogMock from '@/components/ExperimentWorker/mock/DataRecordDialogMock';
 const { Title, Text } = Typography;
 
 export default function MockPreviewPage() {

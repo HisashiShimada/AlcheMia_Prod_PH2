@@ -73,6 +73,35 @@ export interface UpdateTermInput {
   unitHint?: string;
 }
 
+/** getNamespaces / getNamespacesByScopeKey の各要素型 */
+export interface NamespaceListItem {
+  prefix: string;
+  uri: string;
+  scopeKey?: string;
+  scopeName?: string;
+}
+
+/** getNamespacesByScopeKey の各要素型（isGlobal 付き） */
+export interface NamespaceScopeListItem {
+  prefix: string;
+  uri: string;
+  scopeKey?: string;
+  scopeName?: string;
+  isGlobal?: boolean;
+}
+
+/** getTermsGlobal / getTermsByScopeKey の各要素型 */
+export interface TermListItem {
+  qname: string;
+  prefix: string;
+  localName: string;
+  displayName: string;
+  description: string;
+  type: string;
+  unitHint: string;
+  isActive: boolean;
+}
+
 /** getDeclarationsByProject の戻り値型 */
 export interface ProjectScopeDeclaration {
   prefix: string;
@@ -111,7 +140,7 @@ export async function createNamespace(
  */
 export async function getNamespaces(
   organizationId: string
-): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>> {
+): Promise<NamespaceListItem[]> {
   return namespaceTermRepository.findNamespacesByOrganization(organizationId);
 }
 
@@ -125,8 +154,20 @@ export async function getNamespaces(
 export async function getNamespacesByScopeKey(
   organizationId: string,
   scopeKey: string
-): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>> {
+): Promise<NamespaceScopeListItem[]> {
   return namespaceTermRepository.findNamespacesByScopeKey(organizationId, scopeKey);
+}
+
+/**
+ * global_flg=TRUE の名前空間に属する用語一覧を取得する
+ *
+ * @param organizationId - 組織ID
+ * @returns 用語一覧
+ */
+export async function getTermsGlobal(
+  organizationId: string
+): Promise<TermListItem[]> {
+  return namespaceTermRepository.findAllGlobal(organizationId);
 }
 
 /**
@@ -139,7 +180,7 @@ export async function getNamespacesByScopeKey(
 export async function getTermsByScopeKey(
   organizationId: string,
   scopeKey: string
-): Promise<Array<{ qname: string; prefix: string; localName: string; displayName: string; description: string; type: string; unitHint: string; isActive: boolean }>> {
+): Promise<TermListItem[]> {
   return namespaceTermRepository.findAllByScopeKey(organizationId, scopeKey);
 }
 

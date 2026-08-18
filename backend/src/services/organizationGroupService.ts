@@ -40,6 +40,13 @@ export async function getOrganizationGroups(
   return organizationGroupRepository.findAll(organizationId, filters);
 }
 
+/** getVisibleOrganizationGroups の各要素型 */
+export interface VisibleGroupItem {
+  cd: string;
+  name: string;
+  isActive: boolean;
+}
+
 /**
  * ログインユーザーが閲覧可能な組織グループ一覧を返す
  *
@@ -56,7 +63,7 @@ export async function getOrganizationGroups(
 export async function getVisibleOrganizationGroups(
   organizationId: string,
   userGroupCds: string[]
-): Promise<Array<{ cd: string; name: string; isActive: boolean }>> {
+): Promise<VisibleGroupItem[]> {
   // 全グループを取得してメモリ内で解決
   const allGroups = await organizationGroupRepository.findAll(organizationId);
   const allGroupMap = new Map(allGroups.map((g) => [g.organization_group_cd, g]));
@@ -120,7 +127,7 @@ export async function getVisibleOrganizationGroups(
   const visibleCdSet = new Set([...descendantCds, ...inactiveVisibleCds]);
 
   // 結果を OrganizationGroupRow から必要なフィールドのみ抽出して返す
-  const result: Array<{ cd: string; name: string; isActive: boolean }> = [];
+  const result: VisibleGroupItem[] = [];
   for (const cd of visibleCdSet) {
     const g = allGroupMap.get(cd);
     if (g) {
@@ -513,6 +520,26 @@ export async function setOrganizationGroupMembers(
   } finally {
     client.release();
   }
+}
+
+/**
+ * ユーザーの所属グループ＋全祖先グループの CD 一覧を返す
+ *
+ * @remarks
+ * WITH RECURSIVE クエリで直接所属グループと parent_group_cd を再帰的に辿った
+ * 全祖先グループを取得する。Controller から Repository を直接呼ばせないための
+ * ラッパー関数。
+ *
+ * @param organizationId - 組織ID
+ * @param userId - ユーザーID
+ * @returns organization_group_cd の配列
+ */
+export async function getAncestorGroupCds(
+  organizationId: string,
+  userId: string
+): Promise<string[]> {
+  const groups = await organizationGroupRepository.findByUser(organizationId, userId);
+  return groups.map((g) => g.organization_group_cd);
 }
 
 /**

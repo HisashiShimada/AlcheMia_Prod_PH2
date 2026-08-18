@@ -146,6 +146,12 @@ export const validateGetTerms = [
 // ─── 名前空間宣言 ─────────────────────────────────────────────────────────────
 
 /**
+ * GET /api/v1/namespaces/declarations
+ * パラメータなし（認証・テナント分離のみ必要）
+ */
+export const validateGetDeclarations: never[] = [];
+
+/**
  * GET /api/v1/namespaces/project-declarations
  * query: projectId は必須
  */

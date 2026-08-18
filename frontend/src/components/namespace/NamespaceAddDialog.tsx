@@ -29,42 +29,9 @@ const parentOptions = [
 ];
 
 // ──────────────────────────────────────────────
-// レベル別 URI ガイダンスメッセージ
-// ──────────────────────────────────────────────
-const uriGuidance: Record<Level, string> = {
-  global:       'https:// または urn: で始まる有効なURIを入力してください',
-  organization: '接頭辞（Prefix）をもとに自動生成されます',
-  personal:     'https://orcid.org/XXXX-XXXX-XXXX-XXXX 形式のORCID URIを推奨します',
-};
-
-// ──────────────────────────────────────────────
-// レベル別ガイダンスメッセージ（Alert）
-// ──────────────────────────────────────────────
-const levelGuidance: Record<Level, string> = {
-  global:       'グローバルレベルの名前空間は全組織・全ユーザーから参照可能な公式名前空間です。',
-  organization: 'URIは組織CD・部署CD・接頭辞（チームID）を連結して自動生成されます。',
-  personal:     'ORCIDベースのURIを推奨します。',
-};
-
-// ──────────────────────────────────────────────
 // バリデーション：xs:NCName
 // ──────────────────────────────────────────────
 const ncNamePattern = /^[A-Za-z_][A-Za-z0-9._\-]*$/;
-const validatePrefix = (_: unknown, value: string) => {
-  if (!value) return Promise.reject('接頭辞は必須です');
-  if (!ncNamePattern.test(value))
-    return Promise.reject('英字または _ で始まる英数字・アンダースコア・ハイフン・ピリオドのみ使用可能です');
-  if (value.length > 64) return Promise.reject('64文字以内で入力してください');
-  return Promise.resolve();
-};
-
-const validateUri = (_: unknown, value: string) => {
-  if (!value) return Promise.reject('URIは必須です');
-  if (!value.startsWith('https://') && !value.startsWith('http://') && !value.startsWith('urn:'))
-    return Promise.reject('https:// または urn: で始まる有効なURIを入力してください');
-  if (value.length > 512) return Promise.reject('512文字以内で入力してください');
-  return Promise.resolve();
-};
 
 // ──────────────────────────────────────────────
 // コンポーネント
@@ -73,6 +40,37 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
   const { t } = useLanguage();
   const [form]  = Form.useForm<NamespaceFormValues>();
   const [level, setLevel] = useState<Level>('organization');
+
+  // ── レベル別 URI ガイダンス（t() を使うためコンポーネント内で定義）
+  const uriGuidance: Record<Level, string> = {
+    global:       t('namespaceAdd.uriGuidance.global'),
+    organization: t('namespaceAdd.uriGuidance.organization'),
+    personal:     t('namespaceAdd.uriGuidance.personal'),
+  };
+
+  // ── レベル別ガイダンス（Alert）
+  const levelGuidance: Record<Level, string> = {
+    global:       t('namespaceAdd.levelGuidance.global'),
+    organization: t('namespaceAdd.levelGuidance.organization'),
+    personal:     t('namespaceAdd.levelGuidance.personal'),
+  };
+
+  // ── バリデーション関数（t() を使うためコンポーネント内で定義）
+  const validatePrefix = (_: unknown, value: string) => {
+    if (!value) return Promise.reject(t('namespaceAdd.validation.prefixRequired'));
+    if (!ncNamePattern.test(value))
+      return Promise.reject(t('namespaceAdd.validation.prefixInvalid'));
+    if (value.length > 64) return Promise.reject(t('namespaceAdd.validation.prefixTooLong'));
+    return Promise.resolve();
+  };
+
+  const validateUri = (_: unknown, value: string) => {
+    if (!value) return Promise.reject(t('namespaceAdd.validation.uriRequired'));
+    if (!value.startsWith('https://') && !value.startsWith('http://') && !value.startsWith('urn:'))
+      return Promise.reject(t('namespaceAdd.validation.uriInvalid'));
+    if (value.length > 512) return Promise.reject(t('namespaceAdd.validation.uriTooLong'));
+    return Promise.resolve();
+  };
 
   // organization レベル時に Prefix の入力に連動してURIプレビューを生成
   const watchedPrefix: string = Form.useWatch('prefix', form) ?? '';
@@ -121,7 +119,7 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
   return (
     <Modal
       open={open}
-      title="名前空間追加"
+      title={t('namespaceAdd.title')}
       width={560}
       onCancel={handleCancel}
       footer={null}
@@ -136,16 +134,15 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
       >
         {/* ── レベル選択 ── */}
         <Form.Item
-          label="レベル"
+          label={t('namespaceAdd.labelLevel')}
           name="level"
-          rules={[{ required: true, message: 'レベルを選択してください' }]}
         >
           <Radio.Group
             onChange={(e) => handleLevelChange(e.target.value as Level)}
           >
-            <Radio value="global">グローバル（Global）</Radio>
-            <Radio value="organization">組織 (Organization)</Radio>
-            <Radio value="personal">個人 (Personal)</Radio>
+            <Radio value="global">{t('namespaceAdd.levelGlobal')}</Radio>
+            <Radio value="organization">{t('namespaceAdd.levelOrganization')}</Radio>
+            <Radio value="personal">{t('namespaceAdd.levelPersonal')}</Radio>
           </Radio.Group>
         </Form.Item>
 
@@ -161,12 +158,12 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
 
         {/* ── 接頭辞 ── */}
         <Form.Item
-          label="接頭辞 (Prefix)"
+          label={t('namespaceAdd.labelPrefix')}
           name="prefix"
-          rules={[{ required: true, message: '接頭辞は必須です' }, { validator: validatePrefix }]}
+          rules={[{ validator: validatePrefix }]}
           extra={
             <Text type="secondary" style={{ fontSize: 12 }}>
-              xs:NCName規則: 英字または _ で始まる英数字・アンダースコア・ハイフン・ピリオドのみ
+              {t('namespaceAdd.extraPrefix')}
             </Text>
           }
         >
@@ -177,15 +174,15 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
         {level === 'organization' ? (
           /* organization レベル: 自動生成プレビュー（読み取り専用） */
           <Form.Item
-            label="URI（自動生成）"
+            label={t('namespaceAdd.labelUriAuto')}
             extra={
               <Text type="secondary" style={{ fontSize: 12 }}>
-                {uriGuidance[level]}（組織CD: {MOCK_ORG_CD} / 部署CD: {MOCK_DEPT_CD} / チームID: 接頭辞）
+                {t('namespaceAdd.extraUriAuto', { orgCd: MOCK_ORG_CD, deptCd: MOCK_DEPT_CD, uriGuidance: uriGuidance[level] })}
               </Text>
             }
           >
             <Input
-              value={autoUri || '（接頭辞を入力すると自動生成されます）'}
+              value={autoUri || t('namespaceAdd.uriAutoPlaceholder')}
               readOnly
               style={{
                 backgroundColor: '#f5f5f5',
@@ -198,9 +195,9 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
         ) : (
           /* global / personal レベル: 手入力 */
           <Form.Item
-            label="URI"
+            label={t('namespaceAdd.labelUri')}
             name="uri"
-            rules={[{ required: true, message: 'URIは必須です' }, { validator: validateUri }]}
+            rules={[{ validator: validateUri }]}
             extra={
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {uriGuidance[level]}
@@ -213,11 +210,11 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
 
         {/* ── 表示名（任意） ── */}
         <Form.Item
-          label="表示名"
+          label={t('namespaceAdd.labelDisplayName')}
           name="displayName"
           extra={
             <Text type="secondary" style={{ fontSize: 12 }}>
-              ツール内での表示用ラベル（任意）
+              {t('namespaceAdd.extraDisplayName')}
             </Text>
           }
         >
@@ -225,9 +222,9 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
         </Form.Item>
 
         {/* ── 説明（任意） ── */}
-        <Form.Item label="説明" name="description">
+        <Form.Item label={t('namespaceAdd.labelDescription')} name="description">
           <Input.TextArea
-            placeholder="名前空間の用途・背景を入力..."
+            placeholder={t('namespaceAdd.placeholderDescription')}
             autoSize={{ minRows: 3, maxRows: 6 }}
             maxLength={1000}
             showCount
@@ -237,16 +234,16 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
         {/* ── 親名前空間（組織レベルのみ） ── */}
         {level === 'organization' && (
           <Form.Item
-            label="親名前空間"
+            label={t('namespaceAdd.labelParentNamespace')}
             name="parentNamespace"
             extra={
               <Text type="secondary" style={{ fontSize: 12 }}>
-                ※ 組織レベル選択時のみ表示。階層構造を持たせる場合に親を選択。
+                {t('namespaceAdd.extraParentNamespace')}
               </Text>
             }
           >
             <Select
-              placeholder="（親名前空間を選択）"
+              placeholder={t('namespaceAdd.placeholderParentNamespace')}
               allowClear
               showSearch
               optionFilterProp="label"
@@ -258,15 +255,15 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
         {/* ── ORCID自動入力（個人レベルのみ） ── */}
         {level === 'personal' && (
           <Form.Item
-            label="ORCID 自動入力"
+            label={t('namespaceAdd.labelOrcid')}
             extra={
               <Text type="secondary" style={{ fontSize: 12 }}>
-                ※ 個人レベル選択時のみ表示
+                {t('namespaceAdd.extraOrcid')}
               </Text>
             }
           >
             <Button icon={<LinkOutlined />} onClick={handleOrcidAutoFill}>
-              🔗 ORCID から URI を自動入力
+              {t('namespaceAdd.btnOrcidAutoFill')}
             </Button>
           </Form.Item>
         )}
@@ -275,10 +272,10 @@ const NamespaceAddDialog: React.FC<NamespaceAddDialogProps> = ({ open, onClose, 
         <Divider style={{ margin: '8px 0 16px' }} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button type="primary" icon={<CheckOutlined />} onClick={handleSubmit}>
-            登録する
+            {t('namespaceAdd.btnRegister')}
           </Button>
           <Button icon={<CloseOutlined />} onClick={handleCancel}>
-            キャンセル
+            {t('common.cancel')}
           </Button>
         </div>
       </Form>

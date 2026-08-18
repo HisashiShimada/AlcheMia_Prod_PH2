@@ -99,6 +99,16 @@ export interface NestedPropertyEditorProps {
   onEditUncertainty?: (propertyKey: string, uncertaintyNode: PropertyData, index: number) => void;
   /** 不確かさ1件削除コールバック（インデックス指定） */
   onDeleteUncertainty?: (propertyKey: string, uncertaintyIndex: number) => void;
+  /**
+   * 用語表示名マップ（qname → displayName）
+   * 省略時はヘッダーにキー名のみ表示
+   */
+  termDisplayMap?: Map<string, string>;
+  /**
+   * 用語の型・単位マップ（qname → { type?, unitHint? }）
+   * xsi:type・units 選択時のデフォルト値表示に使用
+   */
+  termTypeUnitMap?: Map<string, { type?: string; unitHint?: string }>;
 }
 
 // ===== 固定属性名（Attributeマスタ選択肢から除外） =====
@@ -216,6 +226,8 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   onOpenCriteriaSelector,
   onEditUncertainty,
   onDeleteUncertainty,
+  termDisplayMap,
+  termTypeUnitMap,
 }) => {
   const { modal } = App.useApp();
   const { t } = useLanguage();
@@ -324,6 +336,11 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
             <Text strong>
               {propertyData.tagName || 'property'}: {propertyKey}
             </Text>
+            {termDisplayMap?.get(propertyKey) && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                ({termDisplayMap.get(propertyKey)})
+              </Text>
+            )}
             <Tag>Level {level}</Tag>
             {propertyData.attributes?.['xsi:type'] && (
               <Tag color={propertyData.attributes['xsi:type'] === 'propertyListType' ? 'blue' : 'default'}>
@@ -621,9 +638,14 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 onChange={(value) => {
                   setNewAttributeName(value);
                   setNewAttributeValue('');
-                  // xsi:type 選択時はデフォルト型を設定
                   if (value === 'xsi:type') {
-                    setNewAttributeValue(defaultXsiType);
+                    // DBに型が登録されていればそれをデフォルト、なければハードコード値
+                    const dbType = termTypeUnitMap?.get(propertyKey)?.type;
+                    setNewAttributeValue(dbType ?? defaultXsiType);
+                  } else if (value === 'units') {
+                    // DBに単位が登録されていればそれをデフォルト、なければ空
+                    const dbUnit = termTypeUnitMap?.get(propertyKey)?.unitHint;
+                    setNewAttributeValue(dbUnit ?? '');
                   }
                 }}
               >
@@ -767,8 +789,15 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                   description={t('nestedPropertyEditor.masterRequiredDesc')}
                 />
               </Space>
+            ) : newAttributeName === 'key' ? (
+              /* key 属性 → テキスト入力（デフォルト値: termDisplayMapの表示名、なければ空欄） */
+              <Input
+                placeholder={t('nestedPropertyEditor.placeholderAttrValueInput')}
+                value={newAttributeValue !== '' ? newAttributeValue : (termDisplayMap?.get(propertyKey) ?? '')}
+                onChange={(e) => setNewAttributeValue(e.target.value)}
+              />
             ) : (
-              /* その他の固定属性（key / id / ref）→ テキスト入力 */
+              /* その他の固定属性（id / ref）または termDisplayMap が空 → テキスト入力 */
               <Input
                 placeholder={t('nestedPropertyEditor.placeholderAttrValueInput')}
                 value={newAttributeValue}
@@ -843,7 +872,12 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
                 value={newElementName || undefined}
                 onChange={(val: string) => {
                   setNewElementName(val);
-                  setNewElementValue('');
+                  // description を選択した場合は登録済みの値をデフォルト表示
+                  if (val === 'description') {
+                    setNewElementValue(propertyData.elements?.['description'] ?? '');
+                  } else {
+                    setNewElementValue('');
+                  }
                   if (val === '__custom__') setCustomElementName('');
                 }}
                 style={{ width: '100%' }}
