@@ -43,7 +43,6 @@ import namespaceRoutes from './routes/namespaceRoutes';
 import organizationGroupRoutes from './routes/organizationGroupRoutes';
 
 import uncertaintyCriteriaRoutes from './routes/uncertaintyCriteriaRoutes';
-import experimentEvaluationRoutes from './routes/experimentEvaluationRoutes';
 import aggregationRuleRoutes from './routes/aggregationRuleRoutes';
 import projectOverallEvaluationRoutes from './routes/projectOverallEvaluationRoutes';
 
@@ -165,9 +164,6 @@ async function startServer() {
 
     // Mount uncertainty criteria routes
     app.use('/api/v1/uncertainty-criteria', uncertaintyCriteriaRoutes);
-
-    // Mount experiment evaluation routes（承認処理ダイアログの定性評価）
-    app.use('/api/v1/experiment-evaluations', experimentEvaluationRoutes);
 
     // Mount aggregation rule routes（集約ルール管理）
     app.use('/api/v1/aggregation-rules', aggregationRuleRoutes);

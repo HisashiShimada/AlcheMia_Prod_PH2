@@ -14,7 +14,7 @@
  */
 
 import type { EventLogJsonRecord } from './maimlDataWriter';
-import type { ExperimentEvaluation } from '../repositories/experimentEvaluationRepository';
+import type { SubEvaluationRow } from '../types/projectOverallEvaluation';
 import type { ProjectOverallEvaluation } from '../types/projectOverallEvaluation';
 
 // ============================================================
@@ -67,14 +67,14 @@ export function resolveTransitionToInstructionMap(maimlXml: string): Map<string,
  *   - 評価値・コメントは property 要素（key: quality:*）として格納
  *   - resultsRef は instToResultsMap を通じて解決（解決できない場合は省略）
  *
- * @param evaluations     - experiment_evaluation テーブルの評価データ一覧
+ * @param evaluations     - project_overall_evaluations テーブルの下位評価データ一覧
  * @param overallEval     - project_overall_evaluations テーブルの最新全体評価（null 可）
  * @param transToInstMap  - transition_id → instruction_id マッピング
  * @param instToResultsMap - instruction_id → results_id マッピング
  * @returns EventLogJsonRecord[]
  */
 export function buildQualityEvalLogEntries(
-  evaluations: ExperimentEvaluation[],
+  evaluations: SubEvaluationRow[],
   overallEval: ProjectOverallEvaluation | null,
   transToInstMap: Map<string, string>,
   instToResultsMap: Map<string, string>
@@ -139,7 +139,7 @@ export function buildQualityEvalLogEntries(
   }
 
   // ── 階層別評価（evaluations）→ evaluation_unit ごとに log エントリ ─────
-  const unitGroupMap = new Map<string, ExperimentEvaluation[]>();
+  const unitGroupMap = new Map<string, SubEvaluationRow[]>();
   for (const e of evaluations) {
     if (e.evaluation_unit === 'project') continue;
     if (!e.evaluation_value) continue;
@@ -199,7 +199,9 @@ export function buildQualityEvalLogEntries(
     }
 
     for (const e of group) {
-      const keyPrefix = `quality:eval_${e.uncertainty_key.replace(/[^a-zA-Z0-9_]/g, '_')}`;
+      // SubEvaluationRow には uncertainty_key がないため evaluation_scope で代替
+      const keyBase = e.evaluation_scope ?? e.evaluation_unit ?? 'eval';
+      const keyPrefix = `quality:eval_${keyBase.replace(/[^a-zA-Z0-9_]/g, '_')}`;
       if (e.evaluation_value) {
         properties.push({
           '@key': `${keyPrefix}:value`,

@@ -24,8 +24,8 @@ import {
   App,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { saveEvaluations } from '@/services/experimentEvaluationApiService';
-import type { EvaluationInput } from '@/services/experimentEvaluationApiService';
+import { saveSubEvaluations } from '@/services/projectOverallEvaluationApiService';
+import type { SaveSubEvaluationsRequest } from '@/types/projectOverallEvaluation';
 import { createOverallEvaluation, exportToMaiml as exportOverallEvaluationToMaiml } from '@/services/projectOverallEvaluationApiService';
 import type { UncertaintyCriteriaForSelector } from './ApprovalWizardDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -89,28 +89,20 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
   const handleComplete = async () => {
     setSubmitting(true);
     try {
-      // ① 評価値が入力されている場合は experiment_evaluation に保存
+      // ① 評価値が入力されている場合は project_overall_evaluations（sub-evaluations）に保存
+      // ※ プロジェクト完了ダイアログでは project スコープがないため、
+      //    入力評価はプロジェクト全体評価のアナログ部分として overall_analog に格納する形に将来拡張予定。
+      //    現時点ではフロントの入力項目をそのまま全体評価の overallAnalog に渡す。
       const row = evalRows[0];
-      if (selectedCriteria && row.evaluationValue) {
-        const evaluations: EvaluationInput[] = [
-          {
-            evaluationUnit:  'project',
-            methodId:        undefined,
-            taskNo:          undefined,
-            transitionId:    undefined,
-            nameSpaceId:     selectedCriteria.nameSpaceId,
-            uncertaintyKey:  selectedCriteria.uncertaintyKey,
-            ucVersion:       selectedCriteria.version,
-            evaluationValue: row.evaluationValue,
-            comment:         row.comment || undefined,
-          },
-        ];
-        await saveEvaluations({ projectId, evaluations });
-      }
 
       // ② 全体評価を DB に凍結保存（project_overall_evaluations）
       try {
-        await createOverallEvaluation({ projectId });
+        const overallEvalInput = {
+          projectId,
+          overallDigital: row.evaluationValue as '良好' | '要確認' | '不良' | undefined,
+          overallAnalog:  row.comment || undefined,
+        };
+        await createOverallEvaluation(overallEvalInput);
       } catch (overallEvalErr) {
         // 全体評価登録失敗はワーニング扱い（完了処理自体は続行）
         console.warn('[ProjectCompletionDialog] createOverallEvaluation error:', overallEvalErr);

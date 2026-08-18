@@ -79,4 +79,44 @@ router.post(
   projectOverallEvaluationController.exportToMaiml
 );
 
+/**
+ * 下位評価一覧取得
+ * GET /api/v1/project-overall-evaluations/:projectId/sub-evaluations
+ */
+router.get(
+  '/:projectId/sub-evaluations',
+  authMiddleware,
+  tenantIsolation,
+  [
+    param('projectId').notEmpty().withMessage('projectId is required').isString(),
+  ],
+  handleValidationErrors,
+  projectOverallEvaluationController.getSubEvaluations
+);
+
+/**
+ * 下位評価を一括保存
+ * POST /api/v1/project-overall-evaluations/:projectId/sub-evaluations
+ */
+router.post(
+  '/:projectId/sub-evaluations',
+  authMiddleware,
+  tenantIsolation,
+  [
+    param('projectId').notEmpty().withMessage('projectId is required').isString(),
+    body('evaluations').isArray({ min: 1 }).withMessage('evaluations must be a non-empty array'),
+    body('evaluations.*.evaluationScope')
+      .notEmpty()
+      .withMessage('evaluationScope is required')
+      .isIn(['METHOD', 'TASK', 'TRANSITION_METHOD', 'TRANSITION_TASK'])
+      .withMessage('evaluationScope must be METHOD/TASK/TRANSITION_METHOD/TRANSITION_TASK'),
+    body('evaluations.*.evaluationValue')
+      .optional()
+      .isIn(['良好', '要確認', '不良'])
+      .withMessage('evaluationValue must be 良好/要確認/不良'),
+  ],
+  handleValidationErrors,
+  projectOverallEvaluationController.saveSubEvaluations
+);
+
 export default router;

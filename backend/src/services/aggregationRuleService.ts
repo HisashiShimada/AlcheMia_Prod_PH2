@@ -8,7 +8,7 @@
  */
 
 import * as aggregationRuleRepository from '../repositories/aggregationRuleRepository';
-import * as experimentEvaluationRepository from '../repositories/experimentEvaluationRepository';
+import * as projectOverallEvaluationRepository from '../repositories/projectOverallEvaluationRepository';
 import * as aggregationCalculatorService from './aggregationCalculatorService';
 import type { AggregationRule, CreateAggregationRuleInput, SummaryPreviewResponse } from '../types/aggregationRule';
 
@@ -103,7 +103,7 @@ export async function previewSummary(
     : baseRule;
 
   // 下位評価データを取得
-  const evaluations = await experimentEvaluationRepository.findByProject(organizationId, projectId);
+  const evaluations = await projectOverallEvaluationRepository.findSubEvaluationsByProject(organizationId, projectId);
 
   // サマリーを動的算出
   const levels         = aggregationCalculatorService.calculateLevelSummaries(evaluations, effectiveRule);

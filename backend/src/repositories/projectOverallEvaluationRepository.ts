@@ -13,7 +13,12 @@
 
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
-import type { ProjectOverallEvaluation } from '../types/projectOverallEvaluation';
+import type {
+  ProjectOverallEvaluation,
+  SubEvaluationRow,
+  InsertSubEvaluationInput,
+  UpdateSubEvaluationInput,
+} from '../types/projectOverallEvaluation';
 import type { AggregationRule, AggregationSnapshot } from '../types/aggregationRule';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,4 +82,98 @@ export async function insert(
     JSON.stringify(aggregationSnapshot),    // $11 aggregation_snapshot
     createUserId,                           // $12
   ]);
+}
+
+/**
+ * 下位評価一覧を取得する（evaluation_scope が MAIML_PROJECT 以外）
+ *
+ * @param organizationId - 組織ID
+ * @param projectId      - プロジェクトID
+ * @returns 下位評価一覧
+ */
+export async function findSubEvaluationsByProject(
+  organizationId: string,
+  projectId: string
+): Promise<SubEvaluationRow[]> {
+  const pgp = getPgp();
+  const sql = await loadSqlFile('project_overall_evaluations/findSubEvaluationsByProject.sql');
+  const rows = await pgp.any<Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> & {
+    evaluation_scope: string;
+    overall_digital: '良好' | '要確認' | '不良' | null;
+    overall_analog: string | null;
+  }>(sql, [organizationId, projectId]);
+
+  // aggregationCalculatorService 互換フィールドを付与して返す
+  return rows.map((row) => ({
+    ...row,
+    evaluation_unit:  row.evaluation_scope,
+    evaluation_value: row.overall_digital,
+    comment:          row.overall_analog,
+  }));
+}
+
+/**
+ * 下位評価を新規INSERTする
+ *
+ * @param input - INSERT する下位評価データ（テーブル型Object）
+ * @returns 作成されたレコード
+ */
+export async function insertSubEvaluation(
+  input: InsertSubEvaluationInput
+): Promise<SubEvaluationRow> {
+  const pgp = getPgp();
+  const sql = await loadSqlFile('project_overall_evaluations/insertSubEvaluation.sql');
+  const row = await pgp.one<Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> & {
+    evaluation_scope: string;
+    overall_digital: '良好' | '要確認' | '不良' | null;
+    overall_analog: string | null;
+  }>(sql, [
+    input.organization_id,   // $1
+    input.project_id,        // $2
+    input.evaluation_scope,  // $3
+    input.method_id,         // $4
+    input.task_no,           // $5
+    input.transition_id,     // $6
+    input.evaluated_by,      // $7
+    input.overall_digital,   // $8
+    input.overall_analog,    // $9
+    input.create_user_id,    // $10
+  ]);
+  return {
+    ...row,
+    evaluation_unit:  row.evaluation_scope,
+    evaluation_value: row.overall_digital,
+    comment:          row.overall_analog,
+  };
+}
+
+/**
+ * 下位評価を更新する
+ *
+ * @param input - UPDATE する下位評価データ（テーブル型Object）
+ * @returns 更新されたレコード
+ */
+export async function updateSubEvaluation(
+  input: UpdateSubEvaluationInput
+): Promise<SubEvaluationRow> {
+  const pgp = getPgp();
+  const sql = await loadSqlFile('project_overall_evaluations/updateSubEvaluation.sql');
+  const row = await pgp.one<Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> & {
+    evaluation_scope: string;
+    overall_digital: '良好' | '要確認' | '不良' | null;
+    overall_analog: string | null;
+  }>(sql, [
+    input.organization_id,  // $1
+    input.evaluation_id,    // $2
+    input.project_id,       // $3
+    input.overall_digital,  // $4
+    input.overall_analog,   // $5
+    input.evaluated_by,     // $6
+  ]);
+  return {
+    ...row,
+    evaluation_unit:  row.evaluation_scope,
+    evaluation_value: row.overall_digital,
+    comment:          row.overall_analog,
+  };
 }

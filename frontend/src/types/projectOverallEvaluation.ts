@@ -20,14 +20,14 @@ export interface ProjectOverallEvaluation {
   overall_digital: '良好' | '要確認' | '不良' | null;
   overall_score: number | null;
   overall_analog: string | null;
-  applied_rule_id: string;
-  applied_rule_version: number;
-  applied_rule_snapshot: Record<string, unknown>;
+  applied_rule_id: string | null;
+  applied_rule_version: number | null;
+  applied_rule_snapshot: Record<string, unknown> | null;
   aggregation_snapshot: {
     levels: LevelSummary[];
     sourceEvaluations: unknown[];
     attentionItems: AttentionItem[];
-  };
+  } | null;
   create_user_id: string | null;
   create_at: string;
 }
@@ -55,4 +55,59 @@ export interface ExportToMaimlResult {
   message: string;
   /** スキップされた場合は true（MAiML ファイル未存在等） */
   skipped?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 下位評価（SubEvaluation）型
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 評価スコープ（下位評価用） */
+export type SubEvaluationScope =
+  | 'METHOD'
+  | 'TASK'
+  | 'TRANSITION_METHOD'
+  | 'TRANSITION_TASK';
+
+/**
+ * 下位評価レコード（GET レスポンス）
+ */
+export interface SubEvaluationRow {
+  evaluation_id: string;
+  organization_id: string;
+  project_id: string;
+  evaluation_scope: string;
+  method_id: string | null;
+  task_no: number | null;
+  transition_id: string | null;
+  evaluated_by: string | null;
+  evaluated_at: string | null;
+  overall_digital: '良好' | '要確認' | '不良' | null;
+  overall_analog: string | null;
+  create_user_id: string | null;
+  create_at: string | null;
+  /** evaluation_scope と同値（aggregator 互換フィールド） */
+  evaluation_unit: string;
+  /** overall_digital と同値（aggregator 互換フィールド） */
+  evaluation_value: string | null;
+  /** overall_analog と同値（aggregator 互換フィールド） */
+  comment: string | null;
+}
+
+/**
+ * 下位評価1件分の保存入力
+ */
+export interface SubEvaluationInput {
+  evaluationScope: SubEvaluationScope;
+  methodId?: string;
+  taskNo?: number;
+  transitionId?: string;
+  evaluationValue?: '良好' | '要確認' | '不良';
+  comment?: string;
+}
+
+/**
+ * POST /api/v1/project-overall-evaluations/:projectId/sub-evaluations リクエストボディ
+ */
+export interface SaveSubEvaluationsRequest {
+  evaluations: SubEvaluationInput[];
 }

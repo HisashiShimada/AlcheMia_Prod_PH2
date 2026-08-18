@@ -12,7 +12,7 @@
  * @version 1.0.0
  */
 
-import type { ExperimentEvaluationRow } from '../repositories/experimentEvaluationRepository';
+import type { SubEvaluationRow } from '../types/projectOverallEvaluation';
 import type {
   AggregationRule,
   LevelSummary,
@@ -87,7 +87,10 @@ function resolveLevel(
   evaluationUnit: string,
   _transitionHierarchy: AggregationRule['transition_hierarchy']
 ): 'method' | 'task' | 'transition' | null {
-  switch (evaluationUnit) {
+  // DB に格納された大文字スコープ値（'METHOD' 等）と
+  // テスト用の小文字値（'method' 等）の両方に対応するため小文字に正規化
+  const normalized = evaluationUnit.toLowerCase();
+  switch (normalized) {
     case 'method':            return 'method';
     case 'task':              return 'task';
     case 'transition_method':
@@ -205,7 +208,7 @@ function calcLevelSummary(
  * @returns 階層別サマリー配列
  */
 export function calculateLevelSummaries(
-  evaluations: ExperimentEvaluationRow[],
+  evaluations: SubEvaluationRow[],
   rule: AggregationRule
 ): LevelSummary[] {
   const targets = evaluations.filter(
@@ -255,12 +258,13 @@ export function calculateLevelSummaries(
  * @returns 要注意項目リスト（不良 → 要確認 順）
  */
 export function extractAttentionItems(
-  evaluations: ExperimentEvaluationRow[]
+  evaluations: SubEvaluationRow[]
 ): AttentionItem[] {
   const items: AttentionItem[] = evaluations
     .filter(
       (e) =>
-        e.evaluation_unit !== 'project' &&
+        // 'project' / 'PROJECT' 両方を除外するため小文字に正規化して比較
+        e.evaluation_unit.toLowerCase() !== 'project' &&
         (e.evaluation_value === '不良' || e.evaluation_value === '要確認')
     )
     .map((e) => ({
@@ -289,7 +293,7 @@ export function extractAttentionItems(
  * @returns AggregationSnapshot
  */
 export function buildAggregationSnapshot(
-  evaluations: ExperimentEvaluationRow[],
+  evaluations: SubEvaluationRow[],
   rule: AggregationRule
 ): AggregationSnapshot {
   return {

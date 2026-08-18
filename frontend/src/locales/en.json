@@ -4516,12 +4516,6 @@
     "elementUnitLabel": "Unit (units)",
     "elementDescLabel": "Description"
   },
-  "experimentEvaluationService": {
-    "noEvaluationData": "No evaluation data found. Write skipped.",
-    "projectNotFound": "Project not found",
-    "maimlNotFound": "MAiML file not found",
-    "writtenCount": "{{count}} evaluation record(s) written to MAiML file"
-  },
   "projectManagementExtra": {
     "completionButtonTooltip": "Available when all tasks are marked as \"Completed\"",
     "completionButton": "Project Completion",

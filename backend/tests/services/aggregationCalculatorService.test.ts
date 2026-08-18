@@ -14,7 +14,7 @@ import {
   applyTargetRollup,
   resolveNumericScore,
 } from '../../src/services/aggregationCalculatorService';
-import type { ExperimentEvaluationRow } from '../../src/repositories/experimentEvaluationRepository';
+import type { SubEvaluationRow } from '../../src/types/projectOverallEvaluation';
 import type { AggregationRule, LevelSummary } from '../../src/types/aggregationRule';
 
 /** 既定ルール（設計書の既定値と一致） */
@@ -42,32 +42,30 @@ function makeEvalRow(
   task_no: number | null,
   transition_id: string | null,
   evaluation_value: string | null
-): ExperimentEvaluationRow {
+): SubEvaluationRow {
   return {
+    evaluation_id:    'test-id',
     organization_id:  'org-001',
     project_id:       'proj-001',
-    evaluation_unit,
+    evaluation_scope: evaluation_unit,
     method_id,
     task_no,
     transition_id,
-    name_space_id:    'ns-001',
-    uncertainty_key:  'UC_TEST',
-    uc_version:       1,
-    evaluation_value,
-    comment:          null,
-    uncertainty_xml:  null,
     evaluated_by:     'user-001',
     evaluated_at:     new Date('2026-08-17T00:00:00Z'),
+    overall_digital:  evaluation_value as '良好' | '要確認' | '不良' | null,
+    overall_analog:   null,
     create_user_id:   'user-001',
     create_at:        new Date('2026-08-17T00:00:00Z'),
-    update_user_id:   'user-001',
-    update_at:        new Date('2026-08-17T00:00:00Z'),
-    display_color:    null,
+    // aggregationCalculatorService 互換フィールド
+    evaluation_unit,
+    evaluation_value,
+    comment:          null,
   };
 }
 
 /** 設計書サンプル7件（§6.3 算出例） */
-const SAMPLE_7: ExperimentEvaluationRow[] = [
+const SAMPLE_7: SubEvaluationRow[] = [
   makeEvalRow('method',            'method_001', null, null,  '良好'),
   makeEvalRow('method',            'method_002', null, null,  '要確認'),
   makeEvalRow('task',              'method_001', 1,    null,  '良好'),

@@ -28,7 +28,6 @@ import {
   buildQualityEvalLogEntries,
   removeUncertaintiesWrapper,
 } from '../utils/maimlQualityWriter';
-import * as experimentEvaluationRepository from '../repositories/experimentEvaluationRepository';
 import * as projectOverallEvaluationRepository from '../repositories/projectOverallEvaluationRepository';
 import * as projectRepository from '../repositories/projectRepository';
 import type { ExportToMaimlResult } from '../types/projectOverallEvaluation';
@@ -80,7 +79,7 @@ export async function exportQualityEvaluationToMaiml(
   const instToResultsMap = resolveInstructionToResultsMap(maimlXml);
 
   // 5. DB から評価データを取得
-  const evaluations = await experimentEvaluationRepository.findByProject(organizationId, projectId);
+  const evaluations = await projectOverallEvaluationRepository.findSubEvaluationsByProject(organizationId, projectId);
   const overallEvals = await projectOverallEvaluationRepository.findByProject(organizationId, projectId);
   const latestOverallEval = overallEvals.length > 0 ? overallEvals[0] : null;
 

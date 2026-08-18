@@ -10,7 +10,10 @@
 import { Request, Response, NextFunction } from 'express';
 import * as projectOverallEvaluationService from '../services/projectOverallEvaluationService';
 import * as qualityEvaluationMaimlService from '../services/qualityEvaluationMaimlService';
-import type { CreateProjectOverallEvaluationInput } from '../types/projectOverallEvaluation';
+import type {
+  CreateProjectOverallEvaluationInput,
+  SaveSubEvaluationsInput,
+} from '../types/projectOverallEvaluation';
 
 /**
  * プロジェクトの全体評価一覧取得（最新順）
@@ -114,6 +117,56 @@ export async function exportToMaiml(
       res.status(404).json({ error: { code: 'E6001', message: err.message } });
       return;
     }
+    next(error);
+  }
+}
+
+/**
+ * プロジェクトの下位評価一覧取得
+ * GET /api/v1/project-overall-evaluations/:projectId/sub-evaluations
+ */
+export async function getSubEvaluations(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = (req as any).organizationId as string;
+    const { projectId } = req.params;
+
+    const rows = await projectOverallEvaluationService.getSubEvaluationsByProject(
+      organizationId,
+      projectId
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * 下位評価を一括保存
+ * POST /api/v1/project-overall-evaluations/:projectId/sub-evaluations
+ */
+export async function saveSubEvaluations(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = (req as any).organizationId as string;
+    const userId = (req as any).userId as string | undefined;
+    const { projectId } = req.params;
+    const input = req.body as SaveSubEvaluationsInput;
+
+    const saved = await projectOverallEvaluationService.saveSubEvaluations(
+      organizationId,
+      userId ?? null,
+      projectId,
+      input.evaluations
+    );
+    res.json({ success: true, data: saved });
+  } catch (error) {
     next(error);
   }
 }

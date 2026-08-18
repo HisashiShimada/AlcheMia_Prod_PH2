@@ -4,9 +4,11 @@
  *
  * @remarks
  * エンドポイント:
- *   GET  /api/v1/project-overall-evaluations/:projectId         ← 全体評価一覧
- *   GET  /api/v1/project-overall-evaluations/:projectId/summary ← 動的サマリー
- *   POST /api/v1/project-overall-evaluations                    ← 全体評価登録
+ *   GET  /api/v1/project-overall-evaluations/:projectId                    ← 全体評価一覧
+ *   GET  /api/v1/project-overall-evaluations/:projectId/summary            ← 動的サマリー
+ *   POST /api/v1/project-overall-evaluations                               ← 全体評価登録
+ *   GET  /api/v1/project-overall-evaluations/:projectId/sub-evaluations    ← 下位評価一覧
+ *   POST /api/v1/project-overall-evaluations/:projectId/sub-evaluations    ← 下位評価一括保存
  */
 
 import { createApiClient } from '@/utils/authUtils';
@@ -15,6 +17,8 @@ import type {
   CreateProjectOverallEvaluationInput,
   SummaryResponse,
   ExportToMaimlResult,
+  SubEvaluationRow,
+  SaveSubEvaluationsRequest,
 } from '@/types/projectOverallEvaluation';
 
 const BASE_URL = '/api/v1/project-overall-evaluations';
@@ -62,6 +66,32 @@ export async function exportToMaiml(projectId: string): Promise<ExportToMaimlRes
   const api = createApiClient();
   const res = await api.post<{ success: boolean; data: ExportToMaimlResult }>(
     `${BASE_URL}/${encodeURIComponent(projectId)}/export-to-maiml`
+  );
+  return res.data.data;
+}
+
+/**
+ * プロジェクトの下位評価一覧を取得する
+ */
+export async function getSubEvaluationsByProject(projectId: string): Promise<SubEvaluationRow[]> {
+  const api = createApiClient();
+  const res = await api.get<{ success: boolean; data: SubEvaluationRow[] }>(
+    `${BASE_URL}/${encodeURIComponent(projectId)}/sub-evaluations`
+  );
+  return res.data.data;
+}
+
+/**
+ * 下位評価を一括保存する
+ */
+export async function saveSubEvaluations(
+  projectId: string,
+  request: SaveSubEvaluationsRequest
+): Promise<SubEvaluationRow[]> {
+  const api = createApiClient();
+  const res = await api.post<{ success: boolean; data: SubEvaluationRow[] }>(
+    `${BASE_URL}/${encodeURIComponent(projectId)}/sub-evaluations`,
+    request
   );
   return res.data.data;
 }

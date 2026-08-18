@@ -94,7 +94,7 @@ export interface AttentionItem {
  */
 export interface AggregationSnapshot {
   levels: LevelSummary[];
-  /** 集計入力となった ExperimentEvaluationRow[] の凍結値 */
+  /** 集計入力となった SubEvaluationRow[] の凍結値 */
   sourceEvaluations: unknown[];
   attentionItems: AttentionItem[];
 }

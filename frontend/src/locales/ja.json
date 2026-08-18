@@ -3946,12 +3946,6 @@
     "confidenceAmbiguous": "Ambiguous",
     "confidenceUncertain": "Uncertain"
   },
-  "experimentEvaluationService": {
-    "noEvaluationData": "評価データがないため書き込みをスキップしました",
-    "projectNotFound": "プロジェクトが見つかりません",
-    "maimlNotFound": "MAiMLファイルが見つかりません",
-    "writtenCount": "{{count}}件の評価データを MAiML ファイルに書き込みました"
-  },
   "uncertaintyListTable": {
     "colName": "不確かさ基準名",
     "colEval": "評価方式",

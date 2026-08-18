@@ -10,7 +10,7 @@ import {
   buildQualityEvalLogEntries,
   removeUncertaintiesWrapper,
 } from '../../src/utils/maimlQualityWriter';
-import type { ExperimentEvaluation } from '../../src/repositories/experimentEvaluationRepository';
+import type { SubEvaluationRow } from '../../src/types/projectOverallEvaluation';
 import type { ProjectOverallEvaluation } from '../../src/types/projectOverallEvaluation';
 
 const SAMPLE_MAIML_XML = `<?xml version="1.0" encoding="utf-8"?>
@@ -118,25 +118,23 @@ describe('resolveInstructionToResultsMap', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('buildQualityEvalLogEntries', () => {
-  const baseEvaluation: ExperimentEvaluation = {
-    organization_id: 'org-001',
-    project_id: 'proj-001',
-    evaluation_unit: 'method',
-    method_id: 'method-001',
-    task_no: null,
-    transition_id: 'transition-001',
-    name_space_id: 'ns-001',
-    uncertainty_key: 'uc-001',
-    uc_version: 1,
+  const baseEvaluation: SubEvaluationRow = {
+    evaluation_id:    'eval-test-001',
+    organization_id:  'org-001',
+    project_id:       'proj-001',
+    evaluation_scope: 'method',
+    evaluation_unit:  'method',
+    method_id:        'method-001',
+    task_no:          null,
+    transition_id:    'transition-001',
     evaluation_value: '良好',
-    comment: 'テストコメント',
-    uncertainty_xml: null,
-    evaluated_by: 'user-001',
-    evaluated_at: new Date('2026-08-17T15:00:00Z'),
-    create_user_id: 'user-001',
-    create_at: new Date('2026-08-17T15:00:00Z'),
-    update_user_id: null,
-    update_at: null,
+    comment:          'テストコメント',
+    overall_digital:  '良好',
+    overall_analog:   'テストコメント',
+    evaluated_by:     'user-001',
+    evaluated_at:     new Date('2026-08-17T15:00:00Z'),
+    create_user_id:   'user-001',
+    create_at:        new Date('2026-08-17T15:00:00Z'),
   };
 
   const baseOverallEval: ProjectOverallEvaluation = {
@@ -185,13 +183,13 @@ describe('buildQualityEvalLogEntries', () => {
   });
 
   test('evaluation_value が未入力の評価は除外される', () => {
-    const noVal: ExperimentEvaluation = { ...baseEvaluation, evaluation_value: null };
+    const noVal: SubEvaluationRow = { ...baseEvaluation, evaluation_value: null };
     const entries = buildQualityEvalLogEntries([noVal], null, transToInstMap, instToResultsMap);
     expect(entries).toHaveLength(0);
   });
 
   test('evaluation_unit が project の評価は階層別 log から除外される', () => {
-    const projEval: ExperimentEvaluation = { ...baseEvaluation, evaluation_unit: 'project' };
+    const projEval: SubEvaluationRow = { ...baseEvaluation, evaluation_unit: 'project' };
     const entries = buildQualityEvalLogEntries([projEval], null, transToInstMap, instToResultsMap);
     expect(entries).toHaveLength(0);
   });
