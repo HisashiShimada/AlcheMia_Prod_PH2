@@ -58,6 +58,7 @@ import ExperimentPlanDialog from './ExperimentPlanDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { getTaskRegistration, saveTaskRegistration, saveInstruction, getInstructions } from '@/services/projectApiService';
+import { getExperimentPlans } from '@/services/experimentPlanApiService';
 import { createRangeOptions } from '@/utils/selectUtils';
 import { InstructionStatus } from '@/constants/codeMaster';
 
@@ -370,8 +371,25 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     try {
       // バリデーション: 新規追加 + DBから取得したinstruction_status=0の指示
       const unsentInstructions = instructions.filter(inst => inst.instruction_status === InstructionStatus.UNSENT);
-      
-      if (unsentInstructions.length === 0) {
+      const hasUnsent = unsentInstructions.length > 0;
+
+      // 指示がない場合、チェック済みメソッドに experiment_plan が存在するかを確認
+      let hasExperimentPlan = false;
+      if (!hasUnsent) {
+        const checkedMethodIdsForValidation = taskDetails
+          .filter(task => checkedTaskIds.has(task.id) && !task.workerLinkedFlg)
+          .map(task => task.methodId);
+
+        for (const methodId of checkedMethodIdsForValidation) {
+          const planResult = await getExperimentPlans(projectId, methodId);
+          if (planResult && planResult.plans.length > 0) {
+            hasExperimentPlan = true;
+            break;
+          }
+        }
+      }
+
+      if (!hasUnsent && !hasExperimentPlan) {
         message.warning(t('taskRegistration.messages.requireInstruction'));
         return;
       }

@@ -245,7 +245,15 @@ export async function getTemplateData(
     let parser: MaimlParserTyped;
     try {
       parser = new MaimlParserTyped(maimlContent);
-    } catch {
+    } catch (parseErr) {
+      // 元のエラーをログに残す（原因特定のため必須）
+      console.error('[getTemplateData] MAIMLパース失敗', {
+        projectId,
+        methodId,
+        maimlPath,
+        parseError: parseErr instanceof Error ? parseErr.message : String(parseErr),
+        maimlContentHead: maimlContent.substring(0, 500),
+      });
       const error: any = new Error('Failed to parse MaiML file');
       error.name = 'MaimlParseFailedError';
       throw error;
