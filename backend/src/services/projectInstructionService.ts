@@ -346,6 +346,7 @@ export async function sendInstructions(
       // トランジション+タスクNo 両方指定の場合のみ experiment_plan を参照
       let creatorRefs: string[] | null = null;
       let instrumentRefs: string[] | null = null;
+      let assigneeOwnerRefs: string[] | null = null;
       if (methodId && transitionId && taskNo != null) {
         // 同一 methodId の計画は初回のみ取得してキャッシュ
         if (!experimentPlanCache.has(methodId)) {
@@ -363,12 +364,14 @@ export async function sendInstructions(
           const meta = taskMeta as Record<string, unknown>;
           creatorRefs = Array.isArray(meta.creatorRefs) ? (meta.creatorRefs as string[]) : null;
           instrumentRefs = Array.isArray(meta.instrumentRefs) ? (meta.instrumentRefs as string[]) : null;
+          assigneeOwnerRefs = Array.isArray(meta.ownerRefs) ? (meta.ownerRefs as string[]) : null;
         }
-        logger.info('[sendInstructions] experiment_plan からcreatorRefs/instrumentRefs を取得', {
+        logger.info('[sendInstructions] experiment_plan からcreatorRefs/instrumentRefs/ownerRefs を取得', {
           methodId,
           taskNo,
           creatorRefs,
           instrumentRefs,
+          assigneeOwnerRefs,
         });
       }
 
@@ -382,6 +385,8 @@ export async function sendInstructions(
         sentAt,
         instructions: instruction.instructions ?? null,
         instructionKey: instruction.instruction_key,
+        projectName,
+        assigneeOwnerRefs,
         creatorRefs,
         instrumentRefs,
       };
@@ -398,7 +403,22 @@ export async function sendInstructions(
       projectId,
       logCount: unsentInstructions.length
     });
-    
+
+    // ── グループC: 前提トランジション未設定のトランジションへの lifecycle:transition 強制記録 ──
+    // @see .clinerules/references/eventlog_structure.md — セクション3
+    // 指示事項の有無によらず、前提トランジションID が設定されていない全トランジションに
+    // event タグ（最小構成）を生成して記録する。
+    await insertLifecycleTransitionEventsForNoPrerequisite(
+      organizationId,
+      projectId,
+      projectName,
+      userId,
+      sentAt,
+      programIdMap,
+      eventLogRepo,
+      client
+    );
+
     // プロジェクトステータスの更新は行わない（チェックアウト時に実施）
     
     await client.query('COMMIT');
@@ -419,6 +439,85 @@ export async function sendInstructions(
     throw error;
   } finally {
     client.release();
+  }
+}
+
+/**
+ * 前提トランジション未設定のトランジションに lifecycle:transition 遷移記録を挿入する
+ *
+ * @see .clinerules/references/eventlog_structure.md — セクション3
+ *
+ * transition_data テーブルから prerequisite_transition_ids が空配列のレコードを取得し、
+ * 各トランジションに対して insertLifecycleTransitionEventLog を呼び出す。
+ * 失敗しても指示送信本体はロールバックしない（ログのみ）。
+ */
+async function insertLifecycleTransitionEventsForNoPrerequisite(
+  organizationId: string,
+  projectId: string,
+  projectName: string,
+  userId: string,
+  sentAt: string,
+  programIdMap: Record<string, string>,
+  eventLogRepo: EventLogRepository,
+  client: import('pg').PoolClient
+): Promise<void> {
+  try {
+    const pool = getPool();
+
+    // transition_data から prerequisite_transition_ids が空のレコードを取得
+    const result = await pool.query<{
+      method_id: string;
+      task_no: number;
+      transition_id: string;
+      prerequisite_transition_ids: string[];
+    }>(
+      `SELECT DISTINCT method_id, transition_id, prerequisite_transition_ids
+       FROM transition_data
+       WHERE organization_id = $1
+         AND project_id = $2
+         AND (prerequisite_transition_ids IS NULL
+              OR prerequisite_transition_ids = '{}')`,
+      [organizationId, projectId]
+    );
+
+    if (result.rows.length === 0) {
+      logger.info('[sendInstructions] 前提トランジション未設定のトランジションなし', { projectId });
+      return;
+    }
+
+    // 重複排除（method_id + transition_id 単位）
+    const seen = new Set<string>();
+    for (const row of result.rows) {
+      const key = `${row.method_id}__${row.transition_id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const programId = programIdMap[row.method_id] ?? null;
+      await eventLogRepo.insertLifecycleTransitionEventLog(
+        organizationId,
+        projectId,
+        {
+          methodId: row.method_id,
+          programId,
+          transitionId: row.transition_id,
+          userId,
+          sentAt,
+          projectName,
+        },
+        client
+      );
+    }
+
+    logger.info('[sendInstructions] 前提トランジション未設定の lifecycle:transition 記録完了', {
+      projectId,
+      count: seen.size,
+    });
+  } catch (error) {
+    // lifecycle:transition 強制記録の失敗は本体処理に影響させない
+    logError('[sendInstructions] 前提トランジション未設定の lifecycle:transition 記録に失敗', error as Error, {
+      organizationId,
+      projectId,
+    });
   }
 }
 

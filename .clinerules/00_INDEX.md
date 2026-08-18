@@ -135,6 +135,18 @@ Clineの動作を制御するスキル定義ファイルを格納
 - セキュリティとアクセス制御（署名付きURL）
 - 実装ガイドライン（storageService.ts使用方法）
 
+### [references/eventlog_structure.md](references/eventlog_structure.md)
+- **⚠️ lifecycle:transition を含む eventLog を実装する際は必ず参照**
+- eventLog の種類（進捗・確認・送信）
+- lifecycle:transition 系 eventLog 共通ルール
+  - ID 命名規則（`{タグ名}_{projectName}{フェーズ名}_{seq}` 形式）
+  - `name` / `description` の統一フォーマット
+  - タイムスタンプ property キー（`time:timestamp`）
+  - `lifecycle:transition` property の適用条件と遷移値一覧
+  - `ownerRef` の issuer / assignee 二重構成
+- 前提トランジション未設定のトランジションへの event タグ強制生成ルール
+- 関連ファイル一覧
+
 ---
 
 ## 🔍 使い方
@@ -150,6 +162,7 @@ Clineの動作を制御するスキル定義ファイルを格納
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-08-18 | eventlog_structure.md追加（lifecycle:transition系eventLog共通ルール） | Cline |
 | 2026-03-25 | error_codes.md追加（エラーコード一覧資料） | Cline |
 | 2026-02-18 | database.md追加（Repository層のDB操作統一化規約） | Cline |
 | 2026-02-18 | typescript.md追加（TypeScript型定義管理規約） | Cline |

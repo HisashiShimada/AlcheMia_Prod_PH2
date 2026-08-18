@@ -287,6 +287,8 @@ export function buildEventLogXML(
   // XSD準拠: eventLogType の globalObjectContentGroup に uuid が必須
   let xml = `  <eventLog id="${escapeXml(eventLogId)}">\n`;
   xml += `    <uuid>${eventLogUuidValue}</uuid>\n`;
+  // name / description は eventLog タグには付与しない
+  // （MAIML上1つしか存在できないため、特定処理に紐づいた値を設定することができない）
 
   for (const logJson of logJsonArray) {
     const eventLogObj = logJson['eventLog'] as Record<string, unknown> | undefined;
@@ -335,6 +337,12 @@ function buildLogEntryXML(
   // XSD準拠: logType の globalObjectContentGroup に uuid が必須
   xml += `      <uuid>${resolveUuid(id ? `log:${id}` : 'log', existingUuids, randomUUID)}</uuid>\n`;
 
+  // name / description（lifecycle:transition 系 eventLog 共通ルール: eventlog_structure.md 2-2）
+  const logName = logEntry['name'] as string | undefined;
+  const logDesc = logEntry['description'] as string | undefined;
+  if (logName) xml += `      <name>${escapeXml(logName)}</name>\n`;
+  if (logDesc) xml += `      <description>${escapeXml(logDesc)}</description>\n`;
+
   // trace（単体または配列）
   const rawTrace = logEntry['trace'];
   const traces: Record<string, unknown>[] = rawTrace
@@ -374,6 +382,12 @@ function buildTraceXML(
   let xml = `      <trace${attrs}>\n`;
   // XSD準拠: traceType の globalObjectContentGroup に uuid が必須
   xml += `        <uuid>${resolveUuid(id ? `trace:${id}` : 'trace', existingUuids, randomUUID)}</uuid>\n`;
+
+  // name / description（lifecycle:transition 系 eventLog 共通ルール: eventlog_structure.md 2-2）
+  const traceName = trace['name'] as string | undefined;
+  const traceDesc = trace['description'] as string | undefined;
+  if (traceName) xml += `        <name>${escapeXml(traceName)}</name>\n`;
+  if (traceDesc) xml += `        <description>${escapeXml(traceDesc)}</description>\n`;
 
   // パターンA: event 要素
   const eventObj = trace['event'] as Record<string, unknown> | undefined;
@@ -429,6 +443,13 @@ function buildEventXML(
   let xml = `        <event${attrs}>\n`;
   // XSD準拠: eventType の globalObjectContentGroup に uuid が必須
   xml += `          <uuid>${resolveUuid(id ? `event:${id}` : 'event', existingUuids, randomUUID)}</uuid>\n`;
+
+  // name / description（lifecycle:transition 系 eventLog 共通ルール: eventlog_structure.md 2-2）
+  const eventName = eventObj['name'] as string | undefined;
+  const eventDesc = eventObj['description'] as string | undefined;
+  if (eventName) xml += `          <name>${escapeXml(eventName)}</name>\n`;
+  if (eventDesc) xml += `          <description>${escapeXml(eventDesc)}</description>\n`;
+
   xml += buildPropertiesXML(properties, 5);
 
   // resultsRef 要素の出力（存在する場合のみ）

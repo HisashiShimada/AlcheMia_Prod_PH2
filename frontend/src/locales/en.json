@@ -3452,7 +3452,8 @@
     "skipNoTarget": "No transitions to skip to",
     "skipNoTargetContent": "There are no other executable transitions. Please check the progress overview tab.",
     "commentSaved": "Comment saved",
-    "commentSaveMock": "Comment saved (mock)"
+    "commentSaveMock": "Comment saved (mock)",
+    "petriNetViewer": "View Petri Net"
   },
   "templateInputPanel": {
     "uncertaintyLabel": "Uncertainty",

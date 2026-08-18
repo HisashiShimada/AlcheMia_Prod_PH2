@@ -99,7 +99,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
   });
   const {
     isProjectCheckedOut, taskResults, taskStats,
-    handleToggleCheckout, handleInstructionsSubmit,
+    handleToggleCheckout,
     handleOpenIssueManagement, handleCloseIssueManagement,
     handleRenameSuccess, handleCloseCreateModal, handleCreateProject, handleProjectDelete,
   } = actionsState;
@@ -282,7 +282,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                 items={[
                   { key: 'file_management', label: t('projectManagement.tabs.file_management'), children: <FileManagementTabContent selectedProject={selectedProject} currentFolder={currentFolder} expandedFolders={expandedFolders} currentFiles={currentFiles} projectFilesData={projectFilesData} onFolderClick={handleFolderClick} onToggleFolder={handleToggleFolder} onDeleteFile={handleDeleteMaimlFile} onDeleteFolder={handleDeleteFolder} /> },
                   { key: 'task_registration', label: t('projectManagement.tabs.task_registration'), children: <TaskRegistrationTabContent selectedProject={selectedProject} isActive={currentTab === 'task_registration'} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
-                  { key: 'project_instruction', label: t('projectManagement.tabProjectInstruction'), children: <ProjectInstructionTabContent selectedProject={selectedProject} isActive={currentTab === 'project_instruction'} isProjectCheckedOut={isProjectCheckedOut} onInstructionsSubmit={handleInstructionsSubmit} /> },
+                  { key: 'project_instruction', label: t('projectManagement.tabProjectInstruction'), children: <ProjectInstructionTabContent selectedProject={selectedProject} isActive={currentTab === 'project_instruction'} isProjectCheckedOut={isProjectCheckedOut} /> },
                   { key: 'task_results', label: t('projectManagement.tabs.task_results'), children: <ExperimentInstructionTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
                   { key: 'evaluation_registration', label: t('projectManagement.tabEvaluationRegistration'), children: <EvaluationRegistrationTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
                 ]}

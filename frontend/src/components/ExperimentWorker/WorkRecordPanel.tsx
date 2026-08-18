@@ -37,11 +37,14 @@ import {
   Typography,
   theme,
 } from 'antd';
-import { CommentOutlined, DeleteOutlined, FastForwardOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import { CommentOutlined, DeleteOutlined, FastForwardOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
+import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
 import ContentGridEditor from '@/components/common/ContentGridEditor';
+import { getProjectMaiml } from '@/services/projectApiService';
 import type { Insertion } from '@/types/maiml-unified';
+import type { FileData } from '@/types/editor';
 import uncertaintyMockData from '../../../mock/uncertainty.json';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -712,6 +715,10 @@ interface PropertyListProps {
   onContentAdd?: (taskNo: number, transitionId: string) => void;
   /** カスタムContentスロット削除ボタン押下時 */
   onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
+  /** ペトリネットビューアを開くコールバック */
+  onOpenViewer?: () => void;
+  /** ペトリネットビューアローディング中フラグ */
+  viewerLoading?: boolean;
 }
 
 /** Insertion のデフォルト値 */
@@ -736,6 +743,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onInsertionRemove,
   onContentAdd,
   onContentRemove,
+  onOpenViewer,
+  viewerLoading,
 }) => {
   const { t } = useLanguage();
 
@@ -994,6 +1003,19 @@ const PropertyList: React.FC<PropertyListProps> = ({
           </Button>
         </Flex>
       )}
+
+      {/* ペトリネットビューアボタン（readOnly に関わらず常に表示） */}
+      <Flex justify="flex-end" style={{ marginTop: isReadOnly ? 12 : 4, paddingBottom: 8 }}>
+        <Button
+          size="small"
+          icon={<FileSearchOutlined />}
+          onClick={onOpenViewer}
+          disabled={!onOpenViewer}
+          loading={viewerLoading}
+        >
+          {t('workRecord.petriNetViewer')}
+        </Button>
+      </Flex>
     </>
   );
 };
@@ -1223,6 +1245,10 @@ interface PlanProps {
   onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
   /** ファイルアップロード先パス（指定時にファイル選択・DnDでアップロード確認ダイアログを表示） */
   uploadTargetPath?: string;
+  /** ペトリネットビューアを開くコールバック */
+  onOpenViewer?: () => void;
+  /** ペトリネットビューアローディング中フラグ */
+  viewerLoading?: boolean;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1309,7 +1335,7 @@ const PlanA: React.FC<PlanProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath,
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath, onOpenViewer, viewerLoading,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1485,6 +1511,8 @@ const PlanB: React.FC<PlanProps> = ({
             onContentAdd={onContentAdd}
             onContentRemove={onContentRemove}
             uploadTargetPath={uploadTargetPath}
+            onOpenViewer={onOpenViewer}
+            viewerLoading={viewerLoading}
           />
         </Content>
       </Layout>
@@ -1501,11 +1529,22 @@ const ASSIGNED_TASK_NO = 2; // フェーズA: 固定、フェーズBで props �
 interface WorkRecordPanelProps {
   /** 選択中のプロジェクト名（S3アップロードパスの組み立てに使用） */
   projectName?: string;
+  /** 選択中のプロジェクトID（ペトリネットビューアのMAIML取得に使用） */
+  projectId?: string;
 }
 
-export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = {}) {
+export default function WorkRecordPanel({ projectName, projectId }: WorkRecordPanelProps = {}) {
   const [tasks, setTasks] = useState<MockTask[]>(INITIAL_TASKS);
   const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(null);
+
+  // ── ペトリネットビューア ──
+  const [viewerDialogs, setViewerDialogs] = useState<{
+    id: string;
+    file: FileData;
+    fileContent: string | null;
+    zIndex: number;
+  }[]>([]);
+  const [petriNetViewerLoading, setPetriNetViewerLoading] = useState(false);
 
   const handleActualChange = useCallback(
     (taskNo: number, transitionId: string, propKey: string, value: ActualValue) => {
@@ -1526,6 +1565,48 @@ export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = 
   );
 
   const { t } = useLanguage();
+
+  // ── ペトリネットビューアハンドラ ──
+  const handleOpenPetriNetViewer = useCallback(async () => {
+    if (!projectId) return;
+    setPetriNetViewerLoading(true);
+    try {
+      const result = await getProjectMaiml(projectId);
+      if (!result.success || !result.data?.maimlContent) {
+        Modal.error({ title: t('experimentInstruction.fetchError') });
+        return;
+      }
+      const { maimlContent, projectName: resolvedName, lastModified } = result.data;
+      const file: FileData = {
+        id: projectId,
+        name: `${resolvedName}.maiml`,
+        path: `projects/${resolvedName}/${resolvedName}.maiml`,
+        size: maimlContent.length,
+        lastModified: lastModified || new Date().toISOString(),
+        type: 'maiml',
+      };
+      setViewerDialogs((prev) => [
+        ...prev,
+        { id: `viewer_${Date.now()}`, file, fileContent: maimlContent, zIndex: 1000 + prev.length },
+      ]);
+    } catch (err) {
+      console.error('[WorkRecordPanel] handleOpenPetriNetViewer error:', err);
+      Modal.error({ title: t('experimentInstruction.fetchError') });
+    } finally {
+      setPetriNetViewerLoading(false);
+    }
+  }, [projectId, t]);
+
+  const handleCloseViewer = useCallback((id: string) => {
+    setViewerDialogs((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+
+  const handleFocusViewer = useCallback((id: string) => {
+    setViewerDialogs((prev) => {
+      const maxZ = Math.max(...prev.map((d) => d.zIndex), 999);
+      return prev.map((d) => (d.id === id ? { ...d, zIndex: maxZ + 1 } : d));
+    });
+  }, []);
 
   const handleSave = useCallback((_taskNo: number, _transitionId: string) => {
     Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
@@ -1720,6 +1801,8 @@ export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = 
     onContentAdd: handleContentAdd,
     onContentRemove: handleContentRemove,
     uploadTargetPath: projectName ? `projects/${projectName}/attachments` : undefined,
+    onOpenViewer: projectId ? handleOpenPetriNetViewer : undefined,
+    viewerLoading: petriNetViewerLoading,
   };
 
   // コメントダイアログに渡す displayKey（現在表示中のキー）
@@ -1748,6 +1831,20 @@ export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = 
           onSave={handleSaveComment}
         />
       )}
+
+      {/* ── ペトリネットビューア（ViewRendererDialog / フローティング） ── */}
+      {viewerDialogs.map((dialog) => (
+        <ViewRendererDialog
+          key={dialog.id}
+          id={dialog.id}
+          contentType="file"
+          file={dialog.file}
+          fileContent={dialog.fileContent}
+          zIndex={dialog.zIndex}
+          onClose={handleCloseViewer}
+          onFocus={handleFocusViewer}
+        />
+      ))}
     </div>
   );
 }
