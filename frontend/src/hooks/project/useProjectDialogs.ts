@@ -33,11 +33,12 @@ export const useProjectDialogs = () => {
   // バリデーション結果ダイアログ
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
 
-  // 暗号化管理モーダル
-  const [encryptionModalOpen, setEncryptionModalOpen] = useState(false);
+  // TODO: 暗号化・署名機能は本実装まで無効化
+  // // 暗号化管理モーダル
+  // const [encryptionModalOpen, setEncryptionModalOpen] = useState(false);
 
-  // 電子署名管理モーダル
-  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+  // // 電子署名管理モーダル
+  // const [signatureModalOpen, setSignatureModalOpen] = useState(false);
 
   // Draft復元確認ダイアログ
   const [draftRestoreDialogOpen, setDraftRestoreDialogOpen] = useState(false);
@@ -61,10 +62,11 @@ export const useProjectDialogs = () => {
     setRenameModalOpen,
     validationDialogOpen,
     setValidationDialogOpen,
-    encryptionModalOpen,
-    setEncryptionModalOpen,
-    signatureModalOpen,
-    setSignatureModalOpen,
+    // TODO: 暗号化・署名機能は本実装まで無効化
+    // encryptionModalOpen,
+    // setEncryptionModalOpen,
+    // signatureModalOpen,
+    // setSignatureModalOpen,
     draftRestoreDialogOpen,
     setDraftRestoreDialogOpen,
   };
