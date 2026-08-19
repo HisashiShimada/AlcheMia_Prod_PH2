@@ -1,4 +1,9 @@
--- 名前空間用語
+-- ===================================================================
+-- テーブル名: namespace_term (名前空間用語)
+-- 説明: 名前空間に属する用語（ローカル名）を管理するテーブル
+-- ===================================================================
+
+-- 既存テーブルが存在する場合は削除
 DROP TABLE IF EXISTS namespace_term CASCADE;
 
 CREATE TABLE namespace_term (
@@ -17,6 +22,9 @@ CREATE TABLE namespace_term (
   , update_user_id  VARCHAR(50)
   , CONSTRAINT namespace_term_PKC PRIMARY KEY (organization_id, namespace_id, prefix, localname)
 ) ;
+
+ALTER TABLE namespace_term ADD CONSTRAINT fk_namespace_term_namespace
+  FOREIGN KEY (organization_id, prefix) REFERENCES namespace(organization_id, prefix) ;
 
 COMMENT ON TABLE namespace_term IS '名前空間用語';
 COMMENT ON COLUMN namespace_term.organization_id IS '組織ID';

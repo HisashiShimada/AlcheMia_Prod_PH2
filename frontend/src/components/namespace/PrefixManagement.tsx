@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Button, Input, Table, message, Modal, Typography, Tooltip, Spin } from 'antd';
+import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
+import { Button, Input, Table, message, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
@@ -123,7 +124,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           prefix: row.prefix,
           uri: row.uri,
           description: row.description || undefined,
-          isGlobal: globalOnly,
           scopeKey: scopeKey ?? selectedNsKey ?? undefined,
         });
         added.push({
@@ -306,7 +306,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
               prefix: row.prefix,
               uri: row.uri,
               description: row.description || undefined,
-              isGlobal: globalOnly,
             });
             added.push({
               id: created.prefix,
@@ -505,6 +504,14 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
                 {t('prefixManagement.btnCancelEdit')}
               </Button>
             </span>
+          );
+        }
+        // システム名前空間（Alchemia）の行は操作不可
+        if (r.prefix === SYSTEM_NAMESPACE_PREFIX) {
+          return (
+            <Tooltip title={t('prefixManagement.systemNamespaceTooltip')}>
+              <Tag color="default">{t('prefixManagement.systemNamespaceBadge')}</Tag>
+            </Tooltip>
           );
         }
         return (

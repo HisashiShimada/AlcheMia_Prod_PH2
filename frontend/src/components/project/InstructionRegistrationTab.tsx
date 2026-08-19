@@ -11,7 +11,6 @@ import {
   Button,
   Table,
   Space,
-  Tag,
   Typography,
   message,
   theme,
@@ -30,6 +29,7 @@ import type {
   InstructionData,
   TransitionInfo,
 } from '@/types/instructionRegistration';
+import { INSTRUCTION_KEY, INSTRUCTION_KEY_LABELS } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
@@ -49,7 +49,7 @@ const { useToken } = theme;
  * 指示登録タブのプロパティ
  */
 interface InstructionRegistrationTabProps {
-projectId: string;
+  projectId: string;
   projectName: string;
   isActive: boolean;
   isCheckoutLocked?: boolean;
@@ -91,8 +91,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     const fetchTaskRegistration = async () => {
       if (!projectName || !isActive) return;
 
-      console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching tasks');
-      
       try {
         const data = await getTaskRegistration(projectId);
 
@@ -108,10 +106,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             workerLinkedFlg: task.workerLinkedFlg || false,
           }));
 
-          console.log('[DEBUG] InstructionRegistrationTab - Tasks loaded from DB:', uiTasks);
           setRegisteredTasks(uiTasks);
         } else {
-          console.log('[DEBUG] InstructionRegistrationTab - No tasks found in DB');
           setRegisteredTasks([]);
         }
       } catch (error) {
@@ -130,8 +126,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   useEffect(() => {
     const fetchInstructions = async () => {
       if (!projectName || !isActive) return;
-
-      console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching instructions');
 
       try {
         const instructionList = await getInstructions(projectId);
@@ -162,12 +156,12 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
 
   /**
    * MAIMLコンテキストから全トランジション一覧を取得（表示用）
-   * 注: InstructionEditDialogではメソッド選択時に動的にフィルタリングされます
+   * 各トランジションに所属メソッドIDを付与してフィルタリングに対応
    */
   const availableTransitions = useMemo((): TransitionInfo[] => {
     if (!maimlRoot?.protocol?.methods) return [];
     
-    // 全メソッドのトランジションを集約
+    // 全メソッドのトランジションを集約（methodIdを付与）
     const allTransitions: TransitionInfo[] = [];
     maimlRoot.protocol.methods.forEach((method) => {
       if (method.pnml?.transitions) {
@@ -178,6 +172,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             category: 'other',
             description: transition.description,
             isExperimentRelevant: true,
+            methodId: method.id,
           });
         });
       }
@@ -220,12 +215,11 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       if (editMode === 'create') {
         // 新規作成：API呼び出し
         const result = await saveInstruction(projectId, {
-          methodId: instruction.methodId,
+          methodId: instruction.methodId || null,
           transitionId: instruction.transitionId || null,
           taskNumber: instruction.taskNumber,
-          priority: instruction.priority,
-          type: instruction.type,
           content: instruction.content,
+          instructionKey: instruction.instructionKey || INSTRUCTION_KEY.GENERAL,
         });
         
         // APIから返されたIDで新しい指示を追加
@@ -243,9 +237,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
           methodId: instruction.methodId,
           transitionId: instruction.transitionId || null,
           taskNumber: instruction.taskNumber,
-          priority: instruction.priority,
-          type: instruction.type,
           content: instruction.content,
+          instructionKey: instruction.instructionKey,
         });
         
         // ローカル状態を更新
@@ -330,38 +323,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   }, [instructions, projectName, onInstructionsSubmit, t]);
 
   /**
-   * 優先度のタグカラー（code_valueベース）
-   */
-  const getPriorityColor = (priority: number): string => {
-    switch (priority) {
-      case 3: // 高
-        return 'red';
-      case 2: // 中
-        return 'orange';
-      case 1: // 通常
-        return 'blue';
-      case 0: // 低
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
-
-  /**
-   * 優先度のラベル（code_value → code_name）
-   */
-  const getPriorityLabel = useCallback((priority: number): string => {
-    return t(`instructionRegistration.priority.${priority}`) || String(priority);
-  }, [t]);
-
-  /**
-   * タイプのラベル（code_value → code_name）
-   */
-  const getTypeLabel = useCallback((type: number): string => {
-    return t(`instructionRegistration.type.${type}`) || String(type);
-  }, [t]);
-
-  /**
    * 指示対象のラベル
    */
   const getTargetLabel = useCallback((instruction: InstructionData): string => {
@@ -434,20 +395,19 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       },
     },
     {
-      title: t('instructionRegistration.columns.priority'),
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 75,
-      render: (priority: number) => (
-        <Tag color={getPriorityColor(priority)}>{getPriorityLabel(priority)}</Tag>
-      ),
-    },
-    {
-      title: t('instructionRegistration.columns.type'),
-      dataIndex: 'type',
-      key: 'type',
-      width: 90,
-      render: (type: number) => <Text>{getTypeLabel(type)}</Text>,
+      title: t('instructionRegistration.columns.instructionKey'),
+      dataIndex: 'instructionKey',
+      key: 'instructionKey',
+      width: 180,
+      ellipsis: true,
+      render: (instructionKey: string) => {
+        const label = INSTRUCTION_KEY_LABELS[instructionKey as keyof typeof INSTRUCTION_KEY_LABELS] || instructionKey;
+        return (
+          <Tooltip title={label}>
+            <Text ellipsis>{label}</Text>
+          </Tooltip>
+        );
+      },
     },
     {
       title: t('instructionRegistration.columns.content'),

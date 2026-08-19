@@ -438,7 +438,7 @@ const InputModal: React.FC<InputModalProps> = ({
         </Flex>
       }
     >
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={12} style={{ width: '100%' }}>
         {/* 評価単位 */}
         <Flex align="center" gap={8} wrap="wrap">
           <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>{t('evaluation.labels.evalUnit')}</Text>
@@ -730,7 +730,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
 
   return (
     <>
-      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={8} style={{ width: '100%' }}>
 
         {/* ── 階層別サマリーセクション（全体評価タブに移動済み・コメントアウト中） ── */}
         {/* <Card

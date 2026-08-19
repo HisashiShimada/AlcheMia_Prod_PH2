@@ -784,7 +784,7 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
                   dataIndex: 'label',
                   key: 'label',
                   render: (label: string, record: TemplateDef) => (
-                    <Space direction="vertical" size={0}>
+                    <Space orientation="vertical" size={0}>
                       <Text style={{ fontSize: 12 }}>{label}</Text>
                       <Tag
                         color={

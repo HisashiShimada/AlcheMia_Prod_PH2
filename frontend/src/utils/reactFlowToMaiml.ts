@@ -922,8 +922,8 @@ export async function convertReactFlowToMaiML(
   // XMLヘッダー
   let maiml = `<?xml version="1.0" encoding="utf-8" standalone="no"?>\n`;
   
-  // MaiML要素開始（正しい名前空間）
-  maiml += `<maiml version="1.0" xmlns="http://www.maiml.org/schemas" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.maiml.org/schemas maiml.xsd">\n`;
+  // MaiML要素開始（名前空間宣言はファイルサーバの global-declarations.csv から注入される）
+  maiml += `<maiml version="1.0" xsi:schemaLocation="http://www.maiml.org/schemas maiml.xsd">\n`;
   
   // Document要素（<maiml>直下、<protocol>の前に配置 - 必須）
   if (documentData) {
