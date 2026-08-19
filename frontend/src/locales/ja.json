@@ -4711,9 +4711,9 @@
     "fetchFailed": "グループ情報の取得に失敗しました",
     "groupCdLabel": "グループCD",
     "groupListTitle": "グループ一覧",
-    "memberCount": "{{count}}名",
+    "memberCount": "{count}名",
     "memberFetchFailed": "メンバー情報の取得に失敗しました",
-    "membersCount": "{{count}}名",
+    "membersCount": "{count}名",
     "membersLabel": "メンバー",
     "noGroups": "グループがありません",
     "noMembers": "メンバーがいません",
@@ -4752,6 +4752,22 @@
   "workflowSelectorDialog": {
     "loadFailed": "ワークフローの読み込みに失敗しました",
     "selectRequired": "ワークフローを選択してください"
+  },
+  "globalNamespace": {
+    "title": "グローバル名前空間宣言",
+    "description": "システム共通のグローバル名前空間（ファイルサーバ管理）",
+    "count": "{count} 件",
+    "empty": "グローバル名前空間宣言が登録されていません",
+    "fetchError": "グローバル名前空間宣言の取得に失敗しました",
+    "importButton": "インポート",
+    "exportButton": "エクスポート",
+    "importConfirmTitle": "グローバル名前空間宣言を上書きインポート",
+    "importConfirmContent": "現在のファイルサーバ上のデータが上書きされます。続行しますか？",
+    "importConfirmOk": "上書きインポート",
+    "importSuccess": "グローバル名前空間宣言をインポートしました",
+    "importError": "インポートに失敗しました",
+    "exportSuccess": "エクスポートが完了しました",
+    "exportError": "エクスポートに失敗しました"
   },
   "namespaceAdd": {
     "title": "名前空間追加",

@@ -17,6 +17,7 @@ import { logger } from '../utils/logger';
 import { getMessage } from '../utils/messages';
 import { createSchemaIfNotExists, createSchemaTables, getSchemaStorageSizeBytes } from '../repositories/maimlAssetRepository';
 import * as namespaceService from './namespaceService';
+import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
 import { generateNamespaceUri } from '../utils/namespaceUriGenerator';
 
 /**

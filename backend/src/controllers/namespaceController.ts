@@ -286,7 +286,7 @@ export async function getDeclarationsByProject(
  * 用語一覧取得
  * GET /api/v1/namespaces/terms
  *
- * @query scopeKey - 指定した場合、そのスコープ + global_flg=TRUE の用語のみ返す
+ * @query scopeKey - 指定した場合、そのスコープの用語のみ返す
  */
 export async function getTerms(
   req: Request,
@@ -296,14 +296,6 @@ export async function getTerms(
   try {
     const organizationId = (req as any).organizationId as string | undefined;
     const scopeKey = req.query.scopeKey as string | undefined;
-
-    const globalFlg = req.query.globalFlg === 'true';
-
-    if (organizationId && globalFlg) {
-      const terms = await namespaceService.getTermsGlobal(organizationId);
-      res.json(terms);
-      return;
-    }
 
     if (organizationId && scopeKey) {
       const terms = await namespaceService.getTermsByScopeKey(organizationId, scopeKey);
@@ -349,6 +341,80 @@ export async function toggleTermActive(
     }
 
     res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── グローバル名前空間宣言（ファイルサーバ管理）────────────────────────────────
+
+/**
+ * グローバル名前空間宣言一覧取得
+ * GET /api/v1/namespaces/global-declarations
+ *
+ * @remarks ファイルサーバ（system/namespaces/global-declarations.csv）から読み込む。
+ */
+export async function getGlobalDeclarations(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const declarations = await namespaceService.getGlobalDeclarationEntries();
+    res.json({ declarations });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * グローバル名前空間宣言インポート
+ * POST /api/v1/namespaces/global-declarations/import
+ *
+ * @remarks
+ * multipart/form-data で CSV ファイルを受け取り、ファイルサーバへ上書き保存する。
+ * req.file は multer (memoryStorage) によってセットされる。
+ */
+export async function importGlobalDeclarations(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'CSVファイルが必要です' } });
+      return;
+    }
+
+    const csvContent = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+
+    try {
+      const result = await namespaceService.importGlobalDeclarationsCsv(csvContent);
+      res.json({ success: true, count: result.count });
+    } catch (serviceError: any) {
+      res.status(400).json({ success: false, error: { code: 'E1004', message: serviceError.message } });
+    }
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * グローバル名前空間宣言エクスポート
+ * GET /api/v1/namespaces/global-declarations/export
+ *
+ * @remarks ファイルサーバから CSV を読み込み、ダウンロードレスポンスとして返す。
+ */
+export async function exportGlobalDeclarations(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const csvContent = await namespaceService.exportGlobalDeclarationsCsv();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="global-declarations.csv"');
+    res.send(csvContent);
   } catch (error) {
     next(error);
   }

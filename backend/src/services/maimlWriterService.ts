@@ -31,6 +31,23 @@ import {
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { findNamespacesByOrganization } from '../repositories/namespaceTermRepository';
+import { readGlobalDeclarations } from './globalNamespaceFileService';
+
+/**
+ * 組織固有名前空間（DB）とグローバル名前空間（ファイルサーバ）をマージして返す
+ *
+ * @param organizationId - 組織ID
+ * @returns マージされた名前空間エントリ配列（グローバル優先、組織固有が後勝ち）
+ */
+async function buildMergedNamespaces(
+  organizationId: string
+): Promise<Array<{ prefix: string; uri: string }>> {
+  const [orgNamespaces, globalDeclarations] = await Promise.all([
+    findNamespacesByOrganization(organizationId),
+    readGlobalDeclarations(),
+  ]);
+  return [...globalDeclarations, ...orgNamespaces];
+}
 
 /**
  * maiml_event_log テーブルの1行
@@ -138,9 +155,10 @@ export class MaimlWriterService {
     // --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
     let updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
 
-    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入（DBの内容で完全上書き）
-    const namespaces = await findNamespacesByOrganization(organizationId);
-    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, namespaces);
+    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
+    // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
+    const allNamespaces = await buildMergedNamespaces(organizationId);
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
@@ -277,9 +295,10 @@ export class MaimlWriterService {
     // --- 7. 既存 MAIML の <eventLog> タグのみを置き換え（<data> は変更しない）---
     let updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
 
-    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入（DBの内容で完全上書き）
-    const namespaces = await findNamespacesByOrganization(organizationId);
-    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, namespaces);
+    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
+    // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
+    const allNamespaces = await buildMergedNamespaces(organizationId);
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);

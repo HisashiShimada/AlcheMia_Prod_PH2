@@ -81,3 +81,19 @@ export interface PinExemptionCheck {
   exemptionPeriodDays: number;
   reason: string;
 }
+
+// ─── グローバル名前空間宣言 ────────────────────────────────────────────────────
+
+/**
+ * グローバル名前空間宣言の1エントリ
+ *
+ * @remarks
+ * ファイルサーバ（system/namespaces/global-declarations.csv）で管理される
+ * システム共通の名前空間宣言（prefix + URI のペア）。
+ */
+export interface GlobalDeclarationEntry {
+  /** XML prefix（例: "maiml", "xsi"） */
+  prefix: string;
+  /** 名前空間 URI（例: "http://www.maiml.org/schemas"） */
+  uri: string;
+}

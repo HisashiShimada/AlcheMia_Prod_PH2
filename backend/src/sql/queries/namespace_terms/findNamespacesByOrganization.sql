@@ -1,12 +1,10 @@
 -- 組織に紐づく名前空間（prefix / uri）の一覧を取得
--- MaiMLファイルへの名前空間宣言書き込みに使用
--- UNION ALL で固定UUID (00000000-...) の Alchemia システム名前空間を常に含める
+-- MaiMLファイルへの名前空間宣言書き込みに使用（組織固有のみ・グローバルはファイルサーバで管理）
 SELECT
   p.prefix
   , n.uri
   , n.scope_key                                                     AS "scopeKey"
   , COALESCE(og.organization_group_name, ou.user_name, '')          AS "scopeName"
-  , COALESCE(n.global_flg, FALSE)                                   AS "isGlobal"
 FROM prefix p
 INNER JOIN namespace n
   ON p.organization_id = n.organization_id
