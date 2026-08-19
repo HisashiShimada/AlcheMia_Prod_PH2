@@ -1407,12 +1407,12 @@ const PlanB: React.FC<PlanProps> = ({
           style={{ marginBottom: 8, background: '#fafafa' }}
         >
           <Flex gap={16} wrap="wrap" align="center">
-            <Flex align="center" gap={8} style={{ minWidth: 240, flex: 1 }}>
+            <Flex align="center" gap={8}>
               <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
                 Creator
               </Text>
               <Select
-                style={{ flex: 1 }}
+                style={{ width: 240 }}
                 size="small"
                 placeholder={t('workRecord.creatorPlaceholder')}
                 value={selectedCreatorRef ?? undefined}
@@ -1422,12 +1422,12 @@ const PlanB: React.FC<PlanProps> = ({
                 disabled={isReadOnly}
               />
             </Flex>
-            <Flex align="center" gap={8} style={{ minWidth: 240, flex: 1 }}>
+            <Flex align="center" gap={8}>
               <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
                 Instrument
               </Text>
               <Select
-                style={{ flex: 1 }}
+                style={{ width: 240 }}
                 size="small"
                 placeholder={t('workRecord.instrumentPlaceholder')}
                 value={selectedInstrumentRef ?? undefined}
