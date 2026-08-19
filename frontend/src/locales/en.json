@@ -3455,7 +3455,9 @@
     "commentSaveMock": "Comment saved (mock)",
     "petriNetViewer": "View Petri Net",
     "creatorPlaceholder": "Select Creator",
-    "instrumentPlaceholder": "Select Instrument"
+    "instrumentPlaceholder": "Select Instrument",
+    "creatorLabel": "Creator",
+    "instrumentLabel": "Instrument"
   },
   "templateInputPanel": {
     "uncertaintyLabel": "Uncertainty",

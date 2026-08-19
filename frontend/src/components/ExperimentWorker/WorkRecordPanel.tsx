@@ -1409,7 +1409,7 @@ const PlanB: React.FC<PlanProps> = ({
           <Flex gap={16} wrap="wrap" align="center">
             <Flex align="center" gap={8}>
               <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
-                Creator
+                {t('workRecord.creatorLabel')}
               </Text>
               <Select
                 style={{ width: 240 }}
@@ -1424,7 +1424,7 @@ const PlanB: React.FC<PlanProps> = ({
             </Flex>
             <Flex align="center" gap={8}>
               <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
-                Instrument
+                {t('workRecord.instrumentLabel')}
               </Text>
               <Select
                 style={{ width: 240 }}
