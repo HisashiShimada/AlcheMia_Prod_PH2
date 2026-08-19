@@ -56,6 +56,8 @@ export default function UncertaintyCreateModal({
   const { t } = useLanguage();
   const [evalMode, setEvalMode] = useState<'quantitative' | 'qualitative'>('quantitative');
   const [qualitativeOptions, setQualitativeOptions] = useState<QualitativeOption[]>(DEFAULT_OPTIONS);
+  const [termDisplayName, setTermDisplayName] = useState('');
+  const [termDescription, setTermDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
 
@@ -79,6 +81,20 @@ export default function UncertaintyCreateModal({
     const keys = Array.from(new Set(allCriteria.map((c) => c.key).filter(Boolean)));
     return keys.map((k) => ({ value: k, label: k }));
   }, [allCriteria]);
+
+  /**
+   * Key属性設定が選択されたとき、allCriteria から termDisplayName / termDescription を反映する
+   */
+  const handleKeyChange = (selectedKey: string | undefined) => {
+    if (!selectedKey) {
+      setTermDisplayName('');
+      setTermDescription('');
+      return;
+    }
+    const matched = allCriteria.find((c) => c.key === selectedKey);
+    setTermDisplayName((matched as any)?.termDisplayName ?? '');
+    setTermDescription((matched as any)?.termDescription ?? '');
+  };
 
   /**
    * 継承元不確かさ基準が選択されたとき、その最新バージョンの詳細を取得してフォームに反映する

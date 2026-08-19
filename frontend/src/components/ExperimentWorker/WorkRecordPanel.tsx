@@ -1,9 +1,5 @@
 'use client';
 
-<<<<<<< HEAD
-import React from 'react';
-import { Empty, Typography } from 'antd';
-=======
 /**
  * 作業記録パネル（案A / 案B レイアウト）
  *
@@ -50,60 +46,335 @@ import { getProjectMaiml } from '@/services/projectApiService';
 import { getPlanDialogData, getExperimentPlans } from '@/services/experimentPlanApiService';
 import type { Insertion } from '@/types/maiml-unified';
 import type { FileData } from '@/types/editor';
-import uncertaintyMockData from '../../../mock/uncertainty.json';
->>>>>>> feature/phase2_mock
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { ProgressRow } from './ProgressOverviewTab';
-import DataRecordDialog from './DataRecordDialog';
-import type { Transition, ProjectStatus, ExperimentDataValue } from '@/types/experimentWorker';
+import type { ProgressRow } from '@/types/progress';
+
+const { Sider, Content } = Layout;
 
 const { Text } = Typography;
 
-interface WorkRecordPanelProps {
-  /** 選択中プロジェクトID */
-  projectId?: string;
-  /** 全体進捗行（ExperimentWorkerMenu から渡す） */
-  progressRows: ProgressRow[];
-  /** みなし進捗使用フラグ */
-  useDeemedProgress?: boolean;
-  /** プロジェクトステータス */
-  projectStatus?: number | null;
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 不確かさ基準（モックデータから定量評価・有効なものを選択肢として生成）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 「値の追加」ボタンで追加された不確かさ評価行の型
+ */
+interface AddedUncertaintyValue {
+  /** 行を一意に識別するID */
+  id: string;
+  /** 選択された不確かさ基準の key（空文字は未選択） */
+  uncertaintyKey: string;
+  /** 入力された値 */
+  value: string;
 }
 
 /**
- * 作業記録パネル
- *
- * progressRows から status === 'in_progress' のトランジションを特定し、
- * DataRecordDialog を使って実験データ入力UIを表示する。
- *
- * - データ取得元: GET /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data?transitionId=xxx
- * - データ保存先: POST /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
- * - サービス: frontend/src/services/experimentDataApiService.ts
+ * 「値の追加」ボタンで使用する不確かさ基準の選択肢。
+ * フェーズB: API経由で取得した実データに差し替え予定。
  */
-export default function WorkRecordPanel({
-  projectId,
-  progressRows,
-  useDeemedProgress = true,
-  projectStatus = null,
-}: WorkRecordPanelProps) {
-  const { t } = useLanguage();
+const UNCERTAINTY_OPTIONS: { value: string; label: string }[] = [];
 
-  // in_progress トランジションを取得（複数あれば先頭を使用）
-  const inProgressRow = progressRows.find((r) => r.status === 'in_progress') ?? null;
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 型定義
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  // DataRecordDialog に渡す Transition オブジェクトを構築
-  const transition: Transition | null = inProgressRow
-    ? {
-        transitionId: inProgressRow.transitionId,
-        transitionName: inProgressRow.transitionName ?? '',
+type TransitionStatus = 'not_started' | 'in_progress' | 'completed' | 'error';
+type ConfidenceLevel = '確か' | '曖昧' | '不確か';
+
+interface MockProperty {
+  key: string;
+  label: string;
+  xsiType: 'FloatValue' | 'IntegerValue' | 'StringValue';
+  unit: string;
+  expected: number | string | null;
+  /** 不確かさ基準名（例: '測定不確かさ（k=2）'）。未指定時は「不確かさ値」を表示 */
+  uncertaintyName?: string;
+  /** 不確かさ値（モック）。未指定時は「—」を表示 */
+  uncertaintyValue?: number | string;
+  /** 不確かさ説明（モック）。未指定時は「—」を表示 */
+  uncertaintyDescription?: string;
+  /** 定性評価の初期値（モック）。未指定時は「確か」 */
+  defaultConfidence?: string;
+  /** 定性評価のボタン選択肢（モック）。未指定時は ['確か', '曖昧', '不確か'] */
+  confidenceOptions?: string[];
+}
+
+/** Insertion スロット（テンプレートに紐づくファイル添付欄） */
+interface MockInsertionSlot {
+  id: string;
+  label?: string;
+}
+
+interface MockTemplate {
+  id: string;
+  name: string;
+  category: 'Conditions' | 'Materials' | 'Results';
+  properties: MockProperty[];
+  /** このテンプレートで収集するInsertionスロット一覧。存在する場合のみ表示 */
+  insertions?: MockInsertionSlot[];
+}
+
+interface MockTransition {
+  id: string;
+  order: number;
+  /**
+   * 前提となるトランジションIDの配列。
+   * これらが全て completed になるまでこのトランジションは開始不可。
+   * 空配列の場合は依存なし（いつでも開始可能）。
+   *
+   * @example [] // 依存なし
+   * @example ['TR_A', 'TR_B'] // TR_A と TR_B 両方完了後のみ開始可能
+   */
+  prerequisiteTransitionIds: string[];
+  methodId: string;
+  templates: MockTemplate[];
+}
+
+interface MockMethod {
+  id: string;
+  order: number;
+}
+
+/** actuals に格納できる値の型（通常プロパティ値 or Insertionオブジェクト or DataGrid） */
+type ActualValue = number | string | null | Insertion | number[][];
+
+interface TaskTransitionState {
+  transitionId: string;
+  status: TransitionStatus;
+  actuals: Record<string, ActualValue>;
+  /** ユーザーが「+ Insertion追加」で追加したカスタムInsertionのID一覧 */
+  customInsertionIds: string[];
+  /** ユーザーが「+ Content追加」で追加したカスタムContentのID一覧 */
+  customContentIds: string[];
+}
+
+export interface MockTask {
+  taskNo: number;
+  transitions: TaskTransitionState[];
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// モックデータ（フェーズA）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const MOCK_PROJECT_INSTRUCTIONS = [
+  '安全装備（手袋・ゴーグル）を着用して作業すること',
+  '温度変化は慎重に観察し、異常があれば即座に報告すること',
+  '記録は正確かつタイムリーに入力すること',
+  '廃液は適切に分別して廃棄すること',
+];
+
+// ─────────────────────────────────────────────────────────────
+// モックデータ構成:
+//   同一 MAIML を複数タスクで繰り返す構造のため、
+//   全タスクが同じメソッド・同じトランジション構成を持つ。
+//
+//   TR_A / TR_B / TR_C: isOrderFixed=false（順序自由・並列実行可能）
+//   TR_D:               isOrderFixed=true （A・B・C 全完了後のみ開始可能）
+//
+//   スキップシナリオ例:
+//     TR_A が難しくて一旦スキップ → TR_B・TR_C を先に完了
+//     → 後で TR_A に戻って完了 → TR_A/B/C 全完了で TR_D が開始可能に
+// ─────────────────────────────────────────────────────────────
+
+const PROJECT_NAME = 'SampleSynthesis';
+const METHOD_ID    = `method_${PROJECT_NAME}_a1b2c3d4`;
+
+// TR_A: 混合条件（並列・順序自由）
+export const TR_A_ID = 'transition-1781057805603';
+// TR_B: 加熱条件（並列・順序自由）
+export const TR_B_ID = 'transition-1781057812047';
+// TR_C: 分離操作（並列・順序自由）
+export const TR_C_ID = 'transition-1781057819834';
+// TR_D: 最終評価（固定順序: A・B・C 全完了後のみ開始可能）
+export const TR_D_ID = 'transition-1781057826501';
+
+export const MOCK_METHODS: MockMethod[] = [
+  { id: METHOD_ID, order: 1 },
+];
+
+export const MOCK_TRANSITIONS: MockTransition[] = [
+  // ─── TR_A: 混合条件（前提なし・順序自由）────────────────────
+  {
+    id: TR_A_ID,
+    order: 1,
+    prerequisiteTransitionIds: [],
+    methodId: METHOD_ID,
+    templates: [
+      {
+        id: 'tpl-cond-mixing',
+        name: 'Condition-Mixing',
+        category: 'Conditions',
+        properties: [
+          { key: 'ns1:Temperature',   label: '温度',     xsiType: 'FloatValue',   unit: '℃',  expected: 25.0,  uncertaintyName: '許容誤差値',   uncertaintyValue: 0.5,  uncertaintyDescription: '0.5℃のズレまで許容する', defaultConfidence: '確か'   },
+          { key: 'ns1:Pressure',      label: '圧力',     xsiType: 'FloatValue',   unit: 'atm', expected: 1.013, uncertaintyName: '拡張不確かさ',  uncertaintyValue: 0.001, uncertaintyDescription: '0.001 atmまで許容',      defaultConfidence: 'OK', confidenceOptions: ['OK', 'NG'] },
+          { key: 'ns1:StirringSpeed', label: '撹拌速度', xsiType: 'IntegerValue', unit: 'rpm', expected: 300,   uncertaintyName: '許容範囲速度',  uncertaintyValue: 10,   uncertaintyDescription: '10 rpm の変動を許容',   defaultConfidence: '不確か' },
+        ],
+      },
+      {
+        id: 'tpl-mat-reagent',
+        name: 'Material-Reagent',
+        category: 'Materials',
+        properties: [
+          { key: 'ns1:ReagentName', label: '試薬名', xsiType: 'StringValue', unit: '', expected: 'NaCl' },
+          { key: 'ns1:Amount',      label: '量',     xsiType: 'FloatValue',  unit: 'g', expected: 5.0   },
+        ],
+        /** Insertionスロットのサンプル（動作確認用） */
+        insertions: [
+          { id: 'reagent-sds', label: '試薬安全データシート（SDS）' },
+          { id: 'reagent-coa', label: '試薬品質証明書（CoA）' },
+        ],
+      },
+    ],
+  },
+  // ─── TR_B: 加熱条件（前提なし・順序自由）────────────────────
+  {
+    id: TR_B_ID,
+    order: 2,
+    prerequisiteTransitionIds: [],
+    methodId: METHOD_ID,
+    templates: [
+      {
+        id: 'tpl-cond-heating',
+        name: 'Condition-Heating',
+        category: 'Conditions',
+        properties: [
+          { key: 'ns1:Temperature', label: '温度',     xsiType: 'FloatValue',   unit: '℃',  expected: 80.0 },
+          { key: 'ns1:HeatingTime', label: '加熱時間', xsiType: 'IntegerValue', unit: 'min', expected: 30   },
+        ],
+      },
+    ],
+  },
+  // ─── TR_C: 分離操作（前提なし・順序自由）────────────────────
+  {
+    id: TR_C_ID,
+    order: 3,
+    prerequisiteTransitionIds: [],
+    methodId: METHOD_ID,
+    templates: [
+      {
+        id: 'tpl-cond-centri',
+        name: 'Condition-Centrifuge',
+        category: 'Conditions',
+        properties: [
+          { key: 'ns1:RotationSpeed', label: '回転速度', xsiType: 'IntegerValue', unit: 'rpm', expected: 3000 },
+          { key: 'ns1:Duration',      label: '処理時間', xsiType: 'IntegerValue', unit: 'min', expected: 10   },
+        ],
+      },
+      {
+        id: 'tpl-mat-solvent',
+        name: 'Material-Solvent',
+        category: 'Materials',
+        properties: [
+          { key: 'ns1:SolventName', label: '溶媒名', xsiType: 'StringValue', unit: '', expected: 'EtOH' },
+        ],
+      },
+    ],
+  },
+  // ─── TR_D: 最終評価（A・B・C 全完了後のみ開始可能）──────────
+  {
+    id: TR_D_ID,
+    order: 4,
+    prerequisiteTransitionIds: [TR_A_ID, TR_B_ID, TR_C_ID],
+    methodId: METHOD_ID,
+    templates: [
+      {
+        id: 'tpl-result-yield',
+        name: 'Result-Yield',
+        category: 'Results',
+        properties: [
+          { key: 'ns1:Yield',  label: '収率', xsiType: 'FloatValue', unit: '%', expected: 90.0 },
+          { key: 'ns1:Purity', label: '純度', xsiType: 'FloatValue', unit: '%', expected: 99.5 },
+        ],
+      },
+    ],
+  },
+];
+
+const ORDERED_TRANSITION_IDS: string[] = MOCK_METHODS
+  .slice()
+  .sort((a, b) => a.order - b.order)
+  .flatMap((m) =>
+    MOCK_TRANSITIONS.filter((t) => t.methodId === m.id)
+      .sort((a, b) => a.order - b.order)
+      .map((t) => t.id)
+  );
+
+export const INITIAL_TASKS: MockTask[] = [
+  // ─── タスク1: 全完了済み ────────────────────────────────────
+  {
+    taskNo: 1,
+    transitions: [
+      {
+        transitionId: TR_A_ID,
+        status: 'completed',
+        actuals: {
+          'ns1:Temperature': 24.8, 'ns1:Pressure': 1.02, 'ns1:StirringSpeed': 295,
+          'ns1:ReagentName': 'NaCl', 'ns1:Amount': 5.1,
+        },
+        customInsertionIds: [],
+        customContentIds: [],
+      },
+      {
+        transitionId: TR_B_ID,
+        status: 'completed',
+        actuals: { 'ns1:Temperature': 79.5, 'ns1:HeatingTime': 31 },
+        customInsertionIds: [],
+        customContentIds: [],
+      },
+      {
+        transitionId: TR_C_ID,
+        status: 'completed',
+        actuals: { 'ns1:RotationSpeed': 3000, 'ns1:Duration': 10, 'ns1:SolventName': 'EtOH' },
+        customInsertionIds: [],
+        customContentIds: [],
+      },
+      {
+        transitionId: TR_D_ID,
+        status: 'completed',
+        actuals: { 'ns1:Yield': 88.5, 'ns1:Purity': 99.1 },
+        customInsertionIds: [],
+        customContentIds: [],
+      },
+    ],
+  },
+  // ─── タスク2: TR_B 完了、TR_A 作業中（スキップシナリオ想定）────
+  //   TR_B を先に完了させ、TR_A は後回し中。
+  //   TR_C は未着手。TR_D は A・B・C 全完了待ち。
+  {
+    taskNo: 2,
+    transitions: [
+      {
+        transitionId: TR_A_ID,
         status: 'in_progress',
-        templates: [],
-      }
-    : null;
+        actuals: { 'ns1:Temperature': 25.3, 'ns1:Pressure': null, 'ns1:StirringSpeed': null, 'ns1:ReagentName': null, 'ns1:Amount': null },
+        customInsertionIds: [],
+        customContentIds: [],
+      },
+      {
+        transitionId: TR_B_ID,
+        status: 'completed',
+        actuals: { 'ns1:Temperature': 80.2, 'ns1:HeatingTime': 30 },
+        customInsertionIds: [],
+        customContentIds: [],
+      },
+      { transitionId: TR_C_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+      { transitionId: TR_D_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+    ],
+  },
+  // ─── タスク3: 未着手 ────────────────────────────────────────
+  {
+    taskNo: 3,
+    transitions: [
+      { transitionId: TR_A_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+      { transitionId: TR_B_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+      { transitionId: TR_C_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+      { transitionId: TR_D_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
+    ],
+  },
+];
 
-<<<<<<< HEAD
-  if (!projectId || !inProgressRow || !transition) {
-=======
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ユーティリティ
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -475,21 +746,28 @@ const PropertyList: React.FC<PropertyListProps> = ({
   const { t } = useLanguage();
 
   if (!template) {
->>>>>>> feature/phase2_mock
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
-        <Empty
-          description={
-            <Text type="secondary">{t('workRecord.noActiveTransition')}</Text>
-          }
-        />
-      </div>
+      <Flex justify="center" align="center" style={{ height: 200 }}>
+        <Text type="secondary">{t('workRecord.noActiveTransition')}</Text>
+      </Flex>
     );
   }
 
-  const handleSave = (_data: ExperimentDataValue[]) => {
-    // 保存後の後処理（必要に応じて progressRows 再取得を追加）
+  /** 「保存して次へ」: 次テンプレートへ進むか、トランジションを完了する */
+  const handleSaveAndNext = () => {
+    if (!displayKey) return;
+    const nextTemplateIdx = templateIdx + 1;
+    if (nextTemplateIdx < templateCount) {
+      onTemplateIdxChange(nextTemplateIdx);
+    } else {
+      onSaveAndNext(displayKey.taskNo, displayKey.transitionId);
+    }
   };
+
+  const isLastTemplate = templateIdx === templateCount - 1;
+  const nextLabel = isLastTemplate
+    ? t('workRecord.transitionCompleteNext')
+    : t('workRecord.nextTemplate', { current: String(templateIdx + 2), total: String(templateCount) });
 
   return (
     <>
@@ -1297,8 +1575,6 @@ const PlanB: React.FC<PlanProps> = ({
 // WorkRecordPanel（エクスポート）
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const ASSIGNED_TASK_NO = 2; // フェーズA: 固定、フェーズBで props 化
-
 interface WorkRecordPanelProps {
   /** 選択中のプロジェクト名（S3アップロードパスの組み立てに使用） */
   projectName?: string;
@@ -1306,11 +1582,65 @@ interface WorkRecordPanelProps {
   projectId?: string;
   /** 選択中のメソッドID（Creator/Instrument選択肢・初期値の取得に使用） */
   methodId?: string;
+  /**
+   * 全体進捗タブから渡される進捗行データ。
+   * 渡された場合は in_progress → not_started の順で最初に見つかったタスクNo を
+   * 作業対象タスクNo として使用する（モック ASSIGNED_TASK_NO の代替）。
+   */
+  progressRows?: ProgressRow[];
+  /** プロジェクトステータス（数値コード）。渡されても現フェーズでは未使用 */
+  projectStatus?: number;
+  /** みなし進捗フラグ。渡されても現フェーズでは未使用 */
+  useDeemedProgress?: boolean;
+  /**
+   * 「作業へ」ボタン等で特定タスク+トランジションへジャンプするためのキー。
+   * ExperimentWorkerMenu が渡す際に使用。
+   */
+  initialTaskNo?: number;
+  initialTransitionId?: string;
+  /** プロジェクト指示文字列の配列（APIから取得済みのもの）。未指定時はモックを使用 */
+  projectInstructions?: string[];
 }
 
-export default function WorkRecordPanel({ projectName, projectId, methodId }: WorkRecordPanelProps = {}) {
+/**
+ * progressRows から現在の作業対象タスクNo を決定する。
+ * in_progress のトランジションを持つ最初のタスクを優先し、
+ * なければ not_started のトランジションを持つ最初のタスクを返す。
+ * progressRows が空または未指定の場合はフォールバック値を返す。
+ */
+function resolveActiveTaskNo(progressRows: ProgressRow[] | undefined, fallback: number): number {
+  if (!progressRows || progressRows.length === 0) return fallback;
+
+  // in_progress のタスクを優先
+  const inProgressRow = progressRows.find((r) => r.status === 'in_progress');
+  if (inProgressRow) return inProgressRow.taskNo;
+
+  // not_started のタスクを次に選ぶ
+  const notStartedRow = progressRows.find((r) => r.status === 'not_started');
+  if (notStartedRow) return notStartedRow.taskNo;
+
+  // 全完了済みの場合は最初のタスクNo
+  return progressRows[0].taskNo;
+}
+
+export default function WorkRecordPanel({
+  projectName,
+  projectId,
+  methodId,
+  progressRows,
+  initialTaskNo,
+  initialTransitionId,
+  projectInstructions,
+}: WorkRecordPanelProps = {}) {
+  // フォールバック値 2 はモック INITIAL_TASKS のタスク2（in_progress）に対応
+  const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
   const [tasks, setTasks] = useState<MockTask[]>(INITIAL_TASKS);
-  const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(null);
+  // initialTaskNo/initialTransitionId が両方指定されている場合は、初期表示でそのトランジションを表示する
+  const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(
+    initialTaskNo !== undefined && initialTransitionId !== undefined
+      ? { taskNo: initialTaskNo, transitionId: initialTransitionId }
+      : null
+  );
 
   // ── Creator / Instrument 選択肢・選択値 ──
   const [creatorRefOptions, setCreatorRefOptions] = useState<string[]>([]);
@@ -1619,7 +1949,7 @@ export default function WorkRecordPanel({ projectName, projectId, methodId }: Wo
     activeTaskNo: ASSIGNED_TASK_NO,
     viewingKey,
     skippedTransitionIds,
-    instructions: MOCK_PROJECT_INSTRUCTIONS,
+    instructions: projectInstructions ?? MOCK_PROJECT_INSTRUCTIONS,
     onActualChange: handleActualChange,
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,

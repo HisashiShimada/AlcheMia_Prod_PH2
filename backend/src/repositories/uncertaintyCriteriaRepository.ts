@@ -139,6 +139,8 @@ export interface InsertNewVersionRequest {
   xsiType: string | null;
   /** 単位（定量のみ / NULL許容） */
   units: string | null;
+  /** スケールファクター（定量のみ / NULL許容） */
+  scaleFactor: string | null;
   /** フォーマット文字列（定量のみ / NULL許容） */
   formatString: string | null;
   /** 説明（NULL許容） */

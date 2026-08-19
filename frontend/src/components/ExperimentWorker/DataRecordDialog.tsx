@@ -56,14 +56,6 @@ import {
   InsertionField,
 } from '@/types/experimentWorker';
 import { TransitionStatusCode } from '@/constants/codeMaster';
-import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
-import { uploadFiles } from '@/services/fileAccessService';
-import { extractErrorMessage } from '@/utils/errorUtils';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { validateByXsiType } from '@/utils/xsiTypeValidator';
-import { updateTransitionStatus } from '@/services/projectApiService';
-import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
-import InstructionConfirmationModal from './InstructionConfirmationModal';
 
 /**
  * ステータス遷移ルール（progressService.ts の ALLOWED_TRANSITIONS と同一）
@@ -79,6 +71,15 @@ const ALLOWED_TRANSITIONS: Record<number, number[]> = {
   [TransitionStatusCode.COMPLETED]: [],  // 終状態 → 変更不可
   [TransitionStatusCode.ERROR]:     [],  // 異常終了 → 変更不可
 };
+
+import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
+import { uploadFiles } from '@/services/fileAccessService';
+import { extractErrorMessage } from '@/utils/errorUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { validateByXsiType } from '@/utils/xsiTypeValidator';
+import { updateTransitionStatus } from '@/services/projectApiService';
+import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
+import InstructionConfirmationModal from './InstructionConfirmationModal';
 
 // ===== TemplateDataItem → Template 変換ヘルパー =====
 
@@ -165,17 +166,6 @@ function convertRawPropertyToProperty(
     description: (p.description as string | undefined) ?? undefined,
     formatString: (p.formatString as string | undefined) ?? undefined,
     scaleFactor: (p.scaleFactor as string | undefined) ?? undefined,
-    // 不確かさ関連フィールドをマッピング
-    plannedValue: (p.plannedValue as string | number | null | undefined) != null
-      ? String(p.plannedValue)
-      : undefined,
-    toleranceValue: (p.toleranceValue as string | null | undefined) ?? undefined,
-    uncertaintyNote: (p.uncertaintyNote as string | null | undefined) ?? undefined,
-    uncertaintyKey: (p.uncertaintyKey as string | null | undefined) ?? undefined,
-    qualitativeOptions: Array.isArray(p.qualitativeOptions) ? (p.qualitativeOptions as string[]) : undefined,
-    qualitativeEval: (p.qualitativeEval as string | null | undefined) ?? undefined,
-    qualitativeNote: (p.qualitativeNote as string | null | undefined) ?? undefined,
-    uncertaintyName: (p.uncertaintyName as string | null | undefined) ?? undefined,
   };
 
   if (xsiType === 'propertyListType' && depth < MAX_DEPTH) {
@@ -2637,250 +2627,15 @@ export default function DataRecordDialog({
               {selectedTemplate ? (
                 <>
                   <div>
-                    <Row gutter={[16, 16]}>
-                      {selectedTemplate.properties.map((prop) => {
-                        const tplId = selectedTemplate.templateId;
-                        const propKey = prop.key;
-                        // ── 定性評価 ──
-                        // DB から取得した不確かさ基準の定性評価選択肢を使用する
-                        // prop.uncertaintyKey が指定されていればその基準を使用、なければ「デフォルト値」基準を使用
-                        const qualOptions = getQualOptions(prop);
-                        const currentQual = propertyQualitativeEvals[tplId]?.[propKey] ?? null;
-                        // 現在選択中の選択肢の displayColor を取得（バッジ色に使用）
-                        const currentQualOption = qualOptions.find((o) => o.selectorValue === currentQual);
-                        const qualBadgeColor = currentQual
-                          ? (currentQualOption?.displayColor ?? '#1677ff')
-                          : undefined;
-                        // DB から取得した選択肢ラベルマップ（selectorValue をそのままラベルとして使用）
-                        const qualLabelMap: Record<string, string> = {};
-                        // ── 定量評価 ──
-                        const quantEvals = propertyQuantitativeEvals[tplId]?.[propKey] ?? [];
-                        // モック評価方法選択肢
-                        const EVAL_METHOD_OPTIONS = [
-                          { label: '誤差値', value: '誤差値' },
-                          { label: '標準偏差', value: '標準偏差' },
-                          { label: '相対誤差', value: '相対誤差' },
-                          { label: '測定不確かさ', value: '測定不確かさ' },
-                        ];
-
-                        if (prop.type === 'propertyListType') {
-                          return (
-                            <Col key={propKey} span={24}>
-                              {renderPropertyInput(prop, tplId)}
-                            </Col>
-                          );
-                        }
-
-                        return (
-                          <Col key={propKey} span={8}>
-                            <Card
-                              size="small"
-                              style={{ height: '100%' }}
-                              title={
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                  <Text strong style={{ fontSize: 13 }}>{prop.label}</Text>
-                                  {prop.units && <Tag color="blue" style={{ fontSize: 11, margin: 0 }}>{prop.units}</Tag>}
-                                  {currentQual && qualBadgeColor && (
-                                    <Tag color={qualBadgeColor} style={{ fontSize: 11, margin: 0 }}>
-                                      {qualLabelMap[currentQual] ?? currentQual}
-                                    </Tag>
-                                  )}
-                                </div>
-                              }
-                            >
-                              {/* 指定値・許容誤差値 */}
-                              <Row gutter={8} style={{ marginBottom: 8 }}>
-                                <Col span={12}>
-                                  <Text type="secondary" style={{ fontSize: 11 }}>{t('dataRecordDialog.plannedValue')}</Text>
-                                  <div style={{
-                                    border: '1px solid #d9d9d9',
-                                    borderRadius: 4,
-                                    padding: '4px 11px',
-                                    background: '#fff',
-                                    fontSize: 13,
-                                    fontWeight: 500,
-                                    minHeight: 32,
-                                    lineHeight: '22px',
-                                  }}>
-                                    {(() => {
-                                      // DB取得値（loadedValues）を優先表示し、なければ plannedValue を使用
-                                      const formKey = `${tplId}_${propKey}`;
-                                      const dbVal = loadedValues[formKey];
-                                      if (dbVal != null && dbVal !== '') {
-                                        return `${dbVal}${prop.units ? ' ' + prop.units : ''}`;
-                                      }
-                                      return prop.plannedValue != null
-                                        ? `${prop.plannedValue}${prop.units ? ' ' + prop.units : ''}`
-                                        : '—';
-                                    })()}
-                                  </div>
-                                </Col>
-                                <Col span={12}>
-                                  {/* 1-1/1-3: uncertaintyName（定量評価のDB表示名）があればその値、なければ「不確かさ値」 */}
-                                  <Text type="secondary" style={{ fontSize: 11 }}>
-                                    {prop.uncertaintyName ?? t('dataRecordDialog.uncertaintyValue')}
-                                  </Text>
-                                  <div style={{
-                                    border: '1px solid #d9d9d9',
-                                    borderRadius: 4,
-                                    padding: '4px 11px',
-                                    background: '#fff',
-                                    fontSize: 13,
-                                    minHeight: 32,
-                                    lineHeight: '22px',
-                                  }}>
-                                    {prop.toleranceValue
-                                      ? `${prop.toleranceValue}${prop.units ? ' ' + prop.units : ''}`
-                                      : '—'}
-                                  </div>
-                                </Col>
-                              </Row>
-                              {/* ① 不確かさ説明: 常時表示（説明なしの場合は「—」） */}
-                              <div style={{ marginBottom: 8 }}>
-                                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('dataRecordDialog.uncertaintyNote')}</Text>
-                                <div style={{
-                                  border: '1px solid #d9d9d9',
-                                  borderRadius: 4,
-                                  padding: '4px 11px',
-                                  background: '#fff',
-                                  fontSize: 12,
-                                  color: '#595959',
-                                  minHeight: 32,
-                                  lineHeight: '22px',
-                                }}>
-                                  {prop.uncertaintyNote ?? '—'}
-                                </div>
-                              </div>
-                              <Divider style={{ margin: '8px 0' }} />
-                              {/* 実績値 */}
-                              <div style={{ marginBottom: 8 }}>
-                                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('dataRecordDialog.measuredValue')}</Text>
-                                {/*
-                                  label='' を渡しても Ant Design の vertical レイアウトでは
-                                  ラベル領域（約22px）が確保されるため、負のマージンで相殺する。
-                                  marginTop: -26  … ラベルエリア分を詰める
-                                  marginBottom: -16 … Form.Item デフォルト marginBottom(24px) - 8px
-                                */}
-                                <div style={{ marginTop: -26, marginBottom: -16 }}>
-                                  {renderPropertyInput({ ...prop, label: '' }, tplId)}
-                                </div>
-                              </div>
-                              <Divider style={{ margin: '8px 0' }} />
-                              {/* 定性評価 */}
-                              <div style={{ marginBottom: 8 }}>
-                                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>{t('dataRecordDialog.qualitativeEval')}</Text>
-                                <Space size={4} wrap>
-                                  {qualOptions.map((opt) => {
-                                    const isSelected = currentQual === opt.selectorValue;
-                                    const optColor = opt.displayColor || '#1677ff';
-                                    const buttonStyle: React.CSSProperties = isSelected
-                                      ? { backgroundColor: optColor, borderColor: optColor, color: '#fff' }
-                                      : { borderColor: optColor, color: optColor };
-                                    return (
-                                      <Button
-                                        key={opt.selectorValue}
-                                        size="small"
-                                        type={isSelected ? 'primary' : 'default'}
-                                        style={buttonStyle}
-                                        onClick={() => {
-                                          setPropertyQualitativeEvals((prev) => ({
-                                            ...prev,
-                                            [tplId]: {
-                                              ...(prev[tplId] ?? {}),
-                                              [propKey]: currentQual === opt.selectorValue ? '' : opt.selectorValue,
-                                            },
-                                          }));
-                                        }}
-                                        disabled={!isProjectEditable}
-                                      >
-                                        {opt.selectorValue}
-                                      </Button>
-                                    );
-                                  })}
-                                </Space>
-                              </div>
-                              {/* 定量評価 */}
-                              <div>
-                                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>{t('dataRecordDialog.quantitativeEval')}</Text>
-                                {quantEvals.map((qe) => (
-                                  <div key={qe.id} style={{ display: 'flex', gap: 4, marginBottom: 4, alignItems: 'center' }}>
-                                    <Select
-                                      size="small"
-                                      value={qe.method || undefined}
-                                      placeholder={t('dataRecordDialog.evalMethod')}
-                                      options={EVAL_METHOD_OPTIONS}
-                                      style={{ flex: 1 }}
-                                      onChange={(v) => {
-                                        setPropertyQuantitativeEvals((prev) => ({
-                                          ...prev,
-                                          [tplId]: {
-                                            ...(prev[tplId] ?? {}),
-                                            [propKey]: (prev[tplId]?.[propKey] ?? []).map((e) =>
-                                              e.id === qe.id ? { ...e, method: v } : e
-                                            ),
-                                          },
-                                        }));
-                                      }}
-                                      disabled={!isProjectEditable}
-                                    />
-                                    <Input
-                                      size="small"
-                                      value={qe.threshold}
-                                      placeholder={t('dataRecordDialog.threshold')}
-                                      style={{ width: 70 }}
-                                      onChange={(e) => {
-                                        setPropertyQuantitativeEvals((prev) => ({
-                                          ...prev,
-                                          [tplId]: {
-                                            ...(prev[tplId] ?? {}),
-                                            [propKey]: (prev[tplId]?.[propKey] ?? []).map((ev) =>
-                                              ev.id === qe.id ? { ...ev, threshold: e.target.value } : ev
-                                            ),
-                                          },
-                                        }));
-                                      }}
-                                      disabled={!isProjectEditable}
-                                    />
-                                    <Button
-                                      type="text"
-                                      danger
-                                      size="small"
-                                      icon={<DeleteOutlined />}
-                                      onClick={() => {
-                                        setPropertyQuantitativeEvals((prev) => ({
-                                          ...prev,
-                                          [tplId]: {
-                                            ...(prev[tplId] ?? {}),
-                                            [propKey]: (prev[tplId]?.[propKey] ?? []).filter((ev) => ev.id !== qe.id),
-                                          },
-                                        }));
-                                      }}
-                                      disabled={!isProjectEditable}
-                                    />
-                                  </div>
-                                ))}
-                                <Button
-                                  size="small"
-                                  icon={<PlusOutlined />}
-                                  onClick={() => {
-                                    const newEval = { id: `qe_${Date.now()}_${Math.random().toString(36).slice(2,5)}`, method: '', threshold: '' };
-                                    setPropertyQuantitativeEvals((prev) => ({
-                                      ...prev,
-                                      [tplId]: {
-                                        ...(prev[tplId] ?? {}),
-                                        [propKey]: [...(prev[tplId]?.[propKey] ?? []), newEval],
-                                      },
-                                    }));
-                                  }}
-                                  disabled={!isProjectEditable}
-                                >
-                                  {t('dataRecordDialog.addEval')}
-                                </Button>
-                              </div>
-                            </Card>
-                          </Col>
-                        );
-                      })}
+                    <Row gutter={16}>
+                      {selectedTemplate.properties.map((prop) => (
+                        <Col
+                          key={prop.key}
+                          span={prop.type === 'propertyListType' ? 24 : 12}
+                        >
+                          {renderPropertyInput(prop, selectedTemplate.templateId)}
+                        </Col>
+                      ))}
                     </Row>
 
                     {/* トップレベル Contents セクション（Property と別枠で表示） */}

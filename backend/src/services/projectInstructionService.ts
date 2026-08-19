@@ -309,7 +309,10 @@ export async function sendInstructions(
     );
     
     if (unsentInstructions.length === 0) {
-      throw new Error('未送信の指示がありません');
+      // 未送信指示が0件の場合はスキップして正常終了（指示なしでのチェックアウトを許容）
+      // client.release() は finally ブロックに任せる（2重リリース防止）
+      await client.query('COMMIT');
+      return { sentInstructionsCount: 0 };
     }
 
     // MAIMLファイルをパースして method_id → program_id のマップを構築
