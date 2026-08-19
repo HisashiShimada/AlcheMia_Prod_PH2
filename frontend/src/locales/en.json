@@ -3453,7 +3453,9 @@
     "skipNoTargetContent": "There are no other executable transitions. Please check the progress overview tab.",
     "commentSaved": "Comment saved",
     "commentSaveMock": "Comment saved (mock)",
-    "petriNetViewer": "View Petri Net"
+    "petriNetViewer": "View Petri Net",
+    "creatorPlaceholder": "Select Creator",
+    "instrumentPlaceholder": "Select Instrument"
   },
   "templateInputPanel": {
     "uncertaintyLabel": "Uncertainty",

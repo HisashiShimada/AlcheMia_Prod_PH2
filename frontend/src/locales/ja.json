@@ -78,7 +78,9 @@
     "commentSaved": "コメントを保存しました",
     "commentSaveMock": "コメント保存（モック）",
     "addProperty": "プロパティを追加",
-    "petriNetViewer": "ペトリネットを表示"
+    "petriNetViewer": "ペトリネットを表示",
+    "creatorPlaceholder": "Creatorを選択",
+    "instrumentPlaceholder": "Instrumentを選択"
   },
   "evaluationRegistration": {
     "title": "評価登録",

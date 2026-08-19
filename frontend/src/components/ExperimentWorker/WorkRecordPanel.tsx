@@ -13,7 +13,7 @@
  * 実績値入力 →「保存して次へ」→ 次テンプレート実績値入力 or 次トランジション
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Alert,
   Badge,
@@ -43,6 +43,7 @@ import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
 import ContentGridEditor from '@/components/common/ContentGridEditor';
 import { getProjectMaiml } from '@/services/projectApiService';
+import { getPlanDialogData, getExperimentPlans } from '@/services/experimentPlanApiService';
 import type { Insertion } from '@/types/maiml-unified';
 import type { FileData } from '@/types/editor';
 import uncertaintyMockData from '../../../mock/uncertainty.json';
@@ -1249,6 +1250,18 @@ interface PlanProps {
   onOpenViewer?: () => void;
   /** ペトリネットビューアローディング中フラグ */
   viewerLoading?: boolean;
+  /** Creator プルダウンの選択肢（MAIMLのdocument.creatorsから取得） */
+  creatorRefOptions: string[];
+  /** Instrument プルダウンの選択肢（MAIMLのdocument.instrumentsから取得） */
+  instrumentRefOptions: string[];
+  /** Creator の選択値 */
+  selectedCreatorRef: string | null;
+  /** Instrument の選択値 */
+  selectedInstrumentRef: string | null;
+  /** Creator 選択変更コールバック */
+  onCreatorRefChange: (value: string | null) => void;
+  /** Instrument 選択変更コールバック */
+  onInstrumentRefChange: (value: string | null) => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1336,6 +1349,7 @@ const PlanA: React.FC<PlanProps> = ({
 
 const PlanB: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath, onOpenViewer, viewerLoading,
+  creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1385,6 +1399,47 @@ const PlanB: React.FC<PlanProps> = ({
         displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
       />
+
+      {/* Creator / Instrument 選択エリア（WorkHeader の直後・テンプレート入力の前） */}
+      {displayKey && (
+        <Card
+          size="small"
+          style={{ marginBottom: 8, background: '#fafafa' }}
+        >
+          <Flex gap={16} wrap="wrap" align="center">
+            <Flex align="center" gap={8} style={{ minWidth: 240, flex: 1 }}>
+              <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
+                Creator
+              </Text>
+              <Select
+                style={{ flex: 1 }}
+                size="small"
+                placeholder={t('workRecord.creatorPlaceholder')}
+                value={selectedCreatorRef ?? undefined}
+                options={creatorRefOptions.map((v) => ({ label: v, value: v }))}
+                onChange={(v: string | undefined) => onCreatorRefChange(v ?? null)}
+                allowClear
+                disabled={isReadOnly}
+              />
+            </Flex>
+            <Flex align="center" gap={8} style={{ minWidth: 240, flex: 1 }}>
+              <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
+                Instrument
+              </Text>
+              <Select
+                style={{ flex: 1 }}
+                size="small"
+                placeholder={t('workRecord.instrumentPlaceholder')}
+                value={selectedInstrumentRef ?? undefined}
+                options={instrumentRefOptions.map((v) => ({ label: v, value: v }))}
+                onChange={(v: string | undefined) => onInstrumentRefChange(v ?? null)}
+                allowClear
+                disabled={isReadOnly}
+              />
+            </Flex>
+          </Flex>
+        </Card>
+      )}
 
       {/* DataRecordDialog準拠: Layout + Sider + Content */}
       <Layout style={{ flex: 1, overflow: 'hidden', background: token.colorBgLayout }}>
@@ -1531,11 +1586,19 @@ interface WorkRecordPanelProps {
   projectName?: string;
   /** 選択中のプロジェクトID（ペトリネットビューアのMAIML取得に使用） */
   projectId?: string;
+  /** 選択中のメソッドID（Creator/Instrument選択肢・初期値の取得に使用） */
+  methodId?: string;
 }
 
-export default function WorkRecordPanel({ projectName, projectId }: WorkRecordPanelProps = {}) {
+export default function WorkRecordPanel({ projectName, projectId, methodId }: WorkRecordPanelProps = {}) {
   const [tasks, setTasks] = useState<MockTask[]>(INITIAL_TASKS);
   const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(null);
+
+  // ── Creator / Instrument 選択肢・選択値 ──
+  const [creatorRefOptions, setCreatorRefOptions] = useState<string[]>([]);
+  const [instrumentRefOptions, setInstrumentRefOptions] = useState<string[]>([]);
+  const [selectedCreatorRef, setSelectedCreatorRef] = useState<string | null>(null);
+  const [selectedInstrumentRef, setSelectedInstrumentRef] = useState<string | null>(null);
 
   // ── ペトリネットビューア ──
   const [viewerDialogs, setViewerDialogs] = useState<{
@@ -1607,6 +1670,55 @@ export default function WorkRecordPanel({ projectName, projectId }: WorkRecordPa
       return prev.map((d) => (d.id === id ? { ...d, zIndex: maxZ + 1 } : d));
     });
   }, []);
+
+  // ── Creator / Instrument 選択肢・初期値の API 取得 ──
+  // projectId と methodId が揃ったタイミングで選択肢と初期値を取得する。
+  // 選択肢: getPlanDialogData（MAIMLのdocument.creators/instruments から生成）
+  // 初期値: getExperimentPlans（ExperimentPlanDialogで保存済みの __task__.creatorRefs[0] 等）
+  useEffect(() => {
+    if (!projectId || !methodId) return;
+    let cancelled = false;
+
+    const fetchRefData = async () => {
+      try {
+        // 選択肢取得
+        const planDialogData = await getPlanDialogData(projectId, methodId);
+        if (cancelled) return;
+        setCreatorRefOptions(planDialogData.creatorRefs ?? []);
+        setInstrumentRefOptions(planDialogData.instrumentRefs ?? []);
+
+        // 初期値取得
+        const plansResult = await getExperimentPlans(projectId, methodId);
+        if (cancelled) return;
+        if (plansResult?.plans && plansResult.plans.length > 0) {
+          // ASSIGNED_TASK_NO のタスク、なければ先頭タスクの __task__ を参照
+          const targetPlan =
+            plansResult.plans.find((p) => p.taskNo === ASSIGNED_TASK_NO) ??
+            plansResult.plans[0];
+          if (targetPlan?.plannedValues) {
+            for (const transValues of Object.values(targetPlan.plannedValues)) {
+              const rawTask = (transValues as Record<string, unknown>)?.['__task__'];
+              if (rawTask && typeof rawTask === 'object' && !Array.isArray(rawTask)) {
+                const taskMeta = rawTask as Record<string, unknown>;
+                if (Array.isArray(taskMeta.creatorRefs) && taskMeta.creatorRefs.length > 0) {
+                  setSelectedCreatorRef(taskMeta.creatorRefs[0] as string);
+                }
+                if (Array.isArray(taskMeta.instrumentRefs) && taskMeta.instrumentRefs.length > 0) {
+                  setSelectedInstrumentRef(taskMeta.instrumentRefs[0] as string);
+                }
+                break;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[WorkRecordPanel] Creator/Instrument fetch error:', err);
+      }
+    };
+
+    fetchRefData();
+    return () => { cancelled = true; };
+  }, [projectId, methodId]);
 
   const handleSave = useCallback((_taskNo: number, _transitionId: string) => {
     Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
@@ -1803,6 +1915,12 @@ export default function WorkRecordPanel({ projectName, projectId }: WorkRecordPa
     uploadTargetPath: projectName ? `projects/${projectName}/attachments` : undefined,
     onOpenViewer: projectId ? handleOpenPetriNetViewer : undefined,
     viewerLoading: petriNetViewerLoading,
+    creatorRefOptions,
+    instrumentRefOptions,
+    selectedCreatorRef,
+    selectedInstrumentRef,
+    onCreatorRefChange: setSelectedCreatorRef,
+    onInstrumentRefChange: setSelectedInstrumentRef,
   };
 
   // コメントダイアログに渡す displayKey（現在表示中のキー）

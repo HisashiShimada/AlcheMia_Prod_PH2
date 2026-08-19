@@ -576,7 +576,7 @@ export default function ExperimentWorkerMenu({
       icon: <FormOutlined />,
       children: (
         <div style={{ padding: 12, height: 'calc(100vh - 280px)', overflowY: 'auto' }}>
-          <WorkRecordPanel projectName={selectedProjectName || undefined} projectId={selectedProject || undefined} />
+          <WorkRecordPanel projectName={selectedProjectName || undefined} projectId={selectedProject || undefined} methodId={selectedMethodId || undefined} />
         </div>
       ),
     },
