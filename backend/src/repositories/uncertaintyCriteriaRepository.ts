@@ -61,16 +61,10 @@ export interface UncertaintyCriteriaRow {
   xsiType: string | null;
   /** 単位（定量のみ） */
   units: string | null;
-  /** スケールファクター（定量のみ） */
-  scaleFactor: string | null;
   /** フォーマット文字列（定量のみ） */
   formatString: string | null;
   /** 説明 */
   description: string | null;
-  /** namespace_term の表示名（uncertainty_key に紐づく） */
-  termDisplayName: string | null;
-  /** namespace_term の説明（uncertainty_key に紐づく） */
-  termDescription: string | null;
 }
 
 /**
@@ -145,8 +139,6 @@ export interface InsertNewVersionRequest {
   xsiType: string | null;
   /** 単位（定量のみ / NULL許容） */
   units: string | null;
-  /** スケールファクター（定量のみ / NULL許容） */
-  scaleFactor: string | null;
   /** フォーマット文字列（定量のみ / NULL許容） */
   formatString: string | null;
   /** 説明（NULL許容） */
@@ -232,11 +224,8 @@ export async function findByKey(
     inheritanceUncertaintyKey: first.inheritanceUncertaintyKey,
     xsiType:                   first.xsiType,
     units:                     first.units,
-    scaleFactor:               first.scaleFactor,
     formatString:              first.formatString,
     description:               first.description,
-    termDisplayName:           first.termDisplayName ?? null,
-    termDescription:           first.termDescription ?? null,
     // intuition_selector の行を QualitativeOptionRow[] に変換
     qualitativeOptions: rows
       .filter((r) => r.displayOrder !== null)
@@ -352,10 +341,9 @@ export async function insertNewVersion(
       data.inheritanceUncertaintyKey,       // $7  inheritance_uncertainty_key
       data.xsiType,                         // $8  xsi_type
       data.units,                           // $9  units
-      data.scaleFactor,                     // $10 scale_factor
-      data.formatString,                    // $11 format_string
-      data.description,                     // $12 description
-      data.createUserId,                    // $13 create_user_id
+      data.formatString,                    // $10 format_string
+      data.description,                     // $11 description
+      data.createUserId,                    // $12 create_user_id
     ]);
 
     const newVersion = criteriaRow.version;
@@ -422,4 +410,62 @@ export async function findByKeys(
   );
 
   return rows;
+}
+
+// ============================================================================
+// 複数キー詳細一括取得（experimentDataService 用）
+// ============================================================================
+
+/**
+ * 定量/定性分類込みの不確かさ基準詳細を複数キーで一括取得する
+ *
+ * @remarks
+ * - is_Invalid = FALSE かつ最大 version のレコードを返す
+ * - evaluation_method（1=定量 / 2=定性）・termDisplayName・intuition_selector 選択肢を含む
+ * - 組織 ID でフィルタリングし、マルチテナント分離を維持する
+ *
+ * @param organizationId - 組織ID
+ * @param keys           - 検索する uncertainty_key の配列
+ * @returns 各キーの詳細情報配列
+ */
+export async function findByKeysWithDetails(
+  organizationId: string,
+  keys: string[]
+): Promise<UncertaintyKeyDetail[]> {
+  if (keys.length === 0) return [];
+
+  const pgp = getPgp();
+
+  const sqlQuery = await loadSqlFile('uncertainty_criteria/findByKeysWithDetails.sql');
+  const rows = await pgp.manyOrNone<{
+    uncertaintyKey:     string;
+    uncertaintyName:    string;
+    evaluationMethod:   number;
+    termDisplayName:    string | null;
+    qualitativeOptions: QualitativeOptionRow[];
+  }>(sqlQuery, [organizationId, keys]);
+
+  return rows.map((r) => ({
+    uncertaintyKey:     r.uncertaintyKey,
+    uncertaintyName:    r.uncertaintyName,
+    evaluationMethod:   r.evaluationMethod,
+    termDisplayName:    r.termDisplayName ?? null,
+    qualitativeOptions: Array.isArray(r.qualitativeOptions) ? r.qualitativeOptions : [],
+  }));
+}
+
+/**
+ * findByKeysWithDetails の戻り値型
+ */
+export interface UncertaintyKeyDetail {
+  /** 不確かさ基準Key */
+  uncertaintyKey: string;
+  /** 不確かさ基準名 */
+  uncertaintyName: string;
+  /** 評価方式（1: 定量 / 2: 定性） */
+  evaluationMethod: number;
+  /** 名前空間の表示名（namespace_term.display_name） */
+  termDisplayName: string | null;
+  /** 定性評価の選択肢（定量の場合は空配列） */
+  qualitativeOptions: QualitativeOptionRow[];
 }
