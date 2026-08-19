@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-06-22
-- **最終更新日**: 2026-06-22
+- **最終更新日**: 2026-08-15
 - **担当者**: Development Team
 - **バージョン**: 1.0.0
 

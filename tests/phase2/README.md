@@ -57,49 +57,56 @@
 ## 4. フォルダ構成
 
 ```
-mmdpf/tests/
-├── e2e/                          ← フェーズ１（既存・変更なし）
-│   ├── test-scenarios/
-│   ├── features/
-│   ├── steps/
-│   └── fixtures/
+mmdpf/
+├── backend/
+│   └── tests/
+│       └── phase2/               ← 分類A：Jest 単体テスト（本プロジェクトのテストランナー）
+│           ├── repositories/     ← Repository 単体テスト
+│           │   └── ...
+│           └── services/         ← Service 単体テスト
+│               └── ...
 │
-└── phase2/                       ← フェーズ２（本フォルダ）
-    ├── README.md                 ← 本ファイル
+└── tests/
+    ├── e2e/                      ← フェーズ１（既存・変更なし）
+    │   ├── test-scenarios/
+    │   ├── features/
+    │   ├── steps/
+    │   └── fixtures/
     │
-    ├── test-scenarios/           ← シナリオ定義（Markdown）
-    │   ├── category-A_regression.md
-    │   ├── category-B_phase2-new-features.md
-    │   └── category-C_e2e-full-scenario.md
-    │
-    ├── features/                 ← Playwright用featureファイル
-    │   ├── regression/           ← 分類A
-    │   │   ├── transition-data/
-    │   │   ├── task-detail/
-    │   │   ├── organization-group/
-    │   │   ├── experiment-plan/
-    │   │   └── ...
-    │   ├── new-features/         ← 分類B
-    │   │   ├── namespace/
-    │   │   ├── experiment-instruction/
-    │   │   ├── uncertainty/
-    │   │   └── insertion/
-    │   └── e2e/                  ← 分類C
-    │       └── full_flow.feature
-    │
-    ├── steps/                    ← ステップ実装（TypeScript）
-    │   ├── new-features/
-    │   ├── regression/
-    │   ├── e2e/
-    │   └── common.ts
-    │
-    ├── fixtures/                 ← フェーズ２用テストデータ
-    │   ├── testdata/
-    │   └── maiml/
-    │
-    ├── playwright.config.ts
-    └── db.ts
+    └── phase2/                   ← フェーズ２（本フォルダ）
+        ├── README.md             ← 本ファイル
+        │
+        ├── test-scenarios/       ← シナリオ定義（Markdown）
+        │   ├── category-A_regression.md
+        │   ├── category-B_phase2-new-features.md
+        │   └── category-C_e2e-full-scenario.md
+        │
+        ├── features/             ← Playwright 用 featureファイル
+        │   ├── new-features/     ← 分類B
+        │   │   ├── namespace/
+        │   │   ├── experiment-instruction/
+        │   │   ├── uncertainty/
+        │   │   └── insertion/
+        │   └── e2e/              ← 分類C
+        │       └── full_flow.feature
+        │
+        ├── steps/                ← ステップ実装（TypeScript）
+        │   ├── new-features/
+        │   ├── e2e/
+        │   └── common.ts
+        │
+        ├── fixtures/             ← フェーズ２用テストデータ
+        │   ├── testdata/
+        │   └── maiml/
+        │
+        ├── playwright.config.ts
+        └── db.ts
 ```
+
+> **注記：分類Aの配置について**
+> 分類A（回帰テスト・単体レベル）は Jest を使用するため、Jest の設定が存在する
+> `mmdpf/backend/tests/phase2/` に配置する。
+> `mmdpf/tests/phase2/` は Playwright（E2E）専用とし、分類B・Cのみを管理する。
 
 ---
 
@@ -114,22 +121,29 @@ mmdpf/tests/
 
 ### 5.2 テーブル定義変更箇所
 
-| テーブル名 | 変更種別 | 変更内容 | 適用マイグレーション |
-|-----------|---------|---------|------------------|
-| `transition_data` | カラム追加 | `order`（順序）追加 | 20260617_001 |
-| `department_unit` | **新規テーブル** | 部署ユニット管理テーブル新規作成 | 20260617 |
-| `namespace`・`namespace_term`・`prefix` | **新規テーブル** | 名前空間管理テーブル群 | 20260617 |
-| `transition_data` | カラム追加 | `prerequisite`（前提条件）追加 | 20260618_002 |
-| `experiment_plan` | **新規テーブル** | 実験計画データ（planned_values JSON）管理テーブル | 20260618_004 |
-| `project_task_detail` | カラム追加 | `review_result`（NG理由テキスト）追加 | 20260618_005 |
-| `code_master` | データ追加 | `task_status` コード `05: reviewNg` 追加 | 20260618_006 |
-| `encryption_keys` | **新規テーブル** | 暗号化キー管理テーブル | 20260623 |
-| `organization_group`・`organization_group_user` | **新規テーブル** | `department` 廃止・移行先テーブル。`project.department_cd`・`attribute.department_cd` → `organization_group_cd` にリネーム | 20260710 |
-| `department` | **テーブル削除** | `organization_group` に移行後に削除 | 20260710 |
-| `integrity_audit_log` | **新規テーブル** | 整合性監査ログテーブル | 20260716 |
-| `organization_group` | カラムリネーム | `organization_group_cd` → `group`（カラム名変更） | 20260723 |
-| `namespace` | ユニーク制約追加 | `organization_id` にユニーク制約追加 | 20260724 |
-| `organization_group` | カラム追加 | `is_active` 追加 | 20260805 |
+> **注記：** 以下の内容は `docs/design/db/ddl/` フォルダ内の DDL ファイルを基準として整理している。
+> DDL ファイルが存在しない項目はマイグレーションファイルのみで管理されている可能性がある。
+
+| テーブル名 | 変更種別 | 変更内容 | DDL確認 |
+|-----------|---------|---------|---------|
+| `transition_data` | カラム追加 | `work_order` INTEGER（トランジション作業順序）追加 | ✅ DDL確認済み |
+| `transition_data` | カラム追加 | `prerequisite_transition_ids` TEXT[]（前提トランジションID配列）追加 | ✅ DDL確認済み |
+| `namespace` | **新規テーブル** | MAIMLで使用する名前空間を管理 | ✅ DDL確認済み |
+| `namespace_term` | **新規テーブル** | 名前空間の用語管理 | ✅ DDL確認済み |
+| `prefix` | **新規テーブル** | 名前空間プレフィックス管理 | ✅ DDL確認済み |
+| `project_task_detail` | カラム追加 | `review_result`（NG理由テキスト）追加 | ✅ DDL確認済み |
+| `code_master` | データ追加 | `task_status` コード `05: reviewNg` 追加 | ✅ code_master.csv確認済み |
+| `uncertainty_criteria` | **新規テーブル** | 不確かさ評価の基準定義（定量・定性）を管理 | ✅ DDL確認済み |
+| `intuition_selector` | **新規テーブル** | 不確かさ基準の定性評価で使用する選択肢を管理 | ✅ DDL確認済み |
+| `experiment_instruction_detail` | **新規テーブル** | 実験指示タブの一覧（想定値・実績値・不確かさ付与）を管理 | ✅ DDL確認済み |
+| `instruction_acknowledged_history` | **新規テーブル** | 実験指示の確認履歴（監査証跡） | ✅ DDL確認済み |
+| `project_instruction` | **新規テーブル** | 実験指示（管理者→作業者への指示情報）管理 | ✅ DDL確認済み |
+| `organization_group` | **新規テーブル** | `department` 廃止・移行先テーブル。`project.department_cd`・`attribute.department_cd` → `organization_group_cd` にリネーム | ✅ DDL確認済み |
+| `organization_group_user` | **新規テーブル** | 組織グループのユーザ所属管理 | ✅ DDL確認済み |
+| `department_unit` | **新規テーブル** | 旧 `department` から移行した部署ユニット管理テーブル | ✅ DDL確認済み |
+| `department` | **テーブル削除** | `organization_group` に移行後に削除 | - |
+| `organization_group` | カラム追加 | `is_active` BOOLEAN（アクティブ判定）追加 | ✅ DDL確認済み |
+| `experiment_plan` | **新規テーブル** | 実験計画データ（planned_values JSON）管理テーブル | ✅ DDL確認済み |
 
 ### 5.3 既存APIの変更箇所（controller/service/repository/routes）
 
@@ -140,7 +154,6 @@ mmdpf/tests/
 | ファイル | 主なテスト観点 |
 |---------|-------------|
 | `authHelpers.ts` | 認証ヘルパー変更の影響（ログイン・JWT検証） |
-| `encryptionController.ts` | 暗号化機能（新規追加） |
 | `experimentEvaluationController.ts` | 実験評価（新規追加） |
 | `experimentInstructionController.ts` | 実験指示（新規追加） |
 | `formatController.ts` | フォーマット管理の変更箇所 |
@@ -150,7 +163,6 @@ mmdpf/tests/
 | `organizationGroupController.ts` | 組織グループ管理（新規追加） |
 | `progressController.ts` | 進捗確認の変更箇所 |
 | `projectController.ts` | プロジェクト管理の変更箇所（organization_group_cd対応） |
-| `signatureController.ts` | 署名機能（新規追加） |
 | `uncertaintyCriteriaController.ts` | 不確かさ基準管理（新規追加） |
 | `userController.ts` | ユーザ管理の変更箇所 |
 
@@ -170,11 +182,19 @@ mmdpf/tests/
 | `organizationManagementRepository.ts` | 組織管理の変更箇所 |
 | `organizationUserRepository.ts` | 組織ユーザの変更箇所 |
 
+**Repository（新規追加）**
+
+| ファイル | 対応テーブル | 主なテスト観点 |
+|---------|------------|-------------|
+| `uncertaintyCriteriaRepository.ts` | `uncertainty_criteria`・`intuition_selector` | 不確かさ基準の全CRUD・バージョン管理・定性選択肢の全CRUD |
+| `projectInstructionRepository.ts` | `project_instruction` | 実験指示の全CRUD |
+| `instructionRepository.ts` | `experiment_instruction_detail`・`instruction_acknowledged_history` | 実験指示詳細の全CRUD・確認履歴の登録・参照 |
+| `departmentUnitRepository.ts` | `department_unit` | 部署ユニットの全CRUD（department廃止後） |
+
 **Routes（変更あり）**
 
 | ファイル | 主なテスト観点 |
 |---------|-------------|
-| `encryptionRoutes.ts` | 暗号化APIのルーティング（新規） |
 | `experimentEvaluationRoutes.ts` | 実験評価APIのルーティング（新規） |
 | `experimentInstructionRoutes.ts` | 実験指示APIのルーティング（新規） |
 | `namespaceRoutes.ts` | 名前空間APIのルーティング（新規） |
@@ -192,8 +212,6 @@ mmdpf/tests/
 | `experimentInstructionService.ts` | 実験指示サービス（新規） |
 | `fileAccessService.ts` | ファイルアクセスの変更箇所 |
 | `formatService.ts` | フォーマット管理の変更箇所 |
-| `maimlEncryptionService.ts` | MaiML暗号化サービス（新規） |
-| `maimlIntegrityService.ts` | MaiML整合性検証サービス（新規） |
 | `maimlService.ts` | MaiML処理の変更箇所 |
 | `maimlWriterService.ts` | MaiML書き込みサービスの変更箇所 |
 | `masterService.ts` | マスタ管理の変更箇所 |

@@ -12,6 +12,7 @@ CREATE TABLE project_task_detail (
   , experiment_user_id character varying(50)
   , reviewed_at timestamp
   , review_user_id character varying(50)
+  , review_result text DEFAULT NULL
   , create_user_id character varying(50)
   , create_at timestamp
   , update_user_id character varying(50)
@@ -30,6 +31,7 @@ COMMENT ON COLUMN project_task_detail.experiment_end_at IS '実験終了日';
 COMMENT ON COLUMN project_task_detail.experiment_user_id IS '実験作業者ID';
 COMMENT ON COLUMN project_task_detail.reviewed_at IS 'レビュー完了日';
 COMMENT ON COLUMN project_task_detail.review_user_id IS 'レビュアーID';
+COMMENT ON COLUMN project_task_detail.review_result IS 'NG時のレビュー結果（NG理由・指摘内容）。承認時はNULL。';
 COMMENT ON COLUMN project_task_detail.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN project_task_detail.create_at IS '作成日時';
 COMMENT ON COLUMN project_task_detail.update_user_id IS '更新者ユーザID';
