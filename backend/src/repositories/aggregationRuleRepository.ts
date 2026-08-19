@@ -14,6 +14,13 @@
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import type { AggregationRule, CreateAggregationRuleInput } from '../types/aggregationRule';
+import {
+  TargetRollup,
+  LevelStatusRule,
+  LevelScoreRule,
+  MissingHandling,
+  TransitionHierarchy,
+} from '../enums/aggregationRule.enum';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Repository メソッド
@@ -83,11 +90,11 @@ export async function insert(
     input.score_good          ?? 100,                 // $3
     input.score_caution       ?? 50,                  // $4
     input.score_bad           ?? 0,                   // $5
-    input.target_rollup       ?? 'WORST_CASE',        // $6
-    input.level_status_rule   ?? 'WORST_CASE',        // $7
-    input.level_score_rule    ?? 'MEAN',              // $8
-    input.missing_handling    ?? 'SEPARATE_COUNT',    // $9
-    input.transition_hierarchy ?? 'MERGE',            // $10
+    input.target_rollup       ?? TargetRollup.WORST_CASE,       // $6
+    input.level_status_rule   ?? LevelStatusRule.WORST_CASE,    // $7
+    input.level_score_rule    ?? LevelScoreRule.MEAN,           // $8
+    input.missing_handling    ?? MissingHandling.SEPARATE_COUNT, // $9
+    input.transition_hierarchy ?? TransitionHierarchy.MERGE,    // $10
     createdBy,                                        // $11
   ]);
 }

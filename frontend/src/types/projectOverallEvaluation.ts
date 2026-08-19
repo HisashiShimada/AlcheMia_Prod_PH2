@@ -17,7 +17,7 @@ export interface ProjectOverallEvaluation {
   evaluation_scope: string;
   evaluated_by: string | null;
   evaluated_at: string;
-  overall_digital: '良好' | '要確認' | '不良' | null;
+  overall_digital: string | null;
   overall_score: number | null;
   overall_analog: string | null;
   applied_rule_id: string | null;
@@ -34,7 +34,7 @@ export interface ProjectOverallEvaluation {
 
 export interface CreateProjectOverallEvaluationInput {
   projectId: string;
-  overallDigital?: '良好' | '要確認' | '不良';
+  overallDigital?: string;
   overallScore?: number;
   overallAnalog?: string;
 }
@@ -61,15 +61,13 @@ export interface ExportToMaimlResult {
 // 下位評価（SubEvaluation）型
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 評価スコープ（下位評価用） */
-export type SubEvaluationScope =
-  | 'METHOD'
-  | 'TASK'
-  | 'TRANSITION_METHOD'
-  | 'TRANSITION_TASK';
+// ─────────────────────────────────────────────────────────────────────────────
+// 下位評価（SubEvaluation）型
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * 下位評価レコード（GET レスポンス）
+ * evaluation_scope の有効な値は SubEvaluationScopeValues（constants/aggregationRule.ts）を参照。
  */
 export interface SubEvaluationRow {
   evaluation_id: string;
@@ -81,7 +79,7 @@ export interface SubEvaluationRow {
   transition_id: string | null;
   evaluated_by: string | null;
   evaluated_at: string | null;
-  overall_digital: '良好' | '要確認' | '不良' | null;
+  overall_digital: string | null;
   overall_analog: string | null;
   create_user_id: string | null;
   create_at: string | null;
@@ -95,13 +93,14 @@ export interface SubEvaluationRow {
 
 /**
  * 下位評価1件分の保存入力
+ * evaluationScope の有効な値は SubEvaluationScopeValues（constants/aggregationRule.ts）を参照。
  */
 export interface SubEvaluationInput {
-  evaluationScope: SubEvaluationScope;
+  evaluationScope: string;
   methodId?: string;
   taskNo?: number;
   transitionId?: string;
-  evaluationValue?: '良好' | '要確認' | '不良';
+  evaluationValue?: string;
   comment?: string;
 }
 
@@ -111,6 +110,30 @@ export interface SubEvaluationInput {
 export interface SaveSubEvaluationsRequest {
   evaluations: SubEvaluationInput[];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 評価値共通定数
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 下位評価の固定選択肢（良好 / 要確認 / 不要）
+ * EvaluationRegistrationTab・EvaluationDialog の InputModal で共通利用
+ */
+export const SUB_EVAL_VALUE_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: '良好',   value: '良好'   },
+  { label: '要確認', value: '要確認' },
+  { label: '不要',   value: '不要'   },
+];
+
+/**
+ * 評価値 → Ant Design Tag color マップ
+ * EvaluationRegistrationTab・EvaluationDialog の EvalValueTag で共通利用
+ */
+export const SUB_EVAL_VALUE_COLOR: Record<string, string> = {
+  '良好':   'success',
+  '要確認': 'warning',
+  '不要':   'default',
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // コンポーネント Props 型

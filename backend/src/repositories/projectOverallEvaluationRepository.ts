@@ -59,7 +59,7 @@ export async function insert(
   organizationId: string,
   projectId: string,
   evaluatedBy: string | null,
-  overallDigital: '良好' | '要確認' | '不良' | null,
+  overallDigital: string | null,
   overallScore: number | null,
   overallAnalog: string | null,
   appliedRule: AggregationRule,
@@ -99,7 +99,7 @@ export async function findSubEvaluationsByProject(
   const sql = await loadSqlFile('project_overall_evaluations/findSubEvaluationsByProject.sql');
   const rows = await pgp.any<Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> & {
     evaluation_scope: string;
-    overall_digital: '良好' | '要確認' | '不良' | null;
+    overall_digital: string | null;
     overall_analog: string | null;
   }>(sql, [organizationId, projectId]);
 
@@ -125,7 +125,7 @@ export async function insertSubEvaluation(
   const sql = await loadSqlFile('project_overall_evaluations/insertSubEvaluation.sql');
   const row = await pgp.one<Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> & {
     evaluation_scope: string;
-    overall_digital: '良好' | '要確認' | '不良' | null;
+    overall_digital: string | null;
     overall_analog: string | null;
   }>(sql, [
     input.organization_id,   // $1
@@ -160,7 +160,7 @@ export async function updateSubEvaluation(
   const sql = await loadSqlFile('project_overall_evaluations/updateSubEvaluation.sql');
   const row = await pgp.one<Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> & {
     evaluation_scope: string;
-    overall_digital: '良好' | '要確認' | '不良' | null;
+    overall_digital: string | null;
     overall_analog: string | null;
   }>(sql, [
     input.organization_id,  // $1

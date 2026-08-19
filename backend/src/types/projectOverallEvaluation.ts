@@ -26,7 +26,7 @@ export interface ProjectOverallEvaluation {
   evaluation_scope: string;
   evaluated_by: string | null;
   evaluated_at: Date;
-  overall_digital: '良好' | '要確認' | '不良' | null;
+  overall_digital: string | null;
   overall_score: number | null;
   overall_analog: string | null;
   applied_rule_id: string | null;
@@ -48,7 +48,7 @@ export interface ProjectOverallEvaluation {
  */
 export interface CreateProjectOverallEvaluationInput {
   projectId: string;
-  overallDigital?: '良好' | '要確認' | '不良';
+  overallDigital?: string;
   overallScore?: number;
   overallAnalog?: string;
 }
@@ -81,12 +81,11 @@ export interface ExportToMaimlResult {
 // ExperimentEvaluationRow と同名で定義することでロジック変更不要にする。
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** evaluation_scope の値（下位評価スコープのみ） */
-export type SubEvaluationScope =
-  | 'METHOD'
-  | 'TASK'
-  | 'TRANSITION_METHOD'
-  | 'TRANSITION_TASK';
+// ─────────────────────────────────────────────────────────────────────────────
+// 下位評価（SubEvaluation）型
+// aggregationCalculatorService / maimlQualityWriter が参照するフィールドを
+// ExperimentEvaluationRow と同名で定義することでロジック変更不要にする。
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * project_overall_evaluations テーブルの下位評価行型
@@ -96,23 +95,22 @@ export type SubEvaluationScope =
  * DDL: backend/src/sql/ddl/project_overall_evaluations.sql
  * aggregationCalculatorService が参照するフィールドは
  * ExperimentEvaluationRow と同名で定義している。
+ * evaluation_scope の有効な値は SubEvaluationScopeValues（enums/aggregationRule.enum.ts）を参照。
  */
 export interface SubEvaluationRow {
   evaluation_id: string;
   organization_id: string;
   project_id: string;
-  /** evaluation_scope の値（METHOD / TASK / TRANSITION_METHOD / TRANSITION_TASK） */
   evaluation_scope: string;
   method_id: string | null;
   task_no: number | null;
   transition_id: string | null;
   evaluated_by: string | null;
   evaluated_at: Date | null;
-  overall_digital: '良好' | '要確認' | '不良' | null;
+  overall_digital: string | null;
   overall_analog: string | null;
   create_user_id: string | null;
   create_at: Date | null;
-
   // ── aggregationCalculatorService 互換フィールド ───────────────────────────
   /** evaluation_scope と同値（aggregationCalculatorService の evaluation_unit 参照に対応） */
   evaluation_unit: string;
@@ -127,8 +125,8 @@ export interface SubEvaluationRow {
  * （POST /api/v1/project-overall-evaluations/:projectId/sub-evaluations の evaluations 配列要素）
  */
 export interface SubEvaluationInput {
-  /** 評価スコープ */
-  evaluationScope: SubEvaluationScope;
+  /** 評価スコープ（SubEvaluationScopeValues の値を使用すること） */
+  evaluationScope: string;
   /** メソッドID（METHOD / TASK / TRANSITION_* で必須） */
   methodId?: string;
   /** タスク番号（TASK / TRANSITION_TASK で必須） */
@@ -136,7 +134,7 @@ export interface SubEvaluationInput {
   /** トランジションID（TRANSITION_* で必須） */
   transitionId?: string;
   /** デジタル評価値 */
-  evaluationValue?: '良好' | '要確認' | '不良';
+  evaluationValue?: string;
   /** コメント（アナログ評価） */
   comment?: string;
 }
@@ -165,7 +163,7 @@ export interface InsertSubEvaluationInput {
   task_no: number | null;
   transition_id: string | null;
   evaluated_by: string | null;
-  overall_digital: '良好' | '要確認' | '不良' | null;
+  overall_digital: string | null;
   overall_analog: string | null;
   create_user_id: string | null;
 }
@@ -178,7 +176,7 @@ export interface UpdateSubEvaluationInput {
   organization_id: string;
   evaluation_id: string;
   project_id: string;
-  overall_digital: '良好' | '要確認' | '不良' | null;
+  overall_digital: string | null;
   overall_analog: string | null;
   evaluated_by: string | null;
 }
