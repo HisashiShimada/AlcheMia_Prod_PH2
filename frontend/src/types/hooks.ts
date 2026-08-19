@@ -13,6 +13,12 @@ import type {
   SearchHistoryItem,
   SemanticSearchRequest,
 } from './semanticSearch';
+import type { SummaryResponse } from './projectOverallEvaluation';
+import type {
+  AggregationRule,
+  CreateAggregationRuleInput,
+  SummaryPreviewResponse,
+} from './aggregationRule';
 
 // ============================================================================
 // useDraftManager 関連
@@ -121,4 +127,39 @@ export interface UseSemanticSearchReturn {
   fetchHealth: () => Promise<void>;
   /** 結果クリア */
   clearResults: () => void;
+}
+
+// ============================================================================
+// useOverallEvaluation 関連
+// ============================================================================
+
+/**
+ * useOverallEvaluation の返り値型
+ * 使用箇所: hooks/project/useOverallEvaluation.ts
+ */
+export interface UseOverallEvaluationReturn {
+  summary: SummaryResponse | null;
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => void;
+}
+
+// ============================================================================
+// useAggregationRule 関連
+// ============================================================================
+
+/**
+ * useAggregationRule の返り値型
+ * 使用箇所: hooks/useAggregationRule.ts
+ */
+export interface UseAggregationRuleReturn {
+  activeRule: AggregationRule | null;
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => void;
+  createNewRule: (input: CreateAggregationRuleInput) => Promise<AggregationRule>;
+  previewRule: (
+    projectId: string,
+    input?: Partial<CreateAggregationRuleInput>
+  ) => Promise<SummaryPreviewResponse>;
 }

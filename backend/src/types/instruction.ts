@@ -15,36 +15,6 @@ export enum TargetType {
 }
 
 /**
- * 指示優先度
- * 0: 低
- * 1: 通常
- * 2: 中
- * 3: 高
- */
-export enum Priority {
-  LOW = 0,
-  NORMAL = 1,
-  MEDIUM = 2,
-  HIGH = 3
-}
-
-/**
- * 指示タイプ
- * 0: 一般
- * 1: セットアップ
- * 2: 測定
- * 3: 安全
- * 4: 清掃
- */
-export enum InstructionType {
-  GENERAL = 0,
-  SETUP = 1,
-  MEASUREMENT = 2,
-  SAFETY = 3,
-  CLEANUP = 4
-}
-
-/**
  * 実験条件タイプ
  * 0: 全て同一条件
  * 1: 実験ごとに変更
@@ -74,12 +44,6 @@ export interface TaskInput {
 export interface InstructionInput {
   /** 指示内容（1〜1000文字） */
   content: string;
-  
-  /** 優先度（0: 低、1: 通常、2: 中、3: 高） */
-  priority: Priority;
-  
-  /** 指示タイプ（0: 一般、1: セットアップ、2: 測定、3: 安全、4: 清掃） */
-  type: InstructionType;
   
   /** 対象タイプ（0: ファイル全体、1: タスク、2: トランジション） */
   targetType: TargetType;
@@ -169,8 +133,6 @@ export interface Instruction {
   project_id: string;
   experiment_instruction_id: string;
   method_id: string | null;
-  priority: number;
-  type: number;
   task_no: number | null;
   transition_id: string | null;
   instructions: string;

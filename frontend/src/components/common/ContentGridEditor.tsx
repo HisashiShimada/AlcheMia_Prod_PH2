@@ -156,7 +156,7 @@ const ContentGridEditor: React.FC<ContentGridEditorProps> = ({
                 <th style={{ width: 24, padding: 2 }} />
                 {Array.from({ length: colCount }, (_, ci) => (
                   <th key={ci} style={{ padding: 2, minWidth: 60, textAlign: 'center' }}>
-                    <Space size={1} direction="vertical">
+                    <Space size={1} orientation="vertical">
                       <Text style={{ ...labelStyle, display: 'block' }}>{t('contentGridEditor.colHeader', { n: String(ci + 1) })}</Text>
                       {!readOnly && (
                         <Button
@@ -196,7 +196,7 @@ const ContentGridEditor: React.FC<ContentGridEditorProps> = ({
                 <tr key={ri}>
                   {/* 行番号 + 行削除ボタン */}
                   <td style={{ padding: 2, textAlign: 'center', verticalAlign: 'middle' }}>
-                    <Space size={1} direction="vertical">
+                    <Space size={1} orientation="vertical">
                       <Text style={{ ...labelStyle, display: 'block', textAlign: 'center' }}>{ri + 1}</Text>
                       {!readOnly && (
                         <Button

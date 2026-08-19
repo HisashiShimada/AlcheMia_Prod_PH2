@@ -291,6 +291,8 @@ export function buildEventLogXML(
   // XSD準拠: eventLogType の globalObjectContentGroup に uuid が必須
   let xml = `  <eventLog id="${escapeXml(eventLogId)}">\n`;
   xml += `    <uuid>${eventLogUuidValue}</uuid>\n`;
+  // name / description は eventLog タグには付与しない
+  // （MAIML上1つしか存在できないため、特定処理に紐づいた値を設定することができない）
 
   for (const logJson of logJsonArray) {
     const eventLogObj = logJson['eventLog'] as Record<string, unknown> | undefined;
@@ -339,6 +341,12 @@ function buildLogEntryXML(
   // XSD準拠: logType の globalObjectContentGroup に uuid が必須
   xml += `      <uuid>${resolveUuid(id ? `log:${id}` : 'log', existingUuids, randomUUID)}</uuid>\n`;
 
+  // name / description（lifecycle:transition 系 eventLog 共通ルール: eventlog_structure.md 2-2）
+  const logName = logEntry['name'] as string | undefined;
+  const logDesc = logEntry['description'] as string | undefined;
+  if (logName) xml += `      <name>${escapeXml(logName)}</name>\n`;
+  if (logDesc) xml += `      <description>${escapeXml(logDesc)}</description>\n`;
+
   // trace（単体または配列）
   const rawTrace = logEntry['trace'];
   const traces: Record<string, unknown>[] = rawTrace
@@ -378,6 +386,12 @@ function buildTraceXML(
   let xml = `      <trace${attrs}>\n`;
   // XSD準拠: traceType の globalObjectContentGroup に uuid が必須
   xml += `        <uuid>${resolveUuid(id ? `trace:${id}` : 'trace', existingUuids, randomUUID)}</uuid>\n`;
+
+  // name / description（lifecycle:transition 系 eventLog 共通ルール: eventlog_structure.md 2-2）
+  const traceName = trace['name'] as string | undefined;
+  const traceDesc = trace['description'] as string | undefined;
+  if (traceName) xml += `        <name>${escapeXml(traceName)}</name>\n`;
+  if (traceDesc) xml += `        <description>${escapeXml(traceDesc)}</description>\n`;
 
   // パターンA: event 要素
   const eventObj = trace['event'] as Record<string, unknown> | undefined;
@@ -433,6 +447,13 @@ function buildEventXML(
   let xml = `        <event${attrs}>\n`;
   // XSD準拠: eventType の globalObjectContentGroup に uuid が必須
   xml += `          <uuid>${resolveUuid(id ? `event:${id}` : 'event', existingUuids, randomUUID)}</uuid>\n`;
+
+  // name / description（lifecycle:transition 系 eventLog 共通ルール: eventlog_structure.md 2-2）
+  const eventName = eventObj['name'] as string | undefined;
+  const eventDesc = eventObj['description'] as string | undefined;
+  if (eventName) xml += `          <name>${escapeXml(eventName)}</name>\n`;
+  if (eventDesc) xml += `          <description>${escapeXml(eventDesc)}</description>\n`;
+
   xml += buildPropertiesXML(properties, 5);
 
   // resultsRef 要素の出力（存在する場合のみ）
@@ -847,13 +868,15 @@ export function replaceEventLogInMaiml(
 /**
  * MAIML XML の <maiml> 開きタグに xmlns:prefix="uri" 宣言を注入する
  *
- * - 既存の xmlns:xxx="..." 属性をすべて除去した上で、DB から取得した名前空間で上書きする（完全置換方式）。
+ * - 既存の xmlns:xxx="..." 属性と xmlns="..." をすべて除去した上で、
+ *   ファイルサーバから取得した名前空間で上書きする（完全置換方式）。
  * - namespaces が空配列の場合は何も変更せずそのまま返す（ノーオペレーション）。
- * - xmlns="..." (プレフィックスなし) は除去対象外とし保持する。
+ * - prefix が '' のエントリは xmlns="uri"（デフォルト名前空間）として出力する。
+ * - xsi:schemaLocation 等の名前空間宣言でない属性は除去しない。
  * - <maiml> タグが存在しない場合はそのまま返す。
  *
  * @param maimlContent - 更新前の MAIML XML 文字列
- * @param namespaces   - DBから取得した名前空間一覧（{prefix, uri}[]）
+ * @param namespaces   - ファイルサーバから取得した名前空間一覧（{prefix, uri}[]）
  * @returns 更新後の MAIML XML 文字列
  */
 export function injectNamespaceDeclarations(
@@ -873,17 +896,16 @@ export function injectNamespaceDeclarations(
 
   const originalTag = maimlTagMatch[0];
 
-  // xmlns:prefix="uri" 形式の属性を除去（プレフィックスなしの xmlns="..." は保持）
-  // 付録B準拠: xsi / xenc 等の標準 prefix は保持し、カスタム prefix のみ除去する
-  const PROTECTED_PREFIXES = ['xsi', 'xenc', 'xs', 'xsd', 'xlink'];
-  const tagWithoutNs = originalTag.replace(
-    /\s+xmlns:([a-zA-Z0-9_.-]+)="[^"]*"/g,
-    (match, prefix) => (PROTECTED_PREFIXES.includes(prefix) ? match : '')
-  );
+  // xmlns:prefix="uri" 形式の属性をすべて除去（プレフィックスなしの xmlns="..." も除去）
+  const tagWithoutNs = originalTag
+    .replace(/\s+xmlns:[a-zA-Z0-9_.-]+="[^"]*"/g, '')
+    .replace(/\s+xmlns="[^"]*"/g, '');
 
-  // DB の名前空間を xmlns:prefix="uri" 形式に変換
+  // 名前空間を xmlns 属性に変換
+  // prefix が '' の場合は xmlns="uri"（デフォルト名前空間）、それ以外は xmlns:prefix="uri"
   const nsAttrs = namespaces
-    .map(({ prefix, uri }) => `xmlns:${prefix}="${escapeXml(uri)}"`)
+    .map(({ prefix, uri }) =>
+      prefix ? `xmlns:${prefix}="${escapeXml(uri)}"` : `xmlns="${escapeXml(uri)}"`)
     .join('\n  ');
 
   // <maiml> の閉じ角括弧直前に名前空間属性を追加

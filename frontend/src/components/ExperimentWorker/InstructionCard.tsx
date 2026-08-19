@@ -1,10 +1,7 @@
 import React from 'react';
-import { Card, Tag, Space, Typography, Flex } from 'antd';
+import { Card, Space, Typography, Flex } from 'antd';
 import type { Instruction, ProjectStatus } from '@/types/experimentWorker';
 import {
-  getPriorityColor,
-  getPriorityLabel,
-  getTypeLabel,
   formatRelativeTime,
 } from '@/utils/instructionHelpers';
 import { CalendarOutlined } from '@ant-design/icons';
@@ -31,10 +28,6 @@ export default function InstructionCard({
   return (
     <Card
       data-testid={`instruction-card-${instruction.instructionId}`}
-      style={{
-        borderLeft: `4px solid ${getPriorityColor(instruction.priority)}`,
-        backgroundColor: instruction.priority === 'high' ? '#fef2f2' : 'white',
-      }}
       styles={{
         body: {
           padding: '8px',
@@ -42,21 +35,8 @@ export default function InstructionCard({
       }}
     >
       <Space orientation="vertical" size="small" style={{ width: '100%' }}>
-        {/* 優先度・タイプと日付を横並びに配置 */}
-        <Flex justify="space-between" align="center">
-          <Space size="small" wrap>
-            <Tag
-              data-testid={`instruction-card-priority-tag-${instruction.instructionId}`}
-              color={getPriorityColor(instruction.priority)}
-              style={{ fontWeight: 'bold' }}
-            >
-              {getPriorityLabel(instruction.priority)}
-            </Tag>
-            <Tag data-testid={`instruction-card-type-tag-${instruction.instructionId}`}>
-              {getTypeLabel(instruction.instructionType)}
-            </Tag>
-          </Space>
-          
+        {/* 日付 */}
+        <Flex justify="flex-end" align="center">
           {isClient && (
             <Text
               data-testid={`instruction-card-date-${instruction.instructionId}`}

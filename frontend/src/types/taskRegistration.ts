@@ -77,13 +77,13 @@ export interface SaveTaskRegistrationItem {
  * 指示データ（保存用）
  */
 export interface InstructionSaveItem {
-  methodId: string;
+  methodId: string | null;
   content: string;
-  priority: number;
-  type: number;
   targetType: number;
   transitionId: string | null;
   taskNumber: number | null;
+  /** MAIMLのpropertyタグキー（指示種別） */
+  instructionKey: string;
 }
 
 /**

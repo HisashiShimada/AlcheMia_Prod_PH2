@@ -46,8 +46,6 @@ import type {
 } from '@/types/taskRegistration';
 import type {
   Instruction,
-  Priority,
-  InstructionType
 } from '@/types/experimentWorker';
 import type {
   TaskRegistrationStatusResponse,
@@ -1181,8 +1179,6 @@ export const getTaskRegistrationStatus = async (
  *   methodId: 'method_001',
  *   transitionId: 'trans_001',
  *   taskNumber: 1,
- *   priority: 1,
- *   type: 0,
  *   content: '実験手順を実施してください'
  * });
  * console.log('Instruction ID:', result.instructionId);
@@ -1236,8 +1232,6 @@ export const saveInstruction = async (
  * ```typescript
  * const result = await updateInstruction('550e8400-e29b-41d4-a716-446655440000', 'inst_001', {
  *   methodId: 'method_001',
- *   priority: 2,
- *   type: 0,
  *   content: '更新された指示内容'
  * });
  * ```

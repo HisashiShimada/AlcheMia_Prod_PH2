@@ -104,38 +104,32 @@ describe('Worker Instructions API - Integration Tests', () => {
 
     // 指示作成（Workerに割り当てられたタスクに紐づく）
     await pool.query(
-      `INSERT INTO project_instruction (id, organization_id, project_id, method_id, transition_id, task_no, instruction_target, instructions, priority, type, created_by, create_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+      `INSERT INTO project_instruction (organization_id, project_id, experiment_instruction_id, method_id, transition_id, task_no, instructions, create_user_id, create_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
       [
-        testInstructionId1,
         testOrganizationId,
         testProjectId,
+        testInstructionId1,
         'method1',
         'transition1',
         1,
-        'task',
         'Test instruction for worker',
-        'high',
-        'normal',
         testAdminId,
       ]
     );
 
     // 指示作成（Workerに割り当てられていないタスク）
     await pool.query(
-      `INSERT INTO project_instruction (id, organization_id, project_id, method_id, transition_id, task_no, instruction_target, instructions, priority, type, created_by, create_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+      `INSERT INTO project_instruction (organization_id, project_id, experiment_instruction_id, method_id, transition_id, task_no, instructions, create_user_id, create_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
       [
-        testInstructionId2,
         testOrganizationId,
         testProjectId,
+        testInstructionId2,
         'method2',
         'transition2',
         2,
-        'transition',
         'Test instruction not assigned to worker',
-        'medium',
-        'urgent',
         testAdminId,
       ]
     );
@@ -336,10 +330,7 @@ describe('Worker Instructions API - Integration Tests', () => {
       expect(instruction).toHaveProperty('transition_id');
       expect(instruction).toHaveProperty('transition_name');
       expect(instruction).toHaveProperty('task_no');
-      expect(instruction).toHaveProperty('instruction_target');
       expect(instruction).toHaveProperty('instruction_content');
-      expect(instruction).toHaveProperty('priority');
-      expect(instruction).toHaveProperty('type');
       expect(instruction).toHaveProperty('create_at');
       expect(instruction).toHaveProperty('created_by');
       expect(instruction).toHaveProperty('created_by_name');
@@ -406,19 +397,16 @@ describe('Worker Instructions API - Integration Tests', () => {
         
         insertPromises.push(
           pool.query(
-            `INSERT INTO project_instruction (id, organization_id, project_id, method_id, transition_id, task_no, instruction_target, instructions, priority, type, created_by, create_at) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+            `INSERT INTO project_instruction (organization_id, project_id, experiment_instruction_id, method_id, transition_id, task_no, instructions, create_user_id, create_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
             [
-              instructionId,
               testOrganizationId,
               testProjectId,
+              instructionId,
               `method${i}`,
               `transition${i}`,
               i + 3,
-              'task',
               `Performance test instruction ${i}`,
-              'high',
-              'normal',
               testAdminId,
             ]
           )

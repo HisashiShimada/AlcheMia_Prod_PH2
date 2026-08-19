@@ -193,6 +193,27 @@ export const ExperimentCondition = {
 export type ExperimentConditionType = typeof ExperimentCondition[keyof typeof ExperimentCondition];
 
 // ============================================================
+// instruction_target: 実験指示の対象タイプ
+// ============================================================
+
+/**
+ * 指示対象タイプ定数
+ *
+ * code_division = 'instruction_target'
+ * code_value: 0=ファイル全体, 1=特定タスク, 2=特定トランジション
+ */
+export const InstructionTarget = {
+  /** ファイル全体 */
+  FILE: 0,
+  /** 特定タスク */
+  TASK: 1,
+  /** 特定トランジション */
+  TRANSITION: 2,
+} as const;
+
+export type InstructionTargetType = typeof InstructionTarget[keyof typeof InstructionTarget];
+
+// ============================================================
 // transition_status: トランジション進捗ステータス（数値）
 // NOTE: バックエンドの TransitionStatusEnum に対応
 // ============================================================

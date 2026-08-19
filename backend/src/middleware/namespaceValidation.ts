@@ -134,17 +134,13 @@ export const validateToggleTermActive = [
 /**
  * GET /api/v1/namespaces/terms
  * query: scopeKey は任意・文字列
- * query: globalFlg は任意・'true' または 'false'
+ * （global_flg 廃止により globalFlg クエリパラメータを削除）
  */
 export const validateGetTerms = [
   query('scopeKey')
     .optional()
     .isString()
     .withMessage('scopeKey must be a string'),
-  query('globalFlg')
-    .optional()
-    .isIn(['true', 'false'])
-    .withMessage('globalFlg must be "true" or "false"'),
 ];
 
 // ─── 名前空間宣言 ─────────────────────────────────────────────────────────────
@@ -166,3 +162,15 @@ export const validateGetDeclarationsByProject = [
     .isString()
     .withMessage('projectId must be a string'),
 ];
+
+// ─── グローバル名前空間宣言（ファイルサーバ管理） ─────────────────────────────
+
+/**
+ * POST /api/v1/namespaces/global-declarations/import
+ * multipart/form-data: file（CSV）は必須
+ *
+ * @remarks
+ * ファイルの存在確認はコントローラー側で実施するため、
+ * バリデーションルールは空配列（ファイルは express-validator では検証不可）
+ */
+export const validateImportGlobalDeclarations: never[] = [];

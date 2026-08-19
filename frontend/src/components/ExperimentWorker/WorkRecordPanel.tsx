@@ -1,7 +1,57 @@
 'use client';
 
+<<<<<<< HEAD
 import React from 'react';
 import { Empty, Typography } from 'antd';
+=======
+/**
+ * 作業記録パネル（案A / 案B レイアウト）
+ *
+ * モック ExperimentWorkerScreenMock.tsx の PlanA / PlanB / PropertyCard /
+ * WorkHeader / InstructionCollapse を実画面用コンポーネントとして移植。
+ *
+ * フェーズA: モックデータのまま動作確認。
+ * フェーズB: props 経由で実 API データに差し替え。
+ *
+ * 【実績値入力フロー】
+ * 実績値入力 →「保存して次へ」→ 次テンプレート実績値入力 or 次トランジション
+ */
+
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Col,
+  Collapse,
+  Divider,
+  Flex,
+  Input,
+  InputNumber,
+  Layout,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  theme,
+} from 'antd';
+import { CommentOutlined, DeleteOutlined, FastForwardOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import ExperimentCommentDialog from './ExperimentCommentDialog';
+import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
+import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
+import ContentGridEditor from '@/components/common/ContentGridEditor';
+import { getProjectMaiml } from '@/services/projectApiService';
+import { getPlanDialogData, getExperimentPlans } from '@/services/experimentPlanApiService';
+import type { Insertion } from '@/types/maiml-unified';
+import type { FileData } from '@/types/editor';
+import uncertaintyMockData from '../../../mock/uncertainty.json';
+>>>>>>> feature/phase2_mock
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { ProgressRow } from './ProgressOverviewTab';
 import DataRecordDialog from './DataRecordDialog';
@@ -51,7 +101,381 @@ export default function WorkRecordPanel({
       }
     : null;
 
+<<<<<<< HEAD
   if (!projectId || !inProgressRow || !transition) {
+=======
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ユーティリティ
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// STATUS_CONFIG はコンポーネント内で t() を使うため削除し、useMemo で再生成する
+const STATUS_COLORS: Record<TransitionStatus, string> = {
+  not_started: 'default',
+  in_progress: 'processing',
+  completed:   'success',
+  error:       'error',
+};
+
+const CATEGORY_COLOR: Record<string, string> = {
+  Conditions: 'blue',
+  Materials:  'green',
+  Results:    'purple',
+};
+
+const XSI_SHORT: Record<string, string> = {
+  FloatValue: 'Float', IntegerValue: 'Int', StringValue: 'Str',
+};
+
+const XSI_COLOR: Record<string, string> = {
+  FloatValue: 'geekblue', IntegerValue: 'purple', StringValue: 'cyan',
+};
+
+function calcDiff(expected: number | string | null, actual: number | string | null): React.ReactNode {
+  if (typeof expected !== 'number' || typeof actual !== 'number') return null;
+  const diff = actual - expected;
+  const s = parseFloat(diff.toFixed(4)).toString();
+  if (diff === 0) return <Text type="secondary" style={{ fontSize: 11 }}>±0</Text>;
+  if (diff > 0) return <Text style={{ color: '#cf1322', fontSize: 11 }}>+{s}</Text>;
+  return <Text style={{ color: '#096dd9', fontSize: 11 }}>{s}</Text>;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// プロパティカード
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface PropertyCardProps {
+  prop: MockProperty;
+  actual: number | string | null;
+  readOnly: boolean;
+  onChange: (key: string, value: number | string | null) => void;
+}
+
+const CONFIDENCE_STYLE: Record<string, { background: string; borderColor: string; color: string }> = {
+  '確か':  { background: '#d9f7be', borderColor: '#b7eb8f', color: '#389e0d' },
+  '曖昧':  { background: '#fff7e6', borderColor: '#ffd591', color: '#d46b08' },
+  '不確か': { background: '#fff1f0', borderColor: '#ffa39e', color: '#cf1322' },
+  'OK':    { background: '#d9f7be', borderColor: '#b7eb8f', color: '#389e0d' },
+  'NG':    { background: '#fff1f0', borderColor: '#ffa39e', color: '#cf1322' },
+};
+
+/** CONFIDENCE_STYLE に定義がないラベル用のデフォルトスタイル */
+const CONFIDENCE_STYLE_DEFAULT = { background: '#f0f0f0', borderColor: '#d9d9d9', color: '#595959' };
+
+const getConfidenceStyle = (level: string) =>
+  CONFIDENCE_STYLE[level] ?? CONFIDENCE_STYLE_DEFAULT;
+
+const PropertyCard: React.FC<PropertyCardProps> = ({
+  prop, actual, readOnly, onChange,
+}) => {
+  const { t } = useLanguage();
+  const DEFAULT_CONFIDENCE_OPTIONS: string[] = [
+    t('workRecord.confidenceCertain'),
+    t('workRecord.confidenceAmbiguous'),
+    t('workRecord.confidenceUncertain'),
+  ];
+  const confidenceOptions = prop.confidenceOptions ?? DEFAULT_CONFIDENCE_OPTIONS;
+  const [confidence, setConfidence] = useState<string | null>(null);
+  /** ＋値の追加ボタンで追加された不確かさ評価行 */
+  const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>([]);
+
+  /** 行を追加する */
+  const handleAddValue = () => {
+    setAddedValues((prev) => [
+      ...prev,
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, uncertaintyKey: '', value: '' },
+    ]);
+  };
+
+  /** 行の不確かさ基準を更新する */
+  const handleUncertaintyKeyChange = (id: string, newKey: string) => {
+    setAddedValues((prev) =>
+      prev.map((av) => (av.id === id ? { ...av, uncertaintyKey: newKey } : av))
+    );
+  };
+
+  /** 行の値を更新する */
+  const handleValueChange = (id: string, newValue: string) => {
+    setAddedValues((prev) =>
+      prev.map((av) => (av.id === id ? { ...av, value: newValue } : av))
+    );
+  };
+
+  /** 行を削除する */
+  const handleRemoveValue = (id: string) => {
+    setAddedValues((prev) => prev.filter((av) => av.id !== id));
+  };
+
+  return (
+  <Card
+    size="small"
+    style={{
+      borderRadius: 6,
+      border: '1px solid #d9d9d9',
+      background: readOnly ? '#fafafa' : '#ffffff',
+    }}
+  >
+    {/* プロパティ情報（最上部）*/}
+    <Flex align="center" gap={6} style={{ marginBottom: 6 }}>
+      <Text strong style={{ fontSize: 13 }}>{prop.label}</Text>
+      <Tag color={XSI_COLOR[prop.xsiType] ?? 'default'} style={{ fontSize: 11, margin: 0, lineHeight: '18px' }}>
+        {XSI_SHORT[prop.xsiType] ?? prop.xsiType}
+      </Tag>
+      <Text type="secondary" style={{ fontSize: 11 }}>({prop.key})</Text>
+      {/* 選択中の定性評価を表示（未選択時は非表示） */}
+      {confidence !== null && (
+        <Tag
+          style={{
+            ...getConfidenceStyle(confidence),
+            fontSize: 11,
+            margin: 0,
+            lineHeight: '18px',
+            fontWeight: 'bold',
+          }}
+        >
+          {confidence}
+        </Tag>
+      )}
+    </Flex>
+
+      {/* データ表示 / 入力エリア（縦並び: 想定値+不確かさ値 → 不確かさ説明 → 実績値） */}
+      <Flex vertical gap={6}>
+        {/* 想定値（左）+ 不確かさ値（右）: 2分割 */}
+        <Row gutter={8}>
+          <Col span={12}>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.expectedValue')}</Text>
+            <div style={{ padding: '6px 10px', background: '#e6f7ff', border: '1px solid #bae7ff', borderRadius: 4 }}>
+              {prop.expected !== null ? (
+                <Text style={{ fontSize: 14 }}>
+                  {prop.expected}
+                  {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
+                </Text>
+              ) : (
+                <Text type="secondary" italic style={{ fontSize: 13 }}>{t('workRecord.notSet')}</Text>
+              )}
+            </div>
+          </Col>
+          <Col span={12}>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{prop.uncertaintyName ?? t('workRecord.uncertaintyValue')}</Text>
+            <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4 }}>
+              {prop.uncertaintyValue !== undefined ? (
+                <Text style={{ fontSize: 14 }}>
+                  {prop.uncertaintyValue}
+                  {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
+                </Text>
+              ) : (
+                <Text type="secondary" italic style={{ fontSize: 13 }}>—</Text>
+              )}
+            </div>
+          </Col>
+        </Row>
+
+        {/* 不確かさ説明（全幅） */}
+        <div>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.uncertaintyDesc')}</Text>
+          <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4, minHeight: 34 }}>
+            {prop.uncertaintyDescription !== undefined ? (
+              <Text style={{ fontSize: 13 }}>{prop.uncertaintyDescription}</Text>
+            ) : (
+              <Text type="secondary" italic style={{ fontSize: 13 }}>—</Text>
+            )}
+          </div>
+        </div>
+
+      {/* 実績値 */}
+      <div>
+        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.actualValue')}</Text>
+        <div style={{ padding: '0', background: '#ffffff', border: '1px solid #d9d9d9', borderRadius: 4 }}>
+          {readOnly ? (
+            <div style={{ padding: '6px 10px' }}>
+              {actual !== null ? (
+                <Flex align="center" gap={8}>
+                  <Text style={{ fontSize: 14 }}>
+                    {actual}
+                    {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
+                  </Text>
+                  {calcDiff(prop.expected, actual)}
+                </Flex>
+              ) : (
+                <Text type="secondary" italic style={{ fontSize: 13 }}>{t('workRecord.notRecorded')}</Text>
+              )}
+            </div>
+          ) : (
+            <Flex align="center" style={{ width: '100%' }}>
+              {prop.xsiType === 'StringValue' ? (
+                <Input
+                  variant="borderless"
+                  style={{ flex: 1 }}
+                  styles={{ input: { paddingLeft: 0 } }}
+                  value={(actual as string) ?? ''}
+                  placeholder={t('workRecord.inputPlaceholder')}
+                  onChange={(e) => onChange(prop.key, e.target.value || null)}
+                />
+              ) : (
+                <InputNumber
+                  variant="borderless"
+                  style={{ flex: 1 }}
+                  styles={{ input: { paddingLeft: 0 } }}
+                  value={(actual as number) ?? undefined}
+                  placeholder={t('workRecord.inputPlaceholder')}
+                  onChange={(v) => onChange(prop.key, v ?? null)}
+                />
+              )}
+              {prop.unit && (
+                <Text type="secondary" style={{ fontSize: 12, paddingRight: 6, flexShrink: 0 }}>{prop.unit}</Text>
+              )}
+            </Flex>
+          )}
+        </div>
+      </div>
+
+      {/* 確信度ボタン（実績値の下） */}
+      {!readOnly && (
+        <div>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.qualitativeEval')}</Text>
+          <Flex gap={4}>
+            {confidenceOptions.map((level) => {
+              const style = getConfidenceStyle(level);
+              return (
+                <Button
+                  key={level}
+                  size="small"
+                  onClick={() => setConfidence(confidence === level ? null : level)}
+                  style={{
+                    ...style,
+                    fontSize: 11,
+                    width: 56,
+                    fontWeight: confidence === level ? 'bold' : 'normal',
+                    outline: confidence === level ? `2px solid ${style.borderColor}` : undefined,
+                  }}
+                >
+                  {level}
+                </Button>
+              );
+            })}
+          </Flex>
+        </div>
+      )}
+
+      {/* ＋ 値の追加ボタン & 追加された不確かさ評価行 */}
+      {!readOnly && (
+        <div>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.quantitativeEval')}</Text>
+          {/* 追加済み行 */}
+          {addedValues.map((av) => (
+            <Row key={av.id} gutter={4} align="middle" style={{ marginBottom: 4 }}>
+              <Col span={12}>
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder={t('workRecord.quantitativeEvalPlaceholder')}
+                  value={av.uncertaintyKey || undefined}
+                  options={UNCERTAINTY_OPTIONS}
+                  onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
+                  allowClear
+                />
+              </Col>
+              <Col span={11}>
+                <Input
+                  style={{ width: '100%' }}
+                  placeholder={t('workRecord.valuePlaceholder')}
+                  value={av.value}
+                  onChange={(e) => handleValueChange(av.id, e.target.value)}
+                />
+              </Col>
+              <Col span={1} style={{ textAlign: 'center' }}>
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleRemoveValue(av.id)}
+                  style={{ padding: 0 }}
+                />
+              </Col>
+            </Row>
+          ))}
+
+          {/* ＋ 値の追加ボタン */}
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={handleAddValue}
+            style={{ background: '#1d4e63', borderColor: '#1d4e63' }}
+          >
+            {t('workRecord.addValue')}
+          </Button>
+        </div>
+      )}
+    </Flex>
+
+  </Card>
+  );
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// プロパティカード一覧（共通部品）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface PropertyListProps {
+  template: MockTemplate | null;
+  templateCount: number;
+  templateIdx: number;
+  taskTransition: TaskTransitionState | undefined;
+  isReadOnly: boolean;
+  displayKey: { taskNo: number; transitionId: string } | null;
+  /** スキップ可能かどうか（スキップボタンの有効/無効制御） */
+  canSkip?: boolean;
+  onActualChange: (taskNo: number, transitionId: string, propKey: string, value: ActualValue) => void;
+  onSave: (taskNo: number, transitionId: string) => void;
+  onSaveAndNext: (taskNo: number, transitionId: string) => void;
+  onSkip: (taskNo: number, transitionId: string) => void;
+  onTemplateIdxChange: (idx: number) => void;
+  /** コメントボタンクリック時のコールバック */
+  onCommentClick: () => void;
+  /** S3アップロード先パス（InsertionEditorCompact に渡す） */
+  uploadTargetPath?: string;
+  /** カスタムInsertion追加ボタン押下時 */
+  onInsertionAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムInsertionスロット削除ボタン押下時 */
+  onInsertionRemove?: (taskNo: number, transitionId: string, insertionId: string) => void;
+  /** カスタムContent追加ボタン押下時 */
+  onContentAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムContentスロット削除ボタン押下時 */
+  onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
+  /** ペトリネットビューアを開くコールバック */
+  onOpenViewer?: () => void;
+  /** ペトリネットビューアローディング中フラグ */
+  viewerLoading?: boolean;
+}
+
+/** Insertion のデフォルト値 */
+const DEFAULT_INSERTION: Insertion = { uri: '', hash: { method: '', value: '' }, format: '' };
+
+const PropertyList: React.FC<PropertyListProps> = ({
+  template,
+  templateCount,
+  templateIdx,
+  taskTransition,
+  isReadOnly,
+  displayKey,
+  canSkip = false,
+  onActualChange,
+  onSave,
+  onSaveAndNext,
+  onSkip,
+  onTemplateIdxChange,
+  onCommentClick,
+  uploadTargetPath,
+  onInsertionAdd,
+  onInsertionRemove,
+  onContentAdd,
+  onContentRemove,
+  onOpenViewer,
+  viewerLoading,
+}) => {
+  const { t } = useLanguage();
+
+  if (!template) {
+>>>>>>> feature/phase2_mock
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
         <Empty
@@ -68,19 +492,1195 @@ export default function WorkRecordPanel({
   };
 
   return (
-    <DataRecordDialog
-      open={true}
-      inlineMode={true}
-      transition={transition}
-      projectStatus={projectStatus as ProjectStatus | null}
-      onClose={() => {
-        // パネル表示なので閉じる操作は何もしない
+    <>
+      <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
+        <Tag color={CATEGORY_COLOR[template.category]}>{template.category}</Tag>
+        <Text strong style={{ fontSize: 13 }}>{template.name}</Text>
+        {templateCount > 1 && (
+          <Text type="secondary" style={{ fontSize: 11 }}>{templateIdx + 1}/{templateCount}</Text>
+        )}
+      </Flex>
+
+      <Row gutter={[8, 8]}>
+        {template.properties.map((prop) => (
+          <Col span={8} key={prop.key}>
+            <PropertyCard
+              prop={prop}
+              actual={(() => {
+                const v = taskTransition?.actuals[prop.key] ?? null;
+                // Insertionオブジェクトはプロパティ値として使わない
+                return (v !== null && typeof v === 'object') ? null : (v as number | string | null);
+              })()}
+              readOnly={isReadOnly}
+              onChange={(key, value) => {
+                if (displayKey) onActualChange(displayKey.taskNo, displayKey.transitionId, key, value);
+              }}
+            />
+          </Col>
+        ))}
+      </Row>
+
+      {/* 追加ボタン群（DataRecordDialog 準拠） */}
+      {!isReadOnly && (
+        <Flex gap={8} style={{ marginTop: 8, flexWrap: 'wrap' }}>
+          <Button size="small" icon={<PlusOutlined />} onClick={() => {}}>
+            {t('workRecord.addProperty')}
+          </Button>
+          <Button
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              if (displayKey) onContentAdd?.(displayKey.taskNo, displayKey.transitionId);
+            }}
+          >
+            {t('workRecord.addContent')}
+          </Button>
+          {/* カスタムInsertion追加ボタン */}
+          <Button
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              if (displayKey) onInsertionAdd?.(displayKey.taskNo, displayKey.transitionId);
+            }}
+          >
+            {t('insertionEditor.addButton')}
+          </Button>
+        </Flex>
+      )}
+
+      {/* ── 固定Insertionスロット（template.insertions 由来） ── */}
+      {template.insertions && template.insertions.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          {template.insertions.map((slot) => {
+            const actualsValue = taskTransition?.actuals[`insertion_${slot.id}`];
+            const insertionValue: Insertion =
+              actualsValue !== null && actualsValue !== undefined && typeof actualsValue === 'object'
+                ? (actualsValue as Insertion)
+                : DEFAULT_INSERTION;
+            return (
+              <div
+                key={slot.id}
+                style={{
+                  marginBottom: 8,
+                  padding: 8,
+                  border: '1px solid #d9d9d9',
+                  borderRadius: 4,
+                  background: '#fafafa',
+                }}
+              >
+                {slot.label && (
+                  <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                    {slot.label}
+                  </Text>
+                )}
+                <InsertionEditorCompact
+                  value={insertionValue}
+                  onChange={(v) => {
+                    if (displayKey) {
+                      onActualChange(displayKey.taskNo, displayKey.transitionId, `insertion_${slot.id}`, v);
+                    }
+                  }}
+                  readOnly={isReadOnly}
+                  uploadTargetPath={uploadTargetPath}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── カスタムInsertionスロット（ユーザーが追加したもの） ── */}
+      {taskTransition?.customInsertionIds && taskTransition.customInsertionIds.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          {taskTransition.customInsertionIds.map((cid) => {
+            const actualsValue = taskTransition.actuals[`insertion_custom_${cid}`];
+            const insertionValue: Insertion =
+              actualsValue !== null && actualsValue !== undefined && typeof actualsValue === 'object'
+                ? (actualsValue as Insertion)
+                : DEFAULT_INSERTION;
+            return (
+              <div
+                key={cid}
+                style={{
+                  marginBottom: 8,
+                  padding: 8,
+                  border: '1px dashed #91caff',
+                  borderRadius: 4,
+                  background: '#e6f4ff',
+                  position: 'relative',
+                }}
+              >
+                <Flex justify="space-between" align="center" style={{ marginBottom: 4 }}>
+                  <Text style={{ fontSize: 12, color: '#1677ff' }}>{t('insertionEditor.customLabel')}</Text>
+                  {!isReadOnly && (
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      onClick={() => {
+                        if (displayKey) onInsertionRemove?.(displayKey.taskNo, displayKey.transitionId, cid);
+                      }}
+                      style={{ padding: '0 4px', height: 20 }}
+                    />
+                  )}
+                </Flex>
+                <InsertionEditorCompact
+                  value={insertionValue}
+                  onChange={(v) => {
+                    if (displayKey) {
+                      onActualChange(displayKey.taskNo, displayKey.transitionId, `insertion_custom_${cid}`, v);
+                    }
+                  }}
+                  readOnly={isReadOnly}
+                  uploadTargetPath={uploadTargetPath}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── カスタムContentスロット（ユーザーが追加したもの） ── */}
+      {taskTransition?.customContentIds && taskTransition.customContentIds.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          {taskTransition.customContentIds.map((cid) => {
+            const gridValue = taskTransition.actuals[`content_custom_${cid}`];
+            const dataValue: number[][] =
+              Array.isArray(gridValue) ? (gridValue as number[][]) : [[]];
+            return (
+              <div
+                key={cid}
+                style={{
+                  marginBottom: 8,
+                  padding: 8,
+                  border: '1px dashed #b37feb',
+                  borderRadius: 4,
+                  background: '#f9f0ff',
+                  position: 'relative',
+                }}
+              >
+                <Flex justify="space-between" align="center" style={{ marginBottom: 4 }}>
+                  <Text style={{ fontSize: 12, color: '#722ed1' }}>カスタム Content</Text>
+                  {!isReadOnly && (
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      onClick={() => {
+                        if (displayKey) onContentRemove?.(displayKey.taskNo, displayKey.transitionId, cid);
+                      }}
+                      style={{ padding: '0 4px', height: 20 }}
+                    />
+                  )}
+                </Flex>
+                <ContentGridEditor
+                  value={dataValue}
+                  onChange={(v) => {
+                    if (displayKey) {
+                      onActualChange(displayKey.taskNo, displayKey.transitionId, `content_custom_${cid}`, v);
+                    }
+                  }}
+                  readOnly={isReadOnly}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 保存ボタン */}
+      {!isReadOnly && displayKey && (
+        <Flex justify="flex-end" gap={8} style={{ marginTop: 12, paddingBottom: 8 }}>
+          {/* コメントボタン（保存ボタンの左側） */}
+          <Button
+            icon={<CommentOutlined />}
+            onClick={onCommentClick}
+          >
+            {t('workRecord.commentButton')}
+          </Button>
+          <Button onClick={() => onSave(displayKey.taskNo, displayKey.transitionId)}>
+            {t('workRecord.saveButton')}
+          </Button>
+          {/* スキップボタン: 他に実行可能なトランジションがある場合のみ有効 */}
+          <Tooltip title={canSkip ? t('workRecord.skipTooltipAvailable') : t('workRecord.skipTooltipUnavailable')}>
+            <Button
+              icon={<FastForwardOutlined />}
+              disabled={!canSkip}
+              onClick={() => onSkip(displayKey.taskNo, displayKey.transitionId)}
+            >
+              {t('workRecord.skipButton')}
+            </Button>
+          </Tooltip>
+          <Button
+            type="primary"
+            icon={<RightOutlined />}
+            onClick={handleSaveAndNext}
+          >
+            {nextLabel}
+          </Button>
+        </Flex>
+      )}
+
+      {/* ペトリネットビューアボタン（readOnly に関わらず常に表示） */}
+      <Flex justify="flex-end" style={{ marginTop: isReadOnly ? 12 : 4, paddingBottom: 8 }}>
+        <Button
+          size="small"
+          icon={<FileSearchOutlined />}
+          onClick={onOpenViewer}
+          disabled={!onOpenViewer}
+          loading={viewerLoading}
+        >
+          {t('workRecord.petriNetViewer')}
+        </Button>
+      </Flex>
+    </>
+  );
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 作業ヘッダー（共通）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface WorkHeaderProps {
+  displayKey: { taskNo: number; transitionId: string } | null;
+  taskTransition: TaskTransitionState | undefined;
+  transition: MockTransition | null;
+  method: MockMethod | undefined;
+  isReadOnly: boolean;
+  activeEntry: { taskNo: number; transitionId: string } | null;
+  onClearViewing: () => void;
+}
+
+const WorkHeader: React.FC<WorkHeaderProps> = ({
+  displayKey,
+  taskTransition,
+  transition,
+  method,
+  isReadOnly,
+  activeEntry,
+  onClearViewing,
+}) => {
+  const { t } = useLanguage();
+
+  const STATUS_CONFIG: Record<TransitionStatus, { label: string; color: string }> = {
+    not_started: { label: t('workRecord.statusNotStarted'), color: STATUS_COLORS.not_started },
+    in_progress: { label: t('workRecord.statusInProgress'), color: STATUS_COLORS.in_progress },
+    completed:   { label: t('workRecord.statusCompleted'),  color: STATUS_COLORS.completed   },
+    error:       { label: t('workRecord.statusError'),      color: STATUS_COLORS.error       },
+  };
+
+  if (!displayKey || !taskTransition || !transition) {
+    if (activeEntry === null) {
+      return (
+        <Alert type="success" showIcon message={t('workRecord.allTransitionsCompleted')} style={{ marginBottom: 8 }} />
+      );
+    }
+    return null;
+  }
+  return (
+    <Card
+      size="small"
+      style={{
+        marginBottom: 8,
+        background: isReadOnly ? '#f5f5f5' : '#f6ffed',
+        borderColor: isReadOnly ? '#d9d9d9' : '#b7eb8f',
       }}
-      onSave={handleSave}
-      projectId={projectId}
-      methodId={inProgressRow.methodId}
-      taskNo={inProgressRow.taskNo}
-      useDeemedProgress={useDeemedProgress}
+    >
+      <Flex align="center" gap={10} wrap="wrap">
+        <Flex align="center" gap={6}>
+          <Tag color={STATUS_CONFIG[taskTransition.status].color} style={{ margin: 0 }}>
+            {STATUS_CONFIG[taskTransition.status].label}
+          </Tag>
+        </Flex>
+        <Divider type="vertical" style={{ margin: 0 }} />
+        <Flex align="center" gap={4}>
+          <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.taskNo')}</Text>
+          <Text strong style={{ fontSize: 13 }}>#{displayKey.taskNo}</Text>
+        </Flex>
+        <Divider type="vertical" style={{ margin: 0 }} />
+        <Flex align="center" gap={4}>
+          <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.method')}</Text>
+          <Tooltip title={method?.id ?? ''}>
+            <Text code style={{ fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>
+              {method?.id ?? '—'}
+            </Text>
+          </Tooltip>
+        </Flex>
+        <Divider type="vertical" style={{ margin: 0 }} />
+        <Flex align="center" gap={4}>
+          <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.transition')}</Text>
+          <Tooltip title={transition.id}>
+            <Text code style={{ fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>
+              {transition.id}
+            </Text>
+          </Tooltip>
+        </Flex>
+      </Flex>
+      {isReadOnly && (
+        <Alert
+          type="info" showIcon
+          message={t('workRecord.completedTransitionReadonly')}
+          style={{ marginTop: 8, fontSize: 12 }}
+          action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
+        />
+      )}
+    </Card>
+  );
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// プロジェクト指示（折りたたみ）共通部品
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface InstructionCollapseProps {
+  instructions: string[];
+}
+
+const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions }) => {
+  const { t } = useLanguage();
+  if (instructions.length === 0) return null;
+  return (
+    <Collapse
+      size="small"
+      style={{ marginBottom: 8, background: '#fffbe6', borderColor: '#ffe58f' }}
+      items={[
+        {
+          key: 'instructions',
+          label: (
+            <Flex align="center" gap={8}>
+              <WarningOutlined style={{ color: '#faad14' }} />
+              <Text strong style={{ fontSize: 13 }}>{t('workRecord.projectInstructions')}</Text>
+              <Badge count={instructions.length} size="small" color="#faad14" />
+            </Flex>
+          ),
+          children: (
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {instructions.map((inst, i) => (
+                <li key={i} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>{inst}</li>
+              ))}
+            </ul>
+          ),
+        },
+      ]}
     />
+  );
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 内部用Props（PlanA / PlanB 共通）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// スキップロジック
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 対象トランジションにアクセス可能かどうかを判定する（WorkRecordPanel 内部用）。
+ * prerequisiteTransitionIds が空の場合は常にアクセス可能。
+ * prerequisiteTransitionIds が設定されている場合、それら全てが completed のときのみアクセス可能。
+ */
+function canAccessTransitionInTask(
+  target: MockTransition,
+  taskTransitions: TaskTransitionState[]
+): boolean {
+  const prereqs = target.prerequisiteTransitionIds;
+
+  // 前提なし → いつでもアクセス可能
+  if (!prereqs || prereqs.length === 0) return true;
+
+  // 全ての前提トランジションが completed であるか確認
+  return prereqs.every((prereqId) => {
+    const state = taskTransitions.find((s) => s.transitionId === prereqId);
+    return state?.status === 'completed';
+  });
+}
+
+/**
+ * 現在のトランジションをスキップした後の次の実行可能なトランジションを検索する。
+ * 1. 現在より後ろのインデックスから探す
+ * 2. 見つからなければ先頭から現在の前まで循環検索する
+ */
+function findNextAvailableTransition(
+  taskNo: number,
+  currentTransitionId: string,
+  skippedIds: string[],
+  tasks: MockTask[]
+): { taskNo: number; transitionId: string } | null {
+  const task = tasks.find((t) => t.taskNo === taskNo);
+  if (!task) return null;
+
+  const currentIdx = ORDERED_TRANSITION_IDS.indexOf(currentTransitionId);
+
+  // 後ろから順に探す
+  for (let i = currentIdx + 1; i < ORDERED_TRANSITION_IDS.length; i++) {
+    const tid = ORDERED_TRANSITION_IDS[i];
+    const tt = task.transitions.find((s) => s.transitionId === tid);
+    if (!tt) continue;
+    if (tt.status === 'completed' || tt.status === 'error') continue;
+    if (skippedIds.includes(tid)) continue;
+    const transition = MOCK_TRANSITIONS.find((t) => t.id === tid);
+    if (transition && !canAccessTransitionInTask(transition, task.transitions)) continue;
+    return { taskNo, transitionId: tid };
+  }
+
+  // 前から循環検索
+  for (let i = 0; i < currentIdx; i++) {
+    const tid = ORDERED_TRANSITION_IDS[i];
+    const tt = task.transitions.find((s) => s.transitionId === tid);
+    if (!tt) continue;
+    if (tt.status === 'completed' || tt.status === 'error') continue;
+    if (skippedIds.includes(tid)) continue;
+    const transition = MOCK_TRANSITIONS.find((t) => t.id === tid);
+    if (transition && !canAccessTransitionInTask(transition, task.transitions)) continue;
+    return { taskNo, transitionId: tid };
+  }
+
+  return null;
+}
+
+interface PlanProps {
+  tasks: MockTask[];
+  activeTaskNo: number;
+  viewingKey: { taskNo: number; transitionId: string } | null;
+  skippedTransitionIds: string[];
+  instructions: string[];
+  onActualChange: (taskNo: number, transitionId: string, propKey: string, value: ActualValue) => void;
+  onSave: (taskNo: number, transitionId: string) => void;
+  onSaveAndNext: (taskNo: number, transitionId: string) => void;
+  onClearViewing: () => void;
+  /** スキップボタン押下時: 現在のトランジションをスキップして次へ */
+  onSkip: (taskNo: number, transitionId: string) => void;
+  /** コメントボタンクリック時のコールバック */
+  onCommentClick: () => void;
+  /** カスタムInsertion追加 */
+  onInsertionAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムInsertion削除 */
+  onInsertionRemove?: (taskNo: number, transitionId: string, insertionId: string) => void;
+  /** カスタムContent追加 */
+  onContentAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムContent削除 */
+  onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
+  /** ファイルアップロード先パス（指定時にファイル選択・DnDでアップロード確認ダイアログを表示） */
+  uploadTargetPath?: string;
+  /** ペトリネットビューアを開くコールバック */
+  onOpenViewer?: () => void;
+  /** ペトリネットビューアローディング中フラグ */
+  viewerLoading?: boolean;
+  /** Creator プルダウンの選択肢（MAIMLのdocument.creatorsから取得） */
+  creatorRefOptions: string[];
+  /** Instrument プルダウンの選択肢（MAIMLのdocument.instrumentsから取得） */
+  instrumentRefOptions: string[];
+  /** Creator の選択値 */
+  selectedCreatorRef: string | null;
+  /** Instrument の選択値 */
+  selectedInstrumentRef: string | null;
+  /** Creator 選択変更コールバック */
+  onCreatorRefChange: (value: string | null) => void;
+  /** Instrument 選択変更コールバック */
+  onInstrumentRefChange: (value: string | null) => void;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 案A: テンプレート選択がボタン形式（左ペインなし）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const PlanA: React.FC<PlanProps> = ({
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove,
+}) => {
+  const [templateIdx, setTemplateIdx] = useState(0);
+
+  const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
+    const task = tasks.find((t) => t.taskNo === activeTaskNo);
+    if (!task) return null;
+    for (const tid of ORDERED_TRANSITION_IDS) {
+      const tt = task.transitions.find((x) => x.transitionId === tid);
+      if (tt && tt.status !== 'completed' && tt.status !== 'error') return { taskNo: activeTaskNo, transitionId: tid };
+    }
+    return null;
+  }, [tasks, activeTaskNo]);
+
+  const displayKey = viewingKey ?? activeEntry;
+  const isReadOnly = viewingKey !== null;
+  const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
+  const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
+  const displayTransition = displayKey ? MOCK_TRANSITIONS.find((t) => t.id === displayKey.transitionId) : null;
+  const displayMethod = displayTransition ? MOCK_METHODS.find((m) => m.id === displayTransition.methodId) : null;
+  const visibleTemplates = displayTransition?.templates ?? [];
+  const safeIdx = Math.min(templateIdx, Math.max(0, visibleTemplates.length - 1));
+  const activeTemplate = visibleTemplates[safeIdx] ?? null;
+
+  return (
+    <Flex vertical style={{ height: '100%' }}>
+      <InstructionCollapse instructions={instructions} />
+      <WorkHeader
+        displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
+        method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
+      />
+
+      {/* テンプレート選択ボタン（複数の場合のみ） */}
+      {visibleTemplates.length > 1 && (
+        <Flex gap={4} style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+          {visibleTemplates.map((tpl, idx) => (
+            <Button
+              key={tpl.id}
+              size="small"
+              type={idx === safeIdx ? 'primary' : 'default'}
+              onClick={() => setTemplateIdx(idx)}
+            >
+              <Tag color={CATEGORY_COLOR[tpl.category]} style={{ margin: 0, fontSize: 10 }}>
+                {tpl.category.slice(0, 4)}
+              </Tag>
+              {tpl.name}
+            </Button>
+          ))}
+        </Flex>
+      )}
+
+      <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
+        <PropertyList
+          template={activeTemplate}
+          templateCount={visibleTemplates.length}
+          templateIdx={safeIdx}
+          taskTransition={displayTT}
+          isReadOnly={isReadOnly}
+          displayKey={displayKey}
+          canSkip={!isReadOnly && displayKey !== null && findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null}
+          onActualChange={onActualChange}
+          onSave={onSave}
+          onSaveAndNext={onSaveAndNext}
+          onSkip={onSkip}
+          onTemplateIdxChange={setTemplateIdx}
+          onCommentClick={onCommentClick}
+          onInsertionAdd={onInsertionAdd}
+          onInsertionRemove={onInsertionRemove}
+        />
+      </div>
+    </Flex>
+  );
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 案B: DataRecordDialog準拠の左Sider + 右Contentレイアウト
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const PlanB: React.FC<PlanProps> = ({
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath, onOpenViewer, viewerLoading,
+  creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
+}) => {
+  const { t } = useLanguage();
+  const { token } = theme.useToken();
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [templateSearchText, setTemplateSearchText] = useState('');
+  const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<string | undefined>(undefined);
+
+  const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
+    const task = tasks.find((t) => t.taskNo === activeTaskNo);
+    if (!task) return null;
+    for (const tid of ORDERED_TRANSITION_IDS) {
+      const tt = task.transitions.find((x) => x.transitionId === tid);
+      if (tt && tt.status !== 'completed' && tt.status !== 'error') return { taskNo: activeTaskNo, transitionId: tid };
+    }
+    return null;
+  }, [tasks, activeTaskNo]);
+
+  const displayKey = viewingKey ?? activeEntry;
+  const isReadOnly = viewingKey !== null;
+  const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
+  const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
+  const displayTransition = displayKey ? MOCK_TRANSITIONS.find((t) => t.id === displayKey.transitionId) : null;
+  const displayMethod = displayTransition ? MOCK_METHODS.find((m) => m.id === displayTransition.methodId) : null;
+  const visibleTemplates = displayTransition?.templates ?? [];
+
+  // 自動選択: トランジションが切り替わったら先頭テンプレートを選択
+  const firstTemplateId = visibleTemplates[0]?.id ?? null;
+  const resolvedSelectedId = selectedTemplateId && visibleTemplates.some((t) => t.id === selectedTemplateId)
+    ? selectedTemplateId
+    : firstTemplateId;
+  const activeTemplate = visibleTemplates.find((t) => t.id === resolvedSelectedId) ?? null;
+  const safeIdx = visibleTemplates.findIndex((t) => t.id === resolvedSelectedId);
+
+  // フィルタ後テンプレート
+  const filteredTemplates = useMemo(() => {
+    return visibleTemplates.filter((tpl) => {
+      const matchName = !templateSearchText || tpl.name.toLowerCase().includes(templateSearchText.toLowerCase());
+      const matchCat = !selectedTemplateCategory || tpl.category === selectedTemplateCategory;
+      return matchName && matchCat;
+    });
+  }, [visibleTemplates, templateSearchText, selectedTemplateCategory]);
+
+  return (
+    <Flex vertical style={{ height: '100%' }}>
+      <InstructionCollapse instructions={instructions} />
+      <WorkHeader
+        displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
+        method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
+      />
+
+      {/* Creator / Instrument 選択エリア（WorkHeader の直後・テンプレート入力の前） */}
+      {displayKey && (
+        <Card
+          size="small"
+          style={{ marginBottom: 8, background: '#fafafa' }}
+        >
+          <Flex gap={16} wrap="wrap" align="center">
+            <Flex align="center" gap={8}>
+              <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
+                {t('workRecord.creatorLabel')}
+              </Text>
+              <Select
+                style={{ width: 240 }}
+                size="small"
+                placeholder={t('workRecord.creatorPlaceholder')}
+                value={selectedCreatorRef ?? undefined}
+                options={creatorRefOptions.map((v) => ({ label: v, value: v }))}
+                onChange={(v: string | undefined) => onCreatorRefChange(v ?? null)}
+                allowClear
+                disabled={isReadOnly}
+              />
+            </Flex>
+            <Flex align="center" gap={8}>
+              <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
+                {t('workRecord.instrumentLabel')}
+              </Text>
+              <Select
+                style={{ width: 240 }}
+                size="small"
+                placeholder={t('workRecord.instrumentPlaceholder')}
+                value={selectedInstrumentRef ?? undefined}
+                options={instrumentRefOptions.map((v) => ({ label: v, value: v }))}
+                onChange={(v: string | undefined) => onInstrumentRefChange(v ?? null)}
+                allowClear
+                disabled={isReadOnly}
+              />
+            </Flex>
+          </Flex>
+        </Card>
+      )}
+
+      {/* DataRecordDialog準拠: Layout + Sider + Content */}
+      <Layout style={{ flex: 1, overflow: 'hidden', background: token.colorBgLayout }}>
+        {/* 左Sider: テンプレート一覧（DataRecordDialog準拠） */}
+        <Sider
+          width={280}
+          style={{
+            background: token.colorBgContainer,
+            borderRight: `1px solid ${token.colorBorder}`,
+            padding: token.paddingSM,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          {/* タイトル + 件数 */}
+          <div style={{ marginBottom: token.marginSM }}>
+            <Space>
+              <Text strong>{t('workRecord.templateLabel')}</Text>
+              <Tag color="blue">{filteredTemplates.length}{t('workRecord.templateCountSuffix')}</Tag>
+            </Space>
+          </div>
+
+          {/* 検索・カテゴリフィルタ */}
+          <Space orientation="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
+            <Input
+              placeholder={t('workRecord.templateSearchPlaceholder')}
+              prefix={<SearchOutlined />}
+              value={templateSearchText}
+              onChange={(e) => setTemplateSearchText(e.target.value)}
+              allowClear
+            />
+            <Select
+              placeholder={t('workRecord.templateKind')}
+              value={selectedTemplateCategory}
+              onChange={setSelectedTemplateCategory}
+              allowClear
+              style={{ width: '100%' }}
+              options={[
+                { label: 'Materials',   value: 'Materials'   },
+                { label: 'Conditions',  value: 'Conditions'  },
+                { label: 'Results',     value: 'Results'     },
+              ]}
+            />
+          </Space>
+
+          {/* テンプレートテーブル（DataRecordDialog準拠） */}
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            <Spin spinning={false}>
+              <Table
+                size="small"
+                dataSource={filteredTemplates}
+                rowKey="id"
+                onRow={(record) => ({
+                  onClick: () => setSelectedTemplateId(record.id),
+                  style: { cursor: 'pointer' },
+                })}
+                rowClassName={(record) =>
+                  record.id === resolvedSelectedId ? 'ant-table-row-selected' : ''
+                }
+                scroll={{ y: 400 }}
+                pagination={false}
+                showHeader={false}
+                columns={[
+                  {
+                    title: 'Template',
+                    dataIndex: 'name',
+                    key: 'name',
+                    render: (name: string, record: MockTemplate) => {
+                      const isOutput = record.category === 'Results';
+                      const ioLabel = isOutput ? 'OUT' : 'IN';
+                      const ioColor = isOutput ? 'green' : 'blue';
+                      const propertyCount = record.properties.length;
+                      return (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Text strong style={{ fontSize: 13 }}>{name}</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>({propertyCount}{t('workRecord.itemsSuffix')})</Text>
+                          </div>
+                          <div style={{ marginTop: 4 }}>
+                            <Space size="small">
+                              <Tag color={CATEGORY_COLOR[record.category]} style={{ fontSize: 11, margin: 0 }}>
+                                {record.category}
+                              </Tag>
+                              <Tag color={ioColor} style={{ fontSize: 11, margin: 0 }}>
+                                {ioLabel}
+                              </Tag>
+                            </Space>
+                          </div>
+                        </div>
+                      );
+                    },
+                  },
+                ]}
+              />
+            </Spin>
+          </div>
+        </Sider>
+
+        {/* 右Content: データ記録 */}
+        <Content
+          style={{
+            background: token.colorBgLayout,
+            padding: token.paddingMD,
+            overflow: 'auto',
+          }}
+        >
+          <PropertyList
+            template={activeTemplate}
+            templateCount={visibleTemplates.length}
+            templateIdx={safeIdx}
+            taskTransition={displayTT}
+            isReadOnly={isReadOnly}
+            displayKey={displayKey}
+            canSkip={!isReadOnly && displayKey !== null && findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null}
+            onActualChange={onActualChange}
+            onSave={onSave}
+            onSaveAndNext={onSaveAndNext}
+            onSkip={onSkip}
+            onTemplateIdxChange={(idx) => setSelectedTemplateId(visibleTemplates[idx]?.id ?? null)}
+            onCommentClick={onCommentClick}
+            onInsertionAdd={onInsertionAdd}
+            onInsertionRemove={onInsertionRemove}
+            onContentAdd={onContentAdd}
+            onContentRemove={onContentRemove}
+            uploadTargetPath={uploadTargetPath}
+            onOpenViewer={onOpenViewer}
+            viewerLoading={viewerLoading}
+          />
+        </Content>
+      </Layout>
+    </Flex>
+  );
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WorkRecordPanel（エクスポート）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const ASSIGNED_TASK_NO = 2; // フェーズA: 固定、フェーズBで props 化
+
+interface WorkRecordPanelProps {
+  /** 選択中のプロジェクト名（S3アップロードパスの組み立てに使用） */
+  projectName?: string;
+  /** 選択中のプロジェクトID（ペトリネットビューアのMAIML取得に使用） */
+  projectId?: string;
+  /** 選択中のメソッドID（Creator/Instrument選択肢・初期値の取得に使用） */
+  methodId?: string;
+}
+
+export default function WorkRecordPanel({ projectName, projectId, methodId }: WorkRecordPanelProps = {}) {
+  const [tasks, setTasks] = useState<MockTask[]>(INITIAL_TASKS);
+  const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(null);
+
+  // ── Creator / Instrument 選択肢・選択値 ──
+  const [creatorRefOptions, setCreatorRefOptions] = useState<string[]>([]);
+  const [instrumentRefOptions, setInstrumentRefOptions] = useState<string[]>([]);
+  const [selectedCreatorRef, setSelectedCreatorRef] = useState<string | null>(null);
+  const [selectedInstrumentRef, setSelectedInstrumentRef] = useState<string | null>(null);
+
+  // ── ペトリネットビューア ──
+  const [viewerDialogs, setViewerDialogs] = useState<{
+    id: string;
+    file: FileData;
+    fileContent: string | null;
+    zIndex: number;
+  }[]>([]);
+  const [petriNetViewerLoading, setPetriNetViewerLoading] = useState(false);
+
+  const handleActualChange = useCallback(
+    (taskNo: number, transitionId: string, propKey: string, value: ActualValue) => {
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              return { ...tt, actuals: { ...tt.actuals, [propKey]: value } };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const { t } = useLanguage();
+
+  // ── ペトリネットビューアハンドラ ──
+  const handleOpenPetriNetViewer = useCallback(async () => {
+    if (!projectId) return;
+    setPetriNetViewerLoading(true);
+    try {
+      const result = await getProjectMaiml(projectId);
+      if (!result.success || !result.data?.maimlContent) {
+        Modal.error({ title: t('experimentInstruction.fetchError') });
+        return;
+      }
+      const { maimlContent, projectName: resolvedName, lastModified } = result.data;
+      const file: FileData = {
+        id: projectId,
+        name: `${resolvedName}.maiml`,
+        path: `projects/${resolvedName}/${resolvedName}.maiml`,
+        size: maimlContent.length,
+        lastModified: lastModified || new Date().toISOString(),
+        type: 'maiml',
+      };
+      setViewerDialogs((prev) => [
+        ...prev,
+        { id: `viewer_${Date.now()}`, file, fileContent: maimlContent, zIndex: 1000 + prev.length },
+      ]);
+    } catch (err) {
+      console.error('[WorkRecordPanel] handleOpenPetriNetViewer error:', err);
+      Modal.error({ title: t('experimentInstruction.fetchError') });
+    } finally {
+      setPetriNetViewerLoading(false);
+    }
+  }, [projectId, t]);
+
+  const handleCloseViewer = useCallback((id: string) => {
+    setViewerDialogs((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+
+  const handleFocusViewer = useCallback((id: string) => {
+    setViewerDialogs((prev) => {
+      const maxZ = Math.max(...prev.map((d) => d.zIndex), 999);
+      return prev.map((d) => (d.id === id ? { ...d, zIndex: maxZ + 1 } : d));
+    });
+  }, []);
+
+  // ── Creator / Instrument 選択肢・初期値の API 取得 ──
+  // projectId と methodId が揃ったタイミングで選択肢と初期値を取得する。
+  // 選択肢: getPlanDialogData（MAIMLのdocument.creators/instruments から生成）
+  // 初期値: getExperimentPlans（ExperimentPlanDialogで保存済みの __task__.creatorRefs[0] 等）
+  useEffect(() => {
+    if (!projectId || !methodId) return;
+    let cancelled = false;
+
+    const fetchRefData = async () => {
+      try {
+        // 選択肢取得
+        const planDialogData = await getPlanDialogData(projectId, methodId);
+        if (cancelled) return;
+        setCreatorRefOptions(planDialogData.creatorRefs ?? []);
+        setInstrumentRefOptions(planDialogData.instrumentRefs ?? []);
+
+        // 初期値取得
+        const plansResult = await getExperimentPlans(projectId, methodId);
+        if (cancelled) return;
+        if (plansResult?.plans && plansResult.plans.length > 0) {
+          // ASSIGNED_TASK_NO のタスク、なければ先頭タスクの __task__ を参照
+          const targetPlan =
+            plansResult.plans.find((p) => p.taskNo === ASSIGNED_TASK_NO) ??
+            plansResult.plans[0];
+          if (targetPlan?.plannedValues) {
+            for (const transValues of Object.values(targetPlan.plannedValues)) {
+              const rawTask = (transValues as Record<string, unknown>)?.['__task__'];
+              if (rawTask && typeof rawTask === 'object' && !Array.isArray(rawTask)) {
+                const taskMeta = rawTask as Record<string, unknown>;
+                if (Array.isArray(taskMeta.creatorRefs) && taskMeta.creatorRefs.length > 0) {
+                  setSelectedCreatorRef(taskMeta.creatorRefs[0] as string);
+                }
+                if (Array.isArray(taskMeta.instrumentRefs) && taskMeta.instrumentRefs.length > 0) {
+                  setSelectedInstrumentRef(taskMeta.instrumentRefs[0] as string);
+                }
+                break;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[WorkRecordPanel] Creator/Instrument fetch error:', err);
+      }
+    };
+
+    fetchRefData();
+    return () => { cancelled = true; };
+  }, [projectId, methodId]);
+
+  const handleSave = useCallback((_taskNo: number, _transitionId: string) => {
+    Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+  }, [t]);
+
+  const handleSaveAndNext = useCallback(
+    (taskNo: number, transitionId: string) => {
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              return { ...tt, status: 'completed' };
+            }),
+          };
+        })
+      );
+      setViewingKey(null);
+
+      const task = tasks.find((t) => t.taskNo === taskNo);
+      if (!task) return;
+      const idx = ORDERED_TRANSITION_IDS.indexOf(transitionId);
+      const nextId = ORDERED_TRANSITION_IDS[idx + 1];
+      const nextTt = nextId ? task.transitions.find((x) => x.transitionId === nextId) : null;
+
+      if (nextTt) {
+        Modal.success({
+          title: t('workRecord.transitionComplete'),
+          content: <span>{t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{nextId}</Text></span>,
+        });
+      } else {
+        Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
+      }
+    },
+    [tasks]
+  );
+
+  // ─── スキップ state ────────────────────────────────────────
+  const [skippedTransitionIds, setSkippedTransitionIds] = useState<string[]>([]);
+
+  const handleSkip = useCallback(
+    (taskNo: number, transitionId: string) => {
+      // スキップリストに追加
+      setSkippedTransitionIds((prev) =>
+        prev.includes(transitionId) ? prev : [...prev, transitionId]
+      );
+
+      // 次の実行可能なトランジションを検索
+      const next = findNextAvailableTransition(
+        taskNo,
+        transitionId,
+        [...skippedTransitionIds, transitionId], // 今追加したものも含めて検索
+        tasks
+      );
+
+      if (next) {
+        // 次のトランジションが見つかったら viewingKey をリセット（activeEntry で自動選択）
+        setViewingKey(null);
+        Modal.info({
+          title: t('workRecord.skipDone'),
+          content: (
+            <span>
+              {t('workRecord.nextWork')}: <Text code style={{ fontSize: 11 }}>{next.transitionId}</Text>
+            </span>
+          ),
+        });
+      } else {
+        // スキップできる次のトランジションなし → 進捗確認タブへの誘導メッセージ
+        setViewingKey(null);
+        Modal.warning({
+          title: t('workRecord.skipNoTarget'),
+          content: t('workRecord.skipNoTargetContent'),
+        });
+      }
+    },
+    [skippedTransitionIds, tasks]
+  );
+
+  // ─── カスタムInsertion追加/削除 ───────────────────────────
+  const handleInsertionAdd = useCallback(
+    (taskNo: number, transitionId: string) => {
+      const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              return { ...tt, customInsertionIds: [...tt.customInsertionIds, newId] };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handleInsertionRemove = useCallback(
+    (taskNo: number, transitionId: string, insertionId: string) => {
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              const nextActuals = { ...tt.actuals };
+              delete nextActuals[`insertion_custom_${insertionId}`];
+              return {
+                ...tt,
+                customInsertionIds: tt.customInsertionIds.filter((id) => id !== insertionId),
+                actuals: nextActuals,
+              };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  // ─── カスタムContent追加/削除 ────────────────────────────
+  const handleContentAdd = useCallback(
+    (taskNo: number, transitionId: string) => {
+      const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              return { ...tt, customContentIds: [...tt.customContentIds, newId] };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handleContentRemove = useCallback(
+    (taskNo: number, transitionId: string, contentId: string) => {
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              const nextActuals = { ...tt.actuals };
+              delete nextActuals[`content_custom_${contentId}`];
+              return {
+                ...tt,
+                customContentIds: tt.customContentIds.filter((id) => id !== contentId),
+                actuals: nextActuals,
+              };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  // ─── コメントダイアログ用 state ───────────────────────────
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+
+  // コメント保存ハンドラ（モック: 現フェーズはUIのみ、バックエンド保存は別フェーズ）
+  const handleSaveComment = useCallback((comment: string) => {
+    console.info('[WorkRecordPanel] コメント保存（モック）:', comment);
+    Modal.success({ title: t('workRecord.commentSaved'), content: comment });
+  }, []);
+
+  const planProps: PlanProps = {
+    tasks,
+    activeTaskNo: ASSIGNED_TASK_NO,
+    viewingKey,
+    skippedTransitionIds,
+    instructions: MOCK_PROJECT_INSTRUCTIONS,
+    onActualChange: handleActualChange,
+    onSave: handleSave,
+    onSaveAndNext: handleSaveAndNext,
+    onClearViewing: () => setViewingKey(null),
+    onSkip: handleSkip,
+    onCommentClick: () => setCommentDialogOpen(true),
+    onInsertionAdd: handleInsertionAdd,
+    onInsertionRemove: handleInsertionRemove,
+    onContentAdd: handleContentAdd,
+    onContentRemove: handleContentRemove,
+    uploadTargetPath: projectName ? `projects/${projectName}/attachments` : undefined,
+    onOpenViewer: projectId ? handleOpenPetriNetViewer : undefined,
+    viewerLoading: petriNetViewerLoading,
+    creatorRefOptions,
+    instrumentRefOptions,
+    selectedCreatorRef,
+    selectedInstrumentRef,
+    onCreatorRefChange: setSelectedCreatorRef,
+    onInstrumentRefChange: setSelectedInstrumentRef,
+  };
+
+  // コメントダイアログに渡す displayKey（現在表示中のキー）
+  const activeTaskEntry = (() => {
+    const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
+    if (!task) return null;
+    for (const tid of ORDERED_TRANSITION_IDS) {
+      const tt = task.transitions.find((x) => x.transitionId === tid);
+      if (tt && tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tid };
+    }
+    return null;
+  })();
+  const commentTarget = viewingKey ?? activeTaskEntry;
+
+  return (
+    <div style={{ flex: 1, minHeight: 0 }}>
+      <PlanB {...planProps} />
+
+      {/* コメントダイアログ */}
+      {commentDialogOpen && commentTarget && (
+        <ExperimentCommentDialog
+          open={commentDialogOpen}
+          taskNo={commentTarget.taskNo}
+          transitionId={commentTarget.transitionId}
+          onClose={() => setCommentDialogOpen(false)}
+          onSave={handleSaveComment}
+        />
+      )}
+
+      {/* ── ペトリネットビューア（ViewRendererDialog / フローティング） ── */}
+      {viewerDialogs.map((dialog) => (
+        <ViewRendererDialog
+          key={dialog.id}
+          id={dialog.id}
+          contentType="file"
+          file={dialog.file}
+          fileContent={dialog.fileContent}
+          zIndex={dialog.zIndex}
+          onClose={handleCloseViewer}
+          onFocus={handleFocusViewer}
+        />
+      ))}
+    </div>
   );
 }

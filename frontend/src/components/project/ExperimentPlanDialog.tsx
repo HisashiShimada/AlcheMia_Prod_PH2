@@ -68,10 +68,6 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import {
-  NoteType,
-  NOTE_TYPE_LABELS,
-} from '@/types/experimentPlan';
 import type {
   NoteItem,
   NoteTypeValue,
@@ -103,9 +99,9 @@ import {
   getPlanDialogData,
 } from '@/services/experimentPlanApiService';
 import type { PlanDialogData } from '@/services/experimentPlanApiService';
-import RefSection from './ExperimentPlanDialog/RefSection';
-import SortableTransitionRow from './ExperimentPlanDialog/SortableTransitionRow';
-import TemplateInputPanel from './ExperimentPlanDialog/TemplateInputPanel';
+import RefSection from './subcomponents/RefSection';
+import SortableTransitionRow from './subcomponents/SortableTransitionRow';
+import TemplateInputPanel from './subcomponents/TemplateInputPanel';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
@@ -176,9 +172,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   const creatorRefOptions = dialogData?.creatorRefs ?? creatorRefOptionsProp;
   const instrumentRefOptions = dialogData?.instrumentRefs ?? instrumentRefOptionsProp;
   const ownerRefOptions = dialogData?.ownerRefs ?? ownerRefOptionsProp;
-
-  /** 注意事項追加用の選択中タイプ */
-  const [pendingNoteType, setPendingNoteType] = useState<NoteTypeValue | undefined>(undefined);
 
   /** 案3用: 基本情報 / テンプレート入力の内部タブ */
   const [innerTab, setInnerTab] = useState<'basic' | 'template'>('basic');
@@ -402,7 +395,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     setSelectedTransitionId(null);
     setTransitionOrder([]);
     setTabDataMap({});
-    setPendingNoteType(undefined);
     setInnerTab('basic');
 
     if (!projectId || !methodId) return;
@@ -598,43 +590,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     [updateCurrentTabData]
   );
 
-  // --- 注意事項ハンドラ ---
-
-  const handleAddNote = useCallback(() => {
-    if (!pendingNoteType) return;
-    const newNote: NoteItem = {
-      id: `note_${Date.now()}`,
-      type: pendingNoteType,
-      content: '',
-      properties: [],
-    };
-    updateCurrentTabData('notes', (prev) => ({
-      ...prev,
-      notes: [...prev.notes, newNote],
-    }));
-    setPendingNoteType(undefined);
-  }, [pendingNoteType, updateCurrentTabData]);
-
-  const handleRemoveNote = useCallback(
-    (noteId: string) => {
-      updateCurrentTabData('notes', (prev) => ({
-        ...prev,
-        notes: prev.notes.filter((n) => n.id !== noteId),
-      }));
-    },
-    [updateCurrentTabData]
-  );
-
-  const handleNoteContentChange = useCallback(
-    (noteId: string, content: string) => {
-      updateCurrentTabData('notes', (prev) => ({
-        ...prev,
-        notes: prev.notes.map((n) => (n.id === noteId ? { ...n, content } : n)),
-      }));
-    },
-    [updateCurrentTabData]
-  );
-
   // --- テンプレート値変更ハンドラ ---
 
   const handleTemplateValueChange = useCallback(
@@ -795,7 +750,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   // --- 基本情報パネル（共通化） ---
 
   const renderBasicInfoPanel = () => (
-    <Space direction="vertical" style={{ width: '100%' }} size={12}>
+    <Space orientation="vertical" style={{ width: '100%' }} size={12}>
       <RefSection
         title="CreatorRef"
         options={creatorRefOptions}
@@ -825,63 +780,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
         disabled={disabled}
         testIdPrefix="experiment-plan-owner-ref"
       />
-      <Divider style={{ margin: '4px 0' }} />
-      {/* 注意事項 */}
-      <div>
-        <Text strong style={{ fontSize: 13 }}>注意事項</Text>
-        <div style={{ marginTop: 6 }}>
-          <Space>
-            <Select
-              value={pendingNoteType}
-              onChange={setPendingNoteType}
-              options={Object.entries(NOTE_TYPE_LABELS).map(([key, label]) => ({ value: key, label }))}
-              style={{ minWidth: 220 }}
-              placeholder="注意事項のタイプを選択"
-              disabled={disabled}
-            />
-            <Button
-              type="primary"
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={handleAddNote}
-              disabled={disabled || !pendingNoteType}
-            >
-              追加
-            </Button>
-          </Space>
-        </div>
-        {currentTabData.notes.length > 0 && (
-          <Space direction="vertical" style={{ width: '100%', marginTop: 8 }} size={6}>
-            {currentTabData.notes.map((note) => (
-              <Card
-                key={note.id}
-                size="small"
-                style={{ backgroundColor: token.colorFillAlter }}
-                title={<Text style={{ fontSize: 12 }}>{NOTE_TYPE_LABELS[note.type]}</Text>}
-                extra={
-                  <Button
-                    type="text"
-                    danger
-                    size="small"
-                    icon={<CloseOutlined />}
-                    onClick={() => handleRemoveNote(note.id)}
-                    disabled={disabled}
-                  />
-                }
-              >
-                <TextArea
-                  value={note.content}
-                  onChange={(e) => handleNoteContentChange(note.id, e.target.value)}
-                  rows={2}
-                  showCount
-                  maxLength={500}
-                  disabled={disabled}
-                />
-              </Card>
-            ))}
-          </Space>
-        )}
-      </div>
     </Space>
   );
 
@@ -1057,7 +955,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                   items={transitionOrder.map((item) => item.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                     {transitionOrder.map((item) => {
                       const trans = transitions.find((t) => t.id === item.id);
                       const name = trans?.name ?? item.id;

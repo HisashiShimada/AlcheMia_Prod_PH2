@@ -48,11 +48,12 @@ import {
   approveTask,
   recordNg,
 } from '@/services/experimentInstructionApiService';
+import { getProjectMaiml } from '@/services/projectApiService';
 import type {
   InstructionMethodResponse,
   ProjectMethod,
 } from '@/types/experimentInstruction';
-import type { ProjectFile } from '@/types/file';
+import type { FileData } from '@/types/editor';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -430,9 +431,11 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   // ── ペトリネットビューア（ViewRendererDialog）──
   const [viewerDialogs, setViewerDialogs] = useState<{
     id: string;
-    file: ProjectFile;
+    file: FileData;
+    fileContent: string | null;
     zIndex: number;
   }[]>([]);
+  const [petriNetViewerLoading, setPetriNetViewerLoading] = useState(false);
 
   // ─────────────────────────────────────────────────────────
   // データ取得
@@ -606,21 +609,35 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   // ペトリネットビューアを開く / 閉じる / フォーカス
   // ─────────────────────────────────────────────────────────
 
-  const handleOpenPetriNetViewer = useCallback(() => {
+  const handleOpenPetriNetViewer = useCallback(async () => {
     if (!projectName) return;
-    const file: ProjectFile = {
-      id: `${projectName}.maiml`,
-      name: `${projectName}.maiml`,
-      path: `${projectName}/${projectName}.maiml`,
-      size: 0,
-      lastModified: '',
-      type: 'maiml',
-    };
-    setViewerDialogs((prev) => [
-      ...prev,
-      { id: `viewer_${Date.now()}`, file, zIndex: 1000 + prev.length },
-    ]);
-  }, [projectName]);
+    setPetriNetViewerLoading(true);
+    try {
+      const result = await getProjectMaiml(projectId);
+      if (!result.success || !result.data?.maimlContent) {
+        message.error(t('experimentInstruction.fetchError'));
+        return;
+      }
+      const { maimlContent, projectName: resolvedName, lastModified } = result.data;
+      const file: FileData = {
+        id: projectId,
+        name: `${resolvedName}.maiml`,
+        path: `projects/${resolvedName}/${resolvedName}.maiml`,
+        size: maimlContent.length,
+        lastModified: lastModified || new Date().toISOString(),
+        type: 'maiml',
+      };
+      setViewerDialogs((prev) => [
+        ...prev,
+        { id: `viewer_${Date.now()}`, file, fileContent: maimlContent, zIndex: 1000 + prev.length },
+      ]);
+    } catch (err) {
+      console.error('[ExperimentInstructionTab] handleOpenPetriNetViewer error:', err);
+      message.error(t('experimentInstruction.fetchError'));
+    } finally {
+      setPetriNetViewerLoading(false);
+    }
+  }, [projectId, projectName, message, t]);
 
   const handleCloseViewer = useCallback((id: string) => {
     setViewerDialogs((prev) => prev.filter((d) => d.id !== id));
@@ -927,6 +944,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           icon={<FileSearchOutlined />}
           onClick={handleOpenPetriNetViewer}
           disabled={!projectName}
+          loading={petriNetViewerLoading}
         >
           {t('experimentInstructionTab.toolbar.petriNet')}
         </Button>
@@ -970,8 +988,9 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       `}</style>
       <div className="experiment-instruction-table" style={{ flex: 1, overflow: 'hidden' }}>
         {loading ? (
-          <Flex justify="center" align="center" style={{ height: 200 }}>
-            <Spin tip={t('experimentInstructionTab.loading')} />
+          <Flex vertical justify="center" align="center" style={{ height: 200, gap: 8 }}>
+            <Spin />
+            <span>{t('experimentInstructionTab.loading')}</span>
           </Flex>
         ) : allRows.length === 0 ? (
           <Empty
@@ -1005,7 +1024,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         destroyOnHidden
       >
         {approveTarget && (
-          <Space direction="vertical" size={4}>
+          <Space orientation="vertical" size={4}>
             <Text>{t('experimentInstructionTab.approveModal.body')}</Text>
             <Text strong>{t('experimentInstructionTab.approveModal.taskLabel').replace('#{no}', String(approveTarget.taskNumber))}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1027,7 +1046,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         destroyOnHidden
       >
         {ngTarget && (
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             <Text>{t('experimentInstructionTab.ngModal.body')}</Text>
             <Text strong>{t('experimentInstructionTab.ngModal.taskLabel').replace('#{no}', String(ngTarget.taskNumber))}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1058,7 +1077,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         width={480}
         destroyOnHidden
       >
-        <Space direction="vertical" size={12} style={{ width: '100%', paddingTop: 8 }}>
+        <Space orientation="vertical" size={12} style={{ width: '100%', paddingTop: 8 }}>
           {/* ── 1行目: メソッド名 + タスク番号 ── */}
           <Flex gap={8} align="center">
             <Text style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.bulkMethodLabel')}</Text>
@@ -1167,6 +1186,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           id={dialog.id}
           contentType="file"
           file={dialog.file}
+          fileContent={dialog.fileContent}
           zIndex={dialog.zIndex}
           onClose={handleCloseViewer}
           onFocus={handleFocusViewer}

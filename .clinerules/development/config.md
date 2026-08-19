@@ -88,6 +88,66 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を作
 
 ---
 
+### インラインオブジェクト引数禁止（No Inline Object Arguments）
+
+**関数・メソッドの引数にオブジェクトリテラルをインラインで渡すことを禁止する。**
+
+呼び出し元で必ず変数に代入してから引数として渡すこと。
+
+#### 必須ルール
+
+```typescript
+// ❌ 禁止: オブジェクトリテラルを引数にインラインで渡す
+await projectRepository.insert({
+  id: uuidv4(),
+  name: projectName,
+  organization_id: organizationId,
+  created_at: new Date(),
+});
+
+// ❌ 禁止: 関数呼び出しのネスト内でオブジェクトリテラルを生成
+await sendNotification({ type: 'email', recipient: user.email, body: message });
+
+// ✅ 正しい: 変数に代入してから渡す
+const projectData: Project = {
+  id: uuidv4(),
+  name: projectName,
+  organization_id: organizationId,
+  created_at: new Date(),
+};
+await projectRepository.insert(projectData);
+
+// ✅ 正しい
+const notificationParams: NotificationParams = {
+  type: 'email',
+  recipient: user.email,
+  body: message,
+};
+await sendNotification(notificationParams);
+```
+
+#### この規約の目的
+
+- **デバッグ容易性**: 変数名によりデータの意味が明確になる
+- **ログ出力**: 渡す値をログに出力しやすくなる
+- **型安全性**: 型注釈を付けることでコンパイル時にエラーを検出できる
+- **可読性**: 引数の構造が関数呼び出しと分離されて読みやすい
+- **テスタビリティ**: 渡したオブジェクトを変数経由で検証しやすい
+
+#### 例外
+
+以下の場合のみインラインオブジェクトを許容する：
+
+```typescript
+// ✅ 許容: 1〜2プロパティ以下の極めてシンプルな設定オブジェクト（型が自明な場合）
+router.get('/path', { strict: true }, handler);
+
+// ✅ 許容: テストコード内のモックデータ（テストの可読性を優先する場合）
+expect(result).toEqual({ success: true, count: 3 });
+```
+
+---
+
 ### DRY (Don't Repeat Yourself)
 - 重複するコードを避け、再利用可能な関数・コンポーネントに抽出する
 - 共通ロジックはユーティリティ関数やサービス層に配置する
@@ -123,6 +183,40 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を作
 - カスタムフックは hooks/ ディレクトリに配置
 - API通信は services/ ディレクトリで一元管理
 - 状態管理は Context API を使用
+
+### 画面コンポーネントからの直接API呼び出し禁止（重要）
+
+**画面コンポーネント（pages/・components/ 配下）から `fetch()` や `axios` を直接呼び出すことを禁止する。**
+必ず `services/` 配下の APIサービスクラス・関数を経由すること。
+
+```typescript
+// ❌ 禁止: コンポーネント内で fetch / axios を直接呼び出す
+const ProjectList: React.FC = () => {
+  useEffect(() => {
+    fetch('/api/projects')
+      .then(res => res.json())
+      .then(data => setProjects(data));
+  }, []);
+};
+
+// ❌ 禁止: コンポーネント内に API URL をハードコーディング
+const response = await axios.get('/api/v1/projects?status=1');
+
+// ✅ 正しい: services/ 配下の APIサービスを経由する
+import { getProjects } from '@/services/projectApiService';
+
+const ProjectList: React.FC = () => {
+  useEffect(() => {
+    getProjects().then(data => setProjects(data));
+  }, []);
+};
+```
+
+**この規約の目的:**
+- API呼び出しロジックをサービス層に集約し、コンポーネントの責務をUIに限定する（関心の分離）
+- エラーハンドリング・認証ヘッダー付与などを一元管理できる
+- API仕様変更時の修正箇所を最小化できる
+- テスト時にAPIをモックしやすくなる
 
 ## バックエンド規約
 

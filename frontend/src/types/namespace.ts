@@ -632,3 +632,29 @@ export type {
   UpdateOrganizationGroupRequest,
 } from '@/types/team';
 
+// ──────────────────────────────────────────────
+// GlobalNamespaceView（グローバル名前空間宣言・ファイルサーバ管理）
+// ──────────────────────────────────────────────
+
+/**
+ * グローバル名前空間宣言の1エントリ
+ * ファイルサーバ（system/namespaces/global-declarations.csv）で管理する
+ */
+export interface GlobalNamespaceEntry {
+  /** XML prefix（例: "maiml", "xsi"） */
+  prefix: string;
+  /** 名前空間 URI（例: "http://www.maiml.org/schemas"） */
+  uri: string;
+}
+
+/**
+ * GlobalNamespaceView コンポーネントの Props
+ */
+export interface GlobalNamespaceViewProps {
+  /**
+   * true のとき、インポート・エクスポートボタンを disabled にして参照のみにする。
+   * NamespaceMain でグローバルノード選択時に使用する。
+   */
+  viewOnly?: boolean;
+}
+

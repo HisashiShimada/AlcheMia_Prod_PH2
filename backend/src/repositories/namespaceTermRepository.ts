@@ -284,7 +284,7 @@ export async function updateNamespace(data: {
   organizationId: string;
   prefix: string;
   uri: string;
-}): Promise<{ namespaceId: string; prefix: string; uri: string; scopeKey: string | null; globalFlg: boolean } | null> {
+}): Promise<{ namespaceId: string; prefix: string; uri: string; scopeKey: string | null } | null> {
   const pgp = getPgp();
   const query = await loadSqlFile('namespace_terms/updateNamespace.sql');
   const row = await pgp.oneOrNone<{
@@ -292,7 +292,6 @@ export async function updateNamespace(data: {
     prefix: string;
     uri: string;
     scope_key: string | null;
-    global_flg: boolean;
   }>(query, [data.uri, data.organizationId, data.prefix]);
   if (!row) return null;
   return {
@@ -300,7 +299,6 @@ export async function updateNamespace(data: {
     prefix: row.prefix,
     uri: row.uri,
     scopeKey: row.scope_key,
-    globalFlg: row.global_flg,
   };
 }
 
@@ -512,10 +510,10 @@ export async function removeNamespace(
 export async function findDeclarationsByProjectScope(
   organizationId: string,
   orgGroupCd: string | null
-): Promise<Array<{ prefix: string; uri: string; globalFlg: boolean }>> {
+): Promise<Array<{ prefix: string; uri: string }>> {
   const pgp = getPgp();
   const query = await loadSqlFile('namespace_terms/findDeclarationsByProjectScope.sql');
-  return pgp.any<{ prefix: string; uri: string; globalFlg: boolean }>(
+  return pgp.any<{ prefix: string; uri: string }>(
     query,
     [organizationId, orgGroupCd]
   );
@@ -534,10 +532,10 @@ export async function findDeclarationsByProjectScope(
 export async function findNamespacesByScopeKey(
   organizationId: string,
   scopeKey: string
-): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string; isGlobal?: boolean }>> {
+): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>> {
   const pgp = getPgp();
   const query = await loadSqlFile('namespace_terms/findNamespacesByScopeKey.sql');
-  return pgp.any<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string; isGlobal?: boolean }>(
+  return pgp.any<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>(
     query,
     [organizationId, scopeKey]
   );

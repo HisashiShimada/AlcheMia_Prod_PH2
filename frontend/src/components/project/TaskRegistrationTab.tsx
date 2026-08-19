@@ -53,6 +53,7 @@ import type {
   InstructionData,
   TransitionInfo,
 } from '@/types/instructionRegistration';
+import { INSTRUCTION_KEY } from '@/types/instructionRegistration';
 import InstructionEditDialog from './InstructionEditDialog';
 import ExperimentPlanDialog from './ExperimentPlanDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -69,7 +70,7 @@ const { useToken } = theme;
  * タスク登録タブのプロパティ
  */
 interface TaskRegistrationTabProps {
-projectId: string;
+  projectId: string;
   projectName: string;
   isActive: boolean;
   isCheckoutLocked?: boolean;
@@ -121,7 +122,30 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   const [instructions, setInstructions] = useState<InstructionData[]>([]);
   const [isInstructionDialogOpen, setIsInstructionDialogOpen] = useState<boolean>(false);
   const [selectedMethodIdForInstruction, setSelectedMethodIdForInstruction] = useState<string>('');
-  const [availableTransitions, setAvailableTransitions] = useState<TransitionInfo[]>([]);
+
+  /**
+   * MAIMLコンテキストから全トランジション一覧を取得
+   * 各トランジションに所属メソッドIDを付与してフィルタリングに対応
+   */
+  const availableTransitions = useMemo((): TransitionInfo[] => {
+    if (!maimlRoot?.protocol?.methods) return [];
+    const allTransitions: TransitionInfo[] = [];
+    maimlRoot.protocol.methods.forEach((method) => {
+      if (method.pnml?.transitions) {
+        method.pnml.transitions.forEach((transition) => {
+          allTransitions.push({
+            id: transition.id,
+            displayName: transition.name || transition.id,
+            category: 'other',
+            description: transition.description,
+            isExperimentRelevant: true,
+            methodId: method.id,
+          });
+        });
+      }
+    });
+    return allTransitions;
+  }, [maimlRoot]);
   
   // プロジェクト指示用のダイアログ状態
   const [isProjectInstructionDialogOpen, setIsProjectInstructionDialogOpen] = useState<boolean>(false);
@@ -170,11 +194,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     const fetchTaskRegistration = async () => {
       if (!projectName || !isActive) return;
 
-      console.log('[DEBUG] TaskRegistrationTab - Tab activated, fetching task registration', {
-        isActive,
-        projectName,
-        timestamp: new Date().toISOString()
-      });
       setLoadingMethods(true);
 
       try {
@@ -186,8 +205,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         
         // 指示データを共通関数で取得（stateクリア + DB再取得）
         await refreshInstructions();
-        
-        console.log('[DEBUG] TaskRegistrationTab - Instructions refreshed');
 
         // タスク情報をUI用の形式に変換
         if (taskData.tasks && taskData.tasks.length > 0) {
@@ -201,16 +218,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             taskNumberOptions: Array.from({ length: task.trialCount }, (_, i) => i + 1),
             workerLinkedFlg: task.workerLinkedFlg || false, // ワーカー連携フラグを取得
           }));
-
-          // デバッグログ：型を確認
-          console.log('[DEBUG] TaskRegistrationTab - Converted tasks from DB:', {
-            originalTasks: taskData.tasks,
-            uiTasks,
-            experimentConditionTypes: uiTasks.map(t => ({
-              value: t.experimentCondition,
-              type: typeof t.experimentCondition
-            }))
-          });
 
           setTaskDetails(uiTasks);
           onTasksChange?.(uiTasks);
@@ -231,7 +238,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           setCheckedTaskIds(editableTaskIds);
         } else if (taskData.tasks && taskData.tasks.length === 0 && maimlRoot?.protocol?.methods) {
           // DBにデータがない場合、コンテキストのMAIMLから初期値を生成
-          console.log('[DEBUG] TaskRegistrationTab - Generating initial tasks from MAIML context');
           
           const methods = maimlRoot.protocol.methods;
           const initialTasks: TaskDetail[] = methods.map((method, index) => ({
@@ -259,14 +265,8 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           // DBにデータがない場合（初回）：全タスクIDでcheckedTaskIdsを初期化
           const allTaskIds = new Set(initialTasks.map(t => t.id));
           setCheckedTaskIds(allTaskIds);
-          
-          console.log('[DEBUG] TaskRegistrationTab - Initial tasks generated:', {
-            taskCount: initialTasks.length,
-            methodCount: methodInfos.length,
-          });
         } else {
           // MAIMLもない場合は空配列
-          console.log('[DEBUG] TaskRegistrationTab - No tasks and no MAIML data');
           setTaskDetails([]);
           setAvailableMethods([]);
         }
@@ -465,13 +465,12 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
 
       // API用の指示データを作成
       const instructionSaveItems: InstructionSaveItem[] = checkedInstructions.map((inst: InstructionData) => ({
-        methodId: inst.methodId,
+        methodId: inst.methodId || null,
         content: inst.content,
-        priority: inst.priority,
-        type: inst.type,
         targetType: inst.targetType,
         transitionId: inst.transitionId || null,
         taskNumber: inst.taskNumber || null,
+        instructionKey: inst.instructionKey || INSTRUCTION_KEY.GENERAL,
       }));
 
       // workerLinkedFlg=trueの既存タスクの最大experiment_orderを取得
@@ -479,23 +478,10 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         .filter(t => t.workerLinkedFlg)
         .reduce((max, t) => Math.max(max, t.experimentOrder || 0), 0);
 
-      console.log('[DEBUG] TaskRegistrationTab - Save calculation:', {
-        maxExistingOrder,
-        checkedTasksCount: checkedTasks.length,
-        taskDetailsCount: taskDetails.length,
-        workerLinkedCount: taskDetails.filter(t => t.workerLinkedFlg).length
-      });
-
       // API用のリクエストデータを作成
       const requestData = {
         tasks: checkedTasks.map((task, index) => {
           const calculatedOrder = maxExistingOrder + index + 1;
-          console.log('[DEBUG] TaskRegistrationTab - Task order:', {
-            methodId: task.methodId,
-            index,
-            maxExistingOrder,
-            calculatedOrder
-          });
           return {
             methodId: task.methodId,
             experimentCondition: task.experimentCondition,
@@ -981,10 +967,10 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         open={isInstructionDialogOpen}
         mode="create"
         tasks={taskDetails}
+        availableMethods={availableMethods}
         availableTransitions={availableTransitions}
         onClose={handleInstructionDialogClose}
         onSave={handleInstructionSave}
-        fixedMethodId={selectedMethodIdForInstruction}
         saveMode="local"
       />
 
@@ -993,10 +979,10 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         open={isProjectInstructionDialogOpen}
         mode="create"
         tasks={taskDetails}
+        availableMethods={availableMethods}
         availableTransitions={availableTransitions}
         onClose={handleProjectInstructionDialogClose}
         onSave={handleInstructionSave}
-        fixedMethodId=""
         saveMode="local"
       />
 

@@ -155,7 +155,7 @@ export function convertMultipleMethodsToMaiML(
   
   // XMLヘッダー
   let maiml = `<?xml version="1.0" encoding="utf-8" standalone="no"?>\n`;
-  maiml += `<maiml version="1.0" xmlns="http://www.maiml.org/schemas" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.maiml.org/schemas maiml.xsd">\n`;
+  maiml += `<maiml version="1.0" xsi:schemaLocation="http://www.maiml.org/schemas maiml.xsd">\n`;
   
   // Document要素
   if (documentData) {
@@ -375,6 +375,10 @@ function buildMethodXML(
   
   let methodXml = `    <method id="${methodId}">\n`;
   methodXml += `      <uuid>${methodUuid}</uuid>\n`;
+  // method nameがあれば<name>タグを出力
+  if (method.name) {
+    methodXml += `      <name>${escapeXml(method.name)}</name>\n`;
+  }
   methodXml += `      <pnml id="${pnmlId}">\n`;
   methodXml += `        <uuid>${pnmlUuid}</uuid>\n`;
   methodXml += `        <name>${fileName}_${methodId}</name>\n`;
