@@ -375,6 +375,10 @@ function buildMethodXML(
   
   let methodXml = `    <method id="${methodId}">\n`;
   methodXml += `      <uuid>${methodUuid}</uuid>\n`;
+  // method nameがあれば<name>タグを出力
+  if (method.name) {
+    methodXml += `      <name>${escapeXml(method.name)}</name>\n`;
+  }
   methodXml += `      <pnml id="${pnmlId}">\n`;
   methodXml += `        <uuid>${pnmlUuid}</uuid>\n`;
   methodXml += `        <name>${fileName}_${methodId}</name>\n`;

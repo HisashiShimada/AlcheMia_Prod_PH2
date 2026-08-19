@@ -53,7 +53,7 @@ async function buildMergedNamespaces(
  * maiml_event_log テーブルの1行
  * (log カラムのみ使用するため最小限の型定義)
  */
-interface EventLogRow {
+export interface EventLogRow {
   sequence_no: number;
   log: EventLogJsonRecord;
 }

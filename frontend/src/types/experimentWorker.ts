@@ -147,6 +147,7 @@ export interface Transition {
   category?: string;
   estimatedDuration?: string;
   workOrder?: number; // 作業順序（フロー図での並び順と接続に使用）
+  prerequisiteTransitionIds?: string[]; // 前提トランジションID配列（依存関係・BFSレイアウトに使用）
   templates?: Template[];
   // Phase 6追加: 実験記録タブ用のプロパティ
   status?: ProgressStatus; // ステータス

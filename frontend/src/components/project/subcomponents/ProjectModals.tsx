@@ -12,8 +12,8 @@ import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import DraftRestoreDialog from '@/components/viewer/DraftRestoreDialog';
 import IssueManagementModal from '@/components/ExperimentWorker/IssueManagementModal';
 import TransitionSetSearchModal from '@/components/TransitionSetSearch/TransitionSetSearchModal';
-import EncryptionManagementModal from '@/components/encryption/EncryptionManagementModal';
-import SignatureManagementModal from '@/components/signature/SignatureManagementModal';
+// TODO: 暗号化・署名機能は本実装まで無効化 -- import EncryptionManagementModal from '@/components/encryption/EncryptionManagementModal';
+// TODO: 暗号化・署名機能は本実装まで無効化 -- import SignatureManagementModal from '@/components/signature/SignatureManagementModal';
 import { ProjectStatus } from '@/constants/codeMaster';
 import type { Project } from '@/types/project';
 import type { MaimlAnalysisResultRow } from '@/types/maimlEditor';
@@ -73,10 +73,11 @@ export interface ProjectModalsProps {
   onCloseCompletionDialog: () => void;
   completionCriteriaList?: any[];
   onCompletionComplete?: () => Promise<void>;
-  encryptionModalOpen: boolean;
-  onCloseEncryptionModal: () => void;
-  signatureModalOpen: boolean;
-  onCloseSignatureModal: () => void;
+  // TODO: 暗号化・署名機能は本実装まで無効化
+  // encryptionModalOpen: boolean;
+  // onCloseEncryptionModal: () => void;
+  // signatureModalOpen: boolean;
+  // onCloseSignatureModal: () => void;
 }
 
 const ProjectModals: React.FC<ProjectModalsProps> = (p) => (
@@ -100,8 +101,9 @@ const ProjectModals: React.FC<ProjectModalsProps> = (p) => (
     {p.completionDialogOpen && p.selectedProject && (
       <ProjectCompletionDialog open={p.completionDialogOpen} projectId={p.selectedProject.id} projectName={p.selectedProject.name} criteriaList={p.completionCriteriaList ?? []} onCancel={p.onCloseCompletionDialog} onComplete={p.onCompletionComplete ?? (async () => {})} />
     )}
-    {p.selectedProject && <EncryptionManagementModal open={p.encryptionModalOpen} projectName={p.selectedProject.name} onClose={p.onCloseEncryptionModal} />}
-    {p.selectedProject && <SignatureManagementModal open={p.signatureModalOpen} projectName={p.selectedProject.name} onClose={p.onCloseSignatureModal} />}
+    {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
+    {/* {p.selectedProject && <EncryptionManagementModal open={p.encryptionModalOpen} projectName={p.selectedProject.name} onClose={p.onCloseEncryptionModal} />} */}
+    {/* {p.selectedProject && <SignatureManagementModal open={p.signatureModalOpen} projectName={p.selectedProject.name} onClose={p.onCloseSignatureModal} />} */}
   </>
 );
 

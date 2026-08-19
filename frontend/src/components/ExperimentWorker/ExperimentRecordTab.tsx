@@ -442,6 +442,7 @@ export default function ExperimentRecordTab({
       totalIngredientsCount: (progress.condition_count as number) ?? 0,
       inputResultsCount: (progress.result_actual_count as number) ?? 0,
       totalResultsCount: (progress.result_count as number) ?? 0,
+      prerequisiteTransitionIds: (progress.prerequisite_transition_ids as string[] | undefined) ?? [],
     }));
   }, [progressData]);
 

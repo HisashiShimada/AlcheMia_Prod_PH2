@@ -624,6 +624,7 @@
     "tabTaskRegistration": "Task Registration",
     "tabExperimentInstruction": "Experiment Instructions",
     "tabEvaluationRegistration": "Evaluation Registration",
+    "tabOverallEvaluation": "Overall Evaluation",
     "tabUncertaintyApproval": "Uncertainty Approval",
     "tabProgress": "Progress",
     "completeProject": "Complete Project",
@@ -1941,7 +1942,10 @@
       "deleteTitle": "Delete Method",
       "deleteConfirm1": "Delete Method",
       "deleteConfirm2": "?",
-      "editTitle": "Edit Method ID"
+      "editTitle": "Edit Method",
+      "nameLabel": "Method Name",
+      "namePlaceholder": "Enter method name",
+      "nameHint": "The display name for this method in MAIML"
     },
     "validation": {
       "noNodes": "No nodes exist",
@@ -3164,6 +3168,34 @@
         "toastTeamUpdated": "Members of \"{name}\" updated ({count} members)"
       }
     }
+  },
+  "overallEvaluation": {
+    "titleSuffix": " Project Overall Evaluation",
+    "subTextRegistered": "Registered evaluations: {count}",
+    "subTextAttention": "requires attention: {count}",
+    "statusLabel": "Overall Evaluation",
+    "statusUndecided": "Overall Evaluation Undecided",
+    "sectionSummary": "Hierarchical Summary (Aggregation of Sub-evaluations)",
+    "sectionAttention": "Attention Items (Decision Reference)",
+    "sectionAttentionSub": "Extract non-good evaluations with comments",
+    "sectionDecision": "Determine Project Overall Evaluation",
+    "sectionDecisionSub": "Determine the overall evaluation of MaiML based on the above hierarchical summary and attention items",
+    "labelDigital": "Digital Evaluation — Value",
+    "labelScore": "Digital Evaluation — Numeric Score (optional)",
+    "labelAnalog": "Analog Evaluation — Qualitative Comment",
+    "analogPlaceholder": "Enter overall impressions (e.g., Task #2 defect remains as a measurement investigation item, but the main project objectives are achieved.)",
+    "btnRefetch": "Reload",
+    "btnRegister": "Register Overall Evaluation",
+    "warningSelectDigital": "Please select a digital evaluation value (Good / Caution / Bad)",
+    "successRegistered": "Overall evaluation registered",
+    "errorRegistered": "Failed to register overall evaluation",
+    "columnEvalUnit": "Evaluation Unit",
+    "columnTarget": "Target",
+    "columnEvalValue": "Evaluation Value",
+    "columnComment": "Comment",
+    "digitalGood": "Good",
+    "digitalCaution": "Caution",
+    "digitalBad": "Bad"
   },
   "evaluation": {
     "unitLabel": {
@@ -4535,12 +4567,6 @@
     "elementValueLabel": "Actual value (value)",
     "elementUnitLabel": "Unit (units)",
     "elementDescLabel": "Description"
-  },
-  "experimentEvaluationService": {
-    "noEvaluationData": "No evaluation data found. Write skipped.",
-    "projectNotFound": "Project not found",
-    "maimlNotFound": "MAiML file not found",
-    "writtenCount": "{{count}} evaluation record(s) written to MAiML file"
   },
   "projectManagementExtra": {
     "completionButtonTooltip": "Available when all tasks are marked as \"Completed\"",
