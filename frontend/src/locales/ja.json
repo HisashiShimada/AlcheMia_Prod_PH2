@@ -3403,9 +3403,9 @@
   "insertionEditor": {
     "fileSizeExceeded": "ファイルサイズが上限（{maxSize}）を超えています（{fileSize}）",
     "hashCalcFailed": "ハッシュ値の計算に失敗しました",
-    "uploadConfirmTitle": "ファイルをサーバーにアップロードしますか？",
-    "uploadConfirmOk": "アップロードする",
-    "uploadConfirmCancel": "アップロードしない",
+    "uploadConfirmTitle": "ファイルをアップロードしますか？",
+    "uploadConfirmOk": "保存時にアップロードする",
+    "uploadConfirmCancel": "ローカル参照のみ",
     "uploadSuccessNoKey": "アップロードは成功しましたが、S3キーを取得できませんでした",
     "uploadFailed": "ファイルのアップロードに失敗しました",
     "dropHintForm": "ここにドロップしてファイルを選択",
@@ -3428,7 +3428,12 @@
     "tooltipSelectOnly": "ファイルを選択して自動入力（アップロードなし）",
     "tooltipClear": "URI・ハッシュ・フォーマットをクリア",
     "addButton": "Insertion 追加",
-    "customLabel": "カスタム Insertion"
+    "customLabel": "カスタム Insertion",
+    "localFileWarning": "ローカルファイルのため他の環境からは参照できません。必要に応じて正確なパスを手動で補完してください。",
+    "localFileUriExampleTitle": "記載形式の例:",
+    "localFileUriExampleLocal": "ローカル: file:///C:/data/ファイル名.tif",
+    "localFileUriExampleNetwork": "ネットワーク: file://///server/share/data/ファイル名.tif",
+    "pendingUploadBadge": "保存時にアップロード予定"
   },
   "contentGridEditor": {
     "label": "Content Grid ({rows}行 × {cols}列)",

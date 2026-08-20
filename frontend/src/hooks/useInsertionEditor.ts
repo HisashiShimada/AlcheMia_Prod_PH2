@@ -3,12 +3,16 @@ import { Modal, message } from 'antd';
 import { uploadFiles } from '@/services/fileAccessService';
 import type { Insertion } from '@/types/maiml-unified';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { buildStorageUri } from '@/utils/storageUriUtils';
 
 /**
  * useInsertionEditor - Insertion編集の共通ロジックフック
  *
- * ファイル選択 → ハッシュ計算 → 入力値セット → アップロード確認 → S3アップロード → URI更新
- * の一連のロジックを担う。UIは InsertionEditorForm / InsertionEditorCompact に委譲する。
+ * 【アップロードタイミングの変更点】
+ * 旧: 確認ダイアログで「アップロード」を選んだ時点で即座にS3アップロードを実行
+ * 新: 確認ダイアログで「保存時にアップロードする」を選んだ時点でS3キーを事前計算し
+ *     URI を s3:// 形式で更新。実際のアップロードは保存時に uploadPendingFile() で行う。
+ *     これによりキャンセル時に孤立ファイルが発生しない。
  */
 
 export interface UseInsertionEditorOptions {
@@ -16,55 +20,44 @@ export interface UseInsertionEditorOptions {
   onChange: (v: Insertion) => void;
   /** S3アップロード先パス（例: 'projects/sample_project/attachments'）。未指定時はアップロード確認ダイアログを出さない */
   uploadTargetPath?: string;
-  /**
-   * ファイルサイズ上限（バイト単位）。超過時はエラーメッセージを表示してキャンセル。
-   * 未指定時は制限なし。
-   */
+  /** ファイルサイズ上限（バイト単位）。超過時はエラーメッセージを表示してキャンセル。未指定時は制限なし。 */
   maxFileSize?: number;
-  /**
-   * 許可するファイル形式（MIME タイプまたは拡張子）。
-   * 例: ['image/*', '.xml', 'application/json']
-   * 未指定時は制限なし。
-   */
+  /** 許可するファイル形式（MIME タイプまたは拡張子）。未指定時は制限なし。 */
   acceptedFormats?: string[];
 }
 
 export interface UseInsertionEditorReturn {
-  /** 現在のInsertion値（readonlyで参照用） */
   insertion: Insertion;
-  /** ファイル選択時の処理（ハッシュ計算 → 値セット → アップロード確認） */
   handleFileSelect: (file: File) => Promise<void>;
-  /** テキスト手動編集: uri フィールド */
   handleUriChange: (uri: string) => void;
-  /** テキスト手動編集: hash.method フィールド */
   handleHashMethodChange: (method: string) => void;
-  /** テキスト手動編集: hash.value フィールド */
   handleHashValueChange: (value: string) => void;
-  /** テキスト手動編集: format フィールド */
   handleFormatChange: (format: string) => void;
-  /** URI・hash・format をすべてクリアする */
   handleClear: () => void;
-  /** アップロード中フラグ */
   isUploading: boolean;
-  /** ドラッグ中フラグ（DnD視覚フィードバック用） */
   isDragOver: boolean;
-  /** onDragOver ハンドラ（コンポーネントに渡す） */
   handleDragOver: (e: React.DragEvent) => void;
-  /** onDragLeave ハンドラ（コンポーネントに渡す） */
   handleDragLeave: (e: React.DragEvent) => void;
-  /** onDrop ハンドラ（コンポーネントに渡す） */
   handleDrop: (e: React.DragEvent) => void;
-  /** accept 属性文字列（input[type=file] に渡す） */
   acceptAttr: string | undefined;
+  /**
+   * アップロード予約済みファイル（確認ダイアログで「保存時にアップロードする」選択後に保持）。
+   * null の場合はアップロード予約なし。
+   */
+  pendingFile: File | null;
+  /**
+   * 保存時に呼び出すアップロード実行関数。
+   * pendingFile がある場合のみS3アップロードを実行する。
+   * 失敗時は throw するため、呼び出し側で catch して保存を中断すること。
+   */
+  uploadPendingFile: () => Promise<void>;
 }
 
 /** デフォルトのハッシュメソッド（環境変数 or SHA-256） */
 const DEFAULT_HASH_METHOD =
   process.env.NEXT_PUBLIC_INSERTION_DEFAULT_HASH_METHOD ?? 'SHA-256';
 
-/**
- * File から SHA-256（または指定したアルゴリズム）のハッシュ値を計算して16進数文字列で返す
- */
+/** File から SHA-256 ハッシュ値を計算して16進数文字列で返す */
 async function calcFileHash(file: File, algorithm: string): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const hashBuffer = await crypto.subtle.digest(algorithm, arrayBuffer);
@@ -72,9 +65,7 @@ async function calcFileHash(file: File, algorithm: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * ファイルサイズをヒューマンリーダブルな文字列に変換
- */
+/** ファイルサイズをヒューマンリーダブルな文字列に変換 */
 function formatFileSize(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -92,6 +83,8 @@ export function useInsertionEditor({
   const { t } = useLanguage();
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  /** アップロード予約済みファイル（確認ダイアログで「保存時にアップロードする」選択後に保持） */
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   /** accept 属性文字列を生成 */
   const acceptAttr =
@@ -99,13 +92,9 @@ export function useInsertionEditor({
       ? acceptedFormats.join(',')
       : undefined;
 
-  /**
-   * ファイルのバリデーション（サイズ・形式チェック）
-   * @returns true: OK / false: NG（エラーメッセージ表示済み）
-   */
+  /** ファイルのバリデーション（サイズチェック） */
   const validateFile = useCallback(
     (file: File): boolean => {
-      // ファイルサイズチェック
       if (maxFileSize !== undefined && file.size > maxFileSize) {
         message.error(
           t('insertionEditor.fileSizeExceeded', {
@@ -117,13 +106,12 @@ export function useInsertionEditor({
       }
       return true;
     },
-    [maxFileSize]
+    [maxFileSize, t]
   );
 
   /** ファイル選択時の処理 */
   const handleFileSelect = useCallback(
     async (file: File) => {
-      // バリデーション
       if (!validateFile(file)) return;
 
       // ハッシュ計算
@@ -137,9 +125,9 @@ export function useInsertionEditor({
         return;
       }
 
-      // ファイル選択時点で4項目を即座にセット
+      // ファイル選択時点で URI = file:/// 形式でセット
       const nextInsertion: Insertion = {
-        uri: file.name,
+        uri: 'file:///' + encodeURIComponent(file.name),
         hash: { method: hashMethod, value: hashValue },
         format: file.type || '',
       };
@@ -156,69 +144,70 @@ export function useInsertionEditor({
         content: file.name,
         okText: t('insertionEditor.uploadConfirmOk'),
         cancelText: t('insertionEditor.uploadConfirmCancel'),
-        onOk: async () => {
-          setIsUploading(true);
-          try {
-            const result = await uploadFiles({
-              uploadMode: 'single',
-              targetPath: uploadTargetPath,
-              files: [file],
-            });
-
-            // アップロード成功時: URIをs3Keyで上書き
-            const uploaded = result.files?.[0];
-            if (uploaded?.s3Key) {
-              onChange({ ...nextInsertion, uri: uploaded.s3Key });
-            } else {
-              message.warning(t('insertionEditor.uploadSuccessNoKey'));
-            }
-          } catch (err) {
-            console.error('[useInsertionEditor] アップロード失敗:', err);
-            message.error(t('insertionEditor.uploadFailed'));
-          } finally {
-            setIsUploading(false);
-          }
+        onOk: () => {
+          // S3 キーを事前計算して URI を確定（アップロードは保存時に行う）
+          const s3Key = `${uploadTargetPath.replace(/\/+$/, '')}/${file.name}`;
+          onChange({ ...nextInsertion, uri: buildStorageUri(s3Key) });
+          // File オブジェクトを保持（保存時の uploadPendingFile で使用）
+          setPendingFile(file);
         },
-        // キャンセル時: 何もしない（URIはfile.nameのまま確定）
+        // キャンセル: file:///ファイル名 のまま確定（pendingFile なし）
       });
     },
-    [onChange, uploadTargetPath, validateFile]
+    [onChange, uploadTargetPath, validateFile, t]
   );
 
-  /** URI・hash・format をすべてクリアする */
+  /**
+   * 保存時に呼び出すアップロード実行関数。
+   * pendingFile がある場合のみ S3 アップロードを実行する。
+   * 失敗時は throw するため、呼び出し側で catch して保存を中断すること。
+   */
+  const uploadPendingFile = useCallback(async () => {
+    if (!pendingFile || !uploadTargetPath) return;
+    setIsUploading(true);
+    try {
+      await uploadFiles({
+        uploadMode: 'single',
+        targetPath: uploadTargetPath,
+        files: [pendingFile],
+      });
+      // アップロード成功: pendingFile をクリア（URI は確認ダイアログ時点で確定済み）
+      setPendingFile(null);
+    } catch (err) {
+      console.error('[useInsertionEditor] アップロード失敗:', err);
+      throw err;
+    } finally {
+      setIsUploading(false);
+    }
+  }, [pendingFile, uploadTargetPath]);
+
+  /** URI・hash・format をすべてクリアする（pendingFile もクリア） */
   const handleClear = useCallback(() => {
+    setPendingFile(null);
     onChange({ uri: '', hash: { method: DEFAULT_HASH_METHOD, value: '' }, format: '' });
   }, [onChange]);
 
   /** URI 手動編集 */
   const handleUriChange = useCallback(
-    (uri: string) => {
-      onChange({ ...value, uri });
-    },
+    (uri: string) => { onChange({ ...value, uri }); },
     [onChange, value]
   );
 
   /** Hash Method 手動編集 */
   const handleHashMethodChange = useCallback(
-    (method: string) => {
-      onChange({ ...value, hash: { ...value.hash, method } });
-    },
+    (method: string) => { onChange({ ...value, hash: { ...value.hash, method } }); },
     [onChange, value]
   );
 
   /** Hash Value 手動編集 */
   const handleHashValueChange = useCallback(
-    (hashValue: string) => {
-      onChange({ ...value, hash: { ...value.hash, value: hashValue } });
-    },
+    (hashValue: string) => { onChange({ ...value, hash: { ...value.hash, value: hashValue } }); },
     [onChange, value]
   );
 
   /** Format 手動編集 */
   const handleFormatChange = useCallback(
-    (format: string) => {
-      onChange({ ...value, format });
-    },
+    (format: string) => { onChange({ ...value, format }); },
     [onChange, value]
   );
 
@@ -242,9 +231,7 @@ export function useInsertionEditor({
       e.stopPropagation();
       setIsDragOver(false);
       const file = e.dataTransfer.files?.[0];
-      if (file) {
-        handleFileSelect(file);
-      }
+      if (file) handleFileSelect(file);
     },
     [handleFileSelect]
   );
@@ -263,5 +250,7 @@ export function useInsertionEditor({
     handleDragLeave,
     handleDrop,
     acceptAttr,
+    pendingFile,
+    uploadPendingFile,
   };
 }

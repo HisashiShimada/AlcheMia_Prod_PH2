@@ -35,6 +35,7 @@ import {
   Tag,
   Tooltip,
   Typography,
+  message,
   theme,
 } from 'antd';
 import { CommentOutlined, DeleteOutlined, FastForwardOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
@@ -716,6 +717,12 @@ interface PropertyListProps {
   onOpenViewer?: () => void;
   /** ペトリネットビューアローディング中フラグ */
   viewerLoading?: boolean;
+  /**
+   * 各 InsertionEditorCompact の uploadPendingFile が準備できたときに呼び出されるコールバック。
+   * key は Insertion スロットを識別する文字列（固定 insertion の場合は 'fixed_{idx}'、カスタムは insertion.id）。
+   * 保存時に全スロットのアップロードを実行するために使用する。
+   */
+  onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
 }
 
 /** Insertion のデフォルト値 */
@@ -742,6 +749,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onContentRemove,
   onOpenViewer,
   viewerLoading,
+  onInsertionUploadReady,
 }) => {
   const { t } = useLanguage();
 
@@ -860,6 +868,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
                   }}
                   readOnly={isReadOnly}
                   uploadTargetPath={uploadTargetPath}
+                  onUploadPendingFileReady={(fn) => onInsertionUploadReady?.(`fixed_${slot.id}`, fn)}
                 />
               </div>
             );
@@ -912,6 +921,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
                   }}
                   readOnly={isReadOnly}
                   uploadTargetPath={uploadTargetPath}
+                  onUploadPendingFileReady={(fn) => onInsertionUploadReady?.(`custom_${cid}`, fn)}
                 />
               </div>
             );
@@ -1258,6 +1268,8 @@ interface PlanProps {
   onCreatorRefChange: (value: string | null) => void;
   /** Instrument 選択変更コールバック */
   onInstrumentRefChange: (value: string | null) => void;
+  /** 各 InsertionEditorCompact の uploadPendingFile 登録コールバック */
+  onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1346,6 +1358,7 @@ const PlanA: React.FC<PlanProps> = ({
 const PlanB: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
+  onInsertionUploadReady,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1564,6 +1577,7 @@ const PlanB: React.FC<PlanProps> = ({
             uploadTargetPath={uploadTargetPath}
             onOpenViewer={onOpenViewer}
             viewerLoading={viewerLoading}
+            onInsertionUploadReady={onInsertionUploadReady}
           />
         </Content>
       </Layout>
@@ -1677,6 +1691,21 @@ export default function WorkRecordPanel({
 
   const { t } = useLanguage();
 
+  /** 各 InsertionEditorCompact の uploadPendingFile を一元管理する Map */
+  const uploadFnMapRef = React.useRef<Map<string, () => Promise<void>>>(new Map());
+
+  /** 全 pending Insertion ファイルをアップロードする（保存前に呼び出す） */
+  const uploadAllPendingInsertions = useCallback(async () => {
+    for (const fn of uploadFnMapRef.current.values()) {
+      await fn();
+    }
+  }, []);
+
+  /** Insertion の uploadPendingFile 登録コールバック */
+  const handleInsertionUploadReady = useCallback((key: string, fn: () => Promise<void>) => {
+    uploadFnMapRef.current.set(key, fn);
+  }, []);
+
   // ── ペトリネットビューアハンドラ ──
   const handleOpenPetriNetViewer = useCallback(async () => {
     if (!projectId) return;
@@ -1768,12 +1797,24 @@ export default function WorkRecordPanel({
     return () => { cancelled = true; };
   }, [projectId, methodId]);
 
-  const handleSave = useCallback((_taskNo: number, _transitionId: string) => {
+  const handleSave = useCallback(async (_taskNo: number, _transitionId: string) => {
+    try {
+      await uploadAllPendingInsertions();
+    } catch {
+      message.error(t('insertionEditor.uploadFailed'));
+      return;
+    }
     Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
-  }, [t]);
+  }, [t, uploadAllPendingInsertions]);
 
   const handleSaveAndNext = useCallback(
-    (taskNo: number, transitionId: string) => {
+    async (taskNo: number, transitionId: string) => {
+      try {
+        await uploadAllPendingInsertions();
+      } catch {
+        message.error(t('insertionEditor.uploadFailed'));
+        return;
+      }
       setTasks((prev) =>
         prev.map((task) => {
           if (task.taskNo !== taskNo) return task;
@@ -1803,7 +1844,7 @@ export default function WorkRecordPanel({
         Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
       }
     },
-    [tasks]
+    [tasks, t, uploadAllPendingInsertions]
   );
 
   // ─── スキップ state ────────────────────────────────────────
@@ -1969,6 +2010,7 @@ export default function WorkRecordPanel({
     selectedInstrumentRef,
     onCreatorRefChange: setSelectedCreatorRef,
     onInstrumentRefChange: setSelectedInstrumentRef,
+    onInsertionUploadReady: handleInsertionUploadReady,
   };
 
   // コメントダイアログに渡す displayKey（現在表示中のキー）
