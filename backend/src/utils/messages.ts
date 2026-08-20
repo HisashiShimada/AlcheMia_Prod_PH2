@@ -5,6 +5,8 @@
  * エラーメッセージ・バリデーションメッセージの日英対応
  */
 
+import type { Request } from 'express';
+
 type Messages = {
   corporation: {
     duplicateName: string;
@@ -95,6 +97,15 @@ type Messages = {
   };
   namespace: {
     systemProtected: string;
+  };
+  projectRoutes: {
+    validation: {
+      pageInt: string;
+      limitInt: string;
+      statusIn: string;
+      tasksArray: string;
+      methodIdRequired: string;
+    };
   };
 };
 
@@ -189,6 +200,15 @@ const ja: Messages = {
   namespace: {
     systemProtected: 'システム名前空間（Alchemia）は変更・削除できません',
   },
+  projectRoutes: {
+    validation: {
+      pageInt: 'pageは1以上の整数である必要があります',
+      limitInt: 'limitは1〜100の整数である必要があります',
+      statusIn: 'statusは1, 2, 3のいずれかである必要があります',
+      tasksArray: 'tasksは1件以上の配列である必要があります',
+      methodIdRequired: 'methodIdは必須です',
+    },
+  },
 };
 
 const en: Messages = {
@@ -282,6 +302,15 @@ const en: Messages = {
   namespace: {
     systemProtected: 'The system namespace (Alchemia) cannot be modified or deleted',
   },
+  projectRoutes: {
+    validation: {
+      pageInt: 'page must be an integer greater than or equal to 1',
+      limitInt: 'limit must be an integer between 1 and 100',
+      statusIn: 'status must be one of 1, 2, or 3',
+      tasksArray: 'tasks must be an array with at least one item',
+      methodIdRequired: 'methodId is required',
+    },
+  },
 };
 
 const messageMap: Record<string, Messages> = { ja, en };
@@ -328,4 +357,20 @@ export function getMessage(
   }
 
   return message;
+}
+
+/**
+ * Expressリクエストから言語コードを取得する
+ *
+ * Accept-Language ヘッダーを参照し、'ja' または 'en' を返す。
+ * 未指定またはサポート外の場合は 'ja' にフォールバックする。
+ *
+ * @param req Expressリクエストオブジェクト
+ * @returns 言語コード ('ja' | 'en')
+ */
+export function getLang(req: Request): string {
+  const acceptLanguage = req.headers['accept-language'] as string | undefined;
+  if (!acceptLanguage) return 'ja';
+  const primary = acceptLanguage.split(',')[0].split('-')[0].toLowerCase();
+  return primary === 'en' ? 'en' : 'ja';
 }
