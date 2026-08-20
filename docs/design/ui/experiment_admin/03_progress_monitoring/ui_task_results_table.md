@@ -306,6 +306,9 @@ t('projectManagement.task_results.status_pending')
 frontend/src/components/project/TaskResultsTable.tsx
 ```
 
+> ℹ️ **【配置注記】** この設計書は `03_progress_monitoring/` に配置されていますが、実装ファイルは `frontend/src/components/project/TaskResultsTable.tsx` です。
+> `ProgressMonitoring` 画面と `ProjectManagement` 画面の両方から利用される共有コンポーネントのため、`project/` フォルダに実装されています。
+
 ### 8.2. 関連コンポーネント
 
 - なし（独立したテーブルコンポーネント）
