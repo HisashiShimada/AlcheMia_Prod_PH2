@@ -825,6 +825,8 @@ export function updateDocumentUuidAndParent(maimlContent: string): string {
 
   // 1. 既存の <parent>...</parent> を除去（2回目以降の書き出しでの重複防止）
   result = result.replace(/<parent>[\s\S]*?<\/parent>\n?/g, '');
+  // 1b. 孤立した </parent> を除去（過去のバグで残存している場合の対応）
+  result = result.replace(/[ \t]*<\/parent>[ \t]*\n?/g, '');
 
   // 2. <document> 直下の <uuid> を新しい UUID に置き換え
   result = result.replace(
@@ -835,7 +837,7 @@ export function updateDocumentUuidAndParent(maimlContent: string): string {
   // 3. 新しい <uuid> の直後に <parent><uuid>旧uuid</uuid></parent> を挿入
   result = result.replace(
     `<uuid>${newUuid}</uuid>`,
-    `<uuid>${newUuid}</uuid>\n    <parent>\n       <uuid>${escapeXml(oldUuid)}</uuid>\n    </parent>`
+    `<uuid>${newUuid}</uuid>\n  <parent>\n    <uuid>${escapeXml(oldUuid)}</uuid>\n  </parent>`
   );
 
   return result;
