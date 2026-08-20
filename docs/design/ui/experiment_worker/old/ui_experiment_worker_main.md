@@ -294,6 +294,7 @@ const handleProjectChange = (value: string | undefined | null) => {
 | `'4'` | 進捗確認 | `CheckSquareOutlined` | `ProgressCheckTab` | 実験進捗の確認 |
 | `'2'` | 指示確認 | `FileTextOutlined` | `InstructionConfirmationTab` | 作業指示の確認 |
 | `'3'` | 実験記録 | `FormOutlined` | `ExperimentRecordTab` | 実験データの記録 |
+| `'5'` | 不確かさ記録 | ─ | `UncertaintyRecordTab` | 実験記録の property/content に不確かさ基準を付与 |
 
 ### 4.2. タブバースタイル
 
