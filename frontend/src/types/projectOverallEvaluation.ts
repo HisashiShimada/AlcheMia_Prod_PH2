@@ -11,11 +11,11 @@ import type { LevelSummary, AttentionItem } from './aggregationRule';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ProjectOverallEvaluation {
-  evaluation_id: string;
+  evaluation_seq: number;
   organization_id: string;
   project_id: string;
   evaluation_scope: string;
-  evaluated_by: string | null;
+  evaluated_user_id: string | null;
   evaluated_at: string;
   overall_digital: string | null;
   overall_score: number | null;
@@ -30,6 +30,8 @@ export interface ProjectOverallEvaluation {
   } | null;
   create_user_id: string | null;
   create_at: string;
+  update_user_id: string | null;
+  update_at: string;
 }
 
 export interface CreateProjectOverallEvaluationInput {
@@ -61,28 +63,26 @@ export interface ExportToMaimlResult {
 // 下位評価（SubEvaluation）型
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 下位評価（SubEvaluation）型
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
  * 下位評価レコード（GET レスポンス）
  * evaluation_scope の有効な値は SubEvaluationScopeValues（constants/aggregationRule.ts）を参照。
  */
 export interface SubEvaluationRow {
-  evaluation_id: string;
+  evaluation_seq: number;
   organization_id: string;
   project_id: string;
   evaluation_scope: string;
   method_id: string | null;
   task_no: number | null;
   transition_id: string | null;
-  evaluated_by: string | null;
+  evaluated_user_id: string | null;
   evaluated_at: string | null;
   overall_digital: string | null;
   overall_analog: string | null;
   create_user_id: string | null;
   create_at: string | null;
+  update_user_id: string | null;
+  update_at: string | null;
   /** evaluation_scope と同値（aggregator 互換フィールド） */
   evaluation_unit: string;
   /** overall_digital と同値（aggregator 互換フィールド） */

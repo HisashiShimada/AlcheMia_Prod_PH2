@@ -12,7 +12,7 @@ export interface AggregationRule {
   rule_id: string;
   organization_id: string;
   version: number;
-  status: string;
+  is_active: boolean;
   score_good: number;
   score_caution: number;
   score_bad: number;
@@ -21,8 +21,10 @@ export interface AggregationRule {
   level_score_rule: string;
   missing_handling: string;
   transition_hierarchy: string;
-  created_by: string | null;
-  created_at: string;
+  create_user_id: string | null;
+  create_at: string;
+  update_user_id: string | null;
+  update_at: string;
 }
 
 export interface CreateAggregationRuleInput {

@@ -122,28 +122,30 @@ export async function saveSubEvaluations(
     if (found) {
       // 既存レコードがあれば update（テーブル型Object引数で渡す）
       const updateInput: UpdateSubEvaluationInput = {
-        organization_id: organizationId,
-        evaluation_id:   found.evaluation_id,
-        project_id:      projectId,
-        overall_digital: digital,
-        overall_analog:  analog,
-        evaluated_by:    userId,
+        organization_id:  organizationId,
+        evaluation_seq:   found.evaluation_seq,
+        project_id:       projectId,
+        overall_digital:  digital,
+        overall_analog:   analog,
+        evaluated_user_id: userId,
+        update_user_id:   userId,
       };
       const updated = await projectOverallEvaluationRepository.updateSubEvaluation(updateInput);
       results.push(updated);
     } else {
       // なければ insert（テーブル型Object引数で渡す）
       const insertInput: InsertSubEvaluationInput = {
-        organization_id:  organizationId,
-        project_id:       projectId,
-        evaluation_scope: scope,
-        method_id:        methodId,
-        task_no:          taskNo,
-        transition_id:    transitionId,
-        evaluated_by:     userId,
-        overall_digital:  digital,
-        overall_analog:   analog,
-        create_user_id:   userId,
+        organization_id:   organizationId,
+        project_id:        projectId,
+        evaluation_scope:  scope,
+        method_id:         methodId,
+        task_no:           taskNo,
+        transition_id:     transitionId,
+        evaluated_user_id: userId,
+        overall_digital:   digital,
+        overall_analog:    analog,
+        create_user_id:    userId,
+        update_user_id:    userId,
       };
       const inserted = await projectOverallEvaluationRepository.insertSubEvaluation(insertInput);
       results.push(inserted);
@@ -166,7 +168,7 @@ export async function createOverallEvaluation(
   userId: string | null,
   input: CreateProjectOverallEvaluationInput
 ): Promise<ProjectOverallEvaluation> {
-  // ACTIVE ルールを取得（断面凍結用）
+  // 有効ルールを取得（断面凍結用）
   const rule = await aggregationRuleRepository.findActive(organizationId);
   if (!rule) {
     const err = new Error('No active aggregation rule found') as Error & { code: string };

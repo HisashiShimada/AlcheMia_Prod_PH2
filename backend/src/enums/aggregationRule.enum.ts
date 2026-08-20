@@ -18,7 +18,7 @@
 export const AggregationRuleStatus = {
   /** 有効（現在適用中） */
   ACTIVE:     'ACTIVE',
-  /** 非推奨（旧版） */
+  /** 非推奨（旧版） - @deprecated is_active = false を使用すること */
   DEPRECATED: 'DEPRECATED',
 } as const;
 

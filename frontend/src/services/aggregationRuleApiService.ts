@@ -4,7 +4,7 @@
  *
  * @remarks
  * エンドポイント:
- *   GET  /api/v1/aggregation-rules/active  ← ACTIVE ルール取得
+ *   GET  /api/v1/aggregation-rules/active  ← 有効ルール取得
  *   GET  /api/v1/aggregation-rules         ← 履歴一覧取得
  *   POST /api/v1/aggregation-rules         ← 新版作成
  *   POST /api/v1/aggregation-rules/preview ← プレビュー算出
@@ -16,7 +16,7 @@ import type { AggregationRule, CreateAggregationRuleInput, SummaryPreviewRespons
 const BASE_URL = '/api/v1/aggregation-rules';
 
 /**
- * テナントの ACTIVE ルールを取得する
+ * テナントの有効ルール（is_active = true）を取得する
  */
 export async function getActiveRule(): Promise<AggregationRule | null> {
   const api = createApiClient();
@@ -36,7 +36,7 @@ export async function getAllRules(): Promise<AggregationRule[]> {
 }
 
 /**
- * 新版の集約ルールを作成する（旧版は DEPRECATED）
+ * 新版の集約ルールを作成する（旧版は無効化）
  */
 export async function createRule(input: CreateAggregationRuleInput): Promise<AggregationRule> {
   const api = createApiClient();

@@ -5,7 +5,7 @@
  *
  * @remarks
  * DDL: backend/src/sql/ddl/project_overall_evaluations.sql
- * 主キー: (organization_id, evaluation_id)
+ * 主キー: (organization_id, project_id, evaluation_seq)
  *
  * @module projectOverallEvaluation
  */
@@ -20,11 +20,11 @@ import type { AggregationSnapshot, AggregationRule, LevelSummary, AttentionItem 
  * project_overall_evaluations テーブルの型定義
  */
 export interface ProjectOverallEvaluation {
-  evaluation_id: string;
+  evaluation_seq: number;
   organization_id: string;
   project_id: string;
   evaluation_scope: string;
-  evaluated_by: string | null;
+  evaluated_user_id: string | null;
   evaluated_at: Date;
   overall_digital: string | null;
   overall_score: number | null;
@@ -37,6 +37,8 @@ export interface ProjectOverallEvaluation {
   aggregation_snapshot: AggregationSnapshot | null;
   create_user_id: string | null;
   create_at: Date;
+  update_user_id: string | null;
+  update_at: Date;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,12 +83,6 @@ export interface ExportToMaimlResult {
 // ExperimentEvaluationRow と同名で定義することでロジック変更不要にする。
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 下位評価（SubEvaluation）型
-// aggregationCalculatorService / maimlQualityWriter が参照するフィールドを
-// ExperimentEvaluationRow と同名で定義することでロジック変更不要にする。
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
  * project_overall_evaluations テーブルの下位評価行型
  * （evaluation_scope が MAIML_PROJECT 以外のレコード）
@@ -98,19 +94,21 @@ export interface ExportToMaimlResult {
  * evaluation_scope の有効な値は SubEvaluationScopeValues（enums/aggregationRule.enum.ts）を参照。
  */
 export interface SubEvaluationRow {
-  evaluation_id: string;
+  evaluation_seq: number;
   organization_id: string;
   project_id: string;
   evaluation_scope: string;
   method_id: string | null;
   task_no: number | null;
   transition_id: string | null;
-  evaluated_by: string | null;
+  evaluated_user_id: string | null;
   evaluated_at: Date | null;
   overall_digital: string | null;
   overall_analog: string | null;
   create_user_id: string | null;
   create_at: Date | null;
+  update_user_id: string | null;
+  update_at: Date | null;
   // ── aggregationCalculatorService 互換フィールド ───────────────────────────
   /** evaluation_scope と同値（aggregationCalculatorService の evaluation_unit 参照に対応） */
   evaluation_unit: string;
@@ -162,21 +160,37 @@ export interface InsertSubEvaluationInput {
   method_id: string | null;
   task_no: number | null;
   transition_id: string | null;
-  evaluated_by: string | null;
+  evaluated_user_id: string | null;
   overall_digital: string | null;
   overall_analog: string | null;
   create_user_id: string | null;
+  update_user_id: string | null;
 }
 
 /**
- * updateSubEvaluation の入力型
- * （Repository がテーブル型Object引数を受け取る規約に準拠）
+ * SubEvaluationDbRow
+ *
+ * findSubEvaluationsByProject / insertSubEvaluation / updateSubEvaluation
+ * が pg-promise から受け取る生の DB 行型。
+ * SubEvaluationRow の互換フィールド（evaluation_unit / evaluation_value / comment）を
+ * 除いた構造に対応する。
+ *
+ * @remarks
+ * Repository 内で互換フィールドを付与後、SubEvaluationRow として返す。
  */
+export interface SubEvaluationDbRow
+  extends Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> {
+  evaluation_scope: string;
+  overall_digital: string | null;
+  overall_analog: string | null;
+}
+
 export interface UpdateSubEvaluationInput {
   organization_id: string;
-  evaluation_id: string;
+  evaluation_seq: number;
   project_id: string;
   overall_digital: string | null;
   overall_analog: string | null;
-  evaluated_by: string | null;
+  evaluated_user_id: string | null;
+  update_user_id: string | null;
 }
