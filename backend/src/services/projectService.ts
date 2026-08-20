@@ -24,57 +24,18 @@ import { MaimlWriterService } from './maimlWriterService';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
 import { XMLParser } from 'fast-xml-parser';
-import type { Project, Pagination, ProjectListResponse } from '../types/project';
+import type {
+  Project,
+  Pagination,
+  ProjectListResponse,
+  ListOptions,
+  ServiceResult,
+  ProjectCheckoutInfo,
+  InstructionConfirmationData,
+} from '../types/project';
 import type { ProjectFileResponse, GetProjectFilesData, StorageFileEntry } from '../types/file';
 import { nanoid } from 'nanoid';
 import { v4 as uuidv4 } from 'uuid';
-
-interface ListOptions {
-  includeCompleted: boolean;
-  sortBy?: string;
-  order?: 'asc' | 'desc';
-  /** ユーザーが直接所属する組織グループCDの配列 */
-  organizationGroupCds?: string[];
-  /** ユーザーのロールCD（'ROLE002' = SystemAdmin） */
-  roleCd?: string;
-  /** ログインユーザーID（非アクティブチームへの権限判定に使用） */
-  userId?: string;
-}
-
-interface ServiceResult<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-    originalError?: Error;
-  };
-}
-
-/**
- * チェックアウト状態情報
- * Task 3.1, 3.2, 3.3: チェックアウト/チェックイン機能で使用
- */
-interface ProjectCheckoutInfo {
-  projectId: string;
-  projectName: string;
-  isCheckedOut: boolean;
-  checkedOutBy: string | null;
-  checkedOutAt: string | null;
-}
-
-/**
- * 指示確認レスポンスデータ
- * Task: 2.1, 2.2 型定義（instructionConfirmation.tsから移植）
- */
-interface InstructionConfirmationData {
-  instruction_id: string;
-  is_acknowledged: boolean;
-  acknowledged_at: string;
-  acknowledged_user_id: string;
-  acknowledged_user_name: string;
-}
 
 /**
  * ProjectServiceクラス
@@ -327,7 +288,7 @@ export class ProjectService {
         success: true,
         data: {
           deletedCount: deletedFileCount,
-          message: `プロジェクト「${deletedProjectName}」を削除しました`,
+          message: `Project "${deletedProjectName}" has been deleted`,
         },
       };
     } catch (error) {
@@ -663,27 +624,6 @@ export class ProjectService {
               projectId,
               projectName: project.project_name,
               taskCount: 0,
-            },
-          },
-        };
-      }
-
-      // バリデーション4: 未送信指示チェック（Repository層経由）
-      const hasUnsent = await projectInstructionRepository.hasUnsentInstructions(
-        organizationId,
-        projectId
-      );
-
-      if (hasUnsent) {
-        await client.query('ROLLBACK');
-        return {
-          success: false,
-          error: {
-            code: 'CHECKOUT_UNSENT_INSTRUCTIONS',
-            message: '未送信の指示が存在します',
-            details: {
-              projectId,
-              projectName: project.project_name,
             },
           },
         };
@@ -1256,22 +1196,22 @@ export class ProjectService {
 
       // プロジェクトステータス検証: task_in_progress (2) のみ許可
       if (project.project_status !== ProjectStatusEnum.TASK_IN_PROGRESS) {
-        // ステータス名のマッピング
+      // ステータス名のマッピング
         const statusNames: { [key: number]: string } = {
-          0: 'プロジェクト計画中',
-          1: 'タスク実行待ち',
-          2: 'タスク実行中',
-          3: 'タスク結果レビュー待ち',
-          4: 'プロジェクト完了',
-          5: 'タスク異常終了',
+          0: 'Planning',
+          1: 'Task Pending',
+          2: 'Task In Progress',
+          3: 'Task Review Waiting',
+          4: 'Project Completed',
+          5: 'Task Error',
         };
-        const currentStatusName = statusNames[project.project_status] || '不明';
+        const currentStatusName = statusNames[project.project_status] || 'Unknown';
 
         // waiting_approval (3) の場合は特別なメッセージ
         const message =
           project.project_status === ProjectStatusEnum.REVIEW_WAITING
-            ? '既に承認依頼が送信されています'
-            : `プロジェクトステータスがタスク実行中ではありません。現在のステータス: ${currentStatusName}`;
+            ? 'Approval request has already been sent'
+            : `Project status is not in progress. Current status: ${currentStatusName}`;
 
         return {
           success: false,
@@ -2143,7 +2083,7 @@ export class ProjectService {
         success: true,
         data: {
           updatedCount,
-          message: `レビュー待ちタスク ${updatedCount} 件を完了に更新しました`,
+          message: `${updatedCount} review-waiting tasks have been completed`,
         },
       };
     } catch (error) {
@@ -2152,6 +2092,47 @@ export class ProjectService {
         error: {
           code: 'SYSTEM_DATABASE_ERROR',
           message: 'データベースエラーが発生しました',
+        },
+      };
+    }
+  }
+
+  /**
+   * プロジェクト強制終了
+   *
+   * @param organizationId - 組織ID
+   * @param projectId - プロジェクトID
+   * @returns ServiceResult
+   */
+  async forceTerminate(
+    organizationId: string,
+    projectId: string
+  ): Promise<ServiceResult<{ projectId: string }>> {
+    const pool = getPool();
+    try {
+      const sql = await loadSqlFile('project/forceTerminate.sql');
+      const result = await pool.query(sql, [ProjectStatusEnum.ERROR, organizationId, projectId]);
+
+      if (result.rowCount === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'E6001',
+            message: 'Project not found',
+          },
+        };
+      }
+
+      return {
+        success: true,
+        data: { projectId },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'E4002',
+          message: 'Database error occurred',
         },
       };
     }

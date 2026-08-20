@@ -20,7 +20,6 @@ import {
 import {
   EditOutlined,
   DeleteOutlined,
-  SendOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -34,7 +33,6 @@ import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import {
-  sendInstructions,
   getInstructions,
   saveInstruction,
   updateInstruction,
@@ -57,7 +55,6 @@ interface InstructionRegistrationTabProps {
   isEditable?: boolean;
   /** プロジェクト完了フラグ。true の場合は変更系ボタンを非活性にする */
   isProjectCompleted?: boolean;
-  onInstructionsSubmit?: (instructions: InstructionData[]) => void;
 }
 
 /**
@@ -70,7 +67,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   isCheckoutLocked,
   isEditable = true,
   isProjectCompleted = false,
-  onInstructionsSubmit,
 }) => {
   const { token } = useToken();
   const { t } = useLanguage();
@@ -82,7 +78,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
   const [editMode, setEditMode] = useState<'create' | 'edit'>('create');
   const [editingInstruction, setEditingInstruction] = useState<InstructionData | undefined>(undefined);
-  const [isSending, setIsSending] = useState<boolean>(false);
 
   /**
    * タブがアクティブになった時にタスク登録情報を再取得
@@ -286,43 +281,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   }, [projectName]);
 
   /**
-   * 指示を一括送信
-   */
-  const handleSubmitInstructions = useCallback(async () => {
-    if (instructions.length === 0) {
-      message.warning(t('instructionRegistration.messages.noInstructions'));
-      return;
-    }
-
-    try {
-      setIsSending(true);
-
-      // 指示を一括送信（タスク作成は別途タスク登録タブで実施済み）
-      const result = await sendInstructions(projectId, {});
-
-      // 送信済フラグを立てる
-      const sentInstructions = instructions.map(inst => ({
-        ...inst,
-        isSent: true,
-      }));
-
-      // 親コンポーネントに通知
-      onInstructionsSubmit?.(sentInstructions);
-
-      message.success(t('instructionRegistration.messages.sentCount').replace('{count}', result.sentInstructionsCount.toString()));
-
-      // 送信後、送信済フラグを立てて表示を継続
-      setInstructions(sentInstructions);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : t('instructionRegistration.messages.sendFailed');
-      message.error(errorMessage);
-    } finally {
-      setIsSending(false);
-    }
-  }, [instructions, projectName, onInstructionsSubmit, t]);
-
-  /**
    * 指示対象のラベル
    */
   const getTargetLabel = useCallback((instruction: InstructionData): string => {
@@ -444,7 +402,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => handleOpenEditDialog(record)}
-                disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}
+                disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
                 data-testid={`instruction-edit-button-${record.id}`}
               >
                 {t('instructionRegistration.editButton')}
@@ -454,7 +412,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 onClick={() => handleDeleteInstruction(record.id)}
-                disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}
+                disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
                 data-testid={`instruction-delete-button-${record.id}`}
               >
                 {t('instructionRegistration.deleteButton')}
@@ -476,22 +434,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
         >
           {t('instructionRegistration.listTitle').replace('{count}', instructions.length.toString())}
         </Text>
-        <Space>
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={handleSubmitInstructions}
-            disabled={instructions.length === 0 || isSending || isCheckoutLocked || !isEditable || isProjectCompleted}
-            loading={isSending}
-            data-testid="instruction-bulk-send-button"
-            style={{
-              backgroundColor: instructions.length > 0 ? token.colorSuccess : undefined,
-              borderColor: instructions.length > 0 ? token.colorSuccess : undefined,
-            }}
-          >
-            {t('instructionRegistration.sendButton')}
-          </Button>
-        </Space>
       </div>
 
       {/* 指示一覧テーブル */}

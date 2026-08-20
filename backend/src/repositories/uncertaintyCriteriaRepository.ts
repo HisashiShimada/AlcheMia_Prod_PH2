@@ -139,6 +139,8 @@ export interface InsertNewVersionRequest {
   xsiType: string | null;
   /** 単位（定量のみ / NULL許容） */
   units: string | null;
+  /** スケールファクター（定量のみ / NULL許容） */
+  scaleFactor: string | null;
   /** フォーマット文字列（定量のみ / NULL許容） */
   formatString: string | null;
   /** 説明（NULL許容） */
@@ -376,4 +378,96 @@ export async function insertNewVersion(
 
     return { version: newVersion };
   });
+}
+
+// ============================================================================
+// 複数キー一括取得（experimentInstructionService 用）
+// ============================================================================
+
+/**
+ * 複数の uncertainty_key に対応する最新有効レコードを一括取得する
+ *
+ * @remarks
+ * - is_Invalid = FALSE かつ最大 version のレコードを返す
+ * - 組織 ID でフィルタリングし、マルチテナント分離を維持する
+ * - uncertainty_key が DB に存在しない場合は単に結果に含まれない（エラーにならない）
+ *
+ * @param organizationId - 組織ID
+ * @param keys           - 検索する uncertainty_key の配列
+ * @returns `{ key: string; uncertainty_name: string }[]`
+ */
+export async function findByKeys(
+  organizationId: string,
+  keys: string[]
+): Promise<Array<{ key: string; uncertainty_name: string }>> {
+  if (keys.length === 0) return [];
+
+  const pgp = getPgp();
+
+  // 外部SQLファイルからクエリを読み込み実行する
+  const sqlQuery = await loadSqlFile('uncertainty_criteria/findByKeys.sql');
+  const rows = await pgp.manyOrNone<{ key: string; uncertainty_name: string }>(
+    sqlQuery,
+    [organizationId, keys]
+  );
+
+  return rows;
+}
+
+// ============================================================================
+// 複数キー詳細一括取得（experimentDataService 用）
+// ============================================================================
+
+/**
+ * 定量/定性分類込みの不確かさ基準詳細を複数キーで一括取得する
+ *
+ * @remarks
+ * - is_Invalid = FALSE かつ最大 version のレコードを返す
+ * - evaluation_method（1=定量 / 2=定性）・termDisplayName・intuition_selector 選択肢を含む
+ * - 組織 ID でフィルタリングし、マルチテナント分離を維持する
+ *
+ * @param organizationId - 組織ID
+ * @param keys           - 検索する uncertainty_key の配列
+ * @returns 各キーの詳細情報配列
+ */
+export async function findByKeysWithDetails(
+  organizationId: string,
+  keys: string[]
+): Promise<UncertaintyKeyDetail[]> {
+  if (keys.length === 0) return [];
+
+  const pgp = getPgp();
+
+  const sqlQuery = await loadSqlFile('uncertainty_criteria/findByKeysWithDetails.sql');
+  const rows = await pgp.manyOrNone<{
+    uncertaintyKey:     string;
+    uncertaintyName:    string;
+    evaluationMethod:   number;
+    termDisplayName:    string | null;
+    qualitativeOptions: QualitativeOptionRow[];
+  }>(sqlQuery, [organizationId, keys]);
+
+  return rows.map((r) => ({
+    uncertaintyKey:     r.uncertaintyKey,
+    uncertaintyName:    r.uncertaintyName,
+    evaluationMethod:   r.evaluationMethod,
+    termDisplayName:    r.termDisplayName ?? null,
+    qualitativeOptions: Array.isArray(r.qualitativeOptions) ? r.qualitativeOptions : [],
+  }));
+}
+
+/**
+ * findByKeysWithDetails の戻り値型
+ */
+export interface UncertaintyKeyDetail {
+  /** 不確かさ基準Key */
+  uncertaintyKey: string;
+  /** 不確かさ基準名 */
+  uncertaintyName: string;
+  /** 評価方式（1: 定量 / 2: 定性） */
+  evaluationMethod: number;
+  /** 名前空間の表示名（namespace_term.display_name） */
+  termDisplayName: string | null;
+  /** 定性評価の選択肢（定量の場合は空配列） */
+  qualitativeOptions: QualitativeOptionRow[];
 }

@@ -1874,3 +1874,27 @@ export const getNgTasks = async (
     throw error;
   }
 };
+
+/**
+ * プロジェクト強制終了
+ *
+ * @description プロジェクトステータスを ERROR(5) に更新する
+ */
+export const forceTerminateProject = async (
+  projectId: string
+): Promise<{ projectId: string; projectStatus: number }> => {
+  const client = createApiClient();
+  try {
+    const response = await client.post<{
+      success: boolean;
+      data: { projectId: string; projectStatus: number };
+    }>(`/projects/${projectId}/force-terminate`);
+    return response.data.data;
+  } catch (error) {
+    console.error('[forceTerminateProject] エラー', {
+      error,
+      projectId,
+    });
+    throw error;
+  }
+};

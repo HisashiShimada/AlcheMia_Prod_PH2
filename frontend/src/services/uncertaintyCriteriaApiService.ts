@@ -7,27 +7,10 @@
  * エンドポイント:
  *   GET  /api/v1/uncertainty-criteria   ← 不確かさ基準一覧取得
  *
- * ── スタブ切り替え ──
- *   USE_MOCK = true  → モックデータを返す（バックエンド不要）
- *   USE_MOCK = false → 実際の API を呼ぶ
  */
 
 import { createApiClient } from '@/utils/authUtils';
 import type { UncertaintyTemplate } from '@/components/uncertainty/UncertaintyListTable';
-
-// ─────────────────────────────────────────────────────────────
-// スタブ切り替えフラグ
-// ─────────────────────────────────────────────────────────────
-
-/** true にするとモックデータを返す。false にすると実 API を呼ぶ */
-const USE_MOCK = false;
-
-// ─────────────────────────────────────────────────────────────
-// モックデータ（USE_MOCK = true のときのみ使用）
-// ─────────────────────────────────────────────────────────────
-
-/** モック: 不確かさ基準一覧 */
-const MOCK_CRITERIA: UncertaintyTemplate[] = [];
 
 // ─────────────────────────────────────────────────────────────
 // Enum 変換関数
@@ -77,8 +60,13 @@ interface UncertaintyCriteriaApiRow {
   inheritanceUncertaintyKey: string | null;
   xsiType: string | null;
   units: string | null;
+  scaleFactor: string | null;
   formatString: string | null;
   description: string | null;
+  /** namespace_term の表示名（uncertainty_key に紐づく） */
+  termDisplayName: string | null;
+  /** namespace_term の説明（uncertainty_key に紐づく） */
+  termDescription: string | null;
 }
 
 /** 定性評価選択肢の API レスポンス型（intuition_selector に対応） */
@@ -104,10 +92,6 @@ export interface UncertaintyCriteriaDetailApiRow extends UncertaintyCriteriaApiR
  * @returns 不確かさ基準一覧（UncertaintyTemplate[] 型に変換済み）
  */
 export async function fetchUncertaintyCriteriaList(): Promise<UncertaintyTemplate[]> {
-  if (USE_MOCK) {
-    return MOCK_CRITERIA;
-  }
-
   const client = createApiClient();
 
   const response = await client.get<UncertaintyCriteriaApiRow[]>(
@@ -130,6 +114,8 @@ export async function fetchUncertaintyCriteriaList(): Promise<UncertaintyTemplat
     validFrom: '',                                          // DBにカラムなし（空白）
     validTo: '',                                            // DBにカラムなし（空白）
     extends: row.inheritanceUncertaintyKey ?? '',
+    termDisplayName: row.termDisplayName ?? null,
+    termDescription: row.termDescription ?? null,
   }));
 }
 
@@ -146,6 +132,7 @@ export interface UncertaintyCriteriaSelectorApiRow {
   evaluationMethod: number;
   xsiType: string | null;
   units: string | null;
+  scaleFactor: string | null;
   formatString: string | null;
   description: string | null;
   qualitativeOptions: QualitativeOptionApiRow[];
@@ -175,6 +162,10 @@ export interface UncertaintyCriteriaForSelector {
   desc: string;
   /** 単位 */
   unit: string;
+  /** xsi:type（例: intType, doubleType） */
+  xsiType: string;
+  /** 倍率（scale_factor） */
+  scaleFactor: string | null;
   /** フォーマット文字列 */
   format: string;
   /** 対象セクション（DBになし → 全セクション固定） */
@@ -224,6 +215,8 @@ export async function fetchUncertaintyCriteriaForSelector(): Promise<Uncertainty
       scopeOrder:     3,                                    // organization 固定
       desc:           row.description ?? '',
       unit:           row.units ?? '',
+      xsiType:        row.xsiType ?? '',
+      scaleFactor:    row.scaleFactor ?? null,
       format:         row.formatString ?? '',
       targetSections: ['material', 'condition', 'result'],  // DBになし → 全セクション
       targetTag:      isQuantitative ? 'property' : 'content',
@@ -277,6 +270,7 @@ export interface SaveUncertaintyCriteriaRequest {
   inheritanceUncertaintyKey: string | null;
   xsiType: string | null;
   units: string | null;
+  scaleFactor: string | null;
   formatString: string | null;
   description: string | null;
   qualitativeOptions: SaveQualitativeOption[];

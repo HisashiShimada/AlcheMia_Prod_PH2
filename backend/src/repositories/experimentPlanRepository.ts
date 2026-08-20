@@ -150,6 +150,32 @@ export async function findByMethodForTransaction(
 }
 
 /**
+ * タスク登録時の初期レコードを INSERT（既存データは上書きしない）
+ *
+ * @remarks
+ * `ON CONFLICT DO NOTHING` により、既存の `planned_values` は保護される。
+ * タスク登録保存のトランザクション内で呼び出す。
+ *
+ * @param client - トランザクション用 PoolClient
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @param methodId - メソッドID
+ * @param taskNo - タスク番号（1〜N）
+ * @param userId - 作成・更新ユーザーID
+ */
+export async function initInsertForTransaction(
+  client: PoolClient,
+  organizationId: string,
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  userId: string
+): Promise<void> {
+  const sql = await loadSqlFile('experiment_plans/initInsert.sql');
+  await client.query(sql, [organizationId, projectId, methodId, taskNo, userId, userId]);
+}
+
+/**
  * 指定メソッドの全タスク分の実験計画を削除
  *
  * @param organizationId - 組織ID

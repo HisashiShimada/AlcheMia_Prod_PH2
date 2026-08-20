@@ -118,3 +118,82 @@ export interface TaskListResponse {
   tasks: Task[];
   statistics: TaskStatistics;
 }
+
+// ============================================================
+// ProjectService で使用するオプション・結果型
+// ============================================================
+
+/**
+ * プロジェクト一覧取得オプション
+ *
+ * @remarks
+ * ProjectService.list() の引数として使用
+ */
+export interface ListOptions {
+  includeCompleted: boolean;
+  sortBy?: string;
+  order?: 'asc' | 'desc';
+  /** ユーザーが直接所属する組織グループCDの配列 */
+  organizationGroupCds?: string[];
+  /** ユーザーのロールCD（'ROLE002' = SystemAdmin） */
+  roleCd?: string;
+  /** ログインユーザーID（非アクティブチームへの権限判定に使用） */
+  userId?: string;
+}
+
+/**
+ * サービス結果ラッパー
+ *
+ * @typeParam T - 成功時のデータ型
+ */
+export interface ServiceResult<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+    originalError?: Error;
+  };
+}
+
+/**
+ * チェックアウト状態情報
+ *
+ * @remarks
+ * ProjectService.checkout / checkin / getCheckoutStatus で使用
+ */
+export interface ProjectCheckoutInfo {
+  projectId: string;
+  projectName: string;
+  isCheckedOut: boolean;
+  checkedOutBy: string | null;
+  checkedOutAt: string | null;
+}
+
+/**
+ * 指示確認レスポンスデータ
+ */
+export interface InstructionConfirmationData {
+  instruction_id: string;
+  is_acknowledged: boolean;
+  acknowledged_at: string;
+  acknowledged_user_id: string;
+  acknowledged_user_name: string;
+}
+
+/**
+ * プロジェクトステータス → 文字列マッピング
+ *
+ * @remarks
+ * code_master の project_status コード値と一致
+ * ProgressService.getWorkDetails() 等で共通利用
+ */
+export const PROJECT_STATUS_STRING_MAP: Record<number, 'planning' | 'pending' | 'in_progress' | 'review_waiting' | 'completed' | 'error'> = {
+  0: 'planning',
+  1: 'pending',
+  2: 'in_progress',
+  3: 'review_waiting',
+  4: 'completed',
+  5: 'error',
+};
