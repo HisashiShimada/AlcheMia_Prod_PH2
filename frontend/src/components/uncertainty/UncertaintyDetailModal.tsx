@@ -103,6 +103,7 @@ function buildDiffData(
     xsiType: string | undefined;
     units: string;
     formatString: string;
+    scaleFactor: string;
   },
   currentEvalMode: 'quantitative' | 'qualitative',
   currentStatus: 'active' | 'deprecated',
@@ -194,6 +195,15 @@ function buildDiffData(
         type:       'specTag',
         oldValue:   detail.formatString ?? null,
         newValue:   formValues.formatString || null,
+      },
+      {
+        fieldKey:   'scaleFactor',
+        label:      'scaleFactor',
+        required:   false,
+        changeType: changeType(detail.scaleFactor, formValues.scaleFactor),
+        type:       'specTag',
+        oldValue:   detail.scaleFactor ?? null,
+        newValue:   formValues.scaleFactor || null,
       }
     );
   }
@@ -324,6 +334,7 @@ export default function UncertaintyDetailModal({
           xsiType:                   data.xsiType ?? undefined,
           units:                     data.units ?? '',
           formatString:              data.formatString ?? '',
+          scaleFactor:               data.scaleFactor ?? '',
         });
       })
       .catch(() => {
@@ -342,6 +353,7 @@ export default function UncertaintyDetailModal({
       'xsiType',
       'units',
       'formatString',
+      'scaleFactor',
     ]);
 
     const computed = buildDiffData(
@@ -352,6 +364,7 @@ export default function UncertaintyDetailModal({
         xsiType:      formValues.xsiType,
         units:        formValues.units ?? '',
         formatString: formValues.formatString ?? '',
+        scaleFactor:  formValues.scaleFactor ?? '',
       },
       evalMode,
       statusState,
@@ -373,6 +386,7 @@ export default function UncertaintyDetailModal({
       'xsiType',
       'units',
       'formatString',
+      'scaleFactor',
     ]);
 
     // ── 差分チェック：変更がなければ保存しない ──
@@ -384,6 +398,7 @@ export default function UncertaintyDetailModal({
         xsiType:      formValues.xsiType,
         units:        formValues.units ?? '',
         formatString: formValues.formatString ?? '',
+        scaleFactor:  formValues.scaleFactor ?? '',
       },
       evalMode,
       statusState,
@@ -408,6 +423,7 @@ export default function UncertaintyDetailModal({
         xsiType:                   evalMode === 'quantitative' ? (formValues.xsiType ?? null) : null,
         units:                     evalMode === 'quantitative' ? (formValues.units || null) : null,
         formatString:              evalMode === 'quantitative' ? (formValues.formatString || null) : null,
+        scaleFactor:               evalMode === 'quantitative' ? (formValues.scaleFactor || null) : null,
         description:               formValues.desc || null,
         qualitativeOptions:        evalMode === 'qualitative'
           ? qualitativeOptions.map((opt, idx) => ({
@@ -576,7 +592,7 @@ export default function UncertaintyDetailModal({
 
             {/* 定量モード */}
             {evalMode === 'quantitative' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
                 <Form.Item
                   name="xsiType"
                   label={<span>xsi:type <span style={{ color: '#ff4d4f' }}>*</span></span>}
@@ -593,6 +609,9 @@ export default function UncertaintyDetailModal({
                 </Form.Item>
                 <Form.Item name="formatString" label="formatString" style={{ marginBottom: 0 }}>
                   <Input />
+                </Form.Item>
+                <Form.Item name="scaleFactor" label="scaleFactor" style={{ marginBottom: 0 }}>
+                  <Input placeholder="1" />
                 </Form.Item>
               </div>
             )}
