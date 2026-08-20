@@ -8,6 +8,8 @@
 import { PoolClient } from 'pg';
 import { TransitionStatus } from '../types/transitionData';
 import { loadSqlFile } from '../sql/loader';
+import { getPgp } from '../database/db';
+import type { EventLogRow } from '../types/eventLog';
 
 /**
  * 指示送信ログのパラメータ
@@ -1171,4 +1173,31 @@ export class EventLogRepository {
       };
     }
   }
+
+  /**
+   * プロジェクトの maiml_event_log 全件取得
+   *
+   * sequence_no 昇順で返す（eventLog 内のログ順序を保持するため）。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @returns EventLogRow 配列（sequence_no 昇順）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findAllByProject(
+    organizationId: string,
+    projectId: string
+  ): Promise<EventLogRow[]> {
+    try {
+      const sql = await loadSqlFile('event_log/findAllByProject.sql');
+      const pgp = getPgp();
+      return pgp.any<EventLogRow>(sql, [organizationId, projectId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while fetching event logs',
+        error as Error
+      );
+    }
+  }
 }
+

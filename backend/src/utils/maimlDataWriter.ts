@@ -306,6 +306,16 @@ export function buildEventLogXML(
         : [rawLog as Record<string, unknown>]
       : [];
 
+    // eventLog 直下の property（全体評価など eventLog 層に直接記載するケース）
+    // globalObjectContentGroup 順序: uuid → property → log の順で出力する
+    const eventLogRawProperty = eventLogObj['property'];
+    if (eventLogRawProperty) {
+      const eventLogProperties: Record<string, unknown>[] = Array.isArray(eventLogRawProperty)
+        ? (eventLogRawProperty as Record<string, unknown>[])
+        : [eventLogRawProperty as Record<string, unknown>];
+      xml += buildPropertiesXML(eventLogProperties, 2);
+    }
+
     for (const logEntry of logEntries) {
       xml += buildLogEntryXML(logEntry, existingUuids);
     }
@@ -314,6 +324,12 @@ export function buildEventLogXML(
     const topLevelEvnet = eventLogObj['evnet'] as Record<string, unknown> | undefined;
     if (topLevelEvnet) {
       xml += buildEvnetXML(topLevelEvnet, 2, existingUuids);
+    }
+
+    // eventLog 直下の ownerRef（XSD 外だが全体評価で使用）
+    const eventLogOwnerRef = eventLogObj['ownerRef'];
+    if (eventLogOwnerRef) {
+      xml += buildOwnerRefXML(eventLogOwnerRef, 2);
     }
   }
 
@@ -357,6 +373,21 @@ function buildLogEntryXML(
 
   for (const trace of traces) {
     xml += buildTraceXML(trace, existingUuids);
+  }
+
+  // log 直下の property（METHOD 評価など log 層に直接記載するケース）
+  const logRawProperty = logEntry['property'];
+  if (logRawProperty) {
+    const logProperties: Record<string, unknown>[] = Array.isArray(logRawProperty)
+      ? (logRawProperty as Record<string, unknown>[])
+      : [logRawProperty as Record<string, unknown>];
+    xml += buildPropertiesXML(logProperties, 3);
+  }
+
+  // log 直下の ownerRef（XSD 準拠: logType は ownerRef を持てる）
+  const logOwnerRef = logEntry['ownerRef'];
+  if (logOwnerRef) {
+    xml += buildOwnerRefXML(logOwnerRef, 3);
   }
 
   xml += `    </log>\n`;
@@ -405,6 +436,21 @@ function buildTraceXML(
   const evnetObj = trace['evnet'] as Record<string, unknown> | undefined;
   if (evnetObj) {
     xml += buildEvnetXML(evnetObj, 4, existingUuids);
+  }
+
+  // trace 直下の property（TASK 評価など trace 層に直接記載するケース）
+  const traceRawProperty = trace['property'];
+  if (traceRawProperty) {
+    const traceProperties: Record<string, unknown>[] = Array.isArray(traceRawProperty)
+      ? (traceRawProperty as Record<string, unknown>[])
+      : [traceRawProperty as Record<string, unknown>];
+    xml += buildPropertiesXML(traceProperties, 4);
+  }
+
+  // trace 直下の ownerRef（XSD 準拠: traceType は ownerRef を持てる）
+  const traceOwnerRef = trace['ownerRef'];
+  if (traceOwnerRef) {
+    xml += buildOwnerRefXML(traceOwnerRef, 4);
   }
 
   xml += `      </trace>\n`;
@@ -465,6 +511,12 @@ function buildEventXML(
       const normalizedRef = rrRef.startsWith('data-') ? rrRef : `data-${rrRef}`;
       xml += `          <resultsRef ref="${escapeXml(normalizedRef)}"/>\n`;
     }
+  }
+
+  // event 直下の ownerRef（XSD 準拠: eventType は ownerRef を持てる）
+  const eventOwnerRef = eventObj['ownerRef'];
+  if (eventOwnerRef) {
+    xml += buildOwnerRefXML(eventOwnerRef, 5);
   }
 
   xml += `        </event>\n`;
@@ -721,6 +773,42 @@ function buildPropertyXML(
  * @param properties  - プロパティオブジェクトの配列（DB JSON 由来）
  * @param indentLevel - インデントレベル
  */
+/**
+ * <ownerRef> 要素（単体または配列）の XML を生成
+ *
+ * DB JSON での形式:
+ *   単体: { '@id': 'ownerRef_xxx', '@ref': 'userId' }
+ *   配列: [{ '@id': 'ownerRef_xxx_1', '@ref': 'userId1' }, ...]
+ *
+ * @param ownerRefValue - ownerRef オブジェクト（単体 or 配列）
+ * @param indentLevel   - インデントレベル（eventLog直下=2, log直下=3, trace直下=4, event直下=5）
+ * @returns <ownerRef .../> の XML 文字列
+ */
+function buildOwnerRefXML(
+  ownerRefValue: unknown,
+  indentLevel: number
+): string {
+  const indent = '  '.repeat(indentLevel);
+  const items: Record<string, unknown>[] = Array.isArray(ownerRefValue)
+    ? (ownerRefValue as Record<string, unknown>[])
+    : [ownerRefValue as Record<string, unknown>];
+
+  let xml = '';
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+    const id  = item['@id']  as string | undefined;
+    const ref = item['@ref'] as string | undefined;
+    if (!ref) continue;
+
+    let attrs = '';
+    if (id) attrs += ` id="${escapeXml(id)}"`;
+    attrs += ` ref="${escapeXml(ref)}"`;
+    xml += `${indent}<ownerRef${attrs}/>\n`;
+  }
+  return xml;
+}
+
+
 function buildPropertiesXML(
   properties: Record<string, unknown>[],
   indentLevel: number
