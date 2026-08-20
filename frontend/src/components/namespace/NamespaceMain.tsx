@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography } from 'antd';
 import {
@@ -15,6 +16,7 @@ import {
 } from '@ant-design/icons';
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
+import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
@@ -41,6 +43,9 @@ import type {
   TermCsvParsedRow,
   OrganizationGroupRow,
 } from '@/types/namespace';
+
+// GlobalNamespaceView: グローバルノード選択時に右ペインへ表示（SSR無効）
+const GlobalNamespaceView = dynamic(() => import('./GlobalNamespaceView'), { ssr: false });
 
 const { Text } = Typography;
 
@@ -815,7 +820,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms({ globalFlg: true });
+      fetchTerms(); // グローバルノード選択時は全件取得
       fetchPrefixes(); // グローバルノード選択時は全 Prefix を取得
     } else if (COMPANY_KEYS.has(nsKey)) {
       fetchTerms(); // 全件
@@ -853,7 +858,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms({ globalFlg: true });
+      fetchTerms(); // グローバルノード選択時は全件取得
     } else if (COMPANY_KEYS.has(nsKey)) {
       fetchTerms(); // 全件
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
@@ -1023,7 +1028,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── チームノード右クリック：チームを追加（親ノードのラベルを追加先として表示）
   const handleContextAddTeam = (_node: NamespaceNode) => {
-    setTeamAddParentLabel('研究開発部');
+    setTeamAddParentLabel(t('namespaceMain.teamAddParentLabelDefault'));
     setTeamAddOpen(true);
   };
 
@@ -1053,6 +1058,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const rootKey = getRootKey(key, namespaceTree);
     return rootKey === 'global' || rootKey === 'personal';
   }, [selectedNsKey, externalSelectedNsKey, namespaceTree]);
+
+  // グローバルノード自体（'global' / 'ns-maiml' / 'ns-xsi'）が選択中かどうか
+  const isGlobalNodeSelected = useMemo(() => {
+    const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    return key === 'global' || key === 'ns-maiml' || key === 'ns-xsi';
+  }, [selectedNsKey, externalSelectedNsKey]);
 
   // 選択ノードが company 配下のノードかどうか
   const isCompanyNodeSelected = useMemo(() => {
@@ -1526,8 +1537,11 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── 既存行の操作セル
   const actionCell = (record: Term) => {
+    // システム名前空間（Alchemia）の行は操作不可
+    const isSystemNs = record.prefix === SYSTEM_NAMESPACE_PREFIX;
     // グレーアウト対象（rowClassName と同条件）のみ操作不可
     const readonly =
+      isSystemNs ||
       (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
       viewOnly;
@@ -1537,6 +1551,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           <Button type="primary" size="small" onClick={saveEditTerm}>✔ {t('namespaceMain.actionSave')}</Button>
           <Button size="small" onClick={cancelEditTerm}>{t('namespaceMain.actionCancel')}</Button>
         </span>
+      );
+    }
+    if (isSystemNs) {
+      return (
+        <Tooltip title={t('namespaceMain.systemNamespaceTooltip')}>
+          <Tag color="default">{t('namespaceMain.systemNamespaceBadge')}</Tag>
+        </Tooltip>
       );
     }
     return (
@@ -1680,12 +1701,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       render: (_: unknown, record: Term | NewTermRow) => {
         if ('_rowId' in record) return <span style={{ color: '#bbb' }}>—</span>;
         const term = record as Term;
-        const globalPrefixSet = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
-        const isGlobal = globalPrefixSet.has(term.prefix);
         const fullPath = getScopeFullPath(term.prefix);
         const parts = fullPath.split(' › ');
         // 絵文字・アイコン文字を除去してラベルを取得
-        const rawLabel = isGlobal ? 'Global' : parts[parts.length - 1].trim();
+        const rawLabel = parts[parts.length - 1].trim();
         const label = rawLabel.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27FF}]|[\u{1F300}-\u{1F9FF}]|\uFE0F/gu, '').trim();
         return (
           <Tooltip title={label}>
@@ -1822,9 +1841,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   onClick={() => {
-                    setTeamAddParentLabel('研究開発部');
-                    setTeamAddOpen(true);
-                    setCtxMenu((s) => ({ ...s, visible: false }));
+    setTeamAddParentLabel(t('namespaceMain.teamAddParentLabelDefault'));
+    setTeamAddOpen(true);
+    setCtxMenu((s) => ({ ...s, visible: false }));
                   }}
                 >
                   <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
@@ -1844,8 +1863,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           </div>
         )}
 
-        {/* ── 右ペイン：用語リスト ── */}
+        {/* ── 右ペイン：用語リスト / グローバルノード選択時は GlobalNamespaceView ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 40px', background: '#fafafa' }}>
+          {isGlobalNodeSelected ? (
+            <GlobalNamespaceView viewOnly={true} />
+          ) : (
+          <>
           {/* 上段アクションバー（1件以上チェック時に表示） */}
           {selectedTermIds.length > 0 && (
             <div style={{
@@ -1905,7 +1928,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
             <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
             <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>{t('namespaceMain.btnImport')}</Button>
             <Button disabled={viewOnly} onClick={handleCsvDownload}>{t('namespaceMain.btnExport')}</Button>
-            <Tooltip title={!viewOnly && availablePrefixOptions.length === 0 ? 'Prefixが未登録のため用語を追加できません。先にPrefixを登録してください。' : ''}>
+            <Tooltip title={!viewOnly && availablePrefixOptions.length === 0 ? t('namespaceMain.noPrefixTooltip') : ''}>
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
@@ -1974,6 +1997,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               />
             );
           })()}
+          </>
+          )}
         </div>
       </div>
 

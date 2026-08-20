@@ -518,6 +518,17 @@ export function convertContent(xmlContent: any): Content {
 }
 
 /**
+ * uncertainty を Property に付与する共通ヘルパー
+ * convertXmlJsProperty の全ブランチでリターン直前に呼び出す
+ */
+function finalizeProperty(result: Property, xmlProp: any): Property {
+  if (xmlProp.uncertainty) {
+    result.uncertainty = convertArray(xmlProp.uncertainty, convertContent);
+  }
+  return result;
+}
+
+/**
  * Property変換（xml-jsからProperty Union型へ）
  */
 export function convertXmlJsProperty(xmlProp: any): Property {
@@ -543,7 +554,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       properties,
       contents: xmlProp.content ? convertArray(xmlProp.content, convertContent) : []
     };
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // value タグの有無を先に判定（全ブランチで共通利用）
@@ -572,7 +583,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       units, formatString, scaleFactor,
       properties: [], contents: []
     };
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // Boolean型の場合
@@ -586,7 +597,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       value: boolValue,
       properties: [], contents: []
     };
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // DateTime型の場合
@@ -597,7 +608,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       formatString: xmlProp._attributes?.formatString,
       properties: [], contents: []
     };
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // 文字列系特殊型の場合（tokenType, idType, idRefType, qualifiedNameType, uriType, uuidType, languageType）
@@ -608,7 +619,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       value: valueText !== undefined ? valueText : undefined,
       properties: [], contents: []
     };
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // バイナリ型の場合（base64BinaryType, hexBinaryType）
@@ -618,7 +629,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       value: valueText !== undefined ? valueText : undefined,
       properties: [], contents: []
     };
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // リスト型の場合（*ListType）
@@ -631,7 +642,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       scaleFactor: xmlProp._attributes?.scaleFactor ? parseFloat(xmlProp._attributes.scaleFactor) : undefined,
       properties: [], contents: []
     };
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // stringEnumType（列挙型）の場合
@@ -641,7 +652,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       value: valueText !== undefined ? valueText : undefined,
       properties: [], contents: []
     };
-    return result;
+    return finalizeProperty(result, xmlProp);
   }
 
   // デフォルトはString型として扱う
@@ -650,7 +661,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
     value: valueText !== undefined ? valueText : undefined,
     properties: [], contents: []
   };
-  return result;
+  return finalizeProperty(result, xmlProp);
 }
 
 /**

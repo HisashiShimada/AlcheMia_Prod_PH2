@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Button, Input, Select, Space, Tree, Typography, message } from 'antd';
 import { ImportOutlined, ExportOutlined, PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -17,6 +18,9 @@ import TeamAddDialog from '../team/TeamAddDialog';
 import TeamEditDialog from '../team/TeamEditDialog';
 import type { OrganizationGroupRow } from '@/types/namespace';
 import type { User } from '@/types/auth';
+
+// GlobalNamespaceView: グローバルノード選択時に右ペインへ表示（SSR無効）
+const GlobalNamespaceView = dynamic(() => import('../namespace/GlobalNamespaceView'), { ssr: false });
 
 // ──────────────────────────────────────────────
 // 型定義
@@ -308,6 +312,12 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     return rootKey === 'global' || rootKey === 'personal';
   }, [selectedNsKey, namespaceTree]);
 
+  // グローバルノード自体（'global' / 'ns-maiml' / 'ns-xsi'）が選択中かどうか
+  // → 右ペイン全体を GlobalNamespaceView に切り替えるために使用
+  const isGlobalNodeSelected = useMemo(() => {
+    return selectedNsKey === 'global' || selectedNsKey === 'ns-maiml' || selectedNsKey === 'ns-xsi';
+  }, [selectedNsKey]);
+
   // ── チームノードのタイトル（companyDepth === 3 のみ右クリックメニューを有効化）
   const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
     // Global/Personal が選択されていない時のみ CURRENT_USER_NS_KEY を薄い青背景で強調
@@ -446,6 +456,13 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
         {/* ── 右ペイン ── */}
         <div style={{ flex: 1, overflow: 'hidden', background: '#f5f7fa', display: 'flex', flexDirection: 'column' }}>
 
+          {isGlobalNodeSelected ? (
+            /* グローバルノード選択時: タブなし、GlobalNamespaceView のみ表示（ProviderMenu と同一） */
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px' }}>
+              <GlobalNamespaceView viewOnly={true} />
+            </div>
+          ) : (
+          <>
           {/* タブバー */}
           <div style={{
             display: 'flex',
@@ -574,6 +591,8 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
             </div>
 
           </div>
+          </>
+          )}
         </div>
       </div>
 

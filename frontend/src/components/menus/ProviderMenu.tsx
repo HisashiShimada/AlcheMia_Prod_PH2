@@ -14,7 +14,6 @@ import { User, MenuType } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import dynamic from 'next/dynamic';
-import { Tabs } from 'antd';
 
 // Providerコンポーネントの動的インポート
 const OrganizationManagement = dynamic(
@@ -32,13 +31,8 @@ const InformationDownload = dynamic(
   { ssr: false }
 );
 
-const TermManagement = dynamic(
-  () => import('../namespace/TermManagement'),
-  { ssr: false }
-);
-
-const PrefixManagement = dynamic(
-  () => import('../namespace/PrefixManagement'),
+const GlobalNamespaceView = dynamic(
+  () => import('../namespace/GlobalNamespaceView'),
   { ssr: false }
 );
 
@@ -135,22 +129,7 @@ export default function ProviderMenu({ user, onLogout, onMenuChange }: ProviderM
           {/* タブ3: 名前空間管理（グローバル） */}
           {currentTab === '3' && (
             <div style={{ padding: '0 16px', height: '100%' }}>
-              <Tabs
-                defaultActiveKey="prefix"
-                style={{ height: '100%' }}
-                items={[
-                  {
-                    key: 'prefix',
-                    label: t('namespace.tabs.prefix'),
-                    children: <PrefixManagement globalOnly={true} />,
-                  },
-                  {
-                    key: 'terms',
-                    label: t('namespace.tabs.terms'),
-                    children: <TermManagement globalOnly={true} />,
-                  },
-                ]}
-              />
+              <GlobalNamespaceView />
             </div>
           )}
 

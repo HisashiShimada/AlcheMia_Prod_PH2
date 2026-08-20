@@ -48,6 +48,10 @@ export interface UncertaintyCriteria {
   scopeOrder: number;
   desc: string;
   unit: string;
+  /** xsi:type（例: intType, doubleType） */
+  xsiType: string;
+  /** 倍率（scale_factor） */
+  scaleFactor: string | null;
   format: string;
   targetSections: Array<'material' | 'condition' | 'result'>;
   targetTag: 'property' | 'content';
@@ -227,6 +231,8 @@ export default function UncertaintyCriteriaSelectorModal({
           scopeOrder:         row.scopeOrder,
           desc:               row.desc,
           unit:               row.unit,
+          xsiType:            row.xsiType ?? '',
+          scaleFactor:        row.scaleFactor ?? null,
           format:             row.format,
           targetSections:     row.targetSections,
           targetTag:          row.targetTag,

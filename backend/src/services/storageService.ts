@@ -653,6 +653,112 @@ export class StorageService {
   getBucketName(): string {
     return this.bucketName;
   }
+
+  // ─── system/ パス専用メソッド ──────────────────────────────────────────────
+
+  /**
+   * system/ パスのキーを検証する
+   * @param filePath ファイルパス
+   * @throws filePath が 'system/' で始まらない場合にエラー
+   */
+  private validateSystemPath(filePath: string): void {
+    if (!filePath.startsWith('system/')) {
+      throw new Error(`System file path must start with "system/": "${filePath}"`);
+    }
+  }
+
+  /**
+   * システム共通ファイルをアップロード（organization_id プレフィックスなし）
+   *
+   * @remarks
+   * グローバル名前空間宣言ファイルなど、テナント横断で共有するシステムファイルに使用する。
+   * filePath は必ず "system/" で始まること。
+   *
+   * @param filePath ファイルパス（例: "system/namespaces/global-declarations.csv"）
+   * @param fileContent ファイル内容
+   * @param options アップロードオプション
+   * @returns アップロードされたキー
+   */
+  async uploadSystemFile(
+    filePath: string,
+    fileContent: Buffer | string,
+    options?: Pick<UploadOptions, 'contentType'>
+  ): Promise<string> {
+    this.validateSystemPath(filePath);
+
+    const resolvedContentType = options?.contentType ?? 'application/octet-stream';
+
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: filePath,
+      Body: fileContent,
+      ContentType: resolvedContentType,
+    });
+
+    await this.s3Client.send(command);
+    console.log(`[StorageService] System file uploaded: ${filePath}`);
+    return filePath;
+  }
+
+  /**
+   * システム共通ファイルをダウンロード（organization_id プレフィックスなし）
+   *
+   * @remarks
+   * filePath は必ず "system/" で始まること。
+   *
+   * @param filePath ファイルパス（例: "system/namespaces/global-declarations.csv"）
+   * @returns ファイル内容（Buffer）
+   */
+  async downloadSystemFile(filePath: string): Promise<Buffer> {
+    this.validateSystemPath(filePath);
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: filePath,
+    });
+
+    const response = await this.s3Client.send(command);
+
+    if (!response.Body) {
+      throw new Error(`System file body is empty: ${filePath}`);
+    }
+
+    const stream = response.Body as Readable;
+    const chunks: Buffer[] = [];
+
+    return new Promise((resolve, reject) => {
+      stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      stream.on('error', reject);
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+  }
+
+  /**
+   * システム共通ファイルの存在確認（organization_id プレフィックスなし）
+   *
+   * @remarks
+   * filePath は必ず "system/" で始まること。
+   *
+   * @param filePath ファイルパス（例: "system/namespaces/global-declarations.csv"）
+   * @returns 存在する場合 true
+   */
+  async systemFileExists(filePath: string): Promise<boolean> {
+    this.validateSystemPath(filePath);
+
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: this.bucketName,
+        Key: filePath,
+      });
+      await this.s3Client.send(command);
+      return true;
+    } catch (error: any) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === HTTP_STATUS.NOT_FOUND) {
+        return false;
+      }
+      throw error;
+    }
+  }
 }
 
 // シングルトンインスタンス

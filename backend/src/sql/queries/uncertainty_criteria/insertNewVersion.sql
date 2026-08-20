@@ -11,9 +11,10 @@
 --   $7  inheritance_uncertainty_key  (NULL許容)
 --   $8  xsi_type             (NULL許容 / 定量のみ)
 --   $9  units                (NULL許容 / 定量のみ)
---   $10 format_string        (NULL許容 / 定量のみ)
---   $11 description          (NULL許容)
---   $12 create_user_id
+--   $10 scale_factor         (NULL許容 / 定量のみ)
+--   $11 format_string        (NULL許容 / 定量のみ)
+--   $12 description          (NULL許容)
+--   $13 create_user_id
 
 INSERT INTO uncertainty_criteria (
     organization_id,
@@ -26,6 +27,7 @@ INSERT INTO uncertainty_criteria (
     inheritance_uncertainty_key,
     xsi_type,
     units,
+    scale_factor,
     format_string,
     description,
     create_user_id,
@@ -47,8 +49,9 @@ SELECT
     $10,
     $11,
     $12,
+    $13,
     NOW(),
-    $12,
+    $13,
     NOW()
 FROM uncertainty_criteria
 WHERE organization_id = $1

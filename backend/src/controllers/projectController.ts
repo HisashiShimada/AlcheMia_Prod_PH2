@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse } from '../types/api';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
+import * as projectRepository from '../repositories/projectRepository';
 import { enqueuePublish, enqueueUnpublish, getPublishStatus as fetchPublishStatus } from '../services/maimlPublishService';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
@@ -120,7 +121,7 @@ export async function create(req: Request, res: Response): Promise<void> {
       success: false,
       error: {
         code: 'E4001',
-        message: 'システムエラーが発生しました',
+        message: 'An internal server error occurred',
       },
       meta: {
         timestamp: new Date().toISOString(),
@@ -149,13 +150,9 @@ export async function renameProjectHandler(req: Request, res: Response): Promise
     // バリデーションはミドルウェア（projectRoutes.ts）で実施済み
     const { newProjectName } = req.body as { newProjectName: string };
 
-    // projectIdからプロジェクト名を取得
-    const pool = getPool();
-    const pjRow = await pool.query(
-      'SELECT project_name FROM project WHERE project_id = $1 AND organization_id = $2',
-      [projectId, organizationId]
-    );
-    if (pjRow.rows.length === 0) {
+    // projectIdからプロジェクト名を取得（Repository経由）
+    const pjRecord = await projectRepository.findByIdFull(organizationId, projectId);
+    if (!pjRecord) {
       res.status(404).json({
         success: false,
         error: { code: 'E6001', message: 'プロジェクトが見つかりません' },
@@ -166,7 +163,7 @@ export async function renameProjectHandler(req: Request, res: Response): Promise
 
     const result = await renameProject({
       organizationId,
-      oldProjectName: pjRow.rows[0].project_name,
+      oldProjectName: pjRecord.project_name ?? '',
       newProjectName,
       userId,
     });
@@ -331,14 +328,9 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // ── projectId でプロジェクト存在確認 ──────────────────────────
-    const pool = getPool();
-    const projectResult = await pool.query(
-      'SELECT project_id FROM project WHERE organization_id = $1 AND project_id = $2',
-      [organizationId, projectId]
-    );
-
-    if (projectResult.rows.length === 0) {
+    // ── projectId でプロジェクト存在確認（Repository経由） ──────────
+    const pjExists = await projectRepository.findByIdFull(organizationId, projectId);
+    if (!pjExists) {
       res.status(404).json({
         success: false,
         error: {
@@ -1609,6 +1601,51 @@ export async function getPublishStatus(req: Request, res: Response): Promise<voi
  * 指示確認エンドポイント
  * POST /api/v1/instructions/:instructionId/confirm
  */
+/**
+ * プロジェクト強制終了
+ * POST /api/v1/projects/:projectId/force-terminate
+ *
+ * @description プロジェクトステータスを強制終了（ERROR=5）に更新する
+ */
+export async function forceTerminate(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectId } = req.params;
+
+    const result = await projectService.forceTerminate(organizationId, projectId);
+
+    if (!result.success) {
+      const errorCode = result.error?.code || 'E4001';
+      const statusCode = errorCode === 'E6001' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'An error occurred',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: result.data,
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('forceTerminate error', error as Error, { requestId });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'System error occurred' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
 export async function confirmInstruction(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   const projectService = new ProjectService();
@@ -1649,7 +1686,7 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
         success: false,
         error: {
           code: errorCode,
-          message: result.error?.message || 'エラーが発生しました',
+      message: result.error?.message || 'An error occurred',
           details: result.error?.details,
         },
         meta: {
@@ -1682,7 +1719,7 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
       success: false,
       error: {
         code: 'E4001',
-        message: 'システムエラーが発生しました',
+        message: 'An internal server error occurred',
       },
       meta: {
         timestamp: new Date().toISOString(),

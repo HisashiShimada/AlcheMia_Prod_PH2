@@ -8,8 +8,9 @@
 
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
+import * as experimentPlanRepository from '../repositories/experimentPlanRepository';
 import { getPool } from '../database/db';
-import { ProjectInstruction } from '../types/database';
+import { ProjectInstruction, ExperimentPlan } from '../types/database';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import {
   TaskRegistrationStatusResponse,
@@ -23,6 +24,7 @@ import {
 } from '../types/api';
 import { logger, logError } from '../utils/logger';
 import { EventLogRepository } from '../repositories/eventLogRepository';
+import type { ProjectInstructionSentLogParams } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
 import { XMLParser } from 'fast-xml-parser';
 import { InstructionStatusEnum } from '../enums/codeMaster.enum';
@@ -55,13 +57,12 @@ export async function getInstructions(
   const instructionData: InstructionData[] = instructions.map(inst => ({
     id: inst.experiment_instruction_id || '',
     content: inst.instructions || '',
-    priority: inst.priority ?? 1,
-    type: inst.type ?? 0,
     methodId: inst.method_id || '',
     transitionId: inst.transition_id || '',
     taskNumber: inst.task_no ?? undefined,
     isSent: inst.instruction_status === InstructionStatusEnum.SENT,
-    instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT
+    instruction_status: inst.instruction_status ?? InstructionStatusEnum.UNSENT,
+    instructionKey: inst.instruction_key || 'Alchemia:SupervisorDirectiveContent',
   }));
   
   logger.info('指示一覧を取得しました', {
@@ -143,12 +144,11 @@ export async function saveInstruction(
     organization_id: organizationId,
     project_id: projectId,
     experiment_instruction_id: instructionId,
-    method_id: request.methodId,
+    method_id: request.methodId ?? null,
     transition_id: request.transitionId ?? null,
     task_no: request.taskNumber ?? null,
-    priority: request.priority,
-    type: request.type,
     instructions: request.content,
+    instruction_key: request.instructionKey,
     instruction_status: InstructionStatusEnum.UNSENT,
     instruction_user_id: userId,
     create_user_id: userId,
@@ -169,7 +169,7 @@ export async function saveInstruction(
   
   return {
     instructionId: savedInstruction.experiment_instruction_id || '',
-    instruction_status: savedInstruction.instruction_status ?? 0
+    instruction_status: savedInstruction.instruction_status ?? InstructionStatusEnum.UNSENT
   };
 }
 
@@ -198,9 +198,8 @@ export async function updateInstruction(
     method_id: request.methodId,
     transition_id: request.transitionId ?? null,
     task_no: request.taskNumber ?? null,
-    priority: request.priority,
-    type: request.type,
     instructions: request.content,
+    instruction_key: request.instructionKey,
     update_user_id: userId
   };
   
@@ -310,7 +309,10 @@ export async function sendInstructions(
     );
     
     if (unsentInstructions.length === 0) {
-      throw new Error('未送信の指示がありません');
+      // 未送信指示が0件の場合はスキップして正常終了（指示なしでのチェックアウトを許容）
+      // client.release() は finally ブロックに任せる（2重リリース防止）
+      await client.query('COMMIT');
+      return { sentInstructionsCount: 0 };
     }
 
     // MAIMLファイルをパースして method_id → program_id のマップを構築
@@ -333,25 +335,68 @@ export async function sendInstructions(
     // 2. 各指示に対して maiml_event_log に送信ログを記録
     const sentAt = new Date().toISOString();
     const eventLogRepo = new EventLogRepository();
+
+    // トランジション+タスクNo 両方ある指示について experiment_plan から
+    // creatorRefs / instrumentRefs を取得するキャッシュ（methodId → plans）
+    const experimentPlanCache = new Map<string, ExperimentPlan[]>();
+
     for (const instruction of unsentInstructions) {
       const methodId = instruction.method_id ?? null;
       const programId = methodId ? (programIdMap[methodId] ?? null) : null;
-      await eventLogRepo.insertInstructionSentLog(
+      const transitionId = instruction.transition_id ?? null;
+      const taskNo = instruction.task_no ?? null;
+
+      // トランジション+タスクNo 両方指定の場合のみ experiment_plan を参照
+      let creatorRefs: string[] | null = null;
+      let instrumentRefs: string[] | null = null;
+      let assigneeOwnerRefs: string[] | null = null;
+      if (methodId && transitionId && taskNo != null) {
+        // 同一 methodId の計画は初回のみ取得してキャッシュ
+        if (!experimentPlanCache.has(methodId)) {
+          const plans = await experimentPlanRepository.findByMethod(
+            organizationId,
+            projectId,
+            methodId
+          );
+          experimentPlanCache.set(methodId, plans);
+        }
+        const plans = experimentPlanCache.get(methodId) ?? [];
+        const plan = plans.find((p) => p.task_no === taskNo);
+        const taskMeta = (plan?.planned_values as Record<string, unknown> | undefined)?.['__task__'];
+        if (taskMeta && typeof taskMeta === 'object' && !Array.isArray(taskMeta)) {
+          const meta = taskMeta as Record<string, unknown>;
+          creatorRefs = Array.isArray(meta.creatorRefs) ? (meta.creatorRefs as string[]) : null;
+          instrumentRefs = Array.isArray(meta.instrumentRefs) ? (meta.instrumentRefs as string[]) : null;
+          assigneeOwnerRefs = Array.isArray(meta.ownerRefs) ? (meta.ownerRefs as string[]) : null;
+        }
+        logger.info('[sendInstructions] experiment_plan からcreatorRefs/instrumentRefs/ownerRefs を取得', {
+          methodId,
+          taskNo,
+          creatorRefs,
+          instrumentRefs,
+          assigneeOwnerRefs,
+        });
+      }
+
+      const projectInstructionParams: ProjectInstructionSentLogParams = {
+        methodId,
+        transitionId,
+        programId,
+        taskNo,
+        experimentInstructionId: instruction.experiment_instruction_id!,
+        userId,
+        sentAt,
+        instructions: instruction.instructions ?? null,
+        instructionKey: instruction.instruction_key,
+        projectName,
+        assigneeOwnerRefs,
+        creatorRefs,
+        instrumentRefs,
+      };
+      await eventLogRepo.insertProjectInstructionSentLog(
         organizationId,
         projectId,
-        {
-          methodId,
-          transitionId: instruction.transition_id ?? null,
-          programId,
-          taskNo: instruction.task_no ?? null,
-          experimentInstructionId: instruction.experiment_instruction_id!,
-          userId,
-          sentAt,
-          // ★ 追加: 指示の詳細情報
-          instructions: instruction.instructions ?? null,
-          priority: instruction.priority ?? null,
-          type: instruction.type ?? null,
-        },
+        projectInstructionParams,
         client
       );
     }
@@ -361,7 +406,22 @@ export async function sendInstructions(
       projectId,
       logCount: unsentInstructions.length
     });
-    
+
+    // ── グループC: 前提トランジション未設定のトランジションへの lifecycle:transition 強制記録 ──
+    // @see .clinerules/references/eventlog_structure.md — セクション3
+    // 指示事項の有無によらず、前提トランジションID が設定されていない全トランジションに
+    // event タグ（最小構成）を生成して記録する。
+    await insertLifecycleTransitionEventsForNoPrerequisite(
+      organizationId,
+      projectId,
+      projectName,
+      userId,
+      sentAt,
+      programIdMap,
+      eventLogRepo,
+      client
+    );
+
     // プロジェクトステータスの更新は行わない（チェックアウト時に実施）
     
     await client.query('COMMIT');
@@ -382,6 +442,85 @@ export async function sendInstructions(
     throw error;
   } finally {
     client.release();
+  }
+}
+
+/**
+ * 前提トランジション未設定のトランジションに lifecycle:transition 遷移記録を挿入する
+ *
+ * @see .clinerules/references/eventlog_structure.md — セクション3
+ *
+ * transition_data テーブルから prerequisite_transition_ids が空配列のレコードを取得し、
+ * 各トランジションに対して insertLifecycleTransitionEventLog を呼び出す。
+ * 失敗しても指示送信本体はロールバックしない（ログのみ）。
+ */
+async function insertLifecycleTransitionEventsForNoPrerequisite(
+  organizationId: string,
+  projectId: string,
+  projectName: string,
+  userId: string,
+  sentAt: string,
+  programIdMap: Record<string, string>,
+  eventLogRepo: EventLogRepository,
+  client: import('pg').PoolClient
+): Promise<void> {
+  try {
+    const pool = getPool();
+
+    // transition_data から prerequisite_transition_ids が空のレコードを取得
+    const result = await pool.query<{
+      method_id: string;
+      task_no: number;
+      transition_id: string;
+      prerequisite_transition_ids: string[];
+    }>(
+      `SELECT DISTINCT method_id, transition_id, prerequisite_transition_ids
+       FROM transition_data
+       WHERE organization_id = $1
+         AND project_id = $2
+         AND (prerequisite_transition_ids IS NULL
+              OR prerequisite_transition_ids = '{}')`,
+      [organizationId, projectId]
+    );
+
+    if (result.rows.length === 0) {
+      logger.info('[sendInstructions] 前提トランジション未設定のトランジションなし', { projectId });
+      return;
+    }
+
+    // 重複排除（method_id + transition_id 単位）
+    const seen = new Set<string>();
+    for (const row of result.rows) {
+      const key = `${row.method_id}__${row.transition_id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const programId = programIdMap[row.method_id] ?? null;
+      await eventLogRepo.insertLifecycleTransitionEventLog(
+        organizationId,
+        projectId,
+        {
+          methodId: row.method_id,
+          programId,
+          transitionId: row.transition_id,
+          userId,
+          sentAt,
+          projectName,
+        },
+        client
+      );
+    }
+
+    logger.info('[sendInstructions] 前提トランジション未設定の lifecycle:transition 記録完了', {
+      projectId,
+      count: seen.size,
+    });
+  } catch (error) {
+    // lifecycle:transition 強制記録の失敗は本体処理に影響させない
+    logError('[sendInstructions] 前提トランジション未設定の lifecycle:transition 記録に失敗', error as Error, {
+      organizationId,
+      projectId,
+    });
   }
 }
 

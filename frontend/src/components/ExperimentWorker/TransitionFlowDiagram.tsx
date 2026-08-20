@@ -53,30 +53,77 @@ export default function TransitionFlowDiagram({
       return [];
     }
 
-    // workOrder順にソート（workOrderがない場合は元の順序を維持）
-    const sortedTransitions = [...transitions].sort((a, b) => {
-      if (a.workOrder !== undefined && b.workOrder !== undefined) {
-        return a.workOrder - b.workOrder;
-      }
-      // workOrderがない場合は元の順序を維持
-      return 0;
+    const horizontalSpacing = 290; // レベル間の水平間隔
+    const verticalSpacing   = 200; // 同レベル内の垂直間隔
+
+    // ── BFS トポロジカルソートでレベル（列）を計算 ──────────────────
+    // prerequisiteTransitionIds を使い、依存関係グラフを走査する。
+    // 前提なし (inDegree=0) のノードを level=0 とし、
+    // 後続ノードのレベルを max(現在+1, 既存) で更新していく。
+    const levels = new Map<string, number>();
+    const inDegree = new Map<string, number>();
+
+    // 初期化
+    transitions.forEach((t) => {
+      levels.set(t.transitionId, 0);
+      inDegree.set(t.transitionId, (t.prerequisiteTransitionIds ?? []).length);
     });
 
-    // 自動レイアウト: 左から右への水平配置
-    const horizontalSpacing = 270; // 横間隔（ノード幅を200pxに拡大したので調整）
-    const verticalSpacing = 180; // 縦間隔（ボタン追加で高さが増えたので調整）
-    const nodesPerRow = 4; // 1行あたりのノード数
+    // inDegree=0 のノードからキュー開始
+    const queue: string[] = [];
+    transitions.forEach((t) => {
+      if ((inDegree.get(t.transitionId) ?? 0) === 0) {
+        queue.push(t.transitionId);
+      }
+    });
 
-    return sortedTransitions.map((transition, index) => {
-      const row = Math.floor(index / nodesPerRow);
-      const col = index % nodesPerRow;
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      const currentLevel = levels.get(currentId) ?? 0;
 
+      // 後続ノード（自分を前提とするもの）を探す
+      transitions.forEach((t) => {
+        if (!(t.prerequisiteTransitionIds ?? []).includes(currentId)) return;
+        const newLevel = currentLevel + 1;
+        if (newLevel > (levels.get(t.transitionId) ?? 0)) {
+          levels.set(t.transitionId, newLevel);
+        }
+        const deg = (inDegree.get(t.transitionId) ?? 1) - 1;
+        inDegree.set(t.transitionId, deg);
+        if (deg === 0) {
+          queue.push(t.transitionId);
+        }
+      });
+    }
+
+    // ── レベルごとにグループ化してノード位置を決定 ─────────────────
+    const transitionsByLevel = new Map<number, Transition[]>();
+    transitions.forEach((t) => {
+      const lv = levels.get(t.transitionId) ?? 0;
+      if (!transitionsByLevel.has(lv)) transitionsByLevel.set(lv, []);
+      transitionsByLevel.get(lv)!.push(t);
+    });
+
+    // 同一レベル内は workOrder → transitionId の順でソート（縦並びの安定化）
+    transitionsByLevel.forEach((group) => {
+      group.sort((a, b) => {
+        const wa = a.workOrder ?? 0;
+        const wb = b.workOrder ?? 0;
+        if (wa !== wb) return wa - wb;
+        return a.transitionId.localeCompare(b.transitionId);
+      });
+    });
+
+    return transitions.map((transition) => {
+      const lv = levels.get(transition.transitionId) ?? 0;
+      const group = transitionsByLevel.get(lv) ?? [];
+      const indexInLevel = group.findIndex((t) => t.transitionId === transition.transitionId);
       return {
         id: transition.transitionId,
         type: 'transitionNode',
         position: {
-          x: col * horizontalSpacing + 50,
-          y: row * verticalSpacing + 50,
+          x: lv * horizontalSpacing + 50,
+          y: indexInLevel * verticalSpacing + 50,
         },
         data: {
           transition,
@@ -89,48 +136,35 @@ export default function TransitionFlowDiagram({
     }) as Node[];
   }, [transitions, onRecordClick, onIssueClick, isProjectRecordable]);
 
-  // エッジの生成（workOrder順に接続）
+  // エッジの生成（prerequisiteTransitionIds ベースの依存関係接続）
   const initialEdges = useMemo(() => {
     if (!transitions || transitions.length === 0) {
       return [];
     }
 
-    // workOrder順にソート
-    const sortedTransitions = [...transitions].sort((a, b) => {
-      if (a.workOrder !== undefined && b.workOrder !== undefined) {
-        return a.workOrder - b.workOrder;
-      }
-      return 0;
-    });
-
-    // workOrderで隣接するトランジション間にエッジを追加（常に表示）
     const edges: Edge[] = [];
-    for (let i = 0; i < sortedTransitions.length - 1; i++) {
-      const current = sortedTransitions[i];
-      const next = sortedTransitions[i + 1];
-
-      // すべての隣接トランジション間にエッジを追加
-      edges.push({
-        id: `edge-${current.transitionId}-${next.transitionId}`,
-        source: current.transitionId,
-        target: next.transitionId,
-        type: 'smoothstep',
-        animated: false,  // 実線にする
-        style: {
-          stroke: '#000000',  // 黒色にする
-          strokeWidth: 2,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: '#000000',  // 黒色にする
-          width: 20,
-          height: 20,
-        },
+    transitions.forEach((t) => {
+      (t.prerequisiteTransitionIds ?? []).forEach((prereqId) => {
+        // 前提トランジションが transitions 内に存在する場合のみエッジを追加
+        if (!transitions.some((tr) => tr.transitionId === prereqId)) return;
+        edges.push({
+          id: `edge-${prereqId}-${t.transitionId}`,
+          source: prereqId,
+          target: t.transitionId,
+          type: 'smoothstep',
+          animated: false,
+          style: { stroke: '#000000', strokeWidth: 2 },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#000000',
+            width: 20,
+            height: 20,
+          },
+        });
       });
-    }
-
+    });
     return edges;
-  }, [transitions, token.colorPrimary]);
+  }, [transitions]);
 
   // React FlowのuseNodesStateとuseEdgesStateを使用
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);

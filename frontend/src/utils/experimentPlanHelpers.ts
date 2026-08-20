@@ -6,7 +6,42 @@
  */
 
 import type { ExperimentPlanTabData, TemplateDef } from '@/types/experimentPlan';
+import type { AssignPayload, UncertaintyCriteria } from '@/components/uncertainty/UncertaintyCriteriaSelectorModal';
 import type { TransitionOrderItem } from '@/types/experimentPlanDialog';
+
+/**
+ * 保存済み tabDataMap に対して、各トランジションの assignedUncertainty が空の場合のみ
+ * defaultUncertainty（テンプレート定義から生成したデフォルト不確かさ）で補完する。
+ *
+ * @param tabDataMap - experimentPlansToTabDataMap() で復元した保存済みデータ
+ * @param defaultUncertainty - buildDefaultAssignedUncertainty() で生成したデフォルト不確かさ
+ * @returns 補完済みの tabDataMap（元データは変更しない）
+ *
+ * @remarks
+ * タスク登録時の初期 INSERT では `__uncertainty__` が保存されないため、
+ * 初回ダイアログ表示時にテンプレート定義の不確かさが反映されない問題を解消する。
+ * ユーザーが意図的に不確かさを全削除した場合（assignedUncertainty が非空）は再表示しない。
+ */
+export function mergeDefaultUncertainty(
+  tabDataMap: Record<string, Record<string, ExperimentPlanTabData>>,
+  defaultUncertainty: Record<string, AssignPayload[]>
+): Record<string, Record<string, ExperimentPlanTabData>> {
+  if (Object.keys(defaultUncertainty).length === 0) return tabDataMap;
+
+  const result: Record<string, Record<string, ExperimentPlanTabData>> = {};
+  for (const [tabKey, transMap] of Object.entries(tabDataMap)) {
+    result[tabKey] = {};
+    for (const [transId, tabData] of Object.entries(transMap)) {
+      // assignedUncertainty が空の場合のみデフォルト不確かさを補完する
+      const isEmpty = Object.keys(tabData.assignedUncertainty).length === 0;
+      result[tabKey][transId] = {
+        ...tabData,
+        assignedUncertainty: isEmpty ? defaultUncertainty : tabData.assignedUncertainty,
+      };
+    }
+  }
+  return result;
+}
 
 /**
  * タブデータの初期値を生成する
@@ -41,6 +76,66 @@ export function buildDefaultTemplateValues(
     }
   }
   return values;
+}
+
+/**
+ * テンプレート定義一覧から defaultUncertainties を収集し、
+ * assignedUncertainty の初期値を生成する。
+ *
+ * @param templates - APIから取得した TemplateDef[]
+ * @returns valueKey（`${templateId}_${fieldKey}`）→ AssignPayload[] のマップ
+ *
+ * @remarks
+ * MAIMLテンプレートの property.uncertainty[] から変換された defaultUncertainties を
+ * AssignPayload[] 形式に変換する。
+ * criteria の qualitativeOptions・typeMatches・unitMatches 等の詳細情報は
+ * MAIMLから取得できないため最小限のフィールドのみ設定する。
+ * ユーザーが「不確かさ編集」を開いた際にDBから正式な情報が取得される。
+ */
+export function buildDefaultAssignedUncertainty(
+  templates: TemplateDef[]
+): Record<string, AssignPayload[]> {
+  const result: Record<string, AssignPayload[]> = {};
+  for (const tmpl of templates) {
+    for (const field of tmpl.fields) {
+      if (!field.defaultUncertainties || field.defaultUncertainties.length === 0) continue;
+      const valueKey = `${tmpl.id}_${field.key}`;
+      result[valueKey] = field.defaultUncertainties.map((uc) => {
+        const criteria: UncertaintyCriteria = {
+          id: 0, // MAIMLからDBのIDは取得不可（表示用途のみのため0）
+          name: uc.criteriaName,
+          key: uc.criteriaKey,
+          evalType: uc.evalType,
+          scopeType: 'organization',
+          scopeLabel: '',
+          scopeOrder: 3,
+          desc: '',
+          unit: uc.unit ?? '',
+          xsiType: '',
+          scaleFactor: null,
+          format: '',
+          targetSections: [tmpl.category],
+          targetTag: 'property',
+          typeMatches: [],
+          unitMatches: [],
+          qualitativeOptions: [],
+        };
+        const payload: AssignPayload = {
+          criteria,
+          // MAIML の uncertainty.description をコメントの初期値として使用する
+          comment: uc.description ?? '',
+          ...(uc.evalType === 'quantitative' && uc.ucValue !== undefined
+            ? { ucValue: uc.ucValue }
+            : {}),
+          ...(uc.evalType === 'qualitative' && uc.qualitativeValue !== undefined
+            ? { qualitativeValue: uc.qualitativeValue }
+            : {}),
+        };
+        return payload;
+      });
+    }
+  }
+  return result;
 }
 
 /**

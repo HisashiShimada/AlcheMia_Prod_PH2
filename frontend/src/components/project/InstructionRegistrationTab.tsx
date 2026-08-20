@@ -11,7 +11,6 @@ import {
   Button,
   Table,
   Space,
-  Tag,
   Typography,
   message,
   theme,
@@ -21,7 +20,6 @@ import {
 import {
   EditOutlined,
   DeleteOutlined,
-  SendOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -30,11 +28,11 @@ import type {
   InstructionData,
   TransitionInfo,
 } from '@/types/instructionRegistration';
+import { INSTRUCTION_KEY, INSTRUCTION_KEY_LABELS } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import {
-  sendInstructions,
   getInstructions,
   saveInstruction,
   updateInstruction,
@@ -49,7 +47,7 @@ const { useToken } = theme;
  * 指示登録タブのプロパティ
  */
 interface InstructionRegistrationTabProps {
-projectId: string;
+  projectId: string;
   projectName: string;
   isActive: boolean;
   isCheckoutLocked?: boolean;
@@ -57,7 +55,6 @@ projectId: string;
   isEditable?: boolean;
   /** プロジェクト完了フラグ。true の場合は変更系ボタンを非活性にする */
   isProjectCompleted?: boolean;
-  onInstructionsSubmit?: (instructions: InstructionData[]) => void;
 }
 
 /**
@@ -70,7 +67,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   isCheckoutLocked,
   isEditable = true,
   isProjectCompleted = false,
-  onInstructionsSubmit,
 }) => {
   const { token } = useToken();
   const { t } = useLanguage();
@@ -82,7 +78,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
   const [editMode, setEditMode] = useState<'create' | 'edit'>('create');
   const [editingInstruction, setEditingInstruction] = useState<InstructionData | undefined>(undefined);
-  const [isSending, setIsSending] = useState<boolean>(false);
 
   /**
    * タブがアクティブになった時にタスク登録情報を再取得
@@ -91,8 +86,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     const fetchTaskRegistration = async () => {
       if (!projectName || !isActive) return;
 
-      console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching tasks');
-      
       try {
         const data = await getTaskRegistration(projectId);
 
@@ -108,10 +101,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             workerLinkedFlg: task.workerLinkedFlg || false,
           }));
 
-          console.log('[DEBUG] InstructionRegistrationTab - Tasks loaded from DB:', uiTasks);
           setRegisteredTasks(uiTasks);
         } else {
-          console.log('[DEBUG] InstructionRegistrationTab - No tasks found in DB');
           setRegisteredTasks([]);
         }
       } catch (error) {
@@ -130,8 +121,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   useEffect(() => {
     const fetchInstructions = async () => {
       if (!projectName || !isActive) return;
-
-      console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching instructions');
 
       try {
         const instructionList = await getInstructions(projectId);
@@ -162,12 +151,12 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
 
   /**
    * MAIMLコンテキストから全トランジション一覧を取得（表示用）
-   * 注: InstructionEditDialogではメソッド選択時に動的にフィルタリングされます
+   * 各トランジションに所属メソッドIDを付与してフィルタリングに対応
    */
   const availableTransitions = useMemo((): TransitionInfo[] => {
     if (!maimlRoot?.protocol?.methods) return [];
     
-    // 全メソッドのトランジションを集約
+    // 全メソッドのトランジションを集約（methodIdを付与）
     const allTransitions: TransitionInfo[] = [];
     maimlRoot.protocol.methods.forEach((method) => {
       if (method.pnml?.transitions) {
@@ -178,6 +167,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             category: 'other',
             description: transition.description,
             isExperimentRelevant: true,
+            methodId: method.id,
           });
         });
       }
@@ -220,12 +210,11 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       if (editMode === 'create') {
         // 新規作成：API呼び出し
         const result = await saveInstruction(projectId, {
-          methodId: instruction.methodId,
+          methodId: instruction.methodId || null,
           transitionId: instruction.transitionId || null,
           taskNumber: instruction.taskNumber,
-          priority: instruction.priority,
-          type: instruction.type,
           content: instruction.content,
+          instructionKey: instruction.instructionKey || INSTRUCTION_KEY.GENERAL,
         });
         
         // APIから返されたIDで新しい指示を追加
@@ -243,9 +232,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
           methodId: instruction.methodId,
           transitionId: instruction.transitionId || null,
           taskNumber: instruction.taskNumber,
-          priority: instruction.priority,
-          type: instruction.type,
           content: instruction.content,
+          instructionKey: instruction.instructionKey,
         });
         
         // ローカル状態を更新
@@ -291,75 +279,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       message.error(errorMessage);
     }
   }, [projectName]);
-
-  /**
-   * 指示を一括送信
-   */
-  const handleSubmitInstructions = useCallback(async () => {
-    if (instructions.length === 0) {
-      message.warning(t('instructionRegistration.messages.noInstructions'));
-      return;
-    }
-
-    try {
-      setIsSending(true);
-
-      // 指示を一括送信（タスク作成は別途タスク登録タブで実施済み）
-      const result = await sendInstructions(projectId, {});
-
-      // 送信済フラグを立てる
-      const sentInstructions = instructions.map(inst => ({
-        ...inst,
-        isSent: true,
-      }));
-
-      // 親コンポーネントに通知
-      onInstructionsSubmit?.(sentInstructions);
-
-      message.success(t('instructionRegistration.messages.sentCount').replace('{count}', result.sentInstructionsCount.toString()));
-
-      // 送信後、送信済フラグを立てて表示を継続
-      setInstructions(sentInstructions);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : t('instructionRegistration.messages.sendFailed');
-      message.error(errorMessage);
-    } finally {
-      setIsSending(false);
-    }
-  }, [instructions, projectName, onInstructionsSubmit, t]);
-
-  /**
-   * 優先度のタグカラー（code_valueベース）
-   */
-  const getPriorityColor = (priority: number): string => {
-    switch (priority) {
-      case 3: // 高
-        return 'red';
-      case 2: // 中
-        return 'orange';
-      case 1: // 通常
-        return 'blue';
-      case 0: // 低
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
-
-  /**
-   * 優先度のラベル（code_value → code_name）
-   */
-  const getPriorityLabel = useCallback((priority: number): string => {
-    return t(`instructionRegistration.priority.${priority}`) || String(priority);
-  }, [t]);
-
-  /**
-   * タイプのラベル（code_value → code_name）
-   */
-  const getTypeLabel = useCallback((type: number): string => {
-    return t(`instructionRegistration.type.${type}`) || String(type);
-  }, [t]);
 
   /**
    * 指示対象のラベル
@@ -434,20 +353,19 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       },
     },
     {
-      title: t('instructionRegistration.columns.priority'),
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 75,
-      render: (priority: number) => (
-        <Tag color={getPriorityColor(priority)}>{getPriorityLabel(priority)}</Tag>
-      ),
-    },
-    {
-      title: t('instructionRegistration.columns.type'),
-      dataIndex: 'type',
-      key: 'type',
-      width: 90,
-      render: (type: number) => <Text>{getTypeLabel(type)}</Text>,
+      title: t('instructionRegistration.columns.instructionKey'),
+      dataIndex: 'instructionKey',
+      key: 'instructionKey',
+      width: 180,
+      ellipsis: true,
+      render: (instructionKey: string) => {
+        const label = INSTRUCTION_KEY_LABELS[instructionKey as keyof typeof INSTRUCTION_KEY_LABELS] || instructionKey;
+        return (
+          <Tooltip title={label}>
+            <Text ellipsis>{label}</Text>
+          </Tooltip>
+        );
+      },
     },
     {
       title: t('instructionRegistration.columns.content'),
@@ -484,7 +402,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => handleOpenEditDialog(record)}
-                disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}
+                disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
                 data-testid={`instruction-edit-button-${record.id}`}
               >
                 {t('instructionRegistration.editButton')}
@@ -494,7 +412,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 onClick={() => handleDeleteInstruction(record.id)}
-                disabled={isSending || !isEditable || isProjectCompleted || isCheckoutLocked}
+                disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
                 data-testid={`instruction-delete-button-${record.id}`}
               >
                 {t('instructionRegistration.deleteButton')}
@@ -516,22 +434,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
         >
           {t('instructionRegistration.listTitle').replace('{count}', instructions.length.toString())}
         </Text>
-        <Space>
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={handleSubmitInstructions}
-            disabled={instructions.length === 0 || isSending || isCheckoutLocked || !isEditable || isProjectCompleted}
-            loading={isSending}
-            data-testid="instruction-bulk-send-button"
-            style={{
-              backgroundColor: instructions.length > 0 ? token.colorSuccess : undefined,
-              borderColor: instructions.length > 0 ? token.colorSuccess : undefined,
-            }}
-          >
-            {t('instructionRegistration.sendButton')}
-          </Button>
-        </Space>
       </div>
 
       {/* 指示一覧テーブル */}

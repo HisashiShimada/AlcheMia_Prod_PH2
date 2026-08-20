@@ -105,8 +105,8 @@ export interface TaskRegistrationStatusResponse {
  * POST /api/v1/projects/:projectId/instructions
  */
 export interface SaveInstructionRequest {
-  /** メソッドID */
-  methodId: string;
+  /** メソッドID（全体指示の場合はnull/未指定） */
+  methodId?: string | null;
   
   /** トランジションID（省略可） */
   transitionId?: string | null;
@@ -114,14 +114,11 @@ export interface SaveInstructionRequest {
   /** タスク連番（省略可） */
   taskNumber?: number | null;
   
-  /** 優先度: 0=低, 1=通常, 2=中, 3=高 */
-  priority: number;
-  
-  /** タイプ: 0=一般, 1=セットアップ, 2=測定, 3=安全, 4=清掃 */
-  type: number;
-  
   /** 指示内容 */
   content: string;
+  
+  /** MAIMLのpropertyタグキー（指示種別。必須） */
+  instructionKey: string;
 }
 
 /**
@@ -151,14 +148,11 @@ export interface UpdateInstructionRequest {
   /** タスク連番（省略可） */
   taskNumber?: number | null;
   
-  /** 優先度 */
-  priority: number;
-  
-  /** タイプ */
-  type: number;
-  
   /** 指示内容 */
   content: string;
+  
+  /** MAIMLのpropertyタグキー（指示種別。必須） */
+  instructionKey: string;
 }
 
 /**
@@ -229,12 +223,6 @@ export interface InstructionData {
   
   /** 指示内容 */
   content: string;
-  
-  /** 優先度: 0=低, 1=通常, 2=中, 3=高 */
-  priority: number;
-  
-  /** タイプ: 0=一般, 1=セットアップ, 2=測定, 3=安全, 4=清掃 */
-  type: number;
   
   /** メソッドID */
   methodId: string;
@@ -813,6 +801,27 @@ export interface TemplateField {
    * 入力タイプの判定に使われた元の値。フロントエンドでの表示用に保持する。
    */
   xsiType?: string;
+  /**
+   * MAIMLテンプレートに設定されたデフォルト不確かさ一覧。
+   * MAIML の property.uncertainty[] から変換。
+   * DBに保存済みの値がある場合はそちらを優先し、このフィールドは初期値として使用する。
+   */
+  defaultUncertainties?: Array<{
+    /** 不確かさ基準キー（uncertainty.key） */
+    criteriaKey: string;
+    /** 不確かさ基準名（DB の uncertainty_name、なければ key） */
+    criteriaName: string;
+    /** 評価タイプ */
+    evalType: 'quantitative' | 'qualitative';
+    /** 説明文（MAIML の uncertainty.description / commentの初期値として使用） */
+    description?: string;
+    /** 定量評価値 */
+    ucValue?: number;
+    /** 定性評価値 */
+    qualitativeValue?: string;
+    /** 単位 */
+    unit?: string;
+  }>;
 }
 
 /**
@@ -868,12 +877,31 @@ export interface PlanDialogData {
   /** Owner 選択肢（document.owners の id） */
   ownerRefs: string[];
   /**
+   * MAIMLのdata層から抽出したインスタンス一覧。
+   * data.results[].materials / conditions / results の各インスタンスを変換したもの。
+   * 各インスタンスの ref フィールドがテンプレートIDに対応する。
+   * data層がない場合は空配列またはundefined。
+   */
+  dataInstances?: Array<{
+    /** MAIMLインスタンスのid */
+    instanceId: string;
+    /** テンプレートへの参照（templateIdに対応） */
+    templateRef: string;
+    /** カテゴリ */
+    category: 'material' | 'condition' | 'result';
+    /** インスタンス名（任意） */
+    name?: string;
+    /** プロパティ一覧 */
+    properties: Array<{
+      key: string;
+      value: string | number | boolean | null;
+      units?: string;
+    }>;
+  }>;
+  /**
    * Conditionテンプレートから抽出した基本情報の初期値
    * 以下のキーを持つプロパティが存在する場合に設定される:
-   *   - mgr-instruction:requiredCreatorUUID
-   *   - mgr-instruction:requiredInstrumentUUID
-   *   - mgr-instruction:requiredOwnerUUID
-   *   - mgr-instruction:caution / operationNote / checkItem / prohibitedAction / OtherNotes
+   *   - Alchemia:SupervisorDirectiveCaution / OperationNote / CheckItem / ProhibitedAction / OtherNotes
    */
   defaultBasicInfo?: {
     creatorRefs?: string[];
@@ -881,15 +909,147 @@ export interface PlanDialogData {
     ownerRefs?: string[];
     /**
      * 注意事項の初期値
-     * Conditionテンプレートに注意事項キー（mgr-instruction:caution 等）が
+     * Conditionテンプレートに注意事項キー（Alchemia:SupervisorDirectiveCaution 等）が
      * 設定されている場合に生成される
      */
     notes?: Array<{
-      /** NoteType の値（例: 'mgr-instruction:caution'） */
+      /** NoteType の値（例: 'Alchemia:SupervisorDirectiveCaution'） */
       type: string;
       /** デフォルト内容（MAIMLの prop.value） */
       content: string;
     }>;
   };
+}
+
+// ============================================================
+// 名前空間 (namespace) 関連リクエストボディ型
+// ============================================================
+
+/**
+ * POST /api/v1/namespaces リクエストボディ
+ *
+ * @remarks namespaceController.createNamespace で使用
+ */
+export interface CreateNamespaceBody {
+  prefix: string;
+  uri: string;
+  description?: string;
+  scopeKey?: string;
+}
+
+/**
+ * PATCH /api/v1/namespaces/:prefix リクエストボディ
+ *
+ * @remarks namespaceController.updateNamespace で使用
+ */
+export interface UpdateNamespaceBody {
+  uri: string;
+}
+
+/**
+ * POST /api/v1/namespaces/terms リクエストボディ
+ *
+ * @remarks namespaceController.createTerm で使用
+ */
+export interface CreateTermBody {
+  prefix: string;
+  localName: string;
+  displayName?: string;
+  description?: string;
+  typeHint?: string;
+  unitHint?: string;
+}
+
+/**
+ * PUT /api/v1/namespaces/terms/:prefix/:localName リクエストボディ
+ *
+ * @remarks namespaceController.updateTerm で使用
+ */
+export interface UpdateTermBody {
+  displayName?: string;
+  description?: string;
+  typeHint?: string;
+  unitHint?: string;
+}
+
+/**
+ * PATCH /api/v1/namespaces/terms/:prefix/:localName/active リクエストボディ
+ *
+ * @remarks namespaceController.toggleTermActive で使用
+ */
+export interface ToggleTermActiveBody {
+  isActive: boolean;
+}
+
+/**
+ * PATCH /api/v1/namespaces/terms/:prefix/:localName/active パスパラメータ
+ *
+ * @remarks namespaceController.toggleTermActive で使用
+ */
+export interface TermActiveParams {
+  prefix: string;
+  localName: string;
+}
+
+// ============================================================
+// 組織グループ (organization-group) 関連リクエストボディ型
+// ============================================================
+
+/**
+ * POST /api/v1/organization-groups リクエストボディ
+ *
+ * @remarks organizationGroupController.createOrganizationGroup で使用
+ */
+export interface CreateOrganizationGroupBody {
+  organization_group_cd: string;
+  organization_group_name: string;
+  parent_group_cd?: string | null;
+}
+
+/**
+ * PUT /api/v1/organization-groups/:groupCd リクエストボディ
+ *
+ * @remarks organizationGroupController.updateOrganizationGroup で使用
+ */
+export interface UpdateOrganizationGroupBody {
+  organization_group_name?: string;
+  parent_group_cd?: string | null;
+  layer?: string | null;
+}
+
+/**
+ * PATCH /api/v1/organization-groups/:groupCd/status リクエストボディ
+ *
+ * @remarks organizationGroupController.updateOrganizationGroupStatus で使用
+ */
+export interface UpdateGroupStatusBody {
+  isActive: boolean;
+}
+
+/**
+ * PATCH /api/v1/organization-groups/:groupCd/status リクエストボディ
+ *
+ * @remarks organizationGroupController.updateOrganizationGroupStatus で使用
+ */
+export interface UpdateOrganizationGroupStatusBody {
+  isActive: boolean;
+}
+
+/**
+ * PUT /api/v1/organization-groups/:groupCd/members リクエストボディ
+ *
+ * @remarks organizationGroupController.setOrganizationGroupMembers で使用
+ */
+export interface SetGroupMembersBody {
+  userIds: string[];
+}
+
+/**
+ * PUT /api/v1/organization-groups/:groupCd/chief リクエストボディ
+ *
+ * @remarks organizationGroupController.updateOrganizationGroupChief で使用
+ */
+export interface UpdateGroupChiefBody {
+  chiefUserId: string;
 }
 

@@ -14,6 +14,14 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as namespaceService from '../services/namespaceService';
+import type {
+  CreateNamespaceBody,
+  UpdateNamespaceBody,
+  CreateTermBody,
+  UpdateTermBody,
+  ToggleTermActiveBody,
+  TermActiveParams,
+} from '../types/api';
 
 /**
  * 名前空間（Prefix）新規登録
@@ -25,12 +33,7 @@ export async function createNamespace(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, uri, description, scopeKey: bodyScopeKey } = req.body as {
-      prefix: string;
-      uri: string;
-      description?: string;
-      scopeKey?: string;
-    };
+    const { prefix, uri, description, scopeKey: bodyScopeKey } = req.body as CreateNamespaceBody;
 
     const organizationId = req.user!.organizationId;
     const userId = req.user!.userId;
@@ -67,7 +70,7 @@ export async function updateNamespace(
   try {
     const organizationId = req.user!.organizationId;
     const prefix = decodeURIComponent(req.params.prefix);
-    const { uri } = req.body as { uri: string };
+    const { uri } = req.body as UpdateNamespaceBody;
 
     const result = await namespaceService.updateNamespace({ organizationId, prefix, uri });
     if (!result) {
@@ -118,8 +121,9 @@ export async function deleteNamespace(
   try {
     const { prefix } = req.params;
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const count = await namespaceService.deleteNamespace(organizationId, prefix);
+    const count = await namespaceService.deleteNamespace(organizationId, prefix, lang);
     if (count === 0) {
       res.status(404).json({ error: `Namespace with prefix "${prefix}" not found` });
       return;
@@ -141,16 +145,10 @@ export async function createTerm(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, localName, displayName, description, typeHint, unitHint } = req.body as {
-      prefix: string;
-      localName: string;
-      displayName?: string;
-      description?: string;
-      typeHint?: string;
-      unitHint?: string;
-    };
+    const { prefix, localName, displayName, description, typeHint, unitHint } = req.body as CreateTermBody;
 
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
     const created = await namespaceService.createTerm({
       organizationId,
@@ -160,7 +158,7 @@ export async function createTerm(
       description,
       typeHint,
       unitHint,
-    });
+    }, lang);
 
     if (!created) {
       res.status(404).json({ error: `Namespace with prefix "${prefix}" not found` });
@@ -185,20 +183,16 @@ export async function updateTerm(
   try {
     const { prefix, localName } = req.params;
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const { displayName, description, typeHint, unitHint } = req.body as {
-      displayName?: string;
-      description?: string;
-      typeHint?: string;
-      unitHint?: string;
-    };
+    const { displayName, description, typeHint, unitHint } = req.body as UpdateTermBody;
 
     const updated = await namespaceService.updateTerm(organizationId, prefix, localName, {
       displayName,
       description,
       typeHint,
       unitHint,
-    });
+    }, lang);
 
     if (!updated) {
       res.status(404).json({ error: `Term "${prefix}:${localName}" not found` });
@@ -223,8 +217,9 @@ export async function deleteTerm(
   try {
     const { prefix, localName } = req.params;
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const count = await namespaceService.deleteTerm(organizationId, prefix, localName);
+    const count = await namespaceService.deleteTerm(organizationId, prefix, localName, lang);
     if (count === 0) {
       res.status(404).json({ error: `Term "${prefix}:${localName}" not found` });
       return;
@@ -291,7 +286,7 @@ export async function getDeclarationsByProject(
  * 用語一覧取得
  * GET /api/v1/namespaces/terms
  *
- * @query scopeKey - 指定した場合、そのスコープ + global_flg=TRUE の用語のみ返す
+ * @query scopeKey - 指定した場合、そのスコープの用語のみ返す
  */
 export async function getTerms(
   req: Request,
@@ -301,14 +296,6 @@ export async function getTerms(
   try {
     const organizationId = (req as any).organizationId as string | undefined;
     const scopeKey = req.query.scopeKey as string | undefined;
-
-    const globalFlg = req.query.globalFlg === 'true';
-
-    if (organizationId && globalFlg) {
-      const terms = await namespaceService.getTermsGlobal(organizationId);
-      res.json(terms);
-      return;
-    }
 
     if (organizationId && scopeKey) {
       const terms = await namespaceService.getTermsByScopeKey(organizationId, scopeKey);
@@ -335,15 +322,17 @@ export async function toggleTermActive(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, localName } = req.params as { prefix: string; localName: string };
-    const { isActive } = req.body as { isActive: boolean };
+    const { prefix, localName } = req.params as unknown as TermActiveParams;
+    const { isActive } = req.body as ToggleTermActiveBody;
     const organizationId = (req as any).organizationId as string;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
     const updated = await namespaceService.toggleTermActive(
       organizationId,
       prefix,
       localName,
-      isActive
+      isActive,
+      lang
     );
 
     if (!updated) {
@@ -352,6 +341,80 @@ export async function toggleTermActive(
     }
 
     res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── グローバル名前空間宣言（ファイルサーバ管理）────────────────────────────────
+
+/**
+ * グローバル名前空間宣言一覧取得
+ * GET /api/v1/namespaces/global-declarations
+ *
+ * @remarks ファイルサーバ（system/namespaces/global-declarations.csv）から読み込む。
+ */
+export async function getGlobalDeclarations(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const declarations = await namespaceService.getGlobalDeclarationEntries();
+    res.json({ declarations });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * グローバル名前空間宣言インポート
+ * POST /api/v1/namespaces/global-declarations/import
+ *
+ * @remarks
+ * multipart/form-data で CSV ファイルを受け取り、ファイルサーバへ上書き保存する。
+ * req.file は multer (memoryStorage) によってセットされる。
+ */
+export async function importGlobalDeclarations(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: { code: 'E1003', message: 'CSVファイルが必要です' } });
+      return;
+    }
+
+    const csvContent = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+
+    try {
+      const result = await namespaceService.importGlobalDeclarationsCsv(csvContent);
+      res.json({ success: true, count: result.count });
+    } catch (serviceError: any) {
+      res.status(400).json({ success: false, error: { code: 'E1004', message: serviceError.message } });
+    }
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * グローバル名前空間宣言エクスポート
+ * GET /api/v1/namespaces/global-declarations/export
+ *
+ * @remarks ファイルサーバから CSV を読み込み、ダウンロードレスポンスとして返す。
+ */
+export async function exportGlobalDeclarations(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const csvContent = await namespaceService.exportGlobalDeclarationsCsv();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="global-declarations.csv"');
+    res.send(csvContent);
   } catch (error) {
     next(error);
   }

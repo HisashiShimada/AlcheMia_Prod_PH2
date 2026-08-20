@@ -4,8 +4,6 @@
 
 import {
   TargetType,
-  Priority,
-  InstructionType,
   ExperimentCondition,
   TaskInput,
   InstructionInput,
@@ -24,21 +22,6 @@ describe('指示送信API型定義', () => {
       expect(TargetType.FILE).toBe(0);
       expect(TargetType.TASK).toBe(1);
       expect(TargetType.TRANSITION).toBe(2);
-    });
-
-    test('Priorityの値が正しく定義されている', () => {
-      expect(Priority.LOW).toBe(0);
-      expect(Priority.NORMAL).toBe(1);
-      expect(Priority.MEDIUM).toBe(2);
-      expect(Priority.HIGH).toBe(3);
-    });
-
-    test('InstructionTypeの値が正しく定義されている', () => {
-      expect(InstructionType.GENERAL).toBe(0);
-      expect(InstructionType.SETUP).toBe(1);
-      expect(InstructionType.MEASUREMENT).toBe(2);
-      expect(InstructionType.SAFETY).toBe(3);
-      expect(InstructionType.CLEANUP).toBe(4);
     });
 
     test('ExperimentConditionの値が正しく定義されている', () => {
@@ -76,16 +59,12 @@ describe('指示送信API型定義', () => {
     test('targetType=FILEの有効なInstructionInputを作成できる', () => {
       const instructionInput: InstructionInput = {
         content: 'ファイル全体への指示',
-        priority: Priority.NORMAL,
-        type: InstructionType.GENERAL,
         targetType: TargetType.FILE,
         transitionId: null,
         taskNumber: null
       };
 
       expect(instructionInput.content).toBe('ファイル全体への指示');
-      expect(instructionInput.priority).toBe(1);
-      expect(instructionInput.type).toBe(0);
       expect(instructionInput.targetType).toBe(0);
       expect(instructionInput.transitionId).toBeNull();
       expect(instructionInput.taskNumber).toBeNull();
@@ -94,8 +73,6 @@ describe('指示送信API型定義', () => {
     test('targetType=TASKの有効なInstructionInputを作成できる', () => {
       const instructionInput: InstructionInput = {
         content: 'タスクへの指示',
-        priority: Priority.HIGH,
-        type: InstructionType.MEASUREMENT,
         targetType: TargetType.TASK,
         transitionId: null,
         taskNumber: 1
@@ -109,8 +86,6 @@ describe('指示送信API型定義', () => {
     test('targetType=TRANSITIONの有効なInstructionInputを作成できる', () => {
       const instructionInput: InstructionInput = {
         content: 'トランジションへの指示',
-        priority: Priority.MEDIUM,
-        type: InstructionType.SAFETY,
         targetType: TargetType.TRANSITION,
         transitionId: 'trans_001',
         taskNumber: null
@@ -135,8 +110,6 @@ describe('指示送信API型定義', () => {
         instructions: [
           {
             content: '実験を開始してください',
-            priority: Priority.HIGH,
-            type: InstructionType.SETUP,
             targetType: TargetType.FILE,
             transitionId: null,
             taskNumber: null
@@ -167,16 +140,12 @@ describe('指示送信API型定義', () => {
         instructions: [
           {
             content: '指示1',
-            priority: Priority.HIGH,
-            type: InstructionType.SETUP,
             targetType: TargetType.FILE,
             transitionId: null,
             taskNumber: null
           },
           {
             content: '指示2',
-            priority: Priority.NORMAL,
-            type: InstructionType.MEASUREMENT,
             targetType: TargetType.TASK,
             transitionId: null,
             taskNumber: 1
@@ -245,9 +214,7 @@ describe('指示送信API型定義', () => {
         organization_id: 'org_001',
         project_id: 'proj_001',
         experiment_instruction_id: 'inst_001',
-        instruction_target: 0,
-        priority: 1,
-        type: 0,
+        method_id: null,
         task_no: null,
         transition_id: null,
         instructions: 'テスト指示',

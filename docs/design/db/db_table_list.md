@@ -988,3 +988,67 @@ maiml_event_log
 - **外部キー**:
   - `organization_id` → `organization(organization_id)`
 - **備考**: マイグレーションファイル: `backend/migrations/20260617_add_department_unit.sql`
+
+---
+
+### 12. 品質管理関連テーブル（2テーブル）
+
+#### 12.1 aggregation_rules（集約ルール）
+- **物理名**: `aggregation_rules`
+- **論理名**: 集約ルール
+- **DDLファイル**: `docs/design/db/ddl/aggregation_rules.sql`
+- **主キー**: `organization_id` (TEXT), `rule_id` (UUID), `version` (INT)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `rule_id` - ルールID (UUID)
+  - `version` - バージョン（新版作成時にインクリメント）
+  - `status` - ステータス（ACTIVE / DEPRECATED）
+  - `score_good` - 良好スコア（既定: 100）
+  - `score_caution` - 要確認スコア（既定: 50）
+  - `score_bad` - 不良スコア（既定: 0）
+  - `target_rollup` - 対象ロールアップ（WORST_CASE / MAJORITY / AVERAGE）
+  - `level_status_rule` - 階層代表ステータス規則（WORST_CASE / MAJORITY）
+  - `level_score_rule` - 階層スコア規則（MEAN / MIN）
+  - `missing_handling` - 未評価の扱い（SEPARATE_COUNT / EXCLUDE_DENOMINATOR / TREAT_AS_GOOD）
+  - `transition_hierarchy` - トランジション階層（MERGE / SPLIT）
+  - `created_by` - 作成者ユーザID
+  - `created_at` - 作成日時
+- **制約**:
+  - `status=ACTIVE` は同時に1版のみ（アプリ側で制御）
+  - 新版を ACTIVE にすると旧版は DEPRECATED へ遷移
+- **インデックス**:
+  - `idx_aggregation_rules_active` - organization_id, status WHERE status='ACTIVE'
+
+---
+
+#### 12.2 project_overall_evaluations（プロジェクト評価）
+- **物理名**: `project_overall_evaluations`
+- **論理名**: プロジェクト評価
+- **DDLファイル**: `docs/design/db/ddl/project_overall_evaluations.sql`
+- **主キー**: `organization_id` (TEXT), `evaluation_id` (UUID)
+- **主要カラム**:
+  - `evaluation_id` - 評価ID (UUID)
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `evaluation_scope` - 評価スコープ（MAIML_PROJECT / METHOD / TASK / TRANSITION_METHOD / TRANSITION_TASK）
+  - `method_id` - メソッドID（下位評価で使用）
+  - `task_no` - タスク番号（TASK / TRANSITION_TASK で使用）
+  - `transition_id` - トランジションID（TRANSITION_* で使用）
+  - `evaluated_by` - 評価者ユーザID
+  - `evaluated_at` - 評価日時
+  - `overall_digital` - デジタル評価値（良好 / 要確認 / 不良）
+  - `overall_score` - 数値スコア（全体評価のみ）
+  - `overall_analog` - アナログ評価（コメント）
+  - `applied_rule_id` - 適用ルールID（全体評価のみ）
+  - `applied_rule_version` - 適用ルールバージョン（全体評価のみ）
+  - `applied_rule_snapshot` - ルールパラメータの凍結値 JSONB（全体評価のみ）
+  - `aggregation_snapshot` - 集計結果断面 JSONB（全体評価のみ）
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+- **レコード種別**:
+  - `evaluation_scope='MAIML_PROJECT'`: 全体評価（applied_rule_snapshot / aggregation_snapshot に断面凍結）
+  - `evaluation_scope='METHOD'/'TASK'/'TRANSITION_*'`: 下位評価（overall_digital / overall_analog に評価値保存）
+- **インデックス**:
+  - `ix_project_overall_evaluations_project` - organization_id, project_id, evaluated_at DESC
+  - `ix_project_overall_evaluations_scope` - organization_id, project_id, evaluation_scope
+- **マイグレーション**: `docs/design/db/ddl/migrations/20260817_extend_project_overall_evaluations.sql`

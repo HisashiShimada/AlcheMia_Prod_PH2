@@ -123,7 +123,7 @@ const EncryptionKeyPanel: React.FC<EncryptionKeyPanelProps> = ({
             onChange={(e) => update({ keySource: e.target.value as KeySourceType, loadedKey: undefined })}
             style={{ width: '100%' }}
           >
-            <Space direction="horizontal" size={16} wrap>
+            <Space orientation="horizontal" size={16} wrap>
               <Radio value={KeySource.NEW_KEY}>新しい共通鍵を生成</Radio>
               <Radio value={KeySource.LOAD_FILE}>既存キーファイルを読み込む</Radio>
               <Radio value={KeySource.PUBLIC_KEY}>受信者公開鍵を使用</Radio>

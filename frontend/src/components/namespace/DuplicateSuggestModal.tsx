@@ -118,7 +118,7 @@ const DuplicateSuggestModal: React.FC<DuplicateSuggestModalProps> = ({
               }
               style={{ width: '100%' }}
             >
-              <Space direction="vertical" style={{ width: '100%' }} size={8}>
+              <Space orientation="vertical" style={{ width: '100%' }} size={8}>
                 {entry.candidates.map((c) => (
                   <Radio
                     key={c.prefix}

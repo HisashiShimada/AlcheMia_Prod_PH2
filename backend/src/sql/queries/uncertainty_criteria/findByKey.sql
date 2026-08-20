@@ -12,6 +12,7 @@ SELECT
   , uc.inheritance_uncertainty_key   AS "inheritanceUncertaintyKey"
   , uc.xsi_type                      AS "xsiType"
   , uc.units                         AS units
+  , uc.scale_factor                  AS "scaleFactor"
   , uc.format_string                 AS "formatString"
   , uc.description                   AS description
   -- intuition_selector カラム（定性評価の選択肢）

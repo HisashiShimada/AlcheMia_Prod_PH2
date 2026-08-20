@@ -37,6 +37,20 @@ export interface GetTaskRegistrationResponse {
 }
 
 /**
+ * 指示データ（保存用）
+ * タスク登録タブから一括保存する際に使用
+ */
+export interface InstructionInsertData {
+  methodId: string | null;
+  content: string;
+  targetType: number;
+  transitionId: string | null;
+  taskNumber: number | null;
+  /** MAIMLのpropertyタグキー（指示種別） */
+  instructionKey: string;
+}
+
+/**
  * タスク登録保存リクエスト
  */
 export interface SaveTaskRegistrationRequest {
@@ -51,15 +65,7 @@ export interface SaveTaskRegistrationRequest {
    * 指示リスト（オプション）
    * タスク登録タブから追加された指示を一括保存する際に使用
    */
-  instructions?: {
-    methodId: string;
-    content: string;
-    priority: number;
-    type: number;
-    targetType: number;
-    transitionId: string | null;
-    taskNumber: number | null;
-  }[];
+  instructions?: InstructionInsertData[];
 }
 
 /**

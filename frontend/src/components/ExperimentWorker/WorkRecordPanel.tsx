@@ -13,7 +13,7 @@
  * 実績値入力 →「保存して次へ」→ 次テンプレート実績値入力 or 次トランジション
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Alert,
   Badge,
@@ -37,13 +37,17 @@ import {
   Typography,
   theme,
 } from 'antd';
-import { CommentOutlined, DeleteOutlined, FastForwardOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import { CommentOutlined, DeleteOutlined, FastForwardOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
+import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
 import ContentGridEditor from '@/components/common/ContentGridEditor';
+import { getProjectMaiml } from '@/services/projectApiService';
+import { getPlanDialogData, getExperimentPlans } from '@/services/experimentPlanApiService';
 import type { Insertion } from '@/types/maiml-unified';
-import uncertaintyMockData from '../../../mock/uncertainty.json';
+import type { FileData } from '@/types/editor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { ProgressRow } from '@/types/progress';
 
 const { Sider, Content } = Layout;
 
@@ -66,14 +70,10 @@ interface AddedUncertaintyValue {
 }
 
 /**
- * uncertainty.json から定量評価 (eval === 'quantitative') かつ有効 (status === 'active') な
- * 不確かさ基準を Select の options 形式に変換
+ * 「値の追加」ボタンで使用する不確かさ基準の選択肢。
+ * フェーズB: API経由で取得した実データに差し替え予定。
  */
-const UNCERTAINTY_OPTIONS: { value: string; label: string }[] = (
-  uncertaintyMockData as Array<{ key: string; name: string; eval: string; status: string }>
-)
-  .filter((u) => u.eval === 'quantitative' && u.status === 'active')
-  .map((u) => ({ value: u.key, label: u.name }));
+const UNCERTAINTY_OPTIONS: { value: string; label: string }[] = [];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 型定義
@@ -712,6 +712,10 @@ interface PropertyListProps {
   onContentAdd?: (taskNo: number, transitionId: string) => void;
   /** カスタムContentスロット削除ボタン押下時 */
   onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
+  /** ペトリネットビューアを開くコールバック */
+  onOpenViewer?: () => void;
+  /** ペトリネットビューアローディング中フラグ */
+  viewerLoading?: boolean;
 }
 
 /** Insertion のデフォルト値 */
@@ -736,6 +740,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onInsertionRemove,
   onContentAdd,
   onContentRemove,
+  onOpenViewer,
+  viewerLoading,
 }) => {
   const { t } = useLanguage();
 
@@ -994,6 +1000,19 @@ const PropertyList: React.FC<PropertyListProps> = ({
           </Button>
         </Flex>
       )}
+
+      {/* ペトリネットビューアボタン（readOnly に関わらず常に表示） */}
+      <Flex justify="flex-end" style={{ marginTop: isReadOnly ? 12 : 4, paddingBottom: 8 }}>
+        <Button
+          size="small"
+          icon={<FileSearchOutlined />}
+          onClick={onOpenViewer}
+          disabled={!onOpenViewer}
+          loading={viewerLoading}
+        >
+          {t('workRecord.petriNetViewer')}
+        </Button>
+      </Flex>
     </>
   );
 };
@@ -1223,6 +1242,22 @@ interface PlanProps {
   onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
   /** ファイルアップロード先パス（指定時にファイル選択・DnDでアップロード確認ダイアログを表示） */
   uploadTargetPath?: string;
+  /** ペトリネットビューアを開くコールバック */
+  onOpenViewer?: () => void;
+  /** ペトリネットビューアローディング中フラグ */
+  viewerLoading?: boolean;
+  /** Creator プルダウンの選択肢（MAIMLのdocument.creatorsから取得） */
+  creatorRefOptions: string[];
+  /** Instrument プルダウンの選択肢（MAIMLのdocument.instrumentsから取得） */
+  instrumentRefOptions: string[];
+  /** Creator の選択値 */
+  selectedCreatorRef: string | null;
+  /** Instrument の選択値 */
+  selectedInstrumentRef: string | null;
+  /** Creator 選択変更コールバック */
+  onCreatorRefChange: (value: string | null) => void;
+  /** Instrument 選択変更コールバック */
+  onInstrumentRefChange: (value: string | null) => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1309,7 +1344,8 @@ const PlanA: React.FC<PlanProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath,
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath, onOpenViewer, viewerLoading,
+  creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1360,6 +1396,47 @@ const PlanB: React.FC<PlanProps> = ({
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
       />
 
+      {/* Creator / Instrument 選択エリア（WorkHeader の直後・テンプレート入力の前） */}
+      {displayKey && (
+        <Card
+          size="small"
+          style={{ marginBottom: 8, background: '#fafafa' }}
+        >
+          <Flex gap={16} wrap="wrap" align="center">
+            <Flex align="center" gap={8}>
+              <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
+                {t('workRecord.creatorLabel')}
+              </Text>
+              <Select
+                style={{ width: 240 }}
+                size="small"
+                placeholder={t('workRecord.creatorPlaceholder')}
+                value={selectedCreatorRef ?? undefined}
+                options={creatorRefOptions.map((v) => ({ label: v, value: v }))}
+                onChange={(v: string | undefined) => onCreatorRefChange(v ?? null)}
+                allowClear
+                disabled={isReadOnly}
+              />
+            </Flex>
+            <Flex align="center" gap={8}>
+              <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
+                {t('workRecord.instrumentLabel')}
+              </Text>
+              <Select
+                style={{ width: 240 }}
+                size="small"
+                placeholder={t('workRecord.instrumentPlaceholder')}
+                value={selectedInstrumentRef ?? undefined}
+                options={instrumentRefOptions.map((v) => ({ label: v, value: v }))}
+                onChange={(v: string | undefined) => onInstrumentRefChange(v ?? null)}
+                allowClear
+                disabled={isReadOnly}
+              />
+            </Flex>
+          </Flex>
+        </Card>
+      )}
+
       {/* DataRecordDialog準拠: Layout + Sider + Content */}
       <Layout style={{ flex: 1, overflow: 'hidden', background: token.colorBgLayout }}>
         {/* 左Sider: テンプレート一覧（DataRecordDialog準拠） */}
@@ -1383,7 +1460,7 @@ const PlanB: React.FC<PlanProps> = ({
           </div>
 
           {/* 検索・カテゴリフィルタ */}
-          <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
+          <Space orientation="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
             <Input
               placeholder={t('workRecord.templateSearchPlaceholder')}
               prefix={<SearchOutlined />}
@@ -1485,6 +1562,8 @@ const PlanB: React.FC<PlanProps> = ({
             onContentAdd={onContentAdd}
             onContentRemove={onContentRemove}
             uploadTargetPath={uploadTargetPath}
+            onOpenViewer={onOpenViewer}
+            viewerLoading={viewerLoading}
           />
         </Content>
       </Layout>
@@ -1496,16 +1575,87 @@ const PlanB: React.FC<PlanProps> = ({
 // WorkRecordPanel（エクスポート）
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const ASSIGNED_TASK_NO = 2; // フェーズA: 固定、フェーズBで props 化
-
 interface WorkRecordPanelProps {
   /** 選択中のプロジェクト名（S3アップロードパスの組み立てに使用） */
   projectName?: string;
+  /** 選択中のプロジェクトID（ペトリネットビューアのMAIML取得に使用） */
+  projectId?: string;
+  /** 選択中のメソッドID（Creator/Instrument選択肢・初期値の取得に使用） */
+  methodId?: string;
+  /**
+   * 全体進捗タブから渡される進捗行データ。
+   * 渡された場合は in_progress → not_started の順で最初に見つかったタスクNo を
+   * 作業対象タスクNo として使用する（モック ASSIGNED_TASK_NO の代替）。
+   */
+  progressRows?: ProgressRow[];
+  /** プロジェクトステータス（数値コード）。渡されても現フェーズでは未使用 */
+  projectStatus?: number;
+  /** みなし進捗フラグ。渡されても現フェーズでは未使用 */
+  useDeemedProgress?: boolean;
+  /**
+   * 「作業へ」ボタン等で特定タスク+トランジションへジャンプするためのキー。
+   * ExperimentWorkerMenu が渡す際に使用。
+   */
+  initialTaskNo?: number;
+  initialTransitionId?: string;
+  /** プロジェクト指示文字列の配列（APIから取得済みのもの）。未指定時はモックを使用 */
+  projectInstructions?: string[];
 }
 
-export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = {}) {
+/**
+ * progressRows から現在の作業対象タスクNo を決定する。
+ * in_progress のトランジションを持つ最初のタスクを優先し、
+ * なければ not_started のトランジションを持つ最初のタスクを返す。
+ * progressRows が空または未指定の場合はフォールバック値を返す。
+ */
+function resolveActiveTaskNo(progressRows: ProgressRow[] | undefined, fallback: number): number {
+  if (!progressRows || progressRows.length === 0) return fallback;
+
+  // in_progress のタスクを優先
+  const inProgressRow = progressRows.find((r) => r.status === 'in_progress');
+  if (inProgressRow) return inProgressRow.taskNo;
+
+  // not_started のタスクを次に選ぶ
+  const notStartedRow = progressRows.find((r) => r.status === 'not_started');
+  if (notStartedRow) return notStartedRow.taskNo;
+
+  // 全完了済みの場合は最初のタスクNo
+  return progressRows[0].taskNo;
+}
+
+export default function WorkRecordPanel({
+  projectName,
+  projectId,
+  methodId,
+  progressRows,
+  initialTaskNo,
+  initialTransitionId,
+  projectInstructions,
+}: WorkRecordPanelProps = {}) {
+  // フォールバック値 2 はモック INITIAL_TASKS のタスク2（in_progress）に対応
+  const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
   const [tasks, setTasks] = useState<MockTask[]>(INITIAL_TASKS);
-  const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(null);
+  // initialTaskNo/initialTransitionId が両方指定されている場合は、初期表示でそのトランジションを表示する
+  const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(
+    initialTaskNo !== undefined && initialTransitionId !== undefined
+      ? { taskNo: initialTaskNo, transitionId: initialTransitionId }
+      : null
+  );
+
+  // ── Creator / Instrument 選択肢・選択値 ──
+  const [creatorRefOptions, setCreatorRefOptions] = useState<string[]>([]);
+  const [instrumentRefOptions, setInstrumentRefOptions] = useState<string[]>([]);
+  const [selectedCreatorRef, setSelectedCreatorRef] = useState<string | null>(null);
+  const [selectedInstrumentRef, setSelectedInstrumentRef] = useState<string | null>(null);
+
+  // ── ペトリネットビューア ──
+  const [viewerDialogs, setViewerDialogs] = useState<{
+    id: string;
+    file: FileData;
+    fileContent: string | null;
+    zIndex: number;
+  }[]>([]);
+  const [petriNetViewerLoading, setPetriNetViewerLoading] = useState(false);
 
   const handleActualChange = useCallback(
     (taskNo: number, transitionId: string, propKey: string, value: ActualValue) => {
@@ -1526,6 +1676,97 @@ export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = 
   );
 
   const { t } = useLanguage();
+
+  // ── ペトリネットビューアハンドラ ──
+  const handleOpenPetriNetViewer = useCallback(async () => {
+    if (!projectId) return;
+    setPetriNetViewerLoading(true);
+    try {
+      const result = await getProjectMaiml(projectId);
+      if (!result.success || !result.data?.maimlContent) {
+        Modal.error({ title: t('experimentInstruction.fetchError') });
+        return;
+      }
+      const { maimlContent, projectName: resolvedName, lastModified } = result.data;
+      const file: FileData = {
+        id: projectId,
+        name: `${resolvedName}.maiml`,
+        path: `projects/${resolvedName}/${resolvedName}.maiml`,
+        size: maimlContent.length,
+        lastModified: lastModified || new Date().toISOString(),
+        type: 'maiml',
+      };
+      setViewerDialogs((prev) => [
+        ...prev,
+        { id: `viewer_${Date.now()}`, file, fileContent: maimlContent, zIndex: 1000 + prev.length },
+      ]);
+    } catch (err) {
+      console.error('[WorkRecordPanel] handleOpenPetriNetViewer error:', err);
+      Modal.error({ title: t('experimentInstruction.fetchError') });
+    } finally {
+      setPetriNetViewerLoading(false);
+    }
+  }, [projectId, t]);
+
+  const handleCloseViewer = useCallback((id: string) => {
+    setViewerDialogs((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+
+  const handleFocusViewer = useCallback((id: string) => {
+    setViewerDialogs((prev) => {
+      const maxZ = Math.max(...prev.map((d) => d.zIndex), 999);
+      return prev.map((d) => (d.id === id ? { ...d, zIndex: maxZ + 1 } : d));
+    });
+  }, []);
+
+  // ── Creator / Instrument 選択肢・初期値の API 取得 ──
+  // projectId と methodId が揃ったタイミングで選択肢と初期値を取得する。
+  // 選択肢: getPlanDialogData（MAIMLのdocument.creators/instruments から生成）
+  // 初期値: getExperimentPlans（ExperimentPlanDialogで保存済みの __task__.creatorRefs[0] 等）
+  useEffect(() => {
+    if (!projectId || !methodId) return;
+    let cancelled = false;
+
+    const fetchRefData = async () => {
+      try {
+        // 選択肢取得
+        const planDialogData = await getPlanDialogData(projectId, methodId);
+        if (cancelled) return;
+        setCreatorRefOptions(planDialogData.creatorRefs ?? []);
+        setInstrumentRefOptions(planDialogData.instrumentRefs ?? []);
+
+        // 初期値取得
+        const plansResult = await getExperimentPlans(projectId, methodId);
+        if (cancelled) return;
+        if (plansResult?.plans && plansResult.plans.length > 0) {
+          // ASSIGNED_TASK_NO のタスク、なければ先頭タスクの __task__ を参照
+          const targetPlan =
+            plansResult.plans.find((p) => p.taskNo === ASSIGNED_TASK_NO) ??
+            plansResult.plans[0];
+          if (targetPlan?.plannedValues) {
+            for (const transValues of Object.values(targetPlan.plannedValues)) {
+              const rawTask = (transValues as Record<string, unknown>)?.['__task__'];
+              if (rawTask && typeof rawTask === 'object' && !Array.isArray(rawTask)) {
+                const taskMeta = rawTask as Record<string, unknown>;
+                if (Array.isArray(taskMeta.creatorRefs) && taskMeta.creatorRefs.length > 0) {
+                  setSelectedCreatorRef(taskMeta.creatorRefs[0] as string);
+                }
+                if (Array.isArray(taskMeta.instrumentRefs) && taskMeta.instrumentRefs.length > 0) {
+                  setSelectedInstrumentRef(taskMeta.instrumentRefs[0] as string);
+                }
+                break;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[WorkRecordPanel] Creator/Instrument fetch error:', err);
+      }
+    };
+
+    fetchRefData();
+    return () => { cancelled = true; };
+  }, [projectId, methodId]);
 
   const handleSave = useCallback((_taskNo: number, _transitionId: string) => {
     Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
@@ -1708,7 +1949,7 @@ export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = 
     activeTaskNo: ASSIGNED_TASK_NO,
     viewingKey,
     skippedTransitionIds,
-    instructions: MOCK_PROJECT_INSTRUCTIONS,
+    instructions: projectInstructions ?? MOCK_PROJECT_INSTRUCTIONS,
     onActualChange: handleActualChange,
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,
@@ -1720,6 +1961,14 @@ export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = 
     onContentAdd: handleContentAdd,
     onContentRemove: handleContentRemove,
     uploadTargetPath: projectName ? `projects/${projectName}/attachments` : undefined,
+    onOpenViewer: projectId ? handleOpenPetriNetViewer : undefined,
+    viewerLoading: petriNetViewerLoading,
+    creatorRefOptions,
+    instrumentRefOptions,
+    selectedCreatorRef,
+    selectedInstrumentRef,
+    onCreatorRefChange: setSelectedCreatorRef,
+    onInstrumentRefChange: setSelectedInstrumentRef,
   };
 
   // コメントダイアログに渡す displayKey（現在表示中のキー）
@@ -1748,6 +1997,20 @@ export default function WorkRecordPanel({ projectName }: WorkRecordPanelProps = 
           onSave={handleSaveComment}
         />
       )}
+
+      {/* ── ペトリネットビューア（ViewRendererDialog / フローティング） ── */}
+      {viewerDialogs.map((dialog) => (
+        <ViewRendererDialog
+          key={dialog.id}
+          id={dialog.id}
+          contentType="file"
+          file={dialog.file}
+          fileContent={dialog.fileContent}
+          zIndex={dialog.zIndex}
+          onClose={handleCloseViewer}
+          onFocus={handleFocusViewer}
+        />
+      ))}
     </div>
   );
 }

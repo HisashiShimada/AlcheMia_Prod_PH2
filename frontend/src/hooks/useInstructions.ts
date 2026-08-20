@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { Instruction, Priority, InstructionType, WorkAssignment } from '@/types/experimentWorker';
+import type { Instruction, WorkAssignment } from '@/types/experimentWorker';
 import type { WorkerInstruction } from '@/types/project';
 import { getWorkerInstructions } from '@/services/projectApiService';
 
@@ -8,13 +8,6 @@ import { getWorkerInstructions } from '@/services/projectApiService';
  * method_id / task_no / transition_id の有無からグループを判定する。
  */
 function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
-  const priorityMap: Record<string, Priority> = {
-    '0': 'low', '1': 'normal', '2': 'medium', '3': 'high',
-  };
-  const instructionTypeMap: Record<string, InstructionType> = {
-    '0': 'general', '1': 'setup', '2': 'measurement', '3': 'safety', '4': 'cleanup',
-  };
-
   return {
     instructionId: apiData.id,
     transitionId: apiData.transition_id || undefined,
@@ -24,8 +17,6 @@ function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
     taskId: apiData.task_no ? `${apiData.project_id}-${apiData.method_id}-${apiData.task_no}` : undefined,
     taskName: apiData.task_no ? `Task ${apiData.task_no}` : undefined,
     content: apiData.instruction_content,
-    priority: priorityMap[apiData.priority] || 'normal',
-    instructionType: instructionTypeMap[apiData.type] || 'general',
     createdAt: apiData.create_at,
     updatedAt: null,
     createdBy: {
@@ -115,17 +106,9 @@ export function useInstructions() {
     }
   };
 
-  // 優先度順でソート
+  // 指示一覧（ソートなし）
   const sortedInstructions = useMemo(() => {
-    const priorityOrder: Record<Priority, number> = {
-      high: 0,
-      medium: 1,
-      normal: 2,
-      low: 3,
-    };
-    return [...instructions].sort(
-      (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]
-    );
+    return [...instructions];
   }, [instructions]);
 
   // 統計情報

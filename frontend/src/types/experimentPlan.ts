@@ -7,11 +7,11 @@
  * 注意事項のタイプ定義
  */
 export const NoteType = {
-  CAUTION: 'mgr-instruction:caution',
-  OPERATION_NOTE: 'mgr-instruction:operationNote',
-  CHECK_ITEM: 'mgr-instruction:checkItem',
-  PROHIBITED_ACTION: 'mgr-instruction:prohibitedAction',
-  OTHER_NOTES: 'mgr-instruction:OtherNotes',
+  CAUTION:           'Alchemia:SupervisorDirectiveCaution',
+  OPERATION_NOTE:    'Alchemia:SupervisorDirectiveOperationNote',
+  CHECK_ITEM:        'Alchemia:SupervisorDirectiveCheckItem',
+  PROHIBITED_ACTION: 'Alchemia:SupervisorDirectiveProhibitedAction',
+  OTHER_NOTES:       'Alchemia:SupervisorDirectiveOtherNotes',
 } as const;
 
 export type NoteTypeValue = typeof NoteType[keyof typeof NoteType];
@@ -20,11 +20,11 @@ export type NoteTypeValue = typeof NoteType[keyof typeof NoteType];
  * 注意事項のラベル定義
  */
 export const NOTE_TYPE_LABELS: Record<NoteTypeValue, string> = {
-  [NoteType.CAUTION]: '安全上の注意事項',
-  [NoteType.OPERATION_NOTE]: '操作手順上の注記',
-  [NoteType.CHECK_ITEM]: '実施前後の確認事項',
+  [NoteType.CAUTION]:           '安全上の注意事項',
+  [NoteType.OPERATION_NOTE]:    '操作手順上の注記',
+  [NoteType.CHECK_ITEM]:        '実施前後の確認事項',
   [NoteType.PROHIBITED_ACTION]: '禁止事項',
-  [NoteType.OTHER_NOTES]: 'その他注意事項',
+  [NoteType.OTHER_NOTES]:       'その他注意事項',
 };
 
 /**
@@ -170,6 +170,27 @@ export interface TemplateField {
    * バックエンドで detectFieldType により type('text'/'number'/'select') に変換される前の元の値。
    */
   xsiType?: string;
+  /**
+   * MAIMLテンプレートに設定されたデフォルト不確かさ（バックエンドの convertTemplate で生成）
+   * experimentInstructionService の convertTemplate により property.uncertainty[] から変換される。
+   * ダイアログ初回表示時の assignedUncertainty 初期値として使用する。
+   */
+  defaultUncertainties?: Array<{
+    /** 不確かさ基準キー（MAIML uncertainty.key） */
+    criteriaKey: string;
+    /** 不確かさ基準名（uncertainty.description または key） */
+    criteriaName: string;
+    /** 評価種別 */
+    evalType: 'quantitative' | 'qualitative';
+    /** 定量評価値（定量の場合） */
+    ucValue?: number;
+    /** 定性評価値（定性の場合） */
+    qualitativeValue?: string;
+    /** 単位（uncertainty.units） */
+    unit?: string;
+    /** MAIMLのuncertainty.descriptionをcommentの初期値として使用するための説明文 */
+    description?: string;
+  }>;
 }
 
 /**

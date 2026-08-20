@@ -27,7 +27,6 @@ import {
   createTerm,
   updateTerm,
   toggleTermActive,
-  getAncestorGroupCds,
 } from '@/services/namespaceApiService';
 import type { NamespaceTermRow } from '@/services/namespaceApiService';
 import DuplicateSuggestModal from '@/components/namespace/DuplicateSuggestModal';
@@ -82,12 +81,6 @@ const TermManagement: React.FC<TermManagementProps> = ({
   const [prefixOptions, setPrefixOptions] = useState<{ value: string; label: string }[]>([]);
   /** prefix → 組織名（scopeName）マップ */
   const [prefixScopeMap, setPrefixScopeMap] = useState<Map<string, string>>(new Map());
-  /**
-   * 重複チェック対象の prefix セット。
-   * グローバル名前空間（isGlobal=true）と、ログインユーザーの所属チーム（organizationGroupCds）
-   * に紐づく名前空間の prefix のみを含む。
-   */
-  const [accessiblePrefixes, setAccessiblePrefixes] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [newRows, setNewRows] = useState<NewTermRow[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -152,18 +145,12 @@ const TermManagement: React.FC<TermManagementProps> = ({
   const fetchAll = async () => {
     setLoading(true);
     try {
-      // selectedNsKey が渡された場合はそのスコープに絞って Prefix を取得する。
-      // （個人 namespace の scopeKey は userId(UUID) であり allGroupCds に含まれないため
-      //   従来ロジックでは prefixOptions が空になる問題を回避する）
       const nsOptions = selectedNsKey
         ? { scopeKeys: [selectedNsKey] }
         : undefined;
 
       const [namespaces, termList] = await Promise.all([
         getNamespaceList(nsOptions),
-        // selectedNsKey が指定されている場合はそのスコープ（+ global）の用語のみ取得する。
-        // 個人名前空間（scopeKey = userId）や特定チームのノードを選択した際に
-        // 全件取得ではなくスコープ別取得に切り替えることで prefixOptions と一致させる。
         selectedNsKey ? getTerms({ scopeKey: selectedNsKey }) : getTerms(),
       ]);
       setPrefixOptions(
@@ -177,58 +164,6 @@ const TermManagement: React.FC<TermManagementProps> = ({
         if (n.prefix && n.scopeName) scopeMap.set(n.prefix, n.scopeName);
       });
       setPrefixScopeMap(scopeMap);
-
-      // ── アクセス可能 prefix セットを構築
-      // selectedNsKey が渡された場合は取得済みの namespaces の全 prefix を対象にする
-      // （scopeKey が userId(UUID) の場合に allGroupCds とのマッチが失敗するため）
-      if (selectedNsKey) {
-        const prefixSet = new Set<string>();
-        namespaces.forEach((n) => { if (n.prefix) prefixSet.add(n.prefix); });
-        setAccessiblePrefixes(prefixSet);
-      } else {
-        // 「自分自身のスコープ（selfGroupCds）」と「上位層（ancestorGroupCds）」の
-        // 両方を対象にして重複チェックを行う。
-
-        // まず localStorage から自分自身の所属グループ CD を取得
-        let selfGroupCds: string[] = [];
-        if (typeof window !== 'undefined') {
-          try {
-            const raw = localStorage.getItem('userInfo');
-            if (raw) {
-              const parsed = JSON.parse(raw) as { organizationGroupCds?: string[] };
-              selfGroupCds = parsed.organizationGroupCds ?? [];
-            }
-          } catch {
-            // JSON パース失敗は無視
-          }
-        }
-
-        // GET /api/v1/organization-groups/ancestors で祖先グループの CD 一覧を取得
-        let ancestorGroupCds: string[] = [];
-        try {
-          ancestorGroupCds = await getAncestorGroupCds();
-        } catch {
-          // API 失敗時は selfGroupCds のみで代替
-        }
-
-        // 自スコープ + 祖先グループを合わせた全グループ CD セット
-        const allGroupCds = [...new Set([...selfGroupCds, ...ancestorGroupCds])];
-
-        // allGroupCds に含まれる scopeKey を持つ名前空間の prefix を対象とする
-        const prefixSet = new Set<string>();
-        namespaces.forEach((n) => {
-          if (!n.prefix) return;
-          if (n.scopeKey && allGroupCds.includes(n.scopeKey)) {
-            prefixSet.add(n.prefix);
-          }
-        });
-        // accessiblePrefixes が空（＝グループ未所属 or 取得失敗）の場合は全 prefix を対象にして
-        // 重複チェックが無意味に抜けないようフォールバックする
-        if (prefixSet.size === 0) {
-          namespaces.forEach((n) => { if (n.prefix) prefixSet.add(n.prefix); });
-        }
-        setAccessiblePrefixes(prefixSet);
-      }
 
       setTerms(termList);
     } catch {
@@ -280,8 +215,8 @@ const TermManagement: React.FC<TermManagementProps> = ({
     }
 
     // ── クライアントサイド重複チェック ──────────────────────
-    // チェック対象を「上位層（グローバル）＋自分自身のチーム」の prefix に絞る
-    const scopedTerms = terms.filter((term) => accessiblePrefixes.has(term.prefix));
+    // 全用語を対象にチェック
+    const scopedTerms = terms;
 
     // 1) 完全一致（同 prefix:localName）→ エラー（登録不可）
     //    対象: 上位層/自分自身の名前空間

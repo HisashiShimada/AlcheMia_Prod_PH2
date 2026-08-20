@@ -413,8 +413,8 @@ export interface TaskRegistrationStatusResponse {
  * POST /api/v1/projects/:projectId/instructions
  */
 export interface SaveInstructionRequest {
-  /** メソッドID */
-  methodId: string;
+  /** メソッドID（全体指示の場合はnull/未指定） */
+  methodId?: string | null;
   
   /** トランジションID（省略可） */
   transitionId?: string | null;
@@ -422,14 +422,11 @@ export interface SaveInstructionRequest {
   /** タスク連番（省略可） */
   taskNumber?: number | null;
   
-  /** 優先度: 0=低, 1=通常, 2=中, 3=高 */
-  priority: number;
-  
-  /** タイプ: 0=一般, 1=セットアップ, 2=測定, 3=安全, 4=清掃 */
-  type: number;
-  
   /** 指示内容 */
   content: string;
+  
+  /** MAIMLのpropertyタグキー（指示種別。必須） */
+  instructionKey: string;
 }
 
 /**
@@ -459,14 +456,11 @@ export interface UpdateInstructionRequest {
   /** タスク連番（省略可） */
   taskNumber?: number | null;
   
-  /** 優先度 */
-  priority: number;
-  
-  /** タイプ */
-  type: number;
-  
   /** 指示内容 */
   content: string;
+  
+  /** MAIMLのpropertyタグキー（指示種別。必須） */
+  instructionKey: string;
 }
 
 /**
