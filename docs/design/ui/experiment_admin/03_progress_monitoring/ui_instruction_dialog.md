@@ -1,5 +1,9 @@
 # InstructionDialog UI仕様書
 
+> ⚠️ **【未実装】この設計書はソースコードが存在しない未実装コンポーネントの仕様書です。**
+> 実装ファイル (`frontend/src/components/progress/InstructionDialog.tsx`) は存在しません。
+> 実装する場合はこの仕様書を参照してください。現在の作業指示機能は `01_project_management/ui_experiment_instruction_tab.md` 等で代替されています。
+
 ## 1. 概要
 
 ### 1.1. コンポーネントの目的

@@ -146,8 +146,12 @@ export function buildDataXML(
       categoryRows.forEach((row, index) => {
         const ps = row.property_set!;
 
-        // インスタンスID: place_id をそのまま使用（なければ自動採番）
-        const instanceId = row.place_id || `${category}_instance_${index}`;
+        // インスタンスID: place_id に "data-" プレフィックスを付与して pnml <place> ID との重複を回避
+        // <protocol>/<pnml> 内の <place id="material-xxx"> と同一 ID になると
+        // Duplicate ID バリデーションエラーが発生するため、data セクションは常に "data-" を付ける。
+        const instanceId = row.place_id
+          ? `data-${row.place_id}`
+          : `data-${category}_instance_${index}`;
         // ref: templateId をテンプレート参照として使用
         const templateRef = ps.templateId || '';
 
@@ -190,8 +194,8 @@ export function buildDataXML(
           }
         }
 
-        // operatorId は data 層から出力しない（案C: 削除）
-        // 作成者情報は eventLog 層（trace/event）で管理する
+  // operatorId は data 層から出力しない（案C: 削除）
+  // 作成者情報は eventLog 層（trace/event）で管理する
 
         dataXml += `      </${category}>\n`;
       });
@@ -287,6 +291,8 @@ export function buildEventLogXML(
   // XSD準拠: eventLogType の globalObjectContentGroup に uuid が必須
   let xml = `  <eventLog id="${escapeXml(eventLogId)}">\n`;
   xml += `    <uuid>${eventLogUuidValue}</uuid>\n`;
+  // name / description は eventLog タグには付与しない
+  // （MAIML上1つしか存在できないため、特定処理に紐づいた値を設定することができない）
 
   for (const logJson of logJsonArray) {
     const eventLogObj = logJson['eventLog'] as Record<string, unknown> | undefined;
@@ -335,6 +341,12 @@ function buildLogEntryXML(
   // XSD準拠: logType の globalObjectContentGroup に uuid が必須
   xml += `      <uuid>${resolveUuid(id ? `log:${id}` : 'log', existingUuids, randomUUID)}</uuid>\n`;
 
+  // name / description（lifecycle:transition 系 eventLog 共通ルール: eventlog_structure.md 2-2）
+  const logName = logEntry['name'] as string | undefined;
+  const logDesc = logEntry['description'] as string | undefined;
+  if (logName) xml += `      <name>${escapeXml(logName)}</name>\n`;
+  if (logDesc) xml += `      <description>${escapeXml(logDesc)}</description>\n`;
+
   // trace（単体または配列）
   const rawTrace = logEntry['trace'];
   const traces: Record<string, unknown>[] = rawTrace
@@ -374,6 +386,12 @@ function buildTraceXML(
   let xml = `      <trace${attrs}>\n`;
   // XSD準拠: traceType の globalObjectContentGroup に uuid が必須
   xml += `        <uuid>${resolveUuid(id ? `trace:${id}` : 'trace', existingUuids, randomUUID)}</uuid>\n`;
+
+  // name / description（lifecycle:transition 系 eventLog 共通ルール: eventlog_structure.md 2-2）
+  const traceName = trace['name'] as string | undefined;
+  const traceDesc = trace['description'] as string | undefined;
+  if (traceName) xml += `        <name>${escapeXml(traceName)}</name>\n`;
+  if (traceDesc) xml += `        <description>${escapeXml(traceDesc)}</description>\n`;
 
   // パターンA: event 要素
   const eventObj = trace['event'] as Record<string, unknown> | undefined;
@@ -429,13 +447,23 @@ function buildEventXML(
   let xml = `        <event${attrs}>\n`;
   // XSD準拠: eventType の globalObjectContentGroup に uuid が必須
   xml += `          <uuid>${resolveUuid(id ? `event:${id}` : 'event', existingUuids, randomUUID)}</uuid>\n`;
+
+  // name / description（lifecycle:transition 系 eventLog 共通ルール: eventlog_structure.md 2-2）
+  const eventName = eventObj['name'] as string | undefined;
+  const eventDesc = eventObj['description'] as string | undefined;
+  if (eventName) xml += `          <name>${escapeXml(eventName)}</name>\n`;
+  if (eventDesc) xml += `          <description>${escapeXml(eventDesc)}</description>\n`;
+
   xml += buildPropertiesXML(properties, 5);
 
   // resultsRef 要素の出力（存在する場合のみ）
+  // data セクションの <result> ID は "data-" プレフィックス付きで生成されるため、
+  // DB に保存された ref 値（place_id そのもの）にも同じプレフィックスを付与して参照を一致させる。
   for (const rr of resultsRefList) {
     const rrRef = rr['@ref'] as string | undefined;
     if (rrRef !== undefined) {
-      xml += `          <resultsRef ref="${escapeXml(rrRef)}"/>\n`;
+      const normalizedRef = rrRef.startsWith('data-') ? rrRef : `data-${rrRef}`;
+      xml += `          <resultsRef ref="${escapeXml(normalizedRef)}"/>\n`;
     }
   }
 
@@ -636,6 +664,33 @@ function buildPropertyXML(
       xml += `${childIndent}<value>${escapeXml(String(propValue))}</value>\n`;
     }
 
+    // uncertainties: planned_values から注入された不確かさ基準を <uncertainty> タグとして出力
+    // 構造: [{ key, xsiType, units, value, description }, ...]
+    if (prop['uncertainties'] && Array.isArray(prop['uncertainties'])) {
+      for (const uc of prop['uncertainties'] as Record<string, unknown>[]) {
+        if (!uc || typeof uc !== 'object') continue;
+        const ucKey = uc['key'] as string | undefined;
+        if (!ucKey) continue;
+
+        let ucAttrs = ` key="${escapeXml(ucKey)}"`;
+        if (uc['xsiType']) ucAttrs += ` xsi:type="${escapeXml(String(uc['xsiType']))}"`;
+        if (uc['units']) ucAttrs += ` units="${escapeXml(String(uc['units']))}"`;
+
+        xml += `${childIndent}<uncertainty${ucAttrs}>\n`;
+        // value
+        const ucValue = uc['value'];
+        if (ucValue !== null && ucValue !== undefined && ucValue !== '') {
+          xml += `${childIndent}  <value>${escapeXml(String(ucValue))}</value>\n`;
+        }
+        // description
+        const ucDesc = uc['description'];
+        if (ucDesc !== null && ucDesc !== undefined && ucDesc !== '') {
+          xml += `${childIndent}  <description>${escapeXml(String(ucDesc))}</description>\n`;
+        }
+        xml += `${childIndent}</uncertainty>\n`;
+      }
+    }
+
     // customElements（任意の追加要素）
     if (prop['customElements'] && typeof prop['customElements'] === 'object') {
       for (const [elemName, customElem] of Object.entries(prop['customElements'] as Record<string, unknown>)) {
@@ -770,6 +825,8 @@ export function updateDocumentUuidAndParent(maimlContent: string): string {
 
   // 1. 既存の <parent>...</parent> を除去（2回目以降の書き出しでの重複防止）
   result = result.replace(/<parent>[\s\S]*?<\/parent>\n?/g, '');
+  // 1b. 孤立した </parent> を除去（過去のバグで残存している場合の対応）
+  result = result.replace(/[ \t]*<\/parent>[ \t]*\n?/g, '');
 
   // 2. <document> 直下の <uuid> を新しい UUID に置き換え
   result = result.replace(
@@ -780,7 +837,7 @@ export function updateDocumentUuidAndParent(maimlContent: string): string {
   // 3. 新しい <uuid> の直後に <parent><uuid>旧uuid</uuid></parent> を挿入
   result = result.replace(
     `<uuid>${newUuid}</uuid>`,
-    `<uuid>${newUuid}</uuid>\n    <parent>\n       <uuid>${escapeXml(oldUuid)}</uuid>\n    </parent>`
+    `<uuid>${newUuid}</uuid>\n  <parent>\n    <uuid>${escapeXml(oldUuid)}</uuid>\n  </parent>`
   );
 
   return result;

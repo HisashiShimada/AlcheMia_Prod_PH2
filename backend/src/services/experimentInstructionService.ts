@@ -11,6 +11,7 @@
  */
 
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import { logger } from '../utils/logger';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
@@ -32,7 +33,8 @@ import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { getStorageService } from './storageService';
 import * as projectRepository from '../repositories/projectRepository';
-import type { Template } from '../types/maiml-unified';
+import * as uncertaintyCriteriaRepository from '../repositories/uncertaintyCriteriaRepository';
+import type { Template, Property } from '../types/maiml-unified';
 
 export type {
   InstructionField,
@@ -185,14 +187,8 @@ export async function getProjectMethods(
   });
 
   const pool = getPool();
-  const result = await pool.query<{ method_id: string }>(
-    `SELECT DISTINCT method_id
-     FROM project_task
-     WHERE organization_id = $1
-       AND project_id      = $2
-     ORDER BY method_id`,
-    [organizationId, projectId]
-  );
+  const sqlQuery = await loadSqlFile('project_tasks/findDistinctMethodIds.sql');
+  const result = await pool.query<{ method_id: string }>(sqlQuery, [organizationId, projectId]);
 
   return result.rows.map((r) => ({ id: r.method_id }));
 }
@@ -263,13 +259,15 @@ function detectFieldType(xsiType: string | undefined): 'text' | 'number' | 'sele
 /**
  * MAIML Template から TemplateDef に変換する
  *
- * @param template - MAIML の Template オブジェクト
- * @param category - テンプレートカテゴリ ('material' | 'condition' | 'result')
+ * @param template  - MAIML の Template オブジェクト
+ * @param category  - テンプレートカテゴリ ('material' | 'condition' | 'result')
+ * @param ucNameMap - uncertainty_key → uncertainty_name の Map（DB から取得）
  * @returns TemplateDef
  */
 function convertTemplate(
   template: Template,
-  category: 'material' | 'condition' | 'result'
+  category: 'material' | 'condition' | 'result',
+  ucNameMap: Map<string, string> = new Map()
 ): TemplateDef {
   // template.placeRefs（MAIMLの placeRef タグ）から PlaceID 一覧を抽出する
   // PlaceRef extends Reference → ref フィールドが参照先の PlaceID（id は Reference自身のID）
@@ -289,6 +287,39 @@ function convertTemplate(
         .filter((s) => s.length > 0);
     }
 
+    // MAIMLの property.uncertainty[] を defaultUncertainties に変換
+    // Content.xsiType が文字列系（String/Enum含む）なら定性評価、それ以外は定量評価として扱う
+    let defaultUncertainties: TemplateField['defaultUncertainties'];
+    if (prop.uncertainty && prop.uncertainty.length > 0) {
+      defaultUncertainties = prop.uncertainty.map((uc) => {
+        const isQualitative =
+          typeof uc.xsiType === 'string' &&
+          (uc.xsiType.toLowerCase().includes('string') ||
+            uc.xsiType.toLowerCase().includes('enum'));
+        const rawValue = uc.value;
+        const numericValue =
+          typeof rawValue === 'number'
+            ? rawValue
+            : typeof rawValue === 'string' && rawValue.trim() !== '' && !isNaN(Number(rawValue))
+              ? Number(rawValue)
+              : undefined;
+        return {
+          criteriaKey: uc.key,
+          // DB の uncertainty_name を優先し、なければ key にフォールバック
+          criteriaName: ucNameMap.get(uc.key) ?? uc.key,
+          evalType: isQualitative ? ('qualitative' as const) : ('quantitative' as const),
+          // MAIML の uncertainty.description をそのまま渡す
+          ...(uc.description !== undefined && uc.description !== null
+            ? { description: uc.description }
+            : {}),
+          ...(isQualitative
+            ? { qualitativeValue: typeof rawValue === 'string' ? rawValue : undefined }
+            : { ucValue: numericValue }),
+          unit: uc.units,
+        };
+      });
+    }
+
     return {
       key: prop.key,
       label: prop.description ?? prop.key,
@@ -305,6 +336,8 @@ function convertTemplate(
       ...(prop.xsiType !== undefined && prop.xsiType !== null
         ? { xsiType: prop.xsiType }
         : {}),
+      // MAIMLテンプレートに設定されたデフォルト不確かさ
+      ...(defaultUncertainties !== undefined ? { defaultUncertainties } : {}),
     };
   });
 
@@ -349,21 +382,23 @@ function convertTemplate(
 /**
  * テンプレート配列を TemplateDef[] に変換し、重複 id を除去してマージする
  *
- * @param seen - 追加済み id の Set（呼び出し元で管理し共有する）
- * @param result - 追加先の TemplateDef[]
+ * @param seen      - 追加済み id の Set（呼び出し元で管理し共有する）
+ * @param result    - 追加先の TemplateDef[]
  * @param templates - MAIML の Template[]
- * @param category - カテゴリ
+ * @param category  - カテゴリ
+ * @param ucNameMap - uncertainty_key → uncertainty_name の Map（DB から取得）
  */
 function mergeTemplates(
   seen: Set<string>,
   result: TemplateDef[],
   templates: Template[],
-  category: 'material' | 'condition' | 'result'
+  category: 'material' | 'condition' | 'result',
+  ucNameMap: Map<string, string> = new Map()
 ): void {
   for (const tmpl of templates) {
     if (!seen.has(tmpl.id)) {
       seen.add(tmpl.id);
-      result.push(convertTemplate(tmpl, category));
+      result.push(convertTemplate(tmpl, category, ucNameMap));
     }
   }
 }
@@ -435,6 +470,47 @@ export async function getPlanDialogDataFromMaiml(
     const err = new Error(`Method not found: ${methodId}`);
     (err as any).code = 'E6001';
     throw err;
+  }
+
+  // 4.5. テンプレート内の uncertainty.key を全収集し、DB から uncertainty_name を一括取得
+  const allUcKeys = new Set<string>();
+  const allTemplates = [
+    ...(method.materialTemplates ?? []),
+    ...(method.conditionTemplates ?? []),
+    ...(method.resultTemplates ?? []),
+    ...(method.program ?? []).flatMap((p) => [
+      ...(p.materialTemplates ?? []),
+      ...(p.conditionTemplates ?? []),
+      ...(p.resultTemplates ?? []),
+    ]),
+  ];
+  for (const tmpl of allTemplates) {
+    for (const prop of tmpl.properties ?? []) {
+      for (const uc of prop.uncertainty ?? []) {
+        if (uc.key) allUcKeys.add(uc.key);
+      }
+    }
+  }
+
+  // DB から uncertainty_name を一括取得して Map を構築
+  const ucNameMap = new Map<string, string>();
+  if (allUcKeys.size > 0) {
+    try {
+      const ucRows = await uncertaintyCriteriaRepository.findByKeys(
+        organizationId,
+        Array.from(allUcKeys)
+      );
+      for (const row of ucRows) {
+        if (row.uncertainty_name) {
+          ucNameMap.set(row.key, row.uncertainty_name);
+        }
+      }
+    } catch (e) {
+      logger.warn(
+        '[experimentInstructionService] uncertainty_criteria DB lookup 失敗（スキップ）',
+        { error: String(e) }
+      );
+    }
   }
 
   // 5. トランジション一覧を抽出（method.pnml.transitions）
@@ -565,6 +641,54 @@ export async function getPlanDialogDataFromMaiml(
     defaultBasicInfo.notes = defaultNotes;
   }
 
+  // 9. MAIML data層からインスタンスを抽出する
+  // data.results[].materials / conditions / results を変換して dataInstances に格納
+  const dataInstances: PlanDialogData['dataInstances'] = [];
+  const maimlData = parser.getTypedMaiml().data;
+  if (maimlData) {
+    for (const resultsItem of maimlData.results ?? []) {
+      for (const mat of resultsItem.materials ?? []) {
+        dataInstances.push({
+          instanceId: mat.id,
+          templateRef: mat.ref ?? '',
+          category: 'material',
+          name: mat.name,
+          properties: (mat.properties ?? []).map((p: Property) => ({
+            key: p.key,
+            value: p.value !== undefined ? p.value : null,
+            ...(p.units !== undefined ? { units: p.units } : {}),
+          })),
+        });
+      }
+      for (const cond of resultsItem.conditions ?? []) {
+        dataInstances.push({
+          instanceId: cond.id,
+          templateRef: cond.ref ?? '',
+          category: 'condition',
+          name: cond.name,
+          properties: (cond.properties ?? []).map((p: Property) => ({
+            key: p.key,
+            value: p.value !== undefined ? p.value : null,
+            ...(p.units !== undefined ? { units: p.units } : {}),
+          })),
+        });
+      }
+      for (const res of resultsItem.results ?? []) {
+        dataInstances.push({
+          instanceId: res.id,
+          templateRef: res.ref ?? '',
+          category: 'result',
+          name: res.name,
+          properties: (res.properties ?? []).map((p: Property) => ({
+            key: p.key,
+            value: p.value !== undefined ? p.value : null,
+            ...(p.units !== undefined ? { units: p.units } : {}),
+          })),
+        });
+      }
+    }
+  }
+
   logger.info('[experimentInstructionService] getPlanDialogDataFromMaiml 完了', {
     organizationId,
     projectId,
@@ -572,6 +696,7 @@ export async function getPlanDialogDataFromMaiml(
     transitionCount: transitions.length,
     templateCount: templates.length,
     hasDefaultBasicInfo: Object.keys(defaultBasicInfo).length > 0,
+    dataInstanceCount: dataInstances.length,
   });
 
   return {
@@ -580,6 +705,7 @@ export async function getPlanDialogDataFromMaiml(
     creatorRefs,
     instrumentRefs,
     ownerRefs,
+    ...(dataInstances.length > 0 ? { dataInstances } : {}),
     ...(Object.keys(defaultBasicInfo).length > 0 ? { defaultBasicInfo } : {}),
   };
 }

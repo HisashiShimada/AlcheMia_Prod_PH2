@@ -24,21 +24,26 @@ import {
   Radio,
   Modal,
   App,
+  Card,
 } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
-  getEvaluationsByProject,
-  saveEvaluations,
-} from '@/services/experimentEvaluationApiService';
+  getSubEvaluationsByProject,
+  saveSubEvaluations,
+} from '@/services/projectOverallEvaluationApiService';
 import type {
-  EvaluationUnit,
-  EvaluationInput,
-  ExperimentEvaluationRow as EvaluationRecord,
-} from '@/services/experimentEvaluationApiService';
+  SubEvaluationRow as EvaluationRecord,
+  SubEvaluationInput,
+  SubEvaluationScope,
+} from '@/types/projectOverallEvaluation';
 import type { UncertaintyCriteriaForSelector } from './ApprovalWizardDialog';
 import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
 import { getProjectMethods, getExperimentInstructions } from '@/services/experimentInstructionApiService';
+// TODO: 全体評価タブに移動済み（コメントアウト中）
+// import EvaluationSummaryBar from './subcomponents/EvaluationSummaryBar';
+// import AttentionItemList from './subcomponents/AttentionItemList';
+// import { useOverallEvaluation } from '@/hooks/project/useOverallEvaluation';
 
 const { Text } = Typography;
 
@@ -94,57 +99,71 @@ const MOCK_TRANSITION_NAMES: string[] = [
  */
 const MOCK_EVALUATION_RECORDS: EvaluationRecord[] = [
   {
-    organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_unit: 'method', method_id: 'method_001', task_no: null, transition_id: null,
-    name_space_id: 'ns-001', uncertainty_key: 'UC_TEMP_STABILITY', uc_version: 1,
+    evaluation_id: 'mock-001', organization_id: 'org-001', project_id: 'proj-001',
+    evaluation_scope: 'METHOD', evaluation_unit: 'METHOD',
+    method_id: 'method_001', task_no: null, transition_id: null,
+    overall_digital: '良好', overall_analog: '温度管理が適切に実施されている',
     evaluation_value: '良好', comment: '温度管理が適切に実施されている',
-    uncertainty_xml: null, evaluated_by: 'user-001', evaluated_at: '2026-07-15T08:30:00.000Z', display_color: '#52c41a',
+    evaluated_by: 'user-001', evaluated_at: '2026-07-15T08:30:00.000Z',
+    create_user_id: 'user-001', create_at: '2026-07-15T08:30:00.000Z',
   },
   {
-    organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_unit: 'method', method_id: 'method_002', task_no: null, transition_id: null,
-    name_space_id: 'ns-001', uncertainty_key: 'UC_TEMP_STABILITY', uc_version: 1,
+    evaluation_id: 'mock-002', organization_id: 'org-001', project_id: 'proj-001',
+    evaluation_scope: 'METHOD', evaluation_unit: 'METHOD',
+    method_id: 'method_002', task_no: null, transition_id: null,
+    overall_digital: '要確認', overall_analog: '若干の変動あり。再評価推奨',
     evaluation_value: '要確認', comment: '若干の変動あり。再評価推奨',
-    uncertainty_xml: null, evaluated_by: 'user-001', evaluated_at: '2026-07-15T09:00:00.000Z', display_color: '#faad14',
+    evaluated_by: 'user-001', evaluated_at: '2026-07-15T09:00:00.000Z',
+    create_user_id: 'user-001', create_at: '2026-07-15T09:00:00.000Z',
   },
   {
-    organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_unit: 'task', method_id: 'method_001', task_no: 1, transition_id: null,
-    name_space_id: 'ns-002', uncertainty_key: 'UC_PRECISION', uc_version: 1,
+    evaluation_id: 'mock-003', organization_id: 'org-001', project_id: 'proj-001',
+    evaluation_scope: 'TASK', evaluation_unit: 'TASK',
+    method_id: 'method_001', task_no: 1, transition_id: null,
+    overall_digital: '良好', overall_analog: null,
     evaluation_value: '良好', comment: null,
-    uncertainty_xml: null, evaluated_by: 'user-002', evaluated_at: '2026-07-15T09:15:00.000Z', display_color: '#52c41a',
+    evaluated_by: 'user-002', evaluated_at: '2026-07-15T09:15:00.000Z',
+    create_user_id: 'user-002', create_at: '2026-07-15T09:15:00.000Z',
   },
   {
-    organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_unit: 'task', method_id: 'method_001', task_no: 2, transition_id: null,
-    name_space_id: 'ns-002', uncertainty_key: 'UC_PRECISION', uc_version: 1,
+    evaluation_id: 'mock-004', organization_id: 'org-001', project_id: 'proj-001',
+    evaluation_scope: 'TASK', evaluation_unit: 'TASK',
+    method_id: 'method_001', task_no: 2, transition_id: null,
+    overall_digital: '不良', overall_analog: '測定値に誤差が見られる。要調査',
     evaluation_value: '不良', comment: '測定値に誤差が見られる。要調査',
-    uncertainty_xml: null, evaluated_by: 'user-002', evaluated_at: '2026-07-15T09:30:00.000Z', display_color: '#ff4d4f',
+    evaluated_by: 'user-002', evaluated_at: '2026-07-15T09:30:00.000Z',
+    create_user_id: 'user-002', create_at: '2026-07-15T09:30:00.000Z',
   },
   {
-    organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_unit: 'transition_method', method_id: 'method_001', task_no: null, transition_id: 'T001_加熱処理',
-    name_space_id: 'ns-001', uncertainty_key: 'UC_TEMP_STABILITY', uc_version: 1,
+    evaluation_id: 'mock-005', organization_id: 'org-001', project_id: 'proj-001',
+    evaluation_scope: 'TRANSITION_METHOD', evaluation_unit: 'TRANSITION_METHOD',
+    method_id: 'method_001', task_no: null, transition_id: 'T001_加熱処理',
+    overall_digital: '良好', overall_analog: null,
     evaluation_value: '良好', comment: null,
-    uncertainty_xml: null, evaluated_by: 'user-001', evaluated_at: '2026-07-15T10:00:00.000Z', display_color: '#52c41a',
+    evaluated_by: 'user-001', evaluated_at: '2026-07-15T10:00:00.000Z',
+    create_user_id: 'user-001', create_at: '2026-07-15T10:00:00.000Z',
   },
   {
-    organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_unit: 'transition_task', method_id: 'method_001', task_no: 1, transition_id: 'T002_冷却処理',
-    name_space_id: 'ns-001', uncertainty_key: 'UC_TEMP_STABILITY', uc_version: 1,
+    evaluation_id: 'mock-006', organization_id: 'org-001', project_id: 'proj-001',
+    evaluation_scope: 'TRANSITION_TASK', evaluation_unit: 'TRANSITION_TASK',
+    method_id: 'method_001', task_no: 1, transition_id: 'T002_冷却処理',
+    overall_digital: '良好', overall_analog: null,
     evaluation_value: '良好', comment: null,
-    uncertainty_xml: null, evaluated_by: 'user-001', evaluated_at: '2026-07-15T10:30:00.000Z', display_color: '#52c41a',
+    evaluated_by: 'user-001', evaluated_at: '2026-07-15T10:30:00.000Z',
+    create_user_id: 'user-001', create_at: '2026-07-15T10:30:00.000Z',
   },
   {
-    organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_unit: 'transition_task', method_id: 'method_001', task_no: 2, transition_id: 'T003_引張試験',
-    name_space_id: 'ns-002', uncertainty_key: 'UC_PRECISION', uc_version: 1,
+    evaluation_id: 'mock-007', organization_id: 'org-001', project_id: 'proj-001',
+    evaluation_scope: 'TRANSITION_TASK', evaluation_unit: 'TRANSITION_TASK',
+    method_id: 'method_001', task_no: 2, transition_id: 'T003_引張試験',
+    overall_digital: '要確認', overall_analog: '引張速度に若干のばらつきあり',
     evaluation_value: '要確認', comment: '引張速度に若干のばらつきあり',
-    uncertainty_xml: null, evaluated_by: 'user-002', evaluated_at: '2026-07-15T11:00:00.000Z', display_color: '#faad14',
+    evaluated_by: 'user-002', evaluated_at: '2026-07-15T11:00:00.000Z',
+    create_user_id: 'user-002', create_at: '2026-07-15T11:00:00.000Z',
   },
 ];
 
-type ResultUnitFilter = 'all' | EvaluationUnit;
+type ResultUnitFilter = 'all' | SubEvaluationScope;
 
 /** [MOCK] 不確かさキー → 表示名フォールバック */
 const MOCK_CRITERIA_LABEL_MAP: Record<string, string> = {
@@ -157,7 +176,7 @@ const MOCK_CRITERIA_LABEL_MAP: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────
 
 function buildEvalRows(
-  unit: EvaluationUnit,
+  unit: SubEvaluationScope,
   allMethods: Array<{ id: string; name: string }>,
   reviewWaitingTasks: Array<{ methodId: string; methodName: string; taskNumber: number }>,
   selectedMethodForTr: string | null,
@@ -165,9 +184,7 @@ function buildEvalRows(
   projectLabel: string,
 ): EvalRow[] {
   switch (unit) {
-    case 'project':
-      return [{ rowKey: 'project', label: projectLabel, evaluationValue: undefined, comment: '' }];
-    case 'method':
+    case 'METHOD':
       return allMethods.map((m) => ({
         rowKey: `method__${m.id}`,
         label: m.name || m.id,
@@ -175,7 +192,7 @@ function buildEvalRows(
         evaluationValue: undefined,
         comment: '',
       }));
-    case 'task': {
+    case 'TASK': {
       const seen = new Set<string>();
       const rows: EvalRow[] = [];
       for (const t of reviewWaitingTasks) {
@@ -187,7 +204,7 @@ function buildEvalRows(
       }
       return rows;
     }
-    case 'transition_method':
+    case 'TRANSITION_METHOD':
       if (!selectedMethodForTr) return [];
       return MOCK_TRANSITION_NAMES.map((trName) => ({
         rowKey: `tr__${selectedMethodForTr}__${trName}`,
@@ -197,7 +214,7 @@ function buildEvalRows(
         evaluationValue: undefined,
         comment: '',
       }));
-    case 'transition_task':
+    case 'TRANSITION_TASK':
       if (!selectedMethodForTr || selectedTaskNoForTr === null) return [];
       return MOCK_TRANSITION_NAMES.map((trName) => ({
         rowKey: `tr__${selectedMethodForTr}__${selectedTaskNoForTr}__${trName}`,
@@ -274,14 +291,14 @@ const InputModal: React.FC<InputModalProps> = ({
   const { message } = App.useApp();
   const { t } = useLanguage();
 
-  const EVALUATION_UNIT_OPTIONS_INPUT: Array<{ label: string; value: EvaluationUnit }> = [
-    { label: t('evaluation.unitLabel.method'),            value: 'method'           },
-    { label: t('evaluation.unitLabel.task'),              value: 'task'             },
-    { label: t('evaluation.unitLabel.transitionMethod'),  value: 'transition_method' },
-    { label: t('evaluation.unitLabel.transitionTask'),    value: 'transition_task'  },
+  const EVALUATION_UNIT_OPTIONS_INPUT: Array<{ label: string; value: SubEvaluationScope }> = [
+    { label: t('evaluation.unitLabel.method'),            value: 'METHOD'           },
+    { label: t('evaluation.unitLabel.task'),              value: 'TASK'             },
+    { label: t('evaluation.unitLabel.transitionMethod'),  value: 'TRANSITION_METHOD' },
+    { label: t('evaluation.unitLabel.transitionTask'),    value: 'TRANSITION_TASK'  },
   ];
 
-  const [evalUnit, setEvalUnit]                         = useState<EvaluationUnit>('method');
+  const [evalUnit, setEvalUnit]                         = useState<SubEvaluationScope>('METHOD');
   const [selectedCriteriaKey, setSelectedCriteriaKey]   = useState<string | null>(null);
   const [selectedMethodForTr, setSelectedMethodForTr]   = useState<string | null>(null);
   const [selectedTaskNoForTr, setSelectedTaskNoForTr]   = useState<number | null>(null);
@@ -293,7 +310,7 @@ const InputModal: React.FC<InputModalProps> = ({
     [criteriaList, selectedCriteriaKey],
   );
 
-  const handleEvalUnitChange = (unit: EvaluationUnit) => {
+  const handleEvalUnitChange = (unit: SubEvaluationScope) => {
     setEvalUnit(unit);
     setSelectedMethodForTr(null);
     setSelectedTaskNoForTr(null);
@@ -322,7 +339,7 @@ const InputModal: React.FC<InputModalProps> = ({
   }, [evalUnit, allMethods, reviewWaitingTasks, selectedMethodForTr, selectedTaskNoForTr, t]);
 
   const handleClose = () => {
-    setEvalUnit('method');
+    setEvalUnit('METHOD');
     setSelectedCriteriaKey(null);
     setSelectedMethodForTr(null);
     setSelectedTaskNoForTr(null);
@@ -335,24 +352,22 @@ const InputModal: React.FC<InputModalProps> = ({
 
   const handleSave = async () => {
     if (!selectedCriteria) { message.warning(t('evaluation.messages.selectCriteriaFirst')); return; }
-    const evaluations: EvaluationInput[] = evalRows
+    const evaluations: SubEvaluationInput[] = evalRows
       .filter((r) => r.evaluationValue)
       .map((r) => ({
-        evaluationUnit:  evalUnit,
+        evaluationScope:  evalUnit as SubEvaluationScope,
         methodId:        r.methodId,
         taskNo:          r.taskNo,
         transitionId:    r.transitionId,
-        nameSpaceId:     selectedCriteria.nameSpaceId,
-        uncertaintyKey:  selectedCriteria.uncertaintyKey,
-        ucVersion:       selectedCriteria.version,
-        evaluationValue: r.evaluationValue!,
+        evaluationValue: r.evaluationValue as '良好' | '要確認' | '不良',
         comment:         r.comment || undefined,
       }));
     if (evaluations.length === 0) { message.warning(t('evaluation.messages.noEvalValue')); return; }
 
     setSubmitting(true);
     try {
-      await saveEvaluations({ projectId, evaluations });
+      const saveRequest = { evaluations };
+      await saveSubEvaluations(projectId, saveRequest);
       message.success(t('evaluation.messages.saveSuccess', { count: String(evaluations.length) }));
       handleClose();
       onSaved();
@@ -366,9 +381,8 @@ const InputModal: React.FC<InputModalProps> = ({
 
   const evalColumns: ColumnsType<EvalRow> = useMemo(() => {
     const labelTitle =
-      evalUnit === 'project' ? t('evaluation.columns.projectName')
-      : evalUnit === 'method' ? t('evaluation.columns.methodName')
-      : evalUnit === 'task' ? t('evaluation.columns.taskLabel')
+      evalUnit === 'METHOD' ? t('evaluation.columns.methodName')
+      : evalUnit === 'TASK' ? t('evaluation.columns.taskLabel')
       : t('evaluation.columns.transitionLabel');
     return [
       {
@@ -428,7 +442,7 @@ const InputModal: React.FC<InputModalProps> = ({
         {/* 評価単位 */}
         <Flex align="center" gap={8} wrap="wrap">
           <Text style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12 }}>{t('evaluation.labels.evalUnit')}</Text>
-          <Radio.Group value={evalUnit} onChange={(e) => handleEvalUnitChange(e.target.value as EvaluationUnit)} size="small">
+          <Radio.Group value={evalUnit} onChange={(e) => handleEvalUnitChange(e.target.value as SubEvaluationScope)} size="small">
             {EVALUATION_UNIT_OPTIONS_INPUT.map((opt) => (
               <Radio key={opt.value} value={opt.value}>{opt.label}</Radio>
             ))}
@@ -436,14 +450,14 @@ const InputModal: React.FC<InputModalProps> = ({
         </Flex>
 
         {/* トランジション系: メソッド選択 */}
-        {(evalUnit === 'transition_method' || evalUnit === 'transition_task') && (
+        {(evalUnit === 'TRANSITION_METHOD' || evalUnit === 'TRANSITION_TASK') && (
           <Flex align="center" gap={8} wrap="wrap">
             <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{t('evaluation.labels.selectMethod')}</Text>
             <Select style={{ width: 200 }} size="small" placeholder={t('evaluation.placeholders.selectMethod')}
               value={selectedMethodForTr}
               onChange={(v) => handleMethodChange(v ?? null)}
               options={allMethods.map((m) => ({ label: m.name || m.id, value: m.id }))} />
-            {evalUnit === 'transition_task' && (
+            {evalUnit === 'TRANSITION_TASK' && (
               <>
                 <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{t('evaluation.labels.selectTaskNo')}</Text>
                 <Select style={{ width: 140 }} size="small" placeholder={t('evaluation.placeholders.selectTaskNo')}
@@ -490,20 +504,28 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
 }) => {
   const { t } = useLanguage();
 
-  const UNIT_LABEL: Record<EvaluationUnit, string> = {
+  // TODO: 全体評価タブに移動済み（コメントアウト中）
+  // 階層別サマリー・要注意項目（動的算出）
+  // const { summary, isLoading: summaryLoading, refetch: refetchSummary } = useOverallEvaluation(projectId);
+
+  const UNIT_LABEL: Record<string, string> = {
     project:           t('evaluation.unitLabel.project'),
     method:            t('evaluation.unitLabel.method'),
     task:              t('evaluation.unitLabel.task'),
     transition_method: t('evaluation.unitLabel.transitionMethod'),
     transition_task:   t('evaluation.unitLabel.transitionTask'),
+    METHOD:            t('evaluation.unitLabel.method'),
+    TASK:              t('evaluation.unitLabel.task'),
+    TRANSITION_METHOD: t('evaluation.unitLabel.transitionMethod'),
+    TRANSITION_TASK:   t('evaluation.unitLabel.transitionTask'),
   };
 
   const RESULT_UNIT_OPTIONS: Array<{ label: string; value: ResultUnitFilter }> = [
-    { label: t('evaluation.unitLabel.all'),               value: 'all'              },
-    { label: t('evaluation.unitLabel.method'),            value: 'method'           },
-    { label: t('evaluation.unitLabel.task'),              value: 'task'             },
-    { label: t('evaluation.unitLabel.transitionMethod'),  value: 'transition_method' },
-    { label: t('evaluation.unitLabel.transitionTask'),    value: 'transition_task'  },
+    { label: t('evaluation.unitLabel.all'),               value: 'all'               },
+    { label: t('evaluation.unitLabel.method'),            value: 'METHOD'            },
+    { label: t('evaluation.unitLabel.task'),              value: 'TASK'              },
+    { label: t('evaluation.unitLabel.transitionMethod'),  value: 'TRANSITION_METHOD' },
+    { label: t('evaluation.unitLabel.transitionTask'),    value: 'TRANSITION_TASK'   },
   ];
 
   const [criteriaList, setCriteriaList]     = useState<UncertaintyCriteriaForSelector[]>([]);
@@ -520,7 +542,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
   const fetchRecords = useCallback(() => {
     if (!projectId) return;
     setLoading(true);
-    getEvaluationsByProject(projectId)
+    getSubEvaluationsByProject(projectId)
       .then(setRecords)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -585,7 +607,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
     const seen = new Set<string>();
     const opts: { label: string; value: string }[] = [];
     for (const r of records) {
-      if ((r.evaluation_unit === 'transition_method' || r.evaluation_unit === 'transition_task') && r.method_id && !seen.has(r.method_id)) {
+      if ((r.evaluation_unit === 'TRANSITION_METHOD' || r.evaluation_unit === 'TRANSITION_TASK') && r.method_id && !seen.has(r.method_id)) {
         seen.add(r.method_id);
         opts.push({ label: r.method_id, value: r.method_id });
       }
@@ -598,7 +620,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
     const seen = new Set<number>();
     const opts: { label: string; value: number }[] = [];
     for (const r of records) {
-      if (r.evaluation_unit === 'transition_task' && r.method_id === filterMethodId && r.task_no !== null && !seen.has(r.task_no)) {
+      if (r.evaluation_unit === 'TRANSITION_TASK' && r.method_id === filterMethodId && r.task_no !== null && !seen.has(r.task_no)) {
         seen.add(r.task_no);
         opts.push({ label: `#${r.task_no}`, value: r.task_no });
       }
@@ -610,15 +632,15 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
   const filtered = useMemo(() => {
     let result = records;
     if (unitFilter !== 'all') result = result.filter((r) => r.evaluation_unit === unitFilter);
-    if (filterKey)            result = result.filter((r) => r.uncertainty_key === filterKey);
-    if (filterMethodId && (unitFilter === 'transition_method' || unitFilter === 'transition_task'))
+    if (filterKey)            result = result.filter((r) => r.evaluation_scope === filterKey);
+    if (filterMethodId && (unitFilter === 'TRANSITION_METHOD' || unitFilter === 'TRANSITION_TASK'))
       result = result.filter((r) => r.method_id === filterMethodId);
-    if (filterTaskNo !== null && unitFilter === 'transition_task')
+    if (filterTaskNo !== null && unitFilter === 'TRANSITION_TASK')
       result = result.filter((r) => r.task_no === filterTaskNo);
     return result;
   }, [records, unitFilter, filterKey, filterMethodId, filterTaskNo]);
 
-  const usedKeys = useMemo(() => [...new Set(records.map((r) => r.uncertainty_key))], [records]);
+  const usedKeys = useMemo(() => [...new Set(records.map((r) => r.evaluation_scope))], [records]);
 
   const getCriteria = useCallback(
     (key: string) => criteriaList.find((c) => c.uncertaintyKey === key) ?? null,
@@ -632,7 +654,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
       key: 'evaluation_unit',
       width: 200,
       render: (_: unknown, r: EvaluationRecord) => (
-        <Text style={{ fontSize: 12 }}>{UNIT_LABEL[r.evaluation_unit as EvaluationUnit] ?? r.evaluation_unit}</Text>
+        <Text style={{ fontSize: 12 }}>{UNIT_LABEL[r.evaluation_unit as SubEvaluationScope] ?? r.evaluation_unit}</Text>
       ),
     },
     {
@@ -640,14 +662,12 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
       key: 'target',
       width: 250,
       render: (_: unknown, r: EvaluationRecord) => {
-        const unit = r.evaluation_unit as EvaluationUnit;
-        if (unit === 'project')
-          return <Text style={{ fontSize: 12 }}>{t('evaluation.unitLabel.project')}</Text>;
-        if (unit === 'method')
+        const unit = r.evaluation_unit as SubEvaluationScope;
+        if (unit === 'METHOD')
           return <Text style={{ fontSize: 12 }}>{r.method_id ?? '—'}</Text>;
-        if (unit === 'task')
+        if (unit === 'TASK')
           return <Text style={{ fontSize: 12 }}>{r.method_id ? `#${r.task_no} (${r.method_id})` : `#${r.task_no}`}</Text>;
-        if (unit === 'transition_method')
+        if (unit === 'TRANSITION_METHOD')
           return (
             <Text style={{ fontSize: 12 }}>
               {r.transition_id ?? '—'}
@@ -665,12 +685,11 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
     },
     {
       title: t('evaluation.columns.criteriaName'),
-      key: 'uncertainty_key',
+      key: 'evaluation_scope',
       width: 280,
-      render: (_: unknown, r: EvaluationRecord) => {
-        const c = getCriteria(r.uncertainty_key);
-        return <Text style={{ fontSize: 12 }}>{c?.uncertaintyKeyLabel ?? MOCK_CRITERIA_LABEL_MAP[r.uncertainty_key] ?? r.uncertainty_key}</Text>;
-      },
+      render: (_: unknown, r: EvaluationRecord) => (
+        <Text style={{ fontSize: 12 }}>{r.evaluation_scope}</Text>
+      ),
     },
     {
       title: t('evaluation.columns.evalValue'),
@@ -680,8 +699,8 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
       render: (_: unknown, r: EvaluationRecord) => (
         <EvalValueTag
           value={r.evaluation_value}
-          criteria={getCriteria(r.uncertainty_key)}
-          displayColor={r.display_color}
+          criteria={null}
+          displayColor={null}
         />
       ),
     },
@@ -713,6 +732,33 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
     <>
       <Space orientation="vertical" size={8} style={{ width: '100%' }}>
 
+        {/* ── 階層別サマリーセクション（全体評価タブに移動済み・コメントアウト中） ── */}
+        {/* <Card
+          size="small"
+          title={<Text style={{ fontSize: 13, fontWeight: 600 }}>📊 階層別サマリー</Text>}
+          extra={
+            summaryLoading
+              ? <Spin size="small" />
+              : <Button size="small" type="link" onClick={refetchSummary}>再取得</Button>
+          }
+          style={{ marginBottom: 4 }}
+        >
+          <EvaluationSummaryBar summaries={summary?.levels ?? []} />
+        </Card> */}
+
+        {/* ── 要注意項目セクション（全体評価タブに移動済み・コメントアウト中） ── */}
+        {/* {summary && summary.attentionItems.length > 0 && (
+          <Card
+            size="small"
+            title={<Text style={{ fontSize: 13, fontWeight: 600 }}>⚠️ 要注意項目</Text>}
+            style={{ marginBottom: 4 }}
+          >
+            <AttentionItemList items={summary.attentionItems} />
+          </Card>
+        )} */}
+
+        {/* <Divider style={{ margin: '4px 0' }} /> */}
+
         {/* ① 「評価を入力」ボタン（左端） */}
         <Flex justify="flex-start">
           <Button type="primary" icon={<EditOutlined />} size="small" disabled={!isEditable || isProjectCompleted || isCheckoutLocked} onClick={() => setInputModalOpen(true)}>
@@ -735,7 +781,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
           </Flex>
 
           {/* メソッド選択（トランジション系のみ可変表示） */}
-          {(unitFilter === 'transition_method' || unitFilter === 'transition_task') && (
+          {(unitFilter === 'TRANSITION_METHOD' || unitFilter === 'TRANSITION_TASK') && (
             <Flex align="center" gap={6}>
               <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{t('evaluation.labels.selectMethod')}</Text>
               <Select
@@ -748,7 +794,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
           )}
 
           {/* タスクNo選択（transition_taskのみ可変表示） */}
-          {unitFilter === 'transition_task' && (
+          {unitFilter === 'TRANSITION_TASK' && (
             <Flex align="center" gap={6}>
               <Text style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{t('evaluation.labels.taskNo')}</Text>
               <Select
@@ -795,7 +841,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
             <div className="evaluation-result-table">
               <Table<EvaluationRecord>
                 dataSource={filtered}
-                rowKey={(r) => `${r.evaluation_unit}__${r.method_id ?? ''}__${r.task_no ?? ''}__${r.transition_id ?? ''}__${r.uncertainty_key}`}
+                rowKey={(r) => `${r.evaluation_unit}__${r.method_id ?? ''}__${r.task_no ?? ''}__${r.transition_id ?? ''}__${r.evaluation_scope}`}
                 columns={resultColumns}
                 size="small"
                 pagination={false}
@@ -815,7 +861,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
         allMethods={allMethods}
         reviewWaitingTasks={reviewWaitingTasks}
         criteriaList={criteriaList}
-        onSaved={() => { setInputModalOpen(false); fetchRecords(); }}
+        onSaved={() => { setInputModalOpen(false); fetchRecords(); /* refetchSummary(); // TODO: 全体評価タブに移動済み */ }}
         onClose={() => setInputModalOpen(false)}
       />
     </>

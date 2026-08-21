@@ -167,36 +167,6 @@ export default function UncertaintyListTable({
         ),
     },
     {
-      title: t('uncertaintyListTable.colExtends'),
-      key: 'extends',
-      width: 180,
-      sorter: (a, b) => a.extends.localeCompare(b.extends),
-      render: (_, record) => {
-        if (!record.extends) return <span style={{ color: '#bbb' }}>—</span>;
-        // 同一 templates 内から継承元 Key に対応する名前を取得
-        const parentName = templates.find((t) => t.key === record.extends)?.name ?? '';
-        return (
-          <div>
-            {parentName ? (
-              <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{parentName}</div>
-            ) : (
-              <span style={{ color: '#bbb' }}>—</span>
-            )}
-            <div
-              style={{
-                fontSize: 11,
-                color: '#888',
-                fontFamily: 'Consolas, Monaco, monospace',
-                marginTop: 1,
-              }}
-            >
-              {record.extends}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
       title: t('uncertaintyListTable.colScope'),
       key: 'scope',
       minWidth: 150,

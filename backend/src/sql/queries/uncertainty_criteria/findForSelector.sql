@@ -10,6 +10,7 @@ SELECT
   , uc.evaluation_method             AS "evaluationMethod"
   , uc.xsi_type                      AS "xsiType"
   , uc.units                         AS "units"
+  , uc.scale_factor                  AS "scaleFactor"
   , uc.format_string                 AS "formatString"
   , uc.description                   AS "description"
   , ins.display_order                AS "displayOrder"

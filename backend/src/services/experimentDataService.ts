@@ -19,6 +19,7 @@ import { TransitionStatusEnum } from '../types/transitionData';
 import { logger } from '../utils/logger';
 import type { Pool, PoolClient } from 'pg';
 import type { Property, Content } from '../types/maiml-unified';
+import { findByKeysWithDetails, UncertaintyKeyDetail, QualitativeOptionRow } from '../repositories/uncertaintyCriteriaRepository';
 
 /**
  * プロジェクト編集不可エラー
@@ -290,9 +291,19 @@ export async function getTemplateData(
       adjacentPlaceIds.includes(r.place_id)
     );
 
-    // 8. placeId ごとに DB実績 or フォールバックを選択
+    // 8. uncertainty keys を MAIML から収集して DB 詳細を取得
+    const allUncertaintyKeys = collectUncertaintyKeys(parser, methodId);
+    const uncertaintyDetailMap = new Map<string, UncertaintyKeyDetail>();
+    if (allUncertaintyKeys.length > 0) {
+      const rawResult = await findByKeysWithDetails(organizationId, allUncertaintyKeys);
+      for (const detail of rawResult) {
+        uncertaintyDetailMap.set(detail.uncertaintyKey, detail);
+      }
+    }
+
+    // 8b. placeId ごとに DB実績 or フォールバックを選択
     // （一部のみ保存済みの場合に、未保存のplaceIdがレスポンスから欠損しないようにするため）
-    const fallbackAll = buildFallbackTemplates(parser, methodId, adjacentPlaceIds);
+    const fallbackAll = buildFallbackTemplates(parser, methodId, adjacentPlaceIds, uncertaintyDetailMap);
 
     const templates: TemplateDataItem[] = adjacentPlaceIds.map(placeId => {
       // DBにそのplaceIdのレコードが存在するか確認
@@ -333,6 +344,52 @@ export async function getTemplateData(
 }
 
 /**
+ * MAIML 内の全 uncertainty key を収集する
+ *
+ * @param parser - MaimlParserTyped インスタンス
+ * @param methodId - メソッドID
+ * @returns uncertainty key の配列（重複なし）
+ */
+function collectUncertaintyKeys(parser: MaimlParserTyped, methodId: string): string[] {
+  const keys = new Set<string>();
+  const methods = parser.getMethods();
+  const method = methods.find(m => m.id === methodId);
+  if (!method) return [];
+
+  const allTemplates = [
+    ...method.materialTemplates,
+    ...method.conditionTemplates,
+    ...method.resultTemplates,
+    ...method.program.flatMap(p => [
+      ...p.materialTemplates,
+      ...p.conditionTemplates,
+      ...p.resultTemplates,
+    ]),
+  ];
+
+  function collectFromProperty(p: Property): void {
+    if (p.uncertainty) {
+      for (const unc of p.uncertainty) {
+        if (unc.key) keys.add(unc.key);
+      }
+    }
+    if (p.properties) {
+      for (const child of p.properties) collectFromProperty(child);
+    }
+  }
+
+  for (const tmpl of allTemplates) {
+    if (!tmpl) continue;
+    const tmplArray = Array.isArray(tmpl) ? tmpl : [tmpl];
+    for (const t of tmplArray) {
+      for (const p of (t.properties || [])) collectFromProperty(p);
+    }
+  }
+
+  return [...keys];
+}
+
+/**
  * 0件時フォールバック: MAIMLテンプレート定義からレスポンスを生成
  *
  * @description
@@ -343,12 +400,14 @@ export async function getTemplateData(
  * @param parser - MaimlParserTyped インスタンス
  * @param methodId - メソッドID
  * @param adjacentPlaceIds - 隣接プレースIDの配列
+ * @param uncertaintyDetailMap - uncertainty key → DB詳細のマップ
  * @returns フォールバック用 TemplateDataItem 配列
  */
 function buildFallbackTemplates(
   parser: MaimlParserTyped,
   methodId: string,
-  adjacentPlaceIds: string[]
+  adjacentPlaceIds: string[],
+  uncertaintyDetailMap?: Map<string, UncertaintyKeyDetail>
 ): TemplateDataItem[] {
   const methods = parser.getMethods();
   const method = methods.find(m => m.id === methodId);
@@ -389,20 +448,58 @@ function buildFallbackTemplates(
    * Property を再帰的に変換するヘルパー関数（深さ制限付き）
    * propertyListType の子 Property・子 Content を空配列に上書きせず、
    * 再帰的に変換して渡す。
+   * uncertaintyDetailMap があれば uncertainty を定量/定性に分類してフィールドに反映する。
    */
   function convertPropertyForFallback(
     p: Property,
-    depth: number = 0
+    depth: number = 0,
+    uncertaintyDetailMap?: Map<string, UncertaintyKeyDetail>
   ): Record<string, unknown> {
     const MAX_DEPTH = 5;
+
+    // uncertainty を定量/定性に分類する
+    let toleranceValue: string | null = null;
+    let uncertaintyNote: string | null = null;
+    let uncertaintyName: string | null = null;
+    let qualitativeOptions: QualitativeOptionRow[] = [];
+    let qualitativeEval: string | null = null;
+    let qualitativeNote: string | null = null;
+
+    if (uncertaintyDetailMap && p.uncertainty && p.uncertainty.length > 0) {
+      for (const unc of p.uncertainty) {
+        const key = unc.key ?? '';
+        const detail = uncertaintyDetailMap.get(key);
+        // evaluationMethod 1=定量, 2=定性。DB に存在しないキーは定量として扱う
+        const isQualitative = detail?.evaluationMethod === 2;
+
+        if (!isQualitative && toleranceValue === null) {
+          // 定量: 最初の1件（value は number | boolean の可能性もあるため String() で変換）
+          toleranceValue   = unc.value     != null ? String(unc.value) : null;
+          uncertaintyNote  = unc.description ?? null;
+          uncertaintyName  = detail?.termDisplayName ?? null;
+        } else if (isQualitative && qualitativeOptions.length === 0) {
+          // 定性: 最初の1件
+          qualitativeOptions = detail?.qualitativeOptions ?? [];
+          qualitativeEval    = unc.value     != null ? String(unc.value) : null;
+          qualitativeNote    = unc.description ?? null;
+        }
+      }
+    }
+
     return {
       key: p.key || '',
       xsiType: p.xsiType || 'stringType',
       value: p.value ?? undefined,
       units: p.units || undefined,
+      toleranceValue,
+      uncertaintyNote,
+      uncertaintyName,
+      qualitativeOptions,
+      qualitativeEval,
+      qualitativeNote,
       // ネスト構造を再帰的に変換（深さ制限で無限ループ防止）
       properties: depth < MAX_DEPTH
-        ? (p.properties || []).map(child => convertPropertyForFallback(child, depth + 1))
+        ? (p.properties || []).map(child => convertPropertyForFallback(child, depth + 1, uncertaintyDetailMap))
         : [],
       // Content 子要素も変換（Content はリーフノードとして扱うため properties/contents は空配列）
       contents: depth < MAX_DEPTH
@@ -430,7 +527,7 @@ function buildFallbackTemplates(
       // このテンプレートのプロパティ定義を構築
       // convertPropertyForFallback で子要素（properties/contents）を再帰的に変換する
       const properties = (template.properties || []).map(p =>
-        convertPropertyForFallback(p)
+        convertPropertyForFallback(p, 0, uncertaintyDetailMap)
       );
 
       // テンプレートトップレベルの contents を変換してフロントへ渡す

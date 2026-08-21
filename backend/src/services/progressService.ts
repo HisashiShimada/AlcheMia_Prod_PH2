@@ -41,6 +41,7 @@ import { logger } from '../utils/logger';
 import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { CheckoutStatusEnum } from '../enums/codeMaster.enum';
+import { PROJECT_STATUS_STRING_MAP } from '../types/project';
 
 /**
  * ステータス遷移マトリクス（数値型）
@@ -49,7 +50,7 @@ import { CheckoutStatusEnum } from '../enums/codeMaster.enum';
  * データベース定義に基づく遷移ルール
  */
 export const ALLOWED_TRANSITIONS: Record<TransitionStatusNumber, TransitionStatusNumber[]> = {
-  [TransitionStatusEnum.INITIAL]: [TransitionStatusEnum.INITIAL, TransitionStatusEnum.PREPARING, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.INITIAL]: [TransitionStatusEnum.INITIAL, TransitionStatusEnum.PREPARING, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.PREPARING]: [TransitionStatusEnum.PREPARING, TransitionStatusEnum.READY, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.READY]: [TransitionStatusEnum.READY, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.IN_PROGRESS]: [TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.PAUSED, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR, TransitionStatusEnum.INITIAL],
@@ -349,39 +350,37 @@ export class ProgressService {
       const projectName = nameRow.project_name;
       const projectUuid = nameRow.project_uuid;
 
-      // project_uuid 必須チェック
-      if (!projectUuid) {
-        return {
-          success: false,
-          error: {
-            code: 'TASK_NOT_FOUND',
-            message: 'プロジェクトUUIDが設定されていません'
-          }
-        };
-      }
-
-      // file_metadata から MAIMLファイルの file_key を取得（project_uuid ベース）
+      // file_metadata から MAIMLファイルの file_key を取得（project_uuid ベース、未設定時は project_name でフォールバック）
       const fileMetadataRepo = new FileMetadataRepository();
-      const meta = await fileMetadataRepo.findMaimlByProjectUuid(projectUuid);
-      if (!meta) {
-        return {
-          success: false,
-          error: {
-            code: 'TASK_NOT_FOUND',
-            message: 'MAIMLファイルのメタデータが見つかりません'
-          }
-        };
+      let maimlFileKey: string;
+      let fileName: string;
+      let filePath: string;
+
+      if (projectUuid) {
+        const meta = await fileMetadataRepo.findMaimlByProjectUuid(projectUuid);
+        if (!meta) {
+          // project_uuid があるが file_metadata に未登録の場合も project_name でフォールバック
+          logger.warn('[ProgressService] file_metadata にMAIMLメタデータなし、project_name でフォールバック', { projectId, projectUuid });
+          filePath = `projects/${projectName}/${projectName}.maiml`;
+          maimlFileKey = `${organizationId}/${filePath}`;
+          fileName = `${projectName}.maiml`;
+        } else {
+          // file_key は "{organizationId}/..." 形式のフルキー
+          maimlFileKey = meta.file_key;
+          fileName = meta.original_filename;
+          // storageService.downloadFile は組織プレフィックスを除いた相対パスを受け取る
+          filePath = meta.file_key.startsWith(`${organizationId}/`)
+            ? meta.file_key.slice(`${organizationId}/`.length)
+            : meta.file_key;
+          logger.info('[ProgressService] file_metadata から MAIMLパスを解決', { maimlFileKey, fileName });
+        }
+      } else {
+        // project_uuid 未設定の場合は project_name でフォールバック
+        logger.warn('[ProgressService] project_uuid 未設定、project_name でフォールバック', { projectId, projectName });
+        filePath = `projects/${projectName}/${projectName}.maiml`;
+        maimlFileKey = `${organizationId}/${filePath}`;
+        fileName = `${projectName}.maiml`;
       }
-
-      // file_key は "{organizationId}/..." 形式のフルキー
-      const maimlFileKey = meta.file_key;
-      const fileName = meta.original_filename;
-      // storageService.downloadFile は組織プレフィックスを除いた相対パスを受け取る
-      const filePath = meta.file_key.startsWith(`${organizationId}/`)
-        ? meta.file_key.slice(`${organizationId}/`.length)
-        : meta.file_key;
-
-      logger.info('[ProgressService] file_metadata から MAIMLパスを解決', { maimlFileKey, fileName });
 
       // ストレージサービスでダウンロード
       const storageService = getStorageService();
@@ -762,14 +761,7 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 3: プロジェクトステータス → 文字列変換
       // ─────────────────────────────────────────────
-      const PROJECT_STATUS_MAP: Record<number, ProjectInfoDetail['status']> = {
-        0: 'planning',
-        1: 'pending',
-        2: 'in_progress',
-        3: 'review_waiting',
-        4: 'completed',
-        5: 'error'
-      };
+      const PROJECT_STATUS_MAP: Record<number, ProjectInfoDetail['status']> = PROJECT_STATUS_STRING_MAP as Record<number, ProjectInfoDetail['status']>;
       const statusStr: ProjectInfoDetail['status'] = PROJECT_STATUS_MAP[proj.project_status] ?? 'planning';
 
       // ─────────────────────────────────────────────

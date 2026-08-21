@@ -68,7 +68,46 @@ backend/
 - クエリの実行
 - データの永続化
 
-## コーディング規約
+### ⚠️ レイヤー間呼び出しルール（重要）
+
+各レイヤーは **隣接する下位レイヤーのみ** を呼び出すこと。層をスキップした呼び出しは禁止。
+
+```
+Routes（Controller）
+    ↓ のみ呼び出し可
+Service 層
+    ↓ のみ呼び出し可
+Repository 層
+```
+
+```typescript
+// ❌ 禁止: Routes（Controller）から Repository を直接呼び出す
+router.get('/projects', auth, async (req, res) => {
+  // Repository を直接呼び出してはいけない
+  const projects = await projectRepository.findAll(req.organizationId);
+  res.json(projects);
+});
+
+// ✅ 正しい: Routes → Service → Repository の順で呼び出す
+router.get('/projects', auth, async (req, res) => {
+  // Service 層を経由する
+  const projects = await projectService.getProjects(req.organizationId);
+  res.json(projects);
+});
+
+// services/projectService.ts
+export async function getProjects(organizationId: string) {
+  // Service 層が Repository を呼び出す
+  return await projectRepository.findAll(organizationId);
+}
+```
+
+**この規約の目的:**
+- ビジネスロジック（バリデーション・権限チェック・トランザクション等）の Service 層への集約
+- Controller のテスト容易性向上（Controller はルーティングのみに専念）
+- Repository の直接利用によるビジネスロジック迂回防止
+
+
 
 ### ルート定義
 
@@ -459,6 +498,199 @@ export const errorHandler = (
 - すべてのエラーをログに記録
 - スタックトレースを含める
 - コンテキスト情報を付与（userId, organizationId, requestId）
+
+
+### 多言語対応規約（i18n）
+
+#### 全体方針
+
+バックエンドのエラーメッセージ・バリデーションメッセージはすべて日英両対応とする。
+
+**メッセージ決定の優先順位（高→低）:**
+
+| 優先度 | 取得元 | 用途 |
+|--------|--------|------|
+| 1（原則） | `messages.ts` の `getMessage(lang, key, params)` | **必ずここで個別メッセージを用意すること** |
+| 2（保険） | `errorCodes.ts` の `getErrorDefaultMessage(code, lang)` | messages.ts にキーが未定義の場合の自動フォールバック |
+| 3（最終） | エラーコード文字列そのもの（`'E1003'` 等） | 最終フォールバック |
+
+> ⚠️ エラーを throw・返す箇所には **必ず** `messages.ts` に対応するメッセージキーを用意すること。
+> エラーコードのデフォルトメッセージはあくまで「messages.ts への追加漏れ」に対する安全網であり、それに頼ることを目的としない。
+
+**対応言語:**
+
+| コード | 言語 | デフォルト |
+|--------|------|-----------|
+| `ja` | 日本語 | ✅（フォールバック） |
+| `en` | 英語 | — |
+
+---
+
+#### lang 取得の統一パターン（Controller 層）
+
+Controller 層では **必ず以下のパターン** で `lang` を取得し、Service 層に渡す。
+
+```typescript
+// ✅ 統一パターン（全 Controller で統一すること）
+const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
+
+// ❌ 禁止: 独自のパース方法
+const lang = req.headers['accept-language']?.startsWith('en') ? 'en' : 'ja';
+```
+
+> **例外:** GET 系などユーザー向けエラーメッセージを返さないエンドポイントは省略可
+
+---
+
+#### lang 伝播パターン（Controller → Service）
+
+```typescript
+// ✅ Controller 層: lang を取得して Service に渡す
+export const createFoo = async (req: Request, res: Response): Promise<void> => {
+  const lang = ((req.headers['accept-language'] as string) || 'ja').split(',')[0].split('-')[0];
+  const result = await fooService.createFoo(req.body, String(userId), lang);
+  res.json({ success: true, data: result, meta: { ... } });
+};
+
+// ✅ Service 層: lang 引数を受け取り、デフォルト値 'ja' を必ず設定する
+export async function createFoo(
+  data: FooInput,
+  userId: string,
+  lang: string = 'ja'
+): Promise<Foo> {
+  const existing = await fooRepository.findByName(data.name);
+  if (existing) {
+    const error: any = new Error(getMessage(lang, 'myFeature.duplicateName'));
+    error.statusCode = 409;
+    throw error;
+  }
+  // ...
+}
+```
+
+---
+
+#### messages.ts の管理ルール
+
+**ファイル位置:** `backend/src/utils/messages.ts`
+
+メッセージを追加する際は、**必ず以下の 3 箇所を同時に更新する。**
+TypeScript の型定義と実装を一致させることで、追加漏れをコンパイルエラーで検出できる。
+
+```typescript
+// ① Messages 型定義にキーを追加
+type Messages = {
+  // ... 既存 ...
+  myFeature: {
+    duplicateName: string;
+    csv: {
+      nameRequired: string;
+    };
+  };
+};
+
+// ② ja オブジェクトに日本語メッセージを追加
+const ja: Messages = {
+  // ... 既存 ...
+  myFeature: {
+    duplicateName: 'この名前は既に使用されています',
+    csv: {
+      nameRequired: '{row}行目: 名前は必須です',
+    },
+  },
+};
+
+// ③ en オブジェクトに英語メッセージを追加
+const en: Messages = {
+  // ... 既存 ...
+  myFeature: {
+    duplicateName: 'This name is already in use',
+    csv: {
+      nameRequired: 'Row {row}: Name is required',
+    },
+  },
+};
+```
+
+**プレースホルダー規則:**
+- `{row}` — CSV 行番号
+- `{name}`, `{cd}`, `{mail}`, `{id}` など — 値名を使う
+- `{0}`, `{1}` のような位置指定は禁止
+
+**Service 層での getMessage 使用例:**
+
+```typescript
+import { getMessage } from '../utils/messages';
+
+// 単純なエラーメッセージ
+const error: any = new Error(getMessage(lang, 'myFeature.duplicateName'));
+error.statusCode = 409;
+throw error;
+
+// CSV バリデーションでプレースホルダーを使用する例
+const errors: { message: string }[] = [];
+if (!row.name) {
+  errors.push({
+    message: getMessage(lang, 'myFeature.csv.nameRequired', { row: String(rowNumber) }),
+  });
+}
+```
+
+---
+
+#### エラーコードのデフォルトメッセージ（保険）
+
+`messages.ts` に対応キーが**存在しない場合のフォールバック**として、`errorCodes.ts` に `ERROR_DEFAULT_MESSAGES` と `getErrorDefaultMessage()` を用意する。
+
+> ⚠️ 通常の実装ではここまで落ちないようにすること。messages.ts へのキー追加を怠った際の安全網として機能する。
+
+```typescript
+// backend/src/enums/errorCodes.ts に追加
+
+/** エラーコードごとのデフォルトメッセージ（保険用フォールバック） */
+export const ERROR_DEFAULT_MESSAGES: Record<string, { ja: string; en: string }> = {
+  E1001: { ja: 'ファイルサイズが制限を超えています', en: 'File size exceeds the limit' },
+  E1002: { ja: 'ファイル形式が正しくありません', en: 'Invalid file format' },
+  E1003: { ja: '入力内容に誤りがあります', en: 'Validation error' },
+  // ... 全エラーコード分を定義 ...
+  E9999: { ja: '予期しないエラーが発生しました', en: 'An unexpected error occurred' },
+};
+
+/**
+ * エラーコードのデフォルトメッセージを取得する（保険用）
+ * messages.ts に対応キーがある場合は getMessage() を優先すること
+ */
+export function getErrorDefaultMessage(code: string, lang: string = 'ja'): string {
+  const langKey = (lang === 'en' ? 'en' : 'ja') as 'ja' | 'en';
+  return ERROR_DEFAULT_MESSAGES[code]?.[langKey]
+    ?? ERROR_DEFAULT_MESSAGES[code]?.ja
+    ?? code;
+}
+```
+
+---
+
+#### 禁止事項
+
+```typescript
+// ❌ 禁止: lang 引数を無視して 'ja' をハードコード
+getMessage('ja', 'role.csv.alreadyExists', { roleCd })
+// ✅ 正しい: getMessage(lang, 'role.csv.alreadyExists', { roleCd })
+
+// ❌ 禁止: messages.ts に未定義のキーをフォールバック文字列で誤魔化す
+getMessage(lang, 'master.duplicateAttributeName') || 'この名前は重複しています'
+// ✅ 正しい: Messages 型・ja・en の 3 箇所にキーを追加してから getMessage() を使う
+
+// ❌ 禁止: 多言語化なしでメッセージをハードコード
+throw new Error('このIDは重複しています');
+// ✅ 正しい: getMessage(lang, 'xxx.duplicateId') を使う
+
+// ❌ 禁止: Controller 層で lang を取得せず Service 層に渡さない
+const result = await someService.createFoo(req.body, userId);  // lang なし
+// ✅ 正しい: lang を取得して引数に渡す
+const result = await someService.createFoo(req.body, userId, lang);
+```
+
 
 ### バリデーション
 
@@ -853,6 +1085,9 @@ export const apiLimiter = rateLimit({
 ✅ ログを適切に記録する
 ✅ 非同期処理でasync/awaitを使用する
 ✅ セキュリティベストプラクティスに従う
+✅ エラーメッセージは必ず messages.ts で日英両方を用意する
+✅ Controller 層で Accept-Language ヘッダーから lang を取得し Service 層に渡す
+✅ messages.ts に新しいキーを追加する際は Messages 型・ja・en の 3 箇所を同時に更新する
 
 ### DON'T（非推奨）
 ❌ 文字列連結でSQLクエリを構築しない
@@ -863,3 +1098,6 @@ export const apiLimiter = rateLimit({
 ❌ グローバル変数を使用しない
 ❌ 同期的なファイル操作を使用しない
 ❌ ハードコーディングされた設定値を使用しない
+❌ getMessage() の lang 引数に 'ja' をハードコードしない
+❌ messages.ts に未定義のキーを参照してフォールバック文字列で誤魔化さない
+❌ エラーメッセージを多言語化せずに日本語固定で throw しない

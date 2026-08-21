@@ -170,6 +170,27 @@ export interface TemplateField {
    * バックエンドで detectFieldType により type('text'/'number'/'select') に変換される前の元の値。
    */
   xsiType?: string;
+  /**
+   * MAIMLテンプレートに設定されたデフォルト不確かさ（バックエンドの convertTemplate で生成）
+   * experimentInstructionService の convertTemplate により property.uncertainty[] から変換される。
+   * ダイアログ初回表示時の assignedUncertainty 初期値として使用する。
+   */
+  defaultUncertainties?: Array<{
+    /** 不確かさ基準キー（MAIML uncertainty.key） */
+    criteriaKey: string;
+    /** 不確かさ基準名（uncertainty.description または key） */
+    criteriaName: string;
+    /** 評価種別 */
+    evalType: 'quantitative' | 'qualitative';
+    /** 定量評価値（定量の場合） */
+    ucValue?: number;
+    /** 定性評価値（定性の場合） */
+    qualitativeValue?: string;
+    /** 単位（uncertainty.units） */
+    unit?: string;
+    /** MAIMLのuncertainty.descriptionをcommentの初期値として使用するための説明文 */
+    description?: string;
+  }>;
 }
 
 /**

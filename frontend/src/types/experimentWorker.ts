@@ -147,6 +147,7 @@ export interface Transition {
   category?: string;
   estimatedDuration?: string;
   workOrder?: number; // 作業順序（フロー図での並び順と接続に使用）
+  prerequisiteTransitionIds?: string[]; // 前提トランジションID配列（依存関係・BFSレイアウトに使用）
   templates?: Template[];
   // Phase 6追加: 実験記録タブ用のプロパティ
   status?: ProgressStatus; // ステータス
@@ -186,6 +187,17 @@ export interface Property {
   description?: string;                // プロパティの説明文（MAIMLの <description> 要素）
   formatString?: string;               // 数値フォーマット文字列（例: "%.3f"）
   scaleFactor?: string;                // 単位変換係数
+  // ── カード表示用フィールド（experiment_plan.planned_values から取得、なければ null）──
+  plannedValue?: string | number | null;       // 想定値
+  toleranceValue?: string | null;              // 不確かさ値（定量評価の許容値）
+  uncertaintyNote?: string | null;             // 不確かさ説明
+  uncertaintyKey?: string | null;              // 不確かさ基準Key（定性評価の選択肢解決に使用）
+  uncertaintyName?: string | null;             // 不確かさ基準名（許容誤差列のラベルとして使用）
+  // ── 評価値（template_data.property_set に保存）──
+  qualitativeOptions?: string[];               // 定性評価の選択肢（指定なければデフォルト使用）
+  qualitativeEval?: string | null;             // 定性評価の選択値
+  qualitativeNote?: string | null;             // 定性評価のdescription（3-4 要件）
+  quantitativeEvals?: QuantitativeEval[];      // 定量評価の行リスト
 }
 
 

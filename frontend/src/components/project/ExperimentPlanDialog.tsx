@@ -86,6 +86,8 @@ import {
 import {
   createInitialTabData,
   buildDefaultTemplateValues,
+  buildDefaultAssignedUncertainty,
+  mergeDefaultUncertainty,
   calculateSteps,
   canMoveToOrder,
   moveTransitionWithSubtree,
@@ -130,6 +132,13 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
   // --- インポート用隠しinput ref ---
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * methodId 変更専用 Effect の初回マウント時スキップ用 Ref
+   * マウント直後は Effect 1（open/projectId/methodId/message 依存）でフルフェッチが行われるため、
+   * Effect 2 が同時に実行されることで発生する二重フェッチ・競合状態を防ぐ。
+   */
+  const isFirstMountRef = useRef(true);
 
   // --- APIデータ State ---
   const { t } = useLanguage();
@@ -358,10 +367,25 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   /** タブアイテムの定義 */
   const tabItems = useMemo(() => {
     return [
-      { key: TAB_KEY_ALL, label: '一括' },
-      ...taskNumbers.map((n) => ({ key: `task-${n}`, label: `タスク${n}` })),
+    { key: TAB_KEY_ALL, label: t('experimentPlanDialog.all') },
+      ...taskNumbers.map((n) => ({ key: `task-${n}`, label: t('experimentPlanDialog.task', { n: String(n) }) })),
     ];
   }, [taskNumbers]);
+
+  /**
+   * methodId が未設定（空文字）かつ methodOptions が存在する場合、
+   * 最初のオプションを自動選択して onMethodChange 経由で親に通知する。
+   * これにより、メソッド一覧の非同期取得完了前にダイアログが開いた場合でも
+   * データ取得が正しく行われる。
+   */
+  useEffect(() => {
+    if (!open) return;
+    if (methodId) return; // すでに methodId が設定されていればスキップ
+    if (!allowMethodSelection) return;
+    if (!methodOptions || methodOptions.length === 0) return;
+    // 最初のメソッドを自動選択
+    onMethodChange?.(methodOptions[0].id);
+  }, [open, methodId, allowMethodSelection, methodOptions, onMethodChange]);
 
   /** ダイアログオープン時にAPIデータ取得 & 状態初期化 */
   useEffect(() => {
@@ -385,11 +409,18 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
         // 既存の実験計画データを取得して tabDataMap を復元
         const existingPlans = await getExperimentPlans(projectId, methodId);
         const restoredTabDataMap = experimentPlansToTabDataMap(existingPlans);
+        // テンプレートのデフォルト不確かさを生成（保存済みデータ補完 & 初回表示共用）
+        const defaultAssignedUncertainty = buildDefaultAssignedUncertainty(data.templates);
         if (Object.keys(restoredTabDataMap).length > 0) {
           // 保存済みデータがある場合はそちらを優先
-          setTabDataMap(restoredTabDataMap);
+          // ただし assignedUncertainty が空のトランジションはテンプレート定義のデフォルト不確かさで補完する
+          // （タスク登録時の初期INSERT では __uncertainty__ が保存されないため）
+          const mergedTabDataMap = mergeDefaultUncertainty(restoredTabDataMap, defaultAssignedUncertainty);
+          setTabDataMap(mergedTabDataMap);
         } else {
           // 初回入力時: 全トランジション分のデフォルト値で一括タブを初期化
+          // Templateのdefault値から初期値を生成
+          // ※ MAIMLのdata層（過去の実験実績値）は無視し、テンプレート定義のdefault値のみを使用する
           const defaultTemplateValues = buildDefaultTemplateValues(data.templates);
           const info = data.defaultBasicInfo;
 
@@ -409,6 +440,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
               ownerRefs: info?.ownerRefs ?? [],
               notes: defaultNotes,
               templateValues: defaultTemplateValues,
+              assignedUncertainty: defaultAssignedUncertainty,
             };
           }
           setTabDataMap({ [TAB_KEY_ALL]: allTabTransMap });
@@ -424,8 +456,21 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     fetchDialogData();
   }, [open, projectId, methodId, message]);
 
-  /** メソッドID変更時にAPIデータ再取得 */
+  /**
+   * メソッドID変更時にAPIデータ再取得
+   *
+   * @remarks
+   * 初回マウント時は Effect 1（open/projectId/methodId/message 依存）でフルフェッチが行われるため、
+   * isFirstMountRef.current が true の間はスキップする。
+   * これにより、ダイアログオープン直後に Effect 1 と Effect 2 が二重実行される競合状態を防ぐ。
+   * （Effect 2 が Effect 1 より後に完了すると getExperimentPlans の結果が失われる問題があった）
+   */
   useEffect(() => {
+    // 初回マウント時はスキップ（Effect 1 に任せる）
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
     if (!open || !projectId || !methodId) return;
 
     const fetchDialogData = async () => {
@@ -593,14 +638,14 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 
         const validation = canMoveToOrder(active.id as string, targetOrder, prev);
         if (!validation.canMove) {
-          message.warning(validation.reason ?? '順序を変更できません');
+          message.warning(validation.reason ?? t('experimentPlanDialog.cannotChangeOrder'));
           return prev;
         }
 
         return calculateSteps(moveTransitionWithSubtree(active.id as string, targetOrder, prev));
       });
     },
-    [message]
+    [message, t]
   );
 
   /** Select手入力による順序変更ハンドラ（子孫と一緒に自動連動移動） */
@@ -609,7 +654,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       setTransitionOrder((prev) => {
         const validation = canMoveToOrder(transitionId, newOrder, prev);
         if (!validation.canMove) {
-          message.warning(validation.reason ?? '順序を変更できません');
+          message.warning(validation.reason ?? t('experimentPlan.orderChangeNotAllowed'));
           return prev;
         }
 
@@ -632,11 +677,62 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       }));
 
       // 全タスク × 全トランジション分を保存
+      // 保存データのマージ戦略:
+      //   1. TAB_KEY_ALL（一括タブ）のデータをベースとして使用
+      //   2. task-N タブで個別に編集されたデータで上書き（フィールド単位）
+      //
+      // 理由: 初回入力時は TAB_KEY_ALL にしかデータが入っていない場合があるため、
+      // task-N が未編集（空）の場合に TAB_KEY_ALL のデータが失われるのを防ぐ。
+      const allTransMap = tabDataMap[TAB_KEY_ALL] ?? {};
+
       const savePromises = taskNumbers.map((taskNo) => {
         const tabKey = `task-${taskNo}`;
-        // tabDataMap[tabKey] は Record<string, ExperimentPlanTabData>（トランジションIDキー）
-        const transitionDataMap = tabDataMap[tabKey] ?? {};
-        return upsertExperimentPlanToApi(projectId, methodId, taskNo, transitionDataMap, orderEntries);
+        const taskTransMap = tabDataMap[tabKey] ?? {};
+
+        // TAB_KEY_ALL をベースに、task-N で上書きされたフィールドをマージ
+        // （トランジションIDごとに、task-N が持つフィールドで all タブのデータを上書き）
+        const mergedTransMap: Record<string, ExperimentPlanTabData> = {};
+        const allTransIds = new Set([
+          ...Object.keys(allTransMap),
+          ...Object.keys(taskTransMap),
+        ]);
+        for (const transId of allTransIds) {
+          const allData = allTransMap[transId];
+          const taskData = taskTransMap[transId];
+          if (!allData && taskData) {
+            mergedTransMap[transId] = taskData;
+          } else if (allData && !taskData) {
+            mergedTransMap[transId] = allData;
+          } else if (allData && taskData) {
+            // 両方にデータがある場合: フィールドごとに task-N のデータで上書き
+            // ただし task-N が初期値（空配列・空オブジェクト）の場合は all タブを優先
+            mergedTransMap[transId] = {
+              selectedTransitions: taskData.selectedTransitions.length > 0
+                ? taskData.selectedTransitions
+                : allData.selectedTransitions,
+              creatorRefs: taskData.creatorRefs.length > 0
+                ? taskData.creatorRefs
+                : allData.creatorRefs,
+              instrumentRefs: taskData.instrumentRefs.length > 0
+                ? taskData.instrumentRefs
+                : allData.instrumentRefs,
+              ownerRefs: taskData.ownerRefs.length > 0
+                ? taskData.ownerRefs
+                : allData.ownerRefs,
+              notes: taskData.notes.length > 0
+                ? taskData.notes
+                : allData.notes,
+              templateValues: Object.keys(taskData.templateValues).length > 0
+                ? { ...allData.templateValues, ...taskData.templateValues }
+                : allData.templateValues,
+              assignedUncertainty: Object.keys(taskData.assignedUncertainty).length > 0
+                ? taskData.assignedUncertainty
+                : allData.assignedUncertainty,
+            };
+          }
+        }
+
+        return upsertExperimentPlanToApi(projectId, methodId, taskNo, mergedTransMap, orderEntries);
       });
 
       await Promise.all(savePromises);
@@ -787,7 +883,14 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
             size="small"
             styles={{ body: { padding: 0, maxHeight: 320, overflowY: 'auto' } }}
           >
-            {transitions.length === 0 ? (
+            {dialogDataLoading ? (
+              /* API取得中スピナー: dialogDataLoading が true の間は Empty ではなく Spin を表示する。
+               * dialogDataLoading がUIに接続されていなかったため、データ取得中に「トランジションがありません」
+               * が表示されていた問題を修正。 */
+              <div style={{ padding: 24, textAlign: 'center' }}>
+                <Spin tip={t('common.loading')} />
+              </div>
+            ) : transitions.length === 0 ? (
               <div style={{ padding: 16 }}>
                 <Empty
                   description="トランジションがありません"

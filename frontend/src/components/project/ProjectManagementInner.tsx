@@ -5,7 +5,8 @@ import { App, Card, Tabs, Tag, Space, Typography, theme, Tooltip, Button } from 
 import {
   DownloadOutlined, UploadOutlined, EditOutlined, DeleteOutlined,
   FileTextOutlined, ExclamationCircleOutlined,
-  SafetyCertificateOutlined, WarningOutlined, LockOutlined, TeamOutlined,
+  SafetyCertificateOutlined, WarningOutlined, TeamOutlined,
+  // TODO: 暗号化・署名機能は本実装まで無効化 -- LockOutlined,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
@@ -99,7 +100,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
   });
   const {
     isProjectCheckedOut, taskResults, taskStats,
-    handleToggleCheckout, handleInstructionsSubmit,
+    handleToggleCheckout,
     handleOpenIssueManagement, handleCloseIssueManagement,
     handleRenameSuccess, handleCloseCreateModal, handleCreateProject, handleProjectDelete,
   } = actionsState;
@@ -269,8 +270,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                   </Tooltip>
                   <Button icon={<EditOutlined />} onClick={() => dialogs.setRenameModalOpen(true)} disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}>{t('projectManagement.renameProject')}</Button>
                   <Button icon={<SafetyCertificateOutlined />} onClick={() => dialogs.setValidationDialogOpen(true)} disabled={!selectedProject}>{t('projectManagement.validationConfirmButton')}</Button>
-                  <Button icon={<LockOutlined />} onClick={() => dialogs.setEncryptionModalOpen(true)} disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}>{t('projectManagement.encryptionButton')}</Button>
-                  <Button icon={<SafetyCertificateOutlined />} onClick={() => dialogs.setSignatureModalOpen(true)} disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}>{t('projectManagement.signatureButton')}</Button>
+                  {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
+                  {/* <Button icon={<LockOutlined />} onClick={() => dialogs.setEncryptionModalOpen(true)} disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}>{t('projectManagement.encryptionButton')}</Button> */}
+                  {/* <Button icon={<SafetyCertificateOutlined />} onClick={() => dialogs.setSignatureModalOpen(true)} disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}>{t('projectManagement.signatureButton')}</Button> */}
                 </Space>
               </Card>
 
@@ -282,7 +284,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                 items={[
                   { key: 'file_management', label: t('projectManagement.tabs.file_management'), children: <FileManagementTabContent selectedProject={selectedProject} currentFolder={currentFolder} expandedFolders={expandedFolders} currentFiles={currentFiles} projectFilesData={projectFilesData} onFolderClick={handleFolderClick} onToggleFolder={handleToggleFolder} onDeleteFile={handleDeleteMaimlFile} onDeleteFolder={handleDeleteFolder} /> },
                   { key: 'task_registration', label: t('projectManagement.tabs.task_registration'), children: <TaskRegistrationTabContent selectedProject={selectedProject} isActive={currentTab === 'task_registration'} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
-                  { key: 'project_instruction', label: t('projectManagement.tabProjectInstruction'), children: <ProjectInstructionTabContent selectedProject={selectedProject} isActive={currentTab === 'project_instruction'} isProjectCheckedOut={isProjectCheckedOut} onInstructionsSubmit={handleInstructionsSubmit} /> },
+                  { key: 'project_instruction', label: t('projectManagement.tabProjectInstruction'), children: <ProjectInstructionTabContent selectedProject={selectedProject} isActive={currentTab === 'project_instruction'} isProjectCheckedOut={isProjectCheckedOut} /> },
                   { key: 'task_results', label: t('projectManagement.tabs.task_results'), children: <ExperimentInstructionTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
                   { key: 'evaluation_registration', label: t('projectManagement.tabEvaluationRegistration'), children: <EvaluationRegistrationTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
                 ]}
@@ -346,10 +348,11 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
         onOpenProject={(projectName) => { const target = projects.find((p) => p.name === projectName); if (target) handleProjectSelect(target.id); }}
         completionDialogOpen={dialogs.completionDialogOpen}
         onCloseCompletionDialog={() => dialogs.setCompletionDialogOpen(false)}
-        encryptionModalOpen={dialogs.encryptionModalOpen}
-        onCloseEncryptionModal={() => dialogs.setEncryptionModalOpen(false)}
-        signatureModalOpen={dialogs.signatureModalOpen}
-        onCloseSignatureModal={() => dialogs.setSignatureModalOpen(false)}
+        // TODO: 暗号化・署名機能は本実装まで無効化
+        // encryptionModalOpen={dialogs.encryptionModalOpen}
+        // onCloseEncryptionModal={() => dialogs.setEncryptionModalOpen(false)}
+        // signatureModalOpen={dialogs.signatureModalOpen}
+        // onCloseSignatureModal={() => dialogs.setSignatureModalOpen(false)}
       />
     </div>
   );

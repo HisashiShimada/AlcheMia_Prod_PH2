@@ -4,6 +4,7 @@ import { useMemo, useCallback } from 'react';
 import { App, Modal } from 'antd';
 import {
   checkoutProject, checkinProject,
+  sendInstructions,
   createProject as createProjectApi,
   deleteProject as deleteProjectApi,
   getProjectFiles,
@@ -15,7 +16,6 @@ import { AxiosError } from 'axios';
 import { mapErrorToMessage } from '@/utils/errorUtils';
 import type { Project, Task, ProjectFilesData, CreateProjectRequest } from '@/types/project';
 import type { CreateProjectData } from '@/types/project';
-import type { InstructionData } from '@/types/instructionRegistration';
 
 interface UseProjectActionsParams {
   selectedProject: Project | null;
@@ -75,6 +75,7 @@ export const useProjectActions = ({
         await refetchProjects();
         message.success(t('project.checkinSuccess').replace('{name}', selectedProject.name));
       } else {
+        await sendInstructions(selectedProject.id, {});
         await checkoutProject(selectedProject.id);
         await refetchProjects();
         message.success(t('project.checkoutSuccess').replace('{name}', selectedProject.name));
@@ -90,7 +91,6 @@ export const useProjectActions = ({
           case 'CHECKOUT_NO_MAIML_FILE': message.error(t('project.checkoutErrorNoMaiml')); break;
           case 'CHECKOUT_INVALID_STATUS': message.error(t('project.checkoutErrorInvalidStatus').replace('{status}', errorDetails?.currentStatusName || t('common.unknown'))); break;
           case 'CHECKOUT_NO_TASKS': message.error(t('project.checkoutErrorNoTasks')); break;
-          case 'CHECKOUT_UNSENT_INSTRUCTIONS': message.error(t('project.checkoutErrorUnsentInstructions')); break;
           case 'PROJECT_ALREADY_CHECKED_OUT': message.warning(t('project.checkoutWarningAlreadyCheckedOut').replace('{user}', errorDetails?.checkedOutBy || t('common.otherUser'))); break;
           case 'RESOURCE_NOT_FOUND': message.error(t('project.notFound')); break;
           default: message.error(errorMessage);
@@ -98,10 +98,6 @@ export const useProjectActions = ({
       } else { message.error(t('project.checkInOutError')); }
     }
   }, [selectedProject, isProjectCheckedOut, refetchProjects]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleInstructionsSubmit = useCallback(async (_instructions: InstructionData[]) => {
-    try { await refetchProjects(); } catch { /* ignore */ }
-  }, [refetchProjects]);
 
   const handleOpenIssueManagement = useCallback(() => {
     if (!selectedProject) { message.warning(t('project.selectProjectWarning')); return; }
@@ -175,7 +171,7 @@ export const useProjectActions = ({
   return {
     isProjectCheckedOut, isOrderChangeLocked,
     taskResults, taskStats,
-    handleToggleCheckout, handleInstructionsSubmit,
+    handleToggleCheckout,
     handleOpenIssueManagement, handleCloseIssueManagement,
     handleRenameSuccess, handleCloseCreateModal,
     handleCreateProject, handleProjectDelete,

@@ -48,11 +48,12 @@ import {
   approveTask,
   recordNg,
 } from '@/services/experimentInstructionApiService';
+import { getProjectMaiml } from '@/services/projectApiService';
 import type {
   InstructionMethodResponse,
   ProjectMethod,
 } from '@/types/experimentInstruction';
-import type { ProjectFile } from '@/types/file';
+import type { FileData } from '@/types/editor';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -430,9 +431,11 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   // ── ペトリネットビューア（ViewRendererDialog）──
   const [viewerDialogs, setViewerDialogs] = useState<{
     id: string;
-    file: ProjectFile;
+    file: FileData;
+    fileContent: string | null;
     zIndex: number;
   }[]>([]);
+  const [petriNetViewerLoading, setPetriNetViewerLoading] = useState(false);
 
   // ─────────────────────────────────────────────────────────
   // データ取得
@@ -606,21 +609,35 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   // ペトリネットビューアを開く / 閉じる / フォーカス
   // ─────────────────────────────────────────────────────────
 
-  const handleOpenPetriNetViewer = useCallback(() => {
+  const handleOpenPetriNetViewer = useCallback(async () => {
     if (!projectName) return;
-    const file: ProjectFile = {
-      id: `${projectName}.maiml`,
-      name: `${projectName}.maiml`,
-      path: `${projectName}/${projectName}.maiml`,
-      size: 0,
-      lastModified: '',
-      type: 'maiml',
-    };
-    setViewerDialogs((prev) => [
-      ...prev,
-      { id: `viewer_${Date.now()}`, file, zIndex: 1000 + prev.length },
-    ]);
-  }, [projectName]);
+    setPetriNetViewerLoading(true);
+    try {
+      const result = await getProjectMaiml(projectId);
+      if (!result.success || !result.data?.maimlContent) {
+        message.error(t('experimentInstruction.fetchError'));
+        return;
+      }
+      const { maimlContent, projectName: resolvedName, lastModified } = result.data;
+      const file: FileData = {
+        id: projectId,
+        name: `${resolvedName}.maiml`,
+        path: `projects/${resolvedName}/${resolvedName}.maiml`,
+        size: maimlContent.length,
+        lastModified: lastModified || new Date().toISOString(),
+        type: 'maiml',
+      };
+      setViewerDialogs((prev) => [
+        ...prev,
+        { id: `viewer_${Date.now()}`, file, fileContent: maimlContent, zIndex: 1000 + prev.length },
+      ]);
+    } catch (err) {
+      console.error('[ExperimentInstructionTab] handleOpenPetriNetViewer error:', err);
+      message.error(t('experimentInstruction.fetchError'));
+    } finally {
+      setPetriNetViewerLoading(false);
+    }
+  }, [projectId, projectName, message, t]);
 
   const handleCloseViewer = useCallback((id: string) => {
     setViewerDialogs((prev) => prev.filter((d) => d.id !== id));
@@ -927,6 +944,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           icon={<FileSearchOutlined />}
           onClick={handleOpenPetriNetViewer}
           disabled={!projectName}
+          loading={petriNetViewerLoading}
         >
           {t('experimentInstructionTab.toolbar.petriNet')}
         </Button>
@@ -1168,6 +1186,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           id={dialog.id}
           contentType="file"
           file={dialog.file}
+          fileContent={dialog.fileContent}
           zIndex={dialog.zIndex}
           onClose={handleCloseViewer}
           onFocus={handleFocusViewer}
