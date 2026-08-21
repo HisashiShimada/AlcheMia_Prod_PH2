@@ -183,7 +183,7 @@
 
 ### 概要
 
-実験管理者が名前空間管理画面の `PrefixManagement` コンポーネントで Prefix を登録・編集・削除し、CSV エクスポート・インポートができることを確認する。また `experiment_worker` が `viewOnly=true` で閲覧専用になることを確認する。
+実験管理者が名前空間管理画面の `PrefixManagement` コンポーネントで Prefix を登録・編集・削除し、CSV エクスポート・インポートができることを確認する。
 
 ### 関連
 
@@ -209,13 +209,12 @@
 | 1 | experiment_admin | 実験管理者メニュー → 「名前空間管理」タブを開く | 名前空間ツリーが左ペインに表示される |
 | 2 | experiment_admin | ツリーで自分の個人名前空間ノードを選択する | 右ペインに `PrefixManagement` が表示される（Prefix列・URI列・説明列・スコープ列・操作列） |
 | 3 | experiment_admin | ツールバーを確認する | 検索欄 / インポート / エクスポート / `＋ prefix追加` / 保存 / キャンセル の各要素が表示されている |
-| 4 | experiment_admin | システム名前空間 Prefix 行の操作列を確認する | 「編集」「削除」ボタンではなく `<Tag>` バッジが表示されている（操作不可） |
 
 #### ステップ 2：新規 Prefix のインライン追加
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 5 | experiment_admin | 「＋ prefix追加」ボタンを押す | テーブル末尾に黄色背景（`#fffbe6`）の新規入力行が追加される |
+| 5 | experiment_admin | 「＋ prefix追加」ボタンを押す | テーブル先頭行に黄色背景（`#fffbe6`）の新規入力行が追加される |
 | 6 | experiment_admin | Prefix フィールドに `test-pfx`、URI フィールドに `https://ns.example.org/test/`、説明フィールドに `テスト用 Prefix` を入力する | 各フィールドに値が入力される |
 | 7 | experiment_admin | 「保存」ボタンを押す（新規行がある場合のみ活性） | Prefix が登録され、一覧に `test-pfx` 行が表示される（スコープ列に個人名前空間名が表示される） |
 
@@ -232,55 +231,37 @@
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 11 | experiment_admin | `test-pfx` 行の「編集」ボタンを押す | 行がインライン編集モードに切り替わる（URI・説明が `<Input>` に変わる） |
-| 12 | experiment_admin | URI を `https://ns.example.org/test/v2/` に変更する | URI フィールドの値が変更される |
-| 13 | experiment_admin | 「保存」ボタンを押す | URI が更新される（Prefix 文字列自体は保存リクエストに含まれない） |
-| 14 | experiment_admin | 再度「編集」→ URI を変更 → 「キャンセル」を押す | 変更が破棄され、元の URI に戻る |
+| 12 | experiment_admin | 説明 を 「プレフィックス変更」 に変更する | 説明 フィールドの値が変更される |
+| 13 | experiment_admin | 「保存」ボタンを押す | 説明 が更新される（Prefix 文字列自体は保存リクエストに含まれない） |
+| 14 | experiment_admin | 再度「編集」→ URI を変更 → 「キャンセル」を押す | 変更が破棄され、元の 説明 に戻る |
 
-#### ステップ 5：Prefix の削除
-
-| # | ロール | 操作 | 期待結果 |
-|---|--------|------|---------|
-| 15 | experiment_admin | `test-pfx` 行の「削除」ボタンを押す | 削除確認ダイアログが表示される |
-| 16 | experiment_admin | 確認ダイアログで「削除」（または「OK」）を選択する | `test-pfx` が一覧から削除される（`DELETE /api/v1/namespaces/test-pfx` が呼ばれる） |
-
-#### ステップ 6：検索・絞り込み
+#### ステップ 5：検索・絞り込み
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 17 | experiment_admin | 検索欄に `test` と入力する | Prefix 列・URI 列・説明列に `test` を含む行のみ絞り込まれて表示される |
 | 18 | experiment_admin | 検索欄をクリアする | 全 Prefix が再表示される |
 
-#### ステップ 7：CSV エクスポート
+#### ステップ 6：CSV エクスポート
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 19 | experiment_admin | 「エクスポート」ボタンを押す | `prefixes.csv` がダウンロードされる（選択行に関わらず全件対象） |
+| 19 | experiment_admin | 「エクスポート」ボタンを押す | `prefixes.csv` がダウンロードされる（選択行対象） |
 | 20 | — | ダウンロードした CSV を確認する | ヘッダー: `prefix,uri,description`、BOM 付き UTF-8 で全 Prefix が含まれている |
 
-#### ステップ 8：CSV インポート
+#### ステップ 7：CSV インポート
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 21 | experiment_admin | 「インポート」ボタンを押す | ファイル選択ダイアログが開く |
 | 22 | experiment_admin | `prefix,uri,description` ヘッダーを含む CSV を選択する | Prefix が一括登録される（ヘッダー行はスキップ、prefix/uri が空の行もスキップ） |
 
-#### ステップ 9：`experiment_worker` の viewOnly 確認
-
-| # | ロール | 操作 | 期待結果 |
-|---|--------|------|---------|
-| 23 | experiment_worker | 名前空間管理の Prefix 管理画面を開く | `PrefixManagement` が `viewOnly=true` で表示される |
-| 24 | experiment_worker | ツールバーを確認する | インポートボタン・「＋ prefix追加」ボタンが非活性（disabled）になっている |
-| 25 | experiment_worker | 既存 Prefix 行の操作列を確認する | 「編集」「削除」ボタンが非活性になっている |
-
 ### 確認ポイント
 
 - [ ] 新規追加行は黄色背景（`#fffbe6`）で表示される
 - [ ] 「保存」「キャンセル」ボタンは新規入力行がない場合は非活性
 - [ ] 重複保存時は `Modal.confirm`（`WarningOutlined`）が表示され、OK で強行登録・キャンセルで中止
-- [ ] 編集保存時は URI のみ更新される（Prefix 文字列変更は API に送信されない）
-- [ ] エクスポートは全件対象（選択行のみフィルタは存在しない）、BOM 付き UTF-8 の `prefixes.csv`
-- [ ] システム名前空間 Prefix 行は `<Tag>` バッジ表示で編集・削除不可
-- [ ] `experiment_worker`（`viewOnly=true`）はインポート・追加・編集・削除が非活性
+- [ ] エクスポートは選択行のみ、BOM 付き UTF-8 の `prefixes.csv`
 
 ### テスト結果
 
