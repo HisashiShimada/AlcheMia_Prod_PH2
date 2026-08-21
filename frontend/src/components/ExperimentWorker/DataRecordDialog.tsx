@@ -80,7 +80,6 @@ import { validateByXsiType } from '@/utils/xsiTypeValidator';
 import { updateTransitionStatus } from '@/services/projectApiService';
 import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
-import { buildStorageUri } from '@/utils/storageUriUtils';
 
 // ===== TemplateDataItem → Template 変換ヘルパー =====
 
@@ -1093,7 +1092,7 @@ export default function DataRecordDialog({
           });
           const uploadedFile = result.files[0];
           if (uploadedFile?.s3Key) {
-            nonCustomInsertionUriMap[insIdx] = buildStorageUri(uploadedFile.s3Key);
+            nonCustomInsertionUriMap[insIdx] = uploadedFile.s3Key;
           }
         } catch (uploadErr) {
           console.error(`非カスタム insertion ファイルアップロード失敗 (insIdx=${insIdx}):`, uploadErr);
@@ -1137,10 +1136,9 @@ export default function DataRecordDialog({
               });
               const uploadedFile = result.files[0];
               if (uploadedFile?.s3Key) {
-                uploadedUriMap[cp.id] = buildStorageUri(uploadedFile.s3Key);
-                // アップロード後、customProperties の uri をストレージ URI 形式で更新する
-                const storageUri = buildStorageUri(uploadedFile.s3Key);
-                handleUpdateCustomProperty(template.templateId, cp.id, { uri: storageUri, file: undefined });
+                uploadedUriMap[cp.id] = uploadedFile.s3Key;
+                // アップロード後、customProperties の uri を s3Key で更新する
+                handleUpdateCustomProperty(template.templateId, cp.id, { uri: uploadedFile.s3Key, file: undefined });
               }
             } catch (uploadErr) {
             console.error(`insertion ファイルアップロード失敗 (key=${cp.key}):`, uploadErr);
