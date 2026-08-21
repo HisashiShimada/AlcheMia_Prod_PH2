@@ -28,6 +28,8 @@ export interface OrganizationGroupRow {
   /** 代表者ユーザー名（findAll / findById 取得時に JOIN で付与） */
   chief_user_name: string | null;
   parent_group_cd: string | null;
+  /** 親グループ名（findAll / findById 取得時に JOIN で付与） */
+  parent_group_name?: string | null;
   layer: string | null;
   /** アクティブ判定（論理削除フラグ） */
   is_active: boolean;

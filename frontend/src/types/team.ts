@@ -32,6 +32,8 @@ export interface OrganizationGroupRow {
   chief_user_name?: string | null;
   /** 親階層グループCD（ルートの場合は null） */
   parent_group_cd: string | null;
+  /** 親階層グループ名（findAll / findById 取得時に JOIN で付与） */
+  parent_group_name?: string | null;
   /** レイヤー */
   layer: string | null;
   /** アクティブ判定（論理削除フラグ） */
@@ -120,6 +122,8 @@ export interface Team {
   groupName: string;
   /** 親グループCD */
   parentGroupCd?: string | null;
+  /** 親グループ名 */
+  parentGroupName?: string | null;
   /** レイヤー */
   layer?: string | null;
   /** チームの代表者表示名 */
