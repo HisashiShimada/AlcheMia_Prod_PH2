@@ -2956,9 +2956,9 @@
   "insertionEditor": {
     "fileSizeExceeded": "File size exceeds the limit ({maxSize}) (current: {fileSize})",
     "hashCalcFailed": "Failed to calculate hash value",
-    "uploadConfirmTitle": "Upload the file to the server?",
-    "uploadConfirmOk": "Upload",
-    "uploadConfirmCancel": "Skip upload",
+    "uploadConfirmTitle": "Upload the file?",
+    "uploadConfirmOk": "Upload on save",
+    "uploadConfirmCancel": "Local reference only",
     "uploadSuccessNoKey": "Upload succeeded but S3 key could not be retrieved",
     "uploadFailed": "Failed to upload the file",
     "dropHintForm": "Drop here to select a file",
@@ -2981,7 +2981,12 @@
     "tooltipSelectOnly": "Select a file for auto-fill (no upload)",
     "tooltipClear": "Clear URI, hash, and format",
     "addButton": "Add Insertion",
-    "customLabel": "Custom Insertion"
+    "customLabel": "Custom Insertion",
+    "localFileWarning": "This is a local file and cannot be accessed from other environments. Manually complete the path if needed.",
+    "localFileUriExampleTitle": "URI format examples:",
+    "localFileUriExampleLocal": "Local: file:///C:/data/filename.tif",
+    "localFileUriExampleNetwork": "Network: file://///server/share/data/filename.tif",
+    "pendingUploadBadge": "Will be uploaded on save"
   },
   "contentGridEditor": {
     "label": "Content Grid ({rows} rows × {cols} cols)",
