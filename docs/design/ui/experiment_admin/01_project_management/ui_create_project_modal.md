@@ -3,7 +3,7 @@
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-新規プロジェクト作成モーダルは、プロジェクト管理画面から新規プロジェクトを作成するためのモーダルダイアログです。プロジェクト名と概要を入力し、バックエンドAPIに送信してプロジェクトを作成します。
+新規プロジェクト作成モーダルは、プロジェクト管理画面から新規プロジェクトを作成するためのモーダルダイアログです。プロジェクト名・概要・担当チームを入力し、バックエンドAPIに送信してプロジェクトを作成します。
 
 ### 1.2 使用場面
 - プロジェクト管理画面のツールバー → 「新規作成」ボタンクリック時に表示
@@ -38,6 +38,12 @@
 │ └─────────────────────────────────┘   │
 │ 500文字以内（任意）                     │
 │                                         │
+│ チーム *                                │
+│ ┌─────────────────────────────────┐   │
+│ │ チームを選択してください ▼       │   │
+│ └─────────────────────────────────┘   │
+│ ※プロジェクト作成後の変更不可           │
+│                                         │
 │              [キャンセル] [作成]        │
 └─────────────────────────────────────────┘
 ```
@@ -46,41 +52,64 @@
 
 #### 2.2.1 モーダルヘッダー
 - アイコン: FolderAddOutlined（プライマリカラー）
-- タイトル: "新規プロジェクト作成"（多言語対応）
+- タイトル: "新規プロジェクト作成"（多言語対応: `projectManagement.create.title`）
 
 #### 2.2.2 フォームフィールド
 
 **1. プロジェクト名（必須）**
 - タイプ: Input
+- `data-testid`: `create-project-name-input`
 - バリデーション:
   - 必須入力
   - 最小3文字
   - 最大100文字
-- 文字数カウント表示
-- オートフォーカス
+- `maxLength={100}` / `showCount` で文字数カウント表示
+- `autoFocus` あり
 
 **2. 概要（任意）**
-- タイプ: TextArea
+- タイプ: Input.TextArea
+- `data-testid`: `create-project-description-input`
 - 行数: 4行
 - バリデーション:
   - 最大500文字
-- 文字数カウント表示
+- `maxLength={500}` / `showCount` で文字数カウント表示
+
+**3. チーム（必須）**
+- タイプ: Select
+- `data-testid`: `create-project-org-group-select`
+- バリデーション: 必須選択
+- モーダルオープン時に `GET /api/v1/organization-groups` から取得した選択肢を表示
+- 取得中は `loading={teamsLoading}` でローディング表示
+- フィールド下に補足テキスト（`createProject.teamNote`）を表示
 
 #### 2.2.3 フッターボタン
-- **キャンセルボタン**: モーダルを閉じる、フォームをリセット
-- **作成ボタン**: フォーム送信、ローディング状態表示
+- **キャンセルボタン** (`data-testid`: `create-project-cancel-button`): モーダルを閉じる、フォームをリセット
+- **作成ボタン** (`data-testid`: `create-project-submit-button`): フォーム送信、ローディング状態表示
 
 #### 2.2.4 エラー表示
 - Alert（error）: エラーメッセージ表示
-- 閉じるボタン付き
+- `closable` / `showIcon` あり
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1 プロジェクト作成
+### 3.1 チーム一覧の取得
 
-#### 3.1.1 処理フロー
+モーダルオープン時（`open === true` になった際）に自動実行。
+
+```
+open が true に変化
+  ↓
+GET /api/v1/organization-groups
+  ↓
+成功: teams ステートに設定（Select の選択肢として表示）
+失敗: teams を空配列に設定（Select は空のまま続行）
+```
+
+### 3.2 プロジェクト作成
+
+#### 3.2.1 処理フロー
 ```typescript
 const handleSubmit = async () => {
   try {
@@ -101,8 +130,9 @@ const handleSubmit = async () => {
       description: values.description || '',
       folderName: folderName,
       owner: currentUser.name,
-      department: currentUser.department,
+      organizationGroup: currentUser.organizationGroup,
       organizationId: currentUser.organizationId,
+      organizationGroupCd: values.organizationGroupCd || undefined,
     };
     
     // 親コンポーネントの送信ハンドラを呼び出し
@@ -122,7 +152,7 @@ const handleSubmit = async () => {
 };
 ```
 
-#### 3.1.2 フォルダ名の自動生成
+#### 3.2.2 フォルダ名の自動生成
 ```typescript
 const folderName = values.projectName
   .replace(/\s+/g, '_')      // スペースをアンダースコアに変換
@@ -134,17 +164,16 @@ const folderName = values.projectName
 - `"Project-ABC"` → `"Project-ABC"`
 - `"Test Project (2026)"` → `"Test_Project__2026_"`
 
-#### 3.1.3 UI動作
+#### 3.2.3 UI動作
 1. 作成ボタンクリック
 2. フォームバリデーション実行
 3. バリデーション成功: プロジェクトデータを作成
 4. 親コンポーネントの`onSubmit`コールバック呼び出し
 5. 成功: モーダルを閉じる、フォームリセット
-6. 失敗: エラーメッセージ表示
+6. 失敗: エラーメッセージ表示（Alert）
 
-### 3.2 キャンセル
+### 3.3 キャンセル
 
-#### 3.2.1 処理フロー
 ```typescript
 const handleCancel = () => {
   form.resetFields();
@@ -153,70 +182,62 @@ const handleCancel = () => {
 };
 ```
 
-#### 3.2.2 UI動作
 - キャンセルボタンまたは×ボタンクリック
 - フォームをリセット
 - エラーメッセージをクリア
 - モーダルを閉じる
 
-### 3.3 バリデーション
+### 3.4 バリデーション
 
-#### 3.3.1 プロジェクト名
-```typescript
-rules={[
-  {
-    required: true,
-    message: 'プロジェクト名を入力してください',
-  },
-  {
-    min: 3,
-    message: 'プロジェクト名は3文字以上で入力してください',
-  },
-  {
-    max: 100,
-    message: 'プロジェクト名は100文字以内で入力してください',
-  },
-]}
-```
+#### 3.4.1 プロジェクト名
+| ルール | メッセージ（i18n キー）|
+|--------|---------------------|
+| 必須 | `projectManagement.create.projectNameRequired` |
+| 最小3文字 | `projectManagement.create.projectNameMinLength` |
+| 最大100文字 | `projectManagement.create.projectNameMaxLength` |
 
-#### 3.3.2 概要
-```typescript
-rules={[
-  {
-    max: 500,
-    message: '概要は500文字以内で入力してください',
-  },
-]}
-```
+#### 3.4.2 概要
+| ルール | メッセージ（i18n キー）|
+|--------|---------------------|
+| 最大500文字 | `projectManagement.create.descriptionMaxLength` |
 
-### 3.4 多言語対応
+#### 3.4.3 チーム
+| ルール | メッセージ（i18n キー）|
+|--------|---------------------|
+| 必須 | `createProject.teamRequired` |
+
+### 3.5 多言語対応
 
 ```typescript
-const { t } = useLanguage();
-
 // モーダルタイトル
-t('projectManagement.create.title')  // "新規プロジェクト作成"
+t('projectManagement.create.title')
 
 // フィールドラベル
-t('projectManagement.create.projectName')  // "プロジェクト名"
-t('projectManagement.create.description')  // "概要"
+t('projectManagement.create.projectName')
+t('projectManagement.create.description')
+t('createProject.teamLabel')
 
 // プレースホルダー
-t('projectManagement.create.projectNamePlaceholder')  // "プロジェクト名を入力"
-t('projectManagement.create.descriptionPlaceholder')  // "プロジェクトの概要を入力（任意）"
+t('projectManagement.create.projectNamePlaceholder')
+t('projectManagement.create.descriptionPlaceholder')
+t('createProject.teamPlaceholder')
+
+// 補足テキスト
+t('createProject.teamNote')  // "※プロジェクト作成後の変更不可" 相当
 
 // バリデーションメッセージ
-t('projectManagement.create.projectNameRequired')  // "プロジェクト名を入力してください"
-t('projectManagement.create.projectNameMinLength')  // "プロジェクト名は3文字以上で入力してください"
-t('projectManagement.create.projectNameMaxLength')  // "プロジェクト名は100文字以内で入力してください"
-t('projectManagement.create.descriptionMaxLength')  // "概要は500文字以内で入力してください"
+t('projectManagement.create.projectNameRequired')
+t('projectManagement.create.projectNameMinLength')
+t('projectManagement.create.projectNameMaxLength')
+t('projectManagement.create.descriptionMaxLength')
+t('createProject.teamRequired')
 
 // ボタン
-t('common.create')  // "作成"
-t('common.cancel')  // "キャンセル"
+t('common.create')
+t('common.cancel')
 
 // エラー
-t('projectManagement.create.error')  // "作成エラー"
+t('projectManagement.create.error')
 ```
 
 ---
@@ -227,16 +248,12 @@ t('projectManagement.create.error')  // "作成エラー"
 
 ```typescript
 interface CreateProjectModalProps {
-  /** モーダルの表示状態 */
   open: boolean;
-  /** キャンセル時のコールバック */
   onCancel: () => void;
-  /** 送信時のコールバック */
   onSubmit: (data: CreateProjectData) => Promise<void>;
-  /** 現在のユーザー情報（デフォルト値あり） */
   currentUser?: {
     name: string;
-    department: string;
+    organizationGroup: string;
     organizationId: string;
   };
 }
@@ -248,33 +265,38 @@ interface CreateProjectModalProps {
 | open | `boolean` | ✅ | モーダルの表示状態 |
 | onCancel | `() => void` | ✅ | キャンセル時のコールバック |
 | onSubmit | `(data: CreateProjectData) => Promise<void>` | ✅ | 送信時のコールバック |
-| currentUser | `{ name, department, organizationId }` | - | 現在のユーザー情報（デフォルト: テストデータ） |
+| currentUser | `{ name, organizationGroup, organizationId }` | - | 現在のユーザー情報（デフォルト: テストデータ） |
 
 ### 4.2 State定義
 
-```typescript
-const [form] = Form.useForm();
-const [submitting, setSubmitting] = useState(false);
-const [error, setError] = useState<string | null>(null);
-```
-
-**State説明:**
 | State名 | 型 | 初期値 | 説明 |
 |---------|---|--------|------|
-| form | `FormInstance` | - | Ant Design Form インスタンス |
+| form | `FormInstance` | — | Ant Design Form インスタンス |
 | submitting | `boolean` | `false` | 送信中かどうか |
 | error | `string \| null` | `null` | エラーメッセージ |
+| teams | `TeamOption[]` | `[]` | チーム選択肢一覧（API取得） |
+| teamsLoading | `boolean` | `false` | チーム一覧取得中かどうか |
 
-### 4.3 CreateProjectData型定義
+### 4.3 CreateProjectData 型定義（`@/types/project`）
 
 ```typescript
-export interface CreateProjectData {
-  projectName: string;      // プロジェクト名
-  description: string;      // 概要
-  folderName: string;       // フォルダ名（自動生成）
-  owner: string;            // 所有者名
-  department: string;       // 部門名
-  organizationId: string;   // 組織ID
+interface CreateProjectData {
+  projectName: string;           // プロジェクト名
+  description: string;           // 概要
+  folderName: string;            // フォルダ名（自動生成）
+  owner: string;                 // 所有者名
+  organizationGroup: string;     // 組織グループ名
+  organizationId: string;        // 組織ID
+  organizationGroupCd?: string;  // チームコード（チーム選択セレクトから取得）
+}
+```
+
+### 4.4 TeamOption 型定義（コンポーネント内）
+
+```typescript
+interface TeamOption {
+  organizationGroupCd: string;
+  organizationGroupName: string;
 }
 ```
 
@@ -282,7 +304,30 @@ export interface CreateProjectData {
 
 ## 5. API連携
 
-このコンポーネントは直接APIを呼び出しません。親コンポーネント（ProjectManagement）の`onSubmit`コールバックを通じてAPI呼び出しを委譲します。
+### 5.1 チーム一覧取得（コンポーネント内で直接呼び出し）
+
+| 項目 | 内容 |
+|------|------|
+| メソッド | GET |
+| パス | `/api/v1/organization-groups` |
+| タイミング | モーダルオープン時（`open` が `true` になった際）|
+| 成功時 | `teams` ステートにマッピングして設定 |
+| 失敗時 | `teams` を空配列に設定し続行 |
+
+**レスポンス型:**
+```typescript
+{
+  success: boolean;
+  data: Array<{
+    organization_group_cd: string;
+    organization_group_name: string;
+  }>;
+}
+```
+
+### 5.2 プロジェクト作成（親コンポーネント委譲）
+
+このコンポーネントはプロジェクト作成 API を直接呼び出しません。親コンポーネント（ProjectManagement）の `onSubmit` コールバックを通じて委譲します。
 
 **親コンポーネントでの実装:**
 ```typescript
@@ -307,29 +352,8 @@ const handleCreateProject = async (data: CreateProjectData) => {
 | エラーケース | 対処方法 |
 |-------------|----------|
 | バリデーションエラー | フィールド下にエラーメッセージ表示 |
-| API呼び出しエラー | Alertコンポーネントでエラーメッセージ表示 |
-| ネットワークエラー | エラーメッセージ表示 + コンソールログ出力 |
-
-### 6.2 エラー処理コード
-
-```typescript
-try {
-  setError(null);
-  setSubmitting(true);
-  const values = await form.validateFields();
-  // ... プロジェクト作成処理
-  await onSubmit(projectData);
-  form.resetFields();
-} catch (err) {
-  if (err instanceof Error) {
-    setError(err.message);
-  } else {
-    console.error('Form validation failed:', err);
-  }
-} finally {
-  setSubmitting(false);
-}
-```
+| API呼び出しエラー（プロジェクト作成） | Alert（error）でエラーメッセージ表示 |
+| チーム一覧取得失敗 | 空のまま続行（Select が空になる）。エラーは表示しない |
 
 ---
 
@@ -337,16 +361,18 @@ try {
 
 ### 7.1 メインファイル
 - **パス**: `frontend/src/components/project/CreateProjectModal.tsx`
-- **行数**: 約170行
-- **エクスポート**: `CreateProjectModal`（default export）、`CreateProjectData`（named export）
+- **行数**: 261行
+- **エクスポート**: `CreateProjectModal`（default export）
 
 ### 7.2 関連ファイル
+- `frontend/src/types/project.ts` - `CreateProjectData` 型定義
+- `frontend/src/utils/authUtils.ts` - `createApiClient`（組織グループ取得用）
 - `frontend/src/contexts/LanguageContext.tsx` - 多言語対応
 
 ### 7.3 依存ライブラリ
-- React 18.2.0
-- Ant Design v6 (Modal, Form, Input, Space, Typography, Alert, theme)
-- @ant-design/icons (FolderAddOutlined)
+- React 18
+- Ant Design v6（Modal, Form, Input, Select, Space, Typography, Alert, theme）
+- @ant-design/icons（FolderAddOutlined）
 
 ---
 
@@ -355,6 +381,7 @@ try {
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
+| 2026-08-20 | チーム選択フィールド追加・Props/State/型定義を実装に合わせて修正 | Cline |
 
 ---
 
@@ -364,15 +391,17 @@ try {
 
 ```typescript
 <Modal
-  title={<Space><FolderAddOutlined /><Text strong>新規プロジェクト作成</Text></Space>}
+  title={<Space><FolderAddOutlined style={{ color: token.colorPrimary }} /><Text strong>{t('...')}</Text></Space>}
   open={open}
   onOk={handleSubmit}
   onCancel={handleCancel}
   confirmLoading={submitting}
-  okText="作成"
-  cancelText="キャンセル"
+  okText={t('common.create')}
+  cancelText={t('common.cancel')}
+  okButtonProps={{ 'data-testid': 'create-project-submit-button' }}
+  cancelButtonProps={{ 'data-testid': 'create-project-cancel-button' }}
   width={600}
-  destroyOnHidden  // モーダルを閉じた時にDOMから削除
+  destroyOnHidden
 />
 ```
 
@@ -381,8 +410,8 @@ try {
 ```typescript
 <Form
   form={form}
-  layout="vertical"          // 縦レイアウト
-  requiredMark="optional"    // 必須マークをオプション扱い
+  layout="vertical"       // 縦レイアウト
+  requiredMark="optional" // 必須マークをオプション扱い
 >
 ```
 
@@ -391,7 +420,7 @@ try {
 ```typescript
 currentUser = {
   name: '田中 太郎',
-  department: '材料開発部',
+  organizationGroup: '材料開発部',
   organizationId: 'org_maiml_lab_001',
 }
 ```
@@ -412,6 +441,5 @@ currentUser = {
 
 ### 9.6 バリデーションタイミング
 
-- フィールドのblur時
-- フォーム送信時（validateFields）
-- リアルタイム文字数カウント
+- フォーム送信時（`validateFields`）
+- リアルタイム文字数カウント（`showCount` / `maxLength`）

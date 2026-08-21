@@ -2,16 +2,15 @@
 
 ## メタデータ
 - **画面名**: 名前空間管理（グローバル）タブ
-- **物理名**: ProviderMenu.tsx（タブ3） / PrefixManagement.tsx / TermManagement.tsx
+- **物理名**: GlobalNamespaceView.tsx
 - **ファイルパス**:
-  - `frontend/src/components/menus/ProviderMenu.tsx`
-  - `frontend/src/components/namespace/PrefixManagement.tsx`
-  - `frontend/src/components/namespace/TermManagement.tsx`
+  - `frontend/src/components/menus/ProviderMenu.tsx`（タブ3にて呼び出し）
+  - `frontend/src/components/namespace/GlobalNamespaceView.tsx`
 - **利用権限**: プロバイダー（provider / sys_admin）
 - **作成日**: 2026-08-19
-- **最終更新日**: 2026-08-19
+- **最終更新日**: 2026-08-21
 - **担当者**: Development Team
-- **バージョン**: 1.0.0
+- **バージョン**: 2.0.0
 
 ---
 
@@ -19,22 +18,24 @@
 
 ### 1.1. 目的
 
-プロバイダーメニュー（`ProviderMenu.tsx`）のタブ3として追加された画面です。  
-全組織・全ユーザーが参照できる**グローバルスコープ**の名前空間（Prefix / 用語）を管理するためのタブです。
+プロバイダーメニュー（`ProviderMenu.tsx`）のタブ3として表示される画面です。  
+ファイルサーバ（`system/namespaces/global-declarations.csv`）に保存されたグローバル名前空間宣言（Prefix + URI）の一覧表示・インポート・エクスポートを提供します。
 
-`globalOnly={true}` プロパティを渡すことで、`PrefixManagement` および `TermManagement` の表示・操作をグローバル名前空間のみに限定しています。
+> ⚠️ **実装上の注意**: 旧設計書では `PrefixManagement` + `TermManagement` をネストしたTabsで表示する構成が記述されていましたが、実際の実装は `GlobalNamespaceView` コンポーネント単体です。サブタブ構成は存在しません。
 
 ### 1.2. アクセス権限
 
 | ロール | アクセス |
 |--------|---------|
-| `sys_admin` / `provider` | ✅ 閲覧・編集可 |
+| `sys_admin` / `provider` | ✅ 閲覧・インポート・エクスポート可 |
 | それ以外 | ❌ プロバイダーメニュー自体にアクセス不可 |
 
 ### 1.3. 主要機能
 
-1. **グローバル Prefix の管理** — グローバルスコープの Prefix 一覧表示・追加・編集・削除・CSV インポート/エクスポート
-2. **グローバル用語の管理** — グローバルスコープの用語一覧表示・追加・編集・有効/無効切替・CSV インポート/エクスポート
+1. グローバル名前空間宣言（Prefix + URI）の一覧表示
+2. CSVインポート（全置換）
+3. CSVエクスポート
+4. リロード
 
 ---
 
@@ -52,25 +53,24 @@ ProviderMenu（タブ形式）
 
 ### 2.2. タブ3 内レイアウト
 
+サブタブはなし。`GlobalNamespaceView` を直接表示。
+
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │ 名前空間管理（グローバル）タブ                                           │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                        │
-│  ┌──────────────┬────────────────────────────────────────────────┐   │
-│  │ Prefix       │ 用語                                            │   │
-│  ├──────────────┴────────────────────────────────────────────────┤   │
-│  │                                                                 │   │
-│  │  ── Prefix タブコンテンツ（PrefixManagement globalOnly） ──     │   │
-│  │  [ツールバー: 検索 | インポート | エクスポート | +Prefix | 保存]  │   │
-│  │  ┌────────┬───────────────────────────┬────────┬─────┬──────┐ │   │
-│  │  │ Prefix │ URI                        │ 説明   │スコープ│ 操作 │ │   │
-│  │  ├────────┼───────────────────────────┼────────┼─────┼──────┤ │   │
-│  │  │ maiml  │ http://www.maiml.org/...   │ MaiML標│  —  │[編集][削除]│ │   │
-│  │  │ xsi    │ http://www.w3.org/...      │ XMLスキ│  —  │[編集][削除]│ │   │
-│  │  └────────┴───────────────────────────┴────────┴─────┴──────┘ │   │
-│  │                                                                 │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
+│  グローバル名前空間宣言                [リロード] [エクスポート] [インポート]│
+│  （説明テキスト）                                                       │
+│                                                                        │
+│  N 件                                                                  │
+│                                                                        │
+│  ┌────────────────────┬─────────────────────────────────────────────┐ │
+│  │ Prefix             │ URI                                         │ │
+│  ├────────────────────┼─────────────────────────────────────────────┤ │
+│  │ `maiml`            │ http://www.maiml.org/...              [コピー]│ │
+│  │ `xsi`              │ http://www.w3.org/...                 [コピー]│ │
+│  └────────────────────┴─────────────────────────────────────────────┘ │
 │                                                                        │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -85,254 +85,159 @@ ProviderMenu（タブ形式）
 |-----|-------------------|---------|--------------|
 | `'1'` | `menu.provider.tabs.organizationManagement` | `ShopOutlined` | `OrganizationManagement` |
 | `'2'` | `menu.provider.tabs.corporationManagement` | `AuditOutlined` | `CorporationManagement` |
-| `'3'` | `menu.provider.tabs.namespaceManagement` | `GlobalOutlined` | ネストした Tabs（後述）|
+| `'3'` | `menu.provider.tabs.namespaceManagement` | `GlobalOutlined` | `GlobalNamespaceView` |
 | `'4'` | `menu.provider.tabs.informationDownload` | `DatabaseOutlined` | `InformationDownload` |
 
-### 3.2. タブ3 のネスト Tabs
+### 3.2. タブ3 のレンダリング
 
 ```typescript
-<Tabs
-  defaultActiveKey="prefix"
-  items={[
-    {
-      key: 'prefix',
-      label: t('namespace.tabs.prefix'),
-      children: <PrefixManagement globalOnly={true} />,
-    },
-    {
-      key: 'terms',
-      label: t('namespace.tabs.terms'),
-      children: <TermManagement globalOnly={true} />,
-    },
-  ]}
-/>
+{currentTab === '3' && (
+  <div style={{ padding: '0 16px', height: '100%' }}>
+    <GlobalNamespaceView />
+  </div>
+)}
 ```
+
+- サブタブなし
+- `GlobalNamespaceView` はデフォルト Props（`viewOnly=false`）で呼び出し
 
 ---
 
-## 4. PrefixManagement（グローバルモード）
+## 4. GlobalNamespaceView コンポーネント
 
-### 4.1. コンポーネント Props
+### 4.1. Props定義
 
 ```typescript
-interface PrefixManagementProps {
-  viewOnly?: boolean;      // false（編集可）
-  globalOnly?: boolean;    // true（グローバルPrefixのみ）
-  selectedNsKey?: string;  // 未指定
-  scopeKey?: string;       // 未指定
+interface GlobalNamespaceViewProps {
+  viewOnly?: boolean;  // デフォルト: false
 }
 ```
 
-### 4.2. 画面構成
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| `viewOnly` | `boolean` | ❌ | trueの場合インポート・エクスポートボタンを無効化（デフォルト: false）|
 
-#### ツールバー
+### 4.2. ヘッダーエリア
 
-| 要素 | 配置 | 説明 |
-|------|------|------|
-| 検索欄 | 左 | Prefix / URI / 説明でフリーワード検索（`SearchOutlined` prefix付き、allowClear）|
-| インポートボタン | 右 | CSVファイルを選択してDBへ一括登録 |
-| エクスポートボタン | 右 | 表示中データをCSVとしてダウンロード（`prefixes.csv`）|
-| +Prefix ボタン | 右 | `type="primary"` / `PlusOutlined`。押下でテーブル先頭に入力行を追加 |
-| 保存ボタン | 右 | `type="primary"` / `SaveOutlined`。未保存行（newRows）があるとき有効。押下でDB保存 |
-| キャンセルボタン | 右 | 未保存行（newRows）があるとき有効。押下で入力行を全破棄 |
+左側:
+- **タイトル**: `globalNamespace.title`（Typography.Title level=5）
+- **説明**: `globalNamespace.description`（Typography.Text type="secondary" fontSize=12）
 
-#### テーブル（グローバルPrefixのみ表示）
+右側（ボタン群）:
+| ボタン | アイコン | loading | disabled条件 | コールバック |
+|--------|---------|---------|------------|------------|
+| リロード | `ReloadOutlined` | `loading` | — | `fetchDeclarations` |
+| エクスポート | `DownloadOutlined` | `exporting` | `viewOnly=true` | `handleExport` |
+| インポート | `UploadOutlined`（type="primary"）| `importing` | `viewOnly=true` | hiddenの`<input type="file">`をclick |
 
-| カラム | データキー | 幅 | ソート | 説明 |
+### 4.3. 件数表示
+
+```
+N 件
+```
+- `globalNamespace.count`（i18nキー、`{count}` を件数に置換）
+- Typography.Text type="secondary" fontSize=12
+
+### 4.4. テーブル
+
+| カラム | dataIndex | 幅 | ソート | 表示 |
 |--------|-----------|-----|--------|------|
-| Prefix | `prefix` | 160px | ✅ | 入力行：テキスト入力。既存行：`Text strong` で表示。編集時：テキスト入力 |
-| URI | `uri` | — | — | 入力行：テキスト入力（`https://...` 形式）。既存行：青文字で Tooltip 付き表示 |
-| 説明 | `description` | 200px | — | 入力行：テキスト入力。既存行：テキスト表示 |
-| スコープ | `scopePath` | 160px | ✅ | 既存行：小さなラベル（`#f5f5f5` 背景）で表示。入力行：`—` |
-| 操作 | — | 180px | — | 通常時：[編集][削除] / 編集時：[保存][キャンセル] |
+| Prefix | `prefix` | 200px | ✅（デフォルト昇順）| `<Text code fontWeight=600>` |
+| URI | `uri` | — | ✅ | Tooltip + copyable Text（省略表示 maxWidth=600px）|
 
-> **グローバルモード時の挙動**: `isGlobal: true` で `createNamespace` を呼び出すことで、グローバルスコープの Prefix として登録される。
-
-#### ページネーション
-
+**ページネーション:**
 | 設定 | 値 |
 |------|-----|
-| デフォルトページサイズ | 20件 |
+| デフォルトページサイズ | 50件 |
 | 切替オプション | 20 / 50 / 100 件 |
-| 合計件数表示 | `N 件` |
+| showSizeChanger | 有効 |
 
-### 4.3. 操作仕様
-
-#### Prefix 追加
-1. `+Prefix` ボタン押下 → テーブル先頭に黄色背景（`#fffbe6`）の新規入力行を追加
-2. Prefix（必須）・URI（必須）・説明を入力
-3. `保存` ボタン押下
-   - 重複Prefixチェック: 既存の同名 Prefix が存在する場合は確認ダイアログ（`Modal.confirm`）
-   - 確認後: `POST /api/v1/namespaces` で登録（`isGlobal: true`）
-
-#### Prefix 編集
-1. `編集` ボタン押下 → 行がインライン編集モードに切り替わる
-2. URI を変更
-3. `保存` ボタン押下 → `PATCH /api/v1/namespaces/:prefix` で更新
-
-#### Prefix 削除
-1. `削除` ボタン押下 → 確認ダイアログ（`Modal.confirm`）
-2. 確認後 → `DELETE /api/v1/namespaces/:prefix` で削除
-
-#### CSV インポート
-- フォーマット: `prefix,uri,description`（1行目はヘッダー）
-- 各行を順次 `POST /api/v1/namespaces` で登録
-- `isGlobal: true` で送信
-
-#### CSV エクスポート
-- 現在表示中のデータを `prefixes.csv` でダウンロード
-- フォーマット: `prefix,uri,description`（BOM付きUTF-8）
-
-### 4.4. エラーハンドリング
-
-| エラー | 表示方法 | メッセージ（i18n キー）|
-|--------|---------|---------------------|
-| Prefix 未入力で保存 | `message.error` | `prefixManagement.prefixRequired` |
-| URI 未入力で保存 | `message.error` | `prefixManagement.uriRequired` |
-| 取得失敗 | `message.error` | `prefixManagement.fetchError` |
-| 更新失敗 | `message.error` | `prefixManagement.updateError` |
-| 削除失敗 | `message.error` | `prefixManagement.deleteError` |
-| CSV 行数不足 | `message.error` | `prefixManagement.csvEmpty` |
-| CSV データなし | `message.error` | `prefixManagement.csvNoData` |
-| 重複Prefix確認 | `Modal.confirm` | `prefixManagement.warnAlreadyRegistered` |
+**空データ時:**
+- `globalNamespace.empty`（i18nキー）
 
 ---
 
-## 5. TermManagement（グローバルモード）
+## 5. 操作仕様
 
-### 5.1. コンポーネント Props
+### 5.1. リロード
+
+- `fetchDeclarations` を実行
+- `loading` フラグを true にしてテーブルを Spin 表示
+- `GET /api/v1/namespaces/global-declarations`（`getGlobalDeclarations`）で一覧取得
+
+### 5.2. CSVインポート
+
+1. インポートボタン押下 → hidden の `<input type="file" accept=".csv">` をクリック
+2. ファイル選択後 → 確認ダイアログ（`Modal.confirm`）を表示
+   - title: `globalNamespace.importConfirmTitle`
+   - content: `globalNamespace.importConfirmContent`
+   - okText: `globalNamespace.importConfirmOk`（danger）
+   - cancelText: `common.cancel`
+3. OK押下 → `importGlobalDeclarations(file)` でCSVを送信（**全置換**）
+4. 成功: `message.success(globalNamespace.importSuccess)` + リロード
+5. 失敗: `message.error(globalNamespace.importError)`
+
+> ⚠️ インポートはCSV全置換です。既存データはすべて上書きされます。
+
+### 5.3. CSVエクスポート
+
+1. エクスポートボタン押下 → `exportGlobalDeclarations()` を実行
+2. 成功: `message.success(globalNamespace.exportSuccess)`（ファイルダウンロードが自動開始）
+3. 失敗: `message.error(globalNamespace.exportError)`
+
+---
+
+## 6. データ仕様
+
+### 6.1. GlobalNamespaceEntry 型
 
 ```typescript
-interface TermManagementProps {
-  viewOnly?: boolean;      // false（編集可）
-  globalOnly?: boolean;    // true（グローバル用語のみ）
-  selectedNsKey?: string;  // 未指定
+interface GlobalNamespaceEntry {
+  prefix: string;
+  uri: string;
 }
 ```
 
-### 5.2. 画面構成
+### 6.2. データソース
 
-#### ツールバー
-
-| 要素 | 配置 | 説明 |
-|------|------|------|
-| 検索欄 | 左 | Prefix / ローカル名 / 表示名 / 説明でフリーワード検索 |
-| Prefix フィルター | 左 | Prefix でフィルタリング（`Select allowClear`）|
-| タイプ フィルター | 左 | xsi:type でフィルタリング（`Select allowClear`）|
-| インポートボタン | 右 | CSVファイルを選択してDBへ一括登録 |
-| エクスポートボタン | 右 | 表示中データをCSVとしてダウンロード（`terms.csv`）|
-| +用語ボタン | 右 | `type="primary"` / `PlusOutlined`。押下でテーブル先頭に入力行を追加 |
-| 保存ボタン | 右 | `type="primary"` / `SaveOutlined`。未保存行があるとき有効 |
-| キャンセルボタン | 右 | 未保存行があるとき有効。入力行を全破棄 |
-
-#### テーブル
-
-| カラム | データキー | 幅 | 説明 |
-|--------|-----------|-----|------|
-| Prefix | `prefix` | 140px | 入力行：Prefix セレクト（DB取得済み Prefix から選択）。既存行：`Text strong` |
-| ローカル名 | `localName` | 180px | 入力行：テキスト入力。既存行：`Text code` |
-| 表示名 | `displayName` | 160px | 入力行：テキスト入力。既存行：テキスト表示（編集時は入力に切替）|
-| 説明 | `description` | — | 入力行：テキスト入力（ellipsis）。既存行：テキスト表示（編集時は入力に切替）|
-| タイプ | `type` | 130px | 入力行：Select（6種類から選択）。既存行：色付き Tag（編集時は Select）|
-| 単位 | `unitHint` | 100px | 入力行：テキスト入力。既存行：テキスト表示（編集時は入力）|
-| スコープ | — | 140px | 既存行：`prefix → 組織名` マップから取得した名前を `geekblue` Tag で表示 |
-| 操作 | — | 200px | 通常時：[編集][有効化/無効化] / 編集時：[保存][キャンセル] |
-
-#### タイプ一覧
-
-| 値 | Tag色 |
-|----|-------|
-| `stringType` | blue |
-| `integerType` | green |
-| `floatType` | cyan |
-| `booleanType` | orange |
-| `dateTimeType` | purple |
-| `uriType` | magenta |
-
-### 5.3. 操作仕様
-
-#### 用語追加
-1. `+用語` ボタン押下 → テーブル先頭に新規入力行を追加
-2. Prefix（必須・セレクト）・ローカル名（必須）・表示名・説明・タイプ・単位を入力
-3. `保存` ボタン押下 → 重複チェック後 `POST /api/v1/namespaces/terms` で登録
-
-**重複チェックロジック（クライアントサイド）：**
-1. 完全一致（同 `prefix:localName`）→ `Modal.error` でエラー表示（登録不可）
-2. `prefix` 違い・同 `localName` → `Modal.confirm` で確認（登録続行可）
-
-#### 用語編集
-1. `編集` ボタン押下 → 行がインライン編集モードに切り替わる（表示名・説明・タイプ・単位を編集可）
-2. `保存` ボタン押下 → `PATCH /api/v1/namespaces/:prefix/terms/:localName` で更新
-
-#### 有効/無効切替
-- `無効化` ボタン → `Modal.confirm` → `PATCH` でステータスを `inactive` に変更
-- `有効化` ボタン → `Modal.confirm` → `PATCH` でステータスを `active` に変更
-- `isActive === false` の行は `無効化` ボタンが `有効化` ボタンに切替
-
-#### CSV インポート
-- フォーマット: `prefix,localName,displayName,description,typeHint,unitHint`（1行目はヘッダー）
-- 各行を順次 `POST /api/v1/namespaces/terms` で登録
-
-#### CSV エクスポート
-- 現在フィルター適用済みのデータを `terms.csv` でダウンロード
-- フォーマット: `prefix,localName,displayName,description,type,unitHint`（BOM付きUTF-8）
-
-### 5.4. エラーハンドリング
-
-| エラー | 表示方法 | メッセージ（i18n キー）|
-|--------|---------|---------------------|
-| Prefix 未選択で保存 | `message.error` | `termManagement.prefixRequired` |
-| ローカル名未入力で保存 | `message.error` | `termManagement.localNameRequired` |
-| 取得失敗 | `message.error` | `termManagement.fetchError` |
-| 更新失敗 | `message.error` | `termManagement.updateError` |
-| 完全一致重複 | `Modal.error` | `termManagement.duplicateErrorTitle` + `termManagement.duplicateError` |
-| prefix違い・名前同一 | `Modal.confirm` | `termManagement.duplicateWarningTitle` + `termManagement.duplicateWarningMessage` |
-| 409 Conflict（サーバー） | `Modal.error` | `termManagement.duplicateErrorTitle` + `termManagement.duplicateErrorWithScope` |
-| CSV データなし | `message.error` | `termManagement.csvEmpty` |
+- **ファイルパス**: `system/namespaces/global-declarations.csv`（ファイルサーバ）
+- **DBではなくCSVファイルで管理**
 
 ---
 
-## 6. API 連携
+## 7. API 連携
 
-### 6.1. PrefixManagement で使用するエンドポイント
-
-| 操作 | メソッド | パス | 用途 |
-|------|---------|------|------|
-| 一覧取得 | GET | `/api/v1/namespaces` | Prefix 一覧取得 |
-| 新規登録 | POST | `/api/v1/namespaces` | Prefix 登録（`isGlobal: true`）|
-| 更新 | PATCH | `/api/v1/namespaces/:prefix` | URI を更新 |
-| 削除 | DELETE | `/api/v1/namespaces/:prefix` | Prefix を削除 |
-
-### 6.2. TermManagement で使用するエンドポイント
-
-| 操作 | メソッド | パス | 用途 |
-|------|---------|------|------|
-| Prefix 一覧取得 | GET | `/api/v1/namespaces` | Prefix セレクト用 |
-| 用語一覧取得 | GET | `/api/v1/namespaces/terms` | 用語一覧取得 |
-| 祖先グループ取得 | GET | `/api/v1/organization-groups/ancestors` | 重複チェック用スコープ取得 |
-| 用語登録 | POST | `/api/v1/namespaces/terms` | 用語登録 |
-| 用語更新 | PATCH | `/api/v1/namespaces/:prefix/terms/:localName` | 用語更新 |
-| 有効/無効切替 | PATCH | `/api/v1/namespaces/:prefix/terms/:localName/toggle-active` | アクティブ状態変更 |
+| 操作 | 関数名 | 用途 |
+|------|-------|------|
+| 一覧取得 | `getGlobalDeclarations` | テーブル表示用データ取得 |
+| インポート | `importGlobalDeclarations(file)` | CSVアップロード（全置換）|
+| エクスポート | `exportGlobalDeclarations` | CSVダウンロード |
 
 ---
 
-## 7. 使用コンポーネント
+## 8. エラーハンドリング
+
+| エラー | 表示方法 | i18nキー |
+|--------|---------|---------|
+| 一覧取得失敗 | `message.error` | `globalNamespace.fetchError` |
+| インポート失敗 | `message.error` | `globalNamespace.importError` |
+| エクスポート失敗 | `message.error` | `globalNamespace.exportError` |
+
+---
+
+## 9. 使用コンポーネント
 
 ### Ant Design コンポーネント
 
 | コンポーネント | 用途 |
 |-------------|------|
-| `Layout` / `Content` | ProviderMenu の全体レイアウト |
-| `Tabs` | プロバイダーメニュータブ / 名前空間管理サブタブ |
-| `Table` | Prefix / 用語の一覧テーブル |
-| `Input` | 検索欄・インライン入力フィールド |
-| `Select` | フィルター・Prefix 選択・タイプ選択 |
-| `Button` | ツールバーボタン群・操作列ボタン |
-| `Modal.confirm` / `Modal.error` | 確認・エラーダイアログ |
-| `Tooltip` | URI 省略表示・スコープ省略表示 |
-| `Tag` | タイプ表示・スコープ表示 |
+| `Table` | 名前空間宣言一覧テーブル |
+| `Button` | リロード・エクスポート・インポートボタン |
+| `Modal.confirm` | インポート確認ダイアログ |
+| `Tooltip` | URI全文表示 |
 | `Spin` | テーブルローディング |
-| `Typography.Text` | テーブルセル内テキスト |
+| `Typography.Title` | タイトル |
+| `Typography.Text` | 説明・件数・URI表示（copyable付き）|
 | `message` | 成功・エラートースト |
 
 ### アイコン
@@ -340,19 +245,24 @@ interface TermManagementProps {
 | アイコン | 用途 |
 |---------|------|
 | `GlobalOutlined` | プロバイダーメニュー タブ3 アイコン |
-| `PlusOutlined` | +Prefix / +用語 ボタン |
-| `SaveOutlined` | 保存ボタン |
-| `EditOutlined` | 編集ボタン |
-| `DeleteOutlined` | 削除ボタン（PrefixManagement）|
-| `CloseOutlined` | 入力行削除ボタン（TermManagement）|
-| `SearchOutlined` | 検索欄 prefix アイコン |
-| `WarningOutlined` | 重複確認ダイアログアイコン |
+| `ReloadOutlined` | リロードボタン |
+| `DownloadOutlined` | エクスポートボタン |
+| `UploadOutlined` | インポートボタン |
 
 ---
 
-## 8. 備考・注意事項
+## 10. 備考・注意事項
 
-1. **グローバル Prefix とは**: `is_global = TRUE` で登録された名前空間。`maiml`（`http://www.maiml.org/schemas`）や `xsi`（`http://www.w3.org/2001/XMLSchema-instance`）など、MaiML 標準の Prefix がデフォルトで含まれる。
-2. **スコープ列の挙動**: `globalOnly=true` の場合でも PrefixManagement のスコープ列は非表示にならない（`TermManagement` のスコープ列は `globalOnly=true` でも表示される）。
-3. **ページレイアウト**: コンテンツエリアの `marginTop` は Header（64px）+ SubHeader（76px）の合計 140px。
-4. **動的インポート**: `PrefixManagement` と `TermManagement` は `dynamic()` を使用した SSR 無効インポートで読み込まれる。
+1. **データソースはCSVファイル**: DBの `namespaces` テーブルとは別管理。`PrefixManagement` コンポーネントとは連携しない。
+2. **インポートは全置換**: CSVインポート時は既存の全データが上書きされる。確認ダイアログ（danger）で警告する。
+3. **ページレイアウト**: コンテンツエリアの `padding` は `0 16px`。
+4. **SSR**: `GlobalNamespaceView` は `'use client'` ディレクティブを使用。
+
+---
+
+## 11. 変更履歴
+
+| 日付 | バージョン | 変更内容 | 担当者 |
+|------|-----------|----------|--------|
+| 2026-08-19 | 1.0.0 | 初版作成（PrefixManagement/TermManagement ネストTabs構成） | Development Team |
+| 2026-08-21 | 2.0.0 | 実装に合わせて全面更新。GlobalNamespaceView ベースに変更。サブタブ廃止・CSVファイルベースの操作仕様に差し替え | Cline |

@@ -1,14 +1,14 @@
-# 実験計画ダイアログ UI設計書
+# 実験計画詳細指示ダイアログ UI設計書
 
 ## メタデータ
-- **画面名**: 実験計画ダイアログ
+- **画面名**: 実験計画詳細指示ダイアログ
 - **物理名**: ExperimentPlanDialog.tsx
 - **ファイルパス**: `frontend/src/components/project/ExperimentPlanDialog.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-06-22
-- **最終更新日**: 2026-06-22
+- **最終更新日**: 2026-08-20
 - **担当者**: Development Team
-- **バージョン**: 1.0.0
+- **バージョン**: 2.0.0
 
 ---
 
@@ -16,7 +16,7 @@
 
 ### 1.1. 目的
 
-実験管理者（Manager）が、プロジェクトの各メソッド・タスクに対して**実験計画指示**を設定・保存するためのモーダルダイアログです。
+実験管理者が、プロジェクトの各メソッド・トランジションに対して**実験計画指示**を設定・保存するためのモーダルダイアログです。
 想定値・注意事項・担当者情報などを構造化して登録し、チェックアウト時に MAIML ファイルへ `mgr-instruction:` プレフィックスで反映されます。
 
 ### 1.2. アクセス権限
@@ -29,14 +29,14 @@
 
 ### 1.3. 主要機能
 
-1. メソッドの全タスク分をタブで切り替えて実験計画を設定
-2. 「全体」タブで共通値を設定し、各タスクNタブに継承する
-3. 個別タスクでの値の上書き（overrideFlags で管理）
-4. 「全体に戻す」ボタンで個別上書きをリセット
-5. テンプレートフィールドへの想定値入力
-6. 注意事項・備考の登録（複数件対応）
-7. 担当者・機器・オーナーの選択
-8. 前提トランジション（依存関係）の設定
+1. **トランジション一覧（左パネル）**: メソッドの全トランジションをリスト表示。単体選択で右パネルに内容を表示
+2. **DnD並べ替え**: トランジションの実行順序を Drag & Drop で設定（依存関係制約あり）
+3. **タブ切り替え（右パネル上部）**: 「一括」タブと「タスク1〜N」タブで設定対象を切り替え
+4. **基本情報タブ**: CreatorRef / InstrumentRef / OwnerRef の選択、注意事項の登録
+5. **テンプレート入力タブ**: トランジションに紐づくテンプレートフィールドへの想定値入力
+6. **一括→タスクN継承**: 「一括」タブで変更した値は、各「タスクN」タブに自動伝播
+7. **JSONインポート/エクスポート**: 実験計画データをJSON形式で入出力
+8. **メソッド切り替え**: `allowMethodSelection=true` 時にヘッダー部のセレクトでメソッド変更が可能
 
 ---
 
@@ -45,442 +45,413 @@
 ### 2.1. 全体構成
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ Modal (width: 1400px, top: 20)                                  │
-│ ┌───────────────────────────────────────────────────────────┐  │
-│ │ Title: 実験計画指示 - [メソッド名]                         │  │
-│ ├───────────────────────────────────────────────────────────┤  │
-│ │ Body:                                                      │  │
-│ │                                                            │  │
-│ │ ┌─────────────────────────────────────────────────────┐   │  │
-│ │ │ 外部タブバー                                         │   │  │
-│ │ │  [全体] [タスク1] [タスク2] ... [タスクN]           │   │  │
-│ │ ├─────────────────────────────────────────────────────┤   │  │
-│ │ │ タブコンテンツ                                        │   │  │
-│ │ │ ┌───────────────────────────────────────────────┐   │   │  │
-│ │ │ │ 内部タブバー                                   │   │   │  │
-│ │ │ │  [基本情報] [テンプレート入力]                 │   │   │  │
-│ │ │ ├───────────────────────────────────────────────┤   │   │  │
-│ │ │ │                                               │   │   │  │
-│ │ │ │  基本情報タブ / テンプレート入力タブ           │   │   │  │
-│ │ │ │                                               │   │   │  │
-│ │ │ └───────────────────────────────────────────────┘   │   │  │
-│ │ └─────────────────────────────────────────────────────┘   │  │
-│ │                                                            │  │
-│ ├───────────────────────────────────────────────────────────┤  │
-│ │ Footer: [キャンセル]                    [保存] ボタン      │  │
-│ └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ Modal (width: 1400px, top: 20)                                       │
+│ Title: 📄 実験計画詳細指示  [メソッドセレクト▼]                      │
+├───────────────────────────┬──────────────────────────────────────────┤
+│ 左パネル（幅: 240px）      │ 右パネル                                  │
+│                           │  [一括][タスク1][タスク2]...              │
+│ トランジション一覧         │  [基本情報][テンプレート入力]              │
+│ ┌──────────────────────┐  │  ────────────────────────────────────── │
+│ │ ⠿ Transition1        │  │  基本情報タブ:                            │
+│ │ ⠿ Transition2  ◉     │  │  【CreatorRef】                          │
+│ │ ⠿ Transition3        │  │  [プルダウン ▼] [追加]                   │
+│ └──────────────────────┘  │  ・creator_001  [×]                      │
+│                           │                                          │
+│ [↓ エクスポート]          │  【InstrumentRef】                        │
+│ [↑ インポート]            │  [プルダウン ▼] [追加]                   │
+│                           │                                          │
+│                           │  【注意事項】                             │
+│                           │  [タイプ選択 ▼] [追加]                   │
+│                           │  ┌────────────────────────┐             │
+│                           │  │ ⠿ [注意] テキスト [×]  │             │
+│                           │  └────────────────────────┘             │
+├───────────────────────────┴──────────────────────────────────────────┤
+│                               [キャンセル] [保存]                     │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2. レイアウト定数
 
-| 要素 | 値 | 説明 |
-|------|-----|------|
-| Modal 幅 | 1400px | ダイアログ全体幅 |
-| Modal top | 20px | 上端マージン |
-| 外部タブ | 全体 + タスク1〜N | メソッドのタスク数に応じて動的生成 |
-| 内部タブ | 2タブ固定 | 「基本情報」「テンプレート入力」 |
+| 要素 | 値 |
+|------|-----|
+| Modal 幅 | `1400px` |
+| Modal top | `20px` |
+| 左パネル幅 | `240px` |
+| 右パネル | 残り幅（Col 相当）|
+| 外部タブ | 一括 + タスク1〜N |
+| 内部タブ | 基本情報 / テンプレート入力（固定）|
 
 ---
 
 ## 3. コンポーネント Props 定義
 
 ```typescript
+// @/types/experimentPlan に定義
 interface ExperimentPlanDialogProps {
-  /** ダイアログの表示状態 */
   open: boolean;
-  /** 閉じる時のコールバック */
-  onClose: () => void;
-  /** プロジェクトID（project_name） */
   projectId: string;
-  /** メソッドID */
   methodId: string;
-  /** メソッド名（タイトル表示用） */
-  methodName: string;
+  taskNumbers: number[];
+  creatorRefOptions?: { value: string; label: string }[];
+  instrumentRefOptions?: { value: string; label: string }[];
+  ownerRefOptions?: { value: string; label: string }[];
+  methodTemplates?: TemplateDefinition[];
+  onClose: () => void;
+  onSave?: () => void;
+  disabled?: boolean;
+  allowMethodSelection?: boolean;
+  methodOptions?: { id: string; name: string }[];
+  onMethodChange?: (methodId: string) => void;
 }
 ```
 
-| Prop名 | 型 | 必須 | 説明 |
-|--------|-----|------|------|
-| `open` | `boolean` | ✅ | ダイアログ表示/非表示 |
-| `onClose` | `() => void` | ✅ | キャンセル・保存後の閉じるコールバック |
-| `projectId` | `string` | ✅ | プロジェクトID（project_name） |
-| `methodId` | `string` | ✅ | 対象メソッドのID |
-| `methodName` | `string` | ✅ | タイトル表示用メソッド名 |
+| Prop名 | 型 | デフォルト | 説明 |
+|--------|-----|----------|------|
+| `open` | `boolean` | — | ダイアログ表示/非表示（必須）|
+| `projectId` | `string` | — | プロジェクトID（必須）|
+| `methodId` | `string` | — | 対象メソッドID（必須）|
+| `taskNumbers` | `number[]` | — | タスク番号配列（必須）。タブ生成・伝播に使用 |
+| `creatorRefOptions` | `option[]` | `[]` | CreatorRef 選択肢（APIデータ優先）|
+| `instrumentRefOptions` | `option[]` | `[]` | InstrumentRef 選択肢（APIデータ優先）|
+| `ownerRefOptions` | `option[]` | `[]` | OwnerRef 選択肢（APIデータ優先）|
+| `methodTemplates` | `TemplateDefinition[]` | `[]` | テンプレート定義（APIデータ優先）|
+| `onClose` | `() => void` | — | キャンセル・閉じる時のコールバック（必須）|
+| `onSave` | `() => void` | — | 保存成功後のコールバック |
+| `disabled` | `boolean` | `false` | `true` の場合は全入力を無効化（参照専用）|
+| `allowMethodSelection` | `boolean` | `false` | `true` の場合はヘッダーにメソッド選択セレクトを表示 |
+| `methodOptions` | `{ id, name }[]` | `[]` | メソッド選択肢（allowMethodSelection=true 時に使用）|
+| `onMethodChange` | `(id) => void` | — | メソッド変更時のコールバック |
 
 ---
 
-## 4. State 構造
+## 4. State 定義
+
+| State名 | 型 | 初期値 | 説明 |
+|---------|-----|--------|------|
+| `dialogData` | `PlanDialogData \| null` | `null` | APIから取得したダイアログ初期データ |
+| `dialogDataLoading` | `boolean` | `false` | 初期データ取得中フラグ |
+| `activeTab` | `string` | `TAB_KEY_ALL ('all')` | 現在アクティブなタブキー |
+| `selectedTransitionId` | `string \| null` | `null` | 左パネルで選択中のトランジションID |
+| `transitionOrder` | `TransitionOrderItem[]` | `[]` | DnD で設定したトランジション実行順序 |
+| `tabDataMap` | `Record<tabKey, Record<transitionId, ExperimentPlanTabData>>` | `{}` | 二次元マップ（タブキー × トランジションID）|
+| `isSaving` | `boolean` | `false` | 保存API呼び出し中フラグ |
+| `pendingNoteType` | `NoteTypeValue \| undefined` | `undefined` | 注意事項追加時の選択タイプ |
+| `innerTab` | `'basic' \| 'template'` | `'basic'` | 右パネル内部タブ |
+
+---
+
+## 5. データ型定義
+
+### 5.1. ExperimentPlanTabData（`@/types/experimentPlan`）
 
 ```typescript
-// 外部タブのキー（全体 or タスク番号）
-type TabKey = 'all' | `task-${number}`;
+interface ExperimentPlanTabData {
+  creatorRefs: string[];          // CreatorRef の UUID リスト
+  instrumentRefs: string[];       // InstrumentRef の UUID リスト
+  ownerRefs: string[];            // OwnerRef の UUID リスト
+  notes: NoteItem[];              // 注意事項リスト
+  templateValues: Record<string, string | number | boolean>;  // 想定値マップ
+}
+```
 
-// 注意事項アイテム
+### 5.2. NoteItem（`@/types/experimentPlan`）
+
+```typescript
 interface NoteItem {
-  id: string;
-  type: 'caution' | 'operationNote' | 'checkItem' | 'prohibitedAction' | 'otherNotes';
+  id: string;       // UUID（内部管理用）
+  type: NoteTypeValue;
   content: string;
 }
 
-// 1タブ分のデータ
-interface TabData {
-  /** テンプレートごとの想定値 {templateId: {fieldKey: value}} */
-  templateValues: Record<string, Record<string, string>>;
-  /** 注意事項リスト */
-  notes: NoteItem[];
-  /** 担当者UUID */
-  assignee: string;
-  /** 必要作成者UUIDリスト */
-  requiredCreatorUUIDs: string[];
-  /** 必要機器UUIDリスト */
-  requiredInstrumentUUIDs: string[];
-  /** 必要オーナーUUIDリスト */
-  requiredOwnerUUIDs: string[];
-}
+type NoteTypeValue = 'caution' | 'operationNote' | 'checkItem' | 'prohibitedAction' | 'otherNotes';
+```
 
-// 上書きフラグ（全体→タスクN継承管理）
-interface OverrideFlags {
-  [taskNumber: number]: {
-    [fieldPath: string]: boolean; // true = 個別上書き中
-  };
-}
+### 5.3. TransitionOrderItem（`@/types/experimentPlanDialog`）
 
-// ダイアログ初期データ（APIから取得）
+```typescript
+interface TransitionOrderItem {
+  id: string;                          // トランジションID
+  order: number;                       // 実行順序（1〜N）
+  prerequisiteTransitionIds: string[]; // 依存するトランジションIDリスト
+}
+```
+
+### 5.4. InheritableField（`@/types/experimentPlanDialog`）
+
+```typescript
+type InheritableField = 'creatorRefs' | 'instrumentRefs' | 'ownerRefs' | 'notes' | 'templateValues';
+```
+
+### 5.5. PlanDialogData（`@/services/experimentPlanApiService`）
+
+```typescript
 interface PlanDialogData {
-  methodInfo: {
-    methodId: string;
-    methodName: string;
-    taskCount: number;
-  };
-  availableCreators: { uuid: string; name: string }[];
-  availableInstruments: { uuid: string; name: string }[];
-  availableOwners: { uuid: string; name: string }[];
-  availableTransitions: {
-    transitionId: string;
-    name: string;
-    taskNo: number;
-    prerequisiteTransitionIds: string[];
-  }[];
-  templates: {
-    templateId: string;
-    templateName: string;
-    templateType: 'material' | 'condition' | 'result';
-    fields: { key: string; label: string; unit: string; type: string }[];
-  }[];
-  existingPlans: {
-    taskNo: number;
-    plannedValues: Record<string, Record<string, string | string[]>>;
-    updatedAt: string;
-  }[];
+  transitions: TransitionRow[];                    // トランジション一覧
+  templates: TemplateDefinition[];                 // テンプレート定義
+  creatorRefs: { value: string; label: string }[]; // Creator 選択肢
+  instrumentRefs: { value: string; label: string }[]; // Instrument 選択肢
+  ownerRefs: { value: string; label: string }[];   // Owner 選択肢
 }
 ```
 
 ---
 
-## 5. 外部タブ（タスク選択）
+## 6. タブ構成
 
-### 5.1. 構成
+### 6.1. 外部タブ（右パネル上部）
 
 | タブキー | ラベル | 説明 |
 |---------|--------|------|
-| `all` | 全体 | 全タスク共通の設定値。変更時に各タスクNへ継承される |
+| `TAB_KEY_ALL ('all')` | 一括 | 全トランジション共通設定。変更時は各タスクNタブに伝播 |
 | `task-1` | タスク1 | タスク番号1の個別設定 |
-| `task-2` | タスク2 | タスク番号2の個別設定 |
-| ... | ... | タスク数に応じて動的生成 |
-| `task-N` | タスクN | タスク番号Nの個別設定 |
+| `task-N` | タスクN | `taskNumbers` の各番号に対応して動的生成 |
 
-### 5.2. タブのインジケーター
+### 6.2. 内部タブ（右パネル下部）
 
-| 状態 | 表示 | 条件 |
-|------|------|------|
-| 設定済み | タブ名 + ✓（緑）| 1件以上のデータが設定されている |
-| 個別上書きあり | タブ名 + ✏（橙）| overrideFlags に1件以上trueがある |
-| 未設定 | タブ名のみ | データなし |
-
----
-
-## 6. 内部タブ
-
-### 6.1. 基本情報タブ
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│ 基本情報                                                        │
-│                                                                │
-│ 担当者:      [担当者を選択 ▼]                                  │
-│ 必要作成者:  [複数選択可 ▼]                                    │
-│ 必要機器:    [複数選択可 ▼]                                    │
-│ 必要オーナー: [複数選択可 ▼]                                   │
-│                                                                │
-│ 注意事項:                                                      │
-│ ┌──────────────────────────────────────────────────────────┐  │
-│ │ [種別▼] [内容入力                          ] [削除]        │  │
-│ │ [種別▼] [内容入力                          ] [削除]        │  │
-│ └──────────────────────────────────────────────────────────┘  │
-│ [+ 注意事項を追加]                                             │
-│                                                                │
-│ ─── タスクNのみ表示 ─────────────────────────────────────── │
-│ ○ 全体設定を使用  ○ このタスクで個別設定  [全体に戻す]       │
-└────────────────────────────────────────────────────────────────┘
-```
-
-#### 6.1.1. 担当者選択
-
-| 項目 | 値 |
-|------|-----|
-| コンポーネント | `Select`（Ant Design）|
-| モード | `multiple`（複数選択） |
-| データ取得元 | `dialogData.availableCreators` |
-| プレースホルダー | 担当者を選択してください |
-
-#### 6.1.2. 必要機器選択
-
-| 項目 | 値 |
-|------|-----|
-| コンポーネント | `Select`（Ant Design）|
-| モード | `multiple`（複数選択） |
-| データ取得元 | `dialogData.availableInstruments` |
-| プレースホルダー | 機器を選択してください |
-
-#### 6.1.3. 注意事項入力
-
-**NoteItem 種別リスト**:
-
-| 種別キー | 表示名 | 説明 |
+| タブキー | ラベル | 説明 |
 |---------|--------|------|
-| `caution` | 注意 | 安全・取り扱いの注意 |
-| `operationNote` | 操作メモ | 操作手順の補足 |
-| `checkItem` | 確認項目 | 実験前の確認事項 |
-| `prohibitedAction` | 禁止事項 | 実施してはならない行為 |
-| `otherNotes` | その他 | 上記に当てはまらない備考 |
-
-**入力コンポーネント**:
-- 種別: `Select`（幅 150px）
-- 内容: `Input.TextArea`（`autoSize={{ minRows: 1, maxRows: 3 }}`）
-- 削除ボタン: `Button` + `DeleteOutlined`アイコン
-
-#### 6.1.4. 継承制御（タスクNタブのみ表示）
-
-| UI要素 | 説明 |
-|--------|------|
-| `全体設定を使用` ラジオ | overrideFlags を false にする |
-| `このタスクで個別設定` ラジオ | overrideFlags を true にする |
-| `全体に戻す` ボタン | overrideFlags を false にリセットし、全体タブの値で上書き |
+| `basic` | 基本情報 | CreatorRef / InstrumentRef / OwnerRef / 注意事項の入力 |
+| `template` | テンプレート入力 | 選択トランジションに紐づくテンプレートフィールドへの想定値入力 |
 
 ---
 
-### 6.2. テンプレート入力タブ
+## 7. 左パネル（トランジション一覧）
+
+### 7.1. トランジション行
+
+- `SortableTransitionRow` コンポーネントで描画
+- `@dnd-kit/sortable` によるドラッグ&ドロップ並べ替え対応
+- 選択中トランジションはハイライト表示（◉マーク相当）
+- 行クリックで `selectedTransitionId` を更新（右パネルに内容を反映）
+
+### 7.2. インポート/エクスポート
+
+| ボタン | アイコン | 動作 |
+|--------|---------|------|
+| エクスポート | `ExportOutlined` | `tabDataMap` と `transitionOrder` を JSON でダウンロード |
+| インポート | `ImportOutlined` | JSON ファイルを読み込み `tabDataMap` と `transitionOrder` に反映 |
+
+### 7.3. DnD 並べ替えロジック
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│ テンプレート入力                                                 │
-│                                                                │
-│ テンプレート種別: [全て ▼]                                      │
-│                                                                │
-│ ┌────────────────────────────────────────────────────────┐   │
-│ │ ▼ [反応条件] condition                                  │   │
-│ │                                                        │   │
-│ │  温度  [°C]  [       想定値入力       ]  [全体に戻す]  │   │
-│ │  圧力  [MPa] [       想定値入力       ]  [全体に戻す]  │   │
-│ │  時間  [h]   [       想定値入力       ]  [全体に戻す]  │   │
-│ └────────────────────────────────────────────────────────┘   │
-│ ┌────────────────────────────────────────────────────────┐   │
-│ │ ▼ [反応結果] result                                     │   │
-│ │                                                        │   │
-│ │  収率  [%]   [       想定値入力       ]  [全体に戻す]  │   │
-│ └────────────────────────────────────────────────────────┘   │
-└────────────────────────────────────────────────────────────────┘
+トランジション行をドラッグ
+  ↓
+handleDragEnd(event: DragEndEvent)
+  ↓
+canMoveToOrder() で依存関係チェック
+  ↓
+OK: moveTransitionWithSubtree() で transitionOrder を更新
+NG: 移動をキャンセル（依存関係違反）
 ```
 
-#### 6.2.1. テンプレート種別フィルター
+---
+
+## 8. 右パネル
+
+### 8.1. 基本情報タブ（innerTab === 'basic'）
+
+`RefSection` コンポーネントを使用して各 Ref セクションを描画。
+
+#### 8.1.1. CreatorRef / InstrumentRef / OwnerRef 共通仕様
 
 | 項目 | 値 |
 |------|-----|
-| コンポーネント | `Select`（Ant Design）|
-| 選択肢 | 全て / material / condition / result |
-| デフォルト | 「全て」 |
+| コンポーネント | `RefSection`（`./ExperimentPlanDialog/RefSection`）|
+| 操作 | セレクトから選択して「追加」ボタン、追加済みアイテムの [×] で削除 |
+| データ取得元 | `dialogData?.creatorRefs` など（APIデータ優先、なければ Props から取得）|
 
-#### 6.2.2. フィールド入力
+#### 8.1.2. 注意事項（NoteItem）
 
 | 項目 | 値 |
 |------|-----|
-| コンポーネント | `InputNumber`（type=number）または `Input`（type=text）|
-| 幅 | 200px |
-| type 判定 | `field.type === 'number'` → `InputNumber`、その他 → `Input` |
-| 単位表示 | `[unit]` を入力フィールド右側に表示（`addonAfter`） |
+| 追加操作 | `NoteTypeValue` セレクトで種別を選択 → 「追加」ボタンで行追加 |
+| 行並べ替え | `@dnd-kit/sortable` による DnD 対応 |
+| 行削除 | `CloseOutlined` ボタン |
+| 内容入力 | `Input.TextArea`（`autoSize={{ minRows: 1, maxRows: 4 }}`）|
 
-#### 6.2.3. フィールド継承制御（タスクNタブのみ）
+**NoteType 種別リスト**:
 
-各フィールド行の右端に「全体に戻す」ボタンを表示。
-押下で該当フィールドの `overrideFlags` を false にリセットし、全体タブの値に戻す。
+| 種別キー | 表示名（NOTE_TYPE_LABELS）|
+|---------|------------------------|
+| `caution` | 注意 |
+| `operationNote` | 操作メモ |
+| `checkItem` | 確認項目 |
+| `prohibitedAction` | 禁止事項 |
+| `otherNotes` | その他 |
+
+### 8.2. テンプレート入力タブ（innerTab === 'template'）
+
+`TemplateInputPanel` コンポーネントを使用。
+
+```
+TemplateInputPanel
+  ├── selectedTransitionId に紐づくテンプレートを filteredTemplates から取得
+  ├── 各テンプレートフィールドの想定値を入力（InputNumber or Input）
+  ├── outputTemplateIds（前工程結果 = 参照専用）のフィールドは disabled
+  └── effectiveTemplateValues（参照専用フィールドは producer の値で上書き）を表示
+```
+
+**テンプレート表示ロジック**:
+- 選択トランジションの `inputPlaceIds + outputPlaceIds` に紐づくテンプレートを表示
+- `placeIds` が空の場合は全テンプレートを表示（フォールバック）
+- `result` カテゴリかつ `inputPlaceIds` に紐づくテンプレートは参照専用（disabled）
 
 ---
 
-## 7. 継承ロジック仕様
+## 9. 継承ロジック
 
-### 7.1. 全体タブ変更時（全タスクへの反映）
+### 9.1. 一括タブ変更時（各タスクNへの伝播）
 
-```typescript
-// 全体タブ（all）で値が変更された場合
-const handleAllTabChange = (fieldPath: string, value: any) => {
-  setTabData(prev => ({ ...prev, all: { ...prev.all, [fieldPath]: value } }));
-  
-  // overrideFlags が false のタスクにのみ反映
-  Object.keys(tabData).filter(k => k !== 'all').forEach(taskKey => {
-    const taskNum = parseInt(taskKey.replace('task-', ''));
-    if (!overrideFlags[taskNum]?.[fieldPath]) {
-      setTabData(prev => ({
-        ...prev,
-        [taskKey]: { ...prev[taskKey], [fieldPath]: value }
-      }));
-    }
-  });
-};
+```
+一括タブ（TAB_KEY_ALL）でフィールドを変更
+  ↓
+updateCurrentTabData(field, updater) を呼び出し
+  ↓
+tabDataMap['all'][selectedTransitionId] を更新
+  + 各タスクN の同じトランジションIDにも同じ値を伝播
+  ↓
+（field は InheritableField: creatorRefs / instrumentRefs / ownerRefs / notes / templateValues）
 ```
 
-### 7.2. タスクNタブで個別編集時
+### 9.2. タスクNタブでの個別編集
 
-```typescript
-// タスクNタブでフィールドを変更した場合
-const handleTaskTabChange = (taskNum: number, fieldPath: string, value: any) => {
-  // 上書きフラグを立てる
-  setOverrideFlags(prev => ({
-    ...prev,
-    [taskNum]: { ...prev[taskNum], [fieldPath]: true }
-  }));
-  setTabData(prev => ({
-    ...prev,
-    [`task-${taskNum}`]: { ...prev[`task-${taskNum}`], [fieldPath]: value }
-  }));
-};
-```
-
-### 7.3. 「全体に戻す」ボタン押下時
-
-```typescript
-const handleResetToAll = (taskNum: number, fieldPath: string) => {
-  // 上書きフラグを解除
-  setOverrideFlags(prev => ({
-    ...prev,
-    [taskNum]: { ...prev[taskNum], [fieldPath]: false }
-  }));
-  // 全体タブの値で上書き
-  const allValue = tabData['all']?.[fieldPath];
-  setTabData(prev => ({
-    ...prev,
-    [`task-${taskNum}`]: { ...prev[`task-${taskNum}`], [fieldPath]: allValue }
-  }));
-};
-```
+タスクNタブで直接編集した場合は、そのタスクNのデータのみ更新され、一括タブには反映されない（一方向伝播）。
 
 ---
 
-## 8. API連携
+## 10. API連携
 
-### 8.1. 使用APIエンドポイント
+### 10.1. 使用APIエンドポイント
 
 | API | メソッド | パス | 用途 |
 |-----|---------|------|------|
-| ダイアログ初期データ取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/plan-dialog-data` | ダイアログオープン時の初期データ一括取得 |
-| 実験計画一括取得 | GET | `/api/v1/projects/:projectId/experiment-plans?methodId=xxx` | 指定メソッドの全タスク計画取得 |
-| 実験計画保存 | PUT | `/api/v1/projects/:projectId/experiment-plans/:methodId/:taskNo` | 1タスク分UPSERT保存 |
+| ダイアログ初期データ取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/plan-dialog-data` | トランジション・テンプレート・Ref選択肢の一括取得 |
+| 実験計画一覧取得 | GET | `/api/v1/projects/:projectId/experiment-plans?methodId=xxx` | 既存の保存データを取得して tabDataMap に復元 |
+| 実験計画保存（UPSERT）| PUT | `/api/v1/projects/:projectId/experiment-plans/:methodId/:taskNo` | タスクN × 全トランジション分を保存 |
 
-### 8.2. ダイアログオープン時のデータフロー
+### 10.2. ダイアログオープン時のデータフロー
 
 ```
-ダイアログオープン
+open が true に変化
   ↓
-[1] GET /plan-dialog-data
-  → methodInfo, availableCreators/Instruments/Owners
-  → availableTransitions（依存関係含む）
-  → templates（フィールド定義）
-  → existingPlans（既存の保存データ）
+State リセット（activeTab='all', selectedTransitionId=null, 等）
   ↓
-[2] existingPlans を各タブの state に復元
-  → 各 taskNo の plannedValues を tabData[`task-${taskNo}`] に変換
+[1] getPlanDialogData(projectId, methodId)
+    → transitions / templates / creatorRefs / instrumentRefs / ownerRefs を取得
+    → dialogData ステートに保存
   ↓
-表示完了
+[2] getExperimentPlans(projectId, methodId)
+    → 既存の保存済み計画データを取得
+    → experimentPlansToTabDataMap() で tabDataMap 形式に変換
+  ↓
+保存済みデータがある場合: tabDataMap をそのまま適用
+保存済みデータがない場合: 全トランジション × デフォルト値で一括タブを初期化（buildDefaultTemplateValues）
 ```
 
-### 8.3. 保存処理のデータフロー
+### 10.3. 保存処理のデータフロー
 
 ```
 [保存] ボタン押下
   ↓
-全タブをループ（all タブは保存しない）
-  for each taskNo in [1..N]:
-    plannedValues を組み立て:
-      - 基本情報（requiredCreatorUUIDs, requiredInstrumentUUIDs, etc.）
-      - 注意事項（notes → mgr-instruction: キーに変換）
-      - テンプレート値（templateValues）
-    ↓
-    PUT /experiment-plans/:methodId/:taskNo
+isSaving = true
   ↓
-全タスク保存成功後
-  → ダイアログを閉じる（onClose()）
-  → 成功トースト表示
-  
+taskNumbers.forEach(taskNo => {
+  upsertExperimentPlanToApi(projectId, methodId, taskNo, tabDataMap, transitionOrder)
+})
+  ↓
+全タスク保存成功:
+  → message.success('...')
+  → onSave?.() コールバック
+  → onClose() でダイアログを閉じる
+
 失敗時:
-  → エラーメッセージ表示（Modalで継続）
+  → message.error(t('experimentPlan.saveFailed'))
+  ↓
+isSaving = false
 ```
 
 ---
 
-## 9. バリデーション仕様
+## 11. エラーハンドリング
 
-| 項目 | バリデーション | エラーメッセージ |
-|------|--------------|----------------|
-| taskNo | 1以上の整数 | — （UI上は自動的に正しい番号が設定される） |
-| notes[].content | 種別選択時は必須 | 「内容を入力してください」 |
-| templateValues のフィールド | number型の場合は数値形式 | 「数値を入力してください」 |
-
----
-
-## 10. エラーハンドリング
-
-| エラーコード | HTTPステータス | 表示方法 | メッセージ |
-|------------|---------------|---------|----------|
-| E6001 | 404 | `message.error()` | 「プロジェクトが見つかりません」 |
-| E5015 | 403 | `message.error()` | 「この操作を実行する権限がありません」 |
-| E4001 | 500 | `message.error()` | 「サーバーエラーが発生しました」 |
-| E1003 | 400 | `message.error()` | 「入力内容に誤りがあります」 |
+| エラー | 表示方法 | i18n キー |
+|--------|---------|----------|
+| ダイアログ初期データ取得失敗 | `message.error` | `experimentPlan.loadFailed` |
+| 保存失敗 | `message.error` | `experimentPlan.saveFailed` |
+| トランジション未選択（右パネル）| `Empty` コンポーネント | — |
+| データなし | `Empty` | — |
 
 ---
 
-## 11. 使用コンポーネント
+## 12. 子コンポーネント
+
+| コンポーネント | ファイルパス | 説明 |
+|------------|------------|------|
+| `RefSection` | `./ExperimentPlanDialog/RefSection.tsx` | Creator / Instrument / Owner Ref の入力セクション |
+| `SortableTransitionRow` | `./ExperimentPlanDialog/SortableTransitionRow.tsx` | DnD 対応トランジション行 |
+| `TemplateInputPanel` | `./ExperimentPlanDialog/TemplateInputPanel.tsx` | テンプレートフィールドへの想定値入力パネル |
+
+---
+
+## 13. 使用コンポーネント
 
 ### Ant Design コンポーネント
+- `Modal` - ダイアログコンテナ
+- `Tabs` - 外部タブ（一括/タスクN）・内部タブ（基本情報/テンプレート入力）
+- `Table` - トランジション一覧（左パネル）
+- `Select` - NoteType・Ref 選択
+- `Input.TextArea` - 注意事項内容入力
+- `Button` - 保存・キャンセル・追加・削除・エクスポート・インポート
+- `Card` - パネルコンテナ
+- `Tag` - トランジション・テンプレート種別表示
+- `Tooltip` - 長テキストホバー表示
+- `Spin` - ローディング
+- `Empty` - トランジション未選択 / データなし表示
+- `Row` / `Col` - 左右レイアウト
+- `Space` / `Divider` - 要素間隔・区切り
+- `Typography.Text` - ラベルテキスト
+- `App.useApp()` - `message` の取得
 
-- `Modal` - ダイアログコンテナ（width: 1400px, top: 20）
-- `Tabs` - 外部タブ（タスク選択）・内部タブ（基本情報/テンプレート入力）
-- `Form` - 入力フォーム
-- `Input` / `Input.TextArea` - テキスト入力
-- `InputNumber` - 数値入力
-- `Select` - 担当者・機器・種別選択（モード: `multiple` 含む）
-- `Radio.Group` / `Radio` - 継承制御（全体設定/個別設定）
-- `Button` - 保存・キャンセル・削除・全体に戻す
-- `Collapse` / `Panel` - テンプレートセクションの折りたたみ
-- `Space` - 要素の間隔制御
-- `Tag` - テンプレート種別バッジ
-- `Spin` - ロード中スピナー
-- `message` - 成功/エラートースト
+### @dnd-kit
+- `DndContext` / `SortableContext` / `PointerSensor` / `KeyboardSensor` - DnD 基盤
+- `useSensor` / `useSensors` - センサー設定
+- `verticalListSortingStrategy` - 縦方向ソート
 
 ### アイコン
-- `PlusOutlined` - 注意事項追加ボタン
-- `DeleteOutlined` - 注意事項削除ボタン
-- `SaveOutlined` - 保存ボタン
-- `CloseOutlined` - キャンセルボタン
-- `UndoOutlined` - 全体に戻すボタン
-- `CheckCircleOutlined` - 設定済みインジケーター
-- `EditOutlined` - 個別上書きインジケーター
+- `PlusOutlined` - 注意事項・Ref 追加ボタン
+- `CloseOutlined` - 注意事項・Ref 削除ボタン
+- `FileTextOutlined` - タイトルアイコン
+- `ImportOutlined` - インポートボタン
+- `ExportOutlined` - エクスポートボタン
 
 ---
 
-## 12. 備考・注意事項
+## 14. 関連ファイル
 
-1. **MAIMLへの書き込みタイミング**: 本ダイアログでの保存は `experiment_plan` テーブルへの保存のみ。MAIML への実際の反映はチェックアウト時に `projectService.checkout()` で行われる。
-2. **`all` タブの保存**: `all`（全体）タブのデータは保存 API への送信対象ではない。各タスクNタブに継承された結果のみ保存される。
-3. **前提トランジション表示**: `availableTransitions[].prerequisiteTransitionIds` を参照し、依存関係を UI 上に表示する（本ダイアログでは読み取り専用表示）。
-4. **既存データの復元**: ダイアログオープン時に `existingPlans` から各タブの state を復元する。復元後の `all` タブは各タスクタブの最大公約数的な値（または空）とする。
+| ファイル | 説明 |
+|---------|------|
+| `@/types/experimentPlan.ts` | `ExperimentPlanDialogProps`, `ExperimentPlanTabData`, `NoteItem`, `NoteType` |
+| `@/types/experimentPlanDialog.ts` | `TransitionRow`, `TransitionOrderItem`, `InheritableField`, `CustomPropValue` |
+| `@/constants/experimentPlanConstants.ts` | `TAB_KEY_ALL` 定数 |
+| `@/utils/experimentPlanHelpers.ts` | `createInitialTabData`, `buildDefaultTemplateValues`, `calculateSteps`, `canMoveToOrder`, `moveTransitionWithSubtree` |
+| `@/services/experimentPlanApiService.ts` | `getPlanDialogData`, `getExperimentPlans`, `experimentPlansToTabDataMap`, `upsertExperimentPlanToApi` |
+
+---
+
+## 15. 変更履歴
+
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-06-22 | 初版作成 | Cline |
+| 2026-08-20 | アーキテクチャ変更に合わせて全面改訂（左右2分割レイアウト・DnDトランジション並べ替え・二次元 tabDataMap・JSON インポート/エクスポート・子コンポーネント追加）| Cline |
+
+---
+
+## 16. 備考・注意事項
+
+1. **MAIMLへの書き込みタイミング**: 本ダイアログでの保存は `experiment_plan` テーブルへの保存のみ。MAIML への実際の反映はチェックアウト時に行われる。
+2. **一括タブの保存**: 一括（`TAB_KEY_ALL`）タブのデータは保存 API への送信対象ではない。各タスクNタブに伝播された結果のみ保存される。
+3. **参照専用テンプレート**: `result` カテゴリかつ前工程（inputPlaceIds に紐づく）テンプレートは、前工程の出力値として参照専用（disabled）になる。
+4. **DnD 依存関係制約**: トランジションの並べ替えは `prerequisiteTransitionIds` による依存関係を尊重し、依存元より前に移動できないように制約される（`canMoveToOrder()` で判定）。
+5. **APIデータ優先**: `creatorRefOptions` 等の Props は初期値として使われるが、`dialogData`（APIレスポンス）が存在する場合はそちらが優先される。

@@ -327,8 +327,9 @@ frontend/src/components/TransitionSetSearch/WeightSliders.tsx
 - `@ant-design/icons`: アイコン（ReloadOutlined）
 - `react`: React本体（useState）
 
-### Hooks
-- `useSemanticSearch`: プリセット定義とデフォルト重みを提供
+### 定数インポート（`@/hooks/useSemanticSearch`）
+- `WEIGHT_PRESETS`: プリセット定義（各プリセットキーに対応する名前・説明・重み）
+- `DEFAULT_WEIGHTS`: デフォルト重み（各軸25%）
 
 ---
 
@@ -337,6 +338,7 @@ frontend/src/components/TransitionSetSearch/WeightSliders.tsx
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|---------|--------|
 | 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: WeightSliders.tsx） | Cline |
+| 1.1 | 2026-08-20 | HooksセクションをWEIGHT_PRESETS/DEFAULT_WEIGHTSの定数インポートに修正 |
 
 ---
 
