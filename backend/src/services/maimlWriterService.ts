@@ -21,6 +21,7 @@ import type { ExperimentPlan, MaimlEventLog } from '../types/database';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
 import type { EventLogJsonRecord } from '../utils/maimlDataWriter';
+import type { EventLogRow } from '../types/eventLog';
 import {
   buildDataXML,
   buildEventLogXML,
@@ -48,15 +49,6 @@ async function buildMergedNamespaces(
     readGlobalDeclarations(),
   ]);
   return [...globalDeclarations, ...orgNamespaces];
-}
-
-/**
- * maiml_event_log テーブルの1行
- * (log カラムのみ使用するため最小限の型定義)
- */
-export interface EventLogRow {
-  sequence_no: number;
-  log: EventLogJsonRecord;
 }
 
 /**

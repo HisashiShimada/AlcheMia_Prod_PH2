@@ -22,7 +22,7 @@ const DEFAULT_RULE: AggregationRule = {
   rule_id:              'test-rule-001',
   organization_id:      'org-001',
   version:              1,
-  status:               'ACTIVE',
+  is_active:            true,
   score_good:           100,
   score_caution:        50,
   score_bad:            0,
@@ -31,8 +31,10 @@ const DEFAULT_RULE: AggregationRule = {
   level_score_rule:     'MEAN',
   missing_handling:     'SEPARATE_COUNT',
   transition_hierarchy: 'MERGE',
-  created_by:           null,
-  created_at:           new Date('2026-08-01T00:00:00Z'),
+  create_user_id:       null,
+  create_at:            new Date('2026-08-01T00:00:00Z'),
+  update_user_id:       null,
+  update_at:            new Date('2026-08-01T00:00:00Z'),
 };
 
 /** テスト用評価行のビルダー */
@@ -44,19 +46,21 @@ function makeEvalRow(
   evaluation_value: string | null
 ): SubEvaluationRow {
   return {
-    evaluation_id:    'test-id',
+    evaluation_seq:   1,
     organization_id:  'org-001',
     project_id:       'proj-001',
     evaluation_scope: evaluation_unit,
     method_id,
     task_no,
     transition_id,
-    evaluated_by:     'user-001',
+    evaluated_user_id: 'user-001',
     evaluated_at:     new Date('2026-08-17T00:00:00Z'),
     overall_digital:  evaluation_value as '良好' | '要確認' | '不良' | null,
     overall_analog:   null,
     create_user_id:   'user-001',
     create_at:        new Date('2026-08-17T00:00:00Z'),
+    update_user_id:   null,
+    update_at:        null,
     // aggregationCalculatorService 互換フィールド
     evaluation_unit,
     evaluation_value,

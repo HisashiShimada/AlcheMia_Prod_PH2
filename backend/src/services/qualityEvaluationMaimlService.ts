@@ -5,11 +5,9 @@
  * オーケストレーションサービス。
  *
  * @module qualityEvaluationMaimlService
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import { getPool } from '../database/db';
-import { loadSqlFile } from '../sql/loader';
 import { getStorageService } from './storageService';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
@@ -21,10 +19,10 @@ import {
   injectNamespaceDeclarations,
 } from '../utils/maimlDataWriter';
 import type { EventLogJsonRecord } from '../utils/maimlDataWriter';
-import type { EventLogRow } from './maimlWriterService';
+import { EventLogRepository } from '../repositories/eventLogRepository';
 import {
   resolveTransitionToInstructionMap,
-  resolveInstructionToResultsMap,
+  resolveTransitionToProgramMap,
   buildQualityEvalLogEntries,
   removeUncertaintiesWrapper,
 } from '../utils/maimlQualityWriter';
@@ -47,7 +45,6 @@ export async function exportQualityEvaluationToMaiml(
   projectId: string
 ): Promise<ExportToMaimlResult> {
   const storageService = getStorageService();
-  const pool = getPool();
 
   // 1. プロジェクト情報取得 & MAiML ファイルパス解決
   const projectInfo = await projectRepository.findNameAndUuidById(organizationId, projectId);
@@ -74,9 +71,9 @@ export async function exportQualityEvaluationToMaiml(
   // 3. <Uncertainties> ラッパーを除去し <Uncertainty> を直置き
   maimlXml = removeUncertaintiesWrapper(maimlXml);
 
-  // 4. transition → instruction / instruction → results の ref マッピング解決
+  // 4. transition → instruction / transition → program の ref マッピング解決
   const transToInstMap = resolveTransitionToInstructionMap(maimlXml);
-  const instToResultsMap = resolveInstructionToResultsMap(maimlXml);
+  const transToProgMap = resolveTransitionToProgramMap(maimlXml);
 
   // 5. DB から評価データを取得
   const evaluations = await projectOverallEvaluationRepository.findSubEvaluationsByProject(organizationId, projectId);
@@ -88,13 +85,14 @@ export async function exportQualityEvaluationToMaiml(
     evaluations,
     latestOverallEval,
     transToInstMap,
-    instToResultsMap
+    transToProgMap,
+    projectId
   );
 
-  // 7. 既存 maiml_event_log エントリを取得してマージ
-  const findAllEventLogSql = await loadSqlFile('event_log/findAllByProject.sql');
-  const eventLogResult = await pool.query<EventLogRow>(findAllEventLogSql, [organizationId, projectId]);
-  const existingLogEntries: EventLogJsonRecord[] = eventLogResult.rows.map((row) => row.log);
+  // 7. 既存 maiml_event_log エントリを取得してマージ（Repository 経由）
+  const eventLogRepository = new EventLogRepository();
+  const existingLogRows = await eventLogRepository.findAllByProject(organizationId, projectId);
+  const existingLogEntries: EventLogJsonRecord[] = existingLogRows.map((row) => row.log);
   const mergedLogEntries: EventLogJsonRecord[] = [...existingLogEntries, ...qualityEntries];
 
   // 8. <eventLog> ID を既存 XML から抽出

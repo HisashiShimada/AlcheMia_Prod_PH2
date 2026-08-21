@@ -494,7 +494,8 @@
         "userManagement": "ユーザー管理",
         "sessionManagement": "セッション管理",
         "organizationGroupManagement": "組織グループ管理",
-        "roleManagement": "ロール管理"
+        "roleManagement": "ロール管理",
+        "aggregationRuleSettings": "集約ルール設定"
       }
     },
     "data_admin": {
@@ -4996,6 +4997,55 @@
     "csvImportSuccess": "{{count}}件のPrefixをインポートしました",
     "csvParseError": "CSVファイルの読み込みに失敗しました",
     "systemNamespaceBadge": "システム",
-    "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
+    "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません",
+  },
+  "aggregationRule": {
+    "title": "集約ルール設定",
+    "activeRuleInfo": "現在の有効ルール: 版 {version}",
+    "noActiveRule": "有効な集約ルールが未設定です。以下で初期設定を行ってください。",
+    "saveSuccess": "集約ルールを保存しました。",
+    "previewFailed": "プレビューに失敗しました",
+    "saveFailed": "保存に失敗しました",
+    "loading": "読み込み中...",
+    "scoreMappingTitle": "スコア写像設定",
+    "aggregationRuleTitle": "集計ルール設定",
+    "scoreGood": "良好",
+    "scoreCaution": "要確認",
+    "scoreBad": "不良",
+    "targetRollup": {
+      "label": "対象ロールアップ",
+      "worstCase": "ワーストケース",
+      "majority": "多数決",
+      "average": "平均"
+    },
+    "levelStatusRule": {
+      "label": "階層代表ステータス",
+      "worstCase": "最悪値採用",
+      "majority": "多数決"
+    },
+    "levelScoreRule": {
+      "label": "階層スコア",
+      "mean": "平均",
+      "min": "最小値"
+    },
+    "missingHandling": {
+      "label": "未評価の扱い",
+      "separateCount": "別カウント",
+      "excludeDenominator": "分母除外",
+      "treatAsGood": "良好扱い"
+    },
+    "transitionHierarchy": {
+      "label": "トランジション階層",
+      "merge": "合算",
+      "split": "分離表示"
+    },
+    "buttons": {
+      "preview": "プレビュー",
+      "save": "保存（新版として登録）"
+    },
+    "preview": {
+      "resultTitle": "📊 プレビュー結果（適用ルール版 {version}）",
+      "attentionTitle": "⚠️ 要注意項目（プレビュー）"
+    }
   }
 }

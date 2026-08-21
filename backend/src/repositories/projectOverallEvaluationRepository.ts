@@ -5,10 +5,10 @@
  *
  * @remarks
  * DDL: backend/src/sql/ddl/project_overall_evaluations.sql
- * 主キー: (organization_id, evaluation_id)
+ * 主キー: (organization_id, project_id, evaluation_seq)
  *
  * @module projectOverallEvaluationRepository
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { getPgp } from '../database/db';
@@ -16,6 +16,7 @@ import { loadSqlFile } from '../sql/loader';
 import type {
   ProjectOverallEvaluation,
   SubEvaluationRow,
+  SubEvaluationDbRow,
   InsertSubEvaluationInput,
   UpdateSubEvaluationInput,
 } from '../types/projectOverallEvaluation';
@@ -46,7 +47,7 @@ export async function findByProject(
  *
  * @param organizationId          - 組織ID
  * @param projectId               - プロジェクトID
- * @param evaluatedBy             - 評価者ユーザーID
+ * @param evaluatedUserId         - 評価者ユーザーID
  * @param overallDigital          - デジタル評価値
  * @param overallScore            - 数値スコア（任意）
  * @param overallAnalog           - アナログ評価（自由文章）
@@ -58,8 +59,8 @@ export async function findByProject(
 export async function insert(
   organizationId: string,
   projectId: string,
-  evaluatedBy: string | null,
-  overallDigital: '良好' | '要確認' | '不良' | null,
+  evaluatedUserId: string | null,
+  overallDigital: string | null,
   overallScore: number | null,
   overallAnalog: string | null,
   appliedRule: AggregationRule,
@@ -72,7 +73,7 @@ export async function insert(
     organizationId,                         // $1
     projectId,                              // $2
     'MAIML_PROJECT',                        // $3 evaluation_scope
-    evaluatedBy,                            // $4
+    evaluatedUserId,                        // $4
     overallDigital,                         // $5
     overallScore,                           // $6
     overallAnalog,                          // $7
@@ -97,11 +98,7 @@ export async function findSubEvaluationsByProject(
 ): Promise<SubEvaluationRow[]> {
   const pgp = getPgp();
   const sql = await loadSqlFile('project_overall_evaluations/findSubEvaluationsByProject.sql');
-  const rows = await pgp.any<Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> & {
-    evaluation_scope: string;
-    overall_digital: '良好' | '要確認' | '不良' | null;
-    overall_analog: string | null;
-  }>(sql, [organizationId, projectId]);
+  const rows = await pgp.any<SubEvaluationDbRow>(sql, [organizationId, projectId]);
 
   // aggregationCalculatorService 互換フィールドを付与して返す
   return rows.map((row) => ({
@@ -123,21 +120,18 @@ export async function insertSubEvaluation(
 ): Promise<SubEvaluationRow> {
   const pgp = getPgp();
   const sql = await loadSqlFile('project_overall_evaluations/insertSubEvaluation.sql');
-  const row = await pgp.one<Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> & {
-    evaluation_scope: string;
-    overall_digital: '良好' | '要確認' | '不良' | null;
-    overall_analog: string | null;
-  }>(sql, [
-    input.organization_id,   // $1
-    input.project_id,        // $2
-    input.evaluation_scope,  // $3
-    input.method_id,         // $4
-    input.task_no,           // $5
-    input.transition_id,     // $6
-    input.evaluated_by,      // $7
-    input.overall_digital,   // $8
-    input.overall_analog,    // $9
-    input.create_user_id,    // $10
+  const row = await pgp.one<SubEvaluationDbRow>(sql, [
+    input.organization_id,    // $1
+    input.project_id,         // $2
+    input.evaluation_scope,   // $3
+    input.method_id,          // $4
+    input.task_no,            // $5
+    input.transition_id,      // $6
+    input.evaluated_user_id,  // $7
+    input.overall_digital,    // $8
+    input.overall_analog,     // $9
+    input.create_user_id,     // $10
+    input.update_user_id,     // $11
   ]);
   return {
     ...row,
@@ -158,17 +152,14 @@ export async function updateSubEvaluation(
 ): Promise<SubEvaluationRow> {
   const pgp = getPgp();
   const sql = await loadSqlFile('project_overall_evaluations/updateSubEvaluation.sql');
-  const row = await pgp.one<Omit<SubEvaluationRow, 'evaluation_unit' | 'evaluation_value' | 'comment'> & {
-    evaluation_scope: string;
-    overall_digital: '良好' | '要確認' | '不良' | null;
-    overall_analog: string | null;
-  }>(sql, [
-    input.organization_id,  // $1
-    input.evaluation_id,    // $2
-    input.project_id,       // $3
-    input.overall_digital,  // $4
-    input.overall_analog,   // $5
-    input.evaluated_by,     // $6
+  const row = await pgp.one<SubEvaluationDbRow>(sql, [
+    input.organization_id,   // $1
+    input.project_id,        // $2
+    input.evaluation_seq,    // $3
+    input.overall_digital,   // $4
+    input.overall_analog,    // $5
+    input.evaluated_user_id, // $6
+    input.update_user_id,    // $7
   ]);
   return {
     ...row,
@@ -177,3 +168,4 @@ export async function updateSubEvaluation(
     comment:          row.overall_analog,
   };
 }
+

@@ -3,7 +3,7 @@ SELECT
     rule_id,
     organization_id,
     version,
-    status,
+    is_active,
     score_good,
     score_caution,
     score_bad,
@@ -12,8 +12,10 @@ SELECT
     level_score_rule,
     missing_handling,
     transition_hierarchy,
-    created_by,
-    created_at
+    create_user_id,
+    create_at,
+    update_user_id,
+    update_at
 FROM aggregation_rules
 WHERE organization_id = $1
 ORDER BY version DESC

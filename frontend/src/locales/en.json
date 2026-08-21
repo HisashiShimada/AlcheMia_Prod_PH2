@@ -96,7 +96,8 @@
         "userManagement": "User Management",
         "sessionManagement": "Session Management",
         "organizationGroupManagement": "Organization Group Management",
-        "roleManagement": "Role Management"
+        "roleManagement": "Role Management",
+        "aggregationRuleSettings": "Aggregation Rule Settings"
       }
     },
     "data_admin": {
@@ -4997,5 +4998,54 @@
     "importError": "Failed to import",
     "exportSuccess": "Export completed",
     "exportError": "Failed to export"
+  },
+  "aggregationRule": {
+    "title": "Aggregation Rule Settings",
+    "activeRuleInfo": "Current active rule: version {version}",
+    "noActiveRule": "No active aggregation rule. Please configure the initial settings below.",
+    "saveSuccess": "Aggregation rule saved.",
+    "previewFailed": "Preview failed",
+    "saveFailed": "Save failed",
+    "loading": "Loading...",
+    "scoreMappingTitle": "Score Mapping",
+    "aggregationRuleTitle": "Aggregation Rule",
+    "scoreGood": "Good",
+    "scoreCaution": "Caution",
+    "scoreBad": "Bad",
+    "targetRollup": {
+      "label": "Target Rollup",
+      "worstCase": "Worst Case",
+      "majority": "Majority",
+      "average": "Average"
+    },
+    "levelStatusRule": {
+      "label": "Level Status Rule",
+      "worstCase": "Worst Case",
+      "majority": "Majority"
+    },
+    "levelScoreRule": {
+      "label": "Level Score Rule",
+      "mean": "Mean",
+      "min": "Min"
+    },
+    "missingHandling": {
+      "label": "Missing Handling",
+      "separateCount": "Separate Count",
+      "excludeDenominator": "Exclude Denominator",
+      "treatAsGood": "Treat as Good"
+    },
+    "transitionHierarchy": {
+      "label": "Transition Hierarchy",
+      "merge": "Merge",
+      "split": "Split"
+    },
+    "buttons": {
+      "preview": "Preview",
+      "save": "Save (Register as New Version)"
+    },
+    "preview": {
+      "resultTitle": "📊 Preview Result (Rule version {version})",
+      "attentionTitle": "⚠️ Attention Items (Preview)"
+    }
   }
 }

@@ -3,7 +3,7 @@ INSERT INTO aggregation_rules (
     rule_id,
     organization_id,
     version,
-    status,
+    is_active,
     score_good,
     score_caution,
     score_bad,
@@ -12,13 +12,15 @@ INSERT INTO aggregation_rules (
     level_score_rule,
     missing_handling,
     transition_hierarchy,
-    created_by,
-    created_at
+    create_user_id,
+    create_at,
+    update_user_id,
+    update_at
 ) VALUES (
     gen_random_uuid(),
     $1,  -- organization_id
     $2,  -- version
-    'ACTIVE',
+    true,
     $3,  -- score_good
     $4,  -- score_caution
     $5,  -- score_bad
@@ -27,7 +29,9 @@ INSERT INTO aggregation_rules (
     $8,  -- level_score_rule
     $9,  -- missing_handling
     $10, -- transition_hierarchy
-    $11, -- created_by
+    $11, -- create_user_id
+    NOW(),
+    NULL, -- update_user_id
     NOW()
 )
 RETURNING *

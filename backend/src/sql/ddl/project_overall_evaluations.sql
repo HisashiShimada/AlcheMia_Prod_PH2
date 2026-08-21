@@ -15,14 +15,14 @@
 --     method_id / task_no / transition_id で対象を特定。
 --
 -- @reference docs/design/Alchemia品質管理機能_基本設計書.md §7.2
--- @version 1.1 (2026-08-17) 下位評価対応カラム追加
+-- @version 2.0 (2026-08-20) PKをevaluation_seqに変更、evaluated_user_idへリネーム
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS project_overall_evaluations (
-  evaluation_id         UUID        NOT NULL DEFAULT gen_random_uuid(),
-  organization_id       TEXT        NOT NULL,
-  project_id            TEXT        NOT NULL,
-  evaluation_scope      TEXT        NOT NULL DEFAULT 'MAIML_PROJECT'
+  evaluation_seq        SERIAL        NOT NULL,
+  organization_id       UUID          NOT NULL,
+  project_id            VARCHAR(20)   NOT NULL,
+  evaluation_scope      VARCHAR(20)   NOT NULL DEFAULT 'MAIML_PROJECT'
                           CHECK (evaluation_scope IN (
                             'MAIML_PROJECT',
                             'METHOD',
@@ -32,13 +32,13 @@ CREATE TABLE IF NOT EXISTS project_overall_evaluations (
                           )),
 
   -- 階層識別（下位評価レコードで使用）
-  method_id             TEXT,
+  method_id             VARCHAR(100),
   task_no               INTEGER,
-  transition_id         TEXT,
+  transition_id         VARCHAR(100),
 
-  evaluated_by          TEXT,
-  evaluated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  overall_digital       TEXT        CHECK (overall_digital IN ('良好', '要確認', '不良')),
+  evaluated_user_id     VARCHAR(50),
+  evaluated_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  overall_digital       VARCHAR(10)   CHECK (overall_digital IN ('良好', '要確認', '不良')),
   overall_score         INTEGER,
   overall_analog        TEXT,
 
@@ -48,9 +48,11 @@ CREATE TABLE IF NOT EXISTS project_overall_evaluations (
   applied_rule_snapshot JSONB,
   aggregation_snapshot  JSONB,
 
-  create_user_id        TEXT,
-  create_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (organization_id, evaluation_id)
+  create_user_id        VARCHAR(50),
+  create_at             TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  update_user_id        VARCHAR(50),
+  update_at             TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (organization_id, project_id, evaluation_seq)
 );
 
 CREATE INDEX IF NOT EXISTS ix_project_overall_evaluations_project
