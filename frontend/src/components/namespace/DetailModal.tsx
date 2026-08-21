@@ -7,9 +7,7 @@ import {
 import {
   SaveOutlined, CloseOutlined, GlobalOutlined, BankOutlined, UserOutlined,
 } from '@ant-design/icons';
-import termsRaw from '../../../mock/namespace/terms.json';
-import termDetailRaw from '../../../mock/namespace/termDetail.json';
-import type { DetailTarget, DetailModalProps, TermSaved, NamespaceSaved, RawTerm, RawDetail } from '@/types/namespace';
+import type { DetailTarget, DetailModalProps, TermSaved, NamespaceSaved } from '@/types/namespace';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 // re-export（既存の import 側を壊さないため）
@@ -40,34 +38,12 @@ const levelDisplay = (level: string) => {
 };
 
 // ──────────────────────────────────────────────
-// 用語データ取得（termId から構築）
-// ──────────────────────────────────────────────
-const buildTermDetail = (termId: string) => {
-  const terms = termsRaw as RawTerm[];
-  const found = terms.find((t) => t.id === termId);
-  if (!found) {
-    const d = (termDetailRaw as { detail: RawDetail }).detail;
-    return { qname: d.qname, localName: d.localName, namespacePrefix: d.namespacePrefix, namespaceUri: d.namespaceUri, level: d.level as 'global' | 'organization' | 'personal', displayNameJa: d.displayNameJa, displayNameEn: d.displayNameEn, description: d.description, typeHint: d.typeHint, unitHint: d.unitHint, createdAt: d.createdAt, updatedAt: d.updatedAt };
-  }
-  return {
-    qname: found.qname, localName: found.localName,
-    namespacePrefix: found.prefix,
-    namespaceUri: found.prefix === 'CorpA' ? 'https://www.corpa.co.jp/' : `https://example.org/${found.prefix}/`,
-    level: 'organization' as const,
-    displayNameJa: found.displayName, displayNameEn: '',
-    description: found.description, typeHint: found.type, unitHint: null,
-    createdAt: '2026-04-15 10:30', updatedAt: '2026-05-01 09:15',
-  };
-};
-
-// ──────────────────────────────────────────────
 // コンポーネント
 // ──────────────────────────────────────────────
 const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTermSaved, onNamespaceSaved }) => {
 
   // ── 用語用ステート
   const { t } = useLanguage();
-  const [termDetail,    setTermDetail]    = useState(() => target?.kind === 'term' ? buildTermDetail(target.termId) : buildTermDetail(''));
   const [editDisplayJa, setDisplayJa]    = useState('');
   const [editDisplayEn, setDisplayEn]    = useState('');
   const [editDesc,      setEditDesc]     = useState('');
@@ -84,13 +60,11 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTerm
   useEffect(() => {
     if (!target) return;
     if (target.kind === 'term') {
-      const d = buildTermDetail(target.termId);
-      setTermDetail(d);
-      setDisplayJa(d.displayNameJa);
-      setDisplayEn(d.displayNameEn);
-      setEditDesc(d.description);
-      setEditType(d.typeHint);
-      setEditUnit(d.unitHint ?? '');
+      setDisplayJa('');
+      setDisplayEn('');
+      setEditDesc('');
+      setEditType('stringType');
+      setEditUnit('');
     } else {
       setEditPrefix(target.prefix);
       setEditUri(target.uri);
@@ -126,19 +100,6 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTerm
       {/* ── 用語詳細 ── */}
       {target.kind === 'term' && (
         <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-          <Descriptions.Item label="QName" contentStyle={{ background: '#fff' }}>
-            <Text strong>{termDetail.qname}</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="ローカル名">
-            <Text code>{termDetail.localName}</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="名前空間">
-            {termDetail.namespacePrefix}
-            <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>({termDetail.namespaceUri})</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="レベル">
-            {(() => { const lv = levelDisplay(termDetail.level); return <Tag color={lv.color} icon={lv.icon}>{lv.label}</Tag>; })()}
-          </Descriptions.Item>
           <Descriptions.Item label="表示名 (JA)">
             <Input value={editDisplayJa} onChange={(e) => setDisplayJa(e.target.value)} size="small" />
           </Descriptions.Item>
@@ -153,12 +114,6 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTerm
           </Descriptions.Item>
           <Descriptions.Item label="単位ヒント">
             <Input size="small" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="—（なし）" style={{ width: 160 }} />
-          </Descriptions.Item>
-          <Descriptions.Item label="作成日時">
-            <Text type="secondary">{termDetail.createdAt}</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="更新日時">
-            <Text type="secondary">{termDetail.updatedAt}</Text>
           </Descriptions.Item>
         </Descriptions>
       )}

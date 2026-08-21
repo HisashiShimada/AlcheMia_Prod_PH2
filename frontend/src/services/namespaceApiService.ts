@@ -93,7 +93,9 @@ export interface CreateNamespaceResponse {
  * PATCH /api/v1/namespaces/:prefix のリクエストボディ型
  */
 export interface UpdateNamespaceRequest {
-  uri: string;
+  uri?: string;
+  newPrefix?: string;
+  description?: string;
 }
 
 /**
@@ -121,6 +123,13 @@ export interface NamespaceTermRow {
   type: string;
   unitHint: string;
   isActive: boolean;
+  /**
+   * prefix が属する名前空間の scope_key（organization_group_cd またはユーザーID）
+   * ツリーの用語数バッジ計算（NamespaceMain.tsx toAntTree）に使用する
+   * グローバル名前空間の場合は null
+   * findAllByOrganization.sql の JOIN により n.scope_key が付与される
+   */
+  scopeKey?: string | null;
 }
 
 /**
@@ -198,11 +207,15 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
  * バックエンドの GET /api/v1/namespaces を呼び出す。
  * 名前空間管理画面のPrefix一覧表示に使用する。
  *
- * @param options.scopeKeys - フィルタリングする scopeKey 配列（省略時は全件取得）
+ * @param options.scopeKeys     - フィルタリングする scopeKey 配列（省略時は全件取得）
+ * @param options.withAncestors - true の場合、scopeKey とその祖先グループのデータも取得
+ *                                （組織グループノード選択時に使用）
  * @returns 名前空間エントリ一覧（{prefix, uri, scopeKey?}[]）
  */
 export const getNamespaceList = async (options?: {
+  scopeKey?: string;
   scopeKeys?: string[];
+  withAncestors?: boolean;
 }): Promise<NamespaceEntry[]> => {
   const client = createApiClient();
 
@@ -210,8 +223,14 @@ export const getNamespaceList = async (options?: {
     console.log('🔖 [namespaceApiService] Prefix一覧取得', options);
 
     const params: Record<string, string> = {};
-    if (options?.scopeKeys && options.scopeKeys.length > 0) {
-      params.scopeKey = options.scopeKeys[0];
+    // scopeKey（単数）が指定されている場合はそちらを優先
+    if (options?.scopeKey) {
+      params.scopeKey = options.scopeKey;
+    } else if (options?.scopeKeys && options.scopeKeys.length > 0) {
+      params.scopeKeys = options.scopeKeys.join(',');
+    }
+    if (options?.withAncestors) {
+      params.withAncestors = 'true';
     }
 
     const response = await client.get<NamespaceListResponse>('/namespaces', { params });
@@ -326,13 +345,16 @@ export const deleteNamespace = async (prefix: string): Promise<void> => {
  * @remarks
  * バックエンドの GET /api/v1/namespaces/terms を呼び出す。
  *
- * @param options.scopeKey  - フィルタリングする scopeKey（単数）。指定時はそのスコープの用語を返す
- * @param options.scopeKeys - フィルタリングする scopeKey 配列（後方互換用・省略時は全件取得）
+ * @param options.scopeKey      - フィルタリングする scopeKey（単数）。指定時はそのスコープの用語を返す
+ * @param options.scopeKeys     - フィルタリングする scopeKey 配列（後方互換用・省略時は全件取得）
+ * @param options.withAncestors - true の場合、scopeKey とその祖先グループの用語も取得
+ *                                （組織グループノード選択時に使用）
  * @returns 用語一覧
  */
 export const getTerms = async (options?: {
   scopeKey?: string;
   scopeKeys?: string[];
+  withAncestors?: boolean;
 }): Promise<NamespaceTermRow[]> => {
   const client = createApiClient();
 
@@ -345,6 +367,9 @@ export const getTerms = async (options?: {
       params.scopeKey = options.scopeKey;
     } else if (options?.scopeKeys && options.scopeKeys.length > 0) {
       params.scopeKeys = options.scopeKeys.join(',');
+    }
+    if (options?.withAncestors) {
+      params.withAncestors = 'true';
     }
 
     const response = await client.get<NamespaceTermRow[]>('/namespaces/terms', { params });
@@ -521,15 +546,20 @@ export const getOrganizationUsers = async (): Promise<OrgUserSimple[]> => {
  * @returns 組織階層グループ行の配列
  */
 export const getOrganizationGroups = async (
-  search?: string
+  search?: string,
+  options?: { visibleOnly?: boolean; memberOf?: boolean }
 ): Promise<OrganizationGroupRow[]> => {
   const client = createApiClient();
 
   try {
-    console.log('🏢 [namespaceApiService] 組織階層グループ一覧取得');
+    console.log('🏢 [namespaceApiService] 組織階層グループ一覧取得', options);
 
     const params: Record<string, string> = {};
     if (search) params.search = search;
+    // visibleOnly=true を渡すと「閲覧可能な全グループ」を返す（代表者フィルタなし）
+    if (options?.visibleOnly) params.visibleOnly = 'true';
+    // memberOf=true を渡すとログインユーザーが所属するグループ＋全祖先グループを返す（ツリー構築用）
+    if (options?.memberOf) params.memberOf = 'true';
 
     const response = await client.get<{ success: boolean; data: OrganizationGroupRow[] }>(
       '/organization-groups',
@@ -760,5 +790,51 @@ export const exportGlobalDeclarations = async (): Promise<void> => {
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
+};
+
+// ============================================================================
+// API 関数 — URI自動生成
+// ============================================================================
+
+/**
+ * URI自動生成候補を取得する
+ *
+ * GET /api/v1/namespaces/suggested-uri
+ *
+ * @param scopeKey - 選択中ノードの scopeKey（organization_group_cd または userId）。
+ *                   未指定時は個人スコープ（ログインユーザーのメールアドレスから生成）。
+ * @returns 生成されたURI文字列（既存URIと重複しない値が返る）
+ */
+export const fetchSuggestedUri = async (scopeKey?: string): Promise<string> => {
+  const client = createApiClient();
+
+  console.log('🔗 [namespaceApiService] URI自動生成候補取得:', scopeKey);
+
+  const params: Record<string, string> = {};
+  if (scopeKey) params.scopeKey = scopeKey;
+
+  const response = await client.get<{ uri: string }>('/namespaces/suggested-uri', { params });
+
+  return response.data.uri;
+};
+
+/**
+ * Prefix の非アクティブ化（or アクティブ化）
+ *
+ * PATCH /api/v1/namespaces/:prefix/active
+ *
+ * @param prefix - 対象の Prefix 文字列
+ * @param isActive - true: アクティブ化、false: 非アクティブ化
+ */
+export const toggleNamespaceActive = async (
+  prefix: string,
+  isActive: boolean
+): Promise<void> => {
+  const client = createApiClient();
+  const encodedPrefix = encodeURIComponent(prefix);
+
+  console.log('🔗 [namespaceApiService] Prefix アクティブ切替:', prefix, isActive);
+
+  await client.patch(`/namespaces/${encodedPrefix}/active`, { isActive });
 };
 

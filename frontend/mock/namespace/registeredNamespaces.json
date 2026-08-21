@@ -1,7 +1,0 @@
-[
-  { "key": "ns-maiml",   "prefix": "maiml",   "level": "global",       "uri": "http://www.maiml.org/schemas",                  "icon": "📜" },
-  { "key": "ns-xsi",     "prefix": "xsi",     "level": "global",       "uri": "http://www.w3.org/2001/XMLSchema-instance",      "icon": "📜" },
-  { "key": "ns-corpa",   "prefix": "CorpA",   "level": "organization", "uri": "https://www.corpa.co.jp/",                      "icon": "🏢" },
-  { "key": "ns-laba",    "prefix": "LabA",    "level": "organization", "uri": "https://www.corpa.co.jp/lab-a/",                "icon": "🔬" },
-  { "key": "ns-myword",  "prefix": "MyWord",  "level": "personal",     "uri": "https://orcid.org/0000-0002-2494-9603",          "icon": "🙋" }
-]

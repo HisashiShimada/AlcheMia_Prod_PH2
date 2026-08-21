@@ -54,6 +54,20 @@ export async function getOrganizationGroups(
       return;
     }
 
+    // memberOf=true の場合: ログインユーザーが所属するグループ＋全祖先グループを返す
+    // （NamespaceMain のツリー構築用。chiefUserId フィルタは適用しない）
+    const memberOf = req.query.memberOf === 'true';
+    if (memberOf) {
+      const userId = req.user!.userId;
+      const groups = await organizationGroupService.getOrganizationGroups(
+        organizationId,
+        undefined,
+        userId
+      );
+      res.json({ success: true, data: groups });
+      return;
+    }
+
     const search = req.query.search as string | undefined;
     const chiefUserId = req.user!.userId;
 
