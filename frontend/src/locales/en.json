@@ -4076,7 +4076,12 @@
     "deactivateSuccess": "Deactivated successfully",
     "term": "Term",
     "groupAddParentLabelDefault": "R&D Department",
-    "noPrefixTooltip": "Cannot add terms because no Prefix is registered. Please register a Prefix first."
+    "noPrefixTooltip": "Cannot add terms because no Prefix is registered. Please register a Prefix first.",
+    "colCreateDirectiveTerm": "Directive Term",
+    "createDirectiveTermTooltip": "Check to also register a directive term prefixed with 'SupervisorDirective'",
+    "hasDirectiveTermBadge": "Has directive",
+    "createDirectiveTermSuccess": "Directive term also registered",
+    "directiveTermLocalNameTooLong": "Term name is too long (adding 'SupervisorDirective' would exceed 255 characters)"
   },
   "namespaceTree": {
     "company": "Organization"

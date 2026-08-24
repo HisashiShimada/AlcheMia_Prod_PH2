@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography } from 'antd';
+import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography, Checkbox } from 'antd';
 import {
   SearchOutlined,
   PlusOutlined,
@@ -893,14 +893,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   };
 
   // ──── 入力行の値更新（dept-rd 選択時は prefix:localName の重複チェックを実施）
-  const updateNewTerm = (rowId: string, field: keyof Omit<NewTermRow, '_rowId'>, value: string) => {
+  const updateNewTerm = (rowId: string, field: keyof Omit<NewTermRow, '_rowId'>, value: string | boolean) => {
     const isDeptRd = effectiveNsKey === 'dept-rd';
     setNewTerms((prev) => prev.map((r) => {
       if (r._rowId !== rowId) return r;
       const updated = { ...r, [field]: value };
       if (isDeptRd) {
-        const p = field === 'prefix'    ? value : updated.prefix;
-        const l = field === 'localName' ? value : updated.localName;
+        const p = field === 'prefix'    ? (value as string) : updated.prefix;
+        const l = field === 'localName' ? (value as string) : updated.localName;
         updated._isDuplicate = !!(p && l && terms.some((t) => t.prefix === p && t.localName === l));
       } else {
         updated._isDuplicate = false;
@@ -951,6 +951,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           description:   row.description,
           typeHint:      row.type || 'stringType',
           unitHint:      row.unitHint,
+          createDirectiveTerm: row.createDirectiveTerm,
         });
         added.push(saved as Term);
       } catch (err: unknown) {
@@ -978,7 +979,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
     if (added.length > 0) {
       setTerms((prev) => [...added, ...prev]);
-      message.success(t('namespaceMain.saveTermSuccess', { count: String(added.length) }));
+      // 指示用語同時登録があった行のカウント
+      const directiveCount = newTerms.filter((r) => r.createDirectiveTerm).length;
+      if (directiveCount > 0) {
+        message.success(t('namespaceMain.saveTermSuccess', { count: String(added.length) }) + ' ' + t('namespaceMain.createDirectiveTermSuccess'));
+      } else {
+        message.success(t('namespaceMain.saveTermSuccess', { count: String(added.length) }));
+      }
     }
     setNewTerms([]);
   };
@@ -1769,6 +1776,32 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
     },
     {
+      title: (
+        <Tooltip title={t('namespaceMain.createDirectiveTermTooltip')}>
+          {t('namespaceMain.colCreateDirectiveTerm')}
+        </Tooltip>
+      ),
+      key: 'createDirectiveTerm',
+      width: 90,
+      align: 'center' as const,
+      render: (_: unknown, record: Term | NewTermRow) => {
+        if ('_rowId' in record) {
+          const r = record as NewTermRow;
+          return (
+            <Checkbox
+              checked={!!r.createDirectiveTerm}
+              disabled={!r.localName}
+              onChange={(e) => updateNewTerm(r._rowId, 'createDirectiveTerm', e.target.checked)}
+            />
+          );
+        }
+        const term = record as Term;
+        return term.hasDirectiveTerm
+          ? <Tag color="blue" style={{ fontSize: 11 }}>{t('namespaceMain.hasDirectiveTermBadge')}</Tag>
+          : null;
+      },
+    },
+    {
       title: t('namespaceMain.colActions'), key: 'actions', width: 130,
       render: (_: unknown, record: Term | NewTermRow) =>
         '_rowId' in record ? null : actionCell(record as Term),
@@ -1837,9 +1870,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   onClick={() => {
-    setGroupAddParentLabel(t('namespaceMain.groupAddParentLabelDefault'));
-    setGroupAddOpen(true);
-    setCtxMenu((s) => ({ ...s, visible: false }));
+                    setGroupAddParentLabel(t('namespaceMain.groupAddParentLabelDefault'));
+                    setGroupAddOpen(true);
+                    setCtxMenu((s) => ({ ...s, visible: false }));
                   }}
                 >
                   <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />

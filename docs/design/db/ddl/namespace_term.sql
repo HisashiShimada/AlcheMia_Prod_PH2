@@ -16,6 +16,7 @@ CREATE TABLE namespace_term (
   , is_active       BOOLEAN       NOT NULL
   , display_name    VARCHAR(255)
   , description     TEXT
+  , has_directive_term BOOLEAN    NOT NULL DEFAULT FALSE
   , create_at       TIMESTAMP
   , create_user_id  VARCHAR(50)
   , update_at       TIMESTAMP
@@ -39,4 +40,5 @@ COMMENT ON COLUMN namespace_term.description IS '説明';
 COMMENT ON COLUMN namespace_term.create_at IS '作成日時';
 COMMENT ON COLUMN namespace_term.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN namespace_term.update_at IS '更新日時';
+COMMENT ON COLUMN namespace_term.has_directive_term IS '指示用語フラグ:TRUE=指示用語が登録されている FALSE=指示用語なし';
 COMMENT ON COLUMN namespace_term.update_user_id IS '更新者ユーザID';

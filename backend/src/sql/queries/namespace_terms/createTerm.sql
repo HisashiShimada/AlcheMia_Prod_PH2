@@ -8,10 +8,11 @@ INSERT INTO namespace_term (
   , description
   , xsi_type
   , units
+  , has_directive_term
   , is_active
   , create_at
   , update_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, TRUE
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE
   , CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 )

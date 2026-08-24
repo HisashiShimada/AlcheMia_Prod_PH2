@@ -12,6 +12,7 @@ SELECT
   , COALESCE(t.xsi_type, 'stringType') AS type
   , COALESCE(t.units, '')          AS "unitHint"
   , t.is_active                    AS "isActive"
+  , t.has_directive_term           AS "hasDirectiveTerm"
 FROM namespace_term t
 WHERE t.organization_id = $1
 UNION ALL
@@ -24,6 +25,7 @@ SELECT
   , COALESCE(t.xsi_type, 'stringType') AS type
   , COALESCE(t.units, '')          AS "unitHint"
   , t.is_active                    AS "isActive"
+  , t.has_directive_term           AS "hasDirectiveTerm"
 FROM namespace_term t
 WHERE t.organization_id = '00000000-0000-0000-0000-000000000000'
 ORDER BY prefix ASC, "localName" ASC

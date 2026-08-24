@@ -958,6 +958,8 @@ export interface CreateTermBody {
   description?: string;
   typeHint?: string;
   unitHint?: string;
+  /** true のとき SupervisorDirective{localName} の指示用語を同時登録する */
+  createDirectiveTerm?: boolean;
 }
 
 /**

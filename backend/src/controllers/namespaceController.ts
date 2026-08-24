@@ -145,12 +145,12 @@ export async function createTerm(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, localName, displayName, description, typeHint, unitHint } = req.body as CreateTermBody;
+    const { prefix, localName, displayName, description, typeHint, unitHint, createDirectiveTerm } = req.body as CreateTermBody;
 
     const organizationId = (req as any).organizationId as string;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const created = await namespaceService.createTerm({
+    const createTermInput = {
       organizationId,
       prefix,
       localName,
@@ -158,7 +158,9 @@ export async function createTerm(
       description,
       typeHint,
       unitHint,
-    }, lang);
+      createDirectiveTerm,
+    };
+    const created = await namespaceService.createTerm(createTermInput, lang);
 
     if (!created) {
       res.status(404).json({ error: `Namespace with prefix "${prefix}" not found` });

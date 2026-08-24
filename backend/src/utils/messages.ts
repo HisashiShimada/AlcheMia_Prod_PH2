@@ -95,6 +95,7 @@ type Messages = {
   };
   namespace: {
     systemProtected: string;
+    directiveLocalNameTooLong: string;
   };
 };
 
@@ -188,6 +189,7 @@ const ja: Messages = {
   },
   namespace: {
     systemProtected: 'システム名前空間（Alchemia）は変更・削除できません',
+    directiveLocalNameTooLong: '用語名が長すぎます（SupervisorDirective を付けると255文字を超えます）',
   },
 };
 
@@ -281,6 +283,7 @@ const en: Messages = {
   },
   namespace: {
     systemProtected: 'The system namespace (Alchemia) cannot be modified or deleted',
+    directiveLocalNameTooLong: 'Term name is too long (adding \'SupervisorDirective\' would exceed 255 characters)',
   },
 };
 

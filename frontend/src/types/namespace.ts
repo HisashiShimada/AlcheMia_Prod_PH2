@@ -109,6 +109,8 @@ export interface Term {
   type: string;
   unitHint?: string;
   isActive?: boolean;
+  /** 指示用語が登録されている場合 true */
+  hasDirectiveTerm?: boolean;
   /** prefix に対応するスコープ名（organization_group_name または user_name） */
   scopeName?: string;
 }
@@ -125,6 +127,8 @@ export interface NewTermRow {
   description: string;
   type: string;
   unitHint: string;
+  /** true のとき SupervisorDirective{localName} の指示用語を同時登録する */
+  createDirectiveTerm?: boolean;
   /** true のとき同一 prefix:localName が既に登録されている（重複エラー表示用） */
   _isDuplicate?: boolean;
 }

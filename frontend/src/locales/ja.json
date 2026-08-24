@@ -4957,7 +4957,12 @@
     "groupCreated": "グループ「{groupName}」を作成しました",
     "memberUpdated": "「{name}」のメンバー（{count}名）を更新しました",
     "systemNamespaceBadge": "システム",
-    "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
+    "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません",
+    "colCreateDirectiveTerm": "指示用語",
+    "createDirectiveTermTooltip": "チェックすると SupervisorDirective{用語名} の指示用語を同時に登録します",
+    "hasDirectiveTermBadge": "指示あり",
+    "createDirectiveTermSuccess": "指示用語も同時に登録しました",
+    "directiveTermLocalNameTooLong": "用語名が長すぎます（SupervisorDirective を付けると255文字を超えます）"
   },
   "prefixManagement": {
     "colScope": "スコープ",

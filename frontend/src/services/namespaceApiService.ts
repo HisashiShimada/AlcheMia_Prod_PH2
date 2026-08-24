@@ -121,6 +121,8 @@ export interface NamespaceTermRow {
   type: string;
   unitHint: string;
   isActive: boolean;
+  /** 指示用語が登録されている場合 true */
+  hasDirectiveTerm?: boolean;
 }
 
 /**
@@ -135,6 +137,8 @@ export interface TermUpsertRequest {
   description?: string;
   typeHint?: string;
   unitHint?: string;
+  /** true のとき SupervisorDirective{localName} の指示用語を同時登録する */
+  createDirectiveTerm?: boolean;
 }
 
 // ============================================================================
