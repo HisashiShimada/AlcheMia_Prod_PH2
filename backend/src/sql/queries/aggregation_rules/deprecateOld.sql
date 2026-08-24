@@ -1,5 +1,7 @@
--- aggregation_rules: 既存のACTIVEルールをDEPRECATEDに遷移
+-- aggregation_rules: 既存のACTIVEルールをis_active=falseに遷移
 UPDATE aggregation_rules
-SET status = 'DEPRECATED'
+SET is_active   = false,
+    update_user_id = $2,
+    update_at   = NOW()
 WHERE organization_id = $1
-  AND status = 'ACTIVE'
+  AND is_active = true

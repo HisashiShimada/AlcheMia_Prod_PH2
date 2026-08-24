@@ -12,28 +12,30 @@ export interface AggregationRule {
   rule_id: string;
   organization_id: string;
   version: number;
-  status: 'ACTIVE' | 'DEPRECATED';
+  is_active: boolean;
   score_good: number;
   score_caution: number;
   score_bad: number;
-  target_rollup: 'WORST_CASE' | 'MAJORITY' | 'AVERAGE';
-  level_status_rule: 'WORST_CASE' | 'MAJORITY';
-  level_score_rule: 'MEAN' | 'MIN';
-  missing_handling: 'SEPARATE_COUNT' | 'EXCLUDE_DENOMINATOR' | 'TREAT_AS_GOOD';
-  transition_hierarchy: 'MERGE' | 'SPLIT';
-  created_by: string | null;
-  created_at: string;
+  target_rollup: string;
+  level_status_rule: string;
+  level_score_rule: string;
+  missing_handling: string;
+  transition_hierarchy: string;
+  create_user_id: string | null;
+  create_at: string;
+  update_user_id: string | null;
+  update_at: string;
 }
 
 export interface CreateAggregationRuleInput {
   score_good?: number;
   score_caution?: number;
   score_bad?: number;
-  target_rollup?: AggregationRule['target_rollup'];
-  level_status_rule?: AggregationRule['level_status_rule'];
-  level_score_rule?: AggregationRule['level_score_rule'];
-  missing_handling?: AggregationRule['missing_handling'];
-  transition_hierarchy?: AggregationRule['transition_hierarchy'];
+  target_rollup?: string;
+  level_status_rule?: string;
+  level_score_rule?: string;
+  missing_handling?: string;
+  transition_hierarchy?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,13 +43,13 @@ export interface CreateAggregationRuleInput {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface LevelSummary {
-  level: 'method' | 'task' | 'transition';
+  level: string;
   total: number;
   good: number;
   caution: number;
   bad: number;
   missing: number;
-  statusRepresentative: '良好' | '要確認' | '不良' | null;
+  statusRepresentative: string | null;
   scoreAverage: number | null;
 }
 
@@ -56,9 +58,9 @@ export interface AttentionItem {
   methodId: string | null;
   taskNo: number | null;
   transitionId: string | null;
-  evaluationValue: '要確認' | '不良';
+  evaluationValue: string;
   comment: string | null;
-  severity: 'bad' | 'caution';
+  severity: string;
 }
 
 export interface SummaryPreviewResponse {

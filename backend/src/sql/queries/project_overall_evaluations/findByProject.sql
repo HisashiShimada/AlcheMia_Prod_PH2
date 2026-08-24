@@ -1,10 +1,10 @@
 -- project_overall_evaluations: プロジェクトの全体評価を取得（新しい順）
 SELECT
-    evaluation_id,
+    evaluation_seq,
     organization_id,
     project_id,
     evaluation_scope,
-    evaluated_by,
+    evaluated_user_id,
     evaluated_at,
     overall_digital,
     overall_score,
@@ -14,7 +14,9 @@ SELECT
     applied_rule_snapshot,
     aggregation_snapshot,
     create_user_id,
-    create_at
+    create_at,
+    update_user_id,
+    update_at
 FROM project_overall_evaluations
 WHERE organization_id = $1
   AND project_id = $2

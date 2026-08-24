@@ -15,6 +15,12 @@
 import { Request, Response, NextFunction } from 'express';
 import * as namespaceService from '../services/namespaceService';
 import type {
+  CreateNamespaceInput,
+  UpdateNamespaceInput,
+  CreateTermInput,
+  UpdateTermInput,
+} from '../services/namespaceService';
+import type {
   CreateNamespaceBody,
   UpdateNamespaceBody,
   CreateTermBody,
@@ -22,6 +28,27 @@ import type {
   ToggleTermActiveBody,
   TermActiveParams,
 } from '../types/api';
+
+/**
+ * URI自動生成候補を返す
+ * GET /api/v1/namespaces/suggested-uri
+ */
+export async function getSuggestedUri(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.user!.organizationId;
+    const userId = req.user!.userId;
+    const scopeKey = req.query.scopeKey as string | undefined;
+
+    const uri = await namespaceService.getSuggestedUri(organizationId, userId, scopeKey);
+    res.json({ uri });
+  } catch (error) {
+    next(error);
+  }
+}
 
 /**
  * 名前空間（Prefix）新規登録
@@ -43,14 +70,15 @@ export async function createNamespace(
     const organizationGroupCds = req.user!.organizationGroupCds ?? [];
     const scopeKey = bodyScopeKey ?? organizationGroupCds[0] ?? undefined;
 
-    const result = await namespaceService.createNamespace({
+    const createNamespaceInput: CreateNamespaceInput = {
       organizationId,
       prefix,
       uri,
       userId,
       scopeKey,
       description,
-    });
+    };
+    const result = await namespaceService.createNamespace(createNamespaceInput);
 
     res.status(201).json(result);
   } catch (error) {
@@ -59,7 +87,7 @@ export async function createNamespace(
 }
 
 /**
- * 名前空間（Prefix の URI）更新
+ * 名前空間（prefix / description）更新
  * PATCH /api/v1/namespaces/:prefix
  */
 export async function updateNamespace(
@@ -70,9 +98,15 @@ export async function updateNamespace(
   try {
     const organizationId = req.user!.organizationId;
     const prefix = decodeURIComponent(req.params.prefix);
-    const { uri } = req.body as UpdateNamespaceBody;
+    const { newPrefix, description } = req.body as UpdateNamespaceBody;
 
-    const result = await namespaceService.updateNamespace({ organizationId, prefix, uri });
+    const updateNamespaceInput: UpdateNamespaceInput = {
+      organizationId,
+      prefix,
+      newPrefix,
+      description,
+    };
+    const result = await namespaceService.updateNamespace(updateNamespaceInput);
     if (!result) {
       res.status(404).json({ success: false, error: { code: 'E6001', message: 'Namespace not found' } });
       return;
@@ -86,6 +120,12 @@ export async function updateNamespace(
 /**
  * 名前空間（Prefix）一覧取得
  * GET /api/v1/namespaces
+ *
+ * クエリパラメータ:
+ *   scopeKey      - namespace.scope_key でフィルタ（省略時は全件）
+ *   scopeKeys     - カンマ区切りの複数 scopeKey（company ノード選択時などに使用）
+ *   withAncestors - "true" の場合、scopeKey とその祖先グループのデータを取得
+ *                   （組織グループノード選択時に使用）
  */
 export async function getNamespaces(
   req: Request,
@@ -95,8 +135,30 @@ export async function getNamespaces(
   try {
     const organizationId = (req as any).organizationId as string;
     const scopeKey = req.query.scopeKey as string | undefined;
+    const withAncestors = req.query.withAncestors === 'true';
+
+    // scopeKeys: カンマ区切り or 配列形式（?scopeKeys=a,b,c または ?scopeKeys[]=a&scopeKeys[]=b）
+    const rawScopeKeys = req.query.scopeKeys;
+    const scopeKeys: string[] = rawScopeKeys
+      ? (Array.isArray(rawScopeKeys)
+          ? (rawScopeKeys as string[])
+          : (rawScopeKeys as string).split(',').filter(Boolean))
+      : [];
+
+    if (scopeKeys.length > 0) {
+      // 複数 scopeKey が指定されている場合（company ノード選択時など）
+      const namespaces = await namespaceService.getNamespacesByScopeKeys(organizationId, scopeKeys);
+      res.json({ namespaces });
+      return;
+    }
 
     if (scopeKey) {
+      // withAncestors=true のとき → 選択グループ＋祖先グループのPrefixを返す
+      if (withAncestors) {
+        const namespaces = await namespaceService.getNamespacesByScopeKeyWithAncestors(organizationId, scopeKey);
+        res.json({ namespaces });
+        return;
+      }
       const namespaces = await namespaceService.getNamespacesByScopeKey(organizationId, scopeKey);
       res.json({ namespaces });
       return;
@@ -150,7 +212,7 @@ export async function createTerm(
     const organizationId = (req as any).organizationId as string;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const created = await namespaceService.createTerm({
+    const createTermInput: CreateTermInput = {
       organizationId,
       prefix,
       localName,
@@ -158,7 +220,8 @@ export async function createTerm(
       description,
       typeHint,
       unitHint,
-    }, lang);
+    };
+    const created = await namespaceService.createTerm(createTermInput, lang);
 
     if (!created) {
       res.status(404).json({ error: `Namespace with prefix "${prefix}" not found` });
@@ -187,12 +250,13 @@ export async function updateTerm(
 
     const { displayName, description, typeHint, unitHint } = req.body as UpdateTermBody;
 
-    const updated = await namespaceService.updateTerm(organizationId, prefix, localName, {
+    const updateTermInput: UpdateTermInput = {
       displayName,
       description,
       typeHint,
       unitHint,
-    }, lang);
+    };
+    const updated = await namespaceService.updateTerm(organizationId, prefix, localName, updateTermInput, lang);
 
     if (!updated) {
       res.status(404).json({ error: `Term "${prefix}:${localName}" not found` });
@@ -286,7 +350,11 @@ export async function getDeclarationsByProject(
  * 用語一覧取得
  * GET /api/v1/namespaces/terms
  *
- * @query scopeKey - 指定した場合、そのスコープの用語のみ返す
+ * クエリパラメータ:
+ *   scopeKey      - 指定した場合、そのスコープの用語のみ返す
+ *   scopeKeys     - カンマ区切りの複数 scopeKey（company ノード選択時などに使用）
+ *   withAncestors - "true" の場合、scopeKey とその祖先グループの用語を取得
+ *                   （組織グループノード選択時に使用）
  */
 export async function getTerms(
   req: Request,
@@ -294,10 +362,32 @@ export async function getTerms(
   next: NextFunction
 ): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId as string | undefined;
+    const organizationId = req.user!.organizationId;
     const scopeKey = req.query.scopeKey as string | undefined;
+    const withAncestors = req.query.withAncestors === 'true';
 
-    if (organizationId && scopeKey) {
+    // scopeKeys: カンマ区切り or 配列形式（?scopeKeys=a,b,c または ?scopeKeys[]=a&scopeKeys[]=b）
+    const rawScopeKeys = req.query.scopeKeys;
+    const scopeKeys: string[] = rawScopeKeys
+      ? (Array.isArray(rawScopeKeys)
+          ? (rawScopeKeys as string[])
+          : (rawScopeKeys as string).split(',').filter(Boolean))
+      : [];
+
+    if (scopeKeys.length > 0) {
+      // 複数 scopeKey が指定されている場合（company ノード選択時など）
+      const terms = await namespaceService.getTermsByScopeKeys(organizationId, scopeKeys);
+      res.json(terms);
+      return;
+    }
+
+    if (scopeKey) {
+      // withAncestors=true のとき → 選択グループ＋祖先グループの用語を返す
+      if (withAncestors) {
+        const terms = await namespaceService.getTermsByScopeKeyWithAncestors(organizationId, scopeKey);
+        res.json(terms);
+        return;
+      }
       const terms = await namespaceService.getTermsByScopeKey(organizationId, scopeKey);
       res.json(terms);
       return;
@@ -394,6 +484,27 @@ export async function importGlobalDeclarations(
     } catch (serviceError: any) {
       res.status(400).json({ success: false, error: { code: 'E1004', message: serviceError.message } });
     }
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Prefix の非アクティブ化（or アクティブ化）
+ * PATCH /api/v1/namespaces/:prefix/active
+ */
+export async function toggleNamespaceActive(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.user!.organizationId;
+    const { prefix } = req.params;
+    const { isActive } = req.body as { isActive: boolean };
+
+    await namespaceService.toggleNamespaceActive(organizationId, prefix, isActive);
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

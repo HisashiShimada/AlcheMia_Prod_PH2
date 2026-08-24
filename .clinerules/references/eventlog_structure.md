@@ -43,6 +43,7 @@
 | フェーズ | フェーズ名 | 対応メソッド |
 |---|---|---|
 | 指示送信（Preparation） | `Preparation_schedule` | `insertProjectInstructionSentLog` |
+| 品質評価（Quality） | `Quality_evaluation` | `buildQualityEvalLogEntries` |
 
 > 新たなフェーズが追加される場合はこのテーブルに追記すること。  
 > ownerRefs が複数の assignee を持つ場合は枝番を付ける（例: `_assignee_1`, `_assignee_2`）。
@@ -63,6 +64,7 @@
 | フェーズ | フェーズ識別名 | lifecycle:transition 値 |
 |---|---|---|
 | 指示送信（Preparation） | `PreparationEvent` | `schedule` |
+| 品質評価（Quality） | — | —（lifecycle:transition は使用しない） |
 
 > 例: `name = "Alchemia:PreparationEvent"`, `description = "{projectName} PreparationEvent(schedule)"`
 
@@ -134,7 +136,31 @@
 
 ---
 
-## 4. 関連ファイル
+## 5. 品質評価 eventLog の記載項目
+
+`buildQualityEvalLogEntries()` が生成する評価エントリの property キー名。
+
+| 項目 | キー名 | `xsi:type` | 対象スコープ |
+|---|---|---|---|
+| 評価日時 | `time:timestamp` | `dateTimeType` | 全スコープ共通（XES 標準） |
+| 評価値（デジタル） | `Alchemia:evaluationDigital` | `stringType` | 全スコープ共通 |
+| 評価スコア | `Alchemia:evaluationScore` | `doubleType` | 全体評価（MAIML_PROJECT）のみ |
+| 評価（アナログ） | `Alchemia:evaluationAnalog` | `stringType` | 全スコープ共通 |
+| タスク番号 | `Alchemia:evaluationTaskNo` | `intType` | TASK / TRANSITION_TASK のみ |
+
+### スコープ別階層構造
+
+| `evaluation_scope` | eventLog 内の記載位置 | ownerRef 位置 | resultsRef |
+|---|---|---|---|
+| MAIML_PROJECT（全体評価） | `eventLog` 直下 property | `eventLog` 直下（XSD 外） | なし |
+| METHOD | `log` 直下 property | `log` 直下 ownerRef | なし |
+| TASK | `trace` 直下 property（@taskno + taskNo property） | `trace` 直下 ownerRef | なし |
+| TRANSITION_METHOD | `event` 直下 property | `event` 直下 ownerRef | あり |
+| TRANSITION_TASK | `event` 直下 property（taskNo property 追加） | `event` 直下 ownerRef | あり |
+
+---
+
+## 6. 関連ファイル
 
 | ファイル | 役割 |
 |---|---|

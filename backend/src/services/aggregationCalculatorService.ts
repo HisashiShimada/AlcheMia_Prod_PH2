@@ -19,6 +19,12 @@ import type {
   AttentionItem,
   AggregationSnapshot,
 } from '../types/aggregationRule';
+import {
+  TargetRollup,
+  LevelStatusRule,
+  LevelScoreRule,
+  MissingHandling,
+} from '../enums/aggregationRule.enum';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 内部ユーティリティ型
@@ -85,7 +91,7 @@ export function resolveNumericScore(v: EvalValue, rule: AggregationRule): number
 /** evaluation_unit からロールアップ後の階層種別を決定する */
 function resolveLevel(
   evaluationUnit: string,
-  _transitionHierarchy: AggregationRule['transition_hierarchy']
+  _transitionHierarchy: string
 ): 'method' | 'task' | 'transition' | null {
   // DB に格納された大文字スコープ値（'METHOD' 等）と
   // テスト用の小文字値（'method' 等）の両方に対応するため小文字に正規化
@@ -123,11 +129,11 @@ export function applyTargetRollup(
   if (valid.length === 0) return null;
 
   switch (rule.target_rollup) {
-    case 'WORST_CASE': {
+    case TargetRollup.WORST_CASE: {
       const maxSev = Math.max(...valid.map(toSeverity));
       return fromSeverity(maxSev);
     }
-    case 'MAJORITY': {
+    case TargetRollup.MAJORITY: {
       const counts: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
       for (const v of valid) counts[toSeverity(v)]++;
       const maxCount = Math.max(...Object.values(counts));
@@ -136,10 +142,12 @@ export function applyTargetRollup(
         .map(([sev]) => Number(sev));
       return fromSeverity(Math.max(...candidates));
     }
-    case 'AVERAGE': {
+    case TargetRollup.AVERAGE: {
       const avg = valid.map(toSeverity).reduce((a, b) => a + b, 0) / valid.length;
       return fromSeverity(Math.round(avg));
     }
+    default:
+      return null;
   }
 }
 
@@ -149,14 +157,14 @@ export function applyTargetRollup(
 
 /** 階層集計: 対象代表値リストから LevelSummary を算出する */
 function calcLevelSummary(
-  level: LevelSummary['level'],
+  level: string,
   reps: Array<EvalValue | null>,
   rule: AggregationRule
 ): LevelSummary {
   const missing = reps.filter((v) => v === null).length;
   let scoringReps: EvalValue[];
 
-  if (rule.missing_handling === 'TREAT_AS_GOOD') {
+  if (rule.missing_handling === MissingHandling.TREAT_AS_GOOD) {
     scoringReps = reps.map((v) => (v === null ? '良好' : v));
   } else {
     scoringReps = reps.filter(isValidEvalValue);
@@ -169,7 +177,7 @@ function calcLevelSummary(
 
   let statusRepresentative: LevelSummary['statusRepresentative'] = null;
   if (scoringReps.length > 0) {
-    if (rule.level_status_rule === 'WORST_CASE') {
+    if (rule.level_status_rule === LevelStatusRule.WORST_CASE) {
       const maxSev = Math.max(...scoringReps.map(toSeverity));
       statusRepresentative = fromSeverity(maxSev);
     } else {
@@ -185,7 +193,7 @@ function calcLevelSummary(
 
   let scoreAverage: number | null = null;
   if (scoringReps.length > 0) {
-    if (rule.level_score_rule === 'MEAN') {
+    if (rule.level_score_rule === LevelScoreRule.MEAN) {
       const sum = scoringReps.reduce((acc, v) => acc + resolveNumericScore(v, rule), 0);
       scoreAverage = Math.round((sum / scoringReps.length) * 10) / 10;
     } else {
@@ -245,7 +253,7 @@ export function calculateLevelSummaries(
     levelMap[key.unit].push(applyTargetRollup(values, rule));
   }
 
-  const ORDER: LevelSummary['level'][] = ['method', 'task', 'transition'];
+  const ORDER: string[] = ['method', 'task', 'transition'];
   return ORDER
     .filter((lvl) => levelMap[lvl].length > 0)
     .map((lvl) => calcLevelSummary(lvl, levelMap[lvl], rule));
@@ -272,14 +280,14 @@ export function extractAttentionItems(
       methodId:        e.method_id,
       taskNo:          e.task_no,
       transitionId:    e.transition_id,
-      evaluationValue: e.evaluation_value as '不良' | '要確認',
+      evaluationValue: e.evaluation_value ?? '',
       comment:         e.comment,
-      severity:        (e.evaluation_value === '不良' ? 'bad' : 'caution') as 'bad' | 'caution',
+      severity:        e.evaluation_value === '不良' ? 'bad' : 'caution',
     }));
 
   items.sort((a, b) => {
-    const order = { bad: 0, caution: 1 } as const;
-    return order[a.severity] - order[b.severity];
+    const order: Record<string, number> = { bad: 0, caution: 1 };
+    return (order[a.severity] ?? 2) - (order[b.severity] ?? 2);
   });
 
   return items;

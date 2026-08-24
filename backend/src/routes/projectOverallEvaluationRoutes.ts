@@ -13,6 +13,7 @@ import * as projectOverallEvaluationController from '../controllers/projectOvera
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
+import { SubEvaluationScopeValues } from '../enums/aggregationRule.enum';
 
 const router = Router();
 
@@ -108,7 +109,7 @@ router.post(
     body('evaluations.*.evaluationScope')
       .notEmpty()
       .withMessage('evaluationScope is required')
-      .isIn(['METHOD', 'TASK', 'TRANSITION_METHOD', 'TRANSITION_TASK'])
+      .isIn(Object.values(SubEvaluationScopeValues))
       .withMessage('evaluationScope must be METHOD/TASK/TRANSITION_METHOD/TRANSITION_TASK'),
     body('evaluations.*.evaluationValue')
       .optional()

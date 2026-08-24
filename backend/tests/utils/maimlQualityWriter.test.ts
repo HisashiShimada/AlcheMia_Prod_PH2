@@ -119,7 +119,7 @@ describe('resolveInstructionToResultsMap', () => {
 
 describe('buildQualityEvalLogEntries', () => {
   const baseEvaluation: SubEvaluationRow = {
-    evaluation_id:    'eval-test-001',
+    evaluation_seq:    1,
     organization_id:  'org-001',
     project_id:       'proj-001',
     evaluation_scope: 'method',
@@ -131,28 +131,32 @@ describe('buildQualityEvalLogEntries', () => {
     comment:          'テストコメント',
     overall_digital:  '良好',
     overall_analog:   'テストコメント',
-    evaluated_by:     'user-001',
+    evaluated_user_id: 'user-001',
     evaluated_at:     new Date('2026-08-17T15:00:00Z'),
     create_user_id:   'user-001',
     create_at:        new Date('2026-08-17T15:00:00Z'),
+    update_user_id:   null,
+    update_at:        null,
   };
 
   const baseOverallEval: ProjectOverallEvaluation = {
-    evaluation_id: 'eval-001',
-    organization_id: 'org-001',
-    project_id: 'proj-001',
-    evaluation_scope: 'MAIML_PROJECT',
-    evaluated_by: 'user-001',
-    evaluated_at: new Date('2026-08-17T15:00:00Z'),
-    overall_digital: '良好',
-    overall_score: 85,
-    overall_analog: 'プロジェクト全体として品質良好',
-    applied_rule_id: 'rule-001',
-    applied_rule_version: 1,
+    evaluation_seq:        1,
+    organization_id:       'org-001',
+    project_id:            'proj-001',
+    evaluation_scope:      'MAIML_PROJECT',
+    evaluated_user_id:     'user-001',
+    evaluated_at:          new Date('2026-08-17T15:00:00Z'),
+    overall_digital:       '良好',
+    overall_score:         85,
+    overall_analog:        'プロジェクト全体として品質良好',
+    applied_rule_id:       'rule-001',
+    applied_rule_version:  1,
     applied_rule_snapshot: {} as any,
-    aggregation_snapshot: {} as any,
-    create_user_id: 'user-001',
-    create_at: new Date('2026-08-17T15:00:00Z'),
+    aggregation_snapshot:  {} as any,
+    create_user_id:        'user-001',
+    create_at:             new Date('2026-08-17T15:00:00Z'),
+    update_user_id:        null,
+    update_at:             new Date('2026-08-17T15:00:00Z'),
   };
 
   const transToInstMap = new Map([['transition-001', 'instruction-001']]);

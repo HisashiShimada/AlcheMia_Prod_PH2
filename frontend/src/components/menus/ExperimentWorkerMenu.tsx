@@ -579,10 +579,11 @@ export default function ExperimentWorkerMenu({
       children: (
         <div style={{ padding: 12, height: 'calc(100vh - 280px)', overflowY: 'auto' }}>
           <WorkRecordPanel
+            projectName={selectedProjectName || undefined}
             projectId={selectedProject || undefined}
             progressRows={progressRows}
             useDeemedProgress={selectedProjectUseDeemedProgress}
-            projectStatus={selectedProjectStatus}
+            projectStatus={selectedProjectStatus ?? undefined}
           />
         </div>
       ),
