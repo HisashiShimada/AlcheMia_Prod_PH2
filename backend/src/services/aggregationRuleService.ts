@@ -17,7 +17,7 @@ import type { AggregationRule, CreateAggregationRuleInput, SummaryPreviewRespons
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * テナントの ACTIVE ルールを取得する
+ * テナントの有効ルール（is_active = true）を取得する
  * 存在しない場合はデフォルト値の仮ルール（DB未登録）を返す。
  *
  * @param organizationId - 組織ID
@@ -40,7 +40,7 @@ export async function getAllRules(
 }
 
 /**
- * 新版の集約ルールを作成して ACTIVE に設定する（旧版は DEPRECATED へ）
+ * 新版の集約ルールを作成して有効化する（旧版は無効化）
  *
  * @param organizationId - 組織ID
  * @param input          - ルールパラメータ
@@ -52,13 +52,13 @@ export async function createRule(
   input: CreateAggregationRuleInput,
   userId: string | null
 ): Promise<AggregationRule> {
-  // 既存の ACTIVE ルールを取得して版番号を決定
+  // 有効なルールを取得して版番号を決定
   const existing = await aggregationRuleRepository.findActive(organizationId);
   const nextVersion = existing ? existing.version + 1 : 1;
 
-  // 旧 ACTIVE を DEPRECATED に遷移
+  // 旧有効ルールを無効化
   if (existing) {
-    await aggregationRuleRepository.deprecateOld(organizationId);
+    await aggregationRuleRepository.deprecateOld(organizationId, userId);
   }
 
   // 新版を挿入
@@ -67,11 +67,11 @@ export async function createRule(
 
 /**
  * 登録済みデータに対するプレビュー算出
- * 現在の ACTIVE ルール（または仮のルールパラメータ）でサマリーを動的に算出する。
+ * 現在の有効ルール（または仮のルールパラメータ）でサマリーを動的に算出する。
  *
  * @param organizationId - 組織ID
  * @param projectId      - プロジェクトID
- * @param previewRule    - プレビュー用ルール（指定しない場合は ACTIVE ルールを使用）
+ * @param previewRule    - プレビュー用ルール（指定しない場合は有効ルールを使用）
  * @returns プレビューレスポンス
  */
 export async function previewSummary(

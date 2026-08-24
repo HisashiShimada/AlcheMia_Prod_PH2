@@ -20,6 +20,61 @@
 
 共通する型は適切にネーミングして再利用可能にし、重複を避けます。
 
+### 4. リテラルユニオン型禁止 ─ interface は基本型（string）を使う
+
+**interface のフィールド型にリテラルユニオン型（`'ACTIVE' | 'DEPRECATED'` 等）を使ってはならない。**
+
+#### 背景・理由
+
+- 実行時に外部（APIレスポンス・DB・ユーザー入力）から来る値は `string` 型の変数に入るため、リテラルユニオン型と合わせるためだけの余計な型アサーション（`as 'ACTIVE' | 'DEPRECATED'`）が必要になる
+- アサーションはコンパイラの型チェックを無効化するため、バグの温床になる
+- 値の種類が変わるたびに型定義・使用箇所すべてに連鎖修正が発生する
+
+#### ルール
+
+**interface フィールドは基本型（`string`）で定義する。**  
+**有効な値の集合は `as const` オブジェクト定数として専用ファイルに定義し、値の参照・比較にはそこから使う。**
+
+```typescript
+// ❌ 禁止: interface フィールドにリテラルユニオン型を使う
+export interface AggregationRule {
+  status: 'ACTIVE' | 'DEPRECATED';
+  target_rollup: 'WORST_CASE' | 'MAJORITY' | 'AVERAGE';
+}
+
+// ✅ 正しい: interface フィールドは string、有効な値は定数オブジェクトで管理
+// backend/src/enums/aggregationRule.enum.ts
+export const AggregationRuleStatus = {
+  ACTIVE:     'ACTIVE',
+  DEPRECATED: 'DEPRECATED',
+} as const;
+
+// backend/src/types/aggregationRule.ts
+export interface AggregationRule {
+  status: string;
+  target_rollup: string;
+}
+
+// 使用箇所
+import { AggregationRuleStatus } from '../enums/aggregationRule.enum';
+if (rule.status === AggregationRuleStatus.ACTIVE) { ... }
+```
+
+#### 定数ファイルの配置場所
+
+| 対象 | バックエンド | フロントエンド |
+|------|------------|--------------|
+| 評価・集約ルール関連 | `backend/src/enums/aggregationRule.enum.ts` | `frontend/src/constants/aggregationRule.ts` |
+| code_master のコード値 | `backend/src/enums/codeMaster.enum.ts` | `frontend/src/constants/codeMaster.ts` |
+
+#### 判定基準
+
+| ケース | 型 | 有効値の管理場所 |
+|---|---|---|
+| interface のフィールド（DBカラム・APIパラメータ等） | `string` | `as const` 定数オブジェクト |
+| ユーザーに表示する表示文言 | `string` | 翻訳ファイル（locales） |
+| 関数の引数・ローカル変数（型推論が明確な場合） | リテラルユニオン型も許容 | ─ |
+
 ---
 
 ## ファイル構成

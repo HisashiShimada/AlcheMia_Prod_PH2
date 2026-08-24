@@ -8,22 +8,29 @@
  * 主キー: (organization_id, rule_id, version)
  *
  * @module aggregationRuleRepository
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import type { AggregationRule, CreateAggregationRuleInput } from '../types/aggregationRule';
+import {
+  TargetRollup,
+  LevelStatusRule,
+  LevelScoreRule,
+  MissingHandling,
+  TransitionHierarchy,
+} from '../enums/aggregationRule.enum';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Repository メソッド
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * テナントの ACTIVE ルールを取得する
+ * テナントの有効ルール（is_active = true）を取得する
  *
  * @param organizationId - 組織ID
- * @returns ACTIVE ルール（存在しない場合は null）
+ * @returns 有効ルール（存在しない場合は null）
  */
 export async function findActive(
   organizationId: string
@@ -48,46 +55,49 @@ export async function findAll(
 }
 
 /**
- * 既存の ACTIVE ルールを DEPRECATED に遷移させる
+ * 既存の有効ルールを無効化する（is_active = false に遷移）
  *
  * @param organizationId - 組織ID
+ * @param updatedBy      - 更新者ユーザーID
  */
 export async function deprecateOld(
-  organizationId: string
+  organizationId: string,
+  updatedBy: string | null
 ): Promise<void> {
   const pgp = getPgp();
   const sql = await loadSqlFile('aggregation_rules/deprecateOld.sql');
-  await pgp.none(sql, [organizationId]);
+  await pgp.none(sql, [organizationId, updatedBy]);
 }
 
 /**
- * 新版の集約ルールを ACTIVE として挿入する
+ * 新版の集約ルールを有効として挿入する
  *
  * @param organizationId - 組織ID
  * @param version        - 新しい版番号
  * @param input          - ルールパラメータ
- * @param createdBy      - 作成者ユーザーID
+ * @param createUserId   - 作成者ユーザーID
  * @returns 作成されたルールレコード
  */
 export async function insert(
   organizationId: string,
   version: number,
   input: CreateAggregationRuleInput,
-  createdBy: string | null
+  createUserId: string | null
 ): Promise<AggregationRule> {
   const pgp = getPgp();
   const sql = await loadSqlFile('aggregation_rules/insert.sql');
   return pgp.one<AggregationRule>(sql, [
-    organizationId,                                   // $1
-    version,                                          // $2
-    input.score_good          ?? 100,                 // $3
-    input.score_caution       ?? 50,                  // $4
-    input.score_bad           ?? 0,                   // $5
-    input.target_rollup       ?? 'WORST_CASE',        // $6
-    input.level_status_rule   ?? 'WORST_CASE',        // $7
-    input.level_score_rule    ?? 'MEAN',              // $8
-    input.missing_handling    ?? 'SEPARATE_COUNT',    // $9
-    input.transition_hierarchy ?? 'MERGE',            // $10
-    createdBy,                                        // $11
+    organizationId,                                    // $1
+    version,                                           // $2
+    input.score_good          ?? 100,                  // $3
+    input.score_caution       ?? 50,                   // $4
+    input.score_bad           ?? 0,                    // $5
+    input.target_rollup       ?? TargetRollup.WORST_CASE,        // $6
+    input.level_status_rule   ?? LevelStatusRule.WORST_CASE,     // $7
+    input.level_score_rule    ?? LevelScoreRule.MEAN,            // $8
+    input.missing_handling    ?? MissingHandling.SEPARATE_COUNT,  // $9
+    input.transition_hierarchy ?? TransitionHierarchy.MERGE,     // $10
+    createUserId,                                      // $11
   ]);
 }
+
