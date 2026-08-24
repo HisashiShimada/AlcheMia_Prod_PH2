@@ -4241,6 +4241,7 @@
     "selectGroupPlaceholder": "Please select a group",
     "memberCount": "{count} members",
     "groupCdLabel": "Group CD",
+    "groupNameLabel": "Group Name",
     "chiefLabel": "Leader",
     "chiefNotSet": "Not set",
     "parentGroupLabel": "Parent Group",
