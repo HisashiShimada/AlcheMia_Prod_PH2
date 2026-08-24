@@ -209,14 +209,17 @@ const GroupManagementPanel: React.FC = () => {
               )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 8, marginBottom: 16 }}>
-              <Text type="secondary">{t('groupManagement.groupNameLabel')}</Text>
-              <Text>{selectedGroup.groupName || selectedGroup.groupCd}</Text>
+              <Text type="secondary">{t('groupManagement.groupCdLabel')}</Text>
+              <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{selectedGroup.groupCd}</Text>
               <Text type="secondary">{t('groupManagement.chiefLabel')}</Text>
               <Text>{selectedGroup.ownerName || t('groupManagement.chiefNotSet')}</Text>
               {selectedGroup.parentGroupCd && (
                 <>
                   <Text type="secondary">{t('groupManagement.parentGroupLabel')}</Text>
-                  <Text>{selectedGroup.parentGroupCd}</Text>
+                  <Text>
+                    {groups.find((g) => g.groupCd === selectedGroup.parentGroupCd)?.groupName
+                      ?? selectedGroup.parentGroupCd}
+                  </Text>
                 </>
               )}
               {selectedGroup.namespaceUri && (

@@ -4844,7 +4844,6 @@
     "fetchFailed": "グループ情報の取得に失敗しました",
     "groupCdLabel": "グループCD",
     "groupListTitle": "グループ一覧",
-    "groupNameLabel": "グループ名",
     "inactiveLabel": "無効",
     "memberCount": "{count}名",
     "memberFetchFailed": "メンバー情報の取得に失敗しました",
