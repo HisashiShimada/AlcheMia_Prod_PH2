@@ -305,18 +305,55 @@ export async function getTemplateData(
     // （一部のみ保存済みの場合に、未保存のplaceIdがレスポンスから欠損しないようにするため）
     const fallbackAll = buildFallbackTemplates(parser, methodId, adjacentPlaceIds, uncertaintyDetailMap);
 
+    // adjacentPlaceIds が空の場合（MAIML のアーク情報が取得できなかった場合）は
+    // buildFallbackTemplates が全プレースを対象に返すため、そのまま使用する
+    if (adjacentPlaceIds.length === 0) {
+      return {
+        projectName,
+        methodId,
+        taskNo,
+        transitionId,
+        adjacentPlaceIds,
+        templates: fallbackAll,
+        totalCount: fallbackAll.length,
+      };
+    }
+
     const templates: TemplateDataItem[] = adjacentPlaceIds.map(placeId => {
       // DBにそのplaceIdのレコードが存在するか確認
       const dbRecord = filteredRecords.find((r: TemplateDataRow) => r.place_id === placeId);
 
       if (dbRecord) {
         // 8-a. DB実績データを property_set から取り出してマッピング
+        // property_set.properties[] は Property 型（uncertainty[] 配列のまま）で保存されているため、
+        // convertPropertyForFallback を適用して toleranceValue / uncertaintyNote / uncertaintyName を
+        // フラットフィールドとして展開する（フォールバックパスと同一のデータ構造にする）
         const ps: PropertySet | null = dbRecord.property_set;
+        let enrichedProperties = (ps?.properties ?? []).map(
+          (p) => convertPropertyForFallback(p, 0, uncertaintyDetailMap)
+        );
+
+        // property_set.properties が空の場合（タスク登録時のバグ等で空保存された場合）、
+        // MAIMLフォールバック定義から properties を補完する。
+        // これにより DBレコードは存在するがプロパティが表示されない問題を防ぐ。
+        if (enrichedProperties.length === 0) {
+          const fallbackItem = fallbackAll.find(f => f.placeId === placeId);
+          if (fallbackItem) {
+            const fallbackProperties = fallbackItem.data.properties;
+            if (Array.isArray(fallbackProperties) && fallbackProperties.length > 0) {
+              enrichedProperties = fallbackProperties as ReturnType<typeof convertPropertyForFallback>[];
+            }
+          }
+        }
+
+        const enrichedPs = ps != null
+          ? { ...ps, properties: enrichedProperties }
+          : { properties: enrichedProperties };
         return {
           placeId: dbRecord.place_id,
           templateType: ps?.templateType ?? '',
           templateId: ps?.templateId ?? '',
-          data: ps as unknown as Record<string, unknown> ?? {},
+          data: enrichedPs as unknown as Record<string, unknown>,
           recordedBy: dbRecord.update_user_id ?? null,
           recordedAt: dbRecord.update_at instanceof Date
             ? dbRecord.update_at.toISOString()
@@ -390,6 +427,84 @@ function collectUncertaintyKeys(parser: MaimlParserTyped, methodId: string): str
 }
 
 /**
+ * Property を再帰的に変換するヘルパー関数（モジュールスコープ）
+ *
+ * @description
+ * getTemplateData（DB実績あり・なし両パス）および buildFallbackTemplates から共通利用する。
+ * propertyListType の子 Property・子 Content を再帰的に変換して返す。
+ * uncertaintyDetailMap があれば uncertainty を定量/定性に分類してフィールドに反映する。
+ *
+ * @param p - 変換対象の Property
+ * @param depth - 再帰の深さ（無限ループ防止）
+ * @param uncertaintyDetailMap - uncertainty key → DB詳細のマップ（省略可）
+ */
+function convertPropertyForFallback(
+  p: Property,
+  depth: number = 0,
+  uncertaintyDetailMap?: Map<string, UncertaintyKeyDetail>
+): Record<string, unknown> {
+  const MAX_DEPTH = 5;
+
+  // uncertainty を定量/定性に分類する
+  let toleranceValue: string | null = null;
+  let uncertaintyNote: string | null = null;
+  let uncertaintyName: string | null = null;
+  let qualitativeOptions: QualitativeOptionRow[] = [];
+  let qualitativeEval: string | null = null;
+  let qualitativeNote: string | null = null;
+
+  if (uncertaintyDetailMap && p.uncertainty && p.uncertainty.length > 0) {
+    for (const unc of p.uncertainty) {
+      const key = unc.key ?? '';
+      const detail = uncertaintyDetailMap.get(key);
+      // evaluationMethod 1=定量, 2=定性。DB に存在しないキーは定量として扱う
+      const isQualitative = detail?.evaluationMethod === 2;
+
+      if (!isQualitative && toleranceValue === null) {
+        // 定量: 最初の1件（value は number | boolean の可能性もあるため String() で変換）
+        toleranceValue   = unc.value     != null ? String(unc.value) : null;
+        uncertaintyNote  = unc.description ?? null;
+        uncertaintyName  = detail?.termDisplayName ?? null;
+      } else if (isQualitative && qualitativeOptions.length === 0) {
+        // 定性: 最初の1件
+        qualitativeOptions = detail?.qualitativeOptions ?? [];
+        qualitativeEval    = unc.value     != null ? String(unc.value) : null;
+        qualitativeNote    = unc.description ?? null;
+      }
+    }
+  }
+
+  return {
+    key: p.key || '',
+    xsiType: p.xsiType || 'stringType',
+    value: p.value ?? undefined,
+    units: p.units || undefined,
+    description: p.description ?? null,
+    toleranceValue,
+    uncertaintyNote,
+    uncertaintyName,
+    qualitativeOptions,
+    qualitativeEval,
+    qualitativeNote,
+    // ネスト構造を再帰的に変換（深さ制限で無限ループ防止）
+    properties: depth < MAX_DEPTH
+      ? (p.properties || []).map(child => convertPropertyForFallback(child, depth + 1, uncertaintyDetailMap))
+      : [],
+    // Content 子要素も変換（Content はリーフノードとして扱うため properties/contents は空配列）
+    contents: depth < MAX_DEPTH
+      ? (p.contents || []).map(c => ({
+          key: c.key || '',
+          xsiType: c.xsiType || 'contentStringListType',
+          value: c.value ?? undefined,
+          units: c.units || undefined,
+          properties: [] as Property[],
+          contents: [] as Content[],
+        }))
+      : [],
+  };
+}
+
+/**
  * 0件時フォールバック: MAIMLテンプレート定義からレスポンスを生成
  *
  * @description
@@ -444,77 +559,6 @@ function buildFallbackTemplates(
 
   const fallbackTemplates: TemplateDataItem[] = [];
 
-  /**
-   * Property を再帰的に変換するヘルパー関数（深さ制限付き）
-   * propertyListType の子 Property・子 Content を空配列に上書きせず、
-   * 再帰的に変換して渡す。
-   * uncertaintyDetailMap があれば uncertainty を定量/定性に分類してフィールドに反映する。
-   */
-  function convertPropertyForFallback(
-    p: Property,
-    depth: number = 0,
-    uncertaintyDetailMap?: Map<string, UncertaintyKeyDetail>
-  ): Record<string, unknown> {
-    const MAX_DEPTH = 5;
-
-    // uncertainty を定量/定性に分類する
-    let toleranceValue: string | null = null;
-    let uncertaintyNote: string | null = null;
-    let uncertaintyName: string | null = null;
-    let qualitativeOptions: QualitativeOptionRow[] = [];
-    let qualitativeEval: string | null = null;
-    let qualitativeNote: string | null = null;
-
-    if (uncertaintyDetailMap && p.uncertainty && p.uncertainty.length > 0) {
-      for (const unc of p.uncertainty) {
-        const key = unc.key ?? '';
-        const detail = uncertaintyDetailMap.get(key);
-        // evaluationMethod 1=定量, 2=定性。DB に存在しないキーは定量として扱う
-        const isQualitative = detail?.evaluationMethod === 2;
-
-        if (!isQualitative && toleranceValue === null) {
-          // 定量: 最初の1件（value は number | boolean の可能性もあるため String() で変換）
-          toleranceValue   = unc.value     != null ? String(unc.value) : null;
-          uncertaintyNote  = unc.description ?? null;
-          uncertaintyName  = detail?.termDisplayName ?? null;
-        } else if (isQualitative && qualitativeOptions.length === 0) {
-          // 定性: 最初の1件
-          qualitativeOptions = detail?.qualitativeOptions ?? [];
-          qualitativeEval    = unc.value     != null ? String(unc.value) : null;
-          qualitativeNote    = unc.description ?? null;
-        }
-      }
-    }
-
-    return {
-      key: p.key || '',
-      xsiType: p.xsiType || 'stringType',
-      value: p.value ?? undefined,
-      units: p.units || undefined,
-      toleranceValue,
-      uncertaintyNote,
-      uncertaintyName,
-      qualitativeOptions,
-      qualitativeEval,
-      qualitativeNote,
-      // ネスト構造を再帰的に変換（深さ制限で無限ループ防止）
-      properties: depth < MAX_DEPTH
-        ? (p.properties || []).map(child => convertPropertyForFallback(child, depth + 1, uncertaintyDetailMap))
-        : [],
-      // Content 子要素も変換（Content はリーフノードとして扱うため properties/contents は空配列）
-      contents: depth < MAX_DEPTH
-        ? (p.contents || []).map(c => ({
-            key: c.key || '',
-            xsiType: c.xsiType || 'contentStringListType',
-            value: c.value ?? undefined,
-            units: c.units || undefined,
-            properties: [] as Property[],
-            contents: [] as Content[],
-          }))
-        : [],
-    };
-  }
-
   for (const { templates, templateType } of templateCategories) {
     if (!templates) continue;
 
@@ -555,11 +599,12 @@ function buildFallbackTemplates(
 
       const data: Record<string, unknown> = propertySet as unknown as Record<string, unknown>;
 
-      // 各 placeRef ごとに1エントリ生成（隣接プレースIDに一致するもののみ）
+      // 各 placeRef ごとに1エントリ生成
+      // adjacentPlaceIds が空の場合はフィルタなし（全プレースを対象にする）
       for (const placeRef of template.placeRefs) {
         const placeId = placeRef.ref || '';
         if (!placeId) continue;
-        if (!adjacentPlaceIds.includes(placeId)) continue;
+        if (adjacentPlaceIds.length > 0 && !adjacentPlaceIds.includes(placeId)) continue;
 
         fallbackTemplates.push({
           placeId,

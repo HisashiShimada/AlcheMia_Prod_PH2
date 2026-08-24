@@ -54,13 +54,14 @@ import {
   ContainerType,
   CustomPropertyType,
   InsertionField,
+  QuantitativeEval,
 } from '@/types/experimentWorker';
 import { TransitionStatusCode } from '@/constants/codeMaster';
 
 /**
- * ステータス遷移ルール（progressService.ts の ALLOWED_TRANSITIONS と同一）
- * キー: 現在のステータス値（数値）
- * 値: 遷移可能なステータス値の配列（数値）
+ * スチE�Eタス遷移ルール�E�ErogressService.ts の ALLOWED_TRANSITIONS と同一�E�E
+ * キー: 現在のスチE�Eタス値�E�数値�E�E
+ * 値: 遷移可能なスチE�Eタス値の配�E�E�数値�E�E
  */
 const ALLOWED_TRANSITIONS: Record<number, number[]> = {
   [TransitionStatusCode.INITIAL]:   [TransitionStatusCode.PREPARING, TransitionStatusCode.COMPLETED, TransitionStatusCode.ERROR],
@@ -68,8 +69,8 @@ const ALLOWED_TRANSITIONS: Record<number, number[]> = {
   [TransitionStatusCode.READY]:     [TransitionStatusCode.READY, TransitionStatusCode.IN_PROGRESS, TransitionStatusCode.COMPLETED, TransitionStatusCode.ERROR],
   [TransitionStatusCode.IN_PROGRESS]: [TransitionStatusCode.PAUSED, TransitionStatusCode.COMPLETED, TransitionStatusCode.ERROR],
   [TransitionStatusCode.PAUSED]:    [TransitionStatusCode.IN_PROGRESS, TransitionStatusCode.COMPLETED, TransitionStatusCode.ERROR],
-  [TransitionStatusCode.COMPLETED]: [],  // 終状態 → 変更不可
-  [TransitionStatusCode.ERROR]:     [],  // 異常終了 → 変更不可
+  [TransitionStatusCode.COMPLETED]: [],  // 終状慁EↁE変更不可
+  [TransitionStatusCode.ERROR]:     [],  // 異常終亁EↁE変更不可
 };
 
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
@@ -81,10 +82,10 @@ import { updateTransitionStatus } from '@/services/projectApiService';
 import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 
-// ===== TemplateDataItem → Template 変換ヘルパー =====
+// ===== TemplateDataItem ↁETemplate 変換ヘルパ�E =====
 
 /**
- * API の templateType 文字列をフロントの TemplateCategory にマッピングする
+ * API の templateType 斁E���Eをフロント�E TemplateCategory にマッピングする
  */
 function mapTemplateTypeToCategory(templateType: string): TemplateCategory {
   switch (templateType) {
@@ -95,7 +96,7 @@ function mapTemplateTypeToCategory(templateType: string): TemplateCategory {
   }
 }
 
-/** PropertyType の全候補（xsiType をそのまま使用）*/
+/** PropertyType の全候補！EsiType をそのまま使用�E�E/
 const KNOWN_PROPERTY_TYPES: readonly PropertyType[] = [
   'stringType', 'tokenType', 'stringEnumType',
   'intType', 'longType', 'shortType', 'byteType',
@@ -110,8 +111,8 @@ const KNOWN_PROPERTY_TYPES: readonly PropertyType[] = [
 ] as const;
 
 /**
- * API の xsiType 文字列をフロントの PropertyType にマッピングする
- * xsiType をそのまま PropertyType として返す（変換不要）
+ * API の xsiType 斁E���Eをフロント�E PropertyType にマッピングする
+ * xsiType をそのまま PropertyType として返す�E�変換不要E��E
  */
 function mapXsiTypeToPropertyType(xsiType: string): PropertyType {
   if ((KNOWN_PROPERTY_TYPES as readonly string[]).includes(xsiType)) {
@@ -120,7 +121,7 @@ function mapXsiTypeToPropertyType(xsiType: string): PropertyType {
   return 'stringType'; // 未知の xsiType は stringType にフォールバック
 }
 
-/** ContentType の全候補 */
+/** ContentType の全候裁E*/
 const KNOWN_CONTENT_TYPES: readonly ContentType[] = [
   'contentStringListType',
   'contentIntListType',
@@ -136,8 +137,8 @@ const KNOWN_CONTENT_TYPES: readonly ContentType[] = [
 ] as const;
 
 /**
- * API の xsiType 文字列をフロントの ContentType にマッピングする
- * xsiType をそのまま ContentType として返す（変換不要）
+ * API の xsiType 斁E���Eをフロント�E ContentType にマッピングする
+ * xsiType をそのまま ContentType として返す�E�変換不要E��E
  */
 function mapXsiTypeToContentType(xsiType: string): ContentType {
   if ((KNOWN_CONTENT_TYPES as readonly string[]).includes(xsiType)) {
@@ -147,8 +148,8 @@ function mapXsiTypeToContentType(xsiType: string): ContentType {
 }
 
 /**
- * rawProperty オブジェクトを再帰的に Property 型に変換する
- * propertyListType の子 Property・子 Content を nestedProperties / contents にマッピングする
+ * rawProperty オブジェクトを再帰皁E�� Property 型に変換する
+ * propertyListType の孁EProperty・孁EContent めEnestedProperties / contents にマッピングする
  */
 function convertRawPropertyToProperty(
   p: Record<string, unknown>,
@@ -166,6 +167,17 @@ function convertRawPropertyToProperty(
     description: (p.description as string | undefined) ?? undefined,
     formatString: (p.formatString as string | undefined) ?? undefined,
     scaleFactor: (p.scaleFactor as string | undefined) ?? undefined,
+    // ── カード表示用フィールド（バチE��エンドから受け取るフィールドをマッピング�E�──
+    plannedValue: (p.plannedValue as string | number | null | undefined) ?? undefined,
+    toleranceValue: (p.toleranceValue as string | null | undefined) ?? undefined,
+    uncertaintyNote: (p.uncertaintyNote as string | null | undefined) ?? undefined,
+    uncertaintyKey: (p.uncertaintyKey as string | null | undefined) ?? undefined,
+    uncertaintyName: (p.uncertaintyName as string | null | undefined) ?? undefined,
+    qualitativeOptions: Array.isArray(p.qualitativeOptions)
+      ? (p.qualitativeOptions as string[])
+      : [],
+    qualitativeEval: (p.qualitativeEval as string | null | undefined) ?? undefined,
+    qualitativeNote: (p.qualitativeNote as string | null | undefined) ?? undefined,
   };
 
   if (xsiType === 'propertyListType' && depth < MAX_DEPTH) {
@@ -201,8 +213,8 @@ function convertRawPropertyToProperty(
 }
 
 /**
- * テンプレート名を解決する
- * 優先順位: MAIMLファイル内のテンプレート名 > テンプレートID
+ * チE��プレート名を解決する
+ * 優先頁E��E MAIMLファイル冁E�EチE��プレート名 > チE��プレーチED
  */
 function resolveTemplateName(
   templateName: string | null | undefined,
@@ -217,17 +229,17 @@ function resolveTemplateName(
 /**
  * API レスポンスの TemplateDataItem[] をサイドバー表示用の Template[] に変換する
  *
- * フォールバック時の data 形式:
+ * フォールバック時�E data 形弁E
  *   { templateId, templateType, properties: [{ key, xsiType, value, units }] }
  *
- * DB 実績あり時の data 形式:
- *   フラットな key-value（プロパティ定義が含まれないため、フォールバックの構造を優先する）
+ * DB 実績あり時�E data 形弁E
+ *   フラチE��な key-value�E��Eロパティ定義が含まれなぁE��め、フォールバックの構造を優先する！E
  */
 function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Template[] {
   return items.map((item) => {
     const category = mapTemplateTypeToCategory(item.templateType);
 
-    // data.properties が存在する場合（フォールバック形式）はそこから Property[] を構築
+    // data.properties が存在する場合（フォールバック形式）�Eそこから Property[] を構篁E
     const rawData = item.data as Record<string, unknown>;
     const rawProperties = rawData.properties as Array<{
       key: string;
@@ -237,11 +249,11 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
     }> | undefined;
 
     const properties: Property[] = (rawProperties ?? [])
-      // isCustomProperty: true なプロパティはテンプレート定義欄に表示しない
+      // isCustomProperty: true なプロパティはチE��プレート定義欁E��表示しなぁE
       .filter((p) => !(p as Record<string, unknown>).isCustomProperty)
       .map((p) => convertRawPropertyToProperty(p as Record<string, unknown>));
 
-    // テンプレートトップレベルの Content を ContentField[] に変換
+    // チE��プレートトチE�Eレベルの Content めEContentField[] に変換
     const rawContentsTop = rawData.contents as Array<Record<string, unknown>> | undefined;
     const contents: ContentField[] = Array.isArray(rawContentsTop)
       ? rawContentsTop.map((c) => ({
@@ -255,7 +267,7 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
         }))
       : [];
 
-    // テンプレートトップレベルの Insertion を InsertionField[] に変換（非カスタム）
+    // チE��プレートトチE�Eレベルの Insertion めEInsertionField[] に変換�E�非カスタム�E�E
     const rawInsertionsTop = rawData.insertions as Array<Record<string, unknown>> | undefined;
     const insertions: InsertionField[] = Array.isArray(rawInsertionsTop)
       ? rawInsertionsTop
@@ -286,9 +298,9 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
 }
 
 /**
- * MIMEタイプ文字列を accept 属性文字列に変換するヘルパー
- * 例: "image/tiff" → ".tif,.tiff"
- *     "txt/ascii"  → ".txt"
+ * MIMEタイプ文字�EめEaccept 属性斁E���Eに変換するヘルパ�E
+ * 侁E "image/tiff" ↁE".tif,.tiff"
+ *     "txt/ascii"  ↁE".txt"
  */
 function getAcceptString(format: string | undefined): string | undefined {
   if (!format) return undefined;
@@ -314,9 +326,9 @@ const { TextArea } = Input;
 const { Sider, Content } = Layout;
 
 /**
- * ContentField（テンプレート定義・非カスタム）用の行追加可能な入力コンポーネント
- * Form.Item の children として使用する。
- * フォーム値は string[]（各行がスペース区切りの列値）で管理する。
+ * ContentField�E�テンプレート定義・非カスタム�E�用の行追加可能な入力コンポ�EネンチE
+ * Form.Item の children として使用する、E
+ * フォーム値は string[]�E�各行がスペ�Eス区刁E��の列値�E�で管琁E��る、E
  */
 function ContentRowListInput({
   value,
@@ -333,7 +345,7 @@ function ContentRowListInput({
       {rows.map((rowVal, rowIdx) => (
         <div key={rowIdx} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
           <TextArea
-            placeholder={`行 ${rowIdx + 1}: 値をスペース区切りで入力（例: 1.0 2.5 3.0）`}
+            placeholder={`衁E${rowIdx + 1}: 値をスペ�Eス区刁E��で入力（侁E 1.0 2.5 3.0�E�`}
             value={rowVal}
             onChange={(e) => {
               const newRows = [...rows];
@@ -372,7 +384,7 @@ function ContentRowListInput({
   );
 }
 
-interface DataRecordDialogProps {
+interface ExperimentRecordDialogProps {
   open: boolean;
   transition: Transition | null;
   projectStatus: ProjectStatus | null;
@@ -382,15 +394,15 @@ interface DataRecordDialogProps {
   projectName?: string;
   methodId?: string;
   taskNo?: number;
-  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  /** みなし進捗使用フラグ�E�Erganization.use_deemed_progress�E�E false の場合�EチェチE��ボックスを非表示にしてスチE�Eタス更新を常時表示 */
   useDeemedProgress?: boolean;
 }
 
 /**
- * データ記録ダイアログコンポーネント
+ * チE�Eタ記録ダイアログコンポ�EネンチE
  * トランジションの実験結果を記録する
  */
-export default function DataRecordDialog({
+export default function ExperimentRecordDialog({
   open,
   transition,
   projectStatus,
@@ -401,7 +413,7 @@ export default function DataRecordDialog({
   methodId,
   taskNo,
   useDeemedProgress: useDeemedProgressProp = true,
-}: DataRecordDialogProps) {
+}: ExperimentRecordDialogProps) {
   const { token } = theme.useToken();
   const { t } = useLanguage();
   const [form] = Form.useForm();
@@ -409,42 +421,42 @@ export default function DataRecordDialog({
   const [dataGrids, setDataGrids] = useState<Record<string, number[][]>>({});
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  // テンプレート実績データのローディング状態
+  // チE��プレート実績チE�EタのローチE��ング状慁E
   const [templateDataLoading, setTemplateDataLoading] = useState(false);
   
-  // 作業指示モーダルの状態
+  // 作業持E��モーダルの状慁E
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
 
-  // APIから取得したテンプレート一覧（TemplateDataItem → Template に変換済み）
+  // APIから取得したテンプレート一覧�E�EemplateDataItem ↁETemplate に変換済み�E�E
   const [fetchedTemplates, setFetchedTemplates] = useState<Template[]>([]);
 
-  // APIから取得したテンプレート実績の生データ（placeId・data構造の保持に使用）
+  // APIから取得したテンプレート実績の生データ�E�ElaceId・data構造の保持に使用�E�E
   const [fetchedTemplateItems, setFetchedTemplateItems] = useState<TemplateDataItem[]>([]);
 
-  // テンプレート一覧用の状態
+  // チE��プレート一覧用の状慁E
   const [templateSearchText, setTemplateSearchText] = useState('');
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory | undefined>(undefined);
   const [templatesExpanded, setTemplatesExpanded] = useState(true);
   
-  // テンプレート選択状態（単一選択）
+  // チE��プレート選択状態（単一選択！E
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   
-  // プロパティ入力フォームの折りたたみ状態
+  // プロパティ入力フォームの折りたたみ状慁E
   const [propertyFormExpanded, setPropertyFormExpanded] = useState(true);
 
-  // ステータス更新セクションの折りたたみ状態
-  // プロジェクトの状態が編集可能でない場合は折りたたむ
+  // スチE�Eタス更新セクションの折りたたみ状慁E
+  // プロジェクト�E状態が編雁E��能でなぁE��合�E折りたたむ
   const [statusUpdateExpanded, setStatusUpdateExpanded] = useState(true);
   
-  // プロジェクトの状態が編集可能かどうか
+  // プロジェクト�E状態が編雁E��能かどぁE��
   const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
 
   /**
-   * 現在のトランジションステータス（数値）
-   * transition.status は型上 ProgressStatus（文字列型）だが、
-   * APIレスポンスでは実際に数値（0-6）が入っているため Number() で変換する。
-   * ExperimentRecordTab 等で数値→文字列変換（例: 5→'completed'）が行われる場合も
-   * 文字列ステータスマップで数値に逆変換して正しい終端ステータス判定を行う。
+   * 現在のトランジションスチE�Eタス�E�数値�E�E
+   * transition.status は型丁EProgressStatus�E�文字�E型）だが、E
+   * APIレスポンスでは実際に数値�E�E-6�E�が入ってぁE��ため Number() で変換する、E
+   * ExperimentRecordTab 等で数値→文字�E変換�E�侁E 5ↁEcompleted'�E�が行われる場合も
+   * 斁E���EスチE�Eタスマップで数値に送E��換して正しい終端スチE�Eタス判定を行う、E
    */
   const currentStatus = useMemo((): number => {
     if (!transition || transition.status === undefined || transition.status === null) {
@@ -453,15 +465,15 @@ export default function DataRecordDialog({
     const num = Number(transition.status);
     if (!isNaN(num)) return num;
 
-    // 文字列ステータス → 数値マッピング
-    // ExperimentRecordTab.tsx の変換ルールに対応:
-    //   0: INITIAL      → 'not_started'
-    //   1: PREPARING    → 'in_progress'
-    //   2: READY        → 'in_progress'
-    //   3: IN_PROGRESS  → 'in_progress'
-    //   4: PAUSED       → 'on_hold'
-    //   5: COMPLETED    → 'completed'
-    //   6: ERROR        → 'issue'
+    // 斁E���EスチE�Eタス ↁE数値マッピング
+    // ExperimentRecordTab.tsx の変換ルールに対忁E
+    //   0: INITIAL      ↁE'not_started'
+    //   1: PREPARING    ↁE'in_progress'
+    //   2: READY        ↁE'in_progress'
+    //   3: IN_PROGRESS  ↁE'in_progress'
+    //   4: PAUSED       ↁE'on_hold'
+    //   5: COMPLETED    ↁE'completed'
+    //   6: ERROR        ↁE'issue'
     const statusStringMap: Record<string, number> = {
       'not_started': 0,
       'in_progress': 3,
@@ -473,33 +485,45 @@ export default function DataRecordDialog({
   }, [transition]);
 
   /**
-   * 終端ステータス（完了・エラー）かどうか
-   * 終端ステータスの場合はステータス変更不可
+   * 終端スチE�Eタス�E�完亁E�Eエラー�E�かどぁE��
+   * 終端スチE�Eタスの場合�EスチE�Eタス変更不可
    */
   const isTerminalStatus = currentStatus === TransitionStatusCode.COMPLETED || currentStatus === TransitionStatusCode.ERROR;
 
-  // ステータスとコメント用の状態
-  // 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+  // スチE�Eタスとコメント用の状慁E
+  // 0: 初期状慁E 1: 準備中, 2: 準備完亁E 3: 実行中, 4: 一時停止, 5: 完亁E 6: エラー
   const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>(0);
   const [comment, setComment] = useState('');
   const [progress, setProgress] = useState<number>(0);
   
-  // みなし進捗更新用の状態
-  // useDeemedProgressProp が false の場合は初期値を false にして常にステータス更新を表示
+  // みなし進捗更新用の状慁E
+  // useDeemedProgressProp ぁEfalse の場合�E初期値めEfalse にして常にスチE�Eタス更新を表示
   const [useDeemedProgress, setUseDeemedProgress] = useState(useDeemedProgressProp);
 
   // ===== カスタムプロパティ用 state =====
-  /** ユーザーが任意追加したカスタムプロパティ一覧（templateId → CustomPropertyValue[]） */
-  /** 非カスタム insertion のファイル管理（templateId → (insertionIndex → File|null)） */
+  /** ユーザーが任意追加したカスタムプロパティ一覧�E�EemplateId ↁECustomPropertyValue[]�E�E*/
+  /** 非カスタム insertion のファイル管琁E��EemplateId ↁE(insertionIndex ↁEFile|null)�E�E*/
   const [insertionFiles, setInsertionFiles] = useState<Record<string, Record<number, File | null>>>({});
-  /** 非カスタム insertion の既存URI（templateId → (insertionIndex → uri)）- 復元時にセット */
+  /** 非カスタム insertion の既存URI�E�EemplateId ↁE(insertionIndex ↁEuri)�E�E 復允E��にセチE�� */
   const [insertionUris, setInsertionUris] = useState<Record<string, Record<number, string>>>({});
 
   const [customProperties, setCustomProperties] = useState<Record<string, CustomPropertyValue[]>>({});
 
   /**
-   * 全ステータス選択肢（t() を使って多言語化）
-   * コンポーネント内で定義することで useLanguage の t() を利用できる
+   * 定性評価 State: templateId ↁEpropertyKey ↁE選択値
+   * DataRecordDialog のカード形弁EUI で管琁E��めE
+   */
+  const [propertyQualitativeEvals, setPropertyQualitativeEvals] = useState<Record<string, Record<string, string>>>({});
+
+  /**
+   * 定量評価 State: templateId ↁEpropertyKey ↁEQuantitativeEval[]
+   * DataRecordDialog のカード形弁EUI で管琁E��めE
+   */
+  const [propertyQuantitativeEvals, setPropertyQuantitativeEvals] = useState<Record<string, Record<string, QuantitativeEval[]>>>({});
+
+  /**
+   * 全スチE�Eタス選択肢�E�E() を使って多言語化�E�E
+   * コンポ�Eネント�Eで定義することで useLanguage の t() を利用できる
    */
   const allStatusOptions = useMemo((): { value: TransitionStatus; label: string }[] => [
     { value: TransitionStatusCode.INITIAL     as TransitionStatus, label: t('progressStatus.notStarted') },
@@ -512,22 +536,22 @@ export default function DataRecordDialog({
   ], [t]);
 
   /**
-   * 現在のステータスから遷移可能なステータスの選択肢（useMemo でメモ化）
-   * ALLOWED_TRANSITIONS に基づいて選択肢をフィルタリングする
-   * 終端ステータス（5: 終状態、6: 異常終了）の場合は空配列
+   * 現在のスチE�Eタスから遷移可能なスチE�Eタスの選択肢�E�EseMemo でメモ化！E
+   * ALLOWED_TRANSITIONS に基づぁE��選択肢をフィルタリングする
+   * 終端スチE�Eタス�E�E: 終状態、E: 異常終亁E���E場合�E空配�E
    */
   const statusOptions = useMemo(() => {
     const allowedValues = ALLOWED_TRANSITIONS[currentStatus] ?? [];
     return allStatusOptions.filter((opt: { value: TransitionStatus; label: string }) => allowedValues.includes(opt.value as number));
   }, [currentStatus, allStatusOptions]);
 
-  // クライアント判定
+  // クライアント判宁E
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // テンプレート一覧のフィルタリング
-  // fetchedTemplates（APIから取得・変換済み）を優先し、なければ transition.templates を使用する
+  // チE��プレート一覧のフィルタリング
+  // fetchedTemplates�E�EPIから取得�E変換済み�E�を優先し、なければ transition.templates を使用する
   const filteredTemplates = useMemo(() => {
     const source: Template[] =
       fetchedTemplates.length > 0
@@ -536,14 +560,14 @@ export default function DataRecordDialog({
 
     let filtered = source;
 
-    // テンプレート名でのあいまい検索
+    // チE��プレート名でのあいまぁE��索
     if (templateSearchText) {
       filtered = filtered.filter((template) =>
         template.name.toLowerCase().includes(templateSearchText.toLowerCase())
       );
     }
 
-    // テンプレート種別での絞り込み
+    // チE��プレート種別での絞り込み
     if (selectedTemplateCategory) {
       filtered = filtered.filter((template) => template.category === selectedTemplateCategory);
     }
@@ -551,7 +575,7 @@ export default function DataRecordDialog({
     return filtered;
   }, [fetchedTemplates, transition?.templates, templateSearchText, selectedTemplateCategory]);
 
-  // 選択されたテンプレートのみを取得
+  // 選択されたチE��プレート�Eみを取征E
   const selectedTemplate = useMemo(() => {
     if (!selectedTemplateId) return null;
     return filteredTemplates.find(template => 
@@ -559,7 +583,7 @@ export default function DataRecordDialog({
     );
   }, [filteredTemplates, selectedTemplateId]);
 
-  // テンプレート種別のラベル変換
+  // チE��プレート種別のラベル変換
   const getTemplateCategoryLabel = (category: TemplateCategory): string => {
     switch (category) {
       case 'Materials':
@@ -574,8 +598,8 @@ export default function DataRecordDialog({
   };
 
   /**
-   * TemplateCategory（フロント）→ templateType（API）へのマッピング
-   * Materials → material, Conditions → condition, Results → result
+   * TemplateCategory�E�フロント）�E templateType�E�EPI�E�へのマッピング
+   * Materials ↁEmaterial, Conditions ↁEcondition, Results ↁEresult
    */
   const mapTemplateCategoryToApiType = (
     category: TemplateCategory
@@ -587,7 +611,7 @@ export default function DataRecordDialog({
     }
   };
 
-  // テンプレート種別のタグ色
+  // チE��プレート種別のタグ色
   const getTemplateCategoryColor = (category: TemplateCategory): string => {
     switch (category) {
       case 'Materials':
@@ -601,32 +625,34 @@ export default function DataRecordDialog({
     }
   };
 
-  // ダイアログを開いたときにフォームをリセット＆テンプレート実績データを取得
+  // ダイアログを開ぁE��ときにフォームをリセチE���E�E��ンプレート実績チE�Eタを取征E
   useEffect(() => {
     if (open && transition) {
-      // Form が DOM に接続される前に resetFields が呼ばれると警告が出るため try/catch で保護
-      try { form.resetFields(); } catch { /* form 未接続時は無視 */ }
+      // Form ぁEDOM に接続される前に resetFields が呼ばれると警告が出るためEtry/catch で保護
+      try { form.resetFields(); } catch { /* form 未接続時は無要E*/ }
       setFormData({});
       setDataGrids({});
-      // 初期値は現在のトランジションステータスから遷移可能な最初の選択肢を設定
-      // 終端ステータスの場合は選択肢がないため 0 のまま
+      // 初期値は現在のトランジションスチE�Eタスから遷移可能な最初�E選択肢を設宁E
+      // 終端スチE�Eタスの場合�E選択肢がなぁE��めE0 のまま
       const allowedValues = ALLOWED_TRANSITIONS[currentStatus] ?? [];
       setSelectedStatus((allowedValues[0] ?? currentStatus) as TransitionStatus);
       setComment('');
       setProgress(0);
       setSelectedTemplateId(null);
-      // prop の最新値を state に同期（useState の初期値はマウント時のみ評価されるため毎回同期が必要）
+      // prop の最新値めEstate に同期�E�EseState の初期値はマウント時のみ評価されるため毎回同期が忁E��E��E
       setUseDeemedProgress(useDeemedProgressProp);
-      setFetchedTemplates([]);     // ダイアログオープン時に前回取得分をリセット
-      setFetchedTemplateItems([]); // GETレスポンス生データもリセット
-      setCustomProperties({});     // カスタムプロパティをリセット
-      setInsertionFiles({});       // 非カスタム insertion ファイルをリセット
-      setInsertionUris({});        // 非カスタム insertion URI をリセット
+      setFetchedTemplates([]);     // ダイアログオープン時に前回取得�EをリセチE��
+      setFetchedTemplateItems([]); // GETレスポンス生データもリセチE��
+      setCustomProperties({});          // カスタムプロパティをリセチE��
+      setInsertionFiles({});            // 非カスタム insertion ファイルをリセチE��
+      setInsertionUris({});             // 非カスタム insertion URI をリセチE��
+      setPropertyQualitativeEvals({});  // 定性評価をリセチE��
+      setPropertyQuantitativeEvals({}); // 定量評価をリセチE��
 
-      // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
+      // プロジェクト�E状態が編雁E��能でなぁE��合�E「スチE�Eタス更新」を折りたたむ
       setStatusUpdateExpanded(isProjectEditable);
 
-      // 各テンプレートのDataGridを初期化（templateのcontentsを参照）
+      // 吁E��ンプレート�EDataGridを�E期化�E�Eemplateのcontentsを参照�E�E
       transition.templates?.forEach((template) => {
         template.contents?.forEach((content) => {
           if (content.type === 'contentDoubleListType') {
@@ -638,8 +664,8 @@ export default function DataRecordDialog({
         });
       });
 
-      // テンプレート実績データをAPIから取得してフォームの初期値を復元
-      // 必須パスパラメータが揃っている場合のみ実行
+      // チE��プレート実績チE�EタをAPIから取得してフォームの初期値を復允E
+      // 忁E��パスパラメータが揃ってぁE��場合�Eみ実衁E
       if (projectId && methodId && taskNo !== undefined && transition.transitionId) {
         (async () => {
           try {
@@ -652,14 +678,14 @@ export default function DataRecordDialog({
             );
 
             if (response.success && response.data.templates.length > 0) {
-              // ① GETレスポンスの生データをそのまま保持（保存時にdata構造・placeIdを参照するため）
+              // ① GETレスポンスの生データをそのまま保持�E�保存時にdata構造・placeIdを参照するため�E�E
               setFetchedTemplateItems(response.data.templates);
 
-              // ② TemplateDataItem[] → Template[] に変換してサイドバーに表示
+              // ② TemplateDataItem[] ↁETemplate[] に変換してサイドバーに表示
               const converted = convertTemplateDataItemsToTemplates(response.data.templates);
               setFetchedTemplates(converted);
 
-              // ② 取得した実績データをフォームフィールドに反映（既存値の復元）
+              // ② 取得した実績チE�Eタをフォームフィールドに反映�E�既存値の復允E��E
                   const initialValues: Record<string, unknown> = {};
                   for (const item of response.data.templates) {
                     const rawData = item.data as Record<string, unknown>;
@@ -671,15 +697,15 @@ export default function DataRecordDialog({
                     }> | undefined;
 
                     if (Array.isArray(rawProperties)) {
-                      // properties配列形式:
-                      // フォールバック形式・保存済み形式（DB保存時に properties 構造のまま保存された場合）
-                      // どちらでも統一処理する。value が non-null の場合にフォームへ反映する。
+                      // properties配�E形弁E
+                      // フォールバック形式�E保存済み形式！EB保存時に properties 構造のまま保存された場合！E
+                      // どちらでも統一処琁E��る。value ぁEnon-null の場合にフォームへ反映する、E
                       for (const p of rawProperties) {
                         const pKey = String(p.key ?? '');
                         const pXsiType = String((p as Record<string, unknown>).xsiType ?? '');
 
                         if (pXsiType === 'propertyListType') {
-                          // ── ネスト子プロパティの value を復元 ──
+                          // ── ネスト子�Eロパティの value を復允E──
                           const childProps = (p as Record<string, unknown>).properties as Array<Record<string, unknown>> | undefined;
                           if (Array.isArray(childProps)) {
                             for (const nestedP of childProps) {
@@ -697,7 +723,7 @@ export default function DataRecordDialog({
                               }
                             }
                           }
-                          // ── ネスト子 Content の value を復元 ──
+                          // ── ネスト孁EContent の value を復允E──
                           const childContents = (p as Record<string, unknown>).contents as Array<Record<string, unknown>> | undefined;
                           if (Array.isArray(childContents)) {
                             for (const nestedC of childContents) {
@@ -706,7 +732,7 @@ export default function DataRecordDialog({
                               const nestedCVal = nestedC.value;
                               if (nestedCVal !== null && nestedCVal !== undefined) {
                                 const nestedCFormKey = `${item.templateId}_${nestedCKey}`;
-                                // ContentRowListInput は string[] を期待する
+                                // ContentRowListInput は string[] を期征E��めE
                                 if (Array.isArray(nestedCVal)) {
                                   initialValues[nestedCFormKey] = (nestedCVal as unknown[]).map(String);
                                 } else {
@@ -717,7 +743,7 @@ export default function DataRecordDialog({
                           }
                         } else if (p.value !== null && p.value !== undefined) {
                           const formKey = `${item.templateId}_${pKey}`;
-                          // dateType / dateTimeType は dayjs に変換（DatePicker が dayjs オブジェクトを期待するため）
+                          // dateType / dateTimeType は dayjs に変換�E�EatePicker ぁEdayjs オブジェクトを期征E��るためE��E
                           if (pXsiType === 'dateType' || pXsiType === 'dateTimeType') {
                             initialValues[formKey] = dayjs(String(p.value));
                           } else {
@@ -726,7 +752,7 @@ export default function DataRecordDialog({
                         }
                       }
 
-                      // ── トップレベル非カスタム Content の value を復元 ──
+                      // ── トップレベル非カスタム Content の value を復允E──
                       const rawContentsTop = rawData.contents as Array<Record<string, unknown>> | undefined;
                       if (Array.isArray(rawContentsTop)) {
                         for (const c of rawContentsTop) {
@@ -735,7 +761,7 @@ export default function DataRecordDialog({
                           const cVal = c.value;
                           if (cVal !== null && cVal !== undefined) {
                             const cFormKey = `${item.templateId}_${cKey}`;
-                            // ContentRowListInput は string[] を期待する
+                            // ContentRowListInput は string[] を期征E��めE
                             if (Array.isArray(cVal)) {
                               initialValues[cFormKey] = (cVal as unknown[]).map(String);
                             } else {
@@ -745,8 +771,8 @@ export default function DataRecordDialog({
                         }
                       }
                     } else if (item.recordedBy !== null) {
-                      // 純粋なフラットkey-value形式（将来的な保存形式変更に備えて残す）:
-                      // data が { key: value, ... } のフラット形式の場合にフォームへ反映する。
+                      // 純粋なフラチE��key-value形式（封E��皁E��保存形式変更に備えて残す�E�E
+                      // data ぁE{ key: value, ... } のフラチE��形式�E場合にフォームへ反映する、E
                       for (const [fieldKey, fieldValue] of Object.entries(rawData)) {
                         const formKey = `${item.templateId}_${fieldKey}`;
                         initialValues[formKey] = fieldValue;
@@ -757,20 +783,20 @@ export default function DataRecordDialog({
                 form.setFieldsValue(initialValues);
               }
 
-              // ③ 最初のテンプレートをサイドバーで選択状態にする
+              // ③ 最初�EチE��プレートをサイドバーで選択状態にする
               const firstItem = response.data.templates[0];
               if (firstItem) {
                 setSelectedTemplateId(firstItem.templateId);
               }
 
-              // ④ カスタムプロパティの復元（templateId ごとに分類）
-              // - rawData.properties の isCustomProperty: true なエントリ（property / insertion コンテナ）
-              // - rawData.contents の isCustomProperty: true なエントリ（content コンテナ）
+              // ④ カスタムプロパティの復允E��EemplateId ごとに刁E��！E
+              // - rawData.properties の isCustomProperty: true なエントリ�E�Eroperty / insertion コンチE���E�E
+              // - rawData.contents の isCustomProperty: true なエントリ�E�Eontent コンチE���E�E
               const restoredCustomPropsMap: Record<string, CustomPropertyValue[]> = {};
               for (const item of response.data.templates) {
                 const rawData = item.data as Record<string, unknown>;
 
-                // ── properties 配列から property コンテナを復元 ──
+                // ── properties 配�Eから property コンチE��を復允E──
                 const rawProperties = rawData.properties as Array<Record<string, unknown>> | undefined;
                 if (Array.isArray(rawProperties)) {
                   for (const p of rawProperties) {
@@ -785,14 +811,14 @@ export default function DataRecordDialog({
                       'floatType', 'doubleType', 'decimalType',
                       'booleanType',
                       'dateType', 'dateTimeType',
-                      // 文字列型
+                      // 斁E���E垁E
                       'stringType', 'tokenType', 'stringEnumType',
-                      // 整数型
+                      // 整数垁E
                       'intType', 'longType', 'shortType', 'byteType',
                       'unsignedIntType', 'unsignedLongType', 'unsignedShortType', 'unsignedByteType',
-                      // 浮動小数点型
+                      // 浮動小数点垁E
                       'floatType', 'doubleType', 'decimalType',
-                      // 真偽値型
+                      // 真偽値垁E
                       'booleanType',
                       // 日時型
                       'dateType', 'dateTimeType',
@@ -825,15 +851,15 @@ export default function DataRecordDialog({
                   }
                 }
 
-                // ── insertions 配列から insertion コンテナを復元 ──
-                // MAIML Insertion 型: { uri, hash?: { value? }, format? } ※ key 属性なし
+                // ── insertions 配�Eから insertion コンチE��を復允E──
+                // MAIML Insertion 垁E { uri, hash?: { value? }, format? } ※ key 属性なぁE
                 const rawInsertions = rawData.insertions as Array<Record<string, unknown>> | undefined;
                 if (Array.isArray(rawInsertions)) {
                   for (const ins of rawInsertions) {
                     if (ins.isCustomProperty !== true) continue;
 
                     const uri = String(ins.uri ?? '');
-                    // hash は { value? } オブジェクトまたは文字列（後方互換）
+                    // hash は { value? } オブジェクトまた�E斁E���E�E�後方互換�E�E
                     const hashRaw = ins.hash;
                     const hashStr = hashRaw
                       ? typeof hashRaw === 'object'
@@ -844,15 +870,15 @@ export default function DataRecordDialog({
                     if (!restoredCustomPropsMap[item.templateId]) {
                       restoredCustomPropsMap[item.templateId] = [];
                     }
-                    // URI からファイル名部分のみ抽出して value に表示用として格納
+                    // URI からファイル名部刁E�Eみ抽出して value に表示用として格紁E
                     const displayName = uri.split('/').pop() || uri;
                     restoredCustomPropsMap[item.templateId].push({
                       id: `restored_ins_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-                      key: '', // insertion に key 属性はない
+                      key: '', // insertion に key 属性はなぁE
                       containerType: 'insertion',
                       customType: 'insertion',
-                      value: displayName, // ファイル名のみ表示
-                      uri,               // 保存時に参照する URI フィールドも設定する
+                      value: displayName, // ファイル名�Eみ表示
+                      uri,               // 保存時に参�Eする URI フィールドも設定すめE
                       hash: hashStr,
                       format: String(ins.format ?? 'application/octet-stream'),
                       units: '',
@@ -861,7 +887,7 @@ export default function DataRecordDialog({
                   }
                 }
 
-                // ── contents 配列から content コンテナを復元 ──
+                // ── contents 配�Eから content コンチE��を復允E──
                 const rawContents = rawData.contents as Array<Record<string, unknown>> | undefined;
                 if (Array.isArray(rawContents)) {
                   for (const c of rawContents) {
@@ -869,7 +895,7 @@ export default function DataRecordDialog({
 
                     const cpKey = String(c.key ?? '');
                     const xsiType = String(c.xsiType ?? 'contentStringListType');
-                    // ContentType の全種別（CustomPropertyType の content 系として扱う）
+                    // ContentType の全種別�E�EustomPropertyType の content 系として扱ぁE��E
                     const contentTypeValues: string[] = [
                       'contentStringListType',
                       'contentIntListType',
@@ -887,14 +913,14 @@ export default function DataRecordDialog({
                       ? (xsiType as CustomPropertyType)
                       : 'contentStringListType';
 
-                    // value を string[] に変換（各行が1行のスペース区切り値）
-                    // DB保存形式: 行区切りは \n、列区切りはスペース
+                    // value めEstring[] に変換�E�各行が1行�Eスペ�Eス区刁E��値�E�E
+                    // DB保存形弁E 行区刁E��は \n、�E区刁E��はスペ�Eス
                     let valueArr: string[] | null = null;
                     if (Array.isArray(c.value)) {
-                      // 配列形式の場合はそのまま文字列化（各要素1行）
+                      // 配�E形式�E場合�Eそ�Eまま斁E���E化（各要素1行！E
                       valueArr = (c.value as unknown[]).map(String);
                     } else if (typeof c.value === 'string' && c.value !== '') {
-                      // 改行区切り文字列 → 行配列
+                      // 改行区刁E��斁E���E ↁE行�E刁E
                       valueArr = c.value.split('\n');
                     } else if (c.value !== null && c.value !== undefined) {
                       valueArr = [String(c.value)];
@@ -919,9 +945,9 @@ export default function DataRecordDialog({
                 setCustomProperties(restoredCustomPropsMap);
               }
 
-              // ⑤ 非カスタム insertion の既存URI を insertionUris ステートに復元
-              // convertTemplateDataItemsToTemplates で InsertionField[] を構築済みだが、
-              // ファイル選択ボタン表示・クリアボタン表示のために uri を ステートに持つ必要がある
+              // ⑤ 非カスタム insertion の既存URI めEinsertionUris スチE�Eトに復允E
+              // convertTemplateDataItemsToTemplates で InsertionField[] を構築済みだが、E
+              // ファイル選択�Eタン表示・クリアボタン表示のために uri めEスチE�Eトに持つ忁E��がある
               const restoredInsertionUrisMap: Record<string, Record<number, string>> = {};
               for (const tpl of converted) {
                 if (!tpl.insertions || tpl.insertions.length === 0) continue;
@@ -937,8 +963,8 @@ export default function DataRecordDialog({
               }
             }
           } catch (error) {
-            // 実績データ取得失敗は非致命的（初回記録時は404になる）
-            // エラーメッセージは表示しない（フォームは空の状態で開く）
+            // 実績チE�Eタ取得失敗�E非�E命皁E���E回記録時�E404になる！E
+            // エラーメチE��ージは表示しなぁE��フォームは空の状態で開く�E�E
             console.warn('Failed to fetch template data (expected on first record):', error);
           } finally {
             setTemplateDataLoading(false);
@@ -948,14 +974,14 @@ export default function DataRecordDialog({
     }
   }, [open, transition, form, isProjectEditable, projectId, methodId, taskNo, useDeemedProgressProp]);
 
-  // テンプレート保存ハンドラ
+  // チE��プレート保存ハンドラ
   const handleSaveTemplate = async () => {
     if (!selectedTemplate) {
       message.error(t('format.dataRecordDialog.noTemplateSelected'));
       return;
     }
 
-    // APIに必要なパスパラメータのガードチェック
+    // APIに忁E��なパスパラメータのガードチェチE��
     if (!projectId || !methodId || taskNo === undefined) {
       message.error(t('format.dataRecordDialog.missingProjectInfoForSave'));
       console.error('handleSaveTemplate: projectId / methodId / taskNo not set', {
@@ -966,8 +992,8 @@ export default function DataRecordDialog({
       return;
     }
 
-    // ── Key重複チェック ───────────────────────────────────────────────────
-    // 選択中テンプレートのカスタムプロパティに重複Keyがある場合は保存を中断する
+    // ── Key重褁E��ェチE�� ───────────────────────────────────────────────────
+    // 選択中チE��プレート�Eカスタムプロパティに重複Keyがある場合�E保存を中断する
     if (duplicateCustomKeys.size > 0) {
       const duplicatedList = Array.from(duplicateCustomKeys).join(', ');
       message.error(t('format.dataRecordDialog.duplicateCustomPropertyKeys', { keys: duplicatedList }));
@@ -980,16 +1006,16 @@ export default function DataRecordDialog({
 
       const template = selectedTemplate;
 
-      // ── GETで取得した生データを参照 ──────────────────────────────────────
-      // fetchedTemplateItems から templateId に一致するオリジナルアイテムを検索する。
-      // これにより placeId の正確な値と、バックエンドが期待する data 構造を取得する。
+      // ── GETで取得した生チE�Eタを参照 ──────────────────────────────────────
+      // fetchedTemplateItems から templateId に一致するオリジナルアイチE��を検索する、E
+      // これにより placeId の正確な値と、バチE��エンドが期征E��めEdata 構造を取得する、E
       const originalItem = fetchedTemplateItems.find(
         (item) => item.templateId === template.templateId
       );
 
-      // ── data 組み立て ────────────────────────────────────────────────────
-      // オリジナルの data をディープコピーしてベースとし、
-      // フォームで変更された値のみ上書きする（構造を破壊しない）。
+      // ── data 絁E��立て ────────────────────────────────────────────────────
+      // オリジナルの data をディープコピ�Eしてベ�Eスとし、E
+      // フォームで変更された値のみ上書きする（構造を破壊しなぁE��、E
       const baseData: Record<string, unknown> = originalItem
         ? JSON.parse(JSON.stringify(originalItem.data))
         : {};
@@ -998,12 +1024,12 @@ export default function DataRecordDialog({
         baseData.properties &&
         Array.isArray(baseData.properties)
       ) {
-        // フォールバック形式: { templateId, templateType, properties: [{ key, xsiType, value, units }] }
-        // properties[i].value をフォーム値で上書きする
+        // フォールバック形弁E { templateId, templateType, properties: [{ key, xsiType, value, units }] }
+        // properties[i].value をフォーム値で上書きすめE
         (
           baseData.properties as Array<Record<string, unknown>>
         ).forEach((p) => {
-          if (p.isCustomProperty === true) return; // カスタムプロパティはスキップ（削除済みのエントリに value: null を書かないため）
+          if (p.isCustomProperty === true) return; // カスタムプロパティはスキチE�E�E�削除済みのエントリに value: null を書かなぁE��めE��E
           const formKey = `${template.templateId}_${String(p.key ?? '')}`;
           const xsiType = String(p.xsiType ?? '');
           if (xsiType === 'dateType') {
@@ -1015,7 +1041,7 @@ export default function DataRecordDialog({
           } else if (xsiType === 'contentDoubleListType') {
             p.value = dataGrids[formKey] ?? null;
           } else if (xsiType === 'propertyListType') {
-            // ── ネスト子プロパティ（properties 配列）の value を更新 ──
+            // ── ネスト子�Eロパティ�E�Eroperties 配�E�E��E value を更新 ──
             if (Array.isArray(p.properties)) {
               (p.properties as Array<Record<string, unknown>>).forEach((nestedP) => {
                 const nestedFormKey = `${template.templateId}_${String(nestedP.key ?? '')}`;
@@ -1031,7 +1057,7 @@ export default function DataRecordDialog({
                 }
               });
             }
-            // ── ネスト子 Content（contents 配列）の value を更新 ──
+            // ── ネスト孁EContent�E�Eontents 配�E�E��E value を更新 ──
             if (Array.isArray(p.contents)) {
               (p.contents as Array<Record<string, unknown>>).forEach((nestedC) => {
                 const nestedFormKey = `${template.templateId}_${String(nestedC.key ?? '')}`;
@@ -1043,8 +1069,8 @@ export default function DataRecordDialog({
           }
         });
       } else {
-        // DB実績形式: フラットなkey-value
-        // baseData[prop.key] をフォーム値で上書きする
+        // DB実績形弁E フラチE��なkey-value
+        // baseData[prop.key] をフォーム値で上書きすめE
         template.properties.forEach((prop) => {
           const formKey = `${template.templateId}_${prop.key}`;
           if (prop.type === 'propertyListType') {
@@ -1062,7 +1088,7 @@ export default function DataRecordDialog({
         });
       }
 
-      // ── トップレベル Contents（baseData.contents 配列）の value を更新 ──
+      // ── トップレベル Contents�E�EaseData.contents 配�E�E��E value を更新 ──
       if (Array.isArray(baseData.contents)) {
         (baseData.contents as Array<Record<string, unknown>>).forEach((c) => {
           if (c.isCustomProperty === true) return;
@@ -1077,10 +1103,10 @@ export default function DataRecordDialog({
         });
       }
 
-      // ── 非カスタム insertion（テンプレート定義）のファイルをS3にアップロード ──
-      // insertionFiles[template.templateId][insIdx] に File が存在する場合のみアップロードする
+      // ── 非カスタム insertion�E�テンプレート定義�E��EファイルをS3にアチE�EローチE──
+      // insertionFiles[template.templateId][insIdx] に File が存在する場合�EみアチE�EロードすめE
       const tplInsertionFiles = insertionFiles[template.templateId] ?? {};
-      const nonCustomInsertionUriMap: Record<number, string> = {}; // insIdx → s3Key
+      const nonCustomInsertionUriMap: Record<number, string> = {}; // insIdx ↁEs3Key
       for (const [insIdxStr, file] of Object.entries(tplInsertionFiles)) {
         const insIdx = Number(insIdxStr);
         if (!file) continue;
@@ -1095,24 +1121,24 @@ export default function DataRecordDialog({
             nonCustomInsertionUriMap[insIdx] = uploadedFile.s3Key;
           }
         } catch (uploadErr) {
-          console.error(`非カスタム insertion ファイルアップロード失敗 (insIdx=${insIdx}):`, uploadErr);
+          console.error(`非カスタム insertion ファイルアチE�Eロード失敁E(insIdx=${insIdx}):`, uploadErr);
           message.error(t('dataRecordDialog.attachmentUploadError', { number: String(insIdx + 1) }));
           return;
         }
       }
 
-      // ── 非カスタム insertion の URI を baseData.insertions に反映 ──
-      // baseData.insertions が配列として存在する場合（フォールバック形式）のみ処理する
+      // ── 非カスタム insertion の URI めEbaseData.insertions に反映 ──
+      // baseData.insertions が�E列として存在する場合（フォールバック形式）�Eみ処琁E��めE
       if (Array.isArray(baseData.insertions)) {
         const nonCustomInsertions = (baseData.insertions as Array<Record<string, unknown>>).filter(
           (ins) => !ins.isCustomProperty
         );
         nonCustomInsertions.forEach((ins, insIdx) => {
-          // 新規アップロード済みの s3Key があれば上書き
+          // 新規アチE�Eロード済みの s3Key があれ�E上書ぁE
           if (nonCustomInsertionUriMap[insIdx]) {
             ins.uri = nonCustomInsertionUriMap[insIdx];
           } else {
-            // クリア操作 (insertionUris[tplId][insIdx] === '') の場合は uri を空文字に
+            // クリア操佁E(insertionUris[tplId][insIdx] === '') の場合�E uri を空斁E��に
             const currentUri = insertionUris[template.templateId]?.[insIdx];
             if (currentUri !== undefined) {
               ins.uri = currentUri;
@@ -1121,11 +1147,11 @@ export default function DataRecordDialog({
         });
       }
 
-      // ── insertion カスタムプロパティのファイルをS3にアップロード ────────
-      // cp.file が存在する行（新規選択ファイル）のみアップロードを実行し、
-      // 返却された s3Key を uri として CustomPropertyValue に反映する。
+      // ── insertion カスタムプロパティのファイルをS3にアチE�EローチE────────
+      // cp.file が存在する行（新規選択ファイル�E��EみアチE�Eロードを実行し、E
+      // 返却されぁEs3Key めEuri として CustomPropertyValue に反映する、E
       const templateCustomProps = customProperties[template.templateId] ?? [];
-      const uploadedUriMap: Record<string, string> = {}; // id → s3Key
+      const uploadedUriMap: Record<string, string> = {}; // id ↁEs3Key
       for (const cp of templateCustomProps) {
         if (cp.containerType === 'insertion' && cp.file) {
             try {
@@ -1137,22 +1163,22 @@ export default function DataRecordDialog({
               const uploadedFile = result.files[0];
               if (uploadedFile?.s3Key) {
                 uploadedUriMap[cp.id] = uploadedFile.s3Key;
-                // アップロード後、customProperties の uri を s3Key で更新する
+                // アチE�Eロード後、customProperties の uri めEs3Key で更新する
                 handleUpdateCustomProperty(template.templateId, cp.id, { uri: uploadedFile.s3Key, file: undefined });
               }
             } catch (uploadErr) {
-            console.error(`insertion ファイルアップロード失敗 (key=${cp.key}):`, uploadErr);
+            console.error(`insertion ファイルアチE�Eロード失敁E(key=${cp.key}):`, uploadErr);
             message.error(t('dataRecordDialog.fileUploadError', { key: String(cp.key || cp.value) }));
-            return; // アップロード失敗時は保存中断
+            return; // アチE�Eロード失敗時は保存中断
           }
         }
       }
 
-      // ── カスタムプロパティを baseData に追記 ────────────────────────────
-      // 選択中テンプレートに紐づくカスタムプロパティのみ対象とする
-      // ※ baseData.properties の有無に関わらず（Property なしテンプレートも含む）処理を実行する
+      // ── カスタムプロパティめEbaseData に追訁E────────────────────────────
+      // 選択中チE��プレートに紐づくカスタムプロパティのみ対象とする
+      // ※ baseData.properties の有無に関わらず！Eroperty なしテンプレートも含む�E��E琁E��実行すめE
       if (templateCustomProps.length > 0) {
-        // カスタムプロパティあり: クリーンアップ＋再追記
+        // カスタムプロパティあり: クリーンアチE�E�E��E追訁E
         if (Array.isArray(baseData.properties)) {
           baseData.properties = (baseData.properties as Array<Record<string, unknown>>).filter(
             (p) => !p.isCustomProperty
@@ -1179,11 +1205,11 @@ export default function DataRecordDialog({
         const existingContents = baseData.contents as Array<Record<string, unknown>>;
         const existingInsertions = baseData.insertions as Array<Record<string, unknown>>;
         for (const cp of templateCustomProps) {
-          // insertion は key 属性を持たないため、key チェックは property/content のみに適用する
+          // insertion は key 属性を持たなぁE��め、key チェチE��は property/content のみに適用する
           if (!cp.key && cp.containerType !== 'insertion') continue;
           if (cp.containerType === 'content') {
-              // content コンテナは baseData.contents に追記（リセット済みなので push のみ）
-              // value は string[]（各行がスペース区切り値）をそのまま渡す
+              // content コンチE��は baseData.contents に追記（リセチE��済みなので push のみ�E�E
+              // value は string[]�E�各行がスペ�Eス区刁E��値�E�をそ�Eまま渡ぁE
               const rowsValue: string[] = Array.isArray(cp.value)
                 ? (cp.value as string[])
                 : cp.value ? [cp.value as string] : [];
@@ -1196,12 +1222,12 @@ export default function DataRecordDialog({
               };
               existingContents.push(contentEntry);
             } else if (cp.containerType === 'insertion') {
-              // insertion コンテナは baseData.insertions に追記
-              // MAIML Insertion 型: { uri, hash?: { value? }, format?, isCustomProperty }
-              // ※ insertion タグに key 属性はないため key は保持しない
-              // 優先順位: 今回アップロード済み s3Key → cp.uri（既存URI） → cp.value（フォールバック）
+              // insertion コンチE��は baseData.insertions に追訁E
+              // MAIML Insertion 垁E { uri, hash?: { value? }, format?, isCustomProperty }
+              // ※ insertion タグに key 属性はなぁE��めEkey は保持しなぁE
+              // 優先頁E��E 今回アチE�Eロード済み s3Key ↁEcp.uri�E�既存URI�E�EↁEcp.value�E�フォールバック�E�E
               const uri = uploadedUriMap[cp.id] ?? cp.uri ?? cp.value ?? '';
-              if (!uri) continue; // uri が空の場合はスキップ
+              if (!uri) continue; // uri が空の場合�EスキチE�E
               const insertionEntry: Record<string, unknown> = {
                 uri,
                 hash: cp.hash ? { value: cp.hash } : undefined,
@@ -1210,7 +1236,7 @@ export default function DataRecordDialog({
               };
               existingInsertions.push(insertionEntry);
             } else {
-              // property コンテナは baseData.properties に追記（リセット済みなので push のみ）
+              // property コンチE��は baseData.properties に追記（リセチE��済みなので push のみ�E�E
               const cpEntry: Record<string, unknown> = {
                 key: cp.key,
                 xsiType: cp.customType,
@@ -1231,7 +1257,7 @@ export default function DataRecordDialog({
             }
           }
       } else {
-        // カスタムプロパティなし: クリーンアップのみ（削除を確定させる）
+        // カスタムプロパティなぁE クリーンアチE�Eのみ�E�削除を確定させる�E�E
         if (Array.isArray(baseData.properties)) {
           baseData.properties = (baseData.properties as Array<Record<string, unknown>>).filter(
             (p) => !p.isCustomProperty
@@ -1249,9 +1275,21 @@ export default function DataRecordDialog({
         }
       }
 
-      // ── APIリクエスト用レコードを構築 ─────────────────────────────────────
-      // placeId は GETレスポンスの TemplateDataItem.placeId を使用する。
-      // （DB一意キー: organization_id + project_id + method_id + task_no + place_id）
+      // ── 定性評価・定量評価めEproperties[i] に追訁E─────────────────────────
+      if (Array.isArray(baseData.properties)) {
+        (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+          if (p.isCustomProperty === true) return;
+          const pKey = String(p.key ?? '');
+          const qualVal = propertyQualitativeEvals[template.templateId]?.[pKey];
+          if (qualVal !== undefined) p.qualitativeEval = qualVal || null;
+          const quantVals = propertyQuantitativeEvals[template.templateId]?.[pKey];
+          if (quantVals !== undefined) p.quantitativeEvals = quantVals;
+        });
+      }
+
+      // ── APIリクエスト用レコードを構篁E─────────────────────────────────────
+      // placeId は GETレスポンスの TemplateDataItem.placeId を使用する、E
+      // �E�EB一意キー: organization_id + project_id + method_id + task_no + place_id�E�E
       const record: ExperimentDataRecord = {
         placeId: originalItem?.placeId ?? template.templateId,
         templateType: mapTemplateCategoryToApiType(template.category),
@@ -1261,17 +1299,17 @@ export default function DataRecordDialog({
         comment: comment || undefined,
       };
 
-      // バックエンドAPIへ保存
+      // バックエンドAPIへ保孁E
       await saveBatchExperimentData(projectId!, methodId, taskNo, { records: [record] });
 
-      // onSave には保存した data を ExperimentDataValue 形式で渡す
+      // onSave には保存しぁEdata めEExperimentDataValue 形式で渡ぁE
       onSave([baseData as ExperimentDataValue]);
       message.success(
         t('format.dataRecordDialog.saveSuccess', { name: template.name, status: statusOptions.find((opt) => opt.value === selectedStatus)?.label ?? '' })
       );
     } catch (error: unknown) {
       console.error('handleSaveTemplate error:', error);
-      // axios エラーの場合はサーバーメッセージを優先表示
+      // axios エラーの場合�Eサーバ�EメチE��ージを優先表示
       const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
       const serverMessage = axiosError?.response?.data?.error?.message;
       if (serverMessage) {
@@ -1343,7 +1381,7 @@ export default function DataRecordDialog({
     });
   };
 
-  // プロパティタイプ別の入力コンポーネント生成
+  // プロパティタイプ別の入力コンポ�Eネント生戁E
   const renderPropertyInput = (property: Property, templateId: string) => {
     const key = `${templateId}_${property.key}`;
     const label = (
@@ -1362,14 +1400,14 @@ export default function DataRecordDialog({
       </>
     );
 
-    // description があれば extra として表示するヘルパー
+    // description があれ�E extra として表示するヘルパ�E
     const descriptionExtra = property.description ? (
       <Text type="secondary" style={{ fontSize: 12 }}>
         {property.description}
       </Text>
     ) : undefined;
 
-    // formatString から InputNumber の precision を算出（例: "%.3f" → 3）
+    // formatString から InputNumber の precision を算�E�E�侁E "%.3f" ↁE3�E�E
     const precisionFromFormat = (() => {
       if (!property.formatString) return undefined;
       const match = property.formatString.match(/\.(\d+)f/);
@@ -1377,8 +1415,8 @@ export default function DataRecordDialog({
     })();
 
 
-    // ✅ Phase 3: xsi:type ベースのバリデーションルール
-    // InputNumber / DatePicker 等の UI 制約と併用することで二重チェックとなる
+    // ✁EPhase 3: xsi:type ベ�EスのバリチE�Eションルール
+    // InputNumber / DatePicker 等�E UI 制紁E��併用することで二重チェチE��となめE
     const buildTypeRule = (xsiType: string) => ({
       validator: (_: unknown, value: unknown) => {
         if (value === undefined || value === null || value === '') return Promise.resolve();
@@ -1393,11 +1431,11 @@ export default function DataRecordDialog({
     const rules: import('antd').FormRule[] = [
       {
         required: property.required,
-        message: `${property.label}は必須項目です`,
+        message: `${property.label}は忁E��頁E��です`,
       },
     ];
 
-    // 整数型・浮動小数点型は UI 制約（InputNumber）と併せてバリデーションルールも追加
+    // 整数型�E浮動小数点型�E UI 制紁E��EnputNumber�E�と併せてバリチE�Eションルールも追加
     const INT_TYPES: PropertyType[] = [
       'intType', 'longType', 'shortType', 'byteType',
       'unsignedIntType', 'unsignedLongType', 'unsignedShortType', 'unsignedByteType',
@@ -1427,7 +1465,7 @@ export default function DataRecordDialog({
           >
             <TextArea
               rows={3}
-              placeholder={`${property.label}を入力`}
+              placeholder={`${property.label}を�E力`}
               disabled={!isProjectEditable}
             />
           </Form.Item>
@@ -1451,7 +1489,7 @@ export default function DataRecordDialog({
           >
             <InputNumber
               style={{ width: '100%' }}
-              placeholder={`${property.label}を入力`}
+              placeholder={`${property.label}を�E力`}
               min={property.min}
               max={property.max}
               step={1}
@@ -1474,7 +1512,7 @@ export default function DataRecordDialog({
           >
             <InputNumber
               style={{ width: '100%' }}
-              placeholder={`${property.label}を入力`}
+              placeholder={`${property.label}を�E力`}
               min={property.min}
               max={property.max}
               step={precisionFromFormat !== undefined ? Math.pow(10, -precisionFromFormat) : 0.0001}
@@ -1505,7 +1543,7 @@ export default function DataRecordDialog({
           >
             <TextArea
               rows={3}
-              placeholder={`値をスペース区切りで入力（例: 1.0 2.5 3.0）`}
+              placeholder={`値をスペ�Eス区刁E��で入力（侁E 1.0 2.5 3.0�E�`}
               disabled={!isProjectEditable}
             />
           </Form.Item>
@@ -1575,7 +1613,7 @@ export default function DataRecordDialog({
             extra={descriptionExtra}
             rules={rules}
           >
-            <Input placeholder={`${property.label}を入力`} disabled={!isProjectEditable} />
+            <Input placeholder={`${property.label}を�E力`} disabled={!isProjectEditable} />
           </Form.Item>
         );
     }
@@ -1589,7 +1627,7 @@ export default function DataRecordDialog({
     const columns = grid[0]?.map((_, colIndex) => ({
       title: (
         <Space>
-          列 {colIndex + 1}
+          刁E{colIndex + 1}
           <Button
             type="text"
             danger
@@ -1686,9 +1724,9 @@ export default function DataRecordDialog({
   };
 
   /**
-   * Content フィールド（ContentField）を 1 件描画する
+   * Content フィールド！EontentField�E�を 1 件描画する
    * - contentDoubleListType: DataGrid 表示
-   * - それ以外: スペース区切りテキストエリア
+   * - それ以夁E スペ�Eス区刁E��チE��ストエリア
    */
   const renderContentField = (content: ContentField, templateId: string) => {
     const key = `${templateId}_${content.key}`;
@@ -1713,7 +1751,7 @@ export default function DataRecordDialog({
       </Text>
     ) : undefined;
 
-    // 全 Content 型共通: 行追加可能なリスト（各行がスペース区切りの列値）
+    // 全 Content 型�E送E 行追加可能なリスト（各行がスペ�Eス区刁E��の列値�E�E
     return (
       <Form.Item
         key={key}
@@ -1726,8 +1764,8 @@ export default function DataRecordDialog({
     );
   };
 
-  // ネストされたプロパティ（propertyListType）を描画する
-  // 子 Property（nestedProperties）と子 Content（contents）の両方を表示する
+  // ネストされたプロパティ�E�EropertyListType�E�を描画する
+  // 孁EProperty�E�EestedProperties�E�と孁EContent�E�Eontents�E��E両方を表示する
   const renderNestedProperties = (property: Property, templateId: string) => {
     const hasChildren =
       (property.nestedProperties?.length ?? 0) > 0 ||
@@ -1757,7 +1795,7 @@ export default function DataRecordDialog({
           </Text>
         )}
 
-        {/* 子 Property */}
+        {/* 孁EProperty */}
         {property.nestedProperties?.map((nestedProp) => (
           <Row key={nestedProp.key} gutter={16}>
             <Col span={nestedProp.type === 'propertyListType' ? 24 : 12}>
@@ -1766,11 +1804,11 @@ export default function DataRecordDialog({
           </Row>
         ))}
 
-        {/* 子 Content */}
+        {/* 孁EContent */}
         {(property.contents?.length ?? 0) > 0 && (
           <div style={{ marginTop: property.nestedProperties?.length ? 8 : 0 }}>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-              Content フィールド
+              Content フィールチE
             </Text>
             <Row gutter={16}>
               {property.contents!.map((content) => (
@@ -1785,7 +1823,7 @@ export default function DataRecordDialog({
     );
   };
 
-  // ファイルアップロード
+  // ファイルアチE�EローチE
   const renderFileUpload = (property: Property, key: string) => {
     return (
       <Form.Item
@@ -1795,19 +1833,19 @@ export default function DataRecordDialog({
         rules={[
           {
             required: property.required,
-            message: `${property.label}は必須項目です`,
+            message: `${property.label}は忁E��頁E��です`,
           },
         ]}
       >
         <Upload
           maxCount={1}
           beforeUpload={() => {
-            // TODO: S3アップロード処理を実装
+            // TODO: S3アチE�Eロード�E琁E��実裁E
             return false;
           }}
           disabled={!isProjectEditable}
         >
-          <Button icon={<UploadOutlined />} disabled={!isProjectEditable}>ファイルを選択</Button>
+          <Button icon={<UploadOutlined />} disabled={!isProjectEditable}>ファイルを選抁E/Button>
         </Upload>
       </Form.Item>
     );
@@ -1815,7 +1853,7 @@ export default function DataRecordDialog({
 
   // ===== カスタムプロパティ操作ハンドラー =====
 
-  /** 新しいカスタムプロパティ行を追加する（選択中テンプレートに紐づける） */
+  /** 新しいカスタムプロパティ行を追加する�E�選択中チE��プレートに紐づける�E�E*/
   const handleAddCustomProperty = (containerType: ContainerType) => {
     if (!selectedTemplateId) return;
     const defaultType: CustomPropertyType =
@@ -1861,7 +1899,7 @@ export default function DataRecordDialog({
     }));
   };
 
-  /** insertion 行: ファイル選択時の処理（SHA256ハッシュ生成・MIMEタイプ検出） */
+  /** insertion 衁E ファイル選択時の処琁E��EHA256ハッシュ生�E・MIMEタイプ検�E�E�E*/
   const handleInsertionFileSelect = async (templateId: string, id: string, file: File) => {
     try {
       const format = file.type || 'application/octet-stream';
@@ -1877,25 +1915,25 @@ export default function DataRecordDialog({
   };
 
   /**
-   * 選択中テンプレートにおけるカスタムプロパティのKey重複セットを計算する
-   * - テンプレート固定プロパティのKeyとの重複も検出する
-   * - insertion コンテナ（key なし）はチェック対象外
+   * 選択中チE��プレートにおけるカスタムプロパティのKey重褁E��チE��を計算すめE
+   * - チE��プレート固定�EロパティのKeyとの重褁E��検�Eする
+   * - insertion コンチE���E�Eey なし）�EチェチE��対象夁E
    */
   const duplicateCustomKeys = useMemo((): Set<string> => {
     if (!selectedTemplateId) return new Set();
     const list = customProperties[selectedTemplateId] ?? [];
 
-    // 固定プロパティのKey一覧
+    // 固定�EロパティのKey一覧
     const fixedKeys = new Set(
       (selectedTemplate?.properties ?? []).map((p) => p.key)
     );
 
-    // カスタムプロパティのKey一覧（insertion 除外・空文字除外）
+    // カスタムプロパティのKey一覧�E�Ensertion 除外�E空斁E��除外！E
     const customKeys = list
       .filter((cp) => cp.containerType !== 'insertion' && cp.key.trim() !== '')
       .map((cp) => cp.key.trim());
 
-    // 全Keyをまとめてカウント
+    // 全KeyをまとめてカウンチE
     const countMap = new Map<string, number>();
     for (const k of customKeys) {
       countMap.set(k, (countMap.get(k) ?? 0) + 1);
@@ -1908,7 +1946,7 @@ export default function DataRecordDialog({
       if (count > 1) duplicates.add(k);
     }
 
-    // 固定プロパティのKeyと被っているカスタムKey
+    // 固定�EロパティのKeyと被ってぁE��カスタムKey
     for (const k of customKeys) {
       if (fixedKeys.has(k)) duplicates.add(k);
     }
@@ -1916,7 +1954,7 @@ export default function DataRecordDialog({
     return duplicates;
   }, [selectedTemplateId, customProperties, selectedTemplate]);
 
-  /** カスタムプロパティ一覧をレンダリングする（選択中テンプレートのものだけ表示） */
+  /** カスタムプロパティ一覧をレンダリングする�E�選択中チE��プレート�Eも�Eだけ表示�E�E*/
   const renderCustomPropertyRows = () => {
     if (!selectedTemplateId) return null;
     const list = customProperties[selectedTemplateId] ?? [];
@@ -1934,17 +1972,17 @@ export default function DataRecordDialog({
         border: `1px solid ${token.colorBorder}`,
       };
 
-      // このカスタムプロパティのKeyが重複しているかどうか
+      // こ�EカスタムプロパティのKeyが重褁E��てぁE��かどぁE��
       const isKeyDuplicate =
         cp.containerType !== 'insertion' &&
         cp.key.trim() !== '' &&
         duplicateCustomKeys.has(cp.key.trim());
 
-      // キー名入力（共通）
+      // キー名�E力（�E通！E
       const keyInput = (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Input
-            placeholder="キー名"
+            placeholder="キー吁E
             value={cp.key}
             onChange={(e) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { key: e.target.value })}
             style={{
@@ -1957,13 +1995,13 @@ export default function DataRecordDialog({
           />
           {isKeyDuplicate && (
             <Text type="danger" style={{ fontSize: 10, lineHeight: 1.2 }}>
-              Keyが重複しています
+              Keyが重褁E��てぁE��ぁE
             </Text>
           )}
         </div>
       );
 
-      // 削除ボタン（共通）
+      // 削除ボタン�E��E通！E
       const deleteBtn = (
         <Button
           type="text"
@@ -2001,7 +2039,7 @@ export default function DataRecordDialog({
         );
       }
 
-      // property / content 共通の型セレクト
+      // property / content 共通�E型セレクチE
       const isContentType = cp.containerType === 'content';
       const typeOptions: { label: string; value: CustomPropertyType }[] =
         cp.containerType === 'property'
@@ -2067,7 +2105,7 @@ export default function DataRecordDialog({
 
       const unitsInput = (
         <Input
-          placeholder="単位"
+          placeholder="単佁E
           value={cp.units}
           onChange={(e) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { units: e.target.value })}
           style={{ width: 70 }}
@@ -2076,8 +2114,8 @@ export default function DataRecordDialog({
       );
 
       if (cp.containerType === 'content') {
-        // value は string[]（各要素が1行のスペース区切りリスト）
-        // 既存値が string の場合は単一行配列に変換
+        // value は string[]�E�各要素ぁE行�Eスペ�Eス区刁E��リスト！E
+        // 既存値ぁEstring の場合�E単一行�E列に変換
         const rows: string[] = Array.isArray(cp.value)
           ? (cp.value as string[])
           : cp.value
@@ -2093,12 +2131,12 @@ export default function DataRecordDialog({
               {unitsInput}
               {deleteBtn}
             </div>
-            {/* 行ごとの入力エリア（列はスペース区切り） */}
+            {/* 行ごとの入力エリア�E��Eはスペ�Eス区刁E���E�E*/}
             <div style={{ marginTop: 6 }}>
               {rows.map((rowVal, rowIdx) => (
                 <div key={rowIdx} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
                   <TextArea
-                    placeholder={`行 ${rowIdx + 1}: 値をスペース区切りで入力（例: 1.0 2.5 3.0）`}
+                    placeholder={`衁E${rowIdx + 1}: 値をスペ�Eス区刁E��で入力（侁E 1.0 2.5 3.0�E�`}
                     value={rowVal}
                     onChange={(e) => {
                       const newRows = [...rows];
@@ -2138,10 +2176,10 @@ export default function DataRecordDialog({
         );
       }
 
-      // property の値入力（型に応じて切替）
+      // property の値入力（型に応じて刁E���E�E
       let valueInput: React.ReactNode;
       switch (cp.customType) {
-        // property の value は常に string | null（string[][] にはならない）
+        // property の value は常に string | null�E�Etring[][] にはならなぁE��E
         case 'intType':
           valueInput = (
             <InputNumber
@@ -2182,7 +2220,7 @@ export default function DataRecordDialog({
         case 'dateType':
           valueInput = (
             <DatePicker
-              placeholder="日付"
+              placeholder="日仁E
               value={typeof cp.value === 'string' && cp.value ? dayjs(cp.value) : null}
               onChange={(d) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: d ? d.format('YYYY-MM-DD') : null })}
               format="YYYY-MM-DD"
@@ -2195,7 +2233,7 @@ export default function DataRecordDialog({
           valueInput = (
             <DatePicker
               showTime
-              placeholder="日時"
+              placeholder="日晁E
               value={typeof cp.value === 'string' && cp.value ? dayjs(cp.value) : null}
               onChange={(d) => handleUpdateCustomProperty(selectedTemplateId, cp.id, { value: d ? d.format('YYYY-MM-DD HH:mm:ss') : null })}
               format="YYYY-MM-DD HH:mm:ss"
@@ -2228,6 +2266,189 @@ export default function DataRecordDialog({
         </div>
       );
     });
+  };
+
+  /**
+   * プロパティをカード形式で描画する�E�E列グリチE��用�E�E
+   * - ヘッダー: プロパティ名�ExsiType・単佁E+ 定性評価バッジ
+   * - 上段2刁E 持E��値 / 許容誤差値
+   * - 中段全幁E 不確かさ説昁E
+   * - 実績値入劁E renderPropertyInput の中身を流用
+   * - 定性評価: Button.Group�E�不確ぁE曖昧/確か！E
+   * - 定量評価: 動的行リスチE
+   * propertyListType のみ全幁E��Epan=24�E�、それ以外�E span=8�E�E列！E
+   */
+  const renderPropertyCard = (property: Property, templateId: string) => {
+    const qualEval = propertyQualitativeEvals[templateId]?.[property.key] ?? null;
+    const quantEvals = propertyQuantitativeEvals[templateId]?.[property.key] ?? [];
+
+    // 定性評価バッジ�E�選択済みの場合�Eみ表示�E�E
+    const qualBadgeColor: Record<string, string> = {
+      certain:   'success',
+      ambiguous: 'warning',
+      uncertain: 'error',
+    };
+    const qualBadge = qualEval ? (
+      <Tag color={qualBadgeColor[qualEval] ?? 'default'} style={{ marginLeft: 'auto', flexShrink: 0 }}>
+        {qualEval === 'certain'   ? t('dataRecordDialog.certain')   :
+         qualEval === 'ambiguous' ? t('dataRecordDialog.ambiguous') :
+         qualEval === 'uncertain' ? t('dataRecordDialog.uncertain') : qualEval}
+      </Tag>
+    ) : null;
+
+    // 定性評価選択肢�E�EualitativeOptions があれ�Eそれを使用、なければチE��ォルチE択！E
+    const qualOptions: string[] =
+      property.qualitativeOptions && property.qualitativeOptions.length > 0
+        ? property.qualitativeOptions
+        : ['uncertain', 'ambiguous', 'certain'];
+
+    // 定量評価ハンドラ
+    const handleAddQuant = () => {
+      const newEval: QuantitativeEval = { id: `q_${Date.now()}_${Math.random().toString(36).slice(2,5)}`, method: '', threshold: '' };
+      setPropertyQuantitativeEvals((prev) => ({
+        ...prev,
+        [templateId]: {
+          ...(prev[templateId] ?? {}),
+          [property.key]: [...(prev[templateId]?.[property.key] ?? []), newEval],
+        },
+      }));
+    };
+    const handleUpdateQuant = (id: string, patch: Partial<QuantitativeEval>) => {
+      setPropertyQuantitativeEvals((prev) => ({
+        ...prev,
+        [templateId]: {
+          ...(prev[templateId] ?? {}),
+          [property.key]: (prev[templateId]?.[property.key] ?? []).map((e) => e.id === id ? { ...e, ...patch } : e),
+        },
+      }));
+    };
+    const handleRemoveQuant = (id: string) => {
+      setPropertyQuantitativeEvals((prev) => ({
+        ...prev,
+        [templateId]: {
+          ...(prev[templateId] ?? {}),
+          [property.key]: (prev[templateId]?.[property.key] ?? []).filter((e) => e.id !== id),
+        },
+      }));
+    };
+
+    const cardStyle: React.CSSProperties = {
+      marginBottom: 8,
+      border: `1px solid ${token.colorBorder}`,
+      borderRadius: token.borderRadiusSM,
+      padding: '12px',
+      background: token.colorBgContainer,
+    };
+
+    return (
+      <div key={`card_${templateId}_${property.key}`} style={cardStyle}>
+        {/* ── ヘッダー ── */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 6 }}>
+          <Text strong style={{ fontSize: 13 }}>{property.label || property.key}</Text>
+          <Tag style={{ fontSize: 11, margin: 0 }}>{property.type}</Tag>
+          {property.units && <Tag color="blue" style={{ fontSize: 11, margin: 0 }}>{property.units}</Tag>}
+          {qualBadge}
+        </div>
+
+        {/* ── 持E��値・許容誤差値 ── */}
+        {(property.plannedValue !== undefined || property.toleranceValue !== undefined || property.uncertaintyNote !== undefined) && (
+          <Row gutter={8} style={{ marginBottom: 8 }}>
+            <Col span={12}>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{t('dataRecordDialog.plannedValue')}</Text>
+              <Text style={{ fontSize: 12 }}>{property.plannedValue !== null && property.plannedValue !== undefined ? String(property.plannedValue) : ' E}</Text>
+            </Col>
+            <Col span={12}>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                {property.uncertaintyName ? `${t('dataRecordDialog.toleranceValue')} (${property.uncertaintyName})` : t('dataRecordDialog.toleranceValue')}
+              </Text>
+              <Text style={{ fontSize: 12 }}>{property.toleranceValue ?? ' E}</Text>
+            </Col>
+            {property.uncertaintyNote && (
+              <Col span={24} style={{ marginTop: 4 }}>
+                <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{t('dataRecordDialog.uncertaintyNote')}</Text>
+                <Text style={{ fontSize: 12 }}>{property.uncertaintyNote}</Text>
+              </Col>
+            )}
+          </Row>
+        )}
+
+        {/* ── 実績値入力（既孁ErenderPropertyInput を流用�E�E── */}
+        <div style={{ marginBottom: 8 }}>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>{t('dataRecordDialog.measuredValue')}</Text>
+          {renderPropertyInput(property, templateId)}
+        </div>
+
+        {/* ── 定性評価 ── */}
+        <div style={{ marginBottom: 8 }}>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>{t('dataRecordDialog.qualitativeEval')}</Text>
+          <Button.Group>
+            {qualOptions.map((opt) => {
+              const labelMap: Record<string, string> = { certain: t('dataRecordDialog.certain'), ambiguous: t('dataRecordDialog.ambiguous'), uncertain: t('dataRecordDialog.uncertain') };
+              const colorMap: Record<string, string> = { certain: '#52c41a', ambiguous: '#fa8c16', uncertain: '#ff4d4f' };
+              const isSelected = qualEval === opt;
+              return (
+                <Button
+                  key={opt}
+                  size="small"
+                  type={isSelected ? 'primary' : 'default'}
+                  style={isSelected ? { backgroundColor: colorMap[opt] ?? undefined, borderColor: colorMap[opt] ?? undefined } : {}}
+                  disabled={!isProjectEditable}
+                  onClick={() => {
+                    setPropertyQualitativeEvals((prev) => ({
+                      ...prev,
+                      [templateId]: {
+                        ...(prev[templateId] ?? {}),
+                        [property.key]: isSelected ? '' : opt,
+                      },
+                    }));
+                  }}
+                >
+                  {labelMap[opt] ?? opt}
+                </Button>
+              );
+            })}
+          </Button.Group>
+        </div>
+
+        {/* ── 定量評価 ── */}
+        <div>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>{t('dataRecordDialog.quantitativeEval')}</Text>
+          {quantEvals.map((ev) => (
+            <div key={ev.id} style={{ display: 'flex', gap: 4, marginBottom: 4, alignItems: 'center' }}>
+              <Input
+                size="small"
+                placeholder={t('dataRecordDialog.evalMethod')}
+                value={ev.method}
+                onChange={(e) => handleUpdateQuant(ev.id, { method: e.target.value })}
+                style={{ flex: 1 }}
+                disabled={!isProjectEditable}
+              />
+              <InputNumber
+                size="small"
+                placeholder={t('dataRecordDialog.threshold')}
+                value={ev.threshold !== '' ? Number(ev.threshold) : undefined}
+                onChange={(v) => handleUpdateQuant(ev.id, { threshold: v !== null ? String(v) : '' })}
+                style={{ width: 80 }}
+                disabled={!isProjectEditable}
+              />
+              <Button
+                type="text"
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                disabled={!isProjectEditable}
+                onClick={() => handleRemoveQuant(ev.id)}
+              />
+            </div>
+          ))}
+          {isProjectEditable && (
+            <Button size="small" icon={<PlusOutlined />} onClick={handleAddQuant}>
+              {t('dataRecordDialog.addEval')}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -2266,14 +2487,14 @@ export default function DataRecordDialog({
           loading={loading}
           disabled={!isProjectEditable}
         >
-          保存
+          保孁E
         </Button>,
       ]}
     >
       <div>
-      {/* みなし進捗更新チェックボックスと作業指示ボタン */}
+      {/* みなし進捗更新チェチE��ボックスと作業持E��ボタン */}
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {/* useDeemedProgressProp が false の場合はチェックボックスを非表示（組織設定で無効化） */}
+          {/* useDeemedProgressProp ぁEfalse の場合�EチェチE��ボックスを非表示�E�絁E��設定で無効化！E*/}
           {useDeemedProgressProp ? (
             <Checkbox
               data-testid="deemed-progress-checkbox"
@@ -2283,20 +2504,20 @@ export default function DataRecordDialog({
               みなし進捗更新
             </Checkbox>
           ) : (
-            <span /> /* チェックボックス非表示時のスペーサー */
+            <span /> /* チェチE��ボックス非表示時�Eスペ�Eサー */
           )}
           <Button
             data-testid="instruction-button"
             icon={<InfoCircleOutlined />}
             onClick={() => setInstructionModalOpen(true)}
           >
-            作業指示
+            作業持E��
           </Button>
         </div>
 
-        {/* ステータス更新セクション
-            - useDeemedProgressProp が false の場合: 常時表示（組織設定でみなし進捗無効）
-            - useDeemedProgressProp が true の場合: チェックボックスOFF時のみ表示 */}
+        {/* スチE�Eタス更新セクション
+            - useDeemedProgressProp ぁEfalse の場吁E 常時表示�E�絁E��設定でみなし進捗無効�E�E
+            - useDeemedProgressProp ぁEtrue の場吁E チェチE��ボックスOFF時�Eみ表示 */}
         {(!useDeemedProgressProp || !useDeemedProgress) && (
           <div data-testid="status-update-section" style={{ marginBottom: 24 }}>
             {/* タイトルセクション */}
@@ -2324,19 +2545,19 @@ export default function DataRecordDialog({
               )}
               <SaveOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
               <Text strong style={{ fontSize: 16 }}>
-                ステータス更新
+                スチE�Eタス更新
               </Text>
             </div>
 
-            {/* 折りたたみ可能なコンテンツ */}
+            {/* 折りたたみ可能なコンチE��チE*/}
             {statusUpdateExpanded && (
               <>
-                {/* 上段：ステータス + 進捗 */}
+                {/* 上段�E�スチE�Eタス + 進捁E*/}
                 <Row gutter={16}>
-                  {/* ステータス */}
+                  {/* スチE�Eタス */}
                   <Col span={8}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                      ステータス
+                      スチE�Eタス
                     </Text>
                     {isTerminalStatus ? (
                       <Alert
@@ -2359,7 +2580,7 @@ export default function DataRecordDialog({
                         </Text>
                         <Select
                           style={{ width: '100%' }}
-                          placeholder="ステータスを選択"
+                          placeholder="スチE�Eタスを選抁E
                           value={selectedStatus}
                           onChange={setSelectedStatus}
                           options={statusOptions}
@@ -2369,10 +2590,10 @@ export default function DataRecordDialog({
                     )}
                   </Col>
 
-                  {/* 進捗 */}
+                  {/* 進捁E*/}
                   <Col span={16}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                      進捗
+                      進捁E
                     </Text>
                     <Slider
                       value={progress}
@@ -2395,15 +2616,15 @@ export default function DataRecordDialog({
                   </Col>
                 </Row>
 
-                {/* 中段：コメント */}
+                {/* 中段�E�コメンチE*/}
                 <Row gutter={16} style={{ marginTop: 16 }}>
                   <Col span={24}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                      コメント
+                      コメンチE
                     </Text>
                     <TextArea
                       rows={3}
-                      placeholder="コメントを入力"
+                      placeholder="コメントを入劁E
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                       disabled={!isProjectEditable}
@@ -2411,7 +2632,7 @@ export default function DataRecordDialog({
                   </Col>
                 </Row>
 
-                {/* 下段：保存ボタン */}
+                {/* 下段�E�保存�Eタン */}
                 <Row gutter={16} style={{ marginTop: 16 }}>
                   <Col span={24} style={{ textAlign: 'right' }}>
                     <Button
@@ -2420,7 +2641,7 @@ export default function DataRecordDialog({
                       loading={loading}
                       disabled={!isProjectEditable}
                       onClick={async () => {
-                        // パスパラメータのガードチェック
+                        // パスパラメータのガードチェチE��
                         if (!projectId || !methodId || !transition?.transitionId || taskNo === undefined) {
                           message.error(t('format.dataRecordDialog.missingProjectInfoForUpdate'));
                           console.error('Status update: projectId / methodId / transitionId / taskNo not set', {
@@ -2443,7 +2664,7 @@ export default function DataRecordDialog({
                             t('format.dataRecordDialog.statusUpdated', { status: statusOptions.find(opt => opt.value === selectedStatus)?.label ?? '', progress: String(progress) })
                           );
                           // onSave を呼び出してダイアログを閉じ、親のトランジション一覧を最新状態に更新する
-                          // TransitionList の handleDataSave は _data を参照しないため空配列を渡して問題なし
+                          // TransitionList の handleDataSave は _data を参照しなぁE��め空配�Eを渡して問題なぁE
                           onSave([]);
                         } catch (error: unknown) {
                           console.error('Status update error:', error);
@@ -2461,7 +2682,7 @@ export default function DataRecordDialog({
                         }
                       }}
                     >
-                      保存
+                      保孁E
                     </Button>
                   </Col>
                 </Row>
@@ -2470,9 +2691,9 @@ export default function DataRecordDialog({
           </div>
         )}
 
-        {/* 2カラムレイアウト: サイドバー（テンプレート一覧） + コンテンツ（データ記録） */}
+        {/* 2カラムレイアウチE サイドバー�E�テンプレート一覧�E�E+ コンチE��チE��データ記録�E�E*/}
         <Layout style={{ height: 600, background: 'transparent' }}>
-          {/* 左サイドバー: テンプレート一覧 */}
+          {/* 左サイドバー: チE��プレート一覧 */}
           <Sider
             width={300}
             style={{
@@ -2495,7 +2716,7 @@ export default function DataRecordDialog({
                 <Space>
                   <AppstoreOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
                   <Text strong style={{ fontSize: 16 }}>
-                    テンプレート一覧
+                    チE��プレート一覧
                   </Text>
                   <Tag color="blue">{filteredTemplates.length}件</Tag>
                 </Space>
@@ -2505,7 +2726,7 @@ export default function DataRecordDialog({
               <Space orientation="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
                 <Input
                   data-testid="template-search-input"
-                  placeholder="テンプレート名で検索"
+                  placeholder="チE��プレート名で検索"
                   prefix={<SearchOutlined />}
                   value={templateSearchText}
                   onChange={(e) => setTemplateSearchText(e.target.value)}
@@ -2513,7 +2734,7 @@ export default function DataRecordDialog({
                 />
                 <Select
                   data-testid="template-category-select"
-                  placeholder="テンプレート種別"
+                  placeholder="チE��プレート種別"
                   value={selectedTemplateCategory}
                   onChange={setSelectedTemplateCategory}
                   allowClear
@@ -2526,9 +2747,9 @@ export default function DataRecordDialog({
                 />
               </Space>
 
-              {/* テーブル（実績データ読み込み中はSpinを表示） */}
+              {/* チE�Eブル�E�実績チE�Eタ読み込み中はSpinを表示�E�E*/}
               <div style={{ flex: 1, overflow: 'auto' }}>
-                <Spin spinning={templateDataLoading} tip="実績データ読み込み中...">
+                <Spin spinning={templateDataLoading} tip="実績チE�Eタ読み込み中...">
                 <Table
                   size="small"
                   dataSource={filteredTemplates}
@@ -2553,7 +2774,7 @@ export default function DataRecordDialog({
                       dataIndex: 'name',
                       key: 'name',
                       render: (name: string, record: Template) => {
-                        // カテゴリーからI/Oを判定
+                        // カチE��リーからI/Oを判宁E
                         const isOutput = record.category === 'Results';
                         const ioLabel = isOutput ? 'OUT' : 'IN';
                         const ioColor = isOutput ? 'green' : 'blue';
@@ -2567,7 +2788,7 @@ export default function DataRecordDialog({
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <Text strong style={{ fontSize: 13 }}>{name}</Text>
                               <Text type="secondary" style={{ fontSize: 12 }}>
-                                ({propertyCount}項目)
+                                ({propertyCount}頁E��)
                               </Text>
                             </div>
                             <div style={{ marginTop: 4 }}>
@@ -2591,7 +2812,7 @@ export default function DataRecordDialog({
             </div>
           </Sider>
 
-          {/* 右コンテンツ: データ記録 */}
+          {/* 右コンチE��チE チE�Eタ記録 */}
           <Content
             style={{
               background: token.colorBgLayout,
@@ -2605,7 +2826,7 @@ export default function DataRecordDialog({
                 <Space>
                   <FileTextOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
                   <Text strong style={{ fontSize: 16 }}>
-                    データ記録
+                    チE�Eタ記録
                   </Text>
                   {selectedTemplate && (
                     <>
@@ -2618,7 +2839,7 @@ export default function DataRecordDialog({
                 </Space>
               </div>
 
-              {/* フォームまたは選択促進メッセージ */}
+              {/* フォームまた�E選択俁E��メチE��ージ */}
               <Form
                 form={form}
                 layout="vertical"
@@ -2627,22 +2848,23 @@ export default function DataRecordDialog({
               {selectedTemplate ? (
                 <>
                   <div>
-                    <Row gutter={16}>
+                    {/* プロパティをカード形弁E列グリチE��で表示 */}
+                    <Row gutter={[8, 8]}>
                       {selectedTemplate.properties.map((prop) => (
                         <Col
                           key={prop.key}
-                          span={prop.type === 'propertyListType' ? 24 : 12}
+                          span={prop.type === 'propertyListType' ? 24 : 8}
                         >
-                          {renderPropertyInput(prop, selectedTemplate.templateId)}
+                          {renderPropertyCard(prop, selectedTemplate.templateId)}
                         </Col>
                       ))}
                     </Row>
 
-                    {/* トップレベル Contents セクション（Property と別枠で表示） */}
+                    {/* トップレベル Contents セクション�E�Eroperty と別枠で表示�E�E*/}
                     {selectedTemplate.contents && selectedTemplate.contents.length > 0 && (
                       <div style={{ marginTop: 16 }}>
                         <div style={{ borderTop: `1px solid #e0e0e0`, paddingTop: 12, marginBottom: 8 }}>
-                          <Text type="secondary" style={{ fontSize: 12 }}>データ</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>チE�Eタ</Text>
                         </div>
                         <Row gutter={16}>
                           {selectedTemplate.contents.map((content) => (
@@ -2658,7 +2880,7 @@ export default function DataRecordDialog({
                     {selectedTemplate.insertions && selectedTemplate.insertions.length > 0 && (
                       <div style={{ marginTop: 16 }}>
                         <div style={{ borderTop: `1px solid #e0e0e0`, paddingTop: 12, marginBottom: 8 }}>
-                          <Text type="secondary" style={{ fontSize: 12 }}>添付ファイル（insertion）</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>添付ファイル�E�Ensertion�E�E/Text>
                         </div>
                         {selectedTemplate.insertions.map((ins, insIdx) => {
                           const tplId = selectedTemplate.templateId;
@@ -2707,7 +2929,7 @@ export default function DataRecordDialog({
                                   {fileForIns ? fileForIns.name : 'Select File'}
                                 </Button>
                               </Upload>
-                              {/* 既存URIまたは新規選択ファイル名の表示 */}
+                              {/* 既存URIまた�E新規選択ファイル名�E表示 */}
                               {(fileForIns || uriForIns) && (
                                 <Text
                                   type="secondary"
@@ -2749,10 +2971,10 @@ export default function DataRecordDialog({
                       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8 }}>
                         <Text strong>カスタムプロパティ</Text>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          （テンプレート定義外の任意データを追加できます）
+                          �E�テンプレート定義外�E任意データを追加できます！E
                         </Text>
                       </div>
-                      {/* 既存カスタムプロパティ行の表示 */}
+                      {/* 既存カスタムプロパティ行�E表示 */}
                       {renderCustomPropertyRows()}
                       {/* 追加ボタン群 */}
                       <Space style={{ marginTop: 8 }}>
@@ -2783,8 +3005,8 @@ export default function DataRecordDialog({
                 </>
               ) : (
                 <Alert
-                  title="テンプレートを選択してください"
-                  description="左側のテンプレート一覧から記録したいテンプレートを選択してください。"
+                  title="チE��プレートを選択してください"
+                  description="左側のチE��プレート一覧から記録したぁE��ンプレートを選択してください、E
                   type="info"
                   showIcon
                 />
@@ -2796,7 +3018,7 @@ export default function DataRecordDialog({
 
       </div>
 
-      {/* 作業指示モーダル */}
+      {/* 作業持E��モーダル */}
       <InstructionConfirmationModal
         open={instructionModalOpen}
         transition={transition}
