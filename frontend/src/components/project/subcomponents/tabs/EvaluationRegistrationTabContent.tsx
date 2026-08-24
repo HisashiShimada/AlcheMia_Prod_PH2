@@ -2,6 +2,7 @@
 
 import React from 'react';
 import EvaluationRegistrationTab from '../../EvaluationRegistrationTab';
+import { ProjectStatus } from '@/constants/codeMaster';
 import type { Project } from '@/types/project';
 
 interface EvaluationRegistrationTabContentProps {
@@ -13,7 +14,9 @@ const EvaluationRegistrationTabContent: React.FC<EvaluationRegistrationTabConten
   selectedProject,
   isProjectCheckedOut,
 }) => {
-  const isProjectCompleted = selectedProject.status === 4 || selectedProject.status === 5;
+  const isProjectCompleted =
+    selectedProject.status === ProjectStatus.COMPLETED ||
+    selectedProject.status === ProjectStatus.ERROR;
   return (
     <div style={{ height: '100%', padding: '8px 0', overflowY: 'auto' }}>
       <EvaluationRegistrationTab

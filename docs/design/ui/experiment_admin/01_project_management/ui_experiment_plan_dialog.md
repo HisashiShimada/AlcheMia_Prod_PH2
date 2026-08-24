@@ -17,7 +17,7 @@
 ### 1.1. 目的
 
 実験管理者が、プロジェクトの各メソッド・トランジションに対して**実験計画指示**を設定・保存するためのモーダルダイアログです。
-想定値・注意事項・担当者情報などを構造化して登録し、チェックアウト時に MAIML ファイルへ `mgr-instruction:` プレフィックスで反映されます。
+想定値・担当者情報などを構造化して登録し、チェックアウト時に MAIML ファイルへ `supervisorDirective～` キーで反映されます。
 
 ### 1.2. アクセス権限
 
@@ -29,14 +29,13 @@
 
 ### 1.3. 主要機能
 
-1. **トランジション一覧（左パネル）**: メソッドの全トランジションをリスト表示。単体選択で右パネルに内容を表示
-2. **DnD並べ替え**: トランジションの実行順序を Drag & Drop で設定（依存関係制約あり）
-3. **タブ切り替え（右パネル上部）**: 「一括」タブと「タスク1〜N」タブで設定対象を切り替え
-4. **基本情報タブ**: CreatorRef / InstrumentRef / OwnerRef の選択、注意事項の登録
-5. **テンプレート入力タブ**: トランジションに紐づくテンプレートフィールドへの想定値入力
-6. **一括→タスクN継承**: 「一括」タブで変更した値は、各「タスクN」タブに自動伝播
-7. **JSONインポート/エクスポート**: 実験計画データをJSON形式で入出力
-8. **メソッド切り替え**: `allowMethodSelection=true` 時にヘッダー部のセレクトでメソッド変更が可能
+1. メソッドの全タスク分をタブで切り替えて実験計画を設定
+2. 「全体」タブで共通値を設定し、各タスクNタブに継承する
+3. 個別タスクでの値の上書き（overrideFlags で管理）
+4. 「全体に戻す」ボタンで個別上書きをリセット
+5. テンプレートフィールドへの想定値入力
+6. 担当者・機器・オーナーの選択
+7. 前提トランジション（依存関係）の設定
 
 ---
 
@@ -155,17 +154,19 @@ interface ExperimentPlanTabData {
 }
 ```
 
-### 5.2. NoteItem（`@/types/experimentPlan`）
-
-```typescript
-interface NoteItem {
-  id: string;       // UUID（内部管理用）
-  type: NoteTypeValue;
-  content: string;
+// 1タブ分のデータ
+interface TabData {
+  /** テンプレートごとの想定値 {templateId: {fieldKey: value}} */
+  templateValues: Record<string, Record<string, string>>;
+  /** 担当者UUID */
+  assignee: string;
+  /** 必要作成者UUIDリスト */
+  requiredCreatorUUIDs: string[];
+  /** 必要機器UUIDリスト */
+  requiredInstrumentUUIDs: string[];
+  /** 必要オーナーUUIDリスト */
+  requiredOwnerUUIDs: string[];
 }
-
-type NoteTypeValue = 'caution' | 'operationNote' | 'checkItem' | 'prohibitedAction' | 'otherNotes';
-```
 
 ### 5.3. TransitionOrderItem（`@/types/experimentPlanDialog`）
 
@@ -209,10 +210,57 @@ interface PlanDialogData {
 
 ### 6.2. 内部タブ（右パネル下部）
 
-| タブキー | ラベル | 説明 |
-|---------|--------|------|
-| `basic` | 基本情報 | CreatorRef / InstrumentRef / OwnerRef / 注意事項の入力 |
-| `template` | テンプレート入力 | 選択トランジションに紐づくテンプレートフィールドへの想定値入力 |
+| 状態 | 表示 | 条件 |
+|------|------|------|
+| 設定済み | タブ名 + ✓（緑）| 1件以上のデータが設定されている |
+| 個別上書きあり | タブ名 + ✏（橙）| overrideFlags に1件以上trueがある |
+| 未設定 | タブ名のみ | データなし |
+
+---
+
+## 6. 内部タブ
+
+### 6.1. 基本情報タブ
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ 基本情報                                                        │
+│                                                                │
+│ 担当者:      [担当者を選択 ▼]                                  │
+│ 必要作成者:  [複数選択可 ▼]                                    │
+│ 必要機器:    [複数選択可 ▼]                                    │
+│ 必要オーナー: [複数選択可 ▼]                                   │
+│                                                                │
+│ ─── タスクNのみ表示 ─────────────────────────────────────── │
+│ ○ 全体設定を使用  ○ このタスクで個別設定  [全体に戻す]       │
+└────────────────────────────────────────────────────────────────┘
+```
+
+#### 6.1.1. 担当者選択
+
+| 項目 | 値 |
+|------|-----|
+| コンポーネント | `Select`（Ant Design）|
+| モード | `multiple`（複数選択） |
+| データ取得元 | `dialogData.availableCreators` |
+| プレースホルダー | 担当者を選択してください |
+
+#### 6.1.2. 必要機器選択
+
+| 項目 | 値 |
+|------|-----|
+| コンポーネント | `Select`（Ant Design）|
+| モード | `multiple`（複数選択） |
+| データ取得元 | `dialogData.availableInstruments` |
+| プレースホルダー | 機器を選択してください |
+
+#### 6.1.3. 継承制御（タスクNタブのみ表示）
+
+| UI要素 | 説明 |
+|--------|------|
+| `全体設定を使用` ラジオ | overrideFlags を false にする |
+| `このタスクで個別設定` ラジオ | overrideFlags を true にする |
+| `全体に戻す` ボタン | overrideFlags を false にリセットし、全体タブの値で上書き |
 
 ---
 
@@ -354,7 +402,13 @@ State リセット（activeTab='all', selectedTransitionId=null, 等）
 ```
 [保存] ボタン押下
   ↓
-isSaving = true
+全タブをループ（all タブは保存しない）
+  for each taskNo in [1..N]:
+    plannedValues を組み立て:
+      - 基本情報（requiredCreatorUUIDs, requiredInstrumentUUIDs, etc.）
+      - テンプレート値（templateValues）
+    ↓
+    PUT /experiment-plans/:methodId/:taskNo
   ↓
 taskNumbers.forEach(taskNo => {
   upsertExperimentPlanToApi(projectId, methodId, taskNo, tabDataMap, transitionOrder)
@@ -375,12 +429,10 @@ isSaving = false
 
 ## 11. エラーハンドリング
 
-| エラー | 表示方法 | i18n キー |
-|--------|---------|----------|
-| ダイアログ初期データ取得失敗 | `message.error` | `experimentPlan.loadFailed` |
-| 保存失敗 | `message.error` | `experimentPlan.saveFailed` |
-| トランジション未選択（右パネル）| `Empty` コンポーネント | — |
-| データなし | `Empty` | — |
+| 項目 | バリデーション | エラーメッセージ |
+|------|--------------|----------------|
+| taskNo | 1以上の整数 | — （UI上は自動的に正しい番号が設定される） |
+| templateValues のフィールド | number型の場合は数値形式 | 「数値を入力してください」 |
 
 ---
 
@@ -419,11 +471,11 @@ isSaving = false
 - `verticalListSortingStrategy` - 縦方向ソート
 
 ### アイコン
-- `PlusOutlined` - 注意事項・Ref 追加ボタン
-- `CloseOutlined` - 注意事項・Ref 削除ボタン
-- `FileTextOutlined` - タイトルアイコン
-- `ImportOutlined` - インポートボタン
-- `ExportOutlined` - エクスポートボタン
+- `SaveOutlined` - 保存ボタン
+- `CloseOutlined` - キャンセルボタン
+- `UndoOutlined` - 全体に戻すボタン
+- `CheckCircleOutlined` - 設定済みインジケーター
+- `EditOutlined` - 個別上書きインジケーター
 
 ---
 

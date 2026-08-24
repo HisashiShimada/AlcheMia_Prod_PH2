@@ -28,6 +28,7 @@ import TaskRegistrationTabContent from './subcomponents/tabs/TaskRegistrationTab
 import ProjectInstructionTabContent from './subcomponents/tabs/ProjectInstructionTabContent';
 import ExperimentInstructionTabContent from './subcomponents/tabs/ExperimentInstructionTabContent';
 import EvaluationRegistrationTabContent from './subcomponents/tabs/EvaluationRegistrationTabContent';
+import OverallEvaluationTabContent from './subcomponents/tabs/OverallEvaluationTabContent';
 import ProjectFolderTree from './ProjectFolderTree';
 
 import type { User } from '@/types/auth';
@@ -287,6 +288,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                   { key: 'project_instruction', label: t('projectManagement.tabProjectInstruction'), children: <ProjectInstructionTabContent selectedProject={selectedProject} isActive={currentTab === 'project_instruction'} isProjectCheckedOut={isProjectCheckedOut} /> },
                   { key: 'task_results', label: t('projectManagement.tabs.task_results'), children: <ExperimentInstructionTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
                   { key: 'evaluation_registration', label: t('projectManagement.tabEvaluationRegistration'), children: <EvaluationRegistrationTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
+                  { key: 'overall_evaluation', label: t('projectManagement.tabOverallEvaluation'), children: <OverallEvaluationTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} /> },
                 ]}
                 tabBarStyle={{ marginLeft: 8 }}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}

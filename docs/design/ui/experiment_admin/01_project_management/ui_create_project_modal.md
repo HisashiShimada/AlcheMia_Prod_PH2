@@ -67,7 +67,7 @@
 - `autoFocus` あり
 
 **2. 概要（任意）**
-- タイプ: Input.TextArea
+- タイプ: TextArea
 - `data-testid`: `create-project-description-input`
 - 行数: 4行
 - バリデーション:
@@ -81,6 +81,15 @@
 - モーダルオープン時に `GET /api/v1/organization-groups` から取得した選択肢を表示
 - 取得中は `loading={teamsLoading}` でローディング表示
 - フィールド下に補足テキスト（`createProject.teamNote`）を表示
+
+**3. チーム（必須）**
+- タイプ: Select（ドロップダウン）
+- `data-testid`: `create-project-org-group-select`
+- データソース: `GET /api/v1/organization-groups` で取得したチーム一覧
+- ローディング中はスピナー表示（`loading={teamsLoading}`）
+- バリデーション:
+  - 必須選択
+- フィールド下に補足テキストを表示（`createProject.teamNote`）
 
 #### 2.2.3 フッターボタン
 - **キャンセルボタン** (`data-testid`: `create-project-cancel-button`): モーダルを閉じる、フォームをリセット
@@ -257,6 +266,14 @@ interface CreateProjectModalProps {
     organizationId: string;
   };
 }
+
+/**
+ * チーム情報の型定義（/api/v1/organization-groups レスポンス）
+ */
+interface TeamOption {
+  organizationGroupCd: string;
+  organizationGroupName: string;
+}
 ```
 
 **Props説明:**
@@ -269,6 +286,15 @@ interface CreateProjectModalProps {
 
 ### 4.2 State定義
 
+```typescript
+const [form] = Form.useForm();
+const [submitting, setSubmitting] = useState(false);
+const [error, setError] = useState<string | null>(null);
+const [teams, setTeams] = useState<TeamOption[]>([]);
+const [teamsLoading, setTeamsLoading] = useState(false);
+```
+
+**State説明:**
 | State名 | 型 | 初期値 | 説明 |
 |---------|---|--------|------|
 | form | `FormInstance` | — | Ant Design Form インスタンス |
@@ -370,9 +396,10 @@ const handleCreateProject = async (data: CreateProjectData) => {
 - `frontend/src/contexts/LanguageContext.tsx` - 多言語対応
 
 ### 7.3 依存ライブラリ
-- React 18
-- Ant Design v6（Modal, Form, Input, Select, Space, Typography, Alert, theme）
-- @ant-design/icons（FolderAddOutlined）
+- React 18.2.0
+- Ant Design v6 (Modal, Form, Input, Select, Space, Typography, Alert, theme)
+- @ant-design/icons (FolderAddOutlined)
+- `@/utils/authUtils` (createApiClient)
 
 ---
 
@@ -381,7 +408,7 @@ const handleCreateProject = async (data: CreateProjectData) => {
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
-| 2026-08-20 | チーム選択フィールド追加・Props/State/型定義を実装に合わせて修正 | Cline |
+| 2026-08-23 | ソース実態に合わせて修正（チーム選択フィールド追加・Props/State/型定義更新） | Cline |
 
 ---
 

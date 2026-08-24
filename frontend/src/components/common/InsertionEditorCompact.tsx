@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Input, Button, Typography, Space, Tooltip } from 'antd';
 import { UploadOutlined, LoadingOutlined, ClearOutlined } from '@ant-design/icons';
 import { useInsertionEditor } from '@/hooks/useInsertionEditor';
 import type { Insertion } from '@/types/maiml-unified';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { isLocalFileUri } from '@/utils/storageUriUtils';
 
 const { Text } = Typography;
 
@@ -32,6 +33,11 @@ export interface InsertionEditorCompactProps {
   maxFileSize?: number;
   /** 許可するファイル形式（MIME or 拡張子）。未指定時は制限なし */
   acceptedFormats?: string[];
+  /**
+   * uploadPendingFile 関数が準備できたときに呼び出されるコールバック。
+   * 親（WorkRecordPanel 等）はこの関数を保存処理の中で呼び出してアップロードを実行する。
+   */
+  onUploadPendingFileReady?: (fn: () => Promise<void>) => void;
 }
 
 /** ラベルスタイル（PropertyCardの「想定値」ラベルと同等） */
@@ -52,6 +58,7 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
   uploadTargetPath,
   maxFileSize,
   acceptedFormats,
+  onUploadPendingFileReady,
 }) => {
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,7 +77,14 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
     handleDragLeave,
     handleDrop,
     acceptAttr,
+    pendingFile,
+    uploadPendingFile,
   } = useInsertionEditor({ value, onChange, uploadTargetPath, maxFileSize, acceptedFormats });
+
+  // uploadPendingFile が変わるたびに親へ通知する
+  useEffect(() => {
+    onUploadPendingFileReady?.(uploadPendingFile);
+  }, [uploadPendingFile, onUploadPendingFileReady]);
 
   const handleSelectButtonClick = () => {
     fileInputRef.current?.click();
@@ -165,6 +179,25 @@ const InsertionEditorCompact: React.FC<InsertionEditorCompactProps> = ({
           disabled={readOnly || isUploading}
           style={{ fontSize: 12 }}
         />
+        {/* アップロード予約中バッジ（保存時にアップロード予定のファイルがある場合） */}
+        {pendingFile && (
+          <div style={{ color: '#1677ff', fontSize: 11, marginTop: 2 }}>
+            📎 {pendingFile.name}（{t('insertionEditor.pendingUploadBadge')}）
+          </div>
+        )}
+        {/* ローカルファイル URI ガイダンス（file:/// 始まりの場合は常時表示） */}
+        {isLocalFileUri(insertion.uri) && (
+          <div style={{ color: '#ff4d4f', fontSize: 11, lineHeight: 1.5, marginTop: 2 }}>
+            <div>⚠️ {t('insertionEditor.localFileWarning')}</div>
+            <div style={{ marginTop: 2 }}>{t('insertionEditor.localFileUriExampleTitle')}</div>
+            <div style={{ fontFamily: 'monospace', paddingLeft: 6 }}>
+              {t('insertionEditor.localFileUriExampleLocal')}
+            </div>
+            <div style={{ fontFamily: 'monospace', paddingLeft: 6 }}>
+              {t('insertionEditor.localFileUriExampleNetwork')}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Hash Method */}

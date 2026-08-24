@@ -13,6 +13,13 @@ import * as aggregationRuleController from '../controllers/aggregationRuleContro
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
+import {
+  TargetRollup,
+  LevelStatusRule,
+  LevelScoreRule,
+  MissingHandling,
+  TransitionHierarchy,
+} from '../enums/aggregationRule.enum';
 
 const router = Router();
 
@@ -50,11 +57,11 @@ router.post(
     body('score_good').optional().isInt({ min: 0, max: 100 }).withMessage('score_good must be 0-100'),
     body('score_caution').optional().isInt({ min: 0, max: 100 }).withMessage('score_caution must be 0-100'),
     body('score_bad').optional().isInt({ min: 0, max: 100 }).withMessage('score_bad must be 0-100'),
-    body('target_rollup').optional().isIn(['WORST_CASE', 'MAJORITY', 'AVERAGE']),
-    body('level_status_rule').optional().isIn(['WORST_CASE', 'MAJORITY']),
-    body('level_score_rule').optional().isIn(['MEAN', 'MIN']),
-    body('missing_handling').optional().isIn(['SEPARATE_COUNT', 'EXCLUDE_DENOMINATOR', 'TREAT_AS_GOOD']),
-    body('transition_hierarchy').optional().isIn(['MERGE', 'SPLIT']),
+    body('target_rollup').optional().isIn(Object.values(TargetRollup)),
+    body('level_status_rule').optional().isIn(Object.values(LevelStatusRule)),
+    body('level_score_rule').optional().isIn(Object.values(LevelScoreRule)),
+    body('missing_handling').optional().isIn(Object.values(MissingHandling)),
+    body('transition_hierarchy').optional().isIn(Object.values(TransitionHierarchy)),
   ],
   handleValidationErrors,
   aggregationRuleController.createRule

@@ -7,6 +7,7 @@ import {
   ExperimentOutlined,
   AuditOutlined,
   EyeOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
@@ -18,6 +19,7 @@ import SystemOverview from '../SystemManagement/SystemOverview';
 import UserManagement from '../SystemManagement/UserManagement';
 import SessionManagement from '../SystemManagement/SessionManagement';
 import RoleManagement from '../SystemManagement/RoleManagement';
+import AggregationRuleSettings from '../SystemManagement/AggregationRuleSettings';
 const { Content } = Layout;
 
 /**
@@ -62,6 +64,11 @@ export default function SystemAdminMenu({ user, onLogout, onMenuChange }: System
       key: '5',
       label: t('menu.system_admin.tabs.roleManagement'),
       icon: <AuditOutlined />,
+    },
+    {
+      key: '6',
+      label: t('menu.system_admin.tabs.aggregationRuleSettings'),
+      icon: <SettingOutlined />,
     },
   ];
 
@@ -115,6 +122,13 @@ export default function SystemAdminMenu({ user, onLogout, onMenuChange }: System
           {currentTab === '5' && (
             <div style={{ padding: token.paddingContentVertical }}>
               <RoleManagement />
+            </div>
+          )}
+
+          {/* タブ6: 集約ルール設定 */}
+          {currentTab === '6' && (
+            <div style={{ padding: token.paddingContentVertical }}>
+              <AggregationRuleSettings />
             </div>
           )}
 
