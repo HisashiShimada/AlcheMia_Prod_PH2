@@ -93,7 +93,9 @@ export interface CreateNamespaceResponse {
  * PATCH /api/v1/namespaces/:prefix のリクエストボディ型
  */
 export interface UpdateNamespaceRequest {
-  uri: string;
+  uri?: string;
+  newPrefix?: string;
+  description?: string;
 }
 
 /**
@@ -123,6 +125,13 @@ export interface NamespaceTermRow {
   isActive: boolean;
   /** 指示用語が登録されている場合 true */
   hasDirectiveTerm?: boolean;
+  /**
+   * prefix が属する名前空間の scope_key（organization_group_cd またはユーザーID）
+   * ツリーの用語数バッジ計算（NamespaceMain.tsx toAntTree）に使用する
+   * グローバル名前空間の場合は null
+   * findAllByOrganization.sql の JOIN により n.scope_key が付与される
+   */
+  scopeKey?: string | null;
 }
 
 /**
@@ -162,16 +171,11 @@ export interface TermUpsertRequest {
  * @returns 名前空間エントリ一覧（{prefix, uri}[]）
  */
 export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => {
-  const client = createApiClient();
-
   try {
-    console.log('🔖 [namespaceApiService] 名前空間宣言一覧取得（グローバル宣言含む）');
+    console.log('🔖 [namespaceApiService] 名前空間宣言一覧取得（グローバル宣言 + 個人/グループスコープ含む）');
 
-    // 組織 URI とグローバル宣言を並列取得
-    const [orgResponse, globalDeclarations] = await Promise.all([
-      client.get<{ uri?: string }>('/namespaces/declarations'),
-      getGlobalDeclarations(),
-    ]);
+    // グローバル宣言を取得（組織ベースURIは XMLへの注入対象外のため declarations エンドポイントは使用しない）
+    const globalDeclarations = await getGlobalDeclarations();
 
     // グローバル宣言に変換ルールを適用
     const convertedGlobals: NamespaceEntry[] = globalDeclarations
@@ -183,11 +187,101 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
         return { prefix: entry.prefix, uri: entry.uri };
       });
 
-    // 組織 URI（後勝ちで組織固有が優先されるよう末尾に配置）
-    const orgUri = orgResponse.data?.uri;
-    const orgEntries: NamespaceEntry[] = orgUri ? [{ prefix: '', uri: orgUri }] : [];
+    // 注意: declarations エンドポイントが返す orgUri は組織のベースURI（prefix なし）。
+    // これを prefix='' のデフォルト名前空間として注入すると xmlns="" が2重になりXMLパースエラーになるため注入しない。
+    // XML への注入は prefix テーブルに登録された prefix+uri ペア（グローバル宣言 + 個人/グループスコープ）とする。
 
-    return [...convertedGlobals, ...orgEntries];
+    // --- ログインユーザーの個人スコープ・組織グループスコープの Prefix を取得 ---
+    // localStorage の userInfo から userId と organizationGroupCds を読み取る
+    const userInfo = (() => {
+      try {
+        if (typeof window === 'undefined') return null;
+        const raw = localStorage.getItem('userInfo');
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    // --- 個人スコープ（userId）の Prefix を取得 ---
+    // scopeKeys 複数指定では withAncestors がバックエンドで無視されるため、
+    // 個人スコープとグループスコープを別々の API コールで取得する。
+    const allScopedNamespaces: NamespaceEntry[] = [];
+
+    if (userInfo?.id) {
+      const personal = await getNamespaceList({ scopeKey: userInfo.id as string });
+      if (personal.length > 0) {
+        // 個人スコープの正規 URI を取得（https://{org_cd}.Alchemia.co.jp/{login_name}）
+        // fetchSuggestedUri() を scopeKey なしで呼ぶとログインユーザーの個人スコープ URI を返す
+        const personalUri = await fetchSuggestedUri();
+        console.log(
+          `🔖 [namespaceApiService] 個人スコープ Prefix 取得: ${personal.length} 件 (userId=${userInfo.id}), 正規URI=${personalUri}`
+        );
+        // DB に保存された uri ではなく、正規パターンの個人スコープ URI で上書きする
+        const correctedPersonal = personal.map((entry) => ({
+          ...entry,
+          uri: personalUri,
+        }));
+        allScopedNamespaces.push(...correctedPersonal);
+      }
+    }
+
+    // --- 組織グループスコープの Prefix を取得（祖先グループを含む） ---
+    // organizationGroupCds の先頭グループ CD を起点に WITH RECURSIVE で祖先まで辿る
+    const groupCds: string[] = Array.isArray(userInfo?.organizationGroupCds)
+      ? (userInfo.organizationGroupCds as string[])
+      : [];
+    if (groupCds.length > 0) {
+      const group = await getNamespaceList({ scopeKey: groupCds[0], withAncestors: true });
+      if (group.length > 0) {
+        // グループスコープの正規 URI を取得（https://{groupCd}.Alchemia.co.jp/...）
+        // fetchSuggestedUri(scopeKey) を呼ぶとログインユーザーの所属グループスコープ URI を返す
+        const groupUri = await fetchSuggestedUri(groupCds[0]);
+        console.log(
+          `🔖 [namespaceApiService] グループスコープ Prefix 取得: ${group.length} 件 (scopeKey=${groupCds[0]}, withAncestors=true), 正規URI=${groupUri}`
+        );
+        // DB に保存された uri ではなく、正規パターンのグループスコープ URI で上書きする
+        const correctedGroup = group.map((entry) => ({ ...entry, uri: groupUri }));
+        allScopedNamespaces.push(...correctedGroup);
+      }
+    }
+
+    const personalGroupNamespaces = allScopedNamespaces;
+
+    // --- 結合: グローバル優先（先勝ち）で個人/グループスコープを追加 ---
+    // convertedGlobals を先頭に置くことで、同一 prefix はグローバルが採用される
+    const allEntries: NamespaceEntry[] = [...convertedGlobals, ...personalGroupNamespaces];
+
+    // --- 防御処理 ---
+    // 1. URI バリデーション: 絶対 URI でないエントリをスキップ
+    //    prefix 付きの場合は http://, https://, urn: 等で始まる必要がある
+    //    prefix なし（デフォルト名前空間）も同様
+    // 2. 同一 prefix の重複除去（先勝ち）: グローバル宣言が優先され、
+    //    個人/グループスコープの同名 prefix は後勝ち防止のためスキップされる
+    const seen = new Set<string>();
+    const filtered: NamespaceEntry[] = [];
+    for (const entry of allEntries) {
+      // 絶対 URI かどうかチェック（RFC 3986 準拠の簡易判定）
+      const isAbsoluteUri = /^[a-zA-Z][a-zA-Z0-9+\-.]*:/.test(entry.uri);
+      if (!isAbsoluteUri) {
+        console.warn(
+          `⚠️ [namespaceApiService] 絶対URIでない名前空間エントリをスキップ: prefix="${entry.prefix}" uri="${entry.uri}"`
+        );
+        continue;
+      }
+      // 同一 prefix の重複除去（先勝ち）
+      const prefixKey = entry.prefix === '' ? '__default__' : entry.prefix;
+      if (seen.has(prefixKey)) {
+        console.warn(
+          `⚠️ [namespaceApiService] prefix の重複エントリをスキップ: prefix="${entry.prefix}" uri="${entry.uri}"`
+        );
+        continue;
+      }
+      seen.add(prefixKey);
+      filtered.push(entry);
+    }
+
+    return filtered;
   } catch (error) {
     // 名前空間取得失敗はエディタの操作を止めない（空配列を返して継続）
     console.warn('⚠️ [namespaceApiService] 名前空間宣言の取得に失敗しました:', error);
@@ -202,11 +296,15 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
  * バックエンドの GET /api/v1/namespaces を呼び出す。
  * 名前空間管理画面のPrefix一覧表示に使用する。
  *
- * @param options.scopeKeys - フィルタリングする scopeKey 配列（省略時は全件取得）
+ * @param options.scopeKeys     - フィルタリングする scopeKey 配列（省略時は全件取得）
+ * @param options.withAncestors - true の場合、scopeKey とその祖先グループのデータも取得
+ *                                （組織グループノード選択時に使用）
  * @returns 名前空間エントリ一覧（{prefix, uri, scopeKey?}[]）
  */
 export const getNamespaceList = async (options?: {
+  scopeKey?: string;
   scopeKeys?: string[];
+  withAncestors?: boolean;
 }): Promise<NamespaceEntry[]> => {
   const client = createApiClient();
 
@@ -214,8 +312,14 @@ export const getNamespaceList = async (options?: {
     console.log('🔖 [namespaceApiService] Prefix一覧取得', options);
 
     const params: Record<string, string> = {};
-    if (options?.scopeKeys && options.scopeKeys.length > 0) {
-      params.scopeKey = options.scopeKeys[0];
+    // scopeKey（単数）が指定されている場合はそちらを優先
+    if (options?.scopeKey) {
+      params.scopeKey = options.scopeKey;
+    } else if (options?.scopeKeys && options.scopeKeys.length > 0) {
+      params.scopeKeys = options.scopeKeys.join(',');
+    }
+    if (options?.withAncestors) {
+      params.withAncestors = 'true';
     }
 
     const response = await client.get<NamespaceListResponse>('/namespaces', { params });
@@ -330,13 +434,16 @@ export const deleteNamespace = async (prefix: string): Promise<void> => {
  * @remarks
  * バックエンドの GET /api/v1/namespaces/terms を呼び出す。
  *
- * @param options.scopeKey  - フィルタリングする scopeKey（単数）。指定時はそのスコープの用語を返す
- * @param options.scopeKeys - フィルタリングする scopeKey 配列（後方互換用・省略時は全件取得）
+ * @param options.scopeKey      - フィルタリングする scopeKey（単数）。指定時はそのスコープの用語を返す
+ * @param options.scopeKeys     - フィルタリングする scopeKey 配列（後方互換用・省略時は全件取得）
+ * @param options.withAncestors - true の場合、scopeKey とその祖先グループの用語も取得
+ *                                （組織グループノード選択時に使用）
  * @returns 用語一覧
  */
 export const getTerms = async (options?: {
   scopeKey?: string;
   scopeKeys?: string[];
+  withAncestors?: boolean;
 }): Promise<NamespaceTermRow[]> => {
   const client = createApiClient();
 
@@ -349,6 +456,9 @@ export const getTerms = async (options?: {
       params.scopeKey = options.scopeKey;
     } else if (options?.scopeKeys && options.scopeKeys.length > 0) {
       params.scopeKeys = options.scopeKeys.join(',');
+    }
+    if (options?.withAncestors) {
+      params.withAncestors = 'true';
     }
 
     const response = await client.get<NamespaceTermRow[]>('/namespaces/terms', { params });
@@ -525,15 +635,20 @@ export const getOrganizationUsers = async (): Promise<OrgUserSimple[]> => {
  * @returns 組織階層グループ行の配列
  */
 export const getOrganizationGroups = async (
-  search?: string
+  search?: string,
+  options?: { visibleOnly?: boolean; memberOf?: boolean }
 ): Promise<OrganizationGroupRow[]> => {
   const client = createApiClient();
 
   try {
-    console.log('🏢 [namespaceApiService] 組織階層グループ一覧取得');
+    console.log('🏢 [namespaceApiService] 組織階層グループ一覧取得', options);
 
     const params: Record<string, string> = {};
     if (search) params.search = search;
+    // visibleOnly=true を渡すと「閲覧可能な全グループ」を返す（代表者フィルタなし）
+    if (options?.visibleOnly) params.visibleOnly = 'true';
+    // memberOf=true を渡すとログインユーザーが所属するグループ＋全祖先グループを返す（ツリー構築用）
+    if (options?.memberOf) params.memberOf = 'true';
 
     const response = await client.get<{ success: boolean; data: OrganizationGroupRow[] }>(
       '/organization-groups',
@@ -764,5 +879,51 @@ export const exportGlobalDeclarations = async (): Promise<void> => {
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
+};
+
+// ============================================================================
+// API 関数 — URI自動生成
+// ============================================================================
+
+/**
+ * URI自動生成候補を取得する
+ *
+ * GET /api/v1/namespaces/suggested-uri
+ *
+ * @param scopeKey - 選択中ノードの scopeKey（organization_group_cd または userId）。
+ *                   未指定時は個人スコープ（ログインユーザーのメールアドレスから生成）。
+ * @returns 生成されたURI文字列（既存URIと重複しない値が返る）
+ */
+export const fetchSuggestedUri = async (scopeKey?: string): Promise<string> => {
+  const client = createApiClient();
+
+  console.log('🔗 [namespaceApiService] URI自動生成候補取得:', scopeKey);
+
+  const params: Record<string, string> = {};
+  if (scopeKey) params.scopeKey = scopeKey;
+
+  const response = await client.get<{ uri: string }>('/namespaces/suggested-uri', { params });
+
+  return response.data.uri;
+};
+
+/**
+ * Prefix の非アクティブ化（or アクティブ化）
+ *
+ * PATCH /api/v1/namespaces/:prefix/active
+ *
+ * @param prefix - 対象の Prefix 文字列
+ * @param isActive - true: アクティブ化、false: 非アクティブ化
+ */
+export const toggleNamespaceActive = async (
+  prefix: string,
+  isActive: boolean
+): Promise<void> => {
+  const client = createApiClient();
+  const encodedPrefix = encodeURIComponent(prefix);
+
+  console.log('🔗 [namespaceApiService] Prefix アクティブ切替:', prefix, isActive);
+
+  await client.patch(`/namespaces/${encodedPrefix}/active`, { isActive });
 };
 

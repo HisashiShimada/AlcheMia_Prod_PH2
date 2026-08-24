@@ -4511,8 +4511,8 @@
     "sortDesc": "降順ソート",
     "cancelSort": "ソートをキャンセル",
     "emptyText": "用語がありません",
-    "showTotal": "全{total}件",
-    "saveTermError": "用語の保存に失敗しました",
+    "showTotal": "Total {total} items",
+    "saveTermError": "用語「{localName}」の保存に失敗しました: {{detail}}",
     "csv": {
       "exportSelectAtLeastOne": "少なくとも1件選択してください"
     }
@@ -4677,12 +4677,6 @@
   "experimentWorker": {
     "startFailed": "開始に失敗しました",
     "switchFailed": "切り替えに失敗しました"
-  },
-  "namespaceDetail": {
-    "prefixRequired": "Prefixは必須です",
-    "saveNsSuccess": "名前空間を保存しました",
-    "saveTermSuccess": "用語を保存しました",
-    "uriRequired": "URIは必須です"
   },
   "signature": {
     "deleteFailed": "署名の削除に失敗しました",
@@ -4976,7 +4970,8 @@
     "btnSave": "保存",
     "btnCancel": "キャンセル",
     "btnEdit": "編集",
-    "btnDelete": "削除",
+    "btnDeactivate": "非アクティブ",
+    "btnActivate": "アクティブ",
     "btnSaveEdit": "保存",
     "btnCancelEdit": "キャンセル",
     "btnImport": "CSVインポート",
@@ -4989,7 +4984,7 @@
     "showTotal": "全{total}件",
     "fetchError": "Prefix一覧の取得に失敗しました",
     "saveSuccess": "{count}件のPrefixを保存しました",
-    "savePartialFailure": "{failCount}件の保存に失敗しました: {names}",
+    "savePartialFailureItem": "Prefix：{prefix}　URI：{uri}",
     "prefixRequired": "Prefixを入力してください",
     "prefixRequiredEdit": "Prefixを入力してください",
     "uriRequired": "URIを入力してください",
@@ -5008,11 +5003,27 @@
     "exportEmptyError": "エクスポートするデータがありません",
     "csvEmpty": "CSVファイルにデータがありません",
     "csvNoData": "有効なデータ行がありません",
-    "csvImportPartial": "{saved}件を保存しました。{failCount}件の保存に失敗しました: {names}",
+    "savePartialFailure": "{failCount}件の保存に失敗しました",
+    "csvImportPartial": "{saved}件を保存しました。{failCount}件の保存に失敗しました",
     "csvImportSuccess": "{count}件のPrefixをインポートしました",
     "csvParseError": "CSVファイルの読み込みに失敗しました",
+    "btnGenerateUri": "URI自動生成",
+    "generateUriError": "URIの自動生成に失敗しました",
+    "deactivateConfirm": "Prefix「{prefix}」を非アクティブ化しますか？",
+    "deactivateContent": "非アクティブ化すると、このPrefixは使用できなくなります。後から再アクティブ化できます。",
+    "deactivateOk": "非アクティブ化",
+    "deactivateCancelBtn": "キャンセル",
+    "deactivateSuccess": "Prefix「{prefix}」を非アクティブ化しました",
+    "deactivateError": "Prefix「{prefix}」の非アクティブ化に失敗しました",
+    "activateConfirm": "Prefix「{prefix}」をアクティブ化しますか？",
+    "activateContent": "アクティブ化すると、このPrefixが再び使用できるようになります。",
+    "activateOk": "アクティブ化",
+    "activateCancelBtn": "キャンセル",
+    "activateSuccess": "Prefix「{prefix}」をアクティブ化しました",
+    "activateError": "Prefix「{prefix}」のアクティブ化に失敗しました",
+    "systemNamespaceTooltip": "システム名前空間のため操作できません",
     "systemNamespaceBadge": "システム",
-    "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
+    "alchemiaSystemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
   },
   "aggregationRule": {
     "title": "集約ルール設定",
@@ -5062,5 +5073,30 @@
       "resultTitle": "📊 プレビュー結果（適用ルール版 {version}）",
       "attentionTitle": "⚠️ 要注意項目（プレビュー）"
     }
+  },
+  "namespaceDetail": {
+    "titleTerm": "用語詳細",
+    "titleNamespace": "名前空間詳細",
+    "labelDisplayJa": "表示名（日本語）",
+    "labelDisplayEn": "表示名（英語）",
+    "labelDescription": "説明",
+    "labelTypeHint": "型ヒント",
+    "labelUnitHint": "単位ヒント",
+    "placeholderUnitNone": "なし",
+    "labelPrefix": "接頭辞 (Prefix)",
+    "labelUri": "URI",
+    "labelLevel": "スコープ",
+    "labelTermCount": "用語数",
+    "termCountSuffix": "件",
+    "labelDisplayName": "表示名",
+    "labelCreatedAt": "作成日時",
+    "labelUpdatedAt": "更新日時",
+    "levelGlobal": "グローバル (Global)",
+    "levelOrganization": "組織 (Organization)",
+    "levelPersonal": "個人 (Personal)",
+    "saveTermSuccess": "用語を保存しました",
+    "saveNsSuccess": "名前空間を保存しました",
+    "prefixRequired": "接頭辞を入力してください",
+    "uriRequired": "URIを入力してください"
   }
 }

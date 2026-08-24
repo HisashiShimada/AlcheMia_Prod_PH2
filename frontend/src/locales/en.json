@@ -3402,12 +3402,12 @@
     "cancelSort": "Cancel sort",
     "emptyText": "No terms",
     "showTotal": "Total {total} items",
-    "duplicateErrorTitle": "Registration Error",
-    "duplicateError": "\"{qname}\" is already registered in {scopeName}.",
     "duplicateErrorWithScope": "\"{qname}\" is already registered in {scopeName}.",
     "duplicateWarningTitle": "Duplicate Term Warning",
     "duplicateWarningMessage": "\"{qname}\" is already registered in {scopeName}. Do you want to register it?",
-    "saveTermError": "Failed to save term"
+    "saveTermError": "Failed to save term \"{{localName}}\": {{detail}}",
+    "duplicateErrorTitle": "Duplicate Error",
+    "duplicateError": "\"{{qname}}\" is already registered in scope \"{{scopeName}}\""
   },
   "createProject": {
     "title": "Create Project",
@@ -4227,19 +4227,6 @@
       "uriTooLong": "Must be 512 characters or fewer"
     }
   },
-  "namespaceDetail": {
-    "prefixRequired": "Prefix is required",
-    "saveNsSuccess": "Namespace saved successfully",
-    "saveTermSuccess": "Term saved successfully",
-    "uriRequired": "URI is required"
-  },
-  "signature": {
-    "deleteFailed": "Failed to delete signature",
-    "deleteSuccess": "Signature deleted successfully",
-    "loadFailed": "Failed to load signature information",
-    "signFailed": "Signing failed",
-    "signSuccess": "Signed successfully"
-  },
   "groupManagement": {
     "groupListTitle": "Group List",
     "createGroupBtn": "Create Group",
@@ -4338,104 +4325,6 @@
     "saveSkipped": "Skipped saving to DB because Group CD is not set",
     "saveSuccess": "'{name}' saved ({count} members)",
     "title": "Edit Group"
-  },
-  "uncertaintyExport": {
-    "alertMessage": "Please select export options",
-    "btnCancel": "Cancel",
-    "btnDownload": "Download",
-    "formatLabel": "Format",
-    "optionIncludeDesc": "Include description",
-    "optionIncludeExtends": "Include inheritance info",
-    "optionIncludeHistory": "Include history",
-    "optionsLabel": "Options",
-    "startDemo": "Start Demo",
-    "title": "Uncertainty Criteria Export"
-  },
-  "uncertaintyImport": {
-    "alertDesc": "Please select a file to import",
-    "alertTitle": "Import Ready",
-    "btnCancel": "Cancel",
-    "btnExecute": "Execute Import",
-    "description": "Import uncertainty criteria data",
-    "dropHint": "Or drop file here",
-    "dropText": "Select file or drag & drop",
-    "formatLabel": "File Format",
-    "scopeLabel": "Scope",
-    "scopeOptionCompany": "Company",
-    "scopeOptionMaterial": "Material",
-    "scopeOptionMeasurement": "Measurement",
-    "scopeOptionPersonal": "Personal",
-    "startDemo": "Start Demo",
-    "title": "Uncertainty Criteria Import"
-  },
-  "workflowSelectorDialog": {
-    "loadFailed": "Failed to load workflow",
-    "selectRequired": "Please select a workflow"
-  },
-  "globalNamespace": {
-    "title": "Global Namespace Declarations",
-    "description": "System-wide global namespaces (managed in file server)",
-    "count": "{count} items",
-    "empty": "No global namespace declarations registered",
-    "fetchError": "Failed to fetch global namespace declarations",
-    "importButton": "Import",
-    "exportButton": "Export",
-    "importConfirmTitle": "Overwrite Import Global Namespace Declarations",
-    "importConfirmContent": "The current data on the file server will be overwritten. Do you want to continue?",
-    "importConfirmOk": "Overwrite Import",
-    "importSuccess": "Global namespace declarations imported successfully",
-    "importError": "Failed to import",
-    "exportSuccess": "Export completed",
-    "exportError": "Failed to export"
-  },
-  "aggregationRule": {
-    "title": "Aggregation Rule Settings",
-    "activeRuleInfo": "Current active rule: version {version}",
-    "noActiveRule": "No active aggregation rule. Please configure the initial settings below.",
-    "saveSuccess": "Aggregation rule saved.",
-    "previewFailed": "Preview failed",
-    "saveFailed": "Save failed",
-    "loading": "Loading...",
-    "scoreMappingTitle": "Score Mapping",
-    "aggregationRuleTitle": "Aggregation Rule",
-    "scoreGood": "Good",
-    "scoreCaution": "Caution",
-    "scoreBad": "Bad",
-    "targetRollup": {
-      "label": "Target Rollup",
-      "worstCase": "Worst Case",
-      "majority": "Majority",
-      "average": "Average"
-    },
-    "levelStatusRule": {
-      "label": "Level Status Rule",
-      "worstCase": "Worst Case",
-      "majority": "Majority"
-    },
-    "levelScoreRule": {
-      "label": "Level Score Rule",
-      "mean": "Mean",
-      "min": "Min"
-    },
-    "missingHandling": {
-      "label": "Missing Handling",
-      "separateCount": "Separate Count",
-      "excludeDenominator": "Exclude Denominator",
-      "treatAsGood": "Treat as Good"
-    },
-    "transitionHierarchy": {
-      "label": "Transition Hierarchy",
-      "merge": "Merge",
-      "split": "Split"
-    },
-    "buttons": {
-      "preview": "Preview",
-      "save": "Save (Register as New Version)"
-    },
-    "preview": {
-      "resultTitle": "📊 Preview Result (Rule version {version})",
-      "attentionTitle": "⚠️ Attention Items (Preview)"
-    }
   },
   "projectCompletionDialog": {
     "title": "Complete Project",
@@ -5105,5 +4994,229 @@
     "stateTransitionTime": "State Transition Time",
     "stateTransitionTimePlaceholder": "State Transition Time",
     "title": "State Record"
+  },
+  "signature": {
+    "deleteFailed": "Failed to delete signature",
+    "deleteSuccess": "Signature deleted successfully",
+    "loadFailed": "Failed to load signature information",
+    "signFailed": "Signing failed",
+    "signSuccess": "Signed successfully"
+  },
+  "teamManagement": {
+    "groupListTitle": "Group List",
+    "createGroupBtn": "Create Group",
+    "noGroups": "No groups",
+    "memberCount": "{count} members",
+    "groupCdLabel": "Group CD",
+    "chiefLabel": "Leader",
+    "chiefNotSet": "Not set",
+    "parentGroupLabel": "Parent Group",
+    "namespaceUriLabel": "Namespace URI",
+    "membersLabel": "Members",
+    "membersCount": "({count} members)",
+    "noMembers": "No members",
+    "editBtn": "Edit",
+    "inactiveLabel": "Inactive",
+    "deactivateBtn": "Deactivate",
+    "activateBtn": "Activate",
+    "deactivateConfirmTitle": "Deactivate '{name}'?",
+    "deactivateConfirmDesc": "Deactivating will remove all members. You can re-activate it later.",
+    "deactivateOk": "Deactivate",
+    "activateConfirmTitle": "Activate '{name}'?",
+    "activateConfirmDesc": "Activating will make the group available again.",
+    "activateOk": "Activate",
+    "statusChangeCancel": "Cancel",
+    "deactivateSuccess": "Group '{name}' deactivated.",
+    "activateSuccess": "Group '{name}' activated.",
+    "statusChangeFailed": "Status change failed: {detail}",
+    "statusChangeError": "An error occurred while changing status.",
+    "fetchFailed": "Failed to fetch group list",
+    "memberFetchFailed": "Failed to fetch member information",
+    "colUserName": "Username",
+    "selectPrompt": "Please select a group"
+  },
+  "teamAddDialog": {
+    "addBtn": "Add",
+    "addMemberDuplicate": "This member has already been added",
+    "addMemberLabel": "Add Member",
+    "addMemberLoading": "Loading...",
+    "addMemberNotFound": "No candidates found",
+    "addMemberPlaceholder": "Search by name...",
+    "cancelBtn": "Cancel",
+    "createBtn": "Create",
+    "createError": "An error occurred while creating the group",
+    "createFailed": "Failed to create group: {detail}",
+    "createSuccess": "Group \"{name}\" created",
+    "groupCdLabel": "Group CD",
+    "groupCdPlaceholder": "Enter group CD",
+    "groupCdRequired": "Please enter a group CD",
+    "groupNameLabel": "Group Name",
+    "groupNamePlaceholder": "Enter group name",
+    "groupNameRequired": "Please enter a group name",
+    "isActiveLabel": "Active Status",
+    "isActiveOptionActive": "Active",
+    "isActiveOptionInactive": "Inactive",
+    "memberRemoveHint": "Click × to remove a member",
+    "memberSetFailed": "Group created but failed to set members",
+    "membersCount": "({count})",
+    "membersLabel": "Members (optional)",
+    "noMembers": "No members",
+    "parentGroupLabel": "Parent Group",
+    "parentGroupOptional": "(Optional)",
+    "parentGroupPlaceholder": "Select parent group (optional)",
+    "title": "Add Team"
+  },
+  "teamEditDialog": {
+    "addBtn": "Add Member",
+    "addMemberDuplicate": "This user is already a member",
+    "addMemberLabel": "Add Member",
+    "addMemberLoading": "Searching...",
+    "addMemberNotFound": "User not found",
+    "addMemberPlaceholder": "Search by username or email",
+    "cancelBtn": "Cancel",
+    "chiefHint": "Set the team representative",
+    "chiefLabel": "Representative",
+    "chiefNoMembers": "No members",
+    "chiefPlaceholder": "Select representative",
+    "chiefPlaceholderNoMember": "Please add members first",
+    "currentMembersLabel": "Current Members",
+    "groupNameLabel": "Group Name",
+    "groupNamePlaceholder": "Enter group name",
+    "groupNameRequired": "Please enter a group name",
+    "isActiveLabel": "Active Status",
+    "isActiveOptionActive": "Active",
+    "isActiveOptionInactive": "Inactive",
+    "memberRemoveHint": "Click to remove member",
+    "membersCount": "({count} members)",
+    "noGroupCd": "Skipped saving to DB because Group CD is not set",
+    "noMembers": "No members",
+    "saveBtn": "Save",
+    "saveError": "An error occurred during save",
+    "saveFailed": "Save failed: {detail}",
+    "saveSuccess": "'{name}' saved ({count} members)",
+    "title": "Edit Team"
+  },
+  "uncertaintyExport": {
+    "alertMessage": "Please select export options",
+    "btnCancel": "Cancel",
+    "btnDownload": "Download",
+    "formatLabel": "Format",
+    "optionIncludeDesc": "Include description",
+    "optionIncludeExtends": "Include inheritance info",
+    "optionIncludeHistory": "Include history",
+    "optionsLabel": "Options",
+    "startDemo": "Start Demo",
+    "title": "Uncertainty Criteria Export"
+  },
+  "uncertaintyImport": {
+    "alertDesc": "Please select a file to import",
+    "alertTitle": "Import Ready",
+    "btnCancel": "Cancel",
+    "btnExecute": "Execute Import",
+    "description": "Import uncertainty criteria data",
+    "dropHint": "Or drop file here",
+    "dropText": "Select file or drag & drop",
+    "formatLabel": "File Format",
+    "scopeLabel": "Scope",
+    "scopeOptionCompany": "Company",
+    "scopeOptionMaterial": "Material",
+    "scopeOptionMeasurement": "Measurement",
+    "scopeOptionPersonal": "Personal",
+    "startDemo": "Start Demo",
+    "title": "Uncertainty Criteria Import"
+  },
+  "workflowSelectorDialog": {
+    "loadFailed": "Failed to load workflow",
+    "selectRequired": "Please select a workflow"
+  },
+  "globalNamespace": {
+    "title": "Global Namespace Declarations",
+    "description": "System-wide global namespaces (managed in file server)",
+    "count": "{count} items",
+    "empty": "No global namespace declarations registered",
+    "fetchError": "Failed to fetch global namespace declarations",
+    "importButton": "Import",
+    "exportButton": "Export",
+    "importConfirmTitle": "Overwrite Import Global Namespace Declarations",
+    "importConfirmContent": "The current data on the file server will be overwritten. Do you want to continue?",
+    "importConfirmOk": "Overwrite Import",
+    "importSuccess": "Global namespace declarations imported successfully",
+    "importError": "Failed to import",
+    "exportSuccess": "Export completed",
+    "exportError": "Failed to export"
+  },
+  "aggregationRule": {
+    "title": "Aggregation Rule Settings",
+    "activeRuleInfo": "Current active rule: version {version}",
+    "noActiveRule": "No active aggregation rule. Please configure the initial settings below.",
+    "saveSuccess": "Aggregation rule saved.",
+    "previewFailed": "Preview failed",
+    "saveFailed": "Save failed",
+    "loading": "Loading...",
+    "scoreMappingTitle": "Score Mapping",
+    "aggregationRuleTitle": "Aggregation Rule",
+    "scoreGood": "Good",
+    "scoreCaution": "Caution",
+    "scoreBad": "Bad",
+    "targetRollup": {
+      "label": "Target Rollup",
+      "worstCase": "Worst Case",
+      "majority": "Majority",
+      "average": "Average"
+    },
+    "levelStatusRule": {
+      "label": "Level Status Rule",
+      "worstCase": "Worst Case",
+      "majority": "Majority"
+    },
+    "levelScoreRule": {
+      "label": "Level Score Rule",
+      "mean": "Mean",
+      "min": "Min"
+    },
+    "missingHandling": {
+      "label": "Missing Handling",
+      "separateCount": "Separate Count",
+      "excludeDenominator": "Exclude Denominator",
+      "treatAsGood": "Treat as Good"
+    },
+    "transitionHierarchy": {
+      "label": "Transition Hierarchy",
+      "merge": "Merge",
+      "split": "Split"
+    },
+    "buttons": {
+      "preview": "Preview",
+      "save": "Save (Register as New Version)"
+    },
+    "preview": {
+      "resultTitle": "📊 Preview Result (Rule version {version})",
+      "attentionTitle": "⚠️ Attention Items (Preview)"
+    }
+  },
+  "namespaceDetail": {
+    "titleTerm": "Term Detail",
+    "titleNamespace": "Namespace Detail",
+    "labelDisplayJa": "Display Name (JA)",
+    "labelDisplayEn": "Display Name (EN)",
+    "labelDescription": "Description",
+    "labelTypeHint": "Type Hint",
+    "labelUnitHint": "Unit Hint",
+    "placeholderUnitNone": "None",
+    "labelPrefix": "Prefix",
+    "labelUri": "URI",
+    "labelLevel": "Scope",
+    "labelTermCount": "Term Count",
+    "termCountSuffix": "",
+    "labelDisplayName": "Display Name",
+    "labelCreatedAt": "Created At",
+    "labelUpdatedAt": "Updated At",
+    "levelGlobal": "Global",
+    "levelOrganization": "Organization",
+    "levelPersonal": "Personal",
+    "saveTermSuccess": "Term saved",
+    "saveNsSuccess": "Namespace saved",
+    "prefixRequired": "Please enter a prefix",
+    "uriRequired": "Please enter a URI"
   }
 }

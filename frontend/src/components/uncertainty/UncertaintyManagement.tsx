@@ -81,10 +81,15 @@ const buildNsTreeSkeleton = (companyLabel: string): NamespaceNode[] => [
 // organization_group フラットリスト → NamespaceNode ツリー変換
 // ──────────────────────────────────────────────
 const buildOrgTree = (groups: OrganizationGroupRow[]): NamespaceNode[] => {
+  if (!Array.isArray(groups)) return [];
+  // 重複排除: organization_group_cd で一意化（同じCDが複数回含まれていても1件として扱う）
+  const uniqueGroups = Array.from(
+    new Map(groups.map((g) => [g.organization_group_cd, g])).values()
+  );
   const map = new Map<string, NamespaceNode>();
   const roots: NamespaceNode[] = [];
 
-  for (const g of groups) {
+  for (const g of uniqueGroups) {
     map.set(g.organization_group_cd, {
       key: g.organization_group_cd,
       label: g.organization_group_name,
@@ -93,7 +98,7 @@ const buildOrgTree = (groups: OrganizationGroupRow[]): NamespaceNode[] => {
     });
   }
 
-  for (const g of groups) {
+  for (const g of uniqueGroups) {
     const node = map.get(g.organization_group_cd)!;
     if (g.parent_group_cd && map.has(g.parent_group_cd)) {
       map.get(g.parent_group_cd)!.children!.push(node);
@@ -149,6 +154,30 @@ const getAncestorKeys = (targetKey: string, nodes: NamespaceNode[], ancestors: s
     }
   }
   return null;
+};
+
+// 指定キーのノードとその全子孫キーを収集する
+const collectDescendantKeys = (targetKey: string, nodes: NamespaceNode[]): string[] => {
+  const result: string[] = [];
+  const collectAll = (ns: NamespaceNode[]) => {
+    for (const node of ns) {
+      result.push(node.key);
+      if (node.children) collectAll(node.children);
+    }
+  };
+  const findAndCollect = (ns: NamespaceNode[]): boolean => {
+    for (const node of ns) {
+      if (node.key === targetKey) {
+        result.push(node.key);
+        if (node.children) collectAll(node.children);
+        return true;
+      }
+      if (node.children && findAndCollect(node.children)) return true;
+    }
+    return false;
+  };
+  findAndCollect(nodes);
+  return result;
 };
 
 // 指定キーがどのルートノード（global/personal/company等）配下にあるかを返す
@@ -235,9 +264,10 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   useEffect(() => {
     getOrganizationGroups()
       .then((groups) => {
-        setOrgGroups(groups);
+        const safeGroups = Array.isArray(groups) ? groups : [];
+        setOrgGroups(safeGroups);
         // 組織ノードの最下層リーフを初期選択状態にする
-        const orgNodes = buildOrgTree(groups);
+        const orgNodes = buildOrgTree(safeGroups);
         const leafKey = findDeepestLeafKey(orgNodes);
         if (leafKey) {
           setSelectedNsKey(leafKey);
@@ -250,8 +280,9 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   }, [user?.id]);
 
   // ── mousedown でコンテキストメニューを閉じる
+  // visible が既に false の場合は同じ参照を返して不要な再レンダーを防ぐ
   useEffect(() => {
-    const close = () => setCtxMenu((s) => ({ ...s, visible: false }));
+    const close = () => setCtxMenu((s) => s.visible ? { ...s, visible: false } : s);
     window.addEventListener('mousedown', close);
     return () => window.removeEventListener('mousedown', close);
   }, []);
@@ -318,6 +349,24 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     return selectedNsKey === 'global' || selectedNsKey === 'ns-maiml' || selectedNsKey === 'ns-xsi';
   }, [selectedNsKey]);
 
+  // PrefixManagement に渡す orgGroupCds をメモ化する。
+  // インライン IIFE のままだと親が再レンダーするたびに新しい配列参照が生成され、
+  // PrefixManagement 内の useEffect([selectedNsKey, orgGroupCds]) が誤発火して
+  // 編集状態（editingId）がリセットされてしまう問題を防ぐ。
+  const filteredOrgGroupCds = useMemo(() => {
+    const allCds = orgGroups.map((g) => g.organization_group_cd);
+    if (!selectedNsKey || selectedNsKey === 'company') return allCds;
+    const STATIC_KEYS = new Set(['global', 'ns-maiml', 'ns-xsi', 'personal']);
+    if (STATIC_KEYS.has(selectedNsKey)) return allCds;
+    // org group CD 選択時: 選択ノード＋子孫 CDs のみ渡す
+    const companyNode = namespaceTree.find((n) => n.key === 'company');
+    const descendants = companyNode
+      ? collectDescendantKeys(selectedNsKey, companyNode.children ?? [])
+      : [];
+    const filtered = descendants.filter((k) => allCds.includes(k));
+    return filtered.length > 0 ? filtered : allCds;
+  }, [orgGroups, selectedNsKey, namespaceTree]);
+
   // ── チームノードのタイトル（companyDepth === 3 のみ右クリックメニューを有効化）
   const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
     // Global/Personal が選択されていない時のみ CURRENT_USER_NS_KEY を薄い青背景で強調
@@ -336,16 +385,13 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
       <span
         onContextMenu={handleContextMenu}
         style={{
-          display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
           cursor: isTeam ? 'context-menu' : undefined,
         }}
       >
-        <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
           {node.label}
         </span>
-        {node.count > 0 && (
-          <span style={{ color: '#8c8c8c', fontSize: 12, flexShrink: 0 }}>{node.count}</span>
-        )}
       </span>
     );
   }, [isGlobalOrPersonalSelected]);
@@ -383,12 +429,12 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
         {/* ── 左ペイン：名前空間ツリー（固定） ── */}
         <div style={{
           width: '22%', minWidth: 240, maxWidth: 360,
-          background: '#fafafa', borderRight: '1px solid #e8e8e8',
-          display: 'flex', flexDirection: 'column', padding: '12px 12px 8px', overflowY: 'auto',
+          borderRight: '1px solid #e8e8e8',
+          display: 'flex', flexDirection: 'column', overflow: 'auto',
         }}>
+          <div style={{ background: '#fafafa', minWidth: 'max-content', flex: 1, padding: '12px 12px 8px' }}>
           <Tree
             key={orgGroups.map((g) => g.organization_group_cd).join(',') || 'empty'}
-            blockNode
             defaultExpandAll
             treeData={treeData}
             selectedKeys={selectedNsKey ? [selectedNsKey] : []}
@@ -399,6 +445,7 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
             }}
           />
 
+          </div>
           {/* コンテキストメニュー（右クリックメニュー） */}
           {ctxMenu.visible && ctxMenu.node && (
             <ul
@@ -502,8 +549,15 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
             </div>
 
             {/* Prefix管理タブ */}
+            {/* filteredOrgGroupCds: 選択ノード配下（自身含む）の CDs のみに絞る。
+                未選択 or 組織ルートノード選択時は全 CDs を渡す。
+                useMemo でメモ化済み（インラインIIFEによる毎回新参照生成を防ぐ） */}
             <div style={{ display: activeTab === 'prefix' ? 'flex' : 'none', height: '100%', overflow: 'hidden' }}>
-              <PrefixManagement showShareButton={true} selectedNsKey={effectiveNsKey} />
+              <PrefixManagement
+                showShareButton={true}
+                selectedNsKey={effectiveNsKey}
+                orgGroupCds={filteredOrgGroupCds}
+              />
             </div>
 
               {/* 不確かさ基準管理タブ：一覧のみ */}
