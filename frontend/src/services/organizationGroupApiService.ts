@@ -1,8 +1,8 @@
 /**
- * organization_group（チーム管理）API Service
+ * organization_group（グループ管理）API Service
  *
  * @remarks
- * チーム管理機能専用のAPIサービス。
+ * グループ管理機能専用のAPIサービス。
  * 名前空間管理（namespaceApiService）とは独立して管理する。
  *
  * @module organizationGroupApiService
@@ -14,7 +14,7 @@ import type {
   CreateOrganizationGroupRequest,
   UpdateOrganizationGroupRequest,
   OrgUser,
-} from '@/types/team';
+} from '@/types/group';
 
 // ============================================================================
 // API 関数 — グループ CRUD

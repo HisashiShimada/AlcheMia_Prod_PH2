@@ -10,10 +10,10 @@ interface ProjectManagementProps {
   onEdit?: (params: MaimlEditorParams) => void;
   /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
   onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
-  /** ログイン中ユーザー情報（チーム未所属判定に使用） */
+  /** ログイン中ユーザー情報（グループ未所属判定に使用） */
   user?: User;
-  /** チーム管理タブへ遷移するコールバック */
-  onNavigateToTeamManagement?: () => void;
+  /** グループ管理タブへ遷移するコールバック */
+  onNavigateToGroupManagement?: () => void;
 }
 
 const ProjectManagement: React.FC<ProjectManagementProps> = (props) => {

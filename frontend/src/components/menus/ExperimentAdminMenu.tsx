@@ -18,7 +18,7 @@ import WorkerScreenOverlay from '../project/WorkerScreenOverlay';
 import FormatManagement from '../format/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
 import UncertaintyManagement from '../uncertainty/UncertaintyManagement';
-import TeamManagementPanel from '../team/TeamManagementPanel';
+import GroupManagementPanel from '../group/GroupManagementPanel';
 // TODO: 暗号化・署名機能は本実装まで無効化 -- import KeyManagementScreen from '../key-management/KeyManagementScreen';
 import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';
@@ -99,7 +99,7 @@ export default function ExperimentAdminMenu({
     },
     {
       key: '5',
-      label: 'チーム管理',
+      label: 'グループ管理',
       icon: <TeamOutlined />,
     },
     // TODO: 暗号化・署名機能は本実装まで無効化
@@ -178,7 +178,7 @@ export default function ExperimentAdminMenu({
             onEdit={handleEditProject}
             onOpenWorkerScreen={handleOpenWorkerScreen}
             user={user}
-            onNavigateToTeamManagement={() => setCurrentTab('5')}
+            onNavigateToGroupManagement={() => setCurrentTab('5')}
           />
         </div>
 
@@ -197,9 +197,9 @@ export default function ExperimentAdminMenu({
           <UncertaintyManagement user={user} />
         </div>
 
-        {/* タブ5: チーム管理 */}
+        {/* タブ5: グループ管理 */}
         <div style={{ display: currentTab === '5' ? 'block' : 'none', height: '100%', overflow: 'hidden', background: '#fff' }}>
-          <TeamManagementPanel />
+          <GroupManagementPanel />
         </div>
 
         {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
