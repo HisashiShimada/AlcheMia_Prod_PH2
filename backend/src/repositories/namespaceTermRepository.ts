@@ -340,7 +340,6 @@ export async function createNamespaceUri(
     namespaceId,
     data.uri,
     data.userId,
-    data.userId, // $5: scope_key = userId（個人ノード選択時の検索用）
     data.scopeKey ?? null,
   ]);
 
