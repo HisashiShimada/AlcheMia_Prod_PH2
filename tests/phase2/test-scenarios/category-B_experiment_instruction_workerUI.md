@@ -25,7 +25,7 @@
 - [B-EI-02：CreatorRef / InstrumentRef / OwnerRef の設定](#b-ei-02creatorrefinstrumentrefownerref-の設定)
 - [B-EI-03：プロジェクト指示ダイアログの指示種別入力と指示粒度設定](#b-ei-03プロジェクト指示ダイアログの指示種別入力と指示粒度設定)
 - [B-EI-04：一括タブ→タスクNタブへの伝播と個別編集](#b-ei-04一括タブタスクnタブへの伝播と個別編集)
-- [B-EI-05：トランジション DnD 並べ替え・JSON インポート/エクスポート](#b-ei-05トランジション-dnd-並べ替えjson-インポートエクスポート)
+- [B-EI-05：トランジション DnD 並べ替え](#b-ei-05トランジション-dnd-並べ替え)
 - [B-EI-06：実験作業者 ─ 進捗確認タブ・フィルタ・前提チェック](#b-ei-06実験作業者--進捗確認タブフィルタ前提チェック)
 - [B-EI-07：実験作業者 ─ 作業記録パネル・実績値入力・トランジション完了](#b-ei-07実験作業者--作業記録パネル実績値入力トランジション完了)
 - [B-EI-08：差異表示・確信度ボタン・定量評価入力](#b-ei-08差異表示確信度ボタン定量評価入力)
@@ -99,7 +99,6 @@
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 6 | — | 左パネルを確認する | トランジション一覧（⠿ ドラッグハンドル付き）が表示されており、選択中の行がハイライトされる |
-| 7 | — | 左パネル下部を確認する | 「エクスポート」（ExportOutlined）と「インポート」（ImportOutlined）ボタンが表示されている |
 | 8 | — | 右パネル上部タブを確認する | 「一括」タブと「タスク1」「タスク2」タブが表示されている |
 | 9 | — | 右パネル内部タブを確認する | 「基本情報」と「テンプレート入力」タブが表示されている |
 
@@ -154,7 +153,7 @@
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 1 | experiment_admin | 内部タブ「基本情報」を選択する | `RefSection`（CreatorRef / InstrumentRef / OwnerRef / 注意事項）が表示される |
+| 1 | experiment_admin | 内部タブ「基本情報」を選択する | `RefSection`（CreatorRef / InstrumentRef / OwnerRef）が表示される |
 | 2 | experiment_admin | 「CreatorRef」セクションのプルダウンから `creator_001` を選択する | 選択肢に値が表示される |
 | 3 | experiment_admin | 「追加」ボタンを押す | `creator_001` がリストに追加される（`[×]` ボタン付き）|
 | 4 | experiment_admin | 追加済みの `creator_001` の `[×]` ボタンを押す | リストから `creator_001` が削除される |
@@ -292,7 +291,7 @@
 
 ### 概要
 
-実験管理者が「一括」タブ（TAB_KEY_ALL）でトランジションの想定値・Ref・注意事項を変更すると、各「タスクN」タブに自動伝播することを確認する。また、タスクNタブで個別編集した場合は一括タブに反映されないこと（一方向伝播）を確認する。
+実験管理者が「一括」タブ（TAB_KEY_ALL）でトランジションの想定値・Ref を変更すると、各「タスクN」タブに自動伝播することを確認する。また、タスクNタブで個別編集した場合は一括タブに反映されないこと（一方向伝播）を確認する。
 
 ### 関連
 
@@ -337,7 +336,7 @@
 
 ### 確認ポイント
 
-- [ ] 一括タブの変更は `creatorRefs / instrumentRefs / ownerRefs / notes / templateValues` の全フィールドに伝播される（`InheritableField`）
+- [ ] 一括タブの変更は `creatorRefs / instrumentRefs / ownerRefs / templateValues` の全フィールドに伝播される（`InheritableField`）
 - [ ] タスクNタブでの個別編集は一括タブに反映されない（一方向伝播）
 - [ ] 保存時は `taskNumbers` の各タスク番号に対して個別に `PUT` が呼ばれる
 - [ ] 一括タブのデータは保存 API に送信されない
@@ -350,11 +349,11 @@
 
 ---
 
-## B-EI-05：トランジション DnD 並べ替え・JSON インポート/エクスポート
+## B-EI-05：トランジション DnD 並べ替え
 
 ### 概要
 
-実験管理者が `ExperimentPlanDialog` の左パネルでトランジションを Drag & Drop で並べ替えられることを確認する。また、JSON エクスポートとインポートが動作することを確認する。
+実験管理者が `ExperimentPlanDialog` の左パネルでトランジションを Drag & Drop で並べ替えられることを確認する。
 
 ### 関連
 
@@ -382,26 +381,10 @@
 |---|--------|------|---------|
 | 3 | experiment_admin | `prerequisiteTransitionIds` が設定されているトランジションを、依存元より前の位置に移動しようとする | 移動がキャンセルされ、元の位置に戻る（`canMoveToOrder()` による制約）|
 
-#### ステップ 3：JSON エクスポート
-
-| # | ロール | 操作 | 期待結果 |
-|---|--------|------|---------|
-| 4 | experiment_admin | 左パネル下部の「エクスポート」（ExportOutlined）ボタンを押す | `tabDataMap` と `transitionOrder` を含む JSON ファイルがダウンロードされる |
-| 5 | — | ダウンロードされた JSON の内容を確認する | 入力済みの想定値・Ref・注意事項・トランジション順序が含まれている |
-
-#### ステップ 4：JSON インポート
-
-| # | ロール | 操作 | 期待結果 |
-|---|--------|------|---------|
-| 6 | experiment_admin | 左パネル下部の「インポート」（ImportOutlined）ボタンを押す | ファイル選択ダイアログが開く |
-| 7 | experiment_admin | 手順3でエクスポートした JSON ファイルを選択する | `tabDataMap` と `transitionOrder` が読み込まれ、フォームに値が反映される |
-
 ### 確認ポイント
 
 - [ ] DnD によるトランジション並べ替えが `@dnd-kit/sortable` で動作する
 - [ ] 依存関係制約（`prerequisiteTransitionIds`）を違反する移動はキャンセルされる
-- [ ] エクスポートされた JSON に `tabDataMap` と `transitionOrder` が含まれる
-- [ ] インポートした JSON でフォームが正しく復元される
 
 ### テスト結果
 
@@ -680,7 +663,7 @@
 | B-EI-02 | CreatorRef / InstrumentRef / OwnerRef の設定 | experiment_admin | 未実施 |
 | B-EI-03 | プロジェクト指示ダイアログの指示種別入力と指示粒度設定 | experiment_admin / experiment_worker | 未実施 |
 | B-EI-04 | 一括タブ→タスクNタブへの伝播と個別編集 | experiment_admin | 未実施 |
-| B-EI-05 | トランジション DnD 並べ替え・JSON インポート/エクスポート | experiment_admin | 未実施 |
+| B-EI-05 | トランジション DnD 並べ替え | experiment_admin | 未実施 |
 | B-EI-06 | 実験作業者：進捗確認タブ・フィルタ・前提チェック | experiment_worker | 実施不可（仕様変更待ち）|
 | B-EI-07 | 実験作業者：作業記録パネル・実績値入力・トランジション完了 | experiment_worker | 実施不可（仕様変更待ち）|
 | B-EI-08 | 差異表示・確信度ボタン・定量評価入力 | experiment_worker | 実施不可（仕様変更待ち）|
