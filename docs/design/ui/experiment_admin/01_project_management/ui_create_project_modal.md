@@ -3,7 +3,7 @@
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-新規プロジェクト作成モーダルは、プロジェクト管理画面から新規プロジェクトを作成するためのモーダルダイアログです。プロジェクト名と概要を入力し、バックエンドAPIに送信してプロジェクトを作成します。
+新規プロジェクト作成モーダルは、プロジェクト管理画面から新規プロジェクトを作成するためのモーダルダイアログです。プロジェクト名・概要・所属チームを入力し、バックエンドAPIに送信してプロジェクトを作成します。
 
 ### 1.2 使用場面
 - プロジェクト管理画面のツールバー → 「新規作成」ボタンクリック時に表示
@@ -38,6 +38,12 @@
 │ └─────────────────────────────────┘   │
 │ 500文字以内（任意）                     │
 │                                         │
+│ チーム *                                │
+│ ┌─────────────────────────────────┐   │
+│ │ ▼ チームを選択してください      │   │
+│ └─────────────────────────────────┘   │
+│ （補足テキスト）                        │
+│                                         │
 │              [キャンセル] [作成]        │
 └─────────────────────────────────────────┘
 ```
@@ -52,6 +58,7 @@
 
 **1. プロジェクト名（必須）**
 - タイプ: Input
+- `data-testid`: `create-project-name-input`
 - バリデーション:
   - 必須入力
   - 最小3文字
@@ -61,14 +68,24 @@
 
 **2. 概要（任意）**
 - タイプ: TextArea
+- `data-testid`: `create-project-description-input`
 - 行数: 4行
 - バリデーション:
   - 最大500文字
 - 文字数カウント表示
 
+**3. チーム（必須）**
+- タイプ: Select（ドロップダウン）
+- `data-testid`: `create-project-org-group-select`
+- データソース: `GET /api/v1/organization-groups` で取得したチーム一覧
+- ローディング中はスピナー表示（`loading={teamsLoading}`）
+- バリデーション:
+  - 必須選択
+- フィールド下に補足テキストを表示（`createProject.teamNote`）
+
 #### 2.2.3 フッターボタン
-- **キャンセルボタン**: モーダルを閉じる、フォームをリセット
-- **作成ボタン**: フォーム送信、ローディング状態表示
+- **キャンセルボタン**（`data-testid`: `create-project-cancel-button`）: モーダルを閉じる、フォームをリセット
+- **作成ボタン**（`data-testid`: `create-project-submit-button`）: フォーム送信、ローディング状態表示
 
 #### 2.2.4 エラー表示
 - Alert（error）: エラーメッセージ表示
@@ -77,6 +94,40 @@
 ---
 
 ## 3. 機能仕様
+
+### 3.0 モーダル起動時のチーム一覧取得
+
+モーダルが開かれる（`open === true`）と同時に `GET /api/v1/organization-groups` を呼び出してチーム一覧を取得し、チーム選択ドロップダウンのオプションとして設定します。
+
+```typescript
+useEffect(() => {
+  if (!open) return;
+
+  const fetchTeams = async () => {
+    setTeamsLoading(true);
+    try {
+      const client = createApiClient();
+      const response = await client.get<{
+        success: boolean;
+        data: Array<{ organization_group_cd: string; organization_group_name: string }>;
+      }>('/organization-groups');
+      setTeams(
+        (response.data?.data ?? []).map((g) => ({
+          organizationGroupCd: g.organization_group_cd,
+          organizationGroupName: g.organization_group_name,
+        }))
+      );
+    } catch {
+      // API取得失敗時はチーム選択を空にして続行
+      setTeams([]);
+    } finally {
+      setTeamsLoading(false);
+    }
+  };
+
+  fetchTeams();
+}, [open]);
+```
 
 ### 3.1 プロジェクト作成
 
@@ -95,15 +146,16 @@ const handleSubmit = async () => {
       .replace(/\s+/g, '_')
       .replace(/[^a-zA-Z0-9_-]/g, '_');
     
-    // プロジェクトデータの作成
-    const projectData: CreateProjectData = {
-      projectName: values.projectName,
-      description: values.description || '',
-      folderName: folderName,
-      owner: currentUser.name,
-      department: currentUser.department,
-      organizationId: currentUser.organizationId,
-    };
+      // プロジェクトデータの作成
+      const projectData: CreateProjectData = {
+        projectName: values.projectName,
+        description: values.description || '',
+        folderName: folderName,
+        owner: currentUser.name,
+        organizationGroup: currentUser.organizationGroup,
+        organizationId: currentUser.organizationId,
+        organizationGroupCd: values.organizationGroupCd || undefined,
+      };
     
     // 親コンポーネントの送信ハンドラを呼び出し
     await onSubmit(projectData);
@@ -236,9 +288,17 @@ interface CreateProjectModalProps {
   /** 現在のユーザー情報（デフォルト値あり） */
   currentUser?: {
     name: string;
-    department: string;
+    organizationGroup: string;
     organizationId: string;
   };
+}
+
+/**
+ * チーム情報の型定義（/api/v1/organization-groups レスポンス）
+ */
+interface TeamOption {
+  organizationGroupCd: string;
+  organizationGroupName: string;
 }
 ```
 
@@ -248,7 +308,7 @@ interface CreateProjectModalProps {
 | open | `boolean` | ✅ | モーダルの表示状態 |
 | onCancel | `() => void` | ✅ | キャンセル時のコールバック |
 | onSubmit | `(data: CreateProjectData) => Promise<void>` | ✅ | 送信時のコールバック |
-| currentUser | `{ name, department, organizationId }` | - | 現在のユーザー情報（デフォルト: テストデータ） |
+| currentUser | `{ name, organizationGroup, organizationId }` | - | 現在のユーザー情報（デフォルト: テストデータ） |
 
 ### 4.2 State定義
 
@@ -256,6 +316,8 @@ interface CreateProjectModalProps {
 const [form] = Form.useForm();
 const [submitting, setSubmitting] = useState(false);
 const [error, setError] = useState<string | null>(null);
+const [teams, setTeams] = useState<TeamOption[]>([]);
+const [teamsLoading, setTeamsLoading] = useState(false);
 ```
 
 **State説明:**
@@ -264,17 +326,20 @@ const [error, setError] = useState<string | null>(null);
 | form | `FormInstance` | - | Ant Design Form インスタンス |
 | submitting | `boolean` | `false` | 送信中かどうか |
 | error | `string \| null` | `null` | エラーメッセージ |
+| teams | `TeamOption[]` | `[]` | チーム選択肢一覧（API取得） |
+| teamsLoading | `boolean` | `false` | チーム一覧取得中フラグ |
 
 ### 4.3 CreateProjectData型定義
 
 ```typescript
 export interface CreateProjectData {
-  projectName: string;      // プロジェクト名
-  description: string;      // 概要
-  folderName: string;       // フォルダ名（自動生成）
-  owner: string;            // 所有者名
-  department: string;       // 部門名
-  organizationId: string;   // 組織ID
+  projectName: string;           // プロジェクト名
+  description: string;           // 概要
+  folderName: string;            // フォルダ名（自動生成）
+  owner: string;                 // 所有者名
+  organizationGroup: string;     // 組織グループ名
+  organizationId: string;        // 組織ID
+  organizationGroupCd?: string;  // 選択されたチームの組織グループコード（任意）
 }
 ```
 
@@ -282,7 +347,18 @@ export interface CreateProjectData {
 
 ## 5. API連携
 
-このコンポーネントは直接APIを呼び出しません。親コンポーネント（ProjectManagement）の`onSubmit`コールバックを通じてAPI呼び出しを委譲します。
+### 5.0 チーム一覧取得（モーダル起動時）
+
+| 項目 | 内容 |
+|------|------|
+| エンドポイント | `GET /api/v1/organization-groups` |
+| 呼び出しタイミング | モーダルが開かれた時（`open === true`） |
+| 成功時 | `teams` State にマッピングして Select のオプションとして設定 |
+| 失敗時 | `teams` を空配列にして続行（エラー表示なし） |
+
+### 5.1 プロジェクト作成（親コンポーネント経由）
+
+このコンポーネントはプロジェクト作成APIを直接呼び出しません。親コンポーネント（ProjectManagement）の`onSubmit`コールバックを通じてAPI呼び出しを委譲します。
 
 **親コンポーネントでの実装:**
 ```typescript
@@ -345,8 +421,9 @@ try {
 
 ### 7.3 依存ライブラリ
 - React 18.2.0
-- Ant Design v6 (Modal, Form, Input, Space, Typography, Alert, theme)
+- Ant Design v6 (Modal, Form, Input, Select, Space, Typography, Alert, theme)
 - @ant-design/icons (FolderAddOutlined)
+- `@/utils/authUtils` (createApiClient)
 
 ---
 
@@ -355,6 +432,7 @@ try {
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
+| 2026-08-23 | ソース実態に合わせて修正（チーム選択フィールド追加・Props/State/型定義更新） | Cline |
 
 ---
 
@@ -391,7 +469,7 @@ try {
 ```typescript
 currentUser = {
   name: '田中 太郎',
-  department: '材料開発部',
+  organizationGroup: '材料開発部',
   organizationId: 'org_maiml_lab_001',
 }
 ```
