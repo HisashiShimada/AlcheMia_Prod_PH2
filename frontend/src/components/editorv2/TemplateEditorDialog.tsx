@@ -127,6 +127,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   
   // Insertion State (MaterialTemplate・ResultTemplateのみ)
   const [insertion, setInsertion] = useState<Insertion>({ uri: '', hash: { method: '', value: ''}, format: '' });
+  /** InsertionEditorForm から通知される uploadPendingFile 関数を保持する ref */
+  const uploadInsertionPendingRef = React.useRef<(() => Promise<void>) | null>(null);
 
   // ✅ Phase 2-1: NestedPropertyEditor用State
   const [properties, setProperties] = useState<Record<string, PropertyData>>({});
@@ -1361,7 +1363,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   /**
    * 保存処理
    */
-  const handleSave = () => {
+  const handleSave = async () => {
     const isNewTemplate = node.data.isNewTemplate || false;
     const templateCategory = node.data.templateCategory || node.data.placeType || 'material';
     const isCommonTemplate = node.data.isCommonTemplate || false;
@@ -1446,6 +1448,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         templateRefFromXml.insertion = insertion;
       }
 
+      // Insertion の pendingFile をアップロード（予約がある場合のみ）
+      if (uploadInsertionPendingRef.current) {
+        try {
+          await uploadInsertionPendingRef.current();
+        } catch {
+          message.error(t('insertionEditor.uploadFailed'));
+          return;
+        }
+      }
+
       // 保存実行
       onSave(node.id, templateRefFromXml, isNewTemplate, templateCategory, isCommonTemplate, methodId, originalTemplateId);
 
@@ -1525,6 +1537,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     if ((node.data.placeType === 'material' || node.data.placeType === 'result') && 
         (insertion.uri || insertion.hash || insertion.format)) {
       templateRef.insertion = insertion;
+    }
+
+    // Insertion の pendingFile をアップロード（予約がある場合のみ）
+    if (uploadInsertionPendingRef.current) {
+      try {
+        await uploadInsertionPendingRef.current();
+      } catch {
+        message.error(t('insertionEditor.uploadFailed'));
+        return;
+      }
     }
     
     // ✅ 修正: 編集開始時点の元のテンプレートIDを渡す（ID変更時の旧ID特定に使用）
@@ -1787,6 +1809,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                   const projectName = match?.[1] ?? editingFileName?.replace(/\.maiml$/, '') ?? '';
                   return projectName ? `projects/${projectName}/attachments` : undefined;
                 })()}
+                onUploadPendingFileReady={(fn) => { uploadInsertionPendingRef.current = fn; }}
               />
             </>
           )}

@@ -84,32 +84,6 @@
     "creatorLabel": "Creator",
     "instrumentLabel": "Instrument"
   },
-  "stateRecordDialog": {
-    "title": "状態記録",
-    "cancel": "キャンセル",
-    "save": "保存",
-    "preparingState": "準備状態",
-    "readyState": "準備完了状態",
-    "operatingState": "動作状態",
-    "pauseState": "休止状態",
-    "completedState": "終状態",
-    "errorState": "異常終了状態",
-    "stateTransitionTime": "状態遷移時刻",
-    "stateTransitionTimePlaceholder": "状態遷移時刻",
-    "addPauseRecord": "+ 休止状態記録追加",
-    "deletePauseRecord": "- 休止状態記録削除"
-  },
-  "statusUpdateSection": {
-    "title": "ステータス更新",
-    "statusLabel": "ステータス",
-    "progressLabel": "進捗",
-    "commentLabel": "コメント",
-    "commentPlaceholder": "コメントを入力",
-    "saveButton": "保存",
-    "confirmModalTitle": "ステータスを変更しますか？",
-    "confirmModalBody": "ステータスを「{label}」に変更します。\nよろしいですか？",
-    "statusSelectPlaceholder": "ステータスを選択"
-  },
   "dataRecordDialog": {
     "plannedValue": "想定値",
     "uncertaintyName": "不確かさ値",
@@ -122,58 +96,17 @@
     "threshold": "閾値",
     "addEval": "+ 追加",
     "updateError": "更新に失敗しました: {message}",
-    "attachmentUploadError": "添付ファイル{number}のアップロードに失敗しました",
-    "fileUploadError": "ファイルアップロードに失敗しました (key={key})",
-    "instructionConfirmFailed": "指示の確認処理に失敗しました",
-    "requiredField": "{label}は必須項目です",
-    "selectTemplateTitle": "テンプレートが選択されていません",
-    "selectTemplateDesc": "左側のテンプレート一覧から記録したいテンプレートを選択してください。",
-    "customPropertyLabel": "カスタムプロパティ",
-    "customPropertyDesc": "（テンプレート定義外の任意データを追加できます）",
-    "addProperty": "property 追加",
-    "addContent": "content 追加",
-    "addInsertion": "insertion 追加",
-    "dialogTitle": "実験データ記録",
-    "cancelButton": "キャンセル",
-    "saveButton": "保存",
-    "projectInstructionTitle": "⚠️ プロジェクト指示",
-    "instructionCount": "{count}件",
-    "noInstructions": "指示はありません",
-    "confirmed": "確認済み",
-    "confirmInstruction": "指示確認済み",
-    "addRow": "行を追加",
-    "contentRowInputPlaceholder": "行 {row}: 値をスペース区切りで入力（例: 1.0 2.5 3.0）",
-    "keyNamePlaceholder": "キー名",
-    "evalMethodDeviation": "誤差値",
-    "evalMethodStandardDeviation": "標準偏差",
-    "evalMethodRelativeError": "相対誤差",
-    "evalMethodUncertainty": "測定不確かさ",
-    "commentButton": "コメント",
-    "skipButton": "スキップ",
-    "nextButton": "次へ",
-    "deemedProgressCheckbox": "みなし進捗更新",
-    "instructionButton": "作業指示",
-    "statusUpdateTitle": "ステータス更新",
-    "statusLabel": "ステータス",
-    "progressLabel": "進捗",
-    "commentLabel": "コメント",
-    "confirmModalTitle": "ステータスを変更しますか？",
-    "confirmModalBody": "ステータスを「{status}」に変更します。よろしいですか？",
-    "templateListTitle": "テンプレート一覧",
-    "templateSearchPlaceholder": "テンプレート名で検索",
-    "templateCategoryPlaceholder": "テンプレート種別",
-    "noChildElements": "子要素がありません",
-    "duplicateKey": "Keyが重複しています",
-    "endButton": "終了",
-    "errorEndButton": "異常終了"
+    "attachmentUploadError": "添付ファイルのアップロードに失敗しました（#{number}）",
+    "fileUploadError": "ファイルのアップロードに失敗しました: {key}"
   },
   "experimentPlan": {
     "exportSuccess": "エクスポートしました",
     "importSuccess": "インポートしました",
-    "jsonParseFailed": "JSONのパースに失敗しました",
+    "jsonParseFailed": "JSONの解析に失敗しました",
     "loadFailed": "読み込みに失敗しました",
     "saveFailed": "保存に失敗しました",
-    "saveSuccess": "保存しました"
+    "saveSuccess": "保存しました",
+    "orderChangeNotAllowed": "この順序は変更できません"
   },
   "experimentPlanDialog": {
     "all": "一括",
@@ -482,7 +415,10 @@
     "elementTypeLabel": "xsi:type",
     "elementValueLabel": "実績値 (value)",
     "elementUnitLabel": "単位 (units)",
-    "elementDescLabel": "説明"
+    "elementDescLabel": "説明",
+    "confirmModalTitle": "付与内容を確認してください",
+    "confirmModalOk": "付与を確定する",
+    "confirmModalCancel": "キャンセル"
   },
   "common": {
     "yes": "はい",
@@ -3399,9 +3335,9 @@
   "insertionEditor": {
     "fileSizeExceeded": "ファイルサイズが上限（{maxSize}）を超えています（{fileSize}）",
     "hashCalcFailed": "ハッシュ値の計算に失敗しました",
-    "uploadConfirmTitle": "ファイルをサーバーにアップロードしますか？",
-    "uploadConfirmOk": "アップロードする",
-    "uploadConfirmCancel": "アップロードしない",
+    "uploadConfirmTitle": "ファイルをアップロードしますか？",
+    "uploadConfirmOk": "保存時にアップロードする",
+    "uploadConfirmCancel": "ローカル参照のみ",
     "uploadSuccessNoKey": "アップロードは成功しましたが、S3キーを取得できませんでした",
     "uploadFailed": "ファイルのアップロードに失敗しました",
     "dropHintForm": "ここにドロップしてファイルを選択",
@@ -3424,7 +3360,12 @@
     "tooltipSelectOnly": "ファイルを選択して自動入力（アップロードなし）",
     "tooltipClear": "URI・ハッシュ・フォーマットをクリア",
     "addButton": "Insertion 追加",
-    "customLabel": "カスタム Insertion"
+    "customLabel": "カスタム Insertion",
+    "localFileWarning": "ローカルファイルのため他の環境からは参照できません。必要に応じて正確なパスを手動で補完してください。",
+    "localFileUriExampleTitle": "記載形式の例:",
+    "localFileUriExampleLocal": "ローカル: file:///C:/data/ファイル名.tif",
+    "localFileUriExampleNetwork": "ネットワーク: file://///server/share/data/ファイル名.tif",
+    "pendingUploadBadge": "保存時にアップロード予定"
   },
   "contentGridEditor": {
     "label": "Content Grid ({rows}行 × {cols}列)",
@@ -3739,23 +3680,12 @@
     "title": "評価登録"
   },
   "projectCompletion": {
-    "modalTitle": "プロジェクト完了処理",
-    "projectWhole": "プロジェクト全体",
-    "descText": "プロジェクト全体に対する定性評価を入力してから完了処理を実行できます。評価は任意です（未入力でも完了処理を実行できます）。",
     "criteriaLabel": "不確かさ基準:",
     "criteriaPlaceholder": "基準を選択（任意）",
-    "evalColTarget": "対象",
-    "evalColQualitative": "定性評価",
-    "evalColComment": "コメント",
-    "evalPlaceholder": "未評価",
     "commentPlaceholder": "コメント（任意）",
-    "qualTag": "定性",
-    "emptyText": "評価対象がありません",
-    "footerNote": "※ 不確かさ基準と評価値が両方入力された場合のみ評価が保存されます。",
-    "maimlWriteSuccess": "評価データ {written} 件を MAiML ファイルに書き込みました",
-    "maimlWriteWarning": "評価データの MAiML 書き込みに失敗しました（完了処理は続行します）",
+    "maimlQualityWriteSuccess": "品質評価データ {count} 件を MAiML ファイルに書き込みました",
+    "maimlQualityWriteWarning": "品質評価データの MAiML 書き込みに失敗しました（完了処理は続行します）",
     "completeFailed": "プロジェクト完了処理に失敗しました",
-    "cancelButton": "キャンセル",
     "completeButton": "プロジェクトを完了する",
     "title": "プロジェクト完了",
     "confirm": "完了にしますか？",
@@ -3770,7 +3700,6 @@
     "description": "全トランジションの評価を登録してプロジェクトを完了します。",
     "entireProject": "プロジェクト全体",
     "noEvalTarget": "評価対象がありません",
-    "projectWholeLabel": "プロジェクト全体",
     "saveNote": "※ 評価値が入力された行のみ保存されます。",
     "unevaluated": "─ 未評価"
   },
@@ -3879,8 +3808,10 @@
     "evalQuantitative": "定量（数値）",
     "evalQualitative": "定性（選択肢）",
     "inheritanceFetchFailed": "参照元データの取得に失敗しました",
-    "savedAs": "V{version} として保存しました",
-    "saveFailed": "保存に失敗しました。再度お試しください。"
+    "savedAs": "V{{version}} として保存しました",
+    "saveFailed": "保存に失敗しました。再度お試しください。",
+    "nameReadOnlyPlaceholder": "（参照元から継承）",
+    "descReadOnlyPlaceholder": "（参照元から継承）"
   },
   "uncertaintyDetail": {
     "titleSuffix": "詳細・編集",
@@ -5024,7 +4955,9 @@
     "ctxMenuEdit": "編集",
     "nsRegisterSuccess": "名前空間「{prefix}」を登録しました",
     "groupCreated": "グループ「{groupName}」を作成しました",
-    "memberUpdated": "「{name}」のメンバー（{count}名）を更新しました"
+    "memberUpdated": "「{name}」のメンバー（{count}名）を更新しました",
+    "systemNamespaceBadge": "システム",
+    "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
   },
   "prefixManagement": {
     "colScope": "スコープ",
@@ -5072,7 +5005,9 @@
     "csvNoData": "有効なデータ行がありません",
     "csvImportPartial": "{saved}件を保存しました。{failCount}件の保存に失敗しました: {names}",
     "csvImportSuccess": "{count}件のPrefixをインポートしました",
-    "csvParseError": "CSVファイルの読み込みに失敗しました"
+    "csvParseError": "CSVファイルの読み込みに失敗しました",
+    "systemNamespaceBadge": "システム",
+    "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
   },
   "aggregationRule": {
     "title": "集約ルール設定",
