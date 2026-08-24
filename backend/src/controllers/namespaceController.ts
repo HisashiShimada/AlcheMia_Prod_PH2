@@ -15,6 +15,12 @@
 import { Request, Response, NextFunction } from 'express';
 import * as namespaceService from '../services/namespaceService';
 import type {
+  CreateNamespaceInput,
+  UpdateNamespaceInput,
+  CreateTermInput,
+  UpdateTermInput,
+} from '../services/namespaceService';
+import type {
   CreateNamespaceBody,
   UpdateNamespaceBody,
   CreateTermBody,
@@ -64,14 +70,15 @@ export async function createNamespace(
     const organizationGroupCds = req.user!.organizationGroupCds ?? [];
     const scopeKey = bodyScopeKey ?? organizationGroupCds[0] ?? undefined;
 
-    const result = await namespaceService.createNamespace({
+    const createNamespaceInput: CreateNamespaceInput = {
       organizationId,
       prefix,
       uri,
       userId,
       scopeKey,
       description,
-    });
+    };
+    const result = await namespaceService.createNamespace(createNamespaceInput);
 
     res.status(201).json(result);
   } catch (error) {
@@ -93,12 +100,13 @@ export async function updateNamespace(
     const prefix = decodeURIComponent(req.params.prefix);
     const { newPrefix, description } = req.body as UpdateNamespaceBody;
 
-    const result = await namespaceService.updateNamespace({
+    const updateNamespaceInput: UpdateNamespaceInput = {
       organizationId,
       prefix,
       newPrefix,
       description,
-    });
+    };
+    const result = await namespaceService.updateNamespace(updateNamespaceInput);
     if (!result) {
       res.status(404).json({ success: false, error: { code: 'E6001', message: 'Namespace not found' } });
       return;
@@ -204,7 +212,7 @@ export async function createTerm(
     const organizationId = (req as any).organizationId as string;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const created = await namespaceService.createTerm({
+    const createTermInput: CreateTermInput = {
       organizationId,
       prefix,
       localName,
@@ -212,7 +220,8 @@ export async function createTerm(
       description,
       typeHint,
       unitHint,
-    }, lang);
+    };
+    const created = await namespaceService.createTerm(createTermInput, lang);
 
     if (!created) {
       res.status(404).json({ error: `Namespace with prefix "${prefix}" not found` });
@@ -241,12 +250,13 @@ export async function updateTerm(
 
     const { displayName, description, typeHint, unitHint } = req.body as UpdateTermBody;
 
-    const updated = await namespaceService.updateTerm(organizationId, prefix, localName, {
+    const updateTermInput: UpdateTermInput = {
       displayName,
       description,
       typeHint,
       unitHint,
-    }, lang);
+    };
+    const updated = await namespaceService.updateTerm(organizationId, prefix, localName, updateTermInput, lang);
 
     if (!updated) {
       res.status(404).json({ error: `Term "${prefix}:${localName}" not found` });

@@ -5124,5 +5124,30 @@
       "resultTitle": "📊 Preview Result (Rule version {version})",
       "attentionTitle": "⚠️ Attention Items (Preview)"
     }
+  },
+  "namespaceDetail": {
+    "titleTerm": "Term Detail",
+    "titleNamespace": "Namespace Detail",
+    "labelDisplayJa": "Display Name (JA)",
+    "labelDisplayEn": "Display Name (EN)",
+    "labelDescription": "Description",
+    "labelTypeHint": "Type Hint",
+    "labelUnitHint": "Unit Hint",
+    "placeholderUnitNone": "None",
+    "labelPrefix": "Prefix",
+    "labelUri": "URI",
+    "labelLevel": "Scope",
+    "labelTermCount": "Term Count",
+    "termCountSuffix": "",
+    "labelDisplayName": "Display Name",
+    "labelCreatedAt": "Created At",
+    "labelUpdatedAt": "Updated At",
+    "levelGlobal": "Global",
+    "levelOrganization": "Organization",
+    "levelPersonal": "Personal",
+    "saveTermSuccess": "Term saved",
+    "saveNsSuccess": "Namespace saved",
+    "prefixRequired": "Please enter a prefix",
+    "uriRequired": "Please enter a URI"
   }
 }

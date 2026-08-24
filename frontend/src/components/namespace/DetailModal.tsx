@@ -29,21 +29,13 @@ const typeOptions = [
 ];
 
 // ──────────────────────────────────────────────
-// レベル表示ヘルパー
-// ──────────────────────────────────────────────
-const levelDisplay = (level: string) => {
-  if (level === 'global')       return { icon: <GlobalOutlined />, label: 'グローバル (Global)',  color: 'blue'   };
-  if (level === 'organization') return { icon: <BankOutlined />,   label: '組織 (Organization)', color: 'green'  };
-  return                               { icon: <UserOutlined />,   label: '個人 (Personal)',     color: 'orange' };
-};
-
-// ──────────────────────────────────────────────
 // コンポーネント
 // ──────────────────────────────────────────────
 const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTermSaved, onNamespaceSaved }) => {
 
-  // ── 用語用ステート
   const { t } = useLanguage();
+
+  // ── 用語用ステート
   const [editDisplayJa, setDisplayJa]    = useState('');
   const [editDisplayEn, setDisplayEn]    = useState('');
   const [editDesc,      setEditDesc]     = useState('');
@@ -55,6 +47,13 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTerm
   const [editUri,       setEditUri]      = useState('');
   const [editNsName,    setEditNsName]   = useState('');
   const [editNsDesc,    setEditNsDesc]   = useState('');
+
+  // レベル表示ヘルパー（t() を使うため関数内で定義）
+  const levelDisplay = (level: string) => {
+    if (level === 'global')       return { icon: <GlobalOutlined />, label: t('namespaceDetail.levelGlobal'),       color: 'blue'   };
+    if (level === 'organization') return { icon: <BankOutlined />,   label: t('namespaceDetail.levelOrganization'), color: 'green'  };
+    return                               { icon: <UserOutlined />,   label: t('namespaceDetail.levelPersonal'),     color: 'orange' };
+  };
 
   // target が変わったら各ステートをリセット
   useEffect(() => {
@@ -92,7 +91,9 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTerm
     }
   };
 
-  const modalTitle = target.kind === 'term' ? '用語編集' : '名前空間編集';
+  const modalTitle = target.kind === 'term'
+    ? t('namespaceDetail.titleTerm')
+    : t('namespaceDetail.titleNamespace');
 
   return (
     <Modal open={open} title={modalTitle} width={640} onCancel={onClose} footer={null} maskClosable keyboard>
@@ -100,20 +101,20 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTerm
       {/* ── 用語詳細 ── */}
       {target.kind === 'term' && (
         <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-          <Descriptions.Item label="表示名 (JA)">
+          <Descriptions.Item label={t('namespaceDetail.labelDisplayJa')}>
             <Input value={editDisplayJa} onChange={(e) => setDisplayJa(e.target.value)} size="small" />
           </Descriptions.Item>
-          <Descriptions.Item label="表示名 (EN)">
+          <Descriptions.Item label={t('namespaceDetail.labelDisplayEn')}>
             <Input value={editDisplayEn} onChange={(e) => setDisplayEn(e.target.value)} size="small" placeholder="Sample Identifier" />
           </Descriptions.Item>
-          <Descriptions.Item label="説明">
+          <Descriptions.Item label={t('namespaceDetail.labelDescription')}>
             <TextArea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} size="small" rows={3} />
           </Descriptions.Item>
-          <Descriptions.Item label="型ヒント">
+          <Descriptions.Item label={t('namespaceDetail.labelTypeHint')}>
             <Select size="small" style={{ width: 160 }} value={editType} options={typeOptions} onChange={setEditType} />
           </Descriptions.Item>
-          <Descriptions.Item label="単位ヒント">
-            <Input size="small" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="—（なし）" style={{ width: 160 }} />
+          <Descriptions.Item label={t('namespaceDetail.labelUnitHint')}>
+            <Input size="small" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder={t('namespaceDetail.placeholderUnitNone')} style={{ width: 160 }} />
           </Descriptions.Item>
         </Descriptions>
       )}
@@ -121,36 +122,36 @@ const DetailModal: React.FC<DetailModalProps> = ({ open, target, onClose, onTerm
       {/* ── 名前空間詳細 ── */}
       {target.kind === 'namespace' && (
         <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-          <Descriptions.Item label="接頭辞 (Prefix)">
+          <Descriptions.Item label={t('namespaceDetail.labelPrefix')}>
             <Input value={editPrefix} onChange={(e) => setEditPrefix(e.target.value)} size="small" placeholder="例: CorpA" />
           </Descriptions.Item>
-          <Descriptions.Item label="URI">
+          <Descriptions.Item label={t('namespaceDetail.labelUri')}>
             <Input value={editUri} onChange={(e) => setEditUri(e.target.value)} size="small" placeholder="例: https://www.corpa.co.jp/" />
           </Descriptions.Item>
-          <Descriptions.Item label="レベル">
+          <Descriptions.Item label={t('namespaceDetail.labelLevel')}>
             {(() => { const lv = levelDisplay(target.level); return <Tag color={lv.color} icon={lv.icon}>{lv.label}</Tag>; })()}
           </Descriptions.Item>
-          <Descriptions.Item label="用語数">
-            <Text>{target.termCount} 件</Text>
+          <Descriptions.Item label={t('namespaceDetail.labelTermCount')}>
+            <Text>{target.termCount}{t('namespaceDetail.termCountSuffix')}</Text>
           </Descriptions.Item>
-          <Descriptions.Item label="表示名">
+          <Descriptions.Item label={t('namespaceDetail.labelDisplayName')}>
             <Input value={editNsName} onChange={(e) => setEditNsName(e.target.value)} size="small" placeholder="例: CorpA 社内用語" />
           </Descriptions.Item>
-          <Descriptions.Item label="説明">
+          <Descriptions.Item label={t('namespaceDetail.labelDescription')}>
             <TextArea value={editNsDesc} onChange={(e) => setEditNsDesc(e.target.value)} size="small" rows={3} placeholder="名前空間の用途・背景を入力..." />
           </Descriptions.Item>
           {target.createdAt && (
-            <Descriptions.Item label="作成日時"><Text type="secondary">{target.createdAt}</Text></Descriptions.Item>
+            <Descriptions.Item label={t('namespaceDetail.labelCreatedAt')}><Text type="secondary">{target.createdAt}</Text></Descriptions.Item>
           )}
           {target.updatedAt && (
-            <Descriptions.Item label="更新日時"><Text type="secondary">{target.updatedAt}</Text></Descriptions.Item>
+            <Descriptions.Item label={t('namespaceDetail.labelUpdatedAt')}><Text type="secondary">{target.updatedAt}</Text></Descriptions.Item>
           )}
         </Descriptions>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-        <Button icon={<SaveOutlined />} type="primary" onClick={handleSave}>保存</Button>
-        <Button icon={<CloseOutlined />} onClick={onClose}>キャンセル</Button>
+        <Button icon={<SaveOutlined />} type="primary" onClick={handleSave}>{t('common.save')}</Button>
+        <Button icon={<CloseOutlined />} onClick={onClose}>{t('common.cancel')}</Button>
       </div>
     </Modal>
   );
