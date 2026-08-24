@@ -12,22 +12,22 @@ import {
   updateGroupChief,
   updateOrganizationGroupStatus,
 } from '@/services/organizationGroupApiService';
-import type { OrgUser, TeamEditDialogProps } from '@/types/team';
+import type { OrgUser, GroupEditDialogProps } from '@/types/group';
 
 const { Text } = Typography;
 
-const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
+const GroupEditDialog: React.FC<GroupEditDialogProps> = ({
   open,
-  teamLabel,
-  teamGroupCd,
-  teamOwnerUserId,
-  teamIsActive = true,
+  groupLabel,
+  groupCd,
+  ownerUserId: ownerUserIdProp,
+  isActive: isActiveProp = true,
   onClose,
   onSaved,
 }) => {
   const { t } = useLanguage();
 
-  const [teamName, setTeamName]           = useState('');
+  const [groupName, setGroupName]         = useState('');
   const [isActive, setIsActive]           = useState<boolean>(true);
   const [members, setMembers]             = useState<OrgUser[]>([]);
   const [addTarget, setAddTarget]         = useState<string | undefined>(undefined);
@@ -40,27 +40,25 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   useEffect(() => {
     if (!open) return;
 
-    setTeamName(teamLabel);
-    setIsActive(teamIsActive);
+    setGroupName(groupLabel);
+    setIsActive(isActiveProp);
     setAddTarget(undefined);
-    setOwnerUserId(teamOwnerUserId);
+    setOwnerUserId(ownerUserIdProp);
 
-    // 全ユーザー一覧を取得
     setUsersLoading(true);
     getOrgUsersForGroups()
       .then((users) => setAllUsers(users))
       .catch(() => setAllUsers([]))
       .finally(() => setUsersLoading(false));
 
-    // 既存メンバーを取得（teamGroupCd がある場合のみ）
-    if (teamGroupCd) {
-      getGroupMembers(teamGroupCd)
+    if (groupCd) {
+      getGroupMembers(groupCd)
         .then((data) => setMembers(data))
         .catch(() => setMembers([]));
     } else {
       setMembers([]);
     }
-  }, [open, teamGroupCd, teamLabel, teamOwnerUserId, teamIsActive]);
+  }, [open, groupCd, groupLabel, ownerUserIdProp, isActiveProp]);
 
   // メンバーを削除（削除されたメンバーが代表者の場合はクリア）
   const handleRemoveMember = (userId: string) => {
@@ -70,13 +68,12 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
     }
   };
 
-  // メンバーを追加
   const handleAddMember = (userId: string) => {
     if (!userId) return;
     const user = allUsers.find((u) => u.userId === userId);
     if (!user) return;
     if (members.some((m) => m.userId === userId)) {
-      message.warning(t('teamEditDialog.addMemberDuplicate'));
+      message.warning(t('groupEditDialog.addMemberDuplicate'));
       return;
     }
     setMembers((prev) => [...prev, user]);
@@ -84,14 +81,14 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
   };
 
   const handleSave = async () => {
-    if (!teamName.trim()) {
-      message.error(t('teamEditDialog.groupNameRequired'));
+    if (!groupName.trim()) {
+      message.error(t('groupEditDialog.groupNameRequired'));
       return;
     }
 
-    if (!teamGroupCd) {
-      message.warning(t('teamEditDialog.noGroupCd'));
-      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId, isActive);
+    if (!groupCd) {
+      message.warning(t('groupEditDialog.noGroupCd'));
+      onSaved(members.map((m) => m.userId), groupName.trim(), ownerUserId, isActive);
       onClose();
       return;
     }
@@ -99,214 +96,161 @@ const TeamEditDialog: React.FC<TeamEditDialogProps> = ({
     setLoading(true);
     try {
       // 1. グループ名を更新（変更があった場合のみ）
-      if (teamName.trim() !== teamLabel) {
-        await updateOrganizationGroup(teamGroupCd, {
-          organization_group_name: teamName.trim(),
+      if (groupName.trim() !== groupLabel) {
+        await updateOrganizationGroup(groupCd, {
+          organization_group_name: groupName.trim(),
         });
       }
 
       // 2. メンバーを更新
-      await updateGroupMembers(teamGroupCd, members.map((m) => m.userId));
+      await updateGroupMembers(groupCd, members.map((m) => m.userId));
 
       // 3. 代表者を更新（変更があった場合のみ）
-      if (ownerUserId && ownerUserId !== teamOwnerUserId) {
-        await updateGroupChief(teamGroupCd, ownerUserId);
+      if (ownerUserId && ownerUserId !== ownerUserIdProp) {
+        await updateGroupChief(groupCd, ownerUserId);
       }
 
       // 4. アクティブ状態を更新（変更があった場合のみ）
-      if (isActive !== teamIsActive) {
-        await updateOrganizationGroupStatus(teamGroupCd, isActive);
+      if (isActive !== isActiveProp) {
+        await updateOrganizationGroupStatus(groupCd, isActive);
       }
 
       message.success(
-        t('teamEditDialog.saveSuccess', {
-          name: teamName.trim(),
+        t('groupEditDialog.saveSuccess', {
+          name: groupName.trim(),
           count: String(members.length),
         })
       );
-      onSaved(members.map((m) => m.userId), teamName.trim(), ownerUserId, isActive);
+      onSaved(members.map((m) => m.userId), groupName.trim(), ownerUserId, isActive);
       onClose();
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { error?: { message?: string } } } })
         ?.response?.data?.error?.message;
       if (detail) {
-        message.error(t('teamEditDialog.saveFailed', { detail }));
+        message.error(t('groupEditDialog.saveFailed', { detail }));
       } else {
-        message.error(t('teamEditDialog.saveError'));
+        message.error(t('groupEditDialog.saveError'));
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // 追加候補（既に登録済みのメンバーは除外）
-  const memberIds  = new Set(members.map((m) => m.userId));
-  const addOptions = allUsers
+  const memberIds   = new Set(members.map((m) => m.userId));
+  const addOptions  = allUsers
     .filter((u) => !memberIds.has(u.userId))
     .map((u) => ({ value: u.userId, label: u.userName }));
-
-  // 代表者選択肢（現在のメンバー一覧から生成）
   const ownerOptions = members.map((m) => ({ value: m.userId, label: m.userName }));
 
   return (
     <Modal
       open={open}
-      title={t('teamEditDialog.title')}
+      title={t('groupEditDialog.title')}
       onCancel={onClose}
       footer={[
         <Button key="cancel" onClick={onClose} disabled={loading}>
-          {t('teamEditDialog.cancelBtn')}
+          {t('groupEditDialog.cancelBtn')}
         </Button>,
         <Button key="save" type="primary" loading={loading} onClick={handleSave}>
-          {t('teamEditDialog.saveBtn')}
+          {t('groupEditDialog.saveBtn')}
         </Button>,
       ]}
       width={480}
       maskClosable={false}
     >
       <Space orientation="vertical" style={{ width: '100%' }} size={16}>
-
         {/* グループ名（編集可能） */}
         <div>
-          <Text strong>
-            {t('teamEditDialog.groupNameLabel')} <Text type="danger">*</Text>
-          </Text>
-          <Input
-            style={{ marginTop: 4 }}
-            placeholder={t('teamEditDialog.groupNamePlaceholder')}
-            value={teamName}
-            onChange={(e) => setTeamName(e.target.value)}
-            disabled={loading}
-          />
+          <Text strong>{t('groupEditDialog.groupNameLabel')} <Text type="danger">*</Text></Text>
+          <Input style={{ marginTop: 4 }} placeholder={t('groupEditDialog.groupNamePlaceholder')}
+            value={groupName} onChange={(e) => setGroupName(e.target.value)} disabled={loading} />
         </div>
-
         {/* アクティブ判定 */}
         <div>
-          <Text strong>{t('teamEditDialog.isActiveLabel')}</Text>
-          <Select
-            style={{ width: '100%', marginTop: 4 }}
-            value={isActive}
+          <Text strong>{t('groupEditDialog.isActiveLabel')}</Text>
+          <Select style={{ width: '100%', marginTop: 4 }} value={isActive}
             onChange={(val: boolean) => setIsActive(val)}
             options={[
-              { value: true,  label: t('teamEditDialog.isActiveOptionActive') },
-              { value: false, label: t('teamEditDialog.isActiveOptionInactive') },
+              { value: true,  label: t('groupEditDialog.isActiveOptionActive') },
+              { value: false, label: t('groupEditDialog.isActiveOptionInactive') },
             ]}
-            disabled={loading}
-          />
+            disabled={loading} />
         </div>
-
         <Divider style={{ margin: '0' }} />
-
         {/* 代表者 */}
         <div>
-          <Text strong>{t('teamEditDialog.chiefLabel')}</Text>
-          <Select
-            style={{ width: '100%', marginTop: 4 }}
-            placeholder={
-              members.length === 0
-                ? t('teamEditDialog.chiefPlaceholderNoMember')
-                : t('teamEditDialog.chiefPlaceholder')
-            }
+          <Text strong>{t('groupEditDialog.chiefLabel')}</Text>
+          <Select style={{ width: '100%', marginTop: 4 }}
+            placeholder={members.length === 0
+              ? t('groupEditDialog.chiefPlaceholderNoMember')
+              : t('groupEditDialog.chiefPlaceholder')}
             value={ownerUserId}
             onChange={(val) => setOwnerUserId(val)}
             options={ownerOptions}
             allowClear
             disabled={loading || members.length === 0}
-            notFoundContent={t('teamEditDialog.chiefNoMembers')}
+            notFoundContent={t('groupEditDialog.chiefNoMembers')}
           />
           {members.length === 0 && (
             <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-              {t('teamEditDialog.chiefHint')}
+              {t('groupEditDialog.chiefHint')}
             </Text>
           )}
         </div>
-
         <Divider style={{ margin: '0' }} />
-
         {/* 現在のメンバー */}
         <div>
-          <Text strong>{t('teamEditDialog.currentMembersLabel')}</Text>
+          <Text strong>{t('groupEditDialog.currentMembersLabel')}</Text>
           <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-            {t('teamEditDialog.membersCount', { count: String(members.length) })}
+            {t('groupEditDialog.membersCount', { count: String(members.length) })}
           </Text>
-          <div
-            style={{
-              marginTop: 8,
-              minHeight: 40,
-              padding: '8px 10px',
-              background: '#fafafa',
-              border: '1px solid #f0f0f0',
-              borderRadius: 6,
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 6,
-            }}
-          >
+          <div style={{ marginTop: 8, minHeight: 40, padding: '8px 10px', background: '#fafafa',
+            border: '1px solid #f0f0f0', borderRadius: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {members.length === 0 ? (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                {t('teamEditDialog.noMembers')}
+                {t('groupEditDialog.noMembers')}
               </Text>
             ) : (
               members.map((m) => (
-                <Tag
-                  key={m.userId}
-                  icon={<UserOutlined />}
-                  closable
+                <Tag key={m.userId} icon={<UserOutlined />} closable
                   onClose={() => handleRemoveMember(m.userId)}
-                  style={{ fontSize: 13, padding: '2px 8px', margin: 0 }}
-                >
+                  style={{ fontSize: 13, padding: '2px 8px', margin: 0 }}>
                   {m.userName}
                 </Tag>
               ))
             )}
           </div>
           <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-            {t('teamEditDialog.memberRemoveHint')}
+            {t('groupEditDialog.memberRemoveHint')}
           </Text>
         </div>
-
         <Divider style={{ margin: '0' }} />
-
         {/* メンバーを追加 */}
         <div>
-          <Text strong>{t('teamEditDialog.addMemberLabel')}</Text>
+          <Text strong>{t('groupEditDialog.addMemberLabel')}</Text>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <Select
-              showSearch
-              allowClear
-              loading={usersLoading}
-              placeholder={
-                usersLoading
-                  ? t('teamEditDialog.addMemberLoading')
-                  : t('teamEditDialog.addMemberPlaceholder')
-              }
-              value={addTarget}
-              onChange={(val) => setAddTarget(val)}
-              options={addOptions}
+            <Select showSearch allowClear loading={usersLoading}
+              placeholder={usersLoading
+                ? t('groupEditDialog.addMemberLoading')
+                : t('groupEditDialog.addMemberPlaceholder')}
+              value={addTarget} onChange={(val) => setAddTarget(val)} options={addOptions}
               filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
               style={{ flex: 1 }}
-              notFoundContent={
-                usersLoading
-                  ? t('teamEditDialog.addMemberLoading')
-                  : t('teamEditDialog.addMemberNotFound')
-              }
-              disabled={loading}
-            />
-            <Button
-              type="primary"
-              disabled={!addTarget || loading}
-              onClick={() => addTarget && handleAddMember(addTarget)}
-            >
-              {t('teamEditDialog.addBtn')}
+              notFoundContent={usersLoading
+                ? t('groupEditDialog.addMemberLoading')
+                : t('groupEditDialog.addMemberNotFound')}
+              disabled={loading} />
+            <Button type="primary" disabled={!addTarget || loading}
+              onClick={() => addTarget && handleAddMember(addTarget)}>
+              {t('groupEditDialog.addBtn')}
             </Button>
           </div>
         </div>
-
       </Space>
     </Modal>
   );
 };
 
-export default TeamEditDialog;
+export default GroupEditDialog;
+

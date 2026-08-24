@@ -111,8 +111,8 @@ export const useProjectList = (user?: User) => {
   useEffect(() => { if (typeof window !== 'undefined') sessionStorage.setItem('projectManagement_sortBy', sortBy); }, [sortBy]);
   useEffect(() => { if (typeof window !== 'undefined') sessionStorage.setItem('projectManagement_sortOrder', sortOrder); }, [sortOrder]);
 
-  // チーム未所属フラグ
-  const isUnassignedToTeam = useMemo(() => {
+  // グループ未所属フラグ
+  const isUnassignedToGroup = useMemo(() => {
     if (!user) return false;
     if (user.roleCd === 'ROLE002') return false;
     return Array.isArray(user.organizationGroupCds) && user.organizationGroupCds.length === 0;
@@ -177,7 +177,7 @@ export const useProjectList = (user?: User) => {
     setProjects,
     visibleGroups,
     refetchProjects,
-    isUnassignedToTeam,
+    isUnassignedToGroup,
     searchQuery,
     setSearchQuery,
     ownerFilter,
