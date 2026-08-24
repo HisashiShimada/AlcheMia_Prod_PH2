@@ -121,21 +121,48 @@ export interface ProjectScopeDeclaration {
 /**
  * 名前空間（Prefix）を新規登録する
  *
+ * @remarks
+ * namespace テーブルへの INSERT は行わない。
+ * namespace レコードはユーザー作成・チーム作成時に自動登録済みのため、
+ * scopeKey で既存の namespace_id を取得して prefix テーブルのみ INSERT する。
+ * scopeKey に対応する namespace が存在しない場合は 404 エラーを返す。
+ *
  * @param input - 登録する名前空間データ
+ * @param lang - 言語コード（'ja' | 'en'、デフォルト: 'ja'）
  * @returns 登録された namespaceId / prefix / uri
+ * @throws 404 エラー（scopeKey に対応する namespace が存在しない場合）
  */
 export async function createNamespace(
-  input: CreateNamespaceInput
+  input: CreateNamespaceInput,
+  lang: string = 'ja'
 ): Promise<CreateNamespaceResult> {
   // scopeKey はコントローラーで JWT の organizationGroupCds[0] から取得済み
-  const namespaceId = await namespaceTermRepository.createNamespace({
+  const scopeKey = input.scopeKey ?? input.userId;
+
+  // scopeKey に紐づく既存の namespace_id を取得（namespace テーブルへの INSERT は行わない）
+  const namespaceId = await namespaceTermRepository.findNamespaceIdByScopeKey(
+    input.organizationId,
+    scopeKey
+  );
+
+  if (!namespaceId) {
+    const err: Error & { statusCode?: number; code?: string } = new Error(
+      getMessage(lang, 'namespace.notFound')
+    );
+    err.statusCode = HTTP_STATUS.NOT_FOUND;
+    err.code = 'E6001';
+    throw err;
+  }
+
+  // prefix テーブルのみ INSERT（namespace テーブルへの INSERT は行わない）
+  const prefixData = {
     organizationId: input.organizationId,
+    namespaceId,
     prefix: input.prefix,
-    uri: input.uri,
-    userId: input.userId,
-    scopeKey: input.scopeKey,
     description: input.description,
-  });
+    userId: input.userId,
+  };
+  await namespaceTermRepository.createPrefixOnly(prefixData);
 
   return { namespaceId, prefix: input.prefix, uri: input.uri };
 }
@@ -591,16 +618,21 @@ export async function getSuggestedUri(
 
   if (scopeKey && scopeKey !== userId) {
     // チーム/グループスコープ: 先祖グループCDのパスを生成
+    // ancestors[0] をドメイン部、ancestors.slice(1) をパス部に使用
     const ancestors = await namespaceTermRepository.findOrgGroupAncestors(organizationId, scopeKey);
-    const groupPath = ancestors.join('/');
-    candidateUri = groupPath
-      ? `https://${organizationCd}.Alchemia.co.jp/${groupPath}`
-      : `https://${organizationCd}.Alchemia.co.jp`;
+    const domainPart = ancestors[0] ?? organizationCd;
+    const pathParts = ancestors.slice(1);
+    candidateUri = pathParts.length > 0
+      ? `https://${domainPart}.Alchemia.co.jp/${pathParts.join('/')}`
+      : `https://${domainPart}.Alchemia.co.jp`;
   } else {
-    // 個人スコープ: メールアドレスの @ 前部分をパスに使用
+    // 個人スコープ: ユーザーの所属グループCDをドメイン部に使用
+    // 未所属の場合は organization_cd にフォールバック
     const mailAddress = await namespaceTermRepository.findUserMailAddress(organizationId, userId);
     const loginName = mailAddress ? mailAddress.split('@')[0] : userId;
-    candidateUri = `https://${organizationCd}.Alchemia.co.jp/${loginName}`;
+    const userGroupCd = await namespaceTermRepository.findUserOrgGroupCd(organizationId, userId);
+    const personalDomain = userGroupCd ?? organizationCd;
+    candidateUri = `https://${personalDomain}.Alchemia.co.jp/${loginName}`;
   }
 
   // 3. 既存URI一覧を取得して重複解消

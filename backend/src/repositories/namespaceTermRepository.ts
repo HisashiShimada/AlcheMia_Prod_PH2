@@ -527,58 +527,53 @@ export async function findUserOrgGroupCd(
 }
 
 /**
- * namespace テーブルに1件 INSERT し、prefix テーブルにも INSERT する（名前空間の新規登録）
+ * scope_key に紐づく namespace_id を取得する（Prefix 追加時の namespace 紐づけ用）
  *
  * @remarks
- * テーブル構成に従い、以下の2テーブルに登録する:
- *   1. namespace テーブル: uri / scope_key / global_flg を保持
- *   2. prefix テーブル: prefix文字列を保持（FK → namespace）
+ * Prefix 新規追加時に namespace テーブルの既存レコードを参照するために使用する。
+ * namespace レコードはユーザー作成・チーム作成時に自動登録済みのため、
+ * Prefix 追加時はこの関数で namespace_id を取得して prefix テーブルのみ INSERT する。
  *
- * @param data - 登録する名前空間データ
- * @returns 登録された namespace_id
+ * @param organizationId - 組織ID
+ * @param scopeKey - namespace.scope_key（userId または organization_group_cd）
+ * @returns namespace_id（存在しない場合は null）
  */
-export async function createNamespace(data: {
-  organizationId: string;
-  prefix: string;
-  uri: string;
-  userId: string;
-  scopeKey?: string;
-  description?: string;
-}): Promise<string> {
+export async function findNamespaceIdByScopeKey(
+  organizationId: string,
+  scopeKey: string
+): Promise<string | null> {
   const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findNamespaceIdByScopeKey.sql');
+  const row = await pgp.oneOrNone<{ namespace_id: string }>(query, [organizationId, scopeKey]);
+  return row?.namespace_id ?? null;
+}
 
-  // SQLファイルを事前に読み込む（task 内で loadSqlFile を呼ぶと非同期の問題が起きる可能性があるため外で取得）
-  const seqQuery = await loadSqlFile('namespace_terms/findNextNamespaceSeq.sql');
-  const insertNamespaceQuery = await loadSqlFile('namespace_terms/createNamespace.sql');
-  const insertPrefixQuery = await loadSqlFile('namespace_terms/createPrefix.sql');
-
-  // namespace INSERT と prefix INSERT をトランザクションでアトミックに実行
-  // どちらか一方が失敗した場合は両方ロールバックされる
-  return pgp.task<string>(async (t) => {
-    // namespace_id を採番: 組織内の最大連番+1 (NS0001 形式)
-    const seqRow = await t.one<{ next_seq: number }>(seqQuery, [data.organizationId]);
-    const namespaceId = `NS${String(seqRow.next_seq).padStart(4, '0')}`;
-
-    // 1. namespace テーブルに INSERT
-    await t.none(insertNamespaceQuery, [
-      data.organizationId,
-      namespaceId,
-      data.uri,
-      data.scopeKey ?? null,
-      data.userId,
-    ]);
-
-    // 2. prefix テーブルに INSERT
-    await t.none(insertPrefixQuery, [
-      data.organizationId,
-      namespaceId,
-      data.prefix,
-      data.description ?? null,
-      data.userId,
-    ]);
-
-    return namespaceId;
-  });
+/**
+ * prefix テーブルのみに1件 INSERT する（Prefix 新規追加用）
+ *
+ * @remarks
+ * namespace テーブルへの INSERT は行わない。
+ * namespace レコードはユーザー作成・チーム作成時に自動登録済みであり、
+ * Prefix 追加時はこの関数を使用して既存 namespace への紐づけのみ行う。
+ *
+ * @param data - 登録する Prefix データ
+ */
+export async function createPrefixOnly(data: {
+  organizationId: string;
+  namespaceId: string;
+  prefix: string;
+  description?: string;
+  userId: string;
+}): Promise<void> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/createPrefix.sql');
+  await pgp.none(query, [
+    data.organizationId,
+    data.namespaceId,
+    data.prefix,
+    data.description ?? null,
+    data.userId,
+  ]);
 }
 
 /**

@@ -16,6 +16,7 @@ CREATE TABLE namespace (
   , update_at       TIMESTAMP
   , update_user_id  VARCHAR(50)
   , CONSTRAINT namespace_PKC PRIMARY KEY (organization_id, namespace_id)
+  , CONSTRAINT namespace_organization_scope_key_key UNIQUE (organization_id, scope_key)
 ) ;
 
 COMMENT ON TABLE namespace IS '名前空間';
