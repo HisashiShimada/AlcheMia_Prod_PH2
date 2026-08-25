@@ -1,4 +1,4 @@
-{
+﻿{
   "page": {
     "loginSuccess": "ログインに成功しました",
     "logoutSuccess": "ログアウトしました",
@@ -3762,31 +3762,6 @@
     "teamLabel": "チーム",
     "teamRequired": "チームを選択してください",
     "teamPlaceholder": "チームを選択してください"
-  },
-  "templateEditor": {
-    "criteriaAssignLog": "[TemplateEditorDialog] 評価基準付与:",
-    "criteriaNotFoundWarn": "[handleCriteriaAssign] 対象プロパティが見つかりませんでした:",
-    "uncertaintyUpdated": "「{key}」に不確かさを更新しました",
-    "uncertaintyAdded": "「{key}」に不確かさを追加しました",
-    "uncertaintyDeleted": "「{key}」の不確かさを削除しました",
-    "propsCountLabel": "📊 プロパティ: {propCount}件 ／ コンテンツ: {contentCount}件",
-    "importCountLabel": "取り込む要素: {count}件",
-    "overwriteLabel": "(上書き)",
-    "attrsLabel": "📋 属性",
-    "elemsLabel": "📄 要素",
-    "xmlTabConvError": "[XMLビュー] UI→XML変換エラー:",
-    "xmlTabSyncLog": "[XMLビュー] XML→UI同期成功",
-    "xmlTabConvLog": "[XMLビュー] UI→XML変換成功",
-    "xmlSaveErrorPrefix": "XMLにエラーがあるため保存できません: ",
-    "xmlParseErrorPrefix": "XMLのパースに失敗しました: ",
-    "title": "Template Editor",
-    "cancel": "Cancel",
-    "save": "Save",
-    "addUncertainty": "Assign Uncertainty",
-    "removeUncertainty": "Remove Uncertainty",
-    "noTemplate": "No template selected",
-    "saveFailed": "Save failed",
-    "saveSuccess": "Saved"
   },
   "templateInputPanel": {
     "uncertaintyLabel": "不確かさ",
