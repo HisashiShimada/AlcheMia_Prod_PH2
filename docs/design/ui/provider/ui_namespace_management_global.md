@@ -60,7 +60,7 @@ ProviderMenu（タブ形式）
 │ 名前空間管理（グローバル）タブ                                           │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                        │
-│  グローバル名前空間宣言                [リロード] [エクスポート] [インポート]│
+│  グローバル名前空間宣言                [再読み込み] [エクスポート] [インポート]│
 │  （説明テキスト）                                                       │
 │                                                                        │
 │  N 件                                                                  │
@@ -126,7 +126,7 @@ interface GlobalNamespaceViewProps {
 右側（ボタン群）:
 | ボタン | アイコン | loading | disabled条件 | コールバック |
 |--------|---------|---------|------------|------------|
-| リロード | `ReloadOutlined` | `loading` | — | `fetchDeclarations` |
+| 再読み込み | `ReloadOutlined` | `loading` | — | `fetchDeclarations` |
 | エクスポート | `DownloadOutlined` | `exporting` | `viewOnly=true` | `handleExport` |
 | インポート | `UploadOutlined`（type="primary"）| `importing` | `viewOnly=true` | hiddenの`<input type="file">`をclick |
 
@@ -232,7 +232,7 @@ interface GlobalNamespaceEntry {
 | コンポーネント | 用途 |
 |-------------|------|
 | `Table` | 名前空間宣言一覧テーブル |
-| `Button` | リロード・エクスポート・インポートボタン |
+| `Button` | 再読み込み・エクスポート・インポートボタン |
 | `Modal.confirm` | インポート確認ダイアログ |
 | `Tooltip` | URI全文表示 |
 | `Spin` | テーブルローディング |
@@ -245,7 +245,7 @@ interface GlobalNamespaceEntry {
 | アイコン | 用途 |
 |---------|------|
 | `GlobalOutlined` | プロバイダーメニュー タブ3 アイコン |
-| `ReloadOutlined` | リロードボタン |
+| `ReloadOutlined` | 再読み込みボタン |
 | `DownloadOutlined` | エクスポートボタン |
 | `UploadOutlined` | インポートボタン |
 
