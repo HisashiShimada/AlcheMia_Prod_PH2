@@ -14,8 +14,8 @@ import { fetchUncertaintyCriteriaList } from '@/services/uncertaintyCriteriaApiS
 import NamespaceMain from '../namespace/NamespaceMain';
 import PrefixManagement from '../namespace/PrefixManagement';
 import { getOrganizationGroups } from '@/services/namespaceApiService';
-import TeamAddDialog from '../team/TeamAddDialog';
-import TeamEditDialog from '../team/TeamEditDialog';
+import GroupAddDialog from '../group/GroupAddDialog';
+import GroupEditDialog from '../group/GroupEditDialog';
 import type { OrganizationGroupRow } from '@/types/namespace';
 import type { User } from '@/types/auth';
 
@@ -227,16 +227,16 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     node: NamespaceNode | null;
   }>({ visible: false, x: 0, y: 0, node: null });
 
-  // ── チーム追加ダイアログ
-  const [teamAddOpen,        setTeamAddOpen]        = useState(false);
-  const [teamAddParentLabel, setTeamAddParentLabel] = useState('');
+  // ── グループ追加ダイアログ
+  const [groupAddOpen,        setGroupAddOpen]        = useState(false);
+  const [groupAddParentLabel, setGroupAddParentLabel] = useState('');
 
-  // ── チーム編集ダイアログ
-  const [teamEditOpen,    setTeamEditOpen]    = useState(false);
-  const [teamEditLabel,   setTeamEditLabel]   = useState('');
-  const [teamEditGroupCd,  setTeamEditGroupCd]  = useState<string | undefined>(undefined);
+  // ── グループ編集ダイアログ
+  const [groupEditOpen,    setGroupEditOpen]    = useState(false);
+  const [groupEditLabel,   setGroupEditLabel]   = useState('');
+  const [groupEditGroupCd, setGroupEditGroupCd] = useState<string | undefined>(undefined);
 
-  const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
+  const [groupEditMembers, setGroupEditMembers] = useState<string[]>([]);
 
   // ── organization_group 取得ステート
   const [orgGroups, setOrgGroups] = useState<OrganizationGroupRow[]>([]);
@@ -367,34 +367,16 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     return filtered.length > 0 ? filtered : allCds;
   }, [orgGroups, selectedNsKey, namespaceTree]);
 
-  // ── チームノードのタイトル（companyDepth === 3 のみ右クリックメニューを有効化）
-  const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
-    // Global/Personal が選択されていない時のみ CURRENT_USER_NS_KEY を薄い青背景で強調
-    const isCurrentUserNode = !isGlobalOrPersonalSelected && node.key === CURRENT_USER_NS_KEY;
-    const isTeam = companyDepth === 3;
-
-    const handleContextMenu = isTeam
-      ? (e: React.MouseEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, node });
-        }
-      : undefined;
-
+  // ── ツリーノードのタイトル
+  const renderTreeTitle = useCallback((node: NamespaceNode, _companyDepth: number) => {
     return (
-      <span
-        onContextMenu={handleContextMenu}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          cursor: isTeam ? 'context-menu' : undefined,
-        }}
-      >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
         <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
           {node.label}
         </span>
       </span>
     );
-  }, [isGlobalOrPersonalSelected]);
+  }, []);
 
   // ── companyDepth を計算してツリーデータを構築
   const toAntTree = useCallback((nodes: NamespaceNode[], companyDepth = 0): object[] =>
@@ -471,25 +453,25 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 onClick={() => {
-                  setTeamAddParentLabel(ctxMenu.node!.label);
-                  setTeamAddOpen(true);
+                  setGroupAddParentLabel(ctxMenu.node!.label);
+                  setGroupAddOpen(true);
                   setCtxMenu((s) => ({ ...s, visible: false }));
                 }}
               >
                 <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
-                {t('uncertainty.management.ctxMenuAddTeam')}
+                {t('uncertainty.management.ctxMenuAddGroup')}
               </li>
               <li
                 style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 onClick={() => {
-                  setTeamEditLabel(ctxMenu.node!.label);
-                  setTeamEditGroupCd(ctxMenu.node!.key ?? undefined);
+                  setGroupEditLabel(ctxMenu.node!.label);
+                  setGroupEditGroupCd(ctxMenu.node!.key ?? undefined);
 
 
-                  setTeamEditMembers([]);
-                  setTeamEditOpen(true);
+                  setGroupEditMembers([]);
+                  setGroupEditOpen(true);
                   setCtxMenu((s) => ({ ...s, visible: false }));
                 }}
               >
@@ -650,26 +632,26 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
         </div>
       </div>
 
-      {/* チーム追加ダイアログ */}
-      <TeamAddDialog
-        open={teamAddOpen}
-        onClose={() => setTeamAddOpen(false)}
+      {/* グループ追加ダイアログ */}
+      <GroupAddDialog
+        open={groupAddOpen}
+        onClose={() => setGroupAddOpen(false)}
         onCreated={(_groupCd, groupName) => {
-          message.success(t('uncertainty.management.toastTeamCreated', { name: groupName, count: '0' }));
-          setTeamAddOpen(false);
+          message.success(t('uncertainty.management.toastGroupCreated', { name: groupName, count: '0' }));
+          setGroupAddOpen(false);
         }}
       />
 
 
-      {/* チーム編集ダイアログ */}
-      <TeamEditDialog
-        open={teamEditOpen}
-        teamLabel={teamEditLabel}
-        teamGroupCd={teamEditGroupCd}
-        onClose={() => setTeamEditOpen(false)}
+      {/* グループ編集ダイアログ */}
+      <GroupEditDialog
+        open={groupEditOpen}
+        groupLabel={groupEditLabel}
+        groupCd={groupEditGroupCd}
+        onClose={() => setGroupEditOpen(false)}
         onSaved={(members) => {
-          message.success(t('uncertainty.management.toastTeamUpdated', { name: teamEditLabel, count: String(members.length) }));
-          setTeamEditMembers(members);
+          message.success(t('uncertainty.management.toastGroupUpdated', { name: groupEditLabel, count: String(members.length) }));
+          setGroupEditMembers(members);
         }}
       />
 
