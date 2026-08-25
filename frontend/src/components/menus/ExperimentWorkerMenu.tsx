@@ -441,6 +441,7 @@ export default function ExperimentWorkerMenu({
               issueCount: newIssueCountMap[`${task.task_no}-${tr.transitionId}`] ?? 0,
               order: idx + 1,
               prerequisiteTransitionIds: tr.prerequisiteTransitionIds ?? [],
+              isRecorded: tr.isRecorded ?? false,
             });
           });
         }
@@ -532,6 +533,7 @@ export default function ExperimentWorkerMenu({
             issueCount: newIssueCountMap[`${task.task_no}-${tr.transitionId}`] ?? 0,
             order: idx + 1,
             prerequisiteTransitionIds: tr.prerequisiteTransitionIds ?? [],
+            isRecorded: tr.isRecorded ?? false,
           });
         });
       }
@@ -792,19 +794,38 @@ export default function ExperimentWorkerMenu({
           </Button>
 
           {/* 承認依頼ボタン（進捗確認タブ選択時のみ表示） */}
-          {currentTab === '4' && (
-            <Button
-              type="default"
-              onClick={handleApprovalRequest}
-              size="large"
-              /* readOnly時 or プロジェクト未選択時は disabled */
-              disabled={readOnly || !selectedProject || selectedProject === '' || approvalLoading}
-              loading={approvalLoading}
-              icon={approvalLoading ? <LoadingOutlined /> : undefined}
-            >
-              {t('experimentWork.approvalRequest')}
-            </Button>
-          )}
+          {currentTab === '4' && (() => {
+            // 承認依頼ボタンの活性条件:
+            // 1. プロジェクト選択済み
+            // 2. ローディング中でない
+            // 3. 全トランジションのステータスが「終状態（completed）」
+            // 4. 全トランジションの記録済みフラグが true
+            const allCompleted =
+              progressRows.length > 0 &&
+              progressRows.every((r) => r.status === 'completed');
+            const allRecorded =
+              progressRows.length > 0 &&
+              progressRows.every((r) => r.isRecorded === true);
+            const canRequestApproval =
+              !readOnly &&
+              !!selectedProject &&
+              selectedProject !== '' &&
+              !approvalLoading &&
+              allCompleted &&
+              allRecorded;
+            return (
+              <Button
+                type="default"
+                onClick={handleApprovalRequest}
+                size="large"
+                disabled={!canRequestApproval}
+                loading={approvalLoading}
+                icon={approvalLoading ? <LoadingOutlined /> : undefined}
+              >
+                {t('experimentWork.approvalRequest')}
+              </Button>
+            );
+          })()}
 
           {/* NG理由ボタン */}
           <Button

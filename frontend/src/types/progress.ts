@@ -275,6 +275,8 @@ export interface ProgressRow {
    * @example ['TR_A', 'TR_B'] // TR_A と TR_B 両方完了後のみ開始可能
    */
   prerequisiteTransitionIds?: string[];
+  /** 記録済みフラグ（template_data に保存済みかどうか） */
+  isRecorded?: boolean;
 }
 
 /** ProgressOverviewTab コンポーネントの Props */
@@ -324,6 +326,8 @@ export interface TransitionStatusItem {
    * PetriNet のアーク構造から算出。空配列の場合は前提なし（即時開始可能）
    */
   prerequisiteTransitionIds?: string[];
+  /** 記録済みフラグ（TRUE=記録済み、FALSE=未記録） */
+  isRecorded?: boolean;
 }
 
 /** fetchTransitionStatus のレスポンス型 */

@@ -39,7 +39,7 @@ import {
   message,
   theme,
 } from 'antd';
-import { BorderOutlined, CaretRightOutlined, CommentOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, InfoCircleOutlined, PlusOutlined, RightOutlined, SaveOutlined, SearchOutlined, StepForwardOutlined, WarningOutlined } from '@ant-design/icons';
+import { BorderOutlined, CaretRightOutlined, CommentOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SaveOutlined, SearchOutlined, StepForwardOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
@@ -239,7 +239,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   const confidenceOptions = prop.confidenceOptions ?? DEFAULT_CONFIDENCE_OPTIONS;
   const [confidence, setConfidence] = useState<string | null>(prop.defaultConfidence ?? null);
   /** ＋値の追加ボタンで追加された不確かさ評価行 */
-  const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>([]);
+  const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>([
+    { id: 'initial', uncertaintyKey: '', value: '' },
+  ]);
 
   /** 行を追加する */
   const handleAddValue = () => {
@@ -423,6 +425,34 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               );
             })}
           </Flex>
+        </div>
+      )}
+
+      {/* 定量評価（不確かさ基準 + 値の追加行） */}
+      {!readOnly && (
+        <div>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
+            {t('workRecord.quantitativeEval')}
+          </Text>
+          {addedValues.map((av) => (
+            <Flex key={av.id} gap={4} align="center" style={{ marginBottom: 4 }}>
+              <Select
+                size="small"
+                style={{ flex: 6, minWidth: 0 }}
+                placeholder={t('workRecord.quantitativeEvalPlaceholder')}
+                value={av.uncertaintyKey || undefined}
+                onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
+                options={uncertaintyOptionsCache}
+              />
+              <Input
+                size="small"
+                style={{ flex: 4, minWidth: 0 }}
+                placeholder={t('workRecord.valuePlaceholder')}
+                value={av.value}
+                onChange={(e) => handleValueChange(av.id, e.target.value)}
+              />
+            </Flex>
+          ))}
         </div>
       )}
 
@@ -898,15 +928,6 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
         >
           {t('workRecord.stateRecordButton')}
         </Button>
-        <Divider type="vertical" style={{ margin: '0 4px' }} />
-        <Button
-          size="small"
-          type="default"
-          icon={<InfoCircleOutlined />}
-          onClick={onInstructionClick}
-        >
-          {t('experimentWork.instructionButton')}
-        </Button>
       </Flex>
 
       {isReadOnly && (
@@ -1132,17 +1153,26 @@ const PlanA: React.FC<PlanProps> = ({
   const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
     // progressRows がある場合: API の実トランジションIDを優先使用
     if (progressRows && progressRows.length > 0) {
-      // 1. activeTaskNo の in_progress/ready/preparing を優先
-      const activeRow = progressRows.find(
-        (r) => r.taskNo === activeTaskNo && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-      )
-        // 2. 全体の in_progress/ready/preparing
-        ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-        // 3. activeTaskNo の not_started（未着手でもカードを表示）
-        ?? progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
-        // 4. 全体の not_started
+      // 優先順位: 動作状態(in_progress) > 準備完了状態(ready) > 準備状態(preparing)
+      // 同一ステータス内では order 昇順（若い順）を優先する
+      const statusPriority: Record<string, number> = { 'in_progress': 1, 'ready': 2, 'preparing': 3 };
+      const activeStatusRows = progressRows
+        .filter((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+        .sort((a, b) => {
+          const pA = statusPriority[a.status] ?? 99;
+          const pB = statusPriority[b.status] ?? 99;
+          if (pA !== pB) return pA - pB;
+          return (a.order ?? 0) - (b.order ?? 0);
+        });
+      const activeTaskRow = activeStatusRows.find((r) => r.taskNo === activeTaskNo);
+      if (activeTaskRow) return { taskNo: activeTaskRow.taskNo, transitionId: activeTaskRow.transitionId };
+      if (activeStatusRows.length > 0) {
+        const row = activeStatusRows[0];
+        return { taskNo: row.taskNo, transitionId: row.transitionId };
+      }
+      const notStartedRow = progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
         ?? progressRows.find((r) => r.status === 'not_started');
-      if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      if (notStartedRow) return { taskNo: notStartedRow.taskNo, transitionId: notStartedRow.transitionId };
       return null;
     }
     // progressRows がない場合: task.transitions の順序でフォールバック
@@ -1240,17 +1270,31 @@ const PlanB: React.FC<PlanProps> = ({
   const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
     // progressRows がある場合: API の実トランジションIDを優先使用
     if (progressRows && progressRows.length > 0) {
-      // 1. activeTaskNo の in_progress/ready/preparing を優先
-      const activeRow = progressRows.find(
-        (r) => r.taskNo === activeTaskNo && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-      )
-        // 2. 全体の in_progress/ready/preparing
-        ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-        // 3. activeTaskNo の not_started（未着手でもカードを表示）
-        ?? progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
+      // 優先順位: 動作状態(in_progress) > 準備完了状態(ready) > 準備状態(preparing)
+      // 同一ステータス内では order 昇順（若い順）を優先する
+      const statusPriority: Record<string, number> = { 'in_progress': 1, 'ready': 2, 'preparing': 3 };
+      const activeStatusRows = progressRows
+        .filter((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+        .sort((a, b) => {
+          const pA = statusPriority[a.status] ?? 99;
+          const pB = statusPriority[b.status] ?? 99;
+          if (pA !== pB) return pA - pB;
+          // 同一ステータスは order 昇順（若い順）
+          return (a.order ?? 0) - (b.order ?? 0);
+        });
+      // 1. activeTaskNo のステータス優先行を先に探す
+      const activeTaskRow = activeStatusRows.find((r) => r.taskNo === activeTaskNo);
+      if (activeTaskRow) return { taskNo: activeTaskRow.taskNo, transitionId: activeTaskRow.transitionId };
+      // 2. 全体でステータス優先行を探す
+      if (activeStatusRows.length > 0) {
+        const row = activeStatusRows[0];
+        return { taskNo: row.taskNo, transitionId: row.transitionId };
+      }
+      // 3. activeTaskNo の not_started（未着手でもカードを表示）
+      const notStartedRow = progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
         // 4. 全体の not_started
         ?? progressRows.find((r) => r.status === 'not_started');
-      if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      if (notStartedRow) return { taskNo: notStartedRow.taskNo, transitionId: notStartedRow.transitionId };
       return null;
     }
     // progressRows がない場合: task.transitions の順序でフォールバック
@@ -1356,7 +1400,16 @@ const PlanB: React.FC<PlanProps> = ({
             {/* 右側: 保存 / 次へ / コメント / スキップ（編集時のみ表示） */}
             {!isReadOnly && (() => {
               const nextBtnLabel = t('workRecord.transitionCompleteNext');
-              const canSkipFlag = findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null;
+              // スキップボタン活性条件:
+              // 1. 次に移動可能なトランジションが存在する
+              // 2. 現在のトランジションが動作状態（in_progress）でない
+              //    動作状態: 非活性 / 休止・準備・準備完了状態: 活性
+              const hasNextTransition = findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null;
+              const currentProgressRow = progressRows?.find(
+                (r) => r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId
+              );
+              const isInProgress = currentProgressRow?.status === 'in_progress';
+              const canSkipFlag = hasNextTransition && !isInProgress;
               const handleSaveAndNextInner = () => {
                 const nextTemplateIdx = safeIdx + 1;
                 if (nextTemplateIdx < visibleTemplates.length) {
@@ -2091,7 +2144,7 @@ export default function WorkRecordPanel({
         };
       });
 
-      await saveBatchExperimentData(projectId, methodId, taskNo, { records });
+      await saveBatchExperimentData(projectId, methodId, taskNo, { records, transitionId });
       Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
     } catch (err) {
       console.error('[WorkRecordPanel] handleSave error:', err);
@@ -2137,7 +2190,7 @@ export default function WorkRecordPanel({
                 data: baseData,
               };
             });
-            await saveBatchExperimentData(projectId, methodId, taskNo, { records });
+            await saveBatchExperimentData(projectId, methodId, taskNo, { records, transitionId });
           } catch (err) {
             console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
             message.error(t('workRecord.saveContent'));
