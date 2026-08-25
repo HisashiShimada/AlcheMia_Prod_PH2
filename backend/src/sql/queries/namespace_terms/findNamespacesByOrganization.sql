@@ -3,6 +3,7 @@
 SELECT
   p.prefix
   , n.uri
+  , p.description                                                   AS description
   , n.scope_key                                                     AS "scopeKey"
   , COALESCE(og.organization_group_name, ou.user_name, '')          AS "scopeName"
 FROM prefix p
@@ -17,10 +18,19 @@ LEFT JOIN organization_user ou
   AND ou.user_id = n.scope_key
 WHERE p.organization_id = $1
   AND p.is_active = TRUE
+  AND NOT EXISTS (
+    SELECT 1
+    FROM organization_user ou2
+    WHERE ou2.organization_id = p.organization_id
+      AND ou2.user_id = n.scope_key
+  )
 UNION ALL
 SELECT
   p.prefix
   , n.uri
+  , p.description                                                   AS description
+  , NULL                                                            AS "scopeKey"
+  , ''                                                              AS "scopeName"
 FROM prefix p
 INNER JOIN namespace n
   ON p.organization_id = n.organization_id

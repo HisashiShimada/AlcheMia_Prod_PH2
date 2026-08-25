@@ -194,7 +194,9 @@ interface ScoreDetail {
 if (loading) {
   return (
     <div style={{ textAlign: 'center', padding: 40 }}>
-      <Spin size="large" tip="検索中..." />
+      <Spin size="large" tip="検索中...">
+        <div />
+      </Spin>
     </div>
   );
 }
@@ -206,7 +208,7 @@ if (loading) {
 
 ```typescript
 if (error) {
-  return <Alert type="error" message="検索エラー" description={error} showIcon />;
+  return <Alert type="error" title="検索エラー" description={error} showIcon />;
 }
 ```
 
@@ -403,6 +405,7 @@ frontend/src/components/TransitionSetSearch/SearchResults.tsx
 |-----------|------|---------|--------|
 | 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: SearchResults.tsx） | Cline |
 | 1.1 | 2026-04-07 | スコア色分け表にバックエンド足切り閾値（30%未満返却なし）の注記を追加 | Cline |
+| 1.2 | 2026-08-20 | Alertのmessage→title修正、Spinに子要素追加 |
 
 ---
 

@@ -4,6 +4,7 @@
 SELECT
   p.prefix
   , n.uri
+  , p.description                                                   AS description
   , n.scope_key                                                     AS "scopeKey"
   , COALESCE(og.organization_group_name, ou.user_name, '')          AS "scopeName"
 FROM namespace n

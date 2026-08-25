@@ -26,7 +26,7 @@ MAIML編集中の作業内容を一時保存（Draft）として管理するた�
 ┌─────────────────────────────────────────────────────────┐
 │ [フォルダアイコン] Draft管理                      [×]   │
 ├─────────────────────────────────────────────────────────┤
-│ [💾 新規保存] [🔄 更新] [⚪/🟢 自動保存]                │
+│ [💾 新規保存] [⚪/🟢 自動保存]                          │
 │                              [検索...] [ソート選択]     │
 │                                                         │
 │ 🟢 自動保存有効 | 編集中: draft_xxx | 間隔: 30秒       │
@@ -86,7 +86,6 @@ MAIML編集中の作業内容を一時保存（Draft）として管理するた�
 
 2. **ツールバー（上部）**
    - [💾 新規保存]ボタン（primary、SaveOutlined）
-   - [🔄 更新]ボタン（ReloadOutlined）
    - 自動保存トグル: Switch + "🟢/⚪ 自動保存"ラベル
    - スペーサー（flex: 1）
    - 検索Input（prefix: SearchOutlined、幅200px、allowClear）
@@ -161,6 +160,7 @@ interface DraftManagerProps {
   autoSaveEnabled?: boolean;                      // 自動保存有効フラグ
   onAutoSaveToggle?: (enabled: boolean) => void;  // 自動保存トグルコールバック
   currentDraftKey?: string | null;                // 現在編集中のDraft Key
+  projectId?: string;                             // プロジェクトID（保存時に記録し、復元時のプロジェクト特定に使用）
 }
 ```
 
@@ -175,7 +175,7 @@ const {
   fetchDrafts,     // Draft一覧取得
   saveDraft,       // Draft保存
   deleteDraft,     // Draft削除
-} = useDraftManager(currentEditState, { userId });
+} = useDraftManager(currentEditState, { userId, projectId });
 
 // ローカルState
 const [searchQuery, setSearchQuery] = useState('');                        // 検索クエリ
@@ -273,7 +273,8 @@ const handleSaveNew = async () => {
       edges: currentEditState?.edges || [],
       templates: currentEditState?.templates || [],
       documentData: currentEditState?.documentData,
-      lastSavedAt : new Date().toISOString(),
+      lastSavedAt: new Date().toISOString(),
+      projectId: projectId || null,
     });
 
     Modal.success({ title: '保存完了', content: 'Draftを保存しました' });
@@ -354,12 +355,11 @@ const loadDraftData = async (draft: Draft) => {
 2. 編集内容がある場合:
    - オブジェクト数をカウント（ノード/アーク/テンプレート）
    - 確認ダイアログを表示
-   - OKクリック → Draft読み込み実行
+   - OKクリック → `fetchDraftById()` でDraft詳細を取得し、fileNameを付与して親コンポーネントに渡す → モーダルを閉じる
 3. 編集内容がない場合:
-   - 確認なしで即座に読み込み
-4. fetchDraftById()でDraft詳細を取得
-5. fileNameを付与して親コンポーネントに渡す
-6. モーダルを閉じる
+   - 確認なしで `fetchDraftById()` を直接呼び出して読み込み → モーダルを閉じる
+
+> **注意**: ソースでは `loadDraftData()` という共通化関数は存在せず、確認ありパスと確認なしパスの両方に `fetchDraftById()` 呼び出しをインラインで記述しています。
 
 ### 4. Draft削除
 
@@ -724,7 +724,7 @@ const loadData = {
 
 ## 実装ファイル情報
 
-- **ファイルパス**: `frontend/src/components/editorv2/components/DraftManager.tsx`
+- **ファイルパス**: `frontend/src/components/editorv2/DraftManager.tsx`
 - **コンポーネント名**: `DraftManager`
 - **実装バージョン**: 2.0.0（Ant Design）
 - **実装日**: 2026-XX-XX

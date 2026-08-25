@@ -456,9 +456,9 @@ const xmlContent = await fetchTemplateContent(fileKey);
 | ファイル | 役割 |
 |---------|------|
 | `frontend/src/components/format/FormatManagement.tsx` | 親コンポーネント（ダイアログの開閉・onSave処理） |
-| `frontend/src/components/editorv2/components/NestedPropertyEditor.tsx` | プロパティ・Content のネスト編集UI |
+| `frontend/src/components/editorv2/NestedPropertyEditor.tsx` | プロパティ・Content のネスト編集UI |
 | `frontend/src/services/templateApi.ts` | テンプレートファイル一覧・内容取得API |
-| `frontend/src/components/editorv2/utils/templateConverter.ts` | Property変換ユーティリティ |
+| `frontend/src/utils/templateConverter.ts` | Property変換ユーティリティ |
 | `frontend/src/types/maiml-unified.ts` | Template, Property, Content 型定義 |
 | `frontend/src/types/editor.ts` | NodeData, TemplateError 型定義 |
 | `frontend/src/hooks/useAttributeMasters.ts` | 属性マスタ取得フック |
@@ -466,7 +466,7 @@ const xmlContent = await fetchTemplateContent(fileKey);
 
 ### 8.3 依存ライブラリ
 - **Ant Design**: Modal, Button, Input, Form, Alert, Space, Typography, Select, TreeSelect, Divider, Tag, message, Collapse
-- **Ant Design Icons**: SaveOutlined, ThunderboltOutlined, CloseOutlined, ExperimentOutlined, SettingOutlined, BarChartOutlined, PlusOutlined, DeleteOutlined, DownOutlined, RightOutlined, CopyOutlined, DownloadOutlined, FileSearchOutlined, FolderOutlined, FileOutlined
+- **Ant Design Icons**: SaveOutlined, ExperimentOutlined, SettingOutlined, BarChartOutlined, PlusOutlined, DownloadOutlined, FileSearchOutlined
 - **uuid**: v4（templateId自動生成用）
 
 ---
@@ -497,3 +497,4 @@ const xmlContent = await fetchTemplateContent(fileKey);
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-04-21 | 実装ベースで仕様書を新規作成 | Cline |
+| 2026-08-20 | NestedPropertyEditorパス修正・templateConverterパス修正・使用アイコン一覧修正 | Cline |

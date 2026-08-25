@@ -1,9 +1,20 @@
 # ファイル一覧テーブル UI仕様書
 
+## メタデータ
+- **画面名**: ファイル一覧テーブル
+- **物理名**: FileListTable.tsx
+- **ファイルパス**: `frontend/src/components/project/FileListTable.tsx`
+- **利用権限**: 実験管理者（experiment_admin）
+- **作成日**: 2026-01-21
+- **最終更新日**: 2026-08-20
+- **バージョン**: 3.0.0
+
+---
+
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-ファイル一覧テーブルは、プロジェクト管理画面の「ファイル管理」タブ内に表示され、選択したプロジェクトのファイル・フォルダ一覧をテーブル形式で表示するコンポーネントです。ファイルのダウンロード、ビューア表示、フォルダナビゲーション機能を提供します。
+ファイル一覧テーブルは、プロジェクト管理画面の「ファイル管理」タブ内に表示され、選択したプロジェクトのファイル・フォルダ一覧をテーブル形式で表示するコンポーネントです。ファイルのダウンロード・ビューア表示・名前変更・削除、フォルダナビゲーション・削除機能を提供します。
 
 ### 1.2 使用場面
 - プロジェクト管理画面 → 「ファイル管理」タブ選択時
@@ -22,18 +33,16 @@
 ### 2.1 レイアウト構造
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ テーブルヘッダー                                            │
-│ [種別] [ファイル名] [サイズ] [更新日時] [操作]             │
-├─────────────────────────────────────────────────────────────┤
-│ [📁] archive (5)                                            │
-├─────────────────────────────────────────────────────────────┤
-│ [📄] project-001.maiml  │ 45.2 KB │ 2時間前 │ [DL] [表示] │
-├─────────────────────────────────────────────────────────────┤
-│ [📄] result.csv         │ 12.8 KB │ 1日前   │ [DL] [表示] │
-├─────────────────────────────────────────────────────────────┤
-│ [📊] data.xlsx          │ 128 KB  │ 3日前   │ [DL] [表示] │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│ テーブルヘッダー                                                      │
+│ [種別] [ファイル名] [サイズ] [更新日時] [操作(280px)]               │
+├─────────────────────────────────────────────────────────────────────┤
+│ [📁] archive (5)                              [削除]                │
+├─────────────────────────────────────────────────────────────────────┤
+│ [📄] project-001.maiml ⚠ │ 45.2KB │ 2時間前 │ [⋯] [DL] [ビューア]│
+├─────────────────────────────────────────────────────────────────────┤
+│ [📄] result.csv           │ 12.8KB │ 1日前   │ [⋯] [DL] [ビューア]│
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 主要UI要素
@@ -41,69 +50,77 @@
 #### 2.2.1 テーブルカラム
 
 **1. 種別（type）**
-- 幅: 50px
-- 表示: ファイル/フォルダタイプに応じたアイコン
-- 中央揃え
+- 幅: 50px、中央揃え
+- 表示: ファイル/フォルダタイプに応じたアイコン（下記参照）
 
 **2. ファイル名（name）**
-- ソート可能（日本語対応）
-- フォルダの場合: 太字 + オレンジ色 + ファイル数表示
-- ツールチップ: ファイルパス表示
+- ソート可能（日本語対応: `localeCompare('ja')`）
+- フォルダの場合: 太字 + オレンジ色 + ファイル数表示（例: `archive (5)`）
+- フォルダ名がフルパス（`rawdata/sub/`）の場合: 末尾スラッシュを除いた最後セグメントのみ表示
+- MAIMLファイルの場合: バリデーション警告アイコン（`WarningOutlined`）を右横に表示
+- ツールチップ: `record.path`（ファイルパス）
 
 **3. サイズ（size）**
-- 幅: 120px
-- ソート可能
+- 幅: 120px、ソート可能
 - フォルダの場合: 非表示
-- フォーマット: `formatFileSize()`（KB, MB単位）
+- フォーマット: `formatFileSize()`（KB/MB/GB単位）
 
 **4. 更新日時（lastModified）**
-- 幅: 150px
-- ソート可能
+- 幅: 150px、ソート可能
 - フォルダの場合: 非表示
-- フォーマット: `formatRelativeTime()`（相対時刻表示）
+- フォーマット: `formatRelativeTime()`（相対時刻）
 
 **5. 操作（actions）**
-- 幅: 220px
-- 中央揃え
-- フォルダの場合: 非表示
-- ファイルの場合: ダウンロードボタン + ビューアボタン
+- 幅: 280px、中央揃え
+- **フォルダ行**: 削除ボタンのみ（`onDeleteFolder` が渡されている場合）
+- **ファイル行**: `[⋯]`（Dropdownメニュー）+ ダウンロード + ビューア
 
 #### 2.2.2 ファイルタイプアイコン
 
 | ファイルタイプ | アイコン | 色 |
 |--------------|---------|-----|
-| フォルダ | FolderOpenOutlined | オレンジ（`token.colorWarning`） |
-| MAIML（.maiml） | FileTextOutlined | 青（`token.colorInfo`） |
-| PDF（.pdf） | FileTextOutlined | 赤（`token.colorError`） |
-| Excel（.xlsx） | TableOutlined | 緑（`token.colorSuccess`） |
-| CSV（.csv） | TableOutlined | グレー（`token.colorTextSecondary`） |
-| アーカイブ | FolderOpenOutlined | オレンジ（`token.colorWarning`） |
-| その他 | FileOutlined | グレー（`token.colorTextSecondary`） |
+| フォルダ | `FolderOpenOutlined` | オレンジ（`token.colorWarning`）|
+| MAIML（.maiml）| `FileTextOutlined` | 青（`token.colorInfo`）|
+| PDF（.pdf）| `FileTextOutlined` | 赤（`token.colorError`）|
+| Excel（.xlsx）| `TableOutlined` | 緑（`token.colorSuccess`）|
+| CSV（.csv）| `TableOutlined` | グレー（`token.colorTextSecondary`）|
+| アーカイブ | `FolderOpenOutlined` | オレンジ（`token.colorWarning`）|
+| その他 | `FileOutlined` | グレー（`token.colorTextSecondary`）|
 
-#### 2.2.3 操作ボタン
+#### 2.2.3 操作ボタン（ファイル行）
 
-**ダウンロードボタン:**
-- アイコン: DownloadOutlined
-- サイズ: small
-- タイプ: default
-- ローディング状態: ダウンロード中は spinner表示
-- 無効化: 他のファイルダウンロード中は全ボタン無効
+**Dropdownメニューボタン（`MoreOutlined`）**:
+- `data-testid="file-more-menu-button"`
+- クリックでドロップダウンメニューを表示
+- メニュー項目:
+  1. **名前の変更**（`EditOutlined`, `data-testid="file-menu-rename"`）: リネームモーダルを開く
+  2. **区切り線**
+  3. **削除**（`DeleteOutlined`, danger, `data-testid="file-menu-delete"`）: `onDeleteFile` を呼び出し
+- 名前変更・削除の disabled 条件: `!isEditable || isProjectCompleted || isCheckoutLocked`
 
-**ビューアボタン:**
-- アイコン: EyeOutlined
-- サイズ: small
-- タイプ: primary
-- 背景色: 緑（`token.colorSuccess`）
-- クリック: ViewRendererDialogを開く
+**ダウンロードボタン**:
+- アイコン: `DownloadOutlined`, サイズ: small
+- `data-testid="file-download-button"`
+- ローディング: ダウンロード中は spinner表示
+- disabled: `downloadingFileId !== null`（他ファイルダウンロード中）
 
-### 2.3 Empty状態
+**ビューアボタン**:
+- アイコン: `EyeOutlined`, サイズ: small, タイプ: primary
+- 背景色: `token.colorSuccess`
+- `data-testid="file-viewer-button"`
 
-プロジェクトにファイルが存在しない場合:
+#### 2.2.4 フォルダ行の操作ボタン
+
+- **削除ボタン**（`DeleteOutlined`, danger, small）
+- `data-testid="folder-delete-button"`
+- disabled 条件: `!isEditable || isProjectCompleted || isCheckoutLocked`
+- `onDeleteFolder` が `undefined` の場合は非表示
+
+#### 2.2.5 Empty状態
 ```typescript
-<Empty 
-  description={t('projectManagement.fileManagement.emptyState')} 
-  image={Empty.PRESENTED_IMAGE_SIMPLE} 
-/>
+locale={{
+  emptyText: <Empty description={t('projectManagement.fileManagement.emptyState')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+}}
 ```
 
 ---
@@ -112,7 +129,6 @@
 
 ### 3.1 ファイル一覧表示
 
-#### 3.1.1 表示内容
 ```typescript
 <Table
   dataSource={files}
@@ -123,154 +139,68 @@
 />
 ```
 
-#### 3.1.2 データソース
 - `files`: 親コンポーネント（ProjectManagement）から渡されるファイル一覧
 - rootフォルダ: プロジェクト直下のファイル + archiveフォルダ（存在する場合）
-- archiveフォルダ: アーカイブされた過去バージョンのファイル + 戻るボタン
+- サブフォルダ: フォルダ内のファイル + 「↑ 戻る」疑似エントリ
 
 ### 3.2 ファイルダウンロード
 
-#### 3.2.1 処理フロー
 ```typescript
 const handleDownloadFile = async (file: ProjectFile) => {
-  try {
-    setDownloadingFileId(file.id);
-
-    // ファイルパスが存在するか確認
-    if (!file.path || file.path.trim() === '') {
-      throw new Error(t('projectManagement.fileManagement.messages.filePathMissing'));
-    }
-
-    // ファイルキーベースで直接ダウンロード（プロキシ方式）
-    await getFileDownloadUrlByKey(file.path);
-
-    // 成功メッセージ表示
-    message.success(
-      t('projectManagement.fileManagement.messages.downloadStarted').replace('{{fileName}}', file.name)
-    );
-  } catch (error) {
-    console.error('ファイルダウンロードエラー:', error);
-    const errorMsg = error instanceof Error ? error.message : '不明なエラー';
-    message.error(
-      t('projectManagement.fileManagement.messages.downloadError').replace('{{error}}', errorMsg)
-    );
-  } finally {
-    setDownloadingFileId(null);
-  }
+  setDownloadingFileId(file.id);
+  if (!file.path || file.path.trim() === '') throw new Error(...);
+  await getFileDownloadUrlByKey(file.path);
+  message.success(t('...').replace('{{fileName}}', file.name));
+  // finally: setDownloadingFileId(null)
 };
 ```
 
-#### 3.2.2 UI動作
-1. ダウンロードボタンをクリック
-2. ボタンがローディング状態になる（spinner表示）
-3. 他のダウンロードボタンが無効化される
-4. バックエンドAPIを呼び出し（プロキシ方式）
-5. 成功: ファイルダウンロード開始 + 成功メッセージ
-6. 失敗: エラーメッセージ表示
-7. ローディング状態解除
-
-#### 3.2.3 プロキシ方式ダウンロード
-```typescript
-await getFileDownloadUrlByKey(file.path);
-```
-- バックエンド経由で直接ダウンロード
-- S3署名付きURLを内部で生成・リダイレクト
-- ブラウザのダウンロード機能でファイル保存
+バックエンド経由（プロキシ方式）でファイルをダウンロード。S3署名付きURLは内部で生成。
 
 ### 3.3 ビューア表示
 
-#### 3.3.1 処理フロー
-```typescript
-<Button
-  type="primary"
-  size="small"
-  icon={<EyeOutlined />}
-  onClick={(e) => {
-    e.stopPropagation();
-    onViewFile?.(record);
-  }}
->
-  ビューア
-</Button>
-```
+ビューアボタンクリック → `onViewFile?.(record)` を呼び出し → 親コンポーネントで `ViewRendererDialog` を開く。
 
-#### 3.3.2 UI動作
-1. ビューアボタンをクリック
-2. 親コンポーネント（ProjectManagement）の`handleViewFile`を呼び出し
-3. ViewRendererDialogが開く
-4. ファイル内容を表示
+### 3.4 フォルダクリック（ナビゲーション）
 
-### 3.4 フォルダクリック
+- フォルダ行クリック → `onFolderClick?.(record.id)` を呼び出し
+- `id === 'back'` の疑似エントリ → rootフォルダに戻る
 
-#### 3.4.1 処理フロー
-```typescript
-onRow={(record) => ({
-  onClick: () => {
-    if (record.isFolder) {
-      onFolderClick?.(record.id);
-    } else {
-      onFileClick?.(record);
-    }
-  },
-  style: {
-    cursor: record.isFolder || onFileClick ? 'pointer' : 'default',
-  },
-})}
-```
+### 3.5 ファイル名変更（リネーム）
 
-#### 3.4.2 UI動作
-- フォルダ行をクリック: `onFolderClick`コールバック呼び出し
-  - archiveフォルダ → archiveフォルダ内のファイル一覧を表示
-  - backフォルダ（"↑ 戻る"） → rootフォルダに戻る
-- ファイル行をクリック: `onFileClick`コールバック呼び出し（現在未使用）
+#### 3.5.1 処理フロー
+1. Dropdown「名前の変更」クリック → `handleOpenRenameModal(file)` → `renameModalOpen = true`
+2. モーダルに拡張子を除いたベース名をデフォルト値としてセット
+3. 「保存」クリック → `handleRenameConfirm()` → `renameFile({ fileKey, newFileName })` API呼び出し
+4. 成功: `message.success`, `onRenameFile?.()` でファイル一覧を再取得
+5. 失敗: `message.error`
 
-### 3.5 ソート機能
+#### 3.5.2 リネームモーダル仕様
+- タイトル: `t('file.renameModalTitle')`
+- 入力フィールド: ベース名のみ（拡張子は `addonAfter` で固定表示）
+- バリデーション: 必須 / 空白不可 / 最大255文字
+- `Enter` キーでも確定可能
+- `destroyOnHidden`: true
 
-#### 3.5.1 ソート可能カラム
+### 3.6 ファイル削除
 
-**ファイル名（name）:**
-```typescript
-sorter: (a, b) => a.name.localeCompare(b.name, 'ja')
-```
-- 日本語対応のアルファベット順ソート
+Dropdown「削除」クリック → `onDeleteFile?.(record)` → 親コンポーネントで確認ダイアログ表示 → 削除実行。
 
-**サイズ（size）:**
-```typescript
-sorter: (a, b) => a.size - b.size
-```
-- バイト数による数値ソート
+### 3.7 フォルダ削除
 
-**更新日時（lastModified）:**
-```typescript
-sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime()
-```
-- タイムスタンプによる日時ソート
+削除ボタンクリック → `onDeleteFolder?.(record)` → 親コンポーネントで確認ダイアログ表示 → 削除実行。
 
-### 3.6 多言語対応
+### 3.8 MAIMLバリデーション警告アイコン
 
-#### 3.6.1 翻訳キー
-```typescript
-const { t } = useLanguage();
+`record.type === 'maiml'` かつ `maimlValidationRow` が存在する場合:
 
-// テーブルヘッダー
-t('projectManagement.fileManagement.table.type')         // "種別"
-t('projectManagement.fileManagement.table.fileName')     // "ファイル名"
-t('projectManagement.fileManagement.table.size')         // "サイズ"
-t('projectManagement.fileManagement.table.lastModified') // "更新日時"
-t('projectManagement.fileManagement.table.actions')      // "操作"
+| 条件 | アイコン | 色 | Tooltip |
+|------|---------|---|---------|
+| `errors.length > 0` | `WarningOutlined` | 🔴 `colorError` | `t('file.validationErrors') (N)` |
+| `warnings.length > 0`（エラーなし）| `WarningOutlined` | 🟡 `colorWarning` | `t('file.validationWarnings') (N)` |
+| どちらもなし | 非表示 | — | — |
 
-// ボタン
-t('projectManagement.fileManagement.buttons.download')   // "ダウンロード"
-t('projectManagement.fileManagement.buttons.viewer')     // "ビューア"
-
-// メッセージ
-t('projectManagement.fileManagement.messages.downloadStarted')  // "{{fileName}}のダウンロードを開始しました"
-t('projectManagement.fileManagement.messages.downloadError')    // "ダウンロードエラー: {{error}}"
-t('projectManagement.fileManagement.messages.filePathMissing')  // "ファイルパスが見つかりません"
-
-// Empty状態
-t('projectManagement.fileManagement.emptyState')         // "ファイルがありません"
-```
+- `errors` / `warnings` フィールドは Array またはJSON文字列の両方に対応（`node-postgres` が自動変換する場合あり）
 
 ---
 
@@ -280,124 +210,80 @@ t('projectManagement.fileManagement.emptyState')         // "ファイルがあ�
 
 ```typescript
 interface FileListTableProps {
-  /** 表示するファイル・フォルダ一覧 */
   files: ProjectFile[];
-  /** プロジェクトID */
-  projectId: string;
-  /** ファイルクリック時のコールバック（現在未使用） */
+  currentFolder?: string;          // 現在表示中のフォルダパス（'root' またはパス文字列）
   onFileClick?: (file: ProjectFile) => void;
-  /** フォルダクリック時のコールバック */
   onFolderClick?: (folderId: string) => void;
-  /** ビューアボタンクリック時のコールバック */
   onViewFile?: (file: ProjectFile) => void;
+  onDeleteFile?: (file: ProjectFile) => void;
+  onDeleteFolder?: (file: ProjectFile) => void;
+  onRenameFile?: () => void;       // ファイル名変更後のコールバック（ファイル一覧再取得用）
+  maimlValidationRow?: MaimlAnalysisResultRow | null;
+  isEditable?: boolean;            // デフォルト: true
+  isProjectCompleted?: boolean;    // デフォルト: false
+  isCheckoutLocked?: boolean;      // デフォルト: false
 }
 ```
 
-**Props説明:**
 | Prop名 | 型 | 必須 | 説明 |
 |--------|---|------|------|
-| files | `ProjectFile[]` | ✅ | 表示するファイル・フォルダ一覧 |
-| projectId | `string` | ✅ | プロジェクトID（現在未使用） |
-| onFileClick | `(file: ProjectFile) => void` | - | ファイル行クリック時のコールバック（現在未使用） |
-| onFolderClick | `(folderId: string) => void` | - | フォルダクリック時のコールバック |
-| onViewFile | `(file: ProjectFile) => void` | - | ビューアボタンクリック時のコールバック |
+| `files` | `ProjectFile[]` | ✅ | 表示するファイル・フォルダ一覧 |
+| `currentFolder` | `string` | - | 現在表示中のフォルダパス |
+| `onFileClick` | `(file) => void` | - | ファイル行クリック時のコールバック |
+| `onFolderClick` | `(folderId) => void` | - | フォルダ行クリック時のコールバック |
+| `onViewFile` | `(file) => void` | - | ビューアボタンクリック時のコールバック |
+| `onDeleteFile` | `(file) => void` | - | ファイル削除メニュークリック時のコールバック |
+| `onDeleteFolder` | `(file) => void` | - | フォルダ削除ボタンクリック時のコールバック |
+| `onRenameFile` | `() => void` | - | ファイル名変更後のコールバック（一覧再取得用）|
+| `maimlValidationRow` | `MaimlAnalysisResultRow \| null` | - | DB保存済みバリデーション結果 |
+| `isEditable` | `boolean` | - | 編集権限フラグ（false で変更系ボタン無効）|
+| `isProjectCompleted` | `boolean` | - | プロジェクト完了フラグ（true で変更系ボタン無効）|
+| `isCheckoutLocked` | `boolean` | - | チェックアウト中フラグ（true で変更系ボタン無効）|
 
 ### 4.2 State定義
 
-```typescript
-// ダウンロード中のファイルID
-const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
-```
-
-**State説明:**
 | State名 | 型 | 初期値 | 説明 |
 |---------|---|--------|------|
-| downloadingFileId | `string \| null` | `null` | ダウンロード中のファイルID。nullの場合はダウンロード中のファイルなし |
+| `downloadingFileId` | `string \| null` | `null` | ダウンロード中のファイルID |
+| `renameModalOpen` | `boolean` | `false` | リネームモーダルの表示状態 |
+| `renamingFile` | `ProjectFile \| null` | `null` | 名前変更対象ファイル |
+| `renameLoading` | `boolean` | `false` | リネームAPI呼び出し中フラグ |
+| `renameForm` | `FormInstance` | — | リネームフォームインスタンス |
 
 ### 4.3 ProjectFile型定義
 
 ```typescript
 interface ProjectFile {
-  id: string;              // ファイルID
-  name: string;            // ファイル名
-  path: string;            // ファイルパス（S3キー）
-  size: number;            // ファイルサイズ（バイト）
-  lastModified: string;    // 更新日時（ISO8601形式）
-  type: string;            // ファイルタイプ（maiml, pdf, excel, csv, folder等）
-  isFolder: boolean;       // フォルダかどうか
-  fileCount?: number;      // フォルダの場合のファイル数
+  id: string;
+  name: string;
+  path: string;           // S3キー
+  size: number;           // バイト
+  lastModified: string;   // ISO8601
+  type: string;           // 'maiml' | 'pdf' | 'excel' | 'csv' | 'archive' | etc.
+  isFolder: boolean;
+  fileCount?: number;     // フォルダの場合のファイル数
 }
-```
-
-### 4.4 Context連携
-
-```typescript
-// LanguageContext
-const { t } = useLanguage();
-
-// Ant Design Theme
-const { token } = theme.useToken();
 ```
 
 ---
 
 ## 5. API連携
 
-### 5.1 使用するAPI一覧
-
-| # | API名 | メソッド | エンドポイント | 状態 | 説明 |
-|---|------|---------|---------------|------|------|
-| 1 | getFileDownloadUrlByKey | GET | `/api/v1/files/download-proxy` | ✅ 実装済み | ファイルをプロキシ経由でダウンロード |
-
-### 5.2 API呼び出し例
-
-#### 5.2.1 ファイルダウンロード（プロキシ方式）
-
-```typescript
-await getFileDownloadUrlByKey(file.path);
-```
-
-**Request:**
-```
-GET /api/v1/files/download-proxy?fileKey={file.path}
-```
-
-**Response:**
-- 成功: ファイルストリームをブラウザにリダイレクト
-- 失敗: エラーレスポンス
+| # | 関数名 | メソッド | エンドポイント | 説明 |
+|---|--------|---------|--------------|------|
+| 1 | `getFileDownloadUrlByKey` | GET | `/api/v1/files/download-proxy` | プロキシ経由でファイルをダウンロード |
+| 2 | `renameFile` | PATCH | `/api/v1/files/rename` | ファイル名変更 |
 
 ---
 
 ## 6. エラーハンドリング
 
-### 6.1 エラーケース一覧
-
 | エラーケース | 対処方法 |
-|-------------|----------|
-| ファイルパスが空 | message.error('ファイルパスが見つかりません') |
-| ダウンロード失敗 | message.error('ダウンロードエラー: {エラーメッセージ}') |
-| API呼び出し失敗 | エラーメッセージ表示 + コンソールログ出力 |
-
-### 6.2 エラー処理コード
-
-```typescript
-try {
-  setDownloadingFileId(file.id);
-  
-  if (!file.path || file.path.trim() === '') {
-    throw new Error(t('projectManagement.fileManagement.messages.filePathMissing'));
-  }
-  
-  await getFileDownloadUrlByKey(file.path);
-  message.success(t('projectManagement.fileManagement.messages.downloadStarted').replace('{{fileName}}', file.name));
-} catch (error) {
-  console.error('ファイルダウンロードエラー:', error);
-  const errorMsg = error instanceof Error ? error.message : '不明なエラー';
-  message.error(t('projectManagement.fileManagement.messages.downloadError').replace('{{error}}', errorMsg));
-} finally {
-  setDownloadingFileId(null);
-}
-```
+|-------------|---------|
+| ファイルパスが空 | `message.error(t('...filePathMissing'))` |
+| ダウンロード失敗 | `message.error(t('...downloadError').replace('{{error}}', ...))` |
+| リネーム失敗（`result.success === false`）| `message.error(t('...renameFailed'))` |
+| リネームAPI例外 | `console.error` + `message.error(t('...renameFailed'))` |
 
 ---
 
@@ -405,267 +291,70 @@ try {
 
 ### 7.1 メインファイル
 - **パス**: `frontend/src/components/project/FileListTable.tsx`
-- **行数**: 約200行
+- **行数**: 467行
 - **エクスポート**: `FileListTable`（default export）
 
-### 7.2 関連ファイル
+### 7.2 依存サービス・ユーティリティ
+- `@/services/fileAccessService` - `getFileDownloadUrlByKey`, `renameFile`
+- `@/utils/formatUtils` - `formatFileSize`, `formatRelativeTime`
+- `@/contexts/LanguageContext` - `useLanguage`
 
-#### 7.2.1 型定義
-- `frontend/src/types/file.ts` - ProjectFile型
+### 7.3 依存型定義
+- `@/types/file` - `ProjectFile`
+- `@/types/maimlEditor` - `MaimlAnalysisResultRow`
 
-#### 7.2.2 APIサービス
-- `frontend/src/services/fileAccessService.ts` - getFileDownloadUrlByKey()
+### 7.4 Ant Design コンポーネント
+- `Table`, `Button`, `Tooltip`, `Space`, `Empty`, `Dropdown`, `message`, `theme`, `Modal`, `Form`, `Input`
 
-#### 7.2.3 ユーティリティ
-- `frontend/src/utils/formatters.ts` - formatFileSize(), formatRelativeTime()
-
-#### 7.2.4 Context
-- `frontend/src/contexts/LanguageContext.tsx` - 多言語対応
-
-### 7.3 依存ライブラリ
-- React 18.2.0
-- Ant Design v6 (Table, Button, Tooltip, Space, Empty, message, theme)
-- @ant-design/icons (FileTextOutlined, FileOutlined, TableOutlined, FolderOpenOutlined, DownloadOutlined, EyeOutlined)
+### 7.5 アイコン（@ant-design/icons）
+- `FileTextOutlined`, `FileOutlined`, `TableOutlined`, `FolderOpenOutlined`
+- `DownloadOutlined`, `DeleteOutlined`, `EditOutlined`, `EyeOutlined`, `MoreOutlined`, `WarningOutlined`
 
 ---
 
-## 8. 変更履歴
+## 8. 補足事項
 
-| 日付 | 変更内容 | 担当者 |
-|------|----------|--------|
-| 2026-04-02 | サブフォルダ対応に伴い「使用場面」を更新（archive/rawdataなど任意サブフォルダ対応を明記） | Cline |
-| 2026-04-01 | PR #138対応: Props `onDeleteFile` 追加、操作カラム幅220→280px変更、Dropdownメニュー（名前変更・削除）追加 | Cline |
-| 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
-
----
-
-## 9. 補足事項
-
-### 9.1 フォーマット関数
-
-#### 9.1.1 formatFileSize
-```typescript
-formatFileSize(bytes: number): string
-```
-- 入力: バイト数
-- 出力: KB, MB, GB単位の文字列
-- 例: `45200` → `"45.2 KB"`, `1048576` → `"1 MB"`
-
-#### 9.1.2 formatRelativeTime
-```typescript
-formatRelativeTime(isoDate: string): string
-```
-- 入力: ISO8601形式の日時文字列
-- 出力: 相対時刻の文字列
-- 例: `"2026-03-11T07:00:00Z"` → `"2時間前"`, `"2026-03-10T09:00:00Z"` → `"1日前"`
-
-### 9.2 テーブルスタイリング
+### 8.1 フォルダ名表示のパス対応
+フォルダ名がフルパス（例: `rawdata/sub/`）の場合、末尾スラッシュを除いた最後セグメントのみを表示する。
 
 ```typescript
-<Table
-  dataSource={files}
-  columns={columns}
-  rowKey="id"
-  size="small"           // 小さめのサイズ
-  pagination={false}     // ページネーション無効
-  onRow={(record) => ({
-    onClick: () => { /* ... */ },
-    style: {
-      cursor: record.isFolder || onFileClick ? 'pointer' : 'default',
-    },
-  })}
-/>
-```
-
-### 9.3 イベントバブリング制御
-
-```typescript
-onClick={(e) => {
-  e.stopPropagation();  // 行クリックイベントの伝播を停止
-  handleDownloadFile(record);
-}}
-```
-- ボタンクリック時に行クリックイベントが発火しないようにする
-
-### 9.4 ファイルタイプ判定
-
-```typescript
-const getFileIcon = (file: ProjectFile) => {
-  if (file.isFolder) {
-    return <FolderOpenOutlined />;
-  }
-  
-  switch (file.type) {
-    case 'maiml': return <FileTextOutlined />;
-    case 'pdf': return <FileTextOutlined />;
-    case 'excel': return <TableOutlined />;
-    case 'csv': return <TableOutlined />;
-    case 'archive': return <FolderOpenOutlined />;
-    default: return <FileOutlined />;
-  }
+const getDisplayName = (name: string) => {
+  if (!record.isFolder || !name.includes('/')) return name;
+  const parts = name.split('/').filter(s => s !== '');
+  return parts[parts.length - 1] || name;
 };
 ```
 
-### 9.5 フォルダ表示の特徴
+### 8.2 変更系ボタンの disabled 条件
+以下いずれかが `true` の場合に名前変更・削除・フォルダ削除ボタンを無効化:
+- `!isEditable`
+- `isProjectCompleted`
+- `isCheckoutLocked`
 
-- **太字表示**: `fontWeight: token.fontWeightStrong`
-- **オレンジ色**: `color: token.colorWarning`
-- **ファイル数表示**: `archive (5)`のように括弧内に件数表示
-- **サイズ・更新日時非表示**: フォルダの場合は空欄
-- **操作ボタン**: 通常フォルダは「削除」ボタンのみ表示、「↑ 戻る」疑似エントリには非表示
+### 8.3 イベントバブリング制御
+ボタン・Dropdownクリック時に `e.stopPropagation()` で行クリックへの伝播を防止。
 
-### 9.6 ダウンロード状態管理
+### 8.4 ダウンロード状態管理
+- 一度に1ファイルのみダウンロード可能
+- `downloadingFileId !== null` で全ダウンロードボタンを disabled に設定
 
-- **単一ファイルダウンロード**: 一度に1ファイルのみダウンロード可能
-- **ローディング表示**: ダウンロード中のボタンにspinner表示
-- **他ボタン無効化**: `disabled={downloadingFileId !== null}`で他のダウンロードボタンを無効化
-
-### 9.7 プロキシ方式ダウンロードの利点
-
-- クライアント側で署名付きURL生成不要
-- セキュリティ向上（S3への直接アクセス不要）
-- ダウンロード進捗の追跡が可能
-- エラーハンドリングの一元化
-
-### 9.8 アクセシビリティ
-
-- ツールチップでファイルパス表示
-- クリック可能要素にカーソル変更
-- ソート機能でデータ整理
-- Empty状態の明確な表示
-
-### 9.9 フォルダ削除機能
-
-#### 9.9.1 表示条件
-
-| 行の種類 | 削除ボタン表示 |
-|---------|--------------|
-| 通常フォルダ（`isFolder === true` かつ `id !== 'back'`） | ✅ 表示 |
-| 「↑ 戻る」疑似エントリ（`id === 'back'`） | ❌ 非表示 |
-| ファイル行 | ❌ 非表示（ファイル削除は別フロー） |
-
-#### 9.9.2 ボタン仕様
-
-```tsx
-<Button
-  danger
-  size="small"
-  icon={<DeleteOutlined />}
-  onClick={(e) => {
-    e.stopPropagation();
-    onDeleteFolder?.(record);
-  }}
->
-  削除
-</Button>
-```
-
-- アイコン: `DeleteOutlined`
-- タイプ: `danger`（赤色ボタン）
-- サイズ: `small`
-
-#### 9.9.3 削除確認ダイアログ仕様
-
-親コンポーネント（`ProjectManagement`）の `handleDeleteFolder` ハンドラが表示する。
-
-| 項目 | 内容 |
-|------|------|
-| タイトル | 「{フォルダ名}」を削除しますか？ |
-| 内容 | このフォルダ内のファイルもすべて削除されます。この操作は取り消せません。 |
-| OKボタン | 削除（danger） |
-| キャンセルボタン | キャンセル |
-
-#### 9.9.4 削除後の動作
-
-1. `deleteFolderByPath(file.path)` を呼び出し（`DELETE /api/v1/files/delete-folder`）
-2. 成功後: `getProjectFiles` を再呼び出しして一覧を更新
-3. 成功メッセージを表示
-4. 失敗時はエラーメッセージを表示
-
-#### 9.9.5 Props追加
-
+### 8.5 MAIMLバリデーション警告アイコンの JSONB 対応
+`maimlValidationRow.errors` / `.warnings` は Array または JSON文字列の両方に対応:
 ```typescript
-interface FileListTableProps {
-  // ... 既存のprops ...
-  /** フォルダ削除ボタンクリック時のコールバック */
-  onDeleteFolder?: (file: ProjectFile) => void;
-}
+const parseField = (v: unknown): unknown[] => {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') { try { return JSON.parse(v); } catch { return []; } }
+  return [];
+};
+```
 
 ---
 
-## 10. MAIMLバリデーション警告アイコン
+## 9. 変更履歴
 
-### 10.1 概要
-
-ファイル一覧テーブルにMAIMLバリデーション警告アイコン機能を追加しました。MAIMLファイルの行に、DB保存済みのバリデーション結果に基づいてエラー/警告アイコンを表示します。
-
-### 10.2 Propsの追加
-
-```typescript
-interface FileListTableProps {
-  // 既存のProps...
-  /** MAIMLバリデーション結果（DB保存済み）。MAIMLファイル行に警告アイコンを表示するために使用 */
-  maimlValidationRow?: MaimlAnalysisResultRow | null;
-}
-```
-
-### 10.3 警告アイコン表示仕様
-
-**表示条件**: `record.type === 'maiml'` かつ `maimlValidationRow` が存在する場合
-
-**色分け**:
-
-| 条件 | アイコン | 色 | Tooltip |
-|------|---------|---|---------|
-| `errors.length > 0` | WarningOutlined | 🔴 赤（`colorError`） | `バリデーションエラーあり（N件）` |
-| `errors.length === 0 && warnings.length > 0` | WarningOutlined | 🟡 黄（`colorWarning`） | `バリデーション警告あり（N件）` |
-| エラーも警告もなし | 表示なし | — | — |
-
-**表示位置**: ファイル名の右横（`marginLeft: 6, fontSize: 14`）
-
-### 10.4 実装例
-
-```tsx
-// MAIMLファイルのバリデーション警告アイコン
-const maimlWarningIcon = (() => {
-  if (record.type !== 'maiml' || !maimlValidationRow) return null;
-  let errCount = 0;
-  let warnCount = 0;
-  try { errCount = JSON.parse(maimlValidationRow.errors || '[]').length; } catch {}
-  try { warnCount = JSON.parse(maimlValidationRow.warnings || '[]').length; } catch {}
-  if (errCount > 0) {
-    return (
-      <Tooltip title={`バリデーションエラーあり（${errCount}件）`}>
-        <WarningOutlined style={{ color: token.colorError, marginLeft: 6, fontSize: 14 }} />
-      </Tooltip>
-    );
-  }
-  if (warnCount > 0) {
-    return (
-      <Tooltip title={`バリデーション警告あり（${warnCount}件）`}>
-        <WarningOutlined style={{ color: token.colorWarning, marginLeft: 6, fontSize: 14 }} />
-      </Tooltip>
-    );
-  }
-  return null;
-})();
-```
-
-### 10.5 データ更新タイミング
-
-`maimlValidationRow` は親コンポーネント（ProjectManagement）から受け取る。更新タイミング：
-
-1. **プロジェクト選択時**: `GET /api/v1/maiml/analysis-result?fileKey=xxx` で取得
-2. **再バリデーション実行後**: バリデーション結果を即時反映
-
----
-
-## 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|---------|--------|
-| 2.0 | 2026-04-24 | MAIMLバリデーション警告アイコン機能追加（セクション10追加） | Cline |
-| | | - maimlValidationRow prop 追加 | |
-| | | - MAIMLファイル行への警告アイコン表示（エラー赤・警告黄） | |
-| 1.0 | 2026-01-21 | 初版作成 | Cline |
-```
+| バージョン | 日付 | 変更内容 |
+|-----------|------|---------|
+| 3.0.0 | 2026-08-20 | 実装ベースで全面改訂（Props追加: `currentFolder/onRenameFile/isEditable/isProjectCompleted/isCheckoutLocked`・`projectId` 削除・リネームモーダル追加・Dropdownメニュー詳細追加・操作カラム幅280px修正・フォルダ名フルパス対応追加・data-testid追記）|
+| 2.0.0 | 2026-04-24 | MAIMLバリデーション警告アイコン機能追加 |
+| 1.1.0 | 2026-04-01 | `onDeleteFile` Props追加、操作カラム幅220→280px変更、Dropdownメニュー追加 |
+| 1.0.0 | 2026-01-21 | 初版作成 |

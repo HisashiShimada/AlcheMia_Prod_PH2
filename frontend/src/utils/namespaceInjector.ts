@@ -20,6 +20,8 @@
 export interface NamespaceEntry {
   prefix: string;
   uri: string;
+  /** 説明文 */
+  description?: string | null;
   /** スコープキー（namespace.scope_key。organization_group_cd など） */
   scopeKey?: string;
   /** スコープ名（organization_group.organization_group_name） */

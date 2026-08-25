@@ -1,538 +1,346 @@
-# トランジションセット検索モーダル UI仕様書
+# TransitionSetSearchModal - 遷移検索モーダル UI設計書
 
-## 概要
+## メタデータ
+- **画面名**: 遷移検索モーダル
+- **物理名**: TransitionSetSearchModal.tsx
+- **ファイルパス**: `frontend/src/components/TransitionSetSearch/TransitionSetSearchModal.tsx`
+- **利用権限**: experiment_admin
+- **作成日**: 2026-01-21
+- **最終更新日**: 2026-08-20
+- **バージョン**: 2.0.0
 
-### 目的
-4軸ベクトル検索により、実験プロトコルのトランジションレベルでの精密な類似度評価を行う統合検索モーダルコンポーネント。自然言語クエリをAI分解し、入力条件・手順・出力・構造の4軸で検索する。
-
-### 使用場面
-- プロジェクト管理画面のツールバーから「TransitionSet検索」ボタンをクリック
-- 類似する実験プロトコルを検索する際に使用
-- 過去の実験データからTransitionSetを検索・再利用
-
-### アクセス権限
-- **Experiment Admin（実験管理者）**: TransitionSet検索の実行
-- **その他のロール**: アクセス不可
+> **注意**: 旧設計書は `ProjectSearchModal`（MAIML属性条件検索）の内容でしたが、実装は `TransitionSetSearchModal`（自然言語セマンティック検索）であるため全面改訂。
 
 ---
 
-## 画面構成
+## 1. 概要
 
-### レイアウト構造
+### 1.1 コンポーネントの目的
 
-```
-┌────────────────────────────────────────────────────────┐
-│ 📊 トランジション検索                    (50)     [×] │
-├────────────────────────────────────────────────────────┤
-│ [検索] [バッチ処理]                                    │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│ 検索クエリ                                             │
-│ ┌────────────────────────────────────────────────┐   │
-│ │ 例: 532nmレーザーでラマン測定、CLS解析、      │   │
-│ │ スペクトルとTIFF画像を出力                    │   │
-│ └────────────────────────────────────────────────┘   │
-│ 💡 入力条件、実験手順、期待される出力を含めて...     │
-│                                                        │
-│ [🔍 検索実行]  [リセット]                             │
-│                                                        │
-│ ⚡ クイック検索（ワンクリックで重み調整済み検索）      │
-│ [🕸️構造重視] [⚡手順重視] [📥入力重視] [📤出力重視] [⭐バランス] │
-│                                                        │
-│ ┌ 🤖 AI分析: クエリの4軸分解 ───────────────────┐   │
-│ │ 📥 入力条件: シリコン基板、532nmレーザー       │   │
-│ │ ⚡ 手順: ラマン測定、CLS解析                   │   │
-│ │ 📤 出力: スペクトルデータ、TIFF画像            │   │
-│ │ 🕸️ 構造: 1入力2出力                            │   │
-│ └────────────────────────────────────────────────┘   │
-│                                                        │
-│ ▼ ⚙️ 詳細な重み調整（上級者向け）                     │
-│                                                        │
-│ ──────────────────────────────────────────────────     │
-│                                                        │
-│ 【検索結果一覧】                                       │
-│ （SearchResultsコンポーネント）                        │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
+**自然言語クエリ**を使ってトランジションセット（実験手順）をセマンティック検索するモーダル。  
+入力したクエリをAIが「入力・手順・出力・構造」の4軸に分解し、ベクトル類似度検索でマッチするプロジェクトを発見する。
 
-### UI要素
+### 1.2 使用場面
 
-#### 1. モーダルヘッダー
-- **アイコン**: 📊 `AccountBookOutlined`
-- **タイトル**: 「トランジション検索」
-- **バッジ**: 検索結果件数（青色、検索実行後のみ表示）
+- プロジェクト管理画面のツールバーにある **「遷移検索」** ボタン（`SearchOutlined` アイコン付き）をクリックした際に表示
+- i18nキー: `t('projectManagement.transitionSearch')` → 日本語: `"遷移検索"` / 英語: `"Transition Search"`
 
-#### 2. タブ
-- **検索タブ**: メイン検索画面
-- **バッチ処理タブ**: `CloudUploadOutlined` + 「バッチ処理」
+### 1.3 アクセス権限
 
-#### 3. 検索クエリ入力
-- **ラベル**: 「検索クエリ」（12px）
-- **入力欄**: TextArea、3行
-- **プレースホルダー**: 「例: 532nmレーザーでラマン測定、CLS解析、スペクトルとTIFF画像を出力」
-- **ヒント**: 「💡 入力条件、実験手順、期待される出力を含めて記述してください」（11px、グレー）
-- **Enter動作**: Shift+Enter以外で検索実行
-
-#### 4. 検索ボタン
-- **検索実行ボタン**: `SearchOutlined`、プライマリ、large、最小幅140px
-  - 通常: 「検索実行」
-  - 処理中: 「検索中...」（loading表示）
-- **リセットボタン**: 「リセット」、default
-
-#### 5. クイック検索ボタン
-
-| ボタン | アイコン | ラベル | プリセットキー |
-|--------|---------|--------|--------------|
-| 構造重視 | `ApartmentOutlined` | 構造重視 | structureFocused |
-| 手順重視 | `ThunderboltOutlined` | 手順重視 | procedureFocused |
-| 入力重視 | `InboxOutlined` | 入力重視 | inputFocused |
-| 出力重視 | `ExportOutlined` | 出力重視 | outputFocused |
-| バランス | `StarOutlined` | バランス | balanced |
-
-#### 6. AI分解結果表示カード
-- **背景色**: `#f9f0ff`（淡い紫）
-- **ボーダー**: `1px solid #d3adf7`
-- **タイトル**: 「🤖 AI分析: クエリの4軸分解」（12px、太字）
-- **表示項目**:
-  - 📥 入力条件: `decomposed.q_in`
-  - ⚡ 手順: `decomposed.q_tr`
-  - 📤 出力: `decomposed.q_out`
-  - 🕸️ 構造: `decomposed.q_struct`
-
-#### 7. 重み調整（折りたたみパネル）
-- **ラベル**: `SettingOutlined` + 「詳細な重み調整（上級者向け）」（12px）
-- **内容**: WeightSlidersコンポーネント
-- **デフォルト**: 折りたたみ状態
-
-#### 8. エラー表示
-- **コンポーネント**: Alert（error、showIcon、closable）
-
-#### 9. 未検索時のヒント
-- **アイコン**: `SearchOutlined`（48px、青色）
-- **タイトル**: 「トランジションセット検索を開始」（level 5、グレー）
-- **説明**: 4軸ベクトル検索の説明
-- **例示**:
-  - 📥 入力条件の例
-  - ⚡ 手順の例
-  - 📤 出力の例
-  - 🕸️ 構造の例
-
-#### 10. 検索結果
-- **コンポーネント**: SearchResults
-- **表示内容**: ヒット結果一覧、ローディング、エラー、検索時間
+| ロール | アクセス |
+|--------|---------|
+| `experiment_admin` | ✅ 操作可 |
+| `experiment_worker` | ❌ 呼び出し元ボタン非表示 |
 
 ---
 
-## 機能仕様
+## 2. 画面構成
 
-### Props定義
+### 2.1 モーダル設定
+
+| 項目 | 値 |
+|------|---|
+| タイトル | `AccountBookOutlined` + `t('projectManagement.transitionSearch')` + ヒット数バッジ（`searched && hits.length > 0` の場合のみ） |
+| `width` | `960` |
+| `footer` | `null` |
+| `destroyOnHidden` | `false`（状態を保持したまま非表示にする） |
+| `styles.body` | `padding: '16px 24px'`, `maxHeight: '80vh'`, `overflowY: 'auto'` |
+
+### 2.2 タブ構成
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ 📒 遷移検索  [ヒット数バッジ]                        [×]  │
+├────────────────────────────────────────────────────────────┤
+│ [🔍 検索] [☁ 一括処理]                                    │
+├────────────────────────────────────────────────────────────┤
+│ (...タブコンテンツ...)                                      │
+└────────────────────────────────────────────────────────────┘
+```
+
+| タブキー | ラベル | i18nキー |
+|---------|-------|---------|
+| `search` | 検索 | `t('transitionSearch.searchTab')` |
+| `batch` | 一括処理 | `t('transitionSearch.batchTab')` + `CloudUploadOutlined` |
+
+---
+
+## 3. 「検索」タブ仕様
+
+### 3.1 レイアウト
+
+```
+┌──────────────────────────────────────────────────┐
+│ [クエリラベル]                                    │
+│ ┌─────────────────────────────────────────────┐  │
+│ │ テキストエリア（3行）                        │  │
+│ │ ※ Shift+Enter: 改行 / Enter: 検索実行       │  │
+│ └─────────────────────────────────────────────┘  │
+│ ヒント文                                         │
+│                                                  │
+│ [🔍 検索実行 / 検索中...]  [リセット]           │
+│                                                  │
+│ [クイック検索ラベル]                             │
+│ [🏗構造] [⚡手順] [📥入力] [📤出力] [⭐バランス] │
+│                                                  │
+│ ┌─ AI分解結果（検索後のみ表示） ──────────────┐ │
+│ │ 入力: ...   手順: ...                        │ │
+│ │ 出力: ...   構造: ...                        │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ▶ 重み設定（詳細） [折りたたみ]                  │
+│                                                  │
+│ ─────────────────────────                       │
+│                                                  │
+│ [エラー表示 / 未検索ヒント / 検索結果]           │
+└──────────────────────────────────────────────────┘
+```
+
+### 3.2 クエリ入力エリア
+
+| 要素 | 仕様 |
+|------|------|
+| ラベル | `t('transitionSearch.queryLabel')` |
+| コンポーネント | `TextArea`（rows=3） |
+| プレースホルダー | `t('transitionSearch.queryPlaceholder')` |
+| Enter キー | `onPressEnter`: Shift+Enterは改行、Enterのみで `handleSearch()` 実行 |
+| ヒント | `t('transitionSearch.queryHint')` （fontSizeSM、secondary） |
+
+### 3.3 検索ボタン・リセットボタン
+
+| ボタン | ラベル | 無効化条件 |
+|-------|-------|-----------|
+| 検索実行 | `isProcessing` 時: `t('transitionSearch.searching')` / 通常: `t('transitionSearch.searchButton')` | `query` が空文字 または `isProcessing` |
+| リセット | `t('transitionSearch.reset')` | `isProcessing` 中 |
+
+- 検索ボタン: `type="primary"`, `size="large"`, `icon=<SearchOutlined />`, `loading={isProcessing}`, `minWidth: 140`
+- リセット: クエリ・AI分解結果・検索結果をクリア（`handleClear`）
+
+### 3.4 クイック検索
+
+プリセット重みを適用して即時検索。クエリが空の場合は警告メッセージを表示。
+
+| ボタンキー | アイコン | i18nキー | 説明 |
+|-----------|---------|---------|------|
+| `structureFocused` | `ApartmentOutlined` | `transitionSearch.quickSearch.structureFocused` | 構造重視 |
+| `procedureFocused` | `ThunderboltOutlined` | `transitionSearch.quickSearch.procedureFocused` | 手順重視 |
+| `inputFocused` | `InboxOutlined` | `transitionSearch.quickSearch.inputFocused` | 入力重視 |
+| `outputFocused` | `ExportOutlined` | `transitionSearch.quickSearch.outputFocused` | 出力重視 |
+| `balanced` | `StarOutlined` | `transitionSearch.quickSearch.balanced` | バランス |
+
+- 各ボタンに `Tooltip`（`WEIGHT_PRESETS[key].description`）を表示
+- 無効化条件: `isProcessing` または `query` が空文字
+
+### 3.5 AI分解結果表示
+
+クエリ実行後、`decomposeNaturalLanguageQuery()` の結果を表示。表示条件: `decomposed !== null`
+
+```
+背景: #f9f0ff、ボーダー: #d3adf7（紫系）
+```
+
+| フィールド | i18nキー | データ |
+|-----------|---------|--------|
+| 入力 | `transitionSearch.decomposed.input` | `decomposed.q_in` |
+| 手順 | `transitionSearch.decomposed.procedure` | `decomposed.q_tr` |
+| 出力 | `transitionSearch.decomposed.output` | `decomposed.q_out` |
+| 構造 | `transitionSearch.decomposed.structure` | `decomposed.q_struct` |
+
+2列 × 2行（`Row/Col` グリッド、各フィールド span=12）
+
+### 3.6 重み設定（詳細）
+
+`Collapse` で折りたたみ表示。
+
+- ラベル: `SettingOutlined` + `t('transitionSearch.advancedWeights')`
+- 子: `WeightSliders` コンポーネント（`weights`, `onChange`, `disabled={isProcessing}`）
+
+### 3.7 エラー表示
+
+`error` が存在する場合:
+```
+<Alert type="error" title={error} showIcon closable />
+```
+
+### 3.8 未検索時ヒント
+
+`!searched && !loading` の場合:
+
+```
+背景: #fafafa、ボーダー: 破線 #d9d9d9
+SearchOutlined（fontSize=48, color=#1677ff）
+t('transitionSearch.startHint')
+t('transitionSearch.startHintDesc')
+例文4件（input / procedure / output / structure）
+```
+
+### 3.9 検索結果
+
+`SearchResults` コンポーネントに委譲:
+
+```typescript
+<SearchResults
+  hits={hits}
+  loading={loading}
+  error={null}
+  searched={searched}
+  elapsedMs={elapsedMs}
+  onOpenProject={(name) => {
+    if (onOpenProject) {
+      onOpenProject(name);
+      handleClose();
+    }
+  }}
+/>
+```
+
+---
+
+## 4. 「一括処理」タブ仕様
+
+`TransitionSetBatchProcessingPanel` コンポーネントを表示。  
+詳細は別設計書を参照。
+
+---
+
+## 5. Props 定義
 
 ```typescript
 interface TransitionSetSearchModalProps {
-  open: boolean;                       // モーダル表示状態
-  onClose: () => void;                 // 閉じるハンドラー
-  onOpenProject?: (projectName: string) => void; // プロジェクト名クリック時のコールバック
-  initialProjectName?: string;         // 初期フィルター：プロジェクト名
+  /** モーダル表示状態 */
+  open: boolean;
+  /** モーダルを閉じるコールバック */
+  onClose: () => void;
+  /** プロジェクト名クリック時のコールバック（ProjectManagementでプロジェクトを選択するため） */
+  onOpenProject?: (projectName: string) => void;
+  /** 初期フィルター：プロジェクト名 */
+  initialProjectName?: string;
 }
 ```
 
-### State管理
-
-```typescript
-// 統合クエリ（メイン入力）
-const [query, setQuery] = useState('');
-
-// 重み
-const [weights, setWeights] = useState<SearchWeights>(DEFAULT_WEIGHTS);
-
-// AI分解結果表示用
-const [decomposed, setDecomposed] = useState<DecomposedQuery | null>(null);
-const [decomposing, setDecomposing] = useState(false);
-```
-
-### Hooks
-
-```typescript
-// 検索フック
-const { hits, loading, error, searched, elapsedMs, search, clearResults } =
-  useSemanticSearch();
-```
-
-### 主要機能
-
-#### 1. クエリをAI分解して検索リクエストを生成
-
-```typescript
-const buildRequest = useCallback(
-  async (customWeights?: SearchWeights): Promise<SemanticSearchRequest | null> => {
-    if (!query.trim()) return null;
-    setDecomposing(true);
-    try {
-      const result = await decomposeNaturalLanguageQuery(query.trim());
-      setDecomposed(result);
-      return {
-        ...(result.q_in && { input_query: result.q_in }),
-        ...(result.q_tr && { transition_query: result.q_tr }),
-        ...(result.q_out && { output_query: result.q_out }),
-        ...(result.q_struct && { structure_query: result.q_struct }),
-        top_k: 50,
-        weights: customWeights ?? weights,
-      };
-    } catch (err) {
-      console.error('[TransitionSetSearchModal] decompose error:', err);
-      // フォールバック：クエリをtransition_queryとして渡す
-      return {
-        transition_query: query.trim(),
-        top_k: 50,
-        weights: customWeights ?? weights,
-      };
-    } finally {
-      setDecomposing(false);
-    }
-  },
-  [query, weights]
-);
-```
-
-**処理フロー**:
-1. クエリが空でないことを確認
-2. `decomposing`を`true`に設定
-3. `decomposeNaturalLanguageQuery()`でAI分解を実行
-4. 分解結果を`decomposed`に保存
-5. 分解結果から検索リクエストを構築
-6. エラー時はフォールバック（クエリ全体をtransition_queryとして使用）
-7. `decomposing`を`false`に戻す
-
-#### 2. 通常検索
-
-```typescript
-const handleSearch = useCallback(async () => {
-  if (!query.trim()) {
-    message.warning('検索クエリを入力してください');
-    return;
-  }
-  const request = await buildRequest();
-  if (!request) return;
-  await search(request);
-}, [query, buildRequest, search]);
-```
-
-**動作**:
-- クエリが空の場合: 警告メッセージを表示
-- `buildRequest()`で検索リクエストを構築
-- `search(request)`で検索を実行
-
-#### 3. クイック検索
-
-```typescript
-const handleQuickSearch = useCallback(
-  async (presetKey: string) => {
-    if (!query.trim()) {
-      message.warning('クイック検索には検索クエリを入力してください');
-      return;
-    }
-    const preset = WEIGHT_PRESETS[presetKey];
-    if (!preset) return;
-
-    // 重みをUIに反映
-    setWeights(preset.weights);
-
-    const request = await buildRequest(preset.weights);
-    if (!request) return;
-    await search(request);
-  },
-  [query, buildRequest, search]
-);
-```
-
-**動作**:
-1. クエリが空でないことを確認
-2. プリセットキーから重みを取得
-3. 重みをUIに反映（`setWeights`）
-4. プリセット重みで検索リクエストを構築
-5. 検索を実行
-
-#### 4. リセット
-
-```typescript
-const handleClear = () => {
-  setQuery('');
-  setDecomposed(null);
-  clearResults();
-};
-```
-
-**動作**:
-- クエリをクリア
-- AI分解結果をクリア
-- 検索結果をクリア
-
-#### 5. モーダルを閉じる
-
-```typescript
-const handleClose = () => {
-  handleClear();
-  onClose();
-};
-```
-
-**動作**:
-- `handleClear()`でリセット
-- `onClose()`コールバックを実行
+| Prop名 | 型 | 必須 | 説明 |
+|--------|-----|------|------|
+| `open` | `boolean` | ✅ | モーダル表示/非表示 |
+| `onClose` | `() => void` | ✅ | 閉じるコールバック（内部で `handleClear` → `onClose` の順に実行）|
+| `onOpenProject` | `(projectName: string) => void` | ❌ | 検索結果からプロジェクトを開く際のコールバック |
+| `initialProjectName` | `string` | ❌ | 初期プロジェクト名フィルター |
 
 ---
 
-## データ型定義
-
-### SearchWeights
+## 6. State 定義
 
 ```typescript
-interface SearchWeights {
-  w_in: number;                        // 入力条件の重み
-  w_tr: number;                        // 手順の重み
-  w_out: number;                       // 出力の重み
-  w_struct: number;                    // 構造の重み
-}
+const [query, setQuery] = useState('');
+const [weights, setWeights] = useState<SearchWeights>(DEFAULT_WEIGHTS);
+const [decomposed, setDecomposed] = useState<DecomposedQuery | null>(null);
+const [decomposing, setDecomposing] = useState(false);
+
+// useSemanticSearch フック
+const { hits, loading, error, searched, elapsedMs, search, clearResults } = useSemanticSearch();
 ```
 
-### SemanticSearchRequest
+| State | 型 | 説明 |
+|-------|----|------|
+| `query` | `string` | 検索クエリテキスト |
+| `weights` | `SearchWeights` | 検索重み（入力/手順/出力/構造の4軸） |
+| `decomposed` | `DecomposedQuery \| null` | AI分解結果（q_in/q_tr/q_out/q_struct）|
+| `decomposing` | `boolean` | AI分解処理中フラグ |
+| `hits` | （useSemanticSearch）| 検索ヒット結果 |
+| `loading` | （useSemanticSearch）| 検索中フラグ |
+| `error` | （useSemanticSearch）| エラーメッセージ |
+| `searched` | （useSemanticSearch）| 検索実行済みフラグ |
+| `elapsedMs` | （useSemanticSearch）| 検索経過時間（ms）|
+
+`isProcessing = loading || decomposing`
+
+---
+
+## 7. 検索フロー
+
+### 7.1 通常検索（`handleSearch`）
+
+```
+1. query が空 → message.warning(t('transitionSearch.queryRequired'))
+2. buildRequest() を呼び出し
+   2a. decomposeNaturalLanguageQuery(query) でAI分解
+   2b. DecomposedQuery → SemanticSearchRequest に変換
+   2c. エラー時フォールバック: { transition_query: query, top_k: 50, weights }
+3. search(request) 実行（useSemanticSearch）
+```
+
+### 7.2 クイック検索（`handleQuickSearch`）
+
+```
+1. query が空 → message.warning(t('transitionSearch.quickSearchQueryRequired'))
+2. WEIGHT_PRESETS[presetKey].weights を weights に反映（UIに表示）
+3. buildRequest(preset.weights) を呼び出し
+4. search(request) 実行
+```
+
+### 7.3 クリア（`handleClear`）
+
+```
+query = '' / decomposed = null / clearResults()
+```
+
+### 7.4 閉じる（`handleClose`）
+
+```
+handleClear() → onClose()
+```
+
+---
+
+## 8. API・サービス連携
+
+| サービス/フック | 役割 |
+|---------------|------|
+| `useSemanticSearch` | セマンティック検索実行・結果管理 |
+| `decomposeNaturalLanguageQuery` | 自然言語クエリをAIで4軸分解（`semanticSearchService`）|
+
+### 8.1 SemanticSearchRequest 型
 
 ```typescript
 interface SemanticSearchRequest {
-  input_query?: string;                // 入力条件クエリ
-  transition_query?: string;           // 手順クエリ
-  output_query?: string;               // 出力クエリ
-  structure_query?: string;            // 構造クエリ
-  top_k: number;                       // 取得件数（デフォルト: 50）
-  weights: SearchWeights;              // 重み
-}
-```
-
-> **注意**: バックエンド側でスコアの足切り処理を実施。デフォルト閾値 **0.3（30%）未満** の結果は返されない（環境変数 `SEMANTIC_SEARCH_MIN_SCORE` で変更可能）。
-
-### DecomposedQuery
-
-```typescript
-interface DecomposedQuery {
-  q_in?: string;                       // 入力条件
-  q_tr?: string;                       // 手順
-  q_out?: string;                      // 出力
-  q_struct?: string;                   // 構造
-}
-```
-
-### クイック検索プリセット
-
-```typescript
-const QUICK_SEARCH_BUTTONS = [
-  { key: 'structureFocused', icon: <ApartmentOutlined />, label: '構造重視' },
-  { key: 'procedureFocused', icon: <ThunderboltOutlined />, label: '手順重視' },
-  { key: 'inputFocused', icon: <InboxOutlined />, label: '入力重視' },
-  { key: 'outputFocused', icon: <ExportOutlined />, label: '出力重視' },
-  { key: 'balanced', icon: <StarOutlined />, label: 'バランス' },
-] as const;
-```
-
-**WEIGHT_PRESETS**:
-- 各プリセットキーに対応する重み設定
-- `description`: プリセットの説明（ツールチップ表示）
-- `weights`: SearchWeights
-
----
-
-## 特記事項
-
-### AI分解機能
-
-**API**: `decomposeNaturalLanguageQuery(query: string)`
-
-**処理**:
-1. 自然言語クエリを4軸に分解
-2. 入力条件・手順・出力・構造を抽出
-3. 分解結果を検索リクエストに変換
-
-**フォールバック**:
-- AI分解が失敗した場合、クエリ全体を`transition_query`として使用
-- エラーはコンソールに出力
-
-### プリセット重みの適用
-
-**クイック検索時**:
-1. プリセット重みを取得
-2. `setWeights()`でUIに反映（重み調整パネルが更新される）
-3. プリセット重みで検索を実行
-
-### 検索結果のプロジェクト選択
-
-**動作**:
-```typescript
-onOpenProject={(name) => {
-  if (onOpenProject) {
-    onOpenProject(name);
-    handleClose();
-  }
-}}
-```
-
-- 検索結果からプロジェクト名をクリック
-- `onOpenProject`コールバックを実行
-- モーダルを閉じる
-- 親コンポーネント（ProjectManagement）でプロジェクトを選択
-
-### モーダル設定
-
-**サイズ**:
-- 幅: `960px`
-- 高さ: `maxHeight: 80vh`、`overflowY: auto`
-
-**破棄設定**:
-- `destroyOnHidden={false}`: 閉じた後もDOMを保持（検索結果を保持）
-
-### 処理中の制御
-
-```typescript
-const isProcessing = loading || decomposing;
-```
-
-**非活性化対象**:
-- 検索実行ボタン（loading表示）
-- リセットボタン
-- クイック検索ボタン
-- 重み調整スライダー
-
-### Enter キーの動作
-
-**TextArea**:
-```typescript
-onPressEnter={(e) => {
-  if (!e.shiftKey) {
-    e.preventDefault();
-    handleSearch();
-  }
-}}
-```
-
-- Enter: 検索実行
-- Shift+Enter: 改行
-
----
-
-## API連携
-
-### 1. AI分解API
-
-**サービス**: `decomposeNaturalLanguageQuery(query: string)`
-
-**レスポンス**:
-```typescript
-{
-  q_in?: string;                       // 入力条件
-  q_tr?: string;                       // 手順
-  q_out?: string;                      // 出力
-  q_struct?: string;                   // 構造
-}
-```
-
-### 2. セマンティック検索API
-
-**Hook**: `useSemanticSearch()`
-
-**メソッド**:
-- `search(request: SemanticSearchRequest)`: 検索実行
-- `clearResults()`: 結果クリア
-
-**レスポンス**:
-```typescript
-{
-  hits: SemanticSearchHit[];           // ヒット結果
-  loading: boolean;                    // ローディング状態
-  error: string | null;                // エラーメッセージ
-  searched: boolean;                   // 検索実行済みフラグ
-  elapsedMs: number;                   // 検索時間（ミリ秒）
+  input_query?: string;       // 入力軸クエリ（q_in）
+  transition_query?: string;  // 手順軸クエリ（q_tr）
+  output_query?: string;      // 出力軸クエリ（q_out）
+  structure_query?: string;   // 構造軸クエリ（q_struct）
+  top_k: number;              // 最大取得件数（50）
+  weights: SearchWeights;     // 重み
 }
 ```
 
 ---
 
-## 子コンポーネント
+## 9. 使用コンポーネント・型
 
-### 1. WeightSliders
+### 9.1 子コンポーネント
+- `WeightSliders` - 検索重みスライダー
+- `SearchResults` - 検索結果表示
+- `TransitionSetBatchProcessingPanel` - 一括処理タブ
 
-**用途**: 重み調整スライダー
+### 9.2 Ant Design コンポーネント
+- `Modal`, `Tabs`, `Input.TextArea`, `Button`, `Space`
+- `Typography`, `Divider`, `Row`, `Col`, `Badge`
+- `Collapse`, `Tooltip`, `Alert`, `message`
 
-**Props**:
-```typescript
-{
-  weights: SearchWeights;              // 現在の重み
-  onChange: (weights: SearchWeights) => void; // 重み変更ハンドラー
-  disabled: boolean;                   // 非活性
-}
-```
+### 9.3 アイコン（@ant-design/icons）
+- `SearchOutlined`, `SettingOutlined`, `CloudUploadOutlined`
+- `ThunderboltOutlined`, `AccountBookOutlined`, `InboxOutlined`
+- `ExportOutlined`, `ApartmentOutlined`, `StarOutlined`
 
-### 2. SearchResults
-
-**用途**: 検索結果一覧表示
-
-**Props**:
-```typescript
-{
-  hits: SemanticSearchHit[];           // ヒット結果
-  loading: boolean;                    // ローディング状態
-  error: string | null;                // エラーメッセージ
-  searched: boolean;                   // 検索実行済みフラグ
-  elapsedMs: number;                   // 検索時間
-  onOpenProject: (name: string) => void; // プロジェクト選択ハンドラー
-}
-```
-
-### 3. TransitionSetBatchProcessingPanel
-
-**用途**: バッチ処理パネル
-
-**Props**: なし
-
-**機能**: TransitionSetのバッチアップロード・処理
+### 9.4 型定義
+- `@/types/semanticSearch` - `SearchWeights`, `SemanticSearchRequest`, `DecomposedQuery`
+- `@/hooks/useSemanticSearch` - `DEFAULT_WEIGHTS`, `WEIGHT_PRESETS`
+- `@/services/semanticSearchService` - `decomposeNaturalLanguageQuery`
 
 ---
 
-## 実装ファイル情報
+## 10. 変更履歴
 
-### パス
-```
-frontend/src/components/TransitionSetSearch/TransitionSetSearchModal.tsx
-```
-
-### 主要な依存パッケージ
-- `antd`: UI コンポーネント（Modal, Tabs, Input, Button, Space, Typography, Divider, Row, Col, Badge, Collapse, Tooltip, Alert, message）
-- `@ant-design/icons`: アイコン（SearchOutlined, SettingOutlined, CloudUploadOutlined, ThunderboltOutlined, AccountBookOutlined, InboxOutlined, ExportOutlined, ApartmentOutlined, StarOutlined）
-- `react`: React本体（useState, useCallback）
-
-### Hooks
-- `useSemanticSearch`: セマンティック検索フック
-
-### サービス
-- `semanticSearchService`: AI分解API
-
-### 子コンポーネント
-- `WeightSliders`: 重み調整スライダー
-- `SearchResults`: 検索結果一覧
-- `TransitionSetBatchProcessingPanel`: バッチ処理パネル
-
----
-
-## 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|---------|--------|
-| 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: TransitionSetSearchModal.tsx） | Cline |
-| 1.1 | 2026-04-07 | SemanticSearchRequestにバックエンド足切り閾値（デフォルト0.3）の注記を追加 | Cline |
-
----
-
-## 関連ドキュメント
-
-- [プロジェクト管理画面](ui_project_management.md)
-- [検索結果一覧](ui_transition_search_results.md)
-- [重み調整スライダー](ui_weight_sliders.md)
-- [バッチ処理パネル](ui_transition_set_batch_processing_panel.md)
+| バージョン | 日付 | 変更内容 |
+|-----------|------|---------|
+| 2.0.0 | 2026-08-20 | 全面改訂：ProjectSearchModal（MAIML属性検索・未実装）→ TransitionSetSearchModal（自然言語セマンティック検索）に差し替え |
+| 2.0.1 | 2026-08-20 | セクション2.1のバッジ表示条件を「検索後かつヒット件数1件以上」に修正 |
+| 1.0.0 | 2026-01-21 | 初版作成 |

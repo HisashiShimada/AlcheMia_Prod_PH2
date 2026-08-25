@@ -225,6 +225,7 @@ const [selectedMasterId, setSelectedMasterId] = useState<string | undefined>(und
 ```typescript
 const [internalData, setInternalData] = useState<DocumentTagData>(objectData);
 const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+const prevObjectDataRef = useRef<string>('');
 ```
 
 ---
@@ -301,11 +302,19 @@ const handleAddFromMaster = useCallback(() => {
 
 ```typescript
 const handleAdd = useCallback(() => {
+  // 既存IDの末尾数値の最大値を取得し、次の連番を算出（削除後の重複防止）
+  const existingNumbers = objects.map(obj => {
+    const match = obj.id?.match(/(\d+)$/);
+    return match ? parseInt(match[1], 10) : 0;
+  });
+  const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+  const nextNumber = maxNumber + 1;
+
   const newObject: DocumentTagData = {
     tagName: objectKey === 'creators' ? 'Creator' : 
              objectKey === 'vendors' ? 'Vendor' : 
              objectKey === 'owners' ? 'Owner' : 'Instrument',
-    id: `${objectKey}${objects.length + 1}`,
+    id: `${objectKey}${nextNumber}`,
     uuid: '',
     name: '',
     description: '',
@@ -326,7 +335,7 @@ const handleAdd = useCallback(() => {
 
 **動作:**
 1. objectKeyに応じてtagNameを設定
-2. デフォルトID（`{objectKey}{番号}`）を生成
+2. 既存IDの末尾数値の最大値を取得し `maxNumber + 1` でIDを採番（削除後の重複防止）
 3. 空のオブジェクトを作成してobjectsに追加
 4. 新しいアイテムを自動展開
 
@@ -576,7 +585,7 @@ interface Reference {
 ### 親コンポーネント
 
 #### DocumentEditDialog
-- **ファイルパス**: `frontend/src/components/editorv2/components/DocumentEditDialog.tsx`
+- **ファイルパス**: `frontend/src/components/editorv2/DocumentEditDialog.tsx`
 - **用途**: MAIML Document編集ダイアログ
 - **連携**: 
   - Creators/Vendors/Owners/Instrumentsの編集にMultiObjectEditorを使用
@@ -676,7 +685,7 @@ useEffect(() => {
 
 {objects.length === 0 && (
   <Alert
-    message={`${title}が登録されていません。最低${minItems}件必要です。`}
+    title={`${title}が登録されていません。最低${minItems}件必要です。`}
     type="warning"
     showIcon
   />
@@ -760,7 +769,7 @@ onClick={(e) => {
 
 ## 実装ファイル情報
 
-- **ファイルパス**: `frontend/src/components/editorv2/components/MultiObjectEditor.tsx`
+- **ファイルパス**: `frontend/src/components/editorv2/MultiObjectEditor.tsx`
 - **コンポーネント名**: `MultiObjectEditor` / `SingleObjectEditor`
 - **実装バージョン**: 2.0.0
 - **実装日**: 2026-02-02

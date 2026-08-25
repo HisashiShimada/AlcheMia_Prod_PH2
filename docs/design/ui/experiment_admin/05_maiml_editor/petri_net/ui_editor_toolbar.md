@@ -146,8 +146,11 @@ export interface EditorToolbarProps {
   lastAutoSaveTime?: string | Date | null;
   
   // ビューモード切替
-  viewMode?: 'petriNet' | 'templates';
-  onViewModeChange?: (mode: 'petriNet' | 'templates') => void;
+  viewMode?: 'petriNet' | 'templates' | 'xml';
+  onViewModeChange?: (mode: 'petriNet' | 'templates' | 'xml') => void;
+
+  // 名前空間エディターを開く（省略可能：渡された場合のみボタン表示）
+  onOpenNamespaceEditor?: () => void;
 }
 ```
 
@@ -170,8 +173,9 @@ export interface EditorToolbarProps {
 | autoSaveEnabled | boolean | - | 自動保存が有効かどうか |
 | onAutoSaveToggle | (checked) => void | - | 自動保存トグル変更コールバック |
 | lastAutoSaveTime | string \| Date \| null | - | 最終自動保存時刻 |
-| viewMode | 'petriNet' \| 'templates' | - | 現在のビューモード |
+| viewMode | 'petriNet' \| 'templates' \| 'xml' | - | 現在のビューモード |
 | onViewModeChange | (mode) => void | - | ビューモード変更コールバック |
+| onOpenNamespaceEditor | () => void | - | 名前空間エディターを開くコールバック（省略可、渡された場合のみボタン表示） |
 
 ### 3.2 ノード追加
 

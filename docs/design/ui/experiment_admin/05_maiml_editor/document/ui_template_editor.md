@@ -181,10 +181,13 @@ interface TemplateEditorDialogProps {
     isNewTemplate: boolean,
     templateCategory: string,
     isCommonTemplate: boolean,
-    methodId: string | null
+    methodId: string | null,
+    originalTemplateId: string            // 保存前のテンプレートID（重複チェック用）
   ) => void;
   allNodes?: Array<{ id: string; data: NodeData }>; // 全ノード（PlaceRef追加用）
   templateErrors?: Record<string, TemplateError[]>; // バリデーションエラー
+  editingFileName?: string;               // 編集中のファイル名（アップロード先パス生成に使用）
+  sourceS3Key?: string;                   // S3キー（uploadTargetPathの生成に優先使用）
 }
 ```
 
@@ -405,7 +408,7 @@ useEffect(() => {
 
 ```typescript
 const handleGenerateUuid = () => {
-  const newUuid = crypto.randomUUID();
+  const newUuid = uuidv4();  // import { v4 as uuidv4 } from 'uuid'
   setUuid(newUuid);
   setHasChanges(true);
 };
@@ -1181,7 +1184,7 @@ interface PlaceRef {
 
 ## 実装ファイル情報
 
-- **ファイルパス**: `frontend/src/components/editorv2/components/TemplateEditorDialog.tsx`
+- **ファイルパス**: `frontend/src/components/editorv2/TemplateEditorDialog.tsx`
 - **コンポーネント名**: `TemplateEditorDialog`
 - **実装バージョン**: 2.1.0
 - **実装日**: 2026-01-30
