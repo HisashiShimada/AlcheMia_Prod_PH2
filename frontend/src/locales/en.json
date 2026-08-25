@@ -5074,7 +5074,9 @@
     "activateSuccess": "Prefix \"{prefix}\" activated",
     "activateError": "Failed to activate prefix \"{prefix}\"",
     "systemNamespaceTooltip": "This is a system namespace and cannot be modified",
-    "systemNamespaceBadge": "System"
+    "systemNamespaceBadge": "System",
+    "alchemiaSystemNamespaceTooltip": "Alchemia system namespaces cannot be modified or deleted",
+    "errorDuplicateGlobalPrefix": "Prefix \"{prefix}\" is already registered globally. You cannot register a prefix with the same name as a global one."
   },
   "aggregationRule": {
     "title": "Aggregation Rule Settings",

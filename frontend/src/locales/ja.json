@@ -5016,7 +5016,8 @@
     "csvImportPartial": "{{saved}}件を保存しました。{{failCount}}件の保存に失敗しました: {{names}}",
     "csvImportSuccess": "{{count}}件のPrefixをインポートしました",
     "csvParseError": "CSVファイルの読み込みに失敗しました",
-    "alchemiaSystemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
+    "alchemiaSystemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません",
+    "errorDuplicateGlobalPrefix": "Prefix「{prefix}」はGlobalスコープに既に登録されています。Global登録済みのPrefixは再登録できません。"
   },
   "aggregationRule": {
     "title": "集約ルール設定",
