@@ -588,6 +588,31 @@ export interface TransitionPlanValues {
  */
 export type ExperimentPlanValues = Record<string, TransitionPlanValues>;
 
+// ─────────────────────────────────────────────────────────
+// namespace / prefix テーブル
+// ─────────────────────────────────────────────────────────
+
+/**
+ * updatePrefix.sql クエリの戻り値型
+ *
+ * @remarks
+ * SQL: namespace_terms/updatePrefix.sql
+ * Repository: namespaceTermRepository.updateNamespace()
+ * namespace テーブルの uri / scope_key と prefix テーブルの prefix を
+ * JOIN して返す RETURNING 結果に対応する型。
+ * DDL: docs/design/db/ddl/namespace.sql, docs/design/db/ddl/prefix.sql
+ */
+export interface UpdatePrefixRow {
+  /** 名前空間ID（namespace.namespace_id） */
+  namespace_id: string;
+  /** プレフィックス文字列（prefix.prefix） */
+  prefix: string;
+  /** 名前空間URI（namespace.uri） */
+  uri: string;
+  /** スコープキー（namespace.scope_key）。グローバル用語の場合は null */
+  scope_key: string | null;
+}
+
 /**
  * experiment_plan テーブルの型定義
  *

@@ -102,6 +102,17 @@ Clineの動作を制御するスキル定義ファイルを格納
 - 長時間実行プロセスの対応
 - コマンドテンプレート集
 
+### [development/project-rules.md](development/project-rules.md)
+- プロジェクト固有の開発ルール（**最高優先度・すべての実装タスクで遵守**）
+- Controller → Service → Repository の呼び出し順
+- バリデーションはmiddlewareで実施
+- pg-promise + SQL外部ファイル化
+- インラインオブジェクト禁止・型定義インスタンス使用
+- MaiMLファイル検索方式（プロジェクトUUID → メタデータ）
+- 多言語対応の必須化
+- Controller の責務限定（受け取り・返却のみ）
+- 詳細説明: `docs/dev-notes/development_memo.md`
+
 ### [development/database.md](development/database.md)
 - データベース操作の統一化
 - Repository層のInsert/Update処理の標準化

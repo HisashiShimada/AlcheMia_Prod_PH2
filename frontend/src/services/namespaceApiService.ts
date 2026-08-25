@@ -123,6 +123,8 @@ export interface NamespaceTermRow {
   type: string;
   unitHint: string;
   isActive: boolean;
+  /** 指示用語が登録されている場合 true */
+  hasDirectiveTerm?: boolean;
   /**
    * prefix が属する名前空間の scope_key（organization_group_cd またはユーザーID）
    * ツリーの用語数バッジ計算（NamespaceMain.tsx toAntTree）に使用する
@@ -144,6 +146,10 @@ export interface TermUpsertRequest {
   description?: string;
   typeHint?: string;
   unitHint?: string;
+  /** true のとき SupervisorDirective{localName} の指示用語を同時登録する */
+  createDirectiveTerm?: boolean;
+  /** 左ツリーで選択中のスコープキー（organization_group_cd または userId）。指定時は正しい namespace_id を特定するために使用 */
+  scopeKey?: string;
 }
 
 // ============================================================================

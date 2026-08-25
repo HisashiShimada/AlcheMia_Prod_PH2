@@ -3402,12 +3402,12 @@
     "cancelSort": "Cancel sort",
     "emptyText": "No terms",
     "showTotal": "Total {total} items",
-    "duplicateErrorTitle": "Registration Error",
-    "duplicateError": "\"{qname}\" is already registered in {scopeName}.",
     "duplicateErrorWithScope": "\"{qname}\" is already registered in {scopeName}.",
     "duplicateWarningTitle": "Duplicate Term Warning",
     "duplicateWarningMessage": "\"{qname}\" is already registered in {scopeName}. Do you want to register it?",
-    "saveTermError": "Failed to save term"
+    "saveTermError": "Failed to save term \"{{localName}}\": {{detail}}",
+    "duplicateErrorTitle": "Duplicate Error",
+    "duplicateError": "\"{{qname}}\" is already registered in scope \"{{scopeName}}\""
   },
   "createProject": {
     "title": "Create Project",
@@ -4046,7 +4046,7 @@
     "unitSelectPlaceholder": "Select unit...",
     "ctxMenuAddGroup": "Add Group",
     "ctxMenuEdit": "Edit",
-    "shareBtnLabel": "Share ({count})",
+    "shareBtnLabel": "Share Organization",
     "bulkDeactivateBtnLabel": "Deactivate selected ({count})",
     "searchPlaceholder": "Search terms...",
     "btnImport": "Import",
@@ -4076,7 +4076,12 @@
     "deactivateSuccess": "Deactivated successfully",
     "term": "Term",
     "groupAddParentLabelDefault": "R&D Department",
-    "noPrefixTooltip": "Cannot add terms because no Prefix is registered. Please register a Prefix first."
+    "noPrefixTooltip": "Cannot add terms because no Prefix is registered. Please register a Prefix first.",
+    "colCreateDirectiveTerm": "Directive Term",
+    "createDirectiveTermTooltip": "Check to also register a directive term prefixed with 'SupervisorDirective'",
+    "hasDirectiveTermBadge": "Has directive",
+    "createDirectiveTermSuccess": "Directive term also registered",
+    "directiveTermLocalNameTooLong": "Term name is too long (adding 'SupervisorDirective' would exceed 255 characters)"
   },
   "namespaceTree": {
     "company": "Organization"
@@ -4222,19 +4227,6 @@
       "uriTooLong": "Must be 512 characters or fewer"
     }
   },
-  "namespaceDetail": {
-    "prefixRequired": "Prefix is required",
-    "saveNsSuccess": "Namespace saved successfully",
-    "saveTermSuccess": "Term saved successfully",
-    "uriRequired": "URI is required"
-  },
-  "signature": {
-    "deleteFailed": "Failed to delete signature",
-    "deleteSuccess": "Signature deleted successfully",
-    "loadFailed": "Failed to load signature information",
-    "signFailed": "Signing failed",
-    "signSuccess": "Signed successfully"
-  },
   "groupManagement": {
     "groupListTitle": "Group List",
     "createGroupBtn": "Create Group",
@@ -4333,104 +4325,6 @@
     "saveSkipped": "Skipped saving to DB because Group CD is not set",
     "saveSuccess": "'{name}' saved ({count} members)",
     "title": "Edit Group"
-  },
-  "uncertaintyExport": {
-    "alertMessage": "Please select export options",
-    "btnCancel": "Cancel",
-    "btnDownload": "Download",
-    "formatLabel": "Format",
-    "optionIncludeDesc": "Include description",
-    "optionIncludeExtends": "Include inheritance info",
-    "optionIncludeHistory": "Include history",
-    "optionsLabel": "Options",
-    "startDemo": "Start Demo",
-    "title": "Uncertainty Criteria Export"
-  },
-  "uncertaintyImport": {
-    "alertDesc": "Please select a file to import",
-    "alertTitle": "Import Ready",
-    "btnCancel": "Cancel",
-    "btnExecute": "Execute Import",
-    "description": "Import uncertainty criteria data",
-    "dropHint": "Or drop file here",
-    "dropText": "Select file or drag & drop",
-    "formatLabel": "File Format",
-    "scopeLabel": "Scope",
-    "scopeOptionCompany": "Company",
-    "scopeOptionMaterial": "Material",
-    "scopeOptionMeasurement": "Measurement",
-    "scopeOptionPersonal": "Personal",
-    "startDemo": "Start Demo",
-    "title": "Uncertainty Criteria Import"
-  },
-  "workflowSelectorDialog": {
-    "loadFailed": "Failed to load workflow",
-    "selectRequired": "Please select a workflow"
-  },
-  "globalNamespace": {
-    "title": "Global Namespace Declarations",
-    "description": "System-wide global namespaces (managed in file server)",
-    "count": "{count} items",
-    "empty": "No global namespace declarations registered",
-    "fetchError": "Failed to fetch global namespace declarations",
-    "importButton": "Import",
-    "exportButton": "Export",
-    "importConfirmTitle": "Overwrite Import Global Namespace Declarations",
-    "importConfirmContent": "The current data on the file server will be overwritten. Do you want to continue?",
-    "importConfirmOk": "Overwrite Import",
-    "importSuccess": "Global namespace declarations imported successfully",
-    "importError": "Failed to import",
-    "exportSuccess": "Export completed",
-    "exportError": "Failed to export"
-  },
-  "aggregationRule": {
-    "title": "Aggregation Rule Settings",
-    "activeRuleInfo": "Current active rule: version {version}",
-    "noActiveRule": "No active aggregation rule. Please configure the initial settings below.",
-    "saveSuccess": "Aggregation rule saved.",
-    "previewFailed": "Preview failed",
-    "saveFailed": "Save failed",
-    "loading": "Loading...",
-    "scoreMappingTitle": "Score Mapping",
-    "aggregationRuleTitle": "Aggregation Rule",
-    "scoreGood": "Good",
-    "scoreCaution": "Caution",
-    "scoreBad": "Bad",
-    "targetRollup": {
-      "label": "Target Rollup",
-      "worstCase": "Worst Case",
-      "majority": "Majority",
-      "average": "Average"
-    },
-    "levelStatusRule": {
-      "label": "Level Status Rule",
-      "worstCase": "Worst Case",
-      "majority": "Majority"
-    },
-    "levelScoreRule": {
-      "label": "Level Score Rule",
-      "mean": "Mean",
-      "min": "Min"
-    },
-    "missingHandling": {
-      "label": "Missing Handling",
-      "separateCount": "Separate Count",
-      "excludeDenominator": "Exclude Denominator",
-      "treatAsGood": "Treat as Good"
-    },
-    "transitionHierarchy": {
-      "label": "Transition Hierarchy",
-      "merge": "Merge",
-      "split": "Split"
-    },
-    "buttons": {
-      "preview": "Preview",
-      "save": "Save (Register as New Version)"
-    },
-    "preview": {
-      "resultTitle": "📊 Preview Result (Rule version {version})",
-      "attentionTitle": "⚠️ Attention Items (Preview)"
-    }
   },
   "projectCompletionDialog": {
     "title": "Complete Project",

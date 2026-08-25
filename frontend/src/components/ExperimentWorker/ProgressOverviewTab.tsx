@@ -33,11 +33,13 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import {
   CheckCircleOutlined,
+  CheckSquareOutlined,
   ExclamationCircleOutlined,
   LockOutlined,
   MinusCircleOutlined,
   PartitionOutlined,
   PauseCircleOutlined,
+  SyncOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
 import type { ProgressRow, ProgressOverviewTabProps } from '@/types/progress';
@@ -85,6 +87,8 @@ function canAccessTransition(target: ProgressRow, allRows: ProgressRow[]): boole
 
 const STATUS_CONFIG: Record<ProgressRow['status'], { label: string; color: string; icon: React.ReactNode }> = {
   not_started: { label: '未着手',   color: 'default',    icon: <MinusCircleOutlined       style={{ color: '#bfbfbf' }} /> },
+  preparing:   { label: '準備中',   color: 'processing', icon: <SyncOutlined              style={{ color: '#1677ff' }} /> },
+  ready:       { label: '準備完了', color: 'cyan',       icon: <CheckSquareOutlined       style={{ color: '#13c2c2' }} /> },
   in_progress: { label: '作業中',   color: 'processing', icon: null },
   on_hold:     { label: '一時停止', color: 'warning',    icon: <PauseCircleOutlined       style={{ color: '#faad14' }} /> },
   completed:   { label: '完了',     color: 'success',    icon: <CheckCircleOutlined       style={{ color: '#52c41a' }} /> },
@@ -101,7 +105,7 @@ const SummaryCard: React.FC<{ rows: ProgressRow[] }> = ({ rows }) => {
     const byStatus = rows.reduce<Record<ProgressRow['status'], number>>((acc, r) => {
       acc[r.status] = (acc[r.status] ?? 0) + 1;
       return acc;
-    }, { not_started: 0, in_progress: 0, on_hold: 0, completed: 0, issue: 0 });
+    }, { not_started: 0, preparing: 0, ready: 0, in_progress: 0, on_hold: 0, completed: 0, issue: 0 });
     const completedPct = total === 0 ? 0 : Math.round((byStatus.completed / total) * 100);
     const taskNos = [...new Set(rows.map((r) => r.taskNo))];
     const completedTasks = taskNos.filter((no) =>
@@ -376,7 +380,7 @@ export default function ProgressOverviewTab({
     if (r.status === 'completed' || r.status === 'issue') {
       return <Button size="small" onClick={() => onViewDetail(r.taskNo, r.transitionId)}>詳細確認</Button>;
     }
-    if (r.status === 'in_progress') {
+    if (r.status === 'in_progress' || r.status === 'ready') {
       return (
         <Button type="primary" size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
           作業へ
@@ -387,6 +391,13 @@ export default function ProgressOverviewTab({
       return (
         <Button size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
           再開
+        </Button>
+      );
+    }
+    if (r.status === 'preparing') {
+      return (
+        <Button size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
+          作業へ
         </Button>
       );
     }

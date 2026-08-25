@@ -250,7 +250,7 @@ export interface ProgressRow {
   /** トランジション名（未設定時は transitionId をフォールバック表示） */
   transitionName?: string;
   /** ステータス文字列（バックエンドの数値→文字列変換済み） */
-  status: 'not_started' | 'in_progress' | 'on_hold' | 'completed' | 'issue';
+  status: 'not_started' | 'preparing' | 'ready' | 'in_progress' | 'on_hold' | 'completed' | 'issue';
   /** 記録済みプロパティが1件以上ある場合 true */
   hasRecord: boolean;
   /** Material 入力進捗 */
