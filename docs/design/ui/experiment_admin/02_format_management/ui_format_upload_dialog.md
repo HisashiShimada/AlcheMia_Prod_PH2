@@ -660,8 +660,11 @@ const response = await uploadFiles({
 
 ### 7.2 関連ファイル
 - **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
-- **サービス**: `frontend/src/services/fileAccessService.ts` (uploadFiles)
+- **サービス**: `frontend/src/services/fileAccessService.ts` (uploadFiles, abortChunkUpload, cancelBatch, initBatch)
 - **ユーティリティ**: `frontend/src/utils/errorUtils.ts` (extractErrorMessage)
+- **型定義**: `frontend/src/types/format.ts`（`UploadMode`, `UploadState`型）
+- **型定義**: `frontend/src/types/file.ts`（`UploadRetryState`, `UploadResultSummary`型）
+- **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`
 
 ### 7.3 依存ライブラリ
 - **Ant Design**: Modal, Segmented, Upload (Dragger), Button, Input, Alert, Progress, Space, Typography, Divider, App
@@ -694,5 +697,6 @@ const response = await uploadFiles({
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
-| 2026-04-14 | アップロード中断処理修正: フッター「閉じる」ボタン化・インラインキャンセルボタンに確認ダイアログ追加・batchId先行取得・catch順序修正 | Cline |
 | 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |
+| 2026-04-14 | アップロード中断処理修正: フッター「閉じる」ボタン化・インラインキャンセルボタンに確認ダイアログ追加・batchId先行取得・catch順序修正 | Cline |
+| 2026-08-20 | 関連ファイルに型定義(format.ts/file.ts)とuseLanguage追記・サービス関数一覧補完 | Cline |

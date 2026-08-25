@@ -155,8 +155,13 @@ interface UncertaintyTemplate {
 
 ## 8. 保存後の画面更新
 
-新規作成・編集保存後は `fetchUncertaintyCriteriaList` を再実行して一覧を最新化する。
+| 操作 | 一覧自動更新 |
+|------|------------|
+| 新規作成保存（`UncertaintyCreateModal` の `onSaved`） | ✅ `fetchUncertaintyCriteriaList` を再実行 |
+| 編集保存（`UncertaintyDetailModal` の `onSaved`） | ✅ `fetchUncertaintyCriteriaList` を再実行 |
+| CSV インポート（`UncertaintyImportModal` の `onClose`） | ❌ 一覧の自動再取得は行われない。インポート後に最新データを反映するにはページリロードが必要 |
 
 ```
-保存成功 → setTemplates(最新データ) → テーブル自動更新
+新規作成・編集保存成功 → setTemplates(最新データ) → テーブル自動更新
+CSVインポート完了      → モーダルを閉じるのみ（一覧は再取得されない）
 ```

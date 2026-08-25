@@ -1,8 +1,8 @@
 # UI仕様書: MaiML 公開確認ダイアログ
 
 **作成日**: 2026-03-13  
-**最終更新**: 2026-03-13  
-**バージョン**: 1.0.0  
+**最終更新**: 2026-08-20  
+**バージョン**: 1.1.0  
 **対象ロール**: experiment_admin  
 **実装状況**: 実装済み
 
@@ -53,25 +53,26 @@
 
 | 項目 | 値 |
 |------|---|
-| タイトル | `MaiML 公開確認` |
+| タイトル | `t('maimlPublish.title')` |
 | Ant Design コンポーネント | `Modal` |
-| `destroyOnClose` | `true`（閉じるたびにアンマウント） |
+| `destroyOnHidden` | `true`（閉じるたびにアンマウント）※Ant Design v6 プロパティ名 |
 | フッター | カスタム（`Space` で `キャンセル` と `公開する` を横並び） |
 
 ### 2.3 本文
 
 ```
-プロジェクト {projectName} を公開します。よろしいですか？
+t('maimlPublish.confirmText').replace('{{projectName}}', projectName)
 ```
 
-- `{projectName}` 部分は `<Text strong>` で太字表示
+- `{{projectName}}` プレースホルダーをプロジェクト名で置換して表示
+- プロジェクト名部分の太字表示なし
 
 ### 2.4 フッターボタン
 
-| ボタン | 種別 | 動作 | 活性状態 |
-|-------|------|------|---------|
-| キャンセル | `type="default"` | ダイアログを閉じ、エラー状態をリセット | API呼び出し中は `disabled` |
-| 公開する | `type="primary"` | `publishProject()` API を呼び出す | API呼び出し中は `loading` |
+| ボタン | ラベル | 種別 | 動作 | 活性状態 |
+|-------|--------|------|------|---------|
+| キャンセル | `t('maimlPublish.cancel')` | `type="default"` | ダイアログを閉じ、エラー状態をリセット | API呼び出し中は `disabled` |
+| 公開する | `t('maimlPublish.publish')` | `type="primary"` | `publishProject(projectId)` API を呼び出す | API呼び出し中は `loading` |
 
 ### 2.5 エラー表示
 
@@ -86,8 +87,8 @@ API からエラーが返ってきた場合、本文の下に `Alert` コンポ�
 |------|---|
 | `type` | `"error"` |
 | `showIcon` | `true` |
-| `message` | `"公開できません"` |
-| `description` | エラーコードに対応する日本語メッセージ |
+| `message` | `t('maimlPublish.errorTitle')` |
+| `description` | `getErrorMessage(errorCode)` — i18nキー `maimlPublish.errors.{code}` で取得。キーが存在しない場合は `t('maimlPublish.errors.E4001')` にフォールバック |
 
 ---
 
@@ -136,7 +137,7 @@ POST /api/v1/projects/:projectName/publish
 | `TASKS_NOT_COMPLETED` | 完了・異常終了以外のタスクが残っています | 完了/異常終了以外のタスク詳細が存在する |
 | `MAIML_NOT_FOUND` | MAIMLファイルが存在しません | ストレージに `.maiml` ファイルがない |
 | `ALREADY_IN_PROGRESS` | 公開処理がすでに進行中です | `status = pending/running` のジョブが既にある |
-| `SYSTEM_ERROR`（フォールバック） | システムエラーが発生しました | 上記以外のエラー |
+| `E4001`（フォールバック） | `t('maimlPublish.errors.E4001')` | 上記以外のエラー、またはエラーコードが取得できない場合（`code ?? 'E4001'`）|
 
 ---
 
@@ -146,8 +147,10 @@ POST /api/v1/projects/:projectName/publish
 export interface MaimlPublishDialogProps {
   /** ダイアログの表示状態 */
   open: boolean;
-  /** 公開対象のプロジェクト名 */
+  /** 公開対象のプロジェクト名（表示用） */
   projectName: string;
+  /** 公開対象のプロジェクトID */
+  projectId: string;
   /** ダイアログを閉じる時のコールバック */
   onClose: () => void;
   /**
@@ -162,6 +165,7 @@ export interface MaimlPublishDialogProps {
 |------|---|------|------|
 | `open` | `boolean` | ✅ | `true` でダイアログを表示 |
 | `projectName` | `string` | ✅ | 公開対象プロジェクト名。本文中に表示される |
+| `projectId` | `string` | ✅ | 公開対象プロジェクトID。API呼び出しに使用 |
 | `onClose` | `() => void` | ✅ | キャンセル・`×` 押下時のコールバック |
 | `onSuccess` | `(jobId: string) => void` | ✅ | 202 受付成功時のコールバック。引数は `job_id` |
 
@@ -187,16 +191,17 @@ const [errorCode, setErrorCode] = useState<string | null>(null);
 
 | API | エンドポイント | メソッド | 成功レスポンス |
 |-----|-------------|--------|-------------|
-| MaiML公開 | `/api/v1/projects/:projectName/publish` | `POST` | `202 Accepted` |
+| MaiML公開 | `/api/v1/projects/:projectId/publish` | `POST` | `202 Accepted` |
 
 ### 7.2 リクエスト
 
 ```http
-POST /api/v1/projects/{projectName}/publish
+POST /api/v1/projects/{projectId}/publish
 Authorization: Bearer maiml_session-{sessionId}_{timestamp}
 ```
 
-リクエストボディなし（公開設定はサーバー側デフォルト値を使用）。
+- `projectId`（UUID）をURLパスパラメータに使用
+- リクエストボディなし（公開設定はサーバー側デフォルト値を使用）
 
 ### 7.3 成功レスポンス (202 Accepted)
 
@@ -254,5 +259,6 @@ Authorization: Bearer maiml_session-{sessionId}_{timestamp}
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-08-20 | `projectId` Props追加・APIエンドポイントをprojectIdベースに修正・エラーフォールバックを `E4001` に修正・エラーメッセージ/タイトル/ボタンラベルをi18nキーに修正・`destroyOnClose`→`destroyOnHidden`に修正・本文太字なしに修正 | Cline |
 | 1.0.1 | 2026-03-31 | エラーメッセージ一覧に `E7005` コードを追加（バックエンドの `E` プレフィックス形式エラーコードへの対応） | Cline |
 | 1.0.0 | 2026-03-13 | 初版作成（実装済みソースコードから仕様を起こす） | Cline |

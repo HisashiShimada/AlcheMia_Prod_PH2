@@ -305,7 +305,7 @@ interface FormatFolderTreeProps {
 | onFormatSelect | (formatId: string) => void | ✅ | フォーマットがクリックされた時に呼び出されるコールバック関数 |
 | sortBy | 'name' \| 'category' \| 'updatedAt' \| null | ✅ | 現在のソート項目（未ソート時はnull） |
 | sortOrder | 'asc' \| 'desc' | ✅ | 現在のソート順序（昇順/降順） |
-| onSortChange | (sortBy: string) => void | ✅ | ソート項目が変更された時に呼び出されるコールバック関数 |
+| onSortChange | (sortBy: 'name' \| 'category' \| 'updatedAt') => void | ✅ | ソート項目が変更された時に呼び出されるコールバック関数 |
 
 ### 4.2 Format型定義
 
@@ -395,7 +395,7 @@ interface Format {
 
 ### 7.2 関連ファイル
 - **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
-- **型定義**: このファイル内で定義（Format型）
+- **型定義**: `frontend/src/types/format.ts`（`Format`型）
 
 ### 7.3 依存ライブラリ
 - **Ant Design**:
@@ -408,6 +408,8 @@ interface Format {
 - **Ant Design Icons**:
   - SortAscendingOutlined
   - SortDescendingOutlined
+- **Context**:
+  - useLanguage（多言語対応・ロケール取得）
 
 ### 7.4 親子関係
 
@@ -447,7 +449,8 @@ FormatFolderTree (このコンポーネント)
 
 #### 8.3.1 ホバー効果
 ```typescript
-cursor: 'pointer'
+更新: {new Date(format.updatedAt).toLocaleDateString(dateLocale)}
+// dateLocale = locale === 'en' ? 'en-US' : 'ja-JP'
 ```
 - マウスカーソルがポインターに変わり、クリック可能であることを示す
 
@@ -473,3 +476,4 @@ cursor: 'pointer'
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |
+| 2026-08-20 | onSortChange型修正・型定義場所修正・useLanguage追記・日付ロケール対応記述修正 | Cline |

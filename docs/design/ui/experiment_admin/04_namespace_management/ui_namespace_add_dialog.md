@@ -210,7 +210,7 @@ generateNamespaceUri('ORG001')
 export function generateNamespaceUri(
   organizationCd: string,
   departmentCd?: string,
-  unitName?: string,
+  unitName?: string[],
 ): string
 ```
 
@@ -227,8 +227,8 @@ export function generateNamespaceUri(
 ```typescript
 const validateUri = (value: string): string | null => {
   if (!value) return 'URIは必須です';
-  if (!value.startsWith('https://') && !value.startsWith('urn:')) {
-    return 'https:// または urn: で始まる有効なURIを入力してください';
+  if (!value.startsWith('https://') && !value.startsWith('http://') && !value.startsWith('urn:')) {
+    return 'https:// または http:// または urn: で始まる有効なURIを入力してください';
   }
   if (value.length > 512) return '512文字以内で入力してください';
   return null;
@@ -290,6 +290,7 @@ const parentNamespaceOptions = [
 | コンポーネント | `<Button>` |
 | ラベル | 「🔗 ORCID から URI を自動入力」 |
 | タイプ | `default` |
+| アイコン | `<LinkOutlined />` |
 | 表示条件 | `level === 'personal'` の場合のみ表示 |
 
 **動作フロー**:
@@ -740,6 +741,7 @@ const requestBody = {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-08-20 | v1.3.0: ソース実装と照合し修正: §3.4 `validateUri` コードに `http://` 追加、`generateNamespaceUri` 第3引数を `string[]` 配列型に修正。§3.8 ORCIDボタンアイコン `<LinkOutlined />` 追記 | Cline |
 | 2026-07-07 | v1.2.0: §3.4 URI バリデーションを `http://` 許容に修正。§9 DepartmentNodeAddDialog を新規追記 | Cline |
 | 2026-06-30 | v1.1.0: §3.4 URI 入力を更新：organization レベル時は URI が自動生成（読み取り専用）になる仕様を追記。`generateNamespaceUri` ユーティリティの仕様・生成パターンを追記 | Cline |
 | 2026-06-08 | v1.0.1: §1.4 実装ステータス・§8 NamespaceMain.tsx 連携仕様を追記 | Cline |

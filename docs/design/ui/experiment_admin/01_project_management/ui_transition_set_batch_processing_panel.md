@@ -75,6 +75,8 @@
   - 強制再処理スイッチ: ON/OFF
   - 最大処理ファイル数: InputNumber（1以上、省略可）
 - **開始ボタン**: primaryタイプ、large、`PlayCircleOutlined`アイコン、全幅
+  - 通常時ラベル: 「バッチ処理を開始」
+  - 処理中ラベル: 「バッチ処理を開始しています...」（`loading={isStarting}`）
 
 #### 4. バッチジョブ一覧カード
 - **タイトル**: 「バッチジョブ一覧」
@@ -325,7 +327,7 @@ function statusLabel(status: BatchJob['status']): string {
 - スキップ: {skipped_files}（0より大きい場合のみ、オレンジ色）
 
 **エラーメッセージ**（存在する場合）:
-- Alertコンポーネント（error、banner）
+- Alertコンポーネント（error、banner、`title={job.error_message}`）
 
 **日時情報**:
 - 作成: {created_at}（日本語ロケール）
@@ -414,7 +416,7 @@ frontend/src/components/TransitionSetSearch/TransitionSetBatchProcessingPanel.ts
 ```
 
 ### 主要な依存パッケージ
-- `antd`: UI コンポーネント（Button, Card, Typography, Space, Switch, InputNumber, Alert, List, Tag, Progress, Spin, Statistic, Row, Col, Divider, Tooltip）
+- `antd`: UI コンポーネント（Button, Card, Typography, Space, Switch, InputNumber, Alert, Tag, Progress, Spin, Statistic, Row, Col, Tooltip）
 - `@ant-design/icons`: アイコン（PlayCircleOutlined, StopOutlined, ReloadOutlined, NodeIndexOutlined）
 - `react`: React本体（useState, useEffect, useCallback）
 
@@ -428,6 +430,7 @@ frontend/src/components/TransitionSetSearch/TransitionSetBatchProcessingPanel.ts
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|---------|--------|
 | 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: TransitionSetBatchProcessingPanel.tsx） | Cline |
+| 1.1 | 2026-08-20 | ListとDividerを依存から削除・開始ボタン2状態ラベル追記・Alert title prop明記 |
 
 ---
 

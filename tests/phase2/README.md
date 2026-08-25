@@ -77,8 +77,12 @@ mmdpf/
         ├── README.md             ← 本ファイル
         │
         ├── test-scenarios/       ← シナリオ定義（Markdown）
-        │   ├── category-A_regression.md
-        │   ├── category-B_phase2-new-features.md
+        │   ├── 0_login.md
+        │   ├── 1_provider.md
+        │   ├── 2_system_management.md
+        │   ├── 3_data_management.md
+        │   ├── 4_experiment_admin.md
+        │   ├── 5_experiment_worker.md
         │   └── category-C_e2e-full-scenario.md
         │
         ├── features/             ← Playwright 用 featureファイル
