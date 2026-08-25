@@ -23,16 +23,16 @@ interface TransitionListProps {
   projectId?: string;
   methodId?: string;
   projectName?: string;
-  /** 実験データ保存完亁E���Eコールバック�E�親コンポ�Eネント�E進捗データ再取得に使用�E�E*/
+  /** 実験データ保存完了後のコールバック。親コンポーネントの進捗データ再取得に使用。 */
   onDataSaveComplete?: () => void;
-  /** みなし進捗使用フラグ�E�Erganization.use_deemed_progress�E�E false の場合�EチェチE��ボックスを非表示にしてスチE�Eタス更新を常時表示 */
+  /** みなし進捗使用フラグ。organization.use_deemed_progress。false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
   useDeemedProgress?: boolean;
 }
 
 /**
- * トランジション一覧表示コンポ�EネンチE
- * 選択されたメソチE��に含まれるトランジションを一覧表示
- * トランジションクリチE��時に実験データ記録ダイアログを表示
+ * トランジション一覧表示コンポーネント
+ * 選択されたメソッドに含まれるトランジションを一覧表示
+ * トランジションクリック時に実験データ記録ダイアログを表示
  */
 export default function TransitionList({
   transitions,
@@ -59,16 +59,16 @@ export default function TransitionList({
   const [issueLoading, setIssueLoading] = useState<boolean>(false);
   const { t } = useLanguage();
 
-  // トランジション名�E選択肢を生戁E
+  // トランジション名の選択肢を生成
   const transitionNameOptions = useMemo(() => {
     const uniqueNames = Array.from(new Set(transitions.map(t => t.transitionName)));
     return uniqueNames.map(name => ({ label: name, value: name }));
   }, [transitions]);
 
-  // フィルタリングされたトランジションチE�Eタ
+  // フィルタリングされたトランジションデータ
   const filteredTransitions = useMemo(() => {
     return transitions.filter(transition => {
-      // あいまぁE��索�E��Eカラム対象�E�E
+      // あいまい検索（複数カラム対象）
       const matchesSearch = searchText === '' || 
         (transition.transitionName ?? '').toLowerCase().includes(searchText.toLowerCase()) ||
         (transition.description ?? '').toLowerCase().includes(searchText.toLowerCase());
@@ -80,22 +80,22 @@ export default function TransitionList({
     });
   }, [transitions, searchText, selectedTransitionName]);
 
-  // チE�Eタ記録モーダルを閉じる
+  // データ記録モーダルを閉じる
   const handleDataRecordModalClose = () => {
     setDataRecordModalOpen(false);
     setSelectedTransition(null);
   };
 
-  // チE�Eタ保存ハンドラ
+  // データ保存ハンドラ
   const handleDataSave = (_data: ExperimentDataValue[]) => {
     message.success(t('worker.experimentDataSaved'));
     setDataRecordModalOpen(false);
     setSelectedTransition(null);
-    // 保存後に親コンポ�Eネント�E進捗データを�E取得してトランジション一覧を最新状態に更新
+    // 保存後に親コンポーネントの進捗データを再取得してトランジション一覧を最新状態に更新
     onDataSaveComplete?.();
   };
 
-  // スチE�Eタス表示用のヘルパ�E関数
+  // ステータス表示用のヘルパー関数
   const getStatusDisplay = (status?: ProgressStatus) => {
     if (!status) {
       return <Text type="secondary">-</Text>;
@@ -117,25 +117,25 @@ export default function TransitionList({
     );
   };
 
-  // 記録ボタンクリチE��ハンドラ - 直接チE�Eタ記録モーダルを開ぁE
+  // 記録ボタンクリックハンドラ - 直接データ記録モーダルを開く
   const handleRecord = (transition: Transition) => {
     setSelectedTransition(transition);
     setDataRecordModalOpen(true);
   };
 
-  // 問題報告�EタンクリチE��ハンドラ
+  // 問題報告ボタンクリックハンドラ
   const handleIssueReport = async (transition: Transition) => {
     setSelectedTransition(transition);
     setIssues([]);
     setIssueModalOpen(true);
 
-    // selectedTaskId から taskNo を抽出�E�形弁E {projectId}-{methodId}-{taskNo}�E�E
-    // projectId は UUID�E�ハイフン含む�E��Eため split('-') の末尾要素を取得すめE
+    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
+    // projectId は UUID（ハイフン含む）のため split('-') の末尾要素を取得する
     const parts = (selectedTaskId ?? '').split('-');
     const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
 
     if (!projectId || !methodId || !selectedTaskId || isNaN(taskNo)) {
-      console.warn('[handleIssueReport] 忁E��なパラメータが不足してぁE��ぁE, {
+      console.warn('[handleIssueReport] 必要なパラメータが不足しています', {
         projectId, methodId, selectedTaskId, taskNo,
       });
       return;
@@ -166,13 +166,13 @@ export default function TransitionList({
 
   // 新規問題報告送信ハンドラ
   const handleSubmitIssue = async (issue: IssueReportFormData) => {
-    // selectedTaskId から taskNo を抽出�E�形弁E {projectId}-{methodId}-{taskNo}�E�E
-    // projectId は UUID�E�ハイフン含む�E��Eため split('-') の末尾要素を取得すめE
+    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
+    // projectId は UUID（ハイフン含む）のため split('-') の末尾要素を取得する
     const parts = (selectedTaskId ?? '').split('-');
     const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
 
     if (!projectId) {
-      console.warn('[handleSubmitIssue] projectId が未設定でぁE);
+      console.warn('[handleSubmitIssue] projectId が未設定です');
       message.error(t('project.selectProjectWarning'));
       return;
     }
@@ -191,7 +191,7 @@ export default function TransitionList({
 
       message.success(t('worker.issueReported'));
 
-      // 問題一覧を�E取得して最新状態を反映
+      // 問題一覧を再取得して最新状態を反映
       if (projectId && methodId && !isNaN(taskNo) && selectedTransition) {
         setIssueLoading(true);
         try {
@@ -204,7 +204,7 @@ export default function TransitionList({
           setIssues(fetchedIssues);
         } catch (fetchError) {
           console.error('[handleSubmitIssue] 問題一覧再取得エラー', fetchError);
-          // 再取得失敗�Eサイレントに処琁E��報告�E体�E成功してぁE��ため�E�E
+          // 再取得失敗はサイレントに処理（報告自体は成功しているため）
         } finally {
           setIssueLoading(false);
         }
@@ -218,7 +218,7 @@ export default function TransitionList({
   // コメント送信ハンドラ
   const handleSubmitComment = async (issueId: string, comment: string) => {
     if (!projectName) {
-      console.warn('[handleSubmitComment] projectName が未設定でぁE);
+      console.warn('[handleSubmitComment] projectName が未設定です');
       message.error(t('project.selectProjectWarning'));
       return;
     }
@@ -230,7 +230,7 @@ export default function TransitionList({
         comment,
       });
 
-      // コメント投稿後に問題一覧を�E取得して表示に反映
+      // コメント投稿後に問題一覧を再取得して表示に反映
       const parts = (selectedTaskId ?? '').split('-');
       const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
 
@@ -246,7 +246,7 @@ export default function TransitionList({
           setIssues(fetchedIssues);
         } catch (fetchError) {
           console.error('[handleSubmitComment] 問題一覧再取得エラー', fetchError);
-          // 再取得失敗�Eサイレントに処琁E��コメント投稿自体�E成功してぁE��ため�E�E
+          // 再取得失敗はサイレントに処理（コメント投稿自体は成功しているため）
         } finally {
           setIssueLoading(false);
         }
@@ -257,10 +257,10 @@ export default function TransitionList({
     }
   };
 
-  // スチE�Eタス変更ハンドラ
+  // ステータス変更ハンドラ
   const handleUpdateStatus = async (issueId: string, status: Issue['status']) => {
     if (!projectName) {
-      console.warn('[handleUpdateStatus] projectName が未設定でぁE);
+      console.warn('[handleUpdateStatus] projectName が未設定です');
       message.error(t('project.selectProjectWarning'));
       return;
     }
@@ -272,7 +272,7 @@ export default function TransitionList({
         status,
       });
 
-      // スチE�Eタス更新後に問題一覧を�E取得して表示に反映
+      // ステータス更新後に問題一覧を再取得して表示に反映
       const parts = (selectedTaskId ?? '').split('-');
       const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
 
@@ -288,18 +288,18 @@ export default function TransitionList({
           setIssues(fetchedIssues);
         } catch (fetchError) {
           console.error('[handleUpdateStatus] 問題一覧再取得エラー', fetchError);
-          // 再取得失敗�Eサイレントに処琁E��スチE�Eタス更新自体�E成功してぁE��ため�E�E
+          // 再取得失敗はサイレントに処理（ステータス更新自体は成功しているため）
         } finally {
           setIssueLoading(false);
         }
       }
     } catch (error) {
-      console.error('[handleUpdateStatus] スチE�Eタス更新エラー', error);
+      console.error('[handleUpdateStatus] スチE�Eタス更新エラー', error);
       message.error(extractErrorMessage(error));
     }
   };
 
-  // チE�Eブルの列定義
+  // テーブルの列定義
   const columns: ColumnsType<Transition> = [
     {
       title: t('experimentWork.table.transitionName'),
@@ -401,7 +401,7 @@ export default function TransitionList({
         width: 65,
         align: 'center' as const,
         render: (_: unknown, record: Transition) => {
-          // プロジェクト�E状態が記録を参照・操作可能でなぁE��合�E非活性匁E
+          // プロジェクトの状態が記録を参照・操作可能でない場合は非活性化
           // waiting_task / executing_task / waiting_approval の場合に活性
           const isProjectRecordable = projectStatus === null || isRecordViewableStatus(projectStatus);
           
@@ -500,7 +500,7 @@ export default function TransitionList({
         <Row gutter={[16, 8]} style={{ marginBottom: 16 }} data-testid="transition-list-filter-row">
           <Col xs={24} sm={12} md={12}>
             <Input
-              placeholder={t('experimentWork.table.transitionName') + '、E + t('experimentWork.table.description') + t('common.searchJoiner') + '...'}
+              placeholder={t('experimentWork.table.transitionName') + '、' + t('experimentWork.table.description') + t('common.searchJoiner') + '...'}
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -523,7 +523,7 @@ export default function TransitionList({
           </Col>
         </Row>
         
-        {/* チE�Eブル */}
+        {/* テーブル */}
         <Table
           columns={columns}
           dataSource={filteredTransitions}
@@ -565,7 +565,7 @@ export default function TransitionList({
         />
       </div>
 
-      {/* チE�Eタ記録モーダル */}
+      {/* データ記録モーダル */}
       {dataRecordModalOpen && (
         <ExperimentRecordDialog
           open={dataRecordModalOpen}
@@ -581,7 +581,7 @@ export default function TransitionList({
         />
       )}
 
-      {/* 問題管琁E��ーダル */}
+      {/* 問題管理モーダル */}
       {issueModalOpen && selectedTransition && (
         <IssueManagementModal
           open={issueModalOpen}

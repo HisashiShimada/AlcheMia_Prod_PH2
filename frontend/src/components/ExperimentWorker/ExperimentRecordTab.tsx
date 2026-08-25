@@ -31,11 +31,11 @@ const { Title, Text } = Typography;
 const EMPTY_ICON_SIZE = 48;
 
 /**
- * 実験記録タブ�EProps
+ * 実験記録タブのProps
  */
 interface ExperimentRecordTabProps {
   selectedProject: string;
-  /** 選択中プロジェクト�Eプロジェクト名�E�E3パス構築�EUI表示用�E�E*/
+  /** 選択中プロジェクトのプロジェクト名。S3パス構築・UI表示用。 */
   selectedProjectName?: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
@@ -44,14 +44,14 @@ interface ExperimentRecordTabProps {
   onSelectTask: (taskId: string) => void;
   onTaskCreated: (newTaskId: string) => void;
   selectedMethod: Method | null;
-  /** 選択中プロジェクト�EスチE�Eタス数値: 0=計画中, 1=タスク実行征E��, 2=タスク実行中, 3=承認征E��, 4=完亁E 5=異常終亁E*/
+  /** 選択中プロジェクトのステータス数値: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了 */
   selectedProjectStatus: number | null;
-  /** みなし進捗使用フラグ: organization.use_deemed_progress。false の場合�EチェチE��ボックスを非表示にしてスチE�Eタス更新を常時表示 */
+  /** みなし進捗使用フラグ: organization.use_deemed_progress。false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
   useDeemedProgress?: boolean;
 }
 
 /**
- * 実験記録タブ�Eコンポ�EネンチE
+ * 実験記録タブのコンポーネント
  */
 export default function ExperimentRecordTab({
   selectedProject,
@@ -85,22 +85,22 @@ export default function ExperimentRecordTab({
   const [progressData, setProgressData] = useState<Record<string, unknown>[]>([]);
   
   /**
-   * selectedProjectStatus は数値コード！ErojectStatusType�E�をそ�Eまま使用する
-   * 0=計画中, 1=タスク実行征E��, 2=タスク実行中, 3=承認征E��, 4=完亁E 5=異常終亁E
+   * selectedProjectStatus は数値コード（ProjectStatusType）をそのまま使用する
+   * 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
    */
   const projectStatus: ProjectStatus | null = selectedProjectStatus as ProjectStatus | null;
 
   /**
-   * APIレスポンスの数値トランジションスチE�EタスめEProgressStatus 斁E���E型に変換
+   * APIレスポンスの数値トランジションステータスを ProgressStatus 文字列型に変換
    *
-   * バックエンチETransitionStatusEnum との対忁E
-   *   0: INITIAL     ↁE'not_started'
-   *   1: PREPARING   ↁE'in_progress'
-   *   2: READY       ↁE'in_progress'
-   *   3: IN_PROGRESS ↁE'in_progress'
-   *   4: PAUSED      ↁE'on_hold'
-   *   5: COMPLETED   ↁE'completed'
-   *   6: ERROR       ↁE'issue'
+   * バックエンドの TransitionStatusEnum との対応
+   *   0: INITIAL     → 'not_started'
+   *   1: PREPARING   → 'in_progress'
+   *   2: READY       → 'in_progress'
+   *   3: IN_PROGRESS → 'in_progress'
+   *   4: PAUSED      → 'on_hold'
+   *   5: COMPLETED   → 'completed'
+   *   6: ERROR       → 'issue'
    */
   const mapTransitionStatusToProgressStatus = (status: unknown): ProgressStatus => {
     const num = Number(status);
@@ -116,7 +116,7 @@ export default function ExperimentRecordTab({
     }
   };
 
-  // プロジェクト選択時にAPIを呼び出ぁE
+  // プロジェクト選択時にAPIを呼び出す
   useEffect(() => {
     const fetchWorkerTasks = async () => {
       if (!selectedProject) {
@@ -200,12 +200,12 @@ export default function ExperimentRecordTab({
             taskCount: allTasks.length
           });
 
-          // 重褁EtaskId を排除�E�同一 task_no が褁E��返された場合�E React key 衝突を防止�E�E
+          // 重複 taskId を排除（同一 task_no が複数返された場合の React key 衝突を防止）
           const uniqueTasksMap = new Map<string, Task>();
           allTasks.forEach(task => uniqueTasksMap.set(task.taskId, task));
           const uniqueTasks = Array.from(uniqueTasksMap.values());
 
-          // methodsData の tasks も同様に重褁E��除
+          // methodsData の tasks も同様に重複排除
           const deduplicatedMethods = methodsData.map(method => {
             const methodTasksMap = new Map<string, Task>();
             (method.tasks ?? []).forEach((task: Task) => methodTasksMap.set(task.taskId, task));
@@ -233,8 +233,8 @@ export default function ExperimentRecordTab({
     fetchWorkerTasks();
   }, [selectedProject]);
 
-  // 選択されたメソチE��に絞ったタスクをフィルタリング
-  // メソチE��未選択時は空配�Eを返す�E��EメソチE��のタスクが混在して重褁E��示される�Eを防ぐ！E
+  // 選択されたメソッドに絞ったタスクをフィルタリング
+  // メソッド未選択時は空配列を返す（複数メソッドのタスクが混在して重複表示されるのを防ぐ）
   const filteredTasks = useMemo(() => {
     if (!selectedMethodId) return [];
     return tasks.filter(task => task.methodId === selectedMethodId);
@@ -305,7 +305,7 @@ export default function ExperimentRecordTab({
     const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
 
     if (!projectId || !selectedMethodId || taskNo === null || isNaN(taskNo)) {
-      console.warn('[handleIssueClick] 忁E��なパラメータが不足してぁE��ぁE, {
+      console.warn('[handleIssueClick] 必要なパラメータが不足しています', {
         projectId,
         selectedMethodId,
         selectedTaskId,
@@ -352,7 +352,7 @@ export default function ExperimentRecordTab({
     const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
 
     if (!projectId) {
-      console.warn('[handleSubmitIssue] projectId が未設定でぁE);
+      console.warn('[handleSubmitIssue] projectId が未設定です');
       message.error(t('project.selectProjectWarning'));
       return;
     }
