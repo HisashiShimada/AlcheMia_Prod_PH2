@@ -42,11 +42,11 @@ interface ProjectManagementInnerProps {
   onEdit?: (params: MaimlEditorParams) => void;
   onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
   user?: User;
-  onNavigateToTeamManagement?: () => void;
+  onNavigateToGroupManagement?: () => void;
 }
 
 const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
-  onEdit, onOpenWorkerScreen, user, onNavigateToTeamManagement,
+  onEdit, onOpenWorkerScreen, user, onNavigateToGroupManagement,
 }) => {
   const { message } = App.useApp();
   const { t } = useLanguage();
@@ -57,7 +57,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
 
   const listState = useProjectList(user);
   const {
-    projects, setProjects, visibleGroups, refetchProjects, isUnassignedToTeam,
+    projects, setProjects, visibleGroups, refetchProjects, isUnassignedToGroup,
     searchQuery, setSearchQuery, ownerFilter, setOwnerFilter, groupFilter, setGroupFilter,
     checkoutFilter, setCheckoutFilter, projectStatusFilter, setProjectStatusFilter,
     sortBy, sortOrder, handleSortChange, sortedProjects,
@@ -214,12 +214,12 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* 左側: プロジェクト一覧 */}
         <div style={{ width: '20%', minWidth: 280, maxWidth: 380, flexShrink: 0 }}>
-          {isUnassignedToTeam ? (
+          {isUnassignedToGroup ? (
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
               <TeamOutlined style={{ fontSize: 40, color: token.colorTextTertiary }} />
-              <Typography.Text type="secondary" style={{ textAlign: 'center' }}>{t('projectManagement.no_team_assigned_title')}</Typography.Text>
-              {onNavigateToTeamManagement && (
-                <Button type="primary" icon={<TeamOutlined />} onClick={onNavigateToTeamManagement}>{t('projectManagement.go_to_team_management')}</Button>
+              <Typography.Text type="secondary" style={{ textAlign: 'center' }}>{t('projectManagement.no_group_assigned_title')}</Typography.Text>
+              {onNavigateToGroupManagement && (
+                <Button type="primary" icon={<TeamOutlined />} onClick={onNavigateToGroupManagement}>{t('projectManagement.go_to_group_management')}</Button>
               )}
             </div>
           ) : (

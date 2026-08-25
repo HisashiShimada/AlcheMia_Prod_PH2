@@ -1,9 +1,9 @@
 /**
- * チーム（organization_group）管理機能の型定義
+ * グループ（organization_group）管理機能の型定義
  *
  * @remarks
- * frontend/src/components/team/ 配下のコンポーネントで使用する型を集約。
- * チーム管理は名前空間管理とは独立した機能のため、namespace.ts とは分離する。
+ * frontend/src/components/group/ 配下のコンポーネントで使用する型を集約。
+ * グループ管理は名前空間管理とは独立した機能のため、namespace.ts とは分離する。
  *
  * DDL参照: docs/design/db/ddl/organization_group.sql
  */
@@ -93,15 +93,15 @@ export interface OrgGroupUserApiRow {
 // ──────────────────────────────────────────────
 
 /**
- * チームメンバー（表示用）
+ * グループメンバー（表示用）
  */
-export interface TeamMember {
+export interface GroupMember {
   userId: string;
   userName: string;
 }
 
 /**
- * 組織ユーザー（チーム追加・編集ダイアログ用）
+ * 組織ユーザー（グループ追加・編集ダイアログ用）
  */
 export interface OrgUser {
   userId: string;
@@ -110,12 +110,12 @@ export interface OrgUser {
 }
 
 /**
- * チーム（organization_group ベースの表示モデル）
+ * グループ（organization_group ベースの表示モデル）
  *
  * @remarks
  * `groupCd` = organization_group_cd（主キー）
  */
-export interface Team {
+export interface Group {
   /** organization_group_cd（主キー） */
   groupCd: string;
   /** グループ名（= organization_group_name） */
@@ -126,16 +126,16 @@ export interface Team {
   parentGroupName?: string | null;
   /** レイヤー */
   layer?: string | null;
-  /** チームの代表者表示名 */
+  /** グループの代表者表示名 */
   ownerName: string;
-  /** チームの代表者 userId（= chief_user_id） */
+  /** グループの代表者 userId（= chief_user_id） */
   ownerUserId?: string;
-  members: TeamMember[];
+  members: GroupMember[];
   /** 一覧表示用メンバー数（API から取得した確定値） */
   memberCount: number;
   /** アクティブ判定（論理削除フラグ）。未取得時は true 扱い */
   isActive?: boolean;
-  /** namespace テーブルから取得した URI（チーム固有の名前空間 URI） */
+  /** namespace テーブルから取得した URI（グループ固有の名前空間 URI） */
   namespaceUri?: string | null;
 }
 
@@ -144,9 +144,9 @@ export interface Team {
 // ──────────────────────────────────────────────
 
 /**
- * TeamAddDialog の Props
+ * GroupAddDialog の Props
  */
-export interface TeamAddDialogProps {
+export interface GroupAddDialogProps {
   open: boolean;
   onClose: () => void;
   /**
@@ -169,22 +169,22 @@ export interface TeamAddDialogProps {
 }
 
 /**
- * TeamEditDialog の Props
+ * GroupEditDialog の Props
  */
-export interface TeamEditDialogProps {
+export interface GroupEditDialogProps {
   open: boolean;
   /** グループ名（編集前の初期値） */
-  teamLabel: string;
+  groupLabel: string;
   /** organization_group_cd（グループCD） */
-  teamGroupCd?: string;
-  /** チームの現在の代表者 userId（初期値として使用） */
-  teamOwnerUserId?: string;
-  /** チームのアクティブ状態（省略時 true 扱い） */
-  teamIsActive?: boolean;
+  groupCd?: string;
+  /** グループの現在の代表者 userId（初期値として使用） */
+  ownerUserId?: string;
+  /** グループのアクティブ状態（省略時 true 扱い） */
+  isActive?: boolean;
   onClose: () => void;
   onSaved: (
     members: string[],
-    newTeamName?: string,
+    newGroupName?: string,
     newOwnerUserId?: string,
     newIsActive?: boolean,
   ) => void;

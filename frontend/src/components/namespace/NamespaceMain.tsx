@@ -20,9 +20,9 @@ import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
-import TeamManagementPanel from '../team/TeamManagementPanel';
-import TeamAddDialog from '../team/TeamAddDialog';
-import TeamEditDialog from '../team/TeamEditDialog';
+import GroupManagementPanel from '../group/GroupManagementPanel';
+import GroupAddDialog from '../group/GroupAddDialog';
+import GroupEditDialog from '../group/GroupEditDialog';
 import ShareScopeModal from './ShareScopeModal';
 import type {
   NamespaceNode,
@@ -648,19 +648,19 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addChildParentKey, setAddChildParentKey] = useState<string | null>(null);
 
-  // チーム追加ダイアログ
-  const [teamAddOpen,       setTeamAddOpen]       = useState(false);
-  const [teamAddParentLabel, setTeamAddParentLabel] = useState('');
+  // グループ追加ダイアログ
+  const [groupAddOpen,        setGroupAddOpen]        = useState(false);
+  const [groupAddParentLabel, setGroupAddParentLabel] = useState('');
 
   // 共有先選択モーダル
   const [shareScopeOpen, setShareScopeOpen] = useState(false);
 
-  // チーム編集ダイアログ（メンバー追加）
-  const [teamEditOpen,    setTeamEditOpen]    = useState(false);
-  const [teamEditLabel,   setTeamEditLabel]   = useState('');
-  const [teamEditGroupCd,  setTeamEditGroupCd]  = useState<string | undefined>(undefined);
+  // グループ編集ダイアログ（メンバー追加）
+  const [groupEditOpen,    setGroupEditOpen]    = useState(false);
+  const [groupEditLabel,   setGroupEditLabel]   = useState('');
+  const [groupEditGroupCd, setGroupEditGroupCd] = useState<string | undefined>(undefined);
 
-  const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
+  const [groupEditMembers, setGroupEditMembers] = useState<string[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   // ──── コンテキストメニュー状態（方針B: Tree.onRightClick 方式）
@@ -1084,22 +1084,18 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const cancelEditTerm = () => setEditingTermId(null);
 
-  // ──── チームノード右クリック：チームを追加（親ノードのラベルを追加先として表示）
-  const handleContextAddTeam = (_node: NamespaceNode) => {
-    setTeamAddParentLabel(t('namespaceMain.teamAddParentLabelDefault'));
-    setTeamAddOpen(true);
+  // ──── グループノード右クリック：グループを追加（親ノードのラベルを追加先として表示）
+  const handleContextAddGroup = (_node: NamespaceNode) => {
+    setGroupAddParentLabel(t('namespaceMain.groupAddParentLabelDefault'));
+    setGroupAddOpen(true);
   };
 
-  // ──── チームノード右クリック：編集（メンバー追加）
-  const handleContextEditTeam = (node: NamespaceNode) => {
-    setTeamEditLabel(node.label);
-    // node.key を organization_group_cd として使用（DBから取得したツリーであればCDが入る）
-
-    setTeamEditGroupCd(node.key ?? undefined);
-
-
-    setTeamEditMembers([]);
-    setTeamEditOpen(true);
+  // ──── グループノード右クリック：編集（メンバー追加）
+  const handleContextEditGroup = (node: NamespaceNode) => {
+    setGroupEditLabel(node.label);
+    setGroupEditGroupCd(node.key ?? undefined);
+    setGroupEditMembers([]);
+    setGroupEditOpen(true);
   };
 
   // ──── コンテキストメニューを閉じる（mousedown で即座にキャッチ）
@@ -1902,19 +1898,19 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   onClick={() => {
-    setTeamAddParentLabel(t('namespaceMain.teamAddParentLabelDefault'));
-    setTeamAddOpen(true);
+    setGroupAddParentLabel(t('namespaceMain.groupAddParentLabelDefault'));
+    setGroupAddOpen(true);
     setCtxMenu((s) => ({ ...s, visible: false }));
                   }}
                 >
                   <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
-                  {t('namespaceMain.ctxMenuAddTeam')}
+                  {t('namespaceMain.ctxMenuAddGroup')}
                 </li>
                 <li
                   style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  onClick={() => { handleContextEditTeam(ctxMenu.node!); setCtxMenu((s) => ({ ...s, visible: false })); }}
+                  onClick={() => { handleContextEditGroup(ctxMenu.node!); setCtxMenu((s) => ({ ...s, visible: false })); }}
                 >
                   <EditOutlined style={{ fontSize: 12, color: '#1677ff' }} />
                   {t('namespaceMain.ctxMenuEdit')}
@@ -2098,25 +2094,25 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }}
       />
 
-      {/* ── チーム追加ダイアログ ── */}
-      <TeamAddDialog
-        open={teamAddOpen}
-        onClose={() => setTeamAddOpen(false)}
+      {/* ── グループ追加ダイアログ ── */}
+      <GroupAddDialog
+        open={groupAddOpen}
+        onClose={() => setGroupAddOpen(false)}
         onCreated={(_groupCd, groupName) => {
           message.success(t('namespaceMain.groupCreated', { groupName }));
-          setTeamAddOpen(false);
+          setGroupAddOpen(false);
         }}
       />
 
 
-      {/* ── チーム編集ダイアログ（メンバー追加）── */}
-      <TeamEditDialog
-        open={teamEditOpen}
-        teamLabel={teamEditLabel}
-        teamGroupCd={teamEditGroupCd}
-        onClose={() => setTeamEditOpen(false)}
-        onSaved={(members, newTeamName) => {
-          const name = newTeamName ?? teamEditLabel;
+      {/* ── グループ編集ダイアログ（メンバー追加）── */}
+      <GroupEditDialog
+        open={groupEditOpen}
+        groupLabel={groupEditLabel}
+        groupCd={groupEditGroupCd}
+        onClose={() => setGroupEditOpen(false)}
+        onSaved={(members, newGroupName) => {
+          const name = newGroupName ?? groupEditLabel;
           message.success(t('namespaceMain.memberUpdated', { name, count: members.length.toString() }));
         }}
       />

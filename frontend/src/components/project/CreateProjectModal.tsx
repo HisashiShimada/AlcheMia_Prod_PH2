@@ -227,19 +227,19 @@ export default function CreateProjectModal({
             />
           </Form.Item>
 
-          {/* チーム選択 */}
+          {/* グループ選択 */}
           <Form.Item
             name="organizationGroupCd"
-            label={t('createProject.teamLabel')}
+            label={t('createProject.groupLabel')}
             rules={[
               {
                 required: true,
-                message: t('createProject.teamRequired'),
+                message: t('createProject.groupRequired'),
               },
             ]}
           >
             <Select
-              placeholder={t('createProject.teamPlaceholder')}
+              placeholder={t('createProject.groupPlaceholder')}
               loading={teamsLoading}
               data-testid="create-project-org-group-select"
               options={teams.map((team) => ({
@@ -252,7 +252,7 @@ export default function CreateProjectModal({
             type="secondary"
             style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 8 }}
           >
-            {t('createProject.teamNote')}
+            {t('createProject.groupNote')}
           </Text>
         </Form>
       </Space>
