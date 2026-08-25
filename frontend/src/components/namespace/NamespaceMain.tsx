@@ -571,6 +571,7 @@ const makeEmptyRow = (): NewTermRow => ({
   prefix: '',
   localName: '', displayName: '',
   description: '', type: '', unitHint: '',
+  createDirectiveTerm: true,
 });
 
 
@@ -828,6 +829,33 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       .finally(() => setTermsLoading(false));
   }, []);
 
+  // ──── 現在の effectiveNsKey に対応するオプションで用語を再フェッチする共通関数
+  // useEffect（ノード選択時）と handleAddSave（保存後再取得）の両方から呼ぶ
+  const fetchTermsForCurrentNsKey = useCallback((nsKey: string | null) => {
+    const GLOBAL_KEYS   = new Set(['global', 'ns-maiml', 'ns-xsi']);
+    const COMPANY_KEYS  = new Set(['company']);
+    const PERSONAL_ROOT = 'personal';
+    const personalKeySet = new Set(personalChildren.map((n) => n.key));
+
+    if (!nsKey || GLOBAL_KEYS.has(nsKey)) {
+      fetchTerms();
+    } else if (COMPANY_KEYS.has(nsKey)) {
+      const allGroupCds = orgGroups.map((g) => g.organization_group_cd);
+      if (allGroupCds.length > 0) {
+        fetchTerms({ scopeKeys: allGroupCds } as any);
+      } else {
+        fetchTerms();
+      }
+    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
+      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
+      fetchTerms(scopeKey ? { scopeKey } : undefined);
+    } else {
+      // org group cd（組織グループノード） → scopeKey＋祖先グループでフィルタ
+      fetchTerms({ scopeKey: nsKey, withAncestors: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchTerms, personalChildren, orgGroups, currentUserPersonalKey]);
+
   // 初回マウント時は externalSelectedNsKey なしでフェッチ
   useEffect(() => {
     fetchTerms();
@@ -847,47 +875,32 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     if (externalSelectedNsKey === undefined || externalSelectedNsKey === null) return;
 
-    // ノードキー種別に応じてフェッチオプションを決定
-    // - 'global' / 'ns-maiml' / 'ns-xsi' → 全件取得
-    // - 'company' → 配下全 org group CD を scopeKeys として渡す
-    // - 'personal' またはユーザーID（personalChildren のキー） → scopeKey=userId
-    // - その他（org group cd） → scopeKey=key, withAncestors=true
-    const nsKey         = externalSelectedNsKey as string;
-    const GLOBAL_KEYS   = new Set(['global', 'ns-maiml', 'ns-xsi']);
-    const COMPANY_KEYS  = new Set(['company']);
+    const nsKey = externalSelectedNsKey as string;
+    const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
+    const COMPANY_KEYS = new Set(['company']);
     const PERSONAL_ROOT = 'personal';
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
+    // 用語フェッチ（共通関数で nsKey に応じた scopeKey を自動判定）
+    fetchTermsForCurrentNsKey(nsKey);
+
+    // Prefix フェッチ（fetchPrefixes はノード種別ごとに引数が異なるためここで分岐）
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms(); // グローバルノード選択時は全件取得
-      fetchPrefixes(); // グローバルノード選択時は全 Prefix を取得
+      fetchPrefixes();
     } else if (COMPANY_KEYS.has(nsKey)) {
-      // company ノード選択時: 配下の全 org group CD を収集して scopeKeys で渡す
       const allGroupCds = orgGroups.map((g) => g.organization_group_cd);
       if (allGroupCds.length > 0) {
-        fetchTerms({ scopeKeys: allGroupCds } as any);
         fetchPrefixes(undefined, undefined, allGroupCds);
       } else {
-        fetchTerms(); // グループ未取得時は全件
         fetchPrefixes();
       }
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
-      // personal ルート → ログインユーザー自身の scopeKey
-      // personal 子ノード（userId） → そのユーザーの scopeKey
-      const scopeKey = nsKey === PERSONAL_ROOT
-        ? currentUserPersonalKey
-        : nsKey;
-      fetchTerms(scopeKey ? { scopeKey } : undefined);
-      // 個人名前空間ノード選択時: その userId に紐づく Prefix のみ取得
+      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
       fetchPrefixes(scopeKey || undefined);
     } else {
-      // org group cd（組織グループノード）
-      // withAncestors: true → 選択グループ自身 + 祖先グループの用語・Prefixも取得する
-      fetchTerms({ scopeKey: nsKey, withAncestors: true });
-      // 組織グループノード選択時: そのグループ＋祖先グループに紐づく Prefix を取得
       fetchPrefixes(nsKey, true);
     }
-  // fetchTerms / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
+  // fetchTermsForCurrentNsKey / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalSelectedNsKey]);
 
@@ -898,35 +911,33 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (externalSelectedNsKey !== undefined) return;
     if (!selectedNsKey) return;
 
-    const nsKey          = selectedNsKey;
-    const GLOBAL_KEYS    = new Set(['global', 'ns-maiml', 'ns-xsi']);
-    const COMPANY_KEYS   = new Set(['company']);
-    const PERSONAL_ROOT  = 'personal';
+    const nsKey = selectedNsKey;
+    const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
+    const COMPANY_KEYS = new Set(['company']);
+    const PERSONAL_ROOT = 'personal';
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
+    // 用語フェッチ（共通関数で nsKey に応じた scopeKey を自動判定）
+    fetchTermsForCurrentNsKey(nsKey);
+
+    // Prefix フェッチ
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms(); // グローバルノード選択時は全件取得
       fetchPrefixes();
     } else if (COMPANY_KEYS.has(nsKey)) {
-      // company ノード選択時: 配下の全 org group CD を収集して scopeKeys で渡す
       const allGroupCds = orgGroups.map((g) => g.organization_group_cd);
       if (allGroupCds.length > 0) {
-        fetchTerms({ scopeKeys: allGroupCds } as any);
         fetchPrefixes(undefined, undefined, allGroupCds);
       } else {
-        fetchTerms();
         fetchPrefixes();
       }
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
       const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
-      fetchTerms(scopeKey ? { scopeKey } : undefined);
       fetchPrefixes(scopeKey || undefined);
     } else {
       // org group cd（組織グループノード） → scopeKey＋祖先グループでフィルタ
-      fetchTerms({ scopeKey: nsKey, withAncestors: true });
       fetchPrefixes(nsKey, true);
     }
-  // fetchTerms / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
+  // fetchTermsForCurrentNsKey / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNsKey]);
 
@@ -1010,6 +1021,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           typeHint:      row.type || 'stringType',
           unitHint:      row.unitHint,
           createDirectiveTerm: row.createDirectiveTerm,
+          scopeKey: effectiveNsKey ?? undefined,
         });
         added.push(saved as Term);
       } catch (err: unknown) {
@@ -1036,14 +1048,16 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     }
 
     if (added.length > 0) {
-      setTerms((prev) => [...added, ...prev]);
-      // 指示用語同時登録があった行のカウント
+      // 指示用語同時登録があった行のカウント（メッセージ出し分け用）
       const directiveCount = newTerms.filter((r) => r.createDirectiveTerm).length;
       if (directiveCount > 0) {
         message.success(t('namespaceMain.saveTermSuccess', { count: String(added.length) }) + ' ' + t('namespaceMain.createDirectiveTermSuccess'));
       } else {
         message.success(t('namespaceMain.saveTermSuccess', { count: String(added.length) }));
       }
+      // 指示用語（SupervisorDirective...）も含めて一覧に反映するため、APIから最新データを再取得する
+      // 現在選択中のノードに対応する scopeKey で絞り込んで取得する
+      fetchTermsForCurrentNsKey(effectiveNsKey);
     }
     setNewTerms([]);
   };
@@ -1878,7 +1892,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
     },
     {
-      title: t('namespaceMain.colActions'), key: 'actions', width: 130,
+      title: t('namespaceMain.colActions'), key: 'actions', width: 180,
       render: (_: unknown, record: Term | NewTermRow) =>
         '_rowId' in record ? null : actionCell(record as Term),
     },

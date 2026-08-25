@@ -207,7 +207,7 @@ export async function createTerm(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, localName, displayName, description, typeHint, unitHint, createDirectiveTerm } = req.body as CreateTermBody;
+    const { prefix, localName, displayName, description, typeHint, unitHint, createDirectiveTerm, scopeKey } = req.body as CreateTermBody;
 
     const organizationId = (req as any).organizationId as string;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
@@ -221,6 +221,7 @@ export async function createTerm(
       typeHint,
       unitHint,
       createDirectiveTerm,
+      scopeKey,
     };
     const created = await namespaceService.createTerm(createTermInput, lang);
 

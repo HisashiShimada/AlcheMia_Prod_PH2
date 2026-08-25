@@ -74,6 +74,8 @@ export interface CreateTermInput {
   unitHint?: string;
   /** true のとき SupervisorDirective{localName} の指示用語を同時登録する */
   createDirectiveTerm?: boolean;
+  /** 左ツリーで選択中のスコープキー（organization_group_cd または userId）。指定時は正しい namespace_id を特定するために使用 */
+  scopeKey?: string;
 }
 
 /** updateTerm の入力型 */
@@ -375,6 +377,7 @@ export async function createTerm(
       typeHint: input.typeHint,
       unitHint: input.unitHint,
       hasDirectiveTerm: false,
+      scopeKey: input.scopeKey,
     });
   }
 
@@ -402,6 +405,7 @@ export async function createTerm(
       typeHint: input.typeHint,
       unitHint: input.unitHint,
       hasDirectiveTerm: true,
+      scopeKey: input.scopeKey,
     });
 
     // 2. SupervisorDirective{localName} を同一 prefix で INSERT（hasDirectiveTerm: false）
@@ -409,7 +413,12 @@ export async function createTerm(
       organizationId: input.organizationId,
       prefix: input.prefix,
       localName: directiveLocalName,
+      displayName: input.displayName,
+      description: input.description,
+      typeHint: input.typeHint,
+      unitHint: input.unitHint,
       hasDirectiveTerm: false,
+      scopeKey: input.scopeKey,
     });
 
     return termRow;
