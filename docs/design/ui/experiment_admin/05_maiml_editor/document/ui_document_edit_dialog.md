@@ -4,12 +4,11 @@
 
 ### 1.1 コンポーネントの目的
 
-DocumentEditDialogは、MAIMLファイルのDocument要素（Creator、Vendor、Owner、Instrument）を編集するモーダルダイアログです。Document情報の基本プロパティ、MaiML ID属性、XML署名設定、および複数のDocument関連要素（Creator/Vendor/Owner/Instrument）を一元管理します。
+DocumentEditDialogは、MAIMLファイルのDocument要素（Creator、Vendor、Owner、Instrument）を編集するモーダルダイアログです。Document情報の基本プロパティ、MaiML ID属性、および複数のDocument関連要素（Creator/Vendor/Owner/Instrument）を一元管理します。
 
 **主要機能:**
 - Document基本情報の編集（id、uuid、name、description、date）
 - MaiML ID属性の編集（protocolId、methodId、pnmlId、programId）
-- XML署名設定（改ざん防止機能）
 - Creator/Vendor/Owner/Instrument要素の編集（MultiObjectEditor使用）
 - マスタデータからの選択機能
 - UUID自動生成
@@ -62,15 +61,6 @@ DocumentEditDialogは、MAIMLファイルのDocument要素（Creator、Vendor、
 │ │ - Description                                          │   │
 │ │ - Date（DatePicker + 現在時刻ボタン）                  │   │
 │ ├───────────────────────────────────────────────────────┤   │
-│ │ Collapse: MaiML ID属性（折りたたみ状態）               │   │
-│ │ - Protocol ID                                          │   │
-│ │ - Method ID                                            │   │
-│ │ - PNML ID                                              │   │
-│ │ - Program ID                                           │   │
-│ ├───────────────────────────────────────────────────────┤   │
-│ │ Collapse: XML署名（折りたたみ状態）                    │   │
-│ │ - 改ざん防止のためのXML署名を行う（Checkbox）          │   │
-│ ├───────────────────────────────────────────────────────┤   │
 │ │ MultiObjectEditor: Creator（折りたたみ状態）           │   │
 │ │ - 追加/削除/編集機能                                   │   │
 │ │ - マスタデータから選択                                 │   │
@@ -101,15 +91,7 @@ DocumentEditDialogは、MAIMLファイルのDocument要素（Creator、Vendor、
 - Description: テキストエリア
 - Date: DatePicker（現在時刻設定ボタン付き）
 
-#### 3.2.3 MaiML ID属性（Collapseパネル）
-- Protocol ID, Method ID, PNML ID, Program ID
-- 最大64文字の英数字・アンダースコア・ハイフン
-
-#### 3.2.4 XML署名（Collapseパネル）
-- 改ざん防止のためのXML署名を行う（Checkbox）
-- W3C XMLDSig仕様に基づく署名
-
-#### 3.2.5 Creator/Vendor/Owner/Instrument編集
+#### 3.2.3 Creator/Vendor/Owner/Instrument編集
 - MultiObjectEditorコンポーネントを使用
 - 追加/削除/編集/並び替え機能
 - マスタデータから選択可能
@@ -172,7 +154,7 @@ useEffect(() => {
       setInstruments(instrumentsData.map(convertInstrumentToDocumentTag));
     } catch (error) {
       console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
-      message.error('マスタデータの取得に失敗しました');
+      message.error(t('document.masterDataLoadFailed'));
     }
   };
 
@@ -192,7 +174,7 @@ const handleAutoGenerateUUIDs = useCallback(() => {
     uuid: generateUUID(),
   });
   setHasChanges(true);
-  message.success('UUID を生成しました');
+  message.success(t('document.uuidGenerated'));
 }, [form, generateUUID]);
 ```
 
@@ -219,7 +201,7 @@ const handleAutoGenerateUUIDs = useCallback(() => {
 const handleSetCurrentDateTime = useCallback(() => {
   form.setFieldValue('date', dayjs());
   setHasChanges(true);
-  message.success('現在時刻を設定しました');
+  message.success(t('document.currentTimeSet'));
 }, [form]);
 ```
 
@@ -238,8 +220,6 @@ const handleFormChange = useCallback(() => {
 ```typescript
 const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
   basic: true,
-  maimlIds: false,
-  signature: false,
   creators: false,
   vendors: false,
   owners: false,
@@ -263,7 +243,7 @@ const handleMultiObjectDataChange = useCallback((
   objectKey: 'creators' | 'vendors' | 'owners' | 'instruments',
   objectsArray: DocumentTagData[]
 ) => {
-  form.setFieldsValues({ [objectKey]: objectsArray });
+  form.setFieldsValue({ [objectKey]: objectsArray });
 
   if (objectKey === 'vendors') setCurrentVendors(objectsArray);
   if (objectKey === 'instruments') setCurrentInstruments(objectsArray);
@@ -300,7 +280,7 @@ const handleSave = useCallback(async () => {
 
   onSave(documentToSave);
   onClose();
-  message.success('Document を保存しました');
+  message.success(t('document.saved'));
 }, [form, onSave, onClose]);
 ```
 
@@ -312,10 +292,10 @@ const handleSave = useCallback(async () => {
 const handleCancel = useCallback(() => {
   if (hasChanges) {
     Modal.confirm({
-      title: '未保存の変更があります',
-      content: '変更を破棄しますか？',
-      okText: '破棄',
-      cancelText: 'キャンセル',
+      title: t('document.unsavedChangesTitle'),
+      content: t('document.unsavedChangesContent'),
+      okText: t('document.discardButton'),
+      cancelText: t('document.cancelButton'),
       onOk: onClose,
     });
   } else {
@@ -453,11 +433,6 @@ interface InstrumentRecord {
 | name | string | - | - | Document名 |
 | description | string | - | - | 説明 |
 | date | Dayjs | - | dayjs() | 日付 |
-| protocolId | string | - | - | Protocol ID |
-| methodId | string | - | - | Method ID |
-| pnmlId | string | - | - | PNML ID |
-| programId | string | - | - | Program ID |
-| signatureEnabled | boolean | - | false | XML署名有効化フラグ |
 | creators | DocumentTagData[] | - | [] | Creator配列 |
 | vendors | DocumentTagData[] | - | [] | Vendor配列 |
 | owners | DocumentTagData[] | - | [] | Owner配列 |
@@ -611,7 +586,7 @@ try {
   setInstruments(instrumentsData.map(convertInstrumentToDocumentTag));
 } catch (error) {
   console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
-  message.error('マスタデータの取得に失敗しました');
+  message.error(t('document.masterDataLoadFailed'));
 }
 ```
 
@@ -653,19 +628,19 @@ const handleCancel = useCallback(() => {
 
 ### 8.1 ファイルパス
 
-- **メインファイル**: `frontend/src/components/editorv2/components/DocumentEditDialog.tsx`
+- **メインファイル**: `frontend/src/components/editorv2/DocumentEditDialog.tsx`
 
 ### 8.2 関連ファイル
 
 - **型定義**: `frontend/src/types/editor.ts`, `frontend/src/types/maiml-unified.ts`
 - **サービス**: `frontend/src/services/masterApiService.ts`
-- **子コンポーネント**: `frontend/src/components/editorv2/components/MultiObjectEditor.tsx`
+- **子コンポーネント**: `frontend/src/components/editorv2/MultiObjectEditor.tsx`
 
 ### 8.3 依存ライブラリ
 
-- **Ant Design**: Modal, Button, Input, Form, Collapse, Alert, Space, Typography, Checkbox, DatePicker, Tag
+- **Ant Design**: Modal, Button, Input, Form, Collapse, Alert, Space, Typography, DatePicker, Tag
 - **dayjs**: 日付操作
-- **Ant Design Icons**: ThunderboltOutlined, ClockCircleOutlined, SaveOutlined, SecurityScanOutlined
+- **Ant Design Icons**: ThunderboltOutlined, ClockCircleOutlined, SaveOutlined
 
 ---
 

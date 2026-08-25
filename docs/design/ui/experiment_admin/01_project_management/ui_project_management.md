@@ -1,9 +1,21 @@
 # プロジェクト管理画面 UI仕様書
 
+## メタデータ
+- **画面名**: プロジェクト管理画面
+- **物理名**: ProjectManagement.tsx
+- **ファイルパス**: `frontend/src/components/project/ProjectManagement.tsx`
+- **利用権限**: 実験管理者（experiment_admin）
+- **作成日**: 2026-01-21
+- **最終更新日**: 2026-08-20
+- **担当者**: Development Team
+- **バージョン**: 3.0.0
+
+---
+
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-プロジェクト管理画面は、実験管理者がMAIMLプロジェクトを一元的に管理するためのメイン画面です。プロジェクトの作成、ファイル管理、タスク登録、指示管理、進捗確認、編集、チェックアウト/チェックイン、公開などの機能を提供します。
+プロジェクト管理画面は、実験管理者がMAIMLプロジェクトを一元的に管理するためのメイン画面です。プロジェクトの作成・削除・名前変更・ファイル管理・タスク登録・指示管理・実験指示・評価登録・進捗確認・編集・チェックアウト/チェックイン・公開などの機能を提供します。
 
 ### 1.2 使用場面
 - 実験管理者メニューの「プロジェクト管理」タブ選択時に表示
@@ -23,90 +35,130 @@
 ### 2.1 レイアウト構造
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ ツールバー                                                       │
-│ [フィルタ群] [検索] [新規作成] [アップロード] [リロード] [検索] │
-├──────────────────┬──────────────────────────────────────────────┤
-│                  │ プロジェクト情報ヘッダー                     │
-│                  │ [プロジェクト名] [ステータス] [チェックアウト状態]│
-│                  ├──────────────────────────────────────────────┤
-│ プロジェクト     │ ファイル操作ツールバー                       │
-│ 一覧ツリー       │ [ZIP DL] [編集] [チェックイン] [問題] [公開]│
-│                  ├──────────────────────────────────────────────┤
-│ (35%幅)          │ タブコンテンツ (65%幅)                       │
-│                  │                                              │
-│ - プロジェクトA  │ [Tab: ファイル管理 | タスク登録 | 指示一覧 | 進捗確認]│
-│   ├ 概要         │                                              │
-│   ├ ステータス   │ ┌──────────────────────────────────────────┐│
-│   └ 更新日時     │ │ FileListTable / TaskRegistrationTab /     ││
-│ - プロジェクトB  │ │ InstructionRegistrationTab /              ││
-│ - プロジェクトC  │ │ TaskResultsTable                          ││
-│                  │ └──────────────────────────────────────────┘│
-└──────────────────┴──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ツールバー                                                                 │
+│ [所有者] [組織グループ] [プロジェクトステータス] [チェックアウト] [検索]    │
+│                                        [新規作成] [リロード] [トランジション検索] │
+├─────────────────────┬────────────────────────────────────────────────────┤
+│                     │ プロジェクト情報ヘッダー                             │
+│                     │ [プロジェクト名] [ステータスTag] [チェックアウトTag] [警告アイコン] │
+│                     │ [説明]                                               │
+│ プロジェクト         ├────────────────────────────────────────────────────┤
+│ 一覧ツリー          │ ファイル操作ツールバー                               │
+│                     │ [ZIP DL] [アップロード] [編集] [削除] [チェックイン/アウト] │
+│ (20%幅、min:280px)  │ [問題確認] [公開/非公開] [プロジェクト完了] [名前変更] │
+│                     │ [バリデーション確認]                                   │
+│ - プロジェクトA     ├────────────────────────────────────────────────────┤
+│ - プロジェクトB     │ タブコンテンツ                                       │
+│ - プロジェクトC     │                                                      │
+│                     │ [ファイル管理|タスク登録|プロジェクト指示|実験指示|評価登録] │
+│                     │ ┌────────────────────────────────────────────────┐  │
+│                     │ │ (各タブコンポーネント)                           │  │
+│                     │ └────────────────────────────────────────────────┘  │
+└─────────────────────┴────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 主要UI要素
 
 #### 2.2.1 ツールバー（上部）
-- **所有者フィルタ**（Select）: `my_only`（自分のみ）/ `all`（全て）
-- **部門フィルタ**（Select）: 全部門 / 各部門コード
-- **プロジェクトステータスフィルタ**（Select）: 全て / 計画中 / 実行待ち / 実行中 / レビュー待ち / 完了 / 異常終了
-- **チェックアウトステータスフィルタ**（Select）: 全て / チェックイン済み / チェックアウト中
-- **検索バー**（Input + SearchOutlined）: プロジェクト名、フォルダ名、説明、所有者、部門、タグで検索
-- **新規作成ボタン**（Button + PlusOutlined）: 新規プロジェクト作成モーダルを開く
-- **アップロードボタン**（Button + UploadOutlined）: 一括アップロードダイアログを開く
+
+**左側 - フィルタ・検索:**
+- **所有者フィルタ**（Select, width:150）: `my_only`（自分のみ）/ `all`（全て）
+- **組織グループフィルタ**（Select, width:180）: `visibleGroups` が1件以上ある場合のみ表示。全て / 各グループ名
+  - `data-testid="group-filter"`
+- **プロジェクトステータスフィルタ**（Select, width:200）: 全て / プロジェクト計画中(0) / タスク実行待ち(1) / タスク実行中(2) / 承認待ち(3) / プロジェクト完了(4) / タスク異常終了(5)
+  - `data-testid="project-status-filter"`
+- **チェックアウトステータスフィルタ**（Select, width:150）: 全て / チェックイン済み / チェックアウト中
+  - `data-testid="checkout-status-filter"`
+- **検索バー**（Input + SearchOutlined, width:250）: プロジェクト名・説明・オーナー名で検索
+  - `data-testid="project-search-input"`
+
+**右側 - アクションボタン:**
+- **新規作成ボタン**（Button + PlusOutlined, `colorSuccess`）: 新規プロジェクト作成モーダルを開く
+  - `data-testid="create-project-button"`
 - **リロードボタン**（Button + ReloadOutlined）: プロジェクト一覧・選択中のタブデータを最新化
 - **トランジション検索ボタン**（Button + SearchOutlined）: セマンティック検索モーダルを開く
 
 #### 2.2.2 左側パネル（プロジェクト一覧）
+
+幅: 20%（min:280px, max:380px）
+
+**チーム未所属の場合（`isUnassignedToTeam === true`）:**
+- `TeamOutlined` アイコン
+- チーム未所属メッセージ
+- 「チーム管理へ」ボタン（`onNavigateToTeamManagement` が存在する場合）
+
+**通常表示:**
 - **ProjectFolderTree**: プロジェクト一覧をツリー表示
   - ソート機能（名前/ステータス/作成日時、昇順/降順）
   - プロジェクト選択
   - フォルダ展開/折りたたみ
 
 #### 2.2.3 右側パネル - プロジェクト情報ヘッダー
+
+プロジェクト選択時のみ表示。
+
 - **プロジェクト名**（Title level 5）
-- **ステータスタグ**（Tag）: プロジェクトステータス（計画中/実行待ち/実行中/レビュー待ち/完了/異常終了）
-- **チェックアウト状態タグ**（Tag）: チェックアウト中表示
-- **概要**（Text）: プロジェクトの説明
+- **ステータスタグ**（Tag）: 色分けあり（default/blue/cyan/purple/success/error）
+- **チェックアウト状態タグ**（Tag, orange）: `data-testid="checkout-status-tag"`
+- **バリデーション警告アイコン**（WarningOutlined）: `savedValidationRow.errors > 0` → 赤、`warnings > 0` → 黄。Tooltip付き
+- **概要**（Text, secondary）: プロジェクトの説明
 
 #### 2.2.4 右側パネル - ファイル操作ツールバー
-- **削除ボタン**（Button + DeleteOutlined, danger）: プロジェクト削除
-- **ZIPダウンロードボタン**（Button + DownloadOutlined）: プロジェクト全体をZIPでダウンロード
-- **編集ボタン**（Button + EditOutlined）: Petri Netエディタを開く（Draft復元確認あり）
-- **チェックイン/チェックアウトボタン**（Button + FileTextOutlined）: 状態切り替え
-- **問題確認ボタン**（Button + ExclamationCircleOutlined）: 問題管理モーダルを開く
-- **公開ボタン**（Button）: MAIMLファイルをOpenDataとして公開
-  - 詳細: [ui_maiml_publish_dialog.md](./ui_maiml_publish_dialog.md) / [ui_maiml_unpublish_dialog.md](./ui_maiml_unpublish_dialog.md) を参照
+
+| ボタン | アイコン | disabled 条件 |
+|--------|---------|--------------|
+| ZIPダウンロード | `DownloadOutlined` | プロジェクト未選択 or ファイルなし |
+| アップロード | `UploadOutlined`（`colorSuccess`）| チェックアウト中 or status=4 or status=5 or isEditable=false |
+| 編集 | `EditOutlined` | チェックアウト中 or status=4 or status=5 or isEditable=false |
+| 削除 | `DeleteOutlined`（danger）| チェックアウト中 or status=4 or status=5 or isEditable=false |
+| チェックイン/チェックアウト | `FileTextOutlined` | status=completed or status=error or isEditable=false |
+| 問題確認 | `ExclamationCircleOutlined`（`colorWarning`）| — |
+| 公開 / 非公開 | — | 公開: status=3か4以外またはpolling中。非公開: polling中 |
+| プロジェクト完了 | — | `allTasksCompleted !== true` or isEditable=false |
+| 名前変更 | `EditOutlined` | チェックアウト中 or status=4 or status=5 or isEditable=false |
+| バリデーション確認 | `SafetyCertificateOutlined` | プロジェクト未選択 |
+
+- `data-testid="project-download-button"`, `data-testid="checkout-checkin-button"`
+- `data-testid="maiml-toolbar-publish-button"`, `data-testid="maiml-toolbar-unpublish-button"`
 
 #### 2.2.5 右側パネル - タブコンテンツ
-**Tab 1: ファイル管理**
-- **FileListTable**: プロジェクトのファイル一覧（root + archiveフォルダ）
+
+**Tab 1: ファイル管理**（`key: 'file_management'`）
+- **FileListTable**: プロジェクトのファイル一覧
   - ファイル/フォルダクリック → ViewRendererDialogで表示
+  - タブ切り替え時にファイル一覧を最新取得
 
-**Tab 2: タスク登録**
+**Tab 2: タスク登録**（`key: 'task_registration'`）
 - **TaskRegistrationTab**: タスクの新規登録・一覧表示
-  - チェックアウト中はロック（編集不可）
+  - `maimlHasErrors` prop あり
 
-**Tab 3: 指示一覧**
-- **InstructionRegistrationTab**: 指示の新規作成・編集・送信
-  - チェックアウト中はロック（編集不可）
-  - 指示送信後にプロジェクト一覧を再取得（ステータス更新を反映）
+**Tab 3: プロジェクト指示**（`key: 'project_instruction'`）
+- **InstructionRegistrationTab**: プロジェクト指示の一覧表示・編集・送信
 
-**Tab 4: 進捗確認**
-- **統計カード**: 総タスク数、実行待ち、実行中、異常終了、レビュー待ち、完了
-- **作業確認ボタン**: 作業者画面オーバーレイを開く（チェックアウト中のみ有効）
-- **タスク確認完了ボタン**: レビュー待ちタスクを完了に更新
-- **TaskResultsTable**: タスク結果一覧
+**Tab 4: 実験指示**（`key: 'task_results'`）
+- **ExperimentInstructionTab**: 実験指示・タスク進捗管理
+  - このタブで全タスク完了状態（`allTasksCompleted`）を管理
+  - `data-testid` なし
 
-### 2.3 モーダル・ダイアログ
+**Tab 5: 評価登録**（`key: 'evaluation_registration'`）
+- **EvaluationRegistrationTab**: 評価の登録・管理
 
-- **CreateProjectModal**: 新規プロジェクト作成
-- **BulkUploadDialog**: ファイル一括アップロード
-- **ViewRendererDialog**: ファイル表示（複数同時表示可能、最大5個）
-- **DraftRestoreDialog**: Draft復元確認
-- **IssueManagementModal**: 問題確認・管理
-- **TransitionSetSearchModal**: セマンティック検索
+### 2.3 モーダル・ダイアログ一覧
+
+| コンポーネント | 開くトリガー | 状態変数 |
+|-------------|-----------|---------|
+| `CreateProjectModal` | 新規作成ボタン | `createModalOpen` |
+| `BulkUploadDialog` | アップロードボタン | `uploadDialogOpen` |
+| `ViewRendererDialog` | ファイルクリック（最大5個同時） | `openDialogs[]` |
+| `DraftRestoreDialog` | マウント時Draft自動検出 | `draftRestoreDialogOpen` |
+| `IssueManagementModal` | 問題確認ボタン | `issueManagementModalOpen` |
+| `MaimlPublishDialog` | 公開ボタン | `publishDialogOpen` |
+| `MaimlUnpublishDialog` | 非公開ボタン | `unpublishDialogOpen` |
+| `RenameProjectModal` | 名前変更ボタン | `renameModalOpen` |
+| `MaimlValidationModal` | バリデーション確認ボタン | `validationDialogOpen` |
+| `ProjectCompletionDialog` | プロジェクト完了ボタン | `completionDialogOpen` |
+| `TransitionSetSearchModal` | トランジション検索ボタン | `semanticSearchModalOpen` |
 
 ### 2.4 画面遷移
 
@@ -119,6 +171,8 @@ graph TD
     A --> F[ViewRendererDialog]
     A --> G[問題確認モーダル]
     A --> H[セマンティック検索モーダル]
+    A --> I[公開/非公開ダイアログ]
+    A --> J[バリデーションダイアログ]
     B --> A
     C --> A
 ```
@@ -131,7 +185,6 @@ graph TD
 
 #### 3.1.1 処理フロー
 ```typescript
-// useApiフックでプロジェクト一覧を取得
 const {
   data: projectsData,
   error: projectsError,
@@ -141,11 +194,10 @@ const {
   []
 );
 
-// projectsDataが取得できたらstateを更新
 useEffect(() => {
   if (projectsData?.success && projectsData.data) {
-    const projectsList = Array.isArray(projectsData.data) 
-      ? projectsData.data 
+    const projectsList = Array.isArray(projectsData.data)
+      ? projectsData.data
       : ((projectsData.data as ProjectListResponse)?.projects || []);
     setProjects(projectsList);
   }
@@ -154,183 +206,63 @@ useEffect(() => {
 
 #### 3.1.2 UI動作
 - マウント時に自動でAPI呼び出し
-- データ取得中はローディング表示
 - 取得成功: プロジェクト一覧を表示
-- 取得失敗: エラーメッセージ表示
+- 取得失敗: エラーメッセージ表示（`t('project.fetchListFailed')`）
 
 ### 3.2 フィルタリング・検索・ソート
 
 #### 3.2.1 フィルタリング処理
-```typescript
-const filteredProjects = useMemo(() => {
-  return projects.filter((project) => {
-    // 検索クエリでフィルタリング（ID、名前、説明、所有者、部門、ステータス、タグ）
-    const matchesSearch = searchQuery === '' ||
-      project.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      // ... その他のフィールド
 
-    // チェックアウト状態でフィルタリング
-    let matchesCheckout = true;
-    if (checkoutFilter === 'checked_out') {
-      matchesCheckout = project.isCheckedOut === true;
-    } else if (checkoutFilter === 'checked_in') {
-      matchesCheckout = project.isCheckedOut === false;
-    }
-
-    // プロジェクトステータスでフィルタリング
-    let matchesProjectStatus = true;
-    if (projectStatusFilter !== 'all') {
-      matchesProjectStatus = project.status === parseInt(projectStatusFilter, 10);
-    }
-
-    // 部門でフィルタリング
-    let matchesDepartment = true;
-    if (departmentFilter !== 'all') {
-      matchesDepartment = project.department === departmentFilter;
-    }
-
-    return matchesSearch && matchesCheckout && matchesProjectStatus && matchesDepartment;
-  });
-}, [projects, searchQuery, checkoutFilter, projectStatusFilter, departmentFilter]);
-```
+フィルタリング条件:
+1. **検索クエリ**: プロジェクト名・説明・オーナー名の部分一致（ID・ステータス名・グループ名は対象外）
+2. **チェックアウトフィルタ**: `all` / `checked_out` / `checked_in`
+3. **プロジェクトステータスフィルタ**: `all` / 数値（0〜5）
+4. **組織グループフィルタ**: `all` / `organizationGroupCd`
 
 #### 3.2.2 ソート処理
-```typescript
-const sortedProjects = useMemo(() => {
-  const sorted = [...filteredProjects];
-  sorted.sort((a, b) => {
-    let comparison = 0;
-    if (sortBy === 'name') {
-      comparison = a.name.localeCompare(b.name);
-    } else if (sortBy === 'status') {
-      comparison = a.status - b.status;
-    } else if (sortBy === 'createdAt') {
-      comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    }
-    return sortOrder === 'asc' ? comparison : -comparison;
-  });
-  return sorted;
-}, [filteredProjects, sortBy, sortOrder]);
-```
+
+- `sortBy`: `'name' | 'status' | 'createdAt'`（デフォルト: `'createdAt'`）
+- `sortOrder`: `'asc' | 'desc'`（デフォルト: `'desc'`）
+- 同じ項目クリック → 順序反転。異なる項目クリック → 降順で新項目適用
 
 ### 3.3 プロジェクト選択
 
 #### 3.3.1 処理フロー
-```typescript
-const handleProjectSelect = useCallback(async (projectId: string) => {
-  setSelectedProjectId(projectId);
-  setCurrentFolder('root'); // プロジェクト切り替え時はルートフォルダを表示
-  
-  // 選択したプロジェクトのMAIMLを読み込み
-  const project = projects.find(p => p.id === projectId);
-  if (project) {
-    try {
-      await loadMaiml(project.name);
-    } catch (error) {
-      console.error('❌ [ProjectManagement] MAIML読み込み失敗:', error);
-    }
-  }
-}, [projects, loadMaiml]);
-```
+1. `setSelectedProjectId(projectId)` でプロジェクトID設定
+2. `setCurrentFolder('root')` でルートフォルダにリセット
+3. `loadMaiml(projectId)` でMAIMLをContextに読み込み
+4. `currentTab === 'file_management'` なら `getProjectFiles(projectId, true)` を呼び出し
 
 #### 3.3.2 UI動作
 - プロジェクト選択時にハイライト表示
 - MAIMLデータをContextに読み込み
 - 右側パネルにプロジェクト詳細を表示
-- currentFolderを'root'にリセット
+- sessionStorage に選択IDを保存（編集画面から戻った際に復元）
 
 ### 3.4 タブ切り替え
 
-#### 3.4.1 処理フロー
-```typescript
-<Tabs
-  activeKey={currentTab}
-  onChange={async (key) => {
-    const newTab = key as 'file_management' | 'task_results';
-    setCurrentTab(newTab);
-    
-    if (!selectedProjectId || !selectedProject) return;
-    
-    try {
-      setIsLoadingTabData(true);
-      
-      if (newTab === 'file_management') {
-        const fileResponse = await getProjectFiles(selectedProject.name, true);
-        setProjectFilesData(prev => ({
-          ...prev,
-          [selectedProjectId]: {
-            root: fileResponse.files || [],
-            archive: fileResponse.archiveFiles || [],
-          }
-        }));
-      } else if (newTab === 'task_results') {
-        const taskResponse = await getProjectTasks(selectedProject.name, 'all');
-        setProjectTasksData(prev => ({
-          ...prev,
-          [selectedProjectId]: {
-            tasks: taskResponse.tasks || [],
-            statistics: taskResponse.statistics || {},
-          }
-        }));
-      }
-    } catch (error) {
-      message.error('データの取得に失敗しました');
-    } finally {
-      setIsLoadingTabData(false);
-    }
-  }}
-  items={[...]}
-/>
-```
+タブキー: `'file_management' | 'task_registration' | 'project_instruction' | 'task_results' | 'evaluation_registration'`
 
-#### 3.4.2 UI動作
-- タブクリック時に最新データを取得
-- ローディング表示中は操作不可
-- データ取得完了後にタブコンテンツを表示
+- **ファイル管理タブ切り替え時**: `getProjectFiles(projectId, true)` で最新取得
+- **その他タブ**: コンポーネント内部で `isActive` prop を監視して自動更新するため不要
 
 ### 3.5 チェックアウト/チェックイン
 
-#### 3.5.1 処理フロー
-```typescript
-const handleToggleCheckout = useCallback(async () => {
-  if (!selectedProject) return;
+#### 3.5.1 エラーコード一覧
 
-  try {
-    if (isProjectCheckedOut) {
-      // チェックイン処理
-      await checkinProject(selectedProject.name);
-      await refetchProjects();
-      message.success(`プロジェクト「${selectedProject.name}」をチェックインしました`);
-    } else {
-      // チェックアウト処理
-      await checkoutProject(selectedProject.name);
-      await refetchProjects();
-      message.success(`プロジェクト「${selectedProject.name}」をチェックアウトしました`);
-    }
-  } catch (error) {
-    // エラーコード別のメッセージ表示
-    if (error instanceof AxiosError && error.response?.data) {
-      const errorCode = error.response.data.error?.code || 'UNKNOWN_ERROR';
-      switch (errorCode) {
-        case 'TASK_IN_PROGRESS':
-          message.error('実行中のタスクが存在するため、チェックインできません');
-          break;
-        case 'CHECKOUT_NO_MAIML_FILE':
-          message.error('MAIMLファイルが存在しません。先にプロジェクトを編集してMAIMLファイルを作成してください。');
-          break;
-        // ... その他のエラーケース
-      }
-    } else {
-      message.error('チェックイン/チェックアウト処理中にエラーが発生しました');
-    }
-  }
-}, [selectedProject, isProjectCheckedOut, refetchProjects]);
-```
+| エラーコード | メッセージ |
+|------------|---------|
+| `TASK_IN_PROGRESS` | 実行中のタスクが存在するため、チェックインできません |
+| `CHECKOUT_NO_MAIML_FILE` | MAIMLファイルが存在しません |
+| `CHECKOUT_INVALID_STATUS` | プロジェクトステータスがタスク実行待ちではありません |
+| `CHECKOUT_NO_TASKS` | タスクが登録されていません |
+| `CHECKOUT_UNSENT_INSTRUCTIONS` | 未送信の指示が存在します |
+| `PROJECT_ALREADY_CHECKED_OUT` | 既に{ユーザー名}によってチェックアウトされています（warning） |
+| `RESOURCE_NOT_FOUND` | プロジェクトが見つかりません |
 
 #### 3.5.2 チェックアウト前提条件
 - MAIMLファイルが存在する
-- プロジェクトステータスが「タスク実行待ち」
+- プロジェクトステータスが「タスク実行待ち」（status=1）
 - タスクが登録されている
 - 未送信の指示が存在しない
 
@@ -340,296 +272,99 @@ const handleToggleCheckout = useCallback(async () => {
 ### 3.6 編集（Petri Netエディタ起動）
 
 #### 3.6.1 処理フロー
-```typescript
-const handleEditButtonClick = useCallback(() => {
-  if (!selectedProject) {
-    message.warning('プロジェクトを選択してください');
-    return;
-  }
+「編集」ボタン押下時は常に直接エディタへ遷移（Draft確認なし）。
+- `maimlFileKey` が存在する場合はそれを `sourceS3Key` として使用
+- なければ命名規則 `{orgId}/projects/{name}/{name}.maiml` から推定
 
-  // Draft復元確認は初期表示時のみ。編集ボタンは常に直接エディタへ遷移
-  const userInfo = getUserInfo();
-  const orgId = userInfo?.organizationId ?? '';
-  const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
-  const params: MaimlEditorParams = {
-    editMode: 'project',
-    editingFileName: `${selectedProject.name}.maiml`,
-    originalFileName: selectedProject.name,
-    sourceS3Key,
-    displayTitle: selectedProject.name,
-    displaySubtitle: selectedProject.description || undefined,
-    documentId: selectedProject.id,
-    description: selectedProject.description || undefined,
-  };
-  onEdit?.(params);
-}, [selectedProject, onEdit]);
-```
-
-#### 3.6.2 Draft復元確認（初期表示時）
-- **画面マウント時**かつ**プロジェクト未選択時**のみ、バックエンドDraft確認を実行
-- `GET /api/v1/maiml/drafts` でDraft一覧を取得し、存在する場合はDraftRestoreDialogを表示
-- ユーザーが「**復元する**」を選択 → 対象プロジェクトを自動選択してエディタへ遷移（`openDraftManagerOnStart: true`）
-- ユーザーが「**復元しない**」を選択 → `DELETE /api/v1/maiml/draft/:draftKey` でDraftを削除、プロジェクト選択をクリア
-- 編集画面から戻った場合（sessionStorageにprojectIdが残っている場合）はDraftチェックをスキップ
-
-```typescript
-// 初期表示時のDraft確認（プロジェクト未選択時のみ）
-useEffect(() => {
-  if (selectedProjectId) return; // プロジェクト選択済みならスキップ
-
-  const checkDraftOnMount = async () => {
-    try {
-      const drafts = await fetchDrafts();
-      if (Array.isArray(drafts) && drafts.length > 0) {
-        setDraftToRestore(drafts[0]);
-        setHasBackendDraft(true);
-        setDraftRestoreDialogOpen(true);
-      }
-    } catch {
-      // 取得失敗は無視
-    }
-  };
-  checkDraftOnMount();
-}, []);
-```
+#### 3.6.2 Draft復元確認（初期表示時のみ）
+- **マウント時**かつ**プロジェクト未選択時**のみ `GET /api/v1/maiml/drafts` でDraft一覧確認
+- Draft存在 → `DraftRestoreDialog` を表示
+  - 「復元する」→ 対象プロジェクトを自動選択してエディタへ（`openDraftManagerOnStart: true`）
+  - 「復元しない」→ 同一 `projectId` のDraft全削除、選択クリア
 
 ### 3.7 プロジェクトリロード
 
 #### 3.7.1 処理フロー
-```typescript
-const handleProjectReload = useCallback(async () => {
-  try {
-    setIsReloadingProject(true);
-    
-    // 1. プロジェクト一覧を最新化
-    await refetchProjects();
-    
-    // プロジェクトが選択されていない場合はここで終了
-    if (!selectedProject) {
-      message.success('プロジェクト一覧を更新しました');
-      return;
-    }
-    
-    // 2. プロジェクト選択を復元
-    const currentProjectId = selectedProject.id;
-    const currentProjectName = selectedProject.name;
-    setSelectedProjectId(currentProjectId);
-    
-    // 3. MAIMLデータを最新化
-    await reloadMaiml();
-    
-    // 4. 選択中のタブに応じてデータを最新化
-    if (currentTab === 'file_management') {
-      const fileResponse = await getProjectFiles(currentProjectName, true);
-      setProjectFilesData(prev => ({
-        ...prev,
-        [currentProjectId]: {
-          root: fileResponse.files || [],
-          archive: fileResponse.archiveFiles || [],
-        }
-      }));
-    } else if (currentTab === 'task_results') {
-      const taskResponse = await getProjectTasks(currentProjectName, 'all');
-      setProjectTasksData(prev => ({
-        ...prev,
-        [currentProjectId]: {
-          tasks: taskResponse.tasks || [],
-          statistics: taskResponse.statistics || {},
-        }
-      }));
-    }
-    
-    message.success('プロジェクトの最新情報を読み込みました');
-  } catch (error) {
-    message.error('プロジェクトの最新情報の取得に失敗しました');
-  } finally {
-    setIsReloadingProject(false);
-  }
-}, [selectedProject, currentTab, refetchProjects, reloadMaiml]);
-```
 
-#### 3.7.2 リロード対象
-- プロジェクト一覧
-- 選択中のプロジェクトのMAIML
-- 選択中のタブのデータ（ファイル一覧 or タスク一覧）
+**プロジェクト未選択時:**
+1. プロジェクト一覧のみ再取得
+2. `t('projectManagement.listReloadSuccess')` を表示
+
+**プロジェクト選択時:**
+1. プロジェクト一覧を最新化
+2. プロジェクト選択を復元（`selectedProjectId`）
+3. MAIMLデータを最新化（`reloadMaiml()`）
+4. ファイル管理タブのみデータ再取得（その他タブはコンポーネント内部で自動更新）
+5. `t('projectManagement.reloadSuccess')` を表示
 
 ### 3.8 ZIPダウンロード
 
-#### 3.8.1 処理フロー
-```typescript
-const handleProjectDownload = useCallback(async () => {
-  if (!selectedProject) {
-    message.warning('プロジェクトを選択してください');
-    return;
-  }
+`downloadFolderAsZip('projects/{projectName}')` を呼び出す。
+`data-testid="project-download-button"`
 
-  try {
-    setIsDownloading(true);
-    const folderPath = `projects/${selectedProject.name}`;
-    await downloadFolderAsZip(folderPath);
-    message.success(`プロジェクト「${selectedProject.name}」をZIPファイルでダウンロードしました`);
-  } catch (error) {
-    message.error('プロジェクトのダウンロードに失敗しました');
-  } finally {
-    setIsDownloading(false);
-  }
-}, [selectedProject]);
-```
+### 3.9 プロジェクト削除
 
-### 3.9 公開・非公開処理
+`deleteProject(projectId)` を呼び出し、確認ダイアログ表示あり。
+削除後: プロジェクト一覧再取得 + 選択解除
 
-公開/非公開ボタンはファイル操作ツールバー内に配置される。  
-ボタンの表示ラベル・活性状態はポーリング中のジョブステータスによって動的に変化する。
+### 3.10 公開・非公開処理
 
-#### 3.9.1 ボタン表示状態
+詳細: [ui_maiml_publish_dialog.md](./ui_maiml_publish_dialog.md) / [ui_maiml_unpublish_dialog.md](./ui_maiml_unpublish_dialog.md) を参照
 
-| 条件 | ボタンラベル | ボタン種別 | 活性状態 |
-|------|------------|----------|--------|
-| 公開中でも非公開中でもない（未公開 or `done`/`error`） かつ プロジェクトステータスが3（レビュー待ち）または4（完了） | 公開する | `type="primary"` | 有効 |
-| 公開中でも非公開中でもない かつ プロジェクトステータスが3・4以外 | 公開する | `type="primary"` | **disabled**（ステータス不正） |
-| `status = 'pending'` または `'running'`（公開ジョブ処理中） | 公開処理中… | `type="primary"` | disabled |
-| `status = 'done'` かつ `asset_id` あり（公開済み） | 非公開にする | `type="primary" danger` | 有効 |
-| `status = 'pending'` または `'running'`（非公開ジョブ処理中） | 非公開処理中… | `type="primary"` | disabled |
-| プロジェクト未選択 | 公開する | `type="primary"` | disabled |
+#### 3.10.1 ボタン表示状態
 
-#### 3.9.2 ボタン押下時の処理
+| 条件 | ボタン | 活性状態 |
+|------|--------|---------|
+| 未公開（null/done/error）かつ status=3か4 | 「公開する」`type="primary"` | 有効 |
+| 未公開かつ status≠3,4 | 「公開する」`type="primary"` | **disabled** |
+| 公開ジョブ処理中（pending/running）| 「公開処理中…」 | disabled |
+| 公開済み（`job_type=publish` && `status=done` && `asset_id` あり）| 「非公開にする」danger | 有効 |
 
-**「公開する」ボタン押下時:**
-1. `MaimlPublishDialog` を開く
-2. ダイアログで「公開する」を押すと `POST /api/v1/projects/:projectName/publish` を呼び出す
-3. 202 Accepted を受け取ったら `usePublishStatusPoller.start()` でポーリング開始
-4. ポーリング完了（`status = 'done'`）でボタン状態を「非公開にする」に切り替え
-5. ポーリング完了（`status = 'error'`）で `message.error()` を表示
+`data-testid="maiml-toolbar-publish-button"` / `data-testid="maiml-toolbar-unpublish-button"`
 
-**「非公開にする」ボタン押下時:**
-1. `MaimlUnpublishDialog` を開く
-2. ダイアログで「非公開にする」を押すと `POST /api/v1/projects/:projectName/unpublish` を呼び出す
-3. 202 Accepted を受け取ったら `usePublishStatusPoller.start()` でポーリング開始
-4. ポーリング完了（`status = 'done'`）でボタン状態を「公開する」に切り替え
-
-#### 3.9.3 ポーリング仕様（usePublishStatusPoller）
+#### 3.10.2 ポーリング仕様（usePublishStatusPoller）
 
 - **ポーリング間隔**: 3秒
-- **タイムアウト**: 5分（5分経過後に最後のステータスを取得して `onComplete` を呼ぶ）
-- **停止条件**: `status` が `pending` / `running` 以外（`done` / `error` / `null`）
-- **コンポーネントアンマウント時**: 自動クリーンアップ（`useEffect` でタイマーをクリア）
-- **多重起動防止**: `isPollingRef.current` フラグで多重呼び出しをブロック
+- **タイムアウト**: 5分
+- **停止条件**: `status` が `pending`/`running` 以外
+- **完了時**: `handleProjectReload()` を呼び出して全データを最新化
 
-#### 3.9.4 初期ステータス取得
+### 3.11 プロジェクト名変更
 
-プロジェクト選択時に `GET /api/v1/projects/:projectName/publish-status` を呼び出し、  
-ボタン状態・ポーリング継続有無を初期化する。
+`RenameProjectModal` で変更後:
+1. `projects` state を楽観的更新（`name`/`folderName`）
+2. ファイル管理タブのファイル一覧を再取得（パスが変わるため）
+3. `reloadMaiml()` を呼び出し
 
-| `status` の値 | ボタン初期状態 | ポーリング開始 |
-|-------------|-------------|-------------|
-| `null`（ジョブ履歴なし） | 公開する（有効） | しない |
-| `pending` / `running` | 処理中…（disabled） | する（`start()` 呼び出し） |
-| `done` かつ `job_type = 'publish'` | 非公開にする（有効） | しない |
-| `done` かつ `job_type = 'unpublish'` | 公開する（有効） | しない |
-| `error` | 公開する（有効） | しない |
+### 3.12 MAIMLバリデーション機能
 
-#### 3.9.5 関連ダイアログ
+#### 3.12.1 自動取得
+プロジェクト選択時に `GET /api/v1/maiml/analysis-result?fileKey=xxx` でDB保存済み結果を自動取得。
+`resolvedMaimlFileKey`: `maimlFileKey` あればそれ、なければ命名規則から推定。
 
-- 公開確認ダイアログ仕様: [ui_maiml_publish_dialog.md](./ui_maiml_publish_dialog.md)
-- 非公開確認ダイアログ仕様: [ui_maiml_unpublish_dialog.md](./ui_maiml_unpublish_dialog.md)
+#### 3.12.2 バリデーションダイアログ（MaimlValidationModal）
 
-#### 3.9.6 State定義（公開関連）
+「バリデーション確認」ボタン押下で開く。
+- 最終バリデーション情報（`is_valid` / `analysis_timestamp`）
+- 再バリデーション実行（`validateMaiml()` → DB保存 → 結果再取得）
+- エラー・警告の色分け: エラーあり→赤、警告のみ→黄、問題なし→緑
 
-```typescript
-// 公開ダイアログ表示状態
-const [publishDialogOpen, setPublishDialogOpen] = useState(false);
-// 非公開ダイアログ表示状態
-const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false);
-// 公開ジョブの最新ステータス（null=未取得、status=nullは未公開）
-const [publishStatus, setPublishStatus] = useState<PublishStatusResponse | null>(null);
-```
+#### 3.12.3 警告アイコン（ヘッダー）
 
-#### 3.9.7 API
+プロジェクトヘッダーのプロジェクト名横に表示。
+- `savedValidationRow.errors > 0` → 🔴（`colorError`）
+- `savedValidationRow.warnings > 0` のみ → 🟡（`colorWarning`）
 
-| 操作 | API | 仕様書 |
-|------|-----|--------|
-| 公開ジョブ投入 | `POST /api/v1/projects/:projectName/publish` | [api_maiml_opendata.md](../../../api/api_maiml_opendata.md) |
-| 非公開ジョブ投入 | `POST /api/v1/projects/:projectName/unpublish` | [api_maiml_opendata.md](../../../api/api_maiml_opendata.md) |
-| 公開ステータス取得 | `GET /api/v1/projects/:projectName/publish-status` | [api_maiml_opendata.md](../../../api/api_maiml_opendata.md) |
+#### 3.12.4 maimlHasErrors
 
-### 3.10 複数ダイアログ管理
+`TaskRegistrationTab` に `maimlHasErrors` prop として渡す。
 
-#### 3.10.1 ダイアログを開く
-```typescript
-const handleViewFile = useCallback((file: ProjectFile) => {
-  // 上限チェック（5個まで）
-  if (openDialogs.length >= 5) {
-    message.warning('同時に開けるダイアログは5個までです');
-    return;
-  }
+### 3.13 複数ダイアログ管理（ViewRendererDialog）
 
-  const id = `${file.id}-${Date.now()}`;
-  const offset = openDialogs.length * 30;  // カスケード配置
-
-  // Context の maimlContent を渡す（API 二重取得を防ぐ）
-  let passedFileContent: string | null | undefined = undefined;
-  if (
-    file.type === 'maiml' &&
-    currentFolder === 'root' &&
-    selectedProject &&
-    maimlContent !== undefined
-  ) {
-    passedFileContent = maimlContent;
-  }
-
-  const newDialog: OpenDialog = {
-    id,
-    contentType: 'file',
-    file,
-    fileContent: passedFileContent,
-    zIndex: nextZIndex,
-    position: { x: 100 + offset, y: 100 + offset }
-  };
-  
-  setOpenDialogs(prev => [...prev, newDialog]);
-  setNextZIndex(prev => prev + 1);
-}, [openDialogs, nextZIndex, currentFolder, selectedProject, maimlContent]);
-```
-
-#### 3.10.2 ダイアログを閉じる
-```typescript
-const handleCloseDialog = useCallback((id: string) => {
-  setOpenDialogs(prev => prev.filter(d => d.id !== id));
-}, []);
-```
-
-#### 3.10.3 ダイアログをフォーカス
-```typescript
-const handleFocusDialog = useCallback((id: string) => {
-  setOpenDialogs(prev => 
-    prev.map(d => 
-      d.id === id 
-        ? { ...d, zIndex: nextZIndex }
-        : d
-    )
-  );
-  setNextZIndex(prev => prev + 1);
-}, [nextZIndex]);
-```
-
-### 3.11 指示送信後のプロジェクト一覧再取得
-
-#### 3.11.1 処理フロー
-```typescript
-const handleInstructionsSubmit = useCallback(async (instructions: InstructionData[]) => {
-  try {
-    // プロジェクト一覧を再取得してステータス更新を反映
-    await refetchProjects();
-  } catch (error) {
-    console.error('❌ プロジェクト一覧の再取得に失敗:', error);
-    // エラーメッセージは表示しない（指示送信自体は成功しているため）
-  }
-}, [refetchProjects]);
-```
-
-#### 3.11.2 目的
-- 指示送信後にプロジェクトステータスが「タスク実行待ち」→「タスク実行中」に変わる
-- プロジェクト一覧を再取得してステータス表示を最新化
+- 最大5個まで同時表示可能
+- カスケード配置（30pxずつオフセット）
+- z-index自動管理（フォーカス時に最前面に移動）
+- Context の `maimlContent` を渡すことでAPI二重取得を防止
 
 ---
 
@@ -639,100 +374,69 @@ const handleInstructionsSubmit = useCallback(async (instructions: InstructionDat
 
 ```typescript
 interface ProjectManagementInnerProps {
-  /** Petri Netエディタを開くコールバック */
   onEdit?: (params: MaimlEditorParams) => void;
-  /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
   onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
+  user?: User;
+  onNavigateToTeamManagement?: () => void;
 }
 
 interface ProjectManagementProps {
-  /** Petri Netエディタを開くコールバック */
   onEdit?: (params: MaimlEditorParams) => void;
-  /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
   onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
+  user?: User;
+  onNavigateToTeamManagement?: () => void;
 }
 ```
 
-**Props説明:**
-| Prop名 | 型 | 必須 | 説明 |
-|--------|---|------|------|
-| onEdit | `(params: MaimlEditorParams) => void` | - | Petri Netエディタを開くコールバック。編集ボタンクリック時に呼び出される |
-| onOpenWorkerScreen | `(projectId: string, projectName: string) => void` | - | 作業者画面オーバーレイを開くコールバック |
+| Prop名 | 型 | 説明 |
+|--------|---|------|
+| `onEdit` | `(params: MaimlEditorParams) => void` | Petri Netエディタを開くコールバック |
+| `onOpenWorkerScreen` | `(projectId, projectName) => void` | 作業者画面オーバーレイを開くコールバック |
+| `user` | `User?` | ログイン中ユーザー情報（チーム未所属判定に使用）|
+| `onNavigateToTeamManagement` | `() => void` | チーム管理タブへ遷移するコールバック |
 
 ### 4.2 State定義
 
-```typescript
-// プロジェクト一覧
-const [projects, setProjects] = useState<Project[]>([]);
-
-// フィルタ・検索
-const [searchQuery, setSearchQuery] = useState('');
-const [ownerFilter, setOwnerFilter] = useState<string>('my_only'); // my_only, all
-const [checkoutFilter, setCheckoutFilter] = useState<string>('all'); // all, checked_in, checked_out
-const [projectStatusFilter, setProjectStatusFilter] = useState<string>('all'); // all, 0-5
-const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-
-// ソート
-const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt');
-const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
-// プロジェクト選択（編集画面から戻った際に sessionStorage から復元）
-const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
-  if (typeof window !== 'undefined') {
-    return sessionStorage.getItem('projectManagement_selectedProjectId') ?? null;
-  }
-  return null;
-});
-
-// フォルダ・タブ
-const [currentFolder, setCurrentFolder] = useState<string>('root');
-const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results' | 'task_registration' | 'instruction_registration'>('file_management');
-const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
-
-// モーダル・ダイアログ
-const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-const [createModalOpen, setCreateModalOpen] = useState(false);
-const [issueManagementModalOpen, setIssueManagementModalOpen] = useState(false);
-const [semanticSearchModalOpen, setSemanticSearchModalOpen] = useState(false);
-const [draftRestoreDialogOpen, setDraftRestoreDialogOpen] = useState(false);
-
-// Draft情報（バックエンドDraft復元用）
-const [hasBackendDraft, setHasBackendDraft] = useState(false);        // バックエンドDraftが存在するか
-const [draftToRestore, setDraftToRestore] = useState<Draft | null>(null); // 復元対象のDraftオブジェクト
-
-// プロジェクトデータキャッシュ
-const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
-const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
-
-// ローディング状態
-const [isLoadingTabData, setIsLoadingTabData] = useState(false);
-const [isDownloading, setIsDownloading] = useState(false);
-const [isReloadingProject, setIsReloadingProject] = useState(false);
-
-// 複数ダイアログ管理
-const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
-const [nextZIndex, setNextZIndex] = useState(1000);
-```
-
-**State説明:**
 | State名 | 型 | 初期値 | 説明 |
 |---------|---|--------|------|
-| projects | `Project[]` | `[]` | プロジェクト一覧 |
-| searchQuery | `string` | `''` | 検索クエリ |
-| ownerFilter | `string` | `'my_only'` | 所有者フィルタ |
-| checkoutFilter | `string` | `'all'` | チェックアウト状態フィルタ |
-| projectStatusFilter | `string` | `'all'` | プロジェクトステータスフィルタ |
-| departmentFilter | `string` | `'all'` | 部門フィルタ |
-| sortBy | `'name' \| 'status' \| 'createdAt'` | `'createdAt'` | ソート項目 |
-| sortOrder | `'asc' \| 'desc'` | `'desc'` | ソート順序 |
-| selectedProjectId | `string \| null` | `null` | 選択中のプロジェクトID |
-| currentFolder | `string` | `'root'` | 現在表示中のフォルダ（root/archive） |
-| currentTab | 4つのタブキー | `'file_management'` | 選択中のタブ |
-| expandedFolders | `Set<string>` | `new Set(['folder_active'])` | 展開中のフォルダ一覧 |
-| projectFilesData | `Record<string, ProjectFilesData>` | `{}` | プロジェクトごとのファイル一覧キャッシュ |
-| projectTasksData | `Record<string, ...>` | `{}` | プロジェクトごとのタスク一覧キャッシュ |
-| openDialogs | `OpenDialog[]` | `[]` | 開いているダイアログ一覧（最大5個） |
-| nextZIndex | `number` | `1000` | 次のダイアログのz-index |
+| `projects` | `Project[]` | `[]` | プロジェクト一覧 |
+| `searchQuery` | `string` | sessionStorage復元 or `''` | 検索クエリ |
+| `ownerFilter` | `string` | sessionStorage復元 or `'my_only'` | 所有者フィルタ |
+| `groupFilter` | `string` | `'all'` | 組織グループフィルタ |
+| `visibleGroups` | `Array<{cd,name,isActive}>` | `[]` | 閲覧可能グループ一覧 |
+| `checkoutFilter` | `string` | sessionStorage復元 or `'all'` | チェックアウトフィルタ |
+| `projectStatusFilter` | `string` | sessionStorage復元 or `'all'` | ステータスフィルタ |
+| `selectedProjectId` | `string \| null` | sessionStorage復元 or `null` | 選択中のプロジェクトID |
+| `sortBy` | `'name' \| 'status' \| 'createdAt'` | sessionStorage復元 or `'createdAt'` | ソート項目 |
+| `sortOrder` | `'asc' \| 'desc'` | sessionStorage復元 or `'desc'` | ソート順序 |
+| `currentFolder` | `string` | `'root'` | 現在表示中のフォルダ |
+| `currentTab` | 5タブキー | `'file_management'` | 選択中のタブ |
+| `expandedFolders` | `Set<string>` | `new Set(['folder_active'])` | 展開中フォルダ |
+| `uploadDialogOpen` | `boolean` | `false` | アップロードダイアログ |
+| `createModalOpen` | `boolean` | `false` | 新規作成モーダル |
+| `issueManagementModalOpen` | `boolean` | `false` | 問題確認モーダル |
+| `semanticSearchModalOpen` | `boolean` | `false` | セマンティック検索モーダル |
+| `draftRestoreDialogOpen` | `boolean` | `false` | Draft復元ダイアログ |
+| `hasBackendDraft` | `boolean` | `false` | バックエンドDraft存在フラグ |
+| `draftToRestore` | `Draft \| null` | `null` | 復元対象Draft |
+| `projectFilesData` | `Record<string, ProjectFilesData>` | `{}` | ファイル一覧キャッシュ |
+| `projectTasksData` | `Record<string, ...>` | `{}` | タスク一覧キャッシュ（現在未使用） |
+| `isLoadingTabData` | `boolean` | `false` | タブデータロード中 |
+| `isDownloading` | `boolean` | `false` | ZIPダウンロード中 |
+| `isReloadingProject` | `boolean` | `false` | リロード中 |
+| `openDialogs` | `OpenDialog[]` | `[]` | 開いているダイアログ（最大5個）|
+| `nextZIndex` | `number` | `1000` | 次のダイアログのz-index |
+| `publishStatus` | `PublishStatusResponse \| null` | `null` | 公開ジョブ状態 |
+| `publishStatusLoading` | `boolean` | `false` | 公開状態取得中 |
+| `publishDialogOpen` | `boolean` | `false` | 公開ダイアログ |
+| `unpublishDialogOpen` | `boolean` | `false` | 非公開ダイアログ |
+| `completionDialogOpen` | `boolean` | `false` | プロジェクト完了ダイアログ |
+| `allTasksCompleted` | `boolean` | `false` | 全タスク完了状態（ExperimentInstructionTabから受け取る）|
+| `isPolling` | `boolean` | `false` | ポーリング中フラグ |
+| `renameModalOpen` | `boolean` | `false` | 名前変更モーダル |
+| `isValidating` | `boolean` | `false` | バリデーション実行中 |
+| `savedValidationRow` | `MaimlAnalysisResultRow \| null` | `null` | DB保存済みバリデーション結果 |
+| `validationDialogOpen` | `boolean` | `false` | バリデーションダイアログ |
 
 ### 4.3 Context連携
 
@@ -741,43 +445,31 @@ const [nextZIndex, setNextZIndex] = useState(1000);
 const { t } = useLanguage();
 
 // ProjectMaimlContext
-const { 
-  loadMaiml,        // MAIML読み込み
-  reloadMaiml,      // MAIML再読み込み
-  maimlRoot,        // MAIMLルート要素
-  maimlContent,     // MAIML文字列
-  isLoading: isMaimlLoading  // ローディング状態
+const {
+  loadMaiml,       // MAIML読み込み
+  reloadMaiml,     // MAIML再読み込み
+  maimlRoot,       // MAIMLルート要素
+  maimlContent,    // MAIML文字列
+  isLoading: isMaimlLoading
 } = useProjectMaiml();
 ```
 
-### 4.4 その他の型定義
+`ProjectManagement` は `ProjectMaimlProvider` でラップされており、内部実装は `ProjectManagementInner` として分離されている。
+
+### 4.4 型定義
 
 ```typescript
-/**
- * プロジェクトファイルデータ
- */
 interface ProjectFilesData {
   root: ProjectFile[];
-  archive: ProjectFile[];
+  subFolderFiles: Record<string, ProjectFile[]>;
 }
 
-/**
- * 開いているダイアログの情報
- */
 interface OpenDialog {
   id: string;
   contentType: 'file' | 'subnet';
   file?: ProjectFile;
-  fileContent?: string | null;  // Contextから渡す場合に使用
-  subnetData?: {
-    transitionName: string;
-    maimlData: string;
-    templateMap: Record<string, { element: Element }>;
-    petriNetData: {
-      places: Array<{ id: string; data: { label?: string; stereotype?: string; template?: { id: string }; templateId?: string; } }>;
-      arcs: Array<{ id: string; source: string; target: string; }>;
-    };
-  };
+  fileContent?: string | null;
+  subnetData?: { ... };
   zIndex: number;
   position: { x: number; y: number };
 }
@@ -789,197 +481,42 @@ interface OpenDialog {
 
 ### 5.1 使用するAPI一覧
 
-| # | API名 | メソッド | エンドポイント | 状態 | 説明 |
-|---|------|---------|---------------|------|------|
-| 1 | getProjects | GET | `/api/v1/provider/projects` | ✅ 実装済み | プロジェクト一覧取得 |
-| 2 | getProjectFiles | GET | `/api/v1/provider/projects/:projectName/files` | ✅ 実装済み | プロジェクトのファイル一覧取得 |
-| 3 | getProjectTasks | GET | `/api/v1/experiment-admin/projects/:projectName/tasks` | ✅ 実装済み | プロジェクトのタスク一覧取得 |
-| 4 | createProject | POST | `/api/v1/provider/projects` | ✅ 実装済み | 新規プロジェクト作成 |
-| 5 | checkoutProject | POST | `/api/v1/experiment-admin/projects/:projectName/checkout` | ✅ 実装済み | プロジェクトチェックアウト |
-| 6 | checkinProject | POST | `/api/v1/experiment-admin/projects/:projectName/checkin` | ✅ 実装済み | プロジェクトチェックイン |
-| 7 | completeReviewTasks | POST | `/api/v1/experiment-admin/projects/:projectName/tasks/complete-review` | ✅ 実装済み | レビュー待ちタスクを完了に更新 |
-| 8 | publishProject | POST | `/api/v1/experiment-admin/projects/:projectName/publish` | ✅ 実装済み | プロジェクト公開 |
-| 9 | downloadFolderAsZip | GET | `/api/v1/files/download-zip` | ✅ 実装済み | フォルダをZIPでダウンロード |
-| 10 | fetchDrafts | GET | `/api/v1/maiml/drafts` | ✅ 実装済み | Draft一覧取得（初期表示時のDraft確認に使用） |
-| 11 | deleteDraft | DELETE | `/api/v1/maiml/draft/:draftKey` | ✅ 実装済み | Draft削除（「復元しない」選択時に使用） |
-
-### 5.2 API呼び出し例
-
-#### 5.2.1 プロジェクト一覧取得
-
-```typescript
-const {
-  data: projectsData,
-  error: projectsError,
-  refetch: refetchProjects
-} = useApi<ApiResponse<ProjectListResponse>>(
-  async () => await getProjects(),
-  []
-);
-```
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "projects": [
-      {
-        "id": "project-uuid",
-        "name": "project-001",
-        "folderName": "project-001",
-        "description": "プロジェクト説明",
-        "owner": "user-01",
-        "department": "dept-001",
-        "departmentName": "研究開発部",
-        "status": 1,
-        "statusName": "タスク実行待ち",
-        "isCheckedOut": false,
-        "tags": ["tag1", "tag2"],
-        "createdAt": "2026-03-01T10:00:00Z",
-        "updatedAt": "2026-03-11T08:00:00Z"
-      }
-    ]
-  }
-}
-```
-
-#### 5.2.2 チェックアウト
-
-```typescript
-await checkoutProject(projectName);
-```
-
-**Request:**
-```
-POST /api/v1/experiment-admin/projects/{projectName}/checkout
-```
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "message": "プロジェクトをチェックアウトしました"
-  }
-}
-```
-
-**Error Response (400 Bad Request):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "CHECKOUT_NO_MAIML_FILE",
-    "message": "MAIMLファイルが存在しません",
-    "details": {}
-  }
-}
-```
-
-#### 5.2.3 プロジェクト公開
-
-```typescript
-const request: MaimlPublishRequest = {
-  template_only: false,
-  store_raw_series: true,
-  retention: null,
-  keep_raw_on_unpublish: false,
-};
-await publishProject(projectName, request);
-```
-
-**Request:**
-```json
-{
-  "template_only": false,
-  "store_raw_series": true,
-  "retention": null,
-  "keep_raw_on_unpublish": false
-}
-```
-
-**Response (202 Accepted):**
-```json
-{
-  "success": true,
-  "data": {
-    "message": "公開処理を受け付けました"
-  }
-}
-```
+| # | 関数名 | メソッド | エンドポイント | 説明 |
+|---|--------|---------|---------------|------|
+| 1 | `getProjects` | GET | `/api/v1/provider/projects` | プロジェクト一覧取得 |
+| 2 | `getProjectFiles` | GET | `/api/v1/provider/projects/:id/files` | ファイル一覧取得（archive含む）|
+| 3 | `getProjectTasks` | GET | `/api/v1/experiment-admin/projects/:id/tasks` | タスク一覧取得 |
+| 4 | `createProject` | POST | `/api/v1/provider/projects` | 新規プロジェクト作成 |
+| 5 | `checkoutProject` | POST | `/api/v1/experiment-admin/projects/:id/checkout` | チェックアウト |
+| 6 | `checkinProject` | POST | `/api/v1/experiment-admin/projects/:id/checkin` | チェックイン |
+| 7 | `deleteProject` | DELETE | `/api/v1/provider/projects/:id` | プロジェクト削除 |
+| 8 | `downloadFolderAsZip` | GET | `/api/v1/files/download-zip` | ZIPダウンロード |
+| 9 | `fetchDrafts` | GET | `/api/v1/maiml/drafts` | Draft一覧取得 |
+| 10 | `deleteDraft` | DELETE | `/api/v1/maiml/draft/:draftKey` | Draft削除 |
+| 11 | `getPublishStatus` | GET | `/api/v1/projects/:id/publish-status` | 公開ステータス取得 |
+| 12 | `validateMaiml` | POST | `/api/v1/maiml/validate` | MAIMLバリデーション |
+| 13 | `getAnalysisResult` | GET | `/api/v1/maiml/analysis-result` | DB保存済みバリデーション結果取得 |
+| 14 | `getProjectMaiml` | GET | `/api/v1/provider/projects/:id/maiml` | MAIMLコンテンツ取得（アップロード後バリデーション用）|
+| 15 | `deleteFileByKey` | DELETE | `/api/v1/files/delete` | ファイル削除 |
+| 16 | `deleteFolderByPath` | DELETE | `/api/v1/files/folder` | フォルダ削除 |
+| 17 | `getVisibleOrganizationGroups` | GET | `/api/v1/organization-groups/visible` | 閲覧可能グループ取得 |
 
 ---
 
 ## 6. エラーハンドリング
 
-### 6.1 エラーケース一覧
-
-| エラーケース | HTTPステータス | エラーコード | 対処方法 |
-|-------------|---------------|-------------|----------|
-| プロジェクト一覧取得失敗 | 500 | - | message.error('プロジェクト一覧の取得に失敗しました') |
-| ファイル一覧取得失敗 | 500 | - | message.error('ファイル一覧の取得に失敗しました') |
-| タスク一覧取得失敗 | 500 | - | message.error('データの取得に失敗しました') |
-| チェックアウト失敗: MAIMLファイルなし | 400 | `CHECKOUT_NO_MAIML_FILE` | message.error('MAIMLファイルが存在しません。先にプロジェクトを編集してMAIMLファイルを作成してください。') |
-| チェックアウト失敗: ステータス不正 | 400 | `CHECKOUT_INVALID_STATUS` | message.error('プロジェクトステータスがタスク実行待ちではありません') |
-| チェックアウト失敗: タスク未登録 | 400 | `CHECKOUT_NO_TASKS` | message.error('タスクが登録されていません。先にタスク登録タブからタスクを登録してください。') |
-| チェックアウト失敗: 未送信の指示あり | 400 | `CHECKOUT_UNSENT_INSTRUCTIONS` | message.error('未送信の指示が存在します。先に指示送信タブから指示を送信してください。') |
-| チェックアウト失敗: 既にチェックアウト中 | 409 | `PROJECT_ALREADY_CHECKED_OUT` | message.warning('このプロジェクトは既に{ユーザー名}によってチェックアウトされています。') |
-| チェックイン失敗: 実行中タスクあり | 400 | `TASK_IN_PROGRESS` | message.error('実行中のタスクが存在するため、チェックインできません') |
-| プロジェクト作成失敗 | 400/500 | - | message.error(エラーメッセージ) |
-| プロジェクトダウンロード失敗 | 500 | - | message.error('プロジェクトのダウンロードに失敗しました') |
-| 公開処理失敗 | 400/500 | - | message.error(エラーメッセージ) |
-| ダイアログ上限超過 | - | - | message.warning('同時に開けるダイアログは5個までです') |
-
-### 6.2 エラー処理コード
-
-#### 6.2.1 チェックアウト/チェックインエラー
-
-```typescript
-try {
-  if (isProjectCheckedOut) {
-    await checkinProject(selectedProject.name);
-  } else {
-    await checkoutProject(selectedProject.name);
-  }
-  await refetchProjects();
-  message.success('処理が完了しました');
-} catch (error) {
-  if (error instanceof AxiosError && error.response?.data) {
-    const errorData = error.response.data;
-    const errorCode = errorData.error?.code || 'UNKNOWN_ERROR';
-    const errorMessage = errorData.error?.message || 'チェックイン/チェックアウトに失敗しました';
-    const errorDetails = errorData.error?.details;
-    
-    switch (errorCode) {
-      case 'TASK_IN_PROGRESS':
-        message.error('実行中のタスクが存在するため、チェックインできません');
-        break;
-      case 'CHECKOUT_NO_MAIML_FILE':
-        message.error('MAIMLファイルが存在しません。先にプロジェクトを編集してMAIMLファイルを作成してください。');
-        break;
-      // ... その他のエラーコード
-      default:
-        message.error(errorMessage);
-    }
-  } else {
-    message.error('チェックイン/チェックアウト処理中にエラーが発生しました');
-  }
-}
-```
-
-#### 6.2.2 API取得エラー
-
-```typescript
-useEffect(() => {
-  if (projectsError) {
-    console.error('❌ [ProjectManagement] API error:', projectsError);
-    message.error('プロジェクト一覧の取得に失敗しました');
-    return;
-  }
-  // ...
-}, [projectsData, projectsError]);
-```
+| エラーケース | 対処方法 |
+|-------------|---------|
+| プロジェクト一覧取得失敗 | `t('project.fetchListFailed')` |
+| ファイル一覧取得失敗 | `t('formatManagement.messages.file_list_load_failed')` |
+| タブデータ取得失敗 | `t('project.dataFetchFailed')` |
+| チェックアウト/イン各種エラー | エラーコード別メッセージ（i18n）|
+| プロジェクト削除失敗 | `mapErrorToMessage(errorCode)` |
+| ファイル削除失敗 | `mapErrorToMessage(errorCode)` |
+| ZIPダウンロード失敗 | `t('project.downloadFailed')` |
+| 公開処理失敗 | `status.error_message` or `t('project.processingFailed')` |
+| バリデーション失敗 | `t('project.validationFailed')` |
+| ダイアログ上限超過 | `t('project.maxDialogsWarning')`（warning）|
 
 ---
 
@@ -987,233 +524,81 @@ useEffect(() => {
 
 ### 7.1 メインファイル
 - **パス**: `frontend/src/components/project/ProjectManagement.tsx`
-- **行数**: 約1,300行
-- **エクスポート**: `ProjectManagement`（default export）
+- **行数**: 約2,577行
+- **エクスポート**: `ProjectManagement`（default export）、Provider付きラッパー
 
-### 7.2 関連ファイル
-
-#### 7.2.1 型定義
-- `frontend/src/types/project.ts` - Project, Task型
-- `frontend/src/types/file.ts` - ProjectFile型
-- `frontend/src/types/maimlEditor.ts` - MaimlEditorParams型
-- `frontend/src/types/instructionRegistration.ts` - InstructionData型
-
-#### 7.2.2 APIサービス
-- `frontend/src/services/projectApiService.ts` - プロジェクト関連API
-- `frontend/src/services/fileAccessService.ts` - ファイルダウンロードAPI
-
-#### 7.2.3 ユーティリティ
-- `frontend/src/utils/sessionStorageHelper.ts` - getUserInfo()
-
-#### 7.2.4 Context
-- `frontend/src/contexts/LanguageContext.tsx` - 多言語対応
-- `frontend/src/contexts/ProjectMaimlContext.tsx` - MAIML読み込み・管理
-
-#### 7.2.5 カスタムフック
-- `frontend/src/hooks/useApi.ts` - API呼び出し
-
-### 7.3 子コンポーネント
+### 7.2 子コンポーネント
 
 | コンポーネント名 | パス | 説明 |
 |----------------|------|------|
-| ProjectFolderTree | `./ProjectFolderTree` | プロジェクト一覧ツリー |
-| FileListTable | `./FileListTable` | ファイル一覧テーブル |
-| TaskResultsTable | `./TaskResultsTable` | タスク結果一覧テーブル |
-| BulkUploadDialog | `./BulkUploadDialog` | 一括アップロードダイアログ |
-| TaskRegistrationTab | `./TaskRegistrationTab` | タスク登録タブ |
-| InstructionRegistrationTab | `./InstructionRegistrationTab` | 指示一覧タブ |
-| CreateProjectModal | `./CreateProjectModal` | 新規プロジェクト作成モーダル |
-| ViewRendererDialog | `@/components/viewer/ViewRendererDialog` | ファイル表示ダイアログ（複数同時表示可能） |
-| DraftRestoreDialog | `../viewer/DraftRestoreDialog` | Draft復元確認ダイアログ |
-| IssueManagementModal | `../ExperimentWorker/IssueManagementModal` | 問題確認・管理モーダル |
-| TransitionSetSearchModal | `@/components/TransitionSetSearch/TransitionSetSearchModal` | セマンティック検索モーダル |
+| `ProjectFolderTree` | `./ProjectFolderTree` | プロジェクト一覧ツリー |
+| `FileListTable` | `./FileListTable` | ファイル一覧テーブル |
+| `TaskRegistrationTab` | `./TaskRegistrationTab` | タスク登録タブ |
+| `InstructionRegistrationTab` | `./InstructionRegistrationTab` | プロジェクト指示タブ |
+| `ExperimentInstructionTab` | `./ExperimentInstructionTab` | 実験指示タブ（task_resultsキー）|
+| `EvaluationRegistrationTab` | `./EvaluationRegistrationTab` | 評価登録タブ |
+| `TaskResultsTable` | `./TaskResultsTable` | タスク結果一覧テーブル（直接使用なし）|
+| `BulkUploadDialog` | `./BulkUploadDialog` | 一括アップロードダイアログ |
+| `CreateProjectModal` | `./CreateProjectModal` | 新規プロジェクト作成モーダル |
+| `RenameProjectModal` | `./RenameProjectModal` | プロジェクト名変更モーダル |
+| `MaimlPublishDialog` | `./MaimlPublishDialog` | 公開確認ダイアログ |
+| `MaimlUnpublishDialog` | `./MaimlUnpublishDialog` | 非公開確認ダイアログ |
+| `MaimlValidationModal` | `./MaimlValidationModal` | バリデーションダイアログ |
+| `ProjectCompletionDialog` | `./ProjectCompletionDialog` | プロジェクト完了ダイアログ |
+| `ViewRendererDialog` | `@/components/viewer/ViewRendererDialog` | ファイル表示ダイアログ（最大5個）|
+| `DraftRestoreDialog` | `../viewer/DraftRestoreDialog` | Draft復元確認ダイアログ |
+| `IssueManagementModal` | `../ExperimentWorker/IssueManagementModal` | 問題確認・管理モーダル |
+| `TransitionSetSearchModal` | `@/components/TransitionSetSearch/TransitionSetSearchModal` | セマンティック検索モーダル |
 
-### 7.4 依存ライブラリ
-- React 18.2.0
-- Ant Design v6 (Card, Input, Button, Select, Space, Tag, Tabs, Typography, Flex, theme, message)
-- @ant-design/icons (各種アイコン)
-
----
-
-## 8. 変更履歴
-
-| 日付 | 変更内容 | 担当者 |
-|------|----------|--------|
-| 2026-04-01 | PR #138対応: ファイル操作ツールバーに削除ボタン追加、プロジェクト削除機能・ファイル削除機能追加 | Cline |
-| 2026-03-25 | Draft復元フロー変更・sessionStorage保持対応 | Cline |
-| | - 3.6 編集ボタン: Draft復元確認を削除、常に直接エディタへ遷移 | |
-| | - 3.6.2 新規追加: 初期表示時のDraft確認（バックエンドDraftのみ） | |
-| | - State: selectedProjectId の初期値を sessionStorage から復元するよう変更 | |
-| | - State: draftInfo を hasBackendDraft / draftToRestore に変更 | |
-| | - API一覧: fetchDrafts / deleteDraft を追加（#10, #11） | |
-| 2026-03-11 | 実装ベースで仕様書を再作成（約1,300行の実装を完全に反映） | Cline |
+### 7.3 使用するカスタムフック・サービス
+- `useApi` - API呼び出し
+- `usePublishStatusPoller` - 公開ジョブポーリング
+- `useProjectMaiml` / `ProjectMaimlProvider` - MAIML管理Context
 
 ---
 
-## 9. 補足事項
+## 8. 補足事項
 
-### 9.1 パフォーマンス最適化
-- **useMemo**: filteredProjects, sortedProjects, departments, projectFiles, taskResults, taskStats, selectedProject, isProjectCheckedOut
-- **useCallback**: 全イベントハンドラー（handleProjectSelect, handleToggleCheckout, handleEditButtonClick等）
-- **データキャッシュ**: projectFilesData, projectTasksData で選択プロジェクトごとにデータをキャッシュ
+### 8.1 パフォーマンス最適化
+- **useMemo**: `filteredProjects`, `sortedProjects`, `selectedProject`, `isProjectCheckedOut`, `projectFiles`, `hasProjectFiles`, `taskResults`, `taskStats`, `maimlHasErrors`, `isPublished`, `resolvedMaimlFileKey` 等
+- **useCallback**: 全イベントハンドラー
+- **データキャッシュ**: `projectFilesData`（プロジェクトIDをキーとしてファイル一覧をキャッシュ）
+- **sessionStorage**: フィルタ・ソート・選択プロジェクトID を保存（ペトリネット編集画面から戻った際に復元）
 
-### 9.2 Context統合
-- **ProjectMaimlProvider**: ProjectManagement全体をラップしてMAIML管理機能を提供
-- **useProjectMaiml**: loadMaiml(), reloadMaiml(), maimlRoot, maimlContent, isLoading
+### 8.2 プロジェクトステータス
 
-### 9.3 複数ダイアログ管理
-- 最大5個まで同時表示可能
-- カスケード配置（30pxずつオフセット）
-- z-index自動管理（フォーカス時に最前面に移動）
-- Context の maimlContent を渡すことでAPI二重取得を防止
-
-### 9.4 プロジェクトステータス
 | status | statusName | 説明 |
 |--------|-----------|------|
-| 0 | プロジェクト計画中 | 初期状態 |
+| 0 | プロジェクト計画中 | 初期状態。編集・アップロード可能 |
 | 1 | タスク実行待ち | チェックアウト可能 |
 | 2 | タスク実行中 | チェックアウト中 |
-| 3 | 承認待ち | レビュー待ちタスクあり |
-| 4 | プロジェクト完了 | 全タスク完了 |
-| 5 | タスク異常終了 | エラー発生 |
+| 3 | 承認待ち | レビュー待ちタスクあり。公開可能 |
+| 4 | プロジェクト完了 | 全タスク完了。公開可能。編集系ボタン無効 |
+| 5 | タスク異常終了 | エラー発生。編集系ボタン無効 |
 
-### 9.5 タブ別のデータ取得タイミング
-- **マウント時**: プロジェクト一覧のみ取得
-- **プロジェクト選択時**: MAIMLを読み込み
-- **タブ切り替え時**: 該当タブのデータを最新取得
-- **リロードボタン**: プロジェクト一覧 + 選択中のタブデータ + MAIMLを最新化
+### 8.3 `isEditable` フラグ
+`selectedProject.isEditable === false` の場合、変更系ボタンがすべて無効化される。
+他ユーザーのプロジェクトを参照している場合などに設定される。
 
-### 9.6 チェックアウト/チェックインのワークフロー
+### 8.4 `isOrderChangeLocked`
+- `status !== 0`（プロジェクト計画中以外）の場合、メソッド順序変更不可。
+- `TaskRegistrationTab` に渡される。
 
-**チェックアウトまでの流れ:**
-1. プロジェクト作成（ステータス: 0 計画中）
-2. 編集ボタンでPetri Netエディタ起動 → MAIMLファイル保存
-3. タスク登録タブでタスクを登録
-4. 指示一覧タブで指示を作成・送信（ステータス: 1 実行待ちに変更）
-5. チェックアウトボタンをクリック（ステータス: 2 実行中に変更）
+### 8.5 ファイル一覧の構造
 
-**チェックイン:**
-- 全タスクが完了またはレビュー待ちになったらチェックイン可能
-- チェックイン後、ステータスが 3 レビュー待ち または 4 完了に変更
+`ProjectFilesData`:
+- `root`: ルート直下のファイル＋サブフォルダエントリ
+- `subFolderFiles`: `{ [topFolderName]: ProjectFile[] }`（バックエンドが `topFolder` をキーに全ファイルをフラットに返す）
 
-### 9.7 リロード処理の詳細
-プロジェクト未選択時とプロジェクト選択時で動作が異なります：
-
-**プロジェクト未選択時:**
-- プロジェクト一覧のみ再取得
-- メッセージ: 「プロジェクト一覧を更新しました」
-
-**プロジェクト選択時:**
-1. プロジェクト一覧を最新化
-2. プロジェクト選択を復元（selectedProjectId）
-3. MAIMLデータを最新化（reloadMaiml）
-4. 選択中のタブのデータを最新化
-   - ファイル管理タブ: getProjectFiles()
-   - 進捗確認タブ: getProjectTasks()
-5. メッセージ: 「プロジェクトの最新情報を読み込みました」
+`archive` フォルダは中身がある場合のみ表示。
 
 ---
 
-## 10. MAIMLバリデーション機能
+## 9. 変更履歴
 
-### 10.1 概要
-
-プロジェクト管理画面にMAIMLバリデーション機能を追加しました。プロジェクト選択時にDB保存済みの過去バリデーション結果を自動取得し、エラーがある場合は警告アイコンを表示します。また「バリデーション確認」ボタンからダイアログを開き、過去の結果確認と再バリデーション実行が可能です。
-
-### 10.2 バリデーションボタン
-
-ファイル操作ツールバーに「バリデーション確認」ボタンを追加。
-
-| 状態 | 表示 |
-|------|------|
-| プロジェクト未選択 | 無効（`disabled`） |
-| プロジェクト選択済み | 有効「バリデーション確認」ボタン（SafetyCertificateOutlined アイコン） |
-
-### 10.3 バリデーション結果ダイアログ
-
-「バリデーション確認」ボタン押下で開くモーダルダイアログ。
-
-| 要素 | 内容 |
-|------|------|
-| タイトル | 🔍 MAIMLバリデーション |
-| 最終バリデーション情報 | DBから取得した is_valid 状態と analysis_timestamp を Alert で表示 |
-| 結果バッジ | ✅ 有効（SafetyCertificateOutlined 緑） / ⚠️ エラーあり（WarningOutlined 赤） |
-| 再バリデーションボタン | 押下でMAIMLを取得しバリデーション実行→DB保存 |
-| バリデーション結果 | エラー一覧・警告一覧をインラインで表示 |
-| 自動補正ボタン | なし（ProjectManagement では不要） |
-
-**エラー・警告の色分け**:
-
-| 状態 | アイコン色 | 意味 |
-|------|----------|------|
-| `errors.length > 0` | 🔴 赤（colorError） | エラーあり |
-| `errors.length === 0 && warnings.length > 0` | 🟡 黄（colorWarning） | 警告のみ |
-| 問題なし | 緑（colorSuccess） | 正常 |
-
-### 10.4 警告アイコン（プロジェクト詳細ヘッダー）
-
-プロジェクト詳細ヘッダーのプロジェクト名横に警告アイコンを表示。
-
-**表示条件**: `savedValidationRow?.is_valid === false`
-
-**色分け**:
-- `errors.length > 0` → 🔴 赤（colorError）
-- `warnings.length > 0` のみ → 🟡 黄（colorWarning）
-
-**Tooltip**: `バリデーションエラーがあります（最終確認: YYYY/MM/DD HH:MM:SS）`
-
-### 10.5 プロジェクト選択時の自動取得
-
-プロジェクト選択時に `GET /api/v1/maiml/analysis-result?fileKey=xxx` を呼び出し、DB保存済みバリデーション結果を自動取得。
-
-```typescript
-useEffect(() => {
-  if (!selectedProject?.maimlFileKey) {
-    setSavedValidationRow(null);
-    setValidationResult(null);
-    return;
-  }
-  getAnalysisResult(selectedProject.maimlFileKey)
-    .then(res => setSavedValidationRow(res.data ?? null))
-    .catch(() => setSavedValidationRow(null));
-}, [selectedProject?.maimlFileKey]);
-```
-
-### 10.6 MAIMLエラー有無算出（maimlHasErrors）
-
-`savedValidationRow.errors` をパースしてエラー件数を算出。`TaskRegistrationTab` に `maimlHasErrors` prop として渡す。
-
-```typescript
-const maimlHasErrors = useMemo(() => {
-  if (!savedValidationRow) return false;
-  try {
-    const errors = JSON.parse(savedValidationRow.errors || '[]');
-    return Array.isArray(errors) && errors.length > 0;
-  } catch {
-    return false;
-  }
-}, [savedValidationRow]);
-```
-
-### 10.7 関連ステート
-
-| ステート名 | 型 | 説明 |
-|-----------|---|------|
-| `isValidating` | boolean | バリデーション実行中フラグ |
-| `validationResult` | AnalysisResult \| null | 再バリデーション実行後の結果 |
-| `savedValidationRow` | MaimlAnalysisResultRow \| null | DB保存済みバリデーション結果 |
-| `validationDialogOpen` | boolean | バリデーションダイアログ表示フラグ |
-
----
-
-## 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|---------|--------|
-| 2.0 | 2026-04-24 | MAIMLバリデーション機能追加（セクション10追加） | Cline |
-| | | - バリデーション確認ボタン追加 | |
-| | | - バリデーション結果ダイアログ追加 | |
-| | | - プロジェクト詳細ヘッダーへの警告アイコン追加 | |
-| | | - プロジェクト選択時のDB結果自動取得 | |
-| | | - maimlHasErrors 算出ロジック追加 | |
-| 1.0 | 2026-01-21 | 初版作成 | Cline |
+| バージョン | 日付 | 変更内容 |
+|-----------|------|---------|
+| 3.0.0 | 2026-08-20 | 実装ベースで全面改訂（タブ構成5タブへ変更・組織グループフィルタ追加・Props/State追加・子コンポーネント追加・ツールバーボタン追加）|
+| 3.0.1 | 2026-08-20 | 暗号化管理・電子署名管理（開発対象外）削除・onInstructionsSubmit/encryptionModalOpen/signatureModalOpen削除 |
+| 2.0.0 | 2026-04-24 | MAIMLバリデーション機能追加 |
+| 1.0.0 | 2026-01-21 | 初版作成 |

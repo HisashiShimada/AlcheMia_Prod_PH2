@@ -47,18 +47,17 @@
 |------|-----|
 | サイズ | small |
 | ページネーション | false（親コンポーネントで制御） |
-| rowKey | workId |
+| rowKey | `record.workId \|\| record.taskId`（workIdが優先、なければtaskId） |
 
 #### 2.2.2. カラム定義
 
 | カラム | 幅 | 配置 | ソート | 説明 |
 |--------|-----|------|--------|------|
-| タスク名 | 30% | left | ○ | タスク名（太字） |
-| メソッド | 20% | left | ○ | メソッド名 |
-| ステータス | 15% | center | ○ | ステータスTag（色分け） |
-| 作業終了日 | 18% | right | ○ | 日付表示（年/月/日） |
-| レビュー完了日 | 15% | right | ○ | 日付表示（年/月/日） |
-| 操作 | 10% | center | - | 詳細ボタン |
+| メソッド | 28% | left | ○ | methodName（なければ `-`） |
+| タスク名 | 18% | left | ○ | taskName（なければtransitionName）、太字表示 |
+| ステータス | 14% | center | ○ | ステータスTag（色分け） |
+| 作業終了日 | 20% | right | ○ | 日付表示（年/月/日） |
+| レビュー完了日 | 20% | right | ○ | 日付表示（年/月/日） |
 
 #### 2.2.3. ステータスの色定義
 
@@ -70,19 +69,9 @@
 | review_waiting | warning（黄） | レビュー待ち |
 | completed | success（緑） | 完了 |
 
-#### 2.2.4. 詳細ボタン
-
-| 項目 | 値 |
-|------|-----|
-| タイプ | default |
-| サイズ | small |
-| アイコン | EyeOutlined |
-| テキスト | 多言語対応（projectManagement.task_results.view_result） |
-
 ### 2.3. 画面遷移
 
-- **詳細ボタンクリック**: onViewResult(result)コールバックを実行
-- 画面遷移は親コンポーネントで制御
+- なし（表示専用コンポーネント）
 
 ---
 
@@ -109,27 +98,27 @@
 
 **ステータスラベル取得:**
 ```typescript
-const getStatusLabel = (status: string) => {
+const getStatusLabel = (status: number) => {
   switch (status) {
-    case 'pending': return '実行待ち';
-    case 'in_progress': return '実行中';
-    case 'error': return '異常終了';
-    case 'review_waiting': return 'レビュー待ち';
-    case 'completed': return '完了';
-    default: return status;
+    case TaskStatus.PENDING:             return t('projectManagement.task_results.status_pending') || '実行待ち';
+    case TaskStatus.IN_PROGRESS:        return t('projectManagement.task_results.status_in_progress') || '実行中';
+    case TaskStatus.FORCED_TERMINATED:  return t('projectManagement.task_results.status_error') || '異常終了';
+    case TaskStatus.REVIEW_WAITING:     return t('projectManagement.task_results.status_review_waiting') || 'レビュー待ち';
+    case TaskStatus.COMPLETED:          return t('projectManagement.task_results.status_completed') || '完了';
+    default: return String(status);
   }
 };
 ```
 
 **ステータス色取得:**
 ```typescript
-const getStatusColor = (status: string) => {
+const getStatusColor = (status: number) => {
   switch (status) {
-    case 'pending': return 'default';
-    case 'in_progress': return 'processing';
-    case 'error': return 'error';
-    case 'review_waiting': return 'warning';
-    case 'completed': return 'success';
+    case TaskStatus.PENDING:            return 'default';
+    case TaskStatus.IN_PROGRESS:        return 'processing';
+    case TaskStatus.FORCED_TERMINATED:  return 'error';
+    case TaskStatus.REVIEW_WAITING:     return 'warning';
+    case TaskStatus.COMPLETED:          return 'success';
     default: return 'default';
   }
 };
@@ -149,15 +138,7 @@ new Date(date).toLocaleDateString('ja-JP', {
 
 **nullの場合:** `-` を表示
 
-#### 3.1.4. 詳細表示
-
-**処理フロー:**
-1. 詳細ボタンクリック時にonClick()が発火
-2. e.stopPropagation()でイベント伝播を停止
-3. onViewResult(record)コールバックを実行
-4. 親コンポーネントでモーダルやダイアログを表示
-
-#### 3.1.5. 空データ表示
+#### 3.1.4. 空データ表示
 
 **Empty表示:**
 - image: Empty.PRESENTED_IMAGE_SIMPLE
@@ -168,7 +149,6 @@ new Date(date).toLocaleDateString('ja-JP', {
 | 操作 | 動作 | 状態変更 |
 |------|------|---------|
 | カラムヘッダークリック | ソート実行 | Tableが管理 |
-| 詳細ボタンクリック | コールバック実行 | 親で制御 |
 
 ### 3.3. バリデーションルール
 
@@ -182,36 +162,35 @@ new Date(date).toLocaleDateString('ja-JP', {
 
 ```typescript
 interface TaskResultsTableProps {
-  results: TaskResult[];              // タスク結果配列
-  onViewResult: (result: TaskResult) => void; // 詳細表示コールバック
+  results: Task[];   // タスク結果配列（@/types/project の Task 型）
 }
 ```
 
-### 4.2. TaskResult型定義
+### 4.2. Task型定義（`@/types/project`）
 
 ```typescript
-interface TaskResult {
-  workId: string;                   // タスクID（rowKeyとして使用）
-  taskName: string;                 // タスク名
-  methodName: string;               // メソッド名
-  assignedWorker: string;           // 割り当てられた作業者
-  workStatus: TaskStatus;           // タスクステータス
-  progressPercentage: number;       // 進捗率（表示未使用）
-  completedAt: string | null;       // 完了日時（表示未使用）
-  workCompletedAt: string | null;   // 作業終了日
-  reviewCompletedAt: string | null; // レビュー完了日
-}
+// @/types/project からインポートされる Task 型を使用
+// テーブル表示に使用される主要フィールド:
+// - workId: string                    rowKey（優先）
+// - taskId: string                    rowKey（fallback）
+// - methodName: string                メソッド名カラム
+// - taskName: string                  タスク名カラム
+// - transitionName: string            タスク名カラム（taskNameがない場合のfallback）
+// - workStatus: number                ステータスカラム（TaskStatus enumの数値）
+// - workCompletedAt: string | null    作業終了日カラム
+// - reviewCompletedAt: string | null  レビュー完了日カラム
 ```
 
-### 4.3. TaskStatus型定義
+### 4.3. TaskStatus enum定義（`@/constants/codeMaster`）
 
 ```typescript
-type TaskStatus = 
-  | 'pending'         // 実行待ち
-  | 'in_progress'     // 実行中
-  | 'error'           // 異常終了
-  | 'review_waiting'  // レビュー待ち
-  | 'completed';      // 完了
+import { TaskStatus } from '@/constants/codeMaster';
+// 数値ベースのenum:
+// TaskStatus.PENDING            実行待ち
+// TaskStatus.IN_PROGRESS        実行中
+// TaskStatus.FORCED_TERMINATED  異常終了
+// TaskStatus.REVIEW_WAITING     レビュー待ち
+// TaskStatus.COMPLETED          完了
 ```
 
 ### 4.4. 入力項目
@@ -255,7 +234,6 @@ type TaskStatus =
 | コンポーネント | 使用箇所 | props |
 |--------------|---------|-------|
 | Table | テーブル本体 | dataSource, columns, rowKey, size, pagination, locale |
-| Button | 詳細ボタン | type, size, icon, onClick |
 | Tag | ステータス表示 | color |
 | Typography.Text | テキスト表示 | strong, style |
 | Empty | 空データ表示 | description, image |
@@ -323,7 +301,8 @@ frontend/src/components/project/TaskResultsTable.tsx
 
 | 型 | パス | 役割 |
 |----|------|------|
-| TaskStatus | @/types/progress | タスクステータス型 |
+| Task | @/types/project | タスクデータ型（Props の results に使用） |
+| TaskStatus | @/constants/codeMaster | タスクステータス enum（数値ベース） |
 
 ---
 
@@ -354,3 +333,4 @@ frontend/src/components/project/TaskResultsTable.tsx
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 1.1.0 | 2026-08-20 | ソース実装と照合し修正: Props型修正（TaskResult[]→Task[], onViewResult削除）・TaskResult型をTask型(@/types/project)に変更・TaskStatus型を文字列ユニオン→enum(@/constants/codeMaster)に変更・getStatusLabel/getStatusColorを数値ベースに修正・操作列・詳細ボタン削除・カラム幅・順序修正・rowKey修正 | Cline |

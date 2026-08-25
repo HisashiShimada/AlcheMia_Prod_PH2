@@ -249,7 +249,7 @@ const [searchText, setSearchText] = useState('');
 const [ownerFilter, setOwnerFilter] = useState('my_only'); // 'my_only' | 'all'
 const [checkoutFilter, setCheckoutFilter] = useState('all');
 const [projectStatusFilter, setProjectStatusFilter] = useState('all');
-const [departmentFilter, setDepartmentFilter] = useState('all');
+const [organizationGroupFilter, setOrganizationGroupFilter] = useState('all');
 
 // テーブル表示関連State
 const [lastUpdated] = useState(new Date().toLocaleString('ja-JP'));
@@ -276,7 +276,7 @@ const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
 | ownerFilter | string | 'my_only' | 所有者フィルタ（'my_only' または 'all'） |
 | checkoutFilter | string | 'all' | チェックアウトフィルタ |
 | projectStatusFilter | string | 'all' | プロジェクトステータスフィルタ |
-| departmentFilter | string | 'all' | 部門フィルタ |
+| organizationGroupFilter | string | 'all' | 組織グループフィルタ |
 | page | number | 0 | 現在のページ番号 |
 | rowsPerPage | number | 10 | 1ページあたりの表示件数 |
 | order | Order | 'asc' | ソート順序 |
@@ -314,7 +314,7 @@ type OrderBy = keyof ProgressRecord;
 ```typescript
 import type { FileData, Project } from '@/types/progress';
 import type { ProjectFile } from '@/types/file';
-import type { ApiResponse } from '@/types/api';
+import type { ServiceApiResponse as ProjectApiResponse } from '@/types/api';
 import type { ProjectListResponse } from '@/types/project';
 ```
 
@@ -326,8 +326,8 @@ import type { ProjectListResponse } from '@/types/project';
 
 | # | API名 | メソッド | エンドポイント | 状態 | 説明 |
 |---|------|---------|---------------|------|------|
-| 1 | fetchProjects | GET | `/api/v1/projects` | ✅ 実装済み | プロジェクト一覧を取得 |
-| 2 | fetchProjectFilesReal | GET | `/api/v1/projects/:projectName/files` | ✅ 実装済み | プロジェクトのファイル情報を取得 |
+| 1 | getProjects | GET | `/api/v1/projects` | ✅ 実装済み | プロジェクト一覧を取得 |
+| 2 | getProjectFiles | GET | `/api/v1/projects/:projectName/files` | ✅ 実装済み | プロジェクトのファイル情報を取得 |
 
 ### 5.2 API呼び出しコード
 
@@ -338,15 +338,15 @@ const {
   isLoading: isLoadingProjects, 
   error: projectsError, 
   refetch: refetchProjects 
-} = useApi<ApiResponse<ProjectListResponse>>(
-  fetchProjects,
+} = useApi<ProjectApiResponse<ProjectListResponse>>(
+  getProjects,
   []
 );
 ```
 
 #### 5.2.2 プロジェクトファイル取得
 ```typescript
-const filesResponse = await fetchProjectFilesReal(record.projectName);
+const filesResponse = await getProjectFiles(record.projectName);
 ```
 
 ### 5.3 リクエスト/レスポンス例
@@ -459,7 +459,7 @@ try {
   - `frontend/src/types/file.ts` - ProjectFile型
   - `frontend/src/types/api.ts` - ApiResponse型
   - `frontend/src/types/project.ts` - ProjectListResponse型
-- **API**: `frontend/src/utils/apiClient.ts` - fetchProjects, fetchProjectFilesReal
+- **API**: `frontend/src/services/projectApiService.ts` - getProjects, getProjectFiles
 - **ユーティリティ**: `frontend/src/utils/sessionStorageHelper.ts` - getUserInfo
 - **Context**: `frontend/src/contexts/LanguageContext.tsx` - useLanguage
 - **カスタムフック**: `frontend/src/hooks/useApi.ts` - useApi
@@ -475,3 +475,4 @@ try {
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
+| 2026-08-20 | ソース実装と照合し修正: API関数名（fetchProjects→getProjects, fetchProjectFilesReal→getProjectFiles）、APIファイルパス修正（apiClient.ts→projectApiService.ts）、型エイリアス修正（ApiResponse→ServiceApiResponse as ProjectApiResponse）、State名修正（departmentFilter→organizationGroupFilter） | Cline |

@@ -1,8 +1,8 @@
 # UI仕様書: MaiML 非公開確認ダイアログ
 
 **作成日**: 2026-03-13  
-**最終更新**: 2026-03-13  
-**バージョン**: 1.0.0  
+**最終更新**: 2026-08-20  
+**バージョン**: 1.1.0  
 **対象ロール**: experiment_admin  
 **実装状況**: 実装済み
 
@@ -52,25 +52,26 @@
 
 | 項目 | 値 |
 |------|---|
-| タイトル | `MaiML 非公開確認` |
+| タイトル | `t('maimlUnpublish.title')` |
 | Ant Design コンポーネント | `Modal` |
-| `destroyOnClose` | `true`（閉じるたびにアンマウント） |
+| `destroyOnHidden` | `true`（閉じるたびにアンマウント）※Ant Design v6 プロパティ名 |
 | フッター | カスタム（`Space` で `キャンセル` と `非公開にする` を横並び） |
 
 ### 2.3 本文
 
 ```
-プロジェクト {projectName} の公開を取り消します。よろしいですか？
+t('maimlUnpublish.confirmText').replace('{{projectName}}', projectName)
 ```
 
-- `{projectName}` 部分は `<Text strong>` で太字表示
+- `{{projectName}}` プレースホルダーをプロジェクト名で置換して表示
+- プロジェクト名部分の太字表示なし
 
 ### 2.4 フッターボタン
 
-| ボタン | 種別 | 動作 | 活性状態 |
-|-------|------|------|---------|
-| キャンセル | `type="default"` | ダイアログを閉じ、エラー状態をリセット | API呼び出し中は `disabled` |
-| 非公開にする | `type="primary" danger` | `unpublishProject()` API を呼び出す | API呼び出し中は `loading` |
+| ボタン | ラベル | 種別 | 動作 | 活性状態 |
+|-------|--------|------|------|---------|
+| キャンセル | `t('maimlUnpublish.cancel')` | `type="default"` | ダイアログを閉じ、エラー状態をリセット | API呼び出し中は `disabled` |
+| 非公開にする | `t('maimlUnpublish.unpublish')` | `type="primary" danger` | `unpublishProject(projectId)` API を呼び出す | API呼び出し中は `loading` |
 
 > **注意**: 「非公開にする」は危険操作のため `danger` を付与して赤ボタンで表示する。
 
@@ -87,8 +88,8 @@ API からエラーが返ってきた場合、本文の下に `Alert` コンポ�
 |------|---|
 | `type` | `"error"` |
 | `showIcon` | `true` |
-| `message` | `"非公開処理に失敗しました"` |
-| `description` | エラーコードに対応する日本語メッセージ |
+| `message` | `t('maimlUnpublish.errorTitle')` |
+| `description` | `getErrorMessage(errorCode)` — i18nキー `maimlUnpublish.errors.{code}` で取得。キーが存在しない場合は `t('maimlUnpublish.errors.SYSTEM_ERROR')` にフォールバック |
 
 ---
 
@@ -101,7 +102,7 @@ API からエラーが返ってきた場合、本文の下に `Alert` コンポ�
   └─→ MaimlUnpublishDialog が開く
       └─→ ユーザー:「非公開にする」ボタン押下（ダイアログ内）
           └─→ loading = true / errorCode = null
-              └─→ POST /api/v1/projects/:projectName/unpublish
+              └─→ POST /api/v1/projects/:projectId/unpublish
                   └─→ 202 Accepted
                       ├─→ ダイアログを閉じる（handleClose）
                       └─→ onSuccess(jobId) コールバック
@@ -111,7 +112,7 @@ API からエラーが返ってきた場合、本文の下に `Alert` コンポ�
 ### 3.2 エラーフロー
 
 ```
-POST /api/v1/projects/:projectName/unpublish
+POST /api/v1/projects/:projectId/unpublish
   └─→ 404 / 409 / 500
       └─→ errorCode を state に保存
           └─→ ダイアログ内に Alert を表示
@@ -132,7 +133,7 @@ POST /api/v1/projects/:projectName/unpublish
 |------------|---------------|---------|
 | `NOT_PUBLISHED` | 公開済みアセットが存在しません | 対象プロジェクトに公開済みアセットがない |
 | `ALREADY_IN_PROGRESS` | 非公開処理がすでに進行中です | `status = pending/running` のジョブが既にある |
-| `SYSTEM_ERROR`（フォールバック） | システムエラーが発生しました | 上記以外のエラー |
+| `SYSTEM_ERROR`（フォールバック） | `t('maimlUnpublish.errors.SYSTEM_ERROR')` | 上記以外のエラー、またはエラーコードが取得できない場合（`code ?? 'SYSTEM_ERROR'`）|
 
 ---
 
@@ -142,8 +143,10 @@ POST /api/v1/projects/:projectName/unpublish
 export interface MaimlUnpublishDialogProps {
   /** ダイアログの表示状態 */
   open: boolean;
-  /** 非公開対象のプロジェクト名 */
+  /** 非公開対象のプロジェクト名（表示用） */
   projectName: string;
+  /** 非公開対象のプロジェクトID */
+  projectId: string;
   /** ダイアログを閉じる時のコールバック */
   onClose: () => void;
   /**
@@ -158,6 +161,7 @@ export interface MaimlUnpublishDialogProps {
 |------|---|------|------|
 | `open` | `boolean` | ✅ | `true` でダイアログを表示 |
 | `projectName` | `string` | ✅ | 非公開対象プロジェクト名。本文中に表示される |
+| `projectId` | `string` | ✅ | 非公開対象プロジェクトID。API呼び出しに使用 |
 | `onClose` | `() => void` | ✅ | キャンセル・`×` 押下時のコールバック |
 | `onSuccess` | `(jobId: string) => void` | ✅ | 202 受付成功時のコールバック。引数は `job_id` |
 
@@ -183,16 +187,17 @@ const [errorCode, setErrorCode] = useState<string | null>(null);
 
 | API | エンドポイント | メソッド | 成功レスポンス |
 |-----|-------------|--------|-------------|
-| MaiML非公開 | `/api/v1/projects/:projectName/unpublish` | `POST` | `202 Accepted` |
+| MaiML非公開 | `/api/v1/projects/:projectId/unpublish` | `POST` | `202 Accepted` |
 
 ### 7.2 リクエスト
 
 ```http
-POST /api/v1/projects/{projectName}/unpublish
+POST /api/v1/projects/{projectId}/unpublish
 Authorization: Bearer maiml_session-{sessionId}_{timestamp}
 ```
 
-リクエストボディなし。
+- `projectId`（UUID）をURLパスパラメータに使用
+- リクエストボディなし
 
 ### 7.3 成功レスポンス (202 Accepted)
 
@@ -250,4 +255,6 @@ Authorization: Bearer maiml_session-{sessionId}_{timestamp}
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-08-20 | `projectId` Props追加・APIエンドポイントをprojectIdベースに修正・エラーメッセージ/タイトル/ボタンラベルをi18nキーに修正・`destroyOnClose`→`destroyOnHidden`に修正・本文太字なしに修正 | Cline |
+| 1.1.1 | 2026-08-20 | セクション3.1/3.2のフロー図エンドポイントを `:projectName` → `:projectId` に修正 | Cline |
 | 1.0.0 | 2026-03-13 | 初版作成（実装済みソースコードから仕様を起こす） | Cline |
