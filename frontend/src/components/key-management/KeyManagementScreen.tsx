@@ -61,7 +61,7 @@ const KeyManagementScreen: React.FC = () => {
   if (error) {
     return (
       <div style={{ padding: 24 }}>
-        <Alert type="error" message={error} />
+        <Alert type="error" title={error} />
       </div>
     );
   }

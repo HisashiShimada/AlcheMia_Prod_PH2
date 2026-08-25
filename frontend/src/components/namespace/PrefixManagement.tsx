@@ -7,7 +7,8 @@ import { Button, Input, Table, message, Modal, Typography, Tooltip, Spin, Tag } 
 import {
   PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
+  StopOutlined,
+  CheckCircleOutlined,
   SaveOutlined,
   SearchOutlined,
   WarningOutlined,
@@ -18,6 +19,8 @@ import {
   createNamespace,
   updateNamespace,
   deleteNamespace,
+  toggleNamespaceActive,
+  fetchSuggestedUri,
 } from '@/services/namespaceApiService';
 import type {
   PrefixManagementProps,
@@ -48,6 +51,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   globalOnly = false,
   selectedNsKey,
   scopeKey,
+  orgGroupCds,
 }) => {
   const { t } = useLanguage();
   const [rows, setRows] = useState<PrefixRow[]>([]);
@@ -66,17 +70,33 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   // ── Prefix一覧取得: selectedNsKey が変化するたびに再フェッチ
-  const fetchNamespaces = async (scopeKey?: string) => {
+  // scopeKeys（複数）を渡した場合は複数スコープの Prefix をまとめて取得する（company ノード選択時）
+  // withAncestors=true の場合は scopeKey とその祖先グループの Prefix も含めて取得する
+  const fetchNamespaces = async (
+    singleScopeKey?: string,
+    withAncestors?: boolean,
+    scopeKeys?: string[]
+  ) => {
     setLoading(true);
     try {
-      const options = scopeKey ? { scopeKeys: [scopeKey] } : undefined;
+      let options: Parameters<typeof getNamespaceList>[0];
+      if (scopeKeys && scopeKeys.length > 0) {
+        // 複数 scopeKey 指定（company ノード選択時など）
+        options = { scopeKeys, withAncestors };
+      } else if (singleScopeKey) {
+        // 単一 scopeKey 指定
+        options = { scopeKey: singleScopeKey, withAncestors };
+      } else {
+        // スコープ指定なし → 全件取得
+        options = undefined;
+      }
       const list = await getNamespaceList(options);
       setRows(
         list.map((ns) => ({
           id: ns.prefix,
           prefix: ns.prefix,
           uri: ns.uri,
-          description: '',
+          description: (ns as any).description ?? '',
           /** DB由来のスコープ名（organization_group_name または user_name） */
           scopePath: (ns as any).scopeName ?? '',
         }))
@@ -88,17 +108,60 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
     }
   };
 
+  // ── 現在の selectedNsKey / orgGroupCds に基づいて一覧を再フェッチ
+  // saveEdit / useEffect 両方から呼ぶことでフェッチロジックを一元化する
+  const reloadNamespaces = () => {
+    const key = selectedNsKey ?? undefined;
+    const STATIC_KEYS = new Set(['global', 'ns-maiml', 'ns-xsi', 'personal']);
+
+    if (!key || key === 'company') {
+      // company ノード or 選択なし → 配下の全グループ対象
+      if (orgGroupCds && orgGroupCds.length > 0) {
+        fetchNamespaces(undefined, undefined, orgGroupCds);
+      } else {
+        fetchNamespaces(undefined, undefined);
+      }
+    } else {
+      const isOrgGroup = !STATIC_KEYS.has(key);
+      if (isOrgGroup) {
+        // 組織グループノード選択時:
+        // 親から filteredOrgGroupCds（選択ノード＋子孫CD一覧）が渡されている場合は
+        // それを scopeKeys として複数スコープ一括取得する。
+        // orgGroupCds が空の場合は選択ノード単体＋祖先方向にフォールバックする。
+        if (orgGroupCds && orgGroupCds.length > 0) {
+          fetchNamespaces(undefined, undefined, orgGroupCds);
+        } else {
+          fetchNamespaces(key, true);
+        }
+      } else {
+        // global / personal / personal 子ノード（userId）
+        fetchNamespaces(key, undefined);
+      }
+    }
+  };
+
   useEffect(() => {
     // スコープ変更時に未保存のインライン入力行・編集中状態をクリアする
     setNewRows([]);
     setEditingId(null);
-    fetchNamespaces(selectedNsKey ?? undefined);
+    reloadNamespaces();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNsKey]);
+  }, [selectedNsKey, JSON.stringify(orgGroupCds)]);
 
-  // ── 新規行を追加
-  const handleAddRow = () => {
-    setNewRows((prev) => [...prev, makeEmptyRow()]);
+  // ── 新規行を追加（URI自動生成付き）
+  const handleAddRow = async () => {
+    const newRow = makeEmptyRow();
+    // まず空の行を追加してインラインを即表示
+    setNewRows((prev) => [...prev, newRow]);
+    // バックエンドからURI候補を取得してセット
+    try {
+      const uri = await fetchSuggestedUri(scopeKey ?? selectedNsKey ?? undefined);
+      setNewRows((prev) =>
+        prev.map((r) => (r._rowId === newRow._rowId ? { ...r, uri } : r))
+      );
+    } catch {
+      // 取得失敗時はURIを空のまま継続（保存時にバリデーションで検知）
+    }
   };
 
   // ── 新規行の値更新
@@ -116,7 +179,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   // ── 新規行を保存（実処理）
   const executeSave = async () => {
     const added: PrefixRow[] = [];
-    const failed: string[] = [];
+    const failed: { prefix: string; uri: string }[] = [];
 
     for (const row of newRows) {
       try {
@@ -133,7 +196,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           description: row.description,
         });
       } catch {
-        failed.push(row.prefix);
+        failed.push({ prefix: row.prefix, uri: row.uri });
       }
     }
 
@@ -142,9 +205,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       message.success(t('prefixManagement.saveSuccess', { count: String(added.length) }));
     }
     if (failed.length > 0) {
-      message.warning(
-        t('prefixManagement.savePartialFailure', { failCount: String(failed.length), names: `${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}` })
-      );
+      message.warning(t('prefixManagement.savePartialFailure', { failCount: String(failed.length) }));
     }
     setNewRows([]);
   };
@@ -214,16 +275,62 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       return;
     }
     try {
-      await updateNamespace(editingId, { uri: editingValues.uri });
+      await updateNamespace(editingId, { newPrefix: editingValues.prefix !== editingId ? editingValues.prefix : undefined, description: editingValues.description });
       setEditingId(null);
       message.success(t('prefixManagement.updateSuccess'));
-      await fetchNamespaces(selectedNsKey ?? undefined);
+      // reloadNamespaces を使うことで selectedNsKey / orgGroupCds の両方を
+      // 考慮した正しいスコープでデータを再取得する
+      reloadNamespaces();
     } catch {
       message.error(t('prefixManagement.updateError'));
     }
   };
 
   const cancelEdit = () => setEditingId(null);
+
+  // ── 非アクティブ化（is_active = false に設定）
+  const handleDeactivate = (record: PrefixRow) => {
+    Modal.confirm({
+      title: t('prefixManagement.deactivateConfirm', { prefix: record.prefix }),
+      content: t('prefixManagement.deactivateContent'),
+      okText: t('prefixManagement.deactivateOk'),
+      cancelText: t('prefixManagement.deactivateCancelBtn'),
+      icon: <StopOutlined style={{ color: '#faad14' }} />,
+      onOk: async () => {
+        try {
+          await toggleNamespaceActive(record.prefix, false);
+          setRows((prev) =>
+            prev.map((r) => (r.id === record.id ? { ...r, isActive: false } : r))
+          );
+          message.success(t('prefixManagement.deactivateSuccess', { prefix: record.prefix }));
+        } catch {
+          message.error(t('prefixManagement.deactivateError', { prefix: record.prefix }));
+        }
+      },
+    });
+  };
+
+  // ── アクティブ化（is_active = true に設定）
+  const handleActivate = (record: PrefixRow) => {
+    Modal.confirm({
+      title: t('prefixManagement.activateConfirm', { prefix: record.prefix }),
+      content: t('prefixManagement.activateContent'),
+      okText: t('prefixManagement.activateOk'),
+      cancelText: t('prefixManagement.activateCancelBtn'),
+      icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
+      onOk: async () => {
+        try {
+          await toggleNamespaceActive(record.prefix, true);
+          setRows((prev) =>
+            prev.map((r) => (r.id === record.id ? { ...r, isActive: true } : r))
+          );
+          message.success(t('prefixManagement.activateSuccess', { prefix: record.prefix }));
+        } catch {
+          message.error(t('prefixManagement.activateError', { prefix: record.prefix }));
+        }
+      },
+    });
+  };
 
   // ── 削除（DBから削除）
   const handleDelete = (record: PrefixRow) => {
@@ -299,7 +406,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }
 
         const added: PrefixRow[] = [];
-        const failed: string[] = [];
+        const failed: { prefix: string; uri: string }[] = [];
         for (const row of parsedRows) {
           try {
             const created = await createNamespace({
@@ -314,7 +421,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
               description: row.description,
             });
           } catch {
-            failed.push(row.prefix);
+            failed.push({ prefix: row.prefix, uri: row.uri });
           }
         }
 
@@ -322,9 +429,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           setRows((prev) => [...prev, ...added]);
         }
         if (failed.length > 0) {
-          message.warning(
-            t('prefixManagement.csvImportPartial', { saved: String(added.length), failCount: String(failed.length), names: `${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '...' : ''}` })
-          );
+          message.warning(t('prefixManagement.csvImportPartial', { saved: String(added.length), failCount: String(failed.length) }));
         } else {
           message.success(t('prefixManagement.csvImportSuccess', { count: String(added.length) }));
         }
@@ -379,32 +484,35 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       title: 'URI',
       dataIndex: 'uri',
       key: 'uri',
-      ellipsis: true,
+      width: 180,
       render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
         if ('_rowId' in record) {
+          // 新規行: URI は自動生成済み・編集不可（グレーアウト）
+          const nr = record as NewPrefixRow;
           return (
             <Input
               size="small"
               placeholder={t('prefixManagement.placeholderUri')}
-              value={(record as NewPrefixRow).uri}
-              onChange={(e) =>
-                updateNewRow((record as NewPrefixRow)._rowId, 'uri', e.target.value)
-              }
+              value={nr.uri}
+              disabled
+              style={{ flex: 1 }}
             />
           );
         }
         const r = record as PrefixRow;
         return r.id === editingId ? (
+          // 編集行: URI は自動生成のため編集不可（グレーアウト）
           <Input
             size="small"
             value={editingValues.uri}
-            onChange={(e) =>
-              setEditingValues((p) => ({ ...p, uri: e.target.value }))
-            }
+            disabled
+            style={{ flex: 1 }}
           />
         ) : (
           <Tooltip title={r.uri}>
-            <Text style={{ fontSize: 12, color: '#1677ff' }}>{r.uri}</Text>
+            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <Text style={{ fontSize: 12, color: '#1677ff' }}>{r.uri}</Text>
+            </div>
           </Tooltip>
         );
       },
@@ -413,7 +521,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       title: t('prefixManagement.colDescription'),
       dataIndex: 'description',
       key: 'description',
-      width: 200,
       ellipsis: true,
       render: (_: unknown, record: PrefixRow | NewPrefixRow) => {
         if ('_rowId' in record) {
@@ -446,7 +553,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       title: t('prefixManagement.colScope'),
       key: 'scopePath',
       dataIndex: 'scopePath',
-      width: 160,
+      width: 200,
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         const sA = (a as PrefixRow & { scopePath?: string }).scopePath ?? '';
@@ -514,6 +621,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
             </Tooltip>
           );
         }
+        const isActive = r.isActive !== false; // undefined は active とみなす
         return (
           <span style={{ display: 'flex', gap: 4 }}>
             <Button
@@ -526,12 +634,12 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
             </Button>
             <Button
               size="small"
-              danger
-              icon={<DeleteOutlined />}
+              danger={!viewOnly && isActive}
               disabled={viewOnly}
-              onClick={() => handleDelete(r)}
+              style={{ minWidth: '90px' }}
+              onClick={() => isActive ? handleDeactivate(r) : handleActivate(r)}
             >
-              {t('prefixManagement.btnDelete')}
+              {isActive ? t('prefixManagement.btnDeactivate') : t('prefixManagement.btnActivate')}
             </Button>
           </span>
         );

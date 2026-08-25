@@ -42,17 +42,20 @@ export const validateCreateNamespace = [
 /**
  * PATCH /api/v1/namespaces/:prefix
  * params: prefix は必須
- * body: uri は必須・文字列
+ * body: newPrefix / description はどちらも任意
  */
 export const validateUpdateNamespace = [
   param('prefix')
     .notEmpty()
     .withMessage('prefix is required'),
-  body('uri')
-    .notEmpty()
-    .withMessage('uri is required')
+  body('newPrefix')
+    .optional()
     .isString()
-    .withMessage('uri must be a string'),
+    .withMessage('newPrefix must be a string'),
+  body('description')
+    .optional()
+    .isString()
+    .withMessage('description must be a string'),
 ];
 
 /**
@@ -174,3 +177,21 @@ export const validateGetDeclarationsByProject = [
  * バリデーションルールは空配列（ファイルは express-validator では検証不可）
  */
 export const validateImportGlobalDeclarations: never[] = [];
+
+// ─── Prefix アクティブ切替 ────────────────────────────────────────────────────
+
+/**
+ * PATCH /api/v1/namespaces/:prefix/active
+ * params: prefix は必須
+ * body: isActive は必須・boolean
+ */
+export const validateToggleNamespaceActive = [
+  param('prefix')
+    .notEmpty()
+    .withMessage('prefix is required'),
+  body('isActive')
+    .notEmpty()
+    .withMessage('isActive is required')
+    .isBoolean()
+    .withMessage('isActive must be a boolean'),
+];

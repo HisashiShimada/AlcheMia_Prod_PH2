@@ -18,6 +18,7 @@ import {
   parseGlobalDeclarationsCsv,
 } from './globalNamespaceFileService';
 import type { GlobalDeclarationEntry } from '../types/service';
+import { generateNamespaceUri, resolveUriConflict } from '../utils/namespaceUriGenerator';
 import { SYSTEM_NAMESPACE_PREFIX } from '../constants/systemNamespace';
 import { HTTP_STATUS } from '../constants/httpStatus';
 import { getMessage } from '../utils/messages';
@@ -45,8 +46,12 @@ export interface CreateNamespaceResult {
 /** updateNamespace の入力型 */
 export interface UpdateNamespaceInput {
   organizationId: string;
+  /** 変更前の prefix（URL パラメータから取得） */
   prefix: string;
-  uri: string;
+  /** 変更後の prefix（省略時は現在の prefix を維持） */
+  newPrefix?: string;
+  /** 説明文（省略時は null に更新） */
+  description?: string;
 }
 
 /** updateNamespace の戻り値型 */
@@ -116,21 +121,48 @@ export interface ProjectScopeDeclaration {
 /**
  * 名前空間（Prefix）を新規登録する
  *
+ * @remarks
+ * namespace テーブルへの INSERT は行わない。
+ * namespace レコードはユーザー作成・チーム作成時に自動登録済みのため、
+ * scopeKey で既存の namespace_id を取得して prefix テーブルのみ INSERT する。
+ * scopeKey に対応する namespace が存在しない場合は 404 エラーを返す。
+ *
  * @param input - 登録する名前空間データ
+ * @param lang - 言語コード（'ja' | 'en'、デフォルト: 'ja'）
  * @returns 登録された namespaceId / prefix / uri
+ * @throws 404 エラー（scopeKey に対応する namespace が存在しない場合）
  */
 export async function createNamespace(
-  input: CreateNamespaceInput
+  input: CreateNamespaceInput,
+  lang: string = 'ja'
 ): Promise<CreateNamespaceResult> {
   // scopeKey はコントローラーで JWT の organizationGroupCds[0] から取得済み
-  const namespaceId = await namespaceTermRepository.createNamespace({
+  const scopeKey = input.scopeKey ?? input.userId;
+
+  // scopeKey に紐づく既存の namespace_id を取得（namespace テーブルへの INSERT は行わない）
+  const namespaceId = await namespaceTermRepository.findNamespaceIdByScopeKey(
+    input.organizationId,
+    scopeKey
+  );
+
+  if (!namespaceId) {
+    const err: Error & { statusCode?: number; code?: string } = new Error(
+      getMessage(lang, 'namespace.notFound')
+    );
+    err.statusCode = HTTP_STATUS.NOT_FOUND;
+    err.code = 'E6001';
+    throw err;
+  }
+
+  // prefix テーブルのみ INSERT（namespace テーブルへの INSERT は行わない）
+  const prefixData = {
     organizationId: input.organizationId,
+    namespaceId,
     prefix: input.prefix,
-    uri: input.uri,
-    userId: input.userId,
-    scopeKey: input.scopeKey,
     description: input.description,
-  });
+    userId: input.userId,
+  };
+  await namespaceTermRepository.createPrefixOnly(prefixData);
 
   return { namespaceId, prefix: input.prefix, uri: input.uri };
 }
@@ -188,7 +220,75 @@ export async function getTermsByScopeKey(
 }
 
 /**
- * 名前空間（Prefix の URI）を更新する
+ * scopeKey（organization_group_cd）とその祖先グループに紐づく用語一覧を取得する
+ *
+ * 階層ツリーでグループノードを選択した際に、そのグループ＋上位グループの
+ * 用語をまとめて表示するために使用する。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKey - 選択したグループの organization_group_cd
+ * @returns 用語一覧
+ */
+export async function getTermsByScopeKeyWithAncestors(
+  organizationId: string,
+  scopeKey: string
+): Promise<TermListItem[]> {
+  return namespaceTermRepository.findAllByScopeKeyWithAncestors(organizationId, scopeKey);
+}
+
+/**
+ * 複数の scopeKey に紐づく用語一覧を一括取得する
+ *
+ * company ノード選択時など、ツリーに表示されている全グループの
+ * 用語をまとめて表示するために使用する。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKeys - 選択したグループの organization_group_cd 配列
+ * @returns 用語一覧
+ */
+export async function getTermsByScopeKeys(
+  organizationId: string,
+  scopeKeys: string[]
+): Promise<TermListItem[]> {
+  return namespaceTermRepository.findAllByScopeKeys(organizationId, scopeKeys);
+}
+
+/**
+ * 複数の scopeKey に紐づく名前空間（Prefix）一覧を一括取得する
+ *
+ * company ノード選択時など、ツリーに表示されている全グループの
+ * Prefix をまとめて表示するために使用する。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKeys - 選択したグループの organization_group_cd 配列
+ * @returns prefix / uri / scopeKey / scopeName の配列
+ */
+export async function getNamespacesByScopeKeys(
+  organizationId: string,
+  scopeKeys: string[]
+): Promise<NamespaceScopeListItem[]> {
+  return namespaceTermRepository.findNamespacesByScopeKeys(organizationId, scopeKeys);
+}
+
+/**
+ * scopeKey（organization_group_cd）とその祖先グループに紐づく名前空間（Prefix）一覧を取得する
+ *
+ * 階層ツリーでグループノードを選択した際に、そのグループ＋上位グループの
+ * Prefix をまとめて表示するために使用する。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKey - 選択したグループの organization_group_cd
+ * @returns prefix / uri / scopeKey / scopeName の配列
+ */
+export async function getNamespacesByScopeKeyWithAncestors(
+  organizationId: string,
+  scopeKey: string
+): Promise<NamespaceScopeListItem[]> {
+  return namespaceTermRepository.findNamespacesByScopeKeyWithAncestors(organizationId, scopeKey);
+}
+
+/**
+ * 名前空間（prefix / description）を更新する
  *
  * @param input - 更新データ
  * @returns 更新後のレコード、または null（対象なし）
@@ -199,7 +299,8 @@ export async function updateNamespace(
   return namespaceTermRepository.updateNamespace({
     organizationId: input.organizationId,
     prefix: input.prefix,
-    uri: input.uri,
+    newPrefix: input.newPrefix,
+    description: input.description,
   });
 }
 
@@ -488,6 +589,84 @@ export async function exportGlobalDeclarationsCsv(): Promise<string> {
  * @param projectId - プロジェクトID
  * @returns prefix / uri の配列、または null（プロジェクトが見つからない場合）
  */
+/**
+ * URI自動生成候補を返す
+ *
+ * URI生成ルール:
+ *   組織ベース  : https://{organization_cd}.Alchemia.co.jp/{groupCd1}/{groupCd2}/...
+ *   個人ベース  : https://{organization_cd}.Alchemia.co.jp/{loginName}
+ *   重複時      : {uri}1, {uri}2, ... と連番付与
+ *
+ * @param organizationId - 組織ID
+ * @param userId - ログインユーザーID（メールアドレスの @ 前部分をパスに使用）
+ * @param scopeKey - 選択中ノードの scopeKey（organization_group_cd または userId）
+ * @returns 生成した URI（重複解消済み）
+ */
+export async function getSuggestedUri(
+  organizationId: string,
+  userId: string,
+  scopeKey?: string
+): Promise<string> {
+  // 1. 組織CD取得
+  const organizationCd = await namespaceTermRepository.findOrganizationCd(organizationId);
+  if (!organizationCd) {
+    throw new Error(`Organization not found: ${organizationId}`);
+  }
+
+  // 2. ベースURIの構築
+  let candidateUri: string;
+
+  if (scopeKey && scopeKey !== userId) {
+    // チーム/グループスコープ: 先祖グループCDのパスを生成
+    // ancestors[0] をドメイン部、ancestors.slice(1) をパス部に使用
+    const ancestors = await namespaceTermRepository.findOrgGroupAncestors(organizationId, scopeKey);
+    const domainPart = ancestors[0] ?? organizationCd;
+    const pathParts = ancestors.slice(1);
+    candidateUri = pathParts.length > 0
+      ? `https://${domainPart}.Alchemia.co.jp/${pathParts.join('/')}`
+      : `https://${domainPart}.Alchemia.co.jp`;
+  } else {
+    // 個人スコープ: ユーザーの所属グループCDをドメイン部に使用
+    // 未所属の場合は organization_cd にフォールバック
+    const mailAddress = await namespaceTermRepository.findUserMailAddress(organizationId, userId);
+    const loginName = mailAddress ? mailAddress.split('@')[0] : userId;
+    const userGroupCd = await namespaceTermRepository.findUserOrgGroupCd(organizationId, userId);
+    const personalDomain = userGroupCd ?? organizationCd;
+    candidateUri = `https://${personalDomain}.Alchemia.co.jp/${loginName}`;
+  }
+
+  // 3. 既存URI一覧を取得して重複解消
+  const existingUris = await namespaceTermRepository.findUrisByOrganization(organizationId);
+  const resolvedUri = resolveUriConflict(candidateUri, existingUris);
+
+  return resolvedUri;
+}
+
+/**
+ * Prefix の is_active を切り替える
+ *
+ * @param organizationId - 組織ID
+ * @param prefix - 対象の prefix 文字列
+ * @param isActive - 設定するアクティブ状態
+ * @returns void
+ * @throws E6001 対象 prefix が存在しない場合
+ */
+export async function toggleNamespaceActive(
+  organizationId: string,
+  prefix: string,
+  isActive: boolean
+): Promise<void> {
+  const updated = await namespaceTermRepository.toggleActivePrefix(organizationId, prefix, isActive);
+  if (updated === 0) {
+    const err: Error & { statusCode?: number; code?: string } = new Error(
+      `Prefix "${prefix}" not found`
+    );
+    err.statusCode = 404;
+    err.code = 'E6001';
+    throw err;
+  }
+}
+
 export async function getDeclarationsByProject(
   organizationId: string,
   projectId: string

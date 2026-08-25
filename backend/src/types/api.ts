@@ -943,7 +943,10 @@ export interface CreateNamespaceBody {
  * @remarks namespaceController.updateNamespace で使用
  */
 export interface UpdateNamespaceBody {
-  uri: string;
+  /** 変更後の prefix（省略時は現在の prefix を維持） */
+  newPrefix?: string;
+  /** 説明文（省略時は null に更新） */
+  description?: string;
 }
 
 /**

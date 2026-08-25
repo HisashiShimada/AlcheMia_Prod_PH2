@@ -59,6 +59,53 @@ export interface NamespaceTermRow {
   type: string;
   unitHint: string;
   isActive: boolean;
+  /** ツリーバッジ計算用: namespace.scope_key の値（グローバル用語は null） */
+  scopeKey?: string | null;
+}
+
+// ─── URI自動生成用 ──────────────────────────────────────────────────────────
+
+/**
+ * 組織CDを取得（URI自動生成用）
+ */
+export async function findOrganizationCd(
+  organizationId: string
+): Promise<string | null> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('organizations/findById.sql');
+  const row = await pgp.oneOrNone<{ organization_cd: string }>(query, [organizationId]);
+  return row?.organization_cd ?? null;
+}
+
+/**
+ * 組織階層グループの先祖パスを取得（URI生成用）
+ * @returns ルートから指定グループCDまでの順序付きCD配列
+ */
+export async function findOrgGroupAncestors(
+  organizationId: string,
+  groupCd: string
+): Promise<string[]> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findOrgGroupAncestors.sql');
+  const rows = await pgp.any<{ organization_group_cd: string }>(query, [organizationId, groupCd]);
+  return rows.map((r) => r.organization_group_cd);
+}
+
+/**
+ * ユーザーのメールアドレスを取得（URI個人パス生成用）
+ */
+export async function findUserMailAddress(
+  organizationId: string,
+  userId: string
+): Promise<string | null> {
+  const pgp = getPgp();
+  const query = `
+    SELECT mail_address
+    FROM organization_user
+    WHERE organization_id = $1 AND user_id = $2
+  `;
+  const row = await pgp.oneOrNone<{ mail_address: string }>(query, [organizationId, userId]);
+  return row?.mail_address ?? null;
 }
 
 /**
@@ -89,6 +136,47 @@ export async function findAllByScopeKey(
 ): Promise<NamespaceTermRow[]> {
   const pgp = getPgp();
   const query = await loadSqlFile('namespace_terms/findAllByScopeKey.sql');
+  return pgp.any<NamespaceTermRow>(query, [organizationId, scopeKey]);
+}
+
+/**
+ * 複数の scopeKey（organization_group_cd または user_id）に紐づく用語を一括取得
+ *
+ * company ノード選択時など、ツリーに表示されている全グループの
+ * 用語をまとめて返す。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKeys - 選択したグループの organization_group_cd 配列
+ * @returns 用語一覧（フロントエンド用に整形済み）
+ */
+export async function findAllByScopeKeys(
+  organizationId: string,
+  scopeKeys: string[]
+): Promise<NamespaceTermRow[]> {
+  if (scopeKeys.length === 0) return [];
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findAllByScopeKeys.sql');
+  return pgp.any<NamespaceTermRow>(query, [organizationId, scopeKeys]);
+}
+
+/**
+ * scopeKey（organization_group_cd）とその祖先グループに紐づく用語を取得
+ *
+ * WITH RECURSIVE で先祖グループCDを全列挙し、それらの scope_key を持つ
+ * namespace に登録された用語を返す。
+ * 階層ツリーでグループノードを選択した際に、そのグループ＋上位グループの
+ * 用語をまとめて表示するために使用する。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKey - 選択したグループの organization_group_cd
+ * @returns 用語一覧（フロントエンド用に整形済み）
+ */
+export async function findAllByScopeKeyWithAncestors(
+  organizationId: string,
+  scopeKey: string
+): Promise<NamespaceTermRow[]> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findAllByScopeKeyWithAncestors.sql');
   return pgp.any<NamespaceTermRow>(query, [organizationId, scopeKey]);
 }
 
@@ -275,31 +363,60 @@ export async function remove(
 }
 
 /**
- * namespace テーブルの URI を更新する
+ * prefix テーブルの prefix と description を更新する
  *
- * @param data - 更新データ（uri, organizationId, prefix）
+ * prefix が変更される場合は、FK 制約のため以下の順序でトランザクション内で実行する:
+ *   1. namespace_term.prefix を新しい prefix に UPDATE（updateTermPrefix.sql）
+ *   2. prefix.prefix / prefix.description を UPDATE（updatePrefix.sql）
+ *
+ * description のみ変更する場合（newPrefix が undefined または現在の prefix と同一）は
+ * namespace_term の UPDATE はスキップしてもよいが、一貫性のため常にトランザクションを使用する。
+ *
+ * @param data - 更新データ
+ * @param data.organizationId - 組織ID
+ * @param data.prefix - 現在の prefix（変更前）
+ * @param data.newPrefix - 変更後の prefix（省略時は現在の prefix を維持）
+ * @param data.description - 変更後の description（省略時は null に更新）
  * @returns 更新後のレコード（見つからない場合は null）
  */
 export async function updateNamespace(data: {
   organizationId: string;
   prefix: string;
-  uri: string;
+  newPrefix?: string;
+  description?: string;
 }): Promise<{ namespaceId: string; prefix: string; uri: string; scopeKey: string | null } | null> {
   const pgp = getPgp();
-  const query = await loadSqlFile('namespace_terms/updateNamespace.sql');
-  const row = await pgp.oneOrNone<{
-    namespace_id: string;
-    prefix: string;
-    uri: string;
-    scope_key: string | null;
-  }>(query, [data.uri, data.organizationId, data.prefix]);
-  if (!row) return null;
-  return {
-    namespaceId: row.namespace_id,
-    prefix: row.prefix,
-    uri: row.uri,
-    scopeKey: row.scope_key,
-  };
+
+  const targetPrefix = data.newPrefix ?? data.prefix;
+  const description = data.description ?? null;
+
+  // SQL ファイルを事前に読み込む（task 内で loadSqlFile を呼ぶと非同期の問題が起きる可能性があるため外で取得）
+  const updateTermPrefixQuery = await loadSqlFile('namespace_terms/updateTermPrefix.sql');
+  const updatePrefixQuery = await loadSqlFile('namespace_terms/updatePrefix.sql');
+
+  return (pgp.task(async (t) => {
+    // 1. prefix が変更される場合、先に namespace_term.prefix を UPDATE（FK 制約のため）
+    if (targetPrefix !== data.prefix) {
+      await t.none(updateTermPrefixQuery, [targetPrefix, data.organizationId, data.prefix]);
+    }
+
+    // 2. prefix テーブルの prefix と description を UPDATE
+    const row = await t.oneOrNone<{
+      namespace_id: string;
+      prefix: string;
+      uri: string;
+      scope_key: string | null;
+    }>(updatePrefixQuery, [targetPrefix, description, data.organizationId, data.prefix]);
+
+    if (!row) return null;
+
+    return {
+      namespaceId: row.namespace_id,
+      prefix: row.prefix,
+      uri: row.uri,
+      scopeKey: row.scope_key,
+    };
+  }) as Promise<{ namespaceId: string; prefix: string; uri: string; scopeKey: string | null } | null>);
 }
 
 /**
@@ -410,52 +527,53 @@ export async function findUserOrgGroupCd(
 }
 
 /**
- * namespace テーブルに1件 INSERT し、prefix テーブルにも INSERT する（名前空間の新規登録）
+ * scope_key に紐づく namespace_id を取得する（Prefix 追加時の namespace 紐づけ用）
  *
  * @remarks
- * テーブル構成に従い、以下の2テーブルに登録する:
- *   1. namespace テーブル: uri / scope_key / global_flg を保持
- *   2. prefix テーブル: prefix文字列を保持（FK → namespace）
+ * Prefix 新規追加時に namespace テーブルの既存レコードを参照するために使用する。
+ * namespace レコードはユーザー作成・チーム作成時に自動登録済みのため、
+ * Prefix 追加時はこの関数で namespace_id を取得して prefix テーブルのみ INSERT する。
  *
- * @param data - 登録する名前空間データ
- * @returns 登録された namespace_id
+ * @param organizationId - 組織ID
+ * @param scopeKey - namespace.scope_key（userId または organization_group_cd）
+ * @returns namespace_id（存在しない場合は null）
  */
-export async function createNamespace(data: {
-  organizationId: string;
-  prefix: string;
-  uri: string;
-  userId: string;
-  scopeKey?: string;
-  description?: string;
-}): Promise<string> {
+export async function findNamespaceIdByScopeKey(
+  organizationId: string,
+  scopeKey: string
+): Promise<string | null> {
   const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findNamespaceIdByScopeKey.sql');
+  const row = await pgp.oneOrNone<{ namespace_id: string }>(query, [organizationId, scopeKey]);
+  return row?.namespace_id ?? null;
+}
 
-  // namespace_id を採番: 組織内の最大連番+1 (NS0001 形式)
-  const seqQuery = await loadSqlFile('namespace_terms/findNextNamespaceSeq.sql');
-  const seqRow = await pgp.one<{ next_seq: number }>(seqQuery, [data.organizationId]);
-  const namespaceId = `NS${String(seqRow.next_seq).padStart(4, '0')}`;
-
-  // 1. namespace テーブルに INSERT
-  const insertNamespaceQuery = await loadSqlFile('namespace_terms/createNamespace.sql');
-  await pgp.none(insertNamespaceQuery, [
+/**
+ * prefix テーブルのみに1件 INSERT する（Prefix 新規追加用）
+ *
+ * @remarks
+ * namespace テーブルへの INSERT は行わない。
+ * namespace レコードはユーザー作成・チーム作成時に自動登録済みであり、
+ * Prefix 追加時はこの関数を使用して既存 namespace への紐づけのみ行う。
+ *
+ * @param data - 登録する Prefix データ
+ */
+export async function createPrefixOnly(data: {
+  organizationId: string;
+  namespaceId: string;
+  prefix: string;
+  description?: string;
+  userId: string;
+}): Promise<void> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/createPrefix.sql');
+  await pgp.none(query, [
     data.organizationId,
-    namespaceId,
-    data.uri,
-    data.scopeKey ?? null,
-    data.userId,
-  ]);
-
-  // 2. prefix テーブルに INSERT
-  const insertPrefixQuery = await loadSqlFile('namespace_terms/createPrefix.sql');
-  await pgp.none(insertPrefixQuery, [
-    data.organizationId,
-    namespaceId,
+    data.namespaceId,
     data.prefix,
     data.description ?? null,
     data.userId,
   ]);
-
-  return namespaceId;
 }
 
 /**
@@ -541,6 +659,53 @@ export async function findNamespacesByScopeKey(
 }
 
 /**
+ * 複数の scopeKey（organization_group_cd または user_id）に紐づく名前空間（Prefix）を一括取得
+ *
+ * company ノード選択時など、ツリーに表示されている全グループの
+ * Prefix をまとめて返す。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKeys - organization_group_cd 配列
+ * @returns prefix / uri / scopeKey / scopeName の配列
+ */
+export async function findNamespacesByScopeKeys(
+  organizationId: string,
+  scopeKeys: string[]
+): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>> {
+  if (scopeKeys.length === 0) return [];
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findNamespacesByScopeKeys.sql');
+  return pgp.any<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>(
+    query,
+    [organizationId, scopeKeys]
+  );
+}
+
+/**
+ * scopeKey（organization_group_cd）とその祖先グループに紐づく名前空間（Prefix）一覧を取得
+ *
+ * WITH RECURSIVE で先祖グループCDを全列挙し、それらの scope_key を持つ
+ * namespace レコードを返す。
+ * 階層ツリーでグループノードを選択した際に、そのグループ＋上位グループの
+ * Prefix をまとめて表示するために使用する。
+ *
+ * @param organizationId - 組織ID
+ * @param scopeKey - 選択したグループの organization_group_cd
+ * @returns prefix / uri / scopeKey / scopeName の配列
+ */
+export async function findNamespacesByScopeKeyWithAncestors(
+  organizationId: string,
+  scopeKey: string
+): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/findNamespacesByScopeKeyWithAncestors.sql');
+  return pgp.any<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>(
+    query,
+    [organizationId, scopeKey]
+  );
+}
+
+/**
  * project テーブルから organization_group_cd を取得する
  *
  * @param organizationId - 組織ID
@@ -565,6 +730,25 @@ export async function findAll(): Promise<NamespaceTermRow[]> {
   const pgp = getPgp();
   const query = await loadSqlFile('namespace_terms/findAll.sql');
   return pgp.any<NamespaceTermRow>(query);
+}
+
+/**
+ * Prefix の is_active を切り替える
+ *
+ * @param organizationId - 組織ID
+ * @param prefix - 対象の prefix 文字列
+ * @param isActive - 設定するアクティブ状態
+ * @returns 更新件数（0 = 対象なし）
+ */
+export async function toggleActivePrefix(
+  organizationId: string,
+  prefix: string,
+  isActive: boolean
+): Promise<number> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/toggleActivePrefix.sql');
+  const result = await pgp.result(query, [organizationId, prefix, isActive]);
+  return result.rowCount;
 }
 
 /**

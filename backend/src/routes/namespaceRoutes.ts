@@ -29,6 +29,7 @@ import {
   validateGetDeclarations,
   validateGetDeclarationsByProject,
   validateImportGlobalDeclarations,
+  validateToggleNamespaceActive,
 } from '../middleware/namespaceValidation';
 import * as namespaceController from '../controllers/namespaceController';
 import multer from 'multer';
@@ -50,6 +51,16 @@ const csvUpload = multer({
 
 // 全エンドポイントに認証・テナント分離ミドルウェアを適用
 router.use(authMiddleware, tenantIsolation);
+
+/**
+ * URI自動生成候補取得
+ * GET /api/v1/namespaces/suggested-uri
+ */
+router.get(
+  '/suggested-uri',
+  handleValidationErrors,
+  namespaceController.getSuggestedUri
+);
 
 /**
  * 名前空間（Prefix）一覧取得
@@ -86,6 +97,19 @@ router.patch(
   validateUpdateNamespace,
   handleValidationErrors,
   namespaceController.updateNamespace
+);
+
+/**
+ * Prefix の非アクティブ化（or アクティブ化）
+ * PATCH /api/v1/namespaces/:prefix/active
+ *
+ * @body { isActive: boolean }
+ */
+router.patch(
+  '/:prefix/active',
+  validateToggleNamespaceActive,
+  handleValidationErrors,
+  namespaceController.toggleNamespaceActive
 );
 
 /**
