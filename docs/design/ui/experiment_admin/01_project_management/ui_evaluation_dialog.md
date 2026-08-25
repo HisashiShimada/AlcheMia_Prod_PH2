@@ -10,9 +10,9 @@
 - **ファイルパス**: `frontend/src/components/project/EvaluationDialog.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-08-14
-- **最終更新日**: 2026-08-14
+- **最終更新日**: 2026-08-25
 - **担当者**: Development Team
-- **バージョン**: 1.0.0
+- **バージョン**: 1.1.0
 
 ---
 
@@ -34,9 +34,11 @@
 ### 1.3. 主要機能
 
 1. 評価結果一覧の表示（評価単位別にグループ化）
-2. 評価単位・不確かさ基準・メソッド・タスクNoによるフィルタリング
+2. 評価単位・メソッド・タスクNoによるフィルタリング ※2026-08-25 変更：「不確かさ基準」フィルタを削除
 3. 「評価を入力」ボタンから `InputModal` を開いて評価を登録
 4. 登録後に評価一覧を自動リフレッシュ
+
+> ⚠️ **[2026-08-25 更新]**: 不確かさ基準セレクトを廃止。評価値選択肢は固定値「良好」「要確認」「不要」を直接使用する仕様に変更。`criteriaList` Props も廃止。
 
 ---
 
@@ -62,10 +64,11 @@ EvaluationDialog (Modal, width: 900px)
 │  評価単位: ○全て ○メソッド ○タスク          │
 │            ○トランジション(メソッド別)                 │
 │            ○トランジション(タスク別)                  │
-│  不確かさ基準 [絞り込み ▼]                             │
 │  ┌───────────────────────────────────────────────┐   │
 │  │ ▼ メソッド単位（N件）                          │   │
-│  │   [対象][基準名][評価値][コメント][評価日時]   │   │
+│  │   [対象][評価値][コメント][評価日時]           │   │
+
+> ⚠️ **[2026-08-25 更新]**: 「不確かさ基準 [絞り込み ▼]」フィルタを削除。
 │  ├───────────────────────────────────────────────┤   │
 │  │ ▼ タスク単位（N件）                            │   │
 │  │   ...                                         │   │
@@ -85,7 +88,6 @@ export interface EvaluationDialogProps {
   projectId: string;
   allMethods: Array<{ id: string; name: string }>;
   reviewWaitingTasks: Array<{ methodId: string; methodName: string; taskNumber: number }>;
-  criteriaList: UncertaintyCriteriaForSelector[];
   onCancel: () => void;
 }
 ```
@@ -96,8 +98,9 @@ export interface EvaluationDialogProps {
 | `projectId` | `string` | ✅ | プロジェクトID |
 | `allMethods` | `Array<{id, name}>` | ✅ | 全メソッド一覧 |
 | `reviewWaitingTasks` | `Array<...>` | ✅ | レビュー待ちタスク一覧 |
-| `criteriaList` | `UncertaintyCriteriaForSelector[]` | ✅ | 不確かさ基準リスト |
 | `onCancel` | `() => void` | ✅ | 閉じるコールバック |
+
+> ⚠️ **[2026-08-25 更新]**: `criteriaList: UncertaintyCriteriaForSelector[]` Props を廃止。
 
 ---
 
@@ -119,9 +122,10 @@ export interface EvaluationDialogProps {
 | フィルタ | コンポーネント | 説明 |
 |---------|--------------|------|
 | 評価単位 | `Radio.Group`（全て含む5種類）| 表示する評価単位を絞り込む |
-| 不確かさ基準 | `Select`（`allowClear`、幅240px）| 使用された基準キー一覧から選択 |
 | メソッド選択 | `Select`（transition系の時のみ表示）| トランジション系絞り込み用 |
 | タスクNo | `Select`（`transition_task` 時のみ）| メソッド選択と連動 |
+
+> ⚠️ **[2026-08-25 更新]**: 「不確かさ基準」フィルタ（`Select`）を削除。
 
 ### 5.2. 評価結果テーブル
 
@@ -130,10 +134,11 @@ export interface EvaluationDialogProps {
 | カラム | 幅 | 説明 |
 |--------|-----|------|
 | 対象 | 200px | メソッドID / タスクNo / トランジション名 |
-| 基準名 | 180px | 不確かさ基準ラベル（criteriaListから解決）|
-| 評価値 | 120px | 色付き `Tag` で表示（displayColorを使用）|
+| 評価値 | 120px | 色付き `Tag` で表示（固定カラーマップを使用）※2026-08-25 変更：旧「`displayColor`を使用」から変更 |
 | コメント | — | フリーテキスト |
 | 評価日時 | 140px | `YYYY/MM/DD HH:mm` 形式 |
+
+> ⚠️ **[2026-08-25 更新]**: 「基準名」カラムを削除。評価値の色は固定カラーマップ（`良好→success`、`要確認→warning`、`不要→default`）を使用。
 
 ---
 
@@ -164,8 +169,17 @@ export interface EvaluationDialogProps {
 
 ### 6.2. 評価値セレクト
 
-不確かさ基準の `intuitionOptions` から選択肢を生成。
-各オプションには `displayColor` の円形インジケーター付き。
+固定選択肢「良好」「要確認」「不要」から選択する。各オプションには固定カラーインジケーター付き。
+
+> ⚠️ **[2026-08-25 更新]**: 旧「不確かさ基準の `intuitionOptions` から選択肢を生成」から変更。
+
+```typescript
+const EVAL_VALUE_OPTIONS = [
+  { label: '良好', value: '良好' },
+  { label: '要確認', value: '要確認' },
+  { label: '不要', value: '不要' },
+];
+```
 
 ### 6.3. 保存処理
 
@@ -201,5 +215,13 @@ export interface EvaluationDialogProps {
 ## 9. 備考・注意事項
 
 1. **モックデータ**: トランジション名一覧は現在モック（`MOCK_TRANSITION_NAMES`）。MAIML パース統合後はAPIへ置換予定。
-2. **定性評価のみ**: `criteriaList.filter(c => c.evaluationMethod === 2)` で定性基準（`evaluationMethod=2`）のみを選択肢に表示。
-3. **リフレッシュ制御**: `refreshKey` ステートで `ResultPanel` の再取得をトリガーする。
+2. **定性評価のみ**: 旧仕様では `criteriaList.filter(c => c.evaluationMethod === 2)` で基準を絞り込んでいたが、`criteriaList` Props 廃止に伴い削除。※2026-08-25 変更
+
+---
+
+## 10. 変更履歴
+
+| 日付 | バージョン | 変更内容 | 担当者 |
+|------|-----------|----------|--------|
+| 2026-08-25 | 1.1.0 | §1.3: 「不確かさ基準」フィルタ削除。§3 Props: `criteriaList` を廃止。§2.2/§5.1: 「不確かさ基準 [絞り込み ▼]」フィルタをレイアウト・フィルタ構成から削除。§5.2 テーブル: 「基準名」カラム削除・評価値色を固定カラーマップに変更。§6.2: 評価値選択肢を動的生成→固定値「良好/要確認/不要」に変更。§9.2: `criteriaList.filter` の記述を削除。 | Cline |
+| 2026-08-14 | 1.0.0 | 初版作成 | Development Team |
