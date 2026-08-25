@@ -4046,7 +4046,7 @@
     "unitSelectPlaceholder": "Select unit...",
     "ctxMenuAddGroup": "Add Group",
     "ctxMenuEdit": "Edit",
-    "shareBtnLabel": "Share ({count})",
+    "shareBtnLabel": "Share Organization",
     "bulkDeactivateBtnLabel": "Deactivate selected ({count})",
     "searchPlaceholder": "Search terms...",
     "btnImport": "Import",
