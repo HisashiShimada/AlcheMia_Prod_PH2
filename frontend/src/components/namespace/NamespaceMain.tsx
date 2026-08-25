@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography } from 'antd';
+import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography, Checkbox } from 'antd';
 import {
   SearchOutlined,
   PlusOutlined,
@@ -20,9 +20,9 @@ import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
-import TeamManagementPanel from '../team/TeamManagementPanel';
-import TeamAddDialog from '../team/TeamAddDialog';
-import TeamEditDialog from '../team/TeamEditDialog';
+import GroupManagementPanel from '../group/GroupManagementPanel';
+import GroupAddDialog from '../group/GroupAddDialog';
+import GroupEditDialog from '../group/GroupEditDialog';
 import ShareScopeModal from './ShareScopeModal';
 import type {
   NamespaceNode,
@@ -571,6 +571,7 @@ const makeEmptyRow = (): NewTermRow => ({
   prefix: '',
   localName: '', displayName: '',
   description: '', type: '', unitHint: '',
+  createDirectiveTerm: true,
 });
 
 
@@ -648,19 +649,19 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addChildParentKey, setAddChildParentKey] = useState<string | null>(null);
 
-  // チーム追加ダイアログ
-  const [teamAddOpen,       setTeamAddOpen]       = useState(false);
-  const [teamAddParentLabel, setTeamAddParentLabel] = useState('');
+  // グループ追加ダイアログ
+  const [groupAddOpen,        setGroupAddOpen]        = useState(false);
+  const [groupAddParentLabel, setGroupAddParentLabel] = useState('');
 
   // 共有先選択モーダル
   const [shareScopeOpen, setShareScopeOpen] = useState(false);
 
-  // チーム編集ダイアログ（メンバー追加）
-  const [teamEditOpen,    setTeamEditOpen]    = useState(false);
-  const [teamEditLabel,   setTeamEditLabel]   = useState('');
-  const [teamEditGroupCd,  setTeamEditGroupCd]  = useState<string | undefined>(undefined);
+  // グループ編集ダイアログ（メンバー追加）
+  const [groupEditOpen,    setGroupEditOpen]    = useState(false);
+  const [groupEditLabel,   setGroupEditLabel]   = useState('');
+  const [groupEditGroupCd, setGroupEditGroupCd] = useState<string | undefined>(undefined);
 
-  const [teamEditMembers, setTeamEditMembers] = useState<string[]>([]);
+  const [groupEditMembers, setGroupEditMembers] = useState<string[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   // ──── コンテキストメニュー状態（方針B: Tree.onRightClick 方式）
@@ -828,6 +829,33 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       .finally(() => setTermsLoading(false));
   }, []);
 
+  // ──── 現在の effectiveNsKey に対応するオプションで用語を再フェッチする共通関数
+  // useEffect（ノード選択時）と handleAddSave（保存後再取得）の両方から呼ぶ
+  const fetchTermsForCurrentNsKey = useCallback((nsKey: string | null) => {
+    const GLOBAL_KEYS   = new Set(['global', 'ns-maiml', 'ns-xsi']);
+    const COMPANY_KEYS  = new Set(['company']);
+    const PERSONAL_ROOT = 'personal';
+    const personalKeySet = new Set(personalChildren.map((n) => n.key));
+
+    if (!nsKey || GLOBAL_KEYS.has(nsKey)) {
+      fetchTerms();
+    } else if (COMPANY_KEYS.has(nsKey)) {
+      const allGroupCds = orgGroups.map((g) => g.organization_group_cd);
+      if (allGroupCds.length > 0) {
+        fetchTerms({ scopeKeys: allGroupCds } as any);
+      } else {
+        fetchTerms();
+      }
+    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
+      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
+      fetchTerms(scopeKey ? { scopeKey } : undefined);
+    } else {
+      // org group cd（組織グループノード） → scopeKey＋祖先グループでフィルタ
+      fetchTerms({ scopeKey: nsKey, withAncestors: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchTerms, personalChildren, orgGroups, currentUserPersonalKey]);
+
   // 初回マウント時は externalSelectedNsKey なしでフェッチ
   useEffect(() => {
     fetchTerms();
@@ -847,47 +875,32 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     if (externalSelectedNsKey === undefined || externalSelectedNsKey === null) return;
 
-    // ノードキー種別に応じてフェッチオプションを決定
-    // - 'global' / 'ns-maiml' / 'ns-xsi' → 全件取得
-    // - 'company' → 配下全 org group CD を scopeKeys として渡す
-    // - 'personal' またはユーザーID（personalChildren のキー） → scopeKey=userId
-    // - その他（org group cd） → scopeKey=key, withAncestors=true
-    const nsKey         = externalSelectedNsKey as string;
-    const GLOBAL_KEYS   = new Set(['global', 'ns-maiml', 'ns-xsi']);
-    const COMPANY_KEYS  = new Set(['company']);
+    const nsKey = externalSelectedNsKey as string;
+    const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
+    const COMPANY_KEYS = new Set(['company']);
     const PERSONAL_ROOT = 'personal';
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
+    // 用語フェッチ（共通関数で nsKey に応じた scopeKey を自動判定）
+    fetchTermsForCurrentNsKey(nsKey);
+
+    // Prefix フェッチ（fetchPrefixes はノード種別ごとに引数が異なるためここで分岐）
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms(); // グローバルノード選択時は全件取得
-      fetchPrefixes(); // グローバルノード選択時は全 Prefix を取得
+      fetchPrefixes();
     } else if (COMPANY_KEYS.has(nsKey)) {
-      // company ノード選択時: 配下の全 org group CD を収集して scopeKeys で渡す
       const allGroupCds = orgGroups.map((g) => g.organization_group_cd);
       if (allGroupCds.length > 0) {
-        fetchTerms({ scopeKeys: allGroupCds } as any);
         fetchPrefixes(undefined, undefined, allGroupCds);
       } else {
-        fetchTerms(); // グループ未取得時は全件
         fetchPrefixes();
       }
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
-      // personal ルート → ログインユーザー自身の scopeKey
-      // personal 子ノード（userId） → そのユーザーの scopeKey
-      const scopeKey = nsKey === PERSONAL_ROOT
-        ? currentUserPersonalKey
-        : nsKey;
-      fetchTerms(scopeKey ? { scopeKey } : undefined);
-      // 個人名前空間ノード選択時: その userId に紐づく Prefix のみ取得
+      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
       fetchPrefixes(scopeKey || undefined);
     } else {
-      // org group cd（組織グループノード）
-      // withAncestors: true → 選択グループ自身 + 祖先グループの用語・Prefixも取得する
-      fetchTerms({ scopeKey: nsKey, withAncestors: true });
-      // 組織グループノード選択時: そのグループ＋祖先グループに紐づく Prefix を取得
       fetchPrefixes(nsKey, true);
     }
-  // fetchTerms / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
+  // fetchTermsForCurrentNsKey / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalSelectedNsKey]);
 
@@ -898,35 +911,33 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (externalSelectedNsKey !== undefined) return;
     if (!selectedNsKey) return;
 
-    const nsKey          = selectedNsKey;
-    const GLOBAL_KEYS    = new Set(['global', 'ns-maiml', 'ns-xsi']);
-    const COMPANY_KEYS   = new Set(['company']);
-    const PERSONAL_ROOT  = 'personal';
+    const nsKey = selectedNsKey;
+    const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
+    const COMPANY_KEYS = new Set(['company']);
+    const PERSONAL_ROOT = 'personal';
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
+    // 用語フェッチ（共通関数で nsKey に応じた scopeKey を自動判定）
+    fetchTermsForCurrentNsKey(nsKey);
+
+    // Prefix フェッチ
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms(); // グローバルノード選択時は全件取得
       fetchPrefixes();
     } else if (COMPANY_KEYS.has(nsKey)) {
-      // company ノード選択時: 配下の全 org group CD を収集して scopeKeys で渡す
       const allGroupCds = orgGroups.map((g) => g.organization_group_cd);
       if (allGroupCds.length > 0) {
-        fetchTerms({ scopeKeys: allGroupCds } as any);
         fetchPrefixes(undefined, undefined, allGroupCds);
       } else {
-        fetchTerms();
         fetchPrefixes();
       }
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
       const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
-      fetchTerms(scopeKey ? { scopeKey } : undefined);
       fetchPrefixes(scopeKey || undefined);
     } else {
       // org group cd（組織グループノード） → scopeKey＋祖先グループでフィルタ
-      fetchTerms({ scopeKey: nsKey, withAncestors: true });
       fetchPrefixes(nsKey, true);
     }
-  // fetchTerms / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
+  // fetchTermsForCurrentNsKey / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNsKey]);
 
@@ -951,14 +962,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   };
 
   // ──── 入力行の値更新（dept-rd 選択時は prefix:localName の重複チェックを実施）
-  const updateNewTerm = (rowId: string, field: keyof Omit<NewTermRow, '_rowId'>, value: string) => {
+  const updateNewTerm = (rowId: string, field: keyof Omit<NewTermRow, '_rowId'>, value: string | boolean) => {
     const isDeptRd = effectiveNsKey === 'dept-rd';
     setNewTerms((prev) => prev.map((r) => {
       if (r._rowId !== rowId) return r;
       const updated = { ...r, [field]: value };
       if (isDeptRd) {
-        const p = field === 'prefix'    ? value : updated.prefix;
-        const l = field === 'localName' ? value : updated.localName;
+        const p = field === 'prefix'    ? (value as string) : updated.prefix;
+        const l = field === 'localName' ? (value as string) : updated.localName;
         updated._isDuplicate = !!(p && l && terms.some((t) => t.prefix === p && t.localName === l));
       } else {
         updated._isDuplicate = false;
@@ -1009,6 +1020,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           description:   row.description,
           typeHint:      row.type || 'stringType',
           unitHint:      row.unitHint,
+          createDirectiveTerm: row.createDirectiveTerm,
+          scopeKey: effectiveNsKey ?? undefined,
         });
         added.push(saved as Term);
       } catch (err: unknown) {
@@ -1035,8 +1048,16 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     }
 
     if (added.length > 0) {
-      setTerms((prev) => [...added, ...prev]);
-      message.success(t('namespaceMain.saveTermSuccess', { count: String(added.length) }));
+      // 指示用語同時登録があった行のカウント（メッセージ出し分け用）
+      const directiveCount = newTerms.filter((r) => r.createDirectiveTerm).length;
+      if (directiveCount > 0) {
+        message.success(t('namespaceMain.saveTermSuccess', { count: String(added.length) }) + ' ' + t('namespaceMain.createDirectiveTermSuccess'));
+      } else {
+        message.success(t('namespaceMain.saveTermSuccess', { count: String(added.length) }));
+      }
+      // 指示用語（SupervisorDirective...）も含めて一覧に反映するため、APIから最新データを再取得する
+      // 現在選択中のノードに対応する scopeKey で絞り込んで取得する
+      fetchTermsForCurrentNsKey(effectiveNsKey);
     }
     setNewTerms([]);
   };
@@ -1084,22 +1105,18 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const cancelEditTerm = () => setEditingTermId(null);
 
-  // ──── チームノード右クリック：チームを追加（親ノードのラベルを追加先として表示）
-  const handleContextAddTeam = (_node: NamespaceNode) => {
-    setTeamAddParentLabel(t('namespaceMain.teamAddParentLabelDefault'));
-    setTeamAddOpen(true);
+  // ──── グループノード右クリック：グループを追加（親ノードのラベルを追加先として表示）
+  const handleContextAddGroup = (_node: NamespaceNode) => {
+    setGroupAddParentLabel(t('namespaceMain.groupAddParentLabelDefault'));
+    setGroupAddOpen(true);
   };
 
-  // ──── チームノード右クリック：編集（メンバー追加）
-  const handleContextEditTeam = (node: NamespaceNode) => {
-    setTeamEditLabel(node.label);
-    // node.key を organization_group_cd として使用（DBから取得したツリーであればCDが入る）
-
-    setTeamEditGroupCd(node.key ?? undefined);
-
-
-    setTeamEditMembers([]);
-    setTeamEditOpen(true);
+  // ──── グループノード右クリック：編集（メンバー追加）
+  const handleContextEditGroup = (node: NamespaceNode) => {
+    setGroupEditLabel(node.label);
+    setGroupEditGroupCd(node.key ?? undefined);
+    setGroupEditMembers([]);
+    setGroupEditOpen(true);
   };
 
   // ──── コンテキストメニューを閉じる（mousedown で即座にキャッチ）
@@ -1835,6 +1852,32 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
     },
     {
+      title: (
+        <Tooltip title={t('namespaceMain.createDirectiveTermTooltip')}>
+          {t('namespaceMain.colCreateDirectiveTerm')}
+        </Tooltip>
+      ),
+      key: 'createDirectiveTerm',
+      width: 90,
+      align: 'center' as const,
+      render: (_: unknown, record: Term | NewTermRow) => {
+        if ('_rowId' in record) {
+          const r = record as NewTermRow;
+          return (
+            <Checkbox
+              checked={!!r.createDirectiveTerm}
+              disabled={!r.localName}
+              onChange={(e) => updateNewTerm(r._rowId, 'createDirectiveTerm', e.target.checked)}
+            />
+          );
+        }
+        const term = record as Term;
+        return term.hasDirectiveTerm
+          ? <Tag color="blue" style={{ fontSize: 11 }}>{t('namespaceMain.hasDirectiveTermBadge')}</Tag>
+          : null;
+      },
+    },
+    {
       title: t('namespaceMain.colActions'), key: 'actions', width: 180,
       render: (_: unknown, record: Term | NewTermRow) =>
         '_rowId' in record ? null : actionCell(record as Term),
@@ -1902,19 +1945,19 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   onClick={() => {
-    setTeamAddParentLabel(t('namespaceMain.teamAddParentLabelDefault'));
-    setTeamAddOpen(true);
-    setCtxMenu((s) => ({ ...s, visible: false }));
+                    setGroupAddParentLabel(t('namespaceMain.groupAddParentLabelDefault'));
+                    setGroupAddOpen(true);
+                    setCtxMenu((s) => ({ ...s, visible: false }));
                   }}
                 >
                   <PlusOutlined style={{ fontSize: 12, color: '#52c41a' }} />
-                  {t('namespaceMain.ctxMenuAddTeam')}
+                  {t('namespaceMain.ctxMenuAddGroup')}
                 </li>
                 <li
                   style={{ padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  onClick={() => { handleContextEditTeam(ctxMenu.node!); setCtxMenu((s) => ({ ...s, visible: false })); }}
+                  onClick={() => { handleContextEditGroup(ctxMenu.node!); setCtxMenu((s) => ({ ...s, visible: false })); }}
                 >
                   <EditOutlined style={{ fontSize: 12, color: '#1677ff' }} />
                   {t('namespaceMain.ctxMenuEdit')}
@@ -2098,25 +2141,25 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }}
       />
 
-      {/* ── チーム追加ダイアログ ── */}
-      <TeamAddDialog
-        open={teamAddOpen}
-        onClose={() => setTeamAddOpen(false)}
+      {/* ── グループ追加ダイアログ ── */}
+      <GroupAddDialog
+        open={groupAddOpen}
+        onClose={() => setGroupAddOpen(false)}
         onCreated={(_groupCd, groupName) => {
           message.success(t('namespaceMain.groupCreated', { groupName }));
-          setTeamAddOpen(false);
+          setGroupAddOpen(false);
         }}
       />
 
 
-      {/* ── チーム編集ダイアログ（メンバー追加）── */}
-      <TeamEditDialog
-        open={teamEditOpen}
-        teamLabel={teamEditLabel}
-        teamGroupCd={teamEditGroupCd}
-        onClose={() => setTeamEditOpen(false)}
-        onSaved={(members, newTeamName) => {
-          const name = newTeamName ?? teamEditLabel;
+      {/* ── グループ編集ダイアログ（メンバー追加）── */}
+      <GroupEditDialog
+        open={groupEditOpen}
+        groupLabel={groupEditLabel}
+        groupCd={groupEditGroupCd}
+        onClose={() => setGroupEditOpen(false)}
+        onSaved={(members, newGroupName) => {
+          const name = newGroupName ?? groupEditLabel;
           message.success(t('namespaceMain.memberUpdated', { name, count: members.length.toString() }));
         }}
       />

@@ -12,6 +12,7 @@ SELECT
   , COALESCE(t.xsi_type, 'stringType') AS type
   , COALESCE(t.units, '')          AS "unitHint"
   , t.is_active                    AS "isActive"
+  , t.has_directive_term           AS "hasDirectiveTerm"
 FROM namespace_term t
 JOIN namespace n
   ON n.organization_id = t.organization_id

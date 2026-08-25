@@ -9,7 +9,7 @@ import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus,
 import { getIssues, createIssue, addComment, updateIssueStatus } from '@/services/issueApiService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { useLanguage } from '@/contexts/LanguageContext';
-import DataRecordDialog from './DataRecordDialog';
+import ExperimentRecordDialog from './ExperimentRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 
 const { Text } = Typography;
@@ -23,9 +23,9 @@ interface TransitionListProps {
   projectId?: string;
   methodId?: string;
   projectName?: string;
-  /** 実験データ保存完了後のコールバック（親コンポーネントの進捗データ再取得に使用） */
+  /** 実験データ保存完了後のコールバック。親コンポーネントの進捗データ再取得に使用。 */
   onDataSaveComplete?: () => void;
-  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  /** みなし進捗使用フラグ。organization.use_deemed_progress。false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
   useDeemedProgress?: boolean;
 }
 
@@ -68,7 +68,7 @@ export default function TransitionList({
   // フィルタリングされたトランジションデータ
   const filteredTransitions = useMemo(() => {
     return transitions.filter(transition => {
-      // あいまい検索（全カラム対象）
+      // あいまい検索（複数カラム対象）
       const matchesSearch = searchText === '' || 
         (transition.transitionName ?? '').toLowerCase().includes(searchText.toLowerCase()) ||
         (transition.description ?? '').toLowerCase().includes(searchText.toLowerCase());
@@ -294,7 +294,7 @@ export default function TransitionList({
         }
       }
     } catch (error) {
-      console.error('[handleUpdateStatus] ステータス更新エラー', error);
+      console.error('[handleUpdateStatus] スチE�Eタス更新エラー', error);
       message.error(extractErrorMessage(error));
     }
   };
@@ -567,7 +567,7 @@ export default function TransitionList({
 
       {/* データ記録モーダル */}
       {dataRecordModalOpen && (
-        <DataRecordDialog
+        <ExperimentRecordDialog
           open={dataRecordModalOpen}
           transition={selectedTransition}
           projectStatus={projectStatus}

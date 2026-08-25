@@ -200,6 +200,20 @@ export interface Property {
   quantitativeEvals?: QuantitativeEval[];      // 定量評価の行リスト
 }
 
+/**
+ * 定量評価の行データ
+ * DataRecordDialog のカード形式 UI で使用する
+ * template_data.property_set の各 property に quantitativeEvals 配列として保存される
+ */
+export interface QuantitativeEval {
+  /** 行の一意識別子（UUID） */
+  id: string;
+  /** 評価方法（不確かさ基準の definition_name 等） */
+  method: string;
+  /** 閾値（数値文字列） */
+  threshold: string;
+}
+
 
 /**
  * テンプレートレベルの <insertion> タグの型（非カスタム）

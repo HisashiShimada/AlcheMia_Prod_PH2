@@ -23,6 +23,7 @@
 import { ITask } from 'pg-promise';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
+import { UpdatePrefixRow } from '../types/database';
 
 /**
  * namespace_term テーブルの型定義
@@ -41,6 +42,7 @@ export interface NamespaceTerm {
   is_active: boolean;
   display_name: string | null;
   description: string | null;
+  has_directive_term: boolean;
   create_user_id: string | null;
   create_at: Date | null;
   update_user_id: string | null;
@@ -59,6 +61,7 @@ export interface NamespaceTermRow {
   type: string;
   unitHint: string;
   isActive: boolean;
+  hasDirectiveTerm: boolean;
   /** ツリーバッジ計算用: namespace.scope_key の値（グローバル用語は null） */
   scopeKey?: string | null;
 }
@@ -243,19 +246,35 @@ export async function create(data: {
   description?: string;
   typeHint?: string;
   unitHint?: string;
+  hasDirectiveTerm?: boolean;
+  scopeKey?: string;
 }): Promise<NamespaceTermRow> {
   const pgp = getPgp();
 
   // prefix に対応する namespace_id を取得
-  const findPrefixQuery = await loadSqlFile('namespace_terms/findPrefixNamespaceId.sql');
-  const prefixRow = await pgp.oneOrNone<{ namespace_id: string }>(
-    findPrefixQuery,
-    [data.organizationId, data.prefix]
-  );
-  if (!prefixRow) {
-    throw new Error(`prefix "${data.prefix}" に対応する namespace_id が見つかりません`);
+  // scopeKey が指定されている場合は namespace テーブルの scope_key で絞り込んで正しい namespace_id を特定する
+  let namespaceId: string;
+  if (data.scopeKey) {
+    const findByScopeKeyQuery = await loadSqlFile('namespace_terms/findNamespaceIdByScopeKeyAndPrefix.sql');
+    const scopeRow = await pgp.oneOrNone<{ namespace_id: string }>(
+      findByScopeKeyQuery,
+      [data.organizationId, data.scopeKey, data.prefix]
+    );
+    if (!scopeRow) {
+      throw new Error(`prefix "${data.prefix}" に対応する namespace_id が見つかりません`);
+    }
+    namespaceId = scopeRow.namespace_id;
+  } else {
+    const findPrefixQuery = await loadSqlFile('namespace_terms/findPrefixNamespaceId.sql');
+    const prefixRow = await pgp.oneOrNone<{ namespace_id: string }>(
+      findPrefixQuery,
+      [data.organizationId, data.prefix]
+    );
+    if (!prefixRow) {
+      throw new Error(`prefix "${data.prefix}" に対応する namespace_id が見つかりません`);
+    }
+    namespaceId = prefixRow.namespace_id;
   }
-  const namespaceId = prefixRow.namespace_id;
 
   // 重複チェック: 同じ prefix:localName が既に存在する場合は 409 エラー
   const checkQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
@@ -292,11 +311,104 @@ export async function create(data: {
     data.description ?? null,
     data.typeHint ?? null,
     data.unitHint ?? null,
+    data.hasDirectiveTerm ?? false,
   ]);
 
   // 登録後、フロントエンド用フォーマットで返す
   const selectQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
   return pgp.one<NamespaceTermRow>(selectQuery, [
+    data.organizationId,
+    data.prefix,
+    data.localName,
+  ]);
+}
+
+/**
+ * namespace_term に1件 INSERT（トランザクション内専用）
+ *
+ * @param t - pg-promise トランザクションオブジェクト
+ * @param data - 登録する用語データ
+ * @returns 登録された用語（フロントエンド用に整形済み）
+ */
+export async function createInTx(
+  t: ITask<unknown>,
+  data: {
+    organizationId: string;
+    prefix: string;
+    localName: string;
+    displayName?: string;
+    description?: string;
+    typeHint?: string;
+    unitHint?: string;
+    hasDirectiveTerm?: boolean;
+    scopeKey?: string;
+  }
+): Promise<NamespaceTermRow> {
+  // prefix に対応する namespace_id を取得
+  // scopeKey が指定されている場合は namespace テーブルの scope_key で絞り込んで正しい namespace_id を特定する
+  let namespaceId: string;
+  if (data.scopeKey) {
+    const findByScopeKeyQuery = await loadSqlFile('namespace_terms/findNamespaceIdByScopeKeyAndPrefix.sql');
+    const scopeRow = await t.oneOrNone<{ namespace_id: string }>(
+      findByScopeKeyQuery,
+      [data.organizationId, data.scopeKey, data.prefix]
+    );
+    if (!scopeRow) {
+      throw new Error(`prefix "${data.prefix}" に対応する namespace_id が見つかりません`);
+    }
+    namespaceId = scopeRow.namespace_id;
+  } else {
+    const findPrefixQuery = await loadSqlFile('namespace_terms/findPrefixNamespaceId.sql');
+    const prefixRow = await t.oneOrNone<{ namespace_id: string }>(
+      findPrefixQuery,
+      [data.organizationId, data.prefix]
+    );
+    if (!prefixRow) {
+      throw new Error(`prefix "${data.prefix}" に対応する namespace_id が見つかりません`);
+    }
+    namespaceId = prefixRow.namespace_id;
+  }
+
+  // 重複チェック
+  const checkQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  const existing = await t.oneOrNone<NamespaceTermRow>(checkQuery, [
+    data.organizationId,
+    data.prefix,
+    data.localName,
+  ]);
+  if (existing) {
+    const scopeNameQuery = await loadSqlFile('namespace_terms/findScopeNameByPrefix.sql');
+    const scopeRow = await t.oneOrNone<{ scope_name: string }>(scopeNameQuery, [
+      data.organizationId,
+      data.prefix,
+    ]);
+    const scopeName = scopeRow?.scope_name ?? data.prefix;
+
+    const err: Error & { statusCode?: number; code?: string; details?: { scopeName: string } } = new Error(
+      `Term "${data.prefix}:${data.localName}" already exists`
+    );
+    err.statusCode = 409;
+    err.code = 'E6005';
+    err.details = { scopeName };
+    throw err;
+  }
+
+  const insertQuery = await loadSqlFile('namespace_terms/createTerm.sql');
+  await t.none(insertQuery, [
+    data.organizationId,
+    namespaceId,
+    data.prefix,
+    data.localName,
+    data.displayName ?? null,
+    data.description ?? null,
+    data.typeHint ?? null,
+    data.unitHint ?? null,
+    data.hasDirectiveTerm ?? false,
+  ]);
+
+  // 登録後、フロントエンド用フォーマットで返す
+  const selectQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
+  return t.one<NamespaceTermRow>(selectQuery, [
     data.organizationId,
     data.prefix,
     data.localName,
@@ -321,6 +433,7 @@ export async function update(
     description?: string;
     typeHint?: string;
     unitHint?: string;
+    hasDirectiveTerm?: boolean;
   }
 ): Promise<NamespaceTermRow | null> {
   const pgp = getPgp();
@@ -334,6 +447,7 @@ export async function update(
     data.description ?? null,
     data.typeHint ?? null,
     data.unitHint ?? null,
+    data.hasDirectiveTerm ?? false,
   ]);
 
   if (result.rowCount === 0) return null;
@@ -394,7 +508,7 @@ export async function updateNamespace(data: {
   const updateTermPrefixQuery = await loadSqlFile('namespace_terms/updateTermPrefix.sql');
   const updatePrefixQuery = await loadSqlFile('namespace_terms/updatePrefix.sql');
 
-  const taskResult = pgp.task(async (t) => {
+  return (pgp.task(async (t: ITask<unknown>) => {
     // 1. prefix が変更される場合、先に namespace_term.prefix を UPDATE（FK 制約のため）
     if (targetPrefix !== data.prefix) {
       await t.none(updateTermPrefixQuery, [targetPrefix, data.organizationId, data.prefix]);
@@ -417,8 +531,7 @@ export async function updateNamespace(data: {
       uri: row.uri,
       scopeKey: row.scope_key,
     };
-  });
-  return taskResult as Promise<{ namespaceId: string; prefix: string; uri: string; scopeKey: string | null } | null>;
+  }));
 }
 
 /**

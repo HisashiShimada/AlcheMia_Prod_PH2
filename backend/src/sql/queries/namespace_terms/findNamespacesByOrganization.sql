@@ -24,17 +24,4 @@ WHERE p.organization_id = $1
     WHERE ou2.organization_id = p.organization_id
       AND ou2.user_id = n.scope_key
   )
-UNION ALL
-SELECT
-  p.prefix
-  , n.uri
-  , p.description                                                   AS description
-  , NULL                                                            AS "scopeKey"
-  , ''                                                              AS "scopeName"
-FROM prefix p
-INNER JOIN namespace n
-  ON p.organization_id = n.organization_id
-  AND p.namespace_id = n.namespace_id
-WHERE p.organization_id = '00000000-0000-0000-0000-000000000000'
-  AND p.is_active = TRUE
 ORDER BY prefix ASC

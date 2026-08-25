@@ -21,6 +21,7 @@ import {
   Card,
   Col,
   Collapse,
+  DatePicker,
   Divider,
   Flex,
   Input,
@@ -38,17 +39,22 @@ import {
   message,
   theme,
 } from 'antd';
-import { CommentOutlined, DeleteOutlined, FastForwardOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import { BorderOutlined, CaretRightOutlined, CommentOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, InfoCircleOutlined, PlusOutlined, RightOutlined, SaveOutlined, SearchOutlined, StepForwardOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
 import ContentGridEditor from '@/components/common/ContentGridEditor';
 import { getProjectMaiml } from '@/services/projectApiService';
 import { getPlanDialogData, getExperimentPlans } from '@/services/experimentPlanApiService';
+import { getTemplateData, saveBatchExperimentData } from '@/services/experimentDataApiService';
+import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
 import type { Insertion } from '@/types/maiml-unified';
 import type { FileData } from '@/types/editor';
+import type { TemplateDataItem, ExperimentDataRecord } from '@/types/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { ProgressRow } from '@/types/progress';
+import InstructionConfirmationModal from './InstructionConfirmationModal';
+import type { ProjectStatus, Transition } from '@/types/experimentWorker';
 
 const { Sider, Content } = Layout;
 
@@ -72,15 +78,16 @@ interface AddedUncertaintyValue {
 
 /**
  * 「値の追加」ボタンで使用する不確かさ基準の選択肢。
- * フェーズB: API経由で取得した実データに差し替え予定。
+ * WorkRecordPanel の useEffect で API から取得した内容を反映する。
+ * モジュールスコープで管理し PropertyCard から参照する。
  */
-const UNCERTAINTY_OPTIONS: { value: string; label: string }[] = [];
+let uncertaintyOptionsCache: { value: string; label: string }[] = [];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 型定義
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-type TransitionStatus = 'not_started' | 'in_progress' | 'completed' | 'error';
+type TransitionStatus = 'not_started' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
 type ConfidenceLevel = '確か' | '曖昧' | '不確か';
 
 interface MockProperty {
@@ -99,6 +106,8 @@ interface MockProperty {
   defaultConfidence?: string;
   /** 定性評価のボタン選択肢（モック）。未指定時は ['確か', '曖昧', '不確か'] */
   confidenceOptions?: string[];
+  /** property_set の description（不確かさ値ヘッダー右隣に表示） */
+  description?: string;
 }
 
 /** Insertion スロット（テンプレートに紐づくファイル添付欄） */
@@ -156,234 +165,16 @@ export interface MockTask {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// モックデータ（フェーズA）
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const MOCK_PROJECT_INSTRUCTIONS = [
-  '安全装備（手袋・ゴーグル）を着用して作業すること',
-  '温度変化は慎重に観察し、異常があれば即座に報告すること',
-  '記録は正確かつタイムリーに入力すること',
-  '廃液は適切に分別して廃棄すること',
-];
-
-// ─────────────────────────────────────────────────────────────
-// モックデータ構成:
-//   同一 MAIML を複数タスクで繰り返す構造のため、
-//   全タスクが同じメソッド・同じトランジション構成を持つ。
-//
-//   TR_A / TR_B / TR_C: isOrderFixed=false（順序自由・並列実行可能）
-//   TR_D:               isOrderFixed=true （A・B・C 全完了後のみ開始可能）
-//
-//   スキップシナリオ例:
-//     TR_A が難しくて一旦スキップ → TR_B・TR_C を先に完了
-//     → 後で TR_A に戻って完了 → TR_A/B/C 全完了で TR_D が開始可能に
-// ─────────────────────────────────────────────────────────────
-
-const PROJECT_NAME = 'SampleSynthesis';
-const METHOD_ID    = `method_${PROJECT_NAME}_a1b2c3d4`;
-
-// TR_A: 混合条件（並列・順序自由）
-export const TR_A_ID = 'transition-1781057805603';
-// TR_B: 加熱条件（並列・順序自由）
-export const TR_B_ID = 'transition-1781057812047';
-// TR_C: 分離操作（並列・順序自由）
-export const TR_C_ID = 'transition-1781057819834';
-// TR_D: 最終評価（固定順序: A・B・C 全完了後のみ開始可能）
-export const TR_D_ID = 'transition-1781057826501';
-
-export const MOCK_METHODS: MockMethod[] = [
-  { id: METHOD_ID, order: 1 },
-];
-
-export const MOCK_TRANSITIONS: MockTransition[] = [
-  // ─── TR_A: 混合条件（前提なし・順序自由）────────────────────
-  {
-    id: TR_A_ID,
-    order: 1,
-    prerequisiteTransitionIds: [],
-    methodId: METHOD_ID,
-    templates: [
-      {
-        id: 'tpl-cond-mixing',
-        name: 'Condition-Mixing',
-        category: 'Conditions',
-        properties: [
-          { key: 'ns1:Temperature',   label: '温度',     xsiType: 'FloatValue',   unit: '℃',  expected: 25.0,  uncertaintyName: '許容誤差値',   uncertaintyValue: 0.5,  uncertaintyDescription: '0.5℃のズレまで許容する', defaultConfidence: '確か'   },
-          { key: 'ns1:Pressure',      label: '圧力',     xsiType: 'FloatValue',   unit: 'atm', expected: 1.013, uncertaintyName: '拡張不確かさ',  uncertaintyValue: 0.001, uncertaintyDescription: '0.001 atmまで許容',      defaultConfidence: 'OK', confidenceOptions: ['OK', 'NG'] },
-          { key: 'ns1:StirringSpeed', label: '撹拌速度', xsiType: 'IntegerValue', unit: 'rpm', expected: 300,   uncertaintyName: '許容範囲速度',  uncertaintyValue: 10,   uncertaintyDescription: '10 rpm の変動を許容',   defaultConfidence: '不確か' },
-        ],
-      },
-      {
-        id: 'tpl-mat-reagent',
-        name: 'Material-Reagent',
-        category: 'Materials',
-        properties: [
-          { key: 'ns1:ReagentName', label: '試薬名', xsiType: 'StringValue', unit: '', expected: 'NaCl' },
-          { key: 'ns1:Amount',      label: '量',     xsiType: 'FloatValue',  unit: 'g', expected: 5.0   },
-        ],
-        /** Insertionスロットのサンプル（動作確認用） */
-        insertions: [
-          { id: 'reagent-sds', label: '試薬安全データシート（SDS）' },
-          { id: 'reagent-coa', label: '試薬品質証明書（CoA）' },
-        ],
-      },
-    ],
-  },
-  // ─── TR_B: 加熱条件（前提なし・順序自由）────────────────────
-  {
-    id: TR_B_ID,
-    order: 2,
-    prerequisiteTransitionIds: [],
-    methodId: METHOD_ID,
-    templates: [
-      {
-        id: 'tpl-cond-heating',
-        name: 'Condition-Heating',
-        category: 'Conditions',
-        properties: [
-          { key: 'ns1:Temperature', label: '温度',     xsiType: 'FloatValue',   unit: '℃',  expected: 80.0 },
-          { key: 'ns1:HeatingTime', label: '加熱時間', xsiType: 'IntegerValue', unit: 'min', expected: 30   },
-        ],
-      },
-    ],
-  },
-  // ─── TR_C: 分離操作（前提なし・順序自由）────────────────────
-  {
-    id: TR_C_ID,
-    order: 3,
-    prerequisiteTransitionIds: [],
-    methodId: METHOD_ID,
-    templates: [
-      {
-        id: 'tpl-cond-centri',
-        name: 'Condition-Centrifuge',
-        category: 'Conditions',
-        properties: [
-          { key: 'ns1:RotationSpeed', label: '回転速度', xsiType: 'IntegerValue', unit: 'rpm', expected: 3000 },
-          { key: 'ns1:Duration',      label: '処理時間', xsiType: 'IntegerValue', unit: 'min', expected: 10   },
-        ],
-      },
-      {
-        id: 'tpl-mat-solvent',
-        name: 'Material-Solvent',
-        category: 'Materials',
-        properties: [
-          { key: 'ns1:SolventName', label: '溶媒名', xsiType: 'StringValue', unit: '', expected: 'EtOH' },
-        ],
-      },
-    ],
-  },
-  // ─── TR_D: 最終評価（A・B・C 全完了後のみ開始可能）──────────
-  {
-    id: TR_D_ID,
-    order: 4,
-    prerequisiteTransitionIds: [TR_A_ID, TR_B_ID, TR_C_ID],
-    methodId: METHOD_ID,
-    templates: [
-      {
-        id: 'tpl-result-yield',
-        name: 'Result-Yield',
-        category: 'Results',
-        properties: [
-          { key: 'ns1:Yield',  label: '収率', xsiType: 'FloatValue', unit: '%', expected: 90.0 },
-          { key: 'ns1:Purity', label: '純度', xsiType: 'FloatValue', unit: '%', expected: 99.5 },
-        ],
-      },
-    ],
-  },
-];
-
-const ORDERED_TRANSITION_IDS: string[] = MOCK_METHODS
-  .slice()
-  .sort((a, b) => a.order - b.order)
-  .flatMap((m) =>
-    MOCK_TRANSITIONS.filter((t) => t.methodId === m.id)
-      .sort((a, b) => a.order - b.order)
-      .map((t) => t.id)
-  );
-
-export const INITIAL_TASKS: MockTask[] = [
-  // ─── タスク1: 全完了済み ────────────────────────────────────
-  {
-    taskNo: 1,
-    transitions: [
-      {
-        transitionId: TR_A_ID,
-        status: 'completed',
-        actuals: {
-          'ns1:Temperature': 24.8, 'ns1:Pressure': 1.02, 'ns1:StirringSpeed': 295,
-          'ns1:ReagentName': 'NaCl', 'ns1:Amount': 5.1,
-        },
-        customInsertionIds: [],
-        customContentIds: [],
-      },
-      {
-        transitionId: TR_B_ID,
-        status: 'completed',
-        actuals: { 'ns1:Temperature': 79.5, 'ns1:HeatingTime': 31 },
-        customInsertionIds: [],
-        customContentIds: [],
-      },
-      {
-        transitionId: TR_C_ID,
-        status: 'completed',
-        actuals: { 'ns1:RotationSpeed': 3000, 'ns1:Duration': 10, 'ns1:SolventName': 'EtOH' },
-        customInsertionIds: [],
-        customContentIds: [],
-      },
-      {
-        transitionId: TR_D_ID,
-        status: 'completed',
-        actuals: { 'ns1:Yield': 88.5, 'ns1:Purity': 99.1 },
-        customInsertionIds: [],
-        customContentIds: [],
-      },
-    ],
-  },
-  // ─── タスク2: TR_B 完了、TR_A 作業中（スキップシナリオ想定）────
-  //   TR_B を先に完了させ、TR_A は後回し中。
-  //   TR_C は未着手。TR_D は A・B・C 全完了待ち。
-  {
-    taskNo: 2,
-    transitions: [
-      {
-        transitionId: TR_A_ID,
-        status: 'in_progress',
-        actuals: { 'ns1:Temperature': 25.3, 'ns1:Pressure': null, 'ns1:StirringSpeed': null, 'ns1:ReagentName': null, 'ns1:Amount': null },
-        customInsertionIds: [],
-        customContentIds: [],
-      },
-      {
-        transitionId: TR_B_ID,
-        status: 'completed',
-        actuals: { 'ns1:Temperature': 80.2, 'ns1:HeatingTime': 30 },
-        customInsertionIds: [],
-        customContentIds: [],
-      },
-      { transitionId: TR_C_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
-      { transitionId: TR_D_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
-    ],
-  },
-  // ─── タスク3: 未着手 ────────────────────────────────────────
-  {
-    taskNo: 3,
-    transitions: [
-      { transitionId: TR_A_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
-      { transitionId: TR_B_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
-      { transitionId: TR_C_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
-      { transitionId: TR_D_ID, status: 'not_started', actuals: {}, customInsertionIds: [], customContentIds: [] },
-    ],
-  },
-];
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ユーティリティ
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // STATUS_CONFIG はコンポーネント内で t() を使うため削除し、useMemo で再生成する
 const STATUS_COLORS: Record<TransitionStatus, string> = {
   not_started: 'default',
-  in_progress: 'processing',
+  preparing:   'warning',
+  ready:       'cyan',
+  running:     'processing',
+  paused:      'gold',
   completed:   'success',
   error:       'error',
 };
@@ -446,7 +237,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     t('workRecord.confidenceUncertain'),
   ];
   const confidenceOptions = prop.confidenceOptions ?? DEFAULT_CONFIDENCE_OPTIONS;
-  const [confidence, setConfidence] = useState<string | null>(null);
+  const [confidence, setConfidence] = useState<string | null>(prop.defaultConfidence ?? null);
   /** ＋値の追加ボタンで追加された不確かさ評価行 */
   const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>([]);
 
@@ -527,7 +318,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             </div>
           </Col>
           <Col span={12}>
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{prop.uncertaintyName ?? t('workRecord.uncertaintyValue')}</Text>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+              {prop.uncertaintyName ?? t('workRecord.uncertaintyValue')}
+            </Text>
             <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4 }}>
               {prop.uncertaintyValue !== undefined ? (
                 <Text style={{ fontSize: 14 }}>
@@ -603,7 +396,12 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       {/* 確信度ボタン（実績値の下） */}
       {!readOnly && (
         <div>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.qualitativeEval')}</Text>
+          <Flex align="center" gap={4} style={{ marginBottom: 2 }}>
+            <Text type="secondary" style={{ fontSize: 11 }}>{t('workRecord.qualitativeEval')}</Text>
+            {prop.description && (
+              <Text type="secondary" style={{ fontSize: 11 }}>（{prop.description}）</Text>
+            )}
+          </Flex>
           <Flex gap={4}>
             {confidenceOptions.map((level) => {
               const style = getConfidenceStyle(level);
@@ -628,55 +426,6 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
       )}
 
-      {/* ＋ 値の追加ボタン & 追加された不確かさ評価行 */}
-      {!readOnly && (
-        <div>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.quantitativeEval')}</Text>
-          {/* 追加済み行 */}
-          {addedValues.map((av) => (
-            <Row key={av.id} gutter={4} align="middle" style={{ marginBottom: 4 }}>
-              <Col span={12}>
-                <Select
-                  style={{ width: '100%' }}
-                  placeholder={t('workRecord.quantitativeEvalPlaceholder')}
-                  value={av.uncertaintyKey || undefined}
-                  options={UNCERTAINTY_OPTIONS}
-                  onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
-                  allowClear
-                />
-              </Col>
-              <Col span={11}>
-                <Input
-                  style={{ width: '100%' }}
-                  placeholder={t('workRecord.valuePlaceholder')}
-                  value={av.value}
-                  onChange={(e) => handleValueChange(av.id, e.target.value)}
-                />
-              </Col>
-              <Col span={1} style={{ textAlign: 'center' }}>
-                <Button
-                  type="text"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => handleRemoveValue(av.id)}
-                  style={{ padding: 0 }}
-                />
-              </Col>
-            </Row>
-          ))}
-
-          {/* ＋ 値の追加ボタン */}
-          <Button
-            type="primary"
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={handleAddValue}
-            style={{ background: '#1d4e63', borderColor: '#1d4e63' }}
-          >
-            {t('workRecord.addValue')}
-          </Button>
-        </div>
-      )}
     </Flex>
 
   </Card>
@@ -978,39 +727,6 @@ const PropertyList: React.FC<PropertyListProps> = ({
         </div>
       )}
 
-      {/* 保存ボタン */}
-      {!isReadOnly && displayKey && (
-        <Flex justify="flex-end" gap={8} style={{ marginTop: 12, paddingBottom: 8 }}>
-          {/* コメントボタン（保存ボタンの左側） */}
-          <Button
-            icon={<CommentOutlined />}
-            onClick={onCommentClick}
-          >
-            {t('workRecord.commentButton')}
-          </Button>
-          <Button onClick={() => onSave(displayKey.taskNo, displayKey.transitionId)}>
-            {t('workRecord.saveButton')}
-          </Button>
-          {/* スキップボタン: 他に実行可能なトランジションがある場合のみ有効 */}
-          <Tooltip title={canSkip ? t('workRecord.skipTooltipAvailable') : t('workRecord.skipTooltipUnavailable')}>
-            <Button
-              icon={<FastForwardOutlined />}
-              disabled={!canSkip}
-              onClick={() => onSkip(displayKey.taskNo, displayKey.transitionId)}
-            >
-              {t('workRecord.skipButton')}
-            </Button>
-          </Tooltip>
-          <Button
-            type="primary"
-            icon={<RightOutlined />}
-            onClick={handleSaveAndNext}
-          >
-            {nextLabel}
-          </Button>
-        </Flex>
-      )}
-
       {/* ペトリネットビューアボタン（readOnly に関わらず常に表示） */}
       <Flex justify="flex-end" style={{ marginTop: isReadOnly ? 12 : 4, paddingBottom: 8 }}>
         <Button
@@ -1039,6 +755,18 @@ interface WorkHeaderProps {
   isReadOnly: boolean;
   activeEntry: { taskNo: number; transitionId: string } | null;
   onClearViewing: () => void;
+  /** 開始ボタン押下コールバック */
+  onStart?: () => void;
+  /** 終了ボタン押下コールバック */
+  onEnd?: () => void;
+  /** 異常終了ボタン押下コールバック */
+  onForceEnd?: () => void;
+  /** 状態記録ボタン押下コールバック */
+  onStateRecord?: () => void;
+  /** 状態プルダウン変更コールバック */
+  onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
+  /** 作業指示ボタン押下コールバック */
+  onInstructionClick?: () => void;
 }
 
 const WorkHeader: React.FC<WorkHeaderProps> = ({
@@ -1049,15 +777,25 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
   isReadOnly,
   activeEntry,
   onClearViewing,
+  onStart,
+  onEnd,
+  onForceEnd,
+  onStateRecord,
+  onStatusChange,
+  onInstructionClick,
 }) => {
   const { t } = useLanguage();
 
-  const STATUS_CONFIG: Record<TransitionStatus, { label: string; color: string }> = {
-    not_started: { label: t('workRecord.statusNotStarted'), color: STATUS_COLORS.not_started },
-    in_progress: { label: t('workRecord.statusInProgress'), color: STATUS_COLORS.in_progress },
-    completed:   { label: t('workRecord.statusCompleted'),  color: STATUS_COLORS.completed   },
-    error:       { label: t('workRecord.statusError'),      color: STATUS_COLORS.error       },
-  };
+  /** 状態プルダウンの選択肢 */
+  const statusSelectOptions = [
+    { value: 'not_started', label: t('progressStatus.notStarted') },
+    { value: 'preparing',   label: t('progressStatus.preparing')  },
+    { value: 'ready',       label: t('progressStatus.ready')      },
+    { value: 'running',     label: t('progressStatus.running')    },
+    { value: 'paused',      label: t('progressStatus.paused')     },
+    { value: 'completed',   label: t('progressStatus.completed')  },
+    { value: 'error',       label: t('progressStatus.error')      },
+  ];
 
   if (!displayKey || !taskTransition || !transition) {
     if (activeEntry === null) {
@@ -1068,19 +806,34 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
     return null;
   }
   return (
-    <Card
-      size="small"
+    <div
       style={{
         marginBottom: 8,
-        background: isReadOnly ? '#f5f5f5' : '#f6ffed',
-        borderColor: isReadOnly ? '#d9d9d9' : '#b7eb8f',
+        background: '#f6ffed',
+        border: '1px solid #b7eb8f',
+        borderRadius: 6,
+        padding: '6px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 8,
       }}
     >
-      <Flex align="center" gap={10} wrap="wrap">
-        <Flex align="center" gap={6}>
-          <Tag color={STATUS_CONFIG[taskTransition.status].color} style={{ margin: 0 }}>
-            {STATUS_CONFIG[taskTransition.status].label}
-          </Tag>
+      {/* 左側: 状態プルダウン + タスク情報 */}
+      <Flex align="center" gap={8} wrap="wrap">
+        {/* 状態プルダウン */}
+        <Flex align="center" gap={4}>
+          <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{t('workRecord.statusLabel')}</Text>
+          <Select
+            size="small"
+            style={{ minWidth: 100 }}
+            value={taskTransition.status}
+            options={statusSelectOptions}
+            onChange={(value: TransitionStatus) => {
+              if (displayKey) onStatusChange?.(displayKey.transitionId, value);
+            }}
+          />
         </Flex>
         <Divider type="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
@@ -1106,15 +859,65 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
           </Tooltip>
         </Flex>
       </Flex>
+
+      {/* 右側: 操作ボタン群 */}
+      <Flex align="center" gap={8}>
+        <Button
+          size="small"
+          type="default"
+          icon={<CaretRightOutlined />}
+          style={{ color: '#1677ff', borderColor: '#1677ff' }}
+          onClick={onStart}
+        >
+          {t('workRecord.startButton')}
+        </Button>
+        <Button
+          size="small"
+          type="default"
+          icon={<BorderOutlined />}
+          style={{ color: '#52c41a', borderColor: '#52c41a' }}
+          onClick={onEnd}
+        >
+          {t('workRecord.endButton')}
+        </Button>
+        <Divider type="vertical" style={{ margin: '0 4px' }} />
+        <Button
+          size="small"
+          type="default"
+          icon={<WarningOutlined />}
+          style={{ color: '#ff4d4f', borderColor: '#ff4d4f' }}
+          onClick={onForceEnd}
+        >
+          {t('workRecord.forceEndButton')}
+        </Button>
+        <Button
+          size="small"
+          type="default"
+          icon={<EditOutlined />}
+          onClick={onStateRecord}
+        >
+          {t('workRecord.stateRecordButton')}
+        </Button>
+        <Divider type="vertical" style={{ margin: '0 4px' }} />
+        <Button
+          size="small"
+          type="default"
+          icon={<InfoCircleOutlined />}
+          onClick={onInstructionClick}
+        >
+          {t('experimentWork.instructionButton')}
+        </Button>
+      </Flex>
+
       {isReadOnly && (
         <Alert
           type="info" showIcon
           message={t('workRecord.completedTransitionReadonly')}
-          style={{ marginTop: 8, fontSize: 12 }}
+          style={{ marginTop: 4, fontSize: 12, width: '100%' }}
           action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
         />
       )}
-    </Card>
+    </div>
   );
 };
 
@@ -1124,11 +927,12 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
 
 interface InstructionCollapseProps {
   instructions: string[];
+  /** 指示確認ボタン押下コールバック */
+  onConfirmInstruction?: () => void;
 }
 
-const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions }) => {
+const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions, onConfirmInstruction }) => {
   const { t } = useLanguage();
-  if (instructions.length === 0) return null;
   return (
     <Collapse
       size="small"
@@ -1144,11 +948,31 @@ const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions 
             </Flex>
           ),
           children: (
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
-              {instructions.map((inst, i) => (
-                <li key={i} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>{inst}</li>
-              ))}
-            </ul>
+            <>
+              {instructions.length === 0 ? (
+                <Text type="secondary" italic style={{ fontSize: 13 }}>
+                  {t('workRecord.noInstructions')}
+                </Text>
+              ) : (
+                <>
+                  <ul style={{ margin: 0, paddingLeft: 18, marginBottom: 8 }}>
+                    {instructions.map((inst, i) => (
+                      <li key={i} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>{inst}</li>
+                    ))}
+                  </ul>
+                  <Flex justify="flex-end">
+                    <Button
+                      size="small"
+                      type="primary"
+                      style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                      onClick={(e) => { e.stopPropagation(); onConfirmInstruction?.(); }}
+                    >
+                      {t('workRecord.confirmInstruction')}
+                    </Button>
+                  </Flex>
+                </>
+              )}
+            </>
           ),
         },
       ]}
@@ -1187,40 +1011,46 @@ function canAccessTransitionInTask(
 
 /**
  * 現在のトランジションをスキップした後の次の実行可能なトランジションを検索する。
- * 1. 現在より後ろのインデックスから探す
- * 2. 見つからなければ先頭から現在の前まで循環検索する
+ * tasks の transitions を順番に走査し、スキップ済み・完了済み・前提未達のものを飛ばす。
+ * availableTransitions が渡された場合はその順序を使用し、なければ task.transitions の順序を使用する。
  */
 function findNextAvailableTransition(
   taskNo: number,
   currentTransitionId: string,
   skippedIds: string[],
-  tasks: MockTask[]
+  tasks: MockTask[],
+  availableTransitions?: MockTransition[]
 ): { taskNo: number; transitionId: string } | null {
   const task = tasks.find((t) => t.taskNo === taskNo);
   if (!task) return null;
 
-  const currentIdx = ORDERED_TRANSITION_IDS.indexOf(currentTransitionId);
+  // 順序付きトランジションIDリスト（availableTransitions があればその order ソート順を優先）
+  const orderedIds: string[] = availableTransitions && availableTransitions.length > 0
+    ? [...availableTransitions].sort((a, b) => a.order - b.order).map((tr) => tr.id)
+    : task.transitions.map((tt) => tt.transitionId);
+
+  const currentIdx = orderedIds.indexOf(currentTransitionId);
 
   // 後ろから順に探す
-  for (let i = currentIdx + 1; i < ORDERED_TRANSITION_IDS.length; i++) {
-    const tid = ORDERED_TRANSITION_IDS[i];
+  for (let i = currentIdx + 1; i < orderedIds.length; i++) {
+    const tid = orderedIds[i];
     const tt = task.transitions.find((s) => s.transitionId === tid);
     if (!tt) continue;
     if (tt.status === 'completed' || tt.status === 'error') continue;
     if (skippedIds.includes(tid)) continue;
-    const transition = MOCK_TRANSITIONS.find((t) => t.id === tid);
+    const transition = availableTransitions?.find((tr) => tr.id === tid);
     if (transition && !canAccessTransitionInTask(transition, task.transitions)) continue;
     return { taskNo, transitionId: tid };
   }
 
   // 前から循環検索
   for (let i = 0; i < currentIdx; i++) {
-    const tid = ORDERED_TRANSITION_IDS[i];
+    const tid = orderedIds[i];
     const tt = task.transitions.find((s) => s.transitionId === tid);
     if (!tt) continue;
     if (tt.status === 'completed' || tt.status === 'error') continue;
     if (skippedIds.includes(tid)) continue;
-    const transition = MOCK_TRANSITIONS.find((t) => t.id === tid);
+    const transition = availableTransitions?.find((tr) => tr.id === tid);
     if (transition && !canAccessTransitionInTask(transition, task.transitions)) continue;
     return { taskNo, transitionId: tid };
   }
@@ -1256,6 +1086,13 @@ interface PlanProps {
   onOpenViewer?: () => void;
   /** ペトリネットビューアローディング中フラグ */
   viewerLoading?: boolean;
+  /** API から取得した進捗行（activeEntry 計算に使用） */
+  progressRows?: ProgressRow[];
+  /**
+   * API から構築したトランジション定義。
+   * 指定された場合は MOCK_TRANSITIONS の代わりにこちらを使用してテンプレート・プロパティを表示する。
+   */
+  apiTransitions?: MockTransition[];
   /** Creator プルダウンの選択肢（MAIMLのdocument.creatorsから取得） */
   creatorRefOptions: string[];
   /** Instrument プルダウンの選択肢（MAIMLのdocument.instrumentsから取得） */
@@ -1268,8 +1105,18 @@ interface PlanProps {
   onCreatorRefChange: (value: string | null) => void;
   /** Instrument 選択変更コールバック */
   onInstrumentRefChange: (value: string | null) => void;
-  /** 各 InsertionEditorCompact の uploadPendingFile 登録コールバック */
-  onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
+  /** プロジェクト指示「確認」ボタン押下コールバック */
+  onConfirmInstruction?: () => void;
+  /** 「開始」ボタン押下コールバック（準備完了→動作状態） */
+  onStart?: () => void;
+  /** 「終了」ボタン押下コールバック（動作状態→終状態） */
+  onEnd?: () => void;
+  /** 「異常終了」ボタン押下コールバック（任意→異常終了状態） */
+  onForceEnd?: () => void;
+  /** 状態記録ボタン押下コールバック */
+  onStateRecord?: () => void;
+  /** 作業指示ボタン押下コールバック */
+  onInstructionClick?: () => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1277,26 +1124,42 @@ interface PlanProps {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanA: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove,
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onConfirmInstruction,
+  progressRows, onStateRecord,
 }) => {
   const [templateIdx, setTemplateIdx] = useState(0);
 
   const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
+    // progressRows がある場合: API の実トランジションIDを優先使用
+    if (progressRows && progressRows.length > 0) {
+      // 1. activeTaskNo の in_progress/ready/preparing を優先
+      const activeRow = progressRows.find(
+        (r) => r.taskNo === activeTaskNo && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+      )
+        // 2. 全体の in_progress/ready/preparing
+        ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+        // 3. activeTaskNo の not_started（未着手でもカードを表示）
+        ?? progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
+        // 4. 全体の not_started
+        ?? progressRows.find((r) => r.status === 'not_started');
+      if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      return null;
+    }
+    // progressRows がない場合: task.transitions の順序でフォールバック
     const task = tasks.find((t) => t.taskNo === activeTaskNo);
     if (!task) return null;
-    for (const tid of ORDERED_TRANSITION_IDS) {
-      const tt = task.transitions.find((x) => x.transitionId === tid);
-      if (tt && tt.status !== 'completed' && tt.status !== 'error') return { taskNo: activeTaskNo, transitionId: tid };
+    for (const tt of task.transitions) {
+      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: activeTaskNo, transitionId: tt.transitionId };
     }
     return null;
-  }, [tasks, activeTaskNo]);
+  }, [progressRows, tasks, activeTaskNo]);
 
   const displayKey = viewingKey ?? activeEntry;
   const isReadOnly = viewingKey !== null;
   const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
   const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
-  const displayTransition = displayKey ? MOCK_TRANSITIONS.find((t) => t.id === displayKey.transitionId) : null;
-  const displayMethod = displayTransition ? MOCK_METHODS.find((m) => m.id === displayTransition.methodId) : null;
+  const displayTransition = displayKey ? ([] as MockTransition[]).find((t) => t.id === displayKey.transitionId) : null;
+  const displayMethod = displayTransition ? ({ id: displayTransition.methodId, order: 1 } as MockMethod) : null;
   const visibleTemplates = displayTransition?.templates ?? [];
   const safeIdx = Math.min(templateIdx, Math.max(0, visibleTemplates.length - 1));
   const activeTemplate = visibleTemplates[safeIdx] ?? null;
@@ -1307,6 +1170,7 @@ const PlanA: React.FC<PlanProps> = ({
       <WorkHeader
         displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
+        onStateRecord={onStateRecord}
       />
 
       {/* テンプレート選択ボタン（複数の場合のみ） */}
@@ -1359,6 +1223,7 @@ const PlanB: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
+  progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onInstructionClick,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1366,22 +1231,47 @@ const PlanB: React.FC<PlanProps> = ({
   const [templateSearchText, setTemplateSearchText] = useState('');
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<string | undefined>(undefined);
 
+  /**
+   * 使用するトランジション定義リスト。
+   * apiTransitions が 1件以上あれば API データを使用し、なければ空配列。
+   */
+  const effectiveTransitions = (apiTransitions && apiTransitions.length > 0) ? apiTransitions : [];
+
   const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
+    // progressRows がある場合: API の実トランジションIDを優先使用
+    if (progressRows && progressRows.length > 0) {
+      // 1. activeTaskNo の in_progress/ready/preparing を優先
+      const activeRow = progressRows.find(
+        (r) => r.taskNo === activeTaskNo && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+      )
+        // 2. 全体の in_progress/ready/preparing
+        ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+        // 3. activeTaskNo の not_started（未着手でもカードを表示）
+        ?? progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
+        // 4. 全体の not_started
+        ?? progressRows.find((r) => r.status === 'not_started');
+      if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      return null;
+    }
+    // progressRows がない場合: task.transitions の順序でフォールバック
     const task = tasks.find((t) => t.taskNo === activeTaskNo);
     if (!task) return null;
-    for (const tid of ORDERED_TRANSITION_IDS) {
-      const tt = task.transitions.find((x) => x.transitionId === tid);
-      if (tt && tt.status !== 'completed' && tt.status !== 'error') return { taskNo: activeTaskNo, transitionId: tid };
+    for (const tt of task.transitions) {
+      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: activeTaskNo, transitionId: tt.transitionId };
     }
     return null;
-  }, [tasks, activeTaskNo]);
+  }, [progressRows, tasks, activeTaskNo]);
 
   const displayKey = viewingKey ?? activeEntry;
   const isReadOnly = viewingKey !== null;
   const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
   const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
-  const displayTransition = displayKey ? MOCK_TRANSITIONS.find((t) => t.id === displayKey.transitionId) : null;
-  const displayMethod = displayTransition ? MOCK_METHODS.find((m) => m.id === displayTransition.methodId) : null;
+  // effectiveTransitions からテンプレートを解決する
+  const displayTransition = displayKey ? effectiveTransitions.find((t) => t.id === displayKey.transitionId) : null;
+  // methodId を displayTransition から取得し、フォールバックとして props の methodId を使用
+  const displayMethod = displayTransition
+    ? { id: displayTransition.methodId, order: 1 }
+    : null;
   const visibleTemplates = displayTransition?.templates ?? [];
 
   // 自動選択: トランジションが切り替わったら先頭テンプレートを選択
@@ -1401,12 +1291,25 @@ const PlanB: React.FC<PlanProps> = ({
     });
   }, [visibleTemplates, templateSearchText, selectedTemplateCategory]);
 
+  /** カテゴリ別グループ化テンプレート（左Siderのグループ表示用） */
+  const categorizedTemplates = useMemo(() => {
+    const order: ('Materials' | 'Conditions' | 'Results')[] = ['Materials', 'Conditions', 'Results'];
+    return order
+      .map((cat) => ({
+        category: cat,
+        templates: filteredTemplates.filter((t) => t.category === cat),
+      }))
+      .filter((g) => g.templates.length > 0);
+  }, [filteredTemplates]);
+
   return (
     <Flex vertical style={{ height: '100%' }}>
-      <InstructionCollapse instructions={instructions} />
+      <InstructionCollapse instructions={instructions} onConfirmInstruction={onConfirmInstruction} />
       <WorkHeader
         displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
+        onStateRecord={onStateRecord}
+        onInstructionClick={onInstructionClick}
       />
 
       {/* Creator / Instrument 選択エリア（WorkHeader の直後・テンプレート入力の前） */}
@@ -1415,37 +1318,93 @@ const PlanB: React.FC<PlanProps> = ({
           size="small"
           style={{ marginBottom: 8, background: '#fafafa' }}
         >
-          <Flex gap={16} wrap="wrap" align="center">
-            <Flex align="center" gap={8}>
-              <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
-                {t('workRecord.creatorLabel')}
-              </Text>
-              <Select
-                style={{ width: 240 }}
-                size="small"
-                placeholder={t('workRecord.creatorPlaceholder')}
-                value={selectedCreatorRef ?? undefined}
-                options={creatorRefOptions.map((v) => ({ label: v, value: v }))}
-                onChange={(v: string | undefined) => onCreatorRefChange(v ?? null)}
-                allowClear
-                disabled={isReadOnly}
-              />
+          <Flex justify="space-between" align="center" wrap="wrap" gap={8}>
+            {/* 左側: Creator / Instrument */}
+            <Flex gap={16} wrap="wrap" align="center">
+              <Flex align="center" gap={8}>
+                <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
+                  {t('workRecord.creatorLabel')}
+                </Text>
+                <Select
+                  style={{ width: 240 }}
+                  size="small"
+                  placeholder={t('workRecord.creatorPlaceholder')}
+                  value={selectedCreatorRef ?? undefined}
+                  options={creatorRefOptions.map((v) => ({ label: v, value: v }))}
+                  onChange={(v: string | undefined) => onCreatorRefChange(v ?? null)}
+                  allowClear
+                  disabled={isReadOnly}
+                />
+              </Flex>
+              <Flex align="center" gap={8}>
+                <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
+                  {t('workRecord.instrumentLabel')}
+                </Text>
+                <Select
+                  style={{ width: 240 }}
+                  size="small"
+                  placeholder={t('workRecord.instrumentPlaceholder')}
+                  value={selectedInstrumentRef ?? undefined}
+                  options={instrumentRefOptions.map((v) => ({ label: v, value: v }))}
+                  onChange={(v: string | undefined) => onInstrumentRefChange(v ?? null)}
+                  allowClear
+                  disabled={isReadOnly}
+                />
+              </Flex>
             </Flex>
-            <Flex align="center" gap={8}>
-              <Text style={{ fontSize: 12, whiteSpace: 'nowrap', minWidth: 72, fontWeight: 500 }}>
-                {t('workRecord.instrumentLabel')}
-              </Text>
-              <Select
-                style={{ width: 240 }}
-                size="small"
-                placeholder={t('workRecord.instrumentPlaceholder')}
-                value={selectedInstrumentRef ?? undefined}
-                options={instrumentRefOptions.map((v) => ({ label: v, value: v }))}
-                onChange={(v: string | undefined) => onInstrumentRefChange(v ?? null)}
-                allowClear
-                disabled={isReadOnly}
-              />
-            </Flex>
+
+            {/* 右側: 保存 / 次へ / コメント / スキップ（編集時のみ表示） */}
+            {!isReadOnly && (() => {
+              const nextBtnLabel = t('workRecord.transitionCompleteNext');
+              const canSkipFlag = findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null;
+              const handleSaveAndNextInner = () => {
+                const nextTemplateIdx = safeIdx + 1;
+                if (nextTemplateIdx < visibleTemplates.length) {
+                  setSelectedTemplateId(visibleTemplates[nextTemplateIdx]?.id ?? null);
+                } else {
+                  onSaveAndNext(displayKey.taskNo, displayKey.transitionId);
+                }
+              };
+              return (
+                <Flex gap={8} align="center">
+                  <Button
+                    size="small"
+                    icon={<SaveOutlined />}
+                    style={{ background: '#f6ffed', borderColor: '#b7eb8f', color: '#52c41a' }}
+                    onClick={() => onSave(displayKey.taskNo, displayKey.transitionId)}
+                  >
+                    {t('workRecord.saveButton')}
+                  </Button>
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<RightOutlined />}
+                    onClick={handleSaveAndNextInner}
+                  >
+                    {nextBtnLabel}
+                  </Button>
+                  <Divider type="vertical" style={{ margin: '0 12px' }} />
+                  <Button
+                    size="small"
+                    icon={<CommentOutlined />}
+                    onClick={onCommentClick}
+                  >
+                    {t('workRecord.commentButton')}
+                  </Button>
+                  <Tooltip title={canSkipFlag ? t('workRecord.skipTooltipAvailable') : t('workRecord.skipTooltipUnavailable')}>
+                    <Button
+                      size="small"
+                      icon={<StepForwardOutlined />}
+                      disabled={!canSkipFlag}
+                      onClick={() => onSkip(displayKey.taskNo, displayKey.transitionId)}
+                      style={{ marginLeft: 8 }}
+                    >
+                      {t('workRecord.skipButton')}
+                    </Button>
+                  </Tooltip>
+                </Flex>
+              );
+            })()}
           </Flex>
         </Card>
       )}
@@ -1495,56 +1454,90 @@ const PlanB: React.FC<PlanProps> = ({
             />
           </Space>
 
-          {/* テンプレートテーブル（DataRecordDialog準拠） */}
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <Spin spinning={false}>
-              <Table
-                size="small"
-                dataSource={filteredTemplates}
-                rowKey="id"
-                onRow={(record) => ({
-                  onClick: () => setSelectedTemplateId(record.id),
-                  style: { cursor: 'pointer' },
-                })}
-                rowClassName={(record) =>
-                  record.id === resolvedSelectedId ? 'ant-table-row-selected' : ''
-                }
-                scroll={{ y: 400 }}
-                pagination={false}
-                showHeader={false}
-                columns={[
-                  {
-                    title: 'Template',
-                    dataIndex: 'name',
-                    key: 'name',
-                    render: (name: string, record: MockTemplate) => {
-                      const isOutput = record.category === 'Results';
-                      const ioLabel = isOutput ? 'OUT' : 'IN';
-                      const ioColor = isOutput ? 'green' : 'blue';
-                      const propertyCount = record.properties.length;
-                      return (
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <Text strong style={{ fontSize: 13 }}>{name}</Text>
-                          <Text type="secondary" style={{ fontSize: 12 }}>({propertyCount}{t('workRecord.itemsSuffix')})</Text>
-                          </div>
-                          <div style={{ marginTop: 4 }}>
-                            <Space size="small">
-                              <Tag color={CATEGORY_COLOR[record.category]} style={{ fontSize: 11, margin: 0 }}>
-                                {record.category}
-                              </Tag>
-                              <Tag color={ioColor} style={{ fontSize: 11, margin: 0 }}>
-                                {ioLabel}
-                              </Tag>
-                            </Space>
-                          </div>
-                        </div>
-                      );
-                    },
-                  },
-                ]}
-              />
-            </Spin>
+          {/* テンプレートリスト（カテゴリ別グループ表示） */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {categorizedTemplates.length === 0 ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {t('workRecord.noActiveTransition')}
+              </Text>
+            ) : (
+              categorizedTemplates.map((group) => (
+                <div key={group.category} style={{ marginBottom: 12 }}>
+                  {/* カテゴリヘッダー */}
+                  <Text
+                    strong
+                    style={{
+                      fontSize: 12,
+                      color: '#595959',
+                      display: 'block',
+                      marginBottom: 4,
+                      paddingLeft: 2,
+                    }}
+                  >
+                    {group.category}
+                  </Text>
+
+                  {/* テンプレートカード一覧 */}
+                  {group.templates.map((tpl) => {
+                    const isSelected = tpl.id === resolvedSelectedId;
+                    const isOutput = tpl.category === 'Results';
+                    const ioLabel = isOutput ? 'OUT' : 'IN';
+                    const ioColor = isOutput ? 'green' : 'blue';
+                    const propertyCount = tpl.properties.length;
+                    return (
+                      <div
+                        key={tpl.id}
+                        onClick={() => setSelectedTemplateId(tpl.id)}
+                        style={{
+                          cursor: 'pointer',
+                          padding: '6px 8px',
+                          marginBottom: 4,
+                          borderRadius: 6,
+                          border: `1px solid ${isSelected ? '#1677ff' : '#e8e8e8'}`,
+                          background: isSelected ? '#e6f4ff' : '#ffffff',
+                          transition: 'background 0.15s, border-color 0.15s',
+                        }}
+                      >
+                        {/* テンプレート名 + 件数 */}
+                        <Flex align="center" gap={6} style={{ marginBottom: 4 }}>
+                          <Text
+                            strong
+                            style={{
+                              fontSize: 13,
+                              color: isSelected ? '#1677ff' : 'inherit',
+                              flex: 1,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {tpl.name}
+                          </Text>
+                          <Text type="secondary" style={{ fontSize: 11, flexShrink: 0 }}>
+                            ({propertyCount}{t('workRecord.itemsSuffix')})
+                          </Text>
+                        </Flex>
+                        {/* カテゴリTag + IN/OUTTag */}
+                        <Space size={4}>
+                          <Tag
+                            color={CATEGORY_COLOR[tpl.category]}
+                            style={{ fontSize: 11, margin: 0, lineHeight: '18px' }}
+                          >
+                            {tpl.category}
+                          </Tag>
+                          <Tag
+                            color={ioColor}
+                            style={{ fontSize: 11, margin: 0, lineHeight: '18px' }}
+                          >
+                            {ioLabel}
+                          </Tag>
+                        </Space>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
+            )}
           </div>
         </Sider>
 
@@ -1589,31 +1582,81 @@ const PlanB: React.FC<PlanProps> = ({
 // WorkRecordPanel（エクスポート）
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WorkRecordPanel Props & 変換ユーティリティ
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 interface WorkRecordPanelProps {
-  /** 選択中のプロジェクト名（S3アップロードパスの組み立てに使用） */
   projectName?: string;
-  /** 選択中のプロジェクトID（ペトリネットビューアのMAIML取得に使用） */
   projectId?: string;
-  /** 選択中のメソッドID（Creator/Instrument選択肢・初期値の取得に使用） */
   methodId?: string;
-  /**
-   * 全体進捗タブから渡される進捗行データ。
-   * 渡された場合は in_progress → not_started の順で最初に見つかったタスクNo を
-   * 作業対象タスクNo として使用する（モック ASSIGNED_TASK_NO の代替）。
-   */
   progressRows?: ProgressRow[];
-  /** プロジェクトステータス（数値コード）。渡されても現フェーズでは未使用 */
   projectStatus?: number;
-  /** みなし進捗フラグ。渡されても現フェーズでは未使用 */
   useDeemedProgress?: boolean;
-  /**
-   * 「作業へ」ボタン等で特定タスク+トランジションへジャンプするためのキー。
-   * ExperimentWorkerMenu が渡す際に使用。
-   */
   initialTaskNo?: number;
   initialTransitionId?: string;
-  /** プロジェクト指示文字列の配列（APIから取得済みのもの）。未指定時はモックを使用 */
   projectInstructions?: string[];
+  /** プロジェクト指示「確認」ボタン押下コールバック */
+  onConfirmInstruction?: () => void;
+  /** 「開始」ボタン押下コールバック（準備完了→動作状態） */
+  onStart?: () => void;
+  /** 「終了」ボタン押下コールバック（動作状態→終状態） */
+  onEnd?: () => void;
+  /** 「異常終了」ボタン押下コールバック（任意→異常終了状態） */
+  onForceEnd?: () => void;
+}
+
+/** API の xsiType 文字列を MockProperty の xsiType に変換する */
+function resolveXsiType(xsiType: string | undefined): MockProperty['xsiType'] {
+  if (!xsiType) return 'StringValue';
+  const lower = xsiType.toLowerCase();
+  if (lower.includes('double') || lower.includes('float')) return 'FloatValue';
+  if (lower.includes('int')) return 'IntegerValue';
+  return 'StringValue';
+}
+
+/**
+ * API レスポンスの1プロパティ行を MockProperty に変換する。
+ * PLAN.md バグ4件: plannedValue/toleranceValue/uncertaintyNote/uncertaintyKey/uncertaintyName のマッピング追加。
+ */
+function convertRawProperty(
+  p: Record<string, unknown>
+): MockProperty {
+  let confidenceOptions: string[] | undefined;
+  let defaultConfidence: string | undefined;
+  // バックエンドが返す qualitativeOptions を直接利用する
+  // （criteriaMap を使ったルックアップは uncertaintyKey が一致しない場合があるため廃止）
+  const rawQualitativeOptions = p.qualitativeOptions as
+    | Array<{ displayOrder: number; selectorValue: string }>
+    | null
+    | undefined;
+  if (rawQualitativeOptions && rawQualitativeOptions.length > 0) {
+    confidenceOptions = [...rawQualitativeOptions]
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .map((opt) => opt.selectorValue);
+  }
+  // 保存済みの定性評価値を初期選択状態にする
+  const qualitativeEval = (p.qualitativeEval as string | null | undefined) ?? undefined;
+  if (qualitativeEval) {
+    defaultConfidence = qualitativeEval;
+  }
+  return {
+    key: String(p.key ?? ''),
+    label: String(p.key ?? ''),
+    xsiType: resolveXsiType(p.xsiType as string | undefined),
+    unit: String(p.units ?? ''),
+    // バックエンド(buildFallbackTemplates/convertPropertyForFallback)は想定値を "value" キーで返す。
+    // 旧称 "plannedValue" も念のためフォールバックとして残す。
+    expected: ((p.value ?? p.plannedValue) as number | string | null | undefined) ?? null,
+    uncertaintyName: (p.uncertaintyName as string | undefined) ?? undefined,
+    uncertaintyValue: (p.toleranceValue as string | number | undefined) ?? undefined,
+    uncertaintyDescription: (p.uncertaintyNote as string | undefined) ?? undefined,
+    defaultConfidence,
+    confidenceOptions,
+    // 定性評価の description（uncertainty の description = unc.description）
+    // バックエンドは qualitativeNote として返す
+    description: (p.qualitativeNote as string | null | undefined) ?? undefined,
+  };
 }
 
 /**
@@ -1625,8 +1668,8 @@ interface WorkRecordPanelProps {
 function resolveActiveTaskNo(progressRows: ProgressRow[] | undefined, fallback: number): number {
   if (!progressRows || progressRows.length === 0) return fallback;
 
-  // in_progress のタスクを優先
-  const inProgressRow = progressRows.find((r) => r.status === 'in_progress');
+  // in_progress/ready/preparing のタスクを優先
+  const inProgressRow = progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing');
   if (inProgressRow) return inProgressRow.taskNo;
 
   // not_started のタスクを次に選ぶ
@@ -1642,19 +1685,222 @@ export default function WorkRecordPanel({
   projectId,
   methodId,
   progressRows,
+  projectStatus,
   initialTaskNo,
   initialTransitionId,
   projectInstructions,
+  onConfirmInstruction,
+  onStart,
+  onEnd,
+  onForceEnd,
 }: WorkRecordPanelProps = {}) {
   // フォールバック値 2 はモック INITIAL_TASKS のタスク2（in_progress）に対応
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
-  const [tasks, setTasks] = useState<MockTask[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<MockTask[]>([]);
+
+  /**
+   * getTemplateData の生レスポンス（TemplateDataItem[]）を保持する Ref。
+   * taskNo__transitionId をキーとして保存し、保存時に placeId / data 構造を参照する。
+   */
+  const rawTemplateItemsRef = React.useRef<Map<string, TemplateDataItem[]>>(new Map());
+
+  // 作業指示モーダルの開閉状態
+  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
+  // 作業指示モーダルに渡す「現在表示中のトランジション情報」
+  const [currentTransitionForInstruction, setCurrentTransitionForInstruction] = useState<Transition | null>(null);
+
+  /**
+   * API から取得したトランジション定義（テンプレート・プロパティ情報）。
+   * progressRows と getExperimentPlans() から構築し、MOCK_TRANSITIONS の代わりに使用する。
+   * projectId / methodId / progressRows が揃っていない場合は空配列のまま（MOCK_TRANSITIONS にフォールバック）。
+   */
+  const [apiTransitions, setApiTransitions] = useState<MockTransition[]>([]);
+
+  // ── API データから MockTransition[] を構築する useEffect ──
+  useEffect(() => {
+    if (!projectId || !methodId || !progressRows || progressRows.length === 0) {
+      setApiTransitions([]);
+      return;
+    }
+    let cancelled = false;
+
+    const buildTransitions = async () => {
+      try {
+        // tasks も progressRows に合わせて再構築（TaskTransitionState を同期）
+        // 各 taskNo × transitionId の実績値と定義を getTemplateData API から取得する
+        const uniqueTaskNos = Array.from(new Set(progressRows.map((r) => r.taskNo)));
+
+        // taskNo × transitionId ごとの actuals と templates を並列取得
+        // template_data は想定値・不確かさ・定性評価選択肢を含む JOIN 済みデータを返すため
+        // getExperimentPlans / fetchUncertaintyCriteriaForSelector は不要
+        const actualsMap = new Map<string, Record<string, ActualValue>>();
+        // transitionId → MockTemplate[] のマップ（代表タスク=ASSIGNED_TASK_NO のデータを優先して使用）
+        const templatesMap = new Map<string, MockTemplate[]>();
+
+        const fetchActualsPromises = progressRows.map(async (row) => {
+          const mapKey = `${row.taskNo}__${row.transitionId}`;
+          try {
+            const templateDataRes = await getTemplateData(
+              projectId,
+              methodId,
+              row.taskNo,
+              row.transitionId
+            );
+            if (cancelled) return;
+
+            // ── テンプレート定義（プロパティカード）を構築 ──
+            // getTemplateData が返す templates[].data.properties には
+            // 想定値・不確かさ・定性評価選択肢がすべて含まれているため、
+            // convertRawProperty() で直接 MockProperty に変換できる
+            const shouldOverwriteTemplates =
+              !templatesMap.has(row.transitionId) || row.taskNo === ASSIGNED_TASK_NO;
+            if (shouldOverwriteTemplates) {
+              const builtTemplates: MockTemplate[] = templateDataRes.data.templates
+                .map((item, _tplIdx) => {
+                  const rawProps = Array.isArray(item.data.properties)
+                    ? (item.data.properties as Record<string, unknown>[])
+                    : [];
+                  const properties: MockProperty[] = rawProps.map((prop) =>
+                    convertRawProperty(prop)
+                  );
+                  const rawCategory = String(item.data.category ?? item.data.templateType ?? 'Conditions');
+                  // バックエンドは小文字（'material'/'condition'/'result'）、
+                  // 既存フォールバックは先頭大文字（'Materials'/'Conditions'/'Results'）の両形式が混在するため
+                  // 両方に対応した正規化マッピングを行う
+                  const normalizedCategory = rawCategory.toLowerCase();
+                  const category: MockTemplate['category'] =
+                    (normalizedCategory === 'result'   || rawCategory === 'Results')  ? 'Results' :
+                    (normalizedCategory === 'material' || rawCategory === 'Materials') ? 'Materials' : 'Conditions';
+                  return {
+                    id: String(item.placeId || `tpl-${row.transitionId}-${_tplIdx}`),
+                    name: String(item.data.templateName ?? item.data.template_name ?? item.data.templateId ?? row.transitionId),
+                    category,
+                    properties,
+                  };
+                })
+                .filter((tpl) => tpl.properties.length > 0);
+
+              // テンプレートが1つも構築できなかった場合は最小テンプレートを生成
+              if (builtTemplates.length === 0) {
+                const matchedRow = progressRows.find((r) => r.transitionId === row.transitionId);
+                builtTemplates.push({
+                  id: `tpl-${row.transitionId}`,
+                  name: matchedRow
+                    ? `Transition ${matchedRow.taskNo}-${row.transitionId}`
+                    : row.transitionId,
+                  category: 'Conditions',
+                  properties: [],
+                });
+              }
+              templatesMap.set(row.transitionId, builtTemplates);
+            }
+
+            // ── 実績値を取得 ──
+            const actualsFromApi: Record<string, ActualValue> = {};
+            for (const item of templateDataRes.data.templates) {
+              // recordedBy が null でない場合のみ DB 実績あり
+              if (item.recordedBy !== null) {
+                for (const [key, val] of Object.entries(item.data)) {
+                  // フォールバック形式のメタキーは除外
+                  if (key === 'templateId' || key === 'templateType' || key === 'properties') continue;
+                  actualsFromApi[key] = val as ActualValue;
+                }
+              }
+            }
+            actualsMap.set(mapKey, actualsFromApi);
+            // ── 生データを ref に保存（保存時の placeId/data 構造参照用） ──
+            rawTemplateItemsRef.current.set(mapKey, templateDataRes.data.templates);
+          } catch {
+            // 取得失敗時は空のまま（画面クラッシュを防ぐ）
+            actualsMap.set(mapKey, {});
+          }
+        });
+        await Promise.all(fetchActualsPromises);
+        if (cancelled) return;
+
+        // templatesMap から builtTransitions を構築して apiTransitions に反映
+        const uniqueTransitionIds = Array.from(new Set(progressRows.map((r) => r.transitionId)));
+        const builtTransitions: MockTransition[] = uniqueTransitionIds.map((transitionId, idx) => ({
+          id: transitionId,
+          order: idx + 1,
+          prerequisiteTransitionIds: [],
+          methodId,
+          templates: templatesMap.get(transitionId) ?? [],
+        }));
+        setApiTransitions(builtTransitions);
+
+        setTasks((prev) => {
+          const next: MockTask[] = uniqueTaskNos.map((taskNo) => {
+            const existingTask = prev.find((t) => t.taskNo === taskNo);
+            const taskRows = progressRows.filter((r) => r.taskNo === taskNo);
+            const transitions: TaskTransitionState[] = taskRows.map((row) => {
+              const existing = existingTask?.transitions.find((tt) => tt.transitionId === row.transitionId);
+              const apiStatus: TransitionStatus = (() => {
+                switch (row.status) {
+                  case 'preparing':   return 'preparing';
+                  case 'ready':       return 'ready';
+                  case 'in_progress': return 'running';
+                  case 'on_hold':     return 'paused';
+                  case 'completed':   return 'completed';
+                  case 'issue':       return 'error';
+                  case 'not_started': return 'not_started';
+                  default: return 'not_started';
+                }
+              })();
+              // 既存の actuals（ユーザー入力済み）があれば優先し、
+              // なければ API から取得した実績値を使用する
+              const mapKey = `${row.taskNo}__${row.transitionId}`;
+              const apiActuals = actualsMap.get(mapKey) ?? {};
+              const hasExistingActuals =
+                existing?.actuals !== undefined &&
+                Object.keys(existing.actuals).length > 0;
+              return {
+                transitionId: row.transitionId,
+                // API から取得した最新ステータスを常に反映する（状態プルダウン更新のため）
+                status: apiStatus,
+                actuals: hasExistingActuals ? existing!.actuals : apiActuals,
+                customInsertionIds: existing?.customInsertionIds ?? [],
+                customContentIds: existing?.customContentIds ?? [],
+              };
+            });
+            return { taskNo, transitions };
+          });
+          return next;
+        });
+      } catch (err) {
+        console.error('[WorkRecordPanel] buildTransitions error:', err);
+      }
+    };
+
+    buildTransitions();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, methodId, progressRows]);
   // initialTaskNo/initialTransitionId が両方指定されている場合は、初期表示でそのトランジションを表示する
   const [viewingKey, setViewingKey] = useState<{ taskNo: number; transitionId: string } | null>(
     initialTaskNo !== undefined && initialTransitionId !== undefined
       ? { taskNo: initialTaskNo, transitionId: initialTransitionId }
       : null
   );
+
+  // ── 不確かさ基準選択肢を API から取得して uncertaintyOptionsCache に格納 ──
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCriteria = async () => {
+      try {
+        const result = await fetchUncertaintyCriteriaForSelector();
+        if (cancelled) return;
+        uncertaintyOptionsCache = result.map((c) => ({
+          value: c.key,
+          label: c.name,
+        }));
+      } catch (err) {
+        console.error('[WorkRecordPanel] uncertainty criteria fetch error:', err);
+      }
+    };
+    fetchCriteria();
+    return () => { cancelled = true; };
+  }, []);
 
   // ── Creator / Instrument 選択肢・選択値 ──
   const [creatorRefOptions, setCreatorRefOptions] = useState<string[]>([]);
@@ -1797,15 +2043,61 @@ export default function WorkRecordPanel({
     return () => { cancelled = true; };
   }, [projectId, methodId]);
 
-  const handleSave = useCallback(async (_taskNo: number, _transitionId: string) => {
+  const handleSave = useCallback(async (taskNo: number, transitionId: string) => {
     try {
       await uploadAllPendingInsertions();
     } catch {
       message.error(t('insertionEditor.uploadFailed'));
       return;
     }
-    Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
-  }, [t, uploadAllPendingInsertions]);
+
+    // API 呼び出しに必要なパラメータが揃っていない場合はモック成功表示のみ
+    if (!projectId || !methodId) {
+      Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+      return;
+    }
+
+    const mapKey = `${taskNo}__${transitionId}`;
+    const rawItems = rawTemplateItemsRef.current.get(mapKey) ?? [];
+    const task = tasks.find((t) => t.taskNo === taskNo);
+    const taskTransition = task?.transitions.find((tt) => tt.transitionId === transitionId);
+
+    if (rawItems.length === 0) {
+      // 生データなし: 成功メッセージのみ
+      Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+      return;
+    }
+
+    try {
+      const records: ExperimentDataRecord[] = rawItems.map((item) => {
+        const baseData: Record<string, unknown> = item.data ? JSON.parse(JSON.stringify(item.data)) : {};
+        // actuals の値で対応するプロパティを上書きする
+        if (taskTransition?.actuals) {
+          if (Array.isArray(baseData.properties)) {
+            (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+              if (p.isCustomProperty === true) return;
+              const propKey = String(p.key ?? '');
+              if (propKey in taskTransition.actuals) {
+                p.value = taskTransition.actuals[propKey] ?? null;
+              }
+            });
+          }
+        }
+        return {
+          placeId: item.placeId,
+          templateType: item.templateType,
+          templateId: item.templateId,
+          data: baseData,
+        };
+      });
+
+      await saveBatchExperimentData(projectId, methodId, taskNo, { records });
+      Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+    } catch (err) {
+      console.error('[WorkRecordPanel] handleSave error:', err);
+      message.error(t('workRecord.saveContent'));
+    }
+  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions]);
 
   const handleSaveAndNext = useCallback(
     async (taskNo: number, transitionId: string) => {
@@ -1815,6 +2107,45 @@ export default function WorkRecordPanel({
         message.error(t('insertionEditor.uploadFailed'));
         return;
       }
+
+      // 実 API 保存（projectId / methodId が揃っている場合のみ）
+      if (projectId && methodId) {
+        const mapKey = `${taskNo}__${transitionId}`;
+        const rawItems = rawTemplateItemsRef.current.get(mapKey) ?? [];
+        const task = tasks.find((t) => t.taskNo === taskNo);
+        const taskTransition = task?.transitions.find((tt) => tt.transitionId === transitionId);
+
+        if (rawItems.length > 0) {
+          try {
+            const records: ExperimentDataRecord[] = rawItems.map((item) => {
+              const baseData: Record<string, unknown> = item.data ? JSON.parse(JSON.stringify(item.data)) : {};
+              if (taskTransition?.actuals) {
+                if (Array.isArray(baseData.properties)) {
+                  (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+                    if (p.isCustomProperty === true) return;
+                    const propKey = String(p.key ?? '');
+                    if (propKey in taskTransition.actuals) {
+                      p.value = taskTransition.actuals[propKey] ?? null;
+                    }
+                  });
+                }
+              }
+              return {
+                placeId: item.placeId,
+                templateType: item.templateType,
+                templateId: item.templateId,
+                data: baseData,
+              };
+            });
+            await saveBatchExperimentData(projectId, methodId, taskNo, { records });
+          } catch (err) {
+            console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
+            message.error(t('workRecord.saveContent'));
+            return;
+          }
+        }
+      }
+
       setTasks((prev) =>
         prev.map((task) => {
           if (task.taskNo !== taskNo) return task;
@@ -1831,9 +2162,10 @@ export default function WorkRecordPanel({
 
       const task = tasks.find((t) => t.taskNo === taskNo);
       if (!task) return;
-      const idx = ORDERED_TRANSITION_IDS.indexOf(transitionId);
-      const nextId = ORDERED_TRANSITION_IDS[idx + 1];
-      const nextTt = nextId ? task.transitions.find((x) => x.transitionId === nextId) : null;
+      // 次のトランジションを task.transitions の順序から探す（モック依存を排除）
+      const currentTtIdx = task.transitions.findIndex((tt) => tt.transitionId === transitionId);
+      const nextTt = currentTtIdx >= 0 ? task.transitions[currentTtIdx + 1] : null;
+      const nextId = nextTt?.transitionId ?? null;
 
       if (nextTt) {
         Modal.success({
@@ -1844,7 +2176,7 @@ export default function WorkRecordPanel({
         Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
       }
     },
-    [tasks, t, uploadAllPendingInsertions]
+    [projectId, methodId, tasks, t, uploadAllPendingInsertions]
   );
 
   // ─── スキップ state ────────────────────────────────────────
@@ -1976,6 +2308,49 @@ export default function WorkRecordPanel({
     []
   );
 
+  // ─── 状態記録ダイアログ用 state ──────────────────────────
+  const [stateRecordDialogOpen, setStateRecordDialogOpen] = useState(false);
+
+  /** 固定行の状態遷移時刻（各状態ごとに DatePicker 値を管理） */
+  const [srPreparingTime,  setSrPreparingTime]  = useState<string>('');
+  const [srReadyTime,      setSrReadyTime]       = useState<string>('');
+  const [srRunningTime,    setSrRunningTime]     = useState<string>('');
+  const [srCompletedTime,  setSrCompletedTime]   = useState<string>('');
+  const [srErrorTime,      setSrErrorTime]       = useState<string>('');
+
+  interface PauseEntry {
+    id: string;
+    /** 休止状態の状態遷移時刻 */
+    pauseTime: string;
+    /** 再開（動作状態）の状態遷移時刻 */
+    resumeTime: string;
+  }
+  const [srPauseEntries, setSrPauseEntries] = useState<PauseEntry[]>([]);
+
+  const handleStateRecordClose = useCallback(() => {
+    setStateRecordDialogOpen(false);
+    setSrPreparingTime('');
+    setSrReadyTime('');
+    setSrRunningTime('');
+    setSrCompletedTime('');
+    setSrErrorTime('');
+    setSrPauseEntries([]);
+  }, []);
+
+  const handleStateRecordSave = useCallback(() => {
+    const saveData = {
+      preparingTime: srPreparingTime,
+      readyTime: srReadyTime,
+      runningTime: srRunningTime,
+      pauseEntries: srPauseEntries,
+      completedTime: srCompletedTime,
+      errorTime: srErrorTime,
+    };
+    console.info('[WorkRecordPanel] 状態記録保存（モック）:', saveData);
+    Modal.success({ title: t('workRecord.stateRecordSaved') });
+    handleStateRecordClose();
+  }, [srPreparingTime, srReadyTime, srRunningTime, srPauseEntries, srCompletedTime, srErrorTime, handleStateRecordClose, t]);
+
   // ─── コメントダイアログ用 state ───────────────────────────
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
 
@@ -1990,7 +2365,7 @@ export default function WorkRecordPanel({
     activeTaskNo: ASSIGNED_TASK_NO,
     viewingKey,
     skippedTransitionIds,
-    instructions: projectInstructions ?? MOCK_PROJECT_INSTRUCTIONS,
+    instructions: projectInstructions ?? [],
     onActualChange: handleActualChange,
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,
@@ -2004,6 +2379,8 @@ export default function WorkRecordPanel({
     uploadTargetPath: projectName ? `projects/${projectName}/attachments` : undefined,
     onOpenViewer: projectId ? handleOpenPetriNetViewer : undefined,
     viewerLoading: petriNetViewerLoading,
+    progressRows,
+    apiTransitions,
     creatorRefOptions,
     instrumentRefOptions,
     selectedCreatorRef,
@@ -2011,23 +2388,284 @@ export default function WorkRecordPanel({
     onCreatorRefChange: setSelectedCreatorRef,
     onInstrumentRefChange: setSelectedInstrumentRef,
     onInsertionUploadReady: handleInsertionUploadReady,
+    onConfirmInstruction,
+    onStart,
+    onEnd,
+    onForceEnd,
+    onStateRecord: () => setStateRecordDialogOpen(true),
+    onInstructionClick: () => {
+      // 現在表示中のトランジションを InstructionConfirmationModal に渡す
+      const targetEntry = viewingKey ?? (() => {
+        if (progressRows && progressRows.length > 0) {
+          const activeRow = progressRows.find(
+            (r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+          ) ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing');
+          if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+        }
+        return null;
+      })();
+      if (targetEntry) {
+        const tr: Transition = {
+          transitionId: targetEntry.transitionId,
+          transitionName: targetEntry.transitionId,
+          status: 'not_started' as const,
+          templates: [],
+        };
+        setCurrentTransitionForInstruction(tr);
+      } else {
+        setCurrentTransitionForInstruction(null);
+      }
+      setInstructionModalOpen(true);
+    },
   };
 
   // コメントダイアログに渡す displayKey（現在表示中のキー）
-  const activeTaskEntry = (() => {
+  // progressRows (API データ) から in_progress / started なトランジションを優先使用する。
+  // モック ORDERED_TRANSITION_IDS との不一致により常に null になっていた問題を修正。
+  const activeTaskEntry = useMemo(() => {
+    // progressRows がある場合: API の実トランジションIDを使用
+    if (progressRows && progressRows.length > 0) {
+      // まず ASSIGNED_TASK_NO のタスクで in_progress/ready/preparing を探す
+      const activeRow = progressRows.find(
+        (r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+      ) ?? progressRows.find(
+        // 見つからない場合はタスクNoに関わらず最初の作業中トランジションを使用
+        (r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing'
+      );
+      if (activeRow) {
+        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      }
+      // 全て完了済みの場合は null（「全トランジション完了」Alert を表示）
+      return null;
+    }
+    // progressRows が空の場合: task.transitions の順序でフォールバック
     const task = tasks.find((t) => t.taskNo === ASSIGNED_TASK_NO);
     if (!task) return null;
-    for (const tid of ORDERED_TRANSITION_IDS) {
-      const tt = task.transitions.find((x) => x.transitionId === tid);
-      if (tt && tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tid };
+    for (const tt of task.transitions) {
+      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: ASSIGNED_TASK_NO, transitionId: tt.transitionId };
     }
     return null;
-  })();
+  }, [progressRows, tasks, ASSIGNED_TASK_NO]);
   const commentTarget = viewingKey ?? activeTaskEntry;
 
   return (
     <div style={{ flex: 1, minHeight: 0 }}>
       <PlanB {...planProps} />
+
+      {/* 状態記録ダイアログ */}
+      <Modal
+        open={stateRecordDialogOpen}
+        title={t('workRecord.stateRecordDialogTitle')}
+        onCancel={handleStateRecordClose}
+        onOk={handleStateRecordSave}
+        okText={t('common.save')}
+        cancelText={t('common.cancel')}
+        width={520}
+      >
+        <Flex vertical gap={0} style={{ marginTop: 8 }}>
+          {/* ── 固定行: 準備状態 ── */}
+          <Row align="middle" style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <Col span={8}>
+              <Tag color="cyan" style={{ fontWeight: 'bold', minWidth: 80, textAlign: 'center' }}>
+                {t('workRecord.srStatusPreparing')}
+              </Tag>
+            </Col>
+            <Col span={16}>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                {t('workRecord.srTransitionTime')}
+              </Text>
+              <DatePicker
+                showTime
+                style={{ width: '100%' }}
+                placeholder={t('workRecord.srTransitionTime')}
+                onChange={(_, ds) => setSrPreparingTime(typeof ds === 'string' ? ds : '')}
+              />
+            </Col>
+          </Row>
+
+          {/* ── 固定行: 準備完了状態 ── */}
+          <Row align="middle" style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <Col span={8}>
+              <Tag color="blue" style={{ fontWeight: 'bold', minWidth: 80, textAlign: 'center' }}>
+                {t('workRecord.srStatusReady')}
+              </Tag>
+            </Col>
+            <Col span={16}>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                {t('workRecord.srTransitionTime')}
+              </Text>
+              <DatePicker
+                showTime
+                style={{ width: '100%' }}
+                placeholder={t('workRecord.srTransitionTime')}
+                onChange={(_, ds) => setSrReadyTime(typeof ds === 'string' ? ds : '')}
+              />
+            </Col>
+          </Row>
+
+          {/* ── 固定行: 動作状態（+ 休止状態記録追加ボタン付き） ── */}
+          <Row align="middle" style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <Col span={8}>
+              <Tag color="processing" style={{ fontWeight: 'bold', minWidth: 80, textAlign: 'center' }}>
+                {t('workRecord.srStatusRunning')}
+              </Tag>
+            </Col>
+            <Col span={16}>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                {t('workRecord.srTransitionTime')}
+              </Text>
+              <DatePicker
+                showTime
+                style={{ width: '100%' }}
+                placeholder={t('workRecord.srTransitionTime')}
+                onChange={(_, ds) => setSrRunningTime(typeof ds === 'string' ? ds : '')}
+              />
+              {/* 休止状態記録追加ボタン */}
+              <Button
+                size="small"
+                icon={<PlusOutlined />}
+                style={{ marginTop: 6 }}
+                onClick={() => {
+                  const newEntry: PauseEntry = {
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                    pauseTime: '',
+                    resumeTime: '',
+                  };
+                  setSrPauseEntries((prev) => [...prev, newEntry]);
+                }}
+              >
+                {t('workRecord.srAddPause')}
+              </Button>
+            </Col>
+          </Row>
+
+          {/* ── 動的ペア（休止状態 + 動作状態） ── */}
+          {srPauseEntries.map((entry) => (
+            <div
+              key={entry.id}
+              style={{
+                border: '2px solid #1677ff',
+                borderRadius: 6,
+                margin: '8px 0',
+                padding: '0 8px',
+              }}
+            >
+              {/* 休止状態行 */}
+              <Row align="middle" style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <Col span={8}>
+                  <Tag color="gold" style={{ fontWeight: 'bold', minWidth: 80, textAlign: 'center' }}>
+                    {t('workRecord.srStatusPaused')}
+                  </Tag>
+                </Col>
+                <Col span={16}>
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                    {t('workRecord.srTransitionTime')}
+                  </Text>
+                  <DatePicker
+                    showTime
+                    style={{ width: '100%' }}
+                    placeholder={t('workRecord.srTransitionTime')}
+                    onChange={(_, ds) =>
+                      setSrPauseEntries((prev) =>
+                        prev.map((pe) => pe.id === entry.id ? { ...pe, pauseTime: typeof ds === 'string' ? ds : '' } : pe)
+                      )
+                    }
+                  />
+                </Col>
+              </Row>
+
+              {/* 再開（動作状態）行 + 削除ボタン */}
+              <Row align="middle" style={{ padding: '8px 0' }}>
+                <Col span={8}>
+                  <Tag color="processing" style={{ fontWeight: 'bold', minWidth: 80, textAlign: 'center' }}>
+                    {t('workRecord.srStatusRunning')}
+                  </Tag>
+                </Col>
+                <Col span={16}>
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                    {t('workRecord.srTransitionTime')}
+                  </Text>
+                  <DatePicker
+                    showTime
+                    style={{ width: '100%' }}
+                    placeholder={t('workRecord.srTransitionTime')}
+                    onChange={(_, ds) =>
+                      setSrPauseEntries((prev) =>
+                        prev.map((pe) => pe.id === entry.id ? { ...pe, resumeTime: typeof ds === 'string' ? ds : '' } : pe)
+                      )
+                    }
+                  />
+                  {/* 追加ボタン + 削除ボタン */}
+                  <Flex gap={8} style={{ marginTop: 6 }}>
+                    <Button
+                      size="small"
+                      icon={<PlusOutlined />}
+                      onClick={() => {
+                        const newEntry: PauseEntry = {
+                          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                          pauseTime: '',
+                          resumeTime: '',
+                        };
+                        setSrPauseEntries((prev) => [...prev, newEntry]);
+                      }}
+                    >
+                      {t('workRecord.srAddPause')}
+                    </Button>
+                    <Button
+                      size="small"
+                      danger
+                      style={{ borderColor: '#ff4d4f', color: '#ff4d4f' }}
+                      onClick={() => setSrPauseEntries((prev) => prev.filter((e) => e.id !== entry.id))}
+                    >
+                      {t('workRecord.srRemovePause')}
+                    </Button>
+                  </Flex>
+                </Col>
+              </Row>
+            </div>
+          ))}
+
+          {/* ── 固定行: 終状態 ── */}
+          <Row align="middle" style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <Col span={8}>
+              <Tag color="success" style={{ fontWeight: 'bold', minWidth: 80, textAlign: 'center' }}>
+                {t('workRecord.srStatusCompleted')}
+              </Tag>
+            </Col>
+            <Col span={16}>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                {t('workRecord.srTransitionTime')}
+              </Text>
+              <DatePicker
+                showTime
+                style={{ width: '100%' }}
+                placeholder={t('workRecord.srTransitionTime')}
+                onChange={(_, ds) => setSrCompletedTime(typeof ds === 'string' ? ds : '')}
+              />
+            </Col>
+          </Row>
+
+          {/* ── 固定行: 異常終了状態 ── */}
+          <Row align="middle" style={{ padding: '8px 0' }}>
+            <Col span={8}>
+              <Tag color="error" style={{ fontWeight: 'bold', minWidth: 80, textAlign: 'center' }}>
+                {t('workRecord.srStatusError')}
+              </Tag>
+            </Col>
+            <Col span={16}>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
+                {t('workRecord.srTransitionTime')}
+              </Text>
+              <DatePicker
+                showTime
+                style={{ width: '100%' }}
+                placeholder={t('workRecord.srTransitionTime')}
+                onChange={(_, ds) => setSrErrorTime(typeof ds === 'string' ? ds : '')}
+              />
+            </Col>
+          </Row>
+        </Flex>
+      </Modal>
 
       {/* コメントダイアログ */}
       {commentDialogOpen && commentTarget && (
@@ -2039,6 +2677,16 @@ export default function WorkRecordPanel({
           onSave={handleSaveComment}
         />
       )}
+
+      {/* 作業指示確認モーダル */}
+      <InstructionConfirmationModal
+        open={instructionModalOpen}
+        transition={currentTransitionForInstruction}
+        projectId={projectId}
+        methodId={methodId}
+        projectStatus={projectStatus as ProjectStatus | null}
+        onCancel={() => setInstructionModalOpen(false)}
+      />
 
       {/* ── ペトリネットビューア（ViewRendererDialog / フローティング） ── */}
       {viewerDialogs.map((dialog) => (

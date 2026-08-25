@@ -22,6 +22,7 @@ import { generateNamespaceUri, resolveUriConflict } from '../utils/namespaceUriG
 import { SYSTEM_NAMESPACE_PREFIX } from '../constants/systemNamespace';
 import { HTTP_STATUS } from '../constants/httpStatus';
 import { getMessage } from '../utils/messages';
+import { getPgp } from '../database/db';
 
 // ─── 型定義 ──────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,10 @@ export interface CreateTermInput {
   description?: string;
   typeHint?: string;
   unitHint?: string;
+  /** true のとき SupervisorDirective{localName} の指示用語を同時登録する */
+  createDirectiveTerm?: boolean;
+  /** 左ツリーで選択中のスコープキー（organization_group_cd または userId）。指定時は正しい namespace_id を特定するために使用 */
+  scopeKey?: string;
 }
 
 /** updateTerm の入力型 */
@@ -334,11 +339,14 @@ export async function deleteNamespace(
  * 用語を新規登録する
  *
  * prefix に対応する名前空間が存在しない場合は null を返す。
+ * createDirectiveTerm が true の場合、同一 prefix に SupervisorDirective{localName} の
+ * 指示用語をトランザクション内で同時登録する。
  *
  * @param input - 登録する用語データ
  * @param lang - 言語コード（'ja' | 'en'、デフォルト: 'ja'）
  * @returns 登録された用語、または null（名前空間が存在しない場合）
  * @throws 403 エラー（システム名前空間 Alchemia への用語追加は不可）
+ * @throws 422 エラー（SupervisorDirective + localName が 255 文字超）
  */
 export async function createTerm(
   input: CreateTermInput,
@@ -358,14 +366,62 @@ export async function createTerm(
   );
   if (!exists) return null;
 
-  return namespaceTermRepository.create({
-    organizationId: input.organizationId,
-    prefix: input.prefix,
-    localName: input.localName,
-    displayName: input.displayName,
-    description: input.description,
-    typeHint: input.typeHint,
-    unitHint: input.unitHint,
+  // 指示用語同時登録なし（従来通り）
+  if (!input.createDirectiveTerm) {
+    return namespaceTermRepository.create({
+      organizationId: input.organizationId,
+      prefix: input.prefix,
+      localName: input.localName,
+      displayName: input.displayName,
+      description: input.description,
+      typeHint: input.typeHint,
+      unitHint: input.unitHint,
+      hasDirectiveTerm: false,
+      scopeKey: input.scopeKey,
+    });
+  }
+
+  // 指示用語同時登録あり
+  // SupervisorDirective（17文字）+ localName が 255 文字を超える場合は 422 エラー
+  const SUPERVISOR_DIRECTIVE_PREFIX = 'SupervisorDirective';
+  const directiveLocalName = `${SUPERVISOR_DIRECTIVE_PREFIX}${input.localName}`;
+  if (directiveLocalName.length > 255) {
+    const err: any = new Error(getMessage(lang, 'namespace.directiveLocalNameTooLong'));
+    err.statusCode = HTTP_STATUS.UNPROCESSABLE_ENTITY;
+    err.code = 'E6006';
+    throw err;
+  }
+
+  // トランザクション内で元の用語と指示用語を同時INSERT
+  const pgp = getPgp();
+  return pgp.tx(async (t) => {
+    // 1. 元の用語を hasDirectiveTerm: true で INSERT
+    const termRow = await namespaceTermRepository.createInTx(t, {
+      organizationId: input.organizationId,
+      prefix: input.prefix,
+      localName: input.localName,
+      displayName: input.displayName,
+      description: input.description,
+      typeHint: input.typeHint,
+      unitHint: input.unitHint,
+      hasDirectiveTerm: true,
+      scopeKey: input.scopeKey,
+    });
+
+    // 2. SupervisorDirective{localName} を同一 prefix で INSERT（hasDirectiveTerm: false）
+    await namespaceTermRepository.createInTx(t, {
+      organizationId: input.organizationId,
+      prefix: input.prefix,
+      localName: directiveLocalName,
+      displayName: input.displayName,
+      description: input.description,
+      typeHint: input.typeHint,
+      unitHint: input.unitHint,
+      hasDirectiveTerm: false,
+      scopeKey: input.scopeKey,
+    });
+
+    return termRow;
   });
 }
 

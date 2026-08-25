@@ -109,6 +109,8 @@ export interface Term {
   type: string;
   unitHint?: string;
   isActive?: boolean;
+  /** 指示用語が登録されている場合 true */
+  hasDirectiveTerm?: boolean;
   /** prefix に対応するスコープ名（organization_group_name または user_name） */
   scopeName?: string;
   /**
@@ -131,6 +133,8 @@ export interface NewTermRow {
   description: string;
   type: string;
   unitHint: string;
+  /** true のとき SupervisorDirective{localName} の指示用語を同時登録する */
+  createDirectiveTerm?: boolean;
   /** true のとき同一 prefix:localName が既に登録されている（重複エラー表示用） */
   _isDuplicate?: boolean;
 }
@@ -203,9 +207,9 @@ export interface NewPrefixRow {
   description: string;
 }
 
-// チーム・メンバー関連の型は team.ts に移行済み
+// グループ・メンバー関連の型は group.ts に移行済み
 // 後方互換性のため re-export する
-export type { TeamMember, Team, OrgUser } from '@/types/team';
+export type { GroupMember, Group, OrgUser } from '@/types/group';
 
 
 // ──────────────────────────────────────────────
@@ -448,8 +452,8 @@ export interface ShareScopeModalProps {
   onShare: (target: ShareTarget) => void;
 }
 
-// TeamAddDialogProps / TeamEditDialogProps は team.ts に移行済み
-export type { TeamAddDialogProps, TeamEditDialogProps } from '@/types/team';
+// GroupAddDialogProps / GroupEditDialogProps は group.ts に移行済み
+export type { GroupAddDialogProps, GroupEditDialogProps } from '@/types/group';
 
 
 /**
@@ -559,19 +563,19 @@ export interface TermEditValues {
 }
 
 // ──────────────────────────────────────────────
-// TeamAddDialog
+// GroupAddDialog
 // ──────────────────────────────────────────────
 
 /**
- * チーム作成 API レスポンス（TeamAddDialog）
+ * グループ作成 API レスポンス（GroupAddDialog）
  *
  * @remarks
  * POST /api/v1/department-units のレスポンスボディの型
  */
-export interface CreateTeamResponse {
-  /** 作成されたチームの ID */
+export interface CreateGroupResponse {
+  /** 作成されたグループの ID */
   departmentUnitId: string;
-  /** 作成されたチームの名前 */
+  /** 作成されたグループの名前 */
   unitName: string;
 }
 
@@ -641,12 +645,12 @@ export interface DepartmentTreeManagementProps {
 // organization_group（部署管理タブ）
 // ──────────────────────────────────────────────
 
-// OrganizationGroupRow / CreateOrganizationGroupRequest / UpdateOrganizationGroupRequest は team.ts に定義済み
+// OrganizationGroupRow / CreateOrganizationGroupRequest / UpdateOrganizationGroupRequest は group.ts に定義済み
 export type {
   OrganizationGroupRow,
   CreateOrganizationGroupRequest,
   UpdateOrganizationGroupRequest,
-} from '@/types/team';
+} from '@/types/group';
 
 // ──────────────────────────────────────────────
 // GlobalNamespaceView（グローバル名前空間宣言・ファイルサーバ管理）
