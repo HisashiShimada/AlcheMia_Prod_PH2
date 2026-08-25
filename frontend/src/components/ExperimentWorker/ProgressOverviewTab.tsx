@@ -13,7 +13,7 @@
  * フェーズA: ExperimentWorkerMenu から渡された progressRows を表示する（APIデータ接続はフェーズBで実施）。
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   Badge,
   Button,
@@ -25,6 +25,7 @@ import {
   Select,
   Statistic,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -32,12 +33,19 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import {
   CheckCircleOutlined,
+  CheckSquareOutlined,
   ExclamationCircleOutlined,
   LockOutlined,
   MinusCircleOutlined,
+  PartitionOutlined,
   PauseCircleOutlined,
+  SyncOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import type { ProgressRow, ProgressOverviewTabProps } from '@/types/progress';
+import type { Transition } from '@/types/experimentWorker';
+import type { ProgressStatus } from '@/types/experimentWorker';
+import TransitionFlowDiagram from './TransitionFlowDiagram';
 
 export type { ProgressRow };
 
@@ -79,6 +87,8 @@ function canAccessTransition(target: ProgressRow, allRows: ProgressRow[]): boole
 
 const STATUS_CONFIG: Record<ProgressRow['status'], { label: string; color: string; icon: React.ReactNode }> = {
   not_started: { label: '未着手',   color: 'default',    icon: <MinusCircleOutlined       style={{ color: '#bfbfbf' }} /> },
+  preparing:   { label: '準備中',   color: 'processing', icon: <SyncOutlined              style={{ color: '#1677ff' }} /> },
+  ready:       { label: '準備完了', color: 'cyan',       icon: <CheckSquareOutlined       style={{ color: '#13c2c2' }} /> },
   in_progress: { label: '作業中',   color: 'processing', icon: null },
   on_hold:     { label: '一時停止', color: 'warning',    icon: <PauseCircleOutlined       style={{ color: '#faad14' }} /> },
   completed:   { label: '完了',     color: 'success',    icon: <CheckCircleOutlined       style={{ color: '#52c41a' }} /> },
@@ -95,7 +105,7 @@ const SummaryCard: React.FC<{ rows: ProgressRow[] }> = ({ rows }) => {
     const byStatus = rows.reduce<Record<ProgressRow['status'], number>>((acc, r) => {
       acc[r.status] = (acc[r.status] ?? 0) + 1;
       return acc;
-    }, { not_started: 0, in_progress: 0, on_hold: 0, completed: 0, issue: 0 });
+    }, { not_started: 0, preparing: 0, ready: 0, in_progress: 0, on_hold: 0, completed: 0, issue: 0 });
     const completedPct = total === 0 ? 0 : Math.round((byStatus.completed / total) * 100);
     const taskNos = [...new Set(rows.map((r) => r.taskNo))];
     const completedTasks = taskNos.filter((no) =>
@@ -267,6 +277,89 @@ export default function ProgressOverviewTab({
   const [filterMethodId, setFilterMethodId] = useState<string | null>(null);
   const [filterTransitionId, setFilterTransitionId] = useState<string | null>(null);
 
+  // ── フロー図モード用ステート ──────────────────────────────
+  const [viewMode, setViewMode] = useState<'list' | 'flow'>('list');
+  /** タブキー形式: `${methodId}__${taskNo}` */
+  const [flowTabKey, setFlowTabKey] = useState<string | null>(null);
+
+  // ── フロー図タブ候補: rows から (methodId, taskNo) のユニーク組み合わせを抽出 ──
+  const flowTabItems = useMemo(() => {
+    const seen = new Map<string, { methodId: string; taskNo: number; methodName: string }>();
+    for (const r of rows) {
+      const key = `${r.methodId}__${r.taskNo}`;
+      if (!seen.has(key)) {
+        seen.set(key, {
+          methodId: r.methodId,
+          taskNo: r.taskNo,
+          methodName: r.methodName ?? r.methodId,
+        });
+      }
+    }
+    return [...seen.values()].sort((a, b) => {
+      if (a.methodId !== b.methodId) return a.methodId.localeCompare(b.methodId);
+      return a.taskNo - b.taskNo;
+    });
+  }, [rows]);
+
+  // ── フロー図モード切り替え・rows変化時に先頭タブを自動選択 ──
+  useEffect(() => {
+    if (viewMode === 'flow' && flowTabItems.length > 0) {
+      const firstKey = `${flowTabItems[0].methodId}__${flowTabItems[0].taskNo}`;
+      // 現在のキーが有効なら維持、無効なら先頭にリセット
+      const isValid = flowTabKey !== null && flowTabItems.some(
+        (item) => `${item.methodId}__${item.taskNo}` === flowTabKey
+      );
+      if (!isValid) setFlowTabKey(firstKey);
+    }
+  }, [viewMode, flowTabItems, flowTabKey]);
+
+  // ── ProgressRow → Transition 変換アダプター ──────────────
+  const progressRowToTransition = useCallback((r: ProgressRow): Transition => {
+    const matTotal  = r.materialTotal  ?? 0;
+    const condTotal = r.conditionTotal ?? 0;
+    const resTotal  = r.resultTotal    ?? 0;
+    const matRec    = r.materialRecorded  ?? 0;
+    const condRec   = r.conditionRecorded ?? 0;
+    const resRec    = r.resultRecorded    ?? 0;
+    const totalItems = matTotal + condTotal + resTotal;
+    const totalDone  = matRec  + condRec  + resRec;
+    const progressRate = totalItems > 0 ? Math.round((totalDone / totalItems) * 100) : 0;
+
+    return {
+      transitionId: r.transitionId,
+      transitionName: r.transitionName ?? r.transitionId,
+      status: r.status as ProgressStatus,
+      progressRate,
+      inputMaterialsCount:   matRec,
+      totalMaterialsCount:   matTotal,
+      inputIngredientsCount: condRec,
+      totalIngredientsCount: condTotal,
+      inputResultsCount:     resRec,
+      totalResultsCount:     resTotal,
+      prerequisiteTransitionIds: r.prerequisiteTransitionIds ?? [],
+      // workOrder は設定しない（BFS レイアウトが prerequisiteTransitionIds を使うため）
+    };
+  }, []);
+
+  // ── 選択中タブに対応する Transition[] ────────────────────
+  const flowTransitions = useMemo((): Transition[] => {
+    if (!flowTabKey) return [];
+    const [methodId, taskNoStr] = flowTabKey.split('__');
+    const taskNo = Number(taskNoStr);
+    return rows
+      .filter((r) => r.methodId === methodId && r.taskNo === taskNo)
+      .map(progressRowToTransition);
+  }, [flowTabKey, rows, progressRowToTransition]);
+
+  // ── フロー図モードのメソッド名表示用 ─────────────────────
+  const flowMethodName = useMemo(() => {
+    if (!flowTabKey) return undefined;
+    const [methodId, taskNoStr] = flowTabKey.split('__');
+    const taskNo = Number(taskNoStr);
+    const found = flowTabItems.find((i) => i.methodId === methodId && i.taskNo === taskNo);
+    return found ? `${found.methodName} / #${found.taskNo}` : undefined;
+  }, [flowTabKey, flowTabItems]);
+
   // ── 画面幅検知（xl: 1200px以上で3列独立表示） ───────────
   const screens = Grid.useBreakpoint();
   const isWide = !!screens.xl;
@@ -287,7 +380,7 @@ export default function ProgressOverviewTab({
     if (r.status === 'completed' || r.status === 'issue') {
       return <Button size="small" onClick={() => onViewDetail(r.taskNo, r.transitionId)}>詳細確認</Button>;
     }
-    if (r.status === 'in_progress') {
+    if (r.status === 'in_progress' || r.status === 'ready') {
       return (
         <Button type="primary" size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
           作業へ
@@ -298,6 +391,13 @@ export default function ProgressOverviewTab({
       return (
         <Button size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
           再開
+        </Button>
+      );
+    }
+    if (r.status === 'preparing') {
+      return (
+        <Button size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
+          作業へ
         </Button>
       );
     }
@@ -486,31 +586,90 @@ export default function ProgressOverviewTab({
       {/* サマリーカード */}
       <SummaryCard rows={rows} />
 
-      {/* フィルタバー */}
-      <FilterBar
-        rows={rows}
-        filterTaskNo={filterTaskNo}
-        filterStatus={filterStatus}
-        filterMethodId={filterMethodId}
-        filterTransitionId={filterTransitionId}
-        filteredCount={filteredRows.length}
-        onTaskNoChange={setFilterTaskNo}
-        onStatusChange={setFilterStatus}
-        onMethodIdChange={setFilterMethodId}
-        onTransitionIdChange={setFilterTransitionId}
-      />
+      {/* フィルタバー + 切り替えボタン（リストモード時のみ表示） */}
+      {viewMode === 'list' && (
+        <Flex align="center" gap={8}>
+          <div style={{ flex: 1 }}>
+            <FilterBar
+              rows={rows}
+              filterTaskNo={filterTaskNo}
+              filterStatus={filterStatus}
+              filterMethodId={filterMethodId}
+              filterTransitionId={filterTransitionId}
+              filteredCount={filteredRows.length}
+              onTaskNoChange={setFilterTaskNo}
+              onStatusChange={setFilterStatus}
+              onMethodIdChange={setFilterMethodId}
+              onTransitionIdChange={setFilterTransitionId}
+            />
+          </div>
+          <Button
+            data-testid="switch-to-flow-button"
+            icon={<PartitionOutlined />}
+            onClick={() => setViewMode('flow')}
+            style={{ flexShrink: 0, marginBottom: 10 }}
+          >
+            フロー図
+          </Button>
+        </Flex>
+      )}
 
-      {/* テーブル本体 */}
-      <Table<ProgressRow>
-        dataSource={filteredRows}
-        columns={columns}
-        rowKey="rowKey"
-        size="small"
-        pagination={false}
-        bordered
-        scroll={{ y: 'calc(100vh - 480px)' }}
-        locale={{ emptyText: 'データがありません' }}
-      />
+      {/* フロー図モード */}
+      {viewMode === 'flow' && (
+        <Flex vertical style={{ flex: 1, minHeight: 0 }}>
+          {/* 切り替えボタン行 */}
+          <Flex justify="flex-end" style={{ marginBottom: 8 }}>
+            <Button
+              data-testid="switch-to-list-button"
+              icon={<UnorderedListOutlined />}
+              onClick={() => setViewMode('list')}
+            >
+              リスト
+            </Button>
+          </Flex>
+
+          {flowTabItems.length === 0 ? (
+            <Flex align="center" justify="center" style={{ flex: 1 }}>
+              <Typography.Text type="secondary">データがありません</Typography.Text>
+            </Flex>
+          ) : (
+            <Tabs
+              activeKey={flowTabKey ?? undefined}
+              onChange={(key) => setFlowTabKey(key)}
+              size="small"
+              style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+              tabBarStyle={{ marginBottom: 8, flexShrink: 0 }}
+              items={flowTabItems.map((item) => ({
+                key: `${item.methodId}__${item.taskNo}`,
+                label: `${item.methodName} / #${item.taskNo}`,
+                children: (
+                  <TransitionFlowDiagram
+                    transitions={flowTransitions}
+                    onRecordClick={(t) => onGoToWork(item.taskNo, t.transitionId)}
+                    onIssueClick={() => {}}
+                    isProjectRecordable={true}
+                    methodName={flowMethodName}
+                  />
+                ),
+              }))}
+            />
+          )}
+        </Flex>
+      )}
+
+      {/* テーブル本体（リストモード時のみ表示） */}
+      {viewMode === 'list' && (
+        <Table<ProgressRow>
+          dataSource={filteredRows}
+          columns={columns}
+          rowKey="rowKey"
+          size="small"
+          pagination={false}
+          bordered
+          scroll={{ y: 'calc(100vh - 480px)' }}
+          locale={{ emptyText: 'データがありません' }}
+        />
+      )}
     </Flex>
   );
 }

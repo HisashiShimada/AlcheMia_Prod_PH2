@@ -56,6 +56,7 @@ const TeamManagementPanel: React.FC = () => {
     groupCd:       row.organization_group_cd,
     groupName:     row.organization_group_name,
     parentGroupCd: row.parent_group_cd,
+    parentGroupName: row.parent_group_name ?? null,
     layer:         row.layer,
     ownerUserId:   row.chief_user_id,
     ownerName:     row.chief_user_name ?? '',
@@ -416,8 +417,8 @@ const TeamManagementPanel: React.FC = () => {
               {selectedTeam.parentGroupCd && (
                 <>
                   <Text type="secondary">{t('teamManagement.parentGroupLabel')}</Text>
-                  <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    {selectedTeam.parentGroupCd}
+                  <Text style={{ fontSize: 13 }}>
+                    {selectedTeam.parentGroupName || selectedTeam.parentGroupCd}
                   </Text>
                 </>
               )}

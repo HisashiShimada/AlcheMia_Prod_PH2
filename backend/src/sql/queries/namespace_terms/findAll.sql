@@ -8,5 +8,7 @@ SELECT
   , COALESCE(t.xsi_type, 'stringType') AS type
   , COALESCE(t.units, '')          AS "unitHint"
   , t.is_active                    AS "isActive"
+  , n.scope_key                    AS "scopeKey"
 FROM namespace_term t
+LEFT JOIN namespace n ON n.namespace_id = t.namespace_id
 ORDER BY t.prefix ASC, t.localname ASC

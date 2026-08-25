@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button, Dropdown, Input, Modal, Select, Table, Tabs, Tree, Tag, Tooltip, message, Typography } from 'antd';
 import {
@@ -15,6 +16,7 @@ import {
 } from '@ant-design/icons';
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
+import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
@@ -41,6 +43,9 @@ import type {
   TermCsvParsedRow,
   OrganizationGroupRow,
 } from '@/types/namespace';
+
+// GlobalNamespaceView: グローバルノード選択時に右ペインへ表示（SSR無効）
+const GlobalNamespaceView = dynamic(() => import('./GlobalNamespaceView'), { ssr: false });
 
 const { Text } = Typography;
 
@@ -110,10 +115,15 @@ const NAMESPACE_TREE_RAW: NamespaceNode[] = [
 // organization_group フラットリスト → NamespaceNode ツリー変換
 // ──────────────────────────────────────────────
 const buildOrgTree = (groups: OrganizationGroupRow[]): NamespaceNode[] => {
+  // 重複排除: organization_group_cd で一意化（同じCDが複数回含まれていても1件として扱う）
+  const uniqueGroups = Array.from(
+    new Map(groups.map((g) => [g.organization_group_cd, g])).values()
+  );
+
   const map = new Map<string, NamespaceNode>();
   const roots: NamespaceNode[] = [];
 
-  for (const g of groups) {
+  for (const g of uniqueGroups) {
     map.set(g.organization_group_cd, {
       key:   g.organization_group_cd,
       label: g.organization_group_name,
@@ -122,7 +132,7 @@ const buildOrgTree = (groups: OrganizationGroupRow[]): NamespaceNode[] => {
     });
   }
 
-  for (const g of groups) {
+  for (const g of uniqueGroups) {
     const node = map.get(g.organization_group_cd)!;
     if (g.parent_group_cd && map.has(g.parent_group_cd)) {
       map.get(g.parent_group_cd)!.children!.push(node);
@@ -620,6 +630,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     globalOnly ? 'global' : currentUserNsKey
   );
   const [terms,         setTerms]         = useState<Term[]>([]);
+  /** バッジ計算専用・全件（選択ノードによる絞り込みなし） */
+  const [allTerms,      setAllTerms]      = useState<Term[]>([]);
   const [termsLoading,  setTermsLoading]  = useState(true);
 
   // 複数行入力用配列（空配列 = 入力行なし）
@@ -658,6 +670,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const [filterScope,     setFilterScope]     = useState<string | null>(null);
   /** prefix → scopeName（DB由来） のマップ */
   const [prefixScopeNameMap, setPrefixScopeNameMap] = useState<Map<string, string>>(new Map());
+  /** prefix → scopeKey（organization_group_cd / userId）のマップ（用語数バッジ計算用） */
+  const [prefixToScopeKeyMap, setPrefixToScopeKeyMap] = useState<Map<string, string>>(new Map());
   const [filterType,      setFilterType]       = useState<string | null>(null);
   const [filterUnit,      setFilterUnit]       = useState<string | null>(null);
   const FALLBACK_UNITS = ['kg', 'g', 'mg', 'μg', 'L', 'mL', 'm', 'cm', 'mm', 'μm', 'nm', '℃', 'K', 'Pa', 'MPa', 'mol', 'wt%', 'vol%', '%', 'min', 'h', 's', 'なし'];
@@ -753,8 +767,16 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── DB から Prefix 一覧を取得（「用語を追加」ボタン活性判定 & Prefixプルダウン用 & スコープ列表示用）
   // scopeKey を指定した場合はそのスコープに紐づく Prefix のみ取得する（個人名前空間対応）
-  const fetchPrefixes = useCallback((scopeKey?: string) => {
-    const options = scopeKey ? { scopeKeys: [scopeKey] } : undefined;
+  // scopeKeys（複数）を指定した場合は複数スコープに紐づく Prefix をまとめて取得する（company ノード選択時）
+  // withAncestors=true の場合は scopeKey とその祖先グループの Prefix も含めて取得する
+  const fetchPrefixes = useCallback((scopeKey?: string, withAncestors?: boolean, scopeKeys?: string[]) => {
+    let options: { scopeKeys?: string[]; withAncestors?: boolean } | undefined;
+    if (scopeKeys && scopeKeys.length > 0) {
+      // 複数 scopeKey が指定されている場合（company ノード選択時など）
+      options = { scopeKeys, withAncestors };
+    } else if (scopeKey) {
+      options = { scopeKeys: [scopeKey], withAncestors };
+    }
     getNamespaceList(options)
       .then((list) => {
         const globalPrefixSet = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
@@ -770,6 +792,18 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           }
         }
         setPrefixScopeNameMap(scopeMap);
+        // prefix → scopeKey のマップを構築（用語数バッジ計算用）
+        // scopeKey 指定時（スコープ絞り込み）はツリー全体のバッジ計算用マップを上書きしない
+        // （初回フル取得・visibilityChange 時のみ全スコープ分を反映する）
+        if (!scopeKey && !(scopeKeys && scopeKeys.length > 0)) {
+          const scopeKeyMap = new Map<string, string>();
+          for (const ns of list) {
+            if (ns.prefix && ns.scopeKey) {
+              scopeKeyMap.set(ns.prefix, ns.scopeKey);
+            }
+          }
+          setPrefixToScopeKeyMap(scopeKeyMap);
+        }
       })
       .catch(() => {
         // 取得失敗時は空のまま（ボタン非活性）
@@ -783,7 +817,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── selectedNsKey 変化時に API から用語一覧を取得
   // externalSelectedNsKey（DepartmentTreeManagement で選択したノードキー）を scopeKey として渡す
-  const fetchTerms = useCallback((options?: { scopeKey?: string; globalFlg?: boolean }) => {
+  const fetchTerms = useCallback((options?: { scopeKey?: string; scopeKeys?: string[]; globalFlg?: boolean; withAncestors?: boolean }) => {
     setTermsLoading(true);
     getTerms(options)
       .then((data) => setTerms(data as Term[]))
@@ -799,15 +833,25 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     fetchTerms();
   }, [fetchTerms]);
 
+  // ──── バッジ計算用の全件用語を取得（選択ノードによる絞り込みなし）
+  // visibilityChange 時にも再取得して最新状態を反映する
+  const fetchAllTerms = useCallback(() => {
+    getTerms().then((data) => setAllTerms(data as Term[])).catch(() => setAllTerms([]));
+  }, []);
+
+  useEffect(() => {
+    fetchAllTerms();
+  }, [fetchAllTerms]);
+
   // ──── externalSelectedNsKey（ツリー選択）が変化したときに用語・Prefixを再フェッチ
   useEffect(() => {
     if (externalSelectedNsKey === undefined || externalSelectedNsKey === null) return;
 
     // ノードキー種別に応じてフェッチオプションを決定
-    // - 'global' / 'ns-maiml' / 'ns-xsi' → global_flg=TRUE のみ
-    // - 'company' → 変更なし（全件）
+    // - 'global' / 'ns-maiml' / 'ns-xsi' → 全件取得
+    // - 'company' → 配下全 org group CD を scopeKeys として渡す
     // - 'personal' またはユーザーID（personalChildren のキー） → scopeKey=userId
-    // - その他（org group cd） → scopeKey=key
+    // - その他（org group cd） → scopeKey=key, withAncestors=true
     const nsKey         = externalSelectedNsKey as string;
     const GLOBAL_KEYS   = new Set(['global', 'ns-maiml', 'ns-xsi']);
     const COMPANY_KEYS  = new Set(['company']);
@@ -815,11 +859,18 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms({ globalFlg: true });
+      fetchTerms(); // グローバルノード選択時は全件取得
       fetchPrefixes(); // グローバルノード選択時は全 Prefix を取得
     } else if (COMPANY_KEYS.has(nsKey)) {
-      fetchTerms(); // 全件
-      fetchPrefixes(); // 組織全体の Prefix を取得
+      // company ノード選択時: 配下の全 org group CD を収集して scopeKeys で渡す
+      const allGroupCds = orgGroups.map((g) => g.organization_group_cd);
+      if (allGroupCds.length > 0) {
+        fetchTerms({ scopeKeys: allGroupCds } as any);
+        fetchPrefixes(undefined, undefined, allGroupCds);
+      } else {
+        fetchTerms(); // グループ未取得時は全件
+        fetchPrefixes();
+      }
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
       // personal ルート → ログインユーザー自身の scopeKey
       // personal 子ノード（userId） → そのユーザーの scopeKey
@@ -831,11 +882,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       fetchPrefixes(scopeKey || undefined);
     } else {
       // org group cd（組織グループノード）
-      fetchTerms({ scopeKey: nsKey });
-      // 組織グループノード選択時: そのグループに紐づく Prefix を取得
-      fetchPrefixes(nsKey);
+      // withAncestors: true → 選択グループ自身 + 祖先グループの用語・Prefixも取得する
+      fetchTerms({ scopeKey: nsKey, withAncestors: true });
+      // 組織グループノード選択時: そのグループ＋祖先グループに紐づく Prefix を取得
+      fetchPrefixes(nsKey, true);
     }
-  // fetchTerms / fetchPrefixes / personalChildren / currentUserPersonalKey は useCallback / useMemo / const でメモ化済み
+  // fetchTerms / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalSelectedNsKey]);
 
@@ -853,17 +905,28 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const personalKeySet = new Set(personalChildren.map((n) => n.key));
 
     if (GLOBAL_KEYS.has(nsKey)) {
-      fetchTerms({ globalFlg: true });
+      fetchTerms(); // グローバルノード選択時は全件取得
+      fetchPrefixes();
     } else if (COMPANY_KEYS.has(nsKey)) {
-      fetchTerms(); // 全件
+      // company ノード選択時: 配下の全 org group CD を収集して scopeKeys で渡す
+      const allGroupCds = orgGroups.map((g) => g.organization_group_cd);
+      if (allGroupCds.length > 0) {
+        fetchTerms({ scopeKeys: allGroupCds } as any);
+        fetchPrefixes(undefined, undefined, allGroupCds);
+      } else {
+        fetchTerms();
+        fetchPrefixes();
+      }
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
       const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
       fetchTerms(scopeKey ? { scopeKey } : undefined);
+      fetchPrefixes(scopeKey || undefined);
     } else {
-      // org group cd（組織グループノード） → scopeKey でフィルタ
-      fetchTerms({ scopeKey: nsKey });
+      // org group cd（組織グループノード） → scopeKey＋祖先グループでフィルタ
+      fetchTerms({ scopeKey: nsKey, withAncestors: true });
+      fetchPrefixes(nsKey, true);
     }
-  // fetchTerms / personalChildren / currentUserPersonalKey は useCallback / useMemo / const でメモ化済み
+  // fetchTerms / fetchPrefixes / personalChildren / currentUserPersonalKey / orgGroups は依存
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNsKey]);
 
@@ -979,7 +1042,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   };
 
   const startEditTerm = (record: Term) => {
-    setEditingTermId(record.id);
+    setEditingTermId(`${record.prefix}:${record.localName}`);
     const initialEditingValues: TermEditValues = {
       prefix:      record.prefix ?? '',
       localName:   record.localName,
@@ -1007,7 +1070,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           unitHint:      editingValues.unitHint,
         }
       );
-      setTerms((prev) => prev.map((t) => t.id === editingTermId ? (updated as Term) : t));
+      setTerms((prev) => prev.map((t) => `${t.prefix}:${t.localName}` === editingTermId ? (updated as Term) : t));
       setEditingTermId(null);
       message.success(t('namespaceMain.updateSuccess'));
     } catch (err: unknown) {
@@ -1053,6 +1116,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const rootKey = getRootKey(key, namespaceTree);
     return rootKey === 'global' || rootKey === 'personal';
   }, [selectedNsKey, externalSelectedNsKey, namespaceTree]);
+
+  // グローバルノード自体（'global' / 'ns-maiml' / 'ns-xsi'）が選択中かどうか
+  const isGlobalNodeSelected = useMemo(() => {
+    const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    return key === 'global' || key === 'ns-maiml' || key === 'ns-xsi';
+  }, [selectedNsKey, externalSelectedNsKey]);
 
   // 選択ノードが company 配下のノードかどうか
   const isCompanyNodeSelected = useMemo(() => {
@@ -1187,20 +1256,23 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       <span
         onContextMenu={handleContextMenu}
         style={{
-          display: 'flex', alignItems: 'center', gap: 6, width: '100%', minWidth: 0,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
           cursor: isTeam ? 'context-menu' : undefined,
           ...(isCurrentUserNode ? { background: '#e6f4ff', borderRadius: 4 } : {}),
         }}
       >
-      <span style={{ flex: 1, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
           {displayLabel}
         </span>
-        {termCount > 0 && (
-          <span style={{ color: '#8c8c8c', fontSize: 12, flexShrink: 0 }}>{termCount}</span>
-        )}
+        <Tag
+          color="blue"
+          style={{ flex: '0 0 auto', marginLeft: 2, fontSize: 11, lineHeight: '16px', padding: '0 4px', minWidth: 20, textAlign: 'center' }}
+        >
+          {typeof termCount === 'number' && !isNaN(termCount) ? termCount : 0}
+        </Tag>
       </span>
     );
-  }, [companyLabel, t]);
+  }, [companyLabel, t, prefixToScopeKeyMap]);
 
   // ──── ノードの companyDepth を計算してツリーデータを構築（件数を terms から動的計算）
   const toAntTree = (nodes: NamespaceNode[], companyDepth = 0, showUserHighlight = false, parentLabel = ''): object[] =>
@@ -1212,8 +1284,24 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           ? 1                    // company ノード自身 = depth 1
           : 0;                   // Global / Personal = カウント外
       // このノード配下の全 prefix を収集して terms から件数を集計
+      // 静的ツリーに prefix が存在する場合（Global の ns-maiml 等）は従来通り prefix マッチ
+      // org group ノード等で prefix が存在しない場合は term.scopeKey と n.key を直接比較して集計する
       const prefixes = collectAllPrefixesUnder(n);
-      const termCount = countTermsByPrefix(prefixes, terms);
+      let termCount: number;
+      if (prefixes.size > 0) {
+        // 静的ツリーノード（prefix あり）: prefix セットで集計
+        termCount = countTermsByPrefix(prefixes, allTerms);
+      } else {
+        // 動的ノード（org group / personal user）: 自分＋全子孫のキーを収集して合算
+        // allTerms の各 term には findAllByOrganization.sql の JOIN により scopeKey が付与されている
+        const descendantKeys = new Set<string>();
+        const collectKeys = (node: NamespaceNode) => {
+          descendantKeys.add(node.key);
+          node.children?.forEach(collectKeys);
+        };
+        collectKeys(n);
+        termCount = allTerms.filter((t) => t.scopeKey != null && descendantKeys.has(t.scopeKey)).length;
+      }
       return {
         key:   n.key,
         title: renderTreeTitle(n, selfDepth, termCount, showUserHighlight, parentLabel),
@@ -1234,7 +1322,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const showUserHighlight = !isGlobalOrPersonalSelected;
     return toAntTree(filteredTree, 0, showUserHighlight, '');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renderTreeTitle, terms, isGlobalOrPersonalSelected, namespaceTree]);
+  }, [renderTreeTitle, allTerms, isGlobalOrPersonalSelected, namespaceTree, prefixToScopeKeyMap]);
 
   // treeData の全ノードキーを収集して常に全展開する
   const allTreeKeys = useMemo(() => {
@@ -1526,17 +1614,27 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // ──── 既存行の操作セル
   const actionCell = (record: Term) => {
+    // システム名前空間（Alchemia）の行は操作不可
+    const isSystemNs = record.prefix === SYSTEM_NAMESPACE_PREFIX;
     // グレーアウト対象（rowClassName と同条件）のみ操作不可
     const readonly =
+      isSystemNs ||
       (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
       viewOnly;
-    if (record.id === editingTermId) {
+    if (`${record.prefix}:${record.localName}` === editingTermId) {
       return (
         <span style={{ display: 'flex', gap: 4 }}>
           <Button type="primary" size="small" onClick={saveEditTerm}>✔ {t('namespaceMain.actionSave')}</Button>
           <Button size="small" onClick={cancelEditTerm}>{t('namespaceMain.actionCancel')}</Button>
         </span>
+      );
+    }
+    if (isSystemNs) {
+      return (
+        <Tooltip title={t('namespaceMain.systemNamespaceTooltip')}>
+          <Tag color="default">{t('namespaceMain.systemNamespaceBadge')}</Tag>
+        </Tooltip>
       );
     }
     return (
@@ -1670,7 +1768,6 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     },
     {
       title: t('namespaceMain.colScope'), key: 'scope', width: 180, align: 'center' as const,
-      onHeaderCell: () => ({ style: { background: '#fff' } }),
       sorter: (a, b) => {
         if ('_rowId' in a || '_rowId' in b) return 0;
         const sA = prefixScopeNameMap.get((a as Term).prefix) ?? '';
@@ -1682,11 +1779,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         const term = record as Term;
         const globalPrefixSet = new Set(getGlobalPrefixes(NAMESPACE_TREE_RAW as NamespaceNode[]));
         const isGlobal = globalPrefixSet.has(term.prefix);
-        const fullPath = getScopeFullPath(term.prefix);
-        const parts = fullPath.split(' › ');
-        // 絵文字・アイコン文字を除去してラベルを取得
-        const rawLabel = isGlobal ? 'Global' : parts[parts.length - 1].trim();
-        const label = rawLabel.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27FF}]|[\u{1F300}-\u{1F9FF}]|\uFE0F/gu, '').trim();
+        // Prefix管理タブと共通の prefixScopeNameMap（正しいJOIN結果）を優先して使用する
+        // term.scopeName は findAllByOrganization.sql の JOIN が誤っている場合があるためフォールバック扱い
+        const label = isGlobal ? 'Global' : (prefixScopeNameMap.get(term.prefix) || term.scopeName || '—');
         return (
           <Tooltip title={label}>
             <Tag
@@ -1754,7 +1849,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       },
     },
     {
-      title: t('namespaceMain.colActions'), key: 'actions', width: 130,
+      title: t('namespaceMain.colActions'), key: 'actions', width: 180,
       render: (_: unknown, record: Term | NewTermRow) =>
         '_rowId' in record ? null : actionCell(record as Term),
     },
@@ -1781,15 +1876,14 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           <div style={{
             width: '30%', minWidth: 280, maxWidth: 420,
             background: '#fafafa', borderRight: '1px solid #f0f0f0',
-            overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '12px 12px 8px',
+            overflow: 'auto', display: 'flex', flexDirection: 'column', padding: '12px 12px 8px',
           }}>
             <Tree
-              blockNode
               treeData={treeData}
               expandedKeys={allTreeKeys}
               onExpand={(keys) => setExpandedKeys(keys as string[])}
               selectedKeys={selectedNsKey ? [selectedNsKey] : []}
-              style={{ background: 'transparent' }}
+              style={{ background: 'transparent', minWidth: 'max-content' }}
               onSelect={(keys) => {
                 const key = (keys[0] as string) ?? null;
                 // 全ノード選択可（company含む）
@@ -1844,8 +1938,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           </div>
         )}
 
-        {/* ── 右ペイン：用語リスト ── */}
+        {/* ── 右ペイン：用語リスト / グローバルノード選択時は GlobalNamespaceView ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 40px', background: '#fafafa' }}>
+          {isGlobalNodeSelected ? (
+            <GlobalNamespaceView viewOnly={true} />
+          ) : (
+          <>
           {/* 上段アクションバー（1件以上チェック時に表示） */}
           {selectedTermIds.length > 0 && (
             <div style={{
@@ -1974,6 +2072,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               />
             );
           })()}
+          </>
+          )}
         </div>
       </div>
 

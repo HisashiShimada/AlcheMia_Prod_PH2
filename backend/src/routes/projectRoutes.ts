@@ -15,7 +15,7 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import { checkPermission } from '../middleware/permissionCheckMiddleware';
-import { t } from '../utils/i18n';
+import { getMessage, getLang } from '../utils/messages';
 
 const router = Router();
 
@@ -39,15 +39,15 @@ router.get(
     query('page')
       .optional()
       .isInt({ min: 1 })
-      .withMessage(t('projectRoutes.validation.pageInt')),
+      .withMessage((_, { req }) => getMessage(getLang(req as any), 'projectRoutes.validation.pageInt')),
     query('limit')
       .optional()
       .isInt({ min: 1, max: 100 })
-      .withMessage(t('projectRoutes.validation.limitInt')),
+      .withMessage((_, { req }) => getMessage(getLang(req as any), 'projectRoutes.validation.limitInt')),
     query('status')
       .optional()
       .isIn(['1', '2', '3'])
-      .withMessage(t('projectRoutes.validation.statusIn')),
+      .withMessage((_, { req }) => getMessage(getLang(req as any), 'projectRoutes.validation.statusIn')),
     query('sort_by')
       .optional()
       .isIn(['create_at', 'project_name', 'update_at'])
@@ -475,10 +475,10 @@ router.post(
       .withMessage('projectIdは1〜255文字である必要があります'),
     body('tasks')
       .isArray({ min: 1 })
-      .withMessage(t('projectRoutes.validation.tasksArray')),
+      .withMessage((_, { req }) => getMessage(getLang(req as any), 'projectRoutes.validation.tasksArray')),
     body('tasks.*.methodId')
       .notEmpty()
-      .withMessage(t('projectRoutes.validation.methodIdRequired')),
+      .withMessage((_, { req }) => getMessage(getLang(req as any), 'projectRoutes.validation.methodIdRequired')),
     body('tasks.*.experimentCondition')
       .isInt({ min: 0 })
       .withMessage('experimentConditionは0以上の整数である必要があります'),

@@ -8,6 +8,7 @@ SELECT
   , og.chief_user_id
   , ou.user_name AS chief_user_name
   , og.parent_group_cd
+  , pg.organization_group_name AS parent_group_name
   , og.layer
   , og.is_active
   , og.create_user_id
@@ -20,6 +21,9 @@ FROM organization_group og
 LEFT JOIN organization_user ou
   ON og.organization_id = ou.organization_id
   AND og.chief_user_id = ou.user_id
+LEFT JOIN organization_group pg
+  ON og.organization_id = pg.organization_id
+  AND og.parent_group_cd = pg.organization_group_cd
 LEFT JOIN (
   SELECT
     organization_id

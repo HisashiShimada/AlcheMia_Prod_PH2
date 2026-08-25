@@ -75,6 +75,8 @@ Clineの動作を制御するスキル定義ファイルを格納
 ### [development/config.md](development/config.md)
 - コーディング規約統合ドキュメント
 - DRY、SOLID原則
+- **インラインオブジェクト引数禁止**（引数には必ず変数に代入してから渡す）
+- **画面コンポーネントからの直接API呼び出し禁止**（services/ 経由必須）
 - ファイル命名規則
 - インポート順序、コメント規約
 
@@ -99,6 +101,17 @@ Clineの動作を制御するスキル定義ファイルを格納
 - インタラクティブコマンドの回避
 - 長時間実行プロセスの対応
 - コマンドテンプレート集
+
+### [development/project-rules.md](development/project-rules.md)
+- プロジェクト固有の開発ルール（**最高優先度・すべての実装タスクで遵守**）
+- Controller → Service → Repository の呼び出し順
+- バリデーションはmiddlewareで実施
+- pg-promise + SQL外部ファイル化
+- インラインオブジェクト禁止・型定義インスタンス使用
+- MaiMLファイル検索方式（プロジェクトUUID → メタデータ）
+- 多言語対応の必須化
+- Controller の責務限定（受け取り・返却のみ）
+- 詳細説明: `docs/dev-notes/development_memo.md`
 
 ### [development/database.md](development/database.md)
 - データベース操作の統一化
@@ -135,6 +148,18 @@ Clineの動作を制御するスキル定義ファイルを格納
 - セキュリティとアクセス制御（署名付きURL）
 - 実装ガイドライン（storageService.ts使用方法）
 
+### [references/eventlog_structure.md](references/eventlog_structure.md)
+- **⚠️ lifecycle:transition を含む eventLog を実装する際は必ず参照**
+- eventLog の種類（進捗・確認・送信）
+- lifecycle:transition 系 eventLog 共通ルール
+  - ID 命名規則（`{タグ名}_{projectName}{フェーズ名}_{seq}` 形式）
+  - `name` / `description` の統一フォーマット
+  - タイムスタンプ property キー（`time:timestamp`）
+  - `lifecycle:transition` property の適用条件と遷移値一覧
+  - `ownerRef` の issuer / assignee 二重構成
+- 前提トランジション未設定のトランジションへの event タグ強制生成ルール
+- 関連ファイル一覧
+
 ---
 
 ## 🔍 使い方
@@ -150,6 +175,8 @@ Clineの動作を制御するスキル定義ファイルを格納
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-08-18 | eventlog_structure.md追加（lifecycle:transition系eventLog共通ルール） | Cline |
+| 2026-08-17 | backend.md更新（多言語対応規約（i18n）セクション追加：lang取得統一パターン・messages.ts管理ルール・デフォルトメッセージフォールバック・禁止事項）、config.md更新（インラインオブジェクト引数禁止・直接fetch禁止ルール追加）、backend.md更新（Controller→Repository直接呼出し禁止ルール追加）、frontend.md更新（直接fetch禁止・多言語対応ルール追加）、workflow.md更新（チェックポイント拡充） | Cline |
 | 2026-03-25 | error_codes.md追加（エラーコード一覧資料） | Cline |
 | 2026-02-18 | database.md追加（Repository層のDB操作統一化規約） | Cline |
 | 2026-02-18 | typescript.md追加（TypeScript型定義管理規約） | Cline |

@@ -6,6 +6,8 @@
 import { PoolClient } from 'pg';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
+import { InstructionStatusEnum } from '../enums/codeMaster.enum';
+import { InstructionInsertData } from '../types/taskRegistration';
 
 /**
  * Instructionのデータ型定義
@@ -228,19 +230,6 @@ export async function findUserNameFromAuth(
 }
 
 /**
- * 指示データの型定義（タスク登録タブから保存時に使用）
- */
-export interface InstructionInsertData {
-  methodId: string;
-  content: string;
-  priority: number;
-  type: number;
-  targetType: number;
-  transitionId: string | null;
-  taskNumber: number | null;
-}
-
-/**
  * 指示データの完全な型定義（findByProject用）
  */
 export interface InstructionFullRow {
@@ -249,8 +238,6 @@ export interface InstructionFullRow {
   project_id: string;
   method_id: string;
   target_type: number;
-  priority: number;
-  type: number;
   task_no: number | null;
   transition_id: string | null;
   content: string;
@@ -315,7 +302,7 @@ interface CountRow {
  * @param instructions 指示データ配列
  */
 export async function batchInsert(
-  client: any,
+  client: PoolClient,
   organizationId: string,
   projectId: string,
   userId: string,
@@ -356,15 +343,14 @@ export async function batchInsert(
       projectId,
       instructionId,
       instruction.methodId,
-      instruction.priority,
-      instruction.type,
       instruction.taskNumber,
       instruction.transitionId,
       instruction.content,
       userId,
-      0, // instruction_status: 0（未送信）
+      InstructionStatusEnum.UNSENT, // instruction_status: 未送信
       userId, // create_user_id
-      userId // update_user_id
+      userId, // update_user_id
+      instruction.instructionKey, // instruction_key ($12)
     ]);
     
     nextNumber++;

@@ -12,7 +12,7 @@ import {
 } from '@ant-design/icons';
 import TransitionList from './TransitionList';
 import TransitionFlowDiagram from './TransitionFlowDiagram';
-import DataRecordDialog from './DataRecordDialog';
+import ExperimentRecordDialog from './ExperimentRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
@@ -35,7 +35,7 @@ const EMPTY_ICON_SIZE = 48;
  */
 interface ExperimentRecordTabProps {
   selectedProject: string;
-  /** 選択中プロジェクトのプロジェクト名（S3パス構築・UI表示用） */
+  /** 選択中プロジェクトのプロジェクト名。S3パス構築・UI表示用。 */
   selectedProjectName?: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
@@ -93,7 +93,7 @@ export default function ExperimentRecordTab({
   /**
    * APIレスポンスの数値トランジションステータスを ProgressStatus 文字列型に変換
    *
-   * バックエンド TransitionStatusEnum との対応:
+   * バックエンドの TransitionStatusEnum との対応
    *   0: INITIAL     → 'not_started'
    *   1: PREPARING   → 'in_progress'
    *   2: READY       → 'in_progress'
@@ -234,7 +234,7 @@ export default function ExperimentRecordTab({
   }, [selectedProject]);
 
   // 選択されたメソッドに絞ったタスクをフィルタリング
-  // メソッド未選択時は空配列を返す（全メソッドのタスクが混在して重複表示されるのを防ぐ）
+  // メソッド未選択時は空配列を返す（複数メソッドのタスクが混在して重複表示されるのを防ぐ）
   const filteredTasks = useMemo(() => {
     if (!selectedMethodId) return [];
     return tasks.filter(task => task.methodId === selectedMethodId);
@@ -305,7 +305,7 @@ export default function ExperimentRecordTab({
     const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
 
     if (!projectId || !selectedMethodId || taskNo === null || isNaN(taskNo)) {
-      console.warn('[handleIssueClick] 必須なパラメータが不足しています', {
+      console.warn('[handleIssueClick] 必要なパラメータが不足しています', {
         projectId,
         selectedMethodId,
         selectedTaskId,
@@ -442,6 +442,7 @@ export default function ExperimentRecordTab({
       totalIngredientsCount: (progress.condition_count as number) ?? 0,
       inputResultsCount: (progress.result_actual_count as number) ?? 0,
       totalResultsCount: (progress.result_count as number) ?? 0,
+      prerequisiteTransitionIds: (progress.prerequisite_transition_ids as string[] | undefined) ?? [],
     }));
   }, [progressData]);
 
@@ -600,7 +601,7 @@ export default function ExperimentRecordTab({
       />
 
       {dataRecordModalOpen && (
-        <DataRecordDialog
+        <ExperimentRecordDialog
           open={dataRecordModalOpen}
           transition={selectedTransition}
           projectStatus={projectStatus}

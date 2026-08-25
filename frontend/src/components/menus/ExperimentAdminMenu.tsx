@@ -8,7 +8,7 @@ import {
   FolderAddOutlined,
   ExperimentOutlined,
   TeamOutlined,
-  KeyOutlined,
+  // TODO: 暗号化・署名機能は本実装まで無効化 -- KeyOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
@@ -19,7 +19,7 @@ import FormatManagement from '../format/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
 import UncertaintyManagement from '../uncertainty/UncertaintyManagement';
 import TeamManagementPanel from '../team/TeamManagementPanel';
-import KeyManagementScreen from '../key-management/KeyManagementScreen';
+// TODO: 暗号化・署名機能は本実装まで無効化 -- import KeyManagementScreen from '../key-management/KeyManagementScreen';
 import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -102,11 +102,12 @@ export default function ExperimentAdminMenu({
       label: 'チーム管理',
       icon: <TeamOutlined />,
     },
-    {
-      key: '6',
-      label: t('menu.experiment_admin.tabs.keyManagement') || '鍵管理',
-      icon: <KeyOutlined />,
-    },
+    // TODO: 暗号化・署名機能は本実装まで無効化
+    // {
+    //   key: '6',
+    //   label: t('menu.experiment_admin.tabs.keyManagement') || '鍵管理',
+    //   icon: <KeyOutlined />,
+    // },
   ];
 
   const handleTabChange = (key: string) => {
@@ -201,10 +202,11 @@ export default function ExperimentAdminMenu({
           <TeamManagementPanel />
         </div>
 
+        {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
         {/* タブ6: 鍵管理 - display:none でマウント維持し state を保持 */}
-        <div style={{ display: currentTab === '6' ? 'block' : 'none', height: '100%', overflow: 'auto' }}>
+        {/* <div style={{ display: currentTab === '6' ? 'block' : 'none', height: '100%', overflow: 'auto' }}>
           <KeyManagementScreen />
-        </div>
+        </div> */}
       </Content>
       {/* 作業者画面オーバーレイ */}
       <WorkerScreenOverlay

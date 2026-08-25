@@ -21,6 +21,7 @@ import type { ExperimentPlan, MaimlEventLog } from '../types/database';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
 import type { EventLogJsonRecord } from '../utils/maimlDataWriter';
+import type { EventLogRow } from '../types/eventLog';
 import {
   buildDataXML,
   buildEventLogXML,
@@ -32,9 +33,23 @@ import {
 import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { findNamespacesByOrganization } from '../repositories/namespaceTermRepository';
+import { readGlobalDeclarations } from './globalNamespaceFileService';
 
-/** maiml_event_log テーブルの1行（database.ts の MaimlEventLog を再利用） */
-type EventLogRow = MaimlEventLog;
+/**
+ * 組織固有名前空間（DB）とグローバル名前空間（ファイルサーバ）をマージして返す
+ *
+ * @param organizationId - 組織ID
+ * @returns マージされた名前空間エントリ配列（グローバル優先、組織固有が後勝ち）
+ */
+async function buildMergedNamespaces(
+  organizationId: string
+): Promise<Array<{ prefix: string; uri: string }>> {
+  const [orgNamespaces, globalDeclarations] = await Promise.all([
+    findNamespacesByOrganization(organizationId),
+    readGlobalDeclarations(),
+  ]);
+  return [...globalDeclarations, ...orgNamespaces];
+}
 
 /**
  * MaimlWriterService
@@ -135,9 +150,10 @@ export class MaimlWriterService {
     // --- 8. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
     let updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
 
-    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入（DBの内容で完全上書き）
-    const namespaces = await findNamespacesByOrganization(organizationId);
-    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, namespaces);
+    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
+    // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
+    const allNamespaces = await buildMergedNamespaces(organizationId);
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
@@ -276,9 +292,10 @@ export class MaimlWriterService {
     // --- 7. 既存 MAIML の <eventLog> タグのみを置き換え（<data> は変更しない）---
     let updatedMaiml = replaceEventLogInMaiml(maimlContent, eventLogXml);
 
-    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入（DBの内容で完全上書き）
-    const namespaces = await findNamespacesByOrganization(organizationId);
-    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, namespaces);
+    // ★ <maiml> タグに名前空間宣言（xmlns:prefix="uri"）を注入
+    // DB（組織固有）とファイルサーバ（グローバル）の2ソースをマージして完全上書き
+    const allNamespaces = await buildMergedNamespaces(organizationId);
+    updatedMaiml = injectNamespaceDeclarations(updatedMaiml, allNamespaces);
 
     // ★ document の uuid を新規発行し、旧 uuid を <parent> に記録
     updatedMaiml = updateDocumentUuidAndParent(updatedMaiml);
@@ -721,7 +738,7 @@ export class MaimlWriterService {
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;');
-        return `        <property key="mgr-instruction:${escapedKey}" value="${escapedVal}"/>`;
+        return `        <property key="${escapedKey}" value="${escapedVal}"/>`;
       });
 
     if (propLines.length === 0) return maimlContent;
@@ -753,9 +770,9 @@ export class MaimlWriterService {
       const propertiesMatch = taskBody.match(propertiesPattern);
 
       if (propertiesMatch) {
-        // 既存 <properties> 内の mgr-instruction: プロパティを除去
+        // 既存 <properties> 内の mgr-instruction: / Alchemia:SupervisorDirective プロパティを除去
         const cleanedBody = taskBody.replace(
-          /[ \t]*<property[^>]+key="mgr-instruction:[^"]*"[^>]*\/>[ \t]*\n?/gi,
+          /[ \t]*<property[^>]+key="(?:mgr-instruction:|Alchemia:SupervisorDirective)[^"]*"[^>]*\/>[ \t]*\n?/gi,
           ''
         );
         // </properties> 直前に挿入

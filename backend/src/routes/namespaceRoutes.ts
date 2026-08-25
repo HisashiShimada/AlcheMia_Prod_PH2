@@ -28,13 +28,39 @@ import {
   validateGetTerms,
   validateGetDeclarations,
   validateGetDeclarationsByProject,
+  validateImportGlobalDeclarations,
+  validateToggleNamespaceActive,
 } from '../middleware/namespaceValidation';
 import * as namespaceController from '../controllers/namespaceController';
+import multer from 'multer';
 
 const router = Router();
 
+// CSV インポート用 multer 設定（メモリストレージ）
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('CSVファイルのみアップロード可能です'));
+    }
+  },
+});
+
 // 全エンドポイントに認証・テナント分離ミドルウェアを適用
 router.use(authMiddleware, tenantIsolation);
+
+/**
+ * URI自動生成候補取得
+ * GET /api/v1/namespaces/suggested-uri
+ */
+router.get(
+  '/suggested-uri',
+  handleValidationErrors,
+  namespaceController.getSuggestedUri
+);
 
 /**
  * 名前空間（Prefix）一覧取得
@@ -51,7 +77,7 @@ router.get(
  * 名前空間（Prefix）新規登録
  * POST /api/v1/namespaces
  *
- * @body { prefix, uri, displayName?, description?, departmentCd?, scopeKey?, isGlobal? }
+ * @body { prefix, uri, displayName?, description?, departmentCd?, scopeKey? }
  */
 router.post(
   '/',
@@ -71,6 +97,19 @@ router.patch(
   validateUpdateNamespace,
   handleValidationErrors,
   namespaceController.updateNamespace
+);
+
+/**
+ * Prefix の非アクティブ化（or アクティブ化）
+ * PATCH /api/v1/namespaces/:prefix/active
+ *
+ * @body { isActive: boolean }
+ */
+router.patch(
+  '/:prefix/active',
+  validateToggleNamespaceActive,
+  handleValidationErrors,
+  namespaceController.toggleNamespaceActive
 );
 
 /**
@@ -171,6 +210,36 @@ router.get(
   validateGetDeclarationsByProject,
   handleValidationErrors,
   namespaceController.getDeclarationsByProject
+);
+
+/**
+ * グローバル名前空間宣言一覧取得（ファイルサーバから読み込み）
+ * GET /api/v1/namespaces/global-declarations
+ */
+router.get(
+  '/global-declarations',
+  namespaceController.getGlobalDeclarations
+);
+
+/**
+ * グローバル名前空間宣言 CSV インポート（ファイルサーバへ上書き書き込み）
+ * POST /api/v1/namespaces/global-declarations/import
+ */
+router.post(
+  '/global-declarations/import',
+  csvUpload.single('file'),
+  validateImportGlobalDeclarations,
+  handleValidationErrors,
+  namespaceController.importGlobalDeclarations
+);
+
+/**
+ * グローバル名前空間宣言 CSV エクスポート（ファイルサーバから CSV ダウンロード）
+ * GET /api/v1/namespaces/global-declarations/export
+ */
+router.get(
+  '/global-declarations/export',
+  namespaceController.exportGlobalDeclarations
 );
 
 export default router;

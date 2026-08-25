@@ -111,6 +111,12 @@ export interface Term {
   isActive?: boolean;
   /** prefix に対応するスコープ名（organization_group_name または user_name） */
   scopeName?: string;
+  /**
+   * prefix が属する名前空間のスコープキー（organization_group_cd またはユーザーID）
+   * ツリーの用語数バッジ計算に使用する
+   * グローバル名前空間の場合は null
+   */
+  scopeKey?: string | null;
 }
 
 /**
@@ -347,6 +353,12 @@ export interface PrefixManagementProps {
    * null/undefined のとき scope_key は NULL（全体公開）
    */
   scopeKey?: string | null;
+  /**
+   * 組織（company）ノード配下の全 organization_group_cd 一覧
+   * company ノード選択時に scopeKeys として渡すことで配下全グループの Prefix を取得する
+   * NamespaceMain から渡される（用語管理タブと同じ挙動を実現するために必要）
+   */
+  orgGroupCds?: string[];
 }
 
 /**
@@ -382,6 +394,8 @@ export interface PrefixRowLocal {
   prefix: string;
   uri: string;
   description?: string;
+  /** アクティブ状態（true: アクティブ、false: 非アクティブ） */
+  isActive?: boolean;
 }
 
 /**
@@ -631,4 +645,30 @@ export type {
   CreateOrganizationGroupRequest,
   UpdateOrganizationGroupRequest,
 } from '@/types/team';
+
+// ──────────────────────────────────────────────
+// GlobalNamespaceView（グローバル名前空間宣言・ファイルサーバ管理）
+// ──────────────────────────────────────────────
+
+/**
+ * グローバル名前空間宣言の1エントリ
+ * ファイルサーバ（system/namespaces/global-declarations.csv）で管理する
+ */
+export interface GlobalNamespaceEntry {
+  /** XML prefix（例: "maiml", "xsi"） */
+  prefix: string;
+  /** 名前空間 URI（例: "http://www.maiml.org/schemas"） */
+  uri: string;
+}
+
+/**
+ * GlobalNamespaceView コンポーネントの Props
+ */
+export interface GlobalNamespaceViewProps {
+  /**
+   * true のとき、インポート・エクスポートボタンを disabled にして参照のみにする。
+   * NamespaceMain でグローバルノード選択時に使用する。
+   */
+  viewOnly?: boolean;
+}
 

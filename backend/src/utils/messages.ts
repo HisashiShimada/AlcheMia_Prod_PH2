@@ -5,6 +5,8 @@
  * エラーメッセージ・バリデーションメッセージの日英対応
  */
 
+import type { Request } from 'express';
+
 type Messages = {
   corporation: {
     duplicateName: string;
@@ -77,6 +79,7 @@ type Messages = {
     duplicateCreatorId: string;
     duplicateInstrumentId: string;
     duplicateVendorId: string;
+    duplicateAttributeName: string;
     csv: {
       creatorIdRequired: string;
       creatorNameRequired: string;
@@ -90,6 +93,18 @@ type Messages = {
       vendorNameRequired: string;
       vendorIsActiveInvalid: string;
       vendorAlreadyExists: string;
+    };
+  };
+  namespace: {
+    systemProtected: string;
+  };
+  projectRoutes: {
+    validation: {
+      pageInt: string;
+      limitInt: string;
+      statusIn: string;
+      tasksArray: string;
+      methodIdRequired: string;
     };
   };
 };
@@ -166,6 +181,7 @@ const ja: Messages = {
     duplicateCreatorId: '入力されたIDは既に存在しています',
     duplicateInstrumentId: '入力されたIDは既に存在しています',
     duplicateVendorId: '入力されたIDは既に存在しています',
+    duplicateAttributeName: 'このAttribute名・属性値の組み合わせは既に使用されています',
     csv: {
       creatorIdRequired: 'creator_idは必須です',
       creatorNameRequired: 'creator_nameは必須です',
@@ -179,6 +195,18 @@ const ja: Messages = {
       vendorNameRequired: 'vendor_nameは必須です',
       vendorIsActiveInvalid: 'is_activeの値が不正です。true、false、1、0のいずれかを指定してください（実際の値: {value}）',
       vendorAlreadyExists: 'vendor_id: {id} は既に存在します。既存レコードの編集は一覧から行ってください。',
+    },
+  },
+  namespace: {
+    systemProtected: 'システム名前空間（Alchemia）は変更・削除できません',
+  },
+  projectRoutes: {
+    validation: {
+      pageInt: 'pageは1以上の整数である必要があります',
+      limitInt: 'limitは1〜100の整数である必要があります',
+      statusIn: 'statusは1, 2, 3のいずれかである必要があります',
+      tasksArray: 'tasksは1件以上の配列である必要があります',
+      methodIdRequired: 'methodIdは必須です',
     },
   },
 };
@@ -255,6 +283,7 @@ const en: Messages = {
     duplicateCreatorId: 'The entered ID already exists',
     duplicateInstrumentId: 'The entered ID already exists',
     duplicateVendorId: 'The entered ID already exists',
+    duplicateAttributeName: 'This combination of Attribute name and value is already in use',
     csv: {
       creatorIdRequired: 'creator_id is required',
       creatorNameRequired: 'creator_name is required',
@@ -268,6 +297,18 @@ const en: Messages = {
       vendorNameRequired: 'vendor_name is required',
       vendorIsActiveInvalid: 'Invalid value for is_active. Specify one of true, false, 1, or 0 (actual value: {value})',
       vendorAlreadyExists: 'vendor_id: {id} already exists. Please edit existing records from the list.',
+    },
+  },
+  namespace: {
+    systemProtected: 'The system namespace (Alchemia) cannot be modified or deleted',
+  },
+  projectRoutes: {
+    validation: {
+      pageInt: 'page must be an integer greater than or equal to 1',
+      limitInt: 'limit must be an integer between 1 and 100',
+      statusIn: 'status must be one of 1, 2, or 3',
+      tasksArray: 'tasks must be an array with at least one item',
+      methodIdRequired: 'methodId is required',
     },
   },
 };
@@ -316,4 +357,20 @@ export function getMessage(
   }
 
   return message;
+}
+
+/**
+ * Expressリクエストから言語コードを取得する
+ *
+ * Accept-Language ヘッダーを参照し、'ja' または 'en' を返す。
+ * 未指定またはサポート外の場合は 'ja' にフォールバックする。
+ *
+ * @param req Expressリクエストオブジェクト
+ * @returns 言語コード ('ja' | 'en')
+ */
+export function getLang(req: Request): string {
+  const acceptLanguage = req.headers['accept-language'] as string | undefined;
+  if (!acceptLanguage) return 'ja';
+  const primary = acceptLanguage.split(',')[0].split('-')[0].toLowerCase();
+  return primary === 'en' ? 'en' : 'ja';
 }

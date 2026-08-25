@@ -441,7 +441,7 @@ const EncryptionManagement: React.FC<EncryptionManagementProps> = ({ projectName
                     一括処理はできません。先に暗号化済み要素を個別に選択して復号化してから、
                     まとめて暗号化してください。
                   </p>
-                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       🔒 暗号化済み要素（{decryptCandidates.length}件）:
                     </Text>

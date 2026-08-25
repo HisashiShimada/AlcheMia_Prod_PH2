@@ -922,8 +922,8 @@ export async function convertReactFlowToMaiML(
   // XMLヘッダー
   let maiml = `<?xml version="1.0" encoding="utf-8" standalone="no"?>\n`;
   
-  // MaiML要素開始（正しい名前空間）
-  maiml += `<maiml version="1.0" xmlns="http://www.maiml.org/schemas" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.maiml.org/schemas maiml.xsd">\n`;
+  // MaiML要素開始（名前空間宣言はファイルサーバの global-declarations.csv から注入される）
+  maiml += `<maiml version="1.0" xsi:schemaLocation="http://www.maiml.org/schemas maiml.xsd">\n`;
   
   // Document要素（<maiml>直下、<protocol>の前に配置 - 必須）
   if (documentData) {
@@ -1058,6 +1058,11 @@ export async function convertReactFlowToMaiML(
   // 共通テンプレートは method の後に出力する
   maiml += `    <method id="${escapeXml(methodId)}">\n`;
   maiml += `      <uuid>${escapeXml(methodUuid)}</uuid>\n`;
+  // method nameがあれば<name>タグを出力
+  const singleMethodName = allMethods?.[0]?.name;
+  if (singleMethodName) {
+    maiml += `      <name>${escapeXml(singleMethodName)}</name>\n`;
+  }
   maiml += `      <pnml id="${escapeXml(pnmlId)}">\n`;
   maiml += `        <uuid>${escapeXml(pnmlUuid)}</uuid>\n`;
   

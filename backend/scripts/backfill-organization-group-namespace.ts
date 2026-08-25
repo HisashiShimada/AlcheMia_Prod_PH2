@@ -49,7 +49,7 @@ async function getAllGroupsForOrganization(
     INNER JOIN organization o ON o.organization_id = g.organization_id
     WHERE g.organization_id = $1
     ORDER BY
-      COALESCE(CAST(g.layer AS INTEGER), 0) ASC
+      COALESCE(CAST(NULLIF(regexp_replace(g.layer, '[^0-9]', '', 'g'), '') AS INTEGER), 0) ASC
       , g.organization_group_cd ASC
     `,
     [organizationId]

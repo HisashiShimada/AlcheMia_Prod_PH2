@@ -629,27 +629,6 @@ export class ProjectService {
         };
       }
 
-      // バリデーション4: 未送信指示チェック（Repository層経由）
-      const hasUnsent = await projectInstructionRepository.hasUnsentInstructions(
-        organizationId,
-        projectId
-      );
-
-      if (hasUnsent) {
-        await client.query('ROLLBACK');
-        return {
-          success: false,
-          error: {
-            code: 'CHECKOUT_UNSENT_INSTRUCTIONS',
-            message: '未送信の指示が存在します',
-            details: {
-              projectId,
-              projectName: project.project_name,
-            },
-          },
-        };
-      }
-
       // チェックアウト状態確認
       if (project.checkout_status === CheckoutStatusEnum.CHECKED_OUT) {
         // 既にチェックアウト中
@@ -1583,8 +1562,6 @@ export class ProjectService {
         transition_name: '', // TODO: タスク2.2で実装
         task_no: row.task_no,
         instruction_content: row.instruction_content,
-        priority: row.priority,
-        type: row.type,
         create_at: row.create_at.toISOString(),
         created_by: row.created_by,
         created_by_name: row.created_by_name || '',

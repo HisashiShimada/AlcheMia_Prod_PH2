@@ -103,6 +103,7 @@ function buildDiffData(
     xsiType: string | undefined;
     units: string;
     formatString: string;
+    scaleFactor: string;
   },
   currentEvalMode: 'quantitative' | 'qualitative',
   currentStatus: 'active' | 'deprecated',
@@ -194,6 +195,15 @@ function buildDiffData(
         type:       'specTag',
         oldValue:   detail.formatString ?? null,
         newValue:   formValues.formatString || null,
+      },
+      {
+        fieldKey:   'scaleFactor',
+        label:      'scaleFactor',
+        required:   false,
+        changeType: changeType(detail.scaleFactor, formValues.scaleFactor),
+        type:       'specTag',
+        oldValue:   detail.scaleFactor ?? null,
+        newValue:   formValues.scaleFactor || null,
       }
     );
   }
@@ -318,11 +328,13 @@ export default function UncertaintyDetailModal({
         );
 
         form.setFieldsValue({
+          uncertaintyName:           data.uncertaintyName ?? '',
           uncertaintyKey:            data.uncertaintyKey,
+          desc:                      data.description ?? '',
           xsiType:                   data.xsiType ?? undefined,
           units:                     data.units ?? '',
-          scaleFactor:               data.scaleFactor ?? '',
           formatString:              data.formatString ?? '',
+          scaleFactor:               data.scaleFactor ?? '',
         });
       })
       .catch(() => {
@@ -341,6 +353,7 @@ export default function UncertaintyDetailModal({
       'xsiType',
       'units',
       'formatString',
+      'scaleFactor',
     ]);
 
     const computed = buildDiffData(
@@ -351,6 +364,7 @@ export default function UncertaintyDetailModal({
         xsiType:      formValues.xsiType,
         units:        formValues.units ?? '',
         formatString: formValues.formatString ?? '',
+        scaleFactor:  formValues.scaleFactor ?? '',
       },
       evalMode,
       statusState,
@@ -372,6 +386,7 @@ export default function UncertaintyDetailModal({
       'xsiType',
       'units',
       'formatString',
+      'scaleFactor',
     ]);
 
     // ── 差分チェック：変更がなければ保存しない ──
@@ -383,6 +398,7 @@ export default function UncertaintyDetailModal({
         xsiType:      formValues.xsiType,
         units:        formValues.units ?? '',
         formatString: formValues.formatString ?? '',
+        scaleFactor:  formValues.scaleFactor ?? '',
       },
       evalMode,
       statusState,
@@ -395,22 +411,20 @@ export default function UncertaintyDetailModal({
       return;
     }
 
-    const scaleFactorValue = form.getFieldValue('scaleFactor');
-
     setLoading(true);
     try {
       const result = await saveUncertaintyCriteriaNewVersion({
         nameSpaceId:               detail.nameSpaceId,
         uncertaintyKey:            detail.uncertaintyKey,
-        uncertaintyName:           detail.uncertaintyName ?? '',
+        uncertaintyName:           formValues.uncertaintyName ?? '',
         evaluationMethod:          evalMode === 'quantitative' ? 1 : 2,
         isInvalid:                 statusState === 'deprecated',
         inheritanceUncertaintyKey: detail.inheritanceUncertaintyKey ?? null,
         xsiType:                   evalMode === 'quantitative' ? (formValues.xsiType ?? null) : null,
         units:                     evalMode === 'quantitative' ? (formValues.units || null) : null,
-        scaleFactor:               evalMode === 'quantitative' ? (scaleFactorValue || null) : null,
         formatString:              evalMode === 'quantitative' ? (formValues.formatString || null) : null,
-        description:               detail.description || null,
+        scaleFactor:               evalMode === 'quantitative' ? (formValues.scaleFactor || null) : null,
+        description:               formValues.desc || null,
         qualitativeOptions:        evalMode === 'qualitative'
           ? qualitativeOptions.map((opt, idx) => ({
               displayOrder: idx + 1,
@@ -477,15 +491,6 @@ export default function UncertaintyDetailModal({
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>1. {t('uncertaintyDetail.section1Title')}</div>
 
-            {/* 不確かさ基準名 → uncertainty_criteria.uncertainty_name */}
-            <Form.Item
-              name="uncertaintyName"
-              label={t('uncertaintyDetail.nameLabel')}
-              style={{ marginBottom: 14 }}
-            >
-              <Input placeholder={t('uncertaintyDetail.namePlaceholder')} />
-            </Form.Item>
-
             {/* Key属性設定 → uncertainty_criteria.uncertainty_key（読み取り専用） */}
             <Form.Item
               name="uncertaintyKey"
@@ -495,9 +500,27 @@ export default function UncertaintyDetailModal({
               <Input disabled />
             </Form.Item>
 
-            {/* 説明文 → uncertainty_criteria.description */}
+            {/* 不確かさ基準名 → namespace_term.display_name（Key属性設定に連動・表示専用） */}
+            <Form.Item
+              name="uncertaintyName"
+              label={t('uncertaintyDetail.nameLabel')}
+              style={{ marginBottom: 14 }}
+            >
+              <Input
+                readOnly
+                disabled
+                style={{ background: '#f5f5f5', color: '#595959' }}
+              />
+            </Form.Item>
+
+            {/* 説明文 → namespace_term.description（Key属性設定に連動・表示専用） */}
             <Form.Item name="desc" label={t('uncertaintyDetail.descLabel')} style={{ marginBottom: 14 }}>
-              <TextArea rows={3} />
+              <TextArea
+                rows={3}
+                readOnly
+                disabled
+                style={{ background: '#f5f5f5', color: '#595959' }}
+              />
             </Form.Item>
 
             {/* 状態 → uncertainty_criteria.is_Invalid */}
@@ -584,12 +607,11 @@ export default function UncertaintyDetailModal({
                 >
                   <Input />
                 </Form.Item>
-                {/* scaleFactor → uncertainty_criteria.scale_factor */}
-                <Form.Item name="scaleFactor" label="scaleFactor" style={{ marginBottom: 0 }}>
-                  <Input placeholder="1.0" />
-                </Form.Item>
                 <Form.Item name="formatString" label="formatString" style={{ marginBottom: 0 }}>
                   <Input />
+                </Form.Item>
+                <Form.Item name="scaleFactor" label="scaleFactor" style={{ marginBottom: 0 }}>
+                  <Input placeholder="1" />
                 </Form.Item>
               </div>
             )}

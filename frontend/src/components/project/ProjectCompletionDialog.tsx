@@ -24,10 +24,11 @@ import {
   App,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { saveEvaluations, exportEvaluationsToMaiml } from '@/services/experimentEvaluationApiService';
-import type { EvaluationInput } from '@/services/experimentEvaluationApiService';
+import { saveSubEvaluations } from '@/services/projectOverallEvaluationApiService';
+import type { SaveSubEvaluationsRequest } from '@/types/projectOverallEvaluation';
+import { createOverallEvaluation, exportToMaiml as exportOverallEvaluationToMaiml } from '@/services/projectOverallEvaluationApiService';
 import type { UncertaintyCriteriaForSelector } from './ApprovalWizardDialog';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -70,7 +71,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
 
   const [selectedCriteriaKey, setSelectedCriteriaKey] = useState<string | null>(null);
   const [evalRows, setEvalRows] = useState<EvalRow[]>([
-    { rowKey: 'project', label: projectName ?? t('projectCompletion.projectWholeLabel'), evaluationValue: undefined, comment: '' },
+    { rowKey: 'project', label: projectName ?? t('projectCompletion.entireProject'), evaluationValue: undefined, comment: '' },
   ]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -88,40 +89,44 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
   const handleComplete = async () => {
     setSubmitting(true);
     try {
-      // 評価値が入力されている場合は保存
+      // ① 評価値が入力されている場合は project_overall_evaluations（sub-evaluations）に保存
+      // ※ プロジェクト完了ダイアログでは project スコープがないため、
+      //    入力評価はプロジェクト全体評価のアナログ部分として overall_analog に格納する形に将来拡張予定。
+      //    現時点ではフロントの入力項目をそのまま全体評価の overallAnalog に渡す。
       const row = evalRows[0];
-      if (selectedCriteria && row.evaluationValue) {
-        const evaluations: EvaluationInput[] = [
-          {
-            evaluationUnit:  'project',
-            methodId:        undefined,
-            taskNo:          undefined,
-            transitionId:    undefined,
-            nameSpaceId:     selectedCriteria.nameSpaceId,
-            uncertaintyKey:  selectedCriteria.uncertaintyKey,
-            ucVersion:       selectedCriteria.version,
-            evaluationValue: row.evaluationValue,
-            comment:         row.comment || undefined,
-          },
-        ];
-        await saveEvaluations({ projectId, evaluations });
-      }
-      // DBの評価データを MAiML ファイルへ書き込み
+
+      // ② 全体評価を DB に凍結保存（project_overall_evaluations）
       try {
-        const result = await exportEvaluationsToMaiml(projectId);
-        if (result.written > 0) {
-          message.success(t('projectCompletion.messages.exportSuccess', { count: String(result.written) }));
-        }
-      } catch (exportErr) {
-        // MAiML 書き込み失敗はワーニング扱い（完了処理自体は続行）
-        console.warn('[ProjectCompletionDialog] exportToMaiml error:', exportErr);
-        message.warning(t('projectCompletion.messages.exportFailed'));
+        const overallEvalInput = {
+          projectId,
+          overallDigital: row.evaluationValue as '良好' | '要確認' | '不良' | undefined,
+          overallAnalog:  row.comment || undefined,
+        };
+        await createOverallEvaluation(overallEvalInput);
+      } catch (overallEvalErr) {
+        // 全体評価登録失敗はワーニング扱い（完了処理自体は続行）
+        console.warn('[ProjectCompletionDialog] createOverallEvaluation error:', overallEvalErr);
       }
+
+      // ③ 品質評価（全体評価・階層別）を MAiML <eventLog> へ書き込み
+      try {
+        const qualityResult = await exportOverallEvaluationToMaiml(projectId);
+        if (!qualityResult.skipped && qualityResult.written > 0) {
+          message.success(
+            t('projectCompletion.maimlQualityWriteSuccess', { count: String(qualityResult.written) })
+          );
+        }
+      } catch (qualityExportErr) {
+        // 品質評価 MAiML 書き込み失敗はワーニング扱い（完了処理自体は続行）
+        console.warn('[ProjectCompletionDialog] exportOverallEvaluationToMaiml error:', qualityExportErr);
+        message.warning(t('projectCompletion.maimlQualityWriteWarning'));
+      }
+
       // 完了処理
       await onComplete();
     } catch (err) {
       console.error('[ProjectCompletionDialog] error:', err);
-      message.error(t('projectCompletion.messages.completeFailed'));
+      message.error(t('projectCompletion.completeFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -130,18 +135,18 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
   /** テーブルカラム定義 */
   const evalColumns: ColumnsType<EvalRow> = useMemo(() => [
     {
-      title: t('projectCompletion.columns.target'),
+      title: t('projectCompletion.colTarget'),
       dataIndex: 'label',
       width: 180,
       render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
     },
     {
-      title: t('projectCompletion.columns.qualEvaluation'),
+      title: t('projectCompletion.colQualitative'),
       width: 200,
       render: (_: unknown, row: EvalRow) => (
         <Select
           allowClear
-          placeholder={t('projectCompletion.placeholders.notEvaluated')}
+          placeholder={t('projectCompletion.unevaluated')}
           style={{ width: 180 }}
           size="small"
           value={row.evaluationValue}
@@ -173,11 +178,11 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
       ),
     },
     {
-      title: t('projectCompletion.columns.comment'),
+      title: t('projectCompletion.colComment'),
       render: (_: unknown, row: EvalRow) => (
         <Input
           size="small"
-          placeholder={t('projectCompletion.placeholders.comment')}
+          placeholder={t('projectCompletion.commentPlaceholder')}
           value={row.comment}
           onChange={(e) => updateRow('comment', e.target.value)}
           maxLength={200}
@@ -209,7 +214,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
         </Flex>
       }
     >
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={16} style={{ width: '100%' }}>
         {/* 説明文 */}
         <Text type="secondary" style={{ fontSize: 12 }}>
           {t('projectCompletion.description')}
@@ -224,7 +229,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
             style={{ width: 280 }}
             size="small"
             allowClear
-            placeholder={t('projectCompletion.selectCriteriaPlaceholder')}
+            placeholder={t('projectCompletion.criteriaPlaceholder')}
             value={selectedCriteriaKey}
             onChange={(v) => {
               setSelectedCriteriaKey(v ?? null);
@@ -240,7 +245,7 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
                 value: c.uncertaintyKey,
               }))}
           />
-          {selectedCriteria && <Tag color="green" style={{ fontSize: 11 }}>{t('projectCompletion.tagQualitative')}</Tag>}
+          {selectedCriteria && <Tag color="green" style={{ fontSize: 11 }}>{t('common.qualitative')}</Tag>}
         </Flex>
 
         {/* 評価テーブル */}
@@ -251,11 +256,11 @@ const ProjectCompletionDialog: React.FC<ProjectCompletionDialogProps> = ({
           size="small"
           pagination={false}
           bordered
-          locale={{ emptyText: t('evaluation.empty.noTarget') }}
+          locale={{ emptyText: t('projectCompletion.noEvalTarget') }}
         />
 
         <Text type="secondary" style={{ fontSize: 11 }}>
-          {t('projectCompletion.footerNote')}
+          {t('projectCompletion.saveNote')}
         </Text>
       </Space>
     </Modal>

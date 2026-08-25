@@ -17,7 +17,7 @@
 ### 1.1. 目的
 
 実験管理者（Manager）が、プロジェクトの各メソッド・タスクに対して**実験計画指示**を設定・保存するためのモーダルダイアログです。
-想定値・注意事項・担当者情報などを構造化して登録し、チェックアウト時に MAIML ファイルへ `mgr-instruction:` プレフィックスで反映されます。
+想定値・担当者情報などを構造化して登録し、チェックアウト時に MAIML ファイルへ `mgr-instruction:` プレフィックスで反映されます。
 
 ### 1.2. アクセス権限
 
@@ -34,9 +34,8 @@
 3. 個別タスクでの値の上書き（overrideFlags で管理）
 4. 「全体に戻す」ボタンで個別上書きをリセット
 5. テンプレートフィールドへの想定値入力
-6. 注意事項・備考の登録（複数件対応）
-7. 担当者・機器・オーナーの選択
-8. 前提トランジション（依存関係）の設定
+6. 担当者・機器・オーナーの選択
+7. 前提トランジション（依存関係）の設定
 
 ---
 
@@ -117,19 +116,10 @@ interface ExperimentPlanDialogProps {
 // 外部タブのキー（全体 or タスク番号）
 type TabKey = 'all' | `task-${number}`;
 
-// 注意事項アイテム
-interface NoteItem {
-  id: string;
-  type: 'caution' | 'operationNote' | 'checkItem' | 'prohibitedAction' | 'otherNotes';
-  content: string;
-}
-
 // 1タブ分のデータ
 interface TabData {
   /** テンプレートごとの想定値 {templateId: {fieldKey: value}} */
   templateValues: Record<string, Record<string, string>>;
-  /** 注意事項リスト */
-  notes: NoteItem[];
   /** 担当者UUID */
   assignee: string;
   /** 必要作成者UUIDリスト */
@@ -214,13 +204,6 @@ interface PlanDialogData {
 │ 必要機器:    [複数選択可 ▼]                                    │
 │ 必要オーナー: [複数選択可 ▼]                                   │
 │                                                                │
-│ 注意事項:                                                      │
-│ ┌──────────────────────────────────────────────────────────┐  │
-│ │ [種別▼] [内容入力                          ] [削除]        │  │
-│ │ [種別▼] [内容入力                          ] [削除]        │  │
-│ └──────────────────────────────────────────────────────────┘  │
-│ [+ 注意事項を追加]                                             │
-│                                                                │
 │ ─── タスクNのみ表示 ─────────────────────────────────────── │
 │ ○ 全体設定を使用  ○ このタスクで個別設定  [全体に戻す]       │
 └────────────────────────────────────────────────────────────────┘
@@ -244,24 +227,7 @@ interface PlanDialogData {
 | データ取得元 | `dialogData.availableInstruments` |
 | プレースホルダー | 機器を選択してください |
 
-#### 6.1.3. 注意事項入力
-
-**NoteItem 種別リスト**:
-
-| 種別キー | 表示名 | 説明 |
-|---------|--------|------|
-| `caution` | 注意 | 安全・取り扱いの注意 |
-| `operationNote` | 操作メモ | 操作手順の補足 |
-| `checkItem` | 確認項目 | 実験前の確認事項 |
-| `prohibitedAction` | 禁止事項 | 実施してはならない行為 |
-| `otherNotes` | その他 | 上記に当てはまらない備考 |
-
-**入力コンポーネント**:
-- 種別: `Select`（幅 150px）
-- 内容: `Input.TextArea`（`autoSize={{ minRows: 1, maxRows: 3 }}`）
-- 削除ボタン: `Button` + `DeleteOutlined`アイコン
-
-#### 6.1.4. 継承制御（タスクNタブのみ表示）
+#### 6.1.3. 継承制御（タスクNタブのみ表示）
 
 | UI要素 | 説明 |
 |--------|------|
@@ -413,7 +379,6 @@ const handleResetToAll = (taskNum: number, fieldPath: string) => {
   for each taskNo in [1..N]:
     plannedValues を組み立て:
       - 基本情報（requiredCreatorUUIDs, requiredInstrumentUUIDs, etc.）
-      - 注意事項（notes → mgr-instruction: キーに変換）
       - テンプレート値（templateValues）
     ↓
     PUT /experiment-plans/:methodId/:taskNo
@@ -433,7 +398,6 @@ const handleResetToAll = (taskNum: number, fieldPath: string) => {
 | 項目 | バリデーション | エラーメッセージ |
 |------|--------------|----------------|
 | taskNo | 1以上の整数 | — （UI上は自動的に正しい番号が設定される） |
-| notes[].content | 種別選択時は必須 | 「内容を入力してください」 |
 | templateValues のフィールド | number型の場合は数値形式 | 「数値を入力してください」 |
 
 ---
@@ -468,8 +432,6 @@ const handleResetToAll = (taskNum: number, fieldPath: string) => {
 - `message` - 成功/エラートースト
 
 ### アイコン
-- `PlusOutlined` - 注意事項追加ボタン
-- `DeleteOutlined` - 注意事項削除ボタン
 - `SaveOutlined` - 保存ボタン
 - `CloseOutlined` - キャンセルボタン
 - `UndoOutlined` - 全体に戻すボタン

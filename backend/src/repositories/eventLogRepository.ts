@@ -8,7 +8,8 @@
 import { PoolClient } from 'pg';
 import { TransitionStatus } from '../types/transitionData';
 import { loadSqlFile } from '../sql/loader';
-import { findByDivision } from './codeMasterRepository';
+import { getPgp } from '../database/db';
+import type { EventLogRow } from '../types/eventLog';
 
 /**
  * 指示送信ログのパラメータ
@@ -33,10 +34,6 @@ export interface InstructionSentLogParams {
   sentAt: string;
   /** 指示内容テキスト */
   instructions: string | null;
-  /** 優先度 */
-  priority: number | null;
-  /** 指示タイプ */
-  type: number | null;
 }
 
 /**
@@ -64,8 +61,50 @@ export interface InstructionConfirmLogParams {
 }
 
 /**
- * イベントタイプ
+ * プロジェクト指示送信用パラメータ
+ * insertProjectInstructionSentLog で使用する。
+ * 指示種別（instructionKey）と粒度に応じたJSON構造を生成する。
+ *
+ * @see .clinerules/references/eventlog_structure.md — lifecycle:transition 系 eventLog 共通ルール
  */
+export interface ProjectInstructionSentLogParams {
+  /** メソッドID（全体指示の場合はnull） */
+  methodId: string | null;
+  /** トランジションID（トランジション単位の場合のみ） */
+  transitionId: string | null;
+  /** programタグのID（トランジション/タスク単位の場合に必須） */
+  programId: string | null;
+  /** タスク連番（タスク単位の場合のみ） */
+  taskNo: number | null;
+  /** 実験指示ID */
+  experimentInstructionId: string;
+  /** 送信ユーザID */
+  userId: string;
+  /** 送信日時（ISO8601文字列） */
+  sentAt: string;
+  /** 指示内容テキスト */
+  instructions: string | null;
+  /** MAIMLのpropertyタグキー（必須） */
+  instructionKey: string;
+  /** プロジェクト名（ID命名規則に使用） */
+  projectName: string;
+  /**
+   * ExperimentPlanDialog で指定した作業予定者（assignee）の ownerRef 一覧
+   * 0件または未指定の場合は ownerRef_assignee タグを省略する
+   */
+  assigneeOwnerRefs?: string[] | null;
+  /**
+   * トランジション+タスク単位の場合に experiment_plan から取得した Creator 一覧
+   * 0件または未指定の場合は creatorRef タグを省略する
+   */
+  creatorRefs?: string[] | null;
+  /**
+   * トランジション+タスク単位の場合に experiment_plan から取得した Instrument 一覧
+   * 0件または未指定の場合は instrumentRef タグを省略する
+   */
+  instrumentRefs?: string[] | null;
+}
+
 export type EventType = 'transition_status_update' | 'template_data_saved';
 
 /**
@@ -268,6 +307,7 @@ export class EventLogRepository {
     client: PoolClient
   ): Promise<void> {
     try {
+      // code_master から各区分のラベルマップを並列取得
       // sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
       const sequenceQuery = await this.sequenceQueryPromise;
       const sequenceResult = await client.query(sequenceQuery, [
@@ -276,28 +316,10 @@ export class EventLogRepository {
       ]);
       const nextSequenceNo: number = sequenceResult.rows[0].next_sequence_no;
 
-      // code_master から各区分のラベルマップを並列取得
-      const [priorityMasters, typeMasters] = await Promise.all([
-        findByDivision(organizationId, 'instruction_priority'),
-        findByDivision(organizationId, 'instruction_type'),
-      ]);
-
-      // code_value（文字列）→ 日本語ラベル のマップを構築
-      // code_remark に日本語コード名称が設定されている（暫定対応）
-      // code_remark が空の場合は code_name にフォールバック
-      const priorityLabelMap: Record<number, string> = Object.fromEntries(
-        priorityMasters.map(m => [Number(m.code_value), m.code_remark || m.code_name])
-      );
-      const typeLabelMap: Record<number, string> = Object.fromEntries(
-        typeMasters.map(m => [Number(m.code_value), m.code_remark || m.code_name])
-      );
-
       // methodId / transitionId / taskNo の有無に応じた JSON 構造を構築
       const logJson = this.buildInstructionSentLogJson(
         params,
         nextSequenceNo,
-        priorityLabelMap,
-        typeLabelMap,
       );
 
       const insertQuery = await this.insertQueryPromise;
@@ -328,15 +350,11 @@ export class EventLogRepository {
    *
    * @param params - 指示送信ログパラメータ
    * @param sequenceNo - 採番済みの sequence_no（ID生成に使用）
-   * @param priorityLabelMap - code_master(instruction_priority) の数値→code_name マップ
-   * @param typeLabelMap - code_master(instruction_type) の数値→code_name マップ
    * @returns eventLog JSON オブジェクト
    */
   private buildInstructionSentLogJson(
     params: InstructionSentLogParams,
     sequenceNo: number,
-    priorityLabelMap: Record<number, string>,
-    typeLabelMap: Record<number, string>,
   ): Record<string, unknown> {
     const {
       methodId,
@@ -347,16 +365,12 @@ export class EventLogRepository {
       userId,
       sentAt,
       instructions,
-      priority,
-      type,
     } = params;
 
     const logId = `log_${sequenceNo}`;
     const evnetId = `evnet_${sequenceNo}`;
 
     // property 配列（全ターゲット共通）
-    // priority / type は code_master の code_name を使用
-    // code_master に存在しない値の場合は String(数値) にフォールバック
     const properties = [
       {
         '@key': 'sent_at',
@@ -377,16 +391,6 @@ export class EventLogRepository {
         '@key': 'instructions',
         '@xsi:type': 'stringType',
         '#text': instructions ?? '',
-      },
-      {
-        '@key': 'priority',
-        '@xsi:type': 'stringType',
-        '#text': priorityLabelMap[priority ?? 0] ?? String(priority ?? 0),
-      },
-      {
-        '@key': 'type',
-        '@xsi:type': 'stringType',
-        '#text': typeLabelMap[type ?? 0] ?? String(type ?? 0),
       },
     ];
 
@@ -778,4 +782,422 @@ export class EventLogRepository {
       };
     }
   }
+
+  /**
+   * プロジェクト指示送信イベントログを記録
+   *
+   * タスク登録タブのプロジェクト指示ダイアログから登録された指示の送信時に呼び出す。
+   * 粒度（全体/メソッド/トランジション/タスク）に応じて以下のJSON構造を生成する。
+   *
+   * - 全体指示（methodId=null）:
+   *     eventLog > property[@key='SupervisorDirectiveTimestamp'] + property[@key=instructionKey] + ownerRef
+   * - メソッド単位（methodId あり）:
+   *     eventLog > log[@ref=methodId] > property × 2 + ownerRef
+   * - トランジション単位（methodId + transitionId あり）:
+   *     eventLog > log[@ref=methodId] > trace[@ref=programId] > event[@ref=instructionId] > property × 2 + ownerRef
+   * - タスク単位（methodId + taskNo あり）:
+   *     eventLog > log[@ref=methodId] > trace[@ref=programId, @taskno] > event > resultsRef + property × 2 + ownerRef
+   *
+   * ownerRef の @ref 値は userId の "@" を "_" に置換した値。
+   *
+   * @param organizationId - 組織ID
+   * @param projectId - プロジェクトID
+   * @param params - プロジェクト指示送信ログパラメータ
+   * @param client - トランザクション用のPoolClient
+   */
+  async insertProjectInstructionSentLog(
+    organizationId: string,
+    projectId: string,
+    params: ProjectInstructionSentLogParams,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const sequenceQuery = await this.sequenceQueryPromise;
+      const sequenceResult = await client.query(sequenceQuery, [organizationId, projectId]);
+      const sequenceNo: number = sequenceResult.rows[0].next_sequence_no;
+
+      const logJson = this.buildProjectInstructionSentLogJson(params, sequenceNo);
+
+      const insertQuery = await this.insertQueryPromise;
+      await client.query(insertQuery, [
+        organizationId,
+        projectId,
+        sequenceNo,
+        JSON.stringify(logJson),
+        params.userId,
+      ]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while inserting project instruction sent log',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * 前提トランジション未設定のトランジションに対する lifecycle:transition 遷移記録を挿入する
+   *
+   * @see .clinerules/references/eventlog_structure.md — セクション3
+   *
+   * 指示事項の有無によらず、前提トランジションID が設定されていないトランジションに対して
+   * time:timestamp + lifecycle:transition のみを含む最小構成の event タグを生成して記録する。
+   *
+   * @param organizationId - 組織ID
+   * @param projectId      - プロジェクトID
+   * @param params         - 生成に必要なパラメータ
+   * @param client         - トランザクション用の PoolClient
+   */
+  async insertLifecycleTransitionEventLog(
+    organizationId: string,
+    projectId: string,
+    params: {
+      methodId: string;
+      programId: string | null;
+      transitionId: string;
+      userId: string;
+      sentAt: string;
+      projectName: string;
+    },
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const sequenceQuery = await this.sequenceQueryPromise;
+      const sequenceResult = await client.query(sequenceQuery, [organizationId, projectId]);
+      const sequenceNo: number = sequenceResult.rows[0].next_sequence_no;
+
+      const { methodId, programId, transitionId, sentAt, projectName } = params;
+      const idPrefix = `${projectName}Preparation_schedule_${sequenceNo}`;
+      const commonNameDesc = {
+        name: 'Alchemia:PreparationEvent',
+        description: `${projectName} PreparationEvent(schedule)`,
+      };
+
+      // 最小構成: time:timestamp + lifecycle:transition のみ
+      const logJson = {
+        eventLog: {
+          '@id': 'eventLogID', // MAIML上1つのみ存在。buildEventLogXML が既存MAIMLの値で上書きするため固定値
+          // name/description は eventLog タグには付与しない（MAIML上1つしか存在できないため特定処理に紐づけられない）
+          log: {
+            '@id': `log_${idPrefix}`,
+            '@ref': methodId,
+            ...commonNameDesc,
+            trace: {
+              '@id': `trace_${idPrefix}`,
+              '@ref': programId ?? `trace_${idPrefix}`,
+              ...commonNameDesc,
+              event: {
+                '@id': `event_${idPrefix}`,
+                '@ref': transitionId,
+                ...commonNameDesc,
+                property: [
+                  {
+                    '@key': 'time:timestamp',
+                    '@xsi:type': 'dateTimeType',
+                    '#text': sentAt,
+                  },
+                  {
+                    '@key': 'lifecycle:transition',
+                    '@xsi:type': 'stringType',
+                    '#text': 'schedule',
+                  },
+                ],
+              },
+            },
+          },
+        },
+      };
+
+      const insertQuery = await this.insertQueryPromise;
+      await client.query(insertQuery, [
+        organizationId,
+        projectId,
+        sequenceNo,
+        JSON.stringify(logJson),
+        params.userId,
+      ]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while inserting lifecycle transition event log',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * プロジェクト指示送信用の eventLog JSON 構造を生成するヘルパー
+   *
+   * @see .clinerules/references/eventlog_structure.md — lifecycle:transition 系 eventLog 共通ルール
+   *
+   * ID 命名規則（Preparation_schedule フェーズ）:
+   *   eventLog/@id = 既存 MAIML の値を維持（MAIML上1つのみ存在するため命名規則対象外）
+   *   log/@id      = "log_{projectName}Preparation_schedule_{seq}"
+   *   trace/@id    = "trace_{projectName}Preparation_schedule_{seq}"
+   *   event/@id    = "event_{projectName}Preparation_schedule_{seq}"
+   *   ownerRef/@id（issuer）  = "ownerRef_{projectName}Preparation_schedule_{seq}_issuer"
+   *   ownerRef/@id（assignee）= "ownerRef_{projectName}Preparation_schedule_{seq}_assignee"
+   *
+   * 共通プロパティ（全粒度）:
+   *   - property[@key='time:timestamp'] — 送信日時（XES標準キー）
+   *   - property[@key=instructionKey]   — 指示種別キーと指示内容
+   *   - ownerRef（issuer）  — 指示出しユーザーID（@→_置換）
+   *   - ownerRef（assignee）— ExperimentPlanDialog 指定の作業予定者（0件時は省略）
+   *
+   * name / description（全タグ共通）:
+   *   name        = "Alchemia:PreparationEvent"
+   *   description = "{projectName} PreparationEvent(schedule)"
+   *
+   * 粒度別の構造:
+   *   - 全体指示（methodId=null）:
+   *       eventLog > property × 2 + ownerRef × 1〜2
+   *   - メソッド単位（methodId のみ）:
+   *       eventLog > log[@ref=methodId] > property × 2 + ownerRef × 1〜2
+   *   - トランジション単位（methodId + transitionId）:
+   *       eventLog > log > trace[@ref=programId] > event[@ref=instructionId]
+   *                          > property × 2 + ownerRef × 1〜2
+   *   - タスク単位（methodId + taskNo、transitionId なし）:
+   *       eventLog > log > trace[@ref=programId, @taskno]
+   *                          > property × 3 + ownerRef × 1〜2
+   *       ※ property の3件目は Alchemia:SupervisorDirectiveTaskNo（intType）
+   *       ※ event タグは使用しない
+   *   - トランジション+タスク単位（methodId + transitionId + taskNo、最優先）:
+   *       eventLog > log > trace[@ref=programId] > event[@ref=instructionId]
+   *                          > property × 3 + lifecycle:transition + ownerRef × 1〜2
+   *                          + creatorRef[] + instrumentRef[]
+   */
+  private buildProjectInstructionSentLogJson(
+    params: ProjectInstructionSentLogParams,
+    sequenceNo: number
+  ): Record<string, unknown> {
+    const {
+      methodId,
+      transitionId,
+      programId,
+      taskNo,
+      experimentInstructionId,
+      userId,
+      sentAt,
+      instructions,
+      instructionKey,
+      projectName,
+      assigneeOwnerRefs,
+      creatorRefs,
+      instrumentRefs,
+    } = params;
+
+    // ── ID プレフィックス（共通ルール: eventlog_structure.md 2-1）──────────
+    const idPrefix = `${projectName}Preparation_schedule_${sequenceNo}`;
+
+    // ── name / description（共通ルール: eventlog_structure.md 2-2）──────────
+    const commonNameDesc = {
+      name: 'Alchemia:PreparationEvent',
+      description: `${projectName} PreparationEvent(schedule)`,
+    };
+
+    // ── ownerRef 構築（共通ルール: eventlog_structure.md 2-5）───────────────
+    // issuer: 指示出しユーザー（@→_置換）
+    const issuerOwnerRef = {
+      '@id': `ownerRef_${idPrefix}_issuer`,
+      '@ref': userId.replace('@', '_'),
+    };
+    // assignee: ExperimentPlanDialog で指定した作業予定者（0件時は省略）
+    const assigneeList = (assigneeOwnerRefs ?? []).filter(Boolean);
+    const buildOwnerRefs = (): unknown => {
+      if (assigneeList.length === 0) {
+        return issuerOwnerRef;
+      }
+      const assigneeRefs = assigneeList.map((ref, idx) => ({
+        '@id': assigneeList.length === 1
+          ? `ownerRef_${idPrefix}_assignee`
+          : `ownerRef_${idPrefix}_assignee_${idx + 1}`,
+        '@ref': ref,
+      }));
+      return [issuerOwnerRef, ...assigneeRefs];
+    };
+    const ownerRefValue = buildOwnerRefs();
+
+    // ── 共通 property 配列（共通ルール: eventlog_structure.md 2-3）──────────
+    // time:timestamp（XES標準キー）+ 指示種別キー
+    const baseProperties: Record<string, unknown>[] = [
+      {
+        '@key': 'time:timestamp',
+        '@xsi:type': 'dateTimeType',
+        '#text': sentAt,
+      },
+      {
+        '@key': instructionKey,
+        '@xsi:type': 'stringType',
+        '#text': instructions ?? '',
+      },
+    ];
+
+    if (!methodId) {
+      // 全体指示: eventLog 直下に property + ownerRef
+      return {
+        eventLog: {
+          '@id': 'eventLogID', // MAIML上1つのみ存在。buildEventLogXML が既存MAIMLの値で上書きするため固定値
+          // name/description は eventLog タグには付与しない（MAIML上1つしか存在できないため特定処理に紐づけられない）
+          property: baseProperties,
+          ownerRef: ownerRefValue,
+        },
+      };
+    } else if (transitionId && taskNo != null) {
+      // トランジション+タスク単位（最優先）:
+      //   log > trace[@ref=programId] > event[@ref=instructionId]
+      //     > property × 3 + lifecycle:transition + ownerRef + creatorRef[] + instrumentRef[]
+      const propertiesWithTaskNoAndLifecycle = [
+        ...baseProperties,
+        {
+          '@key': 'Alchemia:SupervisorDirectiveTaskNo',
+          '@xsi:type': 'intType',
+          '#text': taskNo,
+        },
+        // lifecycle:transition（共通ルール: eventlog_structure.md 2-4）
+        {
+          '@key': 'lifecycle:transition',
+          '@xsi:type': 'stringType',
+          '#text': 'schedule',
+        },
+      ];
+
+      const eventObj: Record<string, unknown> = {
+        '@id': `event_${idPrefix}`,
+        '@ref': experimentInstructionId,
+        ...commonNameDesc,
+        property: propertiesWithTaskNoAndLifecycle,
+        ownerRef: ownerRefValue,
+      };
+
+      // creatorRef タグ（0件の場合は省略）
+      const creatorRefList = (creatorRefs ?? []).filter(Boolean);
+      if (creatorRefList.length === 1) {
+        eventObj.creatorRef = { '@ref': creatorRefList[0] };
+      } else if (creatorRefList.length > 1) {
+        eventObj.creatorRef = creatorRefList.map((ref) => ({ '@ref': ref }));
+      }
+
+      // instrumentRef タグ（0件の場合は省略）
+      const instrumentRefList = (instrumentRefs ?? []).filter(Boolean);
+      if (instrumentRefList.length === 1) {
+        eventObj.instrumentRef = { '@ref': instrumentRefList[0] };
+      } else if (instrumentRefList.length > 1) {
+        eventObj.instrumentRef = instrumentRefList.map((ref) => ({ '@ref': ref }));
+      }
+
+      return {
+        eventLog: {
+          '@id': 'eventLogID', // MAIML上1つのみ存在。buildEventLogXML が既存MAIMLの値で上書きするため固定値
+          // name/description は eventLog タグには付与しない（MAIML上1つしか存在できないため特定処理に紐づけられない）
+          log: {
+            '@id': `log_${idPrefix}`,
+            '@ref': methodId,
+            ...commonNameDesc,
+            trace: {
+              '@id': `trace_${idPrefix}`,
+              '@ref': programId ?? `trace_${idPrefix}`,
+              ...commonNameDesc,
+              event: eventObj,
+            },
+          },
+        },
+      };
+    } else if (taskNo != null) {
+      // タスク単位（transitionId なし）:
+      //   log > trace[@ref=programId, @taskno] > property × 3 + ownerRef
+      //   ※ event タグは使用しない
+      const propertiesWithTaskNo = [
+        ...baseProperties,
+        {
+          '@key': 'Alchemia:SupervisorDirectiveTaskNo',
+          '@xsi:type': 'intType',
+          '#text': taskNo,
+        },
+      ];
+      return {
+        eventLog: {
+          '@id': 'eventLogID', // MAIML上1つのみ存在。buildEventLogXML が既存MAIMLの値で上書きするため固定値
+          // name/description は eventLog タグには付与しない（MAIML上1つしか存在できないため特定処理に紐づけられない）
+          log: {
+            '@id': `log_${idPrefix}`,
+            '@ref': methodId,
+            ...commonNameDesc,
+            trace: {
+              '@id': `trace_${idPrefix}`,
+              '@ref': programId ?? `trace_${idPrefix}`,
+              '@taskno': String(taskNo),
+              ...commonNameDesc,
+              property: propertiesWithTaskNo,
+              ownerRef: ownerRefValue,
+            },
+          },
+        },
+      };
+    } else if (transitionId) {
+      // トランジション単位: log > trace[@ref=programId] > event[@ref=instructionId] > property + ownerRef
+      return {
+        eventLog: {
+          '@id': 'eventLogID', // MAIML上1つのみ存在。buildEventLogXML が既存MAIMLの値で上書きするため固定値
+          // name/description は eventLog タグには付与しない（MAIML上1つしか存在できないため特定処理に紐づけられない）
+          log: {
+            '@id': `log_${idPrefix}`,
+            '@ref': methodId,
+            ...commonNameDesc,
+            trace: {
+              '@id': `trace_${idPrefix}`,
+              '@ref': programId ?? `trace_${idPrefix}`,
+              ...commonNameDesc,
+              event: {
+                '@id': `event_${idPrefix}`,
+                '@ref': experimentInstructionId,
+                ...commonNameDesc,
+                property: baseProperties,
+                ownerRef: ownerRefValue,
+              },
+            },
+          },
+        },
+      };
+    } else {
+      // メソッド単位: log[@ref=methodId] > property + ownerRef
+      return {
+        eventLog: {
+          '@id': 'eventLogID', // MAIML上1つのみ存在。buildEventLogXML が既存MAIMLの値で上書きするため固定値
+          // name/description は eventLog タグには付与しない（MAIML上1つしか存在できないため特定処理に紐づけられない）
+          log: {
+            '@id': `log_${idPrefix}`,
+            '@ref': methodId,
+            ...commonNameDesc,
+            property: baseProperties,
+            ownerRef: ownerRefValue,
+          },
+        },
+      };
+    }
+  }
+
+  /**
+   * プロジェクトの maiml_event_log 全件取得
+   *
+   * sequence_no 昇順で返す（eventLog 内のログ順序を保持するため）。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @returns EventLogRow 配列（sequence_no 昇順）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findAllByProject(
+    organizationId: string,
+    projectId: string
+  ): Promise<EventLogRow[]> {
+    try {
+      const sql = await loadSqlFile('event_log/findAllByProject.sql');
+      const pgp = getPgp();
+      return pgp.any<EventLogRow>(sql, [organizationId, projectId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while fetching event logs',
+        error as Error
+      );
+    }
+  }
 }
+

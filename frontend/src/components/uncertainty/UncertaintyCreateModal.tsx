@@ -56,12 +56,10 @@ export default function UncertaintyCreateModal({
   const { t } = useLanguage();
   const [evalMode, setEvalMode] = useState<'quantitative' | 'qualitative'>('quantitative');
   const [qualitativeOptions, setQualitativeOptions] = useState<QualitativeOption[]>(DEFAULT_OPTIONS);
+  const [termDisplayName, setTermDisplayName] = useState('');
+  const [termDescription, setTermDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
-
-  /** Key属性設定選択時に namespace_term から取得した表示名・説明（読み取り専用表示用） */
-  const [termDisplayName, setTermDisplayName] = useState<string>('');
-  const [termDescription, setTermDescription] = useState<string>('');
 
   // ─── 継承元不確かさ基準の選択肢（一覧から uncertainty_key を収集） ───
   const parentOptions = React.useMemo(() => {
@@ -85,8 +83,7 @@ export default function UncertaintyCreateModal({
   }, [allCriteria]);
 
   /**
-   * Key属性設定が変更されたとき、
-   * allCriteria の termDisplayName / termDescription を読み取り専用フィールドに反映する
+   * Key属性設定が選択されたとき、allCriteria から termDisplayName / termDescription を反映する
    */
   const handleKeyChange = (selectedKey: string | undefined) => {
     if (!selectedKey) {
@@ -94,21 +91,9 @@ export default function UncertaintyCreateModal({
       setTermDescription('');
       return;
     }
-    // allCriteria の最新バージョンから termDisplayName / termDescription を取得
-    const matched = allCriteria
-      .filter((c) => c.key === selectedKey)
-      .sort((a, b) => {
-        const vA = parseInt(a.version.replace(/^V/i, ''), 10);
-        const vB = parseInt(b.version.replace(/^V/i, ''), 10);
-        return vB - vA;
-      });
-    if (matched.length > 0) {
-      setTermDisplayName(matched[0].termDisplayName ?? '');
-      setTermDescription(matched[0].termDescription ?? '');
-    } else {
-      setTermDisplayName('');
-      setTermDescription('');
-    }
+    const matched = allCriteria.find((c) => c.key === selectedKey);
+    setTermDisplayName((matched as any)?.termDisplayName ?? '');
+    setTermDescription((matched as any)?.termDescription ?? '');
   };
 
   /**
@@ -138,6 +123,7 @@ export default function UncertaintyCreateModal({
       setEvalMode(newEvalMode);
 
       form.setFieldsValue({
+        description:     detail.description ?? '',
         xsiType:         detail.xsiType ?? undefined,
         units:           detail.units ?? '',
         scaleFactor:     detail.scaleFactor ?? '',
@@ -167,8 +153,6 @@ export default function UncertaintyCreateModal({
     form.resetFields();
     setEvalMode('quantitative');
     setQualitativeOptions(DEFAULT_OPTIONS);
-    setTermDisplayName('');
-    setTermDescription('');
     onClose();
   };
 
@@ -183,6 +167,7 @@ export default function UncertaintyCreateModal({
     const values = form.getFieldsValue([
       'inheritanceUncertaintyKey',
       'uncertaintyKey',
+      'description',
       'xsiType',
       'units',
       'scaleFactor',
@@ -199,15 +184,15 @@ export default function UncertaintyCreateModal({
       const result = await saveUncertaintyCriteriaNewVersion({
         nameSpaceId,
         uncertaintyKey:            values.uncertaintyKey,
-        uncertaintyName:           termDisplayName ?? '',
+        uncertaintyName:           termDisplayName,
         evaluationMethod:          evalMode === 'quantitative' ? 1 : 2,
         isInvalid:                 false, // 新規作成は常に有効
         inheritanceUncertaintyKey: values.inheritanceUncertaintyKey ?? null,
         xsiType:      evalMode === 'quantitative' ? (values.xsiType ?? null) : null,
         units:        evalMode === 'quantitative' ? (values.units || null) : null,
-        scaleFactor:  evalMode === 'quantitative' ? (values.scaleFactor || null) : null,
         formatString: evalMode === 'quantitative' ? (values.formatString || null) : null,
-        description:  termDescription || null,
+        scaleFactor:  evalMode === 'quantitative' ? (values.scaleFactor || null) : null,
+        description:  values.description || null,
         qualitativeOptions: evalMode === 'qualitative'
           ? qualitativeOptions.map((opt, idx) => ({
               displayOrder: idx + 1,
@@ -247,6 +232,47 @@ export default function UncertaintyCreateModal({
         {/* ===== 1. 基本情報 ===== */}
         <div style={sectionStyle}>
           <div style={sectionTitleStyle}>{t('uncertaintyCreate.section1Title')}</div>
+
+          {/* 参照元不確かさ基準 → uncertainty_criteria.inheritance_uncertainty_key */}
+          <Form.Item
+            name="inheritanceUncertaintyKey"
+            label={t('uncertaintyCreate.inheritanceLabel')}
+            style={{ marginBottom: 14 }}
+          >
+            <Select
+              placeholder={t('uncertaintyCreate.inheritancePlaceholder')}
+              allowClear
+              options={parentOptions}
+              showSearch
+              filterOption={(input, option) =>
+                [option?.label ?? '', option?.value ?? '']
+                  .some((s) => String(s).toLowerCase().includes(input.toLowerCase()))
+              }
+              onChange={handleParentChange}
+              optionRender={(option) => (
+                <div>
+                  <div style={{ fontWeight: 500, lineHeight: '20px' }}>
+                    {(option.data as { name: string }).name}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#8c8c8c', lineHeight: '16px' }}>
+                    {String(option.value)}
+                  </div>
+                </div>
+              )}
+              labelRender={(props) => {
+                const matched = parentOptions.find((o) => o.value === props.value);
+                const name = matched?.name ?? String(props.value ?? '');
+                return (
+                  <span>
+                    {name}
+                    <span style={{ fontSize: 11, color: '#8c8c8c', marginLeft: 4 }}>
+                      ({String(props.value)})
+                    </span>
+                  </span>
+                );
+              }}
+            />
+          </Form.Item>
 
           {/* Key属性設定 → uncertainty_criteria.uncertainty_key（プルダウン選択） */}
           <Form.Item
@@ -295,47 +321,6 @@ export default function UncertaintyCreateModal({
               style={{ background: '#f5f5f5', color: '#595959' }}
             />
           </Form.Item>
-
-          {/* 継承元不確かさ基準 → uncertainty_criteria.inheritance_uncertainty_key */}
-          <Form.Item
-            name="inheritanceUncertaintyKey"
-            label={t('uncertaintyCreate.inheritanceLabel')}
-            style={{ marginBottom: 14 }}
-          >
-            <Select
-              placeholder={t('uncertaintyCreate.inheritancePlaceholder')}
-              allowClear
-              options={parentOptions}
-              showSearch
-              filterOption={(input, option) =>
-                [option?.label ?? '', option?.value ?? '']
-                  .some((s) => String(s).toLowerCase().includes(input.toLowerCase()))
-              }
-              onChange={handleParentChange}
-              optionRender={(option) => (
-                <div>
-                  <div style={{ fontWeight: 500, lineHeight: '20px' }}>
-                    {(option.data as { name: string }).name}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#8c8c8c', lineHeight: '16px' }}>
-                    {String(option.value)}
-                  </div>
-                </div>
-              )}
-              labelRender={(props) => {
-                const matched = parentOptions.find((o) => o.value === props.value);
-                const name = matched?.name ?? String(props.value ?? '');
-                return (
-                  <span>
-                    {name}
-                    <span style={{ fontSize: 11, color: '#8c8c8c', marginLeft: 4 }}>
-                      ({String(props.value)})
-                    </span>
-                  </span>
-                );
-              }}
-            />
-          </Form.Item>
         </div>
 
         {/* ===== 2. 評価方式設定 ===== */}
@@ -374,14 +359,6 @@ export default function UncertaintyCreateModal({
               >
                 <Input placeholder="GPa" />
               </Form.Item>
-              {/* scaleFactor → uncertainty_criteria.scale_factor */}
-              <Form.Item
-                name="scaleFactor"
-                label="scaleFactor"
-                style={{ marginBottom: 0 }}
-              >
-                <Input placeholder="1.0" />
-              </Form.Item>
               {/* format_string → uncertainty_criteria.format_string */}
               <Form.Item
                 name="formatString"
@@ -389,6 +366,14 @@ export default function UncertaintyCreateModal({
                 style={{ marginBottom: 0 }}
               >
                 <Input placeholder="#,###E0" />
+              </Form.Item>
+              {/* scale_factor → uncertainty_criteria.scale_factor */}
+              <Form.Item
+                name="scaleFactor"
+                label="scaleFactor"
+                style={{ marginBottom: 0 }}
+              >
+                <Input placeholder="1" />
               </Form.Item>
             </div>
           )}

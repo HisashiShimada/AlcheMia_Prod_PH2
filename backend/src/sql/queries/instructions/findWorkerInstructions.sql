@@ -17,8 +17,6 @@ SELECT
   pi.transition_id,
   pi.task_no,
   pi.instructions as instruction_content,
-  pi.priority,
-  pi.type,
   pi.create_at,
   pi.create_user_id as created_by,
   ou.user_name as created_by_name,

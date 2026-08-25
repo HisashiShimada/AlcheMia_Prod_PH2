@@ -72,11 +72,18 @@ const newValue =
 ## 実装ステップ
 
 - [x] 調査完了
+<<<<<<< Updated upstream
 - [x] 根本原因特定: `typeof value === 'string'` が `intType`/`floatType` 等の数値を弾いていた
 - [x] `maimlWriterService.ts` 修正: `typeof value === 'number'` も許容するよう変更・`String(value)` で文字列変換
 - [x] `maimlWriterService.ts` デバッグログ追加
 - [x] TypeScript コンパイル確認（エラーなし）
 - [ ] 動作確認（実機テスト）
+=======
+- [ ] `templateDataRepository.ts` の `updatePropertySetByPlan` 修正
+- [ ] `templateDataRepository.ts` の `updatePropertySetByPlanWithUncertainty` 修正
+- [ ] `maimlWriterService.ts` にデバッグログ追加
+- [ ] 動作確認
+>>>>>>> Stashed changes
 
 ## 承認記録
 - **計画書提示日時**: 2026-08-04 08:20

@@ -6,12 +6,6 @@ import {
   IssueTypeType,
 } from '@/constants/codeMaster';
 
-// 優先度の型
-export type Priority = 'high' | 'medium' | 'normal' | 'low';
-
-// 指示タイプ
-export type InstructionType = 'safety' | 'setup' | 'measurement' | 'cleanup' | 'general';
-
 /**
  * Property タグ用の型（<property xsi:type="...">）
  * MAIML の propertyType 系 xsiType に対応
@@ -111,8 +105,6 @@ export interface Instruction {
   taskId?: string;
   taskName?: string;
   content: string;
-  priority: Priority;
-  instructionType: InstructionType;
   createdAt: string;
   updatedAt: string | null;
   createdBy: User;
@@ -155,6 +147,7 @@ export interface Transition {
   category?: string;
   estimatedDuration?: string;
   workOrder?: number; // 作業順序（フロー図での並び順と接続に使用）
+  prerequisiteTransitionIds?: string[]; // 前提トランジションID配列（依存関係・BFSレイアウトに使用）
   templates?: Template[];
   // Phase 6追加: 実験記録タブ用のプロパティ
   status?: ProgressStatus; // ステータス
@@ -176,19 +169,6 @@ export interface Method {
   category: string;
   transitions: Transition[];
   tasks?: Task[]; // Phase 2: タスク一覧（実験作業タブ用）
-}
-
-/**
- * 定量評価の1行分のデータ
- * DataRecordDialog の定量評価行リストで使用
- */
-export interface QuantitativeEval {
-  /** フロント管理用一意ID */
-  id: string;
-  /** 評価方法（不確かさ基準の definition_name） */
-  method: string;
-  /** 閾値（文字列として保持） */
-  threshold: string;
 }
 
 // プロパティ定義
@@ -216,7 +196,22 @@ export interface Property {
   // ── 評価値（template_data.property_set に保存）──
   qualitativeOptions?: string[];               // 定性評価の選択肢（指定なければデフォルト使用）
   qualitativeEval?: string | null;             // 定性評価の選択値
+  qualitativeNote?: string | null;             // 定性評価のdescription（3-4 要件）
   quantitativeEvals?: QuantitativeEval[];      // 定量評価の行リスト
+}
+
+/**
+ * 定量評価の行データ
+ * DataRecordDialog のカード形式 UI で使用する
+ * template_data.property_set の各 property に quantitativeEvals 配列として保存される
+ */
+export interface QuantitativeEval {
+  /** 行の一意識別子（UUID） */
+  id: string;
+  /** 評価方法（不確かさ基準の definition_name 等） */
+  method: string;
+  /** 閾値（数値文字列） */
+  threshold: string;
 }
 
 
