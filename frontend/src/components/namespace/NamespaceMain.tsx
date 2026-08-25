@@ -1237,27 +1237,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // showUserHighlight: Global/Personal 選択中でない場合に CURRENT_USER_NS_KEY を薄い青背景で表示
   const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number, termCount: number, showUserHighlight: boolean, parentLabel = '') => {
     const isCurrentUserNode = showUserHighlight && node.key === currentUserNsKey;
-    // チームノード（companyDepth === 3）のみ右クリックメニューを有効化
-    const isTeam = companyDepth === 3;
-
-    const handleContextMenu = isTeam
-      ? (e: React.MouseEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const newCtxMenuState: ContextMenuState = { visible: true, x: e.clientX, y: e.clientY, node, parentLabel };
-          setCtxMenu(newCtxMenuState);
-        }
-      : undefined;
-
     // namespaceTree useMemo で既に label: companyLabel || n.label が適用済みなので node.label を直接使う
     const displayLabel = node.label;
 
     return (
       <span
-        onContextMenu={handleContextMenu}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 4,
-          cursor: isTeam ? 'context-menu' : undefined,
           ...(isCurrentUserNode ? { background: '#e6f4ff', borderRadius: 4 } : {}),
         }}
       >
