@@ -39,19 +39,22 @@ import {
   message,
   theme,
 } from 'antd';
-import { BorderOutlined, CaretRightOutlined, CommentOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SaveOutlined, SearchOutlined, StepForwardOutlined, WarningOutlined } from '@ant-design/icons';
+import { BorderOutlined, CaretRightOutlined, CommentOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, InfoCircleOutlined, PlusOutlined, RightOutlined, SaveOutlined, SearchOutlined, StepForwardOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
 import ContentGridEditor from '@/components/common/ContentGridEditor';
 import { getProjectMaiml } from '@/services/projectApiService';
 import { getPlanDialogData, getExperimentPlans } from '@/services/experimentPlanApiService';
-import { getTemplateData } from '@/services/experimentDataApiService';
+import { getTemplateData, saveBatchExperimentData } from '@/services/experimentDataApiService';
 import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
 import type { Insertion } from '@/types/maiml-unified';
 import type { FileData } from '@/types/editor';
+import type { TemplateDataItem, ExperimentDataRecord } from '@/types/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { ProgressRow } from '@/types/progress';
+import InstructionConfirmationModal from './InstructionConfirmationModal';
+import type { ProjectStatus, Transition } from '@/types/experimentWorker';
 
 const { Sider, Content } = Layout;
 
@@ -762,6 +765,8 @@ interface WorkHeaderProps {
   onStateRecord?: () => void;
   /** 状態プルダウン変更コールバック */
   onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
+  /** 作業指示ボタン押下コールバック */
+  onInstructionClick?: () => void;
 }
 
 const WorkHeader: React.FC<WorkHeaderProps> = ({
@@ -777,6 +782,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
   onForceEnd,
   onStateRecord,
   onStatusChange,
+  onInstructionClick,
 }) => {
   const { t } = useLanguage();
 
@@ -891,6 +897,15 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
           onClick={onStateRecord}
         >
           {t('workRecord.stateRecordButton')}
+        </Button>
+        <Divider type="vertical" style={{ margin: '0 4px' }} />
+        <Button
+          size="small"
+          type="default"
+          icon={<InfoCircleOutlined />}
+          onClick={onInstructionClick}
+        >
+          {t('experimentWork.instructionButton')}
         </Button>
       </Flex>
 
@@ -1100,6 +1115,8 @@ interface PlanProps {
   onForceEnd?: () => void;
   /** 状態記録ボタン押下コールバック */
   onStateRecord?: () => void;
+  /** 作業指示ボタン押下コールバック */
+  onInstructionClick?: () => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1206,7 +1223,7 @@ const PlanB: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
-  progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd,
+  progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onInstructionClick,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1292,6 +1309,7 @@ const PlanB: React.FC<PlanProps> = ({
         displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
         onStateRecord={onStateRecord}
+        onInstructionClick={onInstructionClick}
       />
 
       {/* Creator / Instrument 選択エリア（WorkHeader の直後・テンプレート入力の前） */}
@@ -1667,6 +1685,7 @@ export default function WorkRecordPanel({
   projectId,
   methodId,
   progressRows,
+  projectStatus,
   initialTaskNo,
   initialTransitionId,
   projectInstructions,
@@ -1678,6 +1697,17 @@ export default function WorkRecordPanel({
   // フォールバック値 2 はモック INITIAL_TASKS のタスク2（in_progress）に対応
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
   const [tasks, setTasks] = useState<MockTask[]>([]);
+
+  /**
+   * getTemplateData の生レスポンス（TemplateDataItem[]）を保持する Ref。
+   * taskNo__transitionId をキーとして保存し、保存時に placeId / data 構造を参照する。
+   */
+  const rawTemplateItemsRef = React.useRef<Map<string, TemplateDataItem[]>>(new Map());
+
+  // 作業指示モーダルの開閉状態
+  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
+  // 作業指示モーダルに渡す「現在表示中のトランジション情報」
+  const [currentTransitionForInstruction, setCurrentTransitionForInstruction] = useState<Transition | null>(null);
 
   /**
    * API から取得したトランジション定義（テンプレート・プロパティ情報）。
@@ -1778,6 +1808,8 @@ export default function WorkRecordPanel({
               }
             }
             actualsMap.set(mapKey, actualsFromApi);
+            // ── 生データを ref に保存（保存時の placeId/data 構造参照用） ──
+            rawTemplateItemsRef.current.set(mapKey, templateDataRes.data.templates);
           } catch {
             // 取得失敗時は空のまま（画面クラッシュを防ぐ）
             actualsMap.set(mapKey, {});
@@ -2011,15 +2043,61 @@ export default function WorkRecordPanel({
     return () => { cancelled = true; };
   }, [projectId, methodId]);
 
-  const handleSave = useCallback(async (_taskNo: number, _transitionId: string) => {
+  const handleSave = useCallback(async (taskNo: number, transitionId: string) => {
     try {
       await uploadAllPendingInsertions();
     } catch {
       message.error(t('insertionEditor.uploadFailed'));
       return;
     }
-    Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
-  }, [t, uploadAllPendingInsertions]);
+
+    // API 呼び出しに必要なパラメータが揃っていない場合はモック成功表示のみ
+    if (!projectId || !methodId) {
+      Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+      return;
+    }
+
+    const mapKey = `${taskNo}__${transitionId}`;
+    const rawItems = rawTemplateItemsRef.current.get(mapKey) ?? [];
+    const task = tasks.find((t) => t.taskNo === taskNo);
+    const taskTransition = task?.transitions.find((tt) => tt.transitionId === transitionId);
+
+    if (rawItems.length === 0) {
+      // 生データなし: 成功メッセージのみ
+      Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+      return;
+    }
+
+    try {
+      const records: ExperimentDataRecord[] = rawItems.map((item) => {
+        const baseData: Record<string, unknown> = item.data ? JSON.parse(JSON.stringify(item.data)) : {};
+        // actuals の値で対応するプロパティを上書きする
+        if (taskTransition?.actuals) {
+          if (Array.isArray(baseData.properties)) {
+            (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+              if (p.isCustomProperty === true) return;
+              const propKey = String(p.key ?? '');
+              if (propKey in taskTransition.actuals) {
+                p.value = taskTransition.actuals[propKey] ?? null;
+              }
+            });
+          }
+        }
+        return {
+          placeId: item.placeId,
+          templateType: item.templateType,
+          templateId: item.templateId,
+          data: baseData,
+        };
+      });
+
+      await saveBatchExperimentData(projectId, methodId, taskNo, { records });
+      Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
+    } catch (err) {
+      console.error('[WorkRecordPanel] handleSave error:', err);
+      message.error(t('workRecord.saveContent'));
+    }
+  }, [projectId, methodId, tasks, t, uploadAllPendingInsertions]);
 
   const handleSaveAndNext = useCallback(
     async (taskNo: number, transitionId: string) => {
@@ -2029,6 +2107,45 @@ export default function WorkRecordPanel({
         message.error(t('insertionEditor.uploadFailed'));
         return;
       }
+
+      // 実 API 保存（projectId / methodId が揃っている場合のみ）
+      if (projectId && methodId) {
+        const mapKey = `${taskNo}__${transitionId}`;
+        const rawItems = rawTemplateItemsRef.current.get(mapKey) ?? [];
+        const task = tasks.find((t) => t.taskNo === taskNo);
+        const taskTransition = task?.transitions.find((tt) => tt.transitionId === transitionId);
+
+        if (rawItems.length > 0) {
+          try {
+            const records: ExperimentDataRecord[] = rawItems.map((item) => {
+              const baseData: Record<string, unknown> = item.data ? JSON.parse(JSON.stringify(item.data)) : {};
+              if (taskTransition?.actuals) {
+                if (Array.isArray(baseData.properties)) {
+                  (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+                    if (p.isCustomProperty === true) return;
+                    const propKey = String(p.key ?? '');
+                    if (propKey in taskTransition.actuals) {
+                      p.value = taskTransition.actuals[propKey] ?? null;
+                    }
+                  });
+                }
+              }
+              return {
+                placeId: item.placeId,
+                templateType: item.templateType,
+                templateId: item.templateId,
+                data: baseData,
+              };
+            });
+            await saveBatchExperimentData(projectId, methodId, taskNo, { records });
+          } catch (err) {
+            console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
+            message.error(t('workRecord.saveContent'));
+            return;
+          }
+        }
+      }
+
       setTasks((prev) =>
         prev.map((task) => {
           if (task.taskNo !== taskNo) return task;
@@ -2059,7 +2176,7 @@ export default function WorkRecordPanel({
         Modal.success({ title: t('workRecord.taskComplete'), content: t('workRecord.allTransitionsDone') });
       }
     },
-    [tasks, t, uploadAllPendingInsertions]
+    [projectId, methodId, tasks, t, uploadAllPendingInsertions]
   );
 
   // ─── スキップ state ────────────────────────────────────────
@@ -2276,6 +2393,30 @@ export default function WorkRecordPanel({
     onEnd,
     onForceEnd,
     onStateRecord: () => setStateRecordDialogOpen(true),
+    onInstructionClick: () => {
+      // 現在表示中のトランジションを InstructionConfirmationModal に渡す
+      const targetEntry = viewingKey ?? (() => {
+        if (progressRows && progressRows.length > 0) {
+          const activeRow = progressRows.find(
+            (r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+          ) ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing');
+          if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+        }
+        return null;
+      })();
+      if (targetEntry) {
+        const tr: Transition = {
+          transitionId: targetEntry.transitionId,
+          transitionName: targetEntry.transitionId,
+          status: 'not_started' as const,
+          templates: [],
+        };
+        setCurrentTransitionForInstruction(tr);
+      } else {
+        setCurrentTransitionForInstruction(null);
+      }
+      setInstructionModalOpen(true);
+    },
   };
 
   // コメントダイアログに渡す displayKey（現在表示中のキー）
@@ -2536,6 +2677,16 @@ export default function WorkRecordPanel({
           onSave={handleSaveComment}
         />
       )}
+
+      {/* 作業指示確認モーダル */}
+      <InstructionConfirmationModal
+        open={instructionModalOpen}
+        transition={currentTransitionForInstruction}
+        projectId={projectId}
+        methodId={methodId}
+        projectStatus={projectStatus as ProjectStatus | null}
+        onCancel={() => setInstructionModalOpen(false)}
+      />
 
       {/* ── ペトリネットビューア（ViewRendererDialog / フローティング） ── */}
       {viewerDialogs.map((dialog) => (
