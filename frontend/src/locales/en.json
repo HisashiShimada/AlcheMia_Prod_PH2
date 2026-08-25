@@ -3297,7 +3297,7 @@
       "exportFailed": "Failed to write evaluation data to MAiML file (completion process continues)",
       "completeFailed": "Project completion process failed"
     },
-    "tagQualitative": "Qualitative"
+    "tagQualitative": "Qualitative",
     "tabLabel": "Evaluation",
     "title": "Evaluation Registration"
   },
