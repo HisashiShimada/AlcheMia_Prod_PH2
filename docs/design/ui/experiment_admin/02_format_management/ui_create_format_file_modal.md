@@ -1,4 +1,4 @@
-０# 新規フォーマットファイル作成モーダル UI仕様書
+# 新規フォーマットファイル作成モーダル UI仕様書
 
 ## 1. 概要
 
@@ -282,8 +282,8 @@ const handleSubmit = async () => {
 #### 3.5.1 ファイル名重複エラー
 
 ```typescript
-if (errorMessage.includes('同じ名前のファイルが既に存在します') || 
-    errorMessage.includes('already exists')) {
+const errorCode = extractErrorCode(err);
+if (errorCode === 'E6005') {
   form.setFields([
     {
       name: 'fileName',
@@ -463,7 +463,7 @@ const [form] = Form.useForm();                        // Ant Design Form イン�
 ### 7.2 関連ファイル
 - **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
 - **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`
-- **型定義**: このファイル内で定義・export（CreateFormatFileData型）
+- **型定義**: `frontend/src/types/format.ts`（`CreateFormatFileData`型）
 
 ### 7.3 依存ライブラリ
 - **Ant Design**:
@@ -478,6 +478,8 @@ const [form] = Form.useForm();                        // Ant Design Form イン�
   - FileAddOutlined
 - **Context**:
   - useLanguage（多言語対応）
+- **ユーティリティ**:
+  - `@/utils/errorUtils`（`extractErrorCode`：エラーコード抽出）
 
 ### 7.4 親子関係
 
@@ -549,3 +551,4 @@ CreateFormatFileModal (このコンポーネント)
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |
+| 2026-08-20 | 先頭の全角ゼロ削除・エラー判定をE6005コードに修正・型定義場所修正・errorUtils追記 |

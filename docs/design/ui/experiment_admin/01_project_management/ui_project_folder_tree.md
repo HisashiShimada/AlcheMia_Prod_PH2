@@ -29,17 +29,17 @@
 │ プロジェクトA                       │
 │ ├ [ステータスタグ] [ファイル数]    │
 │ ├ 所有者: user-01                   │
-│ └ 研究開発部 | 2026/03/01          │
+│ └ 研究開発グループ | 2026/03/01     │
 ├─────────────────────────────────────┤
 │ プロジェクトB (選択中)              │
 │ ├ [ステータスタグ] [ファイル数]    │
 │ ├ 所有者: user-02                   │
-│ └ 製造部 | 2026/02/28               │
+│ └ 製造グループ | 2026/02/28         │
 ├─────────────────────────────────────┤
 │ プロジェクトC                       │
 │ ├ [ステータスタグ] [ファイル数]    │
 │ ├ 所有者: user-03                   │
-│ └ 品質管理部 | 2026/03/05           │
+│ └ 品質管理グループ | 2026/03/05     │
 └─────────────────────────────────────┘
 ```
 
@@ -61,12 +61,12 @@
 - **ステータスタグ**（Tag）: 色分けされたステータス表示
 - **ファイル数**（Text secondary）: "{件数} ファイル"
 - **所有者**（Text secondary）: "所有者: {所有者名}"
-- **部門・作成日時**（Text secondary）: "{部門名} | {作成日}"
+- **組織グループ・作成日時**（Text secondary）: "{組織グループ名} | {作成日}"
 
 ### 2.3 UI状態
 
 #### 2.3.1 通常状態
-- 背景色: `token.colorBgContainer`
+- 背景色: `transparent`
 - 左ボーダー: 3px透明
 
 #### 2.3.2 選択状態
@@ -86,52 +86,62 @@
 #### 3.1.1 表示内容
 ```typescript
 {projects.map((project) => (
-  <div key={project.id} onClick={() => onProjectSelect(project.id)}>
+  <div
+    key={project.id}
+    data-testid={`project-item-${project.id}`}
+    onClick={() => onProjectSelect(project.id)}
+  >
     <Text strong={selectedProjectId === project.id}>
       {project.name}
     </Text>
     <Space size="small" wrap>
-      <Tag color={getStatusChipColor(project.status)}>
-        {project.statusName}
+      <Tag color={getStatusChipColor(project.status) === 'primary' ? 'cyan' : getStatusChipColor(project.status)}>
+        {getStatusLabel(project.status)}
       </Tag>
       <Text type="secondary">
-        {project.fileCount} ファイル
+        {project.fileCount} {t('projectManagement.folder_tree.files')}
       </Text>
     </Space>
     <Text type="secondary">
-      所有者: {project.ownerName || project.owner}
+      {t('projectManagement.folder_tree.owner')}: {project.ownerName || project.owner}
     </Text>
     <Text type="secondary">
-      {project.departmentName || project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
+      {project.organizationGroupName || project.organizationGroup} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
     </Text>
   </div>
 ))}
 ```
 
 #### 3.1.2 ステータスタグの色分け
+
+`getStatusChipColor()` は `ProjectStatus` 定数を使用:
+
 ```typescript
-const getStatusChipColor = (status: number): string => {
+const getStatusChipColor = (status: number) => {
   switch (status) {
-    case 0: return 'default';  // プロジェクト計画中
-    case 1: return 'info';     // タスク実行待ち
-    case 2: return 'primary';  // タスク実行中（cyan表示）
-    case 3: return 'warning';  // 承認待ち
-    case 4: return 'success';  // プロジェクト完了
-    case 5: return 'error';    // タスク異常終了
+    case ProjectStatus.PLANNING:       return 'default';
+    case ProjectStatus.TASK_PENDING:   return 'info';
+    case ProjectStatus.TASK_IN_PROGRESS: return 'primary';  // Tagには 'cyan' として渡す
+    case ProjectStatus.REVIEW_WAITING: return 'warning';
+    case ProjectStatus.COMPLETED:      return 'success';
+    case ProjectStatus.ERROR:          return 'error';
     default: return 'default';
   }
 };
 ```
 
-**ステータス対応表:**
-| status | statusName | Tag色 | 説明 |
-|--------|-----------|-------|------|
-| 0 | プロジェクト計画中 | default（灰色） | 初期状態 |
-| 1 | タスク実行待ち | info（青色） | チェックアウト可能 |
-| 2 | タスク実行中 | cyan（シアン） | チェックアウト中 |
-| 3 | 承認待ち | warning（オレンジ） | レビュー待ち |
-| 4 | プロジェクト完了 | success（緑色） | 全タスク完了 |
-| 5 | タスク異常終了 | error（赤色） | エラー発生 |
+**ステータス対応表（`ProjectStatus` 定数使用）:**
+| status | i18nキー | Tag色 | 説明 |
+|--------|---------|-------|------|
+| 0 (`PLANNING`) | `projectManagement.status_planning` | default（灰色） | 初期状態 |
+| 1 (`TASK_PENDING`) | `projectManagement.status_pending` | info（青色） | チェックアウト可能 |
+| 2 (`TASK_IN_PROGRESS`) | `projectManagement.status_in_progress` | cyan（シアン）※1 | チェックアウト中 |
+| 3 (`REVIEW_WAITING`) | `projectManagement.status_review_waiting` | warning（オレンジ） | レビュー待ち |
+| 4 (`COMPLETED`) | `projectManagement.status_completed` | success（緑色） | 全タスク完了 |
+| 5 (`ERROR`) | `projectManagement.status_error` | error（赤色） | エラー発生 |
+
+※1 `getStatusChipColor()` は `'primary'` を返すが、Tag コンポーネントへは `'cyan'` に変換して渡す。  
+ステータスラベルは `project.statusName` プロパティではなく、`getStatusLabel(project.status)` 関数（i18nキー取得）で表示。
 
 ### 3.2 プロジェクト選択
 
@@ -155,7 +165,7 @@ const menuItems: MenuProps['items'] = [
     key: 'name',
     label: (
       <Space>
-        <span>名前でソート</span>
+        <span>{t('projectManagement.folder_tree.sort.name')}</span>
         {sortBy === 'name' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
       </Space>
     ),
@@ -165,7 +175,7 @@ const menuItems: MenuProps['items'] = [
     key: 'status',
     label: (
       <Space>
-        <span>ステータスでソート</span>
+        <span>{t('projectManagement.folder_tree.sort.status')}</span>
         {sortBy === 'status' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
       </Space>
     ),
@@ -175,7 +185,7 @@ const menuItems: MenuProps['items'] = [
     key: 'createdAt',
     label: (
       <Space>
-        <span>作成日時でソート</span>
+        <span>{t('projectManagement.folder_tree.sort.created_at')}</span>
         {sortBy === 'createdAt' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
       </Space>
     ),
@@ -214,6 +224,14 @@ t('projectManagement.folder_tree.owner')          // "所有者"
 t('projectManagement.folder_tree.sort.name')      // "名前でソート"
 t('projectManagement.folder_tree.sort.status')    // "ステータスでソート"
 t('projectManagement.folder_tree.sort.created_at') // "作成日時でソート"
+
+// ステータスラベル
+t('projectManagement.status_planning')
+t('projectManagement.status_pending')
+t('projectManagement.status_in_progress')
+t('projectManagement.status_review_waiting')
+t('projectManagement.status_completed')
+t('projectManagement.status_error')
 ```
 
 ---
@@ -230,10 +248,6 @@ interface ProjectFolderTreeProps {
   selectedProjectId: string | null;
   /** プロジェクト選択時のコールバック */
   onProjectSelect: (projectId: string) => void;
-  /** 展開中のフォルダIDのセット（現在未使用） */
-  expandedFolders: Set<string>;
-  /** フォルダの展開/折りたたみコールバック（現在未使用） */
-  onToggleFolder: (folderId: string) => void;
   /** ソート項目 */
   sortBy: 'name' | 'status' | 'createdAt';
   /** ソート順序 */
@@ -249,33 +263,31 @@ interface ProjectFolderTreeProps {
 | projects | `Project[]` | ✅ | 表示するプロジェクト一覧（フィルタ済み・ソート済み） |
 | selectedProjectId | `string \| null` | ✅ | 選択中のプロジェクトID。nullの場合は未選択 |
 | onProjectSelect | `(projectId: string) => void` | ✅ | プロジェクト選択時のコールバック |
-| expandedFolders | `Set<string>` | ✅ | 展開中のフォルダIDのセット（現在未使用、将来の拡張用） |
-| onToggleFolder | `(folderId: string) => void` | ✅ | フォルダの展開/折りたたみコールバック（現在未使用） |
 | sortBy | `'name' \| 'status' \| 'createdAt'` | ✅ | 現在のソート項目 |
 | sortOrder | `'asc' \| 'desc'` | ✅ | 現在のソート順序 |
 | onSortChange | `(sortBy: 'name' \| 'status' \| 'createdAt') => void` | ✅ | ソート変更時のコールバック |
 
 ### 4.2 Project型定義
 
+`frontend/src/types/project.ts` の `Project` 型を使用。表示に関連する主なフィールド:
+
 ```typescript
 interface Project {
-  id: string;                    // プロジェクトID（UUID）
-  name: string;                  // プロジェクト名
-  folderName: string;            // フォルダ名
-  description: string;           // 説明
-  owner: string;                 // 所有者ID
-  ownerName?: string;            // 所有者名（表示用）
-  department: string;            // 部門コード
-  departmentName?: string;       // 部門名（表示用）
-  status: number;                // ステータス番号（0-5）
-  statusName?: string;           // ステータス名（表示用）
-  isCheckedOut: boolean;         // チェックアウト中かどうか
-  fileCount: number;             // ファイル数
-  tags: string[];                // タグ
-  createdAt: string;             // 作成日時（ISO8601形式）
-  updatedAt: string;             // 更新日時（ISO8601形式）
+  id: string;                         // プロジェクトID（UUID）
+  name: string;                       // プロジェクト名
+  owner: string;                      // 所有者ID
+  ownerName?: string;                 // 所有者名（表示用）
+  organizationGroup: string;          // 組織グループコード（旧: department）
+  organizationGroupName?: string;     // 組織グループ名（表示用）
+  status: number;                     // ステータス番号（ProjectStatus定数）
+  fileCount: number;                  // ファイル数
+  createdAt: string;                  // 作成日時（ISO8601形式）
+  // ...その他フィールド
 }
 ```
+
+> **注意**: `department` / `departmentName` フィールドは廃止済み。`organizationGroup` / `organizationGroupName` を使用。  
+> ステータスラベルは `statusName` プロパティではなく `getStatusLabel()` 関数（i18nキー）で取得。
 
 ### 4.3 Context連携
 
@@ -317,7 +329,7 @@ const { token } = theme.useToken();
 
 ### 7.1 メインファイル
 - **パス**: `frontend/src/components/project/ProjectFolderTree.tsx`
-- **行数**: 約170行
+- **行数**: 約190行
 - **エクスポート**: `ProjectFolderTree`（default export）
 
 ### 7.2 関連ファイル
@@ -327,6 +339,9 @@ const { token } = theme.useToken();
 
 #### 7.2.2 Context
 - `frontend/src/contexts/LanguageContext.tsx` - 多言語対応
+
+#### 7.2.3 定数
+- `frontend/src/constants/codeMaster.ts` - `ProjectStatus` 定数
 
 ### 7.3 依存ライブラリ
 - React 18.2.0
@@ -339,6 +354,7 @@ const { token } = theme.useToken();
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-08-20 | Props削除（expandedFolders/onToggleFolder）・department→organizationGroup移行・ステータス表示をi18n/ProjectStatus定数ベースに修正・ステータス色変換ロジック修正・data-testid追記・行数更新 | Cline |
 | 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
 
 ---
@@ -395,19 +411,18 @@ new Date(project.createdAt).toLocaleDateString('ja-JP')
 - `2026/03/01`
 - `2026/03/11`
 
-### 9.3 所有者・部門名の表示優先順位
+### 9.3 所有者・組織グループ名の表示優先順位
 
 ```typescript
-project.ownerName || project.owner          // 所有者名があれば使用、なければID
-project.departmentName || project.department // 部門名があれば使用、なければコード
+project.ownerName || project.owner                          // 所有者名があれば使用、なければID
+project.organizationGroupName || project.organizationGroup   // 組織グループ名があれば使用、なければコード
 ```
 
-### 9.4 未使用のProps
+> **注意**: `department` / `departmentName` は廃止済み。
 
-**expandedFolders, onToggleFolder:**
-- 現在のリスト表示では使用されていない
-- 将来的にツリー表示（階層構造）に拡張する際に使用予定
-- 親コンポーネントから渡されているが、現時点では機能していない
+### 9.4 `data-testid`
+
+各プロジェクトアイテムに `data-testid={`project-item-${project.id}`}` が設定されており、テスト用セレクタとして使用可能。
 
 ### 9.5 レスポンシブ対応
 

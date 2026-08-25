@@ -21,6 +21,7 @@ import {
   deleteNamespace,
   toggleNamespaceActive,
   fetchSuggestedUri,
+  getGlobalDeclarations,
 } from '@/services/namespaceApiService';
 import type {
   PrefixManagementProps,
@@ -222,6 +223,26 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         message.error(t('prefixManagement.uriRequired'));
         return;
       }
+    }
+
+    // グローバルスコープに同名 prefix が存在するか確認
+    // Global 登録済みの Prefix と重複する場合は登録不可（エラーメッセージ表示して終了）
+    try {
+      const globalDeclarations = await getGlobalDeclarations();
+      const globalPrefixes = new Set(
+        globalDeclarations.map((d: { prefix: string }) => d.prefix.toLowerCase())
+      );
+      const globalDuplicate = newRows.find((row) =>
+        globalPrefixes.has(row.prefix.toLowerCase())
+      );
+      if (globalDuplicate) {
+        message.error(
+          t('prefixManagement.errorDuplicateGlobalPrefix', { prefix: globalDuplicate.prefix })
+        );
+        return;
+      }
+    } catch {
+      // グローバル一覧の取得に失敗した場合は警告せずに続行
     }
 
     // 並列チームに同名 prefix が存在するか確認

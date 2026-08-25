@@ -1,4 +1,4 @@
-{
+﻿{
   "page": {
     "loginSuccess": "ログインに成功しました",
     "logoutSuccess": "ログアウトしました",
@@ -3763,31 +3763,6 @@
     "teamRequired": "チームを選択してください",
     "teamPlaceholder": "チームを選択してください"
   },
-  "templateEditor": {
-    "criteriaAssignLog": "[TemplateEditorDialog] 評価基準付与:",
-    "criteriaNotFoundWarn": "[handleCriteriaAssign] 対象プロパティが見つかりませんでした:",
-    "uncertaintyUpdated": "「{key}」に不確かさを更新しました",
-    "uncertaintyAdded": "「{key}」に不確かさを追加しました",
-    "uncertaintyDeleted": "「{key}」の不確かさを削除しました",
-    "propsCountLabel": "📊 プロパティ: {propCount}件 ／ コンテンツ: {contentCount}件",
-    "importCountLabel": "取り込む要素: {count}件",
-    "overwriteLabel": "(上書き)",
-    "attrsLabel": "📋 属性",
-    "elemsLabel": "📄 要素",
-    "xmlTabConvError": "[XMLビュー] UI→XML変換エラー:",
-    "xmlTabSyncLog": "[XMLビュー] XML→UI同期成功",
-    "xmlTabConvLog": "[XMLビュー] UI→XML変換成功",
-    "xmlSaveErrorPrefix": "XMLにエラーがあるため保存できません: ",
-    "xmlParseErrorPrefix": "XMLのパースに失敗しました: ",
-    "title": "Template Editor",
-    "cancel": "Cancel",
-    "save": "Save",
-    "addUncertainty": "Assign Uncertainty",
-    "removeUncertainty": "Remove Uncertainty",
-    "noTemplate": "No template selected",
-    "saveFailed": "Save failed",
-    "saveSuccess": "Saved"
-  },
   "templateInputPanel": {
     "uncertaintyLabel": "不確かさ",
     "addUncertainty": "不確かさを付与",
@@ -5037,7 +5012,8 @@
     "csvImportPartial": "{{saved}}件を保存しました。{{failCount}}件の保存に失敗しました: {{names}}",
     "csvImportSuccess": "{{count}}件のPrefixをインポートしました",
     "csvParseError": "CSVファイルの読み込みに失敗しました",
-    "alchemiaSystemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
+    "alchemiaSystemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません",
+    "errorDuplicateGlobalPrefix": "Prefix「{prefix}」はGlobalスコープに既に登録されています。Global登録済みのPrefixは再登録できません。"
   },
   "aggregationRule": {
     "title": "集約ルール設定",
