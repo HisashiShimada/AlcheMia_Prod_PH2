@@ -384,9 +384,9 @@ if (!file) {
 ### 7.2 関連ファイル
 - **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
 - **ユーティリティ**: 
-  - `frontend/src/utils/formatters.ts` (formatFileSize, formatRelativeTime)
+  - `frontend/src/utils/formatUtils.ts` (formatFileSize, formatRelativeTime)
 - **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`
-- **型定義**: このファイル内で定義・export（FormatFileDetailData型）
+- **型定義**: `frontend/src/types/format.ts`（`FormatFileDetailData`型）
 
 ### 7.3 依存ライブラリ
 - **Ant Design**:
@@ -507,3 +507,4 @@ const fileData: FormatFileDetailData = {
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |
+| 2026-08-20 | ユーティリティパスをformatUtils.tsに修正・型定義場所修正 | Cline |

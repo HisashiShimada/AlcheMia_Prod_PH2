@@ -6,9 +6,8 @@
 - **ファイルパス**: `frontend/src/components/project/MaimlValidationModal.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-08-14
-- **最終更新日**: 2026-08-14
-- **担当者**: Development Team
-- **バージョン**: 1.0.0
+- **最終更新日**: 2026-08-20
+- **バージョン**: 1.1.0
 
 ---
 
@@ -31,7 +30,7 @@ DB保存済みの最終バリデーション日時と結果（エラー・警告
 
 1. DB保存済みの最終バリデーション日時を表示
 2. バリデーション結果のエラー・警告詳細（Collapse + List）
-3. 再バリデーション実行ボタン
+3. 再バリデーション実行ボタン（ボディ内配置）
 
 ---
 
@@ -39,29 +38,55 @@ DB保存済みの最終バリデーション日時と結果（エラー・警告
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│ Modal                                                  │
-│ Title: MAIMLバリデーション結果                          │
+│ Modal (width=700)                                      │
+│ Title: 🔍 MAIMLバリデーション                          │
 ├────────────────────────────────────────────────────────┤
 │ Body:                                                  │
 │                                                        │
-│ 最終バリデーション: YYYY/MM/DD HH:mm:ss                │
-│ 結果: [✅ 正常] または [⚠ N件の警告] [❌ N件のエラー] │
+│ [最終バリデーション日時バナー]                         │
+│  SafetyCertificateOutlined/WarningOutlined             │
+│  最終バリデーション: YYYY/MM/DD HH:mm:ss [問題なし/問題あり] │
+│  ※savedValidationRow が null の場合:                  │
+│   「まだバリデーションが実行されていません。」          │
 │                                                        │
-│ ▼ エラー（N件）                                        │
-│   ・ [エラーメッセージ]                                │
-│   ・ ...                                               │
-│ ▼ 警告（N件）                                          │
-│   ・ [警告メッセージ]                                  │
-│   ・ ...                                               │
+│ [再バリデーション実行] ボタン（ボディ内）              │
+│                                                        │
+│ [結果サマリーカード]                                   │
+│  ✅ バリデーション成功 / ❌ バリデーション失敗          │
+│  スキーマバージョン: x.x                               │
+│  [致命的エラー: N] [編集可能エラー: N] [警告: N]       │
+│                                                        │
+│ ▼ エラー詳細（N件）                                    │
+│   [編集可能/エラー] メッセージ                         │
+│   XPath: ...                                           │
+│   💡 修正案: ...                                       │
+│                                                        │
+│ ▼ 警告詳細（N件）                                      │
+│   [warning] メッセージ                                 │
+│   XPath: ...                                           │
+│                                                        │
+│ [✅ MAIMLファイルは有効です]  ← 成功時のみ Alert        │
 │                                                        │
 ├────────────────────────────────────────────────────────┤
-│ Footer: [閉じる]  [再バリデーション]                    │
+│ Footer: なし（footer={null}）                          │
 └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. コンポーネント Props 定義
+## 3. モーダル設定
+
+| 項目 | 値 |
+|------|---|
+| タイトル | `🔍 MAIMLバリデーション` |
+| `width` | `700` |
+| `footer` | `null`（フッターなし）|
+| `destroyOnHidden` | `true` |
+| `onCancel` | `onClose` |
+
+---
+
+## 4. コンポーネント Props 定義
 
 ```typescript
 interface MaimlValidationModalProps {
@@ -91,9 +116,9 @@ interface MaimlValidationModalProps {
 
 ---
 
-## 4. 表示ロジック
+## 5. 表示ロジック
 
-### 4.1. savedValidationRow のパース
+### 5.1. savedValidationRow のパース
 
 `savedValidationRow` の JSONB フィールドはDBからオブジェクトまたは文字列として届く。
 `parseJsonField` ヘルパーで安全にパースして `AnalysisResult` 型に変換。
@@ -104,39 +129,95 @@ function parseJsonField<T>(field: unknown, fallback: T): T {
   if (typeof field === 'string') {
     try { return JSON.parse(field) as T; } catch { return fallback; }
   }
-  return field as T;
+  return field as T;  // すでにオブジェクト/配列の場合はそのまま返す
 }
 ```
 
-### 4.2. 結果なし時
+パースするフィールド: `errors`, `warnings`, `suggestions`, `statistics`
 
-`savedValidationRow` が `null` の場合、「バリデーション結果がありません」を表示。
+### 5.2. 結果なし時
+
+`savedValidationRow` が `null` の場合:
+```
+まだバリデーションが実行されていません。
+```
+（`token.colorTextSecondary` で表示）
+
+### 5.3. 最終バリデーション日時バナー
+
+`savedValidationRow` が存在する場合に表示:
+- 背景色: `is_valid` が `true` → `colorSuccessBg`、`false` → `colorWarningBg`
+- ボーダー: 同様に `colorSuccessBorder` / `colorWarningBorder`
+- アイコン: `SafetyCertificateOutlined`（成功）/ `WarningOutlined`（問題あり）
+- 日時: `new Date(analysis_timestamp).toLocaleString('ja-JP')`
+- タグ: 「問題なし」(success) / 「問題あり」(warning)
+
+### 5.4. エラーの分類（2種類）
+
+| 分類 | 条件 | Tag色 |
+|------|------|-------|
+| **致命的エラー** | `canBeIgnoredOnUpload === false` | `error`（赤）|
+| **編集可能エラー** | `canBeIgnoredOnUpload === true` | `orange` |
+
+### 5.5. 成功時 Alert
+
+`displayResult.isValid === true` の場合のみ表示:
+```
+✅ MAIMLファイルは有効です
+スキーマバリデーションに合格しました。
+```
+（`type="success"`, `showIcon`）
 
 ---
 
-## 5. 再バリデーションボタン活性条件
+## 6. 再バリデーションボタン
 
-| 条件 | ボタン状態 |
-|------|-----------|
-| `hasMaimlContent=false` | 非活性 |
-| `isValidating=true` | ローディング |
-| それ以外 | 活性 |
+ボディ内（フッターではない）に配置。
+
+| 条件 | ボタン状態 | ラベル |
+|------|-----------|--------|
+| `hasMaimlContent=false` | 非活性（`disabled`）| `再バリデーション実行` |
+| `isValidating=true` | ローディング（`loading`）| `バリデーション実行中...` |
+| それ以外 | 活性 | `再バリデーション実行` |
+
+- タイプ: `primary`
+- アイコン: `SafetyCertificateOutlined`
 
 ---
 
-## 6. 使用コンポーネント
+## 7. 使用コンポーネント・型
 
-- `Modal` - ダイアログコンテナ
+### 7.1. Ant Design コンポーネント
+- `Modal` - ダイアログコンテナ（`width=700`, `footer=null`, `destroyOnHidden`）
+- `Button` - 再バリデーションボタン
 - `Card` - 結果サマリー表示
 - `Collapse` / `List` - エラー・警告詳細
-- `Tag` - 結果ステータス表示（`SafetyCertificateOutlined` / `WarningOutlined`）
-- `Alert` - エラー/警告サマリー
-- `Button` - 閉じる・再バリデーション
+- `Tag` - 結果ステータス表示（致命的エラー/編集可能エラー/警告/問題なし）
+- `Alert` - 成功時メッセージ
+- `Space`, `Typography`
 - `theme.useToken` - デザイントークン使用
+
+### 7.2. アイコン（@ant-design/icons）
+- `SafetyCertificateOutlined` - 成功状態・再バリデーションボタン
+- `WarningOutlined` - エラー・警告状態
+
+### 7.3. 型定義
+- `@/types/maimlEditor` - `MaimlAnalysisResultRow`
+- `@/types/maimlValidation` - `AnalysisResult`
 
 ---
 
-## 7. 備考・注意事項
+## 8. 備考・注意事項
 
 1. `ProjectManagement.tsx` から外出しされた独立コンポーネント。`ValidationPanel` と同様の表示ロジックを持つ。
 2. データ取得はせず、親コンポーネントから `savedValidationRow` を受け取る。
+3. `footer={null}` のため閉じるボタンはない。`×` ボタン（`onCancel`）または `onClose` で閉じる。
+
+---
+
+## 9. 変更履歴
+
+| バージョン | 日付 | 変更内容 |
+|-----------|------|---------|
+| 1.1.0 | 2026-08-20 | 実装ベースで全面改訂（タイトル修正・フッターなし・width追加・destroyOnHidden追加・エラー2分類追加・エラー詳細XPath/修正案追加・再バリデーションボタン位置修正・結果なし文言修正）|
+| 1.0.0 | 2026-08-14 | 初版作成 |

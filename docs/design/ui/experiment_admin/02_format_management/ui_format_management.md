@@ -821,9 +821,9 @@ interface Format {
   folderName: string;
   description: string;
   fileCount: number;
-  fileType: 'xml' | 'maiml';
-  category: string;
-  department: string;
+  fileType: FormatFileType;
+  category: FormatCategory;
+  organizationGroup: string;
   createdAt: string;
   updatedAt: string;
   tags: string[];
@@ -849,19 +849,19 @@ interface FormatFile {
 
 #### 4.3.3 FormatFileData型（FormatFileListTable用）
 
-型定義は `FormatFileListTable.tsx` で定義されています。
+型定義は `frontend/src/types/format.ts` で定義されています（`FormatFileData`インターフェース）。
 
 #### 4.3.4 FormatFileDetailData型（詳細表示用）
 
-型定義は `FormatFileDetailModal.tsx` で定義されています。
+型定義は `frontend/src/types/format.ts` で定義されています（`FormatFileDetailData`インターフェース）。
 
 #### 4.3.5 CreateFormatFileData型（ファイル作成用）
 
-型定義は `CreateFormatFileModal.tsx` で定義されています。
+型定義は `frontend/src/types/format.ts` で定義されています（`CreateFormatFileData`インターフェース）。
 
 #### 4.3.6 CreateFormatFolderData型（フォルダ作成用）
 
-型定義は `CreateFormatFolderModal.tsx` で定義されています。
+型定義は `frontend/src/types/format.ts` で定義されています（`CreateFormatFolderData`インターフェース）。
 
 ---
 
@@ -976,7 +976,7 @@ X-Organization-Id: {organizationId}
         "fileCount": 5,
         "fileType": "xml",
         "category": "material",
-        "department": "dept_001",
+        "organizationGroup": "dept_001",
         "createdAt": "2026-01-15T10:00:00Z",
         "updatedAt": "2026-03-10T15:30:00Z",
         "tags": ["material", "template"]
@@ -1196,3 +1196,4 @@ const handleOpenCreateFileModal = useCallback(() => {
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を再作成（Phase 4: フォーマット管理画面） | Cline |
+| 2026-08-20 | Format型の`department`→`organizationGroup`修正・型定義場所をtypes/format.tsへ修正・APIレスポンス例のdepartmentフィールド修正 | Cline |

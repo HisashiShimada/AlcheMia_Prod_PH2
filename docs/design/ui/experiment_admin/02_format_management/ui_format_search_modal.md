@@ -604,6 +604,7 @@ const [searchStats, setSearchStats] = useState<SearchStats | null>(null);
 
 ### 7.2 関連ファイル
 - **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
+- **型定義**: `frontend/src/types/format.ts`（`SearchCriteria`, `FormatSearchResult`, `SearchStats`型）
 - **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`
 
 ### 7.3 依存ライブラリ
@@ -632,3 +633,4 @@ const [searchStats, setSearchStats] = useState<SearchStats | null>(null);
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |
+| 2026-08-20 | 型定義場所（types/format.ts）を関連ファイルに追記 | Cline |

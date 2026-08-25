@@ -4512,7 +4512,7 @@
     "cancelSort": "ソートをキャンセル",
     "emptyText": "用語がありません",
     "showTotal": "Total {total} items",
-    "saveTermError": "用語「{localName}」の保存に失敗しました: {{detail}}",
+    "saveTermError": "用語「{localName}」の保存に失敗しました: {detail}",
     "csv": {
       "exportSelectAtLeastOne": "少なくとも1件選択してください"
     }
@@ -5023,7 +5023,8 @@
     "activateError": "Prefix「{prefix}」のアクティブ化に失敗しました",
     "systemNamespaceTooltip": "システム名前空間のため操作できません",
     "systemNamespaceBadge": "システム",
-    "alchemiaSystemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
+    "alchemiaSystemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません",
+    "errorDuplicateGlobalPrefix": "Prefix「{prefix}」はGlobalスコープに既に登録されています。Global登録済みのPrefixは再登録できません。"
   },
   "aggregationRule": {
     "title": "集約ルール設定",

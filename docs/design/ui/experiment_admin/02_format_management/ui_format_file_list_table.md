@@ -490,8 +490,8 @@ rowKey="id"
 ### 7.2 関連ファイル
 - **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
 - **ユーティリティ**: 
-  - `frontend/src/utils/formatters.ts` (formatFileSize, formatRelativeTime)
-- **型定義**: このファイル内で定義・export（FormatFileData型）
+  - `frontend/src/utils/formatUtils.ts` (formatFileSize, formatRelativeTime)
+- **型定義**: `frontend/src/types/format.ts`（`FormatFileData`型）
 
 ### 7.3 依存ライブラリ
 - **Ant Design**:
@@ -513,7 +513,7 @@ rowKey="id"
 
 ```
 FormatManagement (親)
-  ↓ Props: files, onFileClick, onFolderClick, onEdit, onDownload, onDelete
+  ↓ Props: files, onFileClick, onFolderClick, onEdit, onDownload, onDelete, onDeleteFolder
 FormatFileListTable (このコンポーネント)
 ```
 
@@ -645,5 +645,6 @@ interface FormatFileListTableProps {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
-| 2026-04-20 | フォルダ削除機能を追加（セクション8.6、変更履歴更新） | Cline |
 | 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |
+| 2026-04-20 | フォルダ削除機能を追加（セクション8.6、変更履歴更新） | Cline |
+| 2026-08-20 | ユーティリティパスをformatUtils.tsに修正・型定義場所修正・Props一覧にonDeleteFolder追記 | Cline |

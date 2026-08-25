@@ -149,7 +149,7 @@ const handleSubmit = async () => {
     const values = await form.validateFields();
     
     if (!formatId) {
-      message.error('フォーマットが選択されていません');
+      message.error(t('upload.noFormatSelectedAlert'));
       return;
     }
 
@@ -348,7 +348,7 @@ const [form] = Form.useForm();                        // Ant Design Form イン�
 ### 7.2 関連ファイル
 - **親コンポーネント**: `frontend/src/components/format/FormatManagement.tsx`
 - **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`
-- **型定義**: このファイル内で定義・export（CreateFormatFolderData型）
+- **型定義**: `frontend/src/types/format.ts`（`CreateFormatFolderData`型）
 
 ### 7.3 依存ライブラリ
 - **Ant Design**:
@@ -484,3 +484,4 @@ CreateFormatFolderModal (このコンポーネント)
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |
+| 2026-08-20 | フォーマット未選択エラーをi18nキーに修正・型定義場所修正 | Cline |

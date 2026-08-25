@@ -367,34 +367,16 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     return filtered.length > 0 ? filtered : allCds;
   }, [orgGroups, selectedNsKey, namespaceTree]);
 
-  // ── チームノードのタイトル（companyDepth === 3 のみ右クリックメニューを有効化）
-  const renderTreeTitle = useCallback((node: NamespaceNode, companyDepth: number) => {
-    // Global/Personal が選択されていない時のみ CURRENT_USER_NS_KEY を薄い青背景で強調
-    const isCurrentUserNode = !isGlobalOrPersonalSelected && node.key === CURRENT_USER_NS_KEY;
-    const isTeam = companyDepth === 3;
-
-    const handleContextMenu = isTeam
-      ? (e: React.MouseEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, node });
-        }
-      : undefined;
-
+  // ── ツリーノードのタイトル
+  const renderTreeTitle = useCallback((node: NamespaceNode, _companyDepth: number) => {
     return (
-      <span
-        onContextMenu={handleContextMenu}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          cursor: isTeam ? 'context-menu' : undefined,
-        }}
-      >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
         <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
           {node.label}
         </span>
       </span>
     );
-  }, [isGlobalOrPersonalSelected]);
+  }, []);
 
   // ── companyDepth を計算してツリーデータを構築
   const toAntTree = useCallback((nodes: NamespaceNode[], companyDepth = 0): object[] =>

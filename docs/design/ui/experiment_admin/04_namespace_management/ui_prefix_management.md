@@ -80,8 +80,8 @@
 | Prefix | `prefix` | 接頭辞（xs:NCName 規則準拠）| ソート可 |
 | URI | `uri` | 名前空間 URI | 長い場合はツールチップ表示、青色テキスト |
 | 説明 | `description` | 任意の説明文 | 省略表示あり |
-| スコープ | `scopePath` | DB 由来のスコープ名（organization_group_name または user_name）| ソート可、タグ形式表示 |
-| 操作 | `actions` | 編集・削除ボタン（編集中は保存・キャンセル） | `viewOnly=true` 時は全ボタン非活性 |
+| スコープ | `scopePath` | DB 由来のスコープ名（organization_group_name または user_name）| ソート可、カスタム `<span>`（背景 `#f5f5f5`、テキスト `#555`）形式表示 |
+| 操作 | `actions` | 通常: [編集][削除]。編集中: [保存][キャンセル]。システム名前空間行: `<Tag>` バッジ表示 | `viewOnly=true` 時は編集・削除ボタン非活性 |
 
 ---
 
@@ -98,17 +98,28 @@
 
 ---
 
-## 5. 重複チェック（保存時）
+## 5. システム名前空間の特別処理
 
-保存時に既存 Prefix と同名の行が含まれる場合、確認ダイアログを表示する。
+`SYSTEM_NAMESPACE_PREFIX`（定数）に一致する Prefix の行は操作ボタンを表示せず、代わりに **`<Tag>` バッジ**を表示する。
 
-- タイトル：警告（WarningOutlined アイコン）
-- 内容：「prefix xxx は すでに {スコープ名} に登録されています。…」
-- OK で強行登録、キャンセルで中止
+| 状態 | 表示 |
+|------|------|
+| 通常行 | [編集][削除] ボタン |
+| システム名前空間行 | `<Tag color="default">` バッジ + ツールチップ（操作不可の説明） |
 
 ---
 
-## 6. CSV フォーマット
+## 6. 重複チェック（保存時）
+
+保存時に既存 Prefix と同名の行が含まれる場合、確認ダイアログ（`Modal.confirm`）を表示する。
+
+- タイトル：警告（WarningOutlined アイコン）
+- 内容：「prefix xxx は すでに {スコープ名} に登録されています。…」
+- OK で強行登録（`executeSave()` 実行）、キャンセルで中止
+
+---
+
+## 7. CSV フォーマット
 
 | 列 | 内容 |
 |----|------|
@@ -116,12 +127,12 @@
 | uri | 名前空間 URI（必須）|
 | description | 説明（任意）|
 
-- エクスポート: ヘッダー行あり、BOM 付き UTF-8
+- エクスポート: ヘッダー行あり、BOM 付き UTF-8。対象は **`rows`（全件）**（選択行のみに絞り込む機能はない）
 - インポート: 1行目をヘッダーとしてスキップ、prefix/uri が空の行はスキップ
 
 ---
 
-## 7. 子コンポーネント・関連コンポーネント
+## 8. 子コンポーネント・関連コンポーネント
 
 | コンポーネント | 用途 |
 |--------------|------|
@@ -133,18 +144,18 @@
 
 ---
 
-## 8. API 連携
+## 9. API 連携
 
 | API | 用途 |
 |-----|------|
 | `GET /api/v1/namespaces` | Prefix 一覧取得（`scopeKeys` でフィルタ可能）|
 | `POST /api/v1/namespaces` | Prefix 新規登録 |
-| `PUT /api/v1/namespaces/:prefix` | Prefix 更新（URI のみ変更可能）|
+| `PUT /api/v1/namespaces/:prefix` | Prefix 更新。編集モード時は Prefix・URI・説明を `<Input>` で表示するが、**保存時は URI のみ送信**（Prefix の変更は反映されない）|
 | `DELETE /api/v1/namespaces/:prefix` | Prefix 削除 |
 
 ---
 
-## 9. Props 定義
+## 10. Props 定義
 
 | Prop名 | 型 | 必須 | 説明 |
 |--------|-----|------|------|

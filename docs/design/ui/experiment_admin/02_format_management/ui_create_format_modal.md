@@ -3,7 +3,7 @@
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-新規フォーマットフォルダ作成モーダルは、部門直下に新しいフォーマットフォルダを作成するためのモーダルダイアログです。material、condition、resultなどのフォーマットフォルダを作成します。
+新規フォーマットフォルダ作成モーダルは、組織グループ直下に新しいフォーマットフォルダを作成するためのモーダルダイアログです。material、condition、resultなどのフォーマットフォルダを作成します。
 
 ### 1.2 使用場面
 - **表示場所**: フォーマット管理画面のモーダルオーバーレイ
@@ -36,8 +36,8 @@
 │ 使用可能な文字: 英数字 (a-z, A-Z, 0-9) と      │
 │ アンダースコア (_)                              │
 │                                                 │
-│ ※ あなたの所属部門（dept_001）配下にフォルダが │
-│   作成されます                                  │
+│ ※ あなたの所属組織グループ（dept_001）配下に   │
+│   フォルダが作成されます                        │
 │                                                 │
 │                  [キャンセル]  [作成]          │
 └─────────────────────────────────────────────────┘
@@ -60,7 +60,7 @@
 
 #### 2.2.3 補足説明エリア
 - **使用可能文字**: 「使用可能な文字: 英数字 (a-z, A-Z, 0-9) とアンダースコア (_)」
-- **部門情報**（条件付き）: 「※ あなたの所属部門（{departmentName}）配下にフォルダが作成されます」
+- **組織グループ情報**（条件付き）: 「※ あなたの所属組織グループ（{organizationGroupName}）配下にフォルダが作成されます」
 
 #### 2.2.4 エラー表示（条件付き）
 - **表示条件**: APIエラー発生時
@@ -268,7 +268,7 @@ export interface CreateFormatModalProps {
   open: boolean;                                      // モーダル表示状態
   onCancel: () => void;                               // キャンセル時のコールバック
   onSubmit: (folderName: string) => Promise<void>;    // 送信時のコールバック
-  departmentName?: string;                            // 部門名（表示用）
+  organizationGroupName?: string;                     // 組織グループ名（表示用）
 }
 ```
 
@@ -278,7 +278,7 @@ export interface CreateFormatModalProps {
 | open | boolean | ✅ | モーダルの表示状態（true=表示、false=非表示） |
 | onCancel | () => void | ✅ | キャンセル時に呼び出されるコールバック関数 |
 | onSubmit | (folderName: string) => Promise<void> | ✅ | 送信時に呼び出されるコールバック関数（非同期）、フォルダ名を渡す |
-| departmentName | string | - | 部門名（補足説明に表示） |
+| organizationGroupName | string | - | 組織グループ名（補足説明に表示） |
 
 ### 4.2 State定義
 
@@ -349,18 +349,20 @@ const [errorMessage, setErrorMessage] = useState<string | null>(null); // エラ
   - Typography (Text)
   - Space
   - theme
+- **Context**:
+  - useLanguage（多言語対応）
 
 ### 7.4 親子関係
 
 ```
 FormatManagement (親)
-  ↓ Props: open, onCancel, onSubmit, departmentName
+  ↓ Props: open, onCancel, onSubmit, organizationGroupName
 CreateFormatModal (このコンポーネント)
 ```
 
 **親コンポーネントから受け取るデータ:**
 - モーダル表示状態
-- 部門名（表示用）
+- 組織グループ名（表示用）
 
 **親コンポーネントへの通知:**
 - キャンセルイベント（`onCancel()`）
@@ -418,7 +420,7 @@ CreateFormatModal (このコンポーネント)
   open={isCreateFormatModalOpen}
   onCancel={() => setIsCreateFormatModalOpen(false)}
   onSubmit={handleCreateFormat}
-  departmentName="dept_001"
+  organizationGroupName="dept_001"
 />
 
 // ユーザーが「material」と入力して送信
@@ -464,3 +466,4 @@ CreateFormatModal (このコンポーネント)
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |
+| 2026-08-20 | `departmentName` → `organizationGroupName` に修正・useLanguage追記 | Cline |

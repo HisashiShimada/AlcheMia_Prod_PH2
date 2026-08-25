@@ -4,8 +4,8 @@
 ---
 title: MaiML 名前空間管理ツール メイン画面 UI設計書
 category: UI設計
-version: 2.4.0
-last_updated: 2026-07-15
+version: 2.5.0
+last_updated: 2026-08-20
 author: Development Team
 tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-inactive, pagination, context-menu, cancel-button, api-fetch, share-scope-modal, tabs, team-management, filter-bar, department-tree-management, duplicate-suggest-modal]
 ---
@@ -1533,25 +1533,28 @@ interface ShareTarget {
 
 ---
 
-## 15. 重複警告モーダル（DuplicateSuggestModal）
+## 15. 重複提案モーダル（DuplicateSuggestModal）
 
 ### 15.1. 概要
 
-用語追加の保存時に同一 `prefix:localName` が既に登録されている場合に表示される確認モーダル。
+用語管理（`TermManagement.tsx`）で用語を一括保存する際に**重複が検出された場合**に表示されるモーダル。  
+重複した各用語に対して既存候補の中から1つを選択させ、確定後に統合登録を行う。
+
+詳細仕様は [`ui_namespace_duplicate_suggest_modal.md`](./ui_namespace_duplicate_suggest_modal.md) を参照。
 
 **コンポーネントファイル**: `frontend/src/components/namespace/DuplicateSuggestModal.tsx`
 
 ### 15.2. 表示トリガー
 
-`NamespaceMain` の保存処理（`handleSaveNewTerms`）において、`NewTermRow._isDuplicate === true` の行が1件以上存在する場合にモーダルを開く。
+`TermManagement.tsx` の保存処理中、クライアントサイド重複チェックで重複が検出された場合に `setDuplicateModalOpen(true)` で表示される。
 
 ### 15.3. ダイアログ仕様
 
 | 項目 | 値 |
 |------|-----|
 | コンポーネント | `<Modal>` |
-| タイトル | 「重複する用語があります」 |
-| 幅 | 480px |
+| タイトル | `t('duplicateSuggestModal.title')` ＋ `<WarningOutlined>` アイコン（#faad14） |
+| 幅 | 520px |
 | maskClosable | false |
 | キーボード（Escキー） | false（誤操作防止） |
 
@@ -1560,20 +1563,20 @@ interface ShareTarget {
 | Prop | 型 | 説明 |
 |------|----|------|
 | `open` | `boolean` | モーダルの表示状態 |
-| `duplicateTerms` | `NewTermRow[]` | `_isDuplicate === true` の行一覧 |
-| `onConfirm` | `() => void` | 「上書き保存」ボタン押下時のコールバック |
-| `onCancel` | `() => void` | 「キャンセル」ボタン押下時のコールバック |
+| `entries` | `DuplicateTermEntry[]` | 重複が検出された用語リスト |
+| `onClose` | `() => void` | キャンセル時コールバック |
+| `onConfirm` | `(selections: Record<string, string>) => void` | 登録確定時コールバック（key: localName, value: 選択された候補の prefix） |
 
 ### 15.5. ボタン仕様
 
-| ボタン | タイプ | 動作 |
-|--------|--------|------|
-| キャンセル | `default` | モーダルを閉じ、保存を中断する（インライン行は残す） |
-| 上書き保存 | `primary` (`danger`) | 重複を含めて全行を保存する |
+| ボタン | タイプ | 活性条件 | 動作 |
+|--------|--------|---------|------|
+| キャンセル | `default` | 常時 | `onClose()` を呼び出す |
+| 登録 | `primary` | 全ての用語に候補選択済みの場合のみ | `onConfirm(selections)` を呼び出す |
 
-### 15.6. 重複チェックの仕組み
+### 15.6. 候補選択の仕組み
 
-重複行は用語テーブル内で赤背景（`#fff1f0`）でハイライト表示される。保存前に `_isDuplicate` フラグが付与された行が存在する場合にこのモーダルが起動する。
+重複が検出された各用語に対してラジオグループで既存候補カードを表示する。全用語に選択が完了すると「登録」ボタンが活性化する。
 
 ---
 
@@ -1607,6 +1610,7 @@ interface ShareTarget {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-08-20 | v2.5.0: §15 `DuplicateSuggestModal` 仕様をソース実態に合わせて全面修正。表示トリガー・幅・Props（`entries`/`onClose`/`onConfirm`）・ボタン仕様（登録は全選択時のみ活性）・候補選択の仕組みを更新。詳細は `ui_namespace_duplicate_suggest_modal.md` を参照するよう追記 | Cline |
 | 2026-07-15 | v2.4.0: §3.2.2 `NewTermRow` 型に `_isDuplicate` フィールドを追加。§14.4 `PrefixRow` 型に `_isAncestor` フィールドを追加。§15 `DuplicateSuggestModal` コンポーネント仕様（表示トリガー・ダイアログ仕様・Props・ボタン仕様・重複チェックの仕組み）を新規追加。§16 非アクティブ確認ダイアログ仕様（表示トリガー・条件・`Modal.confirm` 仕様）を新規追加。旧§15 更新履歴を§17に繰り下げ | Cline |
 | 2026-07-15 | v2.3.0: §2.2 タブ構成の key='4' ラベルを「テンプレート管理」→「名前空間管理」に修正。§12.5 `Team` 型定義に `departmentName`・`ownerUserId`・`nsPrefix` フィールドを追加。§12.7 `DUMMY_TEAMS` ダミーデータに `departmentName`・`ownerUserId`・`nsPrefix` を追記。§14 `PrefixManagement` コンポーネント仕様（Props・レイアウト・テーブルカラム・型定義・ツールバー・インライン編集・API連携・CSV仕様・共有連携）を新規追加。旧§14「更新履歴」を§15に繰り下げ | Cline |
 | 2026-07-07 | v2.2.0: §2.2 タブ構成を修正（key='4' は `<UncertaintyManagement />` であることを明記）。§13 `DepartmentTreeManagement`（部署ノード管理テーブル）を新規追加 | Cline |
