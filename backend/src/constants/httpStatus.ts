@@ -29,6 +29,8 @@ export const HTTP_STATUS = {
   NOT_FOUND: 404,
   /** 競合（重複等） */
   CONFLICT: 409,
+  /** 処理不可エンティティ（バリデーションエラー） */
+  UNPROCESSABLE_ENTITY: 422,
   /** リクエスト過多（レート制限） */
   TOO_MANY_REQUESTS: 429,
 
