@@ -341,8 +341,10 @@ export interface NamespaceAddDialogProps {
 export interface PrefixManagementProps {
   /** trueのとき Global 配下のPrefixのみ表示・操作可能 */
   globalOnly?: boolean;
-  /** trueのとき「組織に共有」ボタンを表示する（実験管理者メニューのみ true を渡す） */
+  /** trueのとき「共有する」ボタンを表示する（実験管理者メニューのみ true を渡す） */
   showShareButton?: boolean;
+  /** 「共有する」ボタン押下時に呼ばれるコールバック（選択中の行キー一覧を渡す） */
+  onShareSelected?: (selectedKeys: React.Key[]) => void;
   /** trueのとき閲覧モード（検索・フィルター以外のボタンを非活性） */
   viewOnly?: boolean;
   /** 外部から渡される選択中の名前空間ノードキー（左ツリー連動用） */

@@ -687,3 +687,43 @@ export async function getDeclarationsByProject(
   // グローバル宣言を先に並べ、組織固有宣言を後に追加（重複 prefix は後勝ち）
   return [...globalDeclarations, ...orgDeclarations];
 }
+
+/**
+ * 選択した Prefix を指定スコープへ共有（コピー）する
+ *
+ * @param organizationId  - 組織ID
+ * @param targetScopeKey  - コピー先スコープキー（organization_group_cd または userId）
+ * @param userId          - 操作ユーザーID
+ * @param prefixes        - コピー対象の prefix 名の配列
+ * @returns コピーされた prefix 名の配列（重複スキップ分は含まれない）
+ * @throws コピー先スコープに対応する namespace が存在しない場合はエラー
+ */
+export async function sharePrefixesToScope(
+  organizationId: string,
+  targetScopeKey: string,
+  userId: string,
+  prefixes: string[]
+): Promise<string[]> {
+  if (prefixes.length === 0) return [];
+
+  // コピー先スコープの namespace が存在するか確認
+  const targetNamespaceId = await namespaceTermRepository.findNamespaceIdByScopeKey(
+    organizationId,
+    targetScopeKey
+  );
+  if (!targetNamespaceId) {
+    const err: Error & { statusCode?: number; code?: string } = new Error(
+      `コピー先スコープ "${targetScopeKey}" の namespace が見つかりません`
+    );
+    err.statusCode = HTTP_STATUS.NOT_FOUND;
+    err.code = 'E6001';
+    throw err;
+  }
+
+  return namespaceTermRepository.copyPrefixesToScope(
+    organizationId,
+    targetScopeKey,
+    userId,
+    prefixes
+  );
+}

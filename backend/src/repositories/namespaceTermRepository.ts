@@ -394,21 +394,22 @@ export async function updateNamespace(data: {
   const updateTermPrefixQuery = await loadSqlFile('namespace_terms/updateTermPrefix.sql');
   const updatePrefixQuery = await loadSqlFile('namespace_terms/updatePrefix.sql');
 
-  return (pgp.task(async (t) => {
+  const taskResult = pgp.task(async (t) => {
     // 1. prefix が変更される場合、先に namespace_term.prefix を UPDATE（FK 制約のため）
     if (targetPrefix !== data.prefix) {
       await t.none(updateTermPrefixQuery, [targetPrefix, data.organizationId, data.prefix]);
     }
 
     // 2. prefix テーブルの prefix と description を UPDATE
-    const row = await t.oneOrNone<{
+    const rawRow = await t.oneOrNone(updatePrefixQuery, [targetPrefix, description, data.organizationId, data.prefix]) as {
       namespace_id: string;
       prefix: string;
       uri: string;
       scope_key: string | null;
-    }>(updatePrefixQuery, [targetPrefix, description, data.organizationId, data.prefix]);
+    } | null;
 
-    if (!row) return null;
+    if (!rawRow) return null;
+    const row = rawRow;
 
     return {
       namespaceId: row.namespace_id,
@@ -416,7 +417,8 @@ export async function updateNamespace(data: {
       uri: row.uri,
       scopeKey: row.scope_key,
     };
-  }) as Promise<{ namespaceId: string; prefix: string; uri: string; scopeKey: string | null } | null>);
+  });
+  return taskResult as Promise<{ namespaceId: string; prefix: string; uri: string; scopeKey: string | null } | null>;
 }
 
 /**
@@ -774,4 +776,30 @@ export async function toggleActive(
 
   const selectQuery = await loadSqlFile('namespace_terms/findTermByKey.sql');
   return pgp.oneOrNone<NamespaceTermRow>(selectQuery, [organizationId, prefix, localName]);
+}
+
+/**
+ * 選択した Prefix を対象スコープへコピーする
+ *
+ * @param organizationId  - 組織ID
+ * @param targetScopeKey  - コピー先スコープキー（organization_group_cd またはユーザーID）
+ * @param userId          - 操作ユーザーID（create_user_id / update_user_id に設定）
+ * @param prefixes        - コピー対象の prefix 名の配列
+ * @returns コピーされた prefix 名の配列（重複スキップ分は含まれない）
+ */
+export async function copyPrefixesToScope(
+  organizationId: string,
+  targetScopeKey: string,
+  userId: string,
+  prefixes: string[]
+): Promise<string[]> {
+  const pgp = getPgp();
+  const query = await loadSqlFile('namespace_terms/copyPrefixesToScope.sql');
+  const rows = await pgp.manyOrNone<{ prefix: string }>(query, [
+    organizationId,
+    targetScopeKey,
+    userId,
+    prefixes,
+  ]);
+  return rows.map((r) => r.prefix);
 }

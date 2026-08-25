@@ -4660,7 +4660,7 @@
     "unitSelectPlaceholder": "Select unit...",
     "ctxMenuAddTeam": "Add Team",
     "ctxMenuEdit": "Edit",
-    "shareBtnLabel": "Share ({count})",
+    "shareBtnLabel": "Share ({count}) to Organization",
     "bulkDeactivateBtnLabel": "Deactivate selected ({count})",
     "searchPlaceholder": "Search terms...",
     "btnImport": "Import",
@@ -4696,6 +4696,15 @@
   },
   "namespaceTree": {
     "company": "Organization"
+  },
+  "prefixShare": {
+    "modalTitle": "Share {count} Prefix(es)",
+    "description": "Select the destination scope to copy the selected Prefixes to.",
+    "placeholderTarget": "Select destination",
+    "btnOk": "Share",
+    "warnNoTarget": "Please select a destination",
+    "toastSuccess": "Shared {count} Prefix(es) to \"{target}\"",
+    "toastError": "Failed to share Prefixes"
   },
   "prefixManagement": {
     "fetchError": "Failed to fetch namespace list",
@@ -5076,7 +5085,15 @@
     "systemNamespaceTooltip": "This is a system namespace and cannot be modified",
     "systemNamespaceBadge": "System",
     "alchemiaSystemNamespaceTooltip": "Alchemia system namespaces cannot be modified or deleted",
-    "errorDuplicateGlobalPrefix": "Prefix \"{prefix}\" is already registered globally. You cannot register a prefix with the same name as a global one."
+      "errorDuplicateGlobalPrefix": "Prefix \"{prefix}\" is already registered globally. You cannot register a prefix with the same name as a global one.",
+"btnShare": "Share {count} to Organization",
+      "btnBulkDeactivate": "Deactivate {count}",
+      "bulkDeactivateConfirm": "Deactivate {count} selected prefixes?",
+      "bulkDeactivateContent": "Deactivated prefixes cannot be used. You can reactivate them individually later.",
+      "bulkDeactivateOk": "Deactivate",
+      "bulkDeactivateCancelBtn": "Cancel",
+      "bulkDeactivateSuccess": "Deactivated {count} prefixes",
+      "bulkDeactivatePartialError": "Failed to deactivate {count} prefixes"
   },
   "aggregationRule": {
     "title": "Aggregation Rule Settings",

@@ -923,3 +923,42 @@ export const toggleNamespaceActive = async (
   await client.patch(`/namespaces/${encodedPrefix}/active`, { isActive });
 };
 
+// ============================================================================
+// Prefix 共有
+// ============================================================================
+
+/**
+ * POST /api/v1/namespaces/prefixes/share のレスポンス型
+ */
+export interface SharePrefixesResponse {
+  /** コピーに成功した Prefix 数 */
+  copiedCount: number;
+  /** 既に存在していてスキップされた Prefix 数 */
+  skippedCount: number;
+}
+
+/**
+ * 選択した Prefix を指定スコープへ共有（コピー）する
+ *
+ * POST /api/v1/namespaces/prefixes/share
+ *
+ * @param prefixKeys - コピー対象の Prefix 名の配列
+ * @param targetScopeKey - コピー先スコープキー（organization_group_cd または userId）
+ * @returns コピー件数とスキップ件数
+ */
+export const sharePrefixes = async (
+  prefixKeys: string[],
+  targetScopeKey: string
+): Promise<SharePrefixesResponse> => {
+  const client = createApiClient();
+
+  console.log('🔗 [namespaceApiService] Prefix 共有:', prefixKeys, '->', targetScopeKey);
+
+  const requestBody = {
+    prefixKeys,
+    targetScopeKey,
+  };
+  const response = await client.post<SharePrefixesResponse>('/namespaces/prefixes/share', requestBody);
+  return response.data;
+};
+

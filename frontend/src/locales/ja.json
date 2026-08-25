@@ -4933,7 +4933,7 @@
     "btnCancel": "キャンセル",
     "btnImport": "CSVインポート",
     "btnExport": "CSVエクスポート",
-    "shareBtnLabel": "{count}件を共有",
+    "shareBtnLabel": "{count}件を組織に共有",
     "bulkDeactivateBtnLabel": "{count}件を非アクティブ化",
     "searchPlaceholder": "用語を検索...",
     "showTotal": "全{total}件",
@@ -4948,6 +4948,15 @@
     "systemNamespaceBadge": "システム",
     "systemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません"
   },
+  "prefixShare": {
+    "modalTitle": "{count}件の Prefix を共有",
+    "description": "選択した Prefix のコピー先スコープを選択してください。",
+    "placeholderTarget": "コピー先を選択",
+    "btnOk": "共有する",
+    "warnNoTarget": "コピー先を選択してください",
+    "toastSuccess": "{count}件の Prefix を「{target}」に共有しました",
+    "toastError": "Prefix の共有に失敗しました"
+  },
   "prefixManagement": {
     "colScope": "スコープ",
     "colDescription": "説明",
@@ -4959,6 +4968,7 @@
     "btnAddPrefix": "Prefix追加",
     "btnSave": "保存",
     "btnCancel": "キャンセル",
+"btnShare": "{count}件を組織に共有",
     "btnEdit": "編集",
     "btnDeactivate": "非アクティブ",
     "btnActivate": "アクティブ",
@@ -5017,7 +5027,14 @@
     "csvImportSuccess": "{{count}}件のPrefixをインポートしました",
     "csvParseError": "CSVファイルの読み込みに失敗しました",
     "alchemiaSystemNamespaceTooltip": "Alchemia システム名前空間は変更・削除できません",
-    "errorDuplicateGlobalPrefix": "Prefix「{prefix}」はGlobalスコープに既に登録されています。Global登録済みのPrefixは再登録できません。"
+    "errorDuplicateGlobalPrefix": "Prefix「{prefix}」はGlobalスコープに既に登録されています。Global登録済みのPrefixは再登録できません。",
+    "btnBulkDeactivate": "{count}件を非アクティブ化",
+    "bulkDeactivateConfirm": "{count}件のPrefixを一括無効化しますか？",
+    "bulkDeactivateContent": "無効化すると、これらのPrefixは使用できなくなります。後から個別に再アクティブ化できます。",
+    "bulkDeactivateOk": "一括無効化",
+    "bulkDeactivateCancelBtn": "キャンセル",
+    "bulkDeactivateSuccess": "{count}件のPrefixを無効化しました",
+    "bulkDeactivatePartialError": "{count}件の無効化に失敗しました"
   },
   "aggregationRule": {
     "title": "集約ルール設定",

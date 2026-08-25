@@ -530,3 +530,37 @@ export async function exportGlobalDeclarations(
     next(error);
   }
 }
+
+/**
+ * 選択した Prefix を指定スコープへ共有（コピー）する
+ * POST /api/v1/namespaces/prefixes/share
+ *
+ * @remarks
+ * リクエストボディ:
+ *   { targetScopeKey: string; prefixes: string[] }
+ */
+export async function sharePrefixes(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.user!.organizationId;
+    const userId = req.user!.userId;
+    const { targetScopeKey, prefixes } = req.body as {
+      targetScopeKey: string;
+      prefixes: string[];
+    };
+
+    const copiedPrefixes = await namespaceService.sharePrefixesToScope(
+      organizationId,
+      targetScopeKey,
+      userId,
+      prefixes
+    );
+
+    res.json({ success: true, copiedPrefixes });
+  } catch (error) {
+    next(error);
+  }
+}
