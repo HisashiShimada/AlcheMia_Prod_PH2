@@ -222,6 +222,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         scopeType: 'organization',
         scopeLabel: '',
         scopeOrder: 3,
+        xsiType: '',
+        scaleFactor: '',
         desc,
         unit,
         format: xsiType,
@@ -621,7 +623,13 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       // 用語マップをリセットし、open 時に全件取得
       setTermMap(new Map());
       getAllTermsAsMap()
-        .then((map) => setTermMap(map))
+        .then((map) => {
+          // hasDirectiveTerm !== true のエントリを除外して指示用語のみに絞り込む
+          const filteredMap = new Map(
+            Array.from(map.entries()).filter(([, term]) => term.hasDirectiveTerm === true)
+          );
+          setTermMap(filteredMap);
+        })
         .catch((err) => console.warn('⚠️ [TemplateEditorDialog] 用語マップ取得失敗:', err));
     }
   }, [open, node, mergedTemplate]);
