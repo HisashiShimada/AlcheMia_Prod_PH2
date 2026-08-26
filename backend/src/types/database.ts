@@ -366,6 +366,9 @@ export interface User {
 
   /** 所属組織グループCD一覧（多対多） */
   organization_group_cds: string[];
+
+  /** 個人名前空間URI（namespace テーブルから LEFT JOIN で取得、未登録時は null） */
+  namespace_uri?: string | null;
 }
 
 /**
