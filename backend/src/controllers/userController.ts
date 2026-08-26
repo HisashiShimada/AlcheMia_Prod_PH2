@@ -58,6 +58,7 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
       roleName: user.role_name,
       isActive: user.is_active,
       lastLoginAt: user.last_login_at,
+      namespaceUri: user.namespace_uri ?? null,
       createAt: user.create_at,
       updateAt: user.update_at,
     }));
@@ -114,6 +115,7 @@ export async function getUserById(req: Request, res: Response, next: NextFunctio
       roleCd: user.role_cd,
       roleName: user.role_name,
       isActive: user.is_active,
+      namespaceUri: user.namespace_uri ?? null,
       createAt: user.create_at,
       updateAt: user.update_at,
     };
