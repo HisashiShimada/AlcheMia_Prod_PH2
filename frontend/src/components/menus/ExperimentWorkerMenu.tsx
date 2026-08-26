@@ -20,10 +20,12 @@ import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useExpandState } from '@/hooks/useExpandState';
 import WorkRecordPanel from '../ExperimentWorker/WorkRecordPanel';
+import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import ProgressOverviewTab from '../ExperimentWorker/ProgressOverviewTab';
 import type { ProgressRow } from '../ExperimentWorker/ProgressOverviewTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import type { WorkerProject } from '@/types/project';
+import type { ProjectStatus as ProjectStatusType } from '@/types/experimentWorker';
 import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus, getNgTasks, updateTransitionStatus, confirmInstruction } from '@/services/projectApiService';
 import type { NgTaskItem } from '@/services/projectApiService';
 import { TransitionStatusCode } from '@/constants/codeMaster';
@@ -942,6 +944,17 @@ export default function ExperimentWorkerMenu({
           }}
         />
       </div>
+
+      {/* 問題報告モーダル */}
+      <IssueManagementModal
+        open={issueModalOpen}
+        targetName={selectedProjectName || selectedProject || ''}
+        projectId={selectedProject || ''}
+        projectName={selectedProjectName}
+        onClose={() => setIssueModalOpen(false)}
+        viewMode={false}
+        projectStatus={selectedProjectStatus as ProjectStatusType | null}
+      />
 
       {/* プロジェクト選択モーダル（readOnly時は不要だが、一応open=falseで無効化） */}
       <ProjectSelectionModal
