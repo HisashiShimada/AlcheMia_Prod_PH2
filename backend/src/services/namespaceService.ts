@@ -301,12 +301,13 @@ export async function getNamespacesByScopeKeyWithAncestors(
 export async function updateNamespace(
   input: UpdateNamespaceInput
 ): Promise<UpdateNamespaceResult | null> {
-  return namespaceTermRepository.updateNamespace({
+  const updateNamespaceParams: Parameters<typeof namespaceTermRepository.updateNamespace>[0] = {
     organizationId: input.organizationId,
     prefix: input.prefix,
     newPrefix: input.newPrefix,
     description: input.description,
-  });
+  };
+  return namespaceTermRepository.updateNamespace(updateNamespaceParams);
 }
 
 /**

@@ -188,12 +188,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
     for (const row of newRows) {
       try {
-        const created = await createNamespace({
+        const createNamespaceRequest: Parameters<typeof createNamespace>[0] = {
           prefix: row.prefix,
           uri: row.uri,
           description: row.description || undefined,
           scopeKey: scopeKey ?? selectedNsKey ?? undefined,
-        });
+        };
+        const created = await createNamespace(createNamespaceRequest);
         added.push({
           id: created.prefix,
           prefix: created.prefix,
@@ -300,7 +301,11 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       return;
     }
     try {
-      await updateNamespace(editingId, { newPrefix: editingValues.prefix !== editingId ? editingValues.prefix : undefined, description: editingValues.description });
+      const updateNamespaceRequest: Parameters<typeof updateNamespace>[1] = {
+        newPrefix: editingValues.prefix !== editingId ? editingValues.prefix : undefined,
+        description: editingValues.description,
+      };
+      await updateNamespace(editingId, updateNamespaceRequest);
       setEditingId(null);
       message.success(t('prefixManagement.updateSuccess'));
       // reloadNamespaces を使うことで selectedNsKey / orgGroupCds の両方を
@@ -465,15 +470,16 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           return;
         }
 
-        const added: PrefixRow[] = [];
+          const added: PrefixRow[] = [];
         const failed: { prefix: string; uri: string }[] = [];
         for (const row of parsedRows) {
           try {
-            const created = await createNamespace({
+            const csvCreateRequest: Parameters<typeof createNamespace>[0] = {
               prefix: row.prefix,
               uri: row.uri,
               description: row.description || undefined,
-            });
+            };
+            const created = await createNamespace(csvCreateRequest);
             added.push({
               id: created.prefix,
               prefix: created.prefix,

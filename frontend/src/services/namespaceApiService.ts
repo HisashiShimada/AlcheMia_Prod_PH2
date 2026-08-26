@@ -579,9 +579,10 @@ export const toggleTermActive = async (
 
   console.log('🔖 [namespaceApiService] 用語アクティブ切替:', `${prefix}:${localName}`, isActive);
 
+  const toggleTermActiveBody = { isActive };
   const response = await client.patch<NamespaceTermRow>(
     `/namespaces/terms/${encodeURIComponent(prefix)}/${encodeURIComponent(localName)}/active`,
-    { isActive }
+    toggleTermActiveBody
   );
 
   return response.data;
@@ -926,7 +927,8 @@ export const toggleNamespaceActive = async (
 
   console.log('🔗 [namespaceApiService] Prefix アクティブ切替:', prefix, isActive);
 
-  await client.patch(`/namespaces/${encodedPrefix}/active`, { isActive });
+  const toggleNamespaceActiveBody = { isActive };
+  await client.patch(`/namespaces/${encodedPrefix}/active`, toggleNamespaceActiveBody);
 };
 
 // ============================================================================

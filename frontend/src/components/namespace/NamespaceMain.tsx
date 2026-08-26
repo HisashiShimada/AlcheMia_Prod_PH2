@@ -1013,7 +1013,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const added: Term[] = [];
     for (const row of newTerms) {
       try {
-        const saved = await createTerm({
+        const createTermRequest: Parameters<typeof createTerm>[0] = {
           prefix:        row.prefix,
           localName:     row.localName,
           displayNameJa: row.displayName,
@@ -1022,7 +1022,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           unitHint:      row.unitHint,
           createDirectiveTerm: row.createDirectiveTerm,
           scopeKey: effectiveNsKey ?? undefined,
-        });
+        };
+        const saved = await createTerm(createTermRequest);
         added.push(saved as Term);
       } catch (err: unknown) {
         const status = (err as any)?.response?.status;
@@ -1080,16 +1081,17 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (!editingValues.localName) { message.error(t('namespaceMain.localNameRequired2')); return; }
 
     try {
+      const updateTermRequest: Parameters<typeof updateTerm>[2] = {
+        localName:     editingValues.localName,
+        displayNameJa: editingValues.displayName,
+        description:   editingValues.description,
+        typeHint:      editingValues.type,
+        unitHint:      editingValues.unitHint,
+      };
       const updated = await updateTerm(
         editingValues.prefix,
         editingValues.localName,
-        {
-          localName:     editingValues.localName,
-          displayNameJa: editingValues.displayName,
-          description:   editingValues.description,
-          typeHint:      editingValues.type,
-          unitHint:      editingValues.unitHint,
-        }
+        updateTermRequest
       );
       setTerms((prev) => prev.map((t) => `${t.prefix}:${t.localName}` === editingTermId ? (updated as Term) : t));
       setEditingTermId(null);
@@ -1190,14 +1192,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
     for (const term of targetTerms) {
       try {
-        const saved = await createTerm({
+        const shareCreateTermRequest: Parameters<typeof createTerm>[0] = {
           prefix:        target.prefix,
           localName:     term.localName,
           displayNameJa: term.displayName,
           description:   term.description,
           typeHint:      term.type,
           unitHint:      term.unitHint,
-        });
+        };
+        const saved = await createTerm(shareCreateTermRequest);
         added.push(saved as Term);
       } catch {
         failed.push(term.localName);
@@ -1570,14 +1573,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
         for (const row of rows) {
           try {
-            const saved = await createTerm({
+            const csvTermRequest: Parameters<typeof createTerm>[0] = {
               prefix:        row.prefix,
               localName:     row.localName,
               displayNameJa: row.displayName,
               description:   row.description,
               typeHint:      row.type || 'stringType',
               unitHint:      row.unitHint,
-            });
+            };
+            const saved = await createTerm(csvTermRequest);
             added.push(saved as Term);
           } catch {
             failed.push(row.localName);
@@ -2102,14 +2106,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         onClose={() => { setAddDialogOpen(false); setAddChildParentKey(null); }}
         onRegistered={async (values) => {
           try {
-            const result = await createNamespace({
+          const createNamespaceRequest: Parameters<typeof createNamespace>[0] = {
               prefix:      values.prefix,
               uri:         values.uri,
               displayName: values.displayName || undefined,
               description: values.description || undefined,
               // グローバルレベル以外の場合は選択中ノードキーをスコープキーとして渡す
               scopeKey:    values.level !== 'global' ? (effectiveNsKey ?? undefined) : undefined,
-            });
+            };
+          const result = await createNamespace(createNamespaceRequest);
             const newNode: FlatNsNode = {
               key: result.namespaceId,
               prefix: result.prefix,
