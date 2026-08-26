@@ -1,4 +1,4 @@
-/**
+﻿/**
  * マスタ管理(Creator、Vendor、Instrument)サービス
  * ビジネスロジック層
  */
@@ -11,6 +11,7 @@ import * as vendorRepository from '../repositories/vendorRepository';
 import * as attributeRepository from '../repositories/attributeRepository';
 import { getPgp } from '../database/db';
 import { getMessage } from '../utils/messages';
+import { formatDateTimeJST } from '../utils/dateUtils';
 
 /**
  * Creatorマスタレスポンス型定義
@@ -55,30 +56,6 @@ export interface VendorMasterResponse {
   updatedAt: string;
 }
 
-/**
- * 日時を YYYYMMDDhhmmss 形式にフォーマット
- * 
- * @param date 日時オブジェクト
- * @returns フォーマットされた文字列
- */
-function formatDateTime(date: Date | null): string {
-  if (!date) return '-';
-  
-  try {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hour = String(d.getHours()).padStart(2, '0');
-    const minute = String(d.getMinutes()).padStart(2, '0');
-    const second = String(d.getSeconds()).padStart(2, '0');
-    
-    return `${year}${month}${day}${hour}${minute}${second}`;
-  } catch (error) {
-    console.error('Date format error:', error);
-    return '-';
-  }
-}
 
 /**
  * Creatorマスタを取得
@@ -112,7 +89,7 @@ export async function getCreatorMasters(
     vendorIsActive: creator.vendor_is_active,
     instrumentName: creator.instrument_name || '',
     instrumentIsActive: creator.instrument_is_active,
-    updatedAt: formatDateTime(creator.update_at),
+    updatedAt: formatDateTimeJST(creator.update_at),
   }));
 }
 
@@ -156,7 +133,7 @@ export async function getCreatorMastersWithFilters(
     vendorIsActive: creator.vendor_is_active,
     instrumentName: creator.instrument_name || '',
     instrumentIsActive: creator.instrument_is_active,
-    updatedAt: formatDateTime(creator.update_at),
+    updatedAt: formatDateTimeJST(creator.update_at),
   }));
 }
 
@@ -188,7 +165,7 @@ export async function getCreatorById(
     vendorIsActive: creator.vendor_is_active,
     instrumentName: creator.instrument_name || '',
     instrumentIsActive: creator.instrument_is_active,
-    updatedAt: formatDateTime(creator.update_at),
+    updatedAt: formatDateTimeJST(creator.update_at),
   };
 }
 
@@ -251,7 +228,7 @@ export async function createCreatorMaster(
     vendorIsActive: createdCreator.vendor_is_active,
     instrumentName: createdCreator.instrument_name || '',
     instrumentIsActive: createdCreator.instrument_is_active,
-    updatedAt: formatDateTime(createdCreator.update_at),
+    updatedAt: formatDateTimeJST(createdCreator.update_at),
   };
 }
 
@@ -279,7 +256,7 @@ export async function getInstrumentMasters(
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
     isActive: instrument.is_active,
-    updatedAt: formatDateTime(instrument.update_at),
+    updatedAt: formatDateTimeJST(instrument.update_at),
   }));
 }
 
@@ -319,7 +296,7 @@ export async function getInstrumentMastersWithFilters(
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
     isActive: instrument.is_active,
-    updatedAt: formatDateTime(instrument.update_at),
+    updatedAt: formatDateTimeJST(instrument.update_at),
   }));
 }
 
@@ -347,7 +324,7 @@ export async function getInstrumentById(
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
     isActive: instrument.is_active,
-    updatedAt: formatDateTime(instrument.update_at),
+    updatedAt: formatDateTimeJST(instrument.update_at),
   };
 }
 
@@ -375,7 +352,7 @@ export async function getVendorMasters(
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
     isActive: vendor.is_active,
-    updatedAt: formatDateTime(vendor.update_at),
+    updatedAt: formatDateTimeJST(vendor.update_at),
   }));
 }
 
@@ -415,7 +392,7 @@ export async function getVendorMastersWithFilters(
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
     isActive: vendor.is_active,
-    updatedAt: formatDateTime(vendor.update_at),
+    updatedAt: formatDateTimeJST(vendor.update_at),
   }));
 }
 
@@ -443,7 +420,7 @@ export async function getVendorById(
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
     isActive: vendor.is_active,
-    updatedAt: formatDateTime(vendor.update_at),
+    updatedAt: formatDateTimeJST(vendor.update_at),
   };
 }
 
@@ -481,7 +458,7 @@ export async function createInstrumentMaster(
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
     isActive: instrument.is_active,
-    updatedAt: formatDateTime(instrument.update_at),
+    updatedAt: formatDateTimeJST(instrument.update_at),
   };
 }
 
@@ -513,7 +490,7 @@ export async function updateInstrumentMaster(
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
     isActive: instrument.is_active,
-    updatedAt: formatDateTime(instrument.update_at),
+    updatedAt: formatDateTimeJST(instrument.update_at),
   };
 }
 
@@ -540,7 +517,7 @@ export async function updateInstrumentStatus(
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
     isActive: instrument.is_active,
-    updatedAt: formatDateTime(instrument.update_at),
+    updatedAt: formatDateTimeJST(instrument.update_at),
   };
 }
 
@@ -578,7 +555,7 @@ export async function createVendorMaster(
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
     isActive: vendor.is_active,
-    updatedAt: formatDateTime(vendor.update_at),
+    updatedAt: formatDateTimeJST(vendor.update_at),
   };
 }
 
@@ -610,7 +587,7 @@ export async function updateVendorMaster(
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
     isActive: vendor.is_active,
-    updatedAt: formatDateTime(vendor.update_at),
+    updatedAt: formatDateTimeJST(vendor.update_at),
   };
 }
 
@@ -637,7 +614,7 @@ export async function updateVendorStatus(
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
     isActive: vendor.is_active,
-    updatedAt: formatDateTime(vendor.update_at),
+    updatedAt: formatDateTimeJST(vendor.update_at),
   };
 }
 
@@ -675,7 +652,7 @@ export async function updateCreatorMaster(
     vendorIsActive: updatedCreator.vendor_is_active,
     instrumentName: updatedCreator.instrument_name || '',
     instrumentIsActive: updatedCreator.instrument_is_active,
-    updatedAt: formatDateTime(updatedCreator.update_at),
+    updatedAt: formatDateTimeJST(updatedCreator.update_at),
   };
 }
 
@@ -712,7 +689,7 @@ export async function updateCreatorStatus(
     vendorIsActive: creator.vendor_is_active,
     instrumentName: creator.instrument_name || '',
     instrumentIsActive: creator.instrument_is_active,
-    updatedAt: formatDateTime(creator.update_at),
+    updatedAt: formatDateTimeJST(creator.update_at),
   };
 }
 
@@ -1221,7 +1198,7 @@ export async function getAttributeMastersWithFilters(
     organizationGroupCd: attr.organization_group_cd || '',
     organizationGroupName: attr.organization_group_name || '',
     isActive: attr.is_active,
-    updatedAt: formatDateTime(attr.update_at),
+    updatedAt: formatDateTimeJST(attr.update_at),
   }));
 }
 
@@ -1251,7 +1228,7 @@ export async function getAttributeById(
     organizationGroupCd: attr.organization_group_cd || '',
     organizationGroupName: attr.organization_group_name || '',
     isActive: attr.is_active,
-    updatedAt: formatDateTime(attr.update_at),
+    updatedAt: formatDateTimeJST(attr.update_at),
   };
 }
 
@@ -1295,7 +1272,7 @@ export async function createAttributeMaster(
     organizationGroupCd: created.organization_group_cd || '',
     organizationGroupName: created.organization_group_name || '',
     isActive: created.is_active,
-    updatedAt: formatDateTime(created.update_at),
+    updatedAt: formatDateTimeJST(created.update_at),
   };
 }
 
@@ -1339,7 +1316,7 @@ export async function updateAttributeMaster(
     organizationGroupCd: updated.organization_group_cd || '',
     organizationGroupName: updated.organization_group_name || '',
     isActive: updated.is_active,
-    updatedAt: formatDateTime(updated.update_at),
+    updatedAt: formatDateTimeJST(updated.update_at),
   };
 }
 
@@ -1372,7 +1349,7 @@ export async function updateAttributeStatus(
     organizationGroupCd: attr.organization_group_cd || '',
     organizationGroupName: attr.organization_group_name || '',
     isActive: attr.is_active,
-    updatedAt: formatDateTime(attr.update_at),
+    updatedAt: formatDateTimeJST(attr.update_at),
   };
 }
 

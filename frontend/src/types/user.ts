@@ -21,6 +21,9 @@ export interface UserRecord {
   createAt?: Date;
   updateAt?: Date;
 
+  /** 個人名前空間URI（namespace テーブルから取得、未登録時は null） */
+  namespaceUri?: string | null;
+
   // 動的プロパティアクセス用のインデックスシグネチャ
   [key: string]: unknown;
 }

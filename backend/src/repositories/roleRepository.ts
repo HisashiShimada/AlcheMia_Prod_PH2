@@ -8,21 +8,7 @@
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { FunctionList, PermissionList } from '../enums/roleFunctionPermission.enum';
-
-/**
- * DateオブジェクトをYYYYMMDDhhmmss形式の文字列に変換
- * @param date Dateオブジェクト
- * @returns YYYYMMDDhhmmss形式の文字列（例: "20240126143000"）
- */
-function formatDateToYYYYMMDDhhmmss(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hour = String(date.getHours()).padStart(2, '0');
-  const minute = String(date.getMinutes()).padStart(2, '0');
-  const second = String(date.getSeconds()).padStart(2, '0');
-  return `${year}${month}${day}${hour}${minute}${second}`;
-}
+import { formatDateTimeJST } from '../utils/dateUtils';
 
 /**
  * ロールの生データ型（SQL結果）
@@ -108,7 +94,7 @@ function aggregateRoles(rows: RoleRawData[]): Role[] {
         functionIds: [],
         writableFunctionIds: [],
         functions: [],
-        updatedAt: row.update_at ? formatDateToYYYYMMDDhhmmss(row.update_at) : null,
+        updatedAt: row.update_at ? formatDateTimeJST(row.update_at) : null,
       });
     }
 
