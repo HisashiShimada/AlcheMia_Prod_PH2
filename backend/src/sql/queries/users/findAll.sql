@@ -1,5 +1,5 @@
 -- ユーザー一覧取得クエリ（ベースクエリ）
--- organization_userテーブルをrole/login_historyとJOINして取得
+-- organization_userテーブルをrole/login_history/namespaceとJOINして取得
 -- 動的フィルタはRepository層でWHERE句に追加する
 SELECT
   ou.user_id,
@@ -17,7 +17,8 @@ SELECT
     WHERE ogu.organization_id = ou.organization_id
       AND ogu.user_id = ou.user_id
     ORDER BY ogu.organization_group_cd
-  ) AS organization_group_cds
+  ) AS organization_group_cds,
+  ns.uri AS namespace_uri
 FROM organization_user ou
 LEFT JOIN role r
   ON ou.organization_id = r.organization_id
@@ -36,5 +37,8 @@ LEFT JOIN (
 ) last_login
   ON ou.organization_id = last_login.organization_id
   AND ou.user_id = last_login.user_id
+LEFT JOIN namespace ns
+  ON ns.organization_id = ou.organization_id
+  AND ns.scope_key = ou.user_id
 WHERE ou.organization_id = $1
 ORDER BY ou.user_id ASC

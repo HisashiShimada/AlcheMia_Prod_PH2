@@ -4,8 +4,8 @@
 ---
 title: MaiML 名前空間管理ツール メイン画面 UI設計書
 category: UI設計
-version: 2.5.0
-last_updated: 2026-08-20
+version: 2.6.0
+last_updated: 2026-08-25
 author: Development Team
 tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-inactive, pagination, context-menu, cancel-button, api-fetch, share-scope-modal, tabs, team-management, filter-bar, department-tree-management, duplicate-suggest-modal]
 ---
@@ -176,7 +176,7 @@ const tabItems = [
 |------|-----|
 | selectable | true（クリックで右ペインに用語リストを表示） |
 | expandable | 組織レベルは子名前空間を持つ場合に展開可能 |
-| 用語数バッジ | 名前空間に紐づく用語数を `[N]` 形式で表示 |
+| 用語数バッジ | 左ペインのツリーノードへのバッジ表示は廃止。右ペイン上部に「用語数: N」「Prefix数: N」のバッジを表示する |
 | URI省略 | 30文字超の場合 `...` で省略 |
 
 **ツリーノードのコンテキストメニュー（右クリック）**:
@@ -1115,6 +1115,8 @@ const shareTargetMock: ShareTarget = {
 
 > ⚠️ **実装の仕様**: リスト項目に [編集] ボタンは**存在しない**。チーム編集は右ペインの「編集」ボタン経由で行う。
 
+> ⚠️ **[2026-08-25 更新]**: アクティブ状態を切り替えるボタン文言は「**アクティブ**」/「**非アクティブ**」を使用する（旧「有効化」/「無効化」から変更）。
+
 ### 12.4. 右ペイン仕様（チーム詳細）
 
 #### 12.4.1. チーム未選択時
@@ -1287,6 +1289,10 @@ const DUMMY_TEAMS: Team[] = [
 | 説明 | ✅ 編集可 | `<Input size="small">` |
 
 **URI 自動生成ロジック（編集中）**:
+
+> ⚠️ **[2026-08-25 更新]**: 名前空間URIのドメイン部は `organization_cd` 固定ではなく、プロジェクトに紐づくチームの**ルートグループCD**を使用する形式に変更。  
+> - グループスコープ: `https://{ルートグループCD}.Alchemia.co.jp/{子グループCDパス}`  
+> - 個人スコープ: `https://{ユーザーの所属グループCD}.Alchemia.co.jp/{loginName}`（グループ未所属時は `organization_cd` にフォールバック）
 
 ```typescript
 // 編集行の親ノード key から departmentCd を解決して URI を生成
@@ -1610,6 +1616,7 @@ interface ShareTarget {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-08-25 | v2.6.0: §3.2.2 ツリーノードの用語数バッジ表示を左ペイン廃止・右ペイン上部（用語数+Prefix数）表示に変更。§12.3 チーム一覧のアクティブ/非アクティブボタン文言を「有効化/無効化」→「アクティブ/非アクティブ」に変更。§13.5 URI自動生成のドメイン部を `organization_cd` 固定→ルートグループCDに変更する仕様を追記。 | Cline |
 | 2026-08-20 | v2.5.0: §15 `DuplicateSuggestModal` 仕様をソース実態に合わせて全面修正。表示トリガー・幅・Props（`entries`/`onClose`/`onConfirm`）・ボタン仕様（登録は全選択時のみ活性）・候補選択の仕組みを更新。詳細は `ui_namespace_duplicate_suggest_modal.md` を参照するよう追記 | Cline |
 | 2026-07-15 | v2.4.0: §3.2.2 `NewTermRow` 型に `_isDuplicate` フィールドを追加。§14.4 `PrefixRow` 型に `_isAncestor` フィールドを追加。§15 `DuplicateSuggestModal` コンポーネント仕様（表示トリガー・ダイアログ仕様・Props・ボタン仕様・重複チェックの仕組み）を新規追加。§16 非アクティブ確認ダイアログ仕様（表示トリガー・条件・`Modal.confirm` 仕様）を新規追加。旧§15 更新履歴を§17に繰り下げ | Cline |
 | 2026-07-15 | v2.3.0: §2.2 タブ構成の key='4' ラベルを「テンプレート管理」→「名前空間管理」に修正。§12.5 `Team` 型定義に `departmentName`・`ownerUserId`・`nsPrefix` フィールドを追加。§12.7 `DUMMY_TEAMS` ダミーデータに `departmentName`・`ownerUserId`・`nsPrefix` を追記。§14 `PrefixManagement` コンポーネント仕様（Props・レイアウト・テーブルカラム・型定義・ツールバー・インライン編集・API連携・CSV仕様・共有連携）を新規追加。旧§14「更新履歴」を§15に繰り下げ | Cline |

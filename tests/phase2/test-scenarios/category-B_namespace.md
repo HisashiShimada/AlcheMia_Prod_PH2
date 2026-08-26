@@ -16,7 +16,7 @@
 - [テスト実施の前提](#テスト実施の前提)
 - [B-NS-01：ユーザ登録時の個人名前空間自動生成](#b-ns-01ユーザ登録時の個人名前空間自動生成)
 - [B-NS-02：グローバル名前空間宣言の閲覧・インポート・エクスポート（プロバイダー）](#b-ns-02グローバル名前空間宣言の閲覧インポートエクスポートプロバイダー)
-- [B-NS-03：Prefixの登録・編集・削除・CSVエクスポート（実験管理者）](#b-ns-03prefixの登録編集削除csvエクスポート実験管理者)
+- [B-NS-03：Prefixの登録・編集・非アクティブ化・CSVエクスポート（実験管理者）](#b-ns-03prefixの登録編集非アクティブ化csvエクスポート実験管理者)
 - [B-NS-04：用語の登録・編集・有効無効切替・CSVエクスポート（実験管理者）](#b-ns-04用語の登録編集有効無効切替csvエクスポート実験管理者)
 - [B-NS-05：チーム追加と名前空間URI自動採番（実験管理者）](#b-ns-05チーム追加と名前空間uri自動採番実験管理者)
 - [B-NS-06：用語登録・編集・重複チェック（実験管理者）](#b-ns-06用語登録編集重複チェック実験管理者)
@@ -179,19 +179,19 @@
 
 ---
 
-## B-NS-03：Prefixの登録・編集・削除・CSVエクスポート（実験管理者）
+## B-NS-03：Prefixの登録・編集・非アクティブ化・CSVエクスポート（実験管理者）
 
 ### 概要
 
-実験管理者が名前空間管理画面の `PrefixManagement` コンポーネントで Prefix を登録・編集・削除し、CSV エクスポート・インポートができることを確認する。
+実験管理者が名前空間管理画面の `PrefixManagement` コンポーネントで Prefix を登録・編集・非アクティブ化し、CSV エクスポート・インポートができることを確認する。
 
 ### 関連
 
 | 項目 | 参照先 |
 |------|--------|
-| UI設計書 | `docs/design/ui/experiment_admin/04_namespace_management/ui_prefix_management.md` |
-| 要件 | F-07-01：Prefix 登録・編集・削除機能 / F-07-02：重複チェック機能 |
-| API | `GET /api/v1/namespaces` / `POST /api/v1/namespaces` / `PUT /api/v1/namespaces/:prefix` / `DELETE /api/v1/namespaces/:prefix` |
+| UI設計書 | `docs/design/ui/experiment_admin/04_namespace_management/ui_prefix_management.md` ※v1.2.0（2026-08-25更新） |
+| 要件 | F-07-01：Prefix 登録・編集・非アクティブ化機能 / F-07-02：重複チェック機能 |
+| API | `GET /api/v1/namespaces` / `POST /api/v1/namespaces` / `PUT /api/v1/namespaces/:prefix` / `PATCH /api/v1/namespaces/:prefix/active` ※2026-08-25変更：旧 `DELETE /api/v1/namespaces/:prefix` から変更 |
 
 ### 前提条件
 
@@ -209,13 +209,14 @@
 | 1 | experiment_admin | 実験管理者メニュー → 「名前空間管理」タブを開く | 名前空間ツリーが左ペインに表示される |
 | 2 | experiment_admin | ツリーで自分の個人名前空間ノードを選択する | 右ペインに `PrefixManagement` が表示される（Prefix列・URI列・説明列・スコープ列・操作列） |
 | 3 | experiment_admin | ツールバーを確認する | 検索欄 / インポート / エクスポート / `＋ prefix追加` / 保存 / キャンセル の各要素が表示されている |
+| 4 | experiment_admin | 操作列のボタンを確認する | 通常行には「編集」「非アクティブ」ボタンが表示されること |
 
-#### ステップ 2：新規 Prefix のインライン追加
+#### ステップ 2：新規 Prefix のインライン追加（URI自動生成確認）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 5 | experiment_admin | 「＋ prefix追加」ボタンを押す | テーブル先頭行に黄色背景（`#fffbe6`）の新規入力行が追加される |
-| 6 | experiment_admin | Prefix フィールドに `test-pfx`、URI フィールドに `https://ns.example.org/test/`、説明フィールドに `テスト用 Prefix` を入力する | 各フィールドに値が入力される |
+| 5 | experiment_admin | 「＋ prefix追加」ボタンを押す | テーブル先頭行に黄色背景（`#fffbe6`）の新規入力行が追加される。URI フィールドに `GET /api/v1/namespaces/suggested-uri` で取得した URI が自動入力される（disabled・編集不可） |
+| 6 | experiment_admin | Prefix フィールドに `test-pfx`、説明フィールドに `テスト用 Prefix` を入力する | 各フィールドに値が入力される。URI は自動生成値のまま変更不可 |
 | 7 | experiment_admin | 「保存」ボタンを押す（新規行がある場合のみ活性） | Prefix が登録され、一覧に `test-pfx` 行が表示される（スコープ列に個人名前空間名が表示される） |
 
 #### ステップ 3：重複チェック（保存時の `Modal.confirm`）
@@ -226,39 +227,51 @@
 | 9 | experiment_admin | 確認ダイアログで「キャンセル」を選択する | 登録が中止される |
 | 10 | experiment_admin | 再度「保存」→ 確認ダイアログで「OK」を選択する | 強行登録（上書き）される |
 
-#### ステップ 4：既存 Prefix のインライン編集（URI・説明のみ変更可）
+#### ステップ 4：既存 Prefix のインライン編集（prefix・説明のみ変更可）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 11 | experiment_admin | `test-pfx` 行の「編集」ボタンを押す | 行がインライン編集モードに切り替わる（URI・説明が `<Input>` に変わる） |
+| 11 | experiment_admin | `test-pfx` 行の「編集」ボタンを押す | 行がインライン編集モードに切り替わる（`prefix`・`description` が `<Input>` に変わる。URI は表示のみ・編集不可） |
 | 12 | experiment_admin | 説明 を 「プレフィックス変更」 に変更する | 説明 フィールドの値が変更される |
-| 13 | experiment_admin | 「保存」ボタンを押す | 説明 が更新される（Prefix 文字列自体は保存リクエストに含まれない） |
-| 14 | experiment_admin | 再度「編集」→ URI を変更 → 「キャンセル」を押す | 変更が破棄され、元の 説明 に戻る |
+| 13 | experiment_admin | 「保存」ボタンを押す | `prefix` と `description` が更新される（URI は送信されない） |
+| 14 | experiment_admin | 再度「編集」→ 説明を変更 → 「キャンセル」を押す | 変更が破棄され、元の値に戻る |
 
-#### ステップ 5：検索・絞り込み
-
-| # | ロール | 操作 | 期待結果 |
-|---|--------|------|---------|
-| 17 | experiment_admin | 検索欄に `test` と入力する | Prefix 列・URI 列・説明列に `test` を含む行のみ絞り込まれて表示される |
-| 18 | experiment_admin | 検索欄をクリアする | 全 Prefix が再表示される |
-
-#### ステップ 6：CSV エクスポート
+#### ステップ 5：Prefix の非アクティブ化
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 19 | experiment_admin | 「エクスポート」ボタンを押す | `prefixes.csv` がダウンロードされる（選択行対象） |
-| 20 | — | ダウンロードした CSV を確認する | ヘッダー: `prefix,uri,description`、BOM 付き UTF-8 で全 Prefix が含まれている |
+| 15 | experiment_admin | `test-pfx` 行の「非アクティブ」ボタンを押す | 確認ダイアログが表示される |
+| 16 | experiment_admin | 確認ダイアログで「キャンセル」を選択する | 操作がキャンセルされ、Prefix はアクティブのまま |
+| 17 | experiment_admin | 再度「非アクティブ」ボタンを押し、確認ダイアログで確定する | `PATCH /api/v1/namespaces/:prefix/active` が呼ばれ `is_active=false` に更新される。一覧から `test-pfx` が非表示になる |
 
-#### ステップ 7：CSV インポート
+#### ステップ 6：検索・絞り込み
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 21 | experiment_admin | 「インポート」ボタンを押す | ファイル選択ダイアログが開く |
-| 22 | experiment_admin | `prefix,uri,description` ヘッダーを含む CSV を選択する | Prefix が一括登録される（ヘッダー行はスキップ、prefix/uri が空の行もスキップ） |
+| 18 | experiment_admin | 検索欄に `test` と入力する | Prefix 列・URI 列・説明列に `test` を含む行のみ絞り込まれて表示される |
+| 19 | experiment_admin | 検索欄をクリアする | 全 Prefix が再表示される |
+
+#### ステップ 7：CSV エクスポート
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 20 | experiment_admin | 「エクスポート」ボタンを押す | `prefixes.csv` がダウンロードされる（選択行対象） |
+| 21 | — | ダウンロードした CSV を確認する | ヘッダー: `prefix,uri,description`、BOM 付き UTF-8 で全 Prefix が含まれている |
+
+#### ステップ 8：CSV インポート
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 22 | experiment_admin | 「インポート」ボタンを押す | ファイル選択ダイアログが開く |
+| 23 | experiment_admin | `prefix,uri,description` ヘッダーを含む CSV を選択する | Prefix が一括登録される（ヘッダー行はスキップ、prefix/uri が空の行もスキップ） |
 
 ### 確認ポイント
 
 - [ ] 新規追加行は黄色背景（`#fffbe6`）で表示される
+- [ ] 「＋ prefix追加」押下時に URI が自動生成・disabled 表示される（手動入力不可）
+- [ ] 操作列に「非アクティブ」ボタンが表示される
+- [ ] 非アクティブ化後は `is_active=false` に更新され一覧から非表示になる（物理削除ではない）
+- [ ] 編集モードで `prefix`・`description` のみ編集可。URI は編集不可
 - [ ] 「保存」「キャンセル」ボタンは新規入力行がない場合は非活性
 - [ ] 重複保存時は `Modal.confirm`（`WarningOutlined`）が表示され、OK で強行登録・キャンセルで中止
 - [ ] エクスポートは選択行のみ、BOM 付き UTF-8 の `prefixes.csv`
@@ -721,7 +734,7 @@ prefix の非アクティブ化時に影響ファイルへの警告が表示さ�
 |-----------|---------|-----------|----------|
 | B-NS-01 | ユーザ登録時の個人名前空間自動生成 | system_admin | 未実施 |
 | B-NS-02 | グローバル名前空間宣言の閲覧・インポート・エクスポート | provider | 未実施 |
-| B-NS-03 | Prefixの登録・編集・削除・CSVエクスポート | experiment_admin / experiment_worker | 未実施 |
+| B-NS-03 | Prefixの登録・編集・非アクティブ化・CSVエクスポート | experiment_admin / experiment_worker | 未実施 |
 | B-NS-04 | 用語の登録・編集・有効無効切替・CSVエクスポート | experiment_admin / experiment_worker | 未実施 |
 | B-NS-05 | チーム追加と名前空間URI自動採番 | experiment_admin | 未実施 |
 | B-NS-06 | 用語登録・編集・重複チェック | experiment_admin | 未実施 |
