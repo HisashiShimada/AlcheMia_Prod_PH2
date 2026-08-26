@@ -214,6 +214,8 @@ export interface ExperimentDataRecord {
  */
 export interface SaveBatchExperimentDataRequest {
   records: ExperimentDataRecord[];
+  /** 記録済みフラグ更新対象のトランジションID（省略可） */
+  transitionId?: string;
 }
 
 /**

@@ -44,15 +44,12 @@ import {
   Spin,
   Table,
   Tag,
-  Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined,
   CloseOutlined,
   FileTextOutlined,
-  ImportOutlined,
-  ExportOutlined,
 } from '@ant-design/icons';
 import {
   DndContext,
@@ -129,9 +126,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
 }) => {
   const { token } = useToken();
   const { message } = App.useApp();
-
-  // --- インポート用隠しinput ref ---
-  const importInputRef = useRef<HTMLInputElement>(null);
 
   /**
    * methodId 変更専用 Effect の初回マウント時スキップ用 Ref
@@ -520,54 +514,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     [updateCurrentTabData]
   );
 
-  // --- インポートハンドラ ---
-  const handleImport = useCallback(() => {
-    importInputRef.current?.click();
-  }, []);
-
-  const handleImportFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const json = JSON.parse(event.target?.result as string);
-          if (json.tabDataMap) {
-            setTabDataMap(json.tabDataMap);
-          }
-          message.success(t('experimentPlan.importSuccess'));
-        } catch {
-          message.error(t('experimentPlan.jsonParseFailed'));
-        }
-      };
-      reader.readAsText(file);
-      // 同一ファイルを再選択できるようにリセット
-      e.target.value = '';
-    },
-    [message]
-  );
-
-  // --- エクスポートハンドラ ---
-  const handleExport = useCallback(() => {
-    const exportData = {
-      methodId,
-      projectId,
-      selectedTransitionId,
-      tabDataMap,
-      customProps,
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `experiment-plan_${methodId}_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    message.success(t('experimentPlan.exportSuccess'));
-  }, [methodId, projectId, selectedTransitionId, tabDataMap, customProps, message]);
-
   // --- Ref操作ハンドラ ---
 
   const handleAddRef = useCallback(
@@ -802,35 +748,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
       style={{ maxWidth: 1600, top: 24 }}
       styles={{ body: { padding: `${token.paddingSM}px ${token.paddingMD}px`, overflowX: 'hidden' } }}
       footer={[
-        /* 隠しinput（インポート用） */
-        <input
-          key="import-input"
-          ref={importInputRef}
-          type="file"
-          accept=".json"
-          style={{ display: 'none' }}
-          onChange={handleImportFileChange}
-        />,
-        <Tooltip key="import-tooltip" title="JSONファイルから設定を読み込む">
-          <Button
-            key="import"
-            icon={<ImportOutlined />}
-            onClick={handleImport}
-            disabled={isSaving}
-          >
-            インポート
-          </Button>
-        </Tooltip>,
-        <Tooltip key="export-tooltip" title="現在の設定をJSONファイルに書き出す">
-          <Button
-            key="export"
-            icon={<ExportOutlined />}
-            onClick={handleExport}
-            disabled={isSaving}
-          >
-            エクスポート
-          </Button>
-        </Tooltip>,
         <Button key="cancel" onClick={onClose} disabled={isSaving}>
           キャンセル
         </Button>,

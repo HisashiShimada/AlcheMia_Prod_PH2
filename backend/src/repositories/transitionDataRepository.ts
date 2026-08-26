@@ -21,6 +21,8 @@ export interface TransitionDataRow {
   transition_id: string;
   status: TransitionStatus; // 数値型（0-6）
   progress_rate: number;
+  /** 記録済みフラグ（TRUE=記録済み、FALSE=未記録） */
+  is_recorded: boolean;
   update_user_id: string;
   update_at: Date;
   create_at: Date;
@@ -396,6 +398,49 @@ export class TransitionDataRepository {
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while finding transition by id for update',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * 記録済みフラグを更新
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param taskNo - タスク番号
+   * @param transitionId - トランジションID
+   * @param isRecorded - 記録済みフラグ値
+   * @param updatedBy - 更新者ユーザーID
+   * @param client - トランザクション用PoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async updateIsRecorded(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    transitionId: string,
+    isRecorded: boolean,
+    updatedBy: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('transition_data/updateIsRecorded.sql');
+      const params = [
+        isRecorded,
+        updatedBy,
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId,
+      ];
+      await client.query(query, params);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while updating is_recorded flag',
         error as Error
       );
     }

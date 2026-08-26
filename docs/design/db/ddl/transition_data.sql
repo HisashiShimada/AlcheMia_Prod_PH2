@@ -1,7 +1,7 @@
 -- ===================================================================
 -- テーブル名: transition_data (トランジション実績・順序)
 -- 説明: トランジションの実績データおよびManagerが設定した実行順序を管理するテーブル
--- バージョン: 4.0 (2026-06-26)
+-- バージョン: 5.0 (2026-08-25)
 -- 変更履歴:
 --   2.0 (2026-02-03): 初版作成
 --   3.0 (2026-06-17): work_order カラム追加（トランジション作業順序管理）
@@ -9,6 +9,8 @@
 --   4.0 (2026-06-26): prerequisite_transition_ids カラム追加（前提条件管理）
 --                     is_order_fixed を不要として除外（統合マイグレーションファイルに反映）
 --                     マイグレーション: backend/migrations/20260617_update_transition_data.sql
+--   5.0 (2026-08-25): is_recorded カラム追加（記録済みフラグ）
+--                     マイグレーション: backend/migrations/20260825_add_is_recorded_to_transition_data.sql
 --
 -- task_no の用途:
 --   task_no = 0  → 順序管理行（Manager が ExperimentPlanDialog で設定）
@@ -39,6 +41,9 @@ CREATE TABLE transition_data (
 
     -- 前提条件（このトランジションを開始するために完了が必要なトランジションIDの配列）
     prerequisite_transition_ids TEXT[] NOT NULL DEFAULT '{}',
+
+    -- 記録済みフラグ
+    is_recorded BOOLEAN NOT NULL DEFAULT FALSE,
     
     -- 監査証跡
     create_user_id VARCHAR(50),
@@ -63,6 +68,7 @@ COMMENT ON COLUMN transition_data.status IS 'ステータス（Worker作業実�
 COMMENT ON COLUMN transition_data.progress_rate IS '進捗率（Worker作業実績、task_no=0はNULL）';
 COMMENT ON COLUMN transition_data.work_order IS 'トランジションの作業順序（1,2,3...）NOT NULL。Manager が ExperimentPlanDialog で設定。task_no=0 の行を正として扱う';
 COMMENT ON COLUMN transition_data.prerequisite_transition_ids IS '前提となるトランジションIDの配列。これらが全て completed になるまでこのトランジションは開始不可。空配列の場合は依存なし（いつでも開始可能）。';
+COMMENT ON COLUMN transition_data.is_recorded IS '記録済みフラグ（TRUE=記録済み、FALSE=未記録）';
 COMMENT ON COLUMN transition_data.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN transition_data.create_at IS '作成日時';
 COMMENT ON COLUMN transition_data.update_user_id IS '更新者ユーザID';

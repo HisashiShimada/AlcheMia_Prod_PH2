@@ -9,6 +9,7 @@ SELECT
   td.transition_id,
   td.status,
   td.progress_rate,
+  td.is_recorded,
   td.update_user_id,
   ou.user_name AS worker_name,
   td.create_at,

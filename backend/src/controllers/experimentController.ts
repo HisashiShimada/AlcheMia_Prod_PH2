@@ -138,6 +138,8 @@ export const saveBatchData = async (
         insertions?: Array<{ uri: string; hash?: { value?: string }; format?: string; isCustomProperty?: boolean }>;
       };
     }>;
+    /** 記録済みフラグ更新対象のトランジションID（省略可） */
+    const transitionId = req.body.transitionId as string | undefined;
 
     // 認証・認可情報の取得
     const organizationId = (req as any).organizationId;
@@ -189,7 +191,8 @@ export const saveBatchData = async (
       methodId,
       taskNoNum,
       records,
-      recordedBy
+      recordedBy,
+      transitionId
     );
 
     // 成功レスポンスを返す（201 Created）

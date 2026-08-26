@@ -63,6 +63,7 @@ export class ExperimentDataService {
    * @param taskNo タスク番号
    * @param records 保存するレコード配列
    * @param recordedBy 記録者のユーザーID
+   * @param transitionId 記録済みフラグ更新対象のトランジションID（省略可）
    * @returns 保存されたレコード配列
    */
   async saveBatchData(
@@ -71,7 +72,8 @@ export class ExperimentDataService {
     methodId: string,
     taskNo: number,
     records: TemplateDataRecord[],
-    recordedBy: string
+    recordedBy: string,
+    transitionId?: string
   ): Promise<TemplateDataRow[]> {
     const pool = getPool();
     const client = await pool.connect();
@@ -144,6 +146,21 @@ export class ExperimentDataService {
         pool,
         client
       );
+
+      // 5. 記録済みフラグの更新（transitionId が指定されている場合のみ）
+      if (transitionId) {
+        const transitionDataRepository = new TransitionDataRepository();
+        await transitionDataRepository.updateIsRecorded(
+          organizationId,
+          projectId,
+          methodId,
+          taskNo,
+          transitionId,
+          true,
+          recordedBy,
+          client
+        );
+      }
 
       // トランザクションコミット
       await client.query('COMMIT');
@@ -920,8 +937,9 @@ export async function saveBatchData(
   methodId: string,
   taskNo: number,
   records: TemplateDataRecord[],
-  recordedBy: string
+  recordedBy: string,
+  transitionId?: string
 ): Promise<TemplateDataRow[]> {
   const service = new ExperimentDataService();
-  return service.saveBatchData(organizationId, projectName, methodId, taskNo, records, recordedBy);
+  return service.saveBatchData(organizationId, projectId, methodId, taskNo, records, recordedBy, transitionId);
 }

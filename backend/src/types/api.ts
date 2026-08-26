@@ -961,6 +961,10 @@ export interface CreateTermBody {
   description?: string;
   typeHint?: string;
   unitHint?: string;
+  /** true のとき SupervisorDirective{localName} の指示用語を同時登録する */
+  createDirectiveTerm?: boolean;
+  /** 左ツリーで選択中のスコープキー（organization_group_cd または userId）。指定時は正しい namespace_id を特定するために使用 */
+  scopeKey?: string;
 }
 
 /**
