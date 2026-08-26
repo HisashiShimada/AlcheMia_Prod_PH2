@@ -39,7 +39,7 @@ import {
   message,
   theme,
 } from 'antd';
-import { BorderOutlined, CaretRightOutlined, CommentOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, InfoCircleOutlined, PlusOutlined, RightOutlined, SaveOutlined, SearchOutlined, StepForwardOutlined, WarningOutlined } from '@ant-design/icons';
+import { BorderOutlined, CaretRightOutlined, CommentOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, PlusOutlined, RightOutlined, SaveOutlined, SearchOutlined, StepForwardOutlined, WarningOutlined } from '@ant-design/icons';
 import ExperimentCommentDialog from './ExperimentCommentDialog';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
@@ -157,6 +157,8 @@ interface TaskTransitionState {
   customInsertionIds: string[];
   /** ユーザーが「+ Content追加」で追加したカスタムContentのID一覧 */
   customContentIds: string[];
+  /** ユーザーが「+ プロパティを追加」で追加したカスタムPropertyのID一覧 */
+  customPropertyIds: string[];
 }
 
 export interface MockTask {
@@ -239,7 +241,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   const confidenceOptions = prop.confidenceOptions ?? DEFAULT_CONFIDENCE_OPTIONS;
   const [confidence, setConfidence] = useState<string | null>(prop.defaultConfidence ?? null);
   /** ＋値の追加ボタンで追加された不確かさ評価行 */
-  const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>([]);
+  const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>([
+    { id: 'initial', uncertaintyKey: '', value: '' },
+  ]);
 
   /** 行を追加する */
   const handleAddValue = () => {
@@ -426,6 +430,34 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
       )}
 
+      {/* 定量評価（不確かさ基準 + 値の追加行） */}
+      {!readOnly && (
+        <div>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
+            {t('workRecord.quantitativeEval')}
+          </Text>
+          {addedValues.map((av) => (
+            <Flex key={av.id} gap={4} align="center" style={{ marginBottom: 4 }}>
+              <Select
+                size="small"
+                style={{ flex: 6, minWidth: 0 }}
+                placeholder={t('workRecord.quantitativeEvalPlaceholder')}
+                value={av.uncertaintyKey || undefined}
+                onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
+                options={uncertaintyOptionsCache}
+              />
+              <Input
+                size="small"
+                style={{ flex: 4, minWidth: 0 }}
+                placeholder={t('workRecord.valuePlaceholder')}
+                value={av.value}
+                onChange={(e) => handleValueChange(av.id, e.target.value)}
+              />
+            </Flex>
+          ))}
+        </div>
+      )}
+
     </Flex>
 
   </Card>
@@ -462,6 +494,10 @@ interface PropertyListProps {
   onContentAdd?: (taskNo: number, transitionId: string) => void;
   /** カスタムContentスロット削除ボタン押下時 */
   onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
+  /** カスタムProperty追加ボタン押下時 */
+  onPropertyAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムPropertyカード削除ボタン押下時 */
+  onPropertyRemove?: (taskNo: number, transitionId: string, propertyId: string) => void;
   /** ペトリネットビューアを開くコールバック */
   onOpenViewer?: () => void;
   /** ペトリネットビューアローディング中フラグ */
@@ -496,6 +532,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onInsertionRemove,
   onContentAdd,
   onContentRemove,
+  onPropertyAdd,
+  onPropertyRemove,
   onOpenViewer,
   viewerLoading,
   onInsertionUploadReady,
@@ -553,12 +591,58 @@ const PropertyList: React.FC<PropertyListProps> = ({
             />
           </Col>
         ))}
+        {/* ── カスタムPropertyカード（ユーザーが追加したもの・同グリッドに混在） ── */}
+        {taskTransition?.customPropertyIds?.map((pid) => {
+          const actualValue = taskTransition.actuals[`property_custom_${pid}`] ?? null;
+          const customProp: MockProperty = {
+            key: `custom_${pid}`,
+            label: t('workRecord.customPropertyLabel'),
+            xsiType: 'StringValue',
+            unit: '',
+            expected: null,
+          };
+          return (
+            <Col span={8} key={pid}>
+              <div
+                style={{
+                  border: '1px dashed #87e8de',
+                  borderRadius: 4,
+                  background: '#e6fffb',
+                  position: 'relative',
+                }}
+              >
+                {!isReadOnly && (
+                  <Button
+                    type="text"
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    onClick={() => {
+                      if (displayKey) onPropertyRemove?.(displayKey.taskNo, displayKey.transitionId, pid);
+                    }}
+                    style={{ position: 'absolute', top: 2, right: 2, padding: '0 4px', height: 20, zIndex: 1 }}
+                  />
+                )}
+                <PropertyCard
+                  prop={customProp}
+                  actual={typeof actualValue === 'string' || actualValue === null ? actualValue : null}
+                  readOnly={isReadOnly}
+                  onChange={(key, value) => {
+                    if (displayKey) onActualChange(displayKey.taskNo, displayKey.transitionId, `property_custom_${pid}`, value);
+                  }}
+                />
+              </div>
+            </Col>
+          );
+        })}
       </Row>
 
       {/* 追加ボタン群（DataRecordDialog 準拠） */}
       {!isReadOnly && (
         <Flex gap={8} style={{ marginTop: 8, flexWrap: 'wrap' }}>
-          <Button size="small" icon={<PlusOutlined />} onClick={() => {}}>
+          <Button size="small" icon={<PlusOutlined />} onClick={() => {
+              if (displayKey) onPropertyAdd?.(displayKey.taskNo, displayKey.transitionId);
+            }}>
             {t('workRecord.addProperty')}
           </Button>
           <Button
@@ -726,7 +810,6 @@ const PropertyList: React.FC<PropertyListProps> = ({
           })}
         </div>
       )}
-
       {/* ペトリネットビューアボタン（readOnly に関わらず常に表示） */}
       <Flex justify="flex-end" style={{ marginTop: isReadOnly ? 12 : 4, paddingBottom: 8 }}>
         <Button
@@ -767,6 +850,8 @@ interface WorkHeaderProps {
   onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
   /** 作業指示ボタン押下コールバック */
   onInstructionClick?: () => void;
+  /** Insertion アップロード準備完了コールバック */
+  onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
 }
 
 const WorkHeader: React.FC<WorkHeaderProps> = ({
@@ -897,15 +982,6 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
           onClick={onStateRecord}
         >
           {t('workRecord.stateRecordButton')}
-        </Button>
-        <Divider type="vertical" style={{ margin: '0 4px' }} />
-        <Button
-          size="small"
-          type="default"
-          icon={<InfoCircleOutlined />}
-          onClick={onInstructionClick}
-        >
-          {t('experimentWork.instructionButton')}
         </Button>
       </Flex>
 
@@ -1080,6 +1156,10 @@ interface PlanProps {
   onContentAdd?: (taskNo: number, transitionId: string) => void;
   /** カスタムContent削除 */
   onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
+  /** カスタムProperty追加 */
+  onPropertyAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムProperty削除 */
+  onPropertyRemove?: (taskNo: number, transitionId: string, propertyId: string) => void;
   /** ファイルアップロード先パス（指定時にファイル選択・DnDでアップロード確認ダイアログを表示） */
   uploadTargetPath?: string;
   /** ペトリネットビューアを開くコールバック */
@@ -1117,6 +1197,8 @@ interface PlanProps {
   onStateRecord?: () => void;
   /** 作業指示ボタン押下コールバック */
   onInstructionClick?: () => void;
+  /** Insertion アップロード準備完了コールバック */
+  onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1125,24 +1207,33 @@ interface PlanProps {
 
 const PlanA: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onConfirmInstruction,
-  progressRows, onStateRecord,
+  progressRows, onStateRecord, onStart, onEnd, onForceEnd,
 }) => {
   const [templateIdx, setTemplateIdx] = useState(0);
 
   const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
     // progressRows がある場合: API の実トランジションIDを優先使用
     if (progressRows && progressRows.length > 0) {
-      // 1. activeTaskNo の in_progress/ready/preparing を優先
-      const activeRow = progressRows.find(
-        (r) => r.taskNo === activeTaskNo && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-      )
-        // 2. 全体の in_progress/ready/preparing
-        ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-        // 3. activeTaskNo の not_started（未着手でもカードを表示）
-        ?? progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
-        // 4. 全体の not_started
+      // 優先順位: 動作状態(in_progress) > 準備完了状態(ready) > 準備状態(preparing)
+      // 同一ステータス内では order 昇順（若い順）を優先する
+      const statusPriority: Record<string, number> = { 'in_progress': 1, 'ready': 2, 'preparing': 3 };
+      const activeStatusRows = progressRows
+        .filter((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+        .sort((a, b) => {
+          const pA = statusPriority[a.status] ?? 99;
+          const pB = statusPriority[b.status] ?? 99;
+          if (pA !== pB) return pA - pB;
+          return (a.order ?? 0) - (b.order ?? 0);
+        });
+      const activeTaskRow = activeStatusRows.find((r) => r.taskNo === activeTaskNo);
+      if (activeTaskRow) return { taskNo: activeTaskRow.taskNo, transitionId: activeTaskRow.transitionId };
+      if (activeStatusRows.length > 0) {
+        const row = activeStatusRows[0];
+        return { taskNo: row.taskNo, transitionId: row.transitionId };
+      }
+      const notStartedRow = progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
         ?? progressRows.find((r) => r.status === 'not_started');
-      if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      if (notStartedRow) return { taskNo: notStartedRow.taskNo, transitionId: notStartedRow.transitionId };
       return null;
     }
     // progressRows がない場合: task.transitions の順序でフォールバック
@@ -1170,6 +1261,9 @@ const PlanA: React.FC<PlanProps> = ({
       <WorkHeader
         displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
+        onStart={onStart}
+        onEnd={onEnd}
+        onForceEnd={onForceEnd}
         onStateRecord={onStateRecord}
       />
 
@@ -1220,7 +1314,7 @@ const PlanA: React.FC<PlanProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath, onOpenViewer, viewerLoading,
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, onPropertyAdd, onPropertyRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
   progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onInstructionClick,
@@ -1240,17 +1334,31 @@ const PlanB: React.FC<PlanProps> = ({
   const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
     // progressRows がある場合: API の実トランジションIDを優先使用
     if (progressRows && progressRows.length > 0) {
-      // 1. activeTaskNo の in_progress/ready/preparing を優先
-      const activeRow = progressRows.find(
-        (r) => r.taskNo === activeTaskNo && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-      )
-        // 2. 全体の in_progress/ready/preparing
-        ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-        // 3. activeTaskNo の not_started（未着手でもカードを表示）
-        ?? progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
+      // 優先順位: 動作状態(in_progress) > 準備完了状態(ready) > 準備状態(preparing)
+      // 同一ステータス内では order 昇順（若い順）を優先する
+      const statusPriority: Record<string, number> = { 'in_progress': 1, 'ready': 2, 'preparing': 3 };
+      const activeStatusRows = progressRows
+        .filter((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
+        .sort((a, b) => {
+          const pA = statusPriority[a.status] ?? 99;
+          const pB = statusPriority[b.status] ?? 99;
+          if (pA !== pB) return pA - pB;
+          // 同一ステータスは order 昇順（若い順）
+          return (a.order ?? 0) - (b.order ?? 0);
+        });
+      // 1. activeTaskNo のステータス優先行を先に探す
+      const activeTaskRow = activeStatusRows.find((r) => r.taskNo === activeTaskNo);
+      if (activeTaskRow) return { taskNo: activeTaskRow.taskNo, transitionId: activeTaskRow.transitionId };
+      // 2. 全体でステータス優先行を探す
+      if (activeStatusRows.length > 0) {
+        const row = activeStatusRows[0];
+        return { taskNo: row.taskNo, transitionId: row.transitionId };
+      }
+      // 3. activeTaskNo の not_started（未着手でもカードを表示）
+      const notStartedRow = progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
         // 4. 全体の not_started
         ?? progressRows.find((r) => r.status === 'not_started');
-      if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      if (notStartedRow) return { taskNo: notStartedRow.taskNo, transitionId: notStartedRow.transitionId };
       return null;
     }
     // progressRows がない場合: task.transitions の順序でフォールバック
@@ -1308,6 +1416,9 @@ const PlanB: React.FC<PlanProps> = ({
       <WorkHeader
         displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
+        onStart={onStart}
+        onEnd={onEnd}
+        onForceEnd={onForceEnd}
         onStateRecord={onStateRecord}
         onInstructionClick={onInstructionClick}
       />
@@ -1356,7 +1467,16 @@ const PlanB: React.FC<PlanProps> = ({
             {/* 右側: 保存 / 次へ / コメント / スキップ（編集時のみ表示） */}
             {!isReadOnly && (() => {
               const nextBtnLabel = t('workRecord.transitionCompleteNext');
-              const canSkipFlag = findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null;
+              // スキップボタン活性条件:
+              // 1. 次に移動可能なトランジションが存在する
+              // 2. 現在のトランジションが動作状態（in_progress）でない
+              //    動作状態: 非活性 / 休止・準備・準備完了状態: 活性
+              const hasNextTransition = findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null;
+              const currentProgressRow = progressRows?.find(
+                (r) => r.taskNo === displayKey.taskNo && r.transitionId === displayKey.transitionId
+              );
+              const isInProgress = currentProgressRow?.status === 'in_progress';
+              const canSkipFlag = hasNextTransition && !isInProgress;
               const handleSaveAndNextInner = () => {
                 const nextTemplateIdx = safeIdx + 1;
                 if (nextTemplateIdx < visibleTemplates.length) {
@@ -1567,6 +1687,8 @@ const PlanB: React.FC<PlanProps> = ({
             onInsertionRemove={onInsertionRemove}
             onContentAdd={onContentAdd}
             onContentRemove={onContentRemove}
+            onPropertyAdd={onPropertyAdd}
+            onPropertyRemove={onPropertyRemove}
             uploadTargetPath={uploadTargetPath}
             onOpenViewer={onOpenViewer}
             viewerLoading={viewerLoading}
@@ -1861,6 +1983,7 @@ export default function WorkRecordPanel({
                 actuals: hasExistingActuals ? existing!.actuals : apiActuals,
                 customInsertionIds: existing?.customInsertionIds ?? [],
                 customContentIds: existing?.customContentIds ?? [],
+                customPropertyIds: existing?.customPropertyIds ?? [],
               };
             });
             return { taskNo, transitions };
@@ -2091,7 +2214,7 @@ export default function WorkRecordPanel({
         };
       });
 
-      await saveBatchExperimentData(projectId, methodId, taskNo, { records });
+      await saveBatchExperimentData(projectId, methodId, taskNo, { records, transitionId });
       Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
     } catch (err) {
       console.error('[WorkRecordPanel] handleSave error:', err);
@@ -2137,7 +2260,7 @@ export default function WorkRecordPanel({
                 data: baseData,
               };
             });
-            await saveBatchExperimentData(projectId, methodId, taskNo, { records });
+            await saveBatchExperimentData(projectId, methodId, taskNo, { records, transitionId });
           } catch (err) {
             console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
             message.error(t('workRecord.saveContent'));
@@ -2308,6 +2431,50 @@ export default function WorkRecordPanel({
     []
   );
 
+  // ─── カスタムProperty追加/削除 ───────────────────────────
+  const handlePropertyAdd = useCallback(
+    (taskNo: number, transitionId: string) => {
+      const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              return { ...tt, customPropertyIds: [...tt.customPropertyIds, newId] };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handlePropertyRemove = useCallback(
+    (taskNo: number, transitionId: string, propertyId: string) => {
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              const nextActuals = { ...tt.actuals };
+              delete nextActuals[`property_custom_${propertyId}`];
+              return {
+                ...tt,
+                customPropertyIds: tt.customPropertyIds.filter((id) => id !== propertyId),
+                actuals: nextActuals,
+              };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
   // ─── 状態記録ダイアログ用 state ──────────────────────────
   const [stateRecordDialogOpen, setStateRecordDialogOpen] = useState(false);
 
@@ -2376,6 +2543,8 @@ export default function WorkRecordPanel({
     onInsertionRemove: handleInsertionRemove,
     onContentAdd: handleContentAdd,
     onContentRemove: handleContentRemove,
+    onPropertyAdd: handlePropertyAdd,
+    onPropertyRemove: handlePropertyRemove,
     uploadTargetPath: projectName ? `projects/${projectName}/attachments` : undefined,
     onOpenViewer: projectId ? handleOpenPetriNetViewer : undefined,
     viewerLoading: petriNetViewerLoading,

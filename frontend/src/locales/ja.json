@@ -78,6 +78,7 @@
     "commentSaved": "コメントを保存しました",
     "commentSaveMock": "コメント保存（モック）",
     "addProperty": "プロパティを追加",
+    "customPropertyLabel": "カスタムプロパティ",
     "petriNetViewer": "ペトリネットを表示",
     "creatorPlaceholder": "Creatorを選択",
     "instrumentPlaceholder": "Instrumentを選択",
