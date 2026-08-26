@@ -341,5 +341,5 @@
 - `en.json` に同3セクションの英語翻訳を追加
 
 ### 最終的な成果物
-- [x] `frontend/src/locales/ja.json` — 3セクション追加完了
-- [x] `frontend/src/locales/en.json` — 3セクション追加完了（英語翻訳）
+- [x] `frontend/src/locales/ja.json` — 6セクション追加完了（namespaceMain・prefixManagement・namespaceDetail・namespaceAdd・duplicateSuggestModal・shareScopeModal）
+- [x] `frontend/src/locales/en.json` — 同6セクション英語翻訳追加完了
