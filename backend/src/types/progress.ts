@@ -55,6 +55,9 @@ export interface TransitionProgress {
    * PetriNet のアーク構造から算出: 入力プレースに出力している他トランジションのID
    */
   prerequisite_transition_ids: string[];
+
+  /** 記録済みフラグ（TRUE=記録済み、FALSE=未記録） */
+  is_recorded: boolean;
 }
 
 /**
