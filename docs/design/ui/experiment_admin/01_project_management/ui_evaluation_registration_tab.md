@@ -38,7 +38,7 @@
 3. 「評価を入力」ボタンから `InputModal` を開いて評価を登録
 4. プロジェクトメソッドを自律的にAPIから取得（`getProjectMethods`）
 
-> ⚠️ **[2026-08-25 更新]**: 不確かさ基準を自律的にAPIから取得する処理（`fetchUncertaintyCriteriaForSelector`）を廃止。評価値選択肢は固定値「良好」「要確認」「不要」を直接使用する仕様に変更。
+> ⚠️ **[2026-08-25 更新]**: 不確かさ基準を自律的にAPIから取得する処理（`fetchUncertaintyCriteriaForSelector`）を廃止。評価値選択肢は固定値「良好」「要確認」「不良」を直接使用する仕様に変更。
 
 ---
 
@@ -120,14 +120,14 @@ const isLocked = !isEditable || isProjectCompleted || isCheckoutLocked;
 `EvaluationDialog` の `InputModal` と同一の実装を内包。
 評価単位・評価値・コメントを入力し、`saveEvaluations` API で保存。
 
-> ⚠️ **[2026-08-25 更新]**: 評価値の選択肢は不確かさ基準の `intuitionOptions` から動的生成する方式を廃止し、固定値「**良好**」「**要確認**」「**不要**」の3択に変更。
+> ⚠️ **[2026-08-25 更新]**: 評価値の選択肢は不確かさ基準の `intuitionOptions` から動的生成する方式を廃止し、固定値「**良好**」「**要確認**」「**不良**」の3択に変更。
 
 ```typescript
 // 固定評価値選択肢
 const EVAL_VALUE_OPTIONS = [
   { label: '良好', value: '良好' },
   { label: '要確認', value: '要確認' },
-  { label: '不要', value: '不要' },
+  { label: '不良', value: '不良' },
 ];
 ```
 
@@ -144,5 +144,5 @@ const EVAL_VALUE_OPTIONS = [
 
 | 日付 | バージョン | 変更内容 | 担当者 |
 |------|-----------|----------|--------|
-| 2026-08-25 | 1.1.0 | §1.3: 「不確かさ基準」フィルタ削除・主要機能から `fetchUncertaintyCriteriaForSelector` 取得を廃止。§4: データ取得表から不確かさ基準一覧を削除。§5: レイアウトから「不確かさ基準 [絞り込み ▼]」フィルタを削除。§6: 評価値選択肢を動的生成→固定値「良好/要確認/不要」に変更。 | Cline |
+| 2026-08-25 | 1.1.0 | §1.3: 「不確かさ基準」フィルタ削除・主要機能から `fetchUncertaintyCriteriaForSelector` 取得を廃止。§4: データ取得表から不確かさ基準一覧を削除。§5: レイアウトから「不確かさ基準 [絞り込み ▼]」フィルタを削除。§6: 評価値選択肢を動的生成→固定値「良好/要確認/不良」に変更。 | Cline |
 | 2026-08-14 | 1.0.0 | 初版作成 | Development Team |
