@@ -3464,6 +3464,7 @@
     "templateKind": "Template type",
     "valuePlaceholder": "Value",
     "addProperty": "Add property",
+    "customPropertyLabel": "Custom Property",
     "addContent": "Add Content",
     "addInsertion": "Add Insertion",
     "projectInstructions": "Project Instructions",

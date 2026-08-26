@@ -157,6 +157,8 @@ interface TaskTransitionState {
   customInsertionIds: string[];
   /** ユーザーが「+ Content追加」で追加したカスタムContentのID一覧 */
   customContentIds: string[];
+  /** ユーザーが「+ プロパティを追加」で追加したカスタムPropertyのID一覧 */
+  customPropertyIds: string[];
 }
 
 export interface MockTask {
@@ -492,6 +494,10 @@ interface PropertyListProps {
   onContentAdd?: (taskNo: number, transitionId: string) => void;
   /** カスタムContentスロット削除ボタン押下時 */
   onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
+  /** カスタムProperty追加ボタン押下時 */
+  onPropertyAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムPropertyカード削除ボタン押下時 */
+  onPropertyRemove?: (taskNo: number, transitionId: string, propertyId: string) => void;
   /** ペトリネットビューアを開くコールバック */
   onOpenViewer?: () => void;
   /** ペトリネットビューアローディング中フラグ */
@@ -526,6 +532,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onInsertionRemove,
   onContentAdd,
   onContentRemove,
+  onPropertyAdd,
+  onPropertyRemove,
   onOpenViewer,
   viewerLoading,
   onInsertionUploadReady,
@@ -583,12 +591,58 @@ const PropertyList: React.FC<PropertyListProps> = ({
             />
           </Col>
         ))}
+        {/* ── カスタムPropertyカード（ユーザーが追加したもの・同グリッドに混在） ── */}
+        {taskTransition?.customPropertyIds?.map((pid) => {
+          const actualValue = taskTransition.actuals[`property_custom_${pid}`] ?? null;
+          const customProp: MockProperty = {
+            key: `custom_${pid}`,
+            label: t('workRecord.customPropertyLabel'),
+            xsiType: 'StringValue',
+            unit: '',
+            expected: null,
+          };
+          return (
+            <Col span={8} key={pid}>
+              <div
+                style={{
+                  border: '1px dashed #87e8de',
+                  borderRadius: 4,
+                  background: '#e6fffb',
+                  position: 'relative',
+                }}
+              >
+                {!isReadOnly && (
+                  <Button
+                    type="text"
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    onClick={() => {
+                      if (displayKey) onPropertyRemove?.(displayKey.taskNo, displayKey.transitionId, pid);
+                    }}
+                    style={{ position: 'absolute', top: 2, right: 2, padding: '0 4px', height: 20, zIndex: 1 }}
+                  />
+                )}
+                <PropertyCard
+                  prop={customProp}
+                  actual={typeof actualValue === 'string' || actualValue === null ? actualValue : null}
+                  readOnly={isReadOnly}
+                  onChange={(key, value) => {
+                    if (displayKey) onActualChange(displayKey.taskNo, displayKey.transitionId, `property_custom_${pid}`, value);
+                  }}
+                />
+              </div>
+            </Col>
+          );
+        })}
       </Row>
 
       {/* 追加ボタン群（DataRecordDialog 準拠） */}
       {!isReadOnly && (
         <Flex gap={8} style={{ marginTop: 8, flexWrap: 'wrap' }}>
-          <Button size="small" icon={<PlusOutlined />} onClick={() => {}}>
+          <Button size="small" icon={<PlusOutlined />} onClick={() => {
+              if (displayKey) onPropertyAdd?.(displayKey.taskNo, displayKey.transitionId);
+            }}>
             {t('workRecord.addProperty')}
           </Button>
           <Button
@@ -756,7 +810,6 @@ const PropertyList: React.FC<PropertyListProps> = ({
           })}
         </div>
       )}
-
       {/* ペトリネットビューアボタン（readOnly に関わらず常に表示） */}
       <Flex justify="flex-end" style={{ marginTop: isReadOnly ? 12 : 4, paddingBottom: 8 }}>
         <Button
@@ -797,6 +850,8 @@ interface WorkHeaderProps {
   onStatusChange?: (transitionId: string, status: TransitionStatus) => void;
   /** 作業指示ボタン押下コールバック */
   onInstructionClick?: () => void;
+  /** Insertion アップロード準備完了コールバック */
+  onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
 }
 
 const WorkHeader: React.FC<WorkHeaderProps> = ({
@@ -1101,6 +1156,10 @@ interface PlanProps {
   onContentAdd?: (taskNo: number, transitionId: string) => void;
   /** カスタムContent削除 */
   onContentRemove?: (taskNo: number, transitionId: string, contentId: string) => void;
+  /** カスタムProperty追加 */
+  onPropertyAdd?: (taskNo: number, transitionId: string) => void;
+  /** カスタムProperty削除 */
+  onPropertyRemove?: (taskNo: number, transitionId: string, propertyId: string) => void;
   /** ファイルアップロード先パス（指定時にファイル選択・DnDでアップロード確認ダイアログを表示） */
   uploadTargetPath?: string;
   /** ペトリネットビューアを開くコールバック */
@@ -1138,6 +1197,8 @@ interface PlanProps {
   onStateRecord?: () => void;
   /** 作業指示ボタン押下コールバック */
   onInstructionClick?: () => void;
+  /** Insertion アップロード準備完了コールバック */
+  onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1146,7 +1207,7 @@ interface PlanProps {
 
 const PlanA: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onConfirmInstruction,
-  progressRows, onStateRecord,
+  progressRows, onStateRecord, onStart, onEnd, onForceEnd,
 }) => {
   const [templateIdx, setTemplateIdx] = useState(0);
 
@@ -1200,6 +1261,9 @@ const PlanA: React.FC<PlanProps> = ({
       <WorkHeader
         displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
+        onStart={onStart}
+        onEnd={onEnd}
+        onForceEnd={onForceEnd}
         onStateRecord={onStateRecord}
       />
 
@@ -1250,7 +1314,7 @@ const PlanA: React.FC<PlanProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PlanB: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, uploadTargetPath, onOpenViewer, viewerLoading,
+  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, onPropertyAdd, onPropertyRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
   progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onInstructionClick,
@@ -1352,6 +1416,9 @@ const PlanB: React.FC<PlanProps> = ({
       <WorkHeader
         displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
+        onStart={onStart}
+        onEnd={onEnd}
+        onForceEnd={onForceEnd}
         onStateRecord={onStateRecord}
         onInstructionClick={onInstructionClick}
       />
@@ -1620,6 +1687,8 @@ const PlanB: React.FC<PlanProps> = ({
             onInsertionRemove={onInsertionRemove}
             onContentAdd={onContentAdd}
             onContentRemove={onContentRemove}
+            onPropertyAdd={onPropertyAdd}
+            onPropertyRemove={onPropertyRemove}
             uploadTargetPath={uploadTargetPath}
             onOpenViewer={onOpenViewer}
             viewerLoading={viewerLoading}
@@ -1914,6 +1983,7 @@ export default function WorkRecordPanel({
                 actuals: hasExistingActuals ? existing!.actuals : apiActuals,
                 customInsertionIds: existing?.customInsertionIds ?? [],
                 customContentIds: existing?.customContentIds ?? [],
+                customPropertyIds: existing?.customPropertyIds ?? [],
               };
             });
             return { taskNo, transitions };
@@ -2361,6 +2431,50 @@ export default function WorkRecordPanel({
     []
   );
 
+  // ─── カスタムProperty追加/削除 ───────────────────────────
+  const handlePropertyAdd = useCallback(
+    (taskNo: number, transitionId: string) => {
+      const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              return { ...tt, customPropertyIds: [...tt.customPropertyIds, newId] };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handlePropertyRemove = useCallback(
+    (taskNo: number, transitionId: string, propertyId: string) => {
+      setTasks((prev) =>
+        prev.map((task) => {
+          if (task.taskNo !== taskNo) return task;
+          return {
+            ...task,
+            transitions: task.transitions.map((tt) => {
+              if (tt.transitionId !== transitionId) return tt;
+              const nextActuals = { ...tt.actuals };
+              delete nextActuals[`property_custom_${propertyId}`];
+              return {
+                ...tt,
+                customPropertyIds: tt.customPropertyIds.filter((id) => id !== propertyId),
+                actuals: nextActuals,
+              };
+            }),
+          };
+        })
+      );
+    },
+    []
+  );
+
   // ─── 状態記録ダイアログ用 state ──────────────────────────
   const [stateRecordDialogOpen, setStateRecordDialogOpen] = useState(false);
 
@@ -2429,6 +2543,8 @@ export default function WorkRecordPanel({
     onInsertionRemove: handleInsertionRemove,
     onContentAdd: handleContentAdd,
     onContentRemove: handleContentRemove,
+    onPropertyAdd: handlePropertyAdd,
+    onPropertyRemove: handlePropertyRemove,
     uploadTargetPath: projectName ? `projects/${projectName}/attachments` : undefined,
     onOpenViewer: projectId ? handleOpenPetriNetViewer : undefined,
     viewerLoading: petriNetViewerLoading,
