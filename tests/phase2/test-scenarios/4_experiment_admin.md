@@ -46,8 +46,8 @@
 | **4-15** | 未保存変更チェック | `docs/改善仕様調査/No.19/PLAN.md`（No.19対応） | 15件 | 手動 | 0 | 0 | 15 |
 | **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | 0 | 0 | 4 |
 | **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 0 | 0 | 16 |
-| **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 33件 | 手動 | 0 | 0 | 33 |
-| **合計** | - | - | **325件** | - | **0** | **0** | **325** |
+| **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 0 | 0 | 35 |
+| **合計** | - | - | **327件** | - | **0** | **0** | **327** |
 
 ### スコープ外
 
@@ -1040,15 +1040,17 @@
 | 4-18-6 | コンテキストメニュー「チームを追加」をクリックすると `TeamAddDialog` が開き、チーム名・追加先・メンバーを入力してチームを作成できること | 正常系 | `UncertaintyManagement.tsx` `teamAddOpen` / `ui_namespace_main.md` §9 | POST `/api/v1/department-units` | - | チーム名が1文字以上の場合のみ「作成」ボタンが活性 |
 | 4-18-7 | コンテキストメニュー「編集」をクリックすると `TeamEditDialog` が開き、メンバーを変更して保存できること | 正常系 | `UncertaintyManagement.tsx` `teamEditOpen` / `ui_namespace_main.md` §10 | PUT `/api/v1/department-units/:id/members` | - | チーム名が空の場合「保存」ボタンが非活性 |
 | 4-18-8 | Personalノード選択中にチェックした用語の「🏢 組織に共有」ボタンが表示され、クリックすると `ShareScopeModal` 確認ダイアログが開くこと | 正常系 | `NamespaceMain.tsx` §11 `isPersonalSelected && selectedTermIds.length > 0` | - | - | GlobalノードまたはOrganizationノード選択中は「組織に共有」ボタンが表示されないこと |
+| 4-18-8-2 | 名前空間ノードを選択すると右ペイン上部に「用語数: N」「Prefix数: N」のバッジが表示されること | 表示確認 | `ui_namespace_main.md` §3.2.2 | - | - | グローバルノード選択時はバッジが非表示 |
 
 #### 4-18-B: プレフィックス管理
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
 | 4-18-9 | プレフィックス管理タブを開くとプレフィックス一覧が表示されること | 正常系 | `ui_prefix_management.md` §一覧表示 | GET `/api/v1/namespaces/prefixes` | - | `UncertaintyManagement` の `activeTab='prefix'` タブ |
-| 4-18-10 | 新規プレフィックスを追加できること | 正常系 | `ui_prefix_management.md` §追加 | POST `/api/v1/namespaces/prefixes` | - | |
-| 4-18-11 | 既存プレフィックスを編集できること | 正常系 | `ui_prefix_management.md` §編集 | PUT `/api/v1/namespaces/prefixes/:prefixId` | - | |
-| 4-18-12 | プレフィックスを削除できること | 正常系 | `ui_prefix_management.md` §削除 | DELETE `/api/v1/namespaces/prefixes/:prefixId` | - | |
+| 4-18-10 | 新規プレフィックスを追加できること | 正常系 | `ui_prefix_management.md` §追加 | POST `/api/v1/namespaces/prefixes` | - | 「＋ prefix追加」ボタン押下時に `GET /api/v1/namespaces/suggested-uri` が呼ばれ、URIが自動生成・disabled表示されること |
+| 4-18-11 | 既存プレフィックスを編集できること | 正常系 | `ui_prefix_management.md` §編集 | PUT `/api/v1/namespaces/:prefix` | - | 編集時は `prefix`・`description` のみ編集可。URI は表示のみ（編集不可）。保存時は `prefix` と `description` のみ送信される |
+| 4-18-12 | プレフィックスを非アクティブ化できること | 正常系 | `ui_prefix_management.md` §非アクティブ化 | PATCH `/api/v1/namespaces/:prefix/active` | - | 押下後は `is_active=false` に更新され一覧から非表示になること |
+| 4-18-12-2 | プレフィックスの操作ボタンが「編集」「非アクティブ」と表示されること | 表示確認 | `ui_prefix_management.md` §3 テーブルカラム定義 | - | - | システム名前空間行には操作ボタンの代わりに `<Tag>` バッジが表示されること |
 
 #### 4-18-C: 不確かさ基準管理
 
