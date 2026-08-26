@@ -50,15 +50,17 @@ interface UserNamespaceFieldsProps {
   form: ReturnType<typeof Form.useForm>[0];
   isEditing: boolean;
   organizationCd: string;
+  /** 編集モード時に表示する既存URI（handleEdit から直接渡す） */
+  existingUri?: string | null;
 }
-function UserNamespaceFields({ form, isEditing, organizationCd }: UserNamespaceFieldsProps) {
-  // 編集モード: 既存の URI をラベルで表示
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+function UserNamespaceFields({ form, isEditing, organizationCd, existingUri }: UserNamespaceFieldsProps) {
   const { t } = useLanguage();
 
+  // 追加モード用: メールアドレス入力に連動してURIをリアルタイム生成
+  const mailAddress: string = Form.useWatch('mailAddress', form) ?? '';
+
   if (isEditing) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const existingUri: string = Form.useWatch('namespaceUri', form) ?? '';
+    // 編集モード: namespace テーブルから取得した既存 URI をラベルで表示
     return (
       <Form.Item label={t('userManagement.form.namespaceUriLabel')}>
         <Text type={existingUri ? undefined : 'secondary'}>
@@ -69,8 +71,6 @@ function UserNamespaceFields({ form, isEditing, organizationCd }: UserNamespaceF
   }
 
   // 追加モード: メールアドレス入力に連動してURIをリアルタイム生成
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const mailAddress: string = Form.useWatch('mailAddress', form) ?? '';
   const loginName = mailAddress.includes('@') ? mailAddress.split('@')[0] : '';
   // loginName が確定していない場合はプレースホルダーを表示する（URI未生成）
   const autoUri = organizationCd && loginName
@@ -665,7 +665,7 @@ export default function UserManagement() {
               ]}
             />
           </Form.Item>
-          <UserNamespaceFields form={form} isEditing={!!editingUser} organizationCd={organizationCd} />
+          <UserNamespaceFields form={form} isEditing={!!editingUser} organizationCd={organizationCd} existingUri={editingUser?.namespaceUri} />
         </Form>
       </Modal>
 
