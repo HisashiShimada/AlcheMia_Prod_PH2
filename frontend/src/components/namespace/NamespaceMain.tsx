@@ -1215,39 +1215,30 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setSelectedTermIds([]);
   };
 
-  // ログインユーザーのロールを ShareScopeModal 用に変換
-  const shareSourceRole = useMemo((): ShareSourceRole => {
-    const role = currentUserRole;
-    if (role.kind === 'sys_admin') return { kind: 'sys_admin' };
-    if (role.kind === 'dept_owner') {
-      // 部署ノードのラベルをツリーから取得（動的ツリーを参照）
-      const deptNode = findNode(role.deptKey, namespaceTree);
-      return { kind: 'dept_owner', deptKey: role.deptKey, deptLabel: deptNode?.label ?? role.deptKey };
-    }
-    if (role.kind === 'team_owner') {
-      const teamNode = findNode(role.teamKey, namespaceTree);
-      return { kind: 'team_owner', teamKey: role.teamKey, teamLabel: teamNode?.label ?? role.teamKey };
-    }
-    // member は チーム代表者と同等の共有範囲（自分のチームまで）
-    return { kind: 'team_owner', teamKey: role.nsKey, teamLabel: role.nsKey };
-  }, [namespaceTree]);
+  // ShareScopeModal 用：常に sys_admin として全階層を表示する
+  const shareSourceRole: ShareSourceRole = { kind: 'sys_admin' };
 
-  // ShareScopeModal に渡す共有先ツリーデータを構築
+  // ShareScopeModal に渡す共有先ツリーデータを構築（全階層を表示）
   const shareScopeNodes = useMemo(() => {
-    // filterTreeForUser で絞り込んだツリーを使用（ロール別表示範囲と揃える）
-    const filtered = filterTreeForUser(namespaceTree, currentUserNsKey, currentUserRole);
-    // company ノードを丸ごと渡す（PrefixManagement と構造を統一）
-    // これにより depth=0=会社(sys_adminのみ選択可) / depth=1=部署(dept_ownerから選択可) / depth=2=チームとなる
-    const companyNode = filtered.find((n) => n.key === 'company');
-    if (!companyNode) return [];
+    // filterTreeForUser を使わず namespaceTree をそのまま使用（全階層表示）
+    const companyNode = namespaceTree.find((n) => n.key === 'company');
     const toScopeNode = (n: NamespaceNode): any => ({
       key: n.key,
       label: n.label,
       prefix: (n as any).prefix ?? undefined,
       children: n.children ? n.children.map(toScopeNode) : undefined,
     });
-    return [toScopeNode(companyNode)];
-  }, [namespaceTree]);
+
+    // Personal ノード配下にログインユーザーを追加（UncertaintyManagement と同様の構成）
+    const personalNode: any = {
+      key: 'personal',
+      label: 'Personal',
+      children: personalChildren.length > 0 ? personalChildren.map(toScopeNode) : undefined,
+    };
+
+    if (!companyNode) return [personalNode];
+    return [toScopeNode(companyNode), personalNode];
+  }, [namespaceTree, personalChildren]);
 
   // ──── ツリーノードのタイトル（件数は terms から動的計算）
   // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
@@ -1984,13 +1975,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               padding: '6px 0',
             }}>
               <Button
-                icon={<BankOutlined />}
                 onClick={() => setShareScopeOpen(true)}
                 style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
               >
                 {t('namespaceMain.shareBtnLabel', { count: String(selectedTermIds.length) })}
               </Button>
-              <Button danger icon={<DeleteOutlined />} onClick={() => handleBulkToggleActive(selectedTermIds)}>
+              <Button danger onClick={() => handleBulkToggleActive(selectedTermIds)}>
                 {t('namespaceMain.bulkDeactivateBtnLabel', { count: String(selectedTermIds.length) })}
               </Button>
             </div>

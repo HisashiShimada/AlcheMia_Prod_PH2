@@ -441,8 +441,8 @@ export interface DetailModalProps {
  */
 export interface ShareScopeModalProps {
   open: boolean;
-  /** 共有する用語の件数 */
-  termCount: number;
+  /** 共有する用語の件数（省略時はタイトルに件数を表示しない） */
+  termCount?: number;
   /** ログインユーザーのロール（共有先の範囲を制限するため） */
   sourceRole: ShareSourceRole;
   /** 共有先ツリーデータ（NamespaceMain から渡す） */

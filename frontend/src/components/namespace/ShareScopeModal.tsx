@@ -3,12 +3,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { Modal, Tree, Typography, Alert } from 'antd';
-import {
-  BankOutlined,
-  TeamOutlined,
-  UserOutlined,
-  GlobalOutlined,
-} from '@ant-design/icons';
 import type { ShareSourceRole, ShareScopeModalProps, ShareTarget, ScopeNode } from '@/types/namespace';
 
 // re-export（既存の import 側を壊さないため）
@@ -49,16 +43,6 @@ const isNodeSelectable = (nodeKey: string, nodeDepth: number, role: ShareSourceR
 };
 
 // ──────────────────────────────────────────────
-// ノードアイコン（depth別）
-// ──────────────────────────────────────────────
-const getNodeIcon = (depth: number) => {
-  if (depth === 0) return <GlobalOutlined style={{ color: '#1677ff' }} />;
-  if (depth === 1) return <BankOutlined style={{ color: '#52c41a' }} />;
-  if (depth === 2) return <TeamOutlined style={{ color: '#fa8c16' }} />;
-  return <UserOutlined style={{ color: '#8c8c8c' }} />;
-};
-
-// ──────────────────────────────────────────────
 // ScopeNode → Ant Design Tree データに変換
 // ──────────────────────────────────────────────
 const toAntTreeData = (
@@ -72,7 +56,6 @@ const toAntTreeData = (
       key: n.key,
       title: (
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {getNodeIcon(depth)}
           <span style={{ color: selectable ? undefined : '#bbb' }}>
             {n.label}
           </span>
@@ -153,7 +136,7 @@ const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
   return (
     <Modal
       open={open}
-      title={`共有先を選択（${termCount}件の用語）`}
+      title={termCount != null ? `共有先を選択` : '共有先を選択'}
       okText="共有する"
       cancelText="キャンセル"
       okButtonProps={{
@@ -209,7 +192,7 @@ const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
 
       <div style={{ marginTop: 8 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          ※ 選択した共有先に用語がコピーされます。元の用語はそのまま残ります。
+          ※ 選択した共有先に移動します。
         </Text>
       </div>
     </Modal>

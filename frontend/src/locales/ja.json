@@ -4960,7 +4960,6 @@
     "btnImport": "CSVインポート",
     "btnExport": "CSVエクスポート",
     "shareBtnLabel": "{count}件を組織に共有",
-    "shareBtnLabel": "組織に共有",
     "bulkDeactivateBtnLabel": "{count}件を非アクティブ化",
     "searchPlaceholder": "用語を検索...",
     "showTotal": "全{total}件",

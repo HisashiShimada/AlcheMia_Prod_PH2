@@ -744,7 +744,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }}>
           {showShareButton && (
             <Button
-              icon={<BankOutlined />}
               onClick={() => onShareSelected?.(selectedRowKeys)}
               style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
             >
@@ -753,7 +752,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           )}
           <Button
             danger
-            icon={<DeleteOutlined />}
             disabled={viewOnly}
             onClick={handleBulkDeactivate}
           >
