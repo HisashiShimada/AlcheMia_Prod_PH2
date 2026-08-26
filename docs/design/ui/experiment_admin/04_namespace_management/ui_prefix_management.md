@@ -6,9 +6,9 @@
 - **ファイルパス**: `frontend/src/components/namespace/PrefixManagement.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-08-14
-- **最終更新日**: 2026-08-25
+- **最終更新日**: 2026-08-26
 - **担当者**: Development Team
-- **バージョン**: 1.2.0
+- **バージョン**: 1.3.0
 
 ---
 
@@ -113,6 +113,25 @@
 
 保存時に既存 Prefix と同名の行が含まれる場合、確認ダイアログ（`Modal.confirm`）を表示する。
 
+### 6.1. Globalスコープ重複チェック（新規追加）
+
+保存前に `getGlobalDeclarations()` を呼び出してグローバルに登録済みの Prefix 一覧を取得し、新規登録 Prefix と照合する。
+
+| 状況 | 動作 |
+|------|------|
+| グローバルに同名 Prefix が存在する | `message.error` でエラーを表示し登録をブロック（登録不可） |
+| グローバルに同名 Prefix が存在しない | 6.2 の同スコープ内重複チェックへ進む |
+
+**エラーメッセージ（ja）**:  
+`「Prefix「{prefix}」はグローバルに既に登録されています。グローバルと同じPrefixは登録できません。」`
+
+**エラーメッセージ（en）**:  
+`"Prefix \"{prefix}\" is already registered globally. You cannot register a Prefix with the same name as a global one."`
+
+### 6.2. 同スコープ内重複チェック（既存）
+
+保存時に既存 Prefix と同名の行が含まれる場合、確認ダイアログ（`Modal.confirm`）を表示する。
+
 - タイトル：警告（WarningOutlined アイコン）
 - 内容：「prefix xxx は すでに {スコープ名} に登録されています。…」
 - OK で強行登録（`executeSave()` 実行）、キャンセルで中止
@@ -173,6 +192,7 @@
 
 | 日付 | バージョン | 変更内容 | 担当者 |
 |------|-----------|----------|--------|
+| 2026-08-26 | 1.3.0 | §6 重複チェックを §6.1 Globalスコープ重複チェック（新規）と §6.2 同スコープ内重複チェック（既存）に分割。`getGlobalDeclarations()` を使ったグローバル重複チェック追加・エラーメッセージ仕様追記 | Cline |
 | 2026-08-25 | 1.2.0 | §1.1/1.3: 「削除」→「非アクティブ化」に変更。§2 レイアウト・§3 操作列・§5: ボタン文言「削除」→「非アクティブ」に変更。§4: `+ prefix 追加` 時の URI 自動生成仕様を追記。§9: PUT 送信フィールドを「URI のみ」→「prefix・description のみ（URI 送信なし）」に修正。DELETE → PATCH に変更。§10: `orgGroupCds` / `scopeKeys` Props を追加。 | Cline |
 | 2026-08-17 | 1.1.0 | 初版更新 | Development Team |
 | 2026-08-14 | 1.0.0 | 初版作成 | Development Team |
