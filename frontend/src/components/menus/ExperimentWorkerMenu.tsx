@@ -103,6 +103,10 @@ export default function ExperimentWorkerMenu({
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
   /** 実験記録タブで選択中の作業中トランジション rowKey */
   const [selectedWorkRowKey, setSelectedWorkRowKey] = useState<string | null>(null);
+  /** 進捗確認タブ「記録」ボタン押下時: 実験記録タブの初期表示対象タスクNo */
+  const [recordInitialTaskNo, setRecordInitialTaskNo] = useState<number | undefined>(undefined);
+  /** 進捗確認タブ「記録」ボタン押下時: 実験記録タブの初期表示対象トランジションID */
+  const [recordInitialTransitionId, setRecordInitialTransitionId] = useState<string | undefined>(undefined);
   const [dialogOpen, setDialogOpen] = useState(false);
   /** 問題報告モーダル（フェーズB: IssueManagementModal を接続） */
   const [issueModalOpen, setIssueModalOpen] = useState(false);
@@ -648,6 +652,8 @@ export default function ExperimentWorkerMenu({
             projectStatus={selectedProjectStatus ?? undefined}
             projectInstructions={projectInstructionTexts}
             onConfirmInstruction={handleConfirmInstruction}
+            initialTaskNo={recordInitialTaskNo}
+            initialTransitionId={recordInitialTransitionId}
             onStart={async () => {
               if (!selectedProject) return;
               // 準備完了(ready)状態 → 動作状態(IN_PROGRESS=3)に遷移
@@ -723,6 +729,8 @@ export default function ExperimentWorkerMenu({
               rows={progressRows}
               onGoToWork={(taskNo, transitionId) => {
                 console.info('[ProgressOverviewTab] 作業へ:', taskNo, transitionId);
+                setRecordInitialTaskNo(taskNo);
+                setRecordInitialTransitionId(transitionId);
                 handleTabChange('3');
               }}
               onViewDetail={(taskNo, transitionId) => {

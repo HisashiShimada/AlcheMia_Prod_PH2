@@ -46,6 +46,7 @@ import type { ProgressRow, ProgressOverviewTabProps } from '@/types/progress';
 import type { Transition } from '@/types/experimentWorker';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import TransitionFlowDiagram from './TransitionFlowDiagram';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export type { ProgressRow };
 
@@ -55,31 +56,7 @@ const { Text } = Typography;
 // ビジネスロジック
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-/**
- * 対象トランジションにアクセス可能かどうかを判定する。
- *
- * prerequisiteTransitionIds が空または未設定のトランジションは常にアクセス可能。
- * prerequisiteTransitionIds が設定されている場合、同一タスク内の
- * 全ての前提トランジションが completed の場合のみアクセス可能。
- *
- * @example
- *   // TR_D の prerequisiteTransitionIds = ['TR_A', 'TR_B', 'TR_C']
- *   // → TR_A, TR_B, TR_C が全て completed のときのみ TR_D にアクセス可能
- */
-function canAccessTransition(target: ProgressRow, allRows: ProgressRow[]): boolean {
-  const prereqs = target.prerequisiteTransitionIds;
 
-  // 前提なし → いつでもアクセス可能
-  if (!prereqs || prereqs.length === 0) return true;
-
-  // 同一タスク内の全ての前提トランジションが completed であるか確認
-  return prereqs.every((prereqId) => {
-    const prereqRow = allRows.find(
-      (r) => r.taskNo === target.taskNo && r.transitionId === prereqId
-    );
-    return prereqRow?.status === 'completed';
-  });
-}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ステータス設定
@@ -272,6 +249,7 @@ export default function ProgressOverviewTab({
   onViewDetail,
   onStartWork,
 }: ProgressOverviewTabProps) {
+  const { t } = useLanguage();
   const [filterTaskNo, setFilterTaskNo] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<ProgressRow['status'] | null>(null);
   const [filterMethodId, setFilterMethodId] = useState<string | null>(null);
@@ -376,58 +354,21 @@ export default function ProgressOverviewTab({
   );
 
   // ── 操作列 ─────────────────────────────────────────
+  // 活性条件: 準備状態(preparing)・準備完了状態(ready)・休止状態(on_hold) のみ活性
   const renderAction = (_: unknown, r: ProgressRow) => {
-    if (r.status === 'completed' || r.status === 'issue') {
-      return <Button size="small" onClick={() => onViewDetail(r.taskNo, r.transitionId)}>詳細確認</Button>;
-    }
-    if (r.status === 'in_progress' || r.status === 'ready') {
-      return (
-        <Button type="primary" size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
-          作業へ
-        </Button>
-      );
-    }
-    if (r.status === 'on_hold') {
-      return (
-        <Button size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
-          再開
-        </Button>
-      );
-    }
-    if (r.status === 'preparing') {
-      return (
-        <Button size="small" onClick={() => onGoToWork(r.taskNo, r.transitionId)}>
-          作業へ
-        </Button>
-      );
-    }
-    if (r.status === 'not_started') {
-      const accessible = canAccessTransition(r, rows);
-      if (!accessible) {
-        return (
-          <Tooltip title="前の順序のトランジションを先に完了してください">
-            <Button size="small" disabled>
-              開始
-            </Button>
-          </Tooltip>
-        );
-      }
-      return (
-        <Button
-          size="small"
-          onClick={() => {
-            if (onStartWork) {
-              onStartWork(r.taskNo, r.transitionId, r.methodId);
-            } else {
-              onGoToWork(r.taskNo, r.transitionId);
-            }
-          }}
-        >
-          開始
-        </Button>
-      );
-    }
-    return <Text type="secondary">—</Text>;
+    const isActive =
+      r.status === 'preparing' ||
+      r.status === 'ready' ||
+      r.status === 'on_hold';
+    return (
+      <Button
+        size="small"
+        disabled={!isActive}
+        onClick={() => onGoToWork(r.taskNo, r.transitionId)}
+      >
+        {t('experimentWork.table.record')}
+      </Button>
+    );
   };
 
   // ── ステータスタグ ───────────────────────────────────
