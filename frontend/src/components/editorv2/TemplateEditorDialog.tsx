@@ -231,7 +231,6 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         unitMatches: [],
         qualitativeOptions: [],
       },
-      comment: '',
     };
 
     setCriteriaTargetProperty(target);

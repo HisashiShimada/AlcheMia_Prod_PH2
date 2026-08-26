@@ -657,7 +657,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
           }
         }
 
-        return upsertExperimentPlanToApi(projectId, methodId, taskNo, mergedTransMap, orderEntries);
+        return upsertExperimentPlanToApi(projectId, methodId, taskNo, mergedTransMap, orderEntries, dialogData?.templates ?? []);
       });
 
       await Promise.all(savePromises);

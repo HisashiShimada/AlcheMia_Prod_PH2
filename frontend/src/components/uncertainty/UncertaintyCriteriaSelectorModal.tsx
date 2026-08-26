@@ -8,7 +8,6 @@ import {
   Select,
   Input,
   Tag,
-  Form,
   Space,
   Tooltip,
   Typography,
@@ -22,7 +21,6 @@ import UncertaintyCreateModal from './UncertaintyCreateModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
-const { TextArea } = Input;
 
 // ============================================================================
 // 型定義
@@ -78,13 +76,14 @@ export interface TargetProperty {
 /** 付与コールバックのペイロード */
 export interface AssignPayload {
   criteria: UncertaintyCriteria;
-  /** 定量評価の場合: 不確かさ値 */
+  /** @deprecated 値入力は WorkRecordPanel で行うため未使用 */
   ucValue?: number;
-  /** 定量評価の場合: 包含係数 */
+  /** @deprecated 値入力は WorkRecordPanel で行うため未使用 */
   kFactor?: number;
-  /** 定性評価の場合: 選択した信頼レベル（DBの selector_value） */
+  /** @deprecated 値入力は WorkRecordPanel で行うため未使用 */
   qualitativeValue?: string;
-  comment: string;
+  /** @deprecated 値入力は WorkRecordPanel で行うため未使用 */
+  comment?: string;
 }
 
 /** Props型定義 */
@@ -198,23 +197,13 @@ export default function UncertaintyCriteriaSelectorModal({
   // ----- 選択中の不確かさ基準 -----
   const [selectedCriteria, setSelectedCriteria] = useState<UncertaintyCriteria | null>(null);
 
-  // ----- 値入力状態 -----
-  const [ucValue, setUcValue] = useState<string>('');
-  const [kFactor, setKFactor] = useState<string>('2');
-  const [qualValue, setQualValue] = useState<string | null>(null);
-  const [comment, setComment] = useState<string>('');
-  const [ucValueError, setUcValueError] = useState<string>('');
+  // ----- 値入力状態（削除済み：基準キーのみ記録する設計のため不要） -----
 
   // ----- モーダルが開くたびに初期化 & APIからデータ取得 -----
   useEffect(() => {
     if (!open) return;
     setFilter(INITIAL_FILTER);
     setSelectedCriteria(null);
-    setUcValue('');
-    setKFactor('2');
-    setQualValue(null);
-    setComment('');
-    setUcValueError('');
 
     // DBから不確かさ基準一覧を取得
     setCriteriaLoading(true);
@@ -277,7 +266,7 @@ export default function UncertaintyCriteriaSelectorModal({
     }
   }, [open, targetProperty]);
 
-  // ----- initialPayload が渡された場合、criteriaList ロード後に初期値をセット -----
+  // ----- initialPayload が渡された場合、criteriaList ロード後に選択状態のみ復元 -----
   useEffect(() => {
     if (!open || !initialPayload || criteriaList.length === 0) return;
 
@@ -289,7 +278,7 @@ export default function UncertaintyCriteriaSelectorModal({
         : criteriaList.find((c) => c.key === initialPayload.criteria.key);
     const targetCriteria = matched ?? initialPayload.criteria;
 
-    // フラグを立てて selectedCriteria 変更によるリセット useEffect を抑制
+    // フラグを立てて selectedCriteria 変更による不要な useEffect を抑制
     isRestoringRef.current = true;
     setSelectedCriteria(targetCriteria);
 
@@ -298,18 +287,6 @@ export default function UncertaintyCriteriaSelectorModal({
       ...prev,
       evalType: targetCriteria.evalType,
     }));
-
-    // 値を既存のペイロードから復元
-    if (targetCriteria.evalType === 'quantitative') {
-      setUcValue(initialPayload.ucValue !== undefined ? String(initialPayload.ucValue) : '');
-      setKFactor(initialPayload.kFactor !== undefined ? String(initialPayload.kFactor) : '2');
-      setQualValue(null);
-    } else {
-      setUcValue('');
-      setKFactor('2');
-      setQualValue(initialPayload.qualitativeValue ?? null);
-    }
-    setComment(initialPayload.comment ?? '');
 
     // 次の tick でフラグを解除
     setTimeout(() => { isRestoringRef.current = false; }, 0);
@@ -364,21 +341,18 @@ export default function UncertaintyCriteriaSelectorModal({
     }
   }, [filteredCriteria, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ----- 選択中の基準が切り替わったら値入力をリセット＋定性評価のデフォルト設定 -----
-  useEffect(() => {
-    // 復元中はリセットをスキップ（initialPayload の値を保護）
-    if (isRestoringRef.current) return;
-    setUcValue('');
-    setKFactor('2');
-    setUcValueError('');
-    if (selectedCriteria?.evalType === 'qualitative') {
-      // DBの is_default=true の選択肢をデフォルト値に設定
-      const defaultOpt = selectedCriteria.qualitativeOptions.find((o) => o.isDefault);
-      setQualValue(defaultOpt?.selectorValue ?? selectedCriteria.qualitativeOptions[0]?.selectorValue ?? null);
-    } else {
-      setQualValue(null);
+  // ----- 付与実行 -----
+  const handleAssign = () => {
+    if (!selectedCriteria) {
+      message.warning(t('uncertaintyCriteriaSelector.selectCriteriaWarning'));
+      return;
     }
-  }, [selectedCriteria?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    onAssign({
+      criteria: selectedCriteria,
+    });
+    message.success(t('uncertaintyCriteriaSelector.assignSuccess').replace('{name}', selectedCriteria.name));
+    onClose();
+  };
 
   // ----- 型マッチ判定（ハイライト用） -----
   const isTypeMatch = (c: UncertaintyCriteria): boolean => {
@@ -391,51 +365,6 @@ export default function UncertaintyCriteriaSelectorModal({
     if (c.evalType !== 'quantitative' || !targetProperty) return false;
     const nodeUnit = (targetProperty.unit ?? '').toLowerCase().trim();
     return c.unitMatches.some((u) => u.toLowerCase() === nodeUnit);
-  };
-
-  // ----- 不確かさ値バリデーション -----
-  const validateUcValue = (val: string): boolean => {
-    const n = parseFloat(val);
-    if (val === '' || isNaN(n) || n < 0) {
-      setUcValueError(t('uncertaintyCriteriaSelector.positiveNumberError'));
-      return false;
-    }
-    setUcValueError('');
-    return true;
-  };
-
-  // ----- 付与実行 -----
-  const handleAssign = () => {
-    if (!selectedCriteria) {
-      message.warning(t('uncertaintyCriteriaSelector.selectCriteriaWarning'));
-      return;
-    }
-    if (selectedCriteria.evalType === 'quantitative') {
-      if (!validateUcValue(ucValue)) return;
-    } else {
-      if (!qualValue) {
-        message.warning(t('uncertaintyCriteriaSelector.selectTrustLevelWarning'));
-        return;
-      }
-    }
-    onAssign({
-      criteria: selectedCriteria,
-      ucValue: selectedCriteria.evalType === 'quantitative' ? parseFloat(ucValue) : undefined,
-      kFactor: selectedCriteria.evalType === 'quantitative' ? parseFloat(kFactor) : undefined,
-      qualitativeValue: selectedCriteria.evalType === 'qualitative' ? qualValue ?? undefined : undefined,
-      comment,
-    });
-    message.success(t('uncertaintyCriteriaSelector.assignSuccess').replace('{name}', selectedCriteria.name));
-    onClose();
-  };
-
-  // ----- リセット -----
-  const handleReset = () => {
-    setUcValue('');
-    setKFactor('2');
-    setQualValue(null);
-    setComment('');
-    setUcValueError('');
   };
 
   // ============================================================================
@@ -568,21 +497,13 @@ export default function UncertaintyCriteriaSelectorModal({
         <span>{isQuantitative ? t('uncertaintyCriteriaSelector.quantitativeEval') : t('uncertaintyCriteriaSelector.qualitativeEval')}</span>
       </div>
       <div style={confirmRowStyle}>
-        <span style={confirmLabelStyle}>{t('uncertaintyCriteriaSelector.confirmLabelValue')}</span>
-        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#d4380d' }}>
+        <span style={confirmLabelStyle}>{t('uncertaintyCriteriaSelector.confirmLabelEvalType')}</span>
+        <span style={{ fontWeight: 600 }}>
           {isQuantitative
-            ? `u = ${ucValue} ${targetProperty?.unit ?? ''}`
-            : QUALITATIVE_LEVELS.find((l) => l.value === qualValue)
-              ? `${QUALITATIVE_LEVELS.find((l) => l.value === qualValue)!.label}`
-              : '—'}
+            ? t('uncertaintyCriteriaSelector.quantitativeEval')
+            : t('uncertaintyCriteriaSelector.qualitativeEval')}
         </span>
       </div>
-      {comment && (
-        <div style={confirmRowStyle}>
-          <span style={confirmLabelStyle}>{t('uncertaintyCriteriaSelector.confirmLabelComment')}</span>
-          <span style={{ color: '#666' }}>{comment}</span>
-        </div>
-      )}
     </div>
   );
 
@@ -602,7 +523,6 @@ export default function UncertaintyCriteriaSelectorModal({
       footer={
         <Space>
           <Button onClick={onClose}>{t('uncertaintyCriteriaSelector.cancelButton')}</Button>
-          <Button onClick={handleReset}>{t('uncertaintyCriteriaSelector.resetButton')}</Button>
           <Popconfirm
             title={t('uncertaintyCriteriaSelector.confirmTitle')}
             description={confirmContent}
@@ -772,159 +692,6 @@ export default function UncertaintyCriteriaSelectorModal({
           >
             {t('uncertaintyCriteriaSelector.createNewButton')}
           </Button>
-        </div>
-
-        {/* ===== ③ 値入力エリア ===== */}
-        <div style={sectionBoxStyle}>
-          <div style={sectionTitleStyle}>
-            {t('uncertaintyCriteriaSelector.sectionInputValue')}
-            {selectedCriteria && (
-              <span style={{ fontSize: 11, fontWeight: 400, color: '#888', marginLeft: 6 }}>
-                {t('uncertaintyCriteriaSelector.selectedCriteriaLabel')}：{selectedCriteria.name}（{selectedCriteria.key}）
-              </span>
-            )}
-          </div>
-
-          {!selectedCriteria ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: '#bbb', fontSize: 13 }}>
-              {t('uncertaintyCriteriaSelector.selectFromList')}
-            </div>
-          ) : (
-            <Form layout="vertical" size="middle">
-
-              {/* 定量評価 */}
-              {isQuantitative && (
-                <div
-                  style={{
-                    background: '#f0f5ff',
-                    border: '1px solid #c8daff',
-                    borderRadius: 6,
-                    padding: '8px 12px 4px',
-                    marginBottom: 12,
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0958d9', marginBottom: 10 }}>
-                    {t('uncertaintyCriteriaSelector.quantitativeEval')}
-                  </div>
-                <Form.Item
-                      label={<span>{t('uncertaintyCriteriaSelector.ucValueLabel')} <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                      style={{ marginBottom: 0 }}
-                      validateStatus={ucValueError ? 'error' : ''}
-                      help={ucValueError || (
-                        <span style={{ fontSize: 11, color: '#aaa' }}>
-                          {t('uncertaintyCriteriaSelector.formatLabel')}:&nbsp;
-                          <code style={codeStyle}>{selectedCriteria.format}</code>
-                          &nbsp;{t('uncertaintyCriteriaSelector.rangeLabel')}: <code style={codeStyle}>{t('uncertaintyCriteriaSelector.rangeValue')}</code>
-                        </span>
-                      )}
-                    >
-                      <Input
-                        type="number"
-                        value={ucValue}
-                        min={0}
-                        step="0.0001"
-                        placeholder={t('uncertaintyCriteriaSelector.ucValuePlaceholder')}
-                        onChange={(e) => {
-                          setUcValue(e.target.value);
-                          if (ucValueError) validateUcValue(e.target.value);
-                        }}
-                        onBlur={(e) => validateUcValue(e.target.value)}
-                        addonAfter={
-                          <span style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 12 }}>
-                            {targetProperty?.unit ?? '—'}
-                          </span>
-                        }
-                        status={ucValueError ? 'error' : ''}
-                      />
-                    </Form.Item>
-                </div>
-              )}
-
-              {/* 定性評価 */}
-              {!isQuantitative && (
-                <div
-                  style={{
-                    background: '#f9f0ff',
-                    border: '1px solid #d3adf7',
-                    borderRadius: 6,
-                    padding: '8px 12px 12px',
-                    marginBottom: 12,
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#722ed1', marginBottom: 10 }}>
-                    {t('uncertaintyCriteriaSelector.qualitativeEval')}
-                  </div>
-                  <Form.Item
-                    label={<span>{t('uncertaintyCriteriaSelector.selectTrustLevel')} <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                    style={{ marginBottom: 4 }}
-                  >
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {selectedCriteria.qualitativeOptions
-                        .slice()
-                        .sort((a, b) => a.displayOrder - b.displayOrder)
-                        .map((opt) => {
-                          const isSelected = qualValue === opt.selectorValue;
-                          const baseColor = opt.displayColor || '#1677ff';
-                          return (
-                            <button
-                              key={opt.selectorValue}
-                              type="button"
-                            onClick={() => setQualValue(opt.selectorValue)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                padding: '8px 20px',
-                                borderRadius: 20,
-                                fontSize: 13,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                border: `2px solid ${baseColor}`,
-                                background: isSelected ? baseColor : '#fff',
-                                color: isSelected ? '#fff' : baseColor,
-                                boxShadow: isSelected ? `0 2px 8px ${baseColor}55` : 'none',
-                                transition: 'all 0.18s',
-                              }}
-                            >
-                              {opt.selectorValue}
-                            </button>
-                          );
-                        })}
-                    </div>
-                    {qualValue && (
-                      <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
-                        {t('uncertaintyCriteriaSelector.currentSelection')}：
-                        <strong style={{ color: selectedCriteria.qualitativeOptions.find((o) => o.selectorValue === qualValue)?.displayColor ?? '#333' }}>
-                          {qualValue}
-                        </strong>
-                      </div>
-                    )}
-                  </Form.Item>
-                </div>
-              )}
-
-              {/* コメント（共通） */}
-              <Form.Item
-                label={
-                  <span>
-                    {t('uncertaintyCriteriaSelector.commentLabel')}
-                    <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400, marginLeft: 4 }}>
-                      {t('uncertaintyCriteriaSelector.commentNote')}
-                    </span>
-                  </span>
-                }
-                style={{ marginBottom: 0 }}
-              >
-                <TextArea
-                  rows={3}
-                  placeholder={t('uncertaintyCriteriaSelector.commentPlaceholder')}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  style={{ resize: 'vertical' }}
-                />
-              </Form.Item>
-            </Form>
-          )}
         </div>
 
       </div>

@@ -151,10 +151,16 @@ export async function getExperimentInstructions(
   // experiment_uncertainty_judge から最新判定を全件取得
   // キー: `${methodId}__${taskNo}__${placeId}__${propKey}` → UncertaintyJudgeSummary[]
   const judgeMap = new Map<string, UncertaintyJudgeSummary[]>();
+
+  // uncertainty_key → criteriaName のマップ（uncertainty_criteria.description を使用）
+  const criteriaNameMap = new Map<string, string>();
+
   try {
     const judgeRepo = new ExperimentUncertaintyJudgeRepository();
     // methodId が複数ある可能性があるため、全 methodId で取得
     const allMethodIds = Array.from(methodMap.keys());
+    const allUncertaintyKeys = new Set<string>();
+
     for (const methodId of allMethodIds) {
       const judgeRows = await judgeRepo.findAllByProject(organizationId, projectId, methodId);
       for (const jr of judgeRows) {
@@ -166,6 +172,35 @@ export async function getExperimentInstructions(
           toleranceLower: jr.toleranceLower,
           judgeResult: jr.judgeResult,
           recordedValue: jr.recordedValue,
+        });
+        allUncertaintyKeys.add(jr.uncertaintyKey);
+      }
+    }
+
+    // uncertainty_criteria から criteriaName（description）を一括取得
+    if (allUncertaintyKeys.size > 0) {
+      try {
+        const criteriaRows = await uncertaintyCriteriaRepository.findByKeys(
+          organizationId,
+          Array.from(allUncertaintyKeys)
+        );
+        for (const cr of criteriaRows) {
+          if (cr.uncertainty_name) {
+            criteriaNameMap.set(cr.key, cr.uncertainty_name);
+          }
+        }
+        // criteriaName を judgeMap の各エントリに反映
+        for (const [, judges] of judgeMap) {
+          for (const j of judges) {
+            const name = criteriaNameMap.get(j.instructionKey);
+            if (name) {
+              (j as UncertaintyJudgeSummary & { criteriaName?: string }).criteriaName = name;
+            }
+          }
+        }
+      } catch (criteriaErr) {
+        logger.warn('[experimentInstructionService] criteriaName 取得失敗（スキップ）', {
+          error: String(criteriaErr),
         });
       }
     }

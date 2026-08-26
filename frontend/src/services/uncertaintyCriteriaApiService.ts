@@ -62,6 +62,10 @@ interface UncertaintyCriteriaApiRow {
   units: string | null;
   scaleFactor: string | null;
   formatString: string | null;
+  /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceLower: number | null;
   description: string | null;
   /** namespace_term の表示名（uncertainty_key に紐づく） */
   termDisplayName: string | null;
@@ -115,8 +119,8 @@ export async function fetchUncertaintyCriteriaList(): Promise<UncertaintyTemplat
     validTo: '',                                            // DBにカラムなし（空白）
     extends: row.inheritanceUncertaintyKey ?? '',
     termDisplayName: row.termDisplayName ?? null,
-    toleranceUpper:  (row as any).toleranceUpper ?? null,
-    toleranceLower:  (row as any).toleranceLower ?? null,
+    toleranceUpper:  row.toleranceUpper ?? null,
+    toleranceLower:  row.toleranceLower ?? null,
   }));
 }
 
@@ -273,6 +277,10 @@ export interface SaveUncertaintyCriteriaRequest {
   units: string | null;
   scaleFactor: string | null;
   formatString: string | null;
+  /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceLower: number | null;
   description: string | null;
   qualitativeOptions: SaveQualitativeOption[];
 }

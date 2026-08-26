@@ -669,6 +669,11 @@ export interface MaimlPublishResponse {
 export interface UncertaintyJudgeSummary {
   /** 不確かさ基準Key（テンプレートの uncertainty.key） */
   instructionKey: string;
+  /**
+   * 不確かさ基準名（uncertainty_criteria.description から取得）。
+   * 取得できない場合は undefined。
+   */
+  criteriaName?: string;
   /** 許容上限値 */
   toleranceUpper: number | null;
   /** 許容下限値 */
@@ -792,6 +797,12 @@ export interface UpsertExperimentPlanInput {
   taskNo: number;
   plannedValues: ExperimentPlanValues;
   userId: string;
+  /**
+   * ExperimentPlanDialog から渡されるテンプレート定義一覧。
+   * planned_values の fieldKey から template_name / xsi_type を解決するために使用する。
+   * 省略された場合は experiment_instruction_detail の upsert をスキップする。
+   */
+  templates?: TemplateDef[];
 }
 
 // ============================================================

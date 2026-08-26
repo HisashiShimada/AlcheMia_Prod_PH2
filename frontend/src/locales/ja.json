@@ -3833,7 +3833,11 @@
     "savedAs": "V{{version}} として保存しました",
     "saveFailed": "保存に失敗しました。再度お試しください。",
     "nameReadOnlyPlaceholder": "（参照元から継承）",
-    "descReadOnlyPlaceholder": "（参照元から継承）"
+    "descReadOnlyPlaceholder": "（参照元から継承）",
+    "toleranceUpperLabel": "許容上限値",
+    "toleranceUpperPlaceholder": "例: 100.0（空欄=判定なし）",
+    "toleranceLowerLabel": "許容下限値",
+    "toleranceLowerPlaceholder": "例: 0.0（空欄=判定なし）"
   },
   "uncertaintyDetail": {
     "titleSuffix": "詳細・編集",
@@ -3857,6 +3861,8 @@
     "diffFieldQualOptions": "定性評価選択肢",
     "diffDefaultMark": "[デフォルト]",
     "diffSavedAt": "（DB登録済み）",
+    "diffFieldToleranceUpper": "許容上限値",
+    "diffFieldToleranceLower": "許容下限値",
     "section1Title": "1. 基本情報",
     "nameLabel": "不確かさ基準名",
     "namePlaceholder": "不確かさ基準名を入力してください",
@@ -3876,6 +3882,10 @@
     "evalQuantitative": "定量（数値）",
     "evalQualitative": "定性（選択肢）",
     "noChangeWarning": "変更がありません。内容を編集してから保存してください。",
+    "toleranceUpperLabel": "許容上限値",
+    "toleranceUpperPlaceholder": "例: 100.0（空欄=判定なし）",
+    "toleranceLowerLabel": "許容下限値",
+    "toleranceLowerPlaceholder": "例: 0.0（空欄=判定なし）",
     "diffLabel": {
       "uncertaintyName": "不確かさ基準名",
       "uncertaintyKey": "Key属性設定",

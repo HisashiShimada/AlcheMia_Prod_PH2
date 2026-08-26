@@ -21,6 +21,8 @@
 /** 不確かさ判定サマリー（実験指示タブ表示用） */
 export interface UncertaintyJudgeSummary {
   instructionKey: string;
+  /** 不確かさ基準名（uncertainty_criteria.description から取得）。取得できない場合は undefined */
+  criteriaName?: string;
   toleranceUpper: number | null;
   toleranceLower: number | null;
   judgeResult: '良好' | '不良';

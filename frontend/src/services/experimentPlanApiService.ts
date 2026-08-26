@@ -362,13 +362,15 @@ export async function getPlanDialogData(
  * @param taskNo              - タスク番号（1〜N）
  * @param transitionDataMap   - トランジションID → ExperimentPlanTabData のマップ
  * @param transitionOrder     - トランジション実行順序（order 昇順で plannedValues のキー順に反映）
+ * @param templates           - テンプレート定義一覧（experiment_instruction_detail upsert に使用）
  */
 export async function upsertExperimentPlanToApi(
   projectId: string,
   methodId: string,
   taskNo: number,
   transitionDataMap: Record<string, ExperimentPlanTabData>,
-  transitionOrder?: TransitionOrderEntry[]
+  transitionOrder?: TransitionOrderEntry[],
+  templates?: TemplateDef[]
 ): Promise<void> {
   const apiClient = createApiClient();
   const url = `/projects/${encodeURIComponent(projectId)}/experiment-plans/${encodeURIComponent(methodId)}/${taskNo}`;
@@ -400,7 +402,6 @@ export async function upsertExperimentPlanToApi(
   }
 
   // transitionOrder が指定されている場合は __meta__ にトランジション順序情報を埋め込む
-  // タスク登録保存時にこの情報を読み取り、transition_data の work_order / prerequisite_transition_ids を設定する
   if (transitionOrder && transitionOrder.length > 0) {
     (plannedValues as Record<string, unknown>)['__meta__'] = {
       transitionOrder: transitionOrder.map((item) => ({
@@ -411,7 +412,14 @@ export async function upsertExperimentPlanToApi(
     };
   }
 
-  await apiClient.put(url, { plannedValues });
+  // templates が指定されている場合はリクエストボディに含める
+  // バックエンドが experiment_instruction_detail の upsert に使用する
+  const body: Record<string, unknown> = { plannedValues };
+  if (templates && templates.length > 0) {
+    body.templates = templates;
+  }
+
+  await apiClient.put(url, body);
 }
 
 /**

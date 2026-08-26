@@ -9,6 +9,7 @@
 import { TemplateDataRepository, TemplateDataRecord, TemplateDataRow, PropertySet } from '../repositories/templateDataRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
+import * as experimentInstructionDetailRepository from '../repositories/experimentInstructionDetailRepository';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { getStorageService } from './storageService';
@@ -66,7 +67,8 @@ export class ExperimentDataService {
    * @param records 保存するレコード配列
    * @param recordedBy 記録者のユーザーID
    * @param transitionId 記録済みフラグ更新対象のトランジションID（省略可）
-   * @param uncertaintyValues 不確かさ判定入力値（省略可）
+   * @param uncertaintyValues 不確かさ判定入力値（省略可）定量評価のみ
+   * @param qualitativeValues 定性評価値（省略可）
    * @returns 保存されたレコード配列と判定結果
    */
   async saveBatchData(
@@ -77,7 +79,14 @@ export class ExperimentDataService {
     records: TemplateDataRecord[],
     recordedBy: string,
     transitionId?: string,
-    uncertaintyValues?: UncertaintyValueInput[]
+    uncertaintyValues?: UncertaintyValueInput[],
+    qualitativeValues?: Array<{
+      propKey: string;
+      placeId: string;
+      value: string;
+      uncertaintyKey?: string | null;
+      nameSpaceId?: string | null;
+    }>
   ): Promise<{ savedRecords: TemplateDataRow[]; judgeResults: UncertaintyJudgeResult[] }> {
     const pool = getPool();
     const client = await pool.connect();
@@ -193,12 +202,110 @@ export class ExperimentDataService {
         }
       }
 
+      // 8. experiment_instruction_detail の actual_value と不確かさ情報を更新（COMMIT 後）
+      //    transitionId が指定されている場合のみ実行する
+      if (transitionId) {
+        try {
+          await this._updateInstructionDetails(
+            organizationId,
+            projectId,
+            methodId,
+            taskNo,
+            transitionId,
+            savedRecords,
+            uncertaintyValues,
+            qualitativeValues,
+            recordedBy
+          );
+        } catch (detailErr) {
+          // instruction_detail 更新失敗は実績値保存の成功には影響させない（ログのみ）
+          logger.warn('[ExperimentDataService] instruction_detail 更新失敗（スキップ）', {
+            error: String(detailErr),
+            organizationId,
+            transitionId,
+          });
+        }
+      }
+
       return { savedRecords, judgeResults };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  /**
+   * experiment_instruction_detail の actual_value と不確かさ情報を更新する（内部メソッド）
+   *
+   * savedRecords（TemplateDataRow[]）から templateName / propKey / actualValue を抽出し、
+   * uncertaintyValues（定量）と qualitativeValues（定性）を合わせて更新する。
+   */
+  private async _updateInstructionDetails(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    transitionId: string,
+    savedRecords: TemplateDataRow[],
+    uncertaintyValues: UncertaintyValueInput[] | undefined,
+    qualitativeValues: Array<{
+      propKey: string; placeId: string; value: string;
+      uncertaintyKey?: string | null; nameSpaceId?: string | null;
+    }> | undefined,
+    updateUserId: string
+  ): Promise<void> {
+    // placeId → 定量不確かさ情報マップ（propKey → 最新1件）
+    const quantMap = new Map<string, UncertaintyValueInput>();
+    for (const uv of (uncertaintyValues ?? [])) {
+      quantMap.set(`${uv.placeId}__${uv.propertyKey}`, uv);
+    }
+
+    // placeId → 定性評価マップ（propKey → 値）
+    const qualMap = new Map<string, { value: string; uncertaintyKey?: string | null; nameSpaceId?: string | null }>();
+    for (const qv of (qualitativeValues ?? [])) {
+      qualMap.set(`${qv.placeId}__${qv.propKey}`, qv);
+    }
+
+    for (const row of savedRecords) {
+      const ps = row.property_set;
+      if (!ps) continue;
+      const templateName = ps.templateName ?? ps.templateId ?? '';
+      if (!templateName) continue;
+
+      for (const prop of (ps.properties ?? [])) {
+        const propKey = (prop as unknown as Record<string, unknown>)['key'] as string | undefined;
+        if (!propKey) continue;
+
+        const actualValue = (() => {
+          const content = (prop as unknown as Record<string, unknown>)['content'] as Record<string, unknown> | undefined;
+          if (!content) return null;
+          const v = content['value'];
+          return v != null ? String(v) : null;
+        })();
+
+        const mapKey = `${row.place_id}__${propKey}`;
+        const quant = quantMap.get(mapKey);
+        const qual = qualMap.get(mapKey);
+
+        await experimentInstructionDetailRepository.updateActualAndUncertainty({
+          organizationId,
+          projectId,
+          methodId,
+          taskNo,
+          transitionId,
+          templateName,
+          propKey,
+          actualValue,
+          nameSpaceId: qual?.nameSpaceId ?? quant ? null : null,
+          uncertaintyKey: qual?.uncertaintyKey ?? null,
+          uncertaintyAssignedValue: qual?.value ?? (quant ? String(quant.value) : null),
+          uncertaintyAssignedBy: (quant || qual) ? updateUserId : null,
+          uncertaintyAssignedAt: (quant || qual) ? new Date() : null,
+          updateUserId,
+        });
+      }
     }
   }
 }
@@ -969,8 +1076,15 @@ export async function saveBatchData(
   records: TemplateDataRecord[],
   recordedBy: string,
   transitionId?: string,
-  uncertaintyValues?: UncertaintyValueInput[]
+  uncertaintyValues?: UncertaintyValueInput[],
+  qualitativeValues?: Array<{
+    propKey: string;
+    placeId: string;
+    value: string;
+    uncertaintyKey?: string | null;
+    nameSpaceId?: string | null;
+  }>
 ): Promise<{ savedRecords: TemplateDataRow[]; judgeResults: UncertaintyJudgeResult[] }> {
   const service = new ExperimentDataService();
-  return service.saveBatchData(organizationId, projectId, methodId, taskNo, records, recordedBy, transitionId, uncertaintyValues);
+  return service.saveBatchData(organizationId, projectId, methodId, taskNo, records, recordedBy, transitionId, uncertaintyValues, qualitativeValues);
 }

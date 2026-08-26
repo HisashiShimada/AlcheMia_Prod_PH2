@@ -51,7 +51,11 @@ export default function UncertaintyJudgeDetailDialog({
       title: t('experimentInstructionTab.col.uncertaintyInstructionKey'),
       dataIndex: 'instructionKey',
       ellipsis: true,
-      render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
+      render: (v: string, r: UncertaintyJudgeSummary) => (
+        <Text style={{ fontSize: 12 }}>
+          {r.criteriaName ?? v}
+        </Text>
+      ),
     },
     {
       key: 'tolerance',

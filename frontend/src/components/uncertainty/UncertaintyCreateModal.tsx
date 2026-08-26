@@ -172,6 +172,8 @@ export default function UncertaintyCreateModal({
       'units',
       'scaleFactor',
       'formatString',
+      'toleranceUpper',
+      'toleranceLower',
     ]);
 
     // uncertaintyKey に紐づく nameSpaceId を allCriteria から取得
@@ -192,6 +194,8 @@ export default function UncertaintyCreateModal({
         units:        evalMode === 'quantitative' ? (values.units || null) : null,
         formatString: evalMode === 'quantitative' ? (values.formatString || null) : null,
         scaleFactor:  evalMode === 'quantitative' ? (values.scaleFactor || null) : null,
+        toleranceUpper: evalMode === 'quantitative' && values.toleranceUpper !== undefined && values.toleranceUpper !== '' ? Number(values.toleranceUpper) : null,
+        toleranceLower: evalMode === 'quantitative' && values.toleranceLower !== undefined && values.toleranceLower !== '' ? Number(values.toleranceLower) : null,
         description:  values.description || null,
         qualitativeOptions: evalMode === 'qualitative'
           ? qualitativeOptions.map((opt, idx) => ({
@@ -341,6 +345,7 @@ export default function UncertaintyCreateModal({
 
           {/* 定量モード */}
           {evalMode === 'quantitative' && (
+            <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
               {/* xsi:type → uncertainty_criteria.xsi_type */}
               <Form.Item
@@ -376,6 +381,25 @@ export default function UncertaintyCreateModal({
                 <Input placeholder="1" />
               </Form.Item>
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+              {/* tolerance_upper → uncertainty_criteria.tolerance_upper */}
+              <Form.Item
+                name="toleranceUpper"
+                label={t('uncertaintyCreate.toleranceUpperLabel')}
+                style={{ marginBottom: 0 }}
+              >
+                <Input type="number" placeholder={t('uncertaintyCreate.toleranceUpperPlaceholder')} />
+              </Form.Item>
+              {/* tolerance_lower → uncertainty_criteria.tolerance_lower */}
+              <Form.Item
+                name="toleranceLower"
+                label={t('uncertaintyCreate.toleranceLowerLabel')}
+                style={{ marginBottom: 0 }}
+              >
+                <Input type="number" placeholder={t('uncertaintyCreate.toleranceLowerPlaceholder')} />
+              </Form.Item>
+            </div>
+            </>
           )}
 
           {/* 定性モード → intuition_selector */}

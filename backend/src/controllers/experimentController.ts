@@ -147,6 +147,14 @@ export const saveBatchData = async (
       uncertaintyKey: string;
       value: number;
     }> | undefined;
+    /** 定性評価値（省略可） */
+    const rawQualitativeValues = req.body.qualitativeValues as Array<{
+      propKey: string;
+      placeId: string;
+      value: string;
+      uncertaintyKey?: string | null;
+      nameSpaceId?: string | null;
+    }> | undefined;
 
     // 認証・認可情報の取得
     const organizationId = (req as any).organizationId;
@@ -200,7 +208,8 @@ export const saveBatchData = async (
       records,
       recordedBy,
       transitionId,
-      Array.isArray(rawUncertaintyValues) ? rawUncertaintyValues : undefined
+      Array.isArray(rawUncertaintyValues) ? rawUncertaintyValues : undefined,
+      Array.isArray(rawQualitativeValues) ? rawQualitativeValues : undefined
     );
 
     // 成功レスポンスを返す（201 Created）

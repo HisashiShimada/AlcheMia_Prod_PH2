@@ -3555,7 +3555,11 @@
     "evalQualitative": "Qualitative (options)",
     "savedAs": "Saved as V{version}",
     "saveFailed": "Save failed. Please try again.",
-    "inheritanceFetchFailed": "Failed to fetch parent data"
+    "inheritanceFetchFailed": "Failed to fetch parent data",
+    "toleranceUpperLabel": "Tolerance Upper",
+    "toleranceUpperPlaceholder": "e.g. 100.0 (blank = no judgment)",
+    "toleranceLowerLabel": "Tolerance Lower",
+    "toleranceLowerPlaceholder": "e.g. 0.0 (blank = no judgment)"
   },
   "uncertaintyDetail": {
     "keyLabel": "Uncertainty Key",
@@ -3583,6 +3587,8 @@
     "diffStatusActive": "Active",
     "diffStatusDeprecated": "Deprecated",
     "diffSavedAt": "(Saved in DB)",
+    "diffFieldToleranceUpper": "Tolerance Upper",
+    "diffFieldToleranceLower": "Tolerance Lower",
     "section1Title": "1. Basic Information",
     "namePlaceholder": "Enter uncertainty criteria name",
     "descLabel": "Description",
@@ -3595,6 +3601,10 @@
     "statusTurnOffNote": "Turning off will set status to Deprecated",
     "statusTurnOnNote": "Turning on will set status to Active",
     "noChangeWarning": "No changes detected. Please edit before saving.",
+    "toleranceUpperLabel": "Tolerance Upper",
+    "toleranceUpperPlaceholder": "e.g. 100.0 (blank = no judgment)",
+    "toleranceLowerLabel": "Tolerance Lower",
+    "toleranceLowerPlaceholder": "e.g. 0.0 (blank = no judgment)",
     "diffLabel": {
       "uncertaintyName": "不確かさ基準名",
       "uncertaintyKey": "Key属性設定",

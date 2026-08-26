@@ -761,11 +761,21 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         if (judges.length === 1) {
           const j = judges[0];
           return (
-            <Flex gap={4} align="center">
+            <Flex gap={4} align="center" wrap="wrap">
               <Tag color={j.judgeResult === '良好' ? 'success' : 'error'} style={{ margin: 0, fontSize: 11 }}>
                 {j.judgeResult}
               </Tag>
-              <Text type="secondary" style={{ fontSize: 11 }}>{j.instructionKey}</Text>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {j.criteriaName ?? j.instructionKey}
+              </Text>
+              {j.recordedValue != null && (
+                <Text style={{ fontSize: 11 }}>= {j.recordedValue}</Text>
+              )}
+              {(j.toleranceLower != null || j.toleranceUpper != null) && (
+                <Text type="secondary" style={{ fontSize: 10 }}>
+                  [{j.toleranceLower ?? '—'}, {j.toleranceUpper ?? '—'}]
+                </Text>
+              )}
             </Flex>
           );
         }

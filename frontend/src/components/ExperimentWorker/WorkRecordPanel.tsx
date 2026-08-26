@@ -225,6 +225,11 @@ interface PropertyCardProps {
   /** 不確かさ入力値が変化したときに親へ通知するコールバック（省略可） */
   onUncertaintyValuesChange?: (entries: UncertaintyValueEntry[]) => void;
   /**
+   * 定性評価（confidence）が変化したときに親へ通知するコールバック（省略可）。
+   * value: 選択された評価値（null の場合は選択解除）
+   */
+  onConfidenceChange?: (propKey: string, value: string | null) => void;
+  /**
    * 直近の保存で得られた不確かさ判定結果（省略可）。
    * uncertaintyKey をキーとした判定結果マップ。
    * 保存後にバッジ表示するために使用する。
@@ -247,7 +252,7 @@ const getConfidenceStyle = (level: string) =>
   CONFIDENCE_STYLE[level] ?? CONFIDENCE_STYLE_DEFAULT;
 
 const PropertyCard: React.FC<PropertyCardProps> = ({
-  prop, actual, readOnly, onChange, onUncertaintyValuesChange, lastJudgeResultMap,
+  prop, actual, readOnly, onChange, onUncertaintyValuesChange, onConfidenceChange, lastJudgeResultMap,
 }) => {
   const { t } = useLanguage();
   const DEFAULT_CONFIDENCE_OPTIONS: string[] = [
@@ -438,7 +443,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                 <Button
                   key={level}
                   size="small"
-                  onClick={() => setConfidence(confidence === level ? null : level)}
+                  onClick={() => {
+                    const newVal = confidence === level ? null : level;
+                    setConfidence(newVal);
+                    onConfidenceChange?.(prop.key, newVal);
+                  }}
                   style={{
                     ...style,
                     fontSize: 11,
@@ -550,6 +559,13 @@ interface PropertyListProps {
    */
   onUncertaintyValuesChange?: (placeId: string, entries: UncertaintyValueEntry[]) => void;
   /**
+   * 定性評価（confidence）が変化したときに親へ通知するコールバック。
+   * placeId: テンプレートが紐づく Place ID
+   * propKey: プロパティキー
+   * value: 選択された評価値（null の場合は選択解除）
+   */
+  onConfidenceChange?: (placeId: string, propKey: string, value: string | null) => void;
+  /**
    * 直近の保存で得られた不確かさ判定結果マップ。
    * uncertaintyKey をキーとした判定結果（'良好' | '不良'）。
    */
@@ -584,6 +600,7 @@ const PropertyList: React.FC<PropertyListProps> = ({
   viewerLoading,
   onInsertionUploadReady,
   onUncertaintyValuesChange,
+  onConfidenceChange,
   lastJudgeResultMap,
 }) => {
   const { t } = useLanguage();
@@ -638,6 +655,9 @@ const PropertyList: React.FC<PropertyListProps> = ({
               }}
               onUncertaintyValuesChange={(entries) => {
                 onUncertaintyValuesChange?.(template.id, entries);
+              }}
+              onConfidenceChange={(propKey, value) => {
+                onConfidenceChange?.(template.id, propKey, value);
               }}
               lastJudgeResultMap={lastJudgeResultMap}
             />
@@ -1258,6 +1278,11 @@ interface PlanProps {
    */
   onUncertaintyValuesChange?: (placeId: string, entries: UncertaintyValueEntry[]) => void;
   /**
+   * 定性評価（confidence）変化コールバック（placeId, propKey, value を受け取る）。
+   * handleSave 時に qualitativeValues として saveBatchExperimentData に渡すために使用する。
+   */
+  onConfidenceChange?: (placeId: string, propKey: string, value: string | null) => void;
+  /**
    * 直近の保存で得られた不確かさ判定結果マップ（uncertaintyKey → '良好' | '不良'）。
    * PropertyCard 内のバッジ表示に使用する。
    */
@@ -1794,6 +1819,14 @@ export default function WorkRecordPanel({
   const uncertaintyValuesRef = React.useRef<Map<string, UncertaintyValueEntry[]>>(new Map());
 
   /**
+   * 定性評価値を保持する Ref。
+   * キー: `${placeId}__${propKey}`  値: { placeId, propKey, value }
+   * PropertyCard の confidence ボタン選択時に onConfidenceChange コールバック経由で更新され、
+   * handleSave / handleSaveAndNext 時に saveBatchExperimentData へ渡す qualitativeValues を構築する。
+   */
+  const confidenceValuesRef = React.useRef<Map<string, { placeId: string; propKey: string; value: string }>>(new Map());
+
+  /**
    * 直近の保存で得られた不確かさ判定結果マップ。
    * 保存後に setState するとレンダリングが発生するため Ref で管理し、
    * planProps 経由で PlanB → PropertyList → PropertyCard に渡す。
@@ -2203,10 +2236,14 @@ export default function WorkRecordPanel({
         }
       );
 
+      // qualitativeValues: confidenceValuesRef から構築
+      const qualitativeValues = Array.from(confidenceValuesRef.current.values());
+
       const res = await saveBatchExperimentData(projectId, methodId, taskNo, {
         records,
         transitionId,
         ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
+        ...(qualitativeValues.length > 0 ? { qualitativeValues } : {}),
       });
       // 判定結果をバッジ表示用 state に反映
       if (res.data.judgeResults && res.data.judgeResults.length > 0) {
@@ -2272,9 +2309,11 @@ export default function WorkRecordPanel({
                   }));
               }
             );
+            const qualitativeValues = Array.from(confidenceValuesRef.current.values());
             await saveBatchExperimentData(projectId, methodId, taskNo, {
               records, transitionId,
               ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
+              ...(qualitativeValues.length > 0 ? { qualitativeValues } : {}),
             });
           } catch (err) {
             console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
@@ -2608,6 +2647,16 @@ export default function WorkRecordPanel({
         uncertaintyValuesRef.current.delete(placeId);
       } else {
         uncertaintyValuesRef.current.set(placeId, entries);
+      }
+    },
+    onConfidenceChange: (placeId: string, propKey: string, value: string | null) => {
+      // PropertyCard の confidence 選択が変化するたびに Ref を更新する
+      // キーは `${placeId}__${propKey}`
+      const key = `${placeId}__${propKey}`;
+      if (value === null) {
+        confidenceValuesRef.current.delete(key);
+      } else {
+        confidenceValuesRef.current.set(key, { placeId, propKey, value });
       }
     },
     lastJudgeResultMap,
