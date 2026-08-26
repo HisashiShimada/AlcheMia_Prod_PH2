@@ -35,8 +35,6 @@ import type {
   DetailTarget,
   TermSaved,
   NamespaceSaved,
-  ShareSourceRole,
-  ShareTarget,
   NamespaceMainProps,
   ContextMenuState,
   TermEditValues,

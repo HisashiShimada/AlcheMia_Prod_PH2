@@ -211,7 +211,6 @@ export interface NewPrefixRow {
 // 後方互換性のため re-export する
 export type { GroupMember, Group, OrgUser } from '@/types/group';
 
-
 // ──────────────────────────────────────────────
 // 共有機能
 // ──────────────────────────────────────────────

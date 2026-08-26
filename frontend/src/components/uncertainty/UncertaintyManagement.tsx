@@ -14,7 +14,7 @@ import { fetchUncertaintyCriteriaList } from '@/services/uncertaintyCriteriaApiS
 import NamespaceMain from '../namespace/NamespaceMain';
 import PrefixManagement from '../namespace/PrefixManagement';
 import ShareScopeModal from '../namespace/ShareScopeModal';
-import type { ScopeNode, ShareTarget, ShareSourceRole } from '../namespace/ShareScopeModal';
+import type { ScopeNode, ShareTarget, ShareSourceRole } from '@/types/namespace';
 import { getOrganizationGroups, sharePrefixes } from '@/services/namespaceApiService';
 import GroupAddDialog from '../group/GroupAddDialog';
 import GroupEditDialog from '../group/GroupEditDialog';
