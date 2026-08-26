@@ -4193,14 +4193,18 @@
       "actual": "実績値",
       "actualAverage": "実績値（平均）",
       "diff": "差分",
-      "uncertaintyCriteriaName": "不確かさ基準名",
-      "uncertaintyAssignedValue": "不確かさ値",
-      "uncertaintyAssignedBy": "実験記録者",
-      "uncertaintyAssignedAt": "不確かさ付与日時",
-      "uncertaintyComment": "不確かさについてのコメント"
+      "uncertaintyJudge": "不確かさ判定",
+      "uncertaintyInstructionKey": "指示キー",
+      "uncertaintyTolerance": "許容値",
+      "uncertaintyJudgeResult": "判定結果",
+      "uncertaintyRecordedValue": "記録値"
     },
     "cell": {
       "noRecord": "未記録"
+    },
+    "judgeDetailButton": "不確かさ詳細 ({{count}}件)",
+    "judgeDetailDialog": {
+      "title": "不確かさ判定詳細"
     },
     "criteriaType": {
       "qualitative": "定性",

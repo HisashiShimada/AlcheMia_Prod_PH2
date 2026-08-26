@@ -664,6 +664,22 @@ export interface MaimlPublishResponse {
 // ============================================================
 
 /**
+ * 不確かさ判定サマリー（実験指示タブ表示用）
+ */
+export interface UncertaintyJudgeSummary {
+  /** 不確かさ基準Key（テンプレートの uncertainty.key） */
+  instructionKey: string;
+  /** 許容上限値 */
+  toleranceUpper: number | null;
+  /** 許容下限値 */
+  toleranceLower: number | null;
+  /** 判定結果 */
+  judgeResult: '良好' | '不良';
+  /** 作業者が入力した不確かさ値 */
+  recordedValue: number;
+}
+
+/**
  * 1 フィールドの実験指示情報
  */
 export interface InstructionField {
@@ -678,6 +694,11 @@ export interface InstructionField {
   actualValue: string | null;
   /** 単位（units 属性） */
   unit: string | null;
+  /**
+   * 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。
+   * 0件 = 未判定、1件以上 = 判定済み（複数の uncertainty_key が設定されている場合は複数件）
+   */
+  uncertaintyJudges?: UncertaintyJudgeSummary[];
 }
 
 /**

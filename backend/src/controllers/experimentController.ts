@@ -140,6 +140,13 @@ export const saveBatchData = async (
     }>;
     /** 記録済みフラグ更新対象のトランジションID（省略可） */
     const transitionId = req.body.transitionId as string | undefined;
+    /** 不確かさ判定入力値（省略可） */
+    const rawUncertaintyValues = req.body.uncertaintyValues as Array<{
+      propertyKey: string;
+      placeId: string;
+      uncertaintyKey: string;
+      value: number;
+    }> | undefined;
 
     // 認証・認可情報の取得
     const organizationId = (req as any).organizationId;
@@ -185,14 +192,15 @@ export const saveBatchData = async (
 
 
     // サービス層を呼び出して一括保存
-    const savedRecords = await experimentDataService.saveBatchData(
+    const { savedRecords, judgeResults } = await experimentDataService.saveBatchData(
       organizationId,
       projectId,
       methodId,
       taskNoNum,
       records,
       recordedBy,
-      transitionId
+      transitionId,
+      Array.isArray(rawUncertaintyValues) ? rawUncertaintyValues : undefined
     );
 
     // 成功レスポンスを返す（201 Created）
@@ -201,6 +209,7 @@ export const saveBatchData = async (
       data: {
         saved: savedRecords.length,
         records: savedRecords,
+        judgeResults,
       },
       meta: {
         timestamp: new Date().toISOString(),

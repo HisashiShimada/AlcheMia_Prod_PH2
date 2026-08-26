@@ -20,6 +20,7 @@ import { logger } from '../utils/logger';
 import type { Pool, PoolClient } from 'pg';
 import type { Property, Content } from '../types/maiml-unified';
 import { findByKeysWithDetails, UncertaintyKeyDetail, QualitativeOptionRow } from '../repositories/uncertaintyCriteriaRepository';
+import { runJudge, UncertaintyValueInput, UncertaintyJudgeResult } from './uncertaintyJudgeService';
 
 /**
  * プロジェクト編集不可エラー
@@ -65,7 +66,8 @@ export class ExperimentDataService {
    * @param records 保存するレコード配列
    * @param recordedBy 記録者のユーザーID
    * @param transitionId 記録済みフラグ更新対象のトランジションID（省略可）
-   * @returns 保存されたレコード配列
+   * @param uncertaintyValues 不確かさ判定入力値（省略可）
+   * @returns 保存されたレコード配列と判定結果
    */
   async saveBatchData(
     organizationId: string,
@@ -74,8 +76,9 @@ export class ExperimentDataService {
     taskNo: number,
     records: TemplateDataRecord[],
     recordedBy: string,
-    transitionId?: string
-  ): Promise<TemplateDataRow[]> {
+    transitionId?: string,
+    uncertaintyValues?: UncertaintyValueInput[]
+  ): Promise<{ savedRecords: TemplateDataRow[]; judgeResults: UncertaintyJudgeResult[] }> {
     const pool = getPool();
     const client = await pool.connect();
 
@@ -163,10 +166,34 @@ export class ExperimentDataService {
         );
       }
 
+      // 6. 不確かさ判定の実行（uncertaintyValues が指定されている場合のみ）
+      //    トランザクション外で実行（runJudge 内部で pgp を使用するため）
+      // NOTE: COMMIT 後に実行する（トランザクション外での DB 操作になるが、
+      //       判定結果の INSERT は独立した操作として許容する）
+
       // トランザクションコミット
       await client.query('COMMIT');
 
-      return savedRecords;
+      // 7. 不確かさ判定の実行（COMMIT 後・トランザクション外で実行）
+      let judgeResults: UncertaintyJudgeResult[] = [];
+      if (uncertaintyValues && uncertaintyValues.length > 0 && transitionId) {
+        try {
+          judgeResults = await runJudge(
+            organizationId,
+            projectId,
+            methodId,
+            taskNo,
+            transitionId,
+            uncertaintyValues,
+            recordedBy
+          );
+        } catch (judgeError) {
+          // 判定結果の保存エラーは実績値保存の成功には影響させない（ログのみ）
+          logger.error('[ExperimentDataService] uncertaintyJudge error:', { error: judgeError });
+        }
+      }
+
+      return { savedRecords, judgeResults };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -941,8 +968,9 @@ export async function saveBatchData(
   taskNo: number,
   records: TemplateDataRecord[],
   recordedBy: string,
-  transitionId?: string
-): Promise<TemplateDataRow[]> {
+  transitionId?: string,
+  uncertaintyValues?: UncertaintyValueInput[]
+): Promise<{ savedRecords: TemplateDataRow[]; judgeResults: UncertaintyJudgeResult[] }> {
   const service = new ExperimentDataService();
-  return service.saveBatchData(organizationId, projectId, methodId, taskNo, records, recordedBy, transitionId);
+  return service.saveBatchData(organizationId, projectId, methodId, taskNo, records, recordedBy, transitionId, uncertaintyValues);
 }

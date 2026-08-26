@@ -376,21 +376,11 @@ export class TemplateDataRepository {
   }
 
   /**
+   * @deprecated 旧方式（ExperimentPlanDialog での __uncertainty__ 割り当て）専用メソッド。
+   * 新方式（WorkRecordPanel での手入力 + uncertainty_judge テーブル）では使用しない。
+   * 参照コードが残存している場合に備えて削除せず残置。
+   *
    * planned_values の不確かさ情報を property_set.properties[].uncertainties に反映して一括 UPDATE
-   *
-   * - `planUncertainties`: { [propertyKey]: uncertaintyArray } のマップ
-   *   （`planned_values.__uncertainty__` の値をそのまま渡す）
-   * - `method_id` / `task_no` に一致する全 template_data を取得し、
-   *   各行の properties[] を走査して propertyKey が一致するものの uncertainties を上書きする
-   * - 更新対象が 0 件でも エラーにしない（no-op）
-   *
-   * @param organizationId    - 組織ID
-   * @param projectId         - プロジェクトID
-   * @param methodId          - メソッドID
-   * @param taskNo            - タスク番号
-   * @param planUncertainties - { [propertyKey]: uncertaintyArray } 形式のマップ
-   * @param userId            - 更新ユーザーID
-   * @param client            - トランザクション用 PoolClient
    */
   async updatePropertySetByPlanWithUncertainty(
     organizationId: string,

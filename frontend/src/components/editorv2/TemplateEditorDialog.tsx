@@ -189,53 +189,49 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   /**
    * 不確かさ「編集」ボタン押下ハンドラー
+  /**
    * 既存の uncertainty ノードの内容を initialPayload に変換してモーダルを開く
+   * 新方式: key のみを引き継いでモーダルを開く（value/description は不使用）
    * @param index - 編集対象 uncertainty のインデックス（children 内での位置）
    */
   const handleEditUncertainty = (propertyKey: string, uncertaintyNode: PropertyData, index: number) => {
     const section = (node.data.placeType as 'material' | 'condition' | 'result') ?? 'material';
     const tag: 'property' | 'content' = 'property';
-    const xsiType = uncertaintyNode.attributes?.['xsi:type'] ?? '';
-    const value = uncertaintyNode.elements?.['value'] ?? '';
-    const unit = uncertaintyNode.attributes?.['units'] ?? '';
-    const desc = uncertaintyNode.elements?.['description'] ?? '';
 
     const target: TargetProperty = {
       name: propertyKey,
       xpath: `${section}/${tag}[@key="${propertyKey}"]`,
       tag,
-      type: xsiType,
-      value,
-      unit,
+      type: '',
+      value: '',
+      unit: '',
       section,
-      desc,
+      desc: '',
     };
 
-    // 既存不確かさの key を使って initialPayload を構築
+    // 既存 uncertainty の key のみを initialPayload に引き継ぐ（新方式: key のみ記録）
     const criteriaKey = uncertaintyNode.key ?? '';
     const editPayload: AssignPayload = {
       criteria: {
         id: 0,
         key: criteriaKey,
-        name: '',
-        evalType: value !== '' && !isNaN(Number(value)) ? 'quantitative' : 'qualitative',
+        name: criteriaKey,
+        evalType: 'quantitative',
         scopeType: 'organization',
         scopeLabel: '',
         scopeOrder: 3,
         xsiType: '',
         scaleFactor: '',
-        desc,
-        unit,
-        format: xsiType,
+        desc: '',
+        unit: '',
+        format: '',
         targetSections: [section as 'material' | 'condition' | 'result'],
         targetTag: 'property',
         typeMatches: [],
         unitMatches: [],
         qualitativeOptions: [],
       },
-      ucValue: value !== '' && !isNaN(Number(value)) ? Number(value) : undefined,
-      qualitativeValue: value,
-      comment: desc,
+      comment: '',
     };
 
     setCriteriaTargetProperty(target);
@@ -286,35 +282,13 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     if (!criteriaTargetProperty) return;
     const targetKey = criteriaTargetProperty.name;
 
-    // 付与する値: 定量評価は ucValue、定性評価は qualitativeValue
-    const ucValueStr =
-      payload.ucValue !== undefined
-        ? String(payload.ucValue)
-        : payload.qualitativeValue ?? '';
-
-    // 親プロパティの xsi:type / units を取得して uncertainty タグに付与
-    const parentPropData = criteriaTargetProperty
-      ? (properties[criteriaTargetProperty.name] ?? null)
-      : null;
-    const parentXsiType = parentPropData?.attributes?.['xsi:type'] ?? '';
-    const parentUnits = parentPropData?.attributes?.['units'] ?? '';
-
-    // 定性評価は xsi:type / units 不要
-    const isQualitative = payload.criteria.evalType === 'qualitative';
-    // 新しい uncertainty 子ノード
+    // 新しい uncertainty 子ノード（新方式: key のみの空タグ）
+    // value / description は WorkRecordPanel での手入力に委ねるため記録しない
     const uncertaintyNode: PropertyData = {
       key: payload.criteria.key,
       tagName: 'uncertainty',
-      attributes: isQualitative
-        ? {}
-        : {
-            ...(parentXsiType ? { 'xsi:type': parentXsiType } : {}),
-            ...(parentUnits ? { units: parentUnits } : {}),
-          },
-      elements: {
-        ...(ucValueStr ? { value: ucValueStr } : {}),
-        ...(payload.comment ? { description: payload.comment } : {}),
-      },
+      attributes: {},
+      elements: {},
       children: [],
     };
 

@@ -18,6 +18,15 @@
 // API レスポンス型（ネスト形式）
 // ─────────────────────────────────────────────────────────────
 
+/** 不確かさ判定サマリー（実験指示タブ表示用） */
+export interface UncertaintyJudgeSummary {
+  instructionKey: string;
+  toleranceUpper: number | null;
+  toleranceLower: number | null;
+  judgeResult: '良好' | '不良';
+  recordedValue: number;
+}
+
 /** 1 フィールドの実験指示情報 */
 export interface InstructionFieldResponse {
   /** MAIMLプロパティキー（例: "ns1:Temperature"） */
@@ -32,6 +41,11 @@ export interface InstructionFieldResponse {
   actualValue: string | null;
   /** 単位 */
   unit: string | null;
+  /**
+   * 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。
+   * 0件 = 未判定、1件以上 = 判定済み
+   */
+  uncertaintyJudges?: UncertaintyJudgeSummary[];
 }
 
 /** 1 テンプレートの実験指示情報 */

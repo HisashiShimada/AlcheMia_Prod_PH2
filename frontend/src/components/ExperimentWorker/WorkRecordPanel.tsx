@@ -1,13 +1,10 @@
 'use client';
 
 /**
- * 作業記録パネル（案A / 案B レイアウト）
+ * 作業記録パネル
  *
- * モック ExperimentWorkerScreenMock.tsx の PlanA / PlanB / PropertyCard /
- * WorkHeader / InstructionCollapse を実画面用コンポーネントとして移植。
- *
- * フェーズA: モックデータのまま動作確認。
- * フェーズB: props 経由で実 API データに差し替え。
+ * PlanB / PropertyCard / WorkHeader / InstructionCollapse による実験作業記録パネル。
+ * API データを使用してテンプレート・プロパティを表示・保存する。
  *
  * 【実績値入力フロー】
  * 実績値入力 →「保存して次へ」→ 次テンプレート実績値入力 or 次トランジション
@@ -61,7 +58,7 @@ const { Sider, Content } = Layout;
 const { Text } = Typography;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 不確かさ基準（モックデータから定量評価・有効なものを選択肢として生成）
+// 不確かさ基準（API から取得した定量評価・有効なものを選択肢として生成）
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
@@ -73,6 +70,18 @@ interface AddedUncertaintyValue {
   /** 選択された不確かさ基準の key（空文字は未選択） */
   uncertaintyKey: string;
   /** 入力された値 */
+  value: string;
+}
+
+/**
+ * PropertyCard が親に通知する不確かさ入力値の型
+ */
+interface UncertaintyValueEntry {
+  /** プロパティKey */
+  propKey: string;
+  /** 不確かさ基準Key */
+  uncertaintyKey: string;
+  /** 入力値 */
   value: string;
 }
 
@@ -90,7 +99,7 @@ let uncertaintyOptionsCache: { value: string; label: string }[] = [];
 type TransitionStatus = 'not_started' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
 type ConfidenceLevel = '確か' | '曖昧' | '不確か';
 
-interface MockProperty {
+interface WorkProperty {
   key: string;
   label: string;
   xsiType: 'FloatValue' | 'IntegerValue' | 'StringValue';
@@ -111,21 +120,21 @@ interface MockProperty {
 }
 
 /** Insertion スロット（テンプレートに紐づくファイル添付欄） */
-interface MockInsertionSlot {
+interface WorkInsertionSlot {
   id: string;
   label?: string;
 }
 
-interface MockTemplate {
+interface WorkTemplate {
   id: string;
   name: string;
   category: 'Conditions' | 'Materials' | 'Results';
-  properties: MockProperty[];
+  properties: WorkProperty[];
   /** このテンプレートで収集するInsertionスロット一覧。存在する場合のみ表示 */
-  insertions?: MockInsertionSlot[];
+  insertions?: WorkInsertionSlot[];
 }
 
-interface MockTransition {
+interface WorkTransition {
   id: string;
   order: number;
   /**
@@ -138,10 +147,10 @@ interface MockTransition {
    */
   prerequisiteTransitionIds: string[];
   methodId: string;
-  templates: MockTemplate[];
+  templates: WorkTemplate[];
 }
 
-interface MockMethod {
+interface WorkMethod {
   id: string;
   order: number;
 }
@@ -161,7 +170,7 @@ interface TaskTransitionState {
   customPropertyIds: string[];
 }
 
-export interface MockTask {
+export interface WorkTask {
   taskNo: number;
   transitions: TaskTransitionState[];
 }
@@ -209,10 +218,18 @@ function calcDiff(expected: number | string | null, actual: number | string | nu
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface PropertyCardProps {
-  prop: MockProperty;
+  prop: WorkProperty;
   actual: number | string | null;
   readOnly: boolean;
   onChange: (key: string, value: number | string | null) => void;
+  /** 不確かさ入力値が変化したときに親へ通知するコールバック（省略可） */
+  onUncertaintyValuesChange?: (entries: UncertaintyValueEntry[]) => void;
+  /**
+   * 直近の保存で得られた不確かさ判定結果（省略可）。
+   * uncertaintyKey をキーとした判定結果マップ。
+   * 保存後にバッジ表示するために使用する。
+   */
+  lastJudgeResultMap?: Record<string, '良好' | '不良'>;
 }
 
 const CONFIDENCE_STYLE: Record<string, { background: string; borderColor: string; color: string }> = {
@@ -230,7 +247,7 @@ const getConfidenceStyle = (level: string) =>
   CONFIDENCE_STYLE[level] ?? CONFIDENCE_STYLE_DEFAULT;
 
 const PropertyCard: React.FC<PropertyCardProps> = ({
-  prop, actual, readOnly, onChange,
+  prop, actual, readOnly, onChange, onUncertaintyValuesChange, lastJudgeResultMap,
 }) => {
   const { t } = useLanguage();
   const DEFAULT_CONFIDENCE_OPTIONS: string[] = [
@@ -255,16 +272,24 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
   /** 行の不確かさ基準を更新する */
   const handleUncertaintyKeyChange = (id: string, newKey: string) => {
-    setAddedValues((prev) =>
-      prev.map((av) => (av.id === id ? { ...av, uncertaintyKey: newKey } : av))
-    );
+    setAddedValues((prev) => {
+      const next = prev.map((av) => (av.id === id ? { ...av, uncertaintyKey: newKey } : av));
+      onUncertaintyValuesChange?.(next.filter((av) => av.uncertaintyKey && av.value).map((av) => ({
+        propKey: prop.key, uncertaintyKey: av.uncertaintyKey, value: av.value,
+      })));
+      return next;
+    });
   };
 
   /** 行の値を更新する */
   const handleValueChange = (id: string, newValue: string) => {
-    setAddedValues((prev) =>
-      prev.map((av) => (av.id === id ? { ...av, value: newValue } : av))
-    );
+    setAddedValues((prev) => {
+      const next = prev.map((av) => (av.id === id ? { ...av, value: newValue } : av));
+      onUncertaintyValuesChange?.(next.filter((av) => av.uncertaintyKey && av.value).map((av) => ({
+        propKey: prop.key, uncertaintyKey: av.uncertaintyKey, value: av.value,
+      })));
+      return next;
+    });
   };
 
   /** 行を削除する */
@@ -436,25 +461,36 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
           <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
             {t('workRecord.quantitativeEval')}
           </Text>
-          {addedValues.map((av) => (
-            <Flex key={av.id} gap={4} align="center" style={{ marginBottom: 4 }}>
-              <Select
-                size="small"
-                style={{ flex: 6, minWidth: 0 }}
-                placeholder={t('workRecord.quantitativeEvalPlaceholder')}
-                value={av.uncertaintyKey || undefined}
-                onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
-                options={uncertaintyOptionsCache}
-              />
-              <Input
-                size="small"
-                style={{ flex: 4, minWidth: 0 }}
-                placeholder={t('workRecord.valuePlaceholder')}
-                value={av.value}
-                onChange={(e) => handleValueChange(av.id, e.target.value)}
-              />
-            </Flex>
-          ))}
+          {addedValues.map((av) => {
+            const judgeResult = av.uncertaintyKey ? lastJudgeResultMap?.[av.uncertaintyKey] : undefined;
+            return (
+              <Flex key={av.id} gap={4} align="center" style={{ marginBottom: 4 }}>
+                <Select
+                  size="small"
+                  style={{ flex: 6, minWidth: 0 }}
+                  placeholder={t('workRecord.quantitativeEvalPlaceholder')}
+                  value={av.uncertaintyKey || undefined}
+                  onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
+                  options={uncertaintyOptionsCache}
+                />
+                <Input
+                  size="small"
+                  style={{ flex: 4, minWidth: 0 }}
+                  placeholder={t('workRecord.valuePlaceholder')}
+                  value={av.value}
+                  onChange={(e) => handleValueChange(av.id, e.target.value)}
+                />
+                {judgeResult && (
+                  <Tag
+                    color={judgeResult === '良好' ? 'success' : 'error'}
+                    style={{ margin: 0, flexShrink: 0, fontSize: 11 }}
+                  >
+                    {judgeResult}
+                  </Tag>
+                )}
+              </Flex>
+            );
+          })}
         </div>
       )}
 
@@ -469,7 +505,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface PropertyListProps {
-  template: MockTemplate | null;
+  template: WorkTemplate | null;
   templateCount: number;
   templateIdx: number;
   taskTransition: TaskTransitionState | undefined;
@@ -508,6 +544,16 @@ interface PropertyListProps {
    * 保存時に全スロットのアップロードを実行するために使用する。
    */
   onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
+  /**
+   * 不確かさ入力値が変化したときに親へ通知するコールバック。
+   * キー: `${placeId}__${propKey}`、値: 入力済みエントリ配列
+   */
+  onUncertaintyValuesChange?: (placeId: string, entries: UncertaintyValueEntry[]) => void;
+  /**
+   * 直近の保存で得られた不確かさ判定結果マップ。
+   * uncertaintyKey をキーとした判定結果（'良好' | '不良'）。
+   */
+  lastJudgeResultMap?: Record<string, '良好' | '不良'>;
 }
 
 /** Insertion のデフォルト値 */
@@ -537,6 +583,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
   onOpenViewer,
   viewerLoading,
   onInsertionUploadReady,
+  onUncertaintyValuesChange,
+  lastJudgeResultMap,
 }) => {
   const { t } = useLanguage();
 
@@ -588,13 +636,17 @@ const PropertyList: React.FC<PropertyListProps> = ({
               onChange={(key, value) => {
                 if (displayKey) onActualChange(displayKey.taskNo, displayKey.transitionId, key, value);
               }}
+              onUncertaintyValuesChange={(entries) => {
+                onUncertaintyValuesChange?.(template.id, entries);
+              }}
+              lastJudgeResultMap={lastJudgeResultMap}
             />
           </Col>
         ))}
         {/* ── カスタムPropertyカード（ユーザーが追加したもの・同グリッドに混在） ── */}
         {taskTransition?.customPropertyIds?.map((pid) => {
           const actualValue = taskTransition.actuals[`property_custom_${pid}`] ?? null;
-          const customProp: MockProperty = {
+          const customProp: WorkProperty = {
             key: `custom_${pid}`,
             label: t('workRecord.customPropertyLabel'),
             xsiType: 'StringValue',
@@ -833,8 +885,8 @@ const PropertyList: React.FC<PropertyListProps> = ({
 interface WorkHeaderProps {
   displayKey: { taskNo: number; transitionId: string } | null;
   taskTransition: TaskTransitionState | undefined;
-  transition: MockTransition | null;
-  method: MockMethod | undefined;
+  transition: WorkTransition | null;
+  method: WorkMethod | undefined;
   isReadOnly: boolean;
   activeEntry: { taskNo: number; transitionId: string } | null;
   onClearViewing: () => void;
@@ -1057,7 +1109,7 @@ const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions,
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 内部用Props（PlanA / PlanB 共通）
+// 内部用Props（PlanB 共通）
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1070,7 +1122,7 @@ const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions,
  * prerequisiteTransitionIds が設定されている場合、それら全てが completed のときのみアクセス可能。
  */
 function canAccessTransitionInTask(
-  target: MockTransition,
+  target: WorkTransition,
   taskTransitions: TaskTransitionState[]
 ): boolean {
   const prereqs = target.prerequisiteTransitionIds;
@@ -1094,8 +1146,8 @@ function findNextAvailableTransition(
   taskNo: number,
   currentTransitionId: string,
   skippedIds: string[],
-  tasks: MockTask[],
-  availableTransitions?: MockTransition[]
+  tasks: WorkTask[],
+  availableTransitions?: WorkTransition[]
 ): { taskNo: number; transitionId: string } | null {
   const task = tasks.find((t) => t.taskNo === taskNo);
   if (!task) return null;
@@ -1135,7 +1187,7 @@ function findNextAvailableTransition(
 }
 
 interface PlanProps {
-  tasks: MockTask[];
+  tasks: WorkTask[];
   activeTaskNo: number;
   viewingKey: { taskNo: number; transitionId: string } | null;
   skippedTransitionIds: string[];
@@ -1170,9 +1222,10 @@ interface PlanProps {
   progressRows?: ProgressRow[];
   /**
    * API から構築したトランジション定義。
-   * 指定された場合は MOCK_TRANSITIONS の代わりにこちらを使用してテンプレート・プロパティを表示する。
+   * progressRows と API から構築する。
+   * projectId / methodId / progressRows が揃っていない場合は空配列のまま。
    */
-  apiTransitions?: MockTransition[];
+  apiTransitions?: WorkTransition[];
   /** Creator プルダウンの選択肢（MAIMLのdocument.creatorsから取得） */
   creatorRefOptions: string[];
   /** Instrument プルダウンの選択肢（MAIMLのdocument.instrumentsから取得） */
@@ -1199,115 +1252,17 @@ interface PlanProps {
   onInstructionClick?: () => void;
   /** Insertion アップロード準備完了コールバック */
   onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
+  /**
+   * 不確かさ入力値変化コールバック（placeId, entries を受け取る）。
+   * handleSave 時に uncertaintyValues として saveBatchExperimentData に渡すために使用する。
+   */
+  onUncertaintyValuesChange?: (placeId: string, entries: UncertaintyValueEntry[]) => void;
+  /**
+   * 直近の保存で得られた不確かさ判定結果マップ（uncertaintyKey → '良好' | '不良'）。
+   * PropertyCard 内のバッジ表示に使用する。
+   */
+  lastJudgeResultMap?: Record<string, '良好' | '不良'>;
 }
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 案A: テンプレート選択がボタン形式（左ペインなし）
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const PlanA: React.FC<PlanProps> = ({
-  tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onConfirmInstruction,
-  progressRows, onStateRecord, onStart, onEnd, onForceEnd,
-}) => {
-  const [templateIdx, setTemplateIdx] = useState(0);
-
-  const activeEntry = useMemo((): { taskNo: number; transitionId: string } | null => {
-    // progressRows がある場合: API の実トランジションIDを優先使用
-    if (progressRows && progressRows.length > 0) {
-      // 優先順位: 動作状態(in_progress) > 準備完了状態(ready) > 準備状態(preparing)
-      // 同一ステータス内では order 昇順（若い順）を優先する
-      const statusPriority: Record<string, number> = { 'in_progress': 1, 'ready': 2, 'preparing': 3 };
-      const activeStatusRows = progressRows
-        .filter((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-        .sort((a, b) => {
-          const pA = statusPriority[a.status] ?? 99;
-          const pB = statusPriority[b.status] ?? 99;
-          if (pA !== pB) return pA - pB;
-          return (a.order ?? 0) - (b.order ?? 0);
-        });
-      const activeTaskRow = activeStatusRows.find((r) => r.taskNo === activeTaskNo);
-      if (activeTaskRow) return { taskNo: activeTaskRow.taskNo, transitionId: activeTaskRow.transitionId };
-      if (activeStatusRows.length > 0) {
-        const row = activeStatusRows[0];
-        return { taskNo: row.taskNo, transitionId: row.transitionId };
-      }
-      const notStartedRow = progressRows.find((r) => r.taskNo === activeTaskNo && r.status === 'not_started')
-        ?? progressRows.find((r) => r.status === 'not_started');
-      if (notStartedRow) return { taskNo: notStartedRow.taskNo, transitionId: notStartedRow.transitionId };
-      return null;
-    }
-    // progressRows がない場合: task.transitions の順序でフォールバック
-    const task = tasks.find((t) => t.taskNo === activeTaskNo);
-    if (!task) return null;
-    for (const tt of task.transitions) {
-      if (tt.status !== 'completed' && tt.status !== 'error') return { taskNo: activeTaskNo, transitionId: tt.transitionId };
-    }
-    return null;
-  }, [progressRows, tasks, activeTaskNo]);
-
-  const displayKey = viewingKey ?? activeEntry;
-  const isReadOnly = viewingKey !== null;
-  const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
-  const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
-  const displayTransition = displayKey ? ([] as MockTransition[]).find((t) => t.id === displayKey.transitionId) : null;
-  const displayMethod = displayTransition ? ({ id: displayTransition.methodId, order: 1 } as MockMethod) : null;
-  const visibleTemplates = displayTransition?.templates ?? [];
-  const safeIdx = Math.min(templateIdx, Math.max(0, visibleTemplates.length - 1));
-  const activeTemplate = visibleTemplates[safeIdx] ?? null;
-
-  return (
-    <Flex vertical style={{ height: '100%' }}>
-      <InstructionCollapse instructions={instructions} />
-      <WorkHeader
-        displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
-        method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
-        onStart={onStart}
-        onEnd={onEnd}
-        onForceEnd={onForceEnd}
-        onStateRecord={onStateRecord}
-      />
-
-      {/* テンプレート選択ボタン（複数の場合のみ） */}
-      {visibleTemplates.length > 1 && (
-        <Flex gap={4} style={{ marginBottom: 8, flexWrap: 'wrap' }}>
-          {visibleTemplates.map((tpl, idx) => (
-            <Button
-              key={tpl.id}
-              size="small"
-              type={idx === safeIdx ? 'primary' : 'default'}
-              onClick={() => setTemplateIdx(idx)}
-            >
-              <Tag color={CATEGORY_COLOR[tpl.category]} style={{ margin: 0, fontSize: 10 }}>
-                {tpl.category.slice(0, 4)}
-              </Tag>
-              {tpl.name}
-            </Button>
-          ))}
-        </Flex>
-      )}
-
-      <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
-        <PropertyList
-          template={activeTemplate}
-          templateCount={visibleTemplates.length}
-          templateIdx={safeIdx}
-          taskTransition={displayTT}
-          isReadOnly={isReadOnly}
-          displayKey={displayKey}
-          canSkip={!isReadOnly && displayKey !== null && findNextAvailableTransition(displayKey.taskNo, displayKey.transitionId, skippedTransitionIds, tasks) !== null}
-          onActualChange={onActualChange}
-          onSave={onSave}
-          onSaveAndNext={onSaveAndNext}
-          onSkip={onSkip}
-          onTemplateIdxChange={setTemplateIdx}
-          onCommentClick={onCommentClick}
-          onInsertionAdd={onInsertionAdd}
-          onInsertionRemove={onInsertionRemove}
-        />
-      </div>
-    </Flex>
-  );
-};
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 案B: DataRecordDialog準拠の左Sider + 右Contentレイアウト
@@ -1318,6 +1273,8 @@ const PlanB: React.FC<PlanProps> = ({
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
   progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onInstructionClick,
+  onUncertaintyValuesChange,
+  lastJudgeResultMap,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1693,6 +1650,8 @@ const PlanB: React.FC<PlanProps> = ({
             onOpenViewer={onOpenViewer}
             viewerLoading={viewerLoading}
             onInsertionUploadReady={onInsertionUploadReady}
+            onUncertaintyValuesChange={onUncertaintyValuesChange}
+            lastJudgeResultMap={lastJudgeResultMap}
           />
         </Content>
       </Layout>
@@ -1728,8 +1687,8 @@ interface WorkRecordPanelProps {
   onForceEnd?: () => void;
 }
 
-/** API の xsiType 文字列を MockProperty の xsiType に変換する */
-function resolveXsiType(xsiType: string | undefined): MockProperty['xsiType'] {
+/** API の xsiType 文字列を WorkProperty の xsiType に変換する */
+function resolveXsiType(xsiType: string | undefined): WorkProperty['xsiType'] {
   if (!xsiType) return 'StringValue';
   const lower = xsiType.toLowerCase();
   if (lower.includes('double') || lower.includes('float')) return 'FloatValue';
@@ -1738,12 +1697,12 @@ function resolveXsiType(xsiType: string | undefined): MockProperty['xsiType'] {
 }
 
 /**
- * API レスポンスの1プロパティ行を MockProperty に変換する。
+ * API レスポンスの1プロパティ行を WorkProperty に変換する。
  * PLAN.md バグ4件: plannedValue/toleranceValue/uncertaintyNote/uncertaintyKey/uncertaintyName のマッピング追加。
  */
 function convertRawProperty(
   p: Record<string, unknown>
-): MockProperty {
+): WorkProperty {
   let confidenceOptions: string[] | undefined;
   let defaultConfidence: string | undefined;
   // バックエンドが返す qualitativeOptions を直接利用する
@@ -1816,15 +1775,30 @@ export default function WorkRecordPanel({
   onEnd,
   onForceEnd,
 }: WorkRecordPanelProps = {}) {
-  // フォールバック値 2 はモック INITIAL_TASKS のタスク2（in_progress）に対応
+  // progressRows がある場合は resolveActiveTaskNo で自動決定される。フォールバック値 2 は未使用の保険値
   const ASSIGNED_TASK_NO = resolveActiveTaskNo(progressRows, 2);
-  const [tasks, setTasks] = useState<MockTask[]>([]);
+  const [tasks, setTasks] = useState<WorkTask[]>([]);
 
   /**
    * getTemplateData の生レスポンス（TemplateDataItem[]）を保持する Ref。
    * taskNo__transitionId をキーとして保存し、保存時に placeId / data 構造を参照する。
    */
   const rawTemplateItemsRef = React.useRef<Map<string, TemplateDataItem[]>>(new Map());
+
+  /**
+   * 不確かさ入力値を保持する Ref。
+   * キー: `${placeId}__${propKey}`  値: UncertaintyValueEntry[]
+   * PropertyCard の addedValues 変化時に onUncertaintyValuesChange コールバック経由で更新され、
+   * handleSave / handleSaveAndNext 時に saveBatchExperimentData へ渡す uncertaintyValues を構築する。
+   */
+  const uncertaintyValuesRef = React.useRef<Map<string, UncertaintyValueEntry[]>>(new Map());
+
+  /**
+   * 直近の保存で得られた不確かさ判定結果マップ。
+   * 保存後に setState するとレンダリングが発生するため Ref で管理し、
+   * planProps 経由で PlanB → PropertyList → PropertyCard に渡す。
+   */
+  const [lastJudgeResultMap, setLastJudgeResultMap] = React.useState<Record<string, '良好' | '不良'>>({});
 
   // 作業指示モーダルの開閉状態
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
@@ -1833,12 +1807,12 @@ export default function WorkRecordPanel({
 
   /**
    * API から取得したトランジション定義（テンプレート・プロパティ情報）。
-   * progressRows と getExperimentPlans() から構築し、MOCK_TRANSITIONS の代わりに使用する。
-   * projectId / methodId / progressRows が揃っていない場合は空配列のまま（MOCK_TRANSITIONS にフォールバック）。
+   * progressRows と API から構築する。
+   * projectId / methodId / progressRows が揃っていない場合は空配列のまま。
    */
-  const [apiTransitions, setApiTransitions] = useState<MockTransition[]>([]);
+  const [apiTransitions, setApiTransitions] = useState<WorkTransition[]>([]);
 
-  // ── API データから MockTransition[] を構築する useEffect ──
+  // ── API データから WorkTransition[] を構築する useEffect ──
   useEffect(() => {
     if (!projectId || !methodId || !progressRows || progressRows.length === 0) {
       setApiTransitions([]);
@@ -1856,8 +1830,8 @@ export default function WorkRecordPanel({
         // template_data は想定値・不確かさ・定性評価選択肢を含む JOIN 済みデータを返すため
         // getExperimentPlans / fetchUncertaintyCriteriaForSelector は不要
         const actualsMap = new Map<string, Record<string, ActualValue>>();
-        // transitionId → MockTemplate[] のマップ（代表タスク=ASSIGNED_TASK_NO のデータを優先して使用）
-        const templatesMap = new Map<string, MockTemplate[]>();
+        // transitionId → WorkTemplate[] のマップ（代表タスク=ASSIGNED_TASK_NO のデータを優先して使用）
+        const templatesMap = new Map<string, WorkTemplate[]>();
 
         const fetchActualsPromises = progressRows.map(async (row) => {
           const mapKey = `${row.taskNo}__${row.transitionId}`;
@@ -1873,16 +1847,16 @@ export default function WorkRecordPanel({
             // ── テンプレート定義（プロパティカード）を構築 ──
             // getTemplateData が返す templates[].data.properties には
             // 想定値・不確かさ・定性評価選択肢がすべて含まれているため、
-            // convertRawProperty() で直接 MockProperty に変換できる
+            // convertRawProperty() で直接 WorkProperty に変換できる
             const shouldOverwriteTemplates =
               !templatesMap.has(row.transitionId) || row.taskNo === ASSIGNED_TASK_NO;
             if (shouldOverwriteTemplates) {
-              const builtTemplates: MockTemplate[] = templateDataRes.data.templates
+              const builtTemplates: WorkTemplate[] = templateDataRes.data.templates
                 .map((item, _tplIdx) => {
                   const rawProps = Array.isArray(item.data.properties)
                     ? (item.data.properties as Record<string, unknown>[])
                     : [];
-                  const properties: MockProperty[] = rawProps.map((prop) =>
+                  const properties: WorkProperty[] = rawProps.map((prop) =>
                     convertRawProperty(prop)
                   );
                   const rawCategory = String(item.data.category ?? item.data.templateType ?? 'Conditions');
@@ -1890,7 +1864,7 @@ export default function WorkRecordPanel({
                   // 既存フォールバックは先頭大文字（'Materials'/'Conditions'/'Results'）の両形式が混在するため
                   // 両方に対応した正規化マッピングを行う
                   const normalizedCategory = rawCategory.toLowerCase();
-                  const category: MockTemplate['category'] =
+                  const category: WorkTemplate['category'] =
                     (normalizedCategory === 'result'   || rawCategory === 'Results')  ? 'Results' :
                     (normalizedCategory === 'material' || rawCategory === 'Materials') ? 'Materials' : 'Conditions';
                   return {
@@ -1942,7 +1916,7 @@ export default function WorkRecordPanel({
 
         // templatesMap から builtTransitions を構築して apiTransitions に反映
         const uniqueTransitionIds = Array.from(new Set(progressRows.map((r) => r.transitionId)));
-        const builtTransitions: MockTransition[] = uniqueTransitionIds.map((transitionId, idx) => ({
+        const builtTransitions: WorkTransition[] = uniqueTransitionIds.map((transitionId, idx) => ({
           id: transitionId,
           order: idx + 1,
           prerequisiteTransitionIds: [],
@@ -1952,7 +1926,7 @@ export default function WorkRecordPanel({
         setApiTransitions(builtTransitions);
 
         setTasks((prev) => {
-          const next: MockTask[] = uniqueTaskNos.map((taskNo) => {
+          const next: WorkTask[] = uniqueTaskNos.map((taskNo) => {
             const existingTask = prev.find((t) => t.taskNo === taskNo);
             const taskRows = progressRows.filter((r) => r.taskNo === taskNo);
             const transitions: TaskTransitionState[] = taskRows.map((row) => {
@@ -2214,7 +2188,34 @@ export default function WorkRecordPanel({
         };
       });
 
-      await saveBatchExperimentData(projectId, methodId, taskNo, { records, transitionId });
+      // uncertaintyValues: Ref から構築（uncertaintyKey・value が揃っているもののみ送信）
+      const uncertaintyValues = Array.from(uncertaintyValuesRef.current.entries()).flatMap(
+        ([key, entries]) => {
+          const placeId = key.split('__')[0];
+          return entries
+            .filter((e) => e.uncertaintyKey && e.value && !isNaN(Number(e.value)))
+            .map((e) => ({
+              propertyKey:    e.propKey,
+              placeId,
+              uncertaintyKey: e.uncertaintyKey,
+              value:          Number(e.value),
+            }));
+        }
+      );
+
+      const res = await saveBatchExperimentData(projectId, methodId, taskNo, {
+        records,
+        transitionId,
+        ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
+      });
+      // 判定結果をバッジ表示用 state に反映
+      if (res.data.judgeResults && res.data.judgeResults.length > 0) {
+        const newMap: Record<string, '良好' | '不良'> = {};
+        for (const jr of res.data.judgeResults) {
+          newMap[jr.uncertaintyKey] = jr.judgeResult;
+        }
+        setLastJudgeResultMap(newMap);
+      }
       Modal.success({ title: t('workRecord.saveSuccess'), content: t('workRecord.saveContent') });
     } catch (err) {
       console.error('[WorkRecordPanel] handleSave error:', err);
@@ -2260,7 +2261,21 @@ export default function WorkRecordPanel({
                 data: baseData,
               };
             });
-            await saveBatchExperimentData(projectId, methodId, taskNo, { records, transitionId });
+            const uncertaintyValues = Array.from(uncertaintyValuesRef.current.entries()).flatMap(
+              ([key, entries]) => {
+                const placeId = key.split('__')[0];
+                return entries
+                  .filter((e) => e.uncertaintyKey && e.value && !isNaN(Number(e.value)))
+                  .map((e) => ({
+                    propertyKey: e.propKey, placeId,
+                    uncertaintyKey: e.uncertaintyKey, value: Number(e.value),
+                  }));
+              }
+            );
+            await saveBatchExperimentData(projectId, methodId, taskNo, {
+              records, transitionId,
+              ...(uncertaintyValues.length > 0 ? { uncertaintyValues } : {}),
+            });
           } catch (err) {
             console.error('[WorkRecordPanel] handleSaveAndNext save error:', err);
             message.error(t('workRecord.saveContent'));
@@ -2586,6 +2601,16 @@ export default function WorkRecordPanel({
       }
       setInstructionModalOpen(true);
     },
+    onUncertaintyValuesChange: (placeId: string, entries: UncertaintyValueEntry[]) => {
+      // PropertyCard の addedValues が変化するたびに Ref を更新する
+      // キーは placeId（template.id）。entries が空の場合はキーを削除
+      if (entries.length === 0) {
+        uncertaintyValuesRef.current.delete(placeId);
+      } else {
+        uncertaintyValuesRef.current.set(placeId, entries);
+      }
+    },
+    lastJudgeResultMap,
   };
 
   // コメントダイアログに渡す displayKey（現在表示中のキー）

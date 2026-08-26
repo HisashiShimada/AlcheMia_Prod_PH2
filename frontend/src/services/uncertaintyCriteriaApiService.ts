@@ -115,7 +115,8 @@ export async function fetchUncertaintyCriteriaList(): Promise<UncertaintyTemplat
     validTo: '',                                            // DBにカラムなし（空白）
     extends: row.inheritanceUncertaintyKey ?? '',
     termDisplayName: row.termDisplayName ?? null,
-    termDescription: row.termDescription ?? null,
+    toleranceUpper:  (row as any).toleranceUpper ?? null,
+    toleranceLower:  (row as any).toleranceLower ?? null,
   }));
 }
 

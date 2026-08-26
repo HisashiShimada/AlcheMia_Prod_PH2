@@ -4718,14 +4718,18 @@
       "actual": "Actual",
       "actualAverage": "Actual (Avg)",
       "diff": "Diff",
-      "uncertaintyCriteriaName": "Uncertainty Criteria",
-      "uncertaintyAssignedValue": "Uncertainty Value",
-      "uncertaintyAssignedBy": "Recorder",
-      "uncertaintyAssignedAt": "Assigned At",
-      "uncertaintyComment": "Uncertainty Comment"
+      "uncertaintyJudge": "Uncertainty Judge",
+      "uncertaintyInstructionKey": "Instruction Key",
+      "uncertaintyTolerance": "Tolerance",
+      "uncertaintyJudgeResult": "Judge Result",
+      "uncertaintyRecordedValue": "Recorded Value"
     },
     "cell": {
       "noRecord": "No record"
+    },
+    "judgeDetailButton": "Uncertainty Detail ({{count}} items)",
+    "judgeDetailDialog": {
+      "title": "Uncertainty Judge Detail"
     },
     "criteriaType": {
       "qualitative": "Qualitative",

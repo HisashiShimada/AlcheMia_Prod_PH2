@@ -429,8 +429,6 @@ export class MaimlWriterService {
         // 全トランジション分の fieldKey → value をフラットに集約
         // { [fieldKey]: value } 形式（文字列スカラーのみ対象）
         const planFlatValues: Record<string, string> = {};
-        // 不確かさ情報: { [propertyKey]: uncertaintyArray } 形式（__uncertainty__ キーの値）
-        const planFlatUncertainties: Record<string, unknown[]> = {};
         // mgr-instruction:* 値（文字列・配列問わず収集）
         const planMgrInstructionValues: Record<string, unknown> = {};
 
@@ -443,34 +441,9 @@ export class MaimlWriterService {
             fieldMap as Record<string, unknown>
           )) {
           if (fieldKey === '__uncertainty__') {
-              // __uncertainty__: { [propertyKey]: AssignPayload[] } を planFlatUncertainties にマージ
-              // AssignPayload 形式: { criteria: { key, evalType, ... }, qualitativeValue, ucValue, comment }
-              // buildPropertyXML が期待する形式: { key, value, description }[] に変換する
-              if (value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value)) {
-                for (const [propKey, uncertaintyArray] of Object.entries(value as Record<string, unknown>)) {
-                  if (Array.isArray(uncertaintyArray)) {
-                    // AssignPayload[] → { key, value, description }[] に変換
-                    const converted = uncertaintyArray
-                      .map((uc: unknown) => {
-                        const payload = uc as Record<string, unknown>;
-                        const criteria = payload['criteria'] as Record<string, unknown> | undefined;
-                        const criteriaKey = criteria?.['key'] as string | undefined;
-                        const evalType = criteria?.['evalType'] as string | undefined;
-                        // 定性評価: qualitativeValue、定量評価: ucValue を value に使用
-                        const ucValue =
-                          evalType === 'qualitative'
-                            ? (payload['qualitativeValue'] as string | number | undefined)
-                            : (payload['ucValue'] as number | undefined);
-                        const comment = payload['comment'] as string | undefined;
-                        return { key: criteriaKey, value: ucValue, description: comment };
-                      })
-                      .filter((uc) => uc.key != null); // key が存在するものだけ残す
-                    if (converted.length > 0) {
-                      planFlatUncertainties[propKey] = converted;
-                    }
-                  }
-                }
-              }
+              // __uncertainty__ キーは旧方式（ExperimentPlanDialog での不確かさ割り当て）のデータ。
+              // 新方式（WorkRecordPanel での手入力）では使用しないためスキップ。
+              continue;
             } else if (fieldKey.startsWith('mgr-instruction:')) {
               // mgr-instruction:* 値は文字列・配列問わず収集（_injectExperimentPlanProps で MAIML に書き込む）
               if (value !== null && value !== undefined) {
@@ -487,13 +460,11 @@ export class MaimlWriterService {
         }
 
         const hasFlatValues = Object.keys(planFlatValues).length > 0;
-        const hasUncertainties = Object.keys(planFlatUncertainties).length > 0;
         const hasMgrInstruction = Object.keys(planMgrInstructionValues).length > 0;
 
         console.log(
           `[MaimlWriterService.writeExperimentPlanProperties] method_id=${plan.method_id} task_no=${plan.task_no}: ` +
             `planFlatValues=${JSON.stringify(planFlatValues)}, ` +
-            `planFlatUncertainties keys=${JSON.stringify(Object.keys(planFlatUncertainties))}, ` +
             `planMgrInstructionValues=${JSON.stringify(planMgrInstructionValues)}`
         );
 
@@ -503,7 +474,7 @@ export class MaimlWriterService {
           mgrInstructionValuesMap.set(planKey, planMgrInstructionValues);
         }
 
-        if (!hasFlatValues && !hasUncertainties) continue;
+        if (!hasFlatValues) continue;
 
         // template_data.property_set に想定値を反映
         if (hasFlatValues) {
@@ -513,19 +484,6 @@ export class MaimlWriterService {
             plan.method_id,
             plan.task_no,
             planFlatValues,
-            'system', // チェックアウト処理はシステム操作
-            client
-          );
-        }
-
-        // template_data.property_set の uncertainties フィールドに不確かさ情報を反映
-        if (hasUncertainties) {
-          await templateDataRepo.updatePropertySetByPlanWithUncertainty(
-            organizationId,
-            projectId,
-            plan.method_id,
-            plan.task_no,
-            planFlatUncertainties,
             'system', // チェックアウト処理はシステム操作
             client
           );

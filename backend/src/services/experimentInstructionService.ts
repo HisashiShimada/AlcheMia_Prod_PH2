@@ -28,12 +28,14 @@ import type {
   PlanDialogData,
   TemplateDef,
   TemplateField,
+  UncertaintyJudgeSummary,
 } from '../types/api';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { getStorageService } from './storageService';
 import * as projectRepository from '../repositories/projectRepository';
 import * as uncertaintyCriteriaRepository from '../repositories/uncertaintyCriteriaRepository';
+import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
 import type { Template, Property } from '../types/maiml-unified';
 
 export type {
@@ -47,6 +49,7 @@ export type {
   PlanDialogData,
   TemplateDef,
   TemplateField,
+  UncertaintyJudgeSummary,
 };
 
 // ──────────────────────────────────────────────
@@ -145,6 +148,31 @@ export async function getExperimentInstructions(
     taskMap.get(row.task_no)!.push(row);
   }
 
+  // experiment_uncertainty_judge から最新判定を全件取得
+  // キー: `${methodId}__${taskNo}__${placeId}__${propKey}` → UncertaintyJudgeSummary[]
+  const judgeMap = new Map<string, UncertaintyJudgeSummary[]>();
+  try {
+    const judgeRepo = new ExperimentUncertaintyJudgeRepository();
+    // methodId が複数ある可能性があるため、全 methodId で取得
+    const allMethodIds = Array.from(methodMap.keys());
+    for (const methodId of allMethodIds) {
+      const judgeRows = await judgeRepo.findAllByProject(organizationId, projectId, methodId);
+      for (const jr of judgeRows) {
+        const key = `${methodId}__${jr.taskNo}__${jr.placeId}__${jr.propertyKey}`;
+        if (!judgeMap.has(key)) judgeMap.set(key, []);
+        judgeMap.get(key)!.push({
+          instructionKey: jr.uncertaintyKey,
+          toleranceUpper: jr.toleranceUpper,
+          toleranceLower: jr.toleranceLower,
+          judgeResult: jr.judgeResult,
+          recordedValue: jr.recordedValue,
+        });
+      }
+    }
+  } catch (e) {
+    logger.warn('[experimentInstructionService] judge 情報取得失敗（スキップ）', { error: String(e) });
+  }
+
   // ネスト形式に変換
   const methods: InstructionMethod[] = [];
   for (const [methodId, taskMap] of methodMap) {
@@ -155,7 +183,13 @@ export async function getExperimentInstructions(
         templateId: row.place_id,
         templateName: row.property_set?.templateName ?? null,
         templateType: row.property_set?.templateType ?? 'condition',
-        fields: buildFields(row),
+        fields: buildFields(row).map((field) => {
+          const judgeKey = `${methodId}__${taskNo}__${row.place_id}__${field.key}`;
+          const judges = judgeMap.get(judgeKey);
+          return judges && judges.length > 0
+            ? { ...field, uncertaintyJudges: judges }
+            : field;
+        }),
       }));
       tasks.push({
         taskNo,

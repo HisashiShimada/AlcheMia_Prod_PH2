@@ -16,8 +16,7 @@ export type InheritableField =
   | 'instrumentRefs'
   | 'ownerRefs'
   | 'notes'
-  | 'templateValues'
-  | 'assignedUncertainty';
+  | 'templateValues';
 
 /** トランジション行の型 */
 export interface TransitionRow {
@@ -168,16 +167,6 @@ export interface TemplateInputPanelProps {
    * 未指定時: アップロードなし（ファイル名・ハッシュのみセット）
    */
   projectId?: string;
-  /**
-   * 付与済み不確かさ情報（親管理: Lift State Up）
-   * key: valueKey（`${templateId}_${fieldKey}` または `custom_${cpId}`）
-   * value: AssignPayload の配列（複数付与対応）
-   */
-  assignedUncertainty: Record<string, AssignPayload[]>;
-  /**
-   * 不確かさ変更コールバック（親管理: Lift State Up）
-   */
-  onAssignedUncertaintyChange: (next: Record<string, AssignPayload[]>) => void;
 }
 
 /** SortableTransitionRow コンポーネントのProps */

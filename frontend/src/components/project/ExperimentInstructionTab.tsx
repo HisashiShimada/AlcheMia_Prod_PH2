@@ -41,6 +41,7 @@ import {
   FileSearchOutlined,
 } from '@ant-design/icons';
 import ExperimentPlanDialog from './ExperimentPlanDialog';
+import UncertaintyJudgeDetailDialog from './UncertaintyJudgeDetailDialog';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import {
   getExperimentInstructions,
@@ -52,6 +53,7 @@ import { getProjectMaiml } from '@/services/projectApiService';
 import type {
   InstructionMethodResponse,
   ProjectMethod,
+  UncertaintyJudgeSummary,
 } from '@/types/experimentInstruction';
 import type { FileData } from '@/types/editor';
 
@@ -127,18 +129,11 @@ interface FlatRow {
   /** 実績値（平均）: 同一 method/transition/template/key グループの実績値平均 */
   actualAverage: number | null;
   unit: string;
-  /** 不確かさ基準名 */
-  uncertaintyCriteriaName: string | null;
-  /** 不確かさ基準の種別（定性 / 定量） */
-  uncertaintyCriteriaType: 'qualitative' | 'quantitative' | null;
-  /** 不確かさ付与値 */
-  uncertaintyAssignedValue: string | null;
-  /** 不確かさ付与者 */
-  uncertaintyAssignedBy: string | null;
-  /** 不確かさ付与日時 */
-  uncertaintyAssignedAt: string | null;
-  /** 不確かさコメント */
-  uncertaintyComment: string | null;
+  /**
+   * 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。
+   * 0件 = 未判定、1件以上 = 判定済み
+   */
+  uncertaintyJudges: UncertaintyJudgeSummary[];
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -180,11 +175,7 @@ const TOGGLEABLE_COLUMN_KEYS_AND_WIDTHS: { key: string; labelKey: string; width:
   { key: 'actual',                      labelKey: 'experimentInstructionTab.col.actual',                   width: 100 },
   { key: 'actualAverage',               labelKey: 'experimentInstructionTab.col.actualAverage',            width: 120 },
   { key: 'diff',                        labelKey: 'experimentInstructionTab.col.diff',                     width:  85 },
-  { key: 'uncertaintyCriteriaName',     labelKey: 'experimentInstructionTab.col.uncertaintyCriteriaName', width: 200 },
-  { key: 'uncertaintyAssignedValue',    labelKey: 'experimentInstructionTab.col.uncertaintyAssignedValue', width: 140 },
-  { key: 'uncertaintyAssignedBy',       labelKey: 'experimentInstructionTab.col.uncertaintyAssignedBy',   width: 140 },
-  { key: 'uncertaintyAssignedAt',       labelKey: 'experimentInstructionTab.col.uncertaintyAssignedAt',   width: 160 },
-  { key: 'uncertaintyComment',          labelKey: 'experimentInstructionTab.col.uncertaintyComment',      width: 220 },
+  { key: 'uncertaintyJudge',            labelKey: 'experimentInstructionTab.col.uncertaintyJudge',         width: 200 },
 ];
 
 /** デフォルトで表示するすべての列キー */
@@ -206,35 +197,6 @@ function toTaskStatusStr(status: number | null | undefined): string {
   if (status == null) return '00';
   return String(status).padStart(2, '0');
 }
-
-// TODO:[MOCK] バックエンド実装時に削除 — 不確かさ情報はAPIから取得する
-/** モック用の不確かさデータ（画像と同様） */
-const MOCK_UNCERTAINTY_DATA: {
-
-  criteriaName: string;
-  criteriaType: 'qualitative' | 'quantitative';
-  assignedValue: string;
-  assignedBy: string;
-  assignedAt: string;
-  comment: string;
-  approvalStatus: 'pending' | 'approved' | 'rejected';
-}[] = [
-  { criteriaName: 'ヤング率',     criteriaType: 'qualitative', assignedValue: '確か',           assignedBy: '佐藤 花子', assignedAt: '2024-05-20T10:15:00', comment: '文献Aの実験結果に基づく推定値',   approvalStatus: 'approved'  },
-  { criteriaName: '材料特性値',   criteriaType: 'qualitative', assignedValue: '確か',    assignedBy: '鈴木 一郎', assignedAt: '2024-05-20T09:45:00', comment: '測定装置の校正結果を反映',       approvalStatus: 'approved'  },
-  { criteriaName: '温度',         criteriaType: 'qualitative',  assignedValue: '不確か',            assignedBy: '田中 美咲', assignedAt: '2024-05-19T16:30:00', comment: '環境温度の測定値',               approvalStatus: 'approved' },
-  { criteriaName: '圧力',         criteriaType: 'qualitative', assignedValue: '確か',         assignedBy: '高橋 健太', assignedAt: '2024-05-19T14:20:00', comment: '気圧計の精度を考慮',             approvalStatus: 'approved'  },
-  { criteriaName: '降伏強度',     criteriaType: 'qualitative', assignedValue: 'OK',         assignedBy: '伊藤 翔太', assignedAt: '2024-05-18T11:05:00', comment: '引張試験の結果に基づく',         approvalStatus: 'approved' },
-  { criteriaName: '熱伝導率',     criteriaType: 'qualitative', assignedValue: 'NG',       assignedBy: '佐藤 花子', assignedAt: '2024-05-17T15:50:00', comment: 'レーザーフラッシュ法による...',  approvalStatus: 'approved'  },
-  { criteriaName: '硬度',         criteriaType: 'qualitative',  assignedValue: '確か',             assignedBy: '鈴木 一郎', assignedAt: '2024-05-17T10:30:00', comment: 'ビッカース硬さ試験の結果',       approvalStatus: 'approved' },
-  { criteriaName: '引張強度',     criteriaType: 'qualitative', assignedValue: '曖昧',         assignedBy: '田中 美咲', assignedAt: '2024-05-16T13:45:00', comment: 'JIS Z 2241に基づく試験結果',    approvalStatus: 'pending'  },
-  { criteriaName: '伸び',         criteriaType: 'qualitative', assignedValue: 'OK',            assignedBy: '高橋 健太', assignedAt: '2024-05-16T09:20:00', comment: '標点距離50mmでの測定値',        approvalStatus: 'approved' },
-  { criteriaName: 'ポアソン比',   criteriaType: 'qualitative', assignedValue: '確か',           assignedBy: '伊藤 翔太', assignedAt: '2024-05-15T16:00:00', comment: 'ひずみゲージ法による測定',       approvalStatus: 'pending'  },
-  { criteriaName: '比熱容量',     criteriaType: 'qualitative', assignedValue: '不確か',       assignedBy: '佐藤 花子', assignedAt: '2024-05-15T11:30:00', comment: 'DSC法による測定結果',            approvalStatus: 'rejected'  },
-  { criteriaName: '電気抵抗率',   criteriaType: 'qualitative',  assignedValue: '確か',    assignedBy: '鈴木 一郎', assignedAt: '2024-05-14T14:15:00', comment: '四端子法による測定',             approvalStatus: 'rejected' },
-  { criteriaName: '破壊靭性',     criteriaType: 'qualitative', assignedValue: 'NG',        assignedBy: '田中 美咲', assignedAt: '2024-05-14T10:00:00', comment: 'ASTM E399に基づく試験',         approvalStatus: 'pending' },
-  { criteriaName: '疲労限度',     criteriaType: 'qualitative',  assignedValue: '曖昧',           assignedBy: '高橋 健太', assignedAt: '2024-05-13T15:40:00', comment: 'S-N曲線から外挿した推定値',      approvalStatus: 'pending'  },
-  { criteriaName: '熱膨張係数',   criteriaType: 'qualitative', assignedValue: '曖昧',           assignedBy: '伊藤 翔太', assignedAt: '2024-05-13T09:10:00', comment: 'TMA法による25〜400°Cの平均',   approvalStatus: 'pending' },
-];
 
 /**
  * 同一 methodId/templateId/propKey グループの数値平均を計算する
@@ -271,23 +233,19 @@ function calcGroupAverage(
 /** InstructionMethodResponse[] をフラットな FlatRow[] に変換 */
 function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
   const rows: FlatRow[] = [];
-  // [MOCK] バックエンド実装時に削除するインデックス変数
-  let mockIdx = 0;
   methods.forEach((method) => {
     method.tasks.forEach((task) => {
       const taskStatusStr = toTaskStatusStr(task.taskStatus);
       task.templates.forEach((tmpl) => {
         tmpl.fields.forEach((field, idx) => {
-          const mock = MOCK_UNCERTAINTY_DATA[mockIdx % MOCK_UNCERTAINTY_DATA.length];
-          mockIdx++;
           rows.push({
             rowKey: `${method.methodId}_${task.taskNo}_${tmpl.templateId}_${field.key}_${idx}`,
             methodId:      method.methodId,
-            methodName:    method.methodId, // MAIML パース統合後にメソッド名を追加予定
+            methodName:    method.methodId,
             taskNumber:    task.taskNo,
             taskStatus:    taskStatusStr,
-            transitionId:  '',             // MAIML パース統合後に追加予定
-            transitionName: '',            // MAIML パース統合後に追加予定
+            transitionId:  '',
+            transitionName: '',
             templateName:  tmpl.templateName ?? tmpl.templateId,
             propKey:       field.key,
             propLabel:     field.label,
@@ -297,12 +255,7 @@ function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
             actual:        field.actualValue,
             actualAverage: calcGroupAverage(methods, method.methodId, tmpl.templateId, field.key, 'actualValue'),
             unit:          field.unit ?? '',
-            uncertaintyCriteriaName:  mock.criteriaName,
-            uncertaintyCriteriaType:  mock.criteriaType,
-            uncertaintyAssignedValue: mock.assignedValue,
-            uncertaintyAssignedBy:    mock.assignedBy,
-            uncertaintyAssignedAt:    mock.assignedAt,
-            uncertaintyComment:       mock.comment,
+            uncertaintyJudges: field.uncertaintyJudges ?? [],
           });
         });
       });
@@ -436,6 +389,10 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     zIndex: number;
   }[]>([]);
   const [petriNetViewerLoading, setPetriNetViewerLoading] = useState(false);
+
+  // ── 不確かさ判定詳細ダイアログ ──
+  const [judgeDetailOpen, setJudgeDetailOpen] = useState(false);
+  const [judgeDetailRow, setJudgeDetailRow] = useState<FlatRow | null>(null);
 
   // ─────────────────────────────────────────────────────────
   // データ取得
@@ -795,77 +752,38 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       render: (_: unknown, r: FlatRow) => <DiffCell expected={r.expected} actual={r.actual} />,
     },
     {
-      key: 'uncertaintyCriteriaName',
-      title: t('experimentInstructionTab.col.uncertaintyCriteriaName'),
-      dataIndex: 'uncertaintyCriteriaName',
+      key: 'uncertaintyJudge',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyJudge')}</span>,
       width: 200,
-      ellipsis: { showTitle: false },
-      render: (v: string | null, r: FlatRow) => {
-        if (!v) return <Text type="secondary">—</Text>;
-        const typeTag = r.uncertaintyCriteriaType === 'qualitative'
-          ? <Tag color="green"  style={{ margin: '0 4px 0 0', fontSize: 10 }}>{t('experimentInstructionTab.criteriaType.qualitative')}</Tag>
-          : r.uncertaintyCriteriaType === 'quantitative'
-          ? <Tag color="blue"   style={{ margin: '0 4px 0 0', fontSize: 10 }}>{t('experimentInstructionTab.criteriaType.quantitative')}</Tag>
-          : null;
+      render: (_: unknown, r: FlatRow) => {
+        const judges = r.uncertaintyJudges;
+        if (!judges || judges.length === 0) return <Text type="secondary">—</Text>;
+        if (judges.length === 1) {
+          const j = judges[0];
+          return (
+            <Flex gap={4} align="center">
+              <Tag color={j.judgeResult === '良好' ? 'success' : 'error'} style={{ margin: 0, fontSize: 11 }}>
+                {j.judgeResult}
+              </Tag>
+              <Text type="secondary" style={{ fontSize: 11 }}>{j.instructionKey}</Text>
+            </Flex>
+          );
+        }
+        // 複数件: ボタンのみ表示
         return (
-          <Tooltip title={v} placement="topLeft">
-            <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'nowrap' }}>
-              {typeTag}
-              <Text style={{ fontSize: 12 }}>{v}</Text>
-            </span>
-          </Tooltip>
+          <Button
+            size="small"
+            type="link"
+            style={{ padding: 0, fontSize: 12 }}
+            onClick={() => { setJudgeDetailRow(r); setJudgeDetailOpen(true); }}
+          >
+            {t('experimentInstructionTab.judgeDetailButton', { count: String(judges.length) })}
+          </Button>
         );
       },
     },
-    {
-      key: 'uncertaintyAssignedValue',
-      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyAssignedValue')}</span>,
-      dataIndex: 'uncertaintyAssignedValue',
-      width: 140,
-      render: (v: string | null) =>
-        v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text>,
-    },
-    {
-      key: 'uncertaintyAssignedBy',
-      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyAssignedBy')}</span>,
-      dataIndex: 'uncertaintyAssignedBy',
-      width: 140,
-      render: (v: string | null) =>
-        v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text>,
-    },
-    {
-      key: 'uncertaintyAssignedAt',
-      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyAssignedAt')}</span>,
-      dataIndex: 'uncertaintyAssignedAt',
-      width: 160,
-      render: (v: string | null) => {
-        if (!v) return <Text type="secondary">—</Text>;
-        const d = new Date(v);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        const hh = String(d.getHours()).padStart(2, '0');
-        const min = String(d.getMinutes()).padStart(2, '0');
-        return <Text style={{ fontSize: 11 }}>{`${yyyy}/${mm}/${dd} ${hh}:${min}`}</Text>;
-      },
-    },
-    {
-      key: 'uncertaintyComment',
-      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyComment')}</span>,
-      dataIndex: 'uncertaintyComment',
-      width: 220,
-      ellipsis: { showTitle: false },
-      render: (v: string | null) =>
-        v ? (
-          <Tooltip title={v} placement="topLeft">
-            <Text style={{ fontSize: 12 }}>{v}</Text>
-          </Tooltip>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
-    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], []);
+  ], [judgeDetailOpen]);
 
   /**
    * visibleColumnKeys に応じてフィルタリングされたカラム配列
@@ -1176,6 +1094,20 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             setPlanDialogOpen(false);
             fetchData();
           }}
+        />
+      )}
+
+      {/* ── 不確かさ判定詳細ダイアログ ── */}
+      {judgeDetailOpen && judgeDetailRow && (
+        <UncertaintyJudgeDetailDialog
+          open={judgeDetailOpen}
+          onClose={() => setJudgeDetailOpen(false)}
+          propKey={judgeDetailRow.propKey}
+          propLabel={judgeDetailRow.propLabel}
+          xsiType={judgeDetailRow.xsiType}
+          expected={judgeDetailRow.expected}
+          actual={judgeDetailRow.actual}
+          uncertaintyJudges={judgeDetailRow.uncertaintyJudges}
         />
       )}
 
