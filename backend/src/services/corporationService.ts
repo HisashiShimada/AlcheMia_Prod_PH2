@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 会社管理サービス
  * ビジネスロジック層
  */
@@ -8,6 +8,7 @@ import * as corporationRepository from '../repositories/corporationRepository';
 import { CorporationSearchFilters } from '../repositories/corporationRepository';
 import { getPgp } from '../database/db';
 import { getMessage } from '../utils/messages';
+import { formatDateTimeJST } from '../utils/dateUtils';
 
 /**
  * Corporationレスポンス型定義
@@ -18,31 +19,6 @@ export interface CorporationResponse {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-}
-
-/**
- * 日時を YYYYMMDDhhmmss 形式にフォーマット
- * 
- * @param date 日時オブジェクト
- * @returns フォーマットされた文字列
- */
-function formatDateTime(date: Date | null): string {
-  if (!date) return '-';
-  
-  try {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hour = String(d.getHours()).padStart(2, '0');
-    const minute = String(d.getMinutes()).padStart(2, '0');
-    const second = String(d.getSeconds()).padStart(2, '0');
-    
-    return `${year}${month}${day}${hour}${minute}${second}`;
-  } catch (error) {
-    console.error('Date format error:', error);
-    return '-';
-  }
 }
 
 /**
@@ -64,8 +40,8 @@ export async function getCorporation(
     corporationId: corp.corporation_id,
     corporationName: corp.corporation_name,
     isActive: corp.is_active,
-    createdAt: formatDateTime(corp.create_at),
-    updatedAt: formatDateTime(corp.update_at),
+    createdAt: formatDateTimeJST(corp.create_at),
+    updatedAt: formatDateTimeJST(corp.update_at),
   }));
 }
 
@@ -88,8 +64,8 @@ export async function getCorporationById(
     corporationId: corporation.corporation_id,
     corporationName: corporation.corporation_name,
     isActive: corporation.is_active,
-    createdAt: formatDateTime(corporation.create_at),
-    updatedAt: formatDateTime(corporation.update_at),
+    createdAt: formatDateTimeJST(corporation.create_at),
+    updatedAt: formatDateTimeJST(corporation.update_at),
   };
 }
 
@@ -130,8 +106,8 @@ export async function createCorporation(
     corporationId: corporation.corporation_id,
     corporationName: corporation.corporation_name,
     isActive: corporation.is_active,
-    createdAt: formatDateTime(corporation.create_at),
-    updatedAt: formatDateTime(corporation.update_at),
+    createdAt: formatDateTimeJST(corporation.create_at),
+    updatedAt: formatDateTimeJST(corporation.update_at),
   };
 }
 
@@ -172,8 +148,8 @@ export async function updateCorporation(
     corporationId: corporation.corporation_id,
     corporationName: corporation.corporation_name,
     isActive: corporation.is_active,
-    createdAt: formatDateTime(corporation.create_at),
-    updatedAt: formatDateTime(corporation.update_at),
+    createdAt: formatDateTimeJST(corporation.create_at),
+    updatedAt: formatDateTimeJST(corporation.update_at),
   };
 }
 
@@ -199,8 +175,8 @@ export async function updateCorporationStatus(
     corporationId: corporation.corporation_id,
     corporationName: corporation.corporation_name,
     isActive: corporation.is_active,
-    createdAt: formatDateTime(corporation.create_at),
-    updatedAt: formatDateTime(corporation.update_at),
+    createdAt: formatDateTimeJST(corporation.create_at),
+    updatedAt: formatDateTimeJST(corporation.update_at),
   };
 }
 
