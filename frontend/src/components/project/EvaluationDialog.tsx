@@ -75,91 +75,6 @@ export interface EvaluationDialogProps {
 // 定数
 // ─────────────────────────────────────────────────────────────
 
-// TODO:[MOCK] バックエンド実装時に削除 — MAIML パース統合後はAPIからトランジション名を取得する
-/**
- * トランジション名の一覧（モック）
- * MAIML パース統合後は実データ（API）へ置換予定
- */
-const MOCK_TRANSITION_NAMES: string[] = [
-  'T001_加熱処理',
-  'T002_冷却処理',
-  'T003_引張試験',
-  'T004_硬さ試験',
-  'T005_伸び測定',
-  'T006_熱分析',
-  'T007_破壊試験',
-  'T008_熱膨張',
-];
-
-// ─────────────────────────────────────────────────────────────
-// TODO:[MOCK] バックエンド実装時に削除 — 評価結果はAPIから取得する
-// ─────────────────────────────────────────────────────────────
-const MOCK_EVALUATION_RECORDS: EvaluationRecord[] = [
-  {
-    evaluation_seq: 1, organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_scope: 'METHOD', evaluation_unit: 'METHOD',
-    method_id: 'method_001', task_no: null, transition_id: null,
-    overall_digital: '良好', overall_analog: '温度管理が適切に実施されている',
-    evaluation_value: '良好', comment: '温度管理が適切に実施されている',
-    evaluated_user_id: 'user-001', evaluated_at: '2026-07-15T08:30:00.000Z',
-    create_user_id: 'user-001', create_at: '2026-07-15T08:30:00.000Z', update_user_id: null, update_at: null,
-  },
-  {
-    evaluation_seq: 2, organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_scope: 'METHOD', evaluation_unit: 'METHOD',
-    method_id: 'method_002', task_no: null, transition_id: null,
-    overall_digital: '要確認', overall_analog: '若干の変動あり。再評価推奨',
-    evaluation_value: '要確認', comment: '若干の変動あり。再評価推奨',
-    evaluated_user_id: 'user-001', evaluated_at: '2026-07-15T09:00:00.000Z',
-    create_user_id: 'user-001', create_at: '2026-07-15T09:00:00.000Z', update_user_id: null, update_at: null,
-  },
-  {
-    evaluation_seq: 3, organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_scope: 'TASK', evaluation_unit: 'TASK',
-    method_id: 'method_001', task_no: 1, transition_id: null,
-    overall_digital: '良好', overall_analog: null,
-    evaluation_value: '良好', comment: null,
-    evaluated_user_id: 'user-002', evaluated_at: '2026-07-15T09:15:00.000Z',
-    create_user_id: 'user-002', create_at: '2026-07-15T09:15:00.000Z', update_user_id: null, update_at: null,
-  },
-  {
-    evaluation_seq: 4, organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_scope: 'TASK', evaluation_unit: 'TASK',
-    method_id: 'method_001', task_no: 2, transition_id: null,
-    overall_digital: '不良', overall_analog: '測定値に誤差が見られる。要調査',
-    evaluation_value: '不良', comment: '測定値に誤差が見られる。要調査',
-    evaluated_user_id: 'user-002', evaluated_at: '2026-07-15T09:30:00.000Z',
-    create_user_id: 'user-002', create_at: '2026-07-15T09:30:00.000Z', update_user_id: null, update_at: null,
-  },
-  {
-    evaluation_seq: 5, organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_scope: 'TRANSITION_METHOD', evaluation_unit: 'TRANSITION_METHOD',
-    method_id: 'method_001', task_no: null, transition_id: 'T001_加熱処理',
-    overall_digital: '良好', overall_analog: null,
-    evaluation_value: '良好', comment: null,
-    evaluated_user_id: 'user-001', evaluated_at: '2026-07-15T10:00:00.000Z',
-    create_user_id: 'user-001', create_at: '2026-07-15T10:00:00.000Z', update_user_id: null, update_at: null,
-  },
-  {
-    evaluation_seq: 6, organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_scope: 'TRANSITION_TASK', evaluation_unit: 'TRANSITION_TASK',
-    method_id: 'method_001', task_no: 1, transition_id: 'T002_冷却処理',
-    overall_digital: '良好', overall_analog: null,
-    evaluation_value: '良好', comment: null,
-    evaluated_user_id: 'user-001', evaluated_at: '2026-07-15T10:30:00.000Z',
-    create_user_id: 'user-001', create_at: '2026-07-15T10:30:00.000Z', update_user_id: null, update_at: null,
-  },
-  {
-    evaluation_seq: 7, organization_id: 'org-001', project_id: 'proj-001',
-    evaluation_scope: 'TRANSITION_TASK', evaluation_unit: 'TRANSITION_TASK',
-    method_id: 'method_001', task_no: 2, transition_id: 'T003_引張試験',
-    overall_digital: '要確認', overall_analog: '引張速度に若干のばらつきあり',
-    evaluation_value: '要確認', comment: '引張速度に若干のばらつきあり',
-    evaluated_user_id: 'user-002', evaluated_at: '2026-07-15T11:00:00.000Z',
-    create_user_id: 'user-002', create_at: '2026-07-15T11:00:00.000Z', update_user_id: null, update_at: null,
-  },
-];
-
 const EVALUATION_UNIT_INPUT_VALUES: string[] = [
   SubEvaluationScopeValues.METHOD,
   SubEvaluationScopeValues.TASK,
@@ -210,29 +125,12 @@ function buildEvalRows(
 
     case SubEvaluationScopeValues.TRANSITION_METHOD:
       if (!selectedMethodForTr) return [];
-      // [MOCK] MAIML パース統合後は実データ（API）から取得予定
-      return MOCK_TRANSITION_NAMES.map((trName) => ({
-        rowKey:          `tr__${selectedMethodForTr}__${trName}`,
-        label:           trName,
-        methodId:        selectedMethodForTr,
-        transitionId:    trName,
-        evaluationValue: undefined,
-        comment:         '',
-      }));
+      return [];
 
     case SubEvaluationScopeValues.TRANSITION_TASK:
       // メソッド AND タスクNo の両方が揃ってからトランジション一覧を返す
       if (!selectedMethodForTr || selectedTaskNoForTr === null) return [];
-      // [MOCK] MAIML パース統合後は実データ（API）から取得予定
-      return MOCK_TRANSITION_NAMES.map((trName) => ({
-        rowKey:          `tr__${selectedMethodForTr}__${selectedTaskNoForTr}__${trName}`,
-        label:           trName,
-        methodId:        selectedMethodForTr,
-        taskNo:          selectedTaskNoForTr,
-        transitionId:    trName,
-        evaluationValue: undefined,
-        comment:         '',
-      }));
+      return [];
 
     default:
       return [];
@@ -519,7 +417,7 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
   reviewWaitingTasks,
   refreshKey,
 }) => {
-  const [records, setRecords]         = useState<EvaluationRecord[]>(MOCK_EVALUATION_RECORDS);
+  const [records, setRecords]         = useState<EvaluationRecord[]>([]);
   const [loading, setLoading]         = useState(false);
   const [unitFilter, setUnitFilter]   = useState<ResultUnitFilter>('all');
   const [filterMethodId, setFilterMethodId] = useState<string | null>(null);
@@ -739,13 +637,6 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
                             </Text>
                           );
                         },
-                      },
-                      {
-                        title: t('evaluation.columns.criteriaName'),
-                        width: 180,
-                        render: (_: unknown, r: EvaluationRecord) => (
-                          <Text style={{ fontSize: 12 }}>{r.evaluation_scope}</Text>
-                        ),
                       },
                       {
                         title: t('evaluation.columns.evaluationValue'),

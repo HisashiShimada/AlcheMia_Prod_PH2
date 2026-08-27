@@ -44,10 +44,20 @@ export interface InstructionFieldResponse {
   /** 単位 */
   unit: string | null;
   /**
-   * 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。
+   * 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。定量評価。
    * 0件 = 未判定、1件以上 = 判定済み
    */
   uncertaintyJudges?: UncertaintyJudgeSummary[];
+  /**
+   * 定性評価の不確かさ基準名（uncertainty_criteria.uncertainty_name）。
+   * experiment_instruction_detail.uncertainty_key から解決する。未設定時は null。
+   */
+  qualitativeCriteriaName?: string | null;
+  /**
+   * 定性評価の付与値（確か / 曖昧 / 不確か 等）。
+   * experiment_instruction_detail.uncertainty_assigned_value から取得。未設定時は null。
+   */
+  qualitativeAssignedValue?: string | null;
 }
 
 /** 1 テンプレートの実験指示情報 */
@@ -67,6 +77,10 @@ export interface InstructionTaskResponse {
   reviewUserId: string | null;
   reviewResult: string | null;
   templates: InstructionTemplateResponse[];
+  /** 実験作業者ID（project_task_detail.experiment_user_id） */
+  experimentUserId: string | null;
+  /** 実験終了日時（project_task_detail.experiment_end_at, ISO文字列） */
+  experimentEndAt: string | null;
 }
 
 /** 1 メソッドの実験指示情報 */

@@ -36,6 +36,7 @@ import { getStorageService } from './storageService';
 import * as projectRepository from '../repositories/projectRepository';
 import * as uncertaintyCriteriaRepository from '../repositories/uncertaintyCriteriaRepository';
 import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
+import * as experimentInstructionDetailRepository from '../repositories/experimentInstructionDetailRepository';
 import type { Template, Property } from '../types/maiml-unified';
 
 export type {
@@ -123,16 +124,32 @@ export async function getExperimentInstructions(
     projectId,
   });
 
-  // template_data（実績値）と project_task_detail（ステータス）を並行取得
-  const [templateRows, taskDetails] = await Promise.all([
+  // template_data（実績値）/ project_task_detail（ステータス・記録者情報）/ experiment_instruction_detail（定性評価）を並行取得
+  const [templateRows, taskDetails, instructionDetails] = await Promise.all([
     templateDataRepo.findByProject(organizationId, projectId),
     projectTaskDetailRepo.findByProject(organizationId, projectId),
+    experimentInstructionDetailRepository.findByProject(organizationId, projectId).catch((e) => {
+      logger.warn('[experimentInstructionService] instruction_detail 取得失敗（スキップ）', { error: String(e) });
+      return [];
+    }),
   ]);
 
   // task_detail を (methodId, taskNo) をキーにした Map に変換
   const taskDetailMap = new Map<string, ProjectTaskDetail>();
   for (const td of taskDetails) {
     taskDetailMap.set(`${td.method_id}__${td.task_no}`, td);
+  }
+
+  // instruction_detail を (methodId, taskNo, templateName, propKey) をキーにした Map に変換
+  // キー: `${methodId}__${taskNo}__${templateName}__${propKey}`
+  const instructionDetailMap = new Map<string, { uncertaintyKey: string | null; uncertaintyAssignedValue: string | null }>();
+  for (const detail of instructionDetails) {
+    const key = `${detail.method_id}__${detail.task_no}__${detail.template_name}__${detail.prop_key}`;
+    // 同一キーが複数ある場合は最新（後勝ち）を使用
+    instructionDetailMap.set(key, {
+      uncertaintyKey: detail.uncertainty_key ?? null,
+      uncertaintyAssignedValue: detail.uncertainty_assigned_value ?? null,
+    });
   }
 
   // templateRows を methodId → taskNo → rows[] にグループ化
@@ -152,7 +169,7 @@ export async function getExperimentInstructions(
   // キー: `${methodId}__${taskNo}__${placeId}__${propKey}` → UncertaintyJudgeSummary[]
   const judgeMap = new Map<string, UncertaintyJudgeSummary[]>();
 
-  // uncertainty_key → criteriaName のマップ（uncertainty_criteria.description を使用）
+  // uncertainty_key → criteriaName のマップ（定量・定性両方で使用）
   const criteriaNameMap = new Map<string, string>();
 
   try {
@@ -177,7 +194,14 @@ export async function getExperimentInstructions(
       }
     }
 
-    // uncertainty_criteria から criteriaName（description）を一括取得
+    // 定性評価の uncertaintyKey も criteriaName 解決対象に追加
+    for (const detail of instructionDetails) {
+      if (detail.uncertainty_key) {
+        allUncertaintyKeys.add(detail.uncertainty_key);
+      }
+    }
+
+    // uncertainty_criteria から criteriaName（uncertainty_name）を一括取得
     if (allUncertaintyKeys.size > 0) {
       try {
         const criteriaRows = await uncertaintyCriteriaRepository.findByKeys(
@@ -214,6 +238,7 @@ export async function getExperimentInstructions(
     const tasks: InstructionTask[] = [];
     for (const [taskNo, rows] of taskMap) {
       const td = taskDetailMap.get(`${methodId}__${taskNo}`);
+      const templateName = rows[0]?.property_set?.templateName ?? null;
       const templates: InstructionTemplate[] = rows.map((row) => ({
         templateId: row.place_id,
         templateName: row.property_set?.templateName ?? null,
@@ -221,9 +246,24 @@ export async function getExperimentInstructions(
         fields: buildFields(row).map((field) => {
           const judgeKey = `${methodId}__${taskNo}__${row.place_id}__${field.key}`;
           const judges = judgeMap.get(judgeKey);
-          return judges && judges.length > 0
-            ? { ...field, uncertaintyJudges: judges }
-            : field;
+
+          // 定性評価情報を instruction_detail から取得
+          // template_name は property_set.templateName と対応する
+          const rowTemplateName = row.property_set?.templateName ?? '';
+          const detailKey = `${methodId}__${taskNo}__${rowTemplateName}__${field.key}`;
+          const detail = instructionDetailMap.get(detailKey);
+          const qualitativeCriteriaName = detail?.uncertaintyKey
+            ? (criteriaNameMap.get(detail.uncertaintyKey) ?? detail.uncertaintyKey)
+            : null;
+          const qualitativeAssignedValue = detail?.uncertaintyAssignedValue ?? null;
+
+          const enriched: InstructionField = {
+            ...field,
+            ...(judges && judges.length > 0 ? { uncertaintyJudges: judges } : {}),
+            qualitativeCriteriaName,
+            qualitativeAssignedValue,
+          };
+          return enriched;
         }),
       }));
       tasks.push({
@@ -233,6 +273,8 @@ export async function getExperimentInstructions(
         reviewUserId: td?.review_user_id ?? null,
         reviewResult: td?.review_result ?? null,
         templates,
+        experimentUserId: td?.experiment_user_id ?? null,
+        experimentEndAt: td?.experiment_end_at ? td.experiment_end_at.toISOString() : null,
       });
     }
     // taskNo 昇順

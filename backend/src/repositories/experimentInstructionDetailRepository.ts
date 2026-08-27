@@ -170,3 +170,22 @@ export async function updateActualAndUncertainty(params: {
   ]);
 }
 
+/**
+ * プロジェクト内の全 experiment_instruction_detail を取得する（実験指示タブ表示用）。
+ * 定性評価情報（uncertainty_key / uncertainty_assigned_value）を一括取得し
+ * Service 層でフィールドにマッピングするために使用する。
+ *
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @returns 全レコード一覧
+ */
+export async function findByProject(
+  organizationId: string,
+  projectId: string
+): Promise<ExperimentInstructionDetail[]> {
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('experiment_instruction_details/findByProject.sql');
+  return pgp.any<ExperimentInstructionDetail>(sqlQuery, [organizationId, projectId]);
+}
+
+

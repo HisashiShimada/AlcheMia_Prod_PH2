@@ -4207,7 +4207,14 @@
       "uncertaintyInstructionKey": "指示キー",
       "uncertaintyTolerance": "許容値",
       "uncertaintyJudgeResult": "判定結果",
-      "uncertaintyRecordedValue": "記録値"
+      "uncertaintyRecordedValue": "記録値",
+      "qualitativeCriteriaName": "定性：基準名",
+      "qualitativeAssignedValue": "定性：付与値",
+      "quantitativeCriteriaName": "定量：基準名",
+      "quantitativeTolerance": "定量：許容値",
+      "quantitativeRecordedValue": "定量：付与値",
+      "quantitativeJudgeResult": "定量：判定結果",
+      "experimentUser": "実験記録者"
     },
     "cell": {
       "noRecord": "未記録"

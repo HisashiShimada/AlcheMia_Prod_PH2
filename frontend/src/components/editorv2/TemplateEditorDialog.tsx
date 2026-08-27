@@ -281,12 +281,25 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     if (!criteriaTargetProperty) return;
     const targetKey = criteriaTargetProperty.name;
 
-    // 新しい uncertainty 子ノード（新方式: key のみの空タグ）
-    // value / description は WorkRecordPanel での手入力に委ねるため記録しない
+    // 親プロパティの xsi:type / units を取得して定量 uncertainty タグに付与する
+    // （定性評価の場合は attributes 不要）
+    const parentPropData = properties[criteriaTargetProperty.name] ?? null;
+    const parentXsiType = parentPropData?.attributes?.['xsi:type'] ?? '';
+    const parentUnits = parentPropData?.attributes?.['units'] ?? '';
+    const isQualitative = payload.criteria.evalType === 'qualitative';
+
+    // 新しい uncertainty 子ノード
+    // value / description は WorkRecordPanel での手入力に委ねるため elements は空
+    // 定量評価は親プロパティの xsi:type / units を attributes に引き継ぐ
     const uncertaintyNode: PropertyData = {
       key: payload.criteria.key,
       tagName: 'uncertainty',
-      attributes: {},
+      attributes: isQualitative
+        ? {}
+        : {
+            ...(parentXsiType ? { 'xsi:type': parentXsiType } : {}),
+            ...(parentUnits ? { units: parentUnits } : {}),
+          },
       elements: {},
       children: [],
     };

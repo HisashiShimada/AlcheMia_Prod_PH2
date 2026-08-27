@@ -4732,7 +4732,14 @@
       "uncertaintyInstructionKey": "Instruction Key",
       "uncertaintyTolerance": "Tolerance",
       "uncertaintyJudgeResult": "Judge Result",
-      "uncertaintyRecordedValue": "Recorded Value"
+      "uncertaintyRecordedValue": "Recorded Value",
+      "qualitativeCriteriaName": "Qualitative: Criteria",
+      "qualitativeAssignedValue": "Qualitative: Value",
+      "quantitativeCriteriaName": "Quantitative: Criteria",
+      "quantitativeTolerance": "Quantitative: Tolerance",
+      "quantitativeRecordedValue": "Quantitative: Value",
+      "quantitativeJudgeResult": "Quantitative: Result",
+      "experimentUser": "Experimenter"
     },
     "cell": {
       "noRecord": "No record"

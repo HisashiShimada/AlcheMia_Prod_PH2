@@ -130,10 +130,18 @@ interface FlatRow {
   actualAverage: number | null;
   unit: string;
   /**
-   * 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。
-   * 0件 = 未判定、1件以上 = 判定済み
+   * 定量評価: 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。
+   * 0件 = 未判定、1件以上 = 判定済み（複数件の場合はダイアログ表示）
    */
   uncertaintyJudges: UncertaintyJudgeSummary[];
+  /** 定性評価: 不確かさ基準名 */
+  qualitativeCriteriaName: string | null;
+  /** 定性評価: 付与値（確か / 曖昧 / 不確か 等） */
+  qualitativeAssignedValue: string | null;
+  /** 実験記録者ユーザID（project_task_detail.experiment_user_id） */
+  experimentUserId: string | null;
+  /** 実験終了日時（project_task_detail.experiment_end_at, ISO文字列） */
+  experimentEndAt: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -175,7 +183,13 @@ const TOGGLEABLE_COLUMN_KEYS_AND_WIDTHS: { key: string; labelKey: string; width:
   { key: 'actual',                      labelKey: 'experimentInstructionTab.col.actual',                   width: 100 },
   { key: 'actualAverage',               labelKey: 'experimentInstructionTab.col.actualAverage',            width: 120 },
   { key: 'diff',                        labelKey: 'experimentInstructionTab.col.diff',                     width:  85 },
-  { key: 'uncertaintyJudge',            labelKey: 'experimentInstructionTab.col.uncertaintyJudge',         width: 200 },
+  { key: 'qualitativeCriteriaName',     labelKey: 'experimentInstructionTab.col.qualitativeCriteriaName',  width: 160 },
+  { key: 'qualitativeAssignedValue',    labelKey: 'experimentInstructionTab.col.qualitativeAssignedValue', width: 120 },
+  { key: 'quantitativeCriteriaName',    labelKey: 'experimentInstructionTab.col.quantitativeCriteriaName', width: 180 },
+  { key: 'quantitativeTolerance',       labelKey: 'experimentInstructionTab.col.quantitativeTolerance',    width: 140 },
+  { key: 'quantitativeRecordedValue',   labelKey: 'experimentInstructionTab.col.quantitativeRecordedValue', width: 110 },
+  { key: 'quantitativeJudgeResult',     labelKey: 'experimentInstructionTab.col.quantitativeJudgeResult',  width:  90 },
+  { key: 'experimentUser',              labelKey: 'experimentInstructionTab.col.experimentUser',           width: 160 },
 ];
 
 /** デフォルトで表示するすべての列キー */
@@ -255,7 +269,11 @@ function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
             actual:        field.actualValue,
             actualAverage: calcGroupAverage(methods, method.methodId, tmpl.templateId, field.key, 'actualValue'),
             unit:          field.unit ?? '',
-            uncertaintyJudges: field.uncertaintyJudges ?? [],
+            uncertaintyJudges:      field.uncertaintyJudges ?? [],
+            qualitativeCriteriaName:  field.qualitativeCriteriaName ?? null,
+            qualitativeAssignedValue: field.qualitativeAssignedValue ?? null,
+            experimentUserId: task.experimentUserId ?? null,
+            experimentEndAt:  task.experimentEndAt ?? null,
           });
         });
       });
@@ -751,35 +769,49 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       align: 'right' as const,
       render: (_: unknown, r: FlatRow) => <DiffCell expected={r.expected} actual={r.actual} />,
     },
+    // ─── 定性評価 2列 ───────────────────────────────────────
     {
-      key: 'uncertaintyJudge',
-      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyJudge')}</span>,
-      width: 200,
+      key: 'qualitativeCriteriaName',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.qualitativeCriteriaName')}</span>,
+      width: 160,
+      ellipsis: { showTitle: false },
+      render: (_: unknown, r: FlatRow) => {
+        if (!r.qualitativeCriteriaName) return <Text type="secondary">—</Text>;
+        return (
+          <Tooltip title={r.qualitativeCriteriaName} placement="topLeft">
+            <Text style={{ fontSize: 12 }}>{r.qualitativeCriteriaName}</Text>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      key: 'qualitativeAssignedValue',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.qualitativeAssignedValue')}</span>,
+      width: 120,
+      render: (_: unknown, r: FlatRow) => {
+        if (!r.qualitativeAssignedValue) return <Text type="secondary">—</Text>;
+        return <Text style={{ fontSize: 12 }}>{r.qualitativeAssignedValue}</Text>;
+      },
+    },
+    // ─── 定量評価 4列 ───────────────────────────────────────
+    {
+      key: 'quantitativeCriteriaName',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.quantitativeCriteriaName')}</span>,
+      width: 180,
+      ellipsis: { showTitle: false },
       render: (_: unknown, r: FlatRow) => {
         const judges = r.uncertaintyJudges;
         if (!judges || judges.length === 0) return <Text type="secondary">—</Text>;
         if (judges.length === 1) {
           const j = judges[0];
+          const name = j.criteriaName ?? j.instructionKey;
           return (
-            <Flex gap={4} align="center" wrap="wrap">
-              <Tag color={j.judgeResult === '良好' ? 'success' : 'error'} style={{ margin: 0, fontSize: 11 }}>
-                {j.judgeResult}
-              </Tag>
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                {j.criteriaName ?? j.instructionKey}
-              </Text>
-              {j.recordedValue != null && (
-                <Text style={{ fontSize: 11 }}>= {j.recordedValue}</Text>
-              )}
-              {(j.toleranceLower != null || j.toleranceUpper != null) && (
-                <Text type="secondary" style={{ fontSize: 10 }}>
-                  [{j.toleranceLower ?? '—'}, {j.toleranceUpper ?? '—'}]
-                </Text>
-              )}
-            </Flex>
+            <Tooltip title={name} placement="topLeft">
+              <Text style={{ fontSize: 12 }}>{name}</Text>
+            </Tooltip>
           );
         }
-        // 複数件: ボタンのみ表示
+        // 複数件: ボタン表示 → ダイアログ
         return (
           <Button
             size="small"
@@ -789,6 +821,79 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
           >
             {t('experimentInstructionTab.judgeDetailButton', { count: String(judges.length) })}
           </Button>
+        );
+      },
+    },
+    {
+      key: 'quantitativeTolerance',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.quantitativeTolerance')}</span>,
+      width: 140,
+      render: (_: unknown, r: FlatRow) => {
+        const judges = r.uncertaintyJudges;
+        if (!judges || judges.length !== 1) return <Text type="secondary">—</Text>;
+        const j = judges[0];
+        if (j.toleranceLower === null && j.toleranceUpper === null) return <Text type="secondary">—</Text>;
+        return (
+          <Text style={{ fontSize: 12 }}>
+            {j.toleranceLower ?? '—'} ～ {j.toleranceUpper ?? '—'}
+          </Text>
+        );
+      },
+    },
+    {
+      key: 'quantitativeRecordedValue',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.quantitativeRecordedValue')}</span>,
+      width: 110,
+      align: 'right' as const,
+      render: (_: unknown, r: FlatRow) => {
+        const judges = r.uncertaintyJudges;
+        if (!judges || judges.length !== 1) return <Text type="secondary">—</Text>;
+        return <Text style={{ fontSize: 12 }}>{judges[0].recordedValue}</Text>;
+      },
+    },
+    {
+      key: 'quantitativeJudgeResult',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.quantitativeJudgeResult')}</span>,
+      width: 90,
+      align: 'center' as const,
+      render: (_: unknown, r: FlatRow) => {
+        const judges = r.uncertaintyJudges;
+        if (!judges || judges.length !== 1) return <Text type="secondary">—</Text>;
+        const j = judges[0];
+        return (
+          <Tag color={j.judgeResult === '良好' ? 'success' : 'error'} style={{ margin: 0, fontSize: 11 }}>
+            {j.judgeResult}
+          </Tag>
+        );
+      },
+    },
+    // ─── 共通: 実験記録者 ────────────────────────────────────
+    {
+      key: 'experimentUser',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.experimentUser')}</span>,
+      width: 160,
+      render: (_: unknown, r: FlatRow) => {
+        if (!r.experimentUserId && !r.experimentEndAt) return <Text type="secondary">—</Text>;
+        const dateStr = r.experimentEndAt
+          ? (() => {
+              const d = new Date(r.experimentEndAt);
+              const yyyy = d.getFullYear();
+              const mm = String(d.getMonth() + 1).padStart(2, '0');
+              const dd = String(d.getDate()).padStart(2, '0');
+              const hh = String(d.getHours()).padStart(2, '0');
+              const min = String(d.getMinutes()).padStart(2, '0');
+              return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
+            })()
+          : null;
+        return (
+          <Flex vertical gap={1}>
+            {r.experimentUserId && (
+              <Text style={{ fontSize: 11 }}>{r.experimentUserId}</Text>
+            )}
+            {dateStr && (
+              <Text type="secondary" style={{ fontSize: 10 }}>{dateStr}</Text>
+            )}
+          </Flex>
         );
       },
     },

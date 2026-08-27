@@ -143,6 +143,7 @@
 - [x] **D-1〜D-13**: `UncertaintyCriteriaSelectorModal.tsx` の③値入力エリア削除・値 state/関数削除・`AssignPayload` に `@deprecated` 付与・不要 import 削除
 - [x] **E-1**: `TemplateEditorDialog.tsx` の `editPayload` から `comment: ''` を削除
 - [x] **追加**: `UncertaintyCriteriaSelectorPanel.tsx` の変換コードに `xsiType`/`scaleFactor` 追加（型エラー修正）
+- [x] **追加（バグ修正）**: `TemplateEditorDialog.tsx` の `handleCriteriaAssign` で `uncertaintyNode.attributes` に親プロパティの `xsi:type`/`units` を引き継ぐよう修正（定量評価のみ・定性評価は空のまま維持）
 
 ### TypeScript チェック結果
 今回の修正に起因するエラー: **0件**  
