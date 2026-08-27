@@ -242,4 +242,15 @@ router.get(
   namespaceController.exportGlobalDeclarations
 );
 
+/**
+ * 選択した Prefix を指定スコープへ共有（コピー）する
+ * POST /api/v1/namespaces/prefixes/share
+ */
+router.post(
+  '/prefixes/share',
+  authMiddleware,
+  tenantIsolation,
+  namespaceController.sharePrefixes
+);
+
 export default router;

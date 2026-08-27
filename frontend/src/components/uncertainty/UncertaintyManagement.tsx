@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Button, Input, Select, Space, Tree, Typography, message } from 'antd';
+import { Button, Input, Select, Space, Tree, message } from 'antd';
 import { ImportOutlined, ExportOutlined, PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import UncertaintyListTable from './UncertaintyListTable';
@@ -13,10 +13,12 @@ import UncertaintyExportModal from './UncertaintyExportModal';
 import { fetchUncertaintyCriteriaList } from '@/services/uncertaintyCriteriaApiService';
 import NamespaceMain from '../namespace/NamespaceMain';
 import PrefixManagement from '../namespace/PrefixManagement';
-import { getOrganizationGroups } from '@/services/namespaceApiService';
+import ShareScopeModal from '../namespace/ShareScopeModal';
+import type { ScopeNode, ShareTarget, ShareSourceRole } from '@/types/namespace';
+import { getOrganizationGroups, sharePrefixes } from '@/services/namespaceApiService';
 import GroupAddDialog from '../group/GroupAddDialog';
 import GroupEditDialog from '../group/GroupEditDialog';
-import type { OrganizationGroupRow } from '@/types/namespace';
+import type { OrganizationGroupRow, UserNsRole } from '@/types/namespace';
 import type { User } from '@/types/auth';
 
 // GlobalNamespaceView: グローバルノード選択時に右ペインへ表示（SSR無効）
@@ -238,6 +240,11 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
 
   const [groupEditMembers, setGroupEditMembers] = useState<string[]>([]);
 
+  // ── Prefix 共有モーダル
+  const [shareScopeOpen,    setShareScopeOpen]    = useState(false);
+  const [selectedPrefixKeys, setSelectedPrefixKeys] = useState<string[]>([]);
+  const [shareLoading,      setShareLoading]      = useState(false);
+
   // ── organization_group 取得ステート
   const [orgGroups, setOrgGroups] = useState<OrganizationGroupRow[]>([]);
 
@@ -398,6 +405,38 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     return toAntTree(namespaceTree);
   }, [toAntTree, namespaceTree]);
 
+  // ── 共有スコープノード（ShareScopeModal 用 ScopeNode ツリー）
+  // PrefixManagement と同様に namespaceTree（filterTreeForUser 適用済み）から変換する
+  const shareScopeNodes = useMemo((): ScopeNode[] => {
+    const toScopeNode = (n: NamespaceNode): ScopeNode => ({
+      key: n.key,
+      label: n.label,
+      prefix: (n as any).prefix ?? undefined,
+      children: n.children ? n.children.map(toScopeNode) : undefined,
+    });
+
+    // company ノードを取得（filterTreeForUser でロール別に絞り込み済み）
+    const companyNode = namespaceTree.find((n) => n.key === 'company');
+
+    // Personal ノード配下にログインユーザー
+    const personalNode: ScopeNode = {
+      key: `personal-${user?.id ?? 'me'}`,
+      label: 'Personal',
+      children: user?.id
+        ? [{ key: user.id, label: user.username ?? 'Personal' }]
+        : undefined,
+    };
+
+    if (!companyNode) return [personalNode];
+    return [toScopeNode(companyNode), personalNode];
+  }, [namespaceTree, user?.id, user?.username]);
+
+  // ── 共有ボタンクリック: 選択 Prefix キーを保存してモーダルを開く
+  const handleShareSelected = useCallback((keys: React.Key[]) => {
+    setSelectedPrefixKeys(keys as string[]);
+    setShareScopeOpen(true);
+  }, []);
+
   const TAB_LABELS: { key: 'namespace' | 'prefix' | 'criteria'; label: string }[] = [
     { key: 'prefix',    label: t('uncertainty.management.tabPrefix') },
     { key: 'namespace', label: t('uncertainty.management.tabNamespace') },
@@ -539,6 +578,7 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
                 showShareButton={true}
                 selectedNsKey={effectiveNsKey}
                 orgGroupCds={filteredOrgGroupCds}
+                onShareSelected={handleShareSelected}
               />
             </div>
 
@@ -689,6 +729,32 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
         open={exportModalOpen}
         selectedCount={selectedIds.length}
         onClose={() => setExportModalOpen(false)}
+      />
+
+      {/* ── Prefix 共有モーダル（ツリー表示） ── */}
+      <ShareScopeModal
+        open={shareScopeOpen}
+        termCount={selectedPrefixKeys.length}
+        sourceRole={{ kind: 'sys_admin' }}
+        scopeNodes={shareScopeNodes}
+        onClose={() => setShareScopeOpen(false)}
+        onShare={async (target: ShareTarget) => {
+          setShareLoading(true);
+          try {
+            const result = await sharePrefixes(selectedPrefixKeys, target.key);
+            message.success(
+              t('prefixShare.toastSuccess', {
+                count: String(result.copiedCount),
+                target: target.label,
+              })
+            );
+            setShareScopeOpen(false);
+          } catch {
+            message.error(t('prefixShare.toastError'));
+          } finally {
+            setShareLoading(false);
+          }
+        }}
       />
     </div>
   );
