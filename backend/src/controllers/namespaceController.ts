@@ -27,6 +27,8 @@ import type {
   UpdateTermBody,
   ToggleTermActiveBody,
   TermActiveParams,
+  ToggleNamespaceActiveBody,
+  SharePrefixesBody,
 } from '../types/api';
 
 /**
@@ -503,7 +505,7 @@ export async function toggleNamespaceActive(
   try {
     const organizationId = req.user!.organizationId;
     const { prefix } = req.params;
-    const { isActive } = req.body as { isActive: boolean };
+    const { isActive } = req.body as ToggleNamespaceActiveBody;
 
     await namespaceService.toggleNamespaceActive(organizationId, prefix, isActive);
     res.json({ success: true });
@@ -528,6 +530,37 @@ export async function exportGlobalDeclarations(
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="global-declarations.csv"');
     res.send(csvContent);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * 選択した Prefix を指定スコープへ共有（コピー）する
+ * POST /api/v1/namespaces/prefixes/share
+ *
+ * @remarks
+ * リクエストボディ:
+ *   { targetScopeKey: string; prefixes: string[] }
+ */
+export async function sharePrefixes(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.user!.organizationId;
+    const userId = req.user!.userId;
+    const { targetScopeKey, prefixes } = req.body as SharePrefixesBody;
+
+    const copiedPrefixes = await namespaceService.sharePrefixesToScope(
+      organizationId,
+      targetScopeKey,
+      userId,
+      prefixes
+    );
+
+    res.json({ success: true, copiedPrefixes });
   } catch (error) {
     next(error);
   }

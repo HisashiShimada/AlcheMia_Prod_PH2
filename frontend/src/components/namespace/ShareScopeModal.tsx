@@ -2,109 +2,46 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Modal, Tree, Typography, Alert } from 'antd';
-import {
-  BankOutlined,
-  TeamOutlined,
-  UserOutlined,
-  GlobalOutlined,
-} from '@ant-design/icons';
-import type { ShareSourceRole, ShareScopeModalProps, ShareTarget, ScopeNode } from '@/types/namespace';
+import { Modal, Tree, Typography } from 'antd';
+import type { ShareScopeModalProps, ShareTarget, ScopeNode } from '@/types/namespace';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // re-export（既存の import 側を壊さないため）
-export type { ShareSourceRole, ShareTarget, ScopeNode } from '@/types/namespace';
+export type { ShareTarget, ScopeNode } from '@/types/namespace';
 
 const { Text } = Typography;
-
-// ──────────────────────────────────────────────
-// ロール別の共有先制限ラベル
-// ──────────────────────────────────────────────
-const getRoleDescription = (role: ShareSourceRole): string => {
-  switch (role.kind) {
-    case 'sys_admin':
-      return '組織まで共有できます';
-    case 'dept_owner':
-      return `「${role.deptLabel}」（部署）まで共有できます`;
-    case 'team_owner':
-      return `「${role.teamLabel}」（チーム）まで共有できます`;
-  }
-};
-
-// ──────────────────────────────────────────────
-// ロール別に選択可能なノードキーを判定
-// ──────────────────────────────────────────────
-const isNodeSelectable = (nodeKey: string, nodeDepth: number, role: ShareSourceRole): boolean => {
-  switch (role.kind) {
-    case 'sys_admin':
-      // 組織ノード（depth=0）を含む全ノードが選択可能
-      return nodeDepth >= 0;
-    case 'dept_owner':
-      // チーム（depth=2）・メンバー（depth=3）・部署（depth=1）まで選択可能
-      // 組織ノード（depth=0）は選択不可
-      return nodeDepth >= 1;
-    case 'team_owner':
-      // チーム（depth=2）・メンバー（depth=3）のみ選択可能
-      return nodeDepth >= 2;
-  }
-};
-
-// ──────────────────────────────────────────────
-// ノードアイコン（depth別）
-// ──────────────────────────────────────────────
-const getNodeIcon = (depth: number) => {
-  if (depth === 0) return <GlobalOutlined style={{ color: '#1677ff' }} />;
-  if (depth === 1) return <BankOutlined style={{ color: '#52c41a' }} />;
-  if (depth === 2) return <TeamOutlined style={{ color: '#fa8c16' }} />;
-  return <UserOutlined style={{ color: '#8c8c8c' }} />;
-};
-
-// ──────────────────────────────────────────────
-// ScopeNode → Ant Design Tree データに変換
-// ──────────────────────────────────────────────
-const toAntTreeData = (
-  nodes: ScopeNode[],
-  role: ShareSourceRole,
-  depth = 0,
-): object[] =>
-  nodes.map((n) => {
-    const selectable = isNodeSelectable(n.key, depth, role);
-    return {
-      key: n.key,
-      title: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {getNodeIcon(depth)}
-          <span style={{ color: selectable ? undefined : '#bbb' }}>
-            {n.label}
-          </span>
-          {n.prefix && (
-            <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
-              {n.prefix}
-            </Text>
-          )}
-          {!selectable && (
-            <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
-              （選択不可）
-            </Text>
-          )}
-        </span>
-      ),
-      selectable,
-      children: n.children ? toAntTreeData(n.children, role, depth + 1) : undefined,
-    };
-  });
 
 // ──────────────────────────────────────────────
 // メインコンポーネント
 // ──────────────────────────────────────────────
 const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
   open,
-  termCount,
-  sourceRole,
   scopeNodes,
   onClose,
   onShare,
 }) => {
+  const { t } = useLanguage();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  // ──────────────────────────────────────────────
+  // ScopeNode → Ant Design Tree データに変換
+  // ──────────────────────────────────────────────
+  const toAntTreeData = (nodes: ScopeNode[]): object[] =>
+    nodes.map((n) => ({
+      key: n.key,
+      title: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>{n.label}</span>
+          {n.prefix && (
+            <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
+              {n.prefix}
+            </Text>
+          )}
+        </span>
+      ),
+      selectable: true,
+      children: n.children ? toAntTreeData(n.children) : undefined,
+    }));
 
   // 選択されたキーからノード情報を逆引き
   const findNode = (key: string, nodes: ScopeNode[]): ScopeNode | null => {
@@ -124,8 +61,8 @@ const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
   );
 
   const treeData = useMemo(
-    () => toAntTreeData(scopeNodes, sourceRole),
-    [scopeNodes, sourceRole],
+    () => toAntTreeData(scopeNodes),
+    [scopeNodes, t],
   );
 
   // 全ノードキーを収集（常に全展開）
@@ -153,9 +90,9 @@ const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
   return (
     <Modal
       open={open}
-      title={`共有先を選択（${termCount}件の用語）`}
-      okText="共有する"
-      cancelText="キャンセル"
+      title={t('shareScopeModal.title')}
+      okText={t('shareScopeModal.okText')}
+      cancelText={t('common.cancel')}
       okButtonProps={{
         disabled: !selectedKey,
         style: selectedKey
@@ -166,13 +103,6 @@ const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
       onCancel={handleClose}
       width={480}
     >
-      <Alert
-        type="info"
-        showIcon
-        message={getRoleDescription(sourceRole)}
-        style={{ marginBottom: 16 }}
-      />
-
       <div
         style={{
           border: '1px solid #f0f0f0',
@@ -197,7 +127,7 @@ const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
 
       {selectedNode && (
         <div style={{ marginTop: 12, padding: '8px 12px', background: '#f6ffed', borderRadius: 4, border: '1px solid #b7eb8f' }}>
-          <Text strong>共有先：</Text>
+          <Text strong>{t('shareScopeModal.selectedLabel')}</Text>
           <Text style={{ marginLeft: 8 }}>{selectedNode.label}</Text>
           {selectedNode.prefix && (
             <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
@@ -209,7 +139,7 @@ const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
 
       <div style={{ marginTop: 8 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          ※ 選択した共有先に用語がコピーされます。元の用語はそのまま残ります。
+          {t('shareScopeModal.shareNote')}
         </Text>
       </div>
     </Modal>
