@@ -1025,8 +1025,7 @@
 
 > ⚠️ **実装上の注意（ソース調査結果）**: 実験管理者メニューの「名前空間管理」タブ（key=`'4'`）は `<UncertaintyManagement />` コンポーネントが実体です。  
 > 画面構成：左ペイン（名前空間ツリー固定） ＋ 右ペイン（サブタブ: `prefix`（デフォルト） / `namespace` / `criteria`）  
-> `NamespaceMain` / `PrefixManagement` / 不確かさ基準管理の3ビューを持ちます。  
-> ⚠️ 旧設計書 §4-18-A の「名前空間一覧テーブル・追加ボタン・タイプフィルター」は実装に存在しません（`NamespaceMain` §3.1 参照: 左ペインに追加ボタンは存在しない）。
+> `NamespaceMain` / `PrefixManagement` / 不確かさ基準管理の3ビューを持ちます。
 
 #### 4-18-A: 名前空間ツリー・基本表示
 
@@ -1036,9 +1035,9 @@
 | 4-18-2 | 名前空間ツリーで組織ノード（部門・グループ）を選択すると右ペインのコンテンツがそのスコープに絞り込まれること | 正常系 | `UncertaintyManagement.tsx` `selectedNsKey` → `effectiveNsKey` 連携 | - | - | `setSelectedNsKey` 経由で `NamespaceMain` / `PrefixManagement` に `selectedNsKey` が渡されること |
 | 4-18-3 | Globalノード（`'global'` / `'ns-maiml'` / `'ns-xsi'`）を選択すると右ペインが `GlobalNamespaceView` に切り替わること | 正常系 | `UncertaintyManagement.tsx` `isGlobalNodeSelected` 条件 | - | - | `プレフィックス管理` / `用語管理` タブが非表示になること |
 | 4-18-4 | 組織ツリーの最深リーフノード（チーム）が初回マウント時に自動選択されること | 表示確認 | `UncertaintyManagement.tsx` `findDeepestLeafKey` → `setSelectedNsKey` | GET `/api/v1/organization-groups` | - | 初期表示でツリーの最深ノードが選択ハイライト状態になること |
-| 4-18-5 | チームノード（companyDepth=3）を右クリックするとコンテキストメニュー（「チームを追加」「編集」）が表示されること | 表示確認 | `NamespaceMain.tsx` `renderTreeTitle` `isTeam = companyDepth === 3` / `ui_namespace_main.md` §3.2.2 | - | - | 部門・グループ・Globalノードではコンテキストメニューが表示されないこと |
-| 4-18-6 | コンテキストメニュー「チームを追加」をクリックすると `TeamAddDialog` が開き、チーム名・追加先・メンバーを入力してチームを作成できること | 正常系 | `UncertaintyManagement.tsx` `teamAddOpen` / `ui_namespace_main.md` §9 | POST `/api/v1/department-units` | - | チーム名が1文字以上の場合のみ「作成」ボタンが活性 |
-| 4-18-7 | コンテキストメニュー「編集」をクリックすると `TeamEditDialog` が開き、メンバーを変更して保存できること | 正常系 | `UncertaintyManagement.tsx` `teamEditOpen` / `ui_namespace_main.md` §10 | PUT `/api/v1/department-units/:id/members` | - | チーム名が空の場合「保存」ボタンが非活性 |
+| 4-18-5 | 右クリックコンテキストメニューは表示されないこと | 実施不可 | `ui_namespace_main.md` §3.3 [2026-08-27] | - | 実施不可 | `<Tree>` に `onRightClick` が渡されておらず `ctxMenu.visible=true` にするコードがないため右クリックコンテキストメニューは現在機能していない（デッドコード）。グループ追加・編集はグループ管理タブ（key='5'）経由で実施 |
+| 4-18-6 | グループ管理タブ（key=`'5'`）の「グループを作成」ボタンを押すと `GroupAddDialog` が開き、グループ名・追加先・メンバーを入力してグループを作成できること | 正常系 | `ui_namespace_main.md` §9（v2.6.0） / `GroupManagementPanel` / `GroupAddDialog` | POST `/api/v1/department-units` | - | グループ名1文字以上で「作成」ボタンが活性 |
+| 4-18-7 | グループ管理タブ（key=`'5'`）のグループ一覧で「編集」ボタンを押すと `GroupEditDialog` が開き、メンバーを変更して保存できること | 正常系 | `ui_namespace_main.md` §10（v2.6.0） / `GroupManagementPanel` / `GroupEditDialog` | PUT `/api/v1/department-units/:id/members` | - | コンポーネント名: GroupEditDialog。グループ名が空の場合「保存」ボタンが非活性 |
 | 4-18-8 | Personalノード選択中にチェックした用語の「🏢 組織に共有」ボタンが表示され、クリックすると `ShareScopeModal` 確認ダイアログが開くこと | 正常系 | `NamespaceMain.tsx` §11 `isPersonalSelected && selectedTermIds.length > 0` | - | - | GlobalノードまたはOrganizationノード選択中は「組織に共有」ボタンが表示されないこと |
 | 4-18-8-2 | 名前空間ノードを選択すると右ペイン上部に「用語数: N」「Prefix数: N」のバッジが表示されること | 表示確認 | `ui_namespace_main.md` §3.2.2 | - | - | グローバルノード選択時はバッジが非表示 |
 
@@ -1103,7 +1102,7 @@
 - 実験管理者ロールでログイン済み
 - 名前空間管理タブ（`ExperimentAdminMenu` key=`'4'`）が表示されていること
 - 4-18-1〜4-18-8: `organization_group` テーブルに1件以上のアクティブなグループが存在すること
-- 4-18-5〜4-18-7: `organization_group` テーブルに chidren を持つ3階層（会社＞部門＞グループ）の組織が存在すること
+- 4-18-5〜4-18-7: グループ管理タブ（`ExperimentAdminMenu` key='5'）が表示されていること。
 - 4-18-8: Personalノードが選択されており、用語が1件以上チェックされていること
 - 4-18-9〜4-18-12: `PrefixManagement` で参照する名前空間にプレフィックスが1件以上存在すること（4-18-11〜4-18-12用）
 - 4-18-C-1〜4-18-C-15: `uncertainty_criteria` テーブルと `namespace` テーブルにテストデータが存在すること
@@ -1358,7 +1357,7 @@
 
 | ドキュメント | パス |
 |------------|------|
-| 名前空間メイン画面設計 | `docs/design/ui/experiment_admin/04_namespace_management/ui_namespace_main.md` |
+| 名前空間メイン画面設計 | `docs/design/ui/experiment_admin/04_namespace_management/ui_namespace_main.md`（**v2.6.0** / 最終更新: 2026-08-27） |
 | 名前空間追加ダイアログ設計 | `docs/design/ui/experiment_admin/04_namespace_management/ui_namespace_add_dialog.md` |
 | グローバル名前空間ビュー設計 | `docs/design/ui/experiment_admin/04_namespace_management/ui_global_namespace_view.md` |
 | 重複候補サジェストモーダル設計 | `docs/design/ui/experiment_admin/04_namespace_management/ui_namespace_duplicate_suggest_modal.md` |
