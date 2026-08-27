@@ -6,7 +6,7 @@
  *
  * @remarks
  * DDL: docs/design/db/ddl/experiment_uncertainty_judge.sql
- * 主キー: id（BIGSERIAL）
+ * 主キー: judge_seq（SERIAL）
  *
  * @module experimentUncertaintyJudgeRepository
  */
@@ -19,7 +19,7 @@ import { DatabaseError } from '../utils/errorClasses';
  * experiment_uncertainty_judge テーブルの行型
  */
 export interface ExperimentUncertaintyJudgeRow {
-  id: number;
+  judgeSeq: number;
   organizationId: string;
   projectId: string;
   methodId: string;
@@ -35,6 +35,8 @@ export interface ExperimentUncertaintyJudgeRow {
   judgeResult: '良好' | '不良';
   createUserId: string | null;
   createAt: Date;
+  updateUserId: string | null;
+  updateAt: string | null;
 }
 
 /**
@@ -55,6 +57,7 @@ export interface InsertUncertaintyJudgeRequest {
   recordedValue: number;
   judgeResult: '良好' | '不良';
   createUserId: string;
+  updateUserId?: string;
 }
 
 export class ExperimentUncertaintyJudgeRepository {
@@ -71,23 +74,24 @@ export class ExperimentUncertaintyJudgeRepository {
       const pgp = getPgp();
       const query = await loadSqlFile('experiment_uncertainty_judge/insert.sql');
       const params = [
-        data.organizationId,      // $1
-        data.projectId,           // $2
-        data.methodId,            // $3
-        data.taskNo,              // $4
-        data.transitionId,        // $5
-        data.placeId,             // $6
-        data.propertyKey,         // $7
-        data.uncertaintyKey,      // $8
-        data.uncertaintyVersion,  // $9
-        data.toleranceUpper,      // $10
-        data.toleranceLower,      // $11
-        data.recordedValue,       // $12
-        data.judgeResult,         // $13
-        data.createUserId,        // $14
+        data.organizationId,                   // $1
+        data.projectId,                        // $2
+        data.methodId,                         // $3
+        data.taskNo,                           // $4
+        data.transitionId,                     // $5
+        data.placeId,                          // $6
+        data.propertyKey,                      // $7
+        data.uncertaintyKey,                   // $8
+        data.uncertaintyVersion,               // $9
+        data.toleranceUpper,                   // $10
+        data.toleranceLower,                   // $11
+        data.recordedValue,                    // $12
+        data.judgeResult,                      // $13
+        data.createUserId,                     // $14
+        data.updateUserId ?? data.createUserId, // $15
       ];
-      const row = await pgp.one<{ id: number }>(query, params);
-      return row.id;
+      const row = await pgp.one<{ judge_seq: number }>(query, params);
+      return row.judge_seq;
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while inserting experiment_uncertainty_judge',

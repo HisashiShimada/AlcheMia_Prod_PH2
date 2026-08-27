@@ -9,7 +9,7 @@
 --   $3  method_id
 
 SELECT DISTINCT ON (task_no, transition_id, place_id, property_key, uncertainty_key)
-    id,
+    judge_seq               AS "judgeSeq",
     organization_id         AS "organizationId",
     project_id              AS "projectId",
     method_id               AS "methodId",
@@ -24,7 +24,9 @@ SELECT DISTINCT ON (task_no, transition_id, place_id, property_key, uncertainty_
     recorded_value          AS "recordedValue",
     judge_result            AS "judgeResult",
     create_user_id          AS "createUserId",
-    create_at               AS "createAt"
+    create_at               AS "createAt",
+    update_user_id          AS "updateUserId",
+    update_at               AS "updateAt"
 FROM experiment_uncertainty_judge
 WHERE organization_id = $1
   AND project_id      = $2
@@ -35,4 +37,5 @@ ORDER BY
     place_id ASC,
     property_key ASC,
     uncertainty_key ASC,
-    id DESC
+    judge_seq DESC
+

@@ -15,6 +15,7 @@
 --   $12 recorded_value
 --   $13 judge_result          ('良好' または '不良')
 --   $14 create_user_id
+--   $15 update_user_id
 
 INSERT INTO experiment_uncertainty_judge (
     organization_id,
@@ -31,7 +32,9 @@ INSERT INTO experiment_uncertainty_judge (
     recorded_value,
     judge_result,
     create_user_id,
-    create_at
+    create_at,
+    update_user_id,
+    update_at
 )
 VALUES (
     $1,
@@ -48,6 +51,9 @@ VALUES (
     $12,
     $13,
     $14,
+    NOW(),
+    $15,
     NOW()
 )
-RETURNING id
+RETURNING judge_seq
+
