@@ -35,8 +35,6 @@ import type {
   DetailTarget,
   TermSaved,
   NamespaceSaved,
-  ShareSourceRole,
-  ShareTarget,
   NamespaceMainProps,
   ContextMenuState,
   TermEditValues,
@@ -1013,7 +1011,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     const added: Term[] = [];
     for (const row of newTerms) {
       try {
-        const saved = await createTerm({
+        const createTermRequest: Parameters<typeof createTerm>[0] = {
           prefix:        row.prefix,
           localName:     row.localName,
           displayNameJa: row.displayName,
@@ -1022,7 +1020,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           unitHint:      row.unitHint,
           createDirectiveTerm: row.createDirectiveTerm,
           scopeKey: effectiveNsKey ?? undefined,
-        });
+        };
+        const saved = await createTerm(createTermRequest);
         added.push(saved as Term);
       } catch (err: unknown) {
         const status = (err as any)?.response?.status;
@@ -1080,16 +1079,17 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (!editingValues.localName) { message.error(t('namespaceMain.localNameRequired2')); return; }
 
     try {
+      const updateTermRequest: Parameters<typeof updateTerm>[2] = {
+        localName:     editingValues.localName,
+        displayNameJa: editingValues.displayName,
+        description:   editingValues.description,
+        typeHint:      editingValues.type,
+        unitHint:      editingValues.unitHint,
+      };
       const updated = await updateTerm(
         editingValues.prefix,
         editingValues.localName,
-        {
-          localName:     editingValues.localName,
-          displayNameJa: editingValues.displayName,
-          description:   editingValues.description,
-          typeHint:      editingValues.type,
-          unitHint:      editingValues.unitHint,
-        }
+        updateTermRequest
       );
       setTerms((prev) => prev.map((t) => `${t.prefix}:${t.localName}` === editingTermId ? (updated as Term) : t));
       setEditingTermId(null);
@@ -1190,14 +1190,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
     for (const term of targetTerms) {
       try {
-        const saved = await createTerm({
+        const shareCreateTermRequest: Parameters<typeof createTerm>[0] = {
           prefix:        target.prefix,
           localName:     term.localName,
           displayNameJa: term.displayName,
           description:   term.description,
           typeHint:      term.type,
           unitHint:      term.unitHint,
-        });
+        };
+        const saved = await createTerm(shareCreateTermRequest);
         added.push(saved as Term);
       } catch {
         failed.push(term.localName);
@@ -1215,39 +1216,30 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setSelectedTermIds([]);
   };
 
-  // ログインユーザーのロールを ShareScopeModal 用に変換
-  const shareSourceRole = useMemo((): ShareSourceRole => {
-    const role = currentUserRole;
-    if (role.kind === 'sys_admin') return { kind: 'sys_admin' };
-    if (role.kind === 'dept_owner') {
-      // 部署ノードのラベルをツリーから取得（動的ツリーを参照）
-      const deptNode = findNode(role.deptKey, namespaceTree);
-      return { kind: 'dept_owner', deptKey: role.deptKey, deptLabel: deptNode?.label ?? role.deptKey };
-    }
-    if (role.kind === 'team_owner') {
-      const teamNode = findNode(role.teamKey, namespaceTree);
-      return { kind: 'team_owner', teamKey: role.teamKey, teamLabel: teamNode?.label ?? role.teamKey };
-    }
-    // member は チーム代表者と同等の共有範囲（自分のチームまで）
-    return { kind: 'team_owner', teamKey: role.nsKey, teamLabel: role.nsKey };
-  }, [namespaceTree]);
+  // ShareScopeModal 用：常に sys_admin として全階層を表示する
+  const shareSourceRole: ShareSourceRole = { kind: 'sys_admin' };
 
-  // ShareScopeModal に渡す共有先ツリーデータを構築
+  // ShareScopeModal に渡す共有先ツリーデータを構築（全階層を表示）
   const shareScopeNodes = useMemo(() => {
-    // filterTreeForUser で絞り込んだツリーを使用（ロール別表示範囲と揃える）
-    const filtered = filterTreeForUser(namespaceTree, currentUserNsKey, currentUserRole);
-    // company ノードを丸ごと渡す（PrefixManagement と構造を統一）
-    // これにより depth=0=会社(sys_adminのみ選択可) / depth=1=部署(dept_ownerから選択可) / depth=2=チームとなる
-    const companyNode = filtered.find((n) => n.key === 'company');
-    if (!companyNode) return [];
+    // filterTreeForUser を使わず namespaceTree をそのまま使用（全階層表示）
+    const companyNode = namespaceTree.find((n) => n.key === 'company');
     const toScopeNode = (n: NamespaceNode): any => ({
       key: n.key,
       label: n.label,
       prefix: (n as any).prefix ?? undefined,
       children: n.children ? n.children.map(toScopeNode) : undefined,
     });
-    return [toScopeNode(companyNode)];
-  }, [namespaceTree]);
+
+    // Personal ノード配下にログインユーザーを追加（UncertaintyManagement と同様の構成）
+    const personalNode: any = {
+      key: 'personal',
+      label: 'Personal',
+      children: personalChildren.length > 0 ? personalChildren.map(toScopeNode) : undefined,
+    };
+
+    if (!companyNode) return [personalNode];
+    return [toScopeNode(companyNode), personalNode];
+  }, [namespaceTree, personalChildren]);
 
   // ──── ツリーノードのタイトル（件数は terms から動的計算）
   // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
@@ -1579,14 +1571,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
         for (const row of rows) {
           try {
-            const saved = await createTerm({
+            const csvTermRequest: Parameters<typeof createTerm>[0] = {
               prefix:        row.prefix,
               localName:     row.localName,
               displayNameJa: row.displayName,
               description:   row.description,
               typeHint:      row.type || 'stringType',
               unitHint:      row.unitHint,
-            });
+            };
+            const saved = await createTerm(csvTermRequest);
             added.push(saved as Term);
           } catch {
             failed.push(row.localName);
@@ -1984,13 +1977,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               padding: '6px 0',
             }}>
               <Button
-                icon={<BankOutlined />}
                 onClick={() => setShareScopeOpen(true)}
                 style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
               >
                 {t('namespaceMain.shareBtnLabel', { count: String(selectedTermIds.length) })}
               </Button>
-              <Button danger icon={<DeleteOutlined />} onClick={() => handleBulkToggleActive(selectedTermIds)}>
+              <Button danger onClick={() => handleBulkToggleActive(selectedTermIds)}>
                 {t('namespaceMain.bulkDeactivateBtnLabel', { count: String(selectedTermIds.length) })}
               </Button>
             </div>
@@ -2112,14 +2104,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         onClose={() => { setAddDialogOpen(false); setAddChildParentKey(null); }}
         onRegistered={async (values) => {
           try {
-            const result = await createNamespace({
+          const createNamespaceRequest: Parameters<typeof createNamespace>[0] = {
               prefix:      values.prefix,
               uri:         values.uri,
               displayName: values.displayName || undefined,
               description: values.description || undefined,
               // グローバルレベル以外の場合は選択中ノードキーをスコープキーとして渡す
               scopeKey:    values.level !== 'global' ? (effectiveNsKey ?? undefined) : undefined,
-            });
+            };
+          const result = await createNamespace(createNamespaceRequest);
             const newNode: FlatNsNode = {
               key: result.namespaceId,
               prefix: result.prefix,

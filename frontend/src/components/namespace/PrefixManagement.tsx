@@ -12,6 +12,8 @@ import {
   SaveOutlined,
   SearchOutlined,
   WarningOutlined,
+  BankOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import {
@@ -50,6 +52,8 @@ const makeEmptyRow = (): NewPrefixRow => ({
 const PrefixManagement: React.FC<PrefixManagementProps> = ({
   viewOnly = false,
   globalOnly = false,
+  showShareButton = false,
+  onShareSelected,
   selectedNsKey,
   scopeKey,
   orgGroupCds,
@@ -184,12 +188,13 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
     for (const row of newRows) {
       try {
-        const created = await createNamespace({
+        const createNamespaceRequest: Parameters<typeof createNamespace>[0] = {
           prefix: row.prefix,
           uri: row.uri,
           description: row.description || undefined,
           scopeKey: scopeKey ?? selectedNsKey ?? undefined,
-        });
+        };
+        const created = await createNamespace(createNamespaceRequest);
         added.push({
           id: created.prefix,
           prefix: created.prefix,
@@ -296,7 +301,11 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       return;
     }
     try {
-      await updateNamespace(editingId, { newPrefix: editingValues.prefix !== editingId ? editingValues.prefix : undefined, description: editingValues.description });
+      const updateNamespaceRequest: Parameters<typeof updateNamespace>[1] = {
+        newPrefix: editingValues.prefix !== editingId ? editingValues.prefix : undefined,
+        description: editingValues.description,
+      };
+      await updateNamespace(editingId, updateNamespaceRequest);
       setEditingId(null);
       message.success(t('prefixManagement.updateSuccess'));
       // reloadNamespaces を使うことで selectedNsKey / orgGroupCds の両方を
@@ -348,6 +357,41 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           message.success(t('prefixManagement.activateSuccess', { prefix: record.prefix }));
         } catch {
           message.error(t('prefixManagement.activateError', { prefix: record.prefix }));
+        }
+      },
+    });
+  };
+
+  // ── 一括非アクティブ化
+  const handleBulkDeactivate = () => {
+    if (selectedRowKeys.length === 0) return;
+    Modal.confirm({
+      title: t('prefixManagement.bulkDeactivateConfirm', { count: String(selectedRowKeys.length) }),
+      content: t('prefixManagement.bulkDeactivateContent'),
+      okText: t('prefixManagement.bulkDeactivateOk'),
+      cancelText: t('prefixManagement.bulkDeactivateCancelBtn'),
+      okButtonProps: { danger: true },
+      icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+      onOk: async () => {
+        const keys = selectedRowKeys as string[];
+        const failed: string[] = [];
+        for (const prefix of keys) {
+          try {
+            await toggleNamespaceActive(prefix, false);
+          } catch {
+            failed.push(prefix);
+          }
+        }
+        setRows((prev) =>
+          prev.map((r) =>
+            keys.includes(r.id) && !failed.includes(r.id) ? { ...r, isActive: false } : r
+          )
+        );
+        setSelectedRowKeys([]);
+        if (failed.length > 0) {
+          message.warning(t('prefixManagement.bulkDeactivatePartialError', { count: String(failed.length) }));
+        } else {
+          message.success(t('prefixManagement.bulkDeactivateSuccess', { count: String(keys.length) }));
         }
       },
     });
@@ -426,15 +470,16 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           return;
         }
 
-        const added: PrefixRow[] = [];
+          const added: PrefixRow[] = [];
         const failed: { prefix: string; uri: string }[] = [];
         for (const row of parsedRows) {
           try {
-            const created = await createNamespace({
+            const csvCreateRequest: Parameters<typeof createNamespace>[0] = {
               prefix: row.prefix,
               uri: row.uri,
               description: row.description || undefined,
-            });
+            };
+            const created = await createNamespace(csvCreateRequest);
             added.push({
               id: created.prefix,
               prefix: created.prefix,
@@ -690,6 +735,36 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         background: '#fafafa',
       }}
     >
+      {/* ── アクションバー（1件以上チェック時に表示） */}
+      {selectedRowKeys.length > 0 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 0,
+          padding: '6px 16px',
+          background: '#fff',
+          borderBottom: '1px solid #e8e8e8',
+          flexShrink: 0,
+        }}>
+          {showShareButton && (
+            <Button
+              onClick={() => onShareSelected?.(selectedRowKeys)}
+              style={{ background: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
+            >
+              {t('prefixManagement.btnShare', { count: String(selectedRowKeys.length) })}
+            </Button>
+          )}
+          <Button
+            danger
+            disabled={viewOnly}
+            onClick={handleBulkDeactivate}
+          >
+            {t('prefixManagement.btnBulkDeactivate', { count: String(selectedRowKeys.length) })}
+          </Button>
+        </div>
+      )}
       {/* ── ツールバー ── */}
       <div
         style={{
