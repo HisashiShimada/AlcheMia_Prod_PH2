@@ -1089,6 +1089,25 @@ export interface UpdateOrganizationGroupStatusBody {
 }
 
 /**
+ * PATCH /api/v1/namespaces/:prefix/active リクエストボディ
+ *
+ * @remarks namespaceController.toggleNamespaceActive で使用
+ */
+export interface ToggleNamespaceActiveBody {
+  isActive: boolean;
+}
+
+/**
+ * POST /api/v1/namespaces/prefixes/share リクエストボディ
+ *
+ * @remarks namespaceController.sharePrefixes で使用
+ */
+export interface SharePrefixesBody {
+  targetScopeKey: string;
+  prefixes: string[];
+}
+
+/**
  * PUT /api/v1/organization-groups/:groupCd/members リクエストボディ
  *
  * @remarks organizationGroupController.setOrganizationGroupMembers で使用
