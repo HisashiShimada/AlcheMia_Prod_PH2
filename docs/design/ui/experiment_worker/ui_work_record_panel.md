@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-06-22
-- **最終更新日**: 2026-08-19
+- **最終更新日**: 2026-08-27
 
 ---
 
@@ -21,8 +21,9 @@
 ### 1.2 主要機能
 - プロジェクト指示の確認（折りたたみ表示）
 - 現在作業中のトランジション情報の表示（ステータス/タスク#/メソッドID/トランジションID）
-- テンプレート一覧からテンプレートを選択して実績値を入力
-- プロパティカードごとの実績値入力・確信度（定性評価）・定量評価追加
+- テンプレート一覧から **カテゴリ別グループ表示** でテンプレートを選択して実績値を入力
+- プロパティカードごとの実績値入力・確信度（定性評価 ← DB登録選択肢使用）・定量評価追加
+- 保存時に `is_recorded = TRUE` を更新（トランジションの記録済みフラグ管理）
 - 保存 / スキップ / 保存して次へ（トランジション完了）
 - コメント記録（ExperimentCommentDialog）
 - カスタム Insertion（ファイル添付）追加・削除
@@ -341,7 +342,21 @@ interface WorkRecordPanelProps {
 }
 ```
 
-> `projectName` は `projects/${projectName}/attachments` という S3 パスの組み立てに使用。
+| Prop名 | 型 | 必須 | 説明 |
+|--------|-----|------|------|
+| `projectName` | `string` | ❌ | 選択中のプロジェクト名 |
+| `projectId` | `string` | ❌ | 選択中のプロジェクトID |
+| `methodId` | `string` | ❌ | メソッドID（`progressRows[0]?.methodId` から渡される） |
+| `progressRows` | `ProgressRow[]` | ❌ | 親コンポーネント（ExperimentWorkerMenu）から渡される進捗行データ。これを元に `activeEntry` を算出。各行に `isRecorded?: boolean` フィールドを含む |
+| `projectStatus` | `number` | ❌ | プロジェクトステータスコード |
+| `useDeemedProgress` | `boolean` | ❌ | みなし進捗フラグ |
+| `initialTaskNo` | `number` | ❌ | 初期表示タスクNo。進捗確認タブから「作業へ」「詳細確認」で遷移した際に指定 |
+| `initialTransitionId` | `string` | ❌ | 初期表示トランジションID。進捗確認タブから遷移した際に指定 |
+| `projectInstructions` | `string[]` | ❌ | プロジェクト指示テキスト配列 |
+| `onConfirmInstruction` | `() => void` | ❌ | 指示確認ボタン押下時。省略時はボタン非表示 |
+| `onStart` | `() => void` | ❌ | 「開始」ボタン押下時（`ready` → `IN_PROGRESS` 遷移） |
+| `onEnd` | `() => void` | ❌ | 「終了」ボタン押下時（`in_progress` → `COMPLETED` 遷移） |
+| `onForceEnd` | `() => void` | ❌ | 「異常終了」ボタン押下時（`in_progress` → `ERROR` 遷移） |
 
 ### 5.2 State（内部状態）
 
@@ -375,14 +390,56 @@ const activeEntry: { taskNo: number; transitionId: string } | null
 // displayKey = viewingKey（閲覧モード）または activeEntry（作業モード）
 const displayKey = viewingKey ?? activeEntry;
 
-// 左Sider フィルタ後テンプレート一覧
-const filteredTemplates = useMemo(() => {
-  return visibleTemplates.filter((tpl) => {
-    const matchName = !templateSearchText || tpl.name.toLowerCase().includes(templateSearchText.toLowerCase());
-    const matchCat = !selectedTemplateCategory || tpl.category === selectedTemplateCategory;
-    return matchName && matchCat;
-  });
-}, [visibleTemplates, templateSearchText, selectedTemplateCategory]);
+`WorkHeader` 内の `Select` コンポーネントで表示。`WorkRecordPanelProps.onStatusChange` は**存在しない**。内部的に `WorkHeaderProps.onStatusChange?(transitionId: string, status: TransitionStatus)` として処理される。
+
+**内部 `TransitionStatus` 型の値と表示ラベル：**
+
+| 内部ステータス値（`TransitionStatus`） | 表示ラベル | 対応する `ProgressRow.status` |
+|---------------------------------------|------------|-------------------------------|
+| `not_started` | 未着手（`progressStatus.notStarted`） | `not_started` |
+| `preparing` | 準備中（`progressStatus.preparing`） | `preparing` |
+| `ready` | 準備完了（`progressStatus.ready`） | `ready` |
+| **`running`** | 実行中（`progressStatus.running`） | `in_progress` |
+| **`paused`** | 一時停止（`progressStatus.paused`） | `on_hold` |
+| `completed` | 完了（`progressStatus.completed`） | `completed` |
+| `error` | エラー（`progressStatus.error`） | `issue` |
+
+> ⚠️ `ProgressRow.status` の `in_progress` / `on_hold` は、`buildTransitions` 内の `switch` 文で内部値 `running` / `paused` にそれぞれ変換されます。
+
+---
+
+## 5. 機能仕様
+
+### 5.1 activeEntry 選択ロジック
+
+`progressRows` から以下の優先順位で `activeEntry` を選択する（2026-08-27 修正）：
+
+1. **`activeTaskNo` の `in_progress` / `ready` / `preparing` 行**  
+   ステータス優先順位: `in_progress` (1) > `ready` (2) > `preparing` (3)、同一ステータス内は `order` 昇順（若い順）
+2. **全体の `in_progress` / `ready` / `preparing` 行**（同上の優先順位）
+3. `activeTaskNo` の `not_started` 行（未着手でもカードを表示）
+4. 全体の `not_started` 行
+5. 全行が `completed` / `error` → `null`（「全トランジション完了」Alert を表示）
+
+`activeTaskNo` は `progressRows` が存在する場合はその `taskNo` から自動決定する。
+
+### 5.2 左Sider テンプレートリスト（カテゴリ別グループ表示）
+
+`categorizedTemplates` useMemo でテンプレートを `Materials` / `Conditions` / `Results` の3カテゴリに分類し、各グループをカード形式で表示する。
+
+**カードの表示項目**:
+- テンプレート名
+- プロパティ数（`N項目`）
+- カテゴリ Tag（Materials / Conditions / Results）
+- I/O Tag（IN / OUT）
+
+**クリック動作**: 選択されると右 Content エリアにプロパティカードグリッドが表示される。
+
+### 5.3 ボタン群（2行目）配置
+
+```
+[保存] [次へ] | [コメント] [スキップ]
+              ↑ Divider（グループ区切り）
 ```
 
 ### 5.4 モックデータ構成
@@ -426,18 +483,142 @@ const filteredTemplates = useMemo(() => {
 
 ---
 
+### 5.7 状態記録ダイアログ仕様
+
+> **[2026-08-26 追加]**: ソースコード（WorkRecordPanel.tsx L2624〜2837）から仕様を起こして追記。
+
+### 5.7.1 概要
+
+「状態記録」ボタン押下時に表示される `Modal`（幅 520px）。  
+各状態への遷移時刻を手動入力・補正するためのダイアログ。  
+タイトル: `workRecord.stateRecordDialogTitle`（ja: **「状態記録」**）
+
+### 5.7.2 ダイアログレイアウト
+
+```
+┌─────────────────────────────────────────────┐
+│ 状態記録                               [✕]  │
+├─────────────────────────────────────────────┤
+│ [準備状態]       状態遷移時刻               │
+│（cyan Tag）      [DatePicker（日時選択）  ]  │
+├─────────────────────────────────────────────┤
+│ [準備完了状態]   状態遷移時刻               │
+│（blue Tag）      [DatePicker（日時選択）  ]  │
+├─────────────────────────────────────────────┤
+│ [動作状態]       状態遷移時刻               │
+│（processing Tag）[DatePicker（日時選択）  ]  │
+│                  [＋ 休止状態記録追加]       │
+├─────────────────────────────────────────────┤
+│ ┌─ 休止状態記録（動的追加、ボーダー囲み）──┐ │
+│ │ [休止状態]    状態遷移時刻               │ │
+│ │（gold Tag）   [DatePicker（日時選択）  ]  │ │
+│ │ [動作状態]    状態遷移時刻               │ │
+│ │（processing） [DatePicker（日時選択）  ]  │ │
+│ │              [＋ 休止状態記録追加] [削除] │ │
+│ └──────────────────────────────────────────┘ │
+│  （＋ ボタンで同構造のペアが末尾に追加）      │
+├─────────────────────────────────────────────┤
+│ [終状態]         状態遷移時刻               │
+│（success Tag）   [DatePicker（日時選択）  ]  │
+├─────────────────────────────────────────────┤
+│ [異常終了状態]   状態遷移時刻               │
+│（error Tag）     [DatePicker（日時選択）  ]  │
+├─────────────────────────────────────────────┤
+│                       [キャンセル] [保存]   │
+└─────────────────────────────────────────────┘
+```
+
+### 5.7.3 固定行の仕様
+
+| 行 | ロケールキー | Tag 色 | 入力 state 変数 |
+|----|------------|---------|----------------|
+| 準備状態 | `workRecord.srStatusPreparing` | `cyan` | `srPreparingTime` |
+| 準備完了状態 | `workRecord.srStatusReady` | `blue` | `srReadyTime` |
+| 動作状態 | `workRecord.srStatusRunning` | `processing`（青） | `srRunningTime` |
+| 終状態 | `workRecord.srStatusCompleted` | `success`（緑） | `srCompletedTime` |
+| 異常終了状態 | `workRecord.srStatusError` | `error`（赤） | `srErrorTime` |
+
+- 各行の入力欄：`DatePicker`（`showTime` 付き、日時選択可）
+- プレースホルダー：`workRecord.srTransitionTime`（ja: **「状態遷移時刻」**）
+
+### 5.7.4 動的追加行（休止状態記録ペア）
+
+**「＋ 休止状態記録追加」ボタン**（`workRecord.srAddPause`、`PlusOutlined` アイコン）押下で、以下の構造のペアが末尾に追加される。
+
+| 行 | ロケールキー | Tag 色 | state 変数（`PauseEntry` 型） |
+|----|------------|---------|-------------------------------|
+| 休止状態 | `workRecord.srStatusPaused` | `gold` | `pauseTime` |
+| 動作状態（再開） | `workRecord.srStatusRunning` | `processing`（青） | `resumeTime` |
+
+**`PauseEntry` 型:**
+```typescript
+interface PauseEntry {
+  id: string;        // 行を一意に識別するID（Date.now() + ランダム文字列）
+  pauseTime: string; // 休止状態の状態遷移時刻
+  resumeTime: string;// 再開（動作状態）の状態遷移時刻
+}
+```
+
+**ペア内のボタン:**
+| ボタン | ロケールキー | 動作 |
+|--------|------------|------|
+| ＋ 休止状態記録追加 | `workRecord.srAddPause` | 新しいペアを `srPauseEntries` 末尾に追加 |
+| 削除（danger） | `workRecord.srRemovePause` | 該当 `id` のペアを `srPauseEntries` から除去 |
+
+ペアはボーダー（`1px solid #e8e8e8`）で囲まれて表示される。
+
+### 5.7.5 保存・キャンセル動作
+
+| 操作 | 動作 |
+|------|------|
+| **保存**（`okText: workRecord.common.save`） | 各 state 値をオブジェクトに集約して `console.info` 出力（**現状モック・API 保存未実装**）。`Modal.success`（`workRecord.stateRecordSaved`）を表示後、ダイアログを閉じて全 state をリセット |
+| **キャンセル**（`cancelText: common.cancel`） | ダイアログを閉じ、`srPreparingTime` / `srReadyTime` / `srRunningTime` / `srCompletedTime` / `srErrorTime` / `srPauseEntries` を全てリセット |
+
+> ⚠️ **保存は現状モック実装**です。実際のバックエンド API への保存は未実装（TODO）。
+
+### 5.7.6 保存データ構造（モック）
+
+```typescript
+const saveData = {
+  preparingTime:  srPreparingTime,   // 準備状態 遷移時刻
+  readyTime:      srReadyTime,       // 準備完了状態 遷移時刻
+  runningTime:    srRunningTime,     // 動作状態 遷移時刻
+  pauseEntries:   srPauseEntries,    // 休止状態記録ペア配列
+  completedTime:  srCompletedTime,   // 終状態 遷移時刻
+  errorTime:      srErrorTime,       // 異常終了状態 遷移時刻
+};
+```
+
+---
+
 ## 6. エラーチェック
 
 ### 6.1 スキップ制御
 
 | 状態 | スキップボタン | Tooltip |
 |------|--------------|---------|
-| 他に実行可能なトランジションがある | 有効 | 「スキップ可能です」 |
-| 他に実行可能なトランジションがない | disabled | 「スキップできるトランジションがありません」 |
+| `in_progress`（動作状態）のトランジションが選択中 | **disabled** | `t('workRecord.skipTooltipUnavailable')` = 「スキップできる別のトランジションがありません」 |
+| 他に実行可能なトランジションがある | 有効 | `t('workRecord.skipTooltipAvailable')` = 「このトランジションを後回しにして次へ進みます」 |
+| 他に実行可能なトランジションがない | disabled | `t('workRecord.skipTooltipUnavailable')` = 「スキップできる別のトランジションがありません」 |
+
+> **実装上の補足（2026-08-27 確認）**: ソースでは `canSkipFlag = hasNextTransition && !isInProgress` の真偽値 1つで分岐。`true` なら `skipTooltipAvailable`、`false` なら `skipTooltipUnavailable` を表示（`in_progress` 専用の Tooltip テキストは存在しない）。
+
+> `in_progress` ステータスのトランジションはスキップ不可（実験データ保存を促す）。
 
 ### 6.2 トランジションアクセス制御
 
 `prerequisiteTransitionIds` が設定されているトランジションは、前提がすべて `completed` になるまで `activeEntry` に選ばれない。
+
+### 6.3 承認依頼ボタン活性条件
+
+`ExperimentWorkerMenu` の承認依頼ボタンは以下の**両方**を満たす場合のみ活性化する。
+
+| 条件 | 詳細 |
+|------|---------|
+| 全トランジションが `completed` | `progressRows` の全行の `status === 'completed'` |
+| 全トランジションが記録済み | `progressRows` の全行の `isRecorded === true` |
+
+どちらか一方でも満たさない場合はボタンが `disabled` になる。
 
 ---
 
@@ -453,8 +634,16 @@ const filteredTemplates = useMemo(() => {
 
 ```
 WorkRecordPanel (PlanB)
-  └→ ExperimentCommentDialog（コメント記録）
-      └→ 保存 / キャンセル → 閉じる
+  ├→ ExperimentCommentDialog（コメント記録）
+  │     └→ 保存 / キャンセル → 閉じる
+  └→ 状態記録ダイアログ（Modal, width=520）
+        ├→ 固定行: 準備状態（DatePicker）
+        ├→ 固定行: 準備完了状態（DatePicker）
+        ├→ 固定行: 動作状態（DatePicker）＋「＋ 休止状態記録追加」ボタン
+        ├→ [動的追加] 休止状態・動作状態ペア（DatePicker ×2）×n件
+        ├→ 固定行: 終状態（DatePicker）
+        ├→ 固定行: 異常終了状態（DatePicker）
+        └→ 保存 / キャンセル → 閉じる（キャンセル時は全入力リセット）
 ```
 
 ---
@@ -474,7 +663,7 @@ WorkRecordPanel (PlanB)
 ## 9. パフォーマンス考慮事項
 
 ### 9.1 最適化
-- `activeEntry`、`filteredTemplates` は `useMemo` でメモ化
+- `activeEntry`、`filteredTemplates`、`categorizedTemplates` は `useMemo` でメモ化
 - `handleActualChange`、`handleSave`、`handleSaveAndNext`、`handleSkip`、`handleInsertionAdd`、`handleInsertionRemove`、`handleContentAdd`、`handleContentRemove`、`handleSaveComment` は `useCallback` でメモ化
 
 ### 9.2 データ量
@@ -499,15 +688,22 @@ WorkRecordPanel (PlanB)
 4. **データ保存のモック実装**  
    保存ボタン → `Modal.success` で通知のみ。実際の API 呼び出しはフェーズBで実装予定。
 
-### 10.2 将来の拡張（フェーズB以降）
+### 10.2 実装済み機能
 
-1. ASSIGNED_TASK_NO を Props / API データに差し替え
-2. 実績値の API 保存（POST）
-3. トランジションステータス更新の API 接続
-4. コメント保存の API 接続
-5. S3ファイルアップロード（Insertion）の実装
-6. 確信度・定量評価の保存
-7. PlanA の削除または採用判断
+| # | 機能 | 状態 |
+|---|------|------|
+| 1 | activeEntry を progressRows / API データで決定 | ✅ 完了 |
+| 2 | 実績値の API 保存（POST） | ✅ 完了 |
+| 3 | トランジションステータス更新の API 接続 | ✅ 完了 |
+| 4 | コメント保存の API 接続 | ✅ 完了 |
+| 5 | 状態記録ダイアログの実装 | ✅ 完了 |
+| 6 | 左Sider カテゴリ別グループ表示 | ✅ 完了 |
+| 7 | 保存時 `is_recorded = TRUE` 更新 | ✅ 完了 |
+| 8 | `in_progress` 時スキップボタン非活性 | ✅ 完了 |
+| 9 | 承認依頼ボタン: 全完了 + 全 isRecorded=true 条件 | ✅ 完了 |
+| 10 | トランジション優先順位: in_progress > ready > preparing | ✅ 完了 |
+| 11 | S3ファイルアップロード（Insertion） | 🔲 TODO |
+| 12 | PlanA の削除または採用判断 | 🔲 TODO |
 
 ### 10.3 関連ドキュメント
 
@@ -521,4 +717,9 @@ WorkRecordPanel (PlanB)
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 3.2.0 | 2026-08-27 | ソースコードとの照合に基づき修正（2026-08-27）：①§5.1 activeEntry 選択ロジックを修正（`in_progress` のみ→`in_progress`/`ready`/`preparing` の3ステータスを対象に優先順位ソート・同一ステータス内は `order` 昇順）。②§6.1 スキップ Tooltip テキストを `t('workRecord.skipTooltipAvailable')` = 「このトランジションを後回しにして次へ進みます」/ `t('workRecord.skipTooltipUnavailable')` = 「スキップできる別のトランジションがありません」に修正（3種→2種、`in_progress` 専用テキストは存在しないことを補足注記に明記）。③§9.1 `handleStatusChange` を `useCallback` メモ化対象リストから削除（`WorkRecordPanel` の export default 内に存在しない） | Cline |
+| 3.1.0 | 2026-08-25 | §1.2: 保存時 `is_recorded=TRUE` 更新を主要機能に追記。§3 Props: `progressRows` に `isRecorded?: boolean` フィールドを追記。§6.1 スキップ制御: `in_progress` 時の disabled 条件を追加・優先順位を先頭に変更。§6.3: 承認依頼ボタン活性条件セクション新規追加（全 completed + 全 isRecorded=true）。§10.2: 実装済み機能に7〜10を追加 | Cline |
+| 3.0.2 | 2026-08-26 | §5.7 状態記録ダイアログ仕様を新規追加（ソースコード L2624〜2837 から起こし）：ダイアログレイアウト・固定5行の仕様（準備状態/準備完了状態/動作状態/終状態/異常終了状態・各行Tag色・DatePicker・state変数名）・動的追加行の PauseEntry 型・追加/削除ボタン仕様・保存/キャンセル動作・保存データ構造（現状モック）。§7.3 モーダル遷移図を実装に合わせて更新 | Cline |
+| 3.0.1 | 2026-08-26 | ソースコードとの乖離を修正：①タイトル・画面名・タブ名を「作業記録」→「実験記録」に統一（`tabs.experimentRecord="実験記録"` に準拠）、②Props定義を `WorkRecordPanelProps` 型に合わせて全面修正（`onStatusChange` 削除・`useDeemedProgress`/`initialTaskNo`/`initialTransitionId` 追加・`selectedProject` → 個別フィールドに変更）、③§4.3 状態プルダウンの内部ステータス値を正確に記載（`running`/`paused` ← `in_progress`/`on_hold` のマッピング説明追加）、④§5.4 PropertyCard フィールド名を内部 `MockProperty` 型とAPIフィールド名に分けて記載（`uncertaintyValue`/`uncertaintyDescription` ← `toleranceValue`/`uncertaintyNote`）、⑤`qualitativeNote`（description）の表示位置を「確信度ラベル右隣」に修正（「不確かさ値ヘッダー右隣」は誤り） | Cline |
+| 3.0.0 | 2026-08-26 | フェーズB移行完了に伴う全面更新（詳細は3.0.0の変更内容を参照） | Cline |
 | 2.0.0 | 2026-08-19 | WorkRecordPanel.tsx ソースコードに基づき全面書き直し（旧ExperimentRecordTab設計書から統合） | Cline |
