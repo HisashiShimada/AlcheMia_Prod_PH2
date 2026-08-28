@@ -1089,7 +1089,7 @@ const shareTargetMock: ShareTarget = {
 |------|------|
 | コンポーネント | `<List>` (Ant Design) |
 | 幅 | 240px（固定） |
-| データソース | `GET /api/v1/department-units/my-teams`（失敗時はダミーデータを使用） |
+| データソース | `GET /api/v1/department-units/my-teams`（失敗時は空リストを表示し `message.error` でエラー通知） |
 | 選択状態 | クリックで右ペインに詳細を表示。初期選択は先頭グループ |
 | ハイライト | 選択中グループを青背景（`#e6f4ff`）でハイライト |
 
@@ -1198,37 +1198,8 @@ interface Group {
 |---------|---------|--------------|------|
 | グループ一覧取得（初期ロード） | GET | `/api/v1/department-units/my-teams` | ログインユーザーが作成したグループ一覧を取得 |
 
-> **注意**: API 失敗時はダミーデータ（`DUMMY_GROUPS`）を使用する。  
-> メンバーデータは `frontend/mock/namespace/department-unit-members.json` から取得。
-
-### 12.7. ダミーデータ（API実装前）
-
-```typescript
-const DUMMY_GROUPS: Group[] = [
-  {
-    departmentUnitId: 'rd-materials',
-    unitName: '材料解析チーム',
-    departmentName: 'LabA',
-    ownerName: '山田 太郎（自分）',
-    ownerUserId: 'user-001',
-    nsPrefix: 'rd-materials',
-    nsUri: 'https://example.org/ns/materials/',
-    nsDisplayName: '材料科学名前空間',
-    members: [],
-  },
-  {
-    departmentUnitId: 'data-proc',
-    unitName: 'データ処理班',
-    departmentName: 'LabA',
-    ownerName: '山田 太郎（自分）',
-    ownerUserId: 'user-001',
-    nsPrefix: 'data-proc',
-    nsUri: 'https://example.org/ns/dp/',
-    nsDisplayName: 'データ処理名前空間',
-    members: [],
-  },
-];
-```
+> - グループ一覧取得（`getOrganizationGroups()`）失敗時: `setGroups([])` で空リストを表示し、`message.error(t('groupManagement.fetchFailed'))` でエラートーストを表示する。
+> - メンバー取得（`getGroupMembers()`）失敗時: `message.warning(t('groupManagement.memberFetchFailed'))` で警告トーストを表示（リストはそのまま）。
 
 ---
 
@@ -1613,6 +1584,7 @@ interface ShareTarget {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-08-27 | v2.7.0: §12.3 左ペイン仕様の「データソース」記述を「失敗時は空リストを表示し message.error でエラー通知」に修正。§12.6 注意を「API実装済みの実際のエラー時動作」に更新（グループ一覧取得失敗→ setGroups([]) + message.error、メンバー取得失敗→ message.warning）。§12.7 ダミーデータセクションを廃止記載に変更（DUMMY_GROUPS / department-unit-members.json は現在のソースに存在しない） | Cline |
 | 2026-08-25 | v2.6.0: §3.2.2 ツリーノードの用語数バッジ表示を左ペイン廃止・右ペイン上部（用語数+Prefix数）表示に変更。§12.3 チーム一覧のアクティブ/非アクティブボタン文言を「有効化/無効化」→「アクティブ/非アクティブ」に変更。§13.5 URI自動生成のドメイン部を `organization_cd` 固定→ルートグループCDに変更する仕様を追記。 | Cline |
 | 2026-08-20 | v2.5.0: §15 `DuplicateSuggestModal` 仕様をソース実態に合わせて全面修正。表示トリガー・幅・Props（`entries`/`onClose`/`onConfirm`）・ボタン仕様（登録は全選択時のみ活性）・候補選択の仕組みを更新。詳細は `ui_namespace_duplicate_suggest_modal.md` を参照するよう追記 | Cline |
 | 2026-07-15 | v2.4.0: §3.2.2 `NewTermRow` 型に `_isDuplicate` フィールドを追加。§14.4 `PrefixRow` 型に `_isAncestor` フィールドを追加。§15 `DuplicateSuggestModal` コンポーネント仕様（表示トリガー・ダイアログ仕様・Props・ボタン仕様・重複チェックの仕組み）を新規追加。§16 非アクティブ確認ダイアログ仕様（表示トリガー・条件・`Modal.confirm` 仕様）を新規追加。旧§15 更新履歴を§17に繰り下げ | Cline |
