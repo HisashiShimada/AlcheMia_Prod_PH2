@@ -1106,3 +1106,26 @@ export interface UpdateGroupChiefBody {
   chiefUserId: string;
 }
 
+// ============================================================
+// 不確かさ評価関連の型定義
+// ============================================================
+
+/**
+ * 定量評価の1件分（convertPropertyForFallback が返す toleranceValues[] の要素型）
+ *
+ * @remarks
+ * experimentDataService.ts の convertPropertyForFallback 内で組み立て、
+ * フロントエンドの WorkRecordPanel.convertRawProperty で
+ * quantitativeUncertainties[] にマッピングする。
+ */
+export interface ToleranceValueEntry {
+  /** 不確かさ基準Key（MAIMLの uncertainty.key） */
+  uncertaintyKey: string;
+  /** 許容値（MAIMLの uncertainty.value を String() 変換した値。null = 未設定） */
+  toleranceValue: string | null;
+  /** 不確かさ説明（MAIMLの uncertainty.description。null = 未設定） */
+  uncertaintyNote: string | null;
+  /** 不確かさ基準名（uncertainty_criteria.termDisplayName。null = 未設定） */
+  uncertaintyName: string | null;
+}
+

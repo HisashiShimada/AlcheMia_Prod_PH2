@@ -4219,9 +4219,18 @@
     "cell": {
       "noRecord": "未記録"
     },
-    "judgeDetailButton": "不確かさ詳細 ({{count}}件)",
+    "judgeDetailButton": "不確かさ詳細 ({count}件)",
+    "judgeCountButton": "({count}件)",
     "judgeDetailDialog": {
-      "title": "不確かさ判定詳細"
+      "title": "不確かさ判定詳細",
+      "method": "メソッド",
+      "taskNo": "タスク",
+      "transition": "トランジション",
+      "template": "テンプレート",
+      "key": "Key",
+      "expectedValue": "想定値",
+      "actualValue": "実績値",
+      "overallJudge": "総合評価"
     },
     "criteriaType": {
       "qualitative": "定性",

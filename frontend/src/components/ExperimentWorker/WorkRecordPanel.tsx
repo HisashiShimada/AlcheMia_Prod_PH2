@@ -99,23 +99,54 @@ let uncertaintyOptionsCache: { value: string; label: string }[] = [];
 type TransitionStatus = 'not_started' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
 type ConfidenceLevel = '確か' | '曖昧' | '不確か';
 
+/**
+ * プロパティに紐づく1件の定量評価情報（許容値・説明の表示用）。
+ * Phase 3 でバックエンドが toleranceValues[] を返すようになったら
+ * convertRawProperty でマッピングする。
+ */
+interface QuantitativeUncertaintyInfo {
+  /** 不確かさ基準Key */
+  uncertaintyKey: string;
+  /** 不確かさ基準名（表示ラベル用） */
+  uncertaintyName?: string;
+  /** 許容値（toleranceValue 相当） */
+  toleranceValue?: string | number;
+  /** 説明（uncertaintyNote 相当） */
+  description?: string;
+}
+
 interface WorkProperty {
   key: string;
   label: string;
   xsiType: 'FloatValue' | 'IntegerValue' | 'StringValue';
   unit: string;
   expected: number | string | null;
-  /** 不確かさ基準名（例: '測定不確かさ（k=2）'）。未指定時は「不確かさ値」を表示 */
+  /**
+   * 不確かさ基準名（1件・後方互換用）。
+   * quantitativeUncertainties が未設定の場合にのみ使用する。
+   */
   uncertaintyName?: string;
-  /** 不確かさ値（モック）。未指定時は「—」を表示 */
+  /**
+   * 不確かさ値（1件・後方互換用）。
+   * quantitativeUncertainties が未設定の場合にのみ使用する。
+   */
   uncertaintyValue?: number | string;
-  /** 不確かさ説明（モック）。未指定時は「—」を表示 */
+  /**
+   * 不確かさ説明（1件・後方互換用）。
+   * quantitativeUncertainties が未設定の場合にのみ使用する。
+   */
   uncertaintyDescription?: string;
-  /** 定性評価の初期値（モック）。未指定時は「確か」 */
+  /**
+   * 複数の定量評価情報（許容値・説明）。
+   * 設定されている場合は後方互換フィールドより優先して各入力行と対応付けて表示する。
+   * Phase 3 でバックエンドが toleranceValues[] を返したら convertRawProperty でここに入れる。
+   */
+  quantitativeUncertainties?: QuantitativeUncertaintyInfo[];
+  /** 定性評価の初期値。未指定時は null（未選択） */
   defaultConfidence?: string;
-  /** 定性評価のボタン選択肢（モック）。未指定時は ['確か', '曖昧', '不確か'] */
+  /** 定性評価のボタン選択肢。未指定時は ['確か', '曖昧', '不確か'] */
   confidenceOptions?: string[];
-  /** property_set の description（不確かさ値ヘッダー右隣に表示） */
+  /** property_set の description（定性評価ラベル右隣に表示） */
   description?: string;
 }
 
@@ -262,10 +293,35 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   ];
   const confidenceOptions = prop.confidenceOptions ?? DEFAULT_CONFIDENCE_OPTIONS;
   const [confidence, setConfidence] = useState<string | null>(prop.defaultConfidence ?? null);
-  /** ＋値の追加ボタンで追加された不確かさ評価行 */
-  const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>([
-    { id: 'initial', uncertaintyKey: '', value: '' },
-  ]);
+  /**
+   * 定量評価入力行。
+   * quantitativeUncertainties が設定されている場合は件数分の行を初期生成し
+   * uncertaintyKey をプリセットする。それ以外は空行1件。
+   */
+  const [addedValues, setAddedValues] = useState<AddedUncertaintyValue[]>(() => {
+    if (prop.quantitativeUncertainties && prop.quantitativeUncertainties.length > 0) {
+      return prop.quantitativeUncertainties.map((qu) => ({
+        id: qu.uncertaintyKey,
+        uncertaintyKey: qu.uncertaintyKey,
+        value: '',
+      }));
+    }
+    return [{ id: 'initial', uncertaintyKey: '', value: '' }];
+  });
+
+  /** addedValues の uncertaintyKey に対応する QuantitativeUncertaintyInfo を返す */
+  const getQuantitativeInfo = (key: string): QuantitativeUncertaintyInfo | undefined =>
+    prop.quantitativeUncertainties?.find((qu) => qu.uncertaintyKey === key);
+
+  /** 集約判定結果: 全件「良好」→「良好」、1件でも「不良」→「不良」 */
+  const aggregatedJudgeResult: '良好' | '不良' | null = (() => {
+    const keys = addedValues.map((av) => av.uncertaintyKey).filter(Boolean);
+    if (keys.length === 0) return null;
+    const results = keys.map((k) => lastJudgeResultMap?.[k]).filter((r): r is '良好' | '不良' => !!r);
+    if (results.length === 0) return null;
+    return results.some((r) => r === '不良') ? '不良' : '良好';
+  })();
+
 
   /** 行を追加する */
   const handleAddValue = () => {
@@ -332,50 +388,30 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
           {confidence}
         </Tag>
       )}
+      {/* 集約判定結果バッジ（保存後に表示） */}
+      {aggregatedJudgeResult !== null && (
+        <Tag
+          color={aggregatedJudgeResult === '良好' ? 'success' : 'error'}
+          style={{ fontSize: 11, margin: 0, lineHeight: '18px', fontWeight: 'bold' }}
+        >
+          {aggregatedJudgeResult}
+        </Tag>
+      )}
     </Flex>
 
-      {/* データ表示 / 入力エリア（縦並び: 想定値+不確かさ値 → 不確かさ説明 → 実績値） */}
+      {/* データ表示 / 入力エリア */}
       <Flex vertical gap={6}>
-        {/* 想定値（左）+ 不確かさ値（右）: 2分割 */}
-        <Row gutter={8}>
-          <Col span={12}>
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.expectedValue')}</Text>
-            <div style={{ padding: '6px 10px', background: '#e6f7ff', border: '1px solid #bae7ff', borderRadius: 4 }}>
-              {prop.expected !== null ? (
-                <Text style={{ fontSize: 14 }}>
-                  {prop.expected}
-                  {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
-                </Text>
-              ) : (
-                <Text type="secondary" italic style={{ fontSize: 13 }}>{t('workRecord.notSet')}</Text>
-              )}
-            </div>
-          </Col>
-          <Col span={12}>
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>
-              {prop.uncertaintyName ?? t('workRecord.uncertaintyValue')}
-            </Text>
-            <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4 }}>
-              {prop.uncertaintyValue !== undefined ? (
-                <Text style={{ fontSize: 14 }}>
-                  {prop.uncertaintyValue}
-                  {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
-                </Text>
-              ) : (
-                <Text type="secondary" italic style={{ fontSize: 13 }}>—</Text>
-              )}
-            </div>
-          </Col>
-        </Row>
-
-        {/* 不確かさ説明（全幅） */}
+        {/* 想定値 */}
         <div>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.uncertaintyDesc')}</Text>
-          <div style={{ padding: '6px 10px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: 4, minHeight: 34 }}>
-            {prop.uncertaintyDescription !== undefined ? (
-              <Text style={{ fontSize: 13 }}>{prop.uncertaintyDescription}</Text>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 2 }}>{t('workRecord.expectedValue')}</Text>
+          <div style={{ padding: '6px 10px', background: '#e6f7ff', border: '1px solid #bae7ff', borderRadius: 4 }}>
+            {prop.expected !== null ? (
+              <Text style={{ fontSize: 14 }}>
+                {prop.expected}
+                {prop.unit && <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>{prop.unit}</Text>}
+              </Text>
             ) : (
-              <Text type="secondary" italic style={{ fontSize: 13 }}>—</Text>
+              <Text type="secondary" italic style={{ fontSize: 13 }}>{t('workRecord.notSet')}</Text>
             )}
           </div>
         </div>
@@ -464,42 +500,75 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
       )}
 
-      {/* 定量評価（不確かさ基準 + 値の追加行） */}
+      {/* 定量評価（入力時のみ）: 許容値・説明を各入力行にセット表示 */}
       {!readOnly && (
         <div>
           <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
             {t('workRecord.quantitativeEval')}
           </Text>
-          {addedValues.map((av) => {
-            const judgeResult = av.uncertaintyKey ? lastJudgeResultMap?.[av.uncertaintyKey] : undefined;
-            return (
-              <Flex key={av.id} gap={4} align="center" style={{ marginBottom: 4 }}>
-                <Select
-                  size="small"
-                  style={{ flex: 6, minWidth: 0 }}
-                  placeholder={t('workRecord.quantitativeEvalPlaceholder')}
-                  value={av.uncertaintyKey || undefined}
-                  onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
-                  options={uncertaintyOptionsCache}
-                />
-                <Input
-                  size="small"
-                  style={{ flex: 4, minWidth: 0 }}
-                  placeholder={t('workRecord.valuePlaceholder')}
-                  value={av.value}
-                  onChange={(e) => handleValueChange(av.id, e.target.value)}
-                />
-                {judgeResult && (
-                  <Tag
-                    color={judgeResult === '良好' ? 'success' : 'error'}
-                    style={{ margin: 0, flexShrink: 0, fontSize: 11 }}
-                  >
-                    {judgeResult}
-                  </Tag>
-                )}
-              </Flex>
-            );
-          })}
+          <Flex vertical gap={8}>
+            {addedValues.map((av) => {
+              const qInfo = getQuantitativeInfo(av.uncertaintyKey);
+              return (
+                <div key={av.id} style={{ background: '#fafafa', border: '1px solid #e8e8e8', borderRadius: 4, padding: '6px 8px' }}>
+                  {/* 対応する許容値・説明（quantitativeUncertainties がある行のみ） */}
+                  {qInfo && (
+                    <div style={{ marginBottom: 6 }}>
+                      <Flex align="baseline" gap={6} style={{ marginBottom: 2 }}>
+                        <Text type="secondary" style={{ fontSize: 11, flexShrink: 0 }}>
+                          {qInfo.uncertaintyName ?? t('workRecord.uncertaintyValue')}
+                        </Text>
+                        {qInfo.toleranceValue !== undefined && (
+                          <Text style={{ fontSize: 12, fontWeight: 500 }}>
+                            {qInfo.toleranceValue}
+                            {prop.unit && <Text type="secondary" style={{ fontSize: 11, marginLeft: 3 }}>{prop.unit}</Text>}
+                          </Text>
+                        )}
+                      </Flex>
+                      {qInfo.description && (
+                        <Text type="secondary" style={{ fontSize: 11 }}>{qInfo.description}</Text>
+                      )}
+                      <Divider style={{ margin: '4px 0' }} />
+                    </div>
+                  )}
+                  {/* 入力行 */}
+                  <Flex gap={4} align="center">
+                    <Select
+                      size="small"
+                      style={{ flex: 6, minWidth: 0 }}
+                      placeholder={t('workRecord.quantitativeEvalPlaceholder')}
+                      value={av.uncertaintyKey || undefined}
+                      onChange={(val) => handleUncertaintyKeyChange(av.id, val)}
+                      options={uncertaintyOptionsCache}
+                    />
+                    <Input
+                      size="small"
+                      style={{ flex: 4, minWidth: 0 }}
+                      placeholder={t('workRecord.valuePlaceholder')}
+                      value={av.value}
+                      onChange={(e) => handleValueChange(av.id, e.target.value)}
+                    />
+                    <Button
+                      size="small"
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleRemoveValue(av.id)}
+                      disabled={addedValues.length === 1}
+                    />
+                  </Flex>
+                </div>
+              );
+            })}
+          </Flex>
+          <Button
+            size="small"
+            icon={<PlusOutlined />}
+            style={{ marginTop: 8, background: '#1d4e63', color: '#fff', borderColor: '#1d4e63', fontSize: 11 }}
+            onClick={handleAddValue}
+          >
+            {t('workRecord.addValue')}
+          </Button>
         </div>
       )}
 
@@ -1723,7 +1792,7 @@ function resolveXsiType(xsiType: string | undefined): WorkProperty['xsiType'] {
 
 /**
  * API レスポンスの1プロパティ行を WorkProperty に変換する。
- * PLAN.md バグ4件: plannedValue/toleranceValue/uncertaintyNote/uncertaintyKey/uncertaintyName のマッピング追加。
+ * Phase 3-B 対応: toleranceValues[] → quantitativeUncertainties[] マッピング追加。
  */
 function convertRawProperty(
   p: Record<string, unknown>
@@ -1731,7 +1800,6 @@ function convertRawProperty(
   let confidenceOptions: string[] | undefined;
   let defaultConfidence: string | undefined;
   // バックエンドが返す qualitativeOptions を直接利用する
-  // （criteriaMap を使ったルックアップは uncertaintyKey が一致しない場合があるため廃止）
   const rawQualitativeOptions = p.qualitativeOptions as
     | Array<{ displayOrder: number; selectorValue: string }>
     | null
@@ -1746,24 +1814,41 @@ function convertRawProperty(
   if (qualitativeEval) {
     defaultConfidence = qualitativeEval;
   }
+  // toleranceValues[] → quantitativeUncertainties[] マッピング（Phase 3-B）
+  const rawToleranceValues = p.toleranceValues as
+    | Array<{
+        uncertaintyKey: string;
+        toleranceValue: string | null;
+        uncertaintyNote: string | null;
+        uncertaintyName: string | null;
+      }>
+    | null
+    | undefined;
+  const quantitativeUncertainties: QuantitativeUncertaintyInfo[] | undefined =
+    rawToleranceValues && rawToleranceValues.length > 0
+      ? rawToleranceValues.map((tv) => ({
+          uncertaintyKey:  tv.uncertaintyKey,
+          uncertaintyName: tv.uncertaintyName ?? undefined,
+          toleranceValue:  tv.toleranceValue ?? undefined,
+          description:     tv.uncertaintyNote ?? undefined,
+        }))
+      : undefined;
   return {
     key: String(p.key ?? ''),
     label: String(p.key ?? ''),
     xsiType: resolveXsiType(p.xsiType as string | undefined),
     unit: String(p.units ?? ''),
-    // バックエンド(buildFallbackTemplates/convertPropertyForFallback)は想定値を "value" キーで返す。
-    // 旧称 "plannedValue" も念のためフォールバックとして残す。
     expected: ((p.value ?? p.plannedValue) as number | string | null | undefined) ?? null,
-    uncertaintyName: (p.uncertaintyName as string | undefined) ?? undefined,
-    uncertaintyValue: (p.toleranceValue as string | number | undefined) ?? undefined,
+    uncertaintyName:        (p.uncertaintyName as string | undefined) ?? undefined,
+    uncertaintyValue:       (p.toleranceValue as string | number | undefined) ?? undefined,
     uncertaintyDescription: (p.uncertaintyNote as string | undefined) ?? undefined,
+    quantitativeUncertainties,
     defaultConfidence,
     confidenceOptions,
-    // 定性評価の description（uncertainty の description = unc.description）
-    // バックエンドは qualitativeNote として返す
     description: (p.qualitativeNote as string | null | undefined) ?? undefined,
   };
 }
+
 
 /**
  * progressRows から現在の作業対象タスクNo を決定する。

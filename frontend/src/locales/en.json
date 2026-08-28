@@ -4744,9 +4744,18 @@
     "cell": {
       "noRecord": "No record"
     },
-    "judgeDetailButton": "Uncertainty Detail ({{count}} items)",
+    "judgeDetailButton": "Uncertainty Detail ({count} items)",
+    "judgeCountButton": "({count} items)",
     "judgeDetailDialog": {
-      "title": "Uncertainty Judge Detail"
+      "title": "Uncertainty Judge Detail",
+      "method": "Method",
+      "taskNo": "Task",
+      "transition": "Transition",
+      "template": "Template",
+      "key": "Key",
+      "expectedValue": "Expected",
+      "actualValue": "Actual",
+      "overallJudge": "Overall Result"
     },
     "criteriaType": {
       "qualitative": "Qualitative",

@@ -188,7 +188,7 @@ const TOGGLEABLE_COLUMN_KEYS_AND_WIDTHS: { key: string; labelKey: string; width:
   { key: 'quantitativeCriteriaName',    labelKey: 'experimentInstructionTab.col.quantitativeCriteriaName', width: 180 },
   { key: 'quantitativeTolerance',       labelKey: 'experimentInstructionTab.col.quantitativeTolerance',    width: 140 },
   { key: 'quantitativeRecordedValue',   labelKey: 'experimentInstructionTab.col.quantitativeRecordedValue', width: 110 },
-  { key: 'quantitativeJudgeResult',     labelKey: 'experimentInstructionTab.col.quantitativeJudgeResult',  width:  90 },
+  { key: 'quantitativeJudgeResult',     labelKey: 'experimentInstructionTab.col.quantitativeJudgeResult',  width: 140 },
   { key: 'experimentUser',              labelKey: 'experimentInstructionTab.col.experimentUser',           width: 160 },
 ];
 
@@ -830,13 +830,26 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       width: 140,
       render: (_: unknown, r: FlatRow) => {
         const judges = r.uncertaintyJudges;
-        if (!judges || judges.length !== 1) return <Text type="secondary">—</Text>;
-        const j = judges[0];
-        if (j.toleranceLower === null && j.toleranceUpper === null) return <Text type="secondary">—</Text>;
+        if (!judges || judges.length === 0) return <Text type="secondary">—</Text>;
+        if (judges.length === 1) {
+          const j = judges[0];
+          if (j.toleranceLower === null && j.toleranceUpper === null) return <Text type="secondary">—</Text>;
+          return (
+            <Text style={{ fontSize: 12 }}>
+              {j.toleranceLower ?? '—'} ～ {j.toleranceUpper ?? '—'}
+            </Text>
+          );
+        }
+        // 複数件: ボタン → ダイアログ
         return (
-          <Text style={{ fontSize: 12 }}>
-            {j.toleranceLower ?? '—'} ～ {j.toleranceUpper ?? '—'}
-          </Text>
+          <Button
+            size="small"
+            type="link"
+            style={{ padding: 0, fontSize: 12 }}
+            onClick={() => { setJudgeDetailRow(r); setJudgeDetailOpen(true); }}
+          >
+            {t('experimentInstructionTab.judgeDetailButton', { count: String(judges.length) })}
+          </Button>
         );
       },
     },
@@ -847,23 +860,46 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       align: 'right' as const,
       render: (_: unknown, r: FlatRow) => {
         const judges = r.uncertaintyJudges;
-        if (!judges || judges.length !== 1) return <Text type="secondary">—</Text>;
-        return <Text style={{ fontSize: 12 }}>{judges[0].recordedValue}</Text>;
+        if (!judges || judges.length === 0) return <Text type="secondary">—</Text>;
+        if (judges.length === 1) return <Text style={{ fontSize: 12 }}>{judges[0].recordedValue}</Text>;
+        // 複数件: ボタン → ダイアログ
+        return (
+          <Button
+            size="small"
+            type="link"
+            style={{ padding: 0, fontSize: 12 }}
+            onClick={() => { setJudgeDetailRow(r); setJudgeDetailOpen(true); }}
+          >
+            {t('experimentInstructionTab.judgeDetailButton', { count: String(judges.length) })}
+          </Button>
+        );
       },
     },
     {
       key: 'quantitativeJudgeResult',
       title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.quantitativeJudgeResult')}</span>,
-      width: 90,
+      width: 140,
       align: 'center' as const,
       render: (_: unknown, r: FlatRow) => {
         const judges = r.uncertaintyJudges;
-        if (!judges || judges.length !== 1) return <Text type="secondary">—</Text>;
-        const j = judges[0];
+        if (!judges || judges.length === 0) return <Text type="secondary">—</Text>;
+        const aggregated = judges.some((j) => j.judgeResult === '不良') ? '不良' : '良好';
         return (
-          <Tag color={j.judgeResult === '良好' ? 'success' : 'error'} style={{ margin: 0, fontSize: 11 }}>
-            {j.judgeResult}
-          </Tag>
+          <Flex align="center" justify="center" gap={4}>
+            <Tag color={aggregated === '良好' ? 'success' : 'error'} style={{ margin: 0, fontSize: 11 }}>
+              {aggregated}
+            </Tag>
+            {judges.length > 1 && (
+              <Button
+                size="small"
+                type="link"
+                style={{ padding: 0, fontSize: 11 }}
+                onClick={() => { setJudgeDetailRow(r); setJudgeDetailOpen(true); }}
+              >
+                {t('experimentInstructionTab.judgeCountButton', { count: String(judges.length) })}
+              </Button>
+            )}
+          </Flex>
         );
       },
     },
@@ -1217,11 +1253,18 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
         <UncertaintyJudgeDetailDialog
           open={judgeDetailOpen}
           onClose={() => setJudgeDetailOpen(false)}
+          methodId={judgeDetailRow.methodId}
+          methodName={judgeDetailRow.methodName}
+          taskNumber={judgeDetailRow.taskNumber}
+          transitionId={judgeDetailRow.transitionId}
+          transitionName={judgeDetailRow.transitionName}
+          templateName={judgeDetailRow.templateName}
           propKey={judgeDetailRow.propKey}
           propLabel={judgeDetailRow.propLabel}
           xsiType={judgeDetailRow.xsiType}
           expected={judgeDetailRow.expected}
           actual={judgeDetailRow.actual}
+          unit={judgeDetailRow.unit || undefined}
           uncertaintyJudges={judgeDetailRow.uncertaintyJudges}
         />
       )}

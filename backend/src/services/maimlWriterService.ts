@@ -34,6 +34,7 @@ import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { findNamespacesByOrganization } from '../repositories/namespaceTermRepository';
 import { readGlobalDeclarations } from './globalNamespaceFileService';
+import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
 
 /**
  * 組織固有名前空間（DB）とグローバル名前空間（ファイルサーバ）をマージして返す
@@ -115,6 +116,61 @@ export class MaimlWriterService {
       [organizationId, projectId]
     );
     const templateDataRows: TemplateDataRow[] = templateDataResult.rows;
+
+    // --- 3-b. experiment_uncertainty_judge から判定結果を全件取得・集約して
+    //          templateDataRows の property_set.properties[].uncertainties に注入 ---
+    // 各プロパティの定量評価結果（良好/不良）を MAIML <uncertainty> の <value> として書き込む。
+    // 集約ルール: (placeId, propertyKey) ごとに全件「良好」なら「良好」、1件でも「不良」なら「不良」。
+    try {
+      const methodIds = [...new Set(templateDataRows.map((r) => r.method_id))];
+      const judgeRepo = new ExperimentUncertaintyJudgeRepository();
+
+      for (const methodId of methodIds) {
+        const judgeRows = await judgeRepo.findAllByProject(organizationId, projectId, methodId);
+        if (judgeRows.length === 0) continue;
+
+        // (placeId, propertyKey) ごとに集約
+        const judgeMap = new Map<string, '良好' | '不良'>();
+        for (const jr of judgeRows) {
+          const mapKey = `${jr.placeId}__${jr.propertyKey}`;
+          const current = judgeMap.get(mapKey);
+          if (current === '不良') continue;
+          judgeMap.set(mapKey, jr.judgeResult === '不良' ? '不良' : '良好');
+        }
+
+        // templateDataRows の property_set.properties に判定結果を注入
+        for (const row of templateDataRows) {
+          if (row.method_id !== methodId) continue;
+          const ps = row.property_set as Record<string, unknown> | null;
+          if (!ps || !Array.isArray(ps['properties'])) continue;
+
+          const properties = ps['properties'] as Array<Record<string, unknown>>;
+          for (const prop of properties) {
+            const propKey = prop['key'] as string | undefined;
+            if (!propKey) continue;
+            const aggregatedResult = judgeMap.get(`${row.place_id}__${propKey}`);
+            if (!aggregatedResult) continue;
+
+            // uncertainties 配列の最初の定量評価 uncertainty に集約結果を設定
+            const uncertainties = prop['uncertainties'];
+            if (Array.isArray(uncertainties) && uncertainties.length > 0) {
+              for (const uc of uncertainties as Array<Record<string, unknown>>) {
+                if (uc && typeof uc === 'object') {
+                  uc['value'] = aggregatedResult;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (judgeInjectError) {
+      console.warn(
+        '[MaimlWriterService] uncertainty judge 結果の注入に失敗しました（処理は継続）:',
+        judgeInjectError
+      );
+    }
+
 
     // --- 4. maiml_event_log を全件取得（プロジェクト単位）---
     // sequence_no 昇順で取得してイベントの発生順序を保持する

@@ -22,6 +22,7 @@ import type { Pool, PoolClient } from 'pg';
 import type { Property, Content } from '../types/maiml-unified';
 import { findByKeysWithDetails, UncertaintyKeyDetail, QualitativeOptionRow } from '../repositories/uncertaintyCriteriaRepository';
 import { runJudge, UncertaintyValueInput, UncertaintyJudgeResult } from './uncertaintyJudgeService';
+import type { ToleranceValueEntry } from '../types/api';
 
 /**
  * プロジェクト編集不可エラー
@@ -603,6 +604,12 @@ function convertPropertyForFallback(
   let qualitativeOptions: QualitativeOptionRow[] = [];
   let qualitativeEval: string | null = null;
   let qualitativeNote: string | null = null;
+  /**
+   * 定量評価の全件リスト（複数の定量 uncertainty に対応）。
+   * フロントエンドの WorkRecordPanel.convertRawProperty が
+   * quantitativeUncertainties へマッピングするために使用する。
+   */
+  const toleranceValues: ToleranceValueEntry[] = [];
 
   if (uncertaintyDetailMap && p.uncertainty && p.uncertainty.length > 0) {
     for (const unc of p.uncertainty) {
@@ -611,11 +618,24 @@ function convertPropertyForFallback(
       // evaluationMethod 1=定量, 2=定性。DB に存在しないキーは定量として扱う
       const isQualitative = detail?.evaluationMethod === 2;
 
-      if (!isQualitative && toleranceValue === null) {
-        // 定量: 最初の1件（value は number | boolean の可能性もあるため String() で変換）
-        toleranceValue   = unc.value     != null ? String(unc.value) : null;
-        uncertaintyNote  = unc.description ?? null;
-        uncertaintyName  = detail?.termDisplayName ?? null;
+      if (!isQualitative) {
+        const tv   = unc.value     != null ? String(unc.value) : null;
+        const tn   = unc.description ?? null;
+        const name = detail?.termDisplayName ?? null;
+        // 後方互換: 最初の1件を toleranceValue（単一フィールド）にも設定
+        if (toleranceValue === null) {
+          toleranceValue  = tv;
+          uncertaintyNote = tn;
+          uncertaintyName = name;
+        }
+        // 全件を toleranceValues[] に追加
+        const toleranceEntry: ToleranceValueEntry = {
+          uncertaintyKey:  key,
+          toleranceValue:  tv,
+          uncertaintyNote: tn,
+          uncertaintyName: name,
+        };
+        toleranceValues.push(toleranceEntry);
       } else if (isQualitative && qualitativeOptions.length === 0) {
         // 定性: 最初の1件
         qualitativeOptions = detail?.qualitativeOptions ?? [];
@@ -634,6 +654,7 @@ function convertPropertyForFallback(
     toleranceValue,
     uncertaintyNote,
     uncertaintyName,
+    toleranceValues: toleranceValues.length > 0 ? toleranceValues : null,
     qualitativeOptions,
     qualitativeEval,
     qualitativeNote,
