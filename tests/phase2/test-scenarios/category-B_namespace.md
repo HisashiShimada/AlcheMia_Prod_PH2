@@ -1,8 +1,6 @@
 # 分類B シナリオテスト ― 名前空間管理（Namespace）
 
-**作成日**: 2026-08-19  
-<<<<<<< Updated upstream
-=======
+**作成日**: 2026-08-19
 **更新日**: 2026-08-26（タスク: PrefixManagement共有ボタン追加・共有ダイアログツリー表示修正・UncertaintyManagement Prefix共有修正・名前空間管理多言語化対応）  
 **作成者**: SSV  
 **対象機能**: 名前空間管理（Namespace）  
