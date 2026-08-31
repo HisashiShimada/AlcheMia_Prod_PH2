@@ -21,6 +21,8 @@ import type {
   RecordNgRequest,
   GetExperimentInstructionsResponse,
   GetProjectMethodsResponse,
+  UncertaintyJudgeSummaryResponse,
+  GetUncertaintyJudgeSummaryResponse,
 } from '@/types/experimentInstruction';
 
 // ─────────────────────────────────────────────────────────────
@@ -95,3 +97,19 @@ export async function recordNg(
 
   return response.data;
 }
+
+/**
+ * 定量評価（不確かさ判定）集計を取得する
+ * GET /api/v1/projects/:projectId/uncertainty-judge-summary
+ */
+export async function getUncertaintyJudgeSummary(
+  projectId: string
+): Promise<UncertaintyJudgeSummaryResponse> {
+  const apiClient = createApiClient();
+  const url = `/projects/${encodeURIComponent(projectId)}/uncertainty-judge-summary`;
+
+  const response = await apiClient.get<GetUncertaintyJudgeSummaryResponse>(url);
+
+  return response.data.data;
+}
+

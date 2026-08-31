@@ -288,7 +288,7 @@ const InputModal: React.FC<InputModalProps> = ({
       open={open}
       onCancel={handleClose}
       width={760}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <Flex justify="space-between" align="center">
           <Text type="secondary" style={{ fontSize: 11 }}>{t('evaluation.inputModal.footerNote')}</Text>
@@ -537,7 +537,9 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
   if (loading) {
     return (
       <Flex justify="center" style={{ padding: 40 }}>
-        <Spin tip={t('evaluation.loading')} />
+        <Spin tip={t('evaluation.loading')}>
+          <div style={{ minHeight: 40 }} />
+        </Spin>
       </Flex>
     );
   }

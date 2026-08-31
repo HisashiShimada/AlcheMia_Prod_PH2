@@ -3622,7 +3622,11 @@
     "columnComment": "コメント",
     "digitalGood": "良好",
     "digitalCaution": "要確認",
-    "digitalBad": "不良"
+    "digitalBad": "不良",
+    "judgePanelTotal": "定量評価",
+    "judgePanelGood": "良好",
+    "judgePanelBad": "不良",
+    "judgePanelUnit": "件"
   },
   "evaluation": {
     "unit": {

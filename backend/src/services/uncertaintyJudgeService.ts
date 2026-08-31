@@ -43,6 +43,31 @@ export interface UncertaintyJudgeResult {
 }
 
 /**
+ * プロジェクトの判定結果サマリーを取得する
+ *
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @returns 総件数・良好件数・不良件数・良好率・不良率
+ */
+export async function getJudgeSummaryByProject(
+  organizationId: string,
+  projectId: string
+): Promise<{ total: number; good: number; bad: number; goodRate: number; badRate: number }> {
+  const repo = new ExperimentUncertaintyJudgeRepository();
+  const counts = await repo.findSummaryByProject(organizationId, projectId);
+  const total = counts.total;
+  const goodRate = total > 0 ? Math.round((counts.good / total) * 1000) / 10 : 0;
+  const badRate  = total > 0 ? Math.round((counts.bad  / total) * 1000) / 10 : 0;
+  return {
+    total,
+    good:     counts.good,
+    bad:      counts.bad,
+    goodRate,
+    badRate,
+  };
+}
+
+/**
  * 不確かさ判定を実行して結果を保存する
  *
  * @param organizationId - 組織ID

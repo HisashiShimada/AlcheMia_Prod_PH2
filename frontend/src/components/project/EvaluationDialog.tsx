@@ -512,7 +512,9 @@ const ResultPanel: React.FC<ResultPanelProps> = ({
   if (loading) {
     return (
       <Flex justify="center" style={{ padding: 40 }}>
-        <Spin tip={t('evaluation.loading')} />
+        <Spin tip={t('evaluation.loading')}>
+          <div style={{ minHeight: 40 }} />
+        </Spin>
       </Flex>
     );
   }

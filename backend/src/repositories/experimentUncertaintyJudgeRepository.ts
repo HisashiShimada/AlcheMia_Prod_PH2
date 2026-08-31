@@ -174,4 +174,34 @@ export class ExperimentUncertaintyJudgeRepository {
       );
     }
   }
+
+  /**
+   * プロジェクトの判定結果を集計する（最新判定のみカウント）
+   *
+   * @param organizationId - 組織ID
+   * @param projectId - プロジェクトID
+   * @returns 総件数・良好件数・不良件数
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findSummaryByProject(
+    organizationId: string,
+    projectId: string
+  ): Promise<{ total: number; good: number; bad: number }> {
+    try {
+      const pgp = getPgp();
+      const query = await loadSqlFile('experiment_uncertainty_judge/findSummaryByProject.sql');
+      const params = [organizationId, projectId];
+      const row = await pgp.one<{ total: string; good: string; bad: string }>(query, params);
+      return {
+        total: parseInt(row.total, 10),
+        good:  parseInt(row.good,  10),
+        bad:   parseInt(row.bad,   10),
+      };
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while aggregating experiment_uncertainty_judge',
+        error as Error
+      );
+    }
+  }
 }

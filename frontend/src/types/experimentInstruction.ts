@@ -18,6 +18,32 @@
 // API レスポンス型（ネスト形式）
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * GET /api/v1/projects/:projectId/uncertainty-judge-summary レスポンスデータ型
+ *
+ * 定量評価（experiment_uncertainty_judge）のプロジェクト集計
+ * - 各プロパティの最新判定のみをカウント
+ * - 判定値は '良好' | '不良' の2値
+ */
+export interface UncertaintyJudgeSummaryResponse {
+  /** 総判定件数（最新判定のみ） */
+  total: number;
+  /** 良好件数 */
+  good: number;
+  /** 不良件数 */
+  bad: number;
+  /** 良好率（%、小数第1位） */
+  goodRate: number;
+  /** 不良率（%、小数第1位） */
+  badRate: number;
+}
+
+/** GET /api/v1/projects/:projectId/uncertainty-judge-summary のレスポンス全体 */
+export interface GetUncertaintyJudgeSummaryResponse {
+  success: boolean;
+  data: UncertaintyJudgeSummaryResponse;
+}
+
 /** 不確かさ判定サマリー（実験指示タブ表示用） */
 export interface UncertaintyJudgeSummary {
   instructionKey: string;

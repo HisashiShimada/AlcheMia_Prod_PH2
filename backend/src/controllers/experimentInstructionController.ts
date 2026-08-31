@@ -13,6 +13,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import * as experimentInstructionService from '../services/experimentInstructionService';
+import { getJudgeSummaryByProject } from '../services/uncertaintyJudgeService';
 
 // ──────────────────────────────────────────────
 // ハンドラ
@@ -229,3 +230,30 @@ export async function getPlanDialogData(
     next(error);
   }
 }
+
+/**
+ * 定量評価（不確かさ判定）集計取得
+ * GET /api/v1/projects/:projectId/uncertainty-judge-summary
+ */
+export async function getUncertaintyJudgeSummary(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { organizationId } = req.user!;
+    const { projectId } = req.params;
+
+    logger.info('[experimentInstruction] getUncertaintyJudgeSummary', {
+      organizationId,
+      projectId,
+    });
+
+    const summary = await getJudgeSummaryByProject(organizationId, projectId);
+
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    next(error);
+  }
+}
+

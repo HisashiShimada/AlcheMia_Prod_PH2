@@ -25,6 +25,7 @@ import {
   approveTask,
   recordNg,
   getPlanDialogData,
+  getUncertaintyJudgeSummary,
 } from '../controllers/experimentInstructionController';
 import {
   getExperimentPlans,
@@ -150,6 +151,19 @@ router.delete(
   ],
   handleValidationErrors,
   deleteExperimentPlans
+);
+
+// ──────────────────────────────────────────────
+// 不確かさ判定集計
+// ──────────────────────────────────────────────
+
+// 定量評価（不確かさ判定）集計取得
+router.get(
+  '/:projectId/uncertainty-judge-summary',
+  authMiddleware,
+  [validateParamString('projectId', 1, 255)],
+  handleValidationErrors,
+  getUncertaintyJudgeSummary
 );
 
 export default router;

@@ -3253,7 +3253,11 @@
     "columnComment": "Comment",
     "digitalGood": "Good",
     "digitalCaution": "Caution",
-    "digitalBad": "Bad"
+    "digitalBad": "Bad",
+    "judgePanelTotal": "Quantitative Evaluation",
+    "judgePanelGood": "Good",
+    "judgePanelBad": "Bad",
+    "judgePanelUnit": ""
   },
   "evaluation": {
     "unitLabel": {
