@@ -248,6 +248,9 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   // ── organization_group 取得ステート
   const [orgGroups, setOrgGroups] = useState<OrganizationGroupRow[]>([]);
 
+  // ── ログインユーザーが代表者（chief_user_id）であるグループCDの集合
+  const [chiefGroupCds, setChiefGroupCds] = useState<Set<string>>(new Set());
+
   // ── 動的ツリー（buildNsTreeSkeleton の company / personal children を API データで差し替え）
   const namespaceTree = useMemo((): NamespaceNode[] => {
     // Personal 配下には常にログインユーザーのユーザー名ノードを1件表示する。
@@ -268,10 +271,24 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   }, [orgGroups, user?.id, user?.username, t]);
 
   // ── 初回マウント時に organization_group 一覧 & 個人名前空間を取得してツリーを構築
+  // 代表グループ（chiefUserId フィルタ）と所属グループ（memberOf）を並列取得してマージする
   useEffect(() => {
-    getOrganizationGroups()
-      .then((groups) => {
-        const safeGroups = Array.isArray(groups) ? groups : [];
+    Promise.all([
+      getOrganizationGroups(),                               // ① chiefUserId フィルタ（代表グループ）
+      getOrganizationGroups(undefined, { memberOf: true }), // ② 所属グループ＋祖先グループ
+    ])
+      .then(([chiefGroups, memberGroups]) => {
+        // 代表グループCDを Set として保存（編集権限判定に使用）
+        setChiefGroupCds(new Set(chiefGroups.map((g) => g.organization_group_cd)));
+
+        // 重複を organization_group_cd で除去してマージ
+        const mergedMap = new Map<string, OrganizationGroupRow>();
+        [...chiefGroups, ...memberGroups].forEach((g) =>
+          mergedMap.set(g.organization_group_cd, g)
+        );
+        const mergedGroups = Array.from(mergedMap.values());
+        const safeGroups = Array.isArray(mergedGroups) ? mergedGroups : [];
+
         setOrgGroups(safeGroups);
         // 組織ノードの最下層リーフを初期選択状態にする
         const orgNodes = buildOrgTree(safeGroups);
@@ -333,15 +350,9 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     setDetailModalOpen(true);
   };
 
-  // selectedNsKey から API に渡す実際の scopeKey を算出
-  // 個人ノードは "personal-{userId}" 形式 → DB の scope_key はユーザーID部分のみ
-  const effectiveNsKey = useMemo(() => {
-    if (!selectedNsKey) return null;
-    if (selectedNsKey.startsWith('personal-')) {
-      return selectedNsKey.replace(/^personal-/, '');
-    }
-    return selectedNsKey;
-  }, [selectedNsKey]);
+  // selectedNsKey から PrefixManagement に渡すキーを算出
+  // personal-{userId} 形式のまま渡す（PrefixManagement 側で personal- 判定を行う）
+  const effectiveNsKey = selectedNsKey;
 
   // Global または Personal 配下のノードが選択中かどうか
   const isGlobalOrPersonalSelected = useMemo(() => {
@@ -356,6 +367,51 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     return selectedNsKey === 'global' || selectedNsKey === 'ns-maiml' || selectedNsKey === 'ns-xsi';
   }, [selectedNsKey]);
 
+  // システム管理者かどうかを判定
+  // roleCd はユーザーが任意に設定するロールコードのため判定に使用しない
+  // initialScreenFunctionCd はロールに紐づくシステム固定値（MENU_FUNCTION_IDS で定義）を使用する
+  // '020000' = system_admin に対応する初期画面機能CD
+  const isSysAdmin = useMemo(() => {
+    return user?.initialScreenFunctionCd === '020000';
+  }, [user?.initialScreenFunctionCd]);
+
+  // 「組織」ノード（company 配下）が選択中かどうかを判定
+  // rootKey の種類: 'global' / 'company' / 'personal' / null
+  // 'company' は画面上「組織」と表示される（t('namespaceTree.company') = "組織"）
+  const isCompanyNodeSelected = useMemo(() => {
+    if (!selectedNsKey) return false;
+    const rootKey = getRootKey(selectedNsKey, namespaceTree);
+    return rootKey === 'company';
+  }, [selectedNsKey, namespaceTree]);
+
+  // 「組織」ノード選択中 かつ システム管理者以外 → 閲覧専用（旧ロジック、以下の isViewOnlyForNode に統合）
+
+  // orgグループノード（company 配下のグループノード）が選択中かどうか
+  // 固定キーと personal- プレフィックスを除外することで判定する
+  const isOrgGroupNodeSelected = useMemo(() => {
+    if (!selectedNsKey) return false;
+    if (['global', 'ns-maiml', 'ns-xsi', 'company', 'personal'].includes(selectedNsKey)) return false;
+    if (selectedNsKey.startsWith('personal-')) return false;
+    return true;
+  }, [selectedNsKey]);
+
+  // 選択中の orgグループノードに対して、ログインユーザーが代表者（chief_user_id）かどうか
+  const isRepresentativeOfSelected = useMemo(() => {
+    if (!selectedNsKey) return false;
+    return chiefGroupCds.has(selectedNsKey);
+  }, [selectedNsKey, chiefGroupCds]);
+
+  // 実効的な閲覧専用フラグ
+  // - sys_admin は常に編集可
+  // - 'company' ルートノード選択時 → 非sys_admin 全員閲覧専用（従来通り）
+  // - orgグループノード（配下のグループCD）選択時 → 代表者のみ編集可、一般メンバーは閲覧専用
+  const isViewOnlyForCompany = useMemo(() => {
+    if (isSysAdmin) return false;
+    if (selectedNsKey === 'company') return true;
+    if (isOrgGroupNodeSelected) return !isRepresentativeOfSelected;
+    return false;
+  }, [isSysAdmin, selectedNsKey, isOrgGroupNodeSelected, isRepresentativeOfSelected]);
+
   // PrefixManagement に渡す orgGroupCds をメモ化する。
   // インライン IIFE のままだと親が再レンダーするたびに新しい配列参照が生成され、
   // PrefixManagement 内の useEffect([selectedNsKey, orgGroupCds]) が誤発火して
@@ -365,6 +421,8 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     if (!selectedNsKey || selectedNsKey === 'company') return allCds;
     const STATIC_KEYS = new Set(['global', 'ns-maiml', 'ns-xsi', 'personal']);
     if (STATIC_KEYS.has(selectedNsKey)) return allCds;
+    // personal-{userId} ノードは org group cd ではないため全 CDs を返す
+    if (selectedNsKey.startsWith('personal-')) return allCds;
     // org group CD 選択時: 選択ノード＋子孫 CDs のみ渡す
     const companyNode = namespaceTree.find((n) => n.key === 'company');
     const descendants = companyNode
@@ -566,6 +624,7 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
               <NamespaceMain
                 hideTree
                 externalSelectedNsKey={selectedNsKey}
+                viewOnly={isViewOnlyForCompany}
               />
             </div>
 
@@ -579,6 +638,7 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
                 selectedNsKey={effectiveNsKey}
                 orgGroupCds={filteredOrgGroupCds}
                 onShareSelected={handleShareSelected}
+                viewOnly={isViewOnlyForCompany}
               />
             </div>
 
