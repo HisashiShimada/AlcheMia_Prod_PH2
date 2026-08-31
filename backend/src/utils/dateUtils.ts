@@ -51,6 +51,24 @@ export function formatDateTimeJST(date: Date | null | undefined): string {
 }
 
 /**
+ * Date オブジェクトを日本時間（JST）の ISO8601 形式文字列に変換する
+ *
+ * `new Date().toISOString()` は常に UTC（末尾 `Z`）を返すため、
+ * JST オフセット（+09:00）を明示したい箇所ではこの関数を使用する。
+ *
+ * @param date - 変換対象の Date オブジェクト
+ * @returns ISO8601 形式の JST 文字列（例: "2026-08-31T12:00:00.000+09:00"）
+ *
+ * @example
+ * // UTC 03:00 → JST 12:00
+ * toJSTIsoString(new Date('2026-08-31T03:00:00.000Z')) // => '2026-08-31T12:00:00.000+09:00'
+ */
+export function toJSTIsoString(date: Date): string {
+  const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
+  return jstDate.toISOString().replace('Z', '+09:00');
+}
+
+/**
  * 現在の日本時間（JST）を YYYYMMDDhhmmss 形式の文字列として返す
  *
  * CSV ダウンロード時のファイル名タイムスタンプ等に使用する。

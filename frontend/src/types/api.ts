@@ -518,3 +518,33 @@ export interface SendInstructionsResponse {
   sentInstructionsCount: number;
 }
 
+/**
+ * トランジションコメント保存リクエストデータ
+ *
+ * @remarks
+ * API: POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ */
+export interface SaveTransitionCommentRequest {
+  /** タスク連番（1以上の整数） */
+  taskNo: number;
+  /** コメント本文（最大500文字） */
+  comment: string;
+}
+
+/**
+ * トランジションコメント保存レスポンスデータ
+ *
+ * @remarks
+ * API: POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ */
+export interface SaveTransitionCommentResponse {
+  /** トランジションID */
+  transitionId: string;
+  /** タスク連番 */
+  taskNo: number;
+  /** 保存されたコメント */
+  comment: string;
+  /** 保存日時（ISO8601） */
+  savedAt: string;
+}
+

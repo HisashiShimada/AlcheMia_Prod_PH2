@@ -183,6 +183,44 @@ router.patch(
 );
 
 /**
+ * トランジションコメント保存
+ * POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
+ * @description 実験作業者が記録したコメントを maiml_event_log に追記する
+ * @roles experiment_worker（書込可）
+ */
+router.post(
+  '/projects/:projectId/methods/:methodId/transitions/:transitionId/comment',
+  authMiddleware,
+  checkPermission('050000', 1),
+  [
+    // パスパラメータバリデーション
+    validateParamString('projectId', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamString('transitionId', 1, 255),
+
+    // リクエストボディバリデーション
+    body('taskNo')
+      .notEmpty()
+      .withMessage('taskNoは必須です')
+      .isInt({ min: 1 })
+      .withMessage('taskNoは1以上の整数である必要があります'),
+    body('comment')
+      .notEmpty()
+      .withMessage('commentは必須です')
+      .isString()
+      .withMessage('commentは文字列である必要があります')
+      .isLength({ max: 500 })
+      .withMessage('commentは500文字以内である必要があります'),
+  ],
+  handleValidationErrors,
+  progressController.saveTransitionComment
+);
+
+/**
  * タスク詳細取得
  * GET /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/details
  *

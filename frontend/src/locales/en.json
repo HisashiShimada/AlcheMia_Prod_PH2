@@ -3507,6 +3507,7 @@
     "templateCountLabel": " items",
     "taskStatus": "Task status",
     "commentSaveMock": "Comment saved (mock)",
+    "commentSaveError": "Failed to save comment",
     "petriNetViewer": "View Petri Net",
     "creatorPlaceholder": "Select Creator",
     "instrumentPlaceholder": "Select Instrument",

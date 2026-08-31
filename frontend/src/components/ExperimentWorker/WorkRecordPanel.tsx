@@ -44,7 +44,7 @@ import ExperimentCommentDialog from './ExperimentCommentDialog';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
 import ContentGridEditor from '@/components/common/ContentGridEditor';
-import { getProjectMaiml } from '@/services/projectApiService';
+import { getProjectMaiml, saveTransitionComment } from '@/services/projectApiService';
 import { getPlanDialogData, getExperimentPlans } from '@/services/experimentPlanApiService';
 import { getTemplateData, saveBatchExperimentData } from '@/services/experimentDataApiService';
 import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
@@ -1304,7 +1304,12 @@ const PlanA: React.FC<PlanProps> = ({
   }, [progressRows, tasks, activeTaskNo]);
 
   const displayKey = viewingKey ?? activeEntry;
-  const isReadOnly = viewingKey !== null;
+  // viewingKey がセットされていても、対象トランジションが completed / issue / error でない場合は
+  // 閲覧モードにしない（進捗確認タブの「作業へ」ボタン経由で来た場合の誤判定を防ぐ）
+  const viewingKeyStatus = viewingKey
+    ? progressRows?.find((r) => r.taskNo === viewingKey.taskNo && r.transitionId === viewingKey.transitionId)?.status
+    : undefined;
+  const isReadOnly = viewingKey !== null && (viewingKeyStatus === 'completed' || viewingKeyStatus === 'issue');
   const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
   const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
   const displayTransition = displayKey ? ([] as MockTransition[]).find((t) => t.id === displayKey.transitionId) : null;
@@ -1450,7 +1455,12 @@ const PlanB: React.FC<PlanProps> = ({
   // 2. pendingEndKey（終了/異常終了ボタン押下後のロック）
   // 3. activeEntry（通常の作業中トランジション）
   const displayKey = viewingKey ?? pendingEndKey ?? activeEntry;
-  const isReadOnly = viewingKey !== null;
+  // viewingKey がセットされていても、対象トランジションが completed / issue でない場合は
+  // 閲覧モードにしない（進捗確認タブの「作業へ」ボタン経由で来た場合の誤判定を防ぐ）
+  const viewingKeyStatusB = viewingKey
+    ? progressRows?.find((r) => r.taskNo === viewingKey.taskNo && r.transitionId === viewingKey.transitionId)?.status
+    : undefined;
+  const isReadOnly = viewingKey !== null && (viewingKeyStatusB === 'completed' || viewingKeyStatusB === 'issue');
   const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
   const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
   // effectiveTransitions からテンプレートを解決する
@@ -2701,11 +2711,35 @@ export default function WorkRecordPanel({
   // ─── コメントダイアログ用 state ───────────────────────────
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
 
-  // コメント保存ハンドラ（モック: 現フェーズはUIのみ、バックエンド保存は別フェーズ）
-  const handleSaveComment = useCallback((comment: string) => {
-    console.info('[WorkRecordPanel] コメント保存（モック）:', comment);
-    Modal.success({ title: t('workRecord.commentSaved'), content: comment });
-  }, []);
+  // コメント保存ハンドラ
+  // commentTarget は後続の useMemo で宣言されるため、
+  // ここでは projectId / methodId のみを依存に取り、
+  // commentTarget は呼び出し時に引数として渡す方式にする。
+  const handleSaveComment = useCallback(async (
+    comment: string,
+    taskNo: number,
+    transitionId: string
+  ) => {
+    if (!projectId || !methodId) {
+      console.warn('[WorkRecordPanel] コメント保存: projectId / methodId が未設定');
+      return;
+    }
+    const commentRequest = {
+      taskNo,
+      comment,
+    };
+    try {
+      await saveTransitionComment(
+        projectId,
+        methodId,
+        transitionId,
+        commentRequest
+      );
+      Modal.success({ title: t('workRecord.commentSaved'), content: comment });
+    } catch {
+      message.error(t('workRecord.commentSaveError'));
+    }
+  }, [projectId, methodId, t]);
 
   const planProps: PlanProps = {
     tasks,
@@ -3025,7 +3059,7 @@ export default function WorkRecordPanel({
           taskNo={commentTarget.taskNo}
           transitionId={commentTarget.transitionId}
           onClose={() => setCommentDialogOpen(false)}
-          onSave={handleSaveComment}
+          onSave={(comment) => handleSaveComment(comment, commentTarget.taskNo, commentTarget.transitionId)}
         />
       )}
 

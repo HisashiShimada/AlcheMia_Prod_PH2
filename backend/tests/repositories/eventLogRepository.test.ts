@@ -351,6 +351,152 @@ describe('EventLogRepository', () => {
 });
 
 /**
+ * insertTransitionProgressLog のユニットテスト
+ *
+ * lifecycle:transition と time:timestamp の両プロパティが
+ * event の property 配列内に含まれることを検証する。
+ */
+describe('EventLogRepository.insertTransitionProgressLog', () => {
+  let client: PoolClient;
+  let repository: EventLogRepository;
+
+  const testOrganizationId = 'test-org-progress-001';
+  const testProjectId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const testUserId = 'worker@example.com';
+  const testTransitionId = 'transition-progress-001';
+
+  beforeAll(async () => {
+    initializePool({
+      host: process.env.TEST_DB_HOST || 'localhost',
+      port: parseInt(process.env.TEST_DB_PORT || '5432'),
+      database: process.env.TEST_DB_NAME || 'mmdpf_test',
+      user: process.env.TEST_DB_USER || 'postgres',
+      password: process.env.TEST_DB_PASSWORD || '',
+    });
+
+    const pool = getPool();
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await setupTestData(client, testOrganizationId, testProjectId);
+    repository = new EventLogRepository();
+  });
+
+  afterAll(async () => {
+    await client.query('ROLLBACK');
+    client.release();
+  });
+
+  beforeEach(async () => {
+    await client.query(
+      'DELETE FROM maiml_event_log WHERE organization_id = $1',
+      [testOrganizationId]
+    );
+  });
+
+  it('lifecycle:transition プロパティが event.property に含まれること', async () => {
+    // Act
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      testUserId,
+      'completed',
+      100,
+      null,
+      client
+    );
+
+    // Assert
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventProperties: Array<{ '@key': string; '#text': unknown }> =
+      logJson?.eventLog?.log?.trace?.event?.property ?? [];
+
+    const lifecycleProp = eventProperties.find((p) => p['@key'] === 'lifecycle:transition');
+    expect(lifecycleProp).toBeDefined();
+    expect(lifecycleProp?.['#text']).toBe('completed');
+  });
+
+  it('time:timestamp プロパティが event.property に含まれること', async () => {
+    // Act
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      testUserId,
+      'running',
+      50,
+      null,
+      client
+    );
+
+    // Assert
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventProperties: Array<{ '@key': string; '@xsi:type': string; '#text': unknown }> =
+      logJson?.eventLog?.log?.trace?.event?.property ?? [];
+
+    const timestampProp = eventProperties.find((p) => p['@key'] === 'time:timestamp');
+    expect(timestampProp).toBeDefined();
+    expect(timestampProp?.['@xsi:type']).toBe('dateTimeType');
+    expect(typeof timestampProp?.['#text']).toBe('string');
+    // ISO8601 形式であることを確認
+    expect(new Date(timestampProp?.['#text'] as string).toISOString()).toBeTruthy();
+  });
+
+  it('lifecycle:transition の値がステータスラベルと一致すること', async () => {
+    const statusCases: Array<{ label: string }> = [
+      { label: 'initial' },
+      { label: 'preparing' },
+      { label: 'ready' },
+      { label: 'running' },
+      { label: 'paused' },
+      { label: 'completed' },
+      { label: 'error' },
+    ];
+
+    for (const { label } of statusCases) {
+      await client.query(
+        'DELETE FROM maiml_event_log WHERE organization_id = $1',
+        [testOrganizationId]
+      );
+
+      await repository.insertTransitionProgressLog(
+        testOrganizationId,
+        testProjectId,
+        testTransitionId,
+        testUserId,
+        label,
+        0,
+        null,
+        client
+      );
+
+      const result = await client.query(
+        `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+        [testOrganizationId, testProjectId]
+      );
+
+      const logJson = result.rows[0].log;
+      const eventProperties: Array<{ '@key': string; '#text': unknown }> =
+        logJson?.eventLog?.log?.trace?.event?.property ?? [];
+      const lifecycleProp = eventProperties.find((p) => p['@key'] === 'lifecycle:transition');
+      expect(lifecycleProp?.['#text']).toBe(label);
+    }
+  });
+});
+
+/**
  * テストデータのセットアップ
  */
 async function setupTestData(

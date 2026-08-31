@@ -77,6 +77,7 @@
     "skipNoTargetContent": "現在スキップできる別のトランジションがありません。進捗確認タブでスキップ中の作業を確認してください。",
     "commentSaved": "コメントを保存しました",
     "commentSaveMock": "コメント保存）",
+    "commentSaveError": "コメントの保存に失敗しました",
     "addProperty": "プロパティを追加",
     "customPropertyLabel": "カスタムプロパティ",
     "petriNetViewer": "ペトリネットを表示",

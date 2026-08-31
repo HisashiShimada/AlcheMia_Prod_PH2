@@ -447,6 +447,35 @@ export class TransitionDataRepository {
   }
 
   /**
+   * チェックアウト後にPREPARING状態になったトランジション一覧を取得
+   *
+   * updateStatusForCheckout 呼び出し直後に実行し、
+   * イベントログ記録対象のトランジション情報を返す。
+   *
+   * @param client PoolClient（トランザクション内で呼び出すこと）
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @returns チェックアウト対象トランジション（method_id / task_no / transition_id）の配列
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findPreparedForCheckout(
+    client: PoolClient,
+    organizationId: string,
+    projectId: string
+  ): Promise<Array<{ method_id: string; task_no: number; transition_id: string }>> {
+    try {
+      const query = await loadSqlFile('transition_data/findPreparedByCheckout.sql');
+      const result = await client.query(query, [organizationId, projectId]);
+      return result.rows;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding prepared transitions for checkout',
+        error as Error
+      );
+    }
+  }
+
+  /**
    * チェックアウト時のトランジションステータス一括更新
    *
    * prerequisite_transition_ids が空配列（前提なし）のトランジションを

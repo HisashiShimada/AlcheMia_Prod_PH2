@@ -11,6 +11,8 @@ import type { ProjectFile } from '@/types/file';
 import type {
   UpdateTransitionStatusRequest,
   UpdateTransitionStatusResponse,
+  SaveTransitionCommentRequest,
+  SaveTransitionCommentResponse,
 } from '@/types/api';
 import type {
   Task,
@@ -1366,6 +1368,62 @@ export const sendInstructions = async (
     return response.data.data;
   } catch (error) {
     console.error('[DEBUG] sendInstructions - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * トランジションコメントを保存
+ * POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ *
+ * @param projectId - プロジェクトID（UUID）
+ * @param methodId - メソッドID
+ * @param transitionId - コメント対象のトランジションID
+ * @param request - コメント保存リクエスト（taskNo, comment）
+ * @returns 保存結果
+ * @throws Error APIエラー時
+ *
+ * @example
+ * ```typescript
+ * await saveTransitionComment(projectId, methodId, 'transition_t1', {
+ *   taskNo: 1,
+ *   comment: '温度が想定より0.2℃高かった。',
+ * });
+ * ```
+ */
+export const saveTransitionComment = async (
+  projectId: string,
+  methodId: string,
+  transitionId: string,
+  request: SaveTransitionCommentRequest
+): Promise<ServiceApiResponse<SaveTransitionCommentResponse>> => {
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<{
+      success: true;
+      data: SaveTransitionCommentResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(
+      `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/comment`,
+      request
+    );
+
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta,
+    };
+  } catch (error) {
+    console.error('[DEBUG] saveTransitionComment - Error', {
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,

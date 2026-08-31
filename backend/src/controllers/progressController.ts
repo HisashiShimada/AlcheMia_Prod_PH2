@@ -294,6 +294,56 @@ export async function updateTransitionStatus(
 }
 
 /**
+ * トランジションコメント保存ハンドラー
+ *
+ * POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ *
+ * @description
+ *   実験作業者がコメントを保存する。
+ *   maiml_event_log に ns1:transitionComment プロパティを持つ event タグを追記する。
+ *   ステータス変更は行わない。
+ */
+export async function saveTransitionComment(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { projectId, methodId, transitionId } = req.params;
+    const { taskNo: _taskNo, comment } = req.body;
+
+    const { organizationId, userId } = req.user!;
+
+    const transitionDataRepository = new TransitionDataRepository();
+    const progressService = new ProgressService(transitionDataRepository);
+
+    await progressService.saveTransitionComment(
+      organizationId,
+      projectId,
+      transitionId,
+      userId,
+      comment
+    );
+
+    res.status(HTTP_STATUS.CREATED).json({
+      success: true,
+      data: {
+        transitionId,
+        taskNo: _taskNo,
+        comment,
+        savedAt: new Date().toISOString(),
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * タスク一覧取得（実験作業者用）ハンドラー
  * 
  * GET /api/v1/progress/projects/:projectId/worker-tasks

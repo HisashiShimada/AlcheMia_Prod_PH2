@@ -1076,4 +1076,48 @@ export class ProgressService {
       client.release();
     }
   }
+
+  /**
+   * トランジションコメントを maiml_event_log に保存する
+   *
+   * 実験作業者が ExperimentCommentDialog から送信したコメントを
+   * 対象トランジションのログとして記録する。
+   * ステータス変更は行わない（コメントの記録のみ）。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID（UUID）
+   * @param transitionId - コメント対象のトランジションID
+   * @param userId - 記録者ユーザID
+   * @param comment - コメント本文
+   * @throws エラー発生時はロールバックして再スロー
+   */
+  async saveTransitionComment(
+    organizationId: string,
+    projectId: string,
+    transitionId: string,
+    userId: string,
+    comment: string
+  ): Promise<void> {
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await this.eventLogRepository.insertTransitionCommentLog(
+        organizationId,
+        projectId,
+        transitionId,
+        userId,
+        comment,
+        client
+      );
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
