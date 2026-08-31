@@ -3511,7 +3511,18 @@
     "creatorPlaceholder": "Select Creator",
     "instrumentPlaceholder": "Select Instrument",
     "creatorLabel": "Creator",
-    "instrumentLabel": "Instrument"
+    "instrumentLabel": "Instrument",
+    "statusLabel": "Status",
+    "startButton": "Start",
+    "endButton": "End",
+    "forceEndButton": "Error End",
+    "confirmInstruction": "Confirm Instruction",
+    "instructionConfirmed": "Project instruction confirmed",
+    "noInstructions": "No instructions.",
+    "unsavedWarningTitle": "Unsaved Data",
+    "unsavedWarningContent": "There is unsaved data in the property card. Do you want to proceed without saving?",
+    "unsavedWarningOk": "Proceed",
+    "unsavedWarningCancel": "Cancel"
   },
   "templateInputPanel": {
     "addUncertainty": "Assign Uncertainty",

@@ -219,26 +219,26 @@ describe('ExperimentCondition', () => {
 // TransitionStatusCode
 // ============================================================
 describe('TransitionStatusCode', () => {
-  it('INITIAL は 0 である', () => {
-    expect(TransitionStatusCode.INITIAL).toBe(0);
+  it('INITIAL は 1 である', () => {
+    expect(TransitionStatusCode.INITIAL).toBe(1);
   });
-  it('PREPARING は 1 である', () => {
-    expect(TransitionStatusCode.PREPARING).toBe(1);
+  it('PREPARING は 2 である', () => {
+    expect(TransitionStatusCode.PREPARING).toBe(2);
   });
-  it('READY は 2 である', () => {
-    expect(TransitionStatusCode.READY).toBe(2);
+  it('READY は 3 である', () => {
+    expect(TransitionStatusCode.READY).toBe(3);
   });
-  it('IN_PROGRESS は 3 である', () => {
-    expect(TransitionStatusCode.IN_PROGRESS).toBe(3);
+  it('IN_PROGRESS は 4 である', () => {
+    expect(TransitionStatusCode.IN_PROGRESS).toBe(4);
   });
-  it('PAUSED は 4 である', () => {
-    expect(TransitionStatusCode.PAUSED).toBe(4);
+  it('PAUSED は 5 である', () => {
+    expect(TransitionStatusCode.PAUSED).toBe(5);
   });
-  it('COMPLETED は 5 である', () => {
-    expect(TransitionStatusCode.COMPLETED).toBe(5);
+  it('COMPLETED は 6 である', () => {
+    expect(TransitionStatusCode.COMPLETED).toBe(6);
   });
-  it('ERROR は 6 である', () => {
-    expect(TransitionStatusCode.ERROR).toBe(6);
+  it('ERROR は 7 である', () => {
+    expect(TransitionStatusCode.ERROR).toBe(7);
   });
   it('全7種類の値を持つ', () => {
     expect(Object.keys(TransitionStatusCode)).toHaveLength(7);

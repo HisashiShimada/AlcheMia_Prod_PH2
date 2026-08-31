@@ -14,25 +14,25 @@
  */
 export enum TransitionStatusEnum {
   /** 初期状態（未開始） */
-  INITIAL = 0,
+  INITIAL = 1,
   
   /** 準備中 */
-  PREPARING = 1,
+  PREPARING = 2,
   
   /** 準備完了 */
-  READY = 2,
+  READY = 3,
   
   /** 実行中 */
-  IN_PROGRESS = 3,
+  IN_PROGRESS = 4,
   
   /** 一時停止 */
-  PAUSED = 4,
+  PAUSED = 5,
   
   /** 完了 */
-  COMPLETED = 5,
+  COMPLETED = 6,
   
   /** エラー発生 */
-  ERROR = 6
+  ERROR = 7
 }
 
 /**
@@ -49,7 +49,7 @@ export interface TransitionData {
   method_id: string;
   task_no: number;
   transition_id: string;
-  status: TransitionStatus; // 数値型（0-6）
+  status: TransitionStatus; // 数値型（1-7）
   progress_rate: number; // 0-100
   updated_by: string;
   updated_at: Date;
@@ -74,7 +74,7 @@ export interface NewTransitionData {
  * トランジションデータ更新用の型
  */
 export interface TransitionDataUpdate {
-  status: TransitionStatus; // 数値型（0-6）
+  status: TransitionStatus; // 数値型（1-7）
   progress_rate?: number;
   updated_by: string;
 }

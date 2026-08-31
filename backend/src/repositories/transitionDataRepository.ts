@@ -6,7 +6,7 @@
 
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
-import { TransitionStatus } from '../types/transitionData';
+import { TransitionStatus, TransitionStatusEnum } from '../types/transitionData';
 import type { PoolClient } from 'pg';
 import type { TransitionProgressRow, TransitionForUpdate } from '../types/database';
 
@@ -19,7 +19,7 @@ export interface TransitionDataRow {
   method_id: string;
   task_no: number;
   transition_id: string;
-  status: TransitionStatus; // 数値型（0-6）
+  status: TransitionStatus; // 数値型（1-7）
   progress_rate: number;
   /** 記録済みフラグ（TRUE=記録済み、FALSE=未記録） */
   is_recorded: boolean;
@@ -32,7 +32,7 @@ export interface TransitionDataRow {
  * トランジションステータス更新用データ
  */
 export interface TransitionDataUpdate {
-  status: TransitionStatus; // 数値型（0-6）
+  status: TransitionStatus; // 数値型（1-7）
   progress_rate: number;
   updated_by: string;
 }
@@ -278,12 +278,12 @@ export class TransitionDataRepository {
         methodId,
         taskNo,
         transitionId,
-        0,                          // status: 初期値0
-        0,                          // progress_rate: 初期値0
-        workOrder,                  // work_order: 実行順序
-        prerequisiteTransitionIds,  // prerequisite_transition_ids: 前提トランジションID配列
-        userId,                     // create_user_id
-        userId,                     // update_user_id
+        TransitionStatusEnum.INITIAL,   // status: 初期値（1 = INITIAL）
+        0,                              // progress_rate: 初期値0
+        workOrder,                      // work_order: 実行順序
+        prerequisiteTransitionIds,      // prerequisite_transition_ids: 前提トランジションID配列
+        userId,                         // create_user_id
+        userId,                         // update_user_id
       ];
       await client.query(query, params);
     } catch (error) {
@@ -445,6 +445,37 @@ export class TransitionDataRepository {
       );
     }
   }
+
+  /**
+   * チェックアウト時のトランジションステータス一括更新
+   *
+   * prerequisite_transition_ids が空配列（前提なし）のトランジションを
+   * 「1: 初期状態」→「2: 準備状態」に一括更新する。
+   * prerequisite_transition_ids が設定されているトランジションは「1: 初期状態」のまま据え置く。
+   *
+   * @param client PoolClient（トランザクション内で呼び出すこと）
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @param userId 更新者ユーザーID
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async updateStatusForCheckout(
+    client: PoolClient,
+    organizationId: string,
+    projectId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('transition_data/updateStatusForCheckout.sql');
+      await client.query(query, [organizationId, projectId, userId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while updating transition status for checkout',
+        error as Error
+      );
+    }
+  }
+
 
   /**
    * プロジェクト内のトランジション実績を全件削除（タスク登録再保存時）

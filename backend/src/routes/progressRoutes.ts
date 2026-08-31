@@ -167,8 +167,8 @@ router.patch(
     body('status')
       .notEmpty()
       .withMessage('statusは必須です')
-      .isInt({ min: 0, max: 6 })
-      .withMessage('statusは0〜6の整数である必要があります（0:初期, 1:準備中, 2:準備完了, 3:実行中, 4:一時停止, 5:完了, 6:エラー）'),
+      .isInt({ min: 1, max: 7 })
+      .withMessage('statusは1〜7の整数である必要があります（1:初期, 2:準備中, 3:準備完了, 4:実行中, 5:一時停止, 6:完了, 7:エラー）'),
     body('progressRate')
       .optional()
       .isInt({ min: 0, max: 100 })

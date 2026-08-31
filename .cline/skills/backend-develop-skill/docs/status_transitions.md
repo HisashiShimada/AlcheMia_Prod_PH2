@@ -188,7 +188,7 @@ await db.transaction().execute(async (trx) => {
   // 2. 最小作業順序のタスクを実行中に
   await updateMinTaskStatusTrx(trx, organizationId, projectName, TaskStatusEnum.IN_PROGRESS);
 
-  // 3. 前提トランジションなしのトランジションを準備状態に
+  // 3. 前提トランジションなしのトランジションを準備状態に（1: initial → 3: ready）
   await updatePrerequisiteFreeTransitionsTrx(trx, organizationId, projectName, TransitionStatusEnum.READY);
 });
 ```
@@ -205,14 +205,15 @@ await db.transaction().execute(async (trx) => {
 
 ### 3-1. コード定義
 
-| コード | 名称 |
-|--------|------|
-| 1 | 初期状態（initial） |
-| 2 | 準備状態（ready） |
-| 3 | 準備完了状態（prepared） |
-| 4 | 動作状態（active） |
-| 6 | 終状態（completed） |
-| 7 | 異常終了状態（error） |
+| コード | ENUMキー | 名称 |
+|--------|----------|------|
+| 1 | `INITIAL` | 初期状態（initial）|
+| 2 | `PREPARING` | 準備中（preparing）|
+| 3 | `READY` | 準備完了（ready）|
+| 4 | `IN_PROGRESS` | 実行中（running）|
+| 5 | `PAUSED` | 一時停止（paused）|
+| 6 | `COMPLETED` | 完了（completed）|
+| 7 | `ERROR` | 異常終了（error）|
 
 > **ENUM**: `backend/src/types/transitionData.ts` の `TransitionStatusEnum`
 
@@ -220,26 +221,27 @@ await db.transaction().execute(async (trx) => {
 
 | 遷移前 | 遷移後 | トリガー（変わるタイミング）と条件 |
 |--------|--------|----------------------------------|
-| `1: initial` | `2: ready` | **①チェックアウト時**: 前提トランジションID（prerequisiteTransitionId）が設定されていない（null/空）トランジションを**一括で**準備状態にする |
-| `1: initial` | `2: ready` | **②前提トランジションが完了した時**: 完了したトランジションを前提とする他のトランジションについて、すべての前提が `6: completed` になっている場合に準備状態にする |
-| `2: ready` | `3: prepared` | **指示確認時**: WorkerがUIから指示確認操作を行った時 |
-| `3: prepared` | `4: active` | **開始時**: Workerが作業開始操作を行った時 |
-| `4: active` | `6: completed` | **終了時**: Workerが記録完了操作を行った時 |
+| `1: initial` | `2: preparing` | **①チェックアウト時**: 前提トランジションID（prerequisite_transition_ids）が空配列（`{}`）のトランジションを**一括で**準備状態にする |
+| `1: initial` | `3: ready` | **②前提トランジションが完了した時**: 完了したトランジションを前提とする他のトランジションについて、すべての前提が `6: completed` になっている場合に準備完了状態にする |
+| `2: preparing` | `3: ready` | **指示確認時**: WorkerがUIから指示確認操作を行った時 |
+| `3: ready` | `4: in_progress` | **開始時**: WorkerがUIから開始操作を行った時 |
+| `4: in_progress` | `5: paused` | **一時停止時**: Workerが作業を一時停止した時 |
+| `5: paused` | `4: in_progress` | **再開時**: Workerが作業を再開した時 |
+| `4: in_progress` | `6: completed` | **終了時**: Workerが終了操作を行った時 |
 | 任意 | `7: error` | **異常終了操作時**: 強制終了またはシステムエラー発生時 |
 
 ### 3-3. 遷移図
 
 ```
 1: initial
-    ↓ ①チェックアウト時（前提トランジションなし）
-    ↓ ②すべての前提トランジションが完了した時
-2: ready
+    ↓ ①チェックアウト時（prerequisite_transition_ids が空配列）
+2: preparing
     ↓ 指示確認時
-3: prepared
+3: ready
     ↓ 開始時
-4: active
+4: in_progress ⇄ 5: paused（一時停止/再開）
     ↓ 終了時
-6: completed → 前提に持つ他トランジションの 1→2 遷移を連鎖させる
+6: completed → 前提に持つ他トランジションの 1→3 遷移を連鎖させる
 
 任意 → 7: error（異常終了操作時）
 ```
@@ -268,7 +270,7 @@ export async function onTransitionCompleted(
     );
 
     if (allPrerequisitesCompleted) {
-      // 全前提が完了 → 準備状態に遷移
+      // 全前提が完了 → 準備完了状態に遷移（1: initial → 3: ready）
       await transitionRepository.updateStatus(
         organizationId,
         transition.transition_id,
@@ -283,7 +285,7 @@ export async function onTransitionCompleted(
 
 - `6: completed → 任意`（終状態からの遷移は不可）
 - `7: error → 任意`（異常終了状態からの遷移は不可）
-- 準備状態（2）をスキップして `1: initial → 3: prepared` などへ直接遷移
+- 準備完了状態（3）をスキップして `1: initial → 4: in_progress` などへ直接遷移
 
 ---
 
@@ -303,10 +305,11 @@ export async function onTransitionCompleted(
   HTTP 400 で返却し、エラーコードに `'INVALID_STATUS_TRANSITION'` を設定すること
 
 - [ ] **チェックアウト時の3種同時更新はトランザクション内で行う**  
-  プロジェクト / タスク / トランジション の3つを必ず同一トランザクションで更新すること
+  プロジェクト / タスク / トランジション の3つを必ず同一トランザクションで更新すること  
+  トランジション更新: `prerequisite_transition_ids = '{}'` のものを `1: initial → 2: preparing` に一括更新
 
 - [ ] **前提トランジション完了時の連鎖更新を実装する**  
-  トランジション完了後、依存する他トランジションへの `1→2` 連鎖更新を忘れないこと
+  トランジション完了後、依存する他トランジションへの `1→3` 連鎖更新を忘れないこと
 
 - [ ] **`2: review_waiting` タスクの訂正時はステータスを変更しない**  
   レビュー待ち中のデータ訂正ではステータス更新のAPIを呼ばないこと

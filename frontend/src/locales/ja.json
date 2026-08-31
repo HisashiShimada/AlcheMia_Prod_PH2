@@ -76,7 +76,7 @@
     "skipNoTarget": "スキップ先がありません",
     "skipNoTargetContent": "現在スキップできる別のトランジションがありません。進捗確認タブでスキップ中の作業を確認してください。",
     "commentSaved": "コメントを保存しました",
-    "commentSaveMock": "コメント保存（モック）",
+    "commentSaveMock": "コメント保存）",
     "addProperty": "プロパティを追加",
     "customPropertyLabel": "カスタムプロパティ",
     "petriNetViewer": "ペトリネットを表示",
@@ -102,7 +102,11 @@
       "srRemovePause": "- 休止状態記録削除",
     "confirmInstruction": "指示確認",
     "instructionConfirmed": "プロジェクト指示を確認しました",
-    "noInstructions": "指示がありません。"
+    "noInstructions": "指示がありません。",
+    "unsavedWarningTitle": "未保存のデータがあります",
+    "unsavedWarningContent": "プロパティカードに保存されていないデータがあります。このまま次へ進みますか？",
+    "unsavedWarningOk": "進む",
+    "unsavedWarningCancel": "キャンセル"
   },
   "dataRecordDialog": {
     "plannedValue": "指定値",
@@ -1295,7 +1299,7 @@
       "fetchFailed": "タスク登録情報の取得に失敗しました",
       "saveFailed": "タスク情報の保存に失敗しました"
     },
-    "saveMockSuccess": "タスク登録を保存しました（モック）"
+    "saveMockSuccess": "タスク登録を保存しました"
   },
   "corporationManagement": {
     "title": "会社管理",

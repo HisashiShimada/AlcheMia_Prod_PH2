@@ -1742,13 +1742,13 @@ export const deleteProject = async (
  */
 function getTransitionStatusLabel(status: number): string {
   const TRANSITION_STATUS_LABELS: Record<number, string> = {
-    0: '未開始',
-    1: '準備中',
-    2: '準備完了',
-    3: '実行中',
-    4: '一時停止',
-    5: '完了',
-    6: 'エラー',
+    1: '未開始',
+    2: '準備中',
+    3: '準備完了',
+    4: '実行中',
+    5: '一時停止',
+    6: '完了',
+    7: 'エラー',
   };
   return TRANSITION_STATUS_LABELS[status] ?? '未開始';
 }

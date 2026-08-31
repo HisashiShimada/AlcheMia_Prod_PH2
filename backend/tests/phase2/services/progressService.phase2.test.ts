@@ -77,6 +77,14 @@ describe('progressService - Phase2 テスト', () => {
     test('PAUSED から IN_PROGRESS への遷移が許可されること', () => {
       expect(ALLOWED_TRANSITIONS[TransitionStatusEnum.PAUSED]).toContain(TransitionStatusEnum.IN_PROGRESS);
     });
+
+    test('PREPARING から IN_PROGRESS への遷移が許可されること（指示確認なし・直接開始ケース）', () => {
+      expect(ALLOWED_TRANSITIONS[TransitionStatusEnum.PREPARING]).toContain(TransitionStatusEnum.IN_PROGRESS);
+    });
+
+    test('PREPARING から READY への遷移が許可されること', () => {
+      expect(ALLOWED_TRANSITIONS[TransitionStatusEnum.PREPARING]).toContain(TransitionStatusEnum.READY);
+    });
   });
 
   // ==========================================================================

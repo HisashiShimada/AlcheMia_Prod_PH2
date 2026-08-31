@@ -51,7 +51,7 @@ import { PROJECT_STATUS_STRING_MAP } from '../types/project';
  */
 export const ALLOWED_TRANSITIONS: Record<TransitionStatusNumber, TransitionStatusNumber[]> = {
   [TransitionStatusEnum.INITIAL]: [TransitionStatusEnum.INITIAL, TransitionStatusEnum.PREPARING, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
-  [TransitionStatusEnum.PREPARING]: [TransitionStatusEnum.PREPARING, TransitionStatusEnum.READY, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.PREPARING]: [TransitionStatusEnum.PREPARING, TransitionStatusEnum.READY, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.READY]: [TransitionStatusEnum.READY, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.IN_PROGRESS]: [TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.PAUSED, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR, TransitionStatusEnum.INITIAL],
   [TransitionStatusEnum.PAUSED]: [TransitionStatusEnum.PAUSED, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
@@ -803,13 +803,13 @@ export class ProgressService {
       // Step 6: タスクごとのトランジション進捗を並列取得
       // ─────────────────────────────────────────────
       const TRANSITION_STATUS_LABELS: Record<number, string> = {
-        0: '未開始',
-        1: '準備中',
-        2: '作業中',
-        3: '休止中',
-        4: '作業中',
-        5: '完了',
-        6: '異常中'
+        1: '未開始',
+        2: '準備中',
+        3: '作業中',
+        4: '休止中',
+        5: '休止中',
+        6: '完了',
+        7: '異常中'
       };
 
       const workDetails: WorkDetailItem[] = await Promise.all(
