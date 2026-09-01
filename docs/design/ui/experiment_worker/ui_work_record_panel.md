@@ -1,8 +1,8 @@
-# 作業記録パネル UI設計書
+# 実験記録パネル UI設計書
 
 ## メタデータ
 - **画面ID**: WorkRecordPanel
-- **画面名**: 作業記録パネル（実験作業記録タブ）
+- **画面名**: 実験記録パネル（実験記録タブ）
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-06-22
@@ -14,20 +14,20 @@
 
 ### 1.1 画面の目的
 実験作業者が実験データをトランジション単位で記録するためのメインパネルです。  
-`ExperimentWorkerMenu` の「作業記録」タブ（key='3'）にレンダリングされます。
-
-> **フェーズ注記**: 現時点（フェーズA）はモックデータで動作します。フェーズBでは Props 経由で実 API データに差し替える予定です。
+`ExperimentWorkerMenu` の「**実験記録**」タブ（key='3'）にレンダリングされます。
 
 ### 1.2 主要機能
-- プロジェクト指示の確認（折りたたみ表示）
+- プロジェクト指示の確認（折りたたみ表示）・「指示確認」ボタンによる一括確認
 - 現在作業中のトランジション情報の表示（ステータス/タスク#/メソッドID/トランジションID）
 - テンプレート一覧から **カテゴリ別グループ表示** でテンプレートを選択して実績値を入力
 - プロパティカードごとの実績値入力・確信度（定性評価 ← DB登録選択肢使用）・定量評価追加
 - 保存時に `is_recorded = TRUE` を更新（トランジションの記録済みフラグ管理）
 - 保存 / スキップ / 保存して次へ（トランジション完了）
 - コメント記録（ExperimentCommentDialog）
+- **状態記録ダイアログ**（「状態記録」ボタン押下で表示）
 - カスタム Insertion（ファイル添付）追加・削除
 - カスタム Content（DataGrid）追加・削除
+- **状態プルダウン**（WorkHeader 内）による状態変更
 
 ### 1.3 アクセス権限
 - **対象ロール**: 実験作業者（experiment_worker）
@@ -46,48 +46,54 @@
 ┌──────────────────────────────────────────────────────────┐
 │ ▶ プロジェクト指示 [n件]（InstructionCollapse）          │
 │   ※ 折りたたみ表示、黄色背景 #fffbe6                     │
+│   ※ 右端に「指示確認」ボタン（onConfirmInstruction）      │
 ├──────────────────────────────────────────────────────────┤
 │ WorkHeader                                               │
-│ [ステータスTag] ─ タスク# ─ メソッドID ─ トランジションID│
+│ ┌────────────────────────────────────────────────────┐   │
+│ │ [ステータスSelect▼] ─ タスク# ─ メソッドID ─ trID │   │
+│ │                              右端ボタン群（1行目）: │   │
+│ │  [開始] [終了] | [異常終了（赤）] [状態記録]        │   │
+│ │              ※ | はDivider（グループ区切り）        │   │
+│ └────────────────────────────────────────────────────┘   │
 │ ※ 完了済み閲覧時は「完了済み（参照のみ）」Alert + 戻るBtn │
 ├──────────────────────────────────────────────────────────┤
 │ Layout（2カラム, height: 100%）                          │
 │ ┌──────────────────┬───────────────────────────────────┐ │
 │ │ Sider (280px)    │ Content（残り幅）                 │ │
 │ ├──────────────────┼───────────────────────────────────┤ │
-│ │ テンプレート数   │ [Category Tag] テンプレート名      │ │
-│ │ [検索Input]      │                                   │ │
-│ │ [種別Select]     │ Row gutter={[8,8]} （3列グリッド） │ │
-│ │                  │ ┌─────────┐ ┌─────────┐ ┌───────┐ │ │
-│ │ Table            │ │Property │ │Property │ │  ...  │ │ │
-│ │ - テンプレート名 │ │Card     │ │Card     │ │       │ │ │
-│ │ - プロパティ数   │ └─────────┘ └─────────┘ └───────┘ │ │
-│ │ - Category Tag   │                                   │ │
-│ │ - I/O Tag        │ ＋property追加 ＋content追加       │ │
-│ │                  │ ＋Insertion追加                   │ │
+│ │ テンプレート数   │ ボタン群（2行目）:                 │ │
+│ │ [検索Input]      │  [保存] [次へ] | [コメント][スキップ]│ │
+│ │ [種別Select]     │  ※ | はDivider（グループ区切り）  │ │
 │ │                  │                                   │ │
-│ │                  │ [固定Insertionスロット]            │ │
-│ │                  │ [カスタムInsertionスロット]        │ │
+│ │ カテゴリ別グループ│ [Category Tag] テンプレート名     │ │
+│ │ ┌──────────────┐ │ Row gutter={[8,8]} （3列グリッド） │ │
+│ │ │[Materials]   │ │ ┌─────────┐ ┌─────────┐ ┌───────┐│ │
+│ │ │ Card:tpl名   │ │ │Property │ │Property │ │  ...  ││ │
+│ │ │ [3項目][IN]  │ │ │Card     │ │Card     │ │       ││ │
+│ │ ├──────────────┤ │ └─────────┘ └─────────┘ └───────┘│ │
+│ │ │[Conditions]  │ │                                   │ │
+│ │ │ Card:tpl名   │ │ ＋property追加 ＋content追加       │ │
+│ │ ├──────────────┤ │ ＋Insertion追加                   │ │
+│ │ │[Results]     │ │                                   │ │
+│ │ │ Card:tpl名   │ │ [固定Insertionスロット]            │ │
+│ │ └──────────────┘ │ [カスタムInsertionスロット]        │ │
 │ │                  │ [カスタムContentスロット]          │ │
-│ │                  │                                   │ │
-│ │                  │ ┌────────────────────────────────┐ │ │
-│ │                  │ │ [コメント] [保存] [スキップ]    │ │ │
-│ │                  │ │ [保存して次へ / トランジション完了] │ │
-│ │                  │ └────────────────────────────────┘ │ │
 │ └──────────────────┴───────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────┘
 
 PropertyCard（Col span={8}）:
 ┌───────────────────────────────┐
 │ [ラベル] [型Tag] (key)         │
+│  ※ 選択中の確信度Tag（定性評価選択時のみ表示）         │
+│  ※ description（qualitativeNote）は確信度ラベル右隣に表示 │
 │ ─────────────────────────────  │
-│ 想定値      │ 不確かさ値       │
+│ 想定値（plannedValue）│ 不確かさ値（toleranceValue）  │
 │ ─────────────────────────────  │
-│ 不確かさ説明（全幅）           │
+│ 不確かさ説明（uncertaintyNote, 全幅）    │
 │ ─────────────────────────────  │
 │ 実績値（入力 or 参照表示）     │
 │ ─────────────────────────────  │
-│ 確信度ボタン [確か][曖昧][不確か] │
+│ 確信度ボタン ※DB登録選択肢使用（qualitativeOptions）  │
 │ ─────────────────────────────  │
 │ 定量評価 [不確かさ基準Select][値Input][✕]  │
 │ [＋値の追加]                   │
@@ -95,6 +101,10 @@ PropertyCard（Col span={8}）:
 
 モーダル:
 - ExperimentCommentDialog（コメント記録）
+- 状態記録ダイアログ（「状態記録」ボタン押下で表示）
+  - 「動作状態」固定行（日時＋状態選択）
+  - 「＋ 休止状態記録追加」ボタンでペア動的追加
+  - 追加ペアはボーダーで囲み「- 休止状態記録削除」で削除可
 ```
 
 ### 2.3 使用コンポーネント
@@ -104,240 +114,24 @@ PropertyCard（Col span={8}）:
 - `Flex` - 縦/横並び制御
 - `Collapse` - プロジェクト指示折りたたみ
 - `Card` - WorkHeader、PropertyCard コンテナ
-- `Table` - テンプレート一覧（左Sider内、ヘッダー非表示、ページネーションなし）
+- `List` / `List.Item` - 左Siderのカテゴリ別テンプレートリスト
 - `Input` - テンプレート検索、実績値（StringValue）、定量評価値
 - `InputNumber` - 実績値（FloatValue/IntegerValue）
-- `Select` - テンプレート種別フィルタ、定量評価不確かさ基準選択
-- `Button` - テンプレート選択（PlanA）、確信度、追加、保存、スキップ、保存して次へ、コメント、戻る
+- `Select` - テンプレート種別フィルタ、定量評価不確かさ基準選択、WorkHeader 状態プルダウン
+- `Button` - 確信度、追加、保存、スキップ、保存して次へ、コメント、状態記録、戻る、指示確認
 - `Tag` - ステータス、カテゴリ（Materials/Conditions/Results）、I/O（IN/OUT）、型（Float/Int/Str）
 - `Badge` - プロジェクト指示件数
 - `Alert` - 全完了メッセージ、完了済み参照時の注意
-- `Divider` - WorkHeader 項目区切り
+- `Divider` - WorkHeader 項目区切り、ボタングループ区切り
 - `Row` / `Col` - PropertyCard グリッド（3列）
-- `Modal` - 保存成功・完了通知（静的モーダル）
-- `Spin` - テンプレート一覧ローディング（現在は常に false）
-- `Space` - テンプレート一覧タイトル
-- `Tooltip` - メソッドID/トランジションID 長文省略ヒント
-- `Typography.Text` - 各ラベル・テキスト表示
-- `theme` - デザイントークン取得
-
-#### カスタムコンポーネント
-- `ExperimentCommentDialog` - コメント記録モーダル
-- `InsertionEditorCompact` - Insertion（ファイル添付）入力
-- `ContentGridEditor` - カスタムContent（DataGrid）入力
-
-#### アイコン
-- `WarningOutlined` - プロジェクト指示（黄色）
-- `SearchOutlined` - テンプレート検索
-- `PlusOutlined` - property/content/Insertion追加
-- `DeleteOutlined` - カスタムInsertion/Content削除、定量評価行削除
-- `CommentOutlined` - コメントボタン
-- `FastForwardOutlined` - スキップボタン
-- `RightOutlined` - 保存して次へボタン
+- `Modal` - 状態記録ダイアログ
 
 ---
 
-## 3. コントロール一覧
-
-### 3.1 InstructionCollapse（プロジェクト指示）
-
-| 項目 | 説明 |
-|------|------|
-| 折りたたみパネル | 背景色 `#fffbe6`、ボーダー `#ffe58f`（黄色系） |
-| ラベル | `WarningOutlined`（黄色）+ 「プロジェクト指示」+ 件数バッジ |
-| 内容 | 指示事項を `<ul><li>` で箇条書き |
-| 表示条件 | `instructions.length > 0` の場合のみ表示 |
-
-> **現状**: モックデータ `MOCK_PROJECT_INSTRUCTIONS`（4件固定）を表示。フェーズBで API から取得予定。
-
-### 3.2 WorkHeader（作業情報ヘッダー）
-
-| 項目 | 型 | 内容 |
-|------|-----|------|
-| ステータス | Tag（color） | not_started=default / in_progress=processing / completed=success / error=error |
-| タスク# | Text strong | `#{displayKey.taskNo}` |
-| メソッドID | Text code（Tooltip付き、最大幅200px省略） | `method?.id` |
-| トランジションID | Text code（Tooltip付き、最大幅200px省略） | `transition.id` |
-
-**表示条件:**
-- `displayKey` / `taskTransition` / `transition` が null → 全完了 Alert または何も表示しない
-- `isReadOnly === true`（完了済み閲覧時）→ 情報アイコン付き Alert「完了済み（参照のみ）」+ 「作業に戻る」ボタン
-
-### 3.3 左Sider: テンプレート一覧
-
-| 項目 | タイプ | 初期値 | 説明 |
-|------|--------|--------|------|
-| templateSearchText | Input | '' | テンプレート名のあいまい検索（大文字小文字無視） |
-| selectedTemplateCategory | Select | undefined | 種別フィルタ（Materials/Conditions/Results） |
-
-**テンプレートテーブル（Table）カラム:**
-
-| 表示内容 | 説明 |
-|---------|------|
-| テンプレート名（Text strong） | テンプレートの名前 |
-| プロパティ数（Text secondary） | `(N項目)` |
-| カテゴリ Tag | Materials（緑）/ Conditions（青）/ Results（紫） |
-| I/O Tag | Results → OUT（緑）/ それ以外 → IN（青） |
-
-選択状態: `rowClassName` で `ant-table-row-selected` を付与してハイライト
-
-### 3.4 PropertyCard（プロパティカード）
-
-各 Property ごとに `Card size="small"` で表示（`Col span={8}` = 3列グリッド）。
-
-#### カード上部
-| 項目 | 説明 |
-|------|------|
-| ラベル（Text strong） | `prop.label` |
-| 型 Tag | FloatValue=geekblue / IntegerValue=purple / StringValue=cyan |
-| key（Text secondary） | `prop.key` 小フォント |
-| 選択中の確信度 Tag | 選択済みの場合のみ表示（色分け: 確か=緑/曖昧=橙/不確か=赤） |
-
-#### 想定値 / 不確かさ値（Row 2分割）
-| 項目 | 背景色 | 説明 |
-|------|--------|------|
-| 想定値 | `#e6f7ff`（青系） | `prop.expected` + 単位。未設定時は「未設定」italic |
-| 不確かさ値 | `#fafafa` | `prop.uncertaintyValue` + 単位。未設定時は「—」italic。ラベルは `prop.uncertaintyName` または「不確かさ値」 |
-
-#### 不確かさ説明（全幅）
-- `prop.uncertaintyDescription` を表示。未設定時は「—」italic。
-
-#### 実績値
-- **参照時（readOnly）**: 値 + 単位 + 差分表示（`calcDiff`）。未入力時は「未記録」italic
-- **入力時**: `StringValue` → `Input`、`FloatValue/IntegerValue` → `InputNumber`（単位ラベル付き）
-
-差分表示ルール（`calcDiff`）:
-- 差分 = 0 → `±0`（secondary）
-- 差分 > 0 → `+値`（赤 #cf1322）
-- 差分 < 0 → `値`（青 #096dd9）
-
-#### 確信度ボタン（定性評価）- 入力時のみ
-| 選択肢 | 背景色 | ボーダー色 | テキスト色 |
-|--------|--------|-----------|-----------|
-| 確か | #d9f7be | #b7eb8f | #389e0d |
-| 曖昧 | #fff7e6 | #ffd591 | #d46b08 |
-| 不確か | #fff1f0 | #ffa39e | #cf1322 |
-| OK（カスタム） | #d9f7be | #b7eb8f | #389e0d |
-| NG（カスタム） | #fff1f0 | #ffa39e | #cf1322 |
-
-選択状態: `fontWeight: 'bold'` + `outline` で強調。再クリックで解除。
-
-#### 定量評価（入力時のみ）
-- **追加済み行**: `Select`（不確かさ基準）+ `Input`（値）+ `DeleteOutlined` ボタン
-- **追加ボタン**: `PlusOutlined` + 「＋値の追加」（背景 `#1d4e63`）
-
-> 不確かさ基準は `uncertainty.json` から `eval==='quantitative' && status==='active'` で絞り込み
-
-### 3.5 追加ボタン群（右Content下部 / 入力時のみ）
-
-| ボタン名 | アイコン | アクション |
-|---------|---------|-----------|
-| property 追加 | PlusOutlined | カスタムプロパティ行追加（現状はクリックのみ、TODO） |
-| content 追加 | PlusOutlined | カスタム ContentGridEditor スロットを追加 |
-| Insertion 追加 | PlusOutlined | カスタム InsertionEditorCompact スロットを追加 |
-
-### 3.6 固定Insertionスロット（`template.insertions` 由来）
-
-テンプレートに `insertions` 配列が定義されている場合、各スロットを表示。
-
-| 項目 | 説明 |
-|------|------|
-| スロットラベル（Text strong） | `slot.label`（例: 試薬安全データシート） |
-| InsertionEditorCompact | ファイル選択・アップロードUI |
-
-### 3.7 カスタムInsertionスロット
-
-ユーザーが「Insertion追加」で追加したスロット。青系点線ボーダー（`#91caff`）+ 背景 `#e6f4ff`。
-
-| 項目 | 説明 |
-|------|------|
-| 「カスタム Insertion」ラベル | 青色テキスト |
-| DeleteOutlined ボタン | 入力時のみ表示。クリックでスロット削除 |
-| InsertionEditorCompact | ファイル選択・アップロードUI |
-
-### 3.8 カスタムContentスロット
-
-ユーザーが「content追加」で追加したスロット。紫系点線ボーダー（`#b37feb`）+ 背景 `#f9f0ff`。
-
-| 項目 | 説明 |
-|------|------|
-| 「カスタム Content」ラベル | 紫色テキスト |
-| DeleteOutlined ボタン | 入力時のみ表示。クリックでスロット削除 |
-| ContentGridEditor | 行/列の数値グリッド入力UI |
-
-### 3.9 保存ボタン群（右Content右下 / 入力時のみ）
-
-| ボタン名 | タイプ | アイコン | 表示条件 | アクション |
-|---------|--------|---------|---------|-----------|
-| コメント | default | CommentOutlined | 常時（入力時） | ExperimentCommentDialogを開く |
-| 保存 | default | - | 常時（入力時） | `handleSave`（Modal.success でモック保存通知） |
-| スキップ | default | FastForwardOutlined | 入力時 | 現トランジションをスキップリストに追加し次へ。他に実行可能なトランジションがない場合は disabled（Tooltip表示） |
-| 保存して次へ | primary | RightOutlined | 常時（入力時） | テンプレートが複数ある場合: 次テンプレートへ遷移。最後のテンプレートの場合: トランジションを completed に更新してタスク完了/次トランジションへ |
-
-**「保存して次へ」ラベル:**
-- 最後のテンプレートでない場合: 「テンプレート {current+1}/{total} へ」
-- 最後のテンプレートの場合: 「トランジション完了・次へ」
-
----
-
-## 4. イベント
-
-### 4.1 テンプレート選択イベント
-
-| イベント名 | トリガー | 処理内容 |
-|-----------|---------|---------|
-| テンプレート行クリック | Table `onRow.onClick` | `selectedTemplateId` を更新、右Contentのプロパティカードを切り替え |
-| templateSearchText変更 | 検索Input入力 | テンプレート一覧をあいまい検索でフィルタ |
-| selectedTemplateCategory変更 | 種別Select選択 | テンプレート一覧を種別でフィルタ |
-
-### 4.2 実績値入力イベント
-
-| イベント名 | トリガー | 処理内容 |
-|-----------|---------|---------|
-| handleActualChange | 実績値Input/InputNumber変更 | `tasks` State を immutable 更新（対象 taskNo・transitionId・propKey を更新） |
-| 確信度ボタンクリック | 確信度ボタン | PropertyCard 内部 State `confidence` を更新（再クリックで null）|
-| 定量評価追加 | 「＋値の追加」クリック | PropertyCard 内部 State `addedValues` に行追加 |
-| 定量評価削除 | DeleteOutlined クリック | PropertyCard 内部 State `addedValues` から行削除 |
-
-### 4.3 保存・完了イベント
-
-| イベント名 | トリガー | 処理内容 |
-|-----------|---------|---------|
-| handleSave | 保存ボタンクリック | `Modal.success` で保存通知（モック） |
-| handleSaveAndNext | 保存して次へクリック（最終テンプレート） | 対象トランジションを `completed` に更新 → `viewingKey` をリセット → 次トランジションIDを `Modal.success` で通知 |
-| onTemplateIdxChange | 保存して次へクリック（途中テンプレート） | 次テンプレートインデックスに切り替え |
-
-### 4.4 スキップイベント
-
-| イベント名 | トリガー | 処理内容 |
-|-----------|---------|---------|
-| handleSkip | スキップボタンクリック | `skippedTransitionIds` に追加 → `findNextAvailableTransition` で次を検索 → 見つかれば `viewingKey` リセット・Modal通知、見つからなければ警告Modal |
-
-### 4.5 Insertion/Content追加・削除イベント
-
-| イベント名 | トリガー | 処理内容 |
-|-----------|---------|---------|
-| handleInsertionAdd | Insertion追加ボタン | `tasks[taskNo].transitions[transitionId].customInsertionIds` に新ID追加 |
-| handleInsertionRemove | カスタムInsertionスロット削除ボタン | `customInsertionIds` から対象ID削除、`actuals` から `insertion_custom_{id}` を削除 |
-| handleContentAdd | content追加ボタン | `customContentIds` に新ID追加 |
-| handleContentRemove | カスタムContentスロット削除ボタン | `customContentIds` から対象ID削除、`actuals` から `content_custom_{id}` を削除 |
-
-### 4.6 コメントイベント
-
-| イベント名 | トリガー | 処理内容 |
-|-----------|---------|---------|
-| commentDialogOpen | コメントボタンクリック | `commentDialogOpen` を true にして ExperimentCommentDialog を表示 |
-| handleSaveComment | ExperimentCommentDialog 保存 | `Modal.success` でコメント保存通知（モック） |
-
----
-
-## 5. データフロー
-
-### 5.1 Props（親から受け取るデータ）
+## 3. コンポーネント Props 定義
 
 ```typescript
 interface WorkRecordPanelProps {
-  /** 選択中のプロジェクト名（S3アップロードパスの組み立てに使用） */
   projectName?: string;
 }
 ```
@@ -468,7 +262,8 @@ const displayKey = viewingKey ?? activeEntry;
 - `prerequisiteTransitionIds` が設定されている場合 → 全て `completed` のときのみアクセス可能
 
 `findNextAvailableTransition(taskNo, currentTransitionId, skippedIds, tasks)`:
-1. `ORDERED_TRANSITION_IDS` の現在インデックスより後ろを優先検索
+
+1. `apiTransitions` 配列の現在インデックスより後ろを優先検索
 2. 見つからなければ先頭から現在の前まで循環検索
 3. `completed / error` の行と `skippedIds` に含まれる行はスキップ対象外
 
@@ -625,7 +420,7 @@ const saveData = {
 ## 7. 画面遷移
 
 ### 7.1 遷移元
-- `ExperimentWorkerMenu`（実験作業者メニュー）の「作業記録」タブ（key='3'）
+- `ExperimentWorkerMenu`（実験作業者メニュー）の「**実験記録**」タブ（key='3'）
 
 ### 7.2 遷移先
 なし（パネル内で完結）
@@ -667,7 +462,7 @@ WorkRecordPanel (PlanB)
 - `handleActualChange`、`handleSave`、`handleSaveAndNext`、`handleSkip`、`handleInsertionAdd`、`handleInsertionRemove`、`handleContentAdd`、`handleContentRemove`、`handleSaveComment` は `useCallback` でメモ化
 
 ### 9.2 データ量
-- テンプレート数: 現在最大4件（モック）。実API接続後は100件程度を想定
+- テンプレート数: API接続後は100件程度を想定
 - プロパティ数: テンプレートあたり最大10項目程度
 
 ---
@@ -677,16 +472,19 @@ WorkRecordPanel (PlanB)
 ### 10.1 特記事項
 
 1. **PlanA / PlanB の2実装**  
-   ソースコード内に `PlanA`（テンプレート選択ボタン形式）と `PlanB`（左Siderテーブル形式）の2実装が存在するが、`WorkRecordPanel` の `return` では **`PlanB` のみを使用**している。`PlanA` はコード内に残存しているが未使用。
+   ソースコード内に `PlanA`（テンプレート選択ボタン形式）と `PlanB`（左Siderカテゴリグループ形式）の2実装が存在するが、`WorkRecordPanel` の `return` では **`PlanB` のみを使用**している。`PlanA` はコード内に残存しているが未使用。
 
-2. **ASSIGNED_TASK_NO = 2 の固定**  
-   フェーズAでは作業対象タスク番号が `2` に固定されている。フェーズBでログインユーザーの担当タスクを API から取得して Props 化する予定。
+2. **activeEntry の決定方式（フェーズB完了）**  
+   `ORDERED_TRANSITION_IDS`（モック固定ID配列）・`INITIAL_TASKS`（モックタスク）は全て除去済み。`progressRows`（`getWorkDetails` API レスポンス）を元に `activeEntry` を動的決定する。
 
-3. **確信度・定量評価の永続化未実装**  
-   PropertyCard の確信度（`confidence` State）と定量評価追加行（`addedValues` State）はコンポーネント内ローカル State であり、保存ボタン押下時に API へ送信する実装は未完了（フェーズB）。
+3. **確信度（定性評価）選択肢**  
+   PropertyCard の確信度ボタン選択肢は `qualitativeOptions`（バックエンドが返す `intuition_selector` テーブル由来）を直接使用する。`qualitativeEval`（保存済み値）が初期選択状態になる。
 
-4. **データ保存のモック実装**  
-   保存ボタン → `Modal.success` で通知のみ。実際の API 呼び出しはフェーズBで実装予定。
+4. **状態プルダウンの活性化**  
+   WorkHeader の「状態」Select は `disabled` が解除されており、ユーザーが直接状態を変更できる。
+
+5. **モックデータ除去済み**  
+   `MOCK_TRANSITIONS` / `MOCK_PROJECT_INSTRUCTIONS` / `MOCK_METHODS` / `TR_A_ID` 〜 `TR_D_ID` 等のモック定数は全て削除済み。
 
 ### 10.2 実装済み機能
 

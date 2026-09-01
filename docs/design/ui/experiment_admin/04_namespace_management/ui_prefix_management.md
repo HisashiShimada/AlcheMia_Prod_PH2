@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/namespace/PrefixManagement.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-08-14
-- **最終更新日**: 2026-08-25
+- **最終更新日**: 2026-08-26
 - **担当者**: Development Team
 - **バージョン**: 1.4.0
 
@@ -114,6 +114,25 @@
 ---
 
 ## 6. 重複チェック（保存時）
+
+保存時に既存 Prefix と同名の行が含まれる場合、確認ダイアログ（`Modal.confirm`）を表示する。
+
+### 6.1. Globalスコープ重複チェック（新規追加）
+
+保存前に `getGlobalDeclarations()` を呼び出してグローバルに登録済みの Prefix 一覧を取得し、新規登録 Prefix と照合する。
+
+| 状況 | 動作 |
+|------|------|
+| グローバルに同名 Prefix が存在する | `message.error` でエラーを表示し登録をブロック（登録不可） |
+| グローバルに同名 Prefix が存在しない | 6.2 の同スコープ内重複チェックへ進む |
+
+**エラーメッセージ（ja）**:  
+`「Prefix「{prefix}」はグローバルに既に登録されています。グローバルと同じPrefixは登録できません。」`
+
+**エラーメッセージ（en）**:  
+`"Prefix \"{prefix}\" is already registered globally. You cannot register a Prefix with the same name as a global one."`
+
+### 6.2. 同スコープ内重複チェック（既存）
 
 保存時に既存 Prefix と同名の行が含まれる場合、確認ダイアログ（`Modal.confirm`）を表示する。
 

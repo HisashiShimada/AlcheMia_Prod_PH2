@@ -9,6 +9,7 @@
 - UI設計書: `docs/design/ui/experiment_admin/04_namespace_management/` / `docs/design/ui/provider/`  
 - API設計書: `docs/design/api/api_namespace.md`  
 - DB設計書: `docs/design/db/ddl/namespace.sql` / `namespace_term.sql` / `prefix.sql` 
+- DB設計書: `docs/design/db/ddl/namespace.sql` / `namespace_term.sql` / `prefix.sql` 
 
 ---
 
@@ -19,6 +20,7 @@
 - [B-NS-02：グローバル名前空間宣言の閲覧・インポート・エクスポート（プロバイダー）](#b-ns-02グローバル名前空間宣言の閲覧インポートエクスポートプロバイダー)
 - [B-NS-03：Prefixの登録・編集・非アクティブ化・CSVエクスポート（実験管理者）](#b-ns-03prefixの登録編集非アクティブ化csvエクスポート実験管理者)
 - [B-NS-04：用語の登録・編集・有効無効切替・CSVエクスポート（実験管理者）](#b-ns-04用語の登録編集有効無効切替csvエクスポート実験管理者)
+- [B-NS-05：グループ追加と名前空間URI自動採番（実験管理者）](#b-ns-05グループ追加と名前空間uri自動採番実験管理者)
 - [B-NS-05：グループ追加と名前空間URI自動採番（実験管理者）](#b-ns-05グループ追加と名前空間uri自動採番実験管理者)
 - [B-NS-06：用語登録・編集・重複チェック（実験管理者）](#b-ns-06用語登録編集重複チェック実験管理者)
 - [B-NS-07：用語の上位層共有（ロール別共有先範囲の確認）](#b-ns-07用語の上位層共有ロール別共有先範囲の確認)
@@ -313,11 +315,13 @@
 
 実験管理者が名前空間管理画面の `TermManagement` コンポーネントで用語を登録・編集・有効化/無効化し、CSV エクスポート・インポートができることを確認する。
 フェーズB追加として、**指示用語同時登録機能**（`SupervisorDirective{localName}` の同時登録）と `hasDirectiveTerm` バッジ表示も確認する。
+フェーズB追加として、**指示用語同時登録機能**（`SupervisorDirective{localName}` の同時登録）と `hasDirectiveTerm` バッジ表示も確認する。
 
 ### 関連
 
 | 項目 | 参照先 |
 |------|--------|
+| UI設計書 | `docs/design/ui/experiment_admin/04_namespace_management/ui_term_management.md`（v1.2.0） |
 | UI設計書 | `docs/design/ui/experiment_admin/04_namespace_management/ui_term_management.md`（v1.2.0） |
 | 要件 | F-08-01：用語登録・編集機能 / F-08-02：用語検索・絞り込み機能 |
 | ユースケース | UC-04：用語を登録する / UC-05：用語を編集・削除する |
@@ -340,6 +344,7 @@
 | 3 | experiment_admin | ツールバーを確認する | 検索欄 / Prefix フィルター / 型フィルター / インポート / エクスポート / ＋用語追加 / 保存 / キャンセル の各要素が表示されている |
 
 #### ステップ 2：用語の新規登録（指示用語同時登録 ON）
+#### ステップ 2：用語の新規登録（指示用語同時登録 ON）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
@@ -359,20 +364,41 @@
 | 12 | experiment_admin | ローカル名 `ReactionTime` を入力し、チェックボックスを **OFF** にする | チェックが外れる |
 | 13 | experiment_admin | 「保存」ボタンを押す | `POST /api/v1/namespace-terms`（`createDirectiveTerm: false`）が呼ばれ、`chem:ReactionTime` の **1件のみ** が DB に登録される |
 | 14 | — | 保存後の `chem:ReactionTime` 行の操作列を確認する | 「指示あり」バッジは**表示されない**（`hasDirectiveTerm=false`）|
+| 5 | — | 新規行末尾の「指示用語同時登録」チェックボックスを確認する | **チェックボックスがデフォルトで ON（チェックあり）** になっている |
+| 6 | — | ローカル名 Input が空の状態でチェックボックスを確認する | `localName` 未入力のためチェックボックスが **`disabled`** になっている |
+| 7 | experiment_admin | Prefix プルダウンで `chem` を選択し、ローカル名 `SampleRate`・表示名 `サンプリングレート`・型 `floatType`・単位 `Hz` を入力する | 各フィールドに値が入力される。ローカル名入力後にチェックボックスが **活性化** される |
+| 8 | — | チェックボックスが ON のままであることを確認する | チェックが ON の状態 |
+| 9 | experiment_admin | 「保存」ボタンを押す | `POST /api/v1/namespace-terms`（`createDirectiveTerm: true`）が呼ばれ、`chem:SampleRate` と `chem:SupervisorDirectiveSampleRate` の **2件** が DB に登録される |
+| 10 | — | 保存後の一覧を確認する | `chem:SampleRate` 行の操作列に **「指示あり」バッジ** が表示されている（`hasDirectiveTerm=true`） |
 
+#### ステップ 3：用語の新規登録（指示用語同時登録 OFF）
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 11 | experiment_admin | 再度「＋ 用語追加」を押す | 新規行が追加され、チェックボックスは ON |
+| 12 | experiment_admin | ローカル名 `ReactionTime` を入力し、チェックボックスを **OFF** にする | チェックが外れる |
+| 13 | experiment_admin | 「保存」ボタンを押す | `POST /api/v1/namespace-terms`（`createDirectiveTerm: false`）が呼ばれ、`chem:ReactionTime` の **1件のみ** が DB に登録される |
+| 14 | — | 保存後の `chem:ReactionTime` 行の操作列を確認する | 「指示あり」バッジは**表示されない**（`hasDirectiveTerm=false`）|
+
+#### ステップ 4：完全一致重複のエラー確認
 #### ステップ 4：完全一致重複のエラー確認
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 15 | experiment_admin | 再度「＋ 用語追加」を押し、Prefix: `chem`・ローカル名: `SampleRate`（同一 QName）を入力して「保存」を押す | `Modal.error`（エラーダイアログ）が表示され、登録がブロックされる（完全一致重複は登録不可） |
+| 15 | experiment_admin | 再度「＋ 用語追加」を押し、Prefix: `chem`・ローカル名: `SampleRate`（同一 QName）を入力して「保存」を押す | `Modal.error`（エラーダイアログ）が表示され、登録がブロックされる（完全一致重複は登録不可） |
 
+#### ステップ 5：部分一致重複の警告確認
 #### ステップ 5：部分一致重複の警告確認
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 16 | experiment_admin | 別の Prefix（例: `lab`）でローカル名 `SampleRate`（別 prefix・同 localName）を入力して「保存」を押す | `Modal.confirm`（確認ダイアログ）が表示される（警告あり・登録続行可） |
 | 17 | experiment_admin | 確認ダイアログで「キャンセル（いいえ）」を選択する | その行の登録はスキップされ、他の行は登録処理に進む |
+| 16 | experiment_admin | 別の Prefix（例: `lab`）でローカル名 `SampleRate`（別 prefix・同 localName）を入力して「保存」を押す | `Modal.confirm`（確認ダイアログ）が表示される（警告あり・登録続行可） |
+| 17 | experiment_admin | 確認ダイアログで「キャンセル（いいえ）」を選択する | その行の登録はスキップされ、他の行は登録処理に進む |
 
+#### ステップ 6：用語のインライン編集
 #### ステップ 6：用語のインライン編集
 
 | # | ロール | 操作 | 期待結果 |
@@ -381,7 +407,12 @@
 | 19 | experiment_admin | 表示名を「サンプリング周波数」・単位を `kHz` に変更する | フィールドの値が変更される |
 | 20 | experiment_admin | 「保存」ボタンを押す | 変更が保存され、通常表示に戻る |
 | 21 | experiment_admin | 「編集」→ 内容変更 → 「キャンセル」を押す | 変更が破棄され、元の値に戻る |
+| 18 | experiment_admin | `chem:SampleRate` 行の「編集」ボタンを押す | 行がインライン編集モードに切り替わる（ローカル名は編集不可） |
+| 19 | experiment_admin | 表示名を「サンプリング周波数」・単位を `kHz` に変更する | フィールドの値が変更される |
+| 20 | experiment_admin | 「保存」ボタンを押す | 変更が保存され、通常表示に戻る |
+| 21 | experiment_admin | 「編集」→ 内容変更 → 「キャンセル」を押す | 変更が破棄され、元の値に戻る |
 
+#### ステップ 7：有効化/無効化（isActive トグル）
 #### ステップ 7：有効化/無効化（isActive トグル）
 
 | # | ロール | 操作 | 期待結果 |
@@ -389,7 +420,11 @@
 | 22 | experiment_admin | `chem:SampleRate` 行の「無効化」ボタンを押す | 確認ダイアログが表示される（`termManagement.deactivateConfirm` メッセージ） |
 | 23 | experiment_admin | 確認ダイアログで「無効化」を選択する | 行がグレー背景・グレーテキストに変わり、操作列のボタンが「有効化」に切り替わる |
 | 24 | experiment_admin | 「有効化」ボタンを押す → 確認ダイアログで「有効化」を選択する | 行がアクティブ表示に戻り、ボタンが「無効化」に切り替わる |
+| 22 | experiment_admin | `chem:SampleRate` 行の「無効化」ボタンを押す | 確認ダイアログが表示される（`termManagement.deactivateConfirm` メッセージ） |
+| 23 | experiment_admin | 確認ダイアログで「無効化」を選択する | 行がグレー背景・グレーテキストに変わり、操作列のボタンが「有効化」に切り替わる |
+| 24 | experiment_admin | 「有効化」ボタンを押す → 確認ダイアログで「有効化」を選択する | 行がアクティブ表示に戻り、ボタンが「無効化」に切り替わる |
 
+#### ステップ 8：検索・絞り込み
 #### ステップ 8：検索・絞り込み
 
 | # | ロール | 操作 | 期待結果 |
@@ -398,11 +433,18 @@
 | 26 | experiment_admin | Prefix フィルターで `chem` を選択する | `chem` の用語のみが表示される |
 | 27 | experiment_admin | 型フィルターで `floatType` を選択する | floatType の用語のみが表示される |
 | 28 | experiment_admin | 各フィルターをクリアする | 全用語が再表示される |
+| 25 | experiment_admin | 検索欄に `サンプリング` と入力する | `SampleRate`（表示名一致）が絞り込まれて表示される |
+| 26 | experiment_admin | Prefix フィルターで `chem` を選択する | `chem` の用語のみが表示される |
+| 27 | experiment_admin | 型フィルターで `floatType` を選択する | floatType の用語のみが表示される |
+| 28 | experiment_admin | 各フィルターをクリアする | 全用語が再表示される |
 
+#### ステップ 9：CSV エクスポート
 #### ステップ 9：CSV エクスポート
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
+| 29 | experiment_admin | 「エクスポート」ボタンを押す | `terms.csv` がダウンロードされる |
+| 30 | — | ダウンロードした CSV を確認する | ヘッダー: `prefix,localName,displayName,description,type,unitHint`、BOM 付き UTF-8 で全用語が含まれている |
 | 29 | experiment_admin | 「エクスポート」ボタンを押す | `terms.csv` がダウンロードされる |
 | 30 | — | ダウンロードした CSV を確認する | ヘッダー: `prefix,localName,displayName,description,type,unitHint`、BOM 付き UTF-8 で全用語が含まれている |
 
@@ -412,6 +454,12 @@
 - [ ] `isActive: false` の行はグレー背景（`#f5f5f5`）・グレーテキストで表示され、型 Tag も半透明になる
 - [ ] 完全一致重複は `Modal.error` でブロック、部分一致（別prefix同localName）は `Modal.confirm` で続行可
 - [ ] エクスポートは BOM 付き UTF-8 の `terms.csv`
+- [ ] 新規行の「指示用語同時登録」チェックボックスはデフォルト **ON**
+- [ ] `localName` 未入力時はチェックボックスが `disabled`
+- [ ] チェック ON で保存すると `SupervisorDirective{localName}` が同時登録される（DB に2件）
+- [ ] チェック OFF で保存すると元の用語1件のみ登録される
+- [ ] 同時登録失敗（どちらかの INSERT エラー）時は両方ロールバックされる
+- [ ] `hasDirectiveTerm=true` の用語行に「指示あり」バッジが表示される
 - [ ] 新規行の「指示用語同時登録」チェックボックスはデフォルト **ON**
 - [ ] `localName` 未入力時はチェックボックスが `disabled`
 - [ ] チェック ON で保存すると `SupervisorDirective{localName}` が同時登録される（DB に2件）
@@ -429,9 +477,12 @@
 ---
 
 ## B-NS-05：グループ追加と名前空間URI自動採番（実験管理者）
+## B-NS-05：グループ追加と名前空間URI自動採番（実験管理者）
 
 ### 概要
 
+実験管理者がグループ管理タブ（`ExperimentAdminMenu` key=`'5'`）でグループを追加したとき、名前空間URIが `generateNamespaceUri` により自動生成されることを確認する。また、`GroupAddDialog` でメンバー設定・URI自動生成が動作することを確認する。
+加えて、名前空間ツリーのコンテキストメニューが `companyDepth >= 2` のノードで表示されることを確認する。
 実験管理者がグループ管理タブ（`ExperimentAdminMenu` key=`'5'`）でグループを追加したとき、名前空間URIが `generateNamespaceUri` により自動生成されることを確認する。また、`GroupAddDialog` でメンバー設定・URI自動生成が動作することを確認する。
 加えて、名前空間ツリーのコンテキストメニューが `companyDepth >= 2` のノードで表示されることを確認する。
 
@@ -442,21 +493,28 @@
 | UI設計書 | `docs/design/ui/experiment_admin/04_namespace_management/ui_namespace_main.md` §2.2, §12（v2.5.0） |
 | 要件 | F-09-01：グループ追加・管理機能 / F-09-02：グループメンバー管理機能 / F-02-02：名前空間URI自動採番機能 |
 | コンポーネント | `GroupManagementPanel` / `GroupAddDialog` / `GroupEditDialog` |
+| UI設計書 | `docs/design/ui/experiment_admin/04_namespace_management/ui_namespace_main.md` §2.2, §12（v2.5.0） |
+| 要件 | F-09-01：グループ追加・管理機能 / F-09-02：グループメンバー管理機能 / F-02-02：名前空間URI自動採番機能 |
+| コンポーネント | `GroupManagementPanel` / `GroupAddDialog` / `GroupEditDialog` |
 
 ### 前提条件
 
 - `experiment_admin` としてログイン済み
 - 組織配下に `organization_group`（部門/グループ）が存在すること
 - 追加するグループ名「テストグループ001」が未登録であること
+- 追加するグループ名「テストグループ001」が未登録であること
 
 ### 操作手順
 
+#### ステップ 1：グループ管理タブへのナビゲーション
 #### ステップ 1：グループ管理タブへのナビゲーション
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 1 | experiment_admin | 実験管理者メニュー → 「グループ管理」タブ（key=`'5'`）を開く | `GroupManagementPanel` が表示される（グループ一覧・「グループを作成」ボタンが表示される） |
+| 1 | experiment_admin | 実験管理者メニュー → 「グループ管理」タブ（key=`'5'`）を開く | `GroupManagementPanel` が表示される（グループ一覧・「グループを作成」ボタンが表示される） |
 
+#### ステップ 2：グループ追加（GroupAddDialog）
 #### ステップ 2：グループ追加（GroupAddDialog）
 
 | # | ロール | 操作 | 期待結果 |
@@ -464,17 +522,32 @@
 | 2 | experiment_admin | 「グループを作成」ボタンを押す | `GroupAddDialog` が開く |
 | 3 | experiment_admin | 「追加先」プルダウンで部門/グループを選択し、グループ名「テストグループ001」を入力する | 「名前空間URI（自動生成）」フィールドに `generateNamespaceUri(organizationCd, deptCd, グループ名)` による URI がリアルタイム生成される |
 | 4 | — | 生成された URI を確認する | `https://{organizationCd}/{deptCd}/test-group-001/`（表示名スラッグ形式）で自動生成されている（手入力不可） |
+| 2 | experiment_admin | 「グループを作成」ボタンを押す | `GroupAddDialog` が開く |
+| 3 | experiment_admin | 「追加先」プルダウンで部門/グループを選択し、グループ名「テストグループ001」を入力する | 「名前空間URI（自動生成）」フィールドに `generateNamespaceUri(organizationCd, deptCd, グループ名)` による URI がリアルタイム生成される |
+| 4 | — | 生成された URI を確認する | `https://{organizationCd}/{deptCd}/test-group-001/`（表示名スラッグ形式）で自動生成されている（手入力不可） |
 | 5 | experiment_admin | メンバー追加欄でユーザーを検索し `worker@test.example` を追加する | メンバーリストにユーザーが追加される |
 | 6 | experiment_admin | 「追加」ボタンを押す | グループが作成され、`GroupManagementPanel` の一覧に「テストグループ001」が追加される |
+| 6 | experiment_admin | 「追加」ボタンを押す | グループが作成され、`GroupManagementPanel` の一覧に「テストグループ001」が追加される |
 
+#### ステップ 3：グループ情報の編集（GroupEditDialog）
 #### ステップ 3：グループ情報の編集（GroupEditDialog）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 7 | experiment_admin | 「テストグループ001」行の「編集」ボタンを押す | `GroupEditDialog` が開く（グループ名・メンバー・代表者フィールドが表示される） |
+| 7 | experiment_admin | 「テストグループ001」行の「編集」ボタンを押す | `GroupEditDialog` が開く（グループ名・メンバー・代表者フィールドが表示される） |
 | 8 | experiment_admin | メンバー追加欄で `admin-leader@test.example` を追加して「保存」を押す | メンバーが追加される |
 | 9 | experiment_admin | グループ名を「テストグループ001（改）」に変更して「保存」を押す | グループ名が更新され、一覧に反映される |
+| 9 | experiment_admin | グループ名を「テストグループ001（改）」に変更して「保存」を押す | グループ名が更新され、一覧に反映される |
 
+#### ステップ 4：グループ一覧確認
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 10 | experiment_admin | `GroupManagementPanel` のグループ一覧を確認する | 自分が所属・管理するグループが表示される |
+| 11 | experiment_admin | 「テストグループ001（改）」行の `namespaceUri` 列（または詳細）を確認する | 作成時に自動生成された名前空間 URI が設定されている |
+
+#### ステップ 5：グループ追加・編集の動線確認
 #### ステップ 4：グループ一覧確認
 
 | # | ロール | 操作 | 期待結果 |
@@ -489,9 +562,17 @@
 | 12 | experiment_admin | グループ管理タブ（key=`'5'`）の「グループを作成」ボタンを押す | `GroupAddDialog` が開く（§12 グループ管理タブ経由が正しいトリガー） |
 | 13 | experiment_admin | グループ管理タブの一覧でグループ行の「編集」ボタンを押す | `GroupEditDialog` が開く（§12 グループ管理タブ経由が正しいトリガー） |
 | 14 | — | 名前空間管理タブ（key=`'4'`）の左ペインツリー上で任意のノードを右クリックする | コンテキストメニューは**表示されない**（現在機能していないデッドコードのため） |
+| 12 | experiment_admin | グループ管理タブ（key=`'5'`）の「グループを作成」ボタンを押す | `GroupAddDialog` が開く（§12 グループ管理タブ経由が正しいトリガー） |
+| 13 | experiment_admin | グループ管理タブの一覧でグループ行の「編集」ボタンを押す | `GroupEditDialog` が開く（§12 グループ管理タブ経由が正しいトリガー） |
+| 14 | — | 名前空間管理タブ（key=`'4'`）の左ペインツリー上で任意のノードを右クリックする | コンテキストメニューは**表示されない**（現在機能していないデッドコードのため） |
 
 ### 確認ポイント
 
+- [ ] `GroupAddDialog` の「名前空間URI（自動生成）」フィールドはグループ名入力に連動してリアルタイム更新される（手入力不可）
+- [ ] URI は `generateNamespaceUri(organizationCd, deptCd, グループ名)` により生成される
+- [ ] グループ管理は `ExperimentAdminMenu` tab key=`'5'` の独立タブであり、名前空間管理タブ（key=`'4'`）のサブタブではない
+- [ ] **[2026-08-27 更新]** 右クリックコンテキストメニューは現在機能していない（デッドコード）。グループ操作はグループ管理タブ（key='5'）のボタン経由であることを確認する
+- [ ] コンポーネント名は `GroupManagementPanel` / `GroupAddDialog` / `GroupEditDialog`（旧: TeamManagementPanel / TeamAddDialog / TeamEditDialog）
 - [ ] `GroupAddDialog` の「名前空間URI（自動生成）」フィールドはグループ名入力に連動してリアルタイム更新される（手入力不可）
 - [ ] URI は `generateNamespaceUri(organizationCd, deptCd, グループ名)` により生成される
 - [ ] グループ管理は `ExperimentAdminMenu` tab key=`'5'` の独立タブであり、名前空間管理タブ（key=`'4'`）のサブタブではない
@@ -512,12 +593,14 @@
 
 実験管理者が自分の名前空間に用語を登録・編集し、重複チェックが正しく動作することを確認する。また、用語の検索・絞り込みと継承元（スコープ）の表示を確認する。
 フェーズB追加として、**Prefix 管理での Global スコープ重複チェック**（グローバルに登録済みの Prefix と同名の Prefix を登録しようとするとエラーが表示されること）も確認する。
+フェーズB追加として、**Prefix 管理での Global スコープ重複チェック**（グローバルに登録済みの Prefix と同名の Prefix を登録しようとするとエラーが表示されること）も確認する。
 
 ### 関連
 
 | 項目 | 参照先 |
 |------|--------|
 | 要件 | F-08-01：用語登録・編集機能 / F-07-02：重複チェック機能 / F-08-02：用語検索・絞り込み機能 |
+| UI設計書 | `docs/design/ui/experiment_admin/04_namespace_management/ui_prefix_management.md`（v1.3.0） |
 | UI設計書 | `docs/design/ui/experiment_admin/04_namespace_management/ui_prefix_management.md`（v1.3.0） |
 | ユースケース | UC-04：用語を登録する / UC-05：用語を編集・削除する / UC-18：用語を検索・絞り込む / UC-19：用語の継承元を確認する |
 | 業務フロー | BF-04 / BF-05 / BF-18 / BF-19 |
@@ -528,6 +611,7 @@
 - `experiment_admin（一般）` としてログイン済み
 - 個人名前空間（Personal）が存在すること
 - Prefix `mgr-admin` が自分の名前空間に登録済みであること
+- グローバルに Prefix `maiml` が登録済みであること
 - グローバルに Prefix `maiml` が登録済みであること
 
 ### 操作手順
@@ -564,9 +648,21 @@
 | 11 | experiment_admin | Prefix 欄に存在しない Prefix（例: `mylab`）を入力し「保存」を押す | エラーが表示されず、正常に登録される |
 
 #### ステップ 5：用語の編集
+#### ステップ 4：Prefix 管理での Global スコープ重複チェック
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
+| 8 | experiment_admin | 名前空間管理 → 自分のスコープを選択 → 「Prefix 管理」タブに切り替える | Prefix 一覧が表示される |
+| 9 | experiment_admin | 「＋ prefix 追加」ボタンを押す | 新規入力行が追加される |
+| 10 | experiment_admin | Prefix 欄にグローバルに登録済みの Prefix（例: `maiml`）を入力し「保存」を押す | **エラーメッセージ**「Prefix「maiml」はグローバルに既に登録されています。グローバルと同じPrefixは登録できません。」が表示され、**登録がブロックされる** |
+| 11 | experiment_admin | Prefix 欄に存在しない Prefix（例: `mylab`）を入力し「保存」を押す | エラーが表示されず、正常に登録される |
+
+#### ステップ 5：用語の編集
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 12 | experiment_admin | `Temperature` 行の「✏ 編集」ボタンを押す | 行がインライン編集モードに切り替わる（ローカル名は編集不可） |
+| 13 | experiment_admin | 説明を「実験時の環境温度」に変更して「保存」を押す | 変更が反映され、通常行に戻る |
 | 12 | experiment_admin | `Temperature` 行の「✏ 編集」ボタンを押す | 行がインライン編集モードに切り替わる（ローカル名は編集不可） |
 | 13 | experiment_admin | 説明を「実験時の環境温度」に変更して「保存」を押す | 変更が反映され、通常行に戻る |
 
@@ -576,11 +672,17 @@
 |---|--------|------|---------|
 | 14 | experiment_admin | `Temperature` 行の「非アクティブ」ボタンを押す | 確認ダイアログが表示される |
 | 15 | experiment_admin | 確認ダイアログで「OK」を選択する | 行がグレーアウト表示に変わり、ボタンが「アクティブ」に切り替わる |
+| 14 | experiment_admin | `Temperature` 行の「非アクティブ」ボタンを押す | 確認ダイアログが表示される |
+| 15 | experiment_admin | 確認ダイアログで「OK」を選択する | 行がグレーアウト表示に変わり、ボタンが「アクティブ」に切り替わる |
 
+#### ステップ 7：用語の検索・絞り込み
 #### ステップ 7：用語の検索・絞り込み
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
+| 16 | experiment_admin | 用語検索欄に「温度」と入力する | `Temperature`（表示名「温度」）が絞り込まれて表示される |
+| 17 | experiment_admin | 検索欄をクリアする | 全用語が再表示される |
+| 18 | experiment_admin | 型フィルターで `floatType` を選択する | floatType の用語のみが表示される |
 | 16 | experiment_admin | 用語検索欄に「温度」と入力する | `Temperature`（表示名「温度」）が絞り込まれて表示される |
 | 17 | experiment_admin | 検索欄をクリアする | 全用語が再表示される |
 | 18 | experiment_admin | 型フィルターで `floatType` を選択する | floatType の用語のみが表示される |
@@ -591,6 +693,8 @@
 - [ ] 「保存」ボタンは入力行が1件以上のときのみ活性化する
 - [ ] 「キャンセル」ボタンを押すと全入力行が破棄される
 - [ ] ページネーション（20件/ページ）が正しく動作する
+- [ ] グローバルに登録済みの Prefix と同名の Prefix を登録しようとするとエラーが表示されブロックされる
+- [ ] エラーメッセージ文言：「Prefix「{prefix}」はグローバルに既に登録されています。グローバルと同じPrefixは登録できません。」（日本語）
 - [ ] グローバルに登録済みの Prefix と同名の Prefix を登録しようとするとエラーが表示されブロックされる
 - [ ] エラーメッセージ文言：「Prefix「{prefix}」はグローバルに既に登録されています。グローバルと同じPrefixは登録できません。」（日本語）
 
@@ -893,6 +997,7 @@ prefix の非アクティブ化時に影響ファイルへの警告が表示さ�
 | B-NS-02 | グローバル名前空間宣言の閲覧・インポート・エクスポート | provider | 未実施 |
 | B-NS-03 | Prefixの登録・編集・非アクティブ化・CSVエクスポート | experiment_admin / experiment_worker | 未実施 |
 | B-NS-04 | 用語の登録・編集・有効無効切替・CSVエクスポート | experiment_admin / experiment_worker | 未実施 |
+| B-NS-05 | グループ追加と名前空間URI自動採番 | experiment_admin | 未実施 |
 | B-NS-05 | グループ追加と名前空間URI自動採番 | experiment_admin | 未実施 |
 | B-NS-06 | 用語登録・編集・重複チェック | experiment_admin | 未実施 |
 | B-NS-07 | 用語の上位層共有（ロール別共有先範囲の確認） | experiment_admin | 未実施 |

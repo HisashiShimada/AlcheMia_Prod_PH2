@@ -29,6 +29,7 @@
 - [B-EI-05：トランジション DnD 並べ替え](#b-ei-05トランジション-dnd-並べ替え)
 - [B-EI-06：実験作業者 ─ 進捗確認タブ・フィルタ・前提チェック](#b-ei-06実験作業者--進捗確認タブフィルタ前提チェック)
 - [B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了](#b-ei-07実験作業者--実験記録タブ実績値入力トランジション完了)
+- [B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了](#b-ei-07実験作業者--実験記録タブ実績値入力トランジション完了)
 - [B-EI-08：差異表示・確信度ボタン・定量評価入力](#b-ei-08差異表示確信度ボタン定量評価入力)
 - [トランジション状態遷移](#トランジション状態遷移)
   - [B-TR-01：通常フロー](#b-tr-01通常フロー)
@@ -270,6 +271,7 @@
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 17 | experiment_worker | 実験作業者メニュー → 「実験記録」タブを開く | `WorkRecordPanel` が表示される |
+| 17 | experiment_worker | 実験作業者メニュー → 「実験記録」タブを開く | `WorkRecordPanel` が表示される |
 | 18 | — | 画面上部を確認する | `WarningOutlined`（黄色）+「プロジェクト指示」+ 件数バッジの折りたたみパネル（背景色 `#fffbe6`）が表示されている |
 | 19 | experiment_worker | 折りたたみパネルを展開する | 指示事項が箇条書き（`<ul><li>`）で表示される |
 | 20 | — | 表示条件を確認する | 指示事項が0件の場合はパネル自体が非表示になっている |
@@ -408,18 +410,28 @@
 
 実験作業者が進捗確認タブ（`ProgressOverviewTab`）でサマリーカード・フィルタバー・トランジションテーブルを確認し、前提未完了のトランジションがロックされることを確認する。
 また、フェーズB移行により追加された `preparing`（準備中）・`ready`（準備完了）ステータスの操作ボタン仕様を確認する。
+また、フェーズB移行により追加された `preparing`（準備中）・`ready`（準備完了）ステータスの操作ボタン仕様を確認する。
 
 ### 関連
 
 | 項目 | 参照先 |
 |------|--------|
 | UI設計書 | `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`（v3.0.0） |
+| UI設計書 | `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`（v3.0.0） |
 | コンポーネント | `ProgressOverviewTab.tsx` / `SummaryCard`（サブコンポーネント）|
+| API | `GET /api/v1/progress/projects/:projectName/work-details` |
 | API | `GET /api/v1/progress/projects/:projectName/work-details` |
 
 ### 前提条件
 
 - `experiment_worker` としてログイン済み
+- `ExperimentWorkerMenu` が `getWorkDetails` API を呼び出し、`rows`（ProgressRow 配列）が `ProgressOverviewTab` に渡されていること
+- テスト用プロジェクトに以下のステータスのトランジションが含まれていること：
+  - `not_started` が1件以上
+  - `preparing` が1件（進捗確認タブから「開始」を押した直後の状態）
+  - `ready` が1件（「指示確認」ボタンを押した後の状態）
+  - `in_progress` が1件以上
+  - `completed` が1件以上
 - `ExperimentWorkerMenu` が `getWorkDetails` API を呼び出し、`rows`（ProgressRow 配列）が `ProgressOverviewTab` に渡されていること
 - テスト用プロジェクトに以下のステータスのトランジションが含まれていること：
   - `not_started` が1件以上
@@ -468,6 +480,8 @@
 |---|--------|------|---------|
 | 17 | — | `transition-2`（前提: `transition-1` 未完了）の操作列を確認する | 「開始」ボタンが `disabled` になり 🔒（LockOutlined・黄色）アイコンがトランジション名横に表示される |
 | 18 | experiment_worker | `disabled` の「開始」ボタンにホバーする | Tooltip「前の順序のトランジションを先に完了してください」が表示される |
+| 17 | — | `transition-2`（前提: `transition-1` 未完了）の操作列を確認する | 「開始」ボタンが `disabled` になり 🔒（LockOutlined・黄色）アイコンがトランジション名横に表示される |
+| 18 | experiment_worker | `disabled` の「開始」ボタンにホバーする | Tooltip「前の順序のトランジションを先に完了してください」が表示される |
 
 #### ステップ 5：レスポンシブ表示の確認
 
@@ -492,13 +506,17 @@
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
 | | | 未実施 | |
+| | | 未実施 | |
 
 ---
 
 ## B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了
+## B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了
 
 ### 概要
 
+実験作業者が `WorkRecordPanel` でテンプレートを選択し、型に応じた入力コントロール（InputNumber / Input）で実績値を入力し、「次へ」ボタンでトランジションを完了させられることを確認する。
+フェーズB対応として、指示確認フロー（`preparing` → `ready` → `in_progress`）・状態記録ダイアログ・状態プルダウン・API保存も検証する。
 実験作業者が `WorkRecordPanel` でテンプレートを選択し、型に応じた入力コントロール（InputNumber / Input）で実績値を入力し、「次へ」ボタンでトランジションを完了させられることを確認する。
 フェーズB対応として、指示確認フロー（`preparing` → `ready` → `in_progress`）・状態記録ダイアログ・状態プルダウン・API保存も検証する。
 
@@ -513,12 +531,19 @@
 | API | `POST /api/v1/experiment-data` |
 | API | `PATCH /api/v1/progress/.../transitions/:transitionId/status` |
 | API | `POST /api/v1/projects/.../instructions/confirm` |
+| API | `GET /api/v1/progress/projects/:projectName/work-details` |
+| API | `GET /api/v1/experiment-data/template-data` |
+| API | `POST /api/v1/experiment-data` |
+| API | `PATCH /api/v1/progress/.../transitions/:transitionId/status` |
+| API | `POST /api/v1/projects/.../instructions/confirm` |
 
 ### 前提条件
 
 - `experiment_worker` としてログイン済み
 - 作業対象トランジション（`transition-1`）が `preparing` 状態であること（進捗確認タブから「開始」が押された直後）
+- 作業対象トランジション（`transition-1`）が `preparing` 状態であること（進捗確認タブから「開始」が押された直後）
 - `transition-1` のテンプレートに `FloatValue`・`StringValue` のプロパティが存在すること
+- プロジェクト指示が1件以上登録されていること
 - プロジェクト指示が1件以上登録されていること
 
 ### 操作手順
@@ -619,12 +644,23 @@
 - [ ] 「次へ」ボタン押下 → `completed` 遷移・API 呼び出し確認
 - [ ] **保存は実 API（`POST /api/v1/experiment-data`）** が呼ばれること（モック通知ではない）
 - [ ] 状態記録ダイアログが「状態記録」ボタンで開く
+- [ ] 左Sider は **Materials / Conditions / Results のカテゴリ別グループ表示**（フラットなTableではない）
+- [ ] **ボタン群は Content 上部（WorkHeader 直下）に配置**（Content 最下部ではない）
+- [ ] ボタン配置：「保存」「次へ」 **|** 「コメント」「スキップ」（Divider でグループ区切り）
+- [ ] WorkHeader 1行目：「開始」「終了」 **|** 「異常終了（赤）」「状態記録」（Divider でグループ区切り）
+- [ ] **状態プルダウンは活性状態**（`disabled` 属性が削除済み）
+- [ ] 指示確認ボタン押下 → `preparing` → `ready` 遷移・API 呼び出し確認
+- [ ] 「開始」ボタン押下 → `ready` → `in_progress` 遷移
+- [ ] 「次へ」ボタン押下 → `completed` 遷移・API 呼び出し確認
+- [ ] **保存は実 API（`POST /api/v1/experiment-data`）** が呼ばれること（モック通知ではない）
+- [ ] 状態記録ダイアログが「状態記録」ボタンで開く
 - [ ] 完了済み閲覧時（`isReadOnly=true`）は保存ボタン群が非表示になる
 
 ### テスト結果
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
+| | | 未実施 | |
 | | | 未実施 | |
 
 ---
@@ -1086,6 +1122,9 @@
 | B-EI-03 | プロジェクト指示ダイアログの指示種別入力と指示粒度設定 | experiment_admin / experiment_worker | 未実施 |
 | B-EI-04 | 一括タブ→タスクNタブへの伝播と個別編集 | experiment_admin | 未実施 |
 | B-EI-05 | トランジション DnD 並べ替え | experiment_admin | 未実施 |
+| B-EI-06 | 実験作業者：進捗確認タブ・フィルタ・前提チェック | experiment_worker | 未実施 |
+| B-EI-07 | 実験作業者：実験記録タブ・実績値入力・トランジション完了 | experiment_worker | 未実施 |
+| B-EI-08 | 差異表示・確信度ボタン・定量評価入力 | experiment_worker | 未実施 |
 | B-EI-06 | 実験作業者：進捗確認タブ・フィルタ・前提チェック | experiment_worker | 未実施 |
 | B-EI-07 | 実験作業者：実験記録タブ・実績値入力・トランジション完了 | experiment_worker | 未実施 |
 | B-EI-08 | 差異表示・確信度ボタン・定量評価入力 | experiment_worker | 未実施 |
