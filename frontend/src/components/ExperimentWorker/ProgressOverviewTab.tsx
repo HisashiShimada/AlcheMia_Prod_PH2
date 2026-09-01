@@ -355,9 +355,10 @@ export default function ProgressOverviewTab({
 
   // ── 操作列 ─────────────────────────────────────────
   // 活性条件:
-  //   - 準備状態(preparing)・準備完了状態(ready)・休止状態(on_hold): 常に活性
-  //   - 未着手(not_started): 前提トランジションが全て completed の場合のみ活性
-  //     （前提なしの場合も活性）
+  //   - 前提トランジションが全て completed の場合のみ活性
+  //   - 前提なしの場合は常に活性
+  //   - ステータスが preparing・ready・on_hold・not_started の場合のみ活性対象
+  //     （completed・issue・in_progress は操作不要のため非活性）
   const renderAction = (_: unknown, r: ProgressRow) => {
     const isPrerequisitesMet =
       (r.prerequisiteTransitionIds ?? []).length === 0 ||
@@ -366,13 +367,14 @@ export default function ProgressOverviewTab({
       );
 
     const isActive =
-      r.status === 'preparing' ||
-      r.status === 'ready' ||
-      r.status === 'on_hold' ||
-      (r.status === 'not_started' && isPrerequisitesMet);
+      (r.status === 'preparing' ||
+       r.status === 'ready' ||
+       r.status === 'on_hold' ||
+       r.status === 'not_started') &&
+      isPrerequisitesMet;
 
     const tooltipTitle =
-      r.status === 'not_started' && !isPrerequisitesMet
+      !isPrerequisitesMet
         ? `前提トランジション（${(r.prerequisiteTransitionIds ?? []).join(', ')}）が全て完了してから開始できます`
         : undefined;
 
