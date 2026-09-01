@@ -10,6 +10,7 @@ import { TransitionStatus } from '../types/transitionData';
 import { loadSqlFile } from '../sql/loader';
 import { getPgp } from '../database/db';
 import type { EventLogRow } from '../types/eventLog';
+import { toJSTIsoString } from '../utils/dateUtils';
 
 /**
  * 指示送信ログのパラメータ
@@ -496,6 +497,8 @@ export class EventLogRepository {
    *         <property key="progress_percentage" xsi:type="xs:int">...</property>
    *         <property key="report_type" xsi:type="xs:string">transition_progress</property>
    *         <property key="comments" xsi:type="xs:string">...</property>
+   *         <property key="lifecycle:transition" xsi:type="xs:string">...</property>
+   *         <property key="time:timestamp" xsi:type="xs:dateTime">...</property>
    *       </event>
    *     </trace>
    *   </log>
@@ -554,7 +557,7 @@ export class EventLogRepository {
       const ts = Date.now();
       const atIndex = loginId.indexOf('@');
       const shortName = atIndex > 0 ? loginId.substring(0, atIndex) : loginId;
-      const nowIso = new Date(ts).toISOString();
+      const nowIso = toJSTIsoString(new Date(ts));
 
       // 4. JSON構造を構築
       // ref 採番ルール（MAIML XML 仕様準拠）:
@@ -605,6 +608,16 @@ export class EventLogRepository {
             '@key': 'comments',
             '@xsi:type': 'stringType',
             '#text': comment ?? '',
+          },
+          {
+            '@key': 'lifecycle:transition',
+            '@xsi:type': 'stringType',
+            '#text': statusLabel,
+          },
+          {
+            '@key': 'time:timestamp',
+            '@xsi:type': 'dateTimeType',
+            '#text': nowIso,
           },
         ],
       };
@@ -1175,6 +1188,125 @@ export class EventLogRepository {
   }
 
   /**
+   * トランジションコメントイベントログを記録
+   *
+   * 実験作業者が ExperimentCommentDialog から入力したコメントを
+   * 対象トランジションのログとして maiml_event_log に保存する。
+   *
+   * 生成する XML 相当の JSON 構造:
+   * ```xml
+   * <eventLog id="eventLogID">
+   *   <log id="work_{ts}_{shortName}_log_transition_{transitionId}" ref="{transitionId}">
+   *     <trace id="trace_{transitionId}_work_{ts}_{shortName}" ref="{transitionId}">
+   *       <event id="event_comment_{loginId}_{ts}" ref="{transitionId}">
+   *         <property key="time:timestamp" xsi:type="dateTimeType">...</property>
+   *         <property key="worker_id" xsi:type="stringType">...</property>
+   *         <property key="report_type" xsi:type="stringType">transition_comment</property>
+   *         <property key="ns1:transitionComment" xsi:type="stringType">...</property>
+   *       </event>
+   *     </trace>
+   *   </log>
+   * </eventLog>
+   * ```
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param transitionId - トランジションID
+   * @param userId - 記録者ユーザID（user_authenticationのuser_id）
+   * @param comment - コメント本文
+   * @param client - トランザクション用のPoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async insertTransitionCommentLog(
+    organizationId: string,
+    projectId: string,
+    transitionId: string,
+    userId: string,
+    comment: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      // 1. sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
+      const sequenceQuery = await this.sequenceQueryPromise;
+      const sequenceResult = await client.query(sequenceQuery, [
+        organizationId,
+        projectId,
+      ]);
+      const nextSequenceNo: number = sequenceResult.rows[0].next_sequence_no;
+
+      // 2. loginId の設定
+      const loginId: string = userId;
+
+      // 3. ID生成に必要な値を算出
+      //    ts: ログ生成タイムスタンプ（Unixミリ秒）
+      //    shortName: loginIdの@より前の部分（メールアドレス以外の場合はloginId全体）
+      const ts = Date.now();
+      const atIndex = loginId.indexOf('@');
+      const shortName = atIndex > 0 ? loginId.substring(0, atIndex) : loginId;
+      const nowIso = new Date(ts).toISOString();
+
+      // 4. JSON構造を構築
+      const eventObj = {
+        '@id': `event_comment_${loginId}_${ts}`,
+        '@ref': transitionId,
+        property: [
+          {
+            '@key': 'time:timestamp',
+            '@xsi:type': 'dateTimeType',
+            '#text': nowIso,
+          },
+          {
+            '@key': 'worker_id',
+            '@xsi:type': 'stringType',
+            '#text': loginId,
+          },
+          {
+            '@key': 'report_type',
+            '@xsi:type': 'stringType',
+            '#text': 'transition_comment',
+          },
+          {
+            '@key': 'ns1:transitionComment',
+            '@xsi:type': 'stringType',
+            '#text': comment,
+          },
+        ],
+      };
+
+      const logJson = {
+        eventLog: {
+          '@id': 'eventLogID',
+          log: {
+            '@id': `work_${ts}_${shortName}_log_transition_${transitionId}`,
+            '@ref': transitionId,
+            trace: {
+              '@id': `trace_${transitionId}_work_${ts}_${shortName}`,
+              '@ref': transitionId,
+              event: eventObj,
+            },
+          },
+        },
+      };
+
+      // 5. maiml_event_log にINSERT
+      const insertQuery = await this.insertQueryPromise;
+
+      await client.query(insertQuery, [
+        organizationId,
+        projectId,
+        nextSequenceNo,
+        JSON.stringify(logJson),
+        userId,
+      ]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while inserting transition comment log',
+        error as Error
+      );
+    }
+  }
+
+  /**
    * プロジェクトの maiml_event_log 全件取得
    *
    * sequence_no 昇順で返す（eventLog 内のログ順序を保持するため）。
@@ -1184,6 +1316,36 @@ export class EventLogRepository {
    * @returns EventLogRow 配列（sequence_no 昇順）
    * @throws {DatabaseError} データベースエラーが発生した場合
    */
+  /**
+   * トランジション進捗ログ取得（トランジション単位）
+   *
+   * 指定したトランジションIDに紐づく maiml_event_log を sequence_no 昇順で返す。
+   * transition_progress / transition_comment の両ログが含まれるため、
+   * 呼び出し元（サービス層）で report_type によるフィルタリングを行うこと。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @param transitionId   - トランジションID
+   * @returns EventLogRow 配列（sequence_no 昇順）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findTransitionStateRecords(
+    organizationId: string,
+    projectId: string,
+    transitionId: string
+  ): Promise<EventLogRow[]> {
+    try {
+      const sql = await loadSqlFile('event_log/findTransitionStateRecords.sql');
+      const pgp = getPgp();
+      return pgp.any<EventLogRow>(sql, [organizationId, projectId, transitionId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while fetching transition state records',
+        error as Error
+      );
+    }
+  }
+
   async findAllByProject(
     organizationId: string,
     projectId: string

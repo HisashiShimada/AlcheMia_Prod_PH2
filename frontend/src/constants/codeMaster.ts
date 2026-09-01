@@ -223,23 +223,23 @@ export type InstructionTargetType = typeof InstructionTarget[keyof typeof Instru
  *
  * @remarks
  * backend/src/types/transitionData.ts の TransitionStatusEnum に対応
- * 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+ * 1: 初期状態, 2: 準備中, 3: 準備完了, 4: 実行中, 5: 一時停止, 6: 完了, 7: エラー
  */
 export const TransitionStatusCode = {
   /** 初期状態（未開始） */
-  INITIAL: 0,
+  INITIAL: 1,
   /** 準備状態 */
-  PREPARING: 1,
+  PREPARING: 2,
   /** 準備完了状態 */
-  READY: 2,
+  READY: 3,
   /** 動作状態（実行中） */
-  IN_PROGRESS: 3,
+  IN_PROGRESS: 4,
   /** 休止状態（一時停止） */
-  PAUSED: 4,
+  PAUSED: 5,
   /** 終状態（完了） */
-  COMPLETED: 5,
+  COMPLETED: 6,
   /** 異常終了状態 */
-  ERROR: 6,
+  ERROR: 7,
 } as const;
 
 export type TransitionStatusCodeType = typeof TransitionStatusCode[keyof typeof TransitionStatusCode];

@@ -20,6 +20,7 @@ import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
+import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { MaimlWriterService } from './maimlWriterService';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
@@ -685,6 +686,44 @@ export class ProjectService {
       );
 
       console.log(`[DEBUG] checkout - Updated worker_linked_flg for ${updatedTaskCount} tasks`);
+
+      // transition_data: prerequisite_transition_ids = '{}' のトランジションを「2: 準備状態」に更新
+      // prerequisite_transition_ids が設定されているトランジションは「1: 初期状態」のまま据え置く
+      const transitionDataRepository = new TransitionDataRepository();
+      await transitionDataRepository.updateStatusForCheckout(client, organizationId, projectId, userId);
+
+      console.log(`[DEBUG] checkout - Updated transition_data status to PREPARING for prerequisite-less transitions`);
+
+      // チェックアウト時イベントログ記録（COMMIT前・トランザクション内）
+      // updateStatusForCheckout で PREPARING になったトランジションに対して lifecycle:transition を記録する
+      try {
+        const preparedTransitions = await transitionDataRepository.findPreparedForCheckout(
+          client,
+          organizationId,
+          projectId
+        );
+        const eventLogRepository = new EventLogRepository();
+        for (const preparedTransition of preparedTransitions) {
+          await eventLogRepository.insertTransitionProgressLog(
+            organizationId,
+            projectId,
+            preparedTransition.transition_id,
+            userId,
+            'preparing',
+            0,
+            null,
+            client,
+            preparedTransition.method_id,
+            null,
+            null,
+            null
+          );
+        }
+        console.log(`[DEBUG] checkout - Inserted transition progress logs for ${preparedTransitions.length} transitions`);
+      } catch (logError) {
+        // イベントログ記録失敗はコンソール警告に留め、チェックアウト処理は続行する
+        console.warn('[checkout] insertTransitionProgressLog failed (checkout continues):', logError);
+      }
 
       // トランザクションコミット
       await client.query('COMMIT');

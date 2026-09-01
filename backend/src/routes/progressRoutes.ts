@@ -167,8 +167,8 @@ router.patch(
     body('status')
       .notEmpty()
       .withMessage('statusは必須です')
-      .isInt({ min: 0, max: 6 })
-      .withMessage('statusは0〜6の整数である必要があります（0:初期, 1:準備中, 2:準備完了, 3:実行中, 4:一時停止, 5:完了, 6:エラー）'),
+      .isInt({ min: 1, max: 7 })
+      .withMessage('statusは1〜7の整数である必要があります（1:初期, 2:準備中, 3:準備完了, 4:実行中, 5:一時停止, 6:完了, 7:エラー）'),
     body('progressRate')
       .optional()
       .isInt({ min: 0, max: 100 })
@@ -180,6 +180,44 @@ router.patch(
   ],
   handleValidationErrors,
   progressController.updateTransitionStatus
+);
+
+/**
+ * トランジションコメント保存
+ * POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
+ * @description 実験作業者が記録したコメントを maiml_event_log に追記する
+ * @roles experiment_worker（書込可）
+ */
+router.post(
+  '/projects/:projectId/methods/:methodId/transitions/:transitionId/comment',
+  authMiddleware,
+  checkPermission('050000', 1),
+  [
+    // パスパラメータバリデーション
+    validateParamString('projectId', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamString('transitionId', 1, 255),
+
+    // リクエストボディバリデーション
+    body('taskNo')
+      .notEmpty()
+      .withMessage('taskNoは必須です')
+      .isInt({ min: 1 })
+      .withMessage('taskNoは1以上の整数である必要があります'),
+    body('comment')
+      .notEmpty()
+      .withMessage('commentは必須です')
+      .isString()
+      .withMessage('commentは文字列である必要があります')
+      .isLength({ max: 500 })
+      .withMessage('commentは500文字以内である必要があります'),
+  ],
+  handleValidationErrors,
+  progressController.saveTransitionComment
 );
 
 /**
@@ -247,6 +285,31 @@ router.get(
   ],
   handleValidationErrors,
   progressController.getNgTasks
+);
+
+/**
+ * トランジション状態遷移時刻取得（状態記録ダイアログ初期値用）
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
+ * @description
+ *   maiml_event_log から対象トランジションの各状態遷移時刻を抽出して返す。
+ *   状態記録ダイアログを開いた際の初期値表示に使用する。
+ * @roles experiment_worker（読取専用）
+ */
+router.get(
+  '/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records',
+  authMiddleware,
+  checkPermission('050000', 0),
+  [
+    validateParamString('projectId', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamString('transitionId', 1, 255),
+  ],
+  handleValidationErrors,
+  progressController.getTransitionStateRecords
 );
 
 export default router;

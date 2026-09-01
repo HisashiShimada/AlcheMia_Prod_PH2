@@ -33,6 +33,8 @@ export interface WorkerProjectFilters {
   order: 'asc' | 'desc';
   limit: number;
   offset: number;
+  /** ログインユーザーが閲覧可能なグループCDの配列。指定時はそのグループに属するプロジェクトのみ取得 */
+  visibleGroupCds?: string[];
 }
 
 /**
@@ -70,6 +72,15 @@ export async function findWorkerAccessible(
     // デフォルト: ステータス 1, 2, 3（タスク実行待ち、実行中、レビュー待ち）
     statusFilter = 'AND project.project_status IN (1, 2, 3)';
   }
+
+  // グループフィルタの構築
+  let groupFilter = '';
+  if (filters.visibleGroupCds && filters.visibleGroupCds.length > 0) {
+    // ログインユーザーが閲覧可能なグループCDのプロジェクトのみ取得
+    const paramIndex = params.length + 1;
+    params.push(filters.visibleGroupCds);
+    groupFilter = `AND project.organization_group_cd = ANY($${paramIndex}::text[])`;
+  }
   
   // ソート列の決定
   const sortColumn = filters.sortBy === 'project_name' 
@@ -81,6 +92,7 @@ export async function findWorkerAccessible(
   // 動的プレースホルダーを置換
   sqlQuery = sqlQuery
     .replace('{STATUS_FILTER}', statusFilter)
+    .replace('{GROUP_FILTER}', groupFilter)
     .replace('{SORT_COLUMN}', sortColumn)
     .replace('{SORT_ORDER}', sortOrder)
     .replace('{LIMIT}', filters.limit.toString())
@@ -89,6 +101,7 @@ export async function findWorkerAccessible(
   console.log('Executing SQL query from file: projects/findWorkerAccessible.sql');
   console.log('With params:', params);
   console.log('Status filter:', statusFilter);
+  console.log('Group filter:', groupFilter);
   console.log('Sort:', sortColumn, sortOrder);
   console.log('Pagination:', `LIMIT ${filters.limit} OFFSET ${filters.offset}`);
   
@@ -108,12 +121,14 @@ export async function findWorkerAccessible(
  * @param organizationId 組織ID
  * @param userId ユーザーID
  * @param status プロジェクトステータス（オプション）
+ * @param visibleGroupCds ログインユーザーが閲覧可能なグループCDの配列（オプション）
  * @returns 総件数
  */
 export async function countWorkerAccessible(
   organizationId: string,
   userId: string,
-  status?: '1' | '2' | '3'
+  status?: '1' | '2' | '3',
+  visibleGroupCds?: string[]
 ): Promise<number> {
   const pgp = getPgp();
   
@@ -121,6 +136,7 @@ export async function countWorkerAccessible(
   console.log('organizationId:', organizationId);
   console.log('userId:', userId);
   console.log('status:', status);
+  console.log('visibleGroupCds:', visibleGroupCds);
   
   // 外部SQLファイルを読み込み
   let sqlQuery = await loadSqlFile('projects/countWorkerAccessible.sql');
@@ -137,13 +153,25 @@ export async function countWorkerAccessible(
     // デフォルト: ステータス 1, 2, 3（タスク実行待ち、実行中、レビュー待ち）
     statusFilter = 'AND project.project_status IN (1, 2, 3)';
   }
+
+  // グループフィルタの構築
+  let groupFilter = '';
+  if (visibleGroupCds && visibleGroupCds.length > 0) {
+    // ログインユーザーが閲覧可能なグループCDのプロジェクトのみ取得
+    const paramIndex = params.length + 1;
+    params.push(visibleGroupCds);
+    groupFilter = `AND project.organization_group_cd = ANY($${paramIndex}::text[])`;
+  }
   
   // 動的プレースホルダーを置換
-  sqlQuery = sqlQuery.replace('{STATUS_FILTER}', statusFilter);
+  sqlQuery = sqlQuery
+    .replace('{STATUS_FILTER}', statusFilter)
+    .replace('{GROUP_FILTER}', groupFilter);
   
   console.log('Executing SQL query from file: projects/countWorkerAccessible.sql');
   console.log('With params:', params);
   console.log('Status filter:', statusFilter);
+  console.log('Group filter:', groupFilter);
   
   try {
     const result = await pgp.one<{ count: string }>(sqlQuery, params);

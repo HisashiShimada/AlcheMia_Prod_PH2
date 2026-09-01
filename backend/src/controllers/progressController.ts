@@ -294,6 +294,56 @@ export async function updateTransitionStatus(
 }
 
 /**
+ * トランジションコメント保存ハンドラー
+ *
+ * POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ *
+ * @description
+ *   実験作業者がコメントを保存する。
+ *   maiml_event_log に ns1:transitionComment プロパティを持つ event タグを追記する。
+ *   ステータス変更は行わない。
+ */
+export async function saveTransitionComment(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { projectId, methodId, transitionId } = req.params;
+    const { taskNo: _taskNo, comment } = req.body;
+
+    const { organizationId, userId } = req.user!;
+
+    const transitionDataRepository = new TransitionDataRepository();
+    const progressService = new ProgressService(transitionDataRepository);
+
+    await progressService.saveTransitionComment(
+      organizationId,
+      projectId,
+      transitionId,
+      userId,
+      comment
+    );
+
+    res.status(HTTP_STATUS.CREATED).json({
+      success: true,
+      data: {
+        transitionId,
+        taskNo: _taskNo,
+        comment,
+        savedAt: new Date().toISOString(),
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * タスク一覧取得（実験作業者用）ハンドラー
  * 
  * GET /api/v1/progress/projects/:projectName/worker-tasks
@@ -649,6 +699,48 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
         requestId
       }
     });
+  }
+}
+
+
+/**
+ * トランジション状態遷移時刻取得API（状態記録ダイアログ初期値用）
+ *
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records
+ *
+ * @description
+ *   maiml_event_log から対象トランジションの各状態遷移時刻を抽出して返す。
+ *   状態記録ダイアログを開いた際の初期値表示に使用する。
+ * @roles experiment_worker（読取専用）
+ */
+export async function getTransitionStateRecords(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { projectId, methodId, transitionId } = req.params;
+    const { organizationId } = req.user!;
+
+    const transitionDataRepository = new TransitionDataRepository();
+    const progressService = new ProgressService(transitionDataRepository);
+
+    const result = await progressService.getTransitionStateRecords(
+      organizationId,
+      projectId,
+      transitionId
+    );
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4(),
+      },
+    });
+  } catch (error) {
+    next(error);
   }
 }
 

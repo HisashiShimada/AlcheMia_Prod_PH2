@@ -44,6 +44,7 @@
 |---|---|---|
 | 指示送信（Preparation） | `Preparation_schedule` | `insertProjectInstructionSentLog` |
 | 品質評価（Quality） | `Quality_evaluation` | `buildQualityEvalLogEntries` |
+| トランジション進捗（WorkerTransition） | `WorkerTransition_update` | `insertTransitionProgressLog` |
 
 > 新たなフェーズが追加される場合はこのテーブルに追記すること。  
 > ownerRefs が複数の assignee を持つ場合は枝番を付ける（例: `_assignee_1`, `_assignee_2`）。
@@ -65,6 +66,7 @@
 |---|---|---|
 | 指示送信（Preparation） | `PreparationEvent` | `schedule` |
 | 品質評価（Quality） | — | —（lifecycle:transition は使用しない） |
+| トランジション進捗（WorkerTransition） | `WorkerTransitionEvent` | `initial` / `preparing` / `ready` / `running` / `paused` / `completed` / `error` |
 
 > 例: `name = "Alchemia:PreparationEvent"`, `description = "{projectName} PreparationEvent(schedule)"`
 
@@ -92,6 +94,7 @@
 | フェーズ | 値 |
 |---|---|
 | 指示送信（Preparation） | `schedule` |
+| トランジション進捗（WorkerTransition） | `initial` / `preparing` / `ready` / `running` / `paused` / `completed` / `error` |
 
 > 新たなフェーズが追加される場合はこのテーブルに追記すること。
 
