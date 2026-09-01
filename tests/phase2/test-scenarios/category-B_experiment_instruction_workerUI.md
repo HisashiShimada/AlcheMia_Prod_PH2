@@ -804,13 +804,13 @@
 
 | 数値 | 定数名 | フロントエンド文字列 | 表示ラベル |
 |------|--------|-------------------|----------|
-| 0 | `INITIAL` | `not_started` | 未着手 |
-| 1 | `PREPARING` | `preparing` | 準備中 |
-| 2 | `READY` | `ready` | 準備完了 |
-| 3 | `IN_PROGRESS` | `in_progress` | 作業中 |
-| 4 | `PAUSED` | `on_hold` | 一時停止 |
-| 5 | `COMPLETED` | `completed` | 完了 |
-| 6 | `ERROR` | `issue` | 問題あり（エラー）|
+| 0 | `INITIAL` | `not_started` | **初期状態** |
+| 1 | `PREPARING` | `preparing` | **準備状態** |
+| 2 | `READY` | `ready` | **準備完了状態** |
+| 3 | `IN_PROGRESS` | `in_progress` | **動作状態** |
+| 4 | `PAUSED` | `on_hold` | **休止状態** |
+| 5 | `COMPLETED` | `completed` | **終状態** |
+| 6 | `ERROR` | `issue` | **異常終了状態** |
 
 ### 遷移マトリクス（`ALLOWED_TRANSITIONS` / `progressService.ts` L52-60）
 
@@ -843,7 +843,7 @@
 
 ### 概要
 
-実験作業者が `transition-1` を通常フロー（未着手→準備中→準備完了→作業中→完了）で完了させられることを確認する。
+実験作業者が `transition-1` を通常フロー（初期状態→準備状態→準備完了状態→動作状態→終状態）で完了させられることを確認する。
 
 ### 前提条件
 
@@ -854,36 +854,36 @@
 
 ### 操作手順
 
-#### ステップ 1：INITIAL → PREPARING（進捗タブ「開始」）
+#### ステップ 1：初期状態 → 準備状態（INITIAL(0) → PREPARING(1)：進捗タブ「開始」）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 1 | experiment_worker | 進捗確認タブ（key='4'）を開く | `ProgressOverviewTab` が表示され、`transition-1` 行に「開始」ボタンが表示される |
 | 2 | experiment_worker | `transition-1` 行の「開始」ボタンをクリックする | `PATCH .../transitions/transition-1/status` が呼ばれ `status=1`（PREPARING）が送信される |
-| 3 | — | `transition-1` のステータスを確認する | ステータスが `preparing`（準備中）に変わり、ProgressOverviewTab の行表示が更新される |
+| 3 | — | `transition-1` のステータスを確認する | ステータスが `preparing`（準備状態）に変わり、ProgressOverviewTab の行表示が更新される |
 | 4 | — | 実験記録タブ（key='3'）に自動遷移することを確認する | `handleTabChange('3')` が呼ばれて実験記録タブが表示される |
 
-#### ステップ 2：PREPARING → READY（「指示確認」ボタン）
+#### ステップ 2：準備状態 → 準備完了状態（PREPARING(1) → READY(2)：「指示確認」ボタン）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 5 | experiment_worker | 実験記録タブの `InstructionCollapse`（プロジェクト指示パネル）を展開する | 未確認の指示内容が表示され、「指示確認」ボタンが表示されている |
 | 6 | experiment_worker | 「指示確認」ボタンをクリックする | ① `PUT .../instructions/{instructionId}/confirm` が呼ばれて指示が確認済みになる ② `PATCH .../transitions/transition-1/status` が呼ばれ `status=2`（READY）が送信される |
-| 7 | — | `transition-1` のステータスを確認する | ステータスが `ready`（準備完了）に変わる |
+| 7 | — | `transition-1` のステータスを確認する | ステータスが `ready`（準備完了状態）に変わる |
 
-#### ステップ 3：READY → IN_PROGRESS（WorkHeader「開始」）
+#### ステップ 3：準備完了状態 → 動作状態（READY(2) → IN_PROGRESS(3)：WorkHeader「開始」）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 8 | experiment_worker | WorkHeader の「開始」ボタンをクリックする | `PATCH .../transitions/transition-1/status` が呼ばれ `status=3`（IN_PROGRESS）が送信される |
-| 9 | — | `transition-1` のステータスを確認する | ステータスが `in_progress`（作業中）に変わり、WorkHeader の状態プルダウンが「実行中」になる |
+| 9 | — | `transition-1` のステータスを確認する | ステータスが `in_progress`（動作状態）に変わり、WorkHeader の状態プルダウンが「動作状態」になる |
 
-#### ステップ 4：IN_PROGRESS → COMPLETED（WorkHeader「終了」または「保存して次へ」）
+#### ステップ 4：動作状態 → 終状態（IN_PROGRESS(3) → COMPLETED(5)：WorkHeader「終了」または「保存して次へ」）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 10 | experiment_worker | WorkHeader の「終了」ボタンをクリックする | `PATCH .../transitions/transition-1/status` が呼ばれ `status=5`（COMPLETED）が送信される |
-| 11 | — | `transition-1` のステータスを確認する | ステータスが `completed`（完了）に変わる |
+| 11 | — | `transition-1` のステータスを確認する | ステータスが `completed`（終状態）に変わる |
 | 12 | — | WorkHeader の「終了」「開始」ボタンの状態を確認する | COMPLETED は終端状態のため、これ以上ステータス変更できないことを確認する |
 
 ### 確認ポイント
@@ -907,7 +907,7 @@
 
 ### 概要
 
-作業中トランジションを WorkHeader「異常終了」ボタンで ERROR 状態に遷移させ、終端状態になることを確認する。
+動作状態のトランジションを WorkHeader「異常終了」ボタンで異常終了状態（ERROR）に遷移させ、終端状態になることを確認する。
 
 ### 前提条件
 
@@ -920,7 +920,7 @@
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 1 | experiment_worker | 実験記録タブで WorkHeader の「異常終了」ボタン（赤色）をクリックする | `PATCH .../transitions/transition-1/status` が呼ばれ `status=6`（ERROR）が送信される |
-| 2 | — | `transition-1` のステータスを確認する | ステータスが `issue`（問題あり/エラー）に変わる |
+| 2 | — | `transition-1` のステータスを確認する | ステータスが `issue`（異常終了状態）に変わる |
 | 3 | — | 全体進捗タブで `transition-1` 行の操作列を確認する | 「詳細確認」ボタンが表示される（終端状態のため作業不可）|
 | 4 | — | WorkHeader から再度ステータス変更を試みる | ERROR 状態からの遷移が拒否される（`ALLOWED_TRANSITIONS[6] = [6]` のみ）|
 
@@ -938,11 +938,11 @@
 
 ---
 
-## B-TR-03：一時停止・再開（IN_PROGRESS → PAUSED → IN_PROGRESS）
+## B-TR-03：休止状態・動作状態（IN_PROGRESS → PAUSED → IN_PROGRESS）
 
 ### 概要
 
-作業中トランジションを状態プルダウンで一時停止（PAUSED）に変更し、再び IN_PROGRESS に戻せることを確認する。
+動作状態のトランジションを状態プルダウンで休止状態（PAUSED）に変更し、再び動作状態（IN_PROGRESS）に戻せることを確認する。
 
 > **注意**: `PAUSED` (4) への遷移は現在 WorkHeader に専用ボタンなし。状態プルダウン（WorkHeader 内の `<Select>`）から直接変更する。
 
@@ -953,28 +953,28 @@
 
 ### 操作手順
 
-#### ステップ 1：IN_PROGRESS → PAUSED
+#### ステップ 1：動作状態 → 休止状態（IN_PROGRESS(3) → PAUSED(4)）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 1 | experiment_worker | WorkHeader の状態プルダウンを開く | 「実行中」が選択されており、変更可能な選択肢が表示される |
-| 2 | experiment_worker | プルダウンで「一時停止」を選択する | `PATCH .../transitions/transition-1/status` が呼ばれ `status=4`（PAUSED）が送信される |
-| 3 | — | `transition-1` のステータスを確認する | ステータスが `on_hold`（一時停止）に変わる |
+| 1 | experiment_worker | WorkHeader の状態プルダウンを開く | 「動作状態」が選択されており、変更可能な選択肢が表示される |
+| 2 | experiment_worker | プルダウンで「休止状態」を選択する | `PATCH .../transitions/transition-1/status` が呼ばれ `status=4`（PAUSED）が送信される |
+| 3 | — | `transition-1` のステータスを確認する | ステータスが `on_hold`（休止状態）に変わる |
 | 4 | — | 全体進捗タブで `transition-1` 行を確認する | 「再開」ボタンが表示される |
 
-#### ステップ 2：PAUSED → IN_PROGRESS
+#### ステップ 2：休止状態 → 動作状態（PAUSED(4) → IN_PROGRESS(3)）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 5 | experiment_worker | 全体進捗タブで `transition-1` 行の「再開」ボタンをクリックする | 実験記録タブに遷移し（`onGoToWork` 呼び出し）、`transition-1` の作業記録画面が表示される |
-| 6 | experiment_worker | WorkHeader の状態プルダウンで「実行中」を選択する | `PATCH .../transitions/transition-1/status` が呼ばれ `status=3`（IN_PROGRESS）が送信される |
-| 7 | — | `transition-1` のステータスを確認する | ステータスが `in_progress`（作業中）に戻る |
+| 6 | experiment_worker | WorkHeader の状態プルダウンで「動作状態」を選択する | `PATCH .../transitions/transition-1/status` が呼ばれ `status=3`（IN_PROGRESS）が送信される |
+| 7 | — | `transition-1` のステータスを確認する | ステータスが `in_progress`（動作状態）に戻る |
 
 ### 確認ポイント
 
 - [ ] IN_PROGRESS → PAUSED: `status=4` が API に送信される
 - [ ] PAUSED → IN_PROGRESS: `status=3` が API に送信される
-- [ ] PAUSED 状態では全体進捗タブに「再開」ボタンが表示される
+- [ ] 休止状態（PAUSED）では全体進捗タブに「再開」ボタンが表示される
 
 ### テスト結果
 
@@ -988,7 +988,7 @@
 
 ### 概要
 
-`transition-1` が IN_PROGRESS 中に別の `transition-2` の「開始」ボタンを押すと確認ダイアログが表示され、承認すると `transition-1` が INITIAL に戻り `transition-2` が PREPARING になることを確認する。
+`transition-1` が動作状態（IN_PROGRESS）中に別の `transition-2` の「開始」ボタンを押すと確認ダイアログが表示され、承認すると `transition-1` が初期状態（INITIAL）に戻り `transition-2` が準備状態（PREPARING）になることを確認する。
 
 ### 前提条件
 
@@ -1000,18 +1000,18 @@
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 1 | experiment_worker | 全体進捗タブを開く | `transition-1`（作業中）と `transition-2`（未着手）が表示されている |
+| 1 | experiment_worker | 全体進捗タブを開く | `transition-1`（動作状態）と `transition-2`（初期状態）が表示されている |
 | 2 | experiment_worker | `transition-2` 行の「開始」ボタンをクリックする | 確認ダイアログが表示される（「別のトランジションが作業中です」タイトル、`transition-1` 名が表示される）|
-| 3 | experiment_worker | ダイアログで「切り替える」ボタンをクリックする | ① `transition-1` に `status=0`（INITIAL）を PATCH ② `transition-2` に `status=1`（PREPARING）を PATCH ③ 実験記録タブに遷移する |
-| 4 | — | `transition-1` のステータスを確認する | INITIAL(0) = `not_started` に戻っている |
-| 5 | — | `transition-2` のステータスを確認する | PREPARING(1) = `preparing` になっている |
-| 6 | experiment_worker | ダイアログで「キャンセル」を選択した場合（別ケース）| ダイアログが閉じ、`transition-1` は IN_PROGRESS のまま変化しない |
+| 3 | experiment_worker | ダイアログで「切り替える」ボタンをクリックする | ① `transition-1` に `status=0`（初期状態）を PATCH ② `transition-2` に `status=1`（準備状態）を PATCH ③ 実験記録タブに遷移する |
+| 4 | — | `transition-1` のステータスを確認する | 初期状態（INITIAL=0）に戻っている |
+| 5 | — | `transition-2` のステータスを確認する | 準備状態（PREPARING=1）になっている |
+| 6 | experiment_worker | ダイアログで「キャンセル」を選択した場合（別ケース）| ダイアログが閉じ、`transition-1` は動作状態（IN_PROGRESS）のまま変化しない |
 
 ### 確認ポイント
 
 - [ ] IN_PROGRESS の別トランジションが存在する場合、「開始」押下で確認ダイアログが表示される
-- [ ] 「切り替える」承認時: 旧 IN_PROGRESS トランジションが INITIAL(0) に戻る
-- [ ] 「切り替える」承認時: 新対象トランジションが PREPARING(1) になる
+- [ ] 「切り替える」承認時: 旧動作状態トランジションが初期状態（INITIAL=0）に戻る
+- [ ] 「切り替える」承認時: 新対象トランジションが準備状態（PREPARING=1）になる
 - [ ] 「キャンセル」時: 状態は変化しない
 
 ### テスト結果
@@ -1037,15 +1037,15 @@
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 1 | — | `PATCH .../transitions/completed-tr/status` に `status=3`（IN_PROGRESS）を送信する | **400 Bad Request** または **422 Unprocessable Entity** が返る。エラーメッセージに「Cannot change status from terminal state '完了'」が含まれる |
-| 2 | — | `PATCH .../transitions/error-tr/status` に `status=3`（IN_PROGRESS）を送信する | **400 Bad Request** が返る。エラーメッセージに「Cannot change status from terminal state 'エラー'」が含まれる |
+| 1 | — | `PATCH .../transitions/completed-tr/status` に `status=3`（IN_PROGRESS）を送信する | **400 Bad Request** または **422 Unprocessable Entity** が返る。エラーメッセージに「Cannot change status from terminal state '終状態'」が含まれる |
+| 2 | — | `PATCH .../transitions/error-tr/status` に `status=3`（IN_PROGRESS）を送信する | **400 Bad Request** が返る。エラーメッセージに「Cannot change status from terminal state '異常終了状態'」が含まれる |
 | 3 | — | `PATCH .../transitions/completed-tr/status` に `status=5`（COMPLETED）を送信する | **200 OK** が返る（自己遷移は許可: `ALLOWED_TRANSITIONS[5] = [5]`）|
 
 ### 確認ポイント
 
-- [ ] COMPLETED(5) → 他ステータス（IN_PROGRESS等）は API レベルで拒否される
-- [ ] ERROR(6) → 他ステータスは API レベルで拒否される
-- [ ] 終端状態への自己遷移（5→5、6→6）は許可される
+- [ ] 終状態（COMPLETED=5）→ 他ステータスは API レベルで拒否される
+- [ ] 異常終了状態（ERROR=6）→ 他ステータスは API レベルで拒否される
+- [ ] 終端状態への自己遷移（終状態→5、異常終了状態→6）は許可される
 - [ ] エラーレスポンスに `InvalidStatusTransitionError` メッセージが含まれる
 
 ### テスト結果
