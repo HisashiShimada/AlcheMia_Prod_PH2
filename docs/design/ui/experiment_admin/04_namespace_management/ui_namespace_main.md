@@ -5,14 +5,16 @@
 title: MaiML 名前空間管理ツール メイン画面 UI設計書
 category: UI設計
 version: 2.6.0
-last_updated: 2026-08-25
+last_updated: 2026-08-26
 author: Development Team
-tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-inactive, pagination, context-menu, cancel-button, api-fetch, share-scope-modal, tabs, team-management, filter-bar, department-tree-management, duplicate-suggest-modal]
+tags: [namespace, maiml, main, 2pane, term-list, import-export, bulk-inactive, pagination, context-menu, cancel-button, api-fetch, share-scope-modal, tabs, group-management, filter-bar, department-tree-management, duplicate-suggest-modal]
 ---
 
 ## 変更履歴
 | バージョン | 日付 | 変更内容 |
 |-----------|------|---------|
+| 2026-08-27 | v2.6.0 | ソースコード調査に基づきコンテキストメニュー仕様を全面修正：`<Tree>` の `onRightClick` は渡されておらず `ctxMenu.visible=true` にするコードも存在しないため右クリックコンテキストメニューは現在機能していない（デッドコード）ことを §3.3 に明記。§7.1 右クリックイベント行を「グループ管理タブのボタン経由」に修正。§7.3 タイトルから「ツリー右クリック」を削除。§9.1・§9.4・§10.1 のトリガー記述を「右クリック」→「グループ管理タブのボタン」に修正 | Cline |
+| 2026-08-26 | v2.5.0 | チーム→グループ表記統一（GroupAddDialog / GroupEditDialog / GroupManagementPanel / GroupMember / Group 型）。§3.2.2 NewTermRow に `createDirectiveTerm` 追加。§4.3.3 用語テーブルに「指示用語同時登録」チェックボックス列追加・操作列「指示あり」バッジ追記。§3.2.3 Term 型に `hasDirectiveTerm` 追加。§3.3 コンテキストメニュー判定を `companyDepth === 3` → `>= 2` に修正。API連携 用語登録に `createDirectiveTerm` / `scopeKey` パラメータ追記 | Cline |
 | 1.0.0 | 2026-06-05 | 初版作成（3ペイン構成） |
 | 1.1.0 | 2026-06-05 | 2ペイン構成に変更。詳細表示/XMLプレビューをモーダルダイアログ方式に変更 |
 | 1.2.0 | 2026-06-05 | 左ペイン幅30%に拡大。詳細モーダルXMLプレビュータブ廃止。ボタン絵文字削除 |
@@ -85,7 +87,7 @@ MaiML名前空間管理ツールのメイン画面。左ペイン（名前空間
 
 ### 2.2. 実験管理者メニューのタブ構成
 
-> ⚠️ **実装の仕様**: 「チーム管理」は `NamespaceMain` 内のサブタブではなく、`ExperimentAdminMenu` のトップレベルタブ（tab key=`'5'`）として独立している。
+> ⚠️ **実装の仕様**: 「グループ管理」は `NamespaceMain` 内のサブタブではなく、`ExperimentAdminMenu` のトップレベルタブ（tab key=`'5'`）として独立している。
 
 実験管理者メニュー（`ExperimentAdminMenu`）の SubHeader には以下のタブが表示される：
 
@@ -95,12 +97,12 @@ MaiML名前空間管理ツールのメイン画面。左ペイン（名前空間
 | `'2'` | フォーマット管理 | `<FormatManagement />` |
 | `'3'` | 進捗確認 | `<ProgressMonitoring />` |
 | `'4'` | 名前空間管理 | `<UncertaintyManagement />` |
-| `'5'` | **チーム管理** | **`<TeamManagementPanel />`** |
+| `'5'` | **グループ管理** | **`<GroupManagementPanel />`** |
 | `'6'` | 鍵管理 | `<KeyManagementScreen />` |
 
-**「チーム管理」タブの実装**:
+**「グループ管理」タブの実装**:
 - `ExperimentAdminMenu.tsx` の `tabItems` 配列に `key: '5'` として定義
-- `currentTab === '5'` のとき `<TeamManagementPanel />` を `display: block` で表示
+- `currentTab === '5'` のとき `<GroupManagementPanel />` を `display: block` で表示
 - 名前空間管理（`NamespaceMain`）とは別の独立した画面として表示される
 
 ```typescript
@@ -109,8 +111,8 @@ const tabItems = [
   // ...
   {
     key: '5',
-    label: 'チーム管理',
-    icon: <TeamOutlined />,
+    label: 'グループ管理',
+    icon: <TeamOutlined />, // ※ Ant Design アイコン名のため変更不可
   },
   // ...
 ];
@@ -181,22 +183,7 @@ const tabItems = [
 
 **ツリーノードのコンテキストメニュー（右クリック）**:
 
-> ⚠️ **実装の仕様**: コンテキストメニューは**チームノード（depth 3 = company > 部門 > グループ > チーム）のみ**に表示される。他のノード（グローバル / 個人 / 組織ルート / 部門 / グループ）には表示されない。
-
-| メニュー項目 | アイコン | 表示条件 | 動作 |
-|-------------|---------|---------|------|
-| チームを追加 | `<PlusOutlined />` | チームノード（depth 3）のみ | チーム追加ダイアログを開く |
-| 編集 | `<EditOutlined />` | チームノード（depth 3）のみ | チーム編集ダイアログを開く（メンバー変更） |
-
-**チームノードの depth 判定**:
-
-`renderTreeTitle()` 関数内の `companyDepth` パラメータが `3` のノードがチームノードとして判定される。
-
-```
-company（depth 1）
-  └── 部門（depth 2）
-        └── グループ（depth 3） ← コンテキストメニュー表示
-```
+> ⚠️ **[2026-08-27 更新]**: `<Tree>` の `onRightClick` は現在**渡されていない**。また `ctxMenu.visible` を `true` にするコードが一切存在しないため、右クリックによるコンテキストメニューは**現在機能していない（デッドコード残存）**。グループの追加・編集は §12（グループ管理タブ）の「グループを作成」ボタン / 「編集」ボタン経由で行う。
 
 **ツリーデータ型**:
 
@@ -240,6 +227,8 @@ interface NewTermRow {
   unitHint: string;
   /** true のとき同一 prefix:localName が既に登録されている（重複エラー表示用） */
   _isDuplicate?: boolean;
+  /** true のとき指示用語（SupervisorDirective{localName}）を同時登録する。デフォルト: true */
+  createDirectiveTerm?: boolean;
 }
 ```
 
@@ -431,7 +420,8 @@ const namespaceTreeData: NamespaceTreeNode[] = [
 | スコープ | （prefix から導出） | 180px | 有効 | prefix が属する名前空間スコープをフルパスの末尾ノード名で `<Tag>` 表示。ホバーで Tooltip にフルパスを表示。`globalOnly=true` のとき非表示 |
 | 型 | `type` | 140px | 有効 | 型ヒント（stringType / floatType 等）。`<Tag>` 表示 |
 | 単位 | `unitHint` | 100px | 有効 | 単位ヒント（任意） |
-| 操作 | （actions） | 130px | - | 編集（✏）・非アクティブ/アクティブ切替ボタン |
+| 指示用語同時登録 | `createDirectiveTerm` | 80px | - | 新規行のみ表示。チェックONで保存すると `SupervisorDirective{localName}` を同時登録。デフォルト: ON（`true`）。`localName` 未入力時は disabled |
+| 操作 | （actions） | 130px | - | 編集（✏）・非アクティブ/アクティブ切替ボタン。既存行に `hasDirectiveTerm=true` の場合は「指示あり」バッジを表示 |
 
 **操作ボタン仕様**:
 
@@ -507,6 +497,7 @@ interface Term {
   type: string;
   unitHint?: string;      // 単位ヒント（任意）
   isActive: boolean;      // アクティブ状態（false のとき行をグレーアウト表示）
+  hasDirectiveTerm?: boolean; // true のとき「指示あり」バッジを表示（指示用語が登録済み）
 }
 
 const termsMockData: Term[] = [
@@ -704,8 +695,8 @@ const statusBarMock: StatusBarData = {
 |---------|------|
 | ツリーノードクリック | 右ペインに選択名前空間の用語リストを表示 |
 | 検索入力変更 | ツリーをリアルタイムフィルタリング |
-| チームノード右クリック → チームを追加 | チーム追加ダイアログを開く（セクション9参照） |
-| チームノード右クリック → 編集 | チーム編集ダイアログを開く（セクション10参照） |
+| グループ管理タブ「グループを作成」ボタン | グループ追加ダイアログを開く（セクション9参照） |
+| グループ管理タブ「編集」ボタン | グループ編集ダイアログを開く（セクション10参照） |
 
 ### 7.2. 用語リスト操作
 
@@ -724,7 +715,9 @@ const statusBarMock: StatusBarData = {
 | インライン編集 [✔ 保存] | 変更を確定して通常行に戻す |
 | インライン編集 [✕] | 変更を破棄して通常行に戻す |
 
-### 7.3. 名前空間詳細モーダル操作（ツリー右クリック → 編集）
+### 7.3. グループ編集ダイアログ操作
+
+> **[2026-08-27 更新]**: ツリー右クリック経由の記述を削除。グループ管理タブの「編集」ボタンが実際のトリガー（§12 参照）。
 
 | イベント | 処理 |
 |---------|------|
@@ -760,34 +753,36 @@ const statusBarMock: StatusBarData = {
 
 ---
 
-## 9. チーム追加ダイアログ（TeamAddDialog）
+## 9. グループ追加ダイアログ（GroupAddDialog）
 
 ### 9.1. 概要
 
-左ペインのチームノードを右クリック → 「チームを追加」を選択すると表示される。  
-新しいチーム（`department_unit`）を DB に作成し、メンバーを設定する。
+グループ管理タブ（§12）の「グループを作成」ボタン押下で表示される。  
+新しいグループ（`department_unit`）を DB に作成し、メンバーを設定する。
+
+> **[2026-08-27 更新]**: 旧「左ペインのグループノードを右クリック → 「グループを追加」」は現在機能していない。実際のトリガーはグループ管理タブの「グループを作成」ボタン。
 
 ### 9.2. ダイアログ仕様
 
 | 項目 | 値 |
 |------|-----|
 | コンポーネント | `<Modal>` |
-| タイトル | 「チームを追加」 |
+| タイトル | 「グループを追加」 |
 | 幅 | 480px |
 | maskClosable | false |
-| コンポーネントファイル | `frontend/src/components/namespace/TeamAddDialog.tsx` |
+| コンポーネントファイル | `frontend/src/components/group/GroupAddDialog.tsx` |
 
 ### 9.3. レイアウト
 
 ```
 ┌────────────────────────────────────────┐
-│ チームを追加                       [✕] │
+│ グループを追加                     [✕] │
 ├────────────────────────────────────────┤
 │ 追加先                                 │
 │  [CorpA / LabA]（青タグ）              │
 │                                        │
-│ チーム名 *                             │
-│ [チーム名を入力...                   ] │
+│ グループ名 *                           │
+│ [グループ名を入力...                 ] │
 │                                        │
 │ 名前空間URI（自動生成）                │
 │ [https://ns.example.org/...  （表示のみ）] │
@@ -805,9 +800,9 @@ const statusBarMock: StatusBarData = {
 
 | フィールド | コンポーネント | 必須 | 説明 |
 |-----------|--------------|------|------|
-| 追加先 | `<Select>` | ✅ | 親ノードのラベルをプルダウンで選択。選択肢はツリーの組織ノード一覧。初期値は右クリックしたノード |
-| チーム名 | `<Input>` | ✅ | 新規チーム名（空の場合「作成」ボタン非活性）。入力変更時に URI が自動更新される |
-| 名前空間URI（自動生成） | `<Input disabled>` | — | `generateNamespaceUri(teamName, parentPath)` で生成した URI を読み取り専用表示。チーム名変更のたびにリアルタイム更新 |
+| 追加先 | `<Select>` | ✅ | 親ノードのラベルをプルダウンで選択。選択肢はツリーの組織ノード一覧。初期値は `namespaceMain.groupAddParentLabelDefault`（`t()` で取得したデフォルト値） |
+| グループ名 | `<Input>` | ✅ | 新規グループ名（空の場合「作成」ボタン非活性）。入力変更時に URI が自動更新される |
+| 名前空間URI（自動生成） | `<Input disabled>` | — | `generateNamespaceUri(groupName, parentPath)` で生成した URI を読み取り専用表示。グループ名変更のたびにリアルタイム更新 |
 | メンバー | `<Select>（単数選択）+ 追加ボタン + メンバータグ一覧` | 任意 | プルダウンで1名ずつ選択して追加。選択済みメンバーはタグ（`<Tag closable>`）で表示し × で削除可 |
 
 ### 9.5. ボタン仕様
@@ -815,45 +810,47 @@ const statusBarMock: StatusBarData = {
 | ボタン | タイプ | 活性条件 | 動作 |
 |--------|--------|---------|------|
 | キャンセル | `default` | 常時（loading 中は非活性） | 入力をリセット → ダイアログを閉じる |
-| 作成 | `primary` | チーム名が1文字以上の場合 | DB にチームを作成 → メンバーを設定 → ツリーに反映 |
+| 作成 | `primary` | グループ名が1文字以上の場合 | DB にグループを作成 → メンバーを設定 → ツリーに反映 |
 
 ### 9.6. API連携
 
 | ステップ | メソッド | エンドポイント | 内容 |
 |---------|---------|--------------|------|
 | ① ユーザー一覧取得（ダイアログ open 時） | GET | `/api/v1/department-units/users` | 組織内ユーザー一覧を取得してメンバー選択肢に使用 |
-| ② チーム作成 | POST | `/api/v1/department-units` | `unitName`, `departmentCd`, `layer: 1` を送信 |
+| ② グループ作成 | POST | `/api/v1/department-units` | `unitName`, `departmentCd`, `layer: 1` を送信 |
 | ③ メンバー設定（members > 0 の場合） | PUT | `/api/v1/department-units/:id/members` | `{ userIds: string[] }` を送信 |
 
 ---
 
-## 10. チーム編集ダイアログ（TeamEditDialog）
+## 10. グループ編集ダイアログ（GroupEditDialog）
 
 ### 10.1. 概要
 
-左ペインのチームノードを右クリック → 「編集」を選択すると表示される。  
-既存チームのメンバー構成を変更し DB に保存する。
+グループ管理タブ（§12）の「編集」ボタン押下で表示される。  
+既存グループのメンバー構成を変更し DB に保存する。
+
+> **[2026-08-27 更新]**: 旧「左ペインのグループノードを右クリック → 「編集」」は現在機能していない。実際のトリガーはグループ管理タブの「編集」ボタン。
 
 ### 10.2. ダイアログ仕様
 
 | 項目 | 値 |
 |------|-----|
 | コンポーネント | `<Modal>` |
-| タイトル | 「チームを編集」 |
+| タイトル | 「グループを編集」 |
 | 幅 | 480px |
 | maskClosable | false |
-| コンポーネントファイル | `frontend/src/components/namespace/TeamEditDialog.tsx` |
+| コンポーネントファイル | `frontend/src/components/group/GroupEditDialog.tsx` |
 
-> ⚠️ **実装の仕様**: タイトルは「編集」ではなく「チームを編集」。チーム名は読み取り専用の Tag ではなく編集可能な `<Input>` として表示される。代表者（Owner）フィールドが追加されている。
+> ⚠️ **実装の仕様**: タイトルは「編集」ではなく「グループを編集」。グループ名は読み取り専用の Tag ではなく編集可能な `<Input>` として表示される。代表者（Owner）フィールドが追加されている。
 
 ### 10.3. レイアウト
 
 ```
 ┌────────────────────────────────────────┐
-│ チームを編集                       [✕] │
+│ グループを編集                     [✕] │
 ├────────────────────────────────────────┤
-│ チーム名 *                             │
-│ [TeamX                              ] │
+│ グループ名 *                           │
+│ [GroupX                             ] │
 │                                        │
 │ 代表者                                 │
 │  山田 太郎（自分）                     │
@@ -871,8 +868,8 @@ const statusBarMock: StatusBarData = {
 
 | フィールド | コンポーネント | 備考 |
 |-----------|--------------|------|
-| チーム名 | `<Input>` | 編集可能（必須）。空の場合「保存」ボタン非活性 |
-| 代表者 | `<Text>` | `team.ownerName` を読み取り専用で表示（編集不可） |
+| グループ名 | `<Input>` | 編集可能（必須）。空の場合「保存」ボタン非活性 |
+| 代表者 | `<Text>` | `group.ownerName` を読み取り専用で表示（編集不可） |
 | メンバー | `<Select mode="multiple" showSearch allowClear>` | ダイアログ open 時に既存メンバーを初期値として表示 |
 
 ### 10.5. ボタン仕様
@@ -898,7 +895,7 @@ const statusBarMock: StatusBarData = {
 
 ### 11.1. 概要
 
-Personal（個人）名前空間の用語を、自分の所属チームが管理する組織名前空間にコピーする機能。  
+Personal（個人）名前空間の用語を、自分の所属グループが管理する組織名前空間にコピーする機能。  
 個人が登録した独自用語を組織の共有語彙として昇格させることを目的とする。
 
 ### 11.2. 表示条件
@@ -993,7 +990,7 @@ Personal 以外（Organization/Global）+ チェックあり時のレイアウ�
 | フィールド | 内容 | 備考 |
 |-----------|------|------|
 | 件数メッセージ | `以下の N 件の用語を組織名前空間にコピーします。` | N = チェック件数 |
-| 共有先 | `prefix（部門 / チーム）` | ログインユーザーの所属チーム名前空間を自動設定（読み取り専用） |
+| 共有先 | `prefix（部門 / グループ）` | ログインユーザーの所属グループ名前空間を自動設定（読み取り専用） |
 | 用語リスト | チェックされた用語の `QName` と `displayName` を一覧表示 | `<List>` コンポーネント使用 |
 | 注意書き① | Prefix 自動変換の説明 | 固定テキスト |
 | 注意書き② | 既存 QName 上書きの注意 | 固定テキスト |
@@ -1007,26 +1004,26 @@ Personal 以外（Organization/Global）+ チェックあり時のレイアウ�
 
 ### 11.6. 共有先制限の仕様
 
-> ⚠️ **重要**: 共有先は**ログインユーザーの所属チームのみ**に制限される。部門・グループ・他チームへの共有は不可。
+> ⚠️ **重要**: 共有先は**ログインユーザーの所属グループのみ**に制限される。部門・グループ・他グループへの共有は不可。
 
 | 項目 | 仕様 |
 |------|------|
-| 共有先の候補 | ログインユーザーが所属するチームノード（depth 3）の名前空間のみ |
-| 複数所属 | 複数チームに所属する場合はドロップダウンで選択（通常は1件） |
-| 所属チームなし | 「組織に共有」ボタンは表示されない（または非活性） |
+| 共有先の候補 | ログインユーザーが所属するグループノード（`companyDepth >= 2`）の名前空間のみ |
+| 複数所属 | 複数グループに所属する場合はドロップダウンで選択（通常は1件） |
+| 所属グループなし | 「組織に共有」ボタンは表示されない（または非活性） |
 
 **depth 定義（再掲）**:
 ```
 company（depth 1）
   └── 部門（depth 2）
-        └── グループ（depth 3）← 共有先候補（チームノード）
+        └── グループ（depth >= 2）← 共有先候補
 ```
 
 ### 11.7. 共有後の動作
 
 | 手順 | 内容 |
 |------|------|
-| ① コピー処理 | チェックされた用語を共有先チームの名前空間に追加（Prefix を共有先の prefix に置換） |
+| ① コピー処理 | チェックされた用語を共有先グループの名前空間に追加（Prefix を共有先の prefix に置換） |
 | ② 成功通知 | `<message.success>` で「N件の用語を [共有先prefix] に共有しました。」を表示 |
 | ③ 用語リスト更新 | 共有先名前空間の用語数バッジ（`[N]`）をインクリメント |
 | ④ 選択解除 | チェック状態をクリア |
@@ -1034,31 +1031,31 @@ company（depth 1）
 ### 11.8. モックデータ（共有先）
 
 ```typescript
-// 共有先チーム名前空間の型
+// 共有先グループ名前空間の型
 interface ShareTarget {
   prefix: string;       // 共有先の名前空間 prefix
   departmentName: string;  // 部門名
-  teamName: string;     // チーム名（グループ名）
+  teamName: string;     // グループ名（グループ名）
 }
 
-// ログインユーザーの所属チーム（モック）
+// ログインユーザーの所属グループ（モック）
 const shareTargetMock: ShareTarget = {
   prefix: 'rd-materials',
   departmentName: 'LabA',
-  teamName: 'ChemTeam',
+  groupName: 'ChemGroup', 
 };
 ```
 
 ---
 
-## 12. チーム管理タブ（TeamManagementPanel）
+## 12. グループ管理タブ（GroupManagementPanel）
 
 ### 12.1. 概要
 
-`ExperimentAdminMenu` の tab key=`'5'`「チーム管理」タブを選択すると表示される 2ペインレイアウト。  
-ログイン中の実験管理者が作成したチーム一覧を左ペインに表示し、選択したチームの詳細・メンバー管理を右ペインで行う。
+`ExperimentAdminMenu` の tab key=`'5'`「グループ管理」タブを選択すると表示される 2ペインレイアウト。  
+ログイン中の実験管理者が作成したグループ一覧を左ペインに表示し、選択したグループの詳細・メンバー管理を右ペインで行う。
 
-**コンポーネントファイル**: `frontend/src/components/namespace/TeamManagementPanel.tsx`
+**コンポーネントファイル**: `frontend/src/components/group/GroupManagementPanel.tsx`
 
 > ⚠️ **実装の仕様**: `NamespaceMain` 内のサブタブとして表示されるのではなく、実験管理メニューのトップレベルタブとして独立表示される。
 
@@ -1066,12 +1063,12 @@ const shareTargetMock: ShareTarget = {
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ チーム一覧         チームを作成[+] │  チーム詳細（右）                    │
+│ グループ一覧         グループを作成[+] │  グループ詳細（右）                    │
 │ （左 240px）                       │                                      │
 │ ─────────────────────────────────  │  ─────────────────────────────────   │
 │ 🟢 材料解析チーム  2名             │  材料解析チーム  [編集]              │
 │ 🟢 データ処理班    0名             │  代表者:    山田 太郎（自分）         │
-│                                    │  所属先:    LabA > ChemTeam          │
+│                                    │  所属先:    LabA > ChemGroup          │
 │                                    │  名前空間URI: https://example.org/.. │
 │                                    │  ─────────────────────────────────   │
 │                                    │  メンバー                            │
@@ -1081,71 +1078,71 @@ const shareTargetMock: ShareTarget = {
 ```
 
 > ⚠️ **実装の仕様（v2.1.0更新）**:
-> - 「編集」ボタンはメンバーセクションではなく**チーム名の右隣**に配置される
-> - 「表示名」フィールドは右ペインに表示されない（チーム情報に含まれない）
+> - 「編集」ボタンはメンバーセクションではなく**グループ名の右隣**に配置される
+> - 「表示名」フィールドは右ペインに表示されない（グループ情報に含まれない）
 > - 「所属先」フィールドが追加されている（ツリー上の部門・グループのパスを表示）
 > - メンバーテーブルに「削除」ボタン列は存在しない
 
-### 12.3. 左ペイン仕様（チーム一覧）
+### 12.3. 左ペイン仕様（グループ一覧）
 
 | 項目 | 仕様 |
 |------|------|
 | コンポーネント | `<List>` (Ant Design) |
 | 幅 | 240px（固定） |
-| データソース | `GET /api/v1/department-units/my-teams`（失敗時はダミーデータを使用） |
-| 選択状態 | クリックで右ペインに詳細を表示。初期選択は先頭チーム |
-| ハイライト | 選択中チームを青背景（`#e6f4ff`）でハイライト |
+| データソース | `GET /api/v1/department-units/my-teams`（失敗時は空リストを表示し `message.error` でエラー通知） |
+| 選択状態 | クリックで右ペインに詳細を表示。初期選択は先頭グループ |
+| ハイライト | 選択中グループを青背景（`#e6f4ff`）でハイライト |
 
 **左ペインヘッダー**:
 
 | 要素 | 仕様 |
 |------|------|
-| タイトル | 「チーム一覧」（`<Title level={5}>`） |
-| 「チームを作成」ボタン | `<Button type="primary" size="small" icon={<PlusOutlined />}>` をヘッダー行右端に配置。クリックで `TeamAddDialog` を開く |
+| タイトル | 「グループ一覧」（`<Title level={5}>`） |
+| 「グループを作成」ボタン | `<Button type="primary" size="small" icon={<PlusOutlined />}>` をヘッダー行右端に配置。クリックで `GroupAddDialog` を開く |
 
-> ⚠️ **実装の仕様**: 「チームを作成」ボタンはペインのフッターではなく、ヘッダー行（タイトルと同じ行）の右端に `type="primary"` `size="small"` で配置される。
+> ⚠️ **実装の仕様**: 「グループを作成」ボタンはペインのフッターではなく、ヘッダー行（タイトルと同じ行）の右端に `type="primary"` `size="small"` で配置される。
 
 **リスト項目**:
 
 | 要素 | 内容 |
 |------|------|
 | ステータスアイコン | 🟢（常時表示） |
-| チーム名 | `team.unitName` |
-| メンバー数 | `N名`（`team.members.length` 件数を表示） |
+| グループ名 | `group.unitName` |
+| メンバー数 | `N名`（`group.members.length` 件数を表示） |
 
-> ⚠️ **実装の仕様**: リスト項目に [編集] ボタンは**存在しない**。チーム編集は右ペインの「編集」ボタン経由で行う。
+> ⚠️ **実装の仕様**: リスト項目に [編集] ボタンは**存在しない**。グループ編集は右ペインの「編集」ボタン経由で行う。
 
 > ⚠️ **[2026-08-25 更新]**: アクティブ状態を切り替えるボタン文言は「**アクティブ**」/「**非アクティブ**」を使用する（旧「有効化」/「無効化」から変更）。
 
-### 12.4. 右ペイン仕様（チーム詳細）
+### 12.4. 右ペイン仕様（グループ詳細）
 
-#### 12.4.1. チーム未選択時
+#### 12.4.1. グループ未選択時
 
 ```
-（チームを選択してください）
+（グループを選択してください）
 ```
 
-`<Empty description="チームを選択してください" />` を中央表示。
+`<Empty description="グループを選択してください" />` を中央表示。
 
-#### 12.4.2. チーム選択時
+#### 12.4.2. グループ選択時
 
-**チーム情報セクション**:
+**グループ情報セクション**:
 
 | フィールド | コンポーネント | データソース |
 |-----------|--------------|------------|
-| チーム名（＋編集ボタン） | `<Title level={5}>` + `<Button>` | `selectedTeam.unitName`。右隣に「編集」ボタンを配置 |
-| 代表者 | `<Text>` + `<UserOutlined />` | `selectedTeam.ownerName` |
+| グループ名（＋編集ボタン） | `<Title level={5}>` + `<Button>` | `selectedGroup.unitName`。右隣に「編集」ボタンを配置 |
+| 代表者 | `<Text>` + `<UserOutlined />` | `selectedGroup.ownerName` |
 | 所属先 | `<Text>` | ツリー上の部門・グループのパスを `>` 区切りで表示（例: `LabA > ChemTeam`） |
-| 名前空間URI | `<Text>` + `<LinkOutlined />` | `selectedTeam.nsUri`（未設定時は `—`） |
+| 名前空間URI | `<Text>` + `<LinkOutlined />` | `selectedGroup.nsUri`（未設定時は `—`） |
 
-> ⚠️ **実装の仕様（v2.1.0更新）**: チーム情報に **Prefix フィールドは表示されない**。「表示名」フィールドも**表示されない**。「所属先」フィールドが追加された。
+> ⚠️ **実装の仕様**: グループ情報に **Prefix フィールドは表示されない**。「表示名」フィールドも**表示されない**。「所属先」フィールドが追加された。
 
 **メンバー一覧セクション**:
 
 | 項目 | 仕様 |
 |------|------|
 | コンポーネント | `<Table>` (Ant Design) |
-| データソース | `selectedTeam.members` |
+| データソース | `selectedGroup.members` |
 | サイズ | `small` |
 
 **メンバーテーブルカラム**:
@@ -1154,44 +1151,44 @@ const shareTargetMock: ShareTarget = {
 |--------|-----------|------|
 | ユーザー名 | `userName` | メンバーの表示名 |
 
-> ⚠️ **実装の仕様（v2.1.0更新）**: メンバーテーブルに **ロール（役職）カラムは存在しない**。また**「削除」ボタン列も存在しない**。ユーザー名列のみ。メンバーの追加・削除は「編集」ボタン → `TeamEditDialog` 経由で行う。
+> ⚠️ **実装の仕様**: メンバーテーブルに **ロール（役職）カラムは存在しない**。また**「削除」ボタン列も存在しない**。ユーザー名列のみ。メンバーの追加・削除は「編集」ボタン → `GroupEditDialog` 経由で行う。
 
 **メンバーセクションヘッダーの「編集」ボタン**:
 
-> ⚠️ **実装の仕様（v2.1.0更新）**: 「編集」ボタンはメンバーセクションのヘッダー右端ではなく、**チーム名（Section 12.4.2 チーム情報セクション）の右隣**に配置される。
+> ⚠️ **実装の仕様（v2.1.0更新）**: 「編集」ボタンはメンバーセクションのヘッダー右端ではなく、**グループ名（Section 12.4.2 グループ情報セクション）の右隣**に配置される。
 
 | 項目 | 値 |
 |------|-----|
 | コンポーネント | `<Button>` |
 | ラベル | 「編集」 |
 | タイプ | `default` (小) |
-| 配置 | チーム名の右隣 |
-| 動作 | チーム編集ダイアログ（`TeamEditDialog`）を開く |
+| 配置 | グループ名の右隣 |
+| 動作 | グループ編集ダイアログ（`GroupEditDialog`）を開く |
 
-> ⚠️ **実装の仕様**: 「＋ メンバーを追加」ボタンは存在しない。メンバー追加・削除は「編集」ボタン → `TeamEditDialog` 経由で行う。
+> ⚠️ **実装の仕様**: 「＋ メンバーを追加」ボタンは存在しない。メンバー追加・削除は「編集」ボタン → `GroupEditDialog` 経由で行う。
 
 ### 12.5. 型定義
 
 ```typescript
-interface TeamMember {
+interface GroupMember {
   userId: string;
   userName: string;
   departmentUnitId: string | null;
 }
 
-interface Team {
+interface Group {
   departmentUnitId: string;
   unitName: string;
   /** 所属部署名 */
   departmentName?: string;
-  /** チームの代表者（作成者）表示名 */
+  /** グループの代表者（作成者）表示名 */
   ownerName: string;
-  /** チームの代表者 userId */
+  /** グループの代表者 userId */
   ownerUserId?: string;
   nsPrefix?: string;       // 名前空間 Prefix（任意）
   nsUri?: string;          // 名前空間 URI（任意）
   nsDisplayName?: string;  // 名前空間 表示名（任意）
-  members: TeamMember[];
+  members: GroupMember[];
 }
 ```
 
@@ -1199,39 +1196,10 @@ interface Team {
 
 | ステップ | メソッド | エンドポイント | 内容 |
 |---------|---------|--------------|------|
-| チーム一覧取得（初期ロード） | GET | `/api/v1/department-units/my-teams` | ログインユーザーが作成したチーム一覧を取得 |
+| グループ一覧取得（初期ロード） | GET | `/api/v1/department-units/my-teams` | ログインユーザーが作成したグループ一覧を取得 |
 
-> **注意**: API 失敗時はダミーデータ（`DUMMY_TEAMS`）を使用する。  
-> メンバーデータは `frontend/mock/namespace/department-unit-members.json` から取得。
-
-### 12.7. ダミーデータ（API実装前）
-
-```typescript
-const DUMMY_TEAMS: Team[] = [
-  {
-    departmentUnitId: 'rd-materials',
-    unitName: '材料解析チーム',
-    departmentName: 'LabA',
-    ownerName: '山田 太郎（自分）',
-    ownerUserId: 'user-001',
-    nsPrefix: 'rd-materials',
-    nsUri: 'https://example.org/ns/materials/',
-    nsDisplayName: '材料科学名前空間',
-    members: [...],  // department-unit-members.json['rd-materials']
-  },
-  {
-    departmentUnitId: 'data-proc',
-    unitName: 'データ処理班',
-    departmentName: 'LabA',
-    ownerName: '山田 太郎（自分）',
-    ownerUserId: 'user-001',
-    nsPrefix: 'data-proc',
-    nsUri: 'https://example.org/ns/dp/',
-    nsDisplayName: 'データ処理名前空間',
-    members: [],
-  },
-];
-```
+> - グループ一覧取得（`getOrganizationGroups()`）失敗時: `setGroups([])` で空リストを表示し、`message.error(t('groupManagement.fetchFailed'))` でエラートーストを表示する。
+> - メンバー取得（`getGroupMembers()`）失敗時: `message.warning(t('groupManagement.memberFetchFailed'))` で警告トーストを表示（リストはそのまま）。
 
 ---
 
@@ -1254,7 +1222,7 @@ const DUMMY_TEAMS: Team[] = [
 ├──────────────────────────────────────────────────────────────────────────────────────┤
 │ CorpA         │ [corpa]      │ https://ORG/              │ ...      │ （ルート）│ —     │
 │   LabA        │ [laba]       │ https://ORG/labA/         │ ...      │ CorpA    │ 編集 削除 │
-│     ChemTeam  │ [chemteam]   │ https://ORG/labA/chem../  │ ...      │ LabA     │ 編集 削除 │
+│     ChemGroup │ [chemgroup]   │ https://ORG/labA/chem../  │ ...      │ LabA     │ 編集 削除 │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1290,7 +1258,7 @@ const DUMMY_TEAMS: Team[] = [
 
 **URI 自動生成ロジック（編集中）**:
 
-> ⚠️ **[2026-08-25 更新]**: 名前空間URIのドメイン部は `organization_cd` 固定ではなく、プロジェクトに紐づくチームの**ルートグループCD**を使用する形式に変更。  
+> ⚠️ **[2026-08-25 更新]**: 名前空間URIのドメイン部は `organization_cd` 固定ではなく、プロジェクトに紐づくグループの**ルートグループCD**を使用する形式に変更。  
 > - グループスコープ: `https://{ルートグループCD}.Alchemia.co.jp/{子グループCDパス}`  
 > - 個人スコープ: `https://{ユーザーの所属グループCD}.Alchemia.co.jp/{loginName}`（グループ未所属時は `organization_cd` にフォールバック）
 
@@ -1616,6 +1584,7 @@ interface ShareTarget {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-08-27 | v2.7.0: §12.3 左ペイン仕様の「データソース」記述を「失敗時は空リストを表示し message.error でエラー通知」に修正。§12.6 注意を「API実装済みの実際のエラー時動作」に更新（グループ一覧取得失敗→ setGroups([]) + message.error、メンバー取得失敗→ message.warning）。§12.7 ダミーデータセクションを廃止記載に変更（DUMMY_GROUPS / department-unit-members.json は現在のソースに存在しない） | Cline |
 | 2026-08-25 | v2.6.0: §3.2.2 ツリーノードの用語数バッジ表示を左ペイン廃止・右ペイン上部（用語数+Prefix数）表示に変更。§12.3 チーム一覧のアクティブ/非アクティブボタン文言を「有効化/無効化」→「アクティブ/非アクティブ」に変更。§13.5 URI自動生成のドメイン部を `organization_cd` 固定→ルートグループCDに変更する仕様を追記。 | Cline |
 | 2026-08-20 | v2.5.0: §15 `DuplicateSuggestModal` 仕様をソース実態に合わせて全面修正。表示トリガー・幅・Props（`entries`/`onClose`/`onConfirm`）・ボタン仕様（登録は全選択時のみ活性）・候補選択の仕組みを更新。詳細は `ui_namespace_duplicate_suggest_modal.md` を参照するよう追記 | Cline |
 | 2026-07-15 | v2.4.0: §3.2.2 `NewTermRow` 型に `_isDuplicate` フィールドを追加。§14.4 `PrefixRow` 型に `_isAncestor` フィールドを追加。§15 `DuplicateSuggestModal` コンポーネント仕様（表示トリガー・ダイアログ仕様・Props・ボタン仕様・重複チェックの仕組み）を新規追加。§16 非アクティブ確認ダイアログ仕様（表示トリガー・条件・`Modal.confirm` 仕様）を新規追加。旧§15 更新履歴を§17に繰り下げ | Cline |
