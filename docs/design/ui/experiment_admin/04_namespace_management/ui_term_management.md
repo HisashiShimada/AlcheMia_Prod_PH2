@@ -6,9 +6,9 @@
 - **ファイルパス**: `frontend/src/components/namespace/TermManagement.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-08-14
-- **最終更新日**: 2026-08-17
+- **最終更新日**: 2026-08-26
 - **担当者**: Development Team
-- **バージョン**: 1.1.0
+- **バージョン**: 1.2.0
 
 ---
 
@@ -66,8 +66,12 @@
 ### 新規行追加時（インライン入力、黄色背景）
 
 ```
-│ 🟡 │ [Prefix ▼] │ [ローカル名] │ [表示名] │ [説明] │ [型 ▼] │ [単位] │ — │ ✕削除 │
+│ 🟡 │ [Prefix ▼] │ [ローカル名] │ [表示名] │ [説明] │ [型 ▼] │ [単位] │ — │ [☑指示用語] │ ✕削除 │
 ```
+
+- `localName` 未入力時はチェックボックスを `disabled` 表示
+- チェック ON で保存すると `SupervisorDirective{localName}` を元の用語と同一 Prefix に同時登録
+- どちらかの INSERT が失敗した場合はトランザクションロールバック（両方登録されない）
 
 ### 既存行編集時
 
@@ -93,7 +97,7 @@
 | 型 | `type` | 推奨 xsi:type | 色付き Tag 表示。編集可（Select） |
 | 単位 | `unitHint` | 推奨単位 | 編集可 |
 | スコープ | — | prefix に対応するスコープ名（`prefixScopeMap` 経由）| geekblue Tag 表示 |
-| 操作 | — | 編集・有効化/無効化ボタン（編集中は保存・キャンセル） | `viewOnly=true` 時は全ボタン非活性 |
+| 操作 | — | 編集・有効化/無効化ボタン（編集中は保存・キャンセル）。`hasDirectiveTerm=true` の場合は「指示あり」バッジを表示。| `viewOnly=true` 時は全ボタン非活性 |
 
 ### 型の色 Tag
 
@@ -189,15 +193,19 @@
 |-----|------|
 | `GET /api/v1/namespaces` | Prefix 一覧取得（フィルタ用）|
 | `GET /api/v1/namespace-terms` | 用語一覧取得（`scopeKey` でフィルタ可能）|
-| `POST /api/v1/namespace-terms` | 用語新規登録 |
+| `POST /api/v1/namespace-terms` | 用語新規登録。リクエストボディに `createDirectiveTerm?: boolean`（指示用語同時登録フラグ、デフォルト: `true`）と `scopeKey?: string`（左ツリー選択スコープキー）を追加 |
 | `PUT /api/v1/namespace-terms/:prefix/:localName` | 用語更新（表示名・説明・型・単位）|
 | `PATCH /api/v1/namespace-terms/:prefix/:localName/active` | 有効化/無効化トグル（`toggleTermActive`）|
 
 > **注意**: 用語の削除 API は呼び出されていません（有効化/無効化で管理）。
 
----
+## 11. 変更履歴
 
-## 10. Props 定義
+| 日付 | バージョン | 変更内容 | 担当者 |
+|------|-----------|----------|--------|
+| 2026-08-26 | 1.2.0 | §2 新規行レイアウトに「指示用語同時登録」チェックボックス列追加（デフォルトON・`localName`未入力時disabled・ロールバック仕様記載）。§3 操作カラムに `hasDirectiveTerm=true` 時「指示あり」バッジ表示を追記。§9 API連携 POST エンドポイントに `createDirectiveTerm` / `scopeKey` パラメータ追記 | Cline |
+| 2026-08-17 | 1.1.0 | 初版更新 | Development Team |
+| 2026-08-14 | 1.0.0 | 初版作成 | Development Team |
 
 | Prop名 | 型 | 必須 | 説明 |
 |--------|-----|------|------|
