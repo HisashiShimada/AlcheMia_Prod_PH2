@@ -40,6 +40,8 @@ import type {
   TermEditValues,
   TermCsvParsedRow,
   OrganizationGroupRow,
+  ShareTarget,
+  ShareSourceRole,
 } from '@/types/namespace';
 
 // GlobalNamespaceView: グローバルノード選択時に右ペインへ表示（SSR無効）
@@ -162,7 +164,7 @@ const buildPersonalTreeFromStorage = (): NamespaceNode[] => {
     const userId   = info.id;
     const userName = info.username;
     if (!userId) return [];
-    return [{ key: userId, label: userName ?? userId, count: 0 }];
+    return [{ key: `personal-${userId}`, label: userName ?? userId, count: 0 }];
   } catch {
     return [];
   }
@@ -363,7 +365,7 @@ const findNode = (key: string, nodes: NamespaceNode[]): NamespaceNode | null => 
   return null;
 };
 
-const filterTreeForUser = (nodes: NamespaceNode[], _userNsKey: string, role: UserNsRole): NamespaceNode[] => {
+const filterTreeForUser = (nodes: NamespaceNode[], _userNsKey: string, role: UserNsRole, allowedGroupCds?: Set<string>): NamespaceNode[] => {
 
   // ── Personal ルートのフィルタリングヘルパー
   // UIプロトタイプ: ロールに関わらず全メンバーを表示
@@ -393,7 +395,9 @@ const filterTreeForUser = (nodes: NamespaceNode[], _userNsKey: string, role: Use
         // company ノード配下から deptKey のノードだけを残す（再帰的に検索して祖先パスも保持）
         const keepDeptPath = (ns: NamespaceNode[]): NamespaceNode[] =>
           ns.reduce<NamespaceNode[]>((acc, c) => {
-            if (c.key === role.deptKey) {
+            // allowedGroupCds が渡された場合はその Set で判定、未指定時は従来の deptKey で判定
+            const isAllowed = allowedGroupCds ? allowedGroupCds.has(c.key) : c.key === role.deptKey;
+            if (isAllowed) {
               acc.push({ ...c });
             } else if (c.children) {
               const filtered = keepDeptPath(c.children);
@@ -465,6 +469,8 @@ const filterTreeForUser = (nodes: NamespaceNode[], _userNsKey: string, role: Use
         if (n.key === 'company') return true;
         if (n.key === userNsKey) return true;
         if (ancestorKeys.has(n.key)) return true;
+        // allowedGroupCds に含まれるグループノードも表示（所属グループ・代表グループ）
+        if (allowedGroupCds && allowedGroupCds.has(n.key)) return true;
         return false;
       })
       .map((n) => {
@@ -610,6 +616,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // ── organization_group 取得ステート
   const [orgGroups, setOrgGroups] = useState<OrganizationGroupRow[]>([]);
 
+  // ── ログインユーザーが代表者（chief_user_id）であるグループCDの集合
+  const [chiefGroupCds, setChiefGroupCds] = useState<Set<string>>(new Set());
+
   // ── Personal ノードの children（クライアント mount 後に localStorage から取得）
   // SSR では localStorage にアクセスできないため useState + useEffect で分離する
   const [personalChildren, setPersonalChildren] = useState<NamespaceNode[]>([]);
@@ -721,18 +730,33 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   }, []);
 
   // ──── 初回マウント時に organization_group 一覧を取得してツリーを構築
+  // 代表グループ（chiefUserId フィルタ）と所属グループ（memberOf）を並列取得してマージする。
   // 取得完了後、ロール別剪定済みの company 配下で最も深い階層のリーフを初期選択にする
   useEffect(() => {
-    getOrganizationGroups()
-      .then((groups) => {
-        setOrgGroups(groups);
+    Promise.all([
+      getOrganizationGroups(),                               // ① chiefUserId フィルタ（代表グループ）
+      getOrganizationGroups(undefined, { memberOf: true }), // ② 所属グループ＋祖先グループ
+    ])
+      .then(([chiefGroups, memberGroups]) => {
+        // 代表グループCDを Set として保存（編集権限判定に使用）
+        setChiefGroupCds(new Set(chiefGroups.map((g) => g.organization_group_cd)));
+
+        // 重複を organization_group_cd で除去してマージ
+        const mergedMap = new Map<string, OrganizationGroupRow>();
+        [...chiefGroups, ...memberGroups].forEach((g) =>
+          mergedMap.set(g.organization_group_cd, g)
+        );
+        const mergedGroups = Array.from(mergedMap.values());
+
+        setOrgGroups(mergedGroups);
 
         // 組織ツリーを構築し、ロール別に剪定したうえで最下層リーフを初期選択にする
-        const orgTree = buildOrgTree(groups);
+        const orgTree = buildOrgTree(mergedGroups);
         const fullTree: NamespaceNode[] = NAMESPACE_TREE_RAW.map((n) =>
           n.key === 'company' ? { ...n, children: orgTree } : n
         );
-        const filteredTree = filterTreeForUser(fullTree, currentUserNsKey, currentUserRole);
+        const allowedCds = new Set(mergedGroups.map((g) => g.organization_group_cd));
+        const filteredTree = filterTreeForUser(fullTree, currentUserNsKey, currentUserRole, allowedCds);
         const companyNode = filteredTree.find((n) => n.key === 'company');
         const leafKey = companyNode?.children ? findDeepestLeafKey(companyNode.children) : null;
         if (leafKey) {
@@ -769,12 +793,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // scopeKeys（複数）を指定した場合は複数スコープに紐づく Prefix をまとめて取得する（company ノード選択時）
   // withAncestors=true の場合は scopeKey とその祖先グループの Prefix も含めて取得する
   const fetchPrefixes = useCallback((scopeKey?: string, withAncestors?: boolean, scopeKeys?: string[]) => {
-    let options: { scopeKeys?: string[]; withAncestors?: boolean } | undefined;
+    let options: { scopeKey?: string; scopeKeys?: string[]; withAncestors?: boolean } | undefined;
     if (scopeKeys && scopeKeys.length > 0) {
       // 複数 scopeKey が指定されている場合（company ノード選択時など）
       options = { scopeKeys, withAncestors };
     } else if (scopeKey) {
-      options = { scopeKeys: [scopeKey], withAncestors };
+      options = { scopeKey, withAncestors };
     }
     getNamespaceList(options)
       .then((list) => {
@@ -845,7 +869,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         fetchTerms();
       }
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
-      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
+      // personal- プレフィックスを除去して DB の scope_key（userId）を取り出す
+      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey.replace(/^personal-/, '');
       fetchTerms(scopeKey ? { scopeKey } : undefined);
     } else {
       // org group cd（組織グループノード） → scopeKey＋祖先グループでフィルタ
@@ -853,6 +878,34 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchTerms, personalChildren, orgGroups, currentUserPersonalKey]);
+
+  // ──── 現在の effectiveNsKey に対応するオプションで Prefix 一覧を再フェッチする共通関数
+  // visibilitychange（ブラウザ復帰時）から呼ぶ
+  const fetchPrefixesForCurrentNsKey = useCallback((nsKey: string | null) => {
+    const GLOBAL_KEYS   = new Set(['global', 'ns-maiml', 'ns-xsi']);
+    const COMPANY_KEYS  = new Set(['company']);
+    const PERSONAL_ROOT = 'personal';
+    const personalKeySet = new Set(personalChildren.map((n) => n.key));
+
+    if (!nsKey || GLOBAL_KEYS.has(nsKey)) {
+      fetchPrefixes();
+    } else if (COMPANY_KEYS.has(nsKey)) {
+      const allGroupCds = orgGroups.map((g) => g.organization_group_cd);
+      if (allGroupCds.length > 0) {
+        fetchPrefixes(undefined, undefined, allGroupCds);
+      } else {
+        fetchPrefixes();
+      }
+    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
+      // personal- プレフィックスを除去して DB の scope_key（userId）を取り出す
+      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey.replace(/^personal-/, '');
+      fetchPrefixes(scopeKey || undefined);
+    } else {
+      // org group cd（組織グループノード） → scopeKey＋祖先グループでフィルタ
+      fetchPrefixes(nsKey, true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchPrefixes, personalChildren, orgGroups, currentUserPersonalKey]);
 
   // 初回マウント時は externalSelectedNsKey なしでフェッチ
   useEffect(() => {
@@ -893,7 +946,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         fetchPrefixes();
       }
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
-      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
+      // personal- プレフィックスを除去して DB の scope_key（userId）を取り出す
+      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey.replace(/^personal-/, '');
       fetchPrefixes(scopeKey || undefined);
     } else {
       fetchPrefixes(nsKey, true);
@@ -929,7 +983,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         fetchPrefixes();
       }
     } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
-      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey;
+      // personal- プレフィックスを除去して DB の scope_key（userId）を取り出す
+      const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey.replace(/^personal-/, '');
       fetchPrefixes(scopeKey || undefined);
     } else {
       // org group cd（組織グループノード） → scopeKey＋祖先グループでフィルタ
@@ -944,15 +999,17 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchTerms();
-        fetchPrefixes();
+        // 現在選択中のノードのスコープで再フェッチ（引数なし全件取得による他階層データ混入を防ぐ）
+        const effectiveKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+        fetchTermsForCurrentNsKey(effectiveKey);
+        fetchPrefixesForCurrentNsKey(effectiveKey);
         const nodes = buildPersonalTreeFromStorage();
         setPersonalChildren(nodes);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [fetchTerms, fetchPrefixes]);
+  }, [fetchTermsForCurrentNsKey, fetchPrefixesForCurrentNsKey, selectedNsKey, externalSelectedNsKey]);
 
   // ──── 「用語を追加」ボタン：常に活性、押すたびに空行を追加
   const handleAddRow = () => {
@@ -1008,6 +1065,23 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       });
     }
 
+    // Personal ノードの場合は 'personal-' プレフィックスを除去して userId のみ scopeKey として渡す
+    // DB の namespace.scope_key には userId（例: 'user-abc123'）が格納されており、
+    // ツリーノードキー（例: 'personal-user-abc123'）のままでは SQL がヒットしないため変換が必要
+    const PERSONAL_ROOT_KEY = 'personal';
+    const personalKeySetForSave = new Set(personalChildren.map((n) => n.key));
+    let scopeKeyForCreate: string | undefined;
+    if (!effectiveNsKey || effectiveNsKey === PERSONAL_ROOT_KEY) {
+      // personal ルートノード選択中: ログインユーザー自身の userId を使用
+      scopeKeyForCreate = currentUserPersonalKey || undefined;
+    } else if (personalKeySetForSave.has(effectiveNsKey)) {
+      // personal-{userId} 形式: 'personal-' プレフィックスを除去して userId のみ取り出す
+      scopeKeyForCreate = effectiveNsKey.replace(/^personal-/, '') || undefined;
+    } else {
+      // 組織グループノード / Global ノード: そのまま使用
+      scopeKeyForCreate = effectiveNsKey ?? undefined;
+    }
+
     const added: Term[] = [];
     for (const row of newTerms) {
       try {
@@ -1019,7 +1093,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
           typeHint:      row.type || 'stringType',
           unitHint:      row.unitHint,
           createDirectiveTerm: row.createDirectiveTerm,
-          scopeKey: effectiveNsKey ?? undefined,
+          scopeKey: scopeKeyForCreate,
         };
         const saved = await createTerm(createTermRequest);
         added.push(saved as Term);
@@ -1146,6 +1220,30 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (!key) return false;
     return getRootKey(key, namespaceTree) === 'company';
   }, [selectedNsKey, externalSelectedNsKey, namespaceTree]);
+
+  // 選択中のノードに対してログインユーザーが代表者（chief_user_id）かどうか
+  const isRepresentativeOfSelected = useMemo(() => {
+    const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    if (!key) return false;
+    return chiefGroupCds.has(key);
+  }, [selectedNsKey, externalSelectedNsKey, chiefGroupCds]);
+
+  // orgグループノード（company 配下のグループノード）が選択中かどうか
+  // 固定キーと personal- プレフィックスを除外することで判定する
+  const isOrgGroupNodeSelected = useMemo(() => {
+    const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    if (!key) return false;
+    if (['global', 'ns-maiml', 'ns-xsi', 'company', 'personal'].includes(key)) return false;
+    if (key.startsWith('personal-')) return false;
+    return true;
+  }, [selectedNsKey, externalSelectedNsKey]);
+
+  // 実効的な閲覧専用フラグ
+  // - 外部 props の viewOnly=true は常に優先
+  // - orgグループノード選択中 かつ 自分が代表者でない場合は閲覧専用
+  const effectiveViewOnly = viewOnly || (isOrgGroupNodeSelected && !isRepresentativeOfSelected);
+
+
 
   // 選択ノードの祖先ノードの prefix セット（company配下選択時のグレーアウト判定用）
   const ancestorPrefixesForSelected = useMemo((): Set<string> => {
@@ -1313,11 +1411,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     // namespaceTree は company.children が API データで動的に構築される
     // ロールに応じてツリーをフィルタリングし、所属していない書式を非表示にする
     // Global/Personal が選択されていない時のみ currentUserNsKey を薄い青背景で強調
-    const filteredTree = filterTreeForUser(namespaceTree, currentUserNsKey, currentUserRole);
+    const allowedGroupCds = new Set(orgGroups.map((g) => g.organization_group_cd));
+    const filteredTree = filterTreeForUser(namespaceTree, currentUserNsKey, currentUserRole, allowedGroupCds);
     const showUserHighlight = !isGlobalOrPersonalSelected;
     return toAntTree(filteredTree, 0, showUserHighlight, '');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renderTreeTitle, allTerms, isGlobalOrPersonalSelected, namespaceTree, prefixToScopeKeyMap]);
+  }, [renderTreeTitle, allTerms, isGlobalOrPersonalSelected, namespaceTree, prefixToScopeKeyMap, orgGroups]);
 
   // treeData の全ノードキーを収集して常に全展開する
   const allTreeKeys = useMemo(() => {
@@ -1617,7 +1716,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       isSystemNs ||
       (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
-      viewOnly;
+      effectiveViewOnly;
     if (`${record.prefix}:${record.localName}` === editingTermId) {
       return (
         <span style={{ display: 'flex', gap: 4 }}>
@@ -2022,24 +2121,24 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
               onChange={(val) => { setFilterUnit(val || null); setCurrentPage(1); }}
             />
             <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
-            <Button disabled={viewOnly} onClick={() => csvInputRef.current?.click()}>{t('namespaceMain.btnImport')}</Button>
-            <Button disabled={viewOnly} onClick={handleCsvDownload}>{t('namespaceMain.btnExport')}</Button>
-            <Tooltip title={!viewOnly && availablePrefixOptions.length === 0 ? t('namespaceMain.noPrefixTooltip') : ''}>
+            <Button disabled={effectiveViewOnly} onClick={() => csvInputRef.current?.click()}>{t('namespaceMain.btnImport')}</Button>
+            <Button disabled={effectiveViewOnly} onClick={handleCsvDownload}>{t('namespaceMain.btnExport')}</Button>
+            <Tooltip title={!effectiveViewOnly && availablePrefixOptions.length === 0 ? t('namespaceMain.noPrefixTooltip') : ''}>
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
-                disabled={viewOnly || availablePrefixOptions.length === 0}
+                disabled={effectiveViewOnly || availablePrefixOptions.length === 0}
                 onClick={handleAddRow}
               >
                 {t('namespaceMain.btnAddTerm')}
               </Button>
             </Tooltip>
             <Tooltip title={newTerms.some((r) => r._isDuplicate) ? t('namespaceMain.duplicateTooltip') : ''}>
-              <Button type="primary" onClick={handleAddSave} disabled={viewOnly || newTerms.length === 0 || newTerms.some((r) => r._isDuplicate)}>
+              <Button type="primary" onClick={handleAddSave} disabled={effectiveViewOnly || newTerms.length === 0 || newTerms.some((r) => r._isDuplicate)}>
                 {t('namespaceMain.btnSave')}
               </Button>
             </Tooltip>
-            <Button onClick={() => setNewTerms([])} disabled={viewOnly || newTerms.length === 0}>
+            <Button onClick={() => setNewTerms([])} disabled={effectiveViewOnly || newTerms.length === 0}>
               {t('namespaceMain.btnCancel')}
             </Button>
           </div>
