@@ -722,8 +722,10 @@ export interface InstructionField {
 export interface InstructionTemplate {
   templateId: string;
   templateName: string | null;
-  templateType: 'material' | 'condition' | 'result';
+  templateType: string;
   fields: InstructionField[];
+  /** template_data の place_id（訂正時にバックエンドへ渡すために必要） */
+  placeId: string | null;
 }
 
 /**
@@ -1147,4 +1149,38 @@ export interface ToleranceValueEntry {
   /** 不確かさ基準名（uncertainty_criteria.termDisplayName。null = 未設定） */
   uncertaintyName: string | null;
 }
+
+// ============================================================
+// 記録値訂正関連の型定義
+// experimentInstructionService / experimentInstructionController で使用
+// ============================================================
+
+/**
+ * 記録値訂正の1レコード（placeId + data の組み合わせ）
+ */
+export interface CorrectRecordItem {
+  /** プレースID（template_data の place_id） */
+  placeId: string;
+  /** 訂正後のデータ */
+  data: {
+    templateId: string;
+    templateType: string;
+    properties: unknown[];
+  };
+}
+
+/**
+ * correctRecord サービスメソッドの入力型
+ */
+export interface CorrectRecordInput {
+  records: CorrectRecordItem[];
+}
+
+/**
+ * correctRecord サービスメソッドの戻り値
+ */
+export interface CorrectRecordResult {
+  corrected: number;
+}
+
 

@@ -6,9 +6,9 @@
 - **ファイルパス**: `frontend/src/components/project/ExperimentInstructionTab.tsx`
 - **利用権限**: 実験管理者（experiment_admin）
 - **作成日**: 2026-06-22
-- **最終更新日**: 2026-08-20
+- **最終更新日**: 2026-09-01
 - **担当者**: Development Team
-- **バージョン**: 2.0.0
+- **バージョン**: 3.0.0
 
 ---
 
@@ -16,7 +16,8 @@
 
 ### 1.1. 目的
 
-実験管理者が、実験作業者による実験実施後の**想定値 vs 実績値**を確認し、**タスクの承認またはNG記録**を行うためのタブコンポーネントです。
+実験管理者が、実験作業者による実験実施後の**想定値 vs 実績値**を確認し、**タスクの承認またはNG記録**を行うためのタブコンポーネントです。  
+また、**レビュー待ちタスクの実績値（記録値）を直接訂正**する機能も提供します。  
 プロジェクト管理画面（ProjectManagement）の「**実験指示確認**」タブ（`task_results`）として表示されます。
 
 > ⚠️ **設計変更**: 旧バージョンでは `ExperimentInstructionTable` という独立コンポーネントが存在しましたが、現在はテーブルを含む全機能が `ExperimentInstructionTab.tsx` に統合されています。
@@ -39,6 +40,7 @@
 6. **単体NGモーダル**: テーブル行の操作列からNG理由入力・記録
 7. **実験指示編集**: `ExperimentPlanDialog` を開く（「実験指示を編集」ボタン）
 8. **ペトリネットビューア**: `ViewRendererDialog` で MAiML ファイルを表示（フローティング）
+9. **記録値訂正**: レビュー待ちタスクの実績値（actual）をインライン編集して一括保存（「訂正」ボタン）
 
 ---
 
@@ -50,8 +52,11 @@
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ 実験指示タブ                                                               │
 ├──────────────────────────────────────────────────────────────────────────┤
-│ ツールバー                                                                  │
-│  [実験指示を編集] [ペトリネット表示] [列選択 ▼] [承認処理 ●]              │
+│ ツールバー（通常モード）                                                     │
+│  [実験指示を編集] [ペトリネット表示] [列選択 ▼] [承認処理 ●] [訂正]        │
+├──────────────────────────────────────────────────────────────────────────┤
+│ ツールバー（訂正モード）                                                     │
+│  [保存 ●] [キャンセル]                                                     │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ フィルターバー                                                              │
 │  🔍 [タスクNo ▼] [メソッドID ▼] [トランジション ▼] [テンプレ ▼] [Key ▼] N/M行│
@@ -66,12 +71,24 @@
 
 ### 2.2. ツールバー構成
 
+#### 通常モード
+
 | ボタン | アイコン | type | disabled 条件 | 説明 |
 |--------|---------|------|--------------|------|
 | 実験指示を編集 | `EditOutlined` | default | `!isEditable \|\| isProjectCompleted \|\| isCheckoutLocked` | `ExperimentPlanDialog` を開く |
 | ペトリネット表示 | `FileSearchOutlined` | default | `!projectName` | `ViewRendererDialog` を開く（フローティング）|
 | 列選択 | `SettingOutlined` | default | — | 列カスタマイズ Dropdown を開く |
 | 承認処理 | `CheckCircleOutlined` | primary | `reviewWaitingTasks.length === 0 \|\| !isEditable \|\| isProjectCompleted \|\| isCheckoutLocked` | 一括承認ダイアログを開く |
+| 訂正 | `EditOutlined` | default | `reviewWaitingTasks.length === 0 \|\| !isEditable \|\| isProjectCompleted \|\| isCheckoutLocked` | 訂正モードを開始する |
+
+#### 訂正モード中
+
+| ボタン | type | disabled 条件 | 説明 |
+|--------|------|--------------|------|
+| 保存 | primary | `correctionLoading` | 変更内容を一括保存する |
+| キャンセル | default | `correctionLoading` | 変更を破棄して訂正モードを終了する |
+
+> 訂正モード中は通常モードのボタン群はすべて非表示になる。
 
 ### 2.3. フィルターバー構成
 
@@ -317,8 +334,9 @@ interface FilterState {
 |-----|---------|------|------|
 | 実験指示取得 | GET | `/api/v1/projects/:projectId/experiment-instructions` | フラットテーブルデータ取得 |
 | メソッド一覧取得 | GET | `/api/v1/projects/:projectId/methods` | ExperimentPlanDialog のメソッド選択用 |
-| タスク承認 | POST | `/api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/approve` | 承認処理 |
-| NG記録 | POST | `/api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/ng` | NG記録処理 |
+| タスク承認 | PUT | `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/approve` | 承認処理（event_log 記録含む） |
+| NG記録 | PUT | `/api/v1/projects/:projectId/tasks/:methodId/:taskNo/ng` | NG記録処理（event_log 記録含む） |
+| 記録値訂正 | PATCH | `/api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct` | 実績値訂正（event_log 記録含む） |
 
 ### 8.2. データ取得フロー
 
@@ -369,6 +387,36 @@ recordNg(projectId, methodId, taskNumber, { ngReason })
 setActionLoading(false)
 ```
 
+### 8.5. 記録値訂正フロー
+
+```
+「訂正」ボタン押下（レビュー待ちタスクが存在する場合に活性）
+  ↓
+isCorrectionMode = true（訂正モード開始）
+  ↓
+テーブルの actual 列がインライン Input に切り替わる
+（task_status='04'（レビュー待ち）の行のみ）
+  ↓
+ユーザーが値を変更 → pendingCorrections Map に蓄積
+  ↓
+「保存」ボタン押下
+  ↓
+setCorrectionLoading(true)
+  ↓
+pendingCorrections をタスク別・placeId 別にグループ化
+  ↓
+correctRecord(projectId, methodId, taskNumber, { records }) を呼び出す
+  ↓
+成功: message.success('experimentInstruction.correctionSaved')
+      isCorrectionMode = false / pendingCorrections クリア / fetchData()
+失敗: message.error('experimentInstruction.correctionError')
+  ↓
+setCorrectionLoading(false)
+```
+
+> 「キャンセル」ボタン押下時は pendingCorrections をクリアして訂正モードを終了する。  
+> 訂正は `task_status=2`（review_waiting）のタスクのみ対象。ステータスは変更しない。
+
 ---
 
 ## 9. 子コンポーネント連携
@@ -387,6 +435,7 @@ setActionLoading(false)
 | データ取得失敗 | `message.error` | `experimentInstruction.fetchError` |
 | 承認処理失敗 | `message.error` | `experimentInstruction.approveError` |
 | NG記録失敗 | `message.error` | `experimentInstruction.ngError` |
+| 訂正保存失敗 | `message.error` | `experimentInstruction.correctionError` |
 | タスク未選択（一括ダイアログ）| `message.warning` | `experimentInstruction.warningSelectTask` |
 | NG理由が空（一括ダイアログ）| `message.warning` | `experimentInstruction.ngReasonRequired` |
 | データなし | `Empty` コンポーネント | `experimentInstructionTab.empty` |
@@ -426,3 +475,4 @@ setActionLoading(false)
 |------|----------|--------|
 | 2026-06-22 | 初版作成 | Cline |
 | 2026-08-20 | アーキテクチャ変更に合わせて全面改訂（フラットテーブル化・不確かさ列・フィルターバー・一括承認ダイアログ・ペトリネットビューア追加） | Cline |
+| 2026-09-01 | 記録値訂正機能追加（訂正モード UI・訂正フロー・API仕様・i18nキー・event_log記録）、承認/NG に event_log 記録を追加、ツールバー構成更新 | Cline |

@@ -14,6 +14,7 @@ import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import * as experimentInstructionService from '../services/experimentInstructionService';
 import { getJudgeSummaryByProject } from '../services/uncertaintyJudgeService';
+import type { CorrectRecordInput } from '../types/api';
 
 // ──────────────────────────────────────────────
 // ハンドラ
@@ -256,4 +257,54 @@ export async function getUncertaintyJudgeSummary(
     next(error);
   }
 }
+
+/**
+ * 記録値（実績値）訂正
+ * PATCH /api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct
+ */
+export async function correctRecord(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { organizationId, userId } = req.user!;
+    const { projectId, methodId, taskNo: taskNoStr } = req.params;
+    const { records } = req.body as CorrectRecordInput;
+
+    logger.info('[experimentInstruction] correctRecord', {
+      organizationId,
+      projectId,
+      methodId,
+      taskNo: taskNoStr,
+      recordCount: records?.length,
+    });
+
+    const taskNo = parseInt(taskNoStr, 10);
+
+    const result = await experimentInstructionService.correctRecord(
+      organizationId,
+      projectId,
+      methodId,
+      taskNo,
+      records,
+      userId
+    );
+
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    if (error?.statusCode === 409) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: error.code ?? 'TASK_NOT_REVIEW_WAITING',
+          message: error.message,
+        },
+      });
+      return;
+    }
+    next(error);
+  }
+}
+
 

@@ -23,6 +23,8 @@ import type {
   GetProjectMethodsResponse,
   UncertaintyJudgeSummaryResponse,
   GetUncertaintyJudgeSummaryResponse,
+  CorrectRecordRequest,
+  CorrectRecordResponse,
 } from '@/types/experimentInstruction';
 
 // ─────────────────────────────────────────────────────────────
@@ -111,5 +113,24 @@ export async function getUncertaintyJudgeSummary(
   const response = await apiClient.get<GetUncertaintyJudgeSummaryResponse>(url);
 
   return response.data.data;
+}
+
+/**
+ * 記録値（実績値）を訂正する
+ * PATCH /api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNumber/correct
+ */
+export async function correctRecord(
+  projectId: string,
+  methodId: string,
+  taskNumber: number,
+  body: CorrectRecordRequest
+): Promise<CorrectRecordResponse> {
+  const apiClient = createApiClient();
+  const url =
+    `/projects/${encodeURIComponent(projectId)}` +
+    `/experiment-instructions/${encodeURIComponent(methodId)}/${taskNumber}/correct`;
+
+  const response = await apiClient.patch<CorrectRecordResponse>(url, body);
+  return response.data;
 }
 

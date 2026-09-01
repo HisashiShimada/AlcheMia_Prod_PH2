@@ -48,6 +48,7 @@ import {
   getProjectMethods,
   approveTask,
   recordNg,
+  correctRecord,
 } from '@/services/experimentInstructionApiService';
 import { getProjectMaiml } from '@/services/projectApiService';
 import type {
@@ -119,6 +120,14 @@ interface FlatRow {
   transitionId: string;
   transitionName: string;
   templateName: string;
+  /** template_data の place_id（訂正時にバックエンドへ渡すために必要） */
+  placeId: string;
+  /** テンプレートタイプ（訂正時に必要） */
+  templateType: string;
+  /** テンプレートID（訂正時に必要） */
+  templateId: string;
+  /** フィールドの properties（訂正時に必要） */
+  properties: unknown[];
   propKey: string;
   propLabel: string;
   xsiType: string;
@@ -261,6 +270,14 @@ function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
             transitionId:  '',
             transitionName: '',
             templateName:  tmpl.templateName ?? tmpl.templateId,
+            placeId:       tmpl.placeId ?? tmpl.templateId,
+            templateType:  tmpl.templateType,
+            templateId:    tmpl.templateId,
+            properties:    tmpl.fields.map((f) => ({
+              key: f.key,
+              value: f.actualValue,
+              xsiType: f.xsiType,
+            })),
             propKey:       field.key,
             propLabel:     field.label,
             xsiType:       field.xsiType ?? '',
@@ -391,6 +408,12 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   /** NG理由 */
   const [bulkSelectedNgReason, setBulkSelectedNgReason] = useState<string>('');
 
+  // ── 訂正モード ──
+  const [isCorrectionMode, setIsCorrectionMode] = useState(false);
+  /** キー: rowKey、値: 訂正後の actual 値 */
+  const [pendingCorrections, setPendingCorrections] = useState<Map<string, string>>(new Map());
+  const [correctionLoading, setCorrectionLoading] = useState(false);
+
   // ── ExperimentPlanDialog ──
   const [planDialogOpen, setPlanDialogOpen]       = useState(false);
   const [planDialogMethodId, setPlanDialogMethodId] = useState<string>('');
@@ -475,6 +498,91 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     });
     return result.sort((a, b) => a.taskNumber - b.taskNumber);
   }, [allRows]);
+
+  // ─────────────────────────────────────────────────────────
+  // 訂正モード: 保存処理
+  // ─────────────────────────────────────────────────────────
+
+  const handleSaveCorrections = useCallback(async () => {
+    if (pendingCorrections.size === 0) {
+      setIsCorrectionMode(false);
+      return;
+    }
+
+    // pendingCorrections を methodId + taskNo + placeId でグループ化
+    type CorrectionGroup = {
+      methodId: string;
+      taskNumber: number;
+      placeId: string;
+      templateId: string;
+      templateType: string;
+      properties: unknown[];
+    };
+
+    const groupMap = new Map<string, CorrectionGroup>();
+    for (const [rowKey, newValue] of pendingCorrections) {
+      const row = allRows.find((r) => r.rowKey === rowKey);
+      if (!row) continue;
+      const groupKey = `${row.methodId}__${row.taskNumber}__${row.placeId}`;
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, {
+          methodId: row.methodId,
+          taskNumber: row.taskNumber,
+          placeId: row.placeId,
+          templateId: row.templateId,
+          templateType: row.templateType,
+          properties: row.properties.map((p: any) =>
+            p.key === row.propKey ? { ...p, value: newValue } : p
+          ),
+        });
+      } else {
+        // 同一 placeId の別 propKey が更新された場合、properties を更新
+        const grp = groupMap.get(groupKey)!;
+        grp.properties = grp.properties.map((p: any) =>
+          p.key === row.propKey ? { ...p, value: newValue } : p
+        );
+      }
+    }
+
+    setCorrectionLoading(true);
+    try {
+      // methodId + taskNo ごとにまとめてリクエスト
+      const taskMap = new Map<string, CorrectionGroup[]>();
+      for (const grp of groupMap.values()) {
+        const taskKey = `${grp.methodId}__${grp.taskNumber}`;
+        if (!taskMap.has(taskKey)) taskMap.set(taskKey, []);
+        taskMap.get(taskKey)!.push(grp);
+      }
+
+      for (const [, groups] of taskMap) {
+        const firstGroup = groups[0];
+        const records = groups.map((g) => ({
+          placeId: g.placeId,
+          data: {
+            templateId: g.templateId,
+            templateType: g.templateType,
+            properties: g.properties,
+          },
+        }));
+        await correctRecord(projectId, firstGroup.methodId, firstGroup.taskNumber, { records });
+      }
+
+      message.success(t('experimentInstruction.correctionSaved'));
+      setIsCorrectionMode(false);
+      setPendingCorrections(new Map());
+      fetchData();
+    } catch (err) {
+      console.error('[ExperimentInstructionTab] handleSaveCorrections error:', err);
+      message.error(t('experimentInstruction.correctionError'));
+    } finally {
+      setCorrectionLoading(false);
+    }
+  }, [pendingCorrections, allRows, projectId, message, t, fetchData]);
+
+  const handleCancelCorrections = useCallback(() => {
+    setPendingCorrections(new Map());
+    setIsCorrectionMode(false);
+  }, []);
 
   // ─────────────────────────────────────────────────────────
   // 承認処理ダイアログを開く
@@ -749,7 +857,26 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       title: t('experimentInstructionTab.col.actual'),
       width: 100,
       align: 'right' as const,
-      render: (_: unknown, r: FlatRow) => <ActualCell actual={r.actual} unit={r.unit} t={t} />,
+      render: (_: unknown, r: FlatRow) => {
+        if (isCorrectionMode && r.taskStatus === '04') {
+          const currentValue = pendingCorrections.has(r.rowKey)
+            ? pendingCorrections.get(r.rowKey)!
+            : (r.actual !== null ? String(r.actual) : '');
+          return (
+            <Input
+              size="small"
+              value={currentValue}
+              style={{ width: 90, textAlign: 'right', fontSize: 12 }}
+              onChange={(e) => {
+                const newMap = new Map(pendingCorrections);
+                newMap.set(r.rowKey, e.target.value);
+                setPendingCorrections(newMap);
+              }}
+            />
+          );
+        }
+        return <ActualCell actual={r.actual} unit={r.unit} t={t} />;
+      },
     },
     {
       key: 'actualAverage',
@@ -1000,43 +1127,73 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     <Flex vertical style={{ height: '100%' }}>
       {/* ── ツールバー ── */}
       <Flex gap={8} align="center" style={{ padding: '4px 0 6px' }}>
-        <Button
-          size="small"
-          icon={<EditOutlined />}
-          disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
-          onClick={() => handleOpenPlanDialog(filters.methodId ?? undefined)}
-        >
-          {t('experimentInstructionTab.toolbar.edit')}
-        </Button>
-        <Button
-          size="small"
-          icon={<FileSearchOutlined />}
-          onClick={handleOpenPetriNetViewer}
-          disabled={!projectName}
-          loading={petriNetViewerLoading}
-        >
-          {t('experimentInstructionTab.toolbar.petriNet')}
-        </Button>
-        <Dropdown
-          menu={{ items: columnMenuItems }}
-          trigger={['click']}
-          open={columnDropdownOpen}
-          onOpenChange={setColumnDropdownOpen}
-          placement="bottomRight"
-        >
-          <Button size="small" icon={<SettingOutlined />}>
-            {t('experimentInstructionTab.toolbar.selectColumns')}
-          </Button>
-        </Dropdown>
-        <Button
-          size="small"
-          type="primary"
-          icon={<CheckCircleOutlined />}
-          disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}
-          onClick={handleOpenBulkApproveDialog}
-        >
-          {t('experimentInstructionTab.toolbar.approval')}
-        </Button>
+        {!isCorrectionMode ? (
+          <>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
+              onClick={() => handleOpenPlanDialog(filters.methodId ?? undefined)}
+            >
+              {t('experimentInstructionTab.toolbar.edit')}
+            </Button>
+            <Button
+              size="small"
+              icon={<FileSearchOutlined />}
+              onClick={handleOpenPetriNetViewer}
+              disabled={!projectName}
+              loading={petriNetViewerLoading}
+            >
+              {t('experimentInstructionTab.toolbar.petriNet')}
+            </Button>
+            <Dropdown
+              menu={{ items: columnMenuItems }}
+              trigger={['click']}
+              open={columnDropdownOpen}
+              onOpenChange={setColumnDropdownOpen}
+              placement="bottomRight"
+            >
+              <Button size="small" icon={<SettingOutlined />}>
+                {t('experimentInstructionTab.toolbar.selectColumns')}
+              </Button>
+            </Dropdown>
+            <Button
+              size="small"
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}
+              onClick={handleOpenBulkApproveDialog}
+            >
+              {t('experimentInstructionTab.toolbar.approval')}
+            </Button>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}
+              onClick={() => setIsCorrectionMode(true)}
+            >
+              {t('experimentInstructionTab.correctionMode')}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              size="small"
+              type="primary"
+              loading={correctionLoading}
+              onClick={handleSaveCorrections}
+            >
+              {t('experimentInstructionTab.saveCorrectionBtn')}
+            </Button>
+            <Button
+              size="small"
+              disabled={correctionLoading}
+              onClick={handleCancelCorrections}
+            >
+              {t('experimentInstructionTab.cancelCorrectionBtn')}
+            </Button>
+          </>
+        )}
       </Flex>
 
       {/* ── フィルタバー ── */}

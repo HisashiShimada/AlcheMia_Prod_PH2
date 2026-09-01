@@ -90,8 +90,10 @@ export interface InstructionFieldResponse {
 export interface InstructionTemplateResponse {
   templateId: string;
   templateName: string | null;
-  templateType: 'material' | 'condition' | 'result';
+  templateType: string;
   fields: InstructionFieldResponse[];
+  /** template_data の place_id（訂正時にバックエンドへ渡すために必要） */
+  placeId: string | null;
 }
 
 /** 1 タスクの実験指示情報 */
@@ -201,3 +203,40 @@ export interface ExperimentInstructionFilter {
   /** フィルタするタスクステータス（undefined = すべて） */
   taskStatus?: string;
 }
+
+// ─────────────────────────────────────────────────────────────
+// 記録値訂正 API 型定義
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 記録値訂正の1レコード（placeId + data の組み合わせ）
+ */
+export interface CorrectRecordItem {
+  /** プレースID（template_data の place_id） */
+  placeId: string;
+  /** 訂正後のデータ */
+  data: {
+    templateId: string;
+    templateType: string;
+    properties: unknown[];
+  };
+}
+
+/**
+ * 記録値訂正 API リクエスト
+ * PATCH /api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct
+ */
+export interface CorrectRecordRequest {
+  records: CorrectRecordItem[];
+}
+
+/**
+ * 記録値訂正 API レスポンス
+ */
+export interface CorrectRecordResponse {
+  success: boolean;
+  data: {
+    corrected: number;
+  };
+}
+
