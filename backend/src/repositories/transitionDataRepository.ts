@@ -538,6 +538,47 @@ export class TransitionDataRepository {
 
 
   /**
+   * トランジションの前提ID配列を更新（実験計画保存時の同期用）
+   *
+   * 実験計画ダイアログで前提設定が変更された際に、
+   * transition_data.prerequisite_transition_ids を最新状態に同期する。
+   * task_no=0（順序管理行）は対象外（task_no > 0 の実績行のみ更新）。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param transitionId - トランジションID
+   * @param prerequisiteTransitionIds - 新しい前提トランジションID配列
+   * @param userId - 更新者ユーザーID
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async updatePrerequisiteIds(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    transitionId: string,
+    prerequisiteTransitionIds: string[],
+    userId: string
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('transition_data/updatePrerequisiteIds.sql');
+      await getPgp().none(query, [
+        organizationId,
+        projectId,
+        methodId,
+        transitionId,
+        prerequisiteTransitionIds,
+        userId,
+      ]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while updating prerequisite transition ids',
+        error as Error
+      );
+    }
+  }
+
+  /**
    * プロジェクト内のトランジション実績を全件削除（タスク登録再保存時）
    *
    * @param organizationId - 組織ID（マルチテナント分離）

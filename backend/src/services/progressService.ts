@@ -1082,12 +1082,18 @@ export class ProgressService {
 
           for (const dep of dependentTransitions) {
             // 全前提トランジションのステータスを確認（findByTransitionId.sql を使い client クエリで取得）
+            // dep.task_no を指定して同一タスクの前提トランジションのみを確認する。
+            // task_no を指定しないと複数タスク（task_no=1, 2...）の行が混在し、
+            // rows[0] の取得順が不定になるため、COMPLETED でない前提を見逃すバグが発生する。
             const allPrereqsCompleted = await (async () => {
               for (const prereqId of dep.prerequisite_transition_ids) {
                 const prereqSql = await loadSqlFile('transition_data/findByTransitionId.sql');
                 const prereqResult = await client.query(prereqSql, [organizationId, projectId, dep.method_id, prereqId]);
                 if (prereqResult.rows.length === 0) return false;
-                if (prereqResult.rows[0].status !== TransitionStatusEnum.COMPLETED) return false;
+                // 同一タスク（dep.task_no）の行のみを対象にステータスを確認する
+                const targetRow = prereqResult.rows.find((row: { task_no: number; status: number }) => row.task_no === dep.task_no);
+                if (!targetRow) return false;
+                if (targetRow.status !== TransitionStatusEnum.COMPLETED) return false;
               }
               return true;
             })();
