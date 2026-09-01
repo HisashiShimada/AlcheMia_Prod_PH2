@@ -179,7 +179,7 @@ const GlobalNamespaceView: React.FC<GlobalNamespaceViewProps> = ({ viewOnly = fa
           columns={columns}
           rowKey="prefix"
           size="small"
-          pagination={{ pageSize: 20, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
+          pagination={{ pageSize: 50, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
           locale={{ emptyText: t('globalNamespace.empty') }}
         />
       </Spin>
