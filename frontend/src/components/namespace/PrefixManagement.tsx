@@ -126,6 +126,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       } else {
         fetchNamespaces(undefined, undefined);
       }
+    } else if (key.startsWith('personal-')) {
+      // personal-{userId} ノード → personal- を除去して userId を scopeKey として渡す
+      const userId = key.replace(/^personal-/, '');
+      fetchNamespaces(userId, undefined);
     } else {
       const isOrgGroup = !STATIC_KEYS.has(key);
       if (isOrgGroup) {
@@ -139,7 +143,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           fetchNamespaces(key, true);
         }
       } else {
-        // global / personal / personal 子ノード（userId）
+        // global / personal 等の静的キー
         fetchNamespaces(key, undefined);
       }
     }
@@ -160,7 +164,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
     setNewRows((prev) => [...prev, newRow]);
     // バックエンドからURI候補を取得してセット
     try {
-      const uri = await fetchSuggestedUri(scopeKey ?? selectedNsKey ?? undefined);
+      const rawKey = scopeKey ?? selectedNsKey ?? undefined;
+      // personal-{userId} 形式の場合は personal- を除去して DB の scope_key（userId）にする
+      const apiKey = rawKey?.replace(/^personal-/, '');
+      const uri = await fetchSuggestedUri(apiKey);
       setNewRows((prev) =>
         prev.map((r) => (r._rowId === newRow._rowId ? { ...r, uri } : r))
       );
@@ -188,11 +195,14 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
     for (const row of newRows) {
       try {
+        const rawScopeKey = scopeKey ?? selectedNsKey ?? undefined;
+        // personal-{userId} 形式の場合は personal- を除去して DB の scope_key（userId）にする
+        const apiScopeKey = rawScopeKey?.replace(/^personal-/, '');
         const createNamespaceRequest: Parameters<typeof createNamespace>[0] = {
           prefix: row.prefix,
           uri: row.uri,
           description: row.description || undefined,
-          scopeKey: scopeKey ?? selectedNsKey ?? undefined,
+          scopeKey: apiScopeKey,
         };
         const created = await createNamespace(createNamespaceRequest);
         added.push({
