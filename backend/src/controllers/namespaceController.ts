@@ -418,7 +418,7 @@ export async function toggleTermActive(
   try {
     const { prefix, localName } = req.params as unknown as TermActiveParams;
     const { isActive } = req.body as ToggleTermActiveBody;
-    const organizationId = (req as any).organizationId as string;
+    const organizationId = req.user!.organizationId;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
     const updated = await namespaceService.toggleTermActive(

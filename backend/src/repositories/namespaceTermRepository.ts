@@ -764,10 +764,10 @@ export async function findDeclarationsByProjectScope(
 export async function findNamespacesByScopeKey(
   organizationId: string,
   scopeKey: string
-): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>> {
+): Promise<Array<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string; isActive?: boolean }>> {
   const pgp = getPgp();
   const query = await loadSqlFile('namespace_terms/findNamespacesByScopeKey.sql');
-  return pgp.any<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string }>(
+  return pgp.any<{ prefix: string; uri: string; scopeKey?: string; scopeName?: string; isActive?: boolean }>(
     query,
     [organizationId, scopeKey]
   );

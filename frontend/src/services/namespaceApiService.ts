@@ -220,10 +220,13 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
           `🔖 [namespaceApiService] 個人スコープ Prefix 取得: ${personal.length} 件 (userId=${userInfo.id}), 正規URI=${personalUri}`
         );
         // DB に保存された uri ではなく、正規パターンの個人スコープ URI で上書きする
-        const correctedPersonal = personal.map((entry) => ({
-          ...entry,
-          uri: personalUri,
-        }));
+        // 非アクティブ Prefix は XML 注入対象外とするためフィルタする
+        const correctedPersonal = personal
+          .filter((entry) => (entry as any).isActive !== false)
+          .map((entry) => ({
+            ...entry,
+            uri: personalUri,
+          }));
         allScopedNamespaces.push(...correctedPersonal);
       }
     }
@@ -243,7 +246,10 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
           `🔖 [namespaceApiService] グループスコープ Prefix 取得: ${group.length} 件 (scopeKey=${groupCds[0]}, withAncestors=true), 正規URI=${groupUri}`
         );
         // DB に保存された uri ではなく、正規パターンのグループスコープ URI で上書きする
-        const correctedGroup = group.map((entry) => ({ ...entry, uri: groupUri }));
+        // 非アクティブ Prefix は XML 注入対象外とするためフィルタする
+        const correctedGroup = group
+          .filter((entry) => (entry as any).isActive !== false)
+          .map((entry) => ({ ...entry, uri: groupUri }));
         allScopedNamespaces.push(...correctedGroup);
       }
     }
