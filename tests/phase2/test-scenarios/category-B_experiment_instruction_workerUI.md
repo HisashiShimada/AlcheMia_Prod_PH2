@@ -1,20 +1,18 @@
 # 分類B シナリオテスト ― 実験計画指示記入機能・実験作業者UI
 
 **作成日**: 2026-08-19
-**更新日**: 2026-08-21
+**更新日**: 2026-08-26
 **作成者**: SSV
 **対象機能**: 実験計画指示記入機能・実験作業者UI
 **前提資料**:
 - UI設計書（管理者側）: `docs/design/ui/experiment_admin/01_project_management/ui_task_registration_tab.md`
 - UI設計書（管理者側）: `docs/design/ui/experiment_admin/01_project_management/ui_experiment_plan_dialog.md`
-- UI設計書（作業者側）: `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`
-- UI設計書（作業者側）: `docs/design/ui/experiment_worker/ui_work_record_panel.md`
+- UI設計書（作業者側）: `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`（**v3.0.0** / 最終更新: 2026-08-26）
+- UI設計書（作業者側）: `docs/design/ui/experiment_worker/ui_work_record_panel.md`（**v3.0.0** / 最終更新: 2026-08-26）
 - ソース: `frontend/src/components/project/TaskRegistrationTab.tsx`
 - ソース: `frontend/src/components/project/ExperimentPlanDialog.tsx`
 - ソース: `frontend/src/components/ExperimentWorker/ProgressOverviewTab.tsx`
 - ソース: `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx`
-
-> **フェーズ注記**: 現時点（フェーズA）はモックデータで動作しているシナリオがあります。フェーズBで実 API 接続に切り替え予定です。
 
 ---
 
@@ -27,7 +25,7 @@
 - [B-EI-04：一括タブ→タスクNタブへの伝播と個別編集](#b-ei-04一括タブタスクnタブへの伝播と個別編集)
 - [B-EI-05：トランジション DnD 並べ替え](#b-ei-05トランジション-dnd-並べ替え)
 - [B-EI-06：実験作業者 ─ 進捗確認タブ・フィルタ・前提チェック](#b-ei-06実験作業者--進捗確認タブフィルタ前提チェック)
-- [B-EI-07：実験作業者 ─ 作業記録パネル・実績値入力・トランジション完了](#b-ei-07実験作業者--作業記録パネル実績値入力トランジション完了)
+- [B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了](#b-ei-07実験作業者--実験記録タブ実績値入力トランジション完了)
 - [B-EI-08：差異表示・確信度ボタン・定量評価入力](#b-ei-08差異表示確信度ボタン定量評価入力)
 - [B-EI-09：承認ワークフロー（フェーズB予定・現在未実装）](#b-ei-09承認ワークフローフェーズb予定現在未実装)
 
@@ -261,7 +259,7 @@
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 17 | experiment_worker | 実験作業者メニュー → 「作業記録」タブを開く | `WorkRecordPanel` が表示される |
+| 17 | experiment_worker | 実験作業者メニュー → 「実験記録」タブを開く | `WorkRecordPanel` が表示される |
 | 18 | — | 画面上部を確認する | `WarningOutlined`（黄色）+「プロジェクト指示」+ 件数バッジの折りたたみパネル（背景色 `#fffbe6`）が表示されている |
 | 19 | experiment_worker | 折りたたみパネルを展開する | 指示事項が箇条書き（`<ul><li>`）で表示される |
 | 20 | — | 表示条件を確認する | 指示事項が0件の場合はパネル自体が非表示になっている |
@@ -396,25 +394,29 @@
 
 ## B-EI-06：実験作業者 ─ 進捗確認タブ・フィルタ・前提チェック
 
-> ⚠️ **【実施不可・仕様変更待ち】**
-> このシナリオは仕様変更が予定されており、現時点での実施は不可です。
-> 仕様が確定次第、操作手順・確認ポイントを更新してから実施してください。
-
 ### 概要
 
 実験作業者が進捗確認タブ（`ProgressOverviewTab`）でサマリーカード・フィルタバー・トランジションテーブルを確認し、前提未完了のトランジションがロックされることを確認する。
+また、フェーズB移行により追加された `preparing`（準備中）・`ready`（準備完了）ステータスの操作ボタン仕様を確認する。
 
 ### 関連
 
 | 項目 | 参照先 |
 |------|--------|
-| UI設計書 | `docs/design/ui/experiment_worker/ui_progress_overview_tab.md` |
+| UI設計書 | `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`（v3.0.0） |
 | コンポーネント | `ProgressOverviewTab.tsx` / `SummaryCard`（サブコンポーネント）|
+| API | `GET /api/v1/progress/projects/:projectName/work-details` |
 
 ### 前提条件
 
 - `experiment_worker` としてログイン済み
-- 親コンポーネント（`ExperimentWorkerMenu`）から `rows`（ProgressRow 配列）が渡されていること
+- `ExperimentWorkerMenu` が `getWorkDetails` API を呼び出し、`rows`（ProgressRow 配列）が `ProgressOverviewTab` に渡されていること
+- テスト用プロジェクトに以下のステータスのトランジションが含まれていること：
+  - `not_started` が1件以上
+  - `preparing` が1件（進捗確認タブから「開始」を押した直後の状態）
+  - `ready` が1件（「指示確認」ボタンを押した後の状態）
+  - `in_progress` が1件以上
+  - `completed` が1件以上
 - `transition-2` の `prerequisiteTransitionIds` に `transition-1` が設定されていること
 
 ### 操作手順
@@ -424,80 +426,89 @@
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 1 | experiment_worker | 実験作業者メニュー → 「進捗確認」タブを開く | `ProgressOverviewTab` が表示される |
-| 2 | — | サマリーカードを確認する | 全体進捗バー（%）・タスク完了数・ステータス別件数（未着手/作業中/完了）が表示されている |
-| 3 | — | 問題あり件数の表示を確認する | `issue` ステータス行が1件以上ある場合のみ赤色で件数表示される。0件の場合は非表示 |
+| 2 | — | サマリーカードを確認する | 全体進捗バー（%）・タスク完了数・ステータス別件数が表示されている |
+| 3 | — | サマリーカードのステータス別件数を確認する | **準備中**・**準備完了**・未着手・作業中・完了 の各件数が表示される（`preparing`/`ready` が追加表示されること）|
+| 4 | — | 問題あり件数の表示を確認する | `issue` ステータス行が1件以上ある場合のみ赤色で件数表示される。0件の場合は非表示 |
 
 #### ステップ 2：フィルタバーの操作
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 4 | experiment_worker | フィルタバーの「ステータス」セレクトで「未着手」を選択する | `not_started` のトランジションのみに絞り込まれる |
-| 5 | experiment_worker | 「メソッド名」フィルタで `method-A` を選択する | `method-A` のトランジションのみに絞り込まれる |
-| 6 | experiment_worker | 「メソッド名」フィルタを変更する | 「トランジション名」フィルタが自動リセットされる |
-| 7 | experiment_worker | 各フィルタをクリアする | 全トランジションが再表示される |
+| 5 | experiment_worker | フィルタバーの「ステータス」セレクトを開く | 選択肢に「未着手」「準備中」「準備完了」「作業中」「一時停止」「完了」「問題あり」の7種が表示される |
+| 6 | experiment_worker | 「ステータス」セレクトで「準備中」を選択する | `preparing` のトランジションのみに絞り込まれる |
+| 7 | experiment_worker | 「ステータス」セレクトで「準備完了」を選択する | `ready` のトランジションのみに絞り込まれる |
+| 8 | experiment_worker | 「メソッド名」フィルタで `method-A` を選択する | `method-A` のトランジションのみに絞り込まれる |
+| 9 | experiment_worker | 各フィルタをクリアする | 全トランジションが再表示される |
 
 #### ステップ 3：ステータス別操作ボタンの確認
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 8 | — | `not_started`（前提なし）行の操作列を確認する | 「開始」ボタンが活性状態 |
-| 9 | — | `in_progress` 行の操作列を確認する | 「作業へ」ボタン（primary）が表示される |
-| 10 | — | `on_hold` 行の操作列を確認する | 「再開」ボタンが表示される |
-| 11 | — | `completed` または `issue` 行の操作列を確認する | 「詳細確認」ボタンが表示される |
+| 10 | — | `not_started`（前提なし）行の操作列を確認する | 「開始」ボタンが活性状態で表示される |
+| 11 | — | `preparing`（準備中）行の操作列を確認する | 「指示確認」ボタン（primary）が表示される |
+| 12 | — | `ready`（準備完了）行の操作列を確認する | 「開始」ボタンが表示される |
+| 13 | — | `in_progress` 行の操作列を確認する | 「作業へ」ボタン（primary）が表示される |
+| 14 | — | `on_hold` 行の操作列を確認する | 「再開」ボタンが表示される |
+| 15 | — | `completed` または `issue` 行の操作列を確認する | 「詳細確認」ボタンが表示される |
+| 16 | experiment_worker | `preparing` 行の「指示確認」ボタンを押す | 「実験記録」タブに遷移し、対象トランジションの `InstructionCollapse`（プロジェクト指示）が表示される |
 
 #### ステップ 4：前提未完了による開始ボタンのロック確認
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 12 | — | `transition-2`（前提: `transition-1` 未完了）の操作列を確認する | 「開始」ボタンが `disabled` になり 🔒（LockOutlined・黄色）アイコンがトランジション名横に表示される |
-| 13 | experiment_worker | `disabled` の「開始」ボタンにホバーする | Tooltip「前の順序のトランジションを先に完了してください」が表示される |
+| 17 | — | `transition-2`（前提: `transition-1` 未完了）の操作列を確認する | 「開始」ボタンが `disabled` になり 🔒（LockOutlined・黄色）アイコンがトランジション名横に表示される |
+| 18 | experiment_worker | `disabled` の「開始」ボタンにホバーする | Tooltip「前の順序のトランジションを先に完了してください」が表示される |
 
 #### ステップ 5：レスポンシブ表示の確認
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 14 | experiment_worker | ブラウザ幅を xl（1200px）以上に設定する | 進捗列が Material / Condition / Result の独立3列（Progress バー + rec/tot 数値）で表示される |
-| 15 | experiment_worker | ブラウザ幅を xl（1200px）未満に設定する | 進捗列が「進捗」1列に統合され、`M rec/tot · C rec/tot · R rec/tot` のテキスト表示になる |
+| 19 | experiment_worker | ブラウザ幅を xl（1200px）以上に設定する | 進捗列が Material / Condition / Result の独立3列（Progress バー + rec/tot 数値）で表示される |
+| 20 | experiment_worker | ブラウザ幅を xl（1200px）未満に設定する | 進捗列が「進捗」1列に統合され、`M rec/tot · C rec/tot · R rec/tot` のテキスト表示になる |
 
 ### 確認ポイント
 
 - [ ] `canAccessTransition` ロジックは同一タスク内の前提完了のみを確認する（異なるタスク間は対象外）
 - [ ] 前提未完了のトランジションは操作ボタンが `disabled`、トランジション名横に 🔒 アイコン
 - [ ] レスポンシブ切り替えポイントは xl（1200px）
-- [ ] ステータスは5種類：`not_started` / `in_progress` / `on_hold` / `completed` / `issue`
+- [ ] **ステータスは7種類**：`not_started` / `preparing` / `ready` / `in_progress` / `on_hold` / `completed` / `issue`
+- [ ] `preparing` 行には「指示確認」ボタン（primary）が表示される
+- [ ] `ready` 行には「開始」ボタンが表示される
+- [ ] サマリーカードに `preparing`・`ready` 件数が表示される
 
 ### テスト結果
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| | | 実施不可（仕様変更待ち） | |
+| | | 未実施 | |
 
 ---
 
-## B-EI-07：実験作業者 ─ 作業記録パネル・実績値入力・トランジション完了
-
-> ⚠️ **【実施不可・仕様変更待ち】**
-> このシナリオは仕様変更が予定されており、現時点での実施は不可です。
-> 仕様が確定次第、操作手順・確認ポイントを更新してから実施してください。
+## B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了
 
 ### 概要
 
-実験作業者が `WorkRecordPanel` でテンプレートを選択し、型に応じた入力コントロール（InputNumber / Input）で実績値を入力し、「保存して次へ」ボタンでトランジションを完了させられることを確認する。
+実験作業者が `WorkRecordPanel` でテンプレートを選択し、型に応じた入力コントロール（InputNumber / Input）で実績値を入力し、「次へ」ボタンでトランジションを完了させられることを確認する。
+フェーズB対応として、指示確認フロー（`preparing` → `ready` → `in_progress`）・状態記録ダイアログ・状態プルダウン・API保存も検証する。
 
 ### 関連
 
 | 項目 | 参照先 |
 |------|--------|
-| UI設計書 | `docs/design/ui/experiment_worker/ui_work_record_panel.md` |
+| UI設計書 | `docs/design/ui/experiment_worker/ui_work_record_panel.md`（v3.0.0） |
 | コンポーネント | `WorkRecordPanel.tsx` / `PropertyCard`（サブコンポーネント）|
+| API | `GET /api/v1/progress/projects/:projectName/work-details` |
+| API | `GET /api/v1/experiment-data/template-data` |
+| API | `POST /api/v1/experiment-data` |
+| API | `PATCH /api/v1/progress/.../transitions/:transitionId/status` |
+| API | `POST /api/v1/projects/.../instructions/confirm` |
 
 ### 前提条件
 
 - `experiment_worker` としてログイン済み
-- 作業対象トランジション（`transition-1`）が `in_progress` 状態であること
+- 作業対象トランジション（`transition-1`）が `preparing` 状態であること（進捗確認タブから「開始」が押された直後）
 - `transition-1` のテンプレートに `FloatValue`・`StringValue` のプロパティが存在すること
-
-> **フェーズA注記**: 本シナリオはモックデータで動作します。「保存」は `Modal.success` 通知のみで API 保存は未実装（フェーズB予定）。
+- プロジェクト指示が1件以上登録されていること
 
 ### 操作手順
 
@@ -505,79 +516,180 @@
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 1 | experiment_worker | 実験作業者メニュー → 「作業記録」タブを開く | `WorkRecordPanel` が表示される |
-| 2 | — | 左 Sider（幅280px固定）を確認する | テンプレート件数・検索 Input・種別 Select・テンプレートテーブルが表示されている |
-| 3 | — | テンプレートテーブルのカラムを確認する | テンプレート名・プロパティ数・カテゴリ Tag（Materials=緑/Conditions=青/Results=紫）・I/O Tag が表示される |
-| 4 | — | WorkHeader を確認する | ステータス Tag・タスク#・メソッドID（Tooltip付き省略）・トランジションID（Tooltip付き省略）が表示される |
+| 1 | experiment_worker | 実験作業者メニュー → 「実験記録」タブを開く | `WorkRecordPanel` が表示される |
+| 2 | — | 画面最上部のプロジェクト指示パネルを確認する | `WarningOutlined`（黄色）+「プロジェクト指示」+ 件数バッジの折りたたみパネル（背景色 `#fffbe6`）が表示されている |
+| 3 | — | WorkHeader（ステータス行）を確認する | **状態プルダウン**（準備中「preparing」が選択された状態）・タスク#・メソッドID・トランジションID が表示されている |
+| 4 | — | WorkHeader 右端のボタン群（1行目）を確認する | 「開始」「終了」 **\|（Divider）** 「異常終了」「状態記録」の4ボタンが表示されている。「異常終了」は**赤色（danger）** |
+| 5 | — | 左 Sider（幅280px固定）のテンプレートリストを確認する | **Materials / Conditions / Results のカテゴリ別グループ**（カード形式：テンプレート名・プロパティ数・カテゴリ Tag・I/O Tag）で表示されている |
+| 6 | — | Content 上部（WorkHeader 直下）のボタン群（2行目）を確認する | 「保存」「次へ」 **\|（Divider）** 「コメント」「スキップ」の4ボタンが並んでいる（**Content 最下部ではなく上部**） |
 
-#### ステップ 2：テンプレート選択と型対応コントロールの確認
-
-| # | ロール | 操作 | 期待結果 |
-|---|--------|------|---------|
-| 5 | experiment_worker | 左 Sider で `Condition-Mixing` テンプレート行をクリックする | 右コンテンツに PropertyCard グリッド（3列）が表示される |
-| 6 | — | `FloatValue` プロパティの入力コントロールを確認する | `InputNumber`（数値入力）が表示され、単位ラベルが横に表示されている |
-| 7 | — | `IntegerValue` プロパティの入力コントロールを確認する | `InputNumber` が表示されている |
-| 8 | — | `StringValue` プロパティの入力コントロールを確認する | テキスト `Input` が表示されている |
-| 9 | — | 各カードの「想定値」エリアを確認する | 背景色 `#e6f7ff`（青系）で想定値 + 単位が表示されている（未設定時は「未設定」italic）|
-
-#### ステップ 3：実績値の入力
+#### ステップ 2：指示確認フロー（`preparing` → `ready`）
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 10 | experiment_worker | `temperature`（FloatValue）の InputNumber に `27.3` を入力する | 想定値 `25.0` と実績値 `27.3` が並んで表示される |
-| 11 | experiment_worker | `description`（StringValue）の Input に「安定確認後開始」と入力する | テキストが入力される |
-| 12 | experiment_worker | 「保存」ボタンを押す | 保存成功の `Modal.success` が表示される（フェーズA: API 未接続）|
+| 7 | — | プロジェクト指示パネル右端のボタンを確認する | 「指示確認」ボタンが表示されている |
+| 8 | experiment_worker | 「指示確認」ボタンを押す | API `POST /api/v1/projects/.../instructions/confirm` が呼ばれ、トランジションが `READY`（準備完了）状態に遷移する |
+| 9 | — | WorkHeader の状態プルダウンを確認する | 「準備完了（ready）」が選択された状態になっている |
 
-#### ステップ 4：「保存して次へ」でテンプレート進行・トランジション完了
-
-| # | ロール | 操作 | 期待結果 |
-|---|--------|------|---------|
-| 13 | — | ボタンラベルを確認する（最後のテンプレートでない場合） | 「テンプレート {current+1}/{total} へ」と表示されている |
-| 14 | experiment_worker | 「保存して次へ」ボタンを押す（途中テンプレート）| 次テンプレートのインデックスに切り替わる |
-| 15 | — | ボタンラベルを確認する（最後のテンプレートの場合） | 「トランジション完了・次へ」と表示されている |
-| 16 | experiment_worker | 「保存して次へ（トランジション完了・次へ）」ボタンを押す | 対象トランジションが `completed` に更新され、次のトランジションが `Modal.success` で通知される |
-
-#### ステップ 5：スキップ操作
+#### ステップ 3：テンプレート選択と型対応コントロールの確認
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 17 | — | スキップボタンの状態を確認する（他に実行可能なトランジションあり）| スキップボタンが活性状態 |
-| 18 | experiment_worker | スキップボタンを押す | 現トランジションがスキップリストに追加され、次の実行可能トランジションへ移動する |
-| 19 | — | スキップボタンの状態を確認する（他に実行可能なトランジションなし）| スキップボタンが `disabled`、Tooltip「スキップできるトランジションがありません」が表示される |
+| 10 | experiment_worker | 左 Sider で「Conditions」グループ内の `Condition-Mixing` テンプレートカードをクリックする | 右コンテンツに PropertyCard グリッド（3列）が表示される |
+| 11 | — | `FloatValue` プロパティの入力コントロールを確認する | `InputNumber`（数値入力）が表示され、単位ラベルが横に表示されている |
+| 12 | — | `StringValue` プロパティの入力コントロールを確認する | テキスト `Input` が表示されている |
+| 13 | — | 各カードの「想定値」エリアを確認する | `plannedValue`（API取得値）が表示されている（未設定時は「未設定」italic）|
+| 14 | — | 各カードの「不確かさ値」「不確かさ説明」を確認する | `toleranceValue`・`uncertaintyNote`（API取得値）が表示されている |
 
-#### ステップ 6：完了済みトランジションの参照閲覧
+#### ステップ 4：「開始」ボタンで `ready` → `in_progress` 遷移
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 20 | experiment_worker | 完了済みトランジションを進捗確認タブから「詳細確認」で開く | `WorkRecordPanel` が読取専用（`isReadOnly=true`）で開く |
-| 21 | — | WorkHeader を確認する | 情報アイコン付き Alert「完了済み（参照のみ）」と「作業に戻る」ボタンが表示されている |
-| 22 | — | 実績値の表示を確認する | 実績値は参照表示（Input ではなく値テキスト）になっており、確信度ボタン・定量評価追加ボタンが非表示 |
+| 15 | experiment_worker | WorkHeader の「開始」ボタンを押す | API `PATCH .../status` が呼ばれ、トランジションが `IN_PROGRESS`（作業中）状態に遷移する |
+| 16 | — | WorkHeader の状態プルダウンを確認する | 「作業中（in_progress）」が選択された状態になっている |
+
+#### ステップ 5：実績値の入力と保存
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 17 | experiment_worker | `temperature`（FloatValue）の InputNumber に `27.3` を入力する | 想定値と並んで実績値が表示される |
+| 18 | experiment_worker | 「保存」ボタンを押す | API `POST /api/v1/experiment-data` が呼ばれ、実績値が保存される |
+
+#### ステップ 6：「次へ」でトランジション完了
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 19 | experiment_worker | 「次へ」ボタンを押す | トランジションが `COMPLETED` 状態に更新され、次のトランジションへ切り替わる |
+
+#### ステップ 7：スキップ操作
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 20 | — | スキップボタンの状態を確認する（他に実行可能なトランジションあり）| スキップボタンが活性状態 |
+| 21 | experiment_worker | スキップボタンを押す | 現トランジションがスキップリストに追加され、次の実行可能トランジションへ移動する |
+| 22 | — | スキップボタンの状態を確認する（他に実行可能なトランジションなし）| スキップボタンが `disabled`、Tooltip「スキップできるトランジションがありません」が表示される |
+
+#### ステップ 8：状態記録ダイアログ
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 23 | experiment_worker | WorkHeader の「状態記録」ボタンを押す | 状態記録ダイアログ（Modal）が開く |
+| 24 | — | ダイアログ内容を確認する | 「動作状態」固定行（日時 + 状態選択）が表示されている |
+| 25 | experiment_worker | 「＋ 休止状態記録追加」ボタンを押す | 休止状態 + 動作状態のペア行がボーダーで囲まれて追加される |
+| 26 | experiment_worker | 追加されたペア行の「- 休止状態記録削除」ボタンを押す | ペア行が削除される |
+| 27 | experiment_worker | ダイアログを「キャンセル」で閉じる | ダイアログが閉じる |
+
+#### ステップ 9：状態プルダウンの直接操作
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 28 | — | WorkHeader の状態 Select を確認する | プルダウンが**活性状態**（`disabled` ではない）で操作可能 |
+| 29 | experiment_worker | 状態プルダウンを開いて選択肢を確認する | 「準備中」「準備完了」「実行中」「完了」「エラー」の選択肢が表示される |
+
+#### ステップ 10：完了済みトランジションの参照閲覧
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 30 | experiment_worker | 完了済みトランジションを進捗確認タブから「詳細確認」で開く | `WorkRecordPanel` が読取専用（`isReadOnly=true`）で開く |
+| 31 | — | WorkHeader を確認する | 情報アイコン付き Alert「完了済み（参照のみ）」と「作業に戻る」ボタンが表示されている |
+| 32 | — | 実績値の表示を確認する | 実績値は参照表示（Input ではなく値テキスト）になっており、確信度ボタン・定量評価追加ボタンが非表示 |
 
 ### 確認ポイント
 
 - [ ] `FloatValue`/`IntegerValue` → `InputNumber`（単位ラベル付き）
 - [ ] `StringValue` → テキスト `Input`
-- [ ] 「保存して次へ」は最後のテンプレート時のみトランジションを `completed` に更新する
+- [ ] 左Sider は **Materials / Conditions / Results のカテゴリ別グループ表示**（フラットなTableではない）
+- [ ] **ボタン群は Content 上部（WorkHeader 直下）に配置**（Content 最下部ではない）
+- [ ] ボタン配置：「保存」「次へ」 **|** 「コメント」「スキップ」（Divider でグループ区切り）
+- [ ] WorkHeader 1行目：「開始」「終了」 **|** 「異常終了（赤）」「状態記録」（Divider でグループ区切り）
+- [ ] **状態プルダウンは活性状態**（`disabled` 属性が削除済み）
+- [ ] 指示確認ボタン押下 → `preparing` → `ready` 遷移・API 呼び出し確認
+- [ ] 「開始」ボタン押下 → `ready` → `in_progress` 遷移
+- [ ] 「次へ」ボタン押下 → `completed` 遷移・API 呼び出し確認
+- [ ] **保存は実 API（`POST /api/v1/experiment-data`）** が呼ばれること（モック通知ではない）
+- [ ] 状態記録ダイアログが「状態記録」ボタンで開く
 - [ ] 完了済み閲覧時（`isReadOnly=true`）は保存ボタン群が非表示になる
-- [ ] データ保存はフェーズAではモック実装（`Modal.success` 通知のみ）
 
 ### テスト結果
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
-| | | 実施不可（仕様変更待ち） | |
+| | | 未実施 | |
 
 ---
 
 ## B-EI-08：差異表示・確信度ボタン・定量評価入力
 
-> ⚠️ **【実施不可・仕様変更待ち】**
-> このシナリオは仕様変更が予定されており、現時点での実施は不可です。
-> 仕様が確定次第、操作手順・確認ポイントを更新してから実施してください。
-
 ### 概要
 
-実験作業者が PropertyCard で実績値入力後に差異（`calcDiff`）が表示されること、確信度ボタン（確か / 曖昧 / 不確か / OK / NG）で定性評価を選択できること、および定量評価（不確かさ基準 + 値）を追加・削除できることを確認する。
+実験作業者が PropertyCard で実績値入力後に差異（`calcDiff`）が表示されること、確信度ボタン（DB 登録選択肢）で定性評価を選択できること、および定量評価（不確かさ基準 + 値）を追加・削除できることを確認する。
+
+### 関連
+
+| 項目 | 参照先 |
+|------|--------|
+| UI設計書 | `docs/design/ui/experiment_worker/ui_work_record_panel.md`（v3.0.0 §5.4 PropertyCard）|
+| コンポーネント | `WorkRecordPanel.tsx`（PropertyCard サブコンポーネント）|
+
+### 前提条件
+
+- `experiment_worker` としてログイン済み
+- `WorkRecordPanel` が入力モードで表示されていること
+- `plannedValue`（想定値 `25.0`）・`toleranceValue`（不確かさ値）・`uncertaintyNote`（不確かさ説明）が設定済みのプロパティ（例: `temperature`）が存在すること
+- テストプロジェクトの `intuition_selector` テーブルに定性評価選択肢が登録されていること（例：「良好」「要確認」「NG」）
+
+### 操作手順
+
+#### ステップ 1：PropertyCard の表示内容確認
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 1 | — | `temperature` PropertyCard の上部を確認する | 「想定値」セルに `plannedValue`（例: `25.0 °C`）が表示されている |
+| 2 | — | 「不確かさ値」列を確認する | ヘッダーに `uncertaintyName`、セルに `toleranceValue` が表示されている |
+| 3 | — | 「不確かさ説明」セルを確認する | `uncertaintyNote` が全幅セルに表示されている（未設定時は「—」）|
+
+#### ステップ 2：差異表示（calcDiff）の確認
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 4 | experiment_worker | `temperature`（想定値 `25.0`）に実績値 `27.3` を入力する | 差分 `+2.3` が赤色（`#cf1322`）で表示される |
+| 5 | experiment_worker | `temperature` に実績値 `22.0` を入力する | 差分 `-3.0` が青色（`#096dd9`）で表示される |
+| 6 | experiment_worker | `temperature` に実績値 `25.0`（想定値と同じ）を入力する | 差分 `±0` が secondary（グレー）で表示される |
+
+#### ステップ 3：確信度ボタンの操作
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 7 | — | PropertyCard の確信度ボタン群を確認する | **DB 登録の選択肢**（例: 「良好」「要確認」「NG」）が表示されている（固定3択「確か/曖昧/不確か」ではない）|
+| 8 | experiment_worker | 最初の選択肢ボタン（例: 「良好」）を選択する | ボタンが強調表示され、カードの選択中確信度 Tag が表示される |
+| 9 | experiment_worker | 再度同ボタンを押す | 選択が解除される（確信度 Tag が非表示になる）|
+| 10 | — | `qualitativeEval` が保存済みのプロパティを確認する | 保存済みの値が**初期選択状態**になっている |
+| 11 | — | `qualitativeNote`（定性評価説明）が設定されているプロパティを確認する | 不確かさ値ヘッダーの右隣に `（description）` 形式で表示されている |
+
+#### ステップ 4：定量評価の追加・削除
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 12 | experiment_worker | PropertyCard 下部の「＋値の追加」ボタンを押す | 不確かさ基準 Select + 値 Input + `DeleteOutlined` ボタンの行が追加される |
+| 13 | experiment_worker | 不確かさ基準 Select を開く | `uncertainty.json` から `eval==='quantitative' && status==='active'` で絞り込まれた基準一覧が表示される |
+| 14 | experiment_worker | 不確かさ基準を選択し、値 Input に数値を入力する | 選択・入力できる |
+| 15 | experiment_worker | `DeleteOutlined` ボタンを押す | その定量評価行が削除される |
+
+### 確認ポイント
+
+- [ ] 差分 > 0 → `+値`（赤 `#cf1322`）、差分 < 0 → `値`（青 `#096dd9`）、差分 = 0 → `±0`（secondary）
+- [ ] **確信度ボタンは `qualitativeOptions`（DB登録値 = `intuition_selector` テーブル由来）を使用する**（固定3択ではない）
+- [ ] **`qualitativeEval`（保存済み選択値）が初期選択状態になっている**
+- [ ] **`qualitativeNote` が不確かさ値ヘッダー右隣に `（description）` 形式で表示される**
+- [ ] 確信度ボタンは再クリックで解除される
+- [ ] 定量評価の不確かさ基準は `eval==='quantitative' && status==='active'` で絞り込まれる
+- [ ] PropertyCard に `plannedValue`（想定値）・`toleranceValue`（不確かさ値）・`uncertaintyNote`（不確かさ説明）が API データから正しく表示される
+
+### テスト結果
+
+| 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
+|--------|-------|---------------------|------------|
+| | | 未実施 | |
 
 ### 関連
 
@@ -664,7 +776,7 @@
 | B-EI-03 | プロジェクト指示ダイアログの指示種別入力と指示粒度設定 | experiment_admin / experiment_worker | 未実施 |
 | B-EI-04 | 一括タブ→タスクNタブへの伝播と個別編集 | experiment_admin | 未実施 |
 | B-EI-05 | トランジション DnD 並べ替え | experiment_admin | 未実施 |
-| B-EI-06 | 実験作業者：進捗確認タブ・フィルタ・前提チェック | experiment_worker | 実施不可（仕様変更待ち）|
-| B-EI-07 | 実験作業者：作業記録パネル・実績値入力・トランジション完了 | experiment_worker | 実施不可（仕様変更待ち）|
-| B-EI-08 | 差異表示・確信度ボタン・定量評価入力 | experiment_worker | 実施不可（仕様変更待ち）|
+| B-EI-06 | 実験作業者：進捗確認タブ・フィルタ・前提チェック | experiment_worker | 未実施 |
+| B-EI-07 | 実験作業者：実験記録タブ・実績値入力・トランジション完了 | experiment_worker | 未実施 |
+| B-EI-08 | 差異表示・確信度ボタン・定量評価入力 | experiment_worker | 未実施 |
 | B-EI-09 | 承認ワークフロー（フェーズB予定・現在未実装） | experiment_worker / experiment_admin | 実施不可（フェーズB未実装）|
