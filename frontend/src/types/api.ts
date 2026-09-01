@@ -510,6 +510,43 @@ export interface TaskInput {
  */
 export type SendInstructionsRequest = Record<string, never>;
 
+
+/**
+ * 状態記録ダイアログ用 休止状態ペア
+ *
+ * @remarks progressController.getTransitionStateRecords のレスポンスで使用
+ */
+export interface PauseEntryRecord {
+  /** 休止状態（paused）の遷移時刻（ISO8601形式）、未記録の場合は null */
+  pauseTime: string | null;
+  /** 動作再開（running）の遷移時刻（ISO8601形式）、未記録の場合は null */
+  resumeTime: string | null;
+}
+
+/**
+ * 状態記録ダイアログ用 トランジション状態遷移時刻レスポンス
+ *
+ * @remarks
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records
+ * のレスポンス data フィールドの型。
+ * maiml_event_log から抽出した各状態の最新遷移時刻を返す。
+ * 未記録のフィールドは null を返す。
+ */
+export interface TransitionStateRecordsResult {
+  /** 準備状態（preparing）への遷移時刻（ISO8601形式）、未記録は null */
+  preparingTime: string | null;
+  /** 準備完了状態（ready）への遷移時刻（ISO8601形式）、未記録は null */
+  readyTime: string | null;
+  /** 動作状態（running）への最初の遷移時刻（ISO8601形式）、未記録は null */
+  runningTime: string | null;
+  /** 休止状態・動作再開のペア配列（複数回の休止に対応） */
+  pauseEntries: PauseEntryRecord[];
+  /** 終状態（completed）への遷移時刻（ISO8601形式）、未記録は null */
+  completedTime: string | null;
+  /** 異常終了状態（error）への遷移時刻（ISO8601形式）、未記録は null */
+  errorTime: string | null;
+}
+
 /**
  * 指示送信レスポンス
  */

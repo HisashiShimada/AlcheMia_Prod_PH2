@@ -13,6 +13,7 @@ import type {
   UpdateTransitionStatusResponse,
   SaveTransitionCommentRequest,
   SaveTransitionCommentResponse,
+  TransitionStateRecordsResult,
 } from '@/types/api';
 import type {
   Task,
@@ -1048,6 +1049,44 @@ export const updateTransitionStatus = async (
     });
     throw error;
   }
+};
+
+
+/**
+ * トランジション状態遷移時刻を取得（状態記録ダイアログ初期値用）
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records
+ *
+ * @param projectId    プロジェクトID
+ * @param methodId     メソッドID
+ * @param transitionId トランジションID
+ * @returns 各状態の遷移時刻（未記録は null）
+ * @throws Error APIエラー時
+ *
+ * @example
+ * ```typescript
+ * const records = await getTransitionStateRecords(projectId, methodId, transitionId);
+ * console.log(records.preparingTime); // "2026-09-01T05:08:08+09:00" | null
+ * ```
+ */
+export const getTransitionStateRecords = async (
+  projectId: string,
+  methodId: string,
+  transitionId: string
+): Promise<TransitionStateRecordsResult> => {
+  const client = createApiClient();
+
+  const response = await client.get<{
+    success: boolean;
+    data: TransitionStateRecordsResult;
+    meta: {
+      timestamp: string;
+      requestId: string;
+    };
+  }>(
+    `/progress/projects/${encodeURIComponent(projectId)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/state-records`
+  );
+
+  return response.data.data;
 };
 
 

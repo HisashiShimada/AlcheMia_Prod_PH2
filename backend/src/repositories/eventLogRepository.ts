@@ -1316,6 +1316,36 @@ export class EventLogRepository {
    * @returns EventLogRow 配列（sequence_no 昇順）
    * @throws {DatabaseError} データベースエラーが発生した場合
    */
+  /**
+   * トランジション進捗ログ取得（トランジション単位）
+   *
+   * 指定したトランジションIDに紐づく maiml_event_log を sequence_no 昇順で返す。
+   * transition_progress / transition_comment の両ログが含まれるため、
+   * 呼び出し元（サービス層）で report_type によるフィルタリングを行うこと。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @param transitionId   - トランジションID
+   * @returns EventLogRow 配列（sequence_no 昇順）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findTransitionStateRecords(
+    organizationId: string,
+    projectId: string,
+    transitionId: string
+  ): Promise<EventLogRow[]> {
+    try {
+      const sql = await loadSqlFile('event_log/findTransitionStateRecords.sql');
+      const pgp = getPgp();
+      return pgp.any<EventLogRow>(sql, [organizationId, projectId, transitionId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while fetching transition state records',
+        error as Error
+      );
+    }
+  }
+
   async findAllByProject(
     organizationId: string,
     projectId: string

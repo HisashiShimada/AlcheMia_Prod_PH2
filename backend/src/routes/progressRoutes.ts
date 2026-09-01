@@ -287,4 +287,29 @@ router.get(
   progressController.getNgTasks
 );
 
+/**
+ * トランジション状態遷移時刻取得（状態記録ダイアログ初期値用）
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
+ * @description
+ *   maiml_event_log から対象トランジションの各状態遷移時刻を抽出して返す。
+ *   状態記録ダイアログを開いた際の初期値表示に使用する。
+ * @roles experiment_worker（読取専用）
+ */
+router.get(
+  '/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records',
+  authMiddleware,
+  checkPermission('050000', 0),
+  [
+    validateParamString('projectId', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamString('transitionId', 1, 255),
+  ],
+  handleValidationErrors,
+  progressController.getTransitionStateRecords
+);
+
 export default router;

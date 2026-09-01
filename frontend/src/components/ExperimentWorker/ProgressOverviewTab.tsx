@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 /**
  * 全体進捗タブ（パターンA固定）
@@ -354,20 +354,38 @@ export default function ProgressOverviewTab({
   );
 
   // ── 操作列 ─────────────────────────────────────────
-  // 活性条件: 準備状態(preparing)・準備完了状態(ready)・休止状態(on_hold) のみ活性
+  // 活性条件:
+  //   - 準備状態(preparing)・準備完了状態(ready)・休止状態(on_hold): 常に活性
+  //   - 未着手(not_started): 前提トランジションが全て completed の場合のみ活性
+  //     （前提なしの場合も活性）
   const renderAction = (_: unknown, r: ProgressRow) => {
+    const isPrerequisitesMet =
+      (r.prerequisiteTransitionIds ?? []).length === 0 ||
+      (r.prerequisiteTransitionIds ?? []).every(
+        (prereqId) => rows.find((row) => row.transitionId === prereqId)?.status === 'completed'
+      );
+
     const isActive =
       r.status === 'preparing' ||
       r.status === 'ready' ||
-      r.status === 'on_hold';
+      r.status === 'on_hold' ||
+      (r.status === 'not_started' && isPrerequisitesMet);
+
+    const tooltipTitle =
+      r.status === 'not_started' && !isPrerequisitesMet
+        ? `前提トランジション（${(r.prerequisiteTransitionIds ?? []).join(', ')}）が全て完了してから開始できます`
+        : undefined;
+
     return (
-      <Button
-        size="small"
-        disabled={!isActive}
-        onClick={() => onGoToWork(r.taskNo, r.transitionId)}
-      >
-        {t('experimentWork.table.record')}
-      </Button>
+      <Tooltip title={tooltipTitle}>
+        <Button
+          size="small"
+          disabled={!isActive}
+          onClick={() => onGoToWork(r.taskNo, r.transitionId)}
+        >
+          {t('experimentWork.table.record')}
+        </Button>
+      </Tooltip>
     );
   };
 

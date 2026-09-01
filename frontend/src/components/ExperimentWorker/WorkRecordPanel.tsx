@@ -44,7 +44,8 @@ import ExperimentCommentDialog from './ExperimentCommentDialog';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import InsertionEditorCompact from '@/components/common/InsertionEditorCompact';
 import ContentGridEditor from '@/components/common/ContentGridEditor';
-import { getProjectMaiml, saveTransitionComment } from '@/services/projectApiService';
+import dayjs from 'dayjs';
+import { getProjectMaiml, saveTransitionComment, getTransitionStateRecords } from '@/services/projectApiService';
 import { getPlanDialogData, getExperimentPlans } from '@/services/experimentPlanApiService';
 import { getTemplateData, saveBatchExperimentData } from '@/services/experimentDataApiService';
 import { fetchUncertaintyCriteriaForSelector } from '@/services/uncertaintyCriteriaApiService';
@@ -2667,6 +2668,7 @@ export default function WorkRecordPanel({
 
   // ─── 状態記録ダイアログ用 state ──────────────────────────
   const [stateRecordDialogOpen, setStateRecordDialogOpen] = useState(false);
+  const [stateRecordLoading, setStateRecordLoading] = useState(false);
 
   /** 固定行の状態遷移時刻（各状態ごとに DatePicker 値を管理） */
   const [srPreparingTime,  setSrPreparingTime]  = useState<string>('');
@@ -2695,6 +2697,56 @@ export default function WorkRecordPanel({
   }, []);
 
   const handleStateRecordSave = useCallback(() => {
+    // ── バリデーション ──────────────────────────────────────
+    // ⑦ completedTime と errorTime の同時入力チェック
+    if (srCompletedTime && srErrorTime) {
+      message.error(t('workRecord.srValidationCompletedAndError'));
+      return;
+    }
+
+    // ① 準備状態 < 準備完了状態
+    if (srPreparingTime && srReadyTime && !dayjs(srPreparingTime).isBefore(dayjs(srReadyTime))) {
+      message.error(t('workRecord.srValidationPrepVsReady'));
+      return;
+    }
+
+    // ② 準備完了状態 < 動作状態
+    if (srReadyTime && srRunningTime && !dayjs(srReadyTime).isBefore(dayjs(srRunningTime))) {
+      message.error(t('workRecord.srValidationReadyVsRunning'));
+      return;
+    }
+
+    // ③④⑤ 休止・再開ペアの順序チェック
+    // lastResumeTime: 「動作状態」または「最後の動作再開」の時刻（比較の基準点）
+    let lastResumeTime: string = srRunningTime;
+    for (const pe of srPauseEntries) {
+      // ③ 前の動作状態（or 再開）< 休止状態
+      if (lastResumeTime && pe.pauseTime && !dayjs(lastResumeTime).isBefore(dayjs(pe.pauseTime))) {
+        message.error(t('workRecord.srValidationRunningVsPause'));
+        return;
+      }
+      // ④ 休止状態 < 動作再開
+      if (pe.pauseTime && pe.resumeTime && !dayjs(pe.pauseTime).isBefore(dayjs(pe.resumeTime))) {
+        message.error(t('workRecord.srValidationPauseVsResume'));
+        return;
+      }
+      // ⑤ 連続する休止ペア間（resumeTime が次の pauseTime より前）は次ループの③で自動チェック
+      if (pe.resumeTime) lastResumeTime = pe.resumeTime;
+    }
+
+    // ⑥-a 動作状態（最後の再開を含む）< 終状態
+    if (lastResumeTime && srCompletedTime && !dayjs(lastResumeTime).isBefore(dayjs(srCompletedTime))) {
+      message.error(t('workRecord.srValidationRunningVsCompleted'));
+      return;
+    }
+
+    // ⑥-b 動作状態（最後の再開を含む）< 異常終了状態
+    if (lastResumeTime && srErrorTime && !dayjs(lastResumeTime).isBefore(dayjs(srErrorTime))) {
+      message.error(t('workRecord.srValidationRunningVsError'));
+      return;
+    }
+    // ─────────────────────────────────────────────────────────
+
     const saveData = {
       preparingTime: srPreparingTime,
       readyTime: srReadyTime,
@@ -2705,8 +2757,10 @@ export default function WorkRecordPanel({
     };
     console.info('[WorkRecordPanel] 状態記録保存（モック）:', saveData);
     Modal.success({ title: t('workRecord.stateRecordSaved') });
-    handleStateRecordClose();
-  }, [srPreparingTime, srReadyTime, srRunningTime, srPauseEntries, srCompletedTime, srErrorTime, handleStateRecordClose, t]);
+    // 保存時はダイアログを閉じるのみ（state はリセットしない）
+    // キャンセル時（handleStateRecordClose）のみ state をリセットする
+    setStateRecordDialogOpen(false);
+  }, [srPreparingTime, srReadyTime, srRunningTime, srPauseEntries, srCompletedTime, srErrorTime, t]);
 
   // ─── コメントダイアログ用 state ───────────────────────────
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
@@ -2777,7 +2831,47 @@ export default function WorkRecordPanel({
     onForceEnd,
     pendingEndKey,
     onSetPendingEndKey: (key) => setPendingEndKey(key),
-    onStateRecord: () => setStateRecordDialogOpen(true),
+    onStateRecord: async () => {
+      // 表示中トランジション（viewingKey → pendingEndKey → activeTaskEntry の優先順）のIDを取得
+      // pendingEndKey: 終了/異常終了ボタン押下後にロックされたトランジションID
+      // activeTaskEntry: 通常作業中のトランジションID
+      const targetEntry = viewingKey ?? pendingEndKey ?? activeTaskEntry;
+      if (!projectId || !methodId || !targetEntry) {
+        setStateRecordDialogOpen(true);
+        return;
+      }
+      setStateRecordLoading(true);
+      try {
+        const records = await getTransitionStateRecords(
+          projectId,
+          methodId,
+          targetEntry.transitionId
+        );
+        // 取得した遷移時刻を各 state に反映
+        // null の場合は既存 state を維持（前回保存した入力値を上書きしない）
+        if (records.preparingTime !== null) setSrPreparingTime(records.preparingTime);
+        if (records.readyTime !== null) setSrReadyTime(records.readyTime);
+        if (records.runningTime !== null) setSrRunningTime(records.runningTime);
+        if (records.completedTime !== null) setSrCompletedTime(records.completedTime);
+        if (records.errorTime !== null) setSrErrorTime(records.errorTime);
+        // pauseEntries は API から取得できた分のみ反映（空配列の場合は既存 state を維持）
+        if (records.pauseEntries.length > 0) {
+          setSrPauseEntries(
+            records.pauseEntries.map((pe) => ({
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              pauseTime: pe.pauseTime ?? '',
+              resumeTime: pe.resumeTime ?? '',
+            }))
+          );
+        }
+      } catch {
+        message.error(t('workRecord.stateRecordLoadError'));
+        // エラー時は空欄のままダイアログを開く
+      } finally {
+        setStateRecordLoading(false);
+      }
+      setStateRecordDialogOpen(true);
+    },
     onInstructionClick: () => {
       // 現在表示中のトランジションを InstructionConfirmationModal に渡す
       const targetEntry = viewingKey ?? (() => {
@@ -2845,6 +2939,7 @@ export default function WorkRecordPanel({
         onOk={handleStateRecordSave}
         okText={t('common.save')}
         cancelText={t('common.cancel')}
+        confirmLoading={stateRecordLoading}
         width={520}
       >
         <Flex vertical gap={0} style={{ marginTop: 8 }}>
@@ -2863,6 +2958,7 @@ export default function WorkRecordPanel({
                 showTime
                 style={{ width: '100%' }}
                 placeholder={t('workRecord.srTransitionTime')}
+                value={srPreparingTime ? dayjs(srPreparingTime) : undefined}
                 onChange={(_, ds) => setSrPreparingTime(typeof ds === 'string' ? ds : '')}
               />
             </Col>
@@ -2883,6 +2979,7 @@ export default function WorkRecordPanel({
                 showTime
                 style={{ width: '100%' }}
                 placeholder={t('workRecord.srTransitionTime')}
+                value={srReadyTime ? dayjs(srReadyTime) : undefined}
                 onChange={(_, ds) => setSrReadyTime(typeof ds === 'string' ? ds : '')}
               />
             </Col>
@@ -2903,6 +3000,7 @@ export default function WorkRecordPanel({
                 showTime
                 style={{ width: '100%' }}
                 placeholder={t('workRecord.srTransitionTime')}
+                value={srRunningTime ? dayjs(srRunningTime) : undefined}
                 onChange={(_, ds) => setSrRunningTime(typeof ds === 'string' ? ds : '')}
               />
               {/* 休止状態記録追加ボタン */}
@@ -2950,6 +3048,7 @@ export default function WorkRecordPanel({
                     showTime
                     style={{ width: '100%' }}
                     placeholder={t('workRecord.srTransitionTime')}
+                    value={entry.pauseTime ? dayjs(entry.pauseTime) : undefined}
                     onChange={(_, ds) =>
                       setSrPauseEntries((prev) =>
                         prev.map((pe) => pe.id === entry.id ? { ...pe, pauseTime: typeof ds === 'string' ? ds : '' } : pe)
@@ -2974,6 +3073,7 @@ export default function WorkRecordPanel({
                     showTime
                     style={{ width: '100%' }}
                     placeholder={t('workRecord.srTransitionTime')}
+                    value={entry.resumeTime ? dayjs(entry.resumeTime) : undefined}
                     onChange={(_, ds) =>
                       setSrPauseEntries((prev) =>
                         prev.map((pe) => pe.id === entry.id ? { ...pe, resumeTime: typeof ds === 'string' ? ds : '' } : pe)
@@ -3025,6 +3125,7 @@ export default function WorkRecordPanel({
                 showTime
                 style={{ width: '100%' }}
                 placeholder={t('workRecord.srTransitionTime')}
+                value={srCompletedTime ? dayjs(srCompletedTime) : undefined}
                 onChange={(_, ds) => setSrCompletedTime(typeof ds === 'string' ? ds : '')}
               />
             </Col>
@@ -3045,6 +3146,7 @@ export default function WorkRecordPanel({
                 showTime
                 style={{ width: '100%' }}
                 placeholder={t('workRecord.srTransitionTime')}
+                value={srErrorTime ? dayjs(srErrorTime) : undefined}
                 onChange={(_, ds) => setSrErrorTime(typeof ds === 'string' ? ds : '')}
               />
             </Col>

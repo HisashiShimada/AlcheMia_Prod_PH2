@@ -702,3 +702,45 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
   }
 }
 
+
+/**
+ * トランジション状態遷移時刻取得API（状態記録ダイアログ初期値用）
+ *
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records
+ *
+ * @description
+ *   maiml_event_log から対象トランジションの各状態遷移時刻を抽出して返す。
+ *   状態記録ダイアログを開いた際の初期値表示に使用する。
+ * @roles experiment_worker（読取専用）
+ */
+export async function getTransitionStateRecords(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { projectId, methodId, transitionId } = req.params;
+    const { organizationId } = req.user!;
+
+    const transitionDataRepository = new TransitionDataRepository();
+    const progressService = new ProgressService(transitionDataRepository);
+
+    const result = await progressService.getTransitionStateRecords(
+      organizationId,
+      projectId,
+      transitionId
+    );
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+

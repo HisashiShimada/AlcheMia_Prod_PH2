@@ -33,7 +33,9 @@ import type {
   ProjectInfoDetail,
   FileInfoDetail,
   WorkDetailItem,
-  TransitionProgressItem
+  TransitionProgressItem,
+  TransitionStateRecordsResult,
+  PauseEntryRecord,
 } from '../types/api';
 import * as projectRepository from '../repositories/projectRepository';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
@@ -1066,6 +1068,69 @@ export class ProgressService {
       // project_taskテーブルのスキーマ: organization_id, project_id, method_id, experiment_order, experiment_condition, attempts_count
       // 進捗率カラム追加後に実装する
 
+      // 7. 前提トランジション完了時の連鎖更新
+      //    COMPLETED に遷移した場合のみ発火: このトランジションを前提に持つ他の INITIAL トランジションを PREPARING に遷移させる
+      if (update.status === TransitionStatusEnum.COMPLETED) {
+        try {
+          const dependentTransitions = await this.transitionDataRepository.findDependentTransitions(
+            client,
+            organizationId,
+
+            projectId,
+            transitionId
+          );
+
+          for (const dep of dependentTransitions) {
+            // 全前提トランジションのステータスを確認（findByTransitionId.sql を使い client クエリで取得）
+            const allPrereqsCompleted = await (async () => {
+              for (const prereqId of dep.prerequisite_transition_ids) {
+                const prereqSql = await loadSqlFile('transition_data/findByTransitionId.sql');
+                const prereqResult = await client.query(prereqSql, [organizationId, projectId, dep.method_id, prereqId]);
+                if (prereqResult.rows.length === 0) return false;
+                if (prereqResult.rows[0].status !== TransitionStatusEnum.COMPLETED) return false;
+              }
+              return true;
+            })();
+
+            if (!allPrereqsCompleted) continue;
+
+            // INITIAL → PREPARING に更新
+            const prepUpdate = {
+              status: TransitionStatusEnum.PREPARING,
+              progress_rate: 0,
+              updated_by: update.updated_by,
+            };
+            await this.transitionDataRepository.updateStatus(
+              organizationId,
+              projectId,
+              dep.method_id,
+              dep.task_no,
+              dep.transition_id,
+              prepUpdate
+            );
+
+            // 連鎖更新のイベントログを記録
+            await this.eventLogRepository.insertTransitionProgressLog(
+              organizationId,
+              projectId,
+              dep.transition_id,
+              update.updated_by,
+              'preparing',
+              0,
+              null,
+              client,
+              dep.method_id,
+              null,
+              null,
+              null
+            );
+          }
+        } catch (chainErr) {
+          // 連鎖更新の失敗は警告ログに留め、メイン処理は継続する
+          logger.warn('[ProgressService] 連鎖トランジション更新失敗（メインの COMMIT は継続）', { transitionId, error: chainErr });
+        }
+      }
+
       await client.query('COMMIT');
 
       return updatedTransition as unknown as TransitionData;
@@ -1119,5 +1184,132 @@ export class ProgressService {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * トランジション状態遷移時刻の取得（状態記録ダイアログ初期値用）
+   *
+   * maiml_event_log の report_type='transition_progress' エントリを解析し、
+   * 各状態（preparing / ready / running / paused / completed / error）への
+   * 遷移時刻を抽出して返す。
+   *
+   * - preparing / ready / completed / error: 最新（最大 sequence_no）のエントリを採用
+   * - running（初回動作状態）: 最初（最小 sequence_no）のエントリを採用
+   * - paused / running（再開）: 発生順に paired して pauseEntries[] に格納
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @param transitionId   - トランジションID
+   * @returns 各状態の遷移時刻（未記録は null）
+   */
+  async getTransitionStateRecords(
+    organizationId: string,
+    projectId: string,
+    transitionId: string
+  ): Promise<TransitionStateRecordsResult> {
+    const rows = await this.eventLogRepository.findTransitionStateRecords(
+      organizationId,
+      projectId,
+      transitionId
+    );
+
+    // sequence_no 昇順で各ログの status / time:timestamp を抽出
+    const entries: Array<{ status: string; timestamp: string; sequenceNo: number }> = [];
+
+    for (const row of rows) {
+      try {
+        // JSON 構造: { eventLog: { log: { trace: { event: { property: [...] } } } } }
+        const eventLog = (row.log as Record<string, unknown>)?.eventLog as Record<string, unknown> | undefined;
+        const log = eventLog?.log as Record<string, unknown> | undefined;
+        const trace = log?.trace as Record<string, unknown> | undefined;
+        const event = trace?.event as Record<string, unknown> | undefined;
+        const properties = event?.property as Array<Record<string, unknown>> | undefined;
+
+        if (!Array.isArray(properties)) continue;
+
+        // report_type が 'transition_progress' のエントリのみを対象とする
+        const reportTypeProp = properties.find((p) => p['@key'] === 'report_type');
+        if (reportTypeProp?.['#text'] !== 'transition_progress') continue;
+
+        const statusProp = properties.find((p) => p['@key'] === 'status');
+        const timestampProp = properties.find((p) => p['@key'] === 'time:timestamp');
+
+        const status = statusProp?.['#text'] as string | undefined;
+        const timestamp = timestampProp?.['#text'] as string | undefined;
+
+        if (!status || !timestamp) continue;
+
+        entries.push({ status, timestamp, sequenceNo: row.sequence_no });
+      } catch {
+        // パース失敗は無視して続行
+        continue;
+      }
+    }
+
+    // 各状態の遷移時刻を集計
+    let preparingTime: string | null = null;
+    let readyTime: string | null = null;
+    let runningTime: string | null = null;
+    let completedTime: string | null = null;
+    let errorTime: string | null = null;
+
+    // paused/running ペア構築用
+    // paused → running（再開）の順で発生するため、paused を pendingPauseTime に積んで
+    // 次の running（再開）と対応させる
+    const pauseEntries: PauseEntryRecord[] = [];
+    let pendingPauseTime: string | null = null;
+    // 最初の running は runningTime として記録し、2回目以降は resumeTime として扱う
+    let firstRunningRecorded = false;
+
+    for (const entry of entries) {
+      switch (entry.status) {
+        case 'preparing':
+          preparingTime = entry.timestamp;
+          break;
+        case 'ready':
+          readyTime = entry.timestamp;
+          break;
+        case 'running':
+          if (!firstRunningRecorded) {
+            // 最初の running = 動作状態（初回）
+            runningTime = entry.timestamp;
+            firstRunningRecorded = true;
+          } else if (pendingPauseTime !== null) {
+            // 2回目以降の running = 休止からの再開
+            pauseEntries.push({ pauseTime: pendingPauseTime, resumeTime: entry.timestamp });
+            pendingPauseTime = null;
+          }
+          break;
+        case 'paused':
+          if (pendingPauseTime !== null) {
+            // 前の paused が未解消のままなら先にペアを積む（resumeTime=null）
+            pauseEntries.push({ pauseTime: pendingPauseTime, resumeTime: null });
+          }
+          pendingPauseTime = entry.timestamp;
+          break;
+        case 'completed':
+          completedTime = entry.timestamp;
+          break;
+        case 'error':
+          errorTime = entry.timestamp;
+          break;
+        default:
+          break;
+      }
+    }
+
+    // 未解消の paused が残っている場合は resumeTime=null でペアを追加
+    if (pendingPauseTime !== null) {
+      pauseEntries.push({ pauseTime: pendingPauseTime, resumeTime: null });
+    }
+
+    return {
+      preparingTime,
+      readyTime,
+      runningTime,
+      pauseEntries,
+      completedTime,
+      errorTime,
+    };
   }
 }

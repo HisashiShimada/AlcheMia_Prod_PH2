@@ -505,6 +505,37 @@ export class TransitionDataRepository {
     }
   }
 
+  /**
+   * 前提トランジション完了時の連鎖更新対象取得
+   *
+   * 指定した完了トランジションIDを prerequisite_transition_ids に含む、
+   * 同プロジェクト内の INITIAL(1) なトランジションを返す。
+   *
+   * @param client PoolClient（トランザクション内で呼び出すこと）
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @param completedTransitionId 完了したトランジションID
+   * @returns 連鎖更新対象のトランジション情報の配列
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findDependentTransitions(
+    client: PoolClient,
+    organizationId: string,
+    projectId: string,
+    completedTransitionId: string
+  ): Promise<Array<{ method_id: string; task_no: number; transition_id: string; prerequisite_transition_ids: string[] }>> {
+    try {
+      const query = await loadSqlFile('transition_data/findDependentTransitions.sql');
+      const result = await client.query(query, [organizationId, projectId, completedTransitionId]);
+      return result.rows;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding dependent transitions',
+        error as Error
+      );
+    }
+  }
+
 
   /**
    * プロジェクト内のトランジション実績を全件削除（タスク登録再保存時）
