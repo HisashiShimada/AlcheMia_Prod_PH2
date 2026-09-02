@@ -714,7 +714,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
               size="small"
               danger={!viewOnly && isActive}
               disabled={viewOnly}
-              style={{ minWidth: '90px' }}
+              style={{ minWidth: '105px' }}
               onClick={() => isActive ? handleDeactivate(r) : handleActivate(r)}
             >
               {isActive ? t('prefixManagement.btnDeactivate') : t('prefixManagement.btnActivate')}
