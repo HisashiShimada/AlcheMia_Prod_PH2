@@ -926,6 +926,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     if (externalSelectedNsKey === undefined || externalSelectedNsKey === null) return;
 
+    // ノード切り替え時にチェック状態をリセット
+    setSelectedTermIds([]);
+
     const nsKey = externalSelectedNsKey as string;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
     const COMPANY_KEYS = new Set(['company']);
@@ -963,6 +966,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (externalSelectedNsKey !== undefined) return;
     if (!selectedNsKey) return;
 
+    // ノード切り替え時にチェック状態をリセット
+    setSelectedTermIds([]);
+
     const nsKey = selectedNsKey;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
     const COMPANY_KEYS = new Set(['company']);
@@ -998,6 +1004,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // personal ノードも再読み込みする（localStorage の userInfo を再取得）
   useEffect(() => {
     const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // タブを離れたときにチェック状態をリセット
+        setSelectedTermIds([]);
+      }
       if (document.visibilityState === 'visible') {
         // 現在選択中のノードのスコープで再フェッチ（引数なし全件取得による他階層データ混入を防ぐ）
         const effectiveKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
