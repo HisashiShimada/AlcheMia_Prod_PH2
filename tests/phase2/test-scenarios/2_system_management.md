@@ -20,7 +20,7 @@
 | テスト実施日 | 2026-08-31（2-1〜2-2, 2-4） |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | - |
+| 総合判定 | 合格 |
 | 備考 | 2-1, 2-2, 2-4はフェーズ１実施済み。2-3（部署管理）はフェーズ２でタブ廃止のためテスト対象から削除 |
 
 ---
@@ -31,10 +31,10 @@
 
 | テストグループID | テストグループ名 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|-----------|-----------|------|-------|-------|
-| **2-1** | システム概要 | 7件 | 手動 | 0 | 0 | 7 |
+| **2-1** | システム概要 | 7件 | 手動 | 7 | 0 | 0 |
 | **2-2** | ユーザー管理 | 15件 | 手動 | 15 | 0 | 0 |
 | **2-4** | ロール管理 | 13件 | 手動 | 13 | 0 | 0 |
-| **合計** | - | **36件** | - | **28** | **0** | **7** |
+| **合計** | - | **36件** | - | **35** | **0** | **0** |
 
 ### スコープ外
 
@@ -55,13 +55,13 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 2-1-1 | システム概要画面が表示され、5枚の統計カードが表示されること | 正常系 | `ui_system_overview_main.md` §3.3 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-2 | ユーザーカードに「総ユーザー数」「アクティブ」「契約ユーザー数」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.2 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-3 | セッションカードに「総セッション」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.3 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-4 | 実験システムカードに「総プロジェクト数」「プロジェクト計画中/タスク実行待ち」「タスク実行中/タスク結果レビュー待ち」「プロジェクト完了/タスク異常終了」「契約プロジェクト数」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.4 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-5 | ストレージカードに「総ファイル数」「使用容量」「契約容量」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.5 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-6 | ログイン（過去7日）カードに「総ログイン」「成功」「失敗」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.6 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-7 | system_admin以外のロールでシステム概要画面にアクセスするとアクセスが拒否されること | 異常系 | `ui_system_overview_main.md` §1.3 | GET `/api/v1/systemManagement/system-overview` | - | |
+| 2-1-1 | システム概要画面が表示され、5枚の統計カードが表示されること | 正常系 | `ui_system_overview_main.md` §3.3 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-2 | ユーザーカードに「総ユーザー数」「アクティブ」「契約ユーザー数」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.2 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-3 | セッションカードに「総セッション」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.3 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-4 | 実験システムカードに「総プロジェクト数」「プロジェクト計画中/タスク実行待ち」「タスク実行中/タスク結果レビュー待ち」「プロジェクト完了/タスク異常終了」「契約プロジェクト数」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.4 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-5 | ストレージカードに「総ファイル数」「使用容量」「契約容量」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.5 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-6 | ログイン（過去7日）カードに「総ログイン」「成功」「失敗」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.6 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-7 | system_admin以外のロールでシステム概要画面にアクセスするとアクセスが拒否されること | 異常系 | `ui_system_overview_main.md` §1.3 | GET `/api/v1/systemManagement/system-overview` | OK | |
 
 **前提条件:**
 - system_admin ロールでログイン済み
