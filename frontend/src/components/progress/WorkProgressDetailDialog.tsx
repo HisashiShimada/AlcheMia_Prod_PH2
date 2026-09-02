@@ -402,6 +402,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                           fileDetails.projectInfo.status === ProjectStatus.REVIEW_WAITING ? 'purple' :
                           fileDetails.projectInfo.status === ProjectStatus.TASK_PENDING ? 'blue' :
                           fileDetails.projectInfo.status === ProjectStatus.ERROR ? 'error' :
+                          fileDetails.projectInfo.status === ProjectStatus.REVIEW_REJECTED ? 'orange' :
                           'default'
                         }
                       >
@@ -413,6 +414,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                             case ProjectStatus.REVIEW_WAITING: return t('progress.filter.reviewWaiting');
                             case ProjectStatus.COMPLETED: return t('progress.filter.completed');
                             case ProjectStatus.ERROR: return t('progress.filter.error');
+                            case ProjectStatus.REVIEW_REJECTED: return t('progress.filter.reviewRejected');
                             default: return String(fileDetails.projectInfo.status);
                           }
                         })()}

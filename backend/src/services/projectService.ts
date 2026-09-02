@@ -21,6 +21,8 @@ import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
+import { TransitionDataRepository } from '../repositories/transitionDataRepository';
+import { TransitionStatusEnum } from '../types/transitionData';
 import { MaimlWriterService } from './maimlWriterService';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
@@ -2127,41 +2129,145 @@ export class ProjectService {
   /**
    * プロジェクト強制終了
    *
+   * 以下を1トランザクションで実行する：
+   * 1. 前提条件チェック（実行可能ステータス確認）
+   * 2. 未完了トランジション取得
+   * 3. 各トランジションに lifecycle:transition='ate_abort' の EventLog を記録
+   * 4. タスクステータスを一括更新（PENDING/IN_PROGRESS/REVIEW_WAITING → FORCED_TERMINATED）
+   * 5. トランジションステータスを一括更新（未完了 → ERROR）
+   * 6. プロジェクトステータスを ERROR に更新
+   * COMMIT 後: MAIMLファイルに実績データ＋EventLog を書き出し（失敗は警告扱い）
+   *
    * @param organizationId - 組織ID
    * @param projectId - プロジェクトID
+   * @param userId - 実行者ユーザーID（EventLog 記録・ステータス更新者）
    * @returns ServiceResult
    */
   async forceTerminate(
     organizationId: string,
-    projectId: string
+    projectId: string,
+    userId: string
   ): Promise<ServiceResult<{ projectId: string }>> {
     const pool = getPool();
-    try {
-      const sql = await loadSqlFile('project/forceTerminate.sql');
-      const result = await pool.query(sql, [ProjectStatusEnum.ERROR, organizationId, projectId]);
+    const client = await pool.connect();
+    const eventLogRepository = new EventLogRepository();
+    const transitionDataRepository = new TransitionDataRepository();
 
-      if (result.rowCount === 0) {
+    // 強制終了を許可するプロジェクトステータス
+    const allowedStatuses = [
+      ProjectStatusEnum.TASK_PENDING,
+      ProjectStatusEnum.TASK_IN_PROGRESS,
+      ProjectStatusEnum.REVIEW_WAITING,
+      ProjectStatusEnum.REVIEW_REJECTED,
+    ];
+
+    try {
+      await client.query('BEGIN');
+
+      // ① プロジェクト情報取得 + 前提条件チェック
+      const project = await projectRepository.findByIdFull(organizationId, projectId);
+      if (!project) {
+        await client.query('ROLLBACK');
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+      if (!allowedStatuses.includes(project.project_status as typeof ProjectStatusEnum.TASK_PENDING)) {
+        await client.query('ROLLBACK');
         return {
           success: false,
           error: {
-            code: 'E6001',
-            message: 'Project not found',
+            code: 'E4003',
+            message: `強制終了はステータスが実行待ち・実行中・レビュー待ち・NGのプロジェクトのみ実行できます`,
           },
         };
       }
 
-      return {
-        success: true,
-        data: { projectId },
-      };
+      // ② 未完了トランジション一覧を取得（EventLog 記録用）
+      const activeTransitions = await transitionDataRepository.findActiveByProject(
+        organizationId,
+        projectId,
+        client
+      );
+
+      // ③ 各トランジションに lifecycle:transition='ate_abort' の EventLog を記録
+      const terminatedAt = new Date().toISOString();
+      const projectName = project.project_name ?? projectId;
+      for (const tr of activeTransitions) {
+        const logParams = {
+          methodId: tr.method_id,
+          programId: null, // MAIMLパースは省略（強制終了は迅速性を優先）
+          transitionId: tr.transition_id,
+          userId,
+          sentAt: terminatedAt,
+          projectName,
+        };
+        await eventLogRepository.insertLifecycleTransitionEventLog(
+          organizationId,
+          projectId,
+          logParams,
+          client,
+          'ate_abort',
+          'ForceTerminateEvent'
+        );
+      }
+
+      // ④ タスクステータスを一括更新（PENDING → FORCED_TERMINATED）
+      const taskFromStatuses = [
+        TaskStatusEnum.PENDING,
+        TaskStatusEnum.IN_PROGRESS,
+        TaskStatusEnum.REVIEW_WAITING,
+      ];
+      for (const fromStatus of taskFromStatuses) {
+        await projectTaskRepository.bulkUpdateTaskStatusByProject(
+          client,
+          organizationId,
+          projectId,
+          fromStatus,
+          TaskStatusEnum.FORCED_TERMINATED,
+          userId
+        );
+      }
+
+      // ⑤ トランジションステータスを一括更新（未完了 → ERROR）
+      await transitionDataRepository.bulkUpdateStatusByProject(
+        organizationId,
+        projectId,
+        TransitionStatusEnum.ERROR,
+        userId,
+        client
+      );
+
+      // ⑥ プロジェクトステータスを ERROR に更新
+      const updateSql = await loadSqlFile('project/forceTerminate.sql');
+      const updateResult = await client.query(updateSql, [
+        ProjectStatusEnum.ERROR,
+        organizationId,
+        projectId,
+      ]);
+      if (updateResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+
+      await client.query('COMMIT');
+
+      // ⑦ COMMIT 後: MAIMLファイルに実績データ＋EventLog を書き出し（失敗は警告扱い）
+      try {
+        const maimlWriterService = new MaimlWriterService();
+        await maimlWriterService.writeDataAndEventLog(organizationId, projectId, projectName);
+      } catch (maimlWriteError) {
+        console.warn(
+          '[ProjectService.forceTerminate] MAIMLファイルへの書き出しに失敗しました（処理は継続）:',
+          maimlWriteError
+        );
+      }
+
+      return { success: true, data: { projectId } };
     } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'E4002',
-          message: 'Database error occurred',
-        },
-      };
+      await client.query('ROLLBACK');
+      logError('forceTerminate error', error as Error, { organizationId, projectId });
+      return { success: false, error: { code: 'E4002', message: 'Database error occurred' } };
+    } finally {
+      client.release();
     }
   }
 }

@@ -10,7 +10,7 @@ import {
 /**
  * プロジェクトステータス（数値コード）
  * constants/codeMaster.ts の ProjectStatus を使用すること
- * 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=レビュー待ち, 4=完了, 5=異常終了
+ * 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=レビュー待ち, 4=完了, 5=異常終了, 6=レビュー差戻
  */
 export type ProjectStatus = ProjectStatusType;
 
@@ -277,11 +277,23 @@ export interface ProgressRow {
   prerequisiteTransitionIds?: string[];
   /** 記録済みフラグ（template_data に保存済みかどうか） */
   isRecorded?: boolean;
+  /**
+   * タスクステータス（数値コード）
+   * constants/codeMaster.ts の TaskStatus を使用すること
+   * 0=実行待ち, 1=実行中, 2=レビュー待ち, 3=完了, 4=強制終了, 5=NG
+   * ProgressOverviewTab の訂正ボタン表示制御に使用
+   */
+  taskStatus?: number;
 }
 
 /** ProgressOverviewTab コンポーネントの Props */
 export interface ProgressOverviewTabProps {
   rows: ProgressRow[];
+  /**
+   * プロジェクトステータス（数値コード）
+   * 記録確認ボタン・訂正ボタンの表示制御に使用
+   */
+  projectStatus?: number;
   /** 「作業へ」ボタン押下時: 作業記録タブに遷移し、指定タスク+トランジションを表示 */
   onGoToWork: (taskNo: number, transitionId: string) => void;
   /** 「詳細確認」ボタン押下時: 作業記録タブを読取専用で表示 */

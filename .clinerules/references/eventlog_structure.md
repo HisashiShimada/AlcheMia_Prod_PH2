@@ -48,6 +48,7 @@
 | 品質評価（Quality） | `Quality_evaluation` | `buildQualityEvalLogEntries` |
 | タスクレビュー（承認/NG） | `Task_review` | `insertTaskReviewLog` |
 | 記録値訂正 | `Record_correction` | `insertRecordCorrectionLog` |
+| **強制終了（ForceTerminate）** | **`ForceTerminate_ate_abort`** | **`insertLifecycleTransitionEventLog`（`lifecycleValue='ate_abort'`, `phaseIdentifier='ForceTerminateEvent'`）** |
 
 > 新たなフェーズが追加される場合はこのテーブルに追記すること。  
 > ownerRefs が複数の assignee を持つ場合は枝番を付ける（例: `_assignee_1`, `_assignee_2`）。
@@ -68,6 +69,7 @@
 | フェーズ | フェーズ識別名 | lifecycle:transition 値 |
 |---|---|---|
 | 指示送信（Preparation） | `PreparationEvent` | `schedule` |
+| **強制終了（ForceTerminate）** | **`ForceTerminateEvent`** | **`ate_abort`** |
 | 品質評価（Quality） | — | —（lifecycle:transition は使用しない） |
 | タスクレビュー（承認/NG） | — | —（lifecycle:transition は使用しない） |
 | 記録値訂正 | — | —（lifecycle:transition は使用しない） |
@@ -98,6 +100,7 @@
 | フェーズ | 値 |
 |---|---|
 | 指示送信（Preparation） | `schedule` |
+| **強制終了（ForceTerminate）** | **`ate_abort`** |
 
 > 新たなフェーズが追加される場合はこのテーブルに追記すること。
 
@@ -238,5 +241,6 @@
 
 | 日付 | 変更内容 | 担当者 |
 |---|---|---|
+| 2026-09-02 | 強制終了フェーズ（`ForceTerminate_ate_abort`）追加、`insertLifecycleTransitionEventLog` 汎用化対応 | Cline |
 | 2026-09-01 | タスクレビュー（`Task_review`）・記録値訂正（`Record_correction`）フェーズ追加、フェーズ名一覧・フェーズ識別名一覧を更新 | Cline |
 | 2026-08-18 | 初版作成（lifecycle:transition 系共通ルール定義） | Cline |

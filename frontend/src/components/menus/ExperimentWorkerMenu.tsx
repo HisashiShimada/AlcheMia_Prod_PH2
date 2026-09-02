@@ -26,9 +26,10 @@ import type { ProgressRow } from '../ExperimentWorker/ProgressOverviewTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import type { WorkerProject } from '@/types/project';
 import type { ProjectStatus as ProjectStatusType } from '@/types/experimentWorker';
-import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus, getNgTasks, updateTransitionStatus, confirmInstruction } from '@/services/projectApiService';
+import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus, getNgTasks, updateTransitionStatus, confirmInstruction, forceTerminateProject } from '@/services/projectApiService';
 import type { NgTaskItem } from '@/services/projectApiService';
 import { TransitionStatusCode } from '@/constants/codeMaster';
+import { TaskStatus } from '@/constants/codeMaster';
 import { getIssues } from '@/services/issueApiService';
 import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
@@ -103,6 +104,10 @@ export default function ExperimentWorkerMenu({
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
   /** 実験記録タブで選択中の作業中トランジション rowKey */
   const [selectedWorkRowKey, setSelectedWorkRowKey] = useState<string | null>(null);
+  /** 記録確認遷移時の対象タスクNo（WorkRecordPanel の initialTaskNo に渡す） */
+  const [viewingWorkTaskNo, setViewingWorkTaskNo] = useState<number | null>(null);
+  /** 記録確認遷移時の対象トランジションID（WorkRecordPanel の initialTransitionId に渡す） */
+  const [viewingWorkTransitionId, setViewingWorkTransitionId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   /** 問題報告モーダル（フェーズB: IssueManagementModal を接続） */
   const [issueModalOpen, setIssueModalOpen] = useState(false);
@@ -287,6 +292,9 @@ export default function ExperimentWorkerMenu({
     // プロジェクトが変更された場合、メソッドとタスクをリセット
     setSelectedMethodId(null);
     setSelectedTaskId('');
+    // 記録確認遷移用 State もリセット
+    setViewingWorkTaskNo(null);
+    setViewingWorkTransitionId(null);
   };
 
   // メソッド選択ハンドラー（タスクをリセット）
@@ -361,6 +369,19 @@ export default function ExperimentWorkerMenu({
     if (progressStatus === '一時停止') return 'on_hold';
     if (progressStatus === 'エラー') return 'issue';
     return 'not_started';
+  };
+
+  /**
+   * WorkerTask.task_status（文字列）→ TaskStatus 数値へ変換
+   * 訂正ボタンの表示制御（ProgressRow.taskStatus）に使用
+   */
+  const toTaskStatusNumber = (taskStatus: string): number => {
+    if (taskStatus === 'not_started') return TaskStatus.PENDING;
+    if (taskStatus === 'started' || taskStatus === 'in_progress') return TaskStatus.IN_PROGRESS;
+    if (taskStatus === 'completed') return TaskStatus.COMPLETED;
+    if (taskStatus === 'forced_terminated') return TaskStatus.FORCED_TERMINATED;
+    // review_waiting / review_ng はバックエンドからの返却値に応じて対応
+    return TaskStatus.PENDING;
   };
 
   // プロジェクトが変わったら全体進捗データを取得
@@ -444,6 +465,7 @@ export default function ExperimentWorkerMenu({
               order: idx + 1,
               prerequisiteTransitionIds: tr.prerequisiteTransitionIds ?? [],
               isRecorded: tr.isRecorded ?? false,
+              taskStatus: toTaskStatusNumber(task.task_status),
             });
           });
         }
@@ -536,6 +558,7 @@ export default function ExperimentWorkerMenu({
             order: idx + 1,
             prerequisiteTransitionIds: tr.prerequisiteTransitionIds ?? [],
             isRecorded: tr.isRecorded ?? false,
+            taskStatus: toTaskStatusNumber(task.task_status),
           });
         });
       }
@@ -648,6 +671,8 @@ export default function ExperimentWorkerMenu({
             projectStatus={selectedProjectStatus ?? undefined}
             projectInstructions={projectInstructionTexts}
             onConfirmInstruction={handleConfirmInstruction}
+            initialTaskNo={viewingWorkTaskNo ?? undefined}
+            initialTransitionId={viewingWorkTransitionId ?? undefined}
             onStart={async () => {
               if (!selectedProject) return;
               // 準備完了(ready)状態 → 動作状態(IN_PROGRESS=3)に遷移
@@ -689,20 +714,24 @@ export default function ExperimentWorkerMenu({
             }}
             onForceEnd={async () => {
               if (!selectedProject) return;
-              // 動作状態(in_progress)のトランジションを「異常終了状態(ERROR=7)」に遷移
-              const targetRow = progressRows.find((r) => r.status === 'in_progress') ?? progressRows.find((r) => r.status === 'not_started');
-              if (!targetRow) { message.warning('異常終了対象のトランジションがありません'); return; }
-              try {
-                await updateTransitionStatus(selectedProject, targetRow.methodId, targetRow.transitionId, {
-                  taskNo: targetRow.taskNo,
-                  status: TransitionStatusCode.ERROR, // 異常終了状態
-                  progressRate: 0,
-                });
-                await reloadProgressRows(selectedProject);
-              } catch (err) {
-                console.error('[WorkRecordPanel onForceEnd] ステータス更新エラー:', err);
-                message.error(t('experimentWorker.startFailed'));
-              }
+              const currentProject = selectedProject;
+              Modal.confirm({
+                title: t('projectManagement.forceTerminate.confirmTitle'),
+                content: t('projectManagement.forceTerminate.confirmContent'),
+                okText: t('projectManagement.forceTerminate.okText'),
+                okButtonProps: { danger: true },
+                cancelText: t('common.cancel'),
+                onOk: async () => {
+                  try {
+                    await forceTerminateProject(currentProject);
+                    message.success(t('projectManagement.forceTerminate.successMessage').replace('{name}', currentProject));
+                    await reloadProgressRows(currentProject);
+                  } catch (err) {
+                    console.error('[WorkRecordPanel onForceEnd] 強制終了エラー:', err);
+                    message.error(t('projectManagement.forceTerminate.errorMessage'));
+                  }
+                },
+              });
             }}
           />
         </div>
@@ -721,15 +750,27 @@ export default function ExperimentWorkerMenu({
           ) : (
             <ProgressOverviewTab
               rows={progressRows}
+              projectStatus={selectedProjectStatus ?? undefined}
               onGoToWork={(taskNo, transitionId) => {
-                console.info('[ProgressOverviewTab] 作業へ:', taskNo, transitionId);
+                setViewingWorkTaskNo(taskNo);
+                setViewingWorkTransitionId(transitionId);
                 handleTabChange('3');
               }}
               onViewDetail={(taskNo, transitionId) => {
-                console.info('[ProgressOverviewTab] 詳細確認:', taskNo, transitionId);
+                // 記録確認ボタン押下: viewingKey で読み取り専用表示
+                setViewingWorkTaskNo(taskNo);
+                setViewingWorkTransitionId(transitionId);
                 handleTabChange('3');
               }}
               onStartWork={(taskNo, transitionId, methodId) => {
+                // issue ステータスの行は除外して開始（TASK_PENDING 時の NGタスク除外）
+                const targetRow = progressRows.find(
+                  (r) => r.taskNo === taskNo && r.transitionId === transitionId && r.status !== 'issue'
+                );
+                if (!targetRow) {
+                  message.warning('この行は開始できません（NG済みタスクです）');
+                  return;
+                }
                 handleStartWork(taskNo, transitionId, methodId);
               }}
             />

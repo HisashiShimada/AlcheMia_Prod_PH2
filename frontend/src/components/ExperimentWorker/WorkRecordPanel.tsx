@@ -52,6 +52,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import type { ProgressRow } from '@/types/progress';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import type { ProjectStatus, Transition } from '@/types/experimentWorker';
+import { ProjectStatus as ProjectStatusConst, TaskStatus as TaskStatusConst } from '@/constants/codeMaster';
+import { correctRecord } from '@/services/experimentInstructionApiService';
 
 const { Sider, Content } = Layout;
 
@@ -993,6 +995,20 @@ interface WorkHeaderProps {
   onInstructionClick?: () => void;
   /** Insertion アップロード準備完了コールバック */
   onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
+  /** プロジェクトステータス（訂正ボタン表示制御） */
+  projectStatus?: number;
+  /** タスクステータス（訂正ボタン表示制御） */
+  taskStatus?: number;
+  /** 訂正モード中かどうか */
+  isCorrectionMode?: boolean;
+  /** 訂正モード開始コールバック */
+  onEnterCorrectionMode?: () => void;
+  /** 訂正モードキャンセルコールバック */
+  onCancelCorrectionMode?: () => void;
+  /** 訂正保存中フラグ */
+  correctionLoading?: boolean;
+  /** 訂正保存コールバック */
+  onSaveCorrection?: () => void;
 }
 
 const WorkHeader: React.FC<WorkHeaderProps> = ({
@@ -1009,6 +1025,13 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
   onStateRecord,
   onStatusChange,
   onInstructionClick,
+  projectStatus,
+  taskStatus,
+  isCorrectionMode = false,
+  onEnterCorrectionMode,
+  onCancelCorrectionMode,
+  correctionLoading = false,
+  onSaveCorrection,
 }) => {
   const { t } = useLanguage();
 
@@ -1126,14 +1149,77 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
         </Button>
       </Flex>
 
-      {isReadOnly && (
-        <Alert
-          type="info" showIcon
-          message={t('workRecord.completedTransitionReadonly')}
-          style={{ marginTop: 4, fontSize: 12, width: '100%' }}
-          action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
-        />
-      )}
+      {isReadOnly && (() => {
+        // 訂正可能かどうかを判定
+        // 条件①: プロジェクトステータスが訂正可能（1=実行待ち/2=実行中/6=差し戻し）
+        const isProjectCorrectable =
+          projectStatus === ProjectStatusConst.TASK_PENDING ||
+          projectStatus === ProjectStatusConst.TASK_IN_PROGRESS ||
+          projectStatus === ProjectStatusConst.REVIEW_REJECTED;
+        // 条件②: タスクステータスが訂正可能（0=待ち/1=実行中/5=NG）
+        const isTaskCorrectable =
+          taskStatus === TaskStatusConst.PENDING ||
+          taskStatus === TaskStatusConst.IN_PROGRESS ||
+          taskStatus === TaskStatusConst.REVIEW_NG;
+        const isCorrectable = isProjectCorrectable && isTaskCorrectable;
+
+        if (isCorrectionMode) {
+          // 訂正モード中: 「訂正保存」「キャンセル」ボタン表示
+          return (
+            <Alert
+              type="warning" showIcon
+              message={t('workRecord.correctionModeAlert')}
+              style={{ marginTop: 4, fontSize: 12, width: '100%' }}
+              action={
+                <Space size={4}>
+                  <Button
+                    size="small"
+                    type="primary"
+                    loading={correctionLoading}
+                    onClick={onSaveCorrection}
+                  >
+                    {t('workRecord.saveCorrectionButton')}
+                  </Button>
+                  <Button
+                    size="small"
+                    disabled={correctionLoading}
+                    onClick={onCancelCorrectionMode}
+                  >
+                    {t('workRecord.cancelCorrectionButton')}
+                  </Button>
+                </Space>
+              }
+            />
+          );
+        }
+        if (isCorrectable) {
+          // 訂正可能: 「訂正」ボタンと「作業に戻る」ボタンを表示
+          return (
+            <Alert
+              type="info" showIcon
+              message={t('workRecord.completedTransitionReadonly')}
+              style={{ marginTop: 4, fontSize: 12, width: '100%' }}
+              action={
+                <Space size={4}>
+                  <Button size="small" type="primary" onClick={onEnterCorrectionMode}>
+                    {t('workRecord.startCorrectionButton')}
+                  </Button>
+                  <Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>
+                </Space>
+              }
+            />
+          );
+        }
+        // 訂正不可: 「作業に戻る」のみ
+        return (
+          <Alert
+            type="info" showIcon
+            message={t('workRecord.completedTransitionReadonly')}
+            style={{ marginTop: 4, fontSize: 12, width: '100%' }}
+            action={<Button size="small" onClick={onClearViewing}>{t('workRecord.backToWork')}</Button>}
+          />
+        );
+      })()}
     </div>
   );
 };
@@ -1356,6 +1442,18 @@ interface PlanProps {
    * PropertyCard 内のバッジ表示に使用する。
    */
   lastJudgeResultMap?: Record<string, '良好' | '不良'>;
+  /** プロジェクトステータス（訂正ボタン表示制御） */
+  projectStatus?: number;
+  /** 訂正モード中かどうか */
+  isCorrectionMode?: boolean;
+  /** 訂正モード開始コールバック */
+  onEnterCorrectionMode?: () => void;
+  /** 訂正モードキャンセルコールバック */
+  onCancelCorrectionMode?: () => void;
+  /** 訂正保存中フラグ */
+  correctionLoading?: boolean;
+  /** 訂正保存コールバック */
+  onSaveCorrection?: () => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1369,6 +1467,12 @@ const PlanB: React.FC<PlanProps> = ({
   progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onInstructionClick,
   onUncertaintyValuesChange,
   lastJudgeResultMap,
+  projectStatus,
+  isCorrectionMode = false,
+  onEnterCorrectionMode,
+  onCancelCorrectionMode,
+  correctionLoading = false,
+  onSaveCorrection,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -1422,7 +1526,8 @@ const PlanB: React.FC<PlanProps> = ({
   }, [progressRows, tasks, activeTaskNo]);
 
   const displayKey = viewingKey ?? activeEntry;
-  const isReadOnly = viewingKey !== null;
+  /** 閲覧専用フラグ: viewingKey 設定かつ訂正モードでない場合に true */
+  const isReadOnly = viewingKey !== null && !isCorrectionMode;
   const displayTask = displayKey ? tasks.find((t) => t.taskNo === displayKey.taskNo) : null;
   const displayTT = displayTask?.transitions.find((tt) => tt.transitionId === displayKey?.transitionId);
   // effectiveTransitions からテンプレートを解決する
@@ -1472,6 +1577,13 @@ const PlanB: React.FC<PlanProps> = ({
         onForceEnd={onForceEnd}
         onStateRecord={onStateRecord}
         onInstructionClick={onInstructionClick}
+        projectStatus={projectStatus}
+        taskStatus={viewingKey ? (progressRows?.find((r) => r.taskNo === viewingKey.taskNo && r.transitionId === viewingKey.transitionId)?.taskStatus) : undefined}
+        isCorrectionMode={isCorrectionMode}
+        onEnterCorrectionMode={onEnterCorrectionMode}
+        onCancelCorrectionMode={onCancelCorrectionMode}
+        correctionLoading={correctionLoading}
+        onSaveCorrection={onSaveCorrection}
       />
 
       {/* Creator / Instrument 選択エリア（WorkHeader の直後・テンプレート入力の前） */}
@@ -2098,6 +2210,15 @@ export default function WorkRecordPanel({
       : null
   );
 
+  /** 訂正モード（isReadOnly 時に編集可能にするフラグ） */
+  const [isCorrectionMode, setIsCorrectionMode] = useState(false);
+  const [correctionLoading, setCorrectionLoading] = useState(false);
+
+  // viewingKey が変化したら訂正モードをリセット
+  useEffect(() => {
+    setIsCorrectionMode(false);
+  }, [viewingKey]);
+
   // ── 不確かさ基準選択肢を API から取得して uncertaintyOptionsCache に格納 ──
   useEffect(() => {
     let cancelled = false;
@@ -2257,6 +2378,59 @@ export default function WorkRecordPanel({
     fetchRefData();
     return () => { cancelled = true; };
   }, [projectId, methodId]);
+
+  /**
+   * 訂正保存処理
+   * viewingKey のトランジションに対して correctRecord API を呼び出す。
+   * actuals の現在の入力値を rawTemplateItemsRef のプロパティ構造に反映して送信。
+   */
+  const handleSaveCorrection = useCallback(async () => {
+    if (!viewingKey || !projectId || !methodId) return;
+    const { taskNo, transitionId } = viewingKey;
+    const mapKey = `${taskNo}__${transitionId}`;
+    const rawItems = rawTemplateItemsRef.current.get(mapKey) ?? [];
+    if (rawItems.length === 0) {
+      message.warning('訂正対象のデータが見つかりません');
+      return;
+    }
+
+    const task = tasks.find((t) => t.taskNo === taskNo);
+    const taskTransition = task?.transitions.find((tt) => tt.transitionId === transitionId);
+
+    setCorrectionLoading(true);
+    try {
+      const records = rawItems.map((item) => {
+        const baseData: Record<string, unknown> = item.data ? JSON.parse(JSON.stringify(item.data)) : {};
+        // actuals の値で対応するプロパティを上書き
+        if (taskTransition?.actuals && Array.isArray(baseData.properties)) {
+          (baseData.properties as Array<Record<string, unknown>>).forEach((p) => {
+            if (p.isCustomProperty === true) return;
+            const propKey = String(p.key ?? '');
+            if (propKey in taskTransition.actuals) {
+              p.value = taskTransition.actuals[propKey] ?? null;
+            }
+          });
+        }
+        return {
+          placeId: item.placeId,
+          data: {
+            templateId: item.templateId,
+            templateType: item.templateType,
+            properties: Array.isArray(baseData.properties) ? baseData.properties : [],
+          },
+        };
+      });
+      const requestBody = { records };
+      await correctRecord(projectId, methodId, taskNo, requestBody);
+      message.success(t('workRecord.correctionSaved'));
+      setIsCorrectionMode(false);
+    } catch (err) {
+      console.error('[WorkRecordPanel] handleSaveCorrection error:', err);
+      message.error(t('workRecord.correctionError'));
+    } finally {
+      setCorrectionLoading(false);
+    }
+  }, [viewingKey, projectId, methodId, tasks, message, t]);
 
   const handleSave = useCallback(async (taskNo: number, transitionId: string) => {
     try {
@@ -2745,6 +2919,12 @@ export default function WorkRecordPanel({
       }
     },
     lastJudgeResultMap,
+    projectStatus,
+    isCorrectionMode,
+    onEnterCorrectionMode: () => setIsCorrectionMode(true),
+    onCancelCorrectionMode: () => setIsCorrectionMode(false),
+    correctionLoading,
+    onSaveCorrection: handleSaveCorrection,
   };
 
   // コメントダイアログに渡す displayKey（現在表示中のキー）

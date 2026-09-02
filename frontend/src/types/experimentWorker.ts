@@ -268,7 +268,7 @@ export interface PastExperimentData {
 
 // プロジェクト状態（数値コード）
 // constants/codeMaster.ts の ProjectStatus を使用すること
-// 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
+// 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了, 6=レビュー差戻
 export type ProjectStatus = ProjectStatusType;
 
 // プロジェクトデータ
@@ -291,20 +291,21 @@ export interface ProjectData {
 
 /**
  * 編集可能な状態かどうかを判定
- * タスク実行待ち（1）またはタスク実行中（2）の場合に編集可能
+ * タスク実行待ち（1）・タスク実行中（2）・レビュー差戻（6）の場合に編集可能
  * @param status プロジェクト状態（数値）
  * @returns 編集可能な場合true
  */
 export function isEditableStatus(status: ProjectStatus): boolean {
   return (
     status === ProjectStatusConst.TASK_PENDING ||
-    status === ProjectStatusConst.TASK_IN_PROGRESS
+    status === ProjectStatusConst.TASK_IN_PROGRESS ||
+    status === ProjectStatusConst.REVIEW_REJECTED
   );
 }
 
 /**
  * プロジェクト選択可能な状態かどうかを判定
- * タスク実行待ち（1）・タスク実行中（2）・承認待ち（3）の場合に選択可能
+ * タスク実行待ち（1）・タスク実行中（2）・承認待ち（3）・レビュー差戻（6）の場合に選択可能
  * @param status プロジェクト状態（数値）
  * @returns 選択可能な場合true
  */
@@ -312,7 +313,8 @@ export function isSelectableStatus(status: ProjectStatus): boolean {
   return (
     status === ProjectStatusConst.TASK_PENDING ||
     status === ProjectStatusConst.TASK_IN_PROGRESS ||
-    status === ProjectStatusConst.REVIEW_WAITING
+    status === ProjectStatusConst.REVIEW_WAITING ||
+    status === ProjectStatusConst.REVIEW_REJECTED
   );
 }
 

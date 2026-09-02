@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { App, Card, Tabs, Tag, Space, Typography, theme, Tooltip, Button } from 'antd';
+import { App, Card, Modal, Tabs, Tag, Space, Typography, theme, Tooltip, Button } from 'antd';
 import {
   DownloadOutlined, UploadOutlined, EditOutlined, DeleteOutlined,
   FileTextOutlined, ExclamationCircleOutlined,
@@ -12,7 +12,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { usePublishStatusPoller } from '@/hooks/usePublishStatusPoller';
 import { ProjectStatus } from '@/constants/codeMaster';
-import { getProjectFiles, getPublishStatus } from '@/services/projectApiService';
+import { getProjectFiles, getPublishStatus, forceTerminateProject } from '@/services/projectApiService';
 
 import { useProjectList } from '@/hooks/project/useProjectList';
 import { useProjectSelection } from '@/hooks/project/useProjectSelection';
@@ -174,6 +174,29 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
   const handlePublishSuccess = useCallback(async (_jobId: string) => { setIsPolling(true); startPoller(); try { await handleProjectReload(); } catch { /* ignore */ } }, [startPoller, handleProjectReload]);
   const handleUnpublishSuccess = useCallback(async (_jobId: string) => { setIsPolling(true); startPoller(); try { await handleProjectReload(); } catch { /* ignore */ } }, [startPoller, handleProjectReload]);
 
+  // 強制終了ハンドラ
+  const handleForceTerminate = useCallback(() => {
+    if (!selectedProject) return;
+    const projectName = selectedProject.name;
+    const projectId = selectedProject.id;
+    Modal.confirm({
+      title: t('projectManagement.forceTerminate.confirmTitle'),
+      content: t('projectManagement.forceTerminate.confirmContent'),
+      okText: t('projectManagement.forceTerminate.okText'),
+      okButtonProps: { danger: true },
+      cancelText: t('common.cancel'),
+      onOk: async () => {
+        try {
+          await forceTerminateProject(projectId);
+          message.success(t('projectManagement.forceTerminate.successMessage').replace('{name}', projectName));
+          await refetchProjects();
+        } catch {
+          message.error(t('projectManagement.forceTerminate.errorMessage'));
+        }
+      },
+    });
+  }, [selectedProject, t, message, refetchProjects]);
+
   // ViewRenderer ダイアログ管理
   interface OpenDialog { id: string; contentType: 'file' | 'subnet'; file?: ProjectFile; fileContent?: string | null; subnetData?: any; zIndex: number; position: { x: number; y: number }; }
   const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
@@ -269,6 +292,21 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                   <Tooltip title={!allTasksCompleted ? t('projectManagement.completionDisabledTooltip') : selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : undefined}>
                     <Button type="primary" disabled={!allTasksCompleted || selectedProject?.isEditable === false} style={allTasksCompleted && selectedProject?.isEditable !== false ? { backgroundColor: '#52c41a', borderColor: '#52c41a' } : undefined} onClick={() => dialogs.setCompletionDialogOpen(true)}>{t('projectManagement.completionButton')}</Button>
                   </Tooltip>
+                  {selectedProject && (
+                    selectedProject.status === ProjectStatus.TASK_PENDING ||
+                    selectedProject.status === ProjectStatus.TASK_IN_PROGRESS ||
+                    selectedProject.status === ProjectStatus.REVIEW_WAITING ||
+                    selectedProject.status === ProjectStatus.REVIEW_REJECTED
+                  ) && (
+                    <Button
+                      danger
+                      icon={<WarningOutlined />}
+                      onClick={handleForceTerminate}
+                      disabled={isProjectCheckedOut}
+                    >
+                      {t('projectManagement.forceTerminate.buttonLabel')}
+                    </Button>
+                  )}
                   <Button icon={<EditOutlined />} onClick={() => dialogs.setRenameModalOpen(true)} disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}>{t('projectManagement.renameProject')}</Button>
                   <Button icon={<SafetyCertificateOutlined />} onClick={() => dialogs.setValidationDialogOpen(true)} disabled={!selectedProject}>{t('projectManagement.validationConfirmButton')}</Button>
                   {/* TODO: 暗号化・署名機能は本実装まで無効化 */}

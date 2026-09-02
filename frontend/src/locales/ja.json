@@ -65,6 +65,12 @@
     "allTransitionsCompleted": "担当タスクの全トランジションが完了しています。",
     "completedTransitionReadonly": "このトランジションは完了済みです。閲覧モードで表示しています。",
     "backToWork": "作業に戻る",
+    "correctionModeAlert": "差し戻し済みのトランジションです。内容を確認し、必要に応じて訂正してください。",
+    "startCorrectionButton": "訂正",
+    "saveCorrectionButton": "訂正保存",
+    "cancelCorrectionButton": "キャンセル",
+    "correctionSaved": "訂正を保存しました",
+    "correctionError": "訂正の保存に失敗しました",
     "projectInstructions": "プロジェクト指示",
     "saveSuccess": "保存しました",
     "saveContent": "作業記録を保存しました。",
@@ -1102,6 +1108,7 @@
       "reviewWaiting": "タスク結果レビュー待ち",
       "completed": "プロジェクト完了",
       "error": "タスク異常終了",
+      "reviewRejected": "レビュー差戻",
       "notStarted": "未着手",
       "allDepartments": "全部署",
       "department": "部署"
@@ -4728,6 +4735,59 @@
   "experimentWorker": {
     "startFailed": "開始に失敗しました",
     "switchFailed": "切り替えに失敗しました"
+  },
+  "progressOverview": {
+    "checkRecordButton": "記録確認",
+    "ngDoneTag": "NG済み",
+    "empty": "データがありません",
+    "status": {
+      "not_started": "初期状態",
+      "preparing": "準備状態",
+      "ready": "準備完了状態",
+      "in_progress": "動作状態",
+      "on_hold": "休止状態",
+      "completed": "終状態",
+      "issue": "異常終了状態"
+    },
+    "summary": {
+      "overallProgress": "全体進捗",
+      "taskCompleted": "タスク {completed}/{total} 完了",
+      "notStarted": "未着手",
+      "inProgress": "作業中",
+      "completed": "完了",
+      "issue": "問題あり",
+      "issueReport": "問題報告",
+      "itemSuffix": "件"
+    },
+    "filter": {
+      "label": "フィルタ:",
+      "methodName": "メソッド名",
+      "taskNo": "タスクNo",
+      "transitionName": "トランジション名",
+      "status": "ステータス",
+      "countSuffix": "件"
+    },
+    "action": {
+      "viewDetail": "詳細確認",
+      "goToWork": "作業へ",
+      "resume": "再開",
+      "start": "開始",
+      "startLockedTooltip": "前の順序のトランジションを先に完了してください"
+    },
+    "column": {
+      "methodName": "メソッド名",
+      "taskNo": "タスクNo",
+      "transitionName": "トランジション名",
+      "prereqTooltip": "前提トランジション: {ids} が全て完了してから開始できます",
+      "status": "ステータス",
+      "progress": "進捗",
+      "issue": "問題",
+      "action": "操作"
+    },
+    "viewMode": {
+      "flow": "フロー図",
+      "list": "リスト"
+    }
   },
   "signature": {
     "deleteFailed": "署名の削除に失敗しました",

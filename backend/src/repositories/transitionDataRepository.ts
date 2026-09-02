@@ -469,4 +469,66 @@ export class TransitionDataRepository {
       );
     }
   }
+
+  /**
+   * プロジェクト配下の未完了トランジション一覧を取得
+   *
+   * 強制終了時の EventLog 記録に必要な情報（method_id / task_no / transition_id）を返す。
+   * 対象: status が INITIAL(0)/PREPARING(1)/READY(2)/IN_PROGRESS(3)/PAUSED(4) のレコード。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param client - トランザクション用 PoolClient
+   * @returns 未完了トランジション行の配列
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async findActiveByProject(
+    organizationId: string,
+    projectId: string,
+    client: PoolClient
+  ): Promise<Array<{ method_id: string; task_no: number; transition_id: string; status: number }>> {
+    try {
+      const query = await loadSqlFile('transition_data/findActiveByProject.sql');
+      const result = await client.query(query, [organizationId, projectId]);
+      return result.rows;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while finding active transitions by project',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * プロジェクト配下の未完了トランジションを一括 ERROR に更新
+   *
+   * 強制終了処理のトランジション一括更新に使用する。
+   * 対象: status が INITIAL(0)/PREPARING(1)/READY(2)/IN_PROGRESS(3)/PAUSED(4) のレコード。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param errorStatus - 変更先ステータス（TransitionStatusEnum.ERROR = 6）
+   * @param updatedBy - 更新者ユーザーID
+   * @param client - トランザクション用 PoolClient
+   * @returns 更新件数
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async bulkUpdateStatusByProject(
+    organizationId: string,
+    projectId: string,
+    errorStatus: TransitionStatus,
+    updatedBy: string,
+    client: PoolClient
+  ): Promise<number> {
+    try {
+      const query = await loadSqlFile('transition_data/bulkUpdateStatusByProject.sql');
+      const result = await client.query(query, [errorStatus, updatedBy, organizationId, projectId]);
+      return result.rowCount ?? 0;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while bulk updating transition status by project',
+        error as Error
+      );
+    }
+  }
 }

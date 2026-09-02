@@ -684,6 +684,7 @@
       "reviewWaiting": "Review Waiting",
       "completed": "Completed",
       "error": "Task Error",
+      "reviewRejected": "Review Rejected",
       "notStarted": "Not Started"
     },
     "progressStatus": {
@@ -3498,6 +3499,12 @@
     "method": "Method",
     "completedTransitionReadonly": "This transition is completed. Viewing in read-only mode.",
     "backToWork": "Back to work",
+    "correctionModeAlert": "This transition has been rejected. Please review and correct if needed.",
+    "startCorrectionButton": "Correct",
+    "saveCorrectionButton": "Save Correction",
+    "cancelCorrectionButton": "Cancel",
+    "correctionSaved": "Correction saved",
+    "correctionError": "Failed to save correction",
     "saveContent": "Work record has been saved.",
     "transitionComplete": "Transition Complete",
     "nextWork": "Next: ",
@@ -4059,6 +4066,59 @@
   "experimentWorker": {
     "startFailed": "Failed to start",
     "switchFailed": "Failed to switch"
+  },
+  "progressOverview": {
+    "checkRecordButton": "Check Record",
+    "ngDoneTag": "NG Done",
+    "empty": "No data",
+    "status": {
+      "not_started": "Not Started",
+      "preparing": "Preparing",
+      "ready": "Ready",
+      "in_progress": "In Progress",
+      "on_hold": "On Hold",
+      "completed": "Completed",
+      "issue": "Issue"
+    },
+    "summary": {
+      "overallProgress": "Overall Progress",
+      "taskCompleted": "Task {completed}/{total} Completed",
+      "notStarted": "Not Started",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "issue": "Issue",
+      "issueReport": "Issue Reports",
+      "itemSuffix": ""
+    },
+    "filter": {
+      "label": "Filter:",
+      "methodName": "Method Name",
+      "taskNo": "Task No",
+      "transitionName": "Transition Name",
+      "status": "Status",
+      "countSuffix": "items"
+    },
+    "action": {
+      "viewDetail": "View Detail",
+      "goToWork": "Go to Work",
+      "resume": "Resume",
+      "start": "Start",
+      "startLockedTooltip": "Please complete the previous transitions first"
+    },
+    "column": {
+      "methodName": "Method Name",
+      "taskNo": "Task No",
+      "transitionName": "Transition Name",
+      "prereqTooltip": "Prerequisites: {ids} must all be completed before starting",
+      "status": "Status",
+      "progress": "Progress",
+      "issue": "Issue",
+      "action": "Action"
+    },
+    "viewMode": {
+      "flow": "Flow",
+      "list": "List"
+    }
   },
   "namespaceAdd": {
     "title": "Add Namespace",
