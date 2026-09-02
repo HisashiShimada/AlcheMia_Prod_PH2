@@ -4066,7 +4066,13 @@
   },
   "experimentWorker": {
     "startFailed": "Failed to start",
-    "switchFailed": "Failed to switch"
+    "switchFailed": "Failed to switch",
+    "ngReason": {
+      "button": "NG Reason",
+      "modalTitle": "NG Reason List",
+      "noNgTasks": "No NG tasks.",
+      "noReason": "(No NG reason provided)"
+    }
   },
   "progressOverview": {
     "loading": "Loading progress...",

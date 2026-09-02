@@ -4734,7 +4734,13 @@
   },
   "experimentWorker": {
     "startFailed": "開始に失敗しました",
-    "switchFailed": "切り替えに失敗しました"
+    "switchFailed": "切り替えに失敗しました",
+    "ngReason": {
+      "button": "NG理由",
+      "modalTitle": "NG理由一覧",
+      "noNgTasks": "NGタスクはありません。",
+      "noReason": "（NG理由未記入）"
+    }
   },
   "progressOverview": {
     "loading": "全体進捗を読み込み中...",

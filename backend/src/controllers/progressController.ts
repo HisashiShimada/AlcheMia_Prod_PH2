@@ -25,7 +25,7 @@ import { logger } from '../utils/logger';
 import { TransitionDataUpdate } from '../types/transitionData';
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
-import { ProjectStatusEnum } from '../enums/codeMaster.enum';
+import { ProjectStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import { HTTP_STATUS } from '../constants/httpStatus';
 
 /**
@@ -160,7 +160,7 @@ export async function getProgressData(req: Request, res: Response): Promise<void
  *
  * GET /api/v1/progress/projects/:projectId/ng-tasks
  *
- * @description task_status=6（NG）のタスク一覧を返す。NG理由モーダルに表示する。
+ * @description task_status=5（REVIEW_NG）のタスク一覧を返す。NG理由モーダルに表示する。
  * @roles experiment_worker（050000 読取専用）
  */
 export async function getNgTasks(
@@ -177,9 +177,9 @@ export async function getNgTasks(
 
     logger.info('getNgTasks request received', { projectId, organizationId, requestId });
 
-    // プロジェクト全タスクを取得してNG（task_status=6）を絞り込む
+    // プロジェクト全タスクを取得してNG（task_status=REVIEW_NG=5）を絞り込む
     const allTasks = await projectTaskDetailRepository.findByProject(organizationId, projectId);
-    const ngTasks = allTasks.filter((t) => t.task_status === 6);
+    const ngTasks = allTasks.filter((t) => t.task_status === TaskStatusEnum.REVIEW_NG);
 
     const ngTaskItems = ngTasks.map((t) => ({
       taskNo: t.task_no,

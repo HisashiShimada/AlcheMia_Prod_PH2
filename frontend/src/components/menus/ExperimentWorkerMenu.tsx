@@ -890,7 +890,7 @@ export default function ExperimentWorkerMenu({
               setNgReasonModalOpen(true);
             }}
           >
-            NG理由
+            {t('experimentWorker.ngReason.button')}
           </Button>
 
           {/* 問題報告ボタン（フェーズB: IssueManagementModal に接続） */}
@@ -917,18 +917,18 @@ export default function ExperimentWorkerMenu({
         onCancel={() => setNgReasonModalOpen(false)}
         footer={[
           <Button key="close" onClick={() => setNgReasonModalOpen(false)}>
-            閉じる
+            {t('common.close')}
           </Button>,
         ]}
         title={
           <span style={{ color: '#ff4d4f' }}>
             <AlertOutlined style={{ marginRight: 8 }} />
-            NG理由一覧
+            {t('experimentWorker.ngReason.modalTitle')}
           </span>
         }
       >
         {ngTasks.length === 0 ? (
-          <p style={{ margin: 0, color: '#888' }}>NGタスクはありません。</p>
+          <p style={{ margin: 0, color: '#888' }}>{t('experimentWorker.ngReason.noNgTasks')}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {ngTasks.map((ng) => (
@@ -950,7 +950,7 @@ export default function ExperimentWorkerMenu({
                   )}
                 </div>
                 <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-                  {ng.reviewResult || '（NG理由未記入）'}
+                  {ng.reviewResult || t('experimentWorker.ngReason.noReason')}
                 </div>
                 {ng.reviewedAt && (
                   <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>

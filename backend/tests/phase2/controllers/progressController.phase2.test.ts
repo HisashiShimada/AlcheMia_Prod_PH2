@@ -106,8 +106,8 @@ describe('progressController - Phase2 テスト', () => {
   describe('getNgTasks()', () => {
     test('正常系: NG タスク一覧を返すこと', async () => {
       const tasks = [
-        { task_no: 1, method_id: 'method-001', task_status: 6, review_result: 'NG理由', reviewed_at: new Date(), review_user_id: 'user-001' },
-        { task_no: 2, method_id: 'method-001', task_status: 6, review_result: null, reviewed_at: null, review_user_id: null },
+        { task_no: 1, method_id: 'method-001', task_status: 5, review_result: 'NG理由', reviewed_at: new Date(), review_user_id: 'user-001' },
+        { task_no: 2, method_id: 'method-001', task_status: 5, review_result: null, reviewed_at: null, review_user_id: null },
       ];
       (projectTaskDetailRepository.findByProject as jest.Mock).mockResolvedValue([
         ...tasks,
@@ -125,7 +125,7 @@ describe('progressController - Phase2 テスト', () => {
           data: expect.objectContaining({ ngTasks: expect.any(Array) }),
         })
       );
-      // NG タスクのみ（task_status=6 の 2件）
+      // NG タスクのみ（task_status=5（REVIEW_NG）の 2件）
       const call = (res.json as jest.Mock).mock.calls[0][0];
       expect(call.data.ngTasks).toHaveLength(2);
     });
