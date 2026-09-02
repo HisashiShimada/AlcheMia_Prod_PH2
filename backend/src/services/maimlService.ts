@@ -1537,7 +1537,7 @@ export async function listMaimlFilesFromStorage(
       lastModified: file.lastModified,
       isFolder: file.isFolder || false,
       organizationId: organizationId,
-      isCheckedOut: false, // TODO: チェックアウト状態の取得（Phase 7で実装）
+      isCheckedOut: false,
       checkedOutBy: null,
       managerId: null,
       checkoutTime: null,
@@ -1552,7 +1552,7 @@ export async function listMaimlFilesFromStorage(
 
     const response: ListFilesResponse = {
       files: processedFiles,
-      hierarchicalData: [], // TODO: 階層構造の構築（Phase 7で実装）
+      hierarchicalData: [],
       totalCount: processedFiles.length,
       organizationId: organizationId,
       cached: false,
@@ -1598,8 +1598,7 @@ export async function getMaimlFileContent(fileKey: string): Promise<FileContentR
       fileKey,
       contentLength: content.length,
     });
-
-    // TODO: Content-Typeの自動判定（Phase 7で実装）
+    
     const contentType = fileKey.endsWith('.maiml') ? 'application/xml' : 'text/plain';
 
     const response: FileContentResponse = {

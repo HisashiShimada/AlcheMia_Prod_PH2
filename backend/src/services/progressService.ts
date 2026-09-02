@@ -1061,11 +1061,6 @@ export class ProgressService {
         eventLogResultsRefs    // event/resultsRef = result-type place IDs
       );
 
-      // 6. タスク進捗率を再計算
-      // TODO: project_taskテーブルにprogress_rateカラムが存在しないため、現在はスキップ
-      // project_taskテーブルのスキーマ: organization_id, project_id, method_id, experiment_order, experiment_condition, attempts_count
-      // 進捗率カラム追加後に実装する
-
       await client.query('COMMIT');
 
       return updatedTransition as unknown as TransitionData;

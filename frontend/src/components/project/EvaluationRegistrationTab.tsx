@@ -42,10 +42,6 @@ import {
   SUB_EVAL_VALUE_COLOR,
 } from '@/types/projectOverallEvaluation';
 import { SubEvaluationScopeValues } from '@/constants/aggregationRule';
-// TODO: 全体評価タブに移動済み（コメントアウト中）
-// import EvaluationSummaryBar from './subcomponents/EvaluationSummaryBar';
-// import AttentionItemList from './subcomponents/AttentionItemList';
-// import { useOverallEvaluation } from '@/hooks/project/useOverallEvaluation';
 
 const { Text } = Typography;
 
@@ -352,10 +348,6 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
   isCheckoutLocked = false,
 }) => {
   const { t } = useLanguage();
-
-  // TODO: 全体評価タブに移動済み（コメントアウト中）
-  // 階層別サマリー・要注意項目（動的算出）
-  // const { summary, isLoading: summaryLoading, refetch: refetchSummary } = useOverallEvaluation(projectId);
 
   const UNIT_LABEL: Record<string, string> = {
     project:           t('evaluation.unitLabel.project'),

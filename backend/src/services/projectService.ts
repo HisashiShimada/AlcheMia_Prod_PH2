@@ -24,6 +24,8 @@ import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { TransitionStatusEnum } from '../types/transitionData';
 import { MaimlWriterService } from './maimlWriterService';
+import { MaimlParserTyped } from '../utils/maimlParserTyped';
+import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
 import { XMLParser } from 'fast-xml-parser';
@@ -1579,24 +1581,50 @@ export class ProjectService {
       // pg-promiseを使用してクエリ実行
       const result = await pgp.any(query, queryParams);
 
-      // TODO: タスク2.2実装時にMAIMLファイルからメソッド名・トランジション名を取得
-      // 暫定対応: method_name, transition_nameは空文字列を返却
-      const instructions = result.map((row: any) => ({
-        id: row.id,
-        project_id: row.project_id,
-        project_name: row.project_name,
-        method_id: row.method_id,
-        method_name: '', // TODO: タスク2.2で実装
-        transition_id: row.transition_id,
-        transition_name: '', // TODO: タスク2.2で実装
-        task_no: row.task_no,
-        instruction_key: row.instruction_key || null,
-        instruction_content: row.instruction_content,
-        create_at: row.create_at.toISOString(),
-        created_by: row.created_by,
-        created_by_name: row.created_by_name || '',
-        is_acknowledged: row.is_acknowledged,
-      }));
+      // MAIMLファイルからメソッド名・トランジション名を取得して Map を構築
+      // Map<methodId, { methodName, transitions: Map<transitionId, transitionName> }>
+      const methodNameMap = new Map<string, { name: string; transitions: Map<string, string> }>();
+      try {
+        const nameRow = await projectRepository.findNameAndUuidById(organizationId, projectId);
+        if (nameRow) {
+          const filePath = await resolveMaimlFilePath(organizationId, projectId, nameRow.project_name);
+          const storageService = getStorageService();
+          const buffer = await storageService.downloadFile(organizationId, filePath);
+          const maimlContent = buffer.toString('utf-8');
+          const parser = new MaimlParserTyped(maimlContent);
+          const methodSummaries = parser.getMethodList();
+          for (const summary of methodSummaries) {
+            const transMap = new Map<string, string>();
+            for (const t of summary.transitions) {
+              transMap.set(t.id, t.name);
+            }
+            methodNameMap.set(summary.methodId, { name: summary.methodName, transitions: transMap });
+          }
+        }
+      } catch (maimlErr) {
+        // MAIMLが取得できない場合はメソッド名・トランジション名を空文字列のままにする（主処理を妨げない）
+        console.warn('[projectService] getWorkerInstructions: MAIML取得失敗（スキップ）', String(maimlErr));
+      }
+
+      const instructions = result.map((row: any) => {
+        const methodEntry = methodNameMap.get(row.method_id);
+        return {
+          id: row.id,
+          project_id: row.project_id,
+          project_name: row.project_name,
+          method_id: row.method_id,
+          method_name: methodEntry?.name ?? '',
+          transition_id: row.transition_id,
+          transition_name: methodEntry?.transitions.get(row.transition_id) ?? '',
+          task_no: row.task_no,
+          instruction_key: row.instruction_key || null,
+          instruction_content: row.instruction_content,
+          create_at: row.create_at.toISOString(),
+          created_by: row.created_by,
+          created_by_name: row.created_by_name || '',
+          is_acknowledged: row.is_acknowledged,
+        };
+      });
 
       return {
         success: true,
