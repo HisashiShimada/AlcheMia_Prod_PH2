@@ -3523,7 +3523,26 @@
     "creatorPlaceholder": "Select Creator",
     "instrumentPlaceholder": "Select Instrument",
     "creatorLabel": "Creator",
-    "instrumentLabel": "Instrument"
+    "instrumentLabel": "Instrument",
+    "statusLabel": "Status",
+    "startButton": "Start",
+    "endButton": "End",
+    "forceEndButton": "Force End",
+    "stateRecordButton": "State Record",
+    "stateRecordDialogTitle": "State Record",
+    "stateRecordSaved": "State record saved",
+    "srTransitionTime": "State Transition Time",
+    "srStatusPreparing": "Preparing",
+    "srStatusReady": "Ready",
+    "srStatusRunning": "Running",
+    "srStatusPaused": "Paused",
+    "srStatusCompleted": "Completed",
+    "srStatusError": "Error",
+    "srAddPause": "+ Add Pause Record",
+    "srRemovePause": "- Remove Pause Record",
+    "confirmInstruction": "Confirm Instructions",
+    "instructionConfirmed": "Project instructions confirmed",
+    "noInstructions": "No instructions."
   },
   "templateInputPanel": {
     "addUncertainty": "Assign Uncertainty",
@@ -5139,50 +5158,6 @@
     "labelDisplayName": "Display Name",
     "labelCreatedAt": "Created At",
     "labelUpdatedAt": "Updated At"
-  },
-  "namespaceAdd": {
-    "title": "Add Namespace",
-    "labelLevel": "Level",
-    "levelGlobal": "Global",
-    "levelOrganization": "Organization",
-    "levelPersonal": "Personal",
-    "uriGuidance": {
-      "global": "Enter a publicly available URI",
-      "organization": "An organization-specific URI will be auto-generated",
-      "personal": "Enter your ORCID ID or any URI"
-    },
-    "levelGuidance": {
-      "global": "Global namespaces are shared across all organizations",
-      "organization": "Organization namespaces are shared within the organization",
-      "personal": "Personal namespaces are only accessible by the logged-in user"
-    },
-    "validation": {
-      "prefixRequired": "Please enter a Prefix",
-      "prefixInvalid": "Must be xs:NCName format (starting with a letter or underscore)",
-      "prefixTooLong": "Prefix must be 64 characters or less",
-      "uriRequired": "Please enter a URI",
-      "uriInvalid": "URI must start with https://, http://, or urn:",
-      "uriTooLong": "URI must be 512 characters or less"
-    },
-    "orcidAutoFilled": "ORCID ID auto-filled",
-    "registerSuccess": "Namespace \"{prefix}\" registered",
-    "labelPrefix": "Prefix",
-    "extraPrefix": "xs:NCName format. Identifier starting with a letter or underscore",
-    "labelUriAuto": "URI (Auto-generated)",
-    "extraUriAuto": "Auto-generated based on {orgCd} and {deptCd}",
-    "uriAutoPlaceholder": "URI will be generated when Prefix is entered",
-    "labelUri": "URI",
-    "labelDisplayName": "Display Name (optional)",
-    "extraDisplayName": "Human-readable namespace label (e.g. CorpA Internal Terms)",
-    "labelDescription": "Description (optional)",
-    "placeholderDescription": "Enter namespace purpose and background...",
-    "labelParentNamespace": "Parent Namespace (optional)",
-    "extraParentNamespace": "Select the parent namespace this namespace inherits from",
-    "placeholderParentNamespace": "Select parent namespace",
-    "labelOrcid": "ORCID Auto-fill",
-    "extraOrcid": "If you have an ORCID ID, it can be retrieved via OAuth2",
-    "btnOrcidAutoFill": "Auto-fill ORCID ID",
-    "btnRegister": "Register"
   },
   "duplicateSuggestModal": {
     "title": "Duplicate candidates found",

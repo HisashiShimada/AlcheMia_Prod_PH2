@@ -108,7 +108,8 @@
       "srRemovePause": "- 休止状態記録削除",
     "confirmInstruction": "指示確認",
     "instructionConfirmed": "プロジェクト指示を確認しました",
-    "noInstructions": "指示がありません。"
+    "noInstructions": "指示がありません。",
+    "projectInstructions": "プロジェクト指示"
   },
   "dataRecordDialog": {
     "plannedValue": "指定値",
