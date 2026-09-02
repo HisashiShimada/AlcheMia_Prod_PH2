@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
+import { isValidNCName } from '@/utils/ncname';
 import { Button, Input, Table, message, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
 import {
   PlusOutlined,
@@ -229,6 +230,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
     for (const row of newRows) {
       if (!row.prefix) {
         message.error(t('prefixManagement.prefixRequired'));
+        return;
+      }
+      if (!isValidNCName(row.prefix)) {
+        message.error(t('prefixManagement.prefixNcnameInvalid'));
         return;
       }
       if (!row.uri) {

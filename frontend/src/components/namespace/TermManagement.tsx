@@ -31,6 +31,7 @@ import {
 import type { NamespaceTermRow } from '@/services/namespaceApiService';
 import DuplicateSuggestModal from '@/components/namespace/DuplicateSuggestModal';
 import type { DuplicateTermEntry } from '@/components/namespace/DuplicateSuggestModal';
+import { isValidNCName } from '@/utils/ncname';
 import type {
   TermManagementProps,
   NewTermRowLocal as NewTermRow,
@@ -212,6 +213,10 @@ const TermManagement: React.FC<TermManagementProps> = ({
         message.error(t('termManagement.localNameRequired'));
         return;
       }
+      if (!isValidNCName(row.localName)) {
+        message.error(t('termManagement.localNameNcnameInvalid'));
+        return;
+      }
     }
 
     // ── クライアントサイド重複チェック ──────────────────────
@@ -308,6 +313,7 @@ const TermManagement: React.FC<TermManagementProps> = ({
         } catch (err: unknown) {
           const status = (err as { response?: { status?: number } })?.response?.status;
           const details = (err as { response?: { data?: { error?: { details?: { scopeName?: string } } } } })?.response?.data?.error?.details;
+          const errorCode = (err as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code;
           if (status === 409) {
             const sn = details?.scopeName;
             Modal.error({
@@ -316,6 +322,8 @@ const TermManagement: React.FC<TermManagementProps> = ({
                 ? t('termManagement.duplicateErrorWithScope', { qname: `${row.prefix}:${row.localName}`, scopeName: sn })
                 : t('termManagement.duplicateError', { qname: `${row.prefix}:${row.localName}`, scopeName: row.prefix }),
             });
+          } else if (status === 400 && errorCode === 'E1003') {
+            message.error(t('termManagement.localNameNcnameInvalid'));
           } else {
             failed2.push(`${row.prefix}:${row.localName}`);
           }
@@ -356,6 +364,9 @@ const TermManagement: React.FC<TermManagementProps> = ({
         const details =
           (err as { response?: { data?: { error?: { details?: { scopeName?: string } } } } })
             ?.response?.data?.error?.details;
+        const errorCode =
+          (err as { response?: { data?: { error?: { code?: string } } } })
+            ?.response?.data?.error?.code;
 
         if (status === 409) {
           const scopeName = details?.scopeName;
@@ -371,6 +382,8 @@ const TermManagement: React.FC<TermManagementProps> = ({
                   scopeName: row.prefix,
                 }),
           });
+        } else if (status === 400 && errorCode === 'E1003') {
+          message.error(t('termManagement.localNameNcnameInvalid'));
         } else {
           failed.push(`${row.prefix}:${row.localName}`);
         }
