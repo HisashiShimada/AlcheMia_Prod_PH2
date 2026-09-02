@@ -114,7 +114,7 @@ const getErrorMessage = (err: unknown): string => {
 // const TemplateListView = lazy(() => import('./components/TemplateListView'));
 
 // 内部コンポーネント
-const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, initialDocumentId, initialDescription, onContentChange, onContentSaved, ...props }: PetriNetEditorInnerProps) => {
+const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, initialDocumentId, initialDescription, onContentChange, onContentSaved, organizationGroupCd, ...props }: PetriNetEditorInnerProps) => {
   const { t } = useLanguage();
   const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<EdgeData>([]);
@@ -3327,6 +3327,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         onOpenStructureTree={handleOpenStructureTree}
         onCloseStructureTree={handleCloseStructureTree}
         editingFileName={editingFileName}
+        organizationGroupCd={organizationGroupCd}
       />
     </TemplateProvider>
     </AttributeDisplayProvider>
@@ -3469,6 +3470,11 @@ interface PetriNetEditorInnerUIProps {
   onCloseStructureTree: () => void;
   /** 編集中のファイル名（TemplateEditorDialog に渡す） */
   editingFileName?: string;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * TemplateEditorDialog の新規プロパティ追加ダイアログの用語スコープ絞り込みに使用する
+   */
+  organizationGroupCd?: string;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
@@ -3561,6 +3567,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   structureTreePanelOpen,
   onOpenStructureTree,
   onCloseStructureTree,
+  organizationGroupCd,
 }) => {
   // TemplateContextからtemplateErrors、addTemplate、deleteTemplate、updateTemplate、allTemplatesを取得
   const { templateErrors, addTemplate, deleteTemplate, updateTemplate, allTemplates } = useTemplates();
@@ -3826,6 +3833,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           templateErrors={templateErrors}
           editingFileName={editingFileName}
           sourceS3Key={sourceS3Key}
+          organizationGroupCd={organizationGroupCd}
         />
 
         {/* Document編集ダイアログ */}
@@ -3891,6 +3899,11 @@ export interface PetriNetEditorInnerProps {
   onContentChange?: () => void;
   /** 保存が完了したときのコールバック（未保存変更フラグのリセット用） */
   onContentSaved?: () => void;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * TemplateEditorDialog の新規プロパティ追加ダイアログの用語スコープ絞り込みに使用する
+   */
+  organizationGroupCd?: string;
   [key: string]: unknown;
 }
 

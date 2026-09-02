@@ -13,8 +13,10 @@
 --   $9  units                (NULL許容 / 定量のみ)
 --   $10 scale_factor         (NULL許容 / 定量のみ)
 --   $11 format_string        (NULL許容 / 定量のみ)
---   $12 description          (NULL許容)
---   $13 create_user_id
+--   $12 tolerance_upper      (NULL許容 / 手入力値判定用)
+--   $13 tolerance_lower      (NULL許容 / 手入力値判定用)
+--   $14 description          (NULL許容)
+--   $15 create_user_id
 
 INSERT INTO uncertainty_criteria (
     organization_id,
@@ -29,6 +31,8 @@ INSERT INTO uncertainty_criteria (
     units,
     scale_factor,
     format_string,
+    tolerance_upper,
+    tolerance_lower,
     description,
     create_user_id,
     create_at,
@@ -50,8 +54,10 @@ SELECT
     $11,
     $12,
     $13,
+    $14,
+    $15,
     NOW(),
-    $13,
+    $15,
     NOW()
 FROM uncertainty_criteria
 WHERE organization_id = $1

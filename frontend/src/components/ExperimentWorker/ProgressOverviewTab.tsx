@@ -130,17 +130,17 @@ const SummaryCard: React.FC<{ rows: ProgressRow[] }> = ({ rows }) => {
         </div>
         <div style={{ width: 1, height: 48, background: '#f0f0f0', flexShrink: 0 }} />
         <Flex gap={16} wrap="wrap">
-          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>未着手</Text>}   value={stats.byStatus.not_started} suffix="件" valueStyle={{ fontSize: 18, color: '#595959' }} />
-          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>作業中</Text>}   value={stats.byStatus.in_progress} suffix="件" valueStyle={{ fontSize: 18, color: '#1677ff' }} />
-          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>完了</Text>}     value={stats.byStatus.completed}   suffix="件" valueStyle={{ fontSize: 18, color: '#52c41a' }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>未着手</Text>}   value={stats.byStatus.not_started} suffix="件" styles={{ content: { fontSize: 18, color: '#595959' } }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>作業中</Text>}   value={stats.byStatus.in_progress} suffix="件" styles={{ content: { fontSize: 18, color: '#1677ff' } }} />
+          <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>完了</Text>}     value={stats.byStatus.completed}   suffix="件" styles={{ content: { fontSize: 18, color: '#52c41a' } }} />
           {stats.byStatus.issue > 0 && (
-            <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>問題あり</Text>} value={stats.byStatus.issue} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} />
+            <Statistic title={<Text type="secondary" style={{ fontSize: 14 }}>問題あり</Text>} value={stats.byStatus.issue} suffix="件" styles={{ content: { fontSize: 18, color: '#ff4d4f' } }} />
           )}
         </Flex>
         {stats.issueCount > 0 && (
           <>
             <div style={{ width: 1, height: 48, background: '#f0f0f0', flexShrink: 0 }} />
-            <Statistic title={<Text type="secondary" style={{ fontSize: 14, color: '#ff4d4f' }}>問題報告</Text>} value={stats.issueCount} suffix="件" valueStyle={{ fontSize: 18, color: '#ff4d4f' }} prefix={<ExclamationCircleOutlined />} />
+            <Statistic title={<Text type="secondary" style={{ fontSize: 14, color: '#ff4d4f' }}>問題報告</Text>} value={stats.issueCount} suffix="件" styles={{ content: { fontSize: 18, color: '#ff4d4f' } }} prefix={<ExclamationCircleOutlined />} />
           </>
         )}
       </Flex>

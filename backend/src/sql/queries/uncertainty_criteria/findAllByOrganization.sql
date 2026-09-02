@@ -14,6 +14,8 @@ SELECT
   , uc.units                         AS units
   , uc.scale_factor                  AS "scaleFactor"
   , uc.format_string                 AS "formatString"
+  , uc.tolerance_upper               AS "toleranceUpper"
+  , uc.tolerance_lower               AS "toleranceLower"
   , uc.description                   AS description
   -- namespace_term カラム（Key属性設定に紐づく表示名・説明）
   , nt.display_name                  AS "termDisplayName"

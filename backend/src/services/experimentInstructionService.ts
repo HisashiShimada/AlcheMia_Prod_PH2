@@ -14,7 +14,7 @@ import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { logger } from '../utils/logger';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
-import type { TemplateDataRow } from '../repositories/templateDataRepository';
+import type { TemplateDataRow, PropertySet } from '../repositories/templateDataRepository';
 import * as projectTaskDetailRepo from '../repositories/projectTaskDetailRepository';
 import type { ProjectTaskDetail } from '../types/database';
 import type {
@@ -28,12 +28,20 @@ import type {
   PlanDialogData,
   TemplateDef,
   TemplateField,
+  UncertaintyJudgeSummary,
+  CorrectRecordItem,
+  CorrectRecordResult,
 } from '../types/api';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { getStorageService } from './storageService';
+import { MaimlWriterService } from './maimlWriterService';
+import { EventLogRepository } from '../repositories/eventLogRepository';
+import { ReviewTypeEnum } from '../enums/codeMaster.enum';
 import * as projectRepository from '../repositories/projectRepository';
 import * as uncertaintyCriteriaRepository from '../repositories/uncertaintyCriteriaRepository';
+import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
+import * as experimentInstructionDetailRepository from '../repositories/experimentInstructionDetailRepository';
 import type { Template, Property } from '../types/maiml-unified';
 
 export type {
@@ -47,6 +55,9 @@ export type {
   PlanDialogData,
   TemplateDef,
   TemplateField,
+  UncertaintyJudgeSummary,
+  CorrectRecordItem,
+  CorrectRecordResult,
 };
 
 // ──────────────────────────────────────────────
@@ -120,16 +131,32 @@ export async function getExperimentInstructions(
     projectId,
   });
 
-  // template_data（実績値）と project_task_detail（ステータス）を並行取得
-  const [templateRows, taskDetails] = await Promise.all([
+  // template_data（実績値）/ project_task_detail（ステータス・記録者情報）/ experiment_instruction_detail（定性評価）を並行取得
+  const [templateRows, taskDetails, instructionDetails] = await Promise.all([
     templateDataRepo.findByProject(organizationId, projectId),
     projectTaskDetailRepo.findByProject(organizationId, projectId),
+    experimentInstructionDetailRepository.findByProject(organizationId, projectId).catch((e) => {
+      logger.warn('[experimentInstructionService] instruction_detail 取得失敗（スキップ）', { error: String(e) });
+      return [];
+    }),
   ]);
 
   // task_detail を (methodId, taskNo) をキーにした Map に変換
   const taskDetailMap = new Map<string, ProjectTaskDetail>();
   for (const td of taskDetails) {
     taskDetailMap.set(`${td.method_id}__${td.task_no}`, td);
+  }
+
+  // instruction_detail を (methodId, taskNo, templateName, propKey) をキーにした Map に変換
+  // キー: `${methodId}__${taskNo}__${templateName}__${propKey}`
+  const instructionDetailMap = new Map<string, { uncertaintyKey: string | null; uncertaintyAssignedValue: string | null }>();
+  for (const detail of instructionDetails) {
+    const key = `${detail.method_id}__${detail.task_no}__${detail.template_name}__${detail.prop_key}`;
+    // 同一キーが複数ある場合は最新（後勝ち）を使用
+    instructionDetailMap.set(key, {
+      uncertaintyKey: detail.uncertainty_key ?? null,
+      uncertaintyAssignedValue: detail.uncertainty_assigned_value ?? null,
+    });
   }
 
   // templateRows を methodId → taskNo → rows[] にグループ化
@@ -145,17 +172,107 @@ export async function getExperimentInstructions(
     taskMap.get(row.task_no)!.push(row);
   }
 
+  // experiment_uncertainty_judge から最新判定を全件取得
+  // キー: `${methodId}__${taskNo}__${placeId}__${propKey}` → UncertaintyJudgeSummary[]
+  const judgeMap = new Map<string, UncertaintyJudgeSummary[]>();
+
+  // uncertainty_key → criteriaName のマップ（定量・定性両方で使用）
+  const criteriaNameMap = new Map<string, string>();
+
+  try {
+    const judgeRepo = new ExperimentUncertaintyJudgeRepository();
+    // methodId が複数ある可能性があるため、全 methodId で取得
+    const allMethodIds = Array.from(methodMap.keys());
+    const allUncertaintyKeys = new Set<string>();
+
+    for (const methodId of allMethodIds) {
+      const judgeRows = await judgeRepo.findAllByProject(organizationId, projectId, methodId);
+      for (const jr of judgeRows) {
+        const key = `${methodId}__${jr.taskNo}__${jr.placeId}__${jr.propertyKey}`;
+        if (!judgeMap.has(key)) judgeMap.set(key, []);
+        judgeMap.get(key)!.push({
+          instructionKey: jr.uncertaintyKey,
+          toleranceUpper: jr.toleranceUpper,
+          toleranceLower: jr.toleranceLower,
+          judgeResult: jr.judgeResult,
+          recordedValue: jr.recordedValue,
+        });
+        allUncertaintyKeys.add(jr.uncertaintyKey);
+      }
+    }
+
+    // 定性評価の uncertaintyKey も criteriaName 解決対象に追加
+    for (const detail of instructionDetails) {
+      if (detail.uncertainty_key) {
+        allUncertaintyKeys.add(detail.uncertainty_key);
+      }
+    }
+
+    // uncertainty_criteria から criteriaName（uncertainty_name）を一括取得
+    if (allUncertaintyKeys.size > 0) {
+      try {
+        const criteriaRows = await uncertaintyCriteriaRepository.findByKeys(
+          organizationId,
+          Array.from(allUncertaintyKeys)
+        );
+        for (const cr of criteriaRows) {
+          if (cr.uncertainty_name) {
+            criteriaNameMap.set(cr.key, cr.uncertainty_name);
+          }
+        }
+        // criteriaName を judgeMap の各エントリに反映
+        for (const [, judges] of judgeMap) {
+          for (const j of judges) {
+            const name = criteriaNameMap.get(j.instructionKey);
+            if (name) {
+              (j as UncertaintyJudgeSummary & { criteriaName?: string }).criteriaName = name;
+            }
+          }
+        }
+      } catch (criteriaErr) {
+        logger.warn('[experimentInstructionService] criteriaName 取得失敗（スキップ）', {
+          error: String(criteriaErr),
+        });
+      }
+    }
+  } catch (e) {
+    logger.warn('[experimentInstructionService] judge 情報取得失敗（スキップ）', { error: String(e) });
+  }
+
   // ネスト形式に変換
   const methods: InstructionMethod[] = [];
   for (const [methodId, taskMap] of methodMap) {
     const tasks: InstructionTask[] = [];
     for (const [taskNo, rows] of taskMap) {
       const td = taskDetailMap.get(`${methodId}__${taskNo}`);
+      const templateName = rows[0]?.property_set?.templateName ?? null;
       const templates: InstructionTemplate[] = rows.map((row) => ({
         templateId: row.place_id,
         templateName: row.property_set?.templateName ?? null,
         templateType: row.property_set?.templateType ?? 'condition',
-        fields: buildFields(row),
+        placeId: row.place_id,
+        fields: buildFields(row).map((field) => {
+          const judgeKey = `${methodId}__${taskNo}__${row.place_id}__${field.key}`;
+          const judges = judgeMap.get(judgeKey);
+
+          // 定性評価情報を instruction_detail から取得
+          // template_name は property_set.templateName と対応する
+          const rowTemplateName = row.property_set?.templateName ?? '';
+          const detailKey = `${methodId}__${taskNo}__${rowTemplateName}__${field.key}`;
+          const detail = instructionDetailMap.get(detailKey);
+          const qualitativeCriteriaName = detail?.uncertaintyKey
+            ? (criteriaNameMap.get(detail.uncertaintyKey) ?? detail.uncertaintyKey)
+            : null;
+          const qualitativeAssignedValue = detail?.uncertaintyAssignedValue ?? null;
+
+          const enriched: InstructionField = {
+            ...field,
+            ...(judges && judges.length > 0 ? { uncertaintyJudges: judges } : {}),
+            qualitativeCriteriaName,
+            qualitativeAssignedValue,
+          };
+          return enriched;
+        }),
       }));
       tasks.push({
         taskNo,
@@ -164,6 +281,8 @@ export async function getExperimentInstructions(
         reviewUserId: td?.review_user_id ?? null,
         reviewResult: td?.review_result ?? null,
         templates,
+        experimentUserId: td?.experiment_user_id ?? null,
+        experimentEndAt: td?.experiment_end_at ? td.experiment_end_at.toISOString() : null,
       });
     }
     // taskNo 昇順
@@ -196,6 +315,10 @@ export async function getProjectMethods(
 /**
  * タスクを承認する
  *
+ * @remarks
+ * - project_task_detail を task_status=3（completed）に更新する
+ * - maiml_event_log に承認ログを記録し、MAIML XML にも書き込む
+ *
  * @returns 更新後のレビュー情報。対象タスクが存在しない・ステータス不一致の場合は null
  */
 export async function approveTask(
@@ -212,22 +335,65 @@ export async function approveTask(
     taskNo,
   });
 
-  const updated = await projectTaskDetailRepo.approveTask(
-    organizationId,
-    projectId,
-    methodId,
-    taskNo,
-    reviewUserId
-  );
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  if (!updated) return null;
+    const updated = await projectTaskDetailRepo.approveTask(
+      organizationId,
+      projectId,
+      methodId,
+      taskNo,
+      reviewUserId
+    );
 
-  return {
-    taskStatus: updated.task_status ?? null,
-    reviewedAt: updated.reviewed_at ? updated.reviewed_at.toISOString() : null,
-    reviewUserId: updated.review_user_id ?? null,
-    reviewResult: updated.review_result ?? null,
-  };
+    if (!updated) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    // プロジェクト名を取得（event_log ID 命名に使用）
+    const project = await projectRepository.findByIdFull(organizationId, projectId);
+    const projectName = project?.project_name ?? projectId;
+
+    const eventLogRepo = new EventLogRepository();
+    await eventLogRepo.insertTaskReviewLog(
+      organizationId,
+      projectId,
+      methodId,
+      taskNo,
+      ReviewTypeEnum.APPROVED,
+      null,
+      reviewUserId,
+      projectName,
+      client
+    );
+
+    await client.query('COMMIT');
+
+    // MAIML XML への書き込み（non-fatal: 失敗してもレスポンスはブロックしない）
+    try {
+      const maimlWriterService = new MaimlWriterService();
+      await maimlWriterService.writeEventLogOnly(organizationId, projectId, projectName);
+    } catch (writeError) {
+      logger.warn('[experimentInstructionService] approveTask: MAIML write failed (non-fatal)', {
+        error: String(writeError),
+      });
+    }
+
+    return {
+      taskStatus: updated.task_status ?? null,
+      reviewedAt: updated.reviewed_at ? updated.reviewed_at.toISOString() : null,
+      reviewUserId: updated.review_user_id ?? null,
+      reviewResult: updated.review_result ?? null,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 // ──────────────────────────────────────────────
@@ -713,6 +879,10 @@ export async function getPlanDialogDataFromMaiml(
 /**
  * タスクを NG 記録する
  *
+ * @remarks
+ * - project_task_detail を task_status=5（ng）に更新する
+ * - maiml_event_log に NG ログを記録し、MAIML XML にも書き込む
+ *
  * @returns 更新後のレビュー情報。対象タスクが存在しない・ステータス不一致の場合は null
  */
 export async function recordNg(
@@ -730,21 +900,209 @@ export async function recordNg(
     taskNo,
   });
 
-  const updated = await projectTaskDetailRepo.recordNg(
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const updated = await projectTaskDetailRepo.recordNg(
+      organizationId,
+      projectId,
+      methodId,
+      taskNo,
+      reviewUserId,
+      ngReason
+    );
+
+    if (!updated) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    // プロジェクト名を取得（event_log ID 命名に使用）
+    const project = await projectRepository.findByIdFull(organizationId, projectId);
+    const projectName = project?.project_name ?? projectId;
+
+    const eventLogRepo = new EventLogRepository();
+    await eventLogRepo.insertTaskReviewLog(
+      organizationId,
+      projectId,
+      methodId,
+      taskNo,
+      ReviewTypeEnum.NG,
+      ngReason,
+      reviewUserId,
+      projectName,
+      client
+    );
+
+    await client.query('COMMIT');
+
+    // MAIML XML への書き込み（non-fatal）
+    try {
+      const maimlWriterService = new MaimlWriterService();
+      await maimlWriterService.writeEventLogOnly(organizationId, projectId, projectName);
+    } catch (writeError) {
+      logger.warn('[experimentInstructionService] recordNg: MAIML write failed (non-fatal)', {
+        error: String(writeError),
+      });
+    }
+
+    return {
+      taskStatus: updated.task_status ?? null,
+      reviewedAt: updated.reviewed_at ? updated.reviewed_at.toISOString() : null,
+      reviewUserId: updated.review_user_id ?? null,
+      reviewResult: updated.review_result ?? null,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// ──────────────────────────────────────────────
+// correctRecord
+// 実験指示タブからの記録値（実績値）訂正
+// ──────────────────────────────────────────────
+
+/**
+ * 記録値（実績値）を訂正する
+ *
+ * @remarks
+ * - task_status=2（review_waiting）のタスクのみ訂正可能
+ * - ステータスは変更しない（task_status=2 を維持）
+ * - template_data を更新し、maiml_event_log に訂正ログを記録する
+ * - MAIML XML にも書き込む（data + eventLog 両方）
+ *
+ * @throws 409 - task_status が 2 でない場合
+ */
+export async function correctRecord(
+  organizationId: string,
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  records: CorrectRecordItem[],
+  correctedByUserId: string
+): Promise<CorrectRecordResult> {
+  logger.info('[experimentInstructionService] correctRecord', {
     organizationId,
     projectId,
     methodId,
     taskNo,
-    reviewUserId,
-    ngReason
+    recordCount: records.length,
+  });
+
+  // task_status=2（review_waiting）チェック
+  const taskDetail = await projectTaskDetailRepo.findByPrimaryKey(
+    organizationId,
+    projectId,
+    methodId,
+    taskNo
   );
+  if (!taskDetail || taskDetail.task_status !== 2) {
+    const err: any = new Error('訂正対象タスクがレビュー待ち状態（task_status=2）ではありません');
+    err.statusCode = 409;
+    err.code = 'TASK_NOT_REVIEW_WAITING';
+    throw err;
+  }
 
-  if (!updated) return null;
+  const pool = getPool();
+  const client = await pool.connect();
 
-  return {
-    taskStatus: updated.task_status ?? null,
-    reviewedAt: updated.reviewed_at ? updated.reviewed_at.toISOString() : null,
-    reviewUserId: updated.review_user_id ?? null,
-    reviewResult: updated.review_result ?? null,
-  };
+  try {
+    await client.query('BEGIN');
+
+    const templateDataRepo = new TemplateDataRepository();
+    const corrections: Array<{
+      instanceUuid: string;
+      propKey: string;
+      beforeValue: unknown;
+      afterValue: unknown;
+    }> = [];
+
+    for (const record of records) {
+      // 訂正前の値を取得（Repository 経由）
+      const beforeRow = await templateDataRepo.findByPlaceId(
+        organizationId, projectId, methodId, taskNo, record.placeId, client
+      );
+      const beforePropertySet = beforeRow?.property_set;
+
+      // template_data を更新（instanceUuid は upsert 内で既存値を維持）
+      const updatedPropertySet: PropertySet = {
+        templateId: record.data.templateId,
+        templateType: record.data.templateType,
+        properties: record.data.properties as Property[],
+      };
+      const recordParam = {
+        placeId: record.placeId,
+        propertySet: updatedPropertySet,
+        updateUserId: correctedByUserId,
+      };
+      await templateDataRepo.upsert(organizationId, projectId, methodId, taskNo, recordParam, client);
+
+      // 訂正後の値を取得（upsert 後の property_set、Repository 経由）
+      const afterRow = await templateDataRepo.findByPlaceId(
+        organizationId, projectId, methodId, taskNo, record.placeId, client
+      );
+      const afterPropertySet = afterRow?.property_set;
+      const instanceUuid = afterPropertySet?.instanceUuid ?? record.placeId;
+
+      // property 単位で before/after を比較し変更があれば記録
+      const beforeProps = (beforePropertySet?.properties ?? []) as Property[];
+      const afterProps = (afterPropertySet?.properties ?? []) as Property[];
+
+      for (const afterProp of afterProps) {
+        const propKey = afterProp.key;
+        const beforeProp = beforeProps.find((p) => p.key === propKey);
+        const beforeValue = beforeProp?.value ?? null;
+        const afterValue = afterProp?.value ?? null;
+
+        if (String(beforeValue) !== String(afterValue)) {
+          corrections.push({ instanceUuid, propKey, beforeValue, afterValue });
+        }
+      }
+    }
+
+    // 変更がある場合のみ event_log を記録
+    if (corrections.length > 0) {
+      const project = await projectRepository.findByIdFull(organizationId, projectId);
+      const projectName = project?.project_name ?? projectId;
+
+      const eventLogRepo = new EventLogRepository();
+      await eventLogRepo.insertRecordCorrectionLog(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        corrections,
+        correctedByUserId,
+        projectName,
+        client
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // MAIML XML への書き込み（data + eventLog 両方、non-fatal）
+    try {
+      const project = await projectRepository.findByIdFull(organizationId, projectId);
+      const projectName = project?.project_name ?? projectId;
+      const maimlWriterService = new MaimlWriterService();
+      await maimlWriterService.writeDataAndEventLog(organizationId, projectId, projectName);
+    } catch (writeError) {
+      logger.warn('[experimentInstructionService] correctRecord: MAIML write failed (non-fatal)', {
+        error: String(writeError),
+      });
+    }
+
+    return { corrected: records.length };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
+

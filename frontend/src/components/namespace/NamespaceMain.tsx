@@ -1565,28 +1565,38 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const handleToggleTermActive = (termId: string, currentActive: boolean) => {
     const nextActive = !currentActive;
+    const term = terms.find((tt) => tt.id === termId);
+    if (!term) return;
+
+    const doToggle = async () => {
+      try {
+        await toggleTermActive(term.prefix, term.localName, nextActive);
+        setTerms((prev) =>
+          prev.map((tt) => tt.id === termId ? { ...tt, isActive: nextActive } : tt)
+        );
+        message.success(
+          nextActive
+            ? t('namespaceMain.activateSuccess')
+            : t('namespaceMain.deactivateSuccess')
+        );
+      } catch {
+        message.error(t('namespaceMain.updateError', { detail: '' }));
+      }
+    };
+
     // 非アクティブにする場合のみ確認ダイアログを表示
     if (currentActive) {
-      const term = terms.find((t) => t.id === termId);
-      const label = term ? `${term.prefix}:${term.localName}` : t('namespaceMain.term');
+      const label = `${term.prefix}:${term.localName}`;
       Modal.confirm({
         title: t('namespaceMain.deactivateConfirmTitle', { label }),
         content: t('namespaceMain.deactivateConfirmContent'),
         okText: t('namespaceMain.deactivate'),
         cancelText: t('namespaceMain.cancel'),
         okButtonProps: { danger: true },
-        onOk: () => {
-          setTerms((prev) =>
-            prev.map((tt) => tt.id === termId ? { ...tt, isActive: false } : tt)
-          );
-          message.success(t('namespaceMain.deactivateSuccess'));
-        },
+        onOk: doToggle,
       });
     } else {
-      setTerms((prev) =>
-        prev.map((tt) => tt.id === termId ? { ...tt, isActive: nextActive } : tt)
-      );
-      message.success(t('namespaceMain.activateSuccess'));
+      doToggle();
     }
   };
 
@@ -1598,12 +1608,25 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       okText: t('namespaceMain.deactivate'),
       cancelText: t('namespaceMain.cancel'),
       okButtonProps: { danger: true },
-      onOk: () => {
-        setTerms((prev) =>
-          prev.map((tt) => targetIds.includes(tt.id) ? { ...tt, isActive: false } : tt)
-        );
+      onOk: async () => {
+        const succeeded: string[] = [];
+        for (const termId of targetIds) {
+          const term = terms.find((tt) => tt.id === termId);
+          if (!term) continue;
+          try {
+            await toggleTermActive(term.prefix, term.localName, false);
+            succeeded.push(termId);
+          } catch {
+            // 失敗した term はスキップ
+          }
+        }
+        if (succeeded.length > 0) {
+          setTerms((prev) =>
+            prev.map((tt) => succeeded.includes(tt.id) ? { ...tt, isActive: false } : tt)
+          );
+        }
         setSelectedTermIds([]);
-        message.success(t('namespaceMain.bulkDeactivateSuccess', { count: String(count) }));
+        message.success(t('namespaceMain.bulkDeactivateSuccess', { count: String(succeeded.length) }));
       },
     });
   };
@@ -1713,8 +1736,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const actionCell = (record: Term) => {
     // システム名前空間（Alchemia）の行は操作不可
     const isSystemNs = record.prefix === SYSTEM_NAMESPACE_PREFIX;
-    // グレーアウト対象（rowClassName と同条件）のみ操作不可
-    const readonly =
+    // 編集ボタン用: 非アクティブ時・読み取り専用時・システムNS時は編集不可
+    const readonlyEdit =
+      isSystemNs ||
+      record.isActive === false ||
+      (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
+      (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
+      effectiveViewOnly;
+    // アクティブ切り替えボタン用: 読み取り専用時・システムNS時は操作不可（非アクティブ行のアクティブ化は許可）
+    const readonlyToggle =
       isSystemNs ||
       (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
@@ -1736,12 +1766,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     }
     return (
       <span style={{ display: 'flex', gap: 4 }}>
-        <Button size="small" icon={<EditOutlined />} disabled={readonly} onClick={() => !readonly && startEditTerm(record)}>{t('namespaceMain.actionEdit')}</Button>
+        <Button size="small" icon={<EditOutlined />} disabled={readonlyEdit} onClick={() => !readonlyEdit && startEditTerm(record)}>{t('namespaceMain.actionEdit')}</Button>
         <Button
           size="small"
-          danger={!readonly && record.isActive !== false}
-          disabled={readonly}
-          onClick={() => !readonly && handleToggleTermActive(record.id, record.isActive !== false)}
+          danger={!readonlyToggle && record.isActive !== false}
+          disabled={readonlyToggle}
+          onClick={() => !readonlyToggle && handleToggleTermActive(record.id, record.isActive !== false)}
           style={{ minWidth: '90px' }}
         >
           {record.isActive !== false ? t('namespaceMain.actionDeactivate') : t('namespaceMain.actionActivate')}
@@ -2182,6 +2212,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                 rowClassName={(record) => {
                   if ('_rowId' in record) return 'row-new-term';
                   const term = record as Term;
+                  // 非アクティブ用語行（グレーアウト）
+                  if (!term.isActive) return 'row-inactive-term';
                   // company配下ノード選択時: 選択ノードの祖先prefixはグレーアウト
                   if (isCompanyNodeSelected && ancestorPrefixesForSelected.has(term.prefix)) return 'row-readonly-scope';
                   // company配下ノード以外が選択されている場合のみ isReadonlyPrefix を適用
@@ -2282,6 +2314,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       <style>{`
         .row-new-term td { background: #fffbe6 !important; }
         .row-readonly-scope td { background: #f5f5f5 !important; opacity: 0.55; pointer-events: none; }
+        .row-inactive-term td { color: #bbb !important; background: #f0f0f0 !important; }
       `}</style>
       </div>
     </div>

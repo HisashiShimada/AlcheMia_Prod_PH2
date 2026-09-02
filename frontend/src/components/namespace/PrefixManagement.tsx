@@ -105,6 +105,8 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           description: (ns as any).description ?? '',
           /** DB由来のスコープ名（organization_group_name または user_name） */
           scopePath: (ns as any).scopeName ?? '',
+          /** アクティブ状態（SQL の isActive カラム） */
+          isActive: (ns as any).isActive !== false,
         }))
       );
     } catch {
@@ -705,7 +707,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
             <Button
               size="small"
               icon={<EditOutlined />}
-              disabled={viewOnly}
+              disabled={viewOnly || !isActive}
               onClick={() => startEdit(r)}
             >
               {t('prefixManagement.btnEdit')}
@@ -873,9 +875,19 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
                 disabled: '_rowId' in record,
               }),
             }}
-            rowClassName={(record) =>
-              '_rowId' in record ? 'row-new-prefix' : ''
-            }
+            onRow={(record) => {
+              if ('_rowId' in record) return {};
+              const r = record as PrefixRow;
+              if (r.isActive === false) {
+                return { style: { background: '#f0f0f0' } };
+              }
+              return {};
+            }}
+            rowClassName={(record) => {
+              if ('_rowId' in record) return 'row-new-prefix';
+              const r = record as PrefixRow;
+              return r.isActive === false ? 'row-inactive-prefix' : '';
+            }}
             locale={{
               triggerAsc: t('prefixManagement.sortAsc'),
               triggerDesc: t('prefixManagement.sortDesc'),
@@ -896,9 +908,6 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           />
         </Spin>
 
-        <style>{`
-          .row-new-prefix td { background: #fffbe6 !important; }
-        `}</style>
       </div>
     </div>
   );

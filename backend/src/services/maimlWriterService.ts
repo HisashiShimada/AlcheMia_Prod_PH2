@@ -34,6 +34,7 @@ import { extractUuidsFromMaiml } from '../utils/maimlUuidExtractor';
 import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { findNamespacesByOrganization } from '../repositories/namespaceTermRepository';
 import { readGlobalDeclarations } from './globalNamespaceFileService';
+import { ExperimentUncertaintyJudgeRepository } from '../repositories/experimentUncertaintyJudgeRepository';
 
 /**
  * 組織固有名前空間（DB）とグローバル名前空間（ファイルサーバ）をマージして返す
@@ -115,6 +116,61 @@ export class MaimlWriterService {
       [organizationId, projectId]
     );
     const templateDataRows: TemplateDataRow[] = templateDataResult.rows;
+
+    // --- 3-b. experiment_uncertainty_judge から判定結果を全件取得・集約して
+    //          templateDataRows の property_set.properties[].uncertainties に注入 ---
+    // 各プロパティの定量評価結果（良好/不良）を MAIML <uncertainty> の <value> として書き込む。
+    // 集約ルール: (placeId, propertyKey) ごとに全件「良好」なら「良好」、1件でも「不良」なら「不良」。
+    try {
+      const methodIds = [...new Set(templateDataRows.map((r) => r.method_id))];
+      const judgeRepo = new ExperimentUncertaintyJudgeRepository();
+
+      for (const methodId of methodIds) {
+        const judgeRows = await judgeRepo.findAllByProject(organizationId, projectId, methodId);
+        if (judgeRows.length === 0) continue;
+
+        // (placeId, propertyKey) ごとに集約
+        const judgeMap = new Map<string, '良好' | '不良'>();
+        for (const jr of judgeRows) {
+          const mapKey = `${jr.placeId}__${jr.propertyKey}`;
+          const current = judgeMap.get(mapKey);
+          if (current === '不良') continue;
+          judgeMap.set(mapKey, jr.judgeResult === '不良' ? '不良' : '良好');
+        }
+
+        // templateDataRows の property_set.properties に判定結果を注入
+        for (const row of templateDataRows) {
+          if (row.method_id !== methodId) continue;
+          const ps = row.property_set as Record<string, unknown> | null;
+          if (!ps || !Array.isArray(ps['properties'])) continue;
+
+          const properties = ps['properties'] as Array<Record<string, unknown>>;
+          for (const prop of properties) {
+            const propKey = prop['key'] as string | undefined;
+            if (!propKey) continue;
+            const aggregatedResult = judgeMap.get(`${row.place_id}__${propKey}`);
+            if (!aggregatedResult) continue;
+
+            // uncertainties 配列の最初の定量評価 uncertainty に集約結果を設定
+            const uncertainties = prop['uncertainties'];
+            if (Array.isArray(uncertainties) && uncertainties.length > 0) {
+              for (const uc of uncertainties as Array<Record<string, unknown>>) {
+                if (uc && typeof uc === 'object') {
+                  uc['value'] = aggregatedResult;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (judgeInjectError) {
+      console.warn(
+        '[MaimlWriterService] uncertainty judge 結果の注入に失敗しました（処理は継続）:',
+        judgeInjectError
+      );
+    }
+
 
     // --- 4. maiml_event_log を全件取得（プロジェクト単位）---
     // sequence_no 昇順で取得してイベントの発生順序を保持する
@@ -429,8 +485,6 @@ export class MaimlWriterService {
         // 全トランジション分の fieldKey → value をフラットに集約
         // { [fieldKey]: value } 形式（文字列スカラーのみ対象）
         const planFlatValues: Record<string, string> = {};
-        // 不確かさ情報: { [propertyKey]: uncertaintyArray } 形式（__uncertainty__ キーの値）
-        const planFlatUncertainties: Record<string, unknown[]> = {};
         // mgr-instruction:* 値（文字列・配列問わず収集）
         const planMgrInstructionValues: Record<string, unknown> = {};
 
@@ -443,34 +497,9 @@ export class MaimlWriterService {
             fieldMap as Record<string, unknown>
           )) {
           if (fieldKey === '__uncertainty__') {
-              // __uncertainty__: { [propertyKey]: AssignPayload[] } を planFlatUncertainties にマージ
-              // AssignPayload 形式: { criteria: { key, evalType, ... }, qualitativeValue, ucValue, comment }
-              // buildPropertyXML が期待する形式: { key, value, description }[] に変換する
-              if (value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value)) {
-                for (const [propKey, uncertaintyArray] of Object.entries(value as Record<string, unknown>)) {
-                  if (Array.isArray(uncertaintyArray)) {
-                    // AssignPayload[] → { key, value, description }[] に変換
-                    const converted = uncertaintyArray
-                      .map((uc: unknown) => {
-                        const payload = uc as Record<string, unknown>;
-                        const criteria = payload['criteria'] as Record<string, unknown> | undefined;
-                        const criteriaKey = criteria?.['key'] as string | undefined;
-                        const evalType = criteria?.['evalType'] as string | undefined;
-                        // 定性評価: qualitativeValue、定量評価: ucValue を value に使用
-                        const ucValue =
-                          evalType === 'qualitative'
-                            ? (payload['qualitativeValue'] as string | number | undefined)
-                            : (payload['ucValue'] as number | undefined);
-                        const comment = payload['comment'] as string | undefined;
-                        return { key: criteriaKey, value: ucValue, description: comment };
-                      })
-                      .filter((uc) => uc.key != null); // key が存在するものだけ残す
-                    if (converted.length > 0) {
-                      planFlatUncertainties[propKey] = converted;
-                    }
-                  }
-                }
-              }
+              // __uncertainty__ キーは旧方式（ExperimentPlanDialog での不確かさ割り当て）のデータ。
+              // 新方式（WorkRecordPanel での手入力）では使用しないためスキップ。
+              continue;
             } else if (fieldKey.startsWith('mgr-instruction:')) {
               // mgr-instruction:* 値は文字列・配列問わず収集（_injectExperimentPlanProps で MAIML に書き込む）
               if (value !== null && value !== undefined) {
@@ -487,13 +516,11 @@ export class MaimlWriterService {
         }
 
         const hasFlatValues = Object.keys(planFlatValues).length > 0;
-        const hasUncertainties = Object.keys(planFlatUncertainties).length > 0;
         const hasMgrInstruction = Object.keys(planMgrInstructionValues).length > 0;
 
         console.log(
           `[MaimlWriterService.writeExperimentPlanProperties] method_id=${plan.method_id} task_no=${plan.task_no}: ` +
             `planFlatValues=${JSON.stringify(planFlatValues)}, ` +
-            `planFlatUncertainties keys=${JSON.stringify(Object.keys(planFlatUncertainties))}, ` +
             `planMgrInstructionValues=${JSON.stringify(planMgrInstructionValues)}`
         );
 
@@ -503,7 +530,7 @@ export class MaimlWriterService {
           mgrInstructionValuesMap.set(planKey, planMgrInstructionValues);
         }
 
-        if (!hasFlatValues && !hasUncertainties) continue;
+        if (!hasFlatValues) continue;
 
         // template_data.property_set に想定値を反映
         if (hasFlatValues) {
@@ -513,19 +540,6 @@ export class MaimlWriterService {
             plan.method_id,
             plan.task_no,
             planFlatValues,
-            'system', // チェックアウト処理はシステム操作
-            client
-          );
-        }
-
-        // template_data.property_set の uncertainties フィールドに不確かさ情報を反映
-        if (hasUncertainties) {
-          await templateDataRepo.updatePropertySetByPlanWithUncertainty(
-            organizationId,
-            projectId,
-            plan.method_id,
-            plan.task_no,
-            planFlatUncertainties,
             'system', // チェックアウト処理はシステム操作
             client
           );

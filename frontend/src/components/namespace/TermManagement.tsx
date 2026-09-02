@@ -465,12 +465,14 @@ const TermManagement: React.FC<TermManagementProps> = ({
       okText: isActive ? t('termManagement.deactivate') : t('termManagement.activate'),
       cancelText: t('common.cancel'),
       okButtonProps: { danger: isActive },
-      onOk: async () => {
+        onOk: async () => {
         try {
-          const updated = await toggleTermActive(record.prefix, record.localName, !isActive);
+          await toggleTermActive(record.prefix, record.localName, !isActive);
           setTerms((prev) =>
             prev.map((t) =>
-              t.prefix === record.prefix && t.localName === record.localName ? updated : t
+              t.prefix === record.prefix && t.localName === record.localName
+                ? { ...t, isActive: !isActive }
+                : t
             )
           );
           message.success(isActive ? t('termManagement.deactivateSuccess') : t('termManagement.activateSuccess'));
@@ -953,10 +955,18 @@ const TermManagement: React.FC<TermManagementProps> = ({
                 disabled: '_rowId' in record,
               }),
             }}
+            onRow={(record) => {
+              if ('_rowId' in record) return {};
+              const r = record as NamespaceTermRow;
+              if (r.isActive === false) {
+                return { style: { background: '#f0f0f0' } };
+              }
+              return {};
+            }}
             rowClassName={(record) => {
               if ('_rowId' in record) return 'row-new-term';
               const r = record as NamespaceTermRow;
-              return r.isActive === false ? 'row-inactive-term' : '';
+              return !r.isActive ? 'row-inactive-term' : '';
             }}
             locale={{
             triggerAsc: t('termManagement.sortAsc'),
@@ -975,11 +985,6 @@ const TermManagement: React.FC<TermManagementProps> = ({
           />
         </Spin>
 
-        <style>{`
-          .row-new-term td { background: #fffbe6 !important; }
-          .row-inactive-term td { color: #bbb !important; background: #f5f5f5 !important; }
-          .row-inactive-term td .ant-tag { opacity: 0.5; }
-        `}</style>
       </div>
 
       {/* ── 重複提案モーダル ── */}
