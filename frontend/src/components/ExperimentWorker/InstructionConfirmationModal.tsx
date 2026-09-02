@@ -33,6 +33,7 @@ function convertWorkerInstruction(apiData: WorkerInstruction): Instruction {
     taskId: apiData.task_no ? `${apiData.project_id}-${apiData.method_id}-${apiData.task_no}` : undefined,
     taskName: apiData.task_no ? `Task ${apiData.task_no}` : undefined,
     content: apiData.instruction_content,
+    instructionKey: apiData.instruction_key || undefined,
     createdAt: apiData.create_at,
     updatedAt: null,
     createdBy: {

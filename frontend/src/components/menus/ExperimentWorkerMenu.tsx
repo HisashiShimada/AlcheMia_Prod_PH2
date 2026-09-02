@@ -207,11 +207,6 @@ export default function ExperimentWorkerMenu({
     refetchInstructions,
   } = useInstructions();
 
-  // プロジェクト指示（methodId・transitionId なし）のテキスト一覧
-  const projectInstructionTexts = instructions
-    .filter((i) => !i.methodId && !i.transitionId)
-    .map((i) => i.content);
-
   // プロジェクト指示確認ハンドラー: 未確認のプロジェクト指示を全て API で確認し、一覧を再取得する
   const handleConfirmInstruction = async () => {
     if (!selectedProject) return;
@@ -669,7 +664,7 @@ export default function ExperimentWorkerMenu({
             progressRows={progressRows}
             useDeemedProgress={selectedProjectUseDeemedProgress}
             projectStatus={selectedProjectStatus ?? undefined}
-            projectInstructions={projectInstructionTexts}
+            allWorkerInstructions={instructions}
             onConfirmInstruction={handleConfirmInstruction}
             initialTaskNo={viewingWorkTaskNo ?? undefined}
             initialTransitionId={viewingWorkTransitionId ?? undefined}

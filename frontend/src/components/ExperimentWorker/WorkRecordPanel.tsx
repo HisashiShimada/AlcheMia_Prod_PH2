@@ -51,7 +51,8 @@ import type { TemplateDataItem, ExperimentDataRecord } from '@/types/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { ProgressRow } from '@/types/progress';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
-import type { ProjectStatus, Transition } from '@/types/experimentWorker';
+import type { Instruction, ProjectStatus, Transition } from '@/types/experimentWorker';
+import { INSTRUCTION_KEY_LABELS } from '@/types/instructionRegistration';
 import { ProjectStatus as ProjectStatusConst, TaskStatus as TaskStatusConst } from '@/constants/codeMaster';
 import { correctRecord } from '@/services/experimentInstructionApiService';
 
@@ -1229,16 +1230,39 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface InstructionCollapseProps {
-  instructions: string[];
+  instructions: Instruction[];
   /** 指示確認ボタン押下コールバック */
   onConfirmInstruction?: () => void;
+  /**
+   * 初期表示時に展開しておくかどうか。
+   * true = 展開（準備状態など指示確認が必要なタイミング）
+   * false = 折りたたみ（動作状態以降）
+   * デフォルト: false
+   */
+  defaultOpen?: boolean;
 }
 
-const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions, onConfirmInstruction }) => {
+const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions, onConfirmInstruction, defaultOpen = false }) => {
   const { t } = useLanguage();
+  const [activeKeys, setActiveKeys] = useState<string[]>(defaultOpen ? ['instructions'] : []);
+
+  // defaultOpen が変化したとき（トランジション切り替え）に開閉状態をリセット
+  useEffect(() => {
+    setActiveKeys(defaultOpen ? ['instructions'] : []);
+  }, [defaultOpen]);
+
+  /** instruction_key から表示名を解決する（未設定は「通常指示」相当にフォールバック） */
+  const resolveLabel = (instructionKey: string | undefined): string => {
+    const fallbackKey = 'Alchemia:SupervisorDirectiveContent';
+    const key = instructionKey || fallbackKey;
+    return INSTRUCTION_KEY_LABELS[key as keyof typeof INSTRUCTION_KEY_LABELS] ?? INSTRUCTION_KEY_LABELS[fallbackKey];
+  };
+
   return (
     <Collapse
       size="small"
+      activeKey={activeKeys}
+      onChange={(keys) => setActiveKeys(typeof keys === 'string' ? [keys] : keys)}
       style={{ marginBottom: 8, background: '#fffbe6', borderColor: '#ffe58f' }}
       items={[
         {
@@ -1258,9 +1282,12 @@ const InstructionCollapse: React.FC<InstructionCollapseProps> = ({ instructions,
                 </Text>
               ) : (
                 <>
-                  <ul style={{ margin: 0, paddingLeft: 18, marginBottom: 8 }}>
-                    {instructions.map((inst, i) => (
-                      <li key={i} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>{inst}</li>
+                  <ul style={{ margin: 0, paddingLeft: 18, marginBottom: 8, maxHeight: 240, overflowY: 'auto' }}>
+                    {instructions.map((inst) => (
+                      <li key={inst.instructionId} style={{ fontSize: 13, color: '#595959', marginBottom: 4 }}>
+                        <Text strong style={{ fontSize: 13 }}>{resolveLabel(inst.instructionKey)}：</Text>
+                        {inst.content}
+                      </li>
                     ))}
                   </ul>
                   <Flex justify="flex-end">
@@ -1366,7 +1393,7 @@ interface PlanProps {
   activeTaskNo: number;
   viewingKey: { taskNo: number; transitionId: string } | null;
   skippedTransitionIds: string[];
-  instructions: string[];
+  instructions: Instruction[];
   onActualChange: (taskNo: number, transitionId: string, propKey: string, value: ActualValue) => void;
   onSave: (taskNo: number, transitionId: string) => void;
   onSaveAndNext: (taskNo: number, transitionId: string) => void;
@@ -1568,7 +1595,18 @@ const PlanB: React.FC<PlanProps> = ({
 
   return (
     <Flex vertical style={{ height: '100%' }}>
-      <InstructionCollapse instructions={instructions} onConfirmInstruction={onConfirmInstruction} />
+      <InstructionCollapse
+        instructions={instructions}
+        onConfirmInstruction={onConfirmInstruction}
+        defaultOpen={(() => {
+          // 現在のアクティブトランジションのステータスが preparing / ready（準備状態）の場合は開いておく
+          if (!activeEntry || !progressRows) return false;
+          const currentRow = progressRows.find(
+            (r) => r.taskNo === activeEntry.taskNo && r.transitionId === activeEntry.transitionId
+          );
+          return currentRow?.status === 'preparing' || currentRow?.status === 'ready';
+        })()}
+      />
       <WorkHeader
         displayKey={displayKey} taskTransition={displayTT} transition={displayTransition ?? null}
         method={displayMethod ?? undefined} isReadOnly={isReadOnly} activeEntry={activeEntry} onClearViewing={onClearViewing}
@@ -1882,7 +1920,8 @@ interface WorkRecordPanelProps {
   useDeemedProgress?: boolean;
   initialTaskNo?: number;
   initialTransitionId?: string;
-  projectInstructions?: string[];
+  /** 作業指示一覧（全件）。WorkRecordPanel 内部で現在のトランジションに応じてフィルタリングする */
+  allWorkerInstructions?: Instruction[];
   /** プロジェクト指示「確認」ボタン押下コールバック */
   onConfirmInstruction?: () => void;
   /** 「開始」ボタン押下コールバック（準備完了→動作状態） */
@@ -1991,7 +2030,7 @@ export default function WorkRecordPanel({
   projectStatus,
   initialTaskNo,
   initialTransitionId,
-  projectInstructions,
+  allWorkerInstructions,
   onConfirmInstruction,
   onStart,
   onEnd,
@@ -2845,7 +2884,46 @@ export default function WorkRecordPanel({
     activeTaskNo: ASSIGNED_TASK_NO,
     viewingKey,
     skippedTransitionIds,
-    instructions: projectInstructions ?? [],
+    instructions: (() => {
+      if (!allWorkerInstructions || allWorkerInstructions.length === 0) return [];
+
+      // 現在表示中のトランジション情報を特定する
+      // viewingKey（閲覧中）または progressRows から activeEntry を解決する
+      const activeEntry = viewingKey ?? (() => {
+        const activeRow =
+          progressRows?.find((r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')) ??
+          progressRows?.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing');
+        if (!activeRow) return null;
+        return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
+      })();
+
+      // アクティブなトランジションに対応する methodId / taskNo / transitionId を特定
+      const activeMethodId = methodId;
+      const activeTaskNo = activeEntry?.taskNo ?? null;
+      const activeTransitionId = activeEntry?.transitionId ?? null;
+
+      return allWorkerInstructions.filter((inst) => {
+        // 全体指示（methodId も transitionId も未設定）
+        if (!inst.methodId && !inst.transitionId) return true;
+
+        // メソッド指示（methodId 一致・transitionId なし・taskId なし）
+        if (inst.methodId && !inst.transitionId && !inst.taskId && activeMethodId) {
+          return inst.methodId === activeMethodId;
+        }
+
+        // タスク指示（methodId 一致・taskId あり）
+        if (inst.methodId && inst.taskId && activeMethodId && activeTaskNo !== null) {
+          return inst.methodId === activeMethodId && inst.taskId.endsWith(`-${activeTaskNo}`);
+        }
+
+        // トランジション指示（transitionId 一致）
+        if (inst.transitionId && activeTransitionId) {
+          return inst.transitionId === activeTransitionId;
+        }
+
+        return false;
+      });
+    })(),
     onActualChange: handleActualChange,
     onSave: handleSave,
     onSaveAndNext: handleSaveAndNext,

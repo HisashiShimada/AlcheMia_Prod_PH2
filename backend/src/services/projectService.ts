@@ -1590,6 +1590,7 @@ export class ProjectService {
         transition_id: row.transition_id,
         transition_name: '', // TODO: タスク2.2で実装
         task_no: row.task_no,
+        instruction_key: row.instruction_key || null,
         instruction_content: row.instruction_content,
         create_at: row.create_at.toISOString(),
         created_by: row.created_by,

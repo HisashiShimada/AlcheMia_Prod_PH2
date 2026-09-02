@@ -105,6 +105,8 @@ export interface Instruction {
   taskId?: string;
   taskName?: string;
   content: string;
+  /** MAIMLのpropertyタグキー（指示種別）。例: 'Alchemia:SupervisorDirectiveCaution' */
+  instructionKey?: string;
   createdAt: string;
   updatedAt: string | null;
   createdBy: User;
