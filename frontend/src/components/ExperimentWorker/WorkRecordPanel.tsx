@@ -50,7 +50,6 @@ import type { FileData } from '@/types/editor';
 import type { TemplateDataItem, ExperimentDataRecord } from '@/types/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { ProgressRow } from '@/types/progress';
-import InstructionConfirmationModal from './InstructionConfirmationModal';
 import type { Instruction, ProjectStatus, Transition } from '@/types/experimentWorker';
 import { INSTRUCTION_KEY_LABELS } from '@/types/instructionRegistration';
 import { ProjectStatus as ProjectStatusConst, TaskStatus as TaskStatusConst } from '@/constants/codeMaster';
@@ -1025,7 +1024,6 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
   onForceEnd,
   onStateRecord,
   onStatusChange,
-  onInstructionClick,
   projectStatus,
   taskStatus,
   isCorrectionMode = false,
@@ -1450,8 +1448,6 @@ interface PlanProps {
   onForceEnd?: () => void;
   /** 状態記録ボタン押下コールバック */
   onStateRecord?: () => void;
-  /** 作業指示ボタン押下コールバック */
-  onInstructionClick?: () => void;
   /** Insertion アップロード準備完了コールバック */
   onInsertionUploadReady?: (key: string, fn: () => Promise<void>) => void;
   /**
@@ -1491,7 +1487,7 @@ const PlanB: React.FC<PlanProps> = ({
   tasks, activeTaskNo, viewingKey, skippedTransitionIds, instructions, onActualChange, onSave, onSaveAndNext, onClearViewing, onSkip, onCommentClick, onInsertionAdd, onInsertionRemove, onContentAdd, onContentRemove, onPropertyAdd, onPropertyRemove, uploadTargetPath, onOpenViewer, viewerLoading,
   creatorRefOptions, instrumentRefOptions, selectedCreatorRef, selectedInstrumentRef, onCreatorRefChange, onInstrumentRefChange,
   onInsertionUploadReady,
-  progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd, onInstructionClick,
+  progressRows, apiTransitions, onConfirmInstruction, onStateRecord, onStart, onEnd, onForceEnd,
   onUncertaintyValuesChange,
   lastJudgeResultMap,
   projectStatus,
@@ -1614,7 +1610,6 @@ const PlanB: React.FC<PlanProps> = ({
         onEnd={onEnd}
         onForceEnd={onForceEnd}
         onStateRecord={onStateRecord}
-        onInstructionClick={onInstructionClick}
         projectStatus={projectStatus}
         taskStatus={viewingKey ? (progressRows?.find((r) => r.taskNo === viewingKey.taskNo && r.transitionId === viewingKey.transitionId)?.taskStatus) : undefined}
         isCorrectionMode={isCorrectionMode}
@@ -2968,30 +2963,6 @@ export default function WorkRecordPanel({
     onEnd,
     onForceEnd,
     onStateRecord: () => setStateRecordDialogOpen(true),
-    onInstructionClick: () => {
-      // 現在表示中のトランジションを InstructionConfirmationModal に渡す
-      const targetEntry = viewingKey ?? (() => {
-        if (progressRows && progressRows.length > 0) {
-          const activeRow = progressRows.find(
-            (r) => r.taskNo === ASSIGNED_TASK_NO && (r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing')
-          ) ?? progressRows.find((r) => r.status === 'in_progress' || r.status === 'ready' || r.status === 'preparing');
-          if (activeRow) return { taskNo: activeRow.taskNo, transitionId: activeRow.transitionId };
-        }
-        return null;
-      })();
-      if (targetEntry) {
-        const tr: Transition = {
-          transitionId: targetEntry.transitionId,
-          transitionName: targetEntry.transitionId,
-          status: 'not_started' as const,
-          templates: [],
-        };
-        setCurrentTransitionForInstruction(tr);
-      } else {
-        setCurrentTransitionForInstruction(null);
-      }
-      setInstructionModalOpen(true);
-    },
     onUncertaintyValuesChange: (placeId: string, entries: UncertaintyValueEntry[]) => {
       // PropertyCard の addedValues が変化するたびに Ref を更新する
       // キーは placeId（template.id）。entries が空の場合はキーを削除
@@ -3278,16 +3249,6 @@ export default function WorkRecordPanel({
           onSave={handleSaveComment}
         />
       )}
-
-      {/* 作業指示確認モーダル */}
-      <InstructionConfirmationModal
-        open={instructionModalOpen}
-        transition={currentTransitionForInstruction}
-        projectId={projectId}
-        methodId={methodId}
-        projectStatus={projectStatus as ProjectStatus | null}
-        onCancel={() => setInstructionModalOpen(false)}
-      />
 
       {/* ── ペトリネットビューア（ViewRendererDialog / フローティング） ── */}
       {viewerDialogs.map((dialog) => (
