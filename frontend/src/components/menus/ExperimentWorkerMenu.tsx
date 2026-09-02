@@ -745,7 +745,9 @@ export default function ExperimentWorkerMenu({
         <div style={{ padding: '12px 16px 0' }}>
           {progressLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-              <Spin tip="全体進捗を読み込み中..." />
+              <Spin tip={t('progressOverview.loading')}>
+                <div style={{ minHeight: 40 }} />
+              </Spin>
             </div>
           ) : (
             <ProgressOverviewTab

@@ -4068,6 +4068,7 @@
     "switchFailed": "Failed to switch"
   },
   "progressOverview": {
+    "loading": "Loading progress...",
     "checkRecordButton": "Check Record",
     "ngDoneTag": "NG Done",
     "empty": "No data",

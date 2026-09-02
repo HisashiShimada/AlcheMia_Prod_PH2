@@ -119,7 +119,7 @@ const SummaryCard: React.FC<{ rows: ProgressRow[] }> = ({ rows }) => {
   }, [rows]);
 
   return (
-    <Card size="small" style={{ marginBottom: 12 }} bodyStyle={{ padding: '12px 16px' }}>
+    <Card size="small" style={{ marginBottom: 12 }} styles={{ body: { padding: '12px 16px' } }}>
       <Flex align="center" gap={16} wrap="wrap">
         <div style={{ flex: '0 0 220px' }}>
           <Flex justify="space-between" align="center" style={{ marginBottom: 4 }}>

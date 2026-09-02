@@ -1084,12 +1084,12 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
             }}
           />
         </Flex>
-        <Divider type="vertical" style={{ margin: 0 }} />
+        <Divider orientation="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
           <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.taskNo')}</Text>
           <Text strong style={{ fontSize: 13 }}>#{displayKey.taskNo}</Text>
         </Flex>
-        <Divider type="vertical" style={{ margin: 0 }} />
+        <Divider orientation="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
           <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.method')}</Text>
           <Tooltip title={method?.id ?? ''}>
@@ -1098,7 +1098,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
             </Text>
           </Tooltip>
         </Flex>
-        <Divider type="vertical" style={{ margin: 0 }} />
+        <Divider orientation="vertical" style={{ margin: 0 }} />
         <Flex align="center" gap={4}>
           <Text type="secondary" style={{ fontSize: 12 }}>{t('workRecord.transition')}</Text>
           <Tooltip title={transition.id}>
@@ -1129,7 +1129,7 @@ const WorkHeader: React.FC<WorkHeaderProps> = ({
         >
           {t('workRecord.endButton')}
         </Button>
-        <Divider type="vertical" style={{ margin: '0 4px' }} />
+        <Divider orientation="vertical" style={{ margin: '0 4px' }} />
         <Button
           size="small"
           type="default"
@@ -1666,7 +1666,7 @@ const PlanB: React.FC<PlanProps> = ({
                   >
                     {nextBtnLabel}
                   </Button>
-                  <Divider type="vertical" style={{ margin: '0 12px' }} />
+                  <Divider orientation="vertical" style={{ margin: '0 12px' }} />
                   <Button
                     size="small"
                     icon={<CommentOutlined />}

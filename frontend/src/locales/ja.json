@@ -4737,6 +4737,7 @@
     "switchFailed": "切り替えに失敗しました"
   },
   "progressOverview": {
+    "loading": "全体進捗を読み込み中...",
     "checkRecordButton": "記録確認",
     "ngDoneTag": "NG済み",
     "empty": "データがありません",
