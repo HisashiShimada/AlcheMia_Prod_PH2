@@ -18,7 +18,7 @@ import type { ScopeNode, ShareTarget, ShareSourceRole } from '@/types/namespace'
 import { getOrganizationGroups, sharePrefixes } from '@/services/namespaceApiService';
 import GroupAddDialog from '../group/GroupAddDialog';
 import GroupEditDialog from '../group/GroupEditDialog';
-import type { OrganizationGroupRow, UserNsRole } from '@/types/namespace';
+import type { OrganizationGroupRow } from '@/types/namespace';
 import type { User } from '@/types/auth';
 
 // GlobalNamespaceView: グローバルノード選択時に右ペインへ表示（SSR無効）
@@ -367,14 +367,6 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     return selectedNsKey === 'global' || selectedNsKey === 'ns-maiml' || selectedNsKey === 'ns-xsi';
   }, [selectedNsKey]);
 
-  // システム管理者かどうかを判定
-  // roleCd はユーザーが任意に設定するロールコードのため判定に使用しない
-  // initialScreenFunctionCd はロールに紐づくシステム固定値（MENU_FUNCTION_IDS で定義）を使用する
-  // '020000' = system_admin に対応する初期画面機能CD
-  const isSysAdmin = useMemo(() => {
-    return user?.initialScreenFunctionCd === '020000';
-  }, [user?.initialScreenFunctionCd]);
-
   // 「組織」ノード（company 配下）が選択中かどうかを判定
   // rootKey の種類: 'global' / 'company' / 'personal' / null
   // 'company' は画面上「組織」と表示される（t('namespaceTree.company') = "組織"）
@@ -383,8 +375,6 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
     const rootKey = getRootKey(selectedNsKey, namespaceTree);
     return rootKey === 'company';
   }, [selectedNsKey, namespaceTree]);
-
-  // 「組織」ノード選択中 かつ システム管理者以外 → 閲覧専用（旧ロジック、以下の isViewOnlyForNode に統合）
 
   // orgグループノード（company 配下のグループノード）が選択中かどうか
   // 固定キーと personal- プレフィックスを除外することで判定する
@@ -402,15 +392,13 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
   }, [selectedNsKey, chiefGroupCds]);
 
   // 実効的な閲覧専用フラグ
-  // - sys_admin は常に編集可
-  // - 'company' ルートノード選択時 → 非sys_admin 全員閲覧専用（従来通り）
+  // - 'company' ルートノード選択時 → 全ユーザー閲覧専用（組織ノードには代表者の概念なし）
   // - orgグループノード（配下のグループCD）選択時 → 代表者のみ編集可、一般メンバーは閲覧専用
   const isViewOnlyForCompany = useMemo(() => {
-    if (isSysAdmin) return false;
     if (selectedNsKey === 'company') return true;
     if (isOrgGroupNodeSelected) return !isRepresentativeOfSelected;
     return false;
-  }, [isSysAdmin, selectedNsKey, isOrgGroupNodeSelected, isRepresentativeOfSelected]);
+  }, [selectedNsKey, isOrgGroupNodeSelected, isRepresentativeOfSelected]);
 
   // PrefixManagement に渡す orgGroupCds をメモ化する。
   // インライン IIFE のままだと親が再レンダーするたびに新しい配列参照が生成され、
