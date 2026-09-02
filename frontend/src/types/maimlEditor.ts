@@ -43,6 +43,13 @@ export interface MaimlEditorParams {
    * MAIMLファイルが存在せず、バックエンドDraftがある場合に使用
    */
   openDraftManagerOnStart?: boolean;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * 新規プロパティ追加ダイアログの用語スコープ絞り込みに使用する。
+   * プロジェクト管理画面から開く場合は project.organizationGroup を渡す。
+   * フォーマット管理画面など未指定の場合は個人スコープのみにフォールバック。
+   */
+  organizationGroupCd?: string;
 }
 
 // ---------------------------------------------------------------------------
