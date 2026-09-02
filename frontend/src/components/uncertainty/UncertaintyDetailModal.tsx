@@ -86,7 +86,6 @@ interface DiffLabels {
   statusDeprecated: string;
   fieldEvalMethod: string;
   fieldQualOptions: string;
-  defaultMark: string;
   savedAt: string;
   section1: string;
   section2: string;
@@ -236,19 +235,17 @@ function buildDiffData(
     );
   }
 
-  // 定性フィールド（選択肢を文字列で比較：順番・デフォルト値を含む）
+  // 定性フィールド（選択肢を文字列で比較：順番を含む）
   if (currentEvalMode === 'qualitative' || oldEvalMode === 'qualitative') {
     const oldOptionsStr = detail.qualitativeOptions
       .map((o, i) => {
         const order = o.displayOrder ?? (i + 1);
-        const def = o.isDefault ? labels.defaultMark : '';
-        return `${order}:${o.selectorValue}(${o.displayColor})${def}`;
+        return `${order}:${o.selectorValue}(${o.displayColor})`;
       })
       .join(', ') || null;
     const newOptionsStr = qualitativeOptions
       .map((o, i) => {
-        const def = o.isDefault ? labels.defaultMark : '';
-        return `${i + 1}:${o.value}(${o.color})${def}`;
+        return `${i + 1}:${o.value}(${o.color})`;
       })
       .join(', ') || null;
 
@@ -322,7 +319,6 @@ export default function UncertaintyDetailModal({
     statusDeprecated: t('uncertaintyDetail.diffStatusDeprecated'),
     fieldEvalMethod: t('uncertaintyDetail.diffFieldEvalMethod'),
     fieldQualOptions: t('uncertaintyDetail.diffFieldQualOptions'),
-    defaultMark:     t('uncertaintyDetail.diffDefaultMark'),
     savedAt:         t('uncertaintyDetail.diffSavedAt'),
     section1:        t('uncertaintyDetail.section1Title'),
     section2:        t('uncertaintyDetail.section2Title'),
@@ -353,7 +349,6 @@ export default function UncertaintyDetailModal({
             id:        opt.displayOrder ?? idx + 1,
             value:     opt.selectorValue,
             color:     opt.displayColor,
-            isDefault: opt.isDefault,
           }))
         );
 
@@ -472,7 +467,6 @@ export default function UncertaintyDetailModal({
               displayOrder: idx + 1,
               value:        opt.value,
               displayColor: opt.color,
-              isDefault:    opt.isDefault,
             }))
           : [],
       });
@@ -682,7 +676,6 @@ export default function UncertaintyDetailModal({
             {evalMode === 'qualitative' && (
               <QualitativeOptionEditor
                 options={qualitativeOptions}
-                radioName="defaultOptionDetail"
                 onChange={setQualitativeOptions}
               />
             )}

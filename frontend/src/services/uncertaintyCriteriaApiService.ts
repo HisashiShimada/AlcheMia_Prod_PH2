@@ -78,7 +78,6 @@ export interface QualitativeOptionApiRow {
   displayOrder: number;
   selectorValue: string;
   displayColor: string;
-  isDefault: boolean;
 }
 
 /** 詳細取得 API レスポンス型（UncertaintyCriteriaDetailRow に対応） */
@@ -262,7 +261,6 @@ export interface SaveQualitativeOption {
   displayOrder: number;
   value: string;
   displayColor: string;
-  isDefault: boolean;
 }
 
 /** 不確かさ基準 新バージョン保存リクエスト型 */

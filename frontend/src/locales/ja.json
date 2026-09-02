@@ -71,7 +71,7 @@
     "cancelCorrectionButton": "キャンセル",
     "correctionSaved": "訂正を保存しました",
     "correctionError": "訂正の保存に失敗しました",
-    "projectInstructions": "プロジェクト指示",
+    "correctionQualitativeRequired": "定性評価を選択してから訂正保存してください",
     "saveSuccess": "保存しました",
     "saveContent": "作業記録を保存しました。",
     "transitionComplete": "トランジション完了",
@@ -269,6 +269,8 @@
     "ngError": "NG記録処理に失敗しました",
     "correctionSaved": "訂正を保存しました",
     "correctionError": "訂正の保存に失敗しました",
+    "correctionQualitativeRequired": "定性評価を選択してから訂正保存してください",
+
 
     "approveConfirmTitle": "タスクを承認しますか？",
     "approveConfirmContent": "以下のタスクを「完了」に更新します。",
@@ -3873,7 +3875,6 @@
     "diffStatusDeprecated": "無効",
     "diffFieldEvalMethod": "評価方式",
     "diffFieldQualOptions": "定性評価選択肢",
-    "diffDefaultMark": "[デフォルト]",
     "diffSavedAt": "（DB登録済み）",
     "diffFieldToleranceUpper": "許容上限値",
     "diffFieldToleranceLower": "許容下限値",
@@ -3909,7 +3910,6 @@
       "statusInactive": "無効",
       "evalMethod": "評価方式",
       "qualitativeOptions": "定性評価選択肢",
-      "defaultMark": "[デフォルト]",
       "savedAt": "（DB登録済み）",
       "section1": "基本情報",
       "section2": "評価方式設定"

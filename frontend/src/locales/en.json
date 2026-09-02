@@ -3505,6 +3505,7 @@
     "cancelCorrectionButton": "Cancel",
     "correctionSaved": "Correction saved",
     "correctionError": "Failed to save correction",
+    "correctionQualitativeRequired": "Please select a qualitative evaluation before saving the correction",
     "saveContent": "Work record has been saved.",
     "transitionComplete": "Transition Complete",
     "nextWork": "Next: ",
@@ -3625,7 +3626,6 @@
       "statusInactive": "無効",
       "evalMethod": "評価方式",
       "qualitativeOptions": "定性評価選択肢",
-      "defaultMark": "[デフォルト]",
       "savedAt": "（DB登録済み）",
       "section1": "基本情報",
       "section2": "評価方式設定"
@@ -3824,6 +3824,7 @@
     "ngError": "NG記録処理に失敗しました",
     "correctionSaved": "Corrections saved successfully",
     "correctionError": "Failed to save corrections",
+    "correctionQualitativeRequired": "Please select a qualitative evaluation before saving the correction",
 
     "approveConfirmTitle": "タスクを承認しますか？",
     "approveConfirmContent": "以下のタスクを「完了」に更新します。",

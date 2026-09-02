@@ -2436,6 +2436,21 @@ export default function WorkRecordPanel({
     const task = tasks.find((t) => t.taskNo === taskNo);
     const taskTransition = task?.transitions.find((tt) => tt.transitionId === transitionId);
 
+    // ── 定性評価の必須バリデーション ──
+    // rawTemplateItemsRef の該当トランジションのプロパティに qualitativeOptions が
+    // 1件でも存在する場合、confidenceValuesRef にエントリが1件もなければエラーにする
+    const hasQualitativeProps = rawItems.some((item) => {
+      const props = (item.data?.properties ?? []) as Array<Record<string, unknown>>;
+      return props.some((p) => {
+        const opts = p.qualitativeOptions as Array<unknown> | null | undefined;
+        return Array.isArray(opts) && opts.length > 0;
+      });
+    });
+    if (hasQualitativeProps && confidenceValuesRef.current.size === 0) {
+      message.error(t('workRecord.correctionQualitativeRequired'));
+      return;
+    }
+
     setCorrectionLoading(true);
     try {
       const records = rawItems.map((item) => {

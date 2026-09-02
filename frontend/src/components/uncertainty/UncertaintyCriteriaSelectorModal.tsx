@@ -31,7 +31,6 @@ export interface QualitativeOption {
   displayOrder: number;
   selectorValue: string;
   displayColor: string;
-  isDefault: boolean;
 }
 
 /** 不確かさ基準候補データの型 */

@@ -2,7 +2,7 @@
 -- テーブル名: intuition_selector (定性評価選択肢)
 -- 説明: 不確かさ基準の定性評価で使用する選択肢を管理するテーブル。
 --       uncertainty_criteria の定性評価（evaluation_method=2）に紐づく。
--- バージョン: 1.0 (2026-06-30)
+-- バージョン: 1.1 (2026-09-02) is_default カラム削除
 -- ===================================================================
 
 -- 既存テーブルが存在する場合は削除
@@ -19,7 +19,6 @@ CREATE TABLE intuition_selector (
     -- 選択肢情報
     value               CHARACTER VARYING(100)  NOT NULL,
     display_color       CHARACTER VARYING(7)    NOT NULL,  -- #RRGGBB形式
-    is_default          BOOLEAN                 NOT NULL,  -- TRUE:デフォルト選択肢
 
     -- 監査証跡
     create_user_id      VARCHAR(50),
@@ -51,11 +50,6 @@ CREATE INDEX idx_intuition_selector_org
 CREATE INDEX idx_intuition_selector_key
     ON intuition_selector (organization_id, name_space_id, uncertainty_key, version);
 
--- デフォルト選択肢検索用
-CREATE INDEX idx_intuition_selector_default
-    ON intuition_selector (organization_id, name_space_id, uncertainty_key, version, is_default)
-    WHERE is_default = TRUE;
-
 -- テーブルコメント
 COMMENT ON TABLE intuition_selector IS '定性評価選択肢テーブル - 不確かさ基準の定性評価（evaluation_method=2）で使用する選択肢を管理。';
 
@@ -67,7 +61,6 @@ COMMENT ON COLUMN intuition_selector.version IS 'バージョン（主キー4）
 COMMENT ON COLUMN intuition_selector.display_order IS '順序（主キー5）:選択肢の表示順（1始まり）';
 COMMENT ON COLUMN intuition_selector.value IS 'Value:選択肢の値';
 COMMENT ON COLUMN intuition_selector.display_color IS '表示色:#RRGGBB形式';
-COMMENT ON COLUMN intuition_selector.is_default IS 'デフォルト値フラグ:TRUE:デフォルト選択肢';
 COMMENT ON COLUMN intuition_selector.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN intuition_selector.create_at IS '作成日時';
 COMMENT ON COLUMN intuition_selector.update_user_id IS '更新者ユーザID';

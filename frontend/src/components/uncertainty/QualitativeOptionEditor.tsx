@@ -31,14 +31,11 @@ export interface QualitativeOption {
   color: string;
   /** アイコン識別子（任意） */
   icon?: string;
-  isDefault: boolean;
 }
 
 interface QualitativeOptionEditorProps {
   /** 選択肢リスト */
   options: QualitativeOption[];
-  /** ラジオname属性（モーダル間で重複しないよう） */
-  radioName?: string;
   /** 選択肢リストの更新コールバック */
   onChange: (options: QualitativeOption[]) => void;
 }
@@ -47,21 +44,17 @@ interface QualitativeOptionEditorProps {
 interface SortableRowProps {
   option: QualitativeOption;
   index: number;
-  radioName: string;
   isLast: boolean;
-  onUpdate: (id: number, field: keyof QualitativeOption, val: string | boolean) => void;
+  onUpdate: (id: number, field: keyof QualitativeOption, val: string) => void;
   onRemove: (id: number) => void;
-  onSetDefault: (id: number) => void;
 }
 
 function SortableRow({
   option,
   index,
-  radioName,
   isLast,
   onUpdate,
   onRemove,
-  onSetDefault,
 }: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: option.id });
@@ -129,17 +122,6 @@ function SortableRow({
         </Text>
       </div>
 
-      {/* デフォルト値 */}
-      <div style={{ width: 72, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-        <input
-          type="radio"
-          name={radioName}
-          checked={option.isDefault}
-          onChange={() => onSetDefault(option.id)}
-          style={{ cursor: 'pointer', accentColor: '#1677ff', width: 15, height: 15 }}
-        />
-      </div>
-
       {/* 削除 */}
       <div style={{ width: 32, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
         <Button
@@ -160,7 +142,6 @@ function SortableRow({
  */
 export default function QualitativeOptionEditor({
   options,
-  radioName = 'defaultOption',
   onChange,
 }: QualitativeOptionEditorProps) {
   const sensors = useSensors(
@@ -181,7 +162,7 @@ export default function QualitativeOptionEditor({
 
   /** フィールド更新 */
   const handleUpdate = useCallback(
-    (id: number, field: keyof QualitativeOption, val: string | boolean) => {
+    (id: number, field: keyof QualitativeOption, val: string) => {
       onChange(options.map((o) => (o.id !== id ? o : { ...o, [field]: val })));
     },
     [options, onChange]
@@ -195,20 +176,12 @@ export default function QualitativeOptionEditor({
     [options, onChange]
   );
 
-  /** デフォルト設定 */
-  const handleSetDefault = useCallback(
-    (id: number) => {
-      onChange(options.map((o) => ({ ...o, isDefault: o.id === id })));
-    },
-    [options, onChange]
-  );
-
   /** 追加（idは現在の最大値+1） */
   const handleAdd = useCallback(() => {
     const maxId = options.reduce((m, o) => Math.max(m, o.id), 0);
     onChange([
       ...options,
-      { id: maxId + 1, value: '', color: '#6366F1', isDefault: false },
+      { id: maxId + 1, value: '', color: '#6366F1' },
     ]);
   }, [options, onChange]);
 
@@ -231,7 +204,6 @@ export default function QualitativeOptionEditor({
         <span style={{ width: 24, textAlign: 'center' }}>順</span>
         <span style={{ width: 110 }}>値 (value) *</span>
         <span style={{ width: 130 }}>表示色</span>
-        <span style={{ width: 72, textAlign: 'center' }}>デフォルト</span>
         <span style={{ width: 32, textAlign: 'center' }}>操作</span>
       </div>
 
@@ -243,11 +215,9 @@ export default function QualitativeOptionEditor({
               key={option.id}
               option={option}
               index={index}
-              radioName={radioName}
               isLast={options.length <= 1}
               onUpdate={handleUpdate}
               onRemove={handleRemove}
-              onSetDefault={handleSetDefault}
             />
           ))}
         </SortableContext>

@@ -29,9 +29,7 @@ const XSI_TYPE_OPTIONS = [
   { value: 'stringType', label: 'stringType' },
 ];
 
-const DEFAULT_OPTIONS: QualitativeOption[] = [
-  { id: 1, value: '', color: '#FFFFFF', isDefault: true },
-];
+const DEFAULT_OPTIONS: QualitativeOption[] = [];
 
 /** Props型定義 */
 interface UncertaintyCreateModalProps {
@@ -137,7 +135,6 @@ export default function UncertaintyCreateModal({
             id:        opt.displayOrder ?? idx + 1,
             value:     opt.selectorValue,
             color:     opt.displayColor,
-            isDefault: opt.isDefault,
           }))
         );
       } else {
@@ -202,7 +199,6 @@ export default function UncertaintyCreateModal({
               displayOrder: idx + 1,
               value:        opt.value,
               displayColor: opt.color,
-              isDefault:    opt.isDefault,
             }))
           : [],
       });
@@ -406,7 +402,6 @@ export default function UncertaintyCreateModal({
           {evalMode === 'qualitative' && (
             <QualitativeOptionEditor
               options={qualitativeOptions}
-              radioName="defaultOptionCreate"
               onChange={setQualitativeOptions}
             />
           )}
