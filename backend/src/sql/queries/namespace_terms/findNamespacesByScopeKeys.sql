@@ -7,11 +7,11 @@ SELECT
   , p.description                                                   AS description
   , n.scope_key                                                     AS "scopeKey"
   , COALESCE(og.organization_group_name, ou.user_name, '')          AS "scopeName"
+  , p.is_active                                                     AS "isActive"
 FROM namespace n
 INNER JOIN prefix p
   ON p.organization_id = n.organization_id
   AND p.namespace_id = n.namespace_id
-  AND p.is_active = TRUE
 LEFT JOIN organization_group og
   ON og.organization_id = n.organization_id
   AND og.organization_group_cd = n.scope_key

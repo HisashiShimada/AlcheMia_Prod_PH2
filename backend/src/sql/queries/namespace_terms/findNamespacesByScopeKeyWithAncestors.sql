@@ -31,6 +31,7 @@ SELECT
   , p.description  AS description
   , n.scope_key    AS "scopeKey"
   , g.organization_group_name AS "scopeName"
+  , p.is_active               AS "isActive"
 FROM namespace n
 JOIN prefix p
   ON p.organization_id = n.organization_id

@@ -5037,7 +5037,7 @@
     "searchPlaceholder": "Search by Prefix, URI, or description",
     "btnImport": "CSV Import",
     "btnExport": "CSV Export",
-    "btnAddPrefix": "+ Add Prefix",
+    "btnAddPrefix": "Add Prefix",
     "btnSave": "Save",
     "btnCancel": "Cancel",
     "loading": "Loading...",

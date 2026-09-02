@@ -1,18 +1,21 @@
 # 分類B シナリオテスト ― 実験計画指示記入機能・実験作業者UI
 
 **作成日**: 2026-08-19
-**更新日**: 2026-08-26
+**更新日**: 2026-08-27（設計書 ui_progress_overview_tab.md v3.1.0・ui_work_record_panel.md v3.2.0 対応）
 **作成者**: SSV
-**対象機能**: 実験計画指示記入機能・実験作業者UI
+**対象機能**: 実験計画指示記入機能・実験作業者UI・トランジション状態遷移
 **前提資料**:
 - UI設計書（管理者側）: `docs/design/ui/experiment_admin/01_project_management/ui_task_registration_tab.md`
 - UI設計書（管理者側）: `docs/design/ui/experiment_admin/01_project_management/ui_experiment_plan_dialog.md`
-- UI設計書（作業者側）: `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`（**v3.0.0** / 最終更新: 2026-08-26）
-- UI設計書（作業者側）: `docs/design/ui/experiment_worker/ui_work_record_panel.md`（**v3.0.0** / 最終更新: 2026-08-26）
+- UI設計書（作業者側）: `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`（**v3.1.0** / 最終更新: 2026-08-27）
+- UI設計書（作業者側）: `docs/design/ui/experiment_worker/ui_work_record_panel.md`（**v3.2.0** / 最終更新: 2026-08-27）
 - ソース: `frontend/src/components/project/TaskRegistrationTab.tsx`
 - ソース: `frontend/src/components/project/ExperimentPlanDialog.tsx`
 - ソース: `frontend/src/components/ExperimentWorker/ProgressOverviewTab.tsx`
 - ソース: `frontend/src/components/ExperimentWorker/WorkRecordPanel.tsx`
+- バックエンド: `backend/src/services/progressService.ts`（`ALLOWED_TRANSITIONS` 定義）
+- バックエンド: `backend/src/types/transitionData.ts`（`TransitionStatusEnum` 定義）
+- フロントエンド: `frontend/src/constants/codeMaster.ts`（`TransitionStatusCode` 定義）
 
 ---
 
@@ -26,7 +29,15 @@
 - [B-EI-05：トランジション DnD 並べ替え](#b-ei-05トランジション-dnd-並べ替え)
 - [B-EI-06：実験作業者 ─ 進捗確認タブ・フィルタ・前提チェック](#b-ei-06実験作業者--進捗確認タブフィルタ前提チェック)
 - [B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了](#b-ei-07実験作業者--実験記録タブ実績値入力トランジション完了)
+- [B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了](#b-ei-07実験作業者--実験記録タブ実績値入力トランジション完了)
 - [B-EI-08：差異表示・確信度ボタン・定量評価入力](#b-ei-08差異表示確信度ボタン定量評価入力)
+- [トランジション状態遷移](#トランジション状態遷移)
+  - [B-TR-01：通常フロー](#b-tr-01通常フロー)
+  - [B-TR-02：異常終了](#b-tr-02異常終了)
+  - [B-TR-03：一時停止・再開](#b-tr-03一時停止再開)
+  - [B-TR-04：作業中切り替え](#b-tr-04作業中切り替え)
+  - [B-TR-05：終端状態からの遷移拒否](#b-tr-05終端状態からの遷移拒否)
+  - [B-TR-06：不正な遷移拒否](#b-tr-06不正な遷移拒否)
 - [B-EI-09：承認ワークフロー（フェーズB予定・現在未実装）](#b-ei-09承認ワークフローフェーズb予定現在未実装)
 
 ---
@@ -260,6 +271,7 @@
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 17 | experiment_worker | 実験作業者メニュー → 「実験記録」タブを開く | `WorkRecordPanel` が表示される |
+| 17 | experiment_worker | 実験作業者メニュー → 「実験記録」タブを開く | `WorkRecordPanel` が表示される |
 | 18 | — | 画面上部を確認する | `WarningOutlined`（黄色）+「プロジェクト指示」+ 件数バッジの折りたたみパネル（背景色 `#fffbe6`）が表示されている |
 | 19 | experiment_worker | 折りたたみパネルを展開する | 指示事項が箇条書き（`<ul><li>`）で表示される |
 | 20 | — | 表示条件を確認する | 指示事項が0件の場合はパネル自体が非表示になっている |
@@ -398,18 +410,28 @@
 
 実験作業者が進捗確認タブ（`ProgressOverviewTab`）でサマリーカード・フィルタバー・トランジションテーブルを確認し、前提未完了のトランジションがロックされることを確認する。
 また、フェーズB移行により追加された `preparing`（準備中）・`ready`（準備完了）ステータスの操作ボタン仕様を確認する。
+また、フェーズB移行により追加された `preparing`（準備中）・`ready`（準備完了）ステータスの操作ボタン仕様を確認する。
 
 ### 関連
 
 | 項目 | 参照先 |
 |------|--------|
 | UI設計書 | `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`（v3.0.0） |
+| UI設計書 | `docs/design/ui/experiment_worker/ui_progress_overview_tab.md`（v3.0.0） |
 | コンポーネント | `ProgressOverviewTab.tsx` / `SummaryCard`（サブコンポーネント）|
+| API | `GET /api/v1/progress/projects/:projectName/work-details` |
 | API | `GET /api/v1/progress/projects/:projectName/work-details` |
 
 ### 前提条件
 
 - `experiment_worker` としてログイン済み
+- `ExperimentWorkerMenu` が `getWorkDetails` API を呼び出し、`rows`（ProgressRow 配列）が `ProgressOverviewTab` に渡されていること
+- テスト用プロジェクトに以下のステータスのトランジションが含まれていること：
+  - `not_started` が1件以上
+  - `preparing` が1件（進捗確認タブから「開始」を押した直後の状態）
+  - `ready` が1件（「指示確認」ボタンを押した後の状態）
+  - `in_progress` が1件以上
+  - `completed` が1件以上
 - `ExperimentWorkerMenu` が `getWorkDetails` API を呼び出し、`rows`（ProgressRow 配列）が `ProgressOverviewTab` に渡されていること
 - テスト用プロジェクトに以下のステータスのトランジションが含まれていること：
   - `not_started` が1件以上
@@ -427,16 +449,16 @@
 |---|--------|------|---------|
 | 1 | experiment_worker | 実験作業者メニュー → 「進捗確認」タブを開く | `ProgressOverviewTab` が表示される |
 | 2 | — | サマリーカードを確認する | 全体進捗バー（%）・タスク完了数・ステータス別件数が表示されている |
-| 3 | — | サマリーカードのステータス別件数を確認する | **準備中**・**準備完了**・未着手・作業中・完了 の各件数が表示される（`preparing`/`ready` が追加表示されること）|
+| 3 | — | サマリーカードのステータス別件数を確認する | 未着手・作業中・完了 の各件数が表示される。`preparing`（準備中）・`ready`（準備完了）は**サマリーカードに個別表示されない**（2026-08-27 修正：設計書 v3.1.0 §6.1 に準拠）|
 | 4 | — | 問題あり件数の表示を確認する | `issue` ステータス行が1件以上ある場合のみ赤色で件数表示される。0件の場合は非表示 |
 
 #### ステップ 2：フィルタバーの操作
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 5 | experiment_worker | フィルタバーの「ステータス」セレクトを開く | 選択肢に「未着手」「準備中」「準備完了」「作業中」「一時停止」「完了」「問題あり」の7種が表示される |
-| 6 | experiment_worker | 「ステータス」セレクトで「準備中」を選択する | `preparing` のトランジションのみに絞り込まれる |
-| 7 | experiment_worker | 「ステータス」セレクトで「準備完了」を選択する | `ready` のトランジションのみに絞り込まれる |
+| 5 | experiment_worker | フィルタバーの「ステータス」セレクトを開く | 選択肢に「未着手」「作業中」「一時停止」「完了」「問題あり」の**5種**が表示される。**「準備中」「準備完了」はフィルター選択肢に含まれない**（2026-08-27 修正：設計書 v3.1.0 §6.2 に準拠）|
+| 6 | experiment_worker | 「ステータス」セレクトで「作業中」を選択する | `in_progress` のトランジションのみに絞り込まれる |
+| 7 | — | `preparing`（準備中）・`ready`（準備完了）のトランジションをフィルターで絞り込めないことを確認する | 「ステータス」セレクトに「準備中」「準備完了」の選択肢が存在しない（これらのトランジションはフィルターなし時に一覧に表示される）|
 | 8 | experiment_worker | 「メソッド名」フィルタで `method-A` を選択する | `method-A` のトランジションのみに絞り込まれる |
 | 9 | experiment_worker | 各フィルタをクリアする | 全トランジションが再表示される |
 
@@ -445,17 +467,19 @@
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
 | 10 | — | `not_started`（前提なし）行の操作列を確認する | 「開始」ボタンが活性状態で表示される |
-| 11 | — | `preparing`（準備中）行の操作列を確認する | 「指示確認」ボタン（primary）が表示される |
-| 12 | — | `ready`（準備完了）行の操作列を確認する | 「開始」ボタンが表示される |
+| 11 | — | `preparing`（準備中）行の操作列を確認する | 「作業へ」ボタン（default）が表示される（2026-08-27 修正：「指示確認」→「作業へ」default に変更。設計書 v3.1.0 §9 に準拠）|
+| 12 | — | `ready`（準備完了）行の操作列を確認する | 「作業へ」ボタン（primary）が表示される（2026-08-27 修正：「開始」→「作業へ」primary に変更。設計書 v3.1.0 §9 に準拠）|
 | 13 | — | `in_progress` 行の操作列を確認する | 「作業へ」ボタン（primary）が表示される |
 | 14 | — | `on_hold` 行の操作列を確認する | 「再開」ボタンが表示される |
 | 15 | — | `completed` または `issue` 行の操作列を確認する | 「詳細確認」ボタンが表示される |
-| 16 | experiment_worker | `preparing` 行の「指示確認」ボタンを押す | 「実験記録」タブに遷移し、対象トランジションの `InstructionCollapse`（プロジェクト指示）が表示される |
+| 16 | experiment_worker | `preparing` 行の「作業へ」ボタンを押す | 作業記録タブ（`WorkRecordPanel`）に遷移し、対象トランジションが表示される（`onGoToWork` 呼び出し。2026-08-27 修正：設計書 v3.1.0 §9 に準拠）|
 
 #### ステップ 4：前提未完了による開始ボタンのロック確認
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
+| 17 | — | `transition-2`（前提: `transition-1` 未完了）の操作列を確認する | 「開始」ボタンが `disabled` になり 🔒（LockOutlined・黄色）アイコンがトランジション名横に表示される |
+| 18 | experiment_worker | `disabled` の「開始」ボタンにホバーする | Tooltip「前の順序のトランジションを先に完了してください」が表示される |
 | 17 | — | `transition-2`（前提: `transition-1` 未完了）の操作列を確認する | 「開始」ボタンが `disabled` になり 🔒（LockOutlined・黄色）アイコンがトランジション名横に表示される |
 | 18 | experiment_worker | `disabled` の「開始」ボタンにホバーする | Tooltip「前の順序のトランジションを先に完了してください」が表示される |
 
@@ -472,22 +496,27 @@
 - [ ] 前提未完了のトランジションは操作ボタンが `disabled`、トランジション名横に 🔒 アイコン
 - [ ] レスポンシブ切り替えポイントは xl（1200px）
 - [ ] **ステータスは7種類**：`not_started` / `preparing` / `ready` / `in_progress` / `on_hold` / `completed` / `issue`
-- [ ] `preparing` 行には「指示確認」ボタン（primary）が表示される
-- [ ] `ready` 行には「開始」ボタンが表示される
-- [ ] サマリーカードに `preparing`・`ready` 件数が表示される
+- [ ] `preparing` 行には「作業へ」ボタン（default）が表示される（2026-08-27 修正：設計書 v3.1.0 §9 に準拠）
+- [ ] `ready` 行には「作業へ」ボタン（primary）が表示される（2026-08-27 修正：設計書 v3.1.0 §9 に準拠）
+- [ ] サマリーカードに `preparing`・`ready` の個別件数は表示されない（2026-08-27 修正：表示は not_started / in_progress / completed のみ）
+- [ ] フィルター「ステータス」の選択肢は5種（`not_started`・`in_progress`・`on_hold`・`completed`・`issue`）のみ。`preparing`・`ready` はない（2026-08-27 修正）
 
 ### テスト結果
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
 | | | 未実施 | |
+| | | 未実施 | |
 
 ---
 
 ## B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了
+## B-EI-07：実験作業者 ─ 実験記録タブ・実績値入力・トランジション完了
 
 ### 概要
 
+実験作業者が `WorkRecordPanel` でテンプレートを選択し、型に応じた入力コントロール（InputNumber / Input）で実績値を入力し、「次へ」ボタンでトランジションを完了させられることを確認する。
+フェーズB対応として、指示確認フロー（`preparing` → `ready` → `in_progress`）・状態記録ダイアログ・状態プルダウン・API保存も検証する。
 実験作業者が `WorkRecordPanel` でテンプレートを選択し、型に応じた入力コントロール（InputNumber / Input）で実績値を入力し、「次へ」ボタンでトランジションを完了させられることを確認する。
 フェーズB対応として、指示確認フロー（`preparing` → `ready` → `in_progress`）・状態記録ダイアログ・状態プルダウン・API保存も検証する。
 
@@ -495,8 +524,13 @@
 
 | 項目 | 参照先 |
 |------|--------|
-| UI設計書 | `docs/design/ui/experiment_worker/ui_work_record_panel.md`（v3.0.0） |
+| UI設計書 | `docs/design/ui/experiment_worker/ui_work_record_panel.md`（**v3.2.0**）|
 | コンポーネント | `WorkRecordPanel.tsx` / `PropertyCard`（サブコンポーネント）|
+| API | `GET /api/v1/progress/projects/:projectName/work-details` |
+| API | `GET /api/v1/experiment-data/template-data` |
+| API | `POST /api/v1/experiment-data` |
+| API | `PATCH /api/v1/progress/.../transitions/:transitionId/status` |
+| API | `POST /api/v1/projects/.../instructions/confirm` |
 | API | `GET /api/v1/progress/projects/:projectName/work-details` |
 | API | `GET /api/v1/experiment-data/template-data` |
 | API | `POST /api/v1/experiment-data` |
@@ -507,7 +541,9 @@
 
 - `experiment_worker` としてログイン済み
 - 作業対象トランジション（`transition-1`）が `preparing` 状態であること（進捗確認タブから「開始」が押された直後）
+- 作業対象トランジション（`transition-1`）が `preparing` 状態であること（進捗確認タブから「開始」が押された直後）
 - `transition-1` のテンプレートに `FloatValue`・`StringValue` のプロパティが存在すること
+- プロジェクト指示が1件以上登録されていること
 - プロジェクト指示が1件以上登録されていること
 
 ### 操作手順
@@ -565,9 +601,9 @@
 
 | # | ロール | 操作 | 期待結果 |
 |---|--------|------|---------|
-| 20 | — | スキップボタンの状態を確認する（他に実行可能なトランジションあり）| スキップボタンが活性状態 |
+| 20 | — | スキップボタンの状態を確認する（他に実行可能なトランジションあり）| スキップボタンが活性状態、ホバー時に Tooltip「このトランジションを後回しにして次へ進みます」が表示される（2026-08-27 修正：`t('workRecord.skipTooltipAvailable')` の実値）|
 | 21 | experiment_worker | スキップボタンを押す | 現トランジションがスキップリストに追加され、次の実行可能トランジションへ移動する |
-| 22 | — | スキップボタンの状態を確認する（他に実行可能なトランジションなし）| スキップボタンが `disabled`、Tooltip「スキップできるトランジションがありません」が表示される |
+| 22 | — | スキップボタンの状態を確認する（他に実行可能なトランジションなし）| スキップボタンが `disabled`、Tooltip「スキップできる別のトランジションがありません」が表示される（2026-08-27 修正：`t('workRecord.skipTooltipUnavailable')` の実値）|
 
 #### ステップ 8：状態記録ダイアログ
 
@@ -608,12 +644,23 @@
 - [ ] 「次へ」ボタン押下 → `completed` 遷移・API 呼び出し確認
 - [ ] **保存は実 API（`POST /api/v1/experiment-data`）** が呼ばれること（モック通知ではない）
 - [ ] 状態記録ダイアログが「状態記録」ボタンで開く
+- [ ] 左Sider は **Materials / Conditions / Results のカテゴリ別グループ表示**（フラットなTableではない）
+- [ ] **ボタン群は Content 上部（WorkHeader 直下）に配置**（Content 最下部ではない）
+- [ ] ボタン配置：「保存」「次へ」 **|** 「コメント」「スキップ」（Divider でグループ区切り）
+- [ ] WorkHeader 1行目：「開始」「終了」 **|** 「異常終了（赤）」「状態記録」（Divider でグループ区切り）
+- [ ] **状態プルダウンは活性状態**（`disabled` 属性が削除済み）
+- [ ] 指示確認ボタン押下 → `preparing` → `ready` 遷移・API 呼び出し確認
+- [ ] 「開始」ボタン押下 → `ready` → `in_progress` 遷移
+- [ ] 「次へ」ボタン押下 → `completed` 遷移・API 呼び出し確認
+- [ ] **保存は実 API（`POST /api/v1/experiment-data`）** が呼ばれること（モック通知ではない）
+- [ ] 状態記録ダイアログが「状態記録」ボタンで開く
 - [ ] 完了済み閲覧時（`isReadOnly=true`）は保存ボタン群が非表示になる
 
 ### テスト結果
 
 | 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
 |--------|-------|---------------------|------------|
+| | | 未実施 | |
 | | | 未実施 | |
 
 ---
@@ -664,7 +711,7 @@
 | 8 | experiment_worker | 最初の選択肢ボタン（例: 「良好」）を選択する | ボタンが強調表示され、カードの選択中確信度 Tag が表示される |
 | 9 | experiment_worker | 再度同ボタンを押す | 選択が解除される（確信度 Tag が非表示になる）|
 | 10 | — | `qualitativeEval` が保存済みのプロパティを確認する | 保存済みの値が**初期選択状態**になっている |
-| 11 | — | `qualitativeNote`（定性評価説明）が設定されているプロパティを確認する | 不確かさ値ヘッダーの右隣に `（description）` 形式で表示されている |
+| 11 | — | `qualitativeNote`（定性評価説明）が設定されているプロパティを確認する | **確信度ラベルの右隣**に `（description）` 形式で表示されている（2026-08-27 修正：設計書 v3.2.0 §3.0.1 に準拠。旧「不確かさ値ヘッダー右隣」は誤り）|
 
 #### ステップ 4：定量評価の追加・削除
 
@@ -680,7 +727,7 @@
 - [ ] 差分 > 0 → `+値`（赤 `#cf1322`）、差分 < 0 → `値`（青 `#096dd9`）、差分 = 0 → `±0`（secondary）
 - [ ] **確信度ボタンは `qualitativeOptions`（DB登録値 = `intuition_selector` テーブル由来）を使用する**（固定3択ではない）
 - [ ] **`qualitativeEval`（保存済み選択値）が初期選択状態になっている**
-- [ ] **`qualitativeNote` が不確かさ値ヘッダー右隣に `（description）` 形式で表示される**
+- [ ] **`qualitativeNote`（定性評価の説明文）が設定されている場合、「定性評価」ラベルの右隣に `（description）` 形式で表示される**（2026-08-27 修正：旧「不確かさ値ヘッダー右隣」は誤り。設計書 v3.2.0 §3.0.1 に準拠）
 - [ ] 確信度ボタンは再クリックで解除される
 - [ ] 定量評価の不確かさ基準は `eval==='quantitative' && status==='active'` で絞り込まれる
 - [ ] PropertyCard に `plannedValue`（想定値）・`toleranceValue`（不確かさ値）・`uncertaintyNote`（不確かさ説明）が API データから正しく表示される
@@ -749,6 +796,305 @@
 
 ---
 
+## トランジション状態遷移
+
+## ステータス定義・遷移マトリクス
+
+### ステータス定義（`TransitionStatusEnum`）
+
+| 数値 | 定数名 | フロントエンド文字列 | 表示ラベル |
+|------|--------|-------------------|----------|
+| 0 | `INITIAL` | `not_started` | **初期状態** |
+| 1 | `PREPARING` | `preparing` | **準備状態** |
+| 2 | `READY` | `ready` | **準備完了状態** |
+| 3 | `IN_PROGRESS` | `in_progress` | **動作状態** |
+| 4 | `PAUSED` | `on_hold` | **休止状態** |
+| 5 | `COMPLETED` | `completed` | **終状態** |
+| 6 | `ERROR` | `issue` | **異常終了状態** |
+
+### 遷移マトリクス（`ALLOWED_TRANSITIONS` / `progressService.ts` L52-60）
+
+| 遷移元 | 遷移可能先 | 備考 |
+|--------|----------|------|
+| INITIAL(0) | INITIAL, PREPARING, IN_PROGRESS, COMPLETED, ERROR | 進捗タブ「開始」→ PREPARING |
+| PREPARING(1) | PREPARING, READY, COMPLETED, ERROR | 「指示確認」ボタン → READY |
+| READY(2) | READY, IN_PROGRESS, COMPLETED, ERROR | WorkHeader「開始」→ IN_PROGRESS |
+| IN_PROGRESS(3) | IN_PROGRESS, PAUSED, COMPLETED, ERROR, INITIAL | WorkHeader「終了」→ COMPLETED / 「切り替え」→ INITIAL |
+| PAUSED(4) | PAUSED, IN_PROGRESS, COMPLETED, ERROR | WorkHeader「再開」→ IN_PROGRESS |
+| COMPLETED(5) | COMPLETED のみ | **終端状態（変更不可）** |
+| ERROR(6) | ERROR のみ | **終端状態（変更不可）** |
+
+### UIトリガーとステータス遷移の対応
+
+| UI操作 | 遷移元 → 遷移先 | 実装 |
+|--------|--------------|------|
+| 全体進捗タブ「開始」ボタン（`handleStartWork`）| INITIAL(0) → PREPARING(1) | `ExperimentWorkerMenu.tsx` L566 |
+| 「指示確認」ボタン（`handleConfirmInstruction`）| PREPARING(1) → READY(2) | `ExperimentWorkerMenu.tsx` L241 |
+| WorkHeader「開始」（`onStart`）| READY(2) → IN_PROGRESS(3) | `ExperimentWorkerMenu.tsx` L655 |
+| WorkHeader「終了」（`onEnd`）| IN_PROGRESS(3) → COMPLETED(5) | `ExperimentWorkerMenu.tsx` L668 |
+| WorkHeader「異常終了」（`onForceEnd`）| IN_PROGRESS(3) / not_started(0) → ERROR(6) | `ExperimentWorkerMenu.tsx` L681 |
+| 「保存して次へ」（`handleSaveAndNext`）| IN_PROGRESS(3) → COMPLETED(5) | `WorkRecordPanel.tsx` |
+| 作業中切り替え「切り替える」| IN_PROGRESS(3) → INITIAL(0) + INITIAL(0) → PREPARING(1) | `ExperimentWorkerMenu.tsx` L611 |
+| 状態プルダウン直接変更 | 任意 → 任意（ALLOWED_TRANSITIONS 制約あり）| `WorkRecordPanel.tsx` WorkHeader |
+
+---
+
+## B-TR-01：通常フロー（INITIAL → PREPARING → READY → IN_PROGRESS → COMPLETED）
+
+### 概要
+
+実験作業者が `transition-1` を通常フロー（初期状態→準備状態→準備完了状態→動作状態→終状態）で完了させられることを確認する。
+
+### 前提条件
+
+- `experiment_worker` としてログイン済み
+- プロジェクト `proj-test-001` が選択済み
+- `transition-1` のステータスが INITIAL(0) であること
+- `transition-1` に対応するプロジェクト指示（methodId=null・transitionId=null）が未確認（`is_acknowledged=false`）で1件以上登録されていること
+
+### 操作手順
+
+#### ステップ 1：初期状態 → 準備状態（INITIAL(0) → PREPARING(1)：進捗タブ「開始」）
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 1 | experiment_worker | 進捗確認タブ（key='4'）を開く | `ProgressOverviewTab` が表示され、`transition-1` 行に「開始」ボタンが表示される |
+| 2 | experiment_worker | `transition-1` 行の「開始」ボタンをクリックする | `PATCH .../transitions/transition-1/status` が呼ばれ `status=1`（PREPARING）が送信される |
+| 3 | — | `transition-1` のステータスを確認する | ステータスが `preparing`（準備状態）に変わり、ProgressOverviewTab の行表示が更新される |
+| 4 | — | 実験記録タブ（key='3'）に自動遷移することを確認する | `handleTabChange('3')` が呼ばれて実験記録タブが表示される |
+
+#### ステップ 2：準備状態 → 準備完了状態（PREPARING(1) → READY(2)：「指示確認」ボタン）
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 5 | experiment_worker | 実験記録タブの `InstructionCollapse`（プロジェクト指示パネル）を展開する | 未確認の指示内容が表示され、「指示確認」ボタンが表示されている |
+| 6 | experiment_worker | 「指示確認」ボタンをクリックする | ① `PUT .../instructions/{instructionId}/confirm` が呼ばれて指示が確認済みになる ② `PATCH .../transitions/transition-1/status` が呼ばれ `status=2`（READY）が送信される |
+| 7 | — | `transition-1` のステータスを確認する | ステータスが `ready`（準備完了状態）に変わる |
+
+#### ステップ 3：準備完了状態 → 動作状態（READY(2) → IN_PROGRESS(3)：WorkHeader「開始」）
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 8 | experiment_worker | WorkHeader の「開始」ボタンをクリックする | `PATCH .../transitions/transition-1/status` が呼ばれ `status=3`（IN_PROGRESS）が送信される |
+| 9 | — | `transition-1` のステータスを確認する | ステータスが `in_progress`（動作状態）に変わり、WorkHeader の状態プルダウンが「動作状態」になる |
+
+#### ステップ 4：動作状態 → 終状態（IN_PROGRESS(3) → COMPLETED(5)：WorkHeader「終了」または「保存して次へ」）
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 10 | experiment_worker | WorkHeader の「終了」ボタンをクリックする | `PATCH .../transitions/transition-1/status` が呼ばれ `status=5`（COMPLETED）が送信される |
+| 11 | — | `transition-1` のステータスを確認する | ステータスが `completed`（終状態）に変わる |
+| 12 | — | WorkHeader の「終了」「開始」ボタンの状態を確認する | COMPLETED は終端状態のため、これ以上ステータス変更できないことを確認する |
+
+### 確認ポイント
+
+- [ ] INITIAL → PREPARING: `status=1` が API に送信される
+- [ ] PREPARING → READY: 指示確認後に `status=2` が API に送信される
+- [ ] READY → IN_PROGRESS: `status=3` が API に送信される
+- [ ] IN_PROGRESS → COMPLETED: `status=5` が API に送信される
+- [ ] 各遷移後に `progressRows` が再取得されて UI が更新される
+- [ ] DB の `transition_data.status` が各遷移後に正しい数値になっている
+
+### テスト結果
+
+| 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
+|--------|-------|---------------------|------------|
+| | | 未実施 | |
+
+---
+
+## B-TR-02：異常終了（IN_PROGRESS → ERROR）
+
+### 概要
+
+動作状態のトランジションを WorkHeader「異常終了」ボタンで異常終了状態（ERROR）に遷移させ、終端状態になることを確認する。
+
+### 前提条件
+
+- `experiment_worker` としてログイン済み
+- プロジェクト `proj-test-001` が選択済み
+- `transition-1` のステータスが IN_PROGRESS(3) であること
+
+### 操作手順
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 1 | experiment_worker | 実験記録タブで WorkHeader の「異常終了」ボタン（赤色）をクリックする | `PATCH .../transitions/transition-1/status` が呼ばれ `status=6`（ERROR）が送信される |
+| 2 | — | `transition-1` のステータスを確認する | ステータスが `issue`（異常終了状態）に変わる |
+| 3 | — | 全体進捗タブで `transition-1` 行の操作列を確認する | 「詳細確認」ボタンが表示される（終端状態のため作業不可）|
+| 4 | — | WorkHeader から再度ステータス変更を試みる | ERROR 状態からの遷移が拒否される（`ALLOWED_TRANSITIONS[6] = [6]` のみ）|
+
+### 確認ポイント
+
+- [ ] IN_PROGRESS → ERROR: `status=6` が API に送信される
+- [ ] ERROR 状態は終端状態であり、DB 上での他ステータスへの変更が拒否される
+- [ ] 全体進捗タブで `issue` ステータスの行には「詳細確認」ボタンが表示される
+
+### テスト結果
+
+| 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
+|--------|-------|---------------------|------------|
+| | | 未実施 | |
+
+---
+
+## B-TR-03：休止状態・動作状態（IN_PROGRESS → PAUSED → IN_PROGRESS）
+
+### 概要
+
+動作状態のトランジションを状態プルダウンで休止状態（PAUSED）に変更し、再び動作状態（IN_PROGRESS）に戻せることを確認する。
+
+> **注意**: `PAUSED` (4) への遷移は現在 WorkHeader に専用ボタンなし。状態プルダウン（WorkHeader 内の `<Select>`）から直接変更する。
+
+### 前提条件
+
+- `experiment_worker` としてログイン済み
+- `transition-1` のステータスが IN_PROGRESS(3) であること
+
+### 操作手順
+
+#### ステップ 1：動作状態 → 休止状態（IN_PROGRESS(3) → PAUSED(4)）
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 1 | experiment_worker | WorkHeader の状態プルダウンを開く | 「動作状態」が選択されており、変更可能な選択肢が表示される |
+| 2 | experiment_worker | プルダウンで「休止状態」を選択する | `PATCH .../transitions/transition-1/status` が呼ばれ `status=4`（PAUSED）が送信される |
+| 3 | — | `transition-1` のステータスを確認する | ステータスが `on_hold`（休止状態）に変わる |
+| 4 | — | 全体進捗タブで `transition-1` 行を確認する | 「再開」ボタンが表示される |
+
+#### ステップ 2：休止状態 → 動作状態（PAUSED(4) → IN_PROGRESS(3)）
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 5 | experiment_worker | 全体進捗タブで `transition-1` 行の「再開」ボタンをクリックする | 実験記録タブに遷移し（`onGoToWork` 呼び出し）、`transition-1` の作業記録画面が表示される |
+| 6 | experiment_worker | WorkHeader の状態プルダウンで「動作状態」を選択する | `PATCH .../transitions/transition-1/status` が呼ばれ `status=3`（IN_PROGRESS）が送信される |
+| 7 | — | `transition-1` のステータスを確認する | ステータスが `in_progress`（動作状態）に戻る |
+
+### 確認ポイント
+
+- [ ] IN_PROGRESS → PAUSED: `status=4` が API に送信される
+- [ ] PAUSED → IN_PROGRESS: `status=3` が API に送信される
+- [ ] 休止状態（PAUSED）では全体進捗タブに「再開」ボタンが表示される
+
+### テスト結果
+
+| 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
+|--------|-------|---------------------|------------|
+| | | 未実施 | |
+
+---
+
+## B-TR-04：作業中切り替え（IN_PROGRESS → INITIAL → PREPARING）
+
+### 概要
+
+`transition-1` が動作状態（IN_PROGRESS）中に別の `transition-2` の「開始」ボタンを押すと確認ダイアログが表示され、承認すると `transition-1` が初期状態（INITIAL）に戻り `transition-2` が準備状態（PREPARING）になることを確認する。
+
+### 前提条件
+
+- `experiment_worker` としてログイン済み
+- `transition-1` のステータスが IN_PROGRESS(3) であること
+- `transition-2` のステータスが INITIAL(0) であること
+
+### 操作手順
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 1 | experiment_worker | 全体進捗タブを開く | `transition-1`（動作状態）と `transition-2`（初期状態）が表示されている |
+| 2 | experiment_worker | `transition-2` 行の「開始」ボタンをクリックする | 確認ダイアログが表示される（「別のトランジションが作業中です」タイトル、`transition-1` 名が表示される）|
+| 3 | experiment_worker | ダイアログで「切り替える」ボタンをクリックする | ① `transition-1` に `status=0`（初期状態）を PATCH ② `transition-2` に `status=1`（準備状態）を PATCH ③ 実験記録タブに遷移する |
+| 4 | — | `transition-1` のステータスを確認する | 初期状態（INITIAL=0）に戻っている |
+| 5 | — | `transition-2` のステータスを確認する | 準備状態（PREPARING=1）になっている |
+| 6 | experiment_worker | ダイアログで「キャンセル」を選択した場合（別ケース）| ダイアログが閉じ、`transition-1` は動作状態（IN_PROGRESS）のまま変化しない |
+
+### 確認ポイント
+
+- [ ] IN_PROGRESS の別トランジションが存在する場合、「開始」押下で確認ダイアログが表示される
+- [ ] 「切り替える」承認時: 旧動作状態トランジションが初期状態（INITIAL=0）に戻る
+- [ ] 「切り替える」承認時: 新対象トランジションが準備状態（PREPARING=1）になる
+- [ ] 「キャンセル」時: 状態は変化しない
+
+### テスト結果
+
+| 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
+|--------|-------|---------------------|------------|
+| | | 未実施 | |
+
+---
+
+## B-TR-05：終端状態からの遷移拒否（COMPLETED/ERROR は変更不可）
+
+### 概要
+
+バックエンドが COMPLETED(5)・ERROR(6) からの遷移を拒否することを API レベルで確認する。
+
+### 前提条件
+
+- DB に `status=5`（COMPLETED）のトランジションが存在すること
+- DB に `status=6`（ERROR）のトランジションが存在すること
+
+### 操作手順
+
+| # | ロール | 操作 | 期待結果 |
+|---|--------|------|---------|
+| 1 | — | `PATCH .../transitions/completed-tr/status` に `status=3`（IN_PROGRESS）を送信する | **400 Bad Request** または **422 Unprocessable Entity** が返る。エラーメッセージに「Cannot change status from terminal state '終状態'」が含まれる |
+| 2 | — | `PATCH .../transitions/error-tr/status` に `status=3`（IN_PROGRESS）を送信する | **400 Bad Request** が返る。エラーメッセージに「Cannot change status from terminal state '異常終了状態'」が含まれる |
+| 3 | — | `PATCH .../transitions/completed-tr/status` に `status=5`（COMPLETED）を送信する | **200 OK** が返る（自己遷移は許可: `ALLOWED_TRANSITIONS[5] = [5]`）|
+
+### 確認ポイント
+
+- [ ] 終状態（COMPLETED=5）→ 他ステータスは API レベルで拒否される
+- [ ] 異常終了状態（ERROR=6）→ 他ステータスは API レベルで拒否される
+- [ ] 終端状態への自己遷移（終状態→5、異常終了状態→6）は許可される
+- [ ] エラーレスポンスに `InvalidStatusTransitionError` メッセージが含まれる
+
+### テスト結果
+
+| 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
+|--------|-------|---------------------|------------|
+| | | 未実施 | |
+
+---
+
+## B-TR-06：不正な遷移拒否（ALLOWED_TRANSITIONS 制約確認）
+
+### 概要
+
+`ALLOWED_TRANSITIONS` で許可されていない遷移を API に送信すると正しくエラーが返ることを確認する。
+
+### 前提条件
+
+- DB に各テスト用ステータスのトランジションが存在すること
+
+### 操作手順
+
+| # | 遷移元ステータス | 試行する遷移先 | 期待結果 |
+|---|--------------|-------------|----------|
+| 1 | INITIAL(0) | PAUSED(4) | **400 Bad Request**（INITIAL → PAUSED は不可: `ALLOWED_TRANSITIONS[0]` に 4 が含まれない）|
+| 2 | PREPARING(1) | IN_PROGRESS(3) | **400 Bad Request**（PREPARING → IN_PROGRESS は不可: `ALLOWED_TRANSITIONS[1]` に 3 が含まれない）|
+| 3 | PREPARING(1) | INITIAL(0) | **400 Bad Request**（PREPARING → INITIAL は不可）|
+| 4 | READY(2) | PAUSED(4) | **400 Bad Request**（READY → PAUSED は不可）|
+| 5 | PAUSED(4) | INITIAL(0) | **400 Bad Request**（PAUSED → INITIAL は不可）|
+| 6 | PAUSED(4) | PREPARING(1) | **400 Bad Request**（PAUSED → PREPARING は不可）|
+| 7 | PREPARING(1) | READY(2) | **200 OK**（正常遷移の確認）|
+| 8 | READY(2) | IN_PROGRESS(3) | **200 OK**（正常遷移の確認）|
+
+### 確認ポイント
+
+- [ ] 不正遷移は全て 400 または 422 が返る
+- [ ] エラーメッセージに遷移元・遷移先ステータス名と許可遷移一覧が含まれる
+- [ ] 正常な遷移は 200 が返る
+
+### テスト結果
+
+| 実施日 | 実施者 | 結果（OK/NG/未実施） | 備考・NG内容 |
+|--------|-------|---------------------|------------|
+| | | 未実施 | |
+
+---
+
+---
+
 ## B-EI-09：承認ワークフロー（フェーズB予定・現在未実装）
 
 > ⚠️ **【実施不可・未実装（フェーズB予定）】**
@@ -779,4 +1125,14 @@
 | B-EI-06 | 実験作業者：進捗確認タブ・フィルタ・前提チェック | experiment_worker | 未実施 |
 | B-EI-07 | 実験作業者：実験記録タブ・実績値入力・トランジション完了 | experiment_worker | 未実施 |
 | B-EI-08 | 差異表示・確信度ボタン・定量評価入力 | experiment_worker | 未実施 |
+| B-EI-06 | 実験作業者：進捗確認タブ・フィルタ・前提チェック | experiment_worker | 未実施 |
+| B-EI-07 | 実験作業者：実験記録タブ・実績値入力・トランジション完了 | experiment_worker | 未実施 |
+| B-EI-08 | 差異表示・確信度ボタン・定量評価入力 | experiment_worker | 未実施 |
 | B-EI-09 | 承認ワークフロー（フェーズB予定・現在未実装） | experiment_worker / experiment_admin | 実施不可（フェーズB未実装）|
+| B-TR-01 | 通常フロー（INITIAL → PREPARING → READY → IN_PROGRESS → COMPLETED）| experiment_worker | 未実施 |
+| B-TR-02 | 異常終了（IN_PROGRESS → ERROR）| experiment_worker | 未実施 |
+| B-TR-03 | 一時停止・再開（IN_PROGRESS → PAUSED → IN_PROGRESS）| experiment_worker | 未実施 |
+| B-TR-04 | 作業中切り替え（IN_PROGRESS → INITIAL → PREPARING）| experiment_worker | 未実施 |
+| B-TR-05 | 終端状態からの遷移拒否（COMPLETED/ERROR は変更不可）| API テスト | 未実施 |
+| B-TR-06 | 不正な遷移拒否（ALLOWED_TRANSITIONS 制約確認）| API テスト | 未実施 |
+

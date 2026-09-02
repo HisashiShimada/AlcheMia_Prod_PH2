@@ -4,8 +4,8 @@
 ---
 title: ユーザー編集ダイアログUI設計書
 category: UI設計
-version: 1.0.0
-last_updated: 2026-02-24
+version: 1.1.0
+last_updated: 2026-08-25
 author: Development Team
 tags: [system-admin, user-management, dialog, edit-form]
 ---
@@ -73,6 +73,12 @@ tags: [system-admin, user-management, dialog, edit-form]
 │  アクティブ判定 *                         │
 │  ┌────────────────────────────────────┐  │
 │  │ アクティブ                  ▼      │  │
+│  └────────────────────────────────────┘  │
+│                                          │
+│  個人URI                                  │
+│  ┌────────────────────────────────────┐  │
+│  │ https://corp.Alchemia.co.jp/user01 │  │
+│  │ （読み取り専用・未設定時は「URI未設定」）│  │
 │  └────────────────────────────────────┘  │
 │                                          │
 ├──────────────────────────────────────────┤
@@ -271,6 +277,25 @@ tags: [system-admin, user-management, dialog, edit-form]
   message: 'アクティブ判定を選択してください'
 }
 ```
+
+### 3.7. 個人URI（読み取り専用）
+
+**コンポーネント**: `<UserNamespaceFields>`（`Form.useWatch('namespaceUri')` を使用）
+
+**仕様**:
+| 項目 | 値 |
+|------|-----|
+| ラベル | 「個人URI」 |
+| 必須 | - |
+| 読み取り専用 | ○（表示のみ、編集不可） |
+| 初期値 | `user.namespaceUri`（`namespace` テーブルの個人URI）|
+| 未設定時の表示 | 「URI未設定」 |
+
+**注意事項**:
+- `namespace` テーブルに個人URIが登録済みの場合は URI を表示する
+- 未登録ユーザーは「URI未設定」と表示される（バックフィル実行後は URI が表示される）
+- URI の変更はこのダイアログでは行わない（読み取り専用）
+- `handleEdit()` 内で `form.setFieldsValue({ namespaceUri: user.namespaceUri ?? '' })` をセットすることで初期値が反映される
 
 ---
 
@@ -707,6 +732,7 @@ const handleEdit = (user: UserRecord) => {
     roleCd: user.roleCd,
     twoFactorAuth: user.twoFactorAuth ? 1 : 0,  // boolean → number
     isActive: user.isActive,
+    namespaceUri: user.namespaceUri ?? '',   // 個人URI（未設定時は空文字）
   });
   setIsModalVisible(true);
 };
@@ -831,4 +857,7 @@ const handleModalOk = async () => {
 
 ## 16. 変更履歴
 
-| バージョン | 日付 | 変更内容 | 担当者
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|----------|--------|
+| 1.1.0 | 2026-08-25 | §2.1: レイアウトに個人URI表示フィールドを追加。§3.7: 個人URI（読み取り専用）項目を新規追加。§15.1: `handleEdit()` 実装例に `namespaceUri` セットを追記。バグ修正: 編集ダイアログ起動時に `namespace` テーブルの個人URIが常に「URI未設定」と表示されていた問題を解消（原因: `form.setFieldsValue()` に `namespaceUri` が含まれていなかった） | Cline |
+| 1.0.0 | 2026-02-24 | 初版作成 | Development Team |

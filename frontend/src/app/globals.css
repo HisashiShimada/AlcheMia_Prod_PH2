@@ -100,6 +100,51 @@ body {
   background: #bfbfbf;
 }
 
+/* ===== Namespace管理テーブル 行スタイル ===== */
+
+/* 新規追加行（未保存・黄色背景） */
+.row-new-prefix td {
+  background: #fffbe6 !important;
+}
+
+/* 非アクティブ Prefix 行（グレー文字 + 薄いグレー背景） */
+.row-inactive-prefix {
+  background: #f0f0f0 !important;
+}
+
+.row-inactive-prefix td {
+  color: #bbb !important;
+  background: #f0f0f0 !important;
+}
+
+.row-inactive-prefix:hover td,
+.row-inactive-prefix:hover > td {
+  background: #e8e8e8 !important;
+}
+
+.row-inactive-prefix td .ant-tag {
+  opacity: 0.5;
+}
+
+/* 新規追加行 用語（未保存・黄色背景） */
+.row-new-term td {
+  background: #fffbe6 !important;
+}
+
+/* 非アクティブ 用語行（グレー文字 + 薄いグレー背景） */
+.row-inactive-term td {
+  color: #bbb !important;
+  background: #f0f0f0 !important;
+}
+
+.row-inactive-term td .ant-tag {
+  opacity: 0.5;
+}
+
+.row-inactive-term:hover td {
+  background: #e8e8e8 !important;
+}
+
 /* ===== Phase B-1: エラー視覚化スタイル ===== */
 
 /* エラーノードのスタイル */
