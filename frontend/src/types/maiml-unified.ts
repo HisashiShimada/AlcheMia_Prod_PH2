@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MAIML統合型定義 (Unified Type Definitions)
  * 
  * この型定義は以下の3ソースを統合したものです:
@@ -1140,13 +1140,10 @@ export interface Classifier {
  * @example
  * ```xml
  * <event id="event_1" ref="transition-1764899405147">
- *   <property key="timestamp" xsi:type="dateTimeType">
+ *   <property key="Alchemia:timestamp" xsi:type="dateTimeType">
  *     <value>2025-12-05T02:05:55.190Z</value>
  *   </property>
- *   <property key="worker_id" xsi:type="stringType">
- *     <value>yukihiro.omori@soft-service.co.jp</value>
- *   </property>
- *   <property key="status" xsi:type="stringType">
+ *   <property key="Alchemia:status" xsi:type="stringType">
  *     <value>schedule</value>
  *   </property>
  * </event>

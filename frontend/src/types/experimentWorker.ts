@@ -346,7 +346,7 @@ export type ProgressStatus = 'not_started' | 'in_progress' | 'completed' | 'on_h
 /**
  * トランジションステータス（実験データ記録用）
  * 数値型（TransitionStatusEnumに対応）
- * 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+ * 1: 初期状態, 2: 準備状態, 3: 準備完了状態, 4: 動作状態, 5: 休止状態, 6: 終状態, 7: 異常終了状態
  */
 export type TransitionStatus = number;
 

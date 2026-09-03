@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 型安全なMAIMLパーサークラス
  * XSD準拠型のみを使用し、any型を一切使用しない
  * 
@@ -784,7 +784,7 @@ getEventLogs(): Array<{
             const props = event.properties;
             
             props.forEach(prop => {
-              if (prop.key === 'time:timestamp' && 'value' in prop) {
+              if (prop.key === 'Alchemia:timestamp' && 'value' in prop) {
                 timestamp = String(prop.value);
               }
               if (prop.key === 'operator:id' && 'value' in prop) {

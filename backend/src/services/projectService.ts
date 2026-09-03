@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ProjectService
  * 
  * @description プロジェクト一覧取得のビジネスロジック
@@ -14,6 +14,7 @@ import * as projectRepository from '../repositories/projectRepository';
 import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
+import { TransitionStatusEnum } from '../types/transitionData';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import * as experimentPlanRepository from '../repositories/experimentPlanRepository';
 import * as codeMasterRepository from '../repositories/codeMasterRepository';
@@ -695,7 +696,7 @@ export class ProjectService {
       console.log(`[DEBUG] checkout - Updated transition_data status to PREPARING for prerequisite-less transitions`);
 
       // チェックアウト時イベントログ記録（COMMIT前・トランザクション内）
-      // updateStatusForCheckout で PREPARING になったトランジションに対して lifecycle:transition を記録する
+      // updateStatusForCheckout で PREPARING になったトランジションに対して Alchemia:lifecycleTransition を記録する
       try {
         const preparedTransitions = await transitionDataRepository.findPreparedForCheckout(
           client,
@@ -716,7 +717,9 @@ export class ProjectService {
             preparedTransition.method_id,
             null,
             null,
-            null
+            null,
+            TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): チェックアウト時は常に INITIAL → PREPARING
+            TransitionStatusEnum.PREPARING  // toStatus   = 2(PREPARING)
           );
         }
         console.log(`[DEBUG] checkout - Inserted transition progress logs for ${preparedTransitions.length} transitions`);

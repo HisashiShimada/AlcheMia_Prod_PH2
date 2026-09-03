@@ -66,9 +66,28 @@
 |---|---|---|
 | 指示送信（Preparation） | `PreparationEvent` | `schedule` |
 | 品質評価（Quality） | — | —（lifecycle:transition は使用しない） |
-| トランジション進捗（WorkerTransition） | `WorkerTransitionEvent` | `initial` / `preparing` / `ready` / `running` / `paused` / `completed` / `error` |
+| トランジション進捗（WorkerTransition） | `WorkerTransitionEvent` | 遷移パターン依存（下表参照） |
 
-> 例: `name = "Alchemia:PreparationEvent"`, `description = "{projectName} PreparationEvent(schedule)"`
+**WorkerTransition フェーズの遷移値一覧**:
+
+| 遷移前ステータス | 遷移後ステータス | lifecycle:transition 値 |
+|---|---|---|
+| 1: 初期状態（INITIAL）    | 2: 準備状態（PREPARING）   | `schedule`   |
+| 2: 準備状態（PREPARING）  | 3: 準備完了状態（READY）   | `assign`     |
+| 1: 初期状態（INITIAL）    | 6: 終状態（COMPLETED）     | `autoskip`   |
+| 2: 準備状態（PREPARING）  | 6: 終状態（COMPLETED）     | `manualskip` |
+| 3: 準備完了状態（READY）  | 3: 準備完了状態（READY）   | `reassign`   |
+| 2: 準備状態（PREPARING）  | 7: 異常終了状態（ERROR）   | `withdraw`   |
+| 3: 準備完了状態（READY）  | 7: 異常終了状態（ERROR）   | `withdraw`   |
+| 3: 準備完了状態（READY）  | 4: 動作状態（IN_PROGRESS） | `start`      |
+| 4: 動作状態（IN_PROGRESS）| 5: 休止状態（PAUSED）      | `suspend`    |
+| 5: 休止状態（PAUSED）     | 4: 動作状態（IN_PROGRESS） | `resume`     |
+| 4: 動作状態（IN_PROGRESS）| 6: 終状態（COMPLETED）     | `complete`   |
+| 4: 動作状態（IN_PROGRESS）| 7: 異常終了状態（ERROR）   | `ate_abort`  |
+| 5: 休止状態（PAUSED）     | 7: 異常終了状態（ERROR）   | `ate_abort`  |
+
+> マッピングが存在しないパターン（上表に該当しない遷移）は `statusLabel`（遷移後ステータス名）をフォールバックとして使用する。
+> 実装: `backend/src/repositories/eventLogRepository.ts` の `LIFECYCLE_TRANSITION_VALUE_MAP` を参照。
 
 ### 2-3. タイムスタンプ property
 
@@ -94,7 +113,7 @@
 | フェーズ | 値 |
 |---|---|
 | 指示送信（Preparation） | `schedule` |
-| トランジション進捗（WorkerTransition） | `initial` / `preparing` / `ready` / `running` / `paused` / `completed` / `error` |
+| トランジション進捗（WorkerTransition） | 遷移パターン依存（セクション2-2の WorkerTransition フェーズの遷移値一覧を参照） |
 
 > 新たなフェーズが追加される場合はこのテーブルに追記すること。
 
@@ -178,4 +197,5 @@
 
 | 日付 | 変更内容 | 担当者 |
 |---|---|---|
+| 2026-09-03 | WorkerTransition フェーズの lifecycle:transition 遷移値一覧を正確な遷移パターン対応表に更新（旧: ステータスラベル一覧 → 新: fromStatus × toStatus 対応表） | Cline |
 | 2026-08-18 | 初版作成（lifecycle:transition 系共通ルール定義） | Cline |

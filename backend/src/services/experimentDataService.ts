@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ExperimentDataService
  * 
  * 実験データ管理のビジネスロジックを提供します。
@@ -15,6 +15,7 @@ import { getStorageService } from './storageService';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { getUseDeemedProgress } from '../repositories/organizationRepository';
 import { TransitionStatusEnum } from '../types/transitionData';
+import type { TransitionStatus } from '../types/transitionData';
 import { logger } from '../utils/logger';
 import type { Pool, PoolClient } from 'pg';
 import type { Property, Content } from '../types/maiml-unified';
@@ -800,6 +801,21 @@ async function updateDeemedProgress(
 
     // transition_data を更新し、イベントログを記録
     try {
+      // みなし進捗の Alchemia:lifecycleTransition 値を決定するために遷移元ステータスを取得する
+      let deemedFromStatus: TransitionStatus | null = null;
+      try {
+        const currentSql = await loadSqlFile('transition_data/findByTransitionId.sql');
+        const currentResult = await client.query(currentSql, [organizationId, projectId, methodId, transitionId]);
+        if (currentResult.rows.length > 0) {
+          deemedFromStatus = currentResult.rows[0].status as TransitionStatus;
+        }
+      } catch (statusErr) {
+        // 取得失敗時は null のままフォールバック（statusLabel をそのまま使用）
+        logger.warn('[ExperimentDataService] みなし進捗: 遷移元ステータス取得失敗。フォールバックを使用。', {
+          transitionId, statusErr,
+        });
+      }
+
       await transitionRepo.updateStatusDeemed(
         organizationId,
         projectId,
@@ -909,10 +925,12 @@ async function updateDeemedProgress(
           newProgressRate,
           null, // みなし進捗は自動更新のためコメントなし
           client,
-          methodId,           // log/@ref = methodId
-          deemedProgramId,    // trace/@ref = programId（MAIMLから取得）
+          methodId,            // log/@ref = methodId
+          deemedProgramId,     // trace/@ref = programId（MAIMLから取得）
           deemedInstructionId, // event/@ref = instructionId（MAIMLから取得）
-          deemedResultsRefs   // event/resultsRef = result-type place IDs
+          deemedResultsRefs,   // event/resultsRef = result-type place IDs
+          deemedFromStatus,    // fromStatus = 遷移元ステータス（DB取得）
+          newStatus            // toStatus   = 遷移先ステータス
         );
       } catch (logErr) {
         // イベントログ記録失敗はwarningログを出力し、メイン処理は継続

@@ -681,7 +681,9 @@
       "conditions": "条件",
       "results": "結果",
       "record": "記録",
-      "description": "説明"
+      "description": "説明",
+      "prerequisiteTooltip": "前提トランジション（{ids}）が全て完了してから開始できます",
+      "prerequisiteLockTooltip": "前提トランジション: {ids} が全て完了してから開始できます"
     },
     "actions": {
       "start": "開始",

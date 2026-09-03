@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EventLogRepository
  * 
  * maiml_event_logテーブルへのデータアクセスを担当するリポジトリ
@@ -6,7 +6,7 @@
  */
 
 import { PoolClient } from 'pg';
-import { TransitionStatus } from '../types/transitionData';
+import { TransitionStatus, TransitionStatusEnum } from '../types/transitionData';
 import { loadSqlFile } from '../sql/loader';
 import { getPgp } from '../database/db';
 import type { EventLogRow } from '../types/eventLog';
@@ -143,6 +143,84 @@ export class DatabaseError extends Error {
  * maiml_event_logテーブルへのイベント記録操作を提供します。
  * すべての操作でorganization_idによるマルチテナント分離を保証します。
  */
+/**
+ * lifecycle:transition プロパティの値マッピング
+ *
+ * トランジションステータスの遷移パターン（遷移元 → 遷移後）に対応する
+ * lifecycle:transition の値を定義する。
+ *
+ * @see .clinerules/references/eventlog_structure.md — セクション 2-4
+ *
+ * | 遷移前          | 遷移後        | 値           |
+ * |----------------|--------------|--------------|
+ * | 1(INITIAL)     | 2(PREPARING) | schedule     |
+ * | 2(PREPARING)   | 3(READY)     | assign       |
+ * | 1(INITIAL)     | 6(COMPLETED) | autoskip     |
+ * | 2(PREPARING)   | 6(COMPLETED) | manualskip   |
+ * | 3(READY)       | 3(READY)     | reassign     |
+ * | 2(PREPARING)   | 7(ERROR)     | withdraw     |
+ * | 3(READY)       | 7(ERROR)     | withdraw     |
+ * | 3(READY)       | 4(IN_PROG.)  | start        |
+ * | 4(IN_PROGRESS) | 5(PAUSED)    | suspend      |
+ * | 5(PAUSED)      | 4(IN_PROG.)  | resume       |
+ * | 4(IN_PROGRESS) | 6(COMPLETED) | complete     |
+ * | 4(IN_PROGRESS) | 7(ERROR)     | ate_abort    |
+ * | 5(PAUSED)      | 7(ERROR)     | ate_abort    |
+ */
+export const LIFECYCLE_TRANSITION_VALUE_MAP: Readonly<
+  Partial<Record<TransitionStatus, Partial<Record<TransitionStatus, string>>>>
+> = {
+  [TransitionStatusEnum.INITIAL]: {
+    [TransitionStatusEnum.PREPARING]: 'schedule',
+    [TransitionStatusEnum.COMPLETED]: 'autoskip',
+  },
+  [TransitionStatusEnum.PREPARING]: {
+    [TransitionStatusEnum.READY]:     'assign',
+    [TransitionStatusEnum.COMPLETED]: 'manualskip',
+    [TransitionStatusEnum.ERROR]:     'withdraw',
+  },
+  [TransitionStatusEnum.READY]: {
+    [TransitionStatusEnum.READY]:        'reassign',
+    [TransitionStatusEnum.IN_PROGRESS]:  'start',
+    [TransitionStatusEnum.ERROR]:        'withdraw',
+  },
+  [TransitionStatusEnum.IN_PROGRESS]: {
+    [TransitionStatusEnum.PAUSED]:    'suspend',
+    [TransitionStatusEnum.COMPLETED]: 'complete',
+    [TransitionStatusEnum.ERROR]:     'ate_abort',
+  },
+  [TransitionStatusEnum.PAUSED]: {
+    [TransitionStatusEnum.IN_PROGRESS]: 'resume',
+    [TransitionStatusEnum.ERROR]:       'ate_abort',
+  },
+} as const;
+
+/**
+ * lifecycle:transition の値を取得する
+ *
+ * fromStatus と toStatus の組み合わせから値を返す。
+ * マッピングに存在しない場合は statusLabel をフォールバックとして返す。
+ *
+ * @param fromStatus   - 遷移元ステータス（null/undefined の場合はフォールバック）
+ * @param toStatus     - 遷移先ステータス
+ * @param statusLabel  - フォールバック値（toStatus のラベル文字列）
+ * @returns lifecycle:transition に設定する文字列
+ */
+export function getLifecycleTransitionValue(
+  fromStatus: TransitionStatus | null | undefined,
+  toStatus: TransitionStatus | null | undefined,
+  statusLabel: string
+): string {
+  if (fromStatus == null || toStatus == null) {
+    return statusLabel;
+  }
+  const toMap = LIFECYCLE_TRANSITION_VALUE_MAP[fromStatus];
+  if (!toMap) {
+    return statusLabel;
+  }
+  return toMap[toStatus] ?? statusLabel;
+}
+
 export class EventLogRepository {
   private sequenceQueryPromise: Promise<string> = loadSqlFile('event_log/getNextSequenceNo.sql');
   private insertQueryPromise: Promise<string> = loadSqlFile('event_log/insertEventLog.sql');
@@ -374,22 +452,22 @@ export class EventLogRepository {
     // property 配列（全ターゲット共通）
     const properties = [
       {
-        '@key': 'sent_at',
+        '@key': 'Alchemia:sentAt',
         '@xsi:type': 'dateTimeType',
         '#text': sentAt,
       },
       {
-        '@key': 'experiment_instruction_id',
+        '@key': 'Alchemia:experimentInstructionId',
         '@xsi:type': 'stringType',
         '#text': experimentInstructionId,
       },
       {
-        '@key': 'instruction_user_id',
+        '@key': 'Alchemia:instructionUserId',
         '@xsi:type': 'stringType',
         '#text': userId,
       },
       {
-        '@key': 'instructions',
+        '@key': 'Alchemia:instructions',
         '@xsi:type': 'stringType',
         '#text': instructions ?? '',
       },
@@ -491,14 +569,11 @@ export class EventLogRepository {
    *   <log id="work_{ts}_{shortName}_log_transition_{transitionId}" ref="{transitionId}">
    *     <trace id="trace_{transitionId}_work_{ts}_{shortName}" ref="{transitionId}">
    *       <event id="event_report_{loginId}_{ts}" ref="{transitionId}">
-   *         <property key="timestamp" xsi:type="xs:dateTime">...</property>
-   *         <property key="worker_id" xsi:type="xs:string">...</property>
-   *         <property key="status" xsi:type="xs:string">...</property>
-   *         <property key="progress_percentage" xsi:type="xs:int">...</property>
-   *         <property key="report_type" xsi:type="xs:string">transition_progress</property>
-   *         <property key="comments" xsi:type="xs:string">...</property>
-   *         <property key="lifecycle:transition" xsi:type="xs:string">...</property>
-   *         <property key="time:timestamp" xsi:type="xs:dateTime">...</property>
+   *         <property key="Alchemia:status" xsi:type="stringType">...</property>
+   *         <property key="Alchemia:progressPercentage" xsi:type="intType">...</property>
+   *         <property key="Alchemia:comments" xsi:type="stringType">...</property>
+   *         <property key="Alchemia:lifecycleTransition" xsi:type="stringType">...</property>
+   *         <property key="Alchemia:timestamp" xsi:type="dateTimeType">...</property>
    *       </event>
    *     </trace>
    *   </log>
@@ -536,7 +611,20 @@ export class EventLogRepository {
     /** event/@ref に使用するインストラクションID（未指定時は transitionId をフォールバック） */
     instructionId?: string | null,
     /** event/resultsRef の ref 値配列（data層の result-type place IDを参照） */
-    resultsRefs?: string[] | null
+    resultsRefs?: string[] | null,
+    /**
+     * 遷移元のステータス（数値型）。
+     * lifecycle:transition の値を遷移パターンから決定するために使用する。
+     * 未指定または null の場合は statusLabel をフォールバックとして使用する。
+     * @see LIFECYCLE_TRANSITION_VALUE_MAP
+     */
+    fromStatus?: TransitionStatus | null,
+    /**
+     * 遷移先のステータス（数値型）。
+     * fromStatus と組み合わせて lifecycle:transition の値を決定するために使用する。
+     * 未指定または null の場合は statusLabel をフォールバックとして使用する。
+     */
+    toStatus?: TransitionStatus | null
   ): Promise<void> {
     try {
       // 1. sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
@@ -575,47 +663,40 @@ export class EventLogRepository {
         ? resultsRefs.map(ref => ({ '@ref': ref }))
         : undefined;
 
+      // lifecycle:transition の値を遷移パターン（fromStatus → toStatus）から決定する
+      // fromStatus / toStatus が未指定の場合は statusLabel をフォールバックとして使用する
+      const lifecycleTransitionValue = getLifecycleTransitionValue(
+        fromStatus ?? null,
+        toStatus ?? null,
+        statusLabel
+      );
+
       const eventObj: Record<string, unknown> = {
         '@id': `event_report_${loginId}_${ts}`,
         '@ref': eventRefId,
         property: [
           {
-            '@key': 'timestamp',
-            '@xsi:type': 'dateTimeType',
-            '#text': nowIso,
-          },
-          {
-            '@key': 'worker_id',
-            '@xsi:type': 'stringType',
-            '#text': loginId,
-          },
-          {
-            '@key': 'status',
+            '@key': 'Alchemia:status',
             '@xsi:type': 'stringType',
             '#text': statusLabel,
           },
           {
-            '@key': 'progress_percentage',
+            '@key': 'Alchemia:progressPercentage',
             '@xsi:type': 'intType',
             '#text': progressPercentage,
           },
           {
-            '@key': 'report_type',
-            '@xsi:type': 'stringType',
-            '#text': 'transition_progress',
-          },
-          {
-            '@key': 'comments',
+            '@key': 'Alchemia:comments',
             '@xsi:type': 'stringType',
             '#text': comment ?? '',
           },
           {
-            '@key': 'lifecycle:transition',
+            '@key': 'Alchemia:lifecycleTransition',
             '@xsi:type': 'stringType',
-            '#text': statusLabel,
+            '#text': lifecycleTransitionValue,
           },
           {
-            '@key': 'time:timestamp',
+            '@key': 'Alchemia:timestamp',
             '@xsi:type': 'dateTimeType',
             '#text': nowIso,
           },
@@ -695,17 +776,17 @@ export class EventLogRepository {
     // property 配列（全ターゲット共通）
     const properties = [
       {
-        '@key': 'acknowledged_at',
+        '@key': 'Alchemia:acknowledgedAt',
         '@xsi:type': 'dateTimeType',
         '#text': acknowledgedAt,
       },
       {
-        '@key': 'experiment_instruction_id',
+        '@key': 'Alchemia:experimentInstructionId',
         '@xsi:type': 'stringType',
         '#text': experimentInstructionId,
       },
       {
-        '@key': 'experiment_user_id',
+        '@key': 'Alchemia:experimentUserId',
         '@xsi:type': 'stringType',
         '#text': userId,
       },
@@ -904,12 +985,12 @@ export class EventLogRepository {
                 ...commonNameDesc,
                 property: [
                   {
-                    '@key': 'time:timestamp',
+                    '@key': 'Alchemia:timestamp',
                     '@xsi:type': 'dateTimeType',
                     '#text': sentAt,
                   },
                   {
-                    '@key': 'lifecycle:transition',
+                    '@key': 'Alchemia:lifecycleTransition',
                     '@xsi:type': 'stringType',
                     '#text': 'schedule',
                   },
@@ -950,7 +1031,7 @@ export class EventLogRepository {
    *   ownerRef/@id（assignee）= "ownerRef_{projectName}Preparation_schedule_{seq}_assignee"
    *
    * 共通プロパティ（全粒度）:
-   *   - property[@key='time:timestamp'] — 送信日時（XES標準キー）
+   *   - property[@key='Alchemia:timestamp'] — 送信日時（XES標準キー）
    *   - property[@key=instructionKey]   — 指示種別キーと指示内容
    *   - ownerRef（issuer）  — 指示出しユーザーID（@→_置換）
    *   - ownerRef（assignee）— ExperimentPlanDialog 指定の作業予定者（0件時は省略）
@@ -1029,10 +1110,10 @@ export class EventLogRepository {
     const ownerRefValue = buildOwnerRefs();
 
     // ── 共通 property 配列（共通ルール: eventlog_structure.md 2-3）──────────
-    // time:timestamp（XES標準キー）+ 指示種別キー
+    // Alchemia:timestamp（Alchemia標準キー）+ 指示種別キー
     const baseProperties: Record<string, unknown>[] = [
       {
-        '@key': 'time:timestamp',
+        '@key': 'Alchemia:timestamp',
         '@xsi:type': 'dateTimeType',
         '#text': sentAt,
       },
@@ -1066,7 +1147,7 @@ export class EventLogRepository {
         },
         // lifecycle:transition（共通ルール: eventlog_structure.md 2-4）
         {
-          '@key': 'lifecycle:transition',
+          '@key': 'Alchemia:lifecycleTransition',
           '@xsi:type': 'stringType',
           '#text': 'schedule',
         },
@@ -1199,10 +1280,8 @@ export class EventLogRepository {
    *   <log id="work_{ts}_{shortName}_log_transition_{transitionId}" ref="{transitionId}">
    *     <trace id="trace_{transitionId}_work_{ts}_{shortName}" ref="{transitionId}">
    *       <event id="event_comment_{loginId}_{ts}" ref="{transitionId}">
-   *         <property key="time:timestamp" xsi:type="dateTimeType">...</property>
-   *         <property key="worker_id" xsi:type="stringType">...</property>
-   *         <property key="report_type" xsi:type="stringType">transition_comment</property>
-   *         <property key="ns1:transitionComment" xsi:type="stringType">...</property>
+   *         <property key="Alchemia:timestamp" xsi:type="dateTimeType">...</property>
+   *         <property key="Alchemia:transitionComment" xsi:type="stringType">...</property>
    *       </event>
    *     </trace>
    *   </log>
@@ -1251,22 +1330,12 @@ export class EventLogRepository {
         '@ref': transitionId,
         property: [
           {
-            '@key': 'time:timestamp',
+            '@key': 'Alchemia:timestamp',
             '@xsi:type': 'dateTimeType',
             '#text': nowIso,
           },
           {
-            '@key': 'worker_id',
-            '@xsi:type': 'stringType',
-            '#text': loginId,
-          },
-          {
-            '@key': 'report_type',
-            '@xsi:type': 'stringType',
-            '#text': 'transition_comment',
-          },
-          {
-            '@key': 'ns1:transitionComment',
+            '@key': 'Alchemia:transitionComment',
             '@xsi:type': 'stringType',
             '#text': comment,
           },
