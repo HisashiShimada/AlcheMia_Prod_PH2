@@ -134,6 +134,24 @@
 
 > assignee が 0 件の場合は `ownerRef_assignee` を省略する。
 
+**フェーズ別 ownerRef 構成**:
+
+| フェーズ | 役割 | 付与位置 |
+|---|---|---|
+| 指示送信（Preparation） | issuer（指示出しユーザー）+ assignee（作業予定者・0件時省略） | `event` 直下 |
+| トランジション進捗（WorkerTransition） | issuer（ステータス変更実施者） | `event` 直下 |
+| 前提なしトランジション最小構成（Preparation最小構成） | issuer（指示出しユーザー） | `event` 直下 |
+| トランジションコメント | issuer（コメント記入者） | `event` 直下（ID形式: `ownerRef_comment_{loginId}_{ts}`） |
+| タスクレビュー（Task_review） | issuer（レビュアー） | `event` 直下 |
+| 記録値訂正（Record_correction） | issuer（訂正者） | `event` 直下 |
+
+> **WorkerTransition フェーズの ownerRef ID**:  
+> `ownerRef_{projectName}WorkerTransition_update_{seq}_issuer`  
+> `projectName` が未指定の場合は `projectId` をフォールバックとして使用する。
+
+> **コメントログの ownerRef ID**（lifecycle:transition 系ではないが ownerRef 必須）:  
+> `ownerRef_comment_{loginId}_{ts}`（既存イベント ID `event_comment_{loginId}_{ts}` に対応）
+
 ---
 
 ## 3. 前提トランジション未設定のトランジションへの `event` タグ生成ルール
@@ -260,6 +278,7 @@
 
 | 日付 | 変更内容 | 担当者 |
 |---|---|---|
+| 2026-09-04 | `insertTransitionProgressLog`・`insertLifecycleTransitionEventLog`・`insertTransitionCommentLog` の ownerRef 付与実装に伴い、セクション 2-5 にフェーズ別 ownerRef 構成表・WorkerTransition/コメントログの ID 命名規則を追記 | Cline |
 | 2026-09-03 | WorkerTransition フェーズの lifecycle:transition 遷移値一覧を正確な遷移パターン対応表に更新（旧: ステータスラベル一覧 → 新: fromStatus × toStatus 対応表） | Cline |
 | 2026-09-01 | タスクレビュー（`Task_review`）・記録値訂正（`Record_correction`）フェーズ追加、フェーズ名一覧・フェーズ識別名一覧を更新 | Cline |
 | 2026-08-18 | 初版作成（lifecycle:transition 系共通ルール定義） | Cline |

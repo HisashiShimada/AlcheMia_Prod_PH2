@@ -1086,7 +1086,8 @@ async function updateDeemedProgress(
           deemedInstructionId, // event/@ref = instructionId（MAIMLから取得）
           deemedResultsRefs,   // event/resultsRef = result-type place IDs
           deemedFromStatus,    // fromStatus = 遷移元ステータス（DB取得）
-          newStatus            // toStatus   = 遷移先ステータス
+          newStatus,           // toStatus   = 遷移先ステータス
+          projectName          // ownerRef ID 命名用プロジェクト名
         );
       } catch (logErr) {
         // イベントログ記録失敗はwarningログを出力し、メイン処理は継続

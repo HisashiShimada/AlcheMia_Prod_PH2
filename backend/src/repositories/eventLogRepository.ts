@@ -391,7 +391,13 @@ export class EventLogRepository {
      * fromStatus と組み合わせて lifecycle:transition の値を決定するために使用する。
      * 未指定または null の場合は statusLabel をフォールバックとして使用する。
      */
-    toStatus?: TransitionStatus | null
+    toStatus?: TransitionStatus | null,
+    /**
+     * プロジェクト名（ownerRef ID 命名規則に使用）。
+     * 未指定または null の場合は ownerRef ID に projectId をフォールバックとして使用する。
+     * @see .clinerules/references/eventlog_structure.md — セクション 2-5
+     */
+    projectName?: string | null
   ): Promise<void> {
     try {
       // 1. sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
@@ -438,6 +444,17 @@ export class EventLogRepository {
         statusLabel
       );
 
+      // ownerRef の ID 命名規則（eventlog_structure.md 2-1, 2-5）
+      // フェーズ名: WorkerTransition_update
+      // ownerRef/@id: ownerRef_{projectName}WorkerTransition_update_{seq}_issuer
+      const ownerRefIdBase = projectName ?? projectId;
+      const ownerRefId = `ownerRef_${ownerRefIdBase}WorkerTransition_update_${nextSequenceNo}_issuer`;
+      const ownerRefRef = userId.replace(/@/g, '_');
+      const ownerRef = {
+        '@id': ownerRefId,
+        '@ref': ownerRefRef,
+      };
+
       const eventObj: Record<string, unknown> = {
         '@id': `event_report_${loginId}_${ts}`,
         '@ref': eventRefId,
@@ -453,6 +470,7 @@ export class EventLogRepository {
             '#text': nowIso,
           },
         ],
+        ownerRef,
       };
 
       // resultsRef が存在する場合のみ追加
@@ -718,7 +736,14 @@ export class EventLogRepository {
         description: `${projectName} PreparationEvent(schedule)`,
       };
 
-      // 最小構成: time:timestamp + lifecycle:transition のみ
+      // ownerRef（issuer）: 指示出しユーザー（@→_置換）
+      // ID 命名規則（eventlog_structure.md 2-1, 2-5）: ownerRef_{projectName}Preparation_schedule_{seq}_issuer
+      const lifecycleOwnerRef = {
+        '@id': `ownerRef_${idPrefix}_issuer`,
+        '@ref': params.userId.replace(/@/g, '_'),
+      };
+
+      // 最小構成: time:timestamp + lifecycle:transition + ownerRef
       const logJson = {
         eventLog: {
           '@id': 'eventLogID', // MAIML上1つのみ存在。buildEventLogXML が既存MAIMLの値で上書きするため固定値
@@ -747,6 +772,7 @@ export class EventLogRepository {
                     '#text': 'schedule',
                   },
                 ],
+                ownerRef: lifecycleOwnerRef,
               },
             },
           },
@@ -1146,6 +1172,13 @@ export class EventLogRepository {
       const nowIso = new Date(ts).toISOString();
 
       // 4. JSON構造を構築
+      // ownerRef: コメント記入者（@→_置換）
+      // ID: ownerRef_comment_{loginId}_{ts}（コメントログ固有の命名）
+      const commentOwnerRef = {
+        '@id': `ownerRef_comment_${loginId}_${ts}`,
+        '@ref': userId.replace(/@/g, '_'),
+      };
+
       const eventObj = {
         '@id': `event_comment_${loginId}_${ts}`,
         '@ref': transitionId,
@@ -1161,6 +1194,7 @@ export class EventLogRepository {
             '#text': comment,
           },
         ],
+        ownerRef: commentOwnerRef,
       };
 
       const logJson = {

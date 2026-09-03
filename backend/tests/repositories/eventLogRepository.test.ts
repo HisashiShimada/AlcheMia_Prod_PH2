@@ -408,7 +408,8 @@ describe('EventLogRepository.insertTransitionProgressLog', () => {
       undefined, // instructionId
       undefined, // resultsRefs
       TransitionStatusEnum.READY,        // fromStatus
-      TransitionStatusEnum.IN_PROGRESS   // toStatus
+      TransitionStatusEnum.IN_PROGRESS,  // toStatus
+      'TestProject'                      // projectName
     );
 
     // Assert
@@ -441,7 +442,8 @@ describe('EventLogRepository.insertTransitionProgressLog', () => {
       undefined, // instructionId
       undefined, // resultsRefs
       TransitionStatusEnum.IN_PROGRESS, // fromStatus
-      TransitionStatusEnum.PAUSED       // toStatus
+      TransitionStatusEnum.PAUSED,      // toStatus
+      'TestProject'                     // projectName
     );
 
     // Assert
@@ -494,6 +496,107 @@ describe('EventLogRepository.insertTransitionProgressLog', () => {
       const actualValue = getLifecycleTransitionValue(fromStatus, toStatus, 'fallback');
       expect(actualValue).toBe(expectedValue);
     }
+  });
+
+  it('ownerRef が event に付与されること（projectName 指定時）', async () => {
+    // Act: READY(3) → IN_PROGRESS(4) 遷移
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      testUserId,
+      'running',
+      client,
+      undefined,                         // methodId
+      undefined,                         // programId
+      undefined,                         // instructionId
+      undefined,                         // resultsRefs
+      TransitionStatusEnum.READY,        // fromStatus
+      TransitionStatusEnum.IN_PROGRESS,  // toStatus
+      'TestProject'                      // projectName
+    );
+
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventOwnerRef = logJson?.eventLog?.log?.trace?.event?.ownerRef;
+
+    // ownerRef が存在すること
+    expect(eventOwnerRef).toBeDefined();
+    // @id が WorkerTransition_update フェーズの命名規則に従うこと
+    expect(eventOwnerRef['@id']).toMatch(/^ownerRef_TestProjectWorkerTransition_update_\d+_issuer$/);
+    // @ref が userId であること（@ → _ 置換）
+    expect(eventOwnerRef['@ref']).toBe(testUserId.replace(/@/g, '_'));
+  });
+
+  it('ownerRef の @ref が userId の @ を _ に置換した値であること（メールアドレス形式）', async () => {
+    // Act: メールアドレス形式の userId でテスト
+    const emailUserId = 'worker@example.com';
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      emailUserId,
+      'running',
+      client,
+      undefined,                         // methodId
+      undefined,                         // programId
+      undefined,                         // instructionId
+      undefined,                         // resultsRefs
+      TransitionStatusEnum.READY,        // fromStatus
+      TransitionStatusEnum.IN_PROGRESS,  // toStatus
+      'MyProject'                        // projectName
+    );
+
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventOwnerRef = logJson?.eventLog?.log?.trace?.event?.ownerRef;
+
+    expect(eventOwnerRef).toBeDefined();
+    // @ が _ に置換されていること
+    expect(eventOwnerRef['@ref']).toBe('worker_example.com');
+  });
+
+  it('projectName が未指定（undefined）の場合に projectId をフォールバックとして ownerRef ID に使用すること', async () => {
+    // Act: projectName 未指定
+    await repository.insertTransitionProgressLog(
+      testOrganizationId,
+      testProjectId,
+      testTransitionId,
+      testUserId,
+      'running',
+      client,
+      undefined,                         // methodId
+      undefined,                         // programId
+      undefined,                         // instructionId
+      undefined,                         // resultsRefs
+      TransitionStatusEnum.READY,        // fromStatus
+      TransitionStatusEnum.IN_PROGRESS   // toStatus
+      // projectName は省略
+    );
+
+    const result = await client.query(
+      `SELECT log FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2`,
+      [testOrganizationId, testProjectId]
+    );
+    expect(result.rows).toHaveLength(1);
+
+    const logJson = result.rows[0].log;
+    const eventOwnerRef = logJson?.eventLog?.log?.trace?.event?.ownerRef;
+
+    expect(eventOwnerRef).toBeDefined();
+    // projectName 未指定時は projectId をフォールバックとして使用すること
+    expect(eventOwnerRef['@id']).toContain(`ownerRef_${testProjectId}WorkerTransition_update_`);
+    expect(eventOwnerRef['@id']).toContain('_issuer');
   });
 });
 

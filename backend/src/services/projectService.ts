@@ -744,7 +744,8 @@ export class ProjectService {
             null,
             null,
             TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): チェックアウト時は常に INITIAL → PREPARING
-            TransitionStatusEnum.PREPARING  // toStatus   = 2(PREPARING)
+            TransitionStatusEnum.PREPARING, // toStatus   = 2(PREPARING)
+            project.project_name            // ownerRef ID 命名用プロジェクト名
           );
         }
         console.log(`[DEBUG] checkout - Inserted transition progress logs for ${preparedTransitions.length} transitions`);
