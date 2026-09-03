@@ -1140,7 +1140,7 @@ export interface Classifier {
  * @example
  * ```xml
  * <event id="event_1" ref="transition-1764899405147">
- *   <property key="Alchemia:timestamp" xsi:type="dateTimeType">
+ *   <property key="time:timestamp" xsi:type="dateTimeType">
  *     <value>2025-12-05T02:05:55.190Z</value>
  *   </property>
  *   <property key="Alchemia:status" xsi:type="stringType">

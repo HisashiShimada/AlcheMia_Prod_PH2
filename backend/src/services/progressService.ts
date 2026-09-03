@@ -1059,8 +1059,6 @@ export class ProgressService {
         transitionId,
         update.updated_by,
         statusLabel,
-        finalProgressRate,
-        comment ?? null,
         client,
         methodId,              // log/@ref = methodId
         eventLogProgramId,     // trace/@ref = programId（MAIMLから取得）
@@ -1129,8 +1127,6 @@ export class ProgressService {
               dep.transition_id,
               update.updated_by,
               'preparing',
-              0,
-              null,
               client,
               dep.method_id,
               null,
@@ -1247,7 +1243,7 @@ export class ProgressService {
         const statusProp = properties.find((p) => p['@key'] === 'Alchemia:status');
         if (!statusProp) continue;
 
-        const timestampProp = properties.find((p) => p['@key'] === 'Alchemia:timestamp');
+        const timestampProp = properties.find((p) => p['@key'] === 'time:timestamp');
 
         const status = statusProp?.['#text'] as string | undefined;
         const timestamp = timestampProp?.['#text'] as string | undefined;

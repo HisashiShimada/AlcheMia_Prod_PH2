@@ -723,7 +723,7 @@ export class ProjectService {
       console.log(`[DEBUG] checkout - Updated transition_data status to PREPARING for prerequisite-less transitions`);
 
       // チェックアウト時イベントログ記録（COMMIT前・トランザクション内）
-      // updateStatusForCheckout で PREPARING になったトランジションに対して Alchemia:lifecycleTransition を記録する
+      // updateStatusForCheckout で PREPARING になったトランジションに対して lifecycle:transition を記録する
       try {
         const preparedTransitions = await transitionDataRepository.findPreparedForCheckout(
           client,
@@ -738,8 +738,6 @@ export class ProjectService {
             preparedTransition.transition_id,
             userId,
             'preparing',
-            0,
-            null,
             client,
             preparedTransition.method_id,
             null,

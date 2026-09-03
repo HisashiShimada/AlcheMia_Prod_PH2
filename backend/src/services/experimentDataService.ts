@@ -959,7 +959,7 @@ async function updateDeemedProgress(
 
     // transition_data を更新し、イベントログを記録
     try {
-      // みなし進捗の Alchemia:lifecycleTransition 値を決定するために遷移元ステータスを取得する
+      // みなし進捗の lifecycle:transition 値を決定するために遷移元ステータスを取得する
       let deemedFromStatus: TransitionStatus | null = null;
       try {
         const currentSql = await loadSqlFile('transition_data/findByTransitionId.sql');
@@ -1080,8 +1080,6 @@ async function updateDeemedProgress(
           transitionId,
           updatedBy,
           deemedStatusLabel,
-          newProgressRate,
-          null, // みなし進捗は自動更新のためコメントなし
           client,
           methodId,            // log/@ref = methodId
           deemedProgramId,     // trace/@ref = programId（MAIMLから取得）

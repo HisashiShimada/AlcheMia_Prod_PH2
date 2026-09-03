@@ -402,8 +402,6 @@ describe('EventLogRepository.insertTransitionProgressLog', () => {
       testTransitionId,
       testUserId,
       'running',
-      100,
-      null,
       client,
       undefined, // methodId
       undefined, // programId
@@ -424,7 +422,7 @@ describe('EventLogRepository.insertTransitionProgressLog', () => {
     const eventProperties: Array<{ '@key': string; '#text': unknown }> =
       logJson?.eventLog?.log?.trace?.event?.property ?? [];
 
-    const lifecycleProp = eventProperties.find((p) => p['@key'] === 'Alchemia:lifecycleTransition');
+    const lifecycleProp = eventProperties.find((p) => p['@key'] === 'lifecycle:transition');
     expect(lifecycleProp).toBeDefined();
     expect(lifecycleProp?.['#text']).toBe('start');
   });
@@ -437,8 +435,6 @@ describe('EventLogRepository.insertTransitionProgressLog', () => {
       testTransitionId,
       testUserId,
       'paused',
-      50,
-      null,
       client,
       undefined, // methodId
       undefined, // programId
@@ -459,7 +455,7 @@ describe('EventLogRepository.insertTransitionProgressLog', () => {
     const eventProperties: Array<{ '@key': string; '@xsi:type': string; '#text': unknown }> =
       logJson?.eventLog?.log?.trace?.event?.property ?? [];
 
-    const timestampProp = eventProperties.find((p) => p['@key'] === 'Alchemia:timestamp');
+    const timestampProp = eventProperties.find((p) => p['@key'] === 'time:timestamp');
     expect(timestampProp).toBeDefined();
     expect(timestampProp?.['@xsi:type']).toBe('dateTimeType');
     expect(typeof timestampProp?.['#text']).toBe('string');

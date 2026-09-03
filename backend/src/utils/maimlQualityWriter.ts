@@ -343,7 +343,7 @@ function buildEvaluationProperties(
   const properties: Record<string, unknown>[] = [];
 
   if (evaluatedAt != null) {
-    const timestampProp = { '@key': 'Alchemia:timestamp', '@xsi:type': 'dateTimeType', '#text': new Date(evaluatedAt).toISOString() };
+    const timestampProp = { '@key': 'time:timestamp', '@xsi:type': 'dateTimeType', '#text': new Date(evaluatedAt).toISOString() };
     properties.push(timestampProp);
   }
   if (digital != null) {
