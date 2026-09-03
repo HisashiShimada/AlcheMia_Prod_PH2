@@ -9,6 +9,9 @@
 
 import { body, query, param } from 'express-validator';
 
+/** xs:NCName 正規表現: 英字・アンダースコア始まり、英数字・`_`・`-`・`.` のみ */
+const NCNAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9._-]*$/;
+
 // ─── 名前空間（Prefix）操作 ───────────────────────────────────────────────────
 
 /**
@@ -31,7 +34,9 @@ export const validateCreateNamespace = [
     .notEmpty()
     .withMessage('prefix is required')
     .isString()
-    .withMessage('prefix must be a string'),
+    .withMessage('prefix must be a string')
+    .matches(NCNAME_REGEX)
+    .withMessage('prefix must be a valid NCName (xs:NCName format)'),
   body('uri')
     .notEmpty()
     .withMessage('uri is required')
@@ -51,7 +56,9 @@ export const validateUpdateNamespace = [
   body('newPrefix')
     .optional()
     .isString()
-    .withMessage('newPrefix must be a string'),
+    .withMessage('newPrefix must be a string')
+    .matches(NCNAME_REGEX)
+    .withMessage('newPrefix must be a valid NCName (xs:NCName format)'),
   body('description')
     .optional()
     .isString()
@@ -84,7 +91,9 @@ export const validateCreateTerm = [
     .notEmpty()
     .withMessage('localName is required')
     .isString()
-    .withMessage('localName must be a string'),
+    .withMessage('localName must be a string')
+    .matches(NCNAME_REGEX)
+    .withMessage('localName must be a valid NCName (xs:NCName format)'),
 ];
 
 /**

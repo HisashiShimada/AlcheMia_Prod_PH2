@@ -17,7 +17,8 @@ import {
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
-import { getTerms, createTerm, updateTerm, toggleTermActive, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
+import { isValidNCName } from '@/utils/ncname';
+import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import GroupManagementPanel from '../group/GroupManagementPanel';
@@ -1044,6 +1045,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     for (const row of newTerms) {
       if (!row.prefix)    { message.error(t('namespaceMain.prefixRequired')); return; }
       if (!row.localName) { message.error(t('namespaceMain.localNameRequired')); return; }
+      if (!isValidNCName(row.localName)) { message.error(t('namespaceMain.localNameNcnameInvalid')); return; }
     }
 
     // 研究開発部（dept-rd）選択時は必ずエラーダイアログを表示して保存をブロック

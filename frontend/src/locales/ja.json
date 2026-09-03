@@ -4564,6 +4564,7 @@
     "emptyText": "用語がありません",
     "showTotal": "Total {total} items",
     "saveTermError": "用語「{localName}」の保存に失敗しました: {detail}",
+    "localNameNcnameInvalid": "ローカル名は英字またはアンダースコアで始まり、英数字・アンダースコア・ハイフン・ピリオドのみ使用できます（xs:NCName形式）",
     "csv": {
       "exportSelectAtLeastOne": "少なくとも1件選択してください"
     }
@@ -4986,7 +4987,8 @@
     "warnDuplicateContent": "別Prefixに同名の用語が既に存在します。それでも登録しますか？",
     "warnRegister": "登録する",
     "warnCancel": "キャンセル",
-    "localNameRequired2": "ローカル名を入力してください",
+      "localNameRequired2": "ローカル名を入力してください",
+      "localNameNcnameInvalid": "ローカル名は英字またはアンダースコアで始まり、英数字・アンダースコア・ハイフン・ピリオドのみ使用できます（xs:NCName形式）",
     "updateSuccess": "用語を更新しました",
     "updateError": "更新に失敗しました: {detail}",
     "groupAddParentLabelDefault": "選択中グループ",
@@ -5127,7 +5129,8 @@
     "sortDesc": "降順",
     "sortCancel": "ソートをキャンセル",
     "emptyText": "データがありません",
-    "showTotal": "全{total}件"
+    "showTotal": "全{total}件",
+    "prefixNcnameInvalid": "Prefixは英字またはアンダースコアで始まり、英数字・アンダースコア・ハイフン・ピリオドのみ使用できます（xs:NCName形式）"
   },
   "namespaceDetail": {
     "titleTerm": "用語詳細",

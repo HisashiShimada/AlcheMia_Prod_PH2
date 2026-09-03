@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
+import { isValidNCName } from '@/utils/ncname';
 import { Button, Input, Table, message, Modal, Typography, Tooltip, Spin, Tag } from 'antd';
 import {
   PlusOutlined,
@@ -192,7 +193,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
 
   // ── 新規行を保存（実処理）
   const executeSave = async () => {
-    const added: PrefixRow[] = [];
+    let successCount = 0;
     const failed: { prefix: string; uri: string }[] = [];
 
     for (const row of newRows) {
@@ -206,26 +207,23 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           description: row.description || undefined,
           scopeKey: apiScopeKey,
         };
-        const created = await createNamespace(createNamespaceRequest);
-        added.push({
-          id: created.prefix,
-          prefix: created.prefix,
-          uri: created.uri,
-          description: row.description,
-        });
+        await createNamespace(createNamespaceRequest);
+        successCount++;
       } catch {
         failed.push({ prefix: row.prefix, uri: row.uri });
       }
     }
 
-    if (added.length > 0) {
-      setRows((prev) => [...added, ...prev]);
-      message.success(t('prefixManagement.saveSuccess', { count: String(added.length) }));
+    if (successCount > 0) {
+      message.success(t('prefixManagement.saveSuccess', { count: String(successCount) }));
     }
     if (failed.length > 0) {
       message.warning(t('prefixManagement.savePartialFailure', { failCount: String(failed.length) }));
     }
     setNewRows([]);
+    // DBから再フェッチすることで scopeName（組織グループ名・ユーザー名）を含む正しいデータを取得する
+    // （直接 setRows で追加すると scopePath が未設定のままスコープ列が「-」と表示されてしまうため）
+    reloadNamespaces();
   };
 
   // ── 新規行を保存
@@ -234,6 +232,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
     for (const row of newRows) {
       if (!row.prefix) {
         message.error(t('prefixManagement.prefixRequired'));
+        return;
+      }
+      if (!isValidNCName(row.prefix)) {
+        message.error(t('prefixManagement.prefixNcnameInvalid'));
         return;
       }
       if (!row.uri) {
