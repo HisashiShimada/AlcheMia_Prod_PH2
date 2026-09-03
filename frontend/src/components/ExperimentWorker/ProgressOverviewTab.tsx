@@ -375,7 +375,7 @@ export default function ProgressOverviewTab({
 
     const tooltipTitle =
       !isPrerequisitesMet
-        ? `前提トランジション（${(r.prerequisiteTransitionIds ?? []).join(', ')}）が全て完了してから開始できます`
+        ? t('experimentWork.table.prerequisiteTooltip', { ids: (r.prerequisiteTransitionIds ?? []).join(', ') })
         : undefined;
 
     return (
@@ -428,7 +428,7 @@ export default function ProgressOverviewTab({
               <Text style={{ fontSize: 14 }}>{displayName}</Text>
             </Tooltip>
             {hasPrereqs && (
-              <Tooltip title={`前提トランジション: ${record.prerequisiteTransitionIds?.join(', ')} が全て完了してから開始できます`}>
+              <Tooltip title={t('experimentWork.table.prerequisiteLockTooltip', { ids: record.prerequisiteTransitionIds?.join(', ') ?? '' })}>
                 <LockOutlined style={{ color: '#faad14', fontSize: 12 }} />
               </Tooltip>
             )}

@@ -16,22 +16,22 @@ export enum TransitionStatusEnum {
   /** 初期状態（未開始） */
   INITIAL = 1,
   
-  /** 準備中 */
+  /** 準備状態 */
   PREPARING = 2,
   
-  /** 準備完了 */
+  /** 準備完了状態 */
   READY = 3,
   
-  /** 実行中 */
+  /** 動作状態 */
   IN_PROGRESS = 4,
   
-  /** 一時停止 */
+  /** 休止状態 */
   PAUSED = 5,
   
-  /** 完了 */
+  /** 終状態（完了） */
   COMPLETED = 6,
   
-  /** エラー発生 */
+  /** 異常終了状態 */
   ERROR = 7
 }
 
@@ -117,17 +117,17 @@ export function isValidTransitionStatus(value: any): value is TransitionStatus {
  * 
  * @example
  * const label = getTransitionStatusLabel(TransitionStatusEnum.COMPLETED);
- * console.log(label); // "完了"
+ * console.log(label); // "終状態"
  */
 export function getTransitionStatusLabel(status: TransitionStatus): string {
   const labels: Record<TransitionStatus, string> = {
-    [TransitionStatusEnum.INITIAL]: '未開始',
-    [TransitionStatusEnum.PREPARING]: '準備中',
-    [TransitionStatusEnum.READY]: '準備完了',
-    [TransitionStatusEnum.IN_PROGRESS]: '実行中',
-    [TransitionStatusEnum.PAUSED]: '一時停止',
-    [TransitionStatusEnum.COMPLETED]: '完了',
-    [TransitionStatusEnum.ERROR]: 'エラー'
+    [TransitionStatusEnum.INITIAL]: '初期状態',
+    [TransitionStatusEnum.PREPARING]: '準備状態',
+    [TransitionStatusEnum.READY]: '準備完了状態',
+    [TransitionStatusEnum.IN_PROGRESS]: '動作状態',
+    [TransitionStatusEnum.PAUSED]: '休止状態',
+    [TransitionStatusEnum.COMPLETED]: '終状態',
+    [TransitionStatusEnum.ERROR]: '異常終了状態'
   };
   return labels[status] || '不明';
 }

@@ -1,7 +1,7 @@
 -- トランジション進捗ログ取得クエリ（トランジション単位）
 -- trace/@id が 'trace_{transitionId}_%' に一致するレコードを sequence_no 昇順で取得する。
 -- transition_progress ログ と transition_comment ログが含まれるため、
--- サービス層で report_type = 'transition_progress' でフィルタリングすること。
+-- サービス層で Alchemia:status プロパティの存在チェックによりフィルタリングすること。
 SELECT
   sequence_no,
   log

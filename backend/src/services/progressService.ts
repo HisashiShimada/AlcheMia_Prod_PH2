@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ProgressService
  * 
  * @description 進捗データ取得サービス
@@ -805,13 +805,13 @@ export class ProgressService {
       // Step 6: タスクごとのトランジション進捗を並列取得
       // ─────────────────────────────────────────────
       const TRANSITION_STATUS_LABELS: Record<number, string> = {
-        1: '未開始',
-        2: '準備中',
-        3: '作業中',
-        4: '動作中',
-        5: '休止中',
-        6: '完了',
-        7: '異常中'
+        1: '初期状態',
+        2: '準備状態',
+        3: '準備完了状態',
+        4: '動作状態',
+        5: '休止状態',
+        6: '終状態',
+        7: '異常終了状態'
       };
 
       const workDetails: WorkDetailItem[] = await Promise.all(
@@ -970,18 +970,23 @@ export class ProgressService {
         throw error;
       }
 
-      const { method_id, task_no, status: currentStatus } = findResult.rows[0];
+      const { method_id, task_no, status: _rawCurrentStatus } = findResult.rows[0];
+      // DB の numeric(2,0) は parseFloat で変換されるが、確実に整数 number 型にキャストする
+      // LIFECYCLE_TRANSITION_VALUE_MAP のキー比較は number 型同士である必要があるため
+      const currentStatus = Number(_rawCurrentStatus) as TransitionStatusNumber;
 
       // 2. ステータス遷移ルールの検証
-      this.validateStatusTransition(currentStatus, update.status);
+      // update.status はルーティングで .toInt() 変換済みだが、Number() で確実に整数にキャストする
+      const toStatus = Number(update.status) as TransitionStatusNumber;
+      this.validateStatusTransition(currentStatus, toStatus);
 
       // 3. completedステータス時は進捗率を100%に自動設定
-      const finalProgressRate = update.status === TransitionStatusEnum.COMPLETED 
-        ? 100 
+      const finalProgressRate = toStatus === TransitionStatusEnum.COMPLETED
+        ? 100
         : (update.progress_rate ?? 0);
 
       const finalUpdate = {
-        status: update.status,
+        status: toStatus,
         progress_rate: finalProgressRate,
         updated_by: update.updated_by
       };
@@ -1046,7 +1051,7 @@ export class ProgressService {
         [TransitionStatusEnum.COMPLETED]: 'completed',
         [TransitionStatusEnum.ERROR]: 'error',
       };
-      const statusLabel = transitionStatusLabelMap[update.status] ?? String(update.status);
+      const statusLabel = transitionStatusLabelMap[toStatus] ?? String(toStatus);
 
       await this.eventLogRepository.insertTransitionProgressLog(
         organizationId,
@@ -1060,7 +1065,9 @@ export class ProgressService {
         methodId,              // log/@ref = methodId
         eventLogProgramId,     // trace/@ref = programId（MAIMLから取得）
         eventLogInstructionId, // event/@ref = instructionId（MAIMLから取得）
-        eventLogResultsRefs    // event/resultsRef = result-type place IDs
+        eventLogResultsRefs,   // event/resultsRef = result-type place IDs
+        currentStatus,         // fromStatus = 遷移元ステータス（Number変換済み）
+        toStatus               // toStatus   = 遷移先ステータス（Number変換済み）
       );
 
       // 6. タスク進捗率を再計算
@@ -1070,7 +1077,7 @@ export class ProgressService {
 
       // 7. 前提トランジション完了時の連鎖更新
       //    COMPLETED に遷移した場合のみ発火: このトランジションを前提に持つ他の INITIAL トランジションを PREPARING に遷移させる
-      if (update.status === TransitionStatusEnum.COMPLETED) {
+      if (toStatus === TransitionStatusEnum.COMPLETED) {
         try {
           const dependentTransitions = await this.transitionDataRepository.findDependentTransitions(
             client,
@@ -1128,7 +1135,9 @@ export class ProgressService {
               dep.method_id,
               null,
               null,
-              null
+              null,
+              TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): 連鎖更新は常に INITIAL → PREPARING
+              TransitionStatusEnum.PREPARING  // toStatus   = 2(PREPARING)
             );
           }
         } catch (chainErr) {
@@ -1195,7 +1204,7 @@ export class ProgressService {
   /**
    * トランジション状態遷移時刻の取得（状態記録ダイアログ初期値用）
    *
-   * maiml_event_log の report_type='transition_progress' エントリを解析し、
+   * maiml_event_log の Alchemia:status プロパティを持つエントリを解析し、
    * 各状態（preparing / ready / running / paused / completed / error）への
    * 遷移時刻を抽出して返す。
    *
@@ -1233,12 +1242,12 @@ export class ProgressService {
 
         if (!Array.isArray(properties)) continue;
 
-        // report_type が 'transition_progress' のエントリのみを対象とする
-        const reportTypeProp = properties.find((p) => p['@key'] === 'report_type');
-        if (reportTypeProp?.['#text'] !== 'transition_progress') continue;
+        // Alchemia:status プロパティを持つエントリのみを対象とする
+        // （transitionProgress ログのみ Alchemia:status を保持し、transitionComment ログは保持しない）
+        const statusProp = properties.find((p) => p['@key'] === 'Alchemia:status');
+        if (!statusProp) continue;
 
-        const statusProp = properties.find((p) => p['@key'] === 'status');
-        const timestampProp = properties.find((p) => p['@key'] === 'time:timestamp');
+        const timestampProp = properties.find((p) => p['@key'] === 'Alchemia:timestamp');
 
         const status = statusProp?.['#text'] as string | undefined;
         const timestamp = timestampProp?.['#text'] as string | undefined;

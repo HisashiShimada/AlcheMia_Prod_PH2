@@ -177,7 +177,7 @@ await taskDataRepository.updateContent(taskId, correctedData);
 
 1. プロジェクトステータス: `0: planning → 1: pending`
 2. 作業順序（task_no）が**最も若いタスク**のステータス: `0: pending → 1: in_progress`
-3. 前提トランジションなしのトランジション: `1: initial → 2: ready`（一括更新）
+3. 前提トランジションなしのトランジション: `1: initial → 2: preparing`（一括更新）
 
 ```typescript
 // ✅ トランザクション内で一括更新
@@ -188,8 +188,8 @@ await db.transaction().execute(async (trx) => {
   // 2. 最小作業順序のタスクを実行中に
   await updateMinTaskStatusTrx(trx, organizationId, projectName, TaskStatusEnum.IN_PROGRESS);
 
-  // 3. 前提トランジションなしのトランジションを準備状態に（1: initial → 3: ready）
-  await updatePrerequisiteFreeTransitionsTrx(trx, organizationId, projectName, TransitionStatusEnum.READY);
+  // 3. 前提トランジションなしのトランジションを準備状態に（1: initial → 2: preparing）
+  await updatePrerequisiteFreeTransitionsTrx(trx, organizationId, projectName, TransitionStatusEnum.PREPARING);
 });
 ```
 
@@ -208,12 +208,12 @@ await db.transaction().execute(async (trx) => {
 | コード | ENUMキー | 名称 |
 |--------|----------|------|
 | 1 | `INITIAL` | 初期状態（initial）|
-| 2 | `PREPARING` | 準備中（preparing）|
-| 3 | `READY` | 準備完了（ready）|
-| 4 | `IN_PROGRESS` | 実行中（running）|
-| 5 | `PAUSED` | 一時停止（paused）|
-| 6 | `COMPLETED` | 完了（completed）|
-| 7 | `ERROR` | 異常終了（error）|
+| 2 | `PREPARING` | 準備状態（preparing）|
+| 3 | `READY` | 準備完了状態（ready）|
+| 4 | `IN_PROGRESS` | 動作状態（running）|
+| 5 | `PAUSED` | 休止状態（paused）|
+| 6 | `COMPLETED` | 終状態（completed）|
+| 7 | `ERROR` | 異常終了状態（error）|
 
 > **ENUM**: `backend/src/types/transitionData.ts` の `TransitionStatusEnum`
 
@@ -366,4 +366,5 @@ await db.transaction().execute(async (trx) => {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-09-03 | チェックアウト時のトランジション遷移説明を修正（`1→3 ready` → `1→2 preparing`）、コード例の `TransitionStatusEnum.READY` → `TransitionStatusEnum.PREPARING` に修正 | Cline |
 | 2026-08-20 | 初版作成（プロジェクト・タスク・トランジションのステータス遷移ルール定義） | Cline |
