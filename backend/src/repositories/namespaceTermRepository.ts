@@ -433,7 +433,6 @@ export async function update(
     description?: string;
     typeHint?: string;
     unitHint?: string;
-    hasDirectiveTerm?: boolean;
   }
 ): Promise<NamespaceTermRow | null> {
   const pgp = getPgp();
@@ -447,7 +446,6 @@ export async function update(
     data.description ?? null,
     data.typeHint ?? null,
     data.unitHint ?? null,
-    data.hasDirectiveTerm ?? false,
   ]);
 
   if (result.rowCount === 0) return null;
