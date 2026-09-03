@@ -313,12 +313,39 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
 
   const [templates, setTemplates] = useState<UncertaintyTemplate[]>([]);
 
-  // 初回マウント時にDBから不確かさ基準一覧を取得
-  useEffect(() => {
-    fetchUncertaintyCriteriaList()
-      .then((data) => setTemplates(data))
-      .catch((err) => console.error('[UncertaintyManagement] 一覧取得エラー:', err));
+  // ──────────────────────────────────────────────
+  // selectedNsKey から fetchUncertaintyCriteriaList に渡す scopeKey を解決する
+  //
+  // - 'global' / 'ns-maiml' / 'ns-xsi' / 'company' / 'personal' → undefined（全件）
+  // - 'personal-{userId}' → userId を scopeKey として使用
+  // - その他（organization_group_cd） → そのまま scopeKey として使用
+  // ──────────────────────────────────────────────
+  const FULL_SCOPE_KEYS = new Set(['global', 'ns-maiml', 'ns-xsi', 'company', 'personal']);
+
+  const resolveScopeKey = useCallback((nsKey: string | null): string | undefined => {
+    if (!nsKey) return undefined;
+    if (FULL_SCOPE_KEYS.has(nsKey)) return undefined;
+    if (nsKey.startsWith('personal-')) {
+      const userId = nsKey.replace(/^personal-/, '');
+      return userId || undefined;
+    }
+    return nsKey;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // selectedNsKey の変化に連動して不確かさ基準一覧を再取得する
+  useEffect(() => {
+    let cancelled = false;
+    const scopeKey = resolveScopeKey(selectedNsKey);
+    fetchUncertaintyCriteriaList(scopeKey)
+      .then((data) => {
+        if (!cancelled) setTemplates(data);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('[UncertaintyManagement] 一覧取得エラー:', err);
+      });
+    return () => { cancelled = true; };
+  }, [selectedNsKey, resolveScopeKey]);
 
   /**
    * バージョン文字列を数値配列に変換（例: "v2.1" → [2, 1]）
@@ -764,8 +791,9 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
         allCriteria={templates}
         onClose={() => setDetailModalOpen(false)}
         onSaved={() => {
-          // 保存後に不確かさ基準一覧を再取得して画面を最新化する
-          fetchUncertaintyCriteriaList()
+          // 保存後に選択スコープを維持したまま不確かさ基準一覧を再取得して画面を最新化する
+          const scopeKey = resolveScopeKey(selectedNsKey);
+          fetchUncertaintyCriteriaList(scopeKey)
             .then((data) => setTemplates(data))
             .catch((err) => console.error('[UncertaintyManagement] 一覧再取得エラー:', err));
         }}
@@ -773,10 +801,12 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
       <UncertaintyCreateModal
         open={createModalOpen}
         allCriteria={templates}
+        selectedNsKey={selectedNsKey}
         onClose={() => setCreateModalOpen(false)}
         onSaved={() => {
           setCreateModalOpen(false);
-          fetchUncertaintyCriteriaList()
+          const scopeKey = resolveScopeKey(selectedNsKey);
+          fetchUncertaintyCriteriaList(scopeKey)
             .then((data) => setTemplates(data))
             .catch((err) => console.error('[UncertaintyManagement] 一覧再取得エラー:', err));
         }}

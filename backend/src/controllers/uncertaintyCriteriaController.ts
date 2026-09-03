@@ -15,10 +15,16 @@
 import { Request, Response, NextFunction } from 'express';
 import * as uncertaintyCriteriaService from '../services/uncertaintyCriteriaService';
 import type { InsertNewVersionRequest } from '../services/uncertaintyCriteriaService';
+import { findNamespaceIdByScopeKey } from '../repositories/namespaceTermRepository';
 
 /**
  * 不確かさ基準一覧取得
  * GET /api/v1/uncertainty-criteria
+ *
+ * @remarks
+ * クエリパラメータ `scopeKey` が指定された場合は、namespace テーブルで
+ * scope_key → namespace_id に変換してからスコープ絞り込みを行う。
+ * 省略時は全件取得（後方互換）。
  */
 export async function getList(
   req: Request,
@@ -27,8 +33,16 @@ export async function getList(
 ): Promise<void> {
   try {
     const organizationId = (req as any).organizationId as string;
+    const scopeKey       = req.query.scopeKey as string | undefined;
 
-    const rows = await uncertaintyCriteriaService.getList(organizationId);
+    // scopeKey が指定された場合は namespace テーブルで namespace_id に変換する
+    let nameSpaceId: string | null = null;
+    if (scopeKey) {
+      nameSpaceId = await findNamespaceIdByScopeKey(organizationId, scopeKey);
+      // namespace_id が解決できない scopeKey の場合は全件返す（安全側に倒す）
+    }
+
+    const rows = await uncertaintyCriteriaService.getList(organizationId, nameSpaceId);
     res.json(rows);
   } catch (error) {
     next(error);

@@ -92,13 +92,16 @@ export interface UncertaintyCriteriaDetailApiRow extends UncertaintyCriteriaApiR
 /**
  * 不確かさ基準一覧を取得する
  *
+ * @param scopeKey - スコープキー（organization_group_cd またはユーザーID。省略時は全件取得）
  * @returns 不確かさ基準一覧（UncertaintyTemplate[] 型に変換済み）
  */
-export async function fetchUncertaintyCriteriaList(): Promise<UncertaintyTemplate[]> {
+export async function fetchUncertaintyCriteriaList(scopeKey?: string): Promise<UncertaintyTemplate[]> {
   const client = createApiClient();
 
+  const params = scopeKey ? { scopeKey } : undefined;
   const response = await client.get<UncertaintyCriteriaApiRow[]>(
-    '/uncertainty-criteria'
+    '/uncertainty-criteria',
+    { params }
   );
 
   // APIレスポンスを UncertaintyTemplate 型に変換
@@ -106,7 +109,7 @@ export async function fetchUncertaintyCriteriaList(): Promise<UncertaintyTemplat
     id: index + 1,                                          // 画面用の連番ID
     name: row.uncertaintyName,                              // uncertainty_name カラムから取得
     key: row.uncertaintyKey,
-    scope: '',                                              // DBにカラムなし（空白）
+    scope: row.nameSpaceId,                                 // nameSpaceId をスコープ表示に使用
     eval: toEvalMethod(row.evaluationMethod),
     type: row.xsiType ?? '',
     desc: row.description ?? '',

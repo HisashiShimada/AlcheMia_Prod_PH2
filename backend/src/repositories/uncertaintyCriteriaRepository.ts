@@ -181,17 +181,19 @@ export interface InsertNewVersionResponse {
  * 組織に紐づく不確かさ基準一覧を取得
  *
  * @param organizationId - 組織ID
+ * @param nameSpaceId    - 名前空間ID（省略または null の場合は全件取得）
  * @returns 不確かさ基準一覧（フロントエンド用に整形済み）
  */
 export async function findAllByOrganization(
-  organizationId: string
+  organizationId: string,
+  nameSpaceId?: string | null
 ): Promise<UncertaintyCriteriaRow[]> {
   const pgp = getPgp();
 
   // 外部SQLファイルを読み込み（pg-promise + SQLファイル外部管理パターン）
   const sqlQuery = await loadSqlFile('uncertainty_criteria/findAllByOrganization.sql');
 
-  return await pgp.any<UncertaintyCriteriaRow>(sqlQuery, [organizationId]);
+  return await pgp.any<UncertaintyCriteriaRow>(sqlQuery, [organizationId, nameSpaceId ?? null]);
 }
 
 /**

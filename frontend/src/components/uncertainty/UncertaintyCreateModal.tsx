@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   Button,
@@ -18,6 +18,7 @@ import {
   fetchUncertaintyCriteriaDetail,
   saveUncertaintyCriteriaNewVersion,
 } from '@/services/uncertaintyCriteriaApiService';
+import { getTerms, type NamespaceTermRow } from '@/services/namespaceApiService';
 
 const { TextArea } = Input;
 
@@ -36,6 +37,8 @@ interface UncertaintyCreateModalProps {
   open: boolean;
   /** 一覧データ（継承元不確かさ基準の選択肢生成に使用） */
   allCriteria: UncertaintyTemplate[];
+  /** 左ペインで選択中のスコープキー（Key属性設定プルダウンの用語絞り込みに使用） */
+  selectedNsKey?: string | null;
   onClose: () => void;
   /** 保存成功時コールバック（一覧再取得などに使用） */
   onSaved?: () => void;
@@ -48,6 +51,7 @@ interface UncertaintyCreateModalProps {
 export default function UncertaintyCreateModal({
   open,
   allCriteria,
+  selectedNsKey,
   onClose,
   onSaved,
 }: UncertaintyCreateModalProps) {
@@ -58,6 +62,37 @@ export default function UncertaintyCreateModal({
   const [termDescription, setTermDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
+
+  // ─── namespace_term から取得した用語一覧（Key属性設定プルダウンに使用） ───
+  const [termRows, setTermRows] = useState<NamespaceTermRow[]>([]);
+
+  // ─── モーダルが開いたとき、selectedNsKey に対応する namespace_term を取得 ───
+  // 'company' / 'global' / 'ns-maiml' / 'ns-xsi' / null → scopeKey 未指定（全件取得）
+  // 'personal-{userId}' → userId を scopeKey として渡す
+  // organization_group_cd → そのまま scopeKey として渡す
+  const FULL_SCOPE_KEYS_CREATE = new Set(['global', 'ns-maiml', 'ns-xsi', 'company', 'personal']);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let scopeKey: string | undefined;
+    if (selectedNsKey && !FULL_SCOPE_KEYS_CREATE.has(selectedNsKey)) {
+      if (selectedNsKey.startsWith('personal-')) {
+        const userId = selectedNsKey.replace(/^personal-/, '');
+        scopeKey = userId || undefined;
+      } else {
+        scopeKey = selectedNsKey;
+      }
+    }
+
+    getTerms(scopeKey ? { scopeKey } : undefined)
+      .then((rows) => setTermRows(rows))
+      .catch((err) => {
+        console.error('[UncertaintyCreateModal] 用語一覧取得エラー:', err);
+        setTermRows([]);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedNsKey]);
 
   // ─── 継承元不確かさ基準の選択肢（一覧から uncertainty_key を収集） ───
   const parentOptions = React.useMemo(() => {
@@ -74,14 +109,19 @@ export default function UncertaintyCreateModal({
     }));
   }, [allCriteria]);
 
-  // ─── Key属性設定の選択肢（一覧から uncertainty_key のみ収集） ───
+  // ─── Key属性設定の選択肢（namespace_term から取得した用語一覧を使用） ───
   const keyOptions = React.useMemo(() => {
-    const keys = Array.from(new Set(allCriteria.map((c) => c.key).filter(Boolean)));
-    return keys.map((k) => ({ value: k, label: k }));
-  }, [allCriteria]);
+    return termRows
+      .filter((t) => t.isActive !== false)
+      .map((t) => ({
+        value: t.qname,
+        label: t.displayName ? `${t.displayName}（${t.qname}）` : t.qname,
+        displayName: t.displayName,
+      }));
+  }, [termRows]);
 
   /**
-   * Key属性設定が選択されたとき、allCriteria から termDisplayName / termDescription を反映する
+   * Key属性設定が選択されたとき、termRows から displayName / description を自動填入する
    */
   const handleKeyChange = (selectedKey: string | undefined) => {
     if (!selectedKey) {
@@ -89,9 +129,9 @@ export default function UncertaintyCreateModal({
       setTermDescription('');
       return;
     }
-    const matched = allCriteria.find((c) => c.key === selectedKey);
-    setTermDisplayName((matched as any)?.termDisplayName ?? '');
-    setTermDescription((matched as any)?.termDescription ?? '');
+    const matched = termRows.find((t) => t.qname === selectedKey);
+    setTermDisplayName(matched?.displayName ?? '');
+    setTermDescription(matched?.description ?? '');
   };
 
   /**
@@ -121,11 +161,12 @@ export default function UncertaintyCreateModal({
       setEvalMode(newEvalMode);
 
       form.setFieldsValue({
-        description:     detail.description ?? '',
         xsiType:         detail.xsiType ?? undefined,
         units:           detail.units ?? '',
         scaleFactor:     detail.scaleFactor ?? '',
         formatString:    detail.formatString ?? '',
+        toleranceUpper:  detail.toleranceUpper !== null && detail.toleranceUpper !== undefined ? String(detail.toleranceUpper) : '',
+        toleranceLower:  detail.toleranceLower !== null && detail.toleranceLower !== undefined ? String(detail.toleranceLower) : '',
       });
 
       // 定性評価の選択肢を反映
@@ -150,6 +191,8 @@ export default function UncertaintyCreateModal({
     form.resetFields();
     setEvalMode('quantitative');
     setQualitativeOptions(DEFAULT_OPTIONS);
+    setTermDisplayName('');
+    setTermDescription('');
     onClose();
   };
 
@@ -164,7 +207,6 @@ export default function UncertaintyCreateModal({
     const values = form.getFieldsValue([
       'inheritanceUncertaintyKey',
       'uncertaintyKey',
-      'description',
       'xsiType',
       'units',
       'scaleFactor',
@@ -173,10 +215,10 @@ export default function UncertaintyCreateModal({
       'toleranceLower',
     ]);
 
-    // uncertaintyKey に紐づく nameSpaceId を allCriteria から取得
-    const matched = allCriteria.find((c) => c.key === values.uncertaintyKey);
+    // uncertaintyKey に紐づく nameSpaceId を termRows から取得
+    const matchedTerm = termRows.find((t) => t.qname === values.uncertaintyKey);
     // nameSpaceId が取れない場合は空文字（バックエンド側で組織ID等から補完可能）
-    const nameSpaceId = (matched as any)?.nameSpaceId ?? '';
+    const nameSpaceId = matchedTerm?.namespaceId ?? '';
 
     setSaving(true);
     try {
@@ -193,7 +235,7 @@ export default function UncertaintyCreateModal({
         scaleFactor:  evalMode === 'quantitative' ? (values.scaleFactor || null) : null,
         toleranceUpper: evalMode === 'quantitative' && values.toleranceUpper !== undefined && values.toleranceUpper !== '' ? Number(values.toleranceUpper) : null,
         toleranceLower: evalMode === 'quantitative' && values.toleranceLower !== undefined && values.toleranceLower !== '' ? Number(values.toleranceLower) : null,
-        description:  values.description || null,
+        description:  termDescription || null,
         qualitativeOptions: evalMode === 'qualitative'
           ? qualitativeOptions.map((opt, idx) => ({
               displayOrder: idx + 1,
@@ -355,7 +397,7 @@ export default function UncertaintyCreateModal({
               {/* units → uncertainty_criteria.units */}
               <Form.Item
                 name="units"
-                label={<span>units <span style={{ color: '#ff4d4f' }}>*</span></span>}
+                label="units"
                 style={{ marginBottom: 0 }}
               >
                 <Input placeholder="GPa" />
