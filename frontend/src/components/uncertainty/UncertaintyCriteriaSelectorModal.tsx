@@ -56,6 +56,10 @@ export interface UncertaintyCriteria {
   unitMatches: string[];
   /** 定性評価の選択肢（DBから取得） */
   qualitativeOptions: QualitativeOption[];
+  /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceLower: number | null;
 }
 
 /** モーダルに渡す対象プロパティ情報 */
@@ -227,6 +231,8 @@ export default function UncertaintyCriteriaSelectorModal({
           typeMatches:        row.typeMatches,
           unitMatches:        row.unitMatches,
           qualitativeOptions: row.qualitativeOptions,
+          toleranceUpper:     row.toleranceUpper,
+          toleranceLower:     row.toleranceLower,
         }));
         setCriteriaList(converted);
       })
@@ -683,6 +689,9 @@ export default function UncertaintyCriteriaSelectorModal({
           />
           </Spin>
 
+          {/* ③ 選択中の基準の詳細プレビュー */}
+          <SelectedCriteriaPreview criteria={selectedCriteria} t={t} />
+
           {/* 新規評価基準作成リンク */}
           <Button
             type="link"
@@ -842,3 +851,287 @@ const confirmLabelStyle: React.CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.3px',
 };
+
+// ============================================================================
+// プレビューパネル用スタイル定数
+// ============================================================================
+
+const previewEmptyStyle: React.CSSProperties = {
+  border: '1.5px dashed #d0d7e3',
+  borderRadius: 8,
+  background: '#fafbfc',
+  padding: '18px 16px',
+  textAlign: 'center',
+  color: '#aab0bc',
+  fontSize: 12,
+  marginTop: 8,
+  marginBottom: 4,
+};
+
+const previewBoxStyle: React.CSSProperties = {
+  border: '1px solid #e0e8f5',
+  borderRadius: 8,
+  background: '#f7f9ff',
+  padding: '12px 14px',
+  marginTop: 8,
+  marginBottom: 4,
+};
+
+const previewHeaderRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  marginBottom: 10,
+};
+
+const previewSectionTitleStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: '#444',
+  borderLeft: '3px solid #1677ff',
+  paddingLeft: 8,
+};
+
+const previewEvalTagStyle: React.CSSProperties = {
+  fontWeight: 600,
+  fontSize: 11,
+  margin: 0,
+};
+
+const previewQuantBodyStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+};
+
+const previewGrid4Style: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, 1fr)',
+  gap: 8,
+};
+
+const previewGrid2Style: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 8,
+};
+
+const previewQualLabelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  color: '#8a94a8',
+  textTransform: 'uppercase',
+  letterSpacing: '0.3px',
+  marginBottom: 8,
+};
+
+const previewQualEmptyStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: '#aab0bc',
+};
+
+const previewQualListStyle: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+};
+
+const previewCellWrapStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 3,
+};
+
+const previewCellLabelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  color: '#8a94a8',
+  textTransform: 'uppercase',
+  letterSpacing: '0.3px',
+};
+
+const previewCellValueBaseStyle: React.CSSProperties = {
+  fontSize: 12,
+  padding: '4px 8px',
+  background: '#fff',
+  border: '1px solid #e4eaf5',
+  borderRadius: 5,
+  wordBreak: 'break-all',
+  minHeight: 28,
+};
+
+// ============================================================================
+// SelectedCriteriaPreview — 選択中の不確かさ基準の詳細プレビュー
+// ============================================================================
+
+/**
+ * 選択中の不確かさ基準の詳細をテーブル下部に表示するプレビューコンポーネント。
+ *
+ * - 未選択時：破線ボーダー + プレースホルダーテキスト
+ * - 定量評価選択時：xsi:type / 単位 / 倍率 / フォーマット / 許容値（上限・下限）をグリッド表示
+ * - 定性評価選択時：選択肢（qualitativeOptions）を displayOrder 昇順でカラー付きバッジ表示
+ */
+function SelectedCriteriaPreview({
+  criteria,
+  t,
+}: {
+  criteria: UncertaintyCriteria | null;
+  t: (key: string) => string;
+}) {
+  // ---- 未選択時 ----
+  if (!criteria) {
+    return (
+      <div style={previewEmptyStyle}>
+        {t('uncertaintyCriteriaSelector.previewEmpty')}
+      </div>
+    );
+  }
+
+  const isQuantitative = criteria.evalType === 'quantitative';
+
+  return (
+    <div style={previewBoxStyle}>
+      {/* ヘッダー行：セクションタイトル + 評価方式タグ */}
+      <div style={previewHeaderRowStyle}>
+        <span style={previewSectionTitleStyle}>
+          {t('uncertaintyCriteriaSelector.previewSectionTitle')}
+        </span>
+        <Tag
+          color={isQuantitative ? 'blue' : 'purple'}
+          style={previewEvalTagStyle}
+        >
+          {isQuantitative
+            ? t('uncertaintyCriteriaSelector.quantitative')
+            : t('uncertaintyCriteriaSelector.qualitative')}
+        </Tag>
+      </div>
+
+      {/* ---- 定量評価 ---- */}
+      {isQuantitative && (
+        <QuantitativePreviewBody criteria={criteria} t={t} />
+      )}
+
+      {/* ---- 定性評価 ---- */}
+      {!isQuantitative && (
+        <QualitativePreviewBody criteria={criteria} t={t} />
+      )}
+    </div>
+  );
+}
+
+
+/** 定量評価のプレビュー本体 */
+function QuantitativePreviewBody({
+  criteria,
+  t,
+}: {
+  criteria: UncertaintyCriteria;
+  t: (key: string) => string;
+}) {
+  return (
+    <div style={previewQuantBodyStyle}>
+      {/* 上段: xsi:type / 単位 / 倍率 / フォーマット */}
+      <div style={previewGrid4Style}>
+        <PreviewCell label={t('uncertaintyCriteriaSelector.previewXsiType')} value={criteria.xsiType || '—'} mono />
+        <PreviewCell label={t('uncertaintyCriteriaSelector.previewUnit')} value={criteria.unit || '—'} mono />
+        <PreviewCell label={t('uncertaintyCriteriaSelector.previewScaleFactor')} value={criteria.scaleFactor ?? '—'} mono />
+        <PreviewCell label={t('uncertaintyCriteriaSelector.previewFormat')} value={criteria.format || '—'} mono />
+      </div>
+      {/* 下段: 許容値（下限 / 上限） */}
+      <div style={previewGrid2Style}>
+        <PreviewCell
+          label={t('uncertaintyCriteriaSelector.previewToleranceLower')}
+          value={criteria.toleranceLower !== null ? String(criteria.toleranceLower) : t('uncertaintyCriteriaSelector.previewNoTolerance')}
+          mono={criteria.toleranceLower !== null}
+        />
+        <PreviewCell
+          label={t('uncertaintyCriteriaSelector.previewToleranceUpper')}
+          value={criteria.toleranceUpper !== null ? String(criteria.toleranceUpper) : t('uncertaintyCriteriaSelector.previewNoTolerance')}
+          mono={criteria.toleranceUpper !== null}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** 定性評価のプレビュー本体 */
+function QualitativePreviewBody({
+  criteria,
+  t,
+}: {
+  criteria: UncertaintyCriteria;
+  t: (key: string) => string;
+}) {
+  return (
+    <div>
+      <div style={previewQualLabelStyle}>
+        {t('uncertaintyCriteriaSelector.previewQualitativeOptions')}
+      </div>
+      {criteria.qualitativeOptions.length === 0 ? (
+        <span style={previewQualEmptyStyle}>
+          {t('uncertaintyCriteriaSelector.previewNoOptions')}
+        </span>
+      ) : (
+        <div style={previewQualListStyle}>
+          {[...criteria.qualitativeOptions]
+            .sort((a, b) => a.displayOrder - b.displayOrder)
+            .map((opt) => {
+              // displayColor が有効な CSS カラーかを簡易チェックし、無効ならフォールバック
+              const color = opt.displayColor && opt.displayColor.startsWith('#') ? opt.displayColor : '#888888';
+              const optStyle: React.CSSProperties = {
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '4px 12px',
+                borderRadius: 20,
+                border: `1.5px solid ${color}`,
+                background: `${color}18`,
+                color,
+                whiteSpace: 'nowrap',
+              };
+              const dotStyle: React.CSSProperties = {
+                display: 'inline-block',
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: color,
+                flexShrink: 0,
+              };
+              return (
+                <span key={opt.displayOrder} style={optStyle}>
+                  <span style={dotStyle} />
+                  {opt.selectorValue}
+                </span>
+              );
+            })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** プレビューセル 1項目（ラベル + 値） */
+function PreviewCell({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  const valueStyle: React.CSSProperties = {
+    ...previewCellValueBaseStyle,
+    color: mono ? '#2c5282' : '#1a1a1a',
+    fontFamily: mono ? 'Consolas, Monaco, monospace' : undefined,
+  };
+  return (
+    <div style={previewCellWrapStyle}>
+      <div style={previewCellLabelStyle}>{label}</div>
+      <div style={valueStyle}>{value}</div>
+    </div>
+  );
+}
+

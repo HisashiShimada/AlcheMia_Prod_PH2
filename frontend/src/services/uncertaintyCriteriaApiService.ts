@@ -141,6 +141,10 @@ export interface UncertaintyCriteriaSelectorApiRow {
   units: string | null;
   scaleFactor: string | null;
   formatString: string | null;
+  /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceLower: number | null;
   description: string | null;
   qualitativeOptions: QualitativeOptionApiRow[];
 }
@@ -185,6 +189,10 @@ export interface UncertaintyCriteriaForSelector {
   unitMatches: string[];
   /** 定性評価の選択肢 */
   qualitativeOptions: QualitativeOptionApiRow[];
+  /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceLower: number | null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -230,6 +238,8 @@ export async function fetchUncertaintyCriteriaForSelector(): Promise<Uncertainty
       typeMatches,
       unitMatches,
       qualitativeOptions: row.qualitativeOptions,
+      toleranceUpper: row.toleranceUpper,
+      toleranceLower: row.toleranceLower,
     };
   });
 }

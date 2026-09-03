@@ -156,6 +156,8 @@ export default function UncertaintyCriteriaSelectorPanel({
           typeMatches:        row.typeMatches,
           unitMatches:        row.unitMatches,
           qualitativeOptions: row.qualitativeOptions,
+          toleranceUpper:     row.toleranceUpper,
+          toleranceLower:     row.toleranceLower,
         }));
         setCriteriaList(converted);
       })

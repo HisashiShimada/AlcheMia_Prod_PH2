@@ -26,12 +26,11 @@ import {
 
 const { TextArea } = Input;
 
-/** xsi:type の選択肢 */
+/** xsi:type の選択肢（数量系のみ） */
 const XSI_TYPE_OPTIONS = [
-  { value: 'doubleType', label: 'doubleType' },
+  { value: 'doubleType',  label: 'doubleType'  },
   { value: 'decimalType', label: 'decimalType' },
-  { value: 'intType', label: 'intType' },
-  { value: 'stringType', label: 'stringType' },
+  { value: 'intType',     label: 'intType'     },
 ];
 
 /** Props型定義 */

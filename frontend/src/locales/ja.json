@@ -851,7 +851,7 @@
     }
   },
   "projectManagement": {
-    "completionButton": "プロジェクト完了処理",
+    "completionButton": "プロジェクト完了",
     "completionDisabledTooltip": "全タスクが「完了」になると押下できます",
     "filter_labels": {
       "owner": "担当者",
@@ -3994,6 +3994,17 @@
     "displayCount": "件表示中",
     "emptyText": "該当する不確かさ基準が見つかりません",
     "createNewButton": "新規評価基準を作成",
+    "previewSectionTitle": "選択中の基準の詳細",
+    "previewEmpty": "上のリストから不確かさ基準を選択すると詳細が表示されます",
+    "previewXsiType": "xsi:type",
+    "previewUnit": "単位 (units)",
+    "previewScaleFactor": "倍率",
+    "previewFormat": "フォーマット",
+    "previewToleranceUpper": "許容上限値",
+    "previewToleranceLower": "許容下限値",
+    "previewNoTolerance": "判定なし",
+    "previewQualitativeOptions": "選択肢",
+    "previewNoOptions": "選択肢なし",
     "selectedCriteriaLabel": "評価基準",
     "selectFromList": "上のリストから評価基準を選択してください",
     "ucValueLabel": "不確かさ値",
@@ -4494,7 +4505,7 @@
   },
   "projectManagementExtra": {
     "completionButtonTooltip": "全タスクが「完了」になると押下できます",
-    "completionButton": "プロジェクト完了処理",
+    "completionButton": "プロジェクト完了",
     "encryptionButton": "暗号化管理",
     "signatureButton": "電子署名",
     "projectInstructionTab": "プロジェクト指示",

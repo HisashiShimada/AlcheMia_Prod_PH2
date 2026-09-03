@@ -288,25 +288,27 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                   <Button danger icon={<DeleteOutlined />} onClick={handleProjectDelete} disabled={!selectedProject || isProjectCheckedOut || selectedProject.status === 4 || selectedProject.status === 5 || selectedProject.isEditable === false}>{t('projectManagement.deleteButton')}</Button>
                   <Button type="primary" icon={<FileTextOutlined />} onClick={handleToggleCheckout} disabled={selectedProject?.status === ProjectStatus.COMPLETED || selectedProject?.status === ProjectStatus.ERROR || selectedProject?.isEditable === false} style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }} data-testid="checkout-checkin-button">{isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}</Button>
                   <Button type="primary" icon={<ExclamationCircleOutlined />} onClick={handleOpenIssueManagement} style={{ backgroundColor: token.colorWarning, borderColor: token.colorWarning }}>{t('projectManagement.issueCheck')}</Button>
-                  {isPublished ? (<Button type="primary" data-testid="maiml-toolbar-unpublish-button" style={{ backgroundColor: token.colorError, borderColor: token.colorError }} onClick={handleUnpublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.unpublish')}</Button>) : (<Button type="primary" data-testid="maiml-toolbar-publish-button" style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }} onClick={handlePublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || !(selectedProject?.status === ProjectStatus.REVIEW_WAITING || selectedProject?.status === ProjectStatus.COMPLETED) || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.publish')}</Button>)}
                   <Tooltip title={!allTasksCompleted ? t('projectManagement.completionDisabledTooltip') : selectedProject?.isEditable === false ? t('projectManagement.editDisabledTitle') : undefined}>
                     <Button type="primary" disabled={!allTasksCompleted || selectedProject?.isEditable === false} style={allTasksCompleted && selectedProject?.isEditable !== false ? { backgroundColor: '#52c41a', borderColor: '#52c41a' } : undefined} onClick={() => dialogs.setCompletionDialogOpen(true)}>{t('projectManagement.completionButton')}</Button>
                   </Tooltip>
-                  {selectedProject && (
-                    selectedProject.status === ProjectStatus.TASK_PENDING ||
-                    selectedProject.status === ProjectStatus.TASK_IN_PROGRESS ||
-                    selectedProject.status === ProjectStatus.REVIEW_WAITING ||
-                    selectedProject.status === ProjectStatus.REVIEW_REJECTED
-                  ) && (
-                    <Button
-                      danger
-                      icon={<WarningOutlined />}
-                      onClick={handleForceTerminate}
-                      disabled={isProjectCheckedOut}
-                    >
-                      {t('projectManagement.forceTerminate.buttonLabel')}
-                    </Button>
-                  )}
+                  {isPublished ? (<Button type="primary" data-testid="maiml-toolbar-unpublish-button" style={{ backgroundColor: token.colorError, borderColor: token.colorError }} onClick={handleUnpublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.unpublish')}</Button>) : (<Button type="primary" data-testid="maiml-toolbar-publish-button" style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }} onClick={handlePublish} loading={publishStatusLoading || isPolling} disabled={!selectedProject || !(selectedProject?.status === ProjectStatus.REVIEW_WAITING || selectedProject?.status === ProjectStatus.COMPLETED) || publishStatusLoading || isPolling || selectedProject?.isEditable === false}>{isPolling ? t('projectManagement.processing') : t('projectManagement.publish')}</Button>)}
+                  <Button
+                    danger
+                    icon={<WarningOutlined />}
+                    onClick={handleForceTerminate}
+                    disabled={
+                      !selectedProject ||
+                      !(
+                        selectedProject.status === ProjectStatus.TASK_PENDING ||
+                        selectedProject.status === ProjectStatus.TASK_IN_PROGRESS ||
+                        selectedProject.status === ProjectStatus.REVIEW_WAITING ||
+                        selectedProject.status === ProjectStatus.REVIEW_REJECTED
+                      ) ||
+                      isProjectCheckedOut
+                    }
+                  >
+                    {t('projectManagement.forceTerminate.buttonLabel')}
+                  </Button>
                   <Button icon={<EditOutlined />} onClick={() => dialogs.setRenameModalOpen(true)} disabled={!selectedProject || isProjectCheckedOut || selectedProject?.status === 4 || selectedProject?.status === 5 || selectedProject?.isEditable === false}>{t('projectManagement.renameProject')}</Button>
                   <Button icon={<SafetyCertificateOutlined />} onClick={() => dialogs.setValidationDialogOpen(true)} disabled={!selectedProject}>{t('projectManagement.validationConfirmButton')}</Button>
                   {/* TODO: 暗号化・署名機能は本実装まで無効化 */}
