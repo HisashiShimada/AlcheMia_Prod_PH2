@@ -90,6 +90,8 @@ interface DiffLabels {
   savedAt: string;
   section1: string;
   section2: string;
+  fieldToleranceUpper: string;
+  fieldToleranceLower: string;
 }
 
 /**
@@ -104,6 +106,8 @@ function buildDiffData(
     units: string;
     formatString: string;
     scaleFactor: string;
+    toleranceUpper: string;
+    toleranceLower: string;
   },
   currentEvalMode: 'quantitative' | 'qualitative',
   currentStatus: 'active' | 'deprecated',
@@ -204,6 +208,30 @@ function buildDiffData(
         type:       'specTag',
         oldValue:   detail.scaleFactor ?? null,
         newValue:   formValues.scaleFactor || null,
+      },
+      {
+        fieldKey:   'toleranceUpper',
+        label:      labels.fieldToleranceUpper,
+        required:   false,
+        changeType: changeType(
+          detail.toleranceUpper !== null && detail.toleranceUpper !== undefined ? String(detail.toleranceUpper) : null,
+          formValues.toleranceUpper || null
+        ),
+        type:       'specTag',
+        oldValue:   detail.toleranceUpper !== null && detail.toleranceUpper !== undefined ? String(detail.toleranceUpper) : null,
+        newValue:   formValues.toleranceUpper || null,
+      },
+      {
+        fieldKey:   'toleranceLower',
+        label:      labels.fieldToleranceLower,
+        required:   false,
+        changeType: changeType(
+          detail.toleranceLower !== null && detail.toleranceLower !== undefined ? String(detail.toleranceLower) : null,
+          formValues.toleranceLower || null
+        ),
+        type:       'specTag',
+        oldValue:   detail.toleranceLower !== null && detail.toleranceLower !== undefined ? String(detail.toleranceLower) : null,
+        newValue:   formValues.toleranceLower || null,
       }
     );
   }
@@ -298,6 +326,8 @@ export default function UncertaintyDetailModal({
     savedAt:         t('uncertaintyDetail.diffSavedAt'),
     section1:        t('uncertaintyDetail.section1Title'),
     section2:        t('uncertaintyDetail.section2Title'),
+    fieldToleranceUpper: t('uncertaintyDetail.diffFieldToleranceUpper'),
+    fieldToleranceLower: t('uncertaintyDetail.diffFieldToleranceLower'),
   });
 
   /** モーダルが開いたら詳細データを API から取得してフォームに反映 */
@@ -335,6 +365,8 @@ export default function UncertaintyDetailModal({
           units:                     data.units ?? '',
           formatString:              data.formatString ?? '',
           scaleFactor:               data.scaleFactor ?? '',
+          toleranceUpper:            data.toleranceUpper !== null && data.toleranceUpper !== undefined ? String(data.toleranceUpper) : '',
+          toleranceLower:            data.toleranceLower !== null && data.toleranceLower !== undefined ? String(data.toleranceLower) : '',
         });
       })
       .catch(() => {
@@ -354,6 +386,8 @@ export default function UncertaintyDetailModal({
       'units',
       'formatString',
       'scaleFactor',
+      'toleranceUpper',
+      'toleranceLower',
     ]);
 
     const computed = buildDiffData(
@@ -365,6 +399,8 @@ export default function UncertaintyDetailModal({
         units:        formValues.units ?? '',
         formatString: formValues.formatString ?? '',
         scaleFactor:  formValues.scaleFactor ?? '',
+        toleranceUpper: formValues.toleranceUpper ?? '',
+        toleranceLower: formValues.toleranceLower ?? '',
       },
       evalMode,
       statusState,
@@ -387,6 +423,8 @@ export default function UncertaintyDetailModal({
       'units',
       'formatString',
       'scaleFactor',
+      'toleranceUpper',
+      'toleranceLower',
     ]);
 
     // ── 差分チェック：変更がなければ保存しない ──
@@ -399,6 +437,8 @@ export default function UncertaintyDetailModal({
         units:        formValues.units ?? '',
         formatString: formValues.formatString ?? '',
         scaleFactor:  formValues.scaleFactor ?? '',
+        toleranceUpper: formValues.toleranceUpper ?? '',
+        toleranceLower: formValues.toleranceLower ?? '',
       },
       evalMode,
       statusState,
@@ -424,6 +464,8 @@ export default function UncertaintyDetailModal({
         units:                     evalMode === 'quantitative' ? (formValues.units || null) : null,
         formatString:              evalMode === 'quantitative' ? (formValues.formatString || null) : null,
         scaleFactor:               evalMode === 'quantitative' ? (formValues.scaleFactor || null) : null,
+        toleranceUpper:            evalMode === 'quantitative' && formValues.toleranceUpper !== undefined && formValues.toleranceUpper !== '' ? Number(formValues.toleranceUpper) : null,
+        toleranceLower:            evalMode === 'quantitative' && formValues.toleranceLower !== undefined && formValues.toleranceLower !== '' ? Number(formValues.toleranceLower) : null,
         description:               formValues.desc || null,
         qualitativeOptions:        evalMode === 'qualitative'
           ? qualitativeOptions.map((opt, idx) => ({
@@ -592,6 +634,7 @@ export default function UncertaintyDetailModal({
 
             {/* 定量モード */}
             {evalMode === 'quantitative' && (
+              <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
                 <Form.Item
                   name="xsiType"
@@ -614,6 +657,25 @@ export default function UncertaintyDetailModal({
                   <Input placeholder="1" />
                 </Form.Item>
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                {/* tolerance_upper → uncertainty_criteria.tolerance_upper */}
+                <Form.Item
+                  name="toleranceUpper"
+                  label={t('uncertaintyDetail.toleranceUpperLabel')}
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input type="number" placeholder={t('uncertaintyDetail.toleranceUpperPlaceholder')} />
+                </Form.Item>
+                {/* tolerance_lower → uncertainty_criteria.tolerance_lower */}
+                <Form.Item
+                  name="toleranceLower"
+                  label={t('uncertaintyDetail.toleranceLowerLabel')}
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input type="number" placeholder={t('uncertaintyDetail.toleranceLowerPlaceholder')} />
+                </Form.Item>
+              </div>
+              </>
             )}
 
             {/* 定性モード → intuition_selector */}

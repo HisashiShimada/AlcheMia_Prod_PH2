@@ -189,11 +189,12 @@ export interface InstructionConfirmationData {
  * code_master の project_status コード値と一致
  * ProgressService.getWorkDetails() 等で共通利用
  */
-export const PROJECT_STATUS_STRING_MAP: Record<number, 'planning' | 'pending' | 'in_progress' | 'review_waiting' | 'completed' | 'error'> = {
+export const PROJECT_STATUS_STRING_MAP: Record<number, 'planning' | 'pending' | 'in_progress' | 'review_waiting' | 'completed' | 'error' | 'review_rejected'> = {
   0: 'planning',
   1: 'pending',
   2: 'in_progress',
   3: 'review_waiting',
   4: 'completed',
   5: 'error',
+  6: 'review_rejected',
 };

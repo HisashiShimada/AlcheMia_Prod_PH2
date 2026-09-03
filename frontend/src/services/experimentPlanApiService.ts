@@ -71,14 +71,6 @@ function transitionValuesToTabData(
     }
   }
 
-  // 不確かさ付与情報を復元（__uncertainty__ キー）
-  // TransitionPlanValues のインデックスシグネチャとの型不整合を unknown 経由で回避
-  const rawUncertainty = transValues['__uncertainty__'];
-  const assignedUncertainty: ExperimentPlanTabData['assignedUncertainty'] =
-    rawUncertainty && typeof rawUncertainty === 'object' && !Array.isArray(rawUncertainty)
-      ? (rawUncertainty as unknown as ExperimentPlanTabData['assignedUncertainty'])
-      : {};
-
   // タスク共通データを復元（__task__ キー: creatorRefs / instrumentRefs / ownerRefs）
   const rawTask = transValues['__task__'];
   if (rawTask && typeof rawTask === 'object' && !Array.isArray(rawTask)) {
@@ -101,7 +93,7 @@ function transitionValuesToTabData(
     ownerRefs,
     notes: [],
     templateValues,
-    assignedUncertainty,
+    assignedUncertainty: {},
   };
 }
 
@@ -117,12 +109,6 @@ function tabDataToTransitionValues(tabData: ExperimentPlanTabData): TransitionPl
     if (value !== null && value !== undefined && value !== '') {
       values[key] = String(value);
     }
-  }
-
-  // 不確かさ付与情報を __uncertainty__ キーに保存
-  if (tabData.assignedUncertainty && Object.keys(tabData.assignedUncertainty).length > 0) {
-    // TransitionPlanValues のインデックスシグネチャとの型不整合を unknown 経由で回避
-    (values as unknown as Record<string, unknown>)['__uncertainty__'] = tabData.assignedUncertainty;
   }
 
   // タスク共通データ（creatorRefs / instrumentRefs / ownerRefs）を __task__ キーに保存
@@ -289,7 +275,7 @@ export function experimentPlansToTabDataMap(
       ownerRefs,
       notes,
       templateValues,
-      assignedUncertainty: first.assignedUncertainty ?? {},
+      assignedUncertainty: {},
     };
   }
 
@@ -376,13 +362,15 @@ export async function getPlanDialogData(
  * @param taskNo              - タスク番号（1〜N）
  * @param transitionDataMap   - トランジションID → ExperimentPlanTabData のマップ
  * @param transitionOrder     - トランジション実行順序（order 昇順で plannedValues のキー順に反映）
+ * @param templates           - テンプレート定義一覧（experiment_instruction_detail upsert に使用）
  */
 export async function upsertExperimentPlanToApi(
   projectId: string,
   methodId: string,
   taskNo: number,
   transitionDataMap: Record<string, ExperimentPlanTabData>,
-  transitionOrder?: TransitionOrderEntry[]
+  transitionOrder?: TransitionOrderEntry[],
+  templates?: TemplateDef[]
 ): Promise<void> {
   const apiClient = createApiClient();
   const url = `/projects/${encodeURIComponent(projectId)}/experiment-plans/${encodeURIComponent(methodId)}/${taskNo}`;
@@ -414,7 +402,6 @@ export async function upsertExperimentPlanToApi(
   }
 
   // transitionOrder が指定されている場合は __meta__ にトランジション順序情報を埋め込む
-  // タスク登録保存時にこの情報を読み取り、transition_data の work_order / prerequisite_transition_ids を設定する
   if (transitionOrder && transitionOrder.length > 0) {
     (plannedValues as Record<string, unknown>)['__meta__'] = {
       transitionOrder: transitionOrder.map((item) => ({
@@ -425,7 +412,14 @@ export async function upsertExperimentPlanToApi(
     };
   }
 
-  await apiClient.put(url, { plannedValues });
+  // templates が指定されている場合はリクエストボディに含める
+  // バックエンドが experiment_instruction_detail の upsert に使用する
+  const body: Record<string, unknown> = { plannedValues };
+  if (templates && templates.length > 0) {
+    body.templates = templates;
+  }
+
+  await apiClient.put(url, body);
 }
 
 /**

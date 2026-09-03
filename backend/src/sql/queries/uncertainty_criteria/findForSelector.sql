@@ -12,6 +12,8 @@ SELECT
   , uc.units                         AS "units"
   , uc.scale_factor                  AS "scaleFactor"
   , uc.format_string                 AS "formatString"
+  , uc.tolerance_upper               AS "toleranceUpper"
+  , uc.tolerance_lower               AS "toleranceLower"
   , uc.description                   AS "description"
   , ins.display_order                AS "displayOrder"
   , ins.value                        AS "selectorValue"

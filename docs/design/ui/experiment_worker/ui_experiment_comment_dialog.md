@@ -6,9 +6,9 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/ExperimentCommentDialog.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-08-15
-- **最終更新日**: 2026-08-15
+- **最終更新日**: 2026-08-27
 - **担当者**: Development Team
-- **バージョン**: 1.0.0
+- **バージョン**: 1.1.0
 
 ---
 
@@ -19,7 +19,7 @@
 実験作業者が実験中に気づいた注意点・異常・メモをコメントとして記録するダイアログです。
 タスクNo・トランジションIDと紐付けてコメントを保存します。
 
-> ⚠️ **現フェーズ（モック）**: `onSave` コールバックで呼び出し元に渡すのみ。バックエンドAPIへの保存は別フェーズで実装予定。
+> ⚠️ **フロントエンド未連携（2026-08-27 確認）**: バックエンドAPIはコメントフィールドを受け付ける形で実装済み（`POST /api/v1/experiments/.../data` の `records[].comment`、`PATCH .../transitions/:transitionId/status` の `comment` フィールド）。ただし `WorkRecordPanel` の `handleSaveComment` は `console.info` によるログ出力と `Modal.success` による成功ダイアログ表示のみを行い、APIへの保存は行っていない。
 
 ### 1.2. アクセス権限
 
@@ -92,7 +92,9 @@ export interface ExperimentCommentDialogProps {
 ### 4.1. 初期化・リセット
 
 - ダイアログが閉じるたびにコメント入力欄を空に戻す
-- `destroyOnHidden` が有効で、非表示時にDOMを破棄してリセット
+- リセットは以下の二重制御で行われる：
+  1. `handleClose` 内で `setComment('')` を**明示的に**呼び出してステートをリセット
+  2. `Modal` の `destroyOnHidden` が有効で、非表示時にDOMを破棄して完全リセット
 
 ### 4.2. 保存ボタン制御
 
@@ -110,8 +112,22 @@ export interface ExperimentCommentDialogProps {
   ↓
 comment.trim() を onSave() に渡す
   ↓
-入力欄リセット → onClose() 呼び出し
+入力欄リセット（setComment('')） → onClose() 呼び出し
 ```
+
+**呼び出し元（`WorkRecordPanel.handleSaveComment`）での処理（2026-08-27 確認）:**
+
+```typescript
+// WorkRecordPanel.tsx
+const handleSaveComment = useCallback((comment: string) => {
+  console.info('[WorkRecordPanel] コメント保存（モック）:', comment);
+  Modal.success({ title: t('workRecord.commentSaved'), content: comment });
+}, []);
+```
+
+- `console.info` でコメント内容をログ出力
+- `Modal.success` で「保存成功」ダイアログを表示
+- バックエンドAPIへの保存は**現時点で未連携**（APIは実装済みだがフロントエンド側の呼び出しがない）
 
 ---
 
@@ -121,13 +137,37 @@ comment.trim() を onSave() に渡す
 |------|--------------|------|
 | モーダル | `Modal` | 幅560px、`destroyOnHidden` |
 | タイトル | `Space` + `CommentOutlined` | アイコン色: `#1677ff` |
-| 対象情報 | 灰色背景 `div` + `Space` / `Divider` | タスクNo・トランジションIDを並列表示 |
+| Body レイアウト | `Space` | `direction="vertical"`（縦並び）、`size="middle"`、`width: '100%'`。ソース上は `orientation="vertical"` と記述されているが、Ant Design の `Space` コンポーネントの正式 prop は `direction` |
+| 対象情報 | 灰色背景 `div` + `Space` / `Divider` | `padding: '8px 12px'`、`background: '#f5f5f5'`、`borderRadius: 6`、`border: '1px solid #d9d9d9'`。タスクNo・トランジションIDを `Divider type="vertical"` で区切って並列表示 |
 | コメント入力 | `TextArea` | `rows=6`, `maxLength=500`, `showCount`, `autoFocus` |
 
 ---
 
 ## 6. API連携
 
-| API | 状態 | 備考 |
-|-----|------|------|
-| コメント保存API | 🔴 未実装 | 現フェーズは `onSave` コールバックのみ。将来的に実装予定 |
+### バックエンド（実装済み）
+
+コメントを受け付けるバックエンドAPIは以下の通り実装済み。
+
+| API | コメントフィールド | 最大文字数 |
+|-----|-----------------|----------|
+| `POST /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data` | `records[].comment`（optional） | 2000文字 |
+| `PATCH /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/status` | `comment`（optional） | 2000文字 |
+| `PATCH /api/v1/progress/projects/:projectId/methods/:methodId/tasks/:taskNo/status` | `comment`（optional） | 500文字 |
+
+### フロントエンド（未連携・2026-08-27 確認）
+
+| 項目 | 状態 | 備考 |
+|------|------|------|
+| `ExperimentCommentDialog` → `onSave` コールバック経由 | ⚠️ 未連携 | `WorkRecordPanel.handleSaveComment` は `console.info` + `Modal.success` のみ。APIを呼び出していない |
+| `handleSave` / `handleSaveAndNext` での `comment` フィールド | ⚠️ 未連携 | `ExperimentDataRecord` に `comment` フィールドは型定義されているが、`records` 生成時に含めていない |
+
+---
+
+## 7. 変更履歴
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|----------|--------|
+| 1.1.0 | 2026-08-27 | ソースコードとの照合に基づき以下を修正：①§1.1 フェーズ注記を「バックエンドAPI実装済み・フロントエンド未連携」に修正（旧: 「バックエンドAPIへの保存は別フェーズで実装予定」）。②§4.1 リセット方法を `handleClose` 内 `setComment('')` と `destroyOnHidden` の二重制御として修正（旧: `destroyOnHidden` のみ記載）。③§4.3 保存フローに呼び出し元 `WorkRecordPanel.handleSaveComment` の実際の動作（`console.info` + `Modal.success`）を追記。④§5 UI仕様テーブルに Body レイアウト行（`direction="vertical"`）と対象情報のスタイル詳細を追記。⑤§6 API連携をバックエンド（実装済み）とフロントエンド（未連携）に分けて全面修正 | Cline |
+| 1.0.0 | 2026-08-15 | 初版作成 | Development Team |
+

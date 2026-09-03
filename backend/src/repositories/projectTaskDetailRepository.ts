@@ -14,6 +14,7 @@ import { getPool, getPgp } from '../database/db';
 import { ProjectTaskDetail, ProjectTaskDetailByMethod } from '../types/database';
 import { loadSqlFile } from '../sql/loader';
 import type { ITask } from 'pg-promise';
+import type { PoolClient } from 'pg';
 import { TaskDetailResponse, TaskDetailTransitionItem, TaskDetailStats } from '../types/api';
 
 /**
@@ -482,6 +483,34 @@ export async function recordNg(
     ngReason,
   ]);
   return result.rows[0] ?? null;
+}
+
+/**
+ * タスクステータス別の件数をトランザクション内で取得
+ *
+ * @remarks
+ * チェックアウト処理など、トランザクション内でタスクステータスを確認する際に使用する。
+ * 外部SQLファイル（projects/countTasksByStatus.sql）を流用する。
+ *
+ * @param client - トランザクション用のPoolClient
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @returns タスクステータス別の件数配列 [{ task_status: number, count: number }]
+ */
+export async function countByStatusInTransaction(
+  client: PoolClient,
+  organizationId: string,
+  projectId: string
+): Promise<Array<{ task_status: number; count: number }>> {
+  const sqlQuery = await loadSqlFile('projects/countTasksByStatus.sql');
+  const result = await client.query<{ task_status: string; count: string }>(
+    sqlQuery,
+    [organizationId, projectId]
+  );
+  return result.rows.map((row) => ({
+    task_status: Number(row.task_status),
+    count: Number(row.count),
+  }));
 }
 
 export async function batchInsert(

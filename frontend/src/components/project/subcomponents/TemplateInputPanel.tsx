@@ -92,11 +92,13 @@ const TemplateInputPanel: React.FC<TemplateInputPanelProps> = ({
   disabled = false,
   outputTemplateIds,
   projectId,
-  assignedUncertainty,
-  onAssignedUncertaintyChange,
 }) => {
   const { token } = useToken();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+  // 不確かさ基準選択モーダル用 state（UI 残置・保存処理は削除済み）
+  const assignedUncertainty: Record<string, AssignPayload[]> = {};
+  const onAssignedUncertaintyChange = (_next: Record<string, AssignPayload[]>) => {};
 
   // 不確かさ基準選択モーダル用 state
   const [criteriaSelectorOpen, setCriteriaSelectorOpen] = useState(false);

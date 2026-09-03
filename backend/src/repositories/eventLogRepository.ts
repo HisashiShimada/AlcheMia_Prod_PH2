@@ -1269,6 +1269,75 @@ export class EventLogRepository {
   }
 
   /**
+   * タスクレビュー（承認/NG）イベントログを記録
+   *
+   * JSON構造: log[@ref=methodId] > trace[@taskno=taskNo] > event > property + ownerRef
+   * ID命名: log_{projectName}Task_review_{seq} / trace_* / event_* / ownerRef_*_issuer
+   *
+   * @param organizationId - 組織ID  @param projectId - プロジェクトID
+   * @param methodId - メソッドID    @param taskNo - タスク連番
+   * @param reviewType - レビュー種別（`ReviewTypeEnum.APPROVED` or `ReviewTypeEnum.NG`）
+   * @param ngReason - NG理由（NG時のみ、承認時は null）
+   * @param reviewUserId - レビュアーユーザID
+   * @param projectName - プロジェクト名（ID命名規則に使用）
+   * @param client - トランザクション用のPoolClient
+   */
+  async insertTaskReviewLog(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    reviewType: string,
+    ngReason: string | null,
+    reviewUserId: string,
+    projectName: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const sequenceQuery = await this.sequenceQueryPromise;
+      const sequenceResult = await client.query(sequenceQuery, [organizationId, projectId]);
+      const seq: number = sequenceResult.rows[0].next_sequence_no;
+
+      const nowIso = new Date().toISOString();
+      const idPrefix = `${projectName}Task_review_${seq}`;
+
+      const properties: Record<string, unknown>[] = [
+        { '@key': 'time:timestamp', '@xsi:type': 'dateTimeType', '#text': nowIso },
+        { '@key': 'Alchemia:reviewResult', '@xsi:type': 'stringType', '#text': reviewType },
+      ];
+      if (reviewType === 'ng' && ngReason) {
+        properties.push({ '@key': 'Alchemia:ngReason', '@xsi:type': 'stringType', '#text': ngReason });
+      }
+
+      const logJson = {
+        eventLog: {
+          '@id': 'eventLogID',
+          log: {
+            '@id': `log_${idPrefix}`,
+            '@ref': methodId,
+            trace: {
+              '@id': `trace_${idPrefix}`,
+              '@ref': methodId,
+              '@taskno': String(taskNo),
+              event: {
+                '@id': `event_${idPrefix}`,
+                '@ref': methodId,
+                property: properties,
+                ownerRef: { '@id': `ownerRef_${idPrefix}_issuer`, '@ref': reviewUserId.replace(/@/g, '_') },
+              },
+            },
+          },
+        },
+      };
+
+      const insertQuery = await this.insertQueryPromise;
+      await client.query(insertQuery, [organizationId, projectId, seq, JSON.stringify(logJson), reviewUserId]);
+    } catch (error) {
+      throw new DatabaseError('Database error occurred while inserting task review log', error as Error);
+    }
+  }
+
+  /**
    * トランジションコメントイベントログを記録
    *
    * 実験作業者が ExperimentCommentDialog から入力したコメントを
@@ -1415,6 +1484,89 @@ export class EventLogRepository {
     }
   }
 
+  /**
+   * 記録値訂正イベントログを記録
+   *
+   * JSON構造: log[@ref=methodId] > trace[@taskno=taskNo] > event[] > property + ownerRef
+   * ID命名: log_{projectName}Record_correction_{seq} / event_{idPrefix}_{n}（n: 1始まり）
+   *
+   * @param organizationId    - 組織ID  @param projectId - プロジェクトID
+   * @param methodId          - メソッドID  @param taskNo - タスク連番
+   * @param corrections       - 訂正内容一覧 [{instanceUuid, propKey, beforeValue, afterValue}]
+   * @param correctedByUserId - 訂正者ユーザID
+   * @param projectName       - プロジェクト名（ID命名規則に使用）
+   * @param client            - トランザクション用のPoolClient
+   */
+  async insertRecordCorrectionLog(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    corrections: Array<{
+      instanceUuid: string;
+      propKey: string;
+      beforeValue: unknown;
+      afterValue: unknown;
+    }>,
+    correctedByUserId: string,
+    projectName: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const sequenceQuery = await this.sequenceQueryPromise;
+      const sequenceResult = await client.query(sequenceQuery, [organizationId, projectId]);
+      const seq: number = sequenceResult.rows[0].next_sequence_no;
+
+      const nowIso = new Date().toISOString();
+      const idPrefix = `${projectName}Record_correction_${seq}`;
+      const ownerRef = { '@id': `ownerRef_${idPrefix}_issuer`, '@ref': correctedByUserId.replace(/@/g, '_') };
+
+      const events = corrections.map((correction, index) => ({
+        '@id': `event_${idPrefix}_${index + 1}`,
+        '@ref': methodId,
+        property: [
+          { '@key': 'time:timestamp', '@xsi:type': 'dateTimeType', '#text': nowIso },
+          { '@key': 'Alchemia:correctionInstanceUuid', '@xsi:type': 'stringType', '#text': correction.instanceUuid },
+          { '@key': 'Alchemia:correctionPropKey', '@xsi:type': 'stringType', '#text': correction.propKey },
+          { '@key': 'Alchemia:correctionBeforeValue', '@xsi:type': 'stringType', '#text': String(correction.beforeValue ?? '') },
+          { '@key': 'Alchemia:correctionAfterValue', '@xsi:type': 'stringType', '#text': String(correction.afterValue ?? '') },
+        ],
+        ownerRef,
+      }));
+
+      const logJson = {
+        eventLog: {
+          '@id': 'eventLogID',
+          log: {
+            '@id': `log_${idPrefix}`,
+            '@ref': methodId,
+            trace: {
+              '@id': `trace_${idPrefix}`,
+              '@ref': methodId,
+              '@taskno': String(taskNo),
+              event: events.length === 1 ? events[0] : events,
+            },
+          },
+        },
+      };
+
+      const insertQuery = await this.insertQueryPromise;
+      await client.query(insertQuery, [organizationId, projectId, seq, JSON.stringify(logJson), correctedByUserId]);
+    } catch (error) {
+      throw new DatabaseError('Database error occurred while inserting record correction log', error as Error);
+    }
+  }
+
+  /**
+   * プロジェクトの maiml_event_log 全件取得
+   *
+   * sequence_no 昇順で返す（eventLog 内のログ順序を保持するため）。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @returns EventLogRow 配列（sequence_no 昇順）
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
   async findAllByProject(
     organizationId: string,
     projectId: string

@@ -118,6 +118,8 @@ export async function createNewVersion(
       units,
       scaleFactor,
       formatString,
+      toleranceUpper,
+      toleranceLower,
       description,
       qualitativeOptions,
     } = req.body;
@@ -133,6 +135,8 @@ export async function createNewVersion(
       units:                     units ?? null,
       scaleFactor:               scaleFactor ?? null,
       formatString:              formatString ?? null,
+      toleranceUpper:            toleranceUpper !== undefined && toleranceUpper !== null ? Number(toleranceUpper) : null,
+      toleranceLower:            toleranceLower !== undefined && toleranceLower !== null ? Number(toleranceLower) : null,
       description:               description ?? null,
       qualitativeOptions:        Array.isArray(qualitativeOptions) ? qualitativeOptions : [],
       createUserId:              userId ?? 'system',

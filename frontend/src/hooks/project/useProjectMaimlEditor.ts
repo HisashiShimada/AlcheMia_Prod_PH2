@@ -82,6 +82,7 @@ export const useProjectMaimlEditor = ({
         displaySubtitle: project.description || undefined,
         documentId: project.id,
         description: project.description || undefined,
+        organizationGroupCd: project.organizationGroup || undefined,
         ...(openDraftManagerOnStart ? { openDraftManagerOnStart: true } : {}),
       };
     },

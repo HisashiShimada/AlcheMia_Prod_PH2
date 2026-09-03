@@ -6,9 +6,9 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/ProgressOverviewTab.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-06-22
-- **最終更新日**: 2026-08-26
+- **最終更新日**: 2026-08-27
 - **担当者**: Development Team
-- **バージョン**: 3.0.0
+- **バージョン**: 3.1.0
 
 ---
 
@@ -76,10 +76,12 @@
 
 ```typescript
 interface ProgressRow {
-  methodId: string;
+  rowKey: string;             // テーブルキー（`${taskNo}-${transitionId}` 等の一意な値）
   taskNo: number;
+  methodId: string;
+  methodName?: string;        // メソッド名（未設定時は methodId をフォールバック表示）
   transitionId: string;
-  transitionName?: string;
+  transitionName?: string;    // トランジション名（未設定時は transitionId をフォールバック表示）
   status:
     | 'not_started'    // 未着手
     | 'preparing'      // 準備中（PREPARING: 進捗確認から「開始」押下後）
@@ -88,12 +90,14 @@ interface ProgressRow {
     | 'on_hold'        // 一時停止
     | 'completed'      // 完了
     | 'issue';         // 問題あり
-  progressRate?: number;
+  hasRecord: boolean;         // 記録済みプロパティが1件以上ある場合 true
   prerequisiteTransitionIds?: string[];
   issueCount?: number;
+  order?: number;             // 表示順序（省略時は 0 として扱う）
   materialRecorded?: number; materialTotal?: number;
   conditionRecorded?: number; conditionTotal?: number;
   resultRecorded?: number; resultTotal?: number;
+  isRecorded?: boolean;       // 記録済みフラグ（template_data に保存済みかどうか）
 }
 ```
 
@@ -101,13 +105,13 @@ interface ProgressRow {
 
 ## 5. 状態遷移フロー
 
-| 操作 | APIステータス値 | バックエンドラベル | ProgressRow.status | WorkRecordPanel表示 |
-|------|----------------|------------------|-------------------|---------------------|
-| 進捗確認「開始」 | PREPARING(1) | 準備中 | `preparing` | 準備中 |
-| 指示確認ボタン | READY(2) | 準備完了 | `ready` | 準備完了 |
-| 「開始」ボタン | IN_PROGRESS(3) | 実行中 | `in_progress` | 作業中 |
-| 「終了」ボタン | COMPLETED(5) | 完了 | `completed` | 完了 |
-| 「異常終了」ボタン | ERROR(6) | エラー | `issue` | 問題あり |
+| 操作 | APIステータス値 | バックエンドラベル | ProgressRow.status | ProgressOverviewTab 操作ボタン |
+|------|----------------|------------------|-------------------|-------------------------------|
+| 進捗確認「開始」 | PREPARING(1) | 準備中 | `preparing` | 「作業へ」→ `onGoToWork` |
+| 指示確認ボタン | READY(2) | 準備完了 | `ready` | 「作業へ」→ `onGoToWork` |
+| 「開始」ボタン | IN_PROGRESS(3) | 実行中 | `in_progress` | 「作業へ」→ `onGoToWork` |
+| 「終了」ボタン | COMPLETED(5) | 完了 | `completed` | 「詳細確認」→ `onViewDetail` |
+| 「異常終了」ボタン | ERROR(6) | エラー | `issue` | 「詳細確認」→ `onViewDetail` |
 
 ---
 
@@ -169,6 +173,8 @@ interface ProgressRow {
 | `filterStatus` | `ProgressRow['status'] \| null` | `null` | ステータスフィルタ選択値 |
 | `filterMethodId` | `string \| null` | `null` | メソッドIDフィルタ選択値 |
 | `filterTransitionId` | `string \| null` | `null` | トランジションIDフィルタ選択値 |
+| `viewMode` | `'list' \| 'flow'` | `'list'` | 表示モード（リスト表示 / フロー図表示） |
+| `flowTabKey` | `string \| null` | `null` | フロー図モードで選択中のタブキー（`${methodId}__${taskNo}` 形式） |
 
 ---
 
@@ -185,7 +191,7 @@ interface ProgressRow {
 | 全体進捗バー | 完了件数 / 総件数 のパーセント表示（Progress コンポーネント）|
 | 進捗率テキスト | `N%`（完了100%で緑色、それ以外は青色）|
 | タスク完了数 | `タスク M/N 完了`（全トランジションが completed のタスクをカウント）|
-| ステータス別件数 | 未着手・作業中・完了 件数（Statistic コンポーネント）|
+| ステータス別件数 | 未着手・作業中・完了 件数（Statistic コンポーネント）。`preparing`/`ready` は個別表示なし |
 | 問題あり件数 | issue ステータス行が1件以上ある場合のみ表示（赤色）|
 | 問題報告件数 | `issueCount` の合計（1件以上ある場合のみ表示）|
 
@@ -198,7 +204,7 @@ interface ProgressRow {
 | メソッド名 | `メソッド名` | 140px以上 | rows から重複排除して選択肢を生成 |
 | タスクNo | `タスクNo` | 100px | `#N` 形式で表示 |
 | トランジション名 | `トランジション名` | 160px以上 | メソッド選択時はそのメソッド内に絞り込み |
-| ステータス | `ステータス` | 120px | 5ステータスから選択 |
+| ステータス | `ステータス` | 120px | 5ステータスから選択（`not_started`・`in_progress`・`on_hold`・`completed`・`issue`）。`preparing`・`ready` はフィルター選択肢に含まれない |
 
 メソッドフィルタ変更時、トランジションフィルタは自動リセットされる。
 
@@ -246,7 +252,7 @@ interface ProgressRow {
 |------------|---------|---------|---------| 
 | `not_started` | 未着手 | default（グレー）| `MinusCircleOutlined`（グレー）|
 | `preparing` | 準備中 | processing（青）| `SyncOutlined`（青）|
-| `ready` | 準備完了 | warning（黄）| `ClockCircleOutlined`（黄）|
+| `ready` | 準備完了 | cyan（シアン）| `CheckSquareOutlined`（シアン `#13c2c2`）|
 | `in_progress` | 作業中 | processing（青）| なし |
 | `on_hold` | 一時停止 | warning（橙）| `PauseCircleOutlined`（橙）|
 | `completed` | 完了 | success（緑）| `CheckCircleOutlined`（緑）|
@@ -261,8 +267,8 @@ interface ProgressRow {
 |-----------|--------|------|----------|
 | `completed` / `issue` | 詳細確認 | default | `onViewDetail(taskNo, transitionId)` |
 | `in_progress` | 作業へ | primary | `onGoToWork(taskNo, transitionId)` |
-| `preparing` | 指示確認 | primary | `onGoToWork(taskNo, transitionId)` |
-| `ready` | 開始 | default | `onStartWork(taskNo, transitionId, methodId)` または `onGoToWork` へフォールバック |
+| `ready` | 作業へ | primary | `onGoToWork(taskNo, transitionId)` |
+| `preparing` | 作業へ | default | `onGoToWork(taskNo, transitionId)` |
 | `on_hold` | 再開 | default | `onGoToWork(taskNo, transitionId)` |
 | `not_started`（前提未完了） | 開始（disabled）| default | — |
 | `not_started`（前提完了 or なし） | 開始 | default | `onStartWork(taskNo, transitionId, methodId)` または `onGoToWork` へフォールバック |
@@ -302,10 +308,11 @@ function canAccessTransition(target: ProgressRow, allRows: ProgressRow[]): boole
 | `Table` | トランジション一覧テーブル |
 | `Select` | フィルタバーの各セレクト |
 | `Badge` | ステータス表示・問題件数表示 |
-| `Button` | 操作ボタン（開始・作業へ・再開・詳細確認）|
+| `Button` | 操作ボタン（開始・作業へ・再開・詳細確認）・表示モード切り替えボタン |
 | `Card` | サマリーカードのコンテナ |
 | `Progress` | Material / Condition / Result 進捗バー |
 | `Statistic` | サマリーカードの統計数値表示 |
+| `Tabs` | フロー図モードのメソッド/タスク切り替えタブ |
 | `Tag` | ステータスタグ |
 | `Tooltip` | メソッド名・トランジション名の省略表示、前提未完了の説明 |
 | `Flex` | 各所の横並びレイアウト |
@@ -317,12 +324,14 @@ function canAccessTransition(target: ProgressRow, allRows: ProgressRow[]): boole
 | アイコン | 用途 |
 |---------|------|
 | `CheckCircleOutlined` | completed ステータスアイコン |
+| `CheckSquareOutlined` | ready ステータスアイコン（シアン）|
 | `ExclamationCircleOutlined` | issue ステータスアイコン・問題報告 Statistic prefix |
 | `LockOutlined` | 前提あり（未完了）のトランジション名横に表示（黄色）|
 | `MinusCircleOutlined` | not_started ステータスアイコン |
+| `PartitionOutlined` | フロー図モード切り替えボタンアイコン |
 | `PauseCircleOutlined` | on_hold ステータスアイコン |
 | `SyncOutlined` | preparing ステータスアイコン |
-| `ClockCircleOutlined` | ready ステータスアイコン |
+| `UnorderedListOutlined` | リスト表示モード切り替えボタンアイコン |
 
 ---
 
@@ -331,6 +340,19 @@ function canAccessTransition(target: ProgressRow, allRows: ProgressRow[]): boole
 1. **APIデータ接続済み**: `ExperimentWorkerMenu` が `getWorkDetails` API を呼び出し、得られたデータを `rows` Props 経由で渡す。
 2. **前提チェックのスコープ**: 前提チェックは「同一タスク内」のみ対象。異なるタスク間の依存関係は現時点では考慮しない。
 3. **`Checkbox` インポート**: 現時点では未使用だが、将来の一括操作機能のために import 済み。
+4. **フロー図モード**: `viewMode: 'list' | 'flow'` で切り替え可能。フロー図モードでは `TransitionFlowDiagram` コンポーネントを使用し、`rows` から `(methodId, taskNo)` のユニーク組み合わせをタブとして表示。フィルタバーはリストモード時のみ表示。フロー図モード切り替えボタン（`PartitionOutlined`）はフィルタバー右端に配置。
+5. **`ready` ステータスの操作ボタン**: ソース実装では `ready` は `in_progress` と同様に「作業へ」（primary）→ `onGoToWork` を呼ぶ。設計上 `ready` を「開始」ボタンとする案があったが、実装では `in_progress` と同じ扱いに変更された（2026-08-27 確認）。
+
+
+---
+
+## 13. 変更履歴
+
+| 日付 | バージョン | 変更内容 | 担当者 |
+|------|-----------|----------|--------|
+| 2026-08-27 | v3.1.0 | ソースコードとの照合に基づき修正（2026-08-27）：①§4 ProgressRow型定義に `rowKey`・`methodName`・`hasRecord`・`order`・`isRecorded` を追加、`progressRate` を削除。②§5 状態遷移フロー表の列名を修正、`ready`/`preparing` の操作ボタンをソース実装（「作業へ」→ `onGoToWork`）に合わせて修正。③§5 State定義に `viewMode`・`flowTabKey` を追加。④§6.1 SummaryCard に `preparing`/`ready` は個別表示なしの旨を追記。⑤§6.2 FilterBar のステータス選択肢に `preparing`/`ready` が含まれない旨を追記。⑥§8 ステータス設定の `ready` アイコンを `ClockCircleOutlined`（黄）→ `CheckSquareOutlined`（シアン）に修正。⑦§9 操作ボタン仕様の `ready`（「開始」→「作業へ」primary）・`preparing`（「指示確認」primary→「作業へ」default）を修正。⑧§11 使用コンポーネントに `Tabs` を追加、アイコンリストを更新（`ClockCircleOutlined` 削除・`CheckSquareOutlined`・`PartitionOutlined`・`UnorderedListOutlined` 追加）。⑨§12 備考にフロー図モード説明を追加 | Cline |
+| 2026-08-26 | v3.0.0 | `preparing`（準備中）・`ready`（準備完了）ステータスを追加（§4 ProgressRow型定義・§5 状態遷移フロー表（新規）・§6 サマリーカード・§8 ステータス設定・§9 操作ボタン仕様）。APIデータ接続済みに更新。フェーズ記載を削除 | Cline |
+| 2026-08-19 | v2.0.0 | 初版作成 | Development Team |
 
 
 ---

@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/IssueManagementModal.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-03-11
+- **最終更新日**: 2026-08-27
 
 ---
 
@@ -25,6 +25,7 @@
 - 承認依頼中の編集制限
 
 ### 1.3 使用場所
+- ExperimentWorkerMenu（実験作業者メニューの「問題報告」ボタン経由）
 - ProgressCheckTab（進捗確認タブ）
 - InstructionConfirmationTab（指示確認タブ）
 - その他、トランジション関連の問題管理が必要な場所
@@ -109,7 +110,7 @@ destroyOnHidden: true
 
 ```typescript
 interface IssueManagementModalProps {
-  visible: boolean;                    // モーダルの表示状態
+  open: boolean;                       // モーダルの表示状態
   /** タイトルに表示する名前 */
   targetName: string;
   /** 問題一覧取得・新規報告に必要なプロジェクトID */
@@ -162,7 +163,7 @@ interface IssueReportFormData {
 ```
 
 **Props詳細:**
-- `visible`: モーダルの表示/非表示を制御
+- `open`: モーダルの表示/非表示を制御
 - `targetName`: タイトルに表示する名前（トランジション名など）
 - `projectId`: 問題一覧取得・新規報告に使用するプロジェクトID
 - `projectName`: コメント追加・ステータス変更APIに使用するプロジェクト名
@@ -186,7 +187,6 @@ interface IssueReportFormData {
 
 ```typescript
 const [form] = Form.useForm();                          // 新規問題報告フォーム
-const [commentForm] = Form.useForm();                   // コメントフォーム
 
 // 問題一覧（内部state: コンポーネント内部でAPIから取得）
 const [issues, setIssues] = useState<Issue[]>([]);
@@ -213,7 +213,7 @@ const fetchIssues = useCallback(async () => {
     setIssues(data);
   } catch (error) {
     console.error('[IssueManagementModal] fetchIssues error:', error);
-    message.error('問題一覧の取得に失敗しました');
+    message.error(extractErrorMessage(error));  // t() / extractErrorMessage() 経由
   } finally {
     setIssuesLoading(false);
   }
@@ -221,10 +221,10 @@ const fetchIssues = useCallback(async () => {
 
 // モーダルが開いた時に問題一覧を取得する
 useEffect(() => {
-  if (visible) {
+  if (open) {
     fetchIssues();
   }
-}, [visible, fetchIssues]);
+}, [open, fetchIssues]);
 
 // 選択中の問題を issues state から導出する（useMemo）
 // issues が更新（コメント送信・ステータス変更後の再取得）されると
@@ -346,23 +346,23 @@ const filteredIssues = useMemo(() => {
 ```typescript
 <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 12 }}>
   <Input
-    placeholder="タイトル、内容で検索..."
+    placeholder={t('issueManagement.searchPlaceholder')}
     value={searchText}
     onChange={(e) => setSearchText(e.target.value)}
     allowClear
     style={{ width: '100%' }}
   />
   <Select
-    placeholder="ステータスで絞り込み"
+    placeholder={t('issueManagement.statusFilterPlaceholder')}
     value={statusFilter}
     onChange={(value) => setStatusFilter(value)}
     style={{ width: '100%' }}
     allowClear
     onClear={() => setStatusFilter('all')}
   >
-    <Select.Option value="all">すべて</Select.Option>
-    <Select.Option value="unresolved">未解決</Select.Option>
-    <Select.Option value="resolved">解決済</Select.Option>
+    <Select.Option value="all">{t('issueManagement.all')}</Select.Option>
+    <Select.Option value="unresolved">{t('issueManagement.status.unresolved')}</Select.Option>
+    <Select.Option value="resolved">{t('issueManagement.status.resolved')}</Select.Option>
   </Select>
 </Space>
 ```
@@ -372,7 +372,7 @@ const filteredIssues = useMemo(() => {
 ```typescript
 const columns: ColumnsType<Issue> = [
   {
-    title: '問題情報',
+    title: t('issueManagement.issueInfo'),
     key: 'issueInfo',
     render: (_, record: Issue) => (
       <div style={{ padding: '4px 0' }}>
@@ -429,13 +429,13 @@ const getStatusTag = (status: IssueStatus) => {
   if (status === 'resolved') {
     return (
       <Tag icon={<CheckCircleOutlined />} color="success">
-        解決済
+        {t('issueManagement.status.resolved')}
       </Tag>
     );
   }
   return (
     <Tag icon={<ExclamationCircleOutlined />} color="warning">
-      未解決
+      {t('issueManagement.status.unresolved')}
     </Tag>
   );
 };
@@ -466,18 +466,18 @@ const getStatusTag = (status: IssueStatus) => {
 <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
   {/* タイトル */}
   <div>
-    <Text type="secondary">タイトル:</Text>
+    <Text type="secondary">{t('issueManagement.details.title')}:</Text>
     <Title level={5}>{selectedIssue.title}</Title>
   </div>
   
   {/* 状態と対象 */}
   <Space size="large">
     <div>
-      <Text type="secondary">状態: </Text>
+      <Text type="secondary">{t('issueManagement.details.status')}: </Text>
       {getStatusTag(selectedIssue.status)}
     </div>
     <div>
-      <Text type="secondary">対象: </Text>
+      <Text type="secondary">{t('issueManagement.details.targetType')}: </Text>
       <Text>{getTargetTypeText(selectedIssue.targetType)}: {getTargetName(selectedIssue)}</Text>
     </div>
   </Space>
@@ -485,11 +485,11 @@ const getStatusTag = (status: IssueStatus) => {
   {/* 報告者と時刻 */}
   <Space size="large">
     <div>
-      <Text type="secondary">報告者: </Text>
+      <Text type="secondary">{t('issueManagement.details.reportedBy')}: </Text>
       <Text>{selectedIssue.reportedBy?.userName || '-'}</Text>
     </div>
     <div>
-      <Text type="secondary">報告時刻: </Text>
+      <Text type="secondary">{t('issueManagement.details.reportedAt')}: </Text>
       <Text>{new Date(selectedIssue.reportedAt).toLocaleString('ja-JP')}</Text>
     </div>
   </Space>
@@ -500,7 +500,7 @@ const getStatusTag = (status: IssueStatus) => {
 
 ```typescript
 <div style={{ marginBottom: 16 }}>
-  <Text type="secondary" strong>内容:</Text>
+  <Text type="secondary" strong>{t('issueManagement.details.content')}:</Text>
   <div style={{
     marginTop: 8,
     padding: 12,
@@ -518,12 +518,12 @@ const getStatusTag = (status: IssueStatus) => {
 ```typescript
 <div style={{ marginBottom: 16 }}>
   <Text type="secondary" strong>
-    コメント: ({selectedIssue.comments.length})
+    {t('issueManagement.details.commentsCount')} ({selectedIssue.comments.length})
   </Text>
   <List
     style={{ marginTop: 8, maxHeight: '200px', overflow: 'auto' }}
     dataSource={selectedIssue.comments}
-    locale={{ emptyText: 'コメントがありません' }}
+    locale={{ emptyText: t('issueManagement.details.noComments') }}
     renderItem={(comment: IssueComment) => (
       <List.Item style={{ padding: '8px 0' }}>
         <div style={{ width: '100%' }}>
@@ -567,7 +567,7 @@ const getStatusTag = (status: IssueStatus) => {
     value={newComment}
     onChange={(e) => setNewComment(e.target.value)}
     rows={3}
-    placeholder={isApprovalPending ? 'プロジェクトが承認依頼中のため、コメントを追加できません' : 'コメントを入力...'}
+    placeholder={isApprovalPending ? t('issueManagement.approvalPending.comment') : t('issueManagement.details.commentPlaceholder')}
     maxLength={500}
     showCount
     style={{ marginTop: 8 }}
@@ -591,13 +591,13 @@ const getStatusTag = (status: IssueStatus) => {
     onClick={handleCommentSubmit}
     disabled={!newComment.trim() || isEditDisabled}
   >
-    コメント送信
+    {t('issueManagement.buttons.commentSubmit')}
   </Button>
   <Button
     onClick={handleSetUnresolved}
     disabled={!newComment.trim() || selectedIssue.status === 'unresolved' || isEditDisabled}
   >
-    未解決
+    {t('issueManagement.buttons.unresolved')}
   </Button>
   <Button
     onClick={handleSetResolved}
@@ -608,7 +608,7 @@ const getStatusTag = (status: IssueStatus) => {
       color: newComment.trim() && selectedIssue.status === 'unresolved' && !isEditDisabled ? '#fff' : undefined,
     }}
   >
-    解決
+    {t('issueManagement.buttons.resolved')}
   </Button>
 </div>
 ```
@@ -627,9 +627,9 @@ const getStatusTag = (status: IssueStatus) => {
 
 | ボタン | tooltip |
 |--------|---------|
-| コメント送信 | `プロジェクトが承認依頼中のため、コメント送信はできません` |
-| 未解決 | `プロジェクトが承認依頼中のため、ステータス変更はできません` |
-| 解決 | `プロジェクトが承認依頼中のため、ステータス変更はできません` |
+| コメント送信 | `t('issueManagement.approvalPending.commentSubmit')` |
+| 未解決 | `t('issueManagement.approvalPending.statusChange')` |
+| 解決 | `t('issueManagement.approvalPending.statusChange')` |
 
 ---
 
@@ -640,52 +640,52 @@ const getStatusTag = (status: IssueStatus) => {
 ```typescript
 <Form form={form} layout="vertical">
   <Form.Item
-    label="タイトル"
+    label={t('issueManagement.form.title')}
     name="title"
     rules={[
-      { required: true, message: 'タイトルを入力してください' },
-      { max: 100, message: 'タイトルは100文字以内で入力してください' },
+      { required: true, message: t('issueManagement.form.titleRequired') },
+      { max: 100, message: t('issueManagement.form.titleMaxLength') },
     ]}
   >
-    <Input placeholder="問題のタイトルを入力" maxLength={100} />
+    <Input placeholder={t('issueManagement.form.titlePlaceholder')} maxLength={100} />
   </Form.Item>
 
   <Form.Item
-    label="対象"
+    label={t('issueManagement.form.targetType')}
     name="targetType"
     initialValue="transition"
-    rules={[{ required: true, message: '対象を選択してください' }]}
+    rules={[{ required: true, message: t('issueManagement.form.targetTypeRequired') }]}
   >
     <Select>
-      <Select.Option value="project">プロジェクト</Select.Option>
-      <Select.Option value="task">タスク</Select.Option>
-      <Select.Option value="transition">トランジション</Select.Option>
+      <Select.Option value="project">{t('issueManagement.targetType.project')}</Select.Option>
+      <Select.Option value="task">{t('issueManagement.targetType.task')}</Select.Option>
+      <Select.Option value="transition">{t('issueManagement.targetType.transition')}</Select.Option>
     </Select>
   </Form.Item>
 
   <Form.Item
-    label="問題タイプ"
+    label={t('issueManagement.form.issueType')}
     name="issueType"
-    rules={[{ required: true, message: '問題タイプを選択してください' }]}
+    rules={[{ required: true, message: t('issueManagement.form.issueTypeRequired') }]}
   >
     <Select
-      placeholder="問題タイプを選択"
+      placeholder={t('issueManagement.form.issueTypePlaceholder')}
       loading={issueTypeLoading}
       options={issueTypeOptions}
     />
   </Form.Item>
 
   <Form.Item
-    label="内容"
+    label={t('issueManagement.form.content')}
     name="content"
     rules={[
-      { required: true, message: '内容を入力してください' },
-      { min: 10, message: '内容は10文字以上で入力してください' },
+      { required: true, message: t('issueManagement.form.contentRequired') },
+      { min: 10, message: t('issueManagement.form.contentMinLength') },
     ]}
   >
     <TextArea
       rows={8}
-      placeholder="問題の詳細を具体的に入力してください"
+      placeholder={t('issueManagement.form.contentPlaceholder')}
       maxLength={1000}
       showCount
     />
@@ -694,10 +694,10 @@ const getStatusTag = (status: IssueStatus) => {
   <Form.Item style={{ marginBottom: 0 }}>
     <Space style={{ float: 'right' }}>
       <Button onClick={() => setShowNewIssueForm(false)}>
-        キャンセル
+        {t('issueManagement.form.cancel')}
       </Button>
       <Button type="primary" onClick={handleSubmitNewIssue}>
-        保存
+        {t('issueManagement.form.save')}
       </Button>
     </Space>
   </Form.Item>
@@ -765,7 +765,7 @@ const handleSubmitNewIssue = async () => {
       description: values.content,
     });
 
-    message.success('問題を報告しました');
+    message.success(t('issueManagement.messages.issueReported'));
     form.resetFields();
     setShowNewIssueForm(false);
     // 一覧を再取得
@@ -776,7 +776,7 @@ const handleSubmitNewIssue = async () => {
       return;
     }
     console.error('[IssueManagementModal] handleSubmitNewIssue error:', error);
-    message.error('問題の報告に失敗しました');
+    message.error(extractErrorMessage(error));
   }
 };
 ```
@@ -807,14 +807,13 @@ const handleCommentSubmit = async () => {
       comment: newComment.trim(),
     });
 
-    message.success('コメントを送信しました');
+    message.success(t('issueManagement.messages.commentPosted'));
     setNewComment('');
-    commentForm.resetFields();
     // 一覧を再取得（コメントが追加された状態を反映）
     await fetchIssues();
   } catch (error) {
     console.error('[IssueManagementModal] handleCommentSubmit error:', error);
-    message.error('コメントの送信に失敗しました');
+    message.error(extractErrorMessage(error));
   }
 };
 ```
@@ -851,14 +850,13 @@ const handleSetUnresolved = async () => {
       status: 'unresolved',
     });
 
-    message.success('ステータスを「未解決」に変更しました');
+    message.success(t('issueManagement.messages.setUnresolved'));
     setNewComment('');
-    commentForm.resetFields();
     // 一覧を再取得
     await fetchIssues();
   } catch (error) {
     console.error('[IssueManagementModal] handleSetUnresolved error:', error);
-    message.error('ステータスの変更に失敗しました');
+    message.error(extractErrorMessage(error));
   }
 };
 ```
@@ -896,14 +894,13 @@ const handleSetResolved = async () => {
       status: 'resolved',
     });
 
-    message.success('ステータスを「解決済」に変更しました');
+    message.success(t('issueManagement.messages.setResolved'));
     setNewComment('');
-    commentForm.resetFields();
     // 一覧を再取得
     await fetchIssues();
   } catch (error) {
     console.error('[IssueManagementModal] handleSetResolved error:', error);
-    message.error('ステータスの変更に失敗しました');
+    message.error(extractErrorMessage(error));
   }
 };
 ```
@@ -924,7 +921,6 @@ const handleClose = () => {
   setSelectedIssueId(null);
   setShowNewIssueForm(false);
   form.resetFields();
-  commentForm.resetFields();
   setNewComment('');
   setIssues([]);
   onClose();
@@ -935,10 +931,9 @@ const handleClose = () => {
 1. 選択中の問題IDをクリア
 2. 新規報告フォームを非表示
 3. フォームをリセット
-4. コメントフォームをリセット
-5. コメントをクリア
-6. 問題一覧をクリア
-7. `onClose`コールバック実行
+4. コメントをクリア
+5. 問題一覧をクリア
+6. `onClose`コールバック実行
 
 ---
 
@@ -949,9 +944,9 @@ const handleClose = () => {
 ```typescript
 const getTargetTypeText = (targetType: IssueTargetType) => {
   const typeMap = {
-    project: 'プロジェクト',
-    task: 'タスク',
-    transition: 'トランジション',
+    project: t('issueManagement.targetType.project'),
+    task: t('issueManagement.targetType.task'),
+    transition: t('issueManagement.targetType.transition'),
   };
   return typeMap[targetType] || targetType;
 };
@@ -986,11 +981,11 @@ const getTargetName = (issue: Issue): string => {
     <Space>
       <ExclamationCircleOutlined style={{ color: '#faad14' }} />
       <span>
-        {viewMode ? '問題確認' : '問題報告'} - {targetName}
+        {viewMode ? t('issueManagement.viewTitle') : t('issueManagement.reportTitle')} - {targetName}
       </span>
     </Space>
   }
-  open={visible}
+  open={open}
   onCancel={handleClose}
   footer={null}
   width={1200}
@@ -1223,8 +1218,9 @@ scroll={{ y: 'calc(70vh - 280px)' }}
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 1.3.0 | 2026-03-11 | 仕様書をソースコードと同期: Props設計をコールバック方式から内部API直接呼び出し方式に変更（`issues`/`onSubmitIssue`/`onSubmitComment`/`onUpdateStatus` 削除 → `projectId`/`projectName`/`targetName`/`methodId`/`taskNo` 追加）、`fetchIssues`/`issuesLoading` 追記、各イベントハンドラのAPI呼び出し処理に更新、`destroyOnClose` → `destroyOnHidden` 修正、`bodyStyle` → `styles.body` 修正、ボタンtooltip追記 | Cline |
+| 1.5.0 | 2026-08-27 | ソースコードとの照合に基づき以下を修正（2026-08-27）：①§1.3 使用場所に ExperimentWorkerMenu を追加（タスク: 問題報告ボタン修正）。②§3 Props `visible` → `open`（Ant Design v5 prop名）。③§4.1 `commentForm` 削除（ソースに存在しない）。④§4.1 useEffect の `visible` → `open`、fetchIssues エラーメッセージを `extractErrorMessage()` に変更。⑤§6.1〜6.4・§7.2・§8.1・§10.1・§11.1 のハードコード日本語文字列を全て `t('issueManagement.*')` キー参照に変更（多言語化対応に追従）。⑥§9.2 handleCommentSubmit/handleSetUnresolved/handleSetResolved/handleClose から `commentForm.resetFields()` を削除、成功/エラーメッセージを `t()` / `extractErrorMessage()` に変更。⑦§9.2 handleSubmitNewIssue の成功/エラーメッセージを `t()` / `extractErrorMessage()` に変更 | Cline |
 | 1.4.0 | 2026-03-25 | 関連コンポーネント欄の IssueReportModal を削除、廃止コンポーネント注記を追加（永続化漏れ修正対応） | Cline |
+| 1.3.0 | 2026-03-11 | 仕様書をソースコードと同期: Props設計をコールバック方式から内部API直接呼び出し方式に変更（`issues`/`onSubmitIssue`/`onSubmitComment`/`onUpdateStatus` 削除 → `projectId`/`projectName`/`targetName`/`methodId`/`taskNo` 追加）、`fetchIssues`/`issuesLoading` 追記、各イベントハンドラのAPI呼び出し処理に更新、`destroyOnClose` → `destroyOnHidden` 修正、`bodyStyle` → `styles.body` 修正、ボタンtooltip追記 | Cline |
 | 1.2.0 | 2026-02-27 | コメント送信後の即時表示対応: `selectedIssue` を state から `useMemo` による派生値に変更し、`issues` props 更新時に自動反映されるよう修正 | Cline |
 | 1.1.0 | 2026-02-27 | 問題タイプ選択肢をハードコードからコードマスターAPI取得に変更（useCodeMaster('issue_type')） | Cline |
 | 1.0.0 | 2026-01-19 | 初版作成、UI設計書として文書化 | Cline |

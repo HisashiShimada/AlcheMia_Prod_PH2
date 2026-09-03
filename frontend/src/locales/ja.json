@@ -275,6 +275,9 @@
     "approveSuccess": "タスク #{no} を承認しました",
     "approveError": "承認処理に失敗しました",
     "ngError": "NG記録処理に失敗しました",
+    "correctionSaved": "訂正を保存しました",
+    "correctionError": "訂正の保存に失敗しました",
+
     "approveConfirmTitle": "タスクを承認しますか？",
     "approveConfirmContent": "以下のタスクを「完了」に更新します。",
     "approveOk": "承認",
@@ -3638,7 +3641,11 @@
     "columnComment": "コメント",
     "digitalGood": "良好",
     "digitalCaution": "要確認",
-    "digitalBad": "不良"
+    "digitalBad": "不良",
+    "judgePanelTotal": "定量評価",
+    "judgePanelGood": "良好",
+    "judgePanelBad": "不良",
+    "judgePanelUnit": "件"
   },
   "evaluation": {
     "unit": {
@@ -3849,7 +3856,11 @@
     "savedAs": "V{{version}} として保存しました",
     "saveFailed": "保存に失敗しました。再度お試しください。",
     "nameReadOnlyPlaceholder": "（参照元から継承）",
-    "descReadOnlyPlaceholder": "（参照元から継承）"
+    "descReadOnlyPlaceholder": "（参照元から継承）",
+    "toleranceUpperLabel": "許容上限値",
+    "toleranceUpperPlaceholder": "例: 100.0（空欄=判定なし）",
+    "toleranceLowerLabel": "許容下限値",
+    "toleranceLowerPlaceholder": "例: 0.0（空欄=判定なし）"
   },
   "uncertaintyDetail": {
     "titleSuffix": "詳細・編集",
@@ -3873,6 +3884,8 @@
     "diffFieldQualOptions": "定性評価選択肢",
     "diffDefaultMark": "[デフォルト]",
     "diffSavedAt": "（DB登録済み）",
+    "diffFieldToleranceUpper": "許容上限値",
+    "diffFieldToleranceLower": "許容下限値",
     "section1Title": "1. 基本情報",
     "nameLabel": "不確かさ基準名",
     "namePlaceholder": "不確かさ基準名を入力してください",
@@ -3892,6 +3905,10 @@
     "evalQuantitative": "定量（数値）",
     "evalQualitative": "定性（選択肢）",
     "noChangeWarning": "変更がありません。内容を編集してから保存してください。",
+    "toleranceUpperLabel": "許容上限値",
+    "toleranceUpperPlaceholder": "例: 100.0（空欄=判定なし）",
+    "toleranceLowerLabel": "許容下限値",
+    "toleranceLowerPlaceholder": "例: 0.0（空欄=判定なし）",
     "diffLabel": {
       "uncertaintyName": "不確かさ基準名",
       "uncertaintyKey": "Key属性設定",
@@ -4209,14 +4226,34 @@
       "actual": "実績値",
       "actualAverage": "実績値（平均）",
       "diff": "差分",
-      "uncertaintyCriteriaName": "不確かさ基準名",
-      "uncertaintyAssignedValue": "不確かさ値",
-      "uncertaintyAssignedBy": "実験記録者",
-      "uncertaintyAssignedAt": "不確かさ付与日時",
-      "uncertaintyComment": "不確かさについてのコメント"
+      "uncertaintyJudge": "不確かさ判定",
+      "uncertaintyInstructionKey": "指示キー",
+      "uncertaintyTolerance": "許容値",
+      "uncertaintyJudgeResult": "判定結果",
+      "uncertaintyRecordedValue": "記録値",
+      "qualitativeCriteriaName": "定性：基準名",
+      "qualitativeAssignedValue": "定性：付与値",
+      "quantitativeCriteriaName": "定量：基準名",
+      "quantitativeTolerance": "定量：許容値",
+      "quantitativeRecordedValue": "定量：付与値",
+      "quantitativeJudgeResult": "定量：判定結果",
+      "experimentUser": "実験記録者"
     },
     "cell": {
       "noRecord": "未記録"
+    },
+    "judgeDetailButton": "不確かさ詳細 ({count}件)",
+    "judgeCountButton": "({count}件)",
+    "judgeDetailDialog": {
+      "title": "不確かさ判定詳細",
+      "method": "メソッド",
+      "taskNo": "タスク",
+      "transition": "トランジション",
+      "template": "テンプレート",
+      "key": "Key",
+      "expectedValue": "想定値",
+      "actualValue": "実績値",
+      "overallJudge": "総合評価"
     },
     "criteriaType": {
       "qualitative": "定性",
@@ -4254,6 +4291,9 @@
     "bulkActionLabel": "操作を選択:",
     "bulkActionApprove": "承認する",
     "bulkActionNg": "NGにする",
+    "correctionMode": "訂正",
+    "saveCorrectionBtn": "保存",
+    "cancelCorrectionBtn": "キャンセル",
     "selectTaskNumber": "タスク番号を選択してください",
     "enterNgReason": "NG理由を入力してください",
     "approveSuccess": "タスク #{taskNumber} を承認しました",
@@ -4540,6 +4580,7 @@
     "emptyText": "用語がありません",
     "showTotal": "Total {total} items",
     "saveTermError": "用語「{localName}」の保存に失敗しました: {detail}",
+    "localNameNcnameInvalid": "ローカル名は英字またはアンダースコアで始まり、英数字・アンダースコア・ハイフン・ピリオドのみ使用できます（xs:NCName形式）",
     "csv": {
       "exportSelectAtLeastOne": "少なくとも1件選択してください"
     }
@@ -4962,7 +5003,8 @@
     "warnDuplicateContent": "別Prefixに同名の用語が既に存在します。それでも登録しますか？",
     "warnRegister": "登録する",
     "warnCancel": "キャンセル",
-    "localNameRequired2": "ローカル名を入力してください",
+      "localNameRequired2": "ローカル名を入力してください",
+      "localNameNcnameInvalid": "ローカル名は英字またはアンダースコアで始まり、英数字・アンダースコア・ハイフン・ピリオドのみ使用できます（xs:NCName形式）",
     "updateSuccess": "用語を更新しました",
     "updateError": "更新に失敗しました: {detail}",
     "groupAddParentLabelDefault": "選択中グループ",
@@ -5095,7 +5137,7 @@
     "searchPlaceholder": "Prefix・URI・説明で検索",
     "btnImport": "CSVインポート",
     "btnExport": "CSVエクスポート",
-    "btnAddPrefix": "+ Prefix追加",
+    "btnAddPrefix": "Prefix追加",
     "btnSave": "保存",
     "btnCancel": "キャンセル",
     "loading": "読み込み中...",
@@ -5103,7 +5145,8 @@
     "sortDesc": "降順",
     "sortCancel": "ソートをキャンセル",
     "emptyText": "データがありません",
-    "showTotal": "全{total}件"
+    "showTotal": "全{total}件",
+    "prefixNcnameInvalid": "Prefixは英字またはアンダースコアで始まり、英数字・アンダースコア・ハイフン・ピリオドのみ使用できます（xs:NCName形式）"
   },
   "namespaceDetail": {
     "titleTerm": "用語詳細",
