@@ -573,13 +573,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }
         const r = record as PrefixRow;
         return r.id === editingId ? (
-          <Input
-            size="small"
-            value={editingValues.prefix}
-            onChange={(e) =>
-              setEditingValues((p) => ({ ...p, prefix: e.target.value }))
-            }
-          />
+          <Input disabled size="small" value={editingValues.prefix} />
         ) : (
           <Text strong>{r.prefix}</Text>
         );

@@ -1841,17 +1841,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }
         const term = record as Term;
         return term.id === editingTermId
-          ? (
-            <Select
-              size="small"
-              style={{ width: '100%' }}
-              value={editingValues.prefix || undefined}
-              placeholder={t('namespaceMain.prefixSelectPlaceholder')}
-              allowClear
-              options={availablePrefixOptions}
-              onChange={(val) => setEditingValues((p) => ({ ...p, prefix: val ?? '' }))}
-            />
-          )
+          ? <Input disabled size="small" value={editingValues.prefix} />
           : <Text strong>{term.prefix}</Text>;
       },
     },
