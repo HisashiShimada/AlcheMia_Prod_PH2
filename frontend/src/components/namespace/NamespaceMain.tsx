@@ -17,7 +17,8 @@ import {
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
-import { getTerms, createTerm, updateTerm, toggleTermActive, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
+import { isValidNCName } from '@/utils/ncname';
+import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import GroupManagementPanel from '../group/GroupManagementPanel';
@@ -926,6 +927,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     if (externalSelectedNsKey === undefined || externalSelectedNsKey === null) return;
 
+    // ノード切り替え時にチェック状態をリセット
+    setSelectedTermIds([]);
+
     const nsKey = externalSelectedNsKey as string;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
     const COMPANY_KEYS = new Set(['company']);
@@ -963,6 +967,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (externalSelectedNsKey !== undefined) return;
     if (!selectedNsKey) return;
 
+    // ノード切り替え時にチェック状態をリセット
+    setSelectedTermIds([]);
+
     const nsKey = selectedNsKey;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
     const COMPANY_KEYS = new Set(['company']);
@@ -998,6 +1005,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // personal ノードも再読み込みする（localStorage の userInfo を再取得）
   useEffect(() => {
     const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // タブを離れたときにチェック状態をリセット
+        setSelectedTermIds([]);
+      }
       if (document.visibilityState === 'visible') {
         // 現在選択中のノードのスコープで再フェッチ（引数なし全件取得による他階層データ混入を防ぐ）
         const effectiveKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
@@ -1044,6 +1055,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     for (const row of newTerms) {
       if (!row.prefix)    { message.error(t('namespaceMain.prefixRequired')); return; }
       if (!row.localName) { message.error(t('namespaceMain.localNameRequired')); return; }
+      if (!isValidNCName(row.localName)) { message.error(t('namespaceMain.localNameNcnameInvalid')); return; }
     }
 
     // 研究開発部（dept-rd）選択時は必ずエラーダイアログを表示して保存をブロック

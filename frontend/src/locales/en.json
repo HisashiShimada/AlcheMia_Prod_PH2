@@ -3411,7 +3411,8 @@
     "duplicateWarningMessage": "\"{qname}\" is already registered in {scopeName}. Do you want to register it?",
     "saveTermError": "Failed to save term \"{{localName}}\": {{detail}}",
     "duplicateErrorTitle": "Duplicate Error",
-    "duplicateError": "\"{{qname}}\" is already registered in scope \"{{scopeName}}\""
+    "duplicateError": "\"{{qname}}\" is already registered in scope \"{{scopeName}}\"",
+    "localNameNcnameInvalid": "Local name must start with a letter or underscore, and contain only letters, digits, underscores, hyphens, or periods (xs:NCName format)"
   },
   "createProject": {
     "title": "Create Project",
@@ -4904,7 +4905,8 @@
     "warnDuplicateContent": "A term with the same local name exists under a different Prefix. Do you want to register anyway?",
     "warnRegister": "Register",
     "warnCancel": "Cancel",
-    "localNameRequired2": "Please enter a local name",
+      "localNameRequired2": "Please enter a local name",
+      "localNameNcnameInvalid": "Local name must start with a letter or underscore, and contain only letters, digits, underscores, hyphens, or periods (xs:NCName format)",
     "updateSuccess": "Term updated successfully",
     "updateError": "Failed to update term: {detail}",
     "groupAddParentLabelDefault": "Selected Group",
@@ -5045,7 +5047,8 @@
     "sortDesc": "Descending",
     "sortCancel": "Cancel sort",
     "emptyText": "No data",
-    "showTotal": "Total {total}"
+    "showTotal": "Total {total}",
+    "prefixNcnameInvalid": "Prefix must start with a letter or underscore, and contain only letters, digits, underscores, hyphens, or periods (xs:NCName format)"
   },
   "namespaceDetail": {
     "levelGlobal": "Global",
