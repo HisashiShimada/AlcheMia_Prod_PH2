@@ -581,6 +581,34 @@ const makeEmptyRow = (): NewTermRow => ({
 
 
 // ──────────────────────────────────────────────
+// CSV パースユーティリティ
+// RFC 4180 準拠：クォートあり・なし・空列・"" エスケープすべてに対応
+// ──────────────────────────────────────────────
+const parseCsvLine = (line: string): string[] => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++; // "" → " に変換してスキップ
+      } else {
+        inQuotes = !inQuotes; // クォート開始/終了
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current); // 最後の列
+  return result;
+};
+
+// ──────────────────────────────────────────────
 // メインコンポーネント
 // ──────────────────────────────────────────────
 const NamespaceMain: React.FC<NamespaceMainProps> = ({
@@ -1677,14 +1705,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         if (lines.length < 2) { message.error(t('namespaceMain.csvEmpty2')); return; }
 
-        // CSV パース
+        // CSV パース（parseCsvLine: RFC 4180 準拠、クォートあり・なし・空列・"" エスケープ対応）
         const rows: TermCsvParsedRow[] = [];
         for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g)?.map((c) =>
-            c.startsWith('"') ? c.slice(1, -1).replace(/""/g, '"') : c
-          ) ?? [];
+          const cols = parseCsvLine(lines[i]);
           if (cols.length < 6) continue;
           const [, prefix, localName, displayName, description, type, unitHint] = cols;
+          if (!prefix) continue;
           if (!localName) continue;
           rows.push({
             prefix:        prefix        ?? '',
@@ -1824,17 +1851,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }
         const term = record as Term;
         return term.id === editingTermId
-          ? (
-            <Select
-              size="small"
-              style={{ width: '100%' }}
-              value={editingValues.prefix || undefined}
-              placeholder={t('namespaceMain.prefixSelectPlaceholder')}
-              allowClear
-              options={availablePrefixOptions}
-              onChange={(val) => setEditingValues((p) => ({ ...p, prefix: val ?? '' }))}
-            />
-          )
+          ? <Input disabled size="small" value={editingValues.prefix} />
           : <Text strong>{term.prefix}</Text>;
       },
     },
