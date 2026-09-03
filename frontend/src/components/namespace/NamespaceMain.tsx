@@ -17,7 +17,8 @@ import {
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
-import { getTerms, createTerm, updateTerm, toggleTermActive, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
+import { isValidNCName } from '@/utils/ncname';
+import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import GroupManagementPanel from '../group/GroupManagementPanel';
@@ -580,6 +581,34 @@ const makeEmptyRow = (): NewTermRow => ({
 
 
 // ──────────────────────────────────────────────
+// CSV パースユーティリティ
+// RFC 4180 準拠：クォートあり・なし・空列・"" エスケープすべてに対応
+// ──────────────────────────────────────────────
+const parseCsvLine = (line: string): string[] => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++; // "" → " に変換してスキップ
+      } else {
+        inQuotes = !inQuotes; // クォート開始/終了
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current); // 最後の列
+  return result;
+};
+
+// ──────────────────────────────────────────────
 // メインコンポーネント
 // ──────────────────────────────────────────────
 const NamespaceMain: React.FC<NamespaceMainProps> = ({
@@ -926,6 +955,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     if (externalSelectedNsKey === undefined || externalSelectedNsKey === null) return;
 
+    // ノード切り替え時にチェック状態をリセット
+    setSelectedTermIds([]);
+
     const nsKey = externalSelectedNsKey as string;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
     const COMPANY_KEYS = new Set(['company']);
@@ -963,6 +995,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (externalSelectedNsKey !== undefined) return;
     if (!selectedNsKey) return;
 
+    // ノード切り替え時にチェック状態をリセット
+    setSelectedTermIds([]);
+
     const nsKey = selectedNsKey;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
     const COMPANY_KEYS = new Set(['company']);
@@ -998,6 +1033,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // personal ノードも再読み込みする（localStorage の userInfo を再取得）
   useEffect(() => {
     const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // タブを離れたときにチェック状態をリセット
+        setSelectedTermIds([]);
+      }
       if (document.visibilityState === 'visible') {
         // 現在選択中のノードのスコープで再フェッチ（引数なし全件取得による他階層データ混入を防ぐ）
         const effectiveKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
@@ -1044,6 +1083,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     for (const row of newTerms) {
       if (!row.prefix)    { message.error(t('namespaceMain.prefixRequired')); return; }
       if (!row.localName) { message.error(t('namespaceMain.localNameRequired')); return; }
+      if (!isValidNCName(row.localName)) { message.error(t('namespaceMain.localNameNcnameInvalid')); return; }
     }
 
     // 研究開発部（dept-rd）選択時は必ずエラーダイアログを表示して保存をブロック
@@ -1665,14 +1705,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         if (lines.length < 2) { message.error(t('namespaceMain.csvEmpty2')); return; }
 
-        // CSV パース
+        // CSV パース（parseCsvLine: RFC 4180 準拠、クォートあり・なし・空列・"" エスケープ対応）
         const rows: TermCsvParsedRow[] = [];
         for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g)?.map((c) =>
-            c.startsWith('"') ? c.slice(1, -1).replace(/""/g, '"') : c
-          ) ?? [];
+          const cols = parseCsvLine(lines[i]);
           if (cols.length < 6) continue;
           const [, prefix, localName, displayName, description, type, unitHint] = cols;
+          if (!prefix) continue;
           if (!localName) continue;
           rows.push({
             prefix:        prefix        ?? '',
@@ -1812,17 +1851,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }
         const term = record as Term;
         return term.id === editingTermId
-          ? (
-            <Select
-              size="small"
-              style={{ width: '100%' }}
-              value={editingValues.prefix || undefined}
-              placeholder={t('namespaceMain.prefixSelectPlaceholder')}
-              allowClear
-              options={availablePrefixOptions}
-              onChange={(val) => setEditingValues((p) => ({ ...p, prefix: val ?? '' }))}
-            />
-          )
+          ? <Input disabled size="small" value={editingValues.prefix} />
           : <Text strong>{term.prefix}</Text>;
       },
     },

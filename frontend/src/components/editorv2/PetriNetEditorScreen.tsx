@@ -43,6 +43,7 @@ export default function PetriNetEditorScreen({
     documentId,
     description,
     openDraftManagerOnStart,
+    organizationGroupCd,
   } = params;
 
   // ステート管理
@@ -203,6 +204,7 @@ export default function PetriNetEditorScreen({
             initialDocumentId={documentId}
             initialDescription={description}
             openDraftManagerOnStart={openDraftManagerOnStart}
+            organizationGroupCd={organizationGroupCd}
             onContentChange={handleContentChange}
             onContentSaved={() => setHasUnsavedChanges(false)}
           />

@@ -52,7 +52,7 @@ import type { PropertyData } from '@/types/editor';
 import UncertaintyCriteriaSelectorModal from '../uncertainty/UncertaintyCriteriaSelectorModal';
 import type { TargetProperty, AssignPayload } from '../uncertainty/UncertaintyCriteriaSelectorModal';
 import useNamespaceOperations from '../../hooks/useNamespaceOperations';
-import { getAllTermsAsMap } from '@/services/namespaceApiService';
+import { getAllTermsAsMap, getTermsForPropertyDialog } from '@/services/namespaceApiService';
 import type { NamespaceTermRow } from '@/services/namespaceApiService';
 import type { NamespaceData } from '@/types/format';
 import { useAttributeMasters } from '@/hooks/useAttributeMasters';
@@ -98,6 +98,13 @@ interface TemplateEditorDialogProps {
   editingFileName?: string;
   /** S3キー（例: '{orgId}/projects/{projectName}/{fileName}.maiml'）。uploadTargetPathの生成に優先使用 */
   sourceS3Key?: string;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * 新規プロパティ追加ダイアログの用語スコープ絞り込みに使用する。
+   * 指定時: そのグループ＋上位グループスコープ＋個人スコープの用語を表示
+   * 未指定時: 個人スコープのみにフォールバック
+   */
+  organizationGroupCd?: string;
 }
 
 /**
@@ -112,6 +119,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   templateErrors = {},
   editingFileName,
   sourceS3Key,
+  organizationGroupCd,
 }) => {
   const { t } = useLanguage();
   const [hasChanges, setHasChanges] = useState(false);
@@ -608,9 +616,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setHasUnsyncedXmlChanges(false);
       setActiveTabKey('ui');
 
-      // 用語マップをリセットし、open 時に全件取得
+      // 用語マップをリセットし、open 時にスコープ絞り込みで取得
       setTermMap(new Map());
-      getAllTermsAsMap()
+      getTermsForPropertyDialog(organizationGroupCd)
         .then((map) => {
           // hasDirectiveTerm !== true のエントリを除外して指示用語のみに絞り込む
           const filteredMap = new Map(
@@ -2145,11 +2153,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             notFoundContent={termMap.size === 0 ? t('template.termMapLoading') : t('template.termNotFound')}
           >
             {Array.from(termMap.entries())
-              .filter(([, term]) => term.displayName && term.displayName.trim() !== '')
               .map(([qname, term]) => (
                 <Option key={qname} value={qname} data-display={term.displayName ?? ''}>
                   <div style={{ lineHeight: 1.4 }}>
-                    <div style={{ fontWeight: 600 }}>{term.displayName}</div>
+                    {term.displayName && term.displayName.trim() !== '' && (
+                      <div style={{ fontWeight: 600 }}>{term.displayName}</div>
+                    )}
                     <div style={{ fontSize: 11, color: '#888' }}>{qname}</div>
                   </div>
                 </Option>
