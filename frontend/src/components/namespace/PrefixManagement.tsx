@@ -181,12 +181,24 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   };
 
   useEffect(() => {
-    // スコープ変更時に未保存のインライン入力行・編集中状態をクリアする
+    // スコープ変更時に未保存のインライン入力行・編集中状態・チェック状態をクリアする
     setNewRows([]);
     setEditingId(null);
+    setSelectedRowKeys([]);
     reloadNamespaces();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNsKey, JSON.stringify(orgGroupCds)]);
+
+  // ──── タブを離れたときにチェック状態をリセット
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setSelectedRowKeys([]);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   // ── 新規行を追加（URI自動生成付き）
   const handleAddRow = async () => {
@@ -735,7 +747,7 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
               size="small"
               danger={!viewOnly && isActive}
               disabled={viewOnly}
-              style={{ minWidth: '90px' }}
+              style={{ minWidth: '105px' }}
               onClick={() => isActive ? handleDeactivate(r) : handleActivate(r)}
             >
               {isActive ? t('prefixManagement.btnDeactivate') : t('prefixManagement.btnActivate')}
