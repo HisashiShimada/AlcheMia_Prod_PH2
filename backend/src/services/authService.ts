@@ -769,6 +769,7 @@ export class AuthService {
             displayName: user.user_name,
             organizationGroupCds: user.organization_group_cds || [],
             initialScreenFunctionCd: initialScreenFunctionCd,
+            permissions,
           },
         },
       };

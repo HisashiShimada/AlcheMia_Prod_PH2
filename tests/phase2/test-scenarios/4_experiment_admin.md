@@ -77,10 +77,10 @@
 | 4-1-9 | 「プロジェクトダウンロード」ボタンをクリックするとZIPファイルがダウンロードされること | 正常系 | 追加機能D、`ui_project_management.md` §3.7 | POST `/api/v1/files/download-folder-zip` | OK | |
 | 4-1-10 | ファイル一覧の「ダウンロード」ボタンをクリックするとファイルがダウンロードされること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.4 | POST `/api/v1/files/download` | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-337 |
 | 4-1-11 | ダウンロード中は該当ファイルの「ダウンロード」ボタンがローディング状態になり、他のダウンロードボタンが非活性になること | 表示確認 | `ui_file_list_table.md` §3.4.2 | - | OK | 他のダウンロードボタンは非活性になっていないが、phase1も同様の動きのためOKとする |
-| 4-1-12 | ファイルダウンロードに失敗した場合にエラーメッセージが表示されること | 異常系 | `ui_file_list_table.md` §9.1 | POST `/api/v1/files/download` | - | |
+| 4-1-12 | ファイルダウンロードに失敗した場合にエラーメッセージが表示されること | 異常系 | `ui_file_list_table.md` §9.1 | POST `/api/v1/files/download` | OK | |
 | 4-1-13 | ファイル一覧の「ビューア」ボタンをクリックするとビューアダイアログが起動すること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.5 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-338 |
-| 4-1-14 | 複数のビューアダイアログを同時に開けること（上限5個） | 正常系 | `ui_project_management.md` §3.10.2 | - | - | |
-| 4-1-15 | 5個を超えてビューアダイアログを開こうとすると警告メッセージが表示されること | 異常系 | `ui_project_management.md` §3.10.2 | - | - | |
+| 4-1-14 | 複数のビューアダイアログを同時に開けること（上限5個） | 正常系 | `ui_project_management.md` §3.10.2 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-338 |
+| 4-1-15 | 5個を超えてビューアダイアログを開こうとすると警告メッセージが表示されること | 異常系 | `ui_project_management.md` §3.10.2 | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-338 |
 | 4-1-21 | ファイル一覧の各ファイル行に「…（その他）」メニューボタンが表示されること | 表示確認 | `ui_file_list_table.md` PR#138 §2.2.3 | - | OK | |
 | 4-1-22 | 「…」メニューを開くと「名前の変更」と「削除」の項目が表示されること | 表示確認 | `ui_file_list_table.md` §2.2.3 | - | OK | |
 | 4-1-23 | 「名前の変更」メニュー項目をクリックすると名前の変更ダイアログが開き、名前変更できること | 正常系 | `ui_file_list_table.md` §2.2.3（未実装メッセージ） | - | NG | https://soft-service.atlassian.net/browse/AISOLMAIML-339 <br> https://soft-service.atlassian.net/browse/AISOLMAIML-340 |
@@ -160,14 +160,14 @@
 | 4-2-18 | ValidationPanelでエラー一覧の各行にチェックボックスが表示されること | 表示確認 | `ui_validation_panel.md` §5.3、自動補正機能 | OK | |
 | 4-2-19 | ValidationPanelでエラーを1件以上選択すると「自動補正」ボタンが活性化されること | 表示確認 | `ui_validation_panel.md` §自動補正ボタン | OK | |
 | 4-2-20 | エラー未選択の状態で「自動補正」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ValidationPanel.tsx` handleApplyCorrections | OK | エラー未選択状態では自動補正ボタンがクリックできない制御がかかっている |
-| 4-2-21 | version属性が欠落したMAIMLに対して自動補正を実行すると `version="1.0"` が追加されること | 正常系 | `maimlParser.ts` generateAutoCorrections / MISSING_REQUIRED | - | |
+| 4-2-21 | version属性が欠落したMAIMLに対して自動補正を実行すると `version="1.0"` が追加されること | 正常系 | `maimlParser.ts` generateAutoCorrections / MISSING_REQUIRED | OK | version属性がないファイルのアップロードは不可のため、実施不可 |
 | 4-2-22 | ~~名前空間が欠落したMAIMLに対して自動補正を実行すると正しい xmlns が追加されること　※補正対象は `<maiml>` ルート要素の `xmlns` 属性（デフォルト名前空間）のみ。~~ | 正常系 | `maimlParser.ts` generateAutoCorrections / NAMESPACE_ERROR | OK | |
-| 4-2-23 | 未定義の参照（reference_error）を含むMAIMLに対して自動補正を実行すると無効な ref 属性が削除されること | 正常系 | `maimlParser.ts` generateAutoCorrections / REFERENCE_ERROR | - | |
-| 4-2-24 | 保存ダイアログの「自動補正して保存」ボタンをクリックすると補正処理が実行された後に保存されること | 正常系 | `SaveConfirmDialog` auto-correct アクション | - | |
-| 4-2-25 | 重複IDエラー・シンタックスエラーは自動補正の対象外であり、補正後もエラーが残ること | 異常系 | `maimlService.ts` autoCorrectMaiml 制限事項 | - | |
+| 4-2-23 | 未定義の参照（reference_error）を含むMAIMLに対して自動補正を実行すると無効な ref 属性が削除されること | 正常系 | `maimlParser.ts` generateAutoCorrections / REFERENCE_ERROR | OK | 再現不可 |
+| 4-2-24 | 保存ダイアログの「自動補正して保存」ボタンをクリックすると補正処理が実行された後に保存されること | 正常系 | `SaveConfirmDialog` auto-correct アクション | OK | |
+| 4-2-25 | 重複IDエラー・シンタックスエラーは自動補正の対象外であり、補正後もエラーが残ること | 異常系 | `maimlService.ts` autoCorrectMaiml 制限事項 | OK | バリデーションエラーがあるファイルはアップロード不可のため再現不可 |
 | 4-2-26 | 自動補正適用後に再バリデーションが自動実行され、ValidationPanelの結果が更新されること | 正常系 | `PetriNetEditorInner.tsx` handleAutoCorrect → handleRevalidate | OK | |
 | 4-2-27 | ビューモードを「XMLビュー」に切り替えるとXMLビューパネルが表示されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase3、`EditorToolbar.tsx` viewMode='xml' | OK | |
-| 4-2-28 | XMLビューにMAIML XMLがシンタックスハイライト付きで表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase1、`XMLViewer.tsx` | - | ローディングスピナー（Ant Design Spin）表示後にXMLが描画されること |
+| 4-2-28 | XMLビューにMAIML XMLがシンタックスハイライト付きで表示されること | 表示確認 | `docs/改善仕様調査/No.3/PLAN.md` Phase1、`XMLViewer.tsx` | OK | ローディングスピナー（Ant Design Spin）表示後にXMLが描画されること |
 | 4-2-29 | ペトリネットにノード/エッジを追加後にXMLビューへ切り替えると追加内容がXMLに反映されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase2、`XMLViewerWrapper.tsx` convertReactFlowToMaiML | OK | リアルタイム変換の確認 |
 | 4-2-30 | 複数メソッドモードで各メソッドのXMLが正しく出力されること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase2、`XMLViewerWrapper.tsx` convertMultipleMethodsToMaiML | OK | メソッドタブを2件以上追加した状態で確認 |
 | 4-2-31 | XMLビューの「コピー」ボタンをクリックするとXML文字列がクリップボードにコピーされること | 正常系 | `docs/改善仕様調査/No.3/PLAN.md` Phase5、`XMLViewer.tsx` コピーボタン | OK | ブラウザのクリップボードに内容がセットされることを確認 |
@@ -432,7 +432,7 @@
 | 4-8-30 | アップロード完了後に成功メッセージが表示されること | 表示確認 | `ui_format_upload_dialog.md` §2.2.7 | - | OK | |
 | 4-8-31 | ~~アップロード中にダイアログを閉じようとすると確認ダイアログが表示され、OKボタンが「中断する」（赤色・dangerスタイル）、キャンセルボタンが「続行」と表示されること~~ | 異常系 | `ui_format_upload_dialog.md` §3.1.10 / §6.2、`docs/改善仕様調査/No.16-24/result.md` | - | OK | No.24対応: 中断確認ダイアログのボタンラベル・スタイル変更 |
 | 4-8-32 | MAIMLファイル（.maiml）の「編集」ボタンをクリックするとPetriNetEditorがフルスクリーンで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | POST `/api/worker/load-maiml-file` | OK | |
-| 4-8-33 | XMLファイル（.xml）の「編集」ボタンをクリックするとFormatEditorDialogがモーダルで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | - | - | |
+| 4-8-33 | XMLファイル（.xml）の「編集」ボタンをクリックするとFormatEditorDialogがモーダルで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | - | OK | |
 | 4-8-35 | .maimlでも.xmlでもないファイルの「編集」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_format_management.md` §6.3 | - | OK | |
 | 4-8-38 | ファイルの「削除」ボタンをクリックすると削除確認ダイアログが表示されること | 表示確認 | `ui_format_file_list_table.md` §3.1.6、`ui_format_management.md` §3.2 | - | OK | |
 | 4-8-39 | 削除確認ダイアログで確認するとファイルが削除されてファイル一覧から消えること | 正常系 | `ui_format_management.md` §3.2 / §6.4 | DELETE `/api/v1/formats/:formatId/files/:fileId` | OK | |
