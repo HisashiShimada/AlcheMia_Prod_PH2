@@ -14,6 +14,8 @@
 | トランジション進捗 | `insertTransitionProgressLog` | 作業実施フェーズ |
 | 指示確認 | `insertInstructionConfirmLog` | 指示確認フェーズ |
 | プロジェクト指示送信 | `insertProjectInstructionSentLog` | 指示送信フェーズ（Preparation） |
+| タスクレビュー（承認/NG） | `insertTaskReviewLog` | レビューフェーズ（Task_review） |
+| 記録値訂正 | `insertRecordCorrectionLog` | 訂正フェーズ（Record_correction） |
 
 ---
 
@@ -44,6 +46,8 @@
 |---|---|---|
 | 指示送信（Preparation） | `Preparation_schedule` | `insertProjectInstructionSentLog` |
 | 品質評価（Quality） | `Quality_evaluation` | `buildQualityEvalLogEntries` |
+| タスクレビュー（承認/NG） | `Task_review` | `insertTaskReviewLog` |
+| 記録値訂正 | `Record_correction` | `insertRecordCorrectionLog` |
 
 > 新たなフェーズが追加される場合はこのテーブルに追記すること。  
 > ownerRefs が複数の assignee を持つ場合は枝番を付ける（例: `_assignee_1`, `_assignee_2`）。
@@ -65,6 +69,8 @@
 |---|---|---|
 | 指示送信（Preparation） | `PreparationEvent` | `schedule` |
 | 品質評価（Quality） | — | —（lifecycle:transition は使用しない） |
+| タスクレビュー（承認/NG） | — | —（lifecycle:transition は使用しない） |
+| 記録値訂正 | — | —（lifecycle:transition は使用しない） |
 
 > 例: `name = "Alchemia:PreparationEvent"`, `description = "{projectName} PreparationEvent(schedule)"`
 
@@ -136,6 +142,63 @@
 
 ---
 
+## 4. タスクレビュー / 記録値訂正 eventLog の記載項目
+
+### 4-1. タスクレビュー（`insertTaskReviewLog`）
+
+承認またはNG記録時に生成するエントリの property キー名。
+
+**JSON 階層構造**: `log[@ref=methodId] > trace[@ref=methodId, @taskno=taskNo] > event > property + ownerRef`
+
+| 項目 | キー名 | `xsi:type` | 条件 |
+|---|---|---|---|
+| 評価日時 | `time:timestamp` | `dateTimeType` | 常に付与（XES 標準） |
+| レビュー結果 | `Alchemia:reviewResult` | `stringType` | 常に付与。値: `"approved"` or `"ng"` |
+| NG理由 | `Alchemia:ngReason` | `stringType` | `reviewType='ng'` かつ ngReason が存在する場合のみ |
+
+**ownerRef 構成**:
+
+| 役割 | `@id` | `@ref` の値 |
+|---|---|---|
+| レビュアー（issuer） | `ownerRef_{projectName}Task_review_{seq}_issuer` | `userId`（`@` → `_` 置換） |
+
+> assignee は付与しない（レビューは管理者単独操作のため）。
+
+---
+
+### 4-2. 記録値訂正（`insertRecordCorrectionLog`）
+
+実験指示タブから実績値（`template_data`）を訂正した際に生成するエントリの property キー名。
+
+**JSON 階層構造**: `log[@ref=methodId] > trace[@ref=methodId, @taskno=taskNo] > event[] > property + ownerRef`
+
+> 訂正1件につき1 event を生成し、複数訂正は同一トレース内に複数 event としてネストする。  
+> event の `@id` には枝番（`_{n}`、1始まり）を付与する。
+
+| 項目 | キー名 | `xsi:type` | 説明 |
+|---|---|---|---|
+| 訂正日時 | `time:timestamp` | `dateTimeType` | 常に付与（XES 標準） |
+| インスタンス UUID | `Alchemia:correctionInstanceUuid` | `stringType` | `template_data.property_set.instanceUuid` の値 |
+| property キー | `Alchemia:correctionPropKey` | `stringType` | 訂正した property の key |
+| 訂正前の値 | `Alchemia:correctionBeforeValue` | `stringType` | 訂正前の値（文字列化） |
+| 訂正後の値 | `Alchemia:correctionAfterValue` | `stringType` | 訂正後の値（文字列化） |
+
+> `Alchemia:correction` プレフィックスで「訂正」操作であることを明示する。  
+> `:` による階層接続はプレフィックスの1段階のみ（`Alchemia:correctionXxx` 形式）。
+
+**ownerRef 構成**:
+
+| 役割 | `@id` | `@ref` の値 |
+|---|---|---|
+| 訂正者（issuer） | `ownerRef_{projectName}Record_correction_{seq}_issuer` | `userId`（`@` → `_` 置換） |
+
+**`instanceUuid` の管理方法**:
+
+`template_data.property_set` JSON の最上位フィールド `instanceUuid` として保持する。  
+`TemplateDataRepository.upsert` で新規 INSERT 時に `randomUUID()` で自動生成し、UPDATE 時は既存値を維持する。
+
+---
+
 ## 5. 品質評価 eventLog の記載項目
 
 `buildQualityEvalLogEntries()` が生成する評価エントリの property キー名。
@@ -175,4 +238,5 @@
 
 | 日付 | 変更内容 | 担当者 |
 |---|---|---|
+| 2026-09-01 | タスクレビュー（`Task_review`）・記録値訂正（`Record_correction`）フェーズ追加、フェーズ名一覧・フェーズ識別名一覧を更新 | Cline |
 | 2026-08-18 | 初版作成（lifecycle:transition 系共通ルール定義） | Cline |

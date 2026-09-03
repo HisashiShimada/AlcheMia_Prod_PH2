@@ -148,6 +148,8 @@ export default function UncertaintyCriteriaSelectorPanel({
           scopeOrder:         row.scopeOrder,
           desc:               row.desc,
           unit:               row.unit,
+          xsiType:            row.xsiType,
+          scaleFactor:        row.scaleFactor,
           format:             row.format,
           targetSections:     row.targetSections,
           targetTag:          row.targetTag,

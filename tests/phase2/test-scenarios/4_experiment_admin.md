@@ -18,8 +18,8 @@
 | テスト実施日 | 2026-09-02（4-1、4-3、4-4、4-5、4-7、4-8、4-9、4-11、4-12、4-18 実施済み） |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | 不合格（NG 6件・未実施 158件） |
-| 備考 | NG: 4-1-10（AISOLMAIML-337）、4-1-13（AISOLMAIML-338）、4-1-23（AISOLMAIML-339/340）、4-1-35（AISOLMAIML-341）、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。未実施: 4-6／4-10／4-13〜4-17 など |
+| 総合判定 | 不合格（NG 6件・未実施 199件） |
+| 備考 | NG: 4-1-10（AISOLMAIML-337）、4-1-13（AISOLMAIML-338）、4-1-23（AISOLMAIML-339/340）、4-1-35（AISOLMAIML-341）、4-18-D-2（AISOLMAIML-334）、4-18-D-3（AISOLMAIML-291/317/315）。未実施: 4-2／4-6／4-10／4-13〜4-17 など |
 
 ---
 
@@ -30,16 +30,16 @@
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|------|-----------|-----------|------|-------|-------|
 | **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M、`ui_create_project_modal.md`、`docs/design/spec/organization_group_project_access.md` | 34件 | 手動 | 27 | 4 | 3 |
-| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 53件 | 手動 | 34 | 0 | 19 |
-| **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 9件 | 手動 | 7 | 0 | 2 |
+| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 53件 | 手動 | 12 | 0 | 41 |
+| **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 9件 | 手動 | 6 | 0 | 3 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 10件 | 手動 | 8 | 0 | 2 |
-| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | 手動 | 7 | 0 | 0 |
+| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 7件 | 手動 | 5 | 0 | 2 |
 | **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 14件 | 手動 | 0 | 0 | 14 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 3件 | 手動 | 3 | 0 | 0 |
-| **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 33 | 0 | 16 |
+| **4-8** | フォーマット管理 | 要件書#13、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 49件 | 手動 | 29 | 0 | 20 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | 手動 | 9 | 0 | 1 |
 | **4-10** | プロジェクト公開 | 追加機能S | 11件 | 手動（フロントエンド実装後） | 0 | 0 | 11 |
-| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件 | 手動 | 10 | 0 | 7 |
+| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md`、`docs/改善仕様調査/No.13/PLAN.md`（No.13対応） | 17件 | 手動 | 9 | 0 | 8 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | 手動 | 8 | 0 | 0 |
 | **4-13** | ノード表示切替ドロップダウン | `docs/改善仕様調査/No.7a/result.md`（No.7a対応） | 16件 | 手動 | 0 | 0 | 16 |
 | **4-14** | PropertyViewer 値なし区別表示・ツールチップ | `docs/改善仕様調査/No.8/result.md`（No.8対応） | 15件 | 手動 | 0 | 0 | 15 |
@@ -47,7 +47,7 @@
 | **4-16** | テンプレートモード時のツールバーボタン非活性化 | `docs/改善仕様調査/No.20/PLAN.md`（No.20対応） | 4件 | 手動 | 0 | 0 | 4 |
 | **4-17** | SubNetViewer トランジション用テンプレート表示 | `docs/改善仕様調査/No.28/result.md`（No.28対応） | 16件 | 手動 | 0 | 0 | 16 |
 | **4-18** | 名前空間管理 ※フェーズ２追加 | `docs/requirement/phase2/01_namespace/`、`ui/experiment_admin/04_namespace_management/`、`api_namespace.md`、`api_uncertainty_criteria.md` | 35件 | 手動 | 16 | 2 | 17 |
-| **合計** | - | - | **326件** | - | **162** | **6** | **158** |
+| **合計** | - | - | **325件** | - | **132** | **6** | **187** |
 
 ### スコープ外
 
@@ -1042,11 +1042,11 @@
 | 4-18-2 | 名前空間ツリーで組織ノード（部門・グループ）を選択すると右ペインのコンテンツがそのスコープに絞り込まれること | 正常系 | `UncertaintyManagement.tsx` `selectedNsKey` → `effectiveNsKey` 連携 | - | OK | `setSelectedNsKey` 経由で `NamespaceMain` / `PrefixManagement` に `selectedNsKey` が渡されること |
 | 4-18-3 | Globalノード（`'global'` / `'ns-maiml'` / `'ns-xsi'`）を選択すると右ペインが `GlobalNamespaceView` に切り替わること | 正常系 | `UncertaintyManagement.tsx` `isGlobalNodeSelected` 条件 | - | OK | `プレフィックス管理` / `用語管理` タブが非表示になること |
 | 4-18-4 | 組織ツリーの最深リーフノード（チーム）が初回マウント時に自動選択されること | 表示確認 | `UncertaintyManagement.tsx` `findDeepestLeafKey` → `setSelectedNsKey` | GET `/api/v1/organization-groups` | OK | 初期表示でツリーの最深ノードが選択ハイライト状態になること |
-| 4-18-5 | 右クリックコンテキストメニューは表示されないこと | 実施不可 | `ui_namespace_main.md` §3.3 [2026-08-27] | - | 実施不可 | `<Tree>` に `onRightClick` が渡されておらず `ctxMenu.visible=true` にするコードがないため右クリックコンテキストメニューは現在機能していない（デッドコード）。グループ追加・編集はグループ管理タブ（key='5'）経由で実施 |
+| 4-18-5 | 右クリックコンテキストメニューは表示されないこと | 実施不可 | `ui_namespace_main.md` §3.3 [2026-08-27] | - | OK | `<Tree>` に `onRightClick` が渡されておらず `ctxMenu.visible=true` にするコードがないため右クリックコンテキストメニューは現在機能していない（デッドコード）。グループ追加・編集はグループ管理タブ（key='5'）経由で実施 |
 | 4-18-6 | グループ管理タブ（key=`'5'`）の「グループを作成」ボタンを押すと `GroupAddDialog` が開き、グループ名・追加先・メンバーを入力してグループを作成できること | 正常系 | `ui_namespace_main.md` §9（v2.6.0） / `GroupManagementPanel` / `GroupAddDialog` | POST `/api/v1/department-units` | OK | グループ名1文字以上で「作成」ボタンが活性 |
 | 4-18-7 | グループ管理タブ（key=`'5'`）のグループ一覧で「編集」ボタンを押すと `GroupEditDialog` が開き、メンバーを変更して保存できること | 正常系 | `ui_namespace_main.md` §10（v2.6.0） / `GroupManagementPanel` / `GroupEditDialog` | PUT `/api/v1/department-units/:id/members` | OK | コンポーネント名: GroupEditDialog。グループ名が空の場合「保存」ボタンが非活性 |
 | 4-18-8 | Personalノード選択中にチェックした用語の「🏢 組織に共有」ボタンが表示され、クリックすると `ShareScopeModal` 確認ダイアログが開くこと | 正常系 | `NamespaceMain.tsx` §11 `isPersonalSelected && selectedTermIds.length > 0` | - | OK | GlobalノードまたはOrganizationノード選択中は「組織に共有」ボタンが表示されないこと |
-| 4-18-8-2 | ~~名前空間ノードを選択すると右ペイン上部に「用語数: N」「Prefix数: N」のバッジが表示されること~~ | 表示確認 | `ui_namespace_main.md` §3.2.2 | - | - | 仕様変更あり。バッジ表示はしない。 |
+| 4-18-8-2 | ~~名前空間ノードを選択すると右ペイン上部に「用語数: N」「Prefix数: N」のバッジが表示されること~~ | 表示確認 | `ui_namespace_main.md` §3.2.2 | - | OK | 仕様変更あり。バッジ表示はしない。 |
 
 #### 4-18-B: プレフィックス管理
 

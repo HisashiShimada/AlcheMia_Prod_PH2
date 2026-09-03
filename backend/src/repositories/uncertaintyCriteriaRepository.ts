@@ -63,6 +63,10 @@ export interface UncertaintyCriteriaRow {
   units: string | null;
   /** フォーマット文字列（定量のみ） */
   formatString: string | null;
+  /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceLower: number | null;
   /** 説明 */
   description: string | null;
 }
@@ -109,6 +113,10 @@ export interface UncertaintyCriteriaSelectorRow {
   units: string | null;
   /** フォーマット文字列（定量のみ） */
   formatString: string | null;
+  /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceLower: number | null;
   /** 説明 */
   description: string | null;
   /** 定性評価の選択肢（定量の場合は空配列） */
@@ -143,6 +151,10 @@ export interface InsertNewVersionRequest {
   scaleFactor: string | null;
   /** フォーマット文字列（定量のみ / NULL許容） */
   formatString: string | null;
+  /** 許容上限値（手入力値判定用 / NULL許容） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値判定用 / NULL許容） */
+  toleranceLower: number | null;
   /** 説明（NULL許容） */
   description: string | null;
   /** 定性評価の選択肢（定量の場合は空配列） */
@@ -227,6 +239,8 @@ export async function findByKey(
     xsiType:                   first.xsiType,
     units:                     first.units,
     formatString:              first.formatString,
+    toleranceUpper:            (first as any).toleranceUpper ?? null,
+    toleranceLower:            (first as any).toleranceLower ?? null,
     description:               first.description,
     // intuition_selector の行を QualitativeOptionRow[] に変換
     qualitativeOptions: rows
@@ -265,6 +279,8 @@ export async function findForSelector(
     xsiType:          string | null;
     units:            string | null;
     formatString:     string | null;
+    toleranceUpper:   number | null;
+    toleranceLower:   number | null;
     description:      string | null;
     displayOrder:     number | null;
     selectorValue:    string | null;
@@ -290,6 +306,8 @@ export async function findForSelector(
         xsiType:          row.xsiType,
         units:            row.units,
         formatString:     row.formatString,
+        toleranceUpper:   row.toleranceUpper,
+        toleranceLower:   row.toleranceLower,
         description:      row.description,
         qualitativeOptions: [],
       });
@@ -343,9 +361,12 @@ export async function insertNewVersion(
       data.inheritanceUncertaintyKey,       // $7  inheritance_uncertainty_key
       data.xsiType,                         // $8  xsi_type
       data.units,                           // $9  units
-      data.formatString,                    // $10 format_string
-      data.description,                     // $11 description
-      data.createUserId,                    // $12 create_user_id
+      data.scaleFactor,                     // $10 scale_factor
+      data.formatString,                    // $11 format_string
+      data.toleranceUpper ?? null,          // $12 tolerance_upper
+      data.toleranceLower ?? null,          // $13 tolerance_lower
+      data.description,                     // $14 description
+      data.createUserId,                    // $15 create_user_id
     ]);
 
     const newVersion = criteriaRow.version;

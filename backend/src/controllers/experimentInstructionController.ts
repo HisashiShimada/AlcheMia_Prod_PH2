@@ -13,6 +13,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import * as experimentInstructionService from '../services/experimentInstructionService';
+import { getJudgeSummaryByProject } from '../services/uncertaintyJudgeService';
+import type { CorrectRecordInput } from '../types/api';
 
 // ──────────────────────────────────────────────
 // ハンドラ
@@ -229,3 +231,80 @@ export async function getPlanDialogData(
     next(error);
   }
 }
+
+/**
+ * 定量評価（不確かさ判定）集計取得
+ * GET /api/v1/projects/:projectId/uncertainty-judge-summary
+ */
+export async function getUncertaintyJudgeSummary(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { organizationId } = req.user!;
+    const { projectId } = req.params;
+
+    logger.info('[experimentInstruction] getUncertaintyJudgeSummary', {
+      organizationId,
+      projectId,
+    });
+
+    const summary = await getJudgeSummaryByProject(organizationId, projectId);
+
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * 記録値（実績値）訂正
+ * PATCH /api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct
+ */
+export async function correctRecord(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { organizationId, userId } = req.user!;
+    const { projectId, methodId, taskNo: taskNoStr } = req.params;
+    const { records } = req.body as CorrectRecordInput;
+
+    logger.info('[experimentInstruction] correctRecord', {
+      organizationId,
+      projectId,
+      methodId,
+      taskNo: taskNoStr,
+      recordCount: records?.length,
+    });
+
+    const taskNo = parseInt(taskNoStr, 10);
+
+    const result = await experimentInstructionService.correctRecord(
+      organizationId,
+      projectId,
+      methodId,
+      taskNo,
+      records,
+      userId
+    );
+
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    if (error?.statusCode === 409) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: error.code ?? 'TASK_NOT_REVIEW_WAITING',
+          message: error.message,
+        },
+      });
+      return;
+    }
+    next(error);
+  }
+}
+
+

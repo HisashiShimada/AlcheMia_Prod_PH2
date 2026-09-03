@@ -116,13 +116,13 @@ export interface SaveSubEvaluationsRequest {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 下位評価の固定選択肢（良好 / 要確認 / 不要）
+ * 下位評価の固定選択肢（良好 / 要確認 / 不良）
  * EvaluationRegistrationTab・EvaluationDialog の InputModal で共通利用
  */
 export const SUB_EVAL_VALUE_OPTIONS: Array<{ label: string; value: string }> = [
   { label: '良好',   value: '良好'   },
   { label: '要確認', value: '要確認' },
-  { label: '不要',   value: '不要'   },
+  { label: '不良',   value: '不良'   },
 ];
 
 /**
@@ -132,7 +132,7 @@ export const SUB_EVAL_VALUE_OPTIONS: Array<{ label: string; value: string }> = [
 export const SUB_EVAL_VALUE_COLOR: Record<string, string> = {
   '良好':   'success',
   '要確認': 'warning',
-  '不要':   'default',
+  '不良':   'error',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -41,17 +41,20 @@ import {
   FileSearchOutlined,
 } from '@ant-design/icons';
 import ExperimentPlanDialog from './ExperimentPlanDialog';
+import UncertaintyJudgeDetailDialog from './UncertaintyJudgeDetailDialog';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import {
   getExperimentInstructions,
   getProjectMethods,
   approveTask,
   recordNg,
+  correctRecord,
 } from '@/services/experimentInstructionApiService';
 import { getProjectMaiml } from '@/services/projectApiService';
 import type {
   InstructionMethodResponse,
   ProjectMethod,
+  UncertaintyJudgeSummary,
 } from '@/types/experimentInstruction';
 import type { FileData } from '@/types/editor';
 
@@ -117,6 +120,14 @@ interface FlatRow {
   transitionId: string;
   transitionName: string;
   templateName: string;
+  /** template_data の place_id（訂正時にバックエンドへ渡すために必要） */
+  placeId: string;
+  /** テンプレートタイプ（訂正時に必要） */
+  templateType: string;
+  /** テンプレートID（訂正時に必要） */
+  templateId: string;
+  /** フィールドの properties（訂正時に必要） */
+  properties: unknown[];
   propKey: string;
   propLabel: string;
   xsiType: string;
@@ -127,18 +138,19 @@ interface FlatRow {
   /** 実績値（平均）: 同一 method/transition/template/key グループの実績値平均 */
   actualAverage: number | null;
   unit: string;
-  /** 不確かさ基準名 */
-  uncertaintyCriteriaName: string | null;
-  /** 不確かさ基準の種別（定性 / 定量） */
-  uncertaintyCriteriaType: 'qualitative' | 'quantitative' | null;
-  /** 不確かさ付与値 */
-  uncertaintyAssignedValue: string | null;
-  /** 不確かさ付与者 */
-  uncertaintyAssignedBy: string | null;
-  /** 不確かさ付与日時 */
-  uncertaintyAssignedAt: string | null;
-  /** 不確かさコメント */
-  uncertaintyComment: string | null;
+  /**
+   * 定量評価: 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。
+   * 0件 = 未判定、1件以上 = 判定済み（複数件の場合はダイアログ表示）
+   */
+  uncertaintyJudges: UncertaintyJudgeSummary[];
+  /** 定性評価: 不確かさ基準名 */
+  qualitativeCriteriaName: string | null;
+  /** 定性評価: 付与値（確か / 曖昧 / 不確か 等） */
+  qualitativeAssignedValue: string | null;
+  /** 実験記録者ユーザID（project_task_detail.experiment_user_id） */
+  experimentUserId: string | null;
+  /** 実験終了日時（project_task_detail.experiment_end_at, ISO文字列） */
+  experimentEndAt: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -180,11 +192,13 @@ const TOGGLEABLE_COLUMN_KEYS_AND_WIDTHS: { key: string; labelKey: string; width:
   { key: 'actual',                      labelKey: 'experimentInstructionTab.col.actual',                   width: 100 },
   { key: 'actualAverage',               labelKey: 'experimentInstructionTab.col.actualAverage',            width: 120 },
   { key: 'diff',                        labelKey: 'experimentInstructionTab.col.diff',                     width:  85 },
-  { key: 'uncertaintyCriteriaName',     labelKey: 'experimentInstructionTab.col.uncertaintyCriteriaName', width: 200 },
-  { key: 'uncertaintyAssignedValue',    labelKey: 'experimentInstructionTab.col.uncertaintyAssignedValue', width: 140 },
-  { key: 'uncertaintyAssignedBy',       labelKey: 'experimentInstructionTab.col.uncertaintyAssignedBy',   width: 140 },
-  { key: 'uncertaintyAssignedAt',       labelKey: 'experimentInstructionTab.col.uncertaintyAssignedAt',   width: 160 },
-  { key: 'uncertaintyComment',          labelKey: 'experimentInstructionTab.col.uncertaintyComment',      width: 220 },
+  { key: 'qualitativeCriteriaName',     labelKey: 'experimentInstructionTab.col.qualitativeCriteriaName',  width: 160 },
+  { key: 'qualitativeAssignedValue',    labelKey: 'experimentInstructionTab.col.qualitativeAssignedValue', width: 120 },
+  { key: 'quantitativeCriteriaName',    labelKey: 'experimentInstructionTab.col.quantitativeCriteriaName', width: 180 },
+  { key: 'quantitativeTolerance',       labelKey: 'experimentInstructionTab.col.quantitativeTolerance',    width: 140 },
+  { key: 'quantitativeRecordedValue',   labelKey: 'experimentInstructionTab.col.quantitativeRecordedValue', width: 110 },
+  { key: 'quantitativeJudgeResult',     labelKey: 'experimentInstructionTab.col.quantitativeJudgeResult',  width: 140 },
+  { key: 'experimentUser',              labelKey: 'experimentInstructionTab.col.experimentUser',           width: 160 },
 ];
 
 /** デフォルトで表示するすべての列キー */
@@ -206,35 +220,6 @@ function toTaskStatusStr(status: number | null | undefined): string {
   if (status == null) return '00';
   return String(status).padStart(2, '0');
 }
-
-// TODO:[MOCK] バックエンド実装時に削除 — 不確かさ情報はAPIから取得する
-/** モック用の不確かさデータ（画像と同様） */
-const MOCK_UNCERTAINTY_DATA: {
-
-  criteriaName: string;
-  criteriaType: 'qualitative' | 'quantitative';
-  assignedValue: string;
-  assignedBy: string;
-  assignedAt: string;
-  comment: string;
-  approvalStatus: 'pending' | 'approved' | 'rejected';
-}[] = [
-  { criteriaName: 'ヤング率',     criteriaType: 'qualitative', assignedValue: '確か',           assignedBy: '佐藤 花子', assignedAt: '2024-05-20T10:15:00', comment: '文献Aの実験結果に基づく推定値',   approvalStatus: 'approved'  },
-  { criteriaName: '材料特性値',   criteriaType: 'qualitative', assignedValue: '確か',    assignedBy: '鈴木 一郎', assignedAt: '2024-05-20T09:45:00', comment: '測定装置の校正結果を反映',       approvalStatus: 'approved'  },
-  { criteriaName: '温度',         criteriaType: 'qualitative',  assignedValue: '不確か',            assignedBy: '田中 美咲', assignedAt: '2024-05-19T16:30:00', comment: '環境温度の測定値',               approvalStatus: 'approved' },
-  { criteriaName: '圧力',         criteriaType: 'qualitative', assignedValue: '確か',         assignedBy: '高橋 健太', assignedAt: '2024-05-19T14:20:00', comment: '気圧計の精度を考慮',             approvalStatus: 'approved'  },
-  { criteriaName: '降伏強度',     criteriaType: 'qualitative', assignedValue: 'OK',         assignedBy: '伊藤 翔太', assignedAt: '2024-05-18T11:05:00', comment: '引張試験の結果に基づく',         approvalStatus: 'approved' },
-  { criteriaName: '熱伝導率',     criteriaType: 'qualitative', assignedValue: 'NG',       assignedBy: '佐藤 花子', assignedAt: '2024-05-17T15:50:00', comment: 'レーザーフラッシュ法による...',  approvalStatus: 'approved'  },
-  { criteriaName: '硬度',         criteriaType: 'qualitative',  assignedValue: '確か',             assignedBy: '鈴木 一郎', assignedAt: '2024-05-17T10:30:00', comment: 'ビッカース硬さ試験の結果',       approvalStatus: 'approved' },
-  { criteriaName: '引張強度',     criteriaType: 'qualitative', assignedValue: '曖昧',         assignedBy: '田中 美咲', assignedAt: '2024-05-16T13:45:00', comment: 'JIS Z 2241に基づく試験結果',    approvalStatus: 'pending'  },
-  { criteriaName: '伸び',         criteriaType: 'qualitative', assignedValue: 'OK',            assignedBy: '高橋 健太', assignedAt: '2024-05-16T09:20:00', comment: '標点距離50mmでの測定値',        approvalStatus: 'approved' },
-  { criteriaName: 'ポアソン比',   criteriaType: 'qualitative', assignedValue: '確か',           assignedBy: '伊藤 翔太', assignedAt: '2024-05-15T16:00:00', comment: 'ひずみゲージ法による測定',       approvalStatus: 'pending'  },
-  { criteriaName: '比熱容量',     criteriaType: 'qualitative', assignedValue: '不確か',       assignedBy: '佐藤 花子', assignedAt: '2024-05-15T11:30:00', comment: 'DSC法による測定結果',            approvalStatus: 'rejected'  },
-  { criteriaName: '電気抵抗率',   criteriaType: 'qualitative',  assignedValue: '確か',    assignedBy: '鈴木 一郎', assignedAt: '2024-05-14T14:15:00', comment: '四端子法による測定',             approvalStatus: 'rejected' },
-  { criteriaName: '破壊靭性',     criteriaType: 'qualitative', assignedValue: 'NG',        assignedBy: '田中 美咲', assignedAt: '2024-05-14T10:00:00', comment: 'ASTM E399に基づく試験',         approvalStatus: 'pending' },
-  { criteriaName: '疲労限度',     criteriaType: 'qualitative',  assignedValue: '曖昧',           assignedBy: '高橋 健太', assignedAt: '2024-05-13T15:40:00', comment: 'S-N曲線から外挿した推定値',      approvalStatus: 'pending'  },
-  { criteriaName: '熱膨張係数',   criteriaType: 'qualitative', assignedValue: '曖昧',           assignedBy: '伊藤 翔太', assignedAt: '2024-05-13T09:10:00', comment: 'TMA法による25〜400°Cの平均',   approvalStatus: 'pending' },
-];
 
 /**
  * 同一 methodId/templateId/propKey グループの数値平均を計算する
@@ -271,24 +256,28 @@ function calcGroupAverage(
 /** InstructionMethodResponse[] をフラットな FlatRow[] に変換 */
 function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
   const rows: FlatRow[] = [];
-  // [MOCK] バックエンド実装時に削除するインデックス変数
-  let mockIdx = 0;
   methods.forEach((method) => {
     method.tasks.forEach((task) => {
       const taskStatusStr = toTaskStatusStr(task.taskStatus);
       task.templates.forEach((tmpl) => {
         tmpl.fields.forEach((field, idx) => {
-          const mock = MOCK_UNCERTAINTY_DATA[mockIdx % MOCK_UNCERTAINTY_DATA.length];
-          mockIdx++;
           rows.push({
             rowKey: `${method.methodId}_${task.taskNo}_${tmpl.templateId}_${field.key}_${idx}`,
             methodId:      method.methodId,
-            methodName:    method.methodId, // MAIML パース統合後にメソッド名を追加予定
+            methodName:    method.methodId,
             taskNumber:    task.taskNo,
             taskStatus:    taskStatusStr,
-            transitionId:  '',             // MAIML パース統合後に追加予定
-            transitionName: '',            // MAIML パース統合後に追加予定
+            transitionId:  '',
+            transitionName: '',
             templateName:  tmpl.templateName ?? tmpl.templateId,
+            placeId:       tmpl.placeId ?? tmpl.templateId,
+            templateType:  tmpl.templateType,
+            templateId:    tmpl.templateId,
+            properties:    tmpl.fields.map((f) => ({
+              key: f.key,
+              value: f.actualValue,
+              xsiType: f.xsiType,
+            })),
             propKey:       field.key,
             propLabel:     field.label,
             xsiType:       field.xsiType ?? '',
@@ -297,12 +286,11 @@ function flattenInstructions(methods: InstructionMethodResponse[]): FlatRow[] {
             actual:        field.actualValue,
             actualAverage: calcGroupAverage(methods, method.methodId, tmpl.templateId, field.key, 'actualValue'),
             unit:          field.unit ?? '',
-            uncertaintyCriteriaName:  mock.criteriaName,
-            uncertaintyCriteriaType:  mock.criteriaType,
-            uncertaintyAssignedValue: mock.assignedValue,
-            uncertaintyAssignedBy:    mock.assignedBy,
-            uncertaintyAssignedAt:    mock.assignedAt,
-            uncertaintyComment:       mock.comment,
+            uncertaintyJudges:      field.uncertaintyJudges ?? [],
+            qualitativeCriteriaName:  field.qualitativeCriteriaName ?? null,
+            qualitativeAssignedValue: field.qualitativeAssignedValue ?? null,
+            experimentUserId: task.experimentUserId ?? null,
+            experimentEndAt:  task.experimentEndAt ?? null,
           });
         });
       });
@@ -420,6 +408,12 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   /** NG理由 */
   const [bulkSelectedNgReason, setBulkSelectedNgReason] = useState<string>('');
 
+  // ── 訂正モード ──
+  const [isCorrectionMode, setIsCorrectionMode] = useState(false);
+  /** キー: rowKey、値: 訂正後の actual 値 */
+  const [pendingCorrections, setPendingCorrections] = useState<Map<string, string>>(new Map());
+  const [correctionLoading, setCorrectionLoading] = useState(false);
+
   // ── ExperimentPlanDialog ──
   const [planDialogOpen, setPlanDialogOpen]       = useState(false);
   const [planDialogMethodId, setPlanDialogMethodId] = useState<string>('');
@@ -436,6 +430,10 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     zIndex: number;
   }[]>([]);
   const [petriNetViewerLoading, setPetriNetViewerLoading] = useState(false);
+
+  // ── 不確かさ判定詳細ダイアログ ──
+  const [judgeDetailOpen, setJudgeDetailOpen] = useState(false);
+  const [judgeDetailRow, setJudgeDetailRow] = useState<FlatRow | null>(null);
 
   // ─────────────────────────────────────────────────────────
   // データ取得
@@ -500,6 +498,91 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     });
     return result.sort((a, b) => a.taskNumber - b.taskNumber);
   }, [allRows]);
+
+  // ─────────────────────────────────────────────────────────
+  // 訂正モード: 保存処理
+  // ─────────────────────────────────────────────────────────
+
+  const handleSaveCorrections = useCallback(async () => {
+    if (pendingCorrections.size === 0) {
+      setIsCorrectionMode(false);
+      return;
+    }
+
+    // pendingCorrections を methodId + taskNo + placeId でグループ化
+    type CorrectionGroup = {
+      methodId: string;
+      taskNumber: number;
+      placeId: string;
+      templateId: string;
+      templateType: string;
+      properties: unknown[];
+    };
+
+    const groupMap = new Map<string, CorrectionGroup>();
+    for (const [rowKey, newValue] of pendingCorrections) {
+      const row = allRows.find((r) => r.rowKey === rowKey);
+      if (!row) continue;
+      const groupKey = `${row.methodId}__${row.taskNumber}__${row.placeId}`;
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, {
+          methodId: row.methodId,
+          taskNumber: row.taskNumber,
+          placeId: row.placeId,
+          templateId: row.templateId,
+          templateType: row.templateType,
+          properties: row.properties.map((p: any) =>
+            p.key === row.propKey ? { ...p, value: newValue } : p
+          ),
+        });
+      } else {
+        // 同一 placeId の別 propKey が更新された場合、properties を更新
+        const grp = groupMap.get(groupKey)!;
+        grp.properties = grp.properties.map((p: any) =>
+          p.key === row.propKey ? { ...p, value: newValue } : p
+        );
+      }
+    }
+
+    setCorrectionLoading(true);
+    try {
+      // methodId + taskNo ごとにまとめてリクエスト
+      const taskMap = new Map<string, CorrectionGroup[]>();
+      for (const grp of groupMap.values()) {
+        const taskKey = `${grp.methodId}__${grp.taskNumber}`;
+        if (!taskMap.has(taskKey)) taskMap.set(taskKey, []);
+        taskMap.get(taskKey)!.push(grp);
+      }
+
+      for (const [, groups] of taskMap) {
+        const firstGroup = groups[0];
+        const records = groups.map((g) => ({
+          placeId: g.placeId,
+          data: {
+            templateId: g.templateId,
+            templateType: g.templateType,
+            properties: g.properties,
+          },
+        }));
+        await correctRecord(projectId, firstGroup.methodId, firstGroup.taskNumber, { records });
+      }
+
+      message.success(t('experimentInstruction.correctionSaved'));
+      setIsCorrectionMode(false);
+      setPendingCorrections(new Map());
+      fetchData();
+    } catch (err) {
+      console.error('[ExperimentInstructionTab] handleSaveCorrections error:', err);
+      message.error(t('experimentInstruction.correctionError'));
+    } finally {
+      setCorrectionLoading(false);
+    }
+  }, [pendingCorrections, allRows, projectId, message, t, fetchData]);
+
+  const handleCancelCorrections = useCallback(() => {
+    setPendingCorrections(new Map());
+    setIsCorrectionMode(false);
+  }, []);
 
   // ─────────────────────────────────────────────────────────
   // 承認処理ダイアログを開く
@@ -774,7 +857,26 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       title: t('experimentInstructionTab.col.actual'),
       width: 100,
       align: 'right' as const,
-      render: (_: unknown, r: FlatRow) => <ActualCell actual={r.actual} unit={r.unit} t={t} />,
+      render: (_: unknown, r: FlatRow) => {
+        if (isCorrectionMode && r.taskStatus === '04') {
+          const currentValue = pendingCorrections.has(r.rowKey)
+            ? pendingCorrections.get(r.rowKey)!
+            : (r.actual !== null ? String(r.actual) : '');
+          return (
+            <Input
+              size="small"
+              value={currentValue}
+              style={{ width: 90, textAlign: 'right', fontSize: 12 }}
+              onChange={(e) => {
+                const newMap = new Map(pendingCorrections);
+                newMap.set(r.rowKey, e.target.value);
+                setPendingCorrections(newMap);
+              }}
+            />
+          );
+        }
+        return <ActualCell actual={r.actual} unit={r.unit} t={t} />;
+      },
     },
     {
       key: 'actualAverage',
@@ -794,78 +896,172 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
       align: 'right' as const,
       render: (_: unknown, r: FlatRow) => <DiffCell expected={r.expected} actual={r.actual} />,
     },
+    // ─── 定性評価 2列 ───────────────────────────────────────
     {
-      key: 'uncertaintyCriteriaName',
-      title: t('experimentInstructionTab.col.uncertaintyCriteriaName'),
-      dataIndex: 'uncertaintyCriteriaName',
-      width: 200,
+      key: 'qualitativeCriteriaName',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.qualitativeCriteriaName')}</span>,
+      width: 160,
       ellipsis: { showTitle: false },
-      render: (v: string | null, r: FlatRow) => {
-        if (!v) return <Text type="secondary">—</Text>;
-        const typeTag = r.uncertaintyCriteriaType === 'qualitative'
-          ? <Tag color="green"  style={{ margin: '0 4px 0 0', fontSize: 10 }}>{t('experimentInstructionTab.criteriaType.qualitative')}</Tag>
-          : r.uncertaintyCriteriaType === 'quantitative'
-          ? <Tag color="blue"   style={{ margin: '0 4px 0 0', fontSize: 10 }}>{t('experimentInstructionTab.criteriaType.quantitative')}</Tag>
-          : null;
+      render: (_: unknown, r: FlatRow) => {
+        if (!r.qualitativeCriteriaName) return <Text type="secondary">—</Text>;
         return (
-          <Tooltip title={v} placement="topLeft">
-            <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'nowrap' }}>
-              {typeTag}
-              <Text style={{ fontSize: 12 }}>{v}</Text>
-            </span>
+          <Tooltip title={r.qualitativeCriteriaName} placement="topLeft">
+            <Text style={{ fontSize: 12 }}>{r.qualitativeCriteriaName}</Text>
           </Tooltip>
         );
       },
     },
     {
-      key: 'uncertaintyAssignedValue',
-      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyAssignedValue')}</span>,
-      dataIndex: 'uncertaintyAssignedValue',
-      width: 140,
-      render: (v: string | null) =>
-        v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text>,
+      key: 'qualitativeAssignedValue',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.qualitativeAssignedValue')}</span>,
+      width: 120,
+      render: (_: unknown, r: FlatRow) => {
+        if (!r.qualitativeAssignedValue) return <Text type="secondary">—</Text>;
+        return <Text style={{ fontSize: 12 }}>{r.qualitativeAssignedValue}</Text>;
+      },
     },
+    // ─── 定量評価 4列 ───────────────────────────────────────
     {
-      key: 'uncertaintyAssignedBy',
-      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyAssignedBy')}</span>,
-      dataIndex: 'uncertaintyAssignedBy',
-      width: 140,
-      render: (v: string | null) =>
-        v ? <Text style={{ fontSize: 12 }}>{v}</Text> : <Text type="secondary">—</Text>,
-    },
-    {
-      key: 'uncertaintyAssignedAt',
-      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyAssignedAt')}</span>,
-      dataIndex: 'uncertaintyAssignedAt',
-      width: 160,
-      render: (v: string | null) => {
-        if (!v) return <Text type="secondary">—</Text>;
-        const d = new Date(v);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        const hh = String(d.getHours()).padStart(2, '0');
-        const min = String(d.getMinutes()).padStart(2, '0');
-        return <Text style={{ fontSize: 11 }}>{`${yyyy}/${mm}/${dd} ${hh}:${min}`}</Text>;
+      key: 'quantitativeCriteriaName',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.quantitativeCriteriaName')}</span>,
+      width: 180,
+      ellipsis: { showTitle: false },
+      render: (_: unknown, r: FlatRow) => {
+        const judges = r.uncertaintyJudges;
+        if (!judges || judges.length === 0) return <Text type="secondary">—</Text>;
+        if (judges.length === 1) {
+          const j = judges[0];
+          const name = j.criteriaName ?? j.instructionKey;
+          return (
+            <Tooltip title={name} placement="topLeft">
+              <Text style={{ fontSize: 12 }}>{name}</Text>
+            </Tooltip>
+          );
+        }
+        // 複数件: ボタン表示 → ダイアログ
+        return (
+          <Button
+            size="small"
+            type="link"
+            style={{ padding: 0, fontSize: 12 }}
+            onClick={() => { setJudgeDetailRow(r); setJudgeDetailOpen(true); }}
+          >
+            {t('experimentInstructionTab.judgeDetailButton', { count: String(judges.length) })}
+          </Button>
+        );
       },
     },
     {
-      key: 'uncertaintyComment',
-      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.uncertaintyComment')}</span>,
-      dataIndex: 'uncertaintyComment',
-      width: 220,
-      ellipsis: { showTitle: false },
-      render: (v: string | null) =>
-        v ? (
-          <Tooltip title={v} placement="topLeft">
-            <Text style={{ fontSize: 12 }}>{v}</Text>
-          </Tooltip>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
+      key: 'quantitativeTolerance',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.quantitativeTolerance')}</span>,
+      width: 140,
+      render: (_: unknown, r: FlatRow) => {
+        const judges = r.uncertaintyJudges;
+        if (!judges || judges.length === 0) return <Text type="secondary">—</Text>;
+        if (judges.length === 1) {
+          const j = judges[0];
+          if (j.toleranceLower === null && j.toleranceUpper === null) return <Text type="secondary">—</Text>;
+          return (
+            <Text style={{ fontSize: 12 }}>
+              {j.toleranceLower ?? '—'} ～ {j.toleranceUpper ?? '—'}
+            </Text>
+          );
+        }
+        // 複数件: ボタン → ダイアログ
+        return (
+          <Button
+            size="small"
+            type="link"
+            style={{ padding: 0, fontSize: 12 }}
+            onClick={() => { setJudgeDetailRow(r); setJudgeDetailOpen(true); }}
+          >
+            {t('experimentInstructionTab.judgeDetailButton', { count: String(judges.length) })}
+          </Button>
+        );
+      },
+    },
+    {
+      key: 'quantitativeRecordedValue',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.quantitativeRecordedValue')}</span>,
+      width: 110,
+      align: 'right' as const,
+      render: (_: unknown, r: FlatRow) => {
+        const judges = r.uncertaintyJudges;
+        if (!judges || judges.length === 0) return <Text type="secondary">—</Text>;
+        if (judges.length === 1) return <Text style={{ fontSize: 12 }}>{judges[0].recordedValue}</Text>;
+        // 複数件: ボタン → ダイアログ
+        return (
+          <Button
+            size="small"
+            type="link"
+            style={{ padding: 0, fontSize: 12 }}
+            onClick={() => { setJudgeDetailRow(r); setJudgeDetailOpen(true); }}
+          >
+            {t('experimentInstructionTab.judgeDetailButton', { count: String(judges.length) })}
+          </Button>
+        );
+      },
+    },
+    {
+      key: 'quantitativeJudgeResult',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.quantitativeJudgeResult')}</span>,
+      width: 140,
+      align: 'center' as const,
+      render: (_: unknown, r: FlatRow) => {
+        const judges = r.uncertaintyJudges;
+        if (!judges || judges.length === 0) return <Text type="secondary">—</Text>;
+        const aggregated = judges.some((j) => j.judgeResult === '不良') ? '不良' : '良好';
+        return (
+          <Flex align="center" justify="center" gap={4}>
+            <Tag color={aggregated === '良好' ? 'success' : 'error'} style={{ margin: 0, fontSize: 11 }}>
+              {aggregated}
+            </Tag>
+            {judges.length > 1 && (
+              <Button
+                size="small"
+                type="link"
+                style={{ padding: 0, fontSize: 11 }}
+                onClick={() => { setJudgeDetailRow(r); setJudgeDetailOpen(true); }}
+              >
+                {t('experimentInstructionTab.judgeCountButton', { count: String(judges.length) })}
+              </Button>
+            )}
+          </Flex>
+        );
+      },
+    },
+    // ─── 共通: 実験記録者 ────────────────────────────────────
+    {
+      key: 'experimentUser',
+      title: <span style={{ whiteSpace: 'nowrap' }}>{t('experimentInstructionTab.col.experimentUser')}</span>,
+      width: 160,
+      render: (_: unknown, r: FlatRow) => {
+        if (!r.experimentUserId && !r.experimentEndAt) return <Text type="secondary">—</Text>;
+        const dateStr = r.experimentEndAt
+          ? (() => {
+              const d = new Date(r.experimentEndAt);
+              const yyyy = d.getFullYear();
+              const mm = String(d.getMonth() + 1).padStart(2, '0');
+              const dd = String(d.getDate()).padStart(2, '0');
+              const hh = String(d.getHours()).padStart(2, '0');
+              const min = String(d.getMinutes()).padStart(2, '0');
+              return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
+            })()
+          : null;
+        return (
+          <Flex vertical gap={1}>
+            {r.experimentUserId && (
+              <Text style={{ fontSize: 11 }}>{r.experimentUserId}</Text>
+            )}
+            {dateStr && (
+              <Text type="secondary" style={{ fontSize: 10 }}>{dateStr}</Text>
+            )}
+          </Flex>
+        );
+      },
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], []);
+  ], [judgeDetailOpen]);
 
   /**
    * visibleColumnKeys に応じてフィルタリングされたカラム配列
@@ -931,43 +1127,73 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
     <Flex vertical style={{ height: '100%' }}>
       {/* ── ツールバー ── */}
       <Flex gap={8} align="center" style={{ padding: '4px 0 6px' }}>
-        <Button
-          size="small"
-          icon={<EditOutlined />}
-          disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
-          onClick={() => handleOpenPlanDialog(filters.methodId ?? undefined)}
-        >
-          {t('experimentInstructionTab.toolbar.edit')}
-        </Button>
-        <Button
-          size="small"
-          icon={<FileSearchOutlined />}
-          onClick={handleOpenPetriNetViewer}
-          disabled={!projectName}
-          loading={petriNetViewerLoading}
-        >
-          {t('experimentInstructionTab.toolbar.petriNet')}
-        </Button>
-        <Dropdown
-          menu={{ items: columnMenuItems }}
-          trigger={['click']}
-          open={columnDropdownOpen}
-          onOpenChange={setColumnDropdownOpen}
-          placement="bottomRight"
-        >
-          <Button size="small" icon={<SettingOutlined />}>
-            {t('experimentInstructionTab.toolbar.selectColumns')}
-          </Button>
-        </Dropdown>
-        <Button
-          size="small"
-          type="primary"
-          icon={<CheckCircleOutlined />}
-          disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}
-          onClick={handleOpenBulkApproveDialog}
-        >
-          {t('experimentInstructionTab.toolbar.approval')}
-        </Button>
+        {!isCorrectionMode ? (
+          <>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
+              onClick={() => handleOpenPlanDialog(filters.methodId ?? undefined)}
+            >
+              {t('experimentInstructionTab.toolbar.edit')}
+            </Button>
+            <Button
+              size="small"
+              icon={<FileSearchOutlined />}
+              onClick={handleOpenPetriNetViewer}
+              disabled={!projectName}
+              loading={petriNetViewerLoading}
+            >
+              {t('experimentInstructionTab.toolbar.petriNet')}
+            </Button>
+            <Dropdown
+              menu={{ items: columnMenuItems }}
+              trigger={['click']}
+              open={columnDropdownOpen}
+              onOpenChange={setColumnDropdownOpen}
+              placement="bottomRight"
+            >
+              <Button size="small" icon={<SettingOutlined />}>
+                {t('experimentInstructionTab.toolbar.selectColumns')}
+              </Button>
+            </Dropdown>
+            <Button
+              size="small"
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}
+              onClick={handleOpenBulkApproveDialog}
+            >
+              {t('experimentInstructionTab.toolbar.approval')}
+            </Button>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}
+              onClick={() => setIsCorrectionMode(true)}
+            >
+              {t('experimentInstructionTab.correctionMode')}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              size="small"
+              type="primary"
+              loading={correctionLoading}
+              onClick={handleSaveCorrections}
+            >
+              {t('experimentInstructionTab.saveCorrectionBtn')}
+            </Button>
+            <Button
+              size="small"
+              disabled={correctionLoading}
+              onClick={handleCancelCorrections}
+            >
+              {t('experimentInstructionTab.cancelCorrectionBtn')}
+            </Button>
+          </>
+        )}
       </Flex>
 
       {/* ── フィルタバー ── */}
@@ -1176,6 +1402,27 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             setPlanDialogOpen(false);
             fetchData();
           }}
+        />
+      )}
+
+      {/* ── 不確かさ判定詳細ダイアログ ── */}
+      {judgeDetailOpen && judgeDetailRow && (
+        <UncertaintyJudgeDetailDialog
+          open={judgeDetailOpen}
+          onClose={() => setJudgeDetailOpen(false)}
+          methodId={judgeDetailRow.methodId}
+          methodName={judgeDetailRow.methodName}
+          taskNumber={judgeDetailRow.taskNumber}
+          transitionId={judgeDetailRow.transitionId}
+          transitionName={judgeDetailRow.transitionName}
+          templateName={judgeDetailRow.templateName}
+          propKey={judgeDetailRow.propKey}
+          propLabel={judgeDetailRow.propLabel}
+          xsiType={judgeDetailRow.xsiType}
+          expected={judgeDetailRow.expected}
+          actual={judgeDetailRow.actual}
+          unit={judgeDetailRow.unit || undefined}
+          uncertaintyJudges={judgeDetailRow.uncertaintyJudges}
         />
       )}
 

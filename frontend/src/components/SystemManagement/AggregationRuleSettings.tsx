@@ -61,7 +61,7 @@ const AggregationRuleSettings: React.FC<AggregationRuleSettingsProps> = ({ previ
   }, [form, createNewRule, t]);
 
   if (isLoading) {
-    return <Flex justify="center" style={{ padding: 40 }}><Spin tip={t('aggregationRule.loading')} /></Flex>;
+    return <Flex justify="center" style={{ padding: 40 }}><Spin tip={t('aggregationRule.loading')}><span /></Spin></Flex>;
   }
 
   const initialValues: CreateAggregationRuleInput = {
@@ -76,15 +76,15 @@ const AggregationRuleSettings: React.FC<AggregationRuleSettingsProps> = ({ previ
   };
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <Title level={5} style={{ marginBottom: 0 }}>{t('aggregationRule.title')}</Title>
 
       {activeRule
-        ? <Alert type="info" message={t('aggregationRule.activeRuleInfo', { version: String(activeRule.version) })} showIcon />
-        : <Alert type="warning" message={t('aggregationRule.noActiveRule')} showIcon />
+        ? <Alert type="info" title={t('aggregationRule.activeRuleInfo', { version: String(activeRule.version) })} showIcon />
+        : <Alert type="warning" title={t('aggregationRule.noActiveRule')} showIcon />
       }
-      {saveSuccess && <Alert type="success" message={t('aggregationRule.saveSuccess')} showIcon closable onClose={() => setSaveSuccess(false)} />}
-      {error && <Alert type="error" message={error} showIcon closable onClose={() => setError(null)} />}
+      {saveSuccess && <Alert type="success" title={t('aggregationRule.saveSuccess')} showIcon closable onClose={() => setSaveSuccess(false)} />}
+      {error && <Alert type="error" title={error} showIcon closable onClose={() => setError(null)} />}
 
       <Card size="small" title={t('aggregationRule.scoreMappingTitle')}>
         <Form form={form} initialValues={initialValues} layout="inline">

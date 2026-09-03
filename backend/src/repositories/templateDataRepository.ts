@@ -14,6 +14,7 @@
 import { PoolClient } from 'pg';
 import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
+import { randomUUID } from 'crypto';
 import type { Property, Content, Insertion } from '../types/maiml-unified';
 import type { TemplateActualCount } from '../types/database';
 
@@ -28,7 +29,7 @@ import type { TemplateActualCount } from '../types/database';
  */
 export interface PropertySet {
   templateId: string;
-  templateType: 'material' | 'condition' | 'result';
+  templateType: string;
   /** MAIMLファイル内のテンプレート名（<name>タグ）。存在しない場合はnull */
   templateName?: string | null;
   properties: Property[];
@@ -36,6 +37,12 @@ export interface PropertySet {
   insertions?: Insertion[];
   /** content コンテナ型のカスタムプロパティ（containerType === 'content'） */
   contents?: Content[];
+  /**
+   * インスタンス固有UUID。
+   * 新規INSERT時に自動生成（randomUUID）し、UPDATE時は既存値を維持する。
+   * 訂正 event_log の Alchemia:correctionInstanceUuid として使用する。
+   */
+  instanceUuid?: string;
 }
 
 
@@ -109,6 +116,22 @@ export class TemplateDataRepository {
     client: PoolClient
   ): Promise<TemplateDataRow> {
     try {
+      // instanceUuid の引き継ぎ: 既存レコードがあれば既存値を維持、なければ新規生成
+      // UPDATE 時に instanceUuid が上書きされないよう、INSERT 前に既存値を確認する。
+      const existingRow = await this.findByPlaceId(
+        organizationId, projectId, methodId, taskNo, record.placeId, client
+      );
+      const existingInstanceUuid: string | undefined =
+        existingRow?.property_set?.instanceUuid;
+
+      // instanceUuid の確定: 既存値 > 引数値 > 新規生成 の優先順
+      const instanceUuid = existingInstanceUuid ?? record.propertySet.instanceUuid ?? randomUUID();
+
+      const propertySetWithUuid: PropertySet = {
+        ...record.propertySet,
+        instanceUuid,
+      };
+
       // 外部SQLファイルを読み込み
       const query = await loadSqlFile('template_data/upsert.sql');
 
@@ -118,11 +141,10 @@ export class TemplateDataRepository {
         methodId,
         taskNo,
         record.placeId,
-        JSON.stringify(record.propertySet), // JSONB型として保存
+        JSON.stringify(propertySetWithUuid), // JSONB型として保存
         record.updateUserId, // create_user_id（新規INSERT時）
         record.updateUserId, // update_user_id
       ];
-      console.log(record.propertySet);
 
       const result = await client.query(query, params);
       return result.rows[0] as TemplateDataRow;
@@ -376,21 +398,11 @@ export class TemplateDataRepository {
   }
 
   /**
+   * @deprecated 旧方式（ExperimentPlanDialog での __uncertainty__ 割り当て）専用メソッド。
+   * 新方式（WorkRecordPanel での手入力 + uncertainty_judge テーブル）では使用しない。
+   * 参照コードが残存している場合に備えて削除せず残置。
+   *
    * planned_values の不確かさ情報を property_set.properties[].uncertainties に反映して一括 UPDATE
-   *
-   * - `planUncertainties`: { [propertyKey]: uncertaintyArray } のマップ
-   *   （`planned_values.__uncertainty__` の値をそのまま渡す）
-   * - `method_id` / `task_no` に一致する全 template_data を取得し、
-   *   各行の properties[] を走査して propertyKey が一致するものの uncertainties を上書きする
-   * - 更新対象が 0 件でも エラーにしない（no-op）
-   *
-   * @param organizationId    - 組織ID
-   * @param projectId         - プロジェクトID
-   * @param methodId          - メソッドID
-   * @param taskNo            - タスク番号
-   * @param planUncertainties - { [propertyKey]: uncertaintyArray } 形式のマップ
-   * @param userId            - 更新ユーザーID
-   * @param client            - トランザクション用 PoolClient
    */
   async updatePropertySetByPlanWithUncertainty(
     organizationId: string,

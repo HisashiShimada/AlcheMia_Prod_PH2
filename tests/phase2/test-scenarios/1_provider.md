@@ -1,7 +1,7 @@
 # プロバイダー シナリオテスト対象一覧
 
 > **作成日**: 2026-03-24
-> **更新日**: 2026-08-21（ui_namespace_management_global.md v2.0.0対応）
+> **更新日**: 2026-09-01（結合テスト実施・結果サマリ更新）
 > **参照元**: `docs/20260310_0940_ロール別業務内容一覧.md`（要求仕様書ベース）
 > **照合先**: UI設計書（`docs/design/ui/`）、API設計書（`docs/design/api/`）
 >
@@ -17,11 +17,11 @@
 
 | 項目 | 値 |
 |------|-----|
-| テスト実施日 | 2026-03-26（1-1〜1-9） / -（1-10） |
+| テスト実施日 | 2026-09-01（1-1～1-10 全件） |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | 一部未実施（1-10） |
-| 備考 | 1-1〜1-9はフェーズ１実施済み。1-10はフェーズ２新規追加 |
+| 総合判定 | 不合格（NG 2件） |
+| 備考 | 1-1～1-9はフェーズ１実施済み。1-10は2026-08-27実施完了。NG: 1-5-1（AISOLMAIML-276, 275）、1-10-3（AISOLMAIML-277, 278） |
 
 ---
 
@@ -31,17 +31,17 @@
 
 | テストグループID | テストグループ名 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|-----------|-----------|------|-------|-------|
-| **1-1** | 会社の作成 | 7件 | Playwright自動 | 7 | 0 | 0 |
-| **1-2** | 会社の編集 | 6件 | Playwright自動 | 6 | 0 | 0 |
-| **1-3** | 会社のアクティブ/非アクティブ化 | 5件 | Playwright自動 | 5 | 0 | 0 |
-| **1-4** | 会社のCSVダウンロード・アップロード | 4件 | Playwright自動 | 4 | 0 | 0 |
-| **1-5** | 組織の作成 | 7件 | Playwright自動 | 7 | 0 | 0 |
-| **1-6** | 組織の編集 | 7件 | Playwright自動 | 7 | 0 | 0 |
-| **1-7** | 組織のアクティブ/非アクティブ化 | 5件 | Playwright自動 | 5 | 0 | 0 |
-| **1-8** | 組織のCSVダウンロード・アップロード | 4件 | Playwright自動 | 4 | 0 | 0 |
-| **1-9** | 全組織の課金情報CSVダウンロード | 2件 | Playwright自動 | 2 | 0 | 0 |
-| **1-10** | 名前空間管理（グローバル） ※フェーズ２追加 | 5件 | 自動3件 / 手動2件 | - | - | 5 |
-| **合計** | - | **52件** | - | **47** | **0** | **5** |
+| **1-1** | 会社の作成 | 7件 | 手動 | 7 | 0 | 0 |
+| **1-2** | 会社の編集 | 6件 | 手動 | 6 | 0 | 0 |
+| **1-3** | 会社のアクティブ/非アクティブ化 | 5件 | 手動 | 5 | 0 | 0 |
+| **1-4** | 会社のCSVダウンロード・アップロード | 4件 | 手動 | 4 | 0 | 0 |
+| **1-5** | 組織の作成 | 7件 | 手動 | 6 | 1 | 0 |
+| **1-6** | 組織の編集 | 7件 | 手動 | 7 | 0 | 0 |
+| **1-7** | 組織のアクティブ/非アクティブ化 | 5件 | 手動 | 5 | 0 | 0 |
+| **1-8** | 組織のCSVダウンロード・アップロード | 4件 | 手動 | 4 | 0 | 0 |
+| **1-9** | 全組織の課金情報CSVダウンロード | 2件 | 手動 | 2 | 0 | 0 |
+| **1-10** | 名前空間管理（グローバル） ※フェーズII追加 | 5件 | 手動 | 4 | 1 | 0 |
+| **合計** | - | **52件** | - | **50** | **2** | **0** |
 
 ### スコープ外
 
@@ -240,10 +240,10 @@ CORP001,テスト会社,アクティブ
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-8-1 | CSVダウンロードボタンをクリックすると組織CSVファイルが取得できること | 正常系 | `ui_organization_main.md` §4.2.3 | GET `/api/v1/provider/organization/download-csv` | - | |
-| 1-8-2 | ダウンロードしたCSVに組織表示名を追加してアップロードすると組織が作成されること | 正常系 | `ui_organization_main.md` §4.2.4 | POST `/api/v1/provider/organization/upload-csv` | - | |
-| 1-8-3 | 既存の組織表示名を含むCSVをアップロードするとエラーが表示されること | 異常系 | `ui_organization_main.md` §CSVアップロード | POST `/api/v1/provider/organization/upload-csv` | - | |
-| 1-8-4 | 組織表示名が空のCSVをアップロードするとエラーが表示されること | 異常系 | `ui_organization_main.md` §CSVアップロード | POST `/api/v1/provider/organization/upload-csv` | - | |
+| 1-8-1 | CSVダウンロードボタンをクリックすると組織CSVファイルが取得できること | 正常系 | `ui_organization_main.md` §4.2.3 | GET `/api/v1/provider/organization/download-csv` | OK | |
+| 1-8-2 | ダウンロードしたCSVに組織表示名を追加してアップロードすると組織が作成されること | 正常系 | `ui_organization_main.md` §4.2.4 | POST `/api/v1/provider/organization/upload-csv` | OK | |
+| 1-8-3 | 既存の組織表示名を含むCSVをアップロードするとエラーが表示されること | 異常系 | `ui_organization_main.md` §CSVアップロード | POST `/api/v1/provider/organization/upload-csv` | OK | |
+| 1-8-4 | 組織表示名が空のCSVをアップロードするとエラーが表示されること | 異常系 | `ui_organization_main.md` §CSVアップロード | POST `/api/v1/provider/organization/upload-csv` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -267,8 +267,8 @@ organization_cd,organization_display_name,organization_email,chief_user_name,chi
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-9-1 | CSVダウンロードボタンをクリックするとCSVファイルが取得できること | 正常系 | `ui_information_download_main.md` §4.1 | GET `/api/v1/provider/organization/download-information-csv` | - | |
-| 1-9-2 | ダウンロードした情報CSVに正しいヘッダーが含まれること | 表示確認 | `ui_information_download_main.md` §6.4 | GET `/api/v1/provider/organization/download-information-csv` | - | |
+| 1-9-1 | CSVダウンロードボタンをクリックするとCSVファイルが取得できること | 正常系 | `ui_information_download_main.md` §4.1 | GET `/api/v1/provider/organization/download-information-csv` | OK | |
+| 1-9-2 | ダウンロードした情報CSVに正しいヘッダーが含まれること | 表示確認 | `ui_information_download_main.md` §6.4 | GET `/api/v1/provider/organization/download-information-csv` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -309,11 +309,11 @@ organization_cd,organization_display_name,organization_email,chief_user_name,chi
 
 | シナリオID | シナリオ名 | 種別 | テスト方法 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|-----------|------|---------|------|------|
-| 1-10-1 | グローバル名前空間宣言の一覧が表示されること | 表示確認 | **自動** | `ui_namespace_management_global.md` §4.4（テーブル） | GET `/api/v1/namespaces/global-declarations` | - | Prefix・URI カラムが表示されること |
-| 1-10-2 | CSVエクスポートでグローバル名前空間宣言をダウンロードできること | 正常系 | **手動** | `ui_namespace_management_global.md` §5.3（CSVエクスポート） | エクスポートAPI | - | フォーマット: `prefix,uri`（BOM付きUTF-8） |
-| 1-10-3 | CSVインポート時に全置換の確認ダイアログが表示されること | 表示確認 | **自動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | — | - | danger okボタン付きの確認ダイアログが表示されること |
-| 1-10-4 | CSVインポート確認ダイアログをキャンセルするとデータが変わらないこと | 正常系 | **自動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | — | - | キャンセル後、既存データが保持されること |
-| 1-10-5 | CSVインポートでグローバル名前空間宣言を全置換できること | 正常系 | **手動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | インポートAPI | - | インポート後は既存データが全て上書きされること |
+| 1-10-1 | グローバル名前空間宣言の一覧が表示されること | 表示確認 | **手動** | `ui_namespace_management_global.md` §4.4（テーブル） | GET `/api/v1/namespaces/global-declarations` | OK | Prefix・URI カラムが表示されること |
+| 1-10-2 | CSVエクスポートでグローバル名前空間宣言をダウンロードできること | 正常系 | **手動** | `ui_namespace_management_global.md` §5.3（CSVエクスポート） | エクスポートAPI | OK | フォーマット: `prefix,uri`（BOM付きUTF-8） |
+| 1-10-3 | CSVインポート時に全置換の確認ダイアログが表示されること | 表示確認 | **手動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | — | NG | - https://soft-service.atlassian.net/browse/AISOLMAIML-277　- https://soft-service.atlassian.net/browse/AISOLMAIML-278 |
+| 1-10-4 | CSVインポート確認ダイアログをキャンセルするとデータが変わらないこと | 正常系 | **手動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | — | OK | キャンセル後、既存データが保持されること |
+| 1-10-5 | CSVインポートでグローバル名前空間宣言を全置換できること | 正常系 | **手動** | `ui_namespace_management_global.md` §5.2（CSVインポート） | インポートAPI | OK | インポート後は既存データが全て上書きされること |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -362,7 +362,7 @@ organization_cd,organization_display_name,organization_email,chief_user_name,chi
 | 組織 "E2E組織トグルDDD"（is_active=false） | 1-7-2（アクティブ化） | テスト実行前にDBに挿入 |
 | 組織 "E2E常設組織AAA" | 1-5-7（重複チェック）、1-6-8（重複チェック）、1-7-4〜1-7-5 | テスト実行前にDBに挿入 |
 | 組織 "e2e-permanent-org-aaa"（組織CD） | 1-5-7（組織CD重複チェック） | テスト実行前にDBに挿入 |
-| グローバル名前空間宣言 常設テストデータ（CSVファイル: `system/namespaces/global-declarations.csv`） | 1-10-1、1-10-2 | テスト実行前にCSVファイルサーバへアップロード |
+| グローバル名前空間宣言 常設テストデータ（CSVファイル: `system/namespaces/global-declarations.csv`） | 1-10-1、TMP_1_10_2 | テスト実行前にCSVファイルサーバへアップロード |
 
 ---
 
