@@ -41,5 +41,4 @@ LEFT JOIN organization_group g
  AND g.organization_group_cd = n.scope_key
 WHERE n.organization_id = $1
   AND n.scope_key IN (SELECT organization_group_cd FROM ancestors)
-  AND n.global_flg = FALSE
 ORDER BY p.prefix ASC
