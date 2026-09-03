@@ -1043,6 +1043,8 @@ export interface CreateTermBody {
   prefix: string;
   localName: string;
   displayName?: string;
+  /** フロントエンドから送信される表示名フィールド（displayName の別名）。displayName より優先される。 */
+  displayNameJa?: string;
   description?: string;
   typeHint?: string;
   unitHint?: string;
@@ -1059,6 +1061,8 @@ export interface CreateTermBody {
  */
 export interface UpdateTermBody {
   displayName?: string;
+  /** フロントエンドから送信される表示名フィールド（displayName の別名）。displayName より優先される。 */
+  displayNameJa?: string;
   description?: string;
   typeHint?: string;
   unitHint?: string;
