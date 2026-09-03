@@ -5236,50 +5236,6 @@
     "prefixRequired": "接頭辞を入力してください",
     "uriRequired": "URIを入力してください"
   },
-  "namespaceAdd": {
-    "title": "名前空間を追加",
-    "labelLevel": "レベル",
-    "levelGlobal": "グローバル",
-    "levelOrganization": "組織",
-    "levelPersonal": "個人",
-    "uriGuidance": {
-      "global": "グローバルに公開されているURIを入力してください",
-      "organization": "組織固有のURIが自動生成されます",
-      "personal": "個人のORCID IDまたは任意のURIを入力してください"
-    },
-    "levelGuidance": {
-      "global": "グローバル名前空間はすべての組織で共有されます",
-      "organization": "組織名前空間は組織内で共有されます",
-      "personal": "個人名前空間はログインユーザーのみが使用できます"
-    },
-    "validation": {
-      "prefixRequired": "Prefixを入力してください",
-      "prefixInvalid": "xs:NCName 形式（英字またはアンダースコアで始まる）で入力してください",
-      "prefixTooLong": "Prefixは64文字以内で入力してください",
-      "uriRequired": "URIを入力してください",
-      "uriInvalid": "https:// / http:// / urn: で始まるURIを入力してください",
-      "uriTooLong": "URIは512文字以内で入力してください"
-    },
-    "orcidAutoFilled": "ORCID IDを自動入力しました",
-    "registerSuccess": "名前空間「{prefix}」を登録しました",
-    "labelPrefix": "接頭辞（Prefix）",
-    "extraPrefix": "xs:NCName 形式。英字またはアンダースコアで始まる識別子",
-    "labelUriAuto": "URI（自動生成）",
-    "extraUriAuto": "{orgCd}・{deptCd} をベースに自動生成されます",
-    "uriAutoPlaceholder": "Prefixを入力するとURIが生成されます",
-    "labelUri": "URI",
-    "labelDisplayName": "表示名（任意）",
-    "extraDisplayName": "人が読みやすい名前空間の名称（例: CorpA 社内用語）",
-    "labelDescription": "説明（任意）",
-    "placeholderDescription": "名前空間の用途・背景を入力...",
-    "labelParentNamespace": "親名前空間（任意）",
-    "extraParentNamespace": "この名前空間が継承する親名前空間を選択します",
-    "placeholderParentNamespace": "親名前空間を選択",
-    "labelOrcid": "ORCID自動入力",
-    "extraOrcid": "ORCID IDがある場合はOAuth2で自動取得できます",
-    "btnOrcidAutoFill": "ORCID IDを自動入力",
-    "btnRegister": "登録"
-  },
   "duplicateSuggestModal": {
     "title": "重複候補が見つかりました",
     "willUnify": "すべての候補を選択しました。確定できます。",

@@ -18,7 +18,7 @@ import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
-import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
+import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster, toggleTermActive } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import GroupManagementPanel from '../group/GroupManagementPanel';
