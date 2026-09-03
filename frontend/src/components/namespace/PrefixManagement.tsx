@@ -102,6 +102,9 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  // stale fetch 対策: フェッチごとにシーケンス番号を払い出し、
+  // 古いフェッチ結果（スコープ切替後に遅延完了したもの）を破棄する
+  const fetchSeqRef = useRef(0);
 
   // ── Prefix一覧取得: selectedNsKey が変化するたびに再フェッチ
   // scopeKeys（複数）を渡した場合は複数スコープの Prefix をまとめて取得する（company ノード選択時）
@@ -111,6 +114,8 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
     withAncestors?: boolean,
     scopeKeys?: string[]
   ) => {
+    // スコープ切替後に遅延完了した古いフェッチ結果を破棄するためシーケンス番号を払い出す
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
     try {
       let options: Parameters<typeof getNamespaceList>[0];
@@ -125,6 +130,8 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         options = undefined;
       }
       const list = await getNamespaceList(options);
+      // このフェッチ開始後に新たなフェッチが始まっていたら結果を破棄（stale fetch 対策）
+      if (seq !== fetchSeqRef.current) return;
       setRows(
         list.map((ns) => ({
           id: ns.prefix,
@@ -138,9 +145,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
         }))
       );
     } catch {
+      if (seq !== fetchSeqRef.current) return;
       message.error(t('prefixManagement.fetchError'));
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) setLoading(false);
     }
   };
 
@@ -181,10 +189,12 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
   };
 
   useEffect(() => {
-    // スコープ変更時に未保存のインライン入力行・編集中状態・チェック状態をクリアする
+    // スコープ変更時に未保存のインライン入力行・編集中状態・チェック状態・既存行をクリアする
+    // setRows([]) を先に呼ぶことで、フェッチ完了前に前スコープのデータが表示されるのを防ぐ
     setNewRows([]);
     setEditingId(null);
     setSelectedRowKeys([]);
+    setRows([]);
     reloadNamespaces();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNsKey, JSON.stringify(orgGroupCds)]);
