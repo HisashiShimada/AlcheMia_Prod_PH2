@@ -2,6 +2,7 @@
 
 import React from 'react';
 import TaskRegistrationTab from '../../TaskRegistrationTab';
+import { ProjectStatus } from '@/constants/codeMaster';
 import type { Project } from '@/types/project';
 
 interface TaskRegistrationTabContentProps {
@@ -17,7 +18,9 @@ const TaskRegistrationTabContent: React.FC<TaskRegistrationTabContentProps> = ({
   isProjectCheckedOut,
   maimlHasErrors,
 }) => {
-  const isProjectCompleted = selectedProject.status === 4 || selectedProject.status === 5;
+  const isProjectCompleted =
+    selectedProject.status === ProjectStatus.COMPLETED ||
+    selectedProject.status === ProjectStatus.ERROR;
   return (
     <TaskRegistrationTab
       projectId={selectedProject.id}
