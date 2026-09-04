@@ -1748,8 +1748,10 @@
       "roleNameRequired": "ロール名を入力してください",
       "roleNamePlaceholder": "ロール名を入力してください",
       "functionName": "機能名",
+      "functionNameRequired": "機能名を選択してください",
       "initialScreen": "初期画面機能名",
       "initialScreenPlaceholder": "選択してください",
+      "initialScreenRequired": "初期画面機能名を選択してください",
       "status": "状態"
     },
     "messages": {

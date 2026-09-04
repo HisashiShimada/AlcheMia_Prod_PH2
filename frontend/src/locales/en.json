@@ -1746,8 +1746,10 @@
       "roleNameRequired": "Please enter a role name",
       "roleNamePlaceholder": "Enter role name",
       "functionName": "Function Name",
+      "functionNameRequired": "Please select a function name",
       "initialScreen": "Initial Screen Function",
       "initialScreenPlaceholder": "Select",
+      "initialScreenRequired": "Please select an initial screen function",
       "status": "Status"
     },
     "messages": {
