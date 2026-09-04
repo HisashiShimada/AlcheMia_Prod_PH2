@@ -6,10 +6,12 @@
 -- 
 -- 動的フィルタ（文字列置換で設定）:
 --   STATUS_FILTER - ステータスフィルタ条件
+--   GROUP_FILTER  - グループフィルタ条件（organization_group_cd による絞り込み）
 -- 
 -- 使用箇所: WorkerProjectRepository.countWorkerAccessible()
 -- 作成日: 2026-02-18
 -- 更新日: 2026-02-20 - experiment_user_idフィルタを削除（組織内全プロジェクト表示）
+-- 更新日: 2026-08-31 - GROUP_FILTER を追加（ログインユーザーの所属グループで絞り込み）
 
 SELECT COUNT(DISTINCT project.project_id) as count 
 FROM project
@@ -19,3 +21,4 @@ WHERE
   project.organization_id = $1
   AND project_task.organization_id = $2
   {STATUS_FILTER}
+  {GROUP_FILTER}

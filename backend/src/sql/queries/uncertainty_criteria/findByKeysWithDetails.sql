@@ -11,8 +11,7 @@ SELECT DISTINCT ON (uc.uncertainty_key)
       json_build_object(
         'displayOrder',  ins.display_order,
         'selectorValue', ins.value,
-        'displayColor',  ins.display_color,
-        'isDefault',     ins.is_default
+        'displayColor',  ins.display_color
       ) ORDER BY ins.display_order
     ) FILTER (WHERE ins.display_order IS NOT NULL),
     '[]'::json

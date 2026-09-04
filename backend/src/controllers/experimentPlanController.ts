@@ -13,6 +13,7 @@ import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import * as experimentPlanService from '../services/experimentPlanService';
 import type { ExperimentPlanValues } from '../types/database';
+import type { TemplateDef } from '../types/api';
 
 // ──────────────────────────────────────────────
 // ハンドラ
@@ -62,7 +63,7 @@ export async function upsertExperimentPlan(
   try {
     const { organizationId, userId } = req.user!;
     const { projectId, methodId, taskNo: taskNoStr } = req.params;
-    const body = req.body as { plannedValues?: ExperimentPlanValues };
+    const body = req.body as { plannedValues?: ExperimentPlanValues; templates?: TemplateDef[] };
 
     logger.info('[experimentPlan] upsertExperimentPlan', {
       organizationId,
@@ -80,6 +81,7 @@ export async function upsertExperimentPlan(
       taskNo,
       plannedValues: body.plannedValues!,
       userId,
+      templates: body.templates,
     });
 
     res.json({ success: true, data: result });

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * maimlQualityWriter.ts
  *
  * 品質評価データを MAiML <eventLog> に書き込むためのユーティリティ関数群。

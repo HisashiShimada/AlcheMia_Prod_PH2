@@ -141,6 +141,8 @@ export interface VerifyPinResponseData {
     displayName: string;
     organizationGroupCds: string[];
     initialScreenFunctionCd: string;
+    /** ユーザーの権限情報（メニューアクセス制御・system_admin 判定に使用） */
+    permissions?: Permission[];
   };
   session: {
     token: string;
@@ -202,7 +204,7 @@ export interface ExperimentDataRecord {
   /**
    * ステータス（省略可）
    * 数値型（TransitionStatusEnum に対応）
-   * 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+   * 1: 初期状態, 2: 準備状態, 3: 準備完了状態, 4: 動作状態, 5: 休止状態, 6: 終状態, 7: 異常終了状態
    */
   status?: number;
   /** コメント（省略可、最大2000文字） */
@@ -387,10 +389,10 @@ export interface UpdateTransitionStatusRequest {
   taskNo: number;
   /**
    * トランジションステータス（数値型）
-   * 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+   * 1: 初期状態, 2: 準備状態, 3: 準備完了状態, 4: 動作状態, 5: 休止状態, 6: 終状態, 7: 異常終了状態
    */
   status: number;
-  /** 進捗率（0〜100、statusが5=completedの場合は自動的に100） */
+  /** 進捗率（0〜100、statusが6=completedの場合は自動的に100） */
   progressRate?: number;
   /** コメント（最大2000文字） */
   comment?: string;
@@ -409,7 +411,7 @@ export interface UpdateTransitionStatusResponse {
   projectName: string;
   /**
    * トランジションステータス（数値型）
-   * 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+   * 1: 初期状態, 2: 準備状態, 3: 準備完了状態, 4: 動作状態, 5: 休止状態, 6: 終状態, 7: 異常終了状態
    */
   status: number;
   progressRate: number;
@@ -557,11 +559,78 @@ export interface TaskInput {
  */
 export type SendInstructionsRequest = Record<string, never>;
 
+
+/**
+ * 状態記録ダイアログ用 休止状態ペア
+ *
+ * @remarks progressController.getTransitionStateRecords のレスポンスで使用
+ */
+export interface PauseEntryRecord {
+  /** 休止状態（paused）の遷移時刻（ISO8601形式）、未記録の場合は null */
+  pauseTime: string | null;
+  /** 動作再開（running）の遷移時刻（ISO8601形式）、未記録の場合は null */
+  resumeTime: string | null;
+}
+
+/**
+ * 状態記録ダイアログ用 トランジション状態遷移時刻レスポンス
+ *
+ * @remarks
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records
+ * のレスポンス data フィールドの型。
+ * maiml_event_log から抽出した各状態の最新遷移時刻を返す。
+ * 未記録のフィールドは null を返す。
+ */
+export interface TransitionStateRecordsResult {
+  /** 準備状態（preparing）への遷移時刻（ISO8601形式）、未記録は null */
+  preparingTime: string | null;
+  /** 準備完了状態（ready）への遷移時刻（ISO8601形式）、未記録は null */
+  readyTime: string | null;
+  /** 動作状態（running）への最初の遷移時刻（ISO8601形式）、未記録は null */
+  runningTime: string | null;
+  /** 休止状態・動作再開のペア配列（複数回の休止に対応） */
+  pauseEntries: PauseEntryRecord[];
+  /** 終状態（completed）への遷移時刻（ISO8601形式）、未記録は null */
+  completedTime: string | null;
+  /** 異常終了状態（error）への遷移時刻（ISO8601形式）、未記録は null */
+  errorTime: string | null;
+}
+
 /**
  * 指示送信レスポンス
  */
 export interface SendInstructionsResponse {
   /** 送信された指示数 */
   sentInstructionsCount: number;
+}
+
+/**
+ * トランジションコメント保存リクエストデータ
+ *
+ * @remarks
+ * API: POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ */
+export interface SaveTransitionCommentRequest {
+  /** タスク連番（1以上の整数） */
+  taskNo: number;
+  /** コメント本文（最大500文字） */
+  comment: string;
+}
+
+/**
+ * トランジションコメント保存レスポンスデータ
+ *
+ * @remarks
+ * API: POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ */
+export interface SaveTransitionCommentResponse {
+  /** トランジションID */
+  transitionId: string;
+  /** タスク連番 */
+  taskNo: number;
+  /** 保存されたコメント */
+  comment: string;
+  /** 保存日時（ISO8601） */
+  savedAt: string;
 }
 

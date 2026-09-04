@@ -65,7 +65,13 @@
     "allTransitionsCompleted": "担当タスクの全トランジションが完了しています。",
     "completedTransitionReadonly": "このトランジションは完了済みです。閲覧モードで表示しています。",
     "backToWork": "作業に戻る",
-    "projectInstructions": "プロジェクト指示",
+    "correctionModeAlert": "差し戻し済みのトランジションです。内容を確認し、必要に応じて訂正してください。",
+    "startCorrectionButton": "訂正",
+    "saveCorrectionButton": "訂正保存",
+    "cancelCorrectionButton": "キャンセル",
+    "correctionSaved": "訂正を保存しました",
+    "correctionError": "訂正の保存に失敗しました",
+    "correctionQualitativeRequired": "定性評価を選択してから訂正保存してください",
     "saveSuccess": "保存しました",
     "saveContent": "作業記録を保存しました。",
     "transitionComplete": "トランジション完了",
@@ -76,7 +82,8 @@
     "skipNoTarget": "スキップ先がありません",
     "skipNoTargetContent": "現在スキップできる別のトランジションがありません。進捗確認タブでスキップ中の作業を確認してください。",
     "commentSaved": "コメントを保存しました",
-    "commentSaveMock": "コメント保存（モック）",
+    "commentSaveMock": "コメント保存）",
+    "commentSaveError": "コメントの保存に失敗しました",
     "addProperty": "プロパティを追加",
     "customPropertyLabel": "カスタムプロパティ",
     "petriNetViewer": "ペトリネットを表示",
@@ -91,6 +98,7 @@
       "stateRecordButton": "状態記録",
       "stateRecordDialogTitle": "状態記録",
       "stateRecordSaved": "状態記録を保存しました",
+      "stateRecordLoadError": "状態遷移時刻の取得に失敗しました",
       "srTransitionTime": "状態遷移時刻",
       "srStatusPreparing": "準備状態",
       "srStatusReady": "準備完了状態",
@@ -100,9 +108,22 @@
       "srStatusError": "異常終了状態",
       "srAddPause": "+ 休止状態記録追加",
       "srRemovePause": "- 休止状態記録削除",
+      "srValidationPrepVsReady": "準備状態 → 準備完了状態の順序が正しくありません（準備完了状態は準備状態より後の時刻を入力してください）",
+      "srValidationReadyVsRunning": "準備完了状態 → 動作状態の順序が正しくありません（動作状態は準備完了状態より後の時刻を入力してください）",
+      "srValidationRunningVsPause": "動作状態 → 休止状態の順序が正しくありません（休止状態は動作状態より後の時刻を入力してください）",
+      "srValidationPauseVsResume": "休止状態 → 動作状態（再開）の順序が正しくありません（動作状態（再開）は休止状態より後の時刻を入力してください）",
+      "srValidationConsecutivePause": "連続する休止・再開の順序が正しくありません（次の休止状態は前回の動作状態（再開）より後の時刻を入力してください）",
+      "srValidationRunningVsCompleted": "動作状態 → 終状態の順序が正しくありません（終状態は動作状態より後の時刻を入力してください）",
+      "srValidationRunningVsError": "動作状態 → 異常終了状態の順序が正しくありません（異常終了状態は動作状態より後の時刻を入力してください）",
+      "srValidationCompletedAndError": "終状態と異常終了状態を同時に入力することはできません",
     "confirmInstruction": "指示確認",
     "instructionConfirmed": "プロジェクト指示を確認しました",
-    "noInstructions": "指示がありません。"
+    "noInstructions": "指示がありません。",
+    "projectInstructions": "プロジェクト指示",
+    "unsavedWarningTitle": "未保存のデータがあります",
+    "unsavedWarningContent": "プロパティカードに保存されていないデータがあります。このまま次へ進みますか？",
+    "unsavedWarningOk": "進む",
+    "unsavedWarningCancel": "キャンセル"
   },
   "dataRecordDialog": {
     "plannedValue": "指定値",
@@ -263,6 +284,8 @@
     "ngError": "NG記録処理に失敗しました",
     "correctionSaved": "訂正を保存しました",
     "correctionError": "訂正の保存に失敗しました",
+    "correctionQualitativeRequired": "定性評価を選択してから訂正保存してください",
+
 
     "approveConfirmTitle": "タスクを承認しますか？",
     "approveConfirmContent": "以下のタスクを「完了」に更新します。",
@@ -670,7 +693,9 @@
       "conditions": "条件",
       "results": "結果",
       "record": "記録",
-      "description": "説明"
+      "description": "説明",
+      "prerequisiteTooltip": "前提トランジション（{ids}）が全て完了してから開始できます",
+      "prerequisiteLockTooltip": "前提トランジション: {ids} が全て完了してから開始できます"
     },
     "actions": {
       "start": "開始",
@@ -842,7 +867,7 @@
     }
   },
   "projectManagement": {
-    "completionButton": "プロジェクト完了処理",
+    "completionButton": "プロジェクト完了",
     "completionDisabledTooltip": "全タスクが「完了」になると押下できます",
     "filter_labels": {
       "owner": "担当者",
@@ -1102,6 +1127,7 @@
       "reviewWaiting": "タスク結果レビュー待ち",
       "completed": "プロジェクト完了",
       "error": "タスク異常終了",
+      "reviewRejected": "レビュー差戻",
       "notStarted": "未着手",
       "allDepartments": "全部署",
       "department": "部署"
@@ -1298,7 +1324,7 @@
       "fetchFailed": "タスク登録情報の取得に失敗しました",
       "saveFailed": "タスク情報の保存に失敗しました"
     },
-    "saveMockSuccess": "タスク登録を保存しました（モック）"
+    "saveMockSuccess": "タスク登録を保存しました"
   },
   "corporationManagement": {
     "title": "会社管理",
@@ -3866,7 +3892,6 @@
     "diffStatusDeprecated": "無効",
     "diffFieldEvalMethod": "評価方式",
     "diffFieldQualOptions": "定性評価選択肢",
-    "diffDefaultMark": "[デフォルト]",
     "diffSavedAt": "（DB登録済み）",
     "diffFieldToleranceUpper": "許容上限値",
     "diffFieldToleranceLower": "許容下限値",
@@ -3902,7 +3927,6 @@
       "statusInactive": "無効",
       "evalMethod": "評価方式",
       "qualitativeOptions": "定性評価選択肢",
-      "defaultMark": "[デフォルト]",
       "savedAt": "（DB登録済み）",
       "section1": "基本情報",
       "section2": "評価方式設定"
@@ -3986,6 +4010,17 @@
     "displayCount": "件表示中",
     "emptyText": "該当する不確かさ基準が見つかりません",
     "createNewButton": "新規評価基準を作成",
+    "previewSectionTitle": "選択中の基準の詳細",
+    "previewEmpty": "上のリストから不確かさ基準を選択すると詳細が表示されます",
+    "previewXsiType": "xsi:type",
+    "previewUnit": "単位 (units)",
+    "previewScaleFactor": "倍率",
+    "previewFormat": "フォーマット",
+    "previewToleranceUpper": "許容上限値",
+    "previewToleranceLower": "許容下限値",
+    "previewNoTolerance": "判定なし",
+    "previewQualitativeOptions": "選択肢",
+    "previewNoOptions": "選択肢なし",
     "selectedCriteriaLabel": "評価基準",
     "selectFromList": "上のリストから評価基準を選択してください",
     "ucValueLabel": "不確かさ値",
@@ -4486,7 +4521,7 @@
   },
   "projectManagementExtra": {
     "completionButtonTooltip": "全タスクが「完了」になると押下できます",
-    "completionButton": "プロジェクト完了処理",
+    "completionButton": "プロジェクト完了",
     "encryptionButton": "暗号化管理",
     "signatureButton": "電子署名",
     "projectInstructionTab": "プロジェクト指示",
@@ -4728,7 +4763,67 @@
   },
   "experimentWorker": {
     "startFailed": "開始に失敗しました",
-    "switchFailed": "切り替えに失敗しました"
+    "switchFailed": "切り替えに失敗しました",
+    "ngReason": {
+      "button": "NG理由",
+      "modalTitle": "NG理由一覧",
+      "noNgTasks": "NGタスクはありません。",
+      "noReason": "（NG理由未記入）"
+    }
+  },
+  "progressOverview": {
+    "loading": "全体進捗を読み込み中...",
+    "checkRecordButton": "記録確認",
+    "ngDoneTag": "NG済み",
+    "empty": "データがありません",
+    "status": {
+      "not_started": "初期状態",
+      "preparing": "準備状態",
+      "ready": "準備完了状態",
+      "in_progress": "動作状態",
+      "on_hold": "休止状態",
+      "completed": "終状態",
+      "issue": "異常終了状態"
+    },
+    "summary": {
+      "overallProgress": "全体進捗",
+      "taskCompleted": "タスク {completed}/{total} 完了",
+      "notStarted": "未着手",
+      "inProgress": "作業中",
+      "completed": "完了",
+      "issue": "問題あり",
+      "issueReport": "問題報告",
+      "itemSuffix": "件"
+    },
+    "filter": {
+      "label": "フィルタ:",
+      "methodName": "メソッド名",
+      "taskNo": "タスクNo",
+      "transitionName": "トランジション名",
+      "status": "ステータス",
+      "countSuffix": "件"
+    },
+    "action": {
+      "viewDetail": "詳細確認",
+      "goToWork": "作業へ",
+      "resume": "再開",
+      "start": "開始",
+      "startLockedTooltip": "前の順序のトランジションを先に完了してください"
+    },
+    "column": {
+      "methodName": "メソッド名",
+      "taskNo": "タスクNo",
+      "transitionName": "トランジション名",
+      "prereqTooltip": "前提トランジション: {ids} が全て完了してから開始できます",
+      "status": "ステータス",
+      "progress": "進捗",
+      "issue": "問題",
+      "action": "操作"
+    },
+    "viewMode": {
+      "flow": "フロー図",
+      "list": "リスト"
+    }
   },
   "signature": {
     "deleteFailed": "署名の削除に失敗しました",
@@ -5156,50 +5251,6 @@
     "saveNsSuccess": "名前空間を保存しました",
     "prefixRequired": "接頭辞を入力してください",
     "uriRequired": "URIを入力してください"
-  },
-  "namespaceAdd": {
-    "title": "名前空間を追加",
-    "labelLevel": "レベル",
-    "levelGlobal": "グローバル",
-    "levelOrganization": "組織",
-    "levelPersonal": "個人",
-    "uriGuidance": {
-      "global": "グローバルに公開されているURIを入力してください",
-      "organization": "組織固有のURIが自動生成されます",
-      "personal": "個人のORCID IDまたは任意のURIを入力してください"
-    },
-    "levelGuidance": {
-      "global": "グローバル名前空間はすべての組織で共有されます",
-      "organization": "組織名前空間は組織内で共有されます",
-      "personal": "個人名前空間はログインユーザーのみが使用できます"
-    },
-    "validation": {
-      "prefixRequired": "Prefixを入力してください",
-      "prefixInvalid": "xs:NCName 形式（英字またはアンダースコアで始まる）で入力してください",
-      "prefixTooLong": "Prefixは64文字以内で入力してください",
-      "uriRequired": "URIを入力してください",
-      "uriInvalid": "https:// / http:// / urn: で始まるURIを入力してください",
-      "uriTooLong": "URIは512文字以内で入力してください"
-    },
-    "orcidAutoFilled": "ORCID IDを自動入力しました",
-    "registerSuccess": "名前空間「{prefix}」を登録しました",
-    "labelPrefix": "接頭辞（Prefix）",
-    "extraPrefix": "xs:NCName 形式。英字またはアンダースコアで始まる識別子",
-    "labelUriAuto": "URI（自動生成）",
-    "extraUriAuto": "{orgCd}・{deptCd} をベースに自動生成されます",
-    "uriAutoPlaceholder": "Prefixを入力するとURIが生成されます",
-    "labelUri": "URI",
-    "labelDisplayName": "表示名（任意）",
-    "extraDisplayName": "人が読みやすい名前空間の名称（例: CorpA 社内用語）",
-    "labelDescription": "説明（任意）",
-    "placeholderDescription": "名前空間の用途・背景を入力...",
-    "labelParentNamespace": "親名前空間（任意）",
-    "extraParentNamespace": "この名前空間が継承する親名前空間を選択します",
-    "placeholderParentNamespace": "親名前空間を選択",
-    "labelOrcid": "ORCID自動入力",
-    "extraOrcid": "ORCID IDがある場合はOAuth2で自動取得できます",
-    "btnOrcidAutoFill": "ORCID IDを自動入力",
-    "btnRegister": "登録"
   },
   "duplicateSuggestModal": {
     "title": "重複候補が見つかりました",

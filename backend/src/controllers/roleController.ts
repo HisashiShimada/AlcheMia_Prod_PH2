@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import * as masterService from '../services/roleService';
 import { v4 as uuidv4 } from 'uuid';
 import Papa from 'papaparse';
+import { getNowJST } from '../utils/dateUtils';
 
 /**
  * ロール一覧取得
@@ -150,14 +151,7 @@ export async function downloadRoleCsv(
     const csvWithBom = bom + csv;
 
     // ファイル名生成（role_yyyyMMddhhmmss.csv）
-    const now = new Date();
-    const timestamp =
-      now.getFullYear().toString() +
-      (now.getMonth() + 1).toString().padStart(2, '0') +
-      now.getDate().toString().padStart(2, '0') +
-      now.getHours().toString().padStart(2, '0') +
-      now.getMinutes().toString().padStart(2, '0') +
-      now.getSeconds().toString().padStart(2, '0');
+    const timestamp = getNowJST();
     const filename = `role_${timestamp}.csv`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');

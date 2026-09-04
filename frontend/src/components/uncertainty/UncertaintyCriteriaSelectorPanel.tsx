@@ -156,6 +156,8 @@ export default function UncertaintyCriteriaSelectorPanel({
           typeMatches:        row.typeMatches,
           unitMatches:        row.unitMatches,
           qualitativeOptions: row.qualitativeOptions,
+          toleranceUpper:     row.toleranceUpper,
+          toleranceLower:     row.toleranceLower,
         }));
         setCriteriaList(converted);
       })
@@ -242,9 +244,7 @@ export default function UncertaintyCriteriaSelectorPanel({
     setKFactor('2');
     setUcValueError('');
     if (selectedCriteria?.evalType === 'qualitative') {
-      // DBの is_default=true の選択肢をデフォルト値に設定
-      const defaultOpt = selectedCriteria.qualitativeOptions.find((o) => o.isDefault);
-      setQualValue(defaultOpt?.selectorValue ?? selectedCriteria.qualitativeOptions[0]?.selectorValue ?? null);
+      setQualValue(null);
     } else {
       setQualValue(null);
     }

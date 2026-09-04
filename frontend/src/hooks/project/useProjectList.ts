@@ -129,6 +129,9 @@ export const useProjectList = (user?: User) => {
         (project.description ?? '').toLowerCase().includes(q) ||
         (project.ownerName ?? '').toLowerCase().includes(q);
 
+      const matchesOwner =
+        ownerFilter !== 'my_only' || project.owner === user?.id;
+
       let matchesCheckout = true;
       if (checkoutFilter === 'checked_out') matchesCheckout = project.isCheckedOut === true;
       else if (checkoutFilter === 'checked_in') matchesCheckout = project.isCheckedOut === false;
@@ -142,9 +145,9 @@ export const useProjectList = (user?: User) => {
       let matchesGroup = true;
       if (groupFilter !== 'all') matchesGroup = (project as any).organizationGroupCd === groupFilter;
 
-      return matchesSearch && matchesCheckout && matchesProjectStatus && matchesGroup;
+      return matchesSearch && matchesOwner && matchesCheckout && matchesProjectStatus && matchesGroup;
     });
-  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, groupFilter]);
+  }, [projects, searchQuery, ownerFilter, user, checkoutFilter, projectStatusFilter, groupFilter]);
 
   // ソート済みプロジェクト一覧
   const sortedProjects = useMemo(() => {

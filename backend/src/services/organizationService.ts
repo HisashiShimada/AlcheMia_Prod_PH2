@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 組織管理サービス
  * ビジネスロジック層
  */
@@ -19,6 +19,7 @@ import { createSchemaIfNotExists, createSchemaTables, getSchemaStorageSizeBytes 
 import * as namespaceService from './namespaceService';
 import * as namespaceTermRepository from '../repositories/namespaceTermRepository';
 import { generateNamespaceUri } from '../utils/namespaceUriGenerator';
+import { formatDateTimeJST } from '../utils/dateUtils';
 
 /**
  * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
@@ -86,34 +87,9 @@ function toOrganizationResponse(org: organizationRepository.OrganizationRow): Or
     contractedUsers: org.contract_users ?? null,
     contractedProjects: org.contract_projects ?? null,
     defaultRetentionDays: org.default_retention_days,
-    updatedAt: formatDateTime(org.update_at),
+    updatedAt: formatDateTimeJST(org.update_at),
   };
   return response;
-}
-
-/**
- * 日時を YYYYMMDDhhmmss 形式にフォーマット
- * 
- * @param date 日時オブジェクト
- * @returns フォーマットされた文字列
- */
-function formatDateTime(date: Date | null): string {
-  if (!date) return '-';
-  
-  try {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hour = String(d.getHours()).padStart(2, '0');
-    const minute = String(d.getMinutes()).padStart(2, '0');
-    const second = String(d.getSeconds()).padStart(2, '0');
-    
-    return `${year}${month}${day}${hour}${minute}${second}`;
-  } catch (error) {
-    console.error('Date format error:', error);
-    return '-';
-  }
 }
 
 /**

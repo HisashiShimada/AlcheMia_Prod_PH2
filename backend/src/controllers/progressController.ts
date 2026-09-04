@@ -25,7 +25,7 @@ import { logger } from '../utils/logger';
 import { TransitionDataUpdate } from '../types/transitionData';
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
-import { ProjectStatusEnum } from '../enums/codeMaster.enum';
+import { ProjectStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import { HTTP_STATUS } from '../constants/httpStatus';
 
 /**
@@ -160,7 +160,7 @@ export async function getProgressData(req: Request, res: Response): Promise<void
  *
  * GET /api/v1/progress/projects/:projectId/ng-tasks
  *
- * @description task_status=6（NG）のタスク一覧を返す。NG理由モーダルに表示する。
+ * @description task_status=5（REVIEW_NG）のタスク一覧を返す。NG理由モーダルに表示する。
  * @roles experiment_worker（050000 読取専用）
  */
 export async function getNgTasks(
@@ -177,9 +177,9 @@ export async function getNgTasks(
 
     logger.info('getNgTasks request received', { projectId, organizationId, requestId });
 
-    // プロジェクト全タスクを取得してNG（task_status=6）を絞り込む
+    // プロジェクト全タスクを取得してNG（task_status=REVIEW_NG=5）を絞り込む
     const allTasks = await projectTaskDetailRepository.findByProject(organizationId, projectId);
-    const ngTasks = allTasks.filter((t) => t.task_status === 6);
+    const ngTasks = allTasks.filter((t) => t.task_status === TaskStatusEnum.REVIEW_NG);
 
     const ngTaskItems = ngTasks.map((t) => ({
       taskNo: t.task_no,
@@ -289,6 +289,56 @@ export async function updateTransitionStatus(
     });
   } catch (error) {
     // エラーハンドリングミドルウェアに委譲
+    next(error);
+  }
+}
+
+/**
+ * トランジションコメント保存ハンドラー
+ *
+ * POST /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/comment
+ *
+ * @description
+ *   実験作業者がコメントを保存する。
+ *   maiml_event_log に ns1:transitionComment プロパティを持つ event タグを追記する。
+ *   ステータス変更は行わない。
+ */
+export async function saveTransitionComment(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { projectId, methodId, transitionId } = req.params;
+    const { taskNo: _taskNo, comment } = req.body;
+
+    const { organizationId, userId } = req.user!;
+
+    const transitionDataRepository = new TransitionDataRepository();
+    const progressService = new ProgressService(transitionDataRepository);
+
+    await progressService.saveTransitionComment(
+      organizationId,
+      projectId,
+      transitionId,
+      userId,
+      comment
+    );
+
+    res.status(HTTP_STATUS.CREATED).json({
+      success: true,
+      data: {
+        transitionId,
+        taskNo: _taskNo,
+        comment,
+        savedAt: new Date().toISOString(),
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4(),
+      },
+    });
+  } catch (error) {
     next(error);
   }
 }
@@ -649,6 +699,48 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
         requestId
       }
     });
+  }
+}
+
+
+/**
+ * トランジション状態遷移時刻取得API（状態記録ダイアログ初期値用）
+ *
+ * GET /api/v1/progress/projects/:projectId/methods/:methodId/transitions/:transitionId/state-records
+ *
+ * @description
+ *   maiml_event_log から対象トランジションの各状態遷移時刻を抽出して返す。
+ *   状態記録ダイアログを開いた際の初期値表示に使用する。
+ * @roles experiment_worker（読取専用）
+ */
+export async function getTransitionStateRecords(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { projectId, methodId, transitionId } = req.params;
+    const { organizationId } = req.user!;
+
+    const transitionDataRepository = new TransitionDataRepository();
+    const progressService = new ProgressService(transitionDataRepository);
+
+    const result = await progressService.getTransitionStateRecords(
+      organizationId,
+      projectId,
+      transitionId
+    );
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4(),
+      },
+    });
+  } catch (error) {
+    next(error);
   }
 }
 

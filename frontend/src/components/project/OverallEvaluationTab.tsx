@@ -206,6 +206,7 @@ const OverallEvaluationTab: React.FC<OverallEvaluationTabProps> = ({
   isEditable = true,
   isProjectCompleted = false,
   isCheckoutLocked = false,
+  maimlHasErrors = false,
 }) => {
   // ── Hooks 使用順序 useState → useEffect → useCallback → カスタムフック ──
 
@@ -335,7 +336,7 @@ const OverallEvaluationTab: React.FC<OverallEvaluationTabProps> = ({
     },
   ];
 
-  const isDisabled     = !isEditable || isProjectCompleted || isCheckoutLocked;
+  const isDisabled     = !isEditable || isProjectCompleted || isCheckoutLocked || maimlHasErrors;
   const attentionCount = summary?.attentionItems?.length ?? 0;
 
   return (

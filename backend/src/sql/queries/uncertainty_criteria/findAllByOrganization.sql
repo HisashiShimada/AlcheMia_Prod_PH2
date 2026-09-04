@@ -2,6 +2,8 @@
 -- 組織IDでフィルタリングし、不確かさ基準情報を取得
 -- namespace_term を LEFT JOIN して表示名・説明を取得
 -- ORDER: uncertainty_key 昇順、同一キー内では version 降順（最新が先頭）
+-- $1: organization_id
+-- $2: name_space_id（省略可。NULL の場合は全件取得）
 SELECT
     uc.uncertainty_key               AS "uncertaintyKey"
   , uc.uncertainty_name              AS "uncertaintyName"
@@ -25,4 +27,5 @@ LEFT JOIN namespace_term nt
   ON  nt.organization_id = uc.organization_id
   AND nt.prefix || ':' || nt.localname = uc.uncertainty_key
 WHERE uc.organization_id = $1
+  AND ($2::text IS NULL OR uc.name_space_id = $2)
 ORDER BY uc.uncertainty_key ASC, uc.version DESC

@@ -9,8 +9,7 @@
 --   $5  display_order    (1始まり)
 --   $6  value            (選択肢の値)
 --   $7  display_color    (#RRGGBB)
---   $8  is_default       (TRUE:デフォルト選択肢)
---   $9  create_user_id
+--   $8  create_user_id
 
 INSERT INTO intuition_selector (
     organization_id,
@@ -20,7 +19,6 @@ INSERT INTO intuition_selector (
     display_order,
     value,
     display_color,
-    is_default,
     create_user_id,
     create_at,
     update_user_id,
@@ -34,8 +32,7 @@ INSERT INTO intuition_selector (
     $6,
     $7,
     $8,
-    $9,
     NOW(),
-    $9,
+    $8,
     NOW()
 )

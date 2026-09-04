@@ -7,7 +7,7 @@
 --   $3: method_id (VARCHAR)
 --   $4: task_no (NUMERIC)
 --   $5: transition_id (VARCHAR)
---   $6: status (NUMERIC) - 初期値: 0
+--   $6: status (NUMERIC) - 初期値: 1
 --   $7: progress_rate (NUMERIC) - 初期値: 0
 --   $8: work_order (NUMERIC) - 実行順序（実験計画の __meta__.transitionOrder.order から設定）
 --   $9: prerequisite_transition_ids (VARCHAR[]) - 前提トランジションID配列

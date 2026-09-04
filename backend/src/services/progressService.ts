@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ProgressService
  * 
  * @description 進捗データ取得サービス
@@ -33,7 +33,9 @@ import type {
   ProjectInfoDetail,
   FileInfoDetail,
   WorkDetailItem,
-  TransitionProgressItem
+  TransitionProgressItem,
+  TransitionStateRecordsResult,
+  PauseEntryRecord,
 } from '../types/api';
 import * as projectRepository from '../repositories/projectRepository';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
@@ -51,7 +53,7 @@ import { PROJECT_STATUS_STRING_MAP } from '../types/project';
  */
 export const ALLOWED_TRANSITIONS: Record<TransitionStatusNumber, TransitionStatusNumber[]> = {
   [TransitionStatusEnum.INITIAL]: [TransitionStatusEnum.INITIAL, TransitionStatusEnum.PREPARING, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
-  [TransitionStatusEnum.PREPARING]: [TransitionStatusEnum.PREPARING, TransitionStatusEnum.READY, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.PREPARING]: [TransitionStatusEnum.PREPARING, TransitionStatusEnum.READY, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.READY]: [TransitionStatusEnum.READY, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.IN_PROGRESS]: [TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.PAUSED, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR, TransitionStatusEnum.INITIAL],
   [TransitionStatusEnum.PAUSED]: [TransitionStatusEnum.PAUSED, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
@@ -803,13 +805,13 @@ export class ProgressService {
       // Step 6: タスクごとのトランジション進捗を並列取得
       // ─────────────────────────────────────────────
       const TRANSITION_STATUS_LABELS: Record<number, string> = {
-        0: '未開始',
-        1: '準備中',
-        2: '作業中',
-        3: '休止中',
-        4: '作業中',
-        5: '完了',
-        6: '異常中'
+        1: '初期状態',
+        2: '準備状態',
+        3: '準備完了状態',
+        4: '動作状態',
+        5: '休止状態',
+        6: '終状態',
+        7: '異常終了状態'
       };
 
       const workDetails: WorkDetailItem[] = await Promise.all(
@@ -968,18 +970,23 @@ export class ProgressService {
         throw error;
       }
 
-      const { method_id, task_no, status: currentStatus } = findResult.rows[0];
+      const { method_id, task_no, status: _rawCurrentStatus } = findResult.rows[0];
+      // DB の numeric(2,0) は parseFloat で変換されるが、確実に整数 number 型にキャストする
+      // LIFECYCLE_TRANSITION_VALUE_MAP のキー比較は number 型同士である必要があるため
+      const currentStatus = Number(_rawCurrentStatus) as TransitionStatusNumber;
 
       // 2. ステータス遷移ルールの検証
-      this.validateStatusTransition(currentStatus, update.status);
+      // update.status はルーティングで .toInt() 変換済みだが、Number() で確実に整数にキャストする
+      const toStatus = Number(update.status) as TransitionStatusNumber;
+      this.validateStatusTransition(currentStatus, toStatus);
 
       // 3. completedステータス時は進捗率を100%に自動設定
-      const finalProgressRate = update.status === TransitionStatusEnum.COMPLETED 
-        ? 100 
+      const finalProgressRate = toStatus === TransitionStatusEnum.COMPLETED
+        ? 100
         : (update.progress_rate ?? 0);
 
       const finalUpdate = {
-        status: update.status,
+        status: toStatus,
         progress_rate: finalProgressRate,
         updated_by: update.updated_by
       };
@@ -993,6 +1000,11 @@ export class ProgressService {
         transitionId,
         finalUpdate
       );
+
+      // 4-2. ownerRef ID 命名用のプロジェクト名を取得
+      // findByIdFull は organizationId + projectId で SELECT するため、マルチテナント安全
+      const projectRecord = await projectRepository.findByIdFull(organizationId, projectId);
+      const projectName = projectRecord?.project_name ?? null;
 
       // 5. MAIMLをパースして programId / instructionId / resultsRefs を一括取得
       //    log/@ref = methodId, trace/@ref = programId, event/@ref = instructionId
@@ -1044,7 +1056,7 @@ export class ProgressService {
         [TransitionStatusEnum.COMPLETED]: 'completed',
         [TransitionStatusEnum.ERROR]: 'error',
       };
-      const statusLabel = transitionStatusLabelMap[update.status] ?? String(update.status);
+      const statusLabel = transitionStatusLabelMap[toStatus] ?? String(toStatus);
 
       await this.eventLogRepository.insertTransitionProgressLog(
         organizationId,
@@ -1052,19 +1064,85 @@ export class ProgressService {
         transitionId,
         update.updated_by,
         statusLabel,
-        finalProgressRate,
-        comment ?? null,
         client,
         methodId,              // log/@ref = methodId
         eventLogProgramId,     // trace/@ref = programId（MAIMLから取得）
         eventLogInstructionId, // event/@ref = instructionId（MAIMLから取得）
-        eventLogResultsRefs    // event/resultsRef = result-type place IDs
+        eventLogResultsRefs,   // event/resultsRef = result-type place IDs
+        currentStatus,         // fromStatus = 遷移元ステータス（Number変換済み）
+        toStatus,              // toStatus   = 遷移先ステータス（Number変換済み）
+        projectName            // ownerRef ID 命名用プロジェクト名
       );
 
-      // 6. タスク進捗率を再計算
-      // TODO: project_taskテーブルにprogress_rateカラムが存在しないため、現在はスキップ
-      // project_taskテーブルのスキーマ: organization_id, project_id, method_id, experiment_order, experiment_condition, attempts_count
-      // 進捗率カラム追加後に実装する
+      // 7. 前提トランジション完了時の連鎖更新
+      //    COMPLETED に遷移した場合のみ発火: このトランジションを前提に持つ他の INITIAL トランジションを PREPARING に遷移させる
+      if (toStatus === TransitionStatusEnum.COMPLETED) {
+        try {
+          const dependentTransitions = await this.transitionDataRepository.findDependentTransitions(
+            client,
+            organizationId,
+
+            projectId,
+            transitionId
+          );
+
+          for (const dep of dependentTransitions) {
+            // 全前提トランジションのステータスを確認（findByTransitionId.sql を使い client クエリで取得）
+            // dep.task_no を指定して同一タスクの前提トランジションのみを確認する。
+            // task_no を指定しないと複数タスク（task_no=1, 2...）の行が混在し、
+            // rows[0] の取得順が不定になるため、COMPLETED でない前提を見逃すバグが発生する。
+            const allPrereqsCompleted = await (async () => {
+              for (const prereqId of dep.prerequisite_transition_ids) {
+                const prereqSql = await loadSqlFile('transition_data/findByTransitionId.sql');
+                const prereqResult = await client.query(prereqSql, [organizationId, projectId, dep.method_id, prereqId]);
+                if (prereqResult.rows.length === 0) return false;
+                // 同一タスク（dep.task_no）の行のみを対象にステータスを確認する
+                const targetRow = prereqResult.rows.find((row: { task_no: number; status: number }) => row.task_no === dep.task_no);
+                if (!targetRow) return false;
+                if (targetRow.status !== TransitionStatusEnum.COMPLETED) return false;
+              }
+              return true;
+            })();
+
+            if (!allPrereqsCompleted) continue;
+
+            // INITIAL → PREPARING に更新
+            const prepUpdate = {
+              status: TransitionStatusEnum.PREPARING,
+              progress_rate: 0,
+              updated_by: update.updated_by,
+            };
+            await this.transitionDataRepository.updateStatus(
+              organizationId,
+              projectId,
+              dep.method_id,
+              dep.task_no,
+              dep.transition_id,
+              prepUpdate
+            );
+
+            // 連鎖更新のイベントログを記録
+            await this.eventLogRepository.insertTransitionProgressLog(
+              organizationId,
+              projectId,
+              dep.transition_id,
+              update.updated_by,
+              'preparing',
+              client,
+              dep.method_id,
+              null,
+              null,
+              null,
+              TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): 連鎖更新は常に INITIAL → PREPARING
+              TransitionStatusEnum.PREPARING, // toStatus   = 2(PREPARING)
+              projectName                     // ownerRef ID 命名用プロジェクト名
+            );
+          }
+        } catch (chainErr) {
+          // 連鎖更新の失敗は警告ログに留め、メイン処理は継続する
+          logger.warn('[ProgressService] 連鎖トランジション更新失敗（メインの COMMIT は継続）', { transitionId, error: chainErr });
+        }
+      }
 
       await client.query('COMMIT');
 
@@ -1075,5 +1153,176 @@ export class ProgressService {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * トランジションコメントを maiml_event_log に保存する
+   *
+   * 実験作業者が ExperimentCommentDialog から送信したコメントを
+   * 対象トランジションのログとして記録する。
+   * ステータス変更は行わない（コメントの記録のみ）。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID（UUID）
+   * @param transitionId - コメント対象のトランジションID
+   * @param userId - 記録者ユーザID
+   * @param comment - コメント本文
+   * @throws エラー発生時はロールバックして再スロー
+   */
+  async saveTransitionComment(
+    organizationId: string,
+    projectId: string,
+    transitionId: string,
+    userId: string,
+    comment: string
+  ): Promise<void> {
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await this.eventLogRepository.insertTransitionCommentLog(
+        organizationId,
+        projectId,
+        transitionId,
+        userId,
+        comment,
+        client
+      );
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * トランジション状態遷移時刻の取得（状態記録ダイアログ初期値用）
+   *
+   * maiml_event_log の Alchemia:status プロパティを持つエントリを解析し、
+   * 各状態（preparing / ready / running / paused / completed / error）への
+   * 遷移時刻を抽出して返す。
+   *
+   * - preparing / ready / completed / error: 最新（最大 sequence_no）のエントリを採用
+   * - running（初回動作状態）: 最初（最小 sequence_no）のエントリを採用
+   * - paused / running（再開）: 発生順に paired して pauseEntries[] に格納
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId      - プロジェクトID
+   * @param transitionId   - トランジションID
+   * @returns 各状態の遷移時刻（未記録は null）
+   */
+  async getTransitionStateRecords(
+    organizationId: string,
+    projectId: string,
+    transitionId: string
+  ): Promise<TransitionStateRecordsResult> {
+    const rows = await this.eventLogRepository.findTransitionStateRecords(
+      organizationId,
+      projectId,
+      transitionId
+    );
+
+    // sequence_no 昇順で各ログの status / time:timestamp を抽出
+    const entries: Array<{ status: string; timestamp: string; sequenceNo: number }> = [];
+
+    for (const row of rows) {
+      try {
+        // JSON 構造: { eventLog: { log: { trace: { event: { property: [...] } } } } }
+        const eventLog = (row.log as Record<string, unknown>)?.eventLog as Record<string, unknown> | undefined;
+        const log = eventLog?.log as Record<string, unknown> | undefined;
+        const trace = log?.trace as Record<string, unknown> | undefined;
+        const event = trace?.event as Record<string, unknown> | undefined;
+        const properties = event?.property as Array<Record<string, unknown>> | undefined;
+
+        if (!Array.isArray(properties)) continue;
+
+        // Alchemia:status プロパティを持つエントリのみを対象とする
+        // （transitionProgress ログのみ Alchemia:status を保持し、transitionComment ログは保持しない）
+        const statusProp = properties.find((p) => p['@key'] === 'Alchemia:status');
+        if (!statusProp) continue;
+
+        const timestampProp = properties.find((p) => p['@key'] === 'time:timestamp');
+
+        const status = statusProp?.['#text'] as string | undefined;
+        const timestamp = timestampProp?.['#text'] as string | undefined;
+
+        if (!status || !timestamp) continue;
+
+        entries.push({ status, timestamp, sequenceNo: row.sequence_no });
+      } catch {
+        // パース失敗は無視して続行
+        continue;
+      }
+    }
+
+    // 各状態の遷移時刻を集計
+    let preparingTime: string | null = null;
+    let readyTime: string | null = null;
+    let runningTime: string | null = null;
+    let completedTime: string | null = null;
+    let errorTime: string | null = null;
+
+    // paused/running ペア構築用
+    // paused → running（再開）の順で発生するため、paused を pendingPauseTime に積んで
+    // 次の running（再開）と対応させる
+    const pauseEntries: PauseEntryRecord[] = [];
+    let pendingPauseTime: string | null = null;
+    // 最初の running は runningTime として記録し、2回目以降は resumeTime として扱う
+    let firstRunningRecorded = false;
+
+    for (const entry of entries) {
+      switch (entry.status) {
+        case 'preparing':
+          preparingTime = entry.timestamp;
+          break;
+        case 'ready':
+          readyTime = entry.timestamp;
+          break;
+        case 'running':
+          if (!firstRunningRecorded) {
+            // 最初の running = 動作状態（初回）
+            runningTime = entry.timestamp;
+            firstRunningRecorded = true;
+          } else if (pendingPauseTime !== null) {
+            // 2回目以降の running = 休止からの再開
+            pauseEntries.push({ pauseTime: pendingPauseTime, resumeTime: entry.timestamp });
+            pendingPauseTime = null;
+          }
+          break;
+        case 'paused':
+          if (pendingPauseTime !== null) {
+            // 前の paused が未解消のままなら先にペアを積む（resumeTime=null）
+            pauseEntries.push({ pauseTime: pendingPauseTime, resumeTime: null });
+          }
+          pendingPauseTime = entry.timestamp;
+          break;
+        case 'completed':
+          completedTime = entry.timestamp;
+          break;
+        case 'error':
+          errorTime = entry.timestamp;
+          break;
+        default:
+          break;
+      }
+    }
+
+    // 未解消の paused が残っている場合は resumeTime=null でペアを追加
+    if (pendingPauseTime !== null) {
+      pauseEntries.push({ pauseTime: pendingPauseTime, resumeTime: null });
+    }
+
+    return {
+      preparingTime,
+      readyTime,
+      runningTime,
+      pauseEntries,
+      completedTime,
+      errorTime,
+    };
   }
 }

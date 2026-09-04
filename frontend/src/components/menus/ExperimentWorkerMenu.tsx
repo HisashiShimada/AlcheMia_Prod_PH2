@@ -26,9 +26,10 @@ import type { ProgressRow } from '../ExperimentWorker/ProgressOverviewTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import type { WorkerProject } from '@/types/project';
 import type { ProjectStatus as ProjectStatusType } from '@/types/experimentWorker';
-import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus, getNgTasks, updateTransitionStatus, confirmInstruction } from '@/services/projectApiService';
+import { getWorkerAccessibleProjects, requestApproval, getWorkerTasks, fetchTransitionStatus, getNgTasks, updateTransitionStatus, confirmInstruction, forceTerminateProject } from '@/services/projectApiService';
 import type { NgTaskItem } from '@/services/projectApiService';
 import { TransitionStatusCode } from '@/constants/codeMaster';
+import { TaskStatus } from '@/constants/codeMaster';
 import { getIssues } from '@/services/issueApiService';
 import type { WorkerMethod, WorkerTask } from '@/types/project';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
@@ -103,6 +104,10 @@ export default function ExperimentWorkerMenu({
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
   /** 実験記録タブで選択中の作業中トランジション rowKey */
   const [selectedWorkRowKey, setSelectedWorkRowKey] = useState<string | null>(null);
+  /** 記録確認遷移時の対象タスクNo（WorkRecordPanel の initialTaskNo に渡す） */
+  const [viewingWorkTaskNo, setViewingWorkTaskNo] = useState<number | null>(null);
+  /** 記録確認遷移時の対象トランジションID（WorkRecordPanel の initialTransitionId に渡す） */
+  const [viewingWorkTransitionId, setViewingWorkTransitionId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   /** 問題報告モーダル（フェーズB: IssueManagementModal を接続） */
   const [issueModalOpen, setIssueModalOpen] = useState(false);
@@ -202,11 +207,6 @@ export default function ExperimentWorkerMenu({
     refetchInstructions,
   } = useInstructions();
 
-  // プロジェクト指示（methodId・transitionId なし）のテキスト一覧
-  const projectInstructionTexts = instructions
-    .filter((i) => !i.methodId && !i.transitionId)
-    .map((i) => i.content);
-
   // プロジェクト指示確認ハンドラー: 未確認のプロジェクト指示を全て API で確認し、一覧を再取得する
   const handleConfirmInstruction = async () => {
     if (!selectedProject) return;
@@ -287,6 +287,9 @@ export default function ExperimentWorkerMenu({
     // プロジェクトが変更された場合、メソッドとタスクをリセット
     setSelectedMethodId(null);
     setSelectedTaskId('');
+    // 記録確認遷移用 State もリセット
+    setViewingWorkTaskNo(null);
+    setViewingWorkTransitionId(null);
   };
 
   // メソッド選択ハンドラー（タスクをリセット）
@@ -351,16 +354,29 @@ export default function ExperimentWorkerMenu({
 
   /**
    * トランジションの数値ステータスを ProgressRow.status に変換
-   * (0=未開始, 1=準備中, 2=準備完了, 3=実行中, 4=一時停止, 5=完了, 6=エラー)
+   * (1=初期状態, 2=準備状態, 3=準備完了状態, 4=動作状態, 5=休止状態, 6=終状態, 7=異常終了状態)
    */
   const toProgressRowStatus = (progressStatus: string): ProgressRow['status'] => {
-    if (progressStatus === '完了') return 'completed';
-    if (progressStatus === '実行中') return 'in_progress';
-    if (progressStatus === '準備中') return 'preparing';
-    if (progressStatus === '準備完了') return 'ready';
-    if (progressStatus === '一時停止') return 'on_hold';
-    if (progressStatus === 'エラー') return 'issue';
+    if (progressStatus === '終状態') return 'completed';
+    if (progressStatus === '動作状態') return 'in_progress';
+    if (progressStatus === '準備状態') return 'preparing';
+    if (progressStatus === '準備完了状態') return 'ready';
+    if (progressStatus === '休止状態') return 'on_hold';
+    if (progressStatus === '異常終了状態') return 'issue';
     return 'not_started';
+  };
+
+  /**
+   * WorkerTask.task_status（文字列）→ TaskStatus 数値へ変換
+   * 訂正ボタンの表示制御（ProgressRow.taskStatus）に使用
+   */
+  const toTaskStatusNumber = (taskStatus: string): number => {
+    if (taskStatus === 'not_started') return TaskStatus.PENDING;
+    if (taskStatus === 'started' || taskStatus === 'in_progress') return TaskStatus.IN_PROGRESS;
+    if (taskStatus === 'completed') return TaskStatus.COMPLETED;
+    if (taskStatus === 'forced_terminated') return TaskStatus.FORCED_TERMINATED;
+    // review_waiting / review_ng はバックエンドからの返却値に応じて対応
+    return TaskStatus.PENDING;
   };
 
   // プロジェクトが変わったら全体進捗データを取得
@@ -444,6 +460,7 @@ export default function ExperimentWorkerMenu({
               order: idx + 1,
               prerequisiteTransitionIds: tr.prerequisiteTransitionIds ?? [],
               isRecorded: tr.isRecorded ?? false,
+              taskStatus: toTaskStatusNumber(task.task_status),
             });
           });
         }
@@ -536,6 +553,7 @@ export default function ExperimentWorkerMenu({
             order: idx + 1,
             prerequisiteTransitionIds: tr.prerequisiteTransitionIds ?? [],
             isRecorded: tr.isRecorded ?? false,
+            taskStatus: toTaskStatusNumber(task.task_status),
           });
         });
       }
@@ -646,8 +664,10 @@ export default function ExperimentWorkerMenu({
             progressRows={progressRows}
             useDeemedProgress={selectedProjectUseDeemedProgress}
             projectStatus={selectedProjectStatus ?? undefined}
-            projectInstructions={projectInstructionTexts}
+            allWorkerInstructions={instructions}
             onConfirmInstruction={handleConfirmInstruction}
+            initialTaskNo={viewingWorkTaskNo ?? undefined}
+            initialTransitionId={viewingWorkTransitionId ?? undefined}
             onStart={async () => {
               if (!selectedProject) return;
               // 準備完了(ready)状態 → 動作状態(IN_PROGRESS=3)に遷移
@@ -689,20 +709,24 @@ export default function ExperimentWorkerMenu({
             }}
             onForceEnd={async () => {
               if (!selectedProject) return;
-              // 動作状態(in_progress)のトランジションを「異常終了状態(ERROR=7)」に遷移
-              const targetRow = progressRows.find((r) => r.status === 'in_progress') ?? progressRows.find((r) => r.status === 'not_started');
-              if (!targetRow) { message.warning('異常終了対象のトランジションがありません'); return; }
-              try {
-                await updateTransitionStatus(selectedProject, targetRow.methodId, targetRow.transitionId, {
-                  taskNo: targetRow.taskNo,
-                  status: TransitionStatusCode.ERROR, // 異常終了状態
-                  progressRate: 0,
-                });
-                await reloadProgressRows(selectedProject);
-              } catch (err) {
-                console.error('[WorkRecordPanel onForceEnd] ステータス更新エラー:', err);
-                message.error(t('experimentWorker.startFailed'));
-              }
+              const currentProject = selectedProject;
+              Modal.confirm({
+                title: t('projectManagement.forceTerminate.confirmTitle'),
+                content: t('projectManagement.forceTerminate.confirmContent'),
+                okText: t('projectManagement.forceTerminate.okText'),
+                okButtonProps: { danger: true },
+                cancelText: t('common.cancel'),
+                onOk: async () => {
+                  try {
+                    await forceTerminateProject(currentProject);
+                    message.success(t('projectManagement.forceTerminate.successMessage').replace('{name}', currentProject));
+                    await reloadProgressRows(currentProject);
+                  } catch (err) {
+                    console.error('[WorkRecordPanel onForceEnd] 強制終了エラー:', err);
+                    message.error(t('projectManagement.forceTerminate.errorMessage'));
+                  }
+                },
+              });
             }}
           />
         </div>
@@ -716,21 +740,17 @@ export default function ExperimentWorkerMenu({
         <div style={{ padding: '12px 16px 0' }}>
           {progressLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-              <Spin tip="全体進捗を読み込み中..." />
+              <Spin tip={t('progressOverview.loading')}>
+                <div style={{ minHeight: 40 }} />
+              </Spin>
             </div>
           ) : (
             <ProgressOverviewTab
               rows={progressRows}
               onGoToWork={(taskNo, transitionId) => {
-                console.info('[ProgressOverviewTab] 作業へ:', taskNo, transitionId);
+                setViewingWorkTaskNo(taskNo);
+                setViewingWorkTransitionId(transitionId);
                 handleTabChange('3');
-              }}
-              onViewDetail={(taskNo, transitionId) => {
-                console.info('[ProgressOverviewTab] 詳細確認:', taskNo, transitionId);
-                handleTabChange('3');
-              }}
-              onStartWork={(taskNo, transitionId, methodId) => {
-                handleStartWork(taskNo, transitionId, methodId);
               }}
             />
           )}
@@ -852,7 +872,7 @@ export default function ExperimentWorkerMenu({
               setNgReasonModalOpen(true);
             }}
           >
-            NG理由
+            {t('experimentWorker.ngReason.button')}
           </Button>
 
           {/* 問題報告ボタン（フェーズB: IssueManagementModal に接続） */}
@@ -879,18 +899,18 @@ export default function ExperimentWorkerMenu({
         onCancel={() => setNgReasonModalOpen(false)}
         footer={[
           <Button key="close" onClick={() => setNgReasonModalOpen(false)}>
-            閉じる
+            {t('common.close')}
           </Button>,
         ]}
         title={
           <span style={{ color: '#ff4d4f' }}>
             <AlertOutlined style={{ marginRight: 8 }} />
-            NG理由一覧
+            {t('experimentWorker.ngReason.modalTitle')}
           </span>
         }
       >
         {ngTasks.length === 0 ? (
-          <p style={{ margin: 0, color: '#888' }}>NGタスクはありません。</p>
+          <p style={{ margin: 0, color: '#888' }}>{t('experimentWorker.ngReason.noNgTasks')}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {ngTasks.map((ng) => (
@@ -912,7 +932,7 @@ export default function ExperimentWorkerMenu({
                   )}
                 </div>
                 <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-                  {ng.reviewResult || '（NG理由未記入）'}
+                  {ng.reviewResult || t('experimentWorker.ngReason.noReason')}
                 </div>
                 {ng.reviewedAt && (
                   <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>

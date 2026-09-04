@@ -306,6 +306,7 @@ export interface WorkerInstruction {
   transition_id: string;
   transition_name: string;
   task_no: string | null;
+  instruction_key: string | null;
   instruction_content: string;
   create_at: string;
   created_by: string;
