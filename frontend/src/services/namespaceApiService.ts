@@ -698,7 +698,7 @@ export const getOrganizationUsers = async (): Promise<OrgUserSimple[]> => {
  */
 export const getOrganizationGroups = async (
   search?: string,
-  options?: { visibleOnly?: boolean; memberOf?: boolean }
+  options?: { visibleOnly?: boolean; memberOf?: boolean; all?: boolean; memberOfUser?: string }
 ): Promise<OrganizationGroupRow[]> => {
   const client = createApiClient();
 
@@ -711,6 +711,10 @@ export const getOrganizationGroups = async (
     if (options?.visibleOnly) params.visibleOnly = 'true';
     // memberOf=true を渡すとログインユーザーが所属するグループ＋全祖先グループを返す（ツリー構築用）
     if (options?.memberOf) params.memberOf = 'true';
+    // all=true を渡すと全グループを返す（system_admin 専用: バックエンドで権限チェック実施）
+    if (options?.all) params.all = 'true';
+    // memberOfUser={userId} を渡すと指定ユーザーの所属グループ＋祖先を返す（代表者/system_admin 専用）
+    if (options?.memberOfUser) params.memberOfUser = options.memberOfUser;
 
     const response = await client.get<{ success: boolean; data: OrganizationGroupRow[] }>(
       '/organization-groups',

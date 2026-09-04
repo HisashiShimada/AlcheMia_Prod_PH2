@@ -250,6 +250,7 @@ export const authService = {
           displayName: string;
           organizationGroupCds: string[];
           initialScreenFunctionCd: string;
+          permissions?: Array<{ functionId: string; permission: number }>;
         };
       }>>(
         '/auth/refresh',
@@ -275,6 +276,7 @@ export const authService = {
             displayName: user.displayName,
             organizationGroupCds: user.organizationGroupCds,
             initialScreenFunctionCd: user.initialScreenFunctionCd,
+            permissions: user.permissions,
           },
           session: {
             token: accessToken,

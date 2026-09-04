@@ -141,6 +141,8 @@ export interface VerifyPinResponseData {
     displayName: string;
     organizationGroupCds: string[];
     initialScreenFunctionCd: string;
+    /** ユーザーの権限情報（メニューアクセス制御・system_admin 判定に使用） */
+    permissions?: Permission[];
   };
   session: {
     token: string;
