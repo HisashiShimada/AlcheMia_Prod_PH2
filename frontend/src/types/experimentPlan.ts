@@ -267,4 +267,11 @@ export interface ExperimentPlanDialogProps {
    * 実験指示タブ側でメソッドID変更時のデータ再取得などに使用する。
    */
   onMethodChange?: (methodId: string) => void;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * TemplateInputPanel の用語キー選択モーダルで使用する用語スコープ絞り込みに使用する。
+   * 指定時: そのグループ＋上位グループスコープ＋個人スコープの用語を表示
+   * 未指定時: 個人スコープのみにフォールバック
+   */
+  organizationGroupCd?: string;
 }

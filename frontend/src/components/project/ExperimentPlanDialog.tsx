@@ -95,6 +95,8 @@ import {
   getPlanDialogData,
 } from '@/services/experimentPlanApiService';
 import type { PlanDialogData } from '@/services/experimentPlanApiService';
+import { getTermsForPropertyDialog } from '@/services/namespaceApiService';
+import type { NamespaceTermRow } from '@/services/namespaceApiService';
 import RefSection from './subcomponents/RefSection';
 import SortableTransitionRow from './subcomponents/SortableTransitionRow';
 import TemplateInputPanel from './subcomponents/TemplateInputPanel';
@@ -122,6 +124,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   allowMethodSelection = false,
   methodOptions = [],
   onMethodChange,
+  organizationGroupCd,
 }) => {
   const { token } = useToken();
   const { message } = App.useApp();
@@ -498,6 +501,25 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
     setCustomProps((prev) => ({ ...prev, [templateId]: props }));
   }, []);
 
+  // --- 用語マップ State（open 時に取得し TemplateInputPanel に渡す） ---
+  const [termMap, setTermMap] = useState<Map<string, NamespaceTermRow>>(new Map());
+
+  // --- open 時に用語マップを取得（TemplateInputPanel の用語キー選択モーダル用） ---
+  useEffect(() => {
+    if (!open) return;
+    setTermMap(new Map());
+    getTermsForPropertyDialog(organizationGroupCd)
+      .then((map) => {
+        // hasDirectiveTerm === true のエントリのみに絞り込み（指示用語のみ表示）
+        const filteredEntries = Array.from(map.entries()).filter(
+          ([, term]) => term.hasDirectiveTerm === true
+        );
+        const filteredMap = new Map(filteredEntries);
+        setTermMap(filteredMap);
+      })
+      .catch((err) => console.warn('⚠️ [ExperimentPlanDialog] 用語マップ取得失敗:', err));
+  }, [open, organizationGroupCd]);
+
   // --- Ref操作ハンドラ ---
 
   const handleAddRef = useCallback(
@@ -787,7 +809,9 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                * dialogDataLoading がUIに接続されていなかったため、データ取得中に「トランジションがありません」
                * が表示されていた問題を修正。 */
               <div style={{ padding: 24, textAlign: 'center' }}>
-                <Spin tip={t('common.loading')} />
+                <Spin>
+                  <div style={{ padding: 24, color: 'transparent' }}>{t('common.loading')}</div>
+                </Spin>
               </div>
             ) : transitions.length === 0 ? (
               <div style={{ padding: 16 }}>
@@ -966,6 +990,7 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                           disabled={disabled}
                           outputTemplateIds={outputTemplateIds}
                           projectId={projectId}
+                          termMap={termMap}
                         />
                       ),
                     },

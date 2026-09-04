@@ -82,6 +82,11 @@ interface TaskRegistrationTabProps {
   /** 編集権限フラグ。false の場合は変更系ボタンを非活性にする */
   isEditable?: boolean;
   onTasksChange?: (tasks: TaskDetail[]) => void;
+  /**
+   * プロジェクトが属する組織グループCD（任意）
+   * TemplateInputPanel の用語キー選択モーダルで使用する用語スコープ絞り込みに使用する。
+   */
+  organizationGroupCd?: string;
 }
 
 /**
@@ -103,6 +108,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   isProjectCompleted,
   isEditable = true,
   onTasksChange,
+  organizationGroupCd,
 }) => {
   const { token } = useToken();
   const { message } = App.useApp();
@@ -998,6 +1004,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           message.success(t('taskRegistration.saveMockSuccess'));
         }}
         disabled={isCheckoutLocked || !!maimlHasErrors || !!isProjectCompleted}
+        organizationGroupCd={organizationGroupCd}
       />
     </div>
   );
