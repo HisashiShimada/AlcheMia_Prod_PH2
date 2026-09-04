@@ -51,6 +51,10 @@ export default function ExperimentAdminMenu({
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
+
+  // タブ4（名前空間管理）がアクティブになった時刻を管理する
+  // UncertaintyManagement に渡し、タブ切り替え時の組織ツリー再取得をトリガーする
+  const [namespaceTabActivatedAt, setNamespaceTabActivatedAt] = useState<number | undefined>(undefined);
   
   // localStorageからpermissionsを取得（userInfo経由）
   const permissions = getPermissionsFromToken();
@@ -112,6 +116,11 @@ export default function ExperimentAdminMenu({
 
   const handleTabChange = (key: string) => {
     setCurrentTab(key);
+    // タブ4（名前空間管理）に切り替えた際にタイムスタンプを更新する
+    // → UncertaintyManagement の useEffect がトリガーされ組織ツリーを再取得する
+    if (key === '4') {
+      setNamespaceTabActivatedAt(Date.now());
+    }
   };
 
   const handleMenuChange = (menuType: MenuType) => {
@@ -194,7 +203,7 @@ export default function ExperimentAdminMenu({
 
         {/* タブ4: 名前空間管理 - display:none でマウント維持し state を保持 */}
         <div style={{ display: currentTab === '4' ? 'block' : 'none', height: '100%', overflow: 'hidden' }}>
-          <UncertaintyManagement user={user} />
+          <UncertaintyManagement user={user} tabActivatedAt={namespaceTabActivatedAt} />
         </div>
 
         {/* タブ5: グループ管理 */}
