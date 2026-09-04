@@ -76,7 +76,7 @@ XML表示時（getSuggestedUri → fetchSuggestedUri → getOrganizationNamespac
 
 ### 実施日時
 開始: 2026-09-04 10:00
-完了: 2026-09-04 11:45
+完了: 2026-09-04 11:51
 
 ### 計画からの変更点
 - 既存テスト（`createNamespace`, `updateNamespace`, `getDeclarationsByProject`, `getTerms`, `createTerm`, `toggleTermActive`）が古いAPIを参照していたため、現在の API に合わせて修正した（本タスクのスコープ外だが、テストスイートを動作させるために対応）
