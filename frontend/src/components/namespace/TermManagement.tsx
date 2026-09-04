@@ -42,7 +42,7 @@ const { Text } = Typography;
 
 const TYPE_OPTIONS = [
   { value: 'stringType',   label: 'stringType' },
-  { value: 'integerType',  label: 'integerType' },
+  { value: 'intType',      label: 'intType' },
   { value: 'floatType',    label: 'floatType' },
   { value: 'booleanType',  label: 'booleanType' },
   { value: 'dateTimeType', label: 'dateTimeType' },
@@ -51,7 +51,7 @@ const TYPE_OPTIONS = [
 
 const TYPE_COLOR: Record<string, string> = {
   stringType:   'blue',
-  integerType:  'green',
+  intType:      'green',
   floatType:    'cyan',
   booleanType:  'orange',
   dateTimeType: 'purple',

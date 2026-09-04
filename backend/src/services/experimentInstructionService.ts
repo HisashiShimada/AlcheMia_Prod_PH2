@@ -417,8 +417,6 @@ function detectFieldType(xsiType: string | undefined): 'text' | 'number' | 'sele
     'intListType', 'longListType', 'shortListType', 'byteListType',
     'unsignedIntListType', 'unsignedLongListType', 'unsignedShortListType', 'unsignedByteListType',
     'floatListType', 'doubleListType', 'decimalListType',
-    // Namespace管理UIのtype_hint値（MAIML正式型に正規化される前の既存データへの対応）
-    'integerType',
   ];
   if (numericTypes.includes(xsiType)) return 'number';
   return 'text';
