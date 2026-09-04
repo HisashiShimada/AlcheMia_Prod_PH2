@@ -50,7 +50,7 @@ export async function getOrganizationGroups(
         organizationId,
         userGroupCds
       );
-      res.json({ success: true, data: { groups } });
+      res.json({ success: true, data: groups });
       return;
     }
 

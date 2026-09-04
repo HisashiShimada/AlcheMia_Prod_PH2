@@ -5112,6 +5112,12 @@
     "bulkDeactivateContent": "{count} term(s) will be deactivated. This action cannot be undone.",
     "bulkDeactivateSuccess": "{count} term(s) deactivated",
     "shareBtnLabel": "Share {count} item(s)",
+    "shareConfirmTitle": "Promote {count} term(s) to \"{scopeName}\"?",
+    "shareConfirmContent": "Terms that already exist in the target scope will be skipped.",
+    "shareOkText": "Promote",
+    "shareCancelText": "Cancel",
+    "shareSuccess": "Copied {copied} term(s) (skipped: {skipped})",
+    "sharePartialFailure": "Copied {saved} term(s) (failed: {failCount})",
     "bulkDeactivateBtnLabel": "Deactivate {count} item(s)",
     "searchPlaceholder": "Search by term or description",
     "btnImport": "CSV Import",
@@ -5263,12 +5269,24 @@
   },
   "shareScopeModal": {
     "title": "Select sharing target",
+    "confirmMessage": "Share {count} item(s). Are you sure?",
+    "confirmMessageWithTarget": "Share to \"{targetScopeName}\". Are you sure?",
+    "titleSelectItems": "Select items to share",
     "okText": "Share",
+    "nextBtn": "Next (select target)",
+    "backBtn": "Back",
     "notSelectable": "(Not selectable)",
     "selectedLabel": "Sharing target: ",
-    "shareNote": "* The item will be moved to the selected target.",
+    "shareNote": "* Selected items will be copied to the target.",
+    "selectItemsNote": "Check the items you want to share.",
+    "checkedCount": "{count} / {total} selected",
+    "sharingItemsLabel": "Sharing {count} item(s): ",
     "roleDescSysAdmin": "You can share up to the organization level",
     "roleDescDeptOwner": "You can share up to \"{label}\" (department)",
     "roleDescTeamOwner": "You can share up to \"{label}\" (team)"
+  },
+  "prefixShare": {
+    "toastSuccess": "Shared {count} Prefix(es) to \"{target}\"",
+    "toastError": "Failed to share Prefix(es)"
   }
 }

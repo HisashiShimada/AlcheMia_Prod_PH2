@@ -5089,8 +5089,6 @@
     "groupAddParentLabelDefault": "選択中グループ",
     "saveTermSuccess": "{count}件の用語を保存しました",
     "createDirectiveTermSuccess": "（指示用語も同時登録しました）",
-    "sharePartialFailure": "{saved}件を共有しました（{failCount}件失敗）",
-    "shareSuccess": "{count}件を「{target}」に共有しました",
     "nsRegisterSuccess": "名前空間「{prefix}」を登録しました",
     "groupCreated": "グループ「{groupName}」を作成しました",
     "memberUpdated": "「{name}」のメンバー({count}名)を更新しました",
@@ -5114,6 +5112,12 @@
     "bulkDeactivateContent": "{count}件を非アクティブにします。この操作は元に戻せません。",
     "bulkDeactivateSuccess": "{count}件を非アクティブ化しました",
     "shareBtnLabel": "{count}件を共有",
+    "shareConfirmTitle": "{count}件の用語を「{scopeName}」へ引き上げますか？",
+    "shareConfirmContent": "現在のスコープに同名用語が既に存在する場合はスキップされます。",
+    "shareOkText": "引き上げる",
+    "shareCancelText": "キャンセル",
+    "shareSuccess": "{copied}件をコピーしました（スキップ: {skipped}件）",
+    "sharePartialFailure": "{saved}件をコピーしました（失敗: {failCount}件）",
     "bulkDeactivateBtnLabel": "{count}件を非アクティブ化",
     "searchPlaceholder": "用語・説明で検索",
     "btnImport": "CSVインポート",
@@ -5265,12 +5269,24 @@
   },
   "shareScopeModal": {
     "title": "共有先を選択",
+    "confirmMessage": "{count} 件を共有します。よろしいですか？",
+    "confirmMessageWithTarget": "「{targetScopeName}」に共有します。よろしいですか？",
+    "titleSelectItems": "共有するアイテムを選択",
     "okText": "共有する",
+    "nextBtn": "次へ（共有先を選択）",
+    "backBtn": "戻る",
     "notSelectable": "（選択不可）",
     "selectedLabel": "共有先：",
-    "shareNote": "※ 選択した共有先に移動します。",
+    "shareNote": "※ 選択した内容が共有先にコピーされます。",
+    "selectItemsNote": "共有するアイテムにチェックを入れてください。",
+    "checkedCount": "{count} / {total} 件選択中",
+    "sharingItemsLabel": "{count} 件を共有：",
     "roleDescSysAdmin": "組織まで共有できます",
     "roleDescDeptOwner": "「{label}」（部署）まで共有できます",
     "roleDescTeamOwner": "「{label}」（チーム）まで共有できます"
+  },
+  "prefixShare": {
+    "toastSuccess": "{count} 件の Prefix を「{target}」に共有しました",
+    "toastError": "Prefix の共有に失敗しました"
   }
 }

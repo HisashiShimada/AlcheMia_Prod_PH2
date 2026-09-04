@@ -997,21 +997,20 @@ export default function UncertaintyManagement({ user }: UncertaintyManagementPro
         onClose={() => setExportModalOpen(false)}
       />
 
-      {/* ── Prefix 共有モーダル（ツリー表示） ── */}
+      {/* ── Prefix 共有モーダル ── */}
       <ShareScopeModal
         open={shareScopeOpen}
-        termCount={selectedPrefixKeys.length}
-        sourceRole={{ kind: 'sys_admin' }}
-        scopeNodes={shareScopeNodes}
+        shareItems={selectedPrefixKeys.map((k) => ({ id: k, label: k }))}
         onClose={() => setShareScopeOpen(false)}
-        onShare={async (target: ShareTarget) => {
+        onShare={async (selectedItemIds: string[]) => {
+          const targetScopeKey = (selectedNsKey ?? '').replace(/^personal-/, '') || '';
           setShareLoading(true);
           try {
-            const result = await sharePrefixes(selectedPrefixKeys, target.key);
+            const result = await sharePrefixes(selectedItemIds, targetScopeKey);
             message.success(
               t('prefixShare.toastSuccess', {
-                count: String(result.copiedCount),
-                target: target.label,
+                count: String(result.copiedCount ?? selectedItemIds.length),
+                target: targetScopeKey,
               })
             );
             setShareScopeOpen(false);
