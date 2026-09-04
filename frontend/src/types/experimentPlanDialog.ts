@@ -116,10 +116,16 @@ export interface CustomPropValue {
   format?: string;
 }
 
+/** Ref選択肢の型（プルダウン表示名 label と保存用 value(ID) を持つ） */
+export interface RefOption {
+  value: string;
+  label: string;
+}
+
 /** Ref追加エリアコンポーネントのProps（Creator / Instrument / Owner 共通） */
 export interface RefSectionProps {
   title: string;
-  options: string[];
+  options: RefOption[];
   selectedValues: string[];
   onAdd: (value: string) => void;
   onRemove: (value: string) => void;

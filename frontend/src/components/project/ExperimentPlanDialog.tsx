@@ -76,6 +76,7 @@ import type {
   TransitionOrderItem,
   InheritableField,
   CustomPropValue,
+  RefOption,
 } from '@/types/experimentPlanDialog';
 import {
   TAB_KEY_ALL,
@@ -161,9 +162,11 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   const [isSaving, setIsSaving] = useState(false);
 
   // Ref選択肢はAPIデータ優先、なければpropsから取得
-  const creatorRefOptions = dialogData?.creatorRefs ?? creatorRefOptionsProp;
-  const instrumentRefOptions = dialogData?.instrumentRefs ?? instrumentRefOptionsProp;
-  const ownerRefOptions = dialogData?.ownerRefs ?? ownerRefOptionsProp;
+  // dialogData.creatorRefs は { value, label }[] 形式（APIレスポンス）
+  // creatorRefOptionsProp は RefOption[] 形式（TaskRegistrationTab からのprops）
+  const creatorRefOptions: RefOption[] = dialogData?.creatorRefs ?? creatorRefOptionsProp;
+  const instrumentRefOptions: RefOption[] = dialogData?.instrumentRefs ?? instrumentRefOptionsProp;
+  const ownerRefOptions: RefOption[] = dialogData?.ownerRefs ?? ownerRefOptionsProp;
 
   /** 案3用: 基本情報 / テンプレート入力の内部タブ */
   const [innerTab, setInnerTab] = useState<'basic' | 'template'>('basic');

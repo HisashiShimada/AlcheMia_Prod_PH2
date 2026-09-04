@@ -302,9 +302,12 @@ export interface PlanDialogData {
     outputPlaceIds: string[];
   }>;
   templates: TemplateDef[];
-  creatorRefs: string[];
-  instrumentRefs: string[];
-  ownerRefs: string[];
+  /** Creator 選択肢（value: id, label: name || id） */
+  creatorRefs: Array<{ value: string; label: string }>;
+  /** Instrument 選択肢（value: id, label: name || id） */
+  instrumentRefs: Array<{ value: string; label: string }>;
+  /** Owner 選択肢（value: id, label: name || id） */
+  ownerRefs: Array<{ value: string; label: string }>;
   /**
    * MAIMLのdata層から抽出したインスタンス一覧。
    * data.results[].materials / conditions / results の各インスタンスを変換したもの。

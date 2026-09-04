@@ -49,6 +49,7 @@ import type {
   InstructionSaveItem,
 } from '@/types/taskRegistration';
 import type { TemplateDef, TemplateField } from '@/types/experimentPlan';
+import type { RefOption } from '@/types/experimentPlanDialog';
 import type {
   InstructionData,
   TransitionInfo,
@@ -584,31 +585,31 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
    * MAIMLのdocument情報からCreatorRef選択肢を生成
    * document.creators[].name or id を選択肢として使用
    */
-  const creatorRefOptions = useMemo((): string[] => {
+  const creatorRefOptions = useMemo((): RefOption[] => {
     if (!maimlRoot?.document?.creators) return [];
     return maimlRoot.document.creators
-      .map((c) => c.name || c.id)
-      .filter(Boolean) as string[];
+      .filter((c) => Boolean(c.id))
+      .map((c) => ({ value: c.id, label: c.name || c.id }));
   }, [maimlRoot]);
 
   /**
    * MAIMLのdocument情報からInstrumentRef選択肢を生成
    */
-  const instrumentRefOptions = useMemo((): string[] => {
+  const instrumentRefOptions = useMemo((): RefOption[] => {
     if (!maimlRoot?.document?.instruments) return [];
     return maimlRoot.document.instruments
-      .map((c) => c.name || c.id)
-      .filter(Boolean) as string[];
+      .filter((i) => Boolean(i.id))
+      .map((i) => ({ value: i.id, label: i.name || i.id }));
   }, [maimlRoot]);
 
   /**
    * MAIMLのdocument情報からOwnerRef選択肢を生成
    */
-  const ownerRefOptions = useMemo((): string[] => {
+  const ownerRefOptions = useMemo((): RefOption[] => {
     if (!maimlRoot?.document?.owners) return [];
     return maimlRoot.document.owners
-      .map((c) => c.name || c.id)
-      .filter(Boolean) as string[];
+      .filter((o) => Boolean(o.id))
+      .map((o) => ({ value: o.id, label: o.name || o.id }));
   }, [maimlRoot]);
 
   /**

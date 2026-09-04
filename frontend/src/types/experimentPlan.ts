@@ -3,6 +3,8 @@
  * 実験計画ダイアログの型定義
  */
 
+import type { RefOption } from './experimentPlanDialog';
+
 /**
  * 注意事項のタイプ定義
  */
@@ -227,15 +229,15 @@ export interface ExperimentPlanDialogProps {
    * MAIMLのdocument.creatorsから生成したCreatorRef選択肢
    * TaskRegistrationTab側でmaimlRootを解析してpropsで渡す
    */
-  creatorRefOptions?: string[];
+  creatorRefOptions?: RefOption[];
   /**
    * MAIMLのdocument.instrumentsから生成したInstrumentRef選択肢
    */
-  instrumentRefOptions?: string[];
+  instrumentRefOptions?: RefOption[];
   /**
    * MAIMLのdocument.ownersから生成したOwnerRef選択肢
    */
-  ownerRefOptions?: string[];
+  ownerRefOptions?: RefOption[];
   /**
    * 対象メソッドのテンプレート一覧
    * (materialTemplates / conditionTemplates / resultTemplates を統合済み)
