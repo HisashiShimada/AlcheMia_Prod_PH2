@@ -47,7 +47,7 @@ import type { Transition } from '@/types/experimentWorker';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import TransitionFlowDiagram from './TransitionFlowDiagram';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ProjectStatus, TaskStatus } from '@/constants/codeMaster';
+
 
 export type { ProgressRow };
 
@@ -251,9 +251,6 @@ const FilterBar: React.FC<{
 export default function ProgressOverviewTab({
   rows,
   onGoToWork,
-  onViewDetail,
-  onStartWork,
-  projectStatus,
 }: ProgressOverviewTabProps) {
   const { t } = useLanguage();
   const [filterTaskNo, setFilterTaskNo] = useState<number | null>(null);
@@ -360,62 +357,19 @@ export default function ProgressOverviewTab({
   );
   
   // ── 操作列 ─────────────────────────────────────────
-  // 活性条件:
-  //   - 前提トランジションが全て completed の場合のみ活性
-  //   - 前提なしの場合は常に活性
-  //   - ステータスが preparing・ready・on_hold・not_started の場合のみ活性対象
-  //     （completed・issue・in_progress は操作不要のため非活性）
-  const renderAction = (_: unknown, r: ProgressRow) => {
-    // isRecorded === true の行: 「記録確認」ボタンを優先表示（プロジェクトステータスによらず）
-    if (r.isRecorded === true) {
-      return (
-        <Button
-          size="small"
-          style={{ color: '#fa8c16', borderColor: '#fa8c16' }}
-          onClick={() => onViewDetail(r.taskNo, r.transitionId)}
-        >
-          {t('progressOverview.checkRecordButton')}
-        </Button>
-      );
-    }
-    // issue（NGタスク）+ TASK_PENDING: 「NG済み」タグ表示（新タスクを先頭から実行させるため開始不可）
-    if (r.status === 'issue' && projectStatus === ProjectStatus.TASK_PENDING) {
-      return (
-        <Tag color="error" style={{ margin: 0 }}>
-          {t('progressOverview.ngDoneTag')}
-        </Tag>
-      );
-    }
-    const isPrerequisitesMet =
-      (r.prerequisiteTransitionIds ?? []).length === 0 ||
-      (r.prerequisiteTransitionIds ?? []).every(
-        (prereqId) => rows.find((row) => row.transitionId === prereqId)?.status === 'completed'
-      );
-
-    const isActive =
-      (r.status === 'preparing' ||
-       r.status === 'ready' ||
-       r.status === 'on_hold' ||
-       r.status === 'not_started') &&
-      isPrerequisitesMet;
-
-    const tooltipTitle =
-      !isPrerequisitesMet
-        ? t('experimentWork.table.prerequisiteTooltip', { ids: (r.prerequisiteTransitionIds ?? []).join(', ') })
-        : undefined;
-
-    return (
-      <Tooltip title={tooltipTitle}>
-        <Button
-          size="small"
-          disabled={!isActive}
-          onClick={() => onGoToWork(r.taskNo, r.transitionId)}
-        >
-          {t('experimentWork.table.record')}
-        </Button>
-      </Tooltip>
-    );
-  };
+  // not_started のみ disabled（バックエンドが前提トランジション完了時に自動で
+  // PREPARING に変えるため、フロント側での前提チェックは不要）。
+  // それ以外の全ステータスは活性 → onGoToWork で WorkRecordPanel を開く。
+  // WorkRecordPanel 側が progressRows のステータスを見て編集/閲覧を自己判定する。
+  const renderAction = (_: unknown, r: ProgressRow) => (
+    <Button
+      size="small"
+      disabled={r.status === 'not_started'}
+      onClick={() => onGoToWork(r.taskNo, r.transitionId)}
+    >
+      {t('experimentWork.table.record')}
+    </Button>
+  );
 
   // ── ステータスタグ ───────────────────────────────────
   const renderStatus = (v: ProgressRow['status']) => {

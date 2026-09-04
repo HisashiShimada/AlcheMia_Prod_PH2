@@ -747,28 +747,10 @@ export default function ExperimentWorkerMenu({
           ) : (
             <ProgressOverviewTab
               rows={progressRows}
-              projectStatus={selectedProjectStatus ?? undefined}
               onGoToWork={(taskNo, transitionId) => {
                 setViewingWorkTaskNo(taskNo);
                 setViewingWorkTransitionId(transitionId);
                 handleTabChange('3');
-              }}
-              onViewDetail={(taskNo, transitionId) => {
-                // 記録確認ボタン押下: viewingKey で読み取り専用表示
-                setViewingWorkTaskNo(taskNo);
-                setViewingWorkTransitionId(transitionId);
-                handleTabChange('3');
-              }}
-              onStartWork={(taskNo, transitionId, methodId) => {
-                // issue ステータスの行は除外して開始（TASK_PENDING 時の NGタスク除外）
-                const targetRow = progressRows.find(
-                  (r) => r.taskNo === taskNo && r.transitionId === transitionId && r.status !== 'issue'
-                );
-                if (!targetRow) {
-                  message.warning('この行は開始できません（NG済みタスクです）');
-                  return;
-                }
-                handleStartWork(taskNo, transitionId, methodId);
               }}
             />
           )}

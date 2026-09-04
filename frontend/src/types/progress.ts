@@ -290,21 +290,10 @@ export interface ProgressRow {
 export interface ProgressOverviewTabProps {
   rows: ProgressRow[];
   /**
-   * プロジェクトステータス（数値コード）
-   * 記録確認ボタン・訂正ボタンの表示制御に使用
+   * 「記録」ボタン押下時: 作業記録タブに遷移し、指定タスク+トランジションを表示する。
+   * WorkRecordPanel 側が progressRows のステータスを見て編集/閲覧モードを自己判定する。
    */
-  projectStatus?: number;
-  /** 「作業へ」ボタン押下時: 作業記録タブに遷移し、指定タスク+トランジションを表示 */
   onGoToWork: (taskNo: number, transitionId: string) => void;
-  /** 「詳細確認」ボタン押下時: 作業記録タブを読取専用で表示 */
-  onViewDetail: (taskNo: number, transitionId: string) => void;
-  /**
-   * 「開始」ボタン押下時: 未着手トランジションの作業を開始する。
-   * 作業中のトランジションが存在する場合は確認ダイアログを経由してステータスを切り替える。
-   * methodId を含めることでバックエンドAPIへの正確なルーティングを可能にする。
-   * 省略時は onGoToWork にフォールバック。
-   */
-  onStartWork?: (taskNo: number, transitionId: string, methodId: string) => void;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

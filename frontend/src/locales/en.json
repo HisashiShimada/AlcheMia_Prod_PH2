@@ -109,7 +109,21 @@
     "confirmInstruction": "Confirm Instructions",
     "instructionConfirmed": "Project instructions confirmed",
     "noInstructions": "No instructions.",
-    "projectInstructions": "Project Instructions"
+    "projectInstructions": "Project Instructions",
+    "commentSaveError": "Failed to save comment",
+    "stateRecordLoadError": "Failed to fetch state transition times",
+    "srValidationPrepVsReady": "The order of Preparing → Ready is incorrect (Ready must be later than Preparing)",
+    "srValidationReadyVsRunning": "The order of Ready → Operating is incorrect (Operating must be later than Ready)",
+    "srValidationRunningVsPause": "The order of Operating → Paused is incorrect (Paused must be later than Operating)",
+    "srValidationPauseVsResume": "The order of Paused → Operating (resumed) is incorrect (Operating (resumed) must be later than Paused)",
+    "srValidationConsecutivePause": "The order of consecutive pause/resume is incorrect (the next Paused must be later than the previous Operating (resumed))",
+    "srValidationRunningVsCompleted": "The order of Operating → Completed is incorrect (Completed must be later than Operating)",
+    "srValidationRunningVsError": "The order of Operating → Error is incorrect (Error must be later than Operating)",
+    "srValidationCompletedAndError": "Completed and Error states cannot be entered at the same time",
+    "unsavedWarningTitle": "Unsaved data",
+    "unsavedWarningContent": "There is unsaved data in the property card. Do you want to proceed without saving?",
+    "unsavedWarningOk": "Proceed",
+    "unsavedWarningCancel": "Cancel"
   },
   "dataRecordDialog": {
     "plannedValue": "Planned value (Expected)",
