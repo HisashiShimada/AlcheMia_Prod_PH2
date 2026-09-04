@@ -5169,7 +5169,7 @@
     "updateSuccess": "Prefixを更新しました",
     "updateError": "Prefixの更新に失敗しました",
     "deactivateConfirm": "Prefix「{prefix}」を非アクティブにしますか？",
-    "deactivateContent": "非アクティブにすると該当Prefixが利用できなくなります。",
+    "deactivateContent": "このPrefixを使用中のMaiMLファイルへの影響があります。",
     "deactivateOk": "非アクティブ化",
     "deactivateCancelBtn": "キャンセル",
     "deactivateSuccess": "Prefix「{prefix}」を非アクティブ化しました",

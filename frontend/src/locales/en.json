@@ -5167,7 +5167,7 @@
     "updateSuccess": "Prefix updated successfully",
     "updateError": "Failed to update Prefix",
     "deactivateConfirm": "Deactivate Prefix \"{prefix}\"?",
-    "deactivateContent": "This Prefix will no longer be available.",
+    "deactivateContent": "This may affect MaiML files currently using this Prefix.",
     "deactivateOk": "Deactivate",
     "deactivateCancelBtn": "Cancel",
     "deactivateSuccess": "Prefix \"{prefix}\" deactivated",
