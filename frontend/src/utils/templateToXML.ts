@@ -341,7 +341,7 @@ export function parseXMLToTemplate(xmlString: string): ParseXMLResult {
         errors: [
           {
             type: 'invalid_root',
-            message: getTranslation('editor.templateXml.invalidRoot').replace('{{tag}}', templateTag),
+            message: getTranslation('editor.templateXml.invalidRoot', { tag: templateTag }),
             details:
               'materialTemplate, conditionTemplate, resultTemplate のいずれかが必要です',
           },
@@ -578,7 +578,7 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
     ) {
       errors.push({
         type: 'invalid_root_element',
-        message: getTranslation('editor.templateXml.invalidRoot').replace('{{tag}}', templateTag),
+        message: getTranslation('editor.templateXml.invalidRoot', { tag: templateTag }),
         details:
           'materialTemplate, conditionTemplate, resultTemplate のいずれかが必要です',
       });
@@ -599,7 +599,7 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
       if (!key) {
         errors.push({
           type: 'missing_property_key',
-          message: getTranslation('editor.templateXml.missingPropertyKey').replace('{{index}}', String(index)),
+          message: getTranslation('editor.templateXml.missingPropertyKey', { index: String(index) }),
           details: getTranslation('editor.templateXml.missingPropertyKeyDetails'),
         });
       }
@@ -612,7 +612,7 @@ export function validateTemplateXML(xmlString: string): ValidateXMLResult {
         if (!key) {
           errors.push({
             type: 'missing_content_key',
-            message: getTranslation('editor.templateXml.missingContentKey').replace('{{index}}', String(index)),
+            message: getTranslation('editor.templateXml.missingContentKey', { index: String(index) }),
             details: getTranslation('editor.templateXml.missingContentKeyDetails'),
           });
         }

@@ -739,7 +739,7 @@ export default function ExperimentWorkerMenu({
                 onOk: async () => {
                   try {
                     await forceTerminateProject(currentProject);
-                    message.success(t('projectManagement.forceTerminate.successMessage').replace('{name}', currentProject));
+                    message.success(t('projectManagement.forceTerminate.successMessage', { name: currentProject }));
                     await reloadProgressRows(currentProject);
                   } catch (err) {
                     console.error('[WorkRecordPanel onForceEnd] 強制終了エラー:', err);

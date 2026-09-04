@@ -355,7 +355,7 @@ export default function UncertaintyCriteriaSelectorModal({
     onAssign({
       criteria: selectedCriteria,
     });
-    message.success(t('uncertaintyCriteriaSelector.assignSuccess').replace('{name}', selectedCriteria.name));
+    message.success(t('uncertaintyCriteriaSelector.assignSuccess', { name: selectedCriteria.name }));
     onClose();
   };
 

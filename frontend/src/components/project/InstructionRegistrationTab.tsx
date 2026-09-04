@@ -441,7 +441,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
           type="secondary"
           data-testid="instruction-status-summary"
         >
-          {t('instructionRegistration.listTitle').replace('{count}', instructions.length.toString())}
+          {t('instructionRegistration.listTitle', { count: instructions.length.toString() })}
         </Text>
       </div>
 

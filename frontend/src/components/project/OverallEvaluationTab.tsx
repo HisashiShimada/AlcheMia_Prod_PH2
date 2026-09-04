@@ -353,9 +353,9 @@ const OverallEvaluationTab: React.FC<OverallEvaluationTabProps> = ({
               <Spin size="small" />
             ) : (
               <>
-                {t('overallEvaluation.subTextRegistered').replace('{count}', String(subEvalCount))}
+                {t('overallEvaluation.subTextRegistered', { count: String(subEvalCount) })}
                 {attentionCount > 0 && (
-                  <> / {t('overallEvaluation.subTextAttention').replace('{count}', String(attentionCount))}</>
+                  <> / {t('overallEvaluation.subTextAttention', { count: String(attentionCount) })}</>
                 )}
               </>
             )}

@@ -648,7 +648,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
               </Text>
             )}
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {t('viewer.nodeCount').replace('{{count}}', String(nodes.length))} | {t('viewer.edgeCount').replace('{{count}}', String(edges.length))}
+              {t('viewer.nodeCount', { count: String(nodes.length) })} | {t('viewer.edgeCount', { count: String(edges.length) })}
             </Text>
           </Space>
 

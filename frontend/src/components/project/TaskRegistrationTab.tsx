@@ -559,7 +559,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
 
       // 範囲外チェック
       if (newIndex < 0 || newIndex >= prev.length) {
-        message.warning(t('taskRegistration.messages.invalidOrder').replace('{max}', prev.length.toString()));
+        message.warning(t('taskRegistration.messages.invalidOrder', { max: prev.length.toString() }));
         return prev;
       }
 

@@ -155,8 +155,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
   const handlePollingComplete = useCallback(async (status: PublishStatusResponse) => {
     setIsPolling(false);
     if (status.status === 'done') {
-      if (status.job_type === 'publish') message.success(t('project.publishSuccess').replace('{name}', selectedProject?.name ?? ''));
-      else message.success(t('project.unpublishSuccess').replace('{name}', selectedProject?.name ?? ''));
+      if (status.job_type === 'publish') message.success(t('project.publishSuccess', { name: selectedProject?.name ?? '' }));
+      else message.success(t('project.unpublishSuccess', { name: selectedProject?.name ?? '' }));
       try { await handleProjectReload(); } catch { /* ignore */ }
       const latest = await getPublishStatus(selectedProject!.id).catch(() => null);
       if (latest) setPublishStatus(latest);
@@ -188,7 +188,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
       onOk: async () => {
         try {
           await forceTerminateProject(projectId);
-          message.success(t('projectManagement.forceTerminate.successMessage').replace('{name}', projectName));
+          message.success(t('projectManagement.forceTerminate.successMessage', { name: projectName }));
           await refetchProjects();
         } catch {
           message.error(t('projectManagement.forceTerminate.errorMessage'));

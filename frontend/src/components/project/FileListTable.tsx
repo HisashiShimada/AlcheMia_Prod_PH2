@@ -126,9 +126,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
       }
 
       message.success(
-        t('projectManagement.fileManagement.messages.renameSuccess')
-          .replace('{{oldName}}', renamingFile.name)
-          .replace('{{newName}}', newFileName)
+        t('projectManagement.fileManagement.messages.renameSuccess', { oldName: renamingFile.name, newName: newFileName })
       );
       setRenameModalOpen(false);
       // ファイル一覧を再取得
@@ -166,13 +164,13 @@ const FileListTable: React.FC<FileListTableProps> = ({
 
       // 成功メッセージ表示
       message.success(
-        t('projectManagement.fileManagement.messages.downloadStarted').replace('{{fileName}}', file.name)
+        t('projectManagement.fileManagement.messages.downloadStarted', { fileName: file.name })
       );
     } catch (error) {
       console.error('ファイルダウンロードエラー:', error);
       const errorMsg = error instanceof Error ? error.message : '不明なエラー';
       message.error(
-        t('projectManagement.fileManagement.messages.downloadError').replace('{{error}}', errorMsg)
+        t('projectManagement.fileManagement.messages.downloadError', { error: errorMsg })
       );
     } finally {
       setDownloadingFileId(null);

@@ -130,7 +130,7 @@ export const useProjectFiles = ({
     if (!selectedProject) { message.warning(t('project.selectProjectWarning')); return; }
     const isMaimlFile = file.type === 'maiml';
     Modal.confirm({
-      title: isMaimlFile ? t('project.maimlFileDeleteConfirmTitle').replace('{name}', file.name) : t('project.fileDeleteConfirmTitle').replace('{name}', file.name),
+      title: isMaimlFile ? t('project.maimlFileDeleteConfirmTitle', { name: file.name }) : t('project.fileDeleteConfirmTitle', { name: file.name }),
       content: isMaimlFile ? (<div><p>{t('project.fileDeleteCannotUndo')}</p><p style={{ fontSize: '0.9em', marginTop: '8px' }}>{t('project.maimlFileDeleteNote')}</p></div>) : (<div><p>{t('project.fileDeleteCannotUndo')}</p></div>),
       okText: t('common.delete'), cancelText: t('common.cancel'),
       okButtonProps: { danger: true, 'data-testid': 'maiml-delete-confirm-button', id: 'maiml-delete-confirm-button' } as any,
@@ -139,12 +139,12 @@ export const useProjectFiles = ({
         try {
           if (isMaimlFile) {
             await deleteFileByKey(file.path, true);
-            message.success(t('project.maimlDeleteSuccess').replace('{name}', file.name));
+            message.success(t('project.maimlDeleteSuccess', { name: file.name }));
             await refetchProjects();
             await reloadMaiml();
           } else {
             await deleteFileByKey(file.path);
-            message.success(t('project.fileDeleteSuccess').replace('{name}', file.name));
+            message.success(t('project.fileDeleteSuccess', { name: file.name }));
           }
           const fr = await getProjectFiles(selectedProject.id, true);
           setProjectFilesData((prev) => ({ ...prev, [selectedProject.id]: { root: fr.files || [], subFolderFiles: fr.subFolderFiles || {} } }));
@@ -160,14 +160,14 @@ export const useProjectFiles = ({
     if (!selectedProject) { message.warning(t('project.selectProjectWarning')); return; }
     if (folder.id === 'back') return;
     Modal.confirm({
-      title: t('project.folderDeleteConfirmTitle').replace('{name}', folder.name),
+      title: t('project.folderDeleteConfirmTitle', { name: folder.name }),
       content: <div><p>{t('project.folderDeleteWarning')}</p></div>,
       okText: t('common.delete'), cancelText: t('common.cancel'),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await deleteFolderByPath(folder.path);
-          message.success(t('project.folderDeleteSuccess').replace('{name}', folder.name));
+          message.success(t('project.folderDeleteSuccess', { name: folder.name }));
           const fr = await getProjectFiles(selectedProject.id, true);
           setProjectFilesData((prev) => ({ ...prev, [selectedProject.id]: { root: fr.files || [], subFolderFiles: fr.subFolderFiles || {} } }));
           if (currentFolder !== 'root') setCurrentFolder('root');
@@ -184,7 +184,7 @@ export const useProjectFiles = ({
     try {
       setIsDownloading(true);
       await downloadFolderAsZip(`projects/${selectedProject.name}`);
-      message.success(t('project.zipDownloadSuccess').replace('{name}', selectedProject.name));
+      message.success(t('project.zipDownloadSuccess', { name: selectedProject.name }));
     } catch { message.error(t('project.downloadFailed')); }
     finally { setIsDownloading(false); }
   }, [selectedProject]); // eslint-disable-line react-hooks/exhaustive-deps
