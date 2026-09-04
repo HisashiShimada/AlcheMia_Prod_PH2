@@ -142,6 +142,54 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           scopePath: (ns as any).scopeName ?? '',
           /** アクティブ状態（SQL の isActive カラム） */
           isActive: (ns as any).isActive !== false,
+          /** この Prefix が属するスコープキー（上位層判定に使用） */
+          scopeKey: (ns as any).scopeKey ?? null,
+        }))
+      );
+    } catch {
+      if (seq !== fetchSeqRef.current) return;
+      message.error(t('prefixManagement.fetchError'));
+    } finally {
+      if (seq === fetchSeqRef.current) setLoading(false);
+    }
+  };
+
+  /**
+   * 組織グループノード選択時専用フェッチ:
+   * 選択ノード＋祖先グループ（withAncestors=true）と子孫グループ（orgGroupCds）を
+   * 並列取得してマージする。重複は prefix をキーに先勝ち（祖先側のデータを優先）。
+   */
+  const fetchNamespacesWithAncestorsAndDescendants = async (
+    singleScopeKey: string,
+    descendantScopeKeys: string[]
+  ) => {
+    const seq = ++fetchSeqRef.current;
+    setLoading(true);
+    try {
+      // 祖先（＋自ノード）と子孫を並列取得
+      const [ancestorList, descendantList] = await Promise.all([
+        getNamespaceList({ scopeKey: singleScopeKey, withAncestors: true }),
+        getNamespaceList({ scopeKeys: descendantScopeKeys }),
+      ]);
+      if (seq !== fetchSeqRef.current) return;
+
+      // prefix をキーに重複除去（祖先リスト優先）
+      const seen = new Set<string>();
+      const merged = [...ancestorList, ...descendantList].filter((ns) => {
+        if (seen.has(ns.prefix)) return false;
+        seen.add(ns.prefix);
+        return true;
+      });
+
+      setRows(
+        merged.map((ns) => ({
+          id: ns.prefix,
+          prefix: ns.prefix,
+          uri: ns.uri,
+          description: (ns as any).description ?? '',
+          scopePath: (ns as any).scopeName ?? '',
+          isActive: (ns as any).isActive !== false,
+          scopeKey: (ns as any).scopeKey ?? null,
         }))
       );
     } catch {
@@ -173,11 +221,10 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
       const isOrgGroup = !STATIC_KEYS.has(key);
       if (isOrgGroup) {
         // 組織グループノード選択時:
-        // 親から filteredOrgGroupCds（選択ノード＋子孫CD一覧）が渡されている場合は
-        // それを scopeKeys として複数スコープ一括取得する。
-        // orgGroupCds が空の場合は選択ノード単体＋祖先方向にフォールバックする。
+        // 選択ノード＋祖先グループ（withAncestors=true）と子孫グループ（orgGroupCds）を
+        // 並列取得してマージする。上位層（祖先）の Prefix も表示し、編集は isAncestorRow で制御する。
         if (orgGroupCds && orgGroupCds.length > 0) {
-          fetchNamespaces(undefined, undefined, orgGroupCds);
+          fetchNamespacesWithAncestorsAndDescendants(key, orgGroupCds);
         } else {
           fetchNamespaces(key, true);
         }
@@ -743,20 +790,30 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
           );
         }
         const isActive = r.isActive !== false; // undefined は active とみなす
+        // 現在の選択スコープキーを算出（personal-{userId} → userId に変換）
+        const currentScopeKey = (scopeKey ?? selectedNsKey ?? '').replace(/^personal-/, '') || null;
+        // 編集可能なスコープキー一覧（選択ノード自身＋子孫ノードの CD）
+        // orgGroupCds が渡されている場合はそれを使用し、選択ノード単体のときは currentScopeKey のみ
+        const editableScopeKeys = new Set<string | null | undefined>(
+          orgGroupCds && orgGroupCds.length > 0 ? orgGroupCds : currentScopeKey ? [currentScopeKey] : []
+        );
+        // 上位層（祖先グループ）の行かどうかを判定
+        // currentScopeKey が null（全件表示モード）の場合は判定しない
+        const isAncestorRow = currentScopeKey != null && !editableScopeKeys.has(r.scopeKey);
         return (
           <span style={{ display: 'flex', gap: 4 }}>
             <Button
               size="small"
               icon={<EditOutlined />}
-              disabled={viewOnly || !isActive}
+              disabled={viewOnly || !isActive || isAncestorRow}
               onClick={() => startEdit(r)}
             >
               {t('prefixManagement.btnEdit')}
             </Button>
             <Button
               size="small"
-              danger={!viewOnly && isActive}
-              disabled={viewOnly}
+              danger={!viewOnly && isActive && !isAncestorRow}
+              disabled={viewOnly || isAncestorRow}
               style={{ minWidth: '105px' }}
               onClick={() => isActive ? handleDeactivate(r) : handleActivate(r)}
             >
@@ -912,9 +969,16 @@ const PrefixManagement: React.FC<PrefixManagementProps> = ({
                 />
               ),
               onChange: (keys) => setSelectedRowKeys(keys),
-              getCheckboxProps: (record) => ({
-                disabled: '_rowId' in record,
-              }),
+              getCheckboxProps: (record) => {
+                if ('_rowId' in record) return { disabled: true };
+                const r = record as PrefixRow;
+                const currentScopeKey = (scopeKey ?? selectedNsKey ?? '').replace(/^personal-/, '') || null;
+                const editableScopeKeys = new Set<string | null | undefined>(
+                  orgGroupCds && orgGroupCds.length > 0 ? orgGroupCds : currentScopeKey ? [currentScopeKey] : []
+                );
+                const isAncestorRow = currentScopeKey != null && !editableScopeKeys.has(r.scopeKey);
+                return { disabled: isAncestorRow };
+              },
             }}
             onRow={(record) => {
               if ('_rowId' in record) return {};

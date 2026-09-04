@@ -18,7 +18,7 @@ import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
-import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
+import { getTerms, createTerm, updateTerm, toggleTermActive, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import GroupManagementPanel from '../group/GroupManagementPanel';
@@ -1773,17 +1773,29 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const actionCell = (record: Term) => {
     // システム名前空間（Alchemia）の行は操作不可
     const isSystemNs = record.prefix === SYSTEM_NAMESPACE_PREFIX;
-    // 編集ボタン用: 非アクティブ時・読み取り専用時・システムNS時は編集不可
+    // 現在選択スコープキー（personal-プレフィックス除去）
+    const currentScopeKey = effectiveNsKey
+      ? effectiveNsKey.replace(/^personal-/, '')
+      : null;
+    // 上位層用語フラグ: 選択スコープと異なる scopeKey を持つ用語は上位層の用語
+    // findAllByScopeKeyWithAncestors.sql が scopeKey を返すため、これで正確に判定できる
+    // scopeKey が null（findAllByScopeKey.sql 使用時など）の場合は上位層ではないとみなす
+    const isAncestorTerm =
+      isCompanyNodeSelected &&
+      currentScopeKey != null &&
+      record.scopeKey != null &&
+      record.scopeKey !== currentScopeKey;
+    // 編集ボタン用: 非アクティブ時・読み取り専用時・システムNS時・上位層用語時は編集不可
     const readonlyEdit =
       isSystemNs ||
       record.isActive === false ||
-      (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
+      isAncestorTerm ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
       effectiveViewOnly;
-    // アクティブ切り替えボタン用: 読み取り専用時・システムNS時は操作不可（非アクティブ行のアクティブ化は許可）
+    // アクティブ切り替えボタン用: 読み取り専用時・システムNS時・上位層用語時は操作不可（非アクティブ行のアクティブ化は許可）
     const readonlyToggle =
       isSystemNs ||
-      (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
+      isAncestorTerm ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
       effectiveViewOnly;
     if (`${record.prefix}:${record.localName}` === editingTermId) {

@@ -401,6 +401,12 @@ export interface PrefixRowLocal {
   description?: string;
   /** アクティブ状態（true: アクティブ、false: 非アクティブ） */
   isActive?: boolean;
+  /**
+   * この Prefix が属する名前空間のスコープキー（organization_group_cd またはユーザーID）
+   * 上位層（祖先グループ）行の判定に使用する
+   * グローバル名前空間の場合は null
+   */
+  scopeKey?: string | null;
 }
 
 /**
