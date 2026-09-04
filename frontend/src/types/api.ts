@@ -216,6 +216,38 @@ export interface SaveBatchExperimentDataRequest {
   records: ExperimentDataRecord[];
   /** 記録済みフラグ更新対象のトランジションID（省略可） */
   transitionId?: string;
+  /**
+   * 不確かさ判定入力値（省略可）。定量評価のみ。
+   * 指定した場合、保存と同時に uncertainty_criteria の tolerance と比較して
+   * 良好/不良判定を実行し experiment_uncertainty_judge に保存する。
+   */
+  uncertaintyValues?: Array<{
+    /** プロパティKey */
+    propertyKey: string;
+    /** Place ID */
+    placeId: string;
+    /** 不確かさ基準Key */
+    uncertaintyKey: string;
+    /** 作業者が入力した値 */
+    value: number;
+  }>;
+  /**
+   * 定性評価値（省略可）。
+   * 作業者が WorkRecordPanel の confidence ボタンで選択した値を送信する。
+   * experiment_instruction_detail.uncertainty_assigned_value に保存される。
+   */
+  qualitativeValues?: Array<{
+    /** プロパティKey */
+    propKey: string;
+    /** Place ID */
+    placeId: string;
+    /** 定性評価の選択値（例: '確か', '曖昧', '不確か' または intuition_selector.value） */
+    value: string;
+    /** 不確かさ基準Key（uncertainty_criteria に紐づく場合のみ。デフォルト3択の場合は null） */
+    uncertaintyKey?: string | null;
+    /** 名前空間ID（uncertainty_criteria に紐づく場合のみ） */
+    nameSpaceId?: string | null;
+  }>;
 }
 
 /**
@@ -240,6 +272,19 @@ export interface SavedExperimentRecord {
 }
 
 /**
+ * 不確かさ判定結果の1件分（保存レスポンス用）
+ */
+export interface UncertaintyJudgeResultItem {
+  propertyKey: string;
+  placeId: string;
+  uncertaintyKey: string;
+  recordedValue: number;
+  judgeResult: '良好' | '不良';
+  toleranceUpper: number | null;
+  toleranceLower: number | null;
+}
+
+/**
  * 実験データ一括保存レスポンス
  */
 export interface SaveBatchExperimentDataResponse {
@@ -247,6 +292,8 @@ export interface SaveBatchExperimentDataResponse {
   data: {
     saved: number;
     records: SavedExperimentRecord[];
+    /** 不確かさ判定結果（uncertaintyValues が指定された場合のみ返却） */
+    judgeResults?: UncertaintyJudgeResultItem[];
   };
   meta: {
     timestamp: string;

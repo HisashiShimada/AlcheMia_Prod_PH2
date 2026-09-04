@@ -21,7 +21,7 @@ import type {
   SaveSubEvaluationsRequest,
 } from '@/types/projectOverallEvaluation';
 
-const BASE_URL = '/api/v1/project-overall-evaluations';
+const BASE_URL = '/project-overall-evaluations';
 
 /**
  * プロジェクトの全体評価一覧を取得する（最新順）

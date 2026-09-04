@@ -3255,7 +3255,11 @@
     "columnComment": "Comment",
     "digitalGood": "Good",
     "digitalCaution": "Caution",
-    "digitalBad": "Bad"
+    "digitalBad": "Bad",
+    "judgePanelTotal": "Quantitative Evaluation",
+    "judgePanelGood": "Good",
+    "judgePanelBad": "Bad",
+    "judgePanelUnit": ""
   },
   "evaluation": {
     "unitLabel": {
@@ -3409,7 +3413,8 @@
     "duplicateWarningMessage": "\"{qname}\" is already registered in {scopeName}. Do you want to register it?",
     "saveTermError": "Failed to save term \"{{localName}}\": {{detail}}",
     "duplicateErrorTitle": "Duplicate Error",
-    "duplicateError": "\"{{qname}}\" is already registered in scope \"{{scopeName}}\""
+    "duplicateError": "\"{{qname}}\" is already registered in scope \"{{scopeName}}\"",
+    "localNameNcnameInvalid": "Local name must start with a letter or underscore, and contain only letters, digits, underscores, hyphens, or periods (xs:NCName format)"
   },
   "createProject": {
     "title": "Create Project",
@@ -3590,7 +3595,11 @@
     "evalQualitative": "Qualitative (options)",
     "savedAs": "Saved as V{version}",
     "saveFailed": "Save failed. Please try again.",
-    "inheritanceFetchFailed": "Failed to fetch parent data"
+    "inheritanceFetchFailed": "Failed to fetch parent data",
+    "toleranceUpperLabel": "Tolerance Upper",
+    "toleranceUpperPlaceholder": "e.g. 100.0 (blank = no judgment)",
+    "toleranceLowerLabel": "Tolerance Lower",
+    "toleranceLowerPlaceholder": "e.g. 0.0 (blank = no judgment)"
   },
   "uncertaintyDetail": {
     "keyLabel": "Uncertainty Key",
@@ -3618,6 +3627,8 @@
     "diffStatusActive": "Active",
     "diffStatusDeprecated": "Deprecated",
     "diffSavedAt": "(Saved in DB)",
+    "diffFieldToleranceUpper": "Tolerance Upper",
+    "diffFieldToleranceLower": "Tolerance Lower",
     "section1Title": "1. Basic Information",
     "namePlaceholder": "Enter uncertainty criteria name",
     "descLabel": "Description",
@@ -3630,6 +3641,10 @@
     "statusTurnOffNote": "Turning off will set status to Deprecated",
     "statusTurnOnNote": "Turning on will set status to Active",
     "noChangeWarning": "No changes detected. Please edit before saving.",
+    "toleranceUpperLabel": "Tolerance Upper",
+    "toleranceUpperPlaceholder": "e.g. 100.0 (blank = no judgment)",
+    "toleranceLowerLabel": "Tolerance Lower",
+    "toleranceLowerPlaceholder": "e.g. 0.0 (blank = no judgment)",
     "diffLabel": {
       "uncertaintyName": "不確かさ基準名",
       "uncertaintyKey": "Key属性設定",
@@ -3836,6 +3851,9 @@
     "ngRecorded": "タスク #{taskNumber} に NG を記録しました",
     "approveError": "承認処理に失敗しました",
     "ngError": "NG記録処理に失敗しました",
+    "correctionSaved": "Corrections saved successfully",
+    "correctionError": "Failed to save corrections",
+
     "approveConfirmTitle": "タスクを承認しますか？",
     "approveConfirmContent": "以下のタスクを「完了」に更新します。",
     "approveOk": "承認",
@@ -4612,14 +4630,34 @@
       "actual": "Actual",
       "actualAverage": "Actual (Avg)",
       "diff": "Diff",
-      "uncertaintyCriteriaName": "Uncertainty Criteria",
-      "uncertaintyAssignedValue": "Uncertainty Value",
-      "uncertaintyAssignedBy": "Recorder",
-      "uncertaintyAssignedAt": "Assigned At",
-      "uncertaintyComment": "Uncertainty Comment"
+      "uncertaintyJudge": "Uncertainty Judge",
+      "uncertaintyInstructionKey": "Instruction Key",
+      "uncertaintyTolerance": "Tolerance",
+      "uncertaintyJudgeResult": "Judge Result",
+      "uncertaintyRecordedValue": "Recorded Value",
+      "qualitativeCriteriaName": "Qualitative: Criteria",
+      "qualitativeAssignedValue": "Qualitative: Value",
+      "quantitativeCriteriaName": "Quantitative: Criteria",
+      "quantitativeTolerance": "Quantitative: Tolerance",
+      "quantitativeRecordedValue": "Quantitative: Value",
+      "quantitativeJudgeResult": "Quantitative: Result",
+      "experimentUser": "Experimenter"
     },
     "cell": {
       "noRecord": "No record"
+    },
+    "judgeDetailButton": "Uncertainty Detail ({count} items)",
+    "judgeCountButton": "({count} items)",
+    "judgeDetailDialog": {
+      "title": "Uncertainty Judge Detail",
+      "method": "Method",
+      "taskNo": "Task",
+      "transition": "Transition",
+      "template": "Template",
+      "key": "Key",
+      "expectedValue": "Expected",
+      "actualValue": "Actual",
+      "overallJudge": "Overall Result"
     },
     "criteriaType": {
       "qualitative": "Qualitative",
@@ -4657,6 +4695,9 @@
     "bulkActionLabel": "Select action:",
     "bulkActionApprove": "Approve (Complete)",
     "bulkActionNg": "Record NG",
+    "correctionMode": "Correct",
+    "saveCorrectionBtn": "Save",
+    "cancelCorrectionBtn": "Cancel",
     "approveModalTitle": "Approve this task?",
     "approveModalOk": "Approve",
     "approveModalCancel": "Cancel",
@@ -4899,7 +4940,8 @@
     "warnDuplicateContent": "A term with the same local name exists under a different Prefix. Do you want to register anyway?",
     "warnRegister": "Register",
     "warnCancel": "Cancel",
-    "localNameRequired2": "Please enter a local name",
+      "localNameRequired2": "Please enter a local name",
+      "localNameNcnameInvalid": "Local name must start with a letter or underscore, and contain only letters, digits, underscores, hyphens, or periods (xs:NCName format)",
     "updateSuccess": "Term updated successfully",
     "updateError": "Failed to update term: {detail}",
     "groupAddParentLabelDefault": "Selected Group",
@@ -5032,7 +5074,7 @@
     "searchPlaceholder": "Search by Prefix, URI, or description",
     "btnImport": "CSV Import",
     "btnExport": "CSV Export",
-    "btnAddPrefix": "+ Add Prefix",
+    "btnAddPrefix": "Add Prefix",
     "btnSave": "Save",
     "btnCancel": "Cancel",
     "loading": "Loading...",
@@ -5040,7 +5082,8 @@
     "sortDesc": "Descending",
     "sortCancel": "Cancel sort",
     "emptyText": "No data",
-    "showTotal": "Total {total}"
+    "showTotal": "Total {total}",
+    "prefixNcnameInvalid": "Prefix must start with a letter or underscore, and contain only letters, digits, underscores, hyphens, or periods (xs:NCName format)"
   },
   "namespaceDetail": {
     "levelGlobal": "Global",

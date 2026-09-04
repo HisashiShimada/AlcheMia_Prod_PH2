@@ -3,7 +3,11 @@
 -- 説明: 不確かさ評価の基準定義を管理するテーブル。
 --       定量評価（数値）と定性評価（選択肢）の2種類をサポート。
 --       編集されるたびにバージョンをインクリメントする。
--- バージョン: 1.0 (2026-06-30)
+-- バージョン: 2.0 (2026-08-26)
+-- 変更履歴:
+--   1.0 (2026-06-30): 初版作成
+--   2.0 (2026-08-26): tolerance_upper / tolerance_lower カラム追加（手入力値判定用）
+--                     マイグレーション: docs/design/db/ddl/migrations/20260825_extend_uncertainty_criteria.sql
 -- ===================================================================
 
 -- 既存テーブルが存在する場合は削除
@@ -30,7 +34,10 @@ CREATE TABLE uncertainty_criteria (
     units                   CHARACTER VARYING(20),             -- 定量評価(数値)のみ
     scale_factor            CHARACTER VARYING(20),             -- 定量評価(数値)のみ
     format_string           CHARACTER VARYING(20),             -- 定量評価(数値)のみ
-    scale_factor            CHARACTER VARYING(20),             -- 定量評価(数値)のみ
+
+    -- 許容値（手入力値の良好/不良判定用）
+    tolerance_upper         NUMERIC(20,10),                    -- 許容上限値（NULL=判定なし）
+    tolerance_lower         NUMERIC(20,10),                    -- 許容下限値（NULL=判定なし）
 
     -- 監査証跡
     create_user_id          VARCHAR(50),
@@ -75,7 +82,8 @@ COMMENT ON COLUMN uncertainty_criteria.xsi_type IS 'xsi:type:定量評価(数値
 COMMENT ON COLUMN uncertainty_criteria.units IS 'units:定量評価(数値)のみ';
 COMMENT ON COLUMN uncertainty_criteria.scale_factor IS 'scaleFactor:定量評価(数値)のみ';
 COMMENT ON COLUMN uncertainty_criteria.format_string IS 'formatString:定量評価(数値)のみ';
-COMMENT ON COLUMN uncertainty_criteria.scale_factor IS 'scaleFactor:定量評価(数値)のみ';
+COMMENT ON COLUMN uncertainty_criteria.tolerance_upper IS '許容上限値（手入力値の良好/不良判定用。NULL=判定なし）';
+COMMENT ON COLUMN uncertainty_criteria.tolerance_lower IS '許容下限値（手入力値の良好/不良判定用。NULL=判定なし）';
 COMMENT ON COLUMN uncertainty_criteria.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN uncertainty_criteria.create_at IS '作成日時';
 COMMENT ON COLUMN uncertainty_criteria.update_user_id IS '更新者ユーザID';

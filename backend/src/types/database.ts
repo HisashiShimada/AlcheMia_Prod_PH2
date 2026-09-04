@@ -617,6 +617,63 @@ export interface UpdatePrefixRow {
 }
 
 /**
+ * experiment_instruction_detail テーブルの型定義
+ *
+ * @remarks
+ * DDL: docs/design/db/ddl/experiment_instruction_detail.sql
+ * 主キー: (organization_id, project_id, method_id, task_no, transition_id, template_name, prop_key)
+ * 実験指示タブの一覧を一括管理する。
+ * ExperimentPlanDialog 保存時に基本情報・想定値を登録し、
+ * WorkRecordPanel 保存時に実績値・不確かさ情報を更新する。
+ */
+export interface ExperimentInstructionDetail {
+  /** 組織ID（主キー1、UUID） */
+  organization_id: string;
+  /** プロジェクトID（主キー2） */
+  project_id: string;
+  /** メソッドID（主キー3） */
+  method_id: string;
+  /** タスク連番（主キー4） */
+  task_no: number;
+  /** トランジションID（主キー5） */
+  transition_id: string;
+  /** テンプレート名（主キー6） */
+  template_name: string;
+  /** MAIMLプロパティキー（主キー7）: 例 ns1:Temperature */
+  prop_key: string;
+  /** xsi:type: FloatValue / IntegerValue / StringValue */
+  xsi_type?: string | null;
+  /** 想定値: 管理者が設定した指示値（未設定時はNULL） */
+  expected_value?: string | null;
+  /** 実績値: 作業者が記録した値（未記録時はNULL） */
+  actual_value?: string | null;
+  /** 名前空間ID: FK→uncertainty_criteria（未付与時はNULL） */
+  name_space_id?: string | null;
+  /** 不確かさ基準Key: FK→uncertainty_criteria（未付与時はNULL） */
+  uncertainty_key?: string | null;
+  /** 不確かさ付与値: 定量は数値文字列 / 定性は選択値文字列（未付与時はNULL） */
+  uncertainty_assigned_value?: string | null;
+  /** 不確かさ付与ユーザID: FK→organization_user（未付与時はNULL） */
+  uncertainty_assigned_by?: string | null;
+  /** 不確かさ付与日時（未付与時はNULL） */
+  uncertainty_assigned_at?: Date | null;
+  /** 不確かさコメント（未付与時はNULL） */
+  uncertainty_comment?: string | null;
+  /** 作成者ユーザID */
+  create_user_id?: string;
+  /** 作成日時 */
+  create_at?: Date;
+  /** 更新者ユーザID */
+  update_user_id?: string;
+  /** 更新日時 */
+  update_at?: Date;
+}
+
+// ─────────────────────────────────────────────────────────
+// experiment_plan テーブル
+// ─────────────────────────────────────────────────────────
+
+/**
  * experiment_plan テーブルの型定義
  *
  * @remarks

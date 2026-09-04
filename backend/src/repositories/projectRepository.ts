@@ -648,21 +648,23 @@ export async function findForUpdate(
 }
 
 /**
- * チェックアウト実行（checkout_status=1, project_status=1 に更新）
+ * チェックアウト実行（checkout_status=1, project_status=$targetProjectStatus に更新）
  *
  * @param client トランザクション用のクライアント
  * @param organizationId 組織ID
  * @param projectId プロジェクトID
  * @param userId チェックアウトするユーザーID
+ * @param targetProjectStatus チェックアウト後のプロジェクトステータス（TASK_PENDING=1 or REVIEW_REJECTED=6）
  */
 export async function updateCheckoutStatus(
   client: PoolClient,
   organizationId: string,
   projectId: string,
-  userId: string
+  userId: string,
+  targetProjectStatus: number
 ): Promise<void> {
   const sqlQuery = await loadSqlFile('projects/updateCheckoutStatus.sql');
-  await client.query(sqlQuery, [organizationId, projectId, userId]);
+  await client.query(sqlQuery, [organizationId, projectId, userId, targetProjectStatus]);
 }
 
 /**

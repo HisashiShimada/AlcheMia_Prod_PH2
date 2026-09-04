@@ -24,7 +24,8 @@
 --   experiment_user_id          → Alchemia:experimentUserId
 --
 -- 注意:
---   - lifecycle:transition と time:timestamp は Alchemia: プレフィックスに移行済み
+--   - lifecycle:transition は XES 標準キーのため変更しない（変換対象外）
+--   - time:timestamp は XES 標準キーのため変更しない（変換対象外）
 --   - Alchemia:SupervisorDirective* / Alchemia:evaluation* は対応済みのため変更しない
 --   - WHERE 条件で旧キーの存在チェックを行い冪等性を確保
 --   - log カラムは JSONB 型
@@ -76,8 +77,6 @@ SET log = (
                   WHEN 'instructions'           THEN jsonb_set(p, '{@key}', '"Alchemia:instructions"')
                   WHEN 'acknowledged_at'        THEN jsonb_set(p, '{@key}', '"Alchemia:acknowledgedAt"')
                   WHEN 'experiment_user_id'     THEN jsonb_set(p, '{@key}', '"Alchemia:experimentUserId"')
-                  WHEN 'lifecycle:transition'   THEN jsonb_set(p, '{@key}', '"Alchemia:lifecycleTransition"')
-                  WHEN 'time:timestamp'         THEN jsonb_set(p, '{@key}', '"Alchemia:timestamp"')
                   ELSE p
                 END
               ) FILTER (WHERE p->>'@key' <> 'timestamp')
@@ -101,8 +100,7 @@ WHERE
       'timestamp', 'worker_id', 'status', 'progress_percentage',
       'report_type', 'comments', 'ns1:transitionComment',
       'sent_at', 'experiment_instruction_id', 'instruction_user_id',
-      'instructions', 'acknowledged_at', 'experiment_user_id',
-      'lifecycle:transition', 'time:timestamp'
+      'instructions', 'acknowledged_at', 'experiment_user_id'
     )
   );
 
@@ -121,8 +119,7 @@ BEGIN
     'timestamp', 'worker_id', 'status', 'progress_percentage',
     'report_type', 'comments', 'ns1:transitionComment',
     'sent_at', 'experiment_instruction_id', 'instruction_user_id',
-    'instructions', 'acknowledged_at', 'experiment_user_id',
-    'lifecycle:transition', 'time:timestamp'
+    'instructions', 'acknowledged_at', 'experiment_user_id'
   );
 
   IF remaining_count > 0 THEN

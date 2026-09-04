@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/ProjectSelectionModal.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-03-11
+- **最終更新日**: 2026-08-27
 
 ---
 
@@ -24,9 +24,7 @@
 - ページネーション
 
 ### 1.3 使用場所
-- ExperimentRecordTab（実験記録タブ）
-- ProgressCheckTab（進捗確認タブ）
-- InstructionConfirmationTab（指示確認タブ）
+- ExperimentWorkerMenu（実験作業者メニューのプロジェクト選択「選択」ボタン経由）
 
 ---
 
@@ -119,6 +117,10 @@ const [tempProject, setTempProject] = useState<string>(selectedProject);
 // フィルター状態
 const [searchText, setSearchText] = useState<string>('');
 const [selectedProjectName, setSelectedProjectName] = useState<string | undefined>(undefined);
+
+// ページネーション状態
+const [currentPage, setCurrentPage] = useState(1);
+const [pageSize, setPageSize] = useState(20);  // 初期値: 20件/ページ
 ```
 
 ### 4.1 状態のリセットタイミング
@@ -292,8 +294,8 @@ const rowSelection = {
   
   {/* 右側: キャンセル・決定ボタン */}
   <Space>
-    <Button>キャンセル</Button>
-    <Button type="primary" icon={<CheckOutlined />}>決定</Button>
+    <Button>{t('experimentWork.projectSelection.cancel')}</Button>
+    <Button type="primary" icon={<CheckOutlined />}>{t('experimentWork.projectSelection.confirm')}</Button>
   </Space>
 </Space>
 ```
@@ -305,12 +307,16 @@ const rowSelection = {
   columns={columns}
   dataSource={filteredData}
   rowSelection={rowSelection}
+  loading={loading}
   pagination={{
-    pageSize: 10,
+    current: currentPage,
+    pageSize: pageSize,
     showSizeChanger: true,
-    showTotal: (total) => `合計: ${total} 件`,
-    pageSizeOptions: ['10', '20', '50', '100'],
+    showTotal: (total) => `${t('common.total')}${total}${t('common.items')}`,
+    pageSizeOptions: ['20', '50', '100'],
     showQuickJumper: true,
+    onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+    onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
   }}
   scroll={{ y: 350 }}  // 縦スクロール
   size="middle"
@@ -354,11 +360,14 @@ const rowSelection = {
 
 ```typescript
 pagination={{
-  pageSize: 10,                    // 1ページあたり10件
-  showSizeChanger: true,           // ページサイズ変更可能
-  showTotal: (total) => `合計: ${total} 件`,
-  pageSizeOptions: ['10', '20', '50', '100'],
-  showQuickJumper: true,           // ページ番号入力可能
+  current: currentPage,
+  pageSize: pageSize,
+  showSizeChanger: true,
+  showTotal: (total) => `${t('common.total')}${total}${t('common.items')}`,
+  pageSizeOptions: ['20', '50', '100'],
+  showQuickJumper: true,
+  onChange: (page, size) => { setCurrentPage(page); setPageSize(size); },
+  onShowSizeChange: (_, newSize) => { setPageSize(newSize); setCurrentPage(1); },
 }}
 ```
 
@@ -366,7 +375,7 @@ pagination={{
 
 | データ量 | 推奨ページサイズ |
 |---------|----------------|
-| ~20件 | 10 |
+| ~50件 | 20 |
 | ~100件 | 20 |
 | ~500件 | 50 |
 | 500件~ | 100 |
@@ -394,15 +403,14 @@ t('experimentWork.projectSelection.confirm')
 placeholder="プロジェクト名またはコードで検索"
 placeholder="プロジェクト名でフィルタ"
 
-// ページネーション
-showTotal: (total) => `合計: ${total} 件`
-
 // 空データ時のメッセージ
 emptyText: 'プロジェクトがありません'
 
 // テーブルカラムヘッダー
 'プロジェクト名', 'プロジェクトCD', '状態'
 ```
+
+> **注意**: `showTotal` は `t('common.total')` / `t('common.items')` キー経由で多言語化済み（ハードコードではない）。
 
 ### 11.3 ステータス表示
 
@@ -494,9 +502,9 @@ const filteredData = useMemo(() => {...}, [allTableData, searchText, selectedPro
 
 ### 14.3 関連ドキュメント
 
-- [ExperimentRecordTab UI設計書](./ui_experiment_record_tab.md)
-- [ProgressCheckTab UI設計書](./ui_progress_check_tab.md)
-- [InstructionConfirmationTab UI設計書](./ui_instruction_confirmation_tab.md)
+- [ExperimentWorkerMenu 画面遷移](../../ui_screen_transition.md)
+- [全体進捗タブ UI設計書](./ui_progress_overview_tab.md)
+- [実験記録パネル UI設計書](./ui_work_record_panel.md)
 
 ---
 
@@ -504,5 +512,6 @@ const filteredData = useMemo(() => {...}, [allTableData, searchText, selectedPro
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 1.0.0 | 2026-01-19 | 初版作成 | Cline |
+| 1.2.0 | 2026-08-27 | ソースコードとの照合に基づき修正（2026-08-27）：①§1.3 使用場所を旧タブ名（ExperimentRecordTab 等）から `ExperimentWorkerMenu` に変更。②§4 State定義に `currentPage`（初期値1）・`pageSize`（初期値20）を追加。③§8.3 フッターのボタンラベルをハードコード→`t()`参照に修正。④§8.4 ページネーション設定を `current: currentPage`・`pageSize: pageSize`（state参照）・`pageSizeOptions: ['20', '50', '100']`（10削除）・`showTotal: t('common.total')/${total}/t('common.items')`・`onChange`/`onShowSizeChange` ハンドラー追加に修正。⑤§10.1 同内容を修正。⑥§10.2 推奨ページサイズの最小を10→20に修正。⑦§11.2 `showTotal` をハードコードリストから除外し「多言語化済み」注記を追加 | Cline |
 | 1.1.0 | 2026-03-11 | ソースコードとの差分修正（Props追加、テーブルカラム変更、所有者フィルター削除、データソースをAPI取得に変更、コードマスター方式のステータス表示に変更） | Cline |
+| 1.0.0 | 2026-01-19 | 初版作成 | Cline |

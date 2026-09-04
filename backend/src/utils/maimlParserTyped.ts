@@ -706,7 +706,7 @@ getEventLogs(): Array<{
             const props = event.properties;
             
             props.forEach(prop => {
-              if (prop.key === 'Alchemia:timestamp' && 'value' in prop) {
+              if (prop.key === 'time:timestamp' && 'value' in prop) {
                 timestamp = String(prop.value);
               }
               if (prop.key === 'operator:id' && 'value' in prop) {

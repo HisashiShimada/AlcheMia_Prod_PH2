@@ -83,8 +83,6 @@ import {
 import {
   createInitialTabData,
   buildDefaultTemplateValues,
-  buildDefaultAssignedUncertainty,
-  mergeDefaultUncertainty,
   calculateSteps,
   canMoveToOrder,
   moveTransitionWithSubtree,
@@ -403,14 +401,9 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
         // 既存の実験計画データを取得して tabDataMap を復元
         const existingPlans = await getExperimentPlans(projectId, methodId);
         const restoredTabDataMap = experimentPlansToTabDataMap(existingPlans);
-        // テンプレートのデフォルト不確かさを生成（保存済みデータ補完 & 初回表示共用）
-        const defaultAssignedUncertainty = buildDefaultAssignedUncertainty(data.templates);
         if (Object.keys(restoredTabDataMap).length > 0) {
           // 保存済みデータがある場合はそちらを優先
-          // ただし assignedUncertainty が空のトランジションはテンプレート定義のデフォルト不確かさで補完する
-          // （タスク登録時の初期INSERT では __uncertainty__ が保存されないため）
-          const mergedTabDataMap = mergeDefaultUncertainty(restoredTabDataMap, defaultAssignedUncertainty);
-          setTabDataMap(mergedTabDataMap);
+          setTabDataMap(restoredTabDataMap);
         } else {
           // 初回入力時: 全トランジション分のデフォルト値で一括タブを初期化
           // Templateのdefault値から初期値を生成
@@ -434,7 +427,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
               ownerRefs: info?.ownerRefs ?? [],
               notes: defaultNotes,
               templateValues: defaultTemplateValues,
-              assignedUncertainty: defaultAssignedUncertainty,
             };
           }
           setTabDataMap({ [TAB_KEY_ALL]: allTabTransMap });
@@ -502,17 +494,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
   const handleCustomPropsChange = useCallback((templateId: string, props: CustomPropValue[]) => {
     setCustomProps((prev) => ({ ...prev, [templateId]: props }));
   }, []);
-
-  // --- 不確かさ付与情報変更ハンドラ ---
-  const handleAssignedUncertaintyChange = useCallback(
-    (next: ExperimentPlanTabData['assignedUncertainty']) => {
-      updateCurrentTabData('assignedUncertainty', (prev) => ({
-        ...prev,
-        assignedUncertainty: next,
-      }));
-    },
-    [updateCurrentTabData]
-  );
 
   // --- Ref操作ハンドラ ---
 
@@ -671,14 +652,12 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
               templateValues: Object.keys(taskData.templateValues).length > 0
                 ? { ...allData.templateValues, ...taskData.templateValues }
                 : allData.templateValues,
-              assignedUncertainty: Object.keys(taskData.assignedUncertainty).length > 0
-                ? taskData.assignedUncertainty
-                : allData.assignedUncertainty,
+              assignedUncertainty: {},
             };
           }
         }
 
-        return upsertExperimentPlanToApi(projectId, methodId, taskNo, mergedTransMap, orderEntries);
+        return upsertExperimentPlanToApi(projectId, methodId, taskNo, mergedTransMap, orderEntries, dialogData?.templates ?? []);
       });
 
       await Promise.all(savePromises);
@@ -984,8 +963,6 @@ const ExperimentPlanDialog: React.FC<ExperimentPlanDialogProps> = ({
                           disabled={disabled}
                           outputTemplateIds={outputTemplateIds}
                           projectId={projectId}
-                          assignedUncertainty={currentTabData.assignedUncertainty}
-                          onAssignedUncertaintyChange={handleAssignedUncertaintyChange}
                         />
                       ),
                     },

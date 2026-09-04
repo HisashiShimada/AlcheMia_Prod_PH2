@@ -13,6 +13,7 @@ import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
 import * as organizationGroupRepository from '../repositories/organizationGroupRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
+import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { ProjectStatusEnum, CheckoutStatusEnum, TaskStatusEnum } from '../enums/codeMaster.enum';
 import { TransitionStatusEnum } from '../types/transitionData';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
@@ -579,8 +580,13 @@ export class ProjectService {
         };
       }
 
-      // バリデーション2: プロジェクトステータスチェック（計画中=0、承認待ち=3、異常終了=5 のいずれかを許可）
-      const allowedStatuses = [ProjectStatusEnum.PLANNING, ProjectStatusEnum.REVIEW_WAITING, ProjectStatusEnum.ERROR];
+      // バリデーション2: プロジェクトステータスチェック（計画中=0、承認待ち=3、異常終了=5、レビュー差戻=6 のいずれかを許可）
+      const allowedStatuses = [
+        ProjectStatusEnum.PLANNING,
+        ProjectStatusEnum.REVIEW_WAITING,
+        ProjectStatusEnum.ERROR,
+        ProjectStatusEnum.REVIEW_REJECTED,
+      ];
       if (!allowedStatuses.includes((project.project_status ?? -1) as typeof ProjectStatusEnum.PLANNING)) {
         await client.query('ROLLBACK');
         // code_master から現在ステータスの日本語名称を取得（code_remark に日本語値を保存）
@@ -595,17 +601,23 @@ export class ProjectService {
           success: false,
           error: {
             code: 'CHECKOUT_INVALID_STATUS',
-            message: `プロジェクトステータスが計画中、承認待ち、異常終了のいずれかではありません（現在: ${currentStatusName}）`,
+            message: `プロジェクトステータスが計画中、承認待ち、異常終了、レビュー差戻のいずれかではありません（現在: ${currentStatusName}）`,
             details: {
               projectId,
               projectName: project.project_name,
               currentStatus: project.project_status,
               currentStatusName,
-              allowedStatuses: [ProjectStatusEnum.PLANNING, ProjectStatusEnum.REVIEW_WAITING, ProjectStatusEnum.ERROR],
+              allowedStatuses: [
+                ProjectStatusEnum.PLANNING,
+                ProjectStatusEnum.REVIEW_WAITING,
+                ProjectStatusEnum.ERROR,
+                ProjectStatusEnum.REVIEW_REJECTED,
+              ],
               allowedStatusNames: [
                 'プロジェクト計画中',
                 'タスク結果レビュー待ち',
                 'タスク異常終了',
+                'レビュー差戻',
               ],
             },
           },
@@ -674,8 +686,23 @@ export class ProjectService {
         }
       }
 
-      // チェックアウト実行: checkout_status = 1, project_status = 1 に更新（Repository層経由）
-      await projectRepository.updateCheckoutStatus(client, organizationId, projectId, userId);
+      // チェックアウト実行: project_statusはタスク状況に応じて決定（Repository層経由）
+      // - pending(0)タスクが存在する場合 → TASK_PENDING(1)
+      // - NGタスクのみ・pendingタスクなし → REVIEW_REJECTED(6)
+      const taskStatusCounts = await projectTaskDetailRepository.countByStatusInTransaction(
+        client,
+        organizationId,
+        projectId
+      );
+      const taskStatusMap = new Map<number, number>(
+        taskStatusCounts.map((row) => [row.task_status, row.count])
+      );
+      const pendingTaskCount = taskStatusMap.get(TaskStatusEnum.PENDING) ?? 0;
+      const targetProjectStatus = pendingTaskCount > 0
+        ? ProjectStatusEnum.TASK_PENDING
+        : ProjectStatusEnum.REVIEW_REJECTED;
+
+      await projectRepository.updateCheckoutStatus(client, organizationId, projectId, userId, targetProjectStatus);
 
       // project_taskのworker_linked_flgをtrueに更新
       const updatedTaskCount = await projectTaskRepository.updateWorkerLinkedFlgByProject(
@@ -696,7 +723,7 @@ export class ProjectService {
       console.log(`[DEBUG] checkout - Updated transition_data status to PREPARING for prerequisite-less transitions`);
 
       // チェックアウト時イベントログ記録（COMMIT前・トランザクション内）
-      // updateStatusForCheckout で PREPARING になったトランジションに対して Alchemia:lifecycleTransition を記録する
+      // updateStatusForCheckout で PREPARING になったトランジションに対して lifecycle:transition を記録する
       try {
         const preparedTransitions = await transitionDataRepository.findPreparedForCheckout(
           client,
@@ -711,15 +738,14 @@ export class ProjectService {
             preparedTransition.transition_id,
             userId,
             'preparing',
-            0,
-            null,
             client,
             preparedTransition.method_id,
             null,
             null,
             null,
             TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): チェックアウト時は常に INITIAL → PREPARING
-            TransitionStatusEnum.PREPARING  // toStatus   = 2(PREPARING)
+            TransitionStatusEnum.PREPARING, // toStatus   = 2(PREPARING)
+            project.project_name            // ownerRef ID 命名用プロジェクト名
           );
         }
         console.log(`[DEBUG] checkout - Inserted transition progress logs for ${preparedTransitions.length} transitions`);

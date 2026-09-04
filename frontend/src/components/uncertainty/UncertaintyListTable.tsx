@@ -36,6 +36,12 @@ export interface UncertaintyTemplate {
   validFrom: string;
   validTo: string;
   extends: string;
+  /** 名前空間の表示名（namespace_term.display_name） */
+  termDisplayName: string | null;
+  /** 許容上限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceUpper: number | null;
+  /** 許容下限値（手入力値の良好/不良判定用。NULL=判定なし） */
+  toleranceLower: number | null;
 }
 
 /**

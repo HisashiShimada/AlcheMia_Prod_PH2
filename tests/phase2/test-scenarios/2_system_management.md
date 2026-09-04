@@ -1,7 +1,7 @@
 # システム管理者 シナリオテスト対象一覧
 
 > **作成日**: 2026-03-24
-> **更新日**: 2026-08-21（ui_user_main.md 設計書修正対応）
+> **更新日**: 2026-08-25（タスク: ユーザ管理編集時URI未設定修正とバックフィル対応）
 > **参照元**: `docs/20260310_0940_ロール別業務内容一覧.md`（要求仕様書ベース）
 > **照合先**: UI設計書（`docs/design/ui/`）、API設計書（`docs/design/api/`）
 >
@@ -9,6 +9,7 @@
 > - フェーズ１の「部署管理」タブが廃止されたため、`2-3` グループを**削除**。`organization_group`（組織グループ）機能は新規追加されていないため、テスト対象外とする
 > - 2-1（システム概要）、2-4（ロール管理）は変更なし（内容流用）
 > - 2026-08-21: `ui_user_main.md` 設計書修正対応。所属グループ・二段階認証フィルターが未実装のため 2-2-3・2-2-4 を削除。ロールフィルターのみ残存（旧 2-2-5 → 新 2-2-3 に繰り上げ）。2-2-2 にユーザーID検索を追加
+> - 2026-08-25: `ui_user_edit_dialog.md` v1.1.0 対応。編集ダイアログに個人URI表示フィールド追加（2-2-15〜2-2-16 追加）
 
 ---
 
@@ -16,10 +17,10 @@
 
 | 項目 | 値 |
 |------|-----|
-| テスト実施日 | 2026-03-26（2-1〜2-2, 2-4） |
+| テスト実施日 | 2026-08-31（2-1〜2-2, 2-4） |
 | テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | - |
+| 総合判定 | 合格 |
 | 備考 | 2-1, 2-2, 2-4はフェーズ１実施済み。2-3（部署管理）はフェーズ２でタブ廃止のためテスト対象から削除 |
 
 ---
@@ -30,10 +31,10 @@
 
 | テストグループID | テストグループ名 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|-----------|-----------|------|-------|-------|
-| **2-1** | システム概要 | 7件 | Playwright自動 | 7 | 0 | 0 |
-| **2-2** | ユーザー管理 | 14件 | Playwright自動 | 14 | 0 | 0 |
-| **2-4** | ロール管理 | 13件 | Playwright自動 | 13 | 0 | 0 |
-| **合計** | - | **34件** | - | **34** | **0** | **0** |
+| **2-1** | システム概要 | 7件 | 手動 | 7 | 0 | 0 |
+| **2-2** | ユーザー管理 | 15件 | 手動 | 15 | 0 | 0 |
+| **2-4** | ロール管理 | 13件 | 手動 | 13 | 0 | 0 |
+| **合計** | - | **36件** | - | **35** | **0** | **0** |
 
 ### スコープ外
 
@@ -54,13 +55,13 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 2-1-1 | システム概要画面が表示され、5枚の統計カードが表示されること | 正常系 | `ui_system_overview_main.md` §3.3 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-2 | ユーザーカードに「総ユーザー数」「アクティブ」「契約ユーザー数」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.2 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-3 | セッションカードに「総セッション」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.3 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-4 | 実験システムカードに「総プロジェクト数」「プロジェクト計画中/タスク実行待ち」「タスク実行中/タスク結果レビュー待ち」「プロジェクト完了/タスク異常終了」「契約プロジェクト数」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.4 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-5 | ストレージカードに「総ファイル数」「使用容量」「契約容量」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.5 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-6 | ログイン（過去7日）カードに「総ログイン」「成功」「失敗」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.6 | GET `/api/v1/systemManagement/system-overview` | - | |
-| 2-1-7 | system_admin以外のロールでシステム概要画面にアクセスするとアクセスが拒否されること | 異常系 | `ui_system_overview_main.md` §1.3 | GET `/api/v1/systemManagement/system-overview` | - | |
+| 2-1-1 | システム概要画面が表示され、5枚の統計カードが表示されること | 正常系 | `ui_system_overview_main.md` §3.3 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-2 | ユーザーカードに「総ユーザー数」「アクティブ」「契約ユーザー数」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.2 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-3 | セッションカードに「総セッション」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.3 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-4 | 実験システムカードに「総プロジェクト数」「プロジェクト計画中/タスク実行待ち」「タスク実行中/タスク結果レビュー待ち」「プロジェクト完了/タスク異常終了」「契約プロジェクト数」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.4 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-5 | ストレージカードに「総ファイル数」「使用容量」「契約容量」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.5 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-6 | ログイン（過去7日）カードに「総ログイン」「成功」「失敗」が表示されること | 表示確認 | `ui_system_overview_main.md` §4.6 | GET `/api/v1/systemManagement/system-overview` | OK | |
+| 2-1-7 | system_admin以外のロールでシステム概要画面にアクセスするとアクセスが拒否されること | 異常系 | `ui_system_overview_main.md` §1.3 | GET `/api/v1/systemManagement/system-overview` | OK | |
 
 **前提条件:**
 - system_admin ロールでログイン済み
@@ -73,20 +74,21 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 2-2-1 | ユーザー一覧が表示されること | 正常系 | `ui_user_main.md` §5 | GET `/api/v1/systemManagement/user` | - | |
-| 2-2-2 | ユーザー名・ユーザーID・メールアドレスで検索できること | 正常系 | `ui_user_main.md` §4.1 | GET `/api/v1/systemManagement/user` | - | |
-| 2-2-3 | ロールでフィルタリングできること | 正常系 | `ui_user_main.md` §4.2 | GET `/api/v1/systemManagement/user` | - | |
-| 2-2-4 | 「追加」ボタンからユーザーを新規作成できること | 正常系 | `ui_user_main.md` §3.3 | POST `/api/v1/systemManagement/user` | - | |
-| 2-2-5 | ユーザー作成時に必須項目が未入力の場合にバリデーションエラーが表示されること | 異常系 | `api_user_management.md` §3 バリデーション | - | - | |
-| 2-2-6 | 既存のユーザーIDと重複するユーザーを作成しようとすると重複エラーが表示されること | 異常系 | `api_user_management.md` §3（409エラー） | POST `/api/v1/systemManagement/user` | - | |
-| 2-2-7 | 「編集」ボタンからユーザー情報を編集できること | 正常系 | `ui_user_main.md` §5.5 | PUT `/api/v1/systemManagement/user/:userId` | - | |
-| 2-2-8 | チェックボックスで複数ユーザーを選択し「アクティブ」ボタンで一括アクティブ化できること | 正常系 | `ui_user_main.md` §3.4 | PATCH `/api/v1/systemManagement/user/:userId/status` | - | |
-| 2-2-9 | チェックボックスで複数ユーザーを選択し「非アクティブ」ボタンで一括非アクティブ化できること | 正常系 | `ui_user_main.md` §3.5 | PATCH `/api/v1/systemManagement/user/:userId/status` | - | |
-| 2-2-10 | ユーザーが未選択の場合「アクティブ」「非アクティブ」ボタンが非活性であること | 表示確認 | `ui_user_main.md` §3.4、§3.5 | - | - | |
-| 2-2-11 | CSVダウンロードボタンをクリックするとユーザー一覧CSVがダウンロードされること | 正常系 | `ui_user_main.md` §3.2 | GET `/api/v1/systemManagement/user/download-csv` | - | |
-| 2-2-12 | CSVファイルを編集してアップロードするとユーザーが一括作成されること | 正常系 | `ui_user_main.md` §3.1 | POST `/api/v1/systemManagement/user/upload-csv` | - | |
-| 2-2-13 | 不正なCSVファイルをアップロードするとエラーメッセージが表示されること | 異常系 | `ui_user_main.md` §9.3 | POST `/api/v1/systemManagement/user/upload-csv` | - | |
-| 2-2-14 | 非アクティブなユーザーの行がグレー表示になること | 表示確認 | `ui_user_main.md` §5.6 | - | - | |
+| 2-2-1 | ユーザー一覧が表示されること | 正常系 | `ui_user_main.md` §5 | GET `/api/v1/systemManagement/user` | OK | |
+| 2-2-2 | ユーザー名・ユーザーID・メールアドレスで検索できること | 正常系 | `ui_user_main.md` §4.1 | GET `/api/v1/systemManagement/user` | OK | |
+| 2-2-3 | ロールでフィルタリングできること | 正常系 | `ui_user_main.md` §4.2 | GET `/api/v1/systemManagement/user` | OK | |
+| 2-2-4 | 「追加」ボタンからユーザーを新規作成できること | 正常系 | `ui_user_main.md` §3.3 | POST `/api/v1/systemManagement/user` | OK | |
+| 2-2-5 | ユーザー作成時に必須項目が未入力の場合にバリデーションエラーが表示されること | 異常系 | `api_user_management.md` §3 バリデーション | - | OK | |
+| 2-2-6 | 既存のユーザーIDと重複するユーザーを作成しようとすると重複エラーが表示されること | 異常系 | `api_user_management.md` §3（409エラー） | POST `/api/v1/systemManagement/user` | OK | |
+| 2-2-7 | 「編集」ボタンからユーザー情報を編集できること | 正常系 | `ui_user_main.md` §5.5 | PUT `/api/v1/systemManagement/user/:userId` | OK | |
+| 2-2-8 | チェックボックスで複数ユーザーを選択し「アクティブ」ボタンで一括アクティブ化できること | 正常系 | `ui_user_main.md` §3.4 | PATCH `/api/v1/systemManagement/user/:userId/status` | OK | |
+| 2-2-9 | チェックボックスで複数ユーザーを選択し「非アクティブ」ボタンで一括非アクティブ化できること | 正常系 | `ui_user_main.md` §3.5 | PATCH `/api/v1/systemManagement/user/:userId/status` | OK | |
+| 2-2-10 | ユーザーが未選択の場合「アクティブ」「非アクティブ」ボタンが非活性であること | 表示確認 | `ui_user_main.md` §3.4、§3.5 | - | OK | |
+| 2-2-11 | CSVダウンロードボタンをクリックするとユーザー一覧CSVがダウンロードされること | 正常系 | `ui_user_main.md` §3.2 | GET `/api/v1/systemManagement/user/download-csv` | OK | |
+| 2-2-12 | CSVファイルを編集してアップロードするとユーザーが一括作成されること | 正常系 | `ui_user_main.md` §3.1 | POST `/api/v1/systemManagement/user/upload-csv` | OK | |
+| 2-2-13 | 不正なCSVファイルをアップロードするとエラーメッセージが表示されること | 異常系 | `ui_user_main.md` §9.3 | POST `/api/v1/systemManagement/user/upload-csv` | OK | |
+| 2-2-14 | 非アクティブなユーザーの行がグレー表示になること | 表示確認 | `ui_user_main.md` §5.6 | - | OK | |
+| 2-2-15 | `namespace` テーブルに個人URIが登録済みのユーザーの「編集」ボタンを押すと、ダイアログの「個人URI」フィールドに正しいURIが表示されること | 正常系 | `ui_user_edit_dialog.md` §3.7（v1.1.0） | GET `/api/v1/systemManagement/user` | OK | バグ修正確認: 編集ダイアログ起動時にURIが常に「URI未設定」と表示されていた問題の解消 |
 
 **前提条件:**
 - system_admin ロールでログイン済み
@@ -94,6 +96,8 @@
 - 組織に複数のユーザー（アクティブ/非アクティブ混在）が存在すること
 - 組織に複数のロールが存在すること（フィルター確認用）
 - CSVアップロードシナリオ（2-2-12）用: 事前にCSVダウンロードを実行してテンプレートを入手すること
+- 2-2-15 用: `namespace` テーブルに個人URIレコードが存在するユーザーが1件以上存在すること
+- 2-2-16 用: `namespace` テーブルに個人URIレコードが存在しないユーザーが1件以上存在すること（バックフィル未実施のユーザー、またはバックフィルSQL実行前の状態）
 
 **後処理:**
 - 新規作成したユーザーを `organization_user` テーブルから削除（2-2-4、2-2-12）
@@ -105,19 +109,19 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 2-4-1 | ロール一覧が表示されること | 正常系 | `ui_role_main.md` §5 | GET `/api/v1/master/role` | - | |
-| 2-4-2 | 機能名で検索（曖昧検索）できること | 正常系 | `ui_role_main.md` §4.2 | - （クライアントサイドフィルタリング） | - | |
-| 2-4-3 | ロール名フィルターでロールを絞り込みできること | 正常系 | `ui_role_main.md` §4.3 | - （クライアントサイドフィルタリング） | - | |
-| 2-4-4 | 「追加」ボタンからロールを新規作成できること | 正常系 | `ui_role_main.md` §3.2（追加ボタン） | POST `/api/v1/master/role` | - | |
-| 2-4-5 | ロール作成時にロールCDまたはロール名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `api_role_management.md` §5 バリデーション | - | - | |
-| 2-4-6 | 既存のロールCDと重複するロールを作成しようとすると重複エラーが表示されること | 異常系 | `api_role_management.md` §5（409エラー） | POST `/api/v1/master/role` | - | |
-| 2-4-7 | 「編集」ボタンからロール名・初期画面機能名を編集できること | 正常系 | `ui_role_main.md` §5.4 | PUT `/api/v1/master/role/:roleId` | - | |
-| 2-4-8 | ロール編集ダイアログから機能権限（Ⓦ/Ⓡ）を更新できること | 正常系 | `ui_role_main.md` §5.3、`api_role_management.md` §7 | PUT `/api/v1/master/role/:roleId/permissions` | - | |
-| 2-4-9 | チェックボックスで複数ロールを選択し「アクティブ」ボタンで一括アクティブ化できること | 正常系 | `ui_role_main.md` §3.2（アクティブボタン） | PATCH `/api/v1/master/role/:roleId/status` | - | |
-| 2-4-10 | チェックボックスで複数ロールを選択し「非アクティブ」ボタンで一括非アクティブ化できること | 正常系 | `ui_role_main.md` §3.2（非アクティブボタン） | PATCH `/api/v1/master/role/:roleId/status` | - | |
-| 2-4-11 | ロールが未選択の場合「アクティブ」「非アクティブ」ボタンが非活性であること | 表示確認 | `ui_role_main.md` §3.2 | - | - | |
-| 2-4-12 | CSVダウンロードボタンをクリックするとロール一覧CSVがダウンロードされること | 正常系 | `ui_role_main.md` §3.2（CSVダウンロード） | GET `/api/v1/master/role/download-csv` | - | |
-| 2-4-13 | CSVファイルを編集してアップロードするとロールが一括作成されること | 正常系 | `ui_role_main.md` §3.2（CSVアップロード） | POST `/api/v1/master/role/upload-csv` | - | |
+| 2-4-1 | ロール一覧が表示されること | 正常系 | `ui_role_main.md` §5 | GET `/api/v1/master/role` | OK | |
+| 2-4-2 | 機能名で検索（曖昧検索）できること | 正常系 | `ui_role_main.md` §4.2 | - （クライアントサイドフィルタリング） | OK | |
+| 2-4-3 | ロール名フィルターでロールを絞り込みできること | 正常系 | `ui_role_main.md` §4.3 | - （クライアントサイドフィルタリング） | OK | |
+| 2-4-4 | 「追加」ボタンからロールを新規作成できること | 正常系 | `ui_role_main.md` §3.2（追加ボタン） | POST `/api/v1/master/role` | OK | |
+| 2-4-5 | ロール作成時にロールCDまたはロール名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `api_role_management.md` §5 バリデーション | - | OK | |
+| 2-4-6 | 既存のロールCDと重複するロールを作成しようとすると重複エラーが表示されること | 異常系 | `api_role_management.md` §5（409エラー） | POST `/api/v1/master/role` | OK | |
+| 2-4-7 | 「編集」ボタンからロール名・初期画面機能名を編集できること | 正常系 | `ui_role_main.md` §5.4 | PUT `/api/v1/master/role/:roleId` | OK | |
+| 2-4-8 | ロール編集ダイアログから機能権限（Ⓦ/Ⓡ）を更新できること | 正常系 | `ui_role_main.md` §5.3、`api_role_management.md` §7 | PUT `/api/v1/master/role/:roleId/permissions` | OK | |
+| 2-4-9 | チェックボックスで複数ロールを選択し「アクティブ」ボタンで一括アクティブ化できること | 正常系 | `ui_role_main.md` §3.2（アクティブボタン） | PATCH `/api/v1/master/role/:roleId/status` | OK | |
+| 2-4-10 | チェックボックスで複数ロールを選択し「非アクティブ」ボタンで一括非アクティブ化できること | 正常系 | `ui_role_main.md` §3.2（非アクティブボタン） | PATCH `/api/v1/master/role/:roleId/status` | OK | |
+| 2-4-11 | ロールが未選択の場合「アクティブ」「非アクティブ」ボタンが非活性であること | 表示確認 | `ui_role_main.md` §3.2 | - | OK | |
+| 2-4-12 | CSVダウンロードボタンをクリックするとロール一覧CSVがダウンロードされること | 正常系 | `ui_role_main.md` §3.2（CSVダウンロード） | GET `/api/v1/master/role/download-csv` | OK | |
+| 2-4-13 | CSVファイルを編集してアップロードするとロールが一括作成されること | 正常系 | `ui_role_main.md` §3.2（CSVアップロード） | POST `/api/v1/master/role/upload-csv` | OK | |
 
 **前提条件:**
 - system_admin ロールでログイン済み

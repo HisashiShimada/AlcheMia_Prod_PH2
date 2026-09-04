@@ -664,6 +664,27 @@ export interface MaimlPublishResponse {
 // ============================================================
 
 /**
+ * 不確かさ判定サマリー（実験指示タブ表示用）
+ */
+export interface UncertaintyJudgeSummary {
+  /** 不確かさ基準Key（テンプレートの uncertainty.key） */
+  instructionKey: string;
+  /**
+   * 不確かさ基準名（uncertainty_criteria.description から取得）。
+   * 取得できない場合は undefined。
+   */
+  criteriaName?: string;
+  /** 許容上限値 */
+  toleranceUpper: number | null;
+  /** 許容下限値 */
+  toleranceLower: number | null;
+  /** 判定結果 */
+  judgeResult: '良好' | '不良';
+  /** 作業者が入力した不確かさ値 */
+  recordedValue: number;
+}
+
+/**
  * 1 フィールドの実験指示情報
  */
 export interface InstructionField {
@@ -678,6 +699,21 @@ export interface InstructionField {
   actualValue: string | null;
   /** 単位（units 属性） */
   unit: string | null;
+  /**
+   * 不確かさ判定結果一覧（experiment_uncertainty_judge から取得）。定量評価。
+   * 0件 = 未判定、1件以上 = 判定済み（複数の uncertainty_key が設定されている場合は複数件）
+   */
+  uncertaintyJudges?: UncertaintyJudgeSummary[];
+  /**
+   * 定性評価の不確かさ基準名（uncertainty_criteria.uncertainty_name）。
+   * experiment_instruction_detail.uncertainty_key から解決する。未設定時は null。
+   */
+  qualitativeCriteriaName?: string | null;
+  /**
+   * 定性評価の付与値（確か / 曖昧 / 不確か 等）。
+   * experiment_instruction_detail.uncertainty_assigned_value から取得。未設定時は null。
+   */
+  qualitativeAssignedValue?: string | null;
 }
 
 /**
@@ -686,8 +722,10 @@ export interface InstructionField {
 export interface InstructionTemplate {
   templateId: string;
   templateName: string | null;
-  templateType: 'material' | 'condition' | 'result';
+  templateType: string;
   fields: InstructionField[];
+  /** template_data の place_id（訂正時にバックエンドへ渡すために必要） */
+  placeId: string | null;
 }
 
 /**
@@ -701,6 +739,10 @@ export interface InstructionTask {
   reviewUserId: string | null;
   reviewResult: string | null;
   templates: InstructionTemplate[];
+  /** 実験作業者ID（project_task_detail.experiment_user_id） */
+  experimentUserId: string | null;
+  /** 実験終了日時（project_task_detail.experiment_end_at, ISO文字列） */
+  experimentEndAt: string | null;
 }
 
 /**
@@ -771,6 +813,12 @@ export interface UpsertExperimentPlanInput {
   taskNo: number;
   plannedValues: ExperimentPlanValues;
   userId: string;
+  /**
+   * ExperimentPlanDialog から渡されるテンプレート定義一覧。
+   * planned_values の fieldKey から template_name / xsi_type を解決するために使用する。
+   * 省略された場合は experiment_instruction_detail の upsert をスキップする。
+   */
+  templates?: TemplateDef[];
 }
 
 // ============================================================
@@ -995,6 +1043,8 @@ export interface CreateTermBody {
   prefix: string;
   localName: string;
   displayName?: string;
+  /** フロントエンドから送信される表示名フィールド（displayName の別名）。displayName より優先される。 */
+  displayNameJa?: string;
   description?: string;
   typeHint?: string;
   unitHint?: string;
@@ -1011,6 +1061,8 @@ export interface CreateTermBody {
  */
 export interface UpdateTermBody {
   displayName?: string;
+  /** フロントエンドから送信される表示名フィールド（displayName の別名）。displayName より優先される。 */
+  displayNameJa?: string;
   description?: string;
   typeHint?: string;
   unitHint?: string;
@@ -1115,4 +1167,61 @@ export interface SetGroupMembersBody {
 export interface UpdateGroupChiefBody {
   chiefUserId: string;
 }
+
+// ============================================================
+// 不確かさ評価関連の型定義
+// ============================================================
+
+/**
+ * 定量評価の1件分（convertPropertyForFallback が返す toleranceValues[] の要素型）
+ *
+ * @remarks
+ * experimentDataService.ts の convertPropertyForFallback 内で組み立て、
+ * フロントエンドの WorkRecordPanel.convertRawProperty で
+ * quantitativeUncertainties[] にマッピングする。
+ */
+export interface ToleranceValueEntry {
+  /** 不確かさ基準Key（MAIMLの uncertainty.key） */
+  uncertaintyKey: string;
+  /** 許容値（MAIMLの uncertainty.value を String() 変換した値。null = 未設定） */
+  toleranceValue: string | null;
+  /** 不確かさ説明（MAIMLの uncertainty.description。null = 未設定） */
+  uncertaintyNote: string | null;
+  /** 不確かさ基準名（uncertainty_criteria.termDisplayName。null = 未設定） */
+  uncertaintyName: string | null;
+}
+
+// ============================================================
+// 記録値訂正関連の型定義
+// experimentInstructionService / experimentInstructionController で使用
+// ============================================================
+
+/**
+ * 記録値訂正の1レコード（placeId + data の組み合わせ）
+ */
+export interface CorrectRecordItem {
+  /** プレースID（template_data の place_id） */
+  placeId: string;
+  /** 訂正後のデータ */
+  data: {
+    templateId: string;
+    templateType: string;
+    properties: unknown[];
+  };
+}
+
+/**
+ * correctRecord サービスメソッドの入力型
+ */
+export interface CorrectRecordInput {
+  records: CorrectRecordItem[];
+}
+
+/**
+ * correctRecord サービスメソッドの戻り値
+ */
+export interface CorrectRecordResult {
+  corrected: number;
+}
+
 

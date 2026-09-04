@@ -32,6 +32,8 @@ export const ProjectStatusEnum = {
   COMPLETED: 4,
   /** タスク異常終了 */
   ERROR: 5,
+  /** レビュー差戻（NGタスクのみ残り、追加タスクなしでチェックアウトした場合） */
+  REVIEW_REJECTED: 6,
 } as const;
 
 export type ProjectStatusEnumType = typeof ProjectStatusEnum[keyof typeof ProjectStatusEnum];
@@ -193,3 +195,21 @@ export const ExperimentConditionEnum = {
 } as const;
 
 export type ExperimentConditionEnumType = typeof ExperimentConditionEnum[keyof typeof ExperimentConditionEnum];
+
+// ============================================================
+// review_type: タスクレビュー種別
+// eventLogRepository.insertTaskReviewLog の reviewType で使用
+// ============================================================
+
+/**
+ * タスクレビュー種別の定数定義
+ *
+ * maiml_event_log の Alchemia:reviewResult プロパティに記録される値。
+ */
+export const ReviewTypeEnum = {
+  /** 承認 */
+  APPROVED: 'approved',
+  /** NG */
+  NG: 'ng',
+} as const;
+

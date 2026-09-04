@@ -209,7 +209,9 @@ export async function createTerm(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { prefix, localName, displayName, description, typeHint, unitHint, createDirectiveTerm, scopeKey } = req.body as CreateTermBody;
+    const { prefix, localName, displayName: displayNameDirect, displayNameJa, description, typeHint, unitHint, createDirectiveTerm, scopeKey } = req.body as CreateTermBody;
+    // フロントエンドは displayNameJa で送信するため、displayNameJa を優先し displayName にフォールバック
+    const displayName = displayNameJa ?? displayNameDirect;
 
     const organizationId = (req as any).organizationId as string;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
@@ -252,7 +254,9 @@ export async function updateTerm(
     const organizationId = (req as any).organizationId as string;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
-    const { displayName, description, typeHint, unitHint } = req.body as UpdateTermBody;
+    const { displayName: displayNameDirect, displayNameJa, description, typeHint, unitHint } = req.body as UpdateTermBody;
+    // フロントエンドは displayNameJa で送信するため、displayNameJa を優先し displayName にフォールバック
+    const displayName = displayNameJa ?? displayNameDirect;
 
     const updateTermInput: UpdateTermInput = {
       displayName,
@@ -418,7 +422,7 @@ export async function toggleTermActive(
   try {
     const { prefix, localName } = req.params as unknown as TermActiveParams;
     const { isActive } = req.body as ToggleTermActiveBody;
-    const organizationId = (req as any).organizationId as string;
+    const organizationId = req.user!.organizationId;
     const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
     const updated = await namespaceService.toggleTermActive(

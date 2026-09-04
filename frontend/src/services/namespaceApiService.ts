@@ -220,10 +220,13 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
           `🔖 [namespaceApiService] 個人スコープ Prefix 取得: ${personal.length} 件 (userId=${userInfo.id}), 正規URI=${personalUri}`
         );
         // DB に保存された uri ではなく、正規パターンの個人スコープ URI で上書きする
-        const correctedPersonal = personal.map((entry) => ({
-          ...entry,
-          uri: personalUri,
-        }));
+        // 非アクティブ Prefix は XML 注入対象外とするためフィルタする
+        const correctedPersonal = personal
+          .filter((entry) => (entry as any).isActive !== false)
+          .map((entry) => ({
+            ...entry,
+            uri: personalUri,
+          }));
         allScopedNamespaces.push(...correctedPersonal);
       }
     }
@@ -243,7 +246,10 @@ export const getOrganizationNamespaces = async (): Promise<NamespaceEntry[]> => 
           `🔖 [namespaceApiService] グループスコープ Prefix 取得: ${group.length} 件 (scopeKey=${groupCds[0]}, withAncestors=true), 正規URI=${groupUri}`
         );
         // DB に保存された uri ではなく、正規パターンのグループスコープ URI で上書きする
-        const correctedGroup = group.map((entry) => ({ ...entry, uri: groupUri }));
+        // 非アクティブ Prefix は XML 注入対象外とするためフィルタする
+        const correctedGroup = group
+          .filter((entry) => (entry as any).isActive !== false)
+          .map((entry) => ({ ...entry, uri: groupUri }));
         allScopedNamespaces.push(...correctedGroup);
       }
     }
@@ -490,6 +496,59 @@ export const getAllTermsAsMap = async (): Promise<Map<string, NamespaceTermRow>>
     const qname = `${term.prefix}:${term.localName}`;
     map.set(qname, term);
   }
+  return map;
+};
+
+/**
+ * プロパティ追加ダイアログ用の用語マップを取得する
+ *
+ * @remarks
+ * 以下の2スコープの用語を取得してマージし、Map<qname, NamespaceTermRow> 形式で返す。
+ * 1. プロジェクトが属するグループ＋その上位グループスコープ（organizationGroupCd 指定時）
+ * 2. ログインユーザの個人スコープ（localStorage.userInfo.id）
+ *
+ * organizationGroupCd が未指定の場合は個人スコープのみを返す（フォールバック）。
+ * qname が重複する場合はグループスコープの用語を優先し、個人スコープで上書きする。
+ *
+ * @param organizationGroupCd - プロジェクトが属するグループの organization_group_cd（任意）
+ * @returns Map<qname, NamespaceTermRow>
+ */
+export const getTermsForPropertyDialog = async (
+  organizationGroupCd?: string
+): Promise<Map<string, NamespaceTermRow>> => {
+  // localStorage から userId を取得
+  const userInfo = (() => {
+    try {
+      if (typeof window === 'undefined') return null;
+      const raw = localStorage.getItem('userInfo');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const userId: string | undefined = userInfo?.id ?? undefined;
+
+  // グループ＋上位グループの用語と個人スコープの用語を並列取得
+  const groupTermsOptions = organizationGroupCd
+    ? { scopeKey: organizationGroupCd, withAncestors: true as const }
+    : undefined;
+
+  const [groupTerms, personalTerms] = await Promise.all([
+    groupTermsOptions ? getTerms(groupTermsOptions) : Promise.resolve([] as NamespaceTermRow[]),
+    userId ? getTerms({ scopeKey: userId }) : Promise.resolve([] as NamespaceTermRow[]),
+  ]);
+
+  // マージ: グループスコープを先に登録し、個人スコープで上書き（個人スコープ優先）
+  const map = new Map<string, NamespaceTermRow>();
+  for (const term of [...groupTerms, ...personalTerms]) {
+    const qname = `${term.prefix}:${term.localName}`;
+    map.set(qname, term);
+  }
+
+  console.log(
+    `🔖 [namespaceApiService] getTermsForPropertyDialog: グループ=${groupTerms.length}件, 個人=${personalTerms.length}件, マージ後=${map.size}件`
+  );
+
   return map;
 };
 

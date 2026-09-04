@@ -17,6 +17,7 @@ import {
 import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
+import { isValidNCName } from '@/utils/ncname';
 import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster } from '@/services/namespaceApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
@@ -580,6 +581,34 @@ const makeEmptyRow = (): NewTermRow => ({
 
 
 // ──────────────────────────────────────────────
+// CSV パースユーティリティ
+// RFC 4180 準拠：クォートあり・なし・空列・"" エスケープすべてに対応
+// ──────────────────────────────────────────────
+const parseCsvLine = (line: string): string[] => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++; // "" → " に変換してスキップ
+      } else {
+        inQuotes = !inQuotes; // クォート開始/終了
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current); // 最後の列
+  return result;
+};
+
+// ──────────────────────────────────────────────
 // メインコンポーネント
 // ──────────────────────────────────────────────
 const NamespaceMain: React.FC<NamespaceMainProps> = ({
@@ -926,6 +955,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   useEffect(() => {
     if (externalSelectedNsKey === undefined || externalSelectedNsKey === null) return;
 
+    // ノード切り替え時にチェック状態をリセット
+    setSelectedTermIds([]);
+
     const nsKey = externalSelectedNsKey as string;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
     const COMPANY_KEYS = new Set(['company']);
@@ -963,6 +995,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     if (externalSelectedNsKey !== undefined) return;
     if (!selectedNsKey) return;
 
+    // ノード切り替え時にチェック状態をリセット
+    setSelectedTermIds([]);
+
     const nsKey = selectedNsKey;
     const GLOBAL_KEYS  = new Set(['global', 'ns-maiml', 'ns-xsi']);
     const COMPANY_KEYS = new Set(['company']);
@@ -998,6 +1033,10 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // personal ノードも再読み込みする（localStorage の userInfo を再取得）
   useEffect(() => {
     const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // タブを離れたときにチェック状態をリセット
+        setSelectedTermIds([]);
+      }
       if (document.visibilityState === 'visible') {
         // 現在選択中のノードのスコープで再フェッチ（引数なし全件取得による他階層データ混入を防ぐ）
         const effectiveKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
@@ -1044,6 +1083,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     for (const row of newTerms) {
       if (!row.prefix)    { message.error(t('namespaceMain.prefixRequired')); return; }
       if (!row.localName) { message.error(t('namespaceMain.localNameRequired')); return; }
+      if (!isValidNCName(row.localName)) { message.error(t('namespaceMain.localNameNcnameInvalid')); return; }
     }
 
     // 研究開発部（dept-rd）選択時は必ずエラーダイアログを表示して保存をブロック
@@ -1563,28 +1603,38 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const handleToggleTermActive = (termId: string, currentActive: boolean) => {
     const nextActive = !currentActive;
+    const term = terms.find((tt) => tt.id === termId);
+    if (!term) return;
+
+    const doToggle = async () => {
+      try {
+        await toggleTermActive(term.prefix, term.localName, nextActive);
+        setTerms((prev) =>
+          prev.map((tt) => tt.id === termId ? { ...tt, isActive: nextActive } : tt)
+        );
+        message.success(
+          nextActive
+            ? t('namespaceMain.activateSuccess')
+            : t('namespaceMain.deactivateSuccess')
+        );
+      } catch {
+        message.error(t('namespaceMain.updateError', { detail: '' }));
+      }
+    };
+
     // 非アクティブにする場合のみ確認ダイアログを表示
     if (currentActive) {
-      const term = terms.find((t) => t.id === termId);
-      const label = term ? `${term.prefix}:${term.localName}` : t('namespaceMain.term');
+      const label = `${term.prefix}:${term.localName}`;
       Modal.confirm({
         title: t('namespaceMain.deactivateConfirmTitle', { label }),
         content: t('namespaceMain.deactivateConfirmContent'),
         okText: t('namespaceMain.deactivate'),
         cancelText: t('namespaceMain.cancel'),
         okButtonProps: { danger: true },
-        onOk: () => {
-          setTerms((prev) =>
-            prev.map((tt) => tt.id === termId ? { ...tt, isActive: false } : tt)
-          );
-          message.success(t('namespaceMain.deactivateSuccess'));
-        },
+        onOk: doToggle,
       });
     } else {
-      setTerms((prev) =>
-        prev.map((tt) => tt.id === termId ? { ...tt, isActive: nextActive } : tt)
-      );
-      message.success(t('namespaceMain.activateSuccess'));
+      doToggle();
     }
   };
 
@@ -1596,12 +1646,25 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       okText: t('namespaceMain.deactivate'),
       cancelText: t('namespaceMain.cancel'),
       okButtonProps: { danger: true },
-      onOk: () => {
-        setTerms((prev) =>
-          prev.map((tt) => targetIds.includes(tt.id) ? { ...tt, isActive: false } : tt)
-        );
+      onOk: async () => {
+        const succeeded: string[] = [];
+        for (const termId of targetIds) {
+          const term = terms.find((tt) => tt.id === termId);
+          if (!term) continue;
+          try {
+            await toggleTermActive(term.prefix, term.localName, false);
+            succeeded.push(termId);
+          } catch {
+            // 失敗した term はスキップ
+          }
+        }
+        if (succeeded.length > 0) {
+          setTerms((prev) =>
+            prev.map((tt) => succeeded.includes(tt.id) ? { ...tt, isActive: false } : tt)
+          );
+        }
         setSelectedTermIds([]);
-        message.success(t('namespaceMain.bulkDeactivateSuccess', { count: String(count) }));
+        message.success(t('namespaceMain.bulkDeactivateSuccess', { count: String(succeeded.length) }));
       },
     });
   };
@@ -1642,14 +1705,13 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         if (lines.length < 2) { message.error(t('namespaceMain.csvEmpty2')); return; }
 
-        // CSV パース
+        // CSV パース（parseCsvLine: RFC 4180 準拠、クォートあり・なし・空列・"" エスケープ対応）
         const rows: TermCsvParsedRow[] = [];
         for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g)?.map((c) =>
-            c.startsWith('"') ? c.slice(1, -1).replace(/""/g, '"') : c
-          ) ?? [];
+          const cols = parseCsvLine(lines[i]);
           if (cols.length < 6) continue;
           const [, prefix, localName, displayName, description, type, unitHint] = cols;
+          if (!prefix) continue;
           if (!localName) continue;
           rows.push({
             prefix:        prefix        ?? '',
@@ -1711,8 +1773,15 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const actionCell = (record: Term) => {
     // システム名前空間（Alchemia）の行は操作不可
     const isSystemNs = record.prefix === SYSTEM_NAMESPACE_PREFIX;
-    // グレーアウト対象（rowClassName と同条件）のみ操作不可
-    const readonly =
+    // 編集ボタン用: 非アクティブ時・読み取り専用時・システムNS時は編集不可
+    const readonlyEdit =
+      isSystemNs ||
+      record.isActive === false ||
+      (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
+      (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
+      effectiveViewOnly;
+    // アクティブ切り替えボタン用: 読み取り専用時・システムNS時は操作不可（非アクティブ行のアクティブ化は許可）
+    const readonlyToggle =
       isSystemNs ||
       (isCompanyNodeSelected && ancestorPrefixesForSelected.has(record.prefix)) ||
       (!isCompanyNodeSelected && isReadonlyPrefix(record.prefix)) ||
@@ -1734,12 +1803,12 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     }
     return (
       <span style={{ display: 'flex', gap: 4 }}>
-        <Button size="small" icon={<EditOutlined />} disabled={readonly} onClick={() => !readonly && startEditTerm(record)}>{t('namespaceMain.actionEdit')}</Button>
+        <Button size="small" icon={<EditOutlined />} disabled={readonlyEdit} onClick={() => !readonlyEdit && startEditTerm(record)}>{t('namespaceMain.actionEdit')}</Button>
         <Button
           size="small"
-          danger={!readonly && record.isActive !== false}
-          disabled={readonly}
-          onClick={() => !readonly && handleToggleTermActive(record.id, record.isActive !== false)}
+          danger={!readonlyToggle && record.isActive !== false}
+          disabled={readonlyToggle}
+          onClick={() => !readonlyToggle && handleToggleTermActive(record.id, record.isActive !== false)}
           style={{ minWidth: '90px' }}
         >
           {record.isActive !== false ? t('namespaceMain.actionDeactivate') : t('namespaceMain.actionActivate')}
@@ -1782,17 +1851,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         }
         const term = record as Term;
         return term.id === editingTermId
-          ? (
-            <Select
-              size="small"
-              style={{ width: '100%' }}
-              value={editingValues.prefix || undefined}
-              placeholder={t('namespaceMain.prefixSelectPlaceholder')}
-              allowClear
-              options={availablePrefixOptions}
-              onChange={(val) => setEditingValues((p) => ({ ...p, prefix: val ?? '' }))}
-            />
-          )
+          ? <Input disabled size="small" value={editingValues.prefix} />
           : <Text strong>{term.prefix}</Text>;
       },
     },
@@ -2180,6 +2239,8 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
                 rowClassName={(record) => {
                   if ('_rowId' in record) return 'row-new-term';
                   const term = record as Term;
+                  // 非アクティブ用語行（グレーアウト）
+                  if (!term.isActive) return 'row-inactive-term';
                   // company配下ノード選択時: 選択ノードの祖先prefixはグレーアウト
                   if (isCompanyNodeSelected && ancestorPrefixesForSelected.has(term.prefix)) return 'row-readonly-scope';
                   // company配下ノード以外が選択されている場合のみ isReadonlyPrefix を適用
@@ -2280,6 +2341,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       <style>{`
         .row-new-term td { background: #fffbe6 !important; }
         .row-readonly-scope td { background: #f5f5f5 !important; opacity: 0.55; pointer-events: none; }
+        .row-inactive-term td { color: #bbb !important; background: #f0f0f0 !important; }
       `}</style>
       </div>
     </div>

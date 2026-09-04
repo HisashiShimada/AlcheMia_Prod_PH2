@@ -1001,6 +1001,11 @@ export class ProgressService {
         finalUpdate
       );
 
+      // 4-2. ownerRef ID 命名用のプロジェクト名を取得
+      // findByIdFull は organizationId + projectId で SELECT するため、マルチテナント安全
+      const projectRecord = await projectRepository.findByIdFull(organizationId, projectId);
+      const projectName = projectRecord?.project_name ?? null;
+
       // 5. MAIMLをパースして programId / instructionId / resultsRefs を一括取得
       //    log/@ref = methodId, trace/@ref = programId, event/@ref = instructionId
       //    event/resultsRef = result-type place IDs
@@ -1059,15 +1064,14 @@ export class ProgressService {
         transitionId,
         update.updated_by,
         statusLabel,
-        finalProgressRate,
-        comment ?? null,
         client,
         methodId,              // log/@ref = methodId
         eventLogProgramId,     // trace/@ref = programId（MAIMLから取得）
         eventLogInstructionId, // event/@ref = instructionId（MAIMLから取得）
         eventLogResultsRefs,   // event/resultsRef = result-type place IDs
         currentStatus,         // fromStatus = 遷移元ステータス（Number変換済み）
-        toStatus               // toStatus   = 遷移先ステータス（Number変換済み）
+        toStatus,              // toStatus   = 遷移先ステータス（Number変換済み）
+        projectName            // ownerRef ID 命名用プロジェクト名
       );
 
       // 6. タスク進捗率を再計算
@@ -1129,15 +1133,14 @@ export class ProgressService {
               dep.transition_id,
               update.updated_by,
               'preparing',
-              0,
-              null,
               client,
               dep.method_id,
               null,
               null,
               null,
               TransitionStatusEnum.INITIAL,   // fromStatus = 1(INITIAL): 連鎖更新は常に INITIAL → PREPARING
-              TransitionStatusEnum.PREPARING  // toStatus   = 2(PREPARING)
+              TransitionStatusEnum.PREPARING, // toStatus   = 2(PREPARING)
+              projectName                     // ownerRef ID 命名用プロジェクト名
             );
           }
         } catch (chainErr) {
@@ -1247,7 +1250,7 @@ export class ProgressService {
         const statusProp = properties.find((p) => p['@key'] === 'Alchemia:status');
         if (!statusProp) continue;
 
-        const timestampProp = properties.find((p) => p['@key'] === 'Alchemia:timestamp');
+        const timestampProp = properties.find((p) => p['@key'] === 'time:timestamp');
 
         const status = statusProp?.['#text'] as string | undefined;
         const timestamp = timestampProp?.['#text'] as string | undefined;

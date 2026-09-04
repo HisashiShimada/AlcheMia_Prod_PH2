@@ -18,6 +18,7 @@ import { Router } from 'express';
 import { body, query } from 'express-validator';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { validateParamString, validateParamInt } from '../utils/validators';
 import {
   getExperimentInstructions,
@@ -25,6 +26,8 @@ import {
   approveTask,
   recordNg,
   getPlanDialogData,
+  getUncertaintyJudgeSummary,
+  correctRecord,
 } from '../controllers/experimentInstructionController';
 import {
   getExperimentPlans,
@@ -152,4 +155,58 @@ router.delete(
   deleteExperimentPlans
 );
 
+// ──────────────────────────────────────────────
+// 不確かさ判定集計
+// ──────────────────────────────────────────────
+
+// 定量評価（不確かさ判定）集計取得
+router.get(
+  '/:projectId/uncertainty-judge-summary',
+  authMiddleware,
+  [validateParamString('projectId', 1, 255)],
+  handleValidationErrors,
+  getUncertaintyJudgeSummary
+);
+
+// ──────────────────────────────────────────────
+// 記録値訂正
+// ──────────────────────────────────────────────
+
+// 記録値（実績値）訂正
+// PATCH /api/v1/projects/:projectId/experiment-instructions/:methodId/:taskNo/correct
+// 権限: experiment_admin（040000）書込可
+router.patch(
+  '/:projectId/experiment-instructions/:methodId/:taskNo/correct',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    validateParamString('projectId', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamInt('taskNo', 1),
+    body('records')
+      .isArray({ min: 1 })
+      .withMessage('records は1件以上の配列である必要があります'),
+    body('records.*.placeId')
+      .notEmpty()
+      .withMessage('placeId は必須です')
+      .isString()
+      .withMessage('placeId は文字列である必要があります'),
+    body('records.*.data')
+      .exists()
+      .withMessage('data は必須です'),
+    body('records.*.data.templateId')
+      .notEmpty()
+      .withMessage('data.templateId は必須です'),
+    body('records.*.data.templateType')
+      .isIn(['material', 'condition', 'result'])
+      .withMessage('data.templateType は material, condition, result のいずれかである必要があります'),
+    body('records.*.data.properties')
+      .isArray()
+      .withMessage('data.properties は配列である必要があります'),
+  ],
+  handleValidationErrors,
+  correctRecord
+);
+
 export default router;
+
