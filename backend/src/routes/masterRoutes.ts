@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { query, param } from 'express-validator';
+import { query, param, body } from 'express-validator';
 import * as masterController from '../controllers/masterController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
@@ -237,6 +237,25 @@ router.get(
 router.post(
   '/instrument',
   authMiddleware, // 認証ミドルウェア有効化
+  [
+    body('instrumentId')
+      .notEmpty()
+      .withMessage('instrumentId is required')
+      .isString()
+      .withMessage('instrumentId must be a string')
+      .isLength({ max: 50 })
+      .withMessage('instrumentId must be 50 characters or less')
+      .matches(/^[a-zA-Z0-9_-]+$/)
+      .withMessage('instrumentId must contain only half-width alphanumeric characters, hyphens, or underscores'),
+    body('instrumentName')
+      .notEmpty()
+      .withMessage('instrumentName is required')
+      .isString()
+      .withMessage('instrumentName must be a string')
+      .isLength({ max: 50 })
+      .withMessage('instrumentName must be 50 characters or less'),
+  ],
+  handleValidationErrors,
   masterController.createInstrument
 );
 
@@ -253,6 +272,12 @@ router.put(
       .withMessage('instrumentId is required')
       .isString()
       .withMessage('instrumentId must be a string'),
+    body('instrumentName')
+      .optional()
+      .isString()
+      .withMessage('instrumentName must be a string')
+      .isLength({ max: 50 })
+      .withMessage('instrumentName must be 50 characters or less'),
   ],
   handleValidationErrors,
   masterController.updateInstrument
@@ -283,6 +308,25 @@ router.patch(
 router.post(
   '/vendor',
   authMiddleware, // 認証ミドルウェア有効化
+  [
+    body('vendorId')
+      .notEmpty()
+      .withMessage('vendorId is required')
+      .isString()
+      .withMessage('vendorId must be a string')
+      .isLength({ max: 50 })
+      .withMessage('vendorId must be 50 characters or less')
+      .matches(/^[a-zA-Z0-9_-]+$/)
+      .withMessage('vendorId must contain only half-width alphanumeric characters, hyphens, or underscores'),
+    body('vendorName')
+      .notEmpty()
+      .withMessage('vendorName is required')
+      .isString()
+      .withMessage('vendorName must be a string')
+      .isLength({ max: 50 })
+      .withMessage('vendorName must be 50 characters or less'),
+  ],
+  handleValidationErrors,
   masterController.createVendor
 );
 
@@ -299,6 +343,12 @@ router.put(
       .withMessage('vendorId is required')
       .isString()
       .withMessage('vendorId must be a string'),
+    body('vendorName')
+      .optional()
+      .isString()
+      .withMessage('vendorName must be a string')
+      .isLength({ max: 50 })
+      .withMessage('vendorName must be 50 characters or less'),
   ],
   handleValidationErrors,
   masterController.updateVendor
@@ -329,6 +379,25 @@ router.patch(
 router.post(
   '/creator',
   authMiddleware, // 認証ミドルウェア有効化
+  [
+    body('creatorId')
+      .notEmpty()
+      .withMessage('creatorId is required')
+      .isString()
+      .withMessage('creatorId must be a string')
+      .isLength({ max: 50 })
+      .withMessage('creatorId must be 50 characters or less')
+      .matches(/^[a-zA-Z0-9_-]+$/)
+      .withMessage('creatorId must contain only half-width alphanumeric characters, hyphens, or underscores'),
+    body('creatorName')
+      .notEmpty()
+      .withMessage('creatorName is required')
+      .isString()
+      .withMessage('creatorName must be a string')
+      .isLength({ max: 50 })
+      .withMessage('creatorName must be 50 characters or less'),
+  ],
+  handleValidationErrors,
   masterController.createCreator
 );
 
@@ -345,6 +414,12 @@ router.put(
       .withMessage('creatorId is required')
       .isString()
       .withMessage('creatorId must be a string'),
+    body('creatorName')
+      .optional()
+      .isString()
+      .withMessage('creatorName must be a string')
+      .isLength({ max: 50 })
+      .withMessage('creatorName must be 50 characters or less'),
   ],
   handleValidationErrors,
   masterController.updateCreator

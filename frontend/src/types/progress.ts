@@ -284,6 +284,12 @@ export interface ProgressRow {
    * ProgressOverviewTab の訂正ボタン表示制御に使用
    */
   taskStatus?: number;
+  /**
+   * バックエンドから取得したトランジション進捗率（0-100）。
+   * progressService.normalizeProgress により、completed 時は必ず 100 が返る。
+   * progressRowToTransition でのフロー図表示時に MCR 件数計算より優先して使用する。
+   */
+  progressRate?: number;
 }
 
 /** ProgressOverviewTab コンポーネントの Props */

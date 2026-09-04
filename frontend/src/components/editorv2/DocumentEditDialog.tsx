@@ -134,10 +134,12 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       if (!open) return;
       
       try {
+        // アクティブなマスタのみ取得（非アクティブを選択肢に表示しないため）
+        const activeFilter = { isActive: true };
         const [creatorsData, vendorsData, instrumentsData] = await Promise.all([
-          fetchMasters('creator') as Promise<CreatorRecord[]>,
-          fetchMasters('vendor') as Promise<VendorRecord[]>,
-          fetchMasters('instrument') as Promise<InstrumentRecord[]>,
+          fetchMasters('creator', activeFilter) as Promise<CreatorRecord[]>,
+          fetchMasters('vendor', activeFilter) as Promise<VendorRecord[]>,
+          fetchMasters('instrument', activeFilter) as Promise<InstrumentRecord[]>,
         ]);
         
         setCreators(creatorsData.map(convertCreatorToDocumentTag));
