@@ -172,9 +172,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     });
   }, []);
 
-  // コードマスターから実験条件オプションを取得（TODO: 本実装時に削除）
-  // const { options: experimentConditionOptions, loading: loadingCodeMaster } = useCodeMaster('experiment_condition');
-
   /**
    * 指示データのリフレッシュ（stateクリア + DB再取得）
    */
@@ -582,13 +579,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       return arrayMove(prev, currentIndex, newIndex);
     });
   }, [t]);
-
-  /**
-   * 実験条件のSelectオプション（TODO: 本実装時に削除）
-   */
-  // const experimentConditionSelectOptions = useMemo(() => {
-  //   return createSelectOptionsFromCodeMaster(experimentConditionOptions);
-  // }, [experimentConditionOptions]);
 
   /**
    * MAIMLのdocument情報からCreatorRef選択肢を生成

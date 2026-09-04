@@ -18,7 +18,6 @@ SELECT
   , ins.display_order                AS "displayOrder"
   , ins.value                        AS "selectorValue"
   , ins.display_color                AS "displayColor"
-  , ins.is_default                   AS "isDefault"
 FROM uncertainty_criteria uc
 LEFT JOIN intuition_selector ins
   ON ins.organization_id  = uc.organization_id

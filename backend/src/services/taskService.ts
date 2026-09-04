@@ -106,61 +106,6 @@ export function validateTransition(
   return { isValid: true };
 }
 
-// TODO role⇒roleCd
-// /**
-//  * ロールベースアクセス制御による権限チェック
-//  * 
-//  * @param userId リクエストユーザーのID
-//  * @param role リクエストユーザーのロール
-//  * @param experimentUserId タスクに割り当てられたユーザーID（nullの場合は未割り当て）
-//  * @param userOrganizationId リクエストユーザーの組織ID
-//  * @param taskOrganizationId タスクの組織ID
-//  * @returns バリデーション結果
-//  */
-// export function checkPermission(
-//   userId: string,
-//   role: string,
-//   experimentUserId: string | null,
-//   userOrganizationId: string,
-//   taskOrganizationId: string
-// ): ValidationResult {
-//   // system_admin: すべてのタスクにアクセス可能（クロステナントアクセス許可）
-//   if (role === 'system_admin') {
-//     return { isValid: true };
-//   }
-
-//   // experiment_admin: 組織内のすべてのタスクにアクセス可能
-//   if (role === 'experiment_admin') {
-//     if (userOrganizationId === taskOrganizationId) {
-//       return { isValid: true };
-//     }
-//   }
-
-//   // experiment_worker: 自分に割り当てられたタスクのみアクセス可能
-//   if (role === 'experiment_worker') {
-//     if (experimentUserId === userId && userOrganizationId === taskOrganizationId) {
-//       return { isValid: true };
-//     }
-
-//     return {
-//       isValid: false,
-//       error: {
-//         code: 'PERMISSION_INSUFFICIENT',
-//         message: 'Permission denied: experiment_worker can only update tasks assigned to them'
-//       }
-//     };
-//   }
-
-  // // その他のロールはタスクステータス更新の権限なし
-  // return {
-  //   isValid: false,
-  //   error: {
-  //     code: 'PERMISSION_INSUFFICIENT',
-  //     message: `Permission denied: Role '${role}' is not authorized to update task status`
-  //   }
-  // };
-// }
-
 /**
  * タスクステータスを更新する
  * 

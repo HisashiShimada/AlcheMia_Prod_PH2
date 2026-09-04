@@ -1074,11 +1074,6 @@ export class ProgressService {
         projectName            // ownerRef ID 命名用プロジェクト名
       );
 
-      // 6. タスク進捗率を再計算
-      // TODO: project_taskテーブルにprogress_rateカラムが存在しないため、現在はスキップ
-      // project_taskテーブルのスキーマ: organization_id, project_id, method_id, experiment_order, experiment_condition, attempts_count
-      // 進捗率カラム追加後に実装する
-
       // 7. 前提トランジション完了時の連鎖更新
       //    COMPLETED に遷移した場合のみ発火: このトランジションを前提に持つ他の INITIAL トランジションを PREPARING に遷移させる
       if (toStatus === TransitionStatusEnum.COMPLETED) {

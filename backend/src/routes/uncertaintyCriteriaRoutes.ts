@@ -29,6 +29,12 @@ router.get(
   '/',
   authMiddleware,
   tenantIsolation,
+  [
+    query('scopeKey')
+      .optional()
+      .isString()
+      .withMessage('scopeKey must be a string'),
+  ],
   handleValidationErrors,
   uncertaintyCriteriaController.getList
 );

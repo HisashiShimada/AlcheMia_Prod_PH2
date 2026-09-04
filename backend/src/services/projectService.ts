@@ -24,6 +24,8 @@ import { EventLogRepository } from '../repositories/eventLogRepository';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { MaimlWriterService } from './maimlWriterService';
+import { MaimlParserTyped } from '../utils/maimlParserTyped';
+import { resolveMaimlFilePath } from '../utils/maimlPathResolver';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
 import { XMLParser } from 'fast-xml-parser';
@@ -1618,23 +1620,50 @@ export class ProjectService {
       // pg-promiseを使用してクエリ実行
       const result = await pgp.any(query, queryParams);
 
-      // TODO: タスク2.2実装時にMAIMLファイルからメソッド名・トランジション名を取得
-      // 暫定対応: method_name, transition_nameは空文字列を返却
-      const instructions = result.map((row: any) => ({
-        id: row.id,
-        project_id: row.project_id,
-        project_name: row.project_name,
-        method_id: row.method_id,
-        method_name: '', // TODO: タスク2.2で実装
-        transition_id: row.transition_id,
-        transition_name: '', // TODO: タスク2.2で実装
-        task_no: row.task_no,
-        instruction_content: row.instruction_content,
-        create_at: row.create_at.toISOString(),
-        created_by: row.created_by,
-        created_by_name: row.created_by_name || '',
-        is_acknowledged: row.is_acknowledged,
-      }));
+      // MAIMLファイルからメソッド名・トランジション名を取得して Map を構築
+      // Map<methodId, { methodName, transitions: Map<transitionId, transitionName> }>
+      const methodNameMap = new Map<string, { name: string; transitions: Map<string, string> }>();
+      try {
+        const nameRow = await projectRepository.findNameAndUuidById(organizationId, projectId);
+        if (nameRow) {
+          const filePath = await resolveMaimlFilePath(organizationId, projectId, nameRow.project_name);
+          const storageService = getStorageService();
+          const buffer = await storageService.downloadFile(organizationId, filePath);
+          const maimlContent = buffer.toString('utf-8');
+          const parser = new MaimlParserTyped(maimlContent);
+          const methodSummaries = parser.getMethodList();
+          for (const summary of methodSummaries) {
+            const transMap = new Map<string, string>();
+            for (const t of summary.transitions) {
+              transMap.set(t.id, t.name);
+            }
+            methodNameMap.set(summary.methodId, { name: summary.methodName, transitions: transMap });
+          }
+        }
+      } catch (maimlErr) {
+        // MAIMLが取得できない場合はメソッド名・トランジション名を空文字列のままにする（主処理を妨げない）
+        console.warn('[projectService] getWorkerInstructions: MAIML取得失敗（スキップ）', String(maimlErr));
+      }
+
+      const instructions = result.map((row: any) => {
+        const methodEntry = methodNameMap.get(row.method_id);
+        return {
+          id: row.id,
+          project_id: row.project_id,
+          project_name: row.project_name,
+          method_id: row.method_id,
+          method_name: methodEntry?.name ?? '',
+          transition_id: row.transition_id,
+          transition_name: methodEntry?.transitions.get(row.transition_id) ?? '',
+          task_no: row.task_no,
+          instruction_key: row.instruction_key || null,
+          instruction_content: row.instruction_content,
+          create_at: row.create_at.toISOString(),
+          created_by: row.created_by,
+          created_by_name: row.created_by_name || '',
+          is_acknowledged: row.is_acknowledged,
+        };
+      });
 
       return {
         success: true,
@@ -2168,41 +2197,145 @@ export class ProjectService {
   /**
    * プロジェクト強制終了
    *
+   * 以下を1トランザクションで実行する：
+   * 1. 前提条件チェック（実行可能ステータス確認）
+   * 2. 未完了トランジション取得
+   * 3. 各トランジションに lifecycle:transition='ate_abort' の EventLog を記録
+   * 4. タスクステータスを一括更新（PENDING/IN_PROGRESS/REVIEW_WAITING → FORCED_TERMINATED）
+   * 5. トランジションステータスを一括更新（未完了 → ERROR）
+   * 6. プロジェクトステータスを ERROR に更新
+   * COMMIT 後: MAIMLファイルに実績データ＋EventLog を書き出し（失敗は警告扱い）
+   *
    * @param organizationId - 組織ID
    * @param projectId - プロジェクトID
+   * @param userId - 実行者ユーザーID（EventLog 記録・ステータス更新者）
    * @returns ServiceResult
    */
   async forceTerminate(
     organizationId: string,
-    projectId: string
+    projectId: string,
+    userId: string
   ): Promise<ServiceResult<{ projectId: string }>> {
     const pool = getPool();
-    try {
-      const sql = await loadSqlFile('project/forceTerminate.sql');
-      const result = await pool.query(sql, [ProjectStatusEnum.ERROR, organizationId, projectId]);
+    const client = await pool.connect();
+    const eventLogRepository = new EventLogRepository();
+    const transitionDataRepository = new TransitionDataRepository();
 
-      if (result.rowCount === 0) {
+    // 強制終了を許可するプロジェクトステータス
+    const allowedStatuses = [
+      ProjectStatusEnum.TASK_PENDING,
+      ProjectStatusEnum.TASK_IN_PROGRESS,
+      ProjectStatusEnum.REVIEW_WAITING,
+      ProjectStatusEnum.REVIEW_REJECTED,
+    ];
+
+    try {
+      await client.query('BEGIN');
+
+      // ① プロジェクト情報取得 + 前提条件チェック
+      const project = await projectRepository.findByIdFull(organizationId, projectId);
+      if (!project) {
+        await client.query('ROLLBACK');
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+      if (!allowedStatuses.includes(project.project_status as typeof ProjectStatusEnum.TASK_PENDING)) {
+        await client.query('ROLLBACK');
         return {
           success: false,
           error: {
-            code: 'E6001',
-            message: 'Project not found',
+            code: 'E4003',
+            message: `強制終了はステータスが実行待ち・実行中・レビュー待ち・NGのプロジェクトのみ実行できます`,
           },
         };
       }
 
-      return {
-        success: true,
-        data: { projectId },
-      };
+      // ② 未完了トランジション一覧を取得（EventLog 記録用）
+      const activeTransitions = await transitionDataRepository.findActiveByProject(
+        organizationId,
+        projectId,
+        client
+      );
+
+      // ③ 各トランジションに lifecycle:transition='ate_abort' の EventLog を記録
+      const terminatedAt = new Date().toISOString();
+      const projectName = project.project_name ?? projectId;
+      for (const tr of activeTransitions) {
+        const logParams = {
+          methodId: tr.method_id,
+          programId: null, // MAIMLパースは省略（強制終了は迅速性を優先）
+          transitionId: tr.transition_id,
+          userId,
+          sentAt: terminatedAt,
+          projectName,
+        };
+        await eventLogRepository.insertLifecycleTransitionEventLog(
+          organizationId,
+          projectId,
+          logParams,
+          client,
+          'ate_abort',
+          'ForceTerminateEvent'
+        );
+      }
+
+      // ④ タスクステータスを一括更新（PENDING → FORCED_TERMINATED）
+      const taskFromStatuses = [
+        TaskStatusEnum.PENDING,
+        TaskStatusEnum.IN_PROGRESS,
+        TaskStatusEnum.REVIEW_WAITING,
+      ];
+      for (const fromStatus of taskFromStatuses) {
+        await projectTaskRepository.bulkUpdateTaskStatusByProject(
+          client,
+          organizationId,
+          projectId,
+          fromStatus,
+          TaskStatusEnum.FORCED_TERMINATED,
+          userId
+        );
+      }
+
+      // ⑤ トランジションステータスを一括更新（未完了 → ERROR）
+      await transitionDataRepository.bulkUpdateStatusByProject(
+        organizationId,
+        projectId,
+        TransitionStatusEnum.ERROR,
+        userId,
+        client
+      );
+
+      // ⑥ プロジェクトステータスを ERROR に更新
+      const updateSql = await loadSqlFile('project/forceTerminate.sql');
+      const updateResult = await client.query(updateSql, [
+        ProjectStatusEnum.ERROR,
+        organizationId,
+        projectId,
+      ]);
+      if (updateResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return { success: false, error: { code: 'E6001', message: 'Project not found' } };
+      }
+
+      await client.query('COMMIT');
+
+      // ⑦ COMMIT 後: MAIMLファイルに実績データ＋EventLog を書き出し（失敗は警告扱い）
+      try {
+        const maimlWriterService = new MaimlWriterService();
+        await maimlWriterService.writeDataAndEventLog(organizationId, projectId, projectName);
+      } catch (maimlWriteError) {
+        console.warn(
+          '[ProjectService.forceTerminate] MAIMLファイルへの書き出しに失敗しました（処理は継続）:',
+          maimlWriteError
+        );
+      }
+
+      return { success: true, data: { projectId } };
     } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'E4002',
-          message: 'Database error occurred',
-        },
-      };
+      await client.query('ROLLBACK');
+      logError('forceTerminate error', error as Error, { organizationId, projectId });
+      return { success: false, error: { code: 'E4002', message: 'Database error occurred' } };
+    } finally {
+      client.release();
     }
   }
 }

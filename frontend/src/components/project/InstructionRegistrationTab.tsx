@@ -55,6 +55,8 @@ interface InstructionRegistrationTabProps {
   isEditable?: boolean;
   /** プロジェクト完了フラグ。true の場合は変更系ボタンを非活性にする */
   isProjectCompleted?: boolean;
+  /** MAIMLバリデーションエラーがある場合 true。true の場合は変更系ボタンを非活性にする */
+  maimlHasErrors?: boolean;
 }
 
 /**
@@ -67,6 +69,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   isCheckoutLocked,
   isEditable = true,
   isProjectCompleted = false,
+  maimlHasErrors = false,
 }) => {
   const { token } = useToken();
   const { t } = useLanguage();
@@ -300,9 +303,15 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
 
   /**
    * 指示対象のラベル（メソッド名またはプロジェクト全体）
+   * 優先順位: APIから返されたmethodName > MAIMLコンテキストのdisplayName > methodId > プロジェクト全体
    */
   const getTargetBaseLabel = useCallback((instruction: InstructionData): string => {
     if (instruction.methodId) {
+      // APIから返されたmethodNameを最優先で使用
+      if (instruction.methodName) {
+        return instruction.methodName;
+      }
+      // フォールバック: MAIMLコンテキストから取得
       const method = availableMethods.find(m => m.id === instruction.methodId);
       return method?.displayName || instruction.methodId;
     }
@@ -402,7 +411,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => handleOpenEditDialog(record)}
-                disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
+                disabled={!isEditable || isProjectCompleted || isCheckoutLocked || maimlHasErrors}
                 data-testid={`instruction-edit-button-${record.id}`}
               >
                 {t('instructionRegistration.editButton')}
@@ -412,7 +421,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 onClick={() => handleDeleteInstruction(record.id)}
-                disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
+                disabled={!isEditable || isProjectCompleted || isCheckoutLocked || maimlHasErrors}
                 data-testid={`instruction-delete-button-${record.id}`}
               >
                 {t('instructionRegistration.deleteButton')}

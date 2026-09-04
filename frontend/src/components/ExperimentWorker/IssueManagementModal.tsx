@@ -479,74 +479,72 @@ export default function IssueManagementModal({
             styles={{ body: { padding: 16, overflow: 'auto', height: 'calc(100% - 38px)' } }}
           >
             {/* 新規問題報告フォーム */}
-            {showNewIssueForm && (
-              <Form form={form} layout="vertical" data-testid="issue-management-new-issue-form">
-                <Form.Item
-                  label={t('issueManagement.form.title')}
-                  name="title"
-                  rules={[
-                    { required: true, message: t('issueManagement.form.titleRequired') },
-                    { max: 100, message: t('issueManagement.form.titleMaxLength') },
-                  ]}
-                >
-                  <Input placeholder={t('issueManagement.form.titlePlaceholder')} maxLength={100} data-testid="issue-management-title-input" />
-                </Form.Item>
+            <Form form={form} layout="vertical" data-testid="issue-management-new-issue-form" style={{ display: showNewIssueForm ? 'block' : 'none' }}>
+              <Form.Item
+                label={t('issueManagement.form.title')}
+                name="title"
+                rules={[
+                  { required: true, message: t('issueManagement.form.titleRequired') },
+                  { max: 100, message: t('issueManagement.form.titleMaxLength') },
+                ]}
+              >
+                <Input placeholder={t('issueManagement.form.titlePlaceholder')} maxLength={100} data-testid="issue-management-title-input" />
+              </Form.Item>
 
-                <Form.Item
-                  label={t('issueManagement.form.targetType')}
-                  name="targetType"
-                  initialValue="transition"
-                  rules={[{ required: true, message: t('issueManagement.form.targetTypeRequired') }]}
-                >
-                  <Select data-testid="issue-management-target-type-select">
-                    <Select.Option value="project">{t('issueManagement.targetType.project')}</Select.Option>
-                    <Select.Option value="task">{t('issueManagement.targetType.task')}</Select.Option>
-                    <Select.Option value="transition">{t('issueManagement.targetType.transition')}</Select.Option>
-                  </Select>
-                </Form.Item>
+              <Form.Item
+                label={t('issueManagement.form.targetType')}
+                name="targetType"
+                initialValue="transition"
+                rules={[{ required: true, message: t('issueManagement.form.targetTypeRequired') }]}
+              >
+                <Select data-testid="issue-management-target-type-select">
+                  <Select.Option value="project">{t('issueManagement.targetType.project')}</Select.Option>
+                  <Select.Option value="task">{t('issueManagement.targetType.task')}</Select.Option>
+                  <Select.Option value="transition">{t('issueManagement.targetType.transition')}</Select.Option>
+                </Select>
+              </Form.Item>
 
-                <Form.Item
-                  label={t('issueManagement.form.issueType')}
-                  name="issueType"
-                  rules={[{ required: true, message: t('issueManagement.form.issueTypeRequired') }]}
-                >
-                  <Select
-                    placeholder={t('issueManagement.form.issueTypePlaceholder')}
-                    loading={issueTypeLoading}
-                    options={issueTypeOptions}
-                    data-testid="issue-management-issue-type-select"
-                  />
-                </Form.Item>
+              <Form.Item
+                label={t('issueManagement.form.issueType')}
+                name="issueType"
+                rules={[{ required: true, message: t('issueManagement.form.issueTypeRequired') }]}
+              >
+                <Select
+                  placeholder={t('issueManagement.form.issueTypePlaceholder')}
+                  loading={issueTypeLoading}
+                  options={issueTypeOptions}
+                  data-testid="issue-management-issue-type-select"
+                />
+              </Form.Item>
 
-                <Form.Item
-                  label={t('issueManagement.form.content')}
-                  name="content"
-                  rules={[
-                    { required: true, message: t('issueManagement.form.contentRequired') },
-                    { min: 10, message: t('issueManagement.form.contentMinLength') },
-                  ]}
-                >
-                  <TextArea
-                    rows={8}
-                    placeholder={t('issueManagement.form.contentPlaceholder')}
-                    maxLength={1000}
-                    showCount
-                    data-testid="issue-management-content-textarea"
-                  />
-                </Form.Item>
+              <Form.Item
+                label={t('issueManagement.form.content')}
+                name="content"
+                rules={[
+                  { required: true, message: t('issueManagement.form.contentRequired') },
+                  { min: 10, message: t('issueManagement.form.contentMinLength') },
+                ]}
+              >
+                <TextArea
+                  rows={8}
+                  placeholder={t('issueManagement.form.contentPlaceholder')}
+                  maxLength={1000}
+                  showCount
+                  data-testid="issue-management-content-textarea"
+                />
+              </Form.Item>
 
-                <Form.Item style={{ marginBottom: 0 }}>
-                  <Space style={{ float: 'right' }}>
-                    <Button onClick={() => setShowNewIssueForm(false)} data-testid="issue-management-form-cancel-button">
-                      {t('issueManagement.form.cancel')}
-                    </Button>
-                    <Button type="primary" onClick={handleSubmitNewIssue} data-testid="issue-management-form-save-button">
-                      {t('issueManagement.form.save')}
-                    </Button>
-                  </Space>
-                </Form.Item>
-              </Form>
-            )}
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Space style={{ float: 'right' }}>
+                  <Button onClick={() => setShowNewIssueForm(false)} data-testid="issue-management-form-cancel-button">
+                    {t('issueManagement.form.cancel')}
+                  </Button>
+                  <Button type="primary" onClick={handleSubmitNewIssue} data-testid="issue-management-form-save-button">
+                    {t('issueManagement.form.save')}
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
 
             {/* 問題詳細表示 */}
             {!showNewIssueForm && selectedIssue && (

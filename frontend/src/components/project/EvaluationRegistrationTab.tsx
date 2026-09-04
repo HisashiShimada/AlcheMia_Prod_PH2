@@ -42,10 +42,6 @@ import {
   SUB_EVAL_VALUE_COLOR,
 } from '@/types/projectOverallEvaluation';
 import { SubEvaluationScopeValues } from '@/constants/aggregationRule';
-// TODO: 全体評価タブに移動済み（コメントアウト中）
-// import EvaluationSummaryBar from './subcomponents/EvaluationSummaryBar';
-// import AttentionItemList from './subcomponents/AttentionItemList';
-// import { useOverallEvaluation } from '@/hooks/project/useOverallEvaluation';
 
 const { Text } = Typography;
 
@@ -73,6 +69,8 @@ projectId: string;
   isProjectCompleted?: boolean;
   /** チェックアウト中フラグ。true の場合は変更系ボタンを非活性にする */
   isCheckoutLocked?: boolean;
+  /** MAIMLバリデーションエラーがある場合 true。true の場合は変更系ボタンを非活性にする */
+  maimlHasErrors?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -350,12 +348,9 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
   isEditable = true,
   isProjectCompleted = false,
   isCheckoutLocked = false,
+  maimlHasErrors = false,
 }) => {
   const { t } = useLanguage();
-
-  // TODO: 全体評価タブに移動済み（コメントアウト中）
-  // 階層別サマリー・要注意項目（動的算出）
-  // const { summary, isLoading: summaryLoading, refetch: refetchSummary } = useOverallEvaluation(projectId);
 
   const UNIT_LABEL: Record<string, string> = {
     project:           t('evaluation.unitLabel.project'),
@@ -577,7 +572,7 @@ const EvaluationRegistrationTab: React.FC<EvaluationRegistrationTabProps> = ({
 
         {/* ① 「評価を入力」ボタン（左端） */}
         <Flex justify="flex-start">
-          <Button type="primary" icon={<EditOutlined />} size="small" disabled={!isEditable || isProjectCompleted || isCheckoutLocked} onClick={() => setInputModalOpen(true)}>
+          <Button type="primary" icon={<EditOutlined />} size="small" disabled={!isEditable || isProjectCompleted || isCheckoutLocked || maimlHasErrors} onClick={() => setInputModalOpen(true)}>
             {t('evaluation.buttons.inputEvaluation')}
           </Button>
         </Flex>

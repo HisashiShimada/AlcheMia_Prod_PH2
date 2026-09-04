@@ -1605,21 +1605,22 @@ export async function getPublishStatus(req: Request, res: Response): Promise<voi
  * プロジェクト強制終了
  * POST /api/v1/projects/:projectId/force-terminate
  *
- * @description プロジェクトステータスを強制終了（ERROR=5）に更新する
+ * @description プロジェクトステータスを強制終了（ERROR=5）に更新する。
+ *              未完了のタスク・トランジションも一括更新し、EventLog を記録する。
  */
 export async function forceTerminate(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   const projectService = new ProjectService();
 
   try {
-    const { organizationId } = req.user!;
+    const { organizationId, userId } = req.user!;
     const { projectId } = req.params;
 
-    const result = await projectService.forceTerminate(organizationId, projectId);
+    const result = await projectService.forceTerminate(organizationId, projectId, userId);
 
     if (!result.success) {
       const errorCode = result.error?.code || 'E4001';
-      const statusCode = errorCode === 'E6001' ? 404 : 500;
+      const statusCode = errorCode === 'E6001' ? 404 : errorCode === 'E4003' ? 409 : 500;
       res.status(statusCode).json({
         success: false,
         error: {

@@ -38,12 +38,14 @@ export type {
  * 組織に紐づく不確かさ基準一覧を取得する
  *
  * @param organizationId - 組織ID
+ * @param nameSpaceId    - 名前空間ID（省略または null の場合は全件取得）
  * @returns 不確かさ基準一覧
  */
 export async function getList(
-  organizationId: string
+  organizationId: string,
+  nameSpaceId?: string | null
 ): Promise<UncertaintyCriteriaRow[]> {
-  return uncertaintyCriteriaRepository.findAllByOrganization(organizationId);
+  return uncertaintyCriteriaRepository.findAllByOrganization(organizationId, nameSpaceId);
 }
 
 /**

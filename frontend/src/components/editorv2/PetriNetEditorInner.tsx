@@ -1181,7 +1181,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // テンプレートとノードの紐づき（placeRef）を解除するヘルパー
   // ノード自体は削除済み or 削除中の想定。テンプレート自体は削除しない。
   // 全カテゴリ（material/condition/result）を網羅し、紐づくテンプレートをすべて解除する。
-  // TODO: Undo 時に placeRef を元に戻すには TemplateContext 側の履歴管理が必要（現在は対象外）
   const unlinkTemplateFromNode = useCallback((targetNodes: Node<NodeData>[]) => {
     const allTemplates = window.clineAllTemplates;
     if (!allTemplates || !window.clineUpdateTemplate) return;

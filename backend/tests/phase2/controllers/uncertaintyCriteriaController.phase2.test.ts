@@ -188,7 +188,7 @@ describe('uncertaintyCriteriaController - Phase2 テスト', () => {
           evaluationMethod: 2,
           isInvalid: false,
           qualitativeOptions: [
-            { displayOrder: 1, value: '良', displayColor: '#00FF00', isDefault: true },
+            { displayOrder: 1, value: '良', displayColor: '#00FF00' },
           ],
         },
       });

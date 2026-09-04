@@ -76,6 +76,8 @@ export interface ExperimentInstructionTabProps {
   isProjectCompleted?: boolean;
   /** チェックアウト中フラグ。true の場合は変更系ボタンを非活性にする */
   isCheckoutLocked?: boolean;
+  /** MAIMLバリデーションエラーがある場合 true。true の場合は変更系ボタンを非活性にする */
+  maimlHasErrors?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -379,6 +381,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
   isEditable = true,
   isProjectCompleted = false,
   isCheckoutLocked = false,
+  maimlHasErrors = false,
 }) => {
   const { message } = App.useApp();
   const { t } = useLanguage();
@@ -1132,7 +1135,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             <Button
               size="small"
               icon={<EditOutlined />}
-              disabled={!isEditable || isProjectCompleted || isCheckoutLocked}
+              disabled={!isEditable || isProjectCompleted || isCheckoutLocked || maimlHasErrors}
               onClick={() => handleOpenPlanDialog(filters.methodId ?? undefined)}
             >
               {t('experimentInstructionTab.toolbar.edit')}
@@ -1161,7 +1164,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
               size="small"
               type="primary"
               icon={<CheckCircleOutlined />}
-              disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}
+              disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked || maimlHasErrors}
               onClick={handleOpenBulkApproveDialog}
             >
               {t('experimentInstructionTab.toolbar.approval')}
@@ -1169,7 +1172,7 @@ const ExperimentInstructionTab: React.FC<ExperimentInstructionTabProps> = ({
             <Button
               size="small"
               icon={<EditOutlined />}
-              disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked}
+              disabled={reviewWaitingTasks.length === 0 || !isEditable || isProjectCompleted || isCheckoutLocked || maimlHasErrors}
               onClick={() => setIsCorrectionMode(true)}
             >
               {t('experimentInstructionTab.correctionMode')}

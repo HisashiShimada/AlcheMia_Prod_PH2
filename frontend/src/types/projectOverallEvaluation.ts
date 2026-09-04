@@ -154,4 +154,6 @@ export interface OverallEvaluationTabProps {
   isProjectCompleted?: boolean;
   /** チェックアウト中フラグ。true の場合は変更系ボタンを非活性にする */
   isCheckoutLocked?: boolean;
+  /** MAIMLバリデーションエラーがある場合 true。true の場合は変更系ボタンを非活性にする */
+  maimlHasErrors?: boolean;
 }

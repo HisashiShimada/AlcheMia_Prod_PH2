@@ -274,7 +274,7 @@ router.get(
  *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
- * @description task_status=6（NG）のタスク一覧を取得してNG理由モーダルに表示する
+ * @description task_status=5（REVIEW_NG）のタスク一覧を取得してNG理由モーダルに表示する
  * @roles experiment_worker（読取専用）
  */
 router.get(

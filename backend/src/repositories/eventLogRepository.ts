@@ -711,6 +711,25 @@ export class EventLogRepository {
    * @param params         - 生成に必要なパラメータ
    * @param client         - トランザクション用の PoolClient
    */
+  /**
+   * 前提トランジション未設定のトランジションに対する lifecycle:transition 遷移記録を挿入する
+   *
+   * @see .clinerules/references/eventlog_structure.md — セクション3
+   *
+   * 指示事項の有無によらず、前提トランジションID が設定されていないトランジションに対して
+   * time:timestamp + lifecycle:transition のみを含む最小構成の event タグを生成して記録する。
+   *
+   * @param organizationId  - 組織ID
+   * @param projectId       - プロジェクトID
+   * @param params          - 生成に必要なパラメータ
+   * @param client          - トランザクション用の PoolClient
+   * @param lifecycleValue  - lifecycle:transition の値（省略時: 'schedule'）
+   * @param phaseIdentifier - フェーズ識別名（省略時: 'PreparationEvent'）
+   *                          ID プレフィックス・name・description に使用する。
+   *                          省略時は 'Preparation_schedule' フェーズ動作を維持。
+   *                          強制終了時は 'ForceTerminateEvent' を指定し
+   *                          phasePrefix（フェーズ名部分）は 'ForceTerminate_ate_abort' になる。
+   */
   async insertLifecycleTransitionEventLog(
     organizationId: string,
     projectId: string,
@@ -722,7 +741,9 @@ export class EventLogRepository {
       sentAt: string;
       projectName: string;
     },
-    client: PoolClient
+    client: PoolClient,
+    lifecycleValue: string = 'schedule',
+    phaseIdentifier: string = 'PreparationEvent'
   ): Promise<void> {
     try {
       const sequenceQuery = await this.sequenceQueryPromise;
@@ -730,10 +751,18 @@ export class EventLogRepository {
       const sequenceNo: number = sequenceResult.rows[0].next_sequence_no;
 
       const { methodId, programId, transitionId, sentAt, projectName } = params;
-      const idPrefix = `${projectName}Preparation_schedule_${sequenceNo}`;
+
+      // フェーズ名部分: 'PreparationEvent' → 'Preparation_schedule'、'ForceTerminateEvent' → 'ForceTerminate_ate_abort'
+      const phaseNameMap: Record<string, string> = {
+        PreparationEvent: 'Preparation_schedule',
+        ForceTerminateEvent: 'ForceTerminate_ate_abort',
+      };
+      const phaseName = phaseNameMap[phaseIdentifier] ?? `${phaseIdentifier}_${lifecycleValue}`;
+
+      const idPrefix = `${projectName}${phaseName}_${sequenceNo}`;
       const commonNameDesc = {
-        name: 'Alchemia:PreparationEvent',
-        description: `${projectName} PreparationEvent(schedule)`,
+        name: `Alchemia:${phaseIdentifier}`,
+        description: `${projectName} ${phaseIdentifier}(${lifecycleValue})`,
       };
 
       // ownerRef（issuer）: 指示出しユーザー（@→_置換）
@@ -769,7 +798,7 @@ export class EventLogRepository {
                   {
                     '@key': 'lifecycle:transition',
                     '@xsi:type': 'stringType',
-                    '#text': 'schedule',
+                    '#text': lifecycleValue,
                   },
                 ],
                 ownerRef: lifecycleOwnerRef,
