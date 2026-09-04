@@ -303,9 +303,15 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
 
   /**
    * 指示対象のラベル（メソッド名またはプロジェクト全体）
+   * 優先順位: APIから返されたmethodName > MAIMLコンテキストのdisplayName > methodId > プロジェクト全体
    */
   const getTargetBaseLabel = useCallback((instruction: InstructionData): string => {
     if (instruction.methodId) {
+      // APIから返されたmethodNameを最優先で使用
+      if (instruction.methodName) {
+        return instruction.methodName;
+      }
+      // フォールバック: MAIMLコンテキストから取得
       const method = availableMethods.find(m => m.id === instruction.methodId);
       return method?.displayName || instruction.methodId;
     }

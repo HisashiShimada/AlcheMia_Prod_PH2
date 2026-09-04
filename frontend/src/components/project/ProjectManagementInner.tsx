@@ -211,6 +211,14 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
     setNextZIndex((prev) => prev + 1);
   }, [openDialogs, nextZIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleViewFile = useCallback((file: ProjectFile) => {
+    if (openDialogs.length >= 5) { message.warning(t('project.maxDialogsWarning')); return; }
+    const id = `file-${file.id}-${Date.now()}`;
+    const offset = openDialogs.length * 30;
+    setOpenDialogs((prev) => [...prev, { id, contentType: 'file', file, zIndex: nextZIndex, position: { x: 100 + offset, y: 100 + offset } }]);
+    setNextZIndex((prev) => prev + 1);
+  }, [openDialogs, nextZIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // バリデーションアイコン表示ヘルパー
   const parseField = (v: unknown): unknown[] => {
     if (Array.isArray(v)) return v;
@@ -323,7 +331,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({
                 activeKey={currentTab}
                 onChange={handleTabChange}
                 items={[
-                  { key: 'file_management', label: t('projectManagement.tabs.file_management'), children: <FileManagementTabContent selectedProject={selectedProject} currentFolder={currentFolder} expandedFolders={expandedFolders} currentFiles={currentFiles} projectFilesData={projectFilesData} onFolderClick={handleFolderClick} onToggleFolder={handleToggleFolder} onDeleteFile={handleDeleteMaimlFile} onDeleteFolder={handleDeleteFolder} /> },
+                  { key: 'file_management', label: t('projectManagement.tabs.file_management'), children: <FileManagementTabContent selectedProject={selectedProject} currentFolder={currentFolder} expandedFolders={expandedFolders} currentFiles={currentFiles} projectFilesData={projectFilesData} onFolderClick={handleFolderClick} onToggleFolder={handleToggleFolder} onDeleteFile={handleDeleteMaimlFile} onDeleteFolder={handleDeleteFolder} onViewFile={handleViewFile} /> },
                   { key: 'task_registration', label: t('projectManagement.tabs.task_registration'), children: <TaskRegistrationTabContent selectedProject={selectedProject} isActive={currentTab === 'task_registration'} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
                   { key: 'project_instruction', label: t('projectManagement.tabProjectInstruction'), children: <ProjectInstructionTabContent selectedProject={selectedProject} isActive={currentTab === 'project_instruction'} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },
                   { key: 'task_results', label: t('projectManagement.tabs.task_results'), children: <ExperimentInstructionTabContent selectedProject={selectedProject} isProjectCheckedOut={isProjectCheckedOut} maimlHasErrors={maimlHasErrors} /> },

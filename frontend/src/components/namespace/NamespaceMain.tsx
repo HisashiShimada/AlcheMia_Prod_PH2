@@ -1761,7 +1761,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   const typeFilterOptions = useMemo(() => [
     { value: '', label: t('namespaceMain.typeFilterAll') },
     { value: 'stringType',   label: 'stringType' },
-    { value: 'integerType',  label: 'integerType' },
+    { value: 'intType',      label: 'intType' },
     { value: 'floatType',    label: 'floatType' },
     { value: 'booleanType',  label: 'booleanType' },
     { value: 'dateTimeType', label: 'dateTimeType' },
@@ -2011,7 +2011,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   const typeOptions = [
     { value: 'stringType',   label: 'stringType' },
-    { value: 'integerType',  label: 'integerType' },
+    { value: 'intType',      label: 'intType' },
     { value: 'floatType',    label: 'floatType' },
     { value: 'booleanType',  label: 'booleanType' },
     { value: 'dateTimeType', label: 'dateTimeType' },
