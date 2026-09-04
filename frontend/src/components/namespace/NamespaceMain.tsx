@@ -18,7 +18,9 @@ import { useRef } from 'react';
 import type { TableColumnsType } from 'antd';
 import { SYSTEM_NAMESPACE_PREFIX } from '@/constants/systemNamespace';
 import { isValidNCName } from '@/utils/ncname';
+
 import { getTerms, createTerm, updateTerm, createNamespace, getOrganizationGroups, getNamespaceList, getOrganizationDisplayName, getAttributeMaster, toggleTermActive } from '@/services/namespaceApiService';
+import { getOrgUsersForGroups, getGroupMembers } from '@/services/organizationGroupApiService';
 import DetailModal from './DetailModal';
 import NamespaceAddDialog from './NamespaceAddDialog';
 import GroupManagementPanel from '../group/GroupManagementPanel';
@@ -233,10 +235,16 @@ const deriveUserNsRoleFromStorage = (): UserNsRole => {
   try {
     const raw = localStorage.getItem('userInfo');
     if (!raw) return { kind: 'sys_admin' };
-    const info = JSON.parse(raw) as { roleCd?: string; id?: string; organizationGroupCds?: string[] };
-    const roleCd = info.roleCd ?? '';
+    const info = JSON.parse(raw) as {
+      permissions?: Array<{ functionId: string }>;
+      id?: string;
+      organizationGroupCds?: string[];
+    };
     const groupCds = info.organizationGroupCds ?? [];
-    if (roleCd === 'sys_admin' || roleCd === 'system_admin') {
+    // functionId '020000'（システム管理者メニュー）の権限があれば sys_admin 扱い。
+    // functionId '020000' はシステム内固定の機能CD。
+    // roleCd はユーザーが変更可能なため判定には使用しない。
+    if ((info.permissions ?? []).some((p) => p.functionId === '020000')) {
       return { kind: 'sys_admin' };
     }
     if (groupCds.length > 0) {
@@ -648,6 +656,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // ── ログインユーザーが代表者（chief_user_id）であるグループCDの集合
   const [chiefGroupCds, setChiefGroupCds] = useState<Set<string>>(new Set());
 
+  // ── 個人スコープ選択時の共有先候補グループ（selectedNsKey が personal-{userId} のときに取得）
+  const [targetUserGroups, setTargetUserGroups] = useState<NamespaceNode[]>([]);
+
   // ── Personal ノードの children（クライアント mount 後に localStorage から取得）
   // SSR では localStorage にアクセスできないため useState + useEffect で分離する
   const [personalChildren, setPersonalChildren] = useState<NamespaceNode[]>([]);
@@ -762,13 +773,57 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
   // 代表グループ（chiefUserId フィルタ）と所属グループ（memberOf）を並列取得してマージする。
   // 取得完了後、ロール別剪定済みの company 配下で最も深い階層のリーフを初期選択にする
   useEffect(() => {
+    // system_admin の場合: all=true で全グループを一括取得し、全CDを chiefGroupCds に登録（全グループ編集可扱い）
+    if (currentUserRole.kind === 'sys_admin') {
+      // system_admin: 全グループと全ユーザーを並列取得
+      Promise.all([
+        getOrganizationGroups(undefined, { all: true }),
+        getOrgUsersForGroups(),
+      ])
+        .then(([allGroups, orgUsers]) => {
+          // 全グループを chiefGroupCds に登録 → 全グループで編集可能と判定される
+          setChiefGroupCds(new Set(allGroups.map((g) => g.organization_group_cd)));
+          setOrgGroups(allGroups);
+
+          // Personal ノードを全ユーザーで構築してセット
+          const allUserNodes: NamespaceNode[] = orgUsers.map((u) => ({
+            key: `personal-${u.userId}`,
+            label: u.userName,
+            count: 0,
+          }));
+          if (allUserNodes.length > 0) {
+            setPersonalChildren(allUserNodes);
+          }
+
+          // ロール別剪定を適用して最下層リーフを初期選択にする
+          const orgTree = buildOrgTree(allGroups);
+          const fullTree: NamespaceNode[] = NAMESPACE_TREE_RAW.map((n) =>
+            n.key === 'company' ? { ...n, children: orgTree } : n
+          );
+          const allowedCds = new Set(allGroups.map((g) => g.organization_group_cd));
+          const filteredTree = filterTreeForUser(fullTree, currentUserNsKey, currentUserRole, allowedCds);
+          const companyNode = filteredTree.find((n) => n.key === 'company');
+          const leafKey = companyNode?.children ? findDeepestLeafKey(companyNode.children) : null;
+          if (leafKey) {
+            setSelectedNsKey(leafKey);
+            onNsKeyChange?.(leafKey);
+          }
+        })
+        .catch(() => {
+          // 取得失敗時は空ツリーのまま表示を継続
+        });
+      return;
+    }
+
+    // system_admin 以外: 既存ロジック（代表グループ + 所属グループを並列取得してマージ）
     Promise.all([
       getOrganizationGroups(),                               // ① chiefUserId フィルタ（代表グループ）
       getOrganizationGroups(undefined, { memberOf: true }), // ② 所属グループ＋祖先グループ
     ])
       .then(([chiefGroups, memberGroups]) => {
         // 代表グループCDを Set として保存（編集権限判定に使用）
-        setChiefGroupCds(new Set(chiefGroups.map((g) => g.organization_group_cd)));
+        const chiefCds = new Set(chiefGroups.map((g) => g.organization_group_cd));
+        setChiefGroupCds(chiefCds);
 
         // 重複を organization_group_cd で除去してマージ
         const mergedMap = new Map<string, OrganizationGroupRow>();
@@ -791,6 +846,29 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
         if (leafKey) {
           setSelectedNsKey(leafKey);
           onNsKeyChange?.(leafKey);
+        }
+
+        // 代表グループがある場合: 代表グループのメンバーを Personal ノードに表示
+        if (chiefCds.size > 0) {
+          Promise.all([...chiefCds].map((cd) => getGroupMembers(cd)))
+            .then((memberLists) => {
+              const allMembers = memberLists.flat();
+              // userId で重複除去
+              const unique = Array.from(
+                new Map(allMembers.map((u) => [u.userId, u])).values()
+              );
+              const userNodes: NamespaceNode[] = unique.map((u) => ({
+                key: `personal-${u.userId}`,
+                label: u.userName,
+                count: 0,
+              }));
+              if (userNodes.length > 0) {
+                setPersonalChildren(userNodes);
+              }
+            })
+            .catch(() => {
+              // 取得失敗時は Personal ノードにログインユーザーのみ表示（デフォルト動作）
+            });
         }
       })
       .catch(() => {
@@ -897,8 +975,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       } else {
         fetchTerms();
       }
-    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
+    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey) || nsKey.startsWith('personal-')) {
       // personal- プレフィックスを除去して DB の scope_key（userId）を取り出す
+      // nsKey.startsWith('personal-') の条件は system_admin が他ユーザーの個人スコープを選択した場合に対応
       const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey.replace(/^personal-/, '');
       fetchTerms(scopeKey ? { scopeKey } : undefined);
     } else {
@@ -925,8 +1004,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       } else {
         fetchPrefixes();
       }
-    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
+    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey) || nsKey.startsWith('personal-')) {
       // personal- プレフィックスを除去して DB の scope_key（userId）を取り出す
+      // nsKey.startsWith('personal-') の条件は system_admin が他ユーザーの個人スコープを選択した場合に対応
       const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey.replace(/^personal-/, '');
       fetchPrefixes(scopeKey || undefined);
     } else {
@@ -977,8 +1057,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       } else {
         fetchPrefixes();
       }
-    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
+    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey) || nsKey.startsWith('personal-')) {
       // personal- プレフィックスを除去して DB の scope_key（userId）を取り出す
+      // nsKey.startsWith('personal-') の条件は system_admin が他ユーザーの個人スコープを選択した場合に対応
       const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey.replace(/^personal-/, '');
       fetchPrefixes(scopeKey || undefined);
     } else {
@@ -1017,8 +1098,9 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       } else {
         fetchPrefixes();
       }
-    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey)) {
+    } else if (nsKey === PERSONAL_ROOT || personalKeySet.has(nsKey) || nsKey.startsWith('personal-')) {
       // personal- プレフィックスを除去して DB の scope_key（userId）を取り出す
+      // nsKey.startsWith('personal-') の条件は system_admin が他ユーザーの個人スコープを選択した場合に対応
       const scopeKey = nsKey === PERSONAL_ROOT ? currentUserPersonalKey : nsKey.replace(/^personal-/, '');
       fetchPrefixes(scopeKey || undefined);
     } else {
@@ -1049,6 +1131,24 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [fetchTermsForCurrentNsKey, fetchPrefixesForCurrentNsKey, selectedNsKey, externalSelectedNsKey]);
+
+  // ──── 個人スコープ（personal-{userId}）選択時: そのユーザーの所属グループ＋祖先を取得
+  // 共有ダイアログに表示する共有先候補として使用する
+  useEffect(() => {
+    const effectiveKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    if (!effectiveKey?.startsWith('personal-')) {
+      setTargetUserGroups([]);
+      return;
+    }
+    const targetUserId = effectiveKey.replace(/^personal-/, '');
+    getOrganizationGroups(undefined, { memberOfUser: targetUserId })
+      .then((groups) => {
+        const orgTree = buildOrgTree(Array.isArray(groups) ? groups : []);
+        setTargetUserGroups(orgTree);
+      })
+      .catch(() => setTargetUserGroups([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNsKey, externalSelectedNsKey]);
 
   // ──── 「用語を追加」ボタン：常に活性、押すたびに空行を追加
   const handleAddRow = () => {
@@ -1280,8 +1380,34 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
 
   // 実効的な閲覧専用フラグ
   // - 外部 props の viewOnly=true は常に優先
-  // - orgグループノード選択中 かつ 自分が代表者でない場合は閲覧専用
-  const effectiveViewOnly = viewOnly || (isOrgGroupNodeSelected && !isRepresentativeOfSelected);
+  // - sys_admin の場合:
+  //     personal-{userId} ノード選択時のみ閲覧専用（個人スコープは閲覧のみ）
+  //     グループノード・組織ノード選択時は編集可能
+  // - sys_admin 以外:
+  //     orgグループノード選択中 かつ 自分が代表者でない場合は閲覧専用
+  // ※ currentUserRole は deriveUserNsRoleFromStorage() で算出済み（localStorage.userInfo.roleCd 参照）
+  const isPersonalNodeSelected = useMemo(() => {
+    const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    // 'personal-{userId}' 形式のキー（buildPersonalTreeFromStorage のキー生成ルールに準拠）
+    return (key ?? '').startsWith('personal-');
+  }, [selectedNsKey, externalSelectedNsKey]);
+
+  // 他ユーザーの個人スコープが選択中かどうか（ログインユーザー自身のノードを除く）
+  const isOtherPersonalSelected = useMemo(() => {
+    if (!isPersonalNodeSelected) return false;
+    const key = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    // 自分の個人スコープキー: 'personal-{currentUserPersonalKey}'
+    return key !== `personal-${currentUserPersonalKey}`;
+  }, [isPersonalNodeSelected, selectedNsKey, externalSelectedNsKey, currentUserPersonalKey]);
+
+  const isSysAdminRole = currentUserRole.kind === 'sys_admin';
+  const effectiveViewOnly =
+    viewOnly ||
+    isOtherPersonalSelected ||          // 他ユーザーの個人スコープは閲覧専用（共有機能のみ使用可）
+    (isSysAdminRole
+      ? false                           // sys_admin: グループ・組織ノードは編集可
+      : isOrgGroupNodeSelected && !isRepresentativeOfSelected  // 既存ロジック（変更なし）
+    );
 
 
 
@@ -1354,30 +1480,96 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
     setSelectedTermIds([]);
   };
 
-  // ShareScopeModal 用：常に sys_admin として全階層を表示する
-  const shareSourceRole: ShareSourceRole = { kind: 'sys_admin' };
-
-  // ShareScopeModal に渡す共有先ツリーデータを構築（全階層を表示）
+  // ShareScopeModal 用：選択中ノードの祖先（上位階層）をツリー構造で返す。
+  // ロールに応じて表示・活性状態を制御する：
+  //   system_admin: 組織ノード含む全祖先を表示・活性
+  //   それ以外: 組織ノードは非表示、代表者グループは活性、非代表者グループは非活性（グレー）
+  // personal-{userId} 選択時: そのユーザーの所属グループ＋祖先をツリー表示する
   const shareScopeNodes = useMemo(() => {
-    // filterTreeForUser を使わず namespaceTree をそのまま使用（全階層表示）
-    const companyNode = namespaceTree.find((n) => n.key === 'company');
-    const toScopeNode = (n: NamespaceNode): any => ({
-      key: n.key,
-      label: n.label,
-      prefix: (n as any).prefix ?? undefined,
-      children: n.children ? n.children.map(toScopeNode) : undefined,
-    });
+    const effectiveKey = externalSelectedNsKey !== undefined ? externalSelectedNsKey : selectedNsKey;
+    const isSysAdminUser = currentUserRole.kind === 'sys_admin';
 
-    // Personal ノード配下にログインユーザーを追加（UncertaintyManagement と同様の構成）
-    const personalNode: any = {
-      key: 'personal',
-      label: 'Personal',
-      children: personalChildren.length > 0 ? personalChildren.map(toScopeNode) : undefined,
+    // 選択ノードなし・組織ルートは共有先なし
+    if (!effectiveKey || effectiveKey === 'company' || effectiveKey === 'personal') {
+      return [];
+    }
+
+    // personal-{userId} ノード選択時: そのユーザーの所属グループ＋祖先をツリー表示
+    if (effectiveKey.startsWith('personal-')) {
+      if (targetUserGroups.length === 0) return [];
+      const toScopeNode = (n: NamespaceNode): any => ({
+        key: n.key,
+        label: n.label,
+        selectable: isSysAdminUser ? true : chiefGroupCds.has(n.key),
+        children: n.children ? n.children.map(toScopeNode) : undefined,
+      });
+      // system_admin は組織ノードも表示
+      if (isSysAdminUser) {
+        return [{
+          key: 'company',
+          label: t('namespaceTree.company'),
+          selectable: true,
+          children: targetUserGroups.map(toScopeNode),
+        }];
+      }
+      return targetUserGroups.map(toScopeNode);
+    }
+
+    const companyNode = namespaceTree.find((n) => n.key === 'company');
+    if (!companyNode) return [];
+
+    // effectiveKey の祖先キーを取得（company 直下から検索し、company 自身を先頭に付加）
+    const ancestorKeysUnderCompany = getAncestorKeys(
+      effectiveKey,
+      companyNode.children ?? [],
+      []
+    );
+
+    // effectiveKey が namespaceTree 上に見つからない場合
+    if (ancestorKeysUnderCompany === null) return [];
+
+    // company 自身を含めた祖先キー配列を構築
+    // 例: グループ1-1 → ['company', 'group-1']
+    const allAncestorKeys = ['company', ...ancestorKeysUnderCompany];
+
+    // 祖先キー配列をたどり、ネストした ScopeNode ツリーを再帰的に構築
+    const buildAncestorTree = (depth: number): any | null => {
+      const key = allAncestorKeys[depth];
+      if (!key) return null;
+
+      const node = findNode(key, namespaceTree);
+      if (!node) return null;
+
+      const child = buildAncestorTree(depth + 1);
+
+      // company ノード: system_admin のみ表示（それ以外はスキップして子を直接返す）
+      if (key === 'company') {
+        if (!isSysAdminUser) {
+          // company 自体は非表示、子（直下グループ）をそのまま返す
+          return child;
+        }
+        // system_admin: 組織ノードを活性で表示
+        return {
+          key: node.key,
+          label: t('namespaceTree.company'),
+          selectable: true,
+          children: child ? [child] : undefined,
+        };
+      }
+
+      // グループノード: system_admin は全活性、それ以外は代表者グループのみ活性
+      const isSelectable = isSysAdminUser || chiefGroupCds.has(key);
+      return {
+        key: node.key,
+        label: node.label,
+        selectable: isSelectable,
+        children: child ? [child] : undefined,
+      };
     };
 
-    if (!companyNode) return [personalNode];
-    return [toScopeNode(companyNode), personalNode];
-  }, [namespaceTree, personalChildren]);
+    const root = buildAncestorTree(0);
+    return root ? [root] : [];
+  }, [namespaceTree, selectedNsKey, externalSelectedNsKey, currentUserRole, chiefGroupCds, t, targetUserGroups]);
 
   // ──── ツリーノードのタイトル（件数は terms から動的計算）
   // companyDepth: 0 = Global/Personal/company ルート、1 = 部門、2 = グループ/チーム（depth 3 相当）
@@ -2322,7 +2514,7 @@ const NamespaceMain: React.FC<NamespaceMainProps> = ({
       <ShareScopeModal
         open={shareScopeOpen}
         termCount={selectedTermIds.length}
-        sourceRole={shareSourceRole}
+        sourceRole={{ kind: 'sys_admin' }}
         scopeNodes={shareScopeNodes}
         onClose={() => setShareScopeOpen(false)}
         onShare={(target) => {

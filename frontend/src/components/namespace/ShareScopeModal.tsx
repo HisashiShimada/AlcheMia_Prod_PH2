@@ -30,7 +30,12 @@ const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
     nodes.map((n) => ({
       key: n.key,
       title: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          // selectable=false のノードはグレー表示・カーソル変更
+          color: n.selectable === false ? '#bfbfbf' : undefined,
+          cursor: n.selectable === false ? 'not-allowed' : undefined,
+        }}>
           <span>{n.label}</span>
           {n.prefix && (
             <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
@@ -39,7 +44,7 @@ const ShareScopeModal: React.FC<ShareScopeModalProps> = ({
           )}
         </span>
       ),
-      selectable: true,
+      selectable: n.selectable ?? true,
       children: n.children ? toAntTreeData(n.children) : undefined,
     }));
 

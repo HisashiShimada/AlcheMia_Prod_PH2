@@ -54,6 +54,26 @@ export async function getOrganizationGroups(
       return;
     }
 
+    // all=true の場合: system_admin のみ許可・全グループを返す
+    // セキュリティ: JWT の permissions に functionId '020000'（system_admin）が含まれるか確認
+    const all = req.query.all === 'true';
+    if (all) {
+      const isSystemAdmin = req.user!.permissions.some((p) => p.functionId === '020000');
+      if (!isSystemAdmin) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'PERMISSION_DENIED',
+            message: '全グループ一覧取得はシステム管理者のみ許可されています',
+          },
+        });
+        return;
+      }
+      const groups = await organizationGroupService.getOrganizationGroups(organizationId);
+      res.json({ success: true, data: groups });
+      return;
+    }
+
     // memberOf=true の場合: ログインユーザーが所属するグループ＋全祖先グループを返す
     // （NamespaceMain のツリー構築用。chiefUserId フィルタは適用しない）
     const memberOf = req.query.memberOf === 'true';
@@ -63,6 +83,37 @@ export async function getOrganizationGroups(
         organizationId,
         undefined,
         userId
+      );
+      res.json({ success: true, data: groups });
+      return;
+    }
+
+    // memberOfUser={userId} の場合: 指定ユーザーの所属グループ＋全祖先グループを返す
+    // セキュリティ: system_admin または代表グループを持つユーザー（chiefUserId フィルタで1件以上返る）のみ許可
+    const memberOfUser = req.query.memberOfUser as string | undefined;
+    if (memberOfUser) {
+      const isSystemAdmin = req.user!.permissions.some((p) => p.functionId === '020000');
+      // system_admin 以外は、自分が代表者かどうかを確認（代表グループが1件以上あれば許可）
+      if (!isSystemAdmin) {
+        const chiefGroups = await organizationGroupService.getOrganizationGroups(
+          organizationId,
+          { chiefUserId: req.user!.userId }
+        );
+        if (chiefGroups.length === 0) {
+          res.status(403).json({
+            success: false,
+            error: {
+              code: 'PERMISSION_DENIED',
+              message: '指定ユーザーの所属グループ取得は代表者またはシステム管理者のみ許可されています',
+            },
+          });
+          return;
+        }
+      }
+      const groups = await organizationGroupService.getOrganizationGroups(
+        organizationId,
+        undefined,
+        memberOfUser
       );
       res.json({ success: true, data: groups });
       return;

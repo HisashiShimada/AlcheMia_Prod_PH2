@@ -15,6 +15,8 @@ import { body, param, query } from 'express-validator';
  * GET /api/v1/organization-groups
  * query: search は任意・文字列
  * query: visibleOnly は任意・'true' または 'false'
+ * query: all は任意・'true' または 'false'（system_admin 専用: 全グループを返す）
+ * query: memberOfUser は任意・文字列（system_admin/代表者専用: 指定ユーザーの所属グループ＋祖先を返す）
  */
 export const validateGetOrganizationGroups = [
   query('search')
@@ -25,6 +27,14 @@ export const validateGetOrganizationGroups = [
     .optional()
     .isIn(['true', 'false'])
     .withMessage('visibleOnly は "true" または "false" で指定してください'),
+  query('all')
+    .optional()
+    .isIn(['true', 'false'])
+    .withMessage('all は "true" または "false" で指定してください'),
+  query('memberOfUser')
+    .optional()
+    .isString()
+    .withMessage('memberOfUser は文字列で指定してください'),
 ];
 
 /**
