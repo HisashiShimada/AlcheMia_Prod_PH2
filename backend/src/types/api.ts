@@ -226,6 +226,9 @@ export interface InstructionData {
   
   /** メソッドID */
   methodId: string;
+
+  /** メソッド名（MAIMLのmethod@name属性。未設定時はmethodId） */
+  methodName?: string;
   
   /** トランジションID */
   transitionId: string;
